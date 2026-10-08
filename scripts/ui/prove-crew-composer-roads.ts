@@ -173,6 +173,7 @@ const { encodeSeedTranscript } = await import('../lib/seedTranscript.ts')
 const { processBashCommand } = await import('../../src/utils/processUserInput/processBashCommand.tsx')
 const { UserTextMessage } = await import('../../src/components/messages/UserTextMessage.tsx')
 const { composerTargetTaskId } = await import('../../src/state/selectors.ts')
+const { crewmateQueuedRows } = await import('../../src/components/tasks/crewmateQueue.ts')
 const { REFOCUS_CLICK_WINDOW_MS } = await import('../../src/ink/components/App.tsx')
 const CLOCK_SLEW_MS = 50
 const h = React.createElement
@@ -653,6 +654,121 @@ async function run(cols: number, rows: number): Promise<void> {
     save(`07-${entry.input}-lead`, cols, rows, scene.lines())
   }
   crewmateView.clearMainChat(scene.setState as never)
+
+  section(`§8 ${tag('a pasted block reaches the crewmate as its lines, never as the chip — on both roads; a lost paste or an image is refused and the line stays')}`)
+  {
+    const PASTE_BODY = Array.from({ length: 14 }, (_, index) => `PASTE-LINE ${index + 1} of the pasted block`).join('\n')
+    const LEAD_IN = 'read this '
+    const TAIL = ' and reply'
+    const EXPANDED = `${LEAD_IN}${PASTE_BODY}${TAIL}`
+    const CHIP = /\[Pasted text #\d+ \+13 lines\]/
+    const contentOf = (row: { message: { content: unknown } }): string => typeof row.message.content === 'string' ? row.message.content : JSON.stringify(row.message.content)
+    const localLanes = (): { operator: string[]; rows: string[] } => {
+      const task = (scene.state().tasks as Record<string, { operatorMessages?: string[]; messages?: Array<{ message: { content: unknown } }> }>)[LOCAL_ID]
+      return { operator: [...(task?.operatorMessages ?? [])], rows: (task?.messages ?? []).map(contentOf) }
+    }
+    const screenWords = (): string => scene.lines().map(line => line.trim()).join(' ').replace(/\s+/g, ' ')
+    const clearNotices = async (): Promise<void> => {
+      scene.setState(prev => ({ ...prev, notifications: { current: null, queue: [] } }))
+      await sleep(150)
+    }
+    const composeAround = async (label: string): Promise<void> => {
+      pending.edit('')
+      pending.setPastedContents({})
+      pending.setMode('prompt')
+      await sleep(150)
+      await typeWords(scene, LEAD_IN)
+      scene.push(`\x1b[200~${PASTE_BODY}\x1b[201~`)
+      const chipped = await until(() => CHIP.test(pending.text()), 4000)
+      const held = Object.values(pending.pastedContents()).some(entry => (entry as { type?: string; content?: string }).type === 'text' && (entry as { content?: string }).content === PASTE_BODY)
+      check(`${label}: the 14-line paste becomes a chip in the composer with the block held behind it`, chipped && held, `composer text ${JSON.stringify(pending.text())} · pastes ${JSON.stringify(Object.keys(pending.pastedContents()))}`)
+      await sleep(250)
+      await typeWords(scene, TAIL)
+      check(`${label}: the composer reads the typed words around the chip`, new RegExp(`^${LEAD_IN}\\[Pasted text #\\d+ \\+13 lines\\]${TAIL}$`).test(pending.text()), JSON.stringify(pending.text()))
+    }
+
+    crewmateView.enterCrewmateView(ATLAS.id, scene.setState as never)
+    await until(() => scene.state().viewingAgentTaskId === ATLAS.id, 4000)
+    await sleep(300)
+    await composeAround('hosted')
+    const resumesBefore = resumes().length
+    scene.push(ENTER)
+    const sent = await waitForCall(() => resumes().length, resumesBefore + 1)
+    await sleep(200)
+    save('08-paste-hosted', cols, rows, scene.lines())
+    const hostedCall = resumes()[resumesBefore]
+    console.log(`the hosted crewmate received: ${JSON.stringify((hostedCall?.note ?? '').slice(0, 90))}…`)
+    check('↵ hands the hosted crewmate the pasted lines in place of the chip, the typed words around them intact', sent && hostedCall?.agentId === ATLAS.id && hostedCall.note === EXPANDED, `note=${JSON.stringify((hostedCall?.note ?? '').slice(0, 160))}`)
+    check('the chip itself never reaches the hosted crewmate', !resumes().slice(resumesBefore).some(call => CHIP.test(call.note ?? '')), JSON.stringify(resumes().slice(resumesBefore).map(call => call.note)))
+    check('the composer is empty once the pasted line left', pending.text() === '', JSON.stringify(pending.text()))
+    const queuedRows = crewmateQueuedRows(ATLAS.id, { running: true, endedAt: null }, ATLAS.name, Date.now()).map(row => contentOf(row as never))
+    check('the queued echo row carries the words the crewmate received (the main chat\'s echo shape), never the chip', queuedRows.includes(EXPANDED) && !queuedRows.some(row => CHIP.test(row)), JSON.stringify(queuedRows.map(row => row.slice(0, 60))))
+    crewmateView.exitCrewmateView(scene.setState as never)
+    await until(() => scene.state().viewingAgentTaskId === undefined, 4000)
+
+    scene.setState(prev => ({ ...prev, tasks: { ...(prev.tasks as Record<string, unknown>), [LOCAL_ID]: { ...(prev.tasks as Record<string, Record<string, unknown>>)[LOCAL_ID], status: 'running', operatorMessages: [], messages: [] } } }))
+    await sleep(200)
+    crewmateView.enterCrewmateView(LOCAL_ID, scene.setState as never)
+    await until(() => scene.state().viewingAgentTaskId === LOCAL_ID, 4000)
+    await sleep(300)
+    await composeAround('in-process')
+    scene.push(ENTER)
+    await until(() => localLanes().operator.length > 0, 4000)
+    await sleep(200)
+    save('08-paste-local', cols, rows, scene.lines())
+    console.log(`the in-process crewmate received: ${JSON.stringify((localLanes().operator[0] ?? '').slice(0, 90))}…`)
+    check('↵ queues the pasted lines in place of the chip on the in-process crewmate\'s operator lane, the typed words intact', JSON.stringify(localLanes().operator) === JSON.stringify([EXPANDED]), JSON.stringify(localLanes().operator.map(line => line.slice(0, 160))))
+    check('the echo row appended to the in-process crewmate\'s transcript carries the same words, never the chip', localLanes().rows.length === 1 && localLanes().rows[0] === EXPANDED, JSON.stringify(localLanes().rows.map(row => row.slice(0, 60))))
+    check('the composer is empty once the in-process line left', pending.text() === '', JSON.stringify(pending.text()))
+
+    const LOST = 'see [Pasted text #7 +3 lines] please'
+    pending.edit('')
+    pending.setPastedContents({ 7: { id: 7, type: 'text', content: '', contentHash: '0123456789abcdef' } as never })
+    pending.edit(LOST)
+    await clearNotices()
+    const lanesBeforeLost = JSON.stringify(localLanes())
+    scene.push(ENTER)
+    const lostSaid = await until(() => screenWords().includes('no longer available'), 3000)
+    await sleep(200)
+    save('08-paste-lost', cols, rows, scene.lines())
+    check('a reference whose pasted body is gone from the store is refused with the paste-unavailable line and nothing is delivered', JSON.stringify(localLanes()) === lanesBeforeLost && lostSaid, `lanes ${JSON.stringify(localLanes().operator)} · ${footerOf(scene.lines()).replace(/\s+/g, ' ').slice(0, 200)}`)
+    check('the line with the lost reference stays in the composer', pending.text() === LOST, JSON.stringify(pending.text()))
+
+    const WITH_IMAGE = 'look at [Image #2] for me'
+    const seedImage = async (): Promise<void> => {
+      pending.edit('')
+      pending.setPastedContents({ 2: { id: 2, type: 'image', content: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==', mediaType: 'image/png', filename: 'image-2.png' } as never })
+      pending.edit(WITH_IMAGE)
+      await clearNotices()
+    }
+    const refusedWith = (name: string): boolean => screenWords().includes(`${name} did not take the message: a crewmate reads words, never an image — send the image to ${LEAD_ROW}, or describe it — the draft stays`)
+    await seedImage()
+    const lanesBeforeImage = JSON.stringify(localLanes())
+    scene.push(ENTER)
+    const localImageSaid = await until(() => refusedWith(LOCAL_NAME), 3000)
+    await sleep(200)
+    save('08-paste-image-local', cols, rows, scene.lines())
+    check('an image paste is refused on the in-process road with the words-only sentence and nothing is delivered', JSON.stringify(localLanes()) === lanesBeforeImage && localImageSaid, `lanes ${JSON.stringify(localLanes().operator)} · ${footerOf(scene.lines()).replace(/\s+/g, ' ').slice(0, 240)}`)
+    check('the line with the image stays in the composer', pending.text() === WITH_IMAGE, JSON.stringify(pending.text()))
+    crewmateView.exitCrewmateView(scene.setState as never)
+    await until(() => scene.state().viewingAgentTaskId === undefined, 4000)
+
+    crewmateView.enterCrewmateView(ATLAS.id, scene.setState as never)
+    await until(() => scene.state().viewingAgentTaskId === ATLAS.id, 4000)
+    await sleep(300)
+    await seedImage()
+    const hostedBeforeImage = resumes().length
+    scene.push(ENTER)
+    const hostedImageSaid = await until(() => refusedWith(ATLAS.name), 3000)
+    await sleep(200)
+    save('08-paste-image-hosted', cols, rows, scene.lines())
+    check('an image paste is refused on the hosted road too — no resume call carries it', resumes().length === hostedBeforeImage && hostedImageSaid, `resumes ${JSON.stringify(resumes().slice(hostedBeforeImage).map(call => call.note))} · ${footerOf(scene.lines()).replace(/\s+/g, ' ').slice(0, 240)}`)
+    check('the line with the image stays in the composer on the hosted road', pending.text() === WITH_IMAGE, JSON.stringify(pending.text()))
+    pending.edit('')
+    pending.setPastedContents({})
+    crewmateView.exitCrewmateView(scene.setState as never)
+    await until(() => scene.state().viewingAgentTaskId === undefined, 4000)
+  }
 
   await scene.close()
 }
