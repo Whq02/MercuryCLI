@@ -25,14 +25,14 @@ type RedirectionRecord = {
 
 class TreeSitterParsedCommand implements IParsedCommand {
   readonly originalCommand: string
-  private readonly commandBytes: Buffer
+  private readonly source: string
   private readonly pipePositions: number[]
   private readonly redirections: RedirectionRecord[]
   private readonly analysis: TreeSitterAnalysis
 
   constructor(command: string, rootNode: Node) {
     this.originalCommand = command
-    this.commandBytes = Buffer.from(command, 'utf8')
+    this.source = command
     this.pipePositions = collectPipePositions(rootNode)
     this.redirections = collectOutputRedirections(rootNode)
     this.analysis = analyzeCommand(rootNode, command)
@@ -49,10 +49,10 @@ class TreeSitterParsedCommand implements IParsedCommand {
     const segments: string[] = []
     let start = 0
     for (const position of this.pipePositions) {
-      segments.push(this.commandBytes.subarray(start, position).toString('utf8'))
+      segments.push(this.source.slice(start, position))
       start = position + 1
     }
-    segments.push(this.commandBytes.subarray(start).toString('utf8'))
+    segments.push(this.source.slice(start))
     return segments.map(segment => segment.trim()).filter(segment => segment.length > 0)
   }
 
@@ -61,11 +61,11 @@ class TreeSitterParsedCommand implements IParsedCommand {
       return this.originalCommand
     }
     const ordered = [...this.redirections].sort((a, b) => b.startIndex - a.startIndex)
-    let bytes = this.commandBytes
+    let text = this.source
     for (const record of ordered) {
-      bytes = Buffer.concat([bytes.subarray(0, record.startIndex), bytes.subarray(record.endIndex)])
+      text = text.slice(0, record.startIndex) + text.slice(record.endIndex)
     }
-    return bytes.toString('utf8').trim().replace(/\s+/g, ' ')
+    return text.trim()
   }
 
   getOutputRedirections(): OutputRedirection[] {
