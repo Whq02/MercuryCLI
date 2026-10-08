@@ -115,6 +115,12 @@
       "modules": [
         "constants"
       ]
+    },
+    "shared-terminal-teardown": {
+      "why": "the launcher composes its crash reset from the terminal teardown data in owner order rather than copying protocol bytes",
+      "modules": [
+        "root/teardown"
+      ]
     }
   }
 }

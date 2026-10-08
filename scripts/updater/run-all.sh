@@ -10,7 +10,7 @@
 # gate-watch: scripts/gate/gate-ledger.jsonl scripts/lib/proofHomePreload.ts scripts/ops/launcher-mercury.sh scripts/splash/run-all.sh scripts/vendor/build-desktop.ts scripts/vendor/build-voice.ts
 # gate-watch: scripts/vendor/build-whisper.ts scripts/vendor/fetch-node.ts scripts/vendor/fetch-platform-packages.ts scripts/vendor/platformPackages.ts scripts/vscode/build-vsix.sh src/services/voice/voicePack.ts
 # gate-watch: src/substrate/flagRegistry.ts src/tools/FileReadTool/imagePackArm.ts src/utils/auth.ts src/utils/envUtils.ts src/utils/healthReport.ts src/utils/runtime/nodePolicy.ts
-# gate-watch: src/utils/shell/brushPack.ts vendor/brush.lock.json vendor/node.lock.json
+# gate-watch: src/utils/shell/brushPack.ts vendor/brush.lock.json vendor/node.lock.json src/ink/root/teardown.ts src/ink/termio/*
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 . "$(dirname "$0")/../lib/proof-runner.sh"
@@ -23,7 +23,7 @@ fail=0
 claimed=$(cat scripts/updater-*/members.txt 2>/dev/null | grep -v '^#' | grep -v '^$')
 
 echo "── RELEASE CHANNEL — updater/installer proofs ──"
-for prover in prove-channel-core prove-update-notice-newer prove-update-notice-stay prove-cleanup-keeps-verdict prove-status-check-agreement prove-update-provenance prove-update-installer-road prove-update-source-checkout prove-install-layout prove-update-cleanup-eperm prove-install-path prove-version-contract prove-release-workflow prove-never-public prove-splash-ship prove-gitbash-resolution prove-update-journey prove-anonymous-channel prove-artifact-signing prove-signing-surfaces prove-shim-pointer-containment prove-windows-faithful-entries prove-windows-script-policy prove-verify-receipt-bind prove-node-pack prove-release-targets prove-gh-timeout-live; do
+for prover in prove-channel-core prove-update-notice-newer prove-update-notice-stay prove-cleanup-keeps-verdict prove-status-check-agreement prove-update-provenance prove-update-installer-road prove-update-source-checkout prove-install-layout prove-update-cleanup-eperm prove-install-path prove-version-contract prove-release-workflow prove-never-public prove-splash-ship prove-gitbash-resolution prove-update-journey prove-anonymous-channel prove-artifact-signing prove-signing-surfaces prove-shim-pointer-containment prove-windows-faithful-entries prove-windows-script-policy prove-launcher-reset-owner prove-verify-receipt-bind prove-node-pack prove-release-targets prove-gh-timeout-live; do
   if printf '%s\n' "$claimed" | grep -qx "$prover.ts"; then
     echo ""
     echo "· $prover runs with the updater drives (scripts/updater-drives/members.txt)"

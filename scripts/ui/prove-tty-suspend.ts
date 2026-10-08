@@ -128,7 +128,7 @@ section('C · the one owner: stop disarm = exit teardown; continue re-arm = the 
   check("ctrl+z rides the stop owner (SIGTSTP), never a bare SIGSTOP", app.includes("process.kill(process.pid, 'SIGTSTP')") && !app.includes("'SIGSTOP'"))
 
   const mouseLiteral = /\\x1b\[\?100[0236][hl]|\\u001b\[\?100[0236][hl]|\[\?100[0236][hl]/
-  const SPELLS_BY_NAME = ['src/ink/termio/dec.ts', 'src/services/privateChannel/installLayout.ts']
+  const SPELLS_BY_NAME = ['src/ink/termio/dec.ts']
   const offenders: string[] = []
   const walk = (dir: string): void => {
     for (const name of readdirSync(dir)) {

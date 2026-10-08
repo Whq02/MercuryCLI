@@ -23,6 +23,7 @@ import { homedir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { getMercuryHome } from '../../utils/envUtils.js'
 import { NODE_SUPPORT } from '../../utils/runtime/nodePolicy.js'
+import { TEARDOWN_SUITE } from '../../ink/root/teardown.js'
 import {
   BUNDLE_MEMBER_NAMES,
   describePayload,
@@ -668,7 +669,7 @@ if [ -f "$root/$ver/mercury.cmd" ] && [ -f "$root/$ver/mercury.mjs" ]; then
     "$node_bin" "$bundle" "$@"
     rt=$?
     if [ -t 1 ] && [ "$rt" != "0" ]; then
-      "$node_bin" -e "process.stdout.write('\\x1b[?2026l\\x1b[0m\\x1b[?1000l\\x1b[?1002l\\x1b[?1003l\\x1b[?1006l\\x1b[?1004l\\x1b[?2004l\\x1b[?1007l\\x1b[?1049l\\x1b[?1004l\\x1b[?25h\\x1b]111\\x07')" 2>/dev/null || true
+      "$node_bin" -e ${JSON.stringify(`process.stdout.write(${JSON.stringify(TEARDOWN_SUITE.flatMap(step => step.kind === 'bytes' && (step.when === 'always' || step.when === 'alt-only') ? [step.bytes] : []).join(''))})`)} 2>/dev/null || true
     fi
     exit $rt
   fi
