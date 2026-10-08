@@ -61,6 +61,8 @@ const COST_HAIKU_35: ModelCosts = {
   webSearchRequests: WEB_SEARCH_PER_REQUEST,
 }
 const COST_HAIKU_45: ModelCosts = tierFromInputOutput(1, 5)
+const COST_HAIKU_55: ModelCosts = tierFromInputOutput(0.1, 0.5)
+const COST_HAIKU_55_LONG: ModelCosts = tierFromInputOutput(0.5, 2.5)
 
 export const COST_LOCAL_SERVER: ModelCosts = {
   inputTokens: 0,
@@ -75,6 +77,7 @@ export const COST_UNPRICED: ModelCosts = { ...COST_LOCAL_SERVER }
 export const MODEL_COSTS: Record<ModelShortName, ModelCosts> = {
   'claude-3-5-haiku': COST_HAIKU_35,
   'claude-haiku-4-5': COST_HAIKU_45,
+  'claude-haiku-5-5': COST_HAIKU_55,
   'claude-3-5-sonnet': COST_TIER_3_15,
   'claude-3-7-sonnet': COST_TIER_3_15,
   'claude-sonnet-4': COST_TIER_3_15,
@@ -121,13 +124,19 @@ const recorded = (costs: ModelCosts | undefined): ResolvedModelPricing | undefin
 
 const FIRST_PARTY_FALLBACK_TIER: ModelCosts = COST_TIER_5_25
 
-function firstPartyPricing(model: string): ResolvedModelPricing {
-  const tier = MODEL_COSTS[getCanonicalName(model)]
+function firstPartyCosts(model: string, promptTokens: number | undefined): ModelCosts | undefined {
+  const canonical = getCanonicalName(model)
+  if (canonical === 'claude-haiku-5-5' && promptTokens !== undefined && promptTokens > 100_000) return COST_HAIKU_55_LONG
+  return MODEL_COSTS[canonical]
+}
+
+function firstPartyPricing(model: string, promptTokens: number | undefined): ResolvedModelPricing {
+  const tier = firstPartyCosts(model, promptTokens)
   if (tier) return { costs: tier, basis: 'recorded' }
   const head = familyHeadOf(model)
   const estimateFrom = head !== null ? ALL_MODEL_CONFIGS[head].firstParty : firstPartyDefaultSetting()
   if (estimateFrom !== undefined) {
-    const fallback = MODEL_COSTS[getCanonicalName(estimateFrom)]
+    const fallback = firstPartyCosts(estimateFrom, promptTokens)
     if (fallback) return { costs: fallback, basis: 'family-estimate' }
   }
   return { costs: FIRST_PARTY_FALLBACK_TIER, basis: 'family-estimate' }
@@ -180,7 +189,7 @@ function huggingfaceFloorPricing(model: string): ResolvedModelPricing | undefine
 type PricingOwner = (model: string, promptTokens: number | undefined) => ResolvedModelPricing | undefined
 
 const PRICING_OWNERS: Record<CallModelRoute, PricingOwner> = {
-  anthropic: model => firstPartyPricing(model),
+  anthropic: (model, promptTokens) => firstPartyPricing(model, promptTokens),
   openai: (model, promptTokens) => {
     const pin = gptDisplayPin(model)
     return pin === undefined ? undefined : recorded(engineTier(gptPriceTierFor(pin, promptTokens)))

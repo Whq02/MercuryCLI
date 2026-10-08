@@ -97,6 +97,7 @@ const MENU = [
 const MODEL_NAMES = {
   "claude-3-5-haiku-20241022": "Claude 3.5 Haiku",
   "claude-haiku-4-5-20251001": "Haiku 4.5",
+  "claude-haiku-5-5": "Haiku 5.5",
   "claude-3-5-sonnet-20241022": "Claude 3.5 Sonnet",
   "claude-3-7-sonnet-20250219": "Claude 3.7 Sonnet",
   "claude-sonnet-4-20250514": "Sonnet 4",
@@ -144,7 +145,7 @@ const MODEL_NAMES = {
   "glm-5.2": "GLM-5.2",
   "sonnet": "Sonnet 5.5",
   "opus": "Opus 5.5",
-  "haiku": "Haiku 4.5",
+  "haiku": "Haiku 5.5",
   "fable": "Fable 5.1",
   "fable51": "Fable 5.1",
   "mythos": "Mythos 5",
