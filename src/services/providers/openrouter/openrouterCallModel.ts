@@ -20,10 +20,13 @@ import {
   resolveOpenrouterRequestAuth,
 } from './openrouterAccounts.js'
 import {
+  clearOpenrouterUsageLimit,
+  openrouterLimitWindow,
   recordOpenrouterRateHeaders,
   refreshOpenrouterKeyUsage,
 } from './openrouterUsageState.js'
 import { openrouterResponsesTransport } from './openrouterResponsesTransport.js'
+import { refreshProviderUsage } from '../providerUsage.js'
 import { getInitialSettings } from '../../../utils/settings/settings.js'
 import { openrouterProviderObject } from './openrouterRoutingPolicy.js'
 
@@ -79,9 +82,10 @@ export const openrouterLaneProfile: CompatLaneProfile = {
     fault.status === 503 && /no available (model )?provider/i.test(fault.message) && extra?.provider !== undefined
       ? ' — no OpenRouter endpoint met your routing policy; /config → OpenRouter routing policy widens it'
       : undefined,
-  onResponseHeaders: headers => {
+  onResponseHeaders: (headers, status) => {
     recordOpenrouterRateHeaders(headers)
-    void refreshOpenrouterKeyUsage().catch(() => {})
+    if (status !== undefined && status >= 200 && status < 300) clearOpenrouterUsageLimit()
+    void refreshOpenrouterKeyUsage({ force: status === 429 }).catch(() => {})
     const account = resolveOpenrouterAccount()
     if (account) void refreshOpenrouterCatalogue(account.keySource).catch(() => {})
   },
@@ -94,5 +98,6 @@ export function openrouterLiveProofState(): { at: number; model: string } | null
 export async function* openrouterCallModel(
   params: CompatCallModelParams,
 ): AsyncGenerator<StreamEvent | AssistantMessage | SystemAPIErrorMessage, void> {
+  if (openrouterLimitWindow().state === 'limited') await refreshProviderUsage('openrouter', { force: true, reason: 'operator' })
   yield* compatChatCallModel(openrouterLaneProfile, params)
 }

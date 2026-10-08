@@ -517,6 +517,13 @@ export function anthropicLimitVerdict(nowMs: number = Date.now()): AnthropicLimi
   }
 }
 
+export function clearAnthropicUsageLimit(startedAtMs: number = Date.now()): void {
+  if (!verdictOwnerStands() || currentLimits.status !== 'rejected') return
+  if (verdictObservedAtMs !== null && startedAtMs < verdictObservedAtMs) return
+  verdictObservedAtMs = startedAtMs
+  emitStatusChange({ ...currentLimits, status: 'allowed', resetsAt: undefined })
+}
+
 export type AnthropicWindowFact = {
   status: QuotaStatus
   observedAtMs: number

@@ -252,3 +252,9 @@ export function __resetOpenaiLimitStateForTest(): void {
   observedUsage = {}
   subscriptionRevision++
 }
+
+export function clearOpenaiUsageLimit(source: OpenaiLimitSource): void {
+  if (observedBySource[source] === null) return
+  observedBySource[source] = null
+  noteObservedChanged()
+}

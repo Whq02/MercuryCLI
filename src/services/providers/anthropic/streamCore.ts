@@ -139,6 +139,8 @@ import {
 } from '../../../utils/systemPromptType.js'
 import { tokenCountFromLastAPIResponse } from '../../../utils/tokens.js'
 import {
+  anthropicLimitVerdict,
+  clearAnthropicUsageLimit,
   extractQuotaStatusFromError,
   extractQuotaStatusFromHeaders,
 } from '../../anthropicLimits.js'
@@ -146,6 +148,7 @@ import {
   consumePendingCacheEdits,
   getPinnedCacheEdits,
 } from '../../compact/microCompact.js'
+import { refreshProviderUsage } from '../providerUsage.js'
 import { withStreamingVCR, withVCR } from '../../vcr.js'
 import { CLIENT_REQUEST_ID_HEADER, getAnthropicClient } from '../../api/client.js'
 import { clientContractMoveOf } from '../../api/clientContractLearned.js'
@@ -409,6 +412,7 @@ export async function* executeNonStreamingRequest(
         source: clientOptions.source,
       }),
     async (anthropic, attempt, context) => {
+      if (attempt > 1 || anthropicLimitVerdict().status === 'rejected') await refreshProviderUsage('anthropic', { force: true, reason: 'operator' })
       const start = Date.now()
       const retryParams = paramsFromContext(context)
       captureRequest(retryParams)
@@ -420,7 +424,7 @@ export async function* executeNonStreamingRequest(
       )
 
       try {
-        return await anthropic.beta.messages.create(
+        const response = await anthropic.beta.messages.create(
           {
             ...adjustedParams,
             model: normalizeModelStringForAPI(adjustedParams.model),
@@ -430,6 +434,8 @@ export async function* executeNonStreamingRequest(
             timeout: fallbackTimeoutMs,
           },
         )
+        clearAnthropicUsageLimit(start)
+        return response
       } catch (err) {
         if (err instanceof APIUserAbortError) throw err
 
@@ -991,6 +997,7 @@ async function* queryModel(
           source: options.querySource,
         }),
       async (anthropic, attempt, context) => {
+        if (attempt > 1 || anthropicLimitVerdict().status === 'rejected') await refreshProviderUsage('anthropic', { force: true, reason: 'operator' })
         attemptNumber = attempt
         start = Date.now()
 
@@ -1473,6 +1480,7 @@ async function* queryModel(
       const resp = streamResponse as unknown as Response | undefined
       if (resp) {
         extractQuotaStatusFromHeaders(resp.headers, start)
+        clearAnthropicUsageLimit(start)
       }
     } catch (streamingError) {
       clearStreamIdleTimers()

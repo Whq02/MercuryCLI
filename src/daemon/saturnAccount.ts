@@ -9,7 +9,6 @@ import { LOCAL_UNREACHABLE_REMEDY } from '../services/providers/local/localAccou
 import { anthropicWindowClosedUntil } from '../services/anthropicLimits.js'
 import { openaiWindowClosedUntil } from '../services/providers/openai/openaiLimitState.js'
 import { laneWindowClosedUntil } from '../services/providers/laneWindowFact.js'
-import { readSessionFacts } from '../services/engine-connector/seatProjections.js'
 import type { AnthropicWindowFactV1, LaneWindowFactV1, OpenaiWindowFactV1 } from '../services/engine-connector/types.js'
 import type { ScheduleAccountV1, ScheduleAccountVerdictV1 } from './saturn.js'
 
@@ -242,11 +241,5 @@ export function liveFactsForSessionFire(
   sessionId: string | undefined,
   reads: SessionFireReads = {},
 ): LiveAccountFactsV1 {
-  const factsOf = reads.factsOf ?? ((id: string): SessionWindowFactsV1 => readSessionFacts(id))
-  const now = reads.now ?? Date.now
-  return readLiveAccountFacts(account, {
-    ...reads,
-    rateLimitedUntilOf: family =>
-      reads.rateLimitedUntilOf?.(family) ?? (sessionId === undefined ? undefined : sessionWindowClosedUntil(family, factsOf(sessionId), now())),
-  })
+  return readLiveAccountFacts(account, reads)
 }

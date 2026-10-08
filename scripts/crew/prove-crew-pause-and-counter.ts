@@ -126,10 +126,10 @@ section('C3 — the paused row says PAUSED with why and the countdown')
   const running = crew.crewAgentFactsOf({ id: 'agent-1', kind: 'agent', name: 'reader', status: 'running', startTime: T0, paused: { why: 'usage limit', words: 'stale' } } as never, null)
   const failed = crew.crewAgentFactsOf({ id: 'agent-4', kind: 'agent', name: 'lost', status: 'failed', startTime: T0, endTime: T0 + 10, error: 'crashed' } as never, null)
   check('a settled row carrying a pause is paused, not failed', paused !== null && paused.state === 'paused' && paused.paused !== null && crew.crewStateLabel(paused) === 'paused', JSON.stringify(paused?.state))
-  check('the status cell: paused, why, and the countdown', paused !== null && crew.crewStatusWords(paused, now) === `paused — usage limit · resumes by itself at ${pause.pauseClockWords(now + 42 * 60_000)} (in 42m)`, paused === null ? 'null' : crew.crewStatusWords(paused, now))
-  check('a pause with no stated reset says so', busy !== null && crew.crewStatusWords(busy, now) === 'paused — provider busy · no reset stated — a message resumes it', busy === null ? 'null' : crew.crewStatusWords(busy, now))
-  check('a countdown that has run out reads "resuming now"', paused !== null && crew.crewStatusWords(paused, now + 43 * 60_000) === 'paused — usage limit · resuming now')
-  check("the row's line carries the pause's own words and the doors", paused !== null && crew.crewPauseLine(paused, now) === `paused — usage limit · resumes by itself at ${pause.pauseClockWords(now + 42 * 60_000)} (in 42m); Opus 5's 5-hour limit is spent until 15:00; ${pause.AGENT_PAUSE_DOORS}`, paused === null ? 'null' : String(crew.crewPauseLine(paused, now)))
+  check('the status cell: paused, why, and the countdown', paused !== null && crew.crewStatusWords(paused, now) === `paused — Opus 5's 5-hour limit is spent until 15:00 · retries by itself at ${pause.pauseClockWords(now + 42 * 60_000)} (in 42m) · r retries now`, paused === null ? 'null' : crew.crewStatusWords(paused, now))
+  check('a pause with no stated reset says so', busy !== null && crew.crewStatusWords(busy, now) === 'paused — the provider refused 3 times in a row (HTTP 429, busy) — the 20m retry budget is spent · no reset stated — a message resumes it · r retries now', busy === null ? 'null' : crew.crewStatusWords(busy, now))
+  check('a countdown that has run out reads "resuming now"', paused !== null && crew.crewStatusWords(paused, now + 43 * 60_000) === "paused — Opus 5's 5-hour limit is spent until 15:00 · resuming now · r retries now")
+  check("the row's line carries the pause's own words and the doors", paused !== null && crew.crewPauseLine(paused, now) === `paused — Opus 5's 5-hour limit is spent until 15:00 · retries by itself at ${pause.pauseClockWords(now + 42 * 60_000)} (in 42m) · r retries now; ${pause.AGENT_PAUSE_DOORS}`, paused === null ? 'null' : String(crew.crewPauseLine(paused, now)))
   check('a running row is never paused, whatever it carries', running !== null && running.state === 'running' && crew.crewPauseLine(running, now) === null)
   check('a failed row without a pause keeps its word', failed !== null && failed.state === 'failed' && failed.paused === null && crew.crewStatusWords(failed, now) === 'failed')
   const all = [running!, paused!, busy!, failed!]
@@ -151,12 +151,12 @@ section("C4 — the pause's owner: the provider's typed refusal pauses; anything
   const plain = { ...refusal, uuid: 'a2', isApiErrorMessage: false, error: undefined, message: { ...refusal.message, model: 'claude-opus-5', content: [{ type: 'text', text: 'done' }] } }
   const fault = { ...refusal, uuid: 'a3', error: 'server_error' }
   const windowPause = task.usageWindowPauseOf([plain, refusal] as never, 'claude-opus-5')
-  check('the refusal row pauses: why is the usage limit, the model named, no reset without an observed window', windowPause !== null && windowPause.why === 'usage limit' && /usage window is spent$/.test(windowPause.words) && windowPause.resumesAtMs === undefined, JSON.stringify(windowPause))
+  check('the refusal row pauses: why is the usage limit, the model named, no reset without an observed window', windowPause !== null && windowPause.why === 'usage limit' && windowPause.words === "Anthropic says this account's 5-hour limit is reached" && windowPause.resumesAtMs === undefined, JSON.stringify(windowPause))
   check('a plain reply pauses nothing', task.usageWindowPauseOf([refusal, plain] as never, 'claude-opus-5') === null)
   check('a fault row (not a refusal) pauses nothing', task.usageWindowPauseOf([fault] as never, 'claude-opus-5') === null)
   check('an empty run pauses nothing', task.usageWindowPauseOf([] as never, 'claude-opus-5') === null)
   check('the countdown spelling', pause.pauseCountdownWords(8_000) === '8s' && pause.pauseCountdownWords(4 * 60_000) === '4m' && pause.pauseCountdownWords(72 * 60_000) === '1h12m' && pause.pauseCountdownWords(2 * 3_600_000) === '2h')
-  check('the resume words', pause.pauseResumeWords({}, T0) === 'no reset stated — a message resumes it' && pause.pauseResumeWords({ resumesAtMs: T0 - 1 }, T0) === 'resuming now' && pause.pauseResumeWords({ resumesAtMs: T0 + 90_000 }, T0).startsWith('resumes by itself at '))
+  check('the resume words', pause.pauseResumeWords({}, T0) === 'no reset stated — a message resumes it' && pause.pauseResumeWords({ resumesAtMs: T0 - 1 }, T0) === 'resuming now' && pause.pauseResumeWords({ resumesAtMs: T0 + 90_000 }, T0).startsWith('retries by itself at '))
 }
 
 console.log(failures === 0 ? '\nprove-crew-pause-and-counter: all green' : `\nprove-crew-pause-and-counter: ${failures} FAILURE(S)`)

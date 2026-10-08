@@ -87,18 +87,17 @@ section('§B the refusal names the blocker that blocks — the window, never the
   ] as const) {
     const map = usability.resolveProviderUsability({ ...base, gptSeat: () => seat, openaiLimitWindow: limited })
     const refusal = usability.delegationDispatchBlocker('openai', map)
-    const bracket = refusal?.match(/\(([^)]*)\)/)?.[1] ?? ''
-    check(`a walled lane with the catalogue ${name} is refused for the window`, refusal !== null && refusal.includes('cannot take delegated work') && bracket.includes('usage window is reached'), String(refusal))
-    check(`…and the bracket never carries the catalogue ${name} words as if they were the block`, refusal !== null && !bracket.includes('live catalogue'), bracket)
-    check(`…while the lane's own blockers still name the catalogue ${name} for the surfaces that show the seat`, map.openai.blockers.some(b => b.includes('live catalogue')) && map.openai.blockers.some(b => b.includes('usage window is reached')), JSON.stringify(map.openai.blockers))
+    const reading = map.openai.limitBlocker ?? ''
+    check(`a noted window with the catalogue ${name} never refuses dispatch`, refusal === null, String(refusal))
+    check(`the window reading stays distinct from the catalogue ${name}`, reading.includes('usage window is reached') && !reading.includes('live catalogue'), reading)
+    check(`…while the lane's own blockers still name the catalogue ${name} for the surfaces that show the seat`, map.openai.blockers.some(b => b.includes('live catalogue')) && !map.openai.blockers.some(b => b.includes('usage window is reached')), JSON.stringify(map.openai.blockers))
   }
   const pendingOnly = usability.resolveProviderUsability({ ...base, gptSeat: () => pendingSeat })
   check('a pending catalogue alone never refuses delegated work (it is a wait, not a block)', usability.delegationDispatchBlocker('openai', pendingOnly) === null)
   const readyWalled = usability.resolveProviderUsability({ ...base, openaiLimitWindow: limited })
-  const readyRefusal = usability.delegationDispatchBlocker('openai', readyWalled) ?? ''
-  check('with the catalogue ready the bracket is the window alone', readyRefusal.match(/\(([^)]*)\)/)?.[1] === 'the openai usage window is reached — resets per /usage', readyRefusal)
-  const anthropicCapped = usability.delegationDispatchBlocker('anthropic', usability.resolveProviderUsability({ ...base, anthropicSubscriber: () => true, anthropicLimitStatus: () => 'rejected' })) ?? ''
-  check("the Anthropic refusal's bracket is its window words, as before", anthropicCapped.includes('usage window is reached') && anthropicCapped.includes('never silently rerouted'), anthropicCapped)
+  check('ready catalogue and window note dispatch with the reading intact', usability.delegationDispatchBlocker('openai', readyWalled) === null && readyWalled.openai.limitBlocker === 'the openai usage window is reached — resets per /usage')
+  const anthropic = usability.resolveProviderUsability({ ...base, anthropicSubscriber: () => true, anthropicLimitStatus: () => 'rejected' })
+  check('Anthropic also keeps its window as information', usability.delegationDispatchBlocker('anthropic', anthropic) === null && anthropic.anthropic.limitBlocker?.includes('usage window is reached') === true)
 }
 
 section('§C the catalogue memo follows the credential')
@@ -139,7 +138,7 @@ section('§D the roads: the runner reads the account again on the word, and the 
   check('the wall writer notes the credential it observed under before recording', noteAt !== -1 && recordAt !== -1 && noteAt < recordAt, `note=${noteAt} record=${recordAt}`)
   const live = src('src/services/providers/providerUsability.ts')
   check('the live window read notes the active credential before answering', live.includes('noteOpenaiSourceIdentity(active.kind, openaiSourceIdentity(active.kind))'))
-  check('the verdict reads the limit blocker, never the joined blockers, for a walled lane', live.includes('lane.limitBlocker'))
+  check('the window reading remains available outside the dispatch verdict', live.includes('limitBlocker: windowBlocker'))
 }
 
 rmSync(SCRATCH, { recursive: true, force: true })

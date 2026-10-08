@@ -18,7 +18,7 @@
 # gate-watch: src/components/mercury-ui/RailPanel.tsx src/components/mercury-ui/components.tsx
 # gate-watch: src/components/mercury-ui/parity/AccountView.tsx src/components/tasks/useFocusedWork.ts
 # gate-watch: src/constants/oauth.ts src/context/notifications.tsx src/daemon/main.ts
-# gate-watch: src/daemon/sessionSeat.ts src/hooks/*
+# gate-watch: src/daemon/sessionSeat.ts src/daemon/saturnAccount.ts src/hooks/*
 # gate-watch: src/hooks/notifs/useRateLimitWarningNotification.tsx src/ink/components/StdinContext.ts
 # gate-watch: src/ink/squash-text-nodes.ts src/ink/stringWidth.ts src/keybindings/useKeybinding.ts
 # gate-watch: src/run-core/turn-machine.ts src/screens/Chat.tsx src/services/* src/services/api/*
@@ -36,7 +36,7 @@
 # gate-watch: src/ink/events/input-event.ts
 # gate-watch: src/utils/cockpit/settingsPopup.ts
 # gate-watch: src/tools/FileWriteTool/FileWriteTool.ts src/types/message.ts
-# gate-watch: src/runner/wire/methods.ts
+# gate-watch: src/runner/wire/methods.ts src/tasks/LocalAgentTask/LocalAgentTask.tsx src/tasks/LocalAgentTask/agentPause.ts src/tools/AgentTool/resumeAgent.ts src/state/AppStateStore.ts src/utils/sessionStorage/logs.ts src/utils/config/globalConfig.ts
 # gate-watch: src/services/providers/emptyStreamRetry.ts scripts/lib/firstRunSeed.ts scripts/lib/captureDriver.ts
 # gate-watch: src/utils/cockpit/helmLanesModel.ts src/utils/cockpit/helmTelemetryModel.ts
 # gate-watch: src/utils/messages/apiPlan.ts src/utils/messages/factories.ts src/services/providers/zai/glmPins.ts
