@@ -1,19 +1,20 @@
 import type React from 'react'
 import { useCallback, useRef } from 'react'
 import { getFocusedSessionConnector } from '../../services/engine-connector/focusedConnector.js'
+import { imageBlocksOf } from '../../services/engine-connector/daemonConnector.js'
 import type { Command } from '../../commands.js'
 import type { Notification } from '../../context/notifications.js'
 import * as pendingInput from '../../input-core/pending-input.js'
 import type { AppState } from '../../state/AppState.js'
 import type { AppStateStore } from '../../state/AppStateStore.js'
 import { composerTargetTaskId } from '../../state/selectors.js'
-import { CREWMATE_BETWEEN_TURNS_DETAIL, crewmateQueuedWords, crewmateRefusedWords, crewmateResumedWords, operatorLinePlate } from '../../utils/cockpit/crewmateWords.js'
+import { CREWMATE_BETWEEN_TURNS_DETAIL, LEAD_ROW_NAME, crewmateQueuedWords, crewmateRefusedWords, crewmateResumedWords, operatorLinePlate } from '../../utils/cockpit/crewmateWords.js'
 import { queueCrewmateLine, refuseCrewmateLine } from '../tasks/crewmateQueue.js'
 import { classifyAgentViewSubmission } from './promptIntent.js'
 import { isManageableTask } from '../tasks/taskStatusUtils.js'
 import { appendMessageToLocalAgent, isLocalAgentTask, queueOperatorMessage } from '../../tasks/LocalAgentTask/LocalAgentTask.js'
 import { createUserMessage } from '../../utils/messages/factories.js'
-import { danglingReferences, pasteUnavailableLine } from '../../history.js'
+import { danglingReferences, expandPastedTextRefs, pasteUnavailableLine, resolvePastedContents } from '../../history.js'
 import { handleSpeculationAccept } from '../../services/PromptSuggestion/speculation.js'
 import type { PromptInputHelpers } from '../../types/promptInputHelpers.js'
 import type { SuggestionsState } from '../../hooks/useTypeahead.js'
@@ -24,6 +25,7 @@ import type { CompactWorkControls } from '../tasks/CompactWorkSummary.js'
 import type { useComposerCrewmate } from '../tasks/useCrewmateView.js'
 
 const DOUBLED_SLASH = '//'
+const CREWMATE_IMAGE_DETAIL = `a crewmate reads words, never an image — send the image to ${LEAD_ROW_NAME}, or describe it`
 
 export type ComposerSubmitOptions = { fromKeybinding?: boolean; isSlashPick?: boolean }
 
@@ -206,7 +208,24 @@ export function useComposerSubmit({
         const targetName = composerCrewmateRef.current?.taskId === targetId ? composerCrewmateRef.current.name : targetId
         const sendReceipt = (text: string, color?: 'warning'): void =>
           addNotification({ key: 'crewmate-send', text, priority: 'medium', timeoutMs: 6000, ...(color !== undefined ? { color } : {}), fold: (_accumulated, incoming) => incoming })
-        const deliver = async (text: string): Promise<boolean> => {
+        const pastes = pendingInput.pastedContents()
+        const deliver = async (typed: string): Promise<boolean> => {
+          const resolved = await resolvePastedContents(typed, pastes)
+          if (resolved.missing.length > 0) {
+            addNotification({
+              key: 'paste-ref-dangling',
+              text: pasteUnavailableLine(resolved.missing[0]!),
+              color: 'warning',
+              priority: 'high',
+              timeoutMs: 8000,
+            })
+            return false
+          }
+          if (imageBlocksOf(resolved.pastedContents).length > 0) {
+            sendReceipt(crewmateRefusedWords(targetName, CREWMATE_IMAGE_DETAIL), 'warning')
+            return false
+          }
+          const text = expandPastedTextRefs(typed, resolved.pastedContents)
           if (onAgentSubmit) {
             onAgentSubmit(text)
             return true
