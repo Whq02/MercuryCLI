@@ -139,7 +139,7 @@ export function writeTextContent(
   if (wantsBom && !prepared.startsWith('\uFEFF')) {
     prepared = `\uFEFF${prepared}`
   }
-  writeFileSyncAndFlush_DEPRECATED(filePath, prepared, { encoding })
+  writeFileAndFlushAtomically(filePath, prepared, { encoding })
 }
 
 export class AtomicWriteRefusal extends Error {
@@ -224,7 +224,7 @@ function guardedDirectWriteSync(target: string, content: string, encoding: Buffe
   }
 }
 
-export function writeFileSyncAndFlush_DEPRECATED(
+export function writeFileAndFlushAtomically(
   filePath: string,
   content: string,
   options: { encoding?: BufferEncoding; mode?: number } = { encoding: 'utf-8' as BufferEncoding },
