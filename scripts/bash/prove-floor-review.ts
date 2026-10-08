@@ -84,6 +84,18 @@ if (!group || group === 'append') {
     check(`explicit initial value remains provable: ${command}`, result.behavior === 'allow', result)
   }
 }
+if (!group || group === 'pipeline-deny') {
+  for (const command of ['x=rm; cat f | $x -rf victim', 'x=rm; cat f |& "$x" -rf victim', 'x=rm; echo a | cat | $x -rf victim', 'x=rm; $x -rf victim | cat']) {
+    for (const grant of [{}, { mode: 'sovereign' }, { cliAllow: ['Bash'] }, { allow: ['Bash'] }, { allow: ['Bash(cat *)', 'Bash(rm *)'] }]) {
+      for (const deny of [['Bash(rm *)'], ['Bash(rm -rf victim)']]) {
+        const result = await decide(command, { ...grant, deny })
+        check(`scoped pipeline deny survives ${JSON.stringify(grant)}: ${command}`, result.behavior === 'deny', result)
+      }
+    }
+  }
+  const data = await decide("cat <<'EOF'\nrm -rf victim\nEOF", { deny: ['Bash(rm *)'] })
+  check('heredoc data is not an executable deny candidate', data.behavior === 'allow', data)
+}
 process.chdir(before)
 rmSync(scratch, { recursive: true, force: true })
 console.log(failures ? `floor-review: ${failures} FAILURE(S)` : 'floor-review: ALL LAWS HOLD')
