@@ -946,7 +946,7 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
           id: 'command-on-path',
           label: 'Command on PATH',
           run: async () => {
-            const [{ resolveInstallProvenance }, { resolveLayoutRoots }, { commandOnPath, commandOnPathWarning, npmWrapperOnPath }] = await Promise.all([
+            const [{ resolveInstallProvenance }, { resolveLayoutRoots, readWindowsScriptPolicies, windowsScriptPolicyNotice, WIN32_POWERSHELL_ENTRY }, { commandOnPath, commandOnPathWarning, npmWrapperOnPath }] = await Promise.all([
               import('../services/privateChannel/installProvenance.js'),
               import('../services/privateChannel/installLayout.js'),
               import('../services/privateChannel/installPath.js'),
@@ -955,6 +955,10 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
             const roots = resolveLayoutRoots()
             const found = commandOnPath(roots)
             if (p.kind === 'managed') {
+              if (roots.isWindows && existsSync(join(roots.binDir, WIN32_POWERSHELL_ENTRY))) {
+                const notice = windowsScriptPolicyNotice(readWindowsScriptPolicies())
+                if (notice.length > 0) return { status: 'warn', evidence: notice[0]!, fix: notice.slice(1).join('\n') }
+              }
               const wrapper = npmWrapperOnPath(found)
               if (wrapper !== null) {
                 return { status: 'ok', evidence: `the \`mercury\` your shell runs is npm's wrapper at ${wrapper}; it hands over to the stable command ${roots.shimPath}` }
