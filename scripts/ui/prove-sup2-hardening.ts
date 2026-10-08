@@ -51,7 +51,8 @@ console.log('§2 bash-timeout — the advertised max is enforced')
   check('poison gone: no unclamped effectiveTimeout in BashTool', !bash.includes('effectiveTimeout = requestedTimeout || getDefaultTimeoutMs()'))
   check('BashTool clamps to the advertised max', bash.includes(`const effectiveTimeout = ${clamp}`))
   check('the two shell lanes share one clamp spelling', ps.includes(`const effectiveTimeout = ${clamp}`))
-  check('the advertisement still names the same accessor the clamp reads', bash.includes('max ${getMaxTimeoutMs()}'))
+  const prompt = read('src/tools/BashTool/prompt.ts')
+  check('the advertisement names the same max the clamp reads', bash.includes('describeTimeout') && /max \$\{getMax(?:Bash)?TimeoutMs\(\)\}/.test(prompt))
 }
 
 console.log('§3 concourse on a small window — it composes, never refuses')
