@@ -29,7 +29,7 @@
 # gate-watch: src/utils/processUserInput/processBashCommand.tsx src/utils/settings/types.ts src/utils/settings/settings.ts src/utils/shell/*
 # gate-watch: src/utils/task/diskOutput.ts vendor/brush.lock.json
 # gate-watch: src/rows/* src/runner/wire/*
-# gate-watch: src/tools/BashTool/pathValidation.ts src/tools/BashTool/bashCommandHelpers.ts src/utils/bash/commands.ts src/utils/bash/ParsedCommand.ts
+# gate-watch: src/tools/BashTool/pathValidation.ts src/tools/BashTool/bashCommandHelpers.ts src/tools/BashTool/sedEditParser.ts src/utils/bash/commands.ts src/utils/bash/ParsedCommand.ts
 # gate-watch: src/utils/permissions/decision/wrapper.ts src/utils/permissions/decision/engine.ts src/utils/permissions/decision/requestMessage.ts src/utils/config.ts
 # gate-watch: src/context.ts src/utils/gitRules.ts src/utils/config/globalConfig.ts src/utils/settings/settingsCache.ts src/tools/BashTool/BashToolResultMessage.tsx
 # gate-watch: src/services/tools/toolExecution.ts src/utils/hooks/sessionHooks.ts src/utils/messages/**
