@@ -1187,7 +1187,7 @@ const NO_SUMMARY = String.raw`(?:no\s+summary\s+(?:will|can|could)\s+be\s+(?:pro
 const OPENING_REFUSAL = new RegExp(String.raw`^(?:${INABILITY}\s+(?:${SUMMARY_OBJECT}|${HELP_OBJECT})|${NO_SUMMARY})`, 'i')
 const SENTENCE_REFUSAL = new RegExp(String.raw`^(?:${INABILITY}\s+${SUMMARY_OBJECT}|${NO_SUMMARY})`, 'i')
 const HEDGED_REFUSAL_CEILING = 800
-const SECTION_TITLE_LINE = new RegExp(String.raw`^\s*(?:#{1,6}\s*)?(?:\d{1,2}[.)]\s*)?\**(?:${SUMMARY_SECTION_TITLES.map(title => title.replace(/[()]/g, '\\$&').replace(/\s+/g, '\\s+')).join('|')})\**:?\s*$`, 'i')
+const SECTION_TITLE_LINE = new RegExp(String.raw`^\s*(?:#{1,6}\s*)?(?:\d{1,2}[.)]\s*)?\**(?:${SUMMARY_SECTION_TITLES.map(title => title.replace(/\s*\(optional\)$/, '').replace(/\s+/g, '\\s+')).join('|')})(?:\s*\(optional\))?\**:?\s*(?:\[\s*(?:\.\.\.|…)\s*\]|\.\.\.|…|[-*_]+)?\s*$`, 'i')
 const PLACEHOLDER_LINE = /^\s*(?:\[\s*(?:\.\.\.|…)\s*\]|\.\.\.|…|[-*_]+)?\s*$/
 
 function summaryBody(text: string): string {
@@ -1199,7 +1199,7 @@ function summaryBody(text: string): string {
     if (unfenced === body) break
     body = unfenced
   }
-  return body
+  return body.replace(/^<summary>\s*/, '').replace(/\s*<\/summary>$/, '').trim()
 }
 
 function summaryRefusesInProse(body: string): boolean {

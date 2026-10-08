@@ -65,6 +65,9 @@ const refusals: ReadonlyArray<readonly [string, string]> = [
   ['fenced refusal inside wrapper', '<summary>```markdown\nI cannot summarize this conversation.\n```</summary>'],
   ['wrapper inside fence', "```xml\n<summary>I'm not able to help with that.</summary>\n```"],
   ['analysis then refusal', '<analysis>thinking</analysis>\n<summary>I cannot summarize this conversation.</summary>'],
+  ['unclosed wrapper then refusal', '<summary>I cannot summarize this conversation.'],
+  ['unclosed wrapper then not able', "<summary>\nI'm not able to help with that."],
+  ['closer only after a refusal', 'I cannot summarize this conversation.</summary>'],
 ]
 const empties: ReadonlyArray<readonly [string, string]> = [
   ['the ten headings only', skeleton],
@@ -76,6 +79,8 @@ const empties: ReadonlyArray<readonly [string, string]> = [
   ['analysis only', '<analysis>I looked at everything.</analysis>'],
   ['lone punctuation', '...'],
   ['a rule', '---'],
+  ['the skeleton without the optional mark', '1. Operator Intent:\n2. Technical Ground:\n9. Next Move:\n10. Agents in flight:'],
+  ['the skeleton with dashes for content', '1. Operator Intent: -\n2. Technical Ground: -\n3. Files and Code Touched: [...]'],
 ]
 const accepted: ReadonlyArray<readonly [string, string]> = [
   ['a narrative summary', good],
@@ -88,6 +93,8 @@ const accepted: ReadonlyArray<readonly [string, string]> = [
   ['a fenced summary with a language tag', `\`\`\`markdown\n${good}\n\`\`\``],
   ['a fenced summary inside the wrapper', `<summary>\n\`\`\`text\n${good}\n\`\`\`\n</summary>`],
   ['a preface before the wrapper', `Here is the summary:\n<summary>${good}</summary>`],
+  ['an unclosed wrapper around a real summary', `<summary>${good}`],
+  ['the skeleton with none as its content', '1. Operator Intent:\n   none\n2. Technical Ground:\n   none'],
   ['a summary quoting a refusal inside the sections', '1. Operator Intent: the owner asked for the fold fix.\n2. Technical Ground: TypeScript, bun.\n3. Files and Code Touched: compact.ts.\n4. Errors and Corrections: the model said "I cannot summarize the tool output" once; retried.\n5. Problems Worked: none.'],
 ]
 const fold = async (text: string, direction: 'full' | 'from' | 'up_to'): Promise<{ installed: boolean; error: string; requests: number; kept: boolean; reads: boolean; notices: string[] }> => {
