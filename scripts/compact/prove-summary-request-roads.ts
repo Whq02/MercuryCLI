@@ -23,6 +23,7 @@ const { getModelMaxOutputTokens } = await import('../../src/utils/model/capabili
 const { FileStateCache, READ_FILE_STATE_CACHE_SIZE } = await import('../../src/utils/fileStateCache.ts')
 const { recordSentRequest } = await import('../../src/utils/forkedAgent.ts')
 const { rosterOwnerFromToolUseContext } = await import('../../src/services/run/resolveOwner.ts')
+const { noteAgentEffortWord, forgetAgentEffortWord } = await import('../../src/utils/effort.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 const { ToolSearchTool } = await import('../../src/tools/ToolSearchTool/ToolSearchTool.ts')
 const { FileReadTool } = await import('../../src/tools/FileReadTool/FileReadTool.ts')
@@ -66,6 +67,8 @@ try {
       for (const continued of [false, true]) {
         const tools = [FileReadTool]
         const owner = `posture-${road.lane}-${thinkingConfig.type}-${continued}`
+        noteAgentEffortWord(owner, 'max')
+        process.env.MERCURY_EFFORT_LEVEL = 'low'
         const context: any = { agentId: owner, abortController: new AbortController(), getAppState: () => state, setAppState: () => {}, messages: [], readFileState: new FileStateCache(READ_FILE_STATE_CACHE_SIZE, 25 * 1024 * 1024), options: { tools, commands: [], mcpClients: [], engineModel: road.model, maxThinkingTokens: 8192, thinkingConfig, isNonInteractiveSession: true, agentDefinitions: { activeAgents: [] } } }
         if (road.lane === 'openrouter-responses') tools.push(ToolSearchTool as never, { ...FileReadTool, name: 'mcp__fold_fixture__read', isMcp: true } as never)
         const signed = { type: 'thinking', thinking: 'Preserved fixture reasoning.', signature: 'fixture-signature-byte-exact' }
@@ -80,7 +83,7 @@ try {
         const ceiling = getModelMaxOutputTokens(road.model).upperLimit
         fixture.script([{ text: summary }])
         const referenceAt = fixture.captured.length
-        for await (const _ of routedCallModel({ messages, systemPrompt, thinkingConfig, tools, signal: context.abortController.signal, options: { model: road.model, getToolPermissionContext: async () => state.toolPermissionContext, isNonInteractiveSession: true, hasAppendSystemPrompt: false, maxOutputTokensOverride: ceiling, querySource: 'compact' as never, agents: [], mcpTools: [], effortValue: state.effortValue as never, ownerKey: String(rosterOwnerFromToolUseContext(context)) } })) {}
+        for await (const _ of routedCallModel({ messages, systemPrompt, thinkingConfig, tools, signal: context.abortController.signal, options: { model: road.model, getToolPermissionContext: async () => state.toolPermissionContext, isNonInteractiveSession: true, hasAppendSystemPrompt: false, maxOutputTokensOverride: ceiling, querySource: 'compact' as never, agents: [], mcpTools: [], effortValue: state.effortValue as never, agentId: owner as never, ownerKey: String(rosterOwnerFromToolUseContext(context)) } })) {}
         const reference = fixture.captured[referenceAt]?.body as any
         if (continued) recordSentRequest(String(rosterOwnerFromToolUseContext(context)), messages)
         fixture.script([{ text: summary }])
@@ -104,6 +107,8 @@ try {
         check(`${label}: route-preserved thinking rides byte-identically`, JSON.stringify(preserved(body)) === JSON.stringify(preserved(reference)), { actual: preserved(body), expected: preserved(reference) })
         if (road.dialect === 'anthropic') check(`${label}: the signed block is present and unchanged`, JSON.stringify(preserved(body)).includes(JSON.stringify(signed)), preserved(body))
         if (road.lane === 'openai') check(`${label}: encrypted reasoning stays ahead of its answer`, body?.input?.some((item: any, index: number) => JSON.stringify(item) === JSON.stringify(reasoning) && body.input[index + 1]?.type === 'message'), body?.input)
+        forgetAgentEffortWord(owner)
+        delete process.env.MERCURY_EFFORT_LEVEL
       }
     }
   }
