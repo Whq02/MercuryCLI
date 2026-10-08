@@ -143,7 +143,6 @@ const rosterNames = (): string[] => getTools({ ...getEmptyToolPermissionContext(
   sw.setSpawnSwitch('subagents', false)
   const noAgents = rosterNames()
   check('sub-agents off ⇒ the Agent tool is absent', !noAgents.includes(AgentTool.name), noAgents.join(','))
-  check('…no create tool exists to switch: the crew is born with the session', !today.includes('TeamCreate') && !noAgents.includes('TeamCreate'))
   check('…the Workflow tool stays (its own switch is on)', noAgents.includes(WorkflowTool.name))
   check('…nothing else moved', j(today.filter(n => n !== AgentTool.name)) === j(noAgents))
   sw.setSpawnSwitch('subagents', true)

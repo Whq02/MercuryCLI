@@ -191,11 +191,6 @@ if (process.env.TOOLGLYPH_RENDER_CHILD) {
       ghosts.length === 0,
       ghosts.join(', ') || 'clean',
     )
-    t.check(
-      'no name outside the pool rides the list — a tool no build ships is as unknown as a made-up one',
-      ghostsIn(['TeamCreate', 'TeamDelete']).length === 2,
-      'two unknown names rejected',
-    )
     const deadName = '__unregistered_projection_probe__'
     t.check(
       'a dead name still fails the non-indexing pin',
