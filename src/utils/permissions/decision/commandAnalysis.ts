@@ -25,7 +25,7 @@ export type {
   SimpleCommand,
 } from '../../bash/ast.js'
 export type { CommandPrefixResult } from '../../bash/commands.js'
-export { PARSE_ABORTED, type Node } from '../../bash/parser.js'
+export { PARSE_ABORTED, withBashParseScope, type Node } from '../../bash/parser.js'
 export type {
   ParsedCommandElement,
   ParsedPowerShellCommand,

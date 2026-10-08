@@ -33,7 +33,7 @@
 # gate-watch: src/utils/permissions/decision/wrapper.ts src/utils/permissions/decision/engine.ts src/utils/permissions/decision/requestMessage.ts src/utils/config.ts
 # gate-watch: src/context.ts src/utils/gitRules.ts src/utils/config/globalConfig.ts src/utils/settings/settingsCache.ts src/tools/BashTool/BashToolResultMessage.tsx
 # gate-watch: src/services/tools/toolExecution.ts src/utils/hooks/sessionHooks.ts src/utils/messages/**
-# gate-watch: src/utils/bash/ast.ts src/utils/bash/parser.ts src/utils/bash/bashParser.ts
+# gate-watch: src/utils/bash/ast.ts src/utils/bash/parser.ts src/utils/bash/bashParser.ts src/utils/bash/treeSitterAnalysis.ts src/services/structure/grammarFacility.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }
@@ -97,6 +97,7 @@ __t=$SECONDS; __rc=0; "$bun" run "$here/prove-bash-schema-words.ts" || { __rc=$?
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-bash-description-budget.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-bash-description-budget.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-rg-is-ordinary.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-rg-is-ordinary.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-parser-corpus-parity.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-parser-corpus-parity.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$bun" run "$here/prove-floor-parses.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-floor-parses.ts" "$__t" "$__rc"
 echo "############################################################"
 if [ "$fail" = "0" ]; then echo "# ✅ ALL BASH PERMISSION PROOFS PASS"; else echo "# ❌ SOME BASH PERMISSION PROOFS FAILED"; fi
 echo "############################################################"

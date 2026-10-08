@@ -2,7 +2,7 @@
 import { execFileSync, spawn } from 'node:child_process'
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
-import { DIST, MODEL, NODE, SCRATCH_ROOT, bound, childEnv, makeTally } from '../daemon/dupline-world.ts'
+import { DIST, MODEL, NODE, SCRATCH_ROOT, bound, childEnv, makeTally, type AskHost } from '../daemon/dupline-world.ts'
 import { LineReader, lastOutcome, type Frame } from '../lib/rows.ts'
 import { runScriptedTurn, seedScratchHome, startScriptedFixture, type ScriptedTurn, type SeenResult } from '../lib/scriptedTurn.ts'
 
@@ -17,6 +17,9 @@ const WHERE_PROMPT = 'say where you are'
 const CONTINUE_PROMPT = 'say where you are now'
 const BUILD_PROMPT = 'typecheck the checkout'
 const BUN = process.execPath
+const approveFixtureBash: AskHost = params => params.kind === 'tool' && params.tool_name === 'Bash'
+  ? { outcome: 'allow', input: params.input }
+  : { outcome: 'deny', message: 'Only fixture Bash approvals are expected.' }
 const TURN_MS = 240_000
 const pollRounds = (budgetMs: number, stepMs = 200): number => Math.ceil(budgetMs / stepMs)
 
@@ -104,7 +107,7 @@ const whereFixture = await startScriptedFixture(req => {
 })
 let whereTurn: ScriptedTurn = { result: null, exitCode: null, stderr: '' }
 try {
-  whereTurn = await runScriptedTurn({ runHome: join(scratch, 'home-where'), cwd: work, base: whereFixture.base, ask: ASK, timeoutMs: TURN_MS, extraEnv: { MERCURY_TASKS: '1' }, extraArgv: ['--sovereign'] })
+  whereTurn = await runScriptedTurn({ runHome: join(scratch, 'home-where'), cwd: work, base: whereFixture.base, ask: ASK, timeoutMs: TURN_MS, extraEnv: { MERCURY_TASKS: '1' }, extraArgv: ['--sovereign'], host: approveFixtureBash })
 } finally {
   await whereFixture.close()
 }
@@ -200,7 +203,7 @@ const buildFixture = await startScriptedFixture(req => {
 })
 let buildTurn: ScriptedTurn = { result: null, exitCode: null, stderr: '' }
 try {
-  buildTurn = await runScriptedTurn({ runHome: join(scratch, 'home-build'), cwd: repo, base: buildFixture.base, ask: ASK, timeoutMs: TURN_MS, extraArgv: ['--sovereign'] })
+  buildTurn = await runScriptedTurn({ runHome: join(scratch, 'home-build'), cwd: repo, base: buildFixture.base, ask: ASK, timeoutMs: TURN_MS, extraArgv: ['--sovereign'], host: approveFixtureBash })
 } finally {
   await buildFixture.close()
 }
@@ -312,7 +315,7 @@ const sidecarFor = (runHome: string, description: string): Record<string, unknow
   })
   let workerTurn: ScriptedTurn = { result: null, exitCode: null, stderr: '' }
   try {
-    workerTurn = await runScriptedTurn({ runHome: workerHome, cwd: wfRepo, base: workerFixture.base, ask: WORKER_ASK, timeoutMs: 300_000, extraEnv: { MERCURY_TASKS: '1' }, extraArgv: ['--sovereign'] })
+    workerTurn = await runScriptedTurn({ runHome: workerHome, cwd: wfRepo, base: workerFixture.base, ask: WORKER_ASK, timeoutMs: 300_000, extraEnv: { MERCURY_TASKS: '1' }, extraArgv: ['--sovereign'], host: approveFixtureBash })
   } finally {
     await workerFixture.close()
   }
@@ -386,7 +389,7 @@ const sidecarFor = (runHome: string, description: string): Record<string, unknow
   })
   let effortTurn: ScriptedTurn = { result: null, exitCode: null, stderr: '' }
   try {
-    effortTurn = await runScriptedTurn({ runHome: effortHome, cwd: repo, base: effortFixture.base, ask: EFFORT_ASK, timeoutMs: TURN_MS, extraEnv: { MERCURY_TASKS: '1' }, extraArgv: ['--sovereign'] })
+    effortTurn = await runScriptedTurn({ runHome: effortHome, cwd: repo, base: effortFixture.base, ask: EFFORT_ASK, timeoutMs: TURN_MS, extraEnv: { MERCURY_TASKS: '1' }, extraArgv: ['--sovereign'], host: approveFixtureBash })
   } finally {
     await effortFixture.close()
   }

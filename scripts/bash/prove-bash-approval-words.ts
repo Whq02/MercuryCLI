@@ -75,11 +75,11 @@ console.log('\n2. the single python3 -c: one sentence naming the part and the wo
 console.log('\n3. the operator gate names the operator')
 {
   const background = await decide('sleep 1 &')
-  check('sleep 1 & → names `&`', background.decision.behavior === 'ask' && background.decision.message === 'This command uses the shell operator `&`, which needs approval.', shown(background))
+  check('sleep 1 & → names `&`', background.decision.behavior === 'ask' && background.decision.message === 'the background operator & starts work outside the foreground command; run it in the foreground, or approve', shown(background))
   const subshell = await decide('(cd x && ls)')
   check('(cd x && ls) → names `(`', subshell.decision.behavior === 'ask' && subshell.decision.message === 'This command uses the shell operator `(`, which needs approval.', shown(subshell))
   const expanding = await decide('cat < $F')
-  check('cat < $F → names `<` with its target', expanding.decision.behavior === 'ask' && expanding.decision.message === 'This command uses the shell operator `<` with a target the shell expands (`$F`), which needs approval.', shown(expanding))
+  check('cat < $F → names `<` with its target', expanding.decision.behavior === 'ask' && expanding.decision.message === 'contains simple_expansion; simplify the command, or approve', shown(expanding))
 }
 
 console.log('\n4. a pipe split across lines judges the second command as written')

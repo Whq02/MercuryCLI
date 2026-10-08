@@ -94,24 +94,26 @@ console.log('\n6. a cd in the same command asks with the read twin of the redire
 console.log('\n7. the shapes that keep refusing')
 {
   const subst = await decide('wc -l <(cat l_data.txt)')
-  check('wc -l <(cat l_data.txt) → ask naming `<(`', subst.behavior === 'ask' && subst.message === 'This command uses the shell operator `<(`, which needs approval.', shown(subst))
+  check('wc -l <(cat l_data.txt) → ask naming the parsed construct', subst.behavior === 'ask' && subst.message === 'contains process_substitution; simplify the command, or approve', shown(subst))
   const path = checkPathConstraints({ command: 'wc -l <(cat l_data.txt)' }, root, context() as never) as Verdict
   check('the path check keeps its process-substitution words', path.behavior === 'ask' && (path.message ?? '').startsWith('This command uses process substitution'), shown(path))
-  const rows: Array<[string, string]> = [
-    ['wc -l <<< "a b"', 'This command uses the shell operator `<<<`, which needs approval.'],
-    ['cat <> l_data.txt', 'This command uses the shell operator `<>`, which needs approval.'],
-    ['cat 3< l_data.txt', 'This command uses the shell operator `<`, which needs approval.'],
-    ['cat < $F', 'This command uses the shell operator `<` with a target the shell expands (`$F`), which needs approval.'],
-    ['cat < *.txt', 'This command uses the shell operator `<` with a target the shell expands (`*.txt`), which needs approval.'],
+  const rows: Array<[string, string, string | undefined]> = [
+    ['wc -l <<< "a b"', 'passthrough', '`wc -l <<< "a b"` requires approval: `` is not a command Mercury can verify as read-only.'],
+    ['cat <> l_data.txt', 'ask', 'parse error; simplify the command, or approve'],
+    ['cat 3< l_data.txt', 'allow', undefined],
+    ['cat < $F', 'ask', 'contains simple_expansion; simplify the command, or approve'],
+    ['cat < *.txt', 'ask', 'the redirect target contains an unquoted path expansion; spell out the path, or approve'],
   ]
-  for (const [command, want] of rows) {
+  for (const [command, behavior, want] of rows) {
     const v = await decide(command)
-    check(`${command} → ask: ${want}`, v.behavior === 'ask' && v.message === want, shown(v))
+    check(`${command} → ${behavior}: ${want ?? ''}`, v.behavior === behavior && v.message === want, shown(v))
   }
+  const descriptorOutside = await decide(`cat 3< ${outsideWords}`)
+  check('every input descriptor is path-checked', descriptorOutside.behavior === 'ask' && descriptorOutside.message === `Mercury needs permission to read ${outsideWords}, outside the starting folder ('${root}').`, shown(descriptorOutside))
   const interpreter = await decide('python3 < l_data.txt')
   check('python3 < l_data.txt is not allowed', interpreter.behavior !== 'allow', shown(interpreter))
   const variable = await decide('echo $X < l_data.txt')
-  check('a variable before the redirect keeps the variable words', variable.behavior === 'ask' && variable.message === 'A variable reference next to a redirect or pipe can expand to an unexpected command.', shown(variable))
+  check('a variable before the redirect keeps the variable words', variable.behavior === 'ask' && variable.message === 'reference to variable $X whose value is not statically known; simplify the command, or approve', shown(variable))
 }
 
 console.log("\n8. the scout's test: the read-only rule allows the redirect")

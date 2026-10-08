@@ -1,4 +1,3 @@
-
 type Node = {
   type: string
   text: string

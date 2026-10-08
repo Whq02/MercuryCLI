@@ -132,8 +132,142 @@
   }
  },
  "parseStub": {
-  "ls -la": null,
-  "(subshell) && x": null,
+  "ls -la": {
+   "type": "program",
+   "text": "ls -la",
+   "startIndex": 0,
+   "endIndex": 6,
+   "children": [
+    {
+     "type": "command",
+     "text": "ls -la",
+     "startIndex": 0,
+     "endIndex": 6,
+     "children": [
+      {
+       "type": "command_name",
+       "text": "ls",
+       "startIndex": 0,
+       "endIndex": 2,
+       "children": [
+        {
+         "type": "word",
+         "text": "ls",
+         "startIndex": 0,
+         "endIndex": 2,
+         "children": []
+        }
+       ]
+      },
+      {
+       "type": "word",
+       "text": "-la",
+       "startIndex": 3,
+       "endIndex": 6,
+       "children": []
+      }
+     ]
+    }
+   ]
+  },
+  "(subshell) && x": {
+   "type": "program",
+   "text": "(true) && echo x",
+   "startIndex": 0,
+   "endIndex": 16,
+   "children": [
+    {
+     "type": "list",
+     "text": "(true) && echo x",
+     "startIndex": 0,
+     "endIndex": 16,
+     "children": [
+      {
+       "type": "subshell",
+       "text": "(true)",
+       "startIndex": 0,
+       "endIndex": 6,
+       "children": [
+        {
+         "type": "(",
+         "text": "(",
+         "startIndex": 0,
+         "endIndex": 1,
+         "children": []
+        },
+        {
+         "type": "command",
+         "text": "true",
+         "startIndex": 1,
+         "endIndex": 5,
+         "children": [
+          {
+           "type": "command_name",
+           "text": "true",
+           "startIndex": 1,
+           "endIndex": 5,
+           "children": [
+            {
+             "type": "word",
+             "text": "true",
+             "startIndex": 1,
+             "endIndex": 5,
+             "children": []
+            }
+           ]
+          }
+         ]
+        },
+        {
+         "type": ")",
+         "text": ")",
+         "startIndex": 5,
+         "endIndex": 6,
+         "children": []
+        }
+       ]
+      },
+      {
+       "type": "&&",
+       "text": "&&",
+       "startIndex": 7,
+       "endIndex": 9,
+       "children": []
+      },
+      {
+       "type": "command",
+       "text": "echo x",
+       "startIndex": 10,
+       "endIndex": 16,
+       "children": [
+        {
+         "type": "command_name",
+         "text": "echo",
+         "startIndex": 10,
+         "endIndex": 14,
+         "children": [
+          {
+           "type": "word",
+           "text": "echo",
+           "startIndex": 10,
+           "endIndex": 14,
+           "children": []
+          }
+         ]
+        },
+        {
+         "type": "word",
+         "text": "x",
+         "startIndex": 15,
+         "endIndex": 16,
+         "children": []
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
   "empty": null
  },
  "security": {

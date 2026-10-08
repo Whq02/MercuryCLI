@@ -631,7 +631,7 @@ function convertAstRedirects(redirects: Redirect[]): string[] {
 function convertAstInputRedirects(redirects: Redirect[]): string[] {
   const targets: string[] = []
   for (const redirect of redirects) {
-    if (redirect.op === '<' && (redirect.fd === undefined || redirect.fd === 0)) targets.push(redirect.target)
+    if (redirect.op === '<') targets.push(redirect.target)
   }
   return targets
 }

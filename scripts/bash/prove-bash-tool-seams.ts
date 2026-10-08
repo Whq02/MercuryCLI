@@ -395,24 +395,23 @@ if (!existsSync(DIST) || !nodeBin) {
     ANTHROPIC_BASE_URL: fixture.url,
     ANTHROPIC_API_KEY: FIXTURE_API_KEY,
   }
+  const { hostRunner } = await import('../lib/runnerHost.ts')
+  const { isOutcome } = await import('../lib/rows.ts')
   const startedAt = Date.now()
-  const outcome = await new Promise<{ exit: number | null; stdout: string; stderr: string; ms: number }>(resolveRun => {
-    const child = spawn(nodeBin, [DIST, 'run', 'sandbox-probe: run the four', '--model', MODEL, '--sovereign'], { cwd, env, detached: true })
-    let stdout = ''
-    let stderr = ''
-    child.stdout.on('data', d => (stdout += d))
-    child.stderr.on('data', d => (stderr += d))
-    const deadline = setTimeout(() => {
-      try {
-        process.kill(-(child.pid as number), 'SIGKILL')
-      } catch {
-      }
-    }, 90_000)
-    child.on('close', exit => {
-      clearTimeout(deadline)
-      resolveRun({ exit, stdout, stderr, ms: Date.now() - startedAt })
-    })
-  })
+  const host = hostRunner({ node: nodeBin, dist: DIST, cwd, home: configDir, env, argv: ['--model', MODEL, '--sovereign'] })
+  host.onAsk(params => params.kind === 'tool' && params.tool_name === 'Bash'
+    ? { outcome: 'allow', input: params.input }
+    : { outcome: 'deny', message: 'Only fixture Bash approvals are expected.' })
+  await host.initialize()
+  await host.prompt('sandbox-probe: run the eight')
+  await host.waitFor('sandbox probe outcome', isOutcome, 90_000)
+  const exit = await host.stop(5_000)
+  const outcome = { exit, stdout: host.rows.map(row => JSON.stringify(row)).join('\n'), stderr: host.stderr(), ms: Date.now() - startedAt }
+  for (const turn of turns.slice(4, 8)) {
+    if (turn.kind !== 'tool_use') continue
+    const command = (turn.input as { command: string }).command
+    check(`artifact: the host explicitly approved ${JSON.stringify(command)}`, host.asks.some(ask => ask.params.kind === 'tool' && ask.params.tool_name === 'Bash' && (ask.params.input as { command?: string }).command === command))
+  }
   await fixture.close()
   interface Seen {
     text: string
