@@ -164,8 +164,8 @@ function safeGetSettings(source: string): SettingsShape {
 
 function getMergedSettings(): SettingsShape {
   try {
-    const settingsModule = require('../settings/settings.js') as { getSettings_DEPRECATED(): SettingsShape }
-    return settingsModule.getSettings_DEPRECATED() ?? {}
+    const settingsModule = require('../settings/settings.js') as { getInitialSettings(): SettingsShape }
+    return settingsModule.getInitialSettings() ?? {}
   } catch {
     return {}
   }

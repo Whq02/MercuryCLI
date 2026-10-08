@@ -4,8 +4,6 @@ import { getCwd } from './cwd.js'
 import { logError } from './log.js'
 import { subprocessEnv } from './subprocessEnv.js'
 
-export { execSyncWithDefaults_DEPRECATED } from './execFileNoThrowPortable.js'
-
 
 const DEFAULT_TIMEOUT_MS = 10 * 60 * 1000
 const ONE_MEGABYTE = 1024 * 1024

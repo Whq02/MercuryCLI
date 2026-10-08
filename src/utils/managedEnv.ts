@@ -4,7 +4,7 @@ import { isProviderManagedEnvVar, SAFE_ENV_VARS } from './managedEnvConstants.js
 import { clearMTLSCache } from './mtls.js'
 import { clearProxyCache, configureGlobalAgents } from './proxy.js'
 import { isSettingSourceEnabled, type SettingSource } from './settings/constants.js'
-import { getSettings_DEPRECATED, getSettingsForSource } from './settings/settings.js'
+import { getInitialSettings, getSettingsForSource } from './settings/settings.js'
 
 
 type EnvObject = Record<string, string>
@@ -51,7 +51,7 @@ export function applySafeConfigEnvironmentVariables(): void {
     applyFiltered(getSettingsForSource(source)?.environment?.values)
   }
   applyFiltered(getSettingsForSource('policySettings')?.environment?.values)
-  const merged = getSettings_DEPRECATED().environment?.values
+  const merged = getInitialSettings().environment?.values
   if (merged) {
     const allowlisted: EnvObject = {}
     for (const [key, value] of Object.entries(merged)) {
@@ -63,7 +63,7 @@ export function applySafeConfigEnvironmentVariables(): void {
 
 
 export function applyConfigEnvironmentVariables(): void {
-  applyFiltered(getSettings_DEPRECATED().environment?.values)
+  applyFiltered(getInitialSettings().environment?.values)
   clearCACertsCache()
   clearMTLSCache()
   clearProxyCache()

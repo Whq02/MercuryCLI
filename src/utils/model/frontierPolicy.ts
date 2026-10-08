@@ -6,7 +6,7 @@ import {
 } from '../auth.js'
 import { is1mContextDisabled } from './capabilities.js'
 import { isModelAllowed } from './modelAllowlist.js'
-import { getSettings_DEPRECATED } from '../settings/settings.js'
+import { getInitialSettings } from '../settings/settings.js'
 
 import {
   getDefaultFableModel,
@@ -139,7 +139,7 @@ function allowedUnderAllowlist(id: string): boolean {
 }
 
 export function gatherFrontierFacts(): FrontierFacts {
-  const settings = getSettings_DEPRECATED() || {}
+  const settings = getInitialSettings() || {}
   const allowlist = settings.engine?.roster
   return {
     fableEnvPin: !!process.env.MERCURY_DEFAULT_FABLE_MODEL,

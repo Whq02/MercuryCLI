@@ -388,8 +388,6 @@ export function getInitialSettings(): SettingsJson {
   return getSettingsWithErrors().settings
 }
 
-export const getSettings_DEPRECATED = getInitialSettings
-
 export type SettingsWithSources = {
   effective: SettingsJson
   sources: Array<{ source: SettingSource; settings: SettingsJson }>

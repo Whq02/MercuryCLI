@@ -1,4 +1,4 @@
-import { getSettings_DEPRECATED } from '../settings/settings.js'
+import { getInitialSettings } from '../settings/settings.js'
 import { classifyModelRoute } from '../../services/providers/idSpaces.js'
 import { isModelAlias } from './aliases.js'
 import { FIRST_PARTY_FAMILY_WORDS, isModelFamilyWord, routeOfFamilyWord } from './modelFamilies.js'
@@ -33,7 +33,7 @@ function hasMoreSpecificEntry(word: string, entries: string[]): boolean {
 }
 
 export function isModelAllowed(model: string): boolean {
-  const raw = getSettings_DEPRECATED().engine?.roster
+  const raw = getInitialSettings().engine?.roster
   if (raw === undefined) return true
   if (!Array.isArray(raw) || raw.length === 0) return false
 

@@ -116,7 +116,6 @@
     "getSettingsWithErrors",
     "getSettingsWithSources",
     "getSettingsWriteFilePathForSource",
-    "getSettings_DEPRECATED",
     "hasSkipSovereignConsentPrompt",
     "loadManagedFileSettings",
     "parseSettingsFile",

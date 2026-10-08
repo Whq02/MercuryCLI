@@ -41,7 +41,7 @@ import {
 } from './secureStorage/index.js'
 import { keychainReachable } from './secureStorage/macOsKeychainHelpers.js'
 import { readKeychainServiceSync } from './secureStorage/macOsKeychainStorage.js'
-import { getApiKeyHelperFromOutsideCheckoutSources, getSettingsForSource, getSettings_DEPRECATED } from './settings/settings.js'
+import { getApiKeyHelperFromOutsideCheckoutSources, getSettingsForSource, getInitialSettings } from './settings/settings.js'
 import { clearToolSchemaCache } from './toolSchemaCache.js'
 import {
   getApiKeyFromFileDescriptor,
@@ -68,7 +68,7 @@ export function isAnthropicAuthEnabled(): boolean {
   }
 
   if (process.env.ANTHROPIC_AUTH_TOKEN) return false
-  if (getSettings_DEPRECATED().credentials?.keyCommand) return false
+  if (getInitialSettings().credentials?.keyCommand) return false
   if (process.env.MERCURY_API_KEY_FILE_DESCRIPTOR) return false
   try {
     const { source } = getAnthropicApiKeyWithSource({ skipRetrievingKeyFromApiKeyHelper: true })
@@ -267,7 +267,7 @@ export function isCustomApiKeyApproved(key: string): boolean {
 export function getConfiguredApiKeyHelper(): string | undefined {
   if (isBareMode()) return getSettingsForSource('flagSettings')?.credentials?.keyCommand
   if (untrustedWorkspaceHeadless()) return getApiKeyHelperFromOutsideCheckoutSources()
-  return getSettings_DEPRECATED().credentials?.keyCommand
+  return getInitialSettings().credentials?.keyCommand
 }
 
 const DEFAULT_HELPER_TTL_MS = 5 * 60 * 1000

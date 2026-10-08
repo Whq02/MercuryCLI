@@ -24,7 +24,7 @@ process.env.MERCURY_CONFIG_DIR = join(scratch, 'home')
 mkdirSync(process.env.MERCURY_CONFIG_DIR, { recursive: true })
 
 const fileMod = (await import('../../src/utils/file.ts')) as Record<string, unknown>
-const write = fileMod.writeFileSyncAndFlush_DEPRECATED as (p: string, c: string, o?: { encoding?: BufferEncoding; mode?: number }) => void
+const write = fileMod.writeFileAndFlushAtomically as (p: string, c: string, o?: { encoding?: BufferEncoding; mode?: number }) => void
 const classify = fileMod.classifyAtomicWriteFailure as
   | ((code: string | undefined, facts: { platform: NodeJS.Platform; isNewFile: boolean; phase: string; attempt: number }) => string)
   | undefined

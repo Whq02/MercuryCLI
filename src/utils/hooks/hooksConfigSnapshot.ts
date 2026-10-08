@@ -1,7 +1,7 @@
 import { clearRegisteredHooks } from '../../bootstrap/state.js'
 import { untrustedWorkspaceHeadless } from '../config.js'
 import { logForDebugging } from '../debug.js'
-import { getHooksFromOutsideCheckoutSources, getSettingsForSource, getSettings_DEPRECATED } from '../settings/settings.js'
+import { getHooksFromOutsideCheckoutSources, getSettingsForSource, getInitialSettings } from '../settings/settings.js'
 import { resetSettingsCache } from '../settings/settingsCache.js'
 import { isRestrictedToExtensionsOnly } from '../settings/extensionOnlyPolicy.js'
 import type { HooksSettings } from '../settings/types.js'
@@ -11,7 +11,7 @@ function computeEffectiveHooksConfig(): HooksSettings {
   if (policy?.events?.disabled) return {}
   if (policy?.events?.managedOnly) return policy.events?.hooks ?? {}
   if (isRestrictedToExtensionsOnly('hooks')) return policy?.events?.hooks ?? {}
-  const merged = getSettings_DEPRECATED()
+  const merged = getInitialSettings()
   if (merged?.events?.disabled) return policy?.events?.hooks ?? {}
   if (untrustedWorkspaceHeadless()) {
     logForDebugging(
@@ -26,7 +26,7 @@ export function shouldAllowManagedHooksOnly(): boolean {
   const policy = getSettingsForSource('policySettings')
   if (policy?.events?.managedOnly) return true
   if (policy?.events?.disabled) return false
-  return getSettings_DEPRECATED()?.events?.disabled === true
+  return getInitialSettings()?.events?.disabled === true
 }
 
 export function shouldDisableAllHooksIncludingManaged(): boolean {

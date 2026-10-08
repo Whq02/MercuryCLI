@@ -2,7 +2,7 @@ import {
   getInitialEngineModel,
   getEngineModelOverride,
 } from '../../bootstrap/state.js'
-import { getSettings_DEPRECATED } from '../settings/settings.js'
+import { getInitialSettings } from '../settings/settings.js'
 import { logForDebugging } from '../debug.js'
 import { frontierOperatorDecision } from './frontierPolicy.js'
 import {
@@ -186,7 +186,7 @@ export function getUserSpecifiedModelSetting(): ModelSetting {
     if (envModel) {
       setting = envModel
     } else {
-      const saved = getSettings_DEPRECATED().engine?.model
+      const saved = getInitialSettings().engine?.model
       setting = saved && saved !== '' ? saved : null
     }
   }

@@ -1,4 +1,4 @@
-import { getSettings_DEPRECATED } from './settings/settings.js'
+import { getInitialSettings } from './settings/settings.js'
 import { flagEnv } from '../substrate/flagRegistry.js'
 
 
@@ -15,7 +15,7 @@ export function shouldEnableThinkingByDefault(): boolean {
     const parsed = parseInt(envValue, 10)
     return parsed > 0
   }
-  if (getSettings_DEPRECATED().engine?.reasoning === false) {
+  if (getInitialSettings().engine?.reasoning === false) {
     return false
   }
   return true

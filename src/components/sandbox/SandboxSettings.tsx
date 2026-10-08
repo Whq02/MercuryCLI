@@ -7,7 +7,7 @@ import {
   SandboxManager,
   type SandboxDependencyCheck,
 } from '../../utils/sandbox/sandbox-adapter.js'
-import { getSettings_DEPRECATED } from '../../utils/settings/settings.js'
+import { getInitialSettings } from '../../utils/settings/settings.js'
 import { Select } from '../CustomSelect/select.js'
 import { Pane } from '../design-system/Pane.js'
 import { Tab, Tabs, useTabHeaderFocus } from '../design-system/Tabs.js'
@@ -30,7 +30,7 @@ function currentMode(): SandboxMode {
 }
 
 function allowAllUnixSocketsOn(): boolean {
-  return getSettings_DEPRECATED().guardrails?.sandbox?.network?.allowAllUnixSockets === true
+  return getInitialSettings().guardrails?.sandbox?.network?.allowAllUnixSockets === true
 }
 
 function SandboxModeTab({
