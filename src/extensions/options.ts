@@ -1,5 +1,5 @@
 import { getSecureStorage } from '../utils/secureStorage/index.js'
-import { getSettings_DEPRECATED, updateSettingsForSource } from '../utils/settings/settings.js'
+import { getInitialSettings, updateSettingsForSource } from '../utils/settings/settings.js'
 import type { ManifestNeeds, ManifestOption } from './manifest.js'
 import { getExtensionDataDir } from './paths.js'
 
@@ -49,7 +49,7 @@ export function loadOptionValues(id: string, schema: NonNullable<ManifestNeeds['
   for (const [key, option] of Object.entries(schema ?? {})) {
     if (option.default !== undefined) values[key] = option.default as OptionValue
   }
-  const fromSettings = getSettings_DEPRECATED().extensions?.options?.[id]
+  const fromSettings = getInitialSettings().extensions?.options?.[id]
   if (fromSettings && typeof fromSettings === 'object') {
     for (const [key, value] of Object.entries(fromSettings)) {
       if (value !== undefined && value !== null) values[key] = value as OptionValue
@@ -88,7 +88,7 @@ export function saveOptionValues(
     if (!wrote.success) return { ok: false, error: `secure store write failed for ${id}` }
   }
   if (Object.keys(plain).length > 0) {
-    const existing = getSettings_DEPRECATED().extensions?.options?.[id] ?? {}
+    const existing = getInitialSettings().extensions?.options?.[id] ?? {}
     const { error } = updateSettingsForSource('userSettings', {
       extensions: { options: { [id]: { ...existing, ...plain } } },
     } as never)
@@ -109,7 +109,7 @@ export function deleteOptionValues(id: string): { settingsWritten: boolean } {
     if (Object.keys(next).length === 0) storage.delete()
     else storage.update(next as SecretsBlob)
   }
-  if (getSettings_DEPRECATED().extensions?.options?.[id] === undefined) return { settingsWritten: false }
+  if (getInitialSettings().extensions?.options?.[id] === undefined) return { settingsWritten: false }
   updateSettingsForSource('userSettings', { extensions: { options: { [id]: undefined } } } as never)
   return { settingsWritten: true }
 }

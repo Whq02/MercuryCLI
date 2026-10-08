@@ -19,7 +19,7 @@ import {
   extractTextContent,
   getLastAssistantMessage,
 } from '../messages.js'
-import { getSettings_DEPRECATED, getSettingsForSource } from '../settings/settings.js'
+import { getInitialSettings, getSettingsForSource } from '../settings/settings.js'
 import { clearSessionHooks } from './sessionHooks.js'
 import {
   createBaseHookInput,
@@ -972,7 +972,7 @@ export async function executeFileSuggestionCommand(
   if (shouldAllowManagedHooksOnly()) {
     fileSuggestion = getSettingsForSource('policySettings')?.files?.suggester
   } else {
-    fileSuggestion = getSettings_DEPRECATED()?.files?.suggester
+    fileSuggestion = getInitialSettings()?.files?.suggester
   }
 
   if (!fileSuggestion || fileSuggestion.type !== 'command') {
