@@ -6,6 +6,7 @@ import { join } from 'node:path'
 import { randomUUID } from 'node:crypto'
 import { BLOCK_HEADER, BLOCK_MARK, SUMMARY_HEADER, SUMMARY_MARK } from './compaction-hold-fixture-words.ts'
 import { hostRunner } from '../lib/runnerHost.ts'
+import type { Message } from '../../src/types/message.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
 const SRC = join(REPO, 'src')
@@ -44,7 +45,9 @@ type Reply = Record<string, unknown>
 type Send = { clientMessageId: string; text: string; sentAtMs: number; state: 'pending' | 'delivered' | 'queued' | 'taken'; heldFor?: 'compaction'; mode: 'prompt' | 'bash'; source?: { text: string; mode: 'prompt' | 'bash'; pastedContents: Record<number, unknown> }; withdrawing?: true }
 type Guts = {
   sends: Send[]
-  echoRows: Map<string, unknown>
+  echoRows: Map<string, Message>
+  deliveredNotices: Map<string, { row: Message; text: string; sentAtMs: number; seq: number }>
+  rawRecords: Message[]
   rpc: (req: Reply) => Promise<Reply>
   reconcileQueuedSends: (facts: Record<string, unknown>) => void
   setLiveStateWord: (word: 'compacting' | null) => void
@@ -64,7 +67,7 @@ let liveWakes = 0
 connector.subscribeLive(() => liveWakes++)
 const seed = (id: string, text: string, state: Send['state']): void => {
   g.sends = [...g.sends, { clientMessageId: id, text, sentAtMs: Date.now(), state, mode: 'prompt', source: { text, mode: 'prompt', pastedContents: {} } }]
-  g.echoRows.set(id, { ...(createUserMessage({ content: text }) as object), ...(state === 'queued' ? { queued: true } : {}) })
+  g.echoRows.set(id, { ...createUserMessage({ content: text }), ...(state === 'queued' ? { queued: true } : {}) })
   g.paint()
 }
 const sendOf = (id: string): Send | undefined => g.sends.find(s => s.clientMessageId === id)
@@ -139,11 +142,28 @@ section('F3 the count never over-reaches')
   const kept = randomUUID()
   seed(kept, 'a withdraw on its way', 'queued')
   g.sends = g.sends.map(s => (s.clientMessageId === kept ? { ...s, withdrawing: true as const } : s))
-  const notice = 'notice:' + randomUUID()
-  g.sends = [...g.sends, { clientMessageId: notice, text: 'A background agent completed a task', sentAtMs: Date.now(), state: 'queued', mode: 'prompt' }]
+  const noticeText = 'A background agent completed a task'
+  g.reconcileQueuedSends({ queue: [{ uuid: randomUUID(), value: noticeText, mode: 'task-notification', priority: 'next' }], atMs: Date.now(), busy: true, runnerGeneration: 2 })
+  const notice = g.sends.find(s => s.text === noticeText)?.clientMessageId ?? ''
+  const queuedRow = g.echoRows.get(notice)
+  const noticeRows = (): Message[] => connector.records().filter(row => row.type === 'attachment' && row.attachment.type === 'queued_command' && row.attachment.prompt === noticeText)
+  check('the real queue-facts path creates one queued notice and its byte-identical echo', notice.startsWith('notice:') && sendOf(notice)?.state === 'queued' && queuedRow !== undefined && (queuedRow as { queued?: boolean }).queued === true && noticeRows().length === 1, painted())
   const beforeCount = lostLineOf()
-  g.reconcileQueuedSends({ queue: [], atMs: Date.now(), busy: false, runnerGeneration: 3 })
-  check('a moved count leaves a send whose withdraw is on its way, and a crew notice, untouched', sendOf(kept)?.state === 'queued' && sendOf(notice) !== undefined && lostLineOf() === beforeCount, j(g.sends.map(s => [s.text, s.state, s.withdrawing])))
+  const deliveredAtMs = Date.now() + 1_000
+  g.reconcileQueuedSends({ queue: [], atMs: deliveredAtMs, busy: false, runnerGeneration: 3 })
+  check('a moved count leaves the withdrawing send queued without announcing either row lost', sendOf(kept)?.state === 'queued' && sendOf(kept)?.withdrawing === true && lostLineOf() === beforeCount, j(g.sends))
+  const committed = queuedRow === undefined ? undefined : g.deliveredNotices.get(queuedRow.uuid)
+  const deliveredRows = noticeRows()
+  check('the notice leaves sends and its queued echo, keeping one committed row at the delivery clock', sendOf(notice) === undefined && !g.echoRows.has(notice) && committed?.text === noticeText && committed.row.uuid === queuedRow?.uuid && deliveredRows.length === 1 && deliveredRows[0] === committed.row && committed.row.timestamp === new Date(deliveredAtMs).toISOString() && (committed.row as { queued?: boolean }).queued !== true && committed.row.type === 'attachment' && committed.row.attachment.type === 'queued_command' && committed.row.attachment.prompt === noticeText && committed.row.attachment.deliveredAt === new Date(deliveredAtMs).toISOString(), j({ committed, rows: deliveredRows }))
+  g.reconcileQueuedSends({ queue: [], atMs: deliveredAtMs + 1_000, busy: false, runnerGeneration: 4 })
+  check('repeated facts and another runner change neither lose nor duplicate the committed notice', noticeRows().length === 1 && g.deliveredNotices.size === 1 && lostLineOf() === beforeCount, painted())
+  if (committed !== undefined) {
+    const landed = { ...committed.row, uuid: randomUUID() } as Message
+    g.rawRecords = [...g.rawRecords, landed]
+    g.paint()
+    check('the durable transcript row replaces the committed copy once without changing the notice bytes', g.deliveredNotices.size === 0 && noticeRows().length === 1 && noticeRows()[0] === landed && sendOf(notice) === undefined, painted())
+    g.rawRecords = g.rawRecords.filter(row => row !== landed)
+  } else check('the durable transcript row has a committed notice to replace', false)
   g.sends = []
   g.echoRows.clear()
   g.paint()
