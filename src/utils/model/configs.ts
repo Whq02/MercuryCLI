@@ -13,6 +13,9 @@ export const ALL_MODEL_CONFIGS = {
     firstParty: 'claude-haiku-4-5-20251001',
     canonical: 'claude-haiku-4-5',
   },
+  haiku55: {
+    firstParty: 'claude-haiku-5-5',
+  },
   sonnet35: {
     firstParty: 'claude-3-5-sonnet-20241022',
     canonical: 'claude-3-5-sonnet',
@@ -85,7 +88,7 @@ export const FAMILY_GENERATIONS = {
   fable: ['fable51', 'fable5'],
   opus: ['opus55', 'opus5', 'opus48', 'opus47', 'opus46'],
   sonnet: ['sonnet55', 'sonnet5', 'sonnet46'],
-  haiku: ['haiku45'],
+  haiku: ['haiku55', 'haiku45'],
 } as const satisfies Record<string, readonly ModelKey[]>
 
 export type ModelFamily = keyof typeof FAMILY_GENERATIONS

@@ -103,6 +103,7 @@ const FIRST_PARTY_ALIASES: ReadonlySet<string> = new Set([
   ...MODEL_ALIASES.map(alias => alias.replace(/\[1m\]$/i, '')),
   'sonnet5',
   'sonnet55',
+  'haiku55',
   'opus5',
   'opus55',
 ])

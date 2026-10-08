@@ -59,6 +59,19 @@ always on (a request with thinking off carries no thinking parameter and
 adaptive thinking runs) and a forced tool choice becomes `auto`, the prompt
 naming the tool.
 
+`haiku` means Haiku 5.5 (`claude-haiku-5-5`); `haiku55` names that generation
+explicitly. Haiku 4.5 keeps its own picker row, and a saved full id stays on
+that generation. Haiku 5.5 has a native 1M context window, 128K output and
+adaptive thinking, with `low`, `medium`, `high`, `xhigh` and `max` effort;
+without an effort choice it uses the documented `medium` default. Forced
+tool choice is supported. Input/output prices per million tokens are
+$0.10/$0.50 through 100K prompt tokens and $0.50/$2.50 above that threshold;
+cache reads and writes count toward the prompt length. These are the
+[model facts](https://platform.claude.com/docs/en/models/haiku-5-5/overview),
+[effort levels](https://platform.claude.com/docs/en/build-with-claude/effort)
+and [prices](https://platform.claude.com/docs/en/about-claude/pricing)
+read on 2026-10-08.
+
 A new Anthropic model runs before its catalogue row lands: any id inside the
 first-party space (`claude-…`) starts from every door — the boot face's new
 session, `/clear`, `--model`, a saved setting, the crew and workflow seats,
