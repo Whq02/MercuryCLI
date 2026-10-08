@@ -28,6 +28,7 @@ import {
   PARSE_ABORTED,
   pinnedCommandAnalysis,
   splitListSegments,
+  WILDCARD_REASON,
   type Node,
   type SimpleCommand,
   type Redirect,
@@ -666,6 +667,7 @@ async function decideBashPermission(
   }
 
   if (astCommands === null) return unprovenAsk('the shell parser could not establish the commands; simplify the command, or approve')
+  if (astCommands.some(simple => simple.globOperand === true)) return unprovenAsk(WILDCARD_REASON)
 
   if (
     SandboxManager.isSandboxingEnabled() &&

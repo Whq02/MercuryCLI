@@ -116,6 +116,28 @@ for (const command of ['typeset -r x', 'declare -r x=1']) {
   pinWalk(command, refusal('declaration flag "-r" can change or prevent assignment; use a plain assignment, or approve', 'declaration_command'), null)
 }
 pinWalk('export FOO+=bar; echo "$FOO"', refusal('quoted argument consists entirely of runtime-determined content', 'string'), null)
+function globbed(argv: string[], text: string): unknown {
+  return { argv, envVars: [], redirects: [], text, globOperand: true }
+}
+function plain(argv: string[], text: string): unknown {
+  return { argv, envVars: [], redirects: [], text }
+}
+function stages(...commands: unknown[]): unknown {
+  return { kind: 'simple', commands }
+}
+for (const command of ['rm *', 'npm *', 'npm run *', 'npm *build', 'npm * *', 'bash *', 'git *', 'git push *', 'rm -rf *', 'du -sh *']) {
+  pinWalk(command, stages(globbed(command.split(' '), command)), { ok: true })
+}
+pinWalk('cat src/*.js | wc -l', stages(globbed(['cat', 'src/*.js'], 'cat src/*.js'), plain(['wc', '-l'], 'wc -l')), { ok: true })
+pinWalk('ls /tmp/a/*.txt | head -1', stages(globbed(['ls', '/tmp/a/*.txt'], 'ls /tmp/a/*.txt'), plain(['head', '-1'], 'head -1')), { ok: true })
+pinWalk('ls "/tmp/a b/"*.txt | head -1', stages(globbed(['ls', '/tmp/a b/*.txt'], 'ls "/tmp/a b/"*.txt'), plain(['head', '-1'], 'head -1')), { ok: true })
+pinWalk('grep -rn "x" src/ --include=*.ts | wc -l', stages(globbed(['grep', '-rn', 'x', 'src/', '--include=*.ts'], 'grep -rn "x" src/ --include=*.ts'), plain(['wc', '-l'], 'wc -l')), { ok: true })
+pinWalk(
+  'cp "/t/a b&c/"*.m4a "/t/out/" && find "/t/out" -name \'*.m4a\' | wc -l',
+  stages(globbed(['cp', '/t/a b&c/*.m4a', '/t/out/'], 'cp "/t/a b&c/"*.m4a "/t/out/"'), plain(['find', '/t/out', '-name', '*.m4a'], 'find "/t/out" -name \'*.m4a\''), plain(['wc', '-l'], 'wc -l')),
+  { ok: true },
+)
+pinWalk('printf -va[0] x', stages(globbed(['printf', '-va[0]', 'x'], 'printf -va[0] x')), { ok: false, reason: 'printf -v with a bracketed name evaluates array subscripts, which can execute code' })
 
 function nodeTypeTable(entries: Entry[]): Record<string, number> {
   const names = new Set<string>(['', 'ERROR', 'PARSE_ABORT', 'command', 'program'])
