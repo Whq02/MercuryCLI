@@ -137,7 +137,7 @@ function makeMessages(model: string): unknown[] {
   ]
 }
 type Run = { result?: Record<string, unknown>; error?: Error; ms: number }
-async function runFold(model: string): Promise<Run> {
+async function runFold(model: string, history: unknown[] = makeMessages(model)): Promise<Run> {
   const toolPermissionContext = { ...getEmptyToolPermissionContext(), mode: 'default' as const }
   const appState = { toolPermissionContext, sessionHooks: new Map(), tasks: {}, mcp: { clients: [], tools: [], commands: [], resources: {} }, effortValue: 'high' }
   const readFileState = new FileStateCache(READ_FILE_STATE_CACHE_SIZE, 25 * 1024 * 1024)
@@ -151,7 +151,7 @@ async function runFold(model: string): Promise<Run> {
     readFileState,
     options: { tools: [], mcpClients: [], engineModel: model, maxThinkingTokens: 0, thinkingConfig: { type: 'disabled' as const }, isNonInteractiveSession: true, agentDefinitions: { activeAgents: [] } },
   }
-  const messages = makeMessages(model)
+  const messages = history
   const posture = asSystemPrompt(['You are a fixture-driven session posture.'])
   const cacheSafe = shouldRideCacheSharingFork(model, { type: 'disabled' })
     ? { systemPrompt: posture, userContext: {}, systemContext: {}, toolUseContext: ctx, forkContextMessages: messages }
@@ -230,6 +230,32 @@ section(`§3 the long lane's death, driven — the summariser sends its first ev
   check(`the fold outlived the flat stall: ${run.ms} ms ≥ ${SILENCE_MS} ms`, run.ms >= SILENCE_MS, String(run.ms))
   check('no fold bound was hit and no lane was cut', !lines.some(l => /hit its fold bound|lane cut for/.test(l)), j(lines))
   check('the fork lane recorded its summary, not a hand-over', lines.some(l => /fork lane bound armed/.test(l)) && !lines.some(l => /handing over to the direct call/.test(l)), j(lines))
+}
+
+section('§4 the first-byte allowance on a cold prefix is never shorter than the transport\'s own first-byte budget (the fold waits at least as long as the session\'s turn would)')
+{
+  const { firstByteBudgetMs, coldPrefixOf } = await import('../../src/services/providers/streamIdleBudget.ts')
+  const allowanceOf = (lines: string[]): { allowance: number; tokens: number; prefix: string } | null => {
+    const line = lines.find(l => /fork lane bound armed — first-byte allowance \d+ ms for ≈\d+ tokens/.test(l))
+    const m = line === undefined ? null : /first-byte allowance (\d+) ms for ≈(\d+) tokens.*\((cold|warm) prefix\)/.exec(line)
+    return m === null ? null : { allowance: Number(m[1]), tokens: Number(m[2]), prefix: m[3]! }
+  }
+  fixture.script([{ text: SUMMARY_TEXT }])
+  debugLinesSince()
+  const warmRun = await runFold(HOME_MODEL)
+  const warm = allowanceOf(debugLinesSince())
+  check(`warm prefix (the last reply is ${HOME_MODEL}'s): the fold landed`, warmRun.result !== undefined && warmRun.error === undefined, (warmRun.error?.message ?? '').slice(0, 300))
+  check('warm prefix: the armed line names it warm and the allowance is the route idle budget (360000 ms)', warm !== null && warm.prefix === 'warm' && warm.allowance === 360_000, j(warm))
+  const longAsk = createUserMessage({ content: 'carry every detail of this long exploration into the summary: ' + 'the parser accepts quoted commas, the CLI verifies the output, '.repeat(400) })
+  const coldHistory = [longAsk, assistantRow('claude-opus-4-1', 'Worked through the modules under the previous model.', 150_000), createUserMessage({ content: 'now write the changelog entry' })]
+  check('the cold history reads cold to the transport\'s own prefix reader (the last reply came from another model)', coldPrefixOf(coldHistory, HOME_MODEL) === true)
+  fixture.script([{ text: SUMMARY_TEXT }])
+  debugLinesSince()
+  const coldRun = await runFold(HOME_MODEL, coldHistory)
+  const cold = allowanceOf(debugLinesSince())
+  check('cold prefix: the fold landed', coldRun.result !== undefined && coldRun.error === undefined, (coldRun.error?.message ?? '').slice(0, 300))
+  const transport = cold === null ? Number.NaN : firstByteBudgetMs({ cold: true, promptTokens: cold.tokens, idleMs: 360_000 })
+  check(`cold prefix: the armed line names it cold and the allowance (${cold?.allowance} ms for ≈${cold?.tokens} tokens) is at least the transport's own cold first-byte budget (${transport} ms) — longer than the route idle budget alone`, cold !== null && cold.prefix === 'cold' && cold.allowance >= transport && transport > 360_000, j({ cold, transport }))
 }
 
 fixture.close()

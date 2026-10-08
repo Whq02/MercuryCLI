@@ -19,7 +19,6 @@ setIsInteractive(false)
 const { createUserMessage, createAssistantMessage } = await import('../../src/utils/messages.ts')
 const { routedCallModel } = await import('../../src/services/providers/callModelRouter.ts')
 const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
-const { getModelMaxOutputTokens } = await import('../../src/utils/model/capabilities.ts')
 const { FileStateCache, READ_FILE_STATE_CACHE_SIZE } = await import('../../src/utils/fileStateCache.ts')
 const { recordSentRequest } = await import('../../src/utils/forkedAgent.ts')
 const { rosterOwnerFromToolUseContext } = await import('../../src/services/run/resolveOwner.ts')
@@ -80,10 +79,9 @@ try {
         if (road.lane === 'openrouter-responses') assistant.openrouterProviderTurn = { model: road.model.slice('openrouter/'.length), items: [reasoning, answer] }
         const messages = [createUserMessage({ content: 'Check the parser.' }), assistant, createUserMessage({ content: 'Preserve the result.' })]
         const systemPrompt = asSystemPrompt(['Synthetic fold request proof.'])
-        const ceiling = getModelMaxOutputTokens(road.model).upperLimit
         fixture.script([{ text: summary }])
         const referenceAt = fixture.captured.length
-        for await (const _ of routedCallModel({ messages, systemPrompt, thinkingConfig, tools, signal: context.abortController.signal, options: { model: road.model, getToolPermissionContext: async () => state.toolPermissionContext, isNonInteractiveSession: true, hasAppendSystemPrompt: false, maxOutputTokensOverride: ceiling, querySource: 'compact' as never, agents: [], mcpTools: [], effortValue: state.effortValue as never, agentId: owner as never, ownerKey: String(rosterOwnerFromToolUseContext(context)) } })) {}
+        for await (const _ of routedCallModel({ messages, systemPrompt, thinkingConfig, tools, signal: context.abortController.signal, options: { model: road.model, getToolPermissionContext: async () => state.toolPermissionContext, isNonInteractiveSession: true, hasAppendSystemPrompt: false, maxOutputTokensOverride: undefined, querySource: 'compact' as never, agents: [], mcpTools: [], effortValue: state.effortValue as never, agentId: owner as never, ownerKey: String(rosterOwnerFromToolUseContext(context)) } })) {}
         const reference = fixture.captured[referenceAt]?.body as any
         if (continued) recordSentRequest(String(rosterOwnerFromToolUseContext(context)), messages)
         fixture.script([{ text: summary }])

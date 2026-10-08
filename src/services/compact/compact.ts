@@ -46,13 +46,13 @@ import { getTranscriptPath } from '../../utils/sessionStorage/paths.js'
 import { tokenCountWithEstimation } from '../../utils/tokens.js'
 import { extractDiscoveredToolNames, isToolSearchEnabled } from '../../utils/toolSearch.js'
 import { sleep } from '../../utils/sleep.js'
-import { getContextWindowForModel, getModelMaxOutputTokens } from '../../utils/model/capabilities.js'
+import { getContextWindowForModel } from '../../utils/model/capabilities.js'
 import { getEngineModel } from '../../utils/model/model.js'
 import { API_ERROR_MESSAGE_PREFIX, PROMPT_TOO_LONG_ERROR_MESSAGE, getPromptTooLongTokenGap } from '../api/errors.js'
 import { type OverflowSignal, overflowGapTokens, overflowSignalOf } from '../api/overflowSignal.js'
 import { LOCAL_WINDOW_REMEDY, localFitRefusalFacts } from '../providers/local/localCatalogue.js'
 import { routedCallModel } from '../providers/callModelRouter.js'
-import { COLD_INGEST_MS_PER_1K_TOKENS, streamIdleTimeoutMsForRoute } from '../providers/streamIdleBudget.js'
+import { COLD_INGEST_MS_PER_1K_TOKENS, coldPrefixOf, firstByteBudgetMs, streamIdleTimeoutMsForRoute } from '../providers/streamIdleBudget.js'
 import { markPostCompaction } from '../api/logging.js'
 import { notifyCompaction } from '../api/promptCacheBreakDetection.js'
 import { recordWireFoldRow, type WireFoldRow } from '../api/dumpPrompts.js'
@@ -245,9 +245,10 @@ type FoldBound = {
   dispose(): void
 }
 
-function armFoldBound(parent: AbortSignal, road: WireFoldRow['road'], estTokens: number, model: string): FoldBound {
+function armFoldBound(parent: AbortSignal, road: WireFoldRow['road'], estTokens: number, model: string, cold: boolean): FoldBound {
   const stallMs = foldStallAfterFirstEventMs(model)
-  const firstByteMs = Math.max(stallMs, foldFirstByteAllowanceMs(estTokens))
+  const transportFirstByteMs = foldBoundsOverride === null ? firstByteBudgetMs({ cold, promptTokens: estTokens, idleMs: stallMs }) : 0
+  const firstByteMs = Math.max(stallMs, foldFirstByteAllowanceMs(estTokens), transportFirstByteMs)
   const controller = new AbortController()
   let timedOut = false
   let contentSeen = false
@@ -266,7 +267,7 @@ function armFoldBound(parent: AbortSignal, road: WireFoldRow['road'], estTokens:
     stall = setTimeout(expire, contentSeen ? stallMs : firstByteMs)
     stall.unref?.()
   }
-  logForDebugging(`compact: ${road} lane bound armed — first-byte allowance ${firstByteMs} ms for ≈${Math.round(estTokens)} tokens, stall ${stallMs} ms after the first event`)
+  logForDebugging(`compact: ${road} lane bound armed — first-byte allowance ${firstByteMs} ms for ≈${Math.round(estTokens)} tokens, stall ${stallMs} ms after the first event (${cold ? 'cold' : 'warm'} prefix)`)
   return {
     controller,
     signal: controller.signal,
@@ -708,7 +709,7 @@ async function summarizeViaCacheSharingFork(
   context: ToolUseContext,
 ): Promise<AssistantMessage | null> {
   const model = context.options.engineModel
-  const bound = armFoldBound(context.abortController.signal, 'fork', tokenCountWithEstimation(messages), model)
+  const bound = armFoldBound(context.abortController.signal, 'fork', tokenCountWithEstimation(messages), model, coldPrefixOf(messages, model))
   const startedAt = Date.now()
   try {
     context.setResponseLength?.(() => 0)
@@ -719,7 +720,6 @@ async function summarizeViaCacheSharingFork(
       querySource: 'compact' as never,
       forkLabel: 'compact',
       maxTurns: 1,
-      maxOutputTokens: getModelMaxOutputTokens(model).upperLimit,
       skipCacheWrite: true,
       onStreamEvent: event => {
         bound.content()
@@ -817,7 +817,7 @@ async function summarizeViaStreamingFallback(
   context: ToolUseContext,
 ): Promise<AssistantMessage> {
   const model = context.options.engineModel
-  const bound = armFoldBound(context.abortController.signal, 'direct', tokenCountWithEstimation(messages), model)
+  const bound = armFoldBound(context.abortController.signal, 'direct', tokenCountWithEstimation(messages), model, coldPrefixOf(messages, model))
   const startedAt = Date.now()
   try {
     const settled = await streamingFallbackAttempts(messages, cacheSafeParams, promptMessage, context, bound)
@@ -908,7 +908,6 @@ async function streamingFallbackAttempts(
         model,
         isNonInteractiveSession: context.options.isNonInteractiveSession,
         hasAppendSystemPrompt: Boolean(context.options.appendSystemPrompt),
-        maxOutputTokensOverride: getModelMaxOutputTokens(model).upperLimit,
         querySource: 'compact' as never,
         agents: context.options.agentDefinitions.activeAgents,
         mcpTools: [],

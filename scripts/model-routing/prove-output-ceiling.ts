@@ -248,7 +248,7 @@ async function captureRequest(model: string, thinkingConfig: { type: string; bud
   check('…and at the sibling\'s own ceiling: 100,000 caps at 64,000 on opus-4-5', overSibling?.body.max_tokens === 64_000, j(overSibling?.body.max_tokens))
 }
 
-section('§4 the compaction request follows: the cache-sharing fork sends no override, so its max_tokens is the new default; the direct lane keeps min(20,000, ceiling)')
+section('§4 the compaction request follows: neither fold lane sends an override, so its max_tokens is the session request\'s own (the default, or the operator\'s MERCURY_MAX_OUTPUT_TOKENS)')
 {
   const { compactConversation, shouldRideCacheSharingFork } = await import('../../src/services/compact/compact.ts')
   const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
@@ -289,7 +289,7 @@ section('§4 the compaction request follows: the cache-sharing fork sends no ove
   check('opus-5-5/fork: the compaction request\'s max_tokens is the new default, 128,000 (no override rides the fork)', fork.body?.max_tokens === 128_000, j(fork.body?.max_tokens))
   const direct = await runFold('claude-opus-5-5', 'direct')
   check('opus-5-5/direct: the fold resolved and reached the home wire', direct.error === undefined && direct.body !== undefined, foldDetail(direct))
-  check(`opus-5-5/direct: the direct lane uses the stated maximum = ${pair('claude-opus-5-5').upperLimit.toLocaleString('en-US')}`, direct.body?.max_tokens === pair('claude-opus-5-5').upperLimit, j(direct.body?.max_tokens))
+  check(`opus-5-5/direct: the direct lane sends the session's own max_tokens = ${getMaxOutputTokensForModel('claude-opus-5-5').toLocaleString('en-US')} (no override rides the direct lane either)`, direct.body?.max_tokens === getMaxOutputTokensForModel('claude-opus-5-5'), j(direct.body?.max_tokens))
 }
 
 section('§5 the display truth reads the one owner: the capability record, the context resolution\'s output reserve')
@@ -319,7 +319,7 @@ section('§6 the shape: one rule in the owner, every road reads it')
   check('the env door still validates MERCURY_MAX_OUTPUT_TOKENS against the default and the upper limit', core.includes("'MERCURY_MAX_OUTPUT_TOKENS',\n    process.env.MERCURY_MAX_OUTPUT_TOKENS,\n    maxOutputTokens.default,\n    maxOutputTokens.upperLimit,"))
   check('the budget road still clamps thinking to max_tokens − 1', core.includes('thinkingBudget = Math.min(maxOutputTokens - 1, thinkingBudget)'))
   const compact = src('src/services/compact/compact.ts')
-  check('both compaction lanes read the stated maximum', compact.includes('maxOutputTokensOverride: getModelMaxOutputTokens(model).upperLimit') && compact.includes('maxOutputTokens: getModelMaxOutputTokens(model).upperLimit'))
+  check('neither compaction lane overrides the output ceiling: the fold rides the session request\'s own', !compact.includes('maxOutputTokensOverride:') && !compact.includes('maxOutputTokens:') && !compact.includes('getModelMaxOutputTokens'))
 }
 
 await fixture.close()
