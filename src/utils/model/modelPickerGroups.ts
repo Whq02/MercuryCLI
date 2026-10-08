@@ -151,6 +151,20 @@ function doorLines<T extends PickerRow>(group: PickerGroup<T>, rows: readonly T[
   return out
 }
 
+function topRows<T extends PickerRow>(group: PickerGroup<T>, listed: readonly T[]): T[] {
+  if (group.doors.length < 2) return listed.slice(0, PICKER_TOP_ROWS)
+  const shown = new Set<T>()
+  for (const door of group.doors) {
+    const first = listed.find(row => (row.door ?? group.doors[0]) === door)
+    if (first !== undefined) shown.add(first)
+  }
+  for (const row of listed) {
+    if (shown.size >= PICKER_TOP_ROWS) break
+    shown.add(row)
+  }
+  return listed.filter(row => shown.has(row))
+}
+
 function reachOfGroup<T extends PickerRow>(group: PickerGroup<T>, fullRows: (group: string) => T[] | undefined): readonly T[] {
   return group.door !== undefined ? (fullRows(group.group) ?? group.rows) : group.rows
 }
@@ -189,7 +203,7 @@ export function composePickerLines<T extends PickerRow>(
     out.push({ kind: 'heading', group: group.group, fold, live })
     if (fold === 'folded') continue
     const actions = group.rows.filter(row => !isModelRow(row))
-    const shownModels = fold === 'full' ? (group.door !== undefined ? reachOf().filter(isModelRow) : listedModels) : listedModels.slice(0, PICKER_TOP_ROWS)
+    const shownModels = fold === 'full' ? (group.door !== undefined ? reachOf().filter(isModelRow) : listedModels) : topRows(group, listedModels)
     const shown = [...actions, ...shownModels]
     if (group.doors.length >= 2) out.push(...doorLines(group, shown, filter, () => 0))
     else for (const row of shown) out.push({ kind: 'row', row, key: rowKey(row) })
