@@ -146,7 +146,7 @@ if (driver.kind !== 'posix-pty') {
     { atTick: 80, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, requireAwait: true, data: '\r' },
     { atTick: 160, awaitText: 'Type a prompt', minTick: 5, awaitStableTicks: 2, requireAwait: true, data: '' },
   ]
-  const CHAT = '⇧← boot face'
+  const CHAT = 'shift + ← boot face'
   const FACE = '⇧→ chat'
   const on = (needle: string, data: string, extra: Record<string, unknown> = {}): Record<string, unknown> => ({
     atTick: 199,
