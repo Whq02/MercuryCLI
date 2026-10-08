@@ -95,6 +95,17 @@ const { getAssistantMessageFromError } = await import('../../src/services/api/er
 const burstAt = Date.now()
 const burstRow = getAssistantMessageFromError(Object.assign(new Error('429 {"error":{"message":"Please retry after 20 seconds."}}'), { status: 429, headers: new Headers({ 'retry-after': '20', 'anthropic-ratelimit-unified-status': 'rejected', 'anthropic-ratelimit-unified-reset': String(Math.floor(Date.now() / 1000) + 518400) }) }), 'claude-fable-5-1')
 check('Anthropic: the refusal row says rate limited and pauses for the explicit 20 seconds', JSON.stringify(burstRow.message.content).includes('rate limited') && (burstRow.providerWaitEndsAtMs ?? 0) >= burstAt + 20000 && (burstRow.providerWaitEndsAtMs ?? Infinity) <= Date.now() + 20000)
+const { liveFactsForSessionFire, scheduleAccountVerdict } = await import('../../src/daemon/saturnAccount.js')
+for (const family of ['anthropic', 'openai', 'openrouter', 'gemini', 'huggingface']) {
+  const live = liveFactsForSessionFire({ family, source: 'api-key' }, 'fixture-session', {
+    presenceOf: () => ({ credentialed: true, kind: 'api-key' }),
+    strandedNow: () => false,
+    anthropicDetail: () => null,
+    factsOf: () => ({ usage: { [`${family}Window`]: { status: 'rejected', owner: 'fixture', source: 'api-key', observedAtMs: now, resetsAtMs: reset } } }) as never,
+    now: () => now,
+  })
+  check(`${family}: a scheduled request is not deferred by a six-day note`, scheduleAccountVerdict({ account: { source: 'api-key' }, nextFireMs: now, nowMs: now, live }).state === 'ready')
+}
 const { createServer } = await import('node:http')
 const MODEL = 'gpt-6-astra'
 const wire: Array<{ status: number; body: string }> = []

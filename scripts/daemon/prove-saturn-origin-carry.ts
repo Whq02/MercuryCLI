@@ -223,11 +223,11 @@ console.log('§3 a wake held by a closed usage window replays at the reopen with
   publishFacts(closedWindow())
   addVia(wakeSchedule('the walled next unit'))
   const r1 = await ticker.tickSaturnOnce(ports)
-  check('the due wake is held rate-limited', r1.held === 1 && delivered.length === 0 && heldRows()[0]?.reason === 'rate-limited', j({ r1, held: heldRows() }))
+  check('the due wake dispatches despite the window reading', r1.held === 0 && r1.fired === 1 && delivered.length === 1 && heldRows().length === 0, j({ r1, held: heldRows() }))
   publishFacts(openWindow())
   const r2 = await ticker.tickSaturnOnce(ports)
   const o = originOf(delivered[0])
-  check('at the reopen it replays once and its origin names the closed window', r2.replayed === 1 && delivered.length === 1 && o !== undefined && o.heldSince === FIRED_AT && o.heldWhy === 'window' && o.fire === 'wake' && !('reason' in o), j({ r2, o }))
+  check('the reset note causes no duplicate or invented hold origin', r2.replayed === 0 && delivered.length === 1 && o !== undefined && o.heldSince === undefined && o.heldWhy === undefined && o.fire === 'wake' && !('reason' in o), j({ r2, o }))
 }
 
 console.log('§4 the prompt row and the turn road carry the origin whole; the words never change')
