@@ -2,7 +2,7 @@
 import type { StreamCutForensicsV1 } from './streamCutForensics.js'
 import { logForDebugging } from '../../../utils/debug.js'
 import type { OutageCause } from '../../api/reconnectLadder.js'
-import { retryAfterHeaderMs } from '../../api/retryAfter.js'
+import { retryAfterHeaderMs, retryAfterSaysNow } from '../../api/retryAfter.js'
 import { isTemporaryStreamError } from '../temporaryStreamError.js'
 import type { StreamCapabilityAdvertisement, TextPhase } from '../../../types/wire.js'
 
@@ -209,7 +209,8 @@ export function mapOpenaiHttpFailure(
   const retryable = isTemporaryStreamError({ code, type: errType, error_type: o?.error_type ?? err?.error_type ?? asRecord(err?.metadata)?.error_type, message, status })
   if (status === 429) {
     const now = Date.now()
-    const asked = retryAfterHeaderMs(headers?.get('retry-after') ?? undefined)
+    const retryAfterHeader = headers?.get('retry-after') ?? undefined
+    const asked = retryAfterHeaderMs(retryAfterHeader) ?? (retryAfterSaysNow(retryAfterHeader, now) ? 0 : undefined)
     const bodySeconds = err?.resets_in_seconds ?? o?.resets_in_seconds
     const seconds = typeof bodySeconds === 'number' && Number.isFinite(bodySeconds) && bodySeconds >= 0 ? bodySeconds : undefined
     const planType = err?.plan_type ?? o?.plan_type
@@ -250,7 +251,9 @@ export function mapOpenaiHttpFailure(
     const label = typeof planType === 'string' && planType !== '' ? planType : 'usage'
     const words = isWindow
       ? `the ${label} window is reached${waitMs !== undefined ? ` — resets in ${Math.ceil(waitMs / 1000)} s` : ' — no reset stated'}`
-      : `rate limited${waitMs !== undefined ? ` — the provider asks for ${Math.ceil(waitMs / 1000)} s` : ''}`
+      : waitMs === 0
+        ? 'rate limited — the provider says retry now'
+        : `rate limited${waitMs !== undefined ? ` — the provider asks for ${Math.ceil(waitMs / 1000)} s` : ''}`
     return {
       kind: 'usage-limit',
       code: code || errType ? `openai-${code ?? errType}` : 'http-429',

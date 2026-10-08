@@ -44,3 +44,13 @@ export function retryAfterHeaderMs(header: string | null | undefined, nowMs: num
   if (!Number.isFinite(at)) return undefined
   return at > nowMs ? at - nowMs : undefined
 }
+
+export function retryAfterSaysNow(header: string | null | undefined, nowMs: number = Date.now()): boolean {
+  if (header === undefined || header === null) return false
+  const text = String(header).trim()
+  if (text === '') return false
+  const seconds = Number(text)
+  if (Number.isFinite(seconds)) return seconds === 0
+  const at = Date.parse(text)
+  return Number.isFinite(at) && at <= nowMs
+}
