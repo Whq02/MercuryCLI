@@ -45,7 +45,7 @@ export function MessageMetaProvider({
   message,
   children,
 }: {
-  message: { type?: string; timestamp?: string; queued?: true; heldFor?: 'compaction' }
+  message: { type?: string; timestamp?: string; queued?: true; heldFor?: 'compaction'; attachment?: { type?: string; commandMode?: string; sentAt?: string; deliveredAt?: string } }
   children: React.ReactNode
 }): React.ReactNode {
   const role: MessageRole =
@@ -54,8 +54,11 @@ export function MessageMetaProvider({
     message?.type === 'collapsed_read_search'
       ? 'assistant'
       : 'user'
-  const timestamp = message?.timestamp
   const queued = message?.queued === true
+  const delivery = !queued && message.attachment?.type === 'queued_command' && message.attachment.commandMode === 'task-notification' ? message.attachment.deliveredAt : undefined
+  const sentMs = Date.parse(message.attachment?.sentAt ?? '')
+  const deliveryMs = Date.parse(delivery ?? '')
+  const timestamp = delivery !== undefined && Number.isFinite(deliveryMs) && (!Number.isFinite(sentMs) || deliveryMs >= sentMs) ? delivery : message?.timestamp
   const heldFor = queued && message?.heldFor === 'compaction' ? ('compaction' as const) : undefined
   const attachedClassify = React.useContext(AttachedAttributionContext)
   const attachedAuthor: AttachedAuthor | undefined =

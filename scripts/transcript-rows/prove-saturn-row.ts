@@ -90,7 +90,7 @@ function fakeIo(columns: number, rowCount = 51): { stdout: NodeJS.WriteStream; s
 
 async function paintText(props: Raw, meta: Raw, columns = 178): Promise<string> {
   const io = fakeIo(columns)
-  const body = h(UserTextMessage as never, { addMargin: false, verbose: false, ...props })
+  const body = h(UserTextMessage as never, { addMargin: false, verbose: true, ...props })
   const instance = await render(
     h(AppStateProvider as never, { initialState: getDefaultAppState() }, h(MessageMetaProvider as never, { message: meta }, body)),
     { stdout: io.stdout, stdin: io.stdin, exitOnCtrlC: false, patchConsole: false },
@@ -116,7 +116,7 @@ async function paintChat(messages: Raw[], columns: number, rowCount = 51): Promi
         messages: normalized,
         tools: [],
         commands: [],
-        verbose: false,
+        verbose: true,
         addMargin: false,
         shouldAnimate: false,
         shouldShowDot: false,
@@ -318,13 +318,15 @@ try {
   check('the guard admits a saturn origin and refuses the others', rows.isSaturnOrigin(wakeOrigin()) && rows.isSaturnOrigin(cronOrigin()) && rows.isSaturnOrigin(titledOrigin()) && !rows.isSaturnOrigin({ kind: 'channel', server: 'x' }) && !rows.isSaturnOrigin(undefined) && !rows.isSaturnOrigin({ kind: 'saturn' }))
   const plate = rows.noticePlate({ kind: 'saturn', origin: wakeOrigin(), lines: [] } as never, ROW_AT)
   check('the notice plate of a saturn block opens with the Saturn name', plate === `[Saturn] · self-paced wake · fifteen-minute cadence · reason: ${REASON}`, plate)
-  check("the held rows' plates are untouched", rows.noticePlate({ kind: 'notice', lines: [] } as never) === 'notice' && rows.noticePlate({ kind: 'monitor', taskId: 't', name: 'the build watch', lines: [] } as never) === '[Monitor]: the build watch')
+  check("the held rows' plates are untouched", rows.noticePlate({ kind: 'notice', lines: [] } as never) === 'notice' && rows.noticePlate({ kind: 'monitor', taskId: 't', name: 'the build watch', lines: [] } as never) === '[Monitor] the build watch')
 } catch (error) {
   check('the Saturn word home stands (saturnFirstLine, cadenceWords, saturnPromptLines, isSaturnOrigin)', false, String(error))
 }
 
 section("§1 the row: a wake's row with the saturn origin paints the muted Saturn row, never the operator's line; a titled cron fire reads its title")
 for (const [columns] of SIZES) {
+  const folded = await paintText({ verbose: false, param: { type: 'text', text: WAKE_TEXT }, origin: wakeOrigin() }, { type: 'user', timestamp: ROW_AT }, columns)
+  check(`${columns} columns: a scheduled wake folds to one counted row`, folded.startsWith(`${clock(ROW_AT)} ${SATURN}`) && folded.endsWith('· 1 line ›') && !folded.includes(WAKE_BODY) && folded.length <= columns, folded)
   const frame = await paintText({ param: { type: 'text', text: WAKE_TEXT }, origin: wakeOrigin() }, { type: 'user', timestamp: ROW_AT }, columns)
   check(`${columns} columns: the clock stays, then the dim [Saturn] plate and the schedule's own words`, frame.includes(`${clock(ROW_AT)} ${SATURN} · self-paced wake · fifteen-minute cadence · reason: ${REASON}`), frame.slice(0, 260))
   check(`${columns} columns: no accent dot on the row`, !frame.includes(DOT), frame.slice(0, 200))
@@ -358,11 +360,11 @@ section("§2 the neighbours are byte-identical (a guard, green on both trees): t
   const line = await paintText({ param: { type: 'text', text: OPERATOR_LINE } }, { type: 'user', timestamp: ROW_AT })
   check("the operator's typed line keeps the handle and the caret exactly", line === `${clock(ROW_AT)} ${HANDLE} ${CARET} ${OPERATOR_LINE}`, line)
   const notice = await paintText({ param: { type: 'text', text: 'Stop hook blocking error from command "lint": 3 errors' }, notice: true }, { type: 'user', timestamp: ROW_AT })
-  check("a held notice keeps its dot and its plate exactly", notice === `${clock(ROW_AT)} ${DOT} notice Stop hook blocking error from command "lint": 3 errors`, notice)
+  check("a held notice keeps its dot and its plate exactly", notice === `${clock(ROW_AT)} ${DOT} notice · 1 line ⌄ Stop hook blocking error from command "lint": 3 errors`, notice)
   const monitor = await paintText({ param: { type: 'text', text: '<monitor task="bk1" name="the build watch">\nbuilt\n</monitor>' } }, { type: 'user', timestamp: ROW_AT })
-  check('a monitor notice is the muted [Monitor]: row with its watch exactly', monitor === `${clock(ROW_AT)} [Monitor]: the build watch built`, monitor)
-  const delivered = await paintText({ param: { type: 'text', text: 'the saved work is ready' }, notice: true, noticeSentAt: HELD_SINCE, noticeDeliveredAt: ROW_AT }, { type: 'user', timestamp: HELD_SINCE })
-  check('a notice delivered later sits at its own clock and names the delivery exactly', delivered === `${clock(HELD_SINCE)} ${DOT} notice · delivered ${clock(ROW_AT)} the saved work is ready`, delivered)
+  check('a monitor notice is the muted [Monitor] row with its watch exactly', monitor === `${clock(ROW_AT)} [Monitor] the build watch · 1 line ⌄ built`, monitor)
+  const delivered = await paintText({ param: { type: 'text', text: 'the saved work is ready' }, notice: true, noticeSentAt: HELD_SINCE, noticeDeliveredAt: ROW_AT }, { type: 'user', timestamp: ROW_AT })
+  check('a delivered notice leads with its delivery clock and preserves its earlier arrival', delivered === `${clock(ROW_AT)} ${DOT} notice · 1 line · arrived ${clock(HELD_SINCE)} ⌄ the saved work is ready`, delivered)
 }
 for (const [columns, rowCount] of SIZES) {
   const frame = await paintChat([userRow(OPERATOR_LINE, U1, ROW_AT), replyRow(LATE_ROW_AT)], columns, rowCount)

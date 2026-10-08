@@ -246,7 +246,7 @@ section('§2 a mixed turn: group, read, edit, agent rows align; the notice row k
   const wordColumns = new Set([groupRow.indexOf('Searched'), readRow.indexOf('Read'), editRow.indexOf('Edit'), agentRow.indexOf('Agent')])
   check('the words of every tool row start at one column (the alignment law)', columns.size === 1 && wordColumns.size === 1 && [...wordColumns][0] === [...columns][0], `${[...wordColumns].join(',')} want ${[...columns].join(',')}`)
   check('no tool row of the turn carries a state dot or ring', [groupRow, readRow, editRow, agentRow].every(row => !STATE_GLYPHS.some(glyph => row.includes(glyph))), JSON.stringify([groupRow, readRow, editRow, agentRow]))
-  check('the notice row keeps its dot', /^\d\d:\d\d:\d\d ● Agent "the errand" completed/.test(noticeRow), JSON.stringify(noticeRow))
+  check('the notice row keeps its dot', /^\d\d:\d\d:\d\d ● \[Crewmate\] the errand · completed · 1 line ›/.test(noticeRow), JSON.stringify(noticeRow))
 }
 
 section('§3 the collapsed group in its states: the lead follows the sentence and the state')

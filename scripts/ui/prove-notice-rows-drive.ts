@@ -71,7 +71,7 @@ type Item = { role?: string; content?: unknown }
 type Answer =
   | { kind: 'text'; text: string }
   | { kind: 'tools'; pre?: { deltas: string[]; gapMs: number }; tools: Array<{ name: string; input: Record<string, unknown> }> }
-type Facts = { step: number; notice: boolean; toolNames: string[] }
+type Facts = { step: number; notice: boolean; toolNames: string[]; fortyLines: boolean }
 type Hit = { n: number; at: number; facts: Facts; answer: string }
 type Journey = {
   name: string
@@ -113,7 +113,7 @@ function factsOf(body: unknown, journey: Journey): Facts {
   const lastText = last?.role === 'user' ? unreminded(textOf(last.content)) : ''
   const lastHasResult = last?.role === 'user' && blocksOf(last.content).some(x => x.type === 'tool_result')
   const notice = !lastHasResult && (lastText.includes('<monitor ') || lastText.includes('task-notification') || lastText.includes('<task-id>'))
-  return { step, notice, toolNames }
+  return { step, notice, toolNames, fortyLines: items.some(item => JSON.stringify(item.content).includes('event-40')) }
 }
 
 const sse = (event: string, data: unknown): string => `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`
@@ -213,6 +213,19 @@ const words = (text: string): string[] => text.split(' ').map((w, i, all) => (i 
 
 const JOURNEYS: Journey[] = [
   {
+    name: 'forty-line-delivery',
+    ask: 'notice-rows: forty line delivery',
+    ready: [DONE],
+    total: 320,
+    parent: f => {
+      if (f.step === 0) return { kind: 'tools', tools: [monitor('the forty-line watch', 'for i in $(seq 1 40); do echo event-$i; done; sleep 20')] }
+      if (f.step === 1) return { kind: 'tools', pre: { deltas: words('The watch is running while this answer continues until the next tool boundary hands the bundled lines to the model.'), gapMs: 350 }, tools: [bash('echo checkpoint', 'the delivery boundary')] }
+      if (f.step === 2) return { kind: 'tools', pre: { deltas: words(f.fortyLines ? 'delivery accepted and the turn continues while the later typed line is sent.' : 'delivery missing'), gapMs: 350 }, tools: [bash('sleep 3; echo still-running', 'the tool after delivery')] }
+      return { kind: 'text', text: DONE }
+    },
+    onNotice: () => ({ kind: 'text', text: NOTED }),
+  },
+  {
     name: 'monitor-mid-turn-rows',
     ask: 'notice-rows: watch the events',
     ready: [DONE],
@@ -266,7 +279,7 @@ function childEnv(leg: Leg, fixtureUrl: string): NodeJS.ProcessEnv {
   const env: NodeJS.ProcessEnv = {
     ...process.env,
     MERCURY_CONFIG_DIR: leg.home,
-    MERCURY_DAEMON_DIR: join(leg.home, 'daemon'),
+    MERCURY_DAEMON_DIR: './daemon',
     MERCURY_CREDENTIAL_STORE: 'file',
     MERCURY_OPERATOR: 'sam',
     MERCURY_LOCAL_PROBE_TARGETS: 'none',
@@ -300,6 +313,7 @@ async function capture(leg: Leg, fixtureUrl: string): Promise<{ status: number |
     { atTick: 999, awaitText: LANDED, minTick: 5, awaitSettleTicks: 4, awaitStableTicks: 3, requireAwait: true, data: leg.journey.ask, mark: 'typed' },
     { afterPrevTicks: 2, data: '\r', mark: 'sent' },
   ]
+  if (leg.journey.name === 'forty-line-delivery') sends.push({ afterPrevTicks: 2, awaitText: 'delivery accepted', requireAwait: true, awaitSettleTicks: 1, data: 'typed after the watch delivery\r', mark: 'after-delivery' })
   const cfg = {
     argv: [NODE, DIST, '--sovereign'],
     cwd: leg.cwd,
@@ -440,7 +454,7 @@ for (const journey of JOURNEYS) {
   }
   const receipts = cap.payload?.sendReceipts?.map(r => r.atTick) ?? []
   console.log(`  wire: ${fixture.hits.map(h => `${h.n}:${h.facts.notice ? 'notice' : `s${h.facts.step}`}→${h.answer}`).join(' · ')}`)
-  check(`${tag}: the journey happened (engine exit 0, every send due, the turn ended on its last words)`, cap.status === 0 && receipts.length === 3 && cap.payload?.endReason === 'stable' && typeof cap.payload?.readyAt === 'number', `exit=${cap.status} sends=${receipts.length}/3 end=${cap.payload?.endReason} ready=${cap.payload?.readyAt} · ${leg.log}`)
+  check(`${tag}: the journey happened (engine exit 0, every send due, the turn ended on its last words)`, cap.status === 0 && receipts.length === (journey.name === 'forty-line-delivery' ? 4 : 3) && cap.payload?.endReason === 'stable' && typeof cap.payload?.readyAt === 'number', `exit=${cap.status} sends=${receipts.length}/3 end=${cap.payload?.endReason} ready=${cap.payload?.readyAt} · ${leg.log}`)
   let frames: Frame[] = []
   try {
     frames = await replay(leg)
@@ -452,23 +466,31 @@ for (const journey of JOURNEYS) {
   const raw = rawWrapperFrames(frames)
   check(`${tag}: no frame paints the notice's raw wrapper`, raw.length === 0, raw.length === 0 ? '' : `${raw.length} frames, first: ${firstRunOf(raw, r => r.includes('<monitor') || r.includes('</monitor>'))}`)
   check(`${tag}: no frame paints a notice under the operator's caret`, runFrames(frames, r => r.includes('❯ <monitor')).length === 0, firstRunOf(frames, r => r.includes('❯ <monitor')))
+  if (journey.name === 'forty-line-delivery') {
+    const plate = '[Monitor] the forty-line watch · 40 lines ›'
+    check(`${tag}: the model received all forty watch lines at the tool boundary`, fixture.hits.some(hit => hit.facts.fortyLines && hit.facts.step >= 2), JSON.stringify(fixture.hits))
+    const laterFrames = frames.filter(frame => paneRows(frame.lines).some(row => row.includes('typed after the watch delivery') && row.includes('❯')))
+    check(`${tag}: the delivered fold stays above every later typed row while the turn continues`, laterFrames.length > 0 && laterFrames.every(frame => { const rows = paneRows(frame.lines); return rows.findIndex(row => row.includes(plate)) >= 0 && rows.findIndex(row => row.includes(plate)) < rows.findIndex(row => row.includes('typed after the watch delivery') && row.includes('❯')) }), `frames=${laterFrames.length}`)
+    check(`${tag}: the forty-line delivery never wears a held plate after the model receives it`, laterFrames.length > 0 && laterFrames.every(frame => !paneRows(frame.lines).some(row => row.includes(plate) && row.includes('held'))))
+    check(`${tag}: the collapsed cockpit never paints the raw event lines`, frames.every(frame => !paneRows(frame.lines).some(row => /^event-\d+$/.test(row.trim()))))
+  }
   if (journey.name === 'monitor-mid-turn-rows') {
-    const plate = (r: string): boolean => r.includes(`[Monitor]: ${WATCH_MID}`)
+    const plate = (r: string): boolean => r.includes(`[Monitor] ${WATCH_MID}`)
     check(`${tag}: the plate names the watch`, runFrames(frames, plate).length > 0, `runs: ${lastRuns.join(' ‖ ')}`)
-    check(`${tag}: an event line stands beneath the plate, not under a caret`, runFrames(frames, r => plate(r) && r.includes('event-1') && !r.includes('❯')).length > 0, `runs: ${lastRuns.join(' ‖ ')}`)
+    check(`${tag}: event lines stay behind a counted fold, not under a caret`, runFrames(frames, r => plate(r) && /· \d+ lines? ›/.test(r) && !r.includes('event-1') && !r.includes('❯')).length > 0, `runs: ${lastRuns.join(' ‖ ')}`)
     check(`${tag}: the held dress and arrival clock precede the plate while the runner's queue holds the notice`, rowFrames(frames, r => /^held\s+since \d{2}:\d{2}:\d{2}\s/.test(r) && plate(r)).length > 0, firstRunOf(frames, r => r.includes('monitor ·')))
-    check(`${tag}: the turn ends with the notice rows standing under their plate`, lastRuns.some(r => r.includes(DONE)) && lastRuns.some(r => plate(r) && r.includes('event-3') && !r.includes('❯')), `runs: ${lastRuns.join(' ‖ ')}`)
+    check(`${tag}: the turn ends with the notice rows standing under their plate`, lastRuns.some(r => r.includes(DONE)) && lastRuns.some(r => plate(r) && /· \d+ lines? ›/.test(r) && !r.includes('event-3') && !r.includes('❯')), `runs: ${lastRuns.join(' ‖ ')}`)
   }
   if (journey.name === 'notice-between-turns') {
-    const plate = (r: string): boolean => r.includes(`[Monitor]: ${WATCH_LATE}`)
-    check(`${tag}: the notice that woke the turn stands under its plate, its line beneath`, runFrames(frames, r => plate(r) && r.includes('late-event') && !r.includes('❯')).length > 0, `runs: ${lastRuns.join(' ‖ ')}`)
+    const plate = (r: string): boolean => r.includes(`[Monitor] ${WATCH_LATE}`)
+    check(`${tag}: the notice that woke the turn stands under its counted plate, its line folded`, runFrames(frames, r => plate(r) && r.includes('· 1 line ›') && !r.includes('late-event') && !r.includes('❯')).length > 0, `runs: ${lastRuns.join(' ‖ ')}`)
     const plateAt = runIndex(lastRuns, plate)
     const notedAt = runIndex(lastRuns, r => r.includes(NOTED))
     check(`${tag}: the reply to the notice follows the notice row`, plateAt !== -1 && notedAt !== -1 && plateAt < notedAt, `plate=${plateAt} noted=${notedAt} runs: ${lastRuns.join(' ‖ ')}`)
   }
   if (journey.name === 'text-between-tools') {
     const carried = (r: string): boolean => r.includes(CARRIED)
-    const plate = (r: string): boolean => r.includes(`[Monitor]: ${WATCH_OWNER}`)
+    const plate = (r: string): boolean => r.includes(`[Monitor] ${WATCH_OWNER}`)
     const noticeRun = (r: string): boolean => plate(r) || r.includes('<monitor task=')
     const firstFull = frames.findIndex(f => runsIn(f).some(r => r.includes('before the next step')))
     const gaps = firstFull === -1 ? [] : frames.slice(firstFull).filter(f => !runsIn(f).some(carried))

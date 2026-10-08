@@ -306,7 +306,7 @@ section('§0 the wiring: one road per seat into one drain, the framing, the tool
   const framing = src('src/utils/messages/attachmentText.ts')
   check('a drained advisor note is never a hidden meta row (the origin law excepts the advisor)', framing.includes('(origin !== undefined && !isAdvisorOrigin(origin)) || attachment.isMeta'))
   const painter = src('src/components/messages/AttachmentMessage.tsx')
-  check('the attachment painter hands the advisor origin to the row painter, so the crewmate transcript shows the muted row', painter.includes('isAdvisorOrigin(attachment.origin) ? { origin: attachment.origin } : {}'))
+  check('the attachment painter hands the advisor origin to the row painter, so the crewmate transcript shows the muted row', painter.includes('origin={attachment.origin}'))
   const catalogue = src('src/tools.ts')
   check('the tool is in the catalogue only while the advisor is on (the JevEval gate precedent)', catalogue.includes('...(advisorEnabled() ? [AskAdvisorTool] : []),'))
   check('the tool is enrolled for no agent: the async allow-set never names it, and no second allow-set exists (red on the base: both did)', !toolsConstants.ASYNC_AGENT_ALLOWED_TOOLS.has(ASK_ADVISOR_TOOL_NAME) && !('IN_PROCESS_CREWMATE_ALLOWED_TOOLS' in toolsConstants))

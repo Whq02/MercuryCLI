@@ -57,7 +57,7 @@ import type { ProgressMessage } from '../../types/message.js'
 import type { EvalToolProgress, MCPProgress, ShellProgress } from '../../types/tools.js'
 import { IDLE_LIVE, type LiveTurnFactsV1, type LostLineV1, type SeatLiveExtensionV1, type SeatStatusV1, type SessionLiveV1 } from './seatLive.js'
 import { interruptLatchRelease } from './interruptLatch.js'
-import { createNoticeRow, deliveredNoticeRow, isNoticeFact, isNoticeKey, noticeKeyOf, noticeRowLanded, queueOrderedSends } from './queuedNotices.js'
+import { createNoticeRow, deliveredNoticeRow, isNoticeFact, isNoticeKey, noticeKeyOf, noticeRowLanded, placeDeliveredNotices, queueOrderedSends } from './queuedNotices.js'
 import { createTextRow, textRowLanded, type CommittedTextRow } from './midTurnText.js'
 import { computeTailRelease } from '../../utils/messages/tailRetirement.js'
 import { FOLD_EXIT_LINGER_MS, decodeFoldStatus, type FoldStatusV1 } from '../compact/foldStatus.js'
@@ -439,6 +439,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
   private effectiveLive: SessionLiveV1 = IDLE_LIVE
   private displayRows: Array<{ row: Message; anchor: number }> = []
   private echoRows = new Map<string, Message>()
+  private deliveredNotices = new Map<string, { row: Message; text: string; sentAtMs: number; seq: number }>()
   private sends: SeatSend[] = []
   private arrivalSeq = 0
   private sendSeq = new Map<string, number>()
@@ -1128,10 +1129,8 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
       const key = noticeKeyOf(entry.value)
       if (this.sends.some(s => s.clientMessageId === key)) continue
       const atMs = Date.now()
-      const heldSinceMs = typeof facts.atMs === 'number' && facts.atMs < atMs ? facts.atMs : atMs
-      if (this.noticeStands(entry.value, heldSinceMs)) continue
-      this.sends = [...this.sends, { clientMessageId: key, text: entry.value, sentAtMs: heldSinceMs, state: 'queued', mode: 'prompt' }]
-      this.stampArrival(key, heldSinceMs)
+      this.sends = [...this.sends, { clientMessageId: key, text: entry.value, sentAtMs: atMs, state: 'queued', mode: 'prompt' }]
+      this.stampArrival(key, atMs)
       this.echoRows.set(key, createNoticeRow(entry.value, atMs))
       connectorTrace({ ev: 'notice', sid: this.record.sessionId, state: 'queued' })
       born = true
@@ -1147,7 +1146,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
       if (queuedIds.has(s.clientMessageId)) {
         if (s.state !== 'queued') this.dressSend(s.clientMessageId, 'queued')
       } else if (s.state === 'queued' || (s.state === 'delivered' && facts.atMs >= s.sentAtMs)) {
-        this.dressSend(s.clientMessageId, 'taken')
+        this.dressSend(s.clientMessageId, 'taken', facts.atMs)
       }
     }
     const ordered = queueOrderedSends(this.sends, queue)
@@ -1156,8 +1155,22 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     if (born || moved) this.paint()
   }
 
-  private dressSend(clientMessageId: string, state: SeatSend['state']): void {
+  private dressSend(clientMessageId: string, state: SeatSend['state'], takenAtMs = Date.now()): void {
     const current = this.sends.find(s => s.clientMessageId === clientMessageId)
+    if (state === 'taken' && isNoticeKey(clientMessageId) && current !== undefined) {
+      const row = this.echoRows.get(clientMessageId)
+      if (row !== undefined) {
+        this.arrivalSeq += 2
+        const atMs = Number.isFinite(takenAtMs) ? Math.max(current.sentAtMs, takenAtMs) : Date.now()
+        const seq = this.tailSeq !== null && atMs <= this.tailSinceMs ? this.tailSeq - 1 : this.arrivalSeq
+        this.deliveredNotices.set(row.uuid, { row: deliveredNoticeRow(row, atMs), text: current.text, sentAtMs: current.sentAtMs, seq })
+      }
+      this.sends = this.sends.filter(s => s.clientMessageId !== clientMessageId)
+      this.echoRows.delete(clientMessageId)
+      this.sendSeq.delete(clientMessageId)
+      this.paint()
+      return
+    }
     const enqueuedUnderTheFold = current !== undefined && (current.state !== 'queued' || current.heldFor === 'compaction')
     const heldFor = state === 'queued' && this.liveStateWord === 'compacting' && enqueuedUnderTheFold ? ('compaction' as const) : undefined
     this.sends = this.sends.map(s => {
@@ -1286,13 +1299,6 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     this.sendSeq.set(clientMessageId, before && anchor !== null ? anchor.seq - 1 : this.arrivalSeq)
   }
 
-  private noticeStands(value: string, notBeforeMs: number): boolean {
-    for (let i = this.rawRecords.length - 1, walked = 0; i >= 0 && walked < 200; i--, walked++) {
-      if (noticeRowLanded(this.rawRecords[i]!, value, notBeforeMs)) return true
-    }
-    return false
-  }
-
   private paint(): void {
     const held: Array<{ seq: number; row: Message }> = []
     const afterTail: Message[] = []
@@ -1306,6 +1312,15 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
       else held.push({ seq, row })
     }
     for (const key of this.sendSeq.keys()) if (!live.has(key)) this.sendSeq.delete(key)
+    for (const [key, notice] of this.deliveredNotices) {
+      if (this.rawRecords.some(row => noticeRowLanded(row, notice.text, notice.sentAtMs))) {
+        this.deliveredNotices.delete(key)
+        continue
+      }
+      if (this.tailSeq !== null && notice.seq > this.tailSeq) afterTail.push(notice.row)
+      else held.push({ seq: notice.seq, row: notice.row })
+    }
+    held.sort((a, b) => a.seq - b.seq)
     for (const committed of this.textRows) {
       const at = held.findIndex(entry => entry.seq > committed.seq)
       const entry = { seq: committed.seq, row: committed.row }
@@ -1331,6 +1346,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
       while (d < this.displayRows.length) rows.push(this.displayRows[d++]!.row)
       this.painted = [...rows, ...echoes]
     }
+    this.painted = placeDeliveredNotices(this.painted)
     connectorTrace({ ev: 'paint', sid: this.record.sessionId, raw: this.rawRecords.length, display: this.displayRows.length, echoes: echoes.length, painted: this.painted.length, listeners: this.recordListeners.size })
     emitAll(this.recordListeners, 'records')
   }
