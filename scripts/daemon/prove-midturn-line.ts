@@ -189,7 +189,13 @@ if (!existsSync(DIST)) {
     readFileSync(captureFile, 'utf8')
       .split('\n')
       .filter(l => l.trim() !== '')
-      .map(l => JSON.parse(l) as Wire)
+      .flatMap(l => {
+        try {
+          return [JSON.parse(l) as Wire]
+        } catch {
+          return []
+        }
+      })
   async function waitWire(label: string, test: (w: Wire) => boolean, timeoutMs: number): Promise<Wire | null> {
     const t0 = Date.now()
     while (Date.now() - t0 < timeoutMs) {
