@@ -42,6 +42,7 @@ __t=$SECONDS; __rc=0; "$bun" run "$here/prove-docs-altitude.ts" || { __rc=$?; fa
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-release-notes-words.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-release-notes-words.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-provider-neutral-vocabulary.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-provider-neutral-vocabulary.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-editor-prompt-file.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-editor-prompt-file.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$bun" run "$here/prove-schema-refusal-vocabulary.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-schema-refusal-vocabulary.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-unknown-command-answer.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-unknown-command-answer.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-verb-help-words.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-verb-help-words.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-readme-headless-words.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-readme-headless-words.ts" "$__t" "$__rc"

@@ -155,7 +155,7 @@ if (process.env.ONBOARDING_RENDER_CHILD) {
   const toLaterRow: Send[] = [
     enterOnTheme,
     { requireAwait: true, awaitText: 'Sign in later', awaitSettleTicks: 2, data: '\x1b[B' },
-    ...Array.from({ length: 8 }, (): Send => ({ afterPrevTicks: 2, data: '\x1b[B' })),
+    ...Array.from({ length: FAMILY_ROWS.length - 1 }, (): Send => ({ afterPrevTicks: 2, data: '\x1b[B' })),
     { afterPrevTicks: 3, data: '\r' },
   ]
 
@@ -192,13 +192,13 @@ if (process.env.ONBOARDING_RENDER_CHILD) {
   const afterSkip = capture('skip-guardrails', 100, toLaterRow, ['Guardrails'])
   check('guardrails heading renders', afterSkip.includes('Guardrails'))
   check('the step tag advanced without a credential (guardrails · 3/5)', afterSkip.includes('guardrails · 3/5'))
-  check('the re-voiced copy (the mangled base line is dead)', afterSkip.includes('Review its work') && !afterSkip.includes('Mercuryreview'))
-  check('prompt-injection guardrail present', afterSkip.includes('Prompt injection can mislead the agent'))
+  check('the mistakes guardrail speaks the card\'s words', afterSkip.includes('Mercury can be wrong.') && afterSkip.includes('read a command before you run it'))
+  check('the injection guardrail speaks the card\'s words', afterSkip.includes('carry instructions for the model') && afterSkip.includes('Work in folders you know.'))
 
   console.log('\n  ── the terminal station @ 100 ──')
   const terminal = capture('terminal', 100, [...toLaterRow, { requireAwait: true, awaitText: 'Guardrails', awaitSettleTicks: 2, data: '\r' }], ['Terminal keys'])
   check('the terminal station paints', terminal.includes('Terminal keys') && terminal.includes('terminal · 4/5'))
-  check('the tweak line names the real chord', terminal.includes('Set up Shift+Enter to add a new line in your terminal.'))
+  check('the tweak line names the real chord', terminal.includes('Shift+Enter') || terminal.includes('Option+Enter'))
   check('the deferral row names /keysetup', terminal.includes('not now; use /keysetup later'))
 
   console.log(failures === 0 ? '\nONBOARDING RENDER: ALL GREEN' : `\nONBOARDING RENDER: ${failures} FAILURE(S)`)
