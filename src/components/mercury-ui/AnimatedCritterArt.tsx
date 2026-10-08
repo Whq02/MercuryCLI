@@ -111,21 +111,21 @@ function useCritterFrame(def: CritterDef, form: ArtForm, specimen: boolean): Cri
   return { animate, asleep, pupil, gazeKey, swayPhase, sleepPhase, ref: composedRef }
 }
 
-export function AnimatedCritterArt({ def, chunky = false, mini = false, square = false, specimen = false, lineBg }: { def: CritterDef; chunky?: boolean; mini?: boolean; square?: boolean; specimen?: boolean; lineBg?: (line: number) => string | undefined }): React.ReactNode {
+export function AnimatedCritterArt({ def, chunky = false, square = false, specimen = false, lineBg }: { def: CritterDef; chunky?: boolean; square?: boolean; specimen?: boolean; lineBg?: (line: number) => string | undefined }): React.ReactNode {
   const usingSquare = square && def.squareDock.length > 0
   const form: ArtForm = usingSquare ? 'square' : 'mini'
   const frame = useCritterFrame(def, form, specimen)
   const ground = lineBg !== undefined ? { lineBg } : {}
   if (!frame.animate) {
     return frame.asleep ? (
-      <CritterArt def={def} pupil={EYE_SHUT} sleepPhase={2} chunky={chunky} mini={mini} square={square} {...ground} />
+      <CritterArt def={def} pupil={EYE_SHUT} sleepPhase={2} chunky={chunky} square={square} {...ground} />
     ) : (
-      <CritterArt def={def} chunky={chunky} mini={mini} square={square} {...ground} />
+      <CritterArt def={def} chunky={chunky} square={square} {...ground} />
     )
   }
   return (
     <Box flexDirection="column" ref={frame.ref as never}>
-      <CritterArt def={def} pupil={frame.pupil} gazeKey={frame.gazeKey} swayPhase={frame.swayPhase} sleepPhase={frame.sleepPhase} chunky={chunky} mini={mini} square={square} {...ground} />
+      <CritterArt def={def} pupil={frame.pupil} gazeKey={frame.gazeKey} swayPhase={frame.swayPhase} sleepPhase={frame.sleepPhase} chunky={chunky} square={square} {...ground} />
     </Box>
   )
 }
