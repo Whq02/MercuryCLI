@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # gate-class: cpu
-# gate-watch: scripts/engine-connector/** scripts/compact/overflowFixture.ts
+# gate-watch: scripts/engine-connector/** scripts/compact/overflowFixture.ts src/Tool.ts src/services/providers/callModelRouter.ts
 # gate-watch: src/fabric/transcriptDecode.ts src/fabric/entryCodec.ts src/fabric/ordinal.ts
 # gate-watch: src/ink/components/TerminalSizeContext.tsx
 # gate-watch: src/services/engine-connector/** src/hooks/useSessionConnector.ts
