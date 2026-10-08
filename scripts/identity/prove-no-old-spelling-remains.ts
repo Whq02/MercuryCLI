@@ -25,7 +25,6 @@ const ALIAS_TABLES: Array<[string, string]> = []
 const ALIAS_PINS: Array<[string, string]> = [
   ['scripts/sessionStorage/prove-old-transcript-kinds-parse.ts', 'holds old transcript rows, records and files by design'],
   ['scripts/switchboard/prove-crewmates-command.ts', 'pins that the old command name is no command and no alias: the palette answers it unknown'],
-  ['scripts/crew/prove-crew-tools-removed.ts', 'holds an old transcript row of a removed tool'],
   ['scripts/ui/prove-old-transcript-rows.ts', 'holds old transcript rows by design'],
   ['scripts/ui/prove-crew-screens-unchanged.ts', 'reads the stored frames of the earlier screens through a table of the old words'],
   ['scripts/identity/prove-no-old-spelling-remains.ts', 'this census composes the word it hunts'],
@@ -69,7 +68,6 @@ const NOT_THE_CREW: Array<[RegExp, string, ((rel: string) => boolean)?]> = [
   [new RegExp(J('The ', 'team', ' scope'), ''), 'the memory scope of the people who share a repository'],
   [new RegExp(J("'max'/'pro'/'", 'team', "'"), ''), 'the plan tiers'],
   [new RegExp(J('max/enterprise/', 'team'), ''), 'the plan tiers'],
-  [new RegExp(J("['\"]", 'Team', "(?:Create|Delete)['\"]"), ''), 'the quoted name of a removed tool: the old row a pin drives or refuses'],
   [new RegExp(J('team', 'mate_mailbox'), ''), 'the old kind of the message row: the attachment types read it through their own table, the validator keeps its shape row, the pins drive it', rel => MESSAGE_ROW_READERS.includes(rel)],
 ]
 

@@ -26,7 +26,7 @@ const STALL_LIMIT_MS = 5_000
 
 type Block = { type?: string; text?: string; content?: unknown }
 type Item = { role?: string; content?: unknown }
-type Wire = { n: number; at: number; kind: 'request' | 'walled'; ask: string; step: number; notices: number; crewCreate: boolean; results: string[] }
+type Wire = { n: number; at: number; kind: 'request' | 'walled'; ask: string; step: number; notices: number; results: string[] }
 const wire: Wire[] = []
 let wallUntilMs = 0
 let calls = 0
@@ -108,7 +108,6 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
     const n = ++calls
     const model = typeof body.model === 'string' ? body.model : 'fixture'
     const items = Array.isArray(body.messages) ? (body.messages as Item[]) : []
-    const crewCreate = Array.isArray(body.tools) && (body.tools as Array<{ name?: string }>).some(tool => tool.name === 'TeamCreate')
     let askIndex = -1
     for (let i = items.length - 1; i >= 0; i--) {
       if (items[i]!.role === 'user' && askOf(items[i]!.content) !== '') {
@@ -121,10 +120,9 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
     const step = askIndex === -1 ? 0 : items.slice(askIndex + 1).filter(isToolResultItem).length
     const results = items.filter(isToolResultItem).flatMap(it => resultTexts(it.content))
     const walled = Date.now() < wallUntilMs
-    wire.push({ n, at: Date.now(), kind: walled ? 'walled' : 'request', ask: ask.slice(0, 600), step, notices: countOf(whole, SHELL_NOTICE), crewCreate, results })
+    wire.push({ n, at: Date.now(), kind: walled ? 'walled' : 'request', ask: ask.slice(0, 600), step, notices: countOf(whole, SHELL_NOTICE), results })
     if (walled) return answerWalled(res)
     if (ask.trim() === LEAD_ASK) {
-      if (crewCreate && step === 0) return answerTool(res, n, model, { id: `toolu_lead_crew_${n}`, name: 'TeamCreate', input: { crew_name: 'hold-crew' } })
       return answerText(res, n, model, LEAD_READY)
     }
     if (ask.trim() === ARM_ASK) {
@@ -177,8 +175,7 @@ if (!existsSync(DIST)) {
   check('the headless session booted on the fixture', init !== null, runner.stderr().slice(-400))
   const leadReady = await runner.waitFor('the lead is ready', f => f.type === 'outcome' && resultText(f).includes(LEAD_READY), bound(60_000))
   const leadWire = wire.filter(w => w.ask.trim() === LEAD_ASK)
-  const crewMade = leadWire.some(w => w.crewCreate) ? leadWire.some(w => w.step === 1 && w.results.some(text => /hold-crew/.test(text) && !/error/i.test(text))) : true
-  check('the session is a crew lead (born as one, or made one by the crew tool the bundle still offers)', leadReady !== null && crewMade, `${j(leadWire.map(w => [w.step, w.crewCreate, w.results.slice(-1)]))} ${brief()}`)
+  check('the session is a crew lead (born as one)', leadReady !== null, `${j(leadWire.map(w => [w.step, w.results.slice(-1)]))} ${brief()}`)
 
   void runner.prompt(ARM_ASK, 'u-arm')
   const armed = await runner.waitFor('the shell is armed', f => f.type === 'outcome' && resultText(f).includes(ARMED), bound(60_000))
