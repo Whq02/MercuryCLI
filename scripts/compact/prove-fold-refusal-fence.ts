@@ -27,7 +27,7 @@ const check = (name: string, ok: boolean, details: unknown = ''): void => {
   if (!ok) failures++
   console.log(`${ok ? 'PASS' : 'FAIL'} ${name}${ok ? '' : ` — ${JSON.stringify(details)}`}`)
 }
-const context = (): any => ({ abortController: new AbortController(), getAppState: () => state, setAppState: () => {}, messages: [], readFileState: new Map(), options: { tools: [], commands: [], mcpClients: [], engineModel: 'claude-sonnet-5-5', maxThinkingTokens: 0, isNonInteractiveSession: true, agentDefinitions: { activeAgents: [] } } })
+const context = (): any => ({ abortController: new AbortController(), getAppState: () => state, setAppState: () => {}, messages: [], readFileState: new Map(), options: { tools: [], commands: [], mcpClients: [], engineModel: 'claude-sonnet-5-5', maxThinkingTokens: 0, thinkingConfig: { type: 'adaptive' }, isNonInteractiveSession: true, agentDefinitions: { activeAgents: [] } } })
 const forbidden = ['wrap your thinking', '<analysis>', 'Produce the analysis']
 const requiresReasoning = (text: string): boolean => forbidden.some(phrase => text.includes(phrase))
 const summary = 'The tags parser and its focused tests are complete. The operator asked for quoted commas and case-insensitive deduplication. Continue with CLI verification.'

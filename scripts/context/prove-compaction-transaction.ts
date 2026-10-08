@@ -94,6 +94,7 @@ function makeContext(): { ctx: Record<string, unknown>; readFileState: Map<strin
       mcpClients: [],
       engineModel: 'claude-opus-4-8',
       maxThinkingTokens: 0,
+      thinkingConfig: { type: 'adaptive' as const },
       isNonInteractiveSession: true,
       agentDefinitions: { activeAgents: [] },
     },

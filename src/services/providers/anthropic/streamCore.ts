@@ -56,9 +56,8 @@ import {
   modelSupportsThinking,
   type ThinkingConfig,
 } from 'src/utils/thinking.js'
-import { foldToolChoiceForModel, servesPerMessageEffort } from 'src/utils/model/capabilities.js'
+import { foldToolChoiceForModel } from 'src/utils/model/capabilities.js'
 import { API_MAX_MEDIA_PER_REQUEST } from '../../../constants/apiLimits.js'
-import { MID_CONVERSATION_OUTPUT_CONFIG_BETA_HEADER } from '../../../constants/betas.js'
 import { getAttributionHeader } from '../../../constants/system.js'
 import {
   getEmptyToolPermissionContext,
@@ -252,7 +251,6 @@ export type Options = {
   fetchOverride?: ClientOptions['fetch']
   enablePromptCaching?: boolean
   skipCacheWrite?: boolean
-  effortMessage?: EffortValue
   temperatureOverride?: number
   effortValue?: EffortValue
   mcpTools: Tools
@@ -796,14 +794,8 @@ async function* queryModel(
     }
     const inducedEdit = resolveInducedPrefixEdit()
     if (inducedEdit !== null && inducedEditApplies(messages)) wireParts = applyInducedPrefixEdit(wireParts, inducedEdit)
-    const effortRow = perMessageEffortRow(options.model, options.effortMessage)
-    const wireMessages = effortRow === null ? wireParts.messages : insertBeforeLastUserRow(wireParts.messages as ReadonlyArray<{ role?: string }>, effortRow)
-    const rowAt = effortRow === null ? -1 : (wireMessages as ReadonlyArray<unknown>).indexOf(effortRow)
-    const sourceIds = messagesForAPI.map(m => (m.type === 'assistant' ? m.message.id : null))
-    const wireMessageIds = rowAt === -1 ? sourceIds : [...sourceIds.slice(0, rowAt), null, ...sourceIds.slice(rowAt)]
-    if (effortRow !== null && !betasParams.includes(MID_CONVERSATION_OUTPUT_CONFIG_BETA_HEADER)) {
-      betasParams.push(MID_CONVERSATION_OUTPUT_CONFIG_BETA_HEADER)
-    }
+    const wireMessages = wireParts.messages
+    const wireMessageIds = messagesForAPI.map(m => (m.type === 'assistant' ? m.message.id : null))
 
     const params = {
       model: normalizeModelStringForAPI(options.model),
@@ -811,7 +803,7 @@ async function* queryModel(
       system: wireParts.system as typeof system,
       tools: wireParts.tools as typeof allTools,
       tool_choice: toolChoice,
-      ...((sendBetas || effortRow !== null) && { betas: betasParams }),
+      ...(sendBetas && { betas: betasParams }),
       metadata: getAPIMetadata(),
       max_tokens: maxOutputTokens,
       thinking,
@@ -1955,16 +1947,4 @@ export function getMaxOutputTokensForModel(model: string): number {
     maxOutputTokens.upperLimit,
   )
   return result.effective
-}
-
-export function perMessageEffortRow(model: string, effort: EffortValue | undefined): { role: 'system'; content: []; output_config: { effort: string } } | null {
-  if (typeof effort !== 'string' || !servesPerMessageEffort(model)) return null
-  return { role: 'system', content: [], output_config: { effort } }
-}
-
-export function insertBeforeLastUserRow<T extends { role?: string }>(messages: readonly T[], row: unknown): T[] {
-  for (let i = messages.length - 1; i >= 0; i--) {
-    if (messages[i]!.role === 'user') return [...messages.slice(0, i), row as T, ...messages.slice(i)]
-  }
-  return [...messages, row as T]
 }

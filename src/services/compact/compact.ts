@@ -25,7 +25,6 @@ import { logForDebugging } from '../../utils/debug.js'
 import { continuationOfSentRequest, lastSentRequestFor, runForkedAgent, type CacheSafeParams } from '../../utils/forkedAgent.js'
 import { appendSystemContext } from '../../utils/api.js'
 import { asSystemPrompt } from '../../utils/systemPromptType.js'
-import type { EffortValue } from '../../utils/effort.js'
 import { getCommandQueue } from '../../utils/messageQueueManager.js'
 import { classifyModelRoute } from '../providers/routeLaw.js'
 import { executePostCompactHooks, executePreCompactHooks } from '../../utils/hooks/events.js'
@@ -37,7 +36,6 @@ import {
   findLastCompactBoundaryIndex,
   getAssistantMessageText,
   isCompactBoundaryMessage,
-  normalizeMessagesForAPI,
 } from '../../utils/messages.js'
 import { expandPath } from '../../utils/path.js'
 import type { FileState } from '../../utils/fileStateCache.js'
@@ -48,8 +46,7 @@ import { getTranscriptPath } from '../../utils/sessionStorage/paths.js'
 import { tokenCountWithEstimation } from '../../utils/tokens.js'
 import { extractDiscoveredToolNames, isToolSearchEnabled } from '../../utils/toolSearch.js'
 import { sleep } from '../../utils/sleep.js'
-import { COMPACT_MAX_OUTPUT_TOKENS } from '../../utils/context.js'
-import { getContextWindowForModel, getModelMaxOutputTokens, servesPerMessageEffort, notePerMessageEffortRefused, refusesPerMessageEffortRow } from '../../utils/model/capabilities.js'
+import { getContextWindowForModel, getModelMaxOutputTokens } from '../../utils/model/capabilities.js'
 import { getEngineModel } from '../../utils/model/model.js'
 import { API_ERROR_MESSAGE_PREFIX, PROMPT_TOO_LONG_ERROR_MESSAGE, getPromptTooLongTokenGap } from '../api/errors.js'
 import { type OverflowSignal, overflowGapTokens, overflowSignalOf } from '../api/overflowSignal.js'
@@ -115,28 +112,6 @@ const PTL_TRUNCATION_MARKER = '[earlier turns folded for the compaction retry]'
 const LEGACY_PTL_TRUNCATION_MARKER = '[earlier conversation truncated for compaction retry]'
 const KEEPALIVE_INTERVAL_MS = 30_000
 const DEGRADED_SUMMARY_LENGTH = 80
-
-
-export const MECHANICAL_FOLD_EFFORT = 'low' as const
-
-export function foldEffortFor(model: string, sessionEffort: EffortValue | undefined): EffortValue | undefined {
-  const verdict = classifyModelRoute(model)
-  const anthropic = verdict.kind === 'route' && verdict.route === 'anthropic'
-  return anthropic ? sessionEffort : MECHANICAL_FOLD_EFFORT
-}
-
-export function foldEffortMessageFor(model: string): EffortValue | undefined {
-  return servesPerMessageEffort(model) ? MECHANICAL_FOLD_EFFORT : undefined
-}
-
-function learnsPerMessageEffortRefusal(row: AssistantMessage | undefined, model: string): boolean {
-  if (row?.isApiErrorMessage !== true || foldEffortMessageFor(model) === undefined) return false
-  const words = getAssistantMessageText(row) ?? ''
-  if (!refusesPerMessageEffortRow(words)) return false
-  notePerMessageEffortRefused(model)
-  logForDebugging(`compact: the host refused the per-message effort row for ${model} — the next fold request rides without it: ${words.slice(0, 160)}`, { level: 'warn' })
-  return true
-}
 
 function isOverflowAnswer(row: AssistantMessage): boolean {
   return overflowSignalOf(row) !== null || (getAssistantMessageText(row) ?? '').startsWith(PROMPT_TOO_LONG_ERROR_MESSAGE)
@@ -224,22 +199,20 @@ export class CompactionRefusedForHistoryError extends Error {
     this.nonInteractive = opts.nonInteractive
   }
 }
-const FOLD_DEADLINE_MS = 10 * 60 * 1000
 const FOLD_STALL_MS = 120_000
 
 export const ERROR_MESSAGE_FOLD_TIMEOUT =
   'The summary call stalled and was stopped — nothing was folded; the conversation stands as it was. Try again, or start fresh with /clear.'
 
-export type FoldBounds = { deadlineMs: number; stallMs: number; ingestMsPer1kTokens: number }
+export type FoldBounds = { stallMs: number; ingestMsPer1kTokens: number }
 
-let foldBoundsOverride: { deadlineMs: number; stallMs: number; ingestMsPer1kTokens?: number } | null = null
-export function setFoldBoundsForTests(bounds: { deadlineMs: number; stallMs: number; ingestMsPer1kTokens?: number } | null): void {
+let foldBoundsOverride: { stallMs: number; ingestMsPer1kTokens?: number } | null = null
+export function setFoldBoundsForTests(bounds: { stallMs: number; ingestMsPer1kTokens?: number } | null): void {
   foldBoundsOverride = bounds
 }
 
 function foldBounds(): FoldBounds {
   return {
-    deadlineMs: foldBoundsOverride?.deadlineMs ?? FOLD_DEADLINE_MS,
     stallMs: foldBoundsOverride?.stallMs ?? FOLD_STALL_MS,
     ingestMsPer1kTokens: foldBoundsOverride?.ingestMsPer1kTokens ?? COLD_INGEST_MS_PER_1K_TOKENS,
   }
@@ -256,10 +229,10 @@ function foldStallAfterFirstEventMs(model: string): number {
 
 export function foldFirstByteAllowanceMs(estTokens: number, bounds: FoldBounds = foldBounds()): number {
   const tokens = Number.isFinite(estTokens) && estTokens > 0 ? estTokens : 0
-  return Math.min(bounds.deadlineMs, bounds.stallMs + Math.round((tokens / 1000) * bounds.ingestMsPer1kTokens))
+  return bounds.stallMs + Math.round((tokens / 1000) * bounds.ingestMsPer1kTokens)
 }
 
-export type FoldCut = 'silence' | 'wall'
+export type FoldCut = 'silence'
 
 type FoldBound = {
   controller: AbortController
@@ -273,32 +246,27 @@ type FoldBound = {
 }
 
 function armFoldBound(parent: AbortSignal, road: WireFoldRow['road'], estTokens: number, model: string): FoldBound {
-  const { deadlineMs } = foldBounds()
   const stallMs = foldStallAfterFirstEventMs(model)
-  const firstByteMs = foldFirstByteAllowanceMs(estTokens)
+  const firstByteMs = Math.max(stallMs, foldFirstByteAllowanceMs(estTokens))
   const controller = new AbortController()
   let timedOut = false
-  let cut: FoldCut | null = null
   let contentSeen = false
   const onParentAbort = (): void => controller.abort()
   if (parent.aborted) controller.abort()
   else parent.addEventListener('abort', onParentAbort, { once: true })
-  const expire = (clock: FoldCut): void => {
+  const expire = (): void => {
     if (timedOut) return
     timedOut = true
-    cut = clock
     controller.abort()
   }
-  const deadline = setTimeout(() => expire('wall'), deadlineMs)
-  deadline.unref?.()
-  let stall: NodeJS.Timeout | null = setTimeout(() => expire('silence'), firstByteMs)
+  let stall: NodeJS.Timeout | null = setTimeout(expire, firstByteMs)
   stall.unref?.()
   const rearm = (): void => {
     if (stall !== null) clearTimeout(stall)
-    stall = setTimeout(() => expire('silence'), contentSeen ? stallMs : firstByteMs)
+    stall = setTimeout(expire, contentSeen ? stallMs : firstByteMs)
     stall.unref?.()
   }
-  logForDebugging(`compact: ${road} lane bound armed — first-byte allowance ${firstByteMs} ms for ≈${Math.round(estTokens)} tokens, stall ${stallMs} ms after the first event, wall ${deadlineMs} ms`)
+  logForDebugging(`compact: ${road} lane bound armed — first-byte allowance ${firstByteMs} ms for ≈${Math.round(estTokens)} tokens, stall ${stallMs} ms after the first event`)
   return {
     controller,
     signal: controller.signal,
@@ -312,21 +280,19 @@ function armFoldBound(parent: AbortSignal, road: WireFoldRow['road'], estTokens:
       rearm()
     },
     hitDeadline: () => timedOut,
-    cutBy: () => cut,
+    cutBy: () => timedOut ? 'silence' : null,
     dispose(): void {
-      clearTimeout(deadline)
       if (stall !== null) clearTimeout(stall)
       parent.removeEventListener('abort', onParentAbort)
     },
   }
 }
 
-function foldCutWords(bound: FoldBound): string {
-  return bound.cutBy() === 'wall' ? 'the wall-clock deadline' : 'silence on the wire'
+function foldCutWords(_bound: FoldBound): string {
+  return 'silence on the wire'
 }
 
-export function shouldRideCacheSharingFork(model: string, thinkingConfig?: { type: string }): boolean {
-  if (thinkingConfig?.type === 'enabled') return false
+export function shouldRideCacheSharingFork(model: string, _thinkingConfig?: { type: string }): boolean {
   const verdict = classifyModelRoute(model)
   if (verdict.kind === 'absence') return false
   if (verdict.kind === 'unrecognised') return true
@@ -748,13 +714,13 @@ async function summarizeViaCacheSharingFork(
     context.setResponseLength?.(() => 0)
     const result = await runForkedAgent({
       promptMessages: [promptMessage],
-      cacheSafeParams: { ...cacheSafeParams, forkContextMessages: messages },
+      cacheSafeParams: { ...cacheSafeParams, toolUseContext: context, forkContextMessages: messages },
       canUseTool: createCompactCanUseTool(),
       querySource: 'compact' as never,
       forkLabel: 'compact',
       maxTurns: 1,
+      maxOutputTokens: getModelMaxOutputTokens(model).upperLimit,
       skipCacheWrite: true,
-      effortMessage: foldEffortMessageFor(context.options.engineModel),
       onStreamEvent: event => {
         bound.content()
         const inner = event as { type?: string; delta?: { type?: string; text?: string } }
@@ -765,6 +731,10 @@ async function summarizeViaCacheSharingFork(
       },
       overrides: {
         abortController: bound.controller,
+        setSDKStatus: status => {
+          if (typeof status === 'object' && status !== null && 'streamActivity' in status) bound.touch()
+          context.setSDKStatus?.(status)
+        },
         getAppState: () => {
           const state = context.getAppState()
           return state.toolPermissionContext.shouldAvoidPermissionPrompts
@@ -813,7 +783,6 @@ async function summarizeViaCacheSharingFork(
         })
       }
     }
-    if (last !== undefined) learnsPerMessageEffortRefusal(last, model)
     logForDebugging(`compact: fork path produced no usable summary: ${JSON.stringify(result.messages).slice(0, 500)}`, {
       level: 'warn',
     })
@@ -884,10 +853,9 @@ async function streamingFallbackAttempts(
   context: ToolUseContext,
   bound: FoldBound,
 ): Promise<AssistantMessage> {
-  let attempts = 1
+  const attempts = 1
   const model = context.options.engineModel
   let streamingStarted = false
-  let rowRefusalRetried = false
   for (let attempt = 1; attempt <= attempts; attempt++) {
     streamingStarted = false
     context.setResponseLength?.(() => 0)
@@ -922,20 +890,16 @@ async function streamingFallbackAttempts(
         `compact: direct lane re-sends the session's last request (${continuation.sent.length} rows) + ${continuation.tail.length} newer row(s) + the prompt`,
       )
     }
-    const apiMessages: Message[] =
-      continuation !== null
-        ? [...continuation.sent, ...stripImagesFromMessages([...continuation.tail, promptMessage])]
-        : normalizeMessagesForAPI(
-            stripImagesFromMessages(stripReinjectedAttachments([...afterBoundary, promptMessage])),
-            context.options.tools,
-          )
+    const apiMessages: Message[] = continuation !== null
+      ? [...continuation.sent, ...continuation.tail, promptMessage]
+      : [...afterBoundary, promptMessage]
 
     let captured: AssistantMessage | undefined
     bound.request()
     const stream = routedCallModel({
       messages: apiMessages,
       systemPrompt: asSystemPrompt(appendSystemContext([...cacheSafeParams.systemPrompt], cacheSafeParams.systemContext ?? {})),
-      thinkingConfig: { type: 'disabled' },
+      thinkingConfig: context.options.thinkingConfig,
       tools,
       signal: bound.signal,
       options: {
@@ -943,13 +907,16 @@ async function streamingFallbackAttempts(
         model,
         isNonInteractiveSession: context.options.isNonInteractiveSession,
         hasAppendSystemPrompt: Boolean(context.options.appendSystemPrompt),
-        maxOutputTokensOverride: Math.min(COMPACT_MAX_OUTPUT_TOKENS, getModelMaxOutputTokens(model).upperLimit),
+        maxOutputTokensOverride: getModelMaxOutputTokens(model).upperLimit,
         querySource: 'compact' as never,
         agents: context.options.agentDefinitions.activeAgents,
         mcpTools: [],
-        effortValue: foldEffortFor(model, context.getAppState().effortValue),
-        effortMessage: foldEffortMessageFor(model),
-        onStreamActivity: () => bound.touch(),
+        effortValue: context.getAppState().effortValue,
+        onWait: wait => context.setSDKStatus?.({ wait }),
+        onStreamActivity: atMs => {
+          bound.touch()
+          context.setSDKStatus?.({ streamActivity: atMs })
+        },
         ownerKey: String(rosterOwnerFromToolUseContext(context)),
       },
     })
@@ -977,11 +944,6 @@ async function streamingFallbackAttempts(
     if (bound.hitDeadline()) throw new Error(ERROR_MESSAGE_FOLD_TIMEOUT)
     if (bound.signal.aborted) throw new APIUserAbortError()
     if (captured?.isApiErrorMessage === true) {
-      if (!rowRefusalRetried && learnsPerMessageEffortRefusal(captured, model)) {
-        rowRefusalRetried = true
-        attempts += 1
-        continue
-      }
       if (!isOverflowAnswer(captured) && !summaryRefusedByModel(captured)) {
         const malformed = malformedHistoryRefusalOf(captured)
         if (malformed !== null) {
