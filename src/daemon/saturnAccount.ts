@@ -6,9 +6,6 @@ import { getClaudeAIOAuthTokens, isAnthropicOAuthSignInExpired, isClaudeAISubscr
 import { getAuthConfigHomeDir } from '../utils/envUtils.js'
 import { readScopeIdentity, scopeIdentityFile } from '../utils/accounts/scopeScan.js'
 import { LOCAL_UNREACHABLE_REMEDY } from '../services/providers/local/localAccounts.js'
-import { anthropicWindowClosedUntil } from '../services/anthropicLimits.js'
-import { openaiWindowClosedUntil } from '../services/providers/openai/openaiLimitState.js'
-import { laneWindowClosedUntil } from '../services/providers/laneWindowFact.js'
 import type { AnthropicWindowFactV1, LaneWindowFactV1, OpenaiWindowFactV1 } from '../services/engine-connector/types.js'
 import type { ScheduleAccountV1, ScheduleAccountVerdictV1 } from './saturn.js'
 
@@ -221,15 +218,6 @@ export type SessionWindowFactsV1 = {
     huggingfaceWindow?: LaneWindowFactV1
   }
 } | null
-
-export function sessionWindowClosedUntil(family: string, facts: SessionWindowFactsV1, nowMs: number): number | undefined {
-  if (family === 'anthropic') return anthropicWindowClosedUntil(facts?.usage?.anthropicWindow, nowMs)
-  if (family === 'openai') return openaiWindowClosedUntil(facts?.usage?.openaiWindow, nowMs)
-  if (family === 'gemini') return laneWindowClosedUntil(facts?.usage?.geminiWindow, nowMs)
-  if (family === 'openrouter') return laneWindowClosedUntil(facts?.usage?.openrouterWindow, nowMs)
-  if (family === 'huggingface') return laneWindowClosedUntil(facts?.usage?.huggingfaceWindow, nowMs)
-  return undefined
-}
 
 export interface SessionFireReads extends LiveFactsReads {
   factsOf?: (sessionId: string) => SessionWindowFactsV1
