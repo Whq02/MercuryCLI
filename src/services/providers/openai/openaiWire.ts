@@ -208,62 +208,55 @@ export function mapOpenaiHttpFailure(
   const message = String(err?.message ?? o?.detail ?? `HTTP ${status}`)
   const retryable = isTemporaryStreamError({ code, type: errType, error_type: o?.error_type ?? err?.error_type ?? asRecord(err?.metadata)?.error_type, message, status })
   if (status === 429) {
-    const resetFacts: string[] = []
-    let resetsAtMs: number | undefined
-    const resetsInSeconds = err?.resets_in_seconds ?? o?.resets_in_seconds
-    if (typeof resetsInSeconds === 'number' && Number.isFinite(resetsInSeconds) && resetsInSeconds > 0) {
-      resetsAtMs = Date.now() + resetsInSeconds * 1000
-      const hours = resetsInSeconds / 3600
-      resetFacts.push(
-        hours >= 48
-          ? `resets in ~${(hours / 24).toFixed(1)} days`
-          : hours >= 1
-            ? `resets in ~${hours.toFixed(1)}h`
-            : `resets in ~${Math.ceil(resetsInSeconds / 60)}m`,
-      )
-    }
-    if (resetsAtMs === undefined) {
-      const bands = ['primary', 'secondary'].map(name => ({
-        name,
-        minutes: Number(headers?.get(`x-codex-${name}-window-minutes`)),
-        used: Number(headers?.get(`x-codex-${name}-used-percent`)),
-      }))
+    const now = Date.now()
+    const asked = retryAfterHeaderMs(headers?.get('retry-after') ?? undefined)
+    const bodySeconds = err?.resets_in_seconds ?? o?.resets_in_seconds
+    const seconds = typeof bodySeconds === 'number' && Number.isFinite(bodySeconds) && bodySeconds >= 0 ? bodySeconds : undefined
+    const planType = err?.plan_type ?? o?.plan_type
+    const bands = ['primary', 'secondary'].map(name => ({
+      name,
+      minutes: Number(headers?.get(`x-codex-${name}-window-minutes`)),
+      used: Number(headers?.get(`x-codex-${name}-used-percent`)),
+    }))
+    const reached = bands.filter(b => Number.isFinite(b.used) && b.used >= 100)
+    const planNamed = code === 'usage_limit_reached' || errType === 'usage_limit_reached' || (typeof planType === 'string' && planType !== '') || reached.length > 0
+    const shortBodyWait = seconds !== undefined && seconds <= 3600
+    let waitMs = asked ?? (seconds !== undefined ? seconds * 1000 : undefined)
+    if (waitMs === undefined && planNamed) {
       const weekly = /\bweek(?:ly)?\b|\b7[ -]?days?\b/i.test(message)
       const short = /\b5[ -]?(?:h|hours?)\b/i.test(message)
       const named = weekly
         ? bands.find(b => Number.isFinite(b.minutes) && b.minutes >= 6 * 24 * 60)?.name ?? 'secondary'
         : short ? bands.find(b => b.minutes === 5 * 60)?.name ?? 'primary' : undefined
-      const reached = bands.filter(b => Number.isFinite(b.used) && b.used >= 100)
-      const statedBands = bands.filter(b => headers?.get(`x-codex-${b.name}-reset-after-seconds`))
-      const selected = named ?? (reached.length === 1 ? reached[0]!.name : statedBands.length === 1 ? statedBands[0]!.name : undefined)
-      const resetHeaders = [
-        ...(selected !== undefined ? [`x-codex-${selected}-reset-after-seconds`] : []),
-        'retry-after',
-        'x-ratelimit-reset-requests',
-        'x-ratelimit-reset-tokens',
-      ]
-      for (const header of resetHeaders) {
-        const value = headers?.get(header)
-        if (!value) continue
-        resetFacts.push(`${header}: ${value}`)
-        const seconds = Number(value)
-        if (Number.isFinite(seconds) && seconds > 0) resetsAtMs = Date.now() + seconds * 1000
-        break
+      const stated = bands.filter(b => headers?.get(`x-codex-${b.name}-reset-after-seconds`))
+      const selected = named ?? (reached.length === 1 ? reached[0]!.name : stated.length === 1 ? stated[0]!.name : undefined)
+      if (selected !== undefined) {
+        const rawReset = headers?.get(`x-codex-${selected}-reset-after-seconds`)
+        const resetSeconds = rawReset ? Number(rawReset) : Number.NaN
+        if (Number.isFinite(resetSeconds) && resetSeconds >= 0) waitMs = resetSeconds * 1000
       }
     }
-    const planType = err?.plan_type ?? o?.plan_type
-    if (typeof planType === 'string' && planType) resetFacts.push(`plan: ${planType}`)
+    if (waitMs === undefined) {
+      for (const header of ['x-ratelimit-reset-requests', 'x-ratelimit-reset-tokens']) {
+        const raw = headers?.get(header)
+        const resetSeconds = raw ? Number(raw) : Number.NaN
+        if (Number.isFinite(resetSeconds) && resetSeconds > 0) {
+          waitMs = resetSeconds * 1000
+          break
+        }
+      }
+    }
+    const isWindow = asked === undefined && !shortBodyWait && planNamed
+    const label = typeof planType === 'string' && planType !== '' ? planType : 'usage'
+    const words = isWindow
+      ? `the ${label} window is reached${waitMs !== undefined ? ` — resets in ${Math.ceil(waitMs / 1000)} s` : ' — no reset stated'}`
+      : `rate limited${waitMs !== undefined ? ` — the provider asks for ${Math.ceil(waitMs / 1000)} s` : ''}`
     return {
       kind: 'usage-limit',
       code: code || errType ? `openai-${code ?? errType}` : 'http-429',
-      message: resetFacts.length > 0 ? `${message} (${resetFacts.join(' · ')})` : message,
+      message: `${words} — ${message}`,
       retryable,
-      ...(resetsAtMs !== undefined ? { resetsAtMs } : {}),
-      ...((): { retryAfterMs?: number } => {
-        const asked = retryAfterHeaderMs(headers?.get('retry-after') ?? undefined)
-        if (asked !== undefined) return { retryAfterMs: asked }
-        return resetsAtMs !== undefined && resetsAtMs > Date.now() ? { retryAfterMs: resetsAtMs - Date.now() } : {}
-      })(),
+      ...(waitMs !== undefined ? { resetsAtMs: now + waitMs, retryAfterMs: waitMs } : {}),
       status,
     }
   }

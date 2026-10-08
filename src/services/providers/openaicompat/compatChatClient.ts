@@ -196,11 +196,23 @@ export function mapCompatHttpFailure(status: number, body: unknown, headers?: { 
   const stringError = typeof o?.error === 'string' && o.error.trim() !== '' ? o.error : undefined
   const message = String(err?.message ?? stringError ?? o?.message ?? `HTTP ${status}`)
   const word = vendorErrorWord(err)
-  const retryAfterMs = retryAfterHeaderMs(headers?.get('retry-after') ?? undefined)
+  let retryAfterMs = retryAfterHeaderMs(headers?.get('retry-after') ?? undefined)
+  if (status === 429 && retryAfterMs === undefined) {
+    const details = Array.isArray(err?.details) ? err.details : []
+    const retry = details.find(value => value && typeof value === 'object' && (value as Record<string, unknown>)['@type'] === 'type.googleapis.com/google.rpc.RetryInfo') as Record<string, unknown> | undefined
+    const delay = typeof retry?.retryDelay === 'string' && /^\d+(?:\.\d+)?s$/.test(retry.retryDelay) ? Number.parseFloat(retry.retryDelay) : err?.resets_in_seconds ?? o?.resets_in_seconds
+    if (typeof delay === 'number' && Number.isFinite(delay) && delay >= 0) retryAfterMs = delay * 1000
+    if (retryAfterMs === undefined) {
+      const reset = Number(headers?.get('x-ratelimit-reset'))
+      const resetAt = reset > 1e12 ? reset : reset > 1e9 ? reset * 1000 : undefined
+      if (resetAt !== undefined && resetAt > Date.now()) retryAfterMs = resetAt - Date.now()
+    }
+  }
+  const refusalWords = status === 429 && retryAfterMs !== undefined ? `rate limited — the provider asks for ${Math.ceil(retryAfterMs / 1000)} s — ${message}` : message
   return {
     kind: word !== undefined ? 'api-error' : 'http-error',
     code: word !== undefined ? `api-${word}` : `http-${status}`,
-    message,
+    message: refusalWords,
     retryable: status === 429 || status === 408 || status >= 500,
     status,
     ...(retryAfterMs !== undefined ? { retryAfterMs } : {}),

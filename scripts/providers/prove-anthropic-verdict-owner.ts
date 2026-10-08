@@ -64,9 +64,9 @@ section('§1 a rejected verdict observed under account A refuses delegated work,
   check('the verdict names the account that observed it', verdict.account === ACCOUNT_A, JSON.stringify(verdict))
   check('the window counts as observed', limits.anthropicWindowObserved() === true)
   const capped = lane()
-  check('the lane reads rejected and caps delegation', capped.limit === 'rejected' && capped.delegationCapped === true && !capped.usable, JSON.stringify(capped))
-  const refusal = blocker()
-  check('a delegated dispatch is refused', refusal !== null && refusal.includes('usage window is reached'), String(refusal))
+  check('the lane reads rejected without capping delegation', capped.limit === 'rejected' && capped.delegationCapped === false && capped.usable, JSON.stringify(capped))
+  const refusal = lane().limitBlocker ?? null
+  check('the reading remains while dispatch proceeds', blocker() === null && refusal !== null && refusal.includes('usage window is reached'), String(refusal))
   check('the refusal names the account the verdict belongs to', refusal !== null && refusal.includes(ACCOUNT_A), String(refusal))
   check('the refusal names when the window was observed', refusal !== null && /seen at \d\d:\d\d/.test(refusal), String(refusal))
   check('the refusal names the reset it knows', refusal !== null && /resets at (?:(?:Sun|Mon|Tue|Wed|Thu|Fri|Sat) )?\d\d:\d\d/.test(refusal), String(refusal))
@@ -89,20 +89,20 @@ section('§2 the active wallet entry is B: the verdict reads unknown and nothing
 section('§3 the observing account returns: the same verdict still refuses')
 {
   limits.__setAnthropicOwnerResolverForTest(() => OWNER_A, () => ACCOUNT_A)
-  const refusal = blocker()
+  const refusal = lane().limitBlocker ?? null
   check('the same verdict under the same account refuses again', refusal !== null && refusal.includes('usage window is reached') && refusal.includes(ACCOUNT_A), String(refusal))
   check('the window counts as observed again', limits.anthropicWindowObserved() === true)
 }
 
-section('§4 a headerless 429 stamps the observing account too')
+section('§4 a headerless plan-window 429 stamps the observing account too')
 {
   limits.resetLimitsForCredentialSwitch()
   mock.setMockRateLimitScenario('normal')
   limits.__setAnthropicOwnerResolverForTest(() => OWNER_A, () => ACCOUNT_A)
-  limits.extractQuotaStatusFromError({ status: 429 })
+  limits.extractQuotaStatusFromError({ status: 429, message: 'usage_limit_reached' })
   const verdict = limits.anthropicLimitVerdict()
   check('the 429 reads rejected with its moment and account', verdict.status === 'rejected' && typeof verdict.observedAtMs === 'number' && verdict.account === ACCOUNT_A, JSON.stringify(verdict))
-  check('a delegated dispatch is refused under A', blocker() !== null)
+  check('a delegated dispatch proceeds under A despite its note', blocker() === null && lane().limit === 'rejected')
   limits.__setAnthropicOwnerResolverForTest(() => OWNER_B, () => ACCOUNT_B)
   check('…and reads unknown under B', limits.anthropicLimitVerdict().status === 'unknown' && blocker() === null)
 }
@@ -118,7 +118,7 @@ section('§5 the credential-switch reset clears the verdict and its stamp; the n
   observeRejected()
   const fresh = limits.anthropicLimitVerdict()
   check("the new account's own observation stamps the new account", fresh.status === 'rejected' && fresh.account === ACCOUNT_B, JSON.stringify(fresh))
-  const refusal = blocker()
+  const refusal = lane().limitBlocker ?? null
   check('…and its refusal names the new account', refusal !== null && refusal.includes(ACCOUNT_B) && !refusal.includes(ACCOUNT_A), String(refusal))
 }
 

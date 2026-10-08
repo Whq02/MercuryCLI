@@ -10,7 +10,7 @@ import { isEnvShadowedAuthSource } from '../../utils/loginShadow.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { createAssistantAPIErrorMessage, NO_RESPONSE_REQUESTED } from '../../utils/messages.js'
 import { jsonStringify } from '../../utils/slowOperations.js'
-import { anthropicCarryWords, classifyAnthropicRefusal } from '../providers/anthropicRefusal.js'
+import { anthropicCarryWords, anthropicRefusalFactsOf, classifyAnthropicRefusal } from '../providers/anthropicRefusal.js'
 import { clientContractGateText, modelRefusalFromError, noteModelRefusal, type ModelRefusalRequest } from '../providers/anthropic/modelRefusal.js'
 import { classifyCredentialWall, credentialWallLine, isRevokedSignInText } from '../providers/credentialWall.js'
 import { accountIdentityShown } from '../wallet/identityWords.js'
@@ -23,6 +23,8 @@ import {
   extractConnectionErrorDetails as connectionDetailsFor,
   formatAPIError as formatConnectionFallback,
 } from './errorUtils.js'
+import { retryAfterHeaderMs } from './retryAfter.js'
+import { stampProviderWait } from './recoveryBudget.js'
 import { ImageResizeError } from '../../utils/imageResizer.js'
 import { ImageSizeError } from '../../utils/imageValidation.js'
 
@@ -438,7 +440,17 @@ function composeAssistantMessageFromError(
     })
   }
 
-  if (classifyAnthropicRefusal({ status, wireText: message }) === 'window' && shouldProcessRateLimits(isClaudeAISubscriber())) {
+  const refusal = classifyAnthropicRefusal(anthropicRefusalFactsOf(error))
+  const retryAfterMs = retryAfterHeaderMs(headerValue(errorHeaders(error), 'retry-after'))
+  if (refusal === 'rate-limit' && retryAfterMs !== undefined) {
+    const detail = extract429Detail(message)?.text ?? message
+    return stampProviderWait(createAssistantAPIErrorMessage({
+      content: `${API_ERROR_MESSAGE_PREFIX}: Anthropic is rate limited — the provider asks for ${Math.ceil(retryAfterMs / 1000)} s — ${detail}`,
+      error: 'rate_limit',
+      errorDetails: message,
+    }), retryAfterMs)
+  }
+  if ((refusal === 'window' || refusal === 'rate-limit') && shouldProcessRateLimits(isClaudeAISubscriber())) {
     const headers = errorHeaders(error)
     const claim = headerValue(headers, 'anthropic-ratelimit-unified-representative-claim')
     const overageStatus = headerValue(headers, 'anthropic-ratelimit-unified-overage-status')
@@ -449,7 +461,7 @@ function composeAssistantMessageFromError(
       'anthropic-ratelimit-unified-overage-disabled-reason',
     )
 
-    if ((claim !== undefined && claim !== '') || (overageStatus !== undefined && overageStatus !== '')) {
+    if (refusal === 'window' && ((claim !== undefined && claim !== '') || (overageStatus !== undefined && overageStatus !== ''))) {
       const limits: AnthropicLimits = {
         status: 'rejected',
         unifiedRateLimitFallbackAvailable: false,

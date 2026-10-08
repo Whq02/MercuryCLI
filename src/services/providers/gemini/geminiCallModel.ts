@@ -12,7 +12,7 @@ import {
 import { buildGeminiExtras } from '../openaicompat/compatWire.js'
 import { geminiApiBase, resolveGeminiAccount, resolveGeminiRequestAuth } from './geminiAccounts.js'
 import { geminiEffortVocabularyFor } from './geminiCatalogue.js'
-import { recordGeminiRateHeaders } from './geminiUsageState.js'
+import { clearGeminiUsageLimit, recordGeminiRateHeaders } from './geminiUsageState.js'
 import type { CompatStreamEvent } from '../openaicompat/compatChatClient.js'
 import { streamGeminiContent } from './geminiClient.js'
 import type { GeminiTurnItem } from './geminiCodec.js'
@@ -49,8 +49,9 @@ export const geminiLaneProfile: CompatLaneProfile = {
       ...args,
       acceptsEffort: geminiEffortVocabularyFor(args.wireModel).length > 0,
     }),
-  onResponseHeaders: headers => {
+  onResponseHeaders: (headers, status) => {
     recordGeminiRateHeaders(headers)
+    if (status !== undefined && status >= 200 && status < 300) clearGeminiUsageLimit()
   },
 }
 
@@ -93,6 +94,7 @@ export async function* geminiCallModel(
     onResponseHeaders: (headers, responseStatus) => {
       status = responseStatus
       recordGeminiRateHeaders(headers)
+      if (responseStatus !== undefined && responseStatus >= 200 && responseStatus < 300) clearGeminiUsageLimit()
     },
     streamTransport: (options, messages) => {
       let turn: GeminiTurnItem | undefined

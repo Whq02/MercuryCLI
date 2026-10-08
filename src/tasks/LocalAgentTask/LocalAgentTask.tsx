@@ -388,10 +388,13 @@ export function usageWindowPauseOf(messages: readonly Message[], model: string |
     }
   })()
   const resumesAtMs = asked ?? (window.resetsAtMs !== undefined && window.resetsAtMs > Date.now() ? window.resetsAtMs : undefined)
-  const until = resumesAtMs !== undefined ? ` until ${pauseClockWords(resumesAtMs)}` : ''
-  return last.error === 'rate_limit'
-    ? { why: 'usage limit', words: `${who}'s ${window.windowName ?? 'usage window'} is spent${until}`, ...(resumesAtMs !== undefined ? { resumesAtMs } : {}) }
-    : { why: 'provider busy', words: `the provider asked ${who} to wait${until}`, ...(resumesAtMs !== undefined ? { resumesAtMs } : {}) }
+  const content = last.message.content
+  const words = (typeof content === 'string' ? content : content.flatMap(block => block.type === 'text' ? [block.text] : []).join('\n')).trim()
+  return {
+    why: last.error === 'rate_limit' ? 'usage limit' : 'provider busy',
+    words: words || `the provider refused ${who}'s request`,
+    ...(resumesAtMs !== undefined ? { resumesAtMs } : {}),
+  }
 }
 
 function pauseModelWords(model: string | null | undefined): string {

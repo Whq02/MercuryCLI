@@ -257,3 +257,7 @@ export function __resetOpenrouterUsageStateForTest(): void {
   observedLimit = null
   observedIdentity = 'none'
 }
+
+export function clearOpenrouterUsageLimit(): void {
+  observedLimit = null
+}

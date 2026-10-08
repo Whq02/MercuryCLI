@@ -92,6 +92,7 @@ type TokenGrant = { access: string; rotateRefreshTo?: string } | { invalidGrant:
 let tokenGrant: TokenGrant = { access: 'unset' }
 let tokenPosts = 0
 let profileGets = 0
+let usageGets = 0
 const unexpectedAxios: string[] = []
 axios.defaults.adapter = async config => {
   const url = String(config.url ?? '')
@@ -127,6 +128,10 @@ axios.defaults.adapter = async config => {
       account: { uuid: 'acc-fixture', email_address: 'fixture@example.invalid', display_name: 'Fixture', created_at: '2026-01-01T00:00:00Z' },
       organization: { uuid: 'org-fixture', name: 'Fixture Org', organization_type: 'claude_max', rate_limit_tier: 'default_claude_max_5x', billing_type: 'stripe_subscription', subscription_created_at: '2026-01-01T00:00:00Z' },
     })
+  }
+  if (method === 'get' && url === `${base}/api/oauth/usage`) {
+    usageGets++
+    return respond(200, { five_hour: { utilization: 42, resets_at: new Date(Date.now() + 3600000).toISOString() }, seven_day: null })
   }
   unexpectedAxios.push(`${method.toUpperCase()} ${url}`)
   return respond(500, { error: 'unexpected axios egress in fixture' })
@@ -218,6 +223,7 @@ section('B · reactive — a server-revoked (unexpired) token 401s, refresh heal
   check('the RETRIED request carries the refreshed bearer and succeeds', mine.length === 2 && mine[1]?.bearer === 'at-fresh-b' && mine[1]?.status === 200, `requests=${JSON.stringify(mine)}`)
   check('the turn settled end_turn — a 401 heals, it never wedges', o.threw === undefined && o.last?.message.stop_reason === 'end_turn', `threw=${String(o.threw)}`)
   check('the rotated refresh token was persisted', auth.getClaudeAIOAuthTokens()?.refreshToken === 'rt-b2')
+  check('the retry refreshes the usage reading on the same fixture account', usageGets === 1, `gets=${usageGets}`)
   revokedBearers.clear()
 }
 

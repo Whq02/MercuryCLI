@@ -1,5 +1,5 @@
 import { getAnthropicApiKey, isClaudeAISubscriber } from '../../utils/auth.js'
-import { anthropicLimitVerdict, windowClaimBindsModel, type RateLimitType } from '../anthropicLimits.js'
+import { anthropicLimitVerdict, type RateLimitType } from '../anthropicLimits.js'
 import { anthropicSignInWords, anthropicWindowWords, type AnthropicWindowObservation } from './anthropicRefusal.js'
 import { getGptSeatAvailability } from './openai/openaiCatalogue.js'
 import { providerDisplayName } from './routeLaw.js'
@@ -250,9 +250,6 @@ function resolveProviderUsabilityFrom(reads: ProviderUsabilityReads): Record<Pro
   }
   const anthropicObservation = limit === 'rejected' ? reads.anthropicLimitObservation?.() : undefined
   const anthropicWindowBlocker = limit === 'rejected' ? anthropicWindowWords(anthropicObservation, reads.carryWords?.('anthropic')) : undefined
-  if (anthropicWindowBlocker !== undefined) {
-    anthropicBlockers.push(anthropicWindowBlocker)
-  }
   const anthropic: ProviderUsability = {
     provider: 'anthropic',
     credential: anthropicCredential,
@@ -260,7 +257,7 @@ function resolveProviderUsabilityFrom(reads: ProviderUsabilityReads): Record<Pro
     usable: anthropicBlockers.length === 0,
     blockers: anthropicBlockers,
     ...(anthropicWindowBlocker !== undefined ? { limitBlocker: anthropicWindowBlocker } : {}),
-    delegationCapped: limit === 'rejected',
+    delegationCapped: false,
     ...(anthropicObservation?.claim !== undefined ? { limitClaim: anthropicObservation.claim } : {}),
     ...(anthropicCredential !== 'none' && reads.anthropicSignInExpired?.() === true ? { signInExpired: true } : {}),
   }
@@ -364,8 +361,6 @@ function resolveProviderUsabilityFrom(reads: ProviderUsabilityReads): Record<Pro
     return {
       ...lane,
       limit: 'rejected',
-      usable: false,
-      blockers: [...lane.blockers, windowBlocker],
       limitBlocker: windowBlocker,
     }
   }
@@ -451,28 +446,19 @@ export function usabilityForRoute(
 export function delegationDispatchBlocker(
   route: ProviderId,
   map: Record<ProviderId, ProviderUsability> = resolveProviderUsability(),
-  model?: string,
+  _model?: string,
 ): string | null {
   const lane = map[route]
   const signInExpired = route === 'anthropic' && lane.signInExpired === true
-  const blocked =
-    signInExpired ||
-    (route === 'anthropic'
-      ? lane.delegationCapped === true && windowClaimBindsModel(lane.limitClaim, model)
-      : lane.limit === 'rejected')
-  if (!blocked) return null
+  if (!signInExpired) return null
   const usableAlternatives = (Object.values(map) as ProviderUsability[])
     .filter(p => p.provider !== route && p.usable)
     .map(p => p.provider)
-  const why = signInExpired
-    ? anthropicSignInWords()
-    : lane.limitBlocker ?? (lane.blockers.length > 0 ? lane.blockers.join('; ') : 'lane unavailable')
+  const why = anthropicSignInWords()
   const alternatives =
     usableAlternatives.length > 0
       ? ` Lanes with usage right now: ${usableAlternatives.join(', ')} — dispatch there by naming a model explicitly (the Agent model parameter).`
-      : signInExpired
-        ? ' No other lane is usable right now — sign in again first.'
-        : ' No other lane is usable right now — wait for the window to reset.'
+      : ' No other lane is usable right now — sign in again first.'
   return (
     `the ${route} lane cannot take delegated work right now (${why}). ` +
     `Delegated agents are never silently rerouted across providers.` +

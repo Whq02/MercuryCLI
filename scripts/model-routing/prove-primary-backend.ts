@@ -218,7 +218,7 @@ section('5 · A7 — usage-limit honesty (typed facts, no invented resets)')
     { error: { code: 'rate_limit_exceeded', message: 'window reached' } },
     { get: (name: string) => (name === 'retry-after' ? '3600' : null) },
   )
-  check("429 → kind 'usage-limit' with the reset fact appended", fault.kind === 'usage-limit' && fault.message.includes('retry-after: 3600'))
+  check("429 keeps its kind and names the explicit wait before the provider answer", fault.kind === 'usage-limit' && fault.retryAfterMs === 3600000 && fault.message === 'rate limited — the provider asks for 3600 s — window reached')
   const bare = mapOpenaiHttpFailure(429, {})
   check('429 without headers stays typed (no invented reset)', bare.kind === 'usage-limit' && !bare.message.includes('retry-after'))
 }

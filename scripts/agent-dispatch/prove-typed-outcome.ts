@@ -53,7 +53,7 @@ section('§2 D11 · THE STRUCTURED RESET FACT')
     typeof fault.resetsAtMs === 'number' && Math.abs(fault.resetsAtMs - expectedMs) < 10_000,
     String(fault.resetsAtMs),
   )
-  check('the prose keeps its human copy', /resets in ~1\.0h/.test(fault.message))
+  check('the short stated wait is named without replacing the provider answer', fault.message === 'rate limited — the provider asks for 3600 s — weekly limit reached')
   const plain = mapOpenaiHttpFailure(429, { error: { type: 'rate_limit_exceeded', message: 'slow down' } } as never, null)
   check('a reset-less 429 carries NO invented fact', plain.resetsAtMs === undefined)
 }

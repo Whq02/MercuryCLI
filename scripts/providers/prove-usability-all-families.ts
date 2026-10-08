@@ -94,15 +94,15 @@ section('§A every family × {ready, no-credential} — the verdict flips on its
   }
 }
 
-section('§B anthropic capped window — blocks work AND caps delegation')
+section('§B anthropic window — information without a dispatch lock')
 {
   const capped = resolveProviderUsability({
     ...NONE,
     anthropicSubscriber: () => true,
     anthropicLimitStatus: () => 'rejected',
   }).anthropic
-  check('a rejected window makes the lane unusable with the window blocker', !capped.usable && capped.blockers.some(b => b.includes('usage window')), JSON.stringify(capped.blockers))
-  check('degradation honesty: delegation is capped with the window', capped.delegationCapped === true)
+  check('a rejected window keeps the lane usable with its reading', capped.usable && capped.blockers.length === 0 && capped.limitBlocker?.includes('usage window') === true, JSON.stringify(capped))
+  check('a window never caps delegation', capped.delegationCapped === false)
   const warning = resolveProviderUsability({
     ...NONE,
     anthropicSubscriber: () => true,
@@ -147,7 +147,7 @@ section('§F engine-lane usage truth — observed limit latches flip the limit a
     })[family]
     check(
       `${family}: an observed live limit ⇒ rejected + the window blocker`,
-      !limited.usable && limited.limit === 'rejected' && limited.blockers.some(b => b.includes('usage window is reached')),
+      limited.usable && limited.limit === 'rejected' && limited.blockers.length === 0 && limited.limitBlocker?.includes('usage window is reached') === true,
       JSON.stringify({ usable: limited.usable, limit: limited.limit, blockers: limited.blockers }),
     )
     const clear = resolveProviderUsability({
@@ -230,8 +230,8 @@ section('§F engine-lane usage truth — observed limit latches flip the limit a
   })
   const refusal = delegationDispatchBlocker('openai', cappedMap)
   check(
-    'a rejected engine window refuses DELEGATED dispatch typed (never silent reroute)',
-    typeof refusal === 'string' && refusal.includes('cannot take delegated work') && refusal.includes('never silently rerouted'),
+    'a rejected engine window never refuses delegated dispatch',
+    refusal === null,
     String(refusal),
   )
   check(
