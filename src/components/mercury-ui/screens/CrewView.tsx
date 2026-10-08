@@ -213,7 +213,7 @@ export function CrewView({
   const width = popup ? Math.max(0, Math.min(columns, 120)) : Math.max(56, (columns || 80) - 6)
   const visible = Math.max(4, (termRows || 24) - 9)
   const win = fitMeasuredWindow(rows.length, visible, span => paneWindow(rows.length, sel, span), window =>
-    rows.slice(window.start, window.end).reduce((height, row) => height + 1 + (row.facts.state === 'paused' ? wrapText(crewStatusWords(row.facts, now), Math.max(1, width - 4), 'wrap').split('\n').length : 0), Number(window.above > 0) + Number(window.below > 0)),
+    rows.slice(window.start, window.end).reduce((height, row) => height + 1 + (row.facts.state === 'paused' ? wrapText(crewStatusWords(row.facts, now), Math.max(1, width - 4), 'wrap').split('\n').length : 0), 0),
   )
   const selectedRow = rows[sel]
   const footer = (armedTarget !== null
