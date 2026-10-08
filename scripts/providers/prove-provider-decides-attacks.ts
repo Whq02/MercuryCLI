@@ -41,6 +41,13 @@ const dated = mapOpenaiHttpFailure(429, { error: { message: 'Slow down.' } }, ne
 check('OpenAI: an HTTP-date Retry-After is honoured', dated.retryAfterMs !== undefined && dated.retryAfterMs > 17_000 && dated.retryAfterMs <= 20_000, dated)
 const junk = mapOpenaiHttpFailure(429, { error: { message: 'Slow down.' } }, new Headers({ 'retry-after': 'soon' }))
 check('OpenAI: a junk Retry-After is no clock and no crash', junk.kind === 'usage-limit' && junk.retryAfterMs === undefined, junk)
+const bandHeaders = { 'x-codex-primary-window-minutes': '300', 'x-codex-primary-used-percent': '100', 'x-codex-primary-reset-after-seconds': '518400' }
+const bandAndNow = mapOpenaiHttpFailure(429, { error: { message: 'Slow down.', code: 'usage_limit_reached' } }, new Headers({ 'retry-after': '0', ...bandHeaders }))
+check('OpenAI: Retry-After 0 outranks a 100 % band — the provider says retry now, no window claim, no six-day clock', bandAndNow.retryAfterMs === 0 && bandAndNow.message.includes('retry now') && !bandAndNow.message.includes('window is reached') && !bandAndNow.message.includes('518400'), bandAndNow)
+const elapsedDate = mapOpenaiHttpFailure(429, { error: { message: 'Slow down.' } }, new Headers({ 'retry-after': new Date(Date.now() - 20_000).toUTCString(), ...bandHeaders }))
+check('OpenAI: an elapsed HTTP-date Retry-After outranks the band the same way', elapsedDate.retryAfterMs === 0 && elapsedDate.message.includes('retry now') && !elapsedDate.message.includes('window is reached'), elapsedDate)
+const bandAlone = mapOpenaiHttpFailure(429, { error: { message: 'Slow down.', code: 'usage_limit_reached' } }, new Headers(bandHeaders))
+check('OpenAI: the band alone still names the window and its reset', bandAlone.message.includes('window is reached') && bandAlone.retryAfterMs === 518400 * 1000, bandAlone)
 for (const [label, header] of [['seven days', String(SEVEN_DAYS_S)], ['an HTTP date', httpDate]] as const) {
   const fault = mapCompatHttpFailure(429, { error: { message: 'x' } }, new Headers({ 'retry-after': header }))
   check(`compatible families: Retry-After ${label} is the typed wait`, fault.retryAfterMs !== undefined && fault.retryAfterMs > 17_000 && fault.message.includes('rate limited'), fault)
