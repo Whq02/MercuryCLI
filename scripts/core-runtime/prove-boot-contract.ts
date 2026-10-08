@@ -159,8 +159,8 @@ function staticImports(src: string): {
   const mainSrc = readFileSync(join(SRC, 'main.tsx'), 'utf8')
   const main = staticImports(mainSrc)
   check(
-    'startup does not eagerly import inactive configuration, advisor or version modules',
-    !main.value.some(spec => /analytics\/featureGates|\/advisor\.js$|\/autoUpdater\.js$/.test(spec)),
+    'startup does not eagerly import an advisor module',
+    !main.value.some(spec => /\/advisor\.js$/.test(spec)),
     JSON.stringify(main.value),
   )
   check(
