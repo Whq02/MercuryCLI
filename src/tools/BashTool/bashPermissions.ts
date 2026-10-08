@@ -653,12 +653,10 @@ async function decideBashPermission(
     const parsed = await parseForSecurity(command)
     if (parsed.kind === 'too-complex') return unprovenAsk(parsed.reason)
     if (parsed.kind === 'simple') {
+      const early = semanticsDenyCheck(input, context, parsed.commands)
+      if (early) return early
       const semantic = pinnedCommandAnalysis.checkSemantics(parsed.commands)
-      if (!semantic.ok) {
-        const early = semanticsDenyCheck(input, context, parsed.commands)
-        if (early) return early
-        return unprovenAsk(semantic.reason)
-      }
+      if (!semantic.ok) return unprovenAsk(semantic.reason)
       astCommands = parsed.commands
       compoundHasCd = astCommands.some(simple => isNormalizedCdCommand(simple.text))
     }
