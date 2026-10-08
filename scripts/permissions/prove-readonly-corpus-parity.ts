@@ -69,6 +69,17 @@ async function readings(command: string): Promise<[string, string, string, strin
   return [atPlain[0], atPlain[1] === atPlain[0] ? '' : atPlain[1], atPlain[2], atBareShape]
 }
 
+const bindingRepins = new Map<string, [string, string, string, string]>()
+for (const command of ['echo a | (read x; echo "got $x")', 'read x; rc=$?; echo "[$x] rc=$rc"']) {
+  const reason = { kind: 'not-on-list', part: 'read x', word: 'read' }
+  const clause = '`read` is not a command Mercury can verify as read-only'
+  bindingRepins.set(command, [stable({ behavior: 'passthrough', message: clause, notReadOnly: reason }), '', stable({ reason, clause }), ''])
+}
+const localDetail = 'local changes whether later variable assignments take effect; use a plain assignment in this command, or approve'
+const localReason = { kind: 'screen', part: '\u0001', detail: localDetail }
+const localClause = `the command could not be verified as read-only — ${localDetail}`
+bindingRepins.set('local', [stable({ behavior: 'passthrough', message: localClause, notReadOnly: localReason }).replaceAll(JSON.stringify('\u0001'), OWN_TEXT), '', stable({ reason: localReason, clause: localClause }).replaceAll(JSON.stringify('\u0001'), OWN_TEXT), ''])
+
 const fixture: Fixture = existsSync(FIXTURE) ? (JSON.parse(readFileSync(FIXTURE, 'utf8')) as Fixture) : { verdicts: [], rows: [] }
 
 if (RECORD) {
@@ -99,13 +110,14 @@ if (RECORD) {
   const mismatches: string[] = []
   for (const [command, a, b, c, d] of fixture.rows) {
     const now = await readings(command)
-    const expected = [fixture.verdicts[a]!, b === SAME ? '' : fixture.verdicts[b]!, fixture.verdicts[c]!, d === SAME ? '' : fixture.verdicts[d]!]
+    const expected = bindingRepins.get(command) ?? [fixture.verdicts[a]!, b === SAME ? '' : fixture.verdicts[b]!, fixture.verdicts[c]!, d === SAME ? '' : fixture.verdicts[d]!]
     const labels = ['verdict at cd=false', 'verdict at cd=true (where it differs)', 'reason and clause', 'verdict beside a bare-shaped folder (where it differs)']
     for (let i = 0; i < 4; i++) {
       if (now[i] !== expected[i]) mismatches.push(`${JSON.stringify(command)} — ${labels[i]}\n      recorded: ${expected[i]}\n      now:      ${now[i]}`)
     }
   }
-  check(`every reading of the ${fixture.rows.length} commands is byte-identical to the recording`, mismatches.length === 0, `${mismatches.length} moved`)
+  check('each binding re-pin names an existing corpus command', [...bindingRepins.keys()].every(command => fixture.rows.some(row => row[0] === command)))
+  check(`every reading of the ${fixture.rows.length} commands matches its exact pin (${bindingRepins.size} binding fixes)`, mismatches.length === 0, `${mismatches.length} moved`)
   for (const line of mismatches.slice(0, SHOWN)) console.log(`    ${line}`)
   if (mismatches.length > SHOWN) console.log(`    … ${mismatches.length - SHOWN} more`)
 }
