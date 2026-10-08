@@ -47,7 +47,7 @@ import { getBranch } from '../git.js'
 import { logError } from '../log.js'
 import { isCompactBoundaryMessage } from '../messages.js'
 import { LITE_READ_BUF_SIZE } from '../sessionStoragePortable.js'
-import { getSettings_DEPRECATED } from '../settings/settings.js'
+import { getInitialSettings } from '../settings/settings.js'
 import { jsonParse, jsonStringify } from '../slowOperations.js'
 import { linkTaskOutputToTranscript } from '../task/diskOutput.js'
 import type { ContentReplacementRecord } from '../toolResultStorage.js'
@@ -672,7 +672,7 @@ class Project {
   private shouldSkipPersistence(): boolean {
     return (
       getNodeEnv() === 'test' ||
-      getSettings_DEPRECATED()?.records?.retentionDays === 0 ||
+      getInitialSettings()?.records?.retentionDays === 0 ||
       isSessionPersistenceDisabled() ||
       isEnvTruthy(process.env.MERCURY_SKIP_PROMPT_HISTORY)
     )

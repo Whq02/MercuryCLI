@@ -1,5 +1,5 @@
 import { flagEnv } from '../../substrate/flagRegistry.js'
-import { getSettings_DEPRECATED } from '../settings/settings.js'
+import { getInitialSettings } from '../settings/settings.js'
 import {
   evaluateGptCandidate,
   getGptSeatAvailability,
@@ -335,7 +335,7 @@ export function isProviderActionRow(value: string): boolean {
 }
 
 export function applyModelAllowlist(options: ModelOption[]): ModelOption[] {
-  if (getSettings_DEPRECATED().engine?.roster === undefined) return options
+  if (getInitialSettings().engine?.roster === undefined) return options
   return options.filter(opt => {
     if (isProviderActionRow(opt.value)) return true
     return isModelAllowed(opt.value)
