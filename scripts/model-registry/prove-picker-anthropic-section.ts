@@ -112,7 +112,9 @@ const OLDEST_OPUS = OPUS_BLOCK.at(-1)!
 const SONNET_BLOCK = FAMILY_GENERATIONS.sonnet.map(key => strings[key])
 const SONNET = SONNET_BLOCK[0]!
 const LAST_SONNET = SONNET_BLOCK.at(-1)!
-const HAIKU = strings[FAMILY_GENERATIONS.haiku[0]]
+const HAIKU_BLOCK = FAMILY_GENERATIONS.haiku.map(key => strings[key])
+const HAIKU = HAIKU_BLOCK[0]!
+const LAST_HAIKU = HAIKU_BLOCK.at(-1)!
 const LAST_FABLE = strings[FAMILY_GENERATIONS.fable.at(-1)!]
 const FABLE = strings[FAMILY_GENERATIONS.fable[0]]
 const FAMILY_WORDS = new Set(['fable', 'haiku', 'opus', 'sonnet', 'mythos', 'best', 'fable51'])
@@ -134,9 +136,11 @@ function pinSection(tag: string, options: ModelOption[], shape: 'standard' | 'pr
   check(`[${tag}] the opus block reads the generation table newest first: ${show(OPUS_BLOCK)}`, opus.join(',') === OPUS_BLOCK.join(','), show(opus))
   const sonnet = ids.filter(id => familyOf(id) === 'sonnet')
   check(`[${tag}] the sonnet block reads the generation table newest first: ${show(SONNET_BLOCK)}`, sonnet.join(',') === SONNET_BLOCK.join(','), show(sonnet))
+  const haiku = ids.filter(id => familyOf(id) === 'haiku')
+  check(`[${tag}] the haiku block reads the generation table newest first: ${show(HAIKU_BLOCK)}`, haiku.join(',') === HAIKU_BLOCK.join(','), show(haiku))
   const blocks = blocksOf(ids)
   check(`[${tag}] every family's rows form one block (fable · sonnet · opus · haiku each contiguous)`, new Set(blocks).size === blocks.length && ['fable', 'sonnet', 'opus', 'haiku'].every(family => blocks.includes(family)), blocks.join(' → '))
-  check(`[${tag}] the section ends on the small family's row, never on the default Opus`, ids.at(-1) === HAIKU && at(DEFAULT_OPUS) < ids.length - 1, show(ids))
+  check(`[${tag}] the section ends on the small family's row, never on the default Opus`, ids.at(-1) === LAST_HAIKU && at(DEFAULT_OPUS) < ids.length - 1, show(ids))
   if (shape === 'standard') {
     check(`[${tag}] the sonnet block keeps the standard tier's place: ${renderModelName(SONNET)} right after the fable block, the default Opus right after ${renderModelName(LAST_SONNET)}`, at(SONNET) === at(LAST_FABLE) + 1 && at(DEFAULT_OPUS) === at(LAST_SONNET) + 1, show(ids))
   } else {
@@ -161,7 +165,7 @@ section('§2 a live undeclared opus generation lands at the end of the opus bloc
   const ids = resolvedIds(options)
   const at = (id: string): number => ids.indexOf(id)
   check(`the raw row follows the last declared opus row (${renderModelName(OLDEST_OPUS)}), inside the opus block`, at(RAW) === at(OLDEST_OPUS) + 1, show(ids))
-  check('the default Opus still leads the block and the section still ends on the small family', ids.filter(id => familyOf(id) === 'opus')[0] === DEFAULT_OPUS && ids.at(-1) === HAIKU, show(ids))
+  check('the default Opus still leads the block and the section still ends on the small family', ids.filter(id => familyOf(id) === 'opus')[0] === DEFAULT_OPUS && ids.at(-1) === LAST_HAIKU, show(ids))
   const signedOut = getModelOptions({ anthropicCredentialed: () => false })
   check('the not-signed-in projection keeps the same order behind the sign-in row', signedOut.find(o => o.group === undefined)?.value === ANTHROPIC_CONNECT_OPTION_VALUE && resolvedIds(signedOut).join(',') === resolvedIds(getModelOptions({ anthropicCredentialed: () => true })).join(','), show(resolvedIds(signedOut)))
 }

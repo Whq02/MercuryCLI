@@ -35,8 +35,8 @@ for (const [key, row] of existing) {
   if (canonical !== undefined) continue
   check(`${key}: an own-canonical row has an exact cost`, Object.hasOwn(MODEL_COSTS, row.firstParty))
   check(`${key}: an own-canonical row has a display name`, getPublicModelDisplayName(row.firstParty) !== null)
-  check(`${key}: an own-canonical row has a routing-class decision`, row.firstParty === ALL_MODEL_CONFIGS.sonnet46.firstParty ? classOfModel(row.firstParty) === undefined : classOfModel(row.firstParty) !== undefined)
-  const unpinned = [ALL_MODEL_CONFIGS.opus46.firstParty, ALL_MODEL_CONFIGS.sonnet46.firstParty] as string[]
+  check(`${key}: an own-canonical row has a routing-class decision`, ([ALL_MODEL_CONFIGS.sonnet46.firstParty, ALL_MODEL_CONFIGS.haiku55.firstParty] as string[]).includes(row.firstParty) ? classOfModel(row.firstParty) === undefined : classOfModel(row.firstParty) !== undefined)
+  const unpinned = [ALL_MODEL_CONFIGS.opus46.firstParty, ALL_MODEL_CONFIGS.sonnet46.firstParty, ALL_MODEL_CONFIGS.haiku55.firstParty] as string[]
   check(`${key}: an own-canonical row has a launch decision`, unpinned.includes(row.firstParty) ? !isLaunchEffortPinned(row.firstParty) && getLaunchDefaultEffort(row.firstParty) === 'high' : isLaunchEffortPinned(row.firstParty))
 }
 check('the existing mirror point-release alias keeps its specific fold', getCanonicalName('claude-mythos-5-1') === 'claude-fable-5-1')

@@ -104,7 +104,7 @@ try {
   const before = seen.length
   const fallback = await countTokensViaHaikuFallback(history({ type: 'thinking', thinking: 'A short plan.', signature: 'fixture-signature' }), [])
   const hit = seen.at(-1)
-  check('the Haiku fallback stays on the create endpoint with its 1024-token budget', seen.length === before + 1 && hit?.path === '/v1/messages' && hit.body.model === 'claude-haiku-4-5-20251001' && show(hit.body.thinking) === show(budget) && fallback === 37, hit)
+  check('the Haiku fallback stays on the create endpoint with the current adaptive model', seen.length === before + 1 && hit?.path === '/v1/messages' && hit.body.model === 'claude-haiku-5-5' && show(hit.body.thinking) === show({ type: 'adaptive' }) && fallback === 37, hit)
 
   const { assembleTurnSystemPrompt, buildSystemPromptBlocks, buildTurnSystemBlocks } = await import('../../src/services/providers/anthropic/cacheAndUsage.js')
   const { getAttributionHeader, getCLISyspromptPrefix } = await import('../../src/constants/system.js')
