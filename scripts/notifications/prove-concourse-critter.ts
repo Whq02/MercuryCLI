@@ -7,26 +7,13 @@ import { checker } from '../engine-durability/harness.ts'
 const t = checker()
 const cd = await import('../../src/utils/cockpit/critterData.js')
 
-const CRAB = cd.CRITTERS[0]!
-
 t.section('§1 — grid law: widths + alphabet')
 {
-  const alphaOk = (rows: readonly string[], allowed: string): boolean =>
-    rows.every(r => [...r].every(ch => allowed.includes(ch)))
-  t.check('crab art is 13×12, alphabet {. M C P L}', CRAB.art.length === 12 && CRAB.art.every(r => r.length === 13) && alphaOk(CRAB.art, '.MCPL'), 'crab')
   t.check('crab mini (redesign v1) is 11×6', cd.miniArtFor('crab').length === 6 && cd.miniArtFor('crab').every(r => r.length === 11), 'crab mini')
-}
-
-t.section('§2 — the crab belly rows are byte-preserved')
-{
-  t.check('rows 8-9 are the shipped LL band', CRAB.art[8] === '..LLLLLLLLL..' && CRAB.art[9] === '..LLLLLLLLL..', JSON.stringify([CRAB.art[8], CRAB.art[9]]))
 }
 
 t.section('§3 — the species law: distinguishing features get P, never D')
 {
-  t.check('crab claw tips are P pops with the pincer gap (row 0)', CRAB.art[0] === 'P.P.......P.P', CRAB.art[0]!)
-  t.check('the pincer hand closes under the prongs (row 1)', CRAB.art[1] === 'MMM.......MMM', CRAB.art[1]!)
-  t.check('crab eyes are P inside the dome (rows 4-5)', CRAB.art[4] === '.MMPMMMMMPMM.' && CRAB.art[5] === CRAB.art[4], CRAB.art[4]!)
   t.check('crab mini pincers are P pops', cd.miniArtFor('crab')[2] === 'PMMPMMMPMMP', cd.miniArtFor('crab')[2]!)
 }
 
@@ -103,11 +90,6 @@ t.section('§7 — registration laws + the SEVENTH divergence class')
 
 t.section('§8 — the crab dome eyes are authored art (the pose-aim seam is gone)')
 {
-  const crabArt = cd.CRITTERS[0]!.art
-  const eyePairTop = crabArt.findIndex(
-    (r, i) => i % 2 === 0 && r.includes('P') && (crabArt[i + 1]?.includes('P') ?? false),
-  )
-  t.check('the crab flat grid keeps a P-over-P dome eye pair', eyePairTop >= 0, `pair top row ${eyePairTop}`)
   t.check('the pose-aim seam stayed deleted (no eyeRowOverride revival)', !/eyeRowOverride/.test(String((cd as Record<string, unknown>)['CRAB_EYE_ROWS'] ?? '')) && (cd as Record<string, unknown>)['CRAB_EYE_ROWS'] === undefined)
 }
 

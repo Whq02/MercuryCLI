@@ -1,0 +1,127 @@
+{
+  "base": "5f210214fa7eddf68146fdbdeb9fefdf8ee15e96",
+  "critters": [
+    {
+      "name": "crab",
+      "mini": [
+        "...MMMMM...",
+        "..MMMMMMM..",
+        "PMMPMMMPMMP",
+        "PMMPMMMPMMP",
+        "..M.M.M.M..",
+        ".D..D.D..D."
+      ],
+      "squareDock": [
+        ".CC.....CC.",
+        ".MMMMMMMMM.",
+        ".MEEEMEEEM.",
+        ".MEKEMEKEM.",
+        ".MMMMMMMMM.",
+        ".C.C.C.C.C."
+      ],
+      "sleep": {
+        "art": [
+          "...........",
+          "...........",
+          "..MMMMMMM..",
+          ".MMmMMMmMM.",
+          "CCMLLLLLMCC",
+          "C.C.M.M.C.C"
+        ],
+        "flow": 0
+      }
+    },
+    {
+      "name": "octopus",
+      "mini": [
+        "...MMMMM...",
+        "..MMMMMMM..",
+        ".MMPMMMPMM.",
+        ".MMPMMMPMM.",
+        ".M.M.M.M.M.",
+        ".D..D.D..D."
+      ],
+      "squareDock": [
+        "..MMMMMMM..",
+        ".MMMMMMMMM.",
+        ".MEEEMEEEM.",
+        ".MEKEMEKEM.",
+        ".MMMMMMMMM.",
+        ".M.M.M.M.M."
+      ],
+      "sleep": {
+        "art": [
+          "...........",
+          "...........",
+          "..MMMMMMM..",
+          ".MMmMMMmMM.",
+          ".MMMMMMMMM.",
+          ".MC.MCM.CM."
+        ],
+        "flow": 2
+      }
+    },
+    {
+      "name": "jellyfish",
+      "mini": [
+        "..%%MMMMM..",
+        ".MMMMMMMMM.",
+        ".MEPMMMPEM.",
+        ".MEPMMMPEM.",
+        ".LLLLLLLLL.",
+        ".M.C.M.C.M."
+      ],
+      "squareDock": [
+        "..MMMMMMM..",
+        ".MMMMMMMMM.",
+        ".MEEEMEEEM.",
+        ".MEKEMEKEM.",
+        ".%%%%%%%%%.",
+        ".M.C.M.C.M."
+      ],
+      "sleep": {
+        "art": [
+          "...........",
+          "...........",
+          "..MMMMMMM..",
+          ".MEPMMMPEM.",
+          ".LLLLLLLLL.",
+          ".M.C.M.C.M."
+        ],
+        "flow": 2
+      }
+    },
+    {
+      "name": "clam",
+      "mini": [
+        "..LLMCMLL..",
+        ".mMMCMCMMm.",
+        ".DPPDDDPPD.",
+        ".DPPDDDPPD.",
+        ".%%%%%%%%%.",
+        ".MCMMMMMCM."
+      ],
+      "squareDock": [
+        ".MMMMCMMMM.",
+        ".DDDDDDDDD.",
+        ".DEEEDEEED.",
+        ".DEKEDEKED.",
+        ".%%%%%%%%%.",
+        ".CCCCCCCCC."
+      ],
+      "sleep": {
+        "art": [
+          "...........",
+          "...........",
+          "..LLMCMLL..",
+          ".MmmMCMmmM.",
+          ".DDDDDDDDD.",
+          ".MCMMMMMCM."
+        ],
+        "flow": 0
+      }
+    }
+  ],
+  "dockPainterSha256": "31eb562473686e40d221f41622da78a86988fb0b100fb58082284fe39d796098",
+  "dockEyeProofSha256": "98851e01be28ba2143b109a2709dede61db5271439bf52a98d98c84743a52853"
+}

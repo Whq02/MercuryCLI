@@ -10,7 +10,7 @@ import { normalizeApiKeyForConfig } from '../utils/authPortable.js'
 import { getCustomApiKeyStatus } from '../utils/config.js'
 import { env } from '../utils/env.js'
 import { gracefulShutdown } from '../utils/gracefulShutdown.js'
-import { critterDefForKey, miniArtFor } from '../utils/cockpit/critterData.js'
+import { critterDefForKey } from '../utils/cockpit/critterData.js'
 import { DEFAULT_THEME_SETTING } from '../utils/systemTheme.js'
 import type { ThemeSetting } from '../utils/theme.js'
 import { bootNotes } from '../substrate/bootNotes.js'
@@ -78,15 +78,8 @@ const FITTING_PATCH = {
 function FittingMascot({ rows }: { rows: number }): React.ReactNode {
   const accent = useSessionAccent()
   const def = critterDefForKey(accent.key)
-  const miniDef = React.useMemo(
-    () => ({ ...def, art: miniArtFor(accent.key) }),
-    [def, accent.key],
-  )
   if (rows < 29) return null
-  if (rows >= 32) {
-    return <AnimatedCritterArt def={def} specimen />
-  }
-  return <AnimatedCritterArt def={miniDef} mini specimen />
+  return <AnimatedCritterArt def={def} mini specimen />
 }
 
 function ThemeFitting({

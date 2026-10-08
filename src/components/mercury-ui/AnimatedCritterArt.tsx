@@ -113,7 +113,7 @@ function useCritterFrame(def: CritterDef, form: ArtForm, specimen: boolean): Cri
 
 export function AnimatedCritterArt({ def, chunky = false, mini = false, square = false, specimen = false, lineBg }: { def: CritterDef; chunky?: boolean; mini?: boolean; square?: boolean; specimen?: boolean; lineBg?: (line: number) => string | undefined }): React.ReactNode {
   const usingSquare = square && def.squareDock.length > 0
-  const form: ArtForm = usingSquare ? 'square' : mini ? 'mini' : 'art'
+  const form: ArtForm = usingSquare ? 'square' : 'mini'
   const frame = useCritterFrame(def, form, specimen)
   const ground = lineBg !== undefined ? { lineBg } : {}
   if (!frame.animate) {
