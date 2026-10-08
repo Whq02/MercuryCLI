@@ -174,7 +174,7 @@ try {
     const system = body.system as Array<{ type: string; text: string }> | undefined
     check('the probe carries no anthropic_beta body field (base: the first-party wire refused it 400, "Extra inputs are not permitted")', !Object.hasOwn(body, 'anthropic_beta') && !Object.hasOwn(body, 'betas'), Object.keys(body))
     check('the probe opens with the attribution line the first-party door reads, then the CLI prefix (base: no system prompt at all)', Array.isArray(system) && system.length === 2 && system[0]!.text.startsWith(`x-anthropic-billing-header: cc_version=${getAnthropicClientContractVersion()}.`) && system[1]!.text === getCLISyspromptPrefix({ isNonInteractive: false, hasAppendSystemPrompt: false }), system?.map(block => block.text.slice(0, 60)))
-    check('the probe carries the session metadata and the small-fast model at one token', typeof (body.metadata as { user_id?: unknown } | undefined)?.user_id === 'string' && body.model === 'claude-haiku-4-5-20251001' && body.max_tokens === 1, { metadata: body.metadata, model: body.model, max_tokens: body.max_tokens })
+    check('the probe carries the session metadata and the small-fast model at one token', typeof (body.metadata as { user_id?: unknown } | undefined)?.user_id === 'string' && body.model === 'claude-haiku-5-5' && body.max_tokens === 1, { metadata: body.metadata, model: body.model, max_tokens: body.max_tokens })
     check('the debug log names the create probe\'s wait', h.lines.some(line => line.includes('count_tokens (create probe): HTTP 429') && line.includes('waiting')), h.lines)
   }
   {
