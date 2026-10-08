@@ -174,12 +174,16 @@ section('§2 over the bench roster the body is the specification\'s text byte fo
     const tool = catalogue.find(item => item.name === name)
     if (tool !== undefined) pool.push(tool)
   }
-  const roster: Tool[] = NAMES.flatMap(name => pool.filter(tool => tool.name === name))
-  check('the 53 built-ins of the split bench roster are present', roster.length === NAMES.length, NAMES.filter(name => !roster.some(tool => tool.name === name)).join(', '))
+  const { computerToolEnabled } = await import('../../src/tools/ComputerTool/ComputerTool.ts')
+  const here = computerToolEnabled() ? NAMES : NAMES.filter(name => name !== 'Computer')
+  const specBody = computerToolEnabled() ? SPEC_BODY : SPEC_BODY.split('\n').filter(line => !line.startsWith('Computer — ')).join('\n')
+  const roster: Tool[] = here.flatMap(name => pool.filter(tool => tool.name === name))
+  check(`the ${here.length} built-ins of the split bench roster this build offers are present`, roster.length === here.length, here.filter(name => !roster.some(tool => tool.name === name)).join(', '))
   for (const name of ['lease_list', 'lease_release', 'lease_take', 'render_tui']) roster.push(fixtureTool(name, { mcp: 'mercury' }))
   const row = getDeferredToolsDeltaAttachment(roster, MODEL, [first])[0] as { addedNames: string[]; body: string } | undefined
-  check('44 tools are announced', row !== undefined && row.addedNames.length === 44, String(row?.addedNames.length))
-  check('the body equals the split announcement byte for byte (3,820 bytes; 3,857 wrapped)', row !== undefined && row.body === SPEC_BODY && Buffer.byteLength(row.body, 'utf8') === 3820 && Buffer.byteLength(rendered(row as never), 'utf8') === 3857, row === undefined ? 'no row' : `${Buffer.byteLength(row.body, 'utf8')} bytes; first differing line: ${row.body.split('\n').find((line, i) => line !== SPEC_BODY.split('\n')[i]) ?? 'none'}`)
+  const announced = computerToolEnabled() ? 44 : 43
+  check(`${announced} tools are announced`, row !== undefined && row.addedNames.length === announced, String(row?.addedNames.length))
+  check(computerToolEnabled() ? 'the body equals the split announcement byte for byte (3,820 bytes; 3,857 wrapped)' : 'the body equals the split announcement without the Computer line (this build has no desktop driver)', row !== undefined && row.body === specBody && (!computerToolEnabled() || (Buffer.byteLength(row.body, 'utf8') === 3820 && Buffer.byteLength(rendered(row.body), 'utf8') === 3857)), row === undefined ? 'no row' : `${Buffer.byteLength(row.body, 'utf8')} bytes; first differing line: ${row.body.split('\n').find((line, i) => line !== specBody.split('\n')[i]) ?? 'none'}`)
   if (row !== undefined) {
     for (const name of ['JevEval', 'Debug', 'Git', 'AstEdit', 'Test', 'Monitor', 'Checkpoint', 'Rewind']) {
       check(`${name} has its line`, row.body.split('\n').some(line => line.startsWith(`${name} — `)))
