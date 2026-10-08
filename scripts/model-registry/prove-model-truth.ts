@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { readFileSync } from 'fs'
+import { readFileSync, readdirSync } from 'fs'
 import { join } from 'path'
 import {
   getMarketingNameForModel,
@@ -9,7 +9,7 @@ import {
 } from '../../src/utils/model/model.js'
 import { getModelKnowledgeCutoff } from '../../src/utils/model/capabilities.js'
 import { gatherFrontierFacts } from '../../src/utils/model/frontierPolicy.js'
-import { classOfModel } from '../../src/utils/router/modelRegistry.js'
+import { buildRouterModelSnapshot, classOfModel } from '../../src/utils/router/modelRegistry.js'
 
 for (const k of [
   'MERCURY_DEFAULT_OPUS_MODEL',
@@ -130,16 +130,28 @@ section('7. code-side model default census — literals resolve live, tiers trac
 
 section('8. prose surfaces — bundled skills + living docs track the owners')
 {
-  const modelsMd = src('src/skills/bundled/provider-apis/references/models.md')
-  for (const [id, marketing] of [
-    ['claude-sonnet-5', 'Sonnet 5'],
-    ['claude-opus-5', 'Opus 5'],
-  ] as const) {
-    check(
-      `provider-apis models.md names ${id} + '${marketing}'`,
-      modelsMd.includes(id) && modelsMd.includes(marketing),
-    )
+  const catalogue = buildRouterModelSnapshot().providers.flatMap(provider => provider.description.catalogue)
+  const names = [...new Set(catalogue.flatMap(model => [model.id, model.displayLabel, getMarketingNameForModel(model.id)]).filter((name): name is string => typeof name === 'string' && name.length > 0))]
+  const fixedRows = (text: string): string[] => text.split('\n').filter(line => {
+    const prose = line.replace(/\]\([^)]*\)/g, ']')
+    if (/\b(?:claude|gpt|kimi|moonshot|deepseek|grok|muse|glm|gemini)-[a-z0-9][a-z0-9._-]*/i.test(prose)) return true
+    if (!line.trimStart().startsWith('|')) return false
+    const cells = prose.split('|').map(cell => cell.replace(/[`*]/g, '').trim())
+    return cells.some(cell => names.some(name => cell === name || cell.startsWith(`(${name},`)))
+  })
+  const files = (directory: string): string[] => readdirSync(join(repoRoot, directory), { withFileTypes: true }).flatMap(entry => entry.isDirectory() ? files(join(directory, entry.name)) : [join(directory, entry.name)])
+  check('the skill census reads model names from a nonempty catalogue owner', catalogue.length > 0 && names.includes(getDefaultOpusModel()))
+  for (const directory of ['mercury-skills/provider-apis', 'src/skills/bundled/provider-apis']) {
+    const tree = files(directory)
+    const frozen = tree.flatMap(path => fixedRows(src(path)).map(row => `${path}: ${row}`))
+    check(`${directory}: every skill file is free of fixed catalogue rows`, tree.length >= 6 && frozen.length === 0, frozen.join('\n'))
+    const modelsMd = src(`${directory}/references/models.md`)
+    check(`${directory}: model facts come from the live catalogue reader`, modelsMd.includes('src/services/providers/catalogueOnDemand.ts') && modelsMd.includes('current catalogue') && modelsMd.includes('no model inventory'))
   }
+  const sample = catalogue.find(model => model.id === getDefaultOpusModel())!
+  check('the census rejects a planted model ID row', fixedRows(`| \`${sample.id}\` | fixture |`).length === 1)
+  check('the census rejects a planted marketing-name row', fixedRows(`| ${sample.displayLabel} | fixture |`).length === 1)
+  check('the census allows route grammar placeholders', fixedRows('| `openrouter/<vendor>/<model>` | carrier grammar |').length === 0)
 }
 
 section('9. registry table truth — every imported adapter is registered (no future-slot fossil)')
