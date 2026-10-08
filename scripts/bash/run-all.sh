@@ -98,6 +98,7 @@ __t=$SECONDS; __rc=0; "$bun" run "$here/prove-bash-description-budget.ts" || { _
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-rg-is-ordinary.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-rg-is-ordinary.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-parser-corpus-parity.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-parser-corpus-parity.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-floor-parses.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-floor-parses.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$bun" run "$here/prove-unproven-ask-is-ordinary.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-unproven-ask-is-ordinary.ts" "$__t" "$__rc"
 echo "############################################################"
 if [ "$fail" = "0" ]; then echo "# ✅ ALL BASH PERMISSION PROOFS PASS"; else echo "# ❌ SOME BASH PERMISSION PROOFS FAILED"; fi
 echo "############################################################"

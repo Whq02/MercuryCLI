@@ -410,7 +410,7 @@ if (!existsSync(DIST) || !nodeBin) {
   for (const turn of turns.slice(4, 8)) {
     if (turn.kind !== 'tool_use') continue
     const command = (turn.input as { command: string }).command
-    check(`artifact: the host explicitly approved ${JSON.stringify(command.replaceAll(cwd, '<cwd>'))}`, host.asks.some(ask => ask.params.kind === 'tool' && ask.params.tool_name === 'Bash' && (ask.params.input as { command?: string }).command === command))
+    check(`artifact: sovereign ran it without asking the host (an unprovable command is an ordinary ask the mode answers) ${JSON.stringify(command.replaceAll(cwd, '<cwd>'))}`, !host.asks.some(ask => ask.params.kind === 'tool' && ask.params.tool_name === 'Bash' && (ask.params.input as { command?: string }).command === command))
   }
   await fixture.close()
   interface Seen {
