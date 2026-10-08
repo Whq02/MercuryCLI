@@ -6,7 +6,7 @@ import { join } from 'node:path'
 import { bootRunner, bound, carriersOf, childEnv, DIST, exportWorld, isSession, j, makeTally, removeWorld, SCRATCH_ROOT, seedHome, sleep } from './dupline-world.ts'
 
 const { check, section, finish } = makeTally('prove-monitor-window-drive')
-section('a persistent watch through a closed usage window: the lines that land meanwhile reach the model together, once, when the window reopens')
+section('a persistent watch beside a usage-window note: each new line reaches the provider in its own request at once, the provider refuses while closed, and the reopen never replays a line')
 
 const HOME = join(SCRATCH_ROOT, `mercury-monitor-window-${process.pid}`)
 const CWD = join(HOME, 'fixture-repo')
@@ -21,7 +21,7 @@ const LINE_GAP_MS = 2_500
 
 type Block = { type?: string; text?: string }
 type Item = { role?: string; content?: unknown }
-type Wire = { n: number; at: number; kind: 'request' | 'walled' | 'hit'; ask: string; step: number; inAsk: number[] }
+type Wire = { n: number; at: number; kind: 'request' | 'walled' | 'hit'; ask: string; step: number; inAsk: number[]; inContext: number[] }
 const wire: Wire[] = []
 let wallUntilMs = 0
 let calls = 0
@@ -76,7 +76,7 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
   req.on('end', () => {
     const url = (req.url ?? '').split('?')[0] ?? ''
     if (!(req.method === 'POST' && url.endsWith('/v1/messages'))) {
-      wire.push({ n: 0, at: Date.now(), kind: 'hit', ask: `${req.method} ${url}`, step: 0, inAsk: [0, 0, 0] })
+      wire.push({ n: 0, at: Date.now(), kind: 'hit', ask: `${req.method} ${url}`, step: 0, inAsk: [0, 0, 0], inContext: [0, 0, 0] })
       res.writeHead(404, { 'content-type': 'application/json' })
       res.end(JSON.stringify({ error: { message: `no fixture route for ${req.method} ${url}` } }))
       return
@@ -99,7 +99,8 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
     const ask = askIndex === -1 ? '' : askOf(items[askIndex]!.content)
     const step = askIndex === -1 ? 0 : items.slice(askIndex + 1).filter(isToolResultItem).length
     const walled = Date.now() < wallUntilMs
-    wire.push({ n, at: Date.now(), kind: walled ? 'walled' : 'request', ask: ask.slice(0, 600), step, inAsk: LINES.map(line => countOf(ask, line)) })
+    const userContext = items.filter(item => item.role === 'user').map(item => typeof item.content === 'string' ? item.content : Array.isArray(item.content) ? (item.content as Block[]).filter(block => block.type === 'text').map(block => block.text ?? '').join('\n') : '').join('\n')
+    wire.push({ n, at: Date.now(), kind: walled ? 'walled' : 'request', ask, step, inAsk: LINES.map(line => countOf(ask, line)), inContext: LINES.map(line => countOf(userContext, line)) })
     if (walled) return answerWalled(res)
     if (ask.trim() === ARM_ASK) {
       if (step === 0) return answerTool(res, n, model, `toolu_watch_c${n}`, 'Monitor', { description: 'the appended log', command: `tail -n0 -F ${WATCHED}`, persistent: true })
@@ -135,6 +136,11 @@ const waitWire = async (label: string, test: (w: Wire) => boolean, timeoutMs: nu
   return null
 }
 
+const rateLimited = (frame: unknown): boolean => {
+  const row = frame as { type?: string; error?: { class?: string } }
+  return row.type === 'outcome' && row.error?.class === 'rate_limit'
+}
+
 if (!existsSync(DIST)) {
   check('the built bundle is present (the drive boots the BUILT product)', false, DIST)
 } else {
@@ -150,28 +156,30 @@ if (!existsSync(DIST)) {
   void runner.prompt(HELLO_ASK, 'u-hello')
   const refused = await waitWire('the usage window refusal', w => w.kind === 'walled' && w.ask.trim() === HELLO_ASK, bound(30_000))
   check('the provider refused a turn for the usage window and the session observed it', refused !== null, j(wire.slice(-2)))
-  const refusalRow = await runner.waitFor('the refusal result', f => f.type === 'outcome' && /limit is reached/.test(JSON.stringify(f)), bound(20_000))
-  check("the session's own row says the limit is reached, with the reset", refusalRow !== null, j(runner.frames.filter(f => f.type === 'outcome').slice(-1)))
+  const refusalRow = await runner.waitFor('the provider refusal result', rateLimited, bound(20_000))
+  check("the session records the provider's rate_limit words and stated wait", refusalRow !== null && j(refusalRow).includes('Rate limit exceeded') && /the provider asks for \d+ s/.test(j(refusalRow)), j(refusalRow))
 
   await sleep(1_500)
   const appendedAt: number[] = []
-  for (const line of LINES) {
+  const deliveries: Array<Wire | null> = []
+  for (const [i, line] of LINES.entries()) {
+    const before = runner.frames.length
     appendFileSync(WATCHED, `${line}\n`)
     appendedAt.push(Date.now())
+    const delivery = await waitWire(`delivery of watch line ${i + 1}`, w => w.inAsk[i] === 1, bound(10_000))
+    deliveries.push(delivery)
+    const outcome = await runner.waitFor(`the provider refuses watch line ${i + 1}`, rateLimited, bound(20_000), before)
+    check(`watch line ${i + 1} opens its own request before the reset and receives a typed provider refusal`, delivery !== null && delivery.kind === 'walled' && delivery.at >= appendedAt[i]! && delivery.at - appendedAt[i]! <= bound(10_000) && delivery.at < wallUntilMs && outcome !== null && j(outcome).includes('Rate limit exceeded'), j({ delivery, outcome, appendedAt: appendedAt[i], wallUntilMs }))
     await sleep(LINE_GAP_MS)
   }
   check('the three lines landed while the window was still closed', appendedAt[appendedAt.length - 1]! < wallUntilMs, j({ lastAppend: appendedAt[appendedAt.length - 1], wallUntilMs }))
 
-  const together = await waitWire(
-    'one request whose ask carries the three lines',
-    w => w.kind === 'request' && w.inAsk.every(n => n >= 1),
-    bound(wallUntilMs - Date.now() + 30_000),
-  )
-  await sleep(2_000)
-
+  await sleep(Math.max(0, wallUntilMs - Date.now()) + 2_000)
+  check('the reopen launches no held delivery or replay', !wire.some(w => w.kind === 'request' && w.at >= wallUntilMs), j(wire))
   void runner.prompt(DONE_ASK, 'u-done')
   const done = await waitWire('the closing ask', w => w.kind === 'request' && w.ask.trim() === DONE_ASK, bound(30_000))
-  check('the session still answers after the window', done !== null)
+  const answered = await runner.waitFor('the operator line is served after the reset', f => f.type === 'outcome' && j(f).includes(`heard: ${DONE_ASK}`), bound(30_000))
+  check('the session still answers after the window', done !== null && done.at >= wallUntilMs && answered !== null, j({ done, answered }))
   await runner.stop(bound(8_000))
   server.close()
   try {
@@ -179,23 +187,16 @@ if (!existsSync(DIST)) {
   } catch {
   }
 
-  const wakesIntoTheWall = wire.filter(w => w.kind === 'walled' && w.inAsk.some(n => n > 0))
-  check('no line woke a turn while the window was closed', wakesIntoTheWall.length === 0, j(wakesIntoTheWall.map(w => [w.n, w.inAsk])))
-  const withAll = wire.filter(w => w.kind === 'request' && w.inAsk.every(n => n >= 1))
-  check('exactly one turn after the window reopened carried the three lines in its ask', together !== null && withAll.length === 1, j(wire.map(w => [w.n, w.kind, w.step, w.inAsk, w.ask.slice(0, 40)])))
-  const ask = together?.ask ?? ''
-  const i1 = ask.indexOf(LINES[0]!)
-  const i2 = ask.indexOf(LINES[1]!)
-  const i3 = ask.indexOf(LINES[2]!)
-  check('that ask is ONE monitor block, headed by the count of held lines, the lines in the order they landed', countOf(ask, '<monitor task=') === 1 && ask.includes('3 lines arrived while the usage window was closed') && i1 >= 0 && i2 > i1 && i3 > i2, j(ask.slice(0, 400)))
-  check('the ask of that turn carries no other line of the session', !ask.includes(HELLO_ASK) && !ask.includes(ARM_ASK))
-  const stray = wire.filter(w => w.kind === 'request' && w.inAsk.some(n => n > 0) && !w.inAsk.every(n => n >= 1))
-  check('no other turn carried a lone line of the three', stray.length === 0, j(stray.map(w => [w.n, w.inAsk])))
+  const noticeRequests = wire.filter(w => w.inAsk.some(n => n > 0))
+  check('exactly three separate notice requests arrived while the provider wall stood', noticeRequests.length === 3 && noticeRequests.every(w => w.kind === 'walled' && w.at < wallUntilMs) && new Set(deliveries.map(w => w?.n)).size === 3, j(noticeRequests))
+  check('the delivery requests preserve append order, each with one byte-identical monitor block and line', noticeRequests.length === LINES.length && noticeRequests.every((w, i) => countOf(w.ask, '<monitor task=') === 1 && /<monitor task=[^>]*>([\s\S]*?)<\/monitor>/.exec(w.ask)?.[1] === `\n${LINES[i]}\n` && w.inAsk.every((n, at) => n === (at === i ? 1 : 0)) && (i === 0 || w.at > noticeRequests[i - 1]!.at)), j(noticeRequests))
+  check('each notice ask contains no operator words from another turn', noticeRequests.length === 3 && noticeRequests.every(w => !w.ask.includes(HELLO_ASK) && !w.ask.includes(ARM_ASK) && !w.ask.includes(DONE_ASK)), j(noticeRequests.map(w => w.ask)))
+  check('no later request duplicates a line in retained user context or redelivers it as a new ask', wire.every(w => w.inContext.every(n => n <= 1)) && LINES.every((_, i) => noticeRequests.filter(w => w.inAsk[i] > 0).length === 1) && done !== null && done.inContext.every(n => n === 1) && done.inAsk.every(n => n === 0), j(wire.map(w => [w.n, w.inAsk, w.inContext])))
 
   const projects = join(HOME, 'projects')
   const inputRecordsOf = (line: string): string[] => carriersOf(projects, line).filter(c => c.kind === 'input').map(c => c.recordId)
   const records = LINES.map(inputRecordsOf)
-  check('the transcript holds the three lines in ONE input record', records.every(r => r.length === 1) && new Set(records.map(r => r[0])).size === 1, j(records))
+  check('the transcript holds each delivered line once in its own input record', records.every(r => r.length === 1) && new Set(records.map(r => r[0])).size === LINES.length, j(records))
 
   exportWorld('monitor-window', HOME, { 'wire.json': JSON.stringify(wire, null, 2), 'frames.json': JSON.stringify(runner.frames, null, 2) })
   await removeWorld(HOME)
