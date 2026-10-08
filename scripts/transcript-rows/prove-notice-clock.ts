@@ -79,7 +79,7 @@ check("the owner's drained lines record the same delivery clock", ownerFirst.att
 check('a notice without a send clock is stamped at its making and records no delivery clock', bareNotice.timestamp === iso(DELIVERED) && bareNotice.attachment.deliveredAt === undefined, JSON.stringify({ timestamp: bareNotice.timestamp, attachment: bareNotice.attachment }))
 check('an unparseable send clock never becomes the stamp', (createAttachmentMessage({ type: 'queued_command', prompt: NOTE, commandMode: 'task-notification', sentAt: 'not a clock' } as never) as Row).attachment.deliveredAt === undefined)
 
-section('§2 the strip: the owner\'s exact shape paints in order with stamps that never decrease (178 and 80 columns)')
+section('§2 the strip: delivered record order stands independently of the shown clocks (178 and 80 columns)')
 const React = (await import('react')).default
 const { render } = await import(join(ROOT, 'src/ink.ts'))
 const { AppStateProvider } = await import(join(ROOT, 'src/state/AppState.tsx'))
@@ -129,20 +129,22 @@ const stampsOf = (lines: string[]): string[] => lines.flatMap(l => {
   const stamp = CLOCK_HEAD.exec(l)?.[1]
   return stamp === undefined ? [] : [stamp]
 })
-const nonDecreasing = (stamps: string[]): boolean => stamps.every((s, i) => i === 0 || s >= stamps[i - 1]!)
 const oneLine = (lines: string[]): string => lines.join(' ').replace(/\s+/g, ' ')
 
 const rawStrip = [ownerFirst, completion, ownerSecond]
 const rawBytes = JSON.stringify(rawStrip)
 const strip3 = notices.placeDeliveredNotices(rawStrip as never) as Row[]
-check('viewer ordering never rewrites the stored rows or their model payloads', JSON.stringify(rawStrip) === rawBytes && strip3[2]?.attachment.prompt === NOTE)
+check('viewer ordering never rewrites the stored rows or their model payloads', JSON.stringify(rawStrip) === rawBytes && strip3[1]?.attachment.prompt === NOTE && strip3.map(row => row.uuid).join(',') === rawStrip.map(row => row.uuid).join(','))
 for (const columns of [178, 80]) {
   const lines = await paintStrip(strip3, columns)
   if (FRAMES !== undefined) writeFileSync(join(FRAMES, `strip-${columns}.txt`), lines.join('\n') + '\n')
   const stamps = stampsOf(lines)
   check(`${columns} columns: three stamped rows, one clock each`, stamps.length === 3, JSON.stringify(stamps))
-  check(`${columns} columns: the notice stands at delivery after both earlier operator sends`, JSON.stringify(stamps) === JSON.stringify([clockOf(OWNER_FIRST), clockOf(OWNER_SECOND), clockOf(DELIVERED)]), JSON.stringify(stamps))
-  check(`${columns} columns: walking the strip top to bottom, no row is stamped later than the rows under it`, nonDecreasing(stamps), JSON.stringify(stamps))
+  check(`${columns} columns: the notice keeps its record position between the operator rows, with every shown clock unchanged`, JSON.stringify(stamps) === JSON.stringify([clockOf(OWNER_FIRST), clockOf(DELIVERED), clockOf(OWNER_SECOND)]), JSON.stringify(stamps))
+  const firstAt = lines.findIndex(line => line.includes(FIRST_LINE))
+  const noticeAt = lines.findIndex(line => line.includes('● [Crewmate]'))
+  const secondAt = lines.findIndex(line => line.includes(SECOND_LINE))
+  check(`${columns} columns: displayed clocks never sort a delivered notice past the following record`, firstAt >= 0 && noticeAt > firstAt && secondAt > noticeAt, JSON.stringify({ firstAt, noticeAt, secondAt }))
   const noticeLine = lines.find(l => l.includes('● [Crewmate]')) ?? ''
   check(`${columns} columns: the notice reads its delivery clock and arrival detail on one folded row`, noticeLine.startsWith(`${clockOf(DELIVERED)} ● [Crewmate]`) && noticeLine.includes(`· 1 line · arrived ${clockOf(COMPLETED)} ›`) && (columns < 178 || noticeLine.includes(LANE_PLATE)), noticeLine)
   check(`${columns} columns: no misleading delivery suffix remains`, !oneLine(lines).includes('· delivered'), noticeLine)
