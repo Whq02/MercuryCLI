@@ -24,13 +24,6 @@
       "why": "POSIX-scoped runtime path behind a platform gate (audited per site in the census review)"
     },
     {
-      "file": "src/utils/execFileNoThrowPortable.ts",
-      "mechanism": "execSync-string",
-      "excerpt": "const stdout = execSync(command, {",
-      "cls": "intentional-shell",
-      "why": "product-side shell execution behind an explicit shell owner (BashTool/shells) — the shell IS the feature"
-    },
-    {
       "file": "scripts/accounts/prove-account-slots.ts",
       "mechanism": "execSync-string",
       "excerpt": "const hits = execSync(",
