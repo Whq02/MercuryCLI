@@ -24,6 +24,7 @@ import {
   parseForSecurity,
   preparedSecurityParse,
   peelWrappers,
+  shellCommandText,
   PARSE_ABORTED,
   pinnedCommandAnalysis,
   splitListSegments,
@@ -837,7 +838,7 @@ function astDenyCheck(input: BashInput, context: ToolPermissionContext, root: No
     if (node.type === 'command' || node.type === 'declaration_command') {
       const candidates = [node.text]
       const parsed = pinnedCommandAnalysis.parseForSecurityFromAst(node.text, node)
-      if (parsed.kind === 'simple') candidates.push(...parsed.commands.map(simple => simple.argv.join(' ')))
+      if (parsed.kind === 'simple') candidates.push(...parsed.commands.flatMap(restrictedCommandCandidates))
       const name = node.children.find(child => child.type === 'command_name')
       if (name) {
         const named = pinnedCommandAnalysis.parseForSecurityFromAst(name.text, { ...node, children: [name] })
@@ -855,13 +856,83 @@ function astDenyCheck(input: BashInput, context: ToolPermissionContext, root: No
   return null
 }
 
+function wrappedCommand(argv: string[]): string[] | null {
+  const [name] = argv
+  if (name === 'time' && argv[1] === '-p') return argv.slice(2)
+  if (name === 'command' || name === 'builtin' || name === 'exec') {
+    let i = 1
+    while (i < argv.length && argv[i]!.startsWith('-')) {
+      const flag = argv[i++]!
+      if (flag === '--') break
+      if (name === 'command' && /^-p+$/.test(flag)) continue
+      if (name === 'exec' && /^-[cl]+$/.test(flag)) continue
+      if (name === 'exec' && flag === '-a' && argv[i] !== undefined) { i++; continue }
+      if (name === 'exec' && flag.startsWith('-a') && flag.length > 2) continue
+      return null
+    }
+    return argv.slice(i)
+  }
+  if (name === 'xargs') {
+    let i = 1
+    while (i < argv.length && argv[i]!.startsWith('-')) {
+      const flag = argv[i++]!
+      if (flag === '--') break
+      if (/^--(?:null|no-run-if-empty|verbose|interactive|exit)$/.test(flag)) continue
+      if (/^--(?:arg-file|delimiter|eof|replace|max-lines|max-args|max-procs|max-chars)=/.test(flag)) continue
+      if (/^--(?:arg-file|delimiter|eof|replace|max-lines|max-args|max-procs|max-chars)$/.test(flag)) { i++; continue }
+      if (flag.startsWith('--')) return null
+      let valid = flag.length > 1
+      for (let j = 1; j < flag.length; j++) {
+        const letter = flag[j]!
+        if ('0rtpx'.includes(letter)) continue
+        if ('aEdILnPs'.includes(letter)) {
+          if (j === flag.length - 1) i++
+          break
+        }
+        if ('eil'.includes(letter)) break
+        valid = false
+        break
+      }
+      if (!valid) return null
+    }
+    return argv.slice(i)
+  }
+  const peeled = peelWrappers(argv)
+  return Array.isArray(peeled) && peeled !== argv ? peeled : null
+}
+
+function restrictedCommandCandidates(command: SimpleCommand): string[] {
+  const candidates = new Set([command.text.trim(), shellCommandText(command.argv)])
+  const pending = [command.argv]
+  while (pending.length) {
+    const argv = pending.pop()!
+    const wrapped = wrappedCommand(argv)
+    if (wrapped?.length) {
+      candidates.add(shellCommandText(wrapped))
+      pending.push(wrapped)
+    }
+    if (argv[0] === 'find') {
+      for (let i = 1; i < argv.length; i++) {
+        if (!['-exec', '-execdir', '-ok', '-okdir'].includes(argv[i]!)) continue
+        const start = ++i
+        while (i < argv.length && argv[i] !== ';' && argv[i] !== '+') i++
+        const target = argv.slice(start, i)
+        if (target.length) { candidates.add(shellCommandText(target)); pending.push(target) }
+      }
+    }
+  }
+  return [...candidates]
+}
+
 function semanticsDenyCheck(input: BashInput, context: ToolPermissionContext, commands: SimpleCommand[]): PermissionResult | null {
   const early = earlyExitDenyCheck(input, context)
   if (early) return early
   for (const command of commands) {
-    const deny = matchRules(command.text.trim(), context, 'deny', 'prefix', true)
-    if (deny !== null) {
-      return denyByRule(context, command.text, deny, () => matchAllRules(command.text.trim(), context, 'deny', 'prefix', true))
+    for (const candidate of restrictedCommandCandidates(command)) {
+      const deny = matchRules(candidate, context, 'deny', 'exact', true) ?? matchRules(candidate, context, 'deny', 'prefix', true)
+      if (deny !== null) {
+        return denyByRule(context, command.text, deny, () => [...matchAllRules(candidate, context, 'deny', 'exact', true), ...matchAllRules(candidate, context, 'deny', 'prefix', true)])
+      }
     }
   }
   return null
