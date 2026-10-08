@@ -6,19 +6,17 @@ import { chmodSync, existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, 
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import {
-  CATALOGUE_WORDS,
   DELEGATE_GPT_ASK,
   DELEGATE_GPT_SHORT_SPEND_ASK,
   DELEGATE_GPT_SPEND_ASK,
+  GPT_ID,
   MAIN_MODEL,
   MODELS_FAIL_FLAG,
   REFUSAL_HEAD,
+  RESET_LONG_SECONDS,
   RESET_SHORT_SECONDS,
-  SHORT_SPEND_ASK,
-  SPEND_ASK,
   SUBAGENT_ASK,
   SUBAGENT_REPLY,
-  WINDOW_WORDS,
 } from './openai-lane-fixture-words.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
@@ -190,7 +188,6 @@ const transcriptLines = (sid: string): string[] => {
 const rowsSince = (sid: string, n: number): string => transcriptLines(sid).slice(n).join('\n')
 const unescaped = (raw: string): string => raw.replace(/\\u2014/g, '—').replace(/\\n/g, '\n').replace(/\\"/g, '"')
 const refusalOf = (rows: string): string => unescaped(rows).match(/Agent dispatch refused[^"\\]{0,400}/)?.[0] ?? '(no refusal words)'
-const bracketOf = (refusal: string): string => refusal.match(/\(([^)]*)\)/)?.[1] ?? ''
 
 const modelsFailFlag = join(SCRATCH, MODELS_FAIL_FLAG)
 const fixture = spawn('node', [join(REPO, 'scripts', 'daemon', 'openai-lane-fixture-server.ts'), captureFile, modelsFailFlag], { stdio: ['ignore', 'pipe', 'pipe'] })
@@ -316,12 +313,20 @@ async function errand(sid: string, ask: string, label: string, walled = false): 
     walled
       ? since(wireBefore).some(h => h.kind === 'openai' && h.status === 429) && since(wireBefore).some(h => h.kind === 'anthropic' && h.arm === 'report')
       : rowsSince(sid, rowsBefore).includes(REFUSAL_HEAD) || rowsSince(sid, rowsBefore).includes(SUBAGENT_REPLY)
-  await untilAsync(() => turnEnded(sid) && settled(), 90_000)
+  check(`${label}: the real turn settles after its delegated result`, await untilAsync(() => turnEnded(sid) && settled(), 90_000), brief(since(wireBefore)))
   await sleep(400)
   const rows = rowsSince(sid, rowsBefore)
   const refused = rows.includes(REFUSAL_HEAD)
   const proceeded = rows.includes(SUBAGENT_REPLY) && since(wireBefore).some(h => h.kind === 'openai' && h.arm === 'delegate' && h.status === 200)
   return { refused, proceeded, refusal: refused ? refusalOf(rows) : '', hits: since(wireBefore), rows }
+}
+
+const delegatesOf = (run: Errand): Capture[] => run.hits.filter(h => h.kind === 'openai' && h.arm === 'delegate' && (h.ask ?? '').includes(SUBAGENT_ASK))
+const servedUnder = (run: Errand, account: Account): boolean => !run.refused && run.proceeded && delegatesOf(run).length === 1 && delegatesOf(run)[0]!.token === account.tail && delegatesOf(run)[0]!.status === 200 && delegatesOf(run)[0]!.model === GPT_ID
+const servedBeforeReset = (run: Errand, spend: Errand, seconds: number): boolean => {
+  const refusal = spend.hits.findLast(h => h.kind === 'openai' && h.status === 429)
+  const request = delegatesOf(run)[0]
+  return refusal !== undefined && request !== undefined && request.at > refusal.at && request.at < refusal.at + seconds * 1000
 }
 
 console.log('the OpenAI lane after a reset and a re-login — the real daemon and runner from the bundle, both wires at the fixture')
@@ -343,23 +348,21 @@ try {
   const shortSpend = await errand(sid, DELEGATE_GPT_SHORT_SPEND_ASK, 'the short spend', true)
   check('the delegate rode the OpenAI wire under A and was walled with a short reset', shortSpend.hits.some(h => h.kind === 'openai' && h.arm === 'short-spend' && h.status === 429 && h.token === ACCOUNTS.a.tail), brief(shortSpend.hits))
   const atOnce = await errand(sid, DELEGATE_GPT_ASK, 'the errand at once')
-  check('the next delegated errand is refused while the reset is ahead', atOnce.refused && atOnce.refusal.includes(WINDOW_WORDS), atOnce.refusal || brief(atOnce.hits))
-  check('…and no request was made for it', !atOnce.hits.some(h => h.kind === 'openai' && (h.ask ?? '').includes(SUBAGENT_ASK)), brief(atOnce.hits))
-  console.log(`      refusal: ${atOnce.refusal}`)
+  check('the next delegated errand is served under A while the observed reset is still ahead', servedUnder(atOnce, ACCOUNTS.a) && servedBeforeReset(atOnce, shortSpend, RESET_SHORT_SECONDS), atOnce.refusal || brief(atOnce.hits))
+  check('one requested GPT call reaches OpenAI, with no Mercury-side dispatch refusal', delegatesOf(atOnce).length === 1 && !atOnce.rows.includes(REFUSAL_HEAD) && atOnce.rows.includes(SUBAGENT_REPLY), brief(atOnce.hits))
   await sleep((RESET_SHORT_SECONDS + 3) * 1000)
   const lapsed = await errand(sid, DELEGATE_GPT_ASK, 'the errand after the reset')
   check('after the reset it names the delegate proceeds and is answered under A', lapsed.proceeded && lapsed.hits.some(h => h.kind === 'openai' && h.arm === 'delegate' && h.token === ACCOUNTS.a.tail), lapsed.refusal || brief(lapsed.hits))
 
-  section('§3 a long window is reached on the GPT row; the next delegated errand is refused, naming the window')
+  section('§3 a long window is observed on the GPT row; the next delegated errand still reaches its provider')
   const spend = await errand(sid, DELEGATE_GPT_SPEND_ASK, 'the spend', true)
   check('the delegate rode the OpenAI wire under A and was walled with a long reset', spend.hits.some(h => h.kind === 'openai' && h.arm === 'spend' && h.status === 429 && h.token === ACCOUNTS.a.tail), brief(spend.hits))
   await sleep(1_000)
   keep('facts-after-wall.json', readFileSync(factsPath(sid), 'utf8'))
   const walled = await errand(sid, DELEGATE_GPT_ASK, 'the errand under the wall')
-  check('the dispatch is refused before any request, naming the window', walled.refused && walled.refusal.includes(WINDOW_WORDS) && !walled.hits.some(h => h.kind === 'openai' && (h.ask ?? '').includes(SUBAGENT_ASK)), walled.refusal || brief(walled.hits))
-  check('the bracket names the window alone (the catalogue was read by the request that observed the wall)', walled.refused && !bracketOf(walled.refusal).includes(CATALOGUE_WORDS), bracketOf(walled.refusal))
-  console.log(`      refusal: ${walled.refusal}`)
-  keep('refusal-under-wall.txt', `${walled.refusal}\n`)
+  check('the observed long window does not block the next request: OpenAI serves it once under A', servedUnder(walled, ACCOUNTS.a) && servedBeforeReset(walled, spend, RESET_LONG_SECONDS), walled.refusal || brief(walled.hits))
+  check('the result is the provider reply, not a window or pending-catalogue dispatch refusal', walled.rows.includes(SUBAGENT_REPLY) && !walled.rows.includes(REFUSAL_HEAD) && !walled.rows.includes('live catalogue not fetched yet'), unescaped(walled.rows).slice(-600))
+  keep('dispatch-under-wall.txt', `${brief(walled.hits)}\n${walled.rows}\n`)
 
   section('§4 the operator signs in to OpenAI again (account B): the poke rides the road every sign-in raises, the daemon tells the runner')
   const pokesBefore = pokeRequests.length
@@ -384,7 +387,7 @@ try {
   await sleep(1_000)
   keep('facts-after-dispatch.json', readFileSync(factsPath(sid), 'utf8'))
 
-  section('§6 the refusal names the blocker that blocks: a wall with the catalogue unreachable is refused for the window alone')
+  section('§6 a stored window and an unreachable catalogue do not become admission gates')
   writeFileSync(modelsFailFlag, 'down\n')
   const wireBeforeC = wire().length
   landOpenaiSignIn(ACCOUNTS.c)
@@ -393,10 +396,9 @@ try {
   const spendC = await errand(sid, DELEGATE_GPT_SPEND_ASK, 'the spend under C', true)
   check('the delegate rode the OpenAI wire under C and was walled (the request goes out without a catalogue)', spendC.hits.some(h => h.kind === 'openai' && h.arm === 'spend' && h.status === 429 && h.token === ACCOUNTS.c.tail), brief(spendC.hits))
   const walledC = await errand(sid, DELEGATE_GPT_ASK, 'the errand under the wall with the catalogue down')
-  check('the dispatch is refused for the window', walledC.refused && walledC.refusal.includes(WINDOW_WORDS), walledC.refusal || brief(walledC.hits))
-  check('the bracket carries the window, never the catalogue state as if it were the block', walledC.refused && !bracketOf(walledC.refusal).includes(CATALOGUE_WORDS), bracketOf(walledC.refusal))
-  console.log(`      refusal: ${walledC.refusal}`)
-  keep('refusal-catalogue-down.txt', `${walledC.refusal}\n`)
+  check('with a window note and the catalogue down, the provider still serves one requested GPT call under C', servedUnder(walledC, ACCOUNTS.c) && servedBeforeReset(walledC, spendC, RESET_LONG_SECONDS), walledC.refusal || brief(walledC.hits))
+  check('the catalogue really refused its own read, but the dispatch receives provider bytes rather than a local refusal', since(wireBeforeC).some(h => h.kind === 'models' && h.token === ACCOUNTS.c.tail && h.status === 500) && walledC.rows.includes(SUBAGENT_REPLY) && !walledC.rows.includes(REFUSAL_HEAD) && !walledC.rows.includes('live catalogue not fetched yet'), brief(since(wireBeforeC)))
+  keep('dispatch-catalogue-down.txt', `${brief(walledC.hits)}\n${walledC.rows}\n`)
   try {
     unlinkSync(modelsFailFlag)
   } catch {}
