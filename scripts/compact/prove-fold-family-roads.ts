@@ -283,6 +283,16 @@ const shapes: Array<{ family: string; road: string; shape: Shape }> = []
 for (const leg of LEGS) {
   console.log(`\n  · ${leg.family}/${leg.road} — ${leg.model}`)
   const captured = leg.fixture === 'shared' ? shared.captured : census.captured
+  const sessionAt = captured.length
+  {
+    const { routedCallModel } = await import('../../src/services/providers/callModelRouter.ts')
+    const { ctx } = makeContext(leg.model)
+    try {
+      for await (const _ of routedCallModel({ messages: makeMessages() as never, systemPrompt: asSystemPrompt([`You are a ${POSTURE_MARK}.`]), thinkingConfig: ctx.options.thinkingConfig as never, tools: [], signal: ctx.abortController.signal, options: { model: leg.model, getToolPermissionContext: async () => ctx.getAppState().toolPermissionContext, isNonInteractiveSession: true, hasAppendSystemPrompt: false, maxOutputTokensOverride: undefined, querySource: 'compact' as never, agents: [], mcpTools: [], effortValue: ctx.getAppState().effortValue as never } })) {}
+    } catch {}
+  }
+  const sessionHit = captured.slice(sessionAt).filter(h => h.lane === leg.lane).at(-1)
+  const sessionCap = sessionHit === undefined ? undefined : outputCapOf(sessionHit.body)
   const before = captured.length
   const run = await runFold(leg.model, leg.road)
   const hits = captured.slice(before).filter(h => h.lane === leg.lane)
@@ -306,12 +316,11 @@ for (const leg of LEGS) {
     e.thinking === 'off' ? thinking === undefined || thinking.type === 'disabled' : thinking !== undefined && typeof thinking === 'object' && thinking.type === 'disabled',
     j(shape.thinking),
   )
-  const expectedCap = getModelMaxOutputTokens(leg.model).upperLimit
+  check(`${leg.family}/${leg.road}: the session-shaped reference (no ceiling override; the fold's source word so the dump census below stays whole) was captured on this lane`, sessionCap !== undefined, j(sessionHit))
   if (e.cap === 'none') {
     check(`${leg.family}/${leg.road}: no output cap on this wire (the Responses road bounds server-side)`, shape.cap === null, j(shape.cap))
-
   } else {
-    check(`${leg.family}/${leg.road}: the output cap is ${e.cap} = the model's maximum = ${expectedCap}`, shape.cap !== null && shape.cap.key === e.cap && shape.cap.value === expectedCap, j(shape.cap))
+    check(`${leg.family}/${leg.road}: the output ceiling is the session request's own (${j(sessionCap)}) — never a number of the fold's`, j(shape.cap) === j(sessionCap), j({ fold: shape.cap, session: sessionCap }))
   }
   check(`${leg.family}/${leg.road}: max_output_tokens never rides any wire`, !shape.maxOutputTokens)
   check(`${leg.family}/${leg.road}: cache_control ${e.cacheControl ? 'rides (the home prefix cache)' : 'is ABSENT (another family\'s field)'}`, shape.cacheControl === e.cacheControl)
