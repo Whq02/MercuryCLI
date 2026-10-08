@@ -326,6 +326,10 @@ section('R2 the retry overflows again → the typed refusal, never the raw sente
   check('the raw sentence rides errorDetails, not the row', (errs[0] as { errorDetails?: string }).errorDetails === OPENAI_RAW && !text.includes('However, your messages resulted'))
   check('the raw provider sentence never reaches a yield', !anyYieldCarries(r.yields, 'maximum context length is 128000'))
   check('the last yield is the refusal (the SDK result reads is_error)', r.yields.filter(y => y.type === 'assistant').at(-1)?.isApiErrorMessage === true)
+  const retainedFold = rigFoldResult()
+  retainedFold.compactionResult = { ...(retainedFold.compactionResult as Record<string, unknown>), messagesToKeep: [asstText('The recent assistant fact is preserved verbatim.')] }
+  const withTail = await run({ seed: seedPlain(), compact: makeCompact({ onForced: [retainedFold] }), script: [[ping(), overflowError()], [ping(), overflowError()], [ping(), asstText('Unexpected third request.')]] })
+  check('a foldable retained tail cannot reopen the same overflow episode', withTail.terminal.reason === 'prompt_too_long' && withTail.calls.length === 2 && withTail.compact.filter(call => call.forced !== undefined).length === 1, JSON.stringify({ terminal: withTail.terminal, calls: withTail.calls.length, folds: withTail.compact.filter(call => call.forced !== undefined).length }))
 }
 
 section('R3 the prune rung — superseded tool results cover the gap; no fold')
