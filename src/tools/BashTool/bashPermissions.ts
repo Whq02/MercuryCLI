@@ -858,13 +858,13 @@ function astDenyCheck(input: BashInput, context: ToolPermissionContext, root: No
 
 function wrappedCommand(argv: string[]): string[] | null {
   const [name] = argv
-  if (name === 'time' && argv[1] === '-p') return argv.slice(2)
+  if (name === 'time' && argv[1]?.startsWith('-') && argv[1].slice(1) === 'p') return argv.slice(2)
   if (name === 'command' || name === 'builtin' || name === 'exec') {
     let i = 1
     while (i < argv.length && argv[i]!.startsWith('-')) {
       const flag = argv[i++]!
       if (flag === '--') break
-      if (name === 'command' && /^-p+$/.test(flag)) continue
+      if (name === 'command' && /^p+$/.test(flag.slice(1))) continue
       if (name === 'exec' && /^-[cl]+$/.test(flag)) continue
       if (name === 'exec' && flag === '-a' && argv[i] !== undefined) { i++; continue }
       if (name === 'exec' && flag.startsWith('-a') && flag.length > 2) continue
