@@ -106,5 +106,32 @@ section('N4 — the queue\'s order is the screen\'s order')
   check('a notice queued twice keeps the first position', notices.queueOrderedSends([{ clientMessageId: noteKey }, { clientMessageId: words }], [...twice, queue[1]!]).map(s => s.clientMessageId)[0] === noteKey)
 }
 
+section('N5 — delivered record order is independent of painted clocks')
+{
+  const stamp = (seconds: number): string => new Date(Date.UTC(2030, 0, 2, 3, 4, seconds)).toISOString()
+  const notice = { type: 'attachment', uuid: 'delivery-notice', timestamp: stamp(5), attachment: { type: 'queued_command', prompt: NOTE, commandMode: 'task-notification', sentAt: stamp(5), deliveredAt: stamp(30) } } as unknown as Message
+  const words = { type: 'attachment', uuid: 'delivery-words', timestamp: stamp(6), attachment: { type: 'queued_command', prompt: 'later typed words', commandMode: 'prompt', sentAt: stamp(6), deliveredAt: stamp(30) } } as unknown as Message
+  const laterNotice = { ...notice, uuid: 'later-record', attachment: { ...(notice as Extract<Message, { type: 'attachment' }>).attachment, prompt: OTHER, deliveredAt: stamp(20) } } as unknown as Message
+  const pending = { type: 'user', uuid: 'pending-words', timestamp: stamp(31), queued: true, message: { role: 'user', content: 'still waiting' } } as unknown as Message
+  const raw = [notice, words, laterNotice]
+  const before = JSON.stringify(raw)
+  const placed = notices.placeDeliveredNotices(raw)
+  check('a notice and prompt delivered at one boundary keep their record order despite different arrival stamps', placed[0]?.uuid === notice.uuid && placed[1]?.uuid === words.uuid, JSON.stringify(placed.map(row => row.uuid)))
+  check('later delivered records never overtake earlier records because a displayed clock is older', placed[2]?.uuid === laterNotice.uuid, JSON.stringify(placed.map(row => row.uuid)))
+  check('notice clocks still use delivery and prompt clocks still use typing, without mutating input bytes', placed[0]?.timestamp === stamp(30) && placed[1]?.timestamp === stamp(6) && placed[2]?.timestamp === stamp(20) && JSON.stringify(raw) === before, JSON.stringify(placed.map(row => row.timestamp)))
+  const waiting = notices.placeDeliveredNotices([words, pending, notice])
+  check('a newly delivered notice moves before waiting rows only, never before an earlier delivered record', waiting.map(row => row.uuid).join(',') === [words.uuid, notice.uuid, pending.uuid].join(','), JSON.stringify(waiting.map(row => row.uuid)))
+  check('every delivered and waiting row is preserved once', new Set(waiting.map(row => row.uuid)).size === 3 && waiting.length === 3)
+  const onlyWords = [words, pending]
+  check('without a notice the projection returns the original sequence', notices.placeDeliveredNotices(onlyWords) === onlyWords)
+  const laterWords = { type: 'user', uuid: 'raw-after-take', timestamp: stamp(35), message: { role: 'user', content: 'typed after delivery' } } as unknown as Message
+  const place = notices.placeDeliveredNotices as (rows: readonly Message[], committed: ReadonlyMap<string, unknown>) => readonly Message[]
+  const committed = new Map([[notice.uuid, true]])
+  const pendingLanding = place([words, laterWords, notice], committed)
+  check('a committed viewer notice stays ahead of a later raw row before its durable record arrives', pendingLanding.map(row => row.uuid).join(',') === [words.uuid, notice.uuid, laterWords.uuid].join(','), JSON.stringify(pendingLanding.map(row => row.uuid)))
+  const durable = place([notice, words, laterWords], new Map())
+  check('once the durable notice arrives, its existing record position replaces the transient ordering', durable.map(row => row.uuid).join(',') === [notice.uuid, words.uuid, laterWords.uuid].join(','), JSON.stringify(durable.map(row => row.uuid)))
+}
+
 console.log(`\n ${checks} checks, ${failures} failures`)
 process.exit(failures === 0 ? 0 : 1)

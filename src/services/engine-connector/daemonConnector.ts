@@ -1346,7 +1346,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
       while (d < this.displayRows.length) rows.push(this.displayRows[d++]!.row)
       this.painted = [...rows, ...echoes]
     }
-    this.painted = placeDeliveredNotices(this.painted)
+    this.painted = placeDeliveredNotices(this.painted, this.deliveredNotices)
     connectorTrace({ ev: 'paint', sid: this.record.sessionId, raw: this.rawRecords.length, display: this.displayRows.length, echoes: echoes.length, painted: this.painted.length, listeners: this.recordListeners.size })
     emitAll(this.recordListeners, 'records')
   }
