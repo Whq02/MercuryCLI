@@ -36,11 +36,12 @@ export function pauseResumeWords(pause: Pick<AgentPauseV1, 'why' | 'resumesAtMs'
 }
 
 export function pauseStatusWords(pause: AgentPauseV1, nowMs: number): string {
+  if (pause.why === 'provider overloaded') return `paused — ${pause.why} · ${pauseResumeWords(pause, nowMs)}`
   return `paused — ${pause.words} · ${pauseResumeWords(pause, nowMs)} · r retries now`
 }
 
 export function pauseLineWords(pause: AgentPauseV1, nowMs: number): string {
-  return `${pauseStatusWords(pause, nowMs)}; ${AGENT_PAUSE_DOORS}`
+  return `${pauseStatusWords(pause, nowMs)}; ${pause.why === 'provider overloaded' ? `${pause.words}; ` : ''}${AGENT_PAUSE_DOORS}`
 }
 
 export function decodeAgentPause(raw: unknown): AgentPauseV1 | null {
