@@ -64,7 +64,7 @@ const { recordSignIn } = await import('../../src/utils/accounts/signInLedger.ts'
 const { storeOAuthAccountInfo } = await import('../../src/services/oauth/client.ts')
 const paths = await import('../../src/utils/sessionStorage/paths.ts')
 const fixtureWords = await import('./cap-fixture-words.ts')
-const { SPEND_ASK, HOLD_ASK, ANTHROPIC_REPLY, OPENAI_REPLY, GPT_ID } = fixtureWords
+const { SPEND_ASK, HOLD_ASK, ANTHROPIC_REPLY, OPENAI_REPLY, GPT_ID, RESET_IN_SECONDS } = fixtureWords
 
 const reapTargets: Array<{ kill: (signal: NodeJS.Signals) => boolean }> = []
 const reapNow = (): void => {
@@ -341,12 +341,12 @@ try {
   check('C1 the runner is ALIVE after the cap', rec2 !== undefined && alive(rec2.pid) && rec2.pid === pid1, `pid ${rec2?.pid} (was ${pid1}) alive=${alive(rec2?.pid)}`)
   check('C1 the record carries no crash, stop or park stamp', rec2 !== undefined && rec2.crash === undefined && rec2.stoppedAt === undefined && rec2.parkedAt === undefined, JSON.stringify(rec2))
   const wall = lastAssistantText(sid)
-  check('C1 the wall row is the typed end: it names the window and its reset', /window|limit/i.test(wall) && /resets/i.test(wall), wall.slice(0, 300))
-  check('C1 the wall row names the /model door', wall.includes('/model'), wall.slice(0, 300))
+  check('C1 the wall row is a typed API error carrying the provider words and Retry-After clock', assistantRows(sid).at(-1)?.annotations?.isApiErrorMessage === true && wall === `API Error: Anthropic is rate limited — the provider asks for ${RESET_IN_SECONDS} s — This request would exceed your account's rate limit.`, wall)
+  check('C1 the refusal carries no Mercury-side model-switch door', !wall.includes('/model'), wall)
   const capAt = sinceHits(before2).find(h => h.kind === 'anthropic' && h.status === 429)?.at ?? 0
   const modelsReads = wire().filter(c => c.kind === 'models')
-  check('C1 the OpenAI catalogue was read when the wall row asked, not before (no models request before the cap; one at the wall)', modelsBefore2 === 0 && modelsReads.length >= 1 && modelsReads[0]!.at >= capAt, JSON.stringify({ before: modelsBefore2, readsSinceCapMs: modelsReads.map(r => r.at - capAt) }))
-  check('C1 the wall row names the OpenAI family it read', /\/model moves there \(bills under your OpenAI account/.test(wall), wall.slice(0, 400))
+  check('C1 the diagnostic catalogue read still happens only after the provider refusal, never before it', modelsBefore2 === 0 && modelsReads.length >= 1 && modelsReads[0]!.at >= capAt, JSON.stringify({ before: modelsBefore2, readsSinceCapMs: modelsReads.map(r => r.at - capAt) }))
+  check('C1 reading another catalogue never adds its family to the refusal or reroutes the request', !wall.includes('OpenAI') && !sinceHits(before2).some(h => h.kind === 'openai'), JSON.stringify({ wall, hits: sinceHits(before2) }))
   console.log(`      wall row: ${wall.replace(/\n/g, ' ↵ ').slice(0, 400)}`)
 
   section('§3 C2/C4 the family switch on the live idle runner: Fable → GPT lands in place')
@@ -371,7 +371,7 @@ try {
   const rec4 = readRec(sid)
   check('C1 the runner is ALIVE after the GPT cap', rec4 !== undefined && alive(rec4.pid) && rec4.pid === pid1, `pid ${rec4?.pid} alive=${alive(rec4?.pid)}`)
   const gptWall = lastAssistantText(sid)
-  check('C1 the GPT wall row names the window, its reset and the /model door', /usage window/i.test(gptWall) && /resets/i.test(gptWall) && gptWall.includes('/model'), gptWall.slice(0, 300))
+  check('C1 the GPT wall row is typed and carries the provider limit, plan and reset while the request stays on OpenAI', assistantRows(sid).at(-1)?.annotations?.isApiErrorMessage === true && gptWall.includes('openai-usage_limit_reached') && gptWall.includes(`the plus window is reached — resets in ${RESET_IN_SECONDS} s`) && gptWall.includes('You have hit your usage limit.') && gptWall.includes('The next request goes to OpenAI again; resume any time.') && gptWall.includes('Mercury never reroutes across providers silently') && sinceHits(before4).filter(h => h.kind === 'openai').length === 1 && !sinceHits(before4).some(h => h.kind === 'anthropic'), gptWall)
   console.log(`      gpt wall row: ${gptWall.replace(/\n/g, ' ↵ ').slice(0, 400)}`)
   const swBack = await setModel(sid, 'claude-fable-5-1')
   check('the switch back to the Fable row lands in place', swBack.ok === true && swBack.outcome === 'applied', JSON.stringify(swBack))
