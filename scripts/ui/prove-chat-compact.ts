@@ -74,7 +74,8 @@ function glyphRows(def: CritterDef, art: string[]): string[] {
       const bc = cellColor(def, b)
       const below = cellColor(def, art[r + 2]?.[c]) !== undefined
       const above = cellColor(def, art[r - 1]?.[c]) !== undefined
-      line += tc !== undefined && bc !== undefined ? (below ? '▄' : '▀') : tc !== undefined ? (above && below ? '▄' : '▀') : bc !== undefined ? '▄' : ' '
+      const underEye = 'EKP'.includes(def.squareDock[r - 1]?.[c] ?? '')
+      line += tc !== undefined && underEye ? '▄' : tc !== undefined && bc !== undefined ? (below ? '▄' : '▀') : tc !== undefined ? (above && below ? '▄' : '▀') : bc !== undefined ? '▄' : ' '
     }
     lines.push(line)
   }
