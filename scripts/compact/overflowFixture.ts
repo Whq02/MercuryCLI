@@ -8,7 +8,7 @@ export type Turn =
   | { calls: ScriptedCall[]; usage?: { input: number; output: number; cost?: number }; reasoning?: ScriptedReasoning }
   | { error: { status: number; body: unknown } }
   | { cut: { reasoning?: ScriptedReasoning; text?: string; calls?: ScriptedCall[] } }
-  | { refusal: true; usage?: { input: number; output: number } }
+  | { refusal: true; text?: string; usage?: { input: number; output: number } }
 export type Captured = { dialect: Dialect; path: string; body: Record<string, unknown> }
 
 const sse = (obj: unknown): string => `data: ${JSON.stringify(obj)}\n\n`
@@ -25,6 +25,11 @@ function anthropicSse(turn: Exclude<Turn, { error: unknown } | { cut: unknown }>
     evt('message_start', { type: 'message_start', message: { id: `msg_${ordinal}`, type: 'message', role: 'assistant', model: 'fixture', content: [], stop_reason: null, stop_sequence: null, usage } }),
   ]
   if ('refusal' in turn) {
+    if (turn.text !== undefined) {
+      out.push(evt('content_block_start', { type: 'content_block_start', index: 0, content_block: { type: 'text', text: '' } }))
+      out.push(evt('content_block_delta', { type: 'content_block_delta', index: 0, delta: { type: 'text_delta', text: turn.text } }))
+      out.push(evt('content_block_stop', { type: 'content_block_stop', index: 0 }))
+    }
     out.push(evt('message_delta', { type: 'message_delta', delta: { stop_reason: 'refusal', stop_sequence: null }, usage }))
   } else if ('calls' in turn) {
     turn.calls.forEach((call, index) => {
