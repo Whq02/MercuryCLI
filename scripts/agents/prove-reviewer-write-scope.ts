@@ -41,7 +41,7 @@ try {
   mkdirSync(join(frozen, 'scripts', 'checks'), { recursive: true })
   writeFileSync(join(frozen, 'scripts', 'checks', 'prove-read.ts'), 'console.log("review proof ran")\n')
   for (const command of ['bun scripts/checks/prove-read.ts', 'bun run typecheck']) {
-    check('reviewer verification commands are admitted without declaring them read-only', reviewerRefusal(BashTool as Tool, { command }, canonical, frozen) === null)
+    check('reviewer verification commands are admitted without declaring them read-only', await reviewerRefusal(BashTool as Tool, { command }, canonical, frozen) === null)
   }
   assert.throws(() => canonicalReviewerReceipt(other, frozen), /outside/)
   assert.throws(() => canonicalReviewerReceipt('relative.md', frozen), /absolute/)
@@ -84,7 +84,7 @@ try {
     await assert.rejects(() => shell.call({ command }, context()), /read-only/)
   }
   check('shell writes, git mutations and arbitrary programs cannot bypass the report boundary', readFileSync(other, 'utf8') === 'protected\n')
-  check('read-only commands remain subject to their normal permission checks', reviewerRefusal(BashTool as Tool, { command: 'pwd' }, canonical, frozen) === null)
+  check('read-only commands remain subject to their normal permission checks', await reviewerRefusal(BashTool as Tool, { command: 'pwd' }, canonical, frozen) === null)
   const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
   let appState = getDefaultAppState()
   const shellContext = {
@@ -101,7 +101,7 @@ try {
   const lock = join(scratch, 'with-box-lock.sh')
   writeFileSync(lock, `#!/usr/bin/env bash\nBASE=${locks}\nprintf locked > "$BASE/observed"\nshift\nexec "$@"\n`)
   const commands = ['bun scripts/checks/prove-read.ts', 'bash scripts/checks/run-all.sh', 'bun run typecheck', `cd "${frozen}" && bash "${lock}" check bun scripts/checks/prove-read.ts`]
-  for (const command of commands) check('verification and its lock wrapper retain normal permission admission', reviewerRefusal(BashTool as Tool, { command }, canonical, frozen) === null && !BashTool.isReadOnly({ command }))
+  for (const command of commands) check('verification and its lock wrapper retain normal permission admission', await reviewerRefusal(BashTool as Tool, { command }, canonical, frozen) === null && !BashTool.isReadOnly({ command }))
   if (process.platform === 'darwin' || process.platform === 'linux') {
     let available = true
     if (process.platform === 'linux') {
@@ -129,7 +129,7 @@ try {
   }
   symlinkSync(source, join(frozen, 'scripts', 'checks', 'prove-link.ts'))
   for (const command of ['bun -e "1"', 'bun install', `bun "${source}"`, 'bun scripts/checks/prove-link.ts', 'bash -c "true"', `cd "${scratch}" && bun scripts/checks/prove-read.ts`, 'bun scripts/checks/prove-read.ts > output.txt', `bash "${lock}" check bash -c "true"`, `bun scripts/checks/prove-read.ts && printf changed > '${other}'`]) {
-    check('inline programs, installs, outside scripts, redirects and wrapper escapes refuse', reviewerRefusal(BashTool as Tool, { command }, canonical, frozen) !== null)
+    check('inline programs, installs, outside scripts, redirects and wrapper escapes refuse', await reviewerRefusal(BashTool as Tool, { command }, canonical, frozen) !== null)
   }
   for (const input of [{ command: commands[0], dangerouslyDisableSandbox: true }, { command: 'pwd', _simulatedSedEdit: { filePath: other, newContent: 'changed' } }]) await assert.rejects(() => shell.call(input, shellContext), /write protection/)
   writeFileSync(report, '# Report\n\n## Scope\nuntouched\n')

@@ -27,7 +27,7 @@
    "FOO=bar go test ./..."
   ],
   "find . -name \"*.ts\" -exec grep -l TODO {} \\;": [
-   "find . -name \"*.ts\" -exec grep -l TODO {} ;"
+   "find . -name \"*.ts\" -exec grep -l TODO {} \\;"
   ],
   "echo 'single && quoted; safe'": [
    "echo 'single && quoted; safe'"
@@ -64,7 +64,7 @@
    "hasDangerousRedirection": false
   },
   "echo a > /tmp/x && echo b >> /tmp/y": {
-   "commandWithoutRedirections": "echo a && echo b",
+   "commandWithoutRedirections": "echo a  && echo b",
    "redirections": [
     {
      "target": "/tmp/x",
@@ -273,7 +273,7 @@
  "security": {
   "aborted-root git status": {
    "kind": "too-complex",
-   "reason": "Parser aborted (timeout or resource limit) — possible adversarial input",
+   "reason": "the shell parser did not finish reading this command; split it into simpler commands, or approve",
    "nodeType": "PARSE_ABORT"
   },
   "control-chars": {

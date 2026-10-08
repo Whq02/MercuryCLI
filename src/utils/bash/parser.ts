@@ -18,6 +18,29 @@ type RawParse = Node | null | typeof PARSE_ABORTED
 const parseScope = new AsyncLocalStorage<Map<string, Promise<RawParse>>>()
 let lastCommand: string | undefined
 let lastParse: Promise<RawParse> | undefined
+const preparedTrees = new Map<string, WeakRef<Node>>()
+const reclaimedTrees = new FinalizationRegistry<{ command: string; reference: WeakRef<Node> }>(({ command, reference }) => {
+  if (preparedTrees.get(command) === reference) preparedTrees.delete(command)
+})
+
+function rememberTree(command: string, root: Node): void {
+  const remember = (text: string, node: Node): void => {
+    const reference = new WeakRef(node)
+    preparedTrees.set(text, reference)
+    reclaimedTrees.register(node, { command: text, reference })
+  }
+  const visit = (node: Node): void => {
+    if (['command', 'redirected_statement', 'pipeline', 'list', 'declaration_command'].includes(node.type)) remember(node.text, node)
+    for (const child of node.children) visit(child)
+  }
+  visit(root)
+  remember(command, root)
+  remember(command.trim(), root)
+}
+
+export function preparedCommandRoot(command: string): Node | null {
+  return preparedTrees.get(command)?.deref() ?? null
+}
 
 export function withBashParseScope<T>(run: () => T): T {
   return parseScope.getStore() ? run() : parseScope.run(new Map(), run)
@@ -46,7 +69,9 @@ async function parseRaw(command: string): Promise<RawParse> {
     const parsed = await parsePolyglot(engine, language, command)
     if ('state' in parsed) return null
     try {
-      return snapshot(parsed.tree.rootNode)
+      const root = snapshot(parsed.tree.rootNode)
+      rememberTree(command, root)
+      return root
     } finally {
       parsed.tree.delete()
     }

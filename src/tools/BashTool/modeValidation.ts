@@ -1,7 +1,7 @@
 import { modeBypassesPermissions } from '../../utils/permissions/PermissionMode.js'
 import type { PermissionResult } from '../../utils/permissions/PermissionResult.js'
 import type { ToolPermissionContext } from '../../Tool.js'
-import { pinnedCommandAnalysis } from '../../utils/permissions/decision/commandAnalysis.js'
+import { preparedSecurityParse } from '../../utils/permissions/decision/commandAnalysis.js'
 
 const ACCEPT_EDITS_COMMANDS: ReadonlySet<string> = new Set([
   'mkdir',
@@ -24,10 +24,11 @@ export function checkPermissionMode<I extends { command: string }>(
     return { behavior: 'passthrough', message: 'Never-ask mode handles this command.' }
   }
 
-  const subcommands = pinnedCommandAnalysis.splitCommand(input.command)
-  for (const raw of subcommands) {
-    const subcommand = raw.trim()
-    const base = subcommand.split(/\s+/)[0]
+  const parsed = preparedSecurityParse(input.command)
+  if (parsed.kind !== 'simple') return { behavior: 'passthrough', message: 'The command has no proven mode handling.' }
+  for (const simple of parsed.commands) {
+    const subcommand = simple.text
+    const base = simple.argv[0]
     if (!base) {
       return { behavior: 'passthrough', message: 'No command to evaluate for mode auto-allow.' }
     }

@@ -21,6 +21,9 @@ import {
 } from '../../utils/permissions/shellRuleMatching.js'
 import {
   withBashParseScope,
+  parseForSecurity,
+  preparedSecurityParse,
+  peelWrappers,
   PARSE_ABORTED,
   pinnedCommandAnalysis,
   splitListSegments,
@@ -29,11 +32,6 @@ import {
   type Redirect,
 } from '../../utils/permissions/decision/commandAnalysis.js'
 import {
-  bashCommandIsSafe_DEPRECATED,
-  bashCommandIsSafeAsync_DEPRECATED,
-  stripSafeHeredocSubstitutions,
-} from './bashSecurity.js'
-import {
   checkCommandOperatorPermissions,
   CD_GIT_BARE_REPO_REASON,
   MULTIPLE_CD_REASON,
@@ -41,7 +39,7 @@ import {
 } from './bashCommandHelpers.js'
 import { checkPermissionMode } from './modeValidation.js'
 import { checkPathConstraints } from './pathValidation.js'
-import { checkReadOnlyConstraints, cutPart, notReadOnlyClause, type NotReadOnly } from './readOnlyValidation.js'
+import { checkPreparedReadOnlyConstraints, cutPart, notReadOnlyClause, type NotReadOnly } from './readOnlyValidation.js'
 import { checkSedConstraints } from './sedValidation.js'
 import { SandboxManager } from '../../utils/sandbox/sandbox-adapter.js'
 import { shouldUseSandbox } from './shouldUseSandbox.js'
@@ -52,7 +50,6 @@ export const bashPermissionRule = (ruleContent: string): ShellPermissionRule =>
 
 const TOOL_NAME = 'Bash'
 
-const MAX_SUBCOMMANDS_FOR_SECURITY_CHECK = 50
 const MAX_SUGGESTED_RULES_FOR_COMPOUND = 5
 
 type BashInput = {
@@ -244,29 +241,18 @@ export function getFirstWordPrefix(command: string): string | null {
   return word
 }
 
+function normalizedWords(command: string): string[][] {
+  const parsed = preparedSecurityParse(command)
+  if (parsed.kind !== 'simple') return []
+  return parsed.commands.map(simple => peelWrappers(simple.argv)).filter((argv): argv is string[] => Array.isArray(argv))
+}
+
 export function isNormalizedGitCommand(command: string): boolean {
-  if (command === 'git' || command.startsWith('git ')) return true
-  const stripped = stripSafeWrappers(command)
-  const parse = pinnedCommandAnalysis.tryParseShellCommand(stripped)
-  if (!parse.success) return /\bgit\b/.test(stripped)
-  const tokens = parse.tokens.filter(t => typeof t === 'string') as string[]
-  if (tokens[0] === 'git') return true
-  if (tokens[0] === 'xargs' && tokens.includes('git')) return true
-  return false
+  return normalizedWords(command).some(argv => argv[0] === 'git' || argv[0] === 'xargs' && argv.includes('git'))
 }
 
 function isNormalizedCdCommand(command: string): boolean {
-  const stripped = stripSafeWrappers(command)
-  const parse = pinnedCommandAnalysis.tryParseShellCommand(stripped)
-  if (!parse.success) return /\b(?:cd|pushd|popd)\b/.test(stripped)
-  const tokens = parse.tokens.filter(t => typeof t === 'string') as string[]
-  return tokens[0] === 'cd' || tokens[0] === 'pushd' || tokens[0] === 'popd'
-}
-
-function commandHasAnyCd(command: string): boolean {
-  return pinnedCommandAnalysis
-    .splitCommand(command)
-    .some(sub => isNormalizedCdCommand(sub.trim()))
+  return normalizedWords(command).some(argv => ['cd', 'pushd', 'popd'].includes(argv[0] ?? ''))
 }
 
 
@@ -472,6 +458,18 @@ export function bashToolCheckExactMatchPermission(
   }
 }
 
+export function readBashRuleVerdict(input: BashInput, context: ToolPermissionContext): PermissionResult {
+  const command = input.command.trim()
+  for (const behavior of ['deny', 'ask', 'allow'] as const) {
+    const matched = matchRules(command, context, behavior, 'exact', true) ?? matchRules(command, context, behavior, 'prefix', true)
+    if (matched === null) continue
+    if (behavior === 'deny') return denyByRule(context, command, matched, () => matchAllRules(command, context, 'deny', 'prefix', true))
+    if (behavior === 'ask') return askByRule(context, command, matched)
+    return { behavior: 'allow', updatedInput: input, decisionReason: ruleReason(context, matched, 'allow') }
+  }
+  return { behavior: 'passthrough', message: 'No Bash rule covers this command.' }
+}
+
 function approvalSentence(shown: string, reason: NotReadOnly | undefined): string {
   const clause = reason === undefined ? '' : `: ${notReadOnlyClause(reason)}`
   const sentence = `\`${cutPart(shown)}\` requires approval${clause}`
@@ -486,7 +484,14 @@ export function bashToolCheckPermission(
   shown?: string,
 ): PermissionResult {
   const exact = bashToolCheckExactMatchPermission(input, context)
-  if (exact.behavior === 'deny' || exact.behavior === 'ask') return exact
+  if (exact.behavior === 'deny') return exact
+  const parsed = astCommand ? { kind: 'simple' as const, commands: [astCommand] } : preparedSecurityParse(input.command)
+  if (parsed.kind !== 'simple') return unprovenAsk(parsed.kind === 'too-complex' ? parsed.reason : 'the shell parser has not produced a tree; retry the command, or approve')
+  const semantic = pinnedCommandAnalysis.checkSemantics(parsed.commands)
+  if (!semantic.ok) return unprovenAsk(semantic.reason)
+  if (parsed.commands.length !== 1) return unprovenAsk('this entry needs one parsed command; split the command, or approve')
+  astCommand = parsed.commands[0]
+  if (exact.behavior === 'ask') return exact
 
   const command = input.command.trim()
   const skipCompoundGuard = astCommand !== undefined
@@ -516,7 +521,7 @@ export function bashToolCheckPermission(
   if (sed.behavior !== 'passthrough') return sed
   const mode = checkPermissionMode(input, context)
   if (mode.behavior !== 'passthrough') return mode
-  const readOnly = checkReadOnlyConstraints({ command: input.command }, compoundHasCd)
+  const readOnly = checkPreparedReadOnlyConstraints({ command: input.command }, compoundHasCd, astCommand ? { ...astCommand, redirects: [] } : undefined)
   if (readOnly.behavior === 'allow') {
     return { behavior: 'allow', updatedInput: input, decisionReason: { type: 'other', reason: 'Read-only command is allowed' } }
   }
@@ -529,21 +534,11 @@ async function checkCommandAndSuggestRules(
   context: ToolPermissionContext,
   prefixHint: { commandPrefix: string | null } | null | undefined,
   compoundHasCd = false,
-  astParseSucceeded = false,
   shown?: string,
   astCommand?: SimpleCommand,
 ): Promise<PermissionResult> {
   const check = bashToolCheckPermission(input, context, compoundHasCd, astCommand, shown)
   if (check.behavior === 'deny' || check.behavior === 'ask') return check
-  if (!astParseSucceeded && !isInjectionCheckDisabled()) {
-    const legacy = await bashCommandIsSafeAsync_DEPRECATED(input.command)
-    if (legacy.behavior !== 'passthrough') {
-      const message = legacy.behavior === 'ask' && legacy.message
-        ? legacy.message
-        : 'The command contains patterns that could pose security risks.'
-      return { behavior: 'ask', message, suggestions: [] }
-    }
-  }
   if (check.behavior === 'allow') return check
   const suggestions = prefixHint?.commandPrefix
     ? suggestionForPrefix(TOOL_NAME, prefixHint.commandPrefix)
@@ -592,10 +587,6 @@ type PrefixFn = (
   | { commandPrefix: string | null; subcommandPrefixes?: Map<string, { commandPrefix: string | null }> }
   | null
 >
-
-function isInjectionCheckDisabled(): boolean {
-  return false
-}
 
 function asWrittenSingle(command: string, fallback: string): string {
   const cwd = getCwd()
@@ -649,34 +640,33 @@ async function decideBashPermission(
       return { behavior: 'ask', message, decisionReason: { type: 'safetyCheck', reason: message, operatorOnly: true, floor: true } }
     }
   }
-  let compoundHasCd = commandHasAnyCd(command)
+  let compoundHasCd = false
   const customPrefixFn = prefixFn !== pinnedCommandAnalysis.getCommandSubcommandPrefix
 
   let astCommands: SimpleCommand[] | null = null
-  let astAvailable = false
   if (command.length > 10_000) {
-    return earlyExitDenyCheck(input, context) ?? floorAsk('the command exceeds the parser’s 10,000-character limit; split it into shorter commands, or approve')
+    return earlyExitDenyCheck(input, context) ?? unprovenAsk('the command exceeds the parser’s 10,000-character limit; split it into shorter commands, or approve')
   }
   if (astRoot !== undefined) {
     const denied = astDenyCheck(input, context, astRoot)
     if (denied) return denied
-    const parsed = pinnedCommandAnalysis.parseForSecurityFromAst(command, astRoot)
-    if (parsed.kind === 'too-complex') return floorAsk(parsed.reason)
+    const parsed = await parseForSecurity(command)
+    if (parsed.kind === 'too-complex') return unprovenAsk(parsed.reason)
     if (parsed.kind === 'simple') {
       const semantic = pinnedCommandAnalysis.checkSemantics(parsed.commands)
       if (!semantic.ok) {
         const early = semanticsDenyCheck(input, context, parsed.commands)
         if (early) return early
-        return floorAsk(semantic.reason)
+        return unprovenAsk(semantic.reason)
       }
-      astAvailable = true
       astCommands = parsed.commands
       compoundHasCd = astCommands.some(simple => isNormalizedCdCommand(simple.text))
     }
   } else {
-    const pre = pinnedCommandAnalysis.tryParseShellCommand(command)
-    if (!pre.success) return floorAsk(`the shell parser could not read this command; fix the syntax, or approve`)
+    return earlyExitDenyCheck(input, context) ?? unprovenAsk('the shell parser is unavailable for this command; retry it, or approve')
   }
+
+  if (astCommands === null) return unprovenAsk('the shell parser could not establish the commands; simplify the command, or approve')
 
   if (
     SandboxManager.isSandboxingEnabled() &&
@@ -698,46 +688,18 @@ async function decideBashPermission(
   )
   if (operator.behavior !== 'passthrough') {
     if (operator.behavior === 'deny') return operator
-    if (operator.behavior === 'allow' && !astAvailable && !isInjectionCheckDisabled()) {
-      const legacy = bashCommandIsSafe_DEPRECATED(command)
-      if (legacy.behavior !== 'passthrough' && legacy.behavior !== 'allow') {
-        return { behavior: 'ask', message: legacy.message ?? 'This command requires approval.' }
-      }
-    }
-    const path = checkPathConstraints(input, getCwd(), context, compoundHasCd, astCommands?.flatMap(simple => simple.redirects), astCommands ?? undefined)
+    const path = checkPathConstraints(input, getCwd(), context, compoundHasCd, astCommands.flatMap(simple => simple.redirects), astCommands)
     if (path.behavior === 'deny') return path
     if (exact.behavior === 'ask') return exact
     if (operator.behavior === 'allow') return path.behavior !== 'passthrough' ? path : operator
     return operator
   }
 
-  if (!astAvailable && !isInjectionCheckDisabled()) {
-    const gate = bashCommandIsSafe_DEPRECATED(command)
-    if (gate.behavior === 'ask' && (gate as { isBashSecurityCheckForMisparsing?: boolean }).isBashSecurityCheckForMisparsing) {
-      const remainder = stripSafeHeredocSubstitutions(command)
-      const rescued = remainder !== null ? bashCommandIsSafe_DEPRECATED(remainder) : gate
-      const stillMisparsing =
-        rescued.behavior === 'ask' && (rescued as { isBashSecurityCheckForMisparsing?: boolean }).isBashSecurityCheckForMisparsing
-      if (remainder === null || stillMisparsing) {
-        const exactAllow = matchRules(command.trim(), context, 'allow', 'exact', false)
-        if (exactAllow !== null) {
-          return { behavior: 'allow', updatedInput: input, decisionReason: ruleReason(context, exactAllow, 'allow') }
-        }
-        return { behavior: 'ask', message: gate.message ?? 'This command requires approval.' }
-      }
-    }
-  }
-
-  const rawSubcommands = astCommands ? astCommands.map(c => c.text) : pinnedCommandAnalysis.splitCommand(command)
-  const rawParsed: (SimpleCommand | undefined)[] = astCommands ? astCommands : rawSubcommands.map(() => undefined)
+  const rawSubcommands = astCommands.map(simple => simple.text)
+  const rawParsed = astCommands
   const filtered = filterCwdSubcommands(rawSubcommands, rawParsed)
   const subcommands = filtered.subcommands
   const parsedSubcommands = filtered.parsed
-
-  if (!astAvailable && subcommands.length > MAX_SUBCOMMANDS_FOR_SECURITY_CHECK) {
-    const reason = `This command splits into ${subcommands.length} subcommands — too many to safety-check individually.`
-    return { behavior: 'ask', message: reason, decisionReason: { type: 'other', reason } }
-  }
 
   if (subcommands.filter(sub => isNormalizedCdCommand(sub)).length > 1) {
     return { behavior: 'ask', message: MULTIPLE_CD_REASON, decisionReason: { type: 'other', reason: MULTIPLE_CD_REASON } }
@@ -780,14 +742,7 @@ async function decideBashPermission(
 
   if (exact.behavior === 'allow' && !anySubcommandAsked) return exact
 
-  if (!astAvailable && !isInjectionCheckDisabled()) {
-    let possibleInjection = false
-    const batteries = await Promise.all(subcommands.map(sub => bashCommandIsSafeAsync_DEPRECATED(sub)))
-    possibleInjection = batteries.some(b => b.behavior !== 'passthrough')
-    if (decisions.every(d => d.behavior === 'allow') && !possibleInjection) {
-      return { behavior: 'allow', updatedInput: input, decisionReason: subcommandResultsReason(subcommands, decisions) }
-    }
-  } else if (decisions.every(d => d.behavior === 'allow')) {
+  if (decisions.every(d => d.behavior === 'allow')) {
     return { behavior: 'allow', updatedInput: input, decisionReason: subcommandResultsReason(subcommands, decisions) }
   }
 
@@ -806,7 +761,6 @@ async function decideBashPermission(
       context,
       prefixHint,
       compoundHasCd,
-      astAvailable,
       asWrittenSingle(command, subcommands[0] as string),
       parsedSubcommands[0],
     )
@@ -820,7 +774,6 @@ async function decideBashPermission(
         context,
         prefixHint?.subcommandPrefixes?.get(sub) ?? null,
         compoundHasCd,
-        astAvailable,
         undefined,
         parsedSubcommands[index],
       ),
@@ -872,9 +825,9 @@ function earlyExitDenyCheck(input: BashInput, context: ToolPermissionContext): P
   return null
 }
 
-function floorAsk(reason: string): PermissionResult {
+function unprovenAsk(reason: string): PermissionResult {
   const message = /approve|approval/i.test(reason) ? reason : `${reason}; simplify the command, or approve`
-  return { behavior: 'ask', message, decisionReason: { type: 'safetyCheck', reason: message, operatorOnly: true, floor: true } }
+  return { behavior: 'ask', message, decisionReason: { type: 'safetyCheck', reason: message, operatorOnly: false } }
 }
 
 function astDenyCheck(input: BashInput, context: ToolPermissionContext, root: Node | typeof PARSE_ABORTED): PermissionResult | null {

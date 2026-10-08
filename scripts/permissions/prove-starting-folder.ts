@@ -20,7 +20,7 @@ process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 process.env.NODE_ENV = 'test'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 const { initializeToolPermissionContext } = await import('../../src/utils/permissions/permissionSetup.js')
-const { checkPathConstraints } = await import('../../src/tools/BashTool/pathValidation.js')
+const { checkParsedPaths: checkPathConstraints } = await import('../bash/floor-proof-helpers.ts')
 const { FileWriteTool } = await import('../../src/tools/FileWriteTool/FileWriteTool.js')
 const { FileEditTool } = await import('../../src/tools/FileEditTool/FileEditTool.js')
 const { BashTool } = await import('../../src/tools/BashTool/BashTool.js')
@@ -80,7 +80,7 @@ try {
   for (const mode of ['default', 'implement'] as const) {
     for (const added of [[], [scratch], [scratch + '/'], [join(scratch, 'sanity')]]) {
       const ctx = await permissionContext(mode, added)
-      const result = checkPathConstraints({ command: 'mkdir inside' }, root, ctx)
+      const result = (await checkPathConstraints({ command: 'mkdir inside' }, root, ctx))
       const words = 'message' in result ? result.message : ''
       check(`${mode}, ancestor=${added.length > 0}: permission result`, result.behavior === (mode === 'default' ? 'ask' : 'passthrough'), result.behavior)
       check(`${mode}, ancestor=${added.length > 0}: no folder refusal or read-only grant`, !/ADDED directory|grants reads only|may only/.test(words), words)

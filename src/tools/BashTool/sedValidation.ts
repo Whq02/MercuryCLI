@@ -1,15 +1,23 @@
 import type { ToolPermissionContext } from '../../Tool.js'
 import type { PermissionResult } from '../../utils/permissions/PermissionResult.js'
 import {
-  splitCommand_DEPRECATED,
-  tryParseShellCommand,
+  splitCommand,
+  preparedSecurityParse,
 } from '../../utils/permissions/decision/commandAnalysis.js'
 
 function tokeniseSedArgs(command: string): { tokens: Array<string | null>; ok: boolean } {
-  const parse = tryParseShellCommand(command.replace(/^sed\s+/, ''))
+  const parse = sedWords(command)
   if (!parse.success) return { tokens: [], ok: false }
   const tokens = parse.tokens.map(token => (typeof token === 'string' ? token : GLOB_OR_OP))
   return { tokens, ok: true }
+}
+
+function sedWords(command: string): { success: boolean; tokens: string[] } {
+  const parsed = preparedSecurityParse(command)
+  if (parsed.kind !== 'simple' || parsed.commands.length !== 1) return { success: false, tokens: [] }
+  const simple = parsed.commands[0]!
+  if (simple.argv[0] !== 'sed' || simple.envVars.length) return { success: false, tokens: [] }
+  return { success: true, tokens: simple.argv.slice(1) }
 }
 
 const GLOB_OR_OP: null = null
@@ -18,7 +26,7 @@ function hasFileArgs(command: string): boolean {
   if (!/^sed\s/.test(command)) return false
   let parseOk = true
   let glob = false
-  const parse = tryParseShellCommand(command.replace(/^sed\s+/, ''))
+  const parse = sedWords(command)
   if (!parse.success) return true
   const tokens = parse.tokens.map(token => {
     if (typeof token === 'string') return token
@@ -58,7 +66,7 @@ function extractSedExpressions(command: string): string[] {
   if (/-e\s*[wWe]/.test(argText) || /-w\s*[eE]/.test(argText)) {
     throw new Error('sed: dangerous combined flags')
   }
-  const parse = tryParseShellCommand(argText)
+  const parse = sedWords(command)
   if (!parse.success) throw new Error('sed: unparseable')
   const tokens = parse.tokens.map(token => (typeof token === 'string' ? token : null))
 
@@ -102,7 +110,7 @@ function isPrintCommand(cmd: string): boolean {
 
 function isLinePrintingCommand(command: string, expressions: string[]): boolean {
   if (!/^sed\s/.test(command)) return false
-  const parse = tryParseShellCommand(command.replace(/^sed\s+/, ''))
+  const parse = sedWords(command)
   if (!parse.success) return false
   const printFlags = new Set(['-n', '--quiet', '--silent', '-E', '--regexp-extended', '-r', '-z', '--zero-terminated', '--posix'])
   const shortFlagLetters = new Set(['n', 'E', 'r', 'z'])
@@ -136,7 +144,7 @@ function isLinePrintingCommand(command: string, expressions: string[]): boolean 
 function isSubstitutionCommand(command: string, expressions: string[], allowFileWrites: boolean): boolean {
   if (!/^sed\s/.test(command)) return false
   if (!allowFileWrites && hasFileArgs(command)) return false
-  const parse = tryParseShellCommand(command.replace(/^sed\s+/, ''))
+  const parse = sedWords(command)
   if (!parse.success) return false
   const flags = new Set(['-E', '--regexp-extended', '-r', '--posix'])
   const writeFlags = new Set(['-i', '--in-place'])
@@ -257,7 +265,7 @@ const SUBSTITUTION_WRITE_FLAG_RE = /s([^\\\n])(?:\\.|(?!\1)[^\\\n])*\1(?:\\.|(?!
 
 export function checkSedConstraints(input: { command: string }, context: ToolPermissionContext): PermissionResult {
   const allowFileWrites = context.mode === 'implement'
-  const subcommands = splitCommand_DEPRECATED(input.command)
+  const subcommands = splitCommand(input.command)
   for (const raw of subcommands) {
     const subcommand = raw.trim()
     if (subcommand.split(/\s+/)[0] !== 'sed') continue

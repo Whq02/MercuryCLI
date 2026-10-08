@@ -96,7 +96,7 @@ const CORPUS: Row[] = [
   ['git status && git diff', { bare: 'allow', allow: 'allow' }],
   ["git commit -m \"feat: x\" || echo failed", { bare: 'passthrough', allow: 'allow' }],
   ['cat <<EOF\nbody\nEOF', { bare: 'ask' }],
-  ['cat <<< "here"', { bare: 'passthrough' }],
+  ['cat <<< "here"', { bare: 'allow' }],
   ['echo one\necho two', { bare: 'allow' }],
   ['sed -i s/a/b/ file.txt', { bare: 'ask' }],
   ['sed s/a/b/ file.txt', { bare: 'ask' }],
@@ -137,7 +137,7 @@ const READ_ONLY: Array<[string, string]> = [
 for (const [command, expected] of READ_ONLY) {
   let behavior = 'threw'
   try {
-    behavior = checkReadOnlyConstraints({ command }, false).behavior
+    behavior = (await checkReadOnlyConstraints({ command }, false)).behavior
   } catch {
     behavior = 'threw'
   }
@@ -158,6 +158,7 @@ const EXCLUSION: Array<[string, boolean]> = [
   ['   ', false],
 ]
 for (const [command, expected] of EXCLUSION) {
+  await (await import('../../src/utils/permissions/decision/commandAnalysis.ts')).parseForSecurity(command)
   const qualifies = commandQualifiesForExclusion(command, patterns)
   check(`exclusion(git *): ${JSON.stringify(command)} => ${qualifies}`, qualifies === expected, `expected ${expected}`)
 }
@@ -179,7 +180,6 @@ section('§2 the seam ratchet — the rule road never learns the engine')
   const decisionFiles = [
     'bashPermissions.ts',
     'readOnlyValidation.ts',
-    'bashSecurity.ts',
     'bashCommandHelpers.ts',
     'pathValidation.ts',
     'sedValidation.ts',

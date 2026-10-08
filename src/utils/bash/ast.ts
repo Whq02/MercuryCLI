@@ -1,5 +1,5 @@
 import { SHELL_KEYWORDS } from './bashParser.js'
-import { PARSE_ABORTED, parseCommandRaw, type Node } from './parser.js'
+import { PARSE_ABORTED, parseCommandRaw, preparedCommandRoot, type Node } from './parser.js'
 
 export type Redirect = {
   op: '>' | '>>' | '<' | '<<' | '>&' | '>|' | '<&' | '&>' | '&>>' | '<<<'
@@ -20,6 +20,31 @@ export type ParseForSecurityResult =
   | { kind: 'parse-unavailable' }
 
 type SemanticCheckResult = { ok: true } | { ok: false; reason: string }
+const preparedSimpleCommands = new Map<string, WeakRef<SimpleCommand>>()
+const reclaimedCommands = new FinalizationRegistry<{ text: string; reference: WeakRef<SimpleCommand> }>(({ text, reference }) => {
+  if (preparedSimpleCommands.get(text) === reference) preparedSimpleCommands.delete(text)
+})
+
+export function preparedSimpleCommand(text: string): SimpleCommand | null {
+  return preparedSimpleCommands.get(text)?.deref() ?? null
+}
+
+function rememberCommands(commands: SimpleCommand[]): void {
+  for (const command of commands) {
+    const reference = new WeakRef(command)
+    for (const text of new Set([command.text, command.argv.map(quoteArgv).join(' ')])) {
+      preparedSimpleCommands.set(text, reference)
+      reclaimedCommands.register(command, { text, reference })
+    }
+  }
+}
+
+export function preparedSecurityParse(command: string): ParseForSecurityResult {
+  const root = preparedCommandRoot(command)
+  if (root) return parseForSecurityFromAst(command, root)
+  const simple = preparedSimpleCommand(command)
+  return simple ? { kind: 'simple', commands: [simple] } : { kind: 'parse-unavailable' }
+}
 
 class Refusal {
   constructor(
@@ -54,9 +79,12 @@ const REFUSED_KINDS: readonly string[] = [
 ]
 
 function refuseNode(node: Node): never {
-  if (node.type === 'ERROR') refuse('parse error', node.type)
-  if (REFUSED_KINDS.includes(node.type)) refuse(`contains ${node.type}`, node.type)
-  refuse(`unhandled node type ${node.type}`, node.type)
+  if (node.type === 'ERROR') refuse('the shell parser found incomplete or invalid syntax; fix the quotes or operators, or approve', node.type)
+  if (node.type === 'command_substitution') refuse('a command substitution supplies an argument at runtime; spell out its value or run the inner command separately, or approve', node.type)
+  if (node.type === 'process_substitution') refuse('a process substitution starts another command; run that command separately, or approve', node.type)
+  if (node.type === 'simple_expansion' || node.type === 'expansion') refuse(`the expansion ${JSON.stringify(node.text)} supplies a value at runtime; spell out the value, or approve`, node.type)
+  const construct = node.type.replaceAll('_', ' ')
+  refuse(`the shell parser cannot establish the effect of this ${construct}; split it into explicit commands, or approve`, node.type)
 }
 
 const UNKNOWN_SUBSTITUTION = '__MERCURY_UNKNOWN_SUBSTITUTION__'
@@ -287,6 +315,10 @@ function quoteArgv(element: string): string {
   return `'${element.replace(/'/g, "'\\''")}'`
 }
 
+export function shellCommandText(argv: string[]): string {
+  return argv.map(quoteArgv).join(' ')
+}
+
 function commandText(span: string, argv: string[]): string {
   if (DOLLAR_REFERENCE_RE.test(span) || span.includes('\n')) return argv.map(quoteArgv).join(' ')
   return span
@@ -388,12 +420,14 @@ class Walk {
   }
 
   statements(children: Node[], scope: Scope): void {
-    const forks = children.some(child => child.type === '||' || child.type === '&')
+    const forks = children.some(child => child.type === '||' || child.type === '&&')
     const snapshot = forks ? new Map(scope) : null
     let current = scope
     for (const child of children) {
       switch (child.type) {
         case '&&':
+          current = new Map(current)
+          break
         case ';':
         case '\n':
           break
@@ -401,11 +435,13 @@ class Walk {
           refuse('the background operator & starts work outside the foreground command; run it in the foreground, or approve', child.type)
         case '||':
           current = new Map(snapshot as Scope)
+          for (const branch of children) this.invalidateAssignments(branch, current)
           break
         default:
           this.node(child, current)
       }
     }
+    if (forks) for (const child of children) this.invalidateAssignments(child, scope)
   }
 
   pipeline(node: Node, scope: Scope): void {
@@ -473,13 +509,17 @@ class Walk {
     const children = node.children
     for (let i = 0; i < children.length; i++) {
       const child = children[i] as Node
-      if (child.type === '"') {
-        if (i === 0) cursor = child.endIndex
-        continue
-      }
       if (cursor !== null && child.startIndex > cursor) {
-        value += '\n'.repeat(child.startIndex - cursor)
+        value += unescapeQuoted(node.text.slice(cursor - node.startIndex, child.startIndex - node.startIndex))
         sawLiteral = true
+      }
+      if (child.type === '"') {
+        if (i > 0 && child.text.length > 1) {
+          value += child.text.slice(0, -1)
+          sawLiteral = true
+        }
+        cursor = child.endIndex
+        continue
       }
 
       switch (child.type) {
@@ -512,8 +552,8 @@ class Walk {
         }
         case 'arithmetic_expansion':
           arithmetic(child)
-          value += child.text
-          sawLiteral = true
+          value += UNKNOWN_VALUE
+          sawUnknown = true
           break
         default:
           refuseNode(child)
@@ -558,7 +598,7 @@ class Walk {
       }
       case 'arithmetic_expansion':
         arithmetic(node)
-        return node.text
+        return UNKNOWN_VALUE
       case 'simple_expansion':
         return reference(node, scope, false).value
       default:
@@ -685,6 +725,11 @@ class Walk {
         case 'file_redirect':
           redirects.push(this.redirect(child, scope))
           break
+        case 'command_substitution':
+          if (argv[0] === 'rm' && argv.slice(1).some(arg => arg === '--recursive' || /^-[^-]*[rR]/.test(arg))) {
+            refuse('a command substitution feeds a recursive delete; run it with the path spelled out, or approve', child.type)
+          }
+          refuseNode(child)
         case 'herestring_redirect':
           for (const part of child.children) {
             if (part.type === 'file_descriptor') refuseNode(part)
@@ -900,6 +945,7 @@ class Walk {
 
   conditional(node: Node, scope: Scope): void {
     let seenThen = false
+    let thenScope: Scope | undefined
 
     for (const child of node.children) {
       switch (child.type) {
@@ -909,6 +955,7 @@ class Walk {
           break
         case 'then':
           seenThen = true
+          thenScope = new Map(scope)
           break
         case 'elif_clause':
         case 'else_clause': {
@@ -928,7 +975,7 @@ class Walk {
         }
         default:
           if (!seenThen) this.condition(child, scope, node.type)
-          else this.node(child, new Map(scope))
+          else this.node(child, thenScope!)
       }
     }
     this.invalidateAssignments(node, scope)
@@ -954,7 +1001,7 @@ class Walk {
 }
 
 const ABORT_KIND = 'PARSE_ABORT'
-const ABORT_REASON = 'Parser aborted (timeout or resource limit) — possible adversarial input'
+const ABORT_REASON = 'the shell parser did not finish reading this command; split it into simpler commands, or approve'
 
 function settle(command: string, root: Node | typeof PARSE_ABORTED): SimpleCommand[] {
   const preCheck = preCheckReason(command)
@@ -987,7 +1034,9 @@ export async function parseForSecurity(command: string): Promise<ParseForSecurit
   if (command === '') return { kind: 'simple', commands: [] }
   const root = await parseCommandRaw(command)
   if (root === null) return { kind: 'parse-unavailable' }
-  return parseForSecurityFromAst(command, root)
+  const result = parseForSecurityFromAst(command, root)
+  if (result.kind === 'simple') rememberCommands(result.commands)
+  return result
 }
 
 const SUBSCRIPT_FLAGS: ReadonlyMap<string, readonly string[]> = new Map([
@@ -1161,7 +1210,7 @@ const WRAPPERS: ReadonlyMap<string, (argv: string[]) => Peeled> = new Map([
   ],
 ])
 
-function peelWrappers(argv: string[]): string[] | { failReason: string } {
+export function peelWrappers(argv: string[]): string[] | { failReason: string } {
   let current = argv
   for (;;) {
     const peel = WRAPPERS.get(current[0] as string)

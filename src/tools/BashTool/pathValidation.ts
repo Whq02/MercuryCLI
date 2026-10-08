@@ -6,10 +6,7 @@ import type {
 } from '../../utils/permissions/PermissionResult.js'
 import type { PermissionRule, PermissionUpdate } from '../../types/permissions.js'
 import {
-  extractInputRedirections,
-  extractOutputRedirections,
-  splitCommand_DEPRECATED,
-  tryParseShellCommand,
+  preparedSecurityParse,
   type Redirect,
   type SimpleCommand,
 } from '../../utils/permissions/decision/commandAnalysis.js'
@@ -554,9 +551,6 @@ function attachSuggestions(result: PermissionResult, operationType: FileOperatio
 }
 
 
-const REDIRECT_PROCESS_SUBST = /(?:>\s*>\s*\(|>>\s*\(|>\s*>\s*>\s*\()/
-const INPUT_PROCESS_SUBST = /<\s*\(/
-
 export function checkPathConstraints(
   input: { command: string },
   cwd: string,
@@ -567,49 +561,27 @@ export function checkPathConstraints(
 ): PermissionResult {
   const command = input.command
 
-  if (astCommands === undefined && (REDIRECT_PROCESS_SUBST.test(command) || INPUT_PROCESS_SUBST.test(command))) {
-    return {
-      behavior: 'ask',
-      message: 'This command uses process substitution, which can run arbitrary commands and write to files that never appear as redirect targets, so it needs manual approval.',
-      decisionReason: { type: 'other', reason: 'Process substitution cannot be validated' },
+  if (astCommands === undefined) {
+    const parsed = preparedSecurityParse(command)
+    if (parsed.kind !== 'simple') {
+      const message = parsed.kind === 'too-complex' ? `${parsed.reason}; spell out the paths, or approve` : 'the shell parser has not produced paths to check; retry the command, or approve'
+      return { behavior: 'ask', message, decisionReason: { type: 'safetyCheck', reason: message, operatorOnly: false } }
     }
+    astCommands = parsed.commands
   }
-
-  let redirectionTargets: string[]
-  let dangerousRedirection = false
-  if (astRedirects !== undefined) {
-    redirectionTargets = convertAstRedirects(astRedirects)
-  } else {
-    const extracted = extractOutputRedirections(command)
-    dangerousRedirection = extracted.hasDangerousRedirection
-    redirectionTargets = extracted.redirections.map(r => r.target)
-  }
-
-  if (dangerousRedirection) {
-    return {
-      behavior: 'ask',
-      message: 'This command redirects to a path built from shell expansion, which Mercury cannot validate, so it needs manual approval.',
-      decisionReason: { type: 'other', reason: 'Shell expansion in a redirection target cannot be validated' },
-    }
-  }
+  astRedirects ??= astCommands.flatMap(simple => simple.redirects)
+  const redirectionTargets = convertAstRedirects(astRedirects)
 
   const redirectResult = validateRedirections(redirectionTargets, command, cwd, context, compoundCommandHasCd)
   if (redirectResult.behavior !== 'passthrough') return redirectResult
 
-  const inputTargets = astRedirects !== undefined ? convertAstInputRedirects(astRedirects) : extractInputRedirections(command).targets
+  const inputTargets = convertAstInputRedirects(astRedirects)
   const inputResult = validateInputRedirections(inputTargets, cwd, context, compoundCommandHasCd)
   if (inputResult.behavior !== 'passthrough') return inputResult
 
-  if (astCommands !== undefined) {
-    for (const simple of astCommands) {
-      const result = validateAstSimpleCommand(simple, cwd, context, compoundCommandHasCd)
-      if (result.behavior !== 'passthrough') return result
-    }
-  } else {
-    for (const raw of splitCommand_DEPRECATED(command)) {
-      const result = validateTextSubcommand(raw.trim(), cwd, context, compoundCommandHasCd)
-      if (result.behavior !== 'passthrough') return result
-    }
+  for (const simple of astCommands) {
+    const result = validateAstSimpleCommand(simple, cwd, context, compoundCommandHasCd)
+    if (result.behavior !== 'passthrough') return result
   }
 
   return { behavior: 'passthrough', message: 'Path validation found no concern.' }
@@ -736,38 +708,8 @@ function validateAstSimpleCommand(
   return createPathChecker(command, override)(argv.slice(1), cwd, context, compoundCommandHasCd)
 }
 
-function validateTextSubcommand(
-  subcommand: string,
-  cwd: string,
-  context: ToolPermissionContext,
-  compoundCommandHasCd: boolean,
-): PermissionResult {
-  const argv = stripWrappersFromArgv(tokeniseArgv(subcommand))
-  if (argv.length === 0) return { behavior: 'passthrough', message: 'Empty command.' }
-  const base = argv[0] as string
-  if (!(base in COMMAND_OPERATION_TYPE)) return { behavior: 'passthrough', message: 'Not a path command.' }
-  const command = base as PathCommand
-  const override = sedReadOverride(command, subcommand)
-  return createPathChecker(command, override)(argv.slice(1), cwd, context, compoundCommandHasCd)
-}
-
 function sedReadOverride(command: PathCommand, sourceText: string): FileOperationType | undefined {
   if (command !== 'sed') return undefined
   const stripped = stripSafeWrappers(sourceText)
   return sedCommandIsAllowedByAllowlist(stripped) ? 'read' : undefined
-}
-
-function tokeniseArgv(subcommand: string): string[] {
-  const parse = tryParseShellCommand(subcommand)
-  if (!parse.success) return []
-  const argv: string[] = []
-  for (const token of parse.tokens) {
-    if (typeof token === 'string') argv.push(token)
-    else if (isGlobToken(token)) argv.push((token as { pattern: string }).pattern)
-  }
-  return argv
-}
-
-function isGlobToken(token: unknown): boolean {
-  return typeof token === 'object' && token !== null && (token as { op?: string }).op === 'glob'
 }
