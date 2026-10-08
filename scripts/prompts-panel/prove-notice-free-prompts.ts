@@ -164,7 +164,17 @@ try {
     screen: 'prompt', canAnimate: false, lastThinkingBlockId: null, latestBashOutputUUID: null,
     columns: 80, isLoading: false, lookups: derived.lookups,
   }))))
-  check('chat and mirror still render the monitor delivery text', String(snapshot.chat).includes('build reached the next step') && String(snapshot.mirror).includes('build reached the next step'))
+  check('chat and mirror keep the monitor delivery behind the same counted fold', String(snapshot.chat).includes('[Monitor]') && String(snapshot.mirror).includes('[Monitor]') && /· \d+ lines? ›/.test(String(snapshot.chat)) && /· \d+ lines? ›/.test(String(snapshot.mirror)) && !String(snapshot.chat).includes('build reached the next step') && !String(snapshot.mirror).includes('build reached the next step'))
+  const expandedChat = await frame('chat-notices-open-80', h(UserTextMessage, { addMargin: false, verbose: true, param: text(monitor) }))
+  const expandedMirror = await frame('mirror-notices-open-80', h(Box, { flexDirection: 'column' }, ...derived.collapsed.map((row, index) => h(MessageRow, {
+    key: row.uuid, message: row,
+    isUserContinuation: row.type === 'user' && derived.collapsed[index - 1]?.type === 'user',
+    hasContentAfter: false, tools: [], commands: [], verbose: true,
+    inProgressToolUseIDs: derived.inProgress, streamingToolUseIDs: new Set<string>(),
+    screen: 'prompt', canAnimate: false, lastThinkingBlockId: null, latestBashOutputUUID: null,
+    columns: 80, isLoading: false, lookups: derived.lookups,
+  }))))
+  check('opening chat and mirror preserves the whole monitor delivery text', expandedChat.includes('build reached the next step') && expandedMirror.includes('build reached the next step'))
 
   const baseline = argument('--compare')
   if (baseline) {
