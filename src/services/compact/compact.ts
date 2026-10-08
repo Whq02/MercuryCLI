@@ -73,7 +73,7 @@ import { ToolSearchTool } from '../../tools/ToolSearchTool/ToolSearchTool.js'
 import { groupMessagesByApiRound } from './grouping.js'
 import { estimateContextTokens, estimateMessageTokens } from './microCompact.js'
 import { projectRewoundWindows } from './checkpointRewind.js'
-import { getCompactPrompt, getCompactUserSummaryMessage, getPartialCompactPrompt } from './prompt.js'
+import { getCompactPrompt, getCompactUserSummaryMessage, getPartialCompactPrompt, SUMMARY_SECTION_TITLES } from './prompt.js'
 import { computeVerbatimRecentTail, isMercuryCompactKeepTailEnabled } from './verbatimTail.js'
 import { selectOperatorMessages } from './operatorMessages.js'
 import { stripThinkingFromIndex } from '../../utils/messages/apiFilters.js'
@@ -1179,6 +1179,40 @@ async function summarizeWithPtlRetry(
   throw new Error(ERROR_MESSAGE_PROMPT_TOO_LONG)
 }
 
+const REFUSAL_PREFACE = /^(?:(?:i(?:\s+am|['’]m)\s+(?:sorry|afraid)|sorry|i\s+apologi[sz]e|(?:my\s+)?apologies|unfortunately|regrettably|however|as\s+an\s+ai(?:\s+(?:language\s+model|assistant|model|system))?)[,.:!;]?\s*(?:but\s+|that\s+)?)+/i
+const INABILITY = String.raw`(?:i(?:\s+am|['’]m)\s+(?:unable|not\s+(?:able|going|permitted|allowed|in\s+a\s+position))\s+to|i\s+(?:cannot|can['’]t|will\s+not|won['’]t|refuse\s+to|(?:must\s+)?decline\s+to|(?:won['’]t|will\s+not)\s+be\s+able\s+to))`
+const SUMMARY_OBJECT = String.raw`(?:summari[sz]e\b|(?:provide|produce|write|create|generate|give|offer)\s+(?:(?:a|an|the|this|that|any|such|requested|detailed|complete|full)\s+){0,4}(?:summary|summari[sz]ation|record)\b|(?:fulfil|fulfill|complete|carry\s+out|perform)\s+(?:this|that|the|your)\s+(?:request|task|instruction)\b)`
+const HELP_OBJECT = String.raw`(?:help|assist|comply|proceed|continue|engage|answer|respond|do\s+(?:that|this|so)\b|with\s+(?:that|this)\b)`
+const NO_SUMMARY = String.raw`(?:no\s+summary\s+(?:will|can|could)\s+be\s+(?:provided|produced|generated|given)\b|(?:this|that|the)\s+(?:request|task)\s+(?:cannot|can['’]t|will\s+not|won['’]t)\s+be\s+(?:completed|fulfilled|carried\s+out)\b|that['’]s\s+not\s+something\s+i\s+can\b)`
+const OPENING_REFUSAL = new RegExp(String.raw`^(?:${INABILITY}\s+(?:${SUMMARY_OBJECT}|${HELP_OBJECT})|${NO_SUMMARY})`, 'i')
+const SENTENCE_REFUSAL = new RegExp(String.raw`^(?:${INABILITY}\s+${SUMMARY_OBJECT}|${NO_SUMMARY})`, 'i')
+const HEDGED_REFUSAL_CEILING = 800
+const SECTION_TITLE_LINE = new RegExp(String.raw`^\s*(?:#{1,6}\s*)?(?:\d{1,2}[.)]\s*)?\**(?:${SUMMARY_SECTION_TITLES.map(title => title.replace(/\s*\(optional\)$/, '').replace(/\s+/g, '\\s+')).join('|')})(?:\s*\(optional\))?\**:?\s*(?:\[\s*(?:\.\.\.|…)\s*\]|\.\.\.|…|[-*_]+)?\s*$`, 'i')
+const PLACEHOLDER_LINE = /^\s*(?:\[\s*(?:\.\.\.|…)\s*\]|\.\.\.|…|[-*_]+)?\s*$/
+
+function summaryBody(text: string): string {
+  let body = text.replace(/<analysis>[\s\S]*?<\/analysis>/, '').trim()
+  for (let pass = 0; pass < 3; pass++) {
+    const wrapped = /<summary>([\s\S]*?)<\/summary>/.exec(body)
+    const inner = (wrapped === null ? body : wrapped[1] ?? '').trim()
+    const unfenced = inner.replace(/^```[^\n]*\n([\s\S]*?)\n?```$/, '$1').trim()
+    if (unfenced === body) break
+    body = unfenced
+  }
+  return body.replace(/^<summary>\s*/, '').replace(/\s*<\/summary>$/, '').trim()
+}
+
+function summaryRefusesInProse(body: string): boolean {
+  if (OPENING_REFUSAL.test(body.replace(REFUSAL_PREFACE, ''))) return true
+  if (body.length >= HEDGED_REFUSAL_CEILING) return false
+  return body.split(/(?<=[.!?])\s+|\n+/).some(sentence => SENTENCE_REFUSAL.test(sentence.replace(REFUSAL_PREFACE, '')))
+}
+
+function summarySaysNothing(body: string): boolean {
+  if (!/[\p{L}\p{N}]/u.test(body)) return true
+  return body.split('\n').every(line => SECTION_TITLE_LINE.test(line) || PLACEHOLDER_LINE.test(line))
+}
+
 function validateSummary(response: AssistantMessage, logMissing: boolean): string {
   const text = getAssistantMessageText(response)
   if (text === null || text === '') {
@@ -1188,16 +1222,8 @@ function validateSummary(response: AssistantMessage, logMissing: boolean): strin
     throw new Error('Failed to generate a conversation summary.')
   }
   if (text.startsWith(API_ERROR_MESSAGE_PREFIX) || response.isApiErrorMessage === true) throw new Error(text)
-  const body = text
-    .replace(/<analysis>[\s\S]*?<\/analysis>/, '')
-    .trim()
-    .replace(/^```[^\n]*\n([\s\S]*?)\n?```$/, '$1')
-    .trim()
-    .replace(/^<summary>([\s\S]*?)<\/summary>$/, '$1')
-    .trim()
-  const opening = body.replace(/^(?:i(?: am|['’]m)\s+sorry|sorry)[,.:!;]?\s*(?:but\s+)?/i, '')
-  const refused = /^(?:i\s+(?:cannot|can['’]t|will not|won['’]t|refuse to|am unable to|am not able to)\s+(?:summari[sz]e\b|(?:provide|produce|write|create|generate)\s+(?:(?:a|the|this|requested)\s+){0,3}(?:summary|summari[sz]ation)\b)|no summary will be provided\b)/i.test(opening)
-  if (body === '' || refused) throw new Error('Failed to generate a conversation summary.')
+  const body = summaryBody(text)
+  if (summarySaysNothing(body) || summaryRefusesInProse(body)) throw new Error('Failed to generate a conversation summary.')
   return text
 }
 
