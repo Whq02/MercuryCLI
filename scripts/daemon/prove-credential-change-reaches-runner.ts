@@ -64,7 +64,7 @@ const { getSecureStorage } = await import('../../src/utils/secureStorage/index.t
 const owned = await import('../../src/daemon/ownedDaemon.ts')
 const paths = await import('../../src/utils/sessionStorage/paths.ts')
 const words = await import('./delegate-fixture-words.ts')
-const { DELEGATE_ASK, DELEGATE_SPEND_ASK, DELEGATE_REPORT, GPT_ID, SPEND_ASK, SUBAGENT_ASK, SUBAGENT_REPLY, DELEGATE_MODEL } = words
+const { DELEGATE_ASK, DELEGATE_SPEND_ASK, DELEGATE_REPORT, GPT_ID, SPEND_ASK, SUBAGENT_ASK, SUBAGENT_REPLY, DELEGATE_MODEL, RESET_IN_SECONDS } = words
 
 const reapTargets: Array<{ kill: (signal: NodeJS.Signals) => boolean }> = []
 const reapNow = (): void => {
@@ -283,7 +283,7 @@ try {
   const granted = await control('grant-workflows', sid)
   check('the session holds the workflows-allowed tag (a backgrounded seat may delegate only with it or with a live operator)', granted.ok === true, JSON.stringify(granted))
 
-  section('§2 a delegated agent on the Anthropic route spends the window under account A; the next dispatch is refused, naming A and the moment')
+  section('§2 a delegated agent observes a provider refusal under account A; the next dispatch still reaches Anthropic before that reset')
   const before2 = hits().length
   const rows2 = transcriptLines(sid).length
   const spend = await say(DELEGATE_SPEND_ASK, sid)
@@ -293,16 +293,16 @@ try {
   await sleep(1_500)
   const before2b = hits().length
   const rows2b = transcriptLines(sid).length
-  const refused = await say(DELEGATE_ASK, sid)
-  check('the next delegated errand was delivered', refused.ok === true, JSON.stringify(refused))
-  const sawRefusal = await untilAsync(() => rowsSince(sid, rows2b).includes('Agent dispatch refused') && turnEnded(sid), 90_000)
-  const refusalRows = unescaped(rowsSince(sid, rows2b))
-  check('the dispatch was refused before any request (the sighting)', sawRefusal && refusalRows.includes('usage window is reached'), refusalRows.slice(0, 600))
-  check('no Anthropic request was made for the refused dispatch', !sinceHits(before2b).some(h => h.kind === 'anthropic' && (h.ask ?? '').includes(SUBAGENT_ASK)), JSON.stringify(sinceHits(before2b)))
-  check('the refusal names the account the verdict belongs to', refusalRows.includes(`usage window is reached for ${ACCOUNTS.a.email}`), refusalRows.match(/usage window is reached[^"\\]{0,120}/)?.[0] ?? '(no window words)')
-  check('the refusal names when the window was observed', /seen at \d\d:\d\d/.test(refusalRows), refusalRows.match(/usage window is reached[^"\\]{0,120}/)?.[0] ?? '(no window words)')
-  console.log(`      refusal: ${refusalRows.match(/Agent dispatch refused[^"\\]{0,260}/)?.[0] ?? '(none)'}`)
-  void rows2
+  const dispatched = await say(DELEGATE_ASK, sid)
+  check('the next delegated errand was delivered', dispatched.ok === true, JSON.stringify(dispatched))
+  const served = await untilAsync(() => rowsSince(sid, rows2b).includes(SUBAGENT_REPLY) && turnEnded(sid), 90_000)
+  const replyRows = unescaped(rowsSince(sid, rows2b))
+  const requestsA = sinceHits(before2b).filter(h => h.kind === 'anthropic' && (h.ask ?? '').includes(SUBAGENT_ASK))
+  const refusalA = sinceHits(before2).find(h => h.kind === 'anthropic' && h.status === 429)
+  check('the dispatch reaches its provider and settles with the delegate reply, not a local window refusal', served && !replyRows.includes('Agent dispatch refused') && !replyRows.includes('usage window is reached'), replyRows.slice(-600))
+  check('exactly one requested Anthropic delegate call is served on the chosen model', requestsA.length === 1 && requestsA[0]!.status === 200 && requestsA[0]!.model === DELEGATE_MODEL, JSON.stringify(requestsA))
+  check('the runner still names account A when the provider serves the next dispatch', readFacts(sid)?.identity?.accountEmail === ACCOUNTS.a.email, JSON.stringify(readFacts(sid)?.identity))
+  check('the provider refusal was observed first and its reset is still ahead when the next request is served', refusalA !== undefined && requestsA.length === 1 && requestsA[0]!.at > refusalA.at && requestsA[0]!.at < refusalA.at + RESET_IN_SECONDS * 1000 && rowsSince(sid, rows2).includes("This request would exceed your account's rate limit."), JSON.stringify({ refusalA, request: requestsA[0] }))
 
   section('§3 account B signs in on the screen: the poke rides the road every sign-in raises, the daemon tells the runner')
   const pokesBefore = pokeRequests.length
@@ -323,7 +323,7 @@ try {
   check("the transcript carries the delegate's reply, not a refusal", await untilAsync(() => rowsSince(sid, rows4).includes(SUBAGENT_REPLY) && turnEnded(sid), 90_000) && !rowsSince(sid, rows4).includes('usage window is reached'), unescaped(rowsSince(sid, rows4)).match(/the delegate reported:[^"\\]{0,200}/)?.[0] ?? '(no report)')
   check("the runner's facts name account B", await untilAsync(() => readFacts(sid)?.identity?.accountEmail === ACCOUNTS.b.email, 60_000), JSON.stringify(readFacts(sid)?.identity))
 
-  section('§5 B spends its own window; the refusal now names B')
+  section('§5 B observes its own provider refusal; its next dispatch also reaches the provider')
   const before5 = hits().length
   const spendB = await say(DELEGATE_SPEND_ASK, sid)
   check('the spend was delivered', spendB.ok === true, JSON.stringify(spendB))
@@ -331,10 +331,13 @@ try {
   check('the main turn ended', await untilAsync(() => turnEnded(sid), 60_000))
   await sleep(1_500)
   const rows5 = transcriptLines(sid).length
-  await say(DELEGATE_ASK, sid)
-  const refusedB = await untilAsync(() => rowsSince(sid, rows5).includes('Agent dispatch refused') && turnEnded(sid), 90_000)
-  const refusalB = unescaped(rowsSince(sid, rows5))
-  check("B's own observation refuses, naming B", refusedB && refusalB.includes(`usage window is reached for ${ACCOUNTS.b.email}`), refusalB.match(/usage window is reached[^"\\]{0,120}/)?.[0] ?? '(no window words)')
+  const before5b = hits().length
+  const errandB = await say(DELEGATE_ASK, sid)
+  const servedB = await untilAsync(() => rowsSince(sid, rows5).includes(SUBAGENT_REPLY) && turnEnded(sid), 90_000)
+  const replyB = unescaped(rowsSince(sid, rows5))
+  const requestsB = sinceHits(before5b).filter(h => h.kind === 'anthropic' && (h.ask ?? '').includes(SUBAGENT_ASK))
+  const refusalB = sinceHits(before5).find(h => h.kind === 'anthropic' && h.status === 429)
+  check("B's own window observation also permits one provider-decided request before reset, with B still named", errandB.ok === true && servedB && !replyB.includes('Agent dispatch refused') && requestsB.length === 1 && requestsB[0]!.status === 200 && requestsB[0]!.model === DELEGATE_MODEL && readFacts(sid)?.identity?.accountEmail === ACCOUNTS.b.email && refusalB !== undefined && requestsB[0]!.at > refusalB.at && requestsB[0]!.at < refusalB.at + RESET_IN_SECONDS * 1000, JSON.stringify({ hits: requestsB, refusalB, identity: readFacts(sid)?.identity }))
 
   section('§6 a sign-out clears it the same way; a later sign-in is read by the runner')
   const pokesBefore6 = pokeRequests.length
