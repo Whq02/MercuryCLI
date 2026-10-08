@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import * as layout from '../../src/services/privateChannel/installLayout.js'
 import type { LayoutRoots } from '../../src/services/privateChannel/installLayout.js'
+import { TEARDOWN_SUITE } from '../../src/ink/root/teardown.ts'
 
 const { reconcileManagedShims, resolveLayoutRoots, SHIM_MARKER_FAMILY, shimContent, uninstallLayout, writeShimSet } = layout
 const optional = layout as unknown as { powershellEntryContent?: () => string; WIN32_POWERSHELL_ENTRY?: string }
@@ -83,7 +84,8 @@ check('the full range is checked (major, no prerelease, the minor floor) with th
 check('the three-rung refusal carries the launchers\' words', facade.includes('no usable Node runtime — none of the three rungs answered:'))
 check('the console code page is set as the cmd launcher sets it, with the PRESET marker', facade.includes('chcp.com 65001 >/dev/null 2>&1 && export MERCURY_WIN32_UTF8_PRESET=1'))
 check('the compile cache uses the home the root block resolved (no second rung test) and the 200-character bound', facade.includes('cygpath -w "$home/compile-cache"') && facade.includes('[ -n "${home:-}" ] &&') && facade.includes('-le 200 ]'))
-check('the post-child heal after a non-zero exit is the cmd launcher\'s sequence, TTY-gated', facade.includes(`[ -t 1 ] && [ "$rt" != "0" ]`) && facade.includes("?1049l\\x1b[?1004l\\x1b[?25h\\x1b]111\\x07"))
+const resetBytes = TEARDOWN_SUITE.flatMap(step => step.kind === 'bytes' && (step.when === 'always' || step.when === 'alt-only') ? [step.bytes] : []).join('')
+check('the post-child heal uses the teardown owner bytes, TTY-gated', facade.includes(`[ -t 1 ] && [ "$rt" != "0" ]`) && facade.includes(JSON.stringify(`process.stdout.write(${JSON.stringify(resetBytes)})`)))
 check('the Node road exits with the runtime\'s code', facade.includes('exit $rt'))
 
 section('(5) the facade decides for real: a fixture layout with a cmd launcher that announces itself and a bundle that echoes argv')
