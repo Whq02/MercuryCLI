@@ -67,16 +67,6 @@ const PostToolUseFailureHookInputSchema = lazySchema(() =>
     is_interrupt: z.boolean().optional().describe('True when the failure was a user interrupt'),
   }),
 )
-const PermissionDeniedHookInputSchema = lazySchema(() =>
-  z.object({
-    ...baseHookFields,
-    hook_event_name: z.literal('PermissionDenied'),
-    tool_name: z.string().describe('The tool whose call was refused'),
-    tool_input: z.unknown().describe('The refused input'),
-    tool_use_id: z.string().optional().describe('The provider id of the refused call'),
-    reason: z.string().optional().describe('Why it was refused'),
-  }),
-)
 const NotificationHookInputSchema = lazySchema(() =>
   z.object({
     ...baseHookFields,
@@ -351,12 +341,6 @@ const PostToolUseFailureHookSpecificOutputSchema = lazySchema(() =>
     additionalContext: z.string().optional().describe('Extra context injected after the failure'),
   }),
 )
-const PermissionDeniedHookSpecificOutputSchema = lazySchema(() =>
-  z.object({
-    hookEventName: z.literal('PermissionDenied'),
-    retry: z.boolean().optional().describe('Ask the model to try the call again'),
-  }),
-)
 const NotificationHookSpecificOutputSchema = lazySchema(() =>
   z.object({
     hookEventName: z.literal('Notification'),
@@ -513,11 +497,6 @@ const hookEventTableRows = {
     output: PermissionRequestHookSpecificOutputSchema,
     matchField: 'tool_name' as const,
   },
-  PermissionDenied: {
-    input: PermissionDeniedHookInputSchema,
-    output: PermissionDeniedHookSpecificOutputSchema,
-    matchField: 'tool_name' as const,
-  },
   Setup: {
     input: SetupHookInputSchema,
     output: SetupHookSpecificOutputSchema,
@@ -588,7 +567,6 @@ type HookEventOrder = readonly [
   'PreCompact',
   'PostCompact',
   'PermissionRequest',
-  'PermissionDenied',
   'Setup',
   'TaskCreated',
   'TaskCompleted',
@@ -650,7 +628,6 @@ const OUTPUT_UNION_ORDER = [
   'SubagentStart',
   'PostToolUse',
   'PostToolUseFailure',
-  'PermissionDenied',
   'Notification',
   'PermissionRequest',
   'Elicitation',
@@ -680,7 +657,6 @@ export const SyncHookJSONOutputSchema = lazySchema(() =>
           ReturnType<typeof SubagentStartHookSpecificOutputSchema>,
           ReturnType<typeof PostToolUseHookSpecificOutputSchema>,
           ReturnType<typeof PostToolUseFailureHookSpecificOutputSchema>,
-          ReturnType<typeof PermissionDeniedHookSpecificOutputSchema>,
           ReturnType<typeof NotificationHookSpecificOutputSchema>,
           ReturnType<typeof PermissionRequestHookSpecificOutputSchema>,
           ReturnType<typeof ElicitationHookSpecificOutputSchema>,
@@ -704,7 +680,6 @@ export type PreToolUseHookInput = z.infer<ReturnType<typeof PreToolUseHookInputS
 export type PermissionRequestHookInput = z.infer<ReturnType<typeof PermissionRequestHookInputSchema>>
 export type PostToolUseHookInput = z.infer<ReturnType<typeof PostToolUseHookInputSchema>>
 export type PostToolUseFailureHookInput = z.infer<ReturnType<typeof PostToolUseFailureHookInputSchema>>
-export type PermissionDeniedHookInput = z.infer<ReturnType<typeof PermissionDeniedHookInputSchema>>
 export type NotificationHookInput = z.infer<ReturnType<typeof NotificationHookInputSchema>>
 export type UserPromptSubmitHookInput = z.infer<ReturnType<typeof UserPromptSubmitHookInputSchema>>
 export type UserPromptExpansionHookInput = z.infer<ReturnType<typeof UserPromptExpansionHookInputSchema>>
@@ -734,7 +709,6 @@ type unionOfInputs =
   | PermissionRequestHookInput
   | PostToolUseHookInput
   | PostToolUseFailureHookInput
-  | PermissionDeniedHookInput
   | NotificationHookInput
   | UserPromptSubmitHookInput
   | UserPromptExpansionHookInput
@@ -766,7 +740,6 @@ export type SetupHookSpecificOutput = z.infer<ReturnType<typeof SetupHookSpecifi
 export type SubagentStartHookSpecificOutput = z.infer<ReturnType<typeof SubagentStartHookSpecificOutputSchema>>
 export type PostToolUseHookSpecificOutput = z.infer<ReturnType<typeof PostToolUseHookSpecificOutputSchema>>
 export type PostToolUseFailureHookSpecificOutput = z.infer<ReturnType<typeof PostToolUseFailureHookSpecificOutputSchema>>
-export type PermissionDeniedHookSpecificOutput = z.infer<ReturnType<typeof PermissionDeniedHookSpecificOutputSchema>>
 export type NotificationHookSpecificOutput = z.infer<ReturnType<typeof NotificationHookSpecificOutputSchema>>
 export type PermissionRequestHookSpecificOutput = z.infer<ReturnType<typeof PermissionRequestHookSpecificOutputSchema>>
 export type CwdChangedHookSpecificOutput = z.infer<ReturnType<typeof CwdChangedHookSpecificOutputSchema>>

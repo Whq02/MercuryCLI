@@ -501,7 +501,6 @@
               "PreCompact",
               "PostCompact",
               "PermissionRequest",
-              "PermissionDenied",
               "Setup",
               "TaskCreated",
               "TaskCompleted",

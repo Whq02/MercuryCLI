@@ -16,7 +16,7 @@ const WIRE_EVENT_ORDER = [
   'PreToolUse', 'PostToolUse', 'PostToolUseFailure', 'Notification', 'UserPromptSubmit',
   'UserPromptExpansion', 'SessionStart', 'SessionEnd', 'Stop', 'StopFailure',
   'SubagentStart', 'SubagentStop', 'PreCompact', 'PostCompact', 'PermissionRequest',
-  'PermissionDenied', 'Setup', 'TaskCreated', 'TaskCompleted',
+  'Setup', 'TaskCreated', 'TaskCompleted',
   'Elicitation', 'ElicitationResult', 'ConfigChange', 'WorktreeCreate', 'WorktreeRemove',
   'InstructionsLoaded', 'CwdChanged', 'FileChanged', 'Interrupt',
 ] as const
@@ -31,7 +31,6 @@ const eventSpecificFields: Record<string, Record<string, unknown>> = {
   PostToolUse: { tool_name: 'Bash', tool_input: {}, tool_response: {} },
   PostToolUseFailure: { tool_name: 'Bash', tool_input: {}, error: 'boom' },
   PermissionRequest: { tool_name: 'Bash', tool_input: {} },
-  PermissionDenied: { tool_name: 'Bash', tool_input: {} },
   Notification: { message: 'hi' },
   UserPromptSubmit: { prompt: 'go' },
   UserPromptExpansion: { expansion_type: 'slash_command', prompt: 'expanded' },
@@ -70,7 +69,6 @@ const outputSpecific: Record<string, Record<string, unknown>> = {
   SubagentStart: { additionalContext: 'c' },
   PostToolUse: { updatedMCPToolOutput: {} },
   PostToolUseFailure: { additionalContext: 'c' },
-  PermissionDenied: { retry: true },
   Notification: { additionalContext: 'c' },
   PermissionRequest: { decision: { behavior: 'allow' } },
   Elicitation: { action: 'accept', content: {} },
@@ -82,7 +80,7 @@ const outputSpecific: Record<string, Record<string, unknown>> = {
 
 const OUTPUT_UNION = [
   'PreToolUse', 'UserPromptSubmit', 'SessionStart', 'Setup', 'SubagentStart',
-  'PostToolUse', 'PostToolUseFailure', 'PermissionDenied', 'Notification', 'PermissionRequest',
+  'PostToolUse', 'PostToolUseFailure', 'Notification', 'PermissionRequest',
   'Elicitation', 'ElicitationResult', 'WorktreeCreate', 'CwdChanged', 'FileChanged',
 ] as const
 

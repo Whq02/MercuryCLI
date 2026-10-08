@@ -46,7 +46,6 @@ export const hookSpecificReducers: Partial<Record<HookEvent, HookSpecificReducer
     return { additionalContext: output.additionalContext, ...(output.updatedMCPToolOutput ? { updatedMCPToolOutput: output.updatedMCPToolOutput } : {}) }
   },
   PostToolUseFailure: contextEffects,
-  PermissionDenied: json => json.hookSpecificOutput?.hookEventName === 'PermissionDenied' ? { retry: json.hookSpecificOutput.retry } : {},
   PermissionRequest: json => {
     const output = json.hookSpecificOutput
     if (output?.hookEventName !== 'PermissionRequest' || !output.decision) return {}

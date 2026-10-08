@@ -34,7 +34,6 @@ export interface HookResult {
   elicitationResponse?: ElicitationResponse
   watchPaths?: string[]
   elicitationResultResponse?: ElicitationResponse
-  retry?: boolean
   hook: HookCommand | HookCallback | FunctionHook
   lifecycle?: HookLifecycleResult
 }
@@ -55,7 +54,6 @@ export type AggregatedHookResult = {
   watchPaths?: string[]
   elicitationResponse?: ElicitationResponse
   elicitationResultResponse?: ElicitationResponse
-  retry?: boolean
 }
 
 export type HookLifecycleResult = {
