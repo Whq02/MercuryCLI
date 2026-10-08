@@ -31,7 +31,6 @@ const norm = (c: unknown): string => String(c ?? '').replace('#', '').toLowerCas
 
 const ALL = [...CRITTERS]
 for (const def of ALL) {
-  t(`${def.name}: flat art carries NO 'K' (oracle stays sound)`, !def.art.some(r => r.includes('K')))
   t(`${def.name}: the dock grid carries 'K' pupils`, def.squareDock.some(r => r.includes('K')))
 }
 

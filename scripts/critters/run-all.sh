@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # gate-class: cpu
-# gate-watch: src/components/mercury-ui/sessionAccent* src/components/mercury-ui/CritterArt.tsx src/utils/config/**
+# gate-watch: src/components/mercury-ui/sessionAccent* src/components/mercury-ui/CritterArt.tsx src/components/mercury-ui/AnimatedCritterArt.tsx src/components/Onboarding.tsx src/utils/config/**
 # gate-watch: src/utils/cockpit/**
 # gate-watch: assets/splash/mercury-splash.mjs scripts/engine-durability/harness.ts
 # gate-watch: scripts/ink-runtime/ansiEmulator.ts scripts/settings/settings-schema.json
@@ -89,6 +89,11 @@ __t=$SECONDS; __rc=0; if ! { "$BUN" run scripts/critters/prove-small-critter-est
   fail=1
 fi
 prover_mark scripts/critters/prove-small-critter-estate.ts "$__t" "$__rc"
+
+__t=$SECONDS; __rc=0; if ! { "$BUN" run scripts/critters/prove-no-large-art.ts; __rc=$?; [ "$__rc" -eq 0 ]; }; then
+  fail=1
+fi
+prover_mark scripts/critters/prove-no-large-art.ts "$__t" "$__rc"
 
 [ "$fail" -eq 0 ] && echo "✅ critters — hero-art integrity + persistent-hero + gaze + accent-epoch + sleep/flow contracts hold"
 exit "$fail"

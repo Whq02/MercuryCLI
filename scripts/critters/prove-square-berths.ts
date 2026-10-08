@@ -96,7 +96,7 @@ section('§4 the mounts (source locks)')
   const anim = readFileSync(join(root, 'components/mercury-ui/AnimatedCritterArt.tsx'), 'utf8')
   check('the animator gazes over the dock grid', anim.includes("form === 'square' ? def.squareDock : null"))
   const painter = readFileSync(join(root, 'components/mercury-ui/CritterArt.tsx'), 'utf8')
-  check('the painter\'s square base is the dock grid', painter.includes('usingSquare = square && def.squareDock.length > 0') && painter.includes('pose ? pose.art : usingSquare ? def.squareDock : def.art'))
+  check('the painter\'s square base is the dock grid', painter.includes('usingSquare = square && def.squareDock.length > 0') && painter.includes('pose ? pose.art : usingSquare ? def.squareDock : def.mini'))
 }
 
 if (failures > 0) {

@@ -1,7 +1,7 @@
 
 export type ZzzFrame = {
   critter: string
-  form: 'art' | 'mini'
+  form: 'mini'
   state: 'awake' | 'z0' | 'z1' | 'z2'
   grid: string[]
   plain: string
@@ -29,14 +29,14 @@ export async function composeZzzFrames(root: string, critters?: readonly string[
   for (const name of names) {
     const def = cd.CRITTERS.find((d: { name: string }) => d.name === name)
     if (!def) continue
-    for (const form of ['art', 'mini'] as const) {
-      const renderDef = form === 'mini' ? { ...def, art: cd.miniArtFor(def.name) } : def
+    for (const form of ['mini'] as const) {
+      const renderDef = def
       for (const state of ['awake', 'z0', 'z1', 'z2'] as const) {
         const asleep = state !== 'awake'
         const sleepPhase = asleep ? Number(state.slice(1)) : null
         const pose = asleep ? cd.sleepPoseFor(def, form) : null
         const flowDepth = pose ? pose.flow : cd.flowDepthFor(def, form)
-        const base: string[] = pose ? pose.art : form === 'mini' ? cd.miniArtFor(def.name) : def.art
+        const base: string[] = pose ? pose.art : cd.miniArtFor(def.name)
         const breathed = pose ? cd.sleepBreathArt(base, 0) : base
         let grid: string[] = cd.swayRows(breathed, flowDepth, 0)
         if (sleepPhase !== null) grid = cd.sleepZzzArt(grid, sleepPhase)

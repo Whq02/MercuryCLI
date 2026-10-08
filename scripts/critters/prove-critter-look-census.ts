@@ -13,7 +13,6 @@ import {
   CRITTERS,
   miniArtFor,
   sleepPoseFor,
-  type ArtForm,
   type CritterDef,
 } from '../../src/utils/cockpit/critterData.js'
 
@@ -209,14 +208,9 @@ function bandRowsOf(art: readonly string[]): number[] {
 
 type BandEntry = { reason: string; rows: readonly number[] }
 const BAND_ANATOMY: Readonly<Record<string, BandEntry>> = {
-  'crab · 13w awake': { reason: "the crab's belly band", rows: [8, 9] },
-  'crab · 13w sleep': { reason: 'the belly band between the tucked claws', rows: [10] },
   'crab · mini sleep': { reason: 'the belly band between the tucked claws', rows: [4] },
-  'jellyfish · 13w awake': { reason: "the jellyfish's lit skirt rim", rows: [6] },
   'jellyfish · mini awake': { reason: "the jellyfish's lit skirt rim", rows: [4] },
-  'jellyfish · 13w sleep': { reason: 'the skirt rim on the sunken bell', rows: [7] },
   'jellyfish · mini sleep': { reason: 'the skirt rim on the sunken bell', rows: [4] },
-  'clam · 13w awake': { reason: "the clam's mantle band along the opening", rows: [6] },
   'clam · mini awake': { reason: "the clam's mantle band along the opening", rows: [4] },
   'jellyfish · square dock': { reason: "the jellyfish's lit skirt rim (the square dock)", rows: [4] },
   'clam · square dock': { reason: "the clam's mantle band along the opening (the square dock)", rows: [4] },
@@ -225,12 +219,11 @@ const BAND_ANATOMY: Readonly<Record<string, BandEntry>> = {
 const gridRoster: Array<[string, string[] | null]> = []
 for (const def of CRITTERS) {
   const name = def.name
-  gridRoster.push([`${name} · 13w awake`, def.art])
   gridRoster.push([`${name} · mini awake`, miniArtFor(name)])
   gridRoster.push([`${name} · square dock`, def.squareDock])
-  for (const form of ['art', 'mini'] as ArtForm[]) {
+  for (const form of ['mini'] as const) {
     const pose = sleepPoseFor({ name }, form)
-    if (pose) gridRoster.push([`${name} · ${form === 'art' ? '13w' : form} sleep`, pose.art])
+    if (pose) gridRoster.push([`${name} · ${form} sleep`, pose.art])
   }
 }
 

@@ -190,10 +190,6 @@ for (const def of ALL) {
 
 console.log('— foreign/stale key refusal —')
 {
-  const crabFlat = ALL.find(d => d.name === 'crab')!.art
-  const crabKey = gazeKeyForPointer(crab, -40, 2)
-  t('crab key is non-empty (fixture sane)', crabKey.length > 0)
-  t('dock key applied to the flat grid ⇒ REFUSED (same ref)', applyGazeKey(crabFlat, crabKey) === crabFlat)
   t('garbage key ⇒ REFUSED', applyGazeKey(crab, 'zz|1') === crab)
   t('out-of-bounds key ⇒ REFUSED', applyGazeKey(crab, '99,99>99,98') === crab)
   t('cross-pair key ⇒ REFUSED', applyGazeKey(crab, '1,7>2,7') === crab)
