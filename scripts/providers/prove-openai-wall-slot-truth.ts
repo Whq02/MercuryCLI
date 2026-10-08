@@ -71,7 +71,7 @@ section('§B the family verdict follows the ACTIVE source')
     ...base,
     openaiLimitWindow: () => openaiLimitWindow('chatgpt-subscription', clock(NOW)),
   })
-  check('subscription walled + ACTIVE=subscription ⇒ the lane is walled (kept behavior)', activeSub.openai.usable === false && activeSub.openai.limit === 'rejected')
+  check('the active subscription keeps its reading without locking the lane', activeSub.openai.usable === true && activeSub.openai.limit === 'rejected' && activeSub.openai.limitBlocker?.includes('usage window is reached') === true && activeSub.openai.blockers.length === 0)
 }
 
 section('§C structural — the live default resolves the active source; the writer names its source')
