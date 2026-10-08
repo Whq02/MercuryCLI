@@ -730,6 +730,7 @@ async function summarizeViaCacheSharingFork(
         }
       },
       overrides: {
+        agentId: context.agentId,
         abortController: bound.controller,
         setSDKStatus: status => {
           if (typeof status === 'object' && status !== null && 'streamActivity' in status) bound.touch()
@@ -912,6 +913,7 @@ async function streamingFallbackAttempts(
         agents: context.options.agentDefinitions.activeAgents,
         mcpTools: [],
         effortValue: context.getAppState().effortValue,
+        agentId: context.agentId,
         onWait: wait => context.setSDKStatus?.({ wait }),
         onStreamActivity: atMs => {
           bound.touch()
