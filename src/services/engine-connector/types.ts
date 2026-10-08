@@ -183,6 +183,7 @@ export type OpenaiWindowFactV1 = {
   source: 'chatgpt-subscription' | 'api-key'
   resetsAtMs: number
   observedAtMs: number
+  state?: 'clear'
 }
 
 export type LaneWindowFactV1 = {

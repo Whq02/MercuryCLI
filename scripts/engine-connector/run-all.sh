@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # gate-class: cpu
-# gate-watch: scripts/engine-connector/**
+# gate-watch: scripts/engine-connector/** scripts/compact/overflowFixture.ts
 # gate-watch: src/fabric/transcriptDecode.ts src/fabric/entryCodec.ts src/fabric/ordinal.ts
 # gate-watch: src/ink/components/TerminalSizeContext.tsx
 # gate-watch: src/services/engine-connector/** src/hooks/useSessionConnector.ts
@@ -15,7 +15,7 @@
 # gate-watch: src/ink/terminalWrite.ts src/input-core/interruptArity.ts
 # gate-watch: src/keybindings/actionGraph.ts src/keybindings/defaultBindings.ts src/services/*
 # gate-watch: src/services/concourse/sessionNaming.ts src/services/providers/catalogueEpoch.ts
-# gate-watch: src/services/providers/openai/openaiCallModel.ts
+# gate-watch: src/services/providers/openai/openaiCallModel.ts src/services/providers/openai/openaiWindowFact.ts src/services/providers/openai/openaiLimitState.ts
 # gate-watch: src/services/providers/openai/openaiCatalogue.ts src/services/providers/streamIdleBudget.ts
 # gate-watch: src/state/AppState.tsx src/state/telemetryBus.ts src/substrate/flagRegistry.ts
 # gate-watch: src/tasks/LocalAgentTask/LocalAgentTask.tsx src/tools/AgentTool/*

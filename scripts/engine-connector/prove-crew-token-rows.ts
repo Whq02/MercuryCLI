@@ -80,6 +80,24 @@ for (const width of [178, 120, 100, 80, 60]) {
   if (width >= 100) check(`${width} columns: crew row names context, in, out and cached together`, row[0]?.includes(expected) === true, row[0])
   save(`crew-tokens-${width}.txt`, view)
 }
+{
+  const clock = Date.now
+  process.env.TZ = 'UTC'
+  Date.now = () => 1_800_000_000_000
+  const words = 'Your account has used its available credits. Please retry after the stated reset.'
+  const paused = { ...rows[0]!, id: 'paused', name: 'paused-helper', status: 'failed', paused: { why: 'usage limit', words, resumesAtMs: Date.now() + 120_000 } }
+  setRows([paused] as never)
+  try {
+    for (const width of [178, 120, 100, 80, 60]) {
+      const frame = await paint(React.createElement(CrewView, { onClose() {} }), width)
+      const flat = frame.split('\n').map(line => line.replace(/^│|│$/g, '').trim()).join(' ').replace(/\s+/g, ' ')
+      check(`${width} columns: the paused row keeps the whole provider sentence`, flat.includes(words), frame)
+      check(`${width} columns: the retry clock and immediate retry key survive`, flat.includes('retries by itself at') && flat.includes('r retries now'), frame)
+      check(`${width} columns: every paused line fits`, frame.split('\n').every(line => stringWidth(line) <= width), frame)
+      save(`crew-paused-${width}.txt`, frame)
+    }
+  } finally { Date.now = clock; setRows(rows) }
+}
 for (const width of [178, 100, 80, 60]) {
   const grouped = await paint(ui.renderGroupedAgentToolUse([{ toolUseID: 'launch-scout', input: { name: 'scout', description: 'scout', prompt: 'p', subagent_type: 'mercury-crew' }, progressMessages: [] }] as never, { shouldAnimate: false, tools: [] as never }), width)
   check(`${width} columns: inline AgentProgressLine names context, in, out and cached together`, grouped.includes(expected), grouped)
