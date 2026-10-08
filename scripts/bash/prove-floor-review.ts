@@ -133,6 +133,19 @@ if (!group || group === 'wrappers') {
     check(`literal or lookup words are not executable targets: ${command}`, result.behavior !== 'deny', result)
   }
 }
+if (!group || group === 'declarations') {
+  const allow = ['Bash(cat *)', 'Bash(local *)', 'Bash(declare *)', 'Bash(typeset *)', 'Bash(export *)', 'Bash(readonly *)']
+  for (const declaration of ['local x=cat', 'declare -p x=cat', 'declare -f x=cat', 'typeset -F x=cat', 'declare -z x=cat', 'export -f x=cat', 'readonly x; declare x=cat', 'declare -r x; declare x=cat']) {
+    const command = `x=rm; ${declaration}; $x victim`
+    const result = await decide(command, { allow })
+    check(`a declaration that may not assign never proves a new command: ${command}`, result.behavior === 'ask' && result.decisionReason?.type === 'safetyCheck' && result.decisionReason.operatorOnly === false, result)
+  }
+  for (const declaration of ['declare x=cat', 'typeset x=cat', 'declare -x x=cat', 'export x=cat', 'export -p x=cat']) {
+    const command = `x=rm; ${declaration}; $x f`
+    const result = await decide(command, { allow })
+    check(`plain declaration assignment stays provable: ${command}`, result.behavior === 'allow', result)
+  }
+}
 process.chdir(before)
 rmSync(scratch, { recursive: true, force: true })
 console.log(failures ? `floor-review: ${failures} FAILURE(S)` : 'floor-review: ALL LAWS HOLD')

@@ -807,6 +807,9 @@ class Walk {
 
     for (const child of node.children) {
       if (argv.length === 0 && DECLARATION_WORDS.has(child.type)) {
+        if (child.text === 'local' || child.text === 'readonly') {
+          refuse(`${child.text} changes whether later variable assignments take effect; use a plain assignment in this command, or approve`, node.type)
+        }
         argv.push(child.text)
         continue
       }
@@ -833,6 +836,10 @@ class Walk {
                 refuse(`declaration operand ${JSON.stringify(resolved)} carries an array subscript`, node.type)
               }
             }
+          }
+          if ((resolved.startsWith('-') || resolved.startsWith('+')) && resolved !== '--') {
+            const assigning = argv[0] === 'export' ? /^-[np]+$/.test(resolved) : /^-[xg]+$/.test(resolved)
+            if (!assigning) refuse(`declaration flag ${JSON.stringify(resolved)} can change or prevent assignment; use a plain assignment, or approve`, node.type)
           }
           argv.push(resolved)
           break
