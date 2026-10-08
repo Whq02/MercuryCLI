@@ -226,7 +226,7 @@ for (const sample of samples) {
   const constructs = constructsOf(sample.command)
   let readOnly = false
   try {
-    readOnly = checkReadOnlyConstraints({ command: sample.command }, false).behavior === 'allow'
+    readOnly = (await checkReadOnlyConstraints({ command: sample.command }, false)).behavior === 'allow'
   } catch {
     readOnly = false
   }

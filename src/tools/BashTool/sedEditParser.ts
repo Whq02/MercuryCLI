@@ -1,4 +1,4 @@
-import { tryParseShellCommand } from '../../utils/permissions/decision/commandAnalysis.js'
+import { preparedSecurityParse, checkSemantics } from '../../utils/permissions/decision/commandAnalysis.js'
 
 export type SedEditInfo = {
   filePath: string
@@ -13,17 +13,11 @@ const ALLOWED_SED_FLAGS = /^[gpimIM1-9]*$/
 export function parseSedEditCommand(command: string): SedEditInfo | null {
   const trimmed = command.trim()
   if (!/^sed\s/.test(trimmed)) return null
-  const parse = tryParseShellCommand(trimmed.replace(/^sed\s+/, ''))
-  if (!parse.success) return null
-
-  const words: string[] = []
-  for (const token of parse.tokens) {
-    if (typeof token === 'string') {
-      words.push(token)
-      continue
-    }
-    if (isGlobToken(token)) return null
-  }
+  const parse = preparedSecurityParse(trimmed)
+  if (parse.kind !== 'simple' || parse.commands.length !== 1 || !checkSemantics(parse.commands).ok) return null
+  const commandNode = parse.commands[0]!
+  if (commandNode.argv[0] !== 'sed' || commandNode.envVars.length || commandNode.redirects.length) return null
+  const words = commandNode.argv.slice(1)
 
   let inPlace = false
   let extendedRegex = false
@@ -190,8 +184,4 @@ function translateReplacement(replacement: string): string {
     result += ch
   }
   return result
-}
-
-function isGlobToken(token: unknown): boolean {
-  return typeof token === 'object' && token !== null && (token as { op?: string }).op === 'glob'
 }

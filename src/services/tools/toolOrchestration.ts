@@ -24,12 +24,13 @@ function maxToolUseConcurrency(): number {
   return DEFAULT_MAX_TOOL_USE_CONCURRENCY
 }
 
-function isConcurrencySafeBlock(block: ToolUseBlock, context: ToolUseContext): boolean {
+async function isConcurrencySafeBlock(block: ToolUseBlock, context: ToolUseContext): Promise<boolean> {
   try {
     const tool: Tool | undefined = findToolByName(context.options.tools, block.name)
     if (!tool) return false
     const parsed = tool.inputSchema.safeParse(block.input)
     if (!parsed.success) return false
+    await tool.prepare?.(block.input as never)
     return tool.isConcurrencySafe(parsed.data as never) === true
   } catch {
     return false
@@ -84,7 +85,7 @@ export async function* runTools(
 
   const batches: Array<{ concurrent: boolean; blocks: ToolUseBlock[] }> = []
   for (const block of toolUseBlocks) {
-    const safe = isConcurrencySafeBlock(block, context)
+    const safe = await isConcurrencySafeBlock(block, context)
     const lastBatch = batches[batches.length - 1]
     if (safe && lastBatch?.concurrent) {
       lastBatch.blocks.push(block)

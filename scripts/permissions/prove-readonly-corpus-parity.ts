@@ -29,7 +29,6 @@ const { checkReadOnlyConstraints, cutPart, describeBashNotReadOnly, notReadOnlyC
 type Fixture = { verdicts: string[]; rows: Array<[string, number, number, number, number]> }
 const SAME = -1
 const OWN_TEXT = '"\u0001"'
-const SALTED_MARKER = /MERCURY(?:nl|dq|sq|op|cp)[0-9a-f]+z/g
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -44,26 +43,26 @@ function stable(value: unknown): string {
   return `{${Object.keys(record).sort().filter(key => record[key] !== undefined).map(key => `${JSON.stringify(key)}:${stable(record[key])}`).join(',')}}`
 }
 
-function verdictOf(command: string, cd: boolean): string {
-  const verdict = checkReadOnlyConstraints({ command }, cd) as Record<string, unknown>
+async function verdictOf(command: string, cd: boolean): Promise<string> {
+  const verdict = await checkReadOnlyConstraints({ command }, cd) as Record<string, unknown>
   const { updatedInput: _input, ...rest } = verdict
   return stable(rest)
 }
 
-function describedOf(command: string): string {
-  const reason = describeBashNotReadOnly(command)
+async function describedOf(command: string): Promise<string> {
+  const reason = await describeBashNotReadOnly(command)
   return stable(reason === null ? null : { reason, clause: notReadOnlyClause(reason) })
 }
 
-function readings(command: string): [string, string, string, string] {
+async function readings(command: string): Promise<[string, string, string, string]> {
   const own = JSON.stringify(cutPart(command))
-  const fold = (reading: string): string => reading.replaceAll(own, OWN_TEXT).replace(SALTED_MARKER, 'MERCURY…z')
+  const fold = (reading: string): string => reading.replaceAll(own, OWN_TEXT)
   process.chdir(plain)
-  const atPlain = [fold(verdictOf(command, false)), fold(verdictOf(command, true)), fold(describedOf(command))] as const
+  const atPlain = [fold(await verdictOf(command, false)), fold(await verdictOf(command, true)), fold(await describedOf(command))] as const
   let atBareShape = ''
   if (/git/.test(command)) {
     process.chdir(bareShaped)
-    atBareShape = fold(`${verdictOf(command, false)}|${describedOf(command)}`)
+    atBareShape = fold(`${await verdictOf(command, false)}|${await describedOf(command)}`)
     process.chdir(plain)
     if (atBareShape === `${atPlain[0]}|${atPlain[2]}`) atBareShape = ''
   }
@@ -85,10 +84,11 @@ if (RECORD) {
     index.set(text, verdicts.length - 1)
     return verdicts.length - 1
   }
-  const rows: Fixture['rows'] = commands.map(command => {
-    const [a, b, c, d] = readings(command)
-    return [command, intern(a), b === '' ? SAME : intern(b), intern(c), d === '' ? SAME : intern(d)]
-  })
+  const rows: Fixture['rows'] = []
+  for (const command of commands) {
+    const [a, b, c, d] = await readings(command)
+    rows.push([command, intern(a), b === '' ? SAME : intern(b), intern(c), d === '' ? SAME : intern(d)])
+  }
   mkdirSync(join(ROOT, 'scripts', 'permissions', 'fixtures'), { recursive: true })
   writeFileSync(FIXTURE, `${JSON.stringify({ verdicts, rows })}\n`)
   console.log(`recorded ${rows.length} commands with ${verdicts.length} distinct readings into ${FIXTURE}`)
@@ -98,7 +98,7 @@ if (RECORD) {
   console.log(`  corpus: ${fixture.rows.length} commands, ${fixture.verdicts.length} distinct readings, ${readOnly} read-only at cd=false`)
   const mismatches: string[] = []
   for (const [command, a, b, c, d] of fixture.rows) {
-    const now = readings(command)
+    const now = await readings(command)
     const expected = [fixture.verdicts[a]!, b === SAME ? '' : fixture.verdicts[b]!, fixture.verdicts[c]!, d === SAME ? '' : fixture.verdicts[d]!]
     const labels = ['verdict at cd=false', 'verdict at cd=true (where it differs)', 'reason and clause', 'verdict beside a bare-shaped folder (where it differs)']
     for (let i = 0; i < 4; i++) {

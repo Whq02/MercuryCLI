@@ -46,7 +46,6 @@ section('(1) the seam ratchet — no direct parser imports in the entry consumer
     'src/tools/BashTool/commandSemantics.ts',
     'src/tools/BashTool/sedEditParser.ts',
     'src/tools/BashTool/BashTool.tsx',
-    'src/tools/BashTool/bashSecurity.ts',
     'src/tools/PowerShellTool/modeValidation.ts',
     'src/tools/PowerShellTool/pathValidation.ts',
     'src/tools/PowerShellTool/readOnlyValidation.ts',
@@ -152,9 +151,15 @@ type Golden = {
 async function computeCorpus(): Promise<Golden> {
   const p = pinnedCommandAnalysis
   const split: Golden['split'] = {}
-  for (const cmd of SPLIT_CORPUS) split[cmd] = p.splitCommand(cmd)
+  for (const cmd of SPLIT_CORPUS) {
+    await p.parseCommandRaw(cmd)
+    split[cmd] = p.splitCommand(cmd)
+  }
   const redirections: Golden['redirections'] = {}
-  for (const cmd of REDIRECT_CORPUS) redirections[cmd] = p.extractOutputRedirections(cmd)
+  for (const cmd of REDIRECT_CORPUS) {
+    await p.parseCommandRaw(cmd)
+    redirections[cmd] = p.extractOutputRedirections(cmd)
+  }
   const tokens: Golden['tokens'] = {}
   for (const cmd of TOKENIZE_CORPUS) tokens[cmd] = p.tryParseShellCommand(cmd)
   const parseStub: Golden['parseStub'] = {

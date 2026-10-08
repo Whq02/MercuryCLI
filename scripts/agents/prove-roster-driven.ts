@@ -254,7 +254,7 @@ section('§2d a scout run: an input-dependent tool is offered, its writing form 
 
 section("§2e the scout's tool gate itself: the pool is the read-only pool, the call road refuses a writing form")
 {
-  const policy = await import('../../src/tools/AgentTool/scoutPolicy.ts') as Partial<{ restrictScoutTools: (tools: ClassifiedTool[]) => ClassifiedTool[]; scoutRefusal: (tool: ClassifiedTool, input: Record<string, unknown>) => string | null }>
+  const policy = await import('../../src/tools/AgentTool/scoutPolicy.ts') as Partial<{ restrictScoutTools: (tools: ClassifiedTool[]) => ClassifiedTool[]; scoutRefusal: (tool: ClassifiedTool, input: Record<string, unknown>) => Promise<string | null> }>
   const calls: string[] = []
   const tool = (name: string, isReadOnly: (input: Record<string, unknown>) => boolean): ClassifiedTool => ({ name, isReadOnly, call: async (...args: unknown[]) => { calls.push(`${name}:${JSON.stringify(args[0])}`); return 'ran' } })
   const pool = [
@@ -292,7 +292,7 @@ section("§2e the scout's tool gate itself: the pool is the read-only pool, the 
   check("the writing form is refused on the call road with the scout's one line naming the tool, and the tool never ran", applyRefusal.includes(SCOUT_REFUSAL) && applyRefusal.includes('AstEdit') && !applyRefusal.includes('\n') && calls.length === 2, applyRefusal)
   check("the shell keeps its own gate: a read-only command runs, a writing command is refused with the shell's line", (await refusalOf(bash, { command: 'ls' })) === '' && (await refusalOf(bash, { command: 'rm x' })).includes(SCOUT_REFUSAL) && (await refusalOf(bash, { command: 'ls', dangerouslyDisableSandbox: true })).includes(SCOUT_REFUSAL), calls.join(' | '))
   const askRoad = policy.scoutRefusal
-  check('the ask road answers the same: a writing form is denied, a reading form and the skill door are not', typeof askRoad === 'function' && askRoad(pool[4]!, { apply: true }) !== null && askRoad(pool[4]!, {}) === null && askRoad(pool[1]!, { skill: 'mercury-docs' }) === null && askRoad(pool[3]!, { items: [] }) !== null && askRoad(pool[5]!, {}) !== null, String(askRoad?.(pool[4]!, { apply: true })))
+  check('the ask road answers the same: a writing form is denied, a reading form and the skill door are not', typeof askRoad === 'function' && (await askRoad(pool[4]!, { apply: true })) !== null && (await askRoad(pool[4]!, {})) === null && (await askRoad(pool[1]!, { skill: 'mercury-docs' })) === null && (await askRoad(pool[3]!, { items: [] })) !== null && (await askRoad(pool[5]!, {})) !== null, String((await askRoad?.(pool[4]!, { apply: true }))))
 }
 
 section("§2f the agents screen says the scout's tools are the read-only pool, and the crew agent's are all")

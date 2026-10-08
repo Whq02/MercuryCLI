@@ -39,7 +39,21 @@ try {
     const row = census.rows.find(row => row.name === name)
     check(`${name}: execution or permission state changes serialize`, row?.readOnlyProbe === false && row.concurrencySafeProbe === false)
   }
+  const { BashTool } = await import('../../src/tools/BashTool/BashTool.tsx')
+  const cold = { command: 'echo floor-cold-preparation' }
+  check('a cold Bash read is unproven, never a synchronous guess', BashTool.isReadOnly(cold as never) === false && BashTool.isConcurrencySafe(cold as never) === false)
+  await BashTool.prepare?.(cold as never)
+  check('a prepared Bash read is read-only and concurrency-safe', BashTool.isReadOnly(cold as never) === true && BashTool.isConcurrencySafe(cold as never) === true)
+  cold.command = 'rm floor-cold-preparation'
+  check('changing the command invalidates its prepared verdict', BashTool.isReadOnly(cold as never) === false)
+  const compound = { command: 'python3 - | tail -1' }
+  await BashTool.prepare?.(compound as never)
+  check('sync card readers see a prepared read-only segment', BashTool.isReadOnly({ command: 'tail -1' } as never) === true && BashTool.isReadOnly(compound as never) === false)
+  const nested = { command: 'echo "prefix$(rm x)" | cat' }
+  await BashTool.prepare?.(nested as never)
+  check('a prepared segment never hides its nested executable command', BashTool.isReadOnly({ command: 'echo "prefix$(rm x)"' } as never) === false)
   for (const [safe, count] of [[true, 5], [false, 3]] as const) {
+    const prepared = new Set<string>()
     let active = 0
     let peak = 0
     const spans: Array<{ start: number; end: number }> = []
@@ -51,8 +65,9 @@ try {
       async prompt() { return 'A timed fixture operation' },
       userFacingName: () => 'SlowFixture',
       isEnabled: () => true,
-      isConcurrencySafe: () => safe,
-      isReadOnly: () => safe,
+      async prepare(input: { text: string }) { await Promise.resolve(); prepared.add(input.text) },
+      isConcurrencySafe: (input: { text: string }) => safe && prepared.has(input.text),
+      isReadOnly: (input: { text: string }) => safe && prepared.has(input.text),
       isMcp: false,
       needsPermissions: () => false,
       async validateInput() { return { result: true } },

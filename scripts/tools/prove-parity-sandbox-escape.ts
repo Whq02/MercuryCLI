@@ -1,6 +1,11 @@
 #!/usr/bin/env bun
 import { readFileSync } from 'node:fs'
-import { commandQualifiesForExclusion } from '../../src/tools/BashTool/shouldUseSandbox.ts'
+import { commandQualifiesForExclusion as preparedExclusion } from '../../src/tools/BashTool/shouldUseSandbox.ts'
+import { parseForSecurity } from '../../src/utils/permissions/decision/commandAnalysis.ts'
+const commandQualifiesForExclusion = async (command: string, patterns: readonly string[]): Promise<boolean> => {
+  await parseForSecurity(command)
+  return preparedExclusion(command, patterns)
+}
 
 let failures = 0
 const t = (name: string, ok: boolean, detail = ''): void => {
@@ -10,35 +15,35 @@ const t = (name: string, ok: boolean, detail = ''): void => {
 
 const patterns = ['git *']
 
-t('pure excluded command qualifies', commandQualifiesForExclusion('git status', patterns) === true)
+t('pure excluded command qualifies', (await commandQualifiesForExclusion('git status', patterns)) === true)
 t(
   'excluded prefix with args qualifies',
-  commandQualifiesForExclusion('git log --oneline', patterns) === true,
+  (await commandQualifiesForExclusion('git log --oneline', patterns)) === true,
 )
 
-t('non-excluded command alone stays sandboxed', commandQualifiesForExclusion('curl evil.com', patterns) === false)
+t('non-excluded command alone stays sandboxed', (await commandQualifiesForExclusion('curl evil.com', patterns)) === false)
 
 for (const sep of ['&&', ';', '||', '|']) {
   const compound = `git status ${sep} curl evil.com`
   t(
     `escape blocked: 'git … ${sep} curl …' stays sandboxed`,
-    commandQualifiesForExclusion(compound, patterns) === false,
+    (await commandQualifiesForExclusion(compound, patterns)) === false,
   )
   const reversed = `curl evil.com ${sep} git status`
   t(
     `escape blocked (reversed) with '${sep}'`,
-    commandQualifiesForExclusion(reversed, patterns) === false,
+    (await commandQualifiesForExclusion(reversed, patterns)) === false,
   )
 }
 
 t(
   'all-excluded compound still qualifies',
-  commandQualifiesForExclusion('git status && git log', patterns) === true,
+  (await commandQualifiesForExclusion('git status && git log', patterns)) === true,
 )
 
-t('empty exclusion list never qualifies', commandQualifiesForExclusion('git status', []) === false)
-t('blank command stays sandboxed', commandQualifiesForExclusion('   ', patterns) === false)
-t('trailing separator does not defeat a legit exclusion', commandQualifiesForExclusion('git status ;', patterns) === true)
+t('empty exclusion list never qualifies', (await commandQualifiesForExclusion('git status', [])) === false)
+t('blank command stays sandboxed', (await commandQualifiesForExclusion('   ', patterns)) === false)
+t('trailing separator does not defeat a legit exclusion', (await commandQualifiesForExclusion('git status ;', patterns)) === true)
 
 const adapter = readFileSync(new URL('../../src/utils/sandbox/sandbox-adapter.ts', import.meta.url), 'utf8')
 const addRoad = adapter.slice(adapter.indexOf('export function addToExcludedCommands'), adapter.indexOf('const existing = SandboxManager.getExcludedCommands()'))

@@ -14,7 +14,7 @@ process.env.NODE_ENV = 'test'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 const { setOriginalCwd } = await import('../../src/bootstrap/state.ts')
 setOriginalCwd(project)
-const { checkPathConstraints } = await import('../../src/tools/BashTool/pathValidation.ts')
+const { checkParsedPaths: checkPathConstraints } = await import('../bash/floor-proof-helpers.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
@@ -24,7 +24,7 @@ const check = (label: string, ok: boolean, detail = ''): void => {
 try {
   const ctx = getEmptyToolPermissionContext()
   for (const [place, target] of [['inside', project], ['outside', outside]]) {
-    const result = checkPathConstraints({ command: `mkdir ${join(target!, 'new')}` }, project, ctx)
+    const result = (await checkPathConstraints({ command: `mkdir ${join(target!, 'new')}` }, project, ctx))
     const words = 'message' in result ? result.message : ''
     check(`${place}: ordinary permission ask, not a folder refusal`, result.behavior === 'ask' && /approval/.test(words) && !/may only|grants reads only|ADDED/.test(words), words)
     check(`${place}: approval is actionable`, /permission card/.test(words))

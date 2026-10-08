@@ -4,7 +4,7 @@ import { getDestructiveCommandWarning } from '../../tools/BashTool/destructiveCo
 import { BASH_TOOL_NAME } from '../../tools/BashTool/toolName.js'
 import { POWERSHELL_TOOL_NAME } from '../../tools/PowerShellTool/toolName.js'
 import { basename, resolve } from 'node:path'
-import { pinnedCommandAnalysis } from './decision/commandAnalysis.js'
+import { preparedSecurityParse, peelWrappers } from './decision/commandAnalysis.js'
 import { getCwd } from '../cwd.js'
 import { hasWildcards, suggestionForExactCommand } from './shellRuleMatching.js'
 
@@ -12,21 +12,18 @@ export const FLOW_AWAY_TIMEOUT_MS = 5 * 60_000
 export const FLOW_AWAY_MESSAGE = 'the user is away; continue with an allowed tool call instead'
 
 function flowShellCommands(command: string): Array<{ text: string; words: string[]; opaque: boolean }> {
-  const { stripSafeWrappers, stripAllLeadingEnvVars } = require('../../tools/BashTool/bashPermissions.js') as typeof import('../../tools/BashTool/bashPermissions.js')
   const result: Array<{ text: string; words: string[]; opaque: boolean }> = []
   const pending = [command]
   while (pending.length > 0) {
-    for (const segment of pinnedCommandAnalysis.splitCommand(pending.pop()!)) {
-      const text = stripSafeWrappers(stripAllLeadingEnvVars(segment))
-      const parsed = pinnedCommandAnalysis.tryParseShellCommand(text)
-      if (!parsed.success) { result.push({ text, words: [], opaque: true }); continue }
-      const words = parsed.tokens.filter((token): token is string => typeof token === 'string')
-      while (words[0] === 'env' || words[0] === 'command' || /^[A-Za-z_]\w*=/.test(words[0] ?? '')) {
-        const wrapper = words.shift()
-        if ((wrapper === 'env' || wrapper === 'command') && words[0]?.startsWith('-')) break
-      }
+    const text = pending.pop()!
+    const parsed = preparedSecurityParse(text)
+    if (parsed.kind !== 'simple') { result.push({ text, words: [], opaque: true }); continue }
+    for (const simple of parsed.commands) {
+      const peeled = peelWrappers(simple.argv)
+      if (!Array.isArray(peeled)) { result.push({ text: simple.text, words: [], opaque: true }); continue }
+      const words = [...peeled]
       const name = basename(words[0] ?? '').replace(/\.exe$/i, '')
-      const opaque = parsed.tokens.length === 0 || typeof parsed.tokens[0] !== 'string' ||
+      const opaque = words.length === 0 ||
         ['sudo', 'doas', 'env', 'nice', 'timeout', 'time', 'stdbuf', 'nohup', 'command', 'xargs', 'exec', 'eval'].includes(name) || name.startsWith('-') || /[$`]/.test(name)
       const warningWords = [...words]
       warningWords[0] = name

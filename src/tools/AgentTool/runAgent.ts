@@ -672,11 +672,11 @@ export async function* runAgent(
   const canUseToolAskLively: typeof canUseTool = canUseTool
     ? (async (...args: Parameters<NonNullable<typeof canUseTool>>) => {
         if (reviewReceipt !== undefined) {
-          const refusal = reviewerRefusal(args[0], args[1], reviewReceipt, worktreePath!)
+          const refusal = await reviewerRefusal(args[0], args[1], reviewReceipt, worktreePath!)
           if (refusal !== null) return { behavior: 'deny', message: refusal }
         }
         if (readOnlyScout) {
-          const refusal = scoutRefusal(args[0], args[1])
+          const refusal = await scoutRefusal(args[0], args[1])
           if (refusal !== null) return { behavior: 'deny', message: refusal }
         }
         pendingAsks++

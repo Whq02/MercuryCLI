@@ -29,7 +29,7 @@
 # gate-watch: src/utils/processUserInput/processBashCommand.tsx src/utils/settings/types.ts src/utils/settings/settings.ts src/utils/shell/*
 # gate-watch: src/utils/task/diskOutput.ts vendor/brush.lock.json
 # gate-watch: src/rows/* src/runner/wire/*
-# gate-watch: src/tools/BashTool/pathValidation.ts src/tools/BashTool/bashCommandHelpers.ts src/tools/BashTool/bashSecurity.ts src/utils/bash/commands.ts src/utils/bash/ParsedCommand.ts
+# gate-watch: src/tools/BashTool/pathValidation.ts src/tools/BashTool/bashCommandHelpers.ts src/utils/bash/commands.ts src/utils/bash/ParsedCommand.ts
 # gate-watch: src/utils/permissions/decision/wrapper.ts src/utils/permissions/decision/engine.ts src/utils/permissions/decision/requestMessage.ts src/utils/config.ts
 # gate-watch: src/context.ts src/utils/gitRules.ts src/utils/config/globalConfig.ts src/utils/settings/settingsCache.ts src/tools/BashTool/BashToolResultMessage.tsx
 # gate-watch: src/services/tools/toolExecution.ts src/utils/hooks/sessionHooks.ts src/utils/messages/**
@@ -98,6 +98,9 @@ __t=$SECONDS; __rc=0; "$bun" run "$here/prove-bash-description-budget.ts" || { _
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-rg-is-ordinary.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-rg-is-ordinary.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-parser-corpus-parity.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-parser-corpus-parity.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-floor-parses.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-floor-parses.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$bun" run "$here/prove-unproven-ask-is-ordinary.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-unproven-ask-is-ordinary.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$bun" run "$here/prove-floor-decides.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-floor-decides.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$bun" run "$here/prove-floor-words.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-floor-words.ts" "$__t" "$__rc"
 echo "############################################################"
 if [ "$fail" = "0" ]; then echo "# ✅ ALL BASH PERMISSION PROOFS PASS"; else echo "# ❌ SOME BASH PERMISSION PROOFS FAILED"; fi
 echo "############################################################"

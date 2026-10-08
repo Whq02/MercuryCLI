@@ -38,7 +38,8 @@ const shell = await import('../../src/utils/permissions/shellRuleMatching.js')
 const { validatePermissionRule } = await import('../../src/utils/settings/permissionValidation.js')
 const { isDangerousBashPermission } = await import('../../src/utils/permissions/permissionSetup.js')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.js')
-const { bashToolCheckExactMatchPermission, bashToolCheckPermission } = await import('../../src/tools/BashTool/bashPermissions.js')
+const { bashToolCheckExactMatchPermission } = await import('../../src/tools/BashTool/bashPermissions.js')
+const { checkParsedCommand: bashToolCheckPermission } = await import('../bash/floor-proof-helpers.ts')
 const { powershellToolCheckPermission } = await import('../../src/tools/PowerShellTool/powershellPermissions.js')
 const { PermissionRuleDescription } = await import('../../src/components/permissions/rules/PermissionRuleDescription.js')
 const { PermissionRuleInput } = await import('../../src/components/permissions/rules/PermissionRuleInput.js')
@@ -59,7 +60,7 @@ const ctxWith = (rules: { allow?: string[]; deny?: string[]; ask?: string[] }, s
     alwaysDenyRules: rules.deny ? { [source]: rules.deny } : {},
     alwaysAskRules: rules.ask ? { [source]: rules.ask } : {},
   }) as unknown as Ctx
-const decide = (command: string, ctx: Ctx): Decision => bashToolCheckPermission({ command } as never, ctx as never) as unknown as Decision
+const decide = async (command: string, ctx: Ctx): Promise<Decision> => await bashToolCheckPermission({ command } as never, ctx as never) as unknown as Decision
 const exact = (command: string, ctx: Ctx): Decision => bashToolCheckExactMatchPermission({ command } as never, ctx as never) as unknown as Decision
 
 section('§1 THE "STARTS WITH" RULE — a space and a star end it; the parser knows two kinds')
@@ -79,25 +80,25 @@ section('§1 THE "STARTS WITH" RULE — a space and a star end it; the parser kn
 section('§2 WHAT A RULE DECIDES — `Bash(npm run *)` covers the command and its arguments; a spelling the grammar does not know covers nothing')
 {
   const star = ctxWith({ allow: ['Bash(npm run *)'] })
-  check('`npm run build` is allowed by `Bash(npm run *)`', decide('npm run build', star).behavior === 'allow' && decide('npm run build', star).decisionReason?.rule?.ruleValue.ruleContent === 'npm run *', j(decide('npm run build', star)))
-  check('`npm run` alone is allowed by `Bash(npm run *)`', decide('npm run', star).behavior === 'allow', j(decide('npm run', star)))
-  check('`npm runner` is not', decide('npm runner', star).behavior === 'passthrough', j(decide('npm runner', star)))
-  check('`NODE_ENV=test npm run build` is (a safe assignment is stripped)', decide('NODE_ENV=test npm run build', star).behavior === 'allow', j(decide('NODE_ENV=test npm run build', star)))
+  check('`npm run build` is allowed by `Bash(npm run *)`', (await decide('npm run build', star)).behavior === 'allow' && (await decide('npm run build', star)).decisionReason?.rule?.ruleValue.ruleContent === 'npm run *', j((await decide('npm run build', star))))
+  check('`npm run` alone is allowed by `Bash(npm run *)`', (await decide('npm run', star)).behavior === 'allow', j((await decide('npm run', star))))
+  check('`npm runner` is not', (await decide('npm runner', star)).behavior === 'passthrough', j((await decide('npm runner', star))))
+  check('`NODE_ENV=test npm run build` is (a safe assignment is stripped)', (await decide('NODE_ENV=test npm run build', star)).behavior === 'allow', j((await decide('NODE_ENV=test npm run build', star))))
   const exactRule = ctxWith({ allow: ['Bash(npm run)'] })
-  check('`Bash(npm run)` allows that command alone', exact('npm run', exactRule).behavior === 'allow' && decide('npm run build', exactRule).behavior === 'passthrough', j(decide('npm run build', exactRule)))
+  check('`Bash(npm run)` allows that command alone', exact('npm run', exactRule).behavior === 'allow' && (await decide('npm run build', exactRule)).behavior === 'passthrough', j((await decide('npm run build', exactRule))))
   const colon = ctxWith({ allow: ['Bash(npm run:*)'] })
   const nonsense = ctxWith({ allow: ['Bash(npm run:%)'] })
   for (const command of ['npm run', 'npm run build', 'xargs npm run build']) {
-    const a = decide(command, colon)
-    const b = decide(command, nonsense)
+    const a = (await decide(command, colon))
+    const b = (await decide(command, nonsense))
     check(`\`Bash(npm run:*)\` and \`Bash(npm run:%)\` decide ${j(command)} alike: ${b.behavior}`, a.behavior === b.behavior && a.behavior === 'passthrough', `${j(a)} vs ${j(b)}`)
   }
   const denyStar = ctxWith({ deny: ['Bash(rm *)'] })
-  check('`Bash(rm *)` in deny refuses `rm -rf dist`', decide('rm -rf dist', denyStar).behavior === 'deny', j(decide('rm -rf dist', denyStar)))
-  check('…and `rm` alone', decide('rm', denyStar).behavior === 'deny', j(decide('rm', denyStar)))
-  check('…but not `rmdir x`', decide('rmdir x', denyStar).behavior !== 'deny', j(decide('rmdir x', denyStar)))
+  check('`Bash(rm *)` in deny refuses `rm -rf dist`', (await decide('rm -rf dist', denyStar)).behavior === 'deny', j((await decide('rm -rf dist', denyStar))))
+  check('…and `rm` alone', (await decide('rm', denyStar)).behavior === 'deny', j((await decide('rm', denyStar))))
+  check('…but not `rmdir x`', (await decide('rmdir x', denyStar)).behavior !== 'deny', j((await decide('rmdir x', denyStar))))
   const askStar = ctxWith({ ask: ['Bash(git push *)'] })
-  check('`Bash(git push *)` in ask asks for `git push origin main`', decide('git push origin main', askStar).behavior === 'ask', j(decide('git push origin main', askStar)))
+  check('`Bash(git push *)` in ask asks for `git push origin main`', (await decide('git push origin main', askStar)).behavior === 'ask', j((await decide('git push origin main', askStar))))
   const ps = powershellToolCheckPermission({ command: 'Get-Process -Name node' }, ctxWith({ allow: ['PowerShell(Get-Process *)'] }) as never) as unknown as Decision
   check('`PowerShell(Get-Process *)` allows `Get-Process -Name node`', ps.behavior === 'allow', j(ps))
   const psColon = powershellToolCheckPermission({ command: 'Get-Process -Name node' }, ctxWith({ allow: ['PowerShell(Get-Process:*)'] }) as never) as unknown as Decision
@@ -196,9 +197,9 @@ section('§5 ONE VOICE WHEN A RULE DECIDES — what was attempted, the verdict, 
   check('your own reason rides the end of the sentence', refusalWithReason(ruleSentence('rm -rf dist', 'deny', rule('projectSettings', 'deny', 'Bash', 'rm *')), 'the build tree is sacred') === 'rm -rf dist is denied by the rule Bash(rm *) in the shared project settings: the build tree is sacred.')
 
   const denyCtx = ctxWith({ deny: ['Bash(rm *)'] }, 'projectSettings')
-  check('the Bash road: a deny rule speaks the sentence', decide('rm -rf dist', denyCtx).message === 'rm -rf dist is denied by the rule Bash(rm *) in the shared project settings.', j(decide('rm -rf dist', denyCtx)))
+  check('the Bash road: a deny rule speaks the sentence', (await decide('rm -rf dist', denyCtx)).message === 'rm -rf dist is denied by the rule Bash(rm *) in the shared project settings.', j((await decide('rm -rf dist', denyCtx))))
   const askCtx = ctxWith({ ask: ['Bash(git push *)'] }, 'userSettings')
-  check('the Bash road: an ask rule speaks the sentence', decide('git push origin main', askCtx).message === 'git push origin main asks first — the rule Bash(git push *) in your user settings.', j(decide('git push origin main', askCtx)))
+  check('the Bash road: an ask rule speaks the sentence', (await decide('git push origin main', askCtx)).message === 'git push origin main asks first — the rule Bash(git push *) in your user settings.', j((await decide('git push origin main', askCtx))))
   const psDeny = powershellToolCheckPermission({ command: 'Remove-Item -Recurse dist' }, ctxWith({ deny: ['PowerShell(Remove-Item *)'] }, 'userSettings') as never) as unknown as Decision
   check('the PowerShell road: the same sentence', psDeny.message === 'Remove-Item -Recurse dist is denied by the rule PowerShell(Remove-Item *) in your user settings.', j(psDeny))
   const fileCtx = ctxWith({ deny: ['Read(//etc/passwd)'], ask: ['Edit(//tmp/notes.txt)'] }, 'userSettings')
