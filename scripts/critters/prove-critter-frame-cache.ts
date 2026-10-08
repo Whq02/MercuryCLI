@@ -29,7 +29,7 @@ type El = { type: unknown; props: { children?: unknown } }
 const paint = paintCritterArt as unknown as (p: Props) => El
 const linesOf = (root: El): El[] => (root.props.children as El[]) ?? []
 const defFor = (def: Def, _form: Form): Def => ({ ...def })
-const formProps = (form: Form): Props => ({ square: form === 'square', mini: form === 'mini' })
+const formProps = (form: Form): Props => ({ square: form === 'square' })
 const byName = Object.fromEntries(cd.CRITTERS.map(d => [d.name, d])) as Record<string, Def>
 const FORMS: Form[] = ['square', 'mini']
 const painted = new Map<string, Def>()

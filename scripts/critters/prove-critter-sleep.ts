@@ -643,7 +643,7 @@ t.section('§11 — the per-critter SLEEP GLYPH LADDER (bubbles for the clam, Zz
     renderToString(React.createElement(CritterArt, { def, ...props }), 60)
   const clam = byName['clam']!
   const crab = byName['crab']!
-  const clamMini = await render(clam, { pupil: idle.EYE_SHUT, sleepPhase: 2, mini: true })
+  const clamMini = await render(clam, { pupil: idle.EYE_SHUT, sleepPhase: 2 })
   t.check('RENDERED clam mini asleep: the bubbles paint at three lines too', clamMini.includes('o°o°') && !/z/.test(clamMini), JSON.stringify(clamMini.split('\n')[0]))
 
   const painter = await Bun.file('src/components/mercury-ui/CritterArt.tsx').text()
@@ -780,10 +780,10 @@ t.section('§13 — the ladder\'s three conditions: the Zzz path byte-identical 
     const renderDef = clam
     const budget = sliced[0]!.length
     t.check(`clam/${form}: the sleep pose's width IS the awake budget (${budget})`, budget === cd.miniArtFor('clam')[0]!.length, String(budget))
-    const awakeW = Math.max(...(await render(renderDef, { mini: form === 'mini', swayPhase: 0 })).split('\n').map(l => l.length))
+    const awakeW = Math.max(...(await render(renderDef, { swayPhase: 0 })).split('\n').map(l => l.length))
     t.check(`clam/${form}: the awake render fits the budget (${awakeW} ≤ ${budget})`, awakeW <= budget)
     for (let p = 0; p < cd.SLEEP_PHASES; p++) {
-      const out = await render(renderDef, { mini: form === 'mini', swayPhase: 0, pupil: idle.EYE_SHUT, sleepPhase: p })
+      const out = await render(renderDef, { swayPhase: 0, pupil: idle.EYE_SHUT, sleepPhase: p })
       const w = Math.max(...out.split('\n').map(l => l.length))
       t.check(`clam/${form} phase ${p}: the asleep render, bubbles included, fits the same budget (${w} ≤ ${budget})`, w <= budget, `${w} vs ${budget}`)
     }

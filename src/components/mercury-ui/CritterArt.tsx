@@ -106,7 +106,6 @@ function lineExtras(top: string, bot: string, pupil: string, sleepSlots: readonl
 }
 
 export type CritterFrameOpts = {
-  mini?: boolean
   square?: boolean
   pupil?: string
   gazeKey?: string
@@ -115,7 +114,7 @@ export type CritterFrameOpts = {
 }
 
 export function composeCritterFrame(def: CritterDef, opts: CritterFrameOpts): { art: string[]; sleepSlots: number[] } {
-  const { pupil = '●', gazeKey = '', swayPhase = 0, sleepPhase = null, mini = false, square = false } = opts
+  const { pupil = '●', gazeKey = '', swayPhase = 0, sleepPhase = null, square = false } = opts
   const usingSquare = square && def.squareDock.length > 0
   const form = usingSquare ? 'square' : 'mini'
   const pose = sleepPhase !== null ? sleepPoseFor(def, form) : null
@@ -139,7 +138,6 @@ export type CritterArtProps = {
   gazeKey?: string
   swayPhase?: number
   sleepPhase?: number | null
-  mini?: boolean
   square?: boolean
   chunky?: boolean
   legendOverride?: Readonly<Record<string, string>>
@@ -158,7 +156,6 @@ export function paintCritterArt({
   gazeKey = '',
   swayPhase = 0,
   sleepPhase = null,
-  mini = false,
   square = false,
   chunky = false,
   legendOverride,
@@ -166,7 +163,7 @@ export function paintCritterArt({
   lineBg,
   ground,
 }: CritterArtProps & { ground?: string }): React.ReactNode {
-  const { art, sleepSlots } = composeCritterFrame(def, { mini, square, pupil, gazeKey, swayPhase, sleepPhase })
+  const { art, sleepSlots } = composeCritterFrame(def, { square, pupil, gazeKey, swayPhase, sleepPhase })
   const groundInk = chalk.level > 0 ? (ground ?? groundSnapshot()) : ''
   const colorOf = (ch: string | undefined): string | undefined =>
     (ch !== undefined && legendOverride?.[ch]) || cellColor(def, ch)
