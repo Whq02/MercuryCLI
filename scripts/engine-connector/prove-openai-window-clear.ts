@@ -67,6 +67,13 @@ try {
   publish(served)
   check('clearing the key source never clears the separate subscription source', state.openaiLimitWindow('chatgpt-subscription').state === 'limited')
   unsubscribe()
+  state.__resetOpenaiLimitStateForTest()
+  await request()
+  const fresh = openaiWindowFact(reads)
+  check('a fresh runner also publishes a served clear observation', (fresh as any)?.state === 'clear', fresh)
+  await request()
+  const later = openaiWindowFact(reads)
+  check('each later served response has a fresh observation that can supersede another session refusal', later !== undefined && fresh !== undefined && later.observedAtMs > fresh.observedAtMs, { fresh, later })
 } finally {
   connector.detach()
   await fixture.close()

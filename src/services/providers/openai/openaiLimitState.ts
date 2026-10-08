@@ -256,7 +256,6 @@ export function __resetOpenaiLimitStateForTest(): void {
 
 export function clearOpenaiUsageLimit(source: OpenaiLimitSource): void {
   const held = observedBySource[source]
-  if (held === null || held.resetsAtMs === 0) return
-  observedBySource[source] = { resetsAtMs: 0, observedAtMs: Math.max(Date.now(), held.observedAtMs + 1) }
+  observedBySource[source] = { resetsAtMs: 0, observedAtMs: Math.max(Date.now(), (held?.observedAtMs ?? 0) + 1) }
   noteObservedChanged()
 }
