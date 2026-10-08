@@ -46,7 +46,7 @@ import { getTranscriptPath } from '../../utils/sessionStorage/paths.js'
 import { tokenCountWithEstimation } from '../../utils/tokens.js'
 import { extractDiscoveredToolNames, isToolSearchEnabled } from '../../utils/toolSearch.js'
 import { sleep } from '../../utils/sleep.js'
-import { getContextWindowForModel, getModelMaxOutputTokens } from '../../utils/model/capabilities.js'
+import { getContextWindowForModel } from '../../utils/model/capabilities.js'
 import { getEngineModel } from '../../utils/model/model.js'
 import { API_ERROR_MESSAGE_PREFIX, PROMPT_TOO_LONG_ERROR_MESSAGE, getPromptTooLongTokenGap } from '../api/errors.js'
 import { type OverflowSignal, overflowGapTokens, overflowSignalOf } from '../api/overflowSignal.js'
@@ -719,7 +719,6 @@ async function summarizeViaCacheSharingFork(
       querySource: 'compact' as never,
       forkLabel: 'compact',
       maxTurns: 1,
-      maxOutputTokens: getModelMaxOutputTokens(model).upperLimit,
       skipCacheWrite: true,
       onStreamEvent: event => {
         bound.content()
@@ -908,7 +907,6 @@ async function streamingFallbackAttempts(
         model,
         isNonInteractiveSession: context.options.isNonInteractiveSession,
         hasAppendSystemPrompt: Boolean(context.options.appendSystemPrompt),
-        maxOutputTokensOverride: getModelMaxOutputTokens(model).upperLimit,
         querySource: 'compact' as never,
         agents: context.options.agentDefinitions.activeAgents,
         mcpTools: [],
