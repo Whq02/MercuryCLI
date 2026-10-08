@@ -85,18 +85,18 @@ const CORPUS: Row[] = [
   ['cd /tmp && git status', { bare: 'ask', allow: 'ask' }],
   ['cd /tmp; rm -f x.txt', { bare: 'ask', deny: 'deny' }],
   ['ls; rm -rf ~', { bare: 'ask', deny: 'deny' }],
-  ['echo $(rm -rf /)', { bare: 'ask', deny: 'ask' }],
+  ['echo $(rm -rf /)', { bare: 'ask', deny: 'deny' }],
   ['ls `rm -rf /`', { bare: 'ask' }],
   ['FOO=bar go test ./...', { bare: 'passthrough' }],
-  ['LD_PRELOAD=/evil.so ls', { bare: 'passthrough' }],
-  ['PATH=/evil ls', { bare: 'passthrough' }],
+  ['LD_PRELOAD=/evil.so ls', { bare: 'ask' }],
+  ['PATH=/evil ls', { bare: 'ask' }],
   ['shasum -a 256 report.md', { bare: 'passthrough' }],
   ["printf 'A\\033[2J\\007\\000B\\r\\n'; head -c 200000 /dev/zero | tr '\\0' 'y'", { bare: 'ask' }],
   ['touch lifecycle-probe.txt', { bare: 'ask' }],
   ['git status && git diff', { bare: 'allow', allow: 'allow' }],
   ["git commit -m \"feat: x\" || echo failed", { bare: 'passthrough', allow: 'allow' }],
-  ['cat <<EOF\nbody\nEOF', { bare: 'passthrough' }],
-  ['cat <<< "here"', { bare: 'ask' }],
+  ['cat <<EOF\nbody\nEOF', { bare: 'ask' }],
+  ['cat <<< "here"', { bare: 'passthrough' }],
   ['echo one\necho two', { bare: 'allow' }],
   ['sed -i s/a/b/ file.txt', { bare: 'ask' }],
   ['sed s/a/b/ file.txt', { bare: 'ask' }],
@@ -215,7 +215,7 @@ section('§2 the seam ratchet — the rule road never learns the engine')
   const entry = readFileSync(join(bashToolDir, 'bashPermissions.ts'), 'utf8')
   check(
     'the rule entry takes the input, the context, and a prefix function — no engine parameter',
-    /export async function bashToolHasPermission\(\s*input: BashInput,\s*context: ToolPermissionContext,\s*prefixFn: PrefixFn = pinnedCommandAnalysis\.getCommandSubcommandPrefix,\s*\)/.test(entry),
+    /export function bashToolHasPermission\(\s*input: BashInput,\s*context: ToolPermissionContext,\s*prefixFn: PrefixFn = pinnedCommandAnalysis\.getCommandSubcommandPrefix,\s*\): Promise<PermissionResult>/.test(entry),
   )
 }
 

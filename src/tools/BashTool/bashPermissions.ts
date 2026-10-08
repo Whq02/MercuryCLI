@@ -697,16 +697,17 @@ async function decideBashPermission(
     astRoot,
   )
   if (operator.behavior !== 'passthrough') {
-    if (operator.behavior === 'allow') {
-      if (!astAvailable && !isInjectionCheckDisabled()) {
-        const legacy = bashCommandIsSafe_DEPRECATED(command)
-        if (legacy.behavior !== 'passthrough' && legacy.behavior !== 'allow') {
-          return { behavior: 'ask', message: legacy.message ?? 'This command requires approval.' }
-        }
+    if (operator.behavior === 'deny') return operator
+    if (operator.behavior === 'allow' && !astAvailable && !isInjectionCheckDisabled()) {
+      const legacy = bashCommandIsSafe_DEPRECATED(command)
+      if (legacy.behavior !== 'passthrough' && legacy.behavior !== 'allow') {
+        return { behavior: 'ask', message: legacy.message ?? 'This command requires approval.' }
       }
-      const path = checkPathConstraints(input, getCwd(), context, compoundHasCd, astCommands?.flatMap(simple => simple.redirects), astCommands ?? undefined)
-      return path.behavior !== 'passthrough' ? path : operator
     }
+    const path = checkPathConstraints(input, getCwd(), context, compoundHasCd, astCommands?.flatMap(simple => simple.redirects), astCommands ?? undefined)
+    if (path.behavior === 'deny') return path
+    if (exact.behavior === 'ask') return exact
+    if (operator.behavior === 'allow') return path.behavior !== 'passthrough' ? path : operator
     return operator
   }
 
@@ -767,6 +768,7 @@ async function decideBashPermission(
     astCommands ?? undefined,
   )
   if (originalPath.behavior === 'deny') return originalPath
+  if (exact.behavior === 'ask') return exact
 
   const anySubcommandAsked = decisions.some(d => d.behavior === 'ask')
   if (originalPath.behavior === 'ask' && !anySubcommandAsked) return originalPath
@@ -776,7 +778,7 @@ async function decideBashPermission(
     return nonAllow[0] as PermissionResult
   }
 
-  if (exact.behavior === 'allow') return exact
+  if (exact.behavior === 'allow' && !anySubcommandAsked) return exact
 
   if (!astAvailable && !isInjectionCheckDisabled()) {
     let possibleInjection = false
@@ -894,7 +896,7 @@ function astDenyCheck(input: BashInput, context: ToolPermissionContext, root: No
       }
       for (const candidate of candidates) {
         const deny = matchRules(candidate, context, 'deny', 'prefix', true)
-        if (deny !== null) return denyByRule(context, node.text, deny, () => matchAllRules(candidate, context, 'deny', 'prefix', true))
+        if (deny !== null) return denyByRule(context, input.command, deny, () => matchAllRules(candidate, context, 'deny', 'prefix', true))
       }
     }
     stack.push(...node.children)
