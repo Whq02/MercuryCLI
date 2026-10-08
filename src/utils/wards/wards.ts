@@ -455,7 +455,7 @@ let windowsRootPattern: { home: string; pattern: RegExp } | undefined
 function windowsRemovalPattern(): RegExp {
   const home = (process.env.USERPROFILE || process.env.HOME || '').replace(/\\/g, '/').replace(/\/+$/, '')
   if (windowsRootPattern?.home === home) return windowsRootPattern.pattern
-  const escape = (path: string): string => path.split('/').map(part => part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('[/\\\\]')
+  const escape = (path: string): string => path.split(/[\\/]/).map(part => part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('[/\\\\]')
   const homes = /^[a-z]:\//i.test(home) ? [escape(home), escape(`/${home[0]}${home.slice(2)}`)] : []
   const targets = ['[a-z]:[/\\\\]+', '/[a-z]/?', '\\$USERPROFILE', '\\$\\{USERPROFILE\\}', '%USERPROFILE%', ...homes]
   const pattern = new RegExp('\\brm\\b(?=[^\\n;|&]*\\s(?:-[a-zA-Z]*[rR][a-zA-Z]*\\b|--recursive\\b))[^\\n;|&]*\\s["\\\']?(?:' + targets.join('|') + ')[/\\\\]*\\*?(?=["\\\']?(?:\\s|$|[;|&]))', 'i')
