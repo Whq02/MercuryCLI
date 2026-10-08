@@ -394,7 +394,7 @@ section("§12 permissive: the application in front at the turn's first call is t
   process.env.MERCURY_COMPUTER_ACCESS = 'permissive'
   const { context, owner } = await fresh('permissive-turns', { switches: [{ afterActs: 1, frontmost: FINDER }] })
   const turnOne = session.turnKeyOf(context)
-  check("the turn key of a context without a query chain is the operator's last message — none here, so the one key", turnOne === '' && session.turnHomeApp(owner, turnOne)?.identity === TEXTEDIT.identity)
+  check("the turn key of a context without a call chain is the operator's last message — none here, so the one key", turnOne === '' && session.turnHomeApp(owner, turnOne)?.identity === TEXTEDIT.identity)
   const first = await permission({ action: 'click', x: 812, y: 300 }, context)
   check('the first act in the home application is allowed by the check', first.behavior === 'allow', JSON.stringify(first))
   const acted = resultOf(await ComputerTool.call({ action: 'click', x: 812, y: 300, capture: false } as never, context, allowEverything, toolUseTurn('toolu_permissive_click', 'Computer', { action: 'click', x: 812, y: 300, capture: false })))
@@ -405,7 +405,7 @@ section("§12 permissive: the application in front at the turn's first call is t
   check('in the same turn an act in Finder asks for Finder by name', elsewhere.behavior === 'ask' && (elsewhere.message ?? '').includes('Finder (com.example.Finder)'), JSON.stringify(elsewhere))
   check('the home stays TextEdit for this turn', session.turnHomeApp(owner, turnOne)?.identity === TEXTEDIT.identity)
   const turnTwo = { ...context, callChain: { key: 'turn-two', hop: 0 } } as ToolUseContext
-  check('a new query chain is a new turn key', session.turnKeyOf(turnTwo) === 'chain:turn-two')
+  check('a new call chain is a new turn key', session.turnKeyOf(turnTwo) === 'chain:turn-two')
   const shot = await withScreenshot(ComputerTool as never, turnTwo, 'toolu_permissive_turn_two_shot')
   check('the new turn\'s opening screenshot succeeds and records Finder as its home', shot.outcome === 'succeeded' && session.turnHomeApp(owner, 'chain:turn-two')?.identity === FINDER.identity, JSON.stringify(session.turnHomeApp(owner, 'chain:turn-two')))
   const homeTwo = await permission({ action: 'click', x: 100, y: 100 }, shot.context)

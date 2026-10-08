@@ -186,7 +186,8 @@ try {
         t("clear-then-turn: mid-turn, the strip never narrates the OLD session's task", mid.length > 0 && !mid.some(r => r.includes(OLD_VERB)), mid.filter(r => r.includes(OLD_VERB)).join(' | '))
         t("clear-then-turn: later in the turn, the old task's words are still nowhere", after.length > 0 && !after.some(r => r.includes(OLD_VERB)))
         const stripRow = (rows: string[]): string => rows.find(r => /esc interrupts/.test(r) && /← back/.test(r))?.trim() ?? ''
-        t("clear-then-turn: mid-turn, the strip row alone wears the in-flight clause and NO task verb — never the old session's", stripRow(mid) !== '' && /esc interrupts/.test(stripRow(mid)) && !stripRow(mid).includes(OLD_VERB) && !/Reviewing|review/i.test(stripRow(mid)), stripRow(mid) || `no strip row among: ${mid.filter(r => r.trim() !== '').slice(-6).join(' | ')}`)
+        const stripWords = (rows: string[]): string => stripRow(rows).replace(/\S+ ⌥ \S+/, '')
+        t("clear-then-turn: mid-turn, the strip row alone wears the in-flight clause and NO task verb — never the old session's (the folder and branch chip read apart)", stripRow(mid) !== '' && /esc interrupts/.test(stripWords(mid)) && !stripWords(mid).includes(OLD_VERB) && !/Reviewing|review/i.test(stripWords(mid)), stripRow(mid) || `no strip row among: ${mid.filter(r => r.trim() !== '').slice(-6).join(' | ')}`)
         t("clear-then-turn: mid-turn, the born session's own tool is on the glass in the product's words (the transcript's Bash row, running)", mid.some(r => r.includes('Running 1 bash command')) && mid.some(r => r.includes('sleep 6')))
         t("clear-then-turn: the turn ended with the fixture's reply on the glass", after.some(r => r.includes('CLEARED-TURN-DONE')))
         if (failures !== 0) {
