@@ -5,7 +5,7 @@ import { join } from 'node:path'
 import { bootRunner, bound, childEnv, DIST, exportWorld, isSession, j, makeTally, removeWorld, SCRATCH_ROOT, seedHome, sleep } from './dupline-world.ts'
 
 const { check, section, finish } = makeTally('prove-lead-window-hold')
-section("a crew lead whose background shell ends inside a closed usage window: the notice waits at the seat while the seat stays awake — the operator's next line is answered at once, the process never stalls, and the notice lands once after the window")
+section("a crew lead whose background shell ends beside a usage-window note: the notification is handed on immediately, the provider decides, the operator's next line is answered and the seat never stalls")
 
 const HOME = join(SCRATCH_ROOT, `mercury-lead-window-hold-${process.pid}`)
 const CWD = join(HOME, 'fixture-repo')
@@ -161,13 +161,17 @@ const waitWire = async (label: string, test: (w: Wire) => boolean, timeoutMs: nu
 }
 const brief = (): string => j(wire.map(w => [w.n, w.kind, w.step, w.notices, w.ask.slice(0, 40)]))
 const resultText = (frame: unknown): string => JSON.stringify(frame)
+const rateLimited = (frame: unknown): boolean => {
+  const row = frame as { type?: string; error?: { class?: string } }
+  return row.type === 'outcome' && row.error?.class === 'rate_limit'
+}
 const stallsOf = (log: string): number[] => [...log.matchAll(/\[event-loop-stall\] blocked for (\d+)ms/g)].map(m => Number(m[1]))
 
 if (!existsSync(DIST)) {
   check('the built bundle is present (the drive boots the BUILT product)', false, DIST)
 } else {
   const runner = bootRunner({ cwd: CWD, env, extraArgv: ['--log-file', DEBUG_FILE] })
-  const refusals = (): number => runner.frames.filter(f => f.type === 'outcome' && /limit is reached/.test(resultText(f))).length
+  const refusals = (): number => runner.frames.filter(f => rateLimited(f)).length
   void runner.prompt(LEAD_ASK, 'u-lead')
   const init = await runner.waitFor('the session row', isSession, bound(90_000))
   check('the headless session booted on the fixture', init !== null, runner.stderr().slice(-400))
@@ -185,7 +189,7 @@ if (!existsSync(DIST)) {
   void runner.prompt(HELLO_ASK, 'u-hello')
   const refused = await waitWire('the usage window refusal', w => w.kind === 'walled' && w.ask.trim() === HELLO_ASK, bound(20_000))
   check('the provider refused a turn for the usage window', refused !== null, brief())
-  const firstRow = await runner.waitFor('the first refusal row', f => f.type === 'outcome' && /limit is reached/.test(resultText(f)), bound(20_000))
+  const firstRow = await runner.waitFor('the first refusal row', f => rateLimited(f), bound(20_000))
   check("the session's own row says the limit is reached", firstRow !== null, j(runner.frames.filter(f => f.type === 'outcome').slice(-1)))
   check('the shell ends inside the window by construction', wallUntilMs > armedAt + SHELL_SECONDS * 1000 + AGAIN_AFTER_MS + 5_000)
 
@@ -193,16 +197,17 @@ if (!existsSync(DIST)) {
   const before = refusals()
   const againAt = Date.now()
   void runner.prompt(AGAIN_ASK, 'u-again')
-  const againRow = await runner.waitFor('the second refusal row', f => f.type === 'outcome' && /limit is reached/.test(resultText(f)) && refusals() > before, bound(10_000))
+  const againRow = await runner.waitFor('the second refusal row', f => rateLimited(f) && refusals() > before, bound(10_000))
   const againMs = Date.now() - againAt
-  check("the operator's next line inside the window is answered at once — refused like any other request, its row within the bound while the shell's notice waits at the seat", againRow !== null && againMs < bound(10_000), `${againMs} ms; ${brief()}`)
+  check("the operator's next line inside the window is answered at once — refused like any other request, its row within the bound while the shell's notice is delivered", againRow !== null && againMs < bound(10_000), `${againMs} ms; ${brief()}`)
 
-  const landed = await waitWire('the notice after the window', w => w.kind === 'request' && w.notices >= 1, bound(WALL_SECONDS * 1000 + 30_000))
-  check("the shell's notice reaches the model after the window reopened", landed !== null && landed.at >= wallUntilMs, landed === null ? brief() : `${landed.at - wallUntilMs} ms after the reopen`)
+  const landed = await waitWire('the notice despite the usage note', w => w.notices >= 1, bound(10_000))
+  check("the shell's notice reaches the provider while the usage note still says closed", landed !== null && landed.kind === 'walled' && landed.at < wallUntilMs, landed === null ? brief() : `${wallUntilMs - landed.at} ms before the stated reset`)
   await sleep(1_500)
-  const carriers = wire.filter(w => w.kind === 'request' && w.notices >= 1)
-  check('the notice reached the model exactly once, in one request', carriers.length === 1 && carriers[0]!.notices === 1, brief())
-  check('no request inside the window carried the notice', !wire.some(w => w.kind === 'walled' && w.notices >= 1), brief())
+  const carriers = wire.filter(w => w.ask.startsWith('<task-notification>') && w.notices >= 1)
+  check('the notice starts exactly one request and remains one copy when later input carries the retained context', carriers.length === 1 && carriers[0]!.notices === 1 && wire.every(w => w.notices <= 1), brief())
+  check('the provider, not the stored usage note, refuses the notice request', wire.some(w => w.kind === 'walled' && w.notices === 1), brief())
+  await sleep(Math.max(0, wallUntilMs - Date.now()) + 200)
 
   void runner.prompt(DONE_ASK, 'u-done')
   const done = await runner.waitFor('the session still answers', f => f.type === 'outcome' && resultText(f).includes(DONE_ASK), bound(30_000))

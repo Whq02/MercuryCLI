@@ -18,7 +18,7 @@ enableConfigs()
 const { applyConcourseScheduleOp } = await import('../../src/daemon/saturn.ts')
 const { updateConcourseWorkers, concourseWorkersPath } = await import('../../src/daemon/concourseWorkers.ts')
 const { tickSaturnOnce } = await import('../../src/daemon/saturnTicker.ts')
-const { liveFactsForSessionFire, sessionWindowClosedUntil } = await import('../../src/daemon/saturnAccount.ts')
+const { liveFactsForSessionFire } = await import('../../src/daemon/saturnAccount.ts')
 const { anthropicWindowClosedUntil } = await import('../../src/services/anthropicLimits.ts')
 const { readSessionFacts, sessionFactsDir, sessionFactsPath } = await import('../../src/services/engine-connector/seatProjections.ts')
 const receipts = await import('../../src/services/switchboard/sessionReceipts.ts')
@@ -123,18 +123,18 @@ console.log('§W the window fact read')
   check('an allowed window reads open', anthropicWindowClosedUntil({ status: 'allowed', observedAtMs: NOW, owner: OWNER }, NOW) === undefined)
   check('a warning window reads open (the fire may still run)', anthropicWindowClosedUntil({ status: 'allowed_warning', observedAtMs: NOW, owner: OWNER, resetsAtMs: NOW + 60_000 }, NOW) === undefined)
   check('no fact reads open', anthropicWindowClosedUntil(undefined, NOW) === undefined)
-  check("the session's facts carry the fact to the family's window", sessionWindowClosedUntil('anthropic', { usage: { anthropicWindow: { status: 'rejected', observedAtMs: NOW, owner: OWNER, resetsAtMs: NOW + 5_000 } } }, NOW) === NOW + 5_000)
-  check('another family reads nothing from the anthropic fact', sessionWindowClosedUntil('openai', { usage: { anthropicWindow: { status: 'rejected', observedAtMs: NOW, owner: OWNER, resetsAtMs: NOW + 5_000 } } }, NOW) === undefined)
-  check('absent facts read open', sessionWindowClosedUntil('anthropic', null, NOW) === undefined)
+  for (const family of ['anthropic', 'openai', 'gemini', 'openrouter', 'huggingface']) {
+    for (const status of ['rejected', 'allowed_warning', 'allowed']) {
+      let reads = 0
+      const live = liveFactsForSessionFire({ family, source: 'oauth' }, 'sess-x', { presenceOf: () => ({ credentialed: true, kind: 'oauth' }), strandedNow: () => false, anthropicDetail: () => null, factsOf: () => { reads++; return { usage: { anthropicWindow: { status, observedAtMs: NOW, owner: OWNER, resetsAtMs: NOW + 5_000 } } } as never } })
+      check(`${family} ${status}: a usage note is never read for dispatch admission`, reads === 0 && live.credentialed && live.rateLimitedUntil === undefined, JSON.stringify(live))
+    }
+  }
   const facts = liveFactsForSessionFire({ family: 'anthropic', source: 'oauth' }, 'sess-x', { presenceOf: () => ({ credentialed: true, kind: 'oauth' as const }), strandedNow: () => false, anthropicDetail: () => null, factsOf: () => ({ usage: { anthropicWindow: { status: 'rejected', observedAtMs: NOW, owner: OWNER, resetsAtMs: NOW + 9_000 } } }) as never, now: () => NOW })
   check('the fire-time facts of a session keep its window out of the dispatch decision', facts.credentialed && facts.rateLimitedUntil === undefined, JSON.stringify(facts))
   const noSession = liveFactsForSessionFire({ family: 'anthropic', source: 'oauth' }, undefined, { presenceOf: () => ({ credentialed: true, kind: 'oauth' as const }), strandedNow: () => false, anthropicDetail: () => null, factsOf: () => ({ usage: { anthropicWindow: { status: 'rejected', observedAtMs: NOW, owner: OWNER, resetsAtMs: NOW + 9_000 } } }) as never, now: () => NOW })
   check('a fire with no session (the box tier) carries no window signal', noSession.rateLimitedUntil === undefined)
   const openaiFact = { source: 'chatgpt-subscription', resetsAtMs: NOW + 5_000, observedAtMs: NOW - 1_000 }
-  check("the openai family reads its own window from the session's facts", sessionWindowClosedUntil('openai', { usage: { openaiWindow: openaiFact } } as never, NOW) === NOW + 5_000)
-  check('an openai window whose reset has passed reads open', sessionWindowClosedUntil('openai', { usage: { openaiWindow: { ...openaiFact, resetsAtMs: NOW - 1 } } } as never, NOW) === undefined)
-  check('the anthropic family reads nothing from the openai fact', sessionWindowClosedUntil('anthropic', { usage: { openaiWindow: openaiFact } } as never, NOW) === undefined)
-  check('the openai family reads nothing from the anthropic fact', sessionWindowClosedUntil('openai', { usage: { anthropicWindow: { status: 'rejected', observedAtMs: NOW, owner: OWNER, resetsAtMs: NOW + 5_000 } } }, NOW) === undefined)
   const openaiFacts = liveFactsForSessionFire({ family: 'openai', source: 'oauth' }, 'sess-x', { presenceOf: () => ({ credentialed: true, kind: 'oauth' as const }), factsOf: () => ({ usage: { openaiWindow: openaiFact } }) as never, now: () => NOW })
   check("an openai session's fire-time facts keep its window out of the dispatch decision", openaiFacts.credentialed && openaiFacts.rateLimitedUntil === undefined, JSON.stringify(openaiFacts))
   const wire = await import('../../src/services/engine-connector/seatWire.ts')
@@ -147,10 +147,6 @@ console.log('§W the window fact read')
     const key = `${family}Window`
     const wireKey = `${family}_window`
     const laneFact = { resetsAtMs: NOW + 5_000, observedAtMs: NOW - 1_000 }
-    check(`the ${family} family reads its own window from the session's facts`, sessionWindowClosedUntil(family, { usage: { [key]: laneFact } } as never, NOW) === NOW + 5_000)
-    check(`a ${family} window whose reset has passed reads open`, sessionWindowClosedUntil(family, { usage: { [key]: { ...laneFact, resetsAtMs: NOW - 1 } } } as never, NOW) === undefined)
-    check(`the ${family} family reads nothing from the anthropic or openai facts`, sessionWindowClosedUntil(family, { usage: { anthropicWindow: { status: 'rejected', observedAtMs: NOW, owner: OWNER, resetsAtMs: NOW + 5_000 }, openaiWindow: openaiFact } } as never, NOW) === undefined)
-    check(`the anthropic and openai families read nothing from the ${family} fact`, sessionWindowClosedUntil('anthropic', { usage: { [key]: laneFact } } as never, NOW) === undefined && sessionWindowClosedUntil('openai', { usage: { [key]: laneFact } } as never, NOW) === undefined)
     const laneFacts = liveFactsForSessionFire({ family, source: 'api-key' }, 'sess-x', { presenceOf: () => ({ credentialed: true, kind: 'api-key' as const }), factsOf: () => ({ usage: { [key]: laneFact } }) as never, now: () => NOW })
     check(`the ${family} session's fire-time facts keep its window out of the dispatch decision`, laneFacts.credentialed && laneFacts.rateLimitedUntil === undefined, JSON.stringify(laneFacts))
     const laneOnWire = wire.sessionFactsToWire({ model: { effective: `${family}-fixture`, setting: null }, usage: { ...zeros, [key]: laneFact }, identity: { firstPartyApi: false, consoleBilling: false, claudeAiBilling: false, accountEmail: null }, skills: [], mcp: [], permissionMode: 'default', workspace: {}, queue: [] } as never) as { usage?: Record<string, unknown> }
