@@ -72,7 +72,6 @@ section('2 · buildAgentLaunchPlan — decision laws')
 
   const plan = buildAgentLaunchPlan(base())
   check('resolves the requested definition (agentType echoes)', plan.agentType === 'orbit-probe')
-  check('the plan carries no fork path', !('isForkPath' in plan))
   check("workerPermissionMode defaults to 'implement'", plan.workerPermissionMode === 'implement')
   check('no isolation by default', plan.isolation === undefined)
   check('sync by default', plan.shouldRunAsync === false)

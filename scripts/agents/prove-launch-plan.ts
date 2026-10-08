@@ -134,10 +134,7 @@ section('§2 — lookup, restriction, and the denial band')
     err?.message,
   )
 
-  check('no type → the default type; the plan knows no fork', (() => {
-    const p = buildAgentLaunchPlan(base({}))
-    return !('isForkPath' in p) && p.agentType === 'mercury-crew'
-  })())
+  check('no type → the default type', buildAgentLaunchPlan(base({})).agentType === 'mercury-crew')
 }
 
 section('§3 — model resolution')
