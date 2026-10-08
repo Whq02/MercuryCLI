@@ -391,7 +391,8 @@ function writtenVariables(argv: string[]): string[] {
     }
   }
   if (name === 'getopts') {
-    if (operands[1] !== undefined) written.push(operands[1])
+    const destination = operands[operands[0] === '--' ? 2 : 1]
+    if (destination !== undefined) written.push(destination)
     written.push('OPTARG', 'OPTIND')
   }
   return written.map(variable => variable.replace(/\[.*$/, '')).filter(variable => IDENTIFIER_RE.test(variable))
