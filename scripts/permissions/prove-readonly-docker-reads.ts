@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/tools/BashTool/readOnlyValidation.ts src/utils/shell/readOnlyCommandValidation.ts
+// gate-watch: src/tools/BashTool/readOnlyValidation.ts src/utils/shell/readOnlyCommandValidation.ts src/tools/PowerShellTool/readOnlyValidation.ts src/tools/AgentTool/scoutPolicy.ts src/tools/BashTool/BashTool.tsx
 import { mkdirSync, mkdtempSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -107,6 +107,98 @@ for (const command of ['docker ps', 'docker ps -a', 'docker images -q', 'docker 
   check(`PowerShell read-only: ${command}`, psReadsOnly(command))
 }
 for (const command of ['docker', 'docker run -it ubuntu bash', 'docker rm -f web', 'docker exec -it web sh', 'docker ps --wipe', 'docker images --unknown']) {
+  check(`PowerShell asks: ${command}`, !psReadsOnly(command))
+}
+
+console.log('6. the shape of the words never widens the read: spacing, case, a path to docker, a wrapper, a global flag, a substitution, a separator')
+const SHAPED_READS = [
+  'docker  ps',
+  'docker\tps',
+  'docker\t\tlogs\tweb',
+  'docker ps \\\n -a',
+  'docker "ps"',
+  "docker 'ps'",
+  'docker inspect --format={{.Id}} web',
+  'docker ps --filter=status=running',
+  'docker logs --tail=50 web',
+  'docker ps && docker ps',
+  'cd /tmp && docker ps',
+  'docker logs web >/dev/null',
+  'docker logs web 2>/dev/null',
+]
+for (const command of SHAPED_READS) check(`read-only: ${JSON.stringify(command)}`, readsOnly(command, command.startsWith('cd ')))
+const SHAPED_ASKS = [
+  'docker ps;rm -rf x',
+  'docker ps\ndocker rm web',
+  'docker ps -a; docker rm web',
+  'docker ps&&docker rm web',
+  'docker ps||docker rm web',
+  'docker ps & docker rm web',
+  'docker images; docker rmi x',
+  'DOCKER ps',
+  'docker.exe ps',
+  'dockerd',
+  'docker-compose up',
+  '/usr/bin/docker ps',
+  '/usr/bin/docker run -it ubuntu bash',
+  'env docker run -it ubuntu bash',
+  'timeout 5 docker run -it ubuntu bash',
+  'nice docker exec -it web sh',
+  'sudo docker ps',
+  'DOCKER_HOST=tcp://evil:2375 docker ps',
+  'docker --host tcp://evil:2375 ps',
+  'docker -H tcp://evil:2375 ps',
+  'docker --context evil ps',
+  'docker --config /x ps',
+  'docker -D ps',
+  "docker ps --format '{{.Names}}' | xargs docker rm",
+  'docker ps -a|xargs docker rm',
+  'docker ps -q | xargs docker stop',
+  'docker logs $(cat x)',
+  "docker inspect --format '{{.Mounts}}' $(docker ps -q)",
+  'docker inspect `docker ps -q`',
+  'docker ps `rm x`',
+  'docker ${X} ps',
+  'docker inspect $CONTAINER',
+  'docker ps --filter "name=$(whoami)"',
+  "docker 'rm' web",
+  'docker "rm" web',
+  "docker r'm' web",
+  'docker inspect web --format "{{.Id}}" --rm',
+  'docker container ls',
+  'docker image ls',
+  'docker logs web | sh',
+  'docker ps | tee /tmp/x',
+  'docker ps > /etc/x',
+  'docker logs web > out.txt',
+  'docker logs -f web &',
+  'docker ps >(cat)',
+  'docker ps <(cat)',
+  'echo $(docker ps)',
+  'docker\nps',
+]
+for (const command of SHAPED_ASKS) check(`asks: ${JSON.stringify(command)}`, !readsOnly(command))
+
+console.log('7. the read-only scout refuses the same forms and runs the same reads')
+delete process.env.NODE_ENV
+const { enableConfigs } = await import('../../src/utils/config.js')
+enableConfigs()
+await import('../../src/Tool.js')
+const { scoutRefusal } = await import('../../src/tools/AgentTool/scoutPolicy.js')
+const { BashTool } = await import('../../src/tools/BashTool/BashTool.js')
+const scoutRuns = (command: string): boolean => scoutRefusal(BashTool as never, { command }) === null
+for (const command of [...READS, ...SHAPED_READS]) check(`scout runs: ${JSON.stringify(command)}`, scoutRuns(command))
+for (const command of [...WRITES, ...SHAPED_ASKS]) check(`scout refuses: ${JSON.stringify(command)}`, !scoutRuns(command))
+for (const command of ['docker run -it ubuntu bash', 'docker --host tcp://evil:2375 ps', 'docker ps\ndocker rm web']) {
+  const words = scoutRefusal(BashTool as never, { command })
+  check(`the scout's refusal of ${JSON.stringify(command)} names docker's form`, words !== null && words.includes('is not a read-only form of `docker`'), words ?? 'null')
+}
+
+console.log('8. PowerShell resolves the name as Windows does and refuses the same global flags and expansions')
+for (const command of ['DOCKER ps', 'docker.exe ps', 'Docker.EXE images -q', 'docker PS', 'docker inspect --format {{.Id}} web', 'docker ps -a -q']) {
+  check(`PowerShell read-only: ${command}`, psReadsOnly(command))
+}
+for (const command of ['docker.exe rm web', 'docker RM web', 'docker logs $env:NAME', 'docker ps --format $x', 'docker --host tcp://evil:2375 ps', 'docker -H tcp://evil:2375 ps', 'docker --context evil ps', 'docker container ls', 'docker image ls', 'docker compose ps', 'C:\\Program Files\\Docker\\docker.exe ps', '.\\docker.exe ps']) {
   check(`PowerShell asks: ${command}`, !psReadsOnly(command))
 }
 
