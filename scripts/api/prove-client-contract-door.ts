@@ -94,9 +94,9 @@ for (const [label, ua] of agents) {
 const tracked = execSync('git ls-files -z -- src', { cwd: ROOT }).toString('utf8').split('\0').filter(Boolean)
 const srcOf = (p: string): string => readFileSync(join(ROOT, p), 'utf8')
 {
-  const homes = tracked.filter(p => /ANTHROPIC_CLIENT_CONTRACT_(?:VERSION|AS_OF)|getAnthropicClientContractVersion|describeAnthropicClientContract/.test(srcOf(p))).sort()
+  const homes = tracked.filter(p => /\.tsx?$/.test(p) && /ANTHROPIC_CLIENT_CONTRACT_(?:VERSION|AS_OF)|getAnthropicClientContractVersion|describeAnthropicClientContract/.test(srcOf(p))).sort()
   const expected = ['src/constants/oauth.ts', 'src/constants/system.ts', 'src/services/api/clientContractLearned.ts', 'src/services/providers/anthropic/modelRefusal.ts', 'src/substrate/flagRegistry.ts', 'src/utils/healthReport.ts']
-  check('the contract version has exactly its six declared homes in src (a seventh is a leak)', JSON.stringify(homes) === JSON.stringify(expected), homes.join(', '))
+  check('the contract version has exactly its six declared code homes in src (a seventh is a leak; the bundled skill prose may name it)', JSON.stringify(homes) === JSON.stringify(expected), homes.join(', '))
   const clientSrc = readFileSync(join(ROOT, 'src/services/api/client.ts'), 'utf8')
   check("the first-party client's agent is the product agent at source", clientSrc.includes("'User-Agent': getUserAgent()"))
   const httpSrc = readFileSync(join(ROOT, 'src/utils/http.ts'), 'utf8')
