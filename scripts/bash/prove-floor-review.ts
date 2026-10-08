@@ -45,6 +45,7 @@ if (!group || group === 'writers') {
     'x=cat; printf -v x %s rm; $x -rf victim',
     'x=cat; printf -vx %s rm; $x -rf victim',
     'x=cat; getopts r x -r; $x victim',
+    'x=cat; getopts -- r x -r; $x victim',
     'OPTARG=cat; getopts r: flag -r rm; $OPTARG victim',
     'x=cat; wait -p x 1; $x victim',
     'x=cat; wait -npx 1; $x victim',
