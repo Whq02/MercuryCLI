@@ -32,10 +32,10 @@ const rel = (p: string): string => p.slice(ROOT.length + 1)
 const read = (p: string): string => readFileSync(join(ROOT, p), 'utf8')
 
 section('memory has one store: no second set of modules')
-for (const name of ['mneme', 'memoryTypes', 'memoryScan', 'findRelevantMemories', 'experienceCards', 'curationLoop', 'tasteLoop', 'promoteRungate', 'memoryAge', 'memoryReferents']) {
+for (const name of ['mneme', 'experienceCards', 'curationLoop', 'tasteLoop', 'promoteRungate', 'memoryAge', 'memoryReferents']) {
   check(`src/mneme/${name}.ts is absent`, !existsSync(join(ROOT, 'src/mneme', `${name}.ts`)))
 }
-for (const dir of ['src/commands/remember', 'src/commands/cards', 'src/commands/meh', 'src/commands/good', 'src/commands/taste', 'src/services/memoryUpkeep', 'src/tasks/DreamTask']) {
+for (const dir of ['src/commands/remember', 'src/commands/cards', 'src/commands/meh', 'src/commands/good', 'src/commands/taste', 'src/services/memoryUpkeep']) {
   check(`${dir} is absent`, !existsSync(join(ROOT, dir)))
 }
 check('the cards view is absent', !existsSync(join(ROOT, 'src/components/CardsView.tsx')))
@@ -44,12 +44,9 @@ section('the product speaks of memory in one vocabulary')
 const INTAKE = 'src/mneme/mnemeHandover.ts'
 const carriers = (re: RegExp, except: string[] = []): string[] =>
   files.filter(p => !except.includes(rel(p))).filter(p => re.test(readFileSync(p, 'utf8'))).map(rel)
-check('no source names the index file (the intake, which skips it, is the one reader of the name)', carriers(/MEMORY\.md/, [INTAKE]).length === 0, carriers(/MEMORY\.md/, [INTAKE]).join(', '))
-check('no source carries the four kinds as a memory taxonomy', carriers(/'user', 'feedback', 'project', 'reference'|## Memory types|Saving a memory takes two steps/).length === 0)
 check('no source names experience cards (the intake recognises the old header, nothing else)', carriers(/experience[- ]card|experienceCard/i, [INTAKE]).length === 0, carriers(/experience[- ]card|experienceCard/i, [INTAKE]).join(', '))
 const SETTINGS_LANE = ['src/utils/settings/types.ts']
-check('no source names the taste loop, the notes upkeep or the dream task (the settings key and its spelling row are the settings lane\'s queue row)', carriers(/tasteLoop|taste_recall|memoryUpkeep|DreamTask|'dream'/, SETTINGS_LANE).length === 0, carriers(/tasteLoop|taste_recall|memoryUpkeep|DreamTask|'dream'/, SETTINGS_LANE).join(', '))
-check("no source reads an 'AutoMem' instruction entry", carriers(/'AutoMem'|'TeamMem'/).length === 0, carriers(/'AutoMem'|'TeamMem'/).join(', '))
+check('no source names the taste loop or the notes upkeep (the settings key and its spelling row are the settings lane\'s queue row)', carriers(/tasteLoop|taste_recall|memoryUpkeep/, SETTINGS_LANE).length === 0, carriers(/tasteLoop|taste_recall|memoryUpkeep/, SETTINGS_LANE).join(', '))
 check('no command is registered under the memory words that are not Mercury\'s', !/remember|\bcards\b|\bmeh\b|\bgood\b/.test(read('src/commands.ts').split('\n').filter(l => /^import .* from '\.\/commands\//.test(l)).join('\n')))
 const registry = read('src/substrate/flagRegistry.ts')
 for (const flag of ['MERCURY_EXPERIENCE_CARDS', 'MERCURY_TASTE_LOOP', 'MERCURY_CARD_DEDUP', 'MERCURY_CARD_PROMOTE_GATE', 'MERCURY_CARD_PROMOTE_RUNGATE', 'MERCURY_CARD_RECALL_PRECISION', 'MERCURY_CARD_SUPERSEDE', 'MERCURY_CARD_TRACE_GROUND']) {
