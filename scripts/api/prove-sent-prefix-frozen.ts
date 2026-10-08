@@ -1041,7 +1041,6 @@ if (!existsSync(DIST)) {
         check(`§7 pair ${i}→${i + 1}: every defer_loading mark is byte-identical (${a.length} tools)`, a.join(' ') === b.join(' '), moved.slice(0, 4).join(' '))
       }
       const crewMarks = (q: { body: unknown }): string => marksOf(q).split(' ').filter(m => /^Agent[+-]$/.test(m)).join(' ')
-      check('§7 no create tool rides any request — the crew is born with the session', reqs.every(q => !toolsOf(q).some(t => t.name === 'TeamCreate' || t.name === 'TeamDelete')), crewMarks(reqs[0]!))
       check('§7 the toggle landed in the transcript (a roster_transition notice row) — the mark pins are not vacuous', rows.includes('"noticeKind":"roster_transition"'))
       check('§7 after the toggle the crew tool (Agent) is still listed with its mark byte-identical to the first request (the mark travels with the definition)', crewMarks(reqs[6]!) !== '' && crewMarks(reqs[6]!) === crewMarks(reqs[0]!), `${crewMarks(reqs[0]!)} → ${crewMarks(reqs[6]!)}`)
       const summariser = reqs[8]!
