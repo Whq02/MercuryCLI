@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { MAX_PDF_PAGES_PER_REQUEST } from '../../src/tools/FileReadTool/prompt.ts'
+import { LINE_FORMAT_INSTRUCTION, MAX_PDF_PAGES_PER_REQUEST, OFFSET_INSTRUCTION_DEFAULT, renderPromptTemplate } from '../../src/tools/FileReadTool/prompt.ts'
 
 const source = readFileSync(join(import.meta.dir, '../../src/tools/FileReadTool/FileReadTool.ts'), 'utf8')
 const guard = source.match(/const pageCount = await getPDFPageCount\(resolvedPath\)\s+if \(([^\n]+)\) \{/)
@@ -18,5 +18,10 @@ if (guard) {
     }
   }
 }
+const described = renderPromptTemplate(LINE_FORMAT_INSTRUCTION, '', OFFSET_INSTRUCTION_DEFAULT, { pdf: true, images: true })
+const pdfSentence = described.split('\n').find(line => line.includes('PDFs with more than')) ?? ''
+const thresholds = [...pdfSentence.matchAll(/more than (\d+) pages/g)].map(m => Number(m[1]))
+check('the Read description states the whole-PDF gate the product holds', thresholds.length === 1 && thresholds[0] === MAX_PDF_PAGES_PER_REQUEST, pdfSentence || 'no PDF sentence')
+check(`the description names ${MAX_PDF_PAGES_PER_REQUEST} as the per-request maximum and no other page count`, [...pdfSentence.matchAll(/(\d+) pages/g)].every(m => Number(m[1]) === MAX_PDF_PAGES_PER_REQUEST), pdfSentence)
 console.log(`pdf-window-constant: ${failures} failures`)
 process.exit(failures ? 1 : 0)

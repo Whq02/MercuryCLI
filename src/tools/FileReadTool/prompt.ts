@@ -7,8 +7,6 @@ export const MAX_LINES_TO_READ = 2000
 
 export const MAX_PDF_PAGES_PER_REQUEST = 20
 
-export const PDF_INLINE_PAGE_THRESHOLD = 10
-
 export const DESCRIPTION = 'Read the contents of a local file.'
 
 export const LINE_FORMAT_INSTRUCTION =
@@ -41,7 +39,7 @@ export function renderPromptTemplate(
     ? `- Image files (PNG, JPG, and similar) are presented visually: Mercury is a multimodal LLM and sees the picture itself.`
     : `- Image files (PNG, JPG, and similar) cannot be shown to the current model — an image read returns an \`[image]\` placeholder, not the picture. Report that honestly rather than describing pixels you never saw.`
   const pdfLines = media.pdf
-    ? `\n- This tool can read PDF files. PDFs with more than ${PDF_INLINE_PAGE_THRESHOLD} pages REQUIRE the \`pages\` parameter (e.g. "1-5"); reading a large PDF without it will fail. At most ${MAX_PDF_PAGES_PER_REQUEST} pages can be requested at once.`
+    ? `\n- This tool can read PDF files. PDFs with more than ${MAX_PDF_PAGES_PER_REQUEST} pages REQUIRE the \`pages\` parameter (e.g. "1-5"); reading a large PDF without it will fail. At most ${MAX_PDF_PAGES_PER_REQUEST} pages can be requested at once.`
     : ''
   const screenshotLine = media.images
     ? `\n- Screenshot paths arrive often; when the user supplies one, ALWAYS open it with this tool — temporary file paths work fine.`
