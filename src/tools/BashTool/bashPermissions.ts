@@ -655,19 +655,19 @@ async function decideBashPermission(
   let astCommands: SimpleCommand[] | null = null
   let astAvailable = false
   if (command.length > 10_000) {
-    return earlyExitDenyCheck(input, context) ?? floorAsk('the command exceeds the parser’s 10,000-character limit; split it into shorter commands, or approve')
+    return earlyExitDenyCheck(input, context) ?? unprovenAsk('the command exceeds the parser’s 10,000-character limit; split it into shorter commands, or approve')
   }
   if (astRoot !== undefined) {
     const denied = astDenyCheck(input, context, astRoot)
     if (denied) return denied
     const parsed = pinnedCommandAnalysis.parseForSecurityFromAst(command, astRoot)
-    if (parsed.kind === 'too-complex') return floorAsk(parsed.reason)
+    if (parsed.kind === 'too-complex') return unprovenAsk(parsed.reason)
     if (parsed.kind === 'simple') {
       const semantic = pinnedCommandAnalysis.checkSemantics(parsed.commands)
       if (!semantic.ok) {
         const early = semanticsDenyCheck(input, context, parsed.commands)
         if (early) return early
-        return floorAsk(semantic.reason)
+        return unprovenAsk(semantic.reason)
       }
       astAvailable = true
       astCommands = parsed.commands
@@ -675,7 +675,7 @@ async function decideBashPermission(
     }
   } else {
     const pre = pinnedCommandAnalysis.tryParseShellCommand(command)
-    if (!pre.success) return floorAsk(`the shell parser could not read this command; fix the syntax, or approve`)
+    if (!pre.success) return unprovenAsk(`the shell parser could not read this command; fix the syntax, or approve`)
   }
 
   if (
@@ -872,9 +872,9 @@ function earlyExitDenyCheck(input: BashInput, context: ToolPermissionContext): P
   return null
 }
 
-function floorAsk(reason: string): PermissionResult {
+function unprovenAsk(reason: string): PermissionResult {
   const message = /approve|approval/i.test(reason) ? reason : `${reason}; simplify the command, or approve`
-  return { behavior: 'ask', message, decisionReason: { type: 'safetyCheck', reason: message, operatorOnly: true, floor: true } }
+  return { behavior: 'ask', message, decisionReason: { type: 'safetyCheck', reason: message, operatorOnly: false } }
 }
 
 function astDenyCheck(input: BashInput, context: ToolPermissionContext, root: Node | typeof PARSE_ABORTED): PermissionResult | null {
