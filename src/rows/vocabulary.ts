@@ -318,7 +318,6 @@ export const CompactionRowSchema = lazySchema(() =>
     summary_tokens: z.number().optional(),
     summary_cap_tokens: z.number().optional(),
     attempt: z.number().optional(),
-    retry_why: z.enum(['refused']).optional(),
     exit: z.enum(['landed', 'cancelled', 'failed']).optional(),
     tokens_before: z.number().optional(),
   }),

@@ -116,7 +116,7 @@ export type CompactProgressEvent =
   | { type: 'compact_end' }
   | { type: 'stage'; stage: 'session-memory' | 'micro-compaction' | 'summarising' | 'restoring' }
   | { type: 'summary_progress'; chars: number }
-  | { type: 'retry'; attempt: number; why?: 'refused' }
+  | { type: 'retry'; attempt: number }
 
 export type Progress = ToolProgressData | HookProgress
 

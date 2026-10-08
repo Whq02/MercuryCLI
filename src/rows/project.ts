@@ -372,7 +372,6 @@ export function compactionRow(scope: RowScope, fold: FoldStatusV1 | null, trigge
     summary_tokens: fold.summaryTokens,
     summary_cap_tokens: fold.summaryCapTokens,
     attempt: fold.attempt,
-    ...(fold.retryWhy !== undefined ? { retry_why: fold.retryWhy } : {}),
     ...(fold.exit !== undefined ? { exit: fold.exit } : {}),
   })
 }
