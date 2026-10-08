@@ -126,7 +126,7 @@ const SHAPED_READS = [
   'docker logs web >/dev/null',
   'docker logs web 2>/dev/null',
 ]
-for (const command of SHAPED_READS) check(`read-only: ${JSON.stringify(command)}`, readsOnly(command, command.startsWith('cd ')))
+for (const command of SHAPED_READS) check(`read-only: ${JSON.stringify(command)}`, await readsOnly(command, command.startsWith('cd ')))
 const SHAPED_ASKS = [
   'docker ps;rm -rf x',
   'docker ps\ndocker rm web',
@@ -177,7 +177,7 @@ const SHAPED_ASKS = [
   'echo $(docker ps)',
   'docker\nps',
 ]
-for (const command of SHAPED_ASKS) check(`asks: ${JSON.stringify(command)}`, !readsOnly(command))
+for (const command of SHAPED_ASKS) check(`asks: ${JSON.stringify(command)}`, !(await readsOnly(command)))
 
 console.log('7. the read-only scout refuses the same forms and runs the same reads')
 delete process.env.NODE_ENV
@@ -186,11 +186,11 @@ enableConfigs()
 await import('../../src/Tool.js')
 const { scoutRefusal } = await import('../../src/tools/AgentTool/scoutPolicy.js')
 const { BashTool } = await import('../../src/tools/BashTool/BashTool.js')
-const scoutRuns = (command: string): boolean => scoutRefusal(BashTool as never, { command }) === null
-for (const command of [...READS, ...SHAPED_READS]) check(`scout runs: ${JSON.stringify(command)}`, scoutRuns(command))
-for (const command of [...WRITES, ...SHAPED_ASKS]) check(`scout refuses: ${JSON.stringify(command)}`, !scoutRuns(command))
+const scoutRuns = async (command: string): Promise<boolean> => await scoutRefusal(BashTool as never, { command }) === null
+for (const command of [...READS, ...SHAPED_READS]) check(`scout runs: ${JSON.stringify(command)}`, await scoutRuns(command))
+for (const command of [...WRITES, ...SHAPED_ASKS]) check(`scout refuses: ${JSON.stringify(command)}`, !(await scoutRuns(command)))
 for (const command of ['docker run -it ubuntu bash', 'docker --host tcp://evil:2375 ps', 'docker ps\ndocker rm web']) {
-  const words = scoutRefusal(BashTool as never, { command })
+  const words = await scoutRefusal(BashTool as never, { command })
   check(`the scout's refusal of ${JSON.stringify(command)} names docker's form`, words !== null && words.includes('is not a read-only form of `docker`'), words ?? 'null')
 }
 
