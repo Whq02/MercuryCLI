@@ -41,6 +41,7 @@
 # gate-watch: src/components/agents/studio/StudioEditor.tsx src/components/agents/studio/AgentStudio.tsx src/components/BootAgentsScreen.tsx
 # gate-watch: src/rows/* src/runner/wire/*
 # gate-watch: scripts/lib/seatDoor.ts scripts/lib/hermetic.ts
+# gate-watch: scripts/bash/floor-proof-helpers.ts
 # gate-watch: src/utils/wards/wards.ts src/utils/windowsPaths.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
