@@ -212,6 +212,15 @@ function previousGenerationMidRows(): ModelOption[] {
   return rows
 }
 
+function previousGenerationSmallRows(): ModelOption[] {
+  const strings = getModelStrings()
+  const currentSmall = normalizeModelStringForAPI(parseUserSpecifiedModel('haiku'))
+  return previousGenerationKeys('haiku')
+    .map(key => strings[key])
+    .filter(id => normalizeModelStringForAPI(id) !== currentSmall)
+    .map(id => literalRow(id, ''))
+}
+
 function premiumSubscriberTierRows(): ModelOption[] {
   const rows: ModelOption[] = []
   rows.push(getFableOption())
@@ -221,6 +230,7 @@ function premiumSubscriberTierRows(): ModelOption[] {
   rows.push(aliasRow('sonnet', ''))
   rows.push(...previousGenerationMidRows())
   rows.push(aliasRow('haiku', ''))
+  rows.push(...previousGenerationSmallRows())
   return rows
 }
 
@@ -233,6 +243,7 @@ function standardShapeTierRows(): ModelOption[] {
   rows.push(aliasRow('opus', ''))
   rows.push(...previousGenerationLargeRows())
   rows.push(aliasRow('haiku', ''))
+  rows.push(...previousGenerationSmallRows())
   return rows
 }
 
