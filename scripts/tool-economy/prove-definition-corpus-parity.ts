@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { mock, setSystemTime } from 'bun:test'
 import { execFileSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
-import { readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
@@ -12,15 +12,18 @@ setSystemTime(new Date('2026-10-07T12:00:00.000Z'))
 
 const root = join(import.meta.dir, '..', '..')
 const fixture = join(import.meta.dir, 'fixtures', 'definition-corpus.json')
-const base = '2c8bb4b207d4ad93beedcad9a70e21e5dd61f388'
 const model = 'gpt-6-astra'
-const record = process.argv.includes('--record-once')
+const record = process.argv.includes('--record')
 const git = (...args: string[]): string => execFileSync('git', args, { cwd: root, encoding: 'utf8' }).trim()
+type Corpus = { base: string; model: string; definitions: unknown[] }
+const recorded: Corpus | null = existsSync(fixture) ? (JSON.parse(readFileSync(fixture, 'utf8')) as Corpus) : null
 
 if (record) {
-  assert.equal(git('rev-parse', 'HEAD'), base, 'the corpus is recorded only at its base')
-  assert.equal(git('diff', '--name-only', 'HEAD', '--', 'src'), '', 'record before changing product source')
+  assert.equal(git('diff', '--name-only', 'HEAD', '--', 'src'), '', 'record from a committed product tree')
+} else {
+  assert.notEqual(recorded, null, 'the corpus is recorded (bun scripts/tool-economy/prove-definition-corpus-parity.ts --record)')
 }
+const base = record ? git('rev-parse', 'HEAD') : (recorded as Corpus).base
 
 const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
 enableConfigs()
@@ -56,8 +59,13 @@ for (const tool of tools) {
 }
 const bytes = JSON.stringify({ base, model, definitions }, null, 2) + '\n'
 if (record) {
-  writeFileSync(fixture, bytes, { flag: 'wx' })
-  console.log('RECORDED 58 definitions from the base')
+  writeFileSync(fixture, bytes)
+  console.log(`RECORDED 58 definitions at ${base}`)
 }
+const moved = tools
+  .map((tool, i) => (JSON.stringify(definitions[i]) === JSON.stringify((recorded ?? { definitions }).definitions[i]) ? null : tool.name))
+  .filter((name): name is string => name !== null)
+if (record) console.log(moved.length === 0 ? 'no definition moved since the previous recording' : `moved since the previous recording (list the diff in the fold log): ${moved.join(', ')}`)
+else assert.deepEqual(moved, [], `a definition moved since the recording at ${base} — re-record with --record and list the diff: ${moved.join(', ')}`)
 assert.equal(bytes, readFileSync(fixture, 'utf8'), 'every definition remains byte-identical in catalogue order')
 console.log(`PASS CORPUS 58 definitions identical; ${Buffer.byteLength(bytes)} bytes; sha256 ${createHash('sha256').update(bytes).digest('hex')}`)
