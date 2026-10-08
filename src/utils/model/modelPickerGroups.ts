@@ -153,16 +153,10 @@ function doorLines<T extends PickerRow>(group: PickerGroup<T>, rows: readonly T[
 
 function topRows<T extends PickerRow>(group: PickerGroup<T>, listed: readonly T[]): T[] {
   if (group.doors.length < 2) return listed.slice(0, PICKER_TOP_ROWS)
-  const shown = new Set<T>()
-  for (const door of group.doors) {
-    const first = listed.find(row => (row.door ?? group.doors[0]) === door)
-    if (first !== undefined) shown.add(first)
-  }
-  for (const row of listed) {
-    if (shown.size >= PICKER_TOP_ROWS) break
-    shown.add(row)
-  }
-  return listed.filter(row => shown.has(row))
+  const ids: string[] = []
+  for (const row of listed) if (!ids.includes(row.id)) ids.push(row.id)
+  const top = new Set(ids.slice(0, PICKER_TOP_ROWS))
+  return listed.filter(row => top.has(row.id))
 }
 
 function reachOfGroup<T extends PickerRow>(group: PickerGroup<T>, fullRows: (group: string) => T[] | undefined): readonly T[] {
