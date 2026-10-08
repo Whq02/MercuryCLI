@@ -75,7 +75,10 @@ t.section('§2 — THE ONE NAME stands where the second name stood')
   t.check('the footer and the close receipt say /logins', login.includes('esc closes /logins') && login.includes("'/logins closed — no credential changed'"))
   const row = read('src/substrate/flagRegistry.ts').split('\n').find(l => l.includes("env: 'MERCURY_LOGIN_COMMAND'")) ?? ''
   t.check('the flag keeps its env name and its words say /logins', row.includes("summary: 'the /logins command; =0 removes it'") && row.includes("off: '=0 no /logins'"), row.slice(0, 160))
-  t.check('the bundled skill and its source say /logins', read('src/skills/bundled/provider-apis/SKILL.md').includes('Use `/logins` and `/accounts`') && read('mercury-skills/provider-apis/SKILL.md').includes('Use `/logins` and `/accounts`'))
+  t.check('the bundled skill and its source name the current sign-in and account commands only', ['src/skills/bundled/provider-apis/SKILL.md', 'mercury-skills/provider-apis/SKILL.md'].every(path => {
+    const text = read(path)
+    return text.includes('`/logins`') && text.includes('`/accounts`') && !STRAY[0]!.re.test(text)
+  }))
   t.check("the face's own title is logins", read('src/components/BootLoginsScreen.tsx').includes("title: 'logins'") && read('src/components/BootLoginsScreen.tsx').includes("summaryTitle: 'LOGINS'"))
 }
 
