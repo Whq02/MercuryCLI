@@ -527,6 +527,7 @@ export function changedRunnerSelection(profile: RunnerProfile): ChangedSelection
 export interface RunnerRunOptions {
   from?: string
   selection?: string
+  selectionKind?: 'node' | 'path'
   selectionLabel?: string
   argvOverride?: string[]
   onOutput?: (view: { tail: string; lines: number }, elapsedMs: number) => void
@@ -572,16 +573,23 @@ export async function runRunnerProfile(
   } else if (opts.selection) {
     switch (profile.selection) {
       case 'node-pattern':
-        argv.push('--test-name-pattern', opts.selection)
+        if (opts.selectionKind === 'path') argv.push(opts.selection)
+        else argv.push('--test-name-pattern', opts.selection)
         break
       case 'file':
         argv.push(opts.selection)
         break
       case 'cargo-filter':
-        argv.push(opts.selection)
-        break
       case 'go-pattern':
-        argv.splice(argv.length - 1, 0, '-run', opts.selection)
+        if (opts.selectionKind === 'path') {
+          return {
+            state: 'unavailable',
+            reason: `profile '${profile.title}' selects tests by name, not by file`,
+            remedy: 'pass node (a test name from discover) instead of path, or run the profile whole',
+          }
+        }
+        if (profile.selection === 'cargo-filter') argv.push(opts.selection)
+        else argv.splice(argv.length - 1, 0, '-run', opts.selection)
         break
       case 'none':
         return {
