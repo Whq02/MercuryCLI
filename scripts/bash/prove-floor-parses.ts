@@ -41,5 +41,33 @@ check('concurrent identical parses share the same detached tree', (await one) ==
 const unicode = await ParsedCommand.parse('echo é😀 | cat > résultat.txt')
 check('multibyte pipe spans slice on the measured string coordinates', JSON.stringify(unicode?.getPipeSegments()) === JSON.stringify(['echo é😀', 'cat > résultat.txt']), JSON.stringify(unicode?.getPipeSegments()))
 check('multibyte redirection removal preserves the preceding source', unicode?.withoutOutputRedirections() === 'echo é😀 | cat', unicode?.withoutOutputRedirections())
+const { bashToolHasPermission } = await import('../../src/tools/BashTool/bashPermissions.js')
+const { getEmptyToolPermissionContext } = await import('../../src/Tool.js')
+async function decision(command: string, allow: string[] = [], deny: string[] = [], ask: string[] = []) {
+  return bashToolHasPermission({ command }, {
+    ...getEmptyToolPermissionContext(), mode: 'default',
+    alwaysAllowRules: { localSettings: allow }, alwaysDenyRules: { localSettings: deny }, alwaysAskRules: { localSettings: ask },
+  } as never)
+}
+for (const command of ['echo a && echo b', 'echo a | cat']) {
+  const result = await decision(command, [`Bash(${command})`], [], [`Bash(${command})`])
+  check(`a full-command ask beats read-only parts: ${command}`, result.behavior === 'ask', JSON.stringify(result))
+}
+const subAsks = await decision('echo a && echo b', ['Bash(echo a && echo b)'], [], ['Bash(echo *)'])
+check('subcommand asks beat a whole-command allow', subAsks.behavior === 'ask', JSON.stringify(subAsks))
+const redirectDeny = await decision('echo data > secret | python3 -', [], [`Edit(/${join(process.cwd(), 'secret')})`])
+check('redirect denies survive a pipe asking for another reason', redirectDeny.behavior === 'deny', JSON.stringify(redirectDeny))
+for (const command of ['HOME=/outside cat ~/file', 'CDPATH=/outside cd project', 'GIT_WORK_TREE=/outside git status']) {
+  const result = await decision(command, [`Bash(${command})`])
+  check(`an assignment cannot silently change the path context: ${command}`, result.behavior === 'ask', JSON.stringify(result))
+}
+const echoedStatus = await parseForSecurity('echo "rc=$?"')
+check('runtime status text is data in an echo argument, not a path', echoedStatus.kind === 'simple' && pinnedCommandAnalysis.checkSemantics(echoedStatus.commands).ok)
+const nestedDelete = await decision('echo "prefix$(rm -rf /)"', [], ['Bash(rm *)'])
+check('echo data handling never hides a nested executable command', nestedDelete.behavior === 'deny', JSON.stringify(nestedDelete))
+for (const command of ['cat "$((1+2))"', 'cat $((1+2))', 'cat *']) {
+  const result = await decision(command, ['Bash(cat *)'], [`Read(/${join(process.cwd(), '3')})`])
+  check(`an expansion is not its source spelling as a path: ${command}`, result.behavior === 'ask', JSON.stringify(result))
+}
 console.log(failures ? `prove-floor-parses: ${failures} FAILURE(S)` : 'prove-floor-parses: ALL LAWS HOLD')
 process.exit(failures ? 1 : 0)

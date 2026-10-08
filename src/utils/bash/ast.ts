@@ -535,6 +535,10 @@ class Walk {
     switch (node.type) {
       case 'word':
         refuseBraceExpansion(node)
+        for (let index = 0; index < node.text.length; index++) {
+          if (node.text[index] === '\\') { index++; continue }
+          if ('*?['.includes(node.text[index]!)) refuse('an unquoted wildcard expands to paths at runtime; quote it as text or spell out the paths, or approve', node.type)
+        }
         return unescapeWord(node.text)
       case 'number':
         if (node.children.length > 0) {
@@ -635,8 +639,8 @@ class Walk {
     if (!IDENTIFIER_RE.test(name)) {
       refuse(`assignment name ${JSON.stringify(name)} is not a valid shell identifier`, node.type)
     }
-    if (/^(?:PATH|LD_.*|DYLD_.*|BASH_ENV|ENV|SHELL|NODE_OPTIONS|PYTHONPATH|NODE_PATH|RUBYOPT|PERL5OPT|GIT_CONFIG.*|GIT_EXEC_PATH)$/.test(name)) {
-      refuse(`assignment to ${name} changes command lookup or startup code; run without that assignment, or approve`, node.type)
+    if (/^(?:PATH|LD_.*|DYLD_.*|BASH_ENV|ENV|SHELL|HOME|TMPDIR|PWD|OLDPWD|CDPATH|GLOBIGNORE|SHELLOPTS|BASHOPTS|NODE_OPTIONS|PYTHONPATH|NODE_PATH|RUBYOPT|PERL5OPT|GIT_CONFIG.*|GIT_EXEC_PATH|GIT_SSH|GIT_SSH_COMMAND|GIT_ASKPASS|GIT_PAGER|GIT_EXTERNAL_DIFF|GIT_DIR|GIT_WORK_TREE|GIT_OBJECT_DIRECTORY|GIT_ALTERNATE_OBJECT_DIRECTORIES|GIT_INDEX_FILE|GIT_COMMON_DIR|GIT_NAMESPACE)$/.test(name)) {
+      refuse(`assignment to ${name} changes shell lookup, path expansion or startup code; run without that assignment, or approve`, node.type)
     }
     if (name === 'IFS') refuse('assignment to IFS cannot be analyzed safely', node.type)
     if (name === 'PS4') {
@@ -1335,7 +1339,8 @@ const SEMANTIC_CHECKS: readonly SemanticCheck[] = [
 ]
 
 function commandRefusal(command: SimpleCommand): string | null {
-  if (command.argv.some(value => !isKnown(value)) || command.redirects.some(redirect => !isKnown(redirect.target))) {
+  const unknownArgument = command.argv.some((value, index) => !isKnown(value) && !(command.argv[0] === 'echo' && index > 0))
+  if (unknownArgument || command.redirects.some(redirect => !isKnown(redirect.target))) {
     return 'an argument or redirect contains runtime-determined content; spell out its value, or approve'
   }
   const peeled = peelWrappers(command.argv)
