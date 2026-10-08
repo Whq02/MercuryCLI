@@ -234,7 +234,7 @@ async function leg(cols: number, rows: number): Promise<void> {
   check(`${tag}: the view stays on the sleeper after the interrupt`, /(?:viewing|main chat:) sleeper ·/.test(headerRow(cut)), flat(headerRow(cut)).slice(0, 120))
   const back = marks['back'] ?? ''
   const backHeader = headerRow(back)
-  check(`${tag}: Mercury Lead in the rail goes back (the header reads the plain view, the lead's rows return)`, /VIEW/.test(backHeader) && !/viewing|main chat/.test(backHeader) && back.split('\n').some(line => centreText(line).includes('launching the sleeper')), flat(backHeader).slice(0, 160))
+  check(`${tag}: Mercury Lead in the rail goes back (the status row is the lead's own again — no viewing or main-chat clause, no crew way-back hints — and the lead's rows return)`, backHeader !== '' && !/viewing|main chat|composer → |in the rail/.test(backHeader) && back.split('\n').some(line => centreText(line).includes('launching the sleeper')), flat(backHeader).slice(0, 160))
   const leadRowBack = railRow(back, LEAD_ROW)
   check(`${tag}: Mercury Lead wears the view mark again`, leadRowBack !== undefined && /›/.test(leadRowBack), leadRowBack ?? 'no Mercury Lead row')
   const sleeperRowBack = railRow(back, SEAT_NAME)
