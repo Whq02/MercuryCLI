@@ -80,6 +80,28 @@ const localReason = { kind: 'screen', part: '\u0001', detail: localDetail }
 const localClause = `the command could not be verified as read-only — ${localDetail}`
 bindingRepins.set('local', [stable({ behavior: 'passthrough', message: localClause, notReadOnly: localReason }).replaceAll(JSON.stringify('\u0001'), OWN_TEXT), '', stable({ reason: localReason, clause: localClause }).replaceAll(JSON.stringify('\u0001'), OWN_TEXT), ''])
 
+const GLOB_SHAPES = ['*.ts', '?.ts', '[ab].ts']
+const CD_GUARD = 'A cd combined with git is not auto-allowed.'
+const cdGuardReading = stable({ behavior: 'passthrough', message: CD_GUARD, notReadOnly: { kind: 'git-guard', part: '\u0001', detail: CD_GUARD } }).replaceAll(JSON.stringify('\u0001'), OWN_TEXT)
+function pinGlobOperandRead(command: string): void {
+  bindingRepins.set(command, [stable({ behavior: 'allow' }), command.startsWith('git ') ? cdGuardReading : '', 'null', ''])
+}
+const GLOB_OPERAND_READS = [
+  'base64', 'basename', 'cal', 'cat', 'cd', 'cmp', 'column', 'comm', 'cut', 'df', 'diff', 'dirname', 'docker images', 'docker inspect', 'docker logs', 'docker ps',
+  'du', 'echo', 'expand', 'expr', 'false', 'fd', 'fdfind', 'file', 'find', 'fmt', 'fold', 'free', 'getconf', 'grep', 'grep x', 'groups', 'head', 'help', 'hexdump',
+  'id', 'info', 'jq', 'locale', 'ls', 'lsof', 'man', 'md5sum', 'netstat', 'nl', 'nproc', 'numfmt', 'od', 'paste', 'pgrep', 'pr', 'ps', 'pyright', 'readlink',
+  'realpath', 'rev', 'seq', 'sha1sum', 'sha256sum', 'sleep', 'sort', 'ss', 'stat', 'strings', 'tac', 'tail', 'test', 'tput', 'tr', 'tree', 'true', 'tsort', 'type',
+  'uname', 'unexpand', 'uptime', 'wc', 'which',
+  'git blame', 'git cat-file', 'git config --get', 'git describe', 'git diff', 'git for-each-ref', 'git grep', 'git log', 'git ls-files', 'git ls-remote',
+  'git merge-base', 'git reflog', 'git rev-list', 'git rev-parse', 'git shortlog', 'git show', 'git stash list', 'git stash show', 'git status', 'git worktree list',
+]
+for (const words of GLOB_OPERAND_READS) for (const shape of GLOB_SHAPES) pinGlobOperandRead(`${words} ${shape}`)
+for (const command of [
+  'cat scripts/journey-*/members.txt', 'cd *', 'cd ?', 'cd [ab]', 'du -sh *', 'echo \\e[31m', 'echo a*', 'echo a?', 'echo a[b]', 'find . -name *.ts',
+  'git status *', 'grep --include=*.ts x .', 'ls *', 'ls -d */', 'ls /tmp/a/*.txt | head -1', 'ls ?', 'ls [', 'ls "/tmp/a b/"*.txt | head -1', 'ls a[0]',
+  'tail view unexpectedly complete — spill semantics changed?', 'tr [:upper:] [:lower:]', 'wc -l *.ts',
+]) pinGlobOperandRead(command)
+
 const fixture: Fixture = existsSync(FIXTURE) ? (JSON.parse(readFileSync(FIXTURE, 'utf8')) as Fixture) : { verdicts: [], rows: [] }
 
 if (RECORD) {
