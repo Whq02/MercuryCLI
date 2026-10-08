@@ -39,7 +39,7 @@ export {
   splitCommandWithOperators,
   splitListSegments,
 } from '../../bash/commands.js'
-export { parseForSecurity, checkSemantics, preparedSecurityParse, preparedSimpleCommand, shellCommandText, peelWrappers } from '../../bash/ast.js'
+export { parseForSecurity, checkSemantics, preparedSecurityParse, preparedSimpleCommand, shellCommandText, peelWrappers, WILDCARD_REASON } from '../../bash/ast.js'
 export { preparedCommandRoot } from '../../bash/parser.js'
 export type { TreeSitterAnalysis } from '../../bash/treeSitterAnalysis.js'
 export { extractHeredocs } from '../../bash/heredoc.js'

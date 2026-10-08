@@ -12,7 +12,10 @@ export type SimpleCommand = {
   envVars: { name: string; value: string }[]
   redirects: Redirect[]
   text: string
+  globOperand?: true
 }
+
+export const WILDCARD_REASON = 'an unquoted wildcard expands to paths at runtime; quote it as text or spell out the paths, or approve'
 
 export type ParseForSecurityResult =
   | { kind: 'simple'; commands: SimpleCommand[] }
@@ -207,6 +210,16 @@ function refuseBraceExpansion(node: Node): void {
 function unescapeWord(text: string): string {
   return text.replace(/\\(.)/g, '$1')
 }
+
+function unquotedWildcard(text: string): boolean {
+  for (let index = 0; index < text.length; index++) {
+    if (text[index] === '\\') { index++; continue }
+    if ('*?['.includes(text[index]!)) return true
+  }
+  return false
+}
+
+type Operand = { glob: boolean }
 
 function unescapeQuoted(text: string): string {
   return text.replace(/\\([$`"\\])/g, '$1')
@@ -620,14 +633,14 @@ class Walk {
     return { value, sawLiteral, sawUnknown }
   }
 
-  argument(node: Node | null | undefined, scope: Scope): string {
+  argument(node: Node | null | undefined, scope: Scope, operand?: Operand): string {
     if (!node) refuse('missing argument node')
     switch (node.type) {
       case 'word':
         refuseBraceExpansion(node)
-        for (let index = 0; index < node.text.length; index++) {
-          if (node.text[index] === '\\') { index++; continue }
-          if ('*?['.includes(node.text[index]!)) refuse('an unquoted wildcard expands to paths at runtime; quote it as text or spell out the paths, or approve', node.type)
+        if (unquotedWildcard(node.text)) {
+          if (operand === undefined) refuse(WILDCARD_REASON, node.type)
+          operand.glob = true
         }
         return unescapeWord(node.text)
       case 'number':
@@ -643,7 +656,7 @@ class Walk {
       case 'concatenation': {
         refuseBraceExpansion(node)
         let value = ''
-        for (const child of node.children) value += this.argument(child, scope)
+        for (const child of node.children) value += this.argument(child, scope, operand)
         return value
       }
       case 'arithmetic_expansion':
@@ -750,6 +763,7 @@ class Walk {
     const argv: string[] = []
     const envVars: { name: string; value: string }[] = []
     const redirects: Redirect[] = []
+    const operand: Operand = { glob: false }
 
     for (const child of node.children) {
       switch (child.type) {
@@ -770,7 +784,7 @@ class Walk {
         case 'concatenation':
         case 'arithmetic_expansion':
         case 'simple_expansion':
-          argv.push(this.argument(child, scope))
+          argv.push(this.argument(child, scope, operand))
           break
         case 'file_redirect':
           redirects.push(this.redirect(child, scope))
@@ -794,7 +808,8 @@ class Walk {
       }
     }
 
-    this.commands.push({ argv, envVars, redirects, text: commandText(node.text, argv) })
+    const text = commandText(node.text, argv)
+    this.commands.push(operand.glob ? { argv, envVars, redirects, text, globOperand: true } : { argv, envVars, redirects, text })
     for (const name of writtenVariables(argv)) {
       if (LOOKUP_VARIABLE.test(name) || name === 'IFS' || name === 'PS4') {
         refuse(`${argv[0]} writes ${name}, changing shell lookup or expansion; use a different variable, or approve`, node.type)
