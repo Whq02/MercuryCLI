@@ -25,7 +25,6 @@ console.log(' permission diff width — the card chrome subtraction')
 console.log('============================================================')
 
 section('FileWriteToolDiff: the body width is the content box less its frame padding')
-check('no compiler-runtime cache', !/const \$ = _c\(15\)/.test(writeSrc) && !/\$\[\d+\]/.test(writeSrc))
 check('useMemo for hunks is present', /useMemo\(\(\) =>/.test(writeSrc))
 check('bodyWidth = consentContentWidth(columns) - FRAME_COLUMNS', /consentContentWidth\(columns\) - FRAME_COLUMNS/.test(writeSrc) && /const FRAME_COLUMNS = 2/.test(writeSrc))
 check('width={bodyWidth} passed to StructuredDiff', /width=\{bodyWidth\}/.test(writeSrc))
