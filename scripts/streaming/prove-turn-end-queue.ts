@@ -36,7 +36,7 @@ const READ_ASK = 'read three files please'
 const SLEEP_ASK = 'run the long sleep please'
 const LAUNCH_ASK = 'launch one agent please'
 const NOTICE_ASK = 'launch an errand and sleep please'
-const NOTICE_ROW = '● Agent "a quick errand" completed'
+const NOTICE_ROW = '● [Crewmate] a quick errand · completed · 1 line ›'
 const FIRST = 'first queued words'
 const SECOND = 'second queued words'
 
@@ -192,6 +192,13 @@ async function driveWire(route: 'openai' | 'anthropic', scene: 'hold' | 'tool' |
     const payload = JSON.parse(readFileSync(out, 'utf8')) as { grid: Array<Array<{ c: string }>>; marks?: Mark[] }
     for (const m of payload.marks ?? []) marks.set(m.label, gridText(m.grid))
     fin = gridText(payload.grid)
+  }
+  const framesAt = process.argv.indexOf('--frames')
+  if (framesAt >= 0 && process.argv[framesAt + 1] !== undefined && existsSync(out)) {
+    const destination = path.join(path.resolve(process.argv[framesAt + 1]!), `${route}-${scene}`)
+    mkdirSync(destination, { recursive: true })
+    writeFileSync(path.join(destination, 'grid.json'), readFileSync(out))
+    for (const [name, frame] of marks) writeFileSync(path.join(destination, `${name}.txt`), frame + '\n')
   }
   const wire: Wire[] = readFileSync(captureFile, 'utf8')
     .split('\n')

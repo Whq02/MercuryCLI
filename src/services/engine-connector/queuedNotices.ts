@@ -50,31 +50,45 @@ export function deliveredNoticeRow(row: Message, atMs: number): Message {
   return next
 }
 
-export function placeDeliveredNotices(rows: readonly Message[]): readonly Message[] {
-  const notices: Array<{ row: Message; at: number }> = []
-  const other: Message[] = []
+export function placeDeliveredNotices(rows: readonly Message[], committed?: ReadonlyMap<string, unknown>): readonly Message[] {
+  const out: Message[] = []
+  const waiting: Message[] = []
+  const landing: Message[] = []
+  let changed = false
   for (const row of rows) {
-    if (row.type === 'attachment' && row.attachment.type === 'queued_command' && row.attachment.commandMode === 'task-notification' && (row as { queued?: true }).queued !== true) {
+    if ((row as { queued?: true }).queued === true) {
+      waiting.push(row)
+      continue
+    }
+    if (row.type === 'attachment' && row.attachment.type === 'queued_command' && row.attachment.commandMode === 'task-notification') {
       const stamp = row.attachment.deliveredAt ?? row.timestamp
-      const at = Date.parse(stamp)
-      if (Number.isFinite(at)) {
-        notices.push({ row: stamp === row.timestamp ? row : { ...row, timestamp: stamp }, at })
+      if (Number.isFinite(Date.parse(stamp))) {
+        const projected = stamp === row.timestamp ? row : { ...row, timestamp: stamp }
+        if (committed?.has(row.uuid)) {
+          landing.push(projected)
+          changed = true
+        } else {
+          out.push(projected)
+          changed ||= waiting.length > 0 || stamp !== row.timestamp
+        }
         continue
       }
     }
-    other.push(row)
-  }
-  if (notices.length === 0) return rows
-  notices.sort((a, b) => a.at - b.at)
-  const out: Message[] = []
-  let next = 0
-  for (const row of other) {
-    const at = Date.parse(row.timestamp)
-    while (next < notices.length && notices[next]!.at < at) out.push(notices[next++]!.row)
+    for (const queued of waiting) out.push(queued)
+    waiting.length = 0
     out.push(row)
   }
-  while (next < notices.length) out.push(notices[next++]!.row)
-  return out
+  for (const queued of waiting) out.push(queued)
+  if (landing.length === 0) return changed ? out : rows
+  const placed: Message[] = []
+  let next = 0
+  for (const row of out) {
+    const at = Date.parse(deliveryClockOf(row) ?? '')
+    while (next < landing.length && ((row as { queued?: true }).queued === true || Date.parse(landing[next]!.timestamp) < at)) placed.push(landing[next++]!)
+    placed.push(row)
+  }
+  while (next < landing.length) placed.push(landing[next++]!)
+  return placed
 }
 
 function deliveryClockOf(row: Message): string | undefined {

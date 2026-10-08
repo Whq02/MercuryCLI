@@ -521,7 +521,9 @@ if (cap !== null) {
   const STATUS_WORDS = `(HTTP ${FAMILY_STATUS})`
   if (!INLINE || HANDOVER) {
     check(`A5 the parent's first notice for the lane is the calm paused line — status 'paused', the provider named as overloaded ${STATUS_WORDS}, Mercury's probing named — never 'failed: API Error' with the resume door`, first !== undefined && first.status === 'paused' && new RegExp(`paused — .* is overloaded \\(HTTP ${FAMILY_STATUS}\\); its work so far is kept and rides below; Mercury probes the provider for up to .* and resumes the agent by itself when it answers`).test(first.summary ?? '') && !(first.summary ?? '').includes('API Error') && !(first.summary ?? '').includes(OLD_DOOR), first === undefined ? '(no notice)' : `[${first.status}] ${flat(first.summary ?? '').slice(0, 200)}`)
-    check(`A6 the parent's chat painted that line once during the outage and no 'failed: API Error' line`, cap.marks.some(m => m.text.includes(`is overloaded ${STATUS_WORDS}`)) && !cap.marks.some(m => m.text.includes('failed: API Error')) && !cap.text.includes('failed: API Error'), cap.text.split('\n').filter(l => l.includes('●')).map(flat).slice(0, 6).join(' | ').slice(0, 400))
+    const pausedPlate = `[Crewmate] ${LANE_NAME} · paused · 2 lines`
+    const pauseRows = (frame: string): string[] => frame.split('\n').filter(line => line.includes(pausedPlate) && line.includes('›'))
+    check(`A6 the parent's chat paints one folded paused plate during the outage and no 'failed: API Error' line`, cap.marks.some(m => pauseRows(m.text).length === 1) && cap.marks.every(m => pauseRows(m.text).length <= 1) && !cap.marks.some(m => m.text.includes('failed: API Error')) && !cap.text.includes('failed: API Error'), cap.text.split('\n').filter(l => l.includes('●')).map(flat).slice(0, 6).join(' | ').slice(0, 400))
 
     console.log('\n— §B one calm line per lane per outage episode —')
     const completion = notices.findIndex(n => n.status === 'completed')
