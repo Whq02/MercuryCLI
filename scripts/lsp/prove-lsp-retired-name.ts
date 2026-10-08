@@ -14,7 +14,6 @@ if (!('LSP_TOOLS' in available)) {
 const { LSP_TOOLS } = available
 const { getEmptyToolPermissionContext, findToolByName } = await import('../../src/Tool.ts')
 const { gateToolCall } = await import('../../src/services/providers/toolCallGate.ts')
-const { getEngineModel } = await import('../../src/utils/model/model.js')
 const { createUserMessage } = await import('../../src/utils/messages.ts')
 const { createAttachmentMessage } = await import('../../src/utils/attachments/orchestrator.ts')
 const { clearToolRosterLatches, clearToolRosterRestore, conversationRosterKey, planToolPayload } = await import('../../src/services/providers/toolEconomy.ts')
@@ -36,7 +35,7 @@ for (const operation of ['goToDefinition', 'findReferences', 'hover', 'documentS
   check(`${operation}: unknown-tool wire gate is generic`, !wire.ok && wire.refusal.reason === 'No such tool available: LSP')
 }
 const permission = getEmptyToolPermissionContext()
-const model = getEngineModel()
+const model = 'claude-sonnet-5-5'
 const first = createUserMessage({ content: 'fixture conversation' })
 const beforeDefinition = JSON.stringify({ name: 'Before', description: 'unchanged before', input_schema: { type: 'object', properties: {} } })
 const afterDefinition = JSON.stringify({ name: 'After', description: 'unchanged after', input_schema: { type: 'object', properties: {} } })

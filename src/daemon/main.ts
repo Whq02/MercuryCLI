@@ -199,7 +199,7 @@ async function daemonStopCmd(): Promise<void> {
     process.exitCode = 1
     return
   }
-  const reply = await daemonControlRpc({ op: 'shutdown', reapWorkers: true }, { timeoutMs: 8000 })
+  const reply = await daemonControlRpc({ op: 'shutdown', reapWorkers: true }, { timeoutMs: 12_000 })
   if (reply.ok && reply.op === 'shutdown') {
     // eslint-disable-next-line no-console
     console.error(`[daemon] shutdown acknowledged — reaped ${reply.reaped} worker(s)`)
@@ -1543,7 +1543,7 @@ const SUCCESSOR_LOCK_WAIT_MS = 10_000
 const RESTART_STORM_GUARD_MS = 60_000
 const ARMED_RESTART_BEAT_MS = 4_000
 const HANDOVER_LOCK_BEAT_MS = 2_000
-const PREDECESSOR_SHUTDOWN_WAIT_MS = 2_000
+const PREDECESSOR_SHUTDOWN_WAIT_MS = 6_000
 const IDLE_PREDECESSOR_READS = 3
 const FIRST_IDLE_SWEEP_MS = 1_000
 
