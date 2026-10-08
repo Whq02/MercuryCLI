@@ -41,8 +41,12 @@ section('the product spells its config home once')
 {
   const SPELLING = /(homedir\(\)|process\.env\.HOME\b|process\.env\.USERPROFILE\b|\$\{?HOME\}?)[^\n]*['"`]\.mercury['"`]|['"`]\.mercury['"`][^\n]*(homedir\(\)|process\.env\.HOME\b)/
   const offenders: string[] = []
+  const HOME_JOIN_BY_NAME = new Set([
+    'src/utils/envUtils.ts',
+    'src/services/privateChannel/installLayout.ts',
+  ])
   for (const file of tracked(['src/**/*.ts', 'src/**/*.tsx'])) {
-    if (file === 'src/utils/envUtils.ts') continue
+    if (HOME_JOIN_BY_NAME.has(file)) continue
     code(file)
       .split('\n')
       .forEach((line, i) => {
@@ -53,7 +57,7 @@ section('the product spells its config home once')
     /homedir\(\), '\.mercury'/.test(code('src/utils/envUtils.ts')),
     'src/utils/envUtils.ts derives the default home from homedir() (the one resolver)',
   )
-  check(offenders.length === 0, 'no other product module joins the operator home with .mercury (settings, model choice and session facts ride getMercuryHome)', offenders.join(', '))
+  check(offenders.length === 0, 'no other product module joins the operator home with .mercury (settings, model choice and session facts ride getMercuryHome; the one resolver and the launcher text that runs without the product are named)', offenders.join(', '))
 }
 
 const PRODUCT_LINE = /mercury\.mjs|render-tui\.ts/
