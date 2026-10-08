@@ -51,30 +51,28 @@ export function deliveredNoticeRow(row: Message, atMs: number): Message {
 }
 
 export function placeDeliveredNotices(rows: readonly Message[]): readonly Message[] {
-  const notices: Array<{ row: Message; at: number }> = []
-  const other: Message[] = []
+  const out: Message[] = []
+  const waiting: Message[] = []
+  let changed = false
   for (const row of rows) {
-    if (row.type === 'attachment' && row.attachment.type === 'queued_command' && row.attachment.commandMode === 'task-notification' && (row as { queued?: true }).queued !== true) {
+    if ((row as { queued?: true }).queued === true) {
+      waiting.push(row)
+      continue
+    }
+    if (row.type === 'attachment' && row.attachment.type === 'queued_command' && row.attachment.commandMode === 'task-notification') {
       const stamp = row.attachment.deliveredAt ?? row.timestamp
-      const at = Date.parse(stamp)
-      if (Number.isFinite(at)) {
-        notices.push({ row: stamp === row.timestamp ? row : { ...row, timestamp: stamp }, at })
+      if (Number.isFinite(Date.parse(stamp))) {
+        out.push(stamp === row.timestamp ? row : { ...row, timestamp: stamp })
+        changed ||= waiting.length > 0 || stamp !== row.timestamp
         continue
       }
     }
-    other.push(row)
-  }
-  if (notices.length === 0) return rows
-  notices.sort((a, b) => a.at - b.at)
-  const out: Message[] = []
-  let next = 0
-  for (const row of other) {
-    const at = Date.parse(row.timestamp)
-    while (next < notices.length && notices[next]!.at < at) out.push(notices[next++]!.row)
+    for (const queued of waiting) out.push(queued)
+    waiting.length = 0
     out.push(row)
   }
-  while (next < notices.length) out.push(notices[next++]!.row)
-  return out
+  for (const queued of waiting) out.push(queued)
+  return changed ? out : rows
 }
 
 function deliveryClockOf(row: Message): string | undefined {
