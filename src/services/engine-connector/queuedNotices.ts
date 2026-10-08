@@ -50,9 +50,10 @@ export function deliveredNoticeRow(row: Message, atMs: number): Message {
   return next
 }
 
-export function placeDeliveredNotices(rows: readonly Message[]): readonly Message[] {
+export function placeDeliveredNotices(rows: readonly Message[], committed?: ReadonlyMap<string, unknown>): readonly Message[] {
   const out: Message[] = []
   const waiting: Message[] = []
+  const landing: Message[] = []
   let changed = false
   for (const row of rows) {
     if ((row as { queued?: true }).queued === true) {
@@ -62,8 +63,14 @@ export function placeDeliveredNotices(rows: readonly Message[]): readonly Messag
     if (row.type === 'attachment' && row.attachment.type === 'queued_command' && row.attachment.commandMode === 'task-notification') {
       const stamp = row.attachment.deliveredAt ?? row.timestamp
       if (Number.isFinite(Date.parse(stamp))) {
-        out.push(stamp === row.timestamp ? row : { ...row, timestamp: stamp })
-        changed ||= waiting.length > 0 || stamp !== row.timestamp
+        const projected = stamp === row.timestamp ? row : { ...row, timestamp: stamp }
+        if (committed?.has(row.uuid)) {
+          landing.push(projected)
+          changed = true
+        } else {
+          out.push(projected)
+          changed ||= waiting.length > 0 || stamp !== row.timestamp
+        }
         continue
       }
     }
@@ -72,7 +79,16 @@ export function placeDeliveredNotices(rows: readonly Message[]): readonly Messag
     out.push(row)
   }
   for (const queued of waiting) out.push(queued)
-  return changed ? out : rows
+  if (landing.length === 0) return changed ? out : rows
+  const placed: Message[] = []
+  let next = 0
+  for (const row of out) {
+    const at = Date.parse(deliveryClockOf(row) ?? '')
+    while (next < landing.length && ((row as { queued?: true }).queued === true || Date.parse(landing[next]!.timestamp) < at)) placed.push(landing[next++]!)
+    placed.push(row)
+  }
+  while (next < landing.length) placed.push(landing[next++]!)
+  return placed
 }
 
 function deliveryClockOf(row: Message): string | undefined {

@@ -124,6 +124,13 @@ section('N5 — delivered record order is independent of painted clocks')
   check('every delivered and waiting row is preserved once', new Set(waiting.map(row => row.uuid)).size === 3 && waiting.length === 3)
   const onlyWords = [words, pending]
   check('without a notice the projection returns the original sequence', notices.placeDeliveredNotices(onlyWords) === onlyWords)
+  const laterWords = { type: 'user', uuid: 'raw-after-take', timestamp: stamp(35), message: { role: 'user', content: 'typed after delivery' } } as unknown as Message
+  const place = notices.placeDeliveredNotices as (rows: readonly Message[], committed: ReadonlyMap<string, unknown>) => readonly Message[]
+  const committed = new Map([[notice.uuid, true]])
+  const pendingLanding = place([words, laterWords, notice], committed)
+  check('a committed viewer notice stays ahead of a later raw row before its durable record arrives', pendingLanding.map(row => row.uuid).join(',') === [words.uuid, notice.uuid, laterWords.uuid].join(','), JSON.stringify(pendingLanding.map(row => row.uuid)))
+  const durable = place([notice, words, laterWords], new Map())
+  check('once the durable notice arrives, its existing record position replaces the transient ordering', durable.map(row => row.uuid).join(',') === [notice.uuid, words.uuid, laterWords.uuid].join(','), JSON.stringify(durable.map(row => row.uuid)))
 }
 
 console.log(`\n ${checks} checks, ${failures} failures`)
