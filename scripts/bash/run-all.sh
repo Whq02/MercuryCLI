@@ -100,6 +100,7 @@ __t=$SECONDS; __rc=0; "$bun" run "$here/prove-parser-corpus-parity.ts" || { __rc
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-floor-parses.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-floor-parses.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-unproven-ask-is-ordinary.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-unproven-ask-is-ordinary.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-floor-decides.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-floor-decides.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$bun" run "$here/prove-floor-review.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-floor-review.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-floor-words.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-floor-words.ts" "$__t" "$__rc"
 echo "############################################################"
 if [ "$fail" = "0" ]; then echo "# ✅ ALL BASH PERMISSION PROOFS PASS"; else echo "# ❌ SOME BASH PERMISSION PROOFS FAILED"; fi
