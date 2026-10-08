@@ -40,7 +40,45 @@ export interface LayoutRoots {
   isWindows: boolean
 }
 
-export const WIN32_POWERSHELL_ENTRY = 'mercury-powershell.ps1'
+export const WIN32_POWERSHELL_ENTRY = 'mercury.ps1'
+
+export type WindowsScriptPolicy = {
+  shell: string
+  effective: string
+  scopes: Array<{ scope: string; policy: string }>
+}
+
+export function readWindowsScriptPolicies(): WindowsScriptPolicy[] {
+  if (process.platform !== 'win32') return []
+  const readings: WindowsScriptPolicy[] = []
+  for (const [command, shell] of [['pwsh.exe', 'PowerShell 7'], ['powershell.exe', 'Windows PowerShell']] as const) {
+    try {
+      const text = execFileSync(command, ['-NoLogo', '-NoProfile', '-NonInteractive', '-Command', "[pscustomobject]@{effective=[string](Get-ExecutionPolicy);scopes=@(Get-ExecutionPolicy -List | ForEach-Object { [pscustomobject]@{scope=[string]$_.Scope;policy=[string]$_.ExecutionPolicy} })} | ConvertTo-Json -Compress -Depth 3"], { encoding: 'utf8', windowsHide: true, timeout: 5_000, stdio: ['ignore', 'pipe', 'ignore'], env: subprocessEnv() })
+      const value = JSON.parse(text.trim().replace(/^\uFEFF/, '')) as { effective?: unknown; scopes?: unknown }
+      if (typeof value.effective !== 'string' || !Array.isArray(value.scopes)) continue
+      const scopes = value.scopes.filter((row): row is { scope: string; policy: string } => typeof row === 'object' && row !== null && typeof row.scope === 'string' && typeof row.policy === 'string')
+      readings.push({ shell, effective: value.effective, scopes })
+    } catch {}
+  }
+  return readings
+}
+
+export function windowsScriptPolicyNotice(readings: readonly WindowsScriptPolicy[]): string[] {
+  const blocked = readings.filter(row => row.effective === 'Restricted' || row.effective === 'AllSigned')
+  if (blocked.length === 0) return []
+  const overriding = [...new Set(blocked.flatMap(row => row.scopes.filter(scope => ['MachinePolicy', 'UserPolicy', 'Process'].includes(scope.scope) && scope.policy !== 'Undefined').map(scope => scope.scope)))]
+  return [
+    `PowerShell blocks mercury.ps1: ${blocked.map(row => `${row.shell} (${row.effective})`).join('; ')}.`,
+    'To allow local scripts: Set-ExecutionPolicy -Scope CurrentUser RemoteSigned',
+    overriding.length > 0 ? `${overriding.join('/')} takes precedence over that change; mercury.cmd keeps working.` : 'mercury.cmd keeps working meanwhile.',
+  ]
+}
+
+type ShimWriteOptions = {
+  force?: boolean
+  readScriptPolicies?: () => WindowsScriptPolicy[]
+  onNotice?: (lines: string[]) => void
+}
 
 export function resolveLayoutRoots(platform: string = process.platform): LayoutRoots {
   const isWindows = platform === 'win32'
@@ -728,12 +766,16 @@ function shimSetPathsOf(roots: LayoutRoots): string[] {
   return roots.isWindows ? [roots.shimPath, join(dirname(roots.shimPath), 'mercury'), join(dirname(roots.shimPath), WIN32_POWERSHELL_ENTRY)] : [roots.shimPath]
 }
 
-export function writeShimSet(roots: LayoutRoots, opts: { force?: boolean } = {}): ShimSetOutcome {
+export function writeShimSet(roots: LayoutRoots, opts: ShimWriteOptions = {}): ShimSetOutcome {
   mkdirSync(roots.binDir, { recursive: true })
   const members: ShimOutcome[] = []
   for (const path of shimSetPathsOf(roots)) {
     const { text, executable } = shimMemberContent(path, roots.isWindows)
     members.push(writeOneShim(path, text, executable, roots.isWindows, opts))
+  }
+  if (roots.isWindows && members.some(member => member.state === 'written')) {
+    const notice = windowsScriptPolicyNotice((opts.readScriptPolicies ?? readWindowsScriptPolicies)())
+    if (notice.length > 0) (opts.onNotice ?? (lines => console.error(lines.join('\n'))))(notice)
   }
   return { members, complete: members.every(m => m.state === 'written' || m.state === 'current') }
 }

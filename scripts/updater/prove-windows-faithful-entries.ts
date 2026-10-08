@@ -8,7 +8,7 @@ import type { LayoutRoots } from '../../src/services/privateChannel/installLayou
 
 const { reconcileManagedShims, resolveLayoutRoots, SHIM_MARKER_FAMILY, shimContent, uninstallLayout, writeShimSet } = layout
 const optional = layout as unknown as { powershellEntryContent?: () => string; WIN32_POWERSHELL_ENTRY?: string }
-const WIN32_POWERSHELL_ENTRY: string = optional.WIN32_POWERSHELL_ENTRY ?? 'mercury-powershell.ps1'
+const WIN32_POWERSHELL_ENTRY: string = optional.WIN32_POWERSHELL_ENTRY ?? 'mercury.ps1'
 const powershellEntryContent = (): string => optional.powershellEntryContent?.() ?? ''
 
 let failures = 0
@@ -21,13 +21,13 @@ const section = (s: string): void => console.log(`\n── ${s} ──`)
 const scratch = mkdtempSync(join(tmpdir(), 'win-entries-'))
 process.on('exit', () => rmSync(scratch, { recursive: true, force: true }))
 
-section('(1) the managed set on win32 carries the PowerShell entry, named so that a bare `mercury` never resolves to it')
+section('(1) the managed set on win32 lets PowerShell resolve mercury through its own entry')
 const roots = resolveLayoutRoots('win32')
 const set = roots.shimSetPaths ?? []
 check('three members: the cmd command, the git-bash facade, the PowerShell entry', set.length === 3, JSON.stringify(set))
 check('the PowerShell entry is the third member', set[2]?.endsWith(WIN32_POWERSHELL_ENTRY) === true, set[2] ?? '')
 check('the entry is a .ps1', WIN32_POWERSHELL_ENTRY.endsWith('.ps1'))
-check('the entry is NOT named mercury.ps1 (PowerShell tries .ps1 before every PATHEXT extension, so that name would capture every bare `mercury` typed in PowerShell)', WIN32_POWERSHELL_ENTRY.toLowerCase() !== 'mercury.ps1')
+check('PowerShell resolves bare mercury through its faithful mercury.ps1 entry', WIN32_POWERSHELL_ENTRY.toLowerCase() === 'mercury.ps1')
 check('the POSIX set is still the single sh member', (resolveLayoutRoots('darwin').shimSetPaths ?? []).length === 1)
 
 section('(2) the PowerShell entry text: the same version resolution as the cmd command, the versioned PowerShell launcher at the end, cmd.exe nowhere')
@@ -145,7 +145,8 @@ section('(5) the facade decides for real: a fixture layout with a cmd launcher t
 section('(6) the words: the Windows page and the install note name the two roads a script has')
 {
   const page = readFileSync(join(import.meta.dir, '..', '..', 'docs', 'INSTALL-WINDOWS-FROM-SOURCE.md'), 'utf8')
-  check('the Windows page names the PowerShell entry road', page.includes('mercury-powershell run'))
+  check('the Windows page names the PowerShell entry road', page.includes('PowerShell resolves `mercury` through `mercury.ps1`'))
+  check('the Windows page offers the execution-policy fix and the cmd fallback', page.includes('Set-ExecutionPolicy -Scope CurrentUser RemoteSigned') && page.includes('`mercury.cmd` keeps working'))
   check('the Windows page names the standard-input road for cmd.exe', page.includes('mercury run --format rows - < prompt.txt'))
   check('the Windows page says what cmd.exe does to a command-line prompt', page.includes('`%NAME%` is expanded and a line break ends the command'))
   check('the Windows page keeps the bare boot unchanged in words', page.includes('a bare `mercury` opens the enter screen as before'))
@@ -153,7 +154,7 @@ section('(6) the words: the Windows page and the install note name the two roads
   // @ts-ignore -- untyped .mjs module
   const templates = await import('../release/launcherTemplates.mjs')
   const installing: string = templates.installingDoc(templates.parseEnginesNode('>=24.20.0 <25'), '9.9.9')
-  check('INSTALLING.md names the PowerShell entry beside the stable command', installing.includes('mercury-powershell.ps1') && installing.includes('mercury-powershell run "<prompt>"'))
+  check('INSTALLING.md names the PowerShell entry beside the stable command', installing.includes('mercury.ps1') && installing.includes('mercury run "<prompt>"'))
   check('INSTALLING.md names the standard-input road', installing.includes('mercury run - < prompt.txt'))
 }
 
