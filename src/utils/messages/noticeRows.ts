@@ -215,7 +215,7 @@ export function wrappedNoticeBlocks(text: string): NoticeBlock[] | null {
 }
 
 export function noticeOfText(text: string, fromNotificationLane: boolean): NoticeBlock[] | null {
-  if (text.includes(`<${TASK_NOTIFICATION_TAG}`)) return null
+  if (text.trimStart().startsWith(`<${TASK_NOTIFICATION_TAG}`)) return null
   const wrapped = wrappedNoticeBlocks(text)
   if (wrapped !== null) return wrapped
   if (!fromNotificationLane) return null

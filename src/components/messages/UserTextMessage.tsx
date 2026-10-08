@@ -71,14 +71,6 @@ export function UserTextMessage({
   }
 
   const head = param.text.trimStart()
-  if (head.startsWith(`<${TICK_TAG}`)) {
-    return null
-  }
-
-  if (head.startsWith(`<${LOCAL_COMMAND_CAVEAT_TAG}>`)) {
-    return null
-  }
-
   if (isSaturnOrigin(origin)) {
     return <UserNoticeMessage addMargin={addMargin} blocks={[saturnBlockOf(origin, param.text)]} expanded={expanded} fold />
   }
@@ -86,6 +78,13 @@ export function UserTextMessage({
   if (isAdvisorOrigin(origin)) {
     return <UserNoticeMessage addMargin={addMargin} blocks={[advisorBlockOf(origin, param.text)]} fold={notice} expanded={expanded} />
   }
+
+  if (notice && !head.startsWith(`<${TASK_NOTIFICATION_TAG}`)) {
+    const blocks = noticeOfText(param.text, true)
+    if (blocks !== null) return <UserNoticeMessage addMargin={addMargin} blocks={blocks} arrivedAt={arrivedAt} expanded={expanded} fold />
+  }
+
+  if (head.startsWith(`<${TICK_TAG}`) || head.startsWith(`<${LOCAL_COMMAND_CAVEAT_TAG}>`)) return null
 
   if (
     param.text.startsWith('<bash-stdout') ||
