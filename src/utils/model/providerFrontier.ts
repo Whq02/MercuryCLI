@@ -57,6 +57,11 @@ export function providerFrontierFact(route: CallModelRoute): ProviderFrontierFac
         const row = metaCatalogueRows().rows.find(row => row.id === newestMetaModel())
         return row ? { modelId: row.id, displayName: row.displayName, source: metaCatalogueSourceWords() } : undefined
       }
+      case 'mistral': {
+        const { mistralCatalogueRows, mistralCatalogueSourceWords } = require('../../services/providers/mistral/mistralCatalogue.js') as typeof import('../../services/providers/mistral/mistralCatalogue.js')
+        const row = mistralCatalogueRows().rows[0]
+        return row ? { modelId: row.id, displayName: row.displayName, source: mistralCatalogueSourceWords() } : undefined
+      }
       case 'zai':
       case 'moonshot':
       case 'deepseek': {
