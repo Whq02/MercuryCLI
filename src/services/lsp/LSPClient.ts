@@ -270,11 +270,21 @@ export function createLSPClient(serverName: string, onCrash?: (error: Error) => 
     connection.onRequest(method, handler as never)
   }
 
+  function serverStillHears(): boolean {
+    if (child === null || child.exitCode !== null || child.signalCode !== null) return false
+    const stdin = child.stdin
+    return stdin !== null && stdin.writable && !stdin.destroyed
+  }
+
   async function stop(opts?: { gracefulTimeoutMs?: number }): Promise<void> {
     const budget = opts?.gracefulTimeoutMs ?? DEFAULT_GRACEFUL_TIMEOUT_MS
     stopping = true
     let gracefulFailed: unknown = null
-    if (connection !== null) {
+    const hears = serverStillHears()
+    if (connection !== null && !hears) {
+      logForDebugging(`LSP server ${serverName} is already gone; no shutdown handshake`)
+    }
+    if (connection !== null && hears) {
       const conn = connection
       let deadline: NodeJS.Timeout | null = null
       try {
