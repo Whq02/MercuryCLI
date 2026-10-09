@@ -64,6 +64,7 @@ export function getLogoDisplayData(): { version: string; cwd: string; billingTyp
       if (route === 'gemini') return 'Gemini billing (folds from the auth lane)'
       if (route === 'huggingface') return 'Hugging Face credits / pay-as-you-go billing'
       if (route === 'local') return 'local model · no metering'
+      if (route === 'zen') return 'OpenCode Zen pay-as-you-go billing'
       if (route === null) return 'unrecognised model · no billed lane'
     } catch {
     }
