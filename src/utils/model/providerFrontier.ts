@@ -70,6 +70,7 @@ export function providerFrontierFact(route: CallModelRoute): ProviderFrontierFac
       case 'openrouter':
       case 'openai-compat':
       case 'local':
+      case 'zen':
         return undefined
       case 'huggingface': {
         const { getCachedHuggingfaceCatalogue } =
