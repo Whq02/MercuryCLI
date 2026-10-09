@@ -20,5 +20,3 @@ export function registerSkillHooks(
 export function unregisterSkillHooks(setAppState: SetAppState, scope: HookScope, skill: { name: string; root: string }): void {
   removeSessionHooks(setAppState, scope, { kind: 'skill', name: skill.name, root: skill.root })
 }
-
-export { registerFrontmatterHooks } from './oldRoad.js'

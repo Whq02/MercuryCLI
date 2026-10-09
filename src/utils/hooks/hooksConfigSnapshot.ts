@@ -136,5 +136,3 @@ export function resetHooksSnapshot(): void {
   snapshot = undefined
   clearRegisteredHooks()
 }
-
-export { captureHooksConfigSnapshot, getHooksConfigFromSnapshot, resetHooksConfigSnapshot, shouldAllowManagedHooksOnly, shouldDisableAllHooksIncludingManaged, updateHooksConfigSnapshot } from './oldRoad.js'

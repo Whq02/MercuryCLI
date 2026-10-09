@@ -119,5 +119,3 @@ export async function matchHooks(
     return []
   }
 }
-
-export { getMatchingHooks, hasHookForEvent, isInternalHook } from './oldRoad.js'

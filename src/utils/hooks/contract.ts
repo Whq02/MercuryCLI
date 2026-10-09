@@ -347,6 +347,3 @@ export function hookAnswerSchema(event: HookEvent): z.ZodObject<z.ZodRawShape> {
 export function hookAnswerFieldsOf(event: HookEvent): readonly HookAnswerField[] {
   return hookEventTable[event].answers
 }
-
-export { HOOK_LIFECYCLE_EVENTS, HookJSONOutputSchema } from './oldRoad.js'
-export type { AsyncHookJSONOutput, HookInput, HookJSONOutput, SyncHookJSONOutput } from './oldRoad.js'

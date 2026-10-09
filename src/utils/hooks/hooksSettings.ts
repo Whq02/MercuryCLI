@@ -87,5 +87,3 @@ export function hookRowName(row: HookRow): string {
 export function hookRowKind(row: HookRow): string {
   return hookKindOf(row.entry)
 }
-
-export { getHookDisplayText, retireOnceHookFromSettings } from './oldRoad.js'
