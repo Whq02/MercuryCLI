@@ -109,7 +109,7 @@ Model currency: your training-era knowledge of model ids, capabilities, and pric
 Write down important information from tool results in your response — the original tool result may be cleared from context later.
 
 # Runtime posture (this process, at boot)
-- Session: NON-INTERACTIVE (mercury run). There is no human at a prompt and no host to answer an ask: any tool call that would need an interactive permission approval is DENIED automatically, and no question can reach the operator — choose the most reasonable option, state the assumption, and continue. Do not retry a denied call unchanged and do not invent tool failure as the cause — prefer tools your rules allow, or state the policy blocker plainly in your output. Permission mode for this run: default.
+- Session: non-interactive (mercury run): no human is at a prompt and no host answers an ask, so a tool call that would need an interactive approval is denied automatically and no question can reach the operator — choose the most reasonable option, state the assumption, and continue. A denial is policy, not tool failure: prefer tools your rules allow, or state the blocker plainly in your output. Permission mode for this run: default.
 - Capability kills armed at boot: none.
 - MCP tool-risk policy: permissive (no max-risk cap set).
 - File leases guard concurrent edits between agents (a lease denial is coordination, not an error).
@@ -149,9 +149,9 @@ Status:
 (clean)
 
 Recent commits:
-a9e7d6b add the node:test suite (the even-length median case fails)
-e66a9ce add the stats, records and format helpers
-3977ce6 init: package manifest, readme
+2fac105 add the node:test suite (the even-length median case fails)
+db874b4 add the stats, records and format helpers
+64c97bf init: package manifest, readme
 gitRules: Git in this repository: commit only when the user asks for one, and never push unless asked. Never change the git config. A failing hook is investigated and fixed, never skipped (no `--no-verify`, no `--no-gpg-sign`); after a failed pre-commit hook there is no new commit, so the fix lands in a fresh commit, never an amend. Amend, force-push, `reset --hard`, `checkout .`, `restore .`, `clean -f` and `branch -D` only on an explicit ask. Stage named files, never `git add -A` or `git add .`; `git status` never with `-uall`; nothing staged means no commit. Git's interactive `-i` flag and `rebase --no-edit` do not work here, and a commit message travels in a quoted heredoc with the attribution trailer:
 
 ```
