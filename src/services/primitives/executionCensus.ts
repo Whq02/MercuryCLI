@@ -1,5 +1,5 @@
 
-export type ExecutionDomainClassification =
+type ExecutionDomainClassification =
   | 'full-execution-owner'
   | 'child-execution'
   | 'external-projection'

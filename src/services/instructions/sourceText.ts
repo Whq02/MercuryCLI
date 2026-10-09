@@ -180,7 +180,7 @@ type MarkdownToken = {
   items?: MarkdownToken[]
 }
 
-export function isAcceptedImportSpelling(path: string): boolean {
+function isAcceptedImportSpelling(path: string): boolean {
   return (
     path.startsWith('./') ||
     path.startsWith('~/') ||

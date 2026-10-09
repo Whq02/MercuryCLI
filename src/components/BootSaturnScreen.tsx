@@ -137,10 +137,6 @@ export function saturnNextFireWords(facts: SaturnFactsRowV1, nowMs: number): str
   return facts.paused === true ? 'paused' : fireDeltaWords(facts.nextFireMs, nowMs);
 }
 
-export function saturnRowWords(row: SaturnScreenRowV1, nowMs: number): string {
-  return saturnStandingWords(saturnStandingOf(row.schedule, row.held), nowMs);
-}
-
 export function saturnRowFireWords(row: SaturnScreenRowV1, nowMs: number): string {
   return saturnStandingFireWords(saturnStandingOf(row.schedule, row.held), nowMs);
 }

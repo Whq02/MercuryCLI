@@ -1,4 +1,4 @@
-import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
+import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { basename, join } from 'node:path'
 import { logForDebugging } from '../utils/debug.js'
 import { stripBOM } from '../utils/jsonRead.js'
@@ -225,8 +225,4 @@ export function renderHandoverReceipt(receipt: HandoverReceipt): string[] {
   if (receipt.skipped.length > 0) lines.push(`skipped: ${receipt.skipped.map(s => `${s.file} (${s.reason})`).join(', ')}`)
   if (!receipt.consolidated && receipt.facts > 0) lines.push('the facts wait in the buffer — run maintenance')
   return lines
-}
-
-export function handoverExists(memoryDir: string): boolean {
-  return existsSync(handoverReceiptPath(join(memoryDir, 'library')))
 }

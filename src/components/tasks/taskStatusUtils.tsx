@@ -10,13 +10,6 @@ import {
   deriveAgentLifecycle,
   type AgentLifecycle,
 } from '../../services/agentResults/lifecycle.js'
-import { AGENT_COLOR_TO_THEME_COLOR } from '../../tools/AgentTool/agentColorManager.js'
-import type { Theme } from '../../utils/theme.js'
-
-export function crewmateRole(color: string | undefined): keyof Theme | undefined {
-  if (color === undefined) return undefined
-  return (AGENT_COLOR_TO_THEME_COLOR as Record<string, keyof Theme>)[color]
-}
 
 export function isTerminalStatus(status: string): boolean {
   return status === 'completed' || status === 'failed' || status === 'killed'

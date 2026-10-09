@@ -44,8 +44,6 @@ export function canonicalSubModelId(value: string): string {
   return stripContext1m(parseUserSpecifiedModel(stripContext1m(value.trim())))
 }
 
-export type SubModelOrigin = 'env' | 'saved' | 'unset'
-
 export interface SubModelPin {
   origin: 'env' | 'saved'
   model: string

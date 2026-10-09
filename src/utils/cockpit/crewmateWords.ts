@@ -15,10 +15,6 @@ export const CREW_CLEAR_DOOR = `${CREW_CLEAR_KEY} in ${CREW_VIEW_DOOR}`
 
 export type CrewmateWordsState = { name: string; pinned: boolean; live?: boolean; local?: boolean }
 
-export function crewmateHeaderGlyph(pinned: boolean): '★' | '✶' {
-  return pinned ? '★' : '✶'
-}
-
 export function crewmateHeaderTail(state: CrewmateWordsState): string {
   return `· ${state.name} · ${state.pinned ? MAIN_CHAT_WORD : VIEWING_WORD}`
 }

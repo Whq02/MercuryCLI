@@ -54,11 +54,3 @@ export function deriveAttentionCount(
   const questions = qSessions.size + anonQuestions
   return { count: permissions + questions, permissions, questions, unknown: false }
 }
-
-export function reconcileAttention(
-  prev: AttentionCount | null | undefined,
-  next: AttentionCount,
-): AttentionCount {
-  if (next.unknown && prev && !prev.unknown) return prev
-  return next
-}

@@ -16,7 +16,7 @@ export const LOOP_FILE_DYNAMIC_SENTINEL = '<<loop.md-dynamic>>' as const
 export const AUTONOMOUS_LOOP_SENTINEL = '<<autonomous-loop>>' as const
 export const AUTONOMOUS_LOOP_DYNAMIC_SENTINEL = '<<autonomous-loop-dynamic>>' as const
 
-export function isAutonomousLoopSentinel(prompt: string): boolean {
+function isAutonomousLoopSentinel(prompt: string): boolean {
   return (
     prompt === AUTONOMOUS_LOOP_SENTINEL ||
     prompt === AUTONOMOUS_LOOP_DYNAMIC_SENTINEL

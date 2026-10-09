@@ -4,7 +4,7 @@ import { projectImpact } from './impact.js'
 import { projectIntelEnabled, type SnapshotGeneration } from './contracts.js'
 import { getProjectSnapshot } from './snapshot.js'
 
-export interface WorkSplitSuggestion {
+interface WorkSplitSuggestion {
   advisory: true
   generation: SnapshotGeneration
   perTask: Array<{
