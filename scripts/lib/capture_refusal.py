@@ -35,8 +35,15 @@ def capture_refusals(driver, ready_texts, ready_at, total, ended_at_tick,
         add("NEVER-STABLE", "the grid never held byte-identical for %d consecutive ticks"
             % stable_need)
     if rows:
-        prefix = "[%s] %s: never settled; ceiling=%d ticks; saw=" % (
+        prefix = "[%s] %s: never settled; ceiling=%d ticks; " % (
             driver, "+".join(row["code"] for row in rows), total)
+        if sent < len(sends):
+            stuck = sends[sent]
+            needle = (stuck.get("awaitText") or stuck.get("awaitRaw")
+                      or stuck.get("awaitPattern") or stuck.get("targetText")
+                      or stuck.get("data", ""))
+            prefix += "stuck=%r mark=%r; " % (str(needle)[:40], stuck.get("mark"))
+        prefix += "saw="
         sample = visible[:40]
         while sample and len(prefix) + len(repr(sample)) > 190:
             sample = sample[:-1]

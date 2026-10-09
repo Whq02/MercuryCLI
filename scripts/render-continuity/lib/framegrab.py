@@ -1,12 +1,17 @@
 #!/usr/bin/env python3
 import base64
 import json
+import os
+import re
 import sys
 
 import pyte
 
 drive, cols, rows = sys.argv[1], int(sys.argv[2]), int(sys.argv[3])
 stops = sorted(int(x) for x in sys.argv[4:])
+token_pattern = os.environ.get("FRAMEGRAB_TOKEN_PATTERN")
+TOKEN_RE = re.compile(token_pattern) if token_pattern else None
+PLATE = os.environ.get("FRAMEGRAB_PLATE", "[Mercury]")
 CONTINUATION_MS = 50
 SPIN_MS = 12
 SYNC_OPEN = b'\x1b[?2026h'
@@ -76,6 +81,25 @@ def write_continues():
     return sync_open or (hog > 0 and len(last_data) == hog)
 
 
+def token_facts(display):
+    pane = 0
+    for row in display:
+        if '╭' in row:
+            pane = max(0, row.index('╭'))
+            break
+    token_row = -1
+    for y, row in enumerate(display):
+        if TOKEN_RE.search(row[pane:]):
+            token_row = y
+            break
+    plate = token_row != -1 and any(PLATE in display[y] for y in range(token_row + 1))
+    return {'pane': pane, 'tokenRow': token_row, 'plateAtOrAbove': plate}
+
+
+def f_token(frame):
+    return frame['tokenRow'] != -1
+
+
 def snapshot(at, fed_to):
     reverse_cells = []
     for y in range(rows):
@@ -83,9 +107,13 @@ def snapshot(at, fed_to):
         for x, ch in line.items():
             if ch.reverse:
                 reverse_cells.append([x, y])
-    return {'atMs': at, 'fedToMs': fed_to, 'rows': [row.rstrip() for row in screen.display],
-            'cursor': {'x': screen.cursor.x, 'y': screen.cursor.y, 'hidden': bool(screen.cursor.hidden)},
-            'reverseCells': reverse_cells}
+    display = [row.rstrip() for row in screen.display]
+    frame = {'atMs': at, 'fedToMs': fed_to, 'rows': display,
+             'cursor': {'x': screen.cursor.x, 'y': screen.cursor.y, 'hidden': bool(screen.cursor.hidden)},
+             'reverseCells': reverse_cells}
+    if TOKEN_RE is not None:
+        frame.update(token_facts(display))
+    return frame
 
 
 for s in finite:
@@ -99,4 +127,13 @@ while fed < len(recs):
 if -1 in stops:
     out.append(snapshot(-1, (recs[-1][0] - t0) if recs else -1))
 
-print(json.dumps({'screens': out, 'hog': hog}))
+payload = {'screens': out, 'hog': hog}
+if TOKEN_RE is not None:
+    finite_idx = [i for i, f in enumerate(out) if f['atMs'] != -1]
+    first = next((i for i in finite_idx if f_token(out[i])), None)
+    payload['tokenFacts'] = {
+        'firstTokenIndex': first,
+        'blankAfterFirstToken': [i for i in finite_idx if first is not None and i > first and not f_token(out[i])],
+        'tokenFramesWithoutPlate': [i for i, f in enumerate(out) if f_token(f) and not f['plateAtOrAbove']],
+    }
+print(json.dumps(payload))

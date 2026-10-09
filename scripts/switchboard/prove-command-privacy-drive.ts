@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { spawn } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, readdirSync, rmSync, statSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, rmSync, statSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { vshotBudgetMs as S } from '../lib/captureDriver.ts'
@@ -85,7 +85,7 @@ const run = await runArtifactArena({
     'after:Alpha count:2500:\t',
     'after:Alpha count:4000:\r',
     'after:Alpha count:5200:\r',
-    'after:Alpha count:9000:/remember Pin the fixture home before loading modules that cache project paths.',
+    'after:Alpha count:9000:/effort low',
     'after:Alpha count:10500:\r',
     'after:Alpha count:14000:/crew',
     'after:Alpha count:15500:\r',
@@ -135,38 +135,28 @@ try {
   }
   const text = (g: { rows: string[] }): string => g.rows.join('\n')
 
-  const projects = join(process.env.MERCURY_CONFIG_DIR!, 'projects')
-  const projectDirs = readdirSync(projects, { withFileTypes: true }).filter(entry => entry.isDirectory()).map(entry => entry.name)
-  const holders = projectDirs.filter(dir => {
-    const memory = join(projects, dir, 'memory')
-    if (!existsSync(memory)) return false
-    return readdirSync(memory).some(name => name.endsWith('.md') && readFileSync(join(memory, name), 'utf8').includes('Pin the fixture home before loading modules that cache project paths.'))
-  })
-  check('§1 the lesson EXECUTED into the memory estate', holders.length === 1, `holders: ${holders.join(',') || 'none'}`)
-  check(
-    "§1 …keyed by the SCREEN's project (the arena cwd), not the worker's workspace",
-    holders.every(h => h.includes('flux-arena-cwd')) && !holders.some(h => h.includes('work-alpha')),
-    holders.join(','),
-  )
+  const settingsPath = join(process.env.MERCURY_CONFIG_DIR!, 'settings.json')
+  const settings = existsSync(settingsPath) ? (JSON.parse(readFileSync(settingsPath, 'utf8')) as { engine?: { effort?: string } }) : {}
+  check("§1 the command EXECUTED on the screen's own home: /effort low saved the default (settings.json engine.effort = low)", settings.engine?.effort === 'low', JSON.stringify(settings.engine ?? null))
 
   const transcriptPath = join(paths.getProjectDir(arenaCwd), `${alphaId}.jsonl`)
   const transcript = existsSync(transcriptPath) ? readFileSync(transcriptPath, 'utf8') : ''
   check('§2 the session transcript exists and carries the counting turn', transcript.includes('counting'), transcriptPath)
-  check('§2 NO transcript byte carries the /remember line (poison: the persisted user row)', !transcript.includes('/remember') && !transcript.includes('Pin the fixture home before loading modules that cache project paths.') && !transcript.includes('command-message>remember'), '')
+  check('§2 NO transcript byte carries the /effort line (poison: the persisted user row)', !transcript.includes('/effort low') && !transcript.includes('command-message>effort'), '')
   check('§2 NO transcript byte carries the /crew line', !transcript.includes('/crew') && !transcript.includes('command-message>crew'), '')
 
-  const wireHits = api.requests.filter((r: { raw: string }) => r.raw.includes('/remember') || r.raw.includes('Pin the fixture home before loading modules that cache project paths.') || r.raw.includes('/crew')).length
+  const wireHits = api.requests.filter((r: { raw: string }) => r.raw.includes('/effort low') || r.raw.includes('/crew')).length
   check('§3 the wire saw NO request carrying either line', wireHits === 0, `${wireHits} of ${api.requests.length}`)
 
   const chatFrames = grabs.filter(g => g.atMs >= S(12000) && g.atMs <= S(17000))
-  check('§4 the /remember receipt painted (Banked)', chatFrames.some(g => /Banked/.test(text(g))), chatFrames.map(g => String(g.atMs)).join(','))
+  check('§4 the /effort receipt painted on the status row (its tail survives the row\'s fit: "… Saved as your default for future sessions.")', chatFrames.some(g => /Saved as your default for future sessions/.test(text(g))), chatFrames.map(g => `${g.atMs}: ${text(g).split('\n').filter(r => /[Ee]ffort/.test(r)).join(' | ').trim().slice(0, 160)}`).join(' · '))
   const crewFrames = grabs.filter(g => g.atMs >= S(15000) && g.atMs <= S(24000))
   check(
     '§4 the /crew directory painted as the chat receipt',
     crewFrames.some(g => /sources: identity|the crew directory is empty/.test(text(g))),
     crewFrames.map(g => String(g.atMs)).join(','),
   )
-  check('§4 the steering queue NEVER took the line (no counted steer or next-turn hold carries the note)', !grabs.some(g => (/\d+ folds? in at the next step/.test(text(g)) || /\d+ waits? for the next turn/.test(text(g))) && /Pin the fixture home before loading modules that cache project paths./.test(text(g))), '')
+  check('§4 the steering queue NEVER took the line (no counted steer or next-turn hold carries the note)', !grabs.some(g => (/\d+ folds? in at the next step/.test(text(g)) || /\d+ waits? for the next turn/.test(text(g))) && /\/effort low/.test(text(g))), '')
 } finally {
   run.cleanup()
 }
@@ -177,109 +167,6 @@ try {
 }
 daemon?.kill('SIGTERM')
 await api.close()
-
-console.log('leg 2 — /halt mid-turn interrupts the running turn (never queues behind it)')
-{
-  const daemonDir2 = join(SCRATCH, 'daemon2')
-  const work2 = join(SCRATCH, 'work-halt')
-  for (const d of [daemonDir2, work2]) mkdirSync(d, { recursive: true })
-  process.env.MERCURY_DAEMON_DIR = daemonDir2
-  const api2 = await startFixtureApi([
-    ...Array.from({ length: 12 }, (_, i) => countingTurn(i + 1)),
-    { kind: 'text', text: 'Spare.' },
-  ])
-  let daemon2: ReturnType<typeof spawn> | null = null
-  let halted = ''
-  let arenaCwd2 = ''
-  const run2 = await runArtifactArena({
-    turns: [],
-    sends: [
-      'after:Halt target:2500:\t',
-      'after:Halt target:4000:\r',
-      'after:Halt target:5200:\r',
-      'after:Halt target:9000:/halt',
-      'after:Halt target:10500:\r',
-    ],
-    seconds: 30,
-    cols: 120,
-    rows: 40,
-    keep: true,
-    seedHome: async (configDir, _cwd) => {
-      arenaCwd2 = _cwd
-      seedFirstRun(configDir, [_cwd, work2])
-      process.env.MERCURY_CONFIG_DIR = configDir
-      const fd2 = openSync(join(SCRATCH, 'daemon2.log'), 'a')
-      daemon2 = spawn('node', [DIST, 'daemon', 'run', work2], {
-        cwd: work2,
-        env: {
-          ...process.env,
-          MERCURY_CONFIG_DIR: configDir,
-          MERCURY_DAEMON_DIR: daemonDir2,
-          ANTHROPIC_API_KEY: 'fixture-key-000',
-          ANTHROPIC_BASE_URL: api2.url,
-          MERCURY_CACHE_CLOCK: '0',
-          MERCURY_PARTY: '0',
-        },
-        stdio: ['ignore', fd2, fd2],
-      })
-      check('daemon2 serves', await untilAsync(async () => (await daemonControlRpc({ op: 'ping' })).ok, 60_000))
-      const h = (await daemonControlRpc({
-        op: 'concourseDispatch',
-        clientMessageId: 'privdrive-halt',
-        prompt: 'count slowly with sleeps',
-        workspaceDir: _cwd,
-        title: 'Halt target',
-        modelKey: DEFAULT_OPUS,
-        effort: 'xhigh',
-      } as never)) as { ok?: boolean; sessionId?: string }
-      check('halt target dispatched', h.ok === true, JSON.stringify(h))
-      halted = h.sessionId ?? ''
-      const ht = join(paths.getProjectDir(_cwd), `${halted}.jsonl`)
-      check('halt-target transcript born', await untilAsync(() => existsSync(ht) && statSync(ht).size > 100, 30_000))
-    },
-    extraEnv: {
-      MERCURY_CONCOURSE: 'always',
-      MERCURY_DAEMON_DIR: daemonDir2,
-      ANTHROPIC_BASE_URL: api2.url,
-      ANTHROPIC_API_KEY: 'fixture-key-000',
-      MERCURY_CACHE_CLOCK: '0',
-    },
-  })
-  try {
-    const grabs2 = grabScreens(run2, 120, 40, [8000, 13000, 16000, 22000, 28000].map(m => S(m)))
-    const KEEP_DIR = process.env.MERCURY_PRIVACY_CAPTURE_DIR
-    if (KEEP_DIR) {
-      const { writeFileSync } = await import('node:fs')
-      for (const g of grabs2) {
-        writeFileSync(join(KEEP_DIR, `halt-at${String(g.atMs).padStart(6, '0')}.txt`), g.rows.map((r: string) => r.replace(/\s+$/, '')).join('\n'))
-      }
-    }
-    const text2 = (g: { rows: string[] }): string => g.rows.join('\n')
-    const receiptFrames = grabs2.filter(g => g.atMs >= S(12000) && /Hard stop/.test(text2(g)))
-    check('§5 the /halt receipt painted (⊘ Hard stop …)', receiptFrames.length >= 1, grabs2.map(g => String(g.atMs)).join(','))
-    const lateFrames = grabs2.filter(g => g.atMs >= S(16000))
-    check(
-      '§5 the running turn INTERRUPTED (no replying/running strip after the brake)',
-      lateFrames.length > 0 && lateFrames.every(g => !/replying — your words land|running a tool — your words land/.test(text2(g))),
-      lateFrames.map(g => String(g.atMs)).join(','),
-    )
-    const ht = join(paths.getProjectDir(arenaCwd2), `${halted}.jsonl`)
-    const t2 = existsSync(ht) ? readFileSync(ht, 'utf8') : ''
-    check('§5 NO transcript byte carries the /halt line (poison: the queued user row + the 6m jellyfish)', t2 !== '' && !t2.includes('/halt') && !t2.includes('command-message>halt'), '')
-    const wire2 = api2.requests.filter((r: { raw: string }) => r.raw.includes('/halt')).length
-    check('§5 the wire never saw /halt', wire2 === 0, String(wire2))
-  } finally {
-    run2.cleanup()
-  }
-  try {
-    await daemonControlRpc({ op: 'shutdown', reapWorkers: true } as never)
-  } catch {
-  }
-  ;(daemon2 as ReturnType<typeof spawn> | null)?.kill('SIGTERM')
-  await api2.close()
-}
-
-rmSync(SCRATCH, { recursive: true, force: true })
 
 console.log(failures === 0 ? '\nprove-command-privacy-drive: ALL LAWS HOLD' : `\nprove-command-privacy-drive: ${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)

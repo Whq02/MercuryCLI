@@ -167,7 +167,8 @@ const scenes: Scene[] = [
   },
 ]
 
-type Frame = { atMs: number; rows: string[] }
+type Frame = { atMs: number; rows: string[]; tokenRow: number; plateAtOrAbove: boolean }
+type TokenFacts = { firstTokenIndex: number | null; blankAfterFirstToken: number[]; tokenFramesWithoutPlate: number[] }
 const TOKEN_RE = /(alpha|bravo|charlie|delta|echo|foxtrot|golf|hotel|india|juliet|kilo|lima|mike|november|oscar|papa|quebec|romeo|sierra|tango|uniform|victor|whiskey|xray) stream body/
 
 const READING_RE = /reading the prompt/
@@ -211,8 +212,8 @@ const paneRows = (f: Frame): string[] => {
   const start = paneStart(f)
   return start === 0 ? f.rows : f.rows.map(r => r.slice(start))
 }
-const hasToken = (f: Frame): boolean => paneRows(f).some(r => TOKEN_RE.test(r))
-const textRowOf = (f: Frame): number => paneRows(f).findIndex(r => TOKEN_RE.test(r))
+const hasToken = (f: Frame): boolean => f.tokenRow !== -1
+const textRowOf = (f: Frame): number => f.tokenRow
 const stripWordsOf = (f: Frame): string => {
   const lines = cardLinesOf(f)
   if (lines.length > 0) return lines.join(' ↵ ')
@@ -262,7 +263,7 @@ for (const scene of scenes) {
   const grab = spawnSync(
     '/usr/bin/python3',
     [SCREENGRAB, run.paths.drive, String(cols), String(rows), ...offsets],
-    { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 },
+    { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024, env: { ...process.env, FRAMEGRAB_TOKEN_PATTERN: TOKEN_RE.source, FRAMEGRAB_PLATE: '[Mercury]' } },
   )
   t.section(scene.name)
   if (grab.status !== 0) {
@@ -270,7 +271,7 @@ for (const scene of scenes) {
     run.cleanup()
     continue
   }
-  const { screens } = JSON.parse(grab.stdout) as { screens: Frame[] }
+  const { screens, tokenFacts } = JSON.parse(grab.stdout) as { screens: Frame[]; tokenFacts: TokenFacts }
   restoreOffsets(run, screens)
   const final = screens[screens.length - 1]
   const timed = screens.filter(f => f.atMs !== -1)
@@ -351,11 +352,7 @@ for (const scene of scenes) {
     }
   }
 
-  const identityLaw = [...withText, final].every(f => {
-    const textIdx = textRowOf(f)
-    if (textIdx === -1) return true
-    return f.rows.some((r, i) => i <= textIdx && r.includes('[Mercury]')) || scene.scrolls
-  })
+  const identityLaw = scene.scrolls || tokenFacts.tokenFramesWithoutPlate.length === 0
   t.check('every frame with response text carries the nameplate at-or-above it', identityLaw)
 
   if (!scene.scrolls && scene.flips === undefined) {
@@ -371,8 +368,7 @@ for (const scene of scenes) {
     TOKENS.some(tok => paneRows(f).filter(r => r.includes(`${tok} stream body`)).length > 1),
   )
   t.check('no token is ever painted on two rows', !dupEver)
-  const firstTextAt = withText.length ? withText[0].atMs : Number.MAX_SAFE_INTEGER
-  const blankFrames = timed.filter(f => f.atMs > firstTextAt && !hasToken(f))
+  const blankFrames = tokenFacts.blankAfterFirstToken.map(i => screens[i]!)
   t.check('no blank-transcript frame between first text and settlement', blankFrames.length === 0 || Boolean(scene.interrupted) || scene.scrolls, blankFrames.map(f => `@${f.atMs} (fed to ${(f as Frame & { fedToMs?: number }).fedToMs ?? '?'}; rows with ink ${f.rows.filter(r => r.trim() !== '').length})`).join(', '))
 
   let elapsedLawHolds = true

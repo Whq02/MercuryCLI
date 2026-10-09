@@ -217,6 +217,9 @@ function selfTest(): number {
     ['synthetic engine contract is not a product drive', "const CHILD = ['python3', '-c', 'print(1)']; const cfg = { argv: CHILD, total: 8, out: path, sends: [{ atTick: 1, data: 'x' }] }", []],
     ['product alongside synthetic stays covered', "const a = { argv: ['true'] }; const b = { argv: ['node', BIN], sends: [{ atTick: 1, data: 'x' }] }", ['send']],
     ['comments and strings are not sends', "const text = '{ atTick: 1, data: x }'", []],
+    ['a held key ends on the needle', "const sends = [{ requireAwait: true, awaitText: 'recording', repeatEveryTicks: 3, data: ' ' }]", []],
+    ['a held key on a clock deadline fires blind', "const sends = [{ afterPrevTicks: 12, awaitText: 'recording', repeatEveryTicks: 3, data: ' ' }]", ['send']],
+    ['a held key without a needle has nothing to end on', "const sends = [{ requireAwait: true, repeatEveryTicks: 3, data: ' ' }]", ['send']],
   ]
   let failed = 0
   for (const [label, source, want] of cases) {
