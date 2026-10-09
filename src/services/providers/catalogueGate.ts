@@ -3,12 +3,13 @@ import { resolveMoonshotAccount } from './moonshot/moonshotAccounts.js'
 import { resolveDeepseekApiKey } from './deepseek/deepseekAccounts.js'
 import { resolveXaiCredentialSnapshot } from './xai/xaiAccounts.js'
 import { resolveMetaApiKey } from './meta/metaAccounts.js'
+import { resolveZenApiKey } from './zen/zenAccounts.js'
 import { resolveGeminiAccount } from './gemini/geminiAccounts.js'
 import { resolveHuggingfaceApiKey } from './huggingface/huggingfaceAccounts.js'
 import { resolveOpenaiAccount } from './openai/openaiAccounts.js'
 import { resolveOpenrouterRequestAuth } from './openrouter/openrouterAccounts.js'
 
-export type CatalogueFamily = 'anthropic' | 'huggingface' | 'openrouter' | 'gemini' | 'openai' | 'deepseek' | 'xai' | 'meta' | 'moonshot' | 'zai' | 'local'
+export type CatalogueFamily = 'anthropic' | 'huggingface' | 'openrouter' | 'gemini' | 'openai' | 'deepseek' | 'xai' | 'meta' | 'moonshot' | 'zai' | 'local' | 'zen'
 
 export type CatalogueGateVerdict =
   | { allowed: true; exempt?: 'local-endpoint' }
@@ -29,6 +30,7 @@ const FAMILY_NAMES: Record<Exclude<CatalogueFamily, 'local'>, string> = {
   meta: 'Meta',
   moonshot: 'Moonshot',
   zai: 'Z.AI',
+  zen: 'OpenCode Zen',
 }
 
 export function connectToBrowseReason(family: Exclude<CatalogueFamily, 'local'>): string {
@@ -63,6 +65,8 @@ function credentialPresent(family: Exclude<CatalogueFamily, 'local'>, env: NodeJ
         require('../../utils/router/providerDiscovery.js') as typeof import('../../utils/router/providerDiscovery.js')
       return resolveZaiDispatch(env) !== undefined
     }
+    case 'zen':
+      return resolveZenApiKey(env) !== undefined
   }
 }
 
