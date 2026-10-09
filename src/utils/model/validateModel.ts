@@ -23,7 +23,8 @@ async function validateNonAnthropicModel(
     | 'openrouter'
     | 'gemini'
     | 'huggingface'
-    | 'local',
+    | 'local'
+    | 'zen',
   trimmed: string,
 ): Promise<ValidateModelResult & { skipCache?: boolean }> {
   if (route !== 'openrouter') {
@@ -165,6 +166,20 @@ async function validateNonAnthropicModel(
     if (id === 'muse') return newestMetaModel() ? { valid: true, skipCache: true } : { valid: false, error: "Meta's live list has not served a Standard Muse Spark model for 'muse' yet — /model refreshes it. Contributor models must be selected explicitly." }
     if (!isMetaChatModelId(id)) return { valid: false, error: 'This Meta model is not on the supported Muse Spark chat road.' }
     if (snapshot?.fetchedAtMs && !snapshot.models.some(row => row.id.toLowerCase() === id)) return { valid: false, error: `Model "${trimmed}" is not listed by the Meta account's live catalogue.` }
+    return { valid: true, skipCache: true }
+  }
+  if (route === 'zen') {
+    const { resolveZenAccount } = await import('../../services/providers/zen/zenAccounts.js')
+    if (!resolveZenAccount()) return { valid: false, error: 'OpenCode Zen is unavailable — no API key (/logins zen, or set OPENCODE_API_KEY).' }
+    const { zenWireId } = await import('../../services/providers/zen/zenPins.js')
+    const wire = zenWireId(trimmed)
+    if (wire === '') return { valid: false, error: `'${trimmed}' names no model inside the zen/ namespace — /model lists the live Zen rows.` }
+    const { readCatalogueIfPending } = await import('../../services/providers/catalogueOnDemand.js')
+    await readCatalogueIfPending('zen')
+    const { getCachedZenCatalogue, cachedLiveIds } = await import('../../services/providers/zen/zenCatalogue.js')
+    const snapshot = getCachedZenCatalogue()
+    if (snapshot?.lastError?.includes('refused the credential')) return { valid: false, error: `${snapshot.lastError} — /logins zen replaces the key.` }
+    if (snapshot?.fetchedAtMs && !cachedLiveIds().has(wire.toLowerCase())) return { valid: false, error: `Model "${trimmed}" is not listed by the OpenCode Zen catalogue.` }
     return { valid: true, skipCache: true }
   }
   if (route === 'deepseek') {
