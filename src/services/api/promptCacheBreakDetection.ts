@@ -47,6 +47,7 @@ export type CacheLane =
   | 'local'
   | 'mistral'
   | 'nous'
+  | 'zen'
 
 type PromptStateSnapshot = {
   system: NeutralSystemBlock[]

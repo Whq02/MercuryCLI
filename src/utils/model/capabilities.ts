@@ -43,6 +43,7 @@ import { xaiModelFacts, getCachedXaiCatalogue } from '../../services/providers/x
 import { isMetaModelId, metaDisplayPin } from '../../services/providers/meta/metaPins.js'
 import { isMistralModelId } from '../../services/providers/mistral/mistralPins.js'
 import { mistralModelFacts } from '../../services/providers/mistral/mistralCatalogue.js'
+import { isZenModelId, zenDisplayPin } from '../../services/providers/zen/zenPins.js'
 import {
   deepseekDisplayPin,
   DEEPSEEK_EFFORTS,
@@ -62,6 +63,7 @@ export function modelSupportsTemperature(model: string): boolean {
   if (isXaiModelId(model)) return xaiModelFacts(model)?.temperature === true
   if (isMetaModelId(model)) return metaDisplayPin(model) !== undefined
   if (isMistralModelId(model)) return true
+  if (isZenModelId(model)) return true
   const m = /claude-([a-z]+)-(\d+)(?:-(\d{1,2})(?!\d))?/.exec(model)
   if (!m) return true
   const family = m[1]!
@@ -87,6 +89,7 @@ export function modelSupportsThinking(model: string): boolean {
   }
   if (isMetaModelId(model)) return metaDisplayPin(model) !== undefined
   if (isMistralModelId(model)) return mistralModelFacts(model).reasoning === true
+  if (isZenModelId(model)) return true
   return !getCanonicalName(model).includes('claude-3-')
 }
 
@@ -121,6 +124,10 @@ export function modelThinkingAlwaysOn(model: string): boolean {
   }
   if (isMetaModelId(model)) return metaDisplayPin(model) !== undefined
   if (isMistralModelId(model)) return false
+  if (isZenModelId(model)) {
+    const pin = zenDisplayPin(model)
+    return pin !== undefined && pin.thinkingToggle !== true && !(pin.efforts?.includes('none') ?? false)
+  }
   if (isCarrierShapedId(model)) return false
   const canonical = getCanonicalName(familyDefaultsModel(model))
   return canonical.includes('fable-5') || canonical.includes('mythos-5') || canonical === 'claude-opus-5-5' || canonical === 'claude-sonnet-5-5'
@@ -201,7 +208,7 @@ export type EffortVocabularyView =
   | { kind: 'ladder'; source: 'first-party' | 'unknown-id'; vocabulary: readonly EffortLevel[] }
   | {
       kind: 'provider'
-      source: 'gpt-live' | 'glm' | 'kimi' | 'deepseek' | 'xai' | 'meta' | 'gemini' | 'openrouter' | 'local' | 'mistral' | 'nous'
+      source: 'gpt-live' | 'glm' | 'kimi' | 'deepseek' | 'xai' | 'meta' | 'gemini' | 'openrouter' | 'local' | 'mistral' | 'nous' | 'zen'
       vocabulary: readonly string[]
       defaultEffort?: string
       thinkingGated: boolean
@@ -222,6 +229,7 @@ export type EffortVocabularyView =
         | 'gemini'
         | 'compat'
         | 'local'
+        | 'zen'
         | 'carrier'
         | 'first-party-legacy'
         | 'nous'
@@ -295,6 +303,13 @@ export function effortVocabularyFor(model: string): EffortVocabularyView {
       : { kind: 'none', source: 'mistral' }
   }
   if (isHuggingfaceModelId(model)) return { kind: 'none', source: 'huggingface' }
+  if (route === 'zen') {
+    const pin = zenDisplayPin(model)
+    const vocabulary = pin?.efforts ?? []
+    return vocabulary.length > 0
+      ? { kind: 'provider', source: 'zen', vocabulary, thinkingGated: true, thinkingOffWire: thinkingOffWireEffort(vocabulary) }
+      : { kind: 'none', source: 'zen' }
+  }
   if (route === 'openrouter') {
     const { openrouterEffortVocabularyFor } =
       require('../../services/providers/openrouter/openrouterCatalogue.js') as typeof import('../../services/providers/openrouter/openrouterCatalogue.js')
@@ -690,6 +705,7 @@ export function resolveContextWindow(
     if (isXaiModelId(id)) return xaiModelFacts(id)?.contextWindow
     if (isMetaModelId(id)) return metaDisplayPin(id)?.contextWindow
     if (isMistralModelId(id)) return mistralModelFacts(id).contextWindow
+    if (isZenModelId(id)) return zenDisplayPin(id)?.contextWindow
     return undefined
   })()
   if (enginePinnedWindow !== undefined) {
@@ -751,6 +767,8 @@ export function getModelMaxOutputTokens(model: string): {
 } {
   const metaOut = metaDisplayPin(model)?.outputMax
   if (metaOut !== undefined) return statedOutputTokens(metaOut)
+  const zenOut = isZenModelId(model) ? zenDisplayPin(model)?.outputMax : undefined
+  if (zenOut !== undefined) return statedOutputTokens(zenOut)
   let upperLimit: number | undefined
 
   const gptPinOut = gptDisplayPin(model)?.outputMax
@@ -1000,6 +1018,8 @@ function catalogueDeclaresImages(model: string, route: CallModelRoute): boolean 
       return metaDisplayPin(model)?.images === true
     case 'mistral':
       return mistralModelFacts(model).images === true
+    case 'zen':
+      return zenDisplayPin(model)?.images === true
     case 'zai':
       return glmTakesImages(model)
     case 'openrouter':

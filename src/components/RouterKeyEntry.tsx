@@ -19,13 +19,14 @@ import {
   writeStoredXaiApiKey,
   writeStoredXaiManagementApiKey,
   writeStoredZaiApiKey,
+  writeStoredZenApiKey,
 } from '../utils/router/providerSecrets.js'
 import { zaiKeySource } from '../utils/router/providerDiscovery.js'
 import { XAI_MANAGEMENT_KEY_PAGE } from '../services/providers/xai/xaiUsageState.js'
 import { MISTRAL_ADMIN_KEY_PAGE } from '../services/providers/mistral/mistralUsageState.js'
 
 
-export type KeyEntryProvider = 'zai' | 'moonshot' | 'deepseek' | 'xai' | 'xai-management' | 'meta' | 'compat' | 'huggingface' | 'local' | 'brave' | 'tavily' | 'mistral' | 'mistral-admin' | 'nous'
+export type KeyEntryProvider = 'zai' | 'moonshot' | 'deepseek' | 'xai' | 'xai-management' | 'meta' | 'compat' | 'huggingface' | 'local' | 'brave' | 'tavily' | 'mistral' | 'mistral-admin' | 'nous' | 'zen'
 
 const LANES: Record<
   KeyEntryProvider,
@@ -119,6 +120,12 @@ const LANES: Record<
     envVar: 'NOUS_API_KEY',
     write: writeStoredNousApiKey,
     envShadow: () => Boolean(process.env.NOUS_API_KEY?.trim()),
+  },
+  zen: {
+    title: 'OpenCode Zen API key',
+    envVar: 'OPENCODE_API_KEY',
+    write: writeStoredZenApiKey,
+    envShadow: () => Boolean(process.env.OPENCODE_API_KEY?.trim()),
   },
 }
 

@@ -6,6 +6,7 @@
 # gate-watch: src/services/providers/huggingface/huggingfacePins.ts
 # gate-watch: src/services/providers/moonshot/kimiPins.ts src/services/providers/openai/gptPins.ts
 # gate-watch: src/services/providers/typedModelIds.ts src/services/providers/zai/glmPins.ts
+# gate-watch: src/services/providers/zen/zenPins.ts
 # gate-watch: src/utils/model/model.ts src/utils/router/providers/zai.ts
 # gate-watch: src/services/privateChannel/installLayout.ts
 set -uo pipefail

@@ -65,6 +65,7 @@ export function getLogoDisplayData(): { version: string; cwd: string; billingTyp
       if (route === 'huggingface') return 'Hugging Face credits / pay-as-you-go billing'
       if (route === 'local') return 'local model · no metering'
       if (route === 'nous') return 'Nous Portal credits / subscription billing'
+      if (route === 'zen') return 'OpenCode Zen pay-as-you-go billing'
       if (route === null) return 'unrecognised model · no billed lane'
     } catch {
     }

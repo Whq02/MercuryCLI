@@ -5,7 +5,7 @@
    signed in
    ❯ OpenAI — ChatGPT subscription or API key  ChatGPT Plus
      Claude subscription account               op@example.com
-   ↓ 12 more
+   ↓ 13 more
 
    logins wants at least 64×13 · this window is 64×12
    ↑↓ move · ↵ sign in · esc back

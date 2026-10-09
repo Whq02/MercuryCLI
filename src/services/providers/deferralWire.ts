@@ -29,6 +29,7 @@ export const DEFERRAL_WIRE_CAPABILITY: Readonly<Record<CallModelRoute, DeferralW
   local: 'text',
   mistral: 'text',
   nous: 'text',
+  zen: 'text',
 }
 
 export interface DeferralWireReads {

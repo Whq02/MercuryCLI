@@ -22,7 +22,7 @@ import {
 import { TransitionPreviewCard } from '../../components/TransitionPreviewCard.js'
 import { resolveProviderUsability, usabilityForRoute } from '../../services/providers/providerUsability.js'
 import type { TransitionPlan } from '../../utils/model/modelTransition.js'
-import { ANTHROPIC_CONNECT_OPTION_VALUE, ANTHROPIC_MODEL_GROUP, anthropicNotSignedInReason, applyModelAllowlist, COMPAT_MODEL_GROUP, DEEPSEEK_MODEL_GROUP, XAI_MODEL_GROUP, META_MODEL_GROUP, MISTRAL_MODEL_GROUP, focusedOptionSupports1m, getGptSeatAvailability, getModelOptions, GPT_CONNECT_OPTION_VALUE, isCatalogueDoorRow, isProviderActionRow, type ModelOption, MOONSHOT_MODEL_GROUP, OPENAI_MODEL_GROUP, parseKeyConnectValue, signInFamilyOfRow, stripContext1m, withContext1m, ZAI_MODEL_GROUP } from '../../utils/model/modelOptions.js'
+import { ANTHROPIC_CONNECT_OPTION_VALUE, ANTHROPIC_MODEL_GROUP, anthropicNotSignedInReason, applyModelAllowlist, COMPAT_MODEL_GROUP, DEEPSEEK_MODEL_GROUP, XAI_MODEL_GROUP, META_MODEL_GROUP, MISTRAL_MODEL_GROUP, ZEN_MODEL_GROUP, focusedOptionSupports1m, getGptSeatAvailability, getModelOptions, GPT_CONNECT_OPTION_VALUE, isCatalogueDoorRow, isProviderActionRow, type ModelOption, MOONSHOT_MODEL_GROUP, OPENAI_MODEL_GROUP, parseKeyConnectValue, signInFamilyOfRow, stripContext1m, withContext1m, ZAI_MODEL_GROUP } from '../../utils/model/modelOptions.js'
 import { nextBirthModel } from '../../services/switchboard/bootBirthFacts.js'
 import {
   OPENROUTER_CONNECT_OPTION_VALUE,
@@ -520,6 +520,7 @@ const MODEL_GROUP_FAMILIES: Record<string, string> = {
   [DEEPSEEK_MODEL_GROUP]: 'deepseek',
   [XAI_MODEL_GROUP]: 'xai',
   [META_MODEL_GROUP]: 'meta',
+  [ZEN_MODEL_GROUP]: 'zen',
   [COMPAT_MODEL_GROUP]: 'openai-compat',
   [MISTRAL_MODEL_GROUP]: 'mistral',
   [LOCAL_MODEL_GROUP]: 'local',
@@ -599,7 +600,7 @@ function buildProviderHeadings(): Record<string, ProviderHeading> {
   const doorsOf = (family: string): ProviderHeading['doors'] => (presences.has(family) && presences.get(family)!.credentialed === false ? [] : signedInDoorsOf(family, slotsOf(family), presences.get(family)?.identity))
   const gptAvailability = getGptSeatAvailability()
   const usability = resolveProviderUsability()
-  const keyLaneHeading = (family: 'zai' | 'moonshot' | 'deepseek' | 'xai' | 'meta' | 'mistral'): ProviderHeading => {
+  const keyLaneHeading = (family: 'zai' | 'moonshot' | 'deepseek' | 'xai' | 'meta' | 'mistral' | 'zen'): ProviderHeading => {
     const lane = usability[family]
     const doors = doorsOf(family)
     if (lane.credential === 'none' || doors.length === 0) return { name: nameOf(family), doors: [], reason: lane.blockers[0] ?? 'not connected' }
@@ -631,6 +632,7 @@ function buildProviderHeadings(): Record<string, ProviderHeading> {
     [XAI_MODEL_GROUP]: keyLaneHeading('xai'),
     [META_MODEL_GROUP]: keyLaneHeading('meta'),
     [MISTRAL_MODEL_GROUP]: keyLaneHeading('mistral'),
+    [ZEN_MODEL_GROUP]: keyLaneHeading('zen'),
     [OPENROUTER_MODEL_GROUP]:
       openrouterAvailability.state === 'ready'
         ? { name: nameOf('openrouter'), doors: doorsOf('openrouter') }

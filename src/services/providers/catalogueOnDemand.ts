@@ -1,6 +1,6 @@
 import { catalogueTrafficVerdict } from './catalogueGate.js'
 
-export const KEYED_CATALOGUE_FAMILIES = ['openai', 'openrouter', 'gemini', 'huggingface', 'moonshot', 'xai', 'meta', 'zai', 'mistral', 'nous'] as const
+export const KEYED_CATALOGUE_FAMILIES = ['openai', 'openrouter', 'gemini', 'huggingface', 'moonshot', 'xai', 'meta', 'zai', 'mistral', 'nous', 'zen'] as const
 export type KeyedCatalogueFamily = (typeof KEYED_CATALOGUE_FAMILIES)[number]
 
 export const CATALOGUE_READ_BOUND_MS = 5_000
@@ -65,6 +65,13 @@ export async function readCatalogueIfPending(family: string, opts?: { boundMs?: 
         if (!catalogueTrafficVerdict('meta').allowed) return false
         if (!force && !nothingUsable(getCachedMetaCatalogue())) return false
         await bounded(refreshMetaCatalogue({ force }), boundMs)
+        return true
+      }
+      case 'zen': {
+        const { getCachedZenCatalogue, refreshZenCatalogue } = await import('./zen/zenCatalogue.js')
+        if (!catalogueTrafficVerdict('zen').allowed) return false
+        if (!force && !nothingUsable(getCachedZenCatalogue())) return false
+        await bounded(refreshZenCatalogue({ force }), boundMs)
         return true
       }
       case 'moonshot': {

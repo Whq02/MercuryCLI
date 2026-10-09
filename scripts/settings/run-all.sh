@@ -2,6 +2,7 @@
 # gate-class: pure
 # gate-watch: scripts/lib/hermetic.ts scripts/providers/lib/xai-usage-fixture.ts scripts/providers/lib/xai-auth-fixture.ts src/services/providers/xai/xaiOauth.ts
 # gate-watch: scripts/providers/lib/mistral-fixture.ts src/services/providers/mistral/**
+# gate-watch: scripts/providers/lib/zen-fixture.ts src/services/providers/zen/**
 # gate-watch: scripts/provider-compat/fixtures/huggingface-whoami-v2-documented.json
 # gate-watch: scripts/providers/fixtures/anthropic-oauth-usage.json scripts/providers/fixtures/openai-chatgpt-usage.json
 # gate-watch: src/context/modalContext.tsx src/services/providers/credentialEnvSpellings.ts

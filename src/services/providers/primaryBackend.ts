@@ -23,6 +23,8 @@ import { mistralCallModel, mistralLiveProofState } from './mistral/mistralCallMo
 import { resolveMistralApiKey } from './mistral/mistralAccounts.js'
 import { nousCallModel, nousLiveProofState } from './nous/nousCallModel.js'
 import { resolveNousAccount } from './nous/nousAccounts.js'
+import { zenCallModel, zenLiveProofState } from './zen/zenCallModel.js'
+import { resolveZenApiKey } from './zen/zenAccounts.js'
 import { compatCallModel, compatSlotLiveProofState } from './openaicompat/compatCallModel.js'
 import { resolveCompatSlotConfig } from './openaicompat/compatAccounts.js'
 import {
@@ -51,6 +53,7 @@ export type PrimaryBackendId =
   | 'local-chat'
   | 'mistral-chat'
   | 'nous-chat'
+  | 'zen-gateway'
 
 export interface AgentRuntimeRef {
   contractVersion: typeof APEX_BACKEND_CONTRACT_VERSION
@@ -70,6 +73,7 @@ export interface AgentRuntimeRef {
     | 'local'
     | 'mistral'
     | 'nous'
+    | 'zen'
   route: CallModelRoute | 'unrecognised' | 'absence'
   canonicalModel: string
   family:
@@ -86,6 +90,7 @@ export interface AgentRuntimeRef {
     | { kind: 'huggingface' }
     | { kind: 'local' }
     | { kind: 'mistral' }
+    | { kind: 'zen' }
     | { kind: 'unknown' }
     | { kind: 'nous' }
   walletEntryId?: string
@@ -221,6 +226,17 @@ const mistralBackend: PrimaryAgentBackend = {
       : { state: 'configured', detail: 'key present · no live turn proven this session' }
   },
 }
+const zenBackend: PrimaryAgentBackend = {
+  id: 'zen-gateway', provider: 'zen', label: 'OpenCode Zen (gateway, in-process)',
+  callModel: zenCallModel as unknown as typeof queryModelWithStreaming,
+  readiness: (): BackendReadiness => {
+    if (!resolveZenApiKey()) return { state: 'unavailable', reason: 'no API key (/logins zen, or OPENCODE_API_KEY)' }
+    const proof = zenLiveProofState()
+    return proof
+      ? { state: 'ready', detail: `live turn settled this session (${proof.model})` }
+      : { state: 'configured', detail: 'key present · no live turn proven this session' }
+  },
+}
 const compatBackend: PrimaryAgentBackend = {
   id: 'openai-compat-chat',
   provider: 'openai-compat',
@@ -348,6 +364,7 @@ const BACKENDS: Record<CallModelRoute, PrimaryAgentBackend> = {
   local: localBackend,
   mistral: mistralBackend,
   nous: nousBackend,
+  zen: zenBackend,
 }
 
 export function resolvePrimaryAgentBackend(model: string | undefined): PrimaryAgentBackend | null {
@@ -398,6 +415,8 @@ export function describeAgentRuntimeRef(model: string | undefined): AgentRuntime
     family = { kind: 'mistral' }
   } else if (route === 'nous') {
     family = { kind: 'nous' }
+  } else if (route === 'zen') {
+    family = { kind: 'zen' }
   } else {
     family = canonical.toLowerCase().includes('claude') ? { kind: 'claude' } : { kind: 'unknown' }
   }

@@ -1,7 +1,7 @@
 import { formatAge } from '../../utils/healthCertCore.js'
 import type { AnthropicDoorState } from './anthropic/anthropicCatalogue.js'
 
-export type ModelListFamily = 'anthropic' | 'openai' | 'zai' | 'moonshot' | 'deepseek' | 'xai' | 'meta' | 'gemini' | 'huggingface' | 'mistral' | 'nous'
+export type ModelListFamily = 'anthropic' | 'openai' | 'zai' | 'moonshot' | 'deepseek' | 'xai' | 'meta' | 'gemini' | 'huggingface' | 'mistral' | 'nous' | 'zen'
 
 export interface TypedIdVerdict {
   rows: Array<{ id: string; served: boolean }>
@@ -301,6 +301,16 @@ function nousFact(name: string, env: NodeJS.ProcessEnv): ModelListFact {
   })
 }
 
+function zenFact(name: string, env: NodeJS.ProcessEnv): ModelListFact {
+  const typed = (): string[] => (require('./zen/zenPins.js') as typeof import('./zen/zenPins.js')).ZEN_DISPLAY_PINS.map(pin => pin.id)
+  return guarded('zen', name, typed, () => {
+    const { resolveZenAccount } = require('./zen/zenAccounts.js') as typeof import('./zen/zenAccounts.js')
+    const { getCachedZenCatalogue } = require('./zen/zenCatalogue.js') as typeof import('./zen/zenCatalogue.js')
+    const account = resolveZenAccount(env)
+    return { family: 'zen', name, typed: typed(), ...(account ? { source: account.label } : {}), list: account ? cachedListSource(getCachedZenCatalogue(env)) : { kind: 'no-credential' } }
+  })
+}
+
 export function readModelListFacts(env: NodeJS.ProcessEnv = process.env): ModelListFact[] {
   const { providerDisplayName } = require('./routeLaw.js') as typeof import('./routeLaw.js')
   const name = (family: ModelListFamily): string => providerDisplayName(family)
@@ -316,5 +326,6 @@ export function readModelListFacts(env: NodeJS.ProcessEnv = process.env): ModelL
     huggingfaceFact(name('huggingface'), env),
     mistralFact(name('mistral'), env),
     nousFact(name('nous'), env),
+    zenFact(name('zen'), env),
   ]
 }

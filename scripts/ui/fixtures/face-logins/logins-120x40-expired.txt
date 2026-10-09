@@ -24,9 +24,9 @@
    │   xAI — Grok subscription sign-in or API …       not signed in │  ╰────────────────────────────────────────────╯
    │   Meta — API key (Muse)                          not signed in │  ╭────────────────────────────────────────────╮
    │   Mistral — API key (Mistral Large 4)            not signed in │  │ LOGINS                                     │
-   │   Nous Portal — API key (model gateway)          not signed in │  │ Families   12                              │
-   ╰────────────────────────────────────────────────────────────────╯  │ Signed in  3 of 12                         │
-                                                                       │ Ready      3 lanes                         │
+   │   Nous Portal — API key (model gateway)          not signed in │  │ Families   13                              │
+   │   OpenCode Zen — API key (one key, the ga…       not signed in │  │ Signed in  3 of 13                         │
+   ╰────────────────────────────────────────────────────────────────╯  │ Ready      3 lanes                         │
                                                                        ╰────────────────────────────────────────────╯
                                                                        ╭────────────────────────────────────────────╮
                                                                        │ ENVIRONMENT                                │
@@ -35,6 +35,6 @@
                                                                        │ Dir        orchard-src                     │
                                                                        ╰────────────────────────────────────────────╯
    ╭────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
-   │ ● System ready  │  3 of 12 families signed in · 3 ready                                                        │
+   │ ● System ready  │  3 of 13 families signed in · 3 ready                                                        │
    ╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
                                              ↑↓ move · ↵ sign in · esc back

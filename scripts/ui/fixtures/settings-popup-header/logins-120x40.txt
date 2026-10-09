@@ -26,8 +26,8 @@ VITALS                  │ │                                                 
                         │ │   Meta — API key (Muse)                                                                  │ │
                         │ │   Mistral — API key (Mistral Large 4)                                                    │ │
                         │ │   Nous Portal — API key (model gateway)                                                  │ │
+                        │ │   OpenCode Zen — API key (one key, the gateway's model list)                             │ │
                         │ │                                                                                          │ │
-                        │ │ Provider readiness                                                                       │ │
                         │ │                                                                                          │ │
                         │ │ esc or click outside closes                                                              │ │
                         │ ╰──────────────────────────────────────────────────────────────────────────────────────────╯ │

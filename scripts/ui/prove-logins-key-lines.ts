@@ -34,6 +34,7 @@ const PAGES = {
   meta: 'dev.meta.ai',
   mistral: 'console.mistral.ai/api-keys',
   nous: 'portal.nousresearch.com',
+  zen: 'opencode.ai/auth',
 } as const
 type Family = keyof typeof PAGES
 const FAMILIES = Object.keys(PAGES) as Family[]
@@ -59,6 +60,7 @@ const PANE: Record<Family, string> = {
   meta: 'src/components/MetaConnect.tsx',
   mistral: 'src/components/MistralConnect.tsx',
   nous: 'src/components/NousConnect.tsx',
+  zen: 'src/components/ZenConnect.tsx',
 }
 const ROAD: Partial<Record<Family, string[]>> = {
   deepseek: ['src/services/providers/deepseek/deepseekLogin.ts', 'src/services/providers/deepseek/deepseekCallModel.ts'],
@@ -66,6 +68,7 @@ const ROAD: Partial<Record<Family, string[]>> = {
   meta: ['src/services/providers/meta/metaLogin.ts', 'src/services/providers/meta/metaCallModel.ts'],
   mistral: ['src/services/providers/mistral/mistralLogin.ts', 'src/services/providers/mistral/mistralCallModel.ts'],
   nous: ['src/services/providers/nous/nousLogin.ts', 'src/services/providers/nous/nousCallModel.ts'],
+  zen: ['src/services/providers/zen/zenLogin.ts', 'src/services/providers/zen/zenCallModel.ts'],
   moonshot: ['src/services/providers/moonshot/moonshotLogin.ts'],
   huggingface: ['src/services/providers/huggingface/huggingfaceLogin.ts'],
   zai: ['src/services/providers/zai/zaiCallModel.ts'],
@@ -80,7 +83,7 @@ const { composeLogins, renderStill, signedOutFacts } = await import('./face-logi
 
 const DETAIL_W = 38
 const WAY_OUT: Record<'pick' | 'key', string> = { pick: 'esc — back to the roster', key: '↵ stores it · esc back' }
-const isKeyOnly = (family: Family): family is 'deepseek' | 'meta' | 'mistral' | 'nous' => family === 'deepseek' || family === 'meta' || family === 'mistral' || family === 'nous'
+const isKeyOnly = (family: Family): family is 'deepseek' | 'meta' | 'mistral' | 'nous' | 'zen' => family === 'deepseek' || family === 'meta' || family === 'mistral' || family === 'nous' || family === 'zen'
 const cardKind = (family: Family): 'pick' | 'key' => (isKeyOnly(family) ? 'key' : 'pick')
 const cardLines = (family: Family): string[] =>
   isKeyOnly(family) ? screen.keyPromptPaneLines(family, null, 0, false) : screen.loginsPickPaneLines(family)
@@ -93,7 +96,7 @@ t.section('§1 — ONE OWNER: the family-row owner spells every key page once; t
 {
   const pages = owner['KEY_PAGES'] as Record<string, string> | undefined
   t.check(
-    'KEY_PAGES names exactly the eleven key families with these page spellings',
+    'KEY_PAGES names exactly the twelve key families with these page spellings',
     pages !== undefined && JSON.stringify(Object.entries(pages).sort()) === JSON.stringify(Object.entries(PAGES).sort()),
     pages === undefined ? 'no KEY_PAGES export' : JSON.stringify(pages),
   )

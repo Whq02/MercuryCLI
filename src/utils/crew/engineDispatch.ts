@@ -22,6 +22,8 @@ import {
 } from '../../services/providers/openaicompat/compatAccounts.js'
 import { COMPAT_MODEL_PREFIX, isCompatModelId } from '../../services/providers/routeLaw.js'
 import { HUGGINGFACE_STATIC_CATALOGUE, huggingfaceLiveCatalogue } from '../router/providers/huggingface.js'
+import { zenCatalogueEntries, zenCatalogueEntry } from '../router/providers/zen.js'
+import { isZenModelId } from '../../services/providers/zen/zenPins.js'
 import { localLiveCatalogue } from '../router/providers/local.js'
 import {
   HUGGINGFACE_MODEL_PREFIX,
@@ -45,7 +47,7 @@ import {
 import { resolveOpenrouterAccount } from '../../services/providers/openrouter/openrouterAccounts.js'
 import { refreshOpenrouterCatalogue } from '../../services/providers/openrouter/openrouterCatalogue.js'
 
-export const ENGINE_DISPATCH_MODELS = ['gpt', 'glm', 'kimi', 'deepseek', 'grok', 'muse', 'compat', 'huggingface', 'local', 'gemini', 'openrouter', 'mistral', 'nous'] as const
+export const ENGINE_DISPATCH_MODELS = ['gpt', 'glm', 'kimi', 'deepseek', 'grok', 'muse', 'compat', 'huggingface', 'local', 'gemini', 'openrouter', 'mistral', 'nous', 'zen'] as const
 export type EngineDispatchModel = (typeof ENGINE_DISPATCH_MODELS)[number]
 
 export function isEngineDispatchModel(v: unknown): v is EngineDispatchModel {
@@ -73,7 +75,8 @@ export function isExactEngineModelId(v: unknown): v is string {
     isHuggingfaceModelId(v) ||
     isLocalModelId(v) ||
     isOpenrouterModelId(v) ||
-    isNousModelId(v)
+    isNousModelId(v) ||
+    isZenModelId(v)
   )
 }
 
@@ -127,6 +130,7 @@ type EngineProvider =
   | 'openrouter'
   | 'mistral'
   | 'nous'
+  | 'zen'
 
 export interface EngineDispatch {
   backend: EngineProvider
@@ -292,6 +296,19 @@ async function resolveGeminiExactModel(id: string): Promise<EngineDispatch> {
   return { backend: 'gemini', model: id, displayLabel: `${id} (catalogue unreachable — the runtime validates at dispatch)` }
 }
 
+async function resolveZenClassDispatch(): Promise<EngineDispatch> {
+  const main = getEngineModel()
+  if (declaredRouteOf(main) === 'zen') {
+    return { backend: 'zen', model: main, displayLabel: zenCatalogueEntry(main)?.displayLabel ?? main.slice('zen/'.length) }
+  }
+  if (!zenCatalogueEntries().length) await readCatalogueIfPending('zen')
+  const head = zenCatalogueEntries()[0]
+  if (!head) {
+    throw new Error("The 'zen' class cannot resolve — the OpenCode Zen gateway's model list has not been read or lists no row this road carries. Name an exact zen/<id> instead, or retry when the list lands.")
+  }
+  return { backend: 'zen', model: head.id, displayLabel: head.displayLabel }
+}
+
 async function resolveOpenrouterClassDispatch(): Promise<EngineDispatch> {
   const main = getEngineModel()
   if (declaredRouteOf(main) === 'openrouter') {
@@ -417,6 +434,10 @@ export async function resolveEngineDispatch(
       await requireProviderAvailable('nous')
       return resolveNousClassDispatch()
     }
+    if (modelParam === 'zen') {
+      await requireProviderAvailable('zen')
+      return resolveZenClassDispatch()
+    }
     await requireProviderAvailable('openai-compat')
     const first = compatSlotModelIds()[0]
     if (!first) {
@@ -494,6 +515,17 @@ export async function resolveEngineDispatch(
     if (isLocalModelId(id)) {
       await requireProviderAvailable('local')
       return resolveLocalExactModel(id)
+    }
+    if (isZenModelId(id)) {
+      await requireProviderAvailable('zen')
+      if (!zenCatalogueEntry(id)) await readCatalogueIfPending('zen')
+      const pin = zenCatalogueEntry(id)
+      if (!pin) {
+        throw new Error(
+          `OpenCode Zen model '${id}' is not a catalogue-verified id (listed: ${zenCatalogueEntries().map(c => c.id).join(', ')}) — never dispatching an unverified id.`,
+        )
+      }
+      return { backend: 'zen', model: pin.id, displayLabel: pin.displayLabel }
     }
     if (isCompatModelId(id)) {
       await requireProviderAvailable('openai-compat')

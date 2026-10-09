@@ -15,6 +15,7 @@ export const PROVIDER_CREDENTIAL_ENV_VARS: Record<CallModelRoute, readonly strin
   local: ['MERCURY_LOCAL_API_KEY'],
   mistral: ['MISTRAL_API_KEY', 'MISTRAL_ADMIN_API_KEY'],
   nous: ['NOUS_API_KEY'],
+  zen: ['OPENCODE_API_KEY'],
 }
 
 export const ALL_PROVIDER_CREDENTIAL_ENV_VARS: readonly string[] = [
@@ -38,6 +39,7 @@ export const PROVIDER_CREDENTIAL_VALUE_SHAPES: Record<CallModelRoute, Credential
   local: null,
   mistral: null,
   nous: { pattern: /(?<![A-Za-z0-9"'])sk-nous-[A-Za-z0-9_-]{16,}(?![A-Za-z0-9"'])/g, marker: '[REDACTED_NOUS_KEY]' },
+  zen: null,
 }
 
 export const REPOSITORY_HOST_TOKEN_SHAPE: NonNullable<CredentialValueShape> = {

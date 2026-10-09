@@ -6,8 +6,7 @@
   wins. Enterprise plans issue it at backoffice.mistral.ai. key: ▌ ↵ stores ·
   empty/esc skips; API key stays
 
-  ↑ 5 more
-  available
+  ↑ 6 more
     Usage-based billing — Anthropic Console…  not signed in
     OpenRouter — one credential, the whole …  not signed in
     Google Gemini — API key or Google OAuth   not signed in
@@ -17,6 +16,7 @@
     Meta — API key (Muse)                     not signed in
   ❯ Mistral — API key (Mistral Large 4)       not signed in
     Nous Portal — API key (model gateway)     not signed in
+    OpenCode Zen — API key (one key, the ga…  not signed in
 
 
   Mistral · not signed in

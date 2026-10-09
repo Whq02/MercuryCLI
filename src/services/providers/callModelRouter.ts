@@ -19,6 +19,7 @@ import { huggingfaceCallModel } from './huggingface/huggingfaceCallModel.js'
 import { localCallModel } from './local/localCallModel.js'
 import { mistralCallModel } from './mistral/mistralCallModel.js'
 import { nousCallModel } from './nous/nousCallModel.js'
+import { zenCallModel } from './zen/zenCallModel.js'
 import { homeLaneAdmissionRefusal } from './homeLaneAdmission.js'
 import { readStoredImageRefsForRequest } from '../../utils/imageStore.js'
 
@@ -144,6 +145,9 @@ export const routedCallModel: typeof queryModelWithStreaming = async function* (
       return
     case 'nous':
       yield* nousCallModel(request)
+      return
+    case 'zen':
+      yield* zenCallModel(request)
       return
   }
 }
