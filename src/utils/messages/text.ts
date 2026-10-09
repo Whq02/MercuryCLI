@@ -123,21 +123,28 @@ export function getUserMessageText(
   return getContentText(message.message.content)
 }
 
-export function textForResubmit(
-  msg: UserMessage,
-): { text: string; mode: 'bash' | 'prompt' } | null {
+type Resubmit = { text: string; mode: 'bash' | 'prompt' }
+
+const resubmitReaders: ReadonlyArray<(content: string) => Resubmit | null> = [
+  content => {
+    const command = extractTag(content, 'bash-input')
+    return command ? { text: command, mode: 'bash' } : null
+  },
+  content => {
+    const name = extractTag(content, COMMAND_NAME_TAG)
+    return name ? { text: `${name} ${extractTag(content, COMMAND_ARGS_TAG) ?? ''}`, mode: 'prompt' } : null
+  },
+  content => ({ text: stripIdeContextTags(content), mode: 'prompt' }),
+]
+
+export function textForResubmit(msg: UserMessage): Resubmit | null {
   const content = getUserMessageText(msg)
   if (content === null) return null
-
-  const bash = extractTag(content, 'bash-input')
-  if (bash) return { text: bash, mode: 'bash' }
-
-  const cmd = extractTag(content, COMMAND_NAME_TAG)
-  if (cmd) {
-    const args = extractTag(content, COMMAND_ARGS_TAG) ?? ''
-    return { text: `${cmd} ${args}`, mode: 'prompt' }
+  for (const read of resubmitReaders) {
+    const recovered = read(content)
+    if (recovered) return recovered
   }
-  return { text: stripIdeContextTags(content), mode: 'prompt' }
+  return null
 }
 
 
