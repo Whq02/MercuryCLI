@@ -1688,7 +1688,7 @@ function deriveUsageForProvider(
     let balance: { display: string; observedAtMs: number } | undefined
     if (limits) {
       if (spent !== undefined) figures.push({ key: 'month-usage', label: 'organisation usage this month', value: `${limits.currency} ${spent.toFixed(2)}`, ...stamp })
-      if (limits.vibeUsage !== undefined && limits.vibeUsage > 0) figures.push({ key: 'vibe-usage', label: 'of which Vibe usage', value: `${limits.currency} ${limits.vibeUsage.toFixed(2)}`, ...stamp })
+      if (limits.vibeUsage !== undefined && limits.vibeUsage > 0) figures.push({ key: 'vibe-usage', label: 'of which Vibe Code usage', value: `${limits.currency} ${limits.vibeUsage.toFixed(2)}`, ...stamp })
       if (limits.noMonthlyLimit) figures.push({ key: 'month-limit', label: 'monthly spend limit', value: 'none set', ...stamp })
       else if (limits.usageLimit !== undefined) {
         figures.push({ key: 'month-limit', label: 'monthly spend limit', value: `${limits.currency} ${limits.usageLimit.toFixed(2)}${limits.monthlyLimitReached ? ' · reached' : ''}`, ...stamp })
