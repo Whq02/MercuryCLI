@@ -36,6 +36,7 @@ export const FAMILY_TRANSCRIBER: Record<CallModelRoute, { slot: 'api-key' } | { 
   'openai-compat': { slot: 'none', why: 'no speech-to-text endpoint declared' },
   local: { slot: 'none', why: 'no speech-to-text endpoint declared' },
   mistral: { slot: 'none', why: 'no speech-to-text endpoint wired' },
+  nous: { slot: 'none', why: 'no speech-to-text endpoint wired' },
 }
 
 

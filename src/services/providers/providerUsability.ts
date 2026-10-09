@@ -18,6 +18,7 @@ export type ProviderId =
   | 'huggingface'
   | 'local'
   | 'mistral'
+  | 'nous'
 
 export interface ProviderUsability {
   provider: ProviderId | 'unrecognised'
@@ -46,6 +47,7 @@ export interface ProviderUsabilityReads {
   xaiKeyPresent?: () => boolean
   metaKeyPresent?: () => boolean
   mistralKeyPresent?: () => boolean
+  nousKeyPresent?: () => boolean
   compatConfigured?: () => boolean
   compatAccount?: () => { kind: 'api-key' | 'keyless' } | undefined
   huggingfaceAccount?: () => { kind: 'oauth' | 'api-key' } | undefined
@@ -140,6 +142,10 @@ function liveProviderUsabilityReads(opts?: ProviderUsabilityReadOptions): Provid
     mistralKeyPresent: () => {
       const { resolveMistralApiKey } = require('./mistral/mistralAccounts.js') as typeof import('./mistral/mistralAccounts.js')
       return resolveMistralApiKey() !== undefined
+    },
+    nousKeyPresent: () => {
+      const { resolveNousApiKey } = require('./nous/nousAccounts.js') as typeof import('./nous/nousAccounts.js')
+      return resolveNousApiKey() !== undefined
     },
     deepseekKeyPresent: () => {
       const { resolveDeepseekApiKey } =
@@ -316,6 +322,7 @@ function resolveProviderUsabilityFrom(reads: ProviderUsabilityReads): Record<Pro
   )
   const meta = keyLane('meta', reads.metaKeyPresent?.() ?? false, 'no Meta API key — /logins meta (or MODEL_API_KEY)')
   const mistral = keyLane('mistral', reads.mistralKeyPresent?.() ?? false, 'no Mistral API key — /logins mistral (or MISTRAL_API_KEY)')
+  const nous = keyLane('nous', reads.nousKeyPresent?.() ?? false, 'no Nous Portal API key — /logins nous (or NOUS_API_KEY)')
   const deepseek = keyLane(
     'deepseek',
     reads.deepseekKeyPresent?.() ?? false,
@@ -417,6 +424,7 @@ function resolveProviderUsabilityFrom(reads: ProviderUsabilityReads): Record<Pro
     ),
     local: applyLaneBilling(local),
     mistral: applyLaneBilling(mistral),
+    nous: applyLaneBilling(nous),
   }
 }
 

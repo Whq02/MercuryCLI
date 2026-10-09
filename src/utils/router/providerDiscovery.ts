@@ -71,6 +71,13 @@ export interface MistralDiscovery {
   keyPresent: boolean
   keySource?: 'env' | 'stored'
 }
+
+export interface NousDiscovery {
+  provider: 'nous'
+  probedAtMs: number
+  keyPresent: boolean
+  keySource?: 'env' | 'stored'
+}
 export interface CompatDiscovery {
   provider: 'openai-compat'
   probedAtMs: number
@@ -113,6 +120,7 @@ export type ProviderDiscovery =
   | HuggingfaceDiscovery
   | LocalDiscovery
   | MistralDiscovery
+  | NousDiscovery
 
 export interface DiscoveryIo {
   env: Record<string, string | undefined>
@@ -250,6 +258,18 @@ function probeMistral(io: DiscoveryIo): MistralDiscovery {
   const { resolveMistralApiKey } = require('../../services/providers/mistral/mistralAccounts.js') as typeof import('../../services/providers/mistral/mistralAccounts.js')
   const key = resolveMistralApiKey(io.env)
   return { provider: 'mistral', probedAtMs: io.now(), keyPresent: key !== undefined, ...(key ? { keySource: key.source } : {}) }
+}
+
+function probeNous(io: DiscoveryIo): NousDiscovery {
+  const { resolveNousApiKey } = require('../../services/providers/nous/nousAccounts.js') as typeof import('../../services/providers/nous/nousAccounts.js')
+  const key = resolveNousApiKey(io.env)
+  return { provider: 'nous', probedAtMs: io.now(), keyPresent: key !== undefined, ...(key ? { keySource: key.source } : {}) }
+}
+
+export function primeNousDiscovery(io?: DiscoveryIo): NousDiscovery | null {
+  const record = probeNous(io ?? defaultIo())
+  cache.set('nous', record)
+  return record
 }
 
 function probeDeepseek(io: DiscoveryIo): DeepseekDiscovery {
@@ -399,7 +419,9 @@ export function refreshProviderDiscovery(
                             ? probeLocal(io)
                             : id === 'mistral'
                               ? probeMistral(io)
-                              : probeZai(io)
+                              : id === 'nous'
+                                ? probeNous(io)
+                                : probeZai(io)
       cache.set(id, record)
       return record
     } finally {

@@ -91,6 +91,12 @@ export function providerFrontierFact(route: CallModelRoute): ProviderFrontierFac
         if (!pin) return undefined
         return { modelId: `huggingface/${pin.id}`, displayName: pin.displayName, observedAt: pin.observedAt }
       }
+      case 'nous': {
+        const { getNousModelOptions, nousCatalogueSourceWords, NOUS_MODEL_PREFIX } =
+          require('../../services/providers/nous/nousCatalogue.js') as typeof import('../../services/providers/nous/nousCatalogue.js')
+        const row = getNousModelOptions().find(option => option.value.startsWith(NOUS_MODEL_PREFIX) && option.unavailable === undefined)
+        return row ? { modelId: row.value, displayName: row.label, source: nousCatalogueSourceWords() } : undefined
+      }
     }
   } catch {
     return undefined

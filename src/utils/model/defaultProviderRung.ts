@@ -14,6 +14,7 @@ const KNOWN_FAMILIES = new Set([
   'huggingface',
   'local',
   'mistral',
+  'nous',
 ])
 
 export interface DefaultProviderReads {

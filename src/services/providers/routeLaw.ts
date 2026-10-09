@@ -34,6 +34,7 @@ const PROVIDER_DISPLAY_NAMES: Record<CallModelRoute, string> = {
   huggingface: 'Hugging Face',
   local: 'Local models',
   mistral: 'Mistral',
+  nous: 'Nous Portal',
 }
 
 export function providerDisplayName(route: string): string {

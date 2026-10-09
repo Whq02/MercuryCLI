@@ -1,7 +1,7 @@
 import { formatAge } from '../../utils/healthCertCore.js'
 import type { AnthropicDoorState } from './anthropic/anthropicCatalogue.js'
 
-export type ModelListFamily = 'anthropic' | 'openai' | 'zai' | 'moonshot' | 'deepseek' | 'xai' | 'meta' | 'gemini' | 'huggingface' | 'mistral'
+export type ModelListFamily = 'anthropic' | 'openai' | 'zai' | 'moonshot' | 'deepseek' | 'xai' | 'meta' | 'gemini' | 'huggingface' | 'mistral' | 'nous'
 
 export interface TypedIdVerdict {
   rows: Array<{ id: string; served: boolean }>
@@ -290,6 +290,17 @@ function moonshotFact(name: string, env: NodeJS.ProcessEnv): ModelListFact {
   })
 }
 
+function nousFact(name: string, env: NodeJS.ProcessEnv): ModelListFact {
+  const typed = (): string[] => [...(require('./nous/nousCatalogue.js') as typeof import('./nous/nousCatalogue.js')).NOUS_PORTAL_RECOMMENDED]
+  return guarded('nous', name, typed, () => {
+    const { resolveNousAccount } = require('./nous/nousAccounts.js') as typeof import('./nous/nousAccounts.js')
+    const { getCachedNousCatalogue } = require('./nous/nousCatalogue.js') as typeof import('./nous/nousCatalogue.js')
+    const account = resolveNousAccount(env)
+    if (!account) return { family: 'nous', name, typed: typed(), list: { kind: 'no-credential' } }
+    return { family: 'nous', name, source: account.label, typed: typed(), list: cachedListSource(getCachedNousCatalogue(env)) }
+  })
+}
+
 export function readModelListFacts(env: NodeJS.ProcessEnv = process.env): ModelListFact[] {
   const { providerDisplayName } = require('./routeLaw.js') as typeof import('./routeLaw.js')
   const name = (family: ModelListFamily): string => providerDisplayName(family)
@@ -304,5 +315,6 @@ export function readModelListFacts(env: NodeJS.ProcessEnv = process.env): ModelL
     geminiFact(name('gemini'), env),
     huggingfaceFact(name('huggingface'), env),
     mistralFact(name('mistral'), env),
+    nousFact(name('nous'), env),
   ]
 }

@@ -1,23 +1,23 @@
 
- (>_) MERCURY · logins
- Mistral Admin API key (optional) Optional Admin API key from
- backoffice.mistral.ai (Enterprise plans) unlocks the organisation usage
- meter and spend limit. Stored auth-scoped (mode 600); MISTRAL_ADMIN_API_KEY
- wins. Enterprise plans issue it at backoffice.mistral.ai. key: ▌ ↵ stores ·
- empty/esc skips; API key stays
+  (>_) MERCURY · logins
+  Mistral Admin API key (optional) Optional Admin API key from
+  backoffice.mistral.ai (Enterprise plans) unlocks the organisation usage
+  meter and spend limit. Stored auth-scoped (mode 600); MISTRAL_ADMIN_API_KEY
+  wins. Enterprise plans issue it at backoffice.mistral.ai. key: ▌ ↵ stores ·
+  empty/esc skips; API key stays
 
- ↑ 4 more
-   Kimi (Moonshot) — device-code sign-in o…  kimi.ai (global) · window reached
- available
-   Usage-based billing — Anthropic Console…  not signed in
-   OpenRouter — one credential, the whole …  not signed in
-   Google Gemini — API key or Google OAuth   not signed in
-   GLM (Z.AI) — API key (general or GLM Co…  not signed in
-   DeepSeek — API key                        not signed in
-   xAI — Grok subscription sign-in or API …  not signed in
-   Meta — API key (Muse)                     not signed in
- ❯ Mistral — API key (Mistral Large 4)       not signed in
+  ↑ 5 more
+  available
+    Usage-based billing — Anthropic Console…  not signed in
+    OpenRouter — one credential, the whole …  not signed in
+    Google Gemini — API key or Google OAuth   not signed in
+    GLM (Z.AI) — API key (general or GLM Co…  not signed in
+    DeepSeek — API key                        not signed in
+    xAI — Grok subscription sign-in or API …  not signed in
+    Meta — API key (Muse)                     not signed in
+  ❯ Mistral — API key (Mistral Large 4)       not signed in
+    Nous Portal — API key (model gateway)     not signed in
 
 
- Mistral · not signed in
- ↵ store key · empty/esc skip
+  Mistral · not signed in
+  ↵ store key · empty/esc skip

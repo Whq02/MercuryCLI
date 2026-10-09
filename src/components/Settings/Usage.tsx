@@ -383,6 +383,11 @@ const ENGINE_USAGE_PRESENTATION: Record<
     connect: `start Ollama, LM Studio, vLLM or llama.cpp-server (or set MERCURY_LOCAL_BASE_URL), then ollama pull qwen3.5:9b (tool-capable), ${LOCAL_SETUP_OFFER}`,
     limitsNote: 'local · no metering',
   },
+  nous: {
+    title: 'Nous Portal usage',
+    connect: '/logins nous adds a Nous Portal API key (NOUS_API_KEY works too)',
+    limitsNote: 'Usage bills the Portal credits or subscription behind the key; the Portal account endpoint states the usable credits and plan when it resolves the key.',
+  },
 }
 
 export interface UsageSection {

@@ -180,6 +180,32 @@ function openrouterCataloguePricing(model: string): ResolvedModelPricing | undef
   }
 }
 
+function nousCataloguePricing(model: string): ResolvedModelPricing | undefined {
+  let listed: { pricing?: { prompt?: string; completion?: string; inputCacheRead?: string; inputCacheWrite?: string } } | undefined
+  try {
+    const { nousListedModel } =
+      require('../services/providers/nous/nousCatalogue.js') as typeof import('../services/providers/nous/nousCatalogue.js')
+    listed = nousListedModel(model)
+  } catch {
+    return undefined
+  }
+  const input = perMtokFromPerToken(listed?.pricing?.prompt)
+  const output = perMtokFromPerToken(listed?.pricing?.completion)
+  if (input === undefined || output === undefined) return undefined
+  const cacheRead = perMtokFromPerToken(listed?.pricing?.inputCacheRead)
+  const cacheWrite = perMtokFromPerToken(listed?.pricing?.inputCacheWrite)
+  return {
+    costs: {
+      inputTokens: input,
+      outputTokens: output,
+      promptCacheWriteTokens: cacheWrite ?? input,
+      promptCacheReadTokens: cacheRead ?? input,
+      webSearchRequests: 0,
+    },
+    basis: 'recorded',
+  }
+}
+
 function huggingfaceFloorPricing(model: string): ResolvedModelPricing | undefined {
   const pin = huggingfaceDisplayPin(model)
   if (!pin || pin.priceFloorInPerMtok === undefined || pin.priceFloorOutPerMtok === undefined) return undefined
@@ -212,6 +238,7 @@ const PRICING_OWNERS: Record<CallModelRoute, PricingOwner> = {
   local: () => ({ costs: COST_LOCAL_SERVER, basis: 'recorded' }),
   'openai-compat': () => undefined,
   mistral: model => recorded(engineTier(mistralDisplayPin(model))),
+  nous: model => nousCataloguePricing(model),
 }
 
 export function resolveModelPricing(model: string, opts?: { promptTokens?: number }): ResolvedModelPricing {

@@ -174,7 +174,7 @@ export const call: LocalJSXCommandCall = async (onDone, _context, args) => {
   }
 
   if (head === 'key') {
-    const KEY_LANES = ['zai', 'moonshot', 'deepseek', 'xai', 'xai-management', 'meta', 'compat', 'huggingface', 'local', 'brave', 'tavily', 'mistral', 'mistral-admin'] as const
+    const KEY_LANES = ['zai', 'moonshot', 'deepseek', 'xai', 'xai-management', 'meta', 'compat', 'huggingface', 'local', 'nous', 'brave', 'tavily', 'mistral', 'mistral-admin'] as const
     const word = rest.find(token => token !== 'clear' && !token.startsWith('--return='))
     if (word !== undefined && !(KEY_LANES as readonly string[]).includes(word)) {
       const loginsFamilies = ['openrouter', 'gemini', 'openai', 'anthropic', 'claude', 'console']
@@ -228,6 +228,9 @@ export const call: LocalJSXCommandCall = async (onDone, _context, args) => {
       } else if (providerArg === 'mistral-admin') {
         secrets.writeStoredMistralAdminApiKey(null)
         onDone('Mistral stored Admin API key cleared; the API key stays (an explicit MISTRAL_ADMIN_API_KEY env pin still applies).')
+      } else if (providerArg === 'nous') {
+        secrets.writeStoredNousApiKey(null)
+        onDone('Nous Portal stored key cleared (an explicit NOUS_API_KEY env pin, if set, still applies).')
       } else {
         secrets.writeStoredZaiApiKey(null)
         onDone('Z.AI stored key cleared (an explicit ZAI_API_KEY env pin, if set, still applies).')
@@ -239,7 +242,7 @@ export const call: LocalJSXCommandCall = async (onDone, _context, args) => {
   }
 
   if (head) {
-    onDone(`unknown /router argument '${head}' — usage: /router [adaptive|quality|balanced|fast|fixed | pin opus|sonnet|auto | explain | engines | source sub|api|clear | key [zai|moonshot|deepseek|xai|xai-management|meta|compat|huggingface|local|brave|tavily|mistral|mistral-admin] [clear] | reset-history] (OpenAI sign-in lives at /logins; disconnect at /accounts; brave/tavily are web-search keys)`)
+    onDone(`unknown /router argument '${head}' — usage: /router [adaptive|quality|balanced|fast|fixed | pin opus|sonnet|auto | explain | engines | source sub|api|clear | key [zai|moonshot|deepseek|xai|xai-management|meta|compat|huggingface|local|nous|brave|tavily|mistral|mistral-admin] [clear] | reset-history] (OpenAI sign-in lives at /logins; disconnect at /accounts; brave/tavily are web-search keys)`)
     return null
   }
 

@@ -14,6 +14,7 @@ import {
   writeStoredHuggingfaceApiKey,
   writeStoredLocalApiKey,
   writeStoredMoonshotApiKey,
+  writeStoredNousApiKey,
   writeStoredTavilyApiKey,
   writeStoredXaiApiKey,
   writeStoredXaiManagementApiKey,
@@ -24,7 +25,7 @@ import { XAI_MANAGEMENT_KEY_PAGE } from '../services/providers/xai/xaiUsageState
 import { MISTRAL_ADMIN_KEY_PAGE } from '../services/providers/mistral/mistralUsageState.js'
 
 
-export type KeyEntryProvider = 'zai' | 'moonshot' | 'deepseek' | 'xai' | 'xai-management' | 'meta' | 'compat' | 'huggingface' | 'local' | 'brave' | 'tavily' | 'mistral' | 'mistral-admin'
+export type KeyEntryProvider = 'zai' | 'moonshot' | 'deepseek' | 'xai' | 'xai-management' | 'meta' | 'compat' | 'huggingface' | 'local' | 'brave' | 'tavily' | 'mistral' | 'mistral-admin' | 'nous'
 
 const LANES: Record<
   KeyEntryProvider,
@@ -112,6 +113,12 @@ const LANES: Record<
     envVar: 'MISTRAL_ADMIN_API_KEY',
     write: writeStoredMistralAdminApiKey,
     envShadow: () => Boolean(process.env.MISTRAL_ADMIN_API_KEY?.trim()),
+  },
+  nous: {
+    title: 'Nous Portal API key',
+    envVar: 'NOUS_API_KEY',
+    write: writeStoredNousApiKey,
+    envShadow: () => Boolean(process.env.NOUS_API_KEY?.trim()),
   },
 }
 

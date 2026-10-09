@@ -11,13 +11,13 @@ export default () =>
     get description() {
       try {
         return anyProviderCredentialed()
-          ? 'Re-login or add accounts (Claude subscription · OpenAI ChatGPT · OpenRouter · Gemini · Hugging Face · Kimi · GLM · DeepSeek · xAI · Meta · Mistral · API keys)'
-          : 'Sign in (Claude subscription · OpenAI ChatGPT · OpenRouter · Gemini · Hugging Face · Kimi · GLM · DeepSeek · xAI · Meta · Mistral · API keys)'
+          ? 'Re-login or add accounts (Claude subscription · OpenAI ChatGPT · OpenRouter · Gemini · Hugging Face · Kimi · GLM · DeepSeek · xAI · Meta · Mistral · Nous Portal · API keys)'
+          : 'Sign in (Claude subscription · OpenAI ChatGPT · OpenRouter · Gemini · Hugging Face · Kimi · GLM · DeepSeek · xAI · Meta · Mistral · Nous Portal · API keys)'
       } catch {
-        return 'Sign in (Claude subscription · OpenAI ChatGPT · OpenRouter · Gemini · Hugging Face · Kimi · GLM · DeepSeek · xAI · Meta · Mistral · API keys)'
+        return 'Sign in (Claude subscription · OpenAI ChatGPT · OpenRouter · Gemini · Hugging Face · Kimi · GLM · DeepSeek · xAI · Meta · Mistral · Nous Portal · API keys)'
       }
     },
-    argumentHint: '[anthropic|openai|console|openrouter|gemini|huggingface|kimi|glm|deepseek|xai|meta|mistral]',
+    argumentHint: '[anthropic|openai|console|openrouter|gemini|huggingface|kimi|glm|deepseek|xai|meta|mistral|nous]',
     isEnabled: () => flagEnabled('MERCURY_LOGIN_COMMAND'),
     get immediate() {
       return shouldNavCommandBeImmediate()

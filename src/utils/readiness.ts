@@ -940,6 +940,7 @@ function backendRemedy(backendId: string): string | undefined {
   if (backendId === 'gemini-generate') return 'connect Gemini via /logins (API key or Google OAuth) or set GOOGLE_API_KEY / GEMINI_API_KEY'
   if (backendId === 'huggingface-chat') return 'connect Hugging Face via /logins (device-code sign-in or a token) or set HF_TOKEN'
   if (backendId === 'local-chat') return 'start Ollama / LM Studio / vLLM / llama.cpp-server, or point MERCURY_LOCAL_BASE_URL at your server'
+  if (backendId === 'nous-chat') return 'add a Nous Portal API key via /logins nous (or set NOUS_API_KEY)'
   return undefined
 }
 
@@ -957,6 +958,7 @@ const BACKEND_ROUTE_PROBES: readonly string[] = [
   'huggingface/probe/probe',
   'local/probe',
   'mistral',
+  'nous/probe/probe',
 ]
 
 function backendRecords(): ReadinessRecord[] {
