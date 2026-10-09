@@ -37,6 +37,7 @@ function streamIdleSettingForRoute(route: string | null): 'streamIdleMs' | 'quie
     case 'meta':
     case 'gemini':
     case 'huggingface':
+    case 'zen':
       return 'quietStreamIdleMs'
     default:
       return null
