@@ -6,6 +6,8 @@ import React, {
   useState,
 } from 'react'
 import { Box, Text } from '../ink.js'
+import wrapText from '../ink/wrap-text.js'
+import { SetupFrameBody } from './MercurySetupFrame.js'
 import { Select } from './CustomSelect/index.js'
 import TextInput from './TextInput.js'
 import { Spinner } from './Spinner.js'
@@ -71,6 +73,20 @@ type EngineLeg =
 
 export type LoginFamilyFocus = LoginFamilyValue
 
+export const MORE_BELOW_ROW = (hidden: number): string => `…and ${hidden} more below`
+
+export type SignInCardFit = { introLines: number; roster: number; readiness: number }
+
+export function signInCardFit(input: { bodyRows: number; textWidth: number; intro: string; rosterRows: number; readinessRows: number }): SignInCardFit {
+  const introLines = wrapText(input.intro, Math.max(1, input.textWidth), 'wrap').split('\n').length
+  const fixed = 1 + 1 + 1 + introLines + 1 + 1
+  const forRoster = input.bodyRows - fixed
+  if (forRoster < input.rosterRows) return { introLines, roster: Math.max(1, forRoster - 2), readiness: 0 }
+  const left = forRoster - input.rosterRows - 1
+  if (left >= input.readinessRows) return { introLines, roster: input.rosterRows, readiness: input.readinessRows }
+  return { introLines, roster: input.rosterRows, readiness: left >= 3 ? left : 0 }
+}
+
 export function ConsoleOAuthFlow({
   onDone,
   onCancel,
@@ -98,6 +114,8 @@ export function ConsoleOAuthFlow({
   const { columns, rows } = useTerminalSize()
   const popup = React.useContext(PopupFormContext)
   const compact = usePopupCompact().compact && popup
+  const setupBody = React.useContext(SetupFrameBody)
+  const [rosterVisibleTo, setRosterVisibleTo] = useState<number | null>(null)
   const { addNotification } = useNotifications()
   const setupToken = mode === 'setup-token'
 
@@ -290,18 +308,24 @@ export function ConsoleOAuthFlow({
       const defaultFocus = loginFamilyInitialFocus(idleRows, recordedFocus, initialFocus)
       const facts = popup ? collectLoginsScreenFacts() : null
       const arms = popup ? loginsCatalogue() : []
+      const intro =
+        startingMessage ??
+        'Mercury can run on a Claude or OpenAI subscription, on usage-based billing, or on a connected engine (OpenRouter · Gemini · Hugging Face · Kimi · GLM · DeepSeek · xAI · Meta · Mistral · Nous Portal · OpenCode Zen). An API key also connects from the terminal: /router key <provider>.'
+      const statusWidth = !compact && setupBody !== null ? setupBody.width - 4 - READINESS_LABEL_WIDTH : null
+      const readinessPlan = compact ? null : readinessBlockPlan(resolveProviderUsability(), statusWidth)
+      const fit =
+        !compact && setupBody !== null && readinessPlan !== null
+          ? signInCardFit({ bodyRows: setupBody.rows, textWidth: setupBody.width - 4, intro, rosterRows: idleRows.length, readinessRows: readinessPlan.rows })
+          : { introLines: 0, roster: idleRows.length, readiness: readinessPlan?.rows ?? 0 }
+      const rosterWindow = compact ? Math.max(1, Math.min(rows, idleRows.length)) : fit.roster
+      const rosterHidden = Math.max(0, idleRows.length - (rosterVisibleTo ?? Math.min(idleRows.length, rosterWindow)))
       return frame(
         <Box flexDirection="column" gap={compact ? 0 : 1}>
-          {compact ? null : (
-            <Text>
-              {startingMessage ??
-                'Mercury can run on a Claude or OpenAI subscription, on usage-based billing, or on a connected engine (OpenRouter · Gemini · Hugging Face · Kimi · GLM · DeepSeek · xAI · Meta · Mistral · Nous Portal · OpenCode Zen). An API key also connects from the terminal: /router key <provider>.'}
-            </Text>
-          )}
+          {compact ? null : <Text>{intro}</Text>}
           <Select
             hideIndexes
             disableSelection="numeric"
-            visibleOptionCount={compact ? Math.max(1, Math.min(rows, idleRows.length)) : idleRows.length}
+            visibleOptionCount={rosterWindow}
             defaultFocusValue={defaultFocus}
             layout={popup ? 'compact-vertical' : 'compact'}
             options={idleRows.map(row => {
@@ -311,6 +335,7 @@ export function ConsoleOAuthFlow({
               return { ...row, ...(status?.signedIn ? { description: status.chip } : {}) }
             })}
             onFocus={value => setMenuFocus(Math.max(0, idleRows.findIndex(row => row.value === value)))}
+            onVisibleWindowChange={(_, to) => setRosterVisibleTo(to)}
             onChange={value => {
               const arm = arms.find(candidate => candidate.row.value === value)
               if (facts && arm && loginsArmSlots(arm, facts.groups.find(group => group.family.id === arm.familyId)).length > 0) {
@@ -321,7 +346,8 @@ export function ConsoleOAuthFlow({
             }}
             onCancel={onCancel}
           />
-          {compact ? null : <ProviderReadinessBlock />}
+          {!compact && rosterWindow < idleRows.length && rosterHidden > 0 ? <Text dimColor>{MORE_BELOW_ROW(rosterHidden)}</Text> : null}
+          {compact || fit.readiness === 0 ? null : <ProviderReadinessBlock rows={fit.readiness} statusWidth={statusWidth} />}
         </Box>,
       )
     }
@@ -534,7 +560,7 @@ function ErrorEnterRetries({
   return null
 }
 
-const READINESS_ROWS: ReadonlyArray<{ id: ProviderId; label: string }> = [
+export const READINESS_ROWS: ReadonlyArray<{ id: ProviderId; label: string }> = [
   { id: 'anthropic', label: 'Anthropic' },
   { id: 'openai', label: 'OpenAI' },
   { id: 'openrouter', label: 'OpenRouter' },
@@ -552,26 +578,55 @@ const READINESS_ROWS: ReadonlyArray<{ id: ProviderId; label: string }> = [
   { id: 'nous', label: 'Nous Portal' },
 ]
 
-function ProviderReadinessBlock(): React.ReactNode {
+export const READINESS_LABEL_WIDTH = 21
+
+export function readinessStatusOf(lane: { usable: boolean; credential?: string | null; limit?: string | null; blockers: readonly string[] }): string {
+  return lane.usable
+    ? `ready · ${lane.credential}${lane.limit === 'rejected' ? ' · window reached' : ''}`
+    : (lane.blockers[0] ?? 'not ready')
+}
+
+export function readinessBlockPlan(
+  map: Record<ProviderId, { usable: boolean; credential?: string | null; limit?: string | null; blockers: readonly string[] }>,
+  statusWidth: number | null,
+): { rows: number; lines: number[] } {
+  const lines = READINESS_ROWS.map(({ id }) => (statusWidth === null ? 1 : wrapText(readinessStatusOf(map[id]), Math.max(1, statusWidth), 'wrap').split('\n').length))
+  return { rows: 1 + lines.reduce((sum, n) => sum + n, 0), lines }
+}
+
+export function readinessFamiliesShown(plan: { rows: number; lines: number[] }, rows: number): number {
+  if (rows >= plan.rows) return plan.lines.length
+  let used = 2
+  let shown = 0
+  for (const n of plan.lines) {
+    if (used + n > rows) break
+    used += n
+    shown++
+  }
+  return shown
+}
+
+function ProviderReadinessBlock({ rows, statusWidth }: { rows: number; statusWidth: number | null }): React.ReactNode {
   const tokens = useMercuryTokens()
   useCatalogueEpoch()
   useEffect(() => {
     resolveProviderUsability(undefined, { fetchCatalogues: true })
   }, [])
   const map = resolveProviderUsability()
+  const plan = readinessBlockPlan(map, statusWidth)
+  const whole = rows >= plan.rows
+  const shown = READINESS_ROWS.slice(0, readinessFamiliesShown(plan, rows))
   return (
     <Box flexDirection="column">
       <Text dimColor bold>
         Provider readiness
       </Text>
-      {READINESS_ROWS.map(({ id, label }) => {
+      {shown.map(({ id, label }) => {
         const lane = map[id]
-        const status = lane.usable
-          ? `ready · ${lane.credential}${lane.limit === 'rejected' ? ' · window reached' : ''}`
-          : (lane.blockers[0] ?? 'not ready')
+        const status = readinessStatusOf(lane)
         return (
           <Box key={id}>
-            <Box width={21} flexShrink={0}>
+            <Box width={READINESS_LABEL_WIDTH} flexShrink={0}>
               <Text dimColor>
                 {'  '}
                 {label}
@@ -585,6 +640,7 @@ function ProviderReadinessBlock(): React.ReactNode {
           </Box>
         )
       })}
+      {whole ? null : <Text dimColor>{MORE_BELOW_ROW(READINESS_ROWS.length - shown.length)}</Text>}
     </Box>
   )
 }
