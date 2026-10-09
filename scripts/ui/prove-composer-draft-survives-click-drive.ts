@@ -22,6 +22,8 @@ const CTRL_X = '\x18'
 const SHIFT_RIGHT = '\x1b[1;2C'
 const CLICK = '\x1b[<0;{X};{Y}M\x1b[<0;{X};{Y}m'
 const CLICK_OUTSIDE = '\x1b[<0;90;43M\x1b[<0;90;43m'
+const CONTEXT_COUNTING = 'counting the context window… · esc closes'
+const CONTEXT_CLOSED = '/context closed — the chart was not counted'
 const DRAFT = 'the quick brown fox'
 const DRAFT_ROW = `│❯ ${DRAFT}`
 const CARET_BACK = 4
@@ -179,7 +181,7 @@ const DOORS: Door[] = [
   { name: 'palette', road: 'ctrl+x p palette, usage, ↵ (an insert at the caret, never a submit)', open: [after(CTRL_X, 2), after('p', 3), after('usage', 3), after('\r', 3)], needle: 'brown/usage', close: null },
   row('health-row', 'HEALTH cert row (select, then activate) → /health', 'no cert · /health', 'Mercury — health'),
   header('health-header', 'HEALTH card header → /health', 'HEALTH', 'Mercury — health'),
-  { name: 'ctx-row', road: 'ctx row (select, then activate) → /context, a card printed into the transcript (nothing to close)', open: [clickOn('ctx — ·', 2), secondClickOn('ctx — ·', 2)], needle: 'Mercury — context', close: null },
+  { name: 'ctx-row', road: 'ctx row (select, then activate) → /context: the chart card paints at once (counting the context window… · esc closes); esc while counting closes it with its receipt', open: [clickOn('ctx — ·', 2), secondClickOn('ctx — ·', 2)], needle: CONTEXT_COUNTING, close: after(ESC, 1) },
 ]
 
 function doorSends(door: Door): Send[] {
@@ -205,8 +207,8 @@ function judge(tag: string, door: Door, m: Record<string, Frame>): void {
   else if (openRow !== undefined) tally.check(`${door.name} T3 under the surface the composer still reads the draft, not the placeholder`, openRow.startsWith(DRAFT_ROW) && !openRow.includes(PLACEHOLDER), openRow.trimEnd())
   else tally.check(`${door.name} T3 the surface covers the composer row (nothing to read under it)`, true)
   if (door.name === 'palette') return
-  if (door.needle !== null && door.close !== null) tally.check(`${door.name} T4 the surface closed`, !has(closed, door.needle), rowsOf(closed).filter(r => r.includes(door.needle as string)).join(' | '))
-  else if (door.needle !== null) tally.check(`${door.name} T4 the printed card stays in the transcript`, has(closed, door.needle), rowsOf(closed).filter(r => r.includes('Mercury')).join(' | ') || '(no card)')
+  if (door.needle !== null) tally.check(`${door.name} T4 the surface closed`, !has(closed, door.needle), rowsOf(closed).filter(r => r.includes(door.needle as string)).join(' | '))
+  if (door.name === 'ctx-row') tally.check(`${door.name} T4b esc while counting left the receipt in the transcript (${CONTEXT_CLOSED})`, has(open, 'Mercury — context') && has(closed, CONTEXT_CLOSED), rowsOf(closed).filter(r => r.includes('/context')).join(' | ') || '(no receipt row)')
   tally.check(`${door.name} T5 after the surface closed the composer reads the draft as typed`, closedRow === typedRow, `${closedRow.trimEnd()}${closedRow === typedRow ? '' : `\n    typed: ${typedRow.trimEnd()}`}`)
   tally.check(`${door.name} T6 the caret is back where it was`, closed !== undefined && typed !== undefined && closed.cursor.x === typed.cursor.x && closed.cursor.y === typed.cursor.y, `caret ${cursorOf(closed)}, typed ${cursorOf(typed)}`)
 }
