@@ -208,15 +208,11 @@ async function discoverSkillsForPath(context: ToolUseContext, filePath: string):
 }
 
 function patchLineCounts(patch: Array<{ lines: string[] }>): { added: number; removed: number } {
-  let added = 0
-  let removed = 0
-  for (const hunk of patch) {
-    for (const line of hunk.lines) {
-      if (line.startsWith('+')) added++
-      else if (line.startsWith('-')) removed++
-    }
+  const marks = patch.flatMap(hunk => hunk.lines.map(line => line[0]))
+  return {
+    added: marks.filter(mark => mark === '+').length,
+    removed: marks.filter(mark => mark === '-').length,
   }
-  return { added, removed }
 }
 
 function hasText(value: string | undefined): value is string {
