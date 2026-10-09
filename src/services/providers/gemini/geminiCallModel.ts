@@ -1,12 +1,7 @@
-import type {
-  AssistantMessage,
-  StreamEvent,
-  SystemAPIErrorMessage,
-} from '../../../types/message.js'
+import type { CallModelParams, CallModelStream } from '../callModelContract.js'
 import {
   compatChatCallModel,
   compatLaneLiveProofState,
-  type CompatCallModelParams,
   type CompatLaneProfile,
 } from '../openaicompat/compatChatCallModel.js'
 import { buildGeminiExtras } from '../openaicompat/compatWire.js'
@@ -62,9 +57,7 @@ export function geminiLiveProofState(): { at: number; model: string } | null {
   return compatLaneLiveProofState('gemini')
 }
 
-export async function* geminiCallModel(
-  params: CompatCallModelParams,
-): AsyncGenerator<StreamEvent | AssistantMessage | SystemAPIErrorMessage, void> {
+export async function* geminiCallModel(params: CallModelParams): CallModelStream {
   if (resolveGeminiAccount()?.kind !== 'oauth') {
     yield* compatChatCallModel(geminiLaneProfile, params)
     return

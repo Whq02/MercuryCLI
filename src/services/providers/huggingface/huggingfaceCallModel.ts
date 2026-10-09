@@ -1,8 +1,7 @@
-import type { AssistantMessage, StreamEvent, SystemAPIErrorMessage } from '../../../types/message.js'
+import type { CallModelParams, CallModelStream } from '../callModelContract.js'
 import {
   compatChatCallModel,
   compatLaneLiveProofState,
-  type CompatCallModelParams,
   type CompatLaneProfile,
 } from '../openaicompat/compatChatCallModel.js'
 import { buildHuggingfaceExtras } from '../openaicompat/compatWire.js'
@@ -61,9 +60,7 @@ export function huggingfaceLiveProofState(): { at: number; model: string } | nul
   return compatLaneLiveProofState('huggingface')
 }
 
-export async function* huggingfaceCallModel(
-  params: CompatCallModelParams,
-): AsyncGenerator<StreamEvent | AssistantMessage | SystemAPIErrorMessage, void> {
+export async function* huggingfaceCallModel(params: CallModelParams): CallModelStream {
   if (huggingfaceLimitWindow().state === 'limited') await refreshProviderUsage('huggingface', { force: true, reason: 'operator' })
   yield* compatChatCallModel(huggingfaceLaneProfile, params)
 }

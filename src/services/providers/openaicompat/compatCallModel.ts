@@ -1,13 +1,8 @@
-import type {
-  AssistantMessage,
-  StreamEvent,
-  SystemAPIErrorMessage,
-} from '../../../types/message.js'
+import type { CallModelParams, CallModelStream } from '../callModelContract.js'
 import { stripCompatModelPrefix } from '../routeLaw.js'
 import {
   compatChatCallModel,
   compatLaneLiveProofState,
-  type CompatCallModelParams,
   type CompatLaneProfile,
 } from './compatChatCallModel.js'
 import {
@@ -44,9 +39,7 @@ export function compatSlotLiveProofState(): { at: number; model: string } | null
   return compatLaneLiveProofState('openai-compat')
 }
 
-export async function* compatCallModel(
-  params: CompatCallModelParams,
-): AsyncGenerator<StreamEvent | AssistantMessage | SystemAPIErrorMessage, void> {
+export async function* compatCallModel(params: CallModelParams): CallModelStream {
   const label = resolveCompatSlotConfig()?.label
   const profile: CompatLaneProfile =
     label !== undefined && label !== compatSlotLaneProfile.providerLabel
