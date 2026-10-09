@@ -184,7 +184,7 @@ try {
   check(`P6 the picker's current row spells the page's name (${SEAT_MODEL_LABEL}), never the wire's (${SEAT_MODEL_WIRE_NAME})`, currentRows.length > 0 && currentRows.every(r => r.includes(SEAT_MODEL_LABEL) && !r.includes(SEAT_MODEL_WIRE_NAME)), currentRows.join(' | ').slice(0, 300))
   const wireRows = distinct.flatMap(f => rowsWith(f.text, SEAT_MODEL_WIRE_NAME))
   check(`P6 no surface spells the row the wire's way (${SEAT_MODEL_WIRE_NAME}) — one owner, one spelling`, wireRows.length === 0, wireRows.slice(0, 3).join(' | ').slice(0, 300))
-  check(`P6 the strip spells the same row the same way (${SEAT_MODEL_LABEL} ·)`, stripRows.length > 0 && stripRows.every(r => r.includes(`${SEAT_MODEL_LABEL} ·`)), stripRows[0] ?? '')
+  check(`P6 the status row spells the same row the same way (${SEAT_MODEL_LABEL} ·)`, statusRowsOfSeat.length > 0 && statusRowsOfSeat.every(r => r.includes(`${SEAT_MODEL_LABEL} ·`)), statusRowsOfSeat[0] ?? '')
 } finally {
   if (process.env.SURFACE_TRUTH_KEEP === '1') console.log(`[keep] arena home ${run.paths.home} cwd ${run.paths.cwd}`)
   else run.cleanup()
