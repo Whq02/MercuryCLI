@@ -1582,7 +1582,6 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
             worktreeBranch: worktree.worktreeBranch,
             headCommit: worktree.headCommit,
             gitRoot: worktree.gitRoot,
-            hookBased: worktree.hookBased,
           })
           if (receipt.outcome === 'preserved') {
             log(`worktree preserved (${receipt.summary}): ${worktree.worktreePath}`)
@@ -1841,7 +1840,6 @@ interface WorktreeHandle {
   worktreeBranch?: string
   headCommit?: string
   gitRoot?: string
-  hookBased?: boolean
 }
 interface HookContextView {
   abortController?: AbortController

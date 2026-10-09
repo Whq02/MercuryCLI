@@ -2,7 +2,7 @@
 import * as React from 'react'
 import { useEffect, useRef, useState } from 'react'
 import { Box, Text } from '../ink.js'
-import { getActiveMission } from '../utils/hooks/missionHook.js'
+import { getActiveMission } from '../guards/mission.js'
 import { formatDuration } from '../utils/format.js'
 import { FAINT, IVORY } from './mercuryPalette.js'
 import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js'

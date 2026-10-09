@@ -40,6 +40,7 @@ const REASON_TABLE: ReasonLines<ReasonByType> = {
     hook.reason
       ? `Hook '${hook.hookName}' blocked this action: ${hook.reason}`
       : `Hook '${hook.hookName}' requires approval for this ${toolName} command`,
+  guard: (_toolName, guard) => guard.reason,
   rule: (toolName, ruleReason) => ruleSentence(`This ${toolName} call`, 'ask', ruleReason.rule),
   subcommandResults: (toolName, sub) => {
     const parts = subcommandPartsNeedingApproval(toolName, sub.reasons)

@@ -32,7 +32,7 @@ section('§16 the count-token probe folds its billed usage into the ledger')
 section('§17 the partial fold reports a real post figure')
 {
   const src = read('src/services/compact/compact.ts')
-  check('the partial path computes truePostCompactTokenCount over its own post-compact messages', /truePostCompactTokenCount: estimateContextTokens\(buildPostCompactMessages\(partialResult\)\)/.test(src))
+  check('the partial path computes truePostCompactTokenCount over its own post-compact messages', /const truePostCompactTokenCount = estimateContextTokens\(buildPostCompactMessages\(partialResult\)\)[\s\S]{0,400}?truePostCompactTokenCount,/.test(src))
   check('…so the summary card no longer falls back to the call\'s billed usage', !/no true-post estimate/.test(src))
 }
 

@@ -112,7 +112,7 @@ for (const event of EVENTS) {
   }
 }
 check('permission answers allow or ask; a deny is block', C.hookAnswerSchema('tool.before').safeParse({ permission: 'ask' }).success && !C.hookAnswerSchema('tool.before').safeParse({ permission: 'deny' }).success)
-check('an answer with a field no event has is refused', !C.HookAnswerSchema().safeParse({ decision: 'block' }).success && !C.HookAnswerSchema().safeParse({ hookSpecificOutput: {} }).success)
+check('an answer with a field no event has is refused', !C.HookAnswerSchema().safeParse({ decision: 'block' }).success && !C.HookAnswerSchema().safeParse({ specifics: {} }).success)
 
 check('session.end and session.state run only run hooks; every other event runs all three', JSON.stringify(C.hookKindsOf('session.end')) === '["run"]' && JSON.stringify(C.hookKindsOf('session.state')) === '["run"]' && EVENTS.filter(e => e !== 'session.end' && e !== 'session.state').every(e => C.hookKindsOf(e).length === 3))
 check('the 1.5 s budget rides session.end always, and turn.end and tool.after on a cut', C.hookEventTable['session.end'].budget?.when === 'always' && C.hookEventTable['turn.end'].budget?.when === 'cut' && C.hookEventTable['tool.after'].budget?.when === 'cut' && C.hookEventTable['tool.before'].budget === undefined)

@@ -8,7 +8,7 @@ export function getEnterWorktreeToolPrompt(): string {
 Only on the word "worktree" from the user — "work in a worktree", "make a worktree for this", "do it in a separate worktree"; never for branch work or ordinary feature or bugfix work, however large.
 
 ## Requirements
-- A git repository, or configured WorktreeCreate/WorktreeRemove hooks.
+- A git repository.
 - The session is not already in a worktree it created.
 
 ## Behaviour

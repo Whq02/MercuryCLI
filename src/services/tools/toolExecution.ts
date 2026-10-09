@@ -9,11 +9,13 @@ import { BASH_TOOL_NAME } from '../../tools/BashTool/toolName.js'
 import { getLoggingSafeMcpBaseUrl } from '../mcp/utils.js'
 import type { McpServerConfig } from '../mcp/types.js'
 import type { CanUseToolFn } from '../../hooks/useCanUseTool.js'
-import { addToToolDuration, getStatsStore } from '../../bootstrap/state.js'
+import { addToToolDuration, getSessionId, getStatsStore } from '../../bootstrap/state.js'
+import { judgeToolCall } from '../../guards/guards.js'
 import type { AssistantMessage, Message, UserMessage } from '../../types/message.js'
 import type { PermissionDecision, PermissionDecisionReason } from '../../types/permissions.js'
 import { createPermissionRequestMessage } from '../../utils/permissions/decision/requestMessage.js'
 import type { ToolResultBlockParam, ToolUseBlock } from '../../types/wire.js'
+import { jsonStringify } from '../../utils/slowOperations.js'
 import { createAttachmentMessage } from '../../utils/attachments/orchestrator.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { isAbortError, ShellError, type ShellRunFact } from '../../utils/errors.js'
@@ -40,10 +42,7 @@ import { getCwd } from '../../utils/cwd.js'
 import { startSessionActivity, stopSessionActivity } from '../../utils/sessionActivity.js'
 import { Stream } from '../../utils/stream.js'
 import { formatError, formatZodValidationError } from '../../utils/toolErrors.js'
-import {
-  processPreMappedToolResultBlock,
-  processToolResultBlock,
-} from '../../utils/toolResultStorage.js'
+import { processPreMappedToolResultBlock } from '../../utils/toolResultStorage.js'
 import {
   extractDiscoveredToolNames,
   isToolSearchEnabledOptimistic,
@@ -57,13 +56,9 @@ import { FILE_READ_TOOL_NAME } from '../../tools/FileReadTool/prompt.js'
 import { FILE_WRITE_TOOL_NAME } from '../../tools/FileWriteTool/prompt.js'
 import { NOTEBOOK_EDIT_TOOL_NAME } from '../../tools/NotebookEditTool/constants.js'
 import { getAllBaseTools } from '../../tools.js'
-import type { HookPermissionOutcome, PreToolUseHookItem } from './toolHooks.js'
-import {
-  resolveHookPermissionDecision,
-  runPostToolUseFailureHooks,
-  runPostToolUseHooks,
-  runPreToolUseHooks,
-} from './toolHooks.js'
+import type { HookPermissionOutcome } from './toolHooks.js'
+import { afterToolHooks, beforeToolHooks, deciderOf, hookPermissionOutcomeOf, permissionDecidedHooks, resolveHookPermissionDecision } from './toolHooks.js'
+import { hookProgressMessage, hookRowsOfResult } from '../../utils/hooks/rows.js'
 
 
 export type McpServerType =
@@ -103,8 +98,6 @@ const SLOW_PHASE_THRESHOLD_MS = 2000
 const PRE_TOOL_HOOK_DURATION_METRIC = 'pre_tool_hook_duration_ms'
 
 const TOOL_EXEC_ACTIVITY = 'tool_exec'
-
-const PERMISSION_REQUEST_HOOK_NAME = 'PermissionRequest'
 
 const SIMULATED_EDIT_MARKER = '_simulatedSedEdit'
 
@@ -250,6 +243,12 @@ class ToolCallAbandonedError extends Error {
     super(`${toolName} did not answer the interrupt within ${TOOL_ABORT_GRACE_MS}ms — the call was abandoned`)
     this.name = 'ToolCallAbandonedError'
   }
+}
+
+function blockWords(content: ToolResultBlockParam['content']): string {
+  if (typeof content === 'string') return content
+  if (!Array.isArray(content)) return ''
+  return content.map(part => (part.type === 'text' ? part.text : '')).filter(Boolean).join('\n')
 }
 
 function settleUnderAbort<T>(
@@ -467,16 +466,6 @@ async function runTransactionBody(args: {
     return
   }
 
-  const mcpFacts = mcpServerConnectionFacts(
-    tool,
-    toolUseContext.options.mcpClients ?? [],
-  )
-  const hookSeam = {
-    messageId: assistantMessage.uuid as string | undefined,
-    requestId: (assistantMessage as { requestId?: string }).requestId,
-    mcpServerType: mcpFacts.serverType as McpServerType,
-    mcpServerUrl: mcpFacts.serverUrl,
-  }
 
   if (isToolKilled(tool, toolUseContext.agentType)) {
     const reason = toolKillReason(tool, toolUseContext.agentType)
@@ -570,51 +559,32 @@ async function runTransactionBody(args: {
 
   const permissionMode = toolUseContext.getAppState().toolPermissionContext.mode
   const preHooksStartedAt = Date.now()
-  let hookCount = 0
   let hookPermissionResult: HookPermissionOutcome | undefined
   let hookUpdatedInput: AnyObject | undefined
-  let preventContinuation = false
   let stopReason: string | undefined
-  let stopped = false
-  const additionalContextMessages: Message[] = []
   const hookNotes: Message[] = []
 
-  for await (const item of runPreToolUseHooks(
-    tool,
-    toolUseID,
-    observableInput,
-    toolUseContext,
-    permissionMode,
+  const judgement = await judgeToolCall(
+    toolUseContext.agentId ?? getSessionId(),
+    { tool: tool.name, input: observableInput, callId: toolUseID, messages: toolUseContext.messages, toolRef: tool },
     signal,
-    hookSeam,
-  ) as AsyncGenerator<PreToolUseHookItem>) {
-    hookCount++
-    switch (item.kind) {
-      case 'message':
-        if (item.message.type === 'system') hookNotes.push(item.message)
-        else push({ message: item.message })
-        break
-      case 'permissionResult':
-        hookPermissionResult = item.result
-        break
-      case 'updatedInput':
-        hookUpdatedInput = item.updatedInput
-        break
-      case 'preventContinuation':
-        preventContinuation = true
-        break
-      case 'stopReason':
-        stopReason = item.stopReason
-        break
-      case 'additionalContext':
-        additionalContextMessages.push(item.message as never)
-        break
-      case 'stop':
-        stopped = true
-        break
+  )
+  hookNotes.push(...judgement.notes)
+  if (judgement.refused) {
+    hookPermissionResult = {
+      behavior: 'deny',
+      message: judgement.reason,
+      decisionReason: { type: 'guard', guard: judgement.guard, reason: judgement.reason },
     }
-    if (stopped) break
+  } else {
+    const before = await beforeToolHooks(tool, toolUseID, observableInput, toolUseContext, signal)
+    for (const outcome of before.outcomes) push({ message: hookProgressMessage('tool.before', outcome.name, 'ran', toolUseID, before.outcomes.length) })
+    for (const row of hookRowsOfResult(before, { callId: toolUseID })) push({ message: createAttachmentMessage(row) })
+    hookPermissionResult = hookPermissionOutcomeOf(before, tool.name)
+    if (hookPermissionResult === undefined && before.answer.input !== undefined) hookUpdatedInput = before.answer.input
+    stopReason = before.answer.stop
   }
+  const preventContinuation = stopReason !== undefined
 
   const preHookDuration = Date.now() - preHooksStartedAt
   try {
@@ -622,26 +592,7 @@ async function runTransactionBody(args: {
   } catch {
   }
   if (preHookDuration > SLOW_PHASE_THRESHOLD_MS) {
-    logForDebugging(
-      `pre-tool hooks for ${tool.name} took ${preHookDuration}ms (${hookCount} hook results)`,
-    )
-  }
-
-  for (const message of additionalContextMessages) {
-    push({ message })
-  }
-
-  if (stopped) {
-    traceOnce({ ok: false })
-    const block = createToolResultStopMessage(toolUseID)
-    push({
-      message: createUserMessage({
-        content: [block] as never,
-        toolUseResult: stopReason ?? CANCEL_MESSAGE,
-        sourceToolAssistantUUID: sourceUUID as never,
-      }),
-    })
-    return
+    logForDebugging(`pre-tool hooks for ${tool.name} took ${preHookDuration}ms`)
   }
 
   if (signal.aborted) {
@@ -669,17 +620,19 @@ async function runTransactionBody(args: {
   }
 
   const decisionReason = (decision as { decisionReason?: PermissionDecisionReason }).decisionReason
-  const hookDecisionRow =
-    decisionReason?.type === 'hook' &&
-    decisionReason.hookName?.includes(PERMISSION_REQUEST_HOOK_NAME) &&
-    decision.behavior !== 'ask'
-      ? createAttachmentMessage({
-          type: 'hook_permission_decision',
-          decision: decision.behavior === 'allow' ? 'allow' : 'deny',
-          toolUseID,
-          hookEvent: PERMISSION_REQUEST_HOOK_NAME,
-        } as never)
-      : null
+  const decided = await permissionDecidedHooks(
+    tool,
+    toolUseID,
+    inputAfterDecision,
+    {
+      decision: decision.behavior === 'allow' ? 'allowed' : 'denied',
+      by: deciderOf(decisionReason),
+      ...(decision.behavior !== 'allow' && (decision as { message?: string }).message !== undefined ? { reason: (decision as { message?: string }).message } : {}),
+    },
+    toolUseContext,
+    signal,
+  )
+  const decidedRows = hookRowsOfResult(decided, { callId: toolUseID }).map(row => ({ message: createAttachmentMessage(row) }))
 
   const allowanceRow =
     decision.behavior === 'allow' && decisionReason?.type === 'bypassedAsk'
@@ -725,7 +678,7 @@ async function runTransactionBody(args: {
         imagePasteIds,
       }),
     )
-    if (hookDecisionRow !== null) push({ message: hookDecisionRow })
+    for (const row of decidedRows) push(row)
     logForDebugging(`tool use refused: ${tool.name}`)
     return
   }
@@ -845,17 +798,8 @@ async function runTransactionBody(args: {
     const acceptFeedback = (decision as { acceptFeedback?: string }).acceptFeedback
     const allowBlocks = (decision as { contentBlocks?: unknown[] }).contentBlocks ?? []
 
-    const buildResultUpdate = async (
-      blockForEmission: ToolResultBlockParam,
-      preMapped: boolean,
-    ): Promise<MessageUpdateLazy> => {
-      const processed = preMapped
-        ? await processPreMappedToolResultBlock(
-            blockForEmission,
-            tool.name,
-            tool.maxResultSizeChars,
-          )
-        : await processToolResultBlock(tool as never, result!.data, toolUseID)
+    const buildResultUpdate = async (blockForEmission: ToolResultBlockParam): Promise<MessageUpdateLazy> => {
+      const processed = await processPreMappedToolResultBlock(blockForEmission, tool.name, tool.maxResultSizeChars)
       const blocks: unknown[] = [processed]
       if (acceptFeedback) blocks.push({ type: 'text', text: acceptFeedback })
       blocks.push(...allowBlocks)
@@ -883,80 +827,39 @@ async function runTransactionBody(args: {
       }
     }
 
-    const postHookMessages: Message[] = []
-    if (tool.isMcp) {
-      let output = result.data
-      const postStartedAt = Date.now()
-      let postHookCount = 0
-      for await (const item of runPostToolUseHooks(
-        tool,
-        toolUseID,
-        observableInput,
-        output,
-        toolUseContext,
-        permissionMode,
-        signal,
-        hookSeam,
-      )) {
-        postHookCount++
-        if (item.kind === 'updatedOutput') {
-          output = item.output
-        } else {
-          postHookMessages.push(item.message)
-        }
-      }
-      const postDuration = Date.now() - postStartedAt
-      if (postDuration > SLOW_PHASE_THRESHOLD_MS) {
-        logForDebugging(
-          `post-tool hooks for ${tool.name} took ${postDuration}ms (${postHookCount} hook results)`,
-        )
-      }
-      result = { ...result, data: output }
-      const remapped = tool.mapToolResultToToolResultBlockParam(output as never, toolUseID)
-      push(await buildResultUpdate(remapped, false))
-      for (const message of postHookMessages) {
-        push({ message })
-      }
+    const postStartedAt = Date.now()
+    const returnedError = effect?.outcome === 'failed' || mappedBlock.is_error === true
+    const cut = signal.aborted
+    const error = effect?.outcome === 'failed' ? effect.evidence : returnedError ? blockWords(mappedBlock.content) : cut ? turnCutResultText(turnCutOf(signal.reason), tool.name) : undefined
+    const after = await afterToolHooks(
+      tool,
+      toolUseID,
+      callInput,
+      { ok: !returnedError && !cut, output: result.data, ...(error !== undefined ? { error } : {}), cut },
+      toolUseContext,
+      signal,
+    )
+    const postDuration = Date.now() - postStartedAt
+    if (postDuration > SLOW_PHASE_THRESHOLD_MS) {
+      logForDebugging(`post-tool hooks for ${tool.name} took ${postDuration}ms`)
+    }
+    if (after.answer.output !== undefined) {
+      const words = typeof after.answer.output === 'string' ? after.answer.output : jsonStringify(after.answer.output)
+      mappedBlock = { type: 'tool_result', tool_use_id: toolUseID, content: words, ...(returnedError ? { is_error: true } : {}) }
+    }
+    const resultUpdate = await buildResultUpdate(mappedBlock)
+    if (tool.isMcp || after.answer.output !== undefined) {
+      push(resultUpdate)
     } else {
-      const resultUpdate = await buildResultUpdate(mappedBlock, true)
       const shellRun = shellRunOfResult(tool, result.data)
       push(shellRun === null ? resultUpdate : { ...resultUpdate, shellRun })
-      const postStartedAt = Date.now()
-      let postHookCount = 0
-      for await (const item of runPostToolUseHooks(
-        tool,
-        toolUseID,
-        observableInput,
-        result.data,
-        toolUseContext,
-        permissionMode,
-        signal,
-        hookSeam,
-      )) {
-        postHookCount++
-        if (item.kind === 'message') push({ message: item.message })
-      }
-      const postDuration = Date.now() - postStartedAt
-      if (postDuration > SLOW_PHASE_THRESHOLD_MS) {
-        logForDebugging(
-          `post-tool hooks for ${tool.name} took ${postDuration}ms (${postHookCount} hook results)`,
-        )
-      }
     }
+    for (const outcome of after.outcomes) push({ message: hookProgressMessage('tool.after', outcome.name, 'ran', toolUseID, after.outcomes.length) })
+    for (const row of hookRowsOfResult(after, { callId: toolUseID })) push({ message: createAttachmentMessage(row) })
+    if (after.answer.stop !== undefined) stopReason = after.answer.stop
 
     for (const message of result.newMessages ?? []) {
       push({ message })
-    }
-    if (preventContinuation) {
-      push({
-        message: createAttachmentMessage({
-          type: 'hook_stopped_continuation',
-          message: stopReason ?? 'Tool execution was stopped by a pre-tool hook',
-          hookName: `PreToolUse:${tool.name}`,
-          toolUseID,
-          hookEvent: 'PreToolUse',
-        }),
-      })
     }
   } catch (error) {
     durationMs = Date.now() - executionStartedAt
@@ -989,20 +892,19 @@ async function runTransactionBody(args: {
     }
 
     if (cutText !== undefined) push(interruptResultUpdate(toolUseID, sourceUUID, cutText))
-    const failureHookMessages: Message[] = []
-    for await (const item of runPostToolUseFailureHooks(
+    const afterFailure = await afterToolHooks(
       tool,
       toolUseID,
-      observableInput,
-      message,
-      cutByTurn,
+      callInput,
+      { ok: false, error: message, cut: signal.aborted },
       toolUseContext,
-      permissionMode,
-      cutText === undefined ? signal : undefined,
-      hookSeam,
-    )) {
-      failureHookMessages.push(item.message)
-    }
+      signal,
+    )
+    const failureHookMessages: Message[] = [
+      ...afterFailure.outcomes.map(outcome => hookProgressMessage('tool.after', outcome.name, 'ran', toolUseID, afterFailure.outcomes.length)),
+      ...hookRowsOfResult(afterFailure, { callId: toolUseID }).map(row => createAttachmentMessage(row)),
+    ]
+    if (afterFailure.answer.stop !== undefined) stopReason = afterFailure.answer.stop
 
     if (cutText !== undefined) {
       for (const failureMessage of failureHookMessages) push({ message: failureMessage })
@@ -1033,7 +935,7 @@ async function runTransactionBody(args: {
       push({ message: failureMessage })
     }
   } finally {
-    if (executed && hookDecisionRow !== null) push({ message: hookDecisionRow })
+    if (executed) for (const row of decidedRows) push(row)
     if (executed && allowanceRow !== null) push({ message: allowanceRow })
     if (executed) for (const note of hookNotes) push({ message: note })
     if (executed) {

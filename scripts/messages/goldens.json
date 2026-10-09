@@ -23389,29 +23389,6 @@
   "type": "system",
   "uuid": "«u1»"
  },
- "createStopHookSummaryMessage/basic": {
-  "hasOutput": true,
-  "hookCount": 2,
-  "hookErrors": [
-   "test exited 1"
-  ],
-  "hookInfos": [
-   {
-    "command": "lint",
-    "durationMs": 120
-   },
-   {
-    "command": "test",
-    "durationMs": 900
-   }
-  ],
-  "level": "info",
-  "preventedContinuation": false,
-  "subtype": "stop_hook_summary",
-  "timestamp": "«ts»",
-  "type": "system",
-  "uuid": "«u1»"
- },
  "createTurnDurationMessage/basic": {
   "durationMs": 1234,
   "isMeta": false,

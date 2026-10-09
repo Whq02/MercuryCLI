@@ -4,7 +4,7 @@
 # gate-watch: src/services/run/** src/services/workbench/** src/services/mission/** src/commands/run/** src/commands/diff/** src/commands/tasks/** src/components/prompts-panel/** src/screens/Chat.tsx
 # gate-watch: scripts/lib/captureDriver.ts scripts/ui/vshot.py src/bootstrap/state.ts
 # gate-watch: src/substrate/sourceState.ts src/utils/artifacts/reviewStore.ts
-# gate-watch: src/utils/hooks/runStopAdapter.ts src/utils/sessionStoragePortable.ts
+# gate-watch: src/guards/runStopAdapter.ts src/utils/sessionStoragePortable.ts
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }

@@ -5,7 +5,7 @@
 # gate-watch: src/utils/shell/readOnlyCommandValidation*
 # gate-watch: src/utils/ShellCommand.ts src/tasks/LocalShellTask/* src/tools/BashTool/BashTool.tsx src/tools/BashTool/commandSemantics.ts
 # gate-watch: src/utils/processGroup.ts src/tools/TaskStopTool/* src/tasks/stopTask.ts src/Task.ts
-# gate-watch: src/utils/task/TaskOutput.ts src/utils/hooks/AsyncHookRegistry.ts src/tools/MonitorTool/*
+# gate-watch: src/utils/task/TaskOutput.ts src/utils/hooks/background.ts src/tools/MonitorTool/*
 # gate-watch: src/tools/AgentTool/runAgent.ts src/daemon/headlessRun.ts src/utils/fileHistory.ts
 # gate-watch: src/utils/secureStorage/macOsKeychainStorage.ts src/tasks/LocalWorkflowTask/*
 # gate-watch: src/services/tcpBridge/entry.ts src/services/ide/cppBuild.ts src/services/mcp/headersHelper.ts
@@ -25,7 +25,7 @@
 # gate-watch: src/daemon/main.ts src/entrypoints/init.ts src/ink/components/App.tsx src/screens/Chat.tsx
 # gate-watch: src/services/ide/cppProject.ts src/state/AppStateStore.ts src/tasks/taskOutcomeEnvelope.ts
 # gate-watch: src/tools/WorkflowTool/WorkflowTool.tsx src/utils/* src/utils/bash/shellQuote.ts
-# gate-watch: src/utils/bash/specs/** src/utils/hooks/execution.ts src/utils/permissions/**
+# gate-watch: src/utils/bash/specs/** src/utils/hooks/commandRunner.ts src/utils/hooks/fire.ts src/utils/permissions/**
 # gate-watch: src/utils/processUserInput/processBashCommand.tsx src/utils/settings/types.ts src/utils/settings/settings.ts src/utils/shell/*
 # gate-watch: src/utils/task/diskOutput.ts vendor/brush.lock.json
 # gate-watch: src/rows/* src/runner/wire/*

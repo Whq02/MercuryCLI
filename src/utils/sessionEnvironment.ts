@@ -7,11 +7,23 @@ import { getMercuryHome } from './envUtils.js'
 import { isENOENT } from './errors.js'
 
 
-export type SessionEnvHookEvent = 'Setup' | 'SessionStart' | 'CwdChanged' | 'FileChanged'
+const ENV_FILE_EVENTS = ['session.start', 'file.changed'] as const
+export type SessionEnvHookEvent = (typeof ENV_FILE_EVENTS)[number]
 
-const EVENT_ORDER: SessionEnvHookEvent[] = ['Setup', 'SessionStart', 'CwdChanged', 'FileChanged']
+export function hookEventWritesEnvFile(event: string): event is SessionEnvHookEvent {
+  return (ENV_FILE_EVENTS as readonly string[]).includes(event)
+}
 
-const FRAGMENT_PATTERN = /^([a-z]+)-hook-(\d+)\.sh$/
+function fragmentFamily(event: SessionEnvHookEvent): string {
+  return event.replace('.', '-')
+}
+
+function eventRank(family: string): number {
+  const index = ENV_FILE_EVENTS.findIndex(event => fragmentFamily(event) === family)
+  return index === -1 ? ENV_FILE_EVENTS.length : index
+}
+
+const FRAGMENT_PATTERN = /^([a-z]+-[a-z]+)-hook-(\d+)\.sh$/
 
 async function getSessionEnvDirPath(): Promise<string> {
   const dir = join(getMercuryHome(), 'session-env', getSessionId())
@@ -21,7 +33,7 @@ async function getSessionEnvDirPath(): Promise<string> {
 
 export async function getHookEnvFilePath(hookEvent: SessionEnvHookEvent, hookIndex: number): Promise<string> {
   const dir = await getSessionEnvDirPath()
-  return join(dir, `${hookEvent.toLowerCase()}-hook-${hookIndex}.sh`)
+  return join(dir, `${fragmentFamily(hookEvent)}-hook-${hookIndex}.sh`)
 }
 
 type CacheState = { state: 'not-loaded' } | { state: 'absent' } | { state: 'loaded'; script: string }
@@ -31,11 +43,6 @@ let cache: CacheState = { state: 'not-loaded' }
 export function invalidateSessionEnvCache(): void {
   cache = { state: 'not-loaded' }
   logForDebugging('sessionEnvironment: cache invalidated')
-}
-
-function eventRank(name: string): number {
-  const index = EVENT_ORDER.findIndex(event => event.toLowerCase() === name)
-  return index === -1 ? EVENT_ORDER.length : index
 }
 
 async function readFragments(): Promise<string[]> {
@@ -101,25 +108,4 @@ export async function getSessionEnvironmentScript(): Promise<string | null> {
   const script = parts.join('\n')
   cache = { state: 'loaded', script }
   return script
-}
-
-export async function clearCwdEnvFiles(): Promise<void> {
-  let dir: string
-  try {
-    dir = join(getMercuryHome(), 'session-env', getSessionId())
-    const entries = await readdir(dir)
-    for (const name of entries) {
-      const match = FRAGMENT_PATTERN.exec(name)
-      if (!match) continue
-      const event = match[1] as string
-      if (event !== 'filechanged' && event !== 'cwdchanged') continue
-      try {
-        await truncate(join(dir, name), 0)
-      } catch (err) {
-        logForDebugging(`sessionEnvironment: failed to truncate ${name}: ${String(err)}`)
-      }
-    }
-  } catch (err) {
-    if (!isENOENT(err)) logForDebugging(`sessionEnvironment: clearCwdEnvFiles failed: ${String(err)}`)
-  }
 }

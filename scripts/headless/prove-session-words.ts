@@ -88,7 +88,7 @@ try {
   check('prototype words are operands', inspectSessionArgs(['run', 'constructor']).command === 'run')
   check('standard session identity and effort stay admitted', inspectSessionArgs(['run', '--session-id', 'id', '--effort', 'max', 'hello']).command === 'run')
   check('repeated value options use the last occurrence', readSessionOption(['--log-file', 'first', '--log-file=second'], '--log-file').value === 'second')
-  for (const flag of ['--config', '--config-layers', '--log-file', '--lean', '--prepare-only', '--multiplex']) check('a boot option inside a brief is only its value', !readSessionOption(['--brief', flag, 'run'], flag).present)
+  for (const flag of ['--config', '--config-layers', '--log-file', '--lean', '--multiplex']) check('a boot option inside a brief is only its value', !readSessionOption(['--brief', flag, 'run'], flag).present)
   const briefFile = join(home, 'brief.txt')
   const appendFile = join(home, 'append.txt')
   writeFileSync(briefFile, 'The file brief marker.')

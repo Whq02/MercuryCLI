@@ -20,7 +20,7 @@ import type {
   ProgressMessage,
   SystemMessage,
 } from './types/message.js'
-import type { HookProgress, PromptRequest, PromptResponse } from './types/hooks.js'
+import type { HookProgress } from './types/hooks.js'
 import type { CanUseToolFn } from './hooks/useCanUseTool.js'
 import type { QuerySource } from './constants/querySource.js'
 import type {
@@ -239,10 +239,6 @@ export type ToolTerminalOptions = {
   appendSystemMessage?: (
     message: Exclude<SystemMessage, { subtype: 'local_command' }>,
   ) => void
-  requestPrompt?: (
-    sourceName: string,
-    toolInputSummary?: string | null,
-  ) => (request: PromptRequest) => Promise<PromptResponse>
   handleElicitation?: (
     serverName: string,
     params: any,

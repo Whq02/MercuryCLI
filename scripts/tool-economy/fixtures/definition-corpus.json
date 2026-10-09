@@ -1,5 +1,5 @@
 {
-  "base": "8d827895474799dec6a39b8f87ec6c8ad9a367a2",
+  "base": "d1314999f3f7b9fd86dae58951a6e6119c4604ee",
   "model": "gpt-6-astra",
   "definitions": [
     {
@@ -2796,7 +2796,7 @@
     },
     {
       "name": "EnterWorktree",
-      "description": "Split off an isolated git worktree and move this session into it.\n\n## When it applies\nOnly on the word \"worktree\" from the user — \"work in a worktree\", \"make a worktree for this\", \"do it in a separate worktree\"; never for branch work or ordinary feature or bugfix work, however large.\n\n## Requirements\n- A git repository, or configured WorktreeCreate/WorktreeRemove hooks.\n- The session is not already in a worktree it created.\n\n## Behaviour\nInside a repository, a new worktree is created under the project config home's worktrees directory (`.mercury/worktrees/`) on a new branch based on the current head. Outside one, the configured hooks provide VCS-agnostic isolation. The session's working directory switches into the worktree. Leave mid-session with the exit tool (keep-or-remove choice); ending the session also prompts.\n\n## Parameters\n- `name` (optional): the worktree name. Within each slash-delimited segment the permitted characters are letters, digits, and the dot/underscore/dash trio; the whole name may not exceed 64 characters. Omitted, a random name is generated.",
+      "description": "Split off an isolated git worktree and move this session into it.\n\n## When it applies\nONLY on the word \"worktree\" from the user — e.g. \"work in a worktree\", \"make a worktree for this\", \"do it in a separate worktree\".\n\n## When NOT to use\n- Creating or switching branches — use git directly.\n- Ordinary feature or bugfix work, however large.\n- Never unless the user explicitly asked for a worktree.\n\n## Requirements\n- A git repository.\n- The session is not already in a worktree it created.\n\n## Behaviour\nInside a repository, a new worktree is created under the project config home's worktrees directory (`.mercury/worktrees/`) on a new branch based on the current head. Outside one, the configured hooks provide VCS-agnostic isolation. The session's working directory switches into the worktree. Leave mid-session with the exit tool (keep-or-remove choice); ending the session also prompts.\n\n## Parameters\n- `name` (optional): the worktree name. Within each slash-delimited segment the permitted characters are letters, digits, and the dot/underscore/dash trio; the whole name may not exceed 64 characters. Omitted, a random name is generated.",
       "input_schema": {
         "type": "object",
         "properties": {

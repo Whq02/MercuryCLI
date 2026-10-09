@@ -160,8 +160,8 @@ export function isTranscribable(m: Message): boolean {
   if (m.type !== 'attachment') return true
   const att = m.attachment
   switch (att.type) {
-    case 'hook_non_blocking_error':
-    case 'hook_error_during_execution':
+    case 'hook':
+      return att.outcome !== 'text'
     case 'bypassed_ask':
     case 'bound_prefix':
     case 'dead_thinking':

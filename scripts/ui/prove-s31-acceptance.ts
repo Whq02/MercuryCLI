@@ -465,11 +465,11 @@ check(
 
   check(
     '29. a single stop hook names its event, no counter',
-    repl.includes("latest.hookEvent === 'SubagentStop' ? 'running crewmate stop hook' : 'running stop hook'"),
+    repl.includes("if (total === 1) return 'running answer hook';"),
   )
   check(
     '29. several stop hooks use the generic plural line with completed/total',
-    repl.includes('running stop hooks · ${completed}/${total}'),
+    repl.includes('running answer hooks · ${ran}/${total}'),
   )
 }
 

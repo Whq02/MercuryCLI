@@ -169,6 +169,7 @@ const objectList = z.array(z.looseObject({}))
 const strings = z.array(z.string())
 
 const ATTACHMENT_BODY_SHAPES: Record<string, z.ZodType> = {
+  hook: z.looseObject({ outcome: z.string(), event: z.string(), name: z.string(), words: z.string() }),
   task_reminder: z.looseObject({ content: objectList }),
   diagnostics: z.looseObject({
     files: z.array(z.looseObject({ uri: z.string(), diagnostics: z.array(z.looseObject({ range: z.looseObject({ start: z.looseObject({}) }) })) })),
@@ -178,8 +179,6 @@ const ATTACHMENT_BODY_SHAPES: Record<string, z.ZodType> = {
   nested_memory: z.looseObject({ content: z.looseObject({}) }),
   queued_command: z.looseObject({ prompt: z.union([z.string(), objectList]) }),
   agent_roster: z.looseObject({ rows: z.array(z.looseObject({ agents: objectList.nullish() })) }),
-  hook_additional_context: z.looseObject({ content: list }),
-  hook_blocking_error: z.looseObject({ blockingError: z.looseObject({}) }),
   deferred_tools_delta: z.looseObject({ addedNames: z.array(z.string()).optional(), addedLines: list, removedNames: list, body: z.string().optional() }),
   held_tools: z.looseObject({ names: z.array(z.string()), body: z.string() }),
   mcp_instructions_delta: z.looseObject({ addedBlocks: list, removedNames: list }),
@@ -202,19 +201,11 @@ const ATTACHMENT_BODY_SHAPES: Record<string, z.ZodType> = {
   mcp_resource: z.looseObject({ server: z.string(), uri: z.string(), name: z.string(), content: z.looseObject({}) }),
   command_permissions: z.looseObject({ allowedTools: strings }),
   agent_mention: z.looseObject({ agentType: z.string() }),
-  async_hook_response: z.looseObject({ processId: z.string(), hookName: z.string(), hookEvent: z.string(), response: z.looseObject({}), stdout: z.string(), stderr: z.string() }),
   budget_usd: z.looseObject({ used: z.number(), total: z.number(), remaining: z.number() }),
   output_token_usage: z.looseObject({ turn: z.number(), session: z.number(), budget: z.number().nullable() }),
   usage_limit_notice: z.looseObject({ key: z.string(), provider: z.string(), window: z.string(), pct: z.number(), text: z.string() }),
   structured_output: z.looseObject({}),
-  hook_cancelled: z.looseObject({ hookName: z.string(), toolUseID: z.string(), hookEvent: z.string() }),
-  hook_non_blocking_error: z.looseObject({ hookName: z.string(), stderr: z.string(), stdout: z.string(), exitCode: z.number(), toolUseID: z.string(), hookEvent: z.string() }),
-  hook_error_during_execution: z.looseObject({ content: z.string(), hookName: z.string(), toolUseID: z.string(), hookEvent: z.string() }),
-  hook_stopped_continuation: z.looseObject({ message: z.string().optional(), hookName: z.string(), toolUseID: z.string(), hookEvent: z.string() }),
   loop_stopped: z.looseObject({ toolUseID: z.string(), cycle: z.array(z.string()), message: z.string() }),
-  hook_success: z.looseObject({ content: z.string(), hookName: z.string(), toolUseID: z.string(), hookEvent: z.string() }),
-  hook_system_message: z.looseObject({ content: z.string(), hookName: z.string(), toolUseID: z.string(), hookEvent: z.string() }),
-  hook_permission_decision: z.looseObject({ decision: z.string(), toolUseID: z.string(), hookEvent: z.string() }),
   bypassed_ask: z.looseObject({ toolUseID: z.string(), mode: z.string(), road: z.string(), reason: z.string() }),
   verify_plan_reminder: z.looseObject({}),
   max_turns_reached: z.looseObject({ maxTurns: z.number(), turnCount: z.number() }),
@@ -230,7 +221,6 @@ const ATTACHMENT_BODY_SHAPES: Record<string, z.ZodType> = {
 }
 
 const NOTICE_BODY_SHAPES: Record<string, z.ZodType> = {
-  stop_hook_summary: z.looseObject({ hookInfos: list, hookErrors: list }),
   memory_saved: z.looseObject({ writtenPaths: z.array(z.string()) }),
 }
 

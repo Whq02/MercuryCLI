@@ -10,6 +10,7 @@ import { daemonHomeStands, publishInDaemonHome } from './daemonHome.js'
 import { flagSpellings } from '../substrate/flagRegistry.js'
 import { resolveEffectiveSettingsSnapshot } from '../substrate/startupMenu.js'
 import { getProcessStartToken, getProcessStartTokenCachedOrRefresh, isProcessAlive } from './ownerWatch.js'
+import { observeSessionStates } from './sessionStateHooks.js'
 import { daemonDir } from './controlSocket.js'
 import { decideTransition, type ConcourseSessionState } from './concourseLifecycle.js'
 import { ensureWorkerWorktree, reapWorkerWorktree, workspaceKindOf } from './concourseWorktrees.js'
@@ -480,6 +481,7 @@ export function updateConcourseWorkers(
   const workers = readSessionWorkers(dir)
   mutate(workers)
   publishConcourseWorkers(workers, dir)
+  observeSessionStates(workers)
   return workers
 }
 

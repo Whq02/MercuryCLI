@@ -3,9 +3,6 @@ import type { Message } from '../../types/message.js'
 import type { NormalizedMessage } from '../../types/message.js'
 
 export const NULL_RENDERING_ATTACHMENT_TYPES = [
-  'hook_success',
-  'hook_additional_context',
-  'hook_cancelled',
   'command_permissions',
   'agent_mention',
   'budget_usd',

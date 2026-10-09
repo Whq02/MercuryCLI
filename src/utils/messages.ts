@@ -120,7 +120,6 @@ export {
   createMemorySavedMessage,
   createMicrocompactBoundaryMessage,
   createScheduledTaskFireMessage,
-  createStopHookSummaryMessage,
   createSystemAPIErrorMessage,
   createSeatReceiptMessage,
   createStreamCutMessage,

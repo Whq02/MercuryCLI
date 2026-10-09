@@ -18,8 +18,7 @@ import {
 import { logForDiagnosticsNoPII } from './utils/diagLogs.js'
 import { isBareMode } from './utils/envUtils.js'
 import { findCanonicalGitRoot, getIsGit } from './utils/git.js'
-import { hasWorktreeCreateHook } from './utils/hooks.js'
-import { captureHooksConfigSnapshot } from './utils/hooks/hooksConfigSnapshot.js'
+import { captureHooksSnapshot } from './utils/hooks/hooksConfigSnapshot.js'
 import { initializeFileChangedWatcher } from './utils/hooks/fileChangedWatcher.js'
 import { logError } from './utils/log.js'
 import { getRecentActivity } from './utils/logoV2Utils.js'
@@ -29,7 +28,6 @@ import {
   getRecentReleaseNotes,
 } from './utils/releaseNotes.js'
 import { prefetchApiKeyFromApiKeyHelperIfSafe } from './utils/auth.js'
-import { registerSessionFileAccessHooks } from './utils/sessionFileAccessHooks.js'
 import { consumeSessionHomePin } from './utils/sessionStorage/sessionHomePin.js'
 import { saveWorktreeState } from './utils/sessionStorage.js'
 import { setCwd } from './utils/Shell.js'
@@ -100,21 +98,16 @@ export async function setup(
   let activeCwd = cwd
 
   const hooksStartedAt = Date.now()
-  captureHooksConfigSnapshot()
+  captureHooksSnapshot()
   logForDiagnosticsNoPII('info', 'setup_hooks_captured', {
     duration_ms: Date.now() - hooksStartedAt,
   })
   initializeFileChangedWatcher(activeCwd)
 
   if (worktreeEnabled) {
-    const hookConfigured = hasWorktreeCreateHook()
     const inGitRepo = await getIsGit()
-    if (!hookConfigured && !inGitRepo) {
-      console.error(
-        chalk.red(
-          `Cannot create a worktree: ${activeCwd} is not a git repository and no WorktreeCreate hook is configured in settings.json.`,
-        ),
-      )
+    if (!inGitRepo) {
+      console.error(chalk.red(`Cannot create a worktree: ${activeCwd} is not a git repository.`))
       process.exit(1)
     }
 
@@ -184,7 +177,7 @@ export async function setup(
     const { applyHarnessGround } = await import('./services/switchboard/harnessGround.js')
     await applyHarnessGround(getCwd())
     saveWorktreeState(worktreeSession)
-    captureHooksConfigSnapshot()
+    captureHooksSnapshot()
   }
 
   profileCheckpoint('setup_before_prefetch')
@@ -199,10 +192,6 @@ export async function setup(
       .catch((error: unknown) => logError(error))
   }
   profileCheckpoint('setup_after_prefetch')
-
-  if (!isBareMode()) {
-    registerSessionFileAccessHooks()
-  }
 
   initSinks()
 

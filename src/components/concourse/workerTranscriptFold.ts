@@ -12,7 +12,6 @@ import {
 } from '../../utils/messages.js'
 import { applyGrouping } from '../../utils/groupToolUses.js'
 import { collapseReadSearchGroups } from '../../utils/collapseReadSearch.js'
-import { collapseHookSummaries } from '../../utils/collapseHookSummaries.js'
 import { collapseBackgroundBashNotifications } from '../../utils/collapseBackgroundBashNotifications.js'
 import { injectTurnReceipts } from '../../utils/cockpit/turnReceipt.js'
 import { getMercuryTempDir } from '../../utils/permissions/filesystem.js'
@@ -272,7 +271,7 @@ export function deriveTranscriptRows(
   }
   const { messages: grouped } = applyGrouping(prepared, tools, false)
   const collapsed = collapseBackgroundBashNotifications(
-    collapseHookSummaries(collapseReadSearchGroups(injectTurnReceipts(grouped, getMercuryTempDir()), tools, inProgress)),
+    collapseReadSearchGroups(injectTurnReceipts(grouped, getMercuryTempDir()), tools, inProgress),
     false,
   )
   return { collapsed, lookups, inProgress }

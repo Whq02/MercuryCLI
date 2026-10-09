@@ -19,7 +19,7 @@ async function main(): Promise<void> {
   const kernel = await import('../../src/services/run/runKernel.js')
   const { evaluateStop } = await import('../../src/services/run/completionEvaluator.js')
   const { parseBlockerDeclaration } = await import('../../src/services/run/blockerDeclaration.js')
-  const mission = await import('../../src/utils/hooks/missionHook.js')
+  const mission = await import('../../src/guards/mission.js')
 
   const owner = ok.makeOwnerKey({ workspace: '/tmp/speedster', sessionId: 'corpus', lane: 'main' })
   const HOUR = 3_600_000
@@ -234,16 +234,11 @@ async function main(): Promise<void> {
 
   section('classes 6/7 — /mission: contradictory conditions and already-met missions (S5)')
   {
-    type HookCallback = (m: unknown[]) => boolean | Promise<boolean>
-    type HookEntry = { hook: { type: string; id: string; callback: HookCallback } }
-    type MatcherEntry = { matcher: string; hooks: HookEntry[] }
-    type HookStore = { hooks: Record<string, MatcherEntry[]> }
-    type AppStateish = { sessionHooks: Map<string, HookStore> }
-    const state: AppStateish = { sessionHooks: new Map() }
-    const setAppState = (updater: (prev: AppStateish) => AppStateish): void => {
-      const next = updater(state)
-      state.sessionHooks = next.sessionHooks
-    }
+    const { guardsEngaged, judgeTurnEnd } = await import('../../src/guards/guards.js')
+    const missionJudge = (sessionId: string): ((m: unknown[]) => Promise<boolean>) | undefined =>
+      guardsEngaged(sessionId).turn.some(id => id.startsWith('mission-'))
+        ? async messages => (await judgeTurnEnd(sessionId, { messages: messages as never })).length === 0
+        : undefined
     const messagesNoSentinel = [
       { type: 'user', message: { content: 'go' } },
       { type: 'assistant', message: { content: [{ type: 'text', text: 'still working on it' }] } },
@@ -254,11 +249,10 @@ async function main(): Promise<void> {
     )
 
     _resetContinuationLatchesForTesting()
-    mission.setActiveMission(setAppState as never, 'ensure X is simultaneously enabled and disabled with no observable check', {
+    mission.setActiveMission('ensure X is simultaneously enabled and disabled with no observable check', {
       sessionId: 'speedster-c6',
     })
-    const stopHooks6 = state.sessionHooks.get('speedster-c6')?.hooks['Stop'] ?? []
-    const cb6 = stopHooks6[0]?.hooks[0]?.hook.callback
+    const cb6 = missionJudge('speedster-c6')
     check('C6 harness: the mission hook registered', typeof cb6 === 'function')
     let blocks6 = 0
     if (cb6) {
@@ -278,10 +272,10 @@ async function main(): Promise<void> {
     )
 
     _resetContinuationLatchesForTesting()
-    mission.setActiveMission(setAppState as never, 'the file scripts/stop-policy/prove-persistence-corpus.ts exists in the repository', {
+    mission.setActiveMission('the file scripts/stop-policy/prove-persistence-corpus.ts exists in the repository', {
       sessionId: 'speedster-c7',
     })
-    const cb7 = state.sessionHooks.get('speedster-c7')?.hooks['Stop']?.[0]?.hooks[0]?.hook.callback
+    const cb7 = missionJudge('speedster-c7')
     check('C7 harness: the mission hook registered', typeof cb7 === 'function')
     const firstEval = cb7 ? await cb7(messagesNoSentinel) : null
     check(

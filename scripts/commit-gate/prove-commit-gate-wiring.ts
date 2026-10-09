@@ -12,15 +12,15 @@ const src = (...p: string[]) =>
 
 console.log('=== PROOF — commit-gate wiring (the one chokepoint) ===')
 const engine = src('rows', 'turn.ts')
-check('the turn engages the gate', /engageCommitGate\(config\.setAppState, getSessionId\(\)\)/.test(engine))
+check('the turn engages the gate', /engageCommitGate\(sessionId\)/.test(engine))
 check(
   'the engagement rides the per-run hook block that serves EVERY session kind (beside the wards registration)',
-  engine.indexOf('registerWardsHook(config.setAppState, sessionId)') !== -1 &&
-    engine.indexOf('engageCommitGate(config.setAppState, getSessionId())') !== -1 &&
-    engine.indexOf('engageCommitGate(config.setAppState, getSessionId())') >
-      engine.indexOf('registerWardsHook(config.setAppState, sessionId)'),
+  engine.indexOf('registerWardsGuard(config.setAppState, sessionId)') !== -1 &&
+    engine.indexOf('engageCommitGate(sessionId)') !== -1 &&
+    engine.indexOf('engageCommitGate(sessionId)') >
+      engine.indexOf('registerWardsGuard(config.setAppState, sessionId)'),
 )
-check('engage is per-session (a new session id re-arms)', src('utils', 'hooks', 'commitGate.ts').includes('commitGateEngagedSessions.has(sessionId)) return false'))
+check('engage is per-session (a new session id re-arms)', src('guards', 'commitGate.ts').includes('commitGateEngagedSessions.has(sessionId)) return false'))
 
 if (failures > 0) { console.log('❌ FAILED'); process.exit(1) }
 console.log('✅ ALL PASS — commit-gate wiring')

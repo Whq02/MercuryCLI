@@ -134,7 +134,6 @@ console.log('S25 §7.2 acceptance battery')
     ({ type: 'system', subtype, uuid: 's1', timestamp: 't', content: 'x', level: 'info' }) as never
   for (const subtype of [
     'api_metrics',
-    'stop_hook_summary',
     'turn_duration',
     'memory_saved',
     'agents_killed',
@@ -147,7 +146,7 @@ console.log('S25 §7.2 acceptance battery')
   check('turn receipt excluded', !isNavigableMessage({ type: 'turn_receipt', uuid: 'r', counts: {} } as never))
   const attachment = (type: string) =>
     ({ type: 'attachment', uuid: 'at', timestamp: 't', attachment: { type } }) as never
-  for (const type of ['queued_command', 'diagnostics', 'hook_blocking_error', 'hook_error_during_execution']) {
+  for (const type of ['queued_command', 'diagnostics', 'hook']) {
     check(`attachment: ${type} navigable`, isNavigableMessage(attachment(type)))
   }
   check('attachment: other type excluded', !isNavigableMessage(attachment('taste_recall')))

@@ -34,6 +34,13 @@ const decode = (lines: string[]): Decoded => decodeTranscriptBuffer<unknown>(lin
 type Fixture = { good: Record<string, unknown>; bad: Array<{ label: string; field: string; fields: Record<string, unknown> }>; older?: Array<{ label: string; fields: Record<string, unknown> }> }
 
 const ATTACHMENTS: Record<string, Fixture> = {
+  hook: {
+    good: { outcome: 'context', event: 'tool.before', name: 'h', words: 'ctx', callId: 't' },
+    bad: [
+      { label: 'words is a list', field: 'words', fields: { outcome: 'context', event: 'tool.before', name: 'h', words: ['ctx'] } },
+      { label: 'outcome is missing', field: 'outcome', fields: { event: 'tool.before', name: 'h', words: 'ctx' } },
+    ],
+  },
   task_reminder: {
     good: { content: [{ id: '1', status: 'pending', subject: 's' }], itemCount: 1 },
     bad: [
@@ -65,14 +72,6 @@ const ATTACHMENTS: Record<string, Fixture> = {
       { label: 'rows is text', field: 'rows', fields: { rows: 'r' } },
       { label: 'a row whose agents is text', field: 'agents', fields: { rows: [{ taskType: 't', name: 'n', taskId: 'i', status: 's', address: null, agents: 'x' }] } },
     ],
-  },
-  hook_additional_context: {
-    good: { content: ['ctx'], hookName: 'h', toolUseID: 't', hookEvent: 'PostToolUse' },
-    bad: [{ label: 'content is text', field: 'content', fields: { content: 'ctx', hookName: 'h', toolUseID: 't', hookEvent: 'PostToolUse' } }],
-  },
-  hook_blocking_error: {
-    good: { hookName: 'h', blockingError: { command: 'c', blockingError: 'e' }, toolUseID: 't', hookEvent: 'PreToolUse' },
-    bad: [{ label: 'blockingError is text', field: 'blockingError', fields: { hookName: 'h', blockingError: 'e', toolUseID: 't', hookEvent: 'PreToolUse' } }],
   },
   deferred_tools_delta: {
     good: { addedNames: [], addedLines: ['a'], removedNames: [], body: 'b' },
@@ -134,35 +133,14 @@ const ATTACHMENTS: Record<string, Fixture> = {
   mcp_resource: { good: { server: 's', uri: 'u', name: 'n', content: { contents: [] } }, bad: [{ label: 'content is text', field: 'content', fields: { server: 's', uri: 'u', name: 'n', content: 'c' } }] },
   command_permissions: { good: { allowedTools: ['Bash(ls *)'] }, bad: [{ label: 'allowedTools carries a number', field: 'allowedTools', fields: { allowedTools: [1] } }] },
   agent_mention: { good: { agentType: 'scout' }, bad: [{ label: 'agentType is missing', field: 'agentType', fields: {} }] },
-  async_hook_response: {
-    good: { processId: 'p', hookName: 'h', hookEvent: 'PostToolUse', response: { continue: true }, stdout: '', stderr: '' },
-    bad: [{ label: 'response is text', field: 'response', fields: { processId: 'p', hookName: 'h', hookEvent: 'PostToolUse', response: 'ok', stdout: '', stderr: '' } }],
-  },
   budget_usd: { good: { used: 0.5, total: 1, remaining: 0.5 }, bad: [{ label: 'total is null', field: 'total', fields: { used: 0.5, total: null, remaining: 0.5 } }] },
   output_token_usage: { good: { turn: 1, session: 2, budget: null }, bad: [{ label: 'budget is text', field: 'budget', fields: { turn: 1, session: 2, budget: 'many' } }] },
   usage_limit_notice: { good: { key: 'k', provider: 'p', window: 'w', pct: 80, text: 't' }, bad: [{ label: 'pct is text', field: 'pct', fields: { key: 'k', provider: 'p', window: 'w', pct: '80', text: 't' } }] },
   structured_output: { good: { data: { ok: true } }, bad: [] },
-  hook_cancelled: { good: { hookName: 'h', toolUseID: 't', hookEvent: 'PreToolUse' }, bad: [{ label: 'hookName is a number', field: 'hookName', fields: { hookName: 1, toolUseID: 't', hookEvent: 'PreToolUse' } }] },
-  hook_non_blocking_error: {
-    good: { hookName: 'h', stderr: 'e', stdout: '', exitCode: 1, toolUseID: 't', hookEvent: 'PostToolUse' },
-    bad: [{ label: 'exitCode is text', field: 'exitCode', fields: { hookName: 'h', stderr: 'e', stdout: '', exitCode: '1', toolUseID: 't', hookEvent: 'PostToolUse' } }],
-  },
-  hook_error_during_execution: {
-    good: { content: 'c', hookName: 'h', toolUseID: 't', hookEvent: 'PreToolUse' },
-    bad: [{ label: 'content is a list', field: 'content', fields: { content: ['c'], hookName: 'h', toolUseID: 't', hookEvent: 'PreToolUse' } }],
-  },
-  hook_stopped_continuation: {
-    good: { message: 'm', hookName: 'h', toolUseID: 't', hookEvent: 'Stop' },
-    bad: [{ label: 'message is a list', field: 'message', fields: { message: ['m'], hookName: 'h', toolUseID: 't', hookEvent: 'Stop' } }],
-    older: [{ label: 'the reason under content, as the tool road wrote it before the producers were typed', fields: { content: 'm', hookName: 'h', toolUseID: 't', hookEvent: 'PreToolUse' } }],
-  },
   loop_stopped: {
     good: { toolUseID: 't', cycle: ['Grep', 'Glob'], message: 'm' },
     bad: [{ label: 'cycle is a string', field: 'cycle', fields: { toolUseID: 't', cycle: 'Grep', message: 'm' } }],
   },
-  hook_success: { good: { content: '', hookName: 'h', toolUseID: 't', hookEvent: 'SessionStart' }, bad: [{ label: 'content is null', field: 'content', fields: { content: null, hookName: 'h', toolUseID: 't', hookEvent: 'SessionStart' } }] },
-  hook_system_message: { good: { content: 'c', hookName: 'h', toolUseID: 't', hookEvent: 'PreToolUse' }, bad: [{ label: 'toolUseID is missing', field: 'toolUseID', fields: { content: 'c', hookName: 'h', hookEvent: 'PreToolUse' } }] },
-  hook_permission_decision: { good: { decision: 'allow', toolUseID: 't', hookEvent: 'PermissionRequest' }, bad: [{ label: 'decision is a boolean', field: 'decision', fields: { decision: true, toolUseID: 't', hookEvent: 'PermissionRequest' } }] },
   bypassed_ask: {
     good: { toolUseID: 't', mode: 'sovereign', road: 'toolAskRule', reason: 'r' },
     bad: [{ label: 'reason is missing', field: 'reason', fields: { toolUseID: 't', mode: 'sovereign', road: 'toolAskRule' } }],
@@ -195,13 +173,6 @@ const ATTACHMENTS: Record<string, Fixture> = {
 }
 
 const NOTICES: Record<string, Fixture> = {
-  stop_hook_summary: {
-    good: { hookCount: 1, hookInfos: [{ command: 'c', durationMs: 1 }], hookErrors: [], preventedContinuation: false, hasOutput: false, level: 'info' },
-    bad: [
-      { label: 'hookInfos is text', field: 'hookInfos', fields: { hookCount: 'many', hookInfos: 'x', hookErrors: [], preventedContinuation: false, hasOutput: false, level: 'info' } },
-      { label: 'hookErrors is a number', field: 'hookErrors', fields: { hookCount: 1, hookInfos: [], hookErrors: 5, preventedContinuation: false, hasOutput: false, level: 'info' } },
-    ],
-  },
   memory_saved: {
     good: { writtenPaths: ['a/b.md'] },
     bad: [

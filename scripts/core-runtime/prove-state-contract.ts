@@ -895,25 +895,23 @@ section('LAW 9 HOOK-REGISTRY — merge order · extensionRoot clear · empty ⇒
 
   state.clearRegisteredHooks()
   check('registry: starts null after clear', state.getRegisteredHooks() === null)
-  state.registerHookCallbacks({ PreToolUse: [cb1] } as never)
-  state.registerHookCallbacks({ PreToolUse: [cb2], Stop: [ext1] } as never)
+  state.registerHookCallbacks({ 'tool.before': [cb1] } as never)
+  state.registerHookCallbacks({ 'tool.before': [cb2], 'turn.answer': [ext1] } as never)
   const reg = state.getRegisteredHooks() as never as Record<string, Array<{ tag: string }>>
-  check('registry: repeated registration MERGES, order preserved', reg.PreToolUse?.length === 2 && reg.PreToolUse[0] === (cb1 as never) && reg.PreToolUse[1] === (cb2 as never))
-  check('registry: second event registered', reg.Stop?.length === 1 && reg.Stop[0] === (ext1 as never))
+  check('registry: repeated registration MERGES, order preserved', reg['tool.before']?.length === 2 && reg['tool.before'][0] === (cb1 as never) && reg['tool.before'][1] === (cb2 as never))
+  check('registry: second event registered', reg['turn.answer']?.length === 1 && reg['turn.answer'][0] === (ext1 as never))
 
   state.clearRegisteredExtensionHooks()
-  const afterClear = state.getRegisteredHooks() as never as Record<string, Array<{ tag: string }>>
-  check('extension clear: extensionRoot matchers dropped, event key removed when emptied', afterClear !== null && afterClear.Stop === undefined)
-  check('extension clear: callback matchers survive', afterClear.PreToolUse?.length === 2)
+  check('extension clear: the registry holds extension matchers only, so the clear collapses it to null', state.getRegisteredHooks() === null)
 
   state.clearRegisteredHooks()
-  state.registerHookCallbacks({ SessionStart: [extOnly] } as never)
+  state.registerHookCallbacks({ 'session.start': [extOnly] } as never)
   state.clearRegisteredExtensionHooks()
   check('extension clear: all-extension registry collapses to null', state.getRegisteredHooks() === null)
   state.clearRegisteredExtensionHooks()
   check('extension clear: idempotent on null', state.getRegisteredHooks() === null)
 
-  state.registerHookCallbacks({ PreToolUse: [cb1] } as never)
+  state.registerHookCallbacks({ 'tool.before': [cb1] } as never)
   state.clearRegisteredHooks()
   check('clearRegisteredHooks: nulls the registry', state.getRegisteredHooks() === null)
 }
@@ -1052,7 +1050,7 @@ section('LAW SCOPE-DELTA — every reset entry point, exact field-by-field')
     state.setMainThreadAgentType('main-agent')
     state.setDirectConnectServerUrl('http://localhost:1')
     state.clearRegisteredHooks()
-    state.registerHookCallbacks({ PreToolUse: [cbHook], Stop: [extHook] } as never)
+    state.registerHookCallbacks({ 'tool.before': [cbHook], 'turn.answer': [extHook] } as never)
     state.getAgentColorMap().set('agent-a', 'blue' as never)
     state.getSessionCreatedCrews().add('crew-populate')
     state.addInvokedSkill('pop-skill', '/skills/pop', 'content', null)

@@ -7,7 +7,7 @@ import {
   getActiveMission,
   isMissionClearKeyword,
   setActiveMission,
-} from '../../utils/hooks/missionHook.js'
+} from '../../guards/mission.js'
 
 
 export const call = async (
@@ -15,7 +15,6 @@ export const call = async (
   context: LocalJSXCommandContext,
 ): Promise<LocalCommandResult> => {
   const arg = rawArg.trim()
-  const { setAppState } = context
   const text = (value: string): LocalCommandResult => ({ type: 'text', value })
 
   if (arg === '') {
@@ -52,7 +51,7 @@ export const call = async (
   }
 
   if (isMissionClearKeyword(arg)) {
-    const cleared = clearActiveMission(setAppState)
+    const cleared = clearActiveMission()
     return text(cleared === null ? 'No mission set' : `Mission cleared: ${cleared}`)
   }
 
@@ -62,6 +61,6 @@ export const call = async (
     )
   }
 
-  const directive = setActiveMission(setAppState, arg)
+  const directive = setActiveMission(arg)
   return text(`Mission set: ${arg}\n\n${directive}`)
 }

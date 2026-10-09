@@ -233,7 +233,7 @@ export const projectAdapter: ResourceAdapter = {
         pins = marks.pins
         drops = marks.drops
         const { getActiveMission } =
-          require('../../../utils/hooks/missionHook.js') as typeof import('../../../utils/hooks/missionHook.js')
+          require('../../../guards/mission.js') as typeof import('../../../guards/mission.js')
         goal = identity.sessionId ? (getActiveMission(identity.sessionId)?.condition ?? null) : null
       } catch {
       }

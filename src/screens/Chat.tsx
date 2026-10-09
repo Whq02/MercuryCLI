@@ -320,49 +320,27 @@ function getFocusedInputDialog(args: {
 
 function stopHookSuffix(messages: readonly Message[], isLoading: boolean): string | undefined {
   if (!isLoading) return undefined;
-  type HookProgress = {
-    hookEvent?: string;
-    hookExecutionId?: string;
-    hookName?: string;
-    statusMessage?: string;
-    completed?: boolean;
-  };
-  const progress: HookProgress[] = [];
-  const summarised = new Set<string>();
-  const completedByExecution = new Map<string, number>();
+  let running = 0;
+  let ran = 0;
+  let total = 0;
   for (const message of messages) {
-    if (message.type === 'progress') {
-      const data = (message as ProgressMessage).data as { type?: string } & HookProgress;
-      if (data.type === 'hook_progress' && (data.hookEvent === 'Stop' || data.hookEvent === 'SubagentStop')) {
-        progress.push(data);
+    if (message.type !== 'progress') continue;
+    const data = (message as ProgressMessage).data as { type?: string; event?: string; state?: string; count?: number };
+    if (data.type !== 'hook_progress' || data.event !== 'turn.answer') continue;
+    if (data.state === 'running') {
+      if (ran >= running) {
+        running = 0;
+        ran = 0;
       }
-      continue;
-    }
-    if (message.type === 'system') {
-      const sys = message as { subtype?: string; hookExecutionId?: string };
-      if (sys.subtype === 'stop_hook_summary' && sys.hookExecutionId) summarised.add(sys.hookExecutionId);
-      continue;
-    }
-    if (message.type === 'attachment') {
-      const att = (message as { attachment?: { type?: string; hookEvent?: string; hookExecutionId?: string } }).attachment;
-      if (att && att.hookExecutionId && (att.hookEvent === 'Stop' || att.hookEvent === 'SubagentStop')) {
-        completedByExecution.set(att.hookExecutionId, (completedByExecution.get(att.hookExecutionId) ?? 0) + 1);
-      }
+      running++;
+      total = data.count ?? running;
+    } else if (data.state === 'ran') {
+      ran++;
     }
   }
-  if (progress.length === 0) return undefined;
-  const latest = progress[progress.length - 1]!;
-  const executionId = latest.hookExecutionId ?? '';
-  if (executionId && summarised.has(executionId)) return undefined;
-  const ofExecution = progress.filter(p => (p.hookExecutionId ?? '') === executionId);
-  const total = ofExecution.length;
-  const completed = Math.min(total, completedByExecution.get(executionId) ?? ofExecution.filter(p => p.completed).length);
-  const custom = ofExecution.find(p => p.statusMessage)?.statusMessage;
-  if (custom) return total > 1 ? `${custom} · ${completed}/${total}` : custom;
-  if (total === 1) {
-    return latest.hookEvent === 'SubagentStop' ? 'running crewmate stop hook' : 'running stop hook';
-  }
-  return `running stop hooks · ${completed}/${total}`;
+  if (running === 0 || ran >= running) return undefined;
+  if (total === 1) return 'running answer hook';
+  return `running answer hooks · ${ran}/${total}`;
 }
 
 function AnimatedTitle({
@@ -960,7 +938,6 @@ export function Chat({
         updateAttributionState: (updater: (prev: AppState['attribution']) => AppState['attribution']) =>
           setAppState(prev => ({ ...prev, attribution: updater(prev.attribution) })),
         setConversationId: (id: UUID) => setConversationId(id),
-        requestPrompt: () => () => Promise.reject(new Error('a prompt from a dialog command has no door to a managed session yet')),
         messages: currentMessages.concat(newMessages),
         setMessages: (updater: (prev: Message[]) => Message[]) => {
           for (const row of updater([])) paintScreenRow(row, getUserMessageText(row as UserMessage) ?? '');

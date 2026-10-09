@@ -76,6 +76,7 @@ function ReasonView({
     case 'workingDir':
     case 'safetyCheck':
     case 'other':
+    case 'guard':
       return <Text wrap="truncate-middle">{reason.reason}</Text>
     case 'asyncAgent':
       return <Text wrap="truncate-middle">{reason.reason}</Text>

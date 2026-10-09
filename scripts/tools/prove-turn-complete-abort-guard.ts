@@ -61,15 +61,15 @@ check(
 check(
   'the settlement reads the status off the terminal and the cut, then gates the completed yield on it',
   /const aborted = terminal\.reason === 'aborted_streaming' \|\| terminal\.reason === 'aborted_tools'\s*const cut = aborted \? turnCutOf\(this\.abortController\.signal\.reason\)\.kind : null/.test(engine) &&
-    /const settled = endedOnApiError \? \{ status: 'failed' as const, errorClass: 'model' as const \} : statusOfTerminal\(terminal, cut\)\s*if \(settled\.status === 'completed'\) \{[\s\S]{0,700}?closeTurn\('completed'/.test(engine),
+    /const settled = endedOnApiError \? \{ status: 'failed' as const, errorClass: 'model' as const \} : statusOfTerminal\(terminal, cut\)\s*if \(settled\.status === 'completed'\) \{[\s\S]{0,700}?endTurn\('completed'/.test(engine),
 )
 check(
   'the completed outcomes are the closed two (local command · the gated settlement)',
-  (engine.match(/closeTurn\((?:refused \? 'refused' : )?'completed'/g) ?? []).length === 2,
+  (engine.match(/endTurn\((?:refused \? 'refused' : )?'completed'/g) ?? []).length === 2,
 )
 check(
   'the turn settlement’s completed yield is the LAST outcome of its kind, past the gate',
-  engine.lastIndexOf("closeTurn('completed'") > engine.indexOf('const settled ='),
+  engine.lastIndexOf("endTurn('completed'") > engine.indexOf('const settled ='),
 )
 
 section('C. the settle tail: exactly once per turn, after the turn, one call site')

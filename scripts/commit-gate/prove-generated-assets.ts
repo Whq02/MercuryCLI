@@ -28,9 +28,9 @@ const {
   parseGeneratedAssetsMap,
   repoPathsIn,
   unregisteredGeneratedFiles,
-} = await import('../../src/utils/hooks/generatedAssets.ts')
+} = await import('../../src/guards/generatedAssets.ts')
 const { formatGeneratedAssetRow, registerGeneratedAsset, upsertGeneratedAssetRow } = await import('../lib/generated-assets-map.mjs')
-const { generatedAssetsRefusal, chainedSegmentsBeforeCommit, commitRepositoryRoot, commitPathsOf } = await import('../../src/utils/hooks/commitGate.ts')
+const { generatedAssetsRefusal, chainedSegmentsBeforeCommit, commitRepositoryRoot, commitPathsOf } = await import('../../src/guards/commitGate.ts')
 
 section('§1 the tracked map is real')
 const mapText = readFileSync(join(ROOT, GENERATED_ASSETS_MAP), 'utf8')
@@ -215,7 +215,7 @@ const renamedPaths = commitPathsOf(repo, 'git commit -F m')
 check('a renamed source retains both candidate endpoints', renamedPaths.includes('src/settings/types.ts') && renamedPaths.includes('docs/renamed.txt'), renamedPaths.join(', '))
 check('renaming out of a watched directory still owes its output', (generatedAssetsRefusal('git commit -F m', repo) ?? '').includes('gen/schema.json'))
 const assetCommand = join(repo, 'scripts/gate/generated-assets.ts')
-writeFileSync(assetCommand, readFileSync(join(ROOT, 'scripts/gate/generated-assets.ts'), 'utf8').replace("'../../src/utils/hooks/generatedAssets.ts'", JSON.stringify(join(ROOT, 'src/utils/hooks/generatedAssets.ts'))))
+writeFileSync(assetCommand, readFileSync(join(ROOT, 'scripts/gate/generated-assets.ts'), 'utf8').replace("'../../src/guards/generatedAssets.ts'", JSON.stringify(join(ROOT, 'src/guards/generatedAssets.ts'))))
 const assetListing = execFileSync(process.execPath, [assetCommand, '--staged'], { cwd: repo, env: process.env, encoding: 'utf8' })
 check('the generated-asset command also sees the removed rename input', assetListing.includes('gen/schema.json') && assetListing.includes('src/settings/types.ts'), assetListing)
 g('mv', 'docs/renamed.txt', 'src/settings/types.ts')
@@ -239,9 +239,9 @@ check('a map that does not parse refuses, naming the map', (generatedAssetsRefus
 rmSync(scratch, { recursive: true, force: true })
 
 section('§4 the wiring')
-const gate = readFileSync(join(ROOT, 'src/utils/hooks/commitGate.ts'), 'utf8')
-check('the hook consults the rule when the shape allows', gate.includes('if (shape.allow) return generatedAssetsVerdict(command)'))
-check('…and after the receipt road allows', /freshReceipt: fresh \}\)\.allow\) return false\s*\n\s*return generatedAssetsVerdict\(command\)/.test(gate))
+const gate = readFileSync(join(ROOT, 'src/guards/commitGate.ts'), 'utf8')
+check('the guard consults the rule when the shape allows', gate.includes('if (shape.allow) return assetsVerdict(command)'))
+check('…and after the receipt road allows', /freshReceipt: fresh \}\)\.allow\) return refuse\(\)\s*\n\s*return assetsVerdict\(command\)/.test(gate))
 check('the rule reads the map through the one parser', gate.includes("from './generatedAssets.js'"))
 
 section('§5 the generators register themselves; the census names what they missed')

@@ -156,7 +156,7 @@ perFixture('hasSuccessfulToolCall', m => ({ Read: M.hasSuccessfulToolCall(m, 'Re
 perFixture('findLastCompactBoundaryIndex', m => M.findLastCompactBoundaryIndex(m));
 perFixture('getMessagesAfterCompactBoundary', m => M.getMessagesAfterCompactBoundary(m));
 perFixture('hasUnresolvedHooks', m =>
-  M.hasUnresolvedHooks(M.normalizeMessages(m) as never, 'toolu_0004' as never, 'PostToolUse' as never),
+  M.hasUnresolvedHooks(M.normalizeMessages(m) as never, 'toolu_0004' as never, 'tool.after' as never),
 );
 perFixture('wrapMessagesInSystemReminder', m =>
   M.wrapMessagesInSystemReminder(
@@ -298,7 +298,7 @@ add('getProgressMessagesFromLookup', 'attachments', () => {
 });
 add('hasUnresolvedHooksFromLookup', 'attachments', () => {
   const { lookups } = normalizedWithLookups(CORPUS.attachments!);
-  return M.hasUnresolvedHooksFromLookup('toolu_0004', 'PostToolUse' as never, lookups as never);
+  return M.hasUnresolvedHooksFromLookup('toolu_0004', 'tool.after' as never, lookups as never);
 });
 
 add('createAssistantMessage', 'text', () => M.createAssistantMessage({ content: 'hello' }));
@@ -393,9 +393,6 @@ add('createSeatReceiptMessage', 'timeout-warning', () =>
 );
 add('createScheduledTaskFireMessage', 'basic', () =>
   snapSafe(() => M.createScheduledTaskFireMessage('daily')),
-);
-add('createStopHookSummaryMessage', 'basic', () =>
-  snapSafe(() => M.createStopHookSummaryMessage(2, [{ command: 'lint', durationMs: 120 }, { command: 'test', durationMs: 900 }], ['test exited 1'], false, undefined, true, 'info')),
 );
 add('createTurnDurationMessage', 'basic', () =>
   snapSafe(() => M.createTurnDurationMessage(1234 as never)),
@@ -523,8 +520,6 @@ if (unaccounted.length) {
   shape('the system message constructor answers an informational row with its content and level', systemRow.type === 'system' && systemRow.subtype === 'informational' && systemRow.content === 'note' && systemRow.level === 'info', JSON.stringify(systemRow));
   const fire = produced('createScheduledTaskFireMessage/basic');
   shape('a scheduled-task fire message carries string content under its subtype', fire.subtype === 'scheduled_task_fire' && fire.content === 'daily', JSON.stringify(fire));
-  const hooks = produced('createStopHookSummaryMessage/basic');
-  shape('a stop-hook summary carries a numeric count, both hook infos, its errors and a level', hooks.subtype === 'stop_hook_summary' && hooks.hookCount === 2 && Array.isArray(hooks.hookInfos) && (hooks.hookInfos as Norm[]).length === 2 && (hooks.hookInfos as Norm[])[1]?.command === 'test' && JSON.stringify(hooks.hookErrors) === '["test exited 1"]' && hooks.level === 'info' && hooks.preventedContinuation === false, String(JSON.stringify(hooks)).slice(0, 200));
   const saved = produced('createMemorySavedMessage/basic');
   shape('a memory-saved message carries the path list itself', saved.subtype === 'memory_saved' && JSON.stringify(saved.writtenPaths) === '["/m.md"]', JSON.stringify(saved.writtenPaths));
   const metrics = produced('createApiMetricsMessage/basic');

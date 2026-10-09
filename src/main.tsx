@@ -81,7 +81,7 @@ import { describeEffortEnvOverride, EFFORT_LEVELS, parseCliEffort, type EffortLe
 import { isBareMode, isEnvTruthy, ensurePrivateConfigHome } from './utils/envUtils.js'
 import { refreshExampleCommands } from './utils/exampleCommands.js'
 import { startEventLoopStallDetector } from './utils/eventLoopStallDetector.js'
-import { processSessionStartHooks, processSetupHooks } from './utils/sessionStart.js'
+import { runSessionStartHooks } from './utils/sessionStart.js'
 import type { HookResultMessage } from './types/message.js'
 import { logError } from './utils/log.js'
 import { createUserMessage } from './utils/messages/factories.js'
@@ -250,14 +250,13 @@ export async function main(): Promise<void> {
   profileCheckpoint('main_warning_handler_initialized')
 
   const runFlag = isRunArgv()
-  const initOnlyFlag = readSessionOption(process.argv.slice(2), '--prepare-only').present
   const stdoutTty = Boolean(process.stdout.isTTY)
-  const isNonInteractive = runFlag || initOnlyFlag || !stdoutTty
+  const isNonInteractive = runFlag || !stdoutTty
   if (isNonInteractive) {
     stopCapturingEarlyInput()
   }
   setIsInteractive(!isNonInteractive)
-  if (!stdoutTty && !runFlag && !initOnlyFlag && process.stdin.isTTY) {
+  if (!stdoutTty && !runFlag && process.stdin.isTTY) {
     writeErr(
       'stdout is not attached to a terminal, so this run is non-interactive. Pass run to silence this note, or attach a terminal to get the interactive session.',
     )
@@ -412,9 +411,6 @@ async function run(): Promise<void> {
     .addOption(new Option('--log-stderr', 'Mirror debug output to stderr').hideHelp())
     .option('--log-file <path>', 'Write debug output to a file')
     .option('--lean', 'Minimal session: skips hooks, LSP, extensions, attribution, memory, background discovery, keychain reads and automatic project instructions. Supply context with --brief, --brief-add, --mcp and --allowed-tools; supply API-key settings with --config.')
-    .addOption(new Option('--prepare', 'Run setup hooks before the session').hideHelp())
-    .addOption(new Option('--prepare-only', 'Run setup hooks and exit').hideHelp())
-    .addOption(new Option('--upkeep', 'Run maintenance hooks').hideHelp())
     .addOption(new Option('--format <format>', 'Answer format for run: text, one JSON result, or JSON-line rows').choices(['text', 'json', 'rows']))
     .addOption(new Option('--input <format>', 'Read JSON-line rows from stdin with run').choices(['rows']))
     .option('--schema <schema>', 'JSON schema for structured output')
@@ -1463,9 +1459,6 @@ async function defaultAction(inputPromptArg: string | undefined, opts: RootOptio
     logForDiagnosticsNoPII('info', 'mercury_exited')
   })
 
-  const setupTrigger: 'init' | 'maintenance' | undefined =
-    opts.prepareOnly || opts.prepare ? 'init' : opts.upkeep ? 'maintenance' : undefined
-
   if (opts.concourseOff === true || opts.concourseOn === true) {
     const { setConcourseEnabled } = await import('./services/concourse/concourseEnabled.js')
     const lastSwitch = [...process.argv].reverse().find(a => a === '--concourse-off' || a === '--concourse-on')
@@ -1489,7 +1482,6 @@ async function defaultAction(inputPromptArg: string | undefined, opts: RootOptio
       activeAgents,
       allAgents,
       sessionTitle,
-      setupTrigger,
     })
     return
   }
@@ -1514,7 +1506,6 @@ async function defaultAction(inputPromptArg: string | undefined, opts: RootOptio
     inputFormat,
     outputFormat,
     includePartialMessages,
-    setupTrigger,
     door: runnerDoor ? 'wire' : 'rows',
   })
 }
@@ -1589,18 +1580,9 @@ async function interactiveLaunch(args: {
   activeAgents: AgentDefinition[]
   allAgents: AgentDefinition[]
   sessionTitle: string | undefined
-  setupTrigger: 'init' | 'maintenance' | undefined
 }): Promise<void> {
   const { opts, commands } = args
   let inputPrompt = args.prompt
-
-  if (opts.prepareOnly) {
-    applyMergedConfigEnv()
-    await processSetupHooks('init', { forceSyncExecution: true })
-    await processSessionStartHooks('startup', { forceSyncExecution: true })
-    await gracefulShutdown(0)
-    return
-  }
 
   profileCheckpoint('action_before_create_root')
   const { renderOptions, getFpsMetrics, stats } = getRenderContext(false)
@@ -1962,7 +1944,6 @@ async function runLaunch(args: {
   inputFormat: string
   outputFormat: string
   includePartialMessages: boolean
-  setupTrigger: 'init' | 'maintenance' | undefined
   door: 'rows' | 'wire'
 }): Promise<void> {
   const { opts } = args
@@ -1998,10 +1979,8 @@ async function runLaunch(args: {
   applyMergedConfigEnv()
 
   const sessionStartHooksPromise: Promise<HookResultMessage[]> =
-    !opts.continue && !opts.resume && !args.setupTrigger
-      ? processSessionStartHooks('startup', {
-          agentType: args.mainThreadAgentDefinition?.agentType,
-        })
+    !opts.continue && !opts.resume
+      ? runSessionStartHooks('new')
       : Promise.resolve<HookResultMessage[]>([])
   sessionStartHooksPromise.catch(() => {})
 
@@ -2129,7 +2108,6 @@ async function runLaunch(args: {
         agent: typedString(opts.agent),
         workload: typedString(opts.meterTag),
         advise: opts.advise === true,
-        setupTrigger: args.setupTrigger,
         bootSessionIdPinned: Boolean(typedString(opts.sessionId)),
         door: args.door,
         subscribeAppState: store.subscribe,

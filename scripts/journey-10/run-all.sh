@@ -3,7 +3,7 @@
 # gate-watch: scripts/journey/**
 # gate-watch: scripts/lib/seedTranscript.ts
 # gate-watch: src/utils/sessionStoragePortable*
-# gate-watch: src/utils/hooks/missionHook* src/services/mission/missionCard* src/utils/sessionRestore*
+# gate-watch: src/guards/mission* src/services/mission/missionCard* src/utils/sessionRestore*
 # gate-watch: src/services/providers/anthropic/** src/services/providers/toolEconomy.ts src/services/api/dumpPrompts.ts
 # gate-watch: scripts/api/wire-prefix-replay.ts scripts/lib/captureDriver.ts
 set -u

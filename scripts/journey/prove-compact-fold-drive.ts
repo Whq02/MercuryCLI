@@ -86,7 +86,7 @@ async function seedWorld(): Promise<{ home: string; cwd: string }> {
     writeFileSync(join(cwd, name), `${lines.join('\n')}\n`)
   }
   seedFirstRun(home, [cwd])
-  writeFileSync(join(home, 'settings.json'), JSON.stringify({ events: { hooks: { SessionStart: [{ matcher: 'compact', hooks: [{ type: 'command', command: `sleep ${RESTORE_HOLD_S}` }] }] } } }))
+  writeFileSync(join(home, 'settings.json'), JSON.stringify({ events: { hooks: { 'compaction.after': [{ name: 'restore hold', match: 'summary', run: `sleep ${RESTORE_HOLD_S}` }] } } }))
   process.env.MERCURY_CONFIG_DIR = home
   const { getProjectDir } = await import('../../src/utils/sessionStoragePortable.ts')
   const projDir = join(home, 'projects', basename(getProjectDir(cwd)))

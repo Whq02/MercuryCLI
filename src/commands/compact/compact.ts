@@ -70,7 +70,6 @@ function buildDisplayText(
   context: LocalJSXCommandContext,
   result: CompactionResult,
   messagesHandedIn: number,
-  hookDisplayMessage?: string,
 ): string {
   const kept = result.messagesToKeep?.length ?? 0
   const folded = Math.max(0, messagesHandedIn - kept)
@@ -90,7 +89,6 @@ function buildDisplayText(
     parts.push(`(${chord} reads the full summary — what the agent retains)`)
   }
   for (const note of result.notes ?? []) parts.push(note)
-  if (hookDisplayMessage) parts.push(hookDisplayMessage)
   const tip = getUpgradeMessage(context.getAppState().engineModel)?.tip
   if (tip) parts.push(tip)
   const rest = parts.join('\n')
@@ -162,7 +160,7 @@ async function callUnderFoldStatus(
         return {
           type: 'compact',
           compactionResult: sessionMemoryResult,
-          displayText: buildDisplayText(context, sessionMemoryResult, projected.length, sessionMemoryResult.userDisplayMessage),
+          displayText: buildDisplayText(context, sessionMemoryResult, projected.length),
         }
       }
     }
@@ -204,7 +202,7 @@ async function callUnderFoldStatus(
     return {
       type: 'compact',
       compactionResult: result,
-      displayText: buildDisplayText(context, result, microcompacted.length, result.userDisplayMessage),
+      displayText: buildDisplayText(context, result, microcompacted.length),
     }
   } catch (error) {
     if (context.abortController.signal.aborted || isAbortError(error)) {

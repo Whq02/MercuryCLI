@@ -17,7 +17,7 @@ function farewell(message?: string): string {
 }
 
 function exitNow(message?: string): void {
-  void gracefulShutdown(0, 'prompt_input_exit', {
+  void gracefulShutdown(0, 'quit', {
     finalMessage: farewell(message),
   })
 }
