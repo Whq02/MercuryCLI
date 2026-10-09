@@ -256,8 +256,8 @@ section('4 · snapshot — additive surface; uncredentialed never resolves an en
 {
   const snap = buildRouterModelSnapshot()
   check(
-    'providers[] carries twelve families (Anthropic and eleven engine spaces)',
-    snap.providers.length === 12 && ['xai', 'meta'].every(id => snap.providers.some(provider => provider.id === id)),
+    'providers[] carries thirteen families (Anthropic and twelve engine spaces)',
+    snap.providers.length === 13 && ['xai', 'meta', 'zen'].every(id => snap.providers.some(provider => provider.id === id)),
   )
   for (const p of snap.providers) {
     check(
