@@ -13,7 +13,7 @@ ONLY on the word "worktree" from the user — e.g. "work in a worktree", "make a
 - Never unless the user explicitly asked for a worktree.
 
 ## Requirements
-- A git repository, or configured WorktreeCreate/WorktreeRemove hooks.
+- A git repository.
 - The session is not already in a worktree it created.
 
 ## Behaviour

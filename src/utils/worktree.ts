@@ -691,7 +691,7 @@ export async function createAgentWorktree(
   const gitRoot = findCanonicalGitRoot(from)
   if (!gitRoot) {
     throw new Error(
-      'Worktree isolation is unavailable here: this is not a git repository and no WorktreeCreate hook is configured. ' +
+      'Worktree isolation is unavailable here: this is not a git repository. ' +
         'Retry the same Agent call WITHOUT the isolation parameter; the agent will run in the current directory.',
     )
   }
