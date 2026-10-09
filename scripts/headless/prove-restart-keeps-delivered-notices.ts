@@ -192,7 +192,7 @@ const crash = await restart('crash')
   tally.check('R1 the agent whose notice was the second of two in one input is not delivered again from its receipt', about(crash, COMBINED).length === 0, told(crash))
   tally.check('R2 the agent whose notice was drained mid-turn as an attachment gets no stop notice', about(crash, ATTACHED).length === 0, told(crash))
   tally.check('R3 …and neither is in the counts: one delivered, one stopped, none relaunched', out !== null && out.relaunched === 0 && out.delivered === 1 && out.stopped === 1, JSON.stringify(out))
-  tally.check(`R4 one row tells what the restart carried, in the ruled words: ${CRASH_ROW}`, out !== null && out.row === CRASH_ROW && crash.queued.filter(c => c.value === CRASH_ROW).length === 1, JSON.stringify(out?.row))
+  tally.check(`R4 one row tells what the restart carried, in the ruled words, queued as a system notice: ${CRASH_ROW}`, out !== null && out.row === CRASH_ROW && crash.queued.filter(c => c.value === `<system-reminder>\n${CRASH_ROW}\n</system-reminder>`).length === 1 && !crash.queued.some(c => c.value === CRASH_ROW), JSON.stringify(crash.queued.map(c => c.value)))
   tally.check("R5 the finished agent the model was never told about is still delivered from its receipt: its held notice, byte for byte", about(crash, HELD).length === 1 && about(crash, HELD)[0]!.value === heldNotice, told(crash))
   tally.check("R6 the launch nothing knows about is still reported stopped, in the crash words, once", about(crash, GHOST, 'killed').length === 1 && about(crash, GHOST, 'killed')[0]!.value.includes(CRASH_WORDS) && crash.settled.map(s => s.agentId).join() === GHOST.agentId, JSON.stringify(crash.settled.map(s => s.agentId)))
   tally.check("R7 the operator's line that died with the runner is queued again under its own identity", out !== null && out.requeued === 1 && crash.queued.some(c => c.value === LINE && c.uuid === LINE_UUID), JSON.stringify(crash.queued.map(c => [c.value.slice(0, 40), c.uuid])))
@@ -213,7 +213,7 @@ const plain = await restart(undefined)
 {
   tally.check('P1 the two agents the model was told about get no stop notice', about(plain, COMBINED).length === 0 && about(plain, ATTACHED).length === 0, told(plain))
   tally.check('P2 the finished one never told and the unknown one each get the stop notice in the plain words, and the held completion is not delivered', about(plain, HELD, 'killed').length === 1 && about(plain, GHOST, 'killed').length === 1 && about(plain, HELD, 'killed')[0]!.value.includes(PLAIN_WORDS) && about(plain, GHOST, 'killed')[0]!.value.includes(PLAIN_WORDS) && !plain.queued.some(c => c.value === heldNotice), told(plain))
-  tally.check('P3 no row on a plain resume, and the operator\'s line is not queued again', plain.outcome === null && !plain.queued.some(c => c.value.startsWith('runner restarted') || c.value === LINE), told(plain))
+  tally.check('P3 no row on a plain resume, and the operator\'s line is not queued again', plain.outcome === null && !plain.queued.some(c => c.value.includes('runner restarted after') || c.value === LINE), told(plain))
 }
 
 tally.section('O1 the runner runs the carry before the reconciliation, inside the one resume closure')
