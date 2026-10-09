@@ -65,6 +65,12 @@ export interface MetaDiscovery {
   keyPresent: boolean
   keySource?: 'env' | 'stored'
 }
+export interface ZenDiscovery {
+  provider: 'zen'
+  probedAtMs: number
+  keyPresent: boolean
+  keySource?: 'env' | 'stored'
+}
 export interface CompatDiscovery {
   provider: 'openai-compat'
   probedAtMs: number
@@ -106,6 +112,7 @@ export type ProviderDiscovery =
   | CompatDiscovery
   | HuggingfaceDiscovery
   | LocalDiscovery
+  | ZenDiscovery
 
 export interface DiscoveryIo {
   env: Record<string, string | undefined>
@@ -237,6 +244,12 @@ function probeMeta(io: DiscoveryIo): MetaDiscovery {
   const { resolveMetaApiKey } = require('../../services/providers/meta/metaAccounts.js') as typeof import('../../services/providers/meta/metaAccounts.js')
   const key = resolveMetaApiKey(io.env)
   return { provider: 'meta', probedAtMs: io.now(), keyPresent: key !== undefined, ...(key ? { keySource: key.source } : {}) }
+}
+
+function probeZen(io: DiscoveryIo): ZenDiscovery {
+  const { resolveZenApiKey } = require('../../services/providers/zen/zenAccounts.js') as typeof import('../../services/providers/zen/zenAccounts.js')
+  const key = resolveZenApiKey(io.env as NodeJS.ProcessEnv)
+  return { provider: 'zen', probedAtMs: io.now(), keyPresent: key !== undefined, ...(key ? { keySource: key.source } : {}) }
 }
 
 function probeDeepseek(io: DiscoveryIo): DeepseekDiscovery {
@@ -384,7 +397,9 @@ export function refreshProviderDiscovery(
                           ? probeHuggingface(io)
                           : id === 'local'
                             ? probeLocal(io)
-                            : probeZai(io)
+                            : id === 'zen'
+                              ? probeZen(io)
+                              : probeZai(io)
       cache.set(id, record)
       return record
     } finally {
