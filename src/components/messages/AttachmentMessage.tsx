@@ -366,7 +366,7 @@ export function AttachmentMessage({
       return (
         <MessageResponse>
           <Text dimColor wrap="wrap">
-            Allowed by {permissionModeTitle(attachment.mode).toLowerCase()} · {attachment.reason}
+            allowed by {permissionModeTitle(attachment.mode).toLowerCase()}
           </Text>
         </MessageResponse>
       )
