@@ -74,8 +74,8 @@ check('…and runs after the mint, the worktree preflight still before it', mint
 check("the run loop's own build names the id the run carries (a resume passes its own)", /buildAgentSystemPrompt\(\s*agentDefinition,\s*toolUseContext,\s*resolvedAgentModel,\s*enabledToolNames,\s*agentId,\s*seat,?\s*\)/.test(runAgent) && runAgent.includes("const agentId = (override?.agentId ?? generateTaskId('local_agent')) as AgentId"))
 
 section('§5 there is no fork road: no prompt composer or message builder beside the frozen-worktree notice, no fork arm in the tool')
-const fork = await import('../../src/tools/AgentTool/forkSubagent.ts') as Record<string, unknown>
-check('forkSubagent.ts exports the frozen-worktree notice and nothing of a fork', typeof fork.buildFrozenWorktreeNotice === 'function' && Object.keys(fork).every(k => k === 'buildFrozenWorktreeNotice'), Object.keys(fork).join(','))
+const notice = await import('../../src/tools/AgentTool/frozenWorktreeNotice.ts') as Record<string, unknown>
+check('frozenWorktreeNotice.ts exports the frozen-worktree notice and nothing else', typeof notice.buildFrozenWorktreeNotice === 'function' && Object.keys(notice).every(k => k === 'buildFrozenWorktreeNotice'), Object.keys(notice).join(','))
 check('the tool builds every crewmate prompt its own way: no parent-bytes arm, no fork composer', !agentTool.includes('isFork') && !agentTool.includes('forkSystemPrompt') && agentTool.includes('if (!willOverrideCwd) {'))
 const resumeAgent = readFileSync(join(ROOT, 'src/tools/AgentTool/resumeAgent.ts'), 'utf8')
 check('a resume composes no fork prompt either', !resumeAgent.includes('forkSystemPrompt') && !resumeAgent.includes('isForkResume'))
