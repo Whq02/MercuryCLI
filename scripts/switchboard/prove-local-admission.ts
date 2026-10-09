@@ -91,6 +91,31 @@ section("§2 an undiscovered local id refuses 'unreachable:local' — never the 
   }
 }
 
+section('§4 a process that has never probed (a fresh daemon, 41 ms after its socket came up) admits a served model — the admission runs the bounded discovery instead of reading an empty cache as absence')
+{
+  __resetLocalDiscoveryForTest()
+  process.env.MERCURY_LOCAL_PROBE_TARGETS = `ollama=${fixtureRoot}`
+  const fresh = await validateWorkerModelChoice('local/qwen3:1.7b', 'session')
+  check('a never-probed process admits the id a live server lists', fresh.ok === true, fresh.ok ? '' : JSON.stringify(fresh))
+  __resetLocalDiscoveryForTest()
+  const word = await validateWorkerModelChoice('local', 'session')
+  check("the family word 'local' admits in a never-probed process when a server answers", word.ok === true, word.ok ? '' : JSON.stringify(word))
+}
+
+section('§5 a server that came up after the last probe is found at the next admission (the user starts Ollama after Mercury booted)')
+{
+  __resetLocalDiscoveryForTest()
+  process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
+  await refreshLocalDiscovery({ force: true })
+  process.env.MERCURY_LOCAL_PROBE_TARGETS = `ollama=${fixtureRoot}`
+  const late = await validateWorkerModelChoice('local/qwen3:1.7b', 'session')
+  check('the admission re-probes once for an unlisted local id and admits the model the server now lists', late.ok === true, late.ok ? '' : JSON.stringify(late))
+  __resetLocalDiscoveryForTest()
+  process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
+  const ghost = await validateWorkerModelChoice('local/ghost:7b', 'session')
+  check("a never-probed process with no server answering still refuses 'unreachable:local' — after a real probe, not instead of one", !ghost.ok && ghost.reason === 'unreachable:local', JSON.stringify(ghost))
+}
+
 fixture.close()
 console.log(`\n${failures === 0 ? 'ALL GREEN' : `${failures} FAILURE(S)`}`)
 process.exit(failures === 0 ? 0 : 1)

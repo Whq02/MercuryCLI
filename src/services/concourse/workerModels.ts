@@ -295,6 +295,17 @@ async function admissionNamesKeyedFamily(idOrKey: string): Promise<string | null
   return route !== null && isKeyedCatalogueFamily(route) ? route : null
 }
 
+async function readLocalDiscoveryIfUnlisted(idOrKey: string): Promise<boolean> {
+  const { declaredRouteOf } = await import('../providers/routeLaw.js')
+  if (idOrKey !== 'local' && declaredRouteOf(idOrKey) !== 'local') return false
+  const { localRecordFor } = await import('../providers/local/localCatalogue.js')
+  const { getCachedLocalDiscovery, refreshLocalDiscovery } = await import('../providers/local/localDiscovery.js')
+  const listed = idOrKey === 'local' ? (getCachedLocalDiscovery()?.servers.some(server => server.models.length > 0) ?? false) : localRecordFor(idOrKey) !== undefined
+  if (listed) return false
+  await refreshLocalDiscovery({ force: true }).catch(() => undefined)
+  return true
+}
+
 export async function validateWorkerModelChoice(
   idOrKey: string | undefined,
   arm: WorkerDispatchArm,
@@ -305,6 +316,7 @@ export async function validateWorkerModelChoice(
     if (family !== null && (await (await import('../providers/catalogueOnDemand.js')).readCatalogueIfPending(family))) {
       resetComputedDefaultMemo()
     }
+    if (await readLocalDiscoveryIfUnlisted(idOrKey)) resetComputedDefaultMemo()
   }
   if (idOrKey !== undefined && SEAT_FAMILY_WORDS.has(idOrKey) && familySeatSetting(idOrKey) === undefined) {
     if (idOrKey === 'gemini') {
