@@ -376,7 +376,7 @@ export interface LeaseClient {
 }
 
 export type DaemonReply =
-  | { ok: true; op: 'ping'; version: string; proto: number }
+  | { ok: true; op: 'ping'; version: string; proto: number; working?: number }
   | { ok: true; op: 'nudge'; restarting: boolean; version: string }
   | {
       ok: true
