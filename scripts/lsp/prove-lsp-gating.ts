@@ -9,8 +9,6 @@ const {
   isLspToolCatalogEnabled,
   mercuryLspWriteOpsEnabled,
   mercuryLspServersEnv,
-  getLspDoctrineLine,
-  getLspPackEvidenceText,
 } = await import('../../src/services/lsp/mercuryLsp.js')
 const { FLAG_REGISTRY } = await import('../../src/substrate/flagRegistry.js')
 const { getMercuryLspServerSources, probeBuiltinTsServer, MERCURY_TS_SERVER_NAME } =
@@ -41,15 +39,11 @@ try {
   check('unset ⇒ bridge ON', mercuryLspEnabled() === true)
   check('unset ⇒ catalog ON', isLspToolCatalogEnabled() === true)
   check('unset ⇒ write ops ON', mercuryLspWriteOpsEnabled() === true)
-  check('unset ⇒ doctrine line present', getLspDoctrineLine() !== null)
-  check('unset ⇒ pack evidence present', getLspPackEvidenceText() !== null)
 
   process.env.MERCURY_LSP = '0'
   check("'0' ⇒ bridge OFF (live re-read)", mercuryLspEnabled() === false)
   check("'0' ⇒ catalog OFF (no compat env)", isLspToolCatalogEnabled() === false)
   check("'0' ⇒ write ops OFF", mercuryLspWriteOpsEnabled() === false)
-  check("'0' ⇒ doctrine line null", getLspDoctrineLine() === null)
-  check("'0' ⇒ pack evidence null", getLspPackEvidenceText() === null)
   check("'0' ⇒ servers env suppressed", mercuryLspServersEnv() === undefined)
   {
     const sources = getMercuryLspServerSources()
