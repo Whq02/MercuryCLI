@@ -58,7 +58,7 @@ const BASES = [
   'MERCURY_HUGGINGFACE_API_BASE',
   'MERCURY_XAI_API_BASE',
   'MERCURY_XAI_MANAGEMENT_API_BASE',
-  'MERCURY_META_API_BASE',
+  'MERCURY_META_API_BASE', 'MERCURY_ZEN_API_BASE', 'MERCURY_ZEN_GO_API_BASE',
 ]
 
 type Row = { id: string; status: string; evidence?: string }
