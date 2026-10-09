@@ -6,7 +6,7 @@ import {
   type CompatLaneProfile,
 } from '../openaicompat/compatChatCallModel.js'
 import { buildOpenrouterExtras } from '../openaicompat/compatWire.js'
-import { nousChatCompletionsUrl, NOUS_PORTAL_KEYS_PAGE, resolveNousApiKey } from './nousAccounts.js'
+import { nousChatCompletionsUrl, resolveNousApiKey } from './nousAccounts.js'
 import { NOUS_MODEL_PREFIX, nousDeclaresTools, nousEffortVocabularyFor, nousWireModelId, refreshNousCatalogue } from './nousCatalogue.js'
 import { refreshNousAccount } from './nousUsageState.js'
 
@@ -17,9 +17,9 @@ export const nousLaneProfile: CompatLaneProfile = {
     const key = resolveNousApiKey()
     return key ? { apiKey: key.key } : undefined
   },
-  credentialHint: `no Nous Portal API key detected — /logins nous stores one (${NOUS_PORTAL_KEYS_PAGE} issues them), or set NOUS_API_KEY.`,
-  authRemedy: `the Portal answers 401 for a key that is invalid, blocked, or out of funds — top up or renew the subscription at ${NOUS_PORTAL_KEYS_PAGE}, or store another key at /logins nous (NOUS_API_KEY wins over the store).`,
-  billingRemedy: `the Nous Portal account is out of credits — top up or renew the subscription at ${NOUS_PORTAL_KEYS_PAGE}, then retry; /model picks another model meanwhile.`,
+  credentialHint: 'no Nous Portal API key detected — /logins nous stores one (portal.nousresearch.com issues them), or set NOUS_API_KEY.',
+  authRemedy: 'the Portal answers 401 for a key that is invalid, blocked, or out of funds — top up or renew the subscription at portal.nousresearch.com, or store another key at /logins nous (NOUS_API_KEY wins over the store).',
+  billingRemedy: 'the Nous Portal account is out of credits — top up or renew the subscription at portal.nousresearch.com, then retry; /model picks another model meanwhile.',
   requestUrl: () => nousChatCompletionsUrl(),
   wireModelId: modelId => nousWireModelId(modelId),
   buildExtras: args =>
