@@ -54,17 +54,7 @@ export function finishSelection(s: SelectionState): void {
 }
 
 export function clearSelection(s: SelectionState): void {
-  s.anchor = null
-  s.focus = null
-  s.isDragging = false
-  s.anchorSpan = null
-  s.scrolledOffAbove = []
-  s.scrolledOffBelow = []
-  s.scrolledOffAboveSW = []
-  s.scrolledOffBelowSW = []
-  s.virtualAnchorRow = undefined
-  s.virtualFocusRow = undefined
-  s.lastPressHadAlt = false
+  Object.assign(s, createSelectionState(), { virtualAnchorRow: undefined, virtualFocusRow: undefined })
 }
 
 export type FocusMove = 'left' | 'right' | 'up' | 'down' | 'lineStart' | 'lineEnd'
