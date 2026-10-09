@@ -90,7 +90,7 @@ section('§3 the byte budgets and the needles')
   const corpus = `${description}\n${prompt}\n${schemaText}`.toLowerCase()
   const found = NEEDLES.filter(needle => corpus.includes(needle))
   check('no vendor or route word appears in the description, the prompt or the schema', found.length === 0, found.join(', '))
-  check('the prompt teaches the coordinate rule, the ask rule and the stop key', prompt.includes('PIXELS OF THE LAST SCREENSHOT') && prompt.includes('first act in an application') && prompt.includes('esc'))
+  check('the prompt teaches the coordinate rule, the ask rule and the stop key', prompt.includes('pixels of the last screenshot') && prompt.includes('first act in an application') && prompt.includes('esc'))
 }
 
 section('§4 the shape fields')

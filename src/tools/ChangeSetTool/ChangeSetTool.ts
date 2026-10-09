@@ -1065,29 +1065,29 @@ export const ChangeSetTool = buildTool({
   async prompt() {
     return `Use this over Edit when the same change spans several files: one coordinated review and apply.
 
-Atomic multi-file text change sets: ONE call prepares, reviews, and applies an anchored change spanning several EXISTING text files, with all-target preflight before the first write, one aggregate operator decision, drift refusal per target, deterministic journaled recovery, and exact outcome truth.
+Atomic multi-file text change sets: one call prepares, reviews, and applies an anchored change spanning several existing text files, with all-target preflight before the first write, one aggregate operator decision, drift refusal per target, deterministic journaled recovery, and exact outcome truth.
 
 Operations:
-1. { op: "apply", changes: [...] } — the fast path: preflight every member, obtain ONE aggregate decision, apply. Use this when you already hold fresh Read anchors for every file.
-2. { op: "preview", changes: [...] } — the review path: build an immutable content-addressed plan (cs-…) and write NOTHING. Then { op: "apply", plan_id: "cs-…" }. A drifted file refuses the whole apply with current anchors and exact reread instructions.
+1. { op: "apply", changes: [...] } — the fast path: preflight every member, obtain one aggregate decision, apply. Use this when you already hold fresh Read anchors for every file.
+2. { op: "preview", changes: [...] } — the review path: build an immutable content-addressed plan (cs-…) and write nothing. Then { op: "apply", plan_id: "cs-…" }. A drifted file refuses the whole apply with current anchors and exact reread instructions.
 3. { op: "status", plan_id } — plan state + per-file freshness.
 4. { op: "discard", plan_id } — retire a prepared plan.
 
-Each changes[] member targets ONE existing text file with the Edit hunk vocabulary:
-  { file_path, expected_anchor (REQUIRED — the "(anchor: …)" value from your Read), hunks: [{ lines: "N" | "N-M", replace, insert?: "before"|"after" }] }
+Each changes[] member targets one existing text file with the Edit hunk vocabulary:
+  { file_path, expected_anchor (required — the "(anchor: …)" value from your Read), hunks: [{ lines: "N" | "N-M", replace, insert?: "before"|"after" }] }
 Hunks are 1-based against the anchored snapshot and must be disjoint; "" deletes the range; insert takes a single anchor line.
 
-The contract (exact, never vague):
-· any preparation/validation/scope/drift failure writes NOTHING — the valid subset of an invalid set is never applied;
+The contract:
+· any preparation/validation/scope/drift failure writes nothing — the valid subset of an invalid set is never applied;
 · a normal apply reaches the complete planned state, verified by reread;
 · a midway interruption is journaled and deterministically reconciled at the next boot;
 · if later bytes prevent safe reconciliation, the exact unresolved paths are named — uncertainty is never reported as success.
 
-Already-satisfied members are NOT failures: they are omitted from writes and reported as noChangePaths. An all-satisfied set returns one truthful no-change result with zero writes. Applying an already-committed plan replays the prior result without writing twice.
+Already-satisfied members are not failures: they are omitted from writes and reported as noChangePaths. An all-satisfied set returns one truthful no-change result with zero writes. Applying an already-committed plan replays the prior result without writing twice.
 
 Bounds (an exceeded bound names the limit and the smallest recovery): ${CHANGESET_BOUNDS.maxFiles} files/set · ${CHANGESET_BOUNDS.maxHunksPerFile} hunks/file · ${CHANGESET_BOUNDS.maxHunksTotal} hunks/set · 4MB staged content/set · ${CHANGESET_BOUNDS.planRing} retained plans · ${Math.round(CHANGESET_BOUNDS.planTtlMs / 60_000)}-minute plan lifetime.
 
-NOT this tool (refused by name): file creation (Write) · binary content · notebooks (NotebookEdit) · command execution (Bash)${anchorPatchEnabled() ? ' · deletion/moves outside a patch (the patch dialect carries delete-file and move-to; the JSON changes[] form does not)' : ' · deletion/moves (Bash / lsp.pathRename)'}. Single-file edits are usually better served by Edit.${
+Not this tool (refused by name): file creation (Write) · binary content · notebooks (NotebookEdit) · command execution (Bash)${anchorPatchEnabled() ? ' · deletion/moves outside a patch (the patch dialect carries delete-file and move-to; the JSON changes[] form does not)' : ' · deletion/moves (Bash / lsp.pathRename)'}.${
       anchorPatchEnabled() ? `\n\n${ANCHOR_PATCH_TEACHING}` : ''
     }`
   },
