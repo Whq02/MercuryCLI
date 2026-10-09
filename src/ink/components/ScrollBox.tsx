@@ -35,6 +35,7 @@ export type ScrollBoxHandle = {
   getFreshScrollHeight: () => number
   getViewportHeight: () => number
   getViewportTop: () => number
+  getElementTop: (el: DOMElement) => number | undefined
   isSticky: () => boolean
   subscribe: (listener: () => void) => () => void
   setClampBounds: (min: number | undefined, max: number | undefined) => void
@@ -125,6 +126,19 @@ const ScrollBox = forwardRef<ScrollBoxHandle, ScrollBoxProps>(function ScrollBox
       },
       getViewportHeight: () => nodeRef.current?.scroll?.scrollViewportHeight ?? 0,
       getViewportTop: () => nodeRef.current?.scroll?.scrollViewportTop ?? 0,
+      getElementTop: el => {
+        const root = contentRef.current
+        if (!root) return undefined
+        let cur: DOMElement | undefined = el
+        let top = 0
+        while (cur && cur !== root) {
+          const t = cur.layoutNode?.getComputedTop()
+          if (t == null) return undefined
+          top += t
+          cur = cur.parentNode ?? undefined
+        }
+        return cur === root ? top : undefined
+      },
       isSticky: () => {
         const node = nodeRef.current
         if (!node) return false
