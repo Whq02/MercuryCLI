@@ -12,6 +12,7 @@ export type RouterProviderId =
   | 'gemini'
   | 'huggingface'
   | 'local'
+  | 'zen'
 export type RouterModelClass =
   | 'opus'
   | 'sonnet'
@@ -25,6 +26,7 @@ export type RouterModelClass =
   | 'compat'
   | 'huggingface'
   | 'local'
+  | 'zen'
 export type RouteEffortLevel = 'high' | 'xhigh' | 'max'
 export type RouterPosture = 'adaptive' | 'quality' | 'balanced' | 'fast' | 'fixed'
 
