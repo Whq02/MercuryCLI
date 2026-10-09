@@ -205,10 +205,10 @@ export function waitingStatusWords(live: SessionLiveV1): string {
   return (live.waitingOn !== undefined ? workWaitingWords(live.waitingOn) : null) ?? crewWaitingWords(live.agentsWaiting) ?? 'waiting on agents'
 }
 
-export function statusLine(live: SessionLiveV1, s: SeatStatusV1, crew: CrewClockV1 | null = null, compact = false, nowMs: number = Date.now()): string {
+export function statusLine(live: SessionLiveV1, s: SeatStatusV1, crew: CrewClockV1 | null = null, compact = false): string {
   if (s.hardStopping) return 'interrupting again — the request is torn down once more; x on its row stops the runner'
   if (s.interrupting) return 'interrupting — the request is torn down'
-  if (s.runner !== undefined && s.runner !== null) return runnerStatusWords(s.runner, nowMs)
+  if (s.runner !== undefined && s.runner !== null) return runnerStatusWords(s.runner, Date.now())
   if (live.inFlight) {
     if (s.wait !== null) {
       if (s.wait.kind === 'silence') return requestWaitLine(s.wait, compact)

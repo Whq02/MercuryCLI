@@ -39,15 +39,17 @@ section('§4 the status row says what the daemon knows: never "ready" over a run
   check('no roster row — nothing is claimed', factOf?.(undefined, now) === undefined)
 
   const base = { title: 't', projectLabel: 'p', interrupting: false, hardStopping: false, wait: null, quietMs: null, watchdogMs: null, phaseMs: null, toolBudgetMs: null, stuck: false }
-  const line = (runner: unknown): string => tagBar.statusLine(IDLE_LIVE, { ...base, runner } as never, null, false, now)
+  const line = (runner: unknown): string => tagBar.statusLine(IDLE_LIVE, { ...base, runner } as never, null, false)
+  const liveNow = Date.now()
   check('an idle seat with no runner fact still reads ready', line(null) === 'ready' && line(undefined) === 'ready', j([line(null), line(undefined)]))
-  check('a booting runner: "the runner is starting · 23s" (the receipt painted ready here)', line(starting) === 'the runner is starting · 23s', line(starting))
-  const restarting = { state: 'starting', sinceMs: now - 4_000, respawns: 2, maxRespawns: 5 }
-  check('a respawned runner booting again names the ladder', line(restarting) === 'the runner is restarting (2/5) · 4s', line(restarting))
+  const booting = { state: 'starting', sinceMs: liveNow - 23_000, respawns: 0, maxRespawns: 5 }
+  check('a booting runner: "the runner is starting · 23s" (the receipt painted ready here)', /^the runner is starting · 2[34]s$/.test(line(booting)), line(booting))
+  const restarting = { state: 'starting', sinceMs: liveNow - 4_000, respawns: 2, maxRespawns: 5 }
+  check('a respawned runner booting again names the ladder', /^the runner is restarting \(2\/5\) · [45]s$/.test(line(restarting)), line(restarting))
   check('a crashed runner with a restart due', line(crashed) === 'the runner crashed (exit 1) — restarting (2/5)', line(crashed))
   check('a degraded seat: the session has no live runner and ↵ revives it', line(degraded) === 'the runner crashed 6 times — the session has no live runner · ↵ revives it', line(degraded))
   check('the runner state outranks the resting receipt (statusRowWarns)', tagBar.statusRowWarns(IDLE_LIVE, { ...base, runner: starting } as never) === true && tagBar.statusRowWarns(IDLE_LIVE, { ...base, runner: null } as never) === false)
-  check('the words wear no internal name (no worker short, no "long-lived")', ![line(starting), line(crashed), line(degraded)].some(words => /concourse-w|long-lived/.test(words)))
+  check('the words wear no internal name (no worker short, no "long-lived")', ![line(booting), line(crashed), line(degraded)].some(words => /concourse-w|long-lived/.test(words)))
 }
 
 rmSync(home, { recursive: true, force: true })

@@ -226,7 +226,7 @@ section('§4 the live leg — a real debugpy --listen program through the vendor
     .filter((root): root is string => typeof root === 'string' && root !== '' && existsSync(path.join(root, 'debugpy', 'adapter', '__main__.py')))[0]
   const interpreter = ['python3', 'python'].find(candidate => {
     if (vendorRoot === undefined) return false
-    const probe = spawnSync(candidate, ['-c', `import sys; sys.path.insert(0, ${JSON.stringify(vendorRoot)}); import debugpy; print(debugpy.__version__)`], { encoding: 'utf8', timeout: 20_000 })
+    const probe = spawnSync(candidate, ['-c', `import sys; sys.path.insert(0, ${JSON.stringify(vendorRoot)}); import debugpy; print(debugpy.__version__)`], { encoding: 'utf8', timeout: 20_000, env: { ...process.env, PYTHONDONTWRITEBYTECODE: '1' } })
     return probe.status === 0
   })
   if (vendorRoot === undefined || interpreter === undefined) {
@@ -240,7 +240,7 @@ section('§4 the live leg — a real debugpy --listen program through the vendor
     const port = await freePort()
     let debuggee: ChildProcess | null = spawn(interpreter, ['-m', 'debugpy', '--listen', `127.0.0.1:${port}`, '--wait-for-client', program], {
       cwd: scratch,
-      env: { ...process.env, PYTHONPATH: vendorRoot, PYDEVD_DISABLE_FILE_VALIDATION: '1' },
+      env: { ...process.env, PYTHONPATH: vendorRoot, PYTHONDONTWRITEBYTECODE: '1', PYDEVD_DISABLE_FILE_VALIDATION: '1' },
       stdio: ['ignore', 'pipe', 'pipe'],
     })
     const debuggeeOutput: string[] = []
