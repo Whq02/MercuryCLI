@@ -20,7 +20,9 @@ export function describeNousProvider(): ProviderDescription {
     capabilities: ['streaming', 'tool-calls', 'usage-accounting', 'cancellation', 'worktree-authoring'],
     roles: [],
     account: keyPresent
-      ? { kind: 'api-key', label: record?.keySource === 'env' ? 'NOUS_API_KEY (env)' : 'Nous Portal API key (stored, auth-scoped)' }
+      ? record?.keySource === 'signin'
+        ? { kind: 'provider-oauth', label: 'Nous Portal sign-in' }
+        : { kind: 'api-key', label: record?.keySource === 'env' ? 'NOUS_API_KEY (env)' : 'Nous Portal API key (stored, auth-scoped)' }
       : { kind: 'none', label: 'no Nous Portal API key detected' },
     catalogue: [],
     ...(snapshot && snapshot.fetchedAtMs > 0
