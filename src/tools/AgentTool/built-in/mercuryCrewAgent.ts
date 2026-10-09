@@ -1,4 +1,3 @@
-import { DEFAULT_AGENT_PROMPT } from '../../../constants/prompts.js'
 import type { BuiltInAgentDefinition } from '../loadAgentsDir.js'
 import { MERCURY_CREW_AGENT_TYPE } from '../constants.js'
 
@@ -9,5 +8,5 @@ export const MERCURY_CREW_AGENT: BuiltInAgentDefinition = {
   tools: ['*'],
   source: 'built-in',
   baseDir: 'built-in',
-  getSystemPrompt: () => DEFAULT_AGENT_PROMPT,
+  getSystemPrompt: () => '',
 }

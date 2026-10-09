@@ -20,8 +20,9 @@ console.log('prove-agent-roster')
 
 {
   const prompts = readFileSync(join(ROOT, 'src/constants/prompts.ts'), 'utf8')
-  check('§1 the intro section opens with the Mercury identity kernel', prompts.includes('You are Mercury — a private, source-built terminal coding harness'))
-  check('§1 the kernel names the operator allegiance', prompts.includes('loyal to Mercury and its operator through candor, decisive help, and faithful completion'))
+  const contract = readFileSync(join(ROOT, 'src/prompt/mercuryContract.ts'), 'utf8')
+  check('§1 the identity is stated by the floor, once: the intro carries no identity line of its own', !prompts.includes('You are Mercury — a private, source-built terminal coding harness') && contract.includes('You are **Mercury** — this command-line coding harness and the agent running in it'))
+  check('§1 the floor names the operator allegiance', contract.includes('Operate for the operator first') && contract.includes('Never mislead the operator'))
 }
 
 const agents = getBuiltInAgents()
@@ -37,12 +38,12 @@ function promptTextOf(a: { agentType: string; getSystemPrompt?: (ctx?: unknown) 
   check('§2 the roster registers exactly two built-ins, crew then scout', agents.map(a => a.agentType).join(',') === 'mercury-crew,mercury-scout', agents.map(a => a.agentType).join(', '))
   for (const a of agents) {
     const prompt = promptTextOf(a)
-    check(`§2 ${a.agentType}: Mercury-native identity in its prompt`, /Mercury/.test(prompt))
+    check(`§2 ${a.agentType}: an own prompt that names Mercury, or none at all (the identity floor leads every seat's sections)`, prompt === '' || /Mercury/.test(prompt))
     check(`§2 ${a.agentType}: has a mission (whenToUse)`, typeof a.whenToUse === 'string' && a.whenToUse.length > 20)
     check(`§2 ${a.agentType}: model rule is never a lightweight tier`, a.model !== 'haiku', String(a.model))
   }
   const crew = byType.get('mercury-crew')
-  check('§2 mercury-crew carries every tool and names Mercury as the harness it works for', JSON.stringify(crew?.tools) === '["*"]' && /agent for Mercury/.test(promptTextOf(crew!)))
+  check('§2 mercury-crew carries every tool and no own prompt: the floor, the doctrine, the notes and the environment are its whole prompt', JSON.stringify(crew?.tools) === '["*"]' && promptTextOf(crew!) === '')
 }
 
 {
