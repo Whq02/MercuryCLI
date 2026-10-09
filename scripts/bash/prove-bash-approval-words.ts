@@ -59,7 +59,7 @@ console.log('\n1. the piped python3 -c: the part is quoted as sent, with its quo
   check('the engine asks', o.decision.behavior === 'ask', shown(o))
   check('the message quotes the part as written', message.includes(`python3 -c "import ast; ast.parse(open('${bigPy}').read())" 2>&1`), shown(o))
   check("the message carries neither a doubled quote nor a split 2 >& 1", !message.includes("''") && !message.includes('2 >& 1'), shown(o))
-  check('the sentence is the multiple-operations sentence', message.startsWith('This Bash command contains multiple operations. The following part requires approval: '), shown(o))
+  check('the sentence is the several-parts sentence', message.startsWith('One part of this Bash command needs approval: '), shown(o))
 }
 
 console.log('\n2. the single python3 -c: one sentence naming the part and the word')
@@ -87,7 +87,7 @@ console.log('\n4. a pipe split across lines judges the second command as written
   const o = await decide('wc -l b_big.py |\n head -n 1')
   check('wc -l b_big.py |<newline> head -n 1 → allow (both segments read-only)', o.decision.behavior === 'allow', shown(o))
   const asked = await decide('wc -l b_big.py |\n python3 -')
-  check('the refused segment is quoted as written, with no marker', asked.decision.behavior === 'ask' && (asked.decision.message ?? '').endsWith('The following part requires approval: python3 -') && !(asked.decision.message ?? '').includes('MERCURYnl'), shown(asked))
+  check('the refused segment is quoted as written, with no marker', asked.decision.behavior === 'ask' && (asked.decision.message ?? '').endsWith('One part of this Bash command needs approval: python3 -') && !(asked.decision.message ?? '').includes('MERCURYnl'), shown(asked))
 }
 
 console.log('\n5. the other one-part reasons')
