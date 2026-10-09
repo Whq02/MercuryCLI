@@ -218,7 +218,7 @@ export function addCacheBreakpoints(
         insertBlockAfterToolResults(msg.content, dedupedNewEdits)
         pinCacheEdits(i, newCacheEdits)
         logForDebugging(
-          `Added cache_edits block with ${dedupedNewEdits.edits.length} deletion(s) to message[${i}]: ${dedupedNewEdits.edits.map(e => e.cache_reference).join(', ')}`,
+          `cache edits on message[${i}]: ${dedupedNewEdits.edits.length} deleted \u2014 ${dedupedNewEdits.edits.map(e => e.cache_reference).join(', ')}`,
         )
       }
     }
