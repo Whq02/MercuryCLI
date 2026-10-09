@@ -170,16 +170,16 @@ const DOORS: Door[] = [
   header('usage-header', 'USAGE card header → /usage (esc closes)', 'USAGE', 'Mercury · usage'),
   { name: 'usage-header-click-outside', road: 'USAGE card header → /usage (a click outside closes)', open: [clickOn('USAGE', 1)], needle: 'Mercury · usage', close: after(CLICK_OUTSIDE, 1) },
   row('usage-row', 'usage spend row (select, then activate) → /usage', 'spend none yet', 'Mercury · usage'),
-  row('ctx-row', 'ctx row (select, then activate) → /deck', 'ctx — ·', 'Mercury — cockpit'),
   header('workflow-header', 'WORKFLOW card header → /workflows', 'WORKFLOW', 'Mercury — workflows'),
   header('workbench-header', 'WORKBENCH card header → /workbench', 'WORKBENCH', 'Mercury — prompts'),
   header('files-header', 'FILES card header → the files menu', 'FILES ·', 'Mercury · files'),
   row('files-row', 'FILES browse row (select, then activate) → the files menu', 'or click · browse', 'Mercury · files'),
-  { name: 'next-row-click', road: 'NEXT /workflows row, two clicks (a keyboard-only row: the pointer is dead here, and tab enters the rails only from an empty prompt)', open: [clickOn('/workflows — agent', 2), secondClickOn('/workflows — agent', 2)], needle: null, close: null },
+  row('next-row-click', 'NEXT /workflows row (select, then activate) → /workflows', '/workflows — agent', 'Mercury — workflows'),
   { name: 'ctrl-t', road: 'ctrl+t (the task panel toggle; nothing paints with no tasks)', open: [after(CTRL_T, 2)], needle: null, close: after(CTRL_T, 1) },
   { name: 'palette', road: 'ctrl+x p palette, usage, ↵ (an insert at the caret, never a submit)', open: [after(CTRL_X, 2), after('p', 3), after('usage', 3), after('\r', 3)], needle: 'brown/usage', close: null },
   row('health-row', 'HEALTH cert row (select, then activate) → /health', 'no cert · /health', 'Mercury — health'),
   header('health-header', 'HEALTH card header → /health', 'HEALTH', 'Mercury — health'),
+  { name: 'ctx-row', road: 'ctx row (select, then activate) → /context, a card printed into the transcript (nothing to close)', open: [clickOn('ctx — ·', 2), secondClickOn('ctx — ·', 2)], needle: 'Mercury — context', close: null },
 ]
 
 function doorSends(door: Door): Send[] {
@@ -200,13 +200,13 @@ function judge(tag: string, door: Door, m: Record<string, Frame>): void {
   tally.section(`${tag} · ${door.road}`)
   tally.check(`${door.name} T1 the draft was typed with the caret ${CARET_BACK} cells before its end`, typedRow.startsWith(DRAFT_ROW) && typed?.cursor.x === 3 + DRAFT.length - CARET_BACK, `${typedRow.trimEnd() || '(no composer row)'} · caret ${cursorOf(typed)}`)
   if (door.needle !== null) tally.check(`${door.name} T2 the door opened its surface`, has(open, door.needle), rowsOf(open).filter(r => r.includes('Mercury')).join(' | ') || '(no surface)')
-  if (door.name === 'next-row-click') tally.check(`${door.name} T2 two clicks opened nothing (the row has no pointer road) and moved no rail caret onto it`, !has(open, 'Mercury —') && !rowsOf(open).some(r => r.includes('❯ · /workflows')), rowsOf(open).filter(r => r.includes('/workflows')).join(' | '))
   if (door.name === 'ctrl-t') tally.check(`${door.name} T2 the frame outside the composer is unchanged by ctrl+t (no task panel paints with no tasks)`, open !== undefined && typed !== undefined && open.text === typed.text, 'the frames differ')
   if (door.name === 'palette') tally.check(`${door.name} T3 the pick inserted /usage at the caret and kept every character of the draft; nothing ran`, openRow !== undefined && openRow.startsWith(`│❯ ${DRAFT.slice(0, DRAFT.length - CARET_BACK)}/usage ${DRAFT.slice(DRAFT.length - CARET_BACK)}`) && !has(open, 'Mercury · usage'), openRow?.trimEnd() ?? '(no composer row)')
   else if (openRow !== undefined) tally.check(`${door.name} T3 under the surface the composer still reads the draft, not the placeholder`, openRow.startsWith(DRAFT_ROW) && !openRow.includes(PLACEHOLDER), openRow.trimEnd())
   else tally.check(`${door.name} T3 the surface covers the composer row (nothing to read under it)`, true)
   if (door.name === 'palette') return
-  if (door.needle !== null) tally.check(`${door.name} T4 the surface closed`, !has(closed, door.needle), rowsOf(closed).filter(r => r.includes(door.needle as string)).join(' | '))
+  if (door.needle !== null && door.close !== null) tally.check(`${door.name} T4 the surface closed`, !has(closed, door.needle), rowsOf(closed).filter(r => r.includes(door.needle as string)).join(' | '))
+  else if (door.needle !== null) tally.check(`${door.name} T4 the printed card stays in the transcript`, has(closed, door.needle), rowsOf(closed).filter(r => r.includes('Mercury')).join(' | ') || '(no card)')
   tally.check(`${door.name} T5 after the surface closed the composer reads the draft as typed`, closedRow === typedRow, `${closedRow.trimEnd()}${closedRow === typedRow ? '' : `\n    typed: ${typedRow.trimEnd()}`}`)
   tally.check(`${door.name} T6 the caret is back where it was`, closed !== undefined && typed !== undefined && closed.cursor.x === typed.cursor.x && closed.cursor.y === typed.cursor.y, `caret ${cursorOf(closed)}, typed ${cursorOf(typed)}`)
 }
