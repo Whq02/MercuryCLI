@@ -42,7 +42,6 @@ export function blenderDebugRecipe(
           ]),
       `2. attach Mercury's debugger: Debug op:"attach" adapter:"python" port:${port} (the landed debugpy attach contract — {connect:{host,port}})`,
       `3. breakpoints in your addon/script files bind normally; add debugpy.wait_for_client() after listen when you must catch startup code`,
-      `note: if the attach stalls waiting, the KNOWN upstream debugpy --listen wedge may apply (observed: wedged at debugpyWaitingForServer with zero Mercury code on that box class) — re-test on the next debugpy release before suspecting this road`,
     ],
   }
 }

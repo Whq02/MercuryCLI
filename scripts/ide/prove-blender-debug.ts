@@ -64,8 +64,8 @@ section('§2 · the steps contract')
   )
   check('step 3: wait_for_client teaching', all.includes('wait_for_client'))
   check(
-    'THE WEDGE CITED: the observed wedge + debugpyWaitingForServer + re-test guidance',
-    all.includes('wedge may apply (observed:') && all.includes('debugpyWaitingForServer') && all.includes('next debugpy release'),
+    'no vendor is blamed for the attach road: the steps carry no wedge note (the attach-by-port defect was ours and died with its fix)',
+    !all.includes('wedge') && !all.includes('debugpyWaitingForServer') && r.steps.length === 4,
   )
   const bundled = blenderDebugRecipe('<blender>', 5678, '/v/debugpy')
   check(
@@ -89,7 +89,7 @@ section('§3 · the profile row (armed only)')
     'the row rides the operator-run payload with --python-expr + the steps note',
     (row?.blenderHeadless?.args[0] ?? '') === '--python-expr' &&
       (row?.blenderHeadless?.note ?? '').includes('op:"attach"') &&
-      (row?.blenderHeadless?.note ?? '').includes('wedge may apply (observed:'),
+      !(row?.blenderHeadless?.note ?? '').includes('wedge'),
   )
   delete process.env.MERCURY_BLENDER
   const off = await discoverLaunchProfiles(scratch)
