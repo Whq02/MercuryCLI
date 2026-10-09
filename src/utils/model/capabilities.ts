@@ -41,6 +41,8 @@ import { thinkingOffWireEffort } from '../../services/providers/openaicompat/com
 import { isXaiModelId } from '../../services/providers/xai/xaiPins.js'
 import { xaiModelFacts, getCachedXaiCatalogue } from '../../services/providers/xai/xaiCatalogue.js'
 import { isMetaModelId, metaDisplayPin } from '../../services/providers/meta/metaPins.js'
+import { isMistralModelId } from '../../services/providers/mistral/mistralPins.js'
+import { mistralModelFacts } from '../../services/providers/mistral/mistralCatalogue.js'
 import {
   deepseekDisplayPin,
   DEEPSEEK_EFFORTS,
@@ -59,6 +61,7 @@ import { isFirstPartyAnthropicBaseUrl } from './providers.js'
 export function modelSupportsTemperature(model: string): boolean {
   if (isXaiModelId(model)) return xaiModelFacts(model)?.temperature === true
   if (isMetaModelId(model)) return metaDisplayPin(model) !== undefined
+  if (isMistralModelId(model)) return true
   const m = /claude-([a-z]+)-(\d+)(?:-(\d{1,2})(?!\d))?/.exec(model)
   if (!m) return true
   const family = m[1]!
@@ -73,6 +76,7 @@ export function modelSupportsTemperature(model: string): boolean {
 export function modelSupportsISP(model: string): boolean {
   if (isXaiModelId(model)) return modelSupportsThinking(model)
   if (isMetaModelId(model)) return false
+  if (isMistralModelId(model)) return false
   return !getCanonicalName(model).includes('claude-3-')
 }
 
@@ -82,12 +86,14 @@ export function modelSupportsThinking(model: string): boolean {
     return facts?.reasoning ?? (facts?.efforts?.some(effort => effort !== 'none') === true)
   }
   if (isMetaModelId(model)) return metaDisplayPin(model) !== undefined
+  if (isMistralModelId(model)) return mistralModelFacts(model).reasoning === true
   return !getCanonicalName(model).includes('claude-3-')
 }
 
 export function modelSupportsAdaptiveThinking(model: string): boolean {
   if (isXaiModelId(model)) return false
   if (isMetaModelId(model)) return false
+  if (isMistralModelId(model)) return false
   const canonical = getCanonicalName(familyDefaultsModel(model))
   if (canonical === 'claude-haiku-5-5' || canonical.includes('sonnet-5') || canonical.includes('opus-5')) {
     return true
@@ -114,6 +120,7 @@ export function modelThinkingAlwaysOn(model: string): boolean {
     return modelSupportsThinking(model) && !facts?.efforts?.includes('none')
   }
   if (isMetaModelId(model)) return metaDisplayPin(model) !== undefined
+  if (isMistralModelId(model)) return false
   if (isCarrierShapedId(model)) return false
   const canonical = getCanonicalName(familyDefaultsModel(model))
   return canonical.includes('fable-5') || canonical.includes('mythos-5') || canonical === 'claude-opus-5-5' || canonical === 'claude-sonnet-5-5'
@@ -194,7 +201,7 @@ export type EffortVocabularyView =
   | { kind: 'ladder'; source: 'first-party' | 'unknown-id'; vocabulary: readonly EffortLevel[] }
   | {
       kind: 'provider'
-      source: 'gpt-live' | 'glm' | 'kimi' | 'deepseek' | 'xai' | 'meta' | 'gemini' | 'openrouter' | 'local'
+      source: 'gpt-live' | 'glm' | 'kimi' | 'deepseek' | 'xai' | 'meta' | 'gemini' | 'openrouter' | 'local' | 'mistral'
       vocabulary: readonly string[]
       defaultEffort?: string
       thinkingGated: boolean
@@ -209,6 +216,7 @@ export type EffortVocabularyView =
         | 'kimi'
         | 'xai'
         | 'meta'
+        | 'mistral'
         | 'huggingface'
         | 'openrouter'
         | 'gemini'
@@ -278,6 +286,12 @@ export function effortVocabularyFor(model: string): EffortVocabularyView {
     return vocabulary.length > 0
       ? { kind: 'provider', source: 'meta', vocabulary, thinkingGated: false }
       : { kind: 'none', source: 'meta' }
+  }
+  if (isMistralModelId(model) || route === 'mistral') {
+    const vocabulary = mistralModelFacts(model).efforts
+    return vocabulary.length > 0
+      ? { kind: 'provider', source: 'mistral', vocabulary, defaultEffort: 'high', thinkingGated: true, thinkingOffWire: thinkingOffWireEffort(vocabulary) }
+      : { kind: 'none', source: 'mistral' }
   }
   if (isHuggingfaceModelId(model)) return { kind: 'none', source: 'huggingface' }
   if (route === 'openrouter') {
@@ -479,14 +493,14 @@ export function resolveContextWindow(
   }
 
   if (has1mContext(model)) {
-    if (isCarrierShapedId(model) || isXaiModelId(model) || isMetaModelId(model)) {
+    if (isCarrierShapedId(model) || isXaiModelId(model) || isMetaModelId(model) || isMistralModelId(model)) {
       const base = resolveContextWindow(model.replace(/\[1m\]/i, ''), betas, requestedMode)
       return {
         ...base,
         model,
         activation: {
           kind: 'unavailable',
-          reason: isXaiModelId(model) ? '[1m] is not a provider-verified activation path for xAI models' : isMetaModelId(model) ? '[1m] is not a provider-verified activation path for Meta models' : '[1m] is not a provider-verified activation path on a carrier-shaped id',
+          reason: isXaiModelId(model) ? '[1m] is not a provider-verified activation path for xAI models' : isMetaModelId(model) ? '[1m] is not a provider-verified activation path for Meta models' : isMistralModelId(model) ? '[1m] is not a provider-verified activation path for Mistral models' : '[1m] is not a provider-verified activation path on a carrier-shaped id',
         },
         fallbackReason: 'unverified [1m] suffix ignored; resolved as the base id',
       }
@@ -662,6 +676,7 @@ export function resolveContextWindow(
     if (isDeepseekModelId(id)) return deepseekDisplayPin(id)?.contextWindow
     if (isXaiModelId(id)) return xaiModelFacts(id)?.contextWindow
     if (isMetaModelId(id)) return metaDisplayPin(id)?.contextWindow
+    if (isMistralModelId(id)) return mistralModelFacts(id).contextWindow
     return undefined
   })()
   if (enginePinnedWindow !== undefined) {
@@ -966,6 +981,8 @@ function catalogueDeclaresImages(model: string, route: CallModelRoute): boolean 
       return xaiModelFacts(model)?.images === true
     case 'meta':
       return metaDisplayPin(model)?.images === true
+    case 'mistral':
+      return mistralModelFacts(model).images === true
     case 'zai':
       return glmTakesImages(model)
     case 'openrouter':
