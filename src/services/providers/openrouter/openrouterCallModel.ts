@@ -1,12 +1,7 @@
-import type {
-  AssistantMessage,
-  StreamEvent,
-  SystemAPIErrorMessage,
-} from '../../../types/message.js'
+import type { CallModelParams, CallModelStream } from '../callModelContract.js'
 import {
   compatChatCallModel,
   compatLaneLiveProofState,
-  type CompatCallModelParams,
   type CompatLaneProfile,
 } from '../openaicompat/compatChatCallModel.js'
 import { getProductUserAgent } from '../../../utils/http.js'
@@ -95,9 +90,7 @@ export function openrouterLiveProofState(): { at: number; model: string } | null
   return compatLaneLiveProofState('openrouter')
 }
 
-export async function* openrouterCallModel(
-  params: CompatCallModelParams,
-): AsyncGenerator<StreamEvent | AssistantMessage | SystemAPIErrorMessage, void> {
+export async function* openrouterCallModel(params: CallModelParams): CallModelStream {
   if (openrouterLimitWindow().state === 'limited') await refreshProviderUsage('openrouter', { force: true, reason: 'operator' })
   yield* compatChatCallModel(openrouterLaneProfile, params)
 }

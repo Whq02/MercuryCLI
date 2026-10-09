@@ -1,7 +1,7 @@
 import { join } from 'node:path'
 import { createAssistantMessage } from '../utils/messages.js'
 import { getCwd } from '../utils/cwd.js'
-import type { queryModelWithStreaming } from '../services/providers/anthropic/index.js'
+import type { CallModel } from '../services/providers/callModelContract.js'
 
 const SLOW_TEXT_ACTIVE_MS = 8_000
 const HAMMER_ROUND_MS = 50
@@ -21,7 +21,7 @@ const sleep = (ms: number, signal: AbortSignal): Promise<void> =>
 
 export function scriptedCallModel(
   script: string,
-): typeof queryModelWithStreaming | null {
+): CallModel | null {
   if (script === 'hammer-breaker') return scriptedHammerBreaker
   if (script === ANSWER_TEXT_SCRIPT) return scriptedAnswerText
   if (script === CHATTY_BASH_SCRIPT) return scriptedChattyBash
@@ -37,14 +37,14 @@ export function scriptedCallModel(
       content:
         'Scripted stream settled — the active window closed at the scripted boundary.',
     }) as never
-  } as typeof queryModelWithStreaming
+  }
 }
 
 export const HAMMER_BREAKER_FILE = 'definitely-missing-file-for-the-hammer-proof.txt'
 
 let hammerCalls = 0
 
-const scriptedHammerBreaker = async function* scriptedHammerBreaker(params) {
+const scriptedHammerBreaker: CallModel = async function* scriptedHammerBreaker(params) {
   yield { type: 'stream_event', event: { type: 'ping' } } as never
   await sleep(HAMMER_ROUND_MS, params.signal)
   if (params.signal.aborted) return
@@ -60,7 +60,7 @@ const scriptedHammerBreaker = async function* scriptedHammerBreaker(params) {
   })
   message.message.stop_reason = 'tool_use'
   yield message as never
-} as typeof queryModelWithStreaming
+}
 
 export const ONE_TOOL_SCRIPTS = ['tool-read', 'tool-glob', 'tool-bash', 'tool-bash-write'] as const
 export type OneToolScript = (typeof ONE_TOOL_SCRIPTS)[number]
@@ -96,7 +96,7 @@ function oneToolUse(script: OneToolScript): { name: string; input: Record<string
   }
 }
 
-function scriptedOneTool(script: OneToolScript): typeof queryModelWithStreaming {
+function scriptedOneTool(script: OneToolScript): CallModel {
   return async function* scriptedOneTool(params) {
     yield { type: 'stream_event', event: { type: 'ping' } } as never
     if (params.signal.aborted) return
@@ -114,17 +114,17 @@ function scriptedOneTool(script: OneToolScript): typeof queryModelWithStreaming 
     })
     message.message.stop_reason = 'tool_use'
     yield message as never
-  } as typeof queryModelWithStreaming
+  }
 }
 
-const scriptedAnswerText = async function* scriptedAnswerText(params) {
+const scriptedAnswerText: CallModel = async function* scriptedAnswerText(params) {
   yield { type: 'stream_event', event: { type: 'ping' } } as never
   if (params.signal.aborted) return
   yield createAssistantMessage({ content: ONE_TOOL_SETTLED_TEXT }) as never
-} as typeof queryModelWithStreaming
+}
 
 let chattyBashCalls = 0
-const scriptedChattyBash = async function* scriptedChattyBash(params) {
+const scriptedChattyBash: CallModel = async function* scriptedChattyBash(params) {
   yield { type: 'stream_event', event: { type: 'ping' } } as never
   if (params.signal.aborted) return
   chattyBashCalls += 1
@@ -144,4 +144,4 @@ const scriptedChattyBash = async function* scriptedChattyBash(params) {
   })
   message.message.stop_reason = 'tool_use'
   yield message as never
-} as typeof queryModelWithStreaming
+}

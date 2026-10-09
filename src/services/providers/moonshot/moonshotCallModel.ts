@@ -1,12 +1,7 @@
-import type {
-  AssistantMessage,
-  StreamEvent,
-  SystemAPIErrorMessage,
-} from '../../../types/message.js'
+import type { CallModelParams, CallModelStream } from '../callModelContract.js'
 import {
   compatChatCallModel,
   compatLaneLiveProofState,
-  type CompatCallModelParams,
   type CompatLaneProfile,
 } from '../openaicompat/compatChatCallModel.js'
 import { buildMoonshotExtras } from '../openaicompat/compatWire.js'
@@ -58,9 +53,7 @@ export function moonshotLiveProofState(): { at: number; model: string } | null {
   return compatLaneLiveProofState('moonshot')
 }
 
-export async function* moonshotCallModel(
-  params: CompatCallModelParams,
-): AsyncGenerator<StreamEvent | AssistantMessage | SystemAPIErrorMessage, void> {
+export async function* moonshotCallModel(params: CallModelParams): CallModelStream {
   if (params.signal.aborted) return
   if (moonshotDispatchSource() !== undefined) {
     let onAbort: () => void = () => {}

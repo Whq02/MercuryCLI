@@ -1,4 +1,4 @@
-import type { AssistantMessage, StreamEvent, SystemAPIErrorMessage } from '../../../types/message.js'
+import type { CallModelParams, CallModelStream } from '../callModelContract.js'
 import { normalizeModelStringForAPI } from '../../../utils/model/model.js'
 import { createAssistantAPIErrorMessage } from '../../../utils/messages.js'
 import { API_ERROR_MESSAGE_PREFIX } from '../../api/errors.js'
@@ -42,7 +42,7 @@ export function metaLiveProofState(): { at: number; model: string } | null {
   return compatLaneLiveProofState('meta')
 }
 
-export async function* metaCallModel(params: CompatCallModelParams): AsyncGenerator<StreamEvent | AssistantMessage | SystemAPIErrorMessage, void> {
+export async function* metaCallModel(params: CallModelParams): CallModelStream {
   if (params.signal.aborted) return
   const account = resolveMetaAccount()
   if (!account) {

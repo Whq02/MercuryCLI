@@ -1,4 +1,5 @@
 import { queryModelWithStreaming } from '../providers/anthropic/index.js'
+import type { CallModel } from './callModelContract.js'
 import { normalizeModelStringForAPI } from '../../utils/model/model.js'
 import { resolveZaiApiKey } from '../../utils/router/providerDiscovery.js'
 import { parseGptModelId } from './openai/gptPins.js'
@@ -105,7 +106,7 @@ export interface PrimaryAgentBackend {
   id: PrimaryBackendId
   provider: AgentRuntimeRef['provider']
   label: string
-  callModel: typeof queryModelWithStreaming
+  callModel: CallModel
   readiness(): BackendReadiness
 }
 
@@ -125,7 +126,7 @@ const openaiBackend: PrimaryAgentBackend = {
   id: 'openai-responses',
   provider: 'openai',
   label: 'OpenAI Responses (native, in-process)',
-  callModel: openaiCallModel as unknown as typeof queryModelWithStreaming,
+  callModel: openaiCallModel,
   readiness: (): BackendReadiness => {
     const account = resolveOpenaiAccount()
     if (!account) return { state: 'unavailable', reason: 'no OpenAI account source connected' }
@@ -143,7 +144,7 @@ const zaiBackend: PrimaryAgentBackend = {
   id: 'zai-glm',
   provider: 'zai',
   label: 'Z.AI GLM (native, in-process)',
-  callModel: zaiCallModel as unknown as typeof queryModelWithStreaming,
+  callModel: zaiCallModel,
   readiness: (): BackendReadiness => {
     if (!resolveZaiApiKey()) return { state: 'unavailable', reason: 'no API key (/logins zai, or ZAI_API_KEY)' }
     const proof = zaiLiveProofState()
@@ -160,7 +161,7 @@ const moonshotBackend: PrimaryAgentBackend = {
   id: 'moonshot-chat',
   provider: 'moonshot',
   label: 'Moonshot Kimi (native, in-process)',
-  callModel: moonshotCallModel as unknown as typeof queryModelWithStreaming,
+  callModel: moonshotCallModel,
   readiness: (): BackendReadiness => {
     const source = moonshotDispatchSource()
     if (source === undefined) {
@@ -180,7 +181,7 @@ const deepseekBackend: PrimaryAgentBackend = {
   id: 'deepseek-chat',
   provider: 'deepseek',
   label: 'DeepSeek (native, in-process)',
-  callModel: deepseekCallModel as unknown as typeof queryModelWithStreaming,
+  callModel: deepseekCallModel,
   readiness: (): BackendReadiness => {
     if (!resolveDeepseekApiKey()) {
       return { state: 'unavailable', reason: 'no API key (/logins deepseek, or DEEPSEEK_API_KEY)' }
@@ -194,7 +195,7 @@ const deepseekBackend: PrimaryAgentBackend = {
 
 const xaiBackend: PrimaryAgentBackend = {
   id: 'xai-chat', provider: 'xai', label: 'xAI (native, in-process)',
-  callModel: xaiCallModel as unknown as typeof queryModelWithStreaming,
+  callModel: xaiCallModel,
   readiness: (): BackendReadiness => {
     if (!resolveXaiCredentialSnapshot()) return { state: 'unavailable', reason: 'no usable Grok sign-in or API key (/logins xai, or XAI_API_KEY)' }
     const proof = xaiLiveProofState()
@@ -206,7 +207,7 @@ const xaiBackend: PrimaryAgentBackend = {
 
 const metaBackend: PrimaryAgentBackend = {
   id: 'meta-chat', provider: 'meta', label: 'Meta (native, in-process)',
-  callModel: metaCallModel as unknown as typeof queryModelWithStreaming,
+  callModel: metaCallModel,
   readiness: (): BackendReadiness => {
     if (!resolveMetaApiKey()) return { state: 'unavailable', reason: 'no API key (/logins meta, or MODEL_API_KEY)' }
     const proof = metaLiveProofState()
@@ -241,7 +242,7 @@ const compatBackend: PrimaryAgentBackend = {
   id: 'openai-compat-chat',
   provider: 'openai-compat',
   label: 'OpenAI-compatible endpoint (operator-named)',
-  callModel: compatCallModel as unknown as typeof queryModelWithStreaming,
+  callModel: compatCallModel,
   readiness: (): BackendReadiness => {
     if (!resolveCompatSlotConfig()) {
       return { state: 'unavailable', reason: 'no endpoint configured (MERCURY_COMPAT_BASE_URL)' }
@@ -257,7 +258,7 @@ const huggingfaceBackend: PrimaryAgentBackend = {
   id: 'huggingface-chat',
   provider: 'huggingface',
   label: 'Hugging Face Inference Providers (router, in-process)',
-  callModel: huggingfaceCallModel as unknown as typeof queryModelWithStreaming,
+  callModel: huggingfaceCallModel,
   readiness: (): BackendReadiness => {
     const key = resolveHuggingfaceApiKey()
     if (!key) return { state: 'unavailable', reason: 'no credential (/logins, or HF_TOKEN)' }
@@ -275,7 +276,7 @@ const localBackend: PrimaryAgentBackend = {
   id: 'local-chat',
   provider: 'local',
   label: 'Local models (Ollama · LM Studio · vLLM · llama.cpp, in-process)',
-  callModel: localCallModel as unknown as typeof queryModelWithStreaming,
+  callModel: localCallModel,
   readiness: (): BackendReadiness => {
     const account = resolveLocalAccount()
     if (!account) return { state: 'unavailable', reason: 'no local server discovered (Ollama :11434 · LM Studio :1234 · vLLM :8000 · llama.cpp :8080 · MERCURY_LOCAL_BASE_URL)' }
@@ -293,7 +294,7 @@ const openrouterBackend: PrimaryAgentBackend = {
   id: 'openrouter-chat',
   provider: 'openrouter',
   label: 'OpenRouter (multi-vendor catalogue, shared compat runtime)',
-  callModel: openrouterCallModel as unknown as typeof queryModelWithStreaming,
+  callModel: openrouterCallModel,
   readiness: (): BackendReadiness => {
     const key = resolveOpenrouterApiKey()
     if (!key) {
@@ -315,7 +316,7 @@ const geminiBackend: PrimaryAgentBackend = {
   id: 'gemini-generate',
   provider: 'gemini',
   label: 'Gemini (OpenAI-compatibility surface, shared compat runtime)',
-  callModel: geminiCallModel as unknown as typeof queryModelWithStreaming,
+  callModel: geminiCallModel,
   readiness: (): BackendReadiness => {
     const account = resolveGeminiAccount()
     if (!account) {

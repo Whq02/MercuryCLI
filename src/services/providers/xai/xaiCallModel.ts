@@ -1,10 +1,10 @@
-import type { AssistantMessage, StreamEvent, SystemAPIErrorMessage } from '../../../types/message.js'
+import type { CallModelParams, CallModelStream } from '../callModelContract.js'
 import { normalizeModelStringForAPI } from '../../../utils/model/model.js'
 import { createAssistantAPIErrorMessage } from '../../../utils/messages.js'
 import { API_ERROR_MESSAGE_PREFIX } from '../../api/errors.js'
 import { readCatalogueIfPending } from '../catalogueOnDemand.js'
 import { modelNotOfferedByCatalogue } from '../catalogueAdmission.js'
-import { compatChatCallModel, compatLaneLiveProofState, type CompatCallModelParams, type CompatLaneProfile } from '../openaicompat/compatChatCallModel.js'
+import { compatChatCallModel, compatLaneLiveProofState, type CompatLaneProfile } from '../openaicompat/compatChatCallModel.js'
 import { buildXaiExtras } from '../openaicompat/compatWire.js'
 import { xaiChatCompletionsUrl, xaiGrokProxyChatHeaders, resolveXaiCredential, resolveXaiAccount } from './xaiAccounts.js'
 import { getCachedXaiCatalogue, xaiModelFacts } from './xaiCatalogue.js'
@@ -33,7 +33,7 @@ export const xaiLaneProfile: CompatLaneProfile = {
 export function xaiLiveProofState(): { at: number; model: string } | null {
   return compatLaneLiveProofState('xai')
 }
-export async function* xaiCallModel(params: CompatCallModelParams): AsyncGenerator<StreamEvent | AssistantMessage | SystemAPIErrorMessage, void> {
+export async function* xaiCallModel(params: CallModelParams): CallModelStream {
   if (params.signal.aborted) return
   const account = resolveXaiAccount()
   if (!account) {
