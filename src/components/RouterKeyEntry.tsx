@@ -12,6 +12,7 @@ import {
   writeStoredHuggingfaceApiKey,
   writeStoredLocalApiKey,
   writeStoredMoonshotApiKey,
+  writeStoredNousApiKey,
   writeStoredTavilyApiKey,
   writeStoredXaiApiKey,
   writeStoredXaiManagementApiKey,
@@ -21,7 +22,7 @@ import { zaiKeySource } from '../utils/router/providerDiscovery.js'
 import { XAI_MANAGEMENT_KEY_PAGE } from '../services/providers/xai/xaiUsageState.js'
 
 
-export type KeyEntryProvider = 'zai' | 'moonshot' | 'deepseek' | 'xai' | 'xai-management' | 'meta' | 'compat' | 'huggingface' | 'local' | 'brave' | 'tavily'
+export type KeyEntryProvider = 'zai' | 'moonshot' | 'deepseek' | 'xai' | 'xai-management' | 'meta' | 'compat' | 'huggingface' | 'local' | 'brave' | 'tavily' | 'nous'
 
 const LANES: Record<
   KeyEntryProvider,
@@ -97,6 +98,12 @@ const LANES: Record<
     envVar: 'TAVILY_API_KEY',
     write: writeStoredTavilyApiKey,
     envShadow: () => Boolean(process.env.TAVILY_API_KEY?.trim()),
+  },
+  nous: {
+    title: 'Nous Portal API key',
+    envVar: 'NOUS_API_KEY',
+    write: writeStoredNousApiKey,
+    envShadow: () => Boolean(process.env.NOUS_API_KEY?.trim()),
   },
 }
 
