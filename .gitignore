@@ -4,8 +4,7 @@ dist/
 .DS_Store
 .render/
 
-# Local-only tool homes and project stores; never tracked.
-.claude/
+# Local-only project stores; never tracked.
 .mercury/
 .tmp-lsp-proof-*/
 
