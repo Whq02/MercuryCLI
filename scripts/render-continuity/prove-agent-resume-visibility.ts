@@ -270,34 +270,38 @@ t.section('§3 one composer, one draft: the draft rides the view swap into eithe
     keepFrames('drafts-120x40', screens)
     const timed = screens.filter(f => f.atMs !== -1)
     const holdsDraft = (f: Frame): boolean => composerOf(f).includes('draft-main-text')
-
-    const iDraft = timed.findIndex(f => viewOf(f) === undefined && holdsDraft(f))
-    t.check('the draft is typed and visible in a main-view frame', iDraft >= 0)
-    const iFirst = timed.findIndex((f, i) => i > iDraft && viewOf(f) !== undefined)
-    const n1 = iFirst >= 0 ? viewOf(timed[iFirst]!) : undefined
+    const actedOn = (step: number): Frame | undefined => {
+      const record = run.sendLog.find(s => s.step === step && s.screen !== undefined)
+      return record === undefined ? undefined : { atMs: Math.round(record.atMs), rows: record.screen! }
+    }
+    const draftMain = actedOn(1)
+    const firstView = actedOn(2)
+    const backMain = actedOn(3)
+    const secondView = actedOn(4)
+    const settled = screens.find(f => f.atMs === -1)
+    const isMain = (f: Frame | undefined): boolean => f !== undefined && viewOf(f) === undefined && leadOwnsView(f) && holdsDraft(f)
+    t.check('the draft is typed and visible in a main-view frame (the screen the first CREW click acted on)', draftMain !== undefined && viewOf(draftMain) === undefined && holdsDraft(draftMain), draftMain === undefined ? 'the first click has no receipt screen' : `composer ${JSON.stringify(composerOf(draftMain))}`)
+    const n1 = firstView === undefined ? undefined : viewOf(firstView)
     t.check(
-      "one click on a CREW row opens that child in the view over the same composer, the draft still in it",
-      iDraft >= 0 && iFirst > iDraft && holdsDraft(timed[iFirst]!),
-      `first view: ${n1 ?? 'none'} · composer ${JSON.stringify(iFirst >= 0 ? composerOf(timed[iFirst]!) : '')}`,
+      "one click on a CREW row opens that child in the view over the same composer, the draft still in it (the screen the way back acted on)",
+      firstView !== undefined && n1 !== undefined && holdsDraft(firstView),
+      `first view: ${n1 ?? 'none'} · composer ${JSON.stringify(firstView === undefined ? '' : composerOf(firstView))}`,
     )
-    const iBack1 = timed.findIndex((f, i) => i > iFirst && viewOf(f) === undefined && leadOwnsView(f) && holdsDraft(f))
-    t.check('Mercury Lead in the rail goes back and the composer still holds the draft (one composer, one draft)', iFirst >= 0 && iBack1 > iFirst)
-    const iSecond = timed.findIndex((f, i) => i > iBack1 && viewOf(f) !== undefined && viewOf(f) !== n1)
-    const n2 = iSecond >= 0 ? viewOf(timed[iSecond]!) : undefined
+    t.check('Mercury Lead in the rail goes back and the composer still holds the draft (one composer, one draft — the screen the second CREW click acted on)', isMain(backMain), backMain === undefined ? 'the second click has no receipt screen' : `composer ${JSON.stringify(composerOf(backMain))} · view ${viewOf(backMain) ?? 'main'}`)
+    const n2 = secondView === undefined ? undefined : viewOf(secondView)
     t.check(
-      "the second click opens the OTHER child in the view, the draft still in the composer",
-      iBack1 >= 0 && iSecond > iBack1 && n1 !== undefined && n2 !== undefined && n1 !== n2 && holdsDraft(timed[iSecond]!),
+      "the second click opens the OTHER child in the view, the draft still in the composer (the screen the second way back acted on)",
+      secondView !== undefined && n1 !== undefined && n2 !== undefined && n1 !== n2 && holdsDraft(secondView),
       `first@${n1} second@${n2}`,
     )
-    const iBack2 = timed.findIndex((f, i) => i > iSecond && viewOf(f) === undefined && leadOwnsView(f) && holdsDraft(f))
     t.check(
-      'the way back from the second view keeps the draft exactly',
-      iSecond >= 0 && iBack2 > iSecond && composerOf(timed[iBack2]!).replace(/^❯\s*/, '') === 'draft-main-text',
-      iBack2 >= 0 ? JSON.stringify(composerOf(timed[iBack2]!)) : 'no main frame with the draft after the second view',
+      'the way back from the second view keeps the draft exactly (the settled final frame)',
+      settled !== undefined && isMain(settled) && composerOf(settled).replace(/^❯\s*/, '') === 'draft-main-text',
+      settled === undefined ? 'no final frame' : `${JSON.stringify(composerOf(settled))} · view ${viewOf(settled) ?? 'main'}`,
     )
     t.check(
       'INVARIANT: the draft never leaves the composer for any transcript (no click submits it, to the lead or to a child)',
-      timed.every(f => !f.rows.some(r => /\] ❯ draft-main-text/.test(r))),
+      [...timed, ...[draftMain, firstView, backMain, secondView, settled].filter((f): f is Frame => f !== undefined)].every(f => !f.rows.some(r => /\] ❯ draft-main-text/.test(r))),
     )
   }
   run.cleanup()
