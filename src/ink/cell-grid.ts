@@ -88,6 +88,15 @@ const BOLD_END = '\x1b[22m'
 const UNDERLINE_END = '\x1b[24m'
 const TRANSITION_KEY_SPAN = 0x100000
 
+function rememberPair(cache: Map<number, string>, a: number, b: number, compute: (a: number, b: number) => string): string {
+  const key = a * TRANSITION_KEY_SPAN + b
+  const known = cache.get(key)
+  if (known !== undefined) return known
+  const value = compute(a, b)
+  cache.set(key, value)
+  return value
+}
+
 const withoutEnds = (codes: readonly AnsiCode[], ...ends: string[]): AnsiCode[] =>
   codes.filter(code => !ends.includes(code.endCode))
 
@@ -135,14 +144,10 @@ export class StylePool {
     return this.styles[id >>> 1] ?? []
   }
 
+  private readonly serialiseTransition = (fromId: number, toId: number): string =>
+    ansiCodesToString(diffAnsiCodes(this.get(fromId), this.get(toId)))
   transition(fromId: number, toId: number): string {
-    if (fromId === toId) return ''
-    const key = fromId * TRANSITION_KEY_SPAN + toId
-    const known = this.transitionCache.get(key)
-    if (known !== undefined) return known
-    const sequence = ansiCodesToString(diffAnsiCodes(this.get(fromId), this.get(toId)))
-    this.transitionCache.set(key, sequence)
-    return sequence
+    return fromId === toId ? '' : rememberPair(this.transitionCache, fromId, toId, this.serialiseTransition)
   }
 
 
