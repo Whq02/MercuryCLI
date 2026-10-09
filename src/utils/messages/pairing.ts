@@ -252,15 +252,13 @@ export function ensureToolResultPairing(
 
     if (getStrictToolResultPairing()) {
       throw new Error(
-        `ensureToolResultPairing: tool_use/tool_result pairing mismatch detected (strict mode). ` +
-          `Refusing to repair — would inject synthetic placeholders into model context. ` +
-          `Message structure: ${messageTypes.join('; ')}. See inc-4977.`,
+        `The tool calls and their results do not pair up and strict pairing is on, so no placeholder is written into the model's context. Message structure: ${messageTypes.join('; ')}`,
       )
     }
 
     logError(
       new Error(
-        `ensureToolResultPairing: repaired missing tool_result blocks (${messages.length} -> ${result.length} messages). Message structure: ${messageTypes.join('; ')}`,
+        `Tool results were repaired on the way to the wire (${messages.length} rows in, ${result.length} out). Message structure: ${messageTypes.join('; ')}`,
       ),
     )
   }
