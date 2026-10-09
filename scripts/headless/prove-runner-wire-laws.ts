@@ -392,7 +392,7 @@ section('W12 deadlines belong to the sender: the table default, a PeerDeadline a
   const cancel = w.runnerSaw.find(f => f.method === '$/cancel_request')
   check('a $/cancel_request with reason deadline follows', cancel !== undefined && (cancel.params as Frame).reason === 'deadline')
   check("the runner's handler signal aborts", shellSignal !== null && (shellSignal as AbortSignal).aborted)
-  check('the table default rides when no deadline is given', methods.deadlineOf('turn/interrupt') === 5_000 && methods.deadlineOf('schedule/roster') === null && methods.deadlineOf('initialize') === 10_000)
+  check('the table default rides when no deadline is given', methods.deadlineOf('turn/interrupt') === 5_000 && methods.deadlineOf('schedule/roster') === null && methods.deadlineOf('initialize') === null)
   w.host.end()
 }
 
@@ -598,7 +598,7 @@ section('M the method table is the one source')
   check('every method name is noun/verb in snake case', names.every(n => /^(\$\/)?[a-z_]+(\/[a-z_]+)?$/.test(n)), names.filter(n => !/^(\$\/)?[a-z_]+(\/[a-z_]+)?$/.test(n)).join(' '))
   check('every spec names itself by its key', names.every(n => methods.METHODS[n].name === n))
   const table: Record<string, [string, number | null]> = {
-    initialize: ['none', 10_000],
+    initialize: ['none', null],
     'session/claim': ['session', 45_000],
     'session/facts': ['none', 30_000],
     'session/set_model': ['session', 5_000],
