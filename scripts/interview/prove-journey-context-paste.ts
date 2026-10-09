@@ -87,7 +87,7 @@ try {
   t.check('the note annotation carries the citation', /\[Pasted context: \d+ lines\]/.test(result))
 
   t.section('§3 — the durable authority and decision record carry the reference')
-  const dir = join(run.paths.home, '.claude', 'interview')
+  const dir = join(run.paths.home, '.mercury', 'interview')
   const files = readdirSync(dir)
   const logFile = files.find(f => /^[0-9a-f]{16}\.json$/.test(f))
   const recFile = files.find(f => f.endsWith('-record.json'))

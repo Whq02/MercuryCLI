@@ -21,7 +21,7 @@ const { MERCURY_CREW_AGENT } = await import('../../src/tools/AgentTool/built-in/
 const { MERCURY_SCOUT_AGENT } = await import('../../src/tools/AgentTool/built-in/mercuryScoutAgent.ts')
 const { REVIEW_BRIEF } = await import('../../src/tools/AgentTool/reviewerPolicy.ts')
 const { renderAgentLine } = await import('../../src/cli/handlers/agents.ts')
-const { buildFrozenWorktreeNotice } = await import('../../src/tools/AgentTool/forkSubagent.ts')
+const { buildFrozenWorktreeNotice } = await import('../../src/tools/AgentTool/frozenWorktreeNotice.ts')
 
 section('§1 two built-ins; the review is a launch option, not a type')
 const roster = getBuiltInAgents()

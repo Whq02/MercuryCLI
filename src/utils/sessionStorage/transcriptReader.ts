@@ -754,10 +754,6 @@ export function _transcriptReaderRetentionForTesting(): { states: string[]; reta
   return { states: [...states.keys()], retained: [...retained.keys()], recent: [...recent] }
 }
 
-export function _scanPreBoundaryMetadataForTesting(filePath: string, endOffset: number): Promise<string[]> {
-  return scanPreBoundaryMetadata(filePath, endOffset)
-}
-
 
 function resolveMetadataBuf(carry: Buffer | null, chunkBuf: Buffer): Buffer | null {
   if (carry === null || carry.length === 0) return chunkBuf

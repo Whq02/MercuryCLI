@@ -1,7 +1,4 @@
-import { spawnSync } from 'node:child_process'
-import { subprocessEnv } from './subprocessEnv.js'
-import { existsSync, readFileSync } from 'node:fs'
-import { delimiter, join } from 'node:path'
+import { readFileSync } from 'node:fs'
 
 import { execFileNoThrow } from './execFileNoThrow.js'
 
@@ -58,82 +55,4 @@ export async function getAncestorPidsAsync(pid: number, maxDepth: number = 10): 
     .filter(entry => entry.length > 0)
     .map(entry => Number(entry))
     .filter(entry => Number.isInteger(entry))
-}
-
-
-export type Win32ProcMeta = {
-  found: boolean
-  commandLine: string | null
-  startToken: string | null
-}
-
-let cachedPowerShellExe: string | null = null
-
-export function win32PowerShellExe(): string {
-  if (cachedPowerShellExe) return cachedPowerShellExe
-  const pathEntries = (process.env.PATH ?? '').split(delimiter).filter(entry => entry.length > 0)
-  for (const entry of pathEntries) {
-    const candidate = join(entry, 'pwsh.exe')
-    try {
-      if (existsSync(candidate)) {
-        cachedPowerShellExe = candidate
-        return candidate
-      }
-    } catch {
-    }
-  }
-  const programFiles = process.env.ProgramFiles ?? 'C:\\Program Files'
-  const fixed = join(programFiles, 'PowerShell', '7', 'pwsh.exe')
-  try {
-    if (existsSync(fixed)) {
-      cachedPowerShellExe = fixed
-      return fixed
-    }
-  } catch {
-  }
-  cachedPowerShellExe = 'powershell.exe'
-  return cachedPowerShellExe
-}
-
-function metaScript(pid: number): string {
-  return `$p=Get-CimInstance Win32_Process -Filter "ProcessId=${pid}" -ErrorAction SilentlyContinue;if($p){[Console]::Out.Write(($p.CommandLine)+[char]0+($p.CreationDate))}`
-}
-
-function parseMetaOutput(output: string): Win32ProcMeta {
-  const separator = output.indexOf('\0')
-  if (separator === -1) return { found: false, commandLine: null, startToken: null }
-  const command = output.slice(0, separator).trim()
-  const token = output.slice(separator + 1).trim()
-  return {
-    found: true,
-    commandLine: command === '' ? null : command,
-    startToken: token === '' ? null : token,
-  }
-}
-
-const DEFAULT_META_MAX_AGE_MS = 10_000
-const metaCache = new Map<number, { at: number; meta: Win32ProcMeta }>()
-
-function cachedMeta(pid: number, maxAgeMs: number): Win32ProcMeta | null {
-  const entry = metaCache.get(pid)
-  if (entry && Date.now() - entry.at <= maxAgeMs) return entry.meta
-  return null
-}
-
-function rememberMeta(pid: number, meta: Win32ProcMeta): void {
-  if (meta.found) metaCache.set(pid, { at: Date.now(), meta })
-}
-
-export function getWin32ProcessMeta(pid: number, opts?: { maxAgeMs?: number }): Win32ProcMeta | null {
-  const cached = cachedMeta(pid, opts?.maxAgeMs ?? DEFAULT_META_MAX_AGE_MS)
-  if (cached) return cached
-  const result = spawnSync(
-    win32PowerShellExe(),
-    ['-NoProfile', '-NonInteractive', '-WindowStyle', 'Hidden', '-Command', metaScript(pid)],
-    { timeout: 2000, windowsHide: true, encoding: 'utf8', env: { ...subprocessEnv() } },
-  )
-  if (result.error) return null
-  const meta = parseMetaOutput(result.stdout ?? '')
-  rememberMeta(pid, meta)
-  return meta
 }

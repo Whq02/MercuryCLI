@@ -21,7 +21,7 @@ import {
 import { computeWorkingTreeSha, gateVerdictPath, healthStateRoot } from './healthReport.js'
 import { getMercuryHome } from './envUtils.js'
 import { sanitizePath } from './sessionStoragePortable.js'
-import { getRipgrepStatus } from './ripgrep.js'
+import { getRipgrepStatus, warmRipgrepStatus } from './ripgrep.js'
 import { gitSnapshot } from './cockpit/gitSnapshot.js'
 
 export function lastPreflightPath(): string {
@@ -79,7 +79,8 @@ export async function runPreflight(): Promise<PreflightSummary> {
       const res = interpretGateVerdict(decodeGateVerdict(raw), head, Date.now())
       return { id: 'gate', status: res.status, evidence: res.evidence }
     }),
-    wrapped('ripgrep', () => {
+    wrapped('ripgrep', async () => {
+      await warmRipgrepStatus()
       const rg = getRipgrepStatus()
       const present = existsSync(rg.path)
       return present && rg.working !== false

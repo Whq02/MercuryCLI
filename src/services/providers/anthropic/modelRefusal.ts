@@ -32,7 +32,7 @@ export interface ModelRefusalFacts {
   seenAtMs: number
 }
 
-export interface ClassifiedModelRefusal extends ModelRefusal {
+interface ClassifiedModelRefusal extends ModelRefusal {
   status: number
   floor?: string
   read?: string

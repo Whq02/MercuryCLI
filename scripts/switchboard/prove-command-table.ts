@@ -137,7 +137,7 @@ function receiptOf(batch: string[]): string {
   const first = await send(runner, 'hello runner')
   check('C3 the session runner answered the arming turn', first.some(l => isOutcome(parseFrame(l))), receiptOf(first).slice(0, 120))
   for (const c of sessionSeatDropped) {
-    const args = c.name === 'counsel' ? '' : c.name === 'kill' ? '' : ''
+    const args = ''
     const batch = await send(runner, `/${c.name}${args ? ` ${args}` : ''}`)
     const text = batch.join('\n')
     const receipt = receiptOf(batch)

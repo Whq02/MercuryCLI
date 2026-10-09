@@ -25,7 +25,6 @@ import {
   describeOwedAssets,
   generatedAssetsOwed,
   parseGeneratedAssetsMap,
-  type GeneratedAssetRow,
 } from './generatedAssets.js'
 
 
@@ -325,12 +324,6 @@ export function commitPathsOf(root: string, commitSegment: string, cwd = root): 
   const paths = new Set(git(['diff', '--cached', '--name-only']))
   if (selection.all) for (const p of git(['diff', '--name-only'])) paths.add(p)
   return [...paths].sort()
-}
-
-export function loadGeneratedAssetsMap(root: string): { rows: GeneratedAssetRow[]; errors: string[] } | null {
-  const path = join(root, GENERATED_ASSETS_MAP)
-  if (!existsSync(path)) return null
-  return parseGeneratedAssetsMap(readFileSync(path, 'utf8'))
 }
 
 export function generatedAssetsRefusal(command: string, cwd: string): string | null {

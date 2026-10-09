@@ -29,7 +29,7 @@ export function codexDeclaredCapabilities(): Partial<
   }
 }
 
-export interface CodexSeatOptions {
+interface CodexSeatOptions {
   cwd?: string
   spawnImpl?: SpawnImpl
 }

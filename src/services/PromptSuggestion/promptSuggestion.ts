@@ -254,15 +254,10 @@ function filterReasonFor(suggestion: string): FilterReason | undefined {
   return undefined
 }
 
-function shouldFilterSuggestion(
-  suggestion: string,
-  promptId?: string | null,
-  source?: string,
-  generationRequestId?: string | null,
-): boolean {
+function shouldFilterSuggestion(suggestion: string): boolean {
   const reason = filterReasonFor(suggestion)
   if (reason === undefined) return false
-  logSuggestionSuppressed(reason, promptId ?? undefined, source, generationRequestId)
+  logSuggestionSuppressed(reason)
   return true
 }
 
@@ -272,49 +267,48 @@ async function tryGenerateSuggestion(
   messages: unknown[],
   getAppState: () => AppState,
   cacheSafeParams: CacheSafeParams,
-  source?: string,
 ): Promise<
   { suggestion: string; promptId: PromptVariant; generationRequestId: string | null } | undefined
 > {
   if (abortController.signal.aborted) {
-    logSuggestionSuppressed('aborted', undefined, source)
+    logSuggestionSuppressed('aborted')
     return undefined
   }
   const assistantMessages = messages.filter(
     message => (message as { type?: string }).type === 'assistant',
   )
   if (assistantMessages.length < 2) {
-    logSuggestionSuppressed('early_conversation', undefined, source)
+    logSuggestionSuppressed('early_conversation')
     return undefined
   }
   const lastAssistant = assistantMessages[assistantMessages.length - 1] as {
     isApiErrorMessage?: boolean
   }
   if (lastAssistant.isApiErrorMessage === true) {
-    logSuggestionSuppressed('last_response_error', undefined, source)
+    logSuggestionSuppressed('last_response_error')
     return undefined
   }
   const cacheReason = getParentCacheSuppressReason(lastAssistant as never)
   if (cacheReason !== undefined) {
-    logSuggestionSuppressed(cacheReason, undefined, source)
+    logSuggestionSuppressed(cacheReason)
     return undefined
   }
   const stateReason = getSuggestionSuppressReason(getAppState())
   if (stateReason !== undefined) {
-    logSuggestionSuppressed(stateReason, undefined, source)
+    logSuggestionSuppressed(stateReason)
     return undefined
   }
 
   const generated = await generateSuggestion(abortController, ACTIVE_VARIANT, cacheSafeParams)
   if (abortController.signal.aborted) {
-    logSuggestionSuppressed('aborted', undefined, source)
+    logSuggestionSuppressed('aborted')
     return undefined
   }
   if (generated === undefined || generated.suggestion === '') {
-    logSuggestionSuppressed('empty', undefined, source)
+    logSuggestionSuppressed('empty')
     return undefined
   }
-  if (shouldFilterSuggestion(generated.suggestion, ACTIVE_VARIANT, source)) {
+  if (shouldFilterSuggestion(generated.suggestion)) {
     return undefined
   }
   return {
@@ -377,16 +371,6 @@ export async function executePromptSuggestion(context: ChatHookContext): Promise
   }
 }
 
-
-function logSuggestionSuppressed(
-  reason: string,
-  promptId?: string | null,
-  source?: string,
-  generationRequestId?: string | null,
-): void {
-  const resolvedVariant = promptId ?? ACTIVE_VARIANT
-  void resolvedVariant
-  void source
-  void generationRequestId
+function logSuggestionSuppressed(reason: string): void {
   logForDebugging(`prompt suggestion suppressed: ${reason}`)
 }

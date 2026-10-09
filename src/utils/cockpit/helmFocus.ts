@@ -167,10 +167,6 @@ export function getHelmVitalsVersion(): number {
   return paneVersion.vitals
 }
 
-export function bumpHelmLanesVersion(): void {
-  notifyPane('lanes')
-}
-
 export function getHelmFocus(): HelmPane {
   return focus
 }

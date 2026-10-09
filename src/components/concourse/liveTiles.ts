@@ -345,10 +345,6 @@ export class LiveTileStore {
 
 const theStore = new LiveTileStore()
 
-export function liveTileStore(): LiveTileStore {
-  return theStore
-}
-
 export function useLiveTile(
   sessionId: string,
   workspaceId: string | undefined,
@@ -398,10 +394,6 @@ export function workChipStoreDeps(nowMs: () => number = () => Date.now()): Parti
 }
 
 const theChipStore = new LiveTileStore(workChipStoreDeps())
-
-export function workChipStore(): LiveTileStore {
-  return theChipStore
-}
 
 export function useWorkChip(sessionId: string, active: boolean): string | null {
   const [, bump] = useState(0)

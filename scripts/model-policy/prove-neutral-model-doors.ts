@@ -235,10 +235,5 @@ section('§5 the doors store exact ids; the words come from a lookup of the id')
   check('the door resolves the pick through parseUserSpecifiedModel at write time', (config.match(/parseUserSpecifiedModel\(id\)/g) ?? []).length >= 1)
 }
 
-section('§6 auto mode keys on the routing law, never a tier name')
-{
-  const caps = await import('../../src/utils/model/capabilities.ts')
-}
-
 console.log(`\n${failures === 0 ? 'ALL PASS' : `${failures} FAIL`}`)
 process.exit(failures === 0 ? 0 : 1)

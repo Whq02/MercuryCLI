@@ -30,7 +30,7 @@ const health = (await import('../../src/commands/health/index.ts')).default as {
 const login = ((await import('../../src/commands/login/index.ts')).default as () => { isEnabled?: () => boolean })()
 const logout = (await import('../../src/commands/logout/index.ts')).default as { isEnabled?: () => boolean }
 
-const SWITCHES = ['MERCURY_TELEMETRY', 'MERCURY_ERROR_REPORTING', 'MERCURY_BUG_COMMAND', 'MERCURY_FEEDBACK_COMMAND', 'MERCURY_HEALTH_COMMAND', 'MERCURY_LOGIN_COMMAND', 'MERCURY_LOGOUT_COMMAND', 'MERCURY_PROMPT_CACHING', 'MERCURY_PROMPT_CACHING_HAIKU', 'MERCURY_PROMPT_CACHING_SONNET', 'MERCURY_PROMPT_CACHING_OPUS', 'MERCURY_COMPACT', 'MERCURY_AUTO_COMPACT', 'MERCURY_BUILTIN_RIPGREP', 'MERCURY_MCP_LARGE_OUTPUT_FILES']
+const SWITCHES = ['MERCURY_ERROR_REPORTING', 'MERCURY_BUG_COMMAND', 'MERCURY_FEEDBACK_COMMAND', 'MERCURY_HEALTH_COMMAND', 'MERCURY_LOGIN_COMMAND', 'MERCURY_LOGOUT_COMMAND', 'MERCURY_PROMPT_CACHING', 'MERCURY_PROMPT_CACHING_HAIKU', 'MERCURY_PROMPT_CACHING_SONNET', 'MERCURY_PROMPT_CACHING_OPUS', 'MERCURY_COMPACT', 'MERCURY_AUTO_COMPACT', 'MERCURY_BUILTIN_RIPGREP', 'MERCURY_MCP_LARGE_OUTPUT_FILES']
 for (const name of SWITCHES) unset(name)
 
 section('§1 the registry polarity: unset ⇒ on, =0 ⇒ off, live')
@@ -45,11 +45,11 @@ for (const name of SWITCHES) {
 
 section('§2 each switch at its owner')
 {
-  unset('MERCURY_TELEMETRY')
-  check('telemetry: unset ⇒ the default privacy level', getPrivacyLevel() === 'default', getPrivacyLevel())
-  off('MERCURY_TELEMETRY')
-  check('telemetry: =0 ⇒ no-telemetry', getPrivacyLevel() === 'no-telemetry', getPrivacyLevel())
-  unset('MERCURY_TELEMETRY')
+  unset('MERCURY_DISABLE_NONESSENTIAL_TRAFFIC')
+  check('privacy: nothing set ⇒ the default level', getPrivacyLevel() === 'default', getPrivacyLevel())
+  process.env.MERCURY_DISABLE_NONESSENTIAL_TRAFFIC = '1'
+  check('privacy: the nonessential-traffic switch ⇒ essential-traffic', getPrivacyLevel() === 'essential-traffic', getPrivacyLevel())
+  unset('MERCURY_DISABLE_NONESSENTIAL_TRAFFIC')
 
   check('error reporting: the log suppression reads the switch', /if \(!flagEnabled\('MERCURY_ERROR_REPORTING'\)\) return true/.test(src('src/utils/log.ts')))
 

@@ -17,6 +17,5 @@ export const asThreadId = (s: string): ThreadId => s as ThreadId
 export const asToolCallId = (s: string): ToolCallId => s as ToolCallId
 
 export const mintRecordId = (): RecordId => randomUUID() as string as RecordId
-export const mintReceiptId = (): ReceiptId => randomUUID() as string as ReceiptId
 
 export const MAIN_THREAD: ThreadId = 'main' as ThreadId

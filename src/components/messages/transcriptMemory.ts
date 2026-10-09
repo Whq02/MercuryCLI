@@ -47,8 +47,3 @@ export function subscribeExpandedRows(view: string, listener: () => void): () =>
     if (set.size === 0) listeners.delete(view)
   }
 }
-
-export function _resetTranscriptMemoryForTesting(): void {
-  memories.clear()
-  listeners.clear()
-}

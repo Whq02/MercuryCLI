@@ -1,8 +1,6 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useState } from 'react'
 import { useAppState } from '../../../state/AppState.js'
 import { useKeybinding } from '../../../keybindings/useKeybinding.js'
-import { getLanguageName } from '../../../utils/cliHighlight.js'
-import type { CompletionType } from '../../../utils/unaryLogging.js'
 import { usePermissionRequestLogging } from '../hooks.js'
 import type { ToolUseConfirm } from '../PermissionRequest.js'
 import {
@@ -31,8 +29,6 @@ export function cycleModeMayApprove(state: { yesInputMode: boolean; noInputMode:
 
 export function useFilePermissionDialog<T extends Record<string, unknown>>({
   filePath,
-  completionType,
-  languageName,
   toolUseConfirm,
   onDone,
   onReject,
@@ -40,8 +36,6 @@ export function useFilePermissionDialog<T extends Record<string, unknown>>({
   operationType = 'write',
 }: {
   filePath: string | null
-  completionType: CompletionType
-  languageName?: string | Promise<string>
   toolUseConfirm: ToolUseConfirm
   onDone: () => void
   onReject: () => void
@@ -53,22 +47,9 @@ export function useFilePermissionDialog<T extends Record<string, unknown>>({
   const [rejectFeedback, setRejectFeedback] = useState('')
   const [yesInputMode, setYesInputMode] = useState(false)
   const [noInputMode, setNoInputMode] = useState(false)
-  const [yesFeedbackModeEntered, setYesFeedbackModeEntered] = useState(false)
-  const [noFeedbackModeEntered, setNoFeedbackModeEntered] = useState(false)
   const [focusedOption, setFocusedOptionState] = useState('accept-once')
 
-  const derivedLanguage = useMemo<string | Promise<string>>(
-    () => languageName ?? (filePath !== null ? getLanguageName(filePath) : 'none'),
-    [languageName, filePath],
-  )
-
-  usePermissionRequestLogging(
-    toolUseConfirm,
-    useMemo(
-      () => ({ completion_type: completionType, language_name: derivedLanguage }),
-      [completionType, derivedLanguage],
-    ),
-  )
+  usePermissionRequestLogging(toolUseConfirm)
 
   const options = getFilePermissionOptions({
     filePath,
@@ -83,10 +64,8 @@ export function useFilePermissionDialog<T extends Record<string, unknown>>({
   const handleInputModeToggle = useCallback((value: string) => {
     if (value === 'accept-once') {
       setYesInputMode(current => !current)
-      setYesFeedbackModeEntered(true)
     } else if (value === 'reject') {
       setNoInputMode(current => !current)
-      setNoFeedbackModeEntered(true)
     }
   }, [])
 
@@ -108,21 +87,15 @@ export function useFilePermissionDialog<T extends Record<string, unknown>>({
       const trimmed = feedback?.trim() || undefined
       const wrapped: ToolUseConfirm = { ...toolUseConfirm, input }
       const params: PermissionHandlerParams = {
-        messageId: toolUseConfirm.assistantMessage.message.id,
         path: filePath,
         toolUseConfirm: wrapped,
         toolPermissionContext,
         onDone,
         onReject,
-        completionType,
-        languageName: derivedLanguage,
         operationType,
       }
       PERMISSION_HANDLERS[option.type](params, {
         feedback: trimmed,
-        hasFeedback: trimmed !== undefined,
-        enteredFeedbackMode:
-          option.type === 'reject' ? noFeedbackModeEntered : yesFeedbackModeEntered,
         ...(option.type === 'accept-session'
           ? { scope: option.scope, pattern: option.pattern }
           : {}),
@@ -134,11 +107,7 @@ export function useFilePermissionDialog<T extends Record<string, unknown>>({
       toolPermissionContext,
       onDone,
       onReject,
-      completionType,
-      derivedLanguage,
       operationType,
-      yesFeedbackModeEntered,
-      noFeedbackModeEntered,
     ],
   )
 

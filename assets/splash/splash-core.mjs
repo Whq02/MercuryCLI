@@ -190,7 +190,6 @@ const DEFAULT_CRITTER = "jellyfish"
 export function accentFamilyKeyOf(raw) {
   const k = String(raw ?? '').trim().toLowerCase()
   if (Object.hasOwn(ACCENT_FAMILIES, k)) return k
-  if (k === 'mantis' || k === 'mantis shrimp') return 'clam'
   return DEFAULT_CRITTER
 }
 

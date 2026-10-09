@@ -1,4 +1,3 @@
-import { extname } from 'node:path'
 
 export type CliHighlight = {
   highlight: typeof import('cli-highlight').highlight
@@ -60,16 +59,4 @@ export function getCliHighlightPromise(): Promise<CliHighlight | null> {
     sharedApiPromise = loadBundle().then(bundle => bundle.api)
   }
   return sharedApiPromise
-}
-
-export async function getLanguageName(file_path: string): Promise<string> {
-  try {
-    const { getLanguage } = await loadBundle()
-    const extension = extname(file_path).slice(1)
-    if (!extension) return 'unknown'
-    if (!getLanguage) return 'unknown'
-    return getLanguage(extension)?.name ?? 'unknown'
-  } catch {
-    return 'unknown'
-  }
 }

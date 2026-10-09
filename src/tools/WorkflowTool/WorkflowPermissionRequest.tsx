@@ -11,7 +11,6 @@ import {
 } from '../../components/mercury-ui/components.js'
 import { GLYPH } from '../../components/mercury-ui/glyphs.js'
 import { AMBER, FAINT, IVORY, SECOND } from '../../components/mercury-ui/theme.js'
-import { logUnaryPermissionEvent } from '../../components/permissions/utils.js'
 import { PermissionDialog } from '../../components/permissions/PermissionDialog.js'
 import {
   PermissionPrompt,
@@ -19,7 +18,7 @@ import {
 } from '../../components/permissions/PermissionPrompt.js'
 import type { PermissionRequestProps } from '../../components/permissions/PermissionRequest.js'
 import { PermissionRuleExplanation } from '../../components/permissions/PermissionRuleExplanation.js'
-import { type UnaryEvent, usePermissionRequestLogging } from '../../components/permissions/hooks.js'
+import { usePermissionRequestLogging } from '../../components/permissions/hooks.js'
 import { shouldShowAlwaysAllowOptions } from '../../utils/permissions/permissionsLoader.js'
 import { truncateToLines } from '../../utils/stringUtils.js'
 import { WORKFLOW_TOOL_NAME } from './constants.js'
@@ -73,11 +72,7 @@ export function WorkflowPermissionRequest({
 }: PermissionRequestProps): React.ReactNode {
   const input = toolUseConfirm.input as WorkflowConsentInput
 
-  const unaryEvent = useMemo<UnaryEvent>(
-    () => ({ completion_type: 'tool_use_single', language_name: 'none' }),
-    [],
-  )
-  usePermissionRequestLogging(toolUseConfirm, unaryEvent)
+  usePermissionRequestLogging(toolUseConfirm)
 
   const source = useMemo(() => invocationSource(input), [input])
   const preview = useMemo(() => previewMeta(input), [input])
@@ -125,12 +120,10 @@ export function WorkflowPermissionRequest({
   function handleSelect(value: WorkflowOptionValue, feedback?: string) {
     switch (value) {
       case 'yes':
-        logUnaryPermissionEvent('tool_use_single', toolUseConfirm, 'accept', !!feedback)
         toolUseConfirm.onAllow(toolUseConfirm.input, [], feedback)
         onDone()
         break
       case 'yes-dont-ask-again': {
-        logUnaryPermissionEvent('tool_use_single', toolUseConfirm, 'accept', !!feedback)
         const ruleContent = source.ruleKey ?? input.name ?? ''
         toolUseConfirm.onAllow(toolUseConfirm.input, [
           {
@@ -144,7 +137,6 @@ export function WorkflowPermissionRequest({
         break
       }
       case 'no':
-        logUnaryPermissionEvent('tool_use_single', toolUseConfirm, 'reject', !!feedback)
         toolUseConfirm.onReject(feedback)
         onReject()
         onDone()

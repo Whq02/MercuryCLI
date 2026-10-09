@@ -10,7 +10,6 @@ import {
   CLAM_HUE,
   CLAM_HUE_DEEP,
   DEFAULT_CRITTER_KEY,
-  LEGACY_CRITTER_KEYS,
 } from '../../utils/cockpit/critterData.js'
 import { getGlobalConfig, saveGlobalConfig } from '../../utils/config.js'
 
@@ -42,8 +41,6 @@ function poolKeyOr(key: string): string {
   for (const k of Object.keys(CRITTERS)) {
     if (CRITTERS[k]!.name === key) return k
   }
-  const legacy = LEGACY_CRITTER_KEYS[key]
-  if (legacy !== undefined && Object.hasOwn(CRITTERS, legacy)) return legacy
   return DEFAULT_CRITTER_KEY
 }
 

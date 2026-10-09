@@ -65,7 +65,7 @@ export function createCommandPrefixExtractor(config: PrefixExtractorConfig) {
     if (preChecked !== null && preChecked !== undefined) return preChecked
 
     const warningTimer = setTimeout(() => {
-      const message = `${config.toolName}Tool pre-flight check is running unusually slowly. Set ANTHROPIC_LOG=debug to see failed or slow API requests.`
+      const message = `${config.toolName}Tool pre-flight check is running unusually slowly.`
       if (isNonInteractiveSession) {
         process.stderr.write(`${JSON.stringify({ level: 'warn', message })}\n`)
       } else {

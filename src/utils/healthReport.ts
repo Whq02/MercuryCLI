@@ -83,7 +83,7 @@ import {
 } from '../services/instructions/engine.js'
 import { readPromptProvenance } from './cockpit/promptProvenance.js'
 import { getSettingsWithAllErrors } from './settings/allErrors.js'
-import { getRipgrepStatus } from './ripgrep.js'
+import { getRipgrepStatus, warmRipgrepStatus } from './ripgrep.js'
 import {
   CHALK_CLAMPED_FOR_MERCURY,
   CHALK_CLAMPED_FOR_TMUX,
@@ -2861,6 +2861,7 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
               rt.verdict === 'supported'
                 ? `${runtimeLine(which)}${which.source === 'vendored' ? '' : ` · supported — ${rt.label} (${rt.range})`}`
                 : `${runtimeLine(which)} ${rt.verdict.toUpperCase()} — supported: ${rt.label} (${rt.range})`
+            await warmRipgrepStatus()
             const rg = getRipgrepStatus()
             const rgPresent = rg.present
             const evidence = `${nodePart} · ripgrep ${rg.mode} @ ${basename(rg.path)} ${rgPresent ? 'present' : 'MISSING'}${rg.working === false ? ' · probe FAILED' : ''}`

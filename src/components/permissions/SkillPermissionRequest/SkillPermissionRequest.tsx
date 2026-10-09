@@ -4,9 +4,7 @@ import { Box, Text } from '../../../ink.js'
 import { getFocusedSessionConnector } from '../../../services/engine-connector/focusedConnector.js'
 import { SKILL_TOOL_NAME } from '../../../tools/SkillTool/constants.js'
 import { SkillTool } from '../../../tools/SkillTool/SkillTool.js'
-import { env } from '../../../utils/env.js'
 import { logError } from '../../../utils/log.js'
-import { logUnaryEvent } from '../../../utils/unaryLogging.js'
 import { shouldShowAlwaysAllowOptions } from '../../../utils/permissions/permissionsLoader.js'
 import { PermissionDialog } from '../PermissionDialog.js'
 import {
@@ -37,10 +35,7 @@ export function SkillPermissionRequest({
     [toolUseConfirm.input],
   )
 
-  usePermissionRequestLogging(
-    toolUseConfirm,
-    useMemo(() => ({ completion_type: 'tool_use_single', language_name: 'none' }), []),
-  )
+  usePermissionRequestLogging(toolUseConfirm)
 
   const result = toolUseConfirm.permissionResult
   const matchedDescription =
@@ -83,18 +78,6 @@ export function SkillPermissionRequest({
     return list
   }, [skill, prefix, spaceIndex])
 
-  function logDecision(event: 'accept' | 'reject'): void {
-    void logUnaryEvent({
-      event,
-      completion_type: 'tool_use_single',
-      metadata: {
-        language_name: 'none',
-        message_id: toolUseConfirm.assistantMessage.message.id,
-        platform: env.platform,
-      },
-    })
-  }
-
   function persistRule(ruleContent: string): void {
     toolUseConfirm.onAllow(toolUseConfirm.input, [
       {
@@ -109,22 +92,18 @@ export function SkillPermissionRequest({
   function handleSelect(value: SkillOptionValue, feedback?: string): void {
     switch (value) {
       case 'yes':
-        logDecision('accept')
         toolUseConfirm.onAllow(toolUseConfirm.input, [], feedback)
         onDone()
         break
       case 'yes-exact':
-        logDecision('accept')
         persistRule(skill)
         onDone()
         break
       case 'yes-prefix':
-        logDecision('accept')
         persistRule(`${prefix}*`)
         onDone()
         break
       case 'no':
-        logDecision('reject')
         toolUseConfirm.onReject(feedback)
         onReject()
         onDone()

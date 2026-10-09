@@ -49,8 +49,3 @@ export function resetCapsuleSkillNames(): void {
 export function suppressCapsuleSkillListing(): void {
   resumedMainListing = true
 }
-
-export function resetCapsuleState(): void {
-  states.clear()
-  resumedMainListing = false
-}

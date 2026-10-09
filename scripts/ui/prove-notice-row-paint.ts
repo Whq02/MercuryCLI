@@ -265,7 +265,7 @@ for (const band of [{ columns: 178, rows: 51 }, { columns: 80, rows: 21 }, { col
     }
   }
 }
-for (const markup of ['<tick>x</tick>', '<command-name>/model</command-name><command-message>model</command-message>', '<bash-input>printf x</bash-input>', '<task-notification>example</task-notification>', '<user-memory-input>example</user-memory-input>', '<mcp-resource-update>example</mcp-resource-update>', '<fork-boilerplate>example</fork-boilerplate>', '<channel source="local">example</channel>']) {
+for (const markup of ['<tick>x</tick>', '<command-name>/model</command-name><command-message>model</command-message>', '<bash-input>printf x</bash-input>', '<task-notification>example</task-notification>', '<user-memory-input>example</user-memory-input>', '<mcp-resource-update>example</mcp-resource-update>', '<channel source="local">example</channel>']) {
   const frame = await paint(h(UserTextMessage as never, { addMargin: false, param: { type: 'text', text: `Explain this literal markup: ${markup}` }, verbose: false }), { type: 'user', timestamp: STAMP }, { columns: 178, rows: 51 }, `quote-${markup.slice(1).split(/[ >]/)[0]}`)
   check(`quoting ${markup.split('>')[0]}> mid-text is the operator's own line, not a synthetic row`, frame.includes('[sam]') && frame.includes('❯ Explain this literal markup:'), frame.slice(0, 200))
 }

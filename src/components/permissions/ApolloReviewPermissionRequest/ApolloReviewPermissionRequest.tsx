@@ -28,10 +28,7 @@ export function ApolloReviewPermissionRequest({
 }: PermissionRequestProps): React.ReactNode {
   const input = toolUseConfirm.input as unknown as Input
 
-  usePermissionRequestLogging(
-    toolUseConfirm,
-    useMemo(() => ({ completion_type: 'tool_use_single', language_name: 'none' }), []),
-  )
+  usePermissionRequestLogging(toolUseConfirm)
 
   const { columns, rows } = useTerminalSize()
   const [expanded, setExpanded] = useState(false)

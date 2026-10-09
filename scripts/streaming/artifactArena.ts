@@ -155,7 +155,7 @@ export async function runArtifactArena(opts: ArenaOpts): Promise<ArenaRun> {
   const fixture = await startFixtureApi(
     scripted,
   )
-  const configDir = join(home, '.claude')
+  const configDir = join(home, '.mercury')
   mkdirSync(configDir, { recursive: true })
   writeFileSync(
     join(configDir, '.config.json'),

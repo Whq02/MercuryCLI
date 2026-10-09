@@ -177,14 +177,6 @@ export function trackFileModification(
   }
 }
 
-export type BulkFileChange = {
-  path: string
-  type: 'modified' | 'created' | 'deleted'
-  oldContent: string
-  newContent: string
-  mtime?: number
-}
-
 type MergedStates = {
   surface: string
   surfaces: string[]
