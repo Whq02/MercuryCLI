@@ -90,10 +90,6 @@ const ATTACHMENTS: Record<string, Fixture> = {
       { label: 'body is missing', field: 'body', fields: { names: ['Read'] } },
     ],
   },
-  agent_listing_delta: {
-    good: { addedTypes: [], addedLines: ['a'], removedTypes: [], isInitial: true, showConcurrencyNote: false },
-    bad: [{ label: 'removedTypes is null', field: 'removedTypes', fields: { addedTypes: [], addedLines: [], removedTypes: null, isInitial: true, showConcurrencyNote: false } }],
-  },
   mcp_instructions_delta: {
     good: { addedNames: [], addedBlocks: ['b'], removedNames: [] },
     bad: [{ label: 'addedBlocks is an object', field: 'addedBlocks', fields: { addedNames: [], addedBlocks: {}, removedNames: [] } }],
@@ -146,7 +142,6 @@ const ATTACHMENTS: Record<string, Fixture> = {
     good: { processId: 'p', hookName: 'h', hookEvent: 'PostToolUse', response: { continue: true }, stdout: '', stderr: '' },
     bad: [{ label: 'response is text', field: 'response', fields: { processId: 'p', hookName: 'h', hookEvent: 'PostToolUse', response: 'ok', stdout: '', stderr: '' } }],
   },
-  token_usage: { good: { used: 1, total: 2, remaining: 1 }, bad: [{ label: 'remaining is text', field: 'remaining', fields: { used: 1, total: 2, remaining: '1' } }] },
   budget_usd: { good: { used: 0.5, total: 1, remaining: 0.5 }, bad: [{ label: 'total is null', field: 'total', fields: { used: 0.5, total: null, remaining: 0.5 } }] },
   output_token_usage: { good: { turn: 1, session: 2, budget: null }, bad: [{ label: 'budget is text', field: 'budget', fields: { turn: 1, session: 2, budget: 'many' } }] },
   usage_limit_notice: { good: { key: 'k', provider: 'p', window: 'w', pct: 80, text: 't' }, bad: [{ label: 'pct is text', field: 'pct', fields: { key: 'k', provider: 'p', window: 'w', pct: '80', text: 't' } }] },
@@ -179,7 +174,6 @@ const ATTACHMENTS: Record<string, Fixture> = {
   verify_plan_reminder: { good: {}, bad: [] },
   max_turns_reached: { good: { maxTurns: 3, turnCount: 3 }, bad: [{ label: 'maxTurns is text', field: 'maxTurns', fields: { maxTurns: '3', turnCount: 3 } }] },
   current_session_memory: { good: { content: 'c', path: 'p', tokenCount: 1 }, bad: [{ label: 'tokenCount is text', field: 'tokenCount', fields: { content: 'c', path: 'p', tokenCount: 'one' } }] },
-  compaction_reminder: { good: {}, bad: [] },
   context_efficiency: { good: {}, bad: [] },
   date_change: { good: { newDate: '2026-08-02' }, bad: [{ label: 'newDate is a number', field: 'newDate', fields: { newDate: 20260802 } }] },
   bound_prefix: {

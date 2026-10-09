@@ -526,15 +526,6 @@ capsule-digest:${attachment.digest}${attachment.delta ? `\nWorking-set delta vs 
 
       return wrapMessagesInSystemReminder(messages)
     }
-    case 'token_usage':
-      return [
-        createUserMessage({
-          content: wrapInSystemReminder(
-            `Token usage: ${attachment.used}/${attachment.total}; ${attachment.remaining} remaining`,
-          ),
-          isMeta: true,
-        }),
-      ]
     case 'budget_usd':
       return [
         createUserMessage({
@@ -616,15 +607,6 @@ capsule-digest:${attachment.digest}${attachment.delta ? `\nWorking-set delta vs 
           isMeta: true,
         }),
       ]
-    case 'compaction_reminder': {
-      return wrapMessagesInSystemReminder([
-        createUserMessage({
-          content:
-            'Auto-compact is enabled. When the context window is nearly full, older messages will be automatically summarized so you can continue working seamlessly. There is no need to stop or rush \u2014 you have unlimited context through automatic compaction.',
-          isMeta: true,
-        }),
-      ])
-    }
     case 'context_efficiency': {
       return []
     }
@@ -658,28 +640,6 @@ capsule-digest:${attachment.digest}${attachment.delta ? `\nWorking-set delta vs 
       if (attachment.removedNames.length > 0) {
         parts.push(
           `The following deferred tools are no longer available in this session (their server disconnected or the operator turned them off). Do not search for them — ToolSearch will return no match:\n${attachment.removedNames.join('\n')}`,
-        )
-      }
-      return wrapMessagesInSystemReminder([
-        createUserMessage({ content: parts.join('\n\n'), isMeta: true }),
-      ])
-    }
-    case 'agent_listing_delta': {
-      const parts: string[] = []
-      if (attachment.addedLines.length > 0) {
-        const header = attachment.isInitial
-          ? 'Available agent types for the Agent tool:'
-          : 'New agent types are now available for the Agent tool:'
-        parts.push(`${header}\n${attachment.addedLines.join('\n')}`)
-      }
-      if (attachment.removedTypes.length > 0) {
-        parts.push(
-          `The following agent types are no longer available:\n${attachment.removedTypes.map(t => `- ${t}`).join('\n')}`,
-        )
-      }
-      if (attachment.isInitial && attachment.showConcurrencyNote) {
-        parts.push(
-          `Launch multiple agents concurrently whenever possible, to maximize performance; to do that, use a single message with multiple tool uses.`,
         )
       }
       return wrapMessagesInSystemReminder([

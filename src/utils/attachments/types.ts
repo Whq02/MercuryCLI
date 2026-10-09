@@ -315,12 +315,6 @@ export type Attachment =
   | AgentRosterAttachment
   | AsyncHookResponseAttachment
   | {
-      type: 'token_usage'
-      used: number
-      total: number
-      remaining: number
-    }
-  | {
       type: 'budget_usd'
       used: number
       total: number
@@ -376,9 +370,6 @@ export type Attachment =
       tokenCount: number
     }
   | {
-      type: 'compaction_reminder'
-    }
-  | {
       type: 'context_efficiency'
     }
   | {
@@ -414,14 +405,6 @@ export type Attachment =
       count: number
       images: number
       sidePx: number
-    }
-  | {
-      type: 'agent_listing_delta'
-      addedTypes: string[]
-      addedLines: string[]
-      removedTypes: string[]
-      isInitial: boolean
-      showConcurrencyNote: boolean
     }
   | {
       type: 'mcp_instructions_delta'
