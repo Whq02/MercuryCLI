@@ -350,17 +350,22 @@ function wrapWithSoftWrap(
   return { wrapped: outLines.join('\n'), softWrap }
 }
 
+const firstChildOffset = (node: DOMElement): { left: number; top: number } | null => {
+  const layout = node.childNodes[0]?.layoutNode
+  return layout ? { left: layout.getComputedLeft(), top: layout.getComputedTop() } : null
+}
+
+const alignSoftWrapFlags = (flags: boolean[] | undefined, rowsAbove: number): void => {
+  if (flags && rowsAbove > 0) flags.unshift(...new Array<boolean>(rowsAbove).fill(false))
+}
+
+const padTop = (text: string, rowsAbove: number): string => (rowsAbove > 0 ? '\n'.repeat(rowsAbove) + text : text)
+
 function applyPaddingToText(node: DOMElement, text: string, softWrap?: boolean[]): string {
-  const layoutNode = node.childNodes[0]?.layoutNode
-  if (layoutNode) {
-    const offsetX = layoutNode.getComputedLeft()
-    const offsetY = layoutNode.getComputedTop()
-    text = '\n'.repeat(offsetY) + indentString(text, offsetX)
-    if (softWrap && offsetY > 0) {
-      softWrap.unshift(...Array<boolean>(offsetY).fill(false))
-    }
-  }
-  return text
+  const offset = firstChildOffset(node)
+  if (!offset) return text
+  alignSoftWrapFlags(softWrap, offset.top)
+  return padTop(indentString(text, offset.left), offset.top)
 }
 
 
@@ -803,10 +808,12 @@ function composeScrollBox(
     return el === contentRoot && Number.isFinite(acc) ? acc : undefined
   }
 
+  let anchored = false
   if (sc.scrollAnchor) {
     const anchorTop = anchorElTop(sc.scrollAnchor.el)
     if (anchorTop != null) {
       sc.scrollTop = anchorTop + sc.scrollAnchor.offset
+      anchored = true
       sc.pendingScrollDelta = undefined
     }
     sc.scrollAnchor = undefined
@@ -819,7 +826,7 @@ function composeScrollBox(
   const grew = scrollHeight >= prevScrollHeight
   const atBottom =
     sticky ||
-    (grew && scrollTopBeforeFollow >= prevMaxScroll && sc.lastStableAtBottom !== false)
+    (!anchored && grew && scrollTopBeforeFollow >= prevMaxScroll && sc.lastStableAtBottom !== false)
   if (atBottom && (sc.pendingScrollDelta ?? 0) >= 0) {
     sc.scrollTop = maxScroll
     sc.pendingScrollDelta = undefined
@@ -1112,23 +1119,23 @@ function clipsBothAxes(node: DOMElement): boolean {
   return (ox === 'hidden' || ox === 'scroll') && (oy === 'hidden' || oy === 'scroll')
 }
 
+function nearestLaidOutSibling(siblings: DOMElement['childNodes'], index: number): LayoutNode | null {
+  for (let i = index + 1; i < siblings.length; i++) {
+    const layout = (siblings[i] as DOMElement).layoutNode
+    if (layout) return layout
+  }
+  for (let i = index - 1; i >= 0; i--) {
+    const layout = (siblings[i] as DOMElement).layoutNode
+    if (layout) return layout
+  }
+  return null
+}
+
 function siblingSharesY(node: DOMElement, layoutNode: LayoutNode): boolean {
   const parent = node.parentNode
   if (!parent) return false
-  const myTop = layoutNode.getComputedTop()
-  const siblings = parent.childNodes
-  const idx = siblings.indexOf(node)
-  for (let i = idx + 1; i < siblings.length; i++) {
-    const sib = (siblings[i] as DOMElement).layoutNode
-    if (!sib) continue
-    return sib.getComputedTop() === myTop
-  }
-  for (let i = idx - 1; i >= 0; i--) {
-    const sib = (siblings[i] as DOMElement).layoutNode
-    if (!sib) continue
-    return sib.getComputedTop() === myTop
-  }
-  return false
+  const neighbour = nearestLaidOutSibling(parent.childNodes, parent.childNodes.indexOf(node))
+  return neighbour !== null && neighbour.getComputedTop() === layoutNode.getComputedTop()
 }
 
 function blitEscapingAbsoluteDescendants(
@@ -1213,11 +1220,13 @@ function composeScrolledChildren(
   }
 }
 
-function dropSubtreeCache(node: DOMElement): void {
-  nodeCache.delete(node)
-  for (const child of node.childNodes) {
-    if (child.nodeName !== '#text') {
-      dropSubtreeCache(child as DOMElement)
+function dropSubtreeCache(root: DOMElement): void {
+  const pending: DOMElement[] = [root]
+  while (pending.length > 0) {
+    const node = pending.pop()!
+    nodeCache.delete(node)
+    for (const child of node.childNodes) {
+      if (child.nodeName !== '#text') pending.push(child as DOMElement)
     }
   }
 }

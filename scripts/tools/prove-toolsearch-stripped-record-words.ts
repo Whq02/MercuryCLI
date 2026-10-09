@@ -41,7 +41,7 @@ check('the text stays, the reference goes, no placeholder is added', mixed[0]?.c
 console.log('\n§3 the words hold on every road that strips: no tool defers there, so every schema rides the list')
 const streamCore = readFileSync(join(ROOT, 'src', 'services', 'providers', 'anthropic', 'streamCore.ts'), 'utf8')
 check('the stream road defers a schema only while the request uses tool search', streamCore.includes('const willDefer = (t: Tool) => useToolSearch && blockForm && deferredToolNames.has(t.name)'))
-check('…and strips the records only where it does not', /if \(!useToolSearch\) \{\s*\n\s*messagesForAPI = messagesForAPI\.map\(msg => \{\s*\n\s*switch \(msg\.type\) \{\s*\n\s*case 'user':\s*\n\s*return stripToolReferenceBlocksFromUserMessage\(msg\)/.test(streamCore))
+check('…and strips the records only where it does not', /if \(!useToolSearch\) \{\s*\n\s*messagesForAPI = messagesForAPI\.map\(withoutToolSearchFields\)/.test(streamCore) && /function withoutToolSearchFields\([^)]*\)[^{]*\{\s*\n\s*return message\.type === 'user'\s*\n\s*\? stripToolReferenceBlocksFromUserMessage\(message\)/.test(streamCore))
 const apiView = readFileSync(join(ROOT, 'src', 'utils', 'messages', 'apiView.ts'), 'utf8')
 check('the api view reads the words from the tool search module and spells none of its own', apiView.includes("import { STRIPPED_ADMISSION_RECORD_TEXT } from '../../tools/ToolSearchTool/prompt.js'") && apiView.includes('text: STRIPPED_ADMISSION_RECORD_TEXT') && !apiView.includes('tool search not enabled'))
 const old = spawnSync('grep', ['-rl', 'tool search not enabled', join(ROOT, 'src')], { encoding: 'utf8' })

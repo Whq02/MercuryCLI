@@ -57,12 +57,11 @@ export class HyperlinkPool {
 
   intern(hyperlink: string | undefined): number {
     if (!hyperlink) return 0
-    let id = this.byString.get(hyperlink)
-    if (id === undefined) {
-      id = this.strings.length
-      this.strings.push(hyperlink)
-      this.byString.set(hyperlink, id)
-    }
+    const known = this.byString.get(hyperlink)
+    if (known !== undefined) return known
+    const id = this.byString.size + 1
+    this.byString.set(hyperlink, id)
+    this.strings[id] = hyperlink
     return id
   }
 
@@ -83,6 +82,34 @@ const INVERSE_CODE: AnsiCode = { type: 'ansi', code: '\x1b[7m', endCode: '\x1b[2
 const BOLD_CODE: AnsiCode = { type: 'ansi', code: '\x1b[1m', endCode: '\x1b[22m' }
 const UNDERLINE_CODE: AnsiCode = { type: 'ansi', code: '\x1b[4m', endCode: '\x1b[24m' }
 const YELLOW_FG_CODE: AnsiCode = { type: 'ansi', code: '\x1b[33m', endCode: '\x1b[39m' }
+
+const INVERSE_END = '\x1b[27m'
+const BOLD_END = '\x1b[22m'
+const UNDERLINE_END = '\x1b[24m'
+const TRANSITION_KEY_SPAN = 0x100000
+
+function rememberPair(cache: Map<number, string>, a: number, b: number, compute: (a: number, b: number) => string): string {
+  const key = a * TRANSITION_KEY_SPAN + b
+  const known = cache.get(key)
+  if (known !== undefined) return known
+  const value = compute(a, b)
+  cache.set(key, value)
+  return value
+}
+
+const withoutEnds = (codes: readonly AnsiCode[], ...ends: string[]): AnsiCode[] =>
+  codes.filter(code => !ends.includes(code.endCode))
+
+const carries = (codes: readonly AnsiCode[], end: string): boolean => codes.some(code => code.endCode === end)
+
+function currentMatchCodesOf(base: readonly AnsiCode[]): AnsiCode[] {
+  const emphasis: Array<[string, AnsiCode]> = [[INVERSE_END, INVERSE_CODE], [BOLD_END, BOLD_CODE], [UNDERLINE_END, UNDERLINE_CODE]]
+  return [
+    ...withoutEnds(base, FG_END, BG_END),
+    YELLOW_FG_CODE,
+    ...emphasis.filter(([end]) => !carries(base, end)).map(([, code]) => code),
+  ]
+}
 
 export class StylePool {
   private ids = new Map<string, number>()
@@ -117,15 +144,10 @@ export class StylePool {
     return this.styles[id >>> 1] ?? []
   }
 
+  private readonly serialiseTransition = (fromId: number, toId: number): string =>
+    ansiCodesToString(diffAnsiCodes(this.get(fromId), this.get(toId)))
   transition(fromId: number, toId: number): string {
-    if (fromId === toId) return ''
-    const key = fromId * 0x100000 + toId
-    let str = this.transitionCache.get(key)
-    if (str === undefined) {
-      str = ansiCodesToString(diffAnsiCodes(this.get(fromId), this.get(toId)))
-      this.transitionCache.set(key, str)
-    }
-    return str
+    return fromId === toId ? '' : rememberPair(this.transitionCache, fromId, toId, this.serialiseTransition)
   }
 
 
@@ -141,45 +163,34 @@ export class StylePool {
     return id
   }
 
-  private currentMatchCache = new Map<number, number>()
-  withCurrentMatch(baseId: number): number {
-    let id = this.currentMatchCache.get(baseId)
-    if (id === undefined) {
-      const base = this.get(baseId)
-      const codes = base.filter(
-        c => c.endCode !== '\x1b[39m' && c.endCode !== '\x1b[49m',
-      )
-      codes.push(YELLOW_FG_CODE)
-      if (!base.some(c => c.endCode === '\x1b[27m')) codes.push(INVERSE_CODE)
-      if (!base.some(c => c.endCode === '\x1b[22m')) codes.push(BOLD_CODE)
-      if (!base.some(c => c.endCode === '\x1b[24m')) codes.push(UNDERLINE_CODE)
-      id = this.intern(codes)
-      this.currentMatchCache.set(baseId, id)
-    }
+  private derived(cache: Map<number, number>, baseId: number, build: (base: AnsiCode[]) => number): number {
+    const known = cache.get(baseId)
+    if (known !== undefined) return known
+    const id = build(this.get(baseId))
+    cache.set(baseId, id)
     return id
+  }
+
+  private currentMatchCache = new Map<number, number>()
+  private readonly buildCurrentMatch = (base: AnsiCode[]): number => this.intern(currentMatchCodesOf(base))
+  withCurrentMatch(baseId: number): number {
+    return this.derived(this.currentMatchCache, baseId, this.buildCurrentMatch)
   }
 
   private selectionBgCode: AnsiCode | null = null
   private selectionBgCache = new Map<number, number>()
   setSelectionBg(bg: AnsiCode | null): void {
-    if (this.selectionBgCode?.code === bg?.code) return
+    const held = this.selectionBgCode?.code ?? null
+    if (held === (bg?.code ?? null)) return
     this.selectionBgCode = bg
     this.selectionBgCache.clear()
   }
 
+  private readonly buildSelectionBg = (base: AnsiCode[]): number =>
+    this.intern([...withoutEnds(base, BG_END, INVERSE_END), this.selectionBgCode!])
   withSelectionBg(baseId: number): number {
-    const bg = this.selectionBgCode
-    if (bg === null) return this.withInverse(baseId)
-    let id = this.selectionBgCache.get(baseId)
-    if (id === undefined) {
-      const kept = this.get(baseId).filter(
-        c => c.endCode !== '\x1b[49m' && c.endCode !== '\x1b[27m',
-      )
-      kept.push(bg)
-      id = this.intern(kept)
-      this.selectionBgCache.set(baseId, id)
-    }
-    return id
+    if (this.selectionBgCode === null) return this.withInverse(baseId)
+    return this.derived(this.selectionBgCache, baseId, this.buildSelectionBg)
   }
 
 

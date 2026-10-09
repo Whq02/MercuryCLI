@@ -5,19 +5,13 @@ export type Signal<Args extends unknown[] = []> = {
 }
 
 export function createSignal<Args extends unknown[] = []>(): Signal<Args> {
-  const listeners = new Set<(...args: Args) => void>()
-  return {
-    subscribe(listener) {
-      listeners.add(listener)
-      return () => {
-        listeners.delete(listener)
-      }
-    },
-    emit(...args) {
-      for (const listener of listeners) listener(...args)
-    },
-    clear() {
-      listeners.clear()
-    },
+  type Listener = (...args: Args) => void
+  const listeners = new Set<Listener>()
+  const subscribe = (listener: Listener): (() => void) => {
+    listeners.add(listener)
+    return () => void listeners.delete(listener)
   }
+  const emit = (...args: Args): void => listeners.forEach(listener => listener(...args))
+  const clear = (): void => listeners.clear()
+  return { subscribe, emit, clear }
 }

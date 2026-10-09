@@ -593,21 +593,16 @@ class Project {
   }
 
   async flush(): Promise<void> {
-    if (this.flushTimer) {
-      clearTimeout(this.flushTimer)
-      this.flushTimer = null
-    }
-    if (this.activeDrain) {
-      await this.activeDrain
-    }
+    if (this.flushTimer) clearTimeout(this.flushTimer)
+    this.flushTimer = null
+    const inFlight = this.activeDrain
+    if (inFlight) await inFlight
     await this.runDrain()
+    if (this.pendingWriteCount > 0) await this.trackedWritesLanded()
+  }
 
-    if (this.pendingWriteCount === 0) {
-      return
-    }
-    return new Promise<void>(resolve => {
-      this.flushResolvers.push(resolve)
-    })
+  private trackedWritesLanded(): Promise<void> {
+    return new Promise<void>(resolve => this.flushResolvers.push(resolve))
   }
 
   async removeMessageByUuid(targetUuid: UUID): Promise<void> {
@@ -646,7 +641,7 @@ class Project {
 
           if (fileSize > MAX_TOMBSTONE_REWRITE_BYTES) {
             logForDebugging(
-              `Skipping tombstone removal: session file too large (${formatFileSize(fileSize)})`,
+              `The removed row's bytes stay in the session file: it is ${formatFileSize(fileSize)}, past the rewrite ceiling`,
               { level: 'warn' },
             )
             return
@@ -800,7 +795,7 @@ class Project {
     if (!existing) {
       logError(
         new Error(
-          `appendEntry: session file not found for other session ${sessionId}`,
+          `An append for session ${sessionId} found no transcript file for it`,
         ),
       )
       return null
@@ -928,18 +923,19 @@ class Project {
   private async getExistingSessionFile(
     sessionId: UUID,
   ): Promise<string | null> {
-    const cached = this.existingSessionFiles.get(sessionId)
-    if (cached) return cached
-
-    const targetFile = getTranscriptPathForSession(sessionId)
-    try {
-      await stat(targetFile)
-      this.existingSessionFiles.set(sessionId, targetFile)
-      return targetFile
-    } catch (e) {
-      if (isFsInaccessible(e)) return null
-      throw e
-    }
+    const known = this.existingSessionFiles.get(sessionId)
+    if (known) return known
+    const candidate = getTranscriptPathForSession(sessionId)
+    const present = await stat(candidate).then(
+      () => true,
+      (error: unknown) => {
+        if (isFsInaccessible(error)) return false
+        throw error
+      },
+    )
+    if (!present) return null
+    this.existingSessionFiles.set(sessionId, candidate)
+    return candidate
   }
 
 }

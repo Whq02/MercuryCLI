@@ -25,40 +25,34 @@ import { requestConversationPlan } from './apiPlan.js'
 
 const TOOL_REFERENCE_TURN_BOUNDARY = 'Tool loaded.'
 
+const anchorsAttachments = (message: Message): boolean =>
+  message.type === 'assistant' ||
+  (message.type === 'user' &&
+    Array.isArray(message.message.content) &&
+    message.message.content[0]?.type === 'tool_result')
+
 export function reorderAttachmentsForAPI(messages: Message[]): Message[] {
-  const result: Message[] = []
-  const pendingAttachments: AttachmentMessage[] = []
-
-  for (let i = messages.length - 1; i >= 0; i--) {
-    const message = messages[i]!
-
+  const ordered: Message[] = []
+  let lifted: AttachmentMessage[] = []
+  let rest: Message[] = []
+  const closeSegment = (): void => {
+    for (const attachment of lifted) ordered.push(attachment)
+    for (const message of rest) ordered.push(message)
+    lifted = []
+    rest = []
+  }
+  for (const message of messages) {
     if (message.type === 'attachment') {
-      pendingAttachments.push(message)
+      lifted.push(message)
+    } else if (anchorsAttachments(message)) {
+      closeSegment()
+      ordered.push(message)
     } else {
-      const isStoppingPoint =
-        message.type === 'assistant' ||
-        (message.type === 'user' &&
-          Array.isArray(message.message.content) &&
-          message.message.content[0]?.type === 'tool_result')
-
-      if (isStoppingPoint && pendingAttachments.length > 0) {
-        for (let j = 0; j < pendingAttachments.length; j++) {
-          result.push(pendingAttachments[j]!)
-        }
-        result.push(message)
-        pendingAttachments.length = 0
-      } else {
-        result.push(message)
-      }
+      rest.push(message)
     }
   }
-
-  for (let j = 0; j < pendingAttachments.length; j++) {
-    result.push(pendingAttachments[j]!)
-  }
-
-  result.reverse()
-  return result
+  closeSegment()
+  return ordered
 }
 
 export function isSystemLocalCommandMessage(
@@ -104,17 +98,8 @@ export function stripUnavailableToolReferencesFromUserMessage(
 
         const filteredContent = block.content.filter(c => {
           if (!isToolReferenceBlock(c)) return true
-          const rawToolName = (c as { tool_name?: string }).tool_name
-          if (!rawToolName) return true
-          const toolName = rawToolName
-          const isAvailable = availableToolNames.has(toolName)
-          if (!isAvailable) {
-            logForDebugging(
-              `Filtering out tool_reference for unavailable tool: ${toolName}`,
-              { level: 'warn' },
-            )
-          }
-          return isAvailable
+          const toolName = (c as { tool_name?: string }).tool_name
+          return !toolName || availableToolNames.has(toolName)
         })
 
         if (filteredContent.length === 0) {
@@ -192,35 +177,23 @@ export function stripToolReferenceBlocksFromUserMessage(
   }
 }
 
+const wireToolUse = (block: Extract<ContentBlock, { type: 'tool_use' }>) => ({
+  type: 'tool_use' as const,
+  id: block.id,
+  name: block.name,
+  input: block.input,
+})
+
 export function stripCallerFieldFromAssistantMessage(
   message: AssistantMessage,
 ): AssistantMessage {
-  const hasCallerField = message.message.content.some(
-    block =>
-      block.type === 'tool_use' && 'caller' in block && block.caller !== null,
+  const carriesCaller = (block: ContentBlock): boolean =>
+    block.type === 'tool_use' && 'caller' in block && block.caller !== null
+  if (!message.message.content.some(carriesCaller)) return message
+  const content = message.message.content.map(block =>
+    block.type === 'tool_use' ? wireToolUse(block) : block,
   )
-
-  if (!hasCallerField) {
-    return message
-  }
-
-  return {
-    ...message,
-    message: {
-      ...message.message,
-      content: message.message.content.map(block => {
-        if (block.type !== 'tool_use') {
-          return block
-        }
-        return {
-          type: 'tool_use' as const,
-          id: block.id,
-          name: block.name,
-          input: block.input,
-        }
-      }),
-    },
-  }
+  return { ...message, message: { ...message.message, content } }
 }
 
 function contentHasToolReference(

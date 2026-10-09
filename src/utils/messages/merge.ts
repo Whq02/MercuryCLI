@@ -32,58 +32,48 @@ type ToolResultContentItem = Extract<
   readonly unknown[]
 >[number]
 
+const isTextBlock = (block: { type: string }): block is TextBlockParam => block.type === 'text'
+
+function existingItemsOf(content: ToolResultBlockParam['content']): readonly ToolResultContentItem[] {
+  if (content === undefined) return []
+  if (typeof content === 'string') return [{ type: 'text', text: content }]
+  return content
+}
+
+function foldTextRuns(items: ReadonlyArray<ToolResultContentItem | ContentBlockParam>): ToolResultContentItem[] {
+  const folded: ToolResultContentItem[] = []
+  let run: string[] = []
+  const closeRun = (): void => {
+    if (run.length > 0) folded.push({ type: 'text', text: run.join('\n\n') })
+    run = []
+  }
+  for (const item of items) {
+    if (isTextBlock(item)) {
+      const text = item.text.trim()
+      if (text) run.push(text)
+      continue
+    }
+    closeRun()
+    folded.push(item as ToolResultContentItem)
+  }
+  closeRun()
+  return folded
+}
+
 export function smooshIntoToolResult(
   tr: ToolResultBlockParam,
   blocks: ContentBlockParam[],
 ): ToolResultBlockParam | null {
   if (blocks.length === 0) return tr
-
   const existing = tr.content
-  if (Array.isArray(existing) && existing.some(isToolReferenceBlock)) {
-    return null
+  if (Array.isArray(existing) && existing.some(isToolReferenceBlock)) return null
+  const incoming = tr.is_error ? blocks.filter(isTextBlock) : blocks
+  if (incoming.length === 0) return tr
+  const folded = foldTextRuns([...existingItemsOf(existing), ...incoming])
+  if (!Array.isArray(existing) && incoming.every(isTextBlock)) {
+    return { ...tr, content: folded.map(item => (item as TextBlockParam).text).join('\n\n') }
   }
-
-  if (tr.is_error) {
-    blocks = blocks.filter(b => b.type === 'text')
-    if (blocks.length === 0) return tr
-  }
-
-  const allText = blocks.every(b => b.type === 'text')
-  if (allText && (existing === undefined || typeof existing === 'string')) {
-    const joined = [
-      (existing ?? '').trim(),
-      ...blocks.map(b => (b as TextBlockParam).text.trim()),
-    ]
-      .filter(Boolean)
-      .join('\n\n')
-    return { ...tr, content: joined }
-  }
-
-  const base: ToolResultContentItem[] =
-    existing === undefined
-      ? []
-      : typeof existing === 'string'
-        ? existing.trim()
-          ? [{ type: 'text', text: existing.trim() }]
-          : []
-        : [...existing]
-
-  const merged: ToolResultContentItem[] = []
-  for (const b of [...base, ...blocks]) {
-    if (b.type === 'text') {
-      const t = b.text.trim()
-      if (!t) continue
-      const prev = merged.at(-1)
-      if (prev?.type === 'text') {
-        merged[merged.length - 1] = { ...prev, text: `${prev.text}\n\n${t}` }
-      } else {
-        merged.push({ type: 'text', text: t })
-      }
-    } else {
-      merged.push(b as ToolResultContentItem)
-    }
-  }
-  return { ...tr, content: merged }
+  return { ...tr, content: folded }
 }
 
 export function mergeUserContentBlocks(

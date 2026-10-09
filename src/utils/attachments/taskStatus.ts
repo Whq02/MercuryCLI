@@ -1,12 +1,8 @@
-
 import type { ToolUseContext } from '../../Tool.js'
 import {
   checkForAsyncHookResponses,
   removeDeliveredAsyncHooks,
 } from '../hooks/AsyncHookRegistry.js'
-import { logForDebugging } from '../debug.js'
-import { jsonStringify } from '../slowOperations.js'
-import { getTaskOutputPath } from '../task/diskOutput.js'
 import {
   applyTaskOffsetsAndEvictions,
   generateTaskAttachments,
@@ -16,78 +12,29 @@ import type { Attachment } from './types.js'
 export async function getUnifiedTaskAttachments(
   toolUseContext: ToolUseContext,
 ): Promise<Attachment[]> {
-  const appState = toolUseContext.getAppState()
-  const { attachments, updatedTaskOffsets, evictedTaskIds } =
-    await generateTaskAttachments(appState)
-
-  applyTaskOffsetsAndEvictions(
-    toolUseContext.setAppState,
-    updatedTaskOffsets,
-    evictedTaskIds,
-  )
-
-  return attachments.map(taskAttachment => ({
-    type: 'task_status' as const,
-    taskId: taskAttachment.taskId,
-    taskType: taskAttachment.taskType,
-    status: taskAttachment.status,
-    description: taskAttachment.description,
-    deltaSummary: taskAttachment.deltaSummary,
-    outputFilePath: getTaskOutputPath(taskAttachment.taskId),
-  }))
+  const { updatedTaskOffsets, evictedTaskIds } = await generateTaskAttachments(toolUseContext.getAppState())
+  applyTaskOffsetsAndEvictions(toolUseContext.setAppState, updatedTaskOffsets, evictedTaskIds)
+  return []
 }
 
+type AsyncHookResponse = Awaited<ReturnType<typeof checkForAsyncHookResponses>>[number]
+
+const asyncHookAttachment = (delivered: AsyncHookResponse): Attachment => ({
+  type: 'async_hook_response',
+  processId: delivered.processId,
+  hookName: delivered.hookName,
+  hookEvent: delivered.hookEvent,
+  toolName: delivered.toolName,
+  response: delivered.response,
+  stdout: delivered.stdout,
+  stderr: delivered.stderr,
+  exitCode: delivered.exitCode,
+})
+
 export async function getAsyncHookResponseAttachments(): Promise<Attachment[]> {
-  const responses = await checkForAsyncHookResponses()
-
-  if (responses.length === 0) {
-    return []
-  }
-
-  logForDebugging(
-    `Hooks: getAsyncHookResponseAttachments found ${responses.length} responses`,
-  )
-
-  const attachments = responses.map(
-    ({
-      processId,
-      response,
-      hookName,
-      hookEvent,
-      toolName,
-      extensionId,
-      stdout,
-      stderr,
-      exitCode,
-    }) => {
-      logForDebugging(
-        `Hooks: Creating attachment for ${processId} (${hookName}): ${jsonStringify(response)}`,
-      )
-      return {
-        type: 'async_hook_response' as const,
-        processId,
-        hookName,
-        hookEvent,
-        toolName,
-        response,
-        stdout,
-        stderr,
-        exitCode,
-      }
-    },
-  )
-
-  if (responses.length > 0) {
-    const processIds = responses.map(r => r.processId)
-    removeDeliveredAsyncHooks(processIds)
-    logForDebugging(
-      `Hooks: Removed ${processIds.length} delivered hooks from registry`,
-    )
-  }
-
-  logForDebugging(
-    `Hooks: getAsyncHookResponseAttachments found ${attachments.length} attachments`,
-  )
-
+  const finished = await checkForAsyncHookResponses()
+  if (finished.length === 0) return []
+  const attachments = finished.map(asyncHookAttachment)
+  removeDeliveredAsyncHooks(finished.map(response => response.processId))
   return attachments
 }

@@ -9,12 +9,15 @@ import {
   getManagedAndUserConditionalInstructionRules,
   getInstructionFilesForNestedDirectory,
 } from '../../services/instructions/engine.js'
+import type { FileState } from '../fileStateCache.js'
 import {
   executeInstructionsLoadedHooks,
   hasInstructionsLoadedHook,
+  type InstructionsLoadReason,
   type InstructionsMemoryType,
 } from '../hooks.js'
 import { logError } from '../log.js'
+import type { MemoryType } from '../memory/types.js'
 import { pathInAllowedWorkingPath } from '../permissions/filesystem.js'
 import type { Attachment } from './types.js'
 
@@ -49,15 +52,38 @@ export function getDirectoriesToProcess(
   return { nestedDirs, cwdLevelDirs }
 }
 
-function isInstructionsMemoryType(
-  type: InstructionSourceEntry['type'],
-): type is InstructionsMemoryType {
-  return (
-    type === 'User' ||
-    type === 'Project' ||
-    type === 'Local' ||
-    type === 'Managed'
-  )
+const hookMemoryTypes: ReadonlySet<MemoryType> = new Set<MemoryType>(['User', 'Project', 'Local', 'Managed'])
+
+const isHookMemoryType = (type: MemoryType): type is InstructionsMemoryType => hookMemoryTypes.has(type)
+
+const loadReasonOf = (entry: InstructionSourceEntry): InstructionsLoadReason =>
+  entry.globs ? 'path_glob_match' : entry.parent ? 'include' : 'nested_traversal'
+
+function instructionLoadAnnouncer(
+  triggerFilePath: string | undefined,
+): (entry: InstructionSourceEntry) => void {
+  if (!hasInstructionsLoadedHook()) return () => {}
+  return entry => {
+    if (!isHookMemoryType(entry.type)) return
+    void executeInstructionsLoadedHooks(entry.path, entry.type, loadReasonOf(entry), {
+      globs: entry.globs,
+      triggerFilePath,
+      parentFilePath: entry.parent,
+    })
+  }
+}
+
+function contextRecordOf(entry: InstructionSourceEntry): FileState {
+  const content = entry.contentDiffersFromDisk
+    ? entry.rawContent ?? entry.content
+    : entry.content
+  return {
+    content,
+    timestamp: Date.now(),
+    offset: undefined,
+    limit: undefined,
+    isPartialView: entry.contentDiffersFromDisk,
+  }
 }
 
 export function memoryFilesToAttachments(
@@ -65,54 +91,20 @@ export function memoryFilesToAttachments(
   toolUseContext: ToolUseContext,
   triggerFilePath?: string,
 ): Attachment[] {
-  const attachments: Attachment[] = []
-  const shouldFireHook = hasInstructionsLoadedHook()
-
-  for (const memoryFile of memoryFiles) {
-    if (toolUseContext.loadedNestedMemoryPaths?.has(memoryFile.path)) {
-      continue
-    }
-    if (!toolUseContext.readFileState.has(memoryFile.path)) {
-      attachments.push({
-        type: 'nested_memory',
-        path: memoryFile.path,
-        content: memoryFile,
-        displayPath: relative(getCwd(), memoryFile.path),
-      })
-      toolUseContext.loadedNestedMemoryPaths?.add(memoryFile.path)
-
-      toolUseContext.readFileState.set(memoryFile.path, {
-        content: memoryFile.contentDiffersFromDisk
-          ? (memoryFile.rawContent ?? memoryFile.content)
-          : memoryFile.content,
-        timestamp: Date.now(),
-        offset: undefined,
-        limit: undefined,
-        isPartialView: memoryFile.contentDiffersFromDisk,
-      })
-
-
-      if (shouldFireHook && isInstructionsMemoryType(memoryFile.type)) {
-        const loadReason = memoryFile.globs
-          ? 'path_glob_match'
-          : memoryFile.parent
-            ? 'include'
-            : 'nested_traversal'
-        void executeInstructionsLoadedHooks(
-          memoryFile.path,
-          memoryFile.type,
-          loadReason,
-          {
-            globs: memoryFile.globs,
-            triggerFilePath,
-            parentFilePath: memoryFile.parent,
-          },
-        )
-      }
-    }
-  }
-
-  return attachments
+  const { loadedNestedMemoryPaths: ledger, readFileState: cache } = toolUseContext
+  const announce = instructionLoadAnnouncer(triggerFilePath)
+  return memoryFiles.flatMap(entry => {
+    if (ledger?.has(entry.path) || cache.has(entry.path)) return []
+    ledger?.add(entry.path)
+    cache.set(entry.path, contextRecordOf(entry))
+    announce(entry)
+    return [{
+      type: 'nested_memory' as const,
+      path: entry.path,
+      content: entry,
+      displayPath: relative(getCwd(), entry.path),
+    }]
+  })
 }
 
 export async function getNestedMemoryAttachmentsForFile(
@@ -170,26 +162,13 @@ export async function getNestedMemoryAttachmentsForFile(
 export async function getNestedMemoryAttachments(
   toolUseContext: ToolUseContext,
 ): Promise<Attachment[]> {
-  if (
-    !toolUseContext.nestedMemoryAttachmentTriggers ||
-    toolUseContext.nestedMemoryAttachmentTriggers.size === 0
-  ) {
-    return []
-  }
-
+  const triggers = toolUseContext.nestedMemoryAttachmentTriggers
+  if (!triggers?.size) return []
   const appState = toolUseContext.getAppState()
-  const attachments: Attachment[] = []
-
-  for (const filePath of toolUseContext.nestedMemoryAttachmentTriggers) {
-    const nestedAttachments = await getNestedMemoryAttachmentsForFile(
-      filePath,
-      toolUseContext,
-      appState,
-    )
-    attachments.push(...nestedAttachments)
+  const loads: Attachment[][] = []
+  for (const touched of triggers) {
+    loads.push(await getNestedMemoryAttachmentsForFile(touched, toolUseContext, appState))
   }
-
-  toolUseContext.nestedMemoryAttachmentTriggers.clear()
-
-  return attachments
+  triggers.clear()
+  return loads.flat()
 }

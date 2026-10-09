@@ -75,48 +75,38 @@ export async function getQueuedCommandAttachments(
   )
 }
 
+const coordinatorCommand = (prompt: string): Attachment => ({
+  type: 'queued_command',
+  prompt,
+  origin: { kind: 'coordinator' },
+  isMeta: true,
+})
+
 export function getAgentPendingMessageAttachments(
   toolUseContext: ToolUseContext,
 ): Attachment[] {
-  const agentId = toolUseContext.agentId
+  const { agentId, getAppState, setAppStateForTasks, setAppState } = toolUseContext
   if (!agentId) return []
-  const drained = drainPendingMessages(
-    agentId,
-    toolUseContext.getAppState,
-    toolUseContext.setAppStateForTasks ?? toolUseContext.setAppState,
-  )
-  return drained.map(msg => ({
-    type: 'queued_command' as const,
-    prompt: msg,
-    origin: { kind: 'coordinator' as const },
-    isMeta: true,
-  }))
+  return drainPendingMessages(agentId, getAppState, setAppStateForTasks ?? setAppState).map(coordinatorCommand)
 }
+
+const imagePastesOf = (pasted: Record<number, PastedContent> | undefined): PastedContent[] =>
+  pasted ? Object.values(pasted).filter(isValidImagePaste) : []
+
+const pastedImageBlock = (paste: PastedContent): ImageBlockParam => ({
+  type: 'image',
+  source: {
+    type: 'base64',
+    media_type: (paste.mediaType || 'image/png') as Base64ImageSource['media_type'],
+    data: paste.content,
+  },
+})
 
 async function buildImageContentBlocks(
   pastedContents: Record<number, PastedContent> | undefined,
 ): Promise<ImageBlockParam[]> {
-  if (!pastedContents) {
-    return []
-  }
-  const imageContents = Object.values(pastedContents).filter(isValidImagePaste)
-  if (imageContents.length === 0) {
-    return []
-  }
-  const results = await Promise.all(
-    imageContents.map(async img => {
-      const imageBlock: ImageBlockParam = {
-        type: 'image',
-        source: {
-          type: 'base64',
-          media_type: (img.mediaType ||
-            'image/png') as Base64ImageSource['media_type'],
-          data: img.content,
-        },
-      }
-      const resized = await maybeResizeAndDownsampleImageBlock(imageBlock)
-      return resized.block
-    }),
+  const fitted = await Promise.all(
+    imagePastesOf(pastedContents).map(paste => maybeResizeAndDownsampleImageBlock(pastedImageBlock(paste))),
   )
-  return results
+  return fitted.map(result => result.block)
 }

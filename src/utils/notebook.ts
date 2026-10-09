@@ -59,14 +59,11 @@ function processOutput(output: NotebookCellOutput): NotebookCellSourceOutput | u
   }
 }
 
+const outputWeight = (output: NotebookCellSourceOutput | undefined): number =>
+  output ? (output.text?.length ?? 0) + (output.image?.image_data.length ?? 0) : 0
+
 function outputsAreLarge(outputs: Array<NotebookCellSourceOutput | undefined>): boolean {
-  let total = 0
-  for (const output of outputs) {
-    if (!output) continue
-    total += (output.text?.length ?? 0) + (output.image?.image_data.length ?? 0)
-    if (total > LARGE_OUTPUT_THRESHOLD) return true
-  }
-  return false
+  return outputs.reduce((total, output) => total + outputWeight(output), 0) > LARGE_OUTPUT_THRESHOLD
 }
 
 function processCell(cell: NotebookCell, index: number, language: string, includeLargeOutputs: boolean): NotebookCellSource {

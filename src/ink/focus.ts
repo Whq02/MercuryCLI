@@ -14,6 +14,12 @@ function isElement(node: DOMNode): node is DOMElement {
   return node.nodeName !== '#text'
 }
 
+function rememberFocused(history: DOMElement[], element: DOMElement): void {
+  const earlier = history.indexOf(element)
+  if (earlier !== -1) history.splice(earlier, 1)
+  if (history.push(element) > FOCUS_STACK_LIMIT) history.shift()
+}
+
 export class FocusManager {
   activeElement: DOMElement | null = null
   private enabled = true
@@ -28,14 +34,10 @@ export class FocusManager {
   }
 
   focus(node: DOMElement): void {
-    if (node === this.activeElement) return
-    if (!this.enabled) return
+    if (!this.enabled || node === this.activeElement) return
     const previous = this.activeElement
     if (previous) {
-      const existing = this.stack.indexOf(previous)
-      if (existing !== -1) this.stack.splice(existing, 1)
-      this.stack.push(previous)
-      if (this.stack.length > FOCUS_STACK_LIMIT) this.stack.shift()
+      rememberFocused(this.stack, previous)
       this.dispatchFocusEvent(previous, new FocusEvent('blur', node))
     }
     this.activeElement = node

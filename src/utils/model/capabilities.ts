@@ -848,44 +848,40 @@ export function getToolSearchBetaHeader(): string {
 
 const ALLOWED_SDK_BETAS = [CONTEXT_1M_BETA_HEADER]
 
+const isAllowedSdkBeta = (beta: string): boolean => ALLOWED_SDK_BETAS.includes(beta)
+
 function partitionBetasByAllowlist(betas: string[]): {
   allowed: string[]
   disallowed: string[]
 } {
-  const allowed: string[] = []
-  const disallowed: string[] = []
-  for (const beta of betas) {
-    if (ALLOWED_SDK_BETAS.includes(beta)) {
-      allowed.push(beta)
-    } else {
-      disallowed.push(beta)
-    }
+  return {
+    allowed: betas.filter(isAllowedSdkBeta),
+    disallowed: betas.filter(beta => !isAllowedSdkBeta(beta)),
   }
-  return { allowed, disallowed }
+}
+
+function vetSdkBetas(betas: string[]): { kept: string[]; warnings: string[] } {
+  if (isClaudeAISubscriber()) {
+    return { kept: [], warnings: ['--provider-preview headers ride only on an API key; a subscription sign-in sends none of them.'] }
+  }
+  const { allowed, disallowed } = partitionBetasByAllowlist(betas)
+  return {
+    kept: allowed,
+    warnings: disallowed.map(beta => `--provider-preview ${beta} is not a header Mercury sends; the ones it does: ${ALLOWED_SDK_BETAS.join(', ')}`),
+  }
 }
 
 export function filterAllowedSdkBetas(
   sdkBetas: string[] | undefined,
 ): string[] | undefined {
-  if (!sdkBetas || sdkBetas.length === 0) {
-    return undefined
+  if (!sdkBetas?.length) return undefined
+  const { kept, warnings } = vetSdkBetas(sdkBetas)
+  for (const warning of warnings) {
+    console.warn(warning)
   }
-
-  if (isClaudeAISubscriber()) {
-    console.warn(
-      'Warning: Custom betas are only available for API key users. Ignoring provided betas.',
-    )
-    return undefined
-  }
-
-  const { allowed, disallowed } = partitionBetasByAllowlist(sdkBetas)
-  for (const beta of disallowed) {
-    console.warn(
-      `Warning: Beta header '${beta}' is not allowed. Only the following betas are supported: ${ALLOWED_SDK_BETAS.join(', ')}`,
-    )
-  }
-  return allowed.length > 0 ? allowed : undefined
+  return kept.length > 0 ? kept : undefined
 }
+
 
 const KEY_SEP = String.fromCharCode(0)
 

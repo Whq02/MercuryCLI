@@ -5,7 +5,7 @@ import { getCwd } from '../../utils/cwd.js'
 import { logForDebugging } from '../debug.js'
 import { normalizePathForConfigKey } from '../path.js'
 
-import { DEFAULT_PROJECT_CONFIG } from './schema.js'
+import { DEFAULT_PROJECT_CONFIG, type GlobalConfig } from './schema.js'
 import { getGlobalConfig, saveGlobalConfig } from './globalConfig.js'
 import { getProjectPathForConfig, saveCurrentProjectConfigDeferred } from './projectConfig.js'
 
@@ -28,46 +28,34 @@ export function untrustedWorkspaceHeadless(): boolean {
   }
 }
 
-function computeTrustDialogAccepted(): boolean {
-  if (getSessionTrustAccepted()) {
-    return true
-  }
-
-  const config = getGlobalConfig()
-
-  const projectPath = getProjectPathForConfig()
-  const projectConfig = config.projects?.[projectPath]
-  if (projectConfig?.hasTrustDialogAccepted) {
-    return true
-  }
-
-  let currentPath = normalizePathForConfigKey(getCwd())
-
+function* ancestorKeys(start: string): Generator<string> {
+  let key = normalizePathForConfigKey(start)
   while (true) {
-    const pathConfig = config.projects?.[currentPath]
-    if (pathConfig?.hasTrustDialogAccepted) {
-      return true
-    }
-
-    const parentPath = normalizePathForConfigKey(resolve(currentPath, '..'))
-    if (parentPath === currentPath) {
-      break
-    }
-    currentPath = parentPath
+    yield key
+    const parent = normalizePathForConfigKey(resolve(key, '..'))
+    if (parent === key) return
+    key = parent
   }
+}
 
+function grantedUnder(projects: GlobalConfig['projects'], keys: Iterable<string>): boolean {
+  for (const key of keys) {
+    if (projects?.[key]?.hasTrustDialogAccepted) return true
+  }
   return false
 }
 
+function computeTrustDialogAccepted(): boolean {
+  if (getSessionTrustAccepted()) return true
+  const { projects } = getGlobalConfig()
+  return (
+    grantedUnder(projects, [getProjectPathForConfig()]) ||
+    grantedUnder(projects, ancestorKeys(getCwd()))
+  )
+}
+
 export function isPathTrusted(dir: string): boolean {
-  const config = getGlobalConfig()
-  let currentPath = normalizePathForConfigKey(resolve(dir))
-  while (true) {
-    if (config.projects?.[currentPath]?.hasTrustDialogAccepted) return true
-    const parentPath = normalizePathForConfigKey(resolve(currentPath, '..'))
-    if (parentPath === currentPath) return false
-    currentPath = parentPath
-  }
+  return grantedUnder(getGlobalConfig().projects, ancestorKeys(resolve(dir)))
 }
 
 export function setPathTrusted(dir: string): void {
