@@ -5,7 +5,7 @@ import { parseFrontmatter, type FrontmatterData } from '../../utils/frontmatterP
 import {
   HOOK_EVENT_NAMES,
   type ExtensionManifest,
-  type ManifestHookMatcher,
+  type ManifestHook,
   type ManifestServer,
   resolveInsideRoot,
   serverRuntimeName,
@@ -18,8 +18,7 @@ export type ResolvedCommand = { name: string; file: string; body: string; frontm
 export type ResolvedAgent = { agentType: string; file: string; body: string; frontmatter: FrontmatterData; ignoredFields: string[] }
 export type ResolvedHook = {
   event: string
-  matcher: string | undefined
-  hook: ManifestHookMatcher['hooks'][number]
+  hook: ManifestHook
   commandLine: string
   scriptPath: string | null
 }
@@ -324,33 +323,31 @@ export function resolveContributions(
     if (loaded === 0) defects.push(`agents ${dir}: no agent found (an agent is an <agent>.md definition)`)
   }
 
-  for (const [event, matchers] of Object.entries(c.hooks ?? {})) {
+  for (const [event, entries] of Object.entries(c.hooks ?? {})) {
     if (!HOOK_EVENT_NAMES.has(event)) {
       defects.push(`hook ${event}: not a hook event Mercury fires — skipped`)
       continue
     }
-    for (const matcher of matchers) {
-      for (const hook of matcher.hooks) {
-        const commandLine = substitute(hook.command)
-        const script = hookScriptPath(commandLine, root)
-        if (script !== null && 'escaped' in script) {
-          defects.push(`hook ${event}: script ${script.escaped} escapes the extension root — skipped`)
+    for (const hook of entries) {
+      const commandLine = substitute(hook.run)
+      const script = hookScriptPath(commandLine, root)
+      if (script !== null && 'escaped' in script) {
+        defects.push(`hook ${event}: script ${script.escaped} escapes the extension root — skipped`)
+        continue
+      }
+      let scriptPath: string | null = null
+      if (script) {
+        scriptPath = script.path
+        if (!existsSync(script.path)) {
+          defects.push(`hook ${basename(script.path)}: file missing (${event})`)
           continue
         }
-        let scriptPath: string | null = null
-        if (script) {
-          scriptPath = script.path
-          if (!existsSync(script.path)) {
-            defects.push(`hook ${basename(script.path)}: file missing (${event})`)
-            continue
-          }
-          if (script.direct && !isExecutable(script.path)) {
-            defects.push(`hook ${basename(script.path)}: not executable (${event}) — chmod +x fixes it`)
-            continue
-          }
+        if (script.direct && !isExecutable(script.path)) {
+          defects.push(`hook ${basename(script.path)}: not executable (${event}) — chmod +x fixes it`)
+          continue
         }
-        result.hooks.push({ event, matcher: matcher.matcher, hook, commandLine, scriptPath })
       }
+      result.hooks.push({ event, hook, commandLine, scriptPath })
     }
   }
 

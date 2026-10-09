@@ -2,6 +2,6 @@
   "name": "needs-probe",
   "version": "1.0.0",
   "description": "a bundled fixture with an unmet need",
-  "contributes": { "hooks": { "SessionStart": [ { "hooks": [ { "type": "command", "command": "true" } ] } ] } },
+  "contributes": { "hooks": { "session.start": [ { "run": "true" } ] } },
   "needs": { "binaries": ["fixture-binary-that-does-not-exist"] }
 }

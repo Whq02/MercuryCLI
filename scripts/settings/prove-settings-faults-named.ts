@@ -49,9 +49,9 @@ section('§1 an unknown settings key is a named warning at load — the file sti
   check('a typo inside a known group is named with its group path', nested.errors.length === 1 && nested.errors[0]?.path === 'engine' && nested.errors[0]?.message === 'Unrecognized field: modell', JSON.stringify(nested.errors))
   const both = parse({ zzFieldUnknownKey: true, engine: { modell: 'x' } })
   check('two unknown keys are two records', both.errors.length === 2 && both.errors.every(e => e.severity === 'warning'), JSON.stringify(both.errors.map(e => `${e.path}:${e.message}`)))
-  const clean = parse({ $schema: 'x', engine: { model: 'claude-opus-5-5', effort: 'high' }, guardrails: { allow: ['Read'] }, events: { hooks: { PreToolUse: [{ matcher: '*', hooks: [{ type: 'command', command: 'true' }] }] } } })
+  const clean = parse({ $schema: 'x', engine: { model: 'claude-opus-5-5', effort: 'high' }, guardrails: { allow: ['Read'] }, events: { hooks: { 'tool.before': [{ match: '*', run: 'true' }] } } })
   check('a clean file with every declared shape loads with zero records', clean.errors.length === 0, JSON.stringify(clean.errors).slice(0, 200))
-  const beside = parse({ engine: { modell: 'x' }, events: { hooks: { PreToolUse: [{ matcher: 'startu[p', hooks: [{ type: 'command', command: 'true' }] }] } } })
+  const beside = parse({ engine: { modell: 'x' }, events: { hooks: { 'tool.before': [{ match: 'startu[p', run: 'true' }] } } })
   check('an unknown key beside a refused hook entry: both named, both warnings', beside.errors.length === 2 && beside.errors.some(e => /not a valid regular expression/.test(e.message)) && beside.errors.some(e => e.message === 'Unrecognized field: modell'), JSON.stringify(beside.errors.map(e => e.message)))
   const line = settingsFaultLine(nested.errors[0]!)
   check('the one-line form names the file, the path, the words and the effect', /settings: .*case-1\.json · engine · Unrecognized field: modell — this value is skipped; the rest of the file applies$/.test(line), line)
@@ -122,12 +122,12 @@ section('§2 the built product: health names the unknown key where it reports se
 
 section('§3 the built product: a headless run names every settings fault on stderr before it answers anything')
 {
-  const world = mkWorld('r', { engine: { modell: 'x' }, events: { hooks: { PostToolUse: [{ matcher: 'startu[p', hooks: [{ type: 'command', command: 'true' }] }] } } }, null)
+  const world = mkWorld('r', { engine: { modell: 'x' }, events: { hooks: { 'tool.after': [{ match: 'startu[p', run: 'true' }] } } }, null)
   const r = await run(world, ['run', '--format', 'text', '--resume', 'notauuid', 'hi'])
   check('the run still refuses the bad resume target as a usage error (exit 2) — no model call', r.code === 2, `${r.code} · ${r.err.trim().slice(0, 160)}`)
   const lines = r.err.split('\n').filter(l => /settings: /.test(l))
   check('two settings lines on stderr, one per fault', lines.length === 2, r.err.trim().slice(0, 400))
-  check('the refused hook entry is named with its path and words', lines.some(l => /settings\.json · events\.hooks\.PostToolUse\.0 · matcher is not a valid regular expression: "startu\[p" — this value is skipped; the rest of the file applies/.test(l)), lines.join(' | '))
+  check('the refused hook entry is named with its path and words', lines.some(l => /settings\.json · events\.hooks\.tool\.after\.0 · match is not a valid regular expression: "startu\[p" — this value is skipped; the rest of the file applies/.test(l)), lines.join(' | '))
   check('the unknown key is named with the generic words', lines.some(l => /settings\.json · engine · Unrecognized field: modell — this value is skipped; the rest of the file applies/.test(l)), lines.join(' | '))
   check('nothing about settings reaches stdout', !/settings: /.test(r.out), r.out.slice(0, 200))
   const clean = mkWorld('k', { engine: { model: 'claude-opus-5-5' } }, null)
@@ -135,7 +135,7 @@ section('§3 the built product: a headless run names every settings fault on std
   check('a clean settings file draws no settings line', c.code === 2 && !/settings: /.test(c.err), c.err.trim().slice(0, 200))
 }
 
-section('§4 the built product: a "*" PostToolUse hook written as docs/HOOKS.md teaches fires on a real tool call')
+section('§4 the built product: a "*" tool.after hook written as docs/HOOKS.md teaches fires on a real tool call')
 {
   const { startFixtureApi } = await import('../lib/fixtureApi.ts')
   const api = await startFixtureApi([
@@ -144,7 +144,7 @@ section('§4 the built product: a "*" PostToolUse hook written as docs/HOOKS.md 
   ])
   const mark = join(SHORT, 'h', 'hook-fired.log')
   const world = mkWorld('h', {
-    events: { hooks: { PostToolUse: [{ matcher: '*', hooks: [{ type: 'command', command: `cat >> "${mark}"; printf '\\n' >> "${mark}"` }] }] } },
+    events: { hooks: { 'tool.after': [{ match: '*', run: `cat >> "${mark}"; printf '\\n' >> "${mark}"` }] } },
   }, api.url)
   writeFileSync(join(world.cwd, 'note.txt'), 'the note\n')
   const h = await run(world, ['health', '--json'])
@@ -157,7 +157,7 @@ section('§4 the built product: a "*" PostToolUse hook written as docs/HOOKS.md 
   check('the hook fired once, for the one tool call', fired.length === 1, `${fired.length} record(s)`)
   let record: Record<string, unknown> = {}
   try { record = JSON.parse(fired[0] ?? '{}') as Record<string, unknown> } catch { record = {} }
-  check('…with the documented PostToolUse input (event, tool name, tool input, tool response)', record.hook_event_name === 'PostToolUse' && record.tool_name === 'Read' && typeof record.tool_input === 'object' && 'tool_response' in record, JSON.stringify(Object.keys(record)))
+  check('…with the documented tool.after input (event, tool, input, output, ok)', record.event === 'tool.after' && record.tool === 'Read' && typeof record.input === 'object' && 'output' in record && record.ok === true, JSON.stringify(Object.keys(record)))
   await api.close()
 }
 

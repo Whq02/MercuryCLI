@@ -1,33 +1,24 @@
-import { HOOK_EVENTS } from './contract.js'
-
 import type { HooksSettings } from '../settings/types.js'
 import type { SetAppState } from '../messageQueueManager.js'
-import { logForDebugging } from '../debug.js'
-import { addSessionHook } from './sessionHooks.js'
+import { addSessionHooks, removeSessionHooks, type HookScope } from './sessionHooks.js'
 
-export function registerFrontmatterHooks(
-  setAppState: SetAppState,
-  sessionId: string,
-  hooks: HooksSettings,
-  sourceName: string,
-  isAgent?: boolean,
-): void {
-  if (!hooks || Object.keys(hooks).length === 0) return
-  let registered = 0
-  for (const event of HOOK_EVENTS) {
-    let targetEvent = event
-    if (isAgent && event === 'Stop') {
-      targetEvent = 'SubagentStop'
-      logForDebugging(`frontmatter hooks (${sourceName}): converted Stop to SubagentStop`)
-    }
-    for (const matcherGroup of hooks[event] ?? []) {
-      for (const hook of matcherGroup.hooks ?? []) {
-        addSessionHook(setAppState, sessionId, targetEvent, matcherGroup.matcher ?? '', hook)
-        registered += 1
-      }
-    }
-  }
-  if (registered > 0) {
-    logForDebugging(`frontmatter hooks (${sourceName}): registered ${registered}`)
-  }
+export function registerAgentHooks(setAppState: SetAppState, scope: HookScope, hooks: HooksSettings | undefined, agentType: string): number {
+  if (hooks === undefined) return 0
+  return addSessionHooks(setAppState, scope, hooks, { kind: 'agent', type: agentType })
 }
+
+export function registerSkillHooks(
+  setAppState: SetAppState,
+  scope: HookScope,
+  hooks: HooksSettings | undefined,
+  skill: { name: string; root: string },
+): number {
+  if (hooks === undefined) return 0
+  return addSessionHooks(setAppState, scope, hooks, { kind: 'skill', name: skill.name, root: skill.root })
+}
+
+export function unregisterSkillHooks(setAppState: SetAppState, scope: HookScope, skill: { name: string; root: string }): void {
+  removeSessionHooks(setAppState, scope, { kind: 'skill', name: skill.name, root: skill.root })
+}
+
+export { registerFrontmatterHooks } from './oldRoad.js'

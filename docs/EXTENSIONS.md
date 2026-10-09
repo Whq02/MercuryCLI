@@ -40,9 +40,9 @@ reserved to built-ins:
 - **agents** — directories of `<agent>.md`; registered as agent type `<name>:<agent>`.
   Privilege-raising frontmatter (`permissionMode`, `hooks`, `mcpServers`) is ignored with
   a health note: an extension agent runs under the session's mode, always.
-- **hooks** — the operator's own hooks shape: event → matchers → command hooks. Only
-  command hooks; each is time-bounded, its output is bounded, and a failing hook is
-  logged and counted, never fatal to the session.
+- **hooks** — the operator's own hooks shape: event → entries, `run` entries only, each
+  with its own `match` ([HOOKS.md](HOOKS.md)); each is time-bounded, its output is
+  bounded, and a failing hook is logged and counted, never fatal to the session.
 - **servers** — MCP servers (`stdio`, `http`, or `sse`), connected as
   `ext:<name>:<server>`; their tools reach the model like any MCP tool and pass the
   permission engine like any MCP tool.
@@ -87,7 +87,7 @@ model reads and arrives for real only in hook and server environments.
 | `contributes.skills` | list of string | no | Directories whose child directories each hold a SKILL.md — one skill each, registered as /<name>:<skill>. |
 | `contributes.commands` | list of string | no | Directories of <cmd>.md prompt files (one level deep; a subdirectory namespaces /<name>:<dir>:<cmd>), registered as /<name>:<cmd>. |
 | `contributes.agents` | list of string | no | Directories of <agent>.md definitions, registered as agent type <name>:<agent>. Privilege-raising frontmatter (permission mode, hooks, servers) is ignored with a health note. |
-| `contributes.hooks` | map of name → list of object | no | Hook event name → matchers → command hooks, the operator's own hooks shape. The event names are the hook registry's list; a name outside it is skipped with a health note. |
+| `contributes.hooks` | map of name → list of object | no | Hook event name → command hooks, the operator's own hooks shape (`run` entries only, each with its own `match`). The event names are the one table's; a name outside it is skipped with a health note. |
 | `contributes.servers` | map of name → object or object | no | MCP servers by short name, the operator's own server shape (stdio, http or sse). Connected as ext:<name>:<server>; their tools pass the permission engine like any MCP tool. |
 | `contributes.language` | map of name → object | no | Language servers by short name, Mercury's language-server config shape. Started as ext:<name>:<server>. |
 | `contributes.language.<name>.command` | string | yes | The executable to spawn (a bare name is looked up on PATH; an absolute path may contain spaces). |

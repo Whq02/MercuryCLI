@@ -17,27 +17,17 @@
       "./agents"
     ],
     "hooks": {
-      "PostToolUse": [
+      "tool.after": [
         {
-          "matcher": "Write|Edit",
-          "hooks": [
-            {
-              "type": "command",
-              "command": "sh ${MERCURY_EXTENSION_ROOT}/bin/fixture-hook.sh",
-              "timeout": 30
-            }
-          ]
+          "match": "Write|Edit",
+          "run": "sh ${MERCURY_EXTENSION_ROOT}/bin/fixture-hook.sh",
+          "timeout": 30
         }
       ],
-      "SessionStart": [
+      "session.start": [
         {
-          "hooks": [
-            {
-              "type": "command",
-              "command": "sh ${MERCURY_EXTENSION_ROOT}/bin/fixture-hook.sh",
-              "timeout": 30
-            }
-          ]
+          "run": "sh ${MERCURY_EXTENSION_ROOT}/bin/fixture-hook.sh",
+          "timeout": 30
         }
       ]
     },

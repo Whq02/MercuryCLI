@@ -1,56 +1,53 @@
-
 import * as React from 'react'
 import { Text } from '../../ink.js'
 import type { HookEvent } from '../../utils/hooks/contract.js'
-import type { IndividualHookConfig } from '../../utils/hooks/hooksSettings.js'
-import { hookSourceInlineDisplayString } from '../../utils/hooks/hooksSettings.js'
+import type { HookEventCard } from '../../utils/hooks/hooksConfigManager.js'
+import { hookSourceShortWords, type HookRow } from '../../utils/hooks/hooksSettings.js'
 import { plural } from '../../utils/stringUtils.js'
 import { Dialog } from '../design-system/Dialog.js'
 import { Select } from '../CustomSelect/select.js'
 
 export const ALL_MATCHER_MARKER = '*'
 
+export function matchFieldWords(card: HookEventCard): string {
+  if (card.match === undefined) return 'no match field'
+  const values = card.matchValues
+  return values !== undefined && values.length > 0 ? `match: ${card.match} (${values.join(', ')})` : `match: ${card.match}`
+}
+
 export function SelectMatcherMode({
   event,
-  eventSummary,
-  matchers,
-  hooksByMatcher,
-  availableToolNames,
+  card,
+  matches,
+  hooksByMatch,
   onSelect,
   onBack,
 }: {
   event: HookEvent
-  eventSummary: string
-  matchers: string[]
-  hooksByMatcher: Record<string, IndividualHookConfig[]>
-  availableToolNames: string[]
-  onSelect: (matcher: string) => void
+  card: HookEventCard
+  matches: string[]
+  hooksByMatch: Record<string, HookRow[]>
+  onSelect: (match: string) => void
   onBack: () => void
 }): React.ReactNode {
-  void availableToolNames
-
-  if (matchers.length === 0) {
+  const subtitle = `${card.moment} ${matchFieldWords(card)}`
+  if (matches.length === 0) {
     return (
-      <Dialog title={event} subtitle={eventSummary} onCancel={onBack}>
-        <Text dimColor>
-          No matchers are configured for this event. Add hooks in
-          settings.json (or ask Mercury). esc goes back.
-        </Text>
+      <Dialog title={event} subtitle={subtitle} onCancel={onBack}>
+        <Text dimColor>No hooks are configured for this event. Add hooks in settings.json (or ask Mercury). esc goes back.</Text>
       </Dialog>
     )
   }
 
   return (
-    <Dialog title={event} subtitle={eventSummary} onCancel={onBack}>
+    <Dialog title={event} subtitle={subtitle} onCancel={onBack}>
       <Select
-        options={matchers.map(matcher => {
-          const rows = hooksByMatcher[matcher] ?? []
-          const sources = [
-            ...new Set(rows.map(row => hookSourceInlineDisplayString(row.source))),
-          ].join(', ')
+        options={matches.map(match => {
+          const rows = hooksByMatch[match] ?? []
+          const sources = [...new Set(rows.map(row => hookSourceShortWords(row.source)))].join(', ')
           return {
-            label: `[${sources}] ${matcher === '' ? ALL_MATCHER_MARKER : matcher}`,
-            value: matcher,
+            label: `[${sources}] ${match === '' ? ALL_MATCHER_MARKER : match}`,
+            value: match,
             description: `${rows.length} ${plural(rows.length, 'hook')}`,
           }
         })}

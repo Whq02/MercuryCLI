@@ -52,7 +52,7 @@ const CELLS: [string, number][] = [
   ['Opus 4.8', 11], ['Sonnet 4.6', 11], ['Haiku 4.5', 11],
   ['markdown', 10], ['json', 10], ['html', 10],
   ['1.0.0-beta.1', 12],
-  ['PreToolUse', 13], ['PostToolUse', 13], ['Stop', 13],
+  ['tool.before', 13], ['tool.after', 13], ['turn.answer', 13],
   ['↑↓', 6], ['↵', 6], ['esc', 6], ['^c', 6], ['^d', 6], ['^r', 6], ['^t', 6], ['^⇧o', 6], ['^o', 6],
   ['build dist', 14], ['run tests', 14], ['deploy', 14],
   ['network', 12], ['filesystem', 12], ['exec', 12],
