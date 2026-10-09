@@ -146,7 +146,7 @@ for (const arm of [apple, full, clamped]) {
   check(`${arm.name}: the three marks were taken`, ['theme', 'boot', 'session'].every(m => arm.marks.has(m)), [...arm.marks.keys()].join(','))
   const theme = arm.marks.get('theme')
   const text = theme ? textOf(theme) : ''
-  check(`${arm.name}: the theme screen shows the rows, the mascot and the code preview`, text.includes('Oasis dark') && text.includes('True Black') && text.includes('bootHelm') && theme !== undefined && halfBlocks(theme) > 20, text.slice(0, 300))
+  check(`${arm.name}: the theme screen shows the rows, the mascot and the code preview`, text.includes('Oasis dark') && text.includes('True Black') && text.includes('bootHelm') && theme !== undefined && mascotRows(theme).length >= 3, theme === undefined ? 'no theme mark' : `${mascotRows(theme).length} mascot rows · ${halfBlocks(theme)} half blocks · ${text.replace(/\s+/g, ' ').trim().slice(0, 160)}`)
   const session = arm.marks.get('session')
   check(`${arm.name}: the session header carries the mascot`, session !== undefined && mascotRows(session).length >= 5)
 }
