@@ -9,21 +9,21 @@
 
    ╭────────────────────────────────────────────────────────────────╮  ╭────────────────────────────────────────────╮
    │ CONTROL PLANE                                                  │  │ SETTING DETAIL                             │
-   │ signed in                                                      │  │ ❯ Kimi (Moonshot) — device-code sign-in o… │
+   │ signed in                                                      │  │ ❯ Mistral — API key (Mistral Large 4)      │
    │   OpenAI — ChatGPT subscription or API key        ChatGPT Plus │  │                                            │
-   │   Claude subscription account                   op@example.com │  │ Moonshot                                   │
-   │   Hugging Face — device-code sign-in or a…      keyed-op …k9f2 │  │                                            │
-   │ ❯ Kimi (Moonshot) — device-code sign-in o… kimi.ai (global) ·… │  │ Kimi (Moonshot) — device-code sign-in      │
-   │                                                                │  │ or API key                                 │
-   │ available                                                      │  │                                            │
-   │   Usage-based billing — Anthropic Console…       not signed in │  │ state: kimi.ai (global) · window reached   │
-   │   OpenRouter — one credential, the whole …       not signed in │  │ · Kimi sign-in — kimi.ai (global)          │
-   │   Google Gemini — API key or Google OAuth        not signed in │  │                                            │
-   │   GLM (Z.AI) — API key (general or GLM Co…       not signed in │  │ ready · oauth · window reached             │
-   │   DeepSeek — API key                             not signed in │  │                                            │
+   │   Claude subscription account                   op@example.com │  │ Mistral API key                            │
+   │   Hugging Face — device-code sign-in or a…      keyed-op …k9f2 │  │ API key: console.mistral.ai/api-keys       │
+   │   Kimi (Moonshot) — device-code sign-in o… kimi.ai (global) ·… │  │ — sign in, API Keys, create,               │
+   │                                                                │  │ paste it here.                             │
+   │ available                                                      │  │ Proven on the model list first; stored     │
+   │   Usage-based billing — Anthropic Console…       not signed in │  │ auth-scoped (mode 600);                    │
+   │   OpenRouter — one credential, the whole …       not signed in │  │ MISTRAL_API_KEY wins. An optional          │
+   │   Google Gemini — API key or Google OAuth        not signed in │  │ Admin API key follows for /usage.          │
+   │   GLM (Z.AI) — API key (general or GLM Co…       not signed in │  │ key: ▌                                     │
+   │   DeepSeek — API key                             not signed in │  │ ↵ stores · empty keeps existing · esc back │
    │   xAI — Grok subscription sign-in or API …       not signed in │  ╰────────────────────────────────────────────╯
    │   Meta — API key (Muse)                          not signed in │  ╭────────────────────────────────────────────╮
-   │   Mistral — API key (Mistral Large 4)            not signed in │  │ LOGINS                                     │
+   │ ❯ Mistral — API key (Mistral Large 4)            not signed in │  │ LOGINS                                     │
    ╰────────────────────────────────────────────────────────────────╯  │ Families   11                              │
                                                                        │ Signed in  4 of 11                         │
                                                                        │ Ready      4 lanes                         │
@@ -35,6 +35,6 @@
                                                                        │ Dir        orchard-src                     │
                                                                        ╰────────────────────────────────────────────╯
    ╭────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
-   │ ● System ready  │  4 of 11 families signed in · 4 ready                                                        │
+   │ ● System ready  │  paste Mistral API key                                                                       │
    ╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
-                                             ↑↓ move · ↵ sign in · esc back
+                                                 ↵ store key · esc back
