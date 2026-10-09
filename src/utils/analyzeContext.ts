@@ -38,6 +38,8 @@ import { logError } from './log.js'
 import { normalizeMessagesForAPI } from './messages.js'
 import { asSystemPrompt } from './systemPromptType.js'
 import { contextFill, getCurrentUsage } from './tokens.js'
+import { declaredRouteOf } from '../services/providers/routeLaw.js'
+import { getEngineModel } from './model/model.js'
 import { estimateSkillFrontmatterTokens } from '../skills/loadSkillsDir.js'
 import { isToolSearchEnabled } from './toolSearch.js'
 
@@ -132,13 +134,38 @@ type ContextItemSource =
 
 type CountableMessage = { role: 'user' | 'assistant'; content: unknown }
 
+let counterRoadDown = false
+
+export function counterRoadIsDown(): boolean {
+  return counterRoadDown
+}
+
+function countingApplies(): boolean {
+  return declaredRouteOf(getEngineModel()) === 'anthropic'
+}
+
+function noteCounterAnsweredNothing(): null {
+  if (countingApplies() && !counterRoadDown) {
+    counterRoadDown = true
+    logForDebugging('analyzeContext: the token counter answered nothing on a route that serves it — the rest of this analysis asks no more', { level: 'warn' })
+  }
+  return null
+}
+
+async function apiCount(messages: CountableMessage[], tools: unknown[], system?: readonly TextBlockParam[]): Promise<number | null> {
+  if (counterRoadDown) return null
+  const count = await countMessagesTokensWithAPI(messages, tools, system)
+  return count ?? noteCounterAnsweredNothing()
+}
+
 async function countMessagesTokens(
   messages: CountableMessage[],
   tools: unknown[],
 ): Promise<number | null> {
+  if (counterRoadDown) return null
   try {
-    const apiCount = await countMessagesTokensWithAPI(messages, tools)
-    if (apiCount !== null) return apiCount
+    const count = await countMessagesTokensWithAPI(messages, tools)
+    if (count !== null) return count
     logForDebugging('analyzeContext: message token API returned nothing; trying secondary counter')
   } catch (err) {
     logForDebugging('analyzeContext: message token API failed; trying secondary counter')
@@ -152,7 +179,7 @@ async function countMessagesTokens(
     logForDebugging('analyzeContext: secondary token counter failed')
     logError(err)
   }
-  return null
+  return noteCounterAnsweredNothing()
 }
 
 async function countStringTokens(content: string): Promise<number | null> {
@@ -170,10 +197,10 @@ async function countMessagesInRequest(
   model: string,
 ): Promise<number | null> {
   const requestTools = await projectToolSchemas(roster, getToolPermissionContext, agentInfo, model)
-  const request = await countMessagesTokensWithAPI(messages, requestTools, requestSystem)
+  const request = await apiCount(messages, requestTools, requestSystem)
   if (request === null) return null
-  const prefix = await countMessagesTokensWithAPI([], requestTools, requestSystem)
-  const placeholder = await countMessagesTokensWithAPI([], [])
+  const prefix = await apiCount([], requestTools, requestSystem)
+  const placeholder = await apiCount([], [])
   if (prefix === null || placeholder === null) return null
   return Math.max(0, request - prefix + placeholder)
 }
@@ -586,6 +613,7 @@ export async function analyzeContextUsage(
   mainThreadAgentDefinition?: AgentDefinition,
   originalMessages?: Message[],
 ): Promise<ContextData> {
+  counterRoadDown = false
   const runtimeModel = model
   const contextWindow = getContextWindowForModel(runtimeModel, getSdkBetas())
 
