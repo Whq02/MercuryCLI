@@ -7,7 +7,7 @@
 # gate-watch: src/components/SwitchboardTagBar.tsx src/context/surfaceRoute.ts src/daemon/handshake.ts src/daemon/controlSocket.ts src/daemon/protocol.ts src/utils/cockpit/motionSetting.ts src/utils/cockpit/motionGovernor.ts
 # gate-watch: src/prompt/engineIdentity.ts src/constants/prompts.ts
 # gate-watch: assets/splash/mercury-splash.mjs assets/splash/splash-core.mjs docs/CREW.md
-# gate-watch: scripts/compact/overflowFixture.ts scripts/engine-durability/harness.ts scripts/lib/*
+# gate-watch: scripts/compact/overflowFixture.ts scripts/engine-durability/harness.ts scripts/lib/* scripts/daemon/dupline-world.ts
 # gate-watch: scripts/ops/launcher-mercury.sh
 # gate-watch: docs/ENGINES.md
 # gate-watch: src/rows/* src/runner/wire/*

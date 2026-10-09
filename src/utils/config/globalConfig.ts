@@ -218,6 +218,7 @@ export type GlobalConfigFieldDrop = { field: string; expected: ConfigFieldShape;
 const OPTIONAL_GLOBAL_CONFIG_FIELD_SHAPES: Record<string, ConfigFieldShape> = {
   claudeAiMcpEverConnected: 'list',
   concourseEnabled: 'boolean',
+  backgroundSessionsLaunchCrewmates: 'boolean',
   localModelWindows: 'object',
   localModelBatch: 'object',
 }

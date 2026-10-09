@@ -41,6 +41,7 @@ import { EFFORT_LEVELS, normalizeEffortLevelString } from '../utils/effort.js'
 import { getProjectDir } from '../utils/sessionStorage/paths.js'
 import { scanTranscriptLinesBackward } from '../utils/sessionStorage/transcriptReader.js'
 import { splitAppendSystemPrompt } from '../services/switchboard/runnerArgv.js'
+import { backgroundWorkerDelegationSentence } from '../services/switchboard/backgroundLaunch.js'
 import { writeSessionCloseReceipts } from '../services/switchboard/sessionReceipts.js'
 import { RetirementFence } from './runnerQuiescence.js'
 import type { RunnerDoor } from './runnerConnection.js'
@@ -535,7 +536,7 @@ export function buildConcourseWorkerSpec(args: {
     effort: args.effort ?? 'high',
     appendSystemPrompt: [
       "You run as a BACKGROUND session on the operator's switchboard.",
-      'Delegation (subagents/workflows) is available only while this session holds the workflows-allowed tag or the operator is present — when those tools are absent, plan and work single-handed; never wait for them.',
+      backgroundWorkerDelegationSentence(),
       "'Idle', 'wait', or 'stand by' means END YOUR TURN — the harness wakes you on the next delivery. Never hold a turn open with sleeps or timers to stay available.",
       ...(runnerArgv.append !== null ? ['', runnerArgv.append] : []),
     ].join('\n'),
