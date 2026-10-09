@@ -25,40 +25,34 @@ import { requestConversationPlan } from './apiPlan.js'
 
 const TOOL_REFERENCE_TURN_BOUNDARY = 'Tool loaded.'
 
+const anchorsAttachments = (message: Message): boolean =>
+  message.type === 'assistant' ||
+  (message.type === 'user' &&
+    Array.isArray(message.message.content) &&
+    message.message.content[0]?.type === 'tool_result')
+
 export function reorderAttachmentsForAPI(messages: Message[]): Message[] {
-  const result: Message[] = []
-  const pendingAttachments: AttachmentMessage[] = []
-
-  for (let i = messages.length - 1; i >= 0; i--) {
-    const message = messages[i]!
-
+  const ordered: Message[] = []
+  let lifted: AttachmentMessage[] = []
+  let rest: Message[] = []
+  const closeSegment = (): void => {
+    for (const attachment of lifted) ordered.push(attachment)
+    for (const message of rest) ordered.push(message)
+    lifted = []
+    rest = []
+  }
+  for (const message of messages) {
     if (message.type === 'attachment') {
-      pendingAttachments.push(message)
+      lifted.push(message)
+    } else if (anchorsAttachments(message)) {
+      closeSegment()
+      ordered.push(message)
     } else {
-      const isStoppingPoint =
-        message.type === 'assistant' ||
-        (message.type === 'user' &&
-          Array.isArray(message.message.content) &&
-          message.message.content[0]?.type === 'tool_result')
-
-      if (isStoppingPoint && pendingAttachments.length > 0) {
-        for (let j = 0; j < pendingAttachments.length; j++) {
-          result.push(pendingAttachments[j]!)
-        }
-        result.push(message)
-        pendingAttachments.length = 0
-      } else {
-        result.push(message)
-      }
+      rest.push(message)
     }
   }
-
-  for (let j = 0; j < pendingAttachments.length; j++) {
-    result.push(pendingAttachments[j]!)
-  }
-
-  result.reverse()
-  return result
+  closeSegment()
+  return ordered
 }
 
 export function isSystemLocalCommandMessage(
