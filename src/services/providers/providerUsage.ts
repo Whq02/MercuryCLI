@@ -151,6 +151,10 @@ function engineIdentityLive(id: RouterProviderId): string | undefined {
       return resolveXaiAccount()?.email
     }
     if (id === 'huggingface') return resolveHuggingfaceAccount()?.username
+    if (id === 'mistral') {
+      const { mistralObservedIdentityWords } = require('./mistral/mistralUsageState.js') as typeof import('./mistral/mistralUsageState.js')
+      return mistralObservedIdentityWords()
+    }
   } catch {
   }
   return undefined
@@ -486,6 +490,8 @@ export interface ActiveUsageReads {
   xaiManagementKeyPresent?: () => boolean
   xaiObserved?: typeof xaiObservedUsage
   xaiSubscriptionCredits?: typeof xaiObservedSubscriptionCredits
+  mistralAdminKeyPresent?: () => boolean
+  mistralObserved?: () => { identity: { email?: string; name?: string; organization?: string; workspace?: string } | null; limits: import('./mistral/mistralUsageState.js').MistralObservedLimits | null; failure: import('./mistral/mistralUsageState.js').MistralUsageFailure | null }
   moonshotAccount?: () => { kind: 'kimi-oauth' | 'api-key' } | undefined
   moonshotBalance?: () => MoonshotObservedBalanceView | null
   kimiManagedUsage?: () => KimiManagedUsageView | null
@@ -571,6 +577,11 @@ export async function refreshProviderUsage(provider: RouterProviderId, io?: Usag
           ...(io?.force !== undefined ? { force: io.force } : {}),
         })
         return
+      case 'mistral': {
+        const { refreshMistralUsage } = require('./mistral/mistralUsageState.js') as typeof import('./mistral/mistralUsageState.js')
+        await refreshMistralUsage(io)
+        return
+      }
       default:
         return
     }
@@ -663,6 +674,10 @@ function laneCredentialedLive(provider: RouterProviderId): boolean {
   if (provider === 'meta') {
     const { resolveMetaApiKey } = require('./meta/metaAccounts.js') as typeof import('./meta/metaAccounts.js')
     return resolveMetaApiKey() !== undefined
+  }
+  if (provider === 'mistral') {
+    const { resolveMistralApiKey } = require('./mistral/mistralAccounts.js') as typeof import('./mistral/mistralAccounts.js')
+    return resolveMistralApiKey() !== undefined
   }
   if (provider === 'deepseek') {
     const { resolveDeepseekApiKey } =
@@ -1647,6 +1662,52 @@ function deriveUsageForProvider(
     return credentialed
       ? { provider, sourceKind: 'api-key', label: 'API usage', shape: 'api-spend', windows: [], pools: [], credits: CREDITS_UNREPORTED, spend, tier: API_BILLING_TIER, absence: META_USAGE_ABSENCE }
       : { provider, sourceKind: 'none', label: 'Meta usage', shape: 'none', windows: [], pools: [], spend, whyNot: 'not connected — /logins meta adds a key' }
+  }
+  if (provider === 'mistral') {
+    const credentialed = reads?.laneCredentialed?.(provider) ?? laneCredentialedLive(provider)
+    if (!credentialed) return { provider, sourceKind: 'none', label: 'Mistral usage', shape: 'none', windows: [], pools: [], spend, whyNot: 'not connected — /logins mistral adds a key' }
+    const state = require('./mistral/mistralUsageState.js') as typeof import('./mistral/mistralUsageState.js')
+    const { resolveMistralAdminApiKey } = require('./mistral/mistralAccounts.js') as typeof import('./mistral/mistralAccounts.js')
+    const admin = reads?.mistralAdminKeyPresent?.() ?? resolveMistralAdminApiKey() !== undefined
+    const observed = (reads?.mistralObserved ?? state.mistralObservedUsage)()
+    const account = observed.identity?.email ?? observed.identity?.name
+    const scope = [observed.identity?.organization, observed.identity?.workspace].filter((part): part is string => typeof part === 'string' && part !== '').join(' / ')
+    const figures: UsageFigureView[] = []
+    const identityNote = observed.failure?.endpoint === 'identity' ? state.mistralUsageFailureWords(observed.failure) : undefined
+    if (account) figures.push({ key: 'account', label: 'account', value: scope ? `${account} (${scope})` : account })
+    if (!admin) return {
+      provider, sourceKind: 'api-key', label: 'API usage', shape: 'api-spend', windows: [], pools: [], spend, tier: API_BILLING_TIER,
+      credits: { state: 'unreported', reason: 'not read — an Admin API key unlocks the organisation meter', compact: 'needs admin key' },
+      absence: state.MISTRAL_ADMIN_KEY_HINT,
+      ...(figures.length ? { figures } : {}),
+      ...(identityNote ? { readerNote: identityNote, readerNoteCompact: identityNote } : {}),
+    }
+    const limits = observed.limits
+    const stamp = { source: 'endpoint' as const, observedAtMs: limits?.observedAtMs, freshForMs: usageStaleAfterMs() }
+    const spent = limits?.totalUsage ?? limits?.usage
+    let balance: { display: string; observedAtMs: number } | undefined
+    if (limits) {
+      if (spent !== undefined) figures.push({ key: 'month-usage', label: 'organisation usage this month', value: `${limits.currency} ${spent.toFixed(2)}`, ...stamp })
+      if (limits.vibeUsage !== undefined && limits.vibeUsage > 0) figures.push({ key: 'vibe-usage', label: 'of which Vibe usage', value: `${limits.currency} ${limits.vibeUsage.toFixed(2)}`, ...stamp })
+      if (limits.noMonthlyLimit) figures.push({ key: 'month-limit', label: 'monthly spend limit', value: 'none set', ...stamp })
+      else if (limits.usageLimit !== undefined) {
+        figures.push({ key: 'month-limit', label: 'monthly spend limit', value: `${limits.currency} ${limits.usageLimit.toFixed(2)}${limits.monthlyLimitReached ? ' · reached' : ''}`, ...stamp })
+        if (spent !== undefined) balance = { display: `${limits.currency} ${Math.max(0, limits.usageLimit - spent).toFixed(2)} left of the monthly limit`, observedAtMs: limits.observedAtMs }
+      }
+      if (limits.requestsPerSecond !== undefined) figures.push({ key: 'rate-limit', label: 'rate limit', value: `${limits.requestsPerSecond} requests/s`, ...stamp })
+      if (limits.lastPaymentFailure) figures.push({ key: 'payment', label: 'last payment', value: 'failed — check admin.mistral.ai', ...stamp })
+    }
+    const adminNote = observed.failure?.endpoint === 'admin' ? state.mistralUsageFailureWords(observed.failure) : undefined
+    const note = adminNote ?? identityNote
+    return {
+      provider, sourceKind: 'api-key', label: 'API usage', shape: 'api-spend', windows: [], pools: [], spend, tier: API_BILLING_TIER,
+      credits: balance ? polledBalanceCredits(balance) : limits
+        ? { state: 'unreported', reason: limits.noMonthlyLimit ? 'no monthly limit is set — usage is the figure' : 'the spend limit read states no figure', compact: limits.noMonthlyLimit ? 'no limit set' : 'not stated' }
+        : { state: 'unreported', reason: adminNote ? 'not read — see the usage reader note' : 'not read yet — /usage samples the Admin API', compact: 'not read' },
+      ...(balance ? { balance } : {}),
+      ...(figures.length ? { figures } : {}),
+      ...(note ? { readerNote: note, readerNoteCompact: note } : {}),
+    }
   }
   if (provider === 'deepseek' || provider === 'openai-compat') {
     const credentialed = reads?.laneCredentialed?.(provider) ?? laneCredentialedLive(provider)
