@@ -245,6 +245,12 @@ class ToolCallAbandonedError extends Error {
   }
 }
 
+function blockWords(content: ToolResultBlockParam['content']): string {
+  if (typeof content === 'string') return content
+  if (!Array.isArray(content)) return ''
+  return content.map(part => (part.type === 'text' ? part.text : '')).filter(Boolean).join('\n')
+}
+
 function settleUnderAbort<T>(
   call: Promise<T>,
   signal: AbortSignal,
@@ -822,9 +828,9 @@ async function runTransactionBody(args: {
     }
 
     const postStartedAt = Date.now()
-    const returnedError = effect?.outcome === 'failed'
+    const returnedError = effect?.outcome === 'failed' || mappedBlock.is_error === true
     const cut = signal.aborted
-    const error = returnedError ? effect.evidence : cut ? turnCutResultText(turnCutOf(signal.reason), tool.name) : undefined
+    const error = effect?.outcome === 'failed' ? effect.evidence : returnedError ? blockWords(mappedBlock.content) : cut ? turnCutResultText(turnCutOf(signal.reason), tool.name) : undefined
     const after = await afterToolHooks(
       tool,
       toolUseID,

@@ -224,9 +224,9 @@ section('D the source census: the settle sites in toolExecution.ts')
   check('the facts are minted in turnCut.ts and nowhere in toolExecution.ts', !PARTIAL.test(src) && PARTIAL.test(readFileSync(join(ROOT, 'src/utils/messages/turnCut.ts'), 'utf8')))
   check('the three never-started gates still settle through the shared shape with its default words', (src.match(/push\(interruptResultUpdate\(toolUseID, sourceUUID\)\)/g) ?? []).length === 3)
   check('CANCEL_MESSAGE is minted in rejectionText.ts and is the stop block factory\'s content', /export const CANCEL_MESSAGE =/.test(readFileSync(join(ROOT, 'src/utils/messages/rejectionText.ts'), 'utf8')) && /content: CANCEL_MESSAGE,/.test(readFileSync(join(ROOT, 'src/utils/messages/factories.ts'), 'utf8')))
-  check("the answered-abort settle keys on the turn's signal, runs the failure hooks, and reads the same words for the signal's reason", /const cutByTurn = isInterrupt && signal\.aborted[\s\S]*?if \(cutText !== undefined\) push\(interruptResultUpdate\(toolUseID, sourceUUID, cutText\)\)[\s\S]*?runPostToolUseFailureHooks\(/.test(src))
+  check("the answered-abort settle keys on the turn's signal, runs the tool.after hooks, and reads the same words for the signal's reason", /const cutByTurn = isInterrupt && signal\.aborted[\s\S]*?if \(cutText !== undefined\) push\(interruptResultUpdate\(toolUseID, sourceUUID, cutText\)\)[\s\S]*?afterToolHooks\(/.test(src))
   check('one arm for a cut, whichever road: the abandoned call and the answered call are one isInterrupt, one cutByTurn, one settle', /const isInterrupt = abandoned \|\| isAbortError\(error\)/.test(src) && (src.match(/push\(interruptResultUpdate\(toolUseID, sourceUUID, cutText\)\)/g) ?? []).length === 1 && !/ToolCallAbandonedError\) \{/.test(src))
-  check("the cut's hooks run under a signal of their own (the turn's is dead, and the engine drops any batch under an aborted signal) with the cut's words as the failure text and is_interrupt keyed on the cut", /cutText === undefined \? signal : undefined,\s*hookSeam,/.test(src) && /const message = cutText \?\? \(error instanceof Error \? error\.message : String\(error\)\)/.test(src) && /observableInput,\s*message,\s*cutByTurn,\s*toolUseContext,/.test(src) && /if \(matched\.length === 0 \|\| signal\?\.aborted\) return/.test(readFileSync(join(ROOT, 'src/utils/hooks/engine.ts'), 'utf8')))
+  check("the cut's hooks run under the cut budget alone (the turn's signal is dead, and a fire under an aborted signal fires nothing) with the cut's words as the error and cut keyed on the signal", /\{ ok: false, error: message, cut: signal\.aborted \}/.test(src) && /const message = cutText \?\? \(error instanceof Error \? error\.message : String\(error\)\)/.test(src) && /\.\.\.\(ended\.cut \? \{ budgetMs: HOOK_CUT_BUDGET_MS \} : \{ signal \}\)/.test(readFileSync(join(ROOT, 'src/services/tools/toolHooks.ts'), 'utf8')) && /if \(options\.signal\?\.aborted\) return nothingFired\(event\)/.test(readFileSync(join(ROOT, 'src/utils/hooks/fire.ts'), 'utf8')))
 }
 
 const abortNamed = (words: string): Error => Object.assign(new Error(words), { name: 'AbortError' })
@@ -299,14 +299,14 @@ section("E a started call that answers the interrupt with a bare AbortError sett
   }
 }
 
-section("F a cut is a failure for hooks: PostToolUseFailure fires once for a cut call on both roads, is_interrupt true, the cut's words as the failure text")
+section("F a cut is a failure for hooks: tool.after fires once for a cut call on both roads, ok false, cut true, the cut's words as the error")
 {
-  const { addSessionHook } = await import('../../src/utils/hooks/sessionHooks.ts')
+  const { addSessionHooks } = await import('../../src/utils/hooks/sessionHooks.ts')
   const { getSessionId, setIsInteractive } = await import('../../src/bootstrap/state.ts')
   setIsInteractive(false)
   const hookDir = mkdtempSync(join(tmpdir(), 'cancel-result-hooks-'))
   const recorder = (name: string): string => join(hookDir, `${name}.jsonl`)
-  type Fire = { hook_event_name?: string; tool_name?: string; tool_use_id?: string; error?: string; is_interrupt?: boolean }
+  type Fire = { event?: string; tool?: string; call_id?: string; error?: string; ok?: boolean; cut?: boolean }
   const fires = (name: string): Fire[] => (existsSync(recorder(name)) ? readFileSync(recorder(name), 'utf8').split('\n').filter(l => l.trim() !== '').map(l => JSON.parse(l) as Fire) : [])
   const hooked = (tool: Record<string, unknown>): { abortController: AbortController } & Record<string, unknown> => {
     const ctx = makeContext([tool])
@@ -314,7 +314,7 @@ section("F a cut is a failure for hooks: PostToolUseFailure fires once for a cut
       f((ctx.getAppState as () => unknown)())
     }
     ctx.setAppState = setAppState
-    addSessionHook(setAppState as never, getSessionId(), 'PostToolUseFailure', tool.name as string, { type: 'command', command: `cat >> ${recorder(tool.name as string)}; echo >> ${recorder(tool.name as string)}` })
+    addSessionHooks(setAppState as never, { sessionId: String(getSessionId()) }, { 'tool.after': [{ name: 'recorder', match: tool.name as string, run: `cat >> ${recorder(tool.name as string)}; echo >> ${recorder(tool.name as string)}` }] } as never, { kind: 'agent', type: 'cancel-rig' })
     return ctx
   }
   const RED_ABANDON = 'RED WHERE THE ABANDON ROAD SKIPS THE HOOKS'
@@ -334,8 +334,8 @@ section("F a cut is a failure for hooks: PostToolUseFailure fires once for a cut
     await Promise.race([run, sleep(8_000)])
     const text = resultsOf(updates)[0]?.text ?? ''
     const fired = fires('Hangs')
-    check(`${RED_ABANDON}: the abandoned call fires PostToolUseFailure exactly once`, fired.length === 1, `${fired.length} fire(s)`)
-    check(`${RED_ABANDON}: the hook reads is_interrupt true and the call's name and id`, fired[0]?.is_interrupt === true && fired[0]?.tool_name === 'Hangs' && fired[0]?.tool_use_id === 'toolu_hangs' && fired[0]?.hook_event_name === 'PostToolUseFailure', JSON.stringify(fired[0]))
+    check(`${RED_ABANDON}: the abandoned call fires tool.after exactly once`, fired.length === 1, `${fired.length} fire(s)`)
+    check(`${RED_ABANDON}: the hook reads ok false, cut true and the call's name and id`, fired[0]?.cut === true && fired[0]?.ok === false && fired[0]?.tool === 'Hangs' && fired[0]?.call_id === 'toolu_hangs' && fired[0]?.event === 'tool.after', JSON.stringify(fired[0]))
     check(`${RED_ABANDON}: the hook's failure text is the cut's own words, the text the model reads`, fired[0]?.error === text && text === turnCutResultText(turnCutOf(ctx.abortController.signal.reason), 'Hangs'), JSON.stringify({ error: fired[0]?.error, text }))
     check('the abandoned call still settles once as the interrupt result, observed once as terminal ok:false', resultsOf(updates).length === 1 && isInterruptedResultText(text) && terminals.length === 1 && terminals[0]?.ok === false, JSON.stringify({ results: resultsOf(updates).length, text, terminals }))
   }
@@ -353,9 +353,9 @@ section("F a cut is a failure for hooks: PostToolUseFailure fires once for a cut
     await Promise.race([run, sleep(8_000)])
     const text = resultsOf(updates)[0]?.text ?? ''
     const fired = fires('Answers')
-    check(`${RED_ANSWER}: the answered call fires PostToolUseFailure exactly once`, fired.length === 1, `${fired.length} fire(s)`)
-    check(`${RED_ANSWER}: the hook reads is_interrupt true, the cut's own words as the failure text, never the AbortError's own words`, fired[0]?.is_interrupt === true && fired[0]?.tool_use_id === 'toolu_answers' && fired[0]?.error === text && text === turnCutResultText(turnCutOf(ctx.abortController.signal.reason), 'Answers'), JSON.stringify({ fired: fired[0], text }))
-    check('the two roads agree: one event, one flag, one grammar', fires('Hangs').length === 1 && fired.length === 1 && fires('Hangs')[0]?.is_interrupt === true && fired[0]?.is_interrupt === true && fires('Hangs')[0]?.error?.replace('Hangs', 'Answers') === fired[0]?.error, JSON.stringify({ abandon: fires('Hangs')[0]?.error, answered: fired[0]?.error }))
+    check(`${RED_ANSWER}: the answered call fires tool.after exactly once`, fired.length === 1, `${fired.length} fire(s)`)
+    check(`${RED_ANSWER}: the hook reads cut true, the cut's own words as the error, never the AbortError's own words`, fired[0]?.cut === true && fired[0]?.call_id === 'toolu_answers' && fired[0]?.error === text && text === turnCutResultText(turnCutOf(ctx.abortController.signal.reason), 'Answers'), JSON.stringify({ fired: fired[0], text }))
+    check('the two roads agree: one event, one flag, one grammar', fires('Hangs').length === 1 && fired.length === 1 && fires('Hangs')[0]?.cut === true && fired[0]?.cut === true && fires('Hangs')[0]?.error?.replace('Hangs', 'Answers') === fired[0]?.error, JSON.stringify({ abandon: fires('Hangs')[0]?.error, answered: fired[0]?.error }))
     check('the answered call still settles once as the interrupt result, observed once as terminal ok:false', resultsOf(updates).length === 1 && isInterruptedResultText(text) && terminals.length === 1 && terminals[0]?.ok === false, JSON.stringify({ results: resultsOf(updates).length, text, terminals }))
   }
   {
@@ -367,7 +367,7 @@ section("F a cut is a failure for hooks: PostToolUseFailure fires once for a cut
     const updates: Yielded[] = []
     await driveOne(tool, 'toolu_breaks', ctx, updates)
     const fired = fires('Breaks')
-    check('the control: an ordinary failure fires once with is_interrupt false and its own words, as before', fired.length === 1 && fired[0]?.is_interrupt === false && fired[0]?.error === 'the disk is full' && resultsOf(updates)[0]?.text === '<tool_use_error>the disk is full</tool_use_error>', JSON.stringify({ fired, text: resultsOf(updates)[0]?.text }))
+    check('the control: an ordinary failure fires once with cut false and its own words, as before', fired.length === 1 && fired[0]?.cut === false && fired[0]?.ok === false && fired[0]?.error === 'the disk is full' && resultsOf(updates)[0]?.text === '<tool_use_error>the disk is full</tool_use_error>', JSON.stringify({ fired, text: resultsOf(updates)[0]?.text }))
   }
   {
     resetTaps()
@@ -379,10 +379,10 @@ section("F a cut is a failure for hooks: PostToolUseFailure fires once for a cut
     const updates: Yielded[] = []
     await driveOne(tool, 'toolu_own_deadline', ctx, updates)
     const fired = fires('Deadlines')
-    check("the control: a tool's own AbortError while the turn's signal is live is no user interrupt — the hook fires once with is_interrupt false and the tool's own words", !ctx.abortController.signal.aborted && fired.length === 1 && fired[0]?.is_interrupt === false && fired[0]?.error === 'The walk was cancelled by its own deadline.', JSON.stringify({ fired, aborted: ctx.abortController.signal.aborted }))
+    check("the control: a tool's own AbortError while the turn's signal is live is no user interrupt — the hook fires once with cut false and the tool's own words", !ctx.abortController.signal.aborted && fired.length === 1 && fired[0]?.cut === false && fired[0]?.error === 'The walk was cancelled by its own deadline.', JSON.stringify({ fired, aborted: ctx.abortController.signal.aborted }))
   }
   const docs = readFileSync(join(ROOT, 'docs/HOOKS.md'), 'utf8')
-  check('the docs promise the event for a cut: PostToolUseFailure carries is_interrupt, and the SDK schema says when it is true', /`PostToolUseFailure` \| after a tool call fails \| .*`is_interrupt`/.test(docs) && /is_interrupt: z\.boolean\(\)\.optional\(\)\.describe\('True when the failure was a user interrupt'\)/.test(readFileSync(join(ROOT, 'src/utils/hooks/contract.ts'), 'utf8')))
+  check('the docs promise the event for a cut: tool.after carries cut, true when a cut caused the failure', /`tool\.after`[^\n]*`cut`/.test(docs), docs.split('\n').find(line => line.includes('`tool.after`')) ?? 'no tool.after line')
   rmSync(hookDir, { recursive: true, force: true })
 }
 

@@ -59,7 +59,7 @@ const { isDenialResultText } = await import('../../src/utils/messages/rejectionT
 const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
 const { getSessionId, setIsInteractive } = await import('../../src/bootstrap/state.ts')
 const { runToolUse } = await import('../../src/services/tools/toolExecution.ts')
-const { addSessionHook } = await import('../../src/utils/hooks/sessionHooks.ts')
+const { addSessionHooks } = await import('../../src/utils/hooks/sessionHooks.ts')
 const { createAssistantMessage } = await import('../../src/utils/messages.ts')
 const { buildMessageLookups } = await import('../../src/utils/messages/lookups.ts')
 const { normalizeMessages } = await import('../../src/utils/messages/normalize.ts')
@@ -146,9 +146,7 @@ section('§3 the tool pipeline: result, row, cockpit lookups and hooks around th
   const hookDir = join(SCRATCH, 'hooks')
   mkdirSync(hookDir, { recursive: true })
   const recorder = (event: string): string => posix(join(hookDir, `${event}.jsonl`))
-  for (const event of ['PostToolUseFailure', 'PostToolUse'] as const) {
-    addSessionHook(setAppState as never, getSessionId(), event, 'Bash', { type: 'command', command: `cat >> ${recorder(event)}; echo >> ${recorder(event)}` } as never)
-  }
+  addSessionHooks(setAppState as never, { sessionId: String(getSessionId()) }, { 'tool.after': [{ name: 'recorder', match: 'Bash', run: `cat >> ${recorder('tool.after')}; echo >> ${recorder('tool.after')}` }] } as never, { kind: 'agent', type: 'spawn-rig' })
   const gate = (async (_tool: unknown, input: unknown) => ({ behavior: 'allow', updatedInput: input })) as never
   const context = makeContext()
   const id = 'toolu_spawn_failure'
@@ -184,12 +182,11 @@ section('§3 the tool pipeline: result, row, cockpit lookups and hooks around th
       .split('\n')
       .filter(line => line.trim() !== '')
       .map(line => JSON.parse(line) as Record<string, unknown>)
-      .filter(entry => entry.tool_use_id === id)
+      .filter(entry => entry.call_id === id)
   }
-  for (let waited = 0; fired('PostToolUseFailure').length < 1 && waited < 5_000; waited += 100) await sleep(100)
-  const failureFires = fired('PostToolUseFailure')
-  check('PostToolUseFailure fires once, reading the failure headline and no user interrupt', failureFires.length === 1 && failureFires[0]?.error === 'Shell command failed' && failureFires[0]?.is_interrupt === false && failureFires[0]?.tool_name === 'Bash', JSON.stringify(failureFires.map(entry => ({ error: entry.error, is_interrupt: entry.is_interrupt, tool_name: entry.tool_name }))))
-  check('PostToolUse does not fire for a call that failed', fired('PostToolUse').length === 0, String(fired('PostToolUse').length))
+  for (let waited = 0; fired('tool.after').length < 1 && waited < 5_000; waited += 100) await sleep(100)
+  const failureFires = fired('tool.after')
+  check('tool.after fires once with ok false, reading the failure headline and no cut', failureFires.length === 1 && failureFires[0]?.ok === false && failureFires[0]?.error === 'Shell command failed' && failureFires[0]?.cut === false && failureFires[0]?.tool === 'Bash', JSON.stringify(failureFires))
 }
 
 section('§4 a background launch that never started')

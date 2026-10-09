@@ -194,6 +194,28 @@ const turnStart = () => fireHooks('turn.start', { turn_id: 'turn-1', prompt: 'he
   check('a bare session fires nothing', bare.names.length === 0)
 }
 
+{
+  const { setIsInteractive } = await import('../../src/bootstrap/state.ts')
+  const { resetTrustDialogAcceptedCacheForTesting } = await import('../../src/utils/config/trust.ts')
+  const { workspaceUntrustedForHooks } = await import('../../src/utils/hooks/fire.ts')
+  install({ 'turn.start': [{ name: 'trust probe', run: 'echo trusted-ran >> ' + q(join(root, 'trust.log')) }] })
+  delete process.env.MERCURY_TRUST_DIALOG_ACCEPTED
+  setSessionTrustAccepted(false)
+  resetTrustDialogAcceptedCacheForTesting()
+  setIsInteractive(true)
+  const untrusted = await prepareHooks('turn.start', { turn_id: 't', prompt: 'p' }, { scope })
+  check('the cockpit runs nothing until the workspace is trusted', workspaceUntrustedForHooks() && untrusted.names.length === 0 && !existsSync(join(root, 'trust.log')), `untrusted ${workspaceUntrustedForHooks()} names ${untrusted.names.join(',')}`)
+  setIsInteractive(false)
+  const headless = await prepareHooks('turn.start', { turn_id: 't', prompt: 'p' }, { scope })
+  check('the headless road is gated by its own layer law, not the cockpit dialog', headless.names.length === 1, headless.names.join(','))
+  setSessionTrustAccepted(true)
+  resetTrustDialogAcceptedCacheForTesting()
+  setIsInteractive(true)
+  const trusted = await prepareHooks('turn.start', { turn_id: 't', prompt: 'p' }, { scope })
+  check('once trusted, the cockpit runs its hooks', trusted.names.length === 1, trusted.names.join(','))
+  setIsInteractive(false)
+}
+
 clearTimeout(watchdog)
 rmSync(root, { recursive: true, force: true })
 console.log(failures === 0 ? 'HOOK FIRE GREEN' : `${failures} HOOK FIRE FAILURE(S)`)
