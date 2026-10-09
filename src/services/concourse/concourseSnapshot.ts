@@ -200,11 +200,11 @@ export function tailActivityLabel(rec: { sessionId: string; workspaceId: string 
   return activityNowLabel(tailActivity(rec))
 }
 
-export function headBriefLabel(rec: { sessionId: string; workspaceId: string }, maxChars = 200): string | null {
+export function headBriefLabel(rec: { sessionId: string; workspaceId: string }, maxChars = 200, opts: { promptsOnly?: boolean } = {}): string | null {
   try {
     const lines = transcriptWindowLines(rec, LITE_READ_BUF_SIZE, 'head')
     if (lines === null) return null
-    const flat = extractFirstPromptFromHead(lines.join('\n')).replace(/\s+/g, ' ').trim()
+    const flat = extractFirstPromptFromHead(lines.join('\n'), opts).replace(/\s+/g, ' ').trim()
     if (flat.length === 0) return null
     return sanitizeLabel(flat.length > maxChars ? `${flat.slice(0, maxChars)}…` : flat)
   } catch {
@@ -792,7 +792,7 @@ function olderFactOf(projectDir: string, file: string, mtimeMs: number, size: nu
   if (held !== undefined && held.mtimeMs === mtimeMs && held.size === size) return held
   const sessionId = basename(file).replace(/\.jsonl$/, '')
   const husk = isAuthFailureHusk(file, size)
-  const title = husk ? null : headBriefLabel({ sessionId, workspaceId: projectDir }, 48)
+  const title = husk ? null : headBriefLabel({ sessionId, workspaceId: projectDir }, 48, { promptsOnly: true })
   if (olderFactCache.size >= OLDER_FACT_CACHE_CAP) olderFactCache.clear()
   const fact = { mtimeMs, size, husk, title }
   olderFactCache.set(file, fact)
@@ -877,7 +877,7 @@ export function parkedBoardRows(
     for (const s of listed) {
       if (rows.length >= PARKED_CAP) break
       if (liveSessionIds.has(s.sessionId) || cleared.has(s.sessionId)) continue
-      const brief = headBriefLabel({ sessionId: s.sessionId, workspaceId: projectDir }, 48)
+      const brief = headBriefLabel({ sessionId: s.sessionId, workspaceId: projectDir }, 48, { promptsOnly: true })
       if (brief === null) continue
       const ageLabel = ageLabelOf(nowMs, nowMs - s.ageMs)
       rows.push({
