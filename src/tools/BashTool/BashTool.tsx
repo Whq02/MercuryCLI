@@ -14,9 +14,7 @@ import type { ExecResult } from '../../utils/ShellCommand.js'
 import { TaskOutput } from '../../utils/task/TaskOutput.js'
 import { getTaskOutputPath } from '../../utils/task/diskOutput.js'
 import {
-  armForegroundBudget,
   backgroundExistingForegroundTask,
-  isAssistantModeActive,
   markTaskNotified,
   registerForeground,
   spawnShellTask,
@@ -88,7 +86,6 @@ import { boxLockLineForCommand, commandNamesBoxLock, refreshBoxReading } from '.
 export type { BashProgress }
 
 
-const ASSISTANT_BLOCKING_BUDGET_MS = 15_000
 const QUIET_WINDOW_MS = 2_000
 const SOFT_TIMEOUT_MS = 30_000
 const PERSIST_THRESHOLD_CHARS = 30_000
@@ -138,7 +135,6 @@ export type Out = {
   stopOffered?: boolean
   backgroundOutputIsTail?: boolean
   backgroundedByUser?: boolean
-  assistantAutoBackgrounded?: boolean
   timeoutAutoBackgroundedAfterMs?: number
   dangerouslyDisableSandbox?: boolean
   returnCodeInterpretation?: string
@@ -396,7 +392,6 @@ async function* runBash(
     },
   })
 
-  let assistantAutoBackgrounded = false
   let timeoutAutoBackgroundedAfterMs: number | undefined
   let foregroundTaskId: string | null = null
   let backgroundId: string | undefined
@@ -466,18 +461,6 @@ async function* runBash(
     timeoutAutoBackgroundedAfterMs = effectiveTimeout
     void startBackgrounding(backgroundFn as unknown as (id: string) => void)
   })
-
-  const budget = armForegroundBudget({
-    budgetMs: ASSISTANT_BLOCKING_BUDGET_MS,
-    enabled: shouldAutoBackground && isAssistantModeActive(),
-    resultPromise: shellCommand.result,
-    signal: abortController.signal,
-    onBudgetExceeded: () => {
-      assistantAutoBackgrounded = true
-      void startBackgrounding()
-    },
-  })
-  void budget
 
   if (input.run_in_background && !BACKGROUND_TASKS_DISABLED) {
     const handle = await spawnShellTask(
@@ -561,7 +544,6 @@ async function* runBash(
       interrupted: false,
       backgroundTaskId: backgroundId,
       scrubbedSessionEnv: shellCommand.scrubbedSessionEnv,
-      assistantAutoBackgrounded,
       timeoutAutoBackgroundedAfterMs,
       ...backgroundFacts(),
       ...(soFar.isTail ? { backgroundOutputIsTail: true } : {}),
@@ -615,7 +597,6 @@ async function* runBash(
           interrupted: false,
           backgroundTaskId: backgroundId,
           scrubbedSessionEnv: shellCommand.scrubbedSessionEnv,
-          assistantAutoBackgrounded,
           timeoutAutoBackgroundedAfterMs,
           ...(backgroundAskHandled ? { backgroundedByUser: true } : {}),
           ...backgroundFacts(),
@@ -825,9 +806,6 @@ function mapResultToBlock(output: Out, toolUseID: string): ToolResultBlockParam 
 function backgroundNoticeFor(output: Out): string {
   const id = output.backgroundTaskId as string
   const outputPath = getTaskOutputPath(id)
-  if (output.assistantAutoBackgrounded) {
-    return `Command exceeded the assistant-mode blocking budget (${ASSISTANT_BLOCKING_BUDGET_MS / 1000}s) and was moved to the background with ID: ${id}. It is still running — you will be notified when it completes. Output: ${outputPath}. Delegate long-running work to a crewmate, or pass run_in_background, to keep the conversation responsive.`
-  }
   if (output.backgroundedByUser) {
     return `The operator moved this command to the background as task ${id}; it is still running, and its output arrives as a notification when it completes. Output: ${outputPath}.`
   }

@@ -113,7 +113,6 @@ type AppStateImmutableHalf = {
   verbose: boolean
   expandedView: 'none' | 'tasks'
   spinnerTip?: string
-  isAssistantMode: boolean
   agent?: string
   footerSelection: FooterItem | null
   bagelActive?: boolean
@@ -232,7 +231,6 @@ export function getDefaultAppState(): AppState {
     settings: getInitialSettings(),
     verbose: false,
     expandedView: rememberedExpandedView(),
-    isAssistantMode: computeAssistantMode(),
     footerSelection: null,
 
     engineModel: null,
@@ -285,17 +283,5 @@ export function getDefaultAppState(): AppState {
     authVersion: 0,
     initialMessage: null,
     thinkingEnabled: shouldEnableThinkingByDefault(),
-  }
-}
-
-function computeAssistantMode(): boolean {
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const owner = require('../tasks/LocalShellTask/LocalShellTask.js') as {
-      isAssistantModeActive?: () => boolean
-    }
-    return owner.isAssistantModeActive?.() ?? false
-  } catch {
-    return false
   }
 }

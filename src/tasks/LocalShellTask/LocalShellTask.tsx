@@ -67,67 +67,6 @@ function looksLikePrompt(tail: string): boolean {
 }
 
 
-let assistantModeActive = false
-
-export function setAssistantModeActive(on: boolean): void {
-  assistantModeActive = on
-}
-
-export function isAssistantModeActive(): boolean {
-  return assistantModeActive
-}
-
-
-export type ForegroundBudgetHandle = {
-  disarm: () => void
-  readonly fired: boolean
-}
-
-export function armForegroundBudget(args: {
-  budgetMs: number
-  enabled: boolean
-  resultPromise: Promise<unknown>
-  signal?: AbortSignal
-  onBudgetExceeded: () => void
-}): ForegroundBudgetHandle {
-  if (!args.enabled) {
-    return { disarm: () => {}, fired: false }
-  }
-  let fired = false
-  let disarmed = false
-  let timer: ReturnType<typeof setTimeout> | undefined
-  const clear = (): void => {
-    if (timer !== undefined) {
-      clearTimeout(timer)
-      timer = undefined
-    }
-  }
-  const disarm = (): void => {
-    disarmed = true
-    clear()
-  }
-  timer = setTimeout(() => {
-    if (disarmed || fired) return
-    fired = true
-    clear()
-    try {
-      args.onBudgetExceeded()
-    } catch (error) {
-      logError(error)
-    }
-  }, args.budgetMs)
-  timer.unref?.()
-  args.resultPromise.then(disarm, disarm)
-  args.signal?.addEventListener('abort', disarm, { once: true })
-  return {
-    disarm,
-    get fired(): boolean {
-      return fired
-    },
-  }
-}
-
-
 export function keepTagClosed(text: string, tag: string): string {
   return text.split(`</${tag}>`).join(`<\\/${tag}>`)
 }
