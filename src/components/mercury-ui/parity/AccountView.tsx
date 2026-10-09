@@ -288,6 +288,7 @@ export function AccountView({
                     slot.removal.route === 'deepseek-stored-key' ||
                     slot.removal.route === 'xai-stored-key' ||
                     slot.removal.route === 'meta-stored-key' ||
+                    slot.removal.route === 'nous-stored-key' ||
                     slot.removal.route === 'compat-stored-key'
                   ? '⌫ clears'
                 : slot.removal.route === 'anthropic-managed-key'
