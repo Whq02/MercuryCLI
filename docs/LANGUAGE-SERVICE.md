@@ -155,11 +155,11 @@ tool list, or a capability kill using that selector covers the whole family.
 Name individual tools to narrow it. Content-qualified rules do not acquire
 family semantics.
 
-Named hook matchers, including pipe-separated lists, and bare `if` conditions
-use the same family selector. Regex hook matchers keep their regex meaning;
-a startup note identifies a regex that matched the family name but matches
-none of its tools. Hook payloads carry the actual tool name and input; only
-`LspRead` takes an input `operation`. Result objects retain the engine operation,
+A hook's `match`, including a pipe-separated list, uses the same family
+selector. A regular-expression match keeps its regex meaning; a startup note
+identifies one that matched the family name but matches none of its tools.
+Hook payloads carry the actual tool name and input; only `LspRead` takes an
+input `operation`. Result objects retain the engine operation,
 edits, plan and change-view fields.
 
 ## JavaScript projects
