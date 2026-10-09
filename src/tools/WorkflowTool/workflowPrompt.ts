@@ -3,27 +3,12 @@ import { EFFORT_LEVELS } from '../../utils/effortLadder.js'
 
 export const WORKFLOW_TOOL_PROMPT: string = `Run a JavaScript orchestration script that coordinates a fleet of subagents with deterministic control flow. The launch detaches immediately: this tool answers with a task ID while the run continues in the background, a <task-notification> arrives at completion, and /workflows shows live progress.
 
-Reach for a workflow when the shape of the work wants structure across agents: breadth (split a large surface and cover the pieces concurrently), rigor (independent readings plus adversarial checking before anything is trusted), or sheer size (audits, migrations, and sweeps that no single context window holds). The script is the structure — it decides what fans out, what gets verified, and what gets merged.
-
-STRICT OPT-IN. Never launch a workflow on your own judgment that one would help. Multi-agent orchestration can fan out into dozens of billed agents, so the scale must be something the user chose. You have that choice only when one of these holds:
+Launching a workflow is the user's choice, never your own judgement that one would help: orchestration can fan out into dozens of billed agents, so the scale must be something the user chose. You have that choice only when one of these holds:
 - They asked for it in their own words ("run a workflow", "orchestrate this", "fan out subagents", "use multi-agent"). The words must be theirs; the mere fact that agents would speed a task up does not qualify.
 - The instructions of a skill or slash command you are executing direct you to invoke Workflow.
 - They asked to run a particular saved or built-in workflow by name.
 
 In every other case, keep the tool unused: handle single delegations with one sub-agent launch, or describe the workflow you would build, estimate its rough agent count and cost, and ask. Mention that the words "use a workflow" next time will grant the opt-in directly.
-
-Once you are cleared to launch, prefer a hybrid opening: do the cheap reconnaissance inline first (enumerate the files, locate the hotspots, size the diff) so the work-list exists, then hand that list to a workflow. The orchestration step is the only part that needs a known shape up front.
-
-Single-phase shapes worth chaining across turns:
-- **Map** — concurrent readers over the subsystems involved, merged into one structured picture
-- **Design** — several independent proposals, judged and synthesized
-- **Review** — angle-split finders, then a verifier per candidate (worked example below)
-- **Research** — angle-split searching, deep reads, cited synthesis
-- **Migrate** — enumerate call sites, transform each in isolation, verify each
-
-Chain them one turn at a time for bigger efforts — digest each result before shaping the next launch. Every workflow stays one tightly scoped fan-out, with you between them.
-
-Send the script inline through \`script\` — no need to Write it anywhere yourself; iterate by editing the persisted copy the result names (Write/Edit), then relaunching with \`{scriptPath: "<path>"}\`.
 
 Every script opens with \`export const meta = {...}\` as its first statement:
   export const meta = {
@@ -36,7 +21,7 @@ Every script opens with \`export const meta = {...}\` as its first statement:
   }
   // body follows — agent()/parallel()/pipeline()/phase()/log()
 
-\`meta\` is required to be a pure literal — variables, function calls, spreads, and template interpolation are all rejected. \`name\` and \`description\` are required; \`whenToUse\` (shown when workflows are listed) and \`phases\` are optional. Phase titles pair with phase() calls by exact string match — a phase() with no meta entry simply opens its own progress group — and a phases entry may carry a \`model\` field when one phase runs on a specific override.
+\`meta\` is a pure literal — variables, function calls, spreads, and template interpolation are all rejected. \`name\` and \`description\` are required; \`whenToUse\` (shown when workflows are listed) and \`phases\` are optional. Phase titles pair with phase() calls by exact string match — a phase() with no meta entry simply opens its own progress group — and a phases entry may carry a \`model\` field when one phase runs on a specific override.
 
 The script body's hooks:
 
@@ -45,37 +30,26 @@ The script body's hooks:
   - Resolves to null in two cases: the user skipped this agent mid-run, or it died on an unrecoverable API error after the built-in retries. Fan-out code should \`.filter(Boolean)\`.
   - opts.label — the display name in progress surfaces (defaults to a prompt prefix).
   - opts.phase — pin this call to a named progress group. Inside pipeline()/parallel() stages always pin explicitly; the ambient phase() pointer is global state and concurrent stages race it. Same string, same group.
-  - opts.model — a model for THIS call. Omitted, the agent runs on the session's resolved model, which is the right default. Accepts anything the session's model catalog resolves: a canonical id, a registered family alias, or — when the operator has a second provider connected — that provider's engine ids. Never invent an id; if the operator named no model and the task doesn't demand a tier, leave it out.
+  - opts.model — the model for this call, as the operator directs per dispatch: an explicit catalog alias or a declared tier. Accepts anything the session's model catalog resolves: a canonical id, a registered family alias, or — when the operator has a second provider connected — that provider's engine ids. Never invent an id; a string the catalog cannot resolve fails the dispatch. Omitted, the agent runs on the session's resolved model.
   - opts.effort — reasoning effort for this call: ${EFFORT_LEVELS.map(level => `'${level}'`).join(' | ')}. Omitted, the configured sub-agent default applies (high unless the operator changed it in /config) — never the session's own level. Spend 'low' on mechanical stages; reserve the top tiers for the hardest judge/verify stages (a tier the model's ladder lacks runs the nearest served tier). Setting it also turns on extended reasoning where the model supports it.
   - opts.tier — 'orchestrator' | 'executor': declare the call's role instead of naming a model. A junk tier throws; routing only acts when the operator armed MERCURY_WORKFLOW_ROUTING=1: an 'executor' call with no explicit model then rides the harness's pinned execution-tier model, while 'orchestrator' keeps the session model. A call that names opts.model outranks its tier.
   - opts.isolation: 'worktree' — run in a freshly created git worktree. Costly (worktree setup plus disk per agent); use it only when concurrent agents would otherwise write the same files. An untouched worktree is removed automatically; a modified one is kept for review.
   - opts.agentType — dispatch a custom subagent type (say, 'code-reviewer') rather than the built-in workflow worker; its definition's tools: list is followed exactly, as the Agent tool would; composable with \`schema\`.
-- pipeline(items, stage1, stage2, ...) → Promise<any[]> — push each item through the stage chain independently, with NO synchronization between stages: item three can be in its last stage while item seven is still in its first. This is the default engine for multi-stage work — total wall-clock tracks the slowest single item, not the slowest stage times the stage count. Each stage receives (previousResult, originalItem, index). A stage that throws turns that item into null and its remaining stages are skipped.
-- parallel(thunks) → Promise<any[]> — run an array of zero-argument functions concurrently and wait for ALL of them (a barrier). The promise always fulfills: rejected thunks (agent deaths included) become null slots in the returned array, so \`.filter(Boolean)\` before use. Reserve it for moments that genuinely need every result at once.
+- pipeline(items, stage1, stage2, ...) → Promise<any[]> — push each item through the stage chain independently, with no synchronization between stages: item three can be in its last stage while item seven is still in its first. This is the default engine for multi-stage work — total wall-clock tracks the slowest single item, not the slowest stage times the stage count. Each stage receives (previousResult, originalItem, index). A stage that throws turns that item into null and its remaining stages are skipped.
+- parallel(thunks) → Promise<any[]> — run an array of zero-argument functions concurrently and wait for all of them (a barrier). The promise always fulfills: rejected thunks (agent deaths included) become null slots in the returned array, so \`.filter(Boolean)\` before use. Reserve it for a stage that needs the whole previous stage at once — deduplicating across every candidate, an aggregate early exit, prompts that reference sibling results.
 - log(message) — one line of narration shown to the user above the run's progress display.
 - phase(title) — open a progress group; agent() calls that follow (without opts.phase) attach to it.
 - args — the value the Workflow call passed as \`args\`, verbatim; undefined when absent. Pass real JSON values, never a stringified JSON blob: \`args: {targets: ['api', 'cli']}\` reaches the script as an object, while a quoted blob arrives as one string and every \`args.targets.map\`-style access dies.
-- budget — {total, spent(), remaining()}: the turn's output-token target when the operator set one. total is null with no target; spent() counts output tokens across the whole turn (main loop plus every workflow — one shared pool); remaining() is max(0, total − spent()), or Infinity when target-less. That target is a hard wall: when spent() crosses total, any later agent() call throws. Loop dynamically (the budget-scaled loop below) or size a fleet statically: \`const LANES = budget.total ? Math.max(2, Math.floor(budget.total / 120_000)) : 4\`. Always gate such loops on budget.total — when no target exists, remaining() reads Infinity and nothing stops the loop short of the 1000-agent cap.
+- budget — {total, spent(), remaining()}: the turn's output-token target when the operator set one. total is null with no target; spent() counts output tokens across the whole turn (main loop plus every workflow — one shared pool); remaining() is max(0, total − spent()), or Infinity when target-less. That target is a hard wall: when spent() crosses total, any later agent() call throws. Loop on remaining() or size a fleet statically: \`const LANES = budget.total ? Math.max(2, Math.floor(budget.total / 120_000)) : 4\`. Always gate such loops on budget.total — when no target exists, remaining() reads Infinity and nothing stops the loop short of the 1000-agent cap.
 - workflow(nameOrRef, args?) → Promise<any> — start a second workflow inline and hand back its result. A string names a saved workflow (the same registry as {name: "..."}); {scriptPath} runs a script file you saved earlier. A child run inherits the parent's agent counter, concurrency ceiling, abort signal, and token pool (its spend lands in budget.spent()). The second argument arrives as the child's \`args\`. Exactly one level of nesting — a child calling workflow() throws. Unknown names, unreadable paths, and child syntax errors all throw; catch if you want to degrade gracefully.
-
-Workers hand back raw data as their final text. Whenever the result has fields, prefer \`schema\` over prose-parsing: the validation loop is free correctness.
-
-Mixing providers: because opts.model is per-call, one workflow may run agents on different providers side by side. The strongest use is independence — run finders on one provider and the refute/verify lane on another, so verifier blind spots do not correlate with finder blind spots. Only mix when the second provider is actually connected for this session; a model string the catalog cannot resolve fails the dispatch.
 
 Agents inside a workflow carry the same tool box as a background sub-agent launched by the Agent tool — one allow-set, with the spawn, plan and ask surfaces left out — so a model ingests the same tool schemas either way. The built-in worker reaches every session-connected MCP tool through its own tool search, loading schemas on demand; a custom agentType carries exactly the tools its definition declares, as it would under the Agent tool. Caveat: MCP servers that authenticate interactively may be unavailable in headless or scheduled runs.
 
 A workflow script is plain JavaScript — TypeScript syntax (annotations like \`: string[]\`, interfaces, generics) fails the parse. The body executes inside an async wrapper, so await works at the top level. The usual built-ins are present (JSON, Math, Array, ...), with three deliberate holes: Date.now(), Math.random(), and zero-argument new Date() throw, because nondeterminism breaks resume replay. Take timestamps in through args or stamp them after the run returns; get variety by varying prompts/labels with the loop index. The script itself has no filesystem or network — agents do that work.
 
-Default to pipeline(). A barrier earns its place only when the next stage needs the WHOLE previous stage:
-- deduplicating or merging across the full candidate set before an expensive pass
-- an aggregate early-exit ("zero candidates → skip verification")
-- prompts that must reference sibling results ("compare against the other proposals")
-
-Smell test: parallel(...) followed by a pure reshape followed by another parallel(...) is a pipeline wearing a disguise — fold the reshape into a stage of its own: pipeline(items, stageA, r => remap(r), stageB). Separate steps are not synchrony, and with uneven finder durations a barrier throws away the fast lanes' head start. Unsure? pipeline.
-
 Limits: at most min(16, CPU cores − 2) agents run at once per workflow (the capacity governor can narrow this further); extra calls queue and start as slots free. Hand parallel()/pipeline() a hundred items freely — they all finish, just not all at once. A single run may make at most 1000 agent() calls (a runaway-loop backstop), and one parallel()/pipeline() call takes at most 4096 items — beyond that throws.
 
-The canonical multi-stage shape — pipeline by default, verification starting per-angle as each review lands:
+The hooks composed — pipeline by default, verification starting per angle as each review lands:
   export const meta = {
     name: 'api-surface-review',
     description: 'Review public API changes per angle, then check each claim',
@@ -92,43 +66,6 @@ The canonical multi-stage shape — pipeline by default, verification starting p
   )
   const upheld = checked.flat().filter(Boolean).filter(c => c.ruling?.upheld)
   return { upheld }
-  // the 'breaking' angle's claims are already being checked while 'naming' is still reviewing — no idle lanes.
-
-A barrier used correctly — collapse duplicates across every finder BEFORE paying for verification:
-  const rounds = await parallel(ANGLES.map(a => () => agent(a.brief, {schema: CLAIMS_SCHEMA})))
-  const unique = collapseByLocation(rounds.filter(Boolean).flatMap(r => r.claims))   // needs the whole set at once
-  const rulings = await parallel(unique.map(c => () => agent(refuteBrief(c), {schema: RULING_SCHEMA})))
-
-Count-target loop — accumulate until you have enough:
-  const candidates = []
-  while (candidates.length < 12) {
-    const round = await agent('Propose refactor candidates in this repo.', {schema: CANDIDATES_SCHEMA})
-    candidates.push(...round.items)
-    log(\`\${candidates.length}/12 collected\`)
-  }
-
-Budget-scaled loop — depth tracks the operator's token target (note the budget.total guard):
-  const found = []
-  while (budget.total && budget.remaining() > 60_000) {
-    const round = await agent('Hunt for concurrency hazards.', {schema: HAZARDS_SCHEMA})
-    found.push(...round.items)
-    log(\`\${found.length} so far · \${(budget.remaining() / 1000).toFixed(0)}k left\`)
-  }
-
-Quality patterns — mechanisms to compose, not a fixed menu:
-- Refute-to-survive: give each candidate to N independent skeptics whose brief is to DISPROVE it ("Disprove this if you can; when uncertain, rule it refuted"). A majority of refutations kills it. This is what stops plausible-sounding wrongness.
-- Split lenses: when something can be wrong in several ways, give each verifier a DIFFERENT lens (logic, security, performance, reproducibility) instead of three copies of the same skeptic — diversity catches what redundancy repeats.
-- Contender panel: produce N independent solutions from distinct starting biases, score them with independent judges, then build the final answer on the winner while folding in the runners-up's best pieces. Wins over iterate-on-one whenever the space of workable designs is broad.
-- Dry-well stopping: for discovery of unknown size, keep launching rounds until K consecutive rounds add nothing new (dedup against everything seen, not only what was kept, or rejected findings resurface every round and the well never dries). Fixed quotas stop too early exactly when the tail matters.
-- Blind angles: several searchers, each restricted to a different modality (by name, by content, by owner, by date). None sees the others' results; the union sees what any single approach misses.
-- Gap critic: end with one agent whose only question is "what did this run NOT do — which angle unswept, which claim unchecked, which source unread?" Its answer seeds the next round.
-- Named caps: whenever the script bounds its own coverage (top-N, sampling, skip-on-retry), log() the cut. An unlogged cap reads as full coverage to whoever gets the report.
-
-Size the harness to the request. A quick "any bugs here?" wants a couple of finders and one-vote checks; "audit this thoroughly" wants many finders, refutation panels of three to five votes, and a synthesis stage. For research, review, and audit asks, err toward depth; for quick checks, err toward speed.
-
-Invent structures freely beyond these — bracketed tournaments, repair-until-green loops, escalation tiers — whatever the task's shape rewards.
-
-Use Workflow when control flow deserves to be code (loops, conditionals, fan-out with joins); keep the judgment calls in your own turn.
 
 ## Resume
 
@@ -138,8 +75,8 @@ const AUTHORING_DOCTRINE_SECTION = `
 
 ## Mercury workflow authorship doctrine
 
-- Model choice belongs to the operator, and their standing rule overrides the "leave opts.model out" default above: name an explicit catalog alias, or a declared tier, for each dispatch — the operator directs models per dispatch. Do not lean on the inherited session model (project-level settings sometimes pin a tier the live session is not using), and never pick an agentType whose definition pins a small-tier model — when you need read-only scoping, put it in the prompt, not in a downgraded engine.
-- A verify stage belongs to the workflow's shape itself, never bolted on after: any workflow that performs real implementation (edits, fixes, migrations) carries one — refute-to-survive from the pattern list, or one dedicated checker per changed unit — before it returns success. A fixer agent asserting its own success is an assertion, not evidence.`
+- Model choice belongs to the operator: name an explicit catalog alias, or a declared tier, for each dispatch — the operator directs models per dispatch. Do not lean on the inherited session model (project-level settings sometimes pin a tier the live session is not using), and never pick an agentType whose definition pins a small-tier model — when you need read-only scoping, put it in the prompt, not in a downgraded engine.
+- A verify stage belongs to the workflow's shape itself, never bolted on after: any workflow that performs real implementation (edits, fixes, migrations) carries one — an independent refutation of each claim, or one dedicated checker per changed unit — before it returns success. A fixer agent asserting its own success is an assertion, not evidence.`
 
 export function getWorkflowToolPrompt(): string {
   return WORKFLOW_TOOL_PROMPT + AUTHORING_DOCTRINE_SECTION
