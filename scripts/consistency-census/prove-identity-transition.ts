@@ -31,7 +31,7 @@ function check(label: string, cond: boolean, detail = ''): void {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}`)
 }
 const lineOf = (blocks: string[]): string =>
-  blocks.join('\n\n').match(/Mercury is what you are; the model you run through Mercury is[^\n]*/)?.[0] ?? '(no identity line)'
+  blocks.join('\n\n').match(/the model you run through Mercury is[^\n]*/)?.[0] ?? '(no identity line)'
 const cache = bootstrap.getSystemPromptSectionCache()
 
 const promptA = await getSystemPrompt([], MODEL_A)
