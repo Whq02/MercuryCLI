@@ -240,12 +240,15 @@ console.log('— T4 the Crew view painted off-screen —')
     '../../src/services/engine-connector/focusedConnector.ts'
   )
   const { CrewView } = await import('../../src/components/mercury-ui/screens/CrewView.tsx')
+  const NO_ASKS: never[] = []
   const fakeConnector = (work: { rows: WorkRowV1[]; mission: never[] }): never =>
     ({
       sessionId: () => 'fx-session',
       workRoster: () => work,
       subscribeWork: () => () => {},
       subscribeRecords: () => () => {},
+      asks: () => NO_ASKS,
+      subscribeAsks: () => () => {},
       identity: () => ({ firstPartyApi: true, consoleBilling: true, claudeAiBilling: false, accountEmail: null }),
     }) as never
   const paint = async (work: WorkRowV1[]): Promise<string> => {
@@ -408,12 +411,15 @@ console.log('— T7 the status vocabulary and the transcript card —')
   const { CrewView } = await import('../../src/components/mercury-ui/screens/CrewView.tsx')
   const ui = await import('../../src/tools/AgentTool/UI.tsx')
   const { AppStateProvider } = await import('../../src/state/AppState.tsx')
+  const NO_ASKS: never[] = []
   const fake = (work: { rows: WorkRowV1[]; mission: never[] }): never =>
     ({
       sessionId: () => 'fx-session',
       workRoster: () => work,
       subscribeWork: () => () => {},
       subscribeRecords: () => () => {},
+      asks: () => NO_ASKS,
+      subscribeAsks: () => () => {},
       identity: () => ({ firstPartyApi: true, consoleBilling: true, claudeAiBilling: false, accountEmail: null }),
     }) as never
   setFocusedSessionConnector(fake({ rows, mission: [] }))
@@ -455,7 +461,7 @@ console.log('— T7 the status vocabulary and the transcript card —')
   const stoppedRows: WorkRowV1[] = rows.map(r => (r.id === 'ag1' ? { ...r, status: 'killed', endTime: r.startTime + 5000 } : r))
   setFocusedSessionConnector(fake({ rows: stoppedRows, mission: [] }))
   const view = await paint(React.createElement(CrewView, { onClose: () => {} }), 110)
-  check("T7 a killed row reads 'stopped' on the Crew view — never the runner's word", view.includes('stopped') && !view.includes('killed'))
+  check("T7 a killed row reads 'stopped' on the Crew view — never the runner's word", view.includes('stopped') && !view.includes('killed'), view.slice(0, 600))
   const card = await paint(React.createElement(RosterWorkDetail, { work: stoppedRows.find(r => r.id === 'ag1')!, now: t0 + 61_001, onBack: () => {} }), 100)
   check("T7 …and on the card", card.includes('stopped') && !card.includes('killed'))
   _resetFocusedSessionConnectorForTesting()
