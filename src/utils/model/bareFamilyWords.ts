@@ -38,12 +38,18 @@ function museHeadRow(): BareFamilyWordRow | undefined {
   return head === undefined ? undefined : { id: head.id, displayName: head.displayName }
 }
 
+function mistralHeadRow(): BareFamilyWordRow | undefined {
+  const { mistralCatalogueRows } = require('../../services/providers/mistral/mistralCatalogue.js') as typeof import('../../services/providers/mistral/mistralCatalogue.js')
+  return mistralCatalogueRows().rows[0]
+}
+
 export const BARE_FAMILY_WORDS: readonly BareFamilyWord[] = [
   { word: 'glm', route: 'zai', headRow: glmHeadRow },
   { word: 'kimi', route: 'moonshot', headRow: kimiHeadRow },
   { word: 'deepseek', route: 'deepseek', headRow: deepseekHeadRow },
   { word: 'grok', route: 'xai', headRow: grokHeadRow },
   { word: 'muse', route: 'meta', headRow: museHeadRow },
+  { word: 'mistral', route: 'mistral', headRow: mistralHeadRow },
 ]
 
 export function bareFamilyWordOf(word: string): BareFamilyWord | undefined {
