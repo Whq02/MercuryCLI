@@ -27,7 +27,7 @@ type Outcome = 'completed' | 'failed' | 'killed'
 const notice = (id: string, status: string, summary: string): string =>
   `<task-notification>\n<task-id>${id}</task-id>\n<output-file>/tmp/${id}.out</output-file>\n<status>${status}</status>\n<summary>${summary}</summary>\n</task-notification>`
 const shellSummary = (title: string, status: Outcome, code?: number): string =>
-  `${BACKGROUND_BASH_SUMMARY_PREFIX}"${title}" ${status === 'completed' ? 'completed' : status === 'failed' ? 'failed' : 'was stopped'}${code !== undefined ? ` (exit code ${code})` : ''}`
+  `${BACKGROUND_BASH_SUMMARY_PREFIX}"${title}" ${status === 'completed' ? 'completed' : status === 'failed' ? 'failed' : 'stopped before it finished'}${code !== undefined ? ` (exit code ${code})` : ''}`
 let clock = 0
 const stamp = (): string => `2026-06-19T12:00:${String(++clock).padStart(2, '0')}.000Z`
 const attachmentNotice = (id: string, title: string, status: Outcome, code?: number, queued = false): Row => ({

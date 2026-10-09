@@ -109,7 +109,7 @@ function enqueueShellNotification(
       ? `${BACKGROUND_BASH_SUMMARY_PREFIX}"${description}" completed${codePart}`
       : status === 'failed'
         ? `${BACKGROUND_BASH_SUMMARY_PREFIX}"${description}" ended${codePart}`
-        : `${BACKGROUND_BASH_SUMMARY_PREFIX}"${description}" was stopped`
+        : `${BACKGROUND_BASH_SUMMARY_PREFIX}"${description}" stopped before it finished`
 
   enqueuePendingNotification({
     value: shellNotificationText({ taskId, toolUseId, command, outputPath: getTaskOutputPath(taskId), status, summary }),
