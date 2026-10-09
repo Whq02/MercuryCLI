@@ -158,45 +158,34 @@ export class StylePool {
     return id
   }
 
-  private currentMatchCache = new Map<number, number>()
-  withCurrentMatch(baseId: number): number {
-    let id = this.currentMatchCache.get(baseId)
-    if (id === undefined) {
-      const base = this.get(baseId)
-      const codes = base.filter(
-        c => c.endCode !== '\x1b[39m' && c.endCode !== '\x1b[49m',
-      )
-      codes.push(YELLOW_FG_CODE)
-      if (!base.some(c => c.endCode === '\x1b[27m')) codes.push(INVERSE_CODE)
-      if (!base.some(c => c.endCode === '\x1b[22m')) codes.push(BOLD_CODE)
-      if (!base.some(c => c.endCode === '\x1b[24m')) codes.push(UNDERLINE_CODE)
-      id = this.intern(codes)
-      this.currentMatchCache.set(baseId, id)
-    }
+  private derived(cache: Map<number, number>, baseId: number, build: (base: AnsiCode[]) => number): number {
+    const known = cache.get(baseId)
+    if (known !== undefined) return known
+    const id = build(this.get(baseId))
+    cache.set(baseId, id)
     return id
+  }
+
+  private currentMatchCache = new Map<number, number>()
+  private readonly buildCurrentMatch = (base: AnsiCode[]): number => this.intern(currentMatchCodesOf(base))
+  withCurrentMatch(baseId: number): number {
+    return this.derived(this.currentMatchCache, baseId, this.buildCurrentMatch)
   }
 
   private selectionBgCode: AnsiCode | null = null
   private selectionBgCache = new Map<number, number>()
   setSelectionBg(bg: AnsiCode | null): void {
-    if (this.selectionBgCode?.code === bg?.code) return
+    const held = this.selectionBgCode?.code ?? null
+    if (held === (bg?.code ?? null)) return
     this.selectionBgCode = bg
     this.selectionBgCache.clear()
   }
 
+  private readonly buildSelectionBg = (base: AnsiCode[]): number =>
+    this.intern([...withoutEnds(base, BG_END, INVERSE_END), this.selectionBgCode!])
   withSelectionBg(baseId: number): number {
-    const bg = this.selectionBgCode
-    if (bg === null) return this.withInverse(baseId)
-    let id = this.selectionBgCache.get(baseId)
-    if (id === undefined) {
-      const kept = this.get(baseId).filter(
-        c => c.endCode !== '\x1b[49m' && c.endCode !== '\x1b[27m',
-      )
-      kept.push(bg)
-      id = this.intern(kept)
-      this.selectionBgCache.set(baseId, id)
-    }
-    return id
+    if (this.selectionBgCode === null) return this.withInverse(baseId)
+    return this.derived(this.selectionBgCache, baseId, this.buildSelectionBg)
   }
 
 
