@@ -2411,25 +2411,6 @@ function scenarioInner(name: string, cols: number, rows: number) {
       rows,
     }
   }
-  if (name === 'cockpit-console') {
-    writeSyntheticSession('short')
-    writeMissionLedgerFixture()
-    process.env.MERCURY_TASK_LIST_ID = MISSION_FIXTURE_LIST
-    const TAB = String.fromCharCode(9)
-    const DOWN = String.fromCharCode(27) + '[B'
-    return {
-      argv: ['node', BIN, '--resume', SID],
-      sends: [
-        { atTick: 30, data: TAB },
-        { atTick: 34, data: TAB },
-        { atTick: 38, data: DOWN.repeat(30) },
-        { atTick: 44, data: 'what changed here' },
-      ],
-      total: 62,
-      cols,
-      rows,
-    }
-  }
   if (name === 'transcript-overlay') {
     writeSyntheticSession('short')
     return {
@@ -4095,7 +4076,7 @@ export function cleanupScenario(name: string): void {
       }
     }
   }
-  if (name === 'cockpit-console' || name === 'tasks-mission') {
+  if (name === 'tasks-mission') {
     cleanupMissionLedgerFixture()
   }
   for (const store of ['daemon', 'crew', 'crews', 'health']) {

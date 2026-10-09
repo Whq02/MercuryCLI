@@ -2,7 +2,6 @@
 # gate-class: pty
 # gate-watch: scripts/ui/render-tui.ts scripts/ui/vshot.py src/components/mercury-ui/glyphs*
 # gate-watch: src/constants/spinnerVerbs* src/utils/cockpit/**
-# gate-watch: scripts/helm-console/prove-console-render.ts
 # gate-watch: scripts/helm-console/prove-console-ask-drive.ts scripts/streaming/artifactArena.ts src/utils/model/configs.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"

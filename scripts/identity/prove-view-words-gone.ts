@@ -24,6 +24,17 @@ const WORDS: Array<[string, RegExp]> = [
   ['the rail paint mark', new RegExp(J('render:rail-tele', 'metry\\b'))],
   ['the rail header word in a stored frame', new RegExp(J('(?<![A-Za-z_-])TELE', 'METRY(?=  )'))],
   ['the rail title in a stored frame', new RegExp(J('(?:╮|\\\\u256e|❯|\\\\u276f) {1,2}tele', 'metry\\b'))],
+  ['the rail console row kind', new RegExp(J("kind: 'con", "sole'"))],
+  ['the rail console action', new RegExp(J("type: 'con", "sole' }"))],
+  ['the rail console row kinds', new RegExp(J("kind: 'con", "sole(?:Input|Asking|Line)'"))],
+  ['the rail console row ids', new RegExp(J('\\bconsole:(?:in', 'put|full|asking|hint)\\b'))],
+  ['the rail console compose verbs', new RegExp(J('(?:begin|exit)Console', 'Compose\\b|isConsole', 'Composing\\b|consoleSubmit', 'Buffer\\b|consoleAbort', 'Ask\\b|consoleHistory', 'Move\\b|getConsole', 'Buffer\\b|getConsoleAsk', 'Count\\b'))],
+  ['the rail console text shapers', new RegExp(J('consoleInput', 'Window\\b|plainify', 'Answer\\b'))],
+  ['the rail console compose hint', new RegExp(J('ask — type', ' or ↵|↵ ask · esc', ' · ↑↓ hist'))],
+  ['the rail trace row keys and model', new RegExp(J('\\btrace:(?:load', 'ing|none)\\b|TRACE_', 'ROWS\\b|sessionTrace', 'Records\\b|fills as too', 'ls run'))],
+  ['the rail scenario', new RegExp(J('cockpit-con', 'sole\\b'))],
+  ['the rail trace panel header in a stored frame', new RegExp(J('⟡ TR', 'ACE\\b'))],
+  ['the rail console panel header in a stored frame', new RegExp(J('❯ CON', 'SOLE\\b'))],
 ]
 
 const EXCLUDED_AREAS: Array<[string, string]> = [
@@ -33,10 +44,12 @@ const EXCLUDED_AREAS: Array<[string, string]> = [
   ['scripts/visual-contract/baselines/', 'frozen capture records of earlier screens'],
   ['scripts/agent-experience/baselines/', 'frozen mechanical baselines of earlier prompts'],
   ['scripts/mission-runner/corpus/', 'fixture repositories of foreign source'],
+  ['scripts/engine-pass/scenes/', 'write-once scene records of the engine pass base'],
 ]
 
 const PINS: Array<[string, string]> = [
   ['scripts/identity/prove-view-words-gone.ts', 'this census composes the words it hunts'],
+  ['scripts/helm-console/prove-console-wiring.ts', 'pins that the composer, the rail and the store carry no console compose line'],
   ['scripts/identity/prove-retired-keys-unknown.ts', 'drives the retired settings key to prove it unknown'],
   ['scripts/ui/prove-view-reaches-status-row.ts', 'pins that no row reads the title row or the box'],
   ['scripts/ui/prove-status-band.ts', 'pins that the layout mounts no title row module'],
@@ -70,7 +83,7 @@ function check(label: string, cond: boolean, detail = ''): void {
 }
 
 console.log('============================================================')
-console.log(' the sessions box, the title row, the vitals rail\'s old name and their words are gone: no tracked file spells them outside the pins that prove their absence')
+console.log(' the sessions box, the title row, the vitals rail\'s old name, the rail\'s console and trace sections and their words are gone: no tracked file spells them outside the pins that prove their absence')
 console.log('============================================================')
 
 const files = execFileSync('git', ['-C', ROOT, 'ls-files', '-z'], { encoding: 'utf8', maxBuffer: 1 << 28 }).split('\0').filter(Boolean)
@@ -102,7 +115,7 @@ for (const rel of scoped) {
 
 console.log(`  scanned ${scanned} files; ${hits.length} line(s) still spell a retired word; ${pinned.size} pin(s) hold one`)
 check(
-  'no line under src, scripts, docs or the design system spells the box switch, the box module, the title row module, the box label, the title row, the flip action, the box command, or the vitals rail\'s old module, model, bus, hook, row id, paint mark or painted header, outside the pins that prove their absence',
+  'no line under src, scripts, docs or the design system spells the box switch, the box module, the title row module, the box label, the title row, the flip action, the box command, the vitals rail\'s old module, model, bus, hook, row id, paint mark or painted header, or the rail\'s console and trace sections (their row kinds, ids, compose verbs, text shapers, hints, scenario and painted headers), outside the pins that prove their absence',
   hits.length === 0,
   `${hits.length} found:` + hits.slice(0, 60).map(h => `\n      ${h.file}:${h.line} (${h.word}) ${h.text}`).join('') + (hits.length > 60 ? `\n      … and ${hits.length - 60} more` : ''),
 )

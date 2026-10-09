@@ -21,7 +21,8 @@ const { AppStateProvider } = await import(join(ROOT, 'src/state/AppState.tsx'))
 const { getDefaultAppState } = await import(join(ROOT, 'src/state/AppStateStore.ts'))
 const { enableConfigs } = await import(join(ROOT, 'src/utils/config/globalConfig.ts'))
 enableConfigs()
-const { getInvocationTracePath } = await import(join(ROOT, 'src/utils/observability/invocationTrace.ts'))
+const { getInvocationTracePath, buildInvocationTrace } = await import(join(ROOT, 'src/utils/observability/invocationTrace.ts'))
+const { getSessionId } = await import(join(ROOT, 'src/bootstrap/state.ts'))
 const traceModule = await import(join(ROOT, 'src/utils/cockpit/traceSnapshot.ts'))
 const { traceSnapshot } = traceModule
 const sessionTraceSnapshot = (traceModule as { sessionTraceSnapshot?: (s: unknown, id: string | null) => { state: string; data?: { total: number; highRisk: number; killed: number; errors: number; records: Array<{ sessionId?: string }> } } }).sessionTraceSnapshot ?? ((s: unknown) => s as never)
@@ -65,6 +66,12 @@ writeFileSync(
   getInvocationTracePath(),
   [record('Bash', 6, OTHER), record('Computer', 6, OTHER), record('Glob', 8, OWN), record('Bash', 9, OWN, { ok: false, killed: true }), record('Read', 7), record('Bash', 10, OTHER, { ok: false })].join('\n') + '\n',
 )
+
+section('§0 the emitted record carries the session it ran in')
+{
+  const trace = buildInvocationTrace({ name: 'Bash', isReadOnly: () => false } as never, { ok: true })
+  check('an invocation trace record names its session', trace.sessionId === String(getSessionId()), JSON.stringify(trace))
+}
 
 section('§1 THE ONE NARROWING — a live trace snapshot narrowed to a session keeps its own records and re-derives the counts')
 {
@@ -119,5 +126,5 @@ if (failures > 0) {
   console.log(`❌ prove-trace-readers-session-own: ${failures} failure(s)`)
   process.exit(1)
 }
-console.log('✅ prove-trace-readers-session-own: /trace and the deck pane read the focused session\'s own tool calls, as the rail does')
+console.log('✅ prove-trace-readers-session-own: /trace and the deck pane read the focused session\'s own tool calls')
 process.exit(0)
