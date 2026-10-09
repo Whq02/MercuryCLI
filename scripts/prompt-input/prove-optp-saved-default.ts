@@ -154,8 +154,8 @@ if (driver.kind !== 'posix-pty') {
     const pickedRow = picker === undefined ? undefined : rows(picker.grid).find(r => /❯\s+(?:\d+\.\s+)?claude-/.test(r))
     const pickedId = pickedRow === undefined ? undefined : /❯\s+(?:\d+\.\s+)?(\S+)/.exec(pickedRow)?.[1]
     check('the picker opened on opt+p and ↓ moved the cursor to a model row', pickedId !== undefined && pickedId.startsWith('claude-'), pickedRow ?? 'no ❯ row')
-    const receipt = switched === undefined ? undefined : rows(switched.grid).find(r => r.includes('Set model to'))
-    check('the receipt names the pick as the saved default, as /model does', receipt !== undefined && receipt.includes(SAVED), receipt ?? 'no receipt')
+    const receipts = switched === undefined ? [] : rows(switched.grid).filter(r => r.includes('Set model to'))
+    check('the receipt names the pick as the saved default, as /model does (the transcript ack row beside it carries the plain words)', receipts.some(r => r.includes(SAVED)), receipts.join(' | ') || 'no receipt')
     const settings = existsSync(settingsPath) ? (JSON.parse(readFileSync(settingsPath, 'utf8')) as { engine?: { model?: string; effort?: string } }) : {}
     check('the settings carry the pick as the default model', pickedId !== undefined && settings.engine?.model === pickedId, `settings ${JSON.stringify(settings)} picked ${JSON.stringify(pickedId)}`)
     check('the saved effort is untouched by a model pick', settings.engine?.effort === 'max', JSON.stringify(settings))
