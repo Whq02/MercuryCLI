@@ -12,7 +12,7 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 const _apiDir = join(import.meta.dir, '..', '..', 'src', 'services', 'providers', 'anthropic')
-const claude = readFileSync(join(import.meta.dir, '..', '..', 'src', 'services', 'providers', 'anthropic', 'index.ts'), 'utf-8') + readdirSync(_apiDir).filter(f => f.endsWith('.ts')).map(f => readFileSync(join(_apiDir, f), 'utf-8')).join('\n')
+const runtime = readFileSync(join(import.meta.dir, '..', '..', 'src', 'services', 'providers', 'anthropic', 'index.ts'), 'utf-8') + readdirSync(_apiDir).filter(f => f.endsWith('.ts')).map(f => readFileSync(join(_apiDir, f), 'utf-8')).join('\n')
 const budget = readFileSync(join(import.meta.dir, '..', '..', 'src', 'services', 'providers', 'streamIdleBudget.ts'), 'utf-8')
 
 console.log('============================================================')
@@ -20,27 +20,27 @@ console.log(' stream idle watchdog — default-ON (HB-0119)')
 console.log('============================================================')
 
 section('source: the watchdog is ALWAYS armed — no enablement gate, no env spelling')
-check('the watchdog is the one owner\'s, created at stream start with no gate between', claude.includes('const streamIdleWatchdog = createStreamIdleWatchdog({') && claude.includes('timeoutMs: STREAM_IDLE_TIMEOUT_MS,'))
-check('the one owner serves BOTH thresholds (the fire at the budget, the warning at its own point — half, never before five minutes, never after the budget) and the stream wires both', /const warningMs = streamIdleWarningMsOf\(timeoutMs\)/.test(budget) && /onWarning\?: \(silentMs: number\) => void/.test(budget) && /onFire\?: \(fire: StreamIdleFire\) => void/.test(budget) && /onWarning: \(\) => \{/.test(claude) && /onFire: \(\) => \{/.test(claude))
-check('no watchdog enablement variable exists', !/streamWatchdogEnabled/.test(claude))
-check('no retired watchdog env spelling survives', !/STREAM_WATCHDOG/.test(claude))
+check('the watchdog is the one owner\'s, created at stream start with no gate between', runtime.includes('const streamIdleWatchdog = createStreamIdleWatchdog({') && runtime.includes('timeoutMs: STREAM_IDLE_TIMEOUT_MS,'))
+check('the one owner serves BOTH thresholds (the fire at the budget, the warning at its own point — half, never before five minutes, never after the budget) and the stream wires both', /const warningMs = streamIdleWarningMsOf\(timeoutMs\)/.test(budget) && /onWarning\?: \(silentMs: number\) => void/.test(budget) && /onFire\?: \(fire: StreamIdleFire\) => void/.test(budget) && /onWarning: \(\) => \{/.test(runtime) && /onFire: \(\) => \{/.test(runtime))
+check('no watchdog enablement variable exists', !/streamWatchdogEnabled/.test(runtime))
+check('no retired watchdog env spelling survives', !/STREAM_WATCHDOG/.test(runtime))
 
 section('PT-1: a watchdog abort skips the non-streaming fallback (no inc-4258 double-exec)')
 check(
   'disableFallback trips on (streamIdleAborted && streamedToolUse) — unconditional',
-  /const disableFallback =[\s\S]{0,700}\(streamIdleAborted && streamedToolUse\)/.test(claude),
+  /const disableFallback =[\s\S]{0,700}\(streamIdleAborted && streamedToolUse\)/.test(runtime),
 )
 check(
   'the watchdog signal streamIdleAborted is still set by the idle deadline firing',
-  /onFire: \(\) => \{\s*streamIdleAborted = true/.test(claude),
+  /onFire: \(\) => \{\s*streamIdleAborted = true/.test(runtime),
 )
 check(
   'streamedToolUse is set only when a local tool_use block finishes streaming (content_block_stop)',
-  /if \(contentBlock\.type === 'tool_use'\) \{[\s\S]{0,400}streamedToolUse = true/.test(claude),
+  /if \(contentBlock\.type === 'tool_use'\) \{[\s\S]{0,400}streamedToolUse = true/.test(runtime),
 )
 check(
   'streamedToolUse defaults false (a pre-tool stall keeps the recovering fallback)',
-  /let streamedToolUse = false/.test(claude),
+  /let streamedToolUse = false/.test(runtime),
 )
 
 section('PT-2: the model_error path synthesizes missing tool_results (no next-turn 400)')

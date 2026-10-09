@@ -188,6 +188,7 @@ section('§6 the dead machinery, the alias maps and the retired words the excisi
     { word: J('pendingPost', 'Compaction') },
     { word: J('postCompaction', 'Pending') },
     { word: J('spawnLedger', 'Paths') },
+    { word: J('claude', '.ts') },
     { word: J('LEGACY_ROLE', '_ALIASES') },
     { word: J('resolveWith', 'Aliases') },
     { word: J('claude', 'Shimmer') },
