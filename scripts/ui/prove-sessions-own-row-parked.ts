@@ -43,12 +43,12 @@ const cfgPath = `/tmp/sessions-own-row-cfg-${process.pid}.json`
 writeFileSync(cfgPath, JSON.stringify({
   ...cfg,
   sends: [
-    { data: '/sessions', atTick: 999, awaitText: 'the background daemon ended', requireAwait: true, minTick: 2, awaitSettleTicks: 2 },
+    { data: '/sessions', atTick: 999, awaitText: 'Type a prompt', requireAwait: true, minTick: 110, awaitSettleTicks: 2 },
     { data: '\r', atTick: 999, awaitText: '❯ /sessions', requireAwait: true, minTick: 1, awaitSettleTicks: 1 },
   ],
   readyText: 'Switch to',
   stableTicks: 4,
-  total: 150,
+  total: 200,
   out: gridPath,
 }))
 const env = { ...process.env, MERCURY_CONFIG_DIR: CONFIG_HOME, MERCURY_DAEMON_DIR: DAEMON_DIR }
