@@ -893,7 +893,7 @@ export const FileEditTool = buildTool({
       return {
         result: false as const,
         behavior: 'ask' as const,
-        message: `File does not exist. ${FILE_NOT_FOUND_CWD_NOTE} ${getCwd()}.${suggestion}`,
+        message: `There is no file at that path. ${FILE_NOT_FOUND_CWD_NOTE} ${getCwd()}.${suggestion}`,
         errorCode: 4,
         meta: { isPathAbsolute: String(isAbsolute(input.file_path)) },
       }
