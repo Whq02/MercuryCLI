@@ -38,6 +38,8 @@ import {
   writeStoredXaiManagementApiKey,
   readStoredMetaApiKey,
   writeStoredMetaApiKey,
+  readStoredZenApiKey,
+  writeStoredZenApiKey,
   readStoredHuggingfaceApiKey,
   readStoredLocalApiKey,
   readStoredMoonshotApiKey,
@@ -116,6 +118,7 @@ export type SlotRemoval =
   | { route: 'xai-stored-key' }
   | { route: 'xai-management-key' }
   | { route: 'meta-stored-key' }
+  | { route: 'zen-stored-key' }
   | { route: 'compat-stored-key' }
   | { route: 'huggingface-oauth' }
   | { route: 'huggingface-stored-key' }
@@ -183,6 +186,8 @@ export interface AccountSlotReads {
   xaiManagementStoredKey?: () => string | undefined
   metaEnvKey?: () => string | undefined
   metaStoredKey?: () => string | undefined
+  zenEnvKey?: () => string | undefined
+  zenStoredKey?: () => string | undefined
   compatEnvKey?: () => string | undefined
   compatStoredKey?: () => string | undefined
   huggingfaceEnvKey?: () => string | undefined
@@ -911,6 +916,12 @@ function metaSlots(reads: AccountSlotReads): AccountSlot[] {
   return keyLaneSlots({ family: 'meta', envVar: ambient?.name ?? 'MODEL_API_KEY', envKey, storedKey, storedRemoval: { route: 'meta-stored-key' } })
 }
 
+function zenSlots(reads: AccountSlotReads): AccountSlot[] {
+  const envKey = reads.zenEnvKey ? reads.zenEnvKey() : process.env.OPENCODE_API_KEY?.trim() || undefined
+  const storedKey = (reads.zenStoredKey ?? readStoredZenApiKey)()
+  return keyLaneSlots({ family: 'zen', envVar: 'OPENCODE_API_KEY', envKey, storedKey, storedRemoval: { route: 'zen-stored-key' } })
+}
+
 function deepseekSlots(reads: AccountSlotReads): AccountSlot[] {
   const envKey =
     reads.deepseekEnvKey ? reads.deepseekEnvKey() : process.env.DEEPSEEK_API_KEY?.trim() || undefined
@@ -1128,6 +1139,8 @@ export function deriveFamilySlotGroups(
                         ? xaiSlots(reads)
                         : family.id === 'meta'
                           ? metaSlots(reads)
+                          : family.id === 'zen'
+                            ? zenSlots(reads)
                           : family.id === 'openai-compat'
                             ? compatSlots(reads)
                             : family.id === 'huggingface'
@@ -1158,6 +1171,7 @@ export interface SlotRemovalOwners {
   clearStoredXaiKey?: () => void
   clearStoredXaiManagementKey?: () => void
   clearStoredMetaKey?: () => void
+  clearStoredZenKey?: () => void
   clearStoredCompatKey?: () => void
   disconnectHuggingfaceOauth?: () => void
   clearStoredHuggingfaceKey?: () => void
@@ -1354,6 +1368,9 @@ function routeSlotRemoval(
     case 'meta-stored-key':
       ;(owners.clearStoredMetaKey ?? (() => writeStoredMetaApiKey(null)))()
       return { note: 'stored Meta API key cleared from the auth-scoped store', mutated: true }
+    case 'zen-stored-key':
+      ;(owners.clearStoredZenKey ?? (() => writeStoredZenApiKey(null)))()
+      return { note: 'stored OpenCode Zen API key cleared from the auth-scoped store', mutated: true }
     case 'deepseek-stored-key':
       ;(owners.clearStoredDeepseekKey ?? (() => writeStoredDeepseekApiKey(null)))()
       return { note: 'stored DeepSeek API key cleared from the auth-scoped store', mutated: true }
@@ -1401,6 +1418,7 @@ export function signOutEveryEngineCredential(owners: SlotRemovalOwners = {}): vo
     ['xai-stored-key', owners.clearStoredXaiKey ?? (() => writeStoredXaiApiKey(null))],
     ['xai-management-key', owners.clearStoredXaiManagementKey ?? (() => writeStoredXaiManagementApiKey(null))],
     ['meta-stored-key', owners.clearStoredMetaKey ?? (() => writeStoredMetaApiKey(null))],
+    ['zen-stored-key', owners.clearStoredZenKey ?? (() => writeStoredZenApiKey(null))],
     ['compat-stored-key', owners.clearStoredCompatKey ?? (() => writeStoredCompatApiKey(null))],
     ['huggingface-oauth', owners.disconnectHuggingfaceOauth ?? disconnectHuggingfaceOauth],
     ['huggingface-stored-key', owners.clearStoredHuggingfaceKey ?? (() => writeStoredHuggingfaceApiKey(null))],
