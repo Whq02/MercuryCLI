@@ -1,6 +1,6 @@
 import { errorMessageWithCause } from '../../../utils/errors.js'
 import { writeStoredZenApiKey } from '../../../utils/router/providerSecrets.js'
-import { ZEN_ENV_KEY, ZEN_KEY_PAGE } from './zenAccounts.js'
+import { ZEN_ENV_KEY } from './zenAccounts.js'
 import { fetchZenGoUsage, zenGoWindowLine } from './zenUsageState.js'
 
 export interface ZenKeyLoginOutcome {
@@ -21,7 +21,7 @@ export async function storeZenApiKeyLogin(key: string, io?: { fetchImpl?: typeof
   switch (probe.state) {
     case 'refused':
       if (probe.status === 401) {
-        return { ok: false, stored: false, receipt: `OpenCode Zen refused this key (HTTP 401${probe.message ? `, ${probe.message}` : ''}) — nothing stored; create a key at ${ZEN_KEY_PAGE} and paste again.` }
+        return { ok: false, stored: false, receipt: `OpenCode Zen refused this key (HTTP 401${probe.message ? `, ${probe.message}` : ''}) — nothing stored; create a key at opencode.ai/auth and paste again.` }
       }
       note = `UNVERIFIED — the usage read answered HTTP ${probe.status}; the first turn proves the key`
       break

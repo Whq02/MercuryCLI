@@ -3,7 +3,6 @@ import { readStoredZenApiKey } from '../../../utils/router/providerSecrets.js'
 export const ZEN_API_BASE_URL = 'https://opencode.ai/zen/v1'
 export const ZEN_GO_API_BASE_URL = 'https://opencode.ai/zen/go/v1'
 export const ZEN_CONSOLE_URL = 'https://opencode.ai/auth'
-export const ZEN_KEY_PAGE = 'opencode.ai/auth'
 export const ZEN_ENV_KEY = 'OPENCODE_API_KEY'
 
 export function zenApiBase(env: NodeJS.ProcessEnv = process.env): string {
