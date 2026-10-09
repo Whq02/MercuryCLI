@@ -24,7 +24,7 @@ class ObservedWalk:
         if not ready or snapshot != self.previous:
             self.since = now_ms if ready else None
         self.previous = snapshot
-        if self.since is None or now_ms - self.since < 400 * self.scale:
+        if self.since is None or now_ms - self.since < float(step.get("settleMs", 400)) * self.scale:
             return None
         if now_ms - self.last_sent < step.get("afterPrevMs", 0) * self.scale:
             return None

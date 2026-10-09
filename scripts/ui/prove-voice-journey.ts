@@ -242,26 +242,35 @@ const OPENING: unknown[] = [
 ]
 
 const RECORDING_LINE = 'recording · release space to stop · esc cancels'
-const REPEAT = { afterPrevTicks: 1, data: ' ' }
 const TICK_MS = 200
 const SCALE = ((): number => {
   const raw = Number(process.env.MERCURY_VSHOT_BUDGET_SCALE ?? '1')
   return Number.isFinite(raw) && raw > 0 ? raw : 1
 })()
-const ticksFor = (ms: number): number => Math.max(1, Math.ceil(ms / (TICK_MS * SCALE)))
-const repeatsFor = (ms: number): unknown[] => Array.from({ length: ticksFor(ms) }, () => REPEAT)
+const { FIRST_REPEAT_WINDOW_MS, RELEASE_GAP_CEILING_MS, RELEASE_GAP_FACTOR, releaseGapMs } = await import('../../src/services/voice/holdToTalk.ts')
+const REPEAT_GAP_TARGET_MS = Math.min(FIRST_REPEAT_WINDOW_MS - 400, RELEASE_GAP_CEILING_MS / RELEASE_GAP_FACTOR + 100)
+const REPEAT_TICKS = Math.max(1, Math.floor(REPEAT_GAP_TARGET_MS / (TICK_MS * SCALE)))
+const REPEAT_GAP_MS = REPEAT_TICKS * TICK_MS * SCALE
+const REPEAT = { afterPrevTicks: REPEAT_TICKS, data: ' ' }
+const repeatsFor = (ms: number): unknown[] => Array.from({ length: Math.max(1, Math.ceil(ms / REPEAT_GAP_MS)) }, () => REPEAT)
 const HOLD_PAST_THRESHOLD_MS = 1_200
+const OPENING_GRACE_MS = 2_400
 function hold(press: Record<string, unknown>, opts: { mark?: string; beyondMs?: number } = {}): unknown[] {
   const repeats = repeatsFor(HOLD_PAST_THRESHOLD_MS)
   if (opts.mark === undefined) return [{ ...press, data: ' ' }, ...repeats, REPEAT]
   return [
     { ...press, data: ' ' },
     ...repeats,
+    ...repeatsFor(OPENING_GRACE_MS).map(() => ({ ...REPEAT, awaitText: RECORDING_LINE })),
     { requireAwait: true, awaitText: RECORDING_LINE, mark: opts.mark, data: ' ' },
     ...(opts.beyondMs === 0 ? [] : repeatsFor(opts.beyondMs ?? 400)),
   ]
 }
-console.log(`  · budget scale ${SCALE}: a held key is one space per ${TICK_MS * SCALE} ms, ${ticksFor(HOLD_PAST_THRESHOLD_MS)} repeats past the ${HOLD_PAST_THRESHOLD_MS} ms mark`)
+const stuckWords = (res: { status: number | null; stderr: string }): string => {
+  const rows = res.stderr.split('\n').filter(l => l.includes('never settled within the ceiling')).map(l => l.replace(/; saw=.*$/, ''))
+  return `vshot ${res.status}: ${rows.length > 0 ? rows.join(' · ') : res.stderr.slice(-300)}`
+}
+console.log(`  · budget scale ${SCALE}: a held key is one space per ${REPEAT_GAP_MS} ms (the product then allows ${releaseGapMs(REPEAT_GAP_MS)} ms between repeats before it reads a release), ${repeatsFor(HOLD_PAST_THRESHOLD_MS).length} repeats past the ${HOLD_PAST_THRESHOLD_MS} ms mark and up to ${repeatsFor(OPENING_GRACE_MS).length} more while the take opens`)
 
 console.log('============================================================')
 console.log(' voice input — the journey on the bundle, hermetic')
@@ -306,7 +315,7 @@ console.log('[A] /voice off (already off: the status) → /voice on → a hold �
     { OPENAI_API_KEY: 'sk-fixture-voice-000000000000000000000000', MERCURY_OPENAI_API_BASE: `http://127.0.0.1:${fx.port}/v1` },
   )
   fx.child.kill('SIGTERM')
-  check('the drive delivered every send (a real boot)', res.status === 0, `vshot ${res.status}: ${res.stderr.slice(-300)}`)
+  check('the drive delivered every send (a real boot)', res.status === 0, stuckWords(res))
   check('/voice off while off answers already off with the status: OFF, the backend and the transcriber', (res.marks['status-off'] ?? '').includes('backend: fixture WAV') && (res.marks['status-off'] ?? '').includes('transcriber: OpenAI'), (res.marks['status-off'] ?? '').split('\n').filter(l => l.includes('backend') || l.includes('transcriber')).join(' · '))
   check('/voice on says ON and teaches the hold', (res.marks.on ?? '').includes('voice input ON — hold space for 1 s to speak'), (res.marks.on ?? '').split('\n').filter(l => l.includes('voice input')).join(' · '))
   check(`the hold past the threshold: the footer paints ● ${RECORDING_LINE}`, (res.marks.recording ?? '').includes(`● ${RECORDING_LINE}`), (res.marks.recording ?? '').split('\n').filter(l => l.includes('recording')).join(' · '))
@@ -339,7 +348,7 @@ console.log('[B] a keyless, packless home — a hold answers the no-transcriber 
     120,
     { MERCURY_WHISPER_PACK_DIR: EMPTY_PACK },
   )
-  check('the drive delivered', res.status === 0, `vshot ${res.status}: ${res.stderr.slice(-300)}`)
+  check('the drive delivered', res.status === 0, stuckWords(res))
   check('the receipt takes the hint row whole (the standing hints step aside): the on-device reason, then the doors in the neutral grammar (their words are the product\'s own)', (res.marks.receipt ?? '').split('\n').some(l => l.startsWith('nothing transcribes yet — on-device pack pin broken; or /logins') && !l.includes('for shortcuts')) && NO_TRANSCRIBER_DOORS === '/logins openai (API key) or /logins gemini', (res.marks.receipt ?? '').split('\n').filter(l => l.includes('transcribes')).join(' · '))
   check('no take started (the footer never said recording)', !(res.marks.receipt ?? '').includes('recording ·'))
   const stray = nonLoopback(netlines(netlog))
@@ -368,7 +377,7 @@ console.log('[C] no pack, no recorder — a hold answers the no-backend receipt'
       PATH: `${shimDir}${delimiter}${nodeOnlyDir()}`,
     },
   )
-  check('the drive delivered', res.status === 0, `vshot ${res.status}: ${res.stderr.slice(-300)}`)
+  check('the drive delivered', res.status === 0, stuckWords(res))
   check('the receipt takes the hint row whole (the standing hints step aside) and names both remedies: the pack (bun run setup, cargo) and a PATH recorder (their words are the product\'s own)', (res.marks.receipt ?? '').split('\n').some(l => l.startsWith('no microphone backend — the voice pack is absent on this install') && !l.includes('for shortcuts')) && NO_BACKEND_RECEIPT.includes('run `bun run setup` (needs cargo)') && NO_BACKEND_RECEIPT.includes('sox/ffmpeg on PATH'), (res.marks.receipt ?? '').split('\n').filter(l => l.includes('backend')).join(' · '))
   const stray = nonLoopback(netlines(netlog))
   check('nothing left loopback', stray.length === 0, stray.join(' · '))
@@ -393,7 +402,7 @@ console.log('[D] a hold, then esc while it records — the take is cancelled and
     { OPENAI_API_KEY: 'sk-fixture-voice-000000000000000000000000', MERCURY_OPENAI_API_BASE: `http://127.0.0.1:${fx.port}/v1` },
   )
   fx.child.kill('SIGTERM')
-  check('the drive delivered', res.status === 0, `vshot ${res.status}: ${res.stderr.slice(-300)}`)
+  check('the drive delivered', res.status === 0, stuckWords(res))
   check('the footer painted recording, then esc painted the cancel receipt', (res.marks.recording ?? '').includes('● recording') && (res.marks.cancelled ?? '').includes('capture cancelled — nothing sent') && !(res.marks.cancelled ?? '').includes('recording ·'))
   const served = ledgerPosts(fx.ledger)
   check('the transcriber saw ZERO requests', served.length === 0, served.join(' | '))
@@ -423,7 +432,7 @@ console.log('[E] a Gemini API key alone — the take rides generateContent with 
     { GOOGLE_API_KEY: 'fixture-gemini-key-000000', MERCURY_GEMINI_API_BASE: `http://127.0.0.1:${fx.port}/v1beta`, MERCURY_DISABLE_NONESSENTIAL_TRAFFIC: undefined, MERCURY_TELEMETRY: '0' },
   )
   fx.child.kill('SIGTERM')
-  check('the drive delivered', res.status === 0, `vshot ${res.status}: ${res.stderr.slice(-300)}`)
+  check('the drive delivered', res.status === 0, stuckWords(res))
   check('/voice on names Gemini as the transcriber (the one signed-in family)', (res.marks.on ?? '').includes('transcriber: Gemini'), (res.marks.on ?? '').split('\n').filter(l => l.includes('transcriber')).join(' · '))
   check('the canned words land in the composer through Gemini', (res.marks.landed ?? '').includes(TRANSCRIPT) && (res.marks.landed ?? '').includes('transcribed by Gemini ('), (res.marks.landed ?? '').split('\n').filter(l => l.includes('transcribed') || l.includes('❯')).join(' · '))
   const served = ledgerPosts(fx.ledger)
@@ -463,7 +472,7 @@ console.log('[F] /voice on twice · a single press types · a resize mid-hold ·
     { resizes: [{ afterMark: 'recording-1', afterMs: 300, cols: 110, rows: 36 }] },
   )
   fx.child.kill('SIGTERM')
-  check('the drive delivered every send', res.status === 0, `vshot ${res.status}: ${res.stderr.slice(-300)}`)
+  check('the drive delivered every send', res.status === 0, stuckWords(res))
   check('/voice on again is one receipt: already on', (res.marks.again ?? '').includes('voice input already on'), (res.marks.again ?? '').split('\n').filter(l => l.includes('voice input')).join(' · '))
   const typed = res.marks['typed-xv'] ?? ''
   check('a single space press after a letter types a space at once (no take)', /❯ x \s/.test(typed) && !typed.includes('recording ·'), typed.split('\n').filter(l => l.includes('❯')).join(' · '))
@@ -501,7 +510,7 @@ console.log('[G] the bound — with the proof seam at 1.5 s and the key still he
     { OPENAI_API_KEY: 'sk-fixture-voice-000000000000000000000000', MERCURY_OPENAI_API_BASE: `http://127.0.0.1:${fx.port}/v1`, MERCURY_VOICE_BOUND_MS: '1500' },
   )
   fx.child.kill('SIGTERM')
-  check('the drive delivered', res.status === 0, `vshot ${res.status}: ${res.stderr.slice(-300)}`)
+  check('the drive delivered', res.status === 0, stuckWords(res))
   check('the take stopped by itself while the key was still held: the footer flipped from recording to transcribing', (res.marks.bound ?? '').includes('transcribing…') && !(res.marks.bound ?? '').includes('● recording'), (res.marks.bound ?? '').split('\n').filter(l => l.includes('recording') || l.includes('transcribing')).join(' · '))
   check('the auto-stopped take lands in the composer', (res.marks.landed ?? '').includes(TRANSCRIPT) && (res.marks.landed ?? '').includes('transcribed by OpenAI'), (res.marks.landed ?? '').split('\n').filter(l => l.includes('❯') || l.includes('transcribed')).join(' · '))
   const served = ledgerPosts(fx.ledger)
@@ -534,7 +543,7 @@ console.log('[H] voice input on, space on the Session Concourse — nothing; shi
     { OPENAI_API_KEY: 'sk-fixture-voice-000000000000000000000000', MERCURY_OPENAI_API_BASE: DEAD, MERCURY_CONCOURSE: 'always', MERCURY_CONCOURSE_FIXTURE: fixturePath, MERCURY_CREW_DIR: join(scratch, 'crew') },
     { args: [] },
   )
-  check('the drive delivered', res.status === 0, `vshot ${res.status}: ${res.stderr.slice(-300)}`)
+  check('the drive delivered', res.status === 0, stuckWords(res))
   const afterV = res.marks['after-v'] ?? ''
   check('space on the concourse starts nothing (no recording line, no receipt, the board still painted)', !afterV.includes('recording ·') && !afterV.includes('transcrib') && afterV.includes('╭'), afterV.split('\n').slice(0, 3).join(' · '))
   check('shift+← walks home to the Boot face', (res.marks.home ?? '').includes('↑↓ choose'), (res.marks.home ?? '').split('\n').filter(l => l.includes('choose')).join(' · '))
@@ -568,7 +577,7 @@ console.log('[I] with voice input on: ? opens help · ctrl+x p opens the palette
     { OPENAI_API_KEY: 'sk-fixture-voice-000000000000000000000000', MERCURY_OPENAI_API_BASE: `http://127.0.0.1:${fx.port}/v1` },
   )
   fx.child.kill('SIGTERM')
-  check('the drive delivered every send', res.status === 0, `vshot ${res.status}: ${res.stderr.slice(-300)}`)
+  check('the drive delivered every send', res.status === 0, stuckWords(res))
   check('? in the empty composer opens the shortcuts panel (untouched by the space filter); ? again closes it', (res.marks.help ?? '').includes('/keybindings to customize') && !(res.marks['help-closed'] ?? '').includes('/keybindings to customize'), `${(res.marks.help ?? '').includes('/keybindings') ? 'opened' : 'never opened'} · ${(res.marks['help-closed'] ?? '').includes('/keybindings') ? 'still open' : 'closed'}`)
   check('the ctrl+x p chord opens the command palette; esc closes it', (res.marks.palette ?? '').includes('fuzzy by name') && !(res.marks['palette-closed'] ?? '').includes('fuzzy by name'))
   check('shift+← walks to the Boot face and shift+→ returns to the chat', (res.marks.face ?? '').includes('↑↓ choose') && (res.marks.chat ?? '').includes('Type a prompt'))
@@ -612,7 +621,7 @@ console.log('[J] the overlays with voice input on, then off — the external edi
     { OPENAI_API_KEY: 'sk-fixture-voice-000000000000000000000000', MERCURY_OPENAI_API_BASE: `http://127.0.0.1:${fx.port}/v1`, VISUAL: editShim, EDITOR: editShim },
   )
   fx.child.kill('SIGTERM')
-  check('the drive delivered every send', res.status === 0, `vshot ${res.status}: ${res.stderr.slice(-300)}`)
+  check('the drive delivered every send', res.status === 0, stuckWords(res))
   check('voice ON: the external editor opened, returned, and the edit landed in the composer', /❯ hello edited/.test(res.marks['editor-on'] ?? ''), (res.marks['editor-on'] ?? '').split('\n').filter(l => l.includes('❯')).join(' · '))
   check('voice ON: the command palette opened', (res.marks['palette-on'] ?? '').includes('fuzzy by name'))
   check('voice OFF: the external editor opened, returned, and the edit landed', /❯ again edited/.test(res.marks['editor-off'] ?? ''), (res.marks['editor-off'] ?? '').split('\n').filter(l => l.includes('❯')).join(' · '))

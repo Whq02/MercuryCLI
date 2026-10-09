@@ -49,3 +49,9 @@ assert walk.next(["board beta body Type a prompt"], 400) is None
 assert walk.next(["beta body Type a prompt"], 500) is None
 assert walk.next(["beta body Type a prompt"], 900)[0] == b''
 print('[PASS] an already-entered seat needs its body and chat frame, never a board preview')
+walk = ObservedWalk([{"awaitText": "Beta", "targetText": "Beta", "settleMs": 0}, {"awaitText": "Beta", "targetText": "Beta"}])
+assert walk.next(["Alpha", "Beta"], 0)[1]["step"] == 0
+assert walk.next(["Alpha", "Beta"], 100) is None
+assert walk.next(["Alpha", "Beta"], 499) is None
+assert walk.next(["Alpha", "Beta"], 500)[1]["step"] == 1
+print('[PASS] a step names its own stillness: settleMs 0 fires on the words alone, the default still waits 400 ms')
