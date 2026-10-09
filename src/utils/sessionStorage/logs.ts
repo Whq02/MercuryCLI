@@ -616,7 +616,7 @@ async function getStatOnlyLogsForWorktrees(
   if (worktreePaths.length <= 1) return sessionFilesLite(getProjectDir(cwd), undefined, cwd)
   const projectsDir = getProjectsDir()
   const projectDirs = await projectDirectories(projectsDir, e =>
-    logForDebugging(`Failed to read projects dir ${projectsDir}, falling back to current project: ${e}`),
+    logForDebugging(`The projects folder ${projectsDir} could not be listed; only the current project's sessions are shown (${e})`),
   )
   if (!projectDirs) return sessionFilesLite(getProjectDir(cwd), limit, cwd)
   const matched = worktreeStores(projectDirs, worktreePaths)
