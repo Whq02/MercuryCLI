@@ -8,7 +8,7 @@ import { resolveHuggingfaceApiKey } from './huggingface/huggingfaceAccounts.js'
 import { resolveOpenaiAccount } from './openai/openaiAccounts.js'
 import { resolveOpenrouterRequestAuth } from './openrouter/openrouterAccounts.js'
 
-export type CatalogueFamily = 'anthropic' | 'huggingface' | 'openrouter' | 'gemini' | 'openai' | 'deepseek' | 'xai' | 'meta' | 'moonshot' | 'zai' | 'local'
+export type CatalogueFamily = 'anthropic' | 'huggingface' | 'openrouter' | 'gemini' | 'openai' | 'deepseek' | 'xai' | 'meta' | 'moonshot' | 'zai' | 'local' | 'nous'
 
 export type CatalogueGateVerdict =
   | { allowed: true; exempt?: 'local-endpoint' }
@@ -29,6 +29,7 @@ const FAMILY_NAMES: Record<Exclude<CatalogueFamily, 'local'>, string> = {
   meta: 'Meta',
   moonshot: 'Moonshot',
   zai: 'Z.AI',
+  nous: 'Nous Portal',
 }
 
 export function connectToBrowseReason(family: Exclude<CatalogueFamily, 'local'>): string {
@@ -62,6 +63,10 @@ function credentialPresent(family: Exclude<CatalogueFamily, 'local'>, env: NodeJ
       const { resolveZaiDispatch } =
         require('../../utils/router/providerDiscovery.js') as typeof import('../../utils/router/providerDiscovery.js')
       return resolveZaiDispatch(env) !== undefined
+    }
+    case 'nous': {
+      const { resolveNousApiKey } = require('./nous/nousAccounts.js') as typeof import('./nous/nousAccounts.js')
+      return resolveNousApiKey(env) !== undefined
     }
   }
 }
