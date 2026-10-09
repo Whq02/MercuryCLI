@@ -883,6 +883,7 @@ export function getModelOptions(reads: ModelOptionReads = {}): ModelOption[] {
     META_MODEL_GROUP,
     COMPAT_MODEL_GROUP,
     LOCAL_MODEL_GROUP,
+    ZEN_MODEL_GROUP,
   ]
   const sectionRank = (opt: ModelOption): number => {
     const index = SECTION_ORDER.indexOf(opt.group ?? ANTHROPIC_MODEL_GROUP)
