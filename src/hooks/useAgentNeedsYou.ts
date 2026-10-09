@@ -1,11 +1,11 @@
 import { useEffect, useRef } from 'react'
 import { getSessionId } from '../bootstrap/state.js'
 import {
-  agentStateClassifierEnabled,
+  agentNeedsYouEnabled,
   classifyAgentState,
   clearAgentStateVerdict,
   recordAgentStateVerdict,
-} from '../services/agentStateClassifier.js'
+} from '../services/agentNeedsYou.js'
 import type { Message } from '../types/message.js'
 import { getAssistantMessageText } from '../utils/messages.js'
 
@@ -21,7 +21,7 @@ function latestAssistantText(messages: readonly Message[]): string | null {
   return null
 }
 
-export function useAgentStateClassifier(
+export function useAgentNeedsYou(
   messages: readonly Message[],
   isLoading: boolean,
 ): void {
@@ -31,7 +31,7 @@ export function useAgentStateClassifier(
   messagesRef.current = messages
 
   useEffect(() => {
-    if (!agentStateClassifierEnabled()) return
+    if (!agentNeedsYouEnabled()) return
     const wasLoading = prevLoadingRef.current
     prevLoadingRef.current = isLoading
     if (!wasLoading && isLoading) {

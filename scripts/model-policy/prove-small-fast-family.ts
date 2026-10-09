@@ -183,10 +183,10 @@ async function main(): Promise<void> {
 
   section('§4 the paid + standing debt sites (the census register stays honest)')
   {
-    const classifier = srcText('services', 'agentStateClassifier.ts')
-    check('agentStateClassifier rides the routed seam', classifier.includes('routedCallModelSettled'))
-    check('agentStateClassifier rides the family resolver', classifier.includes('sessionSmallFastModel()'))
-    check('agentStateClassifier carries no getSmallFastModel residue', !classifier.includes('getSmallFastModel'))
+    const classifier = srcText('services', 'agentNeedsYou.ts')
+    check('agentNeedsYou rides the routed seam', classifier.includes('routedCallModelSettled'))
+    check('agentNeedsYou rides the family resolver', classifier.includes('sessionSmallFastModel()'))
+    check('agentNeedsYou carries no getSmallFastModel residue', !classifier.includes('getSmallFastModel'))
     const feedback = srcText('components', 'Feedback.tsx')
     check('Feedback title rides the routed seam', feedback.includes('routedCallModelSettled'))
     check('Feedback title rides the family resolver', feedback.includes('sessionSmallFastModel()'))

@@ -1,7 +1,6 @@
 #!/usr/bin/env bun
-
 import {
-  agentStateClassifierEnabled,
+  agentNeedsYouEnabled,
   classifyAgentStateHeuristic,
   tempoForState,
 } from '../../src/services/agentStateHeuristic.js'
@@ -21,21 +20,21 @@ function setStamp(on: boolean): void {
 }
 
 console.log('============================================================')
-console.log(' Agent-state classifier — WIRED LIVE proof')
+console.log(' Agent needs-you — WIRED LIVE proof')
 console.log('============================================================')
 
 section('Gate — heuristic tier default-on, opt out =0 (stamp-independent )')
 setStamp(false)
-delete process.env.MERCURY_AGENT_CLASSIFIER
-check('bare stamp, unset ⇒ STILL on (stamp-independence)', agentStateClassifierEnabled() === true)
-process.env.MERCURY_AGENT_CLASSIFIER = '1'
-check('bare stamp, =1 ⇒ on (explicit enable works anywhere)', agentStateClassifierEnabled() === true)
+delete process.env.MERCURY_AGENT_NEEDS_YOU
+check('bare stamp, unset ⇒ STILL on (stamp-independence)', agentNeedsYouEnabled() === true)
+process.env.MERCURY_AGENT_NEEDS_YOU = '1'
+check('bare stamp, =1 ⇒ on (explicit enable works anywhere)', agentNeedsYouEnabled() === true)
 setStamp(true)
-delete process.env.MERCURY_AGENT_CLASSIFIER
-check('stamped build, unset ⇒ LIVE by default', agentStateClassifierEnabled() === true)
-process.env.MERCURY_AGENT_CLASSIFIER = '0'
-check('stamped build, =0 ⇒ off (explicit opt-out)', agentStateClassifierEnabled() === false)
-delete process.env.MERCURY_AGENT_CLASSIFIER
+delete process.env.MERCURY_AGENT_NEEDS_YOU
+check('stamped build, unset ⇒ LIVE by default', agentNeedsYouEnabled() === true)
+process.env.MERCURY_AGENT_NEEDS_YOU = '0'
+check('stamped build, =0 ⇒ off (explicit opt-out)', agentNeedsYouEnabled() === false)
+delete process.env.MERCURY_AGENT_NEEDS_YOU
 
 section('Heuristic — zero-token classification raises needs-attention')
 {
@@ -81,12 +80,12 @@ section('Heuristic — recency weighting fixes the verified false-positives')
 }
 
 setStamp(false)
-delete process.env.MERCURY_AGENT_CLASSIFIER
+delete process.env.MERCURY_AGENT_NEEDS_YOU
 
 section('Store lifecycle — record → read → CLEAR → gone')
 {
-  const store = await import('../../src/services/agentStateClassifier.js')
-  const sid = 'prove-agent-classifier-session'
+  const store = await import('../../src/services/agentNeedsYou.js')
+  const sid = 'prove-agent-needs-you-session'
   store.recordAgentStateVerdict(sid, {
     state: 'blocked',
     tempo: 'blocked',
@@ -99,7 +98,7 @@ section('Store lifecycle — record → read → CLEAR → gone')
 
   const { readFileSync } = await import('node:fs')
   const hook = readFileSync(
-    new URL('../../src/hooks/useAgentStateClassifier.ts', import.meta.url),
+    new URL('../../src/hooks/useAgentNeedsYou.ts', import.meta.url),
     'utf8',
   )
   check(
@@ -110,7 +109,7 @@ section('Store lifecycle — record → read → CLEAR → gone')
 }
 
 console.log('\n' + '═'.repeat(76))
-if (failures === 0) console.log('✅ ALL AGENT-CLASSIFIER PROOFS PASS')
-else console.log(`❌ ${failures} AGENT-CLASSIFIER PROOF(S) FAILED`)
+if (failures === 0) console.log('✅ ALL AGENT-NEEDS-YOU PROOFS PASS')
+else console.log(`❌ ${failures} AGENT-NEEDS-YOU PROOF(S) FAILED`)
 console.log('═'.repeat(76))
 process.exit(failures === 0 ? 0 : 1)
