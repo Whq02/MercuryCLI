@@ -25,7 +25,7 @@ const blank = evaluateCapture(grid(['❯ hi']))
 t('near-blank capture rejected', !blank.ok && blank.reason.includes('blank'), blank.reason)
 
 const err = evaluateCapture(grid([
-  `No conversation found with session ID: 00000000-aaaa-bbbb-cccc-${(process.pid % 0xffffff).toString(16).padStart(12, '0')}`,
+  `No conversation found for session id 00000000-aaaa-bbbb-cccc-${(process.pid % 0xffffff).toString(16).padStart(12, '0')}`,
   'run with --resume <id> or --continue to pick the latest conversation instead',
 ]))
 t('boot-error screen rejected despite painted>=40', !err.ok && err.reason.includes('boot-error'), err.reason)
