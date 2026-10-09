@@ -278,7 +278,7 @@ function messageText(m: AssistantMessage): string {
 section('S1 · the family roster derives from the route law (never hand-copied)')
 
 const FAMILIES = ['anthropic', ...PROVIDER_ID_SPACES.map(space => space.route)] as const
-check('the route law declares twelve families including Anthropic', FAMILIES.length === 12)
+check('the route law declares thirteen families including Anthropic', FAMILIES.length === 13)
 check(
   'every family has a display name of its own (no fallthrough spelling)',
   FAMILIES.every(f => providerDisplayName(f) !== f || f === 'local'),
@@ -298,6 +298,7 @@ const FAMILY_MODEL: Record<string, string> = {
   gemini: 'gemini-3-pro',
   huggingface: 'huggingface/fixture-org/fixture-model:auto',
   local: 'local/llama-fixture',
+  zen: 'zen/glm-5.3',
 }
 check('the journey matrix covers every declared family', FAMILIES.every(f => FAMILY_MODEL[f] !== undefined))
 for (const f of FAMILIES) {
