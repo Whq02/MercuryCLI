@@ -1,5 +1,6 @@
 import * as React from 'react'
 import { Box, Text, type DOMElement } from '../../ink.js'
+import type { TextGesture } from '../../ink/events/text-gesture.js'
 import { claimHover, releaseHover, useHoverOwned } from './useHoverOwned.js'
 import { useMercuryTokens } from './useMercuryTokens.js'
 
@@ -76,6 +77,22 @@ export function InteractiveRow({
       }
     : undefined
 
+  const repeatedPressArmed = React.useRef(false)
+  const handleRepeatedPress =
+    handleClick !== undefined && !directActivate
+      ? (gesture: TextGesture): boolean => {
+          if (gesture.kind === 'press') {
+            repeatedPressArmed.current = gesture.clickCount > 1
+            return repeatedPressArmed.current
+          }
+          if (gesture.kind === 'release' && repeatedPressArmed.current) {
+            repeatedPressArmed.current = false
+            handleClick()
+          }
+          return true
+        }
+      : undefined
+
   const renderedChildren = typeof children === 'function' ? children(interactive && hover) : children
 
   const hoverFillPainted =
@@ -94,6 +111,7 @@ export function InteractiveRow({
       overflow="hidden"
       backgroundColor={bandPainted ? tokens.selectionBand : hoverFillPainted ? tokens.surface2 : tint}
       onClick={handleClick}
+      onTextGesture={handleRepeatedPress}
       onMouseEnter={interactive ? () => claimHover(id) : undefined}
       onMouseLeave={interactive ? () => releaseHover(id) : undefined}
     >
