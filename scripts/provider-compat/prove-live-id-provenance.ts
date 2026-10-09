@@ -144,7 +144,7 @@ section('§0 signed out everywhere: no list, every off-grammar id is unrecognise
   }
   check('the grammar still answers a typed id with no list: kimi-k3 · deepseek-v4-pro · gpt-5.6-sol · gemini-3-pro', declaredRouteOf('kimi-k3') === 'moonshot' && declaredRouteOf('deepseek-v4-pro') === 'deepseek' && declaredRouteOf('gpt-5.6-sol') === 'openai' && declaredRouteOf('gemini-3-pro') === 'gemini')
   const order = (idSpaces as { LIVE_LIST_FAMILIES?: readonly string[] }).LIVE_LIST_FAMILIES
-  check('the seam walks the six bare-id families in the fixed order moonshot · deepseek · xai · meta · openai · gemini', order?.join(',') === 'moonshot,deepseek,xai,meta,openai,gemini', String(order?.join(',')))
+  check('the seam walks the seven bare-id families in the fixed order moonshot · deepseek · xai · meta · openai · gemini · mistral', order?.join(',') === 'moonshot,deepseek,xai,meta,openai,gemini,mistral', String(order?.join(',')))
 }
 
 for (const family of Object.keys(OFF_GRAMMAR) as Family[]) {
@@ -201,10 +201,13 @@ section('§grammar: provenance outranks the prefix, and a qualified namespace ou
 for (const lane of [
   { family: 'xai', key: 'XAI_API_KEY', baseKey: 'MERCURY_XAI_API_BASE', id: 'grok-fixture-live', group: 'Mercury — xAI models' },
   { family: 'meta', key: 'MODEL_API_KEY', baseKey: 'MERCURY_META_API_BASE', id: 'muse-spark-fixture-live', group: 'Mercury — Meta models' },
+  { family: 'mistral', key: 'MISTRAL_API_KEY', baseKey: 'MERCURY_MISTRAL_API_BASE', id: 'mistral-fixture-live', group: 'Mercury — Mistral models' },
 ]) {
   const owner = lane.family === 'xai'
     ? await import('../../src/services/providers/xai/xaiCatalogue.ts').then(module => ({ reset: module.__resetXaiCatalogueForTest, refresh: module.refreshXaiCatalogue, ids: module.cachedLiveIds }))
-    : await import('../../src/services/providers/meta/metaCatalogue.ts').then(module => ({ reset: module.__resetMetaCatalogueForTest, refresh: module.refreshMetaCatalogue, ids: module.cachedLiveIds }))
+    : lane.family === 'meta'
+      ? await import('../../src/services/providers/meta/metaCatalogue.ts').then(module => ({ reset: module.__resetMetaCatalogueForTest, refresh: module.refreshMetaCatalogue, ids: module.cachedLiveIds }))
+      : await import('../../src/services/providers/mistral/mistralCatalogue.ts').then(module => ({ reset: module.__resetMistralCatalogueForTest, refresh: module.refreshMistralCatalogue, ids: module.cachedLiveIds }))
   process.env[lane.baseKey] = `http://127.0.0.1:1/${lane.family}/v1`
   process.env[lane.key] = `${lane.family}-fixture-key`
   owner.reset()
