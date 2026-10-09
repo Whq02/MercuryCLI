@@ -15,6 +15,7 @@ import { kimiDisplayName } from '../../services/providers/moonshot/kimiPins.js'
 import { deepseekCatalogueEntries, deepseekCatalogueEntry } from '../router/providers/deepseek.js'
 import { xaiCatalogueEntries, xaiCatalogueEntry } from '../router/providers/xai.js'
 import { metaCatalogueEntries, metaCatalogueEntry } from '../router/providers/meta.js'
+import { mistralCatalogueEntries, mistralCatalogueEntry } from '../router/providers/mistral.js'
 import {
   compatSlotModelIds,
   resolveCompatSlotConfig,
@@ -44,7 +45,7 @@ import {
 import { resolveOpenrouterAccount } from '../../services/providers/openrouter/openrouterAccounts.js'
 import { refreshOpenrouterCatalogue } from '../../services/providers/openrouter/openrouterCatalogue.js'
 
-export const ENGINE_DISPATCH_MODELS = ['gpt', 'glm', 'kimi', 'deepseek', 'grok', 'muse', 'compat', 'huggingface', 'local', 'gemini', 'openrouter'] as const
+export const ENGINE_DISPATCH_MODELS = ['gpt', 'glm', 'kimi', 'deepseek', 'grok', 'muse', 'compat', 'huggingface', 'local', 'gemini', 'openrouter', 'mistral'] as const
 export type EngineDispatchModel = (typeof ENGINE_DISPATCH_MODELS)[number]
 
 export function isEngineDispatchModel(v: unknown): v is EngineDispatchModel {
@@ -61,7 +62,7 @@ export function isExactEngineModelId(v: unknown): v is string {
   if (typeof v !== 'string') return false
   return (
     liveListedRouteOf(v) !== undefined ||
-    /^(gpt|glm|kimi|moonshot|deepseek|grok|muse|gemini)-/i.test(v.trim()) ||
+    /^(gpt|glm|kimi|moonshot|deepseek|grok|muse|gemini|mistral|ministral|codestral)-/i.test(v.trim()) ||
     isCompatModelId(v) ||
     isHuggingfaceModelId(v) ||
     isLocalModelId(v) ||
@@ -69,7 +70,7 @@ export function isExactEngineModelId(v: unknown): v is string {
   )
 }
 
-function exactEngineFamilyOf(id: string): 'openai' | 'moonshot' | 'deepseek' | 'xai' | 'meta' | 'gemini' | undefined {
+function exactEngineFamilyOf(id: string): 'openai' | 'moonshot' | 'deepseek' | 'xai' | 'meta' | 'gemini' | 'mistral' | undefined {
   const listed = liveListedRouteOf(id)
   if (listed !== undefined) return listed
   if (/^gpt-/i.test(id)) return 'openai'
@@ -78,6 +79,7 @@ function exactEngineFamilyOf(id: string): 'openai' | 'moonshot' | 'deepseek' | '
   if (/^grok-/i.test(id)) return 'xai'
   if (/^muse-/i.test(id)) return 'meta'
   if (/^gemini-/i.test(id)) return 'gemini'
+  if (/^(mistral|ministral|codestral)-/i.test(id)) return 'mistral'
   return undefined
 }
 
@@ -90,7 +92,7 @@ async function readLiveListsForBareId(modelParam: string | undefined): Promise<v
   await Promise.all(LIVE_LIST_FAMILIES.map(family => readCatalogueIfPending(family)))
 }
 
-const ENGINE_ID_SHAPES = 'gpt-*, glm-*, kimi-*, deepseek-*, grok-*, muse-spark-*, gemini-*, compat/*, huggingface/*, local/*, openrouter/*'
+const ENGINE_ID_SHAPES = 'gpt-*, glm-*, kimi-*, deepseek-*, grok-*, muse-spark-*, gemini-*, mistral-*, compat/*, huggingface/*, local/*, openrouter/*'
 
 export function unrecognisedModelWordRefusal(model: string | undefined): string | null {
   if (model === undefined) return null
@@ -116,6 +118,7 @@ type EngineProvider =
   | 'local'
   | 'gemini'
   | 'openrouter'
+  | 'mistral'
 
 export interface EngineDispatch {
   backend: EngineProvider
@@ -399,6 +402,12 @@ export async function resolveEngineDispatch(
       const pin = metaCatalogueEntry(id)
       if (!pin) throw new Error(`Meta model '${id}' is not listed by the account (listed: ${metaCatalogueEntries().map(row => row.id).join(', ')}) — never dispatching an unverified id.`)
       return { backend: 'meta', model: pin.id, displayLabel: pin.displayLabel }
+    }
+    if (family === 'mistral') {
+      await requireProviderAvailable('mistral')
+      const pin = mistralCatalogueEntry(id)
+      if (!pin) throw new Error(`Mistral model '${id}' is not listed by the account (listed: ${mistralCatalogueEntries().map(row => row.id).join(', ')}) — never dispatching an unverified id.`)
+      return { backend: 'mistral', model: pin.id, displayLabel: pin.displayLabel }
     }
     if (family === 'deepseek') {
       await requireProviderAvailable('deepseek')
