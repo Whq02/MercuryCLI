@@ -12,7 +12,7 @@ import { armInactivityDeadline } from './deadline.js'
 import { logForDebugging } from './debug.js'
 import { logForDiagnosticsNoPII } from './diagLogs.js'
 import { logError } from './log.js'
-import { registerProcessInputErrorHandler, registerProcessOutputErrorHandlers } from './process.js'
+import { isPeerGoneWriteError, registerProcessInputErrorHandler, registerProcessOutputErrorHandlers } from './process.js'
 import { profileReport } from './startupProfiler.js'
 
 
@@ -386,6 +386,12 @@ export const setupGracefulShutdown = (): void => {
   process.on('unhandledRejection', (reason: unknown) => {
     if (isModuleLoadFailure(reason) && !isShuttingDown()) {
       failLoud(reason, 'unhandled-rejection')
+      return
+    }
+    if (isShuttingDown() && isPeerGoneWriteError(reason)) {
+      const code = (reason as NodeJS.ErrnoException).code
+      logForDebugging(`unhandledRejection during shutdown: a peer's pipe closed (${code}) — the shutdown ends its peers; no crash record`)
+      logForDiagnosticsNoPII('info', 'shutdown_peer_gone_write', { code })
       return
     }
     if (!persistedRejectionOnce && reason instanceof Error) {

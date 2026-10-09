@@ -371,7 +371,7 @@ export function planChangeSet(
       mode,
       hunkSpans,
       plannedContent,
-      diff: { hunks: [], omittedHunks: 0 },
+      diff: { hunks: [], omittedHunks: 0, added: 0, removed: 0 },
       changed: memberOp !== 'edit' || plannedContent !== content,
       ...(memberOp !== 'edit' ? { fileOp: memberOp } : {}),
       ...(destination !== undefined ? { newPath: destination } : {}),
@@ -405,7 +405,8 @@ export function planChangeSet(
     const oldContent = originalContentByPath.get(t.canonicalPath) ?? ''
     const fileBudget = Math.min(80, diffBudgetLeft)
     if (fileBudget <= 0) {
-      t.diff = { hunks: [], omittedHunks: t.hunkSpans.length }
+      const counted = buildDiffHunks(t.requestedPath, oldContent, t.plannedContent, 0)
+      t.diff = { hunks: [], omittedHunks: t.hunkSpans.length, added: counted.added, removed: counted.removed }
       continue
     }
     t.diff = buildDiffHunks(t.requestedPath, oldContent, t.plannedContent, fileBudget)

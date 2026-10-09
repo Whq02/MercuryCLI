@@ -205,7 +205,7 @@ async function carriedLeg(home: string, reason: 'crash' | 'stop', row: string): 
   const relaunchAsk = fixture.requests.find(r => isLive(r) && r.atMs >= startedAt)
   tally.check('the relaunched agent reads the relaunch note and the writes it had landed', relaunchAsk !== undefined && /relaunched from your transcript/.test(relaunchAsk.ask) && /2 file writes landed/.test(relaunchAsk.ask), relaunchAsk?.ask.slice(0, 200))
   tally.check("the relaunched agent's end rides the live road: a completed notice carrying its reply", noticesFor(rows, live!.agentId, 'completed').some(r => r.content.includes(RELAUNCH_REPLY)))
-  tally.check(`one row tells the operator what the restart carried, in the ruled words: ${row}`, rows.filter(r => r.content === row).length === 1, JSON.stringify(rows.filter(r => r.content.startsWith('runner restarted')).map(r => r.content)))
+  tally.check(`one row tells the operator what the restart carried, in the ruled words, marked as a system notice (never the operator's own line): ${row}`, rows.filter(r => r.content === `<system-reminder>\n${row}\n</system-reminder>`).length === 1 && !rows.some(r => r.content === row), JSON.stringify(rows.filter(r => r.content.includes('runner restarted')).map(r => r.content)))
   const lineRan = await waitUntil(() => fixture.requests.some(r => isLine(r) && r.atMs >= startedAt), bound(30_000))
   tally.check("the operator's line that died with the runner is re-queued and runs as a turn", lineRan, `${fixture.requests.filter(r => r.atMs >= startedAt).length} requests after the restart`)
   const homeSession = mainTranscripts(home).find(p => basename(p) === `${sessionId}.jsonl`) ?? ''
@@ -236,7 +236,7 @@ tally.section('a plain resume keeps its words: both agents get the stop notice, 
   const plainRows = enqueuedAfter(plainHome, from)
   const plainStop = (agentId: string): boolean => noticesFor(plainRows, agentId, 'killed').some(r => r.content.includes("the session's runner restarted before it finished"))
   tally.check('both agents get the stop notice in the plain words', plainStop(done!.agentId) && plainStop(live!.agentId), JSON.stringify(plainRows.map(r => r.content.slice(0, 160))))
-  tally.check('no row on a plain resume', !plainRows.some(r => r.content.startsWith('runner restarted')))
+  tally.check('no row on a plain resume', !plainRows.some(r => r.content.includes('runner restarted after')))
   tally.check('the held completion is not delivered on a plain resume', !plainRows.some(r => r.content === heldDone))
   tally.check('nothing is relaunched and the line is not re-queued on a plain resume', !fixture.requests.some(r => (isLive(r) || isDone(r) || isLine(r)) && r.atMs >= startedAt))
   await third.stop(bound(8_000))

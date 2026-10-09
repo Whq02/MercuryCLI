@@ -5,6 +5,7 @@
 # gate-watch: scripts/reliability/gen-durable-matrix.ts
 # gate-watch: build.ts src/main.tsx src/mneme/* src/services/mcp/config.ts
 # gate-watch: src/tools/ToolSearchTool/cooccurPrior.ts src/tools/WorkflowTool/runManifest.ts
+# gate-watch: src/services/lsp/LSPClient.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }
@@ -27,6 +28,7 @@ __t=$SECONDS; __rc=0; "$bun" run "$here/prove-artifact-faults.ts" || { __rc=$?; 
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-sync-spawn-bounds.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-sync-spawn-bounds.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-crash-shutdown.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-crash-shutdown.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-crash-report-identity.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-crash-report-identity.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$bun" run "$here/prove-quit-files-no-crash.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-quit-files-no-crash.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-deleted-folder-boot.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-deleted-folder-boot.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-write-keeps-old-bytes.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-write-keeps-old-bytes.ts" "$__t" "$__rc"
 echo "############################################################"

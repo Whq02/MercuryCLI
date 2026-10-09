@@ -2,7 +2,7 @@
 import { join } from 'node:path'
 import { getMercuryHome, isEnvDefinedFalsy } from '../../utils/envUtils.js'
 import type { LineEndingType } from '../../utils/fileRead.js'
-import type { BoundedDiffHunk } from './diffBudget.js'
+import type { BoundedDiff } from './diffBudget.js'
 import { changeTransactionEnabled } from './contracts.js'
 import { editHunksEnabled, type EditHunkInput, type HunkSpan } from './hunks.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
@@ -69,7 +69,7 @@ export interface ChangeSetTargetPlan {
   mode: number
   hunkSpans: HunkSpan[]
   plannedContent: string
-  diff: { hunks: BoundedDiffHunk[]; omittedHunks: number }
+  diff: BoundedDiff
   changed: boolean
   fileOp?: 'delete' | 'move'
   newPath?: string
