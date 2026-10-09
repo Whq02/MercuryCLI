@@ -1,7 +1,6 @@
 
 import {
   type AssistantMessage,
-  type Message,
   type UserMessage,
 } from '../../../types/message.js'
 import {
@@ -11,18 +10,6 @@ import {
   type ToolResultBlockParam,
 } from '../../../types/wire.js'
 import { stripThinkingFromIndex } from '../../../utils/messages/apiFilters.js'
-
-export function getPreviousRequestIdFromMessages(
-  messages: Message[],
-): string | undefined {
-  for (let i = messages.length - 1; i >= 0; i--) {
-    const msg = messages[i]!
-    if (msg.type === 'assistant' && msg.requestId) {
-      return msg.requestId
-    }
-  }
-  return undefined
-}
 
 export function isMedia(
   block: ContentBlockParam,
