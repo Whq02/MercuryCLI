@@ -28,18 +28,20 @@ export class FocusManager {
   }
 
   focus(node: DOMElement): void {
-    if (node === this.activeElement) return
-    if (!this.enabled) return
+    if (!this.enabled || node === this.activeElement) return
     const previous = this.activeElement
     if (previous) {
-      const existing = this.stack.indexOf(previous)
-      if (existing !== -1) this.stack.splice(existing, 1)
-      this.stack.push(previous)
-      if (this.stack.length > FOCUS_STACK_LIMIT) this.stack.shift()
+      this.remember(previous)
       this.dispatchFocusEvent(previous, new FocusEvent('blur', node))
     }
     this.activeElement = node
     this.dispatchFocusEvent(node, new FocusEvent('focus', previous))
+  }
+
+  private remember(element: DOMElement): void {
+    const earlier = this.stack.indexOf(element)
+    if (earlier !== -1) this.stack.splice(earlier, 1)
+    if (this.stack.push(element) > FOCUS_STACK_LIMIT) this.stack.shift()
   }
 
   blur(): void {
