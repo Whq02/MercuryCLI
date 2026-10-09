@@ -371,15 +371,15 @@ section('§4 an old type name is unknown exactly as a made-up one')
   const oldName = 'mercury-' + 'general'
   const { run, fixture, world } = await leg(word, () => [
     { kind: 'tool_use', name: 'Agent', input: { description: 'old-seat', prompt: 'old-seat: nothing', subagent_type: oldName }, whenBody: ASK(word) },
-    { kind: 'tool_use', name: 'Agent', input: { description: 'made-up-seat', prompt: 'made-up-seat: nothing', subagent_type: 'mercury-frobnicate' }, whenBody: `Agent type '${oldName}' not found` },
-    { kind: 'text', text: `roster-drive ${word}: both refused`, whenBody: "Agent type 'mercury-frobnicate' not found" },
+    { kind: 'tool_use', name: 'Agent', input: { description: 'made-up-seat', prompt: 'made-up-seat: nothing', subagent_type: 'mercury-frobnicate' }, whenBody: `No agent type named '${oldName}'` },
+    { kind: 'text', text: `roster-drive ${word}: both refused`, whenBody: "No agent type named 'mercury-frobnicate'" },
   ], ASK(word))
   const results = bodies(fixture).flatMap(toolResultsOf)
-  const oldRefusal = results.find(t => t.includes(`Agent type '${oldName}' not found`)) ?? ''
-  const madeUpRefusal = results.find(t => t.includes("Agent type 'mercury-frobnicate' not found")) ?? ''
+  const oldRefusal = results.find(t => t.includes(`No agent type named '${oldName}'`)) ?? ''
+  const madeUpRefusal = results.find(t => t.includes("No agent type named 'mercury-frobnicate'")) ?? ''
   check('the old name is refused as not found', oldRefusal !== '', results.join(' | ').slice(0, 400))
   check('the made-up name is refused with the same words', madeUpRefusal !== '' && madeUpRefusal.replace('mercury-frobnicate', oldName) === oldRefusal, `${oldRefusal} ⇄ ${madeUpRefusal}`)
-  check('the refusal names the available roster: the two built-ins and the owner\'s agent', oldRefusal.includes('Available agents: mercury-crew, mercury-scout, harbour-counter'), oldRefusal)
+  check('the refusal names the available roster: the two built-ins and the owner\'s agent', oldRefusal.includes('this session offers: mercury-crew, mercury-scout, harbour-counter'), oldRefusal)
   check('the lead settled', resultText(run).includes(`roster-drive ${word}: both refused`), `${resultText(run)} ${run.stderr.slice(-200)}`)
   drop(world)
 }
