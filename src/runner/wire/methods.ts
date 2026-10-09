@@ -145,7 +145,7 @@ export const METHODS = {
     params: InitializeParamsSchema,
     result: InitializeResultSchema,
     scope: 'none',
-    deadlineMs: 10_000,
+    deadlineMs: null,
   }),
   'session/claim': method({
     name: 'session/claim',
