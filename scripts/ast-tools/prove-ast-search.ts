@@ -159,21 +159,21 @@ section('§11 — the descriptions')
   const prompt = await AstSearchTool.prompt({ getToolPermissionContext: async () => ({}) })
   check('prompt equals description', prompt === description)
   check('carries the complete-node, capture and declaration grammar', [
-    'ONE complete node, written as code:',
+    'One complete node, written as code:',
     '$NAME matches one node and captures it; $$$NAME matches zero or more siblings (arguments, parameters, statements) and captures them; $_ and $$$ match without capturing.',
     'Names are UPPERCASE letters, digits and _; a name used twice must match identical code; $$X and $$$name are literal text.',
     'Spacing, line breaks and comments never matter.',
     'A symbol by name is its declaration, written with every part it has:',
     'a declared return type needs ": $_" (TypeScript) or " -> $_" (Python) after the parameters.',
   ].every(line => description.includes(line)))
-  check('carries two examples', (description.match(/^- \{ "pattern"/gm) ?? []).length === 2)
+  check('carries no examples: the pattern, mode and glob parameters show the shapes', (description.match(/^- \{ "pattern"/gm) ?? []).length === 0 && !description.includes('Examples:'))
   check('names every supported language', astLanguageNames().every((n: string) => description.includes(n)))
   check('names the bound', description.includes('default 50, max 200'))
   const editDescription = await AstEditTool.description()
   check('AstEdit: prompt equals description', (await AstEditTool.prompt({ getToolPermissionContext: async () => ({}) })) === editDescription)
   check('AstEdit: names the dry-run + plan law', editDescription.includes('Two calls, always') && editDescription.includes('plan "ae-…"'))
   check('AstEdit: names the refusals', editDescription.includes('a match nested inside another') && editDescription.includes('a result that would not parse') && editDescription.includes('an uncaptured meta-variable'))
-  check('AstEdit: carries two examples', (editDescription.match(/^- \{ "pattern"/gm) ?? []).length === 2)
+  check('AstEdit: carries no examples: the apply and plan parameters show the two calls', (editDescription.match(/^- \{ "pattern"/gm) ?? []).length === 0 && !editDescription.includes('Examples:'))
 }
 
 section('§12 — the descriptions name only the grammars the build carries')
