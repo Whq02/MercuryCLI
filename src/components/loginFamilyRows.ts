@@ -122,3 +122,14 @@ export const SIGN_IN_LATER_ROW = {
   label: 'Sign in later to look around. Sign-in is required to run the agent.',
   value: 'later',
 } as const
+
+export function loginFamilyNameOf(row: LoginFamilyRow): string {
+  return row.label.split(' — ')[0]!
+}
+
+export function connectableLoginFamilyWords(): string {
+  const names = loginFamilyRows({ engineLegs: true })
+    .filter(row => row.value !== 'openai' && row.value !== 'claudeai' && row.value !== 'console')
+    .map(loginFamilyNameOf)
+  return `${names.slice(0, -1).join(', ')} or ${names[names.length - 1]}`
+}

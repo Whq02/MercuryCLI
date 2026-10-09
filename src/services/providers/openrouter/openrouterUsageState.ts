@@ -4,7 +4,7 @@ import { credentialFingerprint } from '../credentialIdentity.js'
 import { catalogueTrafficVerdict } from '../catalogueGate.js'
 import { fetchWithProviderDeadline } from '../fetchDeadline.js'
 import { USAGE_POLL_TTL_MS } from '../usageFreshness.js'
-import { markOpenrouterMintedKeyExpired, openrouterAuthPathForDisplay, readMintedOpenrouterKey, resolveOpenrouterRequestAuth, type OpenrouterKeySource, type OpenrouterRequestAuth } from './openrouterAccounts.js'
+import { clearOpenrouterKeyRefusal, markOpenrouterKeyRefused, markOpenrouterMintedKeyExpired, openrouterAuthPathForDisplay, openrouterKeyRefusal, readMintedOpenrouterKey, resolveOpenrouterApiKey, resolveOpenrouterRequestAuth, type OpenrouterKeySource, type OpenrouterRequestAuth } from './openrouterAccounts.js'
 
 const KEY_PROBE_TIMEOUT_MS = 10_000
 
@@ -98,6 +98,12 @@ export function openrouterObservedKeyUsage(env: NodeJS.ProcessEnv = process.env)
   errorStatus?: number
 } {
   dropIfStale(env)
+  if (lastError === undefined) {
+    const refused = openrouterKeyRefusal(env)
+    if (refused !== undefined) {
+      return { usage: observedKeyUsage, lastError: refused.message, errorSource: refused.source, errorStatus: refused.status }
+    }
+  }
   return {
     usage: observedKeyUsage,
     ...(lastError !== undefined ? { lastError } : {}),
@@ -146,6 +152,7 @@ export function refreshOpenrouterKeyUsage(opts?: {
       for (let attempt = 0; auth && attempt < 2; attempt++) {
         const source = auth.account.keySource
         const minted = source === 'oauth' ? readMintedOpenrouterKey() : undefined
+        const probed = resolveOpenrouterApiKey(env)
         identity = requestIdentity(auth)
         lastAttemptAtMs = now()
         observedIdentity = identity
@@ -161,9 +168,11 @@ export function refreshOpenrouterKeyUsage(opts?: {
           return observedKeyUsage
         }
         if (!response.ok) {
+          const refusal = response.status === 401 || response.status === 403
           lastError = error
           lastErrorSource = source
           lastErrorStatus = response.status
+          if (refusal && probed !== undefined && probed.source === source) markOpenrouterKeyRefused(probed, response.status, error!, now)
           if (response.status === 401 && minted && markOpenrouterMintedKeyExpired(minted, error!)) {
             observedKeyUsage = null
             auth = resolveOpenrouterRequestAuth(env)
@@ -182,6 +191,7 @@ export function refreshOpenrouterKeyUsage(opts?: {
         lastError = undefined
         lastErrorSource = undefined
         lastErrorStatus = undefined
+        if (probed !== undefined && probed.source === source) clearOpenrouterKeyRefusal(probed)
         return decoded
       }
       return observedKeyUsage

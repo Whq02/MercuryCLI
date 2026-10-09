@@ -1,12 +1,32 @@
 import * as React from 'react'
-import { basename, sep as platformSep } from 'node:path'
+import { posix, sep as platformSep, win32 } from 'node:path'
 import { Text } from '../../ink.js'
+import { getPlatform } from '../../utils/platform.js'
 import { getFocusedSessionConnector } from '../../services/engine-connector/focusedConnector.js'
 import { permissionRuleExtractPrefix } from '../../utils/permissions/shellRuleMatching.js'
 import type { PermissionUpdate } from '../../types/permissions.js'
 
+export type FolderSpelling = 'windows' | 'posix'
+
+function folderSpelling(): FolderSpelling {
+  return getPlatform() === 'windows' ? 'windows' : 'posix'
+}
+
+export function displayFolderOfRule(cleaned: string, spelling: FolderSpelling = folderSpelling()): string {
+  const anchored = cleaned.startsWith('//') ? cleaned.slice(1) : cleaned
+  if (spelling !== 'windows') return anchored
+  const drive = /^\/([A-Za-z])(?:\/(.*))?$/.exec(anchored) ?? /^([A-Za-z]):\/(.*)$/.exec(anchored)
+  if (drive === null) return anchored.replace(/\//g, '\\').replace(/\\+$/, '')
+  const rest = (drive[2] ?? '').replace(/\//g, '\\').replace(/\\+$/, '')
+  return `${(drive[1] as string).toUpperCase()}:\\${rest}`
+}
+
+export function folderSeparator(spelling: FolderSpelling = folderSpelling()): string {
+  return spelling === 'windows' ? '' : platformSep
+}
+
 function pathDisplayName(path: string): string {
-  const name = basename(path)
+  const name = folderSpelling() === 'windows' ? win32.basename(path) : posix.basename(path)
   return name === '' ? path : name
 }
 
@@ -18,13 +38,16 @@ function singlePathDisplay(path: string): string {
   return `${head}…${tail}`
 }
 
-function formatPathList(paths: string[]): React.ReactNode {
+function formatPathList(rulePaths: string[]): React.ReactNode {
+  const spelling = folderSpelling()
+  const paths = rulePaths.map(path => displayFolderOfRule(path, spelling))
   const names = paths.map(pathDisplayName)
+  const sep = folderSeparator(spelling)
   if (names.length === 1) {
     return (
       <Text bold>
         {singlePathDisplay(paths[0] as string)}
-        {platformSep}
+        {sep}
       </Text>
     )
   }
@@ -33,12 +56,12 @@ function formatPathList(paths: string[]): React.ReactNode {
       <>
         <Text bold>
           {names[0]}
-          {platformSep}
+          {sep}
         </Text>{' '}
         and{' '}
         <Text bold>
           {names[1]}
-          {platformSep}
+          {sep}
         </Text>
       </>
     )
@@ -47,12 +70,12 @@ function formatPathList(paths: string[]): React.ReactNode {
     <>
       <Text bold>
         {names[0]}
-        {platformSep}
+        {sep}
       </Text>
       {', '}
       <Text bold>
         {names[1]}
-        {platformSep}
+        {sep}
       </Text>{' '}
       and {paths.length - 2} more
     </>

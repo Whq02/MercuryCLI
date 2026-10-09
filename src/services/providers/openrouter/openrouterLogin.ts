@@ -1,6 +1,6 @@
 import { errorMessageWithCause } from '../../../utils/errors.js'
 import { writeStoredOpenrouterApiKey } from '../../../utils/router/providerSecrets.js'
-import type { OpenrouterAccountRef } from './openrouterAccounts.js'
+import { forgetOpenrouterKeyRefusal, type OpenrouterAccountRef } from './openrouterAccounts.js'
 import { refreshOpenrouterCatalogue } from './openrouterCatalogue.js'
 
 export interface OpenrouterKeyLoginOutcome {
@@ -17,6 +17,7 @@ export async function storeOpenrouterApiKeyLogin(
     io?.refreshCatalogue ?? (() => refreshOpenrouterCatalogue('stored', { force: true }).catch(() => null))
   try {
     writeStoredOpenrouterApiKey(key)
+    forgetOpenrouterKeyRefusal()
   } catch (error) {
     return {
       ok: false,

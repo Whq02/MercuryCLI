@@ -252,7 +252,7 @@ import { getRunningTasks, POLL_INTERVAL_MS } from '../utils/task/framework.js'
 import { AGENT_INTERRUPT_BY_OPERATOR, AGENT_RESUME_NOTE, enqueueAgentReceiptRow, isLocalAgentTask, queueOperatorMessage } from '../tasks/LocalAgentTask/LocalAgentTask.js'
 import { stopAgentByOperator } from '../services/agents/operatorStop.js'
 import { openaiCatalogueFact, primeOpenaiCatalogue, readOpenaiAccountAgain } from '../services/providers/openai/openaiCatalogue.js'
-import { markSessionBootRules, markSessionNonInteractive } from '../utils/cockpit/runtimePosture.js'
+import { markSessionBootRules, markSessionNonInteractive, markSessionPermissionMode } from '../utils/cockpit/runtimePosture.js'
 import { windowsShellRoadNotice } from '../utils/shell/windowsShellRoad.js'
 import { drainRows, subscribeRows } from '../utils/sdkEventQueue.js'
 import { projectWorkRoster } from '../utils/task/workRoster.js'
@@ -1674,6 +1674,7 @@ export async function runHeadless(
       if (!resolved.ok) throw refused(resolved.error, 'mode')
       const nextContext = resolved.context
       setAppState(previous => ({ ...previous, toolPermissionContext: nextContext }))
+      markSessionPermissionMode(nextContext.mode)
       return { mode: params.mode }
     },
     'session/set_model': async (params, ref) => {
@@ -1756,6 +1757,7 @@ export async function runHeadless(
       if (claimedContext !== undefined) {
         const nextContext = claimedContext
         setAppState(previous => ({ ...previous, toolPermissionContext: nextContext }))
+        markSessionPermissionMode(nextContext.mode)
       }
       await armSessionRunnerWiring(sid)
       if (typeof params.restart_reason === 'string') runnerRestartReason = params.restart_reason

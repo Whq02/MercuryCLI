@@ -141,6 +141,7 @@ export interface CompatLaneProfile {
   wireModelId(modelId: string): string
   requestFitRefusal?(estimate: { requestBytes: number; estTokens: number; toolCount: number; wireModel: string }): string | undefined
   onResponseHeaders?(headers: Headers, status?: number): void
+  onCredentialRefused?(fault: Pick<CompatFault, 'status' | 'code' | 'message'>): void
   extraHeaders?(): Record<string, string> | undefined
   omitsToolChoice?: boolean
   toolCapabilityRefusal?(wireModel: string): string | undefined
@@ -665,9 +666,11 @@ export async function* compatChatCallModel(
       logForDebugging(`[compat:${profile.lane}] credential wall (${wall}) — the wire said: ${wireSaid}`)
       const line = credentialWallLine(profile.lane, wall)
       if (wall === 'key-limit') recordLaneBillingRefusal(profile.lane, { detail: wireSaid, remedy: line })
+      if (wall === 'sign-in') profile.onCredentialRefused?.(outcome.fault)
       yield withEffort(apiErrorMessage(`${API_ERROR_MESSAGE_PREFIX}: ${line}`, wall === 'key-limit' ? 'billing_error' : 'authentication_failed'))
       return
     }
+    if (typed === 'authentication_failed') profile.onCredentialRefused?.(outcome.fault)
     if (typed === 'billing_error') {
       recordLaneBillingRefusal(profile.lane, {
         detail: outcome.fault.message ? `${outcome.fault.code}: ${outcome.fault.message}` : outcome.fault.code,
