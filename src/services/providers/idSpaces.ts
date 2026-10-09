@@ -13,6 +13,7 @@ export type CallModelRoute =
   | 'gemini'
   | 'huggingface'
   | 'local'
+  | 'nous'
 
 export interface ProviderIdSpace {
   route: Exclude<CallModelRoute, 'anthropic'>
@@ -34,6 +35,7 @@ export const PROVIDER_ID_SPACES: readonly ProviderIdSpace[] = [
   { route: 'xai', barePrefixes: ['grok-'], bareAliases: ['grok'] },
   { route: 'meta', barePrefixes: ['muse-'], bareAliases: ['muse'] },
   { route: 'gemini', barePrefixes: ['gemini-'], bareAliases: ['gemini'] },
+  { route: 'nous', qualifiedPrefix: 'nous/', innerGrammar: 'segments-2' },
 ]
 
 export const COMPAT_MODEL_PREFIX = 'compat/'
