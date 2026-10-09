@@ -287,6 +287,10 @@ export function getPublicModelDisplayName(model: string): string | null {
     const { metaDisplayPin } = require('../../services/providers/meta/metaPins.js') as typeof import('../../services/providers/meta/metaPins.js')
     return metaDisplayPin(bare)?.displayName ?? null
   }
+  if (/^(?:mistral|ministral|codestral)-/i.test(bare)) {
+    const { mistralDisplayPin } = require('../../services/providers/mistral/mistralPins.js') as typeof import('../../services/providers/mistral/mistralPins.js')
+    return mistralDisplayPin(bare)?.displayName ?? null
+  }
   const gpt = gptDisplayName(bare)
   if (gpt !== undefined) {
     return gpt
