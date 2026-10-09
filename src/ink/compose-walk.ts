@@ -1107,23 +1107,23 @@ function clipsBothAxes(node: DOMElement): boolean {
   return (ox === 'hidden' || ox === 'scroll') && (oy === 'hidden' || oy === 'scroll')
 }
 
+function nearestLaidOutSibling(siblings: DOMElement['childNodes'], index: number): LayoutNode | null {
+  for (let i = index + 1; i < siblings.length; i++) {
+    const layout = (siblings[i] as DOMElement).layoutNode
+    if (layout) return layout
+  }
+  for (let i = index - 1; i >= 0; i--) {
+    const layout = (siblings[i] as DOMElement).layoutNode
+    if (layout) return layout
+  }
+  return null
+}
+
 function siblingSharesY(node: DOMElement, layoutNode: LayoutNode): boolean {
   const parent = node.parentNode
   if (!parent) return false
-  const myTop = layoutNode.getComputedTop()
-  const siblings = parent.childNodes
-  const idx = siblings.indexOf(node)
-  for (let i = idx + 1; i < siblings.length; i++) {
-    const sib = (siblings[i] as DOMElement).layoutNode
-    if (!sib) continue
-    return sib.getComputedTop() === myTop
-  }
-  for (let i = idx - 1; i >= 0; i--) {
-    const sib = (siblings[i] as DOMElement).layoutNode
-    if (!sib) continue
-    return sib.getComputedTop() === myTop
-  }
-  return false
+  const neighbour = nearestLaidOutSibling(parent.childNodes, parent.childNodes.indexOf(node))
+  return neighbour !== null && neighbour.getComputedTop() === layoutNode.getComputedTop()
 }
 
 function blitEscapingAbsoluteDescendants(
