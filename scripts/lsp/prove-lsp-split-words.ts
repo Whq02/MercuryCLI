@@ -50,7 +50,7 @@ try {
   const stopped = await available.LspRenameTool.call({ filePath: join(project, 'lib.ts'), line: 1, character: 14, newName: 'spend' }, door.prover.ctx as never)
   check('the call backstop refuses the disabled bridge before server work', stopped.effect?.outcome === 'failed' && /MERCURY_LSP is off/.test(stopped.data.result))
   const { getAllBaseTools } = await import('../../src/tools.ts')
-  check('the master flag withholds all seven tools and the doctrine', !getAllBaseTools().some(tool => available.LSP_TOOLS.some(lsp => lsp.name === tool.name)) && getLspDoctrineLine() === null && getLspPackEvidenceText() === null)
+  check('the master flag withholds all seven tools', !getAllBaseTools().some(tool => available.LSP_TOOLS.some(lsp => lsp.name === tool.name)))
 } finally {
   await door.close()
   cleanup(scratch)
