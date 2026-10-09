@@ -17,6 +17,7 @@ export type ProviderId =
   | 'gemini'
   | 'huggingface'
   | 'local'
+  | 'zen'
 
 export interface ProviderUsability {
   provider: ProviderId | 'unrecognised'
@@ -44,6 +45,7 @@ export interface ProviderUsabilityReads {
   xaiAccount?: () => { kind: 'grok-subscription' | 'api-key' } | undefined
   xaiKeyPresent?: () => boolean
   metaKeyPresent?: () => boolean
+  zenKeyPresent?: () => boolean
   compatConfigured?: () => boolean
   compatAccount?: () => { kind: 'api-key' | 'keyless' } | undefined
   huggingfaceAccount?: () => { kind: 'oauth' | 'api-key' } | undefined
@@ -134,6 +136,10 @@ function liveProviderUsabilityReads(opts?: ProviderUsabilityReadOptions): Provid
     metaKeyPresent: () => {
       const { resolveMetaApiKey } = require('./meta/metaAccounts.js') as typeof import('./meta/metaAccounts.js')
       return resolveMetaApiKey() !== undefined
+    },
+    zenKeyPresent: () => {
+      const { resolveZenApiKey } = require('./zen/zenAccounts.js') as typeof import('./zen/zenAccounts.js')
+      return resolveZenApiKey() !== undefined
     },
     deepseekKeyPresent: () => {
       const { resolveDeepseekApiKey } =
@@ -309,6 +315,7 @@ function resolveProviderUsabilityFrom(reads: ProviderUsabilityReads): Record<Pro
     moonshotAccount?.kind === 'kimi-oauth' ? 'oauth' : 'api-key',
   )
   const meta = keyLane('meta', reads.metaKeyPresent?.() ?? false, 'no Meta API key — /logins meta (or MODEL_API_KEY)')
+  const zen = keyLane('zen', reads.zenKeyPresent?.() ?? false, 'no OpenCode Zen API key — /logins zen (or OPENCODE_API_KEY)')
   const deepseek = keyLane(
     'deepseek',
     reads.deepseekKeyPresent?.() ?? false,
@@ -409,6 +416,7 @@ function resolveProviderUsabilityFrom(reads: ProviderUsabilityReads): Record<Pro
       reads.huggingfaceBillingState?.(),
     ),
     local: applyLaneBilling(local),
+    zen: applyLaneBilling(zen),
   }
 }
 
