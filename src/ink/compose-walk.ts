@@ -350,12 +350,22 @@ function wrapWithSoftWrap(
   return { wrapped: outLines.join('\n'), softWrap }
 }
 
-function applyPaddingToText(node: DOMElement, text: string, softWrap?: boolean[]): string {
+const firstChildOffset = (node: DOMElement): { left: number; top: number } | null => {
   const layout = node.childNodes[0]?.layoutNode
-  if (!layout) return text
-  const top = layout.getComputedTop()
-  if (softWrap && top > 0) softWrap.unshift(...new Array<boolean>(top).fill(false))
-  return '\n'.repeat(top) + indentString(text, layout.getComputedLeft())
+  return layout ? { left: layout.getComputedLeft(), top: layout.getComputedTop() } : null
+}
+
+const alignSoftWrapFlags = (flags: boolean[] | undefined, rowsAbove: number): void => {
+  if (flags && rowsAbove > 0) flags.unshift(...new Array<boolean>(rowsAbove).fill(false))
+}
+
+const padTop = (text: string, rowsAbove: number): string => (rowsAbove > 0 ? '\n'.repeat(rowsAbove) + text : text)
+
+function applyPaddingToText(node: DOMElement, text: string, softWrap?: boolean[]): string {
+  const offset = firstChildOffset(node)
+  if (!offset) return text
+  alignSoftWrapFlags(softWrap, offset.top)
+  return padTop(indentString(text, offset.left), offset.top)
 }
 
 
