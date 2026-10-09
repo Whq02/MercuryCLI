@@ -13,7 +13,6 @@ import type { StorageRowKind, StorageRowOf } from '../../rows/storage.js'
 import { isCompactBoundaryMessage } from '../messages.js'
 import type { ContentReplacementRecord } from '../toolResultStorage.js'
 import { isPersistedProgressEntry } from './paths.js'
-import { migrateTranscriptEntryKind } from '../../migrations/migrateTranscriptEntryKinds.js'
 import { createTranscriptRows, transcriptRows } from './rowGraph.js'
 
 export type TranscriptFoldState = {
@@ -119,7 +118,6 @@ const foldRows = {
 } satisfies { [K in StorageRowKind]: (state: TranscriptFoldState, row: StorageRowOf<K>) => void }
 
 export function applyTranscriptEntry(st: TranscriptFoldState, entry: Entry): void {
-  entry = migrateTranscriptEntryKind(entry)
   if (isPersistedProgressEntry(entry)) {
     const parent = entry.parentUuid
     st.progressBridge.set(entry.uuid, parent && st.progressBridge.has(parent) ? st.progressBridge.get(parent) ?? null : parent)

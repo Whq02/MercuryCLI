@@ -279,5 +279,38 @@ console.log('§10 the old command name is not carried: /crewmates has no alias')
   check('the command is /crewmates and carries no alias (no hidden old spelling)', crewmates.name === 'crewmates' && (crewmates.aliases ?? []).length === 0, JSON.stringify(crewmates))
 }
 
+console.log('§11 a transcript row under a kind no build of Mercury writes is an unknown entry: the fold reads the kind as written, keeps no row for it and rewrites nothing')
+{
+  const fold = await import('../../src/utils/sessionStorage/fold.ts')
+  const UNKNOWN_KIND = 'a-kind-no-build-of-mercury-writes'
+  const KIND_SID = '00000000-cccc-4000-8000-0000000c0ffee'
+  const kindFile = join(dir, `${KIND_SID}.jsonl`)
+  const plain = (uuid: string, parent: string | null, i: number, rest: Record<string, unknown>): Record<string, unknown> => ({ uuid, parentUuid: parent, isSidechain: false, cwd: SCRATCH, sessionId: KIND_SID, version: '1.0.0', timestamp: at(70 + i), ...rest })
+  const k1 = uid()
+  const kOld = uid()
+  const k2 = uid()
+  const oldRow = plain(kOld, k1, 1, { type: UNKNOWN_KIND, boundaryUuid: k1, kept: [] })
+  for (const entry of [plain(k1, null, 0, { type: 'user', message: { role: 'user', content: 'before the unknown row' } }), oldRow, plain(k2, k1, 2, { type: 'user', message: { role: 'user', content: 'after the unknown row' } })]) {
+    appendFileSync(kindFile, (vnext.encodeTranscriptLine(kindFile, entry) as { line: string }).line)
+  }
+  let loaded: { messages: Array<Record<string, unknown>> } | null = null
+  let thrown = ''
+  try {
+    loaded = (await logs.loadTranscriptFromFile(kindFile)) as unknown as { messages: Array<Record<string, unknown>> }
+  } catch (error) {
+    thrown = String(error)
+  }
+  check('the transcript loads through the product reader with the unknown row in it — no crash', loaded !== null && thrown === '', thrown)
+  check('the two user rows read; the unknown-kind row is in no message list a screen paints', loaded !== null && loaded.messages.length === 2 && loaded.messages.every(m => m.type === 'user'), JSON.stringify(loaded?.messages.map(m => m.type)))
+  const state = fold.emptyFoldState()
+  const written = JSON.stringify(oldRow)
+  fold.applyTranscriptEntry(state, oldRow as never)
+  check('the fold keeps no row, no collapse commit and no snapshot for the unknown kind', state.messages.size === 0 && state.contextCollapseCommits.length === 0 && state.contextCollapseSnapshot === undefined, `${state.messages.size} rows · ${state.contextCollapseCommits.length} commits`)
+  check('the entry is read as written — no step rewrites its kind', JSON.stringify(oldRow) === written && oldRow.type === UNKNOWN_KIND)
+  const foldSource = src('src/utils/sessionStorage/fold.ts')
+  check('the fold imports no kind-rewriting module and dispatches on the kind as written', !/migrat/i.test(foldSource) && foldSource.includes('Object.hasOwn(foldRows, entry.type)'))
+  check('no transcript-kind migration folder exists in the tree', !existsSync(join(ROOT, 'src/migrations')))
+}
+
 console.log(failures === 0 ? '\nold transcript kinds: ALL GREEN' : `\nold transcript kinds: ${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)

@@ -14,7 +14,6 @@ import { flagEnabled, flagEnv } from '../../substrate/flagRegistry.js'
 import { OwnerScopedStore } from '../run/ownerScopedStore.js'
 import { ownerFromToolUseContext } from '../run/resolveOwner.js'
 import { setLastSummarizedMessageId } from '../SessionMemory/sessionMemoryUtils.js'
-import { markPostCompaction } from '../api/logging.js'
 import type { OverflowSignal } from '../api/overflowSignal.js'
 import { notifyCompaction } from '../api/promptCacheBreakDetection.js'
 import { usabilityForRoute } from '../providers/providerUsability.js'
@@ -404,7 +403,6 @@ export async function autoCompactIfNeeded(
         setLastSummarizedMessageId(undefined)
         runPostCompactCleanup({ querySource, owner: toolUseContext.owner, agentId: toolUseContext.agentId })
         if (walked.method === 'notes') {
-          markPostCompaction()
           return { wasCompacted: true, compactionResult: walked.result, consecutiveRapidRefills: refills }
         }
         return {
@@ -422,7 +420,6 @@ export async function autoCompactIfNeeded(
     if (viaMemory !== null) {
       setLastSummarizedMessageId(undefined)
       runPostCompactCleanup({ querySource, owner: toolUseContext.owner, agentId: toolUseContext.agentId })
-      markPostCompaction()
       return { wasCompacted: true, compactionResult: viaMemory, consecutiveRapidRefills: refills }
     }
 
