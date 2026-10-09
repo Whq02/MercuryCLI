@@ -106,6 +106,7 @@ function capture(splashDir: string, cols: number, rows: number, tier: Tier, mode
       MERCURY_CONFIG_DIR: home,
       MERCURY_CREDENTIAL_STORE: 'file',
       MERCURY_LOCAL_PROBE_TARGETS: 'none',
+      MERCURY_CRITTER: 'jellyfish',
       ...tierEnv(tier),
       ...(mode === 'oneshot' ? { MERCURY_SPLASH_ONESHOT: '1' } : {}),
     }
@@ -136,7 +137,7 @@ if (recordAt >= 0) {
 }
 
 console.log('============================================================')
-console.log(' splash — the final screen across tiers and against the .27 base, oneshot and cinematic')
+console.log(' splash — the final screen across tiers and against the .27 base (recorded at its jellyfish default, which the capture pins), oneshot and cinematic')
 console.log('============================================================')
 
 section('§1 the comparators\' teeth (synthetic screens)')

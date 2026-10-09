@@ -970,14 +970,14 @@ JELLY_MAIN = '38;2;111;199;232'
 CLAM_MAIN = '38;2;22;216;176'
 CRAB_MAIN = '38;2;221;68;68'
 raw_fam = run_pty(120, 44)
-check('hermetic default wears JELLYFISH cyan (the baked default family)', JELLY_MAIN in raw_fam)
-check('…and no crab red survives anywhere in the frame (the unpin is total)', CRAB_MAIN not in raw_fam)
+check('hermetic default wears CRAB red (the baked default family)', CRAB_MAIN in raw_fam)
+check('…and no jellyfish cyan survives anywhere in the frame (the default family is total)', JELLY_MAIN not in raw_fam)
 fam_txt = STRIP.sub('', run_pty(120, 44, dict(INLINE)))
-check("…and the deck's Theme chip says Jellyfish (strip truth == family truth)", 'Jellyfish' in fam_txt)
+check("…and the deck's Theme chip says Crab (strip truth == family truth)", 'Crab' in fam_txt)
 raw_fam = run_pty(120, 44, {'MERCURY_CRITTER': 'clam'})
 check('MERCURY_CRITTER=clam pins the clam teal family', CLAM_MAIN in raw_fam and CRAB_MAIN not in raw_fam)
 raw_fam = run_pty(120, 44, {'MERCURY_CRITTER': 'dragon'})
-check('a retired key resolves to the pool default (the sessionAccent poolKeyOr law)', JELLY_MAIN in raw_fam)
+check('a retired key resolves to the pool default (the sessionAccent poolKeyOr law)', CRAB_MAIN in raw_fam)
 raw_fam = run_pty(120, 44, {'MERCURY_CRITTER': 'crab'})
 check('the crab family byte-anchors the authored red (pre-GLOW parity)', CRAB_MAIN in raw_fam)
 
@@ -1160,29 +1160,29 @@ def seeded_home(native=None, external=None):
     return home
 
 
-home_native = seeded_home(native={'defaultCritter': 'crab',
+home_native = seeded_home(native={'defaultCritter': 'jellyfish',
                                   'oauthAccount': {'emailAddress': 'native@mercury.test'}})
 raw = run_pty(120, 44, {'MERCURY_HOME': home_native, **INLINE})
 plain = STRIP.sub('', raw)
-check('native home: theme chip serves .mercury.json (Crab)', 'Crab' in plain)
+check('native home: theme chip serves .mercury.json (Jellyfish)', 'Jellyfish' in plain)
 check('native home: account chip serves .mercury.json', 'native@mercury.test' in plain)
-check('native home: the persisted critter drives the accent family (crab red, no default cyan)',
-      CRAB_MAIN in raw and JELLY_MAIN not in raw)
+check('native home: the persisted critter drives the accent family (jellyfish cyan, no default red)',
+      JELLY_MAIN in raw and CRAB_MAIN not in raw)
 
-home_external = seeded_home(external={'defaultCritter': 'crab',
+home_external = seeded_home(external={'defaultCritter': 'jellyfish',
                                       'oauthAccount': {'emailAddress': 'external@compat.test'}})
 raw = run_pty(120, 44, {'MERCURY_HOME': home_external, **INLINE})
 plain = STRIP.sub('', raw)
 check('external-file-only home: an external .claude.json is never read',
-      'external@compat.test' not in plain and 'Crab' not in plain)
+      'external@compat.test' not in plain and 'Jellyfish' not in plain)
 
 home_both = seeded_home(
-    native={'defaultCritter': 'crab', 'oauthAccount': {'emailAddress': 'native@mercury.test'}},
+    native={'defaultCritter': 'jellyfish', 'oauthAccount': {'emailAddress': 'native@mercury.test'}},
     external={'defaultCritter': 'octopus', 'oauthAccount': {'emailAddress': 'other@compat.test'}})
 raw = run_pty(120, 44, {'MERCURY_HOME': home_both, **INLINE})
 plain = STRIP.sub('', raw)
 check('both files present: the native file wins',
-      'native@mercury.test' in plain and 'Crab' in plain)
+      'native@mercury.test' in plain and 'Jellyfish' in plain)
 check("both files present: the external file's facts never render",
       'other@compat.test' not in plain and 'Octopus' not in plain)
 

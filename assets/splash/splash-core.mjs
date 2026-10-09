@@ -185,7 +185,7 @@ const ACCENT_FAMILIES = {
   jellyfish: { main: [111,199,232], deep: [63,126,150], soft: [161,212,228], ramp: [[111,199,232],[161,212,228],[199,222,224]], t256: 80, t256deep: 66 },
   clam: { main: [22,216,176], deep: [14,147,119], soft: [108,222,194], ramp: [[22,216,176],[108,222,194],[173,227,208]], t256: 43, t256deep: 30 },
 }
-const DEFAULT_CRITTER = "jellyfish"
+const DEFAULT_CRITTER = "crab"
 
 export function accentFamilyKeyOf(raw) {
   const k = String(raw ?? '').trim().toLowerCase()

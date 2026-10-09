@@ -52,7 +52,7 @@ console.log('— BOOT ORDER (the day-one bug): module init precedes the latch �
   const { mkdtempSync, writeFileSync, rmSync } = await import('node:fs')
   const { tmpdir } = await import('node:os')
   const home = mkdtempSync(join(tmpdir(), 'critter-bootorder-'))
-  writeFileSync(join(home, '.mercury.json'), JSON.stringify({ defaultCritter: 'crab' }))
+  writeFileSync(join(home, '.mercury.json'), JSON.stringify({ defaultCritter: 'jellyfish' }))
   const prevHome = process.env.MERCURY_CONFIG_DIR
   process.env.MERCURY_CONFIG_DIR = home
   try {
@@ -63,7 +63,7 @@ console.log('— BOOT ORDER (the day-one bug): module init precedes the latch �
     const late = accent.getSessionCritterKey()
     const { DEFAULT_CRITTER_KEY } = await import('../../src/utils/cockpit/critterData.ts')
     t('pre-latch read serves the default (never throws)', early === DEFAULT_CRITTER_KEY, early)
-    t('post-latch read locks the persisted critter', late === 'crab', late)
+    t('post-latch read locks the persisted critter', late === 'jellyfish', late)
   } finally {
     if (prevHome === undefined) delete process.env.MERCURY_CONFIG_DIR
     else process.env.MERCURY_CONFIG_DIR = prevHome
@@ -105,8 +105,8 @@ console.log('— a SAVED defaultCritter the pool does not know resolves to the D
         shape = parsed.shape ?? ''
       } catch {
       }
-      t(`saved '${legacy}' resolves the TINT key to the pool default at read`, key === 'jellyfish', key || r.stderr.slice(0, 200))
-      t(`saved '${legacy}' resolves the SHAPE to the pool default def`, shape === 'jellyfish', shape)
+      t(`saved '${legacy}' resolves the TINT key to the pool default at read`, key === 'crab', key || r.stderr.slice(0, 200))
+      t(`saved '${legacy}' resolves the SHAPE to the pool default def`, shape === 'crab', shape)
       t(
         `the stored value still says '${legacy}' — read-side only, never rewritten`,
         readFileSync(cfgPath, 'utf8') === before,
@@ -118,12 +118,12 @@ console.log('— a SAVED defaultCritter the pool does not know resolves to the D
   }
 }
 
-console.log('— the default critter is the jellyfish —')
+console.log('— the default critter is the crab —')
 {
   const { DEFAULT_CRITTER_KEY } = await import('../../src/utils/cockpit/critterData.ts')
   const { ALL_CRITTERS } = await import('../../src/components/mercury-ui/sessionAccent.ts')
-  t('DEFAULT_CRITTER_KEY is jellyfish', DEFAULT_CRITTER_KEY === 'jellyfish', DEFAULT_CRITTER_KEY)
-  t('the jellyfish is a real creature in the pool', ALL_CRITTERS.some(c => c.key === 'jellyfish'))
+  t('DEFAULT_CRITTER_KEY is crab', DEFAULT_CRITTER_KEY === 'crab', DEFAULT_CRITTER_KEY)
+  t('the crab is a real creature in the pool', ALL_CRITTERS.some(c => c.key === 'crab'))
   const accent = src('src/components/mercury-ui/sessionAccent.ts')
   t('the boot resolver falls back to DEFAULT_CRITTER_KEY, never a literal', accent.includes('DEFAULT_CRITTER_KEY') && !/\?\? 'octopus'|\?\? 'crab'/.test(accent))
 }

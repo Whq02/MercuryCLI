@@ -21,10 +21,10 @@ const unsub = accent.subscribeSessionCritter(() => {
   notified++
 })
 const e0 = accent.getAccentEpoch()
-accent.setSessionCritter('crab')
+accent.setSessionCritter('jellyfish')
 check('a /critter pick bumps the epoch', accent.getAccentEpoch() === e0 + 1)
 check('… and notifies the listeners', notified === 1)
-accent.setSessionCritter('crab')
+accent.setSessionCritter('jellyfish')
 check('a same-key pick is a full no-op (no bump, no notify)', accent.getAccentEpoch() === e0 + 1 && notified === 1)
 accent.setSessionCritter('not-a-critter')
 check('an unknown key is a full no-op', accent.getAccentEpoch() === e0 + 1 && notified === 1)
