@@ -24,6 +24,7 @@ import { metaProviderAdapter } from './providers/meta.js'
 import { compatProviderAdapter } from './providers/openaicompat.js'
 import { huggingfaceProviderAdapter } from './providers/huggingface.js'
 import { localProviderAdapter } from './providers/local.js'
+import { zenProviderAdapter } from './providers/zen.js'
 import { catalogueEpoch } from '../../services/providers/catalogueEpoch.js'
 import { signInLedgerEpoch } from '../accounts/signInLedger.js'
 import { credentialEnvNames } from './providerSecrets.js'
@@ -54,6 +55,7 @@ const PROVIDER_ADAPTERS: readonly RouterProviderAdapter[] = [
   compatProviderAdapter,
   huggingfaceProviderAdapter,
   localProviderAdapter,
+  zenProviderAdapter,
 ]
 
 function classForCanonical(canonical: string): RouterModelClass | null {
