@@ -77,6 +77,7 @@ export function mixedFacts(): LoginsScreenFactsV1 {
     { family: presence('deepseek'), slots: [] },
     { family: presence('xai'), slots: [] },
     { family: presence('meta'), slots: [] },
+    { family: presence('mistral'), slots: [] },
   ]
   const usability: Record<ProviderId, ProviderUsability> = {
     anthropic: usable('anthropic', { credential: 'oauth', limit: 'allowed', usable: true, blockers: [] }),
@@ -88,6 +89,7 @@ export function mixedFacts(): LoginsScreenFactsV1 {
     deepseek: usable('deepseek'),
     xai: usable('xai'),
     meta: usable('meta'),
+    mistral: usable('mistral'),
     zai: usable('zai'),
     'openai-compat': usable('openai-compat'),
     local: usable('local'),
@@ -160,6 +162,9 @@ export const STILLS: ReadonlyArray<{ id: string; compose: () => string[] }> = [
   { id: 'logins-120x40-key-xai', compose: () => composeLogins(120, 40, { sel: 9, flow: { kind: 'key', leg: 'xai', note: null, draftLen: 0, storing: false } }) },
   { id: 'logins-120x40-key-xai-management', compose: () => composeLogins(120, 40, { sel: 9, flow: { kind: 'key', leg: 'xai-management', note: null, draftLen: 0, storing: false } }) },
   { id: 'logins-80x24-key-xai-management', compose: () => composeLogins(80, 24, { sel: 9, flow: { kind: 'key', leg: 'xai-management', note: null, draftLen: 0, storing: false } }) },
+  { id: 'logins-120x40-key-mistral', compose: () => composeLogins(120, 40, { sel: 11, flow: { kind: 'key', leg: 'mistral', note: null, draftLen: 0, storing: false } }) },
+  { id: 'logins-120x40-key-mistral-admin', compose: () => composeLogins(120, 40, { sel: 11, flow: { kind: 'key', leg: 'mistral-admin', note: null, draftLen: 0, storing: false } }) },
+  { id: 'logins-80x24-key-mistral-admin', compose: () => composeLogins(80, 24, { sel: 11, flow: { kind: 'key', leg: 'mistral-admin', note: null, draftLen: 0, storing: false } }) },
   { id: 'logins-120x40', compose: () => composeLogins(120, 40, { sel: 0 }) },
   { id: 'logins-80x24', compose: () => composeLogins(80, 24, { sel: 0 }) },
   { id: 'logins-64x12', compose: () => composeLogins(64, 12, { sel: 0 }) },

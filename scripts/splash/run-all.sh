@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # gate-class: cpu
 # gate-watch: scripts/gate/generated-assets.tsv scripts/lib/hermetic.ts src/services/providers/meta/metaPins.ts
+# gate-watch: src/services/providers/mistral/mistralPins.ts
 # gate-watch: assets/splash/** scripts/ui/vshot.py src/substrate/startupMenu*
 # gate-watch: docs/INSTALL-WINDOWS-FROM-SOURCE.md scripts/engine-durability/harness.ts
 # gate-watch: scripts/lib/generated-assets-map.mjs src/components/mercury-ui/focalRamp.ts

@@ -1,7 +1,7 @@
 import { formatAge } from '../../utils/healthCertCore.js'
 import type { AnthropicDoorState } from './anthropic/anthropicCatalogue.js'
 
-export type ModelListFamily = 'anthropic' | 'openai' | 'zai' | 'moonshot' | 'deepseek' | 'xai' | 'meta' | 'gemini' | 'huggingface'
+export type ModelListFamily = 'anthropic' | 'openai' | 'zai' | 'moonshot' | 'deepseek' | 'xai' | 'meta' | 'gemini' | 'huggingface' | 'mistral'
 
 export interface TypedIdVerdict {
   rows: Array<{ id: string; served: boolean }>
@@ -217,6 +217,16 @@ function metaFact(name: string, env: NodeJS.ProcessEnv): ModelListFact {
   })
 }
 
+function mistralFact(name: string, env: NodeJS.ProcessEnv): ModelListFact {
+  const typed = (): string[] => (require('./mistral/mistralPins.js') as typeof import('./mistral/mistralPins.js')).MISTRAL_DISPLAY_PINS.map(pin => pin.id)
+  return guarded('mistral', name, typed, () => {
+    const { resolveMistralAccount } = require('./mistral/mistralAccounts.js') as typeof import('./mistral/mistralAccounts.js')
+    const { getCachedMistralCatalogue } = require('./mistral/mistralCatalogue.js') as typeof import('./mistral/mistralCatalogue.js')
+    const account = resolveMistralAccount(env)
+    return { family: 'mistral', name, typed: typed(), ...(account ? { source: account.label } : {}), list: account ? cachedListSource(getCachedMistralCatalogue(env)) : { kind: 'no-credential' } }
+  })
+}
+
 function deepseekFact(name: string, env: NodeJS.ProcessEnv): ModelListFact {
   const pins = (): typeof import('./deepseek/deepseekPins.js') => require('./deepseek/deepseekPins.js') as typeof import('./deepseek/deepseekPins.js')
   const typed = (): string[] => pins().DEEPSEEK_DISPLAY_PINS.map(pin => pin.id)
@@ -293,5 +303,6 @@ export function readModelListFacts(env: NodeJS.ProcessEnv = process.env): ModelL
     metaFact(name('meta'), env),
     geminiFact(name('gemini'), env),
     huggingfaceFact(name('huggingface'), env),
+    mistralFact(name('mistral'), env),
   ]
 }

@@ -5,9 +5,7 @@
  XAI_MANAGEMENT_API_KEY wins. key: ▌ ↵ stores · empty/esc skips; API key
  stays
 
- signed in
-   OpenAI — ChatGPT subscription or API key  ChatGPT Plus
-   Claude subscription account               op@example.com
+ ↑ 3 more
    Hugging Face — device-code sign-in or a…  keyed-op …k9f2
    Kimi (Moonshot) — device-code sign-in o…  kimi.ai (global) · window reached
  available
@@ -18,6 +16,8 @@
    DeepSeek — API key                        not signed in
  ❯ xAI — Grok subscription sign-in or API …  not signed in
    Meta — API key (Muse)                     not signed in
+   Mistral — API key (Mistral Large 4)       not signed in
+
 
  xAI · not signed in
  ↵ store key · empty/esc skip

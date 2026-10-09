@@ -127,6 +127,8 @@ export function parseFamilyFocus(token: string | undefined): LoginFamilyFocus | 
     case 'meta':
     case 'muse':
       return 'meta'
+    case 'mistral':
+      return 'mistral'
     default:
       return undefined
   }

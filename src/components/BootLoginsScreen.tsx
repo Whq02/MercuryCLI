@@ -16,6 +16,8 @@ import { storeXaiApiKeyLogin, storeXaiManagementKeyLogin, runXaiDeviceLogin, XAI
 import { resolveXaiApiKey } from '../services/providers/xai/xaiAccounts.js';
 import { XAI_MANAGEMENT_KEY_PAGE } from '../services/providers/xai/xaiUsageState.js';
 import { storeMetaApiKeyLogin } from '../services/providers/meta/metaLogin.js';
+import { storeMistralApiKeyLogin, storeMistralAdminKeyLogin } from '../services/providers/mistral/mistralLogin.js';
+import { MISTRAL_ADMIN_KEY_PAGE } from '../services/providers/mistral/mistralUsageState.js';
 import {
   runKimiDeviceLogin,
   storeMoonshotApiKeyLogin,
@@ -436,7 +438,9 @@ export type FaceKeyLegId =
   | 'moonshot-key'
   | 'hf-token'
   | 'openrouter-key'
-  | 'gemini-key';
+  | 'gemini-key'
+  | 'mistral'
+  | 'mistral-admin';
 
 export function geminiPickOptions(facts: GeminiConnectFacts): Array<{ label: string; value: string }> {
   return geminiConnectRows(facts);
@@ -535,6 +539,10 @@ export function keyLegTitle(leg: FaceKeyLegId): string {
       return 'OpenRouter API key';
     case 'gemini-key':
       return 'Gemini API key';
+    case 'mistral':
+      return 'Mistral API key';
+    case 'mistral-admin':
+      return 'Mistral Admin API key (optional)';
   }
 }
 
@@ -561,6 +569,10 @@ export function keyLegStoreLine(leg: FaceKeyLegId): string {
       return 'Stored auth-scoped (mode 600), never logged; OPENROUTER_API_KEY wins over the store.';
     case 'gemini-key':
       return 'Stored auth-scoped (mode 600), never logged; GOOGLE_API_KEY / GEMINI_API_KEY win over the store.';
+    case 'mistral':
+      return 'Proven on the model list first; stored auth-scoped (mode 600); MISTRAL_API_KEY wins. An optional Admin API key follows for /usage.';
+    case 'mistral-admin':
+      return 'Stored auth-scoped (mode 600); MISTRAL_ADMIN_API_KEY wins. Enterprise plans issue it at backoffice.mistral.ai.';
   }
 }
 
@@ -588,6 +600,10 @@ export function keyLegGuardOpts(leg: FaceKeyLegId): { stores: string; looksLike?
       return { stores: 'an OpenRouter key (sk-or-…)' };
     case 'gemini-key':
       return { stores: 'a Google Gemini key (AIza…)' };
+    case 'mistral':
+      return { stores: 'a Mistral API key' };
+    case 'mistral-admin':
+      return { stores: 'a Mistral Admin API key' };
   }
 }
 
@@ -601,13 +617,15 @@ export function keyPromptPaneLines(leg: FaceKeyLegId, note: string | null, draft
   if (leg === 'xai' && note === null) lines.push(...wrapClauses(keyPageLine('xai'), DETAIL_W));
   if (leg === 'xai-management' && note === null) lines.push(...wrapPlain(XAI_MANAGEMENT_KEY_PAGE, DETAIL_W));
   if (leg === 'meta' && note === null) lines.push(...wrapClauses(keyPageLine('meta'), DETAIL_W));
+  if (leg === 'mistral' && note === null) lines.push(...wrapClauses(keyPageLine('mistral'), DETAIL_W));
+  if (leg === 'mistral-admin' && note === null) lines.push(...wrapPlain(MISTRAL_ADMIN_KEY_PAGE, DETAIL_W));
   lines.push(...wrapPlain(keyLegStoreLine(leg), DETAIL_W));
   lines.push(maskedDraftLine(draftLen).replace('code:', 'key:'));
   if (note !== null) {
     lines.push('');
     lines.push(...wrapPlain(note, DETAIL_W));
   }
-  lines.push(storing ? 'checking the key…' : leg === 'xai-management' ? '↵ stores · empty/esc skips; API key stays' : leg === 'xai' ? '↵ stores · empty keeps existing · esc back' : '↵ stores it · esc back');
+  lines.push(storing ? 'checking the key…' : leg === 'xai-management' || leg === 'mistral-admin' ? '↵ stores · empty/esc skips; API key stays' : leg === 'xai' ? '↵ stores · empty keeps existing · esc back' : '↵ stores it · esc back');
   return lines;
 }
 
@@ -806,7 +824,7 @@ export function loginsFlowLegendOf(pane: LoginsFlowPaneV1): string {
     case 'pick':
       return '↑↓ move · ↵ pick · esc back';
     case 'key':
-      return pane.storing ? 'checking…' : pane.leg === 'xai-management' ? '↵ store key · empty/esc skip' : '↵ store key · esc back';
+      return pane.storing ? 'checking…' : pane.leg === 'xai-management' || pane.leg === 'mistral-admin' ? '↵ store key · empty/esc skip' : '↵ store key · esc back';
     case 'device':
       return pane.device.phase === 'waiting' ? 'c copy url · esc cancel' : 'esc cancel';
     case 'handles': {
@@ -910,7 +928,7 @@ export function loginsMenuModelOf(
     opts.flow !== undefined
       ? {
           detailOverride: loginsFlowPaneLines(opts.flow),
-          ...(opts.flow.kind === 'key' && (opts.flow.leg === 'xai' || opts.flow.leg === 'xai-management') ? { detailOverrideConfirms: true } : {}),
+          ...(opts.flow.kind === 'key' && (opts.flow.leg === 'xai' || opts.flow.leg === 'xai-management' || opts.flow.leg === 'mistral' || opts.flow.leg === 'mistral-admin') ? { detailOverrideConfirms: true } : {}),
           legend: loginsFlowLegendOf(opts.flow),
           statusRight: loginsFlowStatusOf(opts.flow),
         }
@@ -986,6 +1004,7 @@ export function BootLoginsScreen({ onClose, onSignedIn, family, fullScene, facts
   const [flow, setFlow] = useState<OpenFlowState | null>(null);
   const flowRef = useRef(flow);
   const xaiApiReceipt = useRef('xAI API key kept.');
+  const mistralApiReceipt = useRef('Mistral API key kept.');
   flowRef.current = flow;
   const [notice, setNotice] = useState<string | null>(null);
   const [draft, setDraftState] = useState('');
@@ -1246,6 +1265,10 @@ export function BootLoginsScreen({ onClose, onSignedIn, family, fullScene, facts
       case 'meta':
         setFlow({ kind: 'key', leg: 'meta', note: null, storing: false });
         return;
+      case 'mistral':
+        mistralApiReceipt.current = 'Mistral API key kept.';
+        setFlow({ kind: 'key', leg: 'mistral', note: null, storing: false });
+        return;
       case 'deepseek':
         setFlow({ kind: 'key', leg: 'deepseek', note: null, storing: false });
         return;
@@ -1338,6 +1361,7 @@ export function BootLoginsScreen({ onClose, onSignedIn, family, fullScene, facts
     if (!value) {
       if (leg === 'xai-management') setFlow({ kind: 'receipt', receipt: `${xaiApiReceipt.current} Management key unchanged; /logins xai adds it later.`, ok: true });
       else if (leg === 'xai' && resolveXaiApiKey()) setFlow({ kind: 'key', leg: 'xai-management', note: null, storing: false });
+      else if (leg === 'mistral-admin') setFlow({ kind: 'receipt', receipt: `${mistralApiReceipt.current} Admin API key unchanged; /logins mistral adds it later.`, ok: true });
       return;
     }
     const guard = keyPasteGuardNote(value, keyLegGuardOpts(leg));
@@ -1356,13 +1380,18 @@ export function BootLoginsScreen({ onClose, onSignedIn, family, fullScene, facts
       if (leg === 'xai') {
         xaiApiReceipt.current = outcome.receipt;
         setFlow({ kind: 'key', leg: 'xai-management', note: null, storing: false });
-      } else setFlow({ kind: 'receipt', receipt: leg === 'xai-management' ? `${xaiApiReceipt.current} ${outcome.receipt}` : outcome.receipt, ok: outcome.ok });
+      } else if (leg === 'mistral') {
+        mistralApiReceipt.current = outcome.receipt;
+        setFlow({ kind: 'key', leg: 'mistral-admin', note: null, storing: false });
+      } else setFlow({ kind: 'receipt', receipt: leg === 'xai-management' ? `${xaiApiReceipt.current} ${outcome.receipt}` : leg === 'mistral-admin' ? `${mistralApiReceipt.current} ${outcome.receipt}` : outcome.receipt, ok: outcome.ok });
     };
     if (leg === 'openai-key') void storeOpenaiApiKeyLogin(value).then(settle);
     else if (leg === 'deepseek') void storeDeepseekApiKeyLogin(value).then(settle);
     else if (leg === 'xai') void storeXaiApiKeyLogin(value).then(settle);
     else if (leg === 'xai-management') void storeXaiManagementKeyLogin(value).then(settle);
     else if (leg === 'meta') void storeMetaApiKeyLogin(value).then(settle);
+    else if (leg === 'mistral') void storeMistralApiKeyLogin(value).then(settle);
+    else if (leg === 'mistral-admin') void storeMistralAdminKeyLogin(value).then(settle);
     else if (leg === 'moonshot-key')
       void storeMoonshotApiKeyLogin(value).then(outcome => settle({ ok: outcome.ok, stored: outcome.stored, receipt: outcome.receipt }));
     else if (leg === 'hf-token') void storeHuggingfaceTokenLogin(value).then(settle);
@@ -1374,6 +1403,7 @@ export function BootLoginsScreen({ onClose, onSignedIn, family, fullScene, facts
   const keyEscape = (leg: FaceKeyLegId): void => {
     setDraft('');
     if (leg === 'xai-management') setFlow({ kind: 'receipt', receipt: `${xaiApiReceipt.current} Management key unchanged; /logins xai adds it later.`, ok: true });
+    else if (leg === 'mistral-admin') setFlow({ kind: 'receipt', receipt: `${mistralApiReceipt.current} Admin API key unchanged; /logins mistral adds it later.`, ok: true });
     else if (leg === 'openai-key') openPick('openai');
     else if (leg === 'zai-general' || leg === 'zai-coding') openPick('zai');
     else if (leg === 'moonshot-key') openPick('moonshot');

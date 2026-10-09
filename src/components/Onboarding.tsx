@@ -59,7 +59,7 @@ const TERMINAL_WORDS = {
 }
 
 export const SIGN_IN_WORDS = {
-  intro: 'Use a Claude or OpenAI subscription, usage-based billing, or connect OpenRouter, Gemini, Hugging Face, Kimi, GLM, DeepSeek, xAI or Meta. To add an API key from the terminal, run /router key <provider>.',
+  intro: 'Use a Claude or OpenAI subscription, usage-based billing, or connect OpenRouter, Gemini, Hugging Face, Kimi, GLM, DeepSeek, xAI, Meta or Mistral. To add an API key from the terminal, run /router key <provider>.',
 }
 
 const FITTING_PATCH = {

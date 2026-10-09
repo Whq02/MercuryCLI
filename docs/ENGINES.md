@@ -27,6 +27,7 @@ arm.
 | `openrouter` | `openrouter/<vendor-slug>` (qualified; stripped — OpenRouter ids are themselves vendor/model slugs, so only a namespace disambiguates them) | OpenRouter |
 | `huggingface` | `huggingface/<org>/<model>[:provider\|:policy]` (qualified) | Hugging Face |
 | `local` | `local/<model>` (qualified; the model as the discovered local server lists it) | Local models |
+| `mistral` | `mistral-*`, `ministral-*`, `codestral-*`, alias `mistral` (the embedding, OCR, moderation and audio ids refuse here) | Mistral |
 
 Display names have the same one-owner rule: every surface that names a
 family derives its label from it, and an unknown id shows itself. Persisted
@@ -142,6 +143,62 @@ was documented in the sources read on **2026-09-30**: [quickstart](https://dev.m
 [Muse Code sign-in](https://dev.meta.ai/docs/muse-code/auth) and
 [subscriptions](https://dev.meta.ai/docs/muse-code/subscriptions).
 
+Mistral's rows come from the account's live `GET /v1/models` list, read
+through the key: the recorded rows lead in their order — Mistral Large 4
+(`mistral-large-4`, the public preview Mistral calls Le Chonk, a 1,048,576-token
+context), Mistral Medium 3.5 (`mistral-medium-3-5`), Mistral Small 4
+(`mistral-small-2603`), Mistral Large 3 (`mistral-large-2512`), the three
+Ministral 3 sizes and Codestral (`codestral-2508`) — and any further chat row
+the list serves follows by creation time. The vendor's aliases
+(`mistral-medium-latest`, `mistral-small-latest`, `mistral-large-latest`,
+which still names Large 3, `codestral-latest`) are listed ids too and
+dispatch as the row they name. Connect through `/logins mistral`,
+`/router key mistral`, or `MISTRAL_API_KEY`; keys are made at
+[console.mistral.ai/api-keys](https://console.mistral.ai/api-keys), and the
+key is proven on the model list and the identity endpoint before it is
+stored. `/accounts` manages the stored key. The family word `mistral`
+selects the first served recorded row. A successful empty list stays empty;
+an id missing from a fetched list, a retired id or a non-chat id (embedding,
+OCR, moderation, audio) is refused before chat like any unknown input.
+
+Mercury uses Mistral's Chat Completions endpoint at
+`https://api.mistral.ai/v1/chat/completions`, with streaming, function
+tools, JSON-schema output and the vendor's reasoning dial: `reasoning_effort`
+is `high` while thinking is on (the model's thinking arrives as a thinking
+chunk inside the reply) and `none` while it is off; a row the vendor lists
+without reasoning sends no effort word. An explicit output ceiling rides
+`max_tokens`. Thinking is not replayed across turns on this road: Mercury
+replays the conversation and tool results. Recorded list prices per million
+tokens: Large 4 $1.36 input, $0.14 cached input, $4.18 output (the vendor's
+two-week launch discount is not recorded); Medium 3.5 $1.50 and $7.50; Small 4
+$0.15 and $0.60; Large 3 $0.50 and $1.50; Ministral 3 14B $0.20, 8B $0.15,
+3B $0.10 each way; Codestral $0.30 and $0.90.
+
+Mistral offers no OAuth to third-party clients: no client registration,
+device flow or token endpoint is documented. Its open-source Vibe CLI signs in
+through a browser door of the Vibe product that mints an API key; that door is
+absent from the public API reference and Mistral's Commercial Terms of Service
+forbid integrating Vibe into other products without written authorisation, so
+Mercury does not use it. A standard key reads the account's identity
+(`GET /v1/users/me`) and no usage, balance or credits endpoint; the plan's
+included monthly usage is read in the console. The organisation meter —
+month-to-date usage against the monthly spend limit and the rate limits — is
+read through the Admin API with an optional **Admin API key** stored beside the
+inference key (`/logins mistral` offers it after the key; `/router key
+mistral-admin`; `MISTRAL_ADMIN_API_KEY`), which Mistral issues on Enterprise
+plans at [backoffice.mistral.ai](https://backoffice.mistral.ai). Sources read
+on **2026-10-09**: the public OpenAPI specification and the model cards in
+[mistralai/platform-docs-public](https://github.com/mistralai/platform-docs-public),
+[reasoning](https://docs.mistral.ai/studio/conversations/reasoning),
+[the Admin API](https://docs.mistral.ai/admin/admin-api/overview) and its
+[authentication](https://docs.mistral.ai/admin/admin-api/authentication) and
+[usage metrics](https://docs.mistral.ai/admin/admin-api/usage-metrics),
+[subscriptions](https://docs.mistral.ai/admin/billing-usage/subscriptions),
+[the error glossary](https://docs.mistral.ai/resources/error-glossary),
+[Vibe CLI API keys](https://docs.mistral.ai/vibe/code/cli/api-keys-profiles) and
+[mistralai/mistral-vibe](https://github.com/mistralai/mistral-vibe), and the
+[Commercial Terms of Service](https://legal.mistral.ai/terms/commercial-terms-of-service).
+
 Moonshot's default, picker and specialist choices follow the account's live
 model list. An API key reads the platform list; a Kimi sign-in reads its
 region's coding list with the same credential used for chat. The newest
@@ -208,7 +265,7 @@ Three wire families serve the providers:
 - **Native wires** — Z.AI, OpenAI through its Responses API, and Gemini
   through generateContent when using a Google account.
 - **The OpenAI-compatible chat wire** — Moonshot/Kimi, DeepSeek, xAI's Grok
-  models, Meta, the operator-named compat slot, OpenRouter, Gemini with an API key,
+  models, Meta, Mistral, the operator-named compat slot, OpenRouter, Gemini with an API key,
   Hugging Face (the Hub router, Hub slugs with an optional backend suffix),
   and local servers.
 
@@ -522,6 +579,10 @@ come from its owning account resolvers:
   directly, and its `clear` road or its own `/accounts` row removes only that
   key — the inference key stays. A management key alone cannot run Grok;
 - **zai, deepseek, meta, huggingface, local, compat** — env pins and stored keys.
+- **mistral** — an env pin or a stored key, with an optional Admin API key
+  beside it (`MISTRAL_ADMIN_API_KEY`, `/router key mistral-admin`) that reads
+  the organisation meter and never runs a turn; its own `/accounts` row
+  removes only that key.
 
 Slots carry presence facts and masked key tails only — never a secret value.
 Removal is routed to each slot's owning store, never inlined. Env-pinned
@@ -884,7 +945,8 @@ default reads — and each in its own shape: the first-party subscription's
 rolling windows and weekly pools, the OpenAI account's observed bands, a Kimi
 sign-in's plan windows, a GLM Coding Plan key's credit windows, an OpenRouter
 key's credit totals and cap, the DeepSeek and Moonshot balances, xAI's team
-balance and billing-cycle usage with a management key, and an honest one-line
+balance and billing-cycle usage with a management key, Mistral's organisation
+usage against its monthly limit with an Admin API key, and an honest one-line
 absence for a lane whose provider publishes no usage Mercury can read
 (a general Z.AI key, Gemini, Hugging Face, Meta, a custom endpoint, an API key
 on a subscription lane, a local server).
@@ -955,7 +1017,7 @@ no plan reads "usage: not on a coding plan".
 
 The cost ledger prices every request at its own provider's published rates
 from one pricing owner per family: the first-party tier table; the GPT,
-DeepSeek, Meta, Kimi, GLM and Gemini price tables (a longer-prompt tier applied per
+DeepSeek, Meta, Mistral, Kimi, GLM and Gemini price tables (a longer-prompt tier applied per
 request); the OpenRouter catalogue row when the wire states no cost of its
 own; the Hugging Face listed floor as a flagged estimate; a recorded zero for
 a local server. A turn on a model with no rate on file lands in the ledger
