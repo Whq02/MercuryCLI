@@ -633,7 +633,7 @@ async function decideBashPermission(
 ): Promise<PermissionResult> {
   const command = input.command
   const astRoot = await pinnedCommandAnalysis.parseCommandRaw(command) ?? undefined
-  const remote = uncPathRisk(command)
+  const remote = uncPathRisk(command, { command: true })
   if (remote.risky) {
     const denied = earlyExitDenyCheck(input, context)
     if (denied) return denied

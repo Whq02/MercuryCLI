@@ -139,7 +139,7 @@ function readOnlyFromParse(input: { command: string }, compoundHasCd: boolean, p
   if (parsed.commands.some(command => command.globOperand === true && !readsOnly(command))) return refuse({ kind: 'screen', part, detail: WILDCARD_REASON })
   const semantic = checkSemantics(parsed.commands)
   if (!semantic.ok) return refuse({ kind: 'screen', part, detail: semantic.reason })
-  const remote = uncPathRisk(input.command)
+  const remote = uncPathRisk(input.command, { command: true })
   if (remote.risky) return { behavior: 'ask', message: uncPathMessage(input.command, remote), notReadOnly: { kind: 'screen', part, detail: uncPathMessage(input.command, remote) } }
   if (containsWindowsDevicePath(input.command)) return { behavior: 'ask', message: WINDOWS_DEVICE_PATH_MESSAGE, notReadOnly: { kind: 'screen', part, detail: WINDOWS_DEVICE_PATH_MESSAGE } }
   const hasCd = compoundHasCd || parsed.commands.some(command => ['cd', 'pushd', 'popd'].includes(command.argv[0] ?? ''))
