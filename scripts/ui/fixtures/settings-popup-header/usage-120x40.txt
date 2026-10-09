@@ -11,7 +11,7 @@ NEXT                    │ ╭────────────────�
 FILES · orchard         │ │ credits: not reported by the provider                                                    │ │
   ↵ or click · browse   │ │                                                                                          │ │
                         │ │ Subscription                                                                             │ │
-TELEMETRY               │ │ none — /logins anthropic connects a subscription account · n/a                           │ │
+VITALS                  │ │ none — /logins anthropic connects a subscription account · n/a                           │ │
   · spend —             │ │                                                                                          │ │
   · ctx — · —           │ │ API key                                                                                  │ │
   · health — run /health│ │ Anthropic API key (ANTHROPIC_API_KEY)                                                    │ │

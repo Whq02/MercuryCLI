@@ -11,7 +11,7 @@ NEXT                    │ ╭────────────────�
 FILES · orchard         │ │ Use a Claude or OpenAI subscription, usage-based billing, or connect OpenRouter, Gemini, │ │
   ↵ or click · browse   │ │ Hugging Face, Kimi, GLM, DeepSeek, xAI or Meta. To add an API key from the terminal,     │ │
                         │ │ run /router key <provider>.                                                              │ │
-TELEMETRY               │ │                                                                                          │ │
+VITALS                  │ │                                                                                          │ │
   · spend —             │ │   OpenAI — ChatGPT subscription or API key                                               │ │
   · ctx — · —           │ │ ❯ Claude subscription account                                                            │ │
   · health — run /health│ │   Usage-based billing — Anthropic Console sign-in or API key                             │ │
