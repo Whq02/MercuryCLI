@@ -1,40 +1,21 @@
 #!/usr/bin/env bash
 # gate-class: pty
+# gate-env: MERCURY_DRIVE_JOBS
 # gate-env: MERCURY_SHELL_ENGINE
 # gate-watch: src/utils/shell/** scripts/bash/prove-shell-engine-drive.ts build.ts
 # gate-watch: scripts/bash/prove-session-shell-guard-drive.ts src/daemon/ownedDaemon.ts src/substrate/envStamps.ts scripts/lib/suite-env.sh
 # gate-watch: scripts/bash/prove-sub-agent-shell-board-drive.ts scripts/bash/shell-engine-parity.ts
 # gate-watch: scripts/daemon/dupline-world.ts scripts/lib/* scripts/streaming/ptydrive.py
 # gate-watch: scripts/substrate/run-all.sh scripts/ui/vshot.py src/daemon/controlSocket.ts
-set -u
+set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
-prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }
+. "$(dirname "$0")/../lib/drive-members.sh" || exit 78
 
 cd "$(dirname "$0")/../.." || exit 1
-bun="${BUN:-$HOME/.bun/bin/bun}"
 here="scripts/bash-drives"
 if [ ! -f dist/mercury.mjs ]; then
-  echo "❌ bash-drives: dist/mercury.mjs absent — every member boots the built bundle; build first (~/.bun/bin/bun run build.ts)"
+  printf '%s\n' 'bash-drives: dist/mercury.mjs absent; build before running terminal drives'
   exit 1
 fi
 
-failed=0
-while IFS= read -r name; do
-  case "$name" in (''|'#'*) continue ;; esac
-  f="scripts/bash/$name"
-  if [ ! -e "$f" ]; then
-    echo "❌ bash-drives: member '$name' has no file at $f — a stale member row is a red, never a silent skip"
-    failed=1
-    continue
-  fi
-  echo "── bash-drives: $name"
-  __t=$SECONDS; __rc=0
-  case "$name" in
-    (*.py) /usr/bin/python3 "$f" || { __rc=$?; failed=1; } ;;
-    (*.sh) bash "$f" || { __rc=$?; failed=1; } ;;
-    (*) "$bun" "$f" || { __rc=$?; failed=1; } ;;
-  esac
-  prover_mark "$f" "$__t" "$__rc"
-done < "$here/members.txt"
-
-exit "$failed"
+drive_members bash-drives 'scripts/bash/$name' "$here/members.txt"
