@@ -1,7 +1,8 @@
 #!/usr/bin/env bun
 import { existsSync, readFileSync } from 'node:fs'
 
-export const USER_CONTEXT_OPEN = '<system-reminder>\nThe material below is available to you while you answer the user.'
+export const USER_CONTEXT_OPEN = '<system-reminder>\n# '
+const USER_CONTEXT_KEYS = new Set(['instructions', 'environment', 'currentDate'])
 export const CLASSIFIER_PREFIX_LINE = "The following is the user's project configuration"
 
 export interface HeadingReport {
@@ -24,16 +25,20 @@ export function harvestStrings(value: unknown, out: string[] = []): string[] {
 }
 
 export function userContextHeadings(text: string): string[] {
-  const start = text.indexOf(USER_CONTEXT_OPEN)
-  if (start === -1) return []
-  const end = text.indexOf('</system-reminder>', start)
-  const block = text.slice(start, end === -1 ? undefined : end)
-  const headings: string[] = []
-  for (const line of block.split('\n')) {
-    const match = /^# (\S+)$/.exec(line)
-    if (match) headings.push(match[1]!)
+  let from = 0
+  for (;;) {
+    const start = text.indexOf(USER_CONTEXT_OPEN, from)
+    if (start === -1) return []
+    const end = text.indexOf('</system-reminder>', start)
+    const block = text.slice(start, end === -1 ? undefined : end)
+    const headings: string[] = []
+    for (const line of block.split('\n')) {
+      const match = /^# (\S+)$/.exec(line)
+      if (match) headings.push(match[1]!)
+    }
+    if (headings.length > 0 && headings.every(heading => USER_CONTEXT_KEYS.has(heading))) return headings
+    from = start + USER_CONTEXT_OPEN.length
   }
-  return headings
 }
 
 export function classifierTagOf(text: string): string | undefined {
