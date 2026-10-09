@@ -25,13 +25,11 @@ type Line = { text: string; mark?: '+' | '−' | '~' }
 function runsLines(manifest: ExtensionManifest, root: string, resolution: Resolution): Line[] {
   const lines: Line[] = []
   const c = manifest.contributes ?? {}
-  for (const [event, matchers] of Object.entries(c.hooks ?? {})) {
-    for (const matcher of matchers) {
-      for (const hook of matcher.hooks) {
-        const resolved = resolution.hooks.find(h => h.event === event && h.hook === hook)
-        const command = resolved ? short(resolved.commandLine, root) : hook.command.split('${MERCURY_EXTENSION_ROOT}').join(ROOT_PLACEHOLDER)
-        lines.push({ text: `hook      ${event}${matcher.matcher ? `  ${matcher.matcher}` : ''}  →  ${command}${hook.timeout ? `  (${hook.timeout}s)` : ''}` })
-      }
+  for (const [event, hooks] of Object.entries(c.hooks ?? {})) {
+    for (const hook of hooks) {
+      const resolved = resolution.hooks.find(h => h.event === event && h.hook === hook)
+      const command = resolved ? short(resolved.commandLine, root) : hook.run.split('${MERCURY_EXTENSION_ROOT}').join(ROOT_PLACEHOLDER)
+      lines.push({ text: `hook      ${event}${hook.match ? `  ${hook.match}` : ''}  →  ${command}${hook.timeout ? `  (${hook.timeout}s)` : ''}` })
     }
   }
   for (const [key, server] of Object.entries(c.servers ?? {})) {

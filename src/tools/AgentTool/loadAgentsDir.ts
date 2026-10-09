@@ -24,7 +24,7 @@ import {
 } from '../../utils/markdownConfigLoader.js'
 import { PERMISSION_MODES, type PermissionMode } from '../../utils/permissions/PermissionMode.js'
 import { clearExtensionAgentCache, getExtensionAgents } from '../../extensions/load/agents.js'
-import { HooksSchema } from '../../utils/settings/types.js'
+import { readHooksMap } from '../../schemas/hooks.js'
 import type { HooksSettings } from '../../utils/settings/types.js'
 import { isMnemeEnabled } from '../../mneme/paths.js'
 import { getBuiltInAgents } from './builtInAgents.js'
@@ -220,14 +220,9 @@ function validateMcpServers(
 
 function validateHooks(raw: unknown, origin: string): HooksSettings | undefined {
   if (raw === undefined || raw === null) return undefined
-  const parsed = HooksSchema().safeParse(raw)
-  if (!parsed.success) {
-    logForDebugging(
-      `agents: ${origin} hooks block failed validation — no hooks registered: ${parsed.error.message}`,
-    )
-    return undefined
-  }
-  return parsed.data as HooksSettings
+  const reading = readHooksMap(raw)
+  for (const fault of reading.faults) logForDebugging(`agents: ${origin} hook ${fault}`)
+  return Object.keys(reading.hooks).length > 0 ? reading.hooks : undefined
 }
 
 
