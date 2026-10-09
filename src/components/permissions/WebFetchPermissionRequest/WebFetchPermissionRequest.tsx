@@ -1,5 +1,4 @@
 import * as React from 'react'
-import { useMemo } from 'react'
 import { Box, Text } from '../../../ink.js'
 import { Select } from '../../CustomSelect/select.js'
 import { getGlobalConfig } from '../../../utils/config.js'
@@ -9,7 +8,6 @@ import { shouldShowAlwaysAllowOptions } from '../../../utils/permissions/permiss
 import { ConsentBodyText } from '../ConsentBodyText.js'
 import { PermissionDialog } from '../PermissionDialog.js'
 import { PermissionRuleExplanation } from '../PermissionRuleExplanation.js'
-import { logUnaryPermissionEvent } from '../utils.js'
 import { usePermissionRequestLogging } from '../hooks.js'
 import type { PermissionRequestProps } from '../PermissionRequest.js'
 
@@ -40,10 +38,7 @@ export function WebFetchPermissionRequest({
 }: PermissionRequestProps): React.ReactNode {
   const hostname = new URL((toolUseConfirm.input as { url: string }).url).hostname
 
-  usePermissionRequestLogging(
-    toolUseConfirm,
-    useMemo(() => ({ completion_type: 'tool_use_single', language_name: 'none' }), []),
-  )
+  usePermissionRequestLogging(toolUseConfirm)
 
   const options: { label: React.ReactNode; value: FetchOptionValue }[] = [
     { label: 'Yes', value: 'yes' },
@@ -66,12 +61,10 @@ export function WebFetchPermissionRequest({
   function handleChange(value: FetchOptionValue): void {
     switch (value) {
       case 'yes':
-        logUnaryPermissionEvent('tool_use_single', toolUseConfirm, 'accept', false)
         toolUseConfirm.onAllow(toolUseConfirm.input, [])
         onDone()
         break
       case 'yes-dont-ask-domain':
-        logUnaryPermissionEvent('tool_use_single', toolUseConfirm, 'accept', false)
         toolUseConfirm.onAllow(toolUseConfirm.input, [
           {
             type: 'addRules',
@@ -88,7 +81,6 @@ export function WebFetchPermissionRequest({
         onDone()
         break
       case 'no':
-        logUnaryPermissionEvent('tool_use_single', toolUseConfirm, 'reject', false)
         toolUseConfirm.onReject()
         onReject()
         onDone()

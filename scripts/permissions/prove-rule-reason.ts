@@ -38,7 +38,6 @@ async function stub(path: string, fixture: () => Record<string, unknown>): Promi
   mock.module(path, () => ({ ...actual, ...fixture() }))
 }
 await stub('../../src/keybindings/useKeybinding.js', () => ({ useKeybinding: () => undefined, useKeybindings: () => undefined }))
-await stub('../../src/utils/unaryLogging.js', () => ({ logUnaryEvent: async () => undefined }))
 const parseRoutes = new Map<string, unknown>()
 {
   const ast = await import('../../src/utils/bash/ast.js')

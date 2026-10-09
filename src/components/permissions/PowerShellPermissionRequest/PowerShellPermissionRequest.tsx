@@ -19,7 +19,6 @@ import {
   usePermissionExplainerUI,
 } from '../PermissionExplanation.js'
 import { PermissionRuleExplanation } from '../PermissionRuleExplanation.js'
-import { logUnaryPermissionEvent } from '../utils.js'
 import { usePermissionRequestLogging } from '../hooks.js'
 import { useShellPermissionFeedback } from '../useShellPermissionFeedback.js'
 import type { PermissionRequestProps } from '../PermissionRequest.js'
@@ -46,10 +45,7 @@ export function PowerShellPermissionRequest({
   const command = input.command
   const [debugVisible, setDebugVisible] = useState(false)
 
-  usePermissionRequestLogging(
-    toolUseConfirm,
-    useMemo(() => ({ completion_type: 'tool_use_single', language_name: 'none' }), []),
-  )
+  usePermissionRequestLogging(toolUseConfirm)
 
   const feedback = useShellPermissionFeedback({
     toolUseConfirm,
@@ -119,13 +115,11 @@ export function PowerShellPermissionRequest({
     switch (value) {
       case 'yes': {
         const accept = feedback.acceptFeedback.trim() || undefined
-        logUnaryPermissionEvent('tool_use_single', toolUseConfirm, 'accept', accept !== undefined)
         toolUseConfirm.onAllow(toolUseConfirm.input, [], accept)
         onDone()
         break
       }
       case 'yes-apply-suggestions': {
-        logUnaryPermissionEvent('tool_use_single', toolUseConfirm, 'accept', false)
         const result = toolUseConfirm.permissionResult
         const verbatim = ('suggestions' in result ? result.suggestions : undefined) ?? []
         toolUseConfirm.onAllow(toolUseConfirm.input, verbatim)
@@ -133,7 +127,6 @@ export function PowerShellPermissionRequest({
         break
       }
       case 'yes-edited-prefix': {
-        logUnaryPermissionEvent('tool_use_single', toolUseConfirm, 'accept', false)
         const trimmed = (editablePrefix ?? '').trim()
         if (trimmed === '') {
           toolUseConfirm.onAllow(toolUseConfirm.input, [])

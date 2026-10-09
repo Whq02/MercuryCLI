@@ -75,7 +75,6 @@ export function FileEditPermissionRequest({
         </Text>
       }
       content={<ConsentFileEditDiff file_path={parsed.file_path} edits={previewEdits} />}
-      completionType="str_replace_single"
       path={parsed.file_path}
       parseInput={parseEditInput}
       workerBadge={workerBadge}

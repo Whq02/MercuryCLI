@@ -67,7 +67,6 @@ export function NotebookEditPermissionRequest({
           verbose={verbose}
         />
       }
-      languageName={parsed.cell_type === 'markdown' ? 'markdown' : 'python'}
       path={parsed.notebook_path === '' ? null : parsed.notebook_path}
       parseInput={parseNotebookInput}
       workerBadge={workerBadge}

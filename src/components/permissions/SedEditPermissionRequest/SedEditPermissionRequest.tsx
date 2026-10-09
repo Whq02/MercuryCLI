@@ -87,7 +87,6 @@ export function SedEditPermissionRequest({
           />
         )
       }
-      completionType="str_replace_single"
       path={sedEditInfo.filePath}
       parseInput={parseInput}
       workerBadge={workerBadge}

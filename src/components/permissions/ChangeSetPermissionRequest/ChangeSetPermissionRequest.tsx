@@ -19,8 +19,6 @@ import { getChangeSetPlan } from '../../../services/changeTransaction/changeSetS
 import { ownerFromToolUseContext } from '../../../services/run/resolveOwner.js';
 import { ChangeSetTool } from '../../../tools/ChangeSetTool/ChangeSetTool.js';
 import { getFocusedSessionConnector } from '../../../services/engine-connector/focusedConnector.js';
-import { env } from '../../../utils/env.js';
-import { logUnaryEvent } from '../../../utils/unaryLogging.js';
 import { usePermissionRequestLogging } from '../hooks.js';
 import { PermissionDialog } from '../PermissionDialog.js';
 import { PermissionPrompt, type PermissionPromptOption } from '../PermissionPrompt.js';
@@ -67,38 +65,21 @@ export function ChangeSetPermissionRequest(props: PermissionRequestProps): React
   const input = toolUseConfirm.input as ChangeSetInput;
   const owner = ownerFromToolUseContext(toolUseContext);
 
-  usePermissionRequestLogging(toolUseConfirm, {
-    completion_type: 'tool_use_single',
-    language_name: 'none',
-  });
+  usePermissionRequestLogging(toolUseConfirm);
 
   const preview = React.useMemo(() => computePreview(input, owner), [input, owner]);
 
-  const logDecision = (event: 'accept' | 'reject') => {
-    logUnaryEvent({
-      completion_type: 'tool_use_single',
-      event,
-      metadata: {
-        language_name: 'none',
-        message_id: toolUseConfirm.assistantMessage.message.id,
-        platform: env.platform,
-      },
-    });
-  };
   const handleSelect = (value: DecisionValue, feedback?: string) => {
     if (value === 'yes') {
-      logDecision('accept');
       toolUseConfirm.onAllow(toolUseConfirm.input, [], feedback);
       onDone();
       return;
     }
-    logDecision('reject');
     toolUseConfirm.onReject(feedback);
     onReject();
     onDone();
   };
   const handleCancel = () => {
-    logDecision('reject');
     toolUseConfirm.onReject();
     onReject();
     onDone();
