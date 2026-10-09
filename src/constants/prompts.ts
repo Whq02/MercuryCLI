@@ -35,8 +35,6 @@ import { FILE_EDIT_TOOL_NAME } from '../tools/FileEditTool/constants.js'
 import { FILE_READ_TOOL_NAME } from '../tools/FileReadTool/prompt.js'
 import { FILE_WRITE_TOOL_NAME } from '../tools/FileWriteTool/prompt.js'
 import { BASH_TOOL_NAME } from '../tools/BashTool/toolName.js'
-import { DEBUG_TOOL_NAME } from '../tools/DebugTool/prompt.js'
-import { LSP_TOOL_NAME } from '../tools/LSPTool/prompt.js'
 import { RECORD_CONVENTION_TOOL_NAME } from '../tools/RecordConventionTool/prompt.js'
 import { RETAIN_TOOL_NAME } from '../tools/MemoryTools/prompt.js'
 import { SKILL_TOOL_NAME } from '../tools/SkillTool/constants.js'
@@ -404,8 +402,6 @@ export async function getSystemPrompt(
       'run_protocol',
       () =>
         getRunProtocolSection({
-          lspMounted: toolNames.has(LSP_TOOL_NAME),
-          dapMounted: toolNames.has(DEBUG_TOOL_NAME),
           taskToolsMounted: toolNames.has(TASK_CREATE_TOOL_NAME),
         }),
     ),
