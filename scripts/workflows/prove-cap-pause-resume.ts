@@ -115,7 +115,7 @@ section('P1/P2 the pause on the Fable row, the switch to the GPT row resumes it'
   const carried = JSON.stringify(resumed.continuationMessages ?? [])
   check('P2 the resumed spawn CONTINUES the conversation (the ask and the completed work ride)', carried.includes('write the report') && carried.includes('half the work is done'), carried.slice(0, 300))
   check('P2 the wall row itself never rides the continuation', !carried.includes('session limit is reached'), carried.slice(0, 300))
-  check('P2 the continuation ends on the resume note (do NOT redo it)', carried.includes('spent usage window') && carried.includes('do NOT redo it'), carried.slice(-300))
+  check('P2 the continuation ends on the resume note (the work above is preserved)', carried.includes('spent usage window') && carried.includes('is preserved; continue from exactly where you stopped'), carried.slice(-300))
   check('P2 the log names the resume and the model', logs.some(l => /the model switched to gpt-5\.6-sol — resumed/.test(l)), logs.join(' | ').slice(0, 300))
   const done = lastAgentFrame()
   check("P2 the terminal frame is 'done' on the GPT badge", done?.state === 'done' && done?.model === 'gpt-5.6-sol', JSON.stringify(done))
