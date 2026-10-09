@@ -221,6 +221,9 @@ section('§6 the dead machinery, the alias maps and the retired words the excisi
   const HOME_JOIN = new RegExp(`join\\([^)]*(?:\\bhome\\b|homedir\\(\\))[^)]*,\\s*'${J('\\.cla', 'ude')}'|MERCURY_CONFIG_DIR\\s*[:=]\\s*join\\([^)]*'${J('\\.cla', 'ude')}'`)
   const homeFiles = tree.filter(rel => rel.startsWith('scripts/') && !FOREIGN_HOME_LAWS.includes(rel) && HOME_JOIN.test(texts.get(rel) ?? ''))
   check(`no proof builds a home path ending ${J('.cla', 'ude')} (${FOREIGN_HOME_LAWS.length} foreign-home laws excepted)`, homeFiles.length === 0, homeFiles.slice(0, 6).join(' · '))
+  const SHELL_HOME = new RegExp(`\\$\\{?HOME\\}?/${J('\\.cla', 'ude')}`)
+  const shellFiles = tree.filter(rel => rel.startsWith('scripts/') && /\.(sh|bash|py|ps1)$/.test(rel) && SHELL_HOME.test(texts.get(rel) ?? ''))
+  check(`no shell or python script under scripts/ builds a path from $HOME/${J('.cla', 'ude')}`, shellFiles.length === 0, shellFiles.slice(0, 6).join(' · '))
   const ignore = texts.get('.gitignore') ?? ''
   check(`.gitignore names no ${J('.cla', 'ude')} directory`, !ignore.split('\n').some(line => line.trim() === J('.cla', 'ude/')), ignore.split('\n').filter(line => line.includes(J('.cla', 'ude'))).join(' · '))
 }
