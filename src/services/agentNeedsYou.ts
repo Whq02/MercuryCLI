@@ -23,13 +23,13 @@ export {
   type AgentState,
   type AgentTempo,
   type AgentStateVerdict,
-  agentStateClassifierEnabled,
+  agentNeedsYouEnabled,
   classifyAgentStateHeuristic,
 } from './agentStateHeuristic.js'
 
 const CLASSIFY_TAIL_CHARS = 2000
 
-const CLASSIFIER_SYSTEM_PROMPT = `You classify the current state of a coding agent from the tail of its latest message. Respond with ONLY a JSON object, no prose, no markdown fences:
+const NEEDS_YOU_SYSTEM_PROMPT = `You classify the current state of a coding agent from the tail of its latest message. Respond with ONLY a JSON object, no prose, no markdown fences:
 {"state":"working|blocked|done|failed","detail":"<=12 word summary of what it is doing or waiting on","needs":"<=12 words, only if state is blocked: what the user must provide"}
 - "blocked": the agent asked the user a question or is waiting for input/a decision.
 - "failed": the agent hit an error it could not resolve.
@@ -66,7 +66,7 @@ export async function classifyAgentState(
   const heuristic = classifyAgentStateHeuristic(assistantText)
   if (!heuristic) return null
 
-  const llmEnabled = flagEnv('MERCURY_AGENT_CLASSIFIER_LLM') === '1'
+  const llmEnabled = flagEnv('MERCURY_AGENT_NEEDS_YOU_LLM') === '1'
   if (!llmEnabled || heuristic.source === 'preclassify') {
     return heuristic
   }
@@ -78,7 +78,7 @@ export async function classifyAgentState(
     })
     const response = await routedCallModelSettled({
       messages: [query],
-      systemPrompt: asSystemPrompt([CLASSIFIER_SYSTEM_PROMPT]),
+      systemPrompt: asSystemPrompt([NEEDS_YOU_SYSTEM_PROMPT]),
       thinkingConfig: { type: 'disabled' },
       tools: [],
       signal,
@@ -89,7 +89,7 @@ export async function classifyAgentState(
         isNonInteractiveSession: false,
         hasAppendSystemPrompt: false,
         agents: [],
-        querySource: 'agent_classifier',
+        querySource: 'agent_needs_you',
         mcpTools: [],
         skipCacheWrite: true,
       },
@@ -116,7 +116,7 @@ export async function classifyAgentState(
     return refined
   } catch (err) {
     if (err instanceof APIUserAbortError || signal.aborted) return null
-    logForDebugging(`[agentStateClassifier] classification failed: ${err}`)
+    logForDebugging(`[agentNeedsYou] classification failed: ${err}`)
     return heuristic
   }
 }

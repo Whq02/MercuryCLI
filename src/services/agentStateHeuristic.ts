@@ -4,8 +4,8 @@ import { flagEnv } from '../substrate/flagRegistry.js'
 export type AgentState = 'working' | 'blocked' | 'done' | 'failed'
 export type AgentTempo = 'active' | 'idle' | 'blocked'
 
-export function agentStateClassifierEnabled(): boolean {
-  const v = flagEnv('MERCURY_AGENT_CLASSIFIER')
+export function agentNeedsYouEnabled(): boolean {
+  const v = flagEnv('MERCURY_AGENT_NEEDS_YOU')
   if (v === '0') return false
   return v === '1' || true
 }
