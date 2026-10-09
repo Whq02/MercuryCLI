@@ -171,7 +171,7 @@ section('§1 a crew lane: mercury-crew carries the full tool set and writes the 
   const seatTools = toolNamesOf(seats[0] ?? {})
   check('the crew seat carries the writers and the shell', ['Write', 'Edit', 'Bash', 'Read'].every(t => seatTools.includes(t)), seatTools.join(','))
   check('the crew seat never carries the Agent tool', !seatTools.includes('Agent'))
-  check("the crew seat's system prompt is Mercury's crew prompt", systemTextOf(seats[0] ?? {}).includes('You are an agent for Mercury'))
+  check("the crew seat's system prompt is the doctrine and the environment, with no scout text", systemTextOf(seats[0] ?? {}).includes("Mercury's agents, a crewmate, spawned for one assignment") && !systemTextOf(seats[0] ?? {}).includes("You are Mercury's repository scout"))
   check('the probe file stands written by the crew seat', existsSync(probe) && readFileSync(probe, 'utf8') === `${word} wrote this\n`, existsSync(probe) ? readFileSync(probe, 'utf8') : 'absent')
   check("the lead relayed the seat's report", resultText(run).includes(`${word}-seat: wrote the probe file`), resultText(run))
   drop(world)

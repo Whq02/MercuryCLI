@@ -65,8 +65,8 @@ async function main(): Promise<void> {
         : ({ agentType: 'mercury-crew' } as never)
     const agentPrompt =
       spec.kind === 'subagent-fixed'
-        ? (MERCURY_SCOUT_AGENT as { getSystemPrompt?: (a: unknown) => string }).getSystemPrompt?.({ toolUseContext: { options: {} } }) ?? prompts.DEFAULT_AGENT_PROMPT
-        : prompts.DEFAULT_AGENT_PROMPT
+        ? (MERCURY_SCOUT_AGENT as { getSystemPrompt?: (a: unknown) => string }).getSystemPrompt?.({ toolUseContext: { options: {} } }) ?? ''
+        : ''
     segments = await prompts.enhanceSystemPromptWithEnvDetails(
       [
         ...doctrine.buildSubagentMercurySections({
