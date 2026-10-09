@@ -65,7 +65,7 @@ section('§1 · OFF (default) — byte-identical absence')
   check('no Blender tool in the catalog even beside a .blend', await runWithCwdOverride(work, async () => !hasBlender()))
   check('no client on any OFF path', getBlenderBridgeClient() === null)
   check('the pinned addon home stayed EMPTY (no token, no dir, nothing)', readdirSync(addonHome).length === 0)
-  check('no Blender harness-map line when OFF', !computeHarnessMapLines().some(l => l.includes('Blender lanes are ARMED')))
+  check('no Blender harness-map line when OFF', !computeHarnessMapLines().some(l => l.includes('Blender lanes are armed')))
 }
 
 section('§2 · ARMED — catalog + teaching surfaces + the danger sentences (the double-pin)')
@@ -87,7 +87,7 @@ section('§2 · ARMED — catalog + teaching surfaces + the danger sentences (th
   check('unknown op teaches the verb list without reaching any wire', unknown.includes('unknown op') && unknown.includes('python_run'))
   const status = await runWithCwdOverride(work, () => callTool('blender_status'))
   check('blender_status answers locally: flag + home + install + reachability rows', /flag: armed/.test(status) && /addon home/.test(status) && /NOT installed/.test(status))
-  const harness = computeHarnessMapLines().find(l => l.includes('Blender lanes are ARMED'))
+  const harness = computeHarnessMapLines().find(l => l.includes('Blender lanes are armed'))
   check('the widened harness line names the Blender tool + install op + the enable act', /`Blender` tool/.test(harness ?? '') && /blender_bridge_install/.test(harness ?? '') && /your act/.test(harness ?? ''))
 }
 

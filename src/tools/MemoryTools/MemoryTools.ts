@@ -142,7 +142,7 @@ const recallSchema = lazySchema(() =>
   z
     .strictObject({
       query: z.string().optional().describe('Search memory (pages, archive and pending observations): a phrase or regex matches lines literally; otherwise the words of the query are matched and the best facts come first.'),
-      read: z.string().optional().describe('Read ONE full record by id (seq:<n> · doc:<slug> · pending:<ts>).'),
+      read: z.string().optional().describe('Read one full record by id (seq:<n> · doc:<slug> · pending:<ts>).'),
       limit: z.number().int().min(1).max(50).optional().describe('Max hits (default 12).'),
     })
     .refine(value => Boolean(value.query) !== Boolean(value.read), {
@@ -356,7 +356,7 @@ const correctSchema = lazySchema(() =>
     op: z.enum(['supersede', 'amend', 'retract']).describe('supersede = new truth; amend = fix wording (read the full record first); retract = mark wrong.'),
     id: z.string().describe('The record id (seq:<n>, from Recall).'),
     content: z.string().optional().describe('The new/corrected content (supersede/amend).'),
-    replacementId: z.string().optional().describe('supersede only: an EXISTING seq:<n> already carrying the truth.'),
+    replacementId: z.string().optional().describe('supersede only: an existing seq:<n> already carrying the truth.'),
     reason: z.string().describe('Why — corrections always carry their reason.'),
   }),
 )

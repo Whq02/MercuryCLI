@@ -15,7 +15,7 @@ export const SCHEDULE_WAKEUP_DESCRIPTION =
   'Schedule your own next wake: enqueue a prompt to fire once after a short delay (60s–1h) in this session. Use to pace a self-directed loop — do some work now, then schedule the next step.'
 
 export function buildScheduleWakeupPrompt(): string {
-  return `Schedule a single self-paced wake. After ${WAKEUP_MIN_DELAY_SECONDS}–${WAKEUP_MAX_DELAY_SECONDS} seconds the given prompt is enqueued once into THIS session. On a daemon-hosted session the wake rides the session record (the daemon fires it, receipted, then it removes itself); on a bare streaming run it is a process-local timer that dies with the run.
+  return `Schedule a single self-paced wake. After ${WAKEUP_MIN_DELAY_SECONDS}–${WAKEUP_MAX_DELAY_SECONDS} seconds the given prompt is enqueued once into this session. On a daemon-hosted session the wake rides the session record (the daemon fires it, receipted, then it removes itself); on a bare streaming run it is a process-local timer that dies with the run.
 
 This is the native way to run a self-paced loop: instead of a fixed cron cadence, you do a unit of work now and call ${SCHEDULE_WAKEUP_TOOL_NAME} to wake yourself for the next unit. To continue the loop, the prompt you schedule should itself call ${SCHEDULE_WAKEUP_TOOL_NAME} again when more work remains; to stop, simply don't reschedule.
 
@@ -27,7 +27,7 @@ This is the native way to run a self-paced loop: instead of a fixed cron cadence
 ## When to use
 - "check back in a few minutes once the build finishes" → delaySeconds: 120
 - pacing a long self-directed task across several wakes without burning a turn idling
-- Do NOT use for fixed recurring schedules ("every 5 minutes", "every day at 9am") — use ${'CronCreate'} for those. This tool fires exactly once per call.
+- Not for fixed recurring schedules ("every 5 minutes", "every day at 9am") — use ${'CronCreate'} for those. This tool fires exactly once per call.
 
 The wake fires only while the session is idle (not mid-turn), same as all scheduled prompts. It lives exactly as long as the turn that asked for it: when the operator interrupts, parks or stops the session, the pending wake is dropped (with a receipt) and the loop does not resume on its own.`
 }

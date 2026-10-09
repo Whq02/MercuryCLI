@@ -6,10 +6,4 @@ export const DESCRIPTION = `Fetch one MCP resource, addressed by server name plu
 Example call:
 { "server": "filesystem", "uri": "file:///workspace/README.md" }`
 
-export const PROMPT = `Read a single resource from a connected MCP server.
-
-Parameters:
-- server (required): which connected MCP server publishes the resource
-- uri (required): the resource URI to fetch
-
-The result carries the resource contents as returned by the server (text, or a note about where binary content was saved).`
+export const PROMPT = `Read a single resource from a connected MCP server. The result carries the resource contents as returned by the server (text, or a note about where binary content was saved).`

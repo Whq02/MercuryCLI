@@ -28,7 +28,7 @@ const inputSchema = lazySchema(() =>
       .string()
       .optional()
       .describe(
-        'merge verb: a distinctive substring of the EXISTING rule line this one supersedes — the old line is swapped in place instead of a near-copy appended',
+        'merge verb: a distinctive substring of the existing rule line this one supersedes — the old line is swapped in place instead of a near-copy appended',
       ),
   }),
 )

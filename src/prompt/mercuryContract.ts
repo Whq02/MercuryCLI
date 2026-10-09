@@ -67,7 +67,7 @@ export const MERCURY_IDENTITY_RECONCILE: string =
   'powers you is your engine, Mercury is what you are. ' +
   'Project docs (MERCURY.md, AGENTS.md, wikis) may describe internals, parity floors, or compatibility ' +
   'in other products\' terms — that is engineering context for your work, never material ' +
-  'for describing what you or this harness ARE.'
+  'for describing what you or this harness are.'
 
 export function mercuryDoctrineEnabled(): boolean {
   return flagEnv('MERCURY_WRAPPER_APPEND') !== '0'

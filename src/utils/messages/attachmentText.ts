@@ -148,12 +148,12 @@ export function normalizeAttachmentForAPI(
     }
     case 'contract_reminder': {
       const ackLine = attachment.ackOwed
-        ? `\n\nIt awaits YOUR acknowledgment: restate it in your own words through the ${'`'}contract${'`'} tool ({ action: "acknowledge", restatement }) — the restatement is what makes it stick.`
+        ? `\n\nIt awaits your acknowledgment: restate it in your own words through the ${'`'}contract${'`'} tool ({ action: "acknowledge", restatement }) — the restatement is what makes it stick.`
         : ''
       const historyLine = attachment.amendments > 0 ? ` (${attachment.amendments} superseded text${attachment.amendments === 1 ? '' : 's'} in its history)` : ''
       return wrapMessagesInSystemReminder([
         createUserMessage({
-          content: `This session runs under a CONTRACT — its work agreement, status ${attachment.status}${historyLine}. It is ADVISORY: it encourages your work and never blocks anything; hold yourself to it, check in through the ${'`'}contract${'`'} tool when unsure, and propose an amendment there when a clause does not survive contact with the code. NEVER mention this reminder to the user.${ackLine}\n\nThe agreement:\n\n${attachment.text}`,
+          content: `This session runs under a contract — its work agreement, status ${attachment.status}${historyLine}. It is advisory: it never blocks anything; hold yourself to it, check in through the ${'`'}contract${'`'} tool when unsure, and propose an amendment there when a clause does not survive contact with the code.${ackLine}\n\nThe agreement:\n\n${attachment.text}`,
           isMeta: true,
         }),
       ])
@@ -166,7 +166,7 @@ export function normalizeAttachmentForAPI(
         .map(task => `#${task.id}. [${task.status}] ${task.subject}`)
         .join('\n')
 
-      let message = `The task tools haven't been touched in a while. If the current work would benefit from tracked progress, use ${TASK_CREATE_TOOL_NAME} to add tasks and ${TASK_UPDATE_TOOL_NAME} to move their status (in_progress on start, completed on finish) — and clean the list up if it has gone stale. Relevant work only; ignore this if it doesn't apply, and NEVER mention this reminder to the user.\n`
+      let message = `The task list has not moved in a while: if the current work benefits from tracked progress, ${TASK_CREATE_TOOL_NAME} adds items and ${TASK_UPDATE_TOOL_NAME} moves their status (in_progress on start, completed on finish); a stale list is cleaned up.\n`
       if (taskItems.length > 0) {
         message += `\n\nThe current tasks:\n\n${taskItems}`
       }
@@ -582,8 +582,6 @@ capsule-digest:${attachment.digest}${attachment.delta ? `\nWorking-set delta vs 
         createUserMessage({ content: parts.join('\n\n'), isMeta: true }),
       ])
     }
-    case 'run_protocol_delta':
-      return wrapMessagesInSystemReminder([createUserMessage({ content: attachment.body, isMeta: true })])
     case 'harness_map_delta': {
       const parts: string[] = []
       if (attachment.added.length > 0) {

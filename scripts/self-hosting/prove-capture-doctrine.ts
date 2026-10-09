@@ -106,7 +106,7 @@ check(
   'the convention door names what a project convention is',
 )
 check(
-  prompt.includes('a rule the user asks you to REMEMBER about how to work with them') &&
+  prompt.includes('a rule the user asks you to remember about how to work with them') &&
     prompt.includes('is pinned memory (Retain with pin): kept in their words, marked as asked for by the user, loaded into every session, and never written into the instruction file'),
   'the pinned door names the remembered rule, tool-spelled when Retain rides the roster',
 )

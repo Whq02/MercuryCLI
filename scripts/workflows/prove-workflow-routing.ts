@@ -76,7 +76,7 @@ section('DSL prompt doc ships the tier contract (undocumented VM surface = dead 
 const doc = src('tools', 'WorkflowTool', 'workflowPrompt.ts')
 check("doc carries both tier values as the union 'orchestrator' | 'executor'", /'orchestrator' \| 'executor'/.test(doc))
 check('doc names the opt-in gate (registered spelling) + inertness + explicit-model-wins', /routing only acts when the operator armed MERCURY_WORKFLOW_ROUTING=1/.test(doc) && /names opts\.model outranks its tier/.test(doc))
-check('doctrine section: operator model rule overrides the omit-guidance and bans small-tier agentType pins', /## Mercury workflow authorship doctrine/.test(doc) && /overrides the "leave opts\.model out" default/.test(doc) && /never pick an agentType whose definition pins a small-tier model/.test(doc))
+check('doctrine section: the operator directs the model per dispatch (no omit-guidance to override) and small-tier agentType pins are banned', /## Mercury workflow authorship doctrine/.test(doc) && /the operator directs models per dispatch/.test(doc) && !/leave opts\.model out/.test(doc) && /never pick an agentType whose definition pins a small-tier model/.test(doc))
 check('doctrine section: verify-stage contract for non-trivial implementation', /A verify stage belongs to the workflow's shape itself/.test(doc) && /an assertion, not evidence/.test(doc))
 check('doctrine appended unconditionally in getWorkflowToolPrompt', /return WORKFLOW_TOOL_PROMPT \+ AUTHORING_DOCTRINE_SECTION/.test(doc))
 check('doc teaches executor-tier routing by mechanism, no literal model id', /rides the harness's pinned execution-tier model/.test(doc) && !/claude-[a-z0-9-]+/.test(doc))

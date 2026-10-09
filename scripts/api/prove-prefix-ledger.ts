@@ -442,9 +442,7 @@ section('capability mounts append guidance while the real request prefix holds')
   const { queryModelWithStreaming } = await import('../../src/services/providers/anthropic/streamCore.js')
   const { getSystemPrompt } = await import('../../src/constants/prompts.js')
   const { clearSystemPromptSections } = await import('../../src/constants/systemPromptSections.js')
-  const { getRunProtocolDelta } = await import('../../src/utils/cockpit/runProtocol.js')
   const { createUserMessage } = await import('../../src/utils/messages.js')
-  const { createAttachmentMessage } = await import('../../src/utils/attachments/orchestrator.js')
   const { getEmptyToolPermissionContext } = await import('../../src/Tool.js')
   const { ToolSearchTool } = await import('../../src/tools/ToolSearchTool/ToolSearchTool.js')
   const { clearToolRosterLatches } = await import('../../src/services/providers/toolEconomy.js')
@@ -478,8 +476,6 @@ section('capability mounts append guidance while the real request prefix holds')
     for (const name of [null, 'LspRead', 'Debug']) {
       if (name !== null) tools.push(fake(name))
       const systemPrompt = await getSystemPrompt(tools, model)
-      const delta = getRunProtocolDelta(tools, history)
-      if (delta !== null) history.push(createAttachmentMessage({ type: 'run_protocol_delta', ...delta }))
       const replies: any[] = []
       for await (const message of queryModelWithStreaming({
         messages: history,
@@ -496,7 +492,7 @@ section('capability mounts append guidance while the real request prefix holds')
     const requests = fixture.messageRequests()
     check('all capability-mount requests reach the transport', requests.length === 3)
     check('the serialized system is unchanged through both mounts', requests.length === 3 && requests.every(request => j(request.body.system) === j(requests[0]!.body.system)))
-    check('the added guidance reaches new message rows', j(requests[1]?.body.messages).includes('symbol discovery') && j(requests[2]?.body.messages).includes('Use the Debug tool'))
+    check('no guidance row rides a mount: the system carries no roster-dependent text and the roster lists the tool', !j(requests[1]?.body.messages).includes('symbol discovery') && !j(requests[2]?.body.messages).includes('Use the Debug tool'))
     check('the independent binding checker drops no reasoning during either mount', requests.length === 3 && requests.every(request => bindingDropsFor(request.body).length === 0))
     check('the final prefix observation reports no rewrite', pendingPrefixVerdict('capability-test')?.mismatch == null)
   } finally {

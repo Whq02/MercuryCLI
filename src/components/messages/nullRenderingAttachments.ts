@@ -21,7 +21,6 @@ export const NULL_RENDERING_ATTACHMENT_TYPES = [
   'agent_roster',
   'mcp_instructions_delta',
   'harness_map_delta',
-  'run_protocol_delta',
   'context_capsule',
   'bagel_console',
   'max_turns_reached',

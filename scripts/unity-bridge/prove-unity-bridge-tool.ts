@@ -48,7 +48,7 @@ section('§1 · OFF (default) — byte-identical absence')
   check('no Unity tool in the catalog even inside a project', runWithCwdOverride(proj, () => !hasUnity()))
   check('no client on any OFF path', runWithCwdOverride(proj, () => getUnityBridgeClient() === null))
   check('NO token file was created by any OFF path', !existsSync(unityBridgeTokenPath(proj)))
-  check('no Unity harness-map line when OFF', !computeHarnessMapLines().some(l => l.includes('Unity lanes are ARMED')))
+  check('no Unity harness-map line when OFF', !computeHarnessMapLines().some(l => l.includes('Unity lanes are armed')))
 }
 
 section('§2 · ARMED — catalog + teaching surfaces')
@@ -65,7 +65,7 @@ section('§2 · ARMED — catalog + teaching surfaces')
   check('unknown op teaches the verb list without reaching any wire', unknown.includes('unknown op') && unknown.includes('tests_run'))
   const status = await runWithCwdOverride(proj, () => callTool('unity_status'))
   check('unity_status answers locally: flag + package + reachability rows', /flag: armed/.test(status) && /NOT installed/.test(status) && /not answering/.test(status))
-  const harness = computeHarnessMapLines().find(l => l.includes('Unity lanes are ARMED'))
+  const harness = computeHarnessMapLines().find(l => l.includes('Unity lanes are armed'))
   check('the widened harness line names the Unity tool + the bridge install op', /`Unity` tool/.test(harness ?? '') && /unity_bridge_install/.test(harness ?? ''))
 }
 
