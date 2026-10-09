@@ -131,6 +131,7 @@ relying on these boundaries.
 | `memory.pinnedLimit` | The pinned shelf's text limit in characters, at least 1000; 8000 by default. Every pinned rule still loads above the limit. |
 | `workspace.worktree.symlinkDirectories` | Additional directories linked into a managed worktree. |
 | `workspace.worktree.sparsePaths` | Paths included in a managed sparse worktree. |
+| `workspace.worktree.prepare` | A shell command run inside every new worktree after git makes it and before any seat uses it; a failure is named on the row. |
 
 Project conventions belong in `MERCURY.md` or the project's `AGENTS.md`.
 A personal `MERCURY.local.md` loads after the guide. Memory records what was
@@ -159,11 +160,9 @@ the server definitions themselves.
 | `kit.projectOn`, `kit.projectOff` | Project MCP server names approved or disabled in this settings source. |
 | `kit.permit`, `kit.deny` | Server policy entries. Each entry names exactly one of `serverName`, `serverCommand` (an argument array), or `serverUrl`. Denies take precedence. |
 | `kit.managedOnly` | When set by managed policy, uses only that policy's server allowlist. |
-| `events.hooks` | Hook events and their matchers; [HOOKS.md](HOOKS.md) defines them. |
-| `events.disabled` | Disables every hook, including managed hooks. |
-| `events.managedOnly` | Restricts hooks to managed policy. |
-| `events.httpDestinations` | HTTP hook destinations allowed by policy. |
-| `events.httpEnvironment` | Environment variables policy permits HTTP hooks to interpolate. |
+| `events.hooks` | The hooks, by event: one entry per hook with its own match; [HOOKS.md](HOOKS.md) defines the events and the entry. |
+| `events.disabled` | Turns off every hook that is not managed; in the managed layer, every hook. |
+| `events.managedOnly` | In the managed layer, runs only the managed layer's hooks. |
 | `extensions.enabled` | Extension ids and their enabled state. |
 | `extensions.wanted` | Requested extensions, each with `name`, `source` and optional `ref`. |
 | `extensions.blocked` | Extension ids or source labels on the blocklist. |

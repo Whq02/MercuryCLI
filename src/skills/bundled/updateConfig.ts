@@ -1,70 +1,59 @@
 import { z } from 'zod/v4'
 import { registerBundledSkill } from '../bundledSkills.js'
 import { SettingsSchema } from '../../utils/settings/types.js'
+import { HOOK_EVENTS, HOOK_KINDS, hookEventTable, hookKindsOf, hookMatchValues } from '../../utils/hooks/contract.js'
 
 const HOOKS_ONLY_MARKER = '[hooks-only]'
 
-const HOOKS_DOCUMENTATION = `## Hooks
+function hooksDocumentation(): string {
+  const rows = HOOK_EVENTS.map(event => {
+    const row = hookEventTable[event]
+    const values = hookMatchValues(event)
+    const match = row.match === undefined ? 'none' : values === undefined ? row.match : `${row.match} (${values.join(', ')})`
+    const answers = row.answers.length === 0 ? 'nothing (a record)' : row.answers.join(', ')
+    const kinds = hookKindsOf(event).length === HOOK_KINDS.length ? '' : ` — ${hookKindsOf(event).join('/')} only`
+    return `| ${event} | ${row.moment} | ${match} | ${answers}${kinds} |`
+  })
+  return `## Hooks
 
-Shape: settings.json > "events" > "hooks" > { "<Event>": [ { "matcher": "<pattern>", "hooks": [ <hook>, ... ] } ] }. The matcher is a pattern over event-related values — tool names on the tool events, the start source on SessionStart; events with nothing to match ignore it. Matcher grammar: empty or * claims everything; word characters with | alternation (Write|Edit) match exactly; anything else is a regular expression.
+Shape: settings.json > "events" > "hooks" > { "<event>": [ <entry>, ... ] }. One entry is one hook with its own match. An entry names exactly one of "run" (a shell command; the payload arrives on stdin as one JSON line), "question" (a question a model answers; $EVENT is replaced by the payload JSON, else the payload is appended) or "crewmate" (a brief a crewmate with tools checks; $EVENT as above), plus "name" (the words every line about the hook uses), "match" (names such as Bash or Write|Edit, or a regular expression, matched against the event's match field; absent matches everything; refused on an event with no match field), "shell" (bash or powershell, run only), "model" (question and crewmate only), "timeout" (seconds: 600 run, 30 question, 60 crewmate), "background" and "wake" (run only: the hook does not hold the moment; wake also wakes the model when the hook blocks), "once" (once per session), "watch" (file.changed only: the files to watch, relative to the project). There is no condition on the tool's input: a hook on a tool fires on every call of that tool; a run hook that cares about one kind of call reads its stdin and exits 0 at once when the call is not its business. A faulty entry is named and dropped whole; the rest of the file applies.
 
-The events wired most often:
+The events (the match field is what "match" is matched against; the answer fields are what the hook may return):
 
-| Event | Fires |
-|---|---|
-| PermissionRequest | when a tool call needs a permission decision — a hook can decide it |
-| PreToolUse | before a tool runs — validate, block, or rewrite the input |
-| PostToolUse | after a tool call succeeds |
-| PostToolUseFailure | after a tool call fails |
-| UserPromptSubmit | when the user submits a prompt — inspect or add context |
-| SessionStart / SessionEnd | session lifecycle (SessionStart's matcher is the start source) |
-| Stop | when a turn ends |
-| PreCompact / PostCompact | around a compaction |
-| ConfigChange | when a settings file changes on disk — a blocking result vetoes the hot reload |
-| Notification | when the harness raises a notification |
-| Interrupt | when a turn is cut (esc, an SDK interrupt, a timeout, the parent's stop) — observe only; the matcher is the cut reason, and nothing the hook answers can change the cut |
+| Event | Fires | Match field | An answer may set |
+|---|---|---|---|
+${rows.join('\n')}
 
-The full event enum — subagent and task events, worktree events, FileChanged, CwdChanged and the rest — is in the generated schema's hooks section; every event name there is wireable.
+Every payload carries event, session_id, transcript_path, cwd, permission_mode (when a turn is running) and crewmate_id/crewmate_type (inside a crewmate), then the event's own fields; tool.before and tool.after carry tool, input, call_id (and output, ok, error, cut after the call); turn.end carries status, stop, error, cut, steps, wall_ms, cost_usd, usage, answer.
 
-Four hook kinds, discriminated on "type":
-- command: { "type": "command", "command": "<shell command>" } — plus optional shell ("bash" | "powershell"), async (background, non-blocking), wake (background, wakes the model when the hook exits blocking).
-- prompt: { "type": "prompt", "prompt": "..." } — a model evaluates the prompt; $ARGUMENTS receives the hook input JSON.
-- agent: { "type": "agent", "prompt": "..." } — a small agent runs with tools; $ARGUMENTS as above; its timeout defaults to 60s.
-- http: { "type": "http", "url": "https://..." } — POSTs the hook input JSON; header values may reference $VARS only when allowedEnvVars lists them, and the URL must be allowed by the events.httpDestinations setting.
-Every kind also takes: "if" (a permission-rule-syntax condition over the tool name and input — the hook is skipped, never spawned, when it does not match), "timeout" (seconds), "statusMessage" (spinner text), "once" (run once, then remove).
+A run hook answers with its exit code and its stdout: exit 0 and stdout is the answer — empty, one JSON object with the answer fields above (block: the moment is blocked with these words and the model reads them; stop: the whole turn ends; context: words the model reads; notice: one line the operator reads, saved in the session; permission: allow or ask on tool.before and permission.ask — a deny is block; input: the input the tool runs with instead; output: what the model sees as the result instead; rules: permission updates applied with an allow; instructions: guidance for the summariser; prompt: the session's first prompt; watch: the files to watch), or plain text (shown to the operator in transcript mode; on session.start, turn.start, crewmate.start and compaction.after plain text is context the model reads). Exit 2 blocks the moment with stderr as the words. Any other exit, a timeout or a kill: the hook failed, the moment proceeds, the operator reads one line. A field the event does not read, or JSON that is not the answer shape, is a named failure, never prose and never a silent merge. A question or crewmate hook answers the same shape as structured output.
 
-Hook standard input is one JSON object: session_id, transcript_path, cwd, permission_mode, plus agent_id/agent_type inside agents; tool events add tool_name and tool_input, and PostToolUse adds tool_response.
-
-A command hook answers in one of two ways:
-- Exit status alone: 0 = success (stdout may add context), 2 = BLOCK — stderr becomes the model-facing feedback, any other status = a non-blocking error that is surfaced but stays out of the model's way.
-- A JSON object on stdout: continue (false stops the turn) with stopReason; suppressOutput; decision "approve"/"block" with reason; systemMessage (user-visible note); hookSpecificOutput per event — PreToolUse takes permissionDecision "allow"/"deny"/"ask", permissionDecisionReason and updatedInput (a rewritten tool input); UserPromptSubmit takes additionalContext; PostToolUse takes additionalContext. Malformed JSON is reported back with the offending paths named — it never silently downgrades to prose.
-HTTP hooks answer in JSON or not at all (an empty body reads as {}).
-
-Related settings keys: events.disabled, events.managedOnly, events.httpDestinations, events.httpEnvironment.`
+Related settings keys: events.disabled (true turns off every hook that is not managed; in the managed layer, every hook), events.managedOnly (managed layer only). workspace.worktree.prepare is a plain setting, not a hook: a shell command run inside every new worktree after git makes it.`
+}
 
 const HOOK_CONSTRUCTION_FLOW = `## Building a hook, with proof
 
-1. Read the target settings file first. An existing hook on the same event and matcher is a question for the user — replace or add beside — never a silent overwrite.
-2. Write the command for THIS project: inspect the repo for its package manager and invocation style instead of assuming one. Pull stdin fields through a quoted variable (f=$(jq -r .tool_input.file_path) and then "$f"), never through word splitting. End with ; true unless a failure should really surface on every fire — any exit that is not 0 or 2 is reported as a hook error each time.
+1. Read the target settings file first. An existing hook on the same event and match is a question for the user — replace or add beside — never a silent overwrite.
+2. Write the command for THIS project: inspect the repo for its package manager and invocation style instead of assuming one. Pull stdin fields through a quoted variable (f=$(jq -r .input.file_path) and then "$f"), never through word splitting. A hook that cares about one kind of call reads its stdin first and exits 0 at once when the call is not its business. End with ; true unless a failure should really surface on every fire — any exit that is not 0 or 2 is reported as a hook error each time.
 3. Pipe-test before wiring: feed a synthesized stdin payload for the event and check the exit status AND the side effect. Remember 2 is the blocking status — a formatter that exits 2 on unformatted input would block the tool call it was meant to follow.
 4. Write the JSON by merging into the file's existing content — carry the arrays forward and add to them; a write that replaces the hooks object drops the user's other hooks. When you create .mercury/settings.local.json by hand, add the matching ignore rule too: Mercury gitignores that file only when its own writer creates it.
 5. Validate: jq . <file> proves the JSON parses; then re-check the shape against the generated schema. A file that fails to parse simply drops out of the settings merge — the other settings files keep working, and the file's errors surface in the session.
 6. Prove the hook fires. Prefix the command with a sentinel append (echo x >> <scratch>/hook-proof) or introduce a change the hook must visibly transform, trigger the event once, and read the evidence. Clean the sentinel up afterwards, pass or fail.
 7. The pipe-test passed but the live proof did not: the usual cause is that the settings file's parent directory did not exist when the session started — the hot-reload watcher arms only directories that existed at initialisation. A session restart picks the file up; creating the directory before the next session avoids the repeat.
-8. Hand off: say which file carries the hook and on which event; /hooks shows the hooks wired to this session's tool events. A clean hook run is silent by design — failures and blocks surface, success does not.
+8. Hand off: say which file carries the hook and on which event; /hooks lists every hook the session carries. A clean hook run is silent by design — failures and blocks surface, success does not.
 
-Frequent mistakes: replacing arrays instead of extending them; unquoted jq extraction; a hook that exits 2 by accident and blocks its event; prompt/agent hook output expectations applied to command hooks.`
+Frequent mistakes: replacing arrays instead of extending them; unquoted jq extraction; a hook that exits 2 by accident and blocks its event; an unknown event name or a wrongly shaped entry (both are named faults; the entry does not load).`
 
 const FULL_PROMPT = `You configure the Mercury harness through its settings files.
 
-A REQUEST FOR AUTOMATIC BEHAVIOUR IS A HOOK. "After every edit…", "whenever a session starts…", "before each bash command…" — the harness executes hooks; nothing written into memory or instruction files can run a command by itself. Format-on-write → PostToolUse; command logging → PreToolUse; end-of-turn notice → Stop.
+A REQUEST FOR AUTOMATIC BEHAVIOUR IS A HOOK. "After every edit…", "whenever a session starts…", "before each bash command…" — the harness executes hooks; nothing written into memory or instruction files can run a command by itself. Format-on-write → tool.after; command logging → tool.before; end-of-turn notice → turn.answer or turn.end; "tell me when a session needs me" → session.state.
 
 THE FILES, LOWEST PRIORITY FIRST:
 - user: <config-home>/settings.json — every project. The config home is ~/.mercury, or whatever MERCURY_CONFIG_DIR names.
 - project: .mercury/settings.json — checked in, shared with the crew.
 - local: .mercury/settings.local.json — personal, gitignored.
 - flag: a file passed on the command line; managed: managed-settings.json plus its drop-ins — policy, not editable here.
-MERGE LAW across sources: objects deep-merge with later sources winning, and ARRAYS CONCATENATE (de-duplicated) — a project allow-list adds to the user's, it cannot subtract from it. Changes hot-apply through a file watcher; ConfigChange hooks observe every reload and a blocking result vetoes it.
+MERGE LAW across sources: objects deep-merge with later sources winning, and ARRAYS CONCATENATE (de-duplicated) — a project allow-list adds to the user's, it cannot subtract from it. Changes hot-apply through a file watcher.
 
 EDITING RULES:
 - Read before writing, always.
@@ -79,12 +68,12 @@ PERMISSION RULES (the guardrails.allow / deny / ask arrays):
 
 WORKFLOW: clarify → read → merge → write → show the result and where it landed.
 
-${HOOKS_DOCUMENTATION}
+${hooksDocumentation()}
 
 ${HOOK_CONSTRUCTION_FLOW}
 
 WORKED SHAPES:
-1. "Format after every write" → events.hooks.PostToolUse, matcher Write|Edit, a command hook built and proven per the flow above.
+1. "Format after every write" → events.hooks["tool.after"], match Write|Edit, a run hook built and proven per the flow above.
 2. "Allow npm test without asking" → read the chosen scope's file, append "Bash(npm test *)" to guardrails.allow, show the merged result.
 3. "Set DEBUG=1 for every session" → environment: { "values": { "DEBUG": "1" } } in the scope the user picks.`
 
@@ -105,7 +94,7 @@ export function registerUpdateConfigSkill(): void {
       if (trimmed.startsWith(HOOKS_ONLY_MARKER)) {
         const task = trimmed.slice(HOOKS_ONLY_MARKER.length).trim()
         const text = [
-          HOOKS_DOCUMENTATION,
+          hooksDocumentation(),
           HOOK_CONSTRUCTION_FLOW,
           ...(task ? [`## Task\n\n${task}`] : []),
         ].join('\n\n')
