@@ -185,12 +185,12 @@ export const JourneyTool = buildTool({
     return 'Declarative local application-journey verification with per-step evidence and an honest verdict'
   },
   async prompt() {
-    return `Compositional LOCAL application-journey verification: declare an ordered step list; the runner executes it over the EXISTING owners (project services · bounded commands · loopback HTTP · file/log/diagnostic checks), records per-step observed evidence, stops the services it started, and settles an honest verdict — a failed step is never summarized into success.
+    return `Compositional local application-journey verification: declare an ordered step list; the runner executes it over the existing owners (project services · bounded commands · loopback HTTP · file/log/diagnostic checks), records per-step observed evidence, stops the services it started, and settles an honest verdict — a failed step is never summarized into success.
 
 op:"run" (objective, steps, cleanup?):
   service.start {name, command, args?, readiness?[log|tcp|http|file|stable], readinessMode?}
-  service.wait {name, timeoutMs?} — failure NAMES the unmet conditions
-  http.request {url (LOOPBACK ONLY), method?, body?, expect?{status, bodyIncludes, headerIncludes, jsonPath+equals}}
+  service.wait {name, timeoutMs?} — failure names the unmet conditions
+  http.request {url (loopback only), method?, body?, expect?{status, bodyIncludes, headerIncludes, jsonPath+equals}}
   command.run {command, args?, expect?{exitCode, stdoutIncludes}}
   file.inspect {path, expect?{exists, contains}}
   log.match {service, pattern} — polls the service's cursored logs
