@@ -219,40 +219,18 @@ function extractIncludePathsFromTokens(
     }
   }
 
-  function processElements(elements: MarkdownToken[]) {
-    for (const element of elements) {
-      if (element.type === 'code' || element.type === 'codespan') {
-        continue
-      }
-
-      if (element.type === 'html') {
-        const raw = element.raw || ''
-        const trimmed = raw.trimStart()
-        if (trimmed.startsWith('<!--') && trimmed.includes('-->')) {
-          const commentSpan = /<!--[\s\S]*?-->/g
-          const residue = raw.replace(commentSpan, '')
-          if (residue.trim().length > 0) {
-            extractPathsFromText(residue)
-          }
-        }
-        continue
-      }
-
-      if (element.type === 'text') {
-        extractPathsFromText(element.text || '')
-      }
-
-      if (element.tokens) {
-        processElements(element.tokens)
-      }
-
-      if (element.items) {
-        processElements(element.items)
-      }
+  const pending: MarkdownToken[] = [...(tokens as MarkdownToken[])].reverse()
+  while (pending.length > 0) {
+    const token = pending.pop()!
+    if (token.type === 'code' || token.type === 'codespan') continue
+    if (token.type === 'html') {
+      const residue = commentResidueOf(token.raw ?? '')
+      if (residue !== null && residue.trim().length > 0) extractPathsFromText(residue)
+      continue
     }
+    if (token.type === 'text') extractPathsFromText(token.text ?? '')
+    for (const child of [...(token.tokens ?? []), ...(token.items ?? [])].reverse()) pending.push(child)
   }
-
-  processElements(tokens as MarkdownToken[])
   return { includePaths: [...absolutePaths], bareMentionPaths: [...bareMentions] }
 }
 
