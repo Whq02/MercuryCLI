@@ -273,7 +273,7 @@ export function critterAt(i: number): CritterDef {
   return CRITTERS[((i % CRITTERS.length) + CRITTERS.length) % CRITTERS.length]!
 }
 
-export const DEFAULT_CRITTER_KEY = 'jellyfish'
+export const DEFAULT_CRITTER_KEY = 'crab'
 
 const BY_KEY: Record<string, CritterDef> = Object.fromEntries(CRITTERS.map(d => [d.name, d]))
 
