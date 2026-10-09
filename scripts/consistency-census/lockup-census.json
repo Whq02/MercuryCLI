@@ -17,6 +17,13 @@
       "why": "CLI handler text output — flat by design"
     },
     {
+      "file": "src/commands/context/context.tsx",
+      "kind": "wordmark",
+      "excerpt": "<Wordmark />",
+      "role": "session-identity",
+      "why": "the /context card while the chart is counted — the same context lockup as the view"
+    },
+    {
       "file": "src/components/CompactIdentityBand.tsx",
       "kind": "wordmark",
       "excerpt": "<Wordmark greeting={false} />",
