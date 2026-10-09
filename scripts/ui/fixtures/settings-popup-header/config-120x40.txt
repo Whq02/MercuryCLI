@@ -2,7 +2,7 @@
 WORKBENCH               │                                                                                              │
   no prompts sent yet   │ ╭──────────────────────────────────────────────────────────────────────────────────────────╮ │
                         │ │ ▖▟▆▙▗ Mercury · config                                                                   │ │
-NEXT                    │ │ orchard · 60 settings · 0 set by you                                                     │ │
+NEXT                    │ │ orchard · 61 settings · 0 set by you                                                     │ │
   · /workflows — agent …│ │                                                                                          │ │
   · /health — health ce…│ │ / Search settings…                                                                       │ │
   · /memory — memory    │ │                                                                                          │ │
@@ -27,7 +27,7 @@ VITALS                  │ │   Reduced motion                    off         
                         │ │   Terminal progress bar             on                                                   │ │
                         │ │   Turn duration                     on                                                   │ │
                         │ │   Default permission mode           Default                                              │ │
-                        │ │ ↓ 39 more                                                                                │ │
+                        │ │ ↓ 40 more                                                                                │ │
                         │ │                                                                                          │ │
                         │ │ ↑↓ select · ←/→ change · ↵ save · / search · esc or click outside closes                 │ │
                         │ ╰──────────────────────────────────────────────────────────────────────────────────────────╯ │
