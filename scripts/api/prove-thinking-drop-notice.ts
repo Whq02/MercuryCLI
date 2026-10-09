@@ -328,10 +328,12 @@ section('§2b the model-switch receipt — the previous model\'s thinking leaves
   check('user rows pass by reference; the input is never mutated', stripped[0] === history[0] && hasThinking(history[1]))
   const opusOnly = [history[0], history[1], history[2], history[3]]
   check('identity when every block is the current model\'s', stripThinkingFromOtherModels(opusOnly as never, 'claude-opus-4-8', isSameModel) === (opusOnly as never))
-  const receipt = modelSwitchReceipt('main', history as never, 'claude-fable-5-1')
+  const atSwitch = history.slice(0, 5)
+  const receipt = modelSwitchReceipt('main', atSwitch as never, 'claude-fable-5-1')
   check('the receipt names the count, the writer and the new model, and the switch', receipt !== null && receipt.text.includes('2 thinking blocks written by') && receipt.text.includes('stay out of the requests to') && receipt.text.includes('switched models'), j(receipt))
-  check('…keyed by the owner and the new model\'s family (once per switch)', receipt !== null && receipt.key === 'main|claude-fable-5-1')
+  check('…keyed by the owner, the row that last answered and the new model (once per switch)', receipt !== null && receipt.key === `main|${String((history[3] as { uuid: string }).uuid)}|claude-fable-5-1`, j(receipt?.key))
   check('…and never as a drop, never pointing at switching models', receipt !== null && !receipt.text.includes('dropped') && !/switch (the )?model/i.test(receipt.text))
+  check('once the new model has answered, the next request to it is no switch: no receipt (a resume paints nothing)', modelSwitchReceipt('main', history as never, 'claude-fable-5-1') === null)
   check('no foreign thinking ⇒ no receipt', modelSwitchReceipt('main', [history[0], history[1]] as never, 'claude-opus-4-8') === null)
 }
 
