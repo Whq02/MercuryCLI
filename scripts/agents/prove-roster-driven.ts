@@ -200,7 +200,7 @@ section('§2 a scout run: mercury-scout has no writer; its write attempt is refu
   const organTools = seatTools.filter(t => t.startsWith('mcp__'))
   check("the organ's tools reach the scout only in their reading forms (the lease list and the screen capture; never a lease writer)", organTools.every(t => t === 'mcp__mercury__lease_list' || t === 'mcp__mercury__render_tui'), organTools.join(','))
   check("every tool the scout seat is offered is read-only by the tool's own classification (the shell and the skill door apart)", offered.length > 0 && writers.length === 0, `writers offered: ${writers.join(',') || 'none'}; wire: ${seatTools.join(',')}`)
-  check("the scout seat's system prompt is the read-only scout's", systemTextOf(seats[0] ?? {}).includes("You are Mercury's repository scout") && systemTextOf(seats[0] ?? {}).includes('Read-only — absolute prohibitions'))
+  check("the scout seat's system prompt is the read-only scout's", systemTextOf(seats[0] ?? {}).includes("You are Mercury's repository scout") && systemTextOf(seats[0] ?? {}).includes('a call that would write or change state is refused'))
   const refusal = toolResultsOf(seats[1] ?? {}).find(text => text.includes('No such tool available: Write')) ?? ''
   check('the Write attempt came back to the scout as a refusal naming the missing tool', refusal.includes('No such tool available: Write'), toolResultsOf(seats[1] ?? {}).join(' | ').slice(0, 300))
   check('nothing was written', !existsSync(probe))
