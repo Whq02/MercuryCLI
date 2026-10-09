@@ -63,6 +63,9 @@ const { armInactivityDeadline, withInactivityDeadline, isDeadlineExceeded, Deadl
 
   t('minutes knob: default / explicit / zero / junk', minutesKnobToMs(undefined, 30) === 1_800_000 && minutesKnobToMs('2', 30) === 120_000 && minutesKnobToMs('0', 30) === 0 && minutesKnobToMs('lots', 30) === 1_800_000)
   t('formatLimit reads as a human span', formatLimit(1_800_000) === '30m' && formatLimit(90_000) === '1m30s' && formatLimit(250) === '250ms')
+  t('formatLimit rolls the seconds over (the box read "3m (after 2m60s)")', formatLimit(179_942) === '3m' && formatLimit(599_513) === '10m' && formatLimit(180_000) === '3m', `${formatLimit(179_942)} ${formatLimit(599_513)}`)
+  t('formatLimit rolls every rung over: 999.6ms, 59.6s, 59m59.6s, 1h59m59.6s', formatLimit(999.6) === '1s' && formatLimit(59_600) === '1m' && formatLimit(3_599_600) === '1h' && formatLimit(7_199_600) === '2h', `${formatLimit(999.6)} ${formatLimit(59_600)} ${formatLimit(3_599_600)} ${formatLimit(7_199_600)}`)
+  t('formatLimit keeps the whole spans', formatLimit(0) === '0ms' && formatLimit(1_000) === '1s' && formatLimit(60_000) === '1m' && formatLimit(3_600_000) === '1h' && formatLimit(5_400_000) === '1h30m' && formatLimit(119_400) === '1m59s')
 }
 
 {

@@ -21,15 +21,18 @@ export function isDeadlineExceeded(err: unknown): err is DeadlineExceededError {
 
 export function formatLimit(ms: number): string {
   if (!Number.isFinite(ms) || ms < 0) return 'unbounded'
-  if (ms < 1000) return `${Math.round(ms)}ms`
-  if (ms < 60_000) return `${Math.round(ms / 1000)}s`
-  if (ms < 3_600_000) {
-    const minutes = Math.floor(ms / 60_000)
-    const seconds = Math.round((ms % 60_000) / 1000)
+  const wholeMs = Math.round(ms)
+  if (wholeMs < 1000) return `${wholeMs}ms`
+  const wholeSeconds = Math.round(ms / 1000)
+  if (wholeSeconds < 60) return `${wholeSeconds}s`
+  if (wholeSeconds < 3600) {
+    const minutes = Math.floor(wholeSeconds / 60)
+    const seconds = wholeSeconds % 60
     return seconds > 0 ? `${minutes}m${seconds}s` : `${minutes}m`
   }
-  const hours = Math.floor(ms / 3_600_000)
-  const minutes = Math.round((ms % 3_600_000) / 60_000)
+  const wholeMinutes = Math.round(ms / 60_000)
+  const hours = Math.floor(wholeMinutes / 60)
+  const minutes = wholeMinutes % 60
   return minutes > 0 ? `${hours}h${minutes}m` : `${hours}h`
 }
 
