@@ -132,7 +132,7 @@ export function ExtensionView({
     if (skills.length > 0) addLines.push({ kind: 'skills', what: skills.join(' · ') })
     if (resolution.agents.length > 0) addLines.push({ kind: 'agents', what: resolution.agents.map(a => a.agentType).join(' · ') })
     for (const hook of resolution.hooks) {
-      addLines.push({ kind: 'hooks', what: `${hook.event}${hook.matcher ? `  ${hook.matcher}` : ''}  →  ${shortRoot(hook.commandLine, entry.root)}${hook.hook.timeout ? `  (${hook.hook.timeout}s)` : ''}` })
+      addLines.push({ kind: 'hooks', what: `${hook.event}${hook.hook.match ? `  ${hook.hook.match}` : ''}  →  ${shortRoot(hook.commandLine, entry.root)}${hook.hook.timeout ? `  (${hook.hook.timeout}s)` : ''}` })
     }
     for (const server of resolution.servers) {
       const config = server.config

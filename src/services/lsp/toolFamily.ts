@@ -22,13 +22,13 @@ export function lspCliNote(flag: string): string {
 export function lspHookNote(event: string, matcher: string, source: string): string | undefined {
   const shape = matcherShape(matcher)
   if (shape === 'names' && matcher.split('|').map(name => name.trim()).includes('LSP')) {
-    return `The ${event} hook matcher \`LSP\` in ${source} fires for ${successors}; only LspRead's tool_input has an operation field.`
+    return `The ${event} hook match \`LSP\` in ${source} fires for ${successors}; only LspRead's input has an operation field.`
   }
   if (shape !== 'names' && shape !== 'everything') {
     try {
       const regex = new RegExp(matcher)
       if (regex.test('LSP') && !LSP_TOOL_NAMES.some(name => regex.test(name))) {
-        return `The ${event} hook matcher \`${matcher}\` in ${source} matches \`LSP\` but none of ${successors} — add their names to keep it.`
+        return `The ${event} hook match \`${matcher}\` in ${source} matches \`LSP\` but none of ${successors} — add their names to keep it.`
       }
     } catch {}
   }
