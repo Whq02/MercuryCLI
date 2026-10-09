@@ -150,27 +150,14 @@ function stripHtmlCommentsFromTokens(tokens: ReturnType<Lexer['lex']>): {
   content: string
   stripped: boolean
 } {
-  let result = ''
   let stripped = false
-
-  const commentSpan = /<!--[\s\S]*?-->/g
-
-  for (const token of tokens) {
-    if (token.type === 'html') {
-      const trimmed = token.raw.trimStart()
-      if (trimmed.startsWith('<!--') && trimmed.includes('-->')) {
-        const residue = token.raw.replace(commentSpan, '')
-        stripped = true
-        if (residue.trim().length > 0) {
-          result += residue
-        }
-        continue
-      }
-    }
-    result += token.raw
-  }
-
-  return { content: result, stripped }
+  const kept = tokens.map(token => {
+    const residue = token.type === 'html' ? commentResidueOf(token.raw) : null
+    if (residue === null) return token.raw
+    stripped = true
+    return residue.trim().length > 0 ? residue : ''
+  })
+  return { content: kept.join(''), stripped }
 }
 
 type MarkdownToken = {
