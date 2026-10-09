@@ -108,23 +108,51 @@ const PERMISSION_REQUEST_HOOK_NAME = 'PermissionRequest'
 
 const SIMULATED_EDIT_MARKER = '_simulatedSedEdit'
 
+type SchemaHintAsk = {
+  tool: Tool
+  messages: Message[]
+  tools: readonly { name: string }[]
+  model: string
+}
+
+type SchemaHintSilence =
+  | 'tool-search-off'
+  | 'tool-search-not-callable'
+  | 'schema-sent'
+  | 'server-side-search'
+  | 'already-loaded'
+
+const SCHEMA_HINT_SILENCES: ReadonlyArray<readonly [SchemaHintSilence, (ask: SchemaHintAsk) => boolean]> = [
+  ['tool-search-off', () => !isToolSearchEnabledOptimistic()],
+  ['tool-search-not-callable', ({ tools }) => !isToolSearchToolAvailable(tools)],
+  ['schema-sent', ({ tool, model, messages }) => !isDeferredToolFor(tool, model, undefined, messages)],
+  ['server-side-search', ({ model }) => deferralSearchIsServerSide(deferralWireFormFor(model).form)],
+  ['already-loaded', ({ tool, messages }) => extractDiscoveredToolNames(messages).has(tool.name)],
+]
+
+function schemaHintSilence(ask: SchemaHintAsk): SchemaHintSilence | null {
+  return SCHEMA_HINT_SILENCES.find(([, holds]) => holds(ask))?.[0] ?? null
+}
+
+function loadRoadSentence(toolName: string): string {
+  return `Load it with one call — ${TOOL_SEARCH_TOOL_NAME} with query "select:${toolName}" — then make this call again.`
+}
+
+function schemaNotSentWords(toolName: string): string {
+  return (
+    `\n\nThe ${toolName} schema was not in this turn's request: the tool sits in the deferred set and nothing in this conversation has loaded it yet. ` +
+    `Without the schema in front of you, every typed parameter (an array, a number, a boolean) went out as a string, and the parser refused the call for that. ` +
+    loadRoadSentence(toolName)
+  )
+}
+
 export function buildSchemaNotSentHint(
   tool: Tool,
   messages: Message[],
   tools: readonly { name: string }[],
   model = getEngineModel(),
 ): string | null {
-  if (!isToolSearchEnabledOptimistic()) return null
-  if (!isToolSearchToolAvailable(tools)) return null
-  if (!isDeferredToolFor(tool, model, undefined, messages)) return null
-  if (deferralSearchIsServerSide(deferralWireFormFor(model).form)) return null
-  const discovered = extractDiscoveredToolNames(messages)
-  if (discovered.has(tool.name)) return null
-  return (
-    `\n\nThis tool's schema was not sent to the API — it was not in the discovered-tool set derived from message history. ` +
-    `Without the schema in your prompt, typed parameters (arrays, numbers, booleans) get emitted as strings and the client-side parser rejects them. ` +
-    `Load the tool first: call ${TOOL_SEARCH_TOOL_NAME} with query "select:${tool.name}", then retry this call.`
-  )
+  return schemaHintSilence({ tool, messages, tools, model }) === null ? schemaNotSentWords(tool.name) : null
 }
 
 function extractKillTarget(toolName: string, input: AnyObject): string | undefined {
@@ -325,7 +353,7 @@ export async function* runToolUse(
       closest === undefined
         ? `No such tool available: ${requestedName}. It is not in this session's tool list — call one of the tools you were given (a ToolSearch query loads a deferred tool when one is offered).`
         : loadRoad
-          ? `No such tool available: ${requestedName}. Did you mean \`${closest.name}\`? It is a deferred tool this session has not loaded yet. Load the tool first: call ${TOOL_SEARCH_TOOL_NAME} with query "select:${closest.name}", then retry this call.`
+          ? `No such tool available: ${requestedName}. Did you mean \`${closest.name}\`? It is a deferred tool this session has not loaded yet. ${loadRoadSentence(closest.name)}`
           : `No such tool available: ${requestedName}. Did you mean \`${closest.name}\`? Call it by that exact name.`
     const unavailable = errorResultUpdate({
       toolUseID,
@@ -477,13 +505,14 @@ async function runTransactionBody(args: {
   if (!parsed.success) {
     traceOnce({ ok: false })
     let content = formatZodValidationError(tool.name, parsed.error, tool.inputJSONSchema)
-    const hint = buildSchemaNotSentHint(
+    const silence = schemaHintSilence({
       tool,
-      toolUseContext.messages,
-      toolUseContext.options.tools,
-      toolUseContext.options.engineModel,
-    )
-    if (hint) content += hint
+      messages: toolUseContext.messages,
+      tools: toolUseContext.options.tools,
+      model: toolUseContext.options.engineModel,
+    })
+    if (silence === null) content += schemaNotSentWords(tool.name)
+    else logForDebugging(`schema hint withheld for ${tool.name}: ${silence}`)
     emitError(content, content)
     return
   }

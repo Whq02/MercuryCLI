@@ -1,136 +1,120 @@
 #!/usr/bin/env bun
-
-import { readFileSync, existsSync } from 'node:fs'
+import { existsSync, mkdtempSync, readFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
+delete process.env.NODE_ENV
+for (const k of ['ANTHROPIC_BASE_URL', 'MERCURY_TOOL_SEARCH', 'MERCURY_TOOL_DEFER', 'MERCURY_TOOL_DEFER_PROBE', 'MERCURY_MODEL', 'MERCURY_OPENAI_API_BASE', 'MERCURY_OPENAI_CHATGPT_BASE']) {
+  delete process.env[k]
+}
+process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'schema-hint-'))
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-const { isDeferredTool, TOOL_SEARCH_TOOL_NAME } = await import(
-  '../../src/tools/ToolSearchTool/prompt.js'
-)
+const ROOT = join(import.meta.dir, '..', '..')
+const { buildSchemaNotSentHint } = await import('../../src/services/tools/toolExecution.ts')
+const { isDeferredTool, TOOL_SEARCH_TOOL_NAME } = await import('../../src/tools/ToolSearchTool/prompt.ts')
+const { createUserMessage, createAssistantMessage } = await import('../../src/utils/messages.ts')
+type Tool = Parameters<typeof buildSchemaNotSentHint>[0]
+type Message = Parameters<typeof buildSchemaNotSentHint>[1][number]
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ' — ' + detail : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)
 }
 
-type Tool = Parameters<typeof isDeferredTool>[0]
-type Msg = { type: string; message?: { content?: unknown } }
-
-function toolSearchToolAvailable(tools: readonly { name: string }[]): boolean {
-  return tools.some(t => t.name === TOOL_SEARCH_TOOL_NAME)
-}
-
-function extractDiscovered(messages: Msg[]): Set<string> {
-  const out = new Set<string>()
-  for (const msg of messages) {
-    if (msg.type !== 'user') continue
-    const content = msg.message?.content
-    if (!Array.isArray(content)) continue
-    for (const block of content) {
-      const b = block as { type?: string; content?: unknown[] }
-      if (b?.type === 'tool_result' && Array.isArray(b.content)) {
-        for (const item of b.content) {
-          const it = item as { type?: string; tool_name?: unknown }
-          if (it?.type === 'tool_reference' && typeof it.tool_name === 'string') {
-            out.add(it.tool_name)
-          }
-        }
-      }
-    }
-  }
-  return out
-}
-
-function buildSchemaNotSentHint(
-  tool: Tool,
-  messages: Msg[],
-  tools: readonly { name: string }[],
-  optimisticEnabled: boolean,
-): string | null {
-  if (!optimisticEnabled) return null
-  if (!toolSearchToolAvailable(tools)) return null
-  if (!isDeferredTool(tool)) return null
-  const discovered = extractDiscovered(messages)
-  if (discovered.has(tool.name)) return null
-  return (
-    `\n\nThis tool's schema was not sent to the API — it was not in the discovered-tool set derived from message history. ` +
-    `Without the schema in your prompt, typed parameters (arrays, numbers, booleans) get emitted as strings and the client-side parser rejects them. ` +
-    `Load the tool first: call ${TOOL_SEARCH_TOOL_NAME} with query "select:${tool.name}", then retry this call.`
-  )
-}
-
-console.log('============================================================')
-console.log(' buildSchemaNotSentHint — deferred-tool recovery hint — proof')
-console.log('============================================================')
-
-const toolsWithSearch = [{ name: TOOL_SEARCH_TOOL_NAME }, { name: 'WebFetch' }]
+const BLOCK_WIRE = 'claude-sonnet-5'
+const SERVER_SEARCH_WIRE = 'gpt-5.6-sol'
+const TEXT_WIRE = 'glm-5.3'
+const withSearch = [{ name: TOOL_SEARCH_TOOL_NAME }, { name: 'WebFetch' }, { name: 'Bash' }]
+const withoutSearch = [{ name: 'WebFetch' }, { name: 'Bash' }]
 const deferredTool = { name: 'WebFetch', isMcp: true } as unknown as Tool
-const noMessages: Msg[] = []
+const plainTool = { name: 'Bash', shouldDefer: false } as unknown as Tool
+const begin = createUserMessage({ content: 'begin' }) as Message
+const fresh: Message[] = [begin]
 
-section('deferred-but-undiscovered tool ⇒ returns the select:<name> hint')
-{
-  const hint = buildSchemaNotSentHint(deferredTool, noMessages, toolsWithSearch, true)
-  check('hint is non-null', hint !== null)
-  check('hint names the exact select: query', hint?.includes(`query "select:WebFetch"`) === true, hint ? hint.trim().split('\n').pop() : '(null)')
-  check('hint names ToolSearch by its real tool name', hint?.includes(TOOL_SEARCH_TOOL_NAME) === true)
-  check('hint explains the typed-param→string failure', hint?.includes('emitted as strings') === true)
-}
-
-section('suppression: ToolSearch optimistically disabled (standard mode) ⇒ null')
-{
-  const hint = buildSchemaNotSentHint(deferredTool, noMessages, toolsWithSearch, false)
-  check('null when tool search is off', hint === null)
-}
-
-section('suppression: ToolSearchTool not in the tools pool ⇒ null')
-{
-  const toolsNoSearch = [{ name: 'WebFetch' }, { name: 'Bash' }]
-  const hint = buildSchemaNotSentHint(deferredTool, noMessages, toolsNoSearch, true)
-  check('null when ToolSearch is unavailable (cannot point at an uncallable tool)', hint === null)
-}
-
-section('suppression: a non-deferred tool ⇒ null')
-{
-  const plainTool = { name: 'Bash', shouldDefer: false } as unknown as Tool
-  check('control: isDeferredTool(plainTool) is false', isDeferredTool(plainTool) === false)
-  const hint = buildSchemaNotSentHint(plainTool, noMessages, toolsWithSearch, true)
-  check('null for a standard inline tool (its schema was always sent)', hint === null)
-}
-
-section('suppression: tool already in the discovered set ⇒ null')
-{
-  const discoveredMsgs: Msg[] = [
-    {
-      type: 'user',
-      message: {
-        content: [
-          {
-            type: 'tool_result',
-            content: [{ type: 'tool_reference', tool_name: 'WebFetch' }],
-          },
-        ],
-      },
-    },
+function loaded(id: string, names: string[]): Message[] {
+  return [
+    createAssistantMessage({
+      content: [{ type: 'tool_use', id, name: TOOL_SEARCH_TOOL_NAME, input: { query: `select:${names.join(',')}` } }] as never,
+    }) as Message,
+    createUserMessage({
+      content: [{ type: 'tool_result', tool_use_id: id, content: names.map(tool_name => ({ type: 'tool_reference', tool_name })) }] as never,
+    }) as Message,
   ]
-  check('control: scan finds WebFetch', extractDiscovered(discoveredMsgs).has('WebFetch'))
-  const hint = buildSchemaNotSentHint(deferredTool, discoveredMsgs, toolsWithSearch, true)
-  check('null once the tool has been ToolSearch-loaded', hint === null)
 }
 
-section('dist-grep: the real hint + select:${name} format ship in dist/mercury.mjs')
+console.log('============================================================')
+console.log(' the schema-not-sent hint — the deferred-tool recovery words')
+console.log('============================================================')
+
+section('§1 a deferred tool nobody loaded, on a wire that defers client-side: the hint speaks')
 {
-  const dist = join(import.meta.dir, '..', '..', 'dist', 'mercury.mjs')
+  const hint = buildSchemaNotSentHint(deferredTool, fresh, withSearch, BLOCK_WIRE)
+  check('the hint is returned', hint !== null)
+  check('it opens on a blank line, so it reads as a paragraph after the schema error', hint?.startsWith('\n\n') === true, JSON.stringify(hint?.slice(0, 4)))
+  check('it says the schema was not in the request', hint?.includes('schema was not in this turn\'s request') === true, hint ?? '')
+  check('it says why the typed parameters came through as strings', hint?.includes('went out as a string') === true, hint ?? '')
+  check('it names the tool-search tool by its real name', hint?.includes(TOOL_SEARCH_TOOL_NAME) === true)
+  check('it spells the one query that loads the schema', hint?.includes(`with query "select:WebFetch"`) === true, hint ?? '')
+  check('it says to make the call again', hint?.includes('make this call again') === true)
+  check('the same words come back on a text wire', buildSchemaNotSentHint(deferredTool, fresh, withSearch, TEXT_WIRE) === hint)
+}
+
+section('§2 tool search in standard mode: silence')
+{
+  process.env.MERCURY_TOOL_SEARCH = '0'
+  check('null when tool search is switched to standard', buildSchemaNotSentHint(deferredTool, fresh, withSearch, BLOCK_WIRE) === null)
+  delete process.env.MERCURY_TOOL_SEARCH
+  check('control: the hint speaks again once the mode is back', buildSchemaNotSentHint(deferredTool, fresh, withSearch, BLOCK_WIRE) !== null)
+}
+
+section('§3 no tool-search tool in the list: silence (never point at a tool that cannot be called)')
+{
+  check('null without a tool-search tool', buildSchemaNotSentHint(deferredTool, fresh, withoutSearch, BLOCK_WIRE) === null)
+}
+
+section('§4 a tool whose schema always ships: silence')
+{
+  check('control: the plain tool is not deferred', isDeferredTool(plainTool) === false)
+  check('null for a tool that is not deferred', buildSchemaNotSentHint(plainTool, fresh, withSearch, BLOCK_WIRE) === null)
+}
+
+section('§5 the schema already loaded by a tool-search round: silence')
+{
+  const history = [...fresh, ...loaded('toolu_1', ['WebFetch'])]
+  check('null once the history carries the tool reference', buildSchemaNotSentHint(deferredTool, history, withSearch, BLOCK_WIRE) === null)
+  check('another tool\'s load does not count', buildSchemaNotSentHint(deferredTool, [...fresh, ...loaded('toolu_2', ['Browser'])], withSearch, BLOCK_WIRE) !== null)
+}
+
+section('§6 a wire whose tool search runs on the server: silence (the tool is not on that wire)')
+{
+  check('null on the server-search wire', buildSchemaNotSentHint(deferredTool, fresh, withSearch, SERVER_SEARCH_WIRE) === null)
+}
+
+section('§7 the model read when no model is passed is the engine model')
+{
+  process.env.MERCURY_MODEL = SERVER_SEARCH_WIRE
+  check('MERCURY_MODEL on the server-search wire silences the three-argument call', buildSchemaNotSentHint(deferredTool, fresh, withSearch) === null)
+  process.env.MERCURY_MODEL = BLOCK_WIRE
+  check('MERCURY_MODEL on the block wire lets the three-argument call speak', buildSchemaNotSentHint(deferredTool, fresh, withSearch) !== null)
+  delete process.env.MERCURY_MODEL
+}
+
+section('§8 one owner of the load road: the executor spells the select query once, and the build carries the words')
+{
+  const executor = readFileSync(join(ROOT, 'src/services/tools/toolExecution.ts'), 'utf8')
+  check('the executor spells `with query "select:` exactly once', (executor.match(/with query "select:\$\{/g) ?? []).length === 1)
+  const dist = join(ROOT, 'dist', 'mercury.mjs')
   if (!existsSync(dist)) {
     console.log('  [SKIP] dist/mercury.mjs not built — run `bun run build.ts` to include this check')
   } else {
-    const src = readFileSync(dist, 'utf8')
-    check('the recovery-hint sentence is in the build', src.includes("This tool's schema was not sent to the API"))
-    check('the select:${...name} query format is in the build', /select:\$\{[$\w.]*name\}/.test(src))
+    const built = readFileSync(dist, 'utf8')
+    check('the build carries the strings explanation', built.includes('went out as a string'))
+    check('the build carries the select query template', built.includes('with query "select:${'))
   }
 }
 
