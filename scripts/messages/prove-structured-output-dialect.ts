@@ -21,8 +21,9 @@ const { toOpenaiStrictSchema, stripExplicitNulls } = await import(
 const { buildOpenaiResponsesRequest } = await import(
   '../../src/services/providers/openai/responsesBridge.ts'
 )
-const { VERDICT_JSON_SCHEMA } = await import('../../src/utils/hooks/execPromptHook.ts')
-const { hookResponseSchema } = await import('../../src/utils/hooks/hookHelpers.ts')
+const { hookAnswerJsonSchema } = await import('../../src/utils/hooks/questionRunner.ts')
+const { hookAnswerSchema } = await import('../../src/utils/hooks/contract.ts')
+const VERDICT_JSON_SCHEMA = hookAnswerJsonSchema(hookAnswerSchema('tool.before'))
 
 console.log('============================================================')
 console.log(' STRUCTURED-OUTPUT DIALECT — the wire law + the decode law')
@@ -101,7 +102,7 @@ section('§1 the wire is the strict dialect for every product schema')
 {
   const rows: Array<[string, { schema: Node }]> = [
     ['ops plan (the sighting shape)', { type: 'json_schema', schema: opsPlanSchema() } as never],
-    ['prompt-hook verdict', { type: 'json_schema', schema: VERDICT_JSON_SCHEMA as unknown as Node } as never],
+    ['question-hook answer (tool.before)', { type: 'json_schema', schema: VERDICT_JSON_SCHEMA as unknown as Node } as never],
   ]
   for (const [name, fmt] of rows) {
     const wire = wireSchemaOf(fmt)
@@ -151,18 +152,18 @@ section('§3 stripExplicitNulls: object keys drop, array elements stay')
 
 section('§4 strict-shaped answers validate ONLY through the strip (the tooth)')
 {
-  const hookRefused = hookResponseSchema().safeParse({ ok: true, reason: null })
-  check('CONTROL: the unstripped hook verdict refuses zod', hookRefused.success === false)
-  const hookHealed = hookResponseSchema().safeParse(stripExplicitNulls({ ok: true, reason: null }))
-  check('the stripped hook verdict passes zod', hookHealed.success === true)
+  const hookRefused = hookAnswerSchema('tool.before').safeParse({ permission: 'allow', block: null })
+  check('CONTROL: the unstripped hook answer refuses zod', hookRefused.success === false)
+  const hookHealed = hookAnswerSchema('tool.before').safeParse(stripExplicitNulls({ permission: 'allow', block: null }))
+  check('the stripped hook answer passes zod', hookHealed.success === true)
 }
 
 section('§5 the wiring: transform at the bridge, strip at the decode site')
 {
   const bridge = readFileSync(join(ROOT, 'src/services/providers/openai/responsesBridge.ts'), 'utf8')
   check('the bridge wears the transform at its one schema site', bridge.includes('schema: toOpenaiStrictSchema(i.outputFormat.schema)'))
-  const hook = readFileSync(join(ROOT, 'src/utils/hooks/execPromptHook.ts'), 'utf8')
-  check('the hook verdict wears the strip', hook.includes('safeParse(stripExplicitNulls(parsed))'))
+  const hook = readFileSync(join(ROOT, 'src/utils/hooks/questionRunner.ts'), 'utf8')
+  check('the question hook answer wears the strip', hook.includes('stripExplicitNulls(parsed)'))
 }
 
 console.log('')

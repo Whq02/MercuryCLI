@@ -95,7 +95,7 @@ const slash = readFileSync(join(REPO, 'src/utils/processUserInput/processSlashCo
 check('all three unavailableCommandLine call sites mark commandRefused', (slash.match(/const line = unavailableCommandLine\((?:command|registered)(?:, args)?\)\n\s*(?:.*\n){1,5}?\s*commandRefused: true,/g) ?? []).length === 3, String((slash.match(/commandRefused: true/g) ?? []).length))
 check('the user-private popup door checks the seat before it executes', /registered\.seat === 'screen' && getIsNonInteractiveSession\(\)/.test(slash), 'processSlashCommand user-private branch')
 const engine = readFileSync(join(REPO, 'src/rows/turn.ts'), 'utf8')
-check("the no-model outcome reads the mark (refused ⇐ inputResult.commandRefused === true)", engine.includes("const refused = inputResult.commandRefused === true || inputResult.hookBlocked === true") && engine.includes("closeTurn(refused ? 'refused' : 'completed'"), "the turn module's no-model outcome")
+check("the no-model outcome reads the mark (refused ⇐ inputResult.commandRefused === true)", engine.includes("const refused = inputResult.commandRefused === true || inputResult.hookBlocked === true") && engine.includes("endTurn(refused ? 'refused' : 'completed'"), "the turn module's no-model outcome")
 
 await api.close()
 rmSync(w.home, { recursive: true, force: true })
