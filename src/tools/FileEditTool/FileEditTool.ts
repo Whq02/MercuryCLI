@@ -208,15 +208,11 @@ async function discoverSkillsForPath(context: ToolUseContext, filePath: string):
 }
 
 function patchLineCounts(patch: Array<{ lines: string[] }>): { added: number; removed: number } {
-  let added = 0
-  let removed = 0
-  for (const hunk of patch) {
-    for (const line of hunk.lines) {
-      if (line.startsWith('+')) added++
-      else if (line.startsWith('-')) removed++
-    }
+  const marks = patch.flatMap(hunk => hunk.lines.map(line => line[0]))
+  return {
+    added: marks.filter(mark => mark === '+').length,
+    removed: marks.filter(mark => mark === '-').length,
   }
-  return { added, removed }
 }
 
 function hasText(value: string | undefined): value is string {
@@ -897,7 +893,7 @@ export const FileEditTool = buildTool({
       return {
         result: false as const,
         behavior: 'ask' as const,
-        message: `File does not exist. ${FILE_NOT_FOUND_CWD_NOTE} ${getCwd()}.${suggestion}`,
+        message: `There is no file at that path. ${FILE_NOT_FOUND_CWD_NOTE} ${getCwd()}.${suggestion}`,
         errorCode: 4,
         meta: { isPathAbsolute: String(isAbsolute(input.file_path)) },
       }

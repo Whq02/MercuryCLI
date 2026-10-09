@@ -108,6 +108,8 @@ __t=$SECONDS; __rc=0; "$BUN" run scripts/core-runtime/prove-message-model-contra
 
 echo "── core-runtime: state contract (T17)"
 __t=$SECONDS; __rc=0; "$BUN" run scripts/core-runtime/prove-state-contract.ts || { __rc=$?; fail=1; }; prover_mark scripts/core-runtime/prove-state-contract.ts "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$BUN" run scripts/core-runtime/prove-signal-primitive.ts || { __rc=$?; fail=1; }; prover_mark scripts/core-runtime/prove-signal-primitive.ts "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$BUN" run scripts/core-runtime/prove-style-overlays.ts || { __rc=$?; fail=1; }; prover_mark scripts/core-runtime/prove-style-overlays.ts "$__t" "$__rc"
 
 echo "── core-runtime: boot/MCP independence"
 

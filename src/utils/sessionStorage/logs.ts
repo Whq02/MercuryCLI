@@ -616,7 +616,7 @@ async function getStatOnlyLogsForWorktrees(
   if (worktreePaths.length <= 1) return sessionFilesLite(getProjectDir(cwd), undefined, cwd)
   const projectsDir = getProjectsDir()
   const projectDirs = await projectDirectories(projectsDir, e =>
-    logForDebugging(`Failed to read projects dir ${projectsDir}, falling back to current project: ${e}`),
+    logForDebugging(`The projects folder ${projectsDir} could not be listed; only the current project's sessions are shown (${e})`),
   )
   if (!projectDirs) return sessionFilesLite(getProjectDir(cwd), limit, cwd)
   const matched = worktreeStores(projectDirs, worktreePaths)
@@ -711,39 +711,19 @@ export async function sessionAtIndex(index: number): Promise<SessionListing | nu
 export async function findUnresolvedToolUse(
   toolUseId: string,
 ): Promise<AssistantMessage | null> {
+  const callsIt = (message: TranscriptMessage): boolean =>
+    message.type === 'assistant' &&
+    Array.isArray(message.message.content) &&
+    message.message.content.some(block => block.type === 'tool_use' && block.id === toolUseId)
+  const answersIt = (message: TranscriptMessage): boolean =>
+    message.type === 'user' &&
+    Array.isArray(message.message.content) &&
+    message.message.content.some(block => block.type === 'tool_result' && block.tool_use_id === toolUseId)
   try {
-    const transcriptPath = getTranscriptPath()
-    const { messages } = await loadTranscriptFile(transcriptPath)
-
-    let toolUseMessage = null
-
-    for (const message of messages.values()) {
-      if (message.type === 'assistant') {
-        const content = message.message.content
-        if (Array.isArray(content)) {
-          for (const block of content) {
-            if (block.type === 'tool_use' && block.id === toolUseId) {
-              toolUseMessage = message
-              break
-            }
-          }
-        }
-      } else if (message.type === 'user') {
-        const content = message.message.content
-        if (Array.isArray(content)) {
-          for (const block of content) {
-            if (
-              block.type === 'tool_result' &&
-              block.tool_use_id === toolUseId
-            ) {
-              return null
-            }
-          }
-        }
-      }
-    }
-
-    return toolUseMessage
+    const { messages } = await loadTranscriptFile(getTranscriptPath())
+    const rows = [...messages.values()]
+    if (rows.some(answersIt)) return null
+    return (rows.findLast(callsIt) as AssistantMessage | undefined) ?? null
   } catch {
     return null
   }

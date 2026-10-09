@@ -43,10 +43,11 @@ export function startSelection(s: SelectionState, col: number, row: number): voi
   s.isDragging = true
 }
 
+const isAnchorTremor = (s: SelectionState, col: number, row: number): boolean =>
+  s.focus === null && s.anchor !== null && s.anchor.col === col && s.anchor.row === row
+
 export function updateSelection(s: SelectionState, col: number, row: number): void {
-  if (!s.isDragging) return
-  if (!s.focus && s.anchor && s.anchor.col === col && s.anchor.row === row) return
-  s.focus = { col, row }
+  if (s.isDragging && !isAnchorTremor(s, col, row)) s.focus = { col, row }
 }
 
 export function finishSelection(s: SelectionState): void {
@@ -54,32 +55,19 @@ export function finishSelection(s: SelectionState): void {
 }
 
 export function clearSelection(s: SelectionState): void {
-  s.anchor = null
-  s.focus = null
-  s.isDragging = false
-  s.anchorSpan = null
-  s.scrolledOffAbove = []
-  s.scrolledOffBelow = []
-  s.scrolledOffAboveSW = []
-  s.scrolledOffBelowSW = []
-  s.virtualAnchorRow = undefined
-  s.virtualFocusRow = undefined
-  s.lastPressHadAlt = false
+  Object.assign(s, createSelectionState(), { virtualAnchorRow: undefined, virtualFocusRow: undefined })
 }
 
 export type FocusMove = 'left' | 'right' | 'up' | 'down' | 'lineStart' | 'lineEnd'
 
 export function moveFocus(s: SelectionState, col: number, row: number): void {
   if (!s.focus) return
-  s.anchorSpan = null
-  s.focus = { col, row }
-  s.virtualFocusRow = undefined
+  Object.assign(s, { anchorSpan: null, focus: { col, row }, virtualFocusRow: undefined })
 }
 
 export function comparePoints(a: Point, b: Point): number {
-  if (a.row !== b.row) return a.row < b.row ? -1 : 1
-  if (a.col !== b.col) return a.col < b.col ? -1 : 1
-  return 0
+  const byRow = Math.sign(a.row - b.row)
+  return byRow !== 0 ? byRow : Math.sign(a.col - b.col)
 }
 
 export function hasSelection(s: SelectionState): boolean {

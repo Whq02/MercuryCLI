@@ -121,54 +121,43 @@ export const TEXT_FILE_EXTENSIONS = new Set([
   '.patch',
 ])
 
+function conditionPatternsOf(paths: string | string[]): string[] | null {
+  const patterns = splitPathInFrontmatter(paths).flatMap(pattern => {
+    const bare = pattern.endsWith('/**') ? pattern.slice(0, -3) : pattern
+    return bare.length > 0 ? [bare] : []
+  })
+  return patterns.some(pattern => pattern !== '**') ? patterns : null
+}
+
 export function parseFrontmatterPaths(rawContent: string): {
   content: string
   paths?: string[]
 } {
   const { frontmatter, content } = parseFrontmatter(rawContent)
+  const paths = frontmatter.paths ? conditionPatternsOf(frontmatter.paths) : null
+  return paths ? { content, paths } : { content }
+}
 
-  if (!frontmatter.paths) {
-    return { content }
-  }
+const COMMENT_SPANS = /<!--[\s\S]*?-->/g
 
-  const patterns = splitPathInFrontmatter(frontmatter.paths)
-    .map(pattern => {
-      return pattern.endsWith('/**') ? pattern.slice(0, -3) : pattern
-    })
-    .filter((p: string) => p.length > 0)
-
-  if (patterns.length === 0 || patterns.every((p: string) => p === '**')) {
-    return { content }
-  }
-
-  return { content, paths: patterns }
+function commentResidueOf(raw: string): string | null {
+  const lead = raw.trimStart()
+  if (!lead.startsWith('<!--') || !lead.includes('-->')) return null
+  return raw.replace(COMMENT_SPANS, '')
 }
 
 function stripHtmlCommentsFromTokens(tokens: ReturnType<Lexer['lex']>): {
   content: string
   stripped: boolean
 } {
-  let result = ''
   let stripped = false
-
-  const commentSpan = /<!--[\s\S]*?-->/g
-
-  for (const token of tokens) {
-    if (token.type === 'html') {
-      const trimmed = token.raw.trimStart()
-      if (trimmed.startsWith('<!--') && trimmed.includes('-->')) {
-        const residue = token.raw.replace(commentSpan, '')
-        stripped = true
-        if (residue.trim().length > 0) {
-          result += residue
-        }
-        continue
-      }
-    }
-    result += token.raw
-  }
-
-  return { content: result, stripped }
+  const kept = tokens.map(token => {
+    const residue = token.type === 'html' ? commentResidueOf(token.raw) : null
+    if (residue === null) return token.raw
+    stripped = true
+    return residue.trim().length > 0 ? residue : ''
+  })
+  return { content: kept.join(''), stripped }
 }
 
 type MarkdownToken = {
@@ -230,40 +219,18 @@ function extractIncludePathsFromTokens(
     }
   }
 
-  function processElements(elements: MarkdownToken[]) {
-    for (const element of elements) {
-      if (element.type === 'code' || element.type === 'codespan') {
-        continue
-      }
-
-      if (element.type === 'html') {
-        const raw = element.raw || ''
-        const trimmed = raw.trimStart()
-        if (trimmed.startsWith('<!--') && trimmed.includes('-->')) {
-          const commentSpan = /<!--[\s\S]*?-->/g
-          const residue = raw.replace(commentSpan, '')
-          if (residue.trim().length > 0) {
-            extractPathsFromText(residue)
-          }
-        }
-        continue
-      }
-
-      if (element.type === 'text') {
-        extractPathsFromText(element.text || '')
-      }
-
-      if (element.tokens) {
-        processElements(element.tokens)
-      }
-
-      if (element.items) {
-        processElements(element.items)
-      }
+  const pending: MarkdownToken[] = [...(tokens as MarkdownToken[])].reverse()
+  while (pending.length > 0) {
+    const token = pending.pop()!
+    if (token.type === 'code' || token.type === 'codespan') continue
+    if (token.type === 'html') {
+      const residue = commentResidueOf(token.raw ?? '')
+      if (residue !== null && residue.trim().length > 0) extractPathsFromText(residue)
+      continue
     }
+    if (token.type === 'text') extractPathsFromText(token.text ?? '')
+    for (const child of [...(token.tokens ?? []), ...(token.items ?? [])].reverse()) pending.push(child)
   }
-
-  processElements(tokens as MarkdownToken[])
   return { includePaths: [...absolutePaths], bareMentionPaths: [...bareMentions] }
 }
 

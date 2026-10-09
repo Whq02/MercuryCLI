@@ -85,6 +85,7 @@ import type {
   StreamEvent,
   SystemAPIErrorMessage,
   SystemStreamCutMessage,
+  UserMessage,
 } from '../../../types/message.js'
 import type {
   ApiToolUnion,
@@ -92,7 +93,6 @@ import type {
   StreamCapabilityAdvertisement,
 } from '../../../types/wire.js'
 import { logAPIPrefix, toolToAPISchema } from '../../../utils/api.js'
-import { count } from '../../../utils/array.js'
 import {
   getMergedBetas,
   modelSupportsTemperature,
@@ -270,43 +270,20 @@ export {
   updateUsage,
 } from './cacheAndUsage.js'
 
-export async function queryModelWithoutStreaming({
-  messages,
-  systemPrompt,
-  thinkingConfig,
-  tools,
-  signal,
-  options,
-}: {
-  messages: Message[]
-  systemPrompt: SystemPrompt
-  thinkingConfig: ThinkingConfig
-  tools: Tools
-  signal: AbortSignal
-  options: Options
-}): Promise<AssistantMessage> {
-  let assistantMessage: AssistantMessage | undefined
-  for await (const message of withStreamingVCR(messages, async function* () {
-    yield* queryModel(
-      messages,
-      systemPrompt,
-      thinkingConfig,
-      tools,
-      signal,
-      options,
-    )
-  })) {
-    if (message.type === 'assistant') {
-      assistantMessage = message
-    }
+export async function queryModelWithoutStreaming(
+  request: CallModelParams,
+): Promise<AssistantMessage> {
+  const { messages, systemPrompt, thinkingConfig, tools, signal, options } = request
+  const settled: AssistantMessage[] = []
+  const stream = withStreamingVCR(messages, () =>
+    queryModel(messages, systemPrompt, thinkingConfig, tools, signal, options),
+  )
+  for await (const item of stream) {
+    if (item.type === 'assistant') settled.push(item)
   }
-  if (!assistantMessage) {
-    if (signal.aborted) {
-      throw new APIUserAbortError()
-    }
-    throw new Error('No assistant message found')
-  }
-  return assistantMessage
+  const last = settled.at(-1)
+  if (last) return last
+  throw signal.aborted ? new APIUserAbortError() : new Error('No assistant message found')
 }
 
 export async function* queryModelWithStreaming({
@@ -367,6 +344,12 @@ const EMPTY_CLOSE_DETAIL = 'closed with no events'
 
 function spokenByProvider(error: unknown): boolean {
   return error instanceof APIError && !(error instanceof APIConnectionError)
+}
+
+function withoutToolSearchFields(message: UserMessage | AssistantMessage): UserMessage | AssistantMessage {
+  return message.type === 'user'
+    ? stripToolReferenceBlocksFromUserMessage(message)
+    : stripCallerFieldFromAssistantMessage(message)
 }
 
 export async function* executeNonStreamingRequest(
@@ -553,28 +536,10 @@ async function* queryModel(
     ),
   )
 
-  if (useToolSearch) {
-    const includedDeferredTools = count(filteredTools, t =>
-      deferredToolNames.has(t.name),
-    )
-    logForDebugging(
-      `Dynamic tool loading: ${includedDeferredTools}/${deferredToolNames.size} deferred tools included`,
-    )
-  }
-
   let messagesForAPI = normalizeMessagesForAPI(messages, filteredTools)
 
   if (!useToolSearch) {
-    messagesForAPI = messagesForAPI.map(msg => {
-      switch (msg.type) {
-        case 'user':
-          return stripToolReferenceBlocksFromUserMessage(msg)
-        case 'assistant':
-          return stripCallerFieldFromAssistantMessage(msg)
-        default:
-          return msg
-      }
-    })
+    messagesForAPI = messagesForAPI.map(withoutToolSearchFields)
   } else if (!blockForm) {
     messagesForAPI = renderAdmissionRecordsAsText(messagesForAPI).map(msg =>
       msg.type === 'assistant' ? stripCallerFieldFromAssistantMessage(msg) : msg,
@@ -662,12 +627,11 @@ async function* queryModel(
   let streamResponse: Response | undefined = undefined
 
   function releaseStreamResources(): void {
-    cleanupStream(stream)
+    const held = { stream, response: streamResponse }
     stream = undefined
-    if (streamResponse) {
-      streamResponse.body?.cancel().catch(() => {})
-      streamResponse = undefined
-    }
+    streamResponse = undefined
+    cleanupStream(held.stream)
+    held.response?.body?.cancel().catch(() => {})
   }
 
   const consumedCacheEdits = cachedMCEnabled ? consumePendingCacheEdits() : null
@@ -1331,7 +1295,7 @@ async function* queryModel(
             if (stopReason === 'model_context_window_exceeded') {
               yield {
                 ...createAssistantAPIErrorMessage({
-                  content: `${API_ERROR_MESSAGE_PREFIX}: The model has reached its context window limit.`,
+                  content: `${API_ERROR_MESSAGE_PREFIX}: Mercury's response stopped at the model's context window limit.`,
                   apiError: 'max_output_tokens',
                   error: 'max_output_tokens',
                 }),
@@ -1479,7 +1443,7 @@ async function* queryModel(
 
       if (disableFallback) {
         logForDebugging(
-          `Error streaming (non-streaming fallback disabled): ${errorMessage(streamingError)}`,
+          `The stream failed and the one-shot retry is off: ${errorMessage(streamingError)}`,
           { level: 'error' },
         )
         throw streamingError
@@ -1535,7 +1499,7 @@ async function* queryModel(
       }
 
       logForDebugging(
-        `Error streaming, falling back to non-streaming mode: ${errorMessage(streamingError)}`,
+        `The stream failed; the request is retried as one shot: ${errorMessage(streamingError)}`,
         { level: 'error' },
       )
       if (streamIdleAborted) resetApiConnectionPool()
@@ -1617,7 +1581,7 @@ async function* queryModel(
       const failedRequestId =
         (errorFromRetry.originalError as APIError).requestID ?? 'unknown'
       logForDebugging(
-        'Streaming endpoint returned 404, falling back to non-streaming mode',
+        'The streaming endpoint answered 404; the request is retried as one shot',
         { level: 'warn' },
       )
       didFallBackToNonStreaming = true
@@ -1664,7 +1628,7 @@ async function* queryModel(
         }
 
         logForDebugging(
-          `Non-streaming fallback also failed: ${errorMessage(fallbackError)}`,
+          `The one-shot retry failed too: ${errorMessage(fallbackError)}`,
           { level: 'error' },
         )
 
@@ -1853,26 +1817,14 @@ export function adjustParamsForNonStreaming<
     thinking?: BetaMessageStreamParams['thinking']
   },
 >(params: T, maxTokensCap: number): T {
-  const cappedMaxTokens = Math.min(params.max_tokens, maxTokensCap)
-
-  const adjustedParams = { ...params }
-  if (
-    adjustedParams.thinking?.type === 'enabled' &&
-    adjustedParams.thinking.budget_tokens
-  ) {
-    adjustedParams.thinking = {
-      ...adjustedParams.thinking,
-      budget_tokens: Math.min(
-        adjustedParams.thinking.budget_tokens,
-        cappedMaxTokens - 1,
-      ),
-    }
-  }
-
-  return {
-    ...adjustedParams,
-    max_tokens: cappedMaxTokens,
-  }
+  const max_tokens = Math.min(params.max_tokens, maxTokensCap)
+  const budgetBelow = (thinking: T['thinking'], ceiling: number): T['thinking'] =>
+    thinking?.type === 'enabled' && thinking.budget_tokens
+      ? { ...thinking, budget_tokens: Math.min(thinking.budget_tokens, ceiling) }
+      : thinking
+  return 'thinking' in params
+    ? { ...params, max_tokens, thinking: budgetBelow(params.thinking, max_tokens - 1) }
+    : { ...params, max_tokens }
 }
 
 export function getMaxOutputTokensForModel(model: string): number {
