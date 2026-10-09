@@ -729,9 +729,7 @@ export function getConfig<A>(
       const backupPath = findMostRecentBackup(file)
       if (backupPath) {
         process.stderr.write(
-          `\nMercury configuration file not found at: ${file}\n` +
-            `A backup file exists at: ${backupPath}\n` +
-            `You can manually restore it by running: cp "${backupPath}" "${file}"\n\n`,
+          `\nNo configuration file at ${file}; defaults are in use.\nThe newest backup is ${backupPath}; to bring it back: cp "${backupPath}" "${file}"\n\n`,
         )
       }
       return createDefault()
