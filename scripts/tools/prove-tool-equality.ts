@@ -135,9 +135,9 @@ check('every roster prompt+description renders', renderFailures.length === 0, re
 check(`every rendered text is brand-free (${brandCleanCount}/${roster.length})`, brandCleanCount === roster.length - renderFailures.length)
 
 const readTool = roster.find(t => t.name === 'Read')!
-const VISUAL_CLAIM = 'sees the picture itself'
+const VISUAL_CLAIM = 'shown as the picture itself'
 const PLACEHOLDER_CLAIM = 'an `[image]` placeholder'
-const PDF_CLAIM = 'can read PDF files'
+const PDF_CLAIM = 'reads PDF files'
 for (const family of FAMILIES) {
   const model = EXEMPLARS[family]!
   const caps = resolveModelCapabilities(model)

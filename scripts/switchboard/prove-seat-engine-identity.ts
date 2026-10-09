@@ -121,7 +121,7 @@ section('§1 — the owner: one line, any family, the exact id verbatim')
     ['an id no registry knows', 'some-local-server/qwen3-32b'],
   ] as const) {
     const line = mercuryEngineIdentityLine(id)
-    check(`${label}: names Mercury as what the seat IS`, /Mercury is what you are/.test(line), line)
+    check(`${label}: names the harness the model runs through, once (the floor owns the identity)`, /the model you run through Mercury is/.test(line) && !/Mercury is what you are/.test(line), line)
     check(`${label}: carries the exact id verbatim`, line.includes(`\`${id}\``), line)
     check(`${label}: the id reads back out of the line`, idInPrompt(line) === id, String(idInPrompt(line)))
   }
@@ -132,8 +132,8 @@ section('§1 — the owner: one line, any family, the exact id verbatim')
     unknown,
   )
   check(
-    'the line tells the seat to answer with the id, and that Mercury is who it is',
-    /name it plainly and exactly/.test(unknown) && /the answer is Mercury/.test(unknown),
+    'the line tells the seat to answer with the id (the floor says who it is)',
+    /asked which model runs you, name it exactly/.test(unknown) && !/the answer is Mercury/.test(unknown),
     unknown,
   )
 }
@@ -153,7 +153,7 @@ section('§3 — subagents: the child’s own model, not the parent’s')
   const whole = sections.join('\n\n')
   check('the subagent env block carries the engine line', whole.includes(mercuryEngineIdentityLine('claude-sonnet-5')), whole.slice(-300))
   check('…with the CHILD’s resolved id', idInPrompt(whole) === 'claude-sonnet-5', String(idInPrompt(whole)))
-  check('the task prompt still rides ahead of it', whole.indexOf('<task prompt>') !== -1 && whole.indexOf('<task prompt>') < whole.indexOf('Mercury is what you are'))
+  check('the task prompt still rides ahead of it', whole.indexOf('<task prompt>') !== -1 && whole.indexOf('<task prompt>') < whole.indexOf('the model you run through Mercury is'))
 }
 
 section('§4 — the coordinator, LIVE: prompt id === dispatch stamp')
@@ -175,14 +175,14 @@ section('§4 — the coordinator, LIVE: prompt id === dispatch stamp')
   check('exactly ONE call settled the turn', responses.length === 1, String(responses.length))
   const body = responses[0]?.body ?? {}
   const instructions = typeof body.instructions === 'string' ? body.instructions : ''
-  check('the coordinator seat’s prompt carries the engine line', /Mercury is what you are/.test(instructions), instructions.slice(0, 200))
+  check('the coordinator seat’s prompt carries the engine line', /the model you run through Mercury is/.test(instructions), instructions.slice(0, 200))
   check(
     'the id in the prompt EQUALS the dispatch stamp',
     idInPrompt(instructions) !== null && idInPrompt(instructions) === body.model,
     `${String(idInPrompt(instructions))} vs ${String(body.model)}`,
   )
   const floorAt = instructions.indexOf('You are the Mercury coordinator')
-  const engineAt = instructions.indexOf('Mercury is what you are')
+  const engineAt = instructions.indexOf('the model you run through Mercury is')
   const personaAt = instructions.indexOf('Your seat is the Mercury switchboard')
   check('the seat floor still LEADS, the engine line behind it, the persona last', floorAt >= 0 && engineAt > floorAt && personaAt > engineAt, `${floorAt}/${engineAt}/${personaAt}`)
   check('still exactly ONE identity statement on the wire', (instructions.match(/^You are /gm) ?? []).length === 1, instructions.slice(0, 120))
