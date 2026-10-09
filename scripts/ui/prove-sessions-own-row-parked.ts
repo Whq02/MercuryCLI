@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { spawn, spawnSync } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, watch, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { CONFIG_HOME, SID, cleanupScenario, scenario } from './renderScenarios.ts'
@@ -11,7 +11,6 @@ function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 600)}` : ''}`)
 }
-const sleep = (ms: number): Promise<void> => new Promise(done => setTimeout(done, ms))
 const PARK_REASON = 'parked — the daemon was stopped'
 
 console.log('============================================================')
@@ -44,8 +43,8 @@ const cfgPath = `/tmp/sessions-own-row-cfg-${process.pid}.json`
 writeFileSync(cfgPath, JSON.stringify({
   ...cfg,
   sends: [
-    { atTick: 90, data: '/sessions' },
-    { atTick: 96, data: '\r' },
+    { data: '/sessions', atTick: 999, awaitText: 'the background daemon ended', requireAwait: true, minTick: 2, awaitSettleTicks: 2 },
+    { data: '\r', atTick: 999, awaitText: '❯ /sessions', requireAwait: true, minTick: 1, awaitSettleTicks: 1 },
   ],
   readyText: 'Switch to',
   stableTicks: 4,
@@ -66,12 +65,19 @@ const capture = spawn('/usr/bin/python3', [join(import.meta.dir, 'vshot.py'), cf
 let captureErr = ''
 capture.stderr.on('data', chunk => { captureErr += String(chunk) })
 const started = Date.now()
-let admitted = false
-while (Date.now() - started < 14_000) {
-  const rec = recordOf()
-  if (rec !== undefined && typeof rec.pid === 'number') { admitted = true; break }
-  await sleep(250)
-}
+const admittedRecord = (): boolean => typeof recordOf()?.pid === 'number'
+const admitted = admittedRecord() || await new Promise<boolean>(settle => {
+  const watcher = watch(DAEMON_DIR, () => {
+    if (!admittedRecord()) return
+    clearTimeout(ceiling)
+    watcher.close()
+    settle(true)
+  })
+  const ceiling = setTimeout(() => {
+    watcher.close()
+    settle(admittedRecord())
+  }, 20_000)
+})
 check('the resumed chat is admitted on its own daemon (a worker record with a pid for the session)', admitted, `${Math.round((Date.now() - started) / 1000)}s · ${existsSync(workersPath) ? readFileSync(workersPath, 'utf8').slice(0, 300) : 'no workers file'}`)
 let stopLine = ''
 if (admitted) {

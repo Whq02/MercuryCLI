@@ -89,12 +89,12 @@ function writeExpiredAskSession(): void {
   writeFileSync(join(projects, `${SID}.jsonl`), encodeFixtureTranscript(lines, SID))
 }
 
-function capture(label: string, sends: Array<Record<string, unknown>>, total: number): Cell[][] | null {
+function capture(label: string, sends: Array<Record<string, unknown>>, readyText: string): Cell[][] | null {
   const cfg = scenario('two-bash-click', 80, 40) as Record<string, unknown>
   writeExpiredAskSession()
   const gridPath = `/tmp/denied-fold-${label}-${process.pid}.json`
   const cfgPath = `/tmp/denied-fold-${label}-cfg-${process.pid}.json`
-  writeFileSync(cfgPath, JSON.stringify({ ...cfg, sends, total, out: gridPath }))
+  writeFileSync(cfgPath, JSON.stringify({ ...cfg, sends, readyText, stableTicks: 4, total: 90, out: gridPath }))
   const res = spawnSync('/usr/bin/python3', [join(import.meta.dir, 'vshot.py'), cfgPath], {
     encoding: 'utf8',
     timeout: vshotBudgetMs(120_000),
@@ -111,7 +111,7 @@ function capture(label: string, sends: Array<Record<string, unknown>>, total: nu
 }
 
 console.log('\n(B) the compact fold row at 80 — a Bash call whose ask expired, nobody answering')
-const folded = capture('folded', [], 60)
+const folded = capture('folded', [], 'bash command')
 if (folded) {
   const rows = rowsOf(folded)
   const foldRow = rows.find(row => /bash command/.test(row))
@@ -121,7 +121,7 @@ if (folded) {
 }
 
 console.log('\n(C) the expanded group (ctrl+o) — the member row carries the same line')
-const expanded = capture('expanded', [{ atTick: 30, data: '\x0f' }], 72)
+const expanded = capture('expanded', [{ data: '\x0f', atTick: 999, awaitText: 'bash command', requireAwait: true, minTick: 4, awaitSettleTicks: 4 }], 'Expanded group')
 if (expanded) {
   const rows = rowsOf(expanded)
   const memberRow = rows.find(row => /✕ Bash/.test(row))
