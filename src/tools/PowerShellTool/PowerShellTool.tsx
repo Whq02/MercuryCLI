@@ -12,9 +12,7 @@ import type { ExecResult } from '../../utils/ShellCommand.js'
 import { TaskOutput } from '../../utils/task/TaskOutput.js'
 import { getTaskOutputPath } from '../../utils/task/diskOutput.js'
 import {
-  armForegroundBudget,
   backgroundExistingForegroundTask,
-  isAssistantModeActive,
   markTaskNotified,
   registerForeground,
   spawnShellTask,
@@ -85,7 +83,6 @@ function detectBlockedSleepPattern(command: string): string | null {
 const detectSleep = detectBlockedSleepPattern
 
 
-const ASSISTANT_BLOCKING_BUDGET_MS = 15_000
 const QUIET_WINDOW_MS = 2_000
 const SOFT_TIMEOUT_MS = 30_000
 const PERSIST_THRESHOLD_CHARS = 30_000
@@ -116,7 +113,6 @@ export type Out = {
   isImage?: boolean
   backgroundTaskId?: string
   backgroundedByUser?: boolean
-  assistantAutoBackgrounded?: boolean
   timeoutAutoBackgroundedAfterMs?: number
   preSpawnError?: string
   returnCodeInterpretation?: string
@@ -204,7 +200,6 @@ async function* runPowerShell(
     })
   }
 
-  let assistantAutoBackgrounded = false
   let timeoutAutoBackgroundedAfterMs: number | undefined
   let foregroundTaskId: string | null = null
   let backgroundId: string | undefined
@@ -231,18 +226,6 @@ async function* runPowerShell(
     timeoutAutoBackgroundedAfterMs = effectiveTimeout
     void startBackgrounding(backgroundFn as unknown as (id: string) => void)
   })
-
-  const budget = armForegroundBudget({
-    budgetMs: ASSISTANT_BLOCKING_BUDGET_MS,
-    enabled: shouldAutoBackground && isAssistantModeActive(),
-    resultPromise: shellCommand.result,
-    signal: abortController.signal,
-    onBudgetExceeded: () => {
-      assistantAutoBackgrounded = true
-      void startBackgrounding()
-    },
-  })
-  void budget
 
   if (input.run_in_background && !BACKGROUND_TASKS_DISABLED) {
     const handle = await spawnShellTask(
@@ -271,7 +254,7 @@ async function* runPowerShell(
     return await postProcess(result)
   }
   if (backgroundId !== undefined) {
-    return { stdout: '', stderr: '', interrupted: false, backgroundTaskId: backgroundId, assistantAutoBackgrounded, timeoutAutoBackgroundedAfterMs, scrubbedSessionEnv }
+    return { stdout: '', stderr: '', interrupted: false, backgroundTaskId: backgroundId, timeoutAutoBackgroundedAfterMs, scrubbedSessionEnv }
   }
 
   TaskOutput.startPolling(shellCommand.taskOutput.taskId)
@@ -305,7 +288,7 @@ async function* runPowerShell(
         return {
           stdout: interruptBackgroundingStarted ? fullOutput : '',
           stderr: '', interrupted: false, backgroundTaskId: backgroundId,
-          assistantAutoBackgrounded, timeoutAutoBackgroundedAfterMs, scrubbedSessionEnv,
+          timeoutAutoBackgroundedAfterMs, scrubbedSessionEnv,
         }
       }
       if (foregroundTaskId !== null && shellCommand.status === 'backgrounded') {
@@ -357,7 +340,7 @@ async function* runPowerShell(
       return {
         stdout: result.stdout, stderr: [stderr].filter(Boolean).join('\n'), interrupted: false,
         backgroundTaskId: result.backgroundTaskId, backgroundedByUser: result.backgroundedByUser,
-        assistantAutoBackgrounded: result.assistantAutoBackgrounded, gitOperation, scrubbedSessionEnv,
+        gitOperation, scrubbedSessionEnv,
       }
     }
 
@@ -440,9 +423,6 @@ function mapResultToBlock(output: Out, toolUseID: string): ToolResultBlockParam 
 function backgroundNoticeFor(output: Out): string {
   const id = output.backgroundTaskId as string
   const outputPath = getTaskOutputPath(id)
-  if (output.assistantAutoBackgrounded) {
-    return `Command exceeded the assistant-mode blocking budget (${ASSISTANT_BLOCKING_BUDGET_MS / 1000}s) and was moved to the background with ID: ${id}. It is still running — you will be notified when it completes. Output: ${outputPath}. Delegate long-running work to a crewmate, or use run_in_background, to keep the conversation responsive.`
-  }
   if (output.backgroundedByUser) return `You moved this command to the background (ID: ${id}). Output: ${outputPath}.`
   return `Running in the background (ID: ${id}). Output: ${outputPath}.`
 }

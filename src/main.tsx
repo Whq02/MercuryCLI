@@ -57,7 +57,6 @@ import { markLaunchBegun, recordLaunchMilestone } from './substrate/launchMilest
 import { markExplicitBootJourney, retractExplicitBootJourney } from './substrate/splashHandover.js'
 import { getCwd } from './utils/cwd.js'
 import { applyBootMenuEnv, recordBootAdmissionSnapshot, resolveEffectiveSettingsSnapshot } from './substrate/startupMenu.js'
-import { setAssistantModeActive } from './tasks/LocalShellTask/LocalShellTask.js'
 import { getTools } from './tools.js'
 import { getAgentDefinitionsWithOverrides, computeActiveAgents, parseAgentsFromJson, type AgentDefinition } from './tools/AgentTool/loadAgentsDir.js'
 import { init } from './entrypoints/init.js'
@@ -1195,9 +1194,6 @@ async function defaultAction(inputPromptArg: string | undefined, opts: RootOptio
   if (permissionInit.dangerousPermissions.length > 0) {
     toolPermissionContext = stripDangerousPermissionsForFlow(toolPermissionContext)
   }
-
-  const assistantBootActive = false
-  setAssistantModeActive(assistantBootActive)
 
   let worktreeName = typeof worktreeOpt === 'string' ? worktreeOpt : undefined
   let worktreePRNumber: number | undefined
