@@ -205,15 +205,6 @@ export function AttachmentMessage({
         </AttachmentLine>
       )
 
-    case 'agent_listing_delta':
-      if (attachment.isInitial || attachment.addedTypes.length === 0) return null
-      return (
-        <AttachmentLine>
-          {attachment.addedTypes.length}{' '}
-          {plural(attachment.addedTypes.length, 'agent type')} available
-        </AttachmentLine>
-      )
-
     case 'queued_command': {
       const prompt = attachment.prompt
       const text =
