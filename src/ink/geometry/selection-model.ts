@@ -62,9 +62,7 @@ export type FocusMove = 'left' | 'right' | 'up' | 'down' | 'lineStart' | 'lineEn
 
 export function moveFocus(s: SelectionState, col: number, row: number): void {
   if (!s.focus) return
-  s.anchorSpan = null
-  s.focus = { col, row }
-  s.virtualFocusRow = undefined
+  Object.assign(s, { anchorSpan: null, focus: { col, row }, virtualFocusRow: undefined })
 }
 
 export function comparePoints(a: Point, b: Point): number {
