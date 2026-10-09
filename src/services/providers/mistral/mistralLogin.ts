@@ -1,7 +1,7 @@
 import { errorMessageWithCause } from '../../../utils/errors.js'
 import { recordSignIn } from '../../../utils/accounts/signInLedger.js'
 import { writeStoredMistralAdminApiKey, writeStoredMistralApiKey } from '../../../utils/router/providerSecrets.js'
-import { MISTRAL_API_KEY_PAGE, mistralApiBase, mistralEnvKey } from './mistralAccounts.js'
+import { mistralApiBase, mistralEnvKey } from './mistralAccounts.js'
 import { fetchMistralLiveModels, MistralCatalogueHttpError } from './mistralCatalogue.js'
 import { fetchMistralIdentity, fetchMistralLimits, mistralUsageFailureWords, type MistralUsageIo } from './mistralUsageState.js'
 
@@ -29,7 +29,7 @@ export async function storeMistralApiKeyLogin(key: string, io?: { fetchImpl?: ty
     }
   } catch (error) {
     if (error instanceof MistralCatalogueHttpError && (error.status === 401 || error.status === 403)) {
-      return { ok: false, stored: false, receipt: `Mistral refused this key (HTTP ${error.status}) — nothing stored; create an API key at ${MISTRAL_API_KEY_PAGE} and paste again.` }
+      return { ok: false, stored: false, receipt: `Mistral refused this key (HTTP ${error.status}) — nothing stored; create an API key at console.mistral.ai/api-keys and paste again.` }
     }
     note = `UNVERIFIED — the model list could not confirm the key (${safe(errorMessageWithCause(error))})`
   }

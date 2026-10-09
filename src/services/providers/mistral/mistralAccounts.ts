@@ -1,8 +1,5 @@
 import { readStoredMistralAdminApiKey, readStoredMistralApiKey } from '../../../utils/router/providerSecrets.js'
 
-export const MISTRAL_API_KEY_PAGE = 'https://console.mistral.ai/api-keys'
-export const MISTRAL_ADMIN_KEY_PAGE = 'https://backoffice.mistral.ai'
-
 export function mistralApiBase(env: NodeJS.ProcessEnv = process.env): string {
   return (env.MERCURY_MISTRAL_API_BASE?.trim() || 'https://api.mistral.ai/v1').replace(/\/+$/, '')
 }
