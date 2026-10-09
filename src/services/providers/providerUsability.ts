@@ -49,6 +49,8 @@ export interface ProviderUsabilityReads {
   metaKeyPresent?: () => boolean
   mistralKeyPresent?: () => boolean
   nousKeyPresent?: () => boolean
+  nousAccount?: () => { kind: 'signin' | 'api-key'; expired?: boolean } | undefined
+  nousSigninRefused?: () => string | undefined
   zenKeyPresent?: () => boolean
   compatConfigured?: () => boolean
   compatAccount?: () => { kind: 'api-key' | 'keyless' } | undefined
@@ -147,8 +149,17 @@ function liveProviderUsabilityReads(opts?: ProviderUsabilityReadOptions): Provid
       return resolveMistralApiKey() !== undefined
     },
     nousKeyPresent: () => {
-      const { resolveNousApiKey } = require('./nous/nousAccounts.js') as typeof import('./nous/nousAccounts.js')
-      return resolveNousApiKey() !== undefined
+      const { resolveNousAccount } = require('./nous/nousAccounts.js') as typeof import('./nous/nousAccounts.js')
+      return resolveNousAccount() !== undefined
+    },
+    nousAccount: () => {
+      const { resolveNousAccount } = require('./nous/nousAccounts.js') as typeof import('./nous/nousAccounts.js')
+      return resolveNousAccount()
+    },
+    nousSigninRefused: () => {
+      const { nousSigninRefusal, nousSigninRefusalNote } = require('./nous/nousOauth.js') as typeof import('./nous/nousOauth.js')
+      const refused = nousSigninRefusal()
+      return refused === undefined ? undefined : nousSigninRefusalNote(refused)
     },
     zenKeyPresent: () => {
       const { resolveZenApiKey } = require('./zen/zenAccounts.js') as typeof import('./zen/zenAccounts.js')
@@ -335,7 +346,10 @@ function resolveProviderUsabilityFrom(reads: ProviderUsabilityReads): Record<Pro
   )
   const meta = keyLane('meta', reads.metaKeyPresent?.() ?? false, 'no Meta API key — /logins meta (or MODEL_API_KEY)')
   const mistral = keyLane('mistral', reads.mistralKeyPresent?.() ?? false, 'no Mistral API key — /logins mistral (or MISTRAL_API_KEY)')
-  const nous = keyLane('nous', reads.nousKeyPresent?.() ?? false, 'no Nous Portal API key — /logins nous (or NOUS_API_KEY)')
+  const nousAccount = reads.nousAccount?.()
+  const nousPresent = keyLane('nous', reads.nousKeyPresent?.() ?? nousAccount !== undefined, 'no Nous Portal API key — /logins nous (or NOUS_API_KEY)', nousAccount?.kind === 'signin' ? 'oauth' : 'api-key')
+  const nousRefused = nousAccount?.kind === 'signin' && nousPresent.credential !== 'none' ? reads.nousSigninRefused?.() ?? (nousAccount.expired ? 'Nous Portal sign-in expired — sign in again (/logins nous) or use an API key' : undefined) : undefined
+  const nous: ProviderUsability = nousRefused === undefined ? nousPresent : { ...nousPresent, usable: false, blockers: [...nousPresent.blockers, nousRefused] }
   const zen = keyLane('zen', reads.zenKeyPresent?.() ?? false, 'no OpenCode Zen API key — /logins zen (or OPENCODE_API_KEY)')
   const deepseek = keyLane(
     'deepseek',

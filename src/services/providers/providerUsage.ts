@@ -500,6 +500,7 @@ export interface ActiveUsageReads {
   anthropicPlan?: () => string | null
   nousAccount?: () => NousObservedAccountView | null
   nousAccountFailure?: () => NousAccountFailureView | null
+  nousSignedIn?: () => boolean
   zenGoUsage?: () => ZenGoObservationView
 }
 
@@ -734,8 +735,8 @@ function laneCredentialedLive(provider: RouterProviderId): boolean {
     return resolveMistralApiKey() !== undefined
   }
   if (provider === 'nous') {
-    const { resolveNousApiKey } = require('./nous/nousAccounts.js') as typeof import('./nous/nousAccounts.js')
-    return resolveNousApiKey() !== undefined
+    const { resolveNousAccount } = require('./nous/nousAccounts.js') as typeof import('./nous/nousAccounts.js')
+    return resolveNousAccount() !== undefined
   }
   if (provider === 'deepseek') {
     const { resolveDeepseekApiKey } =
@@ -1775,6 +1776,8 @@ function deriveUsageForProvider(
     const credentialed = reads?.laneCredentialed?.(provider) ?? laneCredentialedLive(provider)
     if (!credentialed) return { provider, sourceKind: 'none', label: 'Nous Portal usage', shape: 'none', windows: [], pools: [], spend, whyNot: 'not connected — /logins nous adds a key' }
     const nousState = require('./nous/nousUsageState.js') as typeof import('./nous/nousUsageState.js')
+    const { resolveNousAccount } = require('./nous/nousAccounts.js') as typeof import('./nous/nousAccounts.js')
+    const signedIn = (reads?.nousSignedIn ?? (() => resolveNousAccount()?.kind === 'signin'))()
     const account = (reads?.nousAccount ?? nousState.nousObservedAccount)()
     const failed = (reads?.nousAccountFailure ?? nousState.nousAccountFailure)()
     const usable = account?.paidAccess?.totalUsableCredits ?? account?.subscription?.creditsRemaining
@@ -1794,7 +1797,7 @@ function deriveUsageForProvider(
       ? `the Portal reports no paid service access${account.paidAccess.reason ? ` (${account.paidAccess.reason})` : ''} — top up or renew at portal.nousresearch.com`
       : failed ? nousState.nousAccountFailureWords(failed) : undefined
     return {
-      provider, sourceKind: 'api-key', label: 'API usage', shape: 'api-spend', windows: [], pools: [], spend, tier: API_BILLING_TIER,
+      provider, sourceKind: signedIn ? 'oauth' : 'api-key', label: signedIn ? 'Nous Portal account' : 'API usage', shape: 'api-spend', windows: [], pools: [], spend, tier: signedIn ? (account?.subscription?.plan !== undefined ? `${account.subscription.plan} plan` : 'Nous Portal account') : API_BILLING_TIER,
       credits: balance ? polledBalanceCredits(balance) : { state: 'unreported', reason: failed ? 'not read — see the usage reader note' : 'not read yet — /usage samples the Portal account endpoint', compact: failed ? 'not read' : 'not read yet' },
       ...(balance ? { balance } : {}),
       ...(figures.length ? { figures } : {}),

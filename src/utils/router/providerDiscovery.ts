@@ -76,7 +76,7 @@ export interface NousDiscovery {
   provider: 'nous'
   probedAtMs: number
   keyPresent: boolean
-  keySource?: 'env' | 'stored'
+  keySource?: 'env' | 'stored' | 'signin'
 }
 export interface ZenDiscovery {
   provider: 'zen'
@@ -268,8 +268,8 @@ function probeMistral(io: DiscoveryIo): MistralDiscovery {
 }
 
 function probeNous(io: DiscoveryIo): NousDiscovery {
-  const { resolveNousApiKey } = require('../../services/providers/nous/nousAccounts.js') as typeof import('../../services/providers/nous/nousAccounts.js')
-  const key = resolveNousApiKey(io.env)
+  const { resolveNousCredentialSnapshot } = require('../../services/providers/nous/nousAccounts.js') as typeof import('../../services/providers/nous/nousAccounts.js')
+  const key = resolveNousCredentialSnapshot(io.env)
   return { provider: 'nous', probedAtMs: io.now(), keyPresent: key !== undefined, ...(key ? { keySource: key.source } : {}) }
 }
 

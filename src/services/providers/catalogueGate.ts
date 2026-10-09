@@ -71,8 +71,8 @@ function credentialPresent(family: Exclude<CatalogueFamily, 'local'>, env: NodeJ
     case 'mistral':
       return resolveMistralApiKey(env) !== undefined
     case 'nous': {
-      const { resolveNousApiKey } = require('./nous/nousAccounts.js') as typeof import('./nous/nousAccounts.js')
-      return resolveNousApiKey(env) !== undefined
+      const { resolveNousCredentialSnapshot } = require('./nous/nousAccounts.js') as typeof import('./nous/nousAccounts.js')
+      return resolveNousCredentialSnapshot(env) !== undefined
     }
     case 'zen':
       return resolveZenApiKey(env) !== undefined
