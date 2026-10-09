@@ -2351,7 +2351,7 @@ export function parkAllConcourseSessions(
   by: string,
   roster: { kill(short: string): boolean } | undefined,
   dir?: string,
-  opts?: { reason?: string; exceptFocusedByLiveTerminal?: boolean },
+  opts?: { reason?: string; exceptFocusedByLiveTerminal?: boolean; afterTurn?: boolean },
 ): ConcourseParkAllReceipt {
   const receipt: ConcourseParkAllReceipt = { parked: [], draining: [], released: [], skipped: [], refused: [] }
   for (const rec of Object.values(readSessionWorkers(dir))) {
@@ -2367,7 +2367,10 @@ export function parkAllConcourseSessions(
         continue
       }
     }
-    const out = parkConcourseSession(rec.sessionId, by, roster, dir, opts?.reason !== undefined ? { reason: opts.reason } : undefined)
+    const out = parkConcourseSession(rec.sessionId, by, roster, dir, {
+      ...(opts?.reason !== undefined ? { reason: opts.reason } : {}),
+      ...(opts?.afterTurn !== undefined ? { afterTurn: opts.afterTurn } : {}),
+    })
     if (out.outcome === 'applied') (out.released ? receipt.released : receipt.parked).push(rec.runnerId)
     else if (out.outcome === 'draining') receipt.draining.push(rec.runnerId)
     else if (out.outcome === 'refused') receipt.refused.push(rec.runnerId)
