@@ -12,6 +12,7 @@
 # gate-watch: scripts/lib/fixtureApi.ts scripts/local-setup/fixtures/fake-ollama.ts
 # gate-watch: src/services/providers/emptyStreamRetry.ts src/services/providers/streamIdleBudget.ts src/services/api/recoveryBudget.ts src/components/Spinner/liveCounterWords.ts
 # gate-watch: src/services/providers/anthropic/streamCore.ts src/services/providers/zai/zaiCallModel.ts src/services/providers/gemini/** src/services/providers/xai/** src/services/providers/meta/**
+# gate-watch: src/services/providers/zen/** scripts/providers/lib/zen-fixture.ts src/utils/router/providers/zen.ts
 # gate-watch: scripts/tool-economy/fixtureMcpEstate.ts
 # gate-watch: src/rows/* src/runner/wire/*
 set -u
