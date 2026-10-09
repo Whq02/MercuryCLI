@@ -55,14 +55,7 @@ function computeTrustDialogAccepted(): boolean {
 }
 
 export function isPathTrusted(dir: string): boolean {
-  const config = getGlobalConfig()
-  let currentPath = normalizePathForConfigKey(resolve(dir))
-  while (true) {
-    if (config.projects?.[currentPath]?.hasTrustDialogAccepted) return true
-    const parentPath = normalizePathForConfigKey(resolve(currentPath, '..'))
-    if (parentPath === currentPath) return false
-    currentPath = parentPath
-  }
+  return grantedUnder(getGlobalConfig().projects, ancestorKeys(resolve(dir)))
 }
 
 export function setPathTrusted(dir: string): void {
