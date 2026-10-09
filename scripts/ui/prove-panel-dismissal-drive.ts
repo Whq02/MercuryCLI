@@ -114,7 +114,7 @@ try {
       check(`${tag}: its release is consumed`, text(marks.pressed!) === text(marks.clicked!))
       check(`${tag}: Escape still closes a freshly opened panel`, text(marks.reopened!).includes(needle) && !text(marks.escaped!).includes(needle))
       check(`${tag}: no text selection starts`, !marks.clicked!.some(row => row.some(cell => cell.rev)))
-      check(`${tag}: the composer is empty after dismissal`, text(marks.clicked!).includes('Type a prompt') && !text(marks.clicked!).includes('❯ telemetry'))
+      check(`${tag}: the composer is empty after dismissal`, text(marks.clicked!).includes('Type a prompt') && !text(marks.clicked!).includes('❯ vitals'))
       check(`${tag}: every chat cell matches the Escape close`, JSON.stringify(marks.clicked) === JSON.stringify(marks.escaped))
     }
   }

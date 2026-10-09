@@ -11,10 +11,10 @@ export const HELM_RAIL_WIDE = 30
 
 export type RailPlan = {
   lanes: boolean
-  telemetry: boolean
+  vitals: boolean
   railW: number
   lanesW: number
-  telemetryW: number
+  vitalsW: number
   centerCols: number
 }
 
@@ -44,13 +44,13 @@ export function railPlanAt(columns: number, bothEngaged: boolean): RailPlan {
       Math.min(2 * HELM_RAIL_WIDE, columns - 2 - centerPin),
     )
     const lanesW = Math.ceil(railTotal / 2)
-    const telemetryW = railTotal - lanesW
+    const vitalsW = railTotal - lanesW
     return {
       lanes: true,
-      telemetry: true,
+      vitals: true,
       railW: lanesW,
       lanesW,
-      telemetryW,
+      vitalsW,
       centerCols: columns - 2 - railTotal,
     }
   }
@@ -60,10 +60,10 @@ export function railPlanAt(columns: number, bothEngaged: boolean): RailPlan {
   )
   return {
     lanes: true,
-    telemetry: false,
+    vitals: false,
     railW,
     lanesW: railW,
-    telemetryW: railW,
+    vitalsW: railW,
     centerCols: Math.max(20, columns - 2 - railW),
   }
 }

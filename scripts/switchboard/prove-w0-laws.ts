@@ -276,8 +276,8 @@ console.log('WINDOW LAW — a window paints the view lane, never writes:')
   check('no engine dialog of the screen\'s own exists to hold off-screen (the sandbox queue is the session runner\'s)', !replSrc.includes('sandboxPermissionQueue'))
   check('the consent card is the FOCUSED chat\'s', replSrc.includes('toolUseConfirmQueueLength: toolUseConfirmQueue.length'))
   check('the dead transcript store is gone (no screen-side engine lane exists)', !existsSync(join(import.meta.dirname, '../../src/state/transcriptStore.ts')))
-  const busSrc = readFileSync(join(import.meta.dirname, '../../src/state/telemetryBus.ts'), 'utf8')
-  check('the telemetry bus rides the focused records door (never a lane nothing writes)', busSrc.includes('subscribeThroughFocused((connector, listener) => connector.subscribeRecords(listener))') && !busSrc.includes('transcriptStore'))
+  const busSrc = readFileSync(join(import.meta.dirname, '../../src/state/vitalsBus.ts'), 'utf8')
+  check('the vitals bus rides the focused records door (never a lane nothing writes)', busSrc.includes('subscribeThroughFocused((connector, listener) => connector.subscribeRecords(listener))') && !busSrc.includes('transcriptStore'))
   const hookSrc = readFileSync(join(import.meta.dirname, '../../src/hooks/useLogMessages.ts'), 'utf8')
   check(
     'useLogMessages returns before recordTranscript when ignored',

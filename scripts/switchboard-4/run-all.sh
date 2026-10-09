@@ -12,7 +12,7 @@
 # gate-watch: src/hooks/useLogMessages.ts src/main.tsx src/screens/Chat.tsx
 # gate-watch: src/services/engine-connector/daemonConnector.ts
 # gate-watch: src/services/engine-connector/focusedConnector.ts src/services/switchboard/hopIntoSession.ts
-# gate-watch: src/services/switchboard/launchAuthority.ts src/state/telemetryBus.ts
+# gate-watch: src/services/switchboard/launchAuthority.ts src/state/vitalsBus.ts
 # gate-watch: src/utils/config/globalConfig.ts src/utils/processUserInput/processSlashCommand.tsx
 # gate-watch: src/utils/sessionStorage/*
 # gate-watch: scripts/lib/rows.ts

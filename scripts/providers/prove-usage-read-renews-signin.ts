@@ -296,7 +296,7 @@ if (frameDir !== undefined) {
     const tail = [reset, age].filter((part): part is string => part !== undefined).join(' ')
     return tail === '' ? undefined : tail
   }
-  const rowW = railPanelInnerWidth(railPlanAt(178, true).telemetryW)
+  const rowW = railPanelInnerWidth(railPlanAt(178, true).vitalsW)
   const rows = [...view.windows.filter(w => w.state === 'live').map(w => ({ w, pool: false })), ...view.pools.filter(w => w.state === 'live').map(w => ({ w, pool: true }))]
   const cardNode = React.createElement(
     Box,

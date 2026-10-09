@@ -25,7 +25,7 @@
 # gate-watch: src/services/concourse/workerModels.ts src/services/engine-connector/*
 # gate-watch: src/services/mcp/client.ts src/services/oauth/client.ts src/services/providers/**
 # gate-watch: src/services/switchboard/bootBirthFacts.ts src/services/switchboard/bornSession.ts
-# gate-watch: src/services/wallet/wallet.ts src/state/telemetryBus.ts src/substrate/flagRegistry.ts
+# gate-watch: src/services/wallet/wallet.ts src/state/vitalsBus.ts src/substrate/flagRegistry.ts
 # gate-watch: src/tools/AgentTool/runAgent.ts src/tools/WebFetchTool/utils.ts src/utils/*
 # gate-watch: src/utils/accounts/scopeScan.ts src/utils/accounts/signInLedger.ts
 # gate-watch: src/utils/cockpit/healthCertSnapshot.ts src/utils/cockpit/quota.ts
@@ -38,7 +38,7 @@
 # gate-watch: src/tools/FileWriteTool/FileWriteTool.ts src/types/message.ts
 # gate-watch: src/runner/wire/methods.ts src/tasks/LocalAgentTask/LocalAgentTask.tsx src/tasks/LocalAgentTask/agentPause.ts src/tools/AgentTool/resumeAgent.ts src/tools/AgentTool/agentToolUtils.ts src/state/AppStateStore.ts src/utils/sessionStorage/logs.ts src/utils/config/globalConfig.ts
 # gate-watch: src/services/providers/emptyStreamRetry.ts scripts/lib/firstRunSeed.ts scripts/lib/captureDriver.ts
-# gate-watch: src/utils/cockpit/helmLanesModel.ts src/utils/cockpit/helmTelemetryModel.ts
+# gate-watch: src/utils/cockpit/helmLanesModel.ts src/utils/cockpit/helmVitalsModel.ts
 # gate-watch: src/utils/messages/apiPlan.ts src/utils/messages/factories.ts src/services/providers/zai/glmPins.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"

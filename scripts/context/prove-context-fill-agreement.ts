@@ -159,8 +159,8 @@ section('N5 · the ONE fill derivation every surface reads')
   check('/context headline is contextFill (the trigger count) when usage exists', /const fill = contextFill\(originalMessages \?\? messages\)/.test(analyze) && /fill\.source === 'usage' \? fill\.tokens : actualUsage/.test(analyze))
   const picker = src('src/commands/model/mercuryModel.tsx')
   check('/model header gauge reads contextFillView over the served model', /contextFillView\(messages, servedModel\)/.test(picker) && /const servedModel = focusedSeat !== null \? focusedSeat\.effective : \(engineModelForSession \?\? getEngineModel\(\)\)/.test(picker))
-  for (const rail of ['src/components/HelmLanesRail.tsx', 'src/components/HelmTelemetryRail.tsx', 'src/components/DeckPane.tsx']) {
-    const text = rail === 'src/components/HelmLanesRail.tsx' ? src(rail) + src('src/utils/cockpit/helmLanesModel.ts') : rail === 'src/components/HelmTelemetryRail.tsx' ? src(rail) + src('src/utils/cockpit/helmTelemetryModel.ts') : src(rail)
+  for (const rail of ['src/components/HelmLanesRail.tsx', 'src/components/HelmVitalsRail.tsx', 'src/components/DeckPane.tsx']) {
+    const text = rail === 'src/components/HelmLanesRail.tsx' ? src(rail) + src('src/utils/cockpit/helmLanesModel.ts') : rail === 'src/components/HelmVitalsRail.tsx' ? src(rail) + src('src/utils/cockpit/helmVitalsModel.ts') : src(rail)
     check(`${rail.split('/').pop()} subscribes to the publish version and labels via the owner`, /useSyncExternalStore\(subscribeLiveContextUsage, getLiveContextUsageVersion, getLiveContextUsageVersion\)/.test(text) && /contextWindowLabel\(/.test(text))
   }
 }

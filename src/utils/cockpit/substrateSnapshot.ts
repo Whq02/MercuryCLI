@@ -106,7 +106,7 @@ function buildSections(): { sections: SubstrateSection[]; activeKills: string[] 
       {
         name: 'ctx autocompact forecast',
         on: ctxForecastEnabled(),
-        hint: ctxForecastEnabled() ? '≈N turns in the telemetry rail (opt out =0)' : 'MERCURY_CTX_FORECAST=0 set',
+        hint: ctxForecastEnabled() ? '≈N turns in the vitals rail (opt out =0)' : 'MERCURY_CTX_FORECAST=0 set',
       },
     ],
   }

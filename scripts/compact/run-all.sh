@@ -35,7 +35,7 @@
 # gate-watch: src/services/providers/openrouter/openrouterResponsesTransport.ts src/services/providers/openai/openaiClient.ts src/services/providers/streamIdleBudget.ts
 # gate-watch: src/services/instructions/**
 # gate-watch: src/rows/* src/runner/wire/*
-# gate-watch: src/utils/cockpit/helmTelemetryModel.ts
+# gate-watch: src/utils/cockpit/helmVitalsModel.ts
 # gate-watch: src/utils/cockpit/turnReceipt.ts src/utils/cockpit/awaySummary.ts src/types/message.ts
 # gate-watch: src/utils/sessionStorage/transcriptReader.ts scripts/lib/seedTranscript.ts
 # gate-watch: src/utils/model/model.ts src/utils/permissions/filesystem.ts

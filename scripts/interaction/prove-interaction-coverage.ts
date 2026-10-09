@@ -101,7 +101,7 @@ reg(
   [
     'src/components/BootSplashScreen.tsx',
     'src/components/diff/DiffFileList.tsx',
-    'src/components/HelmTelemetryRail.tsx',
+    'src/components/HelmVitalsRail.tsx',
     'src/components/MercuryCommandPalette.tsx',
     'src/components/MercuryModelPicker.tsx',
     'src/components/Onboarding.tsx',

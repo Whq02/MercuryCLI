@@ -6,10 +6,10 @@ const { check, finish } = tally()
 const world = await usagePlanWorld()
 try {
   const { owner, reader, fresh, quota, ink } = world
-  const { HelmTelemetryRail } = await import(world.path('src/components/HelmTelemetryRail.tsx'))
+  const { HelmVitalsRail } = await import(world.path('src/components/HelmVitalsRail.tsx'))
   const { railPlanAt } = await import(world.path('src/utils/helmGeometry.ts'))
-  const width = railPlanAt(178, true).telemetryW
-  const card = () => React.createElement(ink.Box, { flexDirection: 'row', justifyContent: 'flex-end', width: 178 }, React.createElement(HelmTelemetryRail, { width, availRows: 44 }))
+  const width = railPlanAt(178, true).vitalsW
+  const card = () => React.createElement(ink.Box, { flexDirection: 'row', justifyContent: 'flex-end', width: 178 }, React.createElement(HelmVitalsRail, { width, availRows: 44 }))
   const board = await world.mount(card())
   const kimi = owner.usageForProvider('moonshot')
   const glm = owner.usageForProvider('zai')

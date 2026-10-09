@@ -107,11 +107,11 @@ capture('warm', [], 52)
 {
   const base = capture('sanity', [], 52)
   const a = base ? deriveAnchors(base.lines, base.grid) : null
-  check('telemetry anchors present (ctx row + WORKFLOW header)', !!a, a ? `ctx=${a.ctxRow} wf=${a.wfHdrRow}` : '')
-  if (base) check('rail is unfocused at rest (no ❯ telemetry banner)', !base.lines.some(l => l.includes('❯ telemetry')))
+  check('vitals anchors present (ctx row + WORKFLOW header)', !!a, a ? `ctx=${a.ctxRow} wf=${a.wfHdrRow}` : '')
+  if (base) check('rail is unfocused at rest (no ❯ vitals banner)', !base.lines.some(l => l.includes('❯ vitals')))
 }
 
-console.log('\n── A. hover paints exactly one telemetry row ────────────────')
+console.log('\n── A. hover paints exactly one vitals row ────────────────')
 leg(
   'hover',
   a => [{ atTick: 44, data: motion(a.ctxCol + 1, a.ctxRow + 1) }],
@@ -123,7 +123,7 @@ leg(
     })
     return lit.length === 1 && lit[0] === a.ctxRow
   },
-  'hover paints exactly the pointed telemetry row',
+  'hover paints exactly the pointed vitals row',
 )
 
 console.log('\n── B. first click SELECTS (focus + cursor), never activates ─')
@@ -132,7 +132,7 @@ leg(
   a => [{ atTick: 44, data: click(a.ctxCol + 1, a.ctxRow + 1) }],
   58,
   (r, a) => {
-    const focusBanner = r.lines.some(l => l.includes('❯ telemetry'))
+    const focusBanner = r.lines.some(l => l.includes('❯ vitals'))
     const cursorInPanel = r.lines.some((l, y) => {
       if (y <= a.usageHdrRow || y >= a.wfHdrRow + 2) return false
       return l.slice(RAIL_FROM - 2).includes('❯')

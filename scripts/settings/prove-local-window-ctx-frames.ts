@@ -83,14 +83,14 @@ await stub('src/services/engine-connector/focusedConnector.ts', {
 })
 await stub('src/components/tasks/useFocusedWork.ts', { useFocusedWorkRows: () => [], useFocusedWorkRoster: () => ({ rows: [], mission: [], reported: true }), otherSessionRunnerPids: () => new Set(), focusedSessionIdOrNull: () => null })
 const vitals = { sessions: { state: 'unavailable' }, git: null, tasks: [], fleet: { state: 'off', conflicts: 0, drifting: 0 }, fleetFull: null, trace: null, workflowsDisk: [], crew: null, refreshedAt: 0, version: 1 }
-await stub('src/state/telemetryBus.ts', { useTelemetry: (selector?: (s: typeof vitals) => unknown) => (selector ? selector(vitals) : vitals) })
+await stub('src/state/vitalsBus.ts', { useVitals: (selector?: (s: typeof vitals) => unknown) => (selector ? selector(vitals) : vitals) })
 await stub('src/hooks/useDisplayedSessionModel.ts', { useFocusedServedModel: () => focusedModel, useDisplayedSessionModel: () => ({ label: focusedModel, compact: focusedModel.slice('local/'.length), pendingNext: null }), useFocusedServedEffort: () => null, useFocusedBornEffort: () => null, useFocusedSentEffort: () => null })
 await stub('src/hooks/useEngineModel.ts', { useEngineModel: () => focusedModel })
 await stub('src/hooks/useProviderUsageOnShow.ts', { useProviderUsageOnShow: () => undefined })
 
 const ink = await import(join(ROOT, 'src/ink.ts'))
 const { default: StdinContext } = await import(join(ROOT, 'src/ink/components/StdinContext.ts'))
-const { HelmTelemetryRail } = await import(join(ROOT, 'src/components/HelmTelemetryRail.tsx'))
+const { HelmVitalsRail } = await import(join(ROOT, 'src/components/HelmVitalsRail.tsx'))
 const { DeckPane } = await import(join(ROOT, 'src/components/DeckPane.tsx'))
 const { railPlanAt } = await import(join(ROOT, 'src/utils/helmGeometry.ts'))
 const { publishContextUsage } = await import(join(ROOT, 'src/utils/cockpit/contextUsageLive.ts'))
@@ -139,7 +139,7 @@ const ctxRow = (frame: string): string => frame.split('\n').map(line => line.rep
 
 async function paintRail(): Promise<string> {
   const plan = railPlanAt(178, true)
-  return paint(React.createElement(ink.Box, { flexDirection: 'row', justifyContent: 'flex-end', width: 178 }, React.createElement(HelmTelemetryRail, { width: plan.telemetryW, availRows: 51 - 7 })), 178, 51)
+  return paint(React.createElement(ink.Box, { flexDirection: 'row', justifyContent: 'flex-end', width: 178 }, React.createElement(HelmVitalsRail, { width: plan.vitalsW, availRows: 51 - 7 })), 178, 51)
 }
 async function paintDeck(columns: number, rows: number): Promise<string> {
   return paint(React.createElement(DeckPane), columns, rows)

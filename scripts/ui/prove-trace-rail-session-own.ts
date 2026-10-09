@@ -21,7 +21,7 @@ const { getDefaultAppState } = await import(join(ROOT, 'src/state/AppStateStore.
 const { enableConfigs } = await import(join(ROOT, 'src/utils/config/globalConfig.ts'))
 enableConfigs()
 await import(join(ROOT, 'src/tasks.ts'))
-const { HelmTelemetryRail } = await import(join(ROOT, 'src/components/HelmTelemetryRail.tsx'))
+const { HelmVitalsRail } = await import(join(ROOT, 'src/components/HelmVitalsRail.tsx'))
 const focus = await import(join(ROOT, 'src/utils/cockpit/helmFocus.ts'))
 const { noSessionConnector } = await import(join(ROOT, 'src/services/engine-connector/noSessionConnector.ts'))
 const { setFocusedSessionConnector, _resetFocusedSessionConnectorForTesting } = await import(join(ROOT, 'src/services/engine-connector/focusedConnector.ts'))
@@ -66,7 +66,7 @@ async function paintRail(): Promise<string> {
     { columns: 30, rows: 40, isTTY: false },
   ) as unknown as NodeJS.WriteStream
   const stdin = Object.assign(new Readable({ read() {} }), { isTTY: true, setRawMode() {}, ref() {}, unref() {} }) as unknown as NodeJS.ReadStream
-  const instance = await render(h(AppStateProvider as never, { initialState: getDefaultAppState() }, h(HelmTelemetryRail as never, { width: 28 })), { stdout, stdin, exitOnCtrlC: false, patchConsole: false })
+  const instance = await render(h(AppStateProvider as never, { initialState: getDefaultAppState() }, h(HelmVitalsRail as never, { width: 28 })), { stdout, stdin, exitOnCtrlC: false, patchConsole: false })
   await settle(600)
   const frame = strip(instance.lastFrame())
   instance.unmount?.()

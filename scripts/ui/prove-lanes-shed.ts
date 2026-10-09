@@ -69,8 +69,8 @@ t('party builder stays retired (no partyPeers, no party section)', !rail.include
 t('next builds only in the solo branch', /const nextSection = \(\): LanesSectionSpec \| null => \{\n\s+if \(!solo\) return null/.test(model))
 
 t('the rail paints the model sections and nothing else', /\{model\.sections\.map\(paintSection\)\}/.test(rail) && !/section\('/.test(rail))
-t('solo order: work · recent · mission · workbench · next · files · saturn · telemetry', /\? \[workSection\(\), recentSection\(\), missionSection\(\), workbenchSection\(\), nextSection\(\), filesSection\(\), saturnSection\(\), glanceSection\(\)\]/.test(model))
-t('busy order: crew · work · runs · workbench · files · saturn · telemetry', /: \[crewSection\(\), workSection\(\), runsSection\(\), workbenchSection\(\), filesSection\(\), saturnSection\(\), glanceSection\(\)\]/.test(model))
+t('solo order: work · recent · mission · workbench · next · files · saturn · vitals', /\? \[workSection\(\), recentSection\(\), missionSection\(\), workbenchSection\(\), nextSection\(\), filesSection\(\), saturnSection\(\), glanceSection\(\)\]/.test(model))
+t('busy order: crew · work · runs · workbench · files · saturn · vitals', /: \[crewSection\(\), workSection\(\), runsSection\(\), workbenchSection\(\), filesSection\(\), saturnSection\(\), glanceSection\(\)\]/.test(model))
 t('an empty section is never painted (recent and next answer null without rows)', (model.match(/if \(rows\.length === 0\) return null/g) ?? []).length >= 2)
 
 t('shed pointer is display-only (no row-model entry)', /pointer: shed\.length > 0 \? shedPointerOf\(shed\) : null/.test(model) && /\{model\.pointer !== null \? \(/.test(rail) && !/pointer[^\n]*row:/.test(model))

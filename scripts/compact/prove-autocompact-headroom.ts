@@ -58,7 +58,7 @@ for (const road of ['config', 'auto-env', 'master-env'] as const) {
   else delete process.env[road === 'auto-env' ? 'MERCURY_AUTO_COMPACT' : 'MERCURY_COMPACT']
 }
 check('failure breaker still stops emergency recovery', !foldAvailability({ tracking: { compacted: false, turnCounter: 0, turnId: 't', consecutiveFailures: 3 }, hasHistory: true }).available)
-const rail = readFileSync(join(import.meta.dir, '../../src/components/HelmTelemetryRail.tsx'), 'utf8') + readFileSync(join(import.meta.dir, '../../src/utils/cockpit/helmTelemetryModel.ts'), 'utf8')
+const rail = readFileSync(join(import.meta.dir, '../../src/components/HelmVitalsRail.tsx'), 'utf8') + readFileSync(join(import.meta.dir, '../../src/utils/cockpit/helmVitalsModel.ts'), 'utf8')
 check('the rail warning tier reads the same token policy, not a second percent ramp', rail.includes('calculateTokenWarningState(ctx.usedTokens, input.sessionModel).level') && rail.includes('color: ctxColor,') && rail.includes('color={spec.color}') && !rail.includes('gaugeColor(ctxPct)') && !rail.includes('gaugeColor(95)'))
 const health = readFileSync(join(import.meta.dir, '../../src/utils/healthReport.ts'), 'utf8')
 check('/health context row uses the same switch explanation even without a sample', /label: 'Context & resume',[\s\S]{0,700}compactionSettingsText\(\)/.test(health))

@@ -168,7 +168,7 @@ await stub('src/components/tasks/useFocusedWork.ts', {
   otherSessionRunnerPids: () => new Set(),
   focusedSessionIdOrNull: () => null,
 })
-await stub('src/state/telemetryBus.ts', { useTelemetry: () => ({ trace: null, workflowsDisk: [] }) })
+await stub('src/state/vitalsBus.ts', { useVitals: () => ({ trace: null, workflowsDisk: [] }) })
 
 const ink = await import(join(ROOT, 'src/ink.ts'))
 const { default: StdinContext } = await import(join(ROOT, 'src/ink/components/StdinContext.ts'))
@@ -227,7 +227,7 @@ const lineAfter = (frame: string, needle: string): string => {
 
 const logins = await import(join(ROOT, 'src/components/BootLoginsScreen.tsx'))
 const { BootSplashScreen } = await import(join(ROOT, 'src/components/BootSplashScreen.tsx'))
-const { HelmTelemetryRail } = await import(join(ROOT, 'src/components/HelmTelemetryRail.tsx'))
+const { HelmVitalsRail } = await import(join(ROOT, 'src/components/HelmVitalsRail.tsx'))
 const { railPlanAt } = await import(join(ROOT, 'src/utils/helmGeometry.ts'))
 const { settingsPopupGeometry } = await import(join(ROOT, 'src/components/SettingsPopupSlot.tsx'))
 const popupStore = await import(join(ROOT, 'src/utils/cockpit/settingsPopup.ts'))
@@ -252,9 +252,9 @@ async function paintSurfaces(size: { columns: number; rows: number }, tag: strin
     : await paint(request.body({ width: geometry.width, inner: geometry.inner, rowBudget: geometry.rowBudget }) as React.ReactNode, columns, rows)
   save(`usage-popup-${stamp}`, popupFrame)
   const plan = railPlanAt(columns, true)
-  const cardFrame = plan.telemetry
-    ? await paint(React.createElement(ink.Box, { flexDirection: 'row', justifyContent: 'flex-end', width: columns }, React.createElement(HelmTelemetryRail, { width: plan.telemetryW, availRows: rows - 7 })), columns, rows)
-    : `no sidebar usage card at ${columns}x${rows}: the cockpit's telemetry rail needs both rails engaged (railPlanAt telemetry=false)`
+  const cardFrame = plan.vitals
+    ? await paint(React.createElement(ink.Box, { flexDirection: 'row', justifyContent: 'flex-end', width: columns }, React.createElement(HelmVitalsRail, { width: plan.vitalsW, availRows: rows - 7 })), columns, rows)
+    : `no sidebar usage card at ${columns}x${rows}: the cockpit's vitals rail needs both rails engaged (railPlanAt vitals=false)`
   save(`usage-card-${stamp}`, cardFrame)
   return { logins: loginsFrame, face: faceFrame, popup: popupFrame, card: cardFrame }
 }
@@ -295,7 +295,7 @@ section('§1 the stored profile beside the token names the account; the config r
       check(`${stamp} usage card: the config record's email is nowhere`, !frames.card.includes(RECORD_EMAIL))
       check(`${stamp} usage card: the frame stays inside the terminal`, inBounds(frames.card, size.columns, size.rows))
     } else {
-      check(`${stamp} usage card: no telemetry rail exists at this size (recorded)`, frames.card.startsWith('no sidebar usage card'), frames.card)
+      check(`${stamp} usage card: no vitals rail exists at this size (recorded)`, frames.card.startsWith('no sidebar usage card'), frames.card)
     }
     check(`${stamp} every painted frame stays inside the terminal`, inBounds(frames.logins, size.columns, size.rows) && inBounds(frames.face, size.columns, size.rows) && inBounds(frames.popup, size.columns, size.rows))
   }
@@ -379,7 +379,7 @@ section('§7 the surfaces read the one credential-account owner')
   const composer = read('src/services/providers/providerIdentityLine.ts')
   check('the identity composer reads the presence owner, whose Anthropic identity is the sign-in email', composer.includes('presenceIdentityWords(') && owner.includes('anthropicSignInEmail(reads)'))
   check('the usage popup reads the identity composer', read('src/components/Settings/Usage.tsx').includes('providerIdentityLine('))
-  check('the usage card reads the identity composer', read('src/utils/cockpit/helmTelemetryModel.ts').includes('providerIdentityLine('))
+  check('the usage card reads the identity composer', read('src/utils/cockpit/helmVitalsModel.ts').includes('providerIdentityLine('))
 }
 
 type ScopeRead = import('../../src/utils/accounts/accountIdentity.ts').ScopeIdentityState
@@ -644,7 +644,7 @@ if (framesDir) {
     'no-email-*: the credential stores neither a profile nor a receipt; the config record says ring@example.com',
     'key-*: ANTHROPIC_API_KEY alone, no Claude sign-in',
     'logins: the face Logins roster (BootLoginsScreen) · face: the boot face with its strip (BootSplashScreen)',
-    'usage-popup: the /usage popup body at the store geometry · usage-card: the cockpit telemetry rail (HelmTelemetryRail)',
+    'usage-popup: the /usage popup body at the store geometry · usage-card: the cockpit vitals rail (HelmVitalsRail)',
     'accounts: the /accounts board (AccountView) with its live probe held in flight, except where the leg names the probe\'s answer',
     'accounts-agree-*: the config record agrees with the credential (owner@example.com on both)',
     'accounts-expired-*: the probe refused the credential (401) and fell back to the record · accounts-offline-*: the probe could not reach the endpoint and fell back to the record',
