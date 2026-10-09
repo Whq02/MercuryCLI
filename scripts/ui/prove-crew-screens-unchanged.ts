@@ -35,7 +35,7 @@ const LEAD_DONE = 'crew-screens: the crew is out.'
 const REPORT_PLACES = ['the rail', 'the view', 'the composer', 'the crew box', 'the runs board', 'the model picker', 'the help rows', 'the sessions list', 'the boot face', 'the status row', 'the footer keys', 'the pop-up frame']
 const REPORT_CLAIMS = ['keeps every row', 'holds its keys', 'stands where it stood', 'paints the same cells']
 const LEAD_REPORT = [LEAD_DONE, ...Array.from({ length: 48 }, (_, i) => `${i + 1}. ${REPORT_PLACES[i % REPORT_PLACES.length]} ${REPORT_CLAIMS[Math.floor(i / REPORT_PLACES.length) % REPORT_CLAIMS.length]}`)].join('\n')
-const NOTICE_PATTERN = 'Agent "fjord" completed'
+const NOTICE_PATTERN = '\\[Crewmate\\] fjord · completed'
 const FACE_PATTERN = '\\d+ agents\\b[\\s\\S]*\\d+ of \\d+ signed in'
 const FOCUSED_WIDE_PATTERN = '\\n ready · [^\\n]*← back'
 const FOCUSED_NARROW_PATTERN = '● ready · [\\s\\S]*\\d+ sessions? on · '

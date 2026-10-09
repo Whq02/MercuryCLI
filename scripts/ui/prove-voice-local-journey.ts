@@ -259,26 +259,35 @@ const paneFlow = (screen: string): string =>
     .join(' ')
     .replace(/\s+/g, ' ')
 const RECORDING_LINE = 'recording · release space to stop · esc cancels'
-const REPEAT = { afterPrevTicks: 1, data: ' ' }
 const TICK_MS = 200
 const SCALE = ((): number => {
   const raw = Number(process.env.MERCURY_VSHOT_BUDGET_SCALE ?? '1')
   return Number.isFinite(raw) && raw > 0 ? raw : 1
 })()
-const ticksFor = (ms: number): number => Math.max(1, Math.ceil(ms / (TICK_MS * SCALE)))
-const repeatsFor = (ms: number): unknown[] => Array.from({ length: ticksFor(ms) }, () => REPEAT)
+const { FIRST_REPEAT_WINDOW_MS, RELEASE_GAP_CEILING_MS, RELEASE_GAP_FACTOR, releaseGapMs } = await import('../../src/services/voice/holdToTalk.ts')
+const REPEAT_GAP_TARGET_MS = Math.min(FIRST_REPEAT_WINDOW_MS - 400, RELEASE_GAP_CEILING_MS / RELEASE_GAP_FACTOR + 100)
+const REPEAT_TICKS = Math.max(1, Math.floor(REPEAT_GAP_TARGET_MS / (TICK_MS * SCALE)))
+const REPEAT_GAP_MS = REPEAT_TICKS * TICK_MS * SCALE
+const REPEAT = { afterPrevTicks: REPEAT_TICKS, data: ' ' }
+const repeatsFor = (ms: number): unknown[] => Array.from({ length: Math.max(1, Math.ceil(ms / REPEAT_GAP_MS)) }, () => REPEAT)
 const HOLD_PAST_THRESHOLD_MS = 1_200
+const OPENING_GRACE_MS = 2_400
 function hold(press: Record<string, unknown>, opts: { mark?: string; beyondMs?: number } = {}): unknown[] {
   const repeats = repeatsFor(HOLD_PAST_THRESHOLD_MS)
   if (opts.mark === undefined) return [{ ...press, data: ' ' }, ...repeats, REPEAT]
   return [
     { ...press, data: ' ' },
     ...repeats,
+    ...repeatsFor(OPENING_GRACE_MS).map(() => ({ ...REPEAT, awaitText: RECORDING_LINE })),
     { requireAwait: true, awaitText: RECORDING_LINE, mark: opts.mark, data: ' ' },
     ...(opts.beyondMs === 0 ? [] : repeatsFor(opts.beyondMs ?? 400)),
   ]
 }
-console.log(`  · budget scale ${SCALE}: a held key is one space per ${TICK_MS * SCALE} ms, ${ticksFor(HOLD_PAST_THRESHOLD_MS)} repeats past the ${HOLD_PAST_THRESHOLD_MS} ms mark`)
+const stuckWords = (res: { status: number | null; stderr: string }): string => {
+  const rows = res.stderr.split('\n').filter(l => l.includes('never settled within the ceiling')).map(l => l.replace(/; saw=.*$/, ''))
+  return `vshot ${res.status}: ${rows.length > 0 ? rows.join(' · ') : res.stderr.slice(-300)}`
+}
+console.log(`  · budget scale ${SCALE}: a held key is one space per ${REPEAT_GAP_MS} ms (the product then allows ${releaseGapMs(REPEAT_GAP_MS)} ms between repeats before it reads a release), ${repeatsFor(HOLD_PAST_THRESHOLD_MS).length} repeats past the ${HOLD_PAST_THRESHOLD_MS} ms mark and up to ${repeatsFor(OPENING_GRACE_MS).length} more while the take opens`)
 
 console.log('============================================================')
 console.log(` voice input — the on-device road on the bundle (${MODEL.name}, ${PLATFORM})`)
@@ -313,7 +322,7 @@ console.log('[A] no key at all — /voice on names the on-device road; a hold, i
     170,
     {},
   )
-  check('the drive delivered every send (a real boot)', res.status === 0, `vshot ${res.status}: ${res.stderr.slice(-300)}`)
+  check('the drive delivered every send (a real boot)', res.status === 0, stuckWords(res))
   check('/voice on names the on-device transcriber, the engine, the model and the pack', (res.marks.on ?? '').includes(`transcriber: on-device — whisper.cpp ${MODEL.name} (pack `) && (res.marks.on ?? '').includes('beside the'), gridLines(res.marks.on ?? '', 'transcriber'))
   check('the hold past the threshold: the footer paints ● recording · release space to stop · esc cancels', (res.marks.recording ?? '').includes(`● ${RECORDING_LINE}`), gridLines(res.marks.recording ?? '', 'recording'))
   check('the fixture\'s words land in the composer, decoded on this machine', SPOKEN.test(res.marks.landed ?? ''), gridLines(res.marks.landed ?? '', '❯'))
@@ -343,7 +352,7 @@ console.log('[B] an OpenAI key AND the pack — the order law on the bundle: sti
     { OPENAI_API_KEY: 'sk-fixture-voice-000000000000000000000000', MERCURY_OPENAI_API_BASE: `http://127.0.0.1:${fx.port}/v1` },
   )
   fx.child.kill('SIGTERM')
-  check('the drive delivered', res.status === 0, `vshot ${res.status}: ${res.stderr.slice(-300)}`)
+  check('the drive delivered', res.status === 0, stuckWords(res))
   check('/voice on still names the on-device transcriber beside the signed-in key', (res.marks.on ?? '').includes('transcriber: on-device — whisper.cpp'), gridLines(res.marks.on ?? '', 'transcriber'))
   check('the words land on this machine', SPOKEN.test(res.marks.landed ?? '') && (res.marks.landed ?? '').includes('transcribed on this machine'), gridLines(res.marks.landed ?? '', '❯'))
   check('the loopback transcriber served NOTHING', ledgerPosts(fx.ledger).length === 0, ledgerPosts(fx.ledger).join(' | '))
@@ -370,7 +379,7 @@ console.log('[C] the pin openai — the cloud road serves: exactly one loopback 
     { OPENAI_API_KEY: 'sk-fixture-voice-000000000000000000000000', MERCURY_OPENAI_API_BASE: `http://127.0.0.1:${fx.port}/v1`, MERCURY_VOICE_TRANSCRIBER: 'openai' },
   )
   fx.child.kill('SIGTERM')
-  check('the drive delivered', res.status === 0, `vshot ${res.status}: ${res.stderr.slice(-300)}`)
+  check('the drive delivered', res.status === 0, stuckWords(res))
   check('/voice on names OpenAI and says the on-device road is held back by the pin', (res.marks.on ?? '').includes('transcriber: OpenAI') && (res.marks.on ?? '').includes('held back by MERCURY_VOICE_TRANSCRIBER'), gridLines(res.marks.on ?? '', 'transcriber'))
   check('the canned cloud words land, the receipt names the family', (res.marks.landed ?? '').includes(CLOUD_TRANSCRIPT) && (res.marks.landed ?? '').includes('transcribed by OpenAI ('), gridLines(res.marks.landed ?? '', '❯'))
   const served = ledgerPosts(fx.ledger)
@@ -395,7 +404,7 @@ console.log('[D] the pack present, the model absent — the download door at /vo
     170,
     {},
   )
-  check('the drive delivered', res.status === 0, `vshot ${res.status}: ${res.stderr.slice(-300)}`)
+  check('the drive delivered', res.status === 0, stuckWords(res))
   const on = res.marks.on ?? ''
   const door = paneFlow(on)
   check('/voice on carries the download door: the size, the model, the licence, the verb (read from the pane flowed whole, wherever the rows wrap)', door.includes('one-time 60 MB download') && door.includes('Whisper base.en') && door.includes('(MIT)') && door.includes('/voice download starts it'), gridLines(on, 'download'))

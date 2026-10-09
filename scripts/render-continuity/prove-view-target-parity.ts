@@ -340,13 +340,14 @@ t.section('§4 journey: completed agent stays reachable through the tasks board'
     { kind: 'text', text: 'Spare 2.', whenBody: 'run the quick probe' },
   ]
 
+  const LANDING = '[Crewmate] quick probe · completed'
   const run = await runPulseArena({
     turns,
     sends: [
       '2000:\\r',
       '6000:run the quick probe\\r',
-      'after:quick probe" completed:2500:/tasks\\r',
-      `after:agent › quick probe:2500:${ESC}`,
+      { awaitText: LANDING, afterPrevMs: 2500, text: '/tasks\r' },
+      { awaitText: 'agent › quick probe', afterPrevMs: 2500, text: ESC },
     ],
     seconds: 20,
     cols: 120,
@@ -376,7 +377,7 @@ t.section('§4 journey: completed agent stays reachable through the tasks board'
     const iLanded = findFrom(
       0,
       f =>
-        has(f, /Agent "quick probe" completed/) &&
+        has(f, LANDING) &&
         has(f, 'run the quick probe') &&
         !has(f, /agent › quick probe/) &&
         !has(f, /Mercury — runs/),
@@ -399,7 +400,7 @@ t.section('§4 journey: completed agent stays reachable through the tasks board'
 
     const iBack = findFrom(
       iCard + 1,
-      f => !has(f, /agent › quick probe/) && !has(f, /Mercury — runs/) && has(f, 'run the quick probe') && has(f, /Agent "quick probe" completed/),
+      f => !has(f, /agent › quick probe/) && !has(f, /Mercury — runs/) && has(f, 'run the quick probe') && has(f, LANDING),
     )
     t.check(
       'esc returned to main (the card gone, the transcript back with the landing on it)',
