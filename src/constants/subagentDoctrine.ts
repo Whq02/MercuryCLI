@@ -3,7 +3,6 @@ import { flagEnv } from '../substrate/flagRegistry.js'
 import type { AgentDefinition } from '../tools/AgentTool/loadAgentsDir.js'
 import type { ToolUseContext } from '../Tool.js'
 import { MERCURY_IDENTITY_FLOOR, mercurySubagentContract, type MercuryAgentSeat } from '../prompt/mercuryContract.js'
-import { getLspDoctrineLine } from '../services/lsp/mercuryLsp.js'
 import { getRuntimePostureDoctrineLine } from '../utils/cockpit/runtimePosture.js'
 import { getVulcanDoctrineLine } from '../utils/vulcan/vulcanGates.js'
 import { loadMemoryPrompt } from '../mneme/mnemeFrontPage.js'
@@ -24,8 +23,6 @@ export function isFixedOutputAgent(def: Pick<AgentDefinition, 'agentType'>): boo
 }
 
 const subagentDoctrineFor = (seat: MercuryAgentSeat): string => `<subagent-doctrine>\n${mercurySubagentContract(seat)}\n</subagent-doctrine>`
-
-const API_CURRENCY_DOCTRINE = `Provider-API currency: your training priors about model ids, pricing, and request shapes — for the Anthropic, OpenAI, and OpenAI-compatible provider APIs alike — may be stale. When writing code against any model-provider API, consult the bundled \`provider-apis\` skill (via the Skill tool, when available) instead of answering from memory; it outranks any external provider-API skill, and Mercury's bundled skills outrank external skills of the same name. Never emit a model id you have not verified against a current source.`
 
 export function agentFanoutCap(): number | null {
   const raw = flagEnv('MERCURY_AGENT_FANOUT_CAP')
@@ -65,8 +62,6 @@ export function buildSubagentMercurySections(args: {
 
   const posture = getRuntimePostureDoctrineLine()
 
-  const lspDoctrine = getLspDoctrineLine()
-
   const vulcanDoctrine = getVulcanDoctrineLine()
 
   const envelopeDoctrine =
@@ -77,9 +72,7 @@ export function buildSubagentMercurySections(args: {
   return [
     floor,
     operating,
-    API_CURRENCY_DOCTRINE,
     ...(posture ? [posture] : []),
-    ...(lspDoctrine ? [lspDoctrine] : []),
     ...(vulcanDoctrine ? [vulcanDoctrine] : []),
     ...(envelopeDoctrine ? [envelopeDoctrine] : []),
     ...(memory ? [memory] : []),
