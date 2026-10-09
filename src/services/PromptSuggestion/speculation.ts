@@ -3,7 +3,7 @@ import { logError } from '../../utils/log.js'
 import { IDLE_SPECULATION_STATE } from '../../state/AppState.js'
 import type { AppState } from '../../state/AppState.js'
 import type { CacheSafeParams } from '../../utils/forkedAgent.js'
-import type { ChatHookContext } from '../../utils/hooks/postSamplingHooks.js'
+import type { TurnAnswerContext } from '../../query/turnAnswerContext.js'
 import type { PromptVariant } from './promptSuggestion.js'
 
 type SetAppState = (updater: (prev: AppState) => AppState) => void
@@ -23,7 +23,7 @@ type ActiveSpeculationState = {
   suggestionLength: number
   toolUseCount: number
   isPipelined: boolean
-  contextRef: { current: ChatHookContext }
+  contextRef: { current: TurnAnswerContext }
   pipelinedSuggestion?: {
     text: string
     promptId: PromptVariant

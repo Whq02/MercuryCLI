@@ -21,7 +21,6 @@ import { TASK_UPDATE_TOOL_NAME } from '../../tools/TaskUpdateTool/constants.js'
 import type { MessageOrigin, UserMessage } from '../../types/message.js'
 import { type Attachment, memoryHeader } from '../attachments.js'
 import { DEFERRED_TOOLS_ANNOUNCEMENT_HEAD } from '../attachments/deltas.js'
-import { stoppedContinuationMessage } from '../attachments/stoppedContinuation.js'
 import { quote } from '../bash/shellQuote.js'
 import { formatFileSize, formatNumber } from '../format.js'
 import { jsonStringify } from '../slowOperations.js'
@@ -418,34 +417,6 @@ capsule-digest:${attachment.digest}${attachment.delta ? `\nWorking-set delta vs 
       ].join('\n')
       return [createUserMessage({ content: wrapInSystemReminder(text), isMeta: true })]
     }
-    case 'async_hook_response': {
-      const response = attachment.response
-      const messages: UserMessage[] = []
-
-      if (response.systemMessage) {
-        messages.push(
-          createUserMessage({
-            content: boundHookContext(response.systemMessage, `${attachment.hookName}-async-system`).text,
-            isMeta: true,
-          }),
-        )
-      }
-
-      if (
-        response.hookSpecificOutput &&
-        'additionalContext' in response.hookSpecificOutput &&
-        response.hookSpecificOutput.additionalContext
-      ) {
-        messages.push(
-          createUserMessage({
-            content: boundHookContext(response.hookSpecificOutput.additionalContext, `${attachment.hookName}-async-context`).text,
-            isMeta: true,
-          }),
-        )
-      }
-
-      return wrapMessagesInSystemReminder(messages)
-    }
     case 'budget_usd':
       return [
         createUserMessage({
@@ -478,55 +449,15 @@ capsule-digest:${attachment.digest}${attachment.delta ? `\nWorking-set delta vs 
         }),
       ]
     }
-    case 'hook_blocking_error':
-      return [
-        createUserMessage({
-          content: wrapInSystemReminder(
-            `${attachment.hookName} hook blocking error from command: "${attachment.blockingError.command}": ${boundHookContext(attachment.blockingError.blockingError, `${attachment.hookName}-block`).text}`,
-          ),
-          isMeta: true,
-        }),
-      ]
-    case 'hook_success':
-      if (
-        attachment.hookEvent !== 'SessionStart' &&
-        attachment.hookEvent !== 'UserPromptSubmit'
-      ) {
-        return []
+    case 'hook': {
+      if (attachment.outcome === 'context') {
+        return [createUserMessage({ content: wrapInSystemReminder(`hook ${attachment.name} (${attachment.event}): ${boundHookContext(attachment.words, `${attachment.name}-context`).text}`), isMeta: true })]
       }
-      if (attachment.content === '') {
-        return []
+      if (attachment.outcome === 'block' && attachment.event === 'tool.after') {
+        return [createUserMessage({ content: wrapInSystemReminder(`hook ${attachment.name} objected to this ${attachment.event} call: ${boundHookContext(attachment.words, `${attachment.name}-block`).text}`), isMeta: true })]
       }
-      return [
-        createUserMessage({
-          content: wrapInSystemReminder(
-            `${attachment.hookName} hook success: ${boundHookContext(attachment.content, attachment.hookName).text}`,
-          ),
-          isMeta: true,
-        }),
-      ]
-    case 'hook_additional_context': {
-      if (attachment.content.length === 0) {
-        return []
-      }
-      return [
-        createUserMessage({
-          content: wrapInSystemReminder(
-            `${attachment.hookName} hook additional context: ${boundHookContext(attachment.content.join('\n'), `${attachment.hookName}-context`).text}`,
-          ),
-          isMeta: true,
-        }),
-      ]
+      return []
     }
-    case 'hook_stopped_continuation':
-      return [
-        createUserMessage({
-          content: wrapInSystemReminder(
-            `${attachment.hookName} hook stopped continuation: ${boundHookContext(stoppedContinuationMessage(attachment), `${attachment.hookName}-stop`).text}`,
-          ),
-          isMeta: true,
-        }),
-      ]
     case 'context_efficiency': {
       return []
     }
@@ -606,12 +537,7 @@ capsule-digest:${attachment.digest}${attachment.delta ? `\nWorking-set delta vs 
     case 'already_read_file':
     case 'command_permissions':
     case 'edited_image_file':
-    case 'hook_cancelled':
-    case 'hook_error_during_execution':
-    case 'hook_non_blocking_error':
-    case 'hook_system_message':
     case 'structured_output':
-    case 'hook_permission_decision':
     case 'bypassed_ask':
       return []
     case 'bound_prefix':

@@ -10,7 +10,7 @@ import {
 import { clearInstructionFileCaches } from '../../services/instructions/engine.js'
 import { execFileNoThrow } from '../../utils/execFileNoThrow.js'
 import { regroundGitWatch } from '../../utils/git/gitFilesystem.js'
-import { updateHooksConfigSnapshot } from '../../utils/hooks/hooksConfigSnapshot.js'
+import { refreshHooksSnapshot } from '../../utils/hooks/hooksConfigSnapshot.js'
 import { setCwd } from '../../utils/Shell.js'
 import { plural } from '../../utils/stringUtils.js'
 import {
@@ -93,7 +93,7 @@ function restoreSessionState(originalCwd: string, projectRootMoved: boolean): vo
   regroundGitWatch()
   if (projectRootMoved) {
     setProjectRoot(originalCwd)
-    updateHooksConfigSnapshot()
+    refreshHooksSnapshot()
   }
   clearInstructionFileCaches()
 }

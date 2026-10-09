@@ -70,7 +70,7 @@ export const ERROR_CLASSES = [
 ] as const
 export type ErrorClass = (typeof ERROR_CLASSES)[number]
 
-export const HOOK_ENDING_CLASSES = ['closed_pipe', 'cancelled', 'timed_out', 'exit', 'spawn'] as const
+export const HOOK_ENDING_CLASSES = ['closed_pipe', 'cancelled', 'timed_out', 'exit', 'spawn', 'answer'] as const
 export type HookEndingClass = (typeof HOOK_ENDING_CLASSES)[number]
 
 export const HookEndingSchema = lazySchema(() =>
@@ -87,9 +87,11 @@ const HOOK_ENDING_WORDS: Record<HookEndingClass, (ending: Extract<HookEnding, { 
   timed_out: (ending, event) => `timed out${ending.detail ? ` after ${ending.detail}` : ''} and was killed; the ${event} it guarded proceeded`,
   exit: ending => `failed with exit ${ending.exit_code}: ${ending.detail || 'no stderr output'}`,
   spawn: ending => `could not run${ending.detail ? `: ${ending.detail}` : ''}`,
+  answer: ending => `answered outside the answer shape${ending.detail ? `: ${ending.detail}` : ''}`,
 }
 
-export const HOOK_FAILED_CODE = 'hook_failed'
+export const HOOK_NOTICE_CODES = { failed: 'hook_failed', block: 'hook_blocked', stop: 'hook_stopped', notice: 'hook_notice' } as const
+export const HOOK_FAILED_CODE = HOOK_NOTICE_CODES.failed
 
 export function hookEndingSentence(ending: HookEnding, hook: { name: string; event: string }): string {
   const who = `hook ${hook.name} (${hook.event})`

@@ -1,14 +1,14 @@
-import { basename, isAbsolute, resolve } from 'node:path'
+import { basename, isAbsolute, relative, resolve } from 'node:path'
 
 import * as chokidar from 'chokidar'
 
+import { getSessionId } from '../../bootstrap/state.js'
 import { registerCleanup } from '../cleanupRegistry.js'
 import { logForDebugging } from '../debug.js'
-import { clearCwdEnvFiles } from '../sessionEnvironment.js'
+import { invalidateSessionEnvCache } from '../sessionEnvironment.js'
 import { ignoringSpecialFiles, resolveWatchRoot } from '../watchRoot.js'
-import { executeCwdChangedHooks, executeFileChangedHooks } from '../hooks.js'
-import { getHooksConfigFromSnapshot } from './hooksConfigSnapshot.js'
-
+import { fireHooks } from './fire.js'
+import { hooksFor } from './matching.js'
 
 let initialized = false
 let currentCwd = ''
@@ -16,23 +16,15 @@ let watcher: chokidar.FSWatcher | null = null
 let watchedPaths = new Set<string>()
 let dynamicWatchPaths: string[] = []
 let dynamicWatchPathsSorted: string[] = []
-let notifier: ((text: string, isError: boolean) => void) | null = null
 
-
-function notify(text: string, isError: boolean): void {
-  notifier?.(text, isError)
-}
-
-function hasCwdOrFileHooks(): boolean {
-  const snapshot = getHooksConfigFromSnapshot()
-  return Boolean(snapshot?.CwdChanged?.length) || Boolean(snapshot?.FileChanged?.length)
+function scope(): { sessionId: string } {
+  return { sessionId: String(getSessionId()) }
 }
 
 function resolveWatchPaths(): string[] {
   const paths = new Set<string>()
-  const matchers = getHooksConfigFromSnapshot()?.FileChanged ?? []
-  for (const matcher of matchers) {
-    for (const name of (matcher.matcher ?? '').split('|')) {
+  for (const hook of hooksFor('file.changed', scope())) {
+    for (const name of hook.entry.watch ?? []) {
       const trimmed = name.trim()
       if (!trimmed) continue
       paths.add(isAbsolute(trimmed) ? trimmed : resolve(currentCwd, trimmed))
@@ -42,27 +34,19 @@ function resolveWatchPaths(): string[] {
   return [...paths]
 }
 
-function surfaceHookResults(results: Awaited<ReturnType<typeof executeFileChangedHooks>>): void {
-  for (const systemMessage of results.systemMessages) notify(systemMessage, false)
-  for (const result of results.results) {
-    if (!result.succeeded && result.output) notify(result.output, true)
-  }
-}
+const CHANGE_WORDS = { change: 'changed', add: 'added', unlink: 'removed' } as const
 
-function handleWatchEvent(event: 'change' | 'add' | 'unlink', path: string): void {
-  const known =
-    watchedPaths.has(path) || [...watchedPaths].some(watched => basename(watched) === basename(path))
+function handleWatchEvent(event: keyof typeof CHANGE_WORDS, path: string): void {
+  const known = watchedPaths.has(path) || [...watchedPaths].some(watched => basename(watched) === basename(path))
   if (!known) return
-  void executeFileChangedHooks(path, event)
-    .then(results => {
-      if (results.watchPaths.length > 0) updateWatchPaths(results.watchPaths)
-      surfaceHookResults(results)
+  const shown = isAbsolute(path) && currentCwd !== '' ? relative(currentCwd, path) || path : path
+  void fireHooks('file.changed', { path: shown, change: CHANGE_WORDS[event] }, { scope: scope() })
+    .then(result => {
+      if (result.outcomes.length > 0) invalidateSessionEnvCache()
+      if (result.answer.watch !== undefined && result.answer.watch.length > 0) updateWatchPaths(result.answer.watch.map(entry => (isAbsolute(entry) ? entry : resolve(currentCwd, entry))))
     })
     .catch(error => {
-      logForDebugging(`file-changed hook run failed: ${error instanceof Error ? error.message : String(error)}`, {
-        level: 'error',
-      })
-      notify(error instanceof Error ? error.message : String(error), true)
+      logForDebugging(`file.changed hooks failed: ${error instanceof Error ? error.message : String(error)}`, { level: 'error' })
     })
 }
 
@@ -79,7 +63,7 @@ async function startWatching(): Promise<void> {
     const parent = resolve(path, '..')
     if (fs.existsSync(parent)) armTargets.push(resolveWatchRoot(parent))
   }
-  logForDebugging(`file-changed watcher: ${resolved.length} matcher paths, ${armTargets.length} arm targets`)
+  logForDebugging(`file.changed watcher: ${resolved.length} watched paths, ${armTargets.length} arm targets`)
   if (resolved.length === 0) return
 
   watcher = chokidar.watch(armTargets, {
@@ -91,9 +75,7 @@ async function startWatching(): Promise<void> {
     ignored: ignoringSpecialFiles(),
   })
   watcher.on('error', error =>
-    logForDebugging(`file-changed watcher error: ${error instanceof Error ? error.message : String(error)}`, {
-      level: 'error',
-    }),
+    logForDebugging(`file.changed watcher error: ${error instanceof Error ? error.message : String(error)}`, { level: 'error' }),
   )
   watcher.on('change', path => handleWatchEvent('change', path))
   watcher.on('add', path => handleWatchEvent('add', path))
@@ -112,7 +94,7 @@ export function initializeFileChangedWatcher(cwd: string): void {
   if (initialized) return
   initialized = true
   currentCwd = cwd
-  if (!hasCwdOrFileHooks()) return
+  if (hooksFor('file.changed', scope()).length === 0) return
   registerCleanup(() => disposeFileChangedWatcher())
   if (resolveWatchPaths().length > 0) {
     void startWatching()
@@ -130,29 +112,6 @@ export function updateWatchPaths(paths: string[]): void {
   void restartWatching()
 }
 
-export async function onCwdChangedForHooks(oldCwd: string, newCwd: string): Promise<void> {
-  if (oldCwd === newCwd) return
-  if (!hasCwdOrFileHooks()) return
-  currentCwd = newCwd
-  await clearCwdEnvFiles()
-  let results: Awaited<ReturnType<typeof executeCwdChangedHooks>>
-  try {
-    results = await executeCwdChangedHooks(oldCwd, newCwd)
-  } catch (error) {
-    logForDebugging(`cwd-changed hook run failed: ${error instanceof Error ? error.message : String(error)}`, {
-      level: 'error',
-    })
-    notify(error instanceof Error ? error.message : String(error), true)
-    results = { results: [], watchPaths: [], systemMessages: [] }
-  }
-  dynamicWatchPaths = [...results.watchPaths]
-  dynamicWatchPathsSorted = [...results.watchPaths].sort()
-  surfaceHookResults(results)
-  if (initialized) {
-    await restartWatching()
-  }
-}
-
 async function disposeFileChangedWatcher(): Promise<void> {
   if (watcher) {
     await watcher.close()
@@ -163,5 +122,4 @@ async function disposeFileChangedWatcher(): Promise<void> {
   watchedPaths = new Set()
   dynamicWatchPaths = []
   dynamicWatchPathsSorted = []
-  notifier = null
 }

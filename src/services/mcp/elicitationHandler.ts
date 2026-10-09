@@ -2,11 +2,6 @@ import type { Client, ElicitResult } from './sdk.js'
 
 import type { AppState } from '../../state/AppState.js'
 import { logForDebugging } from '../../utils/debug.js'
-import {
-  executeElicitationHooks,
-  executeElicitationResultHooks,
-  executeNotificationHooks,
-} from '../../utils/hooks.js'
 import { logMCPDebug, logMCPError } from '../../utils/log.js'
 import { urlElicitationVerdict } from './toolPolicy.js'
 
@@ -39,80 +34,6 @@ export type ElicitationRequestEvent = {
 
 type SetAppState = (updater: (prev: AppState) => AppState) => void
 
-
-export async function runElicitationHooks(
-  serverName: string,
-  params: ElicitationParams,
-  signal: AbortSignal,
-): Promise<ElicitResult | undefined> {
-  try {
-    const mode: 'form' | 'url' = params.mode === 'url' ? 'url' : 'form'
-    const { elicitationResponse, blockingError } = await executeElicitationHooks({
-      serverName,
-      message: params.message ?? '',
-      requestedSchema: params.requestedSchema,
-      signal,
-      mode,
-      url: params.url,
-      elicitationId: params.elicitationId,
-    })
-    if (blockingError) return { action: 'decline' }
-    if (elicitationResponse) {
-      logForDebugging(
-        `elicitation hooks responded for "${serverName}": ${JSON.stringify(elicitationResponse)}`,
-      )
-      return elicitationResponse as ElicitResult
-    }
-    return undefined
-  } catch (error) {
-    logMCPError(serverName, `elicitation hooks failed: ${String(error)}`)
-    return undefined
-  }
-}
-
-export async function runElicitationResultHooks(
-  serverName: string,
-  result: ElicitResult,
-  signal: AbortSignal,
-  mode?: 'form' | 'url',
-  elicitationId?: string,
-): Promise<ElicitResult> {
-  const notify = (action: string): void => {
-    void executeNotificationHooks({
-      message: `MCP server "${serverName}" elicitation resolved: ${action}`,
-      notificationType: 'elicitation_response',
-    }).catch(() => {})
-  }
-  try {
-    const { elicitationResultResponse, blockingError } = await executeElicitationResultHooks({
-      serverName,
-      action: result.action,
-      content: result.content,
-      signal,
-      mode,
-      elicitationId,
-    })
-    if (blockingError) {
-      void executeNotificationHooks({
-        message: `MCP server "${serverName}" elicitation declined by a hook`,
-        notificationType: 'elicitation_response',
-      }).catch(() => {})
-      return { action: 'decline' }
-    }
-    const final: ElicitResult = elicitationResultResponse
-      ? ({
-          action: elicitationResultResponse.action,
-          content: elicitationResultResponse.content ?? result.content,
-        } as ElicitResult)
-      : result
-    notify(final.action)
-    return final
-  } catch (error) {
-    logMCPError(serverName, `elicitation result hooks failed: ${String(error)}`)
-    notify(result.action)
-    return result
-  }
-}
 
 type ElicitationPhase = 'entered' | 'left'
 type ElicitationListener = (phase: ElicitationPhase, question: symbol) => void
@@ -208,18 +129,11 @@ export function registerElicitationHandler(
             serverName,
             `URL elicitation auto-declined by risk policy (${verdict.posture})`,
           )
-          void executeNotificationHooks({
-            message: `MCP server "${serverName}" asked to open a URL; refused by risk policy (${verdict.posture})`,
-            notificationType: 'elicitation_response',
-          }).catch(() => {})
           return { action: 'decline' } satisfies ElicitResult
         }
       }
 
       try {
-        const hookResponse = await runElicitationHooks(serverName, params, signal)
-        if (hookResponse !== undefined) return hookResponse
-
         const response = await new Promise<ElicitResult>(resolvePromise => {
           if (signal.aborted) {
             resolvePromise({ action: 'cancel' })
@@ -255,13 +169,7 @@ export function registerElicitationHandler(
         logForDebugging(
           `elicitation response for "${serverName}": ${JSON.stringify(response)}`,
         )
-        return await runElicitationResultHooks(
-          serverName,
-          response,
-          signal,
-          isUrlMode ? 'url' : 'form',
-          params.elicitationId,
-        )
+        return response
       } catch (error) {
         logMCPError(serverName, `elicitation handling failed: ${String(error)}`)
         return { action: 'cancel' } satisfies ElicitResult
@@ -274,10 +182,6 @@ export function registerElicitationHandler(
       logForDebugging(
         `elicitation complete from "${serverName}": ${JSON.stringify(notification.params)}`,
       )
-      void executeNotificationHooks({
-        message: `MCP server "${serverName}" confirmed elicitation ${elicitationId ?? '(unknown)'} complete`,
-        notificationType: 'elicitation_complete',
-      }).catch(() => {})
       setAppState(prev => {
         const queue = prev.elicitation?.queue ?? []
         const index = queue.findIndex(

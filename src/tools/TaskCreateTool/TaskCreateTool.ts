@@ -1,9 +1,8 @@
 import { z } from 'zod/v4'
 
 import { buildTool, type ToolDef, type ToolUseContext } from '../../Tool.js'
-import { executeTaskCreatedHooks, getTaskCreatedHookMessage } from '../../utils/hooks.js'
 import { lazySchema } from '../../utils/lazySchema.js'
-import { createTask, deleteTask, getTaskListId, isTaskToolsEnabled } from '../../utils/tasks.js'
+import { createTask, getTaskListId, isTaskToolsEnabled } from '../../utils/tasks.js'
 import { TASK_CREATE_TOOL_NAME } from './constants.js'
 import { DESCRIPTION, getPrompt } from './prompt.js'
 
@@ -64,23 +63,6 @@ export const TaskCreateTool = buildTool({
       blockedBy: [],
       metadata: input.metadata,
     })
-
-    const blockingMessages: string[] = []
-    for await (const result of executeTaskCreatedHooks(
-      taskId,
-      input.subject,
-      input.description,
-      undefined,
-      context.abortController.signal,
-      undefined,
-      context,
-    )) {
-      if (result.blockingError) blockingMessages.push(getTaskCreatedHookMessage(result.blockingError))
-    }
-    if (blockingMessages.length > 0) {
-      await deleteTask(taskListId, taskId)
-      throw new Error(blockingMessages.join('\n'))
-    }
 
     context.setAppState(prevState =>
       prevState.expandedView === 'tasks' ? prevState : { ...prevState, expandedView: 'tasks' },

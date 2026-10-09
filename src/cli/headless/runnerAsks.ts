@@ -5,11 +5,11 @@ import type { Peer } from '../../runner/wire/peer.js'
 import { PeerClosed } from '../../runner/wire/peer.js'
 import type { ElicitResult } from '../../services/mcp/sdk.js'
 import type { Tool, ToolUseContext } from '../../Tool.js'
-import type { PermissionRequestResult } from '../../types/hooks.js'
 import { PERMISSION_MODES, type PermissionDecision, type PermissionDecisionReason, type PermissionMode, type PermissionUpdate } from '../../types/permissions.js'
 import { formatLimit, isDeadlineExceeded } from '../../utils/deadline.js'
 import { logForDebugging } from '../../utils/debug.js'
-import { executePermissionRequestHooks } from '../../utils/hooks.js'
+import { fireHooks, type HookFireResult } from '../../utils/hooks/fire.js'
+import { getSessionId } from '../../bootstrap/state.js'
 import { UNANSWERED_ASK_REJECT_MESSAGE, turnCutOf } from '../../utils/messages/rejectionText.js'
 import { encodeDecisionReasonForWire } from '../../utils/permissions/decisionReasonWire.js'
 import { hasPermissionsToUseTool } from '../../utils/permissions/permissions.js'
@@ -143,12 +143,13 @@ export function createHostCanUseTool(channel: AskChannel, onPermissionPrompt?: (
         input,
       })
 
-      const hookDecisionPromise = (async (): Promise<PermissionRequestResult | null> => {
-        for await (const result of executePermissionRequestHooks(tool.name, toolUseID, input, toolUseContext, permissionMode, askResult.suggestions, parentSignal)) {
-          const decision = result.permissionRequestResult
-          if (decision) return decision
-        }
-        return null
+      const hookDecisionPromise = (async (): Promise<HookFireResult | null> => {
+        const asked = await fireHooks(
+          'permission.ask',
+          { tool: tool.name, input, call_id: toolUseID, ...(askResult.suggestions !== undefined ? { suggestions: askResult.suggestions } : {}) },
+          { scope: { sessionId: String(getSessionId()), ...(toolUseContext.agentId !== undefined ? { crewmateId: toolUseContext.agentId } : {}) }, signal: parentSignal, toolUseContext, permissionMode },
+        )
+        return asked.answer.block !== undefined || asked.answer.permission === 'allow' || asked.answer.stop !== undefined ? asked : null
       })()
 
       const reason = serializeDecisionReason(askResult.decisionReason)
@@ -181,28 +182,30 @@ export function createHostCanUseTool(channel: AskChannel, onPermissionPrompt?: (
 
       if (away) return decisionOfAnswer({ outcome: 'deny', message: unansweredAskRefusal(tool.name, askLimit) }, tool as Tool, input, toolUseContext)
       if (raceOutcome.source === 'hook' && raceOutcome.decision) {
-        const hookDecision = raceOutcome.decision
+        const asked = raceOutcome.decision
+        const hookNames = asked.outcomes.map(outcome => outcome.name).join(', ')
         requestController.abort()
         requestPromise.catch(() => {})
-        if (hookDecision.behavior === 'allow') {
-          if (hookDecision.updatedPermissions?.length) {
-            persistPermissionUpdates(hookDecision.updatedPermissions)
+        if (asked.answer.stop !== undefined) toolUseContext.abortController.abort()
+        if (asked.answer.block === undefined && asked.answer.stop === undefined) {
+          if (asked.answer.rules?.length) {
+            persistPermissionUpdates(asked.answer.rules)
             toolUseContext.setAppState(previous => {
-              const updated = applyPermissionUpdates(previous.toolPermissionContext, hookDecision.updatedPermissions ?? [])
+              const updated = applyPermissionUpdates(previous.toolPermissionContext, asked.answer.rules ?? [])
               return updated === previous.toolPermissionContext ? previous : { ...previous, toolPermissionContext: updated }
             })
           }
           return {
             behavior: 'allow',
-            updatedInput: hookDecision.updatedInput ?? input,
+            updatedInput: asked.answer.input ?? input,
             userModified: false,
-            decisionReason: { type: 'hook', hookName: 'PermissionRequest' },
+            decisionReason: { type: 'hook', hookName: hookNames },
           }
         }
         return {
           behavior: 'deny',
-          message: hookDecision.message ?? 'The PermissionRequest hook denied this permission request',
-          decisionReason: { type: 'hook', hookName: 'PermissionRequest' },
+          message: asked.answer.block ?? asked.answer.stop ?? `a hook (${hookNames}) denied this ${tool.name} call`,
+          decisionReason: { type: 'hook', hookName: hookNames, reason: asked.answer.block ?? asked.answer.stop },
         }
       }
 

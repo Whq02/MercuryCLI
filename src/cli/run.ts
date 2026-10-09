@@ -169,10 +169,8 @@ import {
   logHeadlessProfilerTurn,
 } from '../utils/headlessProfiler.js'
 import { subscribeHookExecutionEvents } from '../utils/hooks/hookEvents.js'
-import { HOOK_LIFECYCLE_EVENTS } from '../utils/hooks/contract.js'
 import { hookTaskRow } from '../utils/hooks/rows.js'
-import { executeElicitationHooks, executeElicitationResultHooks, executeNotificationHooks } from '../utils/hooks.js'
-import { processSetupHooks, takeInitialUserMessage, type processSessionStartHooks } from '../utils/sessionStart.js'
+import { takeFirstPrompt, type runSessionStartHooks } from '../utils/sessionStart.js'
 import { createIdleTimeoutManager } from '../utils/idleTimeout.js'
 import { armInactivityDeadline, DeadlineExceededError, minutesKnobToMs } from '../utils/deadline.js'
 import { flagEnv, setFlagEnv } from '../substrate/flagRegistry.js'
@@ -304,11 +302,10 @@ type HeadlessOptions = {
   agent?: string
   workload?: string
   advise?: boolean
-  setupTrigger?: 'init' | 'maintenance'
   bootSessionIdPinned?: boolean
   door?: 'rows' | 'wire'
   subscribeAppState?: (listener: () => void) => () => void
-  sessionStartHooksPromise?: ReturnType<typeof processSessionStartHooks>
+  sessionStartHooksPromise?: ReturnType<typeof runSessionStartHooks>
   setSDKStatus?: unknown
 }
 
@@ -471,8 +468,7 @@ export async function runHeadless(
   const hookRowsActive = peer !== null || options.outputFormat === 'rows'
   const releaseHookRows = hookRowsActive
     ? subscribeHookExecutionEvents(event => {
-        if (!HOOK_LIFECYCLE_EVENTS.has(event.hookEvent as never)) return
-        enqueueRow(hookTaskRow(liveScope(), event))
+        if (currentTurn === null) enqueueRow(hookTaskRow(liveScope(), event))
       })
     : undefined
   let openFold: { trigger: CompactionRow['trigger']; landing: boolean } | null = null
@@ -562,14 +558,10 @@ export async function runHeadless(
         process.stderr.write(
           `${GLYPH.fail} Sandbox initialization failed: ${errorMessage(error)}\n`,
         )
-        gracefulShutdownSync(1, 'other')
+        gracefulShutdownSync(1, 'closed')
         return
       }
     }
-  }
-
-  if (options.setupTrigger) {
-    await processSetupHooks(options.setupTrigger, { forceSyncExecution: true })
   }
 
   const loaded = await loadInitialMessages(setAppState, {
@@ -621,9 +613,9 @@ export async function runHeadless(
   }
 
 
-  const hookInitialMessage = takeInitialUserMessage()
-  if (hookInitialMessage) {
-    io.prependUserMessage(hookInitialMessage)
+  const hookFirstPrompt = takeFirstPrompt()
+  if (hookFirstPrompt) {
+    io.prependUserMessage(hookFirstPrompt)
   }
 
   if ((options.continue || options.resume) && !getEngineModelOverride()) {
@@ -897,21 +889,7 @@ export async function runHeadless(
         const requestedSchema = params.mode === 'url' ? undefined : params.requestedSchema
         const url = params.mode === 'url' ? params.url : undefined
         const elicitationId = params.mode === 'url' ? params.elicitationId : undefined
-        const hookResult = await executeElicitationHooks({
-          serverName,
-          message: params.message,
-          requestedSchema,
-          signal: ctx.mcpReq.signal,
-          mode,
-          url,
-          elicitationId,
-        })
-        if (hookResult.elicitationResponse !== undefined) {
-          logForDebugging(`elicitation for ${serverName} answered by hook`)
-          return hookResult.elicitationResponse
-        }
-        logForDebugging(`elicitation for ${serverName} forwarded to the host`)
-        const hostResult = await asks.handleElicitation(
+        return asks.handleElicitation(
           serverName,
           params.message,
           requestedSchema,
@@ -920,27 +898,12 @@ export async function runHeadless(
           url,
           elicitationId,
         )
-        const resultHook = await executeElicitationResultHooks({
-          serverName,
-          action: hostResult.action,
-          content: hostResult.content,
-          mode,
-          elicitationId,
-        })
-        if (resultHook.elicitationResultResponse !== undefined) {
-          return resultHook.elicitationResultResponse
-        }
-        return hostResult
       }),
     )
     client.client.setNotificationHandler(
       'notifications/elicitation/complete',
       async notification => {
         const elicitationId = notification.params.elicitationId
-        await executeNotificationHooks({
-          message: `MCP server ${serverName} completed elicitation ${elicitationId}`,
-          notificationType: 'elicitation_complete',
-        }).catch(() => {})
         io.outbound.enqueue({ method: 'elicitation/complete', params: { server: serverName, elicitation_id: elicitationId } })
       },
     )
@@ -1387,8 +1350,8 @@ export async function runHeadless(
     settleIdle,
     wakeSettle: () => {},
     closeOutput: async () => {
-      const { finalizePendingAsyncHooks } = await import('../utils/hooks/AsyncHookRegistry.js')
-      await finalizePendingAsyncHooks().catch(() => {})
+      const { endBackgroundHooks } = await import('../utils/hooks/background.js')
+      await endBackgroundHooks().catch(() => {})
       skillChangeDetector.dispose()
       disarmAgentFreshness()
       stopDrainedNotificationFrames()
@@ -2028,7 +1991,7 @@ export async function runHeadless(
       if (answer.phase === 'committed') {
         inputClosed = true
         setRunInputClosed(true)
-        setTimeout(() => gracefulShutdownSync(0, 'other'), 50)
+        setTimeout(() => gracefulShutdownSync(0, 'closed'), 50)
       }
       return { token: answer.token, phase: answer.phase }
     },

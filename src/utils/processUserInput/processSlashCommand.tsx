@@ -33,9 +33,6 @@ import {
 } from '../attachments.js'
 import { isFullscreenEnvEnabled } from '../fullscreen.js'
 import {
-  executeUserPromptExpansionHooks,
-} from '../hooks.js'
-import {
   createCommandInputMessage,
   createCompactBoundaryMessage,
   createSyntheticUserCaveatMessage,
@@ -52,9 +49,7 @@ import { resetMicrocompactState } from '../../services/compact/microCompact.js'
 import { recordSkillUsage } from '../suggestions/skillUsageTracking.js'
 import { getAgentContext } from '../agentContext.js'
 import { addInvokedSkill, getIsNonInteractiveSession } from '../../bootstrap/state.js'
-import { addSessionHook } from '../hooks/sessionHooks.js'
-import type { HookMatcher } from '../../schemas/hooks.js'
-import type { HookEvent } from '../hooks/contract.js'
+import { registerSkillHooks } from '../hooks/registerFrontmatterHooks.js'
 
 import { getSessionId } from '../../bootstrap/state.js'
 import { isRestrictedToExtensionsOnly } from '../settings/extensionOnlyPolicy.js'
@@ -173,93 +168,6 @@ function findCommand(commands: Command[], name: string): Command | undefined {
 }
 
 
-type ExpansionHookOutcome =
-  | { kind: 'blocked'; result: ProcessUserInputBaseResult }
-  | { kind: 'ok'; hookMessages: Message[] }
-
-const HOOK_TRUNCATION_LIMIT = 10_000
-
-function truncateHookText(text: string): string {
-  if (text.length <= HOOK_TRUNCATION_LIMIT) return text
-  return `${text.slice(0, HOOK_TRUNCATION_LIMIT)}\n[Output truncated at ${HOOK_TRUNCATION_LIMIT} characters]`
-}
-
-async function runExpansionHooks(
-  command: Command,
-  args: string,
-  expansionType: 'slash_command' | 'mcp_prompt',
-  fullCommandString: string,
-  context: ToolUseContext,
-): Promise<ExpansionHookOutcome> {
-  const hookMessages: Message[] = []
-  const permissionMode = context.getAppState().toolPermissionContext.mode
-  for await (const result of executeUserPromptExpansionHooks(
-    { name: command.name, source: (command as { source?: string }).source ?? 'built-in' },
-    args,
-    expansionType,
-    fullCommandString,
-    permissionMode,
-    context,
-  )) {
-    if (result.blockingError) {
-      return {
-        kind: 'blocked',
-        result: {
-          messages: [
-            createSystemMessage(
-              `Operation blocked by hook: ${result.blockingError.blockingError}\n\nOriginal command: ${fullCommandString}`,
-              'warning',
-            ),
-          ],
-          shouldQuery: false,
-        },
-      }
-    }
-    if (result.preventContinuation) {
-      return {
-        kind: 'blocked',
-        result: {
-          messages: [
-            createUserMessage({
-              content: result.stopReason
-                ? `Operation stopped by hook: ${result.stopReason}`
-                : 'Operation stopped by hook',
-            }),
-          ],
-          shouldQuery: false,
-        },
-      }
-    }
-    if (result.additionalContexts && result.additionalContexts.length > 0) {
-      hookMessages.push(
-        createAttachmentMessage({
-          type: 'hook_additional_context',
-          content: result.additionalContexts.map(truncateHookText),
-          hookName: result.hookSource ?? 'hook',
-          toolUseID: `hook-${randomUUID()}`,
-          hookEvent: 'UserPromptExpansion',
-        }),
-      )
-      continue
-    }
-    if (result.message) {
-      const attachment = (result.message as { attachment?: { type?: string; content?: string } })
-        .attachment
-      if (attachment?.type === 'hook_success') {
-        if (!attachment.content || attachment.content.trim() === '') continue
-        hookMessages.push({
-          ...result.message,
-          attachment: { ...attachment, content: truncateHookText(attachment.content) },
-        } as Message)
-        continue
-      }
-      hookMessages.push(result.message as Message)
-    }
-  }
-  return { kind: 'ok', hookMessages }
-}
-
-
 export async function processPromptSlashCommand(
   commandName: string,
   args: string,
@@ -300,13 +208,8 @@ async function executePromptCommand(
   setToolJSXForFork: SetToolJSXFn = () => {},
   canUseToolForFork?: CanUseToolFn,
 ): Promise<ProcessUserInputBaseResult> {
-  const fullCommandString = args ? `/${commandName} ${args}` : `/${commandName}`
-  const expansionType = (command as { isMcp?: boolean }).isMcp ? 'mcp_prompt' : 'slash_command'
-
   try {
-    const hookOutcome = await runExpansionHooks(command, args, expansionType, fullCommandString, context)
-    if (hookOutcome.kind === 'blocked') return hookOutcome.result
-    const hookMessages = hookOutcome.hookMessages
+    const hookMessages: Message[] = []
 
     if (command.context === 'fork') {
       return await runForkedPromptCommand(
@@ -323,28 +226,11 @@ async function executePromptCommand(
     const expansion = await command.getPromptForCommand(args, context)
 
     const declaredHooks = command.hooks
-    if (declaredHooks && !isRestrictedToExtensionsOnly('hooks')) {
-      const setAppState = context.setAppState
-      if (setAppState) {
-        try {
-          for (const [event, groups] of Object.entries(declaredHooks) as Array<[HookEvent, HookMatcher[] | undefined]>) {
-            for (const group of groups ?? []) {
-              for (const hook of group.hooks ?? []) {
-                addSessionHook(
-                  setAppState,
-                  context.agentId ?? getSessionId(),
-                  event,
-                  group.matcher ?? '*',
-                  hook,
-                  undefined,
-                  command.skillRoot,
-                )
-              }
-            }
-          }
-        } catch (error) {
-          logError(error)
-        }
+    if (declaredHooks && !isRestrictedToExtensionsOnly('hooks') && context.setAppState && command.skillRoot !== undefined) {
+      try {
+        registerSkillHooks(context.setAppState, { sessionId: String(getSessionId()), ...(context.agentId !== undefined ? { crewmateId: context.agentId } : {}) }, declaredHooks, { name: command.name, root: command.skillRoot })
+      } catch (error) {
+        logError(error)
       }
     }
 
@@ -853,7 +739,7 @@ async function runLocalCommand(
     if (result.type === 'compact') {
       resetMicrocompactState(undefined)
       const compaction = result.compactionResult
-      const display = result.displayText ?? compaction.userDisplayMessage
+      const display = result.displayText
       const displayMessage = display
         ? {
             ...createCommandInputMessage(stdoutWrapped(display)),

@@ -10,7 +10,7 @@ import type {
   SystemCompactBoundaryMessage,
   UserMessage,
 } from '../../types/message.js'
-import type { CompactMetadata, HookResultMessage } from '../../types/message.js'
+import type { CompactMetadata } from '../../types/message.js'
 import type { UUID } from 'node:crypto'
 import { getAgentRosterAttachment, queuedNoticeTaskIds } from '../../utils/attachments/agentRoster.js'
 import { getDeferredToolsDeltaAttachment, getMcpInstructionsDeltaAttachment } from '../../utils/attachments/deltas.js'
@@ -27,7 +27,9 @@ import { appendSystemContext } from '../../utils/api.js'
 import { asSystemPrompt } from '../../utils/systemPromptType.js'
 import { getCommandQueue } from '../../utils/messageQueueManager.js'
 import { classifyModelRoute } from '../providers/routeLaw.js'
-import { executePostCompactHooks, executePreCompactHooks } from '../../utils/hooks/events.js'
+import { fireHooks, type HookFireResult } from '../../utils/hooks/fire.js'
+import { hookRowsOfResult } from '../../utils/hooks/rows.js'
+import { getSessionId } from '../../bootstrap/state.js'
 import { logError } from '../../utils/log.js'
 import { MEMORY_TYPE_VALUES } from '../../utils/memory/types.js'
 import {
@@ -40,7 +42,6 @@ import {
 import { expandPath } from '../../utils/path.js'
 import type { FileState } from '../../utils/fileStateCache.js'
 import { isSessionActivityTrackingActive, sendSessionActivitySignal } from '../../utils/sessionActivity.js'
-import { processSessionStartHooks } from '../../utils/sessionStart.js'
 import { reAppendSessionMetadata } from '../../utils/sessionStorage/logs.js'
 import { getTranscriptPath } from '../../utils/sessionStorage/paths.js'
 import { tokenCountWithEstimation } from '../../utils/tokens.js'
@@ -328,8 +329,7 @@ export type CompactionResult = {
   summaryMessages: UserMessage[]
   messagesToKeep?: Message[]
   attachments: AttachmentMessage[]
-  hookResults: HookResultMessage[]
-  userDisplayMessage?: string
+  hookResults: Message[]
   preCompactTokenCount: number
   postCompactTokenCount: number
   truePostCompactTokenCount?: number
@@ -1247,13 +1247,28 @@ async function assembleAttachments(
   return attachments
 }
 
-async function runSessionStartHooks(context: ToolUseContext): Promise<HookResultMessage[]> {
-  context.onCompactProgress?.({ type: 'hooks_start', hookType: 'session_start' })
-  return processSessionStartHooks('compact', {
-    model: context.options.engineModel,
-    agentType: context.agentType ?? getMainThreadAgentType(),
-  })
+function compactionHookScope(context: ToolUseContext): { sessionId: string; crewmateId?: string } {
+  return { sessionId: String(getSessionId()), ...(context.agentId !== undefined ? { crewmateId: context.agentId } : {}) }
 }
+
+async function compactionBeforeHooks(context: ToolUseContext, facts: { trigger: 'manual' | 'auto' | 'overflow'; instructions?: string; tokens: number }): Promise<HookFireResult> {
+  context.onCompactProgress?.({ type: 'hooks_start', hookType: 'pre_compact' })
+  return fireHooks('compaction.before', { trigger: facts.trigger, ...(facts.instructions !== undefined ? { instructions: facts.instructions } : {}), tokens: facts.tokens }, { scope: compactionHookScope(context), signal: context.abortController.signal, toolUseContext: context })
+}
+
+async function compactionAfterHooks(context: ToolUseContext, facts: { method: 'summary' | 'notes' | 'digest'; trigger: 'manual' | 'auto' | 'overflow'; tokensBefore: number; tokensAfter: number; summary?: string }): Promise<Message[]> {
+  context.onCompactProgress?.({ type: 'hooks_start', hookType: 'post_compact' })
+  const result = await fireHooks(
+    'compaction.after',
+    { method: facts.method, trigger: facts.trigger, tokens_before: facts.tokensBefore, tokens_after: facts.tokensAfter, ...(facts.summary !== undefined ? { summary: facts.summary } : {}) },
+    { scope: compactionHookScope(context), signal: context.abortController.signal, toolUseContext: context },
+  )
+  const rows: Message[] = hookRowsOfResult(result).map(row => createAttachmentMessage(row))
+  for (const words of result.answer.contexts) rows.push(createUserMessage({ content: words, isMeta: true }))
+  return rows
+}
+
+export { compactionAfterHooks }
 
 function notifyCompactionError(context: ToolUseContext, err: unknown): void {
   const message = err instanceof Error ? err.message : String(err)
@@ -1362,13 +1377,10 @@ export async function compactConversation(
     if (messages.length === 0) throw new Error(ERROR_MESSAGE_NOT_ENOUGH_MESSAGES)
     const preCompactTokenCount = tokenCountWithEstimation(messages)
 
-    context.onCompactProgress?.({ type: 'hooks_start', hookType: 'pre_compact' })
     context.setSDKStatus?.('compacting')
-    const preHook = await executePreCompactHooks(
-      { trigger, customInstructions: customInstructions ?? null },
-      context.abortController.signal,
-    )
-    const mergedInstructions = mergeHookInstructions(customInstructions, preHook.newCustomInstructions)
+    const before = await compactionBeforeHooks(context, { trigger: boundaryTrigger, ...(customInstructions !== undefined ? { instructions: customInstructions } : {}), tokens: preCompactTokenCount })
+    const beforeRows: Message[] = hookRowsOfResult(before).map(row => createAttachmentMessage(row))
+    const mergedInstructions = mergeHookInstructions(customInstructions, before.answer.instructions)
 
     context.setStreamMode?.('requesting')
     context.setResponseLength?.(() => 0)
@@ -1402,7 +1414,6 @@ export async function compactConversation(
     const snapshot = snapshotAndClearReadState(context)
     await releaseLspDocumentsForContext('compact_full')
     const postCompactFileAttachments = await assembleAttachments(snapshot, context, messagesToKeep ?? [], 'compact_full', ledgerBeforeFold)
-    const hookResults = await runSessionStartHooks(context)
 
     const lastMessage = messages[messages.length - 1] as Message
     const anchor = messagesToKeep !== undefined ? tailPrecedingUuid : lastMessage.uuid
@@ -1445,7 +1456,7 @@ export async function compactConversation(
       summaryMessages,
       messagesToKeep,
       attachments: postCompactFileAttachments,
-      hookResults,
+      hookResults: beforeRows,
       preCompactTokenCount,
       postCompactTokenCount: callUsageTotal,
       compactionUsage: usage,
@@ -1481,17 +1492,10 @@ export async function compactConversation(
 
     reAppendSessionMetadata()
 
-    context.onCompactProgress?.({ type: 'hooks_start', hookType: 'post_compact' })
-    const postHook = await executePostCompactHooks(
-      { trigger, compactSummary: rawSummary },
-      context.abortController.signal,
-    )
-    const display = [preHook.userDisplayMessage, postHook.userDisplayMessage].filter(
-      (text): text is string => typeof text === 'string' && text !== '',
-    )
+    const afterRows = await compactionAfterHooks(context, { method: 'summary', trigger: boundaryTrigger, tokensBefore: preCompactTokenCount, tokensAfter: truePostCompactTokenCount, summary: rawSummary })
     return {
       ...partial,
-      userDisplayMessage: display.length > 0 ? display.join('\n') : undefined,
+      hookResults: [...beforeRows, ...afterRows],
       truePostCompactTokenCount,
     }
   } catch (err) {
@@ -1542,14 +1546,11 @@ export async function partialCompactConversation(
     }
     const preCompactTokenCount = tokenCountWithEstimation(allMessages)
 
-    context.onCompactProgress?.({ type: 'hooks_start', hookType: 'pre_compact' })
     context.setSDKStatus?.('compacting')
-    const preHook = await executePreCompactHooks(
-      { trigger: 'manual', customInstructions: null },
-      context.abortController.signal,
-    )
+    const before = await compactionBeforeHooks(context, { trigger: 'manual', ...(userFeedback?.trim() ? { instructions: userFeedback.trim() } : {}), tokens: preCompactTokenCount })
+    const beforeRows: Message[] = hookRowsOfResult(before).map(row => createAttachmentMessage(row))
     const feedbackText = userFeedback?.trim() ? `User context for the summary:\n${userFeedback.trim()}` : undefined
-    const hookText = preHook.newCustomInstructions?.trim() || undefined
+    const hookText = before.answer.instructions?.trim() || undefined
     const customInstructions =
       hookText !== undefined && feedbackText !== undefined
         ? `${hookText}\n\n${feedbackText}`
@@ -1567,7 +1568,6 @@ export async function partialCompactConversation(
     const snapshot = snapshotAndClearReadState(context)
     await releaseLspDocumentsForContext('compact_partial')
     const attachments = await assembleAttachments(snapshot, context, kept, 'compact_partial', ledgerBeforeFold)
-    const hookResults = await runSessionStartHooks(context)
 
     let anchorUuid: UUID | undefined
     if (direction === 'up_to') {
@@ -1601,12 +1601,6 @@ export async function partialCompactConversation(
 
     reAppendSessionMetadata()
 
-    context.onCompactProgress?.({ type: 'hooks_start', hookType: 'post_compact' })
-    const postHook = await executePostCompactHooks(
-      { trigger: 'manual', compactSummary: rawSummary },
-      context.abortController.signal,
-    )
-
     const usage = (response.message as { usage?: NonNullableUsage }).usage
     const callUsageTotal = usage
       ? (usage.input_tokens ?? 0) +
@@ -1621,15 +1615,17 @@ export async function partialCompactConversation(
       summaryMessages: [summaryMessage],
       messagesToKeep: kept,
       attachments,
-      hookResults,
-      userDisplayMessage: postHook.userDisplayMessage,
+      hookResults: beforeRows,
       preCompactTokenCount,
       postCompactTokenCount: callUsageTotal,
       compactionUsage: usage,
     }
+    const truePostCompactTokenCount = estimateContextTokens(buildPostCompactMessages(partialResult))
+    const afterRows = await compactionAfterHooks(context, { method: 'summary', trigger: 'manual', tokensBefore: preCompactTokenCount, tokensAfter: truePostCompactTokenCount, summary: rawSummary })
     return {
       ...partialResult,
-      truePostCompactTokenCount: estimateContextTokens(buildPostCompactMessages(partialResult)),
+      hookResults: [...beforeRows, ...afterRows],
+      truePostCompactTokenCount,
     }
   } catch (err) {
     notifyCompactionError(context, err)

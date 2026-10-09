@@ -336,7 +336,7 @@ export function shouldRenderStatically(
       if (streamingToolUseIDs.has(id) || inProgressToolUseIDs.has(id)) {
         return false
       }
-      if (hasUnresolvedHooksFromLookup(id, 'PostToolUse', lookups)) return false
+      if (hasUnresolvedHooksFromLookup(id, 'tool.after', lookups)) return false
       for (const sibling of siblingToolUseIDs) {
         if (!lookups.resolvedToolUseIDs.has(sibling)) return false
       }
@@ -348,7 +348,7 @@ export function shouldRenderStatically(
       if (streamingToolUseIDs.has(id) || inProgressToolUseIDs.has(id)) {
         return false
       }
-      if (hasUnresolvedHooksFromLookup(id, 'PostToolUse', lookups)) return false
+      if (hasUnresolvedHooksFromLookup(id, 'tool.after', lookups)) return false
       for (const sibling of siblingToolUseIDs) {
         if (!lookups.resolvedToolUseIDs.has(sibling)) return false
       }

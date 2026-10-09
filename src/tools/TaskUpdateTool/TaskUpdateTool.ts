@@ -1,7 +1,6 @@
 import { z } from 'zod'
 
 import { buildTool, type ToolUseContext } from '../../Tool.js'
-import { executeTaskCompletedHooks, getTaskCompletedHookMessage } from '../../utils/hooks.js'
 import { logForDebugging } from '../../utils/debug.js'
 import {
   blockTask,
@@ -109,23 +108,6 @@ async function runUpdate(input: Input, context: ToolUseContext): Promise<Output>
         updatedFields: ['deleted'],
         statusChange: { from: task.status, to: 'deleted' },
         verificationNudgeNeeded: false,
-      }
-    }
-    if (input.status !== task.status && input.status === 'completed') {
-      const blockingMessages: string[] = []
-      for await (const result of executeTaskCompletedHooks(
-        input.taskId,
-        task.subject,
-        task.description,
-        undefined,
-        context.abortController.signal,
-        undefined,
-        context,
-      )) {
-        if (result.blockingError) blockingMessages.push(getTaskCompletedHookMessage(result.blockingError))
-      }
-      if (blockingMessages.length > 0) {
-        return failure(input.taskId, blockingMessages.join('\n'))
       }
     }
     if (input.status !== task.status) {

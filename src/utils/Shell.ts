@@ -9,7 +9,6 @@ import { getCwd } from './cwd.js'
 import { logForDebugging } from './debug.js'
 import { errorMessage, isENOENT } from './errors.js'
 import { getFsImplementation } from './fsOperations.js'
-import { onCwdChangedForHooks } from './hooks/fileChangedWatcher.js'
 import { logError } from './log.js'
 import { getMercuryTempDirName } from './permissions/filesystem.js'
 import { getPlatform } from './platform.js'
@@ -201,7 +200,6 @@ export async function exec(
             if (reported.normalize('NFC') !== before.normalize('NFC')) {
               setCwd(reported, before)
               invalidateSessionEnvCache()
-              void onCwdChangedForHooks(before, reported)
             }
           } catch (error) {
             logForDebugging(`engine cwd tracking: the session directory stays put — ${errorMessage(error)}`)
@@ -371,7 +369,6 @@ export async function exec(
         } else if (recorded.path.normalize('NFC') !== cwdBefore.normalize('NFC')) {
           setCwd(recorded.path, cwdBefore)
           invalidateSessionEnvCache()
-          void onCwdChangedForHooks(cwdBefore, recorded.path)
         }
       }
     } catch (error) {

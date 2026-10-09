@@ -4,9 +4,8 @@ import { isSessionRunArgv as isRunArgv } from '../cli/sessionArgs.js'
 import { onExit } from 'signal-exit'
 
 import { getIsScrollDraining } from '../bootstrap/state.js'
-import type { ExitReason } from './hooks/contract.js'
+import { HOOK_CUT_BUDGET_MS, SESSION_END_REASONS } from './hooks/contract.js'
 
-import type { AppState } from '../state/AppStateStore.js'
 import { runCleanupFunctions } from './cleanupRegistry.js'
 import { armInactivityDeadline } from './deadline.js'
 import { logForDebugging } from './debug.js'
@@ -17,12 +16,12 @@ import { profileReport } from './startupProfiler.js'
 
 
 export type GracefulShutdownOptions = {
-  getAppState?: () => AppState
-  setAppState?: (updater: (prev: AppState) => AppState) => void
   finalMessage?: string
 }
 
 const CLEANUP_TIMEOUT_MS = 2000
+export type SessionEndReason = (typeof SESSION_END_REASONS)[number]
+
 const FAILSAFE_FLOOR_MS = 5000
 const FAILSAFE_HOOK_MARGIN_MS = 3500
 const ORPHAN_CHECK_INTERVAL_MS = 30_000
@@ -438,7 +437,7 @@ export function isShuttingDown(): boolean {
 
 export async function gracefulShutdown(
   exitCode: number = 0,
-  reason: ExitReason = 'other',
+  reason: SessionEndReason = 'closed',
   options?: GracefulShutdownOptions,
 ): Promise<void> {
   if (shutdownInProgress) return
@@ -452,8 +451,7 @@ export async function gracefulShutdown(
     }
   }
 
-  const hooks = await import('./hooks.js')
-  const hookBudgetMs = hooks.getSessionEndHookTimeoutMs()
+  const hookBudgetMs = HOOK_CUT_BUDGET_MS
   failsafeTimer = setTimeout(() => {
     runTerminalRestoration()
     runResumeHint()
@@ -482,12 +480,14 @@ export async function gracefulShutdown(
   }
 
   try {
-    await hooks.executeSessionEndHooks(reason, {
-      getAppState: options?.getAppState,
-      setAppState: options?.setAppState,
-      signal: AbortSignal.timeout(hookBudgetMs),
-      timeoutMs: hookBudgetMs,
-    })
+    const { fireHooks } = await import('./hooks/fire.js')
+    const { endBackgroundHooks } = await import('./hooks/background.js')
+    const { getSessionId } = await import('../bootstrap/state.js')
+    const ended = await fireHooks('session.end', { reason }, { scope: { sessionId: String(getSessionId()) }, signal: AbortSignal.timeout(hookBudgetMs), budgetMs: hookBudgetMs })
+    for (const outcome of ended.outcomes) {
+      if (outcome.state.kind === 'failed') process.stderr.write(`${outcome.state.line}\n`)
+    }
+    await endBackgroundHooks()
   } catch {
   }
 
@@ -618,7 +618,7 @@ export async function drainPipedStdoutForExit(
 
 export function gracefulShutdownSync(
   exitCode: number = 0,
-  reason: ExitReason = 'other',
+  reason: SessionEndReason = 'closed',
   options?: GracefulShutdownOptions,
 ): void {
   process.exitCode = exitCode

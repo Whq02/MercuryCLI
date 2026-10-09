@@ -11,7 +11,10 @@ import {
   type AutoCompactTrackingState,
 } from '../services/compact/autoCompact.js'
 import { buildPostCompactMessages } from '../services/compact/compact.js'
-import { projectTimeBasedMicrocompact } from '../services/compact/microCompact.js'
+import { estimateContextTokens, projectTimeBasedMicrocompact } from '../services/compact/microCompact.js'
+import { fireHooks } from '../utils/hooks/fire.js'
+import { hookRowsOfResult } from '../utils/hooks/rows.js'
+import { getSessionId } from '../bootstrap/state.js'
 import {
   classifyThinkingDrops,
   createDeadThinkingAttachment,
@@ -71,7 +74,7 @@ import {
 import { ImageSizeError } from '../utils/imageValidation.js'
 import { ImageResizeError, imagesLeftOutMarked, imagesLeftOutNoticeLine, takeImagesLeftOutReceipt } from '../utils/imageResizer.js'
 import { describeInvalidArgTypeError } from '../utils/errors.js'
-import { advanceToolCallChain, findToolByName, readToolCallChain, type ToolCallChain, type ToolUseContext } from '../Tool.js'
+import { advanceToolCallChain, findToolByName, type ToolCallChain, type ToolUseContext } from '../Tool.js'
 import {
   effortAdjustedReceiptLine,
   isTurnOwningQuerySource,
@@ -151,8 +154,6 @@ import {
 } from '../utils/tokens.js'
 import { getTotalCostUSD } from '../bootstrap/state.js'
 import { SLEEP_TOOL_NAME } from '../tools/SleepTool/prompt.js'
-import { executePostSamplingHooks } from '../utils/hooks/postSamplingHooks.js'
-import { executeInterruptHooks, executeStopFailureHooks } from '../utils/hooks.js'
 import type { QuerySource } from '../constants/querySource.js'
 import { runTools } from '../services/tools/toolOrchestration.js'
 import { emitCompactionTrace } from '../utils/observability/invocationTrace.js'
@@ -162,7 +163,7 @@ import { buildRequestContextPlan, reconcileAppliedPlanUsage, type RequestContext
 import { calibrationKeyFor } from '../services/run/contextCalibration.js'
 import { declaredRouteOf } from '../services/providers/callModelRouter.js'
 import { streamEndReceiptLine } from '../services/providers/streamIdleBudget.js'
-import { interruptedToolsLine, turnCutOf, turnCutResultText, turnCutWhy } from '../utils/messages/rejectionText.js'
+import { interruptedToolsLine, turnCutOf, turnCutResultText } from '../utils/messages/rejectionText.js'
 import { ownerFromToolUseContext, rosterOwnerFromToolUseContext } from '../services/run/resolveOwner.js'
 import { recordSentRequest } from '../utils/forkedAgent.js'
 import { emptyReplyKindOf, emptyReplyNoticeLine } from '../services/providers/emptyReply.js'
@@ -318,24 +319,6 @@ function* emitSyntheticSettlements(
       })
     }
   }
-}
-
-function fireInterruptHooks(
-  toolUseContext: ToolUseContext,
-  toolUseBlocks: readonly ToolUseBlock[],
-): void {
-  const cut = turnCutOf(toolUseContext.abortController.signal.reason)
-  const why = turnCutWhy(cut)
-  void executeInterruptHooks(
-    {
-      turnId: readToolCallChain(toolUseContext)?.key ?? '',
-      reason: cut.kind,
-      ...(why !== null ? { detail: why } : {}),
-      tools: toolUseBlocks.map(block => block.name),
-    },
-    toolUseContext,
-    toolUseContext.getAppState().toolPermissionContext.mode,
-  )
 }
 
 
@@ -979,6 +962,18 @@ export async function* runEventCore(
     )
     let messagesForQuery = requestPlan.messages
     const prunedTokensFreed = Math.max(0, requestPlan.reductions.pressurePruned?.tokensSaved ?? 0)
+    const clearedByDigest = (requestPlan.reductions.pressurePruned?.cleared ?? 0) + requestPlan.reductions.timeBasedCleared
+    if (clearedByDigest > 0) {
+      const digested = await fireHooks(
+        'compaction.after',
+        { method: 'digest', trigger: pendingOverflow?.rung === 'prune' ? 'overflow' : 'auto', tokens_before: estimateContextTokens(messages), tokens_after: estimateContextTokens(messagesForQuery) },
+        { scope: { sessionId: String(getSessionId()), ...(toolUseContext.agentId !== undefined ? { crewmateId: toolUseContext.agentId } : {}) }, signal: toolUseContext.abortController.signal, toolUseContext },
+      )
+      for (const row of hookRowsOfResult(digested)) yield emit({ kind: 'attachment', message: createAttachmentMessage(row) })
+      if (digested.answer.contexts.length > 0) {
+        messagesForQuery = [...messagesForQuery, ...digested.answer.contexts.map(words => createUserMessage({ content: words, isMeta: true }))]
+      }
+    }
     const deadThinkingRecords: AttachmentMessage[] = []
     {
       const known = deadThinkingMarks(messages)
@@ -1264,16 +1259,6 @@ export async function* runEventCore(
     const { assistantMessages, toolResults, toolUseBlocks } = iter
     const refusedToolCalls = collectRefusedToolCalls(assistantMessages)
 
-    if (assistantMessages.length > 0) {
-      void executePostSamplingHooks(
-        [...messagesForQuery, ...assistantMessages],
-        systemPrompt,
-        userContext,
-        systemContext,
-        toolUseContext,
-        querySource,
-      )
-    }
 
     if (toolUseContext.abortController.signal.aborted) {
       const cutReason = toolUseContext.abortController.signal.reason
@@ -1290,7 +1275,6 @@ export async function* runEventCore(
         steer,
         message: steer ? null : createUserInterruptionMessage({ toolUse: false, reason: cutReason }),
       })
-      fireInterruptHooks(toolUseContext, toolUseBlocks)
       const terminal: Terminal = { reason: 'aborted_streaming' }
       yield emit({ kind: 'run_terminal', terminal })
       return terminal
@@ -1707,7 +1691,6 @@ export async function* runEventCore(
         if (sizeWarning !== null) {
           yield emit({ kind: 'notice', message: createSystemMessage(sizeWarning, 'warning') })
         }
-        void executeStopFailureHooks(lastMessage, toolUseContext)
         const terminal: Terminal = { reason: 'completed' }
         yield emit({ kind: 'run_terminal', terminal })
         return terminal
@@ -1728,7 +1711,6 @@ export async function* runEventCore(
       )
 
       if (stopHookResult.preventContinuation) {
-        if (toolUseContext.abortController.signal.aborted) fireInterruptHooks(toolUseContext, [])
         const terminal: Terminal = { reason: 'stop_hook_prevented' }
         yield emit({ kind: 'run_terminal', terminal })
         return terminal
@@ -1829,7 +1811,8 @@ export async function* runEventCore(
 
         if (
           update.message.type === 'attachment' &&
-          update.message.attachment.type === 'hook_stopped_continuation'
+          update.message.attachment.type === 'hook' &&
+          update.message.attachment.outcome === 'stop'
         ) {
           shouldPreventContinuation = true
         }
@@ -1916,7 +1899,6 @@ export async function* runEventCore(
         kind: 'notice',
         message: createSystemMessage(interruptedToolsLine(toolUseBlocks.map(block => block.name)), 'warning'),
       })
-      fireInterruptHooks(toolUseContext, toolUseBlocks)
       const nextTurnCountOnAbort = turnCount + 1
       if (
         maxTurns !== undefined &&

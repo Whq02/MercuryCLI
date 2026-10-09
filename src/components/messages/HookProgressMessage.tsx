@@ -1,4 +1,3 @@
-
 import React from 'react'
 import { Text } from '../../ink.js'
 import type { HookEvent } from '../../utils/hooks/contract.js'
@@ -16,26 +15,19 @@ export function HookProgressMessage({
   lookups: MessageLookups
   isTranscriptMode?: boolean
 }): React.ReactNode {
-  const inProgress =
-    lookups.inProgressHookCounts.get(toolUseID)?.get(hookEvent) ?? 0
-  if (inProgress === 0) return null
-  const resolved =
-    lookups.resolvedHookCounts.get(toolUseID)?.get(hookEvent) ?? 0
-
-  if (hookEvent === 'PreToolUse' || hookEvent === 'PostToolUse') {
-    if (!isTranscriptMode) return null
+  const running = lookups.inProgressHookCounts.get(toolUseID)?.get(hookEvent) ?? 0
+  const ran = lookups.resolvedHookCounts.get(toolUseID)?.get(hookEvent) ?? 0
+  if (running > ran) {
     return (
       <Text dimColor>
-        Ran {inProgress} <Text bold>{hookEvent}</Text>{' '}
-        {plural(inProgress, 'hook')}
+        running {running} <Text bold>{hookEvent}</Text> {plural(running, 'hook')}…
       </Text>
     )
   }
-
-  if (resolved >= inProgress) return null
+  if (ran === 0 || !isTranscriptMode) return null
   return (
     <Text dimColor>
-      Running <Text bold>{hookEvent}</Text> {plural(inProgress, 'hook')}…
+      ran {ran} <Text bold>{hookEvent}</Text> {plural(ran, 'hook')}
     </Text>
   )
 }
