@@ -1,4 +1,4 @@
-import type { Row, SessionRow, ToolCallRow, ToolResultRow, OutcomeRow, TaskRow, CompactionRow } from '../../rows/vocabulary.js'
+import type { SessionRow, ToolCallRow, ToolResultRow, OutcomeRow, TaskRow, CompactionRow } from '../../rows/vocabulary.js'
 import { taskRow, type RowScope, type Unstamped } from '../../rows/project.js'
 import type { HookExecutionEvent } from './hookEvents.js'
 import type { HookEvent } from './contract.js'
@@ -76,5 +76,3 @@ export async function* runHookInput(options: Parameters<typeof import('./engine.
   }
   yield* runHookEvent({ ...run, event, fields: facts, sessionId: session_id, cwd, transcriptPath: transcript_path })
 }
-
-export type HookRowSink = (row: Unstamped<Extract<Row, { type: 'task' }>>) => void

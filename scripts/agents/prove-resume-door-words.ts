@@ -11,7 +11,6 @@ const expectations: Array<[string, string[]]> = [
   ['src/tasks/LocalAgentTask/LocalAgentTask.tsx', ['resume it from the crew view (r on its row) or by ResumeAgent to its id']],
   ['src/services/agentResults/lifecycle.ts', ['ResumeAgent revives it from its transcript with your message', 'ResumeAgent revives it warm (the prompt cache still holds its prefix)', 'ResumeAgent revives it (cold replay)']],
   ['src/tasks/stopTask.ts', ['; ResumeAgent to that id resumes it']],
-  ['src/utils/crew/crewStart.ts', ['the address SendMessage, ResumeAgent and the crew view use', 'addressable by SendMessage and ResumeAgent:']],
   ['src/utils/messages/attachmentText.ts', ['resume it: ${RESUME_AGENT_TOOL_NAME} to "${row.address}"', '${SEND_MESSAGE_TOOL_NAME} reaches a running crewmate and ${RESUME_AGENT_TOOL_NAME} gives any one a new turn, by the id or name shown']],
   ['src/skills/bundled/loop.ts', ['and a one-line outcome as the last line of your reply — skip it when the user themselves just said stop.', 'and a one-line outcome as the last line of your reply (skipped when the user just asked for the stop).']],
   ['src/services/loopFire.ts', ["Say so in one line of your reply when the loop can't move further without the user, or when something landed that they'd want to act on now:"]],

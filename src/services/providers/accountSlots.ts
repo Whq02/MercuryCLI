@@ -97,7 +97,7 @@ import {
   type ProviderFamilyReads,
 } from './providerUsage.js'
 
-export type AccountSlotKind = 'oauth' | 'subscription' | 'api-key'
+type AccountSlotKind = 'oauth' | 'subscription' | 'api-key'
 
 export type SlotRemoval =
   | { route: 'anthropic-oauth'; dir: string }

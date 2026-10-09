@@ -190,8 +190,6 @@ export type OutputMeta = {
   effort?: EffortStampV1
 }
 
-export type RecordKind = RecordPayload['kind']
-
 
 export type MercuryRecord = {
   schemaVersion: number

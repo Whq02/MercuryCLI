@@ -260,12 +260,6 @@ async function getWorktreeCount(): Promise<number> {
   return getWorktreeCountFromFs()
 }
 
-export function isLinkedWorktree(startPath: string): boolean {
-  const root = findGitRoot(startPath)
-  if (!root) return false
-  return findCanonicalGitRoot(root) !== root
-}
-
 
 const PROBE_FLOOR_MS = 60_000
 const PROBE_BACKOFF_FACTOR = 4

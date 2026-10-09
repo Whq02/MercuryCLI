@@ -1,5 +1,4 @@
 
-import type { MercuryThemeTokens } from '../../utils/mercuryTokens.js'
 
 export type ToolFamily =
   | 'shell'
@@ -123,11 +122,4 @@ export function toolFamilyFor(toolName: string): ToolFamily {
 
 export function toolMarkFor(toolName: string): ToolFamilyMark {
   return TOOL_FAMILY_MARKS[toolFamilyFor(toolName)]
-}
-
-export function toolToneFor(
-  toolName: string,
-  tokens: MercuryThemeTokens,
-): string {
-  return tokens[toolMarkFor(toolName).tone]
 }

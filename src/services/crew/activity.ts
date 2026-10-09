@@ -53,7 +53,7 @@ export interface ActivityInput {
   conversationId?: string
 }
 
-export interface ActivityClassifier {
+interface ActivityClassifier {
   name: string
   precedence: number
   matches(input: ActivityInput): boolean

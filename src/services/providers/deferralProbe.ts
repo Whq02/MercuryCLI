@@ -101,7 +101,7 @@ export interface GatewayProbeAnswer {
   bodyText: string
 }
 
-export type GatewayProbeClassification =
+type GatewayProbeClassification =
   | { kind: 'verdict'; verdict: GatewayProbeVerdict; evidence: string }
   | { kind: 'indeterminate'; reason: 'auth-refused' | 'unreachable' | 'other-status'; evidence: string }
 

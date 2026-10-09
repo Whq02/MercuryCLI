@@ -5,7 +5,3 @@ export function getQuerySourceForAgent(agentType: string | undefined, isBuiltInA
   if (isBuiltInAgent) return agentType ? `agent:builtin:${agentType}` : 'agent:default'
   return 'agent:custom'
 }
-
-export function getQuerySourceForChat(): QuerySource {
-  return 'main_thread'
-}

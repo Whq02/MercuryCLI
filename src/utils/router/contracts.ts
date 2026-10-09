@@ -213,15 +213,6 @@ export type RouteCompileResult =
   | { ok: true; plan: TaskRoutePlan }
   | { ok: false; refusal: RouteRefusal }
 
-export interface EnvelopeRouteHeader {
-  planId: string
-  nodeId: string
-  revision: number
-  attempt: number
-  model?: string
-  effort?: string
-}
-
 export function stableDigest(value: unknown): string {
   const canon = (v: unknown): unknown => {
     if (Array.isArray(v)) return v.map(canon)

@@ -68,7 +68,7 @@ export interface ExternalSeatTransport {
   detach(): Promise<void>
 }
 
-export interface AttachedSeat {
+interface AttachedSeat {
   seatId: string
   agentId: CrewAgentId
   adapterKind: string

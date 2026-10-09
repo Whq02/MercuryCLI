@@ -80,7 +80,7 @@ export function seatFamilyChoices(): SeatFamilyChoiceV1[] {
   }
 }
 
-export function familySeatSetting(family: string): string | undefined {
+function familySeatSetting(family: string): string | undefined {
   return seatFamilyChoices().find(c => c.family === family)?.setting
 }
 
