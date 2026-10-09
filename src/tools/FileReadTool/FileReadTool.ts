@@ -475,7 +475,7 @@ async function friendlyNotFoundError(requestedPath: string, expandedPath: string
     const similar = findSimilarFile(expandedPath)
     if (similar !== undefined) suggestion = similar
   }
-  let message = `File does not exist. ${FILE_NOT_FOUND_CWD_NOTE} ${getCwd()}.`
+  let message = `There is no file at that path. ${FILE_NOT_FOUND_CWD_NOTE} ${getCwd()}.`
   if (suggestion) message += ` Did you mean ${suggestion}?`
   return new Error(message)
 }
