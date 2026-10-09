@@ -33,6 +33,7 @@ const PROVIDER_DISPLAY_NAMES: Record<CallModelRoute, string> = {
   gemini: 'Gemini',
   huggingface: 'Hugging Face',
   local: 'Local models',
+  zen: 'OpenCode Zen',
 }
 
 export function providerDisplayName(route: string): string {
