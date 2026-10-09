@@ -115,7 +115,7 @@ export const WebSearchTool = buildTool({
     if (input.allowed_domains?.length && input.blocked_domains?.length) {
       return {
         result: false as const,
-        message: 'Error: Cannot specify both allowed_domains and blocked_domains in the same request',
+        message: 'allowed_domains and blocked_domains exclude each other; pass one of them',
         errorCode: 2,
       }
     }
