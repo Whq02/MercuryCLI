@@ -16,6 +16,7 @@ import { storeXaiApiKeyLogin, storeXaiManagementKeyLogin, runXaiDeviceLogin, XAI
 import { resolveXaiApiKey } from '../services/providers/xai/xaiAccounts.js';
 import { XAI_MANAGEMENT_KEY_PAGE } from '../services/providers/xai/xaiUsageState.js';
 import { storeMetaApiKeyLogin } from '../services/providers/meta/metaLogin.js';
+import { storeNousApiKeyLogin } from '../services/providers/nous/nousLogin.js';
 import {
   runKimiDeviceLogin,
   storeMoonshotApiKeyLogin,
@@ -436,7 +437,8 @@ export type FaceKeyLegId =
   | 'moonshot-key'
   | 'hf-token'
   | 'openrouter-key'
-  | 'gemini-key';
+  | 'gemini-key'
+  | 'nous';
 
 export function geminiPickOptions(facts: GeminiConnectFacts): Array<{ label: string; value: string }> {
   return geminiConnectRows(facts);
@@ -521,6 +523,8 @@ export function keyLegTitle(leg: FaceKeyLegId): string {
       return zaiPlanLabel('coding');
     case 'meta':
       return 'Meta Model API key';
+    case 'nous':
+      return 'Nous Portal API key';
     case 'deepseek':
       return 'DeepSeek API key';
     case 'xai':
@@ -547,6 +551,8 @@ export function keyLegStoreLine(leg: FaceKeyLegId): string {
       return 'Stored auth-scoped (mode 600), never logged; ZAI_API_KEY wins over the store.';
     case 'meta':
       return 'Stored auth-scoped (mode 600); MODEL_API_KEY, then META_API_KEY, wins. Pay-as-you-go; not a Muse Code plan.';
+    case 'nous':
+      return 'Stored auth-scoped (mode 600), never logged; NOUS_API_KEY wins over the store. Bills the Portal credits or subscription behind the key.';
     case 'deepseek':
       return 'Proven on the balance endpoint first; stored auth-scoped (mode 600); DEEPSEEK_API_KEY wins.';
     case 'xai':
@@ -574,6 +580,8 @@ export function keyLegGuardOpts(leg: FaceKeyLegId): { stores: string; looksLike?
       return { stores: `a ${zaiPlanLabel('coding')}` };
     case 'meta':
       return { stores: 'a Meta Model API key' };
+    case 'nous':
+      return { stores: 'a Nous Portal API key' };
     case 'deepseek':
       return { stores: 'a DeepSeek API key' };
     case 'xai':
@@ -601,6 +609,7 @@ export function keyPromptPaneLines(leg: FaceKeyLegId, note: string | null, draft
   if (leg === 'xai' && note === null) lines.push(...wrapClauses(keyPageLine('xai'), DETAIL_W));
   if (leg === 'xai-management' && note === null) lines.push(...wrapPlain(XAI_MANAGEMENT_KEY_PAGE, DETAIL_W));
   if (leg === 'meta' && note === null) lines.push(...wrapClauses(keyPageLine('meta'), DETAIL_W));
+  if (leg === 'nous' && note === null) lines.push(...wrapClauses(keyPageLine('nous'), DETAIL_W));
   lines.push(...wrapPlain(keyLegStoreLine(leg), DETAIL_W));
   lines.push(maskedDraftLine(draftLen).replace('code:', 'key:'));
   if (note !== null) {
@@ -1246,6 +1255,9 @@ export function BootLoginsScreen({ onClose, onSignedIn, family, fullScene, facts
       case 'meta':
         setFlow({ kind: 'key', leg: 'meta', note: null, storing: false });
         return;
+      case 'nous':
+        setFlow({ kind: 'key', leg: 'nous', note: null, storing: false });
+        return;
       case 'deepseek':
         setFlow({ kind: 'key', leg: 'deepseek', note: null, storing: false });
         return;
@@ -1363,6 +1375,7 @@ export function BootLoginsScreen({ onClose, onSignedIn, family, fullScene, facts
     else if (leg === 'xai') void storeXaiApiKeyLogin(value).then(settle);
     else if (leg === 'xai-management') void storeXaiManagementKeyLogin(value).then(settle);
     else if (leg === 'meta') void storeMetaApiKeyLogin(value).then(settle);
+    else if (leg === 'nous') void storeNousApiKeyLogin(value).then(outcome => settle({ ok: outcome.ok, stored: outcome.stored, receipt: outcome.receipt }));
     else if (leg === 'moonshot-key')
       void storeMoonshotApiKeyLogin(value).then(outcome => settle({ ok: outcome.ok, stored: outcome.stored, receipt: outcome.receipt }));
     else if (leg === 'hf-token') void storeHuggingfaceTokenLogin(value).then(settle);
