@@ -23,7 +23,8 @@ async function validateNonAnthropicModel(
     | 'openrouter'
     | 'gemini'
     | 'huggingface'
-    | 'local',
+    | 'local'
+    | 'mistral',
   trimmed: string,
 ): Promise<ValidateModelResult & { skipCache?: boolean }> {
   if (route !== 'openrouter') {
@@ -165,6 +166,21 @@ async function validateNonAnthropicModel(
     if (id === 'muse') return newestMetaModel() ? { valid: true, skipCache: true } : { valid: false, error: "Meta's live list has not served a Standard Muse Spark model for 'muse' yet — /model refreshes it. Contributor models must be selected explicitly." }
     if (!isMetaChatModelId(id)) return { valid: false, error: 'This Meta model is not on the supported Muse Spark chat road.' }
     if (snapshot?.fetchedAtMs && !snapshot.models.some(row => row.id.toLowerCase() === id)) return { valid: false, error: `Model "${trimmed}" is not listed by the Meta account's live catalogue.` }
+    return { valid: true, skipCache: true }
+  }
+  if (route === 'mistral') {
+    const { resolveMistralAccount } = await import('../../services/providers/mistral/mistralAccounts.js')
+    if (!resolveMistralAccount()) return { valid: false, error: 'Mistral is unavailable — no API key (/logins mistral, or set MISTRAL_API_KEY).' }
+    const { readCatalogueIfPending } = await import('../../services/providers/catalogueOnDemand.js')
+    await readCatalogueIfPending('mistral')
+    const { getCachedMistralCatalogue, mistralListedModel, newestMistralModel } = await import('../../services/providers/mistral/mistralCatalogue.js')
+    const { isMistralChatModelId } = await import('../../services/providers/mistral/mistralPins.js')
+    const snapshot = getCachedMistralCatalogue()
+    const id = trimmed.toLowerCase()
+    if (snapshot?.lastError?.includes('refused the credential')) return { valid: false, error: `${snapshot.lastError} — /logins mistral replaces the key.` }
+    if (id === 'mistral') return newestMistralModel() ? { valid: true, skipCache: true } : { valid: false, error: "Mistral's live list has not served a chat model for 'mistral' yet — /model refreshes it." }
+    if (!isMistralChatModelId(id)) return { valid: false, error: 'This Mistral model is not on the chat-completions road.' }
+    if (snapshot?.fetchedAtMs && !mistralListedModel(snapshot, id)) return { valid: false, error: `Model "${trimmed}" is not listed by the Mistral account's live catalogue.` }
     return { valid: true, skipCache: true }
   }
   if (route === 'deepseek') {
