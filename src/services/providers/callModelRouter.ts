@@ -135,11 +135,11 @@ export const routedCallModel: typeof queryModelWithStreaming = async function* (
     case 'local':
       yield* localCallModel(request)
       return
-    case 'zen':
-      yield* zenCallModel(request)
-      return
     case 'anthropic':
       yield* homeLaneCall(request)
+      return
+    case 'zen':
+      yield* zenCallModel(request)
       return
   }
 }
