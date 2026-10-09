@@ -75,21 +75,21 @@ export async function getQueuedCommandAttachments(
   )
 }
 
+const coordinatorCommand = (prompt: string): Attachment => ({
+  type: 'queued_command',
+  prompt,
+  origin: { kind: 'coordinator' },
+  isMeta: true,
+})
+
 export function getAgentPendingMessageAttachments(
   toolUseContext: ToolUseContext,
 ): Attachment[] {
-  const agentId = toolUseContext.agentId
+  const { agentId, getAppState, setAppStateForTasks, setAppState } = toolUseContext
   if (!agentId) return []
-  const drained = drainPendingMessages(
-    agentId,
-    toolUseContext.getAppState,
-    toolUseContext.setAppStateForTasks ?? toolUseContext.setAppState,
-  )
-  return drained.map(msg => ({
-    type: 'queued_command' as const,
-    prompt: msg,
-    origin: { kind: 'coordinator' as const },
-    isMeta: true,
+  return drainPendingMessages(agentId, getAppState, setAppStateForTasks ?? setAppState).map(coordinatorCommand)
+}
+
 const imagePastesOf = (pasted: Record<number, PastedContent> | undefined): PastedContent[] =>
   pasted ? Object.values(pasted).filter(isValidImagePaste) : []
 
@@ -101,9 +101,6 @@ const pastedImageBlock = (paste: PastedContent): ImageBlockParam => ({
     data: paste.content,
   },
 })
-
-  }))
-}
 
 async function buildImageContentBlocks(
   pastedContents: Record<number, PastedContent> | undefined,
