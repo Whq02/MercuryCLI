@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 # gate-class: pty
-# gate-env: MERCURY_DRIVE_JOBS
 # gate-watch: scripts/mission-runner/** scripts/lib/rows.ts
 # gate-watch: src/services/mission/** src/services/resources/adapters/mission.ts
 # gate-watch: src/substrate/routerOutcomeStore.ts src/substrate/routerRunStore.ts

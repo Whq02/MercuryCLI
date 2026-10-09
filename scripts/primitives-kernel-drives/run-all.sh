@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 # gate-class: pty
-# gate-env: MERCURY_DRIVE_JOBS
 # gate-watch: src/components/mercury-ui/toolCardGrammar* src/ink/**
 # gate-watch: src/services/agentResults/normalize* src/services/changeTransaction/receipts*
 # gate-watch: src/services/changeTransaction/snapshotAnchor* src/services/dap/dapClient*

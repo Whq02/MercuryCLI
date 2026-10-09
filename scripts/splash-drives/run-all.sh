@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 # gate-class: pty
-# gate-env: MERCURY_DRIVE_JOBS
 # gate-watch: assets/splash/** scripts/ui/vshot.py src/substrate/startupMenu*
 # gate-watch: scripts/splash/prove-splash.py
 set -uo pipefail

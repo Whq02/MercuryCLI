@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 # gate-class: pty
-# gate-env: MERCURY_DRIVE_JOBS
 # gate-env: MERCURY_SHELL_ENGINE
 # gate-watch: src/utils/shell/** scripts/bash/prove-shell-engine-drive.ts build.ts
 # gate-watch: scripts/bash/prove-session-shell-guard-drive.ts src/daemon/ownedDaemon.ts src/substrate/envStamps.ts scripts/lib/suite-env.sh

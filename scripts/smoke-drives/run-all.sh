@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 # gate-class: pty
-# gate-env: MERCURY_DRIVE_JOBS
 # gate-watch: build.ts src/**
 # gate-watch: scripts/smoke/mount-smoke.py
 set -uo pipefail

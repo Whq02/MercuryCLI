@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 # gate-class: pty
-# gate-env: MERCURY_DRIVE_JOBS
 # gate-watch: src/cli/healthJson* src/services/dap/dapClient* src/services/run/ownerLifecycle*
 # gate-watch: src/substrate/startupMenu* src/utils/**
 # gate-watch: scripts/health/* scripts/lib/* scripts/ui/renderScenarios.ts scripts/ui/vshot.py

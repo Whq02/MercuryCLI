@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 # gate-class: pty
-# gate-env: MERCURY_DRIVE_JOBS
 # gate-watch: src/bootstrap/state* src/services/mcp/** src/state/AppState* src/utils/Shell*
 # gate-watch: src/utils/config/** src/utils/mcp/elicitationValidation*
 # gate-watch: scripts/lib/captureDriver.ts scripts/lib/firstRunSeed.ts scripts/mcp/_fixture-stdio-server.mjs

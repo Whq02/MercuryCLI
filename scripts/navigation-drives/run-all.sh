@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 # gate-class: pty
-# gate-env: MERCURY_DRIVE_JOBS
 # gate-watch: scripts/streaming/ptydrive.py scripts/ui/render-tui.ts scripts/ui/vshot.py
 # gate-watch: src/components/mercury-ui/** src/context/overlayStack* src/ink/events/input-event*
 # gate-watch: src/ink/input/input-decoder* src/ink/stringWidth*

@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 # gate-class: pty
-# gate-env: MERCURY_DRIVE_JOBS
 # gate-watch: src/components/mercury-ui/sessionAccent* src/utils/config/**
 # gate-watch: src/utils/cockpit/**
 # gate-watch: src/components/MercuryHome.tsx src/components/MercuryFrame.tsx src/components/MercuryTurnRollup.tsx src/commands/critter/** src/utils/settings/types.ts

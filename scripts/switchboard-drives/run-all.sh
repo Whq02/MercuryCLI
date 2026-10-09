@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 # gate-class: pty
-# gate-env: MERCURY_DRIVE_JOBS
 # gate-env: MERCURY_CLOSE_CHORD_KEEP MERCURY_SOVEREIGN_DRIVE_CAPTURE_DIR
 # gate-watch: scripts/switchboard/**
 # gate-watch: src/services/concourse/** src/components/concourse/** src/daemon/concourseWorkers.ts

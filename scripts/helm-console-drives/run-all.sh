@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 # gate-class: pty
-# gate-env: MERCURY_DRIVE_JOBS
 # gate-watch: scripts/ui/render-tui.ts scripts/ui/vshot.py src/components/mercury-ui/glyphs*
 # gate-watch: src/constants/spinnerVerbs* src/utils/cockpit/**
 # gate-watch: scripts/helm-console/prove-console-render.ts

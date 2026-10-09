@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 # gate-class: pty
-# gate-env: MERCURY_DRIVE_JOBS
 # gate-watch: src/rows/turn.ts src/boot/launchGraph* src/bootstrap/state* src/cli/headless/**
 # gate-watch: src/cli/run* src/components/App* src/constants/betas* src/constants/oauth*
 # gate-watch: src/ink/** src/input-core/command-queue*

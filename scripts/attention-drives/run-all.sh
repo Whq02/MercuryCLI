@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 # gate-class: pty
-# gate-env: MERCURY_DRIVE_JOBS
 # gate-watch: scripts/attention/**
 # gate-watch: src/services/attention/** src/services/workbench/** src/input-core/**
 # gate-watch: src/utils/sideQuestion.ts src/services/acp/** src/components/tasks/**

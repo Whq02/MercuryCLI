@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 # gate-class: pty
-# gate-env: MERCURY_DRIVE_JOBS
 # gate-watch: scripts/notifications/**
 # gate-watch: scripts/notifications/**
 # gate-watch: src/services/crew/**
