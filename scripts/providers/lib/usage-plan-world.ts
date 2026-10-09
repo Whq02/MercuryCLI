@@ -166,7 +166,7 @@ export async function usagePlanWorld() {
     otherSessionRunnerPids: () => new Set(),
     focusedSessionIdOrNull: () => null,
   })
-  await stub('src/state/telemetryBus.ts', { useTelemetry: () => ({ trace: null, workflowsDisk: [] }) })
+  await stub('src/state/vitalsBus.ts', { useVitals: () => ({ trace: null, workflowsDisk: [] }) })
   await stub('src/utils/cockpit/healthCertSnapshot.ts', { healthCertSnapshot: () => ({ state: 'unavailable' }) })
   let size = { columns: 178, rows: 51 }
   await stub('src/hooks/useTerminalSize.ts', { useTerminalSize: () => size })

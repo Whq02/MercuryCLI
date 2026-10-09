@@ -11,7 +11,7 @@ NEXT                    │ │ orchard · 59 settings · 0 set by you          
 FILES · orchard         │ │   Session concourse                 on                                                   │ │
   ↵ or click · browse   │ │   Seats                             17 · this machine's reading                          │ │
                         │ │   Tips                              on                                                   │ │
-TELEMETRY               │ │   Reduced motion                    off                                                  │ │
+VITALS                  │ │   Reduced motion                    off                                                  │ │
   · spend —             │ │   Ping                              on                                                   │ │
   · ctx — · —           │ │   Account identity                  shown                                                │ │
   · health — run /health│ │   Motion                            auto · off                                           │ │

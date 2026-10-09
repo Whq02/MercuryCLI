@@ -26,7 +26,7 @@ const HOLES = /\$\{[^}]*\}/g
 const FILES = [
   'src/components/mercury-ui/screens/CrewView.tsx',
   'src/components/HelmLanesRail.tsx',
-  'src/components/HelmTelemetryRail.tsx',
+  'src/components/HelmVitalsRail.tsx',
   'src/components/tasks/BackgroundTasksDialog.tsx',
   'src/components/tasks/AsyncAgentDetailDialog.tsx',
   'src/components/tasks/taskStatusUtils.tsx',
@@ -44,7 +44,7 @@ const FILES = [
   'src/services/engine-connector/workCounts.ts',
   'src/services/engine-connector/crewFacts.ts',
   'src/utils/cockpit/fleetGauge.ts',
-  'src/state/telemetryBus.ts',
+  'src/state/vitalsBus.ts',
   'src/utils/healthReport.ts',
 ]
 

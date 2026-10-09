@@ -313,7 +313,7 @@ section('(6) the gather path spawns nothing synchronously; one gather per change
   check('the gather names no sync spawn', !/execFileSync|spawnSync|execSync\(/.test(src))
   check('the lane list rides the git-facts owner (async)', src.includes('await getGitWorktreeLanes()'))
   check('the generation reads the owner\'s snapshot, not a rail one refresh behind', src.includes("await getGitState({ untrackedFiles: 'normal' })"))
-  check('the engine no longer subscribes to the telemetry bus', !src.includes('subscribeTelemetry('))
+  check('the engine no longer subscribes to the vitals bus', !src.includes('subscribeVitals('))
   check('the engine subscribes to the git-facts owner', src.includes('engineUnsubs.push(subscribeGitFacts(() => scheduleDebounced()))'))
 
   const { execFileSync: realExecFileSync } = await import('node:child_process')

@@ -192,7 +192,7 @@ if (rowA >= 0 && rowB >= 0) {
   console.log('\n── C. chrome header hover: ink only, click opens, draft survives ──')
   const W = 160
   const H = 50
-  const RIGHT_START = W - railPlanAt(W, true).telemetryW
+  const RIGHT_START = W - railPlanAt(W, true).vitalsW
   const REST_FG = OASIS.slice(1).toLowerCase()
   const HOVER_FG = lerpHex(OASIS, IVORY, 0.4).slice(1).toLowerCase()
   const rightBandFills = (grid: Cell[][]): number[] => {

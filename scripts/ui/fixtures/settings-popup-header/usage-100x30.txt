@@ -8,7 +8,7 @@ NEXT                │ │ API usage session on · 0 subscriptions signed in   
 FILES · orchard     │ │ API key · …-key                                                          │ │
   ↵ or click · brow…│ │ credits: not reported by the provider                                    │ │
                     │ │                                                                          │ │
-TELEMETRY           │ │ Subscription                                                             │ │
+VITALS              │ │ Subscription                                                             │ │
   · spend —         │ │ none — /logins anthropic connects a subscription account · n/a           │ │
   · ctx — · —       │ │                                                                          │ │
   · health — run /h…│ │ API key                                                                  │ │

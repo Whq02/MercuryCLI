@@ -8,7 +8,7 @@ NEXT                │ │ orchard · 59 settings · 0 set by you              
 FILES · orchard     │ │                                                                          │ │
   ↵ or click · brow…│ │ › Auto-compact                      on                                   │ │
                     │ │   Auto-compact window               auto                                 │ │
-TELEMETRY           │ │   Session concourse                 on                                   │ │
+VITALS              │ │   Session concourse                 on                                   │ │
   · spend —         │ │   Seats                             17 · this machine's reading          │ │
   · ctx — · —       │ │   Tips                              on                                   │ │
   · health — run /h…│ │   Reduced motion                    off                                  │ │

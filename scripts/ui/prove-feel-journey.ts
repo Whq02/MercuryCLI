@@ -33,7 +33,7 @@ const text = g.grid.map(row => row.map(c => c.c ?? '').join('')).join('\n')
 check('the prompt draft survived the overlay', text.includes('draft survives overlays'))
 check('the appearance center is CLOSED (Esc unwound it)', !text.includes('The Mercury appearance'))
 check('the removed families never paint (dark-only reach)', !text.includes('colorblind-friendly') && !text.includes('ANSI colors only') && !/\bLight\b/.test(text))
-check('the transcript chrome is intact (the pane\'s top border beside the lanes label + cockpit rail), no title row', /\blanes\b[^\n]*╭/.test(text) && !text.includes('✶ VIEW') && text.includes('TELEMETRY'))
+check('the transcript chrome is intact (the pane\'s top border beside the lanes label + cockpit rail), no title row', /\blanes\b[^\n]*╭/.test(text) && !text.includes('✶ VIEW') && text.includes('VITALS'))
 
 console.log('\n' + '═'.repeat(76))
 if (failures === 0) console.log('✅ FEEL-JOURNEY PROOF PASSES')

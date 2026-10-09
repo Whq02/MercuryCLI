@@ -304,7 +304,7 @@ export type LanesSectionSpec = {
 
 export type LanesInput = {
   width: number
-  mergedTelemetry: boolean
+  mergedVitals: boolean
   availRows: number | undefined
   activity: ActivityState
   cursorRow: HelmRow | undefined
@@ -362,7 +362,7 @@ export function shedPointerOf(shed: readonly string[]): string {
 
 export function buildLanesModel(input: LanesInput): LanesModel {
   const { tok, accent, nowMs } = input
-  const boxed = !input.mergedTelemetry
+  const boxed = !input.mergedVitals
   const rowW = boxed ? railPanelInnerWidth(input.width) : input.width
 
   const keptIds = [input.viewingAgentTaskId, input.mainChatTaskId].filter((id): id is string => id != null)
@@ -591,7 +591,7 @@ export function buildLanesModel(input: LanesInput): LanesModel {
   }
 
   const glanceSection = (): LanesSectionSpec | null => {
-    if (!input.mergedTelemetry || input.glance === null) return null
+    if (!input.mergedVitals || input.glance === null) return null
     const labels = glanceLabelsOf(input.glance, tok)
     const muted = (name: string, label: string, command: string): LanesRowSpec => ({
       kind: 'rail',
@@ -603,9 +603,9 @@ export function buildLanesModel(input: LanesInput): LanesModel {
       row: { kind: 'command', command, label },
     })
     return {
-      key: 'telemetry',
+      key: 'vitals',
       glyph: '',
-      label: 'TELEMETRY',
+      label: 'VITALS',
       marginAlways: true,
       rows: [
         muted(labels.usage, 'tel:usage', '/usage'),

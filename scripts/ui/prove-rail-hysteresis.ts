@@ -15,7 +15,7 @@ const check = (label: string, cond: boolean, detail = ''): void => {
 }
 
 resetRailTier()
-const seq = [149, 150, 149, 150, 149].map(c => railPlan(c).telemetry)
+const seq = [149, 150, 149, 150, 149].map(c => railPlan(c).vitals)
 check(
   'sequence 149,150,149,150,149 → one engage, zero disengage (no thrash)',
   seq.join(',') === 'false,true,true,true,true',
@@ -28,10 +28,10 @@ check(
   `center=${centerHeld}`,
 )
 
-check('holds at the release width itself (144 engaged)', railPlan(HELM_BOTH_RAILS_RELEASE).telemetry === true)
-check('releases below it (143 → single rail)', railPlan(HELM_BOTH_RAILS_RELEASE - 1).telemetry === false)
-check('stays released on the way back up through the band (147)', railPlan(147).telemetry === false)
-check(`re-engages only at ${HELM_BOTH_RAILS_MIN}`, railPlan(HELM_BOTH_RAILS_MIN).telemetry === true)
+check('holds at the release width itself (144 engaged)', railPlan(HELM_BOTH_RAILS_RELEASE).vitals === true)
+check('releases below it (143 → single rail)', railPlan(HELM_BOTH_RAILS_RELEASE - 1).vitals === false)
+check('stays released on the way back up through the band (147)', railPlan(147).vitals === false)
+check(`re-engages only at ${HELM_BOTH_RAILS_MIN}`, railPlan(HELM_BOTH_RAILS_MIN).vitals === true)
 
 resetRailTier()
 railPlan(150)
@@ -39,12 +39,12 @@ let bandMonotone = true
 let prev = -1
 for (let c = HELM_BOTH_RAILS_RELEASE; c <= 155; c++) {
   const p = railPlan(c)
-  if (!p.telemetry) bandMonotone = false
+  if (!p.vitals) bandMonotone = false
   if (p.centerCols < prev) bandMonotone = false
   if (p.centerCols < HELM_CENTER_FLOOR) bandMonotone = false
   prev = p.centerCols
 }
-check('engaged band 144→155: telemetry stays, center monotone ≥ floor', bandMonotone)
+check('engaged band 144→155: vitals stays, center monotone ≥ floor', bandMonotone)
 
 let pureHolds = true
 for (let c = 100; c <= 260; c++) {
@@ -58,8 +58,8 @@ check('railPlanAt: center ≥ floor + lanes present in BOTH latch states (100–
 check(
   'pure fn is history-free (same inputs, same plan)',
   JSON.stringify(railPlanAt(149, true)) === JSON.stringify(railPlanAt(149, true)) &&
-    railPlanAt(149, false).telemetry === false &&
-    railPlanAt(149, true).telemetry === true,
+    railPlanAt(149, false).vitals === false &&
+    railPlanAt(149, true).vitals === true,
 )
 
 resetRailTier()

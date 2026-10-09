@@ -13,7 +13,7 @@ const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
 enableConfigs()
 
 const projection = await import('../../src/services/workbench/projection.ts')
-const telemetry = await import('../../src/state/telemetryBus.ts')
+const vitals = await import('../../src/state/vitalsBus.ts')
 
 t.section('§1 — an unsubscribed workbench engine holds nothing')
 {
@@ -53,10 +53,10 @@ t.section('§1 — an unsubscribed workbench engine holds nothing')
   )
 }
 
-t.section('§2 — an unsubscribed telemetry engine holds nothing')
+t.section('§2 — an unsubscribed vitals engine holds nothing')
 {
-  const unsub = telemetry.subscribeTelemetry(() => {})
-  const live = telemetry._statsForProofs()
+  const unsub = vitals.subscribeVitals(() => {})
+  const live = vitals._statsForProofs()
   t.check(
     'subscribed: heartbeat, source subscriptions and coalescer armed',
     live.listeners === 1 && live.heartbeat && live.sourceUnsubs === 4 && live.coalescer,
@@ -64,7 +64,7 @@ t.section('§2 — an unsubscribed telemetry engine holds nothing')
   )
 
   unsub()
-  const after = telemetry._statsForProofs()
+  const after = vitals._statsForProofs()
   t.check(
     'unsubscribed: every resource returned to baseline',
     after.listeners === 0 &&
@@ -80,19 +80,19 @@ t.section('§3 — repeated start/stop cycles do not accumulate')
 {
   for (let i = 0; i < 10; i++) {
     const w = projection.subscribeWorkbench(() => {})
-    const c = telemetry.subscribeTelemetry(() => {})
+    const c = vitals.subscribeVitals(() => {})
     w()
     c()
   }
   const wb = projection._statsForProofs()
-  const tb = telemetry._statsForProofs()
+  const tb = vitals._statsForProofs()
   t.check(
     'workbench: 10 cycles leave no residue',
     wb.listeners === 0 && !wb.heartbeat && wb.engineUnsubs === 0 && !wb.coalescer,
     JSON.stringify(wb),
   )
   t.check(
-    'telemetry: 10 cycles leave no residue',
+    'vitals: 10 cycles leave no residue',
     tb.listeners === 0 && !tb.heartbeat && tb.sourceUnsubs === 0 && !tb.coalescer,
     JSON.stringify(tb),
   )

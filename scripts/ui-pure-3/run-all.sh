@@ -18,7 +18,7 @@
 # gate-watch: src/screens/** src/services/concourse/* src/services/engine-connector/*
 # gate-watch: src/services/switchboard/bornSession.ts src/services/tips/tipRegistry.ts
 # gate-watch: src/services/tips/tipScheduler.ts src/skills/bundled/provider-apis/SKILL.md
-# gate-watch: src/state/telemetryBus.ts src/substrate/flagRegistry.ts src/tools/**
+# gate-watch: src/state/vitalsBus.ts src/substrate/flagRegistry.ts src/tools/**
 # gate-watch: design-system/live/grids/**
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"

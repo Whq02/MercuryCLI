@@ -810,7 +810,7 @@ fits, an ellipsis closing the cut, and keeps its `/model to return` tail.
 `MERCURY_FAILOVER_LINE_MS` sets the sentence's window in milliseconds
 (1000 or more; the default is two minutes).
 
-Every meter surface — the telemetry rail's USAGE panel, the frame
+Every meter surface — the vitals rail's USAGE panel, the frame
 band, `/usage` and the health check's per-family usage rows — reads one owner and
 paints one grammar: a family's shared windows first, then every per-model
 weekly pool it reports beside them (the first-party subscription's Fable,

@@ -23,7 +23,7 @@ const t = (name: string, ok: boolean, detail = '') => {
   if (!ok) fail = 1
 }
 
-t('cycle order', nextHelmPane('prompt') === 'lanes' && nextHelmPane('lanes') === 'telemetry' && nextHelmPane('telemetry') === 'prompt')
+t('cycle order', nextHelmPane('prompt') === 'lanes' && nextHelmPane('lanes') === 'vitals' && nextHelmPane('vitals') === 'prompt')
 
 const crew: HelmRow = { kind: 'crewmate', id: 'task-7', label: 'scout' }
 const cmd: HelmRow = { kind: 'command', command: '/trace', label: 'trace:0' }
@@ -38,7 +38,7 @@ const v0 = getHelmVersion()
 setHelmFocus('lanes')
 t('setHelmFocus notifies', getHelmFocus() === 'lanes' && getHelmVersion() === v0 + 1)
 cycleHelmFocus()
-t('cycleHelmFocus advances', getHelmFocus() === 'telemetry')
+t('cycleHelmFocus advances', getHelmFocus() === 'vitals')
 
 resetHelmFocusForTest()
 const rows3: HelmRow[] = [
@@ -64,9 +64,9 @@ t('unchanged publish does not notify', getHelmVersion() === vBefore)
 
 resetHelmFocusForTest()
 publishHelmRows('lanes', rows3)
-publishHelmRows('telemetry', rows3)
+publishHelmRows('vitals', rows3)
 moveHelmCursor('lanes', +2)
-t('per-pane cursors independent', getHelmCursor('lanes') === 2 && getHelmCursor('telemetry') === 0)
+t('per-pane cursors independent', getHelmCursor('lanes') === 2 && getHelmCursor('vitals') === 0)
 
 resetHelmFocusForTest()
 {

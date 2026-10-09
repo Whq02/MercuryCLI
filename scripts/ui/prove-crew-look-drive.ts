@@ -139,7 +139,7 @@ const popup = (command: keyof typeof popupTitles, needle: string, tag: string, t
 const flat = (s: string): string => s.replace(/\s+/g, ' ').trim()
 const cells = (line: string): string[] => Array.from(line)
 
-type Cockpit = { left: number; right: number; top: number; bottom: number; cols: number; composerTop: number; composerBottom: number; railRight: number; telemetryLeft: number | null }
+type Cockpit = { left: number; right: number; top: number; bottom: number; cols: number; composerTop: number; composerBottom: number; railRight: number; vitalsLeft: number | null }
 function cockpitOf(rows: string[]): Cockpit | null {
   const first = cells(rows[0] ?? '')
   const left = first.indexOf('╭')
@@ -157,12 +157,12 @@ function cockpitOf(rows: string[]): Cockpit | null {
     if (composerTop < 0 && line[0] === '╭') composerTop = y
     else if (composerTop >= 0 && line[0] === '╰') { composerBottom = y; break }
   }
-  let telemetryLeft: number | null = null
-  for (let y = 0; y < Math.min(6, rows.length) && telemetryLeft === null; y++) {
+  let vitalsLeft: number | null = null
+  for (let y = 0; y < Math.min(6, rows.length) && vitalsLeft === null; y++) {
     const at = cells(rows[y]!).indexOf('╭', right + 1)
-    if (at > right) telemetryLeft = at
+    if (at > right) vitalsLeft = at
   }
-  return { left, right, top: 0, bottom, cols, composerTop, composerBottom, railRight: left - 1, telemetryLeft }
+  return { left, right, top: 0, bottom, cols, composerTop, composerBottom, railRight: left - 1, vitalsLeft }
 }
 function cardBottomOf(rows: string[], cockpit: Cockpit): number {
   const centre = centreOf(rows, cockpit)
@@ -174,7 +174,7 @@ function integrity(rows: string[]): string[] {
   const faults: string[] = []
   const cockpit = cockpitOf(rows)
   if (cockpit === null) return ['no centre frame on the first row']
-  const { left, right, bottom, cols, composerTop, composerBottom, railRight, telemetryLeft } = cockpit
+  const { left, right, bottom, cols, composerTop, composerBottom, railRight, vitalsLeft } = cockpit
   for (let y = 1; y < bottom; y++) {
     const line = cells(rows[y]!)
     if (line[left] !== '│') faults.push(`row ${y}: the view's left border reads ${JSON.stringify(line[left] ?? ' ')} at ${left}`)
@@ -191,10 +191,10 @@ function integrity(rows: string[]): string[] {
     if (open === '╭' && line[railRight] !== '╮') faults.push(`row ${y}: the rail box opens at 0 but does not close at ${railRight} (${JSON.stringify(line[railRight] ?? ' ')})`)
     if (open === '│' && line[railRight] !== '│') faults.push(`row ${y}: the rail row lost its right border at ${railRight} (${JSON.stringify(line[railRight] ?? ' ')}) — "${line.slice(0, railRight + 1).join('')}"`)
     if (open === '╰' && line[railRight] !== '╯') faults.push(`row ${y}: the rail box closes at 0 but not at ${railRight}`)
-    if (telemetryLeft !== null) {
-      const t = line[telemetryLeft]
-      if (t === '╭' && line[cols - 1] !== '╮') faults.push(`row ${y}: the telemetry box opens at ${telemetryLeft} but does not close at ${cols - 1}`)
-      if (t === '│' && line[cols - 1] !== '│') faults.push(`row ${y}: the telemetry row lost its right border`)
+    if (vitalsLeft !== null) {
+      const t = line[vitalsLeft]
+      if (t === '╭' && line[cols - 1] !== '╮') faults.push(`row ${y}: the vitals box opens at ${vitalsLeft} but does not close at ${cols - 1}`)
+      if (t === '│' && line[cols - 1] !== '│') faults.push(`row ${y}: the vitals row lost its right border`)
     }
   }
   if (composerTop < 0 || composerBottom < 0) faults.push('no closed composer box under the view')
@@ -249,7 +249,7 @@ const firstDiff = (a: string[], b: string[]): string => {
   return ''
 }
 const wideRows = (rows: string[]): string[] => rows.filter(line => line.includes('c00=') || line.includes('c29='))
-const pastCentre = (rows: string[], cockpit: Cockpit, needle: string): string[] => rows.filter(line => cells(line).slice(cockpit.right + 1, cockpit.telemetryLeft ?? cockpit.cols).join('').includes(needle))
+const pastCentre = (rows: string[], cockpit: Cockpit, needle: string): string[] => rows.filter(line => cells(line).slice(cockpit.right + 1, cockpit.vitalsLeft ?? cockpit.cols).join('').includes(needle))
 function railInkCell(mark: Mark): Cell | undefined {
   const y = mark.rows.findIndex(line => cells(line).slice(0, 30).join('').includes('CREW'))
   if (y < 0) return undefined
@@ -380,7 +380,7 @@ async function leg(cols: number, rows: number): Promise<void> {
   if (cockpit === null) {
     check(`${tag}: the cockpit frame is readable`, false, 'no centre frame')
   } else {
-    console.log(`  the view: columns ${cockpit.left}..${cockpit.right} · rows 0..${cockpit.bottom} · composer rows ${cockpit.composerTop}..${cockpit.composerBottom} · rail 0..${cockpit.railRight}${cockpit.telemetryLeft === null ? '' : ` · telemetry from ${cockpit.telemetryLeft}`}`)
+    console.log(`  the view: columns ${cockpit.left}..${cockpit.right} · rows 0..${cockpit.bottom} · composer rows ${cockpit.composerTop}..${cockpit.composerBottom} · rail 0..${cockpit.railRight}${cockpit.vitalsLeft === null ? '' : ` · vitals from ${cockpit.vitalsLeft}`}`)
     check(`${tag}: the lead's view paints whole with the three crewmates in the rail`, integrity(lead!.rows).length === 0 && [ATLAS_RUNNING, FJORD_RUNNING, HARBOUR_RUNNING].every(needle => railRow(lead!.rows, cockpit, needle) !== undefined), integrity(lead!.rows).slice(0, 3).join(' · ') || railOf(lead!.rows, cockpit).filter(line => line.includes('·')).map(flat).join(' | '))
     const harbour = marks['view-harbour']
     check(`${tag}: one click on harbour's row opens it in the view (the status row, the card, its own rows)`, harbour !== undefined && viewedName(harbour.rows) === 'harbour' && /viewing harbour/.test(statusOf(harbour.rows)) && cardRows(harbour.rows, cockpit).includes('◉ harbour') && transcriptRows(harbour.rows, cockpit).some(line => line.includes('[harbour]')), harbour === undefined ? 'no frame' : `${statusOf(harbour.rows)} · ${cardRows(harbour.rows, cockpit).slice(0, 120)}`)
@@ -399,8 +399,8 @@ async function leg(cols: number, rows: number): Promise<void> {
     check(`${tag}: the first visit of atlas opens at the bottom of its transcript (its Sleep row on screen, no pill)`, atlas !== undefined && viewedName(atlas.rows) === 'atlas' && /viewing atlas/.test(statusOf(atlas.rows)) && centreOf(atlas.rows, cockpit).some(line => line.includes('ledger row')) && centreOf(atlas.rows, cockpit).some(line => line.includes('287s')) && !atlas.rows.some(line => line.includes(PILL)), atlas === undefined ? 'no frame' : centreOf(atlas.rows, cockpit).slice(6, 30).map(flat).filter(Boolean).join(' | ').slice(0, 400) + (atlas !== undefined && atlas.rows.some(line => line.includes(PILL)) ? ' · the pill stands' : ''))
     if (atlas !== undefined) {
       check(`${tag}: atlas's view paints whole (no row past the view's border, the rail intact)`, integrity(atlas.rows).length === 0, integrity(atlas.rows).slice(0, 3).join(' · '))
-      const past = atlas.rows.filter(line => cells(line).slice(cockpit.right + 1, cockpit.telemetryLeft ?? cockpit.cols).join('').trim() !== '')
-      check(`${tag}: nothing paints between the view's right border and the telemetry rail`, past.length === 0, past.slice(0, 2).map(line => flat(cells(line).slice(cockpit.right - 10).join('')).slice(0, 80)).join(' | '))
+      const past = atlas.rows.filter(line => cells(line).slice(cockpit.right + 1, cockpit.vitalsLeft ?? cockpit.cols).join('').trim() !== '')
+      check(`${tag}: nothing paints between the view's right border and the vitals rail`, past.length === 0, past.slice(0, 2).map(line => flat(cells(line).slice(cockpit.right - 10).join('')).slice(0, 80)).join(' | '))
     }
     const diffMark = [atlas, marks['atlas-scrolled']].find(mark => mark !== undefined && centreOf(mark.rows, cockpit).some(line => line.includes('┌') && line.includes('diff ·')))
     if (diffMark !== undefined) {

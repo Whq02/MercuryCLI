@@ -35,7 +35,7 @@ try {
   const { Usage } = await import(world.path('src/components/Settings/Usage.tsx'))
   const { AccountView } = await import(world.path('src/components/mercury-ui/parity/AccountView.tsx'))
   const { AppStateProvider } = await import(world.path('src/state/AppState.tsx'))
-  const { HelmTelemetryRail } = await import(world.path('src/components/HelmTelemetryRail.tsx'))
+  const { HelmVitalsRail } = await import(world.path('src/components/HelmVitalsRail.tsx'))
   const { railPlanAt } = await import(world.path('src/utils/helmGeometry.ts'))
   for (const columns of [80, 120]) {
     const at = { columns, rows: 70 }
@@ -51,10 +51,10 @@ try {
       check(`${name} at ${columns}: the frame fits`, world.inBounds(frame, at) && !frame.includes('RENDER ERROR'), frame)
       board.close()
     }
-    const board = await world.mount(React.createElement(HelmTelemetryRail, { width: 30, availRows: 65 }), at)
+    const board = await world.mount(React.createElement(HelmVitalsRail, { width: 30, availRows: 65 }), at)
     world.save('credits-rail-source', board.frame(), at)
     check(`rail source at ${columns}: the compact balance follows the subscription window`, board.frame().includes('credits 62.5k'), board.frame())
-    check(`rail at ${columns}: host visibility follows its existing layout`, typeof railPlanAt(columns, true).telemetry === 'boolean')
+    check(`rail at ${columns}: host visibility follows its existing layout`, typeof railPlanAt(columns, true).vitals === 'boolean')
     board.close()
   }
   slot.active = false
@@ -127,7 +127,7 @@ try {
         check(`${name}: the /usage tab at ${columns} says what carries the requests after its reached sentence`, usageFrame.includes(tab) && (view.limited === undefined || usageFrame.includes(view.carry!.display)) && world.inBounds(usageBoard.frame(), at) && !usageBoard.frame().includes('RENDER ERROR'), usageBoard.frame())
         usageBoard.close()
       }
-      const railBoard = await world.mount(React.createElement(HelmTelemetryRail, { width: 30, availRows: 65 }), at)
+      const railBoard = await world.mount(React.createElement(HelmVitalsRail, { width: 30, availRows: 65 }), at)
       world.save(`carry-${name}-rail`, railBoard.frame(), at)
       const railFlat = railBoard.frame().split('\n').map(line => line.replace(/[│╭╮╰╯─]/g, '').trim()).join(' ').replace(/\s+/g, ' ')
       check(`${name}: the rail at ${columns} paints the compact carry words under its reached line`, rail.every(words => railFlat.includes(words)) && railFlat.indexOf(rail[rail.length - 1]!) >= railFlat.indexOf(rail[0]!) && !railBoard.frame().includes('RENDER ERROR'), railBoard.frame())

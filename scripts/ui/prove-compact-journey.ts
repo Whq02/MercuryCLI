@@ -126,7 +126,7 @@ for (const variant of ['resize', 'compact', 'full'] as const) {
     }
     check(`${tag}: the final editing key is retained`, joined(rowsAt('compact-restored')).includes('keep-this-draftz'))
     if (variant === 'resize') check('the one-cell stage uses the actual physical geometry', marks.get('tiny')?.grid.length === 1 && marks.get('tiny')?.grid[0]?.length === 1)
-    if (variant !== 'compact') check(`${tag}: the final full frame uses the full composition (the rails stand; the sessions box left the cockpit)`, rowsAt('full-restored').length === 40 && /\blanes\b/.test(rowsAt('full-restored')[0] ?? '') && /telemetry/i.test(joined(rowsAt('full-restored'))))
+    if (variant !== 'compact') check(`${tag}: the final full frame uses the full composition (the rails stand; the sessions box left the cockpit)`, rowsAt('full-restored').length === 40 && /\blanes\b/.test(rowsAt('full-restored')[0] ?? '') && /vitals/i.test(joined(rowsAt('full-restored'))))
     const transcriptAt = (label: string) => rowsAt(label).filter(row => /compact-stream-\d+|stream the compact journey|Queued words delivered|queued while streaming/.test(row)).join('\n')
     check(`${tag}: page up preserves the draft while moving transcript content`, joined(rowsAt('scrolled')).includes('keep-this-draftz') && transcriptAt('scrolled') !== '' && transcriptAt('scrolled') !== transcriptAt('compact-restored'))
     const main = leg.fixture.requests.filter(request => (request.body as { model?: string }).model?.includes('opus'))

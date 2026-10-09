@@ -13,7 +13,7 @@ const world = await usagePlanWorld()
 try {
   const { owner, reader, ink } = world
   const login = await import(world.path('src/services/providers/moonshot/moonshotLogin.ts')) as typeof import('../../src/services/providers/moonshot/moonshotLogin.js')
-  const { HelmTelemetryRail } = await import(world.path('src/components/HelmTelemetryRail.tsx'))
+  const { HelmVitalsRail } = await import(world.path('src/components/HelmVitalsRail.tsx'))
   const { railPlanAt } = await import(world.path('src/utils/helmGeometry.ts'))
   const percents = (windows: { label: string; usedPct?: number }[]) => windows.map(w => `${w.label}:${w.usedPct}`).join('|')
   const detail = (fixture.body.limits as { detail: { resetTime: string } }[])[0]!.detail
@@ -31,8 +31,8 @@ try {
   check('one window per stated length: the answer states the 5-hour window twice and the record carries it once', record.windows.length === 3 && usage.windows.map(w => w.key).join('|') === '5h|month|month code', usage.windows.map(w => w.key).join('|'))
   check('the sign-in receipt names the 5-hour window with its counts', login.kimiUsageReceiptLine(record).startsWith('usage 5h 97/100 (97%)'), login.kimiUsageReceiptLine(record))
   world.focus('moonshot')
-  const width = railPlanAt(178, true).telemetryW
-  const board = await world.mount(React.createElement(ink.Box, { flexDirection: 'row', justifyContent: 'flex-end', width: 178 }, React.createElement(HelmTelemetryRail, { width, availRows: 44 })))
+  const width = railPlanAt(178, true).vitalsW
+  const board = await world.mount(React.createElement(ink.Box, { flexDirection: 'row', justifyContent: 'flex-end', width: 178 }, React.createElement(HelmVitalsRail, { width, availRows: 44 })))
   const frame = board.frame()
   world.save('kimi-window-counts-rail', frame)
   check('the rail paints the Kimi 5h bar at 97%, never a 0% bar for it', /5h [█░]{4} 97%/.test(frame) && !/5h [█░]{4} 0%/.test(frame), frame)

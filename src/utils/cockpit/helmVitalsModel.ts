@@ -42,7 +42,7 @@ export function hhmm(ts: unknown): string {
   return `${p(d.getHours())}:${p(d.getMinutes())}`
 }
 
-export type TelemetryRowSpec =
+export type VitalsRowSpec =
   | { kind: 'text'; key: string; text: string; color: string; fixed?: boolean }
   | { kind: 'empty'; key: string; text: string; row?: HelmRow }
   | { kind: 'meter'; key: string; window: string; value: number | undefined; resetIn: string | undefined; row: HelmRow }
@@ -59,16 +59,16 @@ export type TelemetryRowSpec =
   | { kind: 'consoleAsking'; key: string; question: string; secs: number }
   | { kind: 'consoleLine'; key: string; text: string; tone: 'question' | 'answer' | 'errorLead' | 'errorRest' }
 
-export type TelemetrySectionSpec = {
+export type VitalsSectionSpec = {
   key: 'usage' | 'workflow' | 'health' | 'trace' | 'console'
   glyph: string
   label: string
   count?: string
   open: string
-  rows: TelemetryRowSpec[]
+  rows: VitalsRowSpec[]
 }
 
-export type TelemetryInput = {
+export type VitalsInput = {
   width: number
   availRows: number | undefined
   termRows: number
@@ -99,9 +99,9 @@ export type TelemetryInput = {
   tok: MercuryThemeTokens
 }
 
-export type TelemetryModel = {
+export type VitalsModel = {
   rowW: number
-  sections: TelemetrySectionSpec[]
+  sections: VitalsSectionSpec[]
   shed: Array<'health' | 'trace' | 'console'>
   pointer: string | null
   rows: HelmRow[]
@@ -113,7 +113,7 @@ export function sessionTraceRecords(trace: Snapshot<{ data: TraceData }> | null,
   return trace.data.records.filter(r => r.sessionId === sessionId)
 }
 
-export function buildTelemetryModel(input: TelemetryInput): TelemetryModel {
+export function buildVitalsModel(input: VitalsInput): VitalsModel {
   const { tok, usage, otherUsages, readNow, now } = input
   const rowW = railPanelInnerWidth(input.width)
   const detailRows = (provider: ActiveSourceUsage['provider']): boolean => provider === 'moonshot' || provider === 'zai'
@@ -125,7 +125,7 @@ export function buildTelemetryModel(input: TelemetryInput): TelemetryModel {
     return tail === '' ? undefined : tail
   }
 
-  const usageRows: TelemetryRowSpec[] = []
+  const usageRows: VitalsRowSpec[] = []
   const muted = (key: string, text: string, fixed = false): void => {
     usageRows.push({ kind: 'text', key, text: `  ${text}`, color: tok.textMuted, fixed })
   }
@@ -248,7 +248,7 @@ export function buildTelemetryModel(input: TelemetryInput): TelemetryModel {
   }
 
   const runningWf = input.runningWf
-  const wfRows: TelemetryRowSpec[] = []
+  const wfRows: VitalsRowSpec[] = []
   if (runningWf.length === 0 && input.externalWf.length === 0) {
     wfRows.push({ kind: 'empty', key: 'wf:idle', text: workUnreported(input.workRoster) ? WORK_UNREPORTED_MARK : 'idle' })
   } else if (runningWf.length > 0) {
@@ -277,7 +277,7 @@ export function buildTelemetryModel(input: TelemetryInput): TelemetryModel {
 
   const certChip = input.cert
   const certAlert = certChip.state === 'live' ? certChip.data.alert : undefined
-  const healthRows: TelemetryRowSpec[] = [
+  const healthRows: VitalsRowSpec[] = [
     {
       kind: 'health',
       key: 'health:cert',
@@ -293,7 +293,7 @@ export function buildTelemetryModel(input: TelemetryInput): TelemetryModel {
   const own = sessionTraceRecords(trace, input.focusedSessionId)
   const traceTotal = own.length
   const recent = own.slice(-TRACE_ROWS).reverse()
-  const traceRows: TelemetryRowSpec[] = []
+  const traceRows: VitalsRowSpec[] = []
   if (trace === null) traceRows.push({ kind: 'empty', key: 'trace:loading', text: 'loading…' })
   else if (recent.length === 0) traceRows.push({ kind: 'empty', key: 'trace:none', text: 'fills as tools run' })
   else {
@@ -323,7 +323,7 @@ export function buildTelemetryModel(input: TelemetryInput): TelemetryModel {
   const consoleOn = input.console.on
   const consoleShed = consoleOn && !fitsSection(1)
 
-  const consoleRows: TelemetryRowSpec[] = []
+  const consoleRows: VitalsRowSpec[] = []
   if (consoleOn && !consoleShed) {
     const c = input.console
     const inputBudget = Math.max(4, rowW - 2)
@@ -368,7 +368,7 @@ export function buildTelemetryModel(input: TelemetryInput): TelemetryModel {
   ]
   const shed = shedPointers.map(k => k.slice(1) as 'health' | 'trace' | 'console')
   const shedPointerFits = spentRows < shedCeiling
-  const sections: TelemetrySectionSpec[] = [
+  const sections: VitalsSectionSpec[] = [
     { key: 'usage', glyph: '', label: 'USAGE', open: '/usage', rows: usageRows },
     {
       key: 'workflow',

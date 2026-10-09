@@ -2,7 +2,7 @@
 import { fluxMark } from '../flux/fluxProbe.js'
 import { refuseGestureWhileModal } from '../permissions/permissionFocus.js'
 
-export type HelmPane = 'prompt' | 'lanes' | 'telemetry'
+export type HelmPane = 'prompt' | 'lanes' | 'vitals'
 
 export type HelmRow =
   | { kind: 'crewmate'; id: string; label: string }
@@ -30,14 +30,14 @@ export function helmRowSig(r: HelmRow): string {
   return `${head}:${r.label}`
 }
 
-let telemetryAvailable = true
-export function setHelmTelemetryAvailable(on: boolean): void {
-  telemetryAvailable = on
+let vitalsAvailable = true
+export function setHelmVitalsAvailable(on: boolean): void {
+  vitalsAvailable = on
 }
 
 export function nextHelmPane(p: HelmPane): HelmPane {
   if (p === 'prompt') return 'lanes'
-  if (p === 'lanes') return telemetryAvailable ? 'telemetry' : 'prompt'
+  if (p === 'lanes') return vitalsAvailable ? 'vitals' : 'prompt'
   return 'prompt'
 }
 
@@ -50,15 +50,15 @@ export function helmRowAction(row: HelmRow | undefined): HelmRowAction | null {
   return { type: 'command', command: row.command }
 }
 
-type RailPane = 'lanes' | 'telemetry'
+type RailPane = 'lanes' | 'vitals'
 
 let focus: HelmPane = 'prompt'
-const cursor: Record<RailPane, number> = { lanes: 0, telemetry: 0 }
-const cursorSig: Record<RailPane, string> = { lanes: '', telemetry: '' }
-const rows: Record<RailPane, HelmRow[]> = { lanes: [], telemetry: [] }
-const rowsSig: Record<RailPane, string> = { lanes: '', telemetry: '' }
+const cursor: Record<RailPane, number> = { lanes: 0, vitals: 0 }
+const cursorSig: Record<RailPane, string> = { lanes: '', vitals: '' }
+const rows: Record<RailPane, HelmRow[]> = { lanes: [], vitals: [] }
+const rowsSig: Record<RailPane, string> = { lanes: '', vitals: '' }
 let version = 0
-const paneVersion: Record<RailPane, number> = { lanes: 0, telemetry: 0 }
+const paneVersion: Record<RailPane, number> = { lanes: 0, vitals: 0 }
 const listeners = new Set<() => void>()
 
 function notify(): void {
@@ -74,7 +74,7 @@ function notifyPane(pane: RailPane): void {
 
 function notifyFocus(): void {
   paneVersion.lanes++
-  paneVersion.telemetry++
+  paneVersion.vitals++
   fluxMark('helm:focus')
   notify()
 }
@@ -163,8 +163,8 @@ export function getHelmLanesVersion(): number {
   return paneVersion.lanes
 }
 
-export function getHelmTelemetryVersion(): number {
-  return paneVersion.telemetry
+export function getHelmVitalsVersion(): number {
+  return paneVersion.vitals
 }
 
 export function bumpHelmLanesVersion(): void {
@@ -259,19 +259,19 @@ export function getHelmRows(pane: RailPane): HelmRow[] {
 export function resetHelmFocusForTest(): void {
   focus = 'prompt'
   cursor.lanes = 0
-  cursor.telemetry = 0
+  cursor.vitals = 0
   cursorSig.lanes = ''
-  cursorSig.telemetry = ''
+  cursorSig.vitals = ''
   rows.lanes = []
-  rows.telemetry = []
+  rows.vitals = []
   rowsSig.lanes = ''
-  rowsSig.telemetry = ''
+  rowsSig.vitals = ''
   pendingActivation = null
   pendingCommand = null
   pendingPrefill = null
-  telemetryAvailable = true
+  vitalsAvailable = true
   railEnteredAt = 0
   version = 0
   paneVersion.lanes = 0
-  paneVersion.telemetry = 0
+  paneVersion.vitals = 0
 }

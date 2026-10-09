@@ -31,7 +31,7 @@ import { RailPanel } from './mercury-ui/RailPanel.js'
 import { useCockpitActivity } from '../utils/cockpit/cockpitActivity.js'
 import { useSessionAccent } from './mercury-ui/sessionAccent.js'
 import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js'
-import { useTelemetry } from '../state/telemetryBus.js'
+import { useVitals } from '../state/vitalsBus.js'
 import { fluxMark, fluxWhy } from '../utils/flux/fluxProbe.js'
 import { basename } from 'node:path'
 import { getRunSnapshot, subscribeRuns } from '../services/run/runCoordinator.js'
@@ -355,7 +355,7 @@ function useWorkShape(planningObjective: string | null): string | null {
 
 export const HelmLanesRail = React.memo(HelmLanesRailImpl)
 
-function HelmLanesRailImpl({ width, mergedTelemetry = false, availRows }: { width: number; mergedTelemetry?: boolean; availRows?: number }): React.ReactNode {
+function HelmLanesRailImpl({ width, mergedVitals = false, availRows }: { width: number; mergedVitals?: boolean; availRows?: number }): React.ReactNode {
   fluxMark('render:rail-lanes')
   const tok = useMercuryTokens()
   const { accent } = useSessionAccent()
@@ -383,7 +383,7 @@ function HelmLanesRailImpl({ width, mergedTelemetry = false, availRows }: { widt
   const mainChatTaskId = useAppState(s => s.mainChatTaskId)
   const roster = useFocusedWorkRoster()
   const sessionCrew = useSessionCrew()
-  const telemetry = useTelemetry()
+  const vitals = useVitals()
   const filesOff = useAppState(s => s.settings.view?.files === false)
   const filesFolder = basename(useFocusedWorkspaceCwd())
   const mission = getActiveMission()
@@ -393,7 +393,7 @@ function HelmLanesRailImpl({ width, mergedTelemetry = false, availRows }: { widt
   const railWhyRef = React.useRef<Record<string, unknown> | null>(null)
   fluxWhy('rail-lanes', railWhyRef, () => ({
     width,
-    mergedTelemetry,
+    mergedVitals,
     availRows,
     tok,
     activity,
@@ -408,13 +408,13 @@ function HelmLanesRailImpl({ width, mergedTelemetry = false, availRows }: { widt
     roster,
     viewingAgentTaskId,
     mainChatTaskId,
-    telemetry,
+    vitals,
   }))
   const nowMs = Date.now()
   const published = getHelmRows('lanes')
   const input: LanesInput = {
     width,
-    mergedTelemetry,
+    mergedVitals,
     availRows,
     activity,
     cursorRow: published[getHelmCursor('lanes')],
@@ -425,14 +425,14 @@ function HelmLanesRailImpl({ width, mergedTelemetry = false, availRows }: { widt
     roster,
     workRunSnap: workLaneOff ? null : workRunSnap,
     workShape,
-    ledger: telemetry.tasks,
+    ledger: vitals.tasks,
     lastSentPrompt,
     filesOff,
     filesFolder,
     recent,
     missionCondition: mission ? mission.condition : null,
     wakeGlance,
-    glance: mergedTelemetry
+    glance: mergedVitals
       ? (() => {
           const focusedUsage = getFocusedSessionConnector().usage()
           return {
@@ -450,8 +450,8 @@ function HelmLanesRailImpl({ width, mergedTelemetry = false, availRows }: { widt
     accent,
   }
   const model = buildLanesModel(input)
-  useNowTick(mergedTelemetry || model.runsLive > 0 ? 15_000 : null)
-  useProviderUsageOnShow(mergedTelemetry)
+  useNowTick(mergedVitals || model.runsLive > 0 ? 15_000 : null)
+  useProviderUsageOnShow(mergedVitals)
 
   const rowsSig = model.rows.map(helmRowSig).join('|')
   useEffect(() => {
