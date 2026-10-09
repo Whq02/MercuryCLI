@@ -30,6 +30,7 @@ __t=$SECONDS; __rc=0; "$bun" run "$here/prove-no-retired-theme-remains.ts" || { 
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-retired-keys-unknown.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-retired-keys-unknown.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-lsp-callable-name-gone.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-lsp-callable-name-gone.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-flow-judge-words-gone.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-flow-judge-words-gone.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$bun" run "$here/prove-ask-clock-words-gone.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-ask-clock-words-gone.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-file-tool-absent.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-file-tool-absent.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-code-runtime-words-gone.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-code-runtime-words-gone.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-transaction-inputs-gone.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-transaction-inputs-gone.ts" "$__t" "$__rc"

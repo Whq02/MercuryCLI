@@ -76,6 +76,7 @@ export const PermissionRequestParamsSchema = lazySchema(() =>
       reason: z.string().optional(),
       reason_detail: z.unknown().optional(),
       agent_id: z.string().optional(),
+      mode: permissionModeSchema().optional(),
     }),
     z.object({ kind: z.literal('network'), host: z.string() }),
   ]),

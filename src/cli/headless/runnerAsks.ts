@@ -6,7 +6,7 @@ import { PeerClosed } from '../../runner/wire/peer.js'
 import type { ElicitResult } from '../../services/mcp/sdk.js'
 import type { Tool, ToolUseContext } from '../../Tool.js'
 import type { PermissionRequestResult } from '../../types/hooks.js'
-import type { PermissionDecision, PermissionDecisionReason, PermissionUpdate } from '../../types/permissions.js'
+import { PERMISSION_MODES, type PermissionDecision, type PermissionDecisionReason, type PermissionMode, type PermissionUpdate } from '../../types/permissions.js'
 import { formatLimit, isDeadlineExceeded } from '../../utils/deadline.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { executePermissionRequestHooks } from '../../utils/hooks.js'
@@ -14,7 +14,8 @@ import { UNANSWERED_ASK_REJECT_MESSAGE, turnCutOf } from '../../utils/messages/r
 import { encodeDecisionReasonForWire } from '../../utils/permissions/decisionReasonWire.js'
 import { hasPermissionsToUseTool } from '../../utils/permissions/permissions.js'
 import { applyPermissionUpdates, persistPermissionUpdates } from '../../utils/permissions/PermissionUpdate.js'
-import { FLOW_AWAY_MESSAGE, FLOW_AWAY_TIMEOUT_MS, flowUserAllowUpdates } from '../../utils/permissions/flowPolicy.js'
+import { flowUserAllowUpdates } from '../../utils/permissions/flowPolicy.js'
+import { askExpiredCause, askLimitMs, unansweredAskRefusal } from '../../utils/permissions/askClock.js'
 import { notifySessionStateChanged, type RequiresActionDetails } from '../../utils/sessionState.js'
 import { SANDBOX_NETWORK_ACCESS_TOOL_NAME } from '../../daemon/runnerFrames.js'
 
@@ -122,13 +123,16 @@ export function createHostCanUseTool(channel: AskChannel, onPermissionPrompt?: (
     const requestController = new AbortController()
     let awayTimer: ReturnType<typeof setTimeout> | undefined
     let away = false
-    const forwardParentAbort = (): void => requestController.abort(parentSignal.reason)
+    let askLimit = 0
+    const forwardParentAbort = (): void => requestController.abort()
     parentSignal.addEventListener('abort', forwardParentAbort, { once: true })
     try {
       const engineResult = (forceDecision ?? (await hasPermissionsToUseTool(tool, input, toolUseContext, assistantMessage, toolUseID))) as PermissionDecision
       if (engineResult.behavior === 'allow' || engineResult.behavior === 'deny') return engineResult
 
       const permissionMode = (toolUseContext.getAppState() as { toolPermissionContext: { mode: string } }).toolPermissionContext.mode
+      const wireMode = (PERMISSION_MODES as readonly string[]).includes(permissionMode) ? (permissionMode as PermissionMode) : undefined
+      askLimit = askLimitMs({ mode: permissionMode, crewmate: toolUseContext.agentId !== undefined })
       const askResult = engineResult as { suggestions?: PermissionUpdate[]; blockedPath?: string; decisionReason?: PermissionDecisionReason }
 
       onPermissionPrompt?.({
@@ -160,13 +164,14 @@ export function createHostCanUseTool(channel: AskChannel, onPermissionPrompt?: (
         ...(reason !== undefined ? { reason } : {}),
         ...(reasonDetail !== undefined ? { reason_detail: reasonDetail } : {}),
         ...(toolUseContext.agentId !== undefined ? { agent_id: toolUseContext.agentId } : {}),
+        ...(wireMode !== undefined ? { mode: wireMode } : {}),
       }
       const requestPromise = channel.askPermission(params, { signal: requestController.signal, key })
-      if (permissionMode === 'flow') {
+      if (askLimit > 0) {
         awayTimer = setTimeout(() => {
           away = true
-          requestController.abort()
-        }, FLOW_AWAY_TIMEOUT_MS)
+          requestController.abort(askExpiredCause(askLimit))
+        }, askLimit)
       }
 
       const raceOutcome = await Promise.race([
@@ -174,7 +179,7 @@ export function createHostCanUseTool(channel: AskChannel, onPermissionPrompt?: (
         requestPromise.then(answer => ({ source: 'host' as const, answer })),
       ])
 
-      if (away) return decisionOfAnswer({ outcome: 'deny', message: FLOW_AWAY_MESSAGE }, tool as Tool, input, toolUseContext)
+      if (away) return decisionOfAnswer({ outcome: 'deny', message: unansweredAskRefusal(tool.name, askLimit) }, tool as Tool, input, toolUseContext)
       if (raceOutcome.source === 'hook' && raceOutcome.decision) {
         const hookDecision = raceOutcome.decision
         requestController.abort()
@@ -204,7 +209,7 @@ export function createHostCanUseTool(channel: AskChannel, onPermissionPrompt?: (
       const answer = raceOutcome.source === 'host' ? raceOutcome.answer : await requestPromise
       return decisionOfAnswer(answer, tool as Tool, input, toolUseContext, askResult.suggestions)
     } catch (error) {
-      if (away) return decisionOfAnswer({ outcome: 'deny', message: FLOW_AWAY_MESSAGE }, tool as Tool, input, toolUseContext)
+      if (away) return decisionOfAnswer({ outcome: 'deny', message: unansweredAskRefusal(tool.name, askLimit) }, tool as Tool, input, toolUseContext)
       const unanswered = parentSignal.aborted ? unansweredAskCause(parentSignal.reason) : undefined
       if (unanswered !== undefined) {
         return decisionOfAnswer({ outcome: 'deny', message: UNANSWERED_ASK_REJECT_MESSAGE(tool.name, unanswered) }, tool as Tool, input, toolUseContext)
