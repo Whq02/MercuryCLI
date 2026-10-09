@@ -190,7 +190,7 @@ try {
       const samples = frames.map(f => {
         const rows = pane(f.lines)
         const summaries = rows.flatMap(l => [...l.matchAll(/\b(?:Read(?:ing)?|Search(?:ing|ed) for|Ran|Running) (\d+) (?:files?|patterns?|bash commands?)\b/g)].map(m => Number(m[1])))
-        const individual = rows.filter(l => /[▤▰⌕]\s+(?:Read|Bash|Grep)\s|\b(?:Read|Bash|Grep)\s+f\d\d\.txt/.test(l)).length
+        const individual = rows.filter(l => /[▤▰⌕]\s+(?:Read|Bash|Grep)\s+(?!\d+ (?:files?|patterns?|bash commands?)\b)|\b(?:Read|Bash|Grep)\s+f\d\d\.txt/.test(l)).length
         return { frame: f.i, tick: f.tick, count: summaries[0] ?? 0, rows: summaries.length + individual, expanded: rows.some(l => l.includes('Expanded group')) }
       })
       writeFileSync(join(dest, 'ticks.json'), JSON.stringify(samples, null, 2))
