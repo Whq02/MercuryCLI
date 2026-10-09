@@ -248,7 +248,7 @@ console.log('L1 — the /logins card: c copies and never lands in the paste fiel
     keyed: true,
     sends: [
       ...FACE_TO_CARD('anthropic'),
-      g('Provider readiness', ENTER, { mark: 'card', awaitStableTicks: 3 }),
+      g('Claude subscription account', ENTER, { mark: 'card', awaitPattern: '❯ Claude subscription account', awaitStableTicks: 3 }),
       g('finish signing in there', 'c', { mark: 'waiting-early' }),
       g(CARD_HINT, 'c', { mark: 'prompt' }),
       ...COPY_BEAT(),
@@ -321,7 +321,7 @@ console.log('L3 — the /logins card’s OpenAI browser leg: c copies the URL an
     keyed: true,
     sends: [
       ...FACE_TO_CARD('openai'),
-      g('Provider readiness', ENTER, { mark: 'card', awaitStableTicks: 3 }),
+      g('OpenAI — ChatGPT subscription or API key', ENTER, { mark: 'card', awaitPattern: '❯ OpenAI — ChatGPT subscription or API key', awaitStableTicks: 3 }),
       g('ChatGPT subscription — browser sign-in', ENTER, { mark: 'arm-pick' }),
       g(OPENAI_FIELD, 'c', { mark: 'wait' }),
       ...COPY_BEAT(),
