@@ -10,7 +10,7 @@ const t = (name: string, ok: boolean, detail = ''): void => {
   if (!ok) failures = 1
 }
 
-t('the busy write arms/touches the stall deadline', /this\.factsBusy = next\.busy\n\s*if \(next\.busy\) this\.armBusyStall\(\)/.test(src))
+t('the busy write arms/touches the stall deadline (the busy word read through the carrier latch: a dead daemon\'s stale busy never re-arms)', /this\.factsBusy = this\.facts\.busy\n\s*if \(this\.facts\.busy\) this\.armBusyStall\(\)/.test(src) && /this\.facts = this\.factsFromCarrier\(next\)/.test(src))
 t('…and the busy fall disarms it', /else this\.disarmBusyStall\(\)/.test(src))
 t('the deadline rides the one primitive with a named seam', src.includes("armInactivityDeadline({") && src.includes("seam: 'engine-connector.factsBusy'"))
 t('expiry probes the truth owner (session-facts)', /probeStalledTurn[\s\S]{0,400}action: 'session-facts'/.test(src))

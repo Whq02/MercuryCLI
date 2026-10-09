@@ -22,7 +22,7 @@ const BOTH_SWITCHES_ON: SpawnSwitchFacts = Object.freeze({
   workflows: Object.freeze({ on: true, source: 'default' as const }),
 })
 import { createAssistantMessage, createUserMessage } from '../../utils/messages/factories.js'
-import { createModelTransitionMessage } from '../../utils/messages/systemMessages.js'
+import { createModelTransitionMessage, createSeatReceiptMessage } from '../../utils/messages/systemMessages.js'
 import { providerFamilyOfSetting } from '../../utils/model/modelTransition.js'
 import { createLiveTurnFold, deserializeLiveMessages, type LiveTurnFold } from '../../utils/conversationRecovery.js'
 import type { TranscriptChainCursor } from '../../utils/sessionStorage/transcriptReader.js'
@@ -208,6 +208,7 @@ const IDLE_TRANSCRIPT_FLOOR_MS = 2000
 export const IDLE_PROJECTION_FLOOR_MS = 10_000
 export const SEAT_VERB_SETTLE_MS = 4000
 const LIVENESS_TICK_MS = 1000
+export const CARRIER_GONE_WORDS = 'the background daemon ended — the next prompt starts a new one'
 const ECHO_RETIRE_MS = 10 * 60_000
 const UUID_SHAPE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
@@ -393,6 +394,11 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
   private factsBusy = false
   private busyStallDeadline: ReturnType<typeof armInactivityDeadline> | null = null
   private static readonly BUSY_STALL_MS = 45_000
+  private carrierGoneTicks = 0
+  private carrierGoneAtFactsMs: number | null = null
+  private carrierProbeInFlight = false
+  private carrierSeen = false
+  private static readonly CARRIER_GONE_TICKS = 3
 
   private armBusyStall(): void {
     if (this.busyStallDeadline !== null) {
@@ -435,6 +441,54 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     logForDebugging(`[engine-connector] busy turn stalled ${DaemonSessionConnector.BUSY_STALL_MS}ms with no facts and no live runner — settling idle (${why})`)
     this.factsBusy = false
     this.recomputeLive()
+  }
+
+  private probeCarrier(): void {
+    if (this.carrierProbeInFlight || this.carrierGoneAtFactsMs !== null) return
+    this.carrierProbeInFlight = true
+    void (async () => {
+      const { readDaemonState } = await import('../../daemon/controlSocket.js')
+      const { isProcessAlive } = await import('../../daemon/ownerWatch.js')
+      const state = await readDaemonState()
+      if (state === null) return this.carrierSeen ? 'gone' : 'unknown'
+      if (state.state === 'stopping' || !isProcessAlive(state.pid)) return 'gone'
+      this.carrierSeen = true
+      return 'alive'
+    })()
+      .then(verdict => {
+        if (verdict !== 'gone') {
+          this.carrierGoneTicks = 0
+          return
+        }
+        this.carrierGoneTicks += 1
+        if (this.carrierGoneTicks >= DaemonSessionConnector.CARRIER_GONE_TICKS) this.settleCarrierGone()
+      })
+      .catch(() => {})
+      .finally(() => {
+        this.carrierProbeInFlight = false
+      })
+  }
+
+  private settleCarrierGone(): void {
+    if (this.carrierGoneAtFactsMs !== null) return
+    this.carrierGoneAtFactsMs = this.facts?.atMs ?? 0
+    logForDebugging(`[engine-connector] the daemon carrying ${this.record.sessionId} is gone (${DaemonSessionConnector.CARRIER_GONE_TICKS} reads) — settling idle, dropping its work rows, saying so`)
+    this.factsBusy = false
+    this.disarmBusyStall()
+    if (this.facts !== null) this.facts = { ...this.facts, busy: false, work: [], mission: [], samples: [] }
+    this.refreshWork()
+    this.recomputeLive()
+    this.addDisplayRow(createSeatReceiptMessage(CARRIER_GONE_WORDS, 'warning') as unknown as Message)
+  }
+
+  private factsFromCarrier(next: SessionFactsV1): SessionFactsV1 {
+    if (this.carrierGoneAtFactsMs === null) return next
+    if (next.atMs !== this.carrierGoneAtFactsMs) {
+      this.carrierGoneAtFactsMs = null
+      this.carrierGoneTicks = 0
+      return next
+    }
+    return { ...next, busy: false, work: [], mission: [], samples: [] }
   }
   private effectiveLive: SessionLiveV1 = IDLE_LIVE
   private displayRows: Array<{ row: Message; anchor: number }> = []
@@ -833,7 +887,10 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
   private syncLivenessTicker(inFlight: boolean): void {
     if (inFlight && this.attached) {
       if (this.livenessTicker !== null) return
-      const t = setInterval(() => emitAll(this.liveListeners, 'liveness'), LIVENESS_TICK_MS)
+      const t = setInterval(() => {
+        emitAll(this.liveListeners, 'liveness')
+        this.probeCarrier()
+      }, LIVENESS_TICK_MS)
       t.unref?.()
       this.livenessTicker = t
       return
@@ -1422,7 +1479,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
       return
     }
     const prev = this.facts
-    this.facts = next
+    this.facts = this.factsFromCarrier(next)
     this.refreshCheckpoints()
     adoptOpenaiObservedUsage(next.usage?.openaiObserved)
     adoptOpenaiWindowFact(next.usage?.openaiWindow)
@@ -1458,8 +1515,8 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
       prev.effort !== next.effort ||
       prev.effortSent !== next.effortSent
     const modeMoved = prev === null || prev.permissionMode !== next.permissionMode
-    this.factsBusy = next.busy
-    if (next.busy) this.armBusyStall()
+    this.factsBusy = this.facts.busy
+    if (this.facts.busy) this.armBusyStall()
     else this.disarmBusyStall()
     this.reconcileQueuedSends(next)
     this.recomputeLive()
