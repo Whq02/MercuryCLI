@@ -11,7 +11,7 @@ delete process.env.MERCURY_HOME
 const { enableConfigs } = await import('../../src/utils/config.ts')
 enableConfigs()
 const { getNextPermissionMode, cyclePermissionMode } = await import('../../src/utils/permissions/getNextPermissionMode.ts')
-const { isAutoModeGateEnabled } = await import('../../src/utils/permissions/permissionSetup.ts')
+const { isFlowGateEnabled } = await import('../../src/utils/permissions/permissionSetup.ts')
 const { resetSettingsCache } = await import('../../src/utils/settings/settingsCache.ts')
 const closeFlow = (closed: boolean): void => {
   writeFileSync(join(process.env.MERCURY_CONFIG_DIR!, 'settings.json'), JSON.stringify(closed ? { guardrails: { disableFlowMode: true } } : {}))
@@ -28,7 +28,7 @@ function check(label: string, passed: boolean, detail = ''): void {
 const context = (mode: PermissionMode, bypass = false): ToolPermissionContext => ({
   mode,
   isBypassPermissionsModeAvailable: bypass,
-  isAutoModeAvailable: false,
+  isFlowAvailable: false,
   additionalWorkingDirectories: new Map(),
   alwaysAllowRules: {},
   alwaysDenyRules: {},
@@ -45,7 +45,7 @@ const context = (mode: PermissionMode, bypass = false): ToolPermissionContext =>
 try {
   for (const flow of [true, false]) {
     closeFlow(!flow)
-    check(`live flow gate is ${flow}`, isAutoModeGateEnabled() === flow)
+    check(`live flow gate is ${flow}`, isFlowGateEnabled() === flow)
     for (const bypass of [false, true]) {
       const expected: PermissionMode[] = ['default', 'implement', 'apollo']
       if (flow) expected.push('flow')

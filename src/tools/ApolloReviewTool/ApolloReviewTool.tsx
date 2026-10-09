@@ -3,7 +3,7 @@ import { z } from 'zod'
 import { buildTool, type ToolPermissionContext } from '../../Tool.js'
 import { getAgentContext } from '../../utils/agentContext.js'
 import {
-  isAutoModeGateEnabled,
+  isFlowGateEnabled,
   setPermissionModeWithGuards,
 } from '../../utils/permissions/permissionSetup.js'
 import {
@@ -171,7 +171,7 @@ export const ApolloReviewTool = buildTool({
     const targets: PermissionMode[] =
       input.decision === 'build-ask-first'
         ? ['default']
-        : isAutoModeGateEnabled()
+        : isFlowGateEnabled()
           ? ['flow', 'implement']
           : ['implement']
     let settled: PermissionMode | null = null

@@ -91,7 +91,7 @@ import { getModelDeprecationWarning } from './utils/model/deprecation.js'
 import { getDefaultEngineModelSetting, getEngineModel, getCanonicalName } from './utils/model/model.js'
 import {
   initializeToolPermissionContext,
-  stripDangerousPermissionsForAutoMode,
+  stripDangerousPermissionsForFlow,
 } from './utils/permissions/permissionSetup.js'
 import { PERMISSION_MODES, modeBypassesPermissions, type PermissionMode } from './utils/permissions/PermissionMode.js'
 import { MODE_GLOSS } from './utils/settings/validationTips.js'
@@ -1193,7 +1193,7 @@ async function defaultAction(inputPromptArg: string | undefined, opts: RootOptio
   let toolPermissionContext = permissionInit.toolPermissionContext
   for (const warning of permissionInit.warnings) console.error(warning)
   if (permissionInit.dangerousPermissions.length > 0) {
-    toolPermissionContext = stripDangerousPermissionsForAutoMode(toolPermissionContext)
+    toolPermissionContext = stripDangerousPermissionsForFlow(toolPermissionContext)
   }
 
   const assistantBootActive = false

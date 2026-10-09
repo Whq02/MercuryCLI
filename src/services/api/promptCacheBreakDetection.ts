@@ -54,7 +54,7 @@ type PromptStateSnapshot = {
   agentId?: string
   globalCacheStrategy?: 'tool_based' | 'system_prompt' | 'none'
   betas?: string[]
-  autoModeActive?: boolean
+  flowActive?: boolean
   overageInUse?: boolean
   cachedMicrocompact?: boolean
   effortValue?: string | null
@@ -100,7 +100,7 @@ type PendingChanges = {
   cacheControlChanged: boolean
   strategyChanged: boolean
   betasChanged: boolean
-  autoModeChanged: boolean
+  flowChanged: boolean
   overageChanged: boolean
   cachedMicrocompactChanged: boolean
   effortChanged: boolean
@@ -131,7 +131,7 @@ type LaneState = {
   model: string
   globalCacheStrategy: string
   betas: string[]
-  autoModeActive: boolean
+  flowActive: boolean
   overageInUse: boolean
   cachedMicrocompact: boolean
   effort: string
@@ -278,7 +278,7 @@ export function recordPromptState(snapshot: PromptStateSnapshot): void {
         model: snapshot.model,
         globalCacheStrategy: snapshot.globalCacheStrategy ?? '',
         betas,
-        autoModeActive: snapshot.autoModeActive === true,
+        flowActive: snapshot.flowActive === true,
         overageInUse: snapshot.overageInUse === true,
         cachedMicrocompact: snapshot.cachedMicrocompact === true,
         effort,
@@ -313,7 +313,7 @@ export function recordPromptState(snapshot: PromptStateSnapshot): void {
     const cacheControlChanged = existing.cacheControlHash !== cacheControlHash
     const strategyChanged = existing.globalCacheStrategy !== (snapshot.globalCacheStrategy ?? '')
     const betasChanged = !betasEqual(existing.betas, betas)
-    const autoModeChanged = existing.autoModeActive !== (snapshot.autoModeActive === true)
+    const flowChanged = existing.flowActive !== (snapshot.flowActive === true)
     const overageChanged = existing.overageInUse !== (snapshot.overageInUse === true)
     const cachedMicrocompactChanged =
       existing.cachedMicrocompact !== (snapshot.cachedMicrocompact === true)
@@ -345,7 +345,7 @@ export function recordPromptState(snapshot: PromptStateSnapshot): void {
       cacheControlChanged ||
       strategyChanged ||
       betasChanged ||
-      autoModeChanged ||
+      flowChanged ||
       overageChanged ||
       cachedMicrocompactChanged ||
       effortChanged ||
@@ -359,7 +359,7 @@ export function recordPromptState(snapshot: PromptStateSnapshot): void {
         cacheControlChanged,
         strategyChanged,
         betasChanged,
-        autoModeChanged,
+        flowChanged,
         overageChanged,
         cachedMicrocompactChanged,
         effortChanged,
@@ -392,7 +392,7 @@ export function recordPromptState(snapshot: PromptStateSnapshot): void {
     existing.model = snapshot.model
     existing.globalCacheStrategy = snapshot.globalCacheStrategy ?? ''
     existing.betas = betas
-    existing.autoModeActive = snapshot.autoModeActive === true
+    existing.flowActive = snapshot.flowActive === true
     existing.overageInUse = snapshot.overageInUse === true
     existing.cachedMicrocompact = snapshot.cachedMicrocompact === true
     existing.effort = effort
@@ -450,7 +450,7 @@ function buildReason(pending: PendingChanges): string {
     const detail = [additions, removals].filter(part => part !== '').join(' ')
     parts.push(detail !== '' ? `betas changed (${detail})` : 'betas changed')
   }
-  if (pending.autoModeChanged) parts.push('flow toggled')
+  if (pending.flowChanged) parts.push('flow toggled')
   if (pending.overageChanged) parts.push('overage state changed (TTL latched, no flip)')
   if (pending.cachedMicrocompactChanged) parts.push('cached microcompact toggled')
   if (pending.effortChanged) {
