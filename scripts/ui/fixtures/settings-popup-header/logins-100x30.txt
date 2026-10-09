@@ -7,9 +7,9 @@ NEXT                │ │ esc back · from the menu, esc closes /logins       
                     │ │ Sign in                                                                  │ │
 FILES · orchard     │ │                                                                          │ │
   ↵ or click · brow…│ │ Use a Claude or OpenAI subscription, usage-based billing, or connect     │ │
-                    │ │ OpenRouter, Gemini, Hugging Face, Kimi, GLM, DeepSeek, xAI, Meta or      │ │
-VITALS              │ │ Mistral. To add an API key from the terminal, run /router key            │ │
-  · spend —         │ │ <provider>.                                                              │ │
+                    │ │ OpenRouter, Gemini, Hugging Face, Kimi, GLM, DeepSeek, xAI, Meta,        │ │
+VITALS              │ │ Mistral or Nous Portal. To add an API key from the terminal, run /router │ │
+  · spend —         │ │ key <provider>.                                                          │ │
   · ctx — · —       │ │                                                                          │ │
   · health — run /h…│ │   OpenAI — ChatGPT subscription or API key                               │ │
                     │ │ ❯ Claude subscription account                                            │ │

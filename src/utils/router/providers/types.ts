@@ -13,6 +13,7 @@ export type RouterProviderId =
   | 'huggingface'
   | 'local'
   | 'mistral'
+  | 'nous'
 export type RouterModelClass =
   | 'opus'
   | 'sonnet'
@@ -27,6 +28,7 @@ export type RouterModelClass =
   | 'huggingface'
   | 'local'
   | 'mistral'
+  | 'nous'
 export type RouteEffortLevel = 'high' | 'xhigh' | 'max'
 export type RouterPosture = 'adaptive' | 'quality' | 'balanced' | 'fast' | 'fixed'
 

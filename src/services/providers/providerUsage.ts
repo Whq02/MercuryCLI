@@ -498,6 +498,22 @@ export interface ActiveUsageReads {
   kimiManagedError?: () => string | undefined
   spend?: (route: RouterProviderId) => ProviderSessionSpend
   anthropicPlan?: () => string | null
+  nousAccount?: () => NousObservedAccountView | null
+  nousAccountFailure?: () => NousAccountFailureView | null
+}
+
+export interface NousObservedAccountView {
+  observedAtMs: number
+  accountTier?: string
+  subscription?: { plan?: string; tier?: number; monthlyCredits?: number; currentPeriodEnd?: string; creditsRemaining?: number; rolloverCredits?: number }
+  paidAccess?: { allowed?: boolean; reason?: string; hasActiveSubscription?: boolean; totalUsableCredits?: number; subscriptionCreditsRemaining?: number; purchasedCreditsRemaining?: number; memberSpendCapUsd?: number; memberSpendUsd?: number; memberSpendCapRemainingUsd?: number }
+}
+
+export interface NousAccountFailureView {
+  kind: 'refused' | 'unreachable'
+  atMs: number
+  status?: number
+  message: string
 }
 
 export interface DeepseekObservedBalanceView {
@@ -559,6 +575,11 @@ export async function refreshProviderUsage(provider: RouterProviderId, io?: Usag
           ...(io?.reason !== undefined ? { reason: io.reason } : {}),
           ...(io?.now !== undefined ? { now: io.now } : {}),
         })
+        return
+      }
+      case 'nous': {
+        const { refreshNousAccount } = require('./nous/nousUsageState.js') as typeof import('./nous/nousUsageState.js')
+        await refreshNousAccount(io)
         return
       }
       case 'local':
@@ -678,6 +699,10 @@ function laneCredentialedLive(provider: RouterProviderId): boolean {
   if (provider === 'mistral') {
     const { resolveMistralApiKey } = require('./mistral/mistralAccounts.js') as typeof import('./mistral/mistralAccounts.js')
     return resolveMistralApiKey() !== undefined
+  }
+  if (provider === 'nous') {
+    const { resolveNousApiKey } = require('./nous/nousAccounts.js') as typeof import('./nous/nousAccounts.js')
+    return resolveNousApiKey() !== undefined
   }
   if (provider === 'deepseek') {
     const { resolveDeepseekApiKey } =
@@ -1704,6 +1729,36 @@ function deriveUsageForProvider(
       credits: balance ? polledBalanceCredits(balance) : limits
         ? { state: 'unreported', reason: limits.noMonthlyLimit ? 'no monthly limit is set — usage is the figure' : 'the spend limit read states no figure', compact: limits.noMonthlyLimit ? 'no limit set' : 'not stated' }
         : { state: 'unreported', reason: adminNote ? 'not read — see the usage reader note' : 'not read yet — /usage samples the Admin API', compact: 'not read' },
+      ...(balance ? { balance } : {}),
+      ...(figures.length ? { figures } : {}),
+      ...(note ? { readerNote: note, readerNoteCompact: note } : {}),
+    }
+  }
+  if (provider === 'nous') {
+    const credentialed = reads?.laneCredentialed?.(provider) ?? laneCredentialedLive(provider)
+    if (!credentialed) return { provider, sourceKind: 'none', label: 'Nous Portal usage', shape: 'none', windows: [], pools: [], spend, whyNot: 'not connected — /logins nous adds a key' }
+    const nousState = require('./nous/nousUsageState.js') as typeof import('./nous/nousUsageState.js')
+    const account = (reads?.nousAccount ?? nousState.nousObservedAccount)()
+    const failed = (reads?.nousAccountFailure ?? nousState.nousAccountFailure)()
+    const usable = account?.paidAccess?.totalUsableCredits ?? account?.subscription?.creditsRemaining
+    const balance = account && usable !== undefined ? { display: `USD ${usable.toFixed(2)} usable credits`, observedAtMs: account.observedAtMs } : undefined
+    const stamp = { source: 'endpoint' as const, observedAtMs: account?.observedAtMs, freshForMs: usageStaleAfterMs() }
+    const figures: UsageFigureView[] = []
+    if (account) {
+      const sub = account.subscription
+      if (sub?.plan !== undefined) figures.push({ key: 'plan', label: 'subscription plan', value: `${sub.plan}${sub.tier !== undefined ? ` (tier ${sub.tier})` : ''}`, ...stamp })
+      if (sub?.creditsRemaining !== undefined) figures.push({ key: 'subscription-credits', label: 'subscription credits remaining', value: `USD ${sub.creditsRemaining.toFixed(2)}${sub.monthlyCredits !== undefined ? ` of ${sub.monthlyCredits.toFixed(2)} monthly` : ''}`, ...stamp, ...(sub.currentPeriodEnd !== undefined && Number.isFinite(Date.parse(sub.currentPeriodEnd)) ? { resetsAtMs: Date.parse(sub.currentPeriodEnd) } : {}) })
+      if (sub?.rolloverCredits !== undefined && sub.rolloverCredits > 0) figures.push({ key: 'rollover-credits', label: 'rollover credits', value: `USD ${sub.rolloverCredits.toFixed(2)}`, ...stamp })
+      const access = account.paidAccess
+      if (access?.purchasedCreditsRemaining !== undefined) figures.push({ key: 'purchased-credits', label: 'purchased credits remaining', value: `USD ${access.purchasedCreditsRemaining.toFixed(2)}`, ...stamp })
+      if (access?.memberSpendCapUsd !== undefined) figures.push({ key: 'member-spend-cap', label: 'organisation spend cap', value: `USD ${(access.memberSpendUsd ?? 0).toFixed(2)} of ${access.memberSpendCapUsd.toFixed(2)}`, ...stamp })
+    }
+    const note = account?.paidAccess?.allowed === false
+      ? `the Portal reports no paid service access${account.paidAccess.reason ? ` (${account.paidAccess.reason})` : ''} — top up or renew at portal.nousresearch.com`
+      : failed ? nousState.nousAccountFailureWords(failed) : undefined
+    return {
+      provider, sourceKind: 'api-key', label: 'API usage', shape: 'api-spend', windows: [], pools: [], spend, tier: API_BILLING_TIER,
+      credits: balance ? polledBalanceCredits(balance) : { state: 'unreported', reason: failed ? 'not read — see the usage reader note' : 'not read yet — /usage samples the Portal account endpoint', compact: failed ? 'not read' : 'not read yet' },
       ...(balance ? { balance } : {}),
       ...(figures.length ? { figures } : {}),
       ...(note ? { readerNote: note, readerNoteCompact: note } : {}),

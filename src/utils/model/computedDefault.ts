@@ -293,7 +293,7 @@ function pickerRowFor(family: string, rows: ModelOption[] | null): LaneRowVerdic
       }
       const { catalogueTrafficVerdict } =
         require('../../services/providers/catalogueGate.js') as typeof import('../../services/providers/catalogueGate.js')
-      const gate = (['huggingface', 'openrouter', 'gemini', 'openai', 'local'] as const).includes(family as never)
+      const gate = (['huggingface', 'openrouter', 'gemini', 'openai', 'local', 'nous'] as const).includes(family as never)
         ? catalogueTrafficVerdict(family as Parameters<typeof catalogueTrafficVerdict>[0])
         : null
       if (gate !== null && !gate.allowed) return { usable: false, why: gate.reason }

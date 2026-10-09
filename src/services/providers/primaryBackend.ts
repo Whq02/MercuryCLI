@@ -21,6 +21,8 @@ import { metaCallModel, metaLiveProofState } from './meta/metaCallModel.js'
 import { resolveMetaApiKey } from './meta/metaAccounts.js'
 import { mistralCallModel, mistralLiveProofState } from './mistral/mistralCallModel.js'
 import { resolveMistralApiKey } from './mistral/mistralAccounts.js'
+import { nousCallModel, nousLiveProofState } from './nous/nousCallModel.js'
+import { resolveNousAccount } from './nous/nousAccounts.js'
 import { compatCallModel, compatSlotLiveProofState } from './openaicompat/compatCallModel.js'
 import { resolveCompatSlotConfig } from './openaicompat/compatAccounts.js'
 import {
@@ -48,6 +50,7 @@ export type PrimaryBackendId =
   | 'huggingface-chat'
   | 'local-chat'
   | 'mistral-chat'
+  | 'nous-chat'
 
 export interface AgentRuntimeRef {
   contractVersion: typeof APEX_BACKEND_CONTRACT_VERSION
@@ -66,6 +69,7 @@ export interface AgentRuntimeRef {
     | 'huggingface'
     | 'local'
     | 'mistral'
+    | 'nous'
   route: CallModelRoute | 'unrecognised' | 'absence'
   canonicalModel: string
   family:
@@ -83,6 +87,7 @@ export interface AgentRuntimeRef {
     | { kind: 'local' }
     | { kind: 'mistral' }
     | { kind: 'unknown' }
+    | { kind: 'nous' }
   walletEntryId?: string
 }
 
@@ -313,6 +318,21 @@ const geminiBackend: PrimaryAgentBackend = {
   },
 }
 
+const nousBackend: PrimaryAgentBackend = {
+  id: 'nous-chat',
+  provider: 'nous',
+  label: 'Nous Portal (multi-vendor gateway, shared compat runtime)',
+  callModel: nousCallModel as unknown as typeof queryModelWithStreaming,
+  readiness: (): BackendReadiness => {
+    const account = resolveNousAccount()
+    if (!account) return { state: 'unavailable', reason: 'no Nous Portal API key (/logins nous, or NOUS_API_KEY)' }
+    const proof = nousLiveProofState()
+    return proof
+      ? { state: 'ready', detail: `live turn settled this session (${proof.model}) · ${account.label}` }
+      : { state: 'configured', detail: `${account.label} · shared compat runtime · no live turn proven this session` }
+  },
+}
+
 const BACKENDS: Record<CallModelRoute, PrimaryAgentBackend> = {
   anthropic: anthropicBackend,
   zai: zaiBackend,
@@ -327,6 +347,7 @@ const BACKENDS: Record<CallModelRoute, PrimaryAgentBackend> = {
   huggingface: huggingfaceBackend,
   local: localBackend,
   mistral: mistralBackend,
+  nous: nousBackend,
 }
 
 export function resolvePrimaryAgentBackend(model: string | undefined): PrimaryAgentBackend | null {
@@ -375,6 +396,8 @@ export function describeAgentRuntimeRef(model: string | undefined): AgentRuntime
     family = { kind: 'local' }
   } else if (route === 'mistral') {
     family = { kind: 'mistral' }
+  } else if (route === 'nous') {
+    family = { kind: 'nous' }
   } else {
     family = canonical.toLowerCase().includes('claude') ? { kind: 'claude' } : { kind: 'unknown' }
   }

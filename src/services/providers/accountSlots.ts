@@ -42,6 +42,8 @@ import {
   writeStoredMistralApiKey,
   readStoredMistralAdminApiKey,
   writeStoredMistralAdminApiKey,
+  readStoredNousApiKey,
+  writeStoredNousApiKey,
   readStoredHuggingfaceApiKey,
   readStoredLocalApiKey,
   readStoredMoonshotApiKey,
@@ -126,6 +128,7 @@ export type SlotRemoval =
   | { route: 'local-stored-key' }
   | { route: 'mistral-stored-key' }
   | { route: 'mistral-admin-key' }
+  | { route: 'nous-stored-key' }
   | { route: 'env'; envVar: string }
   | { route: 'settings'; note: string }
   | { route: 'owner'; note: string }
@@ -193,6 +196,8 @@ export interface AccountSlotReads {
   mistralStoredKey?: () => string | undefined
   mistralAdminEnvKey?: () => string | undefined
   mistralAdminStoredKey?: () => string | undefined
+  nousEnvKey?: () => string | undefined
+  nousStoredKey?: () => string | undefined
   compatEnvKey?: () => string | undefined
   compatStoredKey?: () => string | undefined
   huggingfaceEnvKey?: () => string | undefined
@@ -941,6 +946,12 @@ function mistralSlots(reads: AccountSlotReads): AccountSlot[] {
   return slots
 }
 
+function nousSlots(reads: AccountSlotReads): AccountSlot[] {
+  const envKey = reads.nousEnvKey ? reads.nousEnvKey() : process.env.NOUS_API_KEY?.trim() || undefined
+  const storedKey = (reads.nousStoredKey ?? readStoredNousApiKey)()
+  return keyLaneSlots({ family: 'nous', envVar: 'NOUS_API_KEY', envKey, storedKey, storedRemoval: { route: 'nous-stored-key' } })
+}
+
 function deepseekSlots(reads: AccountSlotReads): AccountSlot[] {
   const envKey =
     reads.deepseekEnvKey ? reads.deepseekEnvKey() : process.env.DEEPSEEK_API_KEY?.trim() || undefined
@@ -1166,7 +1177,9 @@ export function deriveFamilySlotGroups(
                                 ? localSlots(reads)
                                 : family.id === 'mistral'
                                   ? mistralSlots(reads)
-                                  : genericSlots(
+                                  : family.id === 'nous'
+                                    ? nousSlots(reads)
+                                    : genericSlots(
                                     family,
                                     providers.find(provider => provider.id === family.id),
                                   )
@@ -1196,6 +1209,7 @@ export interface SlotRemovalOwners {
   disconnectHuggingfaceOauth?: () => void
   clearStoredHuggingfaceKey?: () => void
   clearStoredLocalKey?: () => void
+  clearStoredNousKey?: () => void
   clearManagedAnthropicKey?: () => void
   signOutAnthropicOauth?: () => void
   revokeAnthropicToken?: (refreshToken: string) => Promise<void>
@@ -1400,6 +1414,9 @@ function routeSlotRemoval(
     case 'xai-management-key':
       ;(owners.clearStoredXaiManagementKey ?? (() => writeStoredXaiManagementApiKey(null)))()
       return { note: 'stored xAI management key cleared; the inference key stays', mutated: true }
+    case 'nous-stored-key':
+      ;(owners.clearStoredNousKey ?? (() => writeStoredNousApiKey(null)))()
+      return { note: 'stored Nous Portal API key cleared from the auth-scoped store', mutated: true }
     case 'compat-stored-key':
       ;(owners.clearStoredCompatKey ?? (() => writeStoredCompatApiKey(null)))()
       return { note: 'stored endpoint API key cleared from the auth-scoped store', mutated: true }
@@ -1447,6 +1464,7 @@ export function signOutEveryEngineCredential(owners: SlotRemovalOwners = {}): vo
     ['local-stored-key', owners.clearStoredLocalKey ?? (() => writeStoredLocalApiKey(null))],
     ['mistral-stored-key', owners.clearStoredMistralKey ?? (() => writeStoredMistralApiKey(null))],
     ['mistral-admin-key', owners.clearStoredMistralAdminKey ?? (() => writeStoredMistralAdminApiKey(null))],
+    ['nous-stored-key', owners.clearStoredNousKey ?? (() => writeStoredNousApiKey(null))],
   ]
   for (const [, step] of steps) {
     try {

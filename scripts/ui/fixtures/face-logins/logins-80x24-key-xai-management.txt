@@ -5,8 +5,7 @@
  XAI_MANAGEMENT_API_KEY wins. key: ▌ ↵ stores · empty/esc skips; API key
  stays
 
- ↑ 3 more
-   Hugging Face — device-code sign-in or a…  keyed-op …k9f2
+ ↑ 4 more
    Kimi (Moonshot) — device-code sign-in o…  kimi.ai (global) · window reached
  available
    Usage-based billing — Anthropic Console…  not signed in
@@ -17,6 +16,7 @@
  ❯ xAI — Grok subscription sign-in or API …  not signed in
    Meta — API key (Muse)                     not signed in
    Mistral — API key (Mistral Large 4)       not signed in
+   Nous Portal — API key (model gateway)     not signed in
 
 
  xAI · not signed in

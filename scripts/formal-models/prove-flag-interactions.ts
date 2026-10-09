@@ -103,6 +103,8 @@ const DOMAINS: Record<string, string[]> = {
   MERCURY_CLIPBOARD_FILE: ['', '/tmp/sweep-clipboard.txt'],
   MERCURY_SHELL_TIMEOUT_MS: ['', '5000', '900000'],
   MERCURY_SHELL_MAX_TIMEOUT_MS: ['', '7000'],
+  MERCURY_NOUS_API_BASE: ['', 'http://127.0.0.1:9/v1'],
+  MERCURY_NOUS_PORTAL_BASE: ['', 'http://127.0.0.1:9'],
 }
 
 const CLUSTERS: Record<string, string[]> = {

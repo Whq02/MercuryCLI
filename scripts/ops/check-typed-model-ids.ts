@@ -23,7 +23,7 @@ const { getApiFetch, getProxyFetchOptions } = await import('../../src/utils/prox
 const { fetchWithProviderDeadline } = await import('../../src/services/providers/fetchDeadline.js')
 const { catalogueTrafficVerdict } = await import('../../src/services/providers/catalogueGate.js')
 const { getEssentialTrafficOnlyReason } = await import('../../src/utils/privacyLevel.js')
-const GATED_FAMILIES = new Set(['openai', 'gemini', 'deepseek', 'openrouter', 'huggingface'])
+const GATED_FAMILIES = new Set(['openai', 'gemini', 'deepseek', 'openrouter', 'huggingface', 'nous'])
 const { getAuthHeaders, getUserAgent } = await import('../../src/utils/http.js')
 const { judgeTypedIds } = await import('../../src/services/providers/typedModelIds.js')
 
@@ -302,6 +302,24 @@ const skipped: string[] = []
     })
   }
   if (!key && !kimi) skipped.push(`moonshot · no credential · ${typed.length} typed ids not judged`)
+}
+
+{
+  const accounts = await import('../../src/services/providers/nous/nousAccounts.js')
+  const { fetchNousLiveModels, NOUS_PORTAL_RECOMMENDED } = await import('../../src/services/providers/nous/nousCatalogue.js')
+  const typed = [...NOUS_PORTAL_RECOMMENDED]
+  const key = accounts.resolveNousApiKey(env)
+  if (key) {
+    families.push({
+      family: 'nous',
+      source: accounts.resolveNousAccount(env)?.label ?? `Nous Portal API key (${key.source})`,
+      typed,
+      list: async () => {
+        const result = await fetchNousLiveModels({ baseUrl: accounts.nousApiBase(env), key: key.key })
+        return { ids: result.models.map(model => model.id) }
+      },
+    })
+  } else skipped.push(`nous · no credential · ${typed.length} typed ids not judged`)
 }
 
 let notServed = 0

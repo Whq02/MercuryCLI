@@ -38,6 +38,12 @@ export async function contextWindowSourceReady(model: string): Promise<boolean> 
       if (!resolveHuggingfaceApiKey()) return true
       return (getCachedHuggingfaceCatalogue()?.models.length ?? 0) > 0
     }
+    case 'nous': {
+      const { resolveNousApiKey } = await import('../../services/providers/nous/nousAccounts.js')
+      const { getCachedNousCatalogue } = await import('../../services/providers/nous/nousCatalogue.js')
+      if (!resolveNousApiKey()) return true
+      return (getCachedNousCatalogue()?.models.length ?? 0) > 0
+    }
     case 'openai': {
       const { resolveOpenaiAccount } = await import('../../services/providers/openai/openaiAccounts.js')
       const { getCachedOpenaiCatalogue } = await import('../../services/providers/openai/openaiCatalogue.js')
@@ -75,6 +81,11 @@ export async function awaitContextWindowSource(model: string, timeoutMs = SOURCE
       case 'huggingface': {
         const { refreshHuggingfaceCatalogue } = await import('../../services/providers/huggingface/huggingfaceCatalogue.js')
         await withTimeout(refreshHuggingfaceCatalogue(), timeoutMs)
+        return
+      }
+      case 'nous': {
+        const { refreshNousCatalogue } = await import('../../services/providers/nous/nousCatalogue.js')
+        await withTimeout(refreshNousCatalogue(), timeoutMs)
         return
       }
       case 'openai': {

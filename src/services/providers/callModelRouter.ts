@@ -18,6 +18,7 @@ import { geminiCallModel } from './gemini/geminiCallModel.js'
 import { huggingfaceCallModel } from './huggingface/huggingfaceCallModel.js'
 import { localCallModel } from './local/localCallModel.js'
 import { mistralCallModel } from './mistral/mistralCallModel.js'
+import { nousCallModel } from './nous/nousCallModel.js'
 import { homeLaneAdmissionRefusal } from './homeLaneAdmission.js'
 import { readStoredImageRefsForRequest } from '../../utils/imageStore.js'
 
@@ -140,6 +141,9 @@ export const routedCallModel: typeof queryModelWithStreaming = async function* (
       return
     case 'mistral':
       yield* mistralCallModel(request)
+      return
+    case 'nous':
+      yield* nousCallModel(request)
       return
   }
 }

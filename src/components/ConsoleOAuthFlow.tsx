@@ -38,6 +38,7 @@ import { DeepseekConnect } from './DeepseekConnect.js'
 import { XaiConnect } from './XaiConnect.js'
 import { MetaConnect } from './MetaConnect.js'
 import { MistralConnect } from './MistralConnect.js'
+import { NousConnect } from './NousConnect.js'
 import { KeyCardTitle } from './KeyCardTitle.js'
 import { storeOpenaiApiKeyLogin } from '../services/providers/openai/openaiLogin.js'
 import { keyPasteGuardNote } from './mercury-ui/screens/keyPasteGuards.js'
@@ -64,6 +65,7 @@ type EngineLeg =
   | 'xai'
   | 'meta'
   | 'mistral'
+  | 'nous'
 
 export type LoginFamilyFocus = LoginFamilyValue
 
@@ -189,7 +191,7 @@ export function ConsoleOAuthFlow({
 
   const startFamily = (value: string): void => {
     if (value === SIGN_IN_LATER_ROW.value) { onSkip?.(); return }
-    if (value === 'openai' || value === 'moonshot' || value === 'zai' || value === 'deepseek' || value === 'xai' || value === 'meta' || value === 'mistral' || value === 'openrouter' || value === 'gemini' || value === 'huggingface') {
+    if (value === 'openai' || value === 'moonshot' || value === 'zai' || value === 'deepseek' || value === 'xai' || value === 'meta' || value === 'mistral' || value === 'openrouter' || value === 'gemini' || value === 'huggingface' || value === 'nous') {
       setLeg(value)
       return
     }
@@ -254,6 +256,10 @@ export function ConsoleOAuthFlow({
         if (onOpenaiDone === undefined) return frame(<Text dimColor>Mistral login unavailable here.</Text>)
         return frame(<MistralConnect onResult={settleLeg} onBack={() => setLeg(null)} />)
 
+      case 'nous':
+        if (onOpenaiDone === undefined) return frame(<Text dimColor>Nous Portal login unavailable here.</Text>)
+        return frame(<NousConnect onResult={settleLeg} onBack={() => setLeg(null)} />)
+
       case 'deepseek':
         if (onOpenaiDone === undefined) return frame(<Text dimColor>DeepSeek login unavailable here.</Text>)
         return frame(<DeepseekConnect onResult={settleLeg} onBack={() => setLeg(null)} />)
@@ -283,7 +289,7 @@ export function ConsoleOAuthFlow({
           {compact ? null : (
             <Text>
               {startingMessage ??
-                'Mercury can run on a Claude or OpenAI subscription, on usage-based billing, or on a connected engine (OpenRouter · Gemini · Hugging Face · Kimi · GLM · DeepSeek · xAI · Meta · Mistral). An API key also connects from the terminal: /router key <provider>.'}
+                'Mercury can run on a Claude or OpenAI subscription, on usage-based billing, or on a connected engine (OpenRouter · Gemini · Hugging Face · Kimi · GLM · DeepSeek · xAI · Meta · Mistral · Nous Portal). An API key also connects from the terminal: /router key <provider>.'}
             </Text>
           )}
           <Select
@@ -536,6 +542,7 @@ const READINESS_ROWS: ReadonlyArray<{ id: ProviderId; label: string }> = [
   { id: 'mistral', label: 'Mistral' },
   { id: 'local', label: 'Local servers' },
   { id: 'openai-compat', label: 'OpenAI-compatible' },
+  { id: 'nous', label: 'Nous Portal' },
 ]
 
 function ProviderReadinessBlock(): React.ReactNode {

@@ -547,6 +547,10 @@ const PROVIDER_AUTH_PRESENTATION: Record<string, { label: string; signIn: string
     label: 'xAI',
     signIn: 'Add an xAI API key via /logins xai, or export XAI_API_KEY',
   },
+  nous: {
+    label: 'Nous Portal',
+    signIn: 'Add a Nous Portal API key via /logins nous, or export NOUS_API_KEY',
+  },
   'openai-compat': {
     label: 'Custom endpoint',
     signIn: 'Set MERCURY_COMPAT_BASE_URL (key optional — /router key compat)',

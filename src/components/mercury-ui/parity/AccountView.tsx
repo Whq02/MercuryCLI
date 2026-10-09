@@ -290,7 +290,8 @@ export function AccountView({
                     slot.removal.route === 'meta-stored-key' ||
                     slot.removal.route === 'compat-stored-key' ||
                     slot.removal.route === 'mistral-stored-key' ||
-                    slot.removal.route === 'mistral-admin-key'
+                    slot.removal.route === 'mistral-admin-key' ||
+                    slot.removal.route === 'nous-stored-key'
                   ? '⌫ clears'
                 : slot.removal.route === 'anthropic-managed-key'
                   ? '⌫ removes'

@@ -24,7 +24,8 @@ async function validateNonAnthropicModel(
     | 'gemini'
     | 'huggingface'
     | 'local'
-    | 'mistral',
+    | 'mistral'
+    | 'nous',
   trimmed: string,
 ): Promise<ValidateModelResult & { skipCache?: boolean }> {
   if (route !== 'openrouter') {
@@ -65,6 +66,26 @@ async function validateNonAnthropicModel(
       return {
         valid: false,
         error: `No local server lists "${trimmed}" — start Ollama/LM Studio/vLLM/llama.cpp-server or set MERCURY_LOCAL_BASE_URL; /model re-probes on open.`,
+      }
+    }
+    return { valid: true, skipCache: true }
+  }
+  if (route === 'nous') {
+    const { resolveNousAccount } = await import('../../services/providers/nous/nousAccounts.js')
+    if (!resolveNousAccount()) {
+      return { valid: false, error: 'Nous Portal is unavailable — no API key (/logins nous stores one, or set NOUS_API_KEY).' }
+    }
+    const { refreshNousCatalogue, nousWireModelId } = await import('../../services/providers/nous/nousCatalogue.js')
+    const snapshot = await refreshNousCatalogue().catch(() => null)
+    if (snapshot?.lastError?.includes('refused the credential')) return { valid: false, error: `${snapshot.lastError} — /logins nous stores another key.` }
+    if (snapshot && snapshot.models.length > 0) {
+      const { qualifiedWireId } = await import('../../services/providers/routeLaw.js')
+      const slug = qualifiedWireId(trimmed)
+      const listed = snapshot.models.some(m => m.id.toLowerCase() === slug.trim().toLowerCase())
+      if (!listed) {
+        const healed = nousWireModelId(trimmed)
+        const hint = healed.toLowerCase() !== slug.trim().toLowerCase() ? ` Did you mean "nous/${healed}"?` : ''
+        return { valid: false, error: `Model "${trimmed}" is not listed by the live Nous Portal catalogue (${snapshot.models.length} models; nous/<vendor>/<model>).${hint}` }
       }
     }
     return { valid: true, skipCache: true }

@@ -14,6 +14,7 @@ export type CallModelRoute =
   | 'huggingface'
   | 'local'
   | 'mistral'
+  | 'nous'
 
 export interface ProviderIdSpace {
   route: Exclude<CallModelRoute, 'anthropic'>
@@ -36,6 +37,7 @@ export const PROVIDER_ID_SPACES: readonly ProviderIdSpace[] = [
   { route: 'meta', barePrefixes: ['muse-'], bareAliases: ['muse'] },
   { route: 'gemini', barePrefixes: ['gemini-'], bareAliases: ['gemini'] },
   { route: 'mistral', barePrefixes: ['mistral-', 'ministral-', 'codestral-'], bareAliases: ['mistral'] },
+  { route: 'nous', qualifiedPrefix: 'nous/', innerGrammar: 'segments-2' },
 ]
 
 export const COMPAT_MODEL_PREFIX = 'compat/'
