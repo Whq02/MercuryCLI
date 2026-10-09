@@ -1,5 +1,5 @@
 import { queryModelWithStreaming } from '../providers/anthropic/index.js'
-import type { CallModel, CallModelParams, CallModelStream } from './callModelContract.js'
+import type { CallModelParams, CallModelStream } from './callModelContract.js'
 import { API_ERROR_MESSAGE_PREFIX } from '../api/errors.js'
 import { APIUserAbortError } from '../api/sdkErrors.js'
 import type { AssistantMessage } from '../../types/message.js'
@@ -83,7 +83,7 @@ async function classifyAfterLiveLists(model: string): Promise<ModelRouteVerdict>
   return classifyModelRoute(model)
 }
 
-export const routedCallModel: CallModel = async function* (params) {
+export async function* routedCallModel(params: CallModelParams): CallModelStream {
   const verdict = await classifyAfterLiveLists(params.options.model)
   if (verdict.kind === 'absence') {
     yield createAssistantAPIErrorMessage({
