@@ -54,7 +54,6 @@ try {
     () => system.createThinkingDeadMessage([], 'fixture reasoning retirement'),
     () => system.createSeatReceiptMessage('fixture receipt'),
     () => system.createScheduledTaskFireMessage('fixture task'),
-    () => system.createStopHookSummaryMessage(0, [], [], false, undefined, false, 'info'),
     () => system.createTurnDurationMessage(1),
     () => system.createModelTransitionMessage({ previous: 'fixture-a', requested: 'fixture-b', applied: 'fixture-b', resolution: 'applied', boundary: 'idle', crossProvider: false, cacheDisposition: 'keyed-sections-recompute-once' } as never),
     () => system.createAwaySummaryMessage('fixture recap'),
