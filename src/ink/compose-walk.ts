@@ -1208,11 +1208,13 @@ function composeScrolledChildren(
   }
 }
 
-function dropSubtreeCache(node: DOMElement): void {
-  nodeCache.delete(node)
-  for (const child of node.childNodes) {
-    if (child.nodeName !== '#text') {
-      dropSubtreeCache(child as DOMElement)
+function dropSubtreeCache(root: DOMElement): void {
+  const pending: DOMElement[] = [root]
+  while (pending.length > 0) {
+    const node = pending.pop()!
+    nodeCache.delete(node)
+    for (const child of node.childNodes) {
+      if (child.nodeName !== '#text') pending.push(child as DOMElement)
     }
   }
 }
