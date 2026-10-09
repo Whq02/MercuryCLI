@@ -310,17 +310,18 @@ export const DEEPSEEK_MODEL_GROUP = 'Mercury — DeepSeek models'
 export const XAI_MODEL_GROUP = 'Mercury — xAI models'
 export const META_MODEL_GROUP = 'Mercury — Meta models'
 export const COMPAT_MODEL_GROUP = 'Mercury — custom endpoint'
+export const ZEN_MODEL_GROUP = 'Mercury — OpenCode Zen models'
 
 export const KEY_CONNECT_PREFIX = '__mercury_connect__:'
-export function keyConnectValue(provider: 'zai' | 'moonshot' | 'deepseek' | 'xai' | 'meta' | 'compat'): string {
+export function keyConnectValue(provider: 'zai' | 'moonshot' | 'deepseek' | 'xai' | 'meta' | 'compat' | 'zen'): string {
   return `${KEY_CONNECT_PREFIX}${provider}`
 }
 export function parseKeyConnectValue(
   value: string,
-): 'zai' | 'moonshot' | 'deepseek' | 'xai' | 'meta' | 'compat' | undefined {
+): 'zai' | 'moonshot' | 'deepseek' | 'xai' | 'meta' | 'compat' | 'zen' | undefined {
   if (!value.startsWith(KEY_CONNECT_PREFIX)) return undefined
   const provider = value.slice(KEY_CONNECT_PREFIX.length)
-  return provider === 'zai' || provider === 'moonshot' || provider === 'deepseek' || provider === 'xai' || provider === 'meta' || provider === 'compat'
+  return provider === 'zai' || provider === 'moonshot' || provider === 'deepseek' || provider === 'xai' || provider === 'meta' || provider === 'compat' || provider === 'zen'
     ? provider
     : undefined
 }
@@ -481,7 +482,7 @@ export type KeyLaneListState =
   | { kind: 'pin' }
   | { kind: 'unread'; reading: boolean; error?: string }
 
-export function keyLaneListState(provider: 'zai' | 'moonshot' | 'deepseek' | 'xai' | 'meta'): KeyLaneListState {
+export function keyLaneListState(provider: 'zai' | 'moonshot' | 'deepseek' | 'xai' | 'meta' | 'zen'): KeyLaneListState {
   if (provider === 'zai') {
     const { zaiCatalogueRows } = require('../../services/providers/zai/zaiCatalogue.js') as typeof import('../../services/providers/zai/zaiCatalogue.js')
     const { source } = zaiCatalogueRows()
@@ -507,6 +508,16 @@ export function keyLaneListState(provider: 'zai' | 'moonshot' | 'deepseek' | 'xa
     const error = !gate.allowed ? gate.reason : snapshot?.lastError
     return { kind: 'unread', reading: error === undefined, ...(error ? { error } : {}) }
   }
+  if (provider === 'zen') {
+    const { getCachedZenCatalogue, zenCatalogueRows } = require('../../services/providers/zen/zenCatalogue.js') as typeof import('../../services/providers/zen/zenCatalogue.js')
+    const snapshot = getCachedZenCatalogue()
+    const { source } = zenCatalogueRows()
+    if (source.kind === 'live') return { kind: 'live', count: source.count }
+    const { catalogueTrafficVerdict } = require('../../services/providers/catalogueGate.js') as typeof import('../../services/providers/catalogueGate.js')
+    const gate = catalogueTrafficVerdict('zen')
+    const error = !gate.allowed ? gate.reason : snapshot?.lastError
+    return { kind: 'unread', reading: error === undefined, ...(error ? { error } : {}) }
+  }
   if (provider === 'moonshot') {
     const { moonshotCatalogueRows } =
       require('../../services/providers/moonshot/moonshotCatalogue.js') as typeof import('../../services/providers/moonshot/moonshotCatalogue.js')
@@ -527,6 +538,7 @@ export interface KeyLaneReads {
   deepseekKeyPresent(): boolean
   xaiKeyPresent?(): boolean
   metaKeyPresent?(): boolean
+  zenKeyPresent?(): boolean
   compat(): { label: string; models: string[]; keyPresent: boolean } | undefined
 }
 
@@ -550,6 +562,10 @@ function liveKeyLaneReads(): KeyLaneReads {
       const { resolveMetaApiKey } = require('../../services/providers/meta/metaAccounts.js') as typeof import('../../services/providers/meta/metaAccounts.js')
       return resolveMetaApiKey() !== undefined
     },
+    zenKeyPresent: () => {
+      const { resolveZenApiKey } = require('../../services/providers/zen/zenAccounts.js') as typeof import('../../services/providers/zen/zenAccounts.js')
+      return resolveZenApiKey() !== undefined
+    },
     deepseekKeyPresent: () => {
       const { resolveDeepseekApiKey } =
         require('../../services/providers/deepseek/deepseekAccounts.js') as typeof import('../../services/providers/deepseek/deepseekAccounts.js')
@@ -569,7 +585,7 @@ function liveKeyLaneReads(): KeyLaneReads {
   }
 }
 
-export function keyLanePins(provider: 'zai' | 'moonshot' | 'deepseek' | 'xai' | 'meta'): KeyLanePin[] {
+export function keyLanePins(provider: 'zai' | 'moonshot' | 'deepseek' | 'xai' | 'meta' | 'zen'): KeyLanePin[] {
   if (provider === 'xai') {
     const { xaiCatalogueRows } = require('../../services/providers/xai/xaiCatalogue.js') as typeof import('../../services/providers/xai/xaiCatalogue.js')
     const { xaiDisplayPin } = require('../../services/providers/xai/xaiPins.js') as typeof import('../../services/providers/xai/xaiPins.js')
@@ -579,6 +595,21 @@ export function keyLanePins(provider: 'zai' | 'moonshot' | 'deepseek' | 'xai' | 
     const { metaCatalogueRows } = require('../../services/providers/meta/metaCatalogue.js') as typeof import('../../services/providers/meta/metaCatalogue.js')
     const { metaDisplayPin } = require('../../services/providers/meta/metaPins.js') as typeof import('../../services/providers/meta/metaPins.js')
     return metaCatalogueRows().rows.map(row => ({ ...row, ...(metaDisplayPin(row.id) ? {} : { liveUnknown: true }) }))
+  }
+  if (provider === 'zen') {
+    const { zenCatalogueRows } = require('../../services/providers/zen/zenCatalogue.js') as typeof import('../../services/providers/zen/zenCatalogue.js')
+    const { zenDisplayPin, zenQualifiedId, ZEN_OBSERVED_AT } = require('../../services/providers/zen/zenPins.js') as typeof import('../../services/providers/zen/zenPins.js')
+    return zenCatalogueRows().rows.map(row => {
+      const pin = zenDisplayPin(row.id)
+      return {
+        id: zenQualifiedId(row.id),
+        displayName: row.free ? `${row.displayName} (free)` : row.displayName,
+        observedAt: pin ? ZEN_OBSERVED_AT : row.observedAt,
+        ...(row.contextWindow !== undefined ? { contextWindow: row.contextWindow } : {}),
+        listedLive: true,
+        ...(pin ? {} : { liveUnknown: true }),
+      }
+    })
   }
   if (provider === 'zai') {
     const { zaiCatalogueRows } = require('../../services/providers/zai/zaiCatalogue.js') as typeof import('../../services/providers/zai/zaiCatalogue.js')
@@ -617,7 +648,9 @@ export function keyLaneGroupRows(args: {
   keyPresent: boolean
   pins: KeyLanePin[]
   listState?: KeyLaneListState
+  engineWords?: string
 }): ModelOption[] {
+  const engineWords = args.engineWords ?? 'the native chat-completions engine'
   if (args.keyPresent && args.pins.length === 0 && args.listState?.kind === 'unread') {
     const reading = args.listState.reading
     const error = args.listState.error
@@ -642,8 +675,8 @@ export function keyLaneGroupRows(args: {
       label: keyLanePinLabel(pin),
       description: pin.liveUnknown === true ? LIVE_UNKNOWN_ROW_WORDS : '',
       descriptionForModel: pin.liveUnknown === true
-        ? `${pin.displayName} (${pin.id}) — listed live by the ${args.providerName} account but unknown to Mercury's catalogue (no pin or grammar names it); offered under its raw id on the native chat-completions engine, where the provider's own answer decides.`
-        : `${pin.displayName} (${pin.id}) — ${args.providerName} model on the native chat-completions engine, billed to the attached API key. ${pin.listedLive ? `Listed by the provider's live model list; display facts observed ${pin.observedAt}.` : `Catalogue facts observed ${pin.observedAt}; the provider's live answer governs.`}${pin.servedAs !== undefined ? ` Replies on this account name ${pin.servedAs.id} as the served model.` : ''}`,
+        ? `${pin.displayName} (${pin.id}) — listed live by the ${args.providerName} account but unknown to Mercury's catalogue (no pin or grammar names it); offered under its raw id on ${engineWords}, where the provider's own answer decides.`
+        : `${pin.displayName} (${pin.id}) — ${args.providerName} model on ${engineWords}, billed to the attached API key. ${pin.listedLive ? `Listed by the provider's live model list; display facts observed ${pin.observedAt}.` : `Catalogue facts observed ${pin.observedAt}; the provider's live answer governs.`}${pin.servedAs !== undefined ? ` Replies on this account name ${pin.servedAs.id} as the served model.` : ''}`,
       group: args.group,
       ...(pin.contextWindow !== undefined ? { statedContextWindow: pin.contextWindow } : {}),
       ...(pin.liveUnknown === true ? { liveUnknown: true } : {}),
@@ -732,6 +765,18 @@ export function keyLaneProviderRows(reads: KeyLaneReads = liveKeyLaneReads()): M
       connectHint: 'opens /logins meta (a pay-as-you-go API key) — MODEL_API_KEY works too',
       keyPresent: metaCredentialed, pins: metaRows, listState: metaState }))
   }
+  const zenRows = keyLanePins('zen')
+  const zenState = keyLaneListState('zen')
+  const zenCredentialed = reads.zenKeyPresent?.() ?? false
+  if (zenCredentialed && zenRows.length === 0 && zenState.kind === 'live') {
+    out.push({ value: keyConnectValue('zen'), label: 'OpenCode Zen — no models listed', group: ZEN_MODEL_GROUP,
+      description: "the gateway's live list serves no model this road lists — /logins zen checks the key",
+      descriptionForModel: 'The OpenCode Zen gateway returned an empty list for this road; no Zen model is selectable.' })
+  } else {
+    out.push(...keyLaneGroupRows({ group: ZEN_MODEL_GROUP, providerName: 'OpenCode Zen', connectValue: keyConnectValue('zen'),
+      connectHint: 'opens /logins zen (an OpenCode Zen API key from opencode.ai/auth) — OPENCODE_API_KEY works too',
+      keyPresent: zenCredentialed, pins: zenRows, listState: zenState, engineWords: 'the OpenCode Zen gateway' }))
+  }
   const compat = reads.compat()
   if (compat === undefined) {
     out.push({
@@ -798,6 +843,7 @@ export function getModelOptions(reads: ModelOptionReads = {}): ModelOption[] {
   ;(require('../../services/providers/zai/zaiCatalogue.js') as typeof import('../../services/providers/zai/zaiCatalogue.js')).kickZaiCatalogue()
   ;(require('../../services/providers/xai/xaiCatalogue.js') as typeof import('../../services/providers/xai/xaiCatalogue.js')).kickXaiCatalogue()
   ;(require('../../services/providers/meta/metaCatalogue.js') as typeof import('../../services/providers/meta/metaCatalogue.js')).kickMetaCatalogue()
+  ;(require('../../services/providers/zen/zenCatalogue.js') as typeof import('../../services/providers/zen/zenCatalogue.js')).kickZenCatalogue()
   kickMoonshotCatalogue()
   for (const row of keyLaneProviderRows()) {
     pushIfAbsent(options, row)
