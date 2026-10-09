@@ -83,6 +83,25 @@ const BOLD_CODE: AnsiCode = { type: 'ansi', code: '\x1b[1m', endCode: '\x1b[22m'
 const UNDERLINE_CODE: AnsiCode = { type: 'ansi', code: '\x1b[4m', endCode: '\x1b[24m' }
 const YELLOW_FG_CODE: AnsiCode = { type: 'ansi', code: '\x1b[33m', endCode: '\x1b[39m' }
 
+const INVERSE_END = '\x1b[27m'
+const BOLD_END = '\x1b[22m'
+const UNDERLINE_END = '\x1b[24m'
+const TRANSITION_KEY_SPAN = 0x100000
+
+const withoutEnds = (codes: readonly AnsiCode[], ...ends: string[]): AnsiCode[] =>
+  codes.filter(code => !ends.includes(code.endCode))
+
+const carries = (codes: readonly AnsiCode[], end: string): boolean => codes.some(code => code.endCode === end)
+
+function currentMatchCodesOf(base: readonly AnsiCode[]): AnsiCode[] {
+  const emphasis: Array<[string, AnsiCode]> = [[INVERSE_END, INVERSE_CODE], [BOLD_END, BOLD_CODE], [UNDERLINE_END, UNDERLINE_CODE]]
+  return [
+    ...withoutEnds(base, FG_END, BG_END),
+    YELLOW_FG_CODE,
+    ...emphasis.filter(([end]) => !carries(base, end)).map(([, code]) => code),
+  ]
+}
+
 export class StylePool {
   private ids = new Map<string, number>()
   private styles: AnsiCode[][] = []
@@ -118,13 +137,12 @@ export class StylePool {
 
   transition(fromId: number, toId: number): string {
     if (fromId === toId) return ''
-    const key = fromId * 0x100000 + toId
-    let str = this.transitionCache.get(key)
-    if (str === undefined) {
-      str = ansiCodesToString(diffAnsiCodes(this.get(fromId), this.get(toId)))
-      this.transitionCache.set(key, str)
-    }
-    return str
+    const key = fromId * TRANSITION_KEY_SPAN + toId
+    const known = this.transitionCache.get(key)
+    if (known !== undefined) return known
+    const sequence = ansiCodesToString(diffAnsiCodes(this.get(fromId), this.get(toId)))
+    this.transitionCache.set(key, sequence)
+    return sequence
   }
 
 
