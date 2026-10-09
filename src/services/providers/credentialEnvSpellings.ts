@@ -13,6 +13,7 @@ export const PROVIDER_CREDENTIAL_ENV_VARS: Record<CallModelRoute, readonly strin
   huggingface: ['HF_TOKEN'],
   'openai-compat': ['MERCURY_COMPAT_API_KEY'],
   local: ['MERCURY_LOCAL_API_KEY'],
+  nous: ['NOUS_API_KEY'],
 }
 
 export const ALL_PROVIDER_CREDENTIAL_ENV_VARS: readonly string[] = [
@@ -34,6 +35,7 @@ export const PROVIDER_CREDENTIAL_VALUE_SHAPES: Record<CallModelRoute, Credential
   gemini: { pattern: /(?<![A-Za-z0-9])AIza[A-Za-z0-9_-]{35}(?![A-Za-z0-9])/g, marker: '[REDACTED_GCP_KEY]' },
   huggingface: { pattern: /(?<![A-Za-z0-9"'])hf_[A-Za-z0-9]{20,}(?![A-Za-z0-9"'])/g, marker: '[REDACTED_HUGGINGFACE_TOKEN]' },
   local: null,
+  nous: { pattern: /(?<![A-Za-z0-9"'])sk-nous-[A-Za-z0-9_-]{16,}(?![A-Za-z0-9"'])/g, marker: '[REDACTED_NOUS_KEY]' },
 }
 
 export const REPOSITORY_HOST_TOKEN_SHAPE: NonNullable<CredentialValueShape> = {
