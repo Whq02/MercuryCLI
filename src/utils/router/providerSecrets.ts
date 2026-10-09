@@ -23,6 +23,8 @@ interface ProviderSecretsFile {
   xaiManagementApiKey?: string
   metaApiKey?: string
   compatApiKey?: string
+  mistralApiKey?: string
+  mistralAdminApiKey?: string
   huggingfaceApiKey?: string
   localApiKey?: string
   braveSearchApiKey?: string
@@ -175,6 +177,8 @@ type StoredKeyField =
   | 'braveSearchApiKey'
   | 'tavilyApiKey'
   | 'typesafeApiKey'
+  | 'mistralApiKey'
+  | 'mistralAdminApiKey'
 
 function readStoredKey(field: StoredKeyField): string | undefined {
   const file = readFile()
@@ -192,6 +196,7 @@ const KEY_FIELD_FAMILY: Partial<Record<StoredKeyField, string>> = {
   geminiApiKey: 'gemini',
   huggingfaceApiKey: 'huggingface',
   localApiKey: 'local',
+  mistralApiKey: 'mistral',
 }
 
 function writeStoredKey(field: StoredKeyField, key: string | null): void {
@@ -251,6 +256,19 @@ export function readStoredMetaApiKey(): string | undefined {
 }
 export function writeStoredMetaApiKey(key: string | null): void {
   writeStoredKey('metaApiKey', key)
+}
+
+export function readStoredMistralApiKey(): string | undefined {
+  return readStoredKey('mistralApiKey')
+}
+export function writeStoredMistralApiKey(key: string | null): void {
+  writeStoredKey('mistralApiKey', key)
+}
+export function readStoredMistralAdminApiKey(): string | undefined {
+  return readStoredKey('mistralAdminApiKey')
+}
+export function writeStoredMistralAdminApiKey(key: string | null): void {
+  writeStoredKey('mistralAdminApiKey', key)
 }
 
 export function readStoredCompatApiKey(): string | undefined {
@@ -325,5 +343,7 @@ export function credentialEnvNames(): readonly string[] {
     'BRAVE_API_KEY',
     'TAVILY_API_KEY',
     'TYPESAFE_API_KEY',
+    'MISTRAL_API_KEY',
+    'MISTRAL_ADMIN_API_KEY',
   ]
 }
