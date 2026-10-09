@@ -41,7 +41,7 @@ export function loginFamilyRows({ engineLegs }: { engineLegs: boolean }): LoginF
           { label: 'DeepSeek — API key', value: 'deepseek' as const },
           { label: 'xAI — Grok subscription sign-in or API key', value: 'xai' as const },
           { label: 'Meta — API key (Muse)', value: 'meta' as const },
-          { label: 'Mistral — API key (Large 4, Medium 3.5, Small 4)', value: 'mistral' as const },
+          { label: 'Mistral — API key (Mistral Large 4)', value: 'mistral' as const },
         ]
       : []),
   ]
