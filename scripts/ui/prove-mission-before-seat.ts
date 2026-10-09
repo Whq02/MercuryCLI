@@ -95,7 +95,7 @@ console.log('============================================================')
 console.log(`build under proof: ${DIST !== undefined ? resolve(DIST) : 'this tree'}`)
 
 const run = await drive(120, 40)
-const configDir = join(run.paths.home, '.claude')
+const configDir = join(run.paths.home, '.mercury')
 const sentAt = missionSentAt(run)
 check('the capture ran to its end and both sends fired', run.outcome.exitCode !== null && run.sendLog.length >= 2 && sentAt !== undefined, `exit=${run.outcome.exitCode} sends=${run.sendLog.length} ${run.outcome.reason ?? ''} ${run.driverOut.slice(-200)}`)
 if (sentAt === undefined) {

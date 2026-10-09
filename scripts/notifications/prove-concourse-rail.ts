@@ -240,7 +240,7 @@ try {
   )
 } finally {
   try {
-    const draftOnDisk = readFileSync(join(erun.paths.home, '.claude', 'concourse-draft.json'), 'utf8')
+    const draftOnDisk = readFileSync(join(erun.paths.home, '.mercury', 'concourse-draft.json'), 'utf8')
     console.log(`    [sidecar] ${sidecarState} · draft file at run end: ${draftOnDisk.slice(0, 120)}`)
   } catch (e) {
     console.log(`    [sidecar] ${sidecarState} · draft file unreadable: ${e}`)
