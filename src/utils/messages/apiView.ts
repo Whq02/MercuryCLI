@@ -98,17 +98,8 @@ export function stripUnavailableToolReferencesFromUserMessage(
 
         const filteredContent = block.content.filter(c => {
           if (!isToolReferenceBlock(c)) return true
-          const rawToolName = (c as { tool_name?: string }).tool_name
-          if (!rawToolName) return true
-          const toolName = rawToolName
-          const isAvailable = availableToolNames.has(toolName)
-          if (!isAvailable) {
-            logForDebugging(
-              `Filtering out tool_reference for unavailable tool: ${toolName}`,
-              { level: 'warn' },
-            )
-          }
-          return isAvailable
+          const toolName = (c as { tool_name?: string }).tool_name
+          return !toolName || availableToolNames.has(toolName)
         })
 
         if (filteredContent.length === 0) {
