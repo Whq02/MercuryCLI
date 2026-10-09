@@ -13,6 +13,7 @@ export type CallModelRoute =
   | 'gemini'
   | 'huggingface'
   | 'local'
+  | 'mistral'
 
 export interface ProviderIdSpace {
   route: Exclude<CallModelRoute, 'anthropic'>
@@ -34,13 +35,14 @@ export const PROVIDER_ID_SPACES: readonly ProviderIdSpace[] = [
   { route: 'xai', barePrefixes: ['grok-'], bareAliases: ['grok'] },
   { route: 'meta', barePrefixes: ['muse-'], bareAliases: ['muse'] },
   { route: 'gemini', barePrefixes: ['gemini-'], bareAliases: ['gemini'] },
+  { route: 'mistral', barePrefixes: ['mistral-', 'ministral-', 'codestral-'], bareAliases: ['mistral'] },
 ]
 
 export const COMPAT_MODEL_PREFIX = 'compat/'
 
-export type LiveListFamily = 'moonshot' | 'deepseek' | 'xai' | 'meta' | 'openai' | 'gemini'
+export type LiveListFamily = 'moonshot' | 'deepseek' | 'xai' | 'meta' | 'openai' | 'gemini' | 'mistral'
 
-export const LIVE_LIST_FAMILIES: readonly LiveListFamily[] = ['moonshot', 'deepseek', 'xai', 'meta', 'openai', 'gemini']
+export const LIVE_LIST_FAMILIES: readonly LiveListFamily[] = ['moonshot', 'deepseek', 'xai', 'meta', 'openai', 'gemini', 'mistral']
 
 type LiveIdsReader = { cachedLiveIds?: (env?: NodeJS.ProcessEnv) => ReadonlySet<string> }
 
@@ -58,6 +60,8 @@ function liveIdsReaderOf(family: LiveListFamily): LiveIdsReader {
       return require('./openai/openaiCatalogue.js') as LiveIdsReader
     case 'gemini':
       return require('./gemini/geminiCatalogue.js') as LiveIdsReader
+    case 'mistral':
+      return require('./mistral/mistralCatalogue.js') as LiveIdsReader
   }
 }
 
