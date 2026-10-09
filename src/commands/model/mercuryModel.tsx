@@ -34,6 +34,16 @@ import {
   type OpenrouterCatalogueSnapshot,
 } from '../../services/providers/openrouter/openrouterCatalogue.js'
 import { resolveOpenrouterRequestAuth } from '../../services/providers/openrouter/openrouterAccounts.js'
+import {
+  NOUS_CONNECT_OPTION_VALUE,
+  NOUS_MODEL_GROUP,
+  getCachedNousCatalogue,
+  getNousAvailability,
+  getNousFullModelOptions,
+  refreshNousCatalogue,
+  type NousCatalogueSnapshot,
+} from '../../services/providers/nous/nousCatalogue.js'
+import { nousApiBase, resolveNousApiKey } from '../../services/providers/nous/nousAccounts.js'
 import { credentialFingerprint } from '../../services/providers/credentialIdentity.js'
 import { qualifiedIdSpaceOf } from '../../services/providers/idSpaces.js'
 import {
@@ -135,6 +145,7 @@ import { persistModelChoice } from './persistModelChoice.js'
 const CATALOGUE_DOORS: Record<string, () => ModelOption[]> = {
   [OPENROUTER_MODEL_GROUP]: () => getOpenrouterFullModelOptions(),
   [HUGGINGFACE_MODEL_GROUP]: () => getHuggingfaceFullModelOptions(),
+  [NOUS_MODEL_GROUP]: () => getNousFullModelOptions(),
 }
 
 function fmtCtx(windowSize: number): string {
@@ -265,6 +276,19 @@ function anthropicDoorRoad(door: AnthropicDoor): CatalogueRoad<AnthropicDoorSnap
 const ANTHROPIC_SUBSCRIPTION_ROAD = anthropicDoorRoad('subscription')
 const ANTHROPIC_KEY_ROAD = anthropicDoorRoad('api-key')
 const ANTHROPIC_BEARER_ROAD = anthropicDoorRoad('bearer')
+
+const NOUS_ROAD: CatalogueRoad<NousCatalogueSnapshot> = {
+  family: 'Nous Portal',
+  identity: () => {
+    const key = resolveNousApiKey()
+    return key ? `${key.source}:${credentialFingerprint(key.key)}:${nousApiBase()}` : undefined
+  },
+  cached: () => getCachedNousCatalogue(),
+  refresh: () => refreshNousCatalogue({ force: true }),
+  populated: snapshot => snapshot.models.length > 0,
+  failed: snapshot => snapshot.lastError !== undefined,
+  changed: (before, after) => !isDeepStrictEqual(before.models, after.models),
+}
 
 const HUGGINGFACE_ROAD: CatalogueRoad<HuggingfaceCatalogueSnapshot> = {
   family: 'Hugging Face',
@@ -483,6 +507,7 @@ const MODEL_GROUP_FAMILIES: Record<string, string> = {
   [META_MODEL_GROUP]: 'meta',
   [COMPAT_MODEL_GROUP]: 'openai-compat',
   [LOCAL_MODEL_GROUP]: 'local',
+  [NOUS_MODEL_GROUP]: 'nous',
 }
 
 export function familyOfModelGroup(group: string): string | undefined {
@@ -575,6 +600,7 @@ function buildProviderHeadings(): Record<string, ProviderHeading> {
   const openrouterAvailability = getOpenrouterAvailability()
   const geminiAvailability = getGeminiAvailability()
   const huggingfaceAvailability = getHuggingfaceAvailability()
+  const nousAvailability = getNousAvailability()
   const local = localDiscoverySummary()
   const compatDoors = doorsOf('openai-compat')
   return {
@@ -605,6 +631,10 @@ function buildProviderHeadings(): Record<string, ProviderHeading> {
       local.servers > 0
         ? { name: nameOf('local'), doors: [{ door: local.labels.join(' · ') }] }
         : { name: nameOf('local'), doors: [], reason: 'no local server answered' },
+    [NOUS_MODEL_GROUP]:
+      nousAvailability.state === 'ready'
+        ? { name: nameOf('nous'), doors: doorsOf('nous') }
+        : { name: nameOf('nous'), doors: [], reason: nousAvailability.reason },
   }
 }
 
@@ -769,6 +799,7 @@ function MercuryModelWrapper({
   useCatalogueRefreshOnOpen(OPENROUTER_ROAD, setNotice)
   useCatalogueRefreshOnOpen(GEMINI_ROAD, setNotice)
   useCatalogueRefreshOnOpen(HUGGINGFACE_ROAD, setNotice)
+  useCatalogueRefreshOnOpen(NOUS_ROAD, setNotice)
   useCatalogueRefreshOnOpen(MOONSHOT_ROAD, setNotice)
   useCatalogueRefreshOnOpen(DEEPSEEK_ROAD, setNotice)
   useCatalogueRefreshOnOpen(ZAI_ROAD, setNotice)
@@ -860,6 +891,26 @@ function MercuryModelWrapper({
         }
         onDone('OpenRouter sign-in — running /logins (the picker re-opens when it settles)', {
           nextInput: '/logins openrouter --return=/model',
+          submitNextInput: true,
+        })
+      })()
+      return
+    }
+    if (id === NOUS_CONNECT_OPTION_VALUE) {
+      void (async () => {
+        const availability = getNousAvailability()
+        if (availability.state === 'ready' || availability.why === 'catalogue-pending' || availability.why === 'catalogue-error') {
+          setNotice('Nous Portal — refreshing the live catalogue…')
+          const snapshot = await refreshNousCatalogue({ force: true }).catch(() => null)
+          setNotice(
+            snapshot && snapshot.models.length > 0 && !snapshot.lastError
+              ? `Nous Portal catalogue landed: ${snapshot.models.length} model(s) — pick one above`
+              : `Nous Portal catalogue unavailable — ↵ retries${snapshot?.lastError ? ` (${snapshot.lastError})` : ''}`,
+          )
+          return
+        }
+        onDone('Nous Portal key — running /logins nous (the picker re-opens when it settles)', {
+          nextInput: '/logins nous --return=/model',
           submitNextInput: true,
         })
       })()
@@ -1113,6 +1164,7 @@ export function MercuryModelDefaultPicker({ onDone, onSignIn }: { onDone: () => 
   useCatalogueRefreshOnOpen(OPENROUTER_ROAD, setNotice)
   useCatalogueRefreshOnOpen(GEMINI_ROAD, setNotice)
   useCatalogueRefreshOnOpen(HUGGINGFACE_ROAD, setNotice)
+  useCatalogueRefreshOnOpen(NOUS_ROAD, setNotice)
   useCatalogueRefreshOnOpen(MOONSHOT_ROAD, setNotice)
   useCatalogueRefreshOnOpen(DEEPSEEK_ROAD, setNotice)
   useCatalogueRefreshOnOpen(ZAI_ROAD, setNotice)
@@ -1211,6 +1263,7 @@ export function MercurySessionModelPicker({
   useCatalogueRefreshOnOpen(OPENROUTER_ROAD, setNotice)
   useCatalogueRefreshOnOpen(GEMINI_ROAD, setNotice)
   useCatalogueRefreshOnOpen(HUGGINGFACE_ROAD, setNotice)
+  useCatalogueRefreshOnOpen(NOUS_ROAD, setNotice)
   useCatalogueRefreshOnOpen(MOONSHOT_ROAD, setNotice)
   useCatalogueRefreshOnOpen(DEEPSEEK_ROAD, setNotice)
   useCatalogueRefreshOnOpen(ZAI_ROAD, setNotice)
@@ -1285,6 +1338,7 @@ export function MercuryModelChoicePicker({ leading, current, onSelect, onSignIn,
   useCatalogueRefreshOnOpen(OPENROUTER_ROAD, setNotice)
   useCatalogueRefreshOnOpen(GEMINI_ROAD, setNotice)
   useCatalogueRefreshOnOpen(HUGGINGFACE_ROAD, setNotice)
+  useCatalogueRefreshOnOpen(NOUS_ROAD, setNotice)
   useCatalogueRefreshOnOpen(MOONSHOT_ROAD, setNotice)
   useCatalogueRefreshOnOpen(DEEPSEEK_ROAD, setNotice)
   useCatalogueRefreshOnOpen(ZAI_ROAD, setNotice)
