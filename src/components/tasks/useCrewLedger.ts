@@ -12,15 +12,16 @@ export function useSessionCrew(): CrewLedgerRow[] {
   const roster = useFocusedWorkRoster()
   const sessionId = focusedSessionIdOrNull()
   const reported = roster.reported !== false
+  const gone = roster.gone === true
   const seen = useMemo(() => seenCrewOf(tasks, roster, sessionId), [tasks, roster, sessionId])
   useEffect(() => {
     if (setAppState === null) return
     setAppState(prev => {
-      const next = foldCrewLedger(prev.crewLedger, seen, sessionId, reported, Date.now())
+      const next = foldCrewLedger(prev.crewLedger, seen, sessionId, reported, Date.now(), gone)
       return next === prev.crewLedger ? prev : { ...prev, crewLedger: next }
     })
-  }, [setAppState, seen, sessionId, reported])
-  return useMemo(() => sessionCrewRows(ledger, seen, sessionId, reported, Date.now()), [ledger, seen, sessionId, reported])
+  }, [setAppState, seen, sessionId, reported, gone])
+  return useMemo(() => sessionCrewRows(ledger, seen, sessionId, reported, Date.now(), gone), [ledger, seen, sessionId, reported, gone])
 }
 
 export function useCrewLedgerRow(taskId: string | undefined): CrewLedgerRow | null {

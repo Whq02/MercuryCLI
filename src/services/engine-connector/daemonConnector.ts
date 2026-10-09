@@ -1530,14 +1530,15 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
 
   private refreshWork(): void {
     const reported = this.facts?.work !== undefined
+    const gone = this.carrierGoneAtFactsMs !== null
     const rows = this.facts?.work ?? []
     const mission = this.facts?.mission ?? []
     const samples = this.facts?.samples ?? []
     const pauseGate = this.facts?.pauseGate
-    const stamp = JSON.stringify([reported, rows, mission, samples, pauseGate])
+    const stamp = JSON.stringify([reported, gone, rows, mission, samples, pauseGate])
     if (stamp === this.workStamp) return
     this.workStamp = stamp
-    this.workSnapshot = { rows, mission, samples, ...(reported ? {} : { reported: false }), ...(pauseGate !== undefined ? { pauseGate } : {}) }
+    this.workSnapshot = { rows, mission, samples, ...(reported ? {} : { reported: false }), ...(gone ? { gone: true } : {}), ...(pauseGate !== undefined ? { pauseGate } : {}) }
     emitAll(this.workListeners, 'work')
   }
 
