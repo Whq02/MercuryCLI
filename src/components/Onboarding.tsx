@@ -26,6 +26,7 @@ import { InteractiveRow } from './mercury-ui/InteractiveRow.js'
 import { useSessionAccent } from './mercury-ui/sessionAccent.js'
 import { useInteractiveList } from './mercury-ui/useInteractiveList.js'
 import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js'
+import { connectableLoginFamilyWords } from './loginFamilyRows.js'
 
 
 type StepId = 'theme' | 'provider' | 'api-key' | 'guardrails' | 'terminal'
@@ -59,7 +60,7 @@ const TERMINAL_WORDS = {
 }
 
 export const SIGN_IN_WORDS = {
-  intro: 'Use a Claude or OpenAI subscription, usage-based billing, or connect OpenRouter, Gemini, Hugging Face, Kimi, GLM, DeepSeek, xAI, Meta, Mistral or Nous Portal. To add an API key from the terminal, run /router key <provider>.',
+  intro: `Use a Claude or OpenAI subscription, usage-based billing, or connect ${connectableLoginFamilyWords()}. To add an API key from the terminal, run /router key <provider>.`,
 }
 
 const FITTING_PATCH = {
