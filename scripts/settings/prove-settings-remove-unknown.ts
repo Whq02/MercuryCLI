@@ -218,7 +218,7 @@ try {
     const afterOnly = JSON.parse(readFileSync(userFile, 'utf8')) as Record<string, unknown>
     check('the field is gone and the emptied group leaves with it; engine stays as written', afterOnly.view === undefined && JSON.stringify(afterOnly.engine) === JSON.stringify({ effort: 'high' }), readFileSync(userFile, 'utf8'))
 
-    const arrayPath = [{ file: userFile, path: 'hooks.PreToolUse.0', message: 'Unrecognized field: extra', unknownKeys: ['extra'], severity: 'warning' as const }]
+    const arrayPath = [{ file: userFile, path: 'hooks.tool.before.0', message: 'Unrecognized field: extra', unknownKeys: ['extra'], severity: 'warning' as const }]
     check('a field under an array element is not offered (the writer replaces arrays whole)', removal !== null && removal.removableUnknownKeys(arrayPath).length === 0)
   }
 
