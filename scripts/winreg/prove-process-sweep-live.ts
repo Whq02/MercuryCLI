@@ -32,7 +32,6 @@ try {
       MERCURY_DAEMON_OWNER_PID: String(process.pid),
       ANTHROPIC_API_KEY: 'proof-key-ci-gate-not-a-real-key',
       ANTHROPIC_BASE_URL: 'http://127.0.0.1:9',
-      MERCURY_TELEMETRY: '0',
       MERCURY_UPDATE_API_BASE_URL: 'http://127.0.0.1:9',
     }
     environments.push(env)
