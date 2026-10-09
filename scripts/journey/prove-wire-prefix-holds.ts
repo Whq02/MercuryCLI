@@ -87,7 +87,8 @@ function currentTurn(messages: Row[]): number {
 function announcedDeferredNames(messages: Row[]): string[] {
   const names: string[] = []
   const take = (list: string): void => {
-    for (const name of list.split('\n').map(s => s.trim()).filter(s => s !== '')) {
+    for (const line of list.split('\n').map(s => s.trim()).filter(s => s !== '')) {
+      const name = line.split(' — ')[0]!.trim()
       if (!names.includes(name)) names.push(name)
     }
   }
@@ -96,7 +97,7 @@ function announcedDeferredNames(messages: Row[]): string[] {
     const text = rowText(row)
     const tagged = /<available-deferred-tools>\n([\s\S]*?)\n<\/available-deferred-tools>/.exec(text)
     if (tagged) take(tagged[1]!)
-    const delta = /deferred tools are now available via ToolSearch:\n([\s\S]*?)\n<\/system-reminder>/g
+    const delta = /Deferred tools: offered in this session[^\n]*\n([\s\S]*?)\n<\/system-reminder>/g
     let m: RegExpExecArray | null
     while ((m = delta.exec(text)) !== null) take(m[1]!)
   }
