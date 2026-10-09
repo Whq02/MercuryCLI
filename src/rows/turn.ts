@@ -645,11 +645,17 @@ export class Conversation {
       }
     }
     const openCalls = new Map<string, string>()
+    const cutCalls: string[] = []
+    const signal = this.abortController.signal
     const trackCalls = (rows: RowDraft[]): RowDraft[] => {
       for (const row of rows) {
-        const call = row as RowDraft & { call_id?: string; tool?: string }
+        const call = row as RowDraft & { call_id?: string; tool?: string; status?: string }
         if (call.type === 'tool_call' && call.call_id !== undefined) openCalls.set(call.call_id, call.tool ?? '')
-        if (call.type === 'tool_result' && call.call_id !== undefined) openCalls.delete(call.call_id)
+        if (call.type === 'tool_result' && call.call_id !== undefined) {
+          const tool = openCalls.get(call.call_id)
+          if ((call.status === 'aborted' || signal.aborted) && tool !== undefined) cutCalls.push(tool)
+          openCalls.delete(call.call_id)
+        }
       }
       return rows
     }
@@ -666,7 +672,7 @@ export class Conversation {
             status,
             ...(row.stop !== undefined ? { stop: row.stop as never } : {}),
             ...(row.error !== undefined ? { error: { message: row.error.message, class: row.error.class as never } } : {}),
-            ...(cut !== null ? { cut: { reason: cut.kind, ...(cut.detail !== undefined ? { detail: cut.detail } : {}), tools: [...openCalls.values()] } } : {}),
+            ...(cut !== null ? { cut: { reason: cut.kind, ...(cut.detail !== undefined ? { detail: cut.detail } : {}), tools: [...cutCalls, ...openCalls.values()] } } : {}),
             steps: row.steps,
             wall_ms: row.wall_ms,
             ...(row.cost_usd !== undefined ? { cost_usd: row.cost_usd } : {}),
