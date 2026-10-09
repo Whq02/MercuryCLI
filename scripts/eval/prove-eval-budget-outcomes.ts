@@ -10,8 +10,7 @@ const { runToolUse } = await import('../../src/services/tools/toolExecution.js')
 const { createAssistantMessage } = await import('../../src/utils/messages.js')
 const { setCwd } = await import('../../src/utils/Shell.js')
 const { setOriginalCwd, setProjectRoot, setIsInteractive, setSessionTrustAccepted } = await import('../../src/bootstrap/state.js')
-const { resetSettingsCache } = await import('../../src/utils/settings/settingsCache.js')
-const { captureHooksConfigSnapshot } = await import('../../src/utils/hooks/hooksConfigSnapshot.js')
+const { refreshHooksSnapshot } = await import('../../src/utils/hooks/hooksConfigSnapshot.js')
 const run = (code: string, timeoutSeconds?: number) => within('budget cell', 60_000, evalKernelManager.runCell({ owner: 'budget-proof', cwd: work, input: { language: 'py', code, timeoutSeconds }, abortSignal: new AbortController().signal, serveBridge: refusingBridge() }))
 const block = (out: Awaited<ReturnType<typeof run>>) => EvalTool.mapToolResultToToolResultBlockParam({ ...out, language: 'py' }, 'budget-proof')
 
@@ -21,17 +20,14 @@ try {
   setProjectRoot(work)
   setIsInteractive(false)
   setSessionTrustAccepted(true)
-  const mark = join(work, 'post.json')
-  const failed = join(work, 'failure.json')
+  const mark = join(work, 'after.jsonl')
   const hook = join(work, 'capture.mjs')
-  writeFileSync(hook, 'await Bun.write(process.argv[2], await Bun.stdin.text())')
+  writeFileSync(hook, "import { appendFileSync } from 'node:fs'; appendFileSync(process.argv[2], (await Bun.stdin.text()).trim() + '\\n')")
   mkdirSync(home, { recursive: true })
   writeFileSync(join(home, 'settings.json'), JSON.stringify({ events: { hooks: {
-    PostToolUse: [{ matcher: 'Eval', hooks: [{ type: 'command', command: `${JSON.stringify(process.execPath)} ${JSON.stringify(hook)} ${JSON.stringify(mark)}` }] }],
-    PostToolUseFailure: [{ matcher: 'Eval', hooks: [{ type: 'command', command: `${JSON.stringify(process.execPath)} ${JSON.stringify(hook)} ${JSON.stringify(failed)}` }] }],
+    'tool.after': [{ name: 'after capture', match: 'Eval', run: `${JSON.stringify(process.execPath)} ${JSON.stringify(hook)} ${JSON.stringify(mark)}` }],
   } } }))
-  resetSettingsCache()
-  captureHooksConfigSnapshot()
+  refreshHooksSnapshot()
   const input = { language: 'py', code: 'import time; time.sleep(3)', timeoutSeconds: 1 }
   const use = { type: 'tool_use' as const, id: 'budget-hook-proof', name: 'Eval', input }
   const parent = createAssistantMessage({ content: [use] })
@@ -47,9 +43,10 @@ try {
   check('budget cancellation keeps its exact reason', String(cancelled?.content).includes('the cell hit its 1s runtime budget (bridge time excluded) and was interrupted — raise timeoutSeconds or pass 0 to disable'))
   const row = cancelled ? contentItemOf(cancelled) : undefined
   check('SDK content projects the cancellation as an error', row?.type === 'tool_result' && row.status === 'error')
-  const observed = existsSync(mark) ? JSON.parse(readFileSync(mark, 'utf8')) : null
-  check('PostToolUse receives the unchanged cancelled outcome and input', observed?.tool_name === 'Eval' && observed?.tool_response?.status === 'cancelled' && JSON.stringify(observed?.tool_input) === JSON.stringify(input), JSON.stringify(observed))
-  check('returned cancellation does not fire PostToolUseFailure', !existsSync(failed))
+  const fires = existsSync(mark) ? readFileSync(mark, 'utf8').split('\n').filter(Boolean).map(line => JSON.parse(line)) : []
+  const observed = fires[0]
+  check('tool.after receives the unchanged cancelled output and input, once', fires.length === 1 && observed?.tool === 'Eval' && observed?.output?.status === 'cancelled' && JSON.stringify(observed?.input) === JSON.stringify(input), JSON.stringify(fires))
+  check('a returned cancellation is no cut: ok false, cut false', observed?.ok === false && observed?.cut === false, JSON.stringify(observed))
   const clamped = await run('print("done")', 900)
   check('a clamped successful call names the applied limit', !block(clamped).is_error && String(block(clamped).content).includes('[note] timeoutSeconds clamped to 600 s (the maximum)'), String(block(clamped).content))
   const unlimited = await run('17', 0)

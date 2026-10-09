@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { mkdtempSync, mkdirSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, mkdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { randomUUID } from 'node:crypto'
@@ -34,7 +34,7 @@ try {
   const { processUserInput } = await import('../../src/utils/processUserInput/processUserInput.ts')
   const { builtinCommands, sessionSeatCommandTable } = await import('../../src/commands.ts')
   const { planApiConversation } = await import('../../src/utils/messages/apiPlan.ts')
-  const { addFunctionHook } = await import('../../src/utils/hooks/sessionHooks.ts')
+  const { addSessionHooks } = await import('../../src/utils/hooks/sessionHooks.ts')
   const { storeImage, storedImageRefBlock } = await import('../../src/utils/imageStore.ts')
   const table = sessionSeatCommandTable([...builtinCommands()])
   const appState: Record<string, unknown> = {
@@ -42,14 +42,23 @@ try {
     sessionHooks: new Map(), tasks: {}, mcp: { clients: [], tools: [], commands: [], resources: {} }, todos: {},
   }
   const setAppState = (f: (prev: Record<string, unknown>) => Record<string, unknown>): void => { Object.assign(appState, f(appState)) }
-  const hookSaw: string[] = []
-  const blocked = new Set<string>()
-  addFunctionHook(setAppState as never, getSessionId(), 'UserPromptSubmit', '', (_messages, _signal, extra) => {
-    const input = extra?.hookInput
-    const prompt = input && 'prompt' in input ? String(input.prompt) : ''
-    hookSaw.push(prompt)
-    return blocked.has(prompt) ? 'this line is blocked' : true
-  }, 'prompt blocked', { id: 'batch-prompt-spy' })
+  const seenFile = join(scratch, 'seen.jsonl')
+  const blockFile = join(scratch, 'blocked.json')
+  const spy = join(scratch, 'spy.cjs')
+  writeFileSync(spy, `const fs = require('node:fs'); const input = JSON.parse(fs.readFileSync(0, 'utf8')); fs.appendFileSync(${JSON.stringify(seenFile)}, JSON.stringify(input.prompt) + '\\n'); let blocked = []; try { blocked = JSON.parse(fs.readFileSync(${JSON.stringify(blockFile)}, 'utf8')) } catch {}; if (blocked.includes(input.prompt)) { process.stderr.write('this line is blocked'); process.exit(2) }`)
+  addSessionHooks(setAppState as never, { sessionId: String(getSessionId()) }, { 'turn.start': [{ name: 'prompt blocked', run: `${JSON.stringify(process.execPath)} ${JSON.stringify(spy)}` }] } as never, { kind: 'agent', type: 'batch-rig' })
+  const hookSaw = {
+    splice: (): string[] => {
+      const seen = existsSync(seenFile) ? readFileSync(seenFile, 'utf8').split('\n').filter(Boolean).map(line => JSON.parse(line) as string) : []
+      rmSync(seenFile, { force: true })
+      return seen
+    },
+  }
+  const blockedPrompts = new Set<string>()
+  const blocked = {
+    clear: (): void => { blockedPrompts.clear(); writeFileSync(blockFile, '[]') },
+    add: (prompt: string): void => { blockedPrompts.add(prompt); writeFileSync(blockFile, JSON.stringify([...blockedPrompts])) },
+  }
 
   const context = (standingRule?: string) => ({
     options: { commands: table, tools: [], mcpClients: [], isNonInteractiveSession: true },
@@ -97,7 +106,7 @@ try {
     const label = `blocked positions ${denied.map(i => i + 1).join(',')}`
     check(`${label}: every line still passes the hook in order`, JSON.stringify(hookSaw.splice(0)) === JSON.stringify(plain))
     check(`${label}: only accepted lines keep their own prompt rows`, JSON.stringify(accepted.map(row => row.uuid)) === JSON.stringify(acceptedIds))
-    check(`${label}: each blocked line keeps the ordinary warning`, result.messages.filter(row => row.type === 'system' && row.content.includes('Operation blocked by hook: this line is blocked')).length === denied.length)
+    check(`${label}: each blocked line keeps the ordinary warning`, result.messages.filter(row => row.type === 'system' && row.content.startsWith('this line is blocked')).length === denied.length)
     check(`${label}: the surviving prompts alone determine whether the model runs`, result.shouldQuery === (allowed.length > 0) && (allowed.length > 0 || (result.hookBlocked === true && result.resultText?.includes('this line is blocked') === true)))
     const projected = users(planApiConversation(result.messages).selected)
     check(`${label}: blocked text never reaches the model; the accepted lines still fold`, allowed.length === 0 ? projected.length === 0 : projected.length === 1 && projected[0]?.message.content === allowed.join('\n'))
@@ -126,7 +135,7 @@ try {
   const { createUserMessage, createCompactBoundaryMessage, getMessagesAfterCompactBoundary } = await import('../../src/utils/messages.ts')
   const { createAttachmentMessage } = await import('../../src/utils/attachments.ts')
   const { cleanForTranscript } = await import('../../src/utils/sessionStorage/chain.ts')
-  const foldAttachment = createAttachmentMessage({ type: 'hook_additional_context', content: ['FOLD-ATTACHMENT-SENTINEL'], hookName: 'fold-probe', toolUseID: 'fold-probe', hookEvent: 'SessionStart' })
+  const foldAttachment = createAttachmentMessage({ type: 'hook', outcome: 'context', event: 'compaction.after', name: 'fold-probe', words: 'FOLD-ATTACHMENT-SENTINEL' })
   table.push({
     type: 'local', name: 'fold-probe', description: 'compact fixture', isEnabled: () => true, supportsNonInteractive: true,
     load: async () => ({ call: async () => ({

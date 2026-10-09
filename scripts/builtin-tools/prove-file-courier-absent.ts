@@ -25,7 +25,8 @@ const { toolFamilyFor } = await import('../../src/components/mercury-ui/toolGlyp
 const { resolveAgentTools } = await import('../../src/tools/AgentTool/agentToolUtils.ts')
 const { runToolUse } = await import('../../src/services/tools/toolExecution.ts')
 const { gateToolCall, toolCallRefusalNote } = await import('../../src/services/providers/toolCallGate.ts')
-const { addFunctionHook } = await import('../../src/utils/hooks/sessionHooks.ts')
+const { engageToolGuard } = await import('../../src/guards/guards.ts')
+const { addSessionHooks } = await import('../../src/utils/hooks/sessionHooks.ts')
 const { validatePermissionRule } = await import('../../src/utils/settings/permissionValidation.ts')
 const { initializeToolPermissionContext } = await import('../../src/utils/permissions/permissionSetup.ts')
 const { toolAlwaysAllowedRule, getDenyRuleForTool, getAskRuleForTool } = await import('../../src/utils/permissions/decision/rules.ts')
@@ -70,11 +71,9 @@ check('agent disallowedTools takes the generic unknown-name road', json(denied(n
 const app = { toolPermissionContext: permission, sessionHooks: new Map(), mcp: { clients: [], tools: [], commands: [], resources: {} } }
 const setAppState = (update: (state: typeof app) => typeof app) => update(app)
 let pre = 0
-let failed = 0
-for (const toolName of [name, nonsense]) {
-  addFunctionHook(setAppState as never, getSessionId(), 'PreToolUse', toolName, () => { pre++; return true }, 'pre hook')
-  addFunctionHook(setAppState as never, getSessionId(), 'PostToolUseFailure', toolName, () => { failed++; return true }, 'failure hook')
-}
+const failedMark = join(proofHome, 'tool-after-fired')
+engageToolGuard(String(getSessionId()), { id: 'courier-guard', tools: [name, nonsense], judge: async () => { pre++; return { allow: true } } })
+addSessionHooks(setAppState as never, { sessionId: String(getSessionId()) }, { 'tool.after': [{ name: 'after mark', run: `touch ${JSON.stringify(failedMark)}` }] } as never, { kind: 'agent', type: 'courier-rig' })
 const context = {
   abortController: new AbortController(),
   getAppState: () => app,
@@ -111,7 +110,7 @@ for (const spelling of [name, FILE_TOOL_SPELLINGS[2], FILE_TOOL_SPELLINGS[3]]) {
     for (const lane of ['openai', 'zai', 'openaicompat']) check(`B3 ${lane} ${spelling} has the generic refusal note`, normalize(toolCallRefusalNote(lane, verdict.refusal), spelling) === normalize(toolCallRefusalNote(lane, generic.refusal), nonsense))
   }
 }
-check('B4 unknown calls never fire either session hook', pre === 0 && failed === 0, json({ pre, failed }))
+check('B4 unknown calls never reach the tool guard nor fire tool.after', pre === 0 && !existsSync(failedMark), json({ pre, after: existsSync(failedMark) }))
 
 for (const suffix of ['', '(*)', '(report.pdf)']) {
   check(`saved rule ${suffix || '(bare)'} uses ordinary syntax validation`, json(validatePermissionRule(name + suffix)) === json(validatePermissionRule(nonsense + suffix)))

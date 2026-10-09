@@ -3,6 +3,9 @@ import type { AppState } from '../../state/AppState.js'
 import type { ToolUseContext } from '../../Tool.js'
 import { hookEndingSentence, secondsWord, type HookEnding } from '../../rows/vocabulary.js'
 import { hookEntryName, hookKindOf, type HookEntry } from '../../schemas/hooks.js'
+import { getIsNonInteractiveSession } from '../../bootstrap/state.js'
+import { recordHookFailure } from '../../extensions/health.js'
+import { checkHasTrustDialogAccepted } from '../config/trust.js'
 import { getCwd } from '../cwd.js'
 import { logForDebugging } from '../debug.js'
 import { isEnvTruthy } from '../envUtils.js'
@@ -156,6 +159,7 @@ async function runOne(event: HookEvent, match: MatchedHook, payloadJson: string,
       const words = end.stderr.trim() || `${name} blocked ${event} without a word`
       return outcome(readToState(event, name, readAnswerObject(event, { block: words })), end.durationMs)
     }
+    if (match.source.kind === 'extension') recordHookFailure(match.source.id, entry.run ?? '', `exit ${end.code}`)
     return outcome({ kind: 'failed', line: failedLine({ status: 'failed', class: 'exit', exit_code: end.code, detail: end.stderr.trim() }, name, event) }, end.durationMs)
   }
   if (options.toolUseContext === undefined) {
@@ -169,8 +173,16 @@ async function runOne(event: HookEvent, match: MatchedHook, payloadJson: string,
 
 export type PreparedHooks = { names: string[]; run: () => Promise<HookFireResult> }
 
+export function workspaceUntrustedForHooks(): boolean {
+  return !getIsNonInteractiveSession() && !checkHasTrustDialogAccepted()
+}
+
 export async function prepareHooks<E extends HookEvent>(event: E, fields: HookFields<E>, options: HookFireOptions): Promise<PreparedHooks> {
   if (isEnvTruthy(process.env.MERCURY_BARE)) return { names: [], run: async () => nothingFired(event) }
+  if (workspaceUntrustedForHooks()) {
+    logForDebugging(`${event}: the workspace is not trusted yet, so no hook runs`)
+    return { names: [], run: async () => nothingFired(event) }
+  }
   const payload = buildHookPayload(event, fields, options)
   const matched = await matchHooks(event, payload, options.scope, { appState: options.appState ?? options.toolUseContext?.getAppState() })
   if (matched.length === 0) return { names: [], run: async () => nothingFired(event) }
