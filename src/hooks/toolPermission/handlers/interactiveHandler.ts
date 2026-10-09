@@ -7,7 +7,7 @@ import type {
 import { logError } from '../../../utils/log.js'
 import { decideToolPermissionWithModes } from '../../../utils/permissions/decision/wrapper.js'
 import { createResolveOnce, type PermissionContext } from '../PermissionContext.js'
-import { FLOW_AWAY_MESSAGE, FLOW_AWAY_TIMEOUT_MS } from '../../../utils/permissions/flowPolicy.js'
+import { askLimitMs, unansweredAskRefusal } from '../../../utils/permissions/askClock.js'
 
 const USER_INTERACTION_GRACE_MS = 200
 
@@ -159,13 +159,17 @@ export function handleInteractivePermission(
     return
   }
   signal.addEventListener('abort', settleOnAbort, { once: true })
-  if (!guard.isResolved() && ctx.toolUseContext.getAppState().toolPermissionContext.mode === 'flow') {
+  const askLimit = askLimitMs({
+    mode: ctx.toolUseContext.getAppState().toolPermissionContext.mode,
+    crewmate: ctx.toolUseContext.agentId !== undefined,
+  })
+  if (!guard.isResolved() && askLimit > 0) {
     awayTimer = setTimeout(() => {
       if (!guard.claim()) return
       releaseResources()
       ctx.removeFromQueue()
-      guard.resolve(ctx.buildDeny(FLOW_AWAY_MESSAGE))
-    }, FLOW_AWAY_TIMEOUT_MS)
+      guard.resolve(ctx.buildDeny(unansweredAskRefusal(ctx.tool.name, askLimit)))
+    }, askLimit)
   }
 
   if (!awaitAutomatedChecksBeforeDialog) {

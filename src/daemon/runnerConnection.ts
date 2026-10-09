@@ -8,7 +8,7 @@ import { MERCURY_VERSION } from '../constants/product.js'
 
 export type Verb = Exclude<HostRequestName, 'initialize'>
 
-export type HeldAsk = { answer: Promise<PermissionAnswer>; withdraw: () => void }
+export type HeldAsk = { answer: Promise<PermissionAnswer>; withdraw: (cause?: string) => void }
 
 export type RunnerConnectionHooks = {
   onRow: (row: LooseRow) => void
@@ -44,7 +44,9 @@ export class RunnerConnection implements RunnerDoor {
       ctx.signal.addEventListener(
         'abort',
         () => {
-          if (!this.peer.closed) held.withdraw()
+          if (this.peer.closed) return
+          const reason = ctx.signal.reason
+          held.withdraw(typeof reason === 'string' && reason !== '' ? reason : undefined)
         },
         { once: true },
       )
