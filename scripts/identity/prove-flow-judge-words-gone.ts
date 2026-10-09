@@ -149,7 +149,6 @@ section('§6 the dead machinery, the alias maps and the retired words the excisi
   const SELF = relative(REPO, new URL(import.meta.url).pathname)
   const UNKNOWN_COMMAND_LIST = 'scripts/identity/prove-unknown-command-answer.ts'
   const SECURITY_INSTRUCTION = 'src/constants/cyberRiskInstruction.ts'
-  const TRANSCRIPT_KIND_MIGRATION = 'src/migrations/migrateTranscriptEntryKinds.ts'
   const FOREIGN_HOME_LAWS = [J('scripts/accounts/prove-accounts-', 'display.ts'), J('scripts/accounts/prove-auth-scope-', 'isolation.ts'), J('scripts/accounts/prove-account-', 'isolation.ts'), J('scripts/build-identity/prove-config-', 'home.ts')]
   const tree = execFileSync('git', ['-C', REPO, 'ls-files', '-z', '--', 'src', 'scripts', 'docs', 'assets', 'build.ts', '.gitignore'], { encoding: 'utf8', maxBuffer: 1 << 28 })
     .split('\0')
@@ -180,7 +179,9 @@ section('§6 the dead machinery, the alias maps and the retired words the excisi
     { word: J('LEGACY_MC_', 'DIGEST_PREFIX') },
     { word: J('legacySpawn', 'LedgerPath') },
     { word: J('marble_', 'origami') },
-    { word: J('marble-', 'origami'), except: [TRANSCRIPT_KIND_MIGRATION] },
+    { word: J('marble-', 'origami') },
+    { word: J('migrateTranscript', 'EntryKind') },
+    { word: J('RETIRED_ENTRY', '_KINDS') },
     { word: J('LEGACY_ROLE', '_ALIASES') },
     { word: J('resolveWith', 'Aliases') },
     { word: J('claude', 'Shimmer') },

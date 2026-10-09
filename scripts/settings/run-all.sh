@@ -9,7 +9,6 @@
 # gate-watch: src/state/AppStateStore.ts
 # gate-watch: src/utils/settings/** src/utils/config/** src/utils/config.ts src/services/compact/autoCompact.ts src/components/Settings/Config.tsx
 # gate-watch: src/utils/fileRead* scripts/lib/scratchSeat.ts src/mneme/paths.ts
-# gate-watch: src/migrations/**
 # gate-watch: src/components/BootSettingsScreen* src/services/switchboard/capacityCheck*
 # gate-watch: src/components/Settings/** src/services/providers/providerUsage* src/commands/usage/**
 # gate-watch: src/services/providers/accountSlots* src/components/mercury-ui/parity/AccountView*
