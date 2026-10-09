@@ -65,7 +65,7 @@ console.log('§2 the bare hook — the defaults are named, nothing invented')
   check('a record event says an answer may nothing', record.includes('nothing — the hook is a record'))
   check('an extension source is named by its extension', record.includes('Extension ping'))
   const crew = await mount('crewmate.start', { crewmate: 'Check the brief', match: 'verifier' }, { kind: 'agent', type: 'verifier' })
-  check('a crewmate hook: Kind crewmate, the boxed Brief, the 60s default, the agent source', /Kind:\s*crewmate/.test(crew) && crew.includes('Brief') && crew.includes('60s') && crew.includes('Agent verifier'))
+  check('a crewmate hook: Kind crewmate, the boxed Check, the 60s default, the agent source', /Kind:\s*crewmate/.test(crew) && crew.includes('Check') && crew.includes('60s') && crew.includes('Agent verifier'))
   const watched = await mount('file.changed', { run: 'reload', watch: ['.env', 'config.json'] })
   check('Watch: lists the files', watched.includes('Watch:') && watched.includes('.env, config.json'))
 }

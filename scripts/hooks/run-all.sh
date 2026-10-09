@@ -7,7 +7,7 @@
 # gate-watch: src/utils/config/globalConfig.ts src/utils/sessionStorage/chain.ts
 # gate-watch: src/utils/sessionStorage/paths.ts src/utils/settings/settingsCache.ts
 # gate-watch: scripts/lib/fixtureApi.ts src/rows/turn.ts src/Tool.ts src/query.ts src/run-core/**
-# gate-watch: src/utils/hooks/contract.ts
+# gate-watch: src/utils/hooks/contract.ts src/skills/bundled/updateConfig.ts src/utils/hooks/hooksConfigManager.ts
 # gate-watch: src/utils/messages/turnCut.ts src/utils/settings/settings.ts src/utils/settings/types.ts
 # gate-watch: src/services/tools/toolHooks.ts
 # gate-watch: src/rows/vocabulary.ts src/rows/project.ts docs/HOOKS.md sdk/src/rows.ts

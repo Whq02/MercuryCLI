@@ -15,7 +15,7 @@ function textLabel(kind: string): string {
     case 'question':
       return 'Question'
     default:
-      return 'Brief'
+      return 'Check'
   }
 }
 
