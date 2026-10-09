@@ -52,6 +52,7 @@ export function foldCrewLedger(
   sessionId: string | null,
   hostedReported: boolean,
   nowMs: number,
+  runnerGone = false,
 ): CrewLedger {
   let next: CrewLedger | null = null
   const touch = (): CrewLedger => {
@@ -69,7 +70,12 @@ export function foldCrewLedger(
     touch()[id] = { facts: entry.facts, hosted: entry.hosted, listed: true, cleared, stamp }
   }
   for (const [id, row] of Object.entries(ledger)) {
-    if (seenIds.has(id) || !row.listed || row.facts.sessionId !== sessionId) continue
+    if (seenIds.has(id) || row.facts.sessionId !== sessionId) continue
+    if (row.hosted && runnerGone) {
+      delete touch()[id]
+      continue
+    }
+    if (!row.listed) continue
     if (row.hosted && !hostedReported) continue
     if (row.cleared) {
       delete touch()[id]
@@ -92,6 +98,7 @@ export function sessionCrewRows(
   sessionId: string | null,
   hostedReported: boolean,
   nowMs: number,
+  runnerGone = false,
 ): CrewLedgerRow[] {
   const rows: CrewLedgerRow[] = []
   const seenIds = new Set<string>()
@@ -103,6 +110,7 @@ export function sessionCrewRows(
   }
   for (const [id, row] of Object.entries(ledger)) {
     if (seenIds.has(id) || row.cleared || row.facts.sessionId !== sessionId) continue
+    if (row.hosted && runnerGone) continue
     if (row.listed && row.hosted && !hostedReported) {
       rows.push(row)
       continue

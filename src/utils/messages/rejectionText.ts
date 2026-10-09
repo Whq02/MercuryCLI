@@ -72,6 +72,17 @@ export function unwrapToolUseError(text: string): string {
   return match === null ? text : match[1]!
 }
 
+export function denialLineOf(raw: string): string {
+  const text = unwrapToolUseError(raw).trim()
+  const said = [REJECT_MESSAGE_WITH_REASON_PREFIX, SUBAGENT_REJECT_MESSAGE_WITH_REASON_PREFIX].find(prefix => text.startsWith(prefix))
+  if (said !== undefined) {
+    const reason = text.slice(said.length).trim().split('\n')[0]?.trim() ?? ''
+    return reason === '' ? said.trim() : `${said.trim()} ${reason}`
+  }
+  const end = text.search(/\.(?:\s|$)/)
+  return end === -1 ? text : text.slice(0, end + 1)
+}
+
 export const NO_RESPONSE_REQUESTED = 'No response requested.'
 
 export const SYNTHETIC_TOOL_RESULT_PLACEHOLDER =

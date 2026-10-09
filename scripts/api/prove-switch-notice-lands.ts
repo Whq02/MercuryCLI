@@ -121,7 +121,7 @@ section('§0 the receipt law (pure) — a switch is the row that last answered c
   const answered = [...history, reply(OPUS, 'o1'), user('u4')] as never[]
   check('once the new model has answered, the next request to it paints nothing (the resume, the daemon respawn, the next turn)', modelSwitchReceipt('main', answered, OPUS) === null)
   const back = modelSwitchReceipt('main', answered, FABLE)
-  check('a switch back is a real switch: the receipt names the other writer and the returning model', back !== null && back.text.includes(`1 thinking block written by ${OPUS_WORD} stay out of the requests to ${FABLE_WORD}`) && back.key === `main|o1|${FABLE}`, j(back))
+  check('a switch back is a real switch: the receipt names the other writer and the returning model, one block in the singular', back !== null && back.text === `Preserved thinking: 1 thinking block written by ${OPUS_WORD} stays out of the requests to ${FABLE_WORD} (the conversation switched models); the model re-plans without it.` && back.key === `main|o1|${FABLE}`, j(back))
   const errored = [...history, synthetic('e1'), user('u4')] as never[]
   const afterError = modelSwitchReceipt('main', errored, OPUS)
   check('a synthetic row (an API error stand-in) is not an answer: the switch still stands and its key is unchanged', afterError !== null && afterError.key === `main|f2|${OPUS}`, j(afterError))

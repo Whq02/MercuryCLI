@@ -111,6 +111,7 @@ export type LawfulPrefixChange =
   | 'operator-setting'
   | 'declared'
   | 'roster-switch'
+  | 'build-update'
   | 'thinking-cleared'
   | 'context-edited'
 
@@ -122,6 +123,7 @@ export interface PrefixMark {
   rosterChange: string | null
   model: string
   settings: string
+  build?: string
   thinkingClearActive: boolean
   contextEditActive: boolean
 }
@@ -134,6 +136,14 @@ export interface LiveOperatorSettings {
 const SETTING_LABELS: Record<string, string> = {
   mode: 'the permission mode',
   profile: 'the response profile',
+}
+
+export function productBuild(): string {
+  return typeof MACRO !== 'undefined' && typeof MACRO.VERSION === 'string' && MACRO.VERSION !== '' ? MACRO.VERSION : 'unknown'
+}
+
+export function describeBuildMove(previous: string | undefined, current: string): string {
+  return previous === undefined || previous === current ? `the update to ${current}` : `the update from ${previous} to ${current}`
 }
 
 export function spellOperatorSettings(live: LiveOperatorSettings | undefined): string {
@@ -203,6 +213,7 @@ export function prefixMarkOf(
     rosterChange,
     model,
     settings: spellOperatorSettings(live),
+    build: productBuild(),
     thinkingClearActive: context?.thinkingClearActive === true,
     contextEditActive: context?.requestPlan?.mode === 'apply' &&
       (context.requestPlan.reductions.timeBasedCleared > 0 || (context.requestPlan.reductions.pressurePruned?.cleared ?? 0) > 0),
@@ -294,7 +305,10 @@ export function classifyThinkingDrops(
     lawful = 'declared'
     detail = declared
   } else if (previous !== undefined) {
-    if (previous.mark.firstRow !== mark.firstRow || previous.mark.compactBoundary !== mark.compactBoundary) {
+    if (previous.mark.build !== mark.build) {
+      lawful = 'build-update'
+      detail = describeBuildMove(previous.mark.build, mark.build ?? productBuild())
+    } else if (previous.mark.firstRow !== mark.firstRow || previous.mark.compactBoundary !== mark.compactBoundary) {
       lawful = 'compaction'
     } else if (previous.mark.model !== mark.model || previous.mark.modelTransition !== mark.modelTransition) {
       lawful = 'model-switch'
@@ -425,6 +439,9 @@ export function describeThinkingDrops(
       if (outcome.lawful === 'declared') {
         return `Preserved thinking: the API dropped ${count} ${noun} after ${outcome.detail ?? 'a change you asked for'} — the system prompt and the tool roster moved with it, so the model re-plans without that reasoning this turn (expected once).`
       }
+      if (outcome.lawful === 'build-update') {
+        return `Preserved thinking: the API dropped ${count} ${noun} after ${outcome.detail ?? 'an update'} — the system prompt and the tool roster moved with the build, so the model re-plans without that reasoning this turn (expected once).`
+      }
       if (outcome.lawful === 'thinking-cleared') {
         return `Preserved thinking: the API dropped ${count} ${noun} — Mercury cleared reasoning older than the last turn after an hour idle (its own context edit), so the model re-plans without that earlier reasoning; later requests carry it no more (expected once).`
       }
@@ -553,10 +570,10 @@ export function modelSwitchReceipt(
   if (foreign.count === 0) return null
   const display = (model: string): string => getPublicModelDisplayName(model) ?? model
   const writers = foreign.models.map(display).join(', ')
-  const noun = foreign.count === 1 ? 'thinking block' : 'thinking blocks'
+  const one = foreign.count === 1
   return {
     key: `${owner}|${previous.uuid}|${getCanonicalName(currentModel)}`,
-    text: `Preserved thinking: ${foreign.count} ${noun} written by ${writers} stay out of the requests to ${display(currentModel)} (the conversation switched models); the model re-plans without them.`,
+    text: `Preserved thinking: ${foreign.count} ${one ? 'thinking block' : 'thinking blocks'} written by ${writers} ${one ? 'stays' : 'stay'} out of the requests to ${display(currentModel)} (the conversation switched models); the model re-plans without ${one ? 'it' : 'them'}.`,
   }
 }
 
@@ -718,6 +735,8 @@ export function preservedThinkingHealth(ledger: ThinkingDropLedger | null, sessi
           ? `a setting change (${last.detail ?? 'unnamed'})`
           : last.lawful === 'declared'
             ? `a change you asked for (${last.detail ?? 'unnamed'})`
+            : last.lawful === 'build-update'
+              ? (last.detail ?? 'an update')
             : last.lawful === 'roster-switch'
               ? "the operator's spawn-switch toggle"
               : last.lawful === 'thinking-cleared'
