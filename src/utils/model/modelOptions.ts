@@ -21,6 +21,7 @@ import {
 } from '../../services/providers/openrouter/openrouterCatalogue.js'
 import { connectToBrowseReason } from '../../services/providers/catalogueGate.js'
 import { isCarrierShapedId, recognizeModelId } from '../../services/providers/idSpaces.js'
+import { NOUS_MODEL_GROUP, getNousModelOptions } from '../../services/providers/nous/nousCatalogue.js'
 import {
   HUGGINGFACE_MODEL_GROUP,
   getHuggingfaceModelOptions,
@@ -805,6 +806,9 @@ export function getModelOptions(reads: ModelOptionReads = {}): ModelOption[] {
   for (const row of getLocalModelOptions()) {
     pushIfAbsent(options, row)
   }
+  for (const row of getNousModelOptions()) {
+    pushIfAbsent(options, row)
+  }
 
   options = applyModelAllowlist(options)
 
@@ -837,6 +841,7 @@ export function getModelOptions(reads: ModelOptionReads = {}): ModelOption[] {
     META_MODEL_GROUP,
     COMPAT_MODEL_GROUP,
     LOCAL_MODEL_GROUP,
+    NOUS_MODEL_GROUP,
   ]
   const sectionRank = (opt: ModelOption): number => {
     const index = SECTION_ORDER.indexOf(opt.group ?? ANTHROPIC_MODEL_GROUP)
