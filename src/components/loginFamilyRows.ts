@@ -11,6 +11,7 @@ export type LoginFamilyValue =
   | 'deepseek'
   | 'xai'
   | 'meta'
+  | 'zen'
 
 export interface LoginFamilyRow {
   label: string
@@ -40,6 +41,7 @@ export function loginFamilyRows({ engineLegs }: { engineLegs: boolean }): LoginF
           { label: 'DeepSeek — API key', value: 'deepseek' as const },
           { label: 'xAI — Grok subscription sign-in or API key', value: 'xai' as const },
           { label: 'Meta — API key (Muse)', value: 'meta' as const },
+          { label: 'OpenCode Zen — API key (one key, the gateway\'s model list)', value: 'zen' as const },
         ]
       : []),
   ]
@@ -74,6 +76,7 @@ export const KEY_PAGES: Record<KeyFamilyValue, string> = {
   deepseek: 'platform.deepseek.com',
   xai: 'console.x.ai',
   meta: 'dev.meta.ai',
+  zen: 'opencode.ai/auth',
 }
 
 export const KEY_FAMILIES = Object.keys(KEY_PAGES) as KeyFamilyValue[]
@@ -100,6 +103,7 @@ export function loginFamilyFocusFor(defaultProvider: string | undefined): LoginF
     case 'deepseek':
     case 'xai':
     case 'meta':
+    case 'zen':
       return defaultProvider
     default:
       return undefined
