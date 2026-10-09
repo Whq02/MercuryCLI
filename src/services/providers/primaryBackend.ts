@@ -218,7 +218,7 @@ const metaBackend: PrimaryAgentBackend = {
 }
 const mistralBackend: PrimaryAgentBackend = {
   id: 'mistral-chat', provider: 'mistral', label: 'Mistral (native, in-process)',
-  callModel: mistralCallModel as unknown as typeof queryModelWithStreaming,
+  callModel: mistralCallModel,
   readiness: (): BackendReadiness => {
     if (!resolveMistralApiKey()) return { state: 'unavailable', reason: 'no API key (/logins mistral, or MISTRAL_API_KEY)' }
     const proof = mistralLiveProofState()
@@ -229,7 +229,7 @@ const mistralBackend: PrimaryAgentBackend = {
 }
 const zenBackend: PrimaryAgentBackend = {
   id: 'zen-gateway', provider: 'zen', label: 'OpenCode Zen (gateway, in-process)',
-  callModel: zenCallModel as unknown as typeof queryModelWithStreaming,
+  callModel: zenCallModel,
   readiness: (): BackendReadiness => {
     if (!resolveZenApiKey()) return { state: 'unavailable', reason: 'no API key (/logins zen, or OPENCODE_API_KEY)' }
     const proof = zenLiveProofState()
@@ -339,7 +339,7 @@ const nousBackend: PrimaryAgentBackend = {
   id: 'nous-chat',
   provider: 'nous',
   label: 'Nous Portal (multi-vendor gateway, shared compat runtime)',
-  callModel: nousCallModel as unknown as typeof queryModelWithStreaming,
+  callModel: nousCallModel,
   readiness: (): BackendReadiness => {
     const account = resolveNousAccount()
     if (!account) return { state: 'unavailable', reason: 'no Nous Portal API key (/logins nous, or NOUS_API_KEY)' }

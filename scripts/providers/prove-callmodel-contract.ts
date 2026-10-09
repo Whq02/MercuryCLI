@@ -24,6 +24,9 @@ const FAMILY_ROADS = [
   'localCallModel',
   'openrouterCallModel',
   'geminiCallModel',
+  'mistralCallModel',
+  'nousCallModel',
+  'zenCallModel',
 ].sort()
 const SEAM_ROADS = ['routedCallModel']
 const SHARED_RUNTIMES = ['compatChatCallModel']
