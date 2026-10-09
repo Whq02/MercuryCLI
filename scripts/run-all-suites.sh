@@ -484,6 +484,19 @@ for dom in ${solo_doms[@]+"${solo_doms[@]}"}; do
 done
 T_SOLO_END=$SECONDS
 
+if [ "${#want[@]}" -eq 0 ] && [ "$HERMETIC" -eq 0 ]; then
+  RED_KEEP="${VERDICT_FILE%/*}/red-suites-${CLASS}"
+  rm -rf "$RED_KEEP"
+  for dom in ${FLK_DOM[@]+"${FLK_DOM[@]}"} ${FAIL[@]+"${FAIL[@]}"}; do
+    [ -s "$outdir/$dom.out" ] || [ -s "$outdir/retry1/$dom.out" ] || [ -s "$outdir/retry2/$dom.out" ] || continue
+    mkdir -p "$RED_KEEP"
+    [ -s "$outdir/$dom.out" ] && cp "$outdir/$dom.out" "$RED_KEEP/$dom.pooled.out"
+    [ -s "$outdir/retry1/$dom.out" ] && cp "$outdir/retry1/$dom.out" "$RED_KEEP/$dom.in-pool.out"
+    [ -s "$outdir/retry2/$dom.out" ] && cp "$outdir/retry2/$dom.out" "$RED_KEEP/$dom.solo.out"
+  done
+  [ -d "$RED_KEEP" ] && printf '  ⚙  red suite outputs kept under %s (every attempt of every suite that read red; the next full pool replaces them)\n' "$RED_KEEP"
+fi
+
 echo "────────────────────────────────────────────"
 
 FLAKE_ROWS=""
