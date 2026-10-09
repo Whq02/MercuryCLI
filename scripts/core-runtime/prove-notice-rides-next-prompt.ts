@@ -62,7 +62,15 @@ let seq = 0
 const stopNotice = (name: string): QueuedCommand => ({
   value: `<task-notification><task-id>${name}</task-id><status>stopped</status><summary>${name} was stopped — the session's runner restarted after a relaunch before it finished</summary></task-notification>`,
   mode: 'task-notification',
-  priority: 'later',
+  priority: 'next',
+  ridesNextWords: true,
+  queueId: `q${++seq}`,
+  uuid: `u${seq}`,
+}) as QueuedCommand
+const completion = (name: string): QueuedCommand => ({
+  value: `<task-notification><task-id>${name}</task-id><status>completed</status><summary>Background command "${name}" completed</summary></task-notification>`,
+  mode: 'task-notification',
+  priority: 'next',
   queueId: `q${++seq}`,
   uuid: `u${seq}`,
 }) as QueuedCommand
@@ -71,7 +79,7 @@ const idOf = (c: QueuedCommand): string => /<task-id>(.*?)<\/task-id>/.exec(Stri
 
 console.log("a crewmate's stop notice already queued when the operator's prompt is taken rides that prompt's turn (RELEASE-30-AIR R30A-08)")
 
-console.log("\n§1 the Air's order: the stop notice (later band, queued at the park and again at the resume) then the prompt")
+console.log("\n§1 the Air's order: the stop notice the restart carry queues at the resume, then the prompt")
 {
   const rig = makeRig()
   const driver = createTurnDriver(rig.ports)
@@ -108,16 +116,23 @@ console.log('\n§3 a notice alone is still its own turn; a notice queued after t
   check('a prompt with nothing queued carries no notice', rig.turns.length === 1 && rig.turns[0]!.initialNotices.length === 0)
 }
 
-console.log('\n§4 a hold released on an idle driver changes nothing: the queued notice still rides the next operator words')
+console.log("\n§4 a live completion keeps the standing law: typed words go first, the completion stays queued for the turn's first tool boundary or its end")
 {
   const rig = makeRig()
   const driver = createTurnDriver(rig.ports)
-  rig.queue.push(stopNotice('held'))
-  driver.releaseHold()
-  rig.queue.push(prompt('and now?'))
+  rig.queue.push(completion('build'), prompt('what happened?'))
   driver.kick()
   await settle(12)
-  check('the notice rides the operator\'s next turn', rig.turns.length === 1 && rig.turns[0]!.command.mode === 'prompt' && rig.turns[0]!.initialNotices.map(idOf).join(',') === 'held', JSON.stringify(rig.turns.map(t => [t.command.mode, t.initialNotices.map(idOf)])))
+  check("the words' turn carries no completion at its start, and the completion's own turn follows", rig.turns.length === 2 && rig.turns[0]!.command.mode === 'prompt' && rig.turns[0]!.initialNotices.length === 0 && rig.turns[1]!.command.mode === 'task-notification', JSON.stringify(rig.turns.map(t => [t.command.mode, t.initialNotices.map(idOf)])))
+}
+
+console.log('\n§5 the carry queues its notices to ride the next words (restartCarry.ts)')
+{
+  const { readFileSync } = await import('node:fs')
+  const { join, resolve } = await import('node:path')
+  const carry = readFileSync(join(resolve(import.meta.dir, '..', '..'), 'src/cli/headless/restartCarry.ts'), 'utf8')
+  const sites = carry.split('\n').filter(line => line.includes('enqueuePendingNotification('))
+  check('both carry enqueues (the carry row and each delivered notice) carry ridesNextWords', sites.length === 2 && sites.every(line => line.includes('ridesNextWords: true')), sites.join(' | '))
 }
 
 console.log(`\n${failures === 0 ? '✅ a queued notice rides the next prompt — PROVEN' : `❌ ${failures} FAILURE(S)`}`)

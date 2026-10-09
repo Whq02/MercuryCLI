@@ -254,8 +254,10 @@ export function createTurnDriver(ports: TurnDriverPorts): TurnDriver {
     let command = first
     const initialNotices: QueuedCommand[] = []
     if (isOperatorWords(first)) {
+      const held = noticesAwaitOperator
       noticesAwaitOperator = false
       for (const notice of queuedMainThread().filter(isTaskNotification)) {
+        if (!held && notice.ridesNextWords !== true) continue
         const taken = ports.dequeueCommand(notice)
         if (taken === undefined) continue
         if (taken.queueId !== undefined) settledAt.delete(taken.queueId)
