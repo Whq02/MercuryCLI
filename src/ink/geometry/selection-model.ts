@@ -43,10 +43,11 @@ export function startSelection(s: SelectionState, col: number, row: number): voi
   s.isDragging = true
 }
 
+const isAnchorTremor = (s: SelectionState, col: number, row: number): boolean =>
+  s.focus === null && s.anchor !== null && s.anchor.col === col && s.anchor.row === row
+
 export function updateSelection(s: SelectionState, col: number, row: number): void {
-  if (!s.isDragging) return
-  if (!s.focus && s.anchor && s.anchor.col === col && s.anchor.row === row) return
-  s.focus = { col, row }
+  if (s.isDragging && !isAnchorTremor(s, col, row)) s.focus = { col, row }
 }
 
 export function finishSelection(s: SelectionState): void {
