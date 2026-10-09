@@ -8,7 +8,7 @@ import { runnerRecordAlive, workRowRuns } from '../../services/engine-connector/
 import { readSessionWorkers } from '../../daemon/concourseWorkers.js'
 import type { MissionRowV1, SampleRowV1, WorkRosterV1, WorkRowV1 } from '../../services/engine-connector/types.js'
 import { useAppState, useAppStateStore, type AppState } from '../../state/AppState.js'
-import { getTelemetry, subscribeTelemetry, type SessionGlanceSnapshot } from '../../state/telemetryBus.js'
+import { getVitals, subscribeVitals, type SessionGlanceSnapshot } from '../../state/vitalsBus.js'
 import { stringWidth } from '../../ink/stringWidth.js'
 import type { EngineCarrierKind } from '../../services/engine-connector/types.js'
 import { projectWorkRoster } from '../../utils/task/workRoster.js'
@@ -185,14 +185,14 @@ export function useCompactWorkCounts(): CompactWorkCounts {
   const store = useAppStateStore()
   const subscribe = useCallback((listener: () => void) => {
     const work = subscribeFocusedWork(listener)
-    const telemetry = subscribeTelemetry(listener, true)
+    const vitals = subscribeVitals(listener, true)
     const local = store.subscribe(listener)
-    return () => { work(); telemetry(); local() }
+    return () => { work(); vitals(); local() }
   }, [store])
   const snapshot = useCallback(() => {
     const connector = getFocusedSessionConnector()
     return JSON.stringify(compactWorkCounts({
-      sessions: getTelemetry().sessions,
+      sessions: getVitals().sessions,
       focusedSessionId: hasFocusedSession() ? connector.sessionId() : null,
       carrier: connector.carrier,
       roster: connector.workRoster(),

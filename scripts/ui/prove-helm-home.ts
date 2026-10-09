@@ -16,7 +16,7 @@ const fullscreen = read('src/utils/fullscreen.ts')
 const layout = read('src/components/FullscreenLayout.tsx')
 const geometry = read('src/utils/helmGeometry.ts')
 const lanes = read('src/components/HelmLanesRail.tsx') + read('src/utils/cockpit/helmLanesModel.ts')
-const telemetry = read('src/components/HelmTelemetryRail.tsx')
+const vitals = read('src/components/HelmVitalsRail.tsx')
 const welcome = read('src/components/MercuryHome.tsx')
 const frame = read('src/components/MercuryFrame.tsx')
 
@@ -38,9 +38,9 @@ check('FullscreenLayout body has no $[<n>] cache slot reads', !/\$\[\d/.test(fnB
 check('FullscreenLayout reads the shared physical-geometry decision for the cockpit',
   /useLayoutChrome\(\)/.test(fnBody) && /chrome === 'cockpit'/.test(fnBody))
 check('FullscreenLayout mounts rails off railPlan (center-first shed)',
-  /railPlan\(columns\)/.test(fnBody) && /plan\.telemetry/.test(fnBody))
+  /railPlan\(columns\)/.test(fnBody) && /plan\.vitals/.test(fnBody))
 check('FullscreenLayout composes both rails inline (HelmHome absorbed)',
-  /<HelmLanesRail/.test(fnBody) && /<HelmTelemetryRail/.test(fnBody))
+  /<HelmLanesRail/.test(fnBody) && /<HelmVitalsRail/.test(fnBody))
 check('FullscreenLayout keeps the deck-strip path (byte-identical OFF/narrow)',
   /chrome === 'deck-strip'/.test(fnBody) && /<DeckPane/.test(fnBody))
 check('M3: cockpit + deck toggle as siblings, providers always mounted (stable root)',
@@ -55,7 +55,7 @@ check('M2: modal spans the full terminal in every chrome',
   /"▔"\.repeat\(Math\.max\(1, columns\)\)/.test(fnBody) &&
   /rows: Math\.max\(0, terminalRows - modalPeek - modalSeparatorRows\),\s*columns,/.test(fnBody))
 check('P3-continuity: rail input parks while a modal is up',
-  /const reachable = cockpit && !modalUp\s*setHelmTelemetryAvailable\(reachable && plan\.telemetry\)\s*if \(!reachable\) setHelmFocus\('prompt'\)/.test(fnBody))
+  /const reachable = cockpit && !modalUp\s*setHelmVitalsAvailable\(reachable && plan\.vitals\)\s*if \(!reachable\) setHelmFocus\('prompt'\)/.test(fnBody))
 check('P3: surface claims full height (peek 0) in cockpit + deck-strip, default peek inline',
   /const modalPeek = isCompact \? 0 : chrome === 'inline' \? 2 : 0/.test(fnBody) &&
   /maxHeight=\{Math\.max\(0, terminalRows - modalPeek\)\}/.test(fnBody))
@@ -135,12 +135,12 @@ check('MoreRow has click parity (requestHelmRowActivation on click)',
 check('RUNS: a live run is never "solo" (runsAll gates the empty-state)',
   /runsOf\(input\.tasks, input\.roster\)\.length === 0/.test(lanes))
 check('RUNS: elapsed stays honest while runs live (the 15s tick arms on runsLive)',
-  /useNowTick\(\s*mergedTelemetry \|\| model\.runsLive > 0 \? 15_000 : null,?\s*\)/.test(lanes))
+  /useNowTick\(\s*mergedVitals \|\| model\.runsLive > 0 \? 15_000 : null,?\s*\)/.test(lanes))
 check('CREW: running agent rows rotate too (one liveness grammar; an idle crewmate, the viewed ◉ and main-chat ★ marks stand still)',
   /const live = c\.status === 'running' && !idle\n/.test(lanes) && /glyphLive: live && !isViewing && !isMainChat,/.test(lanes))
 
-check('telemetry rail renders the ctx-fill gauge (getLiveContextUsage)',
-  /getLiveContextUsage/.test(telemetry) && /ctx /.test(telemetry))
+check('vitals rail renders the ctx-fill gauge (getLiveContextUsage)',
+  /getLiveContextUsage/.test(vitals) && /ctx /.test(vitals))
 
 check('MercuryHome sheds the fleet glance when the cockpit owns it', /helmHome \?/.test(welcome) || /!helmHome/.test(welcome))
 check('the shed keys on CockpitActiveContext (decoupled from the overridden width)',
@@ -150,7 +150,7 @@ check('FullscreenLayout overrides center width (TerminalSizeContext) so the tran
 check('FullscreenLayout provides CockpitActiveContext = cockpit (true only when rails show)',
   /CockpitActiveContext\.Provider value=\{cockpit\}/.test(layout))
 
-for (const [name, src] of [['HelmLanesRail', lanes], ['HelmTelemetryRail', telemetry]] as const) {
+for (const [name, src] of [['HelmLanesRail', lanes], ['HelmVitalsRail', vitals]] as const) {
   check(`${name}: no inline #E07A50 (token only)`, !/#E07A50/i.test(src))
   check(`${name}: no raw 6-digit hex literal`, !/#[0-9A-Fa-f]{6}\b/.test(src))
 }

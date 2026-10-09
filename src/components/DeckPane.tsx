@@ -8,7 +8,7 @@ import { useTerminalSize } from '../hooks/useTerminalSize.js'
 import { useProviderUsageOnShow } from '../hooks/useProviderUsageOnShow.js'
 import { Box, Text } from '../ink.js'
 
-import { useTelemetry } from '../state/telemetryBus.js'
+import { useVitals } from '../state/vitalsBus.js'
 import { LAYOUT_BREAKPOINTS } from '../hooks/useLayoutTier.js'
 import { getGitState, type GitRepoState } from '../utils/git.js'
 import { hasConsoleBillingAccess } from '../utils/billing.js'
@@ -71,7 +71,7 @@ export const DeckPane = React.memo(function DeckPane(): React.ReactNode {
   const added = usageFacts.totalLinesAdded
   const removed = usageFacts.totalLinesRemoved
 
-  const vitals = useTelemetry()
+  const vitals = useVitals()
   const git = vitals.git
   const tasks: readonly MissionRowV1[] | null = vitals.version === 0 ? null : vitals.tasks
   const fleet = {

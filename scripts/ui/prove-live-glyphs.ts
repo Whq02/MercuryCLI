@@ -186,9 +186,9 @@ section('adoption + hygiene pins (source greps)')
     'both primitives honor view.reducedMotion',
     (live.match(/view\?\.reducedMotion/g) ?? []).length >= 2,
   )
-  const rail = readFileSync('src/components/HelmTelemetryRail.tsx', 'utf8')
+  const rail = readFileSync('src/components/HelmVitalsRail.tsx', 'utf8')
   check(
-    'HelmTelemetryRail adopts WorkingGlyph + AttentionPulse + ValueGlow',
+    'HelmVitalsRail adopts WorkingGlyph + AttentionPulse + ValueGlow',
     rail.includes('WorkingGlyph') && rail.includes('AttentionPulse') && rail.includes('ValueGlow'),
   )
   check(

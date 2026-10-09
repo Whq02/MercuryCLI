@@ -362,9 +362,9 @@ section('§3 one window decode per family — shared view fns + the anthropic en
 
 section('§4 signed-out honesty in the meter renderers (source pins)')
 {
-  const rail = readFileSync(join(ROOT, 'src/utils/cockpit/helmTelemetryModel.ts'), 'utf8')
+  const rail = readFileSync(join(ROOT, 'src/utils/cockpit/helmVitalsModel.ts'), 'utf8')
   check('rail: renders the owner why-not for a none source', rail.includes('usage.whyNot'))
-  const railCode = codeOnlyText('helmTelemetryModel.ts', rail)
+  const railCode = codeOnlyText('helmVitalsModel.ts', rail)
   const noneBranchAt = railCode.indexOf("usageEmpty && usage.sourceKind === 'none'")
   const whyNotHintAt = railCode.indexOf("{ kind: 'empty', key: 'usage:whynot'")
   const fillsHintAt = railCode.search(/\{ kind: 'empty', key: 'usage:none', text: `\$\{NO_USAGE_READ_WORDS\} · fills after first reply` \}/)

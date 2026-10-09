@@ -18,7 +18,7 @@ check(
   rail.includes("command: '/saturn', label: 'wake:glance'"),
 );
 check(
-  'wake row registers BEFORE the telemetry glance build (cursor-walk order)',
+  'wake row registers BEFORE the vitals glance build (cursor-walk order)',
   rail.indexOf("label: 'wake:glance'") > 0 &&
     rail.indexOf("label: 'wake:glance'") < rail.indexOf('const glanceSection') &&
     /saturnSection\(\), glanceSection\(\)\]/.test(rail),

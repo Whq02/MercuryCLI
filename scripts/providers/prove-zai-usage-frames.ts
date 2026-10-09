@@ -104,7 +104,7 @@ const { check, finish } = tally()
 const world = await usagePlanWorld()
 try {
   const { owner, fresh, quota, ink } = world
-  const { HelmTelemetryRail } = await import(world.path('src/components/HelmTelemetryRail.tsx'))
+  const { HelmVitalsRail } = await import(world.path('src/components/HelmVitalsRail.tsx'))
   const { railPlanAt } = await import(world.path('src/utils/helmGeometry.ts'))
   const { SettingsPopupSlot } = await import(world.path('src/components/SettingsPopupSlot.tsx'))
   const { POPUP_GUTTER, popupWidth } = await import(world.path('src/components/PopupGutter.tsx'))
@@ -114,7 +114,7 @@ try {
     const ask = popup.settingsPopupRequest()
     return ask === null ? ['no /usage request is open'] : popupFrameLaw(frame, at, ask, POPUP_GUTTER, popupWidth)
   }
-  const card = (columns: number, rows: number) => React.createElement(ink.Box, { flexDirection: 'row', justifyContent: 'flex-end', width: columns }, React.createElement(HelmTelemetryRail, { width: railPlanAt(columns, true).telemetryW, availRows: rows - 7 }))
+  const card = (columns: number, rows: number) => React.createElement(ink.Box, { flexDirection: 'row', justifyContent: 'flex-end', width: columns }, React.createElement(HelmVitalsRail, { width: railPlanAt(columns, true).vitalsW, availRows: rows - 7 }))
   const glm = owner.usageForProvider('zai')
   const kimi = owner.usageForProvider('moonshot')
   console.log(`Z.AI owner: shape ${glm.shape} · windows ${JSON.stringify(glm.windows.map(w => `${w.key}:${w.usedPct}`))} · absence ${glm.absence ?? '—'} · tier ${glm.tier}`)
@@ -202,8 +202,8 @@ try {
   narrowBoard.close()
   popup.closeSettingsPopup()
   const narrowPlan = railPlanAt(NARROW.columns, true)
-  world.save('usage-card', narrowPlan.telemetry ? 'unexpected: a telemetry rail at 80 columns' : `no sidebar usage card at ${NARROW.columns}x${NARROW.rows}: the cockpit's telemetry rail needs both rails engaged (railPlanAt telemetry=false)`, NARROW)
-  check('80x21: the cockpit has no telemetry rail at 80 columns (the card is a wide-cockpit surface)', narrowPlan.telemetry === false)
+  world.save('usage-card', narrowPlan.vitals ? 'unexpected: a vitals rail at 80 columns' : `no sidebar usage card at ${NARROW.columns}x${NARROW.rows}: the cockpit's vitals rail needs both rails engaged (railPlanAt vitals=false)`, NARROW)
+  check('80x21: the cockpit has no vitals rail at 80 columns (the card is a wide-cockpit surface)', narrowPlan.vitals === false)
 
   const readerPath = world.path('src/services/providers/zai/zaiUsageState.ts')
   check('the Z.ai quota reader exists (the states below need it)', existsSync(readerPath), 'no such module on this tree')

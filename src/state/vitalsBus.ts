@@ -31,7 +31,7 @@ export type SessionGlanceSnapshot =
   | { state: 'unavailable' }
   | { state: 'known'; rows: Array<{ sessionId: string; live: boolean; paused: boolean; parked: boolean; stopped: boolean }> }
 
-export interface TelemetrySnapshots {
+export interface VitalsSnapshots {
   sessions: SessionGlanceSnapshot
   git: GitRepoState | null
   tasks: readonly MissionRowV1[]
@@ -43,7 +43,7 @@ export interface TelemetrySnapshots {
   version: number
 }
 
-let snapshots: TelemetrySnapshots = {
+let snapshots: VitalsSnapshots = {
   sessions: { state: 'unavailable' },
   git: null,
   tasks: [],
@@ -66,12 +66,12 @@ let unsubGitFacts: (() => void) | null = null
 let coalescer: SerialCoalescer | null = null
 
 function emit(): void {
-  fluxMark('telemetry:emit')
+  fluxMark('vitals:emit')
   for (const l of listeners) {
     try {
       l()
     } catch (e) {
-      logForDebugging(`[telemetryBus] listener threw (ignored): ${e}`)
+      logForDebugging(`[vitalsBus] listener threw (ignored): ${e}`)
     }
   }
 }
@@ -81,7 +81,7 @@ async function gitStateForRefresh(): Promise<GitRepoState | null> {
 }
 
 async function refreshOnce(): Promise<void> {
-  const next: Partial<TelemetrySnapshots> = {}
+  const next: Partial<VitalsSnapshots> = {}
   if (sessionConsumers > 0) {
     const sessions = readSessionWorkersSnapshot()
     const sessionRows = sessions.state === 'known' ? Object.values(sessions.workers) : null
@@ -121,8 +121,8 @@ async function refreshOnce(): Promise<void> {
       })
       .catch(() => {}),
   ])
-  const kept: Partial<TelemetrySnapshots> = {}
-  for (const key of Object.keys(next) as Array<keyof TelemetrySnapshots>) {
+  const kept: Partial<VitalsSnapshots> = {}
+  for (const key of Object.keys(next) as Array<keyof VitalsSnapshots>) {
     const prev = snapshots[key]
     const fresh = next[key]
     if (jsonStringify(prev) === jsonStringify(fresh)) {
@@ -139,7 +139,7 @@ async function refreshOnce(): Promise<void> {
   emit()
 }
 
-export function pokeTelemetry(): void {
+export function pokeVitals(): void {
   if (listeners.size === 0) return
   coalescer?.poke()
 }
@@ -148,7 +148,7 @@ function scheduleDebounced(): void {
   if (debounceTimer) clearTimeout(debounceTimer)
   debounceTimer = setTimeout(() => {
     debounceTimer = null
-    pokeTelemetry()
+    pokeVitals()
   }, TRANSCRIPT_DEBOUNCE_MS)
   debounceTimer.unref?.()
 }
@@ -159,16 +159,16 @@ function startEngine(): void {
     try {
       await refreshOnce()
     } catch (e) {
-      logForDebugging(`[telemetryBus] refresh failed (dropped): ${e}`)
+      logForDebugging(`[vitalsBus] refresh failed (dropped): ${e}`)
     }
-  }, 'telemetry')
-  heartbeat = setInterval(() => pokeTelemetry(), HEARTBEAT_MS)
+  }, 'vitals')
+  heartbeat = setInterval(() => pokeVitals(), HEARTBEAT_MS)
   heartbeat.unref?.()
   unsubTranscript = subscribeFocusedRecords(() => scheduleDebounced())
   unsubTasks = subscribeFocusedWork(() => scheduleDebounced())
   unsubExecutions = subscribeExecutionEvents(() => scheduleDebounced())
-  unsubGitFacts = subscribeGitFacts(() => pokeTelemetry())
-  pokeTelemetry()
+  unsubGitFacts = subscribeGitFacts(() => pokeVitals())
+  pokeVitals()
 }
 
 function stopEngine(): void {
@@ -192,15 +192,15 @@ function stopEngine(): void {
   coalescer = null
 }
 
-export function getTelemetry(): TelemetrySnapshots {
+export function getVitals(): VitalsSnapshots {
   return snapshots
 }
 
-export function subscribeTelemetry(listener: () => void, sessions = false): () => void {
+export function subscribeVitals(listener: () => void, sessions = false): () => void {
   if (sessions) sessionConsumers++
   listeners.add(listener)
   startEngine()
-  if (sessions && sessionConsumers === 1) pokeTelemetry()
+  if (sessions && sessionConsumers === 1) pokeVitals()
   return () => {
     if (sessions) sessionConsumers--
     listeners.delete(listener)
@@ -228,13 +228,13 @@ export function _statsForProofs(): {
   }
 }
 
-export function useTelemetry(): TelemetrySnapshots
-export function useTelemetry<T>(selector: (s: TelemetrySnapshots) => T): T
-export function useTelemetry<T>(
-  selector?: (s: TelemetrySnapshots) => T,
-): T | TelemetrySnapshots {
-  const getSelected: () => T | TelemetrySnapshots = selector
+export function useVitals(): VitalsSnapshots
+export function useVitals<T>(selector: (s: VitalsSnapshots) => T): T
+export function useVitals<T>(
+  selector?: (s: VitalsSnapshots) => T,
+): T | VitalsSnapshots {
+  const getSelected: () => T | VitalsSnapshots = selector
     ? () => selector(snapshots)
-    : getTelemetry
-  return useSyncExternalStore(subscribeTelemetry, getSelected, getSelected)
+    : getVitals
+  return useSyncExternalStore(subscribeVitals, getSelected, getSelected)
 }

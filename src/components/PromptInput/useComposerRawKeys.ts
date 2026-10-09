@@ -139,7 +139,7 @@ export function useComposerRawKeys({
       const focusPane = getHelmFocus()
 
       if (focusPane !== 'prompt') {
-        const composing = focusPane === 'telemetry' && isConsoleComposing()
+        const composing = focusPane === 'vitals' && isConsoleComposing()
         if (composing) {
           event.stopImmediatePropagation()
           if (key.escape) {
@@ -278,7 +278,7 @@ export function useComposerRawKeys({
           rawInput >= ' ' &&
           !key.tab
         ) {
-          const composeCapable = focusPane === 'telemetry' && consoleEnabled()
+          const composeCapable = focusPane === 'vitals' && consoleEnabled()
           event.stopImmediatePropagation()
           if (composeCapable) {
             beginConsoleCompose(rawInput)

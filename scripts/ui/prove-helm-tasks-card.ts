@@ -63,7 +63,7 @@ const pending = await mod<typeof import('../../src/input-core/pending-input.ts')
 const { default: instances } = await mod<typeof import('../../src/ink/instances.ts')>('src/ink/instances.ts')
 const focusedSlot = await mod<typeof import('../../src/services/engine-connector/focusedConnector.ts')>('src/services/engine-connector/focusedConnector.ts')
 const { noSessionConnector } = await mod<typeof import('../../src/services/engine-connector/noSessionConnector.ts')>('src/services/engine-connector/noSessionConnector.ts')
-const telemetry = await mod<typeof import('../../src/state/telemetryBus.ts')>('src/state/telemetryBus.ts')
+const vitals = await mod<typeof import('../../src/state/vitalsBus.ts')>('src/state/vitalsBus.ts')
 const helm = await mod<typeof import('../../src/utils/cockpit/helmFocus.ts')>('src/utils/cockpit/helmFocus.ts')
 type WorkRoster = import('../../src/services/engine-connector/types.ts').WorkRosterV1
 type Connector = import('../../src/services/engine-connector/types.ts').EngineConnectorV1
@@ -197,7 +197,7 @@ async function mount(name: string, work: WorkRoster): Promise<Mount> {
   ink.render(h(App, { initialState: { ...getDefaultAppState(), expandedView: 'none' }, getFpsMetrics: () => undefined }, h(Harness)))
   const frame = (): string => stripAnsi(ink.lastFrameText())
   await until(`${name}: the cockpit mounts with the composer and the lanes rail`, () => insertRef.current !== null && stdin.isRaw && frame().includes('lanes'))
-  await until(`${name}: the telemetry bus carries the fixture ledger (${work.mission.length} rows)`, () => telemetry.getTelemetry().version > 0 && telemetry.getTelemetry().tasks.length === work.mission.length, 15_000)
+  await until(`${name}: the vitals bus carries the fixture ledger (${work.mission.length} rows)`, () => vitals.getVitals().version > 0 && vitals.getVitals().tasks.length === work.mission.length, 15_000)
   const seen = frames
   await until(`${name}: the cockpit composed two more frames after the ledger landed (the working strip's clock keeps them coming)`, () => frames >= seen + 2)
   return {

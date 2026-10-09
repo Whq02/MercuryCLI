@@ -107,7 +107,7 @@ t('statusbar chip reads the focused session\'s work rows', frame.includes('runni
 t('statusbar chip mounted in the status row', frame.includes('{wfNode}'))
 const projector = readFileSync('src/utils/task/workRoster.ts', 'utf8')
 t('the runner\'s projector speaks the pulse on the workflow row (the one fold)', projector.includes('pulse: workflowPulseFacts('))
-const rail = readFileSync('src/components/HelmTelemetryRail.tsx', 'utf8') + readFileSync('src/utils/cockpit/helmTelemetryModel.ts', 'utf8')
+const rail = readFileSync('src/components/HelmVitalsRail.tsx', 'utf8') + readFileSync('src/utils/cockpit/helmVitalsModel.ts', 'utf8')
 t('the cockpit\'s WORKFLOW panel reads the focused session\'s work rows', rail.includes('runningWorkflowRows(workRows)') && !rail.includes("t.type === 'local_workflow'"))
 t('the panel\'s interior shares the board\'s rollup grammar', rail.includes('workflowRowDetail(runningWf[0]!)'))
 t('statusbar chip shows the WORST pulse (an active run must not mask a stuck one)', frame.includes('a.quietMs >= b.quietMs ? a : b'))

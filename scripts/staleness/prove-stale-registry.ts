@@ -196,7 +196,7 @@ src/services/wallet/wallet.ts :: entriesMemo :: ttl-bounded
 src/services/workbench/projection.ts :: agentMetaCache :: subscription-fed
 src/services/workbench/projection.ts :: snapshot :: subscription-fed
 src/skills/loadSkillsDir.ts :: loadAllSkillsMemo :: invalidator=clearSkillCaches
-src/state/telemetryBus.ts :: snapshots :: subscription-fed
+src/state/vitalsBus.ts :: snapshots :: subscription-fed
 src/substrate/startupMenu.ts :: admissionSnapshot :: static-for-process
 src/tasks/taskOutcomeEnvelope.ts :: cacheBySession :: invalidator=recordTaskOutcome
 src/tools/AgentTool/loadAgentsDir.ts :: definitionsCache :: invalidator=clearAgentDefinitionsCache

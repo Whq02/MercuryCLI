@@ -213,7 +213,7 @@ await stub('src/components/tasks/useFocusedWork.ts', {
   otherSessionRunnerPids: () => new Set(),
   focusedSessionIdOrNull: () => null,
 })
-await stub('src/state/telemetryBus.ts', { useTelemetry: () => ({ trace: null, workflowsDisk: [] }) })
+await stub('src/state/vitalsBus.ts', { useVitals: () => ({ trace: null, workflowsDisk: [] }) })
 
 const ink = await import(join(ROOT, 'src/ink.ts'))
 const { default: StdinContext } = await import(join(ROOT, 'src/ink/components/StdinContext.ts'))
@@ -282,7 +282,7 @@ async function paint(content: React.ReactNode, columns: number, rows: number, wa
 
 const COLS = 178
 const ROWS = 51
-const { HelmTelemetryRail } = await import(join(ROOT, 'src/components/HelmTelemetryRail.tsx'))
+const { HelmVitalsRail } = await import(join(ROOT, 'src/components/HelmVitalsRail.tsx'))
 const { railPlanAt } = await import(join(ROOT, 'src/utils/helmGeometry.ts'))
 const { settingsPopupGeometry } = await import(join(ROOT, 'src/components/SettingsPopupSlot.tsx'))
 const popupStore = await import(join(ROOT, 'src/utils/cockpit/settingsPopup.ts'))
@@ -316,7 +316,7 @@ const RAIL_FAMILIES: Array<{ id: string; model: string }> = [
 async function paintRail(model: string): Promise<string> {
   focusedModel = model
   const plan = railPlanAt(COLS, true)
-  const frame = (await paint(React.createElement(ink.Box, { flexDirection: 'row', justifyContent: 'flex-end', width: COLS }, React.createElement(HelmTelemetryRail, { width: plan.telemetryW, availRows: ROWS - 7 })), COLS, ROWS))[0]!
+  const frame = (await paint(React.createElement(ink.Box, { flexDirection: 'row', justifyContent: 'flex-end', width: COLS }, React.createElement(HelmVitalsRail, { width: plan.vitalsW, availRows: ROWS - 7 })), COLS, ROWS))[0]!
   focusedModel = MODEL
   return frame
 }

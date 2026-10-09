@@ -312,7 +312,7 @@ section('4 · structural — two slots, honest absences, one owner, both seams')
     usageColumns(146, 10).meterW === 42 && usageColumns(146, 10).colW === 46 && !usageTab.includes('useTerminalSize'),
   )
 
-  const rail = src('src/components/HelmTelemetryRail.tsx') + src('src/utils/cockpit/helmTelemetryModel.ts')
+  const rail = src('src/components/HelmVitalsRail.tsx') + src('src/utils/cockpit/helmVitalsModel.ts')
   check(
     'rail: consumes the SAME owner (windowSourceUsages, which reads activeSourceUsage)',
     /import \{[^}]*\bwindowSourceUsages\b[^}]*\} from '\.\.\/services\/providers\/providerUsage\.js'/.test(rail) &&

@@ -27,7 +27,7 @@ import { CompactIdentityBand } from './CompactIdentityBand.js'
 import { railPlan } from '../utils/helmGeometry.js'
 import {
   setHelmFocus,
-  setHelmTelemetryAvailable,
+  setHelmVitalsAvailable,
 } from '../utils/cockpit/helmFocus.js'
 import { ModalContext } from '../context/modalContext.js'
 import {
@@ -46,7 +46,7 @@ import { useElevatedSurface } from './mercury-ui/useElevatedSurface.js'
 import { recessTargetFor } from '../utils/cockpit/recessBackdrop.js'
 import { DeckPane } from './DeckPane.js'
 import { HelmLanesRail } from './HelmLanesRail.js'
-import { HelmTelemetryRail } from './HelmTelemetryRail.js'
+import { HelmVitalsRail } from './HelmVitalsRail.js'
 import { FilesMenuSlot } from './FilesMenuSlot.js'
 import { ModelPickerPopupSlot } from './ModelPickerPopupSlot.js'
 import { modelPickerPopupClaimed, subscribeModelPickerPopup } from '../utils/cockpit/modelPickerPopup.js'
@@ -406,12 +406,12 @@ export function FullscreenLayout({
 
   useEffect(() => {
     const reachable = cockpit && !modalUp
-    setHelmTelemetryAvailable(reachable && plan.telemetry)
+    setHelmVitalsAvailable(reachable && plan.vitals)
     if (!reachable) setHelmFocus('prompt')
-    else if (!plan.telemetry) {
+    else if (!plan.vitals) {
       setHelmFocus('prompt')
     }
-  }, [cockpit, modalUp, plan.telemetry])
+  }, [cockpit, modalUp, plan.vitals])
 
   const overrideRef = useRef<{ columns: number; rows: number } | null>(null)
   const sizeVal = useMemo(() => {
@@ -449,10 +449,10 @@ export function FullscreenLayout({
   }, [sizeVal, transcriptGutter])
 
   const lanesBoxRef = useRef<DOMElement | null>(null)
-  const telemetryBoxRef = useRef<DOMElement | null>(null)
+  const vitalsBoxRef = useRef<DOMElement | null>(null)
   const centreBoxRef = useRef<DOMElement | null>(null)
   const [lanesRows, setLanesRows] = useState<number | undefined>(undefined)
-  const [telemetryRows, setTelemetryRows] = useState<number | undefined>(
+  const [vitalsRows, setVitalsRows] = useState<number | undefined>(
     undefined,
   )
   useLayoutEffect(() => {
@@ -460,9 +460,9 @@ export function FullscreenLayout({
       const { height } = measureElement(lanesBoxRef.current)
       if (height > 0 && height !== lanesRows) setLanesRows(height)
     }
-    if (telemetryBoxRef.current) {
-      const { height } = measureElement(telemetryBoxRef.current)
-      if (height > 0 && height !== telemetryRows) setTelemetryRows(height)
+    if (vitalsBoxRef.current) {
+      const { height } = measureElement(vitalsBoxRef.current)
+      if (height > 0 && height !== vitalsRows) setVitalsRows(height)
     }
   })
 
@@ -606,7 +606,7 @@ export function FullscreenLayout({
                   {cockpit && plan.lanes ? (
                     <HelmLanesRail
                       width={plan.lanesW}
-                      mergedTelemetry={!plan.telemetry}
+                      mergedVitals={!plan.vitals}
                       availRows={lanesRows}
                     />
                   ) : null}
@@ -670,11 +670,11 @@ export function FullscreenLayout({
                   <CrewViewSlot hostRef={centreBoxRef} framed={centerFrame} />
                 </Box>
                 {}
-                <Box ref={telemetryBoxRef} flexDirection="column" overflow="hidden" flexShrink={0} width={cockpit && plan.telemetry ? plan.telemetryW : 0}>
-                  {cockpit && plan.telemetry ? (
-                    <HelmTelemetryRail
-                      width={plan.telemetryW}
-                      availRows={telemetryRows}
+                <Box ref={vitalsBoxRef} flexDirection="column" overflow="hidden" flexShrink={0} width={cockpit && plan.vitals ? plan.vitalsW : 0}>
+                  {cockpit && plan.vitals ? (
+                    <HelmVitalsRail
+                      width={plan.vitalsW}
+                      availRows={vitalsRows}
                     />
                   ) : null}
                 </Box>

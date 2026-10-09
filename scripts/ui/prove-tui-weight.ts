@@ -157,7 +157,7 @@ console.log('============================================================')
 }
 
 {
-  const rail = src('src', 'components', 'HelmTelemetryRail.tsx') + src('src', 'utils', 'cockpit', 'helmTelemetryModel.ts')
+  const rail = src('src', 'components', 'HelmVitalsRail.tsx') + src('src', 'utils', 'cockpit', 'helmVitalsModel.ts')
   check(
     'sections shed in reverse priority against the measured ceiling',
     rail.includes('const shedCeiling = availRows ?? termRows - CHROME_ROWS') &&
@@ -185,7 +185,7 @@ console.log('============================================================')
   )
   check(
     'the published row model is built ONLY from rendered rows (sel() inside the gates)',
-    rail.includes("publishHelmRows('telemetry', model.rows)") && rail.includes("for (const s of sections) for (const r of s.rows) if ('row' in r && r.row !== undefined) rows.push(r.row)"),
+    rail.includes("publishHelmRows('vitals', model.rows)") && rail.includes("for (const s of sections) for (const r of s.rows) if ('row' in r && r.row !== undefined) rows.push(r.row)"),
   )
 }
 

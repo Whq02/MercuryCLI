@@ -113,13 +113,13 @@ section('K3 — unchanged sweeps are identity-stable; the poll parks off-board')
 
 section('K4 — unmoved slices keep identity; the notify pulse always fires')
 {
-  const bus = readFileSync(join(import.meta.dir, '..', '..', 'src', 'state', 'telemetryBus.ts'), 'utf8')
+  const bus = readFileSync(join(import.meta.dir, '..', '..', 'src', 'state', 'vitalsBus.ts'), 'utf8')
   check('unchanged slices are dropped before assignment (identity holds)',
     bus.includes('if (jsonStringify(prev) === jsonStringify(fresh))'))
   check('the heartbeat notify ALWAYS fires (sync-read surfaces ride the pulse)',
     !bus.includes('if (!changed) return') && /version: snapshots\.version \+ 1,\s*\}\s*emit\(\)/.test(bus))
   check('the selector overload exists for slice-scoped subscribers',
-    bus.includes('export function useTelemetry<T>(selector: (s: TelemetrySnapshots) => T): T'))
+    bus.includes('export function useVitals<T>(selector: (s: VitalsSnapshots) => T): T'))
   check("the bus passes its bound into the listing (never lifetime history), keyed by the session's starting folder as the writer keys it",
     bus.includes('listWorkflowRuns(getOriginalCwd(), { limit: WORKFLOWS_DISK_MAX * 5 })'))
 }

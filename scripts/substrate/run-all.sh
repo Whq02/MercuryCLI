@@ -24,7 +24,7 @@
 # gate-watch: src/services/projectIntel/snapshot.ts src/services/providers/anthropic/requestParams.ts
 # gate-watch: src/services/providers/deferralWire.ts src/services/providers/routeLaw.ts
 # gate-watch: src/services/run/resolveOwner.ts src/services/switchboard/hopIntoSession.ts
-# gate-watch: src/services/workbench/projection.ts src/state/telemetryBus.ts
+# gate-watch: src/services/workbench/projection.ts src/state/vitalsBus.ts
 # gate-watch: src/tasks/LocalWorkflowTask/LocalWorkflowTask.tsx src/tools/BashTool/BashTool.tsx
 # gate-watch: src/tools/LSPTool/LSPTool.ts src/tools/ScheduleWakeupTool/prompt.ts
 # gate-watch: src/tools/SendMessageTool/SendMessageTool.ts

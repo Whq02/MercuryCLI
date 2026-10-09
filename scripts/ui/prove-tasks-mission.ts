@@ -82,7 +82,7 @@ console.log('\n── source ratchet ──────────────�
 {
   const src = readFileSync(join(ROOT, 'src/components/tasks/BackgroundTasksDialog.tsx'), 'utf8')
   check('the unscoped "no tasks currently running" string stays retired', !src.includes('no tasks currently running'))
-  check('the dialog reads the telemetry bus (the rail\'s feed)', src.includes('useTelemetry'))
+  check('the dialog reads the vitals bus (the rail\'s feed)', src.includes('useVitals'))
   check('back-from-detail is mission-aware (never closes past an open ledger)', src.includes('ledgerOpenCount === 0'))
   check('windowing reuses computeSessionWindow (the proven slider)', src.includes('computeSessionWindow(') && src.includes("from '../mercury-ui/screens/SessionManagerView.js'"))
   check('honest overflow counts frame the process area', src.includes('↑ {winStart} more') && src.includes('more</Text>'))
