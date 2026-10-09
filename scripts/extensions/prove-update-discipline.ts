@@ -129,7 +129,7 @@ console.log('[3] update: a new folder, approval carried when the hash is unchang
   check('after the clean load the previous folder is removed', settled.previous === null && !existsSync(paths.getInstalledVersionDir(ID, '1.0.0')))
 
   bump(repo, '1.2.0', m => {
-    ;(m as { contributes: { hooks: Record<string, unknown> } }).contributes.hooks['Stop'] = [{ hooks: [{ type: 'command', command: 'true' }] }]
+    ;(m as { contributes: { hooks: Record<string, unknown> } }).contributes.hooks['turn.answer'] = [{ run: 'true' }]
   })
   check('check finds 1.2.0', (await sources.refreshSource('update-src')).ok)
   const needs = await install.update(ID)
