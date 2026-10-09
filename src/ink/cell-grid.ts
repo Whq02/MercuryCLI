@@ -57,12 +57,11 @@ export class HyperlinkPool {
 
   intern(hyperlink: string | undefined): number {
     if (!hyperlink) return 0
-    let id = this.byString.get(hyperlink)
-    if (id === undefined) {
-      id = this.strings.length
-      this.strings.push(hyperlink)
-      this.byString.set(hyperlink, id)
-    }
+    const known = this.byString.get(hyperlink)
+    if (known !== undefined) return known
+    const id = this.byString.size + 1
+    this.byString.set(hyperlink, id)
+    this.strings[id] = hyperlink
     return id
   }
 
