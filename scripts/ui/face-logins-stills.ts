@@ -77,6 +77,7 @@ export function mixedFacts(): LoginsScreenFactsV1 {
     { family: presence('deepseek'), slots: [] },
     { family: presence('xai'), slots: [] },
     { family: presence('meta'), slots: [] },
+    { family: presence('zen'), slots: [] },
   ]
   const usability: Record<ProviderId, ProviderUsability> = {
     anthropic: usable('anthropic', { credential: 'oauth', limit: 'allowed', usable: true, blockers: [] }),
@@ -91,6 +92,7 @@ export function mixedFacts(): LoginsScreenFactsV1 {
     zai: usable('zai'),
     'openai-compat': usable('openai-compat'),
     local: usable('local'),
+    zen: usable('zen'),
   }
   return { groups, usability }
 }
