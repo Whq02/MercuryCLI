@@ -55,6 +55,7 @@ process.env.MERCURY_MOONSHOT_API_BASE = 'https://moonshot.fixture.invalid/v1'
 process.env.MERCURY_DEEPSEEK_API_BASE = 'https://deepseek.fixture.invalid'
 process.env.MERCURY_XAI_API_BASE = 'https://xai.fixture.invalid/v1'
 process.env.MERCURY_META_API_BASE = 'https://meta.fixture.invalid/v1'
+process.env.MERCURY_MISTRAL_API_BASE = 'https://mistral.fixture.invalid/v1'
 process.env.MERCURY_OPENAI_AUTH_BASE = 'https://oai-auth.fixture.invalid'
 process.env.MERCURY_OPENAI_CHATGPT_BASE = 'https://oai-chatgpt.fixture.invalid/codex'
 process.env.MERCURY_OPENAI_API_BASE = 'https://oai-api.fixture.invalid/v1'
@@ -174,6 +175,7 @@ const { moonshotLaneProfile } = await import('../../src/services/providers/moons
 const { deepseekLaneProfile } = await import('../../src/services/providers/deepseek/deepseekCallModel.ts')
 const { xaiLaneProfile } = await import('../../src/services/providers/xai/xaiCallModel.ts')
 const { metaLaneProfile } = await import('../../src/services/providers/meta/metaCallModel.ts')
+const { mistralLaneProfile } = await import('../../src/services/providers/mistral/mistralCallModel.ts')
 const { openrouterLaneProfile } = await import('../../src/services/providers/openrouter/openrouterCallModel.ts')
 const { geminiLaneProfile } = await import('../../src/services/providers/gemini/geminiCallModel.ts')
 const { huggingfaceLaneProfile } = await import('../../src/services/providers/huggingface/huggingfaceCallModel.ts')
@@ -278,7 +280,7 @@ function messageText(m: AssistantMessage): string {
 section('S1 · the family roster derives from the route law (never hand-copied)')
 
 const FAMILIES = ['anthropic', ...PROVIDER_ID_SPACES.map(space => space.route)] as const
-check('the route law declares twelve families including Anthropic', FAMILIES.length === 12)
+check('the route law declares thirteen families including Anthropic', FAMILIES.length === 13)
 check(
   'every family has a display name of its own (no fallthrough spelling)',
   FAMILIES.every(f => providerDisplayName(f) !== f || f === 'local'),
@@ -298,6 +300,7 @@ const FAMILY_MODEL: Record<string, string> = {
   gemini: 'gemini-3-pro',
   huggingface: 'huggingface/fixture-org/fixture-model:auto',
   local: 'local/llama-fixture',
+  mistral: 'mistral-large-4',
 }
 check('the journey matrix covers every declared family', FAMILIES.every(f => FAMILY_MODEL[f] !== undefined))
 for (const f of FAMILIES) {
@@ -334,6 +337,7 @@ const laneProfiles: Record<string, { profile: typeof moonshotLaneProfile; envKey
   deepseek: { profile: deepseekLaneProfile, keyEnvVar: 'DEEPSEEK_API_KEY' },
   xai: { profile: xaiLaneProfile, keyEnvVar: 'XAI_API_KEY' },
   meta: { profile: metaLaneProfile, keyEnvVar: 'MODEL_API_KEY' },
+  mistral: { profile: mistralLaneProfile, keyEnvVar: 'MISTRAL_API_KEY' },
   openrouter: { profile: openrouterLaneProfile, keyEnvVar: 'OPENROUTER_API_KEY' },
   gemini: { profile: geminiLaneProfile, keyEnvVar: 'GEMINI_API_KEY' },
   huggingface: { profile: huggingfaceLaneProfile, keyEnvVar: 'HF_TOKEN' },
@@ -344,6 +348,7 @@ const ATTACH_ROUTE_WORDS: Record<string, string> = {
   deepseek: 'DEEPSEEK_API_KEY',
   xai: 'XAI_API_KEY',
   meta: 'MODEL_API_KEY',
+  mistral: 'MISTRAL_API_KEY',
   openrouter: '/logins',
   gemini: '/logins',
   huggingface: '/logins',
@@ -381,6 +386,7 @@ process.env.MOONSHOT_API_KEY = laneKey('moonshot', '1111')
 process.env.DEEPSEEK_API_KEY = laneKey('deepseek', '2222')
 process.env.XAI_API_KEY = laneKey('xai', 'aa27')
 process.env.MODEL_API_KEY = laneKey('meta', 'aa26')
+process.env.MISTRAL_API_KEY = laneKey('mistral', 'aa28')
 process.env.OPENROUTER_API_KEY = laneKey('openrouter', '3333')
 process.env.GEMINI_API_KEY = laneKey('gemini', '4444')
 process.env.HF_TOKEN = laneKey('huggingface', '5555')
@@ -423,6 +429,12 @@ const MATRIX: MatrixLane[] = [
     run: m => compatChatCallModel(metaLaneProfile, callParams(m)),
     wireModel: 'muse-spark-1.3',
     bearer: `Bearer ${process.env.MODEL_API_KEY}`,
+  },
+  {
+    family: 'mistral',
+    run: m => compatChatCallModel(mistralLaneProfile, callParams(m)),
+    wireModel: 'mistral-large-4',
+    bearer: `Bearer ${process.env.MISTRAL_API_KEY}`,
   },
   {
     family: 'openrouter',
@@ -1019,6 +1031,7 @@ providerSecrets.writeStoredMoonshotApiKey(laneKey('moonshot-stored', 'bb22'))
 providerSecrets.writeStoredDeepseekApiKey(laneKey('deepseek-stored', 'cc33'))
 providerSecrets.writeStoredXaiApiKey(laneKey('xai-stored', 'cc27'))
 providerSecrets.writeStoredMetaApiKey(laneKey('meta-stored', 'cc26'))
+providerSecrets.writeStoredMistralApiKey(laneKey('mistral-stored', 'cc28'))
 providerSecrets.writeStoredOpenrouterApiKey(laneKey('openrouter-stored', 'dd44'))
 providerSecrets.writeStoredGeminiApiKey(laneKey('gemini-stored', 'ee55'))
 providerSecrets.writeStoredCompatApiKey(laneKey('compat-stored', 'ff66'))
@@ -1063,7 +1076,7 @@ const slotReads = {
   )
   check(
     'slots: every seeded family shows its stored-key slot',
-    ['zai', 'moonshot', 'deepseek', 'xai', 'meta', 'openrouter', 'gemini', 'openai-compat', 'huggingface', 'local'].every(
+    ['zai', 'moonshot', 'deepseek', 'xai', 'meta', 'mistral', 'openrouter', 'gemini', 'openai-compat', 'huggingface', 'local'].every(
       family => flat.some(s => s.family === family && s.id.endsWith(':stored-key')),
     ) &&
       flat.some(s => s.id === 'openai:api-key'),
