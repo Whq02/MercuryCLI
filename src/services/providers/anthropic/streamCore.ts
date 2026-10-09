@@ -67,6 +67,7 @@ import {
   type Tools,
 } from '../../../Tool.js'
 import type { AgentDefinition } from '../../../tools/AgentTool/loadAgentsDir.js'
+import type { CallModelParams, CallModelStream } from '../callModelContract.js'
 import { ensureGatewayProbe, gatewayProbePolicyAllows, type GatewayProbeAnswer } from '../deferralProbe.js'
 import { gatewayHost } from '../deferralWire.js'
 import { deadlineBreachLine, isDeadlineBreach } from '../fetchDeadline.js'
@@ -315,17 +316,7 @@ export async function* queryModelWithStreaming({
   tools,
   signal,
   options,
-}: {
-  messages: Message[]
-  systemPrompt: SystemPrompt
-  thinkingConfig: ThinkingConfig
-  tools: Tools
-  signal: AbortSignal
-  options: Options
-}): AsyncGenerator<
-  StreamEvent | AssistantMessage | SystemAPIErrorMessage | SystemStreamCutMessage,
-  void
-> {
+}: CallModelParams): CallModelStream {
   return yield* withStreamingVCR(messages, async function* () {
     yield* queryModel(
       messages,
