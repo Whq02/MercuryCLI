@@ -6,6 +6,7 @@ import {
   CREW_EMPTY_DOOR,
   CREW_EMPTY_LINE,
   CREW_MODEL_UNKNOWN,
+  crewAskWaitDetail,
   crewCostLabel,
   crewCountLabel,
   crewElapsedLabel,
@@ -21,10 +22,12 @@ import {
   crewWaitHolders,
 } from '../../../services/engine-connector/crewFacts.js'
 import { operatorPauseGate } from '../../../run-core/pauseGate.js'
+import type { SessionAskV1 } from '../../../services/engine-connector/types.js'
 import { WORK_UNREPORTED_LINE, workUnreported } from '../../../services/engine-connector/workCounts.js'
 import {
   getFocusedSessionConnector,
   hasFocusedSession,
+  subscribeThroughFocused,
 } from '../../../services/engine-connector/focusedConnector.js'
 import { RosterWorkDetail } from '../../tasks/BackgroundTasksDialog.js'
 import {
@@ -53,6 +56,9 @@ import { pauseStatusWords } from '../../../tasks/LocalAgentTask/agentPause.js'
 
 type Row = { kind: 'agent'; id: string; facts: CrewAgentFacts }
 
+const subscribeFocusedAsks = subscribeThroughFocused((connector, listener) => connector.subscribeAsks(listener))
+const getFocusedAsks = (): readonly SessionAskV1[] => getFocusedSessionConnector().asks()
+
 type Mode =
   | { view: 'list' }
   | { view: 'card'; id: string }
@@ -77,6 +83,7 @@ export function CrewView({
   const { columns, rows: termRows } = useTerminalSize()
   const now = useNowTick(1000)
   const roster = useFocusedWorkRoster()
+  const asks = useSyncExternalStore(subscribeFocusedAsks, getFocusedAsks, getFocusedAsks)
   const setAppState = useSetAppStateMaybe()
   const mainChatTaskId = useAppStateMaybeOutsideOfProvider((s: AppState) => s.mainChatTaskId)
   const presence = useMemo(() => focusedRunnerPresence(), [roster])
@@ -256,7 +263,7 @@ export function CrewView({
           const on = gi === sel
           return (
             <React.Fragment key={row.id}>
-              <AgentRow facts={row.facts} on={on} now={now} width={width} billed={billed} />
+              <AgentRow facts={row.facts} on={on} now={now} width={width} billed={billed} asks={asks} />
             </React.Fragment>
           )
         })}
@@ -273,12 +280,14 @@ function AgentRow({
   now,
   width,
   billed,
+  asks,
 }: {
   facts: CrewAgentFacts
   on: boolean
   now: number
   width: number
   billed: boolean
+  asks: readonly SessionAskV1[]
 }): React.ReactNode {
   const tokens = useMercuryTokens()
   const failed = facts.state === 'failed'
@@ -294,6 +303,7 @@ function AgentRow({
   const holders = crewWaitHolders(facts)
   const unread = crewUnreadLabel(facts)
   const parkedByOperator = crewOperatorPauseParts(facts)
+  const askDetail = crewAskWaitDetail(facts, asks, now)
   const status = crewStatusWords(facts, now)
   const cells = crewRowWidths(width, status)
   return (
@@ -318,6 +328,7 @@ function AgentRow({
           {parkedByOperator !== null ? ` · ${parkedByOperator.detail}` : ''}
           {settled && facts.worktree !== null ? ` · ${crewWorktreeLeftWords(facts.worktree)}` : ''}
         </Text>
+        {askDetail !== null ? <Text color={tokens.warning}> · {askDetail}</Text> : null}
         {unread !== null ? <Text color={tokens.warning}> · {unread}</Text> : null}
         {holders !== null ? <Text color={tokens.warning}> · {holders}</Text> : null}
       </Text>

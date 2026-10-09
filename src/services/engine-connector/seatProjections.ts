@@ -104,7 +104,9 @@ export interface SessionAskProjectionV1 {
   decisionReason?: string
   decisionReasonDetail?: DecisionReasonWireV1
   description?: string
+  agentId?: string
   askedAt: number
+  limitMs?: number
 }
 
 export interface SessionAsksV1 {

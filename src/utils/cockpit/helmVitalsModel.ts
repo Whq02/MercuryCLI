@@ -21,9 +21,7 @@ import { contextPercentLabel, contextWindowLabel } from '../contextFill.js'
 import type { LiveContextUsage } from './contextUsageLive.js'
 import type { ComposedCertChip } from '../healthCertCore.js'
 import type { Snapshot } from './types.js'
-import type { TraceData } from './traceSnapshot.js'
-import type { ConsoleEntry } from './helmConsole.js'
-import { consoleInputWindow, fmtTok, plainifyAnswer, wrapPlain } from './helmConsoleText.js'
+import { wrapPlain } from './helmConsoleText.js'
 import { GLYPH, truncateToWidth } from '../../components/mercury-ui/glyphs.js'
 import { AMBER, CRIMSON, TEAL } from '../../components/mercury-ui/theme.js'
 import { calculateTokenWarningState } from '../../services/compact/autoCompact.js'
@@ -31,16 +29,7 @@ import { railPanelInnerWidth } from '../../components/mercury-ui/RailPanel.js'
 import type { HelmRow } from './helmFocus.js'
 import type { MercuryThemeTokens } from '../mercuryTokens.js'
 
-export const TRACE_ROWS = 2
 export const WF_ROWS = 3
-
-export function hhmm(ts: unknown): string {
-  if (typeof ts !== 'string') return '--:--'
-  const d = new Date(ts)
-  if (Number.isNaN(d.getTime())) return '--:--'
-  const p = (n: number) => String(n).padStart(2, '0')
-  return `${p(d.getHours())}:${p(d.getMinutes())}`
-}
 
 export type VitalsRowSpec =
   | { kind: 'text'; key: string; text: string; color: string; fixed?: boolean }
@@ -54,13 +43,9 @@ export type VitalsRowSpec =
   | { kind: 'wfext'; key: string; name: string; wedged: boolean; tail: string; row: HelmRow }
   | { kind: 'health'; key: string; verdict: 'certified' | 'caution' | 'fault' | null; age: string; stale: boolean; row: HelmRow }
   | { kind: 'healthAlert'; key: string; text: string; fault: boolean }
-  | { kind: 'trace'; key: string; clock: string; tool: string; bad: boolean; row: HelmRow }
-  | { kind: 'consoleInput'; key: string; composing: { pre: string; post: string } | null; draft: string; row: HelmRow }
-  | { kind: 'consoleAsking'; key: string; question: string; secs: number }
-  | { kind: 'consoleLine'; key: string; text: string; tone: 'question' | 'answer' | 'errorLead' | 'errorRest' }
 
 export type VitalsSectionSpec = {
-  key: 'usage' | 'workflow' | 'health' | 'trace' | 'console'
+  key: 'usage' | 'workflow' | 'health'
   glyph: string
   label: string
   count?: string
@@ -83,17 +68,7 @@ export type VitalsInput = {
   ctxTurns: number | null
   ctxGrowth: readonly number[]
   activity: { pulses: number; perBin: number[] }
-  trace: Snapshot<{ data: TraceData }> | null
   cert: Snapshot<{ data: ComposedCertChip }>
-  console: {
-    on: boolean
-    composing: boolean
-    buffer: string
-    cursor: number
-    pending: { question: string; startedAt: number } | null
-    last: ConsoleEntry | undefined
-    count: number
-  }
   now: number
   readNow: number
   tok: MercuryThemeTokens
@@ -102,15 +77,9 @@ export type VitalsInput = {
 export type VitalsModel = {
   rowW: number
   sections: VitalsSectionSpec[]
-  shed: Array<'health' | 'trace' | 'console'>
+  shed: Array<'health'>
   pointer: string | null
   rows: HelmRow[]
-  consoleOn: boolean
-}
-
-export function sessionTraceRecords(trace: Snapshot<{ data: TraceData }> | null, sessionId: string | null): TraceData['records'] {
-  if (trace === null || trace.state !== 'live' || sessionId === null) return []
-  return trace.data.records.filter(r => r.sessionId === sessionId)
 }
 
 export function buildVitalsModel(input: VitalsInput): VitalsModel {
@@ -289,26 +258,6 @@ export function buildVitalsModel(input: VitalsInput): VitalsModel {
     ...(certAlert ? [{ kind: 'healthAlert' as const, key: 'health:alert', text: certAlert.text, fault: certAlert.tone === 'fault' }] : []),
   ]
 
-  const trace = input.trace
-  const own = sessionTraceRecords(trace, input.focusedSessionId)
-  const traceTotal = own.length
-  const recent = own.slice(-TRACE_ROWS).reverse()
-  const traceRows: VitalsRowSpec[] = []
-  if (trace === null) traceRows.push({ kind: 'empty', key: 'trace:loading', text: 'loading…' })
-  else if (recent.length === 0) traceRows.push({ kind: 'empty', key: 'trace:none', text: 'fills as tools run' })
-  else {
-    const seenTraceKeys = new Map<string, number>()
-    for (const r of recent) {
-      const bad = r.ok === false || r.killed === true
-      const toolBudget = Math.max(3, rowW - 10)
-      const baseKey = `trace:${r.ts}:${typeof r.tool === 'string' ? r.tool : '?'}`
-      const dupes = seenTraceKeys.get(baseKey) ?? 0
-      seenTraceKeys.set(baseKey, dupes + 1)
-      const traceKey = dupes === 0 ? baseKey : `${baseKey}:${dupes}`
-      traceRows.push({ kind: 'trace', key: traceKey, clock: hhmm(r.ts), tool: truncateToWidth(typeof r.tool === 'string' ? r.tool : '?', toolBudget), bad, row: { kind: 'command', command: '/trace', label: traceKey } })
-    }
-  }
-
   const RAIL_PANEL_CHROME = 3
   const CHROME_ROWS = 7
   const { availRows, termRows } = input
@@ -318,55 +267,9 @@ export function buildVitalsModel(input: VitalsInput): VitalsModel {
   const fitsSection = (children: number): boolean => spentRows + sectionRows(children) <= shedCeiling
   const healthShed = !fitsSection(healthRows.length)
   if (!healthShed) spentRows += sectionRows(healthRows.length)
-  const traceShed = !fitsSection(traceRows.length)
-  if (!traceShed) spentRows += sectionRows(traceRows.length)
-  const consoleOn = input.console.on
-  const consoleShed = consoleOn && !fitsSection(1)
 
-  const consoleRows: VitalsRowSpec[] = []
-  if (consoleOn && !consoleShed) {
-    const c = input.console
-    const inputBudget = Math.max(4, rowW - 2)
-    consoleRows.push({
-      kind: 'consoleInput',
-      key: 'console:input',
-      composing: c.composing ? consoleInputWindow(c.buffer, c.cursor, inputBudget) : null,
-      draft: c.composing ? '' : truncateToWidth(c.buffer, inputBudget),
-      row: { kind: 'console', label: 'console:input' },
-    })
-    if (c.composing) consoleRows.push({ kind: 'text', key: 'console:hint', text: '  ↵ ask · esc · ↑↓ hist', color: tok.textMuted })
-    if (c.pending) {
-      consoleRows.push({ kind: 'consoleAsking', key: 'console:asking', question: truncateToWidth(c.pending.question, Math.max(3, rowW - 10)), secs: Math.max(0, Math.round((now - c.pending.startedAt) / 1000)) })
-    }
-    const last = c.last
-    if (last && (last.answer || last.error)) {
-      const rowsAbove = spentRows + RAIL_PANEL_CHROME + consoleRows.length + 2
-      const answerBudget = Math.max(0, Math.min(9, shedCeiling - rowsAbove))
-      consoleRows.push({ kind: 'consoleLine', key: 'console:q', text: truncateToWidth(`${GLYPH.dot} ${last.question}`, Math.max(3, rowW - 2)), tone: 'question' })
-      let hidden = 0
-      if (last.answer) {
-        const lines = wrapPlain(plainifyAnswer(last.answer), Math.max(4, rowW - 2))
-        const shown = lines.slice(0, answerBudget)
-        hidden = lines.length - shown.length
-        for (const [i, l] of shown.entries()) consoleRows.push({ kind: 'consoleLine', key: `console:a:${i}`, text: l === '' ? ' ' : l, tone: 'answer' })
-      } else if (last.error) {
-        const lines = wrapPlain(last.error, Math.max(4, rowW - 4)).slice(0, 2)
-        for (const [i, l] of lines.entries()) consoleRows.push({ kind: 'consoleLine', key: `console:err:${i}`, text: l === '' ? ' ' : l, tone: i === 0 ? 'errorLead' : 'errorRest' })
-      }
-      const dur = last.durationMs != null ? `${Math.max(1, Math.round(last.durationMs / 1000))}s` : null
-      const u = last.usage
-      const toks = u ? `${fmtTok(u.in + u.cacheRead + u.cacheWrite)}→${fmtTok(u.out)}` : null
-      const receipt = [...(hidden > 0 ? [`${GLYPH.cursor} +${hidden}`] : []), ...(dur ? [dur] : []), ...(toks ? [toks] : []), '↵ full'].join(' · ')
-      consoleRows.push({ kind: 'empty', key: 'console:full', text: receipt, row: { kind: 'command', command: '/console', label: 'console:full' } })
-    }
-  }
-
-  const shedPointers = [
-    ...(healthShed ? ['/health'] : []),
-    ...(traceShed ? ['/trace'] : []),
-    ...(consoleShed ? ['/console'] : []),
-  ]
-  const shed = shedPointers.map(k => k.slice(1) as 'health' | 'trace' | 'console')
+  const shedPointers = [...(healthShed ? ['/health'] : [])]
+  const shed = shedPointers.map(k => k.slice(1) as 'health')
   const shedPointerFits = spentRows < shedCeiling
   const sections: VitalsSectionSpec[] = [
     { key: 'usage', glyph: '', label: 'USAGE', open: '/usage', rows: usageRows },
@@ -390,10 +293,6 @@ export function buildVitalsModel(input: VitalsInput): VitalsModel {
             rows: healthRows,
           },
         ]),
-    ...(traceShed ? [] : [{ key: 'trace' as const, glyph: GLYPH.trace, label: 'TRACE', count: String(traceTotal), open: '/trace', rows: traceRows }]),
-    ...(consoleOn && !consoleShed
-      ? [{ key: 'console' as const, glyph: GLYPH.prompt, label: 'CONSOLE', count: input.console.count > 0 ? String(input.console.count) : undefined, open: '/console', rows: consoleRows }]
-      : []),
   ]
   const rows: HelmRow[] = []
   for (const s of sections) for (const r of s.rows) if ('row' in r && r.row !== undefined) rows.push(r.row)
@@ -403,6 +302,5 @@ export function buildVitalsModel(input: VitalsInput): VitalsModel {
     shed,
     pointer: shedPointers.length > 0 && shedPointerFits ? `  ${GLYPH.cursor} short height — ${shedPointers.join(' · ')}` : null,
     rows,
-    consoleOn,
   }
 }

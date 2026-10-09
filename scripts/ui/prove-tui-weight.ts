@@ -159,11 +159,9 @@ console.log('============================================================')
 {
   const rail = src('src', 'components', 'HelmVitalsRail.tsx') + src('src', 'utils', 'cockpit', 'helmVitalsModel.ts')
   check(
-    'sections shed in reverse priority against the measured ceiling',
+    'the health section sheds against the measured ceiling',
     rail.includes('const shedCeiling = availRows ?? termRows - CHROME_ROWS') &&
-      rail.includes('const healthShed = !fitsSection(healthRows.length)') &&
-      rail.includes('const traceShed = !fitsSection(traceRows.length)') &&
-      rail.includes('const consoleShed = consoleOn && !fitsSection(1)'),
+      rail.includes('const healthShed = !fitsSection(healthRows.length)'),
   )
   check(
     'the panel chrome height is honest (border + header + border = 3)',
@@ -171,17 +169,13 @@ console.log('============================================================')
   )
   check(
     'a shed section registers NO selectable rows (builders gated)',
-    /\.\.\.\(healthShed\s*\n?\s*\? \[\]\s*\n?\s*: \[/.test(rail) &&
-      rail.includes('traceShed ? [] : [') &&
-      /\.\.\.\(consoleOn && !consoleShed\s*\n?\s*\? \[\{ key: 'console'/.test(rail) &&
-      rail.includes('if (consoleOn && !consoleShed) {'),
+    /\.\.\.\(healthShed\s*\n?\s*\? \[\]\s*\n?\s*: \[/.test(rail),
   )
   check(
     'everything shed folds into ONE honest pointer line, fit-gated',
     rail.includes('short height — ${shedPointers.join') &&
       rail.includes('shedPointers.length > 0 && shedPointerFits') &&
-      rail.includes("...(healthShed ? ['/health'] : [])") &&
-      rail.includes("...(consoleShed ? ['/console'] : [])"),
+      rail.includes("...(healthShed ? ['/health'] : [])"),
   )
   check(
     'the published row model is built ONLY from rendered rows (sel() inside the gates)',

@@ -21,14 +21,16 @@ export function shouldEnableThinkingByDefault(): boolean {
   return true
 }
 
-let sessionThinkingConfig: ThinkingConfig | undefined
+let notedThinkingConfig: ThinkingConfig | undefined
 
 export function noteSessionThinkingConfig(config: ThinkingConfig): void {
-  sessionThinkingConfig = config
+  notedThinkingConfig = config
+}
+
+export function sessionThinkingConfig(): ThinkingConfig {
+  return notedThinkingConfig ?? (shouldEnableThinkingByDefault() ? { type: 'adaptive' } : { type: 'disabled' })
 }
 
 export function sessionThinkingEnabled(): boolean {
-  const config =
-    sessionThinkingConfig ?? (shouldEnableThinkingByDefault() ? { type: 'adaptive' } : { type: 'disabled' })
-  return config.type !== 'disabled'
+  return sessionThinkingConfig().type !== 'disabled'
 }

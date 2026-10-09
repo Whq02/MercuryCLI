@@ -1,6 +1,5 @@
 
 import { errorMessage } from '../errors.js'
-import { getHelmFocus, subscribeHelmFocus } from './helmFocus.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 
 export function consoleEnabled(): boolean {
@@ -44,20 +43,11 @@ export type ConsoleRunner = (
 ) => Promise<ConsoleRunnerResult>
 
 
-const BUFFER_MAX = 2000
 const ENTRIES_MAX = 24
-const HISTORY_MAX = 50
 
 
-let composing = false
-let buffer: string[] = []
-let cursor = 0
-let draft: string[] = []
-let histIdx: number | null = null
-let history: string[] = []
 let entries: ConsoleEntry[] = []
 let entrySeq = 0
-let askCount = 0
 let pendingAsk: {
   id: number
   question: string
@@ -128,173 +118,12 @@ export function getConsoleVersion(): number {
 }
 
 
-let unsubFocus: (() => void) | null = null
-
-function armFocusWatch(): void {
-  if (unsubFocus) return
-  unsubFocus = subscribeHelmFocus(() => {
-    if (composing && getHelmFocus() !== 'vitals') exitConsoleCompose()
-  })
-}
-
-function disarmFocusWatch(): void {
-  if (!unsubFocus) return
-  unsubFocus()
-  unsubFocus = null
-}
-
-
-export function isConsoleComposing(): boolean {
-  return composing
-}
-
-export function getConsoleBuffer(): string {
-  return buffer.join('')
-}
-
-export function getConsoleCursor(): number {
-  return cursor
-}
-
-
 export function getConsolePending(): { question: string; startedAt: number } | null {
   return pendingPublic
 }
 
 export function getConsoleEntries(): readonly ConsoleEntry[] {
   return entries
-}
-
-export function getConsoleAskCount(): number {
-  return askCount
-}
-
-
-export function beginConsoleCompose(seed?: string): void {
-  if (composing && seed === undefined) return
-  composing = true
-  if (seed !== undefined) {
-    insertRaw(seed)
-  }
-  armFocusWatch()
-  notify()
-}
-
-export function exitConsoleCompose(): void {
-  if (!composing) return
-  composing = false
-  histIdx = null
-  disarmFocusWatch()
-  notify()
-}
-
-
-function insertRaw(s: string): void {
-  const clean = Array.from(
-    s.replace(/[\r\n\t]+/g, ' ').replace(/[\u0000-\u001f\u007f]/g, ''),
-  )
-  const room = BUFFER_MAX - buffer.length
-  if (room <= 0) return
-  const ins = clean.slice(0, room)
-  buffer.splice(cursor, 0, ...ins)
-  cursor += ins.length
-  histIdx = null
-}
-
-export function consoleInsert(s: string): void {
-  if (!composing || !s) return
-  insertRaw(s)
-  notify()
-}
-
-export function consoleBackspace(): void {
-  if (!composing || cursor === 0) return
-  buffer.splice(cursor - 1, 1)
-  cursor--
-  histIdx = null
-  notify()
-}
-
-export function consoleDeleteForward(): void {
-  if (!composing || cursor >= buffer.length) return
-  buffer.splice(cursor, 1)
-  histIdx = null
-  notify()
-}
-
-export function consoleMoveCursor(delta: number): void {
-  if (!composing) return
-  const next = Math.max(0, Math.min(buffer.length, cursor + delta))
-  if (next === cursor) return
-  cursor = next
-  notify()
-}
-
-export function consoleCursorHome(): void {
-  if (!composing || cursor === 0) return
-  cursor = 0
-  notify()
-}
-
-export function consoleCursorEnd(): void {
-  if (!composing || cursor === buffer.length) return
-  cursor = buffer.length
-  notify()
-}
-
-export function consoleKillLine(): void {
-  if (!composing || buffer.length === 0) return
-  buffer = []
-  cursor = 0
-  histIdx = null
-  notify()
-}
-
-export function consoleKillWord(): void {
-  if (!composing || cursor === 0) return
-  let i = cursor
-  while (i > 0 && buffer[i - 1] === ' ') i--
-  while (i > 0 && buffer[i - 1] !== ' ') i--
-  buffer.splice(i, cursor - i)
-  cursor = i
-  histIdx = null
-  notify()
-}
-
-
-function pushHistory(q: string): void {
-  if (history[history.length - 1] === q) return
-  history.push(q)
-  if (history.length > HISTORY_MAX) history = history.slice(-HISTORY_MAX)
-}
-
-export function consoleHistoryMove(dir: -1 | 1): void {
-  if (!composing || history.length === 0) return
-  if (dir === -1) {
-    if (histIdx === null) {
-      draft = buffer
-      histIdx = history.length - 1
-    } else if (histIdx > 0) {
-      histIdx--
-    } else {
-      return
-    }
-    buffer = Array.from(history[histIdx] ?? '')
-    cursor = buffer.length
-    notify()
-    return
-  }
-  if (histIdx === null) return
-  if (histIdx < history.length - 1) {
-    histIdx++
-    buffer = Array.from(history[histIdx] ?? '')
-  } else {
-    histIdx = null
-    buffer = draft
-    draft = []
-  }
-  cursor = buffer.length
-  notify()
 }
 
 
@@ -351,11 +180,6 @@ function reliefVerb(q: string): boolean {
   const id = ++entrySeq
   entries.push({ id, question: q, askedAt: Date.now(), durationMs: 0, answer: CONSOLE_COMPACT_TRUTH })
   if (entries.length > ENTRIES_MAX) entries = entries.slice(-ENTRIES_MAX)
-  pushHistory(q)
-  buffer = []
-  cursor = 0
-  draft = []
-  histIdx = null
   notify()
   return true
 }
@@ -370,12 +194,6 @@ function startAsk(question: string, run: ConsoleRunner): boolean {
   entries.push({ id, question: q, askedAt: Date.now() })
   if (entries.length > ENTRIES_MAX) entries = entries.slice(-ENTRIES_MAX)
   mintAskConversation(id, q)
-  pushHistory(q)
-  askCount++
-  buffer = []
-  cursor = 0
-  draft = []
-  histIdx = null
   const controller = new AbortController()
   const startedAt = Date.now()
   pendingAsk = { id, question: q, startedAt, controller }
@@ -388,39 +206,12 @@ function startAsk(question: string, run: ConsoleRunner): boolean {
   return true
 }
 
-export function consoleSubmitBuffer(run: ConsoleRunner): boolean {
-  if (!composing) return false
-  return startAsk(buffer.join(''), run)
-}
-
 export function consoleAsk(question: string, run: ConsoleRunner): boolean {
   return startAsk(question, run)
 }
 
-export function consoleAbortAsk(): boolean {
-  if (!pendingAsk) return false
-  const { id, controller, question } = pendingAsk
-  pendingAsk = null
-  pendingPublic = null
-  controller.abort()
-  recordAskOutcome(id, { kind: 'dismissed' })
-  const idx = entries.findIndex(e => e.id === id)
-  if (idx >= 0) entries.splice(idx, 1)
-  buffer = Array.from(question)
-  cursor = buffer.length
-  histIdx = null
-  composing = true
-  armFocusWatch()
-  notify()
-  return true
-}
-
 export function consoleClear(): boolean {
-  const had =
-    entries.length > 0 ||
-    history.length > 0 ||
-    buffer.length > 0 ||
-    pendingAsk !== null
+  const had = entries.length > 0 || pendingAsk !== null
   if (pendingAsk) {
     pendingAsk.controller.abort()
     recordAskOutcome(pendingAsk.id, { kind: 'dismissed' })
@@ -428,31 +219,17 @@ export function consoleClear(): boolean {
     pendingPublic = null
   }
   entries = []
-  history = []
-  buffer = []
-  cursor = 0
-  draft = []
-  histIdx = null
-  askCount = 0
   if (had) notify()
   return had
 }
 
 
 export function resetConsoleForTest(): void {
-  composing = false
-  buffer = []
-  cursor = 0
-  draft = []
-  histIdx = null
-  history = []
   entries = []
   entrySeq = 0
-  askCount = 0
   pendingAsk?.controller.abort()
   pendingAsk = null
   pendingPublic = null
   conversationMints.clear()
-  disarmFocusWatch()
   version = 0
 }

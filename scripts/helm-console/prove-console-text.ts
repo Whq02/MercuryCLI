@@ -1,12 +1,7 @@
 #!/usr/bin/env bun
 import { readFileSync } from 'node:fs'
 import { displayWidth } from '../../src/components/mercury-ui/glyphs.js'
-import {
-  consoleInputWindow,
-  fmtTok,
-  plainifyAnswer,
-  wrapPlain,
-} from '../../src/utils/cockpit/helmConsoleText.js'
+import { fmtTok, wrapPlain } from '../../src/utils/cockpit/helmConsoleText.js'
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -18,7 +13,7 @@ function section(t: string): void {
 }
 
 console.log('============================================================')
-console.log(' helm console text shaping — wrap · plainify · window · fmt')
+console.log(' helm console text shaping — wrap · fmt')
 console.log('============================================================')
 
 section('wrapPlain — width honesty')
@@ -36,41 +31,6 @@ check('long word hard-breaks within budget', longWord.every(l => displayWidth(l)
 check('hard-broken word reassembles', longWord.join('') === 'averyveryverylongunbrokenidentifier_that_keeps_going')
 const paras = wrapPlain('one\n\ntwo', 10)
 check('paragraph break survives as a blank line', paras.length === 3 && paras[1] === '')
-
-section('plainifyAnswer — conservative markdown unwrap')
-const md = [
-  '# Heading',
-  '',
-  'Some **bold** and *italic* and `code` and a [link](https://x.y).',
-  '',
-  '- first',
-  '- second',
-  '',
-  '```ts',
-  'const x = 1',
-  '```',
-  '> quoted',
-].join('\n')
-const plain = plainifyAnswer(md)
-check('heading marker dropped', plain.startsWith('Heading'))
-check('bold unwrapped', plain.includes('Some bold and italic and code'))
-check('link → label', plain.includes('a link.') && !plain.includes('https://x.y'))
-check('bullets → dot glyph', plain.includes('· first') && plain.includes('· second'))
-check('fence markers dropped, content kept', plain.includes('const x = 1') && !plain.includes('```'))
-check('blockquote marker dropped', plain.includes('quoted') && !plain.includes('> quoted'))
-
-section('consoleInputWindow — cursor always visible')
-const short = consoleInputWindow('hello', 5, 20)
-check('short line intact', short.pre === 'hello' && short.post === '' && !short.headClipped)
-const long = 'abcdefghijklmnopqrstuvwxyz0123456789'
-const win = consoleInputWindow(long, long.length, 15)
-check('head clips with ellipsis', win.headClipped && win.pre.startsWith('…'))
-check('pre + cursor fits budget', displayWidth(win.pre) + 1 <= 15, `preW=${displayWidth(win.pre)}`)
-const mid = consoleInputWindow(long, 10, 15)
-check('mid-cursor keeps post context', mid.post.length > 0 && mid.post.startsWith('k'))
-check('mid-cursor window fits', displayWidth(mid.pre) + 1 + displayWidth(mid.post) <= 15)
-const zero = consoleInputWindow(long, 0, 15)
-check('cursor at 0 shows the head', zero.pre === '' && zero.post.startsWith('a') && zero.tailClipped)
 
 section('fmtTok — boundaries')
 check('999 → 999', fmtTok(999) === '999')

@@ -35,37 +35,33 @@ console.log(' LIVE console E2E — real binary · real ↵ · real usage')
 console.log('============================================================')
 
 {
-  const base = scenario('cockpit-console', 160, 50)
-  const TAB = String.fromCharCode(9)
-  const DOWN = String.fromCharCode(27) + '[B'
+  const base = scenario('frame', 160, 50)
   const cfg = {
     ...base,
     sends: [
-      { atTick: 30, data: TAB },
-      { atTick: 34, data: TAB },
-      { atTick: 38, data: DOWN.repeat(30) },
+      { atTick: 30, data: '/console' },
+      { atTick: 38, data: '\r' },
       { atTick: 44, data: 'Reply with exactly the single word: pong' },
       { atTick: 52, data: '\r' },
     ],
     total: 235,
   }
   const g = capture(cfg, '/tmp/grid-live-console.json')
-  cleanupScenario('cockpit-console')
+  cleanupScenario('frame')
   if (g) {
     const lines = g.grid.map(row => row.map(c => c.c ?? '').join(''))
     const text = lines.join('\n')
-    check('question echoed in the console section', text.includes('Reply with exactly'))
-    check('REAL answer landed in the rail', /\bpong\b/i.test(text))
-    check('receipt row painted (duration · tokens · ↵ full)', text.includes('↵ full'))
-    const receiptLine = lines.find(l => l.includes('↵ full')) ?? ''
-    check('receipt carries a token count', /\d(\.\d)?[km]?→/.test(receiptLine), receiptLine.trim().slice(0, 40))
+    check('question echoed on the surface', text.includes('Reply with exactly'))
+    check('REAL answer landed on the surface', /\bpong\b/i.test(text))
+    const receiptLine = lines.find(l => /\d+s · \d[\d.]*[km]?→\d/.test(l)) ?? ''
+    check('receipt row painted (duration · tokens)', receiptLine !== '', lines.filter(l => l.includes('tok')).join(' | ').slice(0, 120))
     await gridToPng('/tmp/grid-live-console.json', '/tmp/live-console-answer.png')
     console.log('  (png: /tmp/live-console-answer.png)')
   }
 }
 
 {
-  const base = scenario('cockpit-console', 160, 50)
+  const base = scenario('frame', 160, 50)
   const cfg = {
     ...base,
     sends: [
@@ -75,10 +71,10 @@ console.log('============================================================')
     total: 60,
   }
   const g = capture(cfg, '/tmp/grid-live-overlay.json')
-  cleanupScenario('cockpit-console')
+  cleanupScenario('frame')
   if (g) {
     const text = g.grid.map(row => row.map(c => c.c ?? '').join('')).join('\n')
-    check('overlay shell paints (Mercury — console)', text.includes('console'))
+    check('the surface shell paints (Mercury — console)', text.includes('console'))
     check('empty state honest', text.includes('no asks yet'))
     check('ask line + footer advertise the armed keys', text.includes('↵ ask') && text.includes('esc close'))
     await gridToPng('/tmp/grid-live-overlay.json', '/tmp/live-console-overlay.png')
@@ -91,4 +87,4 @@ if (failures > 0) {
   console.log(`❌ live-console-e2e: ${failures} FAILURE(S)`)
   process.exit(1)
 }
-console.log('✅ live-console-e2e: ALL GREEN (real ask answered in the rail)')
+console.log('✅ live-console-e2e: ALL GREEN (real ask answered on the surface)')

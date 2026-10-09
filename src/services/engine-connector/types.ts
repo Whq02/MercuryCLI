@@ -41,6 +41,10 @@ export type WithdrawReceiptV1 =
 export type SessionAskV1 = {
   id: string
   confirm: ToolUseConfirm
+  toolName: string
+  agentId?: string
+  askedAt: number
+  limitMs?: number
 }
 
 export type AskAnswerV1 =
