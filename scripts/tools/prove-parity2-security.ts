@@ -111,8 +111,9 @@ const { armInactivityDeadline, withInactivityDeadline, isDeadlineExceeded, Deadl
 }
 
 {
-  const { holdWorkerAsk, answerPermissionAsk, listPendingPermissionAsks, expiredAskDenialMessage, permissionAskExpiryMs, DEFAULT_PERMISSION_ASK_EXPIRY_MINUTES } =
+  const { holdWorkerAsk, answerPermissionAsk, listPendingPermissionAsks, expiredAskDenialMessage } =
     await import('../../src/daemon/permissionAsks.ts')
+  const { askLimitMs, CREWMATE_ASK_LIMIT_MINUTES } = await import('../../src/utils/permissions/askClock.ts')
   const { concourseWorkersPath } = await import('../../src/daemon/concourseWorkers.ts')
   type Answer = import('../../src/runner/wire/methods.ts').PermissionAnswer
   const record = (short: string) => ({
@@ -141,7 +142,7 @@ const { armInactivityDeadline, withInactivityDeadline, isDeadlineExceeded, Deadl
   const answerOf = (tag: string): Answer | null => held.get(tag)?.answer ?? null
   const idOf = (tag: string): string => held.get(tag)?.id ?? ''
 
-  t("default expiry is the registered ten-minute knob — the ceiling a sub-agent's ask carries", DEFAULT_PERMISSION_ASK_EXPIRY_MINUTES === 10 && permissionAskExpiryMs() === DEFAULT_PERMISSION_ASK_EXPIRY_MINUTES * 60_000)
+  t("a crewmate's parked ask carries the ask-clock owner's ten minutes outside Flow and Sovereign (the registered knob overrides)", CREWMATE_ASK_LIMIT_MINUTES === 10 && askLimitMs({ mode: 'default', crewmate: true }) === CREWMATE_ASK_LIMIT_MINUTES * 60_000 && askLimitMs({ mode: 'sovereign', crewmate: true }) === 3 * 60_000)
 
   hold('concourse-w1', 'main-waits', 'Bash', 40)
   t("the session's own ask parks", listPendingPermissionAsks().some(a => a.requestId === idOf('main-waits') && a.agentId === undefined))
