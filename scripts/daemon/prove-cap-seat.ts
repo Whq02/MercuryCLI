@@ -146,7 +146,7 @@ const readRec = (sid: string): Rec | undefined => {
     return undefined
   }
 }
-const readFacts = (sid: string): { busy?: boolean; atMs?: number; model?: { effective: string }; pendingModel?: string | null } | undefined => {
+const readFacts = (sid: string): { busy?: boolean; atMs?: number; model?: { effective: string }; pendingModel?: string | null; runner?: { state: string; respawns: number; maxRespawns: number; reason?: string } } | undefined => {
   try {
     return JSON.parse(readFileSync(join(daemonDir, 'session-facts', `${sid}.json`), 'utf8')) as ReturnType<typeof readFacts>
   } catch {
@@ -420,6 +420,14 @@ try {
   if (pidLive !== undefined) process.kill(pidLive, 'SIGKILL')
   check('the runner is dead', await untilAsync(() => !alive(pidLive), 10_000), `pid ${pidLive}`)
   check("C2 the crash row: the record carries the crash arm's stamp, respawning", await untilAsync(() => readRec(sid)?.crash?.respawning === true, 10_000), JSON.stringify(readRec(sid)?.crash))
+  let runnerFact6: { state: string; respawns: number; maxRespawns: number; reason?: string } | undefined
+  check('the facts carry what the daemon knows of the runner the moment it dies: crashed (a restart due) or starting (the restart under way) — the status row never paints ready here', await untilAsync(() => {
+    const fact = readFacts(sid)?.runner
+    if (fact === undefined || !['crashed', 'starting'].includes(fact.state)) return false
+    runnerFact6 = fact
+    return true
+  }, 10_000), JSON.stringify(readFacts(sid)?.runner))
+  check('…and the fact names the ladder (1/5)', runnerFact6 !== undefined && runnerFact6.respawns === 1 && runnerFact6.maxRespawns === 5, JSON.stringify(runnerFact6))
   const crash6 = readRec(sid)?.crash
   check('C2 the crash row\'s words name the death and the resume: "crashed mid-run (exit none · signal SIGKILL) … · resumed — the interrupted ask needs a re-send"', crash6 !== undefined && /^crashed mid-run \(exit none · signal SIGKILL\)/.test(crash6.reason) && / · resumed — the interrupted ask needs a re-send$/.test(crash6.reason), JSON.stringify(crash6))
   check('C2 the daemon read the death as a crash and the ladder chose the respawn (its first)', await untilAsync(() => /long-lived concourse-w\d+ crashed \(code=null sig=SIGKILL\); respawn \(1\/\d+\)/.test(daemonLog()), 10_000), crashLines())
@@ -434,6 +442,7 @@ try {
   const pidBack = readRec(sid)?.pid
   check('C2 the runner is back on its own (a new live pid on the same session, no switch sent yet)', back6, JSON.stringify(readRec(sid)))
   check('the facts read idle once the runner is back', await untilAsync(() => readFacts(sid)?.busy === false, 10_000), JSON.stringify(readFacts(sid)))
+  check('the runner fact clears once the respawned runner answered initialize (the row speaks its ordinary words again)', await untilAsync(() => readFacts(sid)?.runner === undefined, 20_000), JSON.stringify(readFacts(sid)?.runner))
   check("C2 the respawn kept the Opus row, and the crash row stands until the operator's next act", readRec(sid)?.modelKey === 'claude-opus-5' && readRec(sid)?.pendingModelKey === undefined && readRec(sid)?.crash?.respawning === true, JSON.stringify({ model: readRec(sid)?.modelKey, pending: readRec(sid)?.pendingModelKey, crash: readRec(sid)?.crash }))
   const sw3 = await setModel(sid, GPT_ID)
   console.log(`      switch receipt on the respawned runner: ${JSON.stringify(sw3)}`)

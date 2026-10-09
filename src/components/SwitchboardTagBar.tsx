@@ -8,6 +8,7 @@ import {
   subscribeThroughFocused,
 } from '../services/engine-connector/focusedConnector.js'
 import { hasSeatLive, IDLE_LIVE, type SeatStatusV1, type SessionLiveV1 } from '../services/engine-connector/seatLive.js'
+import type { RunnerStateFactV1 } from '../services/engine-connector/seatProjections.js'
 import type { SampleRowV1, WorkRowV1 } from '../services/engine-connector/types.js'
 import { escRungHint, escRungOf } from '../input-core/interruptArity.js'
 import { crewAgentsOf, crewWaitingWords } from '../services/engine-connector/crewFacts.js'
@@ -140,8 +141,19 @@ export function statusRowPlan(input: {
   return { rest: fitted, right, folderShown: chosen[0] && right !== '', branchShown: chosen[1] && branch !== null && right !== '', fixedWidth }
 }
 
-export function statusRowWarns(live: SessionLiveV1, s: Pick<SeatStatusV1, 'interrupting' | 'hardStopping' | 'wait' | 'stuck'>): boolean {
-  return s.hardStopping || s.interrupting || (live.inFlight && (s.wait !== null || s.stuck))
+export function statusRowWarns(live: SessionLiveV1, s: Pick<SeatStatusV1, 'interrupting' | 'hardStopping' | 'wait' | 'stuck' | 'runner'>): boolean {
+  return s.hardStopping || s.interrupting || (s.runner !== undefined && s.runner !== null) || (live.inFlight && (s.wait !== null || s.stuck))
+}
+
+export function runnerStatusWords(runner: RunnerStateFactV1, nowMs: number): string {
+  const since = statusDuration(Math.max(0, nowMs - runner.sinceMs))
+  if (runner.state === 'starting') {
+    return runner.respawns === 0 ? `the runner is starting · ${since}` : `the runner is restarting (${runner.respawns}/${runner.maxRespawns}) · ${since}`
+  }
+  if (runner.state === 'crashed') {
+    return `the runner crashed${runner.reason !== undefined ? ` (${runner.reason})` : ''} — restarting (${runner.respawns}/${runner.maxRespawns})`
+  }
+  return `the runner crashed ${runner.respawns} times — the session has no live runner · ↵ revives it`
 }
 export function statusDuration(ms: number): string {
   if (ms < 60_000) return `${Math.floor(ms / 1000)}s`
@@ -193,9 +205,10 @@ export function waitingStatusWords(live: SessionLiveV1): string {
   return (live.waitingOn !== undefined ? workWaitingWords(live.waitingOn) : null) ?? crewWaitingWords(live.agentsWaiting) ?? 'waiting on agents'
 }
 
-export function statusLine(live: SessionLiveV1, s: SeatStatusV1, crew: CrewClockV1 | null = null, compact = false): string {
+export function statusLine(live: SessionLiveV1, s: SeatStatusV1, crew: CrewClockV1 | null = null, compact = false, nowMs: number = Date.now()): string {
   if (s.hardStopping) return 'interrupting again — the request is torn down once more; x on its row stops the runner'
   if (s.interrupting) return 'interrupting — the request is torn down'
+  if (s.runner !== undefined && s.runner !== null) return runnerStatusWords(s.runner, nowMs)
   if (live.inFlight) {
     if (s.wait !== null) {
       if (s.wait.kind === 'silence') return requestWaitLine(s.wait, compact)
@@ -284,7 +297,9 @@ export function FocusedSessionStatusRow(): React.ReactNode {
   const shellRunning = useFocusedShellRunning()
   useSyncExternalStore(settingsChangeDetector.subscribe, settingsRevision, settingsRevision)
   const crewActive = crewActiveIn(workRows)
-  const now = useNowTick(crewActive ? 1000 : null)
+  const c = getFocusedSessionConnector()
+  const runnerBooting = hasSeatLive(c) && c.status().runner?.state === 'starting'
+  const now = useNowTick(crewActive || runnerBooting ? 1000 : null)
   const crew = useMemo(() => crewClockOf(workRows, now), [workRows, now])
   const modelName = useDisplayedSessionModel().compact
   const effectiveModel = useSyncExternalStore(subscribeFocusedModel, getFocusedEffectiveModel, getFocusedEffectiveModel)
@@ -298,7 +313,6 @@ export function FocusedSessionStatusRow(): React.ReactNode {
   const composerCrewmate = useComposerCrewmate()
   const crewmateModel = useCrewmateModel(crewmate)
   const { folder, branch } = useFocusedWorkspaceBranch()
-  const c = getFocusedSessionConnector()
   const painting = hasSeatLive(c)
   useEffect(() => {
     if (!painting) return
