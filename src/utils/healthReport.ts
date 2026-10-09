@@ -2070,14 +2070,16 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
           label: 'Crewmates & workflows',
           run: async () => {
             const { spawnSwitchFacts, spawnSwitchLine } = await import('../services/switchboard/spawnSwitches.js')
+            const { BACKGROUND_LAUNCH_LABEL, backgroundSessionsLaunchCrewmates } = await import('../services/switchboard/backgroundLaunch.js')
             const { getFocusedSessionConnector, hasFocusedSession } = await import('../services/engine-connector/focusedConnector.js')
             const focused = hasFocusedSession()
             const facts = focused ? getFocusedSessionConnector().spawnSwitches() : spawnSwitchFacts()
             const scope = focused ? 'the focused session' : 'this process — the next session is born with these'
             const anyOff = !facts.subagents.on || !facts.workflows.on
+            const backgrounded = backgroundSessionsLaunchCrewmates() ? ` · backgrounded sessions launch too (${BACKGROUND_LAUNCH_LABEL} on)` : ''
             return {
               status: anyOff ? 'info' : 'ok',
-              evidence: `${spawnSwitchLine('subagents', facts.subagents)} · ${spawnSwitchLine('workflows', facts.workflows)} — ${scope}`,
+              evidence: `${spawnSwitchLine('subagents', facts.subagents)} · ${spawnSwitchLine('workflows', facts.workflows)} — ${scope}${backgrounded}`,
               detail: 'Flip a running session with /subagents on|off and /workflows on|off (at its next turn boundary); the boot menu\'s Agents section sets the next session\'s default. Off: the Agent or Workflow tool is absent from the roster and every spawn road answers one receipt.',
               link: '/bootmenu',
             }

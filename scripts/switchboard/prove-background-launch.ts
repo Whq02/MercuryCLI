@@ -152,6 +152,59 @@ console.log("LAW 4 — the worker's prompt sentence follows the setting at spawn
   check('the sentence is minted by the setting owner, read live at spawn', src('src/daemon/concourseWorkers.ts').includes('backgroundWorkerDelegationSentence(),') && !src('src/daemon/concourseWorkers.ts').includes('Delegation (subagents/workflows)'))
 }
 
+console.log('LAW 5 — the /health status row says why backgrounded sessions may launch (dist)')
+{
+  const { existsSync, mkdirSync } = await import('node:fs')
+  const { dirname } = await import('node:path')
+  const DIST = join(ROOT, 'dist', 'mercury.mjs')
+  const nodeBin = Bun.which('node')
+  if (!existsSync(DIST) || !nodeBin) {
+    check('dist/mercury.mjs and node present (build first; the pooled gate prebuilds it)', false, DIST)
+  } else {
+    const findRow = (value: unknown): Record<string, unknown> | null => {
+      if (Array.isArray(value)) {
+        for (const item of value) {
+          const hit = findRow(item)
+          if (hit !== null) return hit
+        }
+        return null
+      }
+      if (value !== null && typeof value === 'object') {
+        const record = value as Record<string, unknown>
+        if (record.id === 'spawn-switches') return record
+        for (const inner of Object.values(record)) {
+          const hit = findRow(inner)
+          if (hit !== null) return hit
+        }
+      }
+      return null
+    }
+    const health = (leaf: boolean | undefined): Record<string, unknown> | null => {
+      const home = mkdtempSync(join(tmpdir(), 'bglaunch-health-'))
+      const configDir = join(home, '.mercury')
+      mkdirSync(configDir, { recursive: true })
+      if (leaf !== undefined) writeFileSync(join(configDir, '.mercury.json'), JSON.stringify({ numStartups: 1, backgroundSessionsLaunchCrewmates: leaf }))
+      const out = spawnSync(nodeBin, [DIST, 'health', '--json', '--only', 'spawn-switches'], {
+        cwd: home,
+        env: { HOME: home, PATH: `/usr/bin:/bin:${dirname(nodeBin)}`, TERM: 'dumb', MERCURY_CONFIG_DIR: configDir, MERCURY_CREDENTIAL_STORE: 'file', ANTHROPIC_API_KEY: 'fixture-key-000' },
+        encoding: 'utf8',
+        timeout: 60_000,
+      })
+      try {
+        return findRow(JSON.parse(out.stdout.trim()))
+      } catch {
+        console.log(`    health stdout: ${out.stdout.slice(0, 300)} stderr: ${out.stderr.slice(0, 300)}`)
+        return null
+      }
+    }
+    const CLAUSE = `backgrounded sessions launch too (${LABEL} on)`
+    const off = health(undefined)
+    check('setting absent: the row reads as it always has, no backgrounded clause', off !== null && off.status === 'ok' && String(off.evidence).includes('crewmates on (default) · workflows on (default) — this process') && !String(off.evidence).includes('backgrounded'), j(off))
+    const on = health(true)
+    check('setting on: the row says backgrounded sessions launch too and names the setting', on !== null && on.status === 'ok' && String(on.evidence).endsWith(CLAUSE), j(on))
+  }
+}
+
 console.log('LAW 3 — the source pins')
 {
   const valve = src('src/services/switchboard/launchAuthority.ts')
