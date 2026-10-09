@@ -20,7 +20,7 @@
    │   OpenRouter — one credential, the whole …       not signed in │  │ MISTRAL_API_KEY wins. An optional          │
    │   Google Gemini — API key or Google OAuth        not signed in │  │ Admin API key follows for /usage.          │
    │   GLM (Z.AI) — API key (general or GLM Co…       not signed in │  │ key: ▌                                     │
-   │   DeepSeek — API key                             not signed in │  │ ↵ stores · empty keeps existing · esc back │
+   │   DeepSeek — API key                             not signed in │  │ ↵ stores it · esc back                     │
    │   xAI — Grok subscription sign-in or API …       not signed in │  ╰────────────────────────────────────────────╯
    │   Meta — API key (Muse)                          not signed in │  ╭────────────────────────────────────────────╮
    │ ❯ Mistral — API key (Mistral Large 4)            not signed in │  │ LOGINS                                     │
