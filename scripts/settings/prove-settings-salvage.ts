@@ -65,20 +65,20 @@ section('§3 ONE MALFORMED HOOK ENTRY')
   const { settings } = parseBlob({
     engine: { model: 'claude-sonnet-5' },
     events: { hooks: {
-      SessionStart: [
-        { hooks: [{ type: 'command' }] },
-        { hooks: [{ type: 'command', command: 'echo ok' }] },
+      'session.start': [
+        { timeout: 3 },
+        { run: 'echo ok' },
       ],
     } },
   })
   check('the file survives one malformed hook entry', settings !== null)
   check('the unrelated model pin survives', settings?.engine?.model === 'claude-sonnet-5', JSON.stringify(settings?.engine?.model))
-  const sessionStart = (settings?.events?.hooks as Record<string, unknown[]> | undefined)?.SessionStart
+  const sessionStart = (settings?.events?.hooks as Record<string, unknown[]> | undefined)?.['session.start']
   check(
     'the VALID sibling hook entry survives the prune',
     Array.isArray(sessionStart) &&
       JSON.stringify(sessionStart).includes('echo ok') &&
-      !JSON.stringify(sessionStart).includes('{"type":"command"}'),
+      !JSON.stringify(sessionStart).includes('"timeout":3'),
     JSON.stringify(sessionStart),
   )
 }
