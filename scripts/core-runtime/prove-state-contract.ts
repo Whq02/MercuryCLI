@@ -257,7 +257,7 @@ section('LAW EXPORT-SURFACE — the frozen facade lock')
     'addToWorkloadUsageState', 'getWorkloadUnpricedTurns', 'getWorkloadUsage', 'recordWorkloadUnpricedTurn',
     'addToTurnHookDuration', 'canAnswerAsks', 'clearBetaHeaderLatches',
     'clearInvokedSkills', 'clearInvokedSkillsForAgent', 'clearRegisteredHooks',
-    'clearRegisteredExtensionHooks', 'clearSystemPromptSectionState', 'consumePostCompaction',
+    'clearRegisteredExtensionHooks', 'clearSystemPromptSectionState',
     'flushInteractionTime',
     'getAgentColorMap', 'getAllowedChannels', 'getAskChannel',
     'getAllowedSettingSources', 'getApiKeyFromFd', 'getBudgetContinuationCount',
@@ -286,7 +286,7 @@ section('LAW EXPORT-SURFACE — the frozen facade lock')
     'getTurnToolDurationMs', 'getUnpricedTurns', 'getUsageForModel',
     'hasUnknownModelCost',
     'incrementBudgetContinuationCount', 'isSessionPersistenceDisabled',
-    'markPostCompaction', 'markScrollActivity',
+    'markScrollActivity',
     'onSessionSwitch',
     'preferThirdPartyAuthentication', 'recordUnpricedTurn', 'regenerateSessionId', 'registerHookCallbacks',
     'resetCostState', 'resetModelStringsForTestingOnly',
@@ -717,17 +717,6 @@ section('LAW 3 TURN-WINDOW — snapshot math · triples · totals survive')
   check('tool triple: the TOTAL survives the turn reset (scope pin)', state.getTotalToolDuration() === totalToolBefore + 40)
 }
 
-section('LAW 4 ONE-SHOT — postCompaction')
-{
-  check('postCompaction: initially unarmed', state.consumePostCompaction() === false)
-  state.markPostCompaction()
-  check('postCompaction: consume returns true once', state.consumePostCompaction() === true)
-  check('postCompaction: auto-reset after consume', state.consumePostCompaction() === false)
-  state.markPostCompaction()
-  state.markPostCompaction()
-  check('postCompaction: double-mark still single-consume', state.consumePostCompaction() === true && state.consumePostCompaction() === false)
-}
-
 section('LAW 5 LATCH — sticky beta headers · clear completeness · tripwire')
 {
   state.clearBetaHeaderLatches()
@@ -1036,7 +1025,6 @@ section('LAW SCOPE-DELTA — every reset entry point, exact field-by-field')
     state.setLastApiCompletionTimestamp(123456)
     state.setLastAPIRequest({ model: 'pop' } as never)
     state.setLastAPIRequestMessages([{ role: 'user', content: 'pop' }] as never)
-    state.markPostCompaction()
     state.setCacheEditingHeaderLatched(true)
     state.setPromptCache1hEligible(true)
     state.setSystemPromptSectionCacheEntry('section-a', 'value-a')
@@ -1185,7 +1173,6 @@ section('LAW 13 RESET — resetStateForTests totality + the characterized gaps')
   state.snapshotOutputTokensForTurn(999)
   state.incrementBudgetContinuationCount()
   state.updateLastInteractionTime()
-  state.markPostCompaction()
 
   let ghostEmissions = 0
   state.onSessionSwitch(() => {
@@ -1218,7 +1205,6 @@ section('LAW 13 RESET — resetStateForTests totality + the characterized gaps')
   check('reset: turn-window snapshot vars zeroed (turnOutput 0 on empty usage)', state.getTurnOutputTokens() === 0)
   check('reset: turn budget nulled', state.getCurrentTurnTokenBudget() === null)
   check('reset: budget continuation zeroed', state.getBudgetContinuationCount() === 0)
-  check('reset: pending postCompaction cleared', state.consumePostCompaction() === false)
   withClock(() => 2_100_000_000_000, () => {
     const t = state.getLastInteractionTime()
     state.flushInteractionTime()

@@ -39,10 +39,6 @@ export function spawnLedgerPath(): string {
   return join(forensicsDir(), 'spawn-ledger.jsonl')
 }
 
-export function spawnLedgerPaths(): string[] {
-  return [spawnLedgerPath()]
-}
-
 export function bashAuditPath(): string {
   return join(forensicsDir(), 'bash-audit.jsonl')
 }

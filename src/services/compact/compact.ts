@@ -53,7 +53,6 @@ import { type OverflowSignal, overflowGapTokens, overflowSignalOf } from '../api
 import { LOCAL_WINDOW_REMEDY, localFitRefusalFacts } from '../providers/local/localCatalogue.js'
 import { routedCallModel } from '../providers/callModelRouter.js'
 import { COLD_INGEST_MS_PER_1K_TOKENS, coldPrefixOf, firstByteBudgetMs, streamIdleTimeoutMsForRoute } from '../providers/streamIdleBudget.js'
-import { markPostCompaction } from '../api/logging.js'
 import { notifyCompaction } from '../api/promptCacheBreakDetection.js'
 import { recordWireFoldRow, type WireFoldRow } from '../api/dumpPrompts.js'
 import { getRetryDelay } from '../api/withRetry.js'
@@ -1480,7 +1479,6 @@ export async function compactConversation(
           : { state: 'none', reason: 'no substantive run' },
     })
 
-    markPostCompaction()
     reAppendSessionMetadata()
 
     context.onCompactProgress?.({ type: 'hooks_start', hookType: 'post_compact' })
@@ -1601,7 +1599,6 @@ export async function partialCompactConversation(
     annotateBoundaryWithPreservedSegment(boundary, relinkAnchor, kept)
     annotateBoundaryWithWork(boundary, allMessages, kept, summaryMessage.uuid)
 
-    markPostCompaction()
     reAppendSessionMetadata()
 
     context.onCompactProgress?.({ type: 'hooks_start', hookType: 'post_compact' })

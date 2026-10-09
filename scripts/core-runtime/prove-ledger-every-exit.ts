@@ -206,7 +206,7 @@ section('§5 the shape')
   check('the streamed words ride the one character-ratio estimator', /roughTokenCountEstimation\(streamedText\)/.test(src))
   check('every non-settled exit writes the API duration from the finally (rank 11)', /if \(!settledNormally\) logAPIDuration\(\{ start, startIncludingRetries \}\)/.test(src))
   const logging = readFileSync(join(ROOT, 'src/services/api/logging.ts'), 'utf8')
-  check('the duration write is ONE owner the success path rides too', /export function logAPIDuration\(/.test(logging) && /logAPIDuration\(\{ start, startIncludingRetries \}\)\s*\n\s*consumePostCompactionMarker\(\)/.test(logging))
+  check('the duration write is ONE owner the success path rides too', /export function logAPIDuration\(/.test(logging) && /logAPIDuration\(\{ start, startIncludingRetries \}\)\s*\n\s*consumeInvokingRequestId\(\)\s*\n\s*\}/.test(logging))
 }
 
 console.log(`\n${failures === 0 ? 'PASS' : 'FAIL'} prove-ledger-every-exit${failures ? ` (${failures} failure(s))` : ''}`)

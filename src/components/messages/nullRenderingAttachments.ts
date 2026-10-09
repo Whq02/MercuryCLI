@@ -15,7 +15,6 @@ export const NULL_RENDERING_ATTACHMENT_TYPES = [
   'opened_file_in_ide',
   'open_files_in_ide',
   'structured_output',
-  'todo_reminder',
   'context_efficiency',
   'deferred_tools_delta',
   'held_tools',
