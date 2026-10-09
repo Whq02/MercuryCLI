@@ -1,42 +1,32 @@
-
 import * as React from 'react'
 import { Text } from '../../ink.js'
 import type { HookEvent } from '../../utils/hooks/contract.js'
-import type { IndividualHookConfig } from '../../utils/hooks/hooksSettings.js'
-import {
-  getHookDisplayText,
-  hookSourceDescriptionDisplayString,
-} from '../../utils/hooks/hooksSettings.js'
+import { hookRowKind, hookRowName, hookSourceWords, type HookRow } from '../../utils/hooks/hooksSettings.js'
 import { Dialog } from '../design-system/Dialog.js'
 import { Select } from '../CustomSelect/select.js'
 import { ALL_MATCHER_MARKER } from './SelectMatcherMode.js'
 
 export function SelectHookMode({
   event,
-  matcher,
-  supportsMatchers,
+  match,
+  hasMatch,
   hooks,
   onSelect,
   onBack,
 }: {
   event: HookEvent
-  matcher: string
-  supportsMatchers: boolean
-  hooks: IndividualHookConfig[]
+  match: string
+  hasMatch: boolean
+  hooks: HookRow[]
   onSelect: (index: number) => void
   onBack: () => void
 }): React.ReactNode {
-  const title = supportsMatchers
-    ? `${event} · ${matcher === '' ? ALL_MATCHER_MARKER : matcher}`
-    : event
+  const title = hasMatch ? `${event} · ${match === '' ? ALL_MATCHER_MARKER : match}` : event
 
   if (hooks.length === 0) {
     return (
       <Dialog title={title} onCancel={onBack}>
-        <Text dimColor>
-          Nothing is configured here. Edit settings.json (or ask Mercury) to
-          add hooks.
-        </Text>
+        <Text dimColor>Nothing is configured here. Edit settings.json (or ask Mercury) to add hooks.</Text>
       </Dialog>
     )
   }
@@ -45,12 +35,9 @@ export function SelectHookMode({
     <Dialog title={title} onCancel={onBack}>
       <Select
         options={hooks.map((row, index) => ({
-          label: `[${row.config.type}] ${getHookDisplayText(row.config)}`,
+          label: `[${hookRowKind(row)}] ${hookRowName(row)}`,
           value: String(index),
-          description:
-            row.source === 'extensionHook' && row.extensionName
-              ? `${hookSourceDescriptionDisplayString(row.source)} — ${row.extensionName}`
-              : hookSourceDescriptionDisplayString(row.source),
+          description: hookSourceWords(row.source),
         }))}
         onChange={value => onSelect(Number(value))}
       />
