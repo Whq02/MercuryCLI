@@ -540,6 +540,36 @@ or picker, `-w` to run in a managed worktree, and `--lean` for a minimal session
 A `run` has no host to answer permission asks: its permission rules and mode
 decide what can run, and a call that still needs approval is denied.
 
+### The headless image
+
+The `Dockerfile` at the repository root builds a Linux x64 image for CI and
+servers. Its entry point is `mercury` and its default verb is `run`, so the
+image runs one prompt against a mounted tree and exits with the run's code:
+
+```sh
+docker build -t mercury .
+docker run --rm -e ANTHROPIC_API_KEY="$ANTHROPIC_API_KEY" -v "$PWD":/work mercury run "Summarise this repository." --format text
+docker run --rm mercury --version
+```
+
+The image carries the bundle, its Node 24 runtime (on `PATH`), the vendored
+search, shell, debugger, language and image tools, `git` and the certificate
+store; no enter screen and no sign-in flow. It runs as the non-root user
+`mercury` with its config home inside the container (`MERCURY_CONFIG_DIR`),
+and `/work` is its working directory. Colour and mouse follow the product's
+own terminal detection, and `--user 0` runs as root with the one sovereign
+notice above.
+
+A provider key arrives as an environment variable, the same spellings the
+product reads everywhere: `ANTHROPIC_API_KEY` or `ANTHROPIC_AUTH_TOKEN`,
+`OPENAI_API_KEY`, `GEMINI_API_KEY` or `GOOGLE_API_KEY`, `XAI_API_KEY` (and
+`XAI_MANAGEMENT_API_KEY` for its usage meter), `DEEPSEEK_API_KEY`,
+`MOONSHOT_API_KEY`, `ZAI_API_KEY`, `OPENROUTER_API_KEY`, `HF_TOKEN`,
+`MODEL_API_KEY` or `META_API_KEY`, `MERCURY_COMPAT_API_KEY` for a custom
+OpenAI-compatible endpoint and `MERCURY_LOCAL_API_KEY` for a local server.
+With no key the run refuses in one line and exits 1. `docker run -i … mercury
+run -` reads the prompt from stdin.
+
 ### Hosting a session
 
 `mercury runner` serves a session to a host over stdio: JSON-RPC 2.0, one

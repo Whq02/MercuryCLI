@@ -1,0 +1,14 @@
+*
+!build.ts
+!package.json
+!bun.lock
+!bunfig.toml
+!tsconfig.json
+!README.md
+!src
+!assets/splash
+!docs/*.md
+!docs/templates
+!scripts/lib
+!scripts/vendor
+!vendor/*.lock.json
