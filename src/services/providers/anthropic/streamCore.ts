@@ -136,7 +136,6 @@ import {
   asSystemPrompt,
   type SystemPrompt,
 } from '../../../utils/systemPromptType.js'
-import { tokenCountFromLastAPIResponse } from '../../../utils/tokens.js'
 import {
   anthropicLimitVerdict,
   clearAnthropicUsageLimit,
@@ -162,7 +161,6 @@ import {
 import {
   EMPTY_USAGE,
   logAPIError,
-  logAPIQuery,
   logAPIDuration,
   logAPISuccessAndDuration,
   type NonNullableUsage,
@@ -195,7 +193,7 @@ import {
   type SystemPromptPosture,
   updateUsage,
 } from './cacheAndUsage.js'
-import { getPreviousRequestIdFromMessages, stripExcessMediaItems } from './media.js'
+import { stripExcessMediaItems } from './media.js'
 import { retireOlderScreenshots } from '../../desktop/screenshotRetention.js'
 import {
   coldPrefixOf,
@@ -485,7 +483,6 @@ async function* queryModel(
   StreamEvent | AssistantMessage | SystemAPIErrorMessage | SystemStreamCutMessage,
   void
 > {
-  const previousRequestId = getPreviousRequestIdFromMessages(messages)
 
   const resolvedModel = options.model
   const modelRefusalRequest: { current?: ModelRefusalRequest } = {}
@@ -667,7 +664,6 @@ async function* queryModel(
   const startIncludingRetries = Date.now()
   let start = Date.now()
   let settledNormally = false
-  let attemptNumber = 0
   let stream: Stream<BetaRawMessageStreamEvent> | undefined = undefined
   let streamRequestId: string | null | undefined = undefined
   let clientRequestId: string | undefined = undefined
@@ -825,31 +821,6 @@ async function* queryModel(
     return params
   }
 
-  {
-    const queryParams = paramsFromContext({
-      model: options.model,
-      thinkingConfig,
-    })
-    const logMessagesLength = queryParams.messages.length
-    const logBetas = queryParams.betas ?? []
-    const logThinkingType = queryParams.thinking?.type ?? 'disabled'
-    const logEffortValue = queryParams.output_config?.effort
-    void options.getToolPermissionContext().then(permissionContext => {
-      logAPIQuery({
-        model: options.model,
-        messagesLength: logMessagesLength,
-        temperature: options.temperatureOverride ?? 1,
-        betas: logBetas,
-        permissionMode: permissionContext.mode,
-        querySource: options.querySource,
-        callChain: options.callChain,
-        thinkingType: logThinkingType,
-        effortValue: logEffortValue,
-        previousRequestId,
-      })
-    })
-  }
-
   const newMessages: AssistantMessage[] = []
   let ttftMs = 0
   let partialMessage: BetaMessage | undefined = undefined
@@ -949,28 +920,7 @@ async function* queryModel(
       extractQuotaStatusFromError(error)
     }
 
-    const requestId =
-      streamRequestId ||
-      (error instanceof APIError ? error.requestID : undefined) ||
-      (error instanceof APIError
-        ? (error.error as { request_id?: string })?.request_id
-        : undefined)
-
-    logAPIError({
-      error,
-      model: errorModel,
-      messageCount: messagesForAPI.length,
-      messageTokens: tokenCountFromLastAPIResponse(messagesForAPI),
-      durationMs: Date.now() - start,
-      durationMsIncludingRetries: Date.now() - startIncludingRetries,
-      attempt: attemptNumber,
-      requestId,
-      clientRequestId,
-      didFallBackToNonStreaming,
-      callChain: options.callChain,
-      querySource: options.querySource,
-      previousRequestId,
-    })
+    logAPIError({ error, clientRequestId })
 
     return { error, errorModel }
   }
@@ -990,7 +940,6 @@ async function* queryModel(
         }),
       async (anthropic, attempt, context) => {
         if (attempt > 1 || anthropicLimitVerdict().status === 'rejected') await refreshProviderUsage('anthropic', { force: true, reason: 'operator' })
-        attemptNumber = attempt
         start = Date.now()
 
         const params = paramsFromContext(context)
@@ -1639,8 +1588,7 @@ async function* queryModel(
           ...(heldWaitDoor !== undefined ? { onHeldWait: heldWaitDoor } : {}),
         },
         paramsFromContext,
-        (attempt, _startTime, tokens) => {
-          attemptNumber = attempt
+        (_attempt, _startTime, tokens) => {
           maxOutputTokens = tokens
         },
         captureModelRequest,
@@ -1704,8 +1652,7 @@ async function* queryModel(
             ...(heldWaitDoor !== undefined ? { onHeldWait: heldWaitDoor } : {}),
           },
           paramsFromContext,
-          (attempt, _startTime, tokens) => {
-            attemptNumber = attempt
+          (_attempt, _startTime, tokens) => {
             maxOutputTokens = tokens
           },
           captureModelRequest,

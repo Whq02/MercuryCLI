@@ -35,7 +35,6 @@ const ALLOWLIST = [
   'src/services/api/client.ts',
   'src/services/api/errors.ts',
   'src/services/api/errorUtils.ts',
-  'src/services/api/logging.ts',
   'src/services/api/sdkErrors.ts',
   'src/services/api/withRetry.ts',
   'src/services/rateLimitMocking.ts',
