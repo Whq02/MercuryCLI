@@ -3,6 +3,7 @@ import {
   publishSessionFacts,
   publishSessionProgress,
   publishSessionTail,
+  runnerStateFactOf,
   type SessionFactsAnswerV1,
   type SessionFactsV1,
   type SessionProgressEntryV1,
@@ -47,7 +48,20 @@ import type { SessionRewindMode, SessionRewindOutcomeV1 } from './protocol.js'
 
 export interface SeatRosterPort {
   door(short: string): RunnerDoor | undefined
-  list(): ReadonlyArray<{ short: string; outcome?: string; busy?: boolean; turnActive?: boolean; state?: string; turnStartedAt?: number }>
+  list(): ReadonlyArray<{
+    short: string
+    outcome?: string
+    busy?: boolean
+    turnActive?: boolean
+    state?: string
+    turnStartedAt?: number
+    ready?: boolean
+    respawns?: number
+    maxRespawns?: number
+    spawnedAt?: number
+    crashedAt?: number
+    lastError?: string
+  }>
   patchSeatModel(short: string, model: string): boolean
   patchSeatEffort(short: string, effort: string): boolean
   has?(short: string): { present: boolean }
@@ -486,6 +500,7 @@ export function publishSeatFacts(short: string, dir?: string, roster?: SeatRoste
   const answer = seat.lastAnswer ?? skeletonAnswer(rec)
   const { box: boxAnswer, ...answerRest } = answer
   seat.lastFactsAtMs = Math.max(Date.now(), seat.lastFactsAtMs + 1)
+  const runnerFact = runnerStateFactOf(roster?.list().find(j => j.short === short), Date.now())
   const facts: SessionFactsV1 = {
     schema: 1,
     sessionId: rec.sessionId,
@@ -508,6 +523,7 @@ export function publishSeatFacts(short: string, dir?: string, roster?: SeatRoste
     ...(roster !== undefined && seatTurnStartedAt(short, roster) !== undefined ? { turnStartedAt: seatTurnStartedAt(short, roster) } : {}),
     ...saturnFactsOf(rec, Date.now()),
     ...(boxAnswer !== undefined ? { box: boxAnswer } : {}),
+    ...(runnerFact !== undefined ? { runner: runnerFact } : {}),
   }
   seat.lastBusy = facts.busy
   try {

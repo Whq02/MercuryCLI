@@ -94,6 +94,8 @@ interface LongLivedSeat {
   stormNotified?: boolean
   running?: { model: string; effort: string }
   paused?: SeatPause
+  ready?: boolean
+  crashedAt?: number
 }
 
 export type SeatPause = { why: string; words: string; resumesAtMs?: number }
@@ -116,6 +118,8 @@ export interface RosterOptions {
   onApplied?: (short: string, params: SessionAppliedParams) => void
   onScheduleEdit?: (short: string, params: import('../runner/wire/methods.js').ParamsOf<'schedule/edit'>) => import('../runner/wire/methods.js').ResultOf<'schedule/edit'> | Promise<import('../runner/wire/methods.js').ResultOf<'schedule/edit'>>
   onChildRelaunched?: (short: string, pid: number) => void
+  onChildReady?: (short: string) => void
+  onChildCrashed?: (short: string) => void
 }
 
 export interface DispatchOutcome {
@@ -195,6 +199,12 @@ export class TaskRoster {
         e.respawns = h.longLived.respawns
         if (h.longLived.contextPct !== undefined) e.contextPct = h.longLived.contextPct
         if (h.longLived.paused !== undefined && !h.entry.outcome) e.paused = { ...h.longLived.paused }
+        e.maxRespawns = h.longLived.cfg.maxRespawns
+        e.ready = h.longLived.ready === true
+        e.spawnedAt = h.longLived.lastSpawnAt
+        if (h.longLived.crashedAt !== undefined) e.crashedAt = h.longLived.crashedAt
+        const lastError = h.longLived.lastErrorText || lastStderrLine(h.longLived.stderrTail)
+        if (lastError !== undefined && lastError !== '') e.lastError = lastError
         if (!h.entry.outcome) {
           e.busy = !this.seatIsIdle(h.longLived)
           if (h.longLived.turnActive !== undefined) e.turnActive = h.longLived.turnActive
@@ -580,10 +590,12 @@ export class TaskRoster {
     ll.lastDeliveredAt = undefined
     ll.clearInFlight = false
     ll.lastErrorText = undefined
+    ll.ready = false
+    ll.crashedAt = undefined
 
     ll.connection?.close('the seat was relaunched')
     ll.connection = undefined
-    ll.connection = new RunnerConnection({ input: child.stdout!, output: child.stdin! }, spawned.capabilities, {
+    const connection = new RunnerConnection({ input: child.stdout!, output: child.stdin! }, spawned.capabilities, {
       onRow: row => {
         this.classifyRow(short, ll, row)
         this.forwardRow(short, row)
@@ -593,6 +605,18 @@ export class TaskRoster {
       ...(this.opts.onScheduleEdit ? { onScheduleEdit: params => this.opts.onScheduleEdit!(short, params) } : {}),
       onProtocolError: error => this.refuseRunner(short, ll, child, error),
       log: line => logForDebugging(`[daemon] ${short}: ${line}`),
+    })
+    ll.connection = connection
+    const bootGeneration = ll.spawnGeneration
+    void connection.initialized.then(result => {
+      if (result === null || ll.connection !== connection || ll.spawnGeneration !== bootGeneration) return
+      ll.ready = true
+      logForDebugging(`[daemon] ${short}: the runner answered initialize after ${Math.round(connection.bootMs / 1000)} s`)
+      try {
+        this.opts.onChildReady?.(short)
+      } catch (e) {
+        logForDebugging(`[daemon] onChildReady(${short}) hook threw (ignored): ${e}`)
+      }
     })
     this.keepChildStderr(short, child, ll)
     this.superviseChildLife(short, h, ll, child)
@@ -769,7 +793,16 @@ export class TaskRoster {
       }
       ll.respawns++
       ll.lifetimeCrashes++
+      ll.ready = false
+      ll.crashedAt = Date.now()
       const decision = decideRespawn(ll.respawns, ll.cfg, ll.lifetimeCrashes)
+      const tellCrashed = (): void => {
+        try {
+          this.opts.onChildCrashed?.(short)
+        } catch (e) {
+          logForDebugging(`[daemon] onChildCrashed(${short}) hook threw (ignored): ${e}`)
+        }
+      }
       logForDebugging(
         `[daemon] long-lived ${short} crashed (code=${code} sig=${signal}); ${decision.action} (${ll.respawns}/${ll.cfg.maxRespawns})`,
       )
@@ -794,6 +827,7 @@ export class TaskRoster {
         ledgerExit('degraded', decision.reason)
         stampCrash(false, `crashed — respawns exhausted (${decision.reason})`)
         logForDebugging(`[daemon] ${GLYPH.warn} DEGRADED — ${this.degradedState.reason}`)
+        tellCrashed()
         try {
           this.opts.onDegraded?.(this.degradedState.reason, short)
         } catch {
@@ -807,6 +841,7 @@ export class TaskRoster {
       stampCrash(true)
       ll.spec = { ...ll.spec, extraEnv: { ...(ll.spec.extraEnv ?? {}), ...flagPair('MERCURY_RUNNER_RESTART_REASON', 'crash') } }
       h.entry.state = 'spawning'
+      tellCrashed()
       ll.respawnTimer = setTimeout(() => this.spawnLongLived(short), decision.delayMs)
       ll.respawnTimer.unref?.()
     }

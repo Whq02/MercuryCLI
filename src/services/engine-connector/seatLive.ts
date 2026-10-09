@@ -3,6 +3,7 @@ import type { WorkCountsV1 } from './workCounts.js'
 import type { StreamingTailStore } from '../../utils/messages/streamingTailStore.js'
 import type { RequestWaitV1 } from '../providers/streamIdleBudget.js'
 import type { FoldStatusV1 } from '../compact/foldStatus.js'
+import type { RunnerStateFactV1 } from './seatProjections.js'
 
 export interface SessionLiveV1 {
   inFlight: boolean
@@ -26,6 +27,7 @@ export interface SeatStatusV1 {
   stuck: boolean
   isolation?: 'exclusive' | 'shared' | 'worktree-isolated' | 'read-only'
   branchLabel?: string
+  runner?: RunnerStateFactV1 | null
 }
 
 export type LostLineV1 = { text: string; atMs: number }

@@ -54,6 +54,7 @@ import {
   answerSeatScheduleEdit,
   onSeatRow,
   onSeatSpawned,
+  publishSeatFacts,
   refreshSessionFacts,
   requestSessionFacts,
   rewindSession,
@@ -419,6 +420,14 @@ async function daemonRun(args: string[]): Promise<void> {
         onChildRelaunched: short => {
           if (!short.startsWith('concourse-w') || roster === null) return
           onSeatSpawned(short, roster)
+        },
+        onChildReady: short => {
+          if (!short.startsWith('concourse-w') || roster === null) return
+          publishSeatFacts(short, undefined, roster)
+        },
+        onChildCrashed: short => {
+          if (!short.startsWith('concourse-w') || roster === null) return
+          publishSeatFacts(short, undefined, roster)
         },
         onDegraded: (reason, short) => {
           // eslint-disable-next-line no-console

@@ -2347,6 +2347,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
       stuck,
       ...(this.record.isolation !== undefined ? { isolation: this.record.isolation } : {}),
       ...(this.record.branchLabel !== undefined ? { branchLabel: this.record.branchLabel } : {}),
+      runner: this.facts?.runner ?? null,
     }
   }
 }
