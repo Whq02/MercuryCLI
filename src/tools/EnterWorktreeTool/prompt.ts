@@ -5,12 +5,7 @@ export function getEnterWorktreeToolPrompt(): string {
   return `Split off an isolated git worktree and move this session into it.
 
 ## When it applies
-ONLY on the word "worktree" from the user — e.g. "work in a worktree", "make a worktree for this", "do it in a separate worktree".
-
-## When NOT to use
-- Creating or switching branches — use git directly.
-- Ordinary feature or bugfix work, however large.
-- Never unless the user explicitly asked for a worktree.
+Only on the word "worktree" from the user — "work in a worktree", "make a worktree for this", "do it in a separate worktree"; never for branch work or ordinary feature or bugfix work, however large.
 
 ## Requirements
 - A git repository, or configured WorktreeCreate/WorktreeRemove hooks.

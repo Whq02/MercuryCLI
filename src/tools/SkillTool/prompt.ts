@@ -122,7 +122,7 @@ How to invoke:
 The available skills ride in system-reminder messages in this conversation.
 
 Rules:
-- A matching skill BLOCKS everything else: invoke it ahead of any other response to the task.
+- A matching skill comes first: invoke it ahead of any other response to the task.
 - Naming a skill means invoking it through this tool — never one without the other.
 - A skill already running is never re-invoked.
 - Built-in CLI commands are not skills and cannot be invoked here.
