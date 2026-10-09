@@ -1830,26 +1830,14 @@ export function adjustParamsForNonStreaming<
     thinking?: BetaMessageStreamParams['thinking']
   },
 >(params: T, maxTokensCap: number): T {
-  const cappedMaxTokens = Math.min(params.max_tokens, maxTokensCap)
-
-  const adjustedParams = { ...params }
-  if (
-    adjustedParams.thinking?.type === 'enabled' &&
-    adjustedParams.thinking.budget_tokens
-  ) {
-    adjustedParams.thinking = {
-      ...adjustedParams.thinking,
-      budget_tokens: Math.min(
-        adjustedParams.thinking.budget_tokens,
-        cappedMaxTokens - 1,
-      ),
-    }
-  }
-
-  return {
-    ...adjustedParams,
-    max_tokens: cappedMaxTokens,
-  }
+  const max_tokens = Math.min(params.max_tokens, maxTokensCap)
+  const budgetBelow = (thinking: T['thinking'], ceiling: number): T['thinking'] =>
+    thinking?.type === 'enabled' && thinking.budget_tokens
+      ? { ...thinking, budget_tokens: Math.min(thinking.budget_tokens, ceiling) }
+      : thinking
+  return 'thinking' in params
+    ? { ...params, max_tokens, thinking: budgetBelow(params.thinking, max_tokens - 1) }
+    : { ...params, max_tokens }
 }
 
 export function getMaxOutputTokensForModel(model: string): number {
