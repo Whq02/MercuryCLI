@@ -12,6 +12,7 @@ export const CODEC_EPOCHS = Object.freeze({
   gemini: 1,
   huggingface: 1,
   local: 1,
+  zen: 1,
 } as const)
 
 export type CalibrationRoute = keyof typeof CODEC_EPOCHS
