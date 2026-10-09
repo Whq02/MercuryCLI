@@ -175,6 +175,13 @@ function sockPathOrPlaceholder(): string {
 }
 
 
+export function workerRowWords(row: WireRosterEntry): string {
+  const pid = row.pid !== undefined ? `pid ${row.pid}` : 'pid not yet recorded'
+  const session = row.sessionId.length > 8 ? row.sessionId.slice(0, 8) : row.sessionId
+  const model = row.model !== undefined ? ` · ${row.model}${row.effort !== undefined ? `@${row.effort}` : ''}` : ''
+  return `${row.short}: ${pid} · session ${session} · ${row.state}${model}`
+}
+
 export function formatMercuryDaemonStatus(status: MercuryDaemonStatus): string {
   const lines: string[] = ['', 'mercury daemon:']
 
@@ -203,6 +210,10 @@ export function formatMercuryDaemonStatus(status: MercuryDaemonStatus): string {
       `  workers:      ${status.workersLive} live / ${status.workersTotal ?? '?'} rostered` +
         (status.maxInflight !== null ? ` (max ${status.maxInflight} in-flight)` : ''),
     )
+    for (const row of status.workers) {
+      if (row.outcome !== undefined) continue
+      lines.push(`    ${workerRowWords(row)}`)
+    }
   } else {
     lines.push('  workers:      unavailable (control unreachable)')
   }
