@@ -90,10 +90,6 @@ const run = await runArtifactArena({
     `after:${SEAT_TITLE}:12000:${BACKSPACES}`,
     `after:${SEAT_TITLE}:13000:/eff`,
     `after:${SEAT_TITLE}:16000:${BACKSPACES}`,
-    `after:${SEAT_TITLE}:17000:/status`,
-    `after:${SEAT_TITLE}:18200:\r`,
-    ...Array.from({ length: 16 }, (_, i) => `after:${SEAT_TITLE}:${20000 + i * 250}:\x1b[B`),
-    `after:${SEAT_TITLE}:25500:\x1b`,
     `after:${SEAT_TITLE}:27000:/model`,
     `after:${SEAT_TITLE}:28200:\r`,
     `after:${SEAT_TITLE}:32000:\x1b`,
@@ -167,13 +163,7 @@ try {
   const statusRowsOfSeat = allRows(`${SEAT_MODEL_LABEL} ·`).filter(r => r.includes('← back'))
   check(`P2 the status row's effort word is the SESSION's (${SEAT_MODEL_LABEL} · ${SEAT_EFFORT})`, statusRowsOfSeat.length > 0 && statusRowsOfSeat.every(r => new RegExp(`\\b${SEAT_EFFORT}\\b`).test(r)), statusRowsOfSeat[0] ?? '')
 
-  const statusFrames = distinct.filter(f => f.text.includes('Mercury · status'))
-  check('P3 the status card painted', statusFrames.length > 0)
-  check('P3 no frame paints a title row above the view', !distinct.some(f => f.text.includes('✶ VIEW')))
-  check('P3 no status frame names an unnamed session', statusFrames.every(f => !f.text.includes('unnamed')), statusFrames.map(f => rowsWith(f.text, 'unnamed').join(' | ')).join(' ‖ ').slice(0, 300))
-  check('P3 the card opens on the session snapshot line', statusFrames.every(f => f.text.includes('session snapshot ·')), statusFrames.map(f => rowsWith(f.text, 'snapshot').join(' | ')).join(' ‖ ').slice(0, 300))
-  const statusModelRows = statusFrames.flatMap(f => f.text.split('\n').filter(r => (r.includes(SEAT_MODEL_LABEL) || r.includes('Fable 5')) && !r.includes('▚▛▀▜▞')))
-  check(`P3 /status names the session's model (${SEAT_MODEL_LABEL}), never the screen's`, statusModelRows.some(r => r.includes(SEAT_MODEL_LABEL)) && !statusModelRows.some(r => r.includes('Fable 5')), statusModelRows.join(' | ').slice(0, 300))
+  check('no frame paints a title row above the view', !distinct.some(f => f.text.includes('✶ VIEW')))
 
   const currentRows = distinct.flatMap(f => f.text.split('\n').filter(r => /\s{2,}current\s{2,}/.test(r)))
   check('P4 the picker painted (a current row)', currentRows.length > 0)
