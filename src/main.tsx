@@ -86,7 +86,6 @@ import type { HookResultMessage } from './types/message.js'
 import { logError } from './utils/log.js'
 import { createUserMessage } from './utils/messages/factories.js'
 import { getRecentActivity } from './utils/logoV2Utils.js'
-import { getModelDeprecationWarning } from './utils/model/deprecation.js'
 import { getDefaultEngineModelSetting, getEngineModel, getCanonicalName } from './utils/model/model.js'
 import {
   initializeToolPermissionContext,
@@ -1696,20 +1695,6 @@ async function interactiveLaunch(args: {
       settingsErrors,
       onExit: () => void gracefulShutdown(1),
     })
-  }
-
-  const notifications: { key: string; text: string; color?: string }[] = []
-  const { initialPermissionModeFromCLI } = await import('./utils/permissions/permissionSetup.js')
-  const modeNotification = initialPermissionModeFromCLI({
-    permissionModeCli: typedString(opts.mode),
-    dangerouslySkipPermissions: modeBypassesPermissions(args.permissionMode),
-  }).notification
-  if (modeNotification) {
-    notifications.push({ key: 'permission-mode-notification', text: modeNotification })
-  }
-  const deprecationWarning = getModelDeprecationWarning(args.resolvedInitialModel)
-  if (deprecationWarning) {
-    notifications.push({ key: 'model-deprecation-warning', text: deprecationWarning, color: 'warning' })
   }
 
   const effectiveContext = args.toolPermissionContext
