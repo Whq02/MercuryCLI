@@ -1,137 +1,111 @@
-
 import * as React from 'react'
 import { Box, Text } from '../../ink.js'
 import type { HookEvent } from '../../utils/hooks/contract.js'
-import type { IndividualHookConfig } from '../../utils/hooks/hooksSettings.js'
-import { hookSourceDescriptionDisplayString } from '../../utils/hooks/hooksSettings.js'
-import { eventSupportsIfConditions } from '../../utils/hooks/matching.js'
+import { HOOK_TIMEOUT_DEFAULT_S } from '../../utils/hooks/contract.js'
+import { hookKindOf } from '../../schemas/hooks.js'
+import { answerWords, type HookEventCard } from '../../utils/hooks/hooksConfigManager.js'
+import { hookRowName, hookSourceWords, type HookRow } from '../../utils/hooks/hooksSettings.js'
 import { Dialog } from '../design-system/Dialog.js'
 import { ALL_MATCHER_MARKER } from './SelectMatcherMode.js'
 
-function primaryPayload(config: IndividualHookConfig['config']): {
-  label: string
-  value: string
-} {
-  switch (config.type) {
-    case 'command':
-      return { label: 'Command', value: config.command }
-    case 'prompt':
-      return { label: 'Prompt', value: config.prompt }
-    case 'agent':
-      return { label: 'Prompt', value: config.prompt }
-    case 'http':
-      return { label: 'URL', value: config.url }
+function textLabel(kind: string): string {
+  switch (kind) {
+    case 'run':
+      return 'Command'
+    case 'question':
+      return 'Question'
     default:
-      return { label: 'Payload', value: '' }
+      return 'Brief'
   }
 }
 
 export function ViewHookMode({
   event,
-  matcher,
-  supportsMatchers,
+  card,
   hook,
   onBack,
 }: {
   event: HookEvent
-  matcher: string
-  supportsMatchers: boolean
-  hook: IndividualHookConfig
+  card: HookEventCard
+  hook: HookRow
   onBack: () => void
 }): React.ReactNode {
-  const payload = primaryPayload(hook.config)
-  const statusMessage =
-    'statusMessage' in hook.config ? hook.config.statusMessage : undefined
+  const { entry } = hook
+  const kind = hookKindOf(entry)
+  const text = entry.run ?? entry.question ?? entry.crewmate ?? ''
+  const timeout = entry.timeout ?? HOOK_TIMEOUT_DEFAULT_S[kind]
+  const answers = card.answers.length > 0 ? card.answers.map(answerWords).join(', ') : 'nothing — the hook is a record'
   return (
     <Dialog title="Hook detail" onCancel={onBack}>
       <Box flexDirection="column">
         <Text>
           <Text dimColor>Event: </Text>
           {event}
+          <Text dimColor> — {card.moment}</Text>
         </Text>
-        {supportsMatchers ? (
+        {card.match !== undefined ? (
           <Text>
-            <Text dimColor>Matcher: </Text>
-            {matcher === '' ? ALL_MATCHER_MARKER : matcher}
+            <Text dimColor>Match: </Text>
+            {hook.match === '' ? ALL_MATCHER_MARKER : hook.match}
+            <Text dimColor> (the event's {card.match})</Text>
           </Text>
         ) : null}
         <Text>
-          <Text dimColor>Type: </Text>
-          {hook.config.type}
+          <Text dimColor>Kind: </Text>
+          {kind}
+        </Text>
+        <Text>
+          <Text dimColor>Name: </Text>
+          {hookRowName(hook)}
         </Text>
         <Text>
           <Text dimColor>Source: </Text>
-          {hookSourceDescriptionDisplayString(hook.source)}
+          {hookSourceWords(hook.source)}
         </Text>
-        {hook.extensionName ? (
-          <Text>
-            <Text dimColor>Extension: </Text>
-            {hook.extensionName}
-          </Text>
-        ) : null}
-        {
-}
-        {'if' in hook.config && hook.config.if ? (
-          <Text>
-            <Text dimColor>If: </Text>
-            {String(hook.config.if)}
-            {
-}
-            {eventSupportsIfConditions(event) ? (
-              ''
-            ) : (
-              <Text color="yellow">
-                {' '}
-                — never evaluated: {event} has no tool input, so this hook
-                will not run
-              </Text>
-            )}
-          </Text>
-        ) : null}
-        {'timeout' in hook.config && hook.config.timeout !== undefined ? (
-          <Text>
-            <Text dimColor>Timeout: </Text>
-            {String(hook.config.timeout)}s
-          </Text>
-        ) : null}
-        {'shell' in hook.config && hook.config.shell ? (
+        <Text>
+          <Text dimColor>Timeout: </Text>
+          {timeout}s{entry.timeout === undefined ? <Text dimColor> (the default)</Text> : null}
+        </Text>
+        {entry.shell !== undefined ? (
           <Text>
             <Text dimColor>Shell: </Text>
-            {String(hook.config.shell)}
+            {entry.shell}
           </Text>
         ) : null}
-        {'async' in hook.config && hook.config.async ? (
+        {entry.model !== undefined ? (
           <Text>
-            <Text dimColor>Async: </Text>
-            yes — runs in the background, never holds the turn
+            <Text dimColor>Model: </Text>
+            {entry.model}
           </Text>
         ) : null}
-        {'once' in hook.config && hook.config.once ? (
+        {entry.background === true || entry.wake === true ? (
+          <Text>
+            <Text dimColor>Background: </Text>
+            yes — never holds the moment; its answer arrives at the next turn{entry.wake === true ? '; a block wakes the model' : ''}
+          </Text>
+        ) : null}
+        {entry.once === true ? (
           <Text>
             <Text dimColor>Once: </Text>
-            yes — runs once, then its entry is removed
+            yes — runs once in this session, then stands down
           </Text>
         ) : null}
-        <Box
-          flexDirection="column"
-          borderStyle="round"
-          borderDimColor
-          paddingX={1}
-          marginTop={1}
-        >
-          <Text dimColor>{payload.label}</Text>
-          <Text wrap="wrap">{payload.value}</Text>
-        </Box>
-        {statusMessage ? (
+        {entry.watch !== undefined ? (
           <Text>
-            <Text dimColor>Status message: </Text>
-            {statusMessage}
+            <Text dimColor>Watch: </Text>
+            {entry.watch.join(', ')}
           </Text>
         ) : null}
+        <Text>
+          <Text dimColor>An answer may: </Text>
+          {answers}
+        </Text>
+        <Box flexDirection="column" borderStyle="round" borderDimColor paddingX={1} marginTop={1}>
+          <Text dimColor>{textLabel(kind)}</Text>
+          <Text wrap="wrap">{text}</Text>
+        </Box>
         <Box marginTop={1}>
-          <Text dimColor>
-            To change this hook, edit settings.json or ask Mercury.
-          </Text>
+          <Text dimColor>To change this hook, edit settings.json or ask Mercury.</Text>
         </Box>
       </Box>
     </Dialog>

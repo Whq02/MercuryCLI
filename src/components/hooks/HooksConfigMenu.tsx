@@ -1,25 +1,18 @@
-
 import * as React from 'react'
 import { useEffect, useMemo, useState } from 'react'
 import { Box, Text } from '../../ink.js'
 import { useAppStateStore } from '../../state/AppState.js'
-import type { HookEvent } from '../../utils/hooks/contract.js'
+import { HOOK_EVENTS, type HookEvent } from '../../utils/hooks/contract.js'
 import type { LocalJSXCommandOnDone } from '../../types/command.js'
+import { listHooks, type HookRow } from '../../utils/hooks/hooksSettings.js'
 import {
-  getAllHooks,
-  type IndividualHookConfig,
-} from '../../utils/hooks/hooksSettings.js'
-import {
-  getHookEventMetadata,
-  getHooksForMatcher,
-  getSortedMatchersForEvent,
-  groupHooksByEventAndMatcher,
+  eventHasMatch,
+  groupHooksByEventAndMatch,
+  hookEventCards,
+  hooksForMatch,
+  sortedMatchesForEvent,
 } from '../../utils/hooks/hooksConfigManager.js'
-import {
-  shouldAllowManagedHooksOnly,
-  shouldDisableAllHooksIncludingManaged,
-} from '../../utils/hooks/hooksConfigSnapshot.js'
-import { HOOK_EVENTS } from '../../utils/hooks/contract.js'
+import { hooksDisabled, managedHooksOnly } from '../../utils/hooks/hooksConfigSnapshot.js'
 import { settingsChangeDetector } from '../../utils/settings/changeDetector.js'
 import {
   getRelativeSettingsFilePathForSource,
@@ -36,18 +29,14 @@ import { ViewHookMode } from './ViewHookMode.js'
 
 type Mode =
   | { id: 'select-event' }
-  | { id: 'select-matcher'; event: HookEvent }
-  | { id: 'select-hook'; event: HookEvent; matcher: string }
-  | { id: 'view-hook'; event: HookEvent; matcher: string; hook: IndividualHookConfig }
+  | { id: 'select-match'; event: HookEvent }
+  | { id: 'select-hook'; event: HookEvent; match: string }
+  | { id: 'view-hook'; event: HookEvent; match: string; hook: HookRow }
 
-function readPolicyAnswers(): {
-  policyDisablesAll: boolean
-  managedOnly: boolean
-} {
+function readPolicyAnswers(): { policyDisablesAll: boolean; managedOnly: boolean } {
   return {
-    policyDisablesAll:
-      getSettingsForSource('policySettings')?.events?.disabled === true,
-    managedOnly: shouldAllowManagedHooksOnly(),
+    policyDisablesAll: getSettingsForSource('policySettings')?.events?.disabled === true,
+    managedOnly: managedHooksOnly(),
   }
 }
 
@@ -71,28 +60,19 @@ export function HooksConfigMenu({
   )
 
   const appState = store.getState()
-  const totalCount = useMemo(() => getAllHooks(appState).length, [appState])
+  const totalCount = useMemo(() => listHooks(appState).length, [appState])
 
   const availableToolNames = useMemo(
     () => [...toolNames, ...appState.mcp.tools.map(tool => tool.name)],
     [toolNames, appState.mcp.tools],
   )
 
-  const metadata = useMemo(
-    () => getHookEventMetadata(availableToolNames),
-    [availableToolNames],
-  )
-  const byEventAndMatcher = useMemo(
-    () => groupHooksByEventAndMatcher(appState, availableToolNames),
-    [appState, availableToolNames],
-  )
-
-  const supportsMatchers = (event: HookEvent): boolean =>
-    metadata[event]?.matcherMetadata !== undefined
+  const cards = useMemo(() => hookEventCards(availableToolNames), [availableToolNames])
+  const grouped = useMemo(() => groupHooksByEventAndMatch(appState), [appState])
 
   const close = () => onExit(undefined, { display: 'skip' })
 
-  if (shouldDisableAllHooksIncludingManaged()) {
+  if (hooksDisabled()) {
     return (
       <Dialog title="Hooks are disabled" onCancel={close}>
         <Box flexDirection="column" gap={1}>
@@ -100,23 +80,15 @@ export function HooksConfigMenu({
             Hooks are currently disabled
             {policy.policyDisablesAll ? ' by a managed settings file' : ''}.
             {totalCount > 0
-              ? ` ${totalCount} configured ${plural(totalCount, 'hook')} ${
-                  totalCount === 1 ? 'is' : 'are'
-                } not running.`
+              ? ` ${totalCount} configured ${plural(totalCount, 'hook')} ${totalCount === 1 ? 'is' : 'are'} not running.`
               : ''}
           </Text>
           <Box flexDirection="column">
-            <Text dimColor>· No hook commands execute.</Text>
-            <Text dimColor>· The status line is not displayed.</Text>
-            <Text dimColor>
-              · Tool operations proceed without hook validation.
-            </Text>
+            <Text dimColor>· No hook runs.</Text>
+            <Text dimColor>· Every moment proceeds without a hook's word.</Text>
           </Box>
           {!policy.policyDisablesAll ? (
-            <Text dimColor>
-              Remove events.disabled from settings.json (or ask Mercury) to
-              re-enable them.
-            </Text>
+            <Text dimColor>Remove events.disabled from settings.json (or ask Mercury) to re-enable them.</Text>
           ) : null}
         </Box>
       </Dialog>
@@ -125,9 +97,7 @@ export function HooksConfigMenu({
 
   const managedOnlyNotice = policy.managedOnly ? (
     <Box flexDirection="column" marginBottom={1}>
-      <Text color="warning">
-        Only hooks from managed settings can run right now.
-      </Text>
+      <Text color="warning">Only hooks from managed settings can run right now.</Text>
       <Text dimColor>
         Hooks from these sources are blocked:{' '}
         {[
@@ -149,77 +119,45 @@ export function HooksConfigMenu({
           {managedOnlyNotice}
           <SelectEventMode
             events={HOOK_EVENTS}
-            summaries={Object.fromEntries(
-              HOOK_EVENTS.map(event => [event, metadata[event]?.summary ?? '']),
-            )}
+            moments={Object.fromEntries(HOOK_EVENTS.map(event => [event, cards[event].moment]))}
             countsByEvent={Object.fromEntries(
-              HOOK_EVENTS.map(event => [
-                event,
-                Object.values(byEventAndMatcher[event] ?? {}).reduce(
-                  (sum, rows) => sum + rows.length,
-                  0,
-                ),
-              ]),
+              HOOK_EVENTS.map(event => [event, Object.values(grouped[event] ?? {}).reduce((sum, rows) => sum + rows.length, 0)]),
             )}
             totalCount={totalCount}
             onSelect={event =>
-              setMode(
-                supportsMatchers(event)
-                  ? { id: 'select-matcher', event }
-                  : { id: 'select-hook', event, matcher: '' },
-              )
+              setMode(eventHasMatch(event) ? { id: 'select-match', event } : { id: 'select-hook', event, match: '' })
             }
             onExit={close}
           />
         </Box>
       )
 
-    case 'select-matcher':
+    case 'select-match':
       return (
         <SelectMatcherMode
           event={mode.event}
-          eventSummary={metadata[mode.event]?.description ?? ''}
-          matchers={getSortedMatchersForEvent(byEventAndMatcher, mode.event)}
-          hooksByMatcher={byEventAndMatcher[mode.event] ?? {}}
-          availableToolNames={availableToolNames}
-          onSelect={matcher =>
-            setMode({ id: 'select-hook', event: mode.event, matcher })
-          }
+          card={cards[mode.event]}
+          matches={sortedMatchesForEvent(grouped, mode.event)}
+          hooksByMatch={grouped[mode.event] ?? {}}
+          onSelect={match => setMode({ id: 'select-hook', event: mode.event, match })}
           onBack={() => setMode({ id: 'select-event' })}
         />
       )
 
     case 'select-hook': {
-      const supports = supportsMatchers(mode.event)
-      const hooks = getHooksForMatcher(
-        byEventAndMatcher,
-        mode.event,
-        mode.matcher,
-      )
+      const hasMatch = eventHasMatch(mode.event)
+      const hooks = hooksForMatch(grouped, mode.event, mode.match)
       return (
         <SelectHookMode
           event={mode.event}
-          matcher={mode.matcher}
-          supportsMatchers={supports}
+          match={mode.match}
+          hasMatch={hasMatch}
           hooks={hooks}
           onSelect={index => {
             const hook = hooks[index]
-            if (hook) {
-              setMode({
-                id: 'view-hook',
-                event: mode.event,
-                matcher: mode.matcher,
-                hook,
-              })
-            }
+            if (hook) setMode({ id: 'view-hook', event: mode.event, match: mode.match, hook })
           }}
-          onBack={() =>
-            setMode(
-              supports
-                ? { id: 'select-matcher', event: mode.event }
-                : { id: 'select-event' },
-            )
-          }
+          onBack={() => setMode(hasMatch ? { id: 'select-match', event: mode.event } : { id: 'select-event' })}
         />
       )
     }
@@ -228,16 +166,9 @@ export function HooksConfigMenu({
       return (
         <ViewHookMode
           event={mode.event}
-          matcher={mode.matcher}
-          supportsMatchers={supportsMatchers(mode.event)}
+          card={cards[mode.event]}
           hook={mode.hook}
-          onBack={() =>
-            setMode({
-              id: 'select-hook',
-              event: mode.event,
-              matcher: mode.matcher,
-            })
-          }
+          onBack={() => setMode({ id: 'select-hook', event: mode.event, match: mode.match })}
         />
       )
   }
