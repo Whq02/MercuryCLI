@@ -25,7 +25,7 @@ VITALS                  │ │                                                 
                         │ │   xAI — Grok subscription sign-in or API key                                             │ │
                         │ │   Meta — API key (Muse)                                                                  │ │
                         │ │   Mistral — API key (Mistral Large 4)                                                    │ │
-                        │ │   Nous Portal — API key (model gateway)                                                  │ │
+                        │ │   Nous Portal — account sign-in or API key (model gateway)                               │ │
                         │ │   OpenCode Zen — API key (one key, the gateway's model list)                             │ │
                         │ │                                                                                          │ │
                         │ │                                                                                          │ │
