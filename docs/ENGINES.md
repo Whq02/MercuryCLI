@@ -234,7 +234,7 @@ with their feed and age; when it does not, the reader note says what the
 endpoint answered and points at the Portal. The Portal's documented
 authentication for third-party clients is the API key (its OpenAPI spec,
 "Option 1: Using API keys & account credits", read **2026-10-09**); its
-sign-in flow is reserved for Nous's own clients, so Mercury offers none.
+sign-in flow is reserved for Nous's own clients.
 Sources: [the Portal OpenAPI spec](https://portal.nousresearch.com/api/openapi)
 and [the live model list](https://inference-api.nousresearch.com/v1/models).
 
