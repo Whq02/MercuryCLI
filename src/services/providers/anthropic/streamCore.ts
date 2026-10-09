@@ -85,6 +85,7 @@ import type {
   StreamEvent,
   SystemAPIErrorMessage,
   SystemStreamCutMessage,
+  UserMessage,
 } from '../../../types/message.js'
 import type {
   ApiToolUnion,
@@ -346,6 +347,12 @@ function spokenByProvider(error: unknown): boolean {
   return error instanceof APIError && !(error instanceof APIConnectionError)
 }
 
+function withoutToolSearchFields(message: UserMessage | AssistantMessage): UserMessage | AssistantMessage {
+  return message.type === 'user'
+    ? stripToolReferenceBlocksFromUserMessage(message)
+    : stripCallerFieldFromAssistantMessage(message)
+}
+
 export async function* executeNonStreamingRequest(
   clientOptions: {
     model: string
@@ -542,16 +549,7 @@ async function* queryModel(
   let messagesForAPI = normalizeMessagesForAPI(messages, filteredTools)
 
   if (!useToolSearch) {
-    messagesForAPI = messagesForAPI.map(msg => {
-      switch (msg.type) {
-        case 'user':
-          return stripToolReferenceBlocksFromUserMessage(msg)
-        case 'assistant':
-          return stripCallerFieldFromAssistantMessage(msg)
-        default:
-          return msg
-      }
-    })
+    messagesForAPI = messagesForAPI.map(withoutToolSearchFields)
   } else if (!blockForm) {
     messagesForAPI = renderAdmissionRecordsAsText(messagesForAPI).map(msg =>
       msg.type === 'assistant' ? stripCallerFieldFromAssistantMessage(msg) : msg,
