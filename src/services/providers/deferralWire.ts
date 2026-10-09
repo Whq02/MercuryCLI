@@ -27,6 +27,7 @@ export const DEFERRAL_WIRE_CAPABILITY: Readonly<Record<CallModelRoute, DeferralW
   gemini: 'text',
   huggingface: 'text',
   local: 'text',
+  nous: 'text',
 }
 
 export interface DeferralWireReads {
