@@ -220,6 +220,9 @@ console.log('── §6 diff budget honesty ──')
   const wide = write('wide.txt', Array.from({ length: 400 }, (_, i) => `w${i}`).join('\n') + '\n')
   const r = planChangeSet([member(wide, [{ lines: '1-390', replace: Array.from({ length: 390 }, (_, i) => `W${i}`).join('\n') }])], ctx)
   check('a huge diff is bounded with the cut NAMED', r.ok === true && r.plan.targets[0]!.diff.hunks.reduce((n, h) => n + h.lines.length, 0) <= CHANGESET_BOUNDS.maxDiffLines && r.plan.targets[0]!.diff.omittedHunks > 0)
+  check('the bounded diff still carries the exact line counts of the whole change (+390 −390), never the cut\'s', r.ok === true && r.plan.targets[0]!.diff.added === 390 && r.plan.targets[0]!.diff.removed === 390, r.ok ? `added=${r.plan.targets[0]!.diff.added} removed=${r.plan.targets[0]!.diff.removed}` : 'plan refused')
+  const small = planChangeSet([member(aPath, [{ lines: '1', replace: 'alpha one\nalpha one-b' }])], ctx)
+  check('a small change counts its lines exactly too (+2 −1)', small.ok === true && small.plan.targets[0]!.diff.added === 2 && small.plan.targets[0]!.diff.removed === 1 && small.plan.targets[0]!.diff.omittedHunks === 0, small.ok ? `added=${small.plan.targets[0]!.diff.added} removed=${small.plan.targets[0]!.diff.removed}` : 'plan refused')
 }
 
 console.log('── §7 the plan store: ring · evicted ≠ absent · expiry · discard · owner isolation ──')

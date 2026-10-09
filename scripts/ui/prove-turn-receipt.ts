@@ -3,7 +3,7 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
-const { injectTurnReceipts, isScratchpadPath, isTurnReceiptEnabled, delegatedSpendLine, formatDelegatedTokens, formatDelegatedCost } = await import(
+const { injectTurnReceipts, isScratchpadPath, isTurnReceiptEnabled, delegatedSpendLine, formatDelegatedTokens, formatDelegatedCost, createdLineCount } = await import(
   '../../src/utils/cockpit/turnReceipt.js'
 )
 const TEMP_ROOT = '/tmp/claude-1/'
@@ -197,6 +197,123 @@ withEnv('1', () => {
   check('the Agent tool\'s result carries the ledger\'s list price beside its token total (the row the receipt reads)', /costUSD: ledger\.costUSD,\s*unpricedTurns: ledger\.unpricedTurns,/.test(agentResultSrc) && /costUSD: z\.number\(\)\.optional\(\)/.test(agentResultSrc))
   check('the receipt reads the record by the fields the schema declares (agentId beside totalTokens), never a status the record does not carry at its top', /agentId: z\.string\(\)/.test(agentResultSrc) && /totalTokens: z\.number\(\)/.test(agentResultSrc) && /typeof r\.agentId !== 'string' \|\| typeof r\.totalTokens !== 'number'/.test(src('utils', 'cockpit', 'turnReceipt.ts')))
   check('the row prints the derive owner\'s words', /delegatedSpendLine\(c\)/.test(src('components', 'messages', 'TurnReceiptRow.tsx')))
+})
+
+section('every tool that writes files counts (RELEASE-29-AIR R29A-06): ChangeSet files and lines, a created file\'s lines; a preview, a refusal, a replay count nothing')
+const resultRow = (toolUseResult: Record<string, unknown>, uuid: string) =>
+  ({
+    type: 'user',
+    uuid,
+    message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: 't-x' }] },
+    toolUseResult,
+  }) as never
+const hunk = (lines: string[]) => ({ oldStart: 1, oldLines: 1, newStart: 1, newLines: lines.filter(l => !l.startsWith('-')).length, lines })
+const changeSetApplied = (files: Array<{ file: string; hunks: Array<{ lines: string[] }>; added?: number; removed?: number; omittedHunks?: number }>, uuid: string, outcome = 'succeeded', state = 'applied') =>
+  resultRow(
+    {
+      op: 'apply',
+      result: `Applied plan cs-6cfbba41b873 — ${files.length} file(s), verified by reread`,
+      outcome,
+      planId: 'cs-6cfbba41b873',
+      changeView: {
+        state,
+        action: 'changeset',
+        files: files.map(f => ({ file: f.file, hunks: f.hunks, changedLines: f.hunks.reduce((n, h) => n + h.lines.length, 0), ...(f.added !== undefined ? { added: f.added, removed: f.removed ?? 0 } : {}), ...(f.omittedHunks !== undefined ? { omittedHunks: f.omittedHunks } : {}) })),
+        hunkCount: files.reduce((n, f) => n + f.hunks.length, 0),
+        planMeta: { id: 'cs-6cfbba41b873', digest12: '6cfbba41b873', ageMs: 100, expiresInMs: 600000 },
+        refs: [],
+      },
+    },
+    uuid,
+  )
+withEnv('1', () => {
+  const fieldTurn = inject([
+    prompt('add --min-count N to the CLI', 'p1'),
+    toolUse('Read', { file_path: '/repo/wordfreq.py' }, 'a1'),
+    toolUse('Read', { file_path: '/repo/README.md' }, 'a2'),
+    toolUse('Read', { file_path: '/repo/tests/test_wordfreq.py' }, 'a3'),
+    toolUse('Edit', { file_path: '/repo/wordfreq.py' }, 'a4'),
+    toolUse('Edit', { file_path: '/repo/wordfreq.py' }, 'a5'),
+    editResult('/repo/wordfreq.py', [' ctx', '+l1', '+l2', '+l3', '+l4', '+l5', '+l6', '+l7', ' ctx'], 'r1'),
+    editResult('/repo/wordfreq.py', [' ctx', '+l8', ' ctx'], 'r2'),
+    toolUse('ChangeSet', { op: 'apply', changes: [{ file_path: '/repo/README.md' }, { file_path: '/repo/tests/test_wordfreq.py' }] }, 'a6'),
+    changeSetApplied(
+      [
+        { file: 'README.md', hunks: [hunk([' ctx', '-old usage', '+new usage', ' ctx']), hunk([' ctx', '+**`--min-count N`** drops words', ' ctx'])], added: 2, removed: 1 },
+        { file: 'tests/test_wordfreq.py', hunks: [hunk([' ctx', ...Array.from({ length: 12 }, (_, i) => `+    test line ${i}`), ' ctx'])], added: 12, removed: 0 },
+      ],
+      'r3',
+    ),
+  ])
+  const c = receipts(fieldTurn)[0]!.counts
+  check('the field turn counts every written file: 2 Edits + 2 ChangeSet files = 4 file edits (the release said 2)', c['fileEdits'] === 4, `fileEdits=${c['fileEdits']}`)
+  check('…and every line git counts: +22 −1 (the release said +8)', c['adds'] === 22 && c['dels'] === 1, `+${c['adds']} −${c['dels']}`)
+  check('…the reads stay 3', c['reads'] === 3)
+
+  const onlyChangeSet = inject([
+    prompt('one ChangeSet, nothing else', 'p1'),
+    toolUse('ChangeSet', { op: 'apply' }, 'a1'),
+    changeSetApplied([{ file: 'src/a.ts', hunks: [hunk(['+a'])], added: 1, removed: 0 }], 'r1'),
+  ])
+  check('a turn whose only work is a ChangeSet gets a line (the release gave none)', receipts(onlyChangeSet).length === 1 && receipts(onlyChangeSet)[0]!.counts['fileEdits'] === 1)
+
+  const created = inject([
+    prompt('write the report page', 'p1'),
+    toolUse('Write', { file_path: '/repo/report.html' }, 'a1'),
+    resultRow({ type: 'create', filePath: '/repo/report.html', content: '<html>\n<body>\n<table></table>\n</body>\n</html>\n', structuredPatch: [], originalFile: null }, 'r1'),
+    toolUse('Bash', { command: 'python3 -m http.server' }, 'a2'),
+    toolUse('Bash', { command: 'curl localhost' }, 'a3'),
+  ])
+  const cc = receipts(created)[0]!.counts
+  check('a created file counts its lines: `1 file edit +5 · 2 shell commands` (the release gave no +N)', cc['fileEdits'] === 1 && cc['adds'] === 5 && cc['dels'] === 0 && cc['commands'] === 2, `fileEdits=${cc['fileEdits']} +${cc['adds']} −${cc['dels']}`)
+  check('a created file without a final newline counts its last line; an empty file counts none', createdLineCount('a\nb') === 2 && createdLineCount('a\nb\n') === 2 && createdLineCount('') === 0 && createdLineCount('one\r\ntwo\r\n') === 2)
+
+  const scratchSet = inject([
+    prompt('scratch work', 'p1'),
+    toolUse('ChangeSet', { op: 'apply' }, 'a1'),
+    changeSetApplied([{ file: '/tmp/claude-1/s1/scratchpad/notes.md', hunks: [hunk(['+n'])], added: 1, removed: 0 }, { file: 'src/b.ts', hunks: [hunk(['-b'])], added: 0, removed: 1 }], 'r1'),
+  ])
+  const sc = receipts(scratchSet)[0]!.counts
+  check('a ChangeSet member under the scratchpad is a scratchpad edit, the other a file edit', sc['scratchpadEdits'] === 1 && sc['fileEdits'] === 1 && sc['adds'] === 1 && sc['dels'] === 1)
+
+  const bounded = inject([
+    prompt('a large set', 'p1'),
+    toolUse('ChangeSet', { op: 'apply' }, 'a1'),
+    changeSetApplied([{ file: 'src/wide.ts', hunks: [hunk(Array.from({ length: 80 }, (_, i) => `+W${i}`))], added: 390, removed: 390, omittedHunks: 1 }], 'r1'),
+  ])
+  const bc = receipts(bounded)[0]!.counts
+  check('the exact counts the plan carries win over the 80-line card diff: +390 −390, never the cut', bc['adds'] === 390 && bc['dels'] === 390, `+${bc['adds']} −${bc['dels']}`)
+  const olderView = inject([
+    prompt('a row persisted before the exact counts existed', 'p1'),
+    toolUse('ChangeSet', { op: 'apply' }, 'a1'),
+    changeSetApplied([{ file: 'src/old.ts', hunks: [hunk([' ctx', '+one', '+two', '-gone'])] }], 'r1'),
+  ])
+  const oc = receipts(olderView)[0]!.counts
+  check('a row without the exact counts still counts from its hunks: +2 −1', oc['fileEdits'] === 1 && oc['adds'] === 2 && oc['dels'] === 1)
+
+  const nothingWritten = inject([
+    prompt('preview, refusal, replay', 'p1'),
+    toolUse('ChangeSet', { op: 'preview' }, 'a1'),
+    changeSetApplied([{ file: 'src/a.ts', hunks: [hunk(['+a'])], added: 1, removed: 0 }], 'r1', 'no-change', 'prepared'),
+    toolUse('ChangeSet', { op: 'apply' }, 'a2'),
+    resultRow({ op: 'apply', result: 'Plan cs-x is stale — nothing was written', outcome: 'failed', planId: 'cs-x' }, 'r2'),
+    toolUse('ChangeSet', { op: 'apply' }, 'a3'),
+    changeSetApplied([{ file: 'src/a.ts', hunks: [hunk(['+a'])], added: 1, removed: 0 }], 'r3', 'no-change', 'applied'),
+    toolUse('AstEdit', { pattern: 'x', rewrite: 'y' }, 'a4'),
+    resultRow({ state: 'no-change', pattern: 'x', rewrite: 'y', scope: '.', text: 'no change', matchCount: 1, fileCount: 1, changedPaths: [], changeView: { state: 'applied', action: 'astedit', files: [{ file: 'src/z.ts', hunks: [hunk(['+z'])], changedLines: 1 }], refs: [] } }, 'r4'),
+  ])
+  check('a preview, a refusal, a replay and a no-change AstEdit write nothing and count nothing', receipts(nothingWritten).length === 0, JSON.stringify(receipts(nothingWritten)[0]?.counts ?? null))
+
+  const astApplied = inject([
+    prompt('an AstEdit that wrote', 'p1'),
+    toolUse('AstEdit', { pattern: 'x', rewrite: 'y' }, 'a1'),
+    resultRow({ state: 'applied', pattern: 'x', rewrite: 'y', scope: '.', text: 'applied', matchCount: 2, fileCount: 1, changedPaths: ['/repo/src/z.ts'], changeView: { state: 'applied', action: 'astedit', files: [{ file: 'src/z.ts', hunks: [hunk(['-x', '+y', '-x', '+y'])], changedLines: 4 }], refs: [] } }, 'r1'),
+  ])
+  const ac = receipts(astApplied)[0]!.counts
+  check('an applied AstEdit counts its file and lines (+2 −2) from its change view', ac['fileEdits'] === 1 && ac['adds'] === 2 && ac['dels'] === 2, `fileEdits=${ac['fileEdits']} +${ac['adds']} −${ac['dels']}`)
+
+  const changeSetSrc = src('tools', 'ChangeSetTool', 'ChangeSetTool.ts')
+  check('the ChangeSet view carries the exact per-file counts the plan computed over the whole diff', /added: t\.diff\.added,\s*removed: t\.diff\.removed,/.test(changeSetSrc) && /added: number\s*removed: number/.test(src('services', 'changeTransaction', 'diffBudget.ts')))
 })
 
 section('scratchpad path classification')

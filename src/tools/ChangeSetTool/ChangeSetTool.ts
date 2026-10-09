@@ -176,6 +176,8 @@ function changeViewOf(
         hunks: t.diff.hunks,
         ...(t.diff.omittedHunks > 0 ? { omittedHunks: t.diff.omittedHunks } : {}),
         changedLines: t.diff.hunks.reduce((n, h) => n + h.lines.length, 0),
+        added: t.diff.added,
+        removed: t.diff.removed,
       })),
     hunkCount: plan.totalHunks,
     ...(plan.noChangePaths.length > 0 ? { noChangePaths: plan.noChangePaths.map(displayPath) } : {}),

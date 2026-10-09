@@ -114,15 +114,9 @@ function countDelegatedResult(m: LooseMessage, c: TurnReceiptCounts): void {
   else c.delegatedUnpriced += 1
 }
 
-function countEditResult(m: LooseMessage, c: TurnReceiptCounts, tempRoot: string): void {
-  const r = m.toolUseResult as
-    | { filePath?: unknown; structuredPatch?: unknown; noChange?: unknown; type?: unknown }
-    | undefined
-  if (!r || typeof r.filePath !== 'string' || !Array.isArray(r.structuredPatch)) return
-  if (r.noChange !== undefined || r.type === 'no-change') return
-  if (isScratchpadPath(r.filePath, tempRoot)) c.scratchpadEdits += 1
-  else c.fileEdits += 1
-  for (const hunk of r.structuredPatch as Array<{ lines?: unknown }>) {
+function countHunkLines(hunks: unknown, c: TurnReceiptCounts): void {
+  if (!Array.isArray(hunks)) return
+  for (const hunk of hunks as Array<{ lines?: unknown }>) {
     if (!Array.isArray(hunk?.lines)) continue
     for (const line of hunk.lines as string[]) {
       if (typeof line !== 'string') continue
@@ -130,6 +124,60 @@ function countEditResult(m: LooseMessage, c: TurnReceiptCounts, tempRoot: string
       else if (line.startsWith('-')) c.dels += 1
     }
   }
+}
+
+export function createdLineCount(content: string): number {
+  if (content === '') return 0
+  const lines = content.split(/\r\n|\n/)
+  return lines[lines.length - 1] === '' ? lines.length - 1 : lines.length
+}
+
+function countFile(path: string, c: TurnReceiptCounts, tempRoot: string): void {
+  if (isScratchpadPath(path, tempRoot)) c.scratchpadEdits += 1
+  else c.fileEdits += 1
+}
+
+type ChangeViewResult = {
+  outcome?: unknown
+  state?: unknown
+  applied?: unknown
+  changeView?: { state?: unknown; files?: unknown }
+}
+
+function countChangeViewResult(r: ChangeViewResult, c: TurnReceiptCounts, tempRoot: string): boolean {
+  const view = r.changeView
+  if (!view || !Array.isArray(view.files)) return false
+  if (view.state !== 'applied' && view.state !== 'recovered') return true
+  const wrote =
+    r.outcome === 'succeeded' ||
+    r.outcome === 'indeterminate' ||
+    (r.outcome === undefined && (r.state === 'applied' || r.applied === true))
+  if (!wrote) return true
+  for (const file of view.files as Array<{ file?: unknown; hunks?: unknown; added?: unknown; removed?: unknown }>) {
+    if (typeof file?.file !== 'string') continue
+    countFile(file.file, c, tempRoot)
+    if (typeof file.added === 'number' && typeof file.removed === 'number') {
+      c.adds += file.added
+      c.dels += file.removed
+    } else countHunkLines(file.hunks, c)
+  }
+  return true
+}
+
+function countEditResult(m: LooseMessage, c: TurnReceiptCounts, tempRoot: string): void {
+  const r = m.toolUseResult as
+    | ({ filePath?: unknown; structuredPatch?: unknown; noChange?: unknown; type?: unknown; content?: unknown } & ChangeViewResult)
+    | undefined
+  if (!r) return
+  if (countChangeViewResult(r, c, tempRoot)) return
+  if (typeof r.filePath !== 'string' || !Array.isArray(r.structuredPatch)) return
+  if (r.noChange !== undefined || r.type === 'no-change') return
+  countFile(r.filePath, c, tempRoot)
+  if (r.type === 'create' && r.structuredPatch.length === 0 && typeof r.content === 'string') {
+    c.adds += createdLineCount(r.content)
+    return
+  }
+  countHunkLines(r.structuredPatch, c)
 }
 
 export function isTurnBoundary(m: LooseMessage): boolean {
