@@ -14,7 +14,9 @@ import {
   type PruneOffer,
   type PruneReceipt,
 } from '../../../utils/sessionStorage/transcriptPruneDoor.js'
-import { boardHomedSessionIds } from '../../../daemon/concourseWorkers.js'
+import { boardHomedSessionIds, readSessionWorkers } from '../../../daemon/concourseWorkers.js'
+import { getFocusedSessionConnector } from '../../../services/engine-connector/focusedConnector.js'
+import { sanitizeLabel } from '../../../services/concourse/concourseSnapshot.js'
 import { sessionIdOfListing } from '../../../utils/sessionStorage.js'
 import { AMBER, CRIMSON, DUNE, FAINT, IVORY, SECOND, TEAL } from '../../mercuryPalette.js'
 import { useSessionPickerModel, type SessionScope } from './sessionPickerModel.js'
@@ -39,6 +41,33 @@ function shellInteriorWidth(columns: number): number {
   return Math.max(40, columns - 4)
 }
 
+
+export interface OwnSessionStateWords {
+  glyph: string
+  state: string
+  tail: string
+  parked: boolean
+}
+
+export function ownSessionStateWords(rec: { parkedAt?: number; parkReason?: string; endedAt?: number } | undefined): OwnSessionStateWords {
+  if (rec !== undefined && rec.endedAt === undefined && rec.parkedAt !== undefined) {
+    return {
+      glyph: '◌',
+      state: rec.parkReason !== undefined && rec.parkReason.trim() !== '' ? sanitizeLabel(rec.parkReason) : 'parked',
+      tail: ' · the next prompt resumes it · browsing never closes it',
+      parked: true,
+    }
+  }
+  return { glyph: '●', state: 'active', tail: ' · browsing never closes it · switching pauses the current, state kept', parked: false }
+}
+
+export function ownSessionRecord(sessionId: string): { parkedAt?: number; parkReason?: string; endedAt?: number } | undefined {
+  try {
+    return Object.values(readSessionWorkers()).find(rec => rec.sessionId === sessionId && rec.endedAt === undefined)
+  } catch {
+    return undefined
+  }
+}
 
 export function SessionManagerView({
   onClose,
@@ -113,6 +142,7 @@ function LiveSessionManager({
 }): React.ReactNode {
   const tokens = useMercuryTokens()
   const accent = useSessionAccent().accent
+  const ownState = useMemo(() => ownSessionStateWords(ownSessionRecord(getFocusedSessionConnector().sessionId())), [])
   const { columns } = useTerminalSize()
   const W = shellInteriorWidth(columns)
   const [switching, setSwitching] = useState<'swapping' | null>(null)
@@ -438,13 +468,12 @@ function LiveSessionManager({
       captureInput={false}
       footer={footer}
     >
-      {}
       <Box marginTop={1}>
         <Text wrap="truncate">
           <Text color={accent}>▣ </Text>
           <Text bold color={IVORY}>this session</Text>
-          <Text color={TEAL}> ● active</Text>
-          <Text color={FAINT}> · browsing never closes it · switching pauses the current, state kept</Text>
+          <Text color={ownState.parked ? AMBER : TEAL}> {ownState.glyph} {ownState.state}</Text>
+          <Text color={FAINT}>{ownState.tail}</Text>
         </Text>
       </Box>
 
