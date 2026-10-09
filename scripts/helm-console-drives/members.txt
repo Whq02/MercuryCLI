@@ -4,5 +4,4 @@
 # NOT named by a sibling list, so a new prover lands there and moves here
 # only by editing this list. A name listed here but missing on disk is a
 # loud red in this runner.
-prove-console-render.ts
 prove-console-ask-drive.ts

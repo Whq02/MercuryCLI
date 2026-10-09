@@ -21,56 +21,35 @@ console.log('============================================================')
 console.log(' helm console wiring — focus model · input owner · surfaces')
 console.log('============================================================')
 
-section('helmFocus — the console row kind (pure)')
-const consoleRow: HelmRow = { kind: 'console', label: 'console:input' }
-const act = helmRowAction(consoleRow)
-check('console row → console action', act?.type === 'console')
-check('console sig is distinct', helmRowSig(consoleRow) === 'k:console:console:input')
-check(
-  'no collision with a command row of the same label',
-  helmRowSig(consoleRow) !== helmRowSig({ kind: 'command', command: '/console', label: 'console:input' }),
-)
+section('helmFocus — no console row kind (pure)')
+const focusSrc = read('src/utils/cockpit/helmFocus.ts')
+check('HelmRow has no console kind', !focusSrc.includes("kind: 'console'"))
+check('HelmRowAction has no console action', !focusSrc.includes("type: 'console'"))
+const commandRow: HelmRow = { kind: 'command', command: '/console', label: 'open' }
+check('a command row to /console is a plain command action', helmRowAction(commandRow)?.type === 'command' && helmRowSig(commandRow) === 'c:/console:open')
 
-section('PromptInput — the one input owner routes compose')
+section('PromptInput — the one input owner routes no compose line')
 const pi = read('src/components/PromptInput/PromptInput.tsx') + read('src/components/PromptInput/useComposerRawKeys.ts')
-check('compose branch gated on vitals pane', pi.includes("focusPane === 'vitals' && isConsoleComposing()"))
-check('↵ submits through the store (single usage seam)', pi.includes('consoleSubmitBuffer((question, controller) =>') && pi.includes('runConsoleAsk({'))
-check('esc aborts a pending ask first', pi.includes('if (!consoleAbortAsk()) exitConsoleCompose()'))
-check('Tab always escapes compose (never a trap)', /exitConsoleCompose\(\)\s*\n\s*setHelmFocus\(nextHelmPane\(focusPane\)\)/.test(pi))
-check('ctrl+l clears', pi.includes("key.ctrl && rawInput === 'l'") && pi.includes('consoleClear()'))
+check('the composer reads nothing from the console store', !pi.includes('helmConsole.js') && !pi.includes('helmConsoleAsk.js'))
+check('no compose branch, no console case', !pi.includes('ConsoleCompose') && !pi.includes('isConsoleComposing') && !pi.includes("case 'console':"))
 check(
-  '↵ on the console row enters compose in place',
-  pi.includes('requestHelmRowActivation(focusPane, getHelmCursor(focusPane))') &&
-    pi.includes("case 'console':") &&
-    pi.includes('beginConsoleCompose()'),
+  'a printable while a rail holds focus returns focus to the prompt and lands there',
+  /!key\.tab\s*\n\s*\) \{\s*\n\s*event\.stopImmediatePropagation\(\)\s*\n\s*setHelmFocus\('prompt'\)\s*\n\s*insertAtCursor\(rawInput\)/.test(pi),
 )
-check(
-  'printable on the console row auto-composes (gated on consoleEnabled)',
-  pi.includes("focusPane === 'vitals' && consoleEnabled()") && pi.includes('beginConsoleCompose(rawInput)'),
-)
-check(
-  'click parity: console action focuses vitals + composes',
-  read('src/components/HelmVitalsRail.tsx').includes("requestHelmRowActivationByLabel('vitals', label)") &&
-    read('src/utils/cockpit/helmFocus.ts').includes('requestHelmRowActivation(pane, i)') &&
-    pi.includes("setHelmFocus('vitals')"),
-)
+check('↵ on a rail row activates it through the one seam', pi.includes('requestHelmRowActivation(focusPane, getHelmCursor(focusPane))'))
 
-section('HelmVitalsRail — the last section (under TRACE)')
+section('HelmVitalsRail — usage · workflow · health, nothing more')
 const rail = read('src/components/HelmVitalsRail.tsx') + read('src/utils/cockpit/helmVitalsModel.ts')
-check('section gated on consoleEnabled()', rail.includes('const consoleOn = consoleEnabled()'))
-const traceIdx = rail.indexOf("label: 'TRACE'")
-const conIdx = rail.indexOf("label: 'CONSOLE'")
-check('console section renders AFTER trace (the last panel)', traceIdx > 0 && conIdx > traceIdx)
+check('the rail reads nothing from the console store', !rail.includes('helmConsole.js'))
+check('no console section', !rail.includes("label: 'CONSOLE'") && !rail.includes("key: 'console'") && !rail.includes('consoleRows'))
+check('no trace section and no trace read', !rail.includes("label: 'TRACE'") && !rail.includes("key: 'trace'") && !rail.includes('useVitals().trace') && !rail.includes('traceRows'))
 check('the SUBSTRATE box stays off the rail', !rail.includes('label="SUBSTRATE"') && !rail.includes("label: 'SUBSTRATE'"))
-check('input row published as a console-kind row', rail.includes("{ kind: 'console', label: 'console:input' }"))
-check('receipt row opens /console', rail.includes("command: '/console', label: 'console:full'"))
-check('compose cursor uses the caretBlock glyph', rail.includes('GLYPH.caretBlock'))
-check('answer budget ceiling prefers the MEASURED rail height', rail.includes('availRows ?? termRows - CHROME_ROWS'))
-check('answer budget floors at 0 (receipt row is un-loseable)', rail.includes('Math.max(0, Math.min(9, shedCeiling - rowsAbove))'))
+check('the section keys are the three', rail.includes("key: 'usage' | 'workflow' | 'health'"))
+check('the only shed section is health, pointed at /health', rail.includes("const shedPointers = [...(healthShed ? ['/health'] : [])]"))
+check('the shed ceiling prefers the MEASURED rail height', rail.includes('availRows ?? termRows - CHROME_ROWS'))
 const fsl = read('src/components/FullscreenLayout.tsx')
 check('FullscreenLayout measures the vitals wrapper', fsl.includes('measureElement(vitalsBoxRef.current)'))
 check('…and hands the rail its ceiling', fsl.includes('availRows={vitalsRows}'))
-check('asking state uses the liveness grammar (WorkingGlyph)', /case 'consoleAsking':[\s\S]{0,400}WorkingGlyph/.test(rail) && /if \(c\.pending\) \{\s*\n\s*consoleRows\.push\(\{ kind: 'consoleAsking'/.test(rail))
 
 section('commands — stamp-gated /console + help domain')
 const cmds = read('src/commands.ts')
@@ -83,7 +62,11 @@ const cidx = read('src/commands/console/index.ts')
 check('/console isEnabled rides consoleEnabled()', cidx.includes('isEnabled: () => consoleEnabled()'))
 const cview = read('src/commands/console/console.tsx')
 check('/console clear handled', cview.includes("=== 'clear'") && cview.includes('consoleClear()'))
-check('overlay asks through the same store (consoleAsk)', cview.includes('consoleAsk(') && cview.includes('runConsoleAsk({'))
+check('the surface asks through the store (consoleAsk)', cview.includes('consoleAsk(') && cview.includes('runConsoleAsk({'))
+check('ctrl+l on the surface clears through the one owner', cview.includes("key.ctrl && input === 'l'") && cview.includes('consoleClear()'))
+const store = read('src/utils/cockpit/helmConsole.ts')
+check('the store keeps no compose line (no buffer, no cursor, no recall)', !store.includes('ConsoleCompose') && !store.includes('consoleInsert') && !store.includes('consoleHistoryMove') && !store.includes('consoleSubmitBuffer'))
+check('the store reads nothing from the focus model', !store.includes('helmFocus.js'))
 
 section('flag registry — MERCURY_HELM_CONSOLE')
 const reg = read('src/substrate/flagRegistry.ts')

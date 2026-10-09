@@ -11,38 +11,17 @@ delete process.env.MERCURY_HELM_CONSOLE
 }
 
 import {
-  beginConsoleCompose,
-  consoleAbortAsk,
   consoleAsk,
-  consoleBackspace,
   consoleClear,
-  consoleCursorEnd,
-  consoleCursorHome,
-  consoleDeleteForward,
   consoleEnabled,
-  consoleHistoryMove,
-  consoleInsert,
-  consoleKillLine,
-  consoleKillWord,
-  consoleMoveCursor,
-  consoleSubmitBuffer,
-  exitConsoleCompose,
-  getConsoleAskCount,
-  getConsoleBuffer,
-  getConsoleCursor,
   getConsoleEntries,
   getConsolePending,
   getConsoleVersion,
-  isConsoleComposing,
   resetConsoleForTest,
   CONSOLE_COMPACT_TRUTH,
   type ConsoleRunner,
   type ConsoleRunnerResult,
 } from '../../src/utils/cockpit/helmConsole.js'
-import {
-  resetHelmFocusForTest,
-  setHelmFocus,
-} from '../../src/utils/cockpit/helmFocus.js'
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -70,7 +49,6 @@ const runner: ConsoleRunner = (q, ctrl) => {
 }
 function fullReset(): void {
   resetConsoleForTest()
-  resetHelmFocusForTest()
   calls = 0
   lastQuestion = ''
   lastController = null
@@ -89,44 +67,23 @@ check("MERCURY_HELM_CONSOLE=0 kills (live re-read)", consoleEnabled() === false)
 delete process.env.MERCURY_HELM_CONSOLE
 check('unset re-enables (no caching)', consoleEnabled() === true)
 
-section('usage honesty — edits NEVER invoke the runner')
+section('ask — exactly one runner call per ↵')
 fullReset()
-setHelmFocus('vitals')
-beginConsoleCompose()
-check('compose entered', isConsoleComposing())
-consoleInsert('what model is this')
-consoleBackspace()
-consoleMoveCursor(-3)
-consoleDeleteForward()
-consoleCursorHome()
-consoleCursorEnd()
-consoleKillWord()
-consoleHistoryMove(-1)
-check('zero runner calls across every edit/history op', calls === 0, `calls=${calls}`)
-check('version moved with edits', getConsoleVersion() > 0)
-
-section('submit — exactly one runner call per ↵')
-fullReset()
-setHelmFocus('vitals')
-beginConsoleCompose()
-consoleInsert('   ')
-check('whitespace-only submit refused', consoleSubmitBuffer(runner) === false && calls === 0)
-consoleKillLine()
-consoleInsert('first question')
-check('submit accepted', consoleSubmitBuffer(runner) === true)
+check('whitespace-only ask refused', consoleAsk('   ', runner) === false && calls === 0)
+check('version untouched by a refused ask', getConsoleVersion() === 0)
+check('ask accepted', consoleAsk('  first question  ', runner) === true)
 check('runner called once', calls === 1)
 check('question trimmed through', lastQuestion === 'first question')
-check('buffer cleared on submit', getConsoleBuffer() === '')
 check('pending visible', getConsolePending()?.question === 'first question')
 check('entry created', getConsoleEntries().length === 1 && getConsoleEntries()[0]?.question === 'first question')
-check('second submit while pending refused', consoleSubmitBuffer(runner) === false && calls === 1)
+check('second ask while pending refused', consoleAsk('again', runner) === false && calls === 1)
+check('version moved with the ask', getConsoleVersion() > 0)
 settle!({ response: 'the answer', usage: { input_tokens: 10, output_tokens: 5, cache_read_input_tokens: 1000, cache_creation_input_tokens: 0 } })
 await tick()
 check('settled: answer landed', getConsoleEntries()[0]?.answer === 'the answer')
 check('settled: usage normalized', getConsoleEntries()[0]?.usage?.cacheRead === 1000)
 check('settled: duration stamped', typeof getConsoleEntries()[0]?.durationMs === 'number')
 check('pending cleared', getConsolePending() === null)
-check('ask count = 1', getConsoleAskCount() === 1)
 
 section('error + empty-response settles')
 fullReset()
@@ -139,95 +96,30 @@ settle!({ response: null })
 await tick()
 check('null response → honest error', getConsoleEntries()[1]?.error === 'No response received')
 
-section('abort — rewind + stale-settle immunity + REAL fork cancel')
+section('stale-settle immunity + REAL fork cancel')
 fullReset()
-setHelmFocus('vitals')
-beginConsoleCompose()
-consoleInsert('slow question')
-consoleSubmitBuffer(runner)
+consoleAsk('slow question', runner)
 check('in flight', getConsolePending() !== null && calls === 1)
 const ctrlRef = lastController!
-const preAbortSettle = settle!
-check('abort returns true', consoleAbortAsk() === true)
+const preClearSettle = settle!
+check('clear returns true while an ask is in flight', consoleClear() === true)
 check('fork controller actually aborted', ctrlRef.signal.aborted === true)
 check('entry removed', getConsoleEntries().length === 0)
-check('question handed back to buffer', getConsoleBuffer() === 'slow question')
-check('compose re-armed', isConsoleComposing())
-preAbortSettle({ response: 'too late' })
+preClearSettle({ response: 'too late' })
 await tick()
 check('stale settle ignored (no zombie entry)', getConsoleEntries().length === 0)
 
-section('focus suspension — leaving vitals suspends compose')
-fullReset()
-setHelmFocus('vitals')
-beginConsoleCompose()
-consoleInsert('draft text')
-setHelmFocus('prompt')
-check('compose suspended on focus loss', isConsoleComposing() === false)
-check('draft survives suspension', getConsoleBuffer() === 'draft text')
-setHelmFocus('vitals')
-beginConsoleCompose()
-check('resume keeps the draft', isConsoleComposing() && getConsoleBuffer() === 'draft text')
-
-section('cursor ops — codepoint-safe (astral char)')
-fullReset()
-setHelmFocus('vitals')
-beginConsoleCompose()
-consoleInsert('a𝕏b')
-check('length counted in codepoints', getConsoleCursor() === 3)
-consoleMoveCursor(-1)
-consoleBackspace()
-check('astral char removed whole', getConsoleBuffer() === 'ab')
-consoleCursorHome()
-consoleDeleteForward()
-check('delete-forward at home', getConsoleBuffer() === 'b')
-
-section('paste normalization + buffer cap')
-fullReset()
-setHelmFocus('vitals')
-beginConsoleCompose()
-consoleInsert('line1\nline2\tendx')
-check('newlines/tabs → spaces, controls stripped', getConsoleBuffer() === 'line1 line2 endx')
-consoleKillLine()
-consoleInsert('x'.repeat(2500))
-check('buffer capped at 2000', getConsoleBuffer().length === 2000)
-
-section('history recall — readline semantics')
-fullReset()
-setHelmFocus('vitals')
-consoleAsk('q one', runner)
-settle!({ response: 'a1' })
-await tick()
-consoleAsk('q two', runner)
-settle!({ response: 'a2' })
-await tick()
-beginConsoleCompose()
-consoleInsert('live draft')
-consoleHistoryMove(-1)
-check('↑ recalls newest question', getConsoleBuffer() === 'q two')
-consoleHistoryMove(-1)
-check('↑↑ walks older', getConsoleBuffer() === 'q one')
-consoleHistoryMove(-1)
-check('clamped at oldest', getConsoleBuffer() === 'q one')
-consoleHistoryMove(1)
-consoleHistoryMove(1)
-check('↓ returns the live draft', getConsoleBuffer() === 'live draft')
-
 section('clear — wipes + aborts')
 fullReset()
-setHelmFocus('vitals')
 consoleAsk('will be cleared', runner)
 const clearedCtrl = lastController!
 check('clear returns true when there was state', consoleClear() === true)
 check('clear aborted the in-flight fork', clearedCtrl.signal.aborted === true)
 check('entries wiped', getConsoleEntries().length === 0)
-check('ask count reset', getConsoleAskCount() === 0)
-beginConsoleCompose()
-consoleHistoryMove(-1)
-check('history wiped (recall is a no-op)', getConsoleBuffer() === '')
+check('pending cleared', getConsolePending() === null)
 check('clear on empty returns false', consoleClear() === false)
 
-section('entries ring cap + ask counter survival')
+section('entries ring cap')
 fullReset()
 for (let i = 0; i < 30; i++) {
   consoleAsk(`q${i}`, runner)
@@ -236,23 +128,20 @@ for (let i = 0; i < 30; i++) {
 }
 check('entries capped at 24', getConsoleEntries().length === 24)
 check('oldest trimmed (q6 first)', getConsoleEntries()[0]?.question === 'q6')
-check('ask count survives trimming (30)', getConsoleAskCount() === 30)
 
 section('relief verbs (chat-relief) — /clear rides the one owner; /compact answers the truth, spending nothing')
 fullReset()
-setHelmFocus('vitals')
 consoleAsk('warm the shelf', runner)
 settle!({ response: 'warmed' })
 await tick()
 {
-  const billedBefore = getConsoleAskCount()
   const callsBefore = calls
   check('/compact is consumed by the store', consoleAsk('/compact', runner) === true)
   const row = getConsoleEntries()[getConsoleEntries().length - 1]
   check('…settling locally with the truth about where the context lives', row?.question === '/compact' && row.answer === CONSOLE_COMPACT_TRUTH, JSON.stringify(row))
-  check('…zero runner invocations, zero billed asks, nothing pending', calls === callsBefore && getConsoleAskCount() === billedBefore && getConsolePending() === null)
+  check('…zero runner invocations, nothing pending', calls === callsBefore && getConsolePending() === null)
   check('/clear is consumed too', consoleAsk('/clear', runner) === true)
-  check('…and empties the shelf through the ONE clear owner (count reset, the ctrl+l door)', getConsoleEntries().length === 0 && getConsoleAskCount() === 0)
+  check('…and empties the shelf through the ONE clear owner (the ctrl+l door)', getConsoleEntries().length === 0)
   check('…with no runner invocation', calls === callsBefore)
 }
 
