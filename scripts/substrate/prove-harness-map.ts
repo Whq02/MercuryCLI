@@ -30,9 +30,9 @@ resetHarnessMapForTest()
 const on = getHarnessMapSection()
 check('default-ON: section present', on !== null)
 check('header present', on !== null && on.startsWith('# Mercury harness map'))
-check('names the native identity', on !== null && on.includes('natively inside Mercury'))
+check('no identity line of its own (the floor owns the identity)', on !== null && !on.includes('natively inside Mercury'))
 check('routes discovery to /capabilities', on !== null && on.includes('/capabilities'))
-check('routes provider-API work to the bundled provider-apis skill (task #9)', on !== null && on.includes('provider-apis'))
+check('no provider-apis twin (the model-currency section owns that rule)', on !== null && !on.includes('provider-apis'))
 check('the retired notepad is not advertised', on !== null && !on.includes('/note'))
 check(
   'no exhortation drift: single # header only',
@@ -42,7 +42,7 @@ check('opt-in Godot NOT advertised when off', on !== null && !on.includes('Godot
 resetHarnessMapForTest()
 process.env.MERCURY_GODOT = '1'
 const armedMap = getHarnessMapSection()
-check('Godot lane advertised when armed', armedMap !== null && armedMap.includes('Godot lanes are ARMED'))
+check('Godot lane advertised when armed', armedMap !== null && armedMap.includes('Godot lanes are armed'))
 delete process.env.MERCURY_GODOT
 resetHarnessMapForTest()
 const reprimed = getHarnessMapSection()
@@ -77,9 +77,8 @@ delete process.env.MERCURY_WORKFLOWS
   )
   const mapSrc = readFileSync(join(import.meta.dir, '../../src/utils/cockpit/harnessMap.ts'), 'utf8')
   check(
-    'the map line keys on the SAME predicate the roster uses (isLspToolMounted)',
-    /lspConnectedSafe[\s\S]{0,600}isLspToolMounted/.test(mapSrc) &&
-      /isLspToolCatalogEnabled\(\) && lspConnectedSafe\(\)/.test(mapSrc),
+    'the map carries no LSP line at all: the roster lists the tool when mounted, and that is the one reader',
+    !mapSrc.includes('isLspToolMounted') && !mapSrc.includes('LspRead'),
   )
   const lspToolSrc = readFileSync(join(import.meta.dir, '../../src/tools/LSPTool/LSPTool.ts'), 'utf8')
   check(
