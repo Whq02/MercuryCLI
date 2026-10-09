@@ -248,8 +248,8 @@ if (!ONLY || ONLY.has('sovereign')) {
   check('sovereign: NO consent card painted (no question row)', !rowsHaving(rows, 'Do you want to'))
   check('sovereign: NO consent card painted (no card title)', !rowsHaving(rows, '⦿ Edit file'))
   check('sovereign: the edit landed on disk', edited.includes('gamma line two'))
-  check('sovereign: the transcript row names the allowance with the posture\'s word', rowsHaving(rows, 'Allowed by sovereign mode'))
-  check('sovereign: …and the road\'s own sentence (the sensitive-file check)', rowsHaving(rows, 'Allowed by sovereign mode') && rowsHaving(rows, 'sensitive file'))
+  check('sovereign: the transcript row names the allowance with the posture\'s word', rowsHaving(rows, 'allowed by sovereign'))
+  check('sovereign: …and nothing more (the road\'s own sentence is NOT painted)', !rowsHaving(rows, 'sensitive file'))
 
   section('sovereign — a whole-tool ask rule on Edit stands down under the bypass posture: NO card, the row names the rule')
   const ruled = await runArtifactArena({
@@ -277,7 +277,7 @@ if (!ONLY || ONLY.has('sovereign')) {
   check('sovereign + tool ask rule: the turn settled', rowsHaving(ruledRows, 'Done.'), ruled.driverOut.slice(-300))
   check('sovereign + tool ask rule: NO consent card painted', !rowsHaving(ruledRows, 'Do you want to') && !rowsHaving(ruledRows, '⦿ Edit file'))
   check('sovereign + tool ask rule: the edit landed on disk', ruledEdited.includes('gamma line two'))
-  check('sovereign + tool ask rule: the allowance row names the posture and the rule that would have asked', rowsHaving(ruledRows, 'Allowed by sovereign mode') && rowsHaving(ruledRows, 'the rule Edit'))
+  check('sovereign + tool ask rule: the allowance row names the posture and nothing more', rowsHaving(ruledRows, 'allowed by sovereign') && !rowsHaving(ruledRows, 'the rule Edit'))
   const persisted = sessionFiles(join(run.paths.home, '.mercury', 'projects'))
     .map(f => readFileSync(f, 'utf8'))
     .some(text => text.includes('"bypassed_ask"') && text.includes('"safetyCheckAsk"') && text.includes('sensitive file'))
