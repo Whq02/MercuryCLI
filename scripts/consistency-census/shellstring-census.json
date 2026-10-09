@@ -451,6 +451,13 @@
       "why": "POSIX pool prover scratch/coordination root — declared POSIX profile; render-tui's /tmp default is additionally a pinned byte-identity prover expectation"
     },
     {
+      "file": "scripts/distribution/prove-headless-image-drive.ts",
+      "mechanism": "hardcoded-tmp",
+      "excerpt": "const outside = changed.filter(p => !(p === '/home' || p === '/home/mercury' || p.startsWith('/home/mercury/') || p === '/tmp' || p.startsWi",
+      "cls": "platform-owner",
+      "why": "POSIX pool prover scratch/coordination root — declared POSIX profile; render-tui's /tmp default is additionally a pinned byte-identity prover expectation"
+    },
+    {
       "file": "scripts/engine-connector/prove-busy-stall-drive.ts",
       "mechanism": "execSync-string",
       "excerpt": "execSync('git init -q && git -c user.email=busy@proof.invalid -c user.name=busy commit -q --allow-empty -m seed', {",
