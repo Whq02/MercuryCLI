@@ -40,6 +40,7 @@ if (FRAMES !== undefined) mkdirSync(FRAMES, { recursive: true })
 const ZAI_REPLY = 'glm picked up the handoff'
 const DEEPSEEK_REPLY = 'deepseek picked up the handoff'
 const FABLE_REPLY = 'fable picked up the handoff'
+const REFUSAL_WORDS = "Anthropic says this account's"
 const GPT_REPLY = 'sol answers from the fixture'
 const GPT_REPLY_AGAIN = 'sol answers again from the fixture'
 const ZAI_ROW = 'glm-5.3'
@@ -373,7 +374,7 @@ const wireWorld = ONLY.has('wire') || FRAMES !== undefined ? seedWorld('wire', {
 const wireEnv = (home: string): NodeJS.ProcessEnv => {
   const env: NodeJS.ProcessEnv = {
     ...baseEnv(home),
-    ANTHROPIC_BASE_URL: `${base}/capped`,
+    ANTHROPIC_BASE_URL: `${base}/refused`,
     MERCURY_MOCK_USAGE_PAYLOAD: JSON.stringify({
       five_hour: { utilization: 12, resets_at: new Date(Date.now() + 3600_000).toISOString() },
       seven_day: { utilization: 40, resets_at: new Date(Date.now() + 5 * 86400_000).toISOString() },
@@ -434,14 +435,14 @@ if (wire !== null) {
   const captured = wire.wire
   const finalGrid = p ? gridText(p.grid) : ''
   const kinds = captured.map(c => c.kind).join(',')
-  section("W1 — the home lane's own wire spoke its cap on a session turn, and the card rose from the runner's verdict")
-  const capped = captured.filter(c => c.kind === 'anthropic-capped' && isMainTurn(c, 'hello fable'))
-  check('the fixture answered the Anthropic turn on the capped route, the rejected verdict in its headers', capped.length === 1, `kinds=${kinds}`)
-  check("the reply landed in the session's transcript", transcriptCarries(wireWorld!.home, FABLE_REPLY), `status=${wire.status} endReason=${p?.endReason ?? '?'}`)
+  section("W1 — the home lane's own wire refused a session turn with its cap in the headers, and the card rose from the runner's verdict")
+  const refusedTurn = captured.filter(c => c.kind === 'anthropic-refused' && isMainTurn(c, 'hello fable'))
+  check('the fixture refused the Anthropic turn on its own wire, the rejected verdict in the refusal\'s headers', refusedTurn.length === 1, `kinds=${kinds}`)
+  check("the refusal landed in the session's transcript (no reply did)", transcriptCarries(wireWorld!.home, REFUSAL_WORDS) && !transcriptCarries(wireWorld!.home, FABLE_REPLY), `status=${wire.status} endReason=${p?.endReason ?? '?'}`)
   const homeOffer = markGrid(p, 'home-offer')
   check('the offer card rose after the turn — no seam typed, the wire alone spoke', homeOffer.includes(ANTHROPIC_OFFER_TITLE), `endReason=${p?.endReason ?? '?'}\n${tail(finalGrid)}`)
   check('the card states the reached weekly limit and its reset', homeOffer.includes('the Anthropic weekly limit is reached') && homeOffer.includes('refused until reset') && homeOffer.includes('resets '), tail(homeOffer))
-  check('the card lists the key lanes as the way out, the Z.AI row highlighted first', (rowLine(homeOffer, 'Z.AI') ?? '').includes('▸') && rowLine(homeOffer, 'DeepSeek') !== undefined, tail(homeOffer))
+  check('the card lists every other signed-in lane as the way out: the OpenAI subscription row first and highlighted (the most recent timed sign-in), the Z.AI and DeepSeek key lanes after it', (rowLine(homeOffer, 'OpenAI') ?? '').includes('▸') && rowLine(homeOffer, 'Z.AI') !== undefined && rowLine(homeOffer, 'DeepSeek') !== undefined, tail(homeOffer))
 
   section("W2 — esc leaves the card; the seat moves to the OpenAI row on the operator's word")
   const afterEsc = markGrid(p, 'after-esc')
@@ -470,11 +471,11 @@ if (wire !== null) {
   const end = markGrid(p, 'end')
   check('esc dismissed the card and the composer is back', !end.includes(OPENAI_OFFER_TITLE) && end.includes('? for shortcuts'), tail(end))
 
-  section('W5 — the wire: one Anthropic turn on the capped route, the GPT turn on the Responses wire, nothing else on the Anthropic wire')
-  check('exactly one MAIN Anthropic turn reached the wire, the capped one', capped.length === 1 && !captured.some(c => c.kind === 'anthropic' && isMainTurn(c, 'hello fable')), `kinds=${kinds}`)
-  const gptWall = [finalGrid, end].some(grid => grid.includes('GPT work on this source pauses'))
+  section('W5 — the wire: one Anthropic turn refused on its own wire, the GPT turn on the Responses wire, nothing else on the Anthropic wire')
+  check('exactly one MAIN Anthropic turn reached the wire, the refused one', refusedTurn.length === 1 && !captured.some(c => c.kind === 'anthropic' && isMainTurn(c, 'hello fable')), `kinds=${kinds}`)
+  const gptWall = [finalGrid, end].some(grid => grid.includes('The next request goes to OpenAI again'))
   check('the GPT turn reached Responses and its explicit provider wall painted', captured.some(c => c.kind === 'openai' && isMainTurn(c, 'hello sol')) && gptWall && transcriptCarries(wireWorld!.home, 'openai-usage_limit_reached'), `kinds=${kinds}\n${tail(end, 8)}`)
-  check('no request after the switch reached the Anthropic wires', !captured.some(c => (c.kind === 'anthropic' || c.kind === 'anthropic-capped') && isMainTurn(c, 'hello sol')), `kinds=${kinds}`)
+  check('no request after the switch reached the Anthropic wires', !captured.some(c => (c.kind === 'anthropic' || c.kind === 'anthropic-refused') && isMainTurn(c, 'hello sol')), `kinds=${kinds}`)
 }
 
 for (const lane of [
@@ -509,7 +510,7 @@ for (const lane of [
 }
 
 if (FRAMES !== undefined && wireWorld !== null) {
-  section(`FRAMES — the card after a session turn's capped reply, at ${SIZES.map(s => s.join('x')).join(', ')}`)
+  section(`FRAMES — the card after a session turn refused on its own wire, at ${SIZES.map(s => s.join('x')).join(', ')}`)
   for (const size of SIZES) {
     const tag = `${size[0]}x${size[1]}`
     const cockpit = size[0] >= 100 && size[1] >= 26
