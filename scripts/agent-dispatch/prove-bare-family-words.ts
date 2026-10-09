@@ -112,7 +112,7 @@ const wordOf = (route: string): string => TABLE.find(entry => entry.route === ro
 
 section('§1 the table: every declared bare class alias of a key lane, each on its own route, one grammar word each')
 {
-  check('the table carries glm, kimi, deepseek, grok and muse', [...TABLE.map(entry => entry.word)].sort().join(',') === 'deepseek,glm,grok,kimi,muse', TABLE.map(entry => entry.word).join(','))
+  check('the table carries glm, kimi, deepseek, grok, muse and mistral', [...TABLE.map(entry => entry.word)].sort().join(',') === 'deepseek,glm,grok,kimi,mistral,muse', TABLE.map(entry => entry.word).join(','))
   for (const entry of TABLE) {
     const space = PROVIDER_ID_SPACES.find(s => s.route === entry.route)
     check(`'${entry.word}' is the declared bare alias of the ${entry.route} id space`, space?.bareAliases?.includes(entry.word) === true, show(space))
@@ -134,6 +134,7 @@ section('§2 a keyless box: the session road answers each family\'s first record
     deepseek: DEEPSEEK_DISPLAY_PINS[0]!.id,
     grok: 'grok',
     muse: 'muse',
+    mistral: 'mistral',
   }
   check('the recorded heads are the pins this proof names', expected.glm === 'glm-5.3' && expected.kimi === 'kimi-k3' && expected.deepseek === 'deepseek-v4-pro', show(expected))
   for (const entry of TABLE) {

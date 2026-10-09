@@ -124,8 +124,7 @@ if (driver.kind !== 'posix-pty') {
       { atTick: 60, data: '/logins', awaitText: 'Type a prompt', minTick: 5 },
       { afterPrevTicks: 4, data: '\r' },
       { requireAwait: true, awaitText: 'Mercury · logins', awaitStableTicks: 3, mark: 'top', data: '' },
-      { afterPrevTicks: 4, data: '\u001b[6~\u001b[6~\u001b[6~' },
-      { requireAwait: true, awaitText: 'OpenAI-compatible', awaitStableTicks: 3, mark: 'paged', data: '' },
+      { requireAwait: true, awaitText: 'OpenAI-compatible', awaitStableTicks: 3, repeatEveryTicks: 3, mark: 'paged', data: '\u001b[6~' },
       { afterPrevTicks: 3, data: '\u001b' },
     ], 70)
     check('/logins drive delivered every send', r.status === 0, `exit ${r.status}: ${r.stderr.trim().slice(-200)}`)

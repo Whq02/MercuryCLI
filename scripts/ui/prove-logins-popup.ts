@@ -191,7 +191,7 @@ for (const s of sizes) {
     check(`${s.columns}x${s.rows} compact: the body is the family rows alone, one line each, filling the box`, body.length === geometryOf(s).rowBudget && body.every(line => line !== '') && body.filter(line => /^[❯ ↓↑] /.test(line)).length === body.length && !board.m.screen().includes('Sign in') && !board.m.screen().includes('Provider readiness') && !board.m.screen().includes('subscription, usage-based billing'), body.join(' | '))
     check(`${s.columns}x${s.rows} compact: the header marker reads 1 of 14`, markerOf(board.m) === '1 of 14', markerOf(board.m))
   }
-  for (let index = 1; index < 12; index++) {
+  for (let index = 1; index < 14; index++) {
     await key(board.m, KEY.down)
     check(`${s.columns}x${s.rows}: arrows reach family ${index + 1} without a digit or a reserved ordinal column`, board.m.screen().includes(`❯ ${familyRows[index]!.label.slice(0, 24)}`))
     if (compact) check(`${s.columns}x${s.rows} compact: the marker follows the focus to ${index + 1} of 14`, markerOf(board.m) === `${index + 1} of 14`, markerOf(board.m))
@@ -199,7 +199,7 @@ for (const s of sizes) {
   save(board.m, s, 'menu-bottom')
   if (compact) {
     check(`${s.columns}x${s.rows} compact: the last family row is reached by arrows with the title row still pinned`, board.m.screen().includes('OpenCode Zen — API key') && board.m.lines().some(line => line.includes(compactHint)))
-    for (let index = 0; index < 12; index++) await key(board.m, KEY.up)
+    for (let index = 0; index < 13; index++) await key(board.m, KEY.up)
     check(`${s.columns}x${s.rows} compact: arrows return to the first row and the marker reads 1 of 14`, markerOf(board.m) === '1 of 14' && board.m.screen().includes('OpenAI — ChatGPT'), markerOf(board.m))
   } else {
     check('the readiness tail is reachable without moving the close hint', await walk(board.m, 'OpenAI-compatible') && board.m.screen().includes(hint))
