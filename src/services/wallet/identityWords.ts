@@ -13,7 +13,7 @@ const ACCOUNT_WORDS: Record<WalletProvider, string> = {
   openrouter: 'OpenRouter account',
 }
 
-const FAMILY_ACCOUNT_WORDS: Readonly<Record<string, string>> = { ...ACCOUNT_WORDS, xai: 'Grok account' }
+const FAMILY_ACCOUNT_WORDS: Readonly<Record<string, string>> = { ...ACCOUNT_WORDS, xai: 'Grok account', nous: 'Nous Portal account' }
 
 const DEVICE_CODE_SIGN_INS: ReadonlySet<WalletProvider> = new Set<WalletProvider>(['moonshot', 'huggingface'])
 
