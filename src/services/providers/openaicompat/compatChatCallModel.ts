@@ -103,6 +103,7 @@ export type CompatLaneId =
   | 'gemini'
   | 'huggingface'
   | 'local'
+  | 'zen'
 
 export function imagesSupportedForCompatModel(model: string): boolean {
   return modelReceivesImageBlocks(model) && imageRefusalOf(model) === null
@@ -213,9 +214,12 @@ function zaiCodeClass(code: number): TypedError | undefined {
   return undefined
 }
 
+const ZEN_BILLING_WORDS = /^(?:api|openai)-(?:CreditsError|MonthlyLimitError|UserLimitError)$/
+
 function vendorWordClass(code: string): TypedError | undefined {
   const zai = /^zai-(\d+)$/.exec(code)
   if (zai) return zaiCodeClass(Number(zai[1]))
+  if (ZEN_BILLING_WORDS.test(code)) return 'billing_error'
   if (!code.startsWith('api-')) return undefined
   const word = code.slice('api-'.length)
   const google = GOOGLE_STATUS_CLASS[word]
