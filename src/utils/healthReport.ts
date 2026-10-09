@@ -535,6 +535,10 @@ const PROVIDER_AUTH_PRESENTATION: Record<string, { label: string; signIn: string
     label: 'Meta',
     signIn: 'Add a Meta Model API key via /logins meta, or export MODEL_API_KEY',
   },
+  mistral: {
+    label: 'Mistral',
+    signIn: 'Add a Mistral API key via /logins mistral, or export MISTRAL_API_KEY',
+  },
   deepseek: {
     label: 'DeepSeek',
     signIn: 'Add a DeepSeek API key via /logins deepseek, or export DEEPSEEK_API_KEY',
