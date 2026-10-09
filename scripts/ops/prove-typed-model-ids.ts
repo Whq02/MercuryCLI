@@ -18,6 +18,7 @@ const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' 
 const { GPT_DISPLAY_PINS } = await import('../../src/services/providers/openai/gptPins.js')
 const { GLM_STATIC_CATALOGUE } = await import('../../src/utils/router/providers/zai.js')
 const { KIMI_DISPLAY_PINS } = await import('../../src/services/providers/moonshot/kimiPins.js')
+const { ZEN_DISPLAY_PINS } = await import('../../src/services/providers/zen/zenPins.js')
 const { DEEPSEEK_DISPLAY_PINS } = await import('../../src/services/providers/deepseek/deepseekPins.js')
 const { GEMINI_PRICE_PINS } = await import('../../src/services/providers/gemini/geminiPins.js')
 const { HUGGINGFACE_DISPLAY_PINS } = await import('../../src/services/providers/huggingface/huggingfacePins.js')
@@ -33,7 +34,7 @@ const glmTable = GLM_PRICE_PINS.map(p => p.id)
 const glmDated = GLM_PRICE_PINS.map(p => p.observedAt).sort().at(-1) ?? ''
 const OWNER_LIST = ['gpt-6-astra', 'gpt-5.6-sol', 'gpt-5.6-terra', 'gpt-5.6-luna', 'gpt-5.5']
 const anthropicIds = [...new Set([model.getDefaultFableModel(), model.getDefaultOpusModel(), model.getDefaultSonnetModel(), model.getDefaultHaikuModel(), model.getSmallFastModel()].map(id => model.normalizeModelStringForAPI(id)))]
-const KEYS = { anthropic: 'proof-key-ci-gate-not-a-real-key', openai: 'fixture-openai-key-0001', gemini: 'fixture-gemini-key-0001', deepseek: 'fixture-deepseek-key-0001', openrouter: 'fixture-openrouter-key-0001', hf: 'fixture-hf-token-0001', zai: 'fixture-zai-key-0001', moonshot: 'fixture-moonshot-key-0001', chatgpt: 'fixture-chatgpt-access-token-0001' }
+const KEYS = { anthropic: 'proof-key-ci-gate-not-a-real-key', openai: 'fixture-openai-key-0001', gemini: 'fixture-gemini-key-0001', deepseek: 'fixture-deepseek-key-0001', openrouter: 'fixture-openrouter-key-0001', hf: 'fixture-hf-token-0001', zai: 'fixture-zai-key-0001', moonshot: 'fixture-moonshot-key-0001', chatgpt: 'fixture-chatgpt-access-token-0001', zen: 'sk-fixture-zen-key-0001-000000000000000000000000000000000000000000000000' }
 
 const lists: Record<string, string[]> = {
   subscription: [...gptIds],
@@ -45,6 +46,7 @@ const lists: Record<string, string[]> = {
   huggingface: HUGGINGFACE_DISPLAY_PINS.map(p => p.id),
   zai: GLM_STATIC_CATALOGUE.map(e => e.id),
   moonshot: KIMI_DISPLAY_PINS.map(p => p.id),
+  zen: [...ZEN_DISPLAY_PINS.map(p => p.id), 'claude-fable-5-1', 'gemini-3.1-pro', 'jev-1.13'],
 }
 const failing: Record<string, number> = {}
 let deadPage: string | undefined
@@ -92,6 +94,7 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
   if (path === '/openrouter/api/v1/models') { if (failWith('openrouter')) return; json({ data: lists.openrouter!.map(id => ({ id, name: id, pricing: { prompt: '0.000001', completion: '0.000002' } })) }); return }
   if (path === '/hf/v1/models') { if (failWith('huggingface')) return; json({ object: 'list', data: lists.huggingface!.map(id => ({ id, object: 'model', owned_by: id.split('/')[0], providers: [{ provider: 'fixture', status: 'live' }] })) }); return }
   if (path === '/moonshot/v1/models') { if (failWith('moonshot')) return; json({ object: 'list', data: lists.moonshot!.map(id => ({ id, object: 'model', owned_by: 'moonshot', created: 1 })) }); return }
+  if (path === '/zen/v1/models') { if (failWith('zen')) return; json({ object: 'list', data: lists.zen!.map(id => ({ id, object: 'model', owned_by: 'opencode', created: 1 })) }); return }
   res.writeHead(404, { 'content-type': 'application/json' })
   res.end('{}')
 })
@@ -143,6 +146,9 @@ const baseEnv: Record<string, string> = {
   MERCURY_ZAI_API_BASE: `${base}/zai/v4`,
   MOONSHOT_API_KEY: KEYS.moonshot,
   MERCURY_MOONSHOT_API_BASE: `${base}/moonshot/v1`,
+  OPENCODE_API_KEY: KEYS.zen,
+  MERCURY_ZEN_API_BASE: `${base}/zen/v1`,
+  MERCURY_ZEN_GO_API_BASE: 'http://127.0.0.1:1/zen/go/v1',
 }
 type Run = { status: number | null; lines: string[]; stdout: string; stderr: string }
 const run = async (extra: Record<string, string | undefined> = {}, args: string[] = []): Promise<Run> => {
@@ -170,17 +176,17 @@ console.log('============================================================')
 
 section('§1 every list serves every typed id: one line per typed id, every one served, exit 0')
 const all = await run()
-const typedTotal = gptIds.length * 2 + anthropicIds.length + lists.gemini!.length + lists.deepseek!.length + lists.huggingface!.length + lists.moonshot!.length
+const typedTotal = gptIds.length * 2 + anthropicIds.length + lists.gemini!.length + lists.deepseek!.length + lists.huggingface!.length + lists.moonshot!.length + ZEN_DISPLAY_PINS.length
 check('exit 0', all.status === 0, `status ${all.status}; stderr ${all.stderr.slice(-300)}`)
 check(`one served line per typed id per fetched list (${typedTotal})`, all.lines.filter(l => l.endsWith(' · served')).length === typedTotal, all.lines.join('\n').slice(0, 1500))
 check('no typed id reads not served or unreachable', !all.lines.some(l => / · (not served|unreachable \()/.test(l)), all.lines.filter(l => / · (not served|unreachable)/.test(l)).join('\n'))
 check('the two OpenAI sources are judged apart (the subscription list and the key list)', rows(all, 'openai', 'served').some(l => l.includes('ChatGPT pro subscription')) && rows(all, 'openai', 'served').some(l => l.includes('OpenAI API key (env)')))
 check('the OpenRouter list, with no typed ids, prints its count', all.lines.some(l => l.startsWith('openrouter · ') && / · 2 served$/.test(l)), all.lines.filter(l => l.startsWith('openrouter')).join('\n'))
-check('every fixture list was fetched once', ['/openai/chatgpt/models', '/openai/v1/models', '/anthropic/v1/models', '/gemini/v1beta/models', '/deepseek/models', '/openrouter/api/v1/models', '/hf/v1/models', '/moonshot/v1/models'].every(p => hits.some(h => h.endsWith(p))), hits.join(', '))
+check('every fixture list was fetched once', ['/openai/chatgpt/models', '/openai/v1/models', '/anthropic/v1/models', '/gemini/v1beta/models', '/deepseek/models', '/openrouter/api/v1/models', '/hf/v1/models', '/moonshot/v1/models', '/zen/v1/models'].every(p => hits.some(h => h.endsWith(p))), hits.join(', '))
 check('Z.AI, with no model list, is judged against its dated typed table without the flag: one line per typed id, served, the table\'s newest date', /^\d{4}-\d{2}-\d{2}$/.test(glmDated) && glmIds.length > 0 && glmIds.every(id => all.lines.includes(`zai · Z.AI API key (env) · ${id} · served (typed table dated ${glmDated}, no live list)`)), all.lines.filter(l => l.startsWith('zai')).join('\n'))
 check('the dated table carries every typed Z.AI id under the one comparison the check runs (a typed id the table lacks would read not served and fail the check)', glmTable.length > glmIds.length && judgeTypedIds(glmIds, glmTable).notServed.length === 0, judgeTypedIds(glmIds, glmTable).notServed.join(', '))
 check('no Z.AI request of any kind without the flag (no models GET, no completion)', !hits.some(h => h.includes('/zai/')) && zaiProbes.length === 0, hits.filter(h => h.includes('/zai/')).join(', '))
-check('the summary line says every judged id is served and counts the eight lists, the dated family left out of the count', all.lines.some(l => l.startsWith('typed model ids: every typed id a fetched list or a dated table could judge is served') && / \(8 of 8 lists fetched\)$/.test(l)), all.lines.at(-1))
+check('the summary line says every judged id is served and counts the nine lists, the dated family left out of the count', all.lines.some(l => l.startsWith('typed model ids: every typed id a fetched list or a dated table could judge is served') && / \(9 of 9 lists fetched\)$/.test(l)), all.lines.at(-1))
 check('no credential value appears in the output', secretLeak(all) === undefined, secretLeak(all))
 const pageLines = all.lines.filter(l => l.startsWith('sign-in page · '))
 check(`one line per sign-in page from the one address owner (${pages.length}), each dated and answering the fixture's redirect`, pageLines.length === pages.length && pages.every(p => pageLines.some(l => l.includes(` · ${p.address} · observed ${p.observedAt} · answers HTTP 302`))), pageLines.join('\n'))
@@ -213,7 +219,7 @@ const down = await run()
 check('exit 0 (an unreachable list judges nothing)', down.status === 0, `status ${down.status}`)
 check('every DeepSeek typed id reads unreachable with the HTTP status', lists.deepseek!.every(id => down.lines.some(l => l.startsWith(`deepseek · DeepSeek API key (env) · ${id} · unreachable (`) && l.includes('500'))), down.lines.filter(l => l.startsWith('deepseek')).join('\n'))
 check('the other families are still judged served', rows(down, 'openai', 'served').length === gptIds.length * 2 && rows(down, 'moonshot', 'served').length === lists.moonshot!.length)
-check('the summary names the fetched-list count short by one', down.lines.some(l => /\(7 of 8 lists fetched\)$/.test(l)), down.lines.at(-1))
+check('the summary names the fetched-list count short by one', down.lines.some(l => /\(8 of 9 lists fetched\)$/.test(l)), down.lines.at(-1))
 delete failing.deepseek
 
 section('§4 a family with no credential is not judged and says so in one line')
@@ -249,12 +255,12 @@ check("an id the provider refuses as unknown reads not served with Z.AI's own co
 check('one completion per typed id, each naming its id, one token at most, streamed as the chat streams', zaiProbes.length === glmIds.length && glmIds.every(id => zaiProbes.filter(p => p.model === id).length === 1) && zaiProbes.every(p => p.maxTokens === 1 && p.stream === true), JSON.stringify(zaiProbes.map(p => [p.model, p.maxTokens, p.stream])))
 check('the completion carried the key as the chat does, and the output never printed it', zaiProbes.every(p => p.bearer === `Bearer ${KEYS.zai}`) && secretLeak(probed) === undefined, secretLeak(probed))
 check('no models GET was tried on Z.AI', !hits.some(h => h.startsWith('GET /zai/')), hits.filter(h => h.includes('/zai/')).join(', '))
-check('the summary counts the refused id and the probed family among the fetched lists', probed.lines.some(l => l.startsWith(`typed model ids: ${unknownGlm.length} typed id(s) not served`) && / \(9 of 9 lists fetched\)$/.test(l)), probed.lines.at(-1))
+check('the summary counts the refused id and the probed family among the fetched lists', probed.lines.some(l => l.startsWith(`typed model ids: ${unknownGlm.length} typed id(s) not served`) && / \(10 of 10 lists fetched\)$/.test(l)), probed.lines.at(-1))
 check('the other families are judged as before', rows(probed, 'openai', 'served').length === gptIds.length * 2 && rows(probed, 'moonshot', 'served').length === lists.moonshot!.length)
 zaiRefusesKey = true
 const refusedKey = await run({}, ['--probe-by-completion'])
 check('a refused key: every typed id reads unreachable with the auth code, nothing judged, exit 0', refusedKey.status === 0 && glmIds.every(id => refusedKey.lines.includes(`zai · Z.AI API key (env) · ${id} · unreachable (zai-1002: Authentication failed)`)), refusedKey.lines.filter(l => l.startsWith('zai')).join('\n'))
-check('the summary leaves the refused family out of the fetched lists', refusedKey.lines.some(l => / \(8 of 9 lists fetched\)$/.test(l)), refusedKey.lines.at(-1))
+check('the summary leaves the refused family out of the fetched lists', refusedKey.lines.some(l => / \(9 of 10 lists fetched\)$/.test(l)), refusedKey.lines.at(-1))
 check('the refused key never printed', secretLeak(refusedKey) === undefined, secretLeak(refusedKey))
 zaiRefusesKey = false
 const dead = await run({ MERCURY_ZAI_API_BASE: 'http://127.0.0.1:1' }, ['--probe-by-completion'])
@@ -269,7 +275,7 @@ const dark = await run({ MERCURY_DISABLE_NONESSENTIAL_TRAFFIC: '1' }, ['--probe-
 check('no completion reached the fixture and no Z.AI request of any kind was made', zaiProbes.length === 0 && !hits.some(h => h.includes('/zai/')), JSON.stringify(zaiProbes.map(p => p.model)))
 check('the script says so once, in its own words', dark.lines.filter(l => l === '--probe-by-completion sends nothing: MERCURY_DISABLE_NONESSENTIAL_TRAFFIC is set; the Z.AI ids read the dated table').length === 1, dark.lines.filter(l => l.startsWith('--probe')).join('\n'))
 check('the Z.AI ids read their dated-table lines exactly as without the flag', glmIds.every(id => dark.lines.includes(`zai · Z.AI API key (env) · ${id} · served (typed table dated ${glmDated}, no live list)`)) && !dark.lines.some(l => l.startsWith('zai') && / · (unreachable|served$|not served$)/.test(l)), dark.lines.filter(l => l.startsWith('zai')).join('\n'))
-check('Z.AI stays out of the fetched count', dark.lines.some(l => / of 8 lists fetched\)$/.test(l)), dark.lines.at(-1))
+check('Z.AI stays out of the fetched count', dark.lines.some(l => / of 9 lists fetched\)$/.test(l)), dark.lines.at(-1))
 check('exit 0 and no credential value in the output', dark.status === 0 && secretLeak(dark) === undefined, `status ${dark.status}`)
 
 section('§5d a dead sign-in page: the line names it, the summary counts it, the exit is 1 while every typed id still reads served')
