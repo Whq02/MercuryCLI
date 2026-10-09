@@ -31,9 +31,7 @@ export function getEditToolDescription(offered: ReadonlySet<string> | null = nul
 
 Usage:
 - An edit lands only after \`${FILE_READ_TOOL_NAME}\` has read the file somewhere in this conversation — editing unread files errors.
-- When an edit's text comes from ${FILE_READ_TOOL_NAME} output, carry the indentation byte-for-byte (tabs/spaces) as it stands PAST the line-number prefix. The prefix shape is: ${prefixShape}. Real file content starts past that prefix — no fragment of the prefix ever belongs in old_string or new_string.
-- Default to modifying files that already exist; creating a brand-new file needs an explicit reason from the task.
-- Keep emoji out of file content unless the user has specifically asked for them.
+- When an edit's text comes from ${FILE_READ_TOOL_NAME} output, carry the indentation byte-for-byte (tabs/spaces) as it stands past the line-number prefix. The prefix shape is: ${prefixShape}. Real file content starts past that prefix — no fragment of the prefix ever belongs in old_string or new_string.
 - A non-unique \`old_string\` writes nothing; the error names and shows every match with its neighbouring lines: widen it with a line that differs, or pass \`replace_all\` to rewrite every occurrence at once (the right tool for bulk substitutions, such as renaming an identifier throughout the file).
 - A landed edit shows the changed lines as read back after the write, numbered as ${FILE_READ_TOOL_NAME} numbers them, with three lines of context; they count as read, so checking the edit needs no ${FILE_READ_TOOL_NAME}.
 - \`append\` adds text at the end of the file with no prior read; \`section\` names a Markdown heading line and, with \`new_string\`, replaces that whole section, or, with \`append\`, adds text inside it. A file's read knowledge is keyed to its content: a Read of the lines the edit touches, a content-mode Grep that displayed them, or \`expected_anchor\` from a full Read all count.
