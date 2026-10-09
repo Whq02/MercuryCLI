@@ -277,16 +277,9 @@ export const DEFAULT_CRITTER_KEY = 'jellyfish'
 
 const BY_KEY: Record<string, CritterDef> = Object.fromEntries(CRITTERS.map(d => [d.name, d]))
 
-export const LEGACY_CRITTER_KEYS: Readonly<Record<string, string>> = {
-  mantis: 'clam',
-  'mantis shrimp': 'clam',
-}
-
 function resolvePoolKey(key: string | undefined | null): string {
   const k = (key ?? '').trim().toLowerCase()
   if (Object.hasOwn(BY_KEY, k)) return k
-  const legacy = LEGACY_CRITTER_KEYS[k]
-  if (legacy !== undefined && Object.hasOwn(BY_KEY, legacy)) return legacy
   return DEFAULT_CRITTER_KEY
 }
 

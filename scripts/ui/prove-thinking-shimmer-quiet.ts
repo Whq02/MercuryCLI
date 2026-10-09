@@ -68,7 +68,7 @@ const facts = { replyChars: 0, thinkingChars: 3_000, wireOutputTokens: null, fir
 const row = (reducedMotion: boolean, mode: 'thinking' | 'responding' = 'thinking'): ReactNode =>
   h(SpinnerAnimationRow, {
     mode, reducedMotion, hasActiveTools: false, activeToolCount: 0, responseLengthRef: ref(3_000), outputTokensRef: ref<number | null>(null), liveTurnFactsRef: ref(facts),
-    message: 'Thinking', messageColor: 'claude', shimmerColor: 'claudeShimmer', overrideColor: null, loadingStartTimeRef: ref(now - 8_000), totalPausedMsRef: ref(0), pauseStartTimeRef: ref<number | null>(null),
+    message: 'Thinking', messageColor: 'brand', shimmerColor: 'brandShimmer', overrideColor: null, loadingStartTimeRef: ref(now - 8_000), totalPausedMsRef: ref(0), pauseStartTimeRef: ref<number | null>(null),
     spinnerSuffix: null, verbose: true, columns: 120, hasRunningCrewmates: false, crewmateTokens: 0, foregroundedCrewmate: undefined, leaderIsIdle: false, effortSuffix: ' (max)',
   } as never)
 
