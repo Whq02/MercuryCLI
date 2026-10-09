@@ -72,15 +72,19 @@ starting folder.
 - **Default mode** asks for writes and edits in either place unless a
   permission rule already allows them.
 - **Sovereign mode** does not ask because of a file's
-  location. Capability gates, explicit deny rules and wards still apply.
+  location. Capability gates, explicit deny rules and wards still apply. The
+  few checks reserved for the operator (a remote path on Windows) still raise
+  a card; one unanswered for three minutes is withdrawn and the call is
+  refused with the same denial.
 - **Flow mode** allows what Implement mode allows and the read-only
   tools without asking. A yes on a permission card is remembered as a saved
   rule for the project where a rule can name the call; destructive calls
-  always ask. A card unanswered for five minutes is withdrawn, and Mercury
-  continues with an allowed tool call instead. With no host, calls that pass
-  Flow's floors and safety checks run without a card; unapproved pushes,
-  installs and destructive calls do not. Broad dangerous allow rules are
-  set aside while Flow is on.
+  always ask. A card unanswered for ten minutes is withdrawn and the call is
+  refused with a denial the model reads (nobody answered within the limit;
+  work that does not depend on the action continues). With no host, calls
+  that pass Flow's floors and safety checks run without a card; unapproved
+  pushes, installs and destructive calls do not. Broad dangerous allow rules
+  are set aside while Flow is on.
 - **Apollo and dontAsk** keep their existing permission
   behaviour; a folder does not add a separate refusal.
 
@@ -158,11 +162,14 @@ own configuration and managed policy still apply.
 A hosted session — a switchboard seat, an editor session or another
 `mercury runner` — puts a call that needs approval to its host as
 `permission/request`. The host answers allow or deny. A host declaring
-`holds_asks` owns the ask's clock; otherwise the runner's no-progress limit
-applies. Flow withdraws an unanswered permission card after five minutes in
-either case. A withdrawn ask sends `$/cancel_request`. The daemon declines an
-ask when no operator is connected; the absence of an operator never grants
-permission.
+`holds_asks` holds the ask; otherwise the runner's no-progress limit
+applies. In either case the runner refuses an ask nobody answers within its
+clock — ten minutes in Flow, three in Sovereign; a crewmate's ask ten minutes
+in every other mode; a session's own ask in Default, Implement or Apollo
+waits for the operator — and withdraws it with `$/cancel_request` naming the
+expiry. `MERCURY_PERMISSION_ASK_EXPIRY_MINUTES` replaces every clock that
+exists (0 disables them). The daemon declines an ask when no operator is
+connected; the absence of an operator never grants permission.
 
 No push is ever allowed by default under flow. A call Flow's rules leave
 over goes to that host, `git push` among them. It needs a present operator unless a permission rule
