@@ -3,10 +3,10 @@ export { APOLLO_REVIEW_TOOL_NAME } from './constants.js'
 
 export const APOLLO_REVIEW_TOOL_PROMPT = `Present the closing review of a completed Apollo pre-flight spec.
 
-Call this ONLY in Apollo Mode, once the interview is finished and the spec files are written. It renders the closing review card for the user: your plain-language summary of the completed spec, the blocker state, the spec files, and where the prototype will run.
+Call this only in Apollo Mode, once the interview is finished and the spec files are written. It renders the closing review card for the user: your plain-language summary of the completed spec, the blocker state, the spec files, and where the prototype will run.
 
 - \`summary\`: the layman review of the completed spec — concise plain language; a technical term only as a bridge beside its plain meaning.
-- \`blockers\`: what still prevents a one-shot prototype, each with your short comment. Pass an EMPTY list when nothing blocks — an empty list asks the user to begin the build.
+- \`blockers\`: what still prevents a one-shot prototype, each with your short comment. Pass an empty list when nothing blocks — an empty list asks the user to begin the build.
 - \`specFiles\`: the spec files the interview produced, absolute paths.
 - \`runNote\`: where and how the finished prototype will be run, in one plain line.
 

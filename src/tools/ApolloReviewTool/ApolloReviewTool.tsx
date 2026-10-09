@@ -40,7 +40,7 @@ const inputSchema = z.object({
     .array(z.string().min(1))
     .default([])
     .describe(
-      'What still prevents a one-shot prototype, each with a short comment; EMPTY when nothing blocks',
+      'What still prevents a one-shot prototype, each with a short comment; empty when nothing blocks',
     ),
   specFiles: z
     .array(z.string())
