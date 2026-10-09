@@ -24,7 +24,7 @@ tar -czf "$DEST/config.tgz" \
   --exclude cache --exclude debug --exclude backups --exclude archive \
   --exclude projects --exclude shell-snapshots --exclude telemetry \
   -C "$(dirname "$MERCURY_HOME")" "$(basename "$MERCURY_HOME")" 2>/dev/null || true
-mem="$HOME/.claude/projects/$(printf '%s' "$REPO" | tr '/' '-')/memory"
+mem="$MERCURY_HOME/projects/$(printf '%s' "$REPO" | sed 's/[^A-Za-z0-9_-]/-/g')/memory"
 if [ -d "$mem" ]; then
   tar -czf "$DEST/memory.tgz" -C "$(dirname "$mem")" memory 2>/dev/null || true
 fi
