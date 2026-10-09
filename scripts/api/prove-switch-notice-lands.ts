@@ -261,6 +261,17 @@ if (!existsSync(DIST)) {
       check(`§1 ${leg.label} — the receipt's stamp sits between the prompt's and the answer's`, prompt !== undefined && answer !== undefined && r !== undefined && prompt.at <= r.at && r.at <= answer.at, `${prompt?.at} ≤ ${r?.at} ≤ ${answer?.at}`)
       check(`§1 ${leg.label} — the receipt's ordinal follows the prompt's and precedes the answer's (written in the turn, never re-recorded later)`, prompt !== undefined && answer !== undefined && r !== undefined && prompt.ordinal < r.ordinal && r.ordinal < answer.ordinal, `${prompt?.ordinal} < ${r?.ordinal} < ${answer?.ordinal}`)
     }
+    const switches: Array<{ label: string; prompt: string; word: string }> = [
+      { label: 'to Opus', prompt: P[3]!, word: 'Set model to' },
+      { label: 'back to Fable', prompt: P[5]!, word: 'Set model to' },
+    ]
+    for (const sw of switches) {
+      const enqueue = enqueueOf(records, sw.prompt)
+      const stdoutRow = records.find(r => r.kind === 'input' && r.content.includes(`<local-command-stdout>${sw.word}`) && enqueue !== undefined && r.at <= enqueue.at && Math.abs(r.ordinal - enqueue.ordinal) < 12)
+      const commandRow = records.find(r => r.kind === 'input' && r.content.includes('<command-name>/model</command-name>') && stdoutRow !== undefined && r.ordinal < stdoutRow.ordinal && stdoutRow.ordinal - r.ordinal < 3)
+      check(`§1 RED ON THE BASE: the /model rows of the switch ${sw.label} are in the file before the queue row of the prompt that followed (recorded at the switch, not at the next turn)`, enqueue !== undefined && stdoutRow !== undefined && commandRow !== undefined && commandRow.line < stdoutRow.line && stdoutRow.line < enqueue.line, `command ${describe(commandRow)} · stdout ${describe(stdoutRow)} · enqueue ${describe(enqueue)}`)
+    }
+
     section('§2 the resume — a new process on the model that last answered paints nothing (the owner\'s 13:54 sighting); a resume that switches paints once, in the file, in its turn')
     const debug7 = join(arena.home, 'resume-same.debug.log')
     const r7 = await run(arena, ['run', 'still on fable after a resume', '--model', FABLE, '--allowed-tools', 'Read', '--resume', SID, '--log-file', debug7])

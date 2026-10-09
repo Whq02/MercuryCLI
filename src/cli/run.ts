@@ -987,6 +987,9 @@ export async function runHeadless(
         enqueueRow(commandOutputRow(liveScope(), content, '/model'))
       }
     }
+    await recordTranscript(breadcrumbs, undefined, messages).catch((error: unknown) => {
+      logForDebugging(`model switch: the /model rows were not recorded — ${error instanceof Error ? error.message : String(error)}`)
+    })
   }
 
   const applySeatModel = async (model: string): Promise<void> => {
