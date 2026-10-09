@@ -3,7 +3,7 @@ import { cpus, loadavg } from 'node:os'
 import { basename, join, resolve } from 'node:path'
 import { flagEnv } from '../substrate/flagRegistry.js'
 import { lastMemorySample, refreshMemorySample, runtimeMemorySample, type MemoryRead } from '../services/switchboard/capacityCheck.js'
-import { commandWords } from './hooks/generatedAssets.js'
+import { commandWords } from '../guards/generatedAssets.js'
 
 export const BOX_LOCK_SCRIPT = 'with-box-lock.sh'
 

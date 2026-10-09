@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # gate-class: pure
-# gate-watch: src/utils/hooks/missionHook* src/commands/mission/**
+# gate-watch: src/guards/mission* src/commands/mission/**
 # gate-watch: src/bootstrap/state.ts src/components/HelmLanesRail.tsx
 # gate-watch: src/services/engine-connector/focusedConnector.ts
 # gate-watch: src/services/engine-connector/noSessionConnector.ts src/services/mission/missionCard.ts

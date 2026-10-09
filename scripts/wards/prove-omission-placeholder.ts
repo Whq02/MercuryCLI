@@ -20,8 +20,12 @@ async function main(): Promise<void> {
   process.env.MERCURY_CONFIG_DIR ??= mkdtempSync(join(tmpdir(), 'wards-omission-home-'))
   const { BUILTIN_WARDS, evaluateWards, buildWardDenial } = await import('../../src/utils/wards/wards.js')
   type WardRule = (typeof BUILTIN_WARDS)[number]
-  const { registerWardsHook, resetWardsEngagedSessionsForTest } = await import('../../src/utils/hooks/wardsHook.js')
-  const { getSessionFunctionHooks } = await import('../../src/utils/hooks/sessionHooks.js')
+  const { registerWardsGuard, resetWardsEngagedSessionsForTest } = await import('../../src/guards/wardsGuard.js')
+  const { judgeToolCall } = await import('../../src/guards/guards.js')
+  const judgeFor = (key: string) => async (toolName: string, input: Record<string, unknown>): Promise<unknown> => {
+    const verdict = await judgeToolCall(key, { tool: toolName, input, callId: 'omission-call', messages: [], toolRef: { name: toolName } as never })
+    return verdict.refused ? verdict.reason : true
+  }
   const { judgeGrowth } = await import('../lib/linearGrowth.js')
   type WardWork = import('../../src/utils/wards/wards.js').WardWork
   const workUnits = (work: WardWork): number => Object.values(work).reduce((sum, n) => sum + n, 0)
@@ -382,30 +386,27 @@ async function main(): Promise<void> {
       state = updater(state)
     }) as never
     resetWardsEngagedSessionsForTest()
-    registerWardsHook(setAppState, 'w-omission')
-    const matchers = getSessionFunctionHooks({ sessionHooks: state.sessionHooks } as never, 'w-omission', 'PreToolUse').get('PreToolUse' as never) ?? []
-    const cb = matchers.flatMap((m: { hooks: Array<{ callback: (mm: never[], s?: never, c?: unknown) => unknown }> }) => m.hooks)[0]!.callback
-    const ctx = (toolName: string, input: Record<string, unknown>) => ({ hookInput: { tool_name: toolName, tool_input: input }, tool: { name: toolName } })
-    const denied = await cb([], undefined as never, ctx('Write', { file_path: file, content: around('// ... rest of the code unchanged') }))
+    registerWardsGuard(setAppState, 'w-omission')
+    const cb = judgeFor('w-omission')
+    const ctx = (toolName: string, input: Record<string, unknown>) => [toolName, input] as const
+    const denied = await cb(...ctx('Write', { file_path: file, content: around('// ... rest of the code unchanged') }))
     check('the hook denies the Write with the teaching string', typeof denied === 'string' && denied.includes(`Ward '${RULE}'`) && denied.includes('literal content'), String(denied).slice(0, 200))
-    const allowed = await cb([], undefined as never, ctx('Write', { file_path: file, content: around('const x = 1') }))
+    const allowed = await cb(...ctx('Write', { file_path: file, content: around('const x = 1') }))
     check('the hook passes a clean Write', allowed === true, JSON.stringify(allowed))
-    const hunks = await cb([], undefined as never, ctx('Edit', { file_path: file, expected_anchor: 'fa:0123456789ab', hunks: [{ lines: '2', replace: '// ... existing code ...' }] }))
+    const hunks = await cb(...ctx('Edit', { file_path: file, expected_anchor: 'fa:0123456789ab', hunks: [{ lines: '2', replace: '// ... existing code ...' }] }))
     check('the hook denies a hunks edit carrying the placeholder', typeof hunks === 'string' && hunks.includes(`Ward '${RULE}'`), String(hunks).slice(0, 200))
-    const changeSet = await cb([], undefined as never, ctx('ChangeSet', { op: 'apply', changes: [{ file_path: file, expected_anchor: 'fa:0123456789ab', hunks: [{ lines: '2', replace: '// ... existing code ...' }] }] }))
+    const changeSet = await cb(...ctx('ChangeSet', { op: 'apply', changes: [{ file_path: file, expected_anchor: 'fa:0123456789ab', hunks: [{ lines: '2', replace: '// ... existing code ...' }] }] }))
     check('the hook denies a ChangeSet carrying the placeholder', typeof changeSet === 'string' && changeSet.includes(`Ward '${RULE}'`), String(changeSet).slice(0, 200))
-    const ast = await cb([], undefined as never, ctx('AstEdit', { pattern: 'f($A)', rewrite: 'g($A)\n// ... rest of the code unchanged' }))
+    const ast = await cb(...ctx('AstEdit', { pattern: 'f($A)', rewrite: 'g($A)\n// ... rest of the code unchanged' }))
     check('the hook denies an AstEdit rewrite carrying the placeholder', typeof ast === 'string' && ast.includes(`Ward '${RULE}'`), String(ast).slice(0, 200))
-    const structure = await cb([], undefined as never, ctx('Structure', { op: 'preview', queryId: 'sq-1', action: 'replace', replacement: '// ... existing code ...' }))
+    const structure = await cb(...ctx('Structure', { op: 'preview', queryId: 'sq-1', action: 'replace', replacement: '// ... existing code ...' }))
     check('the hook denies a Structure preview whose replacement carries the placeholder', typeof structure === 'string' && structure.includes(`Ward '${RULE}'`), String(structure).slice(0, 200))
-    const git = await cb([], undefined as never, ctx('Git', { op: 'resolve', path: 'src/service.ts', content: '// ... rest of the file unchanged\n' }))
+    const git = await cb(...ctx('Git', { op: 'resolve', path: 'src/service.ts', content: '// ... rest of the file unchanged\n' }))
     check('the hook denies a Git resolve whose content carries the placeholder', typeof git === 'string' && git.includes(`Ward '${RULE}'`), String(git).slice(0, 200))
     const countedHook = async (input: Record<string, unknown>, work: WardWork): Promise<unknown> => {
       resetWardsEngagedSessionsForTest()
-      registerWardsHook(setAppState, 'w-counted', work)
-      const countedMatchers = getSessionFunctionHooks({ sessionHooks: state.sessionHooks } as never, 'w-counted', 'PreToolUse').get('PreToolUse' as never) ?? []
-      const counted = countedMatchers.flatMap((m: { hooks: Array<{ callback: (mm: never[], s?: never, c?: unknown) => unknown }> }) => m.hooks)[0]!.callback
-      return counted([], undefined as never, ctx('Write', input))
+      registerWardsGuard(setAppState, 'w-counted', work)
+      return judgeFor('w-counted')(...ctx('Write', input))
     }
     check('hook metrics preserve a denial and its exact teaching', await countedHook({ file_path: file, content: around('// ... rest of the code unchanged') }, {}) === denied)
     const counted = async (label: string, build: (n: number) => string, n: number): Promise<void> => {
@@ -414,7 +415,7 @@ async function main(): Promise<void> {
         const input = { file_path: file, content: build(size) }
         const work: WardWork = {}
         const result = await countedHook(input, work)
-        const plain = await cb([], undefined as never, ctx('Write', input))
+        const plain = await cb(...ctx('Write', input))
         check(`${label}, ${size}: hook metrics preserve the passing verdict and count regex work`, result === true && result === plain && (work.regexEvaluations ?? 0) > 0)
         points.push({ size, ms: workUnits(work) })
       }

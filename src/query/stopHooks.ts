@@ -23,7 +23,7 @@ import { extractTextContent } from '../utils/messages/text.js'
 import { getSessionId } from '../bootstrap/state.js'
 import { logForDebugging } from '../utils/debug.js'
 import { errorMessage } from '../utils/errors.js'
-import { runTurnSettlementEffects } from './settlementEffects.js'
+import { judgeTurnEnd } from '../guards/guards.js'
 
 export type StopHookOutcome = {
   blockingErrors: UserMessage[]
@@ -193,16 +193,12 @@ export async function* handleStopHooks(
   }
 
   const settlementBlocks: UserMessage[] = []
-  if (!agentId) {
-    const settlement = await runTurnSettlementEffects(String(getSessionId()), {
-      messages: [...messagesForQuery, ...assistantMessages],
-      signal: toolUseContext.abortController.signal,
-    })
-    for (const reprompt of settlement.reprompts) {
-      const message = createUserMessage({ content: reprompt, isMeta: true })
-      settlementBlocks.push(message)
-      yield message
-    }
+  const holds = await judgeTurnEnd(agentId ?? String(getSessionId()), { messages: [...messagesForQuery, ...assistantMessages] }, toolUseContext.abortController.signal)
+  for (const hold of holds) {
+    const message = createUserMessage({ content: hold.words, isMeta: true })
+    settlementBlocks.push(message)
+    yield message
+    if (!hold.silent) yield createSystemMessage(`${hold.guard} held the turn: ${hold.words.split('\n')[0]}`, 'info')
   }
 
   try {

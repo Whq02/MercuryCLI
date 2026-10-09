@@ -9,7 +9,8 @@ import { BASH_TOOL_NAME } from '../../tools/BashTool/toolName.js'
 import { getLoggingSafeMcpBaseUrl } from '../mcp/utils.js'
 import type { McpServerConfig } from '../mcp/types.js'
 import type { CanUseToolFn } from '../../hooks/useCanUseTool.js'
-import { addToToolDuration, getStatsStore } from '../../bootstrap/state.js'
+import { addToToolDuration, getSessionId, getStatsStore } from '../../bootstrap/state.js'
+import { judgeToolCall } from '../../guards/guards.js'
 import type { AssistantMessage, Message, UserMessage } from '../../types/message.js'
 import type { PermissionDecision, PermissionDecisionReason } from '../../types/permissions.js'
 import { createPermissionRequestMessage } from '../../utils/permissions/decision/requestMessage.js'
@@ -579,7 +580,21 @@ async function runTransactionBody(args: {
   const additionalContextMessages: Message[] = []
   const hookNotes: Message[] = []
 
-  for await (const item of runPreToolUseHooks(
+  const judgement = await judgeToolCall(
+    toolUseContext.agentId ?? getSessionId(),
+    { tool: tool.name, input: observableInput, callId: toolUseID, messages: toolUseContext.messages, toolRef: tool },
+    signal,
+  )
+  hookNotes.push(...judgement.notes)
+  if (judgement.refused) {
+    hookPermissionResult = {
+      behavior: 'deny',
+      message: judgement.reason,
+      decisionReason: { type: 'guard', guard: judgement.guard, reason: judgement.reason },
+    }
+  }
+
+  if (!judgement.refused) for await (const item of runPreToolUseHooks(
     tool,
     toolUseID,
     observableInput,

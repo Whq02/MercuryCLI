@@ -114,7 +114,7 @@ section('§3 the wiring — every silent road rides the ONE door (structural)')
   check('…beside (not instead of) the debug log', writeFail.includes('logForDebugging'))
   const channel = src('context/notifications.tsx')
   check('the hook DELEGATES to the door (one channel, one code path)', channel.includes('enqueueNotification(setAppState, incoming)'))
-  const wards = src('utils/hooks/wardsHook.ts')
+  const wards = src('guards/wardsGuard.ts')
   check('the wards registration rides the door (functionally proven in prove-wards §3b)', wards.includes('enqueueNotification(setAppState'))
 }
 

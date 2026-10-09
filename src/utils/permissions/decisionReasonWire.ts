@@ -57,6 +57,8 @@ export function decodeDecisionReasonFromWire(value: unknown): PermissionDecision
     case 'workingDir':
     case 'other':
       return typeof v.reason === 'string' ? (value as PermissionDecisionReason) : undefined
+    case 'guard':
+      return typeof v.reason === 'string' && typeof v.guard === 'string' ? (value as PermissionDecisionReason) : undefined
     case 'safetyCheck':
       return typeof v.reason === 'string' && typeof v.operatorOnly === 'boolean'
         ? (value as PermissionDecisionReason)

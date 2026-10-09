@@ -14,7 +14,7 @@ const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' 
 const ROOT = join(import.meta.dir, '../../')
 const src = (p: string): string => readFileSync(join(ROOT, p), 'utf8')
 
-section("§1 3.2 · the Stop-hook family census — zero unclassified pushers")
+section("§1 3.2 · the turn-guard family census — zero unclassified pushers")
 {
   const registrants: string[] = []
   const walk = (dir: string): void => {
@@ -28,7 +28,7 @@ section("§1 3.2 · the Stop-hook family census — zero unclassified pushers")
       }
       if (!/\.(ts|tsx)$/.test(name)) continue
       const text = readFileSync(full, 'utf8')
-      if (/addFunctionHook\(/.test(text) && /'Stop'/.test(text)) {
+      if (/engageTurnGuard\(/.test(text) && !full.endsWith('/src/guards/guards.ts')) {
         registrants.push(full.slice(ROOT.length))
       }
     }
@@ -36,20 +36,20 @@ section("§1 3.2 · the Stop-hook family census — zero unclassified pushers")
   walk(join(ROOT, 'src'))
 
   const CLASSIFICATION: Record<string, 'shared-authority' | 'latch-claiming' | 'observer' | 'contract-gate'> = {
-    'src/utils/hooks/runStopHook.ts': 'shared-authority',
-    'src/utils/hooks/hookHelpers.ts': 'contract-gate',
-    'src/utils/hooks/missionHook.ts': 'latch-claiming',
-    'src/utils/hooks/forcedReadHook.ts': 'latch-claiming',
+    'src/guards/runStop.ts': 'shared-authority',
+    'src/guards/structuredOutput.ts': 'contract-gate',
+    'src/guards/mission.ts': 'latch-claiming',
+    'src/guards/forcedRead.ts': 'latch-claiming',
   }
   const stopHookReturnsOnlyTrue = (text: string): boolean => {
-    const arm = text.slice(text.indexOf("'Stop'"))
+    const arm = text.slice(text.indexOf('judge:'))
     const callback = arm.slice(0, arm.indexOf('\n    },'))
     const returns = callback.match(/\breturn\b[^\n]*/g) ?? []
-    return returns.length > 0 && returns.every(r => /^return true\b/.test(r))
+    return returns.length > 0 && returns.every(r => /^return \{ hold: false \}/.test(r))
   }
   const unclassified = registrants.filter(r => !(r in CLASSIFICATION))
   check(
-    `every 'Stop' registrant is classified (${registrants.length} found)`,
+    `every turn-guard registrant is classified (${registrants.length} found)`,
     unclassified.length === 0,
     `unclassified: ${unclassified.join(', ')}`,
   )

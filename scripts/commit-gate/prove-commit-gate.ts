@@ -1,4 +1,4 @@
-import { evaluateCommitGate } from '../../src/utils/hooks/commitGate.js'
+import { evaluateCommitGate } from '../../src/guards/commitGate.js'
 
 interface Case {
   cmd: string

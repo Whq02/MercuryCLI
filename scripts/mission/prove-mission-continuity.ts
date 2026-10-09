@@ -30,29 +30,29 @@ const {
   subscribeActiveMission,
   syncMissionFromCard,
   MISSION_MET_SENTINEL,
-} = await import('../../src/utils/hooks/missionHook.js')
+} = await import('../../src/guards/mission.js')
 const { readFileSync } = await import('node:fs')
 const { readMissionCard, writeMissionCard } = await import('../../src/services/mission/missionCard.js')
 const { composeMissionView } = await import('../../src/services/mission/projection.js')
 
+const { guardsEngaged, judgeTurnEnd } = await import('../../src/guards/guards.js')
 interface StopHookRecord {
-  callback: (m: unknown[]) => boolean | Promise<boolean>
+  callback: (m: unknown[]) => Promise<boolean>
   errorMessage: string
-}
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-let state: any = { sessionHooks: new Map() }
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const setAppState = (f: (prev: any) => any): void => {
-  state = f(state)
 }
 
 const stopClosure = (sessionId: string): StopHookRecord => {
-  const groups = (state.sessionHooks.get(sessionId)?.hooks?.['Stop'] ?? []) as Array<{
-    hooks: Array<{ hook: StopHookRecord }>
-  }>
-  const hooks = groups.flatMap(g => g.hooks.map(h => h.hook))
-  if (hooks.length !== 1) throw new Error(`expected exactly one Stop hook, found ${hooks.length}`)
-  return hooks[0]!
+  const guards = guardsEngaged(sessionId).turn.filter(id => id.startsWith('mission-'))
+  if (guards.length !== 1) throw new Error(`expected exactly one mission guard, found ${guards.length}`)
+  const record: StopHookRecord = {
+    callback: async messages => {
+      const holds = await judgeTurnEnd(sessionId, { messages: messages as never })
+      record.errorMessage = holds[0]?.words ?? ''
+      return holds.length === 0
+    },
+    errorMessage: '',
+  }
+  return record
 }
 
 const user = (text: string): unknown => ({ type: 'user', message: { role: 'user', content: text } })
@@ -70,7 +70,7 @@ const GOAL = 'the parser suite is green and the fix is pushed'
 
 section('§1 arming writes the card')
 {
-  const directive = setActiveMission(setAppState as never, GOAL, { sessionId: S1 })
+  const directive = setActiveMission(GOAL, { sessionId: S1 })
   check('the directive re-states the goal', directive.includes(GOAL))
   const card = readMissionCard(S1)
   check('card exists with the goal verbatim', card !== null && card.goal === GOAL, JSON.stringify(card))
@@ -103,7 +103,7 @@ section('§3 the sentinel settles the card')
 const S2 = 'cont-session-2'
 section('§4 compaction: the directive text is gone, the mission still holds')
 {
-  setActiveMission(setAppState as never, GOAL, { sessionId: S2 })
+  setActiveMission(GOAL, { sessionId: S2 })
   const hook = stopClosure(S2)
   const verdict = await hook.callback([
     user('Summary of the conversation so far: the operator armed a standing goal about the parser suite; work continues.'),
@@ -131,14 +131,14 @@ section('§5 resume: the process boundary')
     updatedAt: new Date(Date.now() - 60_000).toISOString(),
   })
   check('no live mission before the re-arm', getActiveMission(S3) === undefined)
-  const rearmed = rearmMissionFromCard(setAppState as never, S3)
+  const rearmed = rearmMissionFromCard(S3)
   check('the armed card re-arms', rearmed === true)
   const live = getActiveMission(S3)
   check('the re-armed mission carries the card goal', live?.condition === 'finish the migration and record the receipt')
   const card = readMissionCard(S3)
   check('the card notes the re-arm', (card?.nextStep ?? '').includes('re-armed on resume'), card?.nextStep ?? '')
-  check('a live mission is never clobbered by a second re-arm', rearmMissionFromCard(setAppState as never, S3) === false)
-  check('a met card re-arms nothing', rearmMissionFromCard(setAppState as never, S1) === false)
+  check('a live mission is never clobbered by a second re-arm', rearmMissionFromCard(S3) === false)
+  check('a met card re-arms nothing', rearmMissionFromCard(S1) === false)
 
   const OLD = 'cont-session-old'
   const LIVE = 'cont-session-live'
@@ -152,7 +152,7 @@ section('§5 resume: the process boundary')
     setAt: new Date(Date.now() - 3_600_000).toISOString(),
     updatedAt: new Date(Date.now() - 60_000).toISOString(),
   })
-  const split = rearmMissionFromCard(setAppState as never, { cardSessionId: OLD, armSessionId: LIVE })
+  const split = rearmMissionFromCard({ cardSessionId: OLD, armSessionId: LIVE })
   check('the split re-arm fires', split === true)
   check('the mission lives under the LIVE id', getActiveMission(LIVE)?.condition === 'survive the id split')
   const moved = readMissionCard(LIVE)
@@ -163,7 +163,7 @@ section('§5 resume: the process boundary')
     old?.state === 'continued' && (old?.nextStep ?? '').includes(LIVE),
     JSON.stringify(old),
   )
-  check('a continued card re-arms nothing', rearmMissionFromCard(setAppState as never, { cardSessionId: OLD, armSessionId: 'cont-session-third' }) === false)
+  check('a continued card re-arms nothing', rearmMissionFromCard({ cardSessionId: OLD, armSessionId: 'cont-session-third' }) === false)
 }
 
 section('§6 concourse: the card composes into the MissionView')
@@ -199,7 +199,7 @@ section('§6 concourse: the card composes into the MissionView')
 
 section('§7 clearing writes the terminal card')
 {
-  const cleared = clearActiveMission(setAppState as never, S3)
+  const cleared = clearActiveMission(S3)
   check('clear hands back the condition', cleared === 'finish the migration and record the receipt')
   const card = readMissionCard(S3)
   check('the card is terminal', card?.state === 'cleared' && card?.nextStep === null, JSON.stringify(card))
@@ -213,20 +213,20 @@ section('§8 the store speaks: a mission\'s birth and death wake their subscribe
     woken += 1
   })
   const before = getActiveMissionVersion()
-  setActiveMission(setAppState as never, 'the rail hears the birth', { sessionId: S4 })
+  setActiveMission('the rail hears the birth', { sessionId: S4 })
   check('arming wakes the subscriber once and moves the version', woken === 1 && getActiveMissionVersion() === before + 1, `woken=${woken} version ${before}→${getActiveMissionVersion()}`)
   check('the snapshot is a number the rail can hold (never a fresh object)', typeof getActiveMissionVersion() === 'number')
-  clearActiveMission(setAppState as never, S4)
+  clearActiveMission(S4)
   check('clearing wakes the subscriber again', woken === 2 && getActiveMissionVersion() === before + 2, `woken=${woken}`)
-  setActiveMission(setAppState as never, 'released by the card', { sessionId: S4 })
+  setActiveMission('released by the card', { sessionId: S4 })
   writeMissionCard({ schema: 1, sessionId: S4, goal: 'released by the card', state: 'met', nextStep: null, iterations: 1, setAt: new Date().toISOString(), updatedAt: new Date().toISOString() })
   const wokenBeforeSync = woken
-  syncMissionFromCard(setAppState as never, S4)
+  syncMissionFromCard(S4)
   check('a card that settled elsewhere releases the live mission and wakes the subscriber', getActiveMission(S4) === undefined && woken === wokenBeforeSync + 1, `woken=${woken}`)
   unsubscribe()
-  setActiveMission(setAppState as never, 'after the unsubscribe', { sessionId: S4 })
+  setActiveMission('after the unsubscribe', { sessionId: S4 })
   check('an unsubscribed listener hears nothing more', woken === wokenBeforeSync + 1)
-  clearActiveMission(setAppState as never, S4)
+  clearActiveMission(S4)
   const rail = readFileSync(join(import.meta.dir, '..', '..', 'src/components/HelmLanesRail.tsx'), 'utf8')
   check('the lanes rail subscribes to the store through useSyncExternalStore and still reads the mission at render', rail.includes('useSyncExternalStore(subscribeActiveMission, getActiveMissionVersion, getActiveMissionVersion)') && rail.includes('const mission = getActiveMission()'))
   check('no poll and no timer stands behind it', !/setInterval\([^)]*mission/i.test(rail))
@@ -243,10 +243,7 @@ section('§9 a mission armed while the chat is landing follows the seat: at admi
       return HOSTED
     }
   }
-  const stopHooks = (sessionId: string): number => {
-    const groups = (state.sessionHooks.get(sessionId)?.hooks?.['Stop'] ?? []) as Array<{ hooks: unknown[] }>
-    return groups.reduce((n, g) => n + g.hooks.length, 0)
-  }
+  const stopHooks = (sessionId: string): number => guardsEngaged(sessionId).turn.filter(id => id.startsWith('mission-')).length
   fc._resetFocusedSessionConnectorForTesting()
   const bootstrapId = String(getSessionId())
   let admit: () => void = () => {}
@@ -254,7 +251,7 @@ section('§9 a mission armed while the chat is landing follows the seat: at admi
   check('while the birth is landing no session holds the slot and the bootstrap id answers', fc.landingInFlight() && !fc.hasFocusedSession() && fc.conversationIdHere() === bootstrapId)
   let woken = 0
   const unsubscribe = subscribeActiveMission(() => { woken += 1 })
-  setActiveMission(setAppState as never, 'follow the seat')
+  setActiveMission('follow the seat')
   check('before admission the mission is keyed by the bootstrap id, its Stop hook there', getActiveMission(bootstrapId)?.condition === 'follow the seat' && stopHooks(bootstrapId) === 1)
   fc.setFocusedSessionConnector(new HostedConnector())
   admit()
@@ -266,13 +263,13 @@ section('§9 a mission armed while the chat is landing follows the seat: at admi
   check('the store woke its subscribers for the move (the rail repaints its card)', woken >= 2, `woken=${woken}`)
   check("the conversation's id now answers the hosted chat, so the rail's render-time read finds the mission", fc.conversationIdHere() === HOSTED && getActiveMission()?.condition === 'follow the seat')
   unsubscribe()
-  clearActiveMission(setAppState as never, HOSTED)
+  clearActiveMission(HOSTED)
   fc._resetFocusedSessionConnectorForTesting()
   const S9 = 'cont-session-9'
-  setActiveMission(setAppState as never, 'a plain arm stays put', { sessionId: S9 })
+  setActiveMission('a plain arm stays put', { sessionId: S9 })
   fc.setFocusedSessionConnector(new HostedConnector())
   check('a mission armed under a named session never follows a later slot move', getActiveMission(S9)?.condition === 'a plain arm stays put' && getActiveMission(HOSTED) === undefined)
-  clearActiveMission(setAppState as never, S9)
+  clearActiveMission(S9)
   fc._resetFocusedSessionConnectorForTesting()
 }
 

@@ -14,7 +14,7 @@ import {
   getActiveMission,
   isMissionClearKeyword,
   setActiveMission,
-} from '../../utils/hooks/missionHook.js'
+} from '../../guards/mission.js'
 
 
 type MissionView = Pick<ActiveMission, 'condition' | 'iterations' | 'lastReason' | 'met' | 'gaveUp'> & { seat?: boolean }
@@ -51,7 +51,6 @@ export async function call(
   args: string,
 ): Promise<React.ReactNode> {
   const arg = args.trim()
-  const { setAppState } = context
 
   if (arg === '') {
     const { conversationIdHere, hasFocusedSession } = await import('../../services/engine-connector/focusedConnector.js')
@@ -89,7 +88,7 @@ export async function call(
   }
 
   if (isMissionClearKeyword(arg)) {
-    const cleared = clearActiveMission(setAppState)
+    const cleared = clearActiveMission()
     onDone(cleared === null ? 'No mission set' : `Mission cleared: ${cleared}`, {
       display: 'system',
     })
@@ -104,7 +103,7 @@ export async function call(
     return null
   }
 
-  const directive = setActiveMission(setAppState, arg)
+  const directive = setActiveMission(arg)
   onDone(`Mission set: ${arg}`, {
     shouldQuery: true,
     metaMessages: [directive],

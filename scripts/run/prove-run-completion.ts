@@ -331,7 +331,7 @@ async function main(): Promise<void> {
     try {
       const coord = await import('../../src/services/run/runCoordinator.js')
       const tasksMod = await import('../../src/utils/tasks.js')
-      const adapter = await import('../../src/utils/hooks/runStopAdapter.js')
+      const adapter = await import('../../src/guards/runStopAdapter.js')
       const { buildRunCapsuleLine, buildRunRows } = await import(
         '../../src/commands/run/runInspectorModel.js'
       )
@@ -699,7 +699,7 @@ async function main(): Promise<void> {
     try {
       const coord = await import('../../src/services/run/runCoordinator.js')
       const tasksMod = await import('../../src/utils/tasks.js')
-      const adapter = await import('../../src/utils/hooks/runStopAdapter.js')
+      const adapter = await import('../../src/guards/runStopAdapter.js')
       type Msg = Parameters<typeof adapter.evaluateStopAttempt>[0]
       const messages = [
         { type: 'user', message: { content: 'file the parser task and end the turn' }, isMeta: false },

@@ -597,19 +597,19 @@ export async function runHeadless(
   if (isConcourseWorker) void refreshBoxReading()
   const sessionWiringModules = (): Promise<
     [
-      typeof import('../utils/hooks/wardsHook.js'),
+      typeof import('../guards/wardsGuard.js'),
       typeof import('../services/crew/identity.js'),
     ]
   > =>
     Promise.all([
-      import('../utils/hooks/wardsHook.js'),
+      import('../guards/wardsGuard.js'),
       import('../services/crew/identity.js'),
     ])
   const armSessionRunnerWiring = async (sid: string): Promise<void> => {
     const [wards, crew] = await sessionWiringModules()
-    wards.registerWardsHook(setAppState, sid)
-    const mission = await import('../utils/hooks/missionHook.js')
-    mission.rearmMissionFromCard(setAppState, { cardSessionId: sid, armSessionId: sid })
+    wards.registerWardsGuard(setAppState, sid)
+    const mission = await import('../guards/mission.js')
+    mission.rearmMissionFromCard({ cardSessionId: sid, armSessionId: sid })
     void crew.bootCrewIdentity({ sessionId: sid, worktreeRef: getCwd() }).catch(e => {
       logForDebugging(`[session-runner] crew identity boot failed (non-blocking): ${e}`)
     })
@@ -1584,8 +1584,8 @@ export async function runHeadless(
       | { kind: 'note'; to: string; content: string; id?: string },
   ): Promise<{ accepted: true } | { accepted: false; reason: 'duplicate' }> => {
     sessionInitialized = true
-    const missionSync = await import('../utils/hooks/missionHook.js')
-    missionSync.syncMissionFromCard(setAppState, String(getSessionId()))
+    const missionSync = await import('../guards/mission.js')
+    missionSync.syncMissionFromCard(String(getSessionId()))
     const uuid = input.id
     if (uuid) {
       const historical = await doesMessageExistInSession(

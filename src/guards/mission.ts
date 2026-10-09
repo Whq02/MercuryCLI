@@ -1,25 +1,24 @@
 import { existsSync } from 'node:fs'
-import type { Message } from '../../types/message.js'
-import type { SetAppState } from '../messageQueueManager.js'
+import type { Message } from '../types/message.js'
 import {
   conversationIdHere,
   getFocusedSessionConnector,
   hasFocusedSession,
   landingInFlight,
   subscribeFocusedSessionConnector,
-} from '../../services/engine-connector/focusedConnector.js'
-import { logForDebugging } from '../debug.js'
+} from '../services/engine-connector/focusedConnector.js'
+import { logForDebugging } from '../utils/debug.js'
 import {
   claimContinuation,
   turnBoundaryIndex,
-} from '../../services/run/continuationLatch.js'
-import { processMainOwner } from '../../services/run/resolveOwner.js'
+} from '../services/run/continuationLatch.js'
+import { processMainOwner } from '../services/run/resolveOwner.js'
 import {
   readMissionCard,
   writeMissionCard,
   type MissionCardState,
-} from '../../services/mission/missionCard.js'
-import { addFunctionHook, removeFunctionHook } from './sessionHooks.js'
+} from '../services/mission/missionCard.js'
+import { engageTurnGuard, disengageTurnGuard } from './guards.js'
 
 
 export const MISSION_CONDITION_MAX_LENGTH = 4000
@@ -201,7 +200,7 @@ export function sawMissionMetSentinel(messages: Message[]): boolean {
   return false
 }
 
-let armedAtLanding: { sessionId: string; setAppState: SetAppState } | null = null
+let armedAtLanding: { sessionId: string } | null = null
 let seatWatch: (() => void) | null = null
 
 function dropSeatWatch(): void {
@@ -224,9 +223,9 @@ function followSeatAtAdmission(): void {
   dropSeatWatch()
   const prior = missionsBySession.get(pending.sessionId)
   if (prior === undefined) return
-  removeFunctionHook(pending.setAppState, pending.sessionId, 'Stop', prior.hookId)
+  disengageTurnGuard(pending.sessionId, prior.hookId)
   missionsBySession.delete(pending.sessionId)
-  setActiveMission(pending.setAppState, prior.condition, { sessionId: hostedId })
+  setActiveMission(prior.condition, { sessionId: hostedId })
   const moved = missionsBySession.get(hostedId)
   if (moved !== undefined) {
     moved.iterations = prior.iterations
@@ -247,7 +246,6 @@ function followSeatAtAdmission(): void {
 }
 
 export function setActiveMission(
-  setAppState: SetAppState,
   condition: string,
   options?: { maxBlocks?: number; sessionId?: string },
 ): string {
@@ -256,7 +254,7 @@ export function setActiveMission(
 
   const prior = missionsBySession.get(sessionId)
   if (prior) {
-    removeFunctionHook(setAppState, sessionId, 'Stop', prior.hookId)
+    disengageTurnGuard(sessionId, prior.hookId)
     missionsBySession.delete(sessionId)
   }
 
@@ -271,32 +269,32 @@ export function setActiveMission(
     ...(contract.feasibility === 'already-met' ? { met: true, lastReason: `already met at compile: ${contract.evidence}` } : {}),
   }
 
-  const hookId = addFunctionHook(
-    setAppState,
-    sessionId,
-    'Stop',
-    '',
-    messages => {
+  const hookId = `mission-${sessionId}-${setAt}`
+  const words = `The standing mission for this session is not yet met: ${condition}\nKeep working toward it. When it is genuinely met, end your turn with a final line containing exactly ${MISSION_MET_SENTINEL}. A snapshot-style condition (a plan or in-flight status) counts as met once the work it directs is complete — being past the described state is completion, not a mismatch.`
+  engageTurnGuard(sessionId, {
+    id: hookId,
+    timeoutMs: 5000,
+    judge: ({ messages }) => {
       const mission = missionsBySession.get(sessionId)
-      if (!mission || mission.condition !== condition) return true
-      if (mission.met) return true
+      if (!mission || mission.condition !== condition) return { hold: false }
+      if (mission.met) return { hold: false }
       if (sawMissionMetSentinel(messages)) {
         mission.met = true
         persistCard(sessionId, mission, 'met')
-        return true
+        return { hold: false }
       }
       if (mission.contract?.feasibility === 'unattainable-now') {
         if (mission.feasibilityBlocked) {
           mission.gaveUp = true
           mission.lastReason = `feasibility terminal: ${mission.contract.evidence} — disarmed after the one bounded feasibility check`
           persistCard(sessionId, mission, 'stood-down')
-          return true
+          return { hold: false }
         }
         mission.feasibilityBlocked = true
         mission.iterations += 1
         mission.lastReason = `feasibility check issued: ${mission.contract.evidence}`
         persistCard(sessionId, mission, 'armed')
-        return false
+        return { hold: true, words }
       }
       if (mission.iterations >= maxBlocks) {
         mission.gaveUp = true
@@ -305,7 +303,7 @@ export function setActiveMission(
         logForDebugging(
           `[mission] block cap (${maxBlocks}) reached for "${condition}" — allowing stop`,
         )
-        return true
+        return { hold: false }
       }
       const claimed = claimContinuation(
         processMainOwner(),
@@ -315,16 +313,14 @@ export function setActiveMission(
       if (!claimed) {
         mission.lastReason = 'another hook claimed this stop attempt — mission defers one round'
         persistCard(sessionId, mission, 'armed')
-        return true
+        return { hold: false }
       }
       mission.iterations += 1
       mission.lastReason = `Mission not yet met (check ${mission.iterations})`
       persistCard(sessionId, mission, 'armed')
-      return false
+      return { hold: true, words }
     },
-    `The standing mission for this session is not yet met: ${condition}\nKeep working toward it. When it is genuinely met, end your turn with a final line containing exactly ${MISSION_MET_SENTINEL}. A snapshot-style condition (a plan or in-flight status) counts as met once the work it directs is complete — being past the described state is completion, not a mismatch.`,
-    { timeout: 5000, id: `mission-${sessionId}-${setAt}` },
-  )
+  })
 
   record.hookId = hookId
   missionsBySession.set(sessionId, record)
@@ -332,20 +328,19 @@ export function setActiveMission(
   logForDebugging(`[mission] installed standing mission for session ${sessionId}`)
   notifyMissionChange()
   if (options?.sessionId === undefined && landingInFlight() && !hasFocusedSession()) {
-    armedAtLanding = { sessionId, setAppState }
+    armedAtLanding = { sessionId }
     if (seatWatch === null) seatWatch = subscribeFocusedSessionConnector(followSeatAtAdmission)
   }
   return buildMissionDirective(condition)
 }
 
 export function clearActiveMission(
-  setAppState: SetAppState,
   sessionId: string = conversationIdHere(),
 ): string | null {
   const mission = missionsBySession.get(sessionId)
   if (!mission) return null
   if (armedAtLanding?.sessionId === sessionId) dropSeatWatch()
-  removeFunctionHook(setAppState, sessionId, 'Stop', mission.hookId)
+  disengageTurnGuard(sessionId, mission.hookId)
   missionsBySession.delete(sessionId)
   persistCard(sessionId, mission, 'cleared')
   logForDebugging(`[mission] cleared standing mission for session ${sessionId}`)
@@ -353,15 +348,15 @@ export function clearActiveMission(
   return mission.condition
 }
 
-export function syncMissionFromCard(setAppState: SetAppState, sessionId: string): void {
+export function syncMissionFromCard(sessionId: string): void {
   const card = readMissionCard(sessionId)
   const live = missionsBySession.get(sessionId)
   if (card?.state === 'armed' && live === undefined) {
-    rearmMissionFromCard(setAppState, { cardSessionId: sessionId, armSessionId: sessionId })
+    rearmMissionFromCard({ cardSessionId: sessionId, armSessionId: sessionId })
     return
   }
   if (live !== undefined && card !== null && card.state !== 'armed') {
-    removeFunctionHook(setAppState, sessionId, 'Stop', live.hookId)
+    disengageTurnGuard(sessionId, live.hookId)
     missionsBySession.delete(sessionId)
     logForDebugging(`[mission] released the standing mission for session ${sessionId} (the card reads ${card.state})`)
     notifyMissionChange()
@@ -369,7 +364,6 @@ export function syncMissionFromCard(setAppState: SetAppState, sessionId: string)
 }
 
 export function rearmMissionFromCard(
-  setAppState: SetAppState,
   target: string | { cardSessionId?: string; armSessionId?: string } = {},
 ): boolean {
   const normalized = typeof target === 'string' ? { cardSessionId: target, armSessionId: target } : target
@@ -378,7 +372,7 @@ export function rearmMissionFromCard(
   if (missionsBySession.has(armSessionId)) return false
   const card = readMissionCard(cardSessionId)
   if (!card || card.state !== 'armed') return false
-  setActiveMission(setAppState, card.goal, { sessionId: armSessionId })
+  setActiveMission(card.goal, { sessionId: armSessionId })
   const mission = missionsBySession.get(armSessionId)
   if (mission) {
     mission.lastReason = `re-armed on resume (the previous run closed at check ${card.iterations})`

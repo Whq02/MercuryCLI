@@ -168,7 +168,7 @@ if (import.meta.main) {
   check('nothing under src names the governor, its phases, its counters, its attachment or its hidden directive', named.length === 0, named.slice(0, 12).join(' · '))
   const evaluator = src('src/services/run/completionEvaluator.ts')
   check('the stop evaluator has no handoff decision and no re-plan directive', !evaluator.includes("kind: 'handoff'") && !evaluator.includes('REPLAN'))
-  const adapter = src('src/utils/hooks/runStopAdapter.ts')
+  const adapter = src('src/guards/runStopAdapter.ts')
   check('the stop adapter records no handoff and no admission tuple', !adapter.includes("decision.kind === 'handoff'") && !adapter.includes('priorAdmission'))
   const turnMachine = src('src/run-core/turn-machine.ts')
   check('the turn machine consults no snapshot before the next provider call', !turnMachine.includes('getRunSnapshot(') && !turnMachine.includes('cycleDirectiveMessages'))

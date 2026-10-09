@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # gate-class: pure
-# gate-watch: src/rows/turn.ts src/screens/Chat* src/utils/hooks/commitGate*
+# gate-watch: src/rows/turn.ts src/screens/Chat* src/guards/commitGate*
 # gate-watch: src/utils/verification/verificationState*
-# gate-watch: src/utils/hooks/generatedAssets* scripts/gate/generated-assets.tsv scripts/gate/generated-assets.ts
+# gate-watch: src/guards/generatedAssets* scripts/gate/generated-assets.tsv scripts/gate/generated-assets.ts
 # gate-watch: assets/completions/mercury.bash assets/splash/splash-core.mjs
 # gate-watch: assets/vulcan/addon/core/op_classes.gd scripts/builtin-tools/bench-builtin-tools.ts
 # gate-watch: scripts/builtin-tools/fixtures/RESULTS.md scripts/consistency-census/*

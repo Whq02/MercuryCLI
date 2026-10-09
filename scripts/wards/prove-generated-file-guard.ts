@@ -21,10 +21,10 @@ async function main(): Promise<void> {
   const { execFileSync } = await import('node:child_process')
   process.env.MERCURY_CONFIG_DIR ??= mkdtempSync(join(tmpdir(), 'wards-generated-home-'))
   const { BUILTIN_WARDS, GENERATED_MARKER, GENERATED_HEAD_LINES, evaluateWards, buildWardDenial } = await import('../../src/utils/wards/wards.js')
-  const hook = await import('../../src/utils/hooks/wardsHook.js')
-  const { registerWardsHook, resetWardsEngagedSessionsForTest } = hook
-  const { getSessionFunctionHooks } = await import('../../src/utils/hooks/sessionHooks.js')
-  const { parseGeneratedAssetsMap, GENERATED_ASSETS_MAP } = await import('../../src/utils/hooks/generatedAssets.js')
+  const hook = await import('../../src/guards/wardsGuard.js')
+  const { registerWardsGuard, resetWardsEngagedSessionsForTest } = hook
+  const { judgeToolCall } = await import('../../src/guards/guards.js')
+  const { parseGeneratedAssetsMap, GENERATED_ASSETS_MAP } = await import('../../src/guards/generatedAssets.js')
   const { runWithCwdOverride } = await import('../../src/utils/cwd.js')
   const { judgeGrowth } = await import('../lib/linearGrowth.js')
   type WardWork = import('../../src/utils/wards/wards.js').WardWork
@@ -535,13 +535,11 @@ async function main(): Promise<void> {
     const link = join(scratch, 'link')
     symlinkSync(ROOT, link)
     const realRoot = typeof hook.realTargetPath === 'function' ? hook.realTargetPath(ROOT) : ROOT
-    const ctx = (toolName: string, input: Record<string, unknown>) => ({ hookInput: { tool_name: toolName, tool_input: input }, tool: { name: toolName } })
     const fresh = async (cwd: string, toolName: string, input: Record<string, unknown>, id: string, work?: WardWork): Promise<unknown> => {
       resetWardsEngagedSessionsForTest()
-      runWithCwdOverride(cwd, () => registerWardsHook(setAppState, id, work))
-      const matchers = getSessionFunctionHooks({ sessionHooks: state.sessionHooks } as never, id, 'PreToolUse').get('PreToolUse' as never) ?? []
-      const cb = matchers.flatMap((m: { hooks: Array<{ callback: (mm: never[], s?: never, c?: unknown) => unknown }> }) => m.hooks)[0]!.callback
-      return runWithCwdOverride(cwd, () => cb([], undefined as never, ctx(toolName, input)))
+      runWithCwdOverride(cwd, () => registerWardsGuard(setAppState, id, work))
+      const verdict = await runWithCwdOverride(cwd, () => judgeToolCall(id, { tool: toolName, input, callId: 'generated-call', messages: [], toolRef: { name: toolName } as never }))
+      return verdict.refused ? verdict.reason : true
     }
     const census = join(ROOT, 'scripts', 'builtin-tools', 'fixtures', 'tool-census.json')
     const schema = join(ROOT, 'scripts', 'settings', 'settings-schema.json')

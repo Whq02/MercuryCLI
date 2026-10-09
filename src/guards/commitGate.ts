@@ -1,22 +1,21 @@
-import type { SetAppState } from '../messageQueueManager.js'
-import { getSessionId } from '../../bootstrap/state.js'
-import { POWERSHELL_TOOL_NAME } from '../../tools/PowerShellTool/toolName.js'
-import { getCwd } from '../cwd.js'
-import { logForDebugging } from '../debug.js'
-import { isEnvTruthy } from '../envUtils.js'
+import { getSessionId } from '../bootstrap/state.js'
+import { POWERSHELL_TOOL_NAME } from '../tools/PowerShellTool/toolName.js'
+import { getCwd } from '../utils/cwd.js'
+import { logForDebugging } from '../utils/debug.js'
+import { isEnvTruthy } from '../utils/envUtils.js'
 import {
   isVerifySegment,
   pipefailActiveBefore,
   splitShellControlOps,
   stripQuotedShellArgs,
   verificationSummary,
-} from '../verification/verificationState.js'
-import { addFunctionHook, removeFunctionHook } from './sessionHooks.js'
-import { flagEnv } from '../../substrate/flagRegistry.js'
+} from '../utils/verification/verificationState.js'
+import { engageToolGuard, disengageToolGuard, type ToolCallUnderGuard } from './guards.js'
+import { flagEnv } from '../substrate/flagRegistry.js'
 import { execFileSync } from 'node:child_process'
 import { existsSync, readFileSync, realpathSync } from 'node:fs'
 import { basename, join, resolve } from 'node:path'
-import { subprocessEnv } from '../subprocessEnv.js'
+import { subprocessEnv } from '../utils/subprocessEnv.js'
 import picomatch from 'picomatch'
 import {
   GENERATED_ASSETS_MAP,
@@ -143,41 +142,31 @@ function generatedAssetsVerdict(command: string): true | string {
   }
 }
 
-function commandFromContext(hookInput: unknown): string | null {
-  if (
-    hookInput == null ||
-    typeof hookInput !== 'object' ||
-    (hookInput as { hook_event_name?: string }).hook_event_name !== 'PreToolUse'
-  ) {
-    return null
-  }
-  const hi = hookInput as {
-    tool_name?: string
-    tool_input?: { command?: unknown }
-  }
-  if (hi.tool_name !== 'Bash' && hi.tool_name !== POWERSHELL_TOOL_NAME) return null
-  const cmd = hi.tool_input?.command
-  return typeof cmd === 'string' ? cmd : null
+function commandOfCall(call: ToolCallUnderGuard): string | null {
+  if (call.tool !== 'Bash' && call.tool !== POWERSHELL_TOOL_NAME) return null
+  const command = call.input.command
+  return typeof command === 'string' ? command : null
 }
 
-export function registerCommitGate(
-  setAppState: SetAppState,
-  sessionId: string,
-): string {
-  return addFunctionHook(
-    setAppState,
-    sessionId,
-    'PreToolUse',
-    `Bash|${POWERSHELL_TOOL_NAME}`,
-    (_messages, _signal, context) => {
-      if (flagEnv('MERCURY_COMMIT_GATE') === '0') return true
-      if (!commitGateEnabled()) return true
+export function registerCommitGate(sessionId: string): string {
+  engageToolGuard(sessionId, {
+    id: COMMIT_GATE_ID,
+    tools: ['Bash', POWERSHELL_TOOL_NAME],
+    timeoutMs: 5000,
+    judge: call => {
+      if (flagEnv('MERCURY_COMMIT_GATE') === '0') return { allow: true }
+      if (!commitGateEnabled()) return { allow: true }
+      const refuse = (reason?: string): { allow: false; reason: string } => ({ allow: false, reason: reason ?? COMMIT_GATE_REPROMPT })
+      const assetsVerdict = (command: string): ReturnType<typeof refuse> | { allow: true } => {
+        const verdict = generatedAssetsVerdict(command)
+        return verdict === true ? { allow: true } : refuse(verdict)
+      }
       try {
-        const command = commandFromContext(context?.hookInput)
-        if (command === null) return true
+        const command = commandOfCall(call)
+        if (command === null) return { allow: true }
         const shape = evaluateCommitGate(command)
-        if (shape.allow) return generatedAssetsVerdict(command)
-        if (shape.rule === 'no-verify-flag') return false
+        if (shape.allow) return assetsVerdict(command)
+        if (shape.rule === 'no-verify-flag') return refuse()
         let fresh = false
         try {
           if (receiptEligibleCommand(splitShellControlOps(command))) {
@@ -190,15 +179,14 @@ export function registerCommitGate(
         } catch {
           fresh = false
         }
-        if (!evaluateCommitGate(command, { freshReceipt: fresh }).allow) return false
-        return generatedAssetsVerdict(command)
+        if (!evaluateCommitGate(command, { freshReceipt: fresh }).allow) return refuse()
+        return assetsVerdict(command)
       } catch {
-        return false
+        return refuse()
       }
     },
-    COMMIT_GATE_REPROMPT,
-    { timeout: 5000, id: COMMIT_GATE_ID },
-  )
+  })
+  return COMMIT_GATE_ID
 }
 
 
@@ -438,11 +426,8 @@ export function generatedAssetsRefusal(command: string, cwd: string): string | n
   return owed.length === 0 ? null : describeOwedAssets(owed)
 }
 
-export function unregisterCommitGate(
-  setAppState: SetAppState,
-  sessionId: string,
-): void {
-  removeFunctionHook(setAppState, sessionId, 'PreToolUse', COMMIT_GATE_ID)
+export function unregisterCommitGate(sessionId: string): void {
+  disengageToolGuard(sessionId, COMMIT_GATE_ID)
 }
 
 
@@ -458,13 +443,10 @@ export function isCommitGateEngaged(
   return commitGateEngagedSessions.has(sessionId)
 }
 
-export function engageCommitGate(
-  setAppState: SetAppState,
-  sessionId: string = getSessionId(),
-): boolean {
+export function engageCommitGate(sessionId: string = getSessionId()): boolean {
   if (!commitGateEnabled()) return false
   if (commitGateEngagedSessions.has(sessionId)) return false
-  registerCommitGate(setAppState, sessionId)
+  registerCommitGate(sessionId)
   commitGateEngagedSessions.add(sessionId)
   logForDebugging(
     `[commit-gate] engaged for session ${sessionId}`,
@@ -472,12 +454,9 @@ export function engageCommitGate(
   return true
 }
 
-export function disengageCommitGate(
-  setAppState: SetAppState,
-  sessionId: string = getSessionId(),
-): boolean {
+export function disengageCommitGate(sessionId: string = getSessionId()): boolean {
   if (!commitGateEngagedSessions.has(sessionId)) return false
-  unregisterCommitGate(setAppState, sessionId)
+  unregisterCommitGate(sessionId)
   commitGateEngagedSessions.delete(sessionId)
   logForDebugging(
     `[commit-gate] disengaged for session ${sessionId}`,

@@ -29,7 +29,6 @@ import {
   getRecentReleaseNotes,
 } from './utils/releaseNotes.js'
 import { prefetchApiKeyFromApiKeyHelperIfSafe } from './utils/auth.js'
-import { registerSessionFileAccessHooks } from './utils/sessionFileAccessHooks.js'
 import { consumeSessionHomePin } from './utils/sessionStorage/sessionHomePin.js'
 import { saveWorktreeState } from './utils/sessionStorage.js'
 import { setCwd } from './utils/Shell.js'
@@ -199,10 +198,6 @@ export async function setup(
       .catch((error: unknown) => logError(error))
   }
   profileCheckpoint('setup_after_prefetch')
-
-  if (!isBareMode()) {
-    registerSessionFileAccessHooks()
-  }
 
   initSinks()
 
