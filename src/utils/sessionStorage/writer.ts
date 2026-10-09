@@ -923,18 +923,19 @@ class Project {
   private async getExistingSessionFile(
     sessionId: UUID,
   ): Promise<string | null> {
-    const cached = this.existingSessionFiles.get(sessionId)
-    if (cached) return cached
-
-    const targetFile = getTranscriptPathForSession(sessionId)
-    try {
-      await stat(targetFile)
-      this.existingSessionFiles.set(sessionId, targetFile)
-      return targetFile
-    } catch (e) {
-      if (isFsInaccessible(e)) return null
-      throw e
-    }
+    const known = this.existingSessionFiles.get(sessionId)
+    if (known) return known
+    const candidate = getTranscriptPathForSession(sessionId)
+    const present = await stat(candidate).then(
+      () => true,
+      (error: unknown) => {
+        if (isFsInaccessible(error)) return false
+        throw error
+      },
+    )
+    if (!present) return null
+    this.existingSessionFiles.set(sessionId, candidate)
+    return candidate
   }
 
 }
