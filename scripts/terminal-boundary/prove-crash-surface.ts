@@ -39,7 +39,7 @@ guard.unref?.()
 requireDist()
 
 function crashReports(home: string): Array<{ file: string; origin?: string; message?: string }> {
-  const dir = join(home, '.claude', 'crashes')
+  const dir = join(home, '.mercury', 'crashes')
   if (!existsSync(dir)) return []
   return readdirSync(dir)
     .filter(f => f.startsWith('crash-'))

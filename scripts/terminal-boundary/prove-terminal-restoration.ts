@@ -30,7 +30,7 @@ const RELEASE = '\x1b[0m\x1b[?1049l\x1b[?25h'
 async function drivePty(argv: string[], seconds: number, extraEnv: Record<string, string> = {}): Promise<string> {
   const home = mkdtempSync(join(tmpdir(), 'lucid-tr-home-'))
   const cwd = mkdtempSync(join(tmpdir(), 'lucid-tr-cwd-'))
-  mkdirSync(join(home, '.claude'), { recursive: true })
+  mkdirSync(join(home, '.mercury'), { recursive: true })
   const out = join(home, 'drive.jsonl')
   const child = spawn(
     '/usr/bin/python3',
@@ -42,7 +42,7 @@ async function drivePty(argv: string[], seconds: number, extraEnv: Record<string
         HOME: home,
         PATH: `/usr/bin:/bin:${dirname(nodeBin)}`,
         TERM: 'xterm-256color',
-        MERCURY_CONFIG_DIR: join(home, '.claude'),
+        MERCURY_CONFIG_DIR: join(home, '.mercury'),
         ANTHROPIC_API_KEY: 'fixture-key-000',
         MERCURY_DAEMON_DIR: join(home, 'daemon'),
         MERCURY_ALT_HELD: '1',
