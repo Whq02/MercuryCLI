@@ -5,7 +5,7 @@ import ignore from 'ignore'
 import type { Command, PromptCommand } from '../types/command.js'
 import type { ToolUseContext } from '../Tool.js'
 import type { HooksSettings } from '../schemas/hooks.js'
-import { HooksSchema } from '../schemas/hooks.js'
+import { readHooksMap } from '../schemas/hooks.js'
 import type { EffortValue } from '../utils/effort.js'
 import { parseEffortValue, EFFORT_LEVELS } from '../utils/effort.js'
 import {
@@ -154,14 +154,9 @@ export function parseSkillFrontmatterFields(
 
   let hooks: HooksSettings | undefined
   if (frontmatter['hooks'] !== undefined) {
-    const validated = HooksSchema().safeParse(frontmatter['hooks'])
-    if (validated.success) {
-      hooks = validated.data as HooksSettings
-    } else {
-      logForDebugging(
-        `skill ${resolvedName}: invalid hooks frontmatter ignored (${validated.error.message})`,
-      )
-    }
+    const reading = readHooksMap(frontmatter['hooks'])
+    for (const fault of reading.faults) logForDebugging(`skill ${resolvedName}: hook ${fault}`)
+    if (Object.keys(reading.hooks).length > 0) hooks = reading.hooks
   }
 
   let model: string | undefined

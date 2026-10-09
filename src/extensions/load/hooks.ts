@@ -1,33 +1,30 @@
 import { clearRegisteredExtensionHooks, getRegisteredHooks, registerHookCallbacks } from '../../bootstrap/state.js'
-import { HOOK_EVENTS } from '../../utils/hooks/contract.js'
-import type { HookCommand } from '../../schemas/hooks.js'
-import type { ExtensionHookMatcher } from '../../utils/settings/types.js'
+import { HOOK_EVENTS, isHookEvent, type HookEvent } from '../../utils/hooks/contract.js'
+import type { ExtensionHookMatcher, HookEntry } from '../../utils/settings/types.js'
 import { activeFor } from '../active.js'
 
 type Registered = NonNullable<ReturnType<typeof getRegisteredHooks>>
 
-export function collectExtensionHooks(): { record: Partial<Record<(typeof HOOK_EVENTS)[number], ExtensionHookMatcher[]>>; hookCount: number; extensionCount: number } {
-  const record: Partial<Record<(typeof HOOK_EVENTS)[number], ExtensionHookMatcher[]>> = {}
+export function collectExtensionHooks(): { record: Partial<Record<HookEvent, ExtensionHookMatcher[]>>; hookCount: number; extensionCount: number } {
+  const record: Partial<Record<HookEvent, ExtensionHookMatcher[]>> = {}
   for (const event of HOOK_EVENTS) record[event] = []
   let hookCount = 0
   const contributing = new Set<string>()
   for (const ext of activeFor('hooks')) {
-    const groups = new Map<string, { event: (typeof HOOK_EVENTS)[number]; matcher: string | undefined; hooks: HookCommand[] }>()
+    const byEvent = new Map<HookEvent, HookEntry[]>()
     for (const hook of ext.resolution.hooks) {
-      const key = `${hook.event}\0${hook.matcher ?? ''}`
-      let group = groups.get(key)
-      if (!group) {
-        group = { event: hook.event as (typeof HOOK_EVENTS)[number], matcher: hook.matcher, hooks: [] }
-        groups.set(key, group)
+      if (!isHookEvent(hook.event)) continue
+      let entries = byEvent.get(hook.event)
+      if (!entries) {
+        entries = []
+        byEvent.set(hook.event, entries)
       }
-      group.hooks.push({ ...hook.hook } as HookCommand)
+      entries.push({ ...hook.hook })
       hookCount++
       contributing.add(ext.entry.id)
     }
-    for (const group of groups.values()) {
-      const list = record[group.event]
-      if (!list) continue
-      list.push({ matcher: group.matcher, hooks: group.hooks, extensionName: ext.manifest.name, extensionRoot: ext.root, extensionId: ext.entry.id })
+    for (const [event, hooks] of byEvent) {
+      record[event]?.push({ hooks, extensionName: ext.manifest.name, extensionRoot: ext.root, extensionId: ext.entry.id })
     }
   }
   return { record, hookCount, extensionCount: contributing.size }
