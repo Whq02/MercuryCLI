@@ -20,8 +20,8 @@ import type {
   BusyRefusalV1,
   Message,
   StreamEvent,
-  SystemAPIErrorMessage,
 } from '../../../types/message.js'
+import type { CallModelParams, CallModelStream } from '../callModelContract.js'
 import { API_ERROR_MESSAGE_PREFIX, streamFaultAfterPartialText } from '../../api/errors.js'
 import { streamCutForensicsDetail, streamCutForensicsLine } from './streamCutForensics.js'
 import { classifyOverflowFault, type OverflowSignal } from '../../api/overflowSignal.js'
@@ -51,8 +51,6 @@ import { normalizeModelStringForAPI } from '../../../utils/model/model.js'
 import { addToTotalSessionCost } from '../../../cost-tracker.js'
 import { calculateUSDCost } from '../../../utils/modelCost.js'
 import { estimateFaultedRequestUsage } from '../faultUsageEstimate.js'
-import type { SystemPrompt } from '../../../utils/systemPromptType.js'
-import type { ThinkingConfig } from '../../../utils/thinking.js'
 import { getSessionId } from '../../../bootstrap/state.js'
 import { noteRunPhase } from '../../../utils/runPhases.js'
 import type { ApiShapedTool } from '../zai/zaiCodec.js'
@@ -185,16 +183,6 @@ export function openaiFaultToTypedError(
     return 'server_error'
   }
   return 'unknown'
-}
-
-export interface OpenaiCallModelParams {
-  messages: Message[]
-  systemPrompt: SystemPrompt
-  thinkingConfig: ThinkingConfig
-  tools: Tools
-  signal: AbortSignal
-  options: Options
-  deferralFormReissued?: string
 }
 
 function apiErrorMessage(
@@ -510,9 +498,11 @@ async function qualifyRequestedModel(
   }
 }
 
-export async function* openaiCallModel(
-  params: OpenaiCallModelParams,
-): AsyncGenerator<StreamEvent | AssistantMessage | SystemAPIErrorMessage, void> {
+export async function* openaiCallModel(params: CallModelParams): CallModelStream {
+  yield* openaiTurn(params)
+}
+
+async function* openaiTurn(params: CallModelParams, deferralFormReissued?: string): CallModelStream {
   const { messages, systemPrompt, tools, signal, options } = params
   const requestedId = normalizeModelStringForAPI(options.model).trim().toLowerCase()
 
@@ -594,7 +584,7 @@ export async function* openaiCallModel(
   if (qualification.kind === 'degraded') {
     settlementNotes.push(qualification.note)
   }
-  if (params.deferralFormReissued !== undefined) settlementNotes.push(params.deferralFormReissued)
+  if (deferralFormReissued !== undefined) settlementNotes.push(deferralFormReissued)
 
   const retiredScreenshots = retireOlderScreenshots(wireMessages)
   const retiredMessages =
@@ -743,7 +733,7 @@ export async function* openaiCallModel(
     }
     if (
       nativeDeferral &&
-      params.deferralFormReissued === undefined &&
+      deferralFormReissued === undefined &&
       outcome.retryEligible &&
       outcome.fault.status === 400 &&
       OPENAI_NATIVE_DEFERRAL_REFUSAL.test(outcome.fault.message)
@@ -755,7 +745,7 @@ export async function* openaiCallModel(
         recordGatewayProbe(key, { verdict: 'text', evidence, status: 400, probedAt: new Date().toISOString() })
         const note = `[openai] ${auth.account.label} refused OpenAI's tool-search deferral form (${outcome.fault.message}) — recorded for this endpoint; this call and every later one ride the client-side text form.`
         logForDebugging(note, { level: 'warn' })
-        yield* openaiCallModel({ ...params, deferralFormReissued: note })
+        yield* openaiTurn(params, note)
         return
       }
     }

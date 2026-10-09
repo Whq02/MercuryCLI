@@ -542,7 +542,7 @@ console.log('── every road takes the one ladder; the lanes keep their yield 
 const { readFileSync } = await import('node:fs')
 const source = (name: string): string => readFileSync(new URL(`../../src/services/providers/${name}`, import.meta.url), 'utf8')
 for (const name of ['deepseek/deepseekCallModel.ts', 'huggingface/huggingfaceCallModel.ts', 'local/localCallModel.ts', 'moonshot/moonshotCallModel.ts', 'openaicompat/compatCallModel.ts', 'openrouter/openrouterCallModel.ts', 'gemini/geminiCallModel.ts']) {
-  check(`${name} keeps its yield union and asks for no ladder of its own`, !source(name).includes('busyRetry') && source(name).includes('): AsyncGenerator<StreamEvent | AssistantMessage | SystemAPIErrorMessage, void> {'))
+  check(`${name} keeps the contract's yield union (CallModelStream) and asks for no ladder of its own`, !source(name).includes('busyRetry') && source(name).includes('(params: CallModelParams): CallModelStream {'))
 }
 check('callModelRouter.ts takes no ladder', !source('callModelRouter.ts').includes('busyRetry'))
 for (const name of ['openaicompat/compatChatCallModel.ts', 'openai/openaiCallModel.ts', 'zai/zaiCallModel.ts']) {

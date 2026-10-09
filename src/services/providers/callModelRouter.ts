@@ -1,4 +1,5 @@
 import { queryModelWithStreaming } from '../providers/anthropic/index.js'
+import type { CallModelParams, CallModelStream } from './callModelContract.js'
 import { API_ERROR_MESSAGE_PREFIX } from '../api/errors.js'
 import { APIUserAbortError } from '../api/sdkErrors.js'
 import type { AssistantMessage } from '../../types/message.js'
@@ -58,9 +59,7 @@ export function settleAssistantTurn(
   }
 }
 
-export async function routedCallModelSettled(
-  params: Parameters<typeof queryModelWithStreaming>[0],
-): Promise<AssistantMessage> {
+export async function routedCallModelSettled(params: CallModelParams): Promise<AssistantMessage> {
   const settled: AssistantMessage[] = []
   for await (const message of routedCallModel(params)) {
     if (message.type === 'assistant') settled.push(message as AssistantMessage)
@@ -68,9 +67,7 @@ export async function routedCallModelSettled(
   return settleAssistantTurn(settled, params.signal.aborted)
 }
 
-async function* homeLaneCall(
-  params: Parameters<typeof queryModelWithStreaming>[0],
-): ReturnType<typeof queryModelWithStreaming> {
+async function* homeLaneCall(params: CallModelParams): CallModelStream {
   const refusal = homeLaneAdmissionRefusal(params.options.model)
   if (refusal !== null) {
     yield createAssistantAPIErrorMessage({
@@ -89,7 +86,7 @@ async function classifyAfterLiveLists(model: string): Promise<ModelRouteVerdict>
   return classifyModelRoute(model)
 }
 
-export const routedCallModel: typeof queryModelWithStreaming = async function* (params) {
+export async function* routedCallModel(params: CallModelParams): CallModelStream {
   const verdict = await classifyAfterLiveLists(params.options.model)
   if (verdict.kind === 'absence') {
     yield createAssistantAPIErrorMessage({

@@ -1,6 +1,7 @@
 import type { Tool, Tools } from '../../../Tool.js'
 import { isDeferredTool, TOOL_SEARCH_TOOL_NAME } from '../../../tools/ToolSearchTool/prompt.js'
-import type { AssistantMessage, Message, StreamEvent, SystemAPIErrorMessage } from '../../../types/message.js'
+import type { Message } from '../../../types/message.js'
+import type { CallModelParams, CallModelStream } from '../callModelContract.js'
 import { toolToAPISchema } from '../../../utils/api.js'
 import { extractDiscoveredToolNames, isDeferredToolsDeltaEnabled, isToolSearchEnabledOptimistic } from '../../../utils/toolSearch.js'
 import { getToolSchemaCache } from '../../../utils/toolSchemaCache.js'
@@ -214,9 +215,7 @@ export function localLiveProofState(): { at: number; model: string } | null {
   return compatLaneLiveProofState('local')
 }
 
-export async function* localCallModel(
-  params: CompatCallModelParams,
-): AsyncGenerator<StreamEvent | AssistantMessage | SystemAPIErrorMessage, void> {
+export async function* localCallModel(params: CallModelParams): CallModelStream {
   let record = localRecordFor(params.options.model)
   if (!record) {
     await refreshLocalDiscovery({ force: true }).catch(() => undefined)

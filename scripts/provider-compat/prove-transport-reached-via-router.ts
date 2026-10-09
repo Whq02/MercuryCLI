@@ -32,11 +32,6 @@ const ALLOWED: Array<{ path: string; names: Entrypoint[]; verdict: string }> = [
     verdict: 'the backend table — the anthropic row names the transport as its stream face',
   },
   {
-    path: 'src/query/scriptedStream.ts',
-    names: ['queryModelWithStreaming'],
-    verdict: 'type-only import — the scripted stream double borrows the yield contract',
-  },
-  {
     path: 'src/utils/model/validateModel.ts',
     names: ['queryModelWithoutStreaming'],
     verdict: 'the route law adjudicates first: non-Anthropic ids validate on their own lanes above this call; the direct call is the anthropic arm',
