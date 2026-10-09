@@ -23,7 +23,7 @@ writeFileSync(
   join(PROJ, '.mercury', 'settings.json'),
   JSON.stringify({
     credentials: { keyCommand: `touch ${join(PROJ, 'helper-marker')} && echo sk-proj-fixture` },
-    events: { hooks: { SessionStart: [{ hooks: [{ type: 'command', command: `touch ${join(PROJ, 'proj-marker')}` }] }] } },
+    events: { hooks: { 'session.start': [{ run: `touch ${join(PROJ, 'proj-marker')}` }] } },
   }),
 )
 writeFileSync(join(PROJ, '.mercury', 'mcp.json'), JSON.stringify({ mcpServers: { fixsrv: { command: 'node', args: ['-e', 'setTimeout(()=>{},100)'] } } }))
@@ -31,7 +31,7 @@ writeFileSync(
   join(HOME, 'settings.json'),
   JSON.stringify({
     credentials: { keyCommand: 'echo sk-user-fixture' },
-    events: { hooks: { SessionStart: [{ hooks: [{ type: 'command', command: `touch ${join(PROJ, 'user-marker')}` }] }] } },
+    events: { hooks: { 'session.start': [{ run: `touch ${join(PROJ, 'user-marker')}` }] } },
   }),
 )
 
@@ -69,14 +69,11 @@ section('§1 THE PREDICATE')
 
 section('§2 THE HOOKS SNAPSHOT UNDER THE GATE')
 {
-  const { getHooksConfigFromSnapshot, resetHooksConfigSnapshot } = await import(
-    '../../src/utils/hooks/hooksConfigSnapshot.js'
-  )
-  const sessionStartCommands = (snapshot: unknown): string[] => {
-    const groups =
-      ((snapshot ?? {}) as { SessionStart?: Array<{ hooks?: Array<{ command?: string }> }> }).SessionStart ?? []
-    return groups.flatMap(g => (g.hooks ?? []).map(h => h.command ?? ''))
-  }
+  const { hooksSnapshot, resetHooksSnapshot } = await import('../../src/utils/hooks/hooksConfigSnapshot.js')
+  const resetHooksConfigSnapshot = resetHooksSnapshot
+  const getHooksConfigFromSnapshot = (): unknown => hooksSnapshot().hooks
+  const sessionStartCommands = (snapshot: unknown): string[] =>
+    ((snapshot ?? []) as Array<{ event: string; entry: { run?: string } }>).filter(h => h.event === 'session.start').map(h => h.entry.run ?? '')
   setIsInteractive(false)
   resetTrustDialogAcceptedCacheForTesting()
   resetSettingsCache()
@@ -130,7 +127,7 @@ section('§3 OUTSIDE-CHECKOUT READERS + THE GATED SITES (call-shaped)')
   check(
     'hooks snapshot: the compose arm gates (call-shaped)',
     /untrustedWorkspaceHeadless\(\)/.test(src('utils', 'hooks', 'hooksConfigSnapshot.ts')) &&
-      /getHooksFromOutsideCheckoutSources\(\)/.test(src('utils', 'hooks', 'hooksConfigSnapshot.ts')),
+      /CHECKOUT_LAYERS\.has\(layer\)/.test(src('utils', 'hooks', 'hooksConfigSnapshot.ts')),
   )
   check(
     'mcp assembly: the project MCP file excluded under the gate (call-shaped)',
@@ -185,7 +182,7 @@ section('§5 THE ARTIFACT LIVE (fresh checkout, headless)')
       join(LIVE_PROJ, '.mercury', 'settings.json'),
       JSON.stringify({
         credentials: { keyCommand: `touch ${marker('helper-marker')} && echo sk-proj-fixture` },
-        events: { hooks: { SessionStart: [{ hooks: [{ type: 'command', command: `touch ${marker('proj-marker')}` }] }] } },
+        events: { hooks: { 'session.start': [{ run: `touch ${marker('proj-marker')}` }] } },
       }),
     )
     writeFileSync(join(LIVE_PROJ, '.mercury', 'mcp.json'), JSON.stringify({ mcpServers: { fixsrv: { command: 'node', args: ['-e', 'setTimeout(()=>{},100)'] } } }))
@@ -193,7 +190,7 @@ section('§5 THE ARTIFACT LIVE (fresh checkout, headless)')
       join(LIVE_HOME, 'settings.json'),
       JSON.stringify({
         credentials: { keyCommand: 'echo sk-user-fixture' },
-        events: { hooks: { SessionStart: [{ hooks: [{ type: 'command', command: `touch ${marker('user-marker')}` }] }] } },
+        events: { hooks: { 'session.start': [{ run: `touch ${marker('user-marker')}` }] } },
       }),
     )
     const childEnv: Record<string, string | undefined> = {
