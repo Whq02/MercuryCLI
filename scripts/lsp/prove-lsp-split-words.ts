@@ -13,20 +13,21 @@ if (!('LSP_TOOLS' in available)) {
 process.env.MERCURY_LSP_SERVERS = JSON.stringify(fixtureServer('fixture', FAKE_SERVER, {}, '.fk', 'fake'))
 const door = await openToolDoor(project)
 try {
-  const { getLspDoctrineLine, getLspPackEvidenceText } = await import('../../src/services/lsp/mercuryLsp.ts')
   const { getRunProtocolSection } = await import('../../src/utils/cockpit/runProtocol.ts')
   const { computeHarnessMapLines } = await import('../../src/utils/cockpit/harnessMap.ts')
   const { isReadOnlyAllowlistedTool } = await import('../../src/utils/permissions/readOnlyAllowlist.ts')
   const { evaluateWards, BUILTIN_WARDS } = await import('../../src/utils/wards/wards.ts')
   const { remedyForLanguageServer } = await import('../../src/services/lsp/failureWords.ts')
-  const doctrine = "<ide-evidence>When LspRead is available, edit with IDE evidence instead of guesses: LspRead goToDefinition/findReferences before changing a shared symbol, LspRead diagnostics on files you just edited before calling them done, and LspRename (preview, then apply) instead of hand-editing call sites across files.</ide-evidence>"
-  check('the exact IDE-evidence doctrine names the read and rename tools', getLspDoctrineLine() === doctrine)
-  check('the pack variant teaches those same tools', /LspRead diagnostics/.test(getLspPackEvidenceText() ?? '') && /LspRename/.test(getLspPackEvidenceText() ?? ''))
-  const guidance = 'prefer LspRead for symbol discovery and references, LspRename for a structured rename and LspCodeAction for offered fixes; use direct file edits for small local changes where that is clearer. After a code mutation, get current diagnostics (LspRead diagnostics) when a language server covers the file, then run the smallest real proof that covers the changed behavior.'
+  const readTool = available.LSP_TOOLS.find(tool => tool.name === 'LspRead')
+  const renameTool = available.LSP_TOOLS.find(tool => tool.name === 'LspRename')
+  const readText = (await readTool?.prompt?.({} as never)) ?? ''
+  const renameText = (await renameTool?.prompt?.({} as never)) ?? ''
+  check('the read tool owns the IDE-evidence facts: definitions and references over text search, diagnostics on files just edited', readText.includes('Use this over Grep and Read for definitions and references') && readText.includes('Run it on files you just edited'))
+  check('the rename tool owns the structured-rename fact', renameText.includes('Rename a symbol everywhere the language server sees it'))
   const protocol = getRunProtocolSection({ lspMounted: true, dapMounted: false }) ?? ''
-  check('the run protocol carries the exact new guidance', protocol.includes(guidance) && protocol.includes('An Lsp tool or Debug operation') && !protocol.includes('LSP tool'))
+  check('the run protocol repeats none of it (no IDE-loop paragraph, no "LSP tool")', !protocol.includes('IDE loop') && !protocol.includes('LspRead') && !protocol.includes('LSP tool'))
   const map = computeHarnessMapLines().join('\n')
-  check('the harness map names the loaded read tool and deferred refactors', map.includes('LspRead (diagnostics, definitions, references) and, loaded with ToolSearch, LspRename, LspMoveSymbol, LspMoveFile, LspCodeAction and LspFormat'))
+  check('the harness map repeats none of it (the roster lists the tools)', !map.includes('Code intelligence is native'))
   for (const tool of available.LSP_TOOLS) {
     check(`${tool.name}: only the read tool belongs to the flow read-only allowlist`, isReadOnlyAllowlistedTool(tool.name) === (tool.name === 'LspRead'))
     const generated = '/work/project/scripts/builtin-tools/fixtures/tool-census.json'
