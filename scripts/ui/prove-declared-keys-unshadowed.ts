@@ -283,6 +283,7 @@ section('§2b text-field hosts that compare raw single letters gate them off whi
     'src/components/RouterOpenaiConnect.tsx',
     'src/components/ConsoleOAuthFlow.tsx',
     'src/components/XaiConnect.tsx',
+    'src/components/NousConnect.tsx',
   ])
   const letterHosts = files.filter(rel => {
     const src = read(rel)
