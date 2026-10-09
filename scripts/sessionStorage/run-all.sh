@@ -51,6 +51,7 @@ __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-transcript-d
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-transcript-tail-reader.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-transcript-tail-reader.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-old-transcript-kinds-parse.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-old-transcript-kinds-parse.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-transcript-consumers-owned.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-transcript-consumers-owned.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-unresolved-tool-use.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-unresolved-tool-use.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-drain-fault-isolation.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-drain-fault-isolation.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-resume-snapshot-honesty.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-resume-snapshot-honesty.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-flush-drain-ladder.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-flush-drain-ladder.ts" "$__t" "$__rc"
