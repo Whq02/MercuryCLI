@@ -38,6 +38,8 @@ import {
   writeStoredXaiManagementApiKey,
   readStoredMetaApiKey,
   writeStoredMetaApiKey,
+  readStoredNousApiKey,
+  writeStoredNousApiKey,
   readStoredHuggingfaceApiKey,
   readStoredLocalApiKey,
   readStoredMoonshotApiKey,
@@ -120,6 +122,7 @@ export type SlotRemoval =
   | { route: 'huggingface-oauth' }
   | { route: 'huggingface-stored-key' }
   | { route: 'local-stored-key' }
+  | { route: 'nous-stored-key' }
   | { route: 'env'; envVar: string }
   | { route: 'settings'; note: string }
   | { route: 'owner'; note: string }
@@ -183,6 +186,8 @@ export interface AccountSlotReads {
   xaiManagementStoredKey?: () => string | undefined
   metaEnvKey?: () => string | undefined
   metaStoredKey?: () => string | undefined
+  nousEnvKey?: () => string | undefined
+  nousStoredKey?: () => string | undefined
   compatEnvKey?: () => string | undefined
   compatStoredKey?: () => string | undefined
   huggingfaceEnvKey?: () => string | undefined
@@ -911,6 +916,12 @@ function metaSlots(reads: AccountSlotReads): AccountSlot[] {
   return keyLaneSlots({ family: 'meta', envVar: ambient?.name ?? 'MODEL_API_KEY', envKey, storedKey, storedRemoval: { route: 'meta-stored-key' } })
 }
 
+function nousSlots(reads: AccountSlotReads): AccountSlot[] {
+  const envKey = reads.nousEnvKey ? reads.nousEnvKey() : process.env.NOUS_API_KEY?.trim() || undefined
+  const storedKey = (reads.nousStoredKey ?? readStoredNousApiKey)()
+  return keyLaneSlots({ family: 'nous', envVar: 'NOUS_API_KEY', envKey, storedKey, storedRemoval: { route: 'nous-stored-key' } })
+}
+
 function deepseekSlots(reads: AccountSlotReads): AccountSlot[] {
   const envKey =
     reads.deepseekEnvKey ? reads.deepseekEnvKey() : process.env.DEEPSEEK_API_KEY?.trim() || undefined
@@ -1134,6 +1145,8 @@ export function deriveFamilySlotGroups(
                               ? huggingfaceSlots(reads)
                               : family.id === 'local'
                                 ? localSlots(reads)
+                                : family.id === 'nous'
+                                  ? nousSlots(reads)
                                 : genericSlots(
                                     family,
                                     providers.find(provider => provider.id === family.id),
@@ -1162,6 +1175,7 @@ export interface SlotRemovalOwners {
   disconnectHuggingfaceOauth?: () => void
   clearStoredHuggingfaceKey?: () => void
   clearStoredLocalKey?: () => void
+  clearStoredNousKey?: () => void
   clearManagedAnthropicKey?: () => void
   signOutAnthropicOauth?: () => void
   revokeAnthropicToken?: (refreshToken: string) => Promise<void>
@@ -1366,6 +1380,9 @@ function routeSlotRemoval(
     case 'xai-management-key':
       ;(owners.clearStoredXaiManagementKey ?? (() => writeStoredXaiManagementApiKey(null)))()
       return { note: 'stored xAI management key cleared; the inference key stays', mutated: true }
+    case 'nous-stored-key':
+      ;(owners.clearStoredNousKey ?? (() => writeStoredNousApiKey(null)))()
+      return { note: 'stored Nous Portal API key cleared from the auth-scoped store', mutated: true }
     case 'compat-stored-key':
       ;(owners.clearStoredCompatKey ?? (() => writeStoredCompatApiKey(null)))()
       return { note: 'stored endpoint API key cleared from the auth-scoped store', mutated: true }
@@ -1405,6 +1422,7 @@ export function signOutEveryEngineCredential(owners: SlotRemovalOwners = {}): vo
     ['huggingface-oauth', owners.disconnectHuggingfaceOauth ?? disconnectHuggingfaceOauth],
     ['huggingface-stored-key', owners.clearStoredHuggingfaceKey ?? (() => writeStoredHuggingfaceApiKey(null))],
     ['local-stored-key', owners.clearStoredLocalKey ?? (() => writeStoredLocalApiKey(null))],
+    ['nous-stored-key', owners.clearStoredNousKey ?? (() => writeStoredNousApiKey(null))],
   ]
   for (const [, step] of steps) {
     try {
