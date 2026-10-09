@@ -1,5 +1,5 @@
 {
-  "base": "3db86e162a5b2b74967df32ca6231b873db804f7",
+  "base": "8d827895474799dec6a39b8f87ec6c8ad9a367a2",
   "model": "gpt-6-astra",
   "definitions": [
     {
@@ -266,7 +266,7 @@
     },
     {
       "name": "Edit",
-      "description": "Swap one exact string for another inside a file.\n\nUsage:\n- An edit lands only after `Read` has read the file somewhere in this conversation — editing unread files errors.\n- When an edit's text comes from Read output, carry the indentation byte-for-byte (tabs/spaces) as it stands PAST the line-number prefix. The prefix shape is: line number + tab. Real file content starts past that prefix — no fragment of the prefix ever belongs in old_string or new_string.\n- Default to modifying files that already exist; creating a brand-new file needs an explicit reason from the task.\n- Keep emoji out of file content unless the user has specifically asked for them.\n- A non-unique `old_string` writes nothing; the error names and shows every match with its neighbouring lines: widen it with a line that differs, or pass `replace_all` to rewrite every occurrence at once (the right tool for bulk substitutions, such as renaming an identifier throughout the file).\n- A landed edit shows the changed lines as read back after the write, numbered as Read numbers them, with three lines of context; they count as read, so checking the edit needs no Read.\n- `append` adds text at the end of the file with no prior read; `section` names a Markdown heading line and, with `new_string`, replaces that whole section, or, with `append`, adds text inside it. A file's read knowledge is keyed to its content: a Read of the lines the edit touches, a content-mode Grep that displayed them, or `expected_anchor` from a full Read all count.\n- An edit that touches lines you have not read still lands in one call when you have read the file as it stands and those lines fit a Read window; a file you never read, one that changed after your read, or a stale expected_anchor refuses instead, and the refusal's first sentence says what to do.\n- Semantic shortcut: one rewrite at every match of a code shape belongs to AstEdit (dry run, then apply).",
+      "description": "Swap one exact string for another inside a file.\n\nUsage:\n- An edit lands only after `Read` has read the file somewhere in this conversation — editing unread files errors.\n- When an edit's text comes from Read output, carry the indentation byte-for-byte (tabs/spaces) as it stands past the line-number prefix. The prefix shape is: line number + tab. Real file content starts past that prefix — no fragment of the prefix ever belongs in old_string or new_string.\n- A non-unique `old_string` writes nothing; the error names and shows every match with its neighbouring lines: widen it with a line that differs, or pass `replace_all` to rewrite every occurrence at once (the right tool for bulk substitutions, such as renaming an identifier throughout the file).\n- A landed edit shows the changed lines as read back after the write, numbered as Read numbers them, with three lines of context; they count as read, so checking the edit needs no Read.\n- `append` adds text at the end of the file with no prior read; `section` names a Markdown heading line and, with `new_string`, replaces that whole section, or, with `append`, adds text inside it. A file's read knowledge is keyed to its content: a Read of the lines the edit touches, a content-mode Grep that displayed them, or `expected_anchor` from a full Read all count.\n- An edit that touches lines you have not read still lands in one call when you have read the file as it stands and those lines fit a Read window; a file you never read, one that changed after your read, or a stale expected_anchor refuses instead, and the refusal's first sentence says what to do.\n- Semantic shortcut: one rewrite at every match of a code shape belongs to AstEdit (dry run, then apply).",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -292,7 +292,7 @@
             "type": "string"
           },
           "hunks": {
-            "description": "Line-addressed hunks against the anchored snapshot. Mutually exclusive with old_string/new_string; requires expected_anchor unless EVERY hunk is anchor-qualified (\"12#ab3f\" from a line_anchors read — then the line anchors are the staleness contract).",
+            "description": "Line-addressed hunks against the anchored snapshot. Mutually exclusive with old_string/new_string; requires expected_anchor unless every hunk is anchor-qualified (\"12#ab3f\" from a line_anchors read — then the line anchors are the staleness contract).",
             "type": "array",
             "items": {
               "type": "object",
