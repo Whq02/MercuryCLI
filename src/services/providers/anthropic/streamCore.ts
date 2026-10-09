@@ -270,43 +270,20 @@ export {
   updateUsage,
 } from './cacheAndUsage.js'
 
-export async function queryModelWithoutStreaming({
-  messages,
-  systemPrompt,
-  thinkingConfig,
-  tools,
-  signal,
-  options,
-}: {
-  messages: Message[]
-  systemPrompt: SystemPrompt
-  thinkingConfig: ThinkingConfig
-  tools: Tools
-  signal: AbortSignal
-  options: Options
-}): Promise<AssistantMessage> {
-  let assistantMessage: AssistantMessage | undefined
-  for await (const message of withStreamingVCR(messages, async function* () {
-    yield* queryModel(
-      messages,
-      systemPrompt,
-      thinkingConfig,
-      tools,
-      signal,
-      options,
-    )
-  })) {
-    if (message.type === 'assistant') {
-      assistantMessage = message
-    }
+export async function queryModelWithoutStreaming(
+  request: CallModelParams,
+): Promise<AssistantMessage> {
+  const { messages, systemPrompt, thinkingConfig, tools, signal, options } = request
+  const settled: AssistantMessage[] = []
+  const stream = withStreamingVCR(messages, () =>
+    queryModel(messages, systemPrompt, thinkingConfig, tools, signal, options),
+  )
+  for await (const item of stream) {
+    if (item.type === 'assistant') settled.push(item)
   }
-  if (!assistantMessage) {
-    if (signal.aborted) {
-      throw new APIUserAbortError()
-    }
-    throw new Error('No assistant message found')
-  }
-  return assistantMessage
+  const last = settled.at(-1)
+  if (last) return last
+  throw signal.aborted ? new APIUserAbortError() : new Error('No assistant message found')
 }
 
 export async function* queryModelWithStreaming({
