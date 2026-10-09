@@ -34,11 +34,9 @@ color: cyan
 mcpServers:
   - slack
 hooks:
-  PreToolUse:
-    - matcher: Bash
-      hooks:
-        - type: command
-          command: echo hi
+  tool.before:
+    - match: Bash
+      run: echo hi
 ---
 
 You are the full agent.

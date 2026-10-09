@@ -138,7 +138,7 @@ const ext = { extensionRoot: installed.ok ? installed.root : '', extensionId: 'k
   const outDir = join(scratch, 'hook-out')
   mkdirSync(outDir, { recursive: true })
   const marker = join(outDir, 'ran.txt')
-  state.registerHookCallbacks({ PostToolUse: [{ matcher: undefined, hooks: [{ type: 'command', command: `sh -c 'echo ran >> ${marker}'` }], ...ext }] } as never)
+  state.registerHookCallbacks({ 'tool.after': [{ hooks: [{ run: `sh -c 'echo ran >> ${marker}'` }], ...ext }] } as never)
   const drain = async (mode: string): Promise<string[]> => {
     const outcomes: string[] = []
     for await (const r of hooksEngine.executeHooks({
@@ -169,7 +169,7 @@ console.log('[5] exit 1 · timeout · flood — bounded, counted, the call conti
 {
   health.resetRuntimeCounters()
   state.clearRegisteredExtensionHooks()
-  state.registerHookCallbacks({ PostToolUse: [{ matcher: undefined, hooks: [{ type: 'command', command: 'sh -c "echo boom >&2; exit 1"' }], ...ext }] } as never)
+  state.registerHookCallbacks({ 'tool.after': [{ hooks: [{ run: 'sh -c "echo boom >&2; exit 1"' }], ...ext }] } as never)
   const results: string[] = []
   for await (const r of hooksEngine.executeHooks({
     hookInput: { ...execution.createBaseHookInput('default'), hook_event_name: 'PostToolUse', tool_name: 'Write', tool_input: {}, tool_response: {} } as never,
