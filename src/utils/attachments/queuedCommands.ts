@@ -90,33 +90,26 @@ export function getAgentPendingMessageAttachments(
     prompt: msg,
     origin: { kind: 'coordinator' as const },
     isMeta: true,
+const imagePastesOf = (pasted: Record<number, PastedContent> | undefined): PastedContent[] =>
+  pasted ? Object.values(pasted).filter(isValidImagePaste) : []
+
+const pastedImageBlock = (paste: PastedContent): ImageBlockParam => ({
+  type: 'image',
+  source: {
+    type: 'base64',
+    media_type: (paste.mediaType || 'image/png') as Base64ImageSource['media_type'],
+    data: paste.content,
+  },
+})
+
   }))
 }
 
 async function buildImageContentBlocks(
   pastedContents: Record<number, PastedContent> | undefined,
 ): Promise<ImageBlockParam[]> {
-  if (!pastedContents) {
-    return []
-  }
-  const imageContents = Object.values(pastedContents).filter(isValidImagePaste)
-  if (imageContents.length === 0) {
-    return []
-  }
-  const results = await Promise.all(
-    imageContents.map(async img => {
-      const imageBlock: ImageBlockParam = {
-        type: 'image',
-        source: {
-          type: 'base64',
-          media_type: (img.mediaType ||
-            'image/png') as Base64ImageSource['media_type'],
-          data: img.content,
-        },
-      }
-      const resized = await maybeResizeAndDownsampleImageBlock(imageBlock)
-      return resized.block
-    }),
+  const fitted = await Promise.all(
+    imagePastesOf(pastedContents).map(paste => maybeResizeAndDownsampleImageBlock(pastedImageBlock(paste))),
   )
-  return results
+  return fitted.map(result => result.block)
 }
