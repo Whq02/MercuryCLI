@@ -58,7 +58,7 @@ import { markAnthropicConnectorConnected } from './anthropicConnectors.js'
 import { clearEraVerdict, readEraVerdict, recordEraVerdict } from './eraVerdictCache.js'
 import { getAllMcpConfigs } from './config.js'
 import { isMcpCatalogueMember } from './membership.js'
-import { elicitationPausedClock, runElicitationHooks, runElicitationResultHooks } from './elicitationHandler.js'
+import { elicitationPausedClock } from './elicitationHandler.js'
 import { getMcpServerHeaders } from './headersHelper.js'
 import { buildMcpToolName, wireSafeMcpToolName } from './mcpStringUtils.js'
 import { normalizeNameForMCP } from './normalization.js'
@@ -1464,20 +1464,15 @@ export async function callMCPToolWithUrlElicitationRetry(params: {
           throw err
         }
         for (const elicitation of elicitations) {
-          const hookAnswer = await runElicitationHooks(client.name, elicitation as never, signal)
           let answer: 'accept' | 'decline' | 'cancel'
-          if (hookAnswer !== undefined) {
-            if ((hookAnswer as { action?: string }).action !== 'accept') return declined('declined by a hook')
-            answer = 'accept'
-          } else if (params.isNonInteractive && params.handleUrlElicitation) {
+          if (params.isNonInteractive && params.handleUrlElicitation) {
             answer = await params.handleUrlElicitation(elicitation)
           } else if (params.setAppState) {
             answer = await queueUrlElicitation(client.name, elicitation, signal, params.setAppState)
           } else {
             answer = 'cancel'
           }
-          const finalAnswer = await runElicitationResultHooks(client.name, { action: answer } as never, signal, 'url', elicitation.elicitationId)
-          if ((finalAnswer as { action?: string }).action !== 'accept') return declined('declined by the user')
+          if (answer !== 'accept') return declined('declined by the user')
         }
       }
     }

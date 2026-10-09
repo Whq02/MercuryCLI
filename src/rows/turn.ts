@@ -39,6 +39,10 @@ import { normalizeMessages } from '../utils/messages.js'
 import { isNotEmptyMessage } from '../utils/messages/text.js'
 import { NO_CONTENT_MESSAGE } from '../constants/messages.js'
 import { turnCutOf } from '../utils/messages/turnCut.js'
+import { fireHooks } from '../utils/hooks/fire.js'
+import type { HookAttachment } from '../utils/attachments/types.js'
+import { hookRowsOfResult } from '../utils/hooks/rows.js'
+import { HOOK_CUT_BUDGET_MS } from '../utils/hooks/contract.js'
 import { getEngineModel } from '../utils/model/model.js'
 import { getModelUsage, getTotalAPIDuration, getTotalCostUSD, getUnpricedTurns } from '../bootstrap/state.js'
 import type { ModelUsage } from '../bootstrap/state.js'
@@ -81,7 +85,7 @@ import {
   type RowScope,
   type SessionFacts,
 } from './project.js'
-import { errorClassOf, hookEndingSentence, statusOfTerminal, toolCallsRefusedSentence, HOOK_FAILED_CODE, OUTCOME_SENTENCES, TERMINAL_FAILURE_SENTENCES, type Denial, type ErrorClass, type OutcomeStatus } from './vocabulary.js'
+import { errorClassOf, statusOfTerminal, toolCallsRefusedSentence, HOOK_NOTICE_CODES, OUTCOME_SENTENCES, TERMINAL_FAILURE_SENTENCES, type Denial, type ErrorClass, type OutcomeStatus, type Usage } from './vocabulary.js'
 import { childRowsOf } from './child.js'
 
 const DEFAULT_MAX_STRUCTURED_OUTPUT_RETRIES = 5
@@ -423,6 +427,7 @@ export class Conversation {
       messages,
       setResponseLength: () => {},
       setInProgressToolUseIDs: () => {},
+      callChain: { key: turnId, hop: 0 },
       updateFileHistoryState: updater => {
         config.setAppState(prev => {
           const next = updater(prev.fileHistory)
@@ -639,7 +644,52 @@ export class Conversation {
         ...extra,
       }
     }
+    const openCalls = new Map<string, string>()
+    const trackCalls = (rows: RowDraft[]): RowDraft[] => {
+      for (const row of rows) {
+        const call = row as RowDraft & { call_id?: string; tool?: string }
+        if (call.type === 'tool_call' && call.call_id !== undefined) openCalls.set(call.call_id, call.tool ?? '')
+        if (call.type === 'tool_result' && call.call_id !== undefined) openCalls.delete(call.call_id)
+      }
+      return rows
+    }
     const closeTurn = (status: OutcomeStatus, extra: Partial<OutcomeFacts> = {}): RowDraft => outcomeRow({ ...scope, turn: turnOrdinal }, outcomeFactsOf(status, extra))
+    const endTurn = async function* (this: Conversation, status: OutcomeStatus, extra: Partial<OutcomeFacts> = {}): AsyncGenerator<RowDraft> {
+      const row = closeTurn(status, extra) as RowDraft & { stop?: string; error?: { message: string; class: string }; steps: number; wall_ms: number; cost_usd?: number; usage: Usage; answer?: string }
+      const aborted = this.abortController.signal.aborted
+      const cut = aborted ? turnCutOf(this.abortController.signal.reason) : null
+      try {
+        const ended = await fireHooks(
+          'turn.end',
+          {
+            turn_id: turnId,
+            status,
+            ...(row.stop !== undefined ? { stop: row.stop as never } : {}),
+            ...(row.error !== undefined ? { error: { message: row.error.message, class: row.error.class as never } } : {}),
+            ...(cut !== null ? { cut: { reason: cut.kind, ...(cut.detail !== undefined ? { detail: cut.detail } : {}), tools: [...openCalls.values()] } } : {}),
+            steps: row.steps,
+            wall_ms: row.wall_ms,
+            ...(row.cost_usd !== undefined ? { cost_usd: row.cost_usd } : {}),
+            usage: row.usage,
+            ...(row.answer !== undefined ? { answer: row.answer } : {}),
+          },
+          { scope: { sessionId: String(sessionId) }, toolUseContext, ...(cut !== null ? { budgetMs: HOOK_CUT_BUDGET_MS } : {}) },
+        )
+        const hookRows = hookRowsOfResult(ended)
+        if (hookRows.length > 0) {
+          const attachments = hookRows.map(hookRow => createAttachmentMessage(hookRow))
+          this.mutableMessages.push(...attachments)
+          turnMessages.push(...attachments)
+          if (!persistenceDisabled) await this.recordDelta(turnMessages)
+        }
+        for (const hookRow of hookRows) {
+          if (hookRow.outcome === 'failed' || hookRow.outcome === 'notice') yield noticeRow(scope, 'warning', hookRow.words, HOOK_NOTICE_CODES[hookRow.outcome])
+        }
+      } catch (error) {
+        logError(error)
+      }
+      yield row
+    }.bind(this)
 
     headlessProfilerCheckpoint('turn_row_yielded')
     noteRunPhase('assembly')
@@ -675,15 +725,15 @@ export class Conversation {
       if (options?.mode === 'bash' && this.abortController.signal.aborted) {
         const cut = turnCutOf(this.abortController.signal.reason)
         const ended = statusOfTerminal({ reason: 'aborted_tools' }, cut.kind)
-        yield closeTurn(ended.status, { error: { message: ended.status === 'interrupted' ? OUTCOME_SENTENCES.interrupted({}) : cut.kind === 'idle-timeout' ? 'The turn was aborted after a no-progress timeout' : `The turn was cut: ${cut.detail ?? 'the run was aborted'}`, class: ended.errorClass ?? 'interrupt' } })
+        yield* endTurn(ended.status, { error: { message: ended.status === 'interrupted' ? OUTCOME_SENTENCES.interrupted({}) : cut.kind === 'idle-timeout' ? 'The turn was aborted after a no-progress timeout' : `The turn was cut: ${cut.detail ?? 'the run was aborted'}`, class: ended.errorClass ?? 'interrupt' } })
         return
       }
       if (inputResult.commandError !== undefined) {
-        yield closeTurn('failed', { error: { message: inputResult.commandError, class: 'command' } })
+        yield* endTurn('failed', { error: { message: inputResult.commandError, class: 'command' } })
         return
       }
       const refused = inputResult.commandRefused === true || inputResult.hookBlocked === true
-      yield closeTurn(refused ? 'refused' : 'completed', {
+      yield* endTurn(refused ? 'refused' : 'completed', {
         ...(refused
           ? { error: { message: inputResult.resultText ?? 'The request was refused', class: inputResult.hookBlocked === true ? 'hook' : 'command' } }
           : { answer: inputResult.resultText ?? commandAnswer }),
@@ -800,7 +850,7 @@ export class Conversation {
             this.mutableMessages.push(message)
             turnMessages.push(message)
             void recordDelta()
-            for (const row of rowsOfMessage(message, undefined)) yield row
+            for (const row of trackCalls(rowsOfMessage(message, undefined))) yield row
             break
           }
           case 'attachment': {
@@ -814,25 +864,27 @@ export class Conversation {
             } else {
               void recordDelta()
             }
-            if (attachmentType === 'hook_non_blocking_error') {
-              const failed = attachment as { stderr?: string; stdout?: string; hookName?: string; hookEvent?: string; exitCode?: number }
-              const text = (failed.stderr || failed.stdout || '').trim() || hookEndingSentence({ status: 'failed', class: 'exit', exit_code: failed.exitCode ?? 1 }, { name: failed.hookName ?? '', event: failed.hookEvent ?? '' })
-              notices.push({ level: 'warning', text })
-              yield noticeRow(scope, 'warning', text, HOOK_FAILED_CODE)
+            if (attachmentType === 'hook') {
+              const hookRow = attachment as HookAttachment
+              if (hookRow.outcome === 'failed' || hookRow.outcome === 'block' || hookRow.outcome === 'stop' || hookRow.outcome === 'notice') {
+                const text = hookRow.outcome === 'failed' ? hookRow.words : hookRow.outcome === 'notice' ? hookRow.words : `hook ${hookRow.name} ${hookRow.outcome === 'block' ? 'blocked' : 'stopped'} ${hookRow.event}: ${hookRow.words}`
+                notices.push({ level: 'warning', text })
+                yield noticeRow(scope, 'warning', text, HOOK_NOTICE_CODES[hookRow.outcome])
+              }
             } else if (attachmentType === 'structured_output') {
               this.structuredOutput = (attachment as { data?: unknown }).data
             } else if (attachmentType === 'max_turns_reached') {
               if (eagerFlush) await flushSessionStorage()
               const open = steps.flush()
               if (open !== null) yield open
-              yield closeTurn('turn_limit', { error: { message: OUTCOME_SENTENCES.turn_limit({ maxTurns: config.maxTurns }), class: 'turn_limit' } })
+              yield* endTurn('turn_limit', { error: { message: OUTCOME_SENTENCES.turn_limit({ maxTurns: config.maxTurns }), class: 'turn_limit' } })
               return
             } else if (attachmentType === 'loop_stopped') {
               if (eagerFlush) await flushSessionStorage()
               const stopped = attachment as { message?: string; cycle?: string[] }
               const open = steps.flush()
               if (open !== null) yield open
-              yield closeTurn('loop_stopped', {
+              yield* endTurn('loop_stopped', {
                 error: {
                   message: OUTCOME_SENTENCES.loop_stopped({ message: stopped.message ?? `The loop guard ended the turn: the cycle ${(stopped.cycle ?? []).join(' -> ')} repeated with identical arguments and results` }),
                   class: 'loop_stopped',
@@ -905,9 +957,9 @@ export class Conversation {
           }
         }
         if (kind === 'assistant') {
-          for (const row of rowsOfMessage(message, undefined)) yield row
+          for (const row of trackCalls(rowsOfMessage(message, undefined))) yield row
         } else if (kind === 'user') {
-          for (const row of rowsOfMessage(message, undefined)) yield row
+          for (const row of trackCalls(rowsOfMessage(message, undefined))) yield row
           config.onToolRoundSettled?.(messages)
         } else if (isBoundary) {
           const boundaryMeta = 'compactMetadata' in message ? (message.compactMetadata as CompactMetadata | undefined) : undefined
@@ -923,7 +975,7 @@ export class Conversation {
           if (eagerFlush) await flushSessionStorage()
           const open = steps.flush()
           if (open !== null) yield open
-          yield closeTurn('budget_limit', { error: { message: OUTCOME_SENTENCES.budget_limit({ maxBudgetUsd: config.maxBudgetUsd }), class: 'budget_limit' } })
+          yield* endTurn('budget_limit', { error: { message: OUTCOME_SENTENCES.budget_limit({ maxBudgetUsd: config.maxBudgetUsd }), class: 'budget_limit' } })
           return
         }
         if (kind === 'user' && config.jsonSchema) {
@@ -933,7 +985,7 @@ export class Conversation {
             if (eagerFlush) await flushSessionStorage()
             const open = steps.flush()
             if (open !== null) yield open
-            yield closeTurn('schema_unmet', { error: { message: OUTCOME_SENTENCES.schema_unmet({}), class: 'schema_unmet', detail: [`Structured output failed after ${retries} attempts`] } })
+            yield* endTurn('schema_unmet', { error: { message: OUTCOME_SENTENCES.schema_unmet({}), class: 'schema_unmet', detail: [`Structured output failed after ${retries} attempts`] } })
             return
           }
         }
@@ -955,7 +1007,7 @@ export class Conversation {
     }
 
     if (terminal === undefined) {
-      yield closeTurn('failed', { error: { message: 'The turn ended without a terminal', class: 'internal' } })
+      yield* endTurn('failed', { error: { message: 'The turn ended without a terminal', class: 'internal' } })
       return
     }
     const aborted = terminal.reason === 'aborted_streaming' || terminal.reason === 'aborted_tools'
@@ -973,10 +1025,10 @@ export class Conversation {
     if (settled.status === 'completed') {
       const blocker = parseBlockerDeclaration(lastAssistantText(lastAssistant === undefined ? [] : [lastAssistant]))
       if (blocker.kind === 'declared') {
-        yield closeTurn('blocked', { answer, error: { message: `Blocked on the operator: ${blocker.description}`, class: 'blocked', detail: [`resume when: ${blocker.resumeCondition}`] } })
+        yield* endTurn('blocked', { answer, error: { message: `Blocked on the operator: ${blocker.description}`, class: 'blocked', detail: [`resume when: ${blocker.resumeCondition}`] } })
         return
       }
-      yield closeTurn('completed', { answer, ...(this.structuredOutput !== undefined ? { structured: this.structuredOutput } : {}) })
+      yield* endTurn('completed', { answer, ...(this.structuredOutput !== undefined ? { structured: this.structuredOutput } : {}) })
       return
     }
     const allErrors = getInMemoryErrors()
@@ -1000,7 +1052,7 @@ export class Conversation {
       message = TERMINAL_FAILURE_SENTENCES[terminal.reason]
     }
     const finalClass: ErrorClass = (terminal.reason === 'model_error' || endedOnApiError) && apiErrorMessage?.error !== undefined ? errorClassOf(apiErrorMessage.error) : errorClass
-    yield closeTurn(settled.status, {
+    yield* endTurn(settled.status, {
       error: {
         message,
         class: finalClass,

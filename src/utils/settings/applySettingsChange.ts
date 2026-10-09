@@ -1,5 +1,5 @@
 import type { AppState } from '../../state/AppStateStore.js'
-import { updateHooksConfigSnapshot } from '../hooks/hooksConfigSnapshot.js'
+import { refreshHooksSnapshot } from '../hooks/hooksConfigSnapshot.js'
 import { loadAllPermissionRulesFromDisk } from '../permissions/permissionsLoader.js'
 import {
   createSovereignDisabledContext,
@@ -16,7 +16,7 @@ export function applySettingsChange(
   void source
   const settings = getInitialSettings()
   const rules = loadAllPermissionRulesFromDisk()
-  updateHooksConfigSnapshot()
+  refreshHooksSnapshot()
   setAppState(prev => {
     let toolPermissionContext = syncPermissionRulesFromDisk(prev.toolPermissionContext as never, rules) as never
     if (

@@ -10,14 +10,7 @@ import {
   getInstructionFilesForNestedDirectory,
 } from '../../services/instructions/engine.js'
 import type { FileState } from '../fileStateCache.js'
-import {
-  executeInstructionsLoadedHooks,
-  hasInstructionsLoadedHook,
-  type InstructionsLoadReason,
-  type InstructionsMemoryType,
-} from '../hooks.js'
 import { logError } from '../log.js'
-import type { MemoryType } from '../memory/types.js'
 import { pathInAllowedWorkingPath } from '../permissions/filesystem.js'
 import type { Attachment } from './types.js'
 
@@ -52,27 +45,6 @@ export function getDirectoriesToProcess(
   return { nestedDirs, cwdLevelDirs }
 }
 
-const hookMemoryTypes: ReadonlySet<MemoryType> = new Set<MemoryType>(['User', 'Project', 'Local', 'Managed'])
-
-const isHookMemoryType = (type: MemoryType): type is InstructionsMemoryType => hookMemoryTypes.has(type)
-
-const loadReasonOf = (entry: InstructionSourceEntry): InstructionsLoadReason =>
-  entry.globs ? 'path_glob_match' : entry.parent ? 'include' : 'nested_traversal'
-
-function instructionLoadAnnouncer(
-  triggerFilePath: string | undefined,
-): (entry: InstructionSourceEntry) => void {
-  if (!hasInstructionsLoadedHook()) return () => {}
-  return entry => {
-    if (!isHookMemoryType(entry.type)) return
-    void executeInstructionsLoadedHooks(entry.path, entry.type, loadReasonOf(entry), {
-      globs: entry.globs,
-      triggerFilePath,
-      parentFilePath: entry.parent,
-    })
-  }
-}
-
 function contextRecordOf(entry: InstructionSourceEntry): FileState {
   const content = entry.contentDiffersFromDisk
     ? entry.rawContent ?? entry.content
@@ -89,15 +61,12 @@ function contextRecordOf(entry: InstructionSourceEntry): FileState {
 export function memoryFilesToAttachments(
   memoryFiles: InstructionSourceEntry[],
   toolUseContext: ToolUseContext,
-  triggerFilePath?: string,
 ): Attachment[] {
   const { loadedNestedMemoryPaths: ledger, readFileState: cache } = toolUseContext
-  const announce = instructionLoadAnnouncer(triggerFilePath)
   return memoryFiles.flatMap(entry => {
     if (ledger?.has(entry.path) || cache.has(entry.path)) return []
     ledger?.add(entry.path)
     cache.set(entry.path, contextRecordOf(entry))
-    announce(entry)
     return [{
       type: 'nested_memory' as const,
       path: entry.path,
@@ -127,7 +96,7 @@ export async function getNestedMemoryAttachmentsForFile(
       processedPaths,
     )
     attachments.push(
-      ...memoryFilesToAttachments(managedUserRules, toolUseContext, filePath),
+      ...memoryFilesToAttachments(managedUserRules, toolUseContext),
     )
 
     const { nestedDirs, cwdLevelDirs } = getDirectoriesToProcess(
@@ -138,7 +107,7 @@ export async function getNestedMemoryAttachmentsForFile(
     for (const dir of nestedDirs) {
       const memoryFiles = await getInstructionFilesForNestedDirectory(dir, filePath, processedPaths)
       attachments.push(
-        ...memoryFilesToAttachments(memoryFiles, toolUseContext, filePath),
+        ...memoryFilesToAttachments(memoryFiles, toolUseContext),
       )
     }
 
@@ -149,7 +118,7 @@ export async function getNestedMemoryAttachmentsForFile(
         processedPaths,
       )
       attachments.push(
-        ...memoryFilesToAttachments(conditionalRules, toolUseContext, filePath),
+        ...memoryFilesToAttachments(conditionalRules, toolUseContext),
       )
     }
   } catch (error) {

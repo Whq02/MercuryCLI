@@ -49,7 +49,7 @@ import {
   getSkillListingAttachments,
 } from './skillListing.js'
 import {
-  getAsyncHookResponseAttachments,
+  getBackgroundHookAttachments,
   getUnifiedTaskAttachments,
 } from './taskStatus.js'
 import type { Attachment } from './types.js'
@@ -220,8 +220,8 @@ export async function getAttachments(
         maybe('unified_tasks', async () =>
           getUnifiedTaskAttachments(toolUseContext),
         ),
-        maybe('async_hook_responses', async () =>
-          getAsyncHookResponseAttachments(),
+        maybe('background_hooks', async () =>
+          Promise.resolve(getBackgroundHookAttachments()),
         ),
         maybe('budget_usd', async () =>
           Promise.resolve(

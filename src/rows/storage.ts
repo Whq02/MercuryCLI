@@ -14,7 +14,6 @@ export type WorktreeBinding = {
   originalHeadCommit?: string
   sessionId: string
   tmuxSessionName?: string
-  hookBased?: boolean
 }
 
 export type FileAttribution = {

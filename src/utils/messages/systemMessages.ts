@@ -10,7 +10,6 @@ import type {
   AwayRecapMetadata,
   Message,
   NormalizedMessage,
-  StopHookInfo,
   SystemAgentsKilledMessage,
   SystemAPIErrorMessage,
   SystemApiMetricsMessage,
@@ -23,7 +22,6 @@ import type {
   SystemMessageLevel,
   SystemMicrocompactBoundaryMessage,
   SystemScheduledTaskFireMessage,
-  SystemStopHookSummaryMessage,
   SystemTurnDurationMessage,
 } from '../../types/message.js'
 import type { CompactMetadata } from '../../types/message.js'
@@ -167,34 +165,6 @@ export function createScheduledTaskFireMessage(
   }
 }
 
-export function createStopHookSummaryMessage(
-  hookCount: number,
-  hookInfos: StopHookInfo[],
-  hookErrors: string[],
-  preventedContinuation: boolean,
-  stopReason: string | undefined,
-  hasOutput: boolean,
-  level: SystemMessageLevel,
-  toolUseID?: string,
-  hookLabel?: string,
-  totalDurationMs?: number,
-): SystemStopHookSummaryMessage {
-  return {
-    type: 'system',
-    subtype: 'stop_hook_summary',
-    hookCount,
-    hookInfos,
-    hookErrors,
-    preventedContinuation,
-    stopReason,
-    hasOutput,
-    level,
-    ...MESSAGE_STAMPER.mint(),
-    toolUseID,
-    hookLabel,
-    totalDurationMs,
-  }
-}
 
 export function createTurnDurationMessage(
   durationMs: number,

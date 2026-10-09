@@ -3,7 +3,6 @@ import { join } from 'path'
 import { scheduleMnemeMaintenance } from '../mneme/mnemeMaintenance.js'
 import { initMagicDocs } from '../services/MagicDocs/magicDocs.js'
 import { getMercuryHome } from './envUtils.js'
-import { initSkillImprovement } from './hooks/skillImprovement.js'
 
 const registerProtocolModule: typeof import('./deepLink/registerProtocol.js') | null = null
 
@@ -109,7 +108,6 @@ export async function runLifecycleVerbOpportunity(
 
 export function startBackgroundHousekeeping(): void {
   void initMagicDocs()
-  void initSkillImprovement()
 
   scheduleMnemeMaintenance('boot')
 

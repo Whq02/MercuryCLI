@@ -2,7 +2,7 @@
 import type { Base64ImageSource, ContentBlockParam, ImageBlockParam } from '../../types/wire.js'
 import type { ReadResourceResult } from '../../services/mcp/sdk.js'
 import type { UUID } from 'crypto'
-import type { HookEvent, SyncHookJSONOutput } from '../hooks/contract.js'
+import type { HookEvent } from '../hooks/contract.js'
 
 import type { BoundPrefixSection, BoundPrefixToolMark, DeadThinkingMark, MessageOrigin } from 'src/types/message.js'
 import type { BypassedAskRoad, PermissionMode } from '../../types/permissions.js'
@@ -12,7 +12,6 @@ import type { TaskType } from '../../Task.js'
 import type { Output as FileReadToolOutput } from '../../tools/FileReadTool/FileReadTool.js'
 import type { InstructionSourceEntry } from '../../services/instructions/contracts.js'
 import type { EffortLevel } from '../effort.js'
-import type { HookBlockingError } from '../hooks.js'
 import type { Task } from '../tasks.js'
 
 export const TASK_REMINDER_CONFIG = {
@@ -69,52 +68,17 @@ type AgentMentionAttachment = {
   agentType: string
 }
 
-type AsyncHookResponseAttachment = {
-  type: 'async_hook_response'
-  processId: string
-  hookName: string
-  hookEvent: HookEvent | 'FileSuggestion'
-  toolName?: string
-  response: SyncHookJSONOutput
-  stdout: string
-  stderr: string
-  exitCode?: number
-}
+export const HOOK_ROW_OUTCOMES = ['context', 'block', 'stop', 'notice', 'failed', 'text'] as const
+export type HookRowOutcome = (typeof HOOK_ROW_OUTCOMES)[number]
 
-export type HookAttachment =
-  | HookCancelledAttachment
-  | {
-      type: 'hook_blocking_error'
-      blockingError: HookBlockingError
-      hookName: string
-      toolUseID: string
-      hookEvent: HookEvent
-    }
-  | HookNonBlockingErrorAttachment
-  | HookErrorDuringExecutionAttachment
-  | {
-      type: 'hook_stopped_continuation'
-      message: string
-      hookName: string
-      toolUseID: string
-      hookEvent: HookEvent
-    }
-  | HookSuccessAttachment
-  | {
-      type: 'hook_additional_context'
-      content: string[]
-      hookName: string
-      toolUseID: string
-      hookEvent: HookEvent
-    }
-  | HookSystemMessageAttachment
-  | HookPermissionDecisionAttachment
-
-export type HookPermissionDecisionAttachment = {
-  type: 'hook_permission_decision'
-  decision: 'allow' | 'deny'
-  toolUseID: string
-  hookEvent: HookEvent
+export type HookAttachment = {
+  type: 'hook'
+  outcome: HookRowOutcome
+  event: HookEvent
+  name: string
+  words: string
+  callId?: string
+  background?: true
 }
 
 export type BypassedAskAttachment = {
@@ -123,58 +87,6 @@ export type BypassedAskAttachment = {
   mode: PermissionMode
   road: BypassedAskRoad
   reason: string
-}
-
-type HookSystemMessageAttachment = {
-  type: 'hook_system_message'
-  content: string
-  hookName: string
-  toolUseID: string
-  hookEvent: HookEvent
-}
-
-type HookCancelledAttachment = {
-  type: 'hook_cancelled'
-  hookName: string
-  toolUseID: string
-  hookEvent: HookEvent
-  command?: string
-  durationMs?: number
-}
-
-type HookErrorDuringExecutionAttachment = {
-  type: 'hook_error_during_execution'
-  content: string
-  hookName: string
-  toolUseID: string
-  hookEvent: HookEvent
-  command?: string
-  durationMs?: number
-}
-
-type HookSuccessAttachment = {
-  type: 'hook_success'
-  content: string
-  hookName: string
-  toolUseID: string
-  hookEvent: HookEvent
-  stdout?: string
-  stderr?: string
-  exitCode?: number
-  command?: string
-  durationMs?: number
-}
-
-type HookNonBlockingErrorAttachment = {
-  type: 'hook_non_blocking_error'
-  hookName: string
-  stderr: string
-  stdout: string
-  exitCode: number
-  toolUseID: string
-  hookEvent: HookEvent
-  command?: string
-  durationMs?: number
 }
 
 export type Attachment =
@@ -304,7 +216,6 @@ export type Attachment =
     }
   | AgentMentionAttachment
   | AgentRosterAttachment
-  | AsyncHookResponseAttachment
   | {
       type: 'budget_usd'
       used: number

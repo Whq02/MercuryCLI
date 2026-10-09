@@ -960,7 +960,6 @@ export function Chat({
         updateAttributionState: (updater: (prev: AppState['attribution']) => AppState['attribution']) =>
           setAppState(prev => ({ ...prev, attribution: updater(prev.attribution) })),
         setConversationId: (id: UUID) => setConversationId(id),
-        requestPrompt: () => () => Promise.reject(new Error('a prompt from a dialog command has no door to a managed session yet')),
         messages: currentMessages.concat(newMessages),
         setMessages: (updater: (prev: Message[]) => Message[]) => {
           for (const row of updater([])) paintScreenRow(row, getUserMessageText(row as UserMessage) ?? '');

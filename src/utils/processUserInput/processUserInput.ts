@@ -20,7 +20,10 @@ import {
   createAttachmentMessage,
   getAttachmentMessages,
 } from '../attachments.js'
-import { executeUserPromptSubmitHooks } from '../hooks.js'
+import { readToolCallChain } from '../../Tool.js'
+import { getSessionId } from '../../bootstrap/state.js'
+import { fireHooks } from '../hooks/fire.js'
+import { hookRowsOfResult } from '../hooks/rows.js'
 import {
   createSystemMessage,
   createUserMessage,
@@ -47,13 +50,6 @@ export type ProcessUserInputBaseResult = {
   hookBlocked?: true
 }
 
-const HOOK_TRUNCATION_LIMIT = 10_000
-const HOOK_TOOL_USE_ID_PREFIX = 'hook-'
-
-function truncateHookText(text: string): string {
-  if (text.length <= HOOK_TRUNCATION_LIMIT) return text
-  return `${text.slice(0, HOOK_TRUNCATION_LIMIT)}\n[Output truncated at ${HOOK_TRUNCATION_LIMIT} characters]`
-}
 
 type ProcessUserInputOptions = {
   input: string | ContentBlockParam[]
@@ -152,66 +148,27 @@ export async function processUserInput(
   const base = await processUserInputBase(options)
   if (!base.shouldQuery) return base
 
-  const promptText =
-    typeof input === 'string' ? input : extractTextContent(input, '\n')
-  const permissionMode = context.getAppState().toolPermissionContext.mode
-  const hookMessages: Message[] = []
-  for await (const result of executeUserPromptSubmitHooks(promptText, permissionMode, context)) {
-    if (result.message?.type === 'progress') continue
-    if (result.blockingError) {
-      return {
-        messages: [
-          createSystemMessage(
-            `Operation blocked by hook: ${result.blockingError.blockingError}\n\nOriginal prompt: ${promptText}`,
-            'warning',
-          ),
-        ],
-        shouldQuery: false,
-        hookBlocked: true,
-        resultText: `Operation blocked by hook: ${result.blockingError.blockingError}`,
-        ...(base.allowedTools !== undefined ? { allowedTools: base.allowedTools } : {}),
-      }
+  const promptText = typeof input === 'string' ? input : extractTextContent(input, '\n')
+  const started = await fireHooks(
+    'turn.start',
+    { turn_id: readToolCallChain(context)?.key ?? '', prompt: promptText },
+    { scope: { sessionId: String(getSessionId()), ...(context.agentId !== undefined ? { crewmateId: context.agentId } : {}) }, signal: context.abortController.signal, toolUseContext: context },
+  )
+  const hookMessages: Message[] = hookRowsOfResult(started).map(row => createAttachmentMessage(row) as Message)
+  if (started.answer.block !== undefined) {
+    return {
+      messages: [
+        ...hookMessages,
+        createSystemMessage(`${started.answer.block}\n\nThe prompt was: ${promptText}`, 'warning'),
+      ],
+      shouldQuery: false,
+      hookBlocked: true,
+      resultText: started.answer.block,
+      ...(base.allowedTools !== undefined ? { allowedTools: base.allowedTools } : {}),
     }
-    if (result.preventContinuation) {
-      return {
-        ...base,
-        messages: [
-          ...base.messages,
-          createUserMessage({
-            content: result.stopReason
-              ? `Operation stopped by hook: ${result.stopReason}`
-              : 'Operation stopped by hook',
-          }),
-        ],
-        shouldQuery: false,
-      }
-    }
-    if (result.additionalContexts && result.additionalContexts.length > 0) {
-      hookMessages.push(
-        createAttachmentMessage({
-          type: 'hook_additional_context',
-          content: result.additionalContexts.map(truncateHookText),
-          hookName: result.hookSource ?? 'hook',
-          toolUseID: `${HOOK_TOOL_USE_ID_PREFIX}${randomUUID()}`,
-          hookEvent: 'UserPromptSubmit',
-        }),
-      )
-      continue
-    }
-    if (result.message) {
-      const attachment = (
-        result.message as { attachment?: { type?: string; content?: string } }
-      ).attachment
-      if (attachment?.type === 'hook_success') {
-        if (!attachment.content || attachment.content.trim() === '') continue
-        hookMessages.push({
-          ...result.message,
-          attachment: { ...attachment, content: truncateHookText(attachment.content) },
-        } as Message)
-        continue
-      }
-      hookMessages.push(result.message as Message)
-    }
+  }
+  if (started.answer.stop !== undefined) {
+    return { ...base, messages: [...base.messages, ...hookMessages], shouldQuery: false }
   }
   return { ...base, messages: [...base.messages, ...hookMessages] }
 }

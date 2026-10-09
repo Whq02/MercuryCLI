@@ -83,12 +83,6 @@ export type CompactMetadata = {
   }
 }
 
-export type StopHookInfo = {
-  command?: string
-  promptText?: string
-  durationMs?: number
-}
-
 
 export type AssistantAPIMessage = Omit<
   ApiMessage,
@@ -356,22 +350,6 @@ export type SystemScheduledTaskFireMessage = {
   timestamp: string
 }
 
-export type SystemStopHookSummaryMessage = {
-  type: 'system'
-  subtype: 'stop_hook_summary'
-  hookCount: number
-  hookInfos: StopHookInfo[]
-  hookErrors: string[]
-  preventedContinuation: boolean
-  stopReason: string | undefined
-  hasOutput: boolean
-  level: SystemMessageLevel
-  uuid: UUID
-  timestamp: string
-  toolUseID?: string
-  hookLabel?: string
-  totalDurationMs?: number
-}
 
 export type SystemTurnDurationMessage = {
   type: 'system'
@@ -568,7 +546,6 @@ export type SystemMessage =
   | SystemThinkingDeadMessage
   | SystemBridgeStatusMessage
   | SystemScheduledTaskFireMessage
-  | SystemStopHookSummaryMessage
   | SystemTurnDurationMessage
   | SystemModelTransitionMessage
   | SystemAwaySummaryMessage
@@ -649,9 +626,6 @@ export type CollapsedReadSearchGroup = {
   pushes?: { branch: string }[]
   branches?: { ref: string; action: BranchAction }[]
   prs?: { number: number; url?: string; action: PrAction }[]
-  hookTotalMs?: number
-  hookCount?: number
-  hookInfos?: StopHookInfo[]
   relevantMemories?: { path: string; content: string; mtimeMs: number }[]
 }
 

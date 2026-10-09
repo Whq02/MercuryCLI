@@ -277,7 +277,7 @@ export function AssistantToolUseMessage({
     return (
       <Box flexDirection="column">
         <HookProgressMessage
-          hookEvent="PreToolUse"
+          hookEvent="tool.before"
           toolUseID={param.id}
           lookups={lookups}
           isTranscriptMode={isTranscriptMode}

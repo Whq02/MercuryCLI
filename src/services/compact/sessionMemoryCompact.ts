@@ -2,15 +2,17 @@ import type { AssistantMessage, Message, UserMessage } from '../../types/message
 import { logForDebugging } from '../../utils/debug.js'
 import { isEnvTruthy } from '../../utils/envUtils.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
+import { createAttachmentMessage } from '../../utils/attachments/orchestrator.js'
 import {
   createCompactBoundaryMessage,
   createUserMessage,
   findLastCompactBoundaryIndex,
   isCompactBoundaryMessage,
 } from '../../utils/messages.js'
-import { getEngineModel } from '../../utils/model/model.js'
 import { getSessionMemoryPath } from '../../utils/permissions/filesystem.js'
-import { processSessionStartHooks } from '../../utils/sessionStart.js'
+import { fireHooks } from '../../utils/hooks/fire.js'
+import { hookRowsOfResult } from '../../utils/hooks/rows.js'
+import { getSessionId } from '../../bootstrap/state.js'
 import { getTranscriptPath } from '../../utils/sessionStorage/paths.js'
 import { tokenCountFromLastAPIResponse } from '../../utils/tokens.js'
 import { extractDiscoveredToolNames } from '../../utils/toolSearch.js'
@@ -184,8 +186,6 @@ export async function trySessionMemoryCompaction(
     const keepIndex = calculateMessagesToKeepIndex(messages, lastSummarizedIndex)
     const kept = messages.slice(keepIndex).filter(message => !isCompactBoundaryMessage(message))
 
-    const hookResults = await processSessionStartHooks('compact', { model: getEngineModel() })
-
     const preTokens = tokenCountFromLastAPIResponse(messages)
     const lastMessage = messages[messages.length - 1]
     const boundary = createCompactBoundaryMessage('auto', preTokens, lastMessage?.uuid)
@@ -214,13 +214,19 @@ export async function trySessionMemoryCompaction(
     annotateBoundaryWithWork(boundary, messages, kept, summaryMessage.uuid)
 
     const summaryEstimate = estimateContextTokens([summaryMessage])
+    const after = await fireHooks(
+      'compaction.after',
+      { method: 'notes', trigger: 'auto', tokens_before: preTokens, tokens_after: summaryEstimate },
+      { scope: { sessionId: String(getSessionId()), ...(rosterContext?.agentId !== undefined ? { crewmateId: rosterContext.agentId } : {}) } },
+    )
+    const hookResults: Message[] = hookRowsOfResult(after).map(row => createAttachmentMessage(row))
+    for (const words of after.answer.contexts) hookResults.push(createUserMessage({ content: words, isMeta: true }))
     const result: CompactionResult = {
       boundaryMarker: boundary,
       summaryMessages: [summaryMessage],
       messagesToKeep: kept,
       attachments,
       hookResults,
-      userDisplayMessage: undefined,
       preCompactTokenCount: preTokens,
       postCompactTokenCount: summaryEstimate,
       truePostCompactTokenCount: summaryEstimate,

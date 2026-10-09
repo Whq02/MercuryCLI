@@ -36,11 +36,12 @@ function classify(message: DisplayMessage): DisplayRole {
     return toolUseID ? { kind: 'use', toolUseID } : { kind: 'use-unkeyed' }
   }
   if (isHookAttachmentMessage(message)) {
-    if (message.attachment.hookEvent === 'PreToolUse') {
-      return { kind: 'pre-hook', toolUseID: message.attachment.toolUseID }
+    const callId = message.attachment.callId
+    if (callId !== undefined && message.attachment.event === 'tool.before') {
+      return { kind: 'pre-hook', toolUseID: callId }
     }
-    if (message.attachment.hookEvent === 'PostToolUse') {
-      return { kind: 'post-hook', toolUseID: message.attachment.toolUseID }
+    if (callId !== undefined && (message.attachment.event === 'tool.after' || message.attachment.event === 'permission.decided')) {
+      return { kind: 'post-hook', toolUseID: callId }
     }
     return { kind: 'standalone' }
   }

@@ -99,7 +99,6 @@ export type LocalCommandResult =
         messagesToKeep?: Message[]
         attachments: Message[]
         hookResults: Message[]
-        userDisplayMessage?: string
       }
       displayText?: string
     }

@@ -27,7 +27,8 @@ const permissionRuleParserModule =
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   (require('../permissionRuleParser.js') as typeof import('../permissionRuleParser.js'))
 
-import { executePermissionRequestHooks } from '../../hooks.js'
+import { fireHooks } from '../../hooks/fire.js'
+import { getSessionId } from '../../../bootstrap/state.js'
 import { AUTO_REJECT_MESSAGE, DONT_ASK_REJECT_MESSAGE } from '../../messages.js'
 import type {
   PermissionAskDecision,
@@ -107,83 +108,44 @@ async function consultHeadlessPermissionHooks(
   suggestions: PermissionUpdate[] | undefined,
 ): Promise<PermissionDecision | null> {
   try {
-    for await (const hookResult of executePermissionRequestHooks(
-      tool.name,
-      toolUseID,
-      input,
-      context,
-      permissionMode,
-      suggestions,
-      context.abortController.signal,
-    )) {
-      const verdict = hookResult.permissionRequestResult
-      if (verdict === undefined) continue
-
-      if (verdict.behavior === 'deny') {
-        if (verdict.interrupt) {
-          logForDebugging(
-            `Hook interrupt: tool=${tool.name} hookMessage=${verdict.message}`,
-          )
-          context.abortController.abort()
-        }
-        return {
-          behavior: 'deny',
-          message: verdict.message || 'A PermissionRequest hook denied this action',
-          decisionReason: {
-            type: 'hook',
-            hookName: 'PermissionRequest',
-            reason: verdict.message,
-          },
-        }
-      }
-
-      if (verdict.behavior !== 'allow') continue
-
-      const finalInput = verdict.updatedInput ?? input
-
-      if (verdict.updatedInput) {
-        const recheck = await decideRuleBasedPermissions(tool, finalInput, context)
-        const override = guardHookUpdatedInput(recheck.decision, tool.name)
-        if (override) {
-          if (override.behavior === 'ask') {
-            return {
-              behavior: 'deny',
-              message: override.message,
-              decisionReason: override.decisionReason ?? {
-                type: 'other',
-                reason: 'ask rule on hook-rewritten input',
-              },
-            }
+    const asked = await fireHooks(
+      'permission.ask',
+      { tool: tool.name, input, call_id: toolUseID, ...(suggestions !== undefined ? { suggestions } : {}) },
+      { scope: { sessionId: String(getSessionId()), ...(context.agentId !== undefined ? { crewmateId: context.agentId } : {}) }, signal: context.abortController.signal, toolUseContext: context, ...(permissionMode !== undefined ? { permissionMode } : {}) },
+    )
+    const hookNames = asked.outcomes.map(outcome => outcome.name).join(', ')
+    if (asked.answer.stop !== undefined) {
+      logForDebugging(`a permission.ask hook (${hookNames}) ended the turn: ${asked.answer.stop}`)
+      context.abortController.abort()
+      return { behavior: 'deny', message: asked.answer.stop, decisionReason: { type: 'hook', hookName: hookNames, reason: asked.answer.stop } }
+    }
+    if (asked.answer.block !== undefined) {
+      return { behavior: 'deny', message: asked.answer.block, decisionReason: { type: 'hook', hookName: hookNames, reason: asked.answer.block } }
+    }
+    if (asked.answer.permission !== 'allow') return null
+    const finalInput = asked.answer.input ?? input
+    if (asked.answer.input) {
+      const recheck = await decideRuleBasedPermissions(tool, finalInput, context)
+      const override = guardHookUpdatedInput(recheck.decision, tool.name)
+      if (override) {
+        if (override.behavior === 'ask') {
+          return {
+            behavior: 'deny',
+            message: override.message,
+            decisionReason: override.decisionReason ?? { type: 'other', reason: 'ask rule on hook-rewritten input' },
           }
-          return override
         }
-      }
-
-      if (verdict.updatedPermissions?.length) {
-        persistPermissionUpdates(verdict.updatedPermissions)
-        context.setAppState(prev => ({
-          ...prev,
-          toolPermissionContext: applyPermissionUpdates(
-            prev.toolPermissionContext,
-            verdict.updatedPermissions!,
-          ),
-        }))
-      }
-      return {
-        behavior: 'allow',
-        updatedInput: finalInput,
-        decisionReason: {
-          type: 'hook',
-          hookName: 'PermissionRequest',
-        },
+        return override
       }
     }
+    if (asked.answer.rules?.length) {
+      persistPermissionUpdates(asked.answer.rules)
+      const rules = asked.answer.rules
+      context.setAppState(prev => ({ ...prev, toolPermissionContext: applyPermissionUpdates(prev.toolPermissionContext, rules) }))
+    }
+    return { behavior: 'allow', updatedInput: finalInput, decisionReason: { type: 'hook', hookName: hookNames } }
   } catch (error) {
-    logError(
-      new Error('PermissionRequest hook machinery failed in a prompt-less session', {
-        cause: toError(error),
-      }),
-    )
+    logError(new Error('the permission.ask hooks failed in a prompt-less session', { cause: toError(error) }))
   }
   return null
 }

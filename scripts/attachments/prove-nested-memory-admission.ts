@@ -37,7 +37,7 @@ try {
 
   const first = context()
   const before = Date.now()
-  const admitted = memoryFilesToAttachments([entry(guide), entry(guide), entry(rule)], first as never, join(project, 'sub', 'file.ts'))
+  const admitted = memoryFilesToAttachments([entry(guide), entry(guide), entry(rule)], first as never)
   check('a path repeated in one list is admitted once, in list order', admitted.map((a: { path: string }) => a.path).join(' ') === `${guide} ${rule}`)
   check('an admitted entry is a nested_memory attachment carrying the entry itself and a cwd-relative display path', admitted[0]?.type === 'nested_memory' && admitted[0]?.content.path === guide && admitted[0]?.displayPath === 'sub/MERCURY.md')
   check('an admitted path enters the loaded-paths ledger', first.loadedNestedMemoryPaths.has(guide) && first.loadedNestedMemoryPaths.has(rule))

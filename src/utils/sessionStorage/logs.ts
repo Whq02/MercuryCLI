@@ -278,7 +278,6 @@ export function saveWorktreeState(
         originalHeadCommit: worktreeSession.originalHeadCommit,
         sessionId: worktreeSession.sessionId,
         tmuxSessionName: worktreeSession.tmuxSessionName,
-        hookBased: worktreeSession.hookBased,
       }
     : null
   getProject().metadata.saveCached('worktree-state', stripped)

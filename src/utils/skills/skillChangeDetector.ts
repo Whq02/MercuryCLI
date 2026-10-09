@@ -9,7 +9,6 @@ import { clearSkillCaches, getProjectSkillsWatchPaths, getSkillsPath, onDynamicS
 import { resetSentSkillNames } from '../attachments/skillListing.js'
 import { registerCleanup } from '../cleanupRegistry.js'
 import { logForDebugging } from '../debug.js'
-import { executeConfigChangeHooks, hasBlockingResult } from '../hooks.js'
 import { logError } from '../log.js'
 import { createSignal } from '../signal.js'
 import { ignoringSpecialFiles, resolveWatchRoot } from '../watchRoot.js'
@@ -54,23 +53,11 @@ function scheduleReload(changedPath: string): void {
   if (reloadTimer !== null) return
   reloadTimer = setTimeout(() => {
     reloadTimer = null
-    const batch = [...pendingPaths]
     pendingPaths = new Set()
-    void (async () => {
-      try {
-        const results = await executeConfigChangeHooks('skills' as never, batch[0])
-        if (hasBlockingResult(results)) {
-          logForDebugging(`skill reload blocked by a config-change hook (${batch.length} changed paths)`)
-          return
-        }
-      } catch (error) {
-        logForDebugging(`skill config-change hook failed: ${String(error)}`)
-      }
-      clearSkillCaches()
-      clearCommandsCache()
-      resetSentSkillNames()
-      changeSignal.emit()
-    })()
+    clearSkillCaches()
+    clearCommandsCache()
+    resetSentSkillNames()
+    changeSignal.emit()
   }, debounceMs)
   reloadTimer.unref?.()
 }
