@@ -93,11 +93,6 @@ const BRAND_ALLOWLIST: ReadonlyArray<{ tool: string; pattern: RegExp; reason: st
     reason: 'model-derived attribution trailer (utils/attribution.ts)',
   },
   {
-    tool: 'Workflow',
-    pattern: /one workflow may run Claude-family agents and a connected GPT lane's agents side by side/g,
-    reason: 'provider-mixing guidance — the subject IS the family set',
-  },
-  {
     tool: 'ProviderSearch',
     pattern: /\(Anthropic web search · OpenAI web search\)/g,
     reason:

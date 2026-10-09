@@ -58,7 +58,7 @@ function familyRows(): FamilyCachingRow[] {
       route: 'anthropic',
       dial: true,
       lines: [
-        'how long Anthropic keeps your conversation cached between prompts — Claude-family calls only',
+        'how long Anthropic keeps your conversation cached between prompts — Anthropic calls only',
         `adaptive picks per session from how you actually work · a 1h pin is explicit billing consent`,
         `cache economy: reads ${CACHE_COST.read}× input price · 5m writes ${CACHE_COST.write5m}× · 1h writes ${CACHE_COST.write1h}×`,
       ],
