@@ -24,7 +24,7 @@ try {
   const renameText = (await renameTool?.prompt?.({} as never)) ?? ''
   check('the read tool owns the IDE-evidence facts: definitions and references over text search, diagnostics on files just edited', readText.includes('Use this over Grep and Read for definitions and references') && readText.includes('Run it on files you just edited'))
   check('the rename tool owns the structured-rename fact', renameText.includes('Rename a symbol everywhere the language server sees it'))
-  const protocol = getRunProtocolSection({ lspMounted: true, dapMounted: false }) ?? ''
+  const protocol = getRunProtocolSection({}) ?? ''
   check('the run protocol repeats none of it (no IDE-loop paragraph, no "LSP tool")', !protocol.includes('IDE loop') && !protocol.includes('LspRead') && !protocol.includes('LSP tool'))
   const map = computeHarnessMapLines().join('\n')
   check('the harness map repeats none of it (the roster lists the tools)', !map.includes('Code intelligence is native'))
