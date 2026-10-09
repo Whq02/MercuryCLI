@@ -872,7 +872,7 @@ export class Conversation {
                 break
               }
               this.mutableMessages.push(systemMessage)
-              if (level === 'warning' || level === 'error' || systemMessage.subtype === 'thinking_note' || systemMessage.subtype === 'stream_cut' || systemMessage.subtype === 'busy_recovery') {
+              if (level === 'warning' || level === 'error' || level === 'suggestion' || systemMessage.subtype === 'thinking_note' || systemMessage.subtype === 'stream_cut' || systemMessage.subtype === 'busy_recovery') {
                 turnMessages.push(systemMessage)
                 await recordDelta()
               }

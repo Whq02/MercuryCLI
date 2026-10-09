@@ -784,6 +784,8 @@ if (!existsSync(DIST)) {
       const receipts4 = debugLines(debug4)
       check('the first fable turn paints exactly one quiet receipt naming the switch (the writer and the new model), never a drop', receipts3.length === 1 && receipts3[0]!.includes('written by') && receipts3[0]!.includes('stay out of the requests to') && receipts3[0]!.includes('switched models') && !receipts3[0]!.includes('dropped'), j(receipts3))
       check('the second fable turn (a new process, the model that last answered) paints nothing: the switch was announced once, when it happened', receipts4.length === 0, j(receipts4))
+      const switchRows = transcriptNotices(arena, SID).filter(t => t.includes('stay out of the requests to'))
+      check('the receipt is in the session file once, written by the turn whose request it rode', switchRows.length === 1 && switchRows[0]!.includes('written by Opus 4.8 stay out of the requests to Fable 5.1'), j(switchRows))
       check('no drop notice painted on any turn (the API never saw a foreign block)', !transcriptNotices(arena, SID).some(t => t.includes('dropped')) && !(readFileSync(debug3, 'utf8') + readFileSync(debug4, 'utf8')).includes('thinking_dropped'))
       check('the fixture\'s drop lists stayed empty end to end (nothing for the API to drop)', !(r3.stdout + r4.stdout).includes('thinking_dropped'))
       await fixture.close()
