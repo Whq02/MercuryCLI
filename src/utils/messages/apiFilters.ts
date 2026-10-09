@@ -1,5 +1,5 @@
 
-import type { ContentBlock, RedactedThinkingBlock, ThinkingBlock, ContentBlockParam, RedactedThinkingBlockParam, TextBlockParam, ThinkingBlockParam } from '../../types/wire.js'
+import type { ContentBlock, RedactedThinkingBlock, ThinkingBlock, ContentBlockParam, RedactedThinkingBlockParam, TextBlockParam, ThinkingBlockParam, ToolResultBlockParam } from '../../types/wire.js'
 import { NO_CONTENT_MESSAGE } from '../../constants/messages.js'
 import type {
   AssistantMessage,
@@ -289,27 +289,28 @@ export function filterUnresolvedToolUses(messages: Message[]): Message[] {
   })
 }
 
+const isMixedErrorResult = (block: ContentBlockParam): block is ToolResultBlockParam =>
+  block.type === 'tool_result' &&
+  block.is_error === true &&
+  Array.isArray(block.content) &&
+  block.content.some(item => item.type !== 'text')
+
+function textOnlyResult(block: ToolResultBlockParam): ToolResultBlockParam {
+  const texts = (block.content as ReadonlyArray<{ type: string; text?: string }>).flatMap(item =>
+    item.type === 'text' ? [item.text ?? ''] : [],
+  )
+  const content: TextBlockParam[] = texts.length ? [{ type: 'text', text: texts.join('\n\n') }] : []
+  return { ...block, content }
+}
+
 export function sanitizeErrorToolResultContent(
   messages: (UserMessage | AssistantMessage)[],
 ): (UserMessage | AssistantMessage)[] {
   return messages.map(msg => {
-    if (msg.type !== 'user') return msg
-    const content = msg.message.content
-    if (!Array.isArray(content)) return msg
-
-    let changed = false
-    const newContent = content.map(b => {
-      if (b.type !== 'tool_result' || !b.is_error) return b
-      const trContent = b.content
-      if (!Array.isArray(trContent)) return b
-      if (trContent.every(c => c.type === 'text')) return b
-      changed = true
-      const texts = trContent.filter(c => c.type === 'text').map(c => c.text)
-      const textOnly: TextBlockParam[] =
-        texts.length > 0 ? [{ type: 'text', text: texts.join('\n\n') }] : []
-      return { ...b, content: textOnly }
-    })
-    if (!changed) return msg
-    return { ...msg, message: { ...msg.message, content: newContent } }
+    if (msg.type !== 'user' || !Array.isArray(msg.message.content)) return msg
+    const before = msg.message.content
+    const after = before.map(block => (isMixedErrorResult(block) ? textOnlyResult(block) : block))
+    const untouched = after.every((block, index) => block === before[index])
+    return untouched ? msg : { ...msg, message: { ...msg.message, content: after } }
   })
 }
