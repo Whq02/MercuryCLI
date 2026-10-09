@@ -68,11 +68,11 @@
   "reminders": [
     {
       "type": "text",
-      "text": "<system-reminder>\nThe task tools haven't been touched in a while. If the current work would benefit from tracked progress, use TaskCreate to add tasks and TaskUpdate to move their status (in_progress on start, completed on finish) — and clean the list up if it has gone stale. Relevant work only; ignore this if it doesn't apply, and NEVER mention this reminder to the user.\n\n\nThe current tasks:\n\n#41. [in_progress] Preserve file facts\n</system-reminder>"
+      "text": "<system-reminder>\nThe task list has not moved in a while: if the current work benefits from tracked progress, TaskCreate adds items and TaskUpdate moves their status (in_progress on start, completed on finish); a stale list is cleaned up.\n\n\nThe current tasks:\n\n#41. [in_progress] Preserve file facts\n</system-reminder>"
     },
     {
       "type": "text",
-      "text": "<system-reminder>\nThis session runs under a CONTRACT — its work agreement, status amended (2 superseded texts in its history). It is ADVISORY: it encourages your work and never blocks anything; hold yourself to it, check in through the `contract` tool when unsure, and propose an amendment there when a clause does not survive contact with the code. NEVER mention this reminder to the user.\n\nIt awaits YOUR acknowledgment: restate it in your own words through the `contract` tool ({ action: \"acknowledge\", restatement }) — the restatement is what makes it stick.\n\nThe agreement:\n\nDeliver the parser with its proofs.\n</system-reminder>"
+      "text": "<system-reminder>\nThis session runs under a contract — its work agreement, status amended (2 superseded texts in its history). It is advisory: it never blocks anything; hold yourself to it, check in through the `contract` tool when unsure, and propose an amendment there when a clause does not survive contact with the code.\n\nIt awaits your acknowledgment: restate it in your own words through the `contract` tool ({ action: \"acknowledge\", restatement }) — the restatement is what makes it stick.\n\nThe agreement:\n\nDeliver the parser with its proofs.\n</system-reminder>"
     }
   ]
 }
