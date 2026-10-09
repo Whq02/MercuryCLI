@@ -96,6 +96,36 @@ section('§3 WIRING')
   )
 }
 
+section("§4 THE ROW'S SCOPE (RELEASE-29-WINDOWS R29W-02): the record is per project, and the row says so")
+{
+  const { existsSync, mkdirSync } = await import('node:fs')
+  const { spawnSync } = await import('node:child_process')
+  const ROOT = join(import.meta.dir, '../..')
+  const dist = join(ROOT, 'dist', 'mercury.mjs')
+  const node = [process.env.MERCURY_NODE_BIN, join(ROOT, 'dist', 'vendor', 'node', 'bin', 'node')].find(p => p !== undefined && p !== '' && existsSync(p)) ?? 'node'
+  if (!existsSync(dist)) {
+    console.log('  [SKIP] dist absent — run `bun run build.ts` for the health row')
+  } else {
+    const home = join(HOME, 'row-home')
+    const project = join(HOME, 'a-project-never-opened-interactively')
+    mkdirSync(home, { recursive: true })
+    mkdirSync(project, { recursive: true })
+    const env = { ...process.env, MERCURY_CONFIG_DIR: home, MERCURY_CREDENTIAL_STORE: 'file', MERCURY_SKIP_PERMISSIONS: '1', MERCURY_LOCAL_PROBE_TARGETS: 'none', ANTHROPIC_API_KEY: 'proof-key-ci-gate-not-a-real-key' }
+    delete env.NODE_ENV
+    const r = spawnSync(node, [dist, 'health', '--json'], { cwd: project, encoding: 'utf8', env, timeout: 120_000, stdio: ['ignore', 'pipe', 'pipe'] })
+    let row: { status?: string; evidence?: string; fix?: string } | undefined
+    try {
+      const report = JSON.parse(r.stdout) as { sections: Array<{ checks: Array<{ id: string; status: string; evidence: string; fix?: string }> }> }
+      row = report.sections.flatMap(s => s.checks).find(c => c.id === 'permission-posture')
+    } catch {
+      row = undefined
+    }
+    check('health --json from a folder never opened interactively, with the env arming sovereign, carries the posture row', row !== undefined, `status=${String(r.status)} ${(r.stderr ?? '').slice(0, 300)}`)
+    check('the row warns that no record exists FOR THIS PROJECT, naming where the record comes from', row?.status === 'warn' && (row.evidence ?? '').includes('NO posture record exists yet for this project') && (row.evidence ?? '').includes("interactive boot in the project's own folder"), row?.evidence)
+    check("the remedy names this project's folder and says an interactive Mercury open elsewhere records that folder's (the box had one open)", (row?.fix ?? '').includes(`in this project (${project}`) && (row?.fix ?? '').includes("another folder records that folder's"), row?.fix)
+  }
+}
+
 rmSync(HOME, { recursive: true, force: true })
 if (failures > 0) {
   console.error(`\nprove-permission-posture: ${failures} FAILURE(S)`)

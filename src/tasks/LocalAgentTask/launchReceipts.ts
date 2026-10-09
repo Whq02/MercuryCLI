@@ -17,7 +17,7 @@ import { stripTerminalControls } from '../../utils/stringUtils.js'
 import { listAgentMetadata } from '../../utils/sessionStorage/paths.js'
 import { PANEL_GRACE_MS } from '../../utils/task/framework.js'
 import { notifyTasksUpdated } from '../../utils/tasks.js'
-import { RESTART_CARRY_ROW_PREFIX } from '../../input-core/command-queue.js'
+import { isRestartCarryText, RESTART_CARRY_ROW_PREFIX } from '../../input-core/command-queue.js'
 import { AGENT_STOP_BY_OPERATOR, agentStopReasonOf, enqueueAgentNotification, type LocalAgentTaskState } from './LocalAgentTask.js'
 
 export const BACKGROUND_LAUNCH_LINE = 'Agent launched in the background.'
@@ -308,7 +308,7 @@ export function restartCarryRow(reason: RunnerRestartReason | undefined, counts:
 }
 
 export function isRestartCarryRow(text: string): boolean {
-  return text.startsWith(RESTART_CARRY_ROW_PREFIX)
+  return isRestartCarryText(text)
 }
 
 export type QueueLogRow = {

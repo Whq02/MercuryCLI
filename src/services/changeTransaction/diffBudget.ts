@@ -11,17 +11,30 @@ export interface BoundedDiffHunk {
 
 export const HUNK_LINE_BUDGET = 80
 
+export interface BoundedDiff {
+  hunks: BoundedDiffHunk[]
+  omittedHunks: number
+  added: number
+  removed: number
+}
+
 export function buildDiffHunks(
   file: string,
   oldText: string,
   newText: string,
   lineBudget: number = HUNK_LINE_BUDGET,
-): { hunks: BoundedDiffHunk[]; omittedHunks: number } {
+): BoundedDiff {
   const patch = structuredPatch(file, file, oldText, newText, undefined, undefined, { context: 2 })
   const hunks: BoundedDiffHunk[] = []
   let budget = 0
   let omitted = 0
+  let added = 0
+  let removed = 0
   for (const h of patch.hunks) {
+    for (const line of h.lines) {
+      if (line.startsWith('+')) added++
+      else if (line.startsWith('-')) removed++
+    }
     if (budget >= lineBudget) {
       omitted++
       continue
@@ -48,5 +61,5 @@ export function buildDiffHunks(
     })
     budget += h.lines.length
   }
-  return { hunks, omittedHunks: omitted }
+  return { hunks, omittedHunks: omitted, added, removed }
 }

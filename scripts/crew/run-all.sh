@@ -20,6 +20,7 @@
 # gate-watch: src/tools/WorkflowTool/runControl.ts src/tools/WorkflowTool/WorkflowTool.tsx
 # gate-watch: src/components/messages/UserAgentNotificationMessage.tsx src/fabric/entryCodec.ts
 # gate-watch: src/fabric/ordinal.ts src/hooks/useCancelRequest.ts src/input-core/command-queue.ts
+# gate-watch: src/cli/headless/restartCarry.ts src/components/MessageSelector.tsx src/components/messages/UserTextMessage.tsx src/utils/sessionStorage/chain.ts
 # gate-watch: src/services/agentResults/normalize.ts
 # gate-watch: src/services/agents/operatorStop.ts src/services/api/errors.ts src/services/compact/compact.ts
 # gate-watch: src/services/compact/prompt.ts src/services/concourse/workerModels.ts

@@ -23,6 +23,7 @@ import type { AgentId } from '../../types/ids.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { logError } from '../../utils/log.js'
 import { saturnQueueStamp } from '../../utils/messages/noticeRows.js'
+import { wrapInSystemReminder } from '../../utils/messages/text.js'
 import { enqueue, enqueuePendingNotification } from '../../input-core/command-queue.js'
 import { emitTaskEnded } from '../../utils/sdkEventQueue.js'
 import { MAX_TRANSCRIPT_READ_BYTES, getTranscriptPath, readAgentMetadata } from '../../utils/sessionStorage/paths.js'
@@ -144,7 +145,7 @@ export async function carryRunnerAcrossRestart(ports: RestartCarryPorts): Promis
     stopped: orphans.length - relaunched - delivered,
   }
   const row = restartCarryRow(ports.reason, counts)
-  enqueuePendingNotification({ value: row, mode: 'task-notification', priority: 'next' })
+  enqueuePendingNotification({ value: wrapInSystemReminder(row), mode: 'task-notification', priority: 'next' })
   for (const { receipt, notice } of deliveries) {
     if (notice.status !== 'killed') emitTaskEnded(receipt.agentId, notice.status, { toolUseId: receipt.toolUseId, summary: receipt.description })
     enqueuePendingNotification({ value: notice.value, mode: 'task-notification', priority: 'next', ...(notice.at !== undefined ? { sentAt: notice.at } : {}) })

@@ -368,6 +368,11 @@ export function isSlashCommand(cmd: QueuedCommand): boolean {
 }
 
 export const RESTART_CARRY_ROW_PREFIX = 'runner restarted '
+const RESTART_CARRY_TEXT = /^\s*(?:<system-reminder>\s*)?runner restarted /
+
+export function isRestartCarryText(text: string): boolean {
+  return RESTART_CARRY_TEXT.test(text)
+}
 
 const HELD_NOTICE_STATUS = /<status>\s*(?:completed|failed|killed|stopped)\s*<\/status>/
 const ENDED_WATCH_NOTICE = /^<monitor\b[^\n]*>\n\[Monitor (?:"|stopped)/
@@ -375,7 +380,7 @@ const ENDED_WATCH_NOTICE = /^<monitor\b[^\n]*>\n\[Monitor (?:"|stopped)/
 export function isHeldNotice(cmd: QueuedCommand): boolean {
   if (cmd.mode !== 'task-notification') return false
   const text = textOfCommand(cmd)
-  return HELD_NOTICE_STATUS.test(text) || ENDED_WATCH_NOTICE.test(text) || text.startsWith(RESTART_CARRY_ROW_PREFIX)
+  return HELD_NOTICE_STATUS.test(text) || ENDED_WATCH_NOTICE.test(text) || isRestartCarryText(text)
 }
 
 export function isOperatorLine(cmd: QueuedCommand): boolean {

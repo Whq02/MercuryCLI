@@ -1924,7 +1924,7 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
           id: 'permission-posture',
           label: 'Sovereign mode',
           run: async () => {
-            const { getCurrentProjectConfig } = await import('./config/projectConfig.js')
+            const { getCurrentProjectConfig, getProjectPathForConfig } = await import('./config/projectConfig.js')
             const { flagEnv } = await import('../substrate/flagRegistry.js')
             const { isEnvTruthy } = await import('./envUtils.js')
             const posture = getCurrentProjectConfig().permissionPosture
@@ -1935,11 +1935,11 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
                 return {
                   status: 'warn',
                   evidence:
-                    "sovereign mode is armed by the Boot Menu's Sovereign mode row (standing consent) but NO posture record exists yet",
-                  fix: 'Open Mercury interactively once — the boot records its permission composition.',
+                    "sovereign mode is armed by the Boot Menu's Sovereign mode row (standing consent) but NO posture record exists yet for this project — the record is written by an interactive boot in the project's own folder",
+                  fix: `Open Mercury interactively once in this project (${getProjectPathForConfig()}) — its boot records the permission composition; an interactive Mercury open in another folder records that folder's.`,
                 }
               }
-              return { status: 'ok', evidence: `${OFF} · no posture recorded yet` }
+              return { status: 'ok', evidence: `${OFF} · no posture recorded yet for this project` }
             }
             const trust = posture.trustDialogAccepted ? 'trust dialog accepted' : 'trust dialog NOT accepted'
             if (posture.mode === 'bypass') {
