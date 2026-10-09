@@ -10,10 +10,11 @@ import {
   unlink,
   chmod,
 } from 'node:fs/promises'
-import { platform, tmpdir } from 'node:os'
+import { loadavg, platform, tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { acquirePidLock, noteLockRelease, releasePidLock } from '../substrate/pidLock.js'
 import { getMercuryHome } from '../utils/envUtils.js'
+import { availableCores } from '../utils/availableCores.js'
 import { logForDebugging } from '../utils/debug.js'
 import { recordSpawnExit } from '../utils/spawnLedger.js'
 import { daemonHomeStands, publishInDaemonHome } from './daemonHome.js'
@@ -222,7 +223,18 @@ let lastUnreachableAt = 0
 export function daemonLastUnreachableAt(): number {
   return lastUnreachableAt
 }
-export const controlSocketCensus = { keyReads: 0, keyMemoHits: 0, eauthRetries: 0 }
+export const controlSocketCensus = { keyReads: 0, keyMemoHits: 0, eauthRetries: 0, waitsExtended: 0, waitsEndedDead: 0, waitsEndedIdle: 0 }
+
+let boxReadingForTesting: { load1: number; cores: number } | null = null
+
+export function setBoxReadingForTesting(reading: { load1: number; cores: number } | null): void {
+  boxReadingForTesting = reading
+}
+
+export function answerCeilingMs(timeoutMs: number, box: { load1: number; cores: number } = boxReadingForTesting ?? { load1: loadavg()[0] ?? 0, cores: availableCores() }): number {
+  const perCore = box.cores > 0 && Number.isFinite(box.load1) ? box.load1 / box.cores : 0
+  return Math.round(timeoutMs * Math.max(1, perCore))
+}
 
 export function verifyControlAuth(
   presented: string | undefined,
@@ -393,28 +405,73 @@ function speakProtoGap(req: DaemonRequest, reply: DaemonReply): DaemonReply {
   return { ...reply, error: olderDaemonRefusalLine(verb, needs, negotiated), refusal: 'daemon-older' }
 }
 
-function rpcOnce(outbound: DaemonRequest & { proto?: number; auth?: string }, timeoutMs: number): Promise<DaemonReply & { frameWritten?: boolean }> {
+function daemonServes(timeoutMs: number): Promise<{ serves: boolean; working: number | null }> {
+  return rpcOnce({ op: 'ping', proto: protoToStamp() } as DaemonRequest & { proto?: number }, timeoutMs, { probe: true }).then(reply => {
+    const working = (reply as { working?: unknown }).working
+    return { serves: reply.ok === true, working: typeof working === 'number' && Number.isFinite(working) ? working : null }
+  })
+}
+
+function rpcOnce(outbound: DaemonRequest & { proto?: number; auth?: string }, timeoutMs: number, opts: { probe?: boolean } = {}): Promise<DaemonReply & { frameWritten?: boolean }> {
   return new Promise<DaemonReply & { frameWritten?: boolean }>(resolve => {
     let settled = false
     let frameWritten = false
+    let timer: ReturnType<typeof setTimeout> | undefined
+    const startedAt = Date.now()
+    const ceilingMs = opts.probe === true ? timeoutMs : answerCeilingMs(timeoutMs)
     const finish = (reply: DaemonReply, transportFailure = false) => {
       if (settled) return
       settled = true
-      clearTimeout(timer)
+      if (timer !== undefined) clearTimeout(timer)
       try {
         sock.destroy()
       } catch {
       }
       resolve(transportFailure ? { ...reply, frameWritten } : reply)
     }
+    const expired = (): void => {
+      finish({ ok: false, code: 'ETIMEOUT', error: `daemon did not answer within ${Date.now() - startedAt}ms (ETIMEOUT)` }, true)
+    }
+    const arm = (ms: number): void => {
+      timer = setTimeout(() => {
+        if (settled) return
+        if (opts.probe === true || !frameWritten) {
+          expired()
+          return
+        }
+        void daemonServes(timeoutMs).then(pong => {
+          if (settled) return
+          if (!pong.serves) {
+            controlSocketCensus.waitsEndedDead++
+            expired()
+            return
+          }
+          if (pong.working !== null) {
+            if (pong.working === 0) {
+              controlSocketCensus.waitsEndedIdle++
+              expired()
+              return
+            }
+            controlSocketCensus.waitsExtended++
+            arm(timeoutMs)
+            return
+          }
+          const left = ceilingMs - (Date.now() - startedAt)
+          if (left <= 0) {
+            expired()
+            return
+          }
+          controlSocketCensus.waitsExtended++
+          arm(Math.min(timeoutMs, left))
+        })
+      }, ms)
+      timer.unref?.()
+    }
 
     const sock = net.connect(controlSockPath())
     const collected: Buffer[] = []
 
-    const timer = setTimeout(() => {
-      finish({ ok: false, code: 'ETIMEOUT', error: `daemon did not answer within ${timeoutMs}ms (ETIMEOUT)` }, true)
-    }, timeoutMs)
-    timer.unref?.()
+    arm(timeoutMs)
 
     sock.on('connect', () => {
       if (settled) return

@@ -21,6 +21,15 @@ export function firstRunCardsCentred(settings: { view?: { firstRunCards?: string
   return settings?.view?.firstRunCards !== 'top-left'
 }
 
+export const SetupFrameBody = React.createContext<{ rows: number; width: number } | null>(null)
+
+export function setupFrameBodyRows(input: { rows: number; bootNoteRows: number }): number {
+  const frameCap = Math.max(8, input.rows - 1)
+  const gap = input.rows >= 28 ? 1 : 0
+  const chrome = 2 + 1 + 1 + gap + (input.bootNoteRows > 0 ? gap + input.bootNoteRows : 0) + gap + 1
+  return Math.max(1, frameCap - chrome)
+}
+
 export function useFirstRunCardsCentred(): boolean {
   return firstRunCardsCentred(useSettingsMaybe())
 }
@@ -56,6 +65,7 @@ export function MercurySetupFrame({
   const frameCap = Math.max(8, rows - 1)
   const fullRows = rows >= 28
   const gap = fullRows ? 1 : 0
+  const bodySlot = { rows: setupFrameBodyRows({ rows, bootNoteRows: bootNotes.length > 0 ? 1 + (notesOpen ? bootNotes.length : 0) : 0 }), width: inner }
   const bodyViewportRef = useRef<DOMElement | null>(null)
   const bodyRef = useRef<DOMElement | null>(null)
   const [clipped, setClipped] = useState(false)
@@ -128,7 +138,7 @@ export function MercurySetupFrame({
 }
       <Box ref={bodyViewportRef} flexDirection="column" paddingTop={gap} overflowY="hidden">
         <Box ref={bodyRef} flexDirection="column" flexShrink={0}>
-          {children}
+          <SetupFrameBody.Provider value={bodySlot}>{children}</SetupFrameBody.Provider>
         </Box>
       </Box>
       {bootNotes.length > 0 ? (

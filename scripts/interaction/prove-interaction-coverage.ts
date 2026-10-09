@@ -138,6 +138,7 @@ reg(
   [
     'src/commands/appearance/appearance.tsx',
     'src/commands/caching/caching.tsx',
+    'src/commands/context/context.tsx',
     'src/commands/console/console.tsx',
     'src/commands/copy/copy.tsx',
     'src/commands/health/HealthCertificate.tsx',

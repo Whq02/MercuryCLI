@@ -101,6 +101,10 @@ const ROLE_BY_FILE: Record<string, { role: string; why: string }> = {
     role: 'session-identity',
     why: 'context view — session mark, not product crab',
   },
+  'src/commands/context/context.tsx': {
+    role: 'session-identity',
+    why: 'the /context card while the chart is counted — the same context lockup as the view',
+  },
   'src/components/mercury-ui/NavigablePanes.tsx': {
     role: 'product-identity-header',
     why: 'pane shell riding the CommandCenter grammar',

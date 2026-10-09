@@ -70,6 +70,7 @@ __t=$SECONDS; __rc=0; "$bun" run "$here/prove-daemon-stop-parks.ts" || { __rc=$?
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-interrupt-keeps-runner.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-interrupt-keeps-runner.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-cap-seat.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-cap-seat.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-first-byte-drive.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-first-byte-drive.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$bun" run "$here/prove-answer-wait-follows-the-box.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-answer-wait-follows-the-box.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-reissue-rows-drive.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-reissue-rows-drive.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-daemon-handshake.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-daemon-handshake.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-build-order-visible.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-build-order-visible.ts" "$__t" "$__rc"
