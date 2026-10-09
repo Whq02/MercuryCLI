@@ -4,6 +4,7 @@ import { isAbsolute, join, relative, resolve, sep } from 'node:path'
 import { stripBOM } from '../utils/jsonRead.js'
 import { z } from 'zod'
 import { HOOK_EVENTS, HOOK_TIMEOUT_MAX_S } from '../utils/hooks/contract.js'
+import { matcherCompiles } from '../utils/hooks/matcherGrammar.js'
 import { LspServerConfigSchema } from '../services/lsp/schema.js'
 import { lazySchema } from '../utils/lazySchema.js'
 import { SHELL_TYPES } from '../utils/shell/shellProvider.js'
@@ -58,6 +59,9 @@ const extensionHookSchema = lazySchema(() =>
     wake: z.boolean().optional().describe('Run in the background and wake the model when the hook blocks. Implies background.'),
     once: z.boolean().optional().describe('Run this hook once per session, then stand down.'),
     watch: z.array(z.string().min(1)).optional().describe('file.changed only: the files to watch, relative to the project.'),
+  }).superRefine((entry, ctx) => {
+    if (matcherCompiles(entry.match)) return
+    ctx.addIssue({ code: 'custom', message: `match is not a valid regular expression: ${JSON.stringify(entry.match)}` })
   }),
 )
 

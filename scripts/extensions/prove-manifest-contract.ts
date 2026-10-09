@@ -163,6 +163,10 @@ console.log('[4] a nested typo is an error at load')
   promptHook.contributes.hooks['tool.after'][0] = { question: 'x' }
   const p = manifestMod.parseManifestValue(promptHook)
   check('a question hook (not a run entry) is refused', !p.ok)
+  const badMatch = JSON.parse(JSON.stringify(FULL))
+  badMatch.contributes.hooks['tool.after'][0].match = 'startu[p'
+  const bm = manifestMod.parseManifestValue(badMatch)
+  check('an uncompilable match is refused at load, never a hook that silently matches nothing', !bm.ok && bm.errors.some(e => /not a valid regular expression/.test(e)), bm.ok ? 'accepted' : bm.errors.join('; '))
 }
 
 console.log('[5] a path escaping the root is a manifest error')
