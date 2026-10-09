@@ -150,7 +150,6 @@ section('§6 the dead machinery, the alias maps and the retired words the excisi
   const UNKNOWN_COMMAND_LIST = 'scripts/identity/prove-unknown-command-answer.ts'
   const SECURITY_INSTRUCTION = 'src/constants/cyberRiskInstruction.ts'
   const TRANSCRIPT_KIND_MIGRATION = 'src/migrations/migrateTranscriptEntryKinds.ts'
-  const TELEMETRY_ENV_HOLDOUTS = [J('scripts/winreg/prove-process-sweep-', 'live.ts'), J('scripts/ui/prove-quiet-boot-', 'journey.ts'), J('scripts/ui/prove-voice-', 'journey.ts')]
   const FOREIGN_HOME_LAWS = [J('scripts/accounts/prove-accounts-', 'display.ts'), J('scripts/accounts/prove-auth-scope-', 'isolation.ts'), J('scripts/accounts/prove-account-', 'isolation.ts'), J('scripts/build-identity/prove-config-', 'home.ts')]
   const tree = execFileSync('git', ['-C', REPO, 'ls-files', '-z', '--', 'src', 'scripts', 'docs', 'assets', 'build.ts', '.gitignore'], { encoding: 'utf8', maxBuffer: 1 << 28 })
     .split('\0')
@@ -197,7 +196,7 @@ section('§6 the dead machinery, the alias maps and the retired words the excisi
     { word: J('ASSISTANT_BLOCKING', '_BUDGET_MS') },
     { word: J('ANTHROPIC_', 'LOG') },
     { word: J('domain', 'Runner') },
-    { word: J('MERCURY_', 'TELEMETRY'), except: TELEMETRY_ENV_HOLDOUTS },
+    { word: J('MERCURY_', 'TELEMETRY') },
   ]
   for (const { word, except } of SPELLINGS) {
     const where = tree.filter(rel => !(except ?? []).includes(rel) && (rel.includes(word) || (texts.get(rel) ?? '').includes(word)))
