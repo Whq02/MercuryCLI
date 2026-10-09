@@ -209,36 +209,22 @@ function decodeModifier(modifier: number): {
   return { shift: !!(m & 1), meta: !!(m & 2), ctrl: !!(m & 4), super: !!(m & 8) }
 }
 
+const KEYPAD_FIRST_CODE = 57399
+const NAMED_KEYCODES: ReadonlyMap<number, string> = new Map<number, string>([
+  [9, 'tab'],
+  [13, 'return'],
+  [27, 'escape'],
+  [32, 'space'],
+  [127, 'backspace'],
+  ...[...'0123456789./*-+'].map((name, offset): [number, string] => [KEYPAD_FIRST_CODE + offset, name]),
+  [57414, 'return'],
+  [57415, '='],
+])
+
 function keycodeToName(keycode: number): string | undefined {
-  switch (keycode) {
-    case 9: return 'tab'
-    case 13: return 'return'
-    case 27: return 'escape'
-    case 32: return 'space'
-    case 127: return 'backspace'
-    case 57399: return '0'
-    case 57400: return '1'
-    case 57401: return '2'
-    case 57402: return '3'
-    case 57403: return '4'
-    case 57404: return '5'
-    case 57405: return '6'
-    case 57406: return '7'
-    case 57407: return '8'
-    case 57408: return '9'
-    case 57409: return '.'
-    case 57410: return '/'
-    case 57411: return '*'
-    case 57412: return '-'
-    case 57413: return '+'
-    case 57414: return 'return'
-    case 57415: return '='
-    default:
-      if (keycode >= 32 && keycode <= 126) {
-        return String.fromCharCode(keycode).toLowerCase()
-      }
-      return undefined
-  }
+  const named = NAMED_KEYCODES.get(keycode)
+  if (named !== undefined) return named
+  return keycode >= 32 && keycode <= 126 ? String.fromCharCode(keycode).toLowerCase() : undefined
 }
 
 function isTypedCodepoint(codepoint: number): boolean {
