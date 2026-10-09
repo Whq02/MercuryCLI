@@ -238,7 +238,7 @@ export const inputSchema = lazySchema(() =>
         .optional()
         .describe(
           'Optional input value exposed to the script as the global `args`, verbatim. Pass arrays/objects as actual ' +
-            'JSON values, NOT as a JSON-encoded string — a stringified list breaks `args.filter`/`args.map` in the script.',
+            'JSON values, never as a JSON-encoded string — a stringified list breaks `args.filter`/`args.map` in the script.',
         ),
       scriptPath: z
         .string()
