@@ -425,14 +425,14 @@ outage outlasts the probing, the row is a failed one again and a message is
 the way back.
 
 A session's side jobs — the chat's title, the away summary, the tool-use
-summaries, the state read, the feedback card, a prompt hook's default model,
+summaries, the state read, the feedback card, a question hook's default model,
 the date parser and the fetch tool's summary — ride the session's own family
 on its helper tier. On the Anthropic lane that is the small family default
 (`MERCURY_SMALL_FAST_MODEL` pins it). On a GPT session it is the cheapest
 text model the account's live list serves, by the prices the GPT table
 records (a mini or nano row when the list serves one); no id the list lacks
 is ever asked for, and while the list has not answered, or serves no priced
-row, the side job runs on the session's own model. The hook agent's tier
+row, the side job runs on the session's own model. A crewmate hook's tier
 follows the same rule: the newest plain GPT row the list serves below the
 frontier, else the session's own model.
 

@@ -264,8 +264,7 @@ src/utils/git.ts :: lastSnapshot :: subscription-fed
 src/utils/git/gitFilesystem.ts :: cacheEntries :: invalidator=regroundGitWatch
 src/utils/git/gitFilesystem.ts :: gitDirCache :: keyed-by-truth
 src/utils/hooks/hookHelpers.ts :: hookResponseSchema :: static-for-process
-src/utils/hooks/hooksConfigManager.ts :: getHookEventMetadata :: keyed-by-truth
-src/utils/hooks/hooksConfigSnapshot.ts :: snapshot :: invalidator=captureHooksConfigSnapshot
+src/utils/hooks/hooksConfigSnapshot.ts :: snapshot :: invalidator=captureHooksSnapshot
 src/utils/imageResizer.ts :: sizedImageCache :: keyed-by-truth
 src/utils/imageStore.ts :: readBackMemo :: keyed-by-truth
 src/utils/lockfile.ts :: cached :: static-for-process

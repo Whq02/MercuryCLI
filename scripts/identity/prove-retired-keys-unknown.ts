@@ -29,7 +29,7 @@ const { getSettingsWithErrors, getInitialSettings } = await import('../../src/ut
 const { resetSettingsCache } = await import('../../src/utils/settings/settingsCache.js')
 const { validateSettingsFileContent } = await import('../../src/utils/settings/validation.js')
 const { loadAllPermissionRulesFromDisk } = await import('../../src/utils/permissions/permissionsLoader.js')
-const { getHooksConfigFromSnapshot, resetHooksConfigSnapshot } = await import('../../src/utils/hooks/hooksConfigSnapshot.js')
+const { hooksSnapshot, resetHooksSnapshot } = await import('../../src/utils/hooks/hooksConfigSnapshot.js')
 const { getConfiguredApiKeyHelper } = await import('../../src/utils/auth.js')
 const { getGlobalConfig, readGlobalConfigAgain } = await import('../../src/utils/config/globalConfig.js')
 const { setSessionTrustAccepted } = await import('../../src/bootstrap/state.js')
@@ -118,7 +118,7 @@ function load(key: string, value: unknown): Loaded {
   const bytes = JSON.stringify(file, null, 2)
   writeFileSync(settingsPath, bytes)
   resetSettingsCache()
-  resetHooksConfigSnapshot()
+  resetHooksSnapshot()
   const loaded = getSettingsWithErrors()
   const raw = loaded.settings as Record<string, unknown>
   return {
@@ -161,7 +161,7 @@ section('§1b a retired leaf inside a kept group is an unknown leaf like any oth
     const bytes = JSON.stringify(file, null, 2)
     writeFileSync(settingsPath, bytes)
     resetSettingsCache()
-    resetHooksConfigSnapshot()
+    resetHooksSnapshot()
     const loaded = getSettingsWithErrors()
     const view = (loaded.settings as { view?: Record<string, unknown> }).view ?? {}
     return {
@@ -200,8 +200,7 @@ section('§3 the consequential ones steer nothing: no rule, no hook, no model, n
   const rules = loadAllPermissionRulesFromDisk() as Array<{ ruleValue: { toolName: string } }>
   check('a retired permissions block grants and denies nothing', !rules.some(rule => rule.ruleValue.toolName === 'Bash' || rule.ruleValue.toolName === 'Write'), j(rules))
   load('hooks', RETIRED_SETTINGS_ROOTS.hooks)
-  const hooks = getHooksConfigFromSnapshot() as { SessionStart?: unknown } | null
-  check('a retired hooks block runs no hook', hooks?.SessionStart === undefined, j(hooks))
+  check('a retired hooks block runs no hook', hooksSnapshot().hooks.length === 0, j(hooksSnapshot().hooks))
   load('model', RETIRED_SETTINGS_ROOTS.model)
   check('a retired model line picks no engine', getInitialSettings().engine?.model === undefined, j(getInitialSettings().engine))
   load('apiKeyHelper', RETIRED_SETTINGS_ROOTS.apiKeyHelper)

@@ -1,157 +1,158 @@
 import { z } from 'zod/v4'
 import { lazySchema } from '../utils/lazySchema.js'
 import { SHELL_TYPES } from '../utils/shell/shellProvider.js'
-import { HOOK_EVENTS, type HookEvent } from '../utils/hooks/contract.js'
+import {
+  HOOK_EVENTS,
+  HOOK_TIMEOUT_MAX_S,
+  hookEventTable,
+  hookKindsOf,
+  isHookEvent,
+  type HookEvent,
+  type HookKind,
+} from '../utils/hooks/contract.js'
 import { matcherCompiles } from '../utils/hooks/matcherGrammar.js'
 
-const ifSchema = lazySchema(() =>
-  z
-    .string()
-    .optional()
-    .describe(
-      'Condition in permission-rule syntax (tool name with an optional parenthesised pattern). The hook runs only when it matches the hook input.',
-    ),
-)
+const entryShape = () => ({
+  run: z.string().min(1).optional().describe('A shell command; the payload arrives on stdin'),
+  question: z.string().min(1).optional().describe('A question a model answers; $EVENT is replaced by the payload JSON'),
+  crewmate: z.string().min(1).optional().describe('A brief a crewmate with tools checks; $EVENT as above'),
+  name: z.string().optional().describe('The words every line about the hook uses, and the status row while it runs'),
+  match: z.string().optional().describe("Names (Bash, Read|Edit) or a regular expression, matched against the event's match field"),
+  shell: z.enum(SHELL_TYPES).optional().describe('The shell a command runs in; bash unless set'),
+  model: z.string().optional().describe('The model a question or crewmate hook runs on'),
+  timeout: z.number().positive().max(HOOK_TIMEOUT_MAX_S).optional().describe('Seconds before the hook is ended: 600 for a run, 30 for a question, 60 for a crewmate'),
+  background: z.boolean().optional().describe('A run hook that does not hold the moment; its answer arrives at the next turn'),
+  wake: z.boolean().optional().describe('A background run hook whose block wakes the model'),
+  once: z.boolean().optional().describe('Runs once in a session, then stands down'),
+  watch: z.array(z.string().min(1)).optional().describe('file.changed only: the files to watch, relative to the project'),
+})
 
-const timeoutSchema = lazySchema(() =>
-  z
-    .number()
-    .positive()
-    .max(2_147_483, 'timeout must be at most 2147483 seconds (the runtime timer bound)')
-    .optional()
-    .describe('Timeout for this hook, in seconds.'),
-)
+const entryObjectSchema = lazySchema(() => z.strictObject(entryShape()))
 
-function hookKindSchema<
-  const TType extends string,
-  TFields extends Record<string, z.ZodType>,
->(type: TType, fields: TFields) {
-  return z.object({
-    type: z.literal(type),
-    ...fields,
-    if: ifSchema(),
-    timeout: timeoutSchema(),
-    statusMessage: z
-      .string()
-      .optional()
-      .describe('Message shown in the spinner while the hook runs.'),
-    once: z
-      .boolean()
-      .optional()
-      .describe('Run this hook once, then remove it.'),
-  })
+export type HookEntry = z.infer<ReturnType<typeof entryObjectSchema>>
+
+export function hookKindOf(entry: Pick<HookEntry, 'run' | 'question' | 'crewmate'>): HookKind {
+  if (entry.run !== undefined) return 'run'
+  if (entry.question !== undefined) return 'question'
+  return 'crewmate'
 }
 
-const bashCommandHookSchema = lazySchema(() =>
-  hookKindSchema('command', {
-    command: z.string().describe('The shell command to execute.'),
-    shell: z
-      .enum(SHELL_TYPES)
-      .optional()
-      .describe(
-        "Shell to run the command with: 'bash' uses your login shell family; 'powershell' uses pwsh. Defaults to bash.",
-      ),
-    async: z
-      .boolean()
-      .optional()
-      .describe('Run in the background without blocking.'),
-    wake: z
-      .boolean()
-      .optional()
-      .describe(
-        'Run in the background and wake the model when the hook exits with the blocking-error status. Implies async.',
-      ),
-  }),
+export function hookEntryText(entry: HookEntry): string {
+  return entry.run ?? entry.question ?? entry.crewmate ?? ''
+}
+
+export function hookEntryName(entry: HookEntry): string {
+  if (entry.name !== undefined && entry.name !== '') return entry.name
+  return hookEntryText(entry).split('\n')[0] ?? ''
+}
+
+export function hookEntryFaults(entry: HookEntry): string[] {
+  const faults: string[] = []
+  const kinds = [entry.run, entry.question, entry.crewmate].filter(field => field !== undefined).length
+  if (kinds !== 1) faults.push('a hook names exactly one of run, question or crewmate')
+  const command = entry.run !== undefined
+  if (!command) {
+    if (entry.shell !== undefined) faults.push('shell belongs to a run hook')
+    if (entry.background !== undefined) faults.push('background belongs to a run hook')
+    if (entry.wake !== undefined) faults.push('wake belongs to a run hook')
+  } else if (entry.model !== undefined) {
+    faults.push('model belongs to a question or crewmate hook')
+  }
+  if (!matcherCompiles(entry.match)) faults.push(`match is not a valid regular expression: ${JSON.stringify(entry.match)}`)
+  return faults
+}
+
+export function hookEntryEventFaults(event: HookEvent, entry: HookEntry): string[] {
+  const faults: string[] = []
+  const row = hookEventTable[event]
+  if (entry.match !== undefined && row.match === undefined) faults.push(`${event} has no match field; remove match`)
+  if (entry.watch !== undefined && row.watchable !== true) faults.push(`watch belongs to file.changed, not ${event}`)
+  const kind = hookKindOf(entry)
+  if (!hookKindsOf(event).includes(kind)) faults.push(`${event} runs ${hookKindsOf(event).join(' and ')} hooks only`)
+  if (row.foregroundOnly === true && (entry.background === true || entry.wake === true)) {
+    faults.push(`${event} runs in the foreground; remove background and wake`)
+  }
+  return faults
+}
+
+export const HookEntrySchema = lazySchema(() =>
+  z.preprocess((value, ctx) => {
+    const parsed = entryObjectSchema().safeParse(value)
+    if (!parsed.success) {
+      for (const issue of parsed.error.issues) {
+        ctx.addIssue({ code: 'custom', message: `${issue.path.join('.') || 'entry'}: ${issue.message}` })
+      }
+      return value
+    }
+    for (const fault of hookEntryFaults(parsed.data)) ctx.addIssue({ code: 'custom', message: fault })
+    return value
+  }, entryObjectSchema()),
 )
 
-const promptHookSchema = lazySchema(() =>
-  hookKindSchema('prompt', {
-    prompt: z
-      .string()
-      .describe(
-        'Prompt evaluated by a model. An $ARGUMENTS placeholder receives the hook input JSON.',
-      ),
-    model: z
-      .string()
-      .optional()
-      .describe('Model to evaluate the prompt with. Defaults to the default small fast model.'),
-  }),
-)
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
 
-const agentHookSchema = lazySchema(() =>
-  hookKindSchema('agent', {
-    prompt: z
-      .string()
-      .describe(
-        'What the agent should verify. An $ARGUMENTS placeholder receives the hook input JSON. Timeout defaults to 60 seconds.',
-      ),
-    model: z
-      .string()
-      .optional()
-      .describe(
-        'Model for the agent. Defaults to the default small fast model floored to the mid-tier model — agent hooks never run the smallest model.',
-      ),
-  }),
-)
-
-const httpHookSchema = lazySchema(() =>
-  hookKindSchema('http', {
-    url: z
-      .string()
-      .url()
-      .describe('URL that receives a POST of the hook input JSON.'),
-    headers: z
-      .record(z.string(), z.string())
-      .optional()
-      .describe(
-        'Request headers. Values may reference environment variables as $VAR or ${VAR}; only variables named in allowedEnvVars are interpolated.',
-      ),
-    allowedEnvVars: z
-      .array(z.string())
-      .optional()
-      .describe(
-        'Environment variable names allowed in header interpolation. Required for any interpolation; unlisted references resolve to empty strings.',
-      ),
-  }),
-)
-
-export const HookCommandSchema = lazySchema(() =>
-  z.discriminatedUnion('type', [
-    bashCommandHookSchema(),
-    promptHookSchema(),
-    agentHookSchema(),
-    httpHookSchema(),
-  ]),
-)
-
-export type HookCommand = z.infer<ReturnType<typeof HookCommandSchema>>
-export type BashCommandHook = Extract<HookCommand, { type: 'command' }>
-export type PromptHook = Extract<HookCommand, { type: 'prompt' }>
-export type AgentHook = Extract<HookCommand, { type: 'agent' }>
-export type HttpHook = Extract<HookCommand, { type: 'http' }>
-
-export const HookMatcherSchema = lazySchema(() =>
-  z
-    .strictObject({
-      matcher: z
-        .string()
-        .optional()
-        .describe('Pattern matched against event-related values, typically tool names.'),
-      hooks: z.array(HookCommandSchema()),
-    })
-    .superRefine((entry, ctx) => {
-      if (matcherCompiles(entry.matcher)) return
-      ctx.addIssue({
-        code: 'custom',
-        message: `matcher is not a valid regular expression: ${JSON.stringify(entry.matcher)}`,
+const hooksMapSchema = lazySchema(() =>
+  z.partialRecord(z.enum(HOOK_EVENTS as [HookEvent, ...HookEvent[]]), z.array(HookEntrySchema())).superRefine((map, ctx) => {
+    for (const event of Object.keys(map) as HookEvent[]) {
+      const entries = map[event] ?? []
+      entries.forEach((entry, index) => {
+        for (const fault of hookEntryEventFaults(event, entry)) {
+          ctx.addIssue({ code: 'custom', message: fault, path: [event, index] })
+        }
       })
-    }),
+    }
+  }),
 )
-
-export type HookMatcher = z.infer<ReturnType<typeof HookMatcherSchema>>
 
 export const HooksSchema = lazySchema(() =>
-  z.partialRecord(z.enum(HOOK_EVENTS), z.array(HookMatcherSchema())),
+  z.preprocess((value, ctx) => {
+    if (!isPlainObject(value)) return value
+    const kept: Record<string, unknown> = {}
+    for (const [key, entries] of Object.entries(value)) {
+      if (isHookEvent(key)) kept[key] = entries
+      else ctx.addIssue({ code: 'custom', message: `${key} is not a hook event Mercury fires`, path: [key] })
+    }
+    return kept
+  }, hooksMapSchema()),
 )
 
-export type HooksSettings = Partial<Record<HookEvent, HookMatcher[]>>
+export type HooksSettings = Partial<Record<HookEvent, HookEntry[]>>
+
+export type HooksMapReading = { hooks: HooksSettings; faults: string[] }
+
+export function readHooksMap(raw: unknown): HooksMapReading {
+  if (raw === undefined || raw === null) return { hooks: {}, faults: [] }
+  if (!isPlainObject(raw)) return { hooks: {}, faults: ['hooks must be a map of event name to a list of entries'] }
+  const working: Record<string, unknown> = { ...raw }
+  const faults: string[] = []
+  for (let round = 0; round < 3; round++) {
+    const parsed = HooksSchema().safeParse(working)
+    if (parsed.success) return { hooks: parsed.data as HooksSettings, faults }
+    const dropEntries = new Map<string, Set<number>>()
+    for (const issue of parsed.error.issues) {
+      const [event, index] = issue.path as [string | undefined, number | undefined]
+      if (event === undefined) {
+        return { hooks: {}, faults: [...faults, issue.message] }
+      }
+      if (typeof index === 'number') {
+        faults.push(`${event}[${index}]: ${issue.message} — skipped`)
+        let set = dropEntries.get(event)
+        if (set === undefined) {
+          set = new Set()
+          dropEntries.set(event, set)
+        }
+        set.add(index)
+        continue
+      }
+      faults.push(`${event}: ${issue.message} — skipped`)
+      delete working[event]
+    }
+    for (const [event, indexes] of dropEntries) {
+      const list = working[event]
+      if (Array.isArray(list)) working[event] = list.filter((_, i) => !indexes.has(i))
+    }
+  }
+  return { hooks: {}, faults }
+}

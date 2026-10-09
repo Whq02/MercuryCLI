@@ -6,10 +6,10 @@ import { HooksSchema } from '../../schemas/hooks.js'
 import { lazySchema } from '../lazySchema.js'
 import { PERMISSION_MODES } from '../permissions/PermissionMode.js'
 import { PermissionRuleSchema } from './permissionValidation.js'
-import type { HookCommand } from '../../schemas/hooks.js'
+import type { HookEntry } from '../../schemas/hooks.js'
 
-export { HookCommandSchema, HookMatcherSchema, HooksSchema } from '../../schemas/hooks.js'
-export type { AgentHook, BashCommandHook, HookCommand, HookMatcher, HooksSettings, HttpHook, PromptHook } from '../../schemas/hooks.js'
+export { HookEntrySchema, HooksSchema } from '../../schemas/hooks.js'
+export type { HookEntry, HooksSettings } from '../../schemas/hooks.js'
 
 export const CUSTOMIZATION_SURFACES = ['skills', 'agents', 'hooks', 'mcp'] as const
 
@@ -57,17 +57,10 @@ export const PermissionsSchema = lazySchema(() =>
 )
 
 export type ExtensionHookMatcher = {
-  matcher?: string
-  hooks: HookCommand[]
+  hooks: HookEntry[]
   extensionName: string
   extensionRoot: string
   extensionId: string
-}
-export type SkillHookMatcher = {
-  matcher?: string
-  hooks: HookCommand[]
-  skillName: string
-  skillRoot: string
 }
 
 const userConfigValueSchema = (): z.ZodType => z.union([z.string(), z.number(), z.boolean(), z.array(z.string())])
@@ -148,11 +141,9 @@ export const SettingsSchema = lazySchema(() => {
       managedOnly: z.boolean().optional(),
     }).passthrough().optional(),
     events: z.object({
-      hooks: HooksSchema().optional(),
-      disabled: z.boolean().optional(),
-      managedOnly: z.boolean().optional(),
-      httpDestinations: z.array(z.string()).optional(),
-      httpEnvironment: z.array(z.string()).optional(),
+      hooks: HooksSchema().optional().describe('The hooks, by event: one entry per hook with its own match; docs/HOOKS.md defines the events'),
+      disabled: z.boolean().optional().describe('True turns off every hook that is not managed; in the managed layer, every hook'),
+      managedOnly: z.boolean().optional().describe("True in the managed layer runs only the managed layer's hooks"),
     }).passthrough().optional(),
     extensions: ExtensionsSettingsSchema().optional(),
     voice: z.object({ language: z.string().optional() }).passthrough().optional(),
@@ -201,7 +192,11 @@ export const SettingsSchema = lazySchema(() => {
     channels: z.object({ enabled: z.boolean().optional() }).passthrough().optional(),
     apollo: z.object({ preflightQuestions: z.number().int().min(1).max(20).optional() }).optional().describe('Apollo Mode: pre-flight interview poll budget (default 7)'),
     workspace: z.object({
-      worktree: z.object({ symlinkDirectories: z.array(z.string()).optional(), sparsePaths: z.array(z.string()).optional() }).optional(),
+      worktree: z.object({
+        symlinkDirectories: z.array(z.string()).optional(),
+        sparsePaths: z.array(z.string()).optional(),
+        prepare: z.string().optional().describe('A shell command run inside every new worktree after git makes it and before any seat uses it; a failure is named on the row'),
+      }).optional(),
     }).passthrough().optional(),
     local: z.object({
       server: z.object({

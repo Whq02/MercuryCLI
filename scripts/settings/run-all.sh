@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # gate-class: pure
 # gate-watch: scripts/lib/hermetic.ts scripts/providers/lib/xai-usage-fixture.ts scripts/providers/lib/xai-auth-fixture.ts src/services/providers/xai/xaiOauth.ts
+# gate-watch: src/utils/hooks/contract.ts src/utils/hooks/matcherGrammar.ts
 # gate-watch: scripts/providers/lib/mistral-fixture.ts src/services/providers/mistral/**
 # gate-watch: scripts/providers/lib/zen-fixture.ts src/services/providers/zen/**
 # gate-watch: scripts/provider-compat/fixtures/huggingface-whoami-v2-documented.json

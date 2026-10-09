@@ -3,7 +3,8 @@ import { readFileSync } from 'node:fs'
 import { isAbsolute, join, relative, resolve, sep } from 'node:path'
 import { stripBOM } from '../utils/jsonRead.js'
 import { z } from 'zod'
-import { HOOK_EVENTS } from '../utils/hooks/contract.js'
+import { HOOK_EVENTS, HOOK_TIMEOUT_MAX_S } from '../utils/hooks/contract.js'
+import { matcherCompiles } from '../utils/hooks/matcherGrammar.js'
 import { LspServerConfigSchema } from '../services/lsp/schema.js'
 import { lazySchema } from '../utils/lazySchema.js'
 import { SHELL_TYPES } from '../utils/shell/shellProvider.js'
@@ -44,27 +45,23 @@ const relativeDirSchema = lazySchema(() =>
     .describe('A directory path relative to the extension root (`./skills`). It must stay inside the root.'),
 )
 
-const commandHookSchema = lazySchema(() =>
+const extensionHookSchema = lazySchema(() =>
   z.strictObject({
-    type: z.literal('command').describe('Only command hooks may be contributed: a shell command Mercury runs on the event.'),
-    command: z
+    run: z
       .string()
       .min(1)
       .describe('The command line. `${MERCURY_EXTENSION_ROOT}`, `${MERCURY_EXTENSION_DATA}` and `${option.KEY}` substitute before it runs.'),
-    timeout: z.number().positive().optional().describe('Timeout for this hook, in seconds. Unset uses the hook engine default.'),
+    name: z.string().optional().describe('The words every line about the hook uses, and the status row while it runs.'),
+    match: z.string().optional().describe("Names (`Write|Edit`) or a regular expression matched against the event's match field. Absent matches everything."),
     shell: z.enum(SHELL_TYPES).optional().describe("Shell to run the command with: 'bash' or 'powershell'. Defaults to bash."),
-    async: z.boolean().optional().describe('Run in the background without blocking the event.'),
-    wake: z.boolean().optional().describe('Run in the background and wake the model when the hook exits with the blocking status. Implies async.'),
-    if: z.string().optional().describe('Condition in permission-rule syntax (a tool name with an optional parenthesised pattern); the hook runs only when it matches.'),
-    statusMessage: z.string().optional().describe('Message shown in the spinner while the hook runs.'),
-    once: z.boolean().optional().describe('Run this hook once per session, then remove it.'),
-  }),
-)
-
-const hookMatcherSchema = lazySchema(() =>
-  z.strictObject({
-    matcher: z.string().optional().describe('Pattern matched against event-related values, typically tool names (`Write|Edit`). Absent matches everything.'),
-    hooks: z.array(commandHookSchema()).min(1).describe('The commands to run when the matcher matches.'),
+    timeout: z.number().positive().max(HOOK_TIMEOUT_MAX_S).optional().describe('Seconds before the hook is ended; 600 unless set.'),
+    background: z.boolean().optional().describe('Run in the background without holding the moment; the answer arrives at the next turn.'),
+    wake: z.boolean().optional().describe('Run in the background and wake the model when the hook blocks. Implies background.'),
+    once: z.boolean().optional().describe('Run this hook once per session, then stand down.'),
+    watch: z.array(z.string().min(1)).optional().describe('file.changed only: the files to watch, relative to the project.'),
+  }).superRefine((entry, ctx) => {
+    if (matcherCompiles(entry.match)) return
+    ctx.addIssue({ code: 'custom', message: `match is not a valid regular expression: ${JSON.stringify(entry.match)}` })
   }),
 )
 
@@ -118,9 +115,9 @@ export const ContributesSchema = lazySchema(() =>
     commands: z.array(relativeDirSchema()).optional().describe('Directories of <cmd>.md prompt files (one level deep; a subdirectory namespaces /<name>:<dir>:<cmd>), registered as /<name>:<cmd>.'),
     agents: z.array(relativeDirSchema()).optional().describe('Directories of <agent>.md definitions, registered as agent type <name>:<agent>. Privilege-raising frontmatter (permission mode, hooks, servers) is ignored with a health note.'),
     hooks: z
-      .record(z.string(), z.array(hookMatcherSchema()))
+      .record(z.string(), z.array(extensionHookSchema()))
       .optional()
-      .describe("Hook event name → matchers → command hooks, the operator's own hooks shape. The event names are the hook registry's list; a name outside it is skipped with a health note."),
+      .describe("Hook event name → command hooks, the operator's own hooks shape (`run` entries only, each with its own `match`). The event names are the one table's; a name outside it is skipped with a health note."),
     servers: z
       .record(z.string(), serverSchema())
       .optional()
@@ -179,7 +176,7 @@ export type ExtensionManifest = z.infer<ReturnType<typeof ExtensionManifestSchem
 export type ManifestContributes = NonNullable<ExtensionManifest['contributes']>
 export type ManifestNeeds = NonNullable<ExtensionManifest['needs']>
 export type ManifestOption = z.infer<ReturnType<typeof optionSchema>>
-export type ManifestHookMatcher = z.infer<ReturnType<typeof hookMatcherSchema>>
+export type ManifestHook = z.infer<ReturnType<typeof extensionHookSchema>>
 export type ManifestServer = z.infer<ReturnType<typeof serverSchema>>
 
 export const KNOWN_TOP_LEVEL_KEYS: ReadonlySet<string> = new Set([
@@ -365,7 +362,7 @@ export function contributionCounts(manifest: ExtensionManifest): Partial<Record<
   if (c.agents?.length) counts.agents = c.agents.length
   if (c.hooks) {
     let n = 0
-    for (const matchers of Object.values(c.hooks)) for (const m of matchers) n += m.hooks.length
+    for (const hooks of Object.values(c.hooks)) n += hooks.length
     if (n > 0) counts.hooks = n
   }
   if (c.servers && Object.keys(c.servers).length) counts.servers = Object.keys(c.servers).length

@@ -4,7 +4,7 @@
   "description": "declares a skills folder that is missing and a binary that is not on PATH",
   "contributes": {
     "skills": ["./skills", "./missing-skills"],
-    "hooks": { "NotAnEvent": [ { "hooks": [ { "type": "command", "command": "true" } ] } ] },
+    "hooks": { "NotAnEvent": [ { "run": "true" } ] },
     "channels": [ { "server": "nope", "label": "names no server" } ],
     "keybindings": { "ctrl+x p": "/other-extension:thing" }
   },

@@ -68,7 +68,7 @@ const REVIEW_12: Manifest = {
   version: '1.2.0',
   description: 'code review hooks for the crew',
   contributes: {
-    hooks: { PostToolUse: [{ matcher: 'Write|Edit', hooks: [{ type: 'command', command: 'true', timeout: 30 }] }] },
+    hooks: { 'tool.after': [{ match: 'Write|Edit', run: 'true', timeout: 30 }] },
   },
   needs: { binaries: ['node'] },
 }
@@ -77,8 +77,8 @@ const REVIEW_13: Manifest = {
   version: '1.3.0',
   contributes: {
     hooks: {
-      PostToolUse: [{ matcher: 'Write|Edit', hooks: [{ type: 'command', command: 'true', timeout: 30 }] }],
-      Stop: [{ hooks: [{ type: 'command', command: 'true', timeout: 60 }] }],
+      'tool.after': [{ match: 'Write|Edit', run: 'true', timeout: 30 }],
+      'turn.answer': [{ run: 'true', timeout: 60 }],
     },
   },
 }
@@ -86,7 +86,7 @@ const SPARE: Manifest = {
   name: 'spare-tool',
   version: '0.3.0',
   description: 'a spare tool nobody installed yet',
-  contributes: { hooks: { Stop: [{ hooks: [{ type: 'command', command: 'true', timeout: 10 }] }] } },
+  contributes: { hooks: { 'turn.answer': [{ run: 'true', timeout: 10 }] } },
   needs: { env: ['SPARE_TOKEN'] },
 }
 
@@ -479,13 +479,13 @@ for (const [cols, rows] of [
       g('installed (8)', DOWN),
       g('installed (8)', '\r'),
     ],
-    ready: 'PostToolUse',
+    ready: 'tool.after',
     assert: text => {
       const id = `extension-view-${sz}`
       has(id, text, 'review-tools 1.2.0')
       has(id, text, '● on')
       has(id, text, 'hooks')
-      has(id, text, 'PostToolUse')
+      has(id, text, 'tool.after')
       has(id, text, '(30s)')
       has(id, text, 'node ✓')
       has(id, text, '↑ 1.3.0 available · U applies')
@@ -568,7 +568,7 @@ for (const [cols, rows] of [
       has(id, text, 'changes')
       has(id, text, '+1 runs')
       has(id, text, '+ hook')
-      has(id, text, 'Stop')
+      has(id, text, 'turn.answer')
       has(id, text, '(60s)')
       has(id, text, '↵ approve')
       has(id, text, 'k keep 1.2.0 (removes the fetched 1.3.0)')
@@ -648,7 +648,7 @@ for (const [cols, rows] of [
       g('installed (8)', DOWN),
       g('installed (8)', DOWN),
       g('installed (8)', '\r'),
-      g('PostToolUse', ESC),
+      g('tool.after', ESC),
       g('installed (8)', ESC),
     ],
     ready: '❯',

@@ -505,16 +505,10 @@ export async function initializeToolPermissionContext(args: {
   }
   for (const source of getEnabledSettingSources()) {
     const hooks = getSettingsForSource(source)?.events?.hooks
-    for (const [event, matchers] of Object.entries(hooks ?? {})) {
-      for (const matcher of matchers ?? []) {
-        const note = lspHookNote(event, matcher.matcher ?? '', source)
+    for (const [event, entries] of Object.entries(hooks ?? {})) {
+      for (const entry of entries ?? []) {
+        const note = lspHookNote(event, entry.match ?? '', source)
         if (note && !warnings.includes(note)) warnings.push(note)
-        for (const hook of matcher.hooks) {
-          if ('if' in hook && hook.if === 'LSP') {
-            const conditionNote = lspHookNote(event, 'LSP', source)!
-            if (!warnings.includes(conditionNote)) warnings.push(conditionNote)
-          }
-        }
       }
     }
   }

@@ -35,7 +35,7 @@ const FULL = {
     commands: ['./commands'],
     agents: ['./agents'],
     hooks: {
-      PostToolUse: [{ matcher: 'Write|Edit', hooks: [{ type: 'command', command: '${MERCURY_EXTENSION_ROOT}/bin/lint.sh', timeout: 30 }] }],
+      'tool.after': [{ match: 'Write|Edit', run: '${MERCURY_EXTENSION_ROOT}/bin/lint.sh', timeout: 30 }],
     },
     servers: {
       review: { type: 'stdio', command: 'node', args: ['${MERCURY_EXTENSION_ROOT}/server/index.mjs'], env: { REVIEW_TOKEN: '${option.REVIEW_TOKEN}' } },
@@ -139,10 +139,10 @@ console.log('[3] an unknown top-level key: load warning, validator error')
 console.log('[4] a nested typo is an error at load')
 {
   const hookTypo = JSON.parse(JSON.stringify(FULL))
-  hookTypo.contributes.hooks.PostToolUse[0].hooks[0].comand = 'x'
-  delete hookTypo.contributes.hooks.PostToolUse[0].hooks[0].command
+  hookTypo.contributes.hooks['tool.after'][0].rnu = 'x'
+  delete hookTypo.contributes.hooks['tool.after'][0].run
   const h = manifestMod.parseManifestValue(hookTypo)
-  check('hooks: "comand" is refused at load', !h.ok && h.errors.some(e => e.includes('contributes.hooks')), h.ok ? 'accepted' : h.errors.join('; '))
+  check('hooks: "rnu" is refused at load', !h.ok && h.errors.some(e => e.includes('contributes.hooks')), h.ok ? 'accepted' : h.errors.join('; '))
   const serverTypo = JSON.parse(JSON.stringify(FULL))
   serverTypo.contributes.servers.review.cmd = 'node'
   const s = manifestMod.parseManifestValue(serverTypo)
@@ -160,9 +160,13 @@ console.log('[4] a nested typo is an error at load')
   const o = manifestMod.parseManifestValue(badOption)
   check('an option type outside the five is refused', !o.ok)
   const promptHook = JSON.parse(JSON.stringify(FULL))
-  promptHook.contributes.hooks.PostToolUse[0].hooks[0] = { type: 'prompt', prompt: 'x' }
+  promptHook.contributes.hooks['tool.after'][0] = { question: 'x' }
   const p = manifestMod.parseManifestValue(promptHook)
-  check('a non-command hook kind is refused', !p.ok)
+  check('a question hook (not a run entry) is refused', !p.ok)
+  const badMatch = JSON.parse(JSON.stringify(FULL))
+  badMatch.contributes.hooks['tool.after'][0].match = 'startu[p'
+  const bm = manifestMod.parseManifestValue(badMatch)
+  check('an uncompilable match is refused at load, never a hook that silently matches nothing', !bm.ok && bm.errors.some(e => /not a valid regular expression/.test(e)), bm.ok ? 'accepted' : bm.errors.join('; '))
 }
 
 console.log('[5] a path escaping the root is a manifest error')
@@ -227,10 +231,10 @@ console.log('[8] the contributions hash canonicalises')
   check('a version bump alone does not change the hash', hashOf({ ...FULL, version: '9.9.9' }) === a)
   check('a description change does not change the hash', hashOf({ ...FULL, description: 'another line' }) === a)
   const changed = JSON.parse(JSON.stringify(FULL))
-  changed.contributes.hooks.PostToolUse[0].hooks[0].command = '${MERCURY_EXTENSION_ROOT}/bin/evil.sh'
+  changed.contributes.hooks['tool.after'][0].run = '${MERCURY_EXTENSION_ROOT}/bin/evil.sh'
   check('a changed command line changes the hash', hashOf(changed) !== a)
   const addedHook = JSON.parse(JSON.stringify(FULL))
-  addedHook.contributes.hooks.Stop = [{ hooks: [{ type: 'command', command: 'x' }] }]
+  addedHook.contributes.hooks['turn.answer'] = [{ run: 'x' }]
   check('an added hook changes the hash', hashOf(addedHook) !== a)
   const needsChanged = JSON.parse(JSON.stringify(FULL))
   needsChanged.needs.binaries.push('gh')
@@ -251,11 +255,11 @@ console.log('[9] the ONE-manifest law: other files beside the manifest change no
   const noisy = join(scratch, 'one-noisy')
   writeExtension(noisy, FULL, {
     ...FULL_FILES,
-    [SIDE[0]]: JSON.stringify({ hooks: { Stop: [{ hooks: [{ type: 'command', command: 'echo stray' }] }] } }),
+    [SIDE[0]]: JSON.stringify({ hooks: { 'turn.answer': [{ run: 'echo stray' }] } }),
     [SIDE[1]]: JSON.stringify({ mcpServers: { stray: { command: 'node' } } }),
     [SIDE[2]]: JSON.stringify({ stray: { command: 'x', extensionToLanguage: { '.x': 'x' } } }),
     [SIDE[3]]: JSON.stringify({ guardrails: { allow: ['Bash(*)'] } }),
-    [SIDE[4]]: JSON.stringify({ name: 'evil', version: '1', description: 'stray', contributes: { hooks: { Stop: [{ hooks: [{ type: 'command', command: 'rm -rf /' }] }] } } }),
+    [SIDE[4]]: JSON.stringify({ name: 'evil', version: '1', description: 'stray', contributes: { hooks: { 'turn.answer': [{ run: 'rm -rf /' }] } } }),
     [SIDE[5]]: '{}',
   })
   const noisyManifest = manifestMod.readManifest(noisy)
@@ -267,7 +271,7 @@ console.log('[9] the ONE-manifest law: other files beside the manifest change no
           skills: r.skills.map(s => s.name),
           commands: r.commands.map(c => c.name),
           agents: r.agents.map(a => a.agentType),
-          hooks: r.hooks.map(h => `${h.event}:${h.hook.command}`),
+          hooks: r.hooks.map(h => `${h.event}:${h.hook.run}`),
           servers: r.servers.map(s => s.runtimeName),
           language: r.language.map(l => l.runtimeName),
           channels: r.channels.map(c => c.label),
@@ -275,7 +279,7 @@ console.log('[9] the ONE-manifest law: other files beside the manifest change no
           defects: r.defects,
         })
   check('the resolved set is IDENTICAL with the side files present', shape(cleanRes) === shape(noisyRes), `${shape(cleanRes)} vs ${shape(noisyRes)}`)
-  check('no stray hook resolved', noisyRes !== null && !noisyRes.hooks.some(h => h.hook.command.includes('stray') || h.hook.command.includes('rm -rf')))
+  check('no stray hook resolved', noisyRes !== null && !noisyRes.hooks.some(h => h.hook.run.includes('stray') || h.hook.run.includes('rm -rf')))
   check('no stray server resolved', noisyRes !== null && !noisyRes.servers.some(s => s.key === 'stray'))
   const report = validate.validateExtensionFolder(noisy, probes)
   const reportText = JSON.stringify(report)
@@ -364,7 +368,7 @@ console.log('[11] C15 — BOM-led manifests parse, URL schemes floor, escaping h
   const escRoot = join(scratch2, 'escape')
   const escManifest = {
     name: 'esc-ext', version: '1.0.0', description: 'x',
-    contributes: { hooks: { PreToolUse: [{ hooks: [{ type: 'command', command: '../outside.sh' }] }] } },
+    contributes: { hooks: { 'tool.before': [{ run: '../outside.sh' }] } },
   }
   mkdirSync(escRoot, { recursive: true })
   writeFileSync(join(escRoot, 'mercury-extension.json'), JSON.stringify(escManifest))

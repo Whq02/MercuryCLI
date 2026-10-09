@@ -53,11 +53,9 @@ const rows: Row[] = [
   ['kit.permit', [[], [{ serverName: 'fixture' }]], [false, 0, '']],
   ['kit.deny', [[], [{ serverName: 'fixture' }]], [false, 0, '']],
   ['kit.managedOnly', [true, false], [0, '']],
-  ['events.hooks', [{}, { Stop: [{ hooks: [{ type: 'command', command: 'true' }] }] }], [false, 0, '']],
+  ['events.hooks', [{}, { 'turn.answer': [{ run: 'true' }] }], [false, 0, '']],
   ['events.disabled', [true, false], [0, '']],
   ['events.managedOnly', [true, false], [0, '']],
-  ['events.httpDestinations', [[], ['https://example.invalid/hook']], [false, 0, '']],
-  ['events.httpEnvironment', [[], ['FIXTURE']], [false, 0, '']],
   ['guardrails.managedOnly', [true, false], [0, '']],
   ['extensions.exclusive', [true, false, [], ['agents']], []],
   ['voice.language', ['English', ''], [false, 0]],
@@ -165,7 +163,7 @@ try {
   for (let source = 0; source < 5; source++) {
     const sources: object[] = []
     const directory = join(root, `memory-${source}`)
-    const hooks = { Stop: [{ hooks: [{ type: 'command', command: 'true' }] }] }
+    const hooks = { 'turn.answer': [{ run: 'true' }] }
     sources[source] = { memory: { directory }, credentials: { keyCommand: `fixture-${source}` }, events: { hooks } }
     fixture(sources)
     getMnemeHome.cache.clear?.()
