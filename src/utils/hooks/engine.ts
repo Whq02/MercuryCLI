@@ -274,7 +274,7 @@ export async function* executeHooks({
   const hookName = matchQuery ? `${hookEvent}:${matchQuery}` : hookEvent
   const trustAccepted = getHookRunContext()?.trustAccepted
   if (trustAccepted === false || (trustAccepted === undefined && shouldSkipHookDueToTrust())) {
-    logForDebugging(`Skipping ${hookName} hook execution - workspace trust not accepted`)
+    logForDebugging(`${hookName} hook not run: the workspace is not trusted`)
     return
   }
   const appState = getAppState ? getAppState() : toolUseContext?.getAppState()
