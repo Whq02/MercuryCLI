@@ -24,6 +24,12 @@ export function markSessionBootRules(context: ToolPermissionContext): void {
   bootRules = context
 }
 
+export function markSessionPermissionMode(permissionMode: string | undefined): void {
+  if (!permissionMode || permissionMode === bootPermissionMode) return
+  bootPermissionMode = permissionMode
+  memo = undefined
+}
+
 const PUSH_PROBE = 'git push'
 const PUSH_RULE_SHAPE = '`Bash(git push *)`'
 const PUSH_ROADS = `an allow rule such as ${PUSH_RULE_SHAPE} (guardrails.allow in settings, or --allowed-tools)`
