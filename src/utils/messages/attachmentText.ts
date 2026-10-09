@@ -582,8 +582,6 @@ capsule-digest:${attachment.digest}${attachment.delta ? `\nWorking-set delta vs 
         createUserMessage({ content: parts.join('\n\n'), isMeta: true }),
       ])
     }
-    case 'run_protocol_delta':
-      return wrapMessagesInSystemReminder([createUserMessage({ content: attachment.body, isMeta: true })])
     case 'harness_map_delta': {
       const parts: string[] = []
       if (attachment.added.length > 0) {

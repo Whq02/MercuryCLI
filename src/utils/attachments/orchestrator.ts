@@ -5,7 +5,6 @@ import type { AttachmentMessage, Message } from 'src/types/message.js'
 import type { QueuedCommand } from 'src/types/textInputTypes.js'
 import type { ToolUseContext } from '../../Tool.js'
 import { getHarnessMapDelta } from '../cockpit/harnessMap.js'
-import { getRunProtocolDelta } from '../cockpit/runProtocol.js'
 import type { QuerySource } from '../../constants/querySource.js'
 import { createAbortController } from '../abortController.js'
 import { isEnvTruthy } from '../envUtils.js'
@@ -159,11 +158,6 @@ export async function getAttachments(
         ),
       ),
     ),
-    maybe('run_protocol_delta', () => Promise.resolve((() => {
-      if (!isMainThread) return []
-      const delta = getRunProtocolDelta(toolUseContext.options.tools, messages ?? [])
-      return delta ? [{ type: 'run_protocol_delta' as const, ...delta }] : []
-    })())),
     maybe('harness_map_delta', () =>
       Promise.resolve(
         (() => {

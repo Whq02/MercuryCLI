@@ -413,11 +413,6 @@ export type Attachment =
       removedNames: string[]
     }
   | {
-      type: 'run_protocol_delta'
-      tools: string[]
-      body: string
-    }
-  | {
       type: 'harness_map_delta'
       added: string[]
       removed: string[]
