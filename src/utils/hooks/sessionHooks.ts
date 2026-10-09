@@ -1,206 +1,110 @@
 import { existsSync } from 'node:fs'
 import { join } from 'node:path'
-import type { HookEvent, HookInput } from './contract.js'
-
 import type { AppState } from '../../state/AppState.js'
-import type { Message, SystemInformationalMessage } from '../../types/message.js'
-import type { Tool } from '../../Tool.js'
-import type { HookCommand } from '../settings/types.js'
 import type { SetAppState } from '../messageQueueManager.js'
+import type { HooksSettings } from '../settings/types.js'
 import { logForDebugging } from '../debug.js'
-import { isHookEqual } from './hooksSettings.js'
-import type { AggregatedHookResult } from './types.js'
+import { HOOK_EVENTS, type HookEvent } from './contract.js'
+import type { HookSource, LayeredHook } from './hooksConfigSnapshot.js'
 
+export type HookScope = { sessionId: string; crewmateId?: string; cwd?: string }
 
-export type FunctionHookContext = {
-  hookInput?: HookInput
-  tool?: Tool
+export function hookScopeKey(scope: HookScope): string {
+  return scope.crewmateId ?? scope.sessionId
 }
 
-export type FunctionHookPass = { pass: true; note: SystemInformationalMessage }
+export type SessionHookSource = Extract<HookSource, { kind: 'skill' | 'agent' }>
 
-export type FunctionHookCallback = (
-  messages: Message[],
-  signal?: AbortSignal,
-  context?: FunctionHookContext,
-) => Promise<boolean | string | FunctionHookPass> | boolean | string | FunctionHookPass
+type SessionHookSet = { source: SessionHookSource; hooks: LayeredHook[] }
 
-export type FunctionHook = {
-  type: 'function'
-  id?: string
-  timeout?: number
-  callback: FunctionHookCallback
-  errorMessage: string
-  silent?: boolean
-}
-
-export type SessionHook = HookCommand | FunctionHook
-
-type SessionHookEntry = {
-  hook: SessionHook
-  onHookSuccess?: (hook: SessionHook, result: AggregatedHookResult) => void
-}
-
-type SessionHookGroup = {
-  matcher: string
-  skillRoot?: string
-  hooks: SessionHookEntry[]
-}
-
-type SessionStore = {
-  hooks: Partial<Record<HookEvent, SessionHookGroup[]>>
-}
+type SessionStore = { sets: SessionHookSet[] }
 
 export type SessionHooksState = Map<string, SessionStore>
 
-export type SessionDerivedHookMatcher = {
-  matcher: string
-  hooks: HookCommand[]
-  skillRoot?: string
-}
-
-function ensureSession(state: AppState, sessionId: string): SessionStore {
-  let entry = state.sessionHooks.get(sessionId)
-  if (!entry) {
-    entry = { hooks: {} }
-    state.sessionHooks.set(sessionId, entry)
+function ensureStore(state: AppState, key: string): SessionStore {
+  let store = state.sessionHooks.get(key)
+  if (store === undefined) {
+    store = { sets: [] }
+    state.sessionHooks.set(key, store)
   }
-  return entry
+  return store
 }
 
-function ensureGroup(
-  session: SessionStore,
-  event: HookEvent,
-  matcher: string,
-  skillRoot: string | undefined,
-): SessionHookGroup {
-  const groups = (session.hooks[event] ??= [])
-  let group = groups.find(g => g.matcher === matcher && g.skillRoot === skillRoot)
-  if (!group) {
-    group = { matcher, ...(skillRoot !== undefined ? { skillRoot } : {}), hooks: [] }
-    groups.push(group)
-  }
-  return group
+function sourceLabel(source: SessionHookSource): string {
+  return source.kind === 'skill' ? `skill:${source.name}` : `agent:${source.type}`
 }
 
-function removeFunctionHookInPlace(session: SessionStore, event: HookEvent, hookId: string): void {
-  const groups = session.hooks[event]
-  if (!groups) return
-  for (const group of groups) {
-    group.hooks = group.hooks.filter(entry => !(entry.hook.type === 'function' && entry.hook.id === hookId))
-  }
-  const surviving = groups.filter(group => group.hooks.length > 0)
-  if (surviving.length !== groups.length) session.hooks[event] = surviving
+function sameSource(a: SessionHookSource, b: SessionHookSource): boolean {
+  if (a.kind === 'skill' && b.kind === 'skill') return a.root === b.root
+  if (a.kind === 'agent' && b.kind === 'agent') return a.type === b.type
+  return false
 }
 
-export function addSessionHook(
+export function addSessionHooks(
   setAppState: SetAppState,
-  sessionId: string,
-  event: HookEvent,
-  matcher: string,
-  hook: HookCommand,
-  onHookSuccess?: (hook: SessionHook, result: AggregatedHookResult) => void,
-  skillRoot?: string,
-): void {
+  scope: HookScope,
+  map: HooksSettings,
+  source: SessionHookSource,
+): number {
+  const hooks: LayeredHook[] = []
+  for (const event of HOOK_EVENTS) {
+    for (const entry of map[event] ?? []) hooks.push({ event, entry, source })
+  }
+  if (hooks.length === 0) return 0
+  const key = hookScopeKey(scope)
   setAppState(prevState => {
-    const session = ensureSession(prevState, sessionId)
-    const group = ensureGroup(session, event, matcher, skillRoot)
-    group.hooks.push({ hook, ...(onHookSuccess ? { onHookSuccess } : {}) })
-    logForDebugging(`session hook added: ${event} (session ${sessionId})`)
+    const store = ensureStore(prevState, key)
+    store.sets = store.sets.filter(set => !sameSource(set.source, source))
+    store.sets.push({ source, hooks })
+    logForDebugging(`session hooks added: ${hooks.length} from ${sourceLabel(source)} (${key})`)
     return prevState
   })
+  return hooks.length
 }
 
-export function addFunctionHook(
-  setAppState: SetAppState,
-  sessionId: string,
-  event: HookEvent,
-  matcher: string,
-  callback: FunctionHookCallback,
-  errorMessage: string,
-  options?: { timeout?: number; silent?: boolean; id?: string },
-): string {
-  const id = options?.id ?? `function-hook-${Math.random()}`
-  const hook: FunctionHook = {
-    type: 'function',
-    id,
-    timeout: options?.timeout || 5000,
-    callback,
-    errorMessage,
-    silent: options?.silent,
-  }
+export function removeSessionHooks(setAppState: SetAppState, scope: HookScope, source?: SessionHookSource): void {
+  const key = hookScopeKey(scope)
   setAppState(prevState => {
-    const session = ensureSession(prevState, sessionId)
-    if (options?.id !== undefined) removeFunctionHookInPlace(session, event, options.id)
-    const group = ensureGroup(session, event, matcher, undefined)
-    group.hooks.push({ hook })
-    logForDebugging(`session function hook added: ${event} (session ${sessionId})`)
-    return prevState
-  })
-  return id
-}
-
-export function removeFunctionHook(
-  setAppState: SetAppState,
-  sessionId: string,
-  event: HookEvent,
-  hookId: string,
-): void {
-  setAppState(prevState => {
-    const session = prevState.sessionHooks.get(sessionId)
-    if (!session) return prevState
-    removeFunctionHookInPlace(session, event, hookId)
-    if ((session.hooks[event]?.length ?? 0) === 0) delete session.hooks[event]
-    logForDebugging(`session function hook removed: ${event} (session ${sessionId})`)
-    return prevState
-  })
-}
-
-export function removeSessionHook(
-  setAppState: SetAppState,
-  sessionId: string,
-  event: HookEvent,
-  hook: HookCommand,
-): void {
-  setAppState(prevState => {
-    const session = prevState.sessionHooks.get(sessionId)
-    if (!session) return prevState
-    const groups = session.hooks[event]
-    if (!groups) return prevState
-    for (const group of groups) {
-      group.hooks = group.hooks.filter(entry => entry.hook.type === 'function' || !isHookEqual(entry.hook, hook))
+    if (source === undefined) {
+      prevState.sessionHooks.delete(key)
+      return prevState
     }
-    const surviving = groups.filter(group => group.hooks.length > 0)
-    session.hooks[event] = surviving
-    if (surviving.length === 0) delete session.hooks[event]
-    logForDebugging(`session hook removed: ${event} (session ${sessionId})`)
+    const store = prevState.sessionHooks.get(key)
+    if (store === undefined) return prevState
+    store.sets = store.sets.filter(set => !sameSource(set.source, source))
+    if (store.sets.length === 0) prevState.sessionHooks.delete(key)
     return prevState
   })
 }
 
-export function pruneSkillSessionHooks(
-  setAppState: SetAppState,
-  sessionId: string,
-  liveSkillRoots: ReadonlySet<string>,
-): string[] {
+function setIsLive(set: SessionHookSet): boolean {
+  return set.source.kind !== 'skill' || existsSync(join(set.source.root, 'SKILL.md'))
+}
+
+export function sessionHooksFor(appState: AppState, scope: HookScope, event?: HookEvent): LayeredHook[] {
+  const store = appState.sessionHooks.get(hookScopeKey(scope))
+  if (store === undefined) return []
+  const out: LayeredHook[] = []
+  for (const set of store.sets) {
+    if (!setIsLive(set)) continue
+    for (const hook of set.hooks) if (event === undefined || hook.event === event) out.push(hook)
+  }
+  return out
+}
+
+export function pruneSkillSessionHooks(setAppState: SetAppState, sessionId: string, liveSkillRoots: ReadonlySet<string>): string[] {
   const removed = new Set<string>()
   setAppState(prevState => {
-    const session = prevState.sessionHooks.get(sessionId)
-    if (!session) return prevState
-    for (const event of Object.keys(session.hooks) as HookEvent[]) {
-      const groups = session.hooks[event]
-      if (!groups) continue
-      const surviving = groups.filter(group => {
-        if (group.skillRoot === undefined || liveSkillRoots.has(group.skillRoot)) return true
-        removed.add(group.skillRoot)
-        return false
-      })
-      if (surviving.length === groups.length) continue
-      if (surviving.length === 0) delete session.hooks[event]
-      else session.hooks[event] = surviving
-    }
+    const store = prevState.sessionHooks.get(sessionId)
+    if (store === undefined) return prevState
+    store.sets = store.sets.filter(set => {
+      if (set.source.kind !== 'skill' || liveSkillRoots.has(set.source.root)) return true
+      removed.add(set.source.root)
+      return false
+    })
+    if (store.sets.length === 0) prevState.sessionHooks.delete(sessionId)
     if (removed.size > 0) {
-      logForDebugging(`session hooks of ${removed.size} de-applied skill(s) removed (session ${sessionId}): ${[...removed].join(', ')}`)
+      logForDebugging(`session hooks of ${removed.size} de-applied skill(s) removed (${sessionId}): ${[...removed].join(', ')}`)
     }
     return prevState
   })
@@ -213,86 +117,5 @@ export function liveSkillRootsOf(commands: ReadonlyArray<{ name: string; skillRo
   return roots
 }
 
-function isGroupLive(group: SessionHookGroup): boolean {
-  return group.skillRoot === undefined || existsSync(join(group.skillRoot, 'SKILL.md'))
-}
-
-function eventsOf(session: SessionStore, event: HookEvent | undefined): HookEvent[] {
-  if (event !== undefined) return [event]
-  return Object.keys(session.hooks) as HookEvent[]
-}
-
-export function getSessionHooks(
-  appState: AppState,
-  sessionId: string,
-  event?: HookEvent,
-): Map<HookEvent, SessionDerivedHookMatcher[]> {
-  const result = new Map<HookEvent, SessionDerivedHookMatcher[]>()
-  const session = appState.sessionHooks.get(sessionId)
-  if (!session) return result
-  for (const key of eventsOf(session, event)) {
-    const groups = session.hooks[key]
-    if (!groups) continue
-    result.set(
-      key,
-      groups.filter(isGroupLive).map(group => ({
-        matcher: group.matcher,
-        ...(group.skillRoot !== undefined ? { skillRoot: group.skillRoot } : {}),
-        hooks: group.hooks.map(entry => entry.hook).filter((hook): hook is HookCommand => hook.type !== 'function'),
-      })),
-    )
-  }
-  return result
-}
-
-export function getSessionFunctionHooks(
-  appState: AppState,
-  sessionId: string,
-  event?: HookEvent,
-): Map<HookEvent, Array<{ matcher: string; hooks: FunctionHook[]; skillRoot?: string }>> {
-  const result = new Map<HookEvent, Array<{ matcher: string; hooks: FunctionHook[]; skillRoot?: string }>>()
-  const session = appState.sessionHooks.get(sessionId)
-  if (!session) return result
-  for (const key of eventsOf(session, event)) {
-    const groups = session.hooks[key]
-    if (!groups) continue
-    const projected = groups
-      .filter(isGroupLive)
-      .map(group => ({
-        matcher: group.matcher,
-        ...(group.skillRoot !== undefined ? { skillRoot: group.skillRoot } : {}),
-        hooks: group.hooks
-          .map(entry => entry.hook)
-          .filter((hook): hook is FunctionHook => hook.type === 'function'),
-      }))
-      .filter(group => group.hooks.length > 0)
-    if (projected.length > 0) result.set(key, projected)
-  }
-  return result
-}
-
-export function getSessionHookCallback(
-  appState: AppState,
-  sessionId: string,
-  event: HookEvent,
-  matcher: string,
-  hook: SessionHook,
-): SessionHookEntry | undefined {
-  const groups = appState.sessionHooks.get(sessionId)?.hooks[event]
-  if (!groups) return undefined
-  for (const group of groups) {
-    if (matcher !== '' && group.matcher !== matcher) continue
-    for (const entry of group.hooks) {
-      if (entry.hook.type === 'function' || hook.type === 'function') continue
-      if (isHookEqual(entry.hook, hook)) return entry
-    }
-  }
-  return undefined
-}
-
-export function clearSessionHooks(setAppState: SetAppState, sessionId: string): void {
-  setAppState(prevState => {
-    prevState.sessionHooks.delete(sessionId)
-    return prevState
-  })
-}
+export { addFunctionHook, addSessionHook, clearSessionHooks, getSessionFunctionHooks, getSessionHookCallback, getSessionHooks, removeFunctionHook } from './oldRoad.js'
+export type { FunctionHook, FunctionHookCallback, FunctionHookContext, FunctionHookPass, SessionHook } from './oldRoad.js'
