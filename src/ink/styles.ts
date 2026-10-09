@@ -364,18 +364,22 @@ function applyGap(node: LayoutNode, style: Styles): void {
   if ('rowGap' in style) node.setGap(LayoutGutter.Row, style.rowGap ?? 0)
 }
 
+const STYLE_APPLIERS: ReadonlyArray<(node: LayoutNode, style: Styles, resolved: Styles) => void> = [
+  applyPosition,
+  applyOverflow,
+  applyMargin,
+  applyPadding,
+  applyFlex,
+  applyDimensions,
+  applyDisplay,
+  applyBorder,
+  applyGap,
+]
+
 export default function applyStyles(
   layoutNode: LayoutNode,
   style: Styles = {},
   resolvedStyle: Styles = style,
 ): void {
-  applyPosition(layoutNode, style)
-  applyOverflow(layoutNode, style)
-  applyMargin(layoutNode, style)
-  applyPadding(layoutNode, style)
-  applyFlex(layoutNode, style)
-  applyDimensions(layoutNode, style)
-  applyDisplay(layoutNode, style)
-  applyBorder(layoutNode, style, resolvedStyle)
-  applyGap(layoutNode, style)
+  for (const apply of STYLE_APPLIERS) apply(layoutNode, style, resolvedStyle)
 }
