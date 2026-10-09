@@ -9,8 +9,8 @@ NEXT                    │ ╭────────────────�
   · /mission — set a mi…│ │ Sign in                                                                                  │ │
                         │ │                                                                                          │ │
 FILES · orchard         │ │ Use a Claude or OpenAI subscription, usage-based billing, or connect OpenRouter, Gemini, │ │
-  ↵ or click · browse   │ │ Hugging Face, Kimi, GLM, DeepSeek, xAI or Meta. To add an API key from the terminal,     │ │
-                        │ │ run /router key <provider>.                                                              │ │
+  ↵ or click · browse   │ │ Hugging Face, Kimi, GLM, DeepSeek, xAI, Meta or Mistral. To add an API key from the      │ │
+                        │ │ terminal, run /router key <provider>.                                                    │ │
 VITALS                  │ │                                                                                          │ │
   · spend —             │ │   OpenAI — ChatGPT subscription or API key                                               │ │
   · ctx — · —           │ │ ❯ Claude subscription account                                                            │ │
@@ -24,10 +24,10 @@ VITALS                  │ │                                                 
                         │ │   DeepSeek — API key                                                                     │ │
                         │ │   xAI — Grok subscription sign-in or API key                                             │ │
                         │ │   Meta — API key (Muse)                                                                  │ │
+                        │ │   Mistral — API key (Mistral Large 4)                                                    │ │
                         │ │                                                                                          │ │
                         │ │ Provider readiness                                                                       │ │
                         │ │   Anthropic          ready · api-key                                                     │ │
-                        │ │   OpenAI             connect OpenAI to browse its models — /logins connects              │ │
                         │ │                                                                                          │ │
                         │ │ esc or click outside closes                                                              │ │
                         │ ╰──────────────────────────────────────────────────────────────────────────────────────────╯ │
