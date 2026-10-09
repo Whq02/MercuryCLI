@@ -228,7 +228,7 @@ try {
   const tool = src('tools', 'ApolloReviewTool', 'ApolloReviewTool.tsx')
   check("validateInput refuses mode !== 'apollo'", /mode !== 'apollo'/.test(tool))
   check('clean path asks; blockered path allows', /behavior: 'ask' as const/.test(tool) && /behavior: 'allow' as const/.test(tool))
-  check('the handoff rides setPermissionModeWithGuards to flow-else-implement', /isAutoModeGateEnabled\(\)\s*\?\s*\['flow', 'implement'\]\s*:\s*\['implement'\]/.test(tool))
+  check('the handoff rides setPermissionModeWithGuards to flow-else-implement', /isFlowGateEnabled\(\)\s*\?\s*\['flow', 'implement'\]\s*:\s*\['implement'\]/.test(tool))
   check("the ask-first tier lands default (structural)", /'build-ask-first'\s*\?\s*\['default'\]/.test(tool))
   check("the held review is a typed outcome (structural)", /interviewContinues: true/.test(tool))
   check('the apollo deferral force-load arm exists (structural)', /APOLLO_REVIEW_TOOL_NAME && permissionMode === 'apollo'/.test(src('tools', 'ToolSearchTool', 'prompt.ts')))

@@ -48,7 +48,7 @@ import { existsSync, readFileSync } from 'node:fs'
 import { getContextWindowForModel } from '../../utils/model/capabilities.js'
 import { MercuryChildSession, toolResultText, type ToolAsk, type TurnEndDetail } from './childSession.js'
 import { selfScriptPath } from '../../daemon/daemonBuild.js'
-import { isAutoModeGateEnabled, isSovereignDisabled } from '../../utils/permissions/permissionSetup.js'
+import { isFlowGateEnabled, isSovereignDisabled } from '../../utils/permissions/permissionSetup.js'
 import { PERMISSION_MODES as MODE_WORDS, type PermissionMode } from '../../types/permissions.js'
 import { permissionModeTitle } from '../../utils/permissions/PermissionMode.js'
 import { MODE_GLOSS } from '../../utils/settings/validationTips.js'
@@ -1053,7 +1053,7 @@ export async function runAcpServer(opts: AcpServerOptions = {}): Promise<void> {
           }
         }
         modeId = modeId ?? 'default'
-        if (!permissionModesOffered().some(mode => mode.id === modeId) || (modeId === 'flow' && !isAutoModeGateEnabled()) || modeId === 'sovereign') {
+        if (!permissionModesOffered().some(mode => mode.id === modeId) || (modeId === 'flow' && !isFlowGateEnabled()) || modeId === 'sovereign') {
           process.stderr.write(`[acp] saved permission mode '${modeId}' is not resumed here — resuming in the default mode\n`)
           modeId = 'default'
         }
