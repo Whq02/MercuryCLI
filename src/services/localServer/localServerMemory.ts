@@ -5,6 +5,15 @@ export interface KvGeometry {
   attentionLayers: number
   blockCount: number
   interval?: number
+  sliding?: SlidingKvGeometry
+}
+
+export interface SlidingKvGeometry {
+  kvHeads: number
+  keyLength: number
+  valueLength: number
+  layers: number
+  window: number
 }
 
 export const KV_CACHE_BYTES_PER_ELEMENT: Record<string, number> = {
@@ -39,10 +48,23 @@ export function kvGeometryOf(info: Record<string, unknown>): KvGeometry | undefi
   const interval = numberOf(info[`${arch}.full_attention_interval`])
   let kvHeads: number
   let attentionLayers: number
+  let sliding: SlidingKvGeometry | undefined
   if (Array.isArray(kvRaw)) {
     const perLayer = kvRaw.map(v => (typeof v === 'number' && Number.isFinite(v) && v > 0 ? v : 0))
-    kvHeads = perLayer.reduce((sum, v) => sum + v, 0)
-    attentionLayers = perLayer.filter(v => v > 0).length
+    const slidingWindow = numberOf(info[`${arch}.attention.sliding_window`])
+    const patternRaw = info[`${arch}.attention.sliding_window_pattern`]
+    const pattern = Array.isArray(patternRaw) && patternRaw.length === perLayer.length && slidingWindow !== undefined ? patternRaw.map(v => v === true) : undefined
+    const global = pattern === undefined ? perLayer : perLayer.map((v, i) => (pattern[i] === true ? 0 : v))
+    kvHeads = global.reduce((sum, v) => sum + v, 0)
+    attentionLayers = global.filter(v => v > 0).length
+    if (pattern !== undefined && slidingWindow !== undefined) {
+      const local = perLayer.map((v, i) => (pattern[i] === true ? v : 0))
+      const localHeads = local.reduce((sum, v) => sum + v, 0)
+      const keyLengthSwa = numberOf(info[`${arch}.attention.key_length_swa`]) ?? numberOf(info[`${arch}.attention.key_length`]) ?? (headCount && embedding ? embedding / headCount : undefined)
+      if (localHeads > 0 && keyLengthSwa !== undefined) {
+        sliding = { kvHeads: localHeads, keyLength: keyLengthSwa, valueLength: numberOf(info[`${arch}.attention.value_length_swa`]) ?? keyLengthSwa, layers: local.filter(v => v > 0).length, window: slidingWindow }
+      }
+    }
   } else {
     const perLayer = numberOf(kvRaw) ?? headCount
     if (perLayer === undefined) return undefined
@@ -52,7 +74,7 @@ export function kvGeometryOf(info: Record<string, unknown>): KvGeometry | undefi
   const keyLength = numberOf(info[`${arch}.attention.key_length`]) ?? (headCount && embedding ? embedding / headCount : undefined)
   if (keyLength === undefined) return undefined
   const valueLength = numberOf(info[`${arch}.attention.value_length`]) ?? keyLength
-  return { kvHeads, keyLength, valueLength, attentionLayers, blockCount, ...(interval !== undefined ? { interval } : {}) }
+  return { kvHeads, keyLength, valueLength, attentionLayers, blockCount, ...(interval !== undefined ? { interval } : {}), ...(sliding !== undefined ? { sliding } : {}) }
 }
 
 export function kvBytesPerElement(cacheType: string | undefined): number {
@@ -63,8 +85,14 @@ export function kvBytesPerToken(geometry: KvGeometry, cacheType?: string): numbe
   return geometry.kvHeads * (geometry.keyLength + geometry.valueLength) * kvBytesPerElement(cacheType)
 }
 
+export function slidingKvBytesPerToken(sliding: SlidingKvGeometry, cacheType?: string): number {
+  return sliding.kvHeads * (sliding.keyLength + sliding.valueLength) * kvBytesPerElement(cacheType)
+}
+
 export function kvCacheBytes(geometry: KvGeometry, window: number, slots: number, cacheType?: string): number {
-  return Math.round(kvBytesPerToken(geometry, cacheType) * window * Math.max(1, slots))
+  const global = kvBytesPerToken(geometry, cacheType) * window
+  const local = geometry.sliding === undefined ? 0 : slidingKvBytesPerToken(geometry.sliding, cacheType) * Math.min(window, geometry.sliding.window)
+  return Math.round((global + local) * Math.max(1, slots))
 }
 
 export function loadEstimateBytes(weightsBytes: number, geometry: KvGeometry, window: number, slots: number, cacheType?: string): number {
