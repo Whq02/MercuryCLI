@@ -1,13 +1,10 @@
 
-import { isProSubscriber } from '../../utils/auth.js'
 import {
   isEnvDefinedFalsy,
   isEnvTruthy,
 } from '../../utils/envUtils.js'
 import { searchToolsAvailability } from '../../utils/ripgrep.js'
-import { RESUME_AGENT_TOOL_NAME } from '../ResumeAgentTool/constants.js'
-import { EFFORT_LEVELS } from '../../utils/effort.js'
-import { AGENT_TOOL_NAME, MERCURY_CREW_AGENT_TYPE, MERCURY_SCOUT_AGENT_TYPE } from './constants.js'
+import { MERCURY_CREW_AGENT_TYPE, MERCURY_SCOUT_AGENT_TYPE } from './constants.js'
 import type { AgentDefinition } from './loadAgentsDir.js'
 import { SCOUT_TOOLS_DESCRIPTION } from './scoutPolicy.js'
 
@@ -74,28 +71,14 @@ ${typeSelection}`
 - Tasks unrelated to the agent descriptions above.`)
 
   const usage: string[] = [
-    'Always include a short (3–5 word) `description` of the task.',
-  ]
-  if (!isProSubscriber()) {
-    usage.push(
-      'When several agents can run at once, launch them all in a single message so they overlap rather than queue.',
-    )
-  }
-  usage.push(
+    'When several agents can run at once, launch them all in one message — one tool-use block each — so they overlap rather than queue; separate messages run serially.',
     "The agent returns a single message that the user cannot see — relay a concise summary of its result.",
-  )
-  usage.push(
     'With `run_in_background: true` the agent runs detached: completion returns to you as a notification — never sleep, poll, or proactively check on it. Run in the background when the work is long and independent; run in the foreground when your next step depends on the report.',
-  )
-  usage.push(
-    `To pick an earlier spawned agent back up, call ${RESUME_AGENT_TOOL_NAME} with its id or name — it resumes with its full context intact. Each fresh ${AGENT_TOOL_NAME} invocation otherwise starts without context.`,
     "Treat the agent's prose as a claim to verify, not a fact: spot-check load-bearing results with a diff, a render, or a test before relying on them. A status=\"valid\" payload passed your schema: use it without re-reading what the agent read, and require evidence as a field when a value needs it.",
     "State explicitly whether the agent should write code or only research — it cannot see the user's intent.",
     'When an agent description says to use it proactively, honour that cue without waiting to be asked.',
-    `Genuinely parallel launches are ONE message with multiple ${AGENT_TOOL_NAME} tool-use blocks (for example: three review agents launched together in a single message, one block each) — separate messages run serially.`,
     'Passing `isolation: "worktree"` hands the agent a temporary git worktree of its own. It requires a git repository (or a configured worktree-create hook); outside one, omit the parameter. A worktree the agent left untouched cleans itself up; one with changes survives, its path and branch riding back in the result.',
-    `The \`effort\` parameter sets the agent's reasoning effort (${EFFORT_LEVELS.join(' | ')}). Omitted, the agent runs at the configured crewmate default (high unless the operator changed it in /config) — never at your own level. Spend the top tiers on the hardest judge and verify work; a level the agent's model does not serve runs the nearest one it does.`,
-  )
+  ]
   sections.push(`## Usage notes
 ${usage.map(note => `- ${note}`).join('\n')}`)
 
@@ -103,22 +86,6 @@ ${usage.map(note => `- ${note}`).join('\n')}`)
 The briefing should read as one written for a capable colleague arriving cold: they have not followed the conversation, do not know what was already tried, and do not know why the task matters. State the objective and the reason for it, what has already been established or eliminated, and enough surrounding situation that the agent can exercise judgment instead of following a narrow instruction. Ask for a short answer explicitly when one is wanted. For a lookup, supply the exact command; for an investigation, supply the question itself — a fixed procedure becomes useless the moment its premise turns out wrong. Clipped, imperative prompts yield shallow generic work.
 
 Never hand the synthesis to the agent: prompts that defer the reasoning back to whatever the agent happens to discover are forbidden. A good prompt proves you already did the understanding — it carries file paths, line numbers, and the specific change wanted.`)
-
-  sections.push(`## Examples
-The examples below assume two fictional agents are configured:
-- test-runner: runs the test suite and fixes failures (Tools: Bash, Read, Edit)
-- greeting-responder: replies to greetings with a friendly joke (Tools: All tools)
-
-<example>
-User: write a parser for ISO-8601 durations, then get its tests green.
-Assistant: writes the parser, then the test-runner agent takes the suite through its run-and-repair loop.
-<commentary>Fresh code just landed, and the configured test-runner agent exists for exactly this follow-up — hand it the run-and-fix loop.</commentary>
-</example>
-<example>
-User: hello!
-Assistant: launches the greeting-responder agent.
-<commentary>The configured greeting-responder says to use it for greetings — honour the "use proactively" cue.</commentary>
-</example>`)
 
   return sections.join('\n\n')
 }
