@@ -535,5 +535,5 @@ function buildMcpInstructionsSection(clients: MCPServerConnection[]): string | n
     client =>
       `## ${(client as { name: string }).name}\n${(client as { instructions?: string }).instructions}`,
   )
-  return `# MCP Server Instructions\n\nThe following MCP servers have provided instructions for how to use their tools and resources:\n\n${blocks.join('\n\n')}`
+  return `# MCP server instructions\n\nEach server below says how its tools and resources are used:\n\n${blocks.join('\n\n')}`
 }
