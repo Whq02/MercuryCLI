@@ -72,6 +72,28 @@ const mark = (over: Partial<ReturnType<typeof prefixMarkOf>> = {}): ReturnType<t
   ...over,
 })
 
+section('§0 the build: the first drop after a runner respawn under a new build is the update, expected once (the Air\'s R30A-01)')
+{
+  resetThinkingDropStates()
+  classifyThinkingDrops('main', [], { ...mark(), build: '1.0.0-beta.29' })
+  const updated = classifyThinkingDrops('main', [DROP('messages.1.content.0')], { ...mark(), build: '1.0.0-beta.30' })
+  check('a drop on the first request under a new build reads lawful: the update, both builds named', updated.kind === 'lawful' && updated.lawful === 'build-update' && updated.detail === 'the update from 1.0.0-beta.29 to 1.0.0-beta.30', j(updated))
+  const sentence = describeThinkingDrops([DROP('messages.1.content.0')], updated)
+  check('the receipt says the update moved the prompt and the roster, expected once — never a client-side edit', (sentence ?? '').includes('after the update from 1.0.0-beta.29 to 1.0.0-beta.30') && (sentence ?? '').includes('(expected once)') && !(sentence ?? '').includes('client-side edit'), sentence ?? 'null')
+  const health = binding.preservedThinkingHealth({ last: { at: 't', kind: 'lawful', lawful: 'build-update', detail: updated.detail, reason: 'prefix_binding_mismatch', path: 'messages.1.content.0', count: 77, consecutive: 1, model: 'claude-opus-5-5' }, longestRun: 29 })
+  check('the health row reads info and expected once for it, asking for no bug report', health.status === 'info' && health.evidence.includes('after the update from 1.0.0-beta.29 to 1.0.0-beta.30') && health.evidence.includes('expected once') && health.fix === undefined, j(health))
+  const sameBuild = classifyThinkingDrops('main', [DROP('messages.1.content.0')], { ...mark(), build: '1.0.0-beta.30' })
+  check('the next drop under the same build is the first of its own episode, as before', sameBuild.kind === 'first' && sameBuild.lawful === null, j(sameBuild))
+  resetThinkingDropStates()
+  const persistedByOlder = { ...mark() }
+  delete (persistedByOlder as { build?: string }).build
+  classifyThinkingDrops('main', [], persistedByOlder)
+  const fromUnmarked = classifyThinkingDrops('main', [DROP('messages.1.content.0')], { ...mark(), build: '1.0.0-beta.31' })
+  check('a mark an older build persisted without the field reads as the update to the current build', fromUnmarked.kind === 'lawful' && fromUnmarked.lawful === 'build-update' && fromUnmarked.detail === 'the update to 1.0.0-beta.31', j(fromUnmarked))
+  const { productBuild, describeBuildMove } = binding
+  check('the mark carries the product build; the move is spelled from the previous build when known', productBuild() === '1.0.0' && describeBuildMove(undefined, '1.0.0') === 'the update to 1.0.0' && describeBuildMove('0.9.0', '1.0.0') === 'the update from 0.9.0 to 1.0.0' && describeBuildMove('1.0.0', '1.0.0') === 'the update to 1.0.0')
+}
+
 section('§1 the classifier')
 {
   resetThinkingDropStates()
@@ -126,7 +148,7 @@ section('§1 the classifier')
     { type: 'user', uuid: 'u-2', message: { role: 'user', content: 'next' } },
   ]
   const m = prefixMarkOf(rows as never, 'claude-fable-5-1', { permissionMode: 'default', responseProfile: 'balanced' })
-  check('prefixMarkOf reads the first conversation row, the newest boundary and transition rows, the model and the settings', j(m) === j({ firstRow: 'u-1', compactBoundary: 'cb-1', modelTransition: 'mt-1', rosterTransition: null, rosterChange: null, model: 'claude-fable-5-1', settings: 'mode=default;profile=balanced', thinkingClearActive: false, contextEditActive: false }), j(m))
+  check('prefixMarkOf reads the first conversation row, the newest boundary and transition rows, the model, the settings and the build', j(m) === j({ firstRow: 'u-1', compactBoundary: 'cb-1', modelTransition: 'mt-1', rosterTransition: null, rosterChange: null, model: 'claude-fable-5-1', settings: 'mode=default;profile=balanced', build: '1.0.0', thinkingClearActive: false, contextEditActive: false }), j(m))
   const ctxMark = prefixMarkOf(rows as never, 'claude-fable-5-1', { permissionMode: 'default' }, { thinkingClearActive: true })
   check('a thinking-clear signal alone does not claim a tool-result clearing', ctxMark.thinkingClearActive === true && ctxMark.contextEditActive === false, j(ctxMark))
   const bare = prefixMarkOf([] as never, 'claude-fable-5-1')
