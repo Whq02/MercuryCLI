@@ -9,6 +9,9 @@ import { buildOpenrouterExtras } from '../openaicompat/compatWire.js'
 import { qualifiedWireId } from '../routeLaw.js'
 import { getCachedOpenrouterCatalogue, openrouterEffortVocabularyFor, refreshOpenrouterCatalogue } from './openrouterCatalogue.js'
 import {
+  OPENROUTER_AUTH_REMEDY,
+  clearOpenrouterKeyRefusal,
+  markOpenrouterKeyRefused,
   openrouterApiBase,
   resolveOpenrouterAccount,
   resolveOpenrouterApiKey,
@@ -59,8 +62,7 @@ export const openrouterLaneProfile: CompatLaneProfile = {
   },
   credentialHint:
     'no OpenRouter credential detected — /logins connects OpenRouter (OAuth mints a key), or set OPENROUTER_API_KEY.',
-  authRemedy:
-    '/logins reconnects OpenRouter (the OAuth flow mints a fresh key), or set a valid OPENROUTER_API_KEY.',
+  authRemedy: OPENROUTER_AUTH_REMEDY,
   billingRemedy:
     'the OpenRouter account has insufficient credits — add credits, then retry; /model picks another model meanwhile.',
   requestUrl: () => `${openrouterApiBase()}/chat/completions`,
@@ -79,10 +81,17 @@ export const openrouterLaneProfile: CompatLaneProfile = {
       : undefined,
   onResponseHeaders: (headers, status) => {
     recordOpenrouterRateHeaders(headers)
-    if (status !== undefined && status >= 200 && status < 300) clearOpenrouterUsageLimit()
+    if (status !== undefined && status >= 200 && status < 300) {
+      clearOpenrouterUsageLimit()
+      clearOpenrouterKeyRefusal(resolveOpenrouterApiKey())
+    }
     void refreshOpenrouterKeyUsage({ force: status === 429 }).catch(() => {})
     const account = resolveOpenrouterAccount()
     if (account) void refreshOpenrouterCatalogue(account.keySource).catch(() => {})
+  },
+  onCredentialRefused: fault => {
+    const key = resolveOpenrouterApiKey()
+    if (key !== undefined && fault.status !== undefined) markOpenrouterKeyRefused(key, fault.status, fault.message)
   },
 }
 
