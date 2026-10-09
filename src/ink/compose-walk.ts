@@ -798,10 +798,12 @@ function composeScrollBox(
     return el === contentRoot && Number.isFinite(acc) ? acc : undefined
   }
 
+  let anchored = false
   if (sc.scrollAnchor) {
     const anchorTop = anchorElTop(sc.scrollAnchor.el)
     if (anchorTop != null) {
       sc.scrollTop = anchorTop + sc.scrollAnchor.offset
+      anchored = true
       sc.pendingScrollDelta = undefined
     }
     sc.scrollAnchor = undefined
@@ -814,7 +816,7 @@ function composeScrollBox(
   const grew = scrollHeight >= prevScrollHeight
   const atBottom =
     sticky ||
-    (grew && scrollTopBeforeFollow >= prevMaxScroll && sc.lastStableAtBottom !== false)
+    (!anchored && grew && scrollTopBeforeFollow >= prevMaxScroll && sc.lastStableAtBottom !== false)
   if (atBottom && (sc.pendingScrollDelta ?? 0) >= 0) {
     sc.scrollTop = maxScroll
     sc.pendingScrollDelta = undefined
