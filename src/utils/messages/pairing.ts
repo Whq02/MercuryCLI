@@ -29,6 +29,21 @@ export function createToolUseSummaryMessage(
   }
 }
 
+function resultsAnsweredOnce(
+  content: readonly (ContentBlockParam | ContentBlock)[],
+  called: ReadonlySet<string>,
+): (ContentBlockParam | ContentBlock)[] {
+  const delivered = new Set<string>()
+  return content.filter(block => {
+    if (typeof block !== 'object' || !('type' in block) || block.type !== 'tool_result') return true
+    const id = (block as ToolResultBlockParam).tool_use_id
+    if (!called.has(id) || delivered.has(id)) return false
+    delivered.add(id)
+    return true
+  })
+}
+
+
 export function ensureToolResultPairing(
   messages: (UserMessage | AssistantMessage)[],
 ): (UserMessage | AssistantMessage)[] {
@@ -171,21 +186,7 @@ export function ensureToolResultPairing(
         : [{ type: 'text' as const, text: nextMsg.message.content }]
 
       if (orphanedIds.length > 0 || hasDuplicateToolResults) {
-        const orphanedSet = new Set(orphanedIds)
-        const seenTrIds = new Set<string>()
-        content = content.filter(block => {
-          if (
-            typeof block === 'object' &&
-            'type' in block &&
-            block.type === 'tool_result'
-          ) {
-            const trId = (block as ToolResultBlockParam).tool_use_id
-            if (orphanedSet.has(trId)) return false
-            if (seenTrIds.has(trId)) return false
-            seenTrIds.add(trId)
-          }
-          return true
-        })
+        content = resultsAnsweredOnce(content, toolUseIdSet)
       }
 
       const patchedContent = [...syntheticBlocks, ...content]
