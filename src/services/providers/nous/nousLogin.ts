@@ -28,7 +28,7 @@ export async function storeNousApiKeyLogin(key: string, io?: NousUsageIo): Promi
     return { ok: false, stored: false, receipt: `Could not store the key: ${errorMessageWithCause(error)}` }
   }
   const shadowNote = env[NOUS_API_KEY_ENV]?.trim() ? ` NOTE: a ${NOUS_API_KEY_ENV} env pin is set and WINS over the store this session.` : ''
-  const ride = `Requests ride ${nousApiBase(env)} against the Portal's credits or subscription; the Portal rows join /model.`
+  const ride = `Requests ride ${nousApiBase(env)} against the Portal credits or subscription behind the key (portal.nousresearch.com manages both); the Portal rows join /model.`
   const probe = await fetchNousAccount(key, io)
   if (probe.state === 'confirmed') {
     return {

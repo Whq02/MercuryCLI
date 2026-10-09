@@ -4,7 +4,6 @@ import { credentialFingerprint } from '../credentialIdentity.js'
 const NOUS_API_BASE_URL = 'https://inference-api.nousresearch.com/v1'
 const NOUS_PORTAL_BASE_URL = 'https://portal.nousresearch.com'
 
-export const NOUS_PORTAL_KEYS_PAGE = 'portal.nousresearch.com'
 export const NOUS_API_KEY_ENV = 'NOUS_API_KEY'
 
 export function nousApiBase(env: NodeJS.ProcessEnv = process.env): string {
