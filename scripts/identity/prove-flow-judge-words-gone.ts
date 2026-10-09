@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+import { execFileSync } from 'node:child_process'
 import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { join, relative } from 'node:path'
 import ts from 'typescript'
@@ -96,6 +97,50 @@ section('§4 the decision band names no judge stage')
   }
   const judgeFiles = [...sources].filter(([rel]) => /src\/utils\/permissions\/(flowClass|class)ifier|flowBlockReview|classifierApprovals|bashClass/.test(rel)).map(([rel]) => rel)
   check('no module of the judge remains under src', judgeFiles.length === 0, judgeFiles.join(', '))
+}
+
+section('§5 the spellings the Flow gate and the needs-you feature shed are on no file under src, scripts or docs')
+{
+  const RETIRED_SPELLINGS = [
+    J('isAutoMode', 'GateEnabled'),
+    J('isAutoMode', 'DisabledBySettings'),
+    J('stripDangerousPermissionsFor', 'AutoMode'),
+    J('getAutoMode', 'UnavailableReason'),
+    J('getAutoMode', 'UnavailableNotification'),
+    J('AutoMode', 'UnavailableReason'),
+    J('transitionPlan', 'AutoMode'),
+    J('isAutoMode', 'Available'),
+    J('AUTO_MODE_', 'ATTACHMENT_CONFIG'),
+    J('canCycle', 'ToAuto'),
+    J('autoMode', 'Active'),
+    J('autoMode', 'Changed'),
+    J('agentState', 'Classifier'),
+    J('useAgentState', 'Classifier'),
+    J('agentState', 'ClassifierEnabled'),
+    J('MERCURY_AGENT_', 'CLASSIFIER'),
+    J('MERCURY_AGENT_', 'CLASSIFIER_LLM'),
+    J('CLASSIFIER_', 'SYSTEM_PROMPT'),
+    J('agent_', 'classifier'),
+    J('prove-auto', '-mode'),
+    J('prove-agent', '-classifier'),
+  ]
+  const TEXT = /\.(tsx?|mts|cts|[cm]?jsx?|sh|bash|json|jsonl|md|txt|tsv|csv|ya?ml|toml|html|css|ps1|py)$/
+  const SELF = relative(REPO, new URL(import.meta.url).pathname)
+  const tree = execFileSync('git', ['-C', REPO, 'ls-files', '-z', '--', 'src', 'scripts', 'docs'], { encoding: 'utf8', maxBuffer: 1 << 28 })
+    .split('\0')
+    .filter(rel => rel !== '' && rel !== SELF && TEXT.test(rel))
+  const hits = new Map<string, string[]>()
+  for (const rel of tree) {
+    const text = readFileSync(join(REPO, rel), 'utf8')
+    for (const spelling of RETIRED_SPELLINGS) {
+      if (rel.includes(spelling) || text.includes(spelling)) hits.set(spelling, [...(hits.get(spelling) ?? []), rel])
+    }
+  }
+  check(`the seal reads the three trees (${tree.length} files)`, tree.length > 1000)
+  for (const spelling of RETIRED_SPELLINGS) {
+    const where = hits.get(spelling) ?? []
+    check(`${spelling}: on no file name and in no file`, where.length === 0, where.slice(0, 6).join(' · ') + (where.length > 6 ? ` … (${where.length})` : ''))
+  }
 }
 
 console.log(`\nflow judge words gone: ${failures === 0 ? 'ALL PASS' : `${failures} FAILED`}`)
