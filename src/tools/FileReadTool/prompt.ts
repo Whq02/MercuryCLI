@@ -13,7 +13,7 @@ export const LINE_FORMAT_INSTRUCTION =
   'a line number followed by a tab, then the line content'
 
 export const OFFSET_INSTRUCTION_DEFAULT =
-  'Reading the entire file is fine — prefer that unless the file is huge.'
+  'Leaving them out and taking the whole file is the default unless the file is huge.'
 
 export const OFFSET_INSTRUCTION_TARGETED =
   'If you already know which region you need, read just that slice — this matters for big files.'
@@ -36,22 +36,20 @@ export function renderPromptTemplate(
   targetLines?: string,
 ): string {
   const imageLine = media.images
-    ? `- Image files (PNG, JPG, and similar) are presented visually: Mercury is a multimodal LLM and sees the picture itself.`
+    ? `- Image files (PNG, JPG, and similar) are shown as the picture itself.`
     : `- Image files (PNG, JPG, and similar) cannot be shown to the current model — an image read returns an \`[image]\` placeholder, not the picture. Report that honestly rather than describing pixels you never saw.`
   const pdfLines = media.pdf
-    ? `\n- This tool can read PDF files. PDFs with more than ${MAX_PDF_PAGES_PER_REQUEST} pages REQUIRE the \`pages\` parameter (e.g. "1-5"); reading a large PDF without it will fail. At most ${MAX_PDF_PAGES_PER_REQUEST} pages can be requested at once.`
+    ? `\n- This tool reads PDF files; PDFs with more than ${MAX_PDF_PAGES_PER_REQUEST} pages need the \`pages\` parameter (e.g. "1-5"), at most ${MAX_PDF_PAGES_PER_REQUEST} pages per request.`
     : ''
   const screenshotLine = media.images
-    ? `\n- Screenshot paths arrive often; when the user supplies one, ALWAYS open it with this tool — temporary file paths work fine.`
+    ? `\n- A screenshot path the user supplies is read with this tool, a temporary path included.`
     : ''
   const directoryLines = targetLines ?? STOCK_DIRECTORY_LINE
-  return `Read the contents of a local file. Any file on the machine can be targeted directly with this tool.
-Treat every provided path as readable and every user-supplied path as valid; a path that turns out not to exist simply returns an error, so attempting the read is always safe.
+  return `Read the contents of a local file: any file on the machine, and a path that does not exist returns an error.
 
 Usage:
-- file_path must be an absolute path — relative paths are rejected
 - With no window parameters the read returns up to ${MAX_LINES_TO_READ} lines from the top of the file. A result that is not the whole file closes its numbered lines with \`[lines 1-2000 of 3000 — Read(offset: 2001, limit: 1000) continues from there]\` or \`[lines 2001-3000 of 3000 — the end of the file]\`; without that line it is the whole file${maxSizeInstruction}
-- An optional line offset and limit narrow the window (handy for very long files), though leaving them out and taking the whole file is the recommended default. ${offsetInstruction}
+- An optional line offset and limit narrow the window (handy for very long files). ${offsetInstruction}
 - Individual lines are cut off past 2000 characters
 - Every returned line carries a prefix — ${lineFormat} — with numbering starting at 1
 ${imageLine}${pdfLines}
