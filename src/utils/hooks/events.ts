@@ -508,20 +508,18 @@ export async function executePreCompactHooks(
     if (result.succeeded) {
       if (result.output.trim()) {
         displayMessages.push(
-          `PreCompact [${result.command}] completed successfully: ${result.output.trim()}`,
+          `PreCompact hook ${result.command} ran: ${result.output.trim()}`,
         )
       } else {
-        displayMessages.push(
-          `PreCompact [${result.command}] completed successfully`,
-        )
+        displayMessages.push(`PreCompact hook ${result.command} ran`)
       }
     } else {
       if (result.output.trim()) {
         displayMessages.push(
-          `PreCompact [${result.command}] failed: ${result.output.trim()}`,
+          `PreCompact hook ${result.command} failed: ${result.output.trim()}`,
         )
       } else {
-        displayMessages.push(`PreCompact [${result.command}] failed`)
+        displayMessages.push(`PreCompact hook ${result.command} failed`)
       }
     }
   }
@@ -567,20 +565,18 @@ export async function executePostCompactHooks(
     if (result.succeeded) {
       if (result.output.trim()) {
         displayMessages.push(
-          `PostCompact [${result.command}] completed successfully: ${result.output.trim()}`,
+          `PostCompact hook ${result.command} ran: ${result.output.trim()}`,
         )
       } else {
-        displayMessages.push(
-          `PostCompact [${result.command}] completed successfully`,
-        )
+        displayMessages.push(`PostCompact hook ${result.command} ran`)
       }
     } else {
       if (result.output.trim()) {
         displayMessages.push(
-          `PostCompact [${result.command}] failed: ${result.output.trim()}`,
+          `PostCompact hook ${result.command} failed: ${result.output.trim()}`,
         )
       } else {
-        displayMessages.push(`PostCompact [${result.command}] failed`)
+        displayMessages.push(`PostCompact hook ${result.command} failed`)
       }
     }
   }
@@ -624,7 +620,7 @@ export async function executeSessionEndHooks(
   for (const result of results) {
     if (!result.succeeded && result.output) {
       process.stderr.write(
-        `SessionEnd hook [${result.command}] failed: ${result.output}\n`,
+        `SessionEnd hook ${result.command} failed: ${result.output}\n`,
       )
     }
   }
@@ -963,7 +959,7 @@ export async function executeFileSuggestionCommand(
 
   if (shouldSkipHookDueToTrust()) {
     logForDebugging(
-      `Skipping FileSuggestion command execution - workspace trust not accepted`,
+      `FileSuggestion command not run: the workspace is not trusted`,
     )
     return []
   }
@@ -1046,7 +1042,7 @@ export async function executeWorktreeCreateHook(
       .filter(r => !r.succeeded)
       .map(r => `${r.command}: ${r.output.trim() || 'no output'}`)
     throw new Error(
-      `WorktreeCreate hook failed: ${failedOutputs.join('; ') || 'no successful output'}`,
+      `No WorktreeCreate hook printed a worktree path${failedOutputs.length > 0 ? `: ${failedOutputs.join('; ')}` : ''}`,
     )
   }
 
@@ -1083,7 +1079,7 @@ export async function executeWorktreeRemoveHook(
   for (const result of results) {
     if (!result.succeeded) {
       logForDebugging(
-        `WorktreeRemove hook failed [${result.command}]: ${result.output.trim()}`,
+        `WorktreeRemove hook ${result.command} failed: ${result.output.trim()}`,
         { level: 'error' },
       )
     }
