@@ -342,7 +342,7 @@ console.log('\n§4 · the resume recap is right (census session)')
   check('the errored round is a counted failure', recap?.toolFailures === 1, String(recap?.toolFailures))
   check('the prior run did not end on an error', recap?.endedOnError === false)
   check('files touched counts the one real file', recap?.filesTouched === 1, String(recap?.filesTouched))
-  check('top tools are honest counts', recap?.topTools === 'Bash×3 Grep×1 Read×1', recap?.topTools)
+  check('top tools are honest counts (every tool the transcript names, the parallel TodoWrite round included)', recap?.topTools === 'Bash×3 TodoWrite×2 Grep×1', recap?.topTools)
   check(
     'the last-active clock reads the prior run, not the resume synthetics',
     recap?.lastActiveGapMs === NOW - F1_LAST_TS,
