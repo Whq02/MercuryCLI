@@ -9,6 +9,7 @@ import { kimiDisplayPin } from '../services/providers/moonshot/kimiPins.js'
 import { gptDisplayPin, gptPriceTierFor } from '../services/providers/openai/gptPins.js'
 import { declaredRouteOf } from '../services/providers/routeLaw.js'
 import { glmPricePin } from '../services/providers/zai/glmPins.js'
+import { zenDisplayPin } from '../services/providers/zen/zenPins.js'
 import { getCanonicalName, getDefaultEngineModelSetting, type ModelShortName } from './model/model.js'
 import { ALL_MODEL_CONFIGS, familyHeadOf } from './model/configs.js'
 
@@ -210,6 +211,10 @@ const PRICING_OWNERS: Record<CallModelRoute, PricingOwner> = {
   huggingface: model => huggingfaceFloorPricing(model),
   local: () => ({ costs: COST_LOCAL_SERVER, basis: 'recorded' }),
   'openai-compat': () => undefined,
+  zen: (model, promptTokens) => {
+    const pin = zenDisplayPin(model)
+    return recorded(engineTier(pin?.longContext && promptTokens !== undefined && promptTokens >= (pin.longContextThreshold ?? Infinity) ? { ...pin.longContext, cacheWritePerMtok: pin.cacheWritePerMtok } : pin))
+  },
 }
 
 export function resolveModelPricing(model: string, opts?: { promptTokens?: number }): ResolvedModelPricing {
