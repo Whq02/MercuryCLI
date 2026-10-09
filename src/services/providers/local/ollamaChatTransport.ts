@@ -5,6 +5,7 @@ import { logForDebugging } from '../../../utils/debug.js'
 import { buildApiAgentOptions, getApiDispatcher, getApiFetch, getProxyFetchOptions } from '../../../utils/proxy.js'
 import { getUserAgent } from '../../../utils/http.js'
 import { outageCauseOfFetchFailure } from '../../api/reconnectLadder.js'
+import { markEmptyReply, type EmptyReplyKind } from '../emptyReply.js'
 import {
   createStreamActivityRelay,
   createStreamIdleWatchdog,
@@ -262,13 +263,21 @@ function ingestMsOfDoneRow(parsed: unknown): number | null {
   return Math.max(1, Math.round(ns / 1_000_000))
 }
 
+export function ollamaEmptyReplyKind(shape: OllamaStreamShape): EmptyReplyKind | undefined {
+  if (shape.ended !== 'finish' || shape.thinkingChars > 0 || shape.replyChars > 0 || shape.toolCalls > 0) return undefined
+  return shape.doneReason === 'length' ? 'cap' : 'empty'
+}
+
 export function ollamaChatTransport(options: CompatStreamOptions, knobs: OllamaChatKnobs): { events: AsyncGenerator<CompatStreamEvent>; settle(messages: readonly AssistantMessage[]): void } {
   const shape = newOllamaStreamShape()
   return {
     events: streamOllamaChat(options, knobs, shape),
     settle(messages) {
       const last = messages.at(-1)
-      if (last !== undefined && shape.reasoningOnly) last.reasoningOnly = true
+      if (last === undefined) return
+      if (shape.reasoningOnly) last.reasoningOnly = true
+      const empty = ollamaEmptyReplyKind(shape)
+      if (empty !== undefined) markEmptyReply(last, empty)
     },
   }
 }
