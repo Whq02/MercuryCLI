@@ -24,6 +24,7 @@ import { mistralCallModel, mistralLiveProofState } from './mistral/mistralCallMo
 import { resolveMistralApiKey } from './mistral/mistralAccounts.js'
 import { nousCallModel, nousLiveProofState } from './nous/nousCallModel.js'
 import { resolveNousAccount } from './nous/nousAccounts.js'
+import { NOUS_SIGNIN_EXPIRED_LINE } from './nous/nousOauth.js'
 import { zenCallModel, zenLiveProofState } from './zen/zenCallModel.js'
 import { resolveZenApiKey } from './zen/zenAccounts.js'
 import { compatCallModel, compatSlotLiveProofState } from './openaicompat/compatCallModel.js'
@@ -343,6 +344,7 @@ const nousBackend: PrimaryAgentBackend = {
   readiness: (): BackendReadiness => {
     const account = resolveNousAccount()
     if (!account) return { state: 'unavailable', reason: 'no Nous Portal API key (/logins nous, or NOUS_API_KEY)' }
+    if (account.expired) return { state: 'unavailable', reason: NOUS_SIGNIN_EXPIRED_LINE }
     const proof = nousLiveProofState()
     return proof
       ? { state: 'ready', detail: `live turn settled this session (${proof.model}) · ${account.label}` }

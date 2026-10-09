@@ -132,6 +132,7 @@ export type SlotRemoval =
   | { route: 'mistral-stored-key' }
   | { route: 'mistral-admin-key' }
   | { route: 'nous-stored-key' }
+  | { route: 'nous-signin' }
   | { route: 'env'; envVar: string }
   | { route: 'settings'; note: string }
   | { route: 'owner'; note: string }
@@ -201,6 +202,7 @@ export interface AccountSlotReads {
   mistralAdminStoredKey?: () => string | undefined
   nousEnvKey?: () => string | undefined
   nousStoredKey?: () => string | undefined
+  nousSignin?: typeof nousStoredTokens
   zenEnvKey?: () => string | undefined
   zenStoredKey?: () => string | undefined
   compatEnvKey?: () => string | undefined
@@ -954,7 +956,17 @@ function mistralSlots(reads: AccountSlotReads): AccountSlot[] {
 function nousSlots(reads: AccountSlotReads): AccountSlot[] {
   const envKey = reads.nousEnvKey ? reads.nousEnvKey() : process.env.NOUS_API_KEY?.trim() || undefined
   const storedKey = (reads.nousStoredKey ?? readStoredNousApiKey)()
-  return keyLaneSlots({ family: 'nous', envVar: 'NOUS_API_KEY', envKey, storedKey, storedRemoval: { route: 'nous-stored-key' } })
+  const slots = keyLaneSlots({ family: 'nous', envVar: 'NOUS_API_KEY', envKey, storedKey, storedRemoval: { route: 'nous-stored-key' } })
+  const signin = (reads.nousSignin ?? nousStoredTokens)()
+  if (signin) {
+    const active = !envKey && (readPreferredNousSource() !== 'api-key' || !storedKey)
+    const expired = !signin.refreshToken || nousSigninRefusal() !== undefined
+    if (active) for (const slot of slots) { slot.active = false; slot.stateNote = 'Nous Portal sign-in selected' }
+    slots.unshift({ family: 'nous', id: 'nous:signin', name: 'sign-in', kind: 'oauth', kindLabel: 'Nous Portal sign-in',
+      identity: signin.accountId !== undefined ? `Nous Portal account ${signin.accountId}` : 'Nous Portal account', active: active && !expired, envPinned: false, signedIn: !expired,
+      ...(expired ? { stateNote: NOUS_SIGNIN_EXPIRED_LINE } : {}), removal: { route: 'nous-signin' } })
+  }
+  return slots
 }
 
 function zenSlots(reads: AccountSlotReads): AccountSlot[] {
@@ -977,6 +989,7 @@ function deepseekSlots(reads: AccountSlotReads): AccountSlot[] {
 }
 
 import { xaiStoredTokens, clearStoredXaiSubscription, readPreferredXaiSource } from './xai/xaiOauth.js'
+import { NOUS_SIGNIN_EXPIRED_LINE, clearStoredNousSignin, nousSigninRefusal, nousStoredTokens, readPreferredNousSource } from './nous/nousOauth.js'
 
 function xaiSlots(reads: AccountSlotReads): AccountSlot[] {
   const envKey = reads.xaiEnvKey ? reads.xaiEnvKey() : process.env.XAI_API_KEY?.trim() || undefined
@@ -1224,6 +1237,7 @@ export interface SlotRemovalOwners {
   clearStoredHuggingfaceKey?: () => void
   clearStoredLocalKey?: () => void
   clearStoredNousKey?: () => void
+  clearNousSignin?: () => void
   clearManagedAnthropicKey?: () => void
   signOutAnthropicOauth?: () => void
   revokeAnthropicToken?: (refreshToken: string) => Promise<void>
@@ -1434,6 +1448,9 @@ function routeSlotRemoval(
     case 'nous-stored-key':
       ;(owners.clearStoredNousKey ?? (() => writeStoredNousApiKey(null)))()
       return { note: 'stored Nous Portal API key cleared from the auth-scoped store', mutated: true }
+    case 'nous-signin':
+      ;(owners.clearNousSignin ?? clearStoredNousSignin)()
+      return { note: 'Nous Portal sign-in forgotten locally; the Portal account page ends it server-side', mutated: true }
     case 'compat-stored-key':
       ;(owners.clearStoredCompatKey ?? (() => writeStoredCompatApiKey(null)))()
       return { note: 'stored endpoint API key cleared from the auth-scoped store', mutated: true }
@@ -1483,6 +1500,7 @@ export function signOutEveryEngineCredential(owners: SlotRemovalOwners = {}): vo
     ['mistral-stored-key', owners.clearStoredMistralKey ?? (() => writeStoredMistralApiKey(null))],
     ['mistral-admin-key', owners.clearStoredMistralAdminKey ?? (() => writeStoredMistralAdminApiKey(null))],
     ['nous-stored-key', owners.clearStoredNousKey ?? (() => writeStoredNousApiKey(null))],
+    ['nous-signin', owners.clearNousSignin ?? clearStoredNousSignin],
   ]
   for (const [, step] of steps) {
     try {

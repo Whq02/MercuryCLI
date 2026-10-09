@@ -44,7 +44,7 @@ export function loginFamilyRows({ engineLegs }: { engineLegs: boolean }): LoginF
           { label: 'xAI — Grok subscription sign-in or API key', value: 'xai' as const },
           { label: 'Meta — API key (Muse)', value: 'meta' as const },
           { label: 'Mistral — API key (Mistral Large 4)', value: 'mistral' as const },
-          { label: 'Nous Portal — API key (model gateway)', value: 'nous' as const },
+          { label: 'Nous Portal — account sign-in or API key (model gateway)', value: 'nous' as const },
           { label: 'OpenCode Zen — API key (one key, the gateway\'s model list)', value: 'zen' as const },
         ]
       : []),
