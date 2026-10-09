@@ -18,4 +18,4 @@ if [ ! -f dist/mercury.mjs ]; then
   exit 1
 fi
 
-drive_members engine-connector-drives 'scripts/engine-connector/$name' "$here/members.txt"
+MERCURY_SUITE_JOBS=1 drive_members engine-connector-drives 'scripts/engine-connector/$name' "$here/members.txt"
