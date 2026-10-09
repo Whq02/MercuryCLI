@@ -121,27 +121,29 @@ export const TEXT_FILE_EXTENSIONS = new Set([
   '.patch',
 ])
 
+function conditionPatternsOf(paths: string | string[]): string[] | null {
+  const patterns = splitPathInFrontmatter(paths).flatMap(pattern => {
+    const bare = pattern.endsWith('/**') ? pattern.slice(0, -3) : pattern
+    return bare.length > 0 ? [bare] : []
+  })
+  return patterns.some(pattern => pattern !== '**') ? patterns : null
+}
+
 export function parseFrontmatterPaths(rawContent: string): {
   content: string
   paths?: string[]
 } {
   const { frontmatter, content } = parseFrontmatter(rawContent)
+  const paths = frontmatter.paths ? conditionPatternsOf(frontmatter.paths) : null
+  return paths ? { content, paths } : { content }
+}
 
-  if (!frontmatter.paths) {
-    return { content }
-  }
+const COMMENT_SPANS = /<!--[\s\S]*?-->/g
 
-  const patterns = splitPathInFrontmatter(frontmatter.paths)
-    .map(pattern => {
-      return pattern.endsWith('/**') ? pattern.slice(0, -3) : pattern
-    })
-    .filter((p: string) => p.length > 0)
-
-  if (patterns.length === 0 || patterns.every((p: string) => p === '**')) {
-    return { content }
-  }
-
-  return { content, paths: patterns }
+function commentResidueOf(raw: string): string | null {
+  const lead = raw.trimStart()
+  if (!lead.startsWith('<!--') || !lead.includes('-->')) return null
+  return raw.replace(COMMENT_SPANS, '')
 }
 
 function stripHtmlCommentsFromTokens(tokens: ReturnType<Lexer['lex']>): {
