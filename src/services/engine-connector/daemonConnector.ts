@@ -1499,7 +1499,14 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
         confirm = this.buildConfirm(row)
         this.confirms.set(row.requestId, confirm)
       }
-      next.push({ id: row.requestId, confirm })
+      next.push({
+        id: row.requestId,
+        confirm,
+        toolName: row.toolName,
+        ...(row.agentId !== undefined ? { agentId: row.agentId } : {}),
+        askedAt: row.askedAt,
+        ...(row.limitMs !== undefined ? { limitMs: row.limitMs } : {}),
+      })
     }
     for (const id of [...this.confirms.keys()]) if (!nextIds.includes(id)) this.confirms.delete(id)
     this.askEntries = next

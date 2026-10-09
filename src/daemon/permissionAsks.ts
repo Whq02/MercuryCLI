@@ -5,6 +5,7 @@ import { join } from 'node:path'
 import { logForDebugging } from '../utils/debug.js'
 import { armInactivityDeadline, formatLimit, type InactivityDeadline } from '../utils/deadline.js'
 import { askExpiredCause, askLimitMs, isAskExpiredCause, unansweredAskRefusal } from '../utils/permissions/askClock.js'
+import { askBoardQuestion } from '../utils/permissions/askWords.js'
 import { recordSettledObligation, upsertObligation } from '../services/crew/obligations.js'
 import {
   publishSessionAsks,
@@ -174,7 +175,9 @@ function publishAsksFor(sessionId: string, dir?: string): void {
       ...(a.decisionReason !== undefined ? { decisionReason: a.decisionReason } : {}),
       ...(a.decisionReasonDetail !== undefined ? { decisionReasonDetail: a.decisionReasonDetail } : {}),
       ...(a.description !== undefined ? { description: a.description } : {}),
+      ...(a.agentId !== undefined ? { agentId: a.agentId } : {}),
       askedAt: a.askedAt ?? Date.now(),
+      ...(a.agentId !== undefined && a.limitMs !== undefined && a.limitMs > 0 ? { limitMs: a.limitMs } : {}),
     })
   }
   try {
@@ -302,7 +305,7 @@ export function holdWorkerAsk(
   ask.obligationLanded = upsertObligation({
     ref: `permission:${requestId}`,
     sessionId: rec.sessionId,
-    question: `"${rec.title ?? short}" asks to run ${toolName} — allow?`,
+    question: askBoardQuestion(rec.title ?? short, toolName),
     owner: 'operator',
     scope: 'switchboard',
   })

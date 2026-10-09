@@ -6,6 +6,7 @@ import { formatSessionCost } from '../../utils/spendSpelling.js'
 import { agentWaitWords, type AgentWaitV1 } from '../../tasks/LocalAgentTask/agentWait.js'
 import { decodeAgentPause, pauseLineWords, pauseStatusWords, type AgentPauseV1 } from '../../tasks/LocalAgentTask/agentPause.js'
 import { operatorPauseWaitParts, pauseGateChipWords } from '../../run-core/pauseGate.js'
+import { parkedAskRowWords, type ParkedAskFacts } from '../../utils/permissions/askWords.js'
 import { CREW_VIEW_DOOR } from '../../utils/cockpit/crewmateWords.js'
 
 export type CrewAgentKind = 'agent' | 'named'
@@ -206,6 +207,18 @@ export function crewStatusWords(facts: CrewAgentFacts, nowMs: number): string {
   if (facts.running && facts.wait !== null) return splitWaitSentence(facts.wait).gate
   if (!facts.running && facts.paused !== null) return pauseStatusWords(facts.paused, nowMs)
   return crewPhaseWords(facts, nowMs) ?? crewStateLabel(facts)
+}
+
+export function crewParkedAsks<T extends ParkedAskFacts>(facts: Pick<CrewAgentFacts, 'id' | 'running'>, asks: readonly T[]): T[] {
+  if (!facts.running) return []
+  return asks.filter(ask => ask.agentId === facts.id)
+}
+
+export function crewAskWaitDetail(facts: Pick<CrewAgentFacts, 'id' | 'running' | 'pendingAsks'>, asks: readonly ParkedAskFacts[], nowMs: number): string | null {
+  if (!facts.running || facts.pendingAsks <= 0) return null
+  const parked = crewParkedAsks(facts, asks)
+  if (parked.length === 0) return null
+  return parked.map(ask => parkedAskRowWords(ask, nowMs)).join(' · ')
 }
 
 export function crewOperatorPauseParts(facts: Pick<CrewAgentFacts, 'running' | 'wait'>): { gate: string; detail: string; door: string } | null {
