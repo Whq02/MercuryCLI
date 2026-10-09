@@ -16,6 +16,7 @@ import { storeXaiApiKeyLogin, storeXaiManagementKeyLogin, runXaiDeviceLogin, XAI
 import { resolveXaiApiKey } from '../services/providers/xai/xaiAccounts.js';
 import { XAI_MANAGEMENT_KEY_PAGE } from '../services/providers/xai/xaiUsageState.js';
 import { storeMetaApiKeyLogin } from '../services/providers/meta/metaLogin.js';
+import { storeZenApiKeyLogin } from '../services/providers/zen/zenLogin.js';
 import {
   runKimiDeviceLogin,
   storeMoonshotApiKeyLogin,
@@ -436,7 +437,8 @@ export type FaceKeyLegId =
   | 'moonshot-key'
   | 'hf-token'
   | 'openrouter-key'
-  | 'gemini-key';
+  | 'gemini-key'
+  | 'zen';
 
 export function geminiPickOptions(facts: GeminiConnectFacts): Array<{ label: string; value: string }> {
   return geminiConnectRows(facts);
@@ -535,6 +537,8 @@ export function keyLegTitle(leg: FaceKeyLegId): string {
       return 'OpenRouter API key';
     case 'gemini-key':
       return 'Gemini API key';
+    case 'zen':
+      return 'OpenCode Zen API key';
   }
 }
 
@@ -561,6 +565,8 @@ export function keyLegStoreLine(leg: FaceKeyLegId): string {
       return 'Stored auth-scoped (mode 600), never logged; OPENROUTER_API_KEY wins over the store.';
     case 'gemini-key':
       return 'Stored auth-scoped (mode 600), never logged; GOOGLE_API_KEY / GEMINI_API_KEY win over the store.';
+    case 'zen':
+      return 'Checked on the usage endpoint first; stored auth-scoped (mode 600); OPENCODE_API_KEY wins. One key, every model the gateway lists.';
   }
 }
 
@@ -588,6 +594,8 @@ export function keyLegGuardOpts(leg: FaceKeyLegId): { stores: string; looksLike?
       return { stores: 'an OpenRouter key (sk-or-…)' };
     case 'gemini-key':
       return { stores: 'a Google Gemini key (AIza…)' };
+    case 'zen':
+      return { stores: 'an OpenCode Zen API key (sk-…)' };
   }
 }
 
@@ -601,6 +609,7 @@ export function keyPromptPaneLines(leg: FaceKeyLegId, note: string | null, draft
   if (leg === 'xai' && note === null) lines.push(...wrapClauses(keyPageLine('xai'), DETAIL_W));
   if (leg === 'xai-management' && note === null) lines.push(...wrapPlain(XAI_MANAGEMENT_KEY_PAGE, DETAIL_W));
   if (leg === 'meta' && note === null) lines.push(...wrapClauses(keyPageLine('meta'), DETAIL_W));
+  if (leg === 'zen' && note === null) lines.push(...wrapClauses(keyPageLine('zen'), DETAIL_W));
   lines.push(...wrapPlain(keyLegStoreLine(leg), DETAIL_W));
   lines.push(maskedDraftLine(draftLen).replace('code:', 'key:'));
   if (note !== null) {
@@ -1246,6 +1255,9 @@ export function BootLoginsScreen({ onClose, onSignedIn, family, fullScene, facts
       case 'meta':
         setFlow({ kind: 'key', leg: 'meta', note: null, storing: false });
         return;
+      case 'zen':
+        setFlow({ kind: 'key', leg: 'zen', note: null, storing: false });
+        return;
       case 'deepseek':
         setFlow({ kind: 'key', leg: 'deepseek', note: null, storing: false });
         return;
@@ -1363,6 +1375,7 @@ export function BootLoginsScreen({ onClose, onSignedIn, family, fullScene, facts
     else if (leg === 'xai') void storeXaiApiKeyLogin(value).then(settle);
     else if (leg === 'xai-management') void storeXaiManagementKeyLogin(value).then(settle);
     else if (leg === 'meta') void storeMetaApiKeyLogin(value).then(settle);
+    else if (leg === 'zen') void storeZenApiKeyLogin(value).then(settle);
     else if (leg === 'moonshot-key')
       void storeMoonshotApiKeyLogin(value).then(outcome => settle({ ok: outcome.ok, stored: outcome.stored, receipt: outcome.receipt }));
     else if (leg === 'hf-token') void storeHuggingfaceTokenLogin(value).then(settle);
