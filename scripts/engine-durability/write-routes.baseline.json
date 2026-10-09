@@ -1,5 +1,5 @@
 {
-  "note": "legacy write-route ratchet \u2014 may only SHRINK",
+  "note": "legacy write-route ratchet — may only SHRINK",
   "publish": [
     "src/components/Feedback.tsx",
     "src/daemon/concourseWorkers.ts",
@@ -25,6 +25,8 @@
     "src/services/providers/gemini/geminiAccounts.ts",
     "src/services/providers/huggingface/huggingfaceAccounts.ts",
     "src/services/providers/moonshot/moonshotAccounts.ts",
+    "src/services/providers/nous/nousClientContract.ts",
+    "src/services/providers/nous/nousOauth.ts",
     "src/services/providers/openai/openaiAccounts.ts",
     "src/services/providers/openrouter/openrouterAccounts.ts",
     "src/services/providers/xai/xaiOauth.ts",
@@ -65,6 +67,7 @@
   "lock": [
     "src/history.ts",
     "src/services/mcp/auth.ts",
+    "src/services/providers/nous/nousOauth.ts",
     "src/substrate/fileStore.ts",
     "src/substrate/operationJournal.ts",
     "src/tools/WorkflowTool/runManifest.ts",
