@@ -100,6 +100,7 @@ const FLAG_SHIFT: u64 = 1 << 17;
 const FLAG_CONTROL: u64 = 1 << 18;
 const FLAG_ALTERNATE: u64 = 1 << 19;
 const FLAG_COMMAND: u64 = 1 << 20;
+const FLAG_CHORD_MASK: u64 = FLAG_CONTROL | FLAG_ALTERNATE | FLAG_COMMAND;
 const STRING_ENCODING_UTF8: u32 = 0x0800_0100;
 const NUMBER_SINT64: isize = 4;
 const WINDOW_LIST_OPTION_ON_SCREEN_ONLY: u32 = 1;
@@ -790,10 +791,12 @@ pub fn key(key: KeyName, down: bool, shifted: bool, active: &[Modifier]) -> Resu
             CFRelease(source);
             return Err("the key event could not be created".to_string());
         }
-        if let Some(c) = key.character(shifted) {
-            let mut units = [0u16; 2];
-            let encoded = c.encode_utf16(&mut units);
-            CGEventKeyboardSetUnicodeString(event, encoded.len(), encoded.as_ptr());
+        if flags & FLAG_CHORD_MASK == 0 {
+            if let Some(c) = key.character(shifted) {
+                let mut units = [0u16; 2];
+                let encoded = c.encode_utf16(&mut units);
+                CGEventKeyboardSetUnicodeString(event, encoded.len(), encoded.as_ptr());
+            }
         }
         CGEventSetFlags(event, flags);
         let posted = post(event);
