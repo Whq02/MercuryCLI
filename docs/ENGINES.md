@@ -27,6 +27,7 @@ arm.
 | `openrouter` | `openrouter/<vendor-slug>` (qualified; stripped — OpenRouter ids are themselves vendor/model slugs, so only a namespace disambiguates them) | OpenRouter |
 | `huggingface` | `huggingface/<org>/<model>[:provider\|:policy]` (qualified) | Hugging Face |
 | `local` | `local/<model>` (qualified; the model as the discovered local server lists it) | Local models |
+| `nous` | `nous/<vendor>/<model>` (qualified; stripped — the Portal's ids are vendor/model slugs, so only a namespace disambiguates them; the `~vendor/<name>-latest` alias rows ride the same way) | Nous Portal |
 
 Display names have the same one-owner rule: every surface that names a
 family derives its label from it, and an unknown id shows itself. Persisted
@@ -141,6 +142,43 @@ was documented in the sources read on **2026-09-30**: [quickstart](https://dev.m
 [reasoning](https://dev.meta.ai/docs/reasoning), [authentication](https://dev.meta.ai/docs/authentication),
 [Muse Code sign-in](https://dev.meta.ai/docs/muse-code/auth) and
 [subscriptions](https://dev.meta.ai/docs/muse-code/subscriptions).
+
+Nous Research's Portal is a model gateway: one API key, billed to the
+Portal credits or subscription behind it, serves a live catalogue of
+third-party models (Claude, GPT, Gemini, DeepSeek, Qwen, Kimi, GLM, Grok and
+more) at the Portal's own `vendor/model` slugs, plus `~vendor/<name>-latest`
+rows that always point at the newest model of a family. Mercury persists
+these ids as `nous/<vendor>/<model>`; the namespace detaches for the wire.
+Connect through `/logins nous`, `/router key nous`, or `NOUS_API_KEY`; the
+key is made at `portal.nousresearch.com` after adding credits or a
+subscription, and `/accounts` manages the stored key. The rows come only
+from the account's live `GET /v1/models` list: `/model` paints the Portal's
+recommended agentic rows first, then the catalogue's own order, with a door
+to the full list behind a filter; a typed `nous/<vendor>/<model>` id is
+refused before chat when a fetched list lacks it. Each row's context window,
+output ceiling, image input, tool support, reasoning dial and price are the
+facts the live row states — never a first-party table joined by name — and a
+row whose supported parameters omit tools refuses a tool-bearing turn before
+the wire. Nous's own Hermes models are not on the Portal's list as of
+**2026-10-09**: the live catalogue carries no Hermes row and the inference API
+answers the documented Hermes ids with "This model has been retired".
+
+Mercury uses the Portal's OpenAI-compatible Chat Completions endpoint at
+`https://inference-api.nousresearch.com/v1/chat/completions`, with streaming,
+function tools and the row's stated `reasoning.effort` vocabulary; the
+Portal's usage object settles each turn. The Portal answers HTTP 401 for a
+key that is invalid, blocked **or out of funds**, so the refusal names all
+three and the Portal's billing page. The key's meter is the Portal account
+endpoint, `GET https://portal.nousresearch.com/api/oauth/account`: when it
+resolves the key it states the plan, the usable credits, the subscription and
+purchased credits and any organisation spend cap, and `/usage` paints them
+with their feed and age; when it does not, the reader note says what the
+endpoint answered and points at the Portal. The Portal's documented
+authentication for third-party clients is the API key (its OpenAPI spec,
+"Option 1: Using API keys & account credits", read **2026-10-09**); its
+sign-in flow is reserved for Nous's own clients, so Mercury offers none.
+Sources: [the Portal OpenAPI spec](https://portal.nousresearch.com/api/openapi)
+and [the live model list](https://inference-api.nousresearch.com/v1/models).
 
 Moonshot's default, picker and specialist choices follow the account's live
 model list. An API key reads the platform list; a Kimi sign-in reads its
@@ -521,7 +559,7 @@ come from its owning account resolvers:
   win independently. `/router key xai-management` adds the management key
   directly, and its `clear` road or its own `/accounts` row removes only that
   key — the inference key stays. A management key alone cannot run Grok;
-- **zai, deepseek, meta, huggingface, local, compat** — env pins and stored keys.
+- **zai, deepseek, meta, huggingface, local, compat, nous** — env pins and stored keys.
 
 Slots carry presence facts and masked key tails only — never a secret value.
 Removal is routed to each slot's owning store, never inlined. Env-pinned
@@ -884,13 +922,16 @@ default reads — and each in its own shape: the first-party subscription's
 rolling windows and weekly pools, the OpenAI account's observed bands, a Kimi
 sign-in's plan windows, a GLM Coding Plan key's credit windows, an OpenRouter
 key's credit totals and cap, the DeepSeek and Moonshot balances, xAI's team
-balance and billing-cycle usage with a management key, and an honest one-line
+balance and billing-cycle usage with a management key, a Nous Portal key's
+plan and usable credits when the Portal account endpoint resolves the key,
+and an honest one-line
 absence for a lane whose provider publishes no usage Mercury can read
 (a general Z.AI key, Gemini, Hugging Face, Meta, a custom endpoint, an API key
 on a subscription lane, a local server).
 Every API-key slot carries a credits line: the provider-stated balance with
 its feed and age where the family exposes one (the DeepSeek and Moonshot
-balance endpoints, xAI's management-key balance, the remaining credit under
+balance endpoints, xAI's management-key balance, the Nous Portal account
+endpoint's usable credits, the remaining credit under
 an OpenRouter key cap), and
 "credits: not reported by the provider" where none exists — never a computed
 spend presented as a balance. The Claude subscription carries the same line
