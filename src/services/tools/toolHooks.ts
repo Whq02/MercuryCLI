@@ -3,7 +3,6 @@ import type { CanUseToolFn } from '../../hooks/useCanUseTool.js'
 import type { AssistantMessage } from '../../types/message.js'
 import type { PermissionDecision, PermissionDecisionReason } from '../../types/permissions.js'
 import { getSessionId } from '../../bootstrap/state.js'
-import { createCombinedAbortSignal } from '../../utils/combinedAbortSignal.js'
 import { HOOK_CUT_BUDGET_MS } from '../../utils/hooks/contract.js'
 import { fireHooks, type HookFireResult } from '../../utils/hooks/fire.js'
 import type { HookScope } from '../../utils/hooks/sessionHooks.js'
@@ -33,16 +32,11 @@ export async function afterToolHooks(
   toolUseContext: ToolUseContext,
   signal: AbortSignal | undefined,
 ): Promise<HookFireResult> {
-  const budget = ended.cut ? createCombinedAbortSignal(signal, { timeoutMs: HOOK_CUT_BUDGET_MS }) : undefined
-  try {
-    return await fireHooks(
-      'tool.after',
-      { tool: tool.name, input, output: ended.output, call_id: toolUseID, ok: ended.ok, ...(ended.error !== undefined ? { error: ended.error } : {}), cut: ended.cut },
-      { scope: hookScopeOf(toolUseContext), signal: budget?.signal ?? signal, toolUseContext, ...(ended.cut ? { budgetMs: HOOK_CUT_BUDGET_MS } : {}) },
-    )
-  } finally {
-    budget?.cleanup()
-  }
+  return fireHooks(
+    'tool.after',
+    { tool: tool.name, input, output: ended.output, call_id: toolUseID, ok: ended.ok, ...(ended.error !== undefined ? { error: ended.error } : {}), cut: ended.cut },
+    { scope: hookScopeOf(toolUseContext), toolUseContext, ...(ended.cut ? { budgetMs: HOOK_CUT_BUDGET_MS } : { signal }) },
+  )
 }
 
 export function permissionDecidedHooks(

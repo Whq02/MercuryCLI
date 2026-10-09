@@ -823,11 +823,13 @@ async function runTransactionBody(args: {
 
     const postStartedAt = Date.now()
     const returnedError = effect?.outcome === 'failed'
+    const cut = signal.aborted
+    const error = returnedError ? effect.evidence : cut ? turnCutResultText(turnCutOf(signal.reason), tool.name) : undefined
     const after = await afterToolHooks(
       tool,
       toolUseID,
       callInput,
-      { ok: !returnedError, output: result.data, ...(returnedError ? { error: effect.evidence } : {}), cut: false },
+      { ok: !returnedError && !cut, output: result.data, ...(error !== undefined ? { error } : {}), cut },
       toolUseContext,
       signal,
     )
@@ -887,10 +889,10 @@ async function runTransactionBody(args: {
     const afterFailure = await afterToolHooks(
       tool,
       toolUseID,
-      observableInput,
-      { ok: false, error: message, cut: cutByTurn },
+      callInput,
+      { ok: false, error: message, cut: signal.aborted },
       toolUseContext,
-      cutText === undefined ? signal : undefined,
+      signal,
     )
     const failureHookMessages: Message[] = [
       ...afterFailure.outcomes.map(outcome => hookProgressMessage('tool.after', outcome.name, 'ran', toolUseID, afterFailure.outcomes.length)),
