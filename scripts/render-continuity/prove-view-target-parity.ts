@@ -356,7 +356,7 @@ t.section('§4 journey: completed agent stays reachable through the tasks board'
   })
   sendsDue(run, 4)
 
-  const offsets = Array.from({ length: 40 }, (_, i) => String(S(6000 + i * 300)))
+  const offsets = Array.from({ length: 47 }, (_, i) => String(S(6000 + i * 300)))
   const grab = spawnSync(
     '/usr/bin/python3',
     [SCREENGRAB, run.paths.drive, '120', '40', ...offsets, '-1'],
@@ -367,45 +367,32 @@ t.section('§4 journey: completed agent stays reachable through the tasks board'
   } else {
     const { screens } = JSON.parse(grab.stdout) as { screens: Frame[] }
     keepFrames('tasks-board-120x40', screens)
-    const has = (f: { rows: string[] }, needle: string | RegExp): boolean =>
-      f.rows.some(r => (typeof needle === 'string' ? r.includes(needle) : needle.test(r)))
-    const findFrom = (start: number, pred: (f: { rows: string[] }) => boolean): number => {
-      for (let i = start; i < screens.length; i++) if (pred(screens[i]!)) return i
-      return -1
+    const has = (f: { rows: string[] } | undefined, needle: string | RegExp): boolean =>
+      f !== undefined && f.rows.some(r => (typeof needle === 'string' ? r.includes(needle) : needle.test(r)))
+    const actedOn = (step: number): { atMs: number; rows: string[] } | undefined => {
+      const record = run.sendLog.find(s => s.step === step && s.screen !== undefined)
+      return record === undefined ? undefined : { atMs: Math.round(record.atMs), rows: record.screen! }
     }
+    const tasksPress = actedOn(0)
+    const escPress = actedOn(1)
+    const settled = screens[screens.length - 1]
 
-    const iLanded = findFrom(
-      0,
-      f =>
-        has(f, LANDING) &&
-        has(f, 'run the quick probe') &&
-        !has(f, /agent › quick probe/) &&
-        !has(f, /Mercury — runs/),
-    )
     t.check(
-      'after completion the transcript carries the landing and nothing is open over it',
-      iLanded >= 0,
-      iLanded >= 0 ? `frame @${screens[iLanded]!.atMs}` : 'no such frame in the series',
+      'after completion the transcript carries the landing and nothing is open over it (the screen the /tasks press acted on)',
+      has(tasksPress, LANDING) && has(tasksPress, 'run the quick probe') && !has(tasksPress, /agent › quick probe/) && !has(tasksPress, /Mercury — runs/),
+      tasksPress === undefined ? 'the /tasks press has no receipt screen' : `pressed @${tasksPress.atMs}`,
     )
 
-    const iCard = findFrom(
-      iLanded + 1,
-      f => has(f, /agent › quick probe/) && has(f, /state\s+landed/) && has(f, /esc back/),
-    )
     t.check(
-      "the tasks board still reaches the COMPLETED agent: its card opens with the settled state ('landed') and its esc back hint",
-      iLanded >= 0 && iCard > iLanded,
-      iCard >= 0 ? screens[iCard]!.rows.find(r => /state\s+landed/.test(r))?.trim().slice(0, 70) : 'no card frame after the landing frame',
+      "the tasks board still reaches the COMPLETED agent: its card opens with the settled state ('landed') and its esc back hint (the screen the esc acted on)",
+      has(escPress, /agent › quick probe/) && has(escPress, /state\s+landed/) && has(escPress, /esc back/),
+      escPress === undefined ? 'the esc press has no receipt screen' : `${escPress.rows.find(r => /state\s+landed/.test(r))?.trim().slice(0, 70) ?? 'no state row'} · pressed @${escPress.atMs}`,
     )
 
-    const iBack = findFrom(
-      iCard + 1,
-      f => !has(f, /agent › quick probe/) && !has(f, /Mercury — runs/) && has(f, 'run the quick probe') && has(f, LANDING),
-    )
     t.check(
-      'esc returned to main (the card gone, the transcript back with the landing on it)',
-      iCard >= 0 && iBack > iCard,
-      iBack >= 0 ? `frame @${screens[iBack]!.atMs}` : 'no main frame after the card frame',
+      'esc returned to main (the card gone, the transcript back with the landing on it) — the settled frame',
+      escPress !== undefined && !has(settled, /agent › quick probe/) && !has(settled, /Mercury — runs/) && has(settled, 'run the quick probe') && has(settled, LANDING),
+      settled === undefined ? 'no settled frame' : `settled frame @${settled.atMs}`,
     )
   }
   run.cleanup()

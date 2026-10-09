@@ -23,10 +23,11 @@ const SEND_KEYS = [
   '"minTick"', '"awaitSettleTicks"', '"awaitStableTicks"', '"data"', '"mark"',
   '"requireAwait"', '"awaitStableRegion"', '"targetText"', '"targetDx"', '"awaitRedraws"',
   '"signal"',
+  '"repeatEveryTicks"',
 ]
 const PAYLOAD_KEYS = [
   '"readyAt"', '"endedAtTick"', '"endReason"', '"readyTextDeclared"',
-  '"stages"', '"sendReceipts"', '"marks"', '"refusals"',
+  '"stages"', '"sendReceipts"', '"holdRepeats"', '"marks"', '"refusals"',
 ]
 
 t.section('every vshot.py grammar token is handled by vshot-win.py')
@@ -54,6 +55,10 @@ t.section('the shared capture laws hold in both engines')
   }
   t.check('shared refusals reach both output streams', refusal.includes('sys.stderr.write(line)') && refusal.includes('sys.stdout.write(line)'), 'legacy stdout-only loggers retain the reason')
   t.check('LIVE-SEAT-STABILITY refusal (exit 7)', win.includes('LIVE-SEAT-STABILITY') && win.includes('sys.exit(7)'), 'the starved whole-grid gate class')
+  for (const [name, source] of [['POSIX', posix], ['Windows', win]] as const) {
+    t.check(`${name}: BLIND-REPEAT refusal (exit 8) — a held key (repeatEveryTicks) without a strict needle to end on is refused before the child boots`, source.includes('BLIND-REPEAT') && source.includes('sys.exit(8)') && source.indexOf('sys.exit(8)') < source.indexOf('def grid_text'), 'the clock-ended hold class')
+    t.check(`${name}: the held key repeats only while its strict send is not yet due, and the fire resets the hold`, source.includes('if not due and nxt.get("repeatEveryTicks"):') && source.includes('hold_repeat_tick = None\n') && source.includes('payload["holdRepeats"] = hold_repeats'), 'one grammar, two engines')
+  }
   t.check('bounded drain epilogue', win.includes('drain_hard_deadline'), 'never end mid-burst')
   t.check(
     'host profiles are driver parameters (WT_SESSION / TERM_PROGRAM=vscode)',

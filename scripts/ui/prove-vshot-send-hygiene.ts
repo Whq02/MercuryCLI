@@ -94,5 +94,48 @@ console.log('§3 the live-seat rule: a board with a live seat refuses whole-grid
   }
 }
 
+console.log('§4 the held key: a strict send repeats its bytes on the clock until its needle paints, then fires once')
+{
+  const driver = resolveCaptureDriver()
+  if (driver.kind !== 'posix-pty') {
+    check(`the POSIX capture engine is on this host (${driver.kind}) — the held key cannot be driven here`, false)
+  } else {
+    const scratch = mkdtempSync(join(tmpdir(), 'vshot-held-key-'))
+    const echoThenNeedle = ['python3', '-u', '-c', "import os, select, sys, time\nt = time.monotonic()\nwhile time.monotonic() - t < 1.5:\n    r, _, _ = select.select([0], [], [], 0.05)\n    if r:\n        os.read(0, 64)\nsys.stdout.write('NEEDLE\\n')\nsys.stdout.flush()\nt = time.monotonic()\nwhile time.monotonic() - t < 1.0:\n    r, _, _ = select.select([0], [], [], 0.05)\n    if r:\n        os.read(0, 64)\n"]
+    const run = (name: string, cfg: Record<string, unknown>): { status: number | null; stderr: string; payload: Record<string, unknown> | null } => {
+      const cfgPath = join(scratch, `${name}.json`)
+      const out = join(scratch, `${name}.grid.json`)
+      writeFileSync(cfgPath, JSON.stringify({ argv: echoThenNeedle, cols: 40, rows: 6, total: 25, out, ...cfg }))
+      const r = spawnSync(driver.python, [join(REPO, 'scripts', 'ui', 'vshot.py'), cfgPath], { encoding: 'utf8', timeout: 60_000, env: { ...process.env, VSHOT_SLOTS: '0', MERCURY_VSHOT_BUDGET_SCALE: '1' } })
+      let payload: Record<string, unknown> | null = null
+      try { payload = JSON.parse(readFileSync(out, 'utf8')) as Record<string, unknown> } catch { payload = null }
+      return { status: r.status, stderr: r.stderr ?? '', payload }
+    }
+    const held = run('held-key', { sends: [{ atTick: 1, data: 'k' }, { requireAwait: true, awaitText: 'NEEDLE', repeatEveryTicks: 2, mark: 'seen', data: 'k' }] })
+    const repeats = (held.payload?.holdRepeats as Array<{ send: number; atTick: number }> | undefined) ?? []
+    const receipts = (held.payload?.sendReceipts as Array<{ atTick: number }> | undefined) ?? []
+    const marks = (held.payload?.marks as Array<{ label: string; atTick: number; grid: Array<Array<{ c: string }>> }> | undefined) ?? []
+    const gaps = repeats.map((r, i) => r.atTick - (i === 0 ? receipts[0]?.atTick ?? 0 : repeats[i - 1]!.atTick))
+    check('the held key delivered both sends and ended on the needle (exit 0, two receipts, the mark fired)', held.status === 0 && receipts.length === 2 && marks.length === 1 && marks[0]!.label === 'seen', `exit ${held.status}; receipts ${JSON.stringify(receipts)}; marks ${marks.map(m => m.label).join(',')}; ${held.stderr.slice(0, 200)}`)
+    check('the key repeated on the clock while the needle was absent (the child paints it 1.5 s in: at least 3 repeats, each 2 ticks apart)', repeats.length >= 3 && repeats.every(r => r.send === 1) && gaps.every(g => g === 2), `repeats ${JSON.stringify(repeats)} gaps ${JSON.stringify(gaps)}`)
+    const firedAt = receipts[1]?.atTick ?? -1
+    check('no repeat came after the fire, and the fire came on the needle, not the clock', repeats.every(r => r.atTick <= firedAt) && marks[0] !== undefined && marks[0].grid.some(row => row.map(c => c.c).join('').includes('NEEDLE')), `fired at tick ${firedAt}; last repeat ${repeats.at(-1)?.atTick}`)
+    check('the repeats are not receipts: sendReceipts counts the sends alone', receipts.length === 2 && repeats.length > 0, `${receipts.length} receipts, ${repeats.length} repeats`)
+    const refusedShape = (cfg: Record<string, unknown>, name: string): { status: number | null; stderr: string } => {
+      const cfgPath = join(scratch, `${name}.json`)
+      writeFileSync(cfgPath, JSON.stringify({ argv: ['true'], cols: 20, rows: 4, total: 2, out: join(scratch, `${name}.grid.json`), ...cfg }))
+      const r = spawnSync(driver.python, [join(REPO, 'scripts', 'ui', 'vshot.py'), cfgPath], { encoding: 'utf8', timeout: 30_000, env: { ...process.env, VSHOT_SLOTS: '0' } })
+      return { status: r.status, stderr: r.stderr ?? '' }
+    }
+    const clockEnded = refusedShape({ sends: [{ afterPrevTicks: 12, awaitText: 'x', repeatEveryTicks: 2, data: ' ' }] }, 'clock-ended-hold')
+    check('a held key whose send ends on a clock deadline is refused by name before the child boots (BLIND-REPEAT, exit 8)', clockEnded.status === 8 && clockEnded.stderr.includes('BLIND-REPEAT'), `exit ${clockEnded.status}: ${clockEnded.stderr.slice(0, 200)}`)
+    const needleless = refusedShape({ sends: [{ requireAwait: true, repeatEveryTicks: 2, data: ' ' }] }, 'needleless-hold')
+    check('…and a strict held key with no needle to end on (exit 8)', needleless.status === 8 && needleless.stderr.includes('BLIND-REPEAT'), `exit ${needleless.status}: ${needleless.stderr.slice(0, 200)}`)
+    const plainStrict = refusedShape({ sends: [{ requireAwait: true, awaitText: 'x', data: ' ' }] }, 'plain-strict')
+    check('a strict send without the held key is untouched by the rule', plainStrict.status !== 8 && !plainStrict.stderr.includes('BLIND-REPEAT'), `exit ${plainStrict.status}: ${plainStrict.stderr.slice(0, 200)}`)
+    rmSync(scratch, { recursive: true, force: true })
+  }
+}
+
 console.log(failures === 0 ? '\nvshot send hygiene: GREEN' : `\nvshot send hygiene: ${failures} RED`)
 process.exit(failures === 0 ? 0 : 1)
