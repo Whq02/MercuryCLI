@@ -301,6 +301,12 @@ function livePlaneOwnerIsForeign(): boolean {
   }
 }
 
+let answering = 0
+
+export function requestsBeingAnswered(): number {
+  return answering
+}
+
 export async function startControlServer(
   deps: ControlServerDeps,
   opts: { socketPath?: string } = {},
@@ -353,13 +359,18 @@ export async function startControlServer(
       sock,
       line => {
         sock.setTimeout(0)
-        void routeControlRequest(deps, leases, sock, line).catch(err => {
-          answer(sock, {
-            ok: false,
-            code: 'EUNKNOWN',
-            error: `daemon error — ${err instanceof Error ? err.message : String(err)}`,
+        answering++
+        void routeControlRequest(deps, leases, sock, line)
+          .catch(err => {
+            answer(sock, {
+              ok: false,
+              code: 'EUNKNOWN',
+              error: `daemon error — ${err instanceof Error ? err.message : String(err)}`,
+            })
           })
-        })
+          .finally(() => {
+            answering--
+          })
       },
       () => {
         answer(sock, {
@@ -487,6 +498,7 @@ async function routeControlRequest(
       op: 'ping',
       version: currentVersion(),
       proto: MERCURY_DAEMON_PROTO,
+      working: Math.max(0, answering - 1),
     })
   }
   if (op === 'hello') {

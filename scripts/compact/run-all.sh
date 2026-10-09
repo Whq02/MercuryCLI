@@ -7,6 +7,7 @@
 # gate-watch: scripts/api/wire-prefix-replay.ts scripts/daemon/dupline-world.ts scripts/lib/* scripts/messages/dialectFixture.ts
 # gate-watch: scripts/provider-compat/fixtures/huggingface-models-2026-08-22.json src/* src/bootstrap/state.ts
 # gate-watch: src/commands/compact/** src/components/* src/components/PromptInput/Notifications.tsx
+# gate-watch: src/components/tasks/BackgroundTasksDialog.tsx src/commands.ts
 # gate-watch: src/components/messages/CompactBoundaryMessage.tsx
 # gate-watch: src/components/messages/nullRenderingAttachments.ts src/constants/betas.ts
 # gate-watch: src/daemon/sessionSeat.ts src/query/deps.ts src/query/transitions.ts

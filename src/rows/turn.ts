@@ -9,7 +9,7 @@ import type { Terminal } from '../query/transitions.js'
 import type { RunEvent } from '../run-core/events.js'
 import { legacyYieldsOf } from '../run-core/project-legacy.js'
 import type { QueryParams } from '../run-core/turn-machine.js'
-import { categorizeRetryableAPIError } from '../services/api/errors.js'
+import { retryReasonWords } from '../services/providers/streamIdleBudget.js'
 import { EMPTY_USAGE, type NonNullableUsage } from '../services/api/emptyUsage.js'
 import { accumulateUsage, updateUsage } from '../services/providers/anthropic/cacheAndUsage.js'
 import type { Tools, ToolUseContext } from '../Tool.js'
@@ -849,13 +849,14 @@ export class Conversation {
               this.mutableMessages.push(systemMessage)
               turnMessages.push(systemMessage)
               await recordDelta()
-              const apiError = systemMessage as { retryAttempt?: number; maxRetries?: number; retryInMs?: number; errorDetail?: { status?: number | null }; error?: { status?: number | null } }
+              const apiError = systemMessage as { retryAttempt?: number; maxRetries?: number; retryInMs?: number; errorDetail?: { status?: number | null }; error?: { status?: number | null; message?: string } }
+              const httpStatus = apiError.errorDetail?.status ?? apiError.error?.status ?? null
               yield retryWaitRow(scope, {
                 attempt: apiError.retryAttempt,
                 of: apiError.maxRetries,
-                reason: categorizeRetryableAPIError(apiError.error),
+                reason: retryReasonWords(httpStatus, apiError.error?.message),
                 delayMs: apiError.retryInMs,
-                httpStatus: apiError.errorDetail?.status ?? apiError.error?.status ?? null,
+                httpStatus,
                 sinceMs: Date.now() - turnStartedAt,
               })
               break

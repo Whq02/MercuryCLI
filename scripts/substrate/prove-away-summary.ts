@@ -233,6 +233,32 @@ section('(h) buildAwayRecap — structured fields + buildAwaySummary stays a thi
   check('multi-text assistant mentioning the words is NOT treated as synthetic', realSameText?.lastActiveGapMs === NOW - Date.parse('2026-01-01T11:30:00.000Z'))
 }
 
+section('(e2) every tool the transcript names is counted — a ChangeSet and its files among them')
+{
+  const changeSet = {
+    type: 'assistant', uuid: uid(), timestamp: '2026-01-01T11:00:00.000Z',
+    message: { id: uid(), role: 'assistant', content: [{ type: 'tool_use', id: uid(), name: 'ChangeSet', input: { op: 'apply', changes: [{ file_path: '/repo/a.ts', expected_anchor: 'x', hunks: [] }, { file_path: '/repo/b.ts', expected_anchor: 'y', hunks: [] }] } }] },
+  }
+  const withChangeSet = buildAwayRecap([userTurn('land the pair', '2026-01-01T10:59:00.000Z'), changeSet] as any, NOW)
+  check('a ChangeSet turn names the tool', withChangeSet?.topTools === 'ChangeSet×1', String(withChangeSet?.topTools))
+  check("a ChangeSet's files count as touched (changes[].file_path)", withChangeSet?.filesTouched === 2, String(withChangeSet?.filesTouched))
+  check('the line carries both', withChangeSet?.line === 'Resumed — 1 turn, 2 files touched, last active 1h ago · ChangeSet×1', String(withChangeSet?.line))
+  const failedId = uid()
+  const failedChangeSet = [
+    userTurn('try the pair', '2026-01-01T10:59:00.000Z'),
+    { type: 'assistant', uuid: uid(), timestamp: '2026-01-01T11:00:00.000Z', message: { id: uid(), role: 'assistant', content: [{ type: 'tool_use', id: failedId, name: 'ChangeSet', input: { op: 'apply', changes: [{ file_path: '/repo/a.ts', expected_anchor: 'x', hunks: [] }] } }] } },
+    { type: 'user', uuid: uid(), timestamp: '2026-01-01T11:00:30.000Z', message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: failedId, content: 'refused', is_error: true }] } },
+  ]
+  const refused = buildAwayRecap(failedChangeSet as any, NOW)
+  check('a refused ChangeSet touches no file and counts as a failed call', refused?.filesTouched === 0 && refused?.toolFailures === 1, `${refused?.filesTouched} / ${refused?.toolFailures}`)
+  for (const name of ['NotebookEdit', 'AstEdit', 'Structure', 'Git', 'PowerShell', 'TaskCreate', 'mcp__docs__search']) {
+    const one = buildAwayRecap([userTurn('go', '2026-01-01T10:59:00.000Z'), asst('2026-01-01T11:00:00.000Z', [{ name }])] as any, NOW)
+    check(`${name} is counted like any other tool`, one?.topTools === `${name}×1`, String(one?.topTools))
+  }
+  const src = readFileSync(join(import.meta.dir, '..', '..', 'src', 'utils', 'cockpit', 'awaySummary.ts'), 'utf-8')
+  check('no hand-kept list of counted tool names remains in the recap builder', !/COUNTED_TOOLS|new Set<string>\(\[\s*'Edit'/.test(src))
+}
+
 section('(f) wiring — the resume hop builds the recap and paints the display card')
 {
   const hop = readFileSync(join(import.meta.dir, '..', '..', 'src', 'services', 'switchboard', 'hopIntoSession.ts'), 'utf-8')

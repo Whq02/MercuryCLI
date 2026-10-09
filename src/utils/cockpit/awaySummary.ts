@@ -14,19 +14,6 @@ export function isAwaySummaryEnabled(): boolean {
   return isMercurySubstrateProfileOn()
 }
 
-const COUNTED_TOOLS = new Set<string>([
-  'Edit',
-  'Write',
-  'Read',
-  'Bash',
-  'Grep',
-  'Glob',
-  'Agent',
-  'WebFetch',
-  'WebSearch',
-  'ProviderSearch',
-])
-
 export function humanGap(ms: number): string {
   if (!Number.isFinite(ms) || ms < 0) return ''
   const min = Math.floor(ms / 60_000)
@@ -57,14 +44,23 @@ function isSyntheticOrMeta(m: Message): boolean {
   return um.isMeta === true
 }
 
-function fileOf(input: unknown): string | undefined {
-  if (!input || typeof input !== 'object') return undefined
+function filesOf(input: unknown): string[] {
+  if (!input || typeof input !== 'object') return []
   const o = input as Record<string, unknown>
+  const out: string[] = []
   for (const k of ['file_path', 'notebook_path', 'path']) {
     const v = o[k]
-    if (typeof v === 'string' && v.length > 0) return v
+    if (typeof v === 'string' && v.length > 0) {
+      out.push(v)
+      break
+    }
   }
-  return undefined
+  if (Array.isArray(o.changes)) {
+    for (const change of o.changes as Array<{ file_path?: unknown }>) {
+      if (typeof change?.file_path === 'string' && change.file_path.length > 0) out.push(change.file_path)
+    }
+  }
+  return out
 }
 
 export type AwayRecap = {
@@ -175,10 +171,10 @@ export function collectAwayWork(
     if (isSyntheticOrMeta(m) || m.type !== 'assistant' || !Array.isArray(m.message.content)) continue
     for (const raw of m.message.content) {
       const b = raw as Block
-      if (b.type !== 'tool_use' || typeof b.name !== 'string') continue
-      if (COUNTED_TOOLS.has(b.name)) toolCounts.set(b.name, (toolCounts.get(b.name) ?? 0) + 1)
-      const file = fileOf(b.input)
-      if (file && !(typeof b.id === 'string' && failedToolUseIds.has(b.id))) files.add(file)
+      if (b.type !== 'tool_use' || typeof b.name !== 'string' || b.name.length === 0) continue
+      toolCounts.set(b.name, (toolCounts.get(b.name) ?? 0) + 1)
+      if (typeof b.id === 'string' && failedToolUseIds.has(b.id)) continue
+      for (const file of filesOf(b.input)) files.add(file)
     }
   }
   return { turns, toolCounts: [...toolCounts], files: [...files], toolFailures, failedToolUseIds: [...failedToolUseIds] }
