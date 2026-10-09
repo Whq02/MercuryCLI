@@ -162,26 +162,13 @@ export async function getNestedMemoryAttachmentsForFile(
 export async function getNestedMemoryAttachments(
   toolUseContext: ToolUseContext,
 ): Promise<Attachment[]> {
-  if (
-    !toolUseContext.nestedMemoryAttachmentTriggers ||
-    toolUseContext.nestedMemoryAttachmentTriggers.size === 0
-  ) {
-    return []
-  }
-
+  const triggers = toolUseContext.nestedMemoryAttachmentTriggers
+  if (!triggers?.size) return []
   const appState = toolUseContext.getAppState()
-  const attachments: Attachment[] = []
-
-  for (const filePath of toolUseContext.nestedMemoryAttachmentTriggers) {
-    const nestedAttachments = await getNestedMemoryAttachmentsForFile(
-      filePath,
-      toolUseContext,
-      appState,
-    )
-    attachments.push(...nestedAttachments)
+  const loads: Attachment[][] = []
+  for (const touched of triggers) {
+    loads.push(await getNestedMemoryAttachmentsForFile(touched, toolUseContext, appState))
   }
-
-  toolUseContext.nestedMemoryAttachmentTriggers.clear()
-
-  return attachments
+  triggers.clear()
+  return loads.flat()
 }
