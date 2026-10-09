@@ -12,7 +12,7 @@ function check(label: string, ok: boolean, detail = ''): void {
 }
 check('Git defers ordinary commits to the repository workflow through Bash', prompt.split('\n')[0]!.includes('repository commit workflow uses Bash'), prompt.split('\n')[0])
 check('Git offers typed plans without claiming precedence over Bash', !prompt.includes('Use this over git in Bash') && prompt.includes('optional'), prompt.split('\n')[0])
-check('the repository workflow still names Bash and the quoted-heredoc commit', rules.includes('each through the Bash tool') && rules.includes('git commit -m "$(cat <<\'EOF\''), rules)
-check('the explicitly requested typed plan road remains available', prompt.includes('op:"plan"') && prompt.includes('op:"apply"') && prompt.includes('COMMITS NOTHING'), prompt)
+check('the repository workflow still names Bash and the quoted-heredoc commit', rules.includes('run by the Bash tool') && rules.includes('git commit -m "$(cat <<\'EOF\''), rules)
+check('the explicitly requested typed plan road remains available', prompt.includes('op:"plan"') && prompt.includes('op:"apply"') && prompt.includes('it commits nothing'), prompt)
 console.log(`git-commit-road: ${failures} failures`)
 process.exit(failures ? 1 : 0)
