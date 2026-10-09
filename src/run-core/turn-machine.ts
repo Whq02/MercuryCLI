@@ -791,7 +791,7 @@ async function* streamModel(
           yield emit({
             kind: 'notice',
             message: createSystemMessage(
-              `Switched to ${renderModelName(innerError.fallbackModel)} due to high demand for ${renderModelName(innerError.originalModel)}`,
+              `${renderModelName(innerError.originalModel)} is overloaded; this turn runs on ${renderModelName(innerError.fallbackModel)} instead`,
               'warning',
             ),
           })
