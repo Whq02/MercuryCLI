@@ -88,7 +88,7 @@ import { SEAT_DOORS, seatCeilingFactsAsync, seatCeilingValueWords, seatCostWarni
 import { MOTION_DOORS, MOTION_SETTINGS, motionDetailLines, motionValueWords, noteMotionSettingChanged, readMotionSetting, setMotionSetting } from '../../utils/cockpit/motionSetting.js'
 import { jevSessionFacts, jevSessionFactsStamp, jevSessionStatus, subscribeJevSessionFacts } from '../../services/jev/jevSessionFacts.js'
 import { jevSettingLines, jevValueWords, readJevSettings, setJevEnabled } from '../../services/jev/jevSetting.js'
-import { BACKGROUND_LAUNCH_KEY, BACKGROUND_LAUNCH_LABEL, backgroundLaunchDetailLines, backgroundLaunchValueWords, backgroundSessionsLaunchCrewmates, BACKGROUND_LAUNCH_SUMMARY, setBackgroundSessionsLaunchCrewmates } from '../../services/switchboard/backgroundLaunch.js'
+import { BACKGROUND_LAUNCH_DOORS, BACKGROUND_LAUNCH_KEY, BACKGROUND_LAUNCH_LABEL, BACKGROUND_LAUNCH_NOTE, BACKGROUND_LAUNCH_SUMMARY, backgroundLaunchValueWords, backgroundSessionsLaunchCrewmates, setBackgroundSessionsLaunchCrewmates } from '../../services/switchboard/backgroundLaunch.js'
 import { jevStatusLine } from '../../services/jev/jevStatus.js'
 import { subagentDefaultsOf } from '../../utils/agentDefaults.js'
 import { agentFanoutCap } from '../../constants/subagentDoctrine.js'
@@ -1200,7 +1200,7 @@ export function Config({
     searchText: 'crewmate sub-agent subagent workflow backgrounded background session launch delegate workflows-allowed tag visit',
     kind: 'boolean',
     value: <Text color={backgroundLaunchOn ? tokens.success : tokens.textSecondary}>{backgroundLaunchValueWords(backgroundLaunchOn)}</Text>,
-    warning: [BACKGROUND_LAUNCH_SUMMARY, ...backgroundLaunchDetailLines(backgroundLaunchOn).slice(1)].join(' · '),
+    warning: `${BACKGROUND_LAUNCH_SUMMARY} · ${BACKGROUND_LAUNCH_NOTE} · doors: ${BACKGROUND_LAUNCH_DOORS}`,
     change: () => {
       const next = !backgroundLaunchOn
       setBackgroundSessionsLaunchCrewmates(next)

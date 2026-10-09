@@ -52,6 +52,14 @@ import {
   setJevEnabled,
 } from '../services/jev/jevSetting.js';
 import { jevStatusLine } from '../services/jev/jevStatus.js';
+import {
+  BACKGROUND_LAUNCH_MENU_ROW,
+  backgroundLaunchDetailLines,
+  backgroundLaunchReceiptWords,
+  backgroundLaunchValueWords,
+  backgroundSessionsLaunchCrewmates,
+  setBackgroundSessionsLaunchCrewmates,
+} from '../services/switchboard/backgroundLaunch.js';
 import { daemonControlRpc } from '../daemon/controlSocket.js';
 import type { DaemonRequest } from '../daemon/protocol.js';
 import { getFocusedSessionConnector, hasFocusedSession } from '../services/engine-connector/focusedConnector.js';
@@ -88,20 +96,30 @@ function savedChoicesByRow(profile: BootDefaultsProfileV1 | null): Record<string
 
 export const JEV_BOOT_DETAIL_WIDTH = 41;
 
-export function withJevRow(rows: readonly MenuRow[]): MenuRow[] {
-  const jev = JEV_MENU_ROW as MenuRow;
+function withGroupRow(rows: readonly MenuRow[], row: MenuRow): MenuRow[] {
   let after = -1;
-  rows.forEach((row, i) => {
-    if (row.group === jev.group) after = i;
+  rows.forEach((r, i) => {
+    if (r.group === row.group) after = i;
   });
-  if (after < 0) return [...rows, jev];
-  return [...rows.slice(0, after + 1), jev, ...rows.slice(after + 1)];
+  if (after < 0) return [...rows, row];
+  return [...rows.slice(0, after + 1), row, ...rows.slice(after + 1)];
+}
+
+export function withJevRow(rows: readonly MenuRow[]): MenuRow[] {
+  return withGroupRow(withGroupRow(rows, BACKGROUND_LAUNCH_MENU_ROW as MenuRow), JEV_MENU_ROW as MenuRow);
+}
+
+function bootDetailLines(facts: readonly string[]): string[] {
+  return facts.flatMap(line => wrapText(line, JEV_BOOT_DETAIL_WIDTH, 'wrap').split('\n'));
 }
 
 export function jevBootDetailLines(): string[] {
   const settings = readJevSettings();
-  const facts = [jevStatusLine(), jevKeySourceWords(jevKeyPresence()), ...jevSettingLines(settings)];
-  return facts.flatMap(line => wrapText(line, JEV_BOOT_DETAIL_WIDTH, 'wrap').split('\n'));
+  return bootDetailLines([jevStatusLine(), jevKeySourceWords(jevKeyPresence()), ...jevSettingLines(settings)]);
+}
+
+export function backgroundLaunchBootDetailLines(on: boolean): string[] {
+  return bootDetailLines(backgroundLaunchDetailLines(on));
 }
 
 interface WorkerApplySummary {
@@ -167,10 +185,20 @@ export function BootSettingsScreen({
   const [jevTick, setJevTick] = useState(0);
   const jevSettings = useMemo(() => readJevSettings(), [jevTick, saveTick]);
   const jevDetailLines = useMemo(() => jevBootDetailLines(), [jevTick, saveTick]);
+  const [backgroundLaunchTick, setBackgroundLaunchTick] = useState(0);
+  const backgroundLaunchOn = useMemo(() => backgroundSessionsLaunchCrewmates(), [backgroundLaunchTick, saveTick]);
   const menuRows = useMemo<readonly MenuRow[]>(() => [...withJevRow(STARTUP_MENU), SEATS_MENU_ROW as MenuRow, MOTION_MENU_ROW as MenuRow], []);
   const isSeatsRow = (row: MenuRow): boolean => row.env === SEATS_MENU_ROW.env;
   const isMotionRow = (row: MenuRow): boolean => row.env === MOTION_MENU_ROW.env;
   const isJevRow = (row: MenuRow): boolean => row.env === JEV_MENU_ROW.env;
+  const isBackgroundLaunchRow = (row: MenuRow): boolean => row.env === BACKGROUND_LAUNCH_MENU_ROW.env;
+  const commitBackgroundLaunch = (next: boolean): string => {
+    const on = setBackgroundSessionsLaunchCrewmates(next);
+    setBackgroundLaunchTick(n => n + 1);
+    const words = backgroundLaunchReceiptWords(on);
+    setLastReceipt(words);
+    return words;
+  };
   const commitMotion = (next: MotionSetting): string => {
     setMotionSetting(next);
     setMotionTick(n => n + 1);
@@ -292,6 +320,7 @@ export function BootSettingsScreen({
     if (isSeatsRow(row)) return commitSeats(value === null ? null : Number(value));
     if (isMotionRow(row)) return commitMotion(value === null ? 'auto' : (value as MotionSetting));
     if (isJevRow(row)) return commitJev(value === 'on');
+    if (isBackgroundLaunchRow(row)) return commitBackgroundLaunch(value === 'on');
     const env: Record<string, string> = { ...saved };
     if (value === null) delete env[row.env];
     else env[row.env] = value;
@@ -317,6 +346,7 @@ export function BootSettingsScreen({
       return commitMotion(MOTION_SETTINGS[((at < 0 ? 0 : at) + direction + MOTION_SETTINGS.length) % MOTION_SETTINGS.length]!);
     }
     if (isJevRow(row)) return commitJev(!jevSettings.enabled);
+    if (isBackgroundLaunchRow(row)) return commitBackgroundLaunch(!backgroundLaunchOn);
     const choices = menuRowChoices(row);
     const currentValue = saved[row.env] ?? null;
     const idx = Math.max(0, choices.findIndex(c => c.value === currentValue));
@@ -439,6 +469,18 @@ export function BootSettingsScreen({
           detailExtra: jevDetailLines,
         };
       }
+      if (isBackgroundLaunchRow(row)) {
+        return {
+          label: row.label,
+          group: row.group,
+          summary: row.summary,
+          valueLabel: backgroundLaunchValueWords(backgroundLaunchOn),
+          valueIsDefault: !backgroundLaunchOn,
+          pinnedVal: null,
+          detail: row.detail ?? null,
+          detailExtra: backgroundLaunchBootDetailLines(backgroundLaunchOn),
+        };
+      }
       const effective = effectiveByEnv.get(row.env);
       const envPinned = effective?.source === 'process-env';
       return {
@@ -493,7 +535,7 @@ export function BootSettingsScreen({
         : {}),
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [saved, effectiveByEnv, seatFacts, motionSetting, jevSettings, jevDetailLines, list.selectedIndex, list.note, lastReceipt, changed, liveCount, apply, mainModel, dirTail, profile, concourseLive, plainWorld, chatBoot, wordGlow?.peakCell, wordGlow?.gainLevel]);
+  }, [saved, effectiveByEnv, seatFacts, motionSetting, jevSettings, jevDetailLines, backgroundLaunchOn, list.selectedIndex, list.note, lastReceipt, changed, liveCount, apply, mainModel, dirTail, profile, concourseLive, plainWorld, chatBoot, wordGlow?.peakCell, wordGlow?.gainLevel]);
 
   const composition = useMemo(() => {
     const menu = core.composeBootMenu(columns, rows, menuM) as {

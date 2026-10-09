@@ -103,7 +103,7 @@ console.log('§2 selected, the row explains itself; → turns it on and the valv
   await search(m, 'backgrounded')
   check('the row is the one selected', rowLine(m).startsWith(`${CONFIG_ROW_MARK} ${ROW}`), rowLine(m))
   check('its value reads off', shown(m) === 'off', rowLine(m))
-  check('the selected row explains what it does and what stays as it was', belowRow(m).includes('whether a session you have left in the background may launch crewmates and workflows when its brief says so') && belowRow(m).includes("the session's own Crewmates and Workflows switches still rule first") && belowRow(m).includes('doors: the Crewmates while backgrounded row of /config'), belowRow(m))
+  check('the selected row explains what it does and what stays as it was', belowRow(m).includes('whether a session you have left in the background may launch crewmates and workflows when its brief says so') && belowRow(m).includes("the session's own Crewmates and Workflows switches still rule first") && belowRow(m).includes('doors: /config · Boot Menu (one switch)'), belowRow(m))
   m.push(KEY.right)
   await settle(200)
   check('→ turns it on: the row reads on', shown(m) === 'on', rowLine(m))
