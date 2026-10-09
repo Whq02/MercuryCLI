@@ -96,7 +96,7 @@ import {
 import { PERMISSION_MODES, modeBypassesPermissions, type PermissionMode } from './utils/permissions/PermissionMode.js'
 import { MODE_GLOSS } from './utils/settings/validationTips.js'
 import { profileCheckpoint, profileReport } from './utils/startupProfiler.js'
-import { resetUserCache, getCoreUserData } from './utils/user.js'
+import { resetUserCache } from './utils/user.js'
 import { settingsChangeDetector } from './utils/settings/changeDetector.js'
 import { skillChangeDetector } from './utils/skills/skillChangeDetector.js'
 import { getSettingsWithErrors, getInitialSettings } from './utils/settings/settings.js'
@@ -2239,7 +2239,6 @@ export function startDeferredPrefetches(): void {
     .catch((error: unknown) => logForDebugging(`client contract: the daily peek did not start: ${String(error)}`))
   void (async () => {
     try {
-      void getCoreUserData()
       void getUserContext().catch(() => {})
       if (!getIsInteractive()) {
         logForDiagnosticsNoPII('info', 'prefetch_system_context_non_interactive')
