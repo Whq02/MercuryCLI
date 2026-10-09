@@ -19,6 +19,8 @@ import { xaiCallModel, xaiLiveProofState } from './xai/xaiCallModel.js'
 import { resolveXaiCredentialSnapshot } from './xai/xaiAccounts.js'
 import { metaCallModel, metaLiveProofState } from './meta/metaCallModel.js'
 import { resolveMetaApiKey } from './meta/metaAccounts.js'
+import { zenCallModel, zenLiveProofState } from './zen/zenCallModel.js'
+import { resolveZenApiKey } from './zen/zenAccounts.js'
 import { compatCallModel, compatSlotLiveProofState } from './openaicompat/compatCallModel.js'
 import { resolveCompatSlotConfig } from './openaicompat/compatAccounts.js'
 import {
@@ -45,6 +47,7 @@ export type PrimaryBackendId =
   | 'gemini-generate'
   | 'huggingface-chat'
   | 'local-chat'
+  | 'zen-gateway'
 
 export interface AgentRuntimeRef {
   contractVersion: typeof APEX_BACKEND_CONTRACT_VERSION
@@ -62,6 +65,7 @@ export interface AgentRuntimeRef {
     | 'gemini'
     | 'huggingface'
     | 'local'
+    | 'zen'
   route: CallModelRoute | 'unrecognised' | 'absence'
   canonicalModel: string
   family:
@@ -77,6 +81,7 @@ export interface AgentRuntimeRef {
     | { kind: 'gemini' }
     | { kind: 'huggingface' }
     | { kind: 'local' }
+    | { kind: 'zen' }
     | { kind: 'unknown' }
   walletEntryId?: string
 }
@@ -200,6 +205,17 @@ const metaBackend: PrimaryAgentBackend = {
       : { state: 'configured', detail: 'key present · no live turn proven this session' }
   },
 }
+const zenBackend: PrimaryAgentBackend = {
+  id: 'zen-gateway', provider: 'zen', label: 'OpenCode Zen (gateway, in-process)',
+  callModel: zenCallModel as unknown as typeof queryModelWithStreaming,
+  readiness: (): BackendReadiness => {
+    if (!resolveZenApiKey()) return { state: 'unavailable', reason: 'no API key (/logins zen, or OPENCODE_API_KEY)' }
+    const proof = zenLiveProofState()
+    return proof
+      ? { state: 'ready', detail: `live turn settled this session (${proof.model})` }
+      : { state: 'configured', detail: 'key present · no live turn proven this session' }
+  },
+}
 const compatBackend: PrimaryAgentBackend = {
   id: 'openai-compat-chat',
   provider: 'openai-compat',
@@ -310,6 +326,7 @@ const BACKENDS: Record<CallModelRoute, PrimaryAgentBackend> = {
   gemini: geminiBackend,
   huggingface: huggingfaceBackend,
   local: localBackend,
+  zen: zenBackend,
 }
 
 export function resolvePrimaryAgentBackend(model: string | undefined): PrimaryAgentBackend | null {
@@ -356,6 +373,8 @@ export function describeAgentRuntimeRef(model: string | undefined): AgentRuntime
     family = { kind: 'huggingface' }
   } else if (route === 'local') {
     family = { kind: 'local' }
+  } else if (route === 'zen') {
+    family = { kind: 'zen' }
   } else {
     family = canonical.toLowerCase().includes('claude') ? { kind: 'claude' } : { kind: 'unknown' }
   }
