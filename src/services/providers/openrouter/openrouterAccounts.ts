@@ -14,6 +14,7 @@ import {
   generateCodeVerifier,
 } from '../../oauth/crypto.js'
 import { readStoredOpenrouterApiKey } from '../../../utils/router/providerSecrets.js'
+import { credentialFingerprint } from '../credentialIdentity.js'
 
 
 const OPENROUTER_AUTH_PAGE = 'https://openrouter.ai/auth'
@@ -46,6 +47,7 @@ export interface OpenrouterMintedKey {
 interface OpenrouterAuthFile {
   version: number
   minted?: OpenrouterMintedKey
+  refused?: unknown
   [k: string]: unknown
 }
 
@@ -102,6 +104,75 @@ export function markOpenrouterMintedKeyExpired(expected: OpenrouterMintedKey, me
     minted: { ...current, expiredMessage: message || 'key endpoint returned HTTP 401' },
   }))
   return true
+}
+
+export const OPENROUTER_AUTH_REMEDY =
+  '/logins reconnects OpenRouter (the OAuth flow mints a fresh key), or set a valid OPENROUTER_API_KEY.'
+
+export interface OpenrouterKeyRefusal {
+  fingerprint: string
+  source: OpenrouterKeySource
+  status: number
+  message: string
+  observedAtMs: number
+}
+
+function refusalOf(file: OpenrouterAuthFile | null): OpenrouterKeyRefusal | undefined {
+  const raw = file?.refused
+  if (typeof raw !== 'object' || raw === null) return undefined
+  const r = raw as Record<string, unknown>
+  if (typeof r.fingerprint !== 'string' || typeof r.status !== 'number' || typeof r.message !== 'string') return undefined
+  const source = r.source === 'env' || r.source === 'oauth' || r.source === 'stored' ? r.source : undefined
+  if (source === undefined) return undefined
+  return { fingerprint: r.fingerprint, source, status: r.status, message: r.message, observedAtMs: typeof r.observedAtMs === 'number' ? r.observedAtMs : 0 }
+}
+
+export function openrouterKeySourceWords(source: OpenrouterKeySource): string {
+  return source === 'env' ? 'the OPENROUTER_API_KEY key' : source === 'oauth' ? 'the OAuth-minted key' : 'the stored key'
+}
+
+export function openrouterRefusalNote(refusal: Pick<OpenrouterKeyRefusal, 'source' | 'status' | 'message'>): string {
+  return `OpenRouter refused ${openrouterKeySourceWords(refusal.source)} (HTTP ${refusal.status}: ${refusal.message}) — ${OPENROUTER_AUTH_REMEDY}`
+}
+
+export function markOpenrouterKeyRefused(
+  key: { key: string; source: OpenrouterKeySource },
+  status: number,
+  message: string,
+  now: () => number = Date.now,
+): void {
+  const refused: OpenrouterKeyRefusal = {
+    fingerprint: credentialFingerprint(key.key),
+    source: key.source,
+    status,
+    message: message.trim() || `HTTP ${status}`,
+    observedAtMs: now(),
+  }
+  writeAuthFile(file => ({ ...file, refused }))
+}
+
+export function clearOpenrouterKeyRefusal(key: { key: string } | undefined): void {
+  if (key === undefined) return
+  const current = refusalOf(readAuthFile())
+  if (current === undefined || current.fingerprint !== credentialFingerprint(key.key)) return
+  forgetOpenrouterKeyRefusal()
+}
+
+export function forgetOpenrouterKeyRefusal(): void {
+  if (refusalOf(readAuthFile()) === undefined) return
+  writeAuthFile(file => {
+    const next = { ...file }
+    delete next.refused
+    return next
+  })
+}
+
+export function openrouterKeyRefusal(env: NodeJS.ProcessEnv = process.env): OpenrouterKeyRefusal | undefined {
+  const active = resolveOpenrouterApiKey(env)
+  if (active === undefined) return undefined
+  const current = refusalOf(readAuthFile())
+  if (current === undefined || current.fingerprint !== credentialFingerprint(active.key)) return undefined
+  return { ...current, source: active.source }
 }
 
 
@@ -279,10 +350,11 @@ export function beginOpenrouterConnect(opts?: {
     exchangeInFlight = true
     try {
       const key = await exchangeOpenrouterCode(code, verifier, fetchImpl, env)
-      writeAuthFile(file => ({
-        ...file,
-        minted: { key, mintedAtMs: Date.now(), label: OPENROUTER_KEY_LABEL },
-      }))
+      writeAuthFile(file => {
+        const next = { ...file, minted: { key, mintedAtMs: Date.now(), label: OPENROUTER_KEY_LABEL } }
+        delete next.refused
+        return next
+      })
       recordSignIn('openrouter', 'oauth')
       const ref: OpenrouterAccountRef = {
         provider: 'openrouter',

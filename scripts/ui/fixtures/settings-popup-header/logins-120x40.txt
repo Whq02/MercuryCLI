@@ -8,9 +8,9 @@ NEXT                    │ ╭────────────────�
   · /memory — memory    │ │                                                                                          │ │
   · /mission — set a mi…│ │ Sign in                                                                                  │ │
                         │ │                                                                                          │ │
-FILES · orchard         │ │ Use a Claude or OpenAI subscription, usage-based billing, or connect OpenRouter, Gemini, │ │
-  ↵ or click · browse   │ │ Hugging Face, Kimi, GLM, DeepSeek, xAI, Meta, Mistral or Nous Portal. To add an API key  │ │
-                        │ │ from the terminal, run /router key <provider>.                                           │ │
+FILES · orchard         │ │ Use a Claude or OpenAI subscription, usage-based billing, or connect OpenRouter, Google  │ │
+  ↵ or click · browse   │ │ Gemini, Hugging Face, Kimi (Moonshot), GLM (Z.AI), DeepSeek, xAI, Meta, Mistral, Nous    │ │
+                        │ │ Portal or OpenCode Zen. To add an API key from the terminal, run /router key <provider>. │ │
 VITALS                  │ │                                                                                          │ │
   · spend —             │ │   OpenAI — ChatGPT subscription or API key                                               │ │
   · ctx — · —           │ │ ❯ Claude subscription account                                                            │ │

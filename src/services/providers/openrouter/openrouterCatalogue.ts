@@ -15,6 +15,9 @@ import { bumpCatalogueEpoch } from '../catalogueEpoch.js'
 import { catalogueTrafficVerdict, connectToBrowseReason } from '../catalogueGate.js'
 import {
   openrouterApiBase,
+  openrouterKeyRefusal,
+  openrouterRefusalNote,
+  resolveOpenrouterAccount,
   resolveOpenrouterRequestAuth,
   type OpenrouterKeySource,
 } from './openrouterAccounts.js'
@@ -320,6 +323,10 @@ export function getOpenrouterAvailability(
       reason: `${connectToBrowseReason('openrouter')} — /logins connects`,
     }
   }
+  const refused = openrouterKeyRefusal(env)
+  if (refused !== undefined) {
+    return { state: 'disabled', why: 'auth-invalid', reason: openrouterRefusalNote(refused) }
+  }
   const keySource = auth.account.keySource
   const snapshot = getCachedOpenrouterCatalogue(keySource)
   const verdict = catalogueTrafficVerdict('openrouter', env)
@@ -450,6 +457,9 @@ export function getOpenrouterModelOptions(
   const availability = getOpenrouterAvailability(env)
   if (availability.state === 'disabled') {
     const signIn = availability.why === 'no-account' || availability.why === 'auth-invalid'
+    const refused = availability.why === 'auth-invalid'
+    const refusedSource = refused ? resolveOpenrouterAccount(env) : undefined
+    const refusedModels = refusedSource !== undefined ? (getCachedOpenrouterCatalogue(refusedSource.keySource, env)?.models ?? []) : []
     return [
       {
         value: OPENROUTER_CONNECT_OPTION_VALUE,
@@ -462,17 +472,24 @@ export function getOpenrouterModelOptions(
               : availability.why === 'no-models'
                 ? 'OpenRouter — no models listed'
                 : 'OpenRouter — connecting…',
-        description: signIn
-          ? `${connectToBrowseReason('openrouter')} — ↵ runs /logins`
-          : availability.why === 'traffic-off'
-            ? availability.reason
-            : `rows appear when the live catalogue lands (${availability.reason}) — ↵ retries now`,
+        description: refused
+          ? `${availability.reason} — ↵ runs /logins`
+          : signIn
+            ? `${connectToBrowseReason('openrouter')} — ↵ runs /logins`
+            : availability.why === 'traffic-off'
+              ? availability.reason
+              : `rows appear when the live catalogue lands (${availability.reason}) — ↵ retries now`,
         descriptionForModel:
-          availability.why === 'traffic-off'
-            ? `Catalogue traffic is switched off (${availability.reason}); no model-list request is made and the live-only OpenRouter list stays empty until it is re-enabled.`
-            : 'The OpenRouter group is not connected — no catalogue is fetched while signed out; the operator signs in with /logins and the model list then derives live from the OpenRouter catalogue.',
+          refused
+            ? `${availability.reason} Every OpenRouter row is unavailable until a key OpenRouter accepts is connected.`
+            : availability.why === 'traffic-off'
+              ? `Catalogue traffic is switched off (${availability.reason}); no model-list request is made and the live-only OpenRouter list stays empty until it is re-enabled.`
+              : 'The OpenRouter group is not connected — no catalogue is fetched while signed out; the operator signs in with /logins and the model list then derives live from the OpenRouter catalogue.',
         group: OPENROUTER_MODEL_GROUP,
       },
+      ...(refusedSource !== undefined && refusedModels.length > 0
+        ? openrouterCatalogueRows(refusedModels, refusedSource.label, openrouterDispatchReady(), OPENROUTER_PICKER_ROW_BOUND).map(row => ({ ...row, unavailable: availability.reason }))
+        : []),
     ]
   }
   const wireReady = openrouterDispatchReady()

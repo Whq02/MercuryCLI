@@ -163,78 +163,118 @@ def pytest_addoption(parser):
     parser.addoption("--mercury-report", action="store", default="mercury-report.ndjson")
 `
 
-const UNITTEST_RUNNER_SOURCE = `
-import json, sys, time, unittest
+export const UNITTEST_RUNNER_SOURCE = `
+import json, os, sys, time, unittest
 
-report_path = sys.argv[1]
-mode = sys.argv[2]            # discover | run
-start_dir = sys.argv[3]
-selection = sys.argv[4:]      # node ids for run (empty = all)
-# A by-name load imports from the project root the way discover() does:
-# the runner script lives elsewhere, so the root is not on sys.path by
-# itself, and a rerun of one failing test must import its module the same
-# way the full run did.
-if start_dir not in sys.path:
-    sys.path.insert(0, start_dir)
-
-out = open(report_path, "a")
-def emit(obj):
-    out.write(json.dumps(obj) + "\\n")
-    out.flush()
-
-def iter_tests(suite):
-    for item in suite:
-        if isinstance(item, unittest.TestSuite):
-            yield from iter_tests(item)
+def selection_plan(start_dir, items, osp=os.path, isfile=None, isdir=None):
+    isfile = osp.isfile if isfile is None else isfile
+    isdir = osp.isdir if isdir is None else isdir
+    root = osp.abspath(start_dir)
+    def inside(target):
+        try:
+            rel = osp.relpath(target, root)
+        except ValueError:
+            return None
+        if rel == osp.curdir:
+            return ""
+        if rel.startswith(osp.pardir) or osp.isabs(rel):
+            return None
+        return osp.normpath(rel)
+    plan = []
+    for item in items:
+        if isdir(item):
+            folder = osp.abspath(item)
+            rel = inside(folder)
+            packaged = rel == "" or (rel is not None and isfile(osp.join(folder, "__init__.py")))
+            plan.append({"kind": "folder", "start": folder, "top": root if packaged else folder})
+        elif isfile(item) and item.lower().endswith(".py"):
+            path = osp.abspath(item)
+            rel = inside(path)
+            if rel is None:
+                plan.append({"kind": "file", "start": osp.dirname(path), "top": osp.dirname(path), "pattern": osp.basename(path)})
+            else:
+                plan.append({"kind": "name", "name": rel[:-3].replace("\\\\", ".").replace("/", ".")})
         else:
-            yield item
+            plan.append({"kind": "name", "name": item})
+    return plan
 
-loader = unittest.TestLoader()
-if selection:
-    suite = unittest.TestSuite()
-    for node in selection:
-        suite.addTests(loader.loadTestsFromName(node))
-else:
-    suite = loader.discover(start_dir)
+if __name__ == "__main__":
+    report_path = sys.argv[1]
+    mode = sys.argv[2]
+    start_dir = sys.argv[3]
+    selection = sys.argv[4:]
+    if start_dir not in sys.path:
+        sys.path.insert(0, start_dir)
 
-if loader.errors:
-    for err in loader.errors:
-        emit({"t": "collect-error", "id": "loader", "message": str(err)[:800]})
+    out = open(report_path, "a")
+    def emit(obj):
+        out.write(json.dumps(obj) + "\\n")
+        out.flush()
 
-if mode == "discover":
-    for test in iter_tests(suite):
-        emit({"t": "collect", "id": test.id()})
-    sys.exit(0)
+    def iter_tests(suite):
+        for item in suite:
+            if isinstance(item, unittest.TestSuite):
+                yield from iter_tests(item)
+            else:
+                yield item
 
-class MercuryResult(unittest.TextTestResult):
-    def _entry(self, test, outcome, err=None):
-        entry = {"t": "case", "id": test.id(), "outcome": outcome,
-                 "durationMs": int((time.time() - getattr(test, "_mercury_t0", time.time())) * 1000)}
-        if err is not None:
-            entry["message"] = self._exc_info_to_string(err, test)[:800]
-        fn = getattr(sys.modules.get(type(test).__module__), "__file__", None)
-        if fn:
-            entry["file"] = fn
-        emit(entry)
-    def startTest(self, test):
-        test._mercury_t0 = time.time()
-        super().startTest(test)
-    def addSuccess(self, test):
-        super().addSuccess(test)
-        self._entry(test, "passed")
-    def addFailure(self, test, err):
-        super().addFailure(test, err)
-        self._entry(test, "failed", err)
-    def addError(self, test, err):
-        super().addError(test, err)
-        self._entry(test, "errored", err)
-    def addSkip(self, test, reason):
-        super().addSkip(test, reason)
-        emit({"t": "case", "id": test.id(), "outcome": "skipped", "message": str(reason)[:200]})
+    loader = unittest.TestLoader()
+    unloadable = []
+    if selection:
+        suite = unittest.TestSuite()
+        for target in selection_plan(start_dir, selection):
+            try:
+                if target["kind"] == "name":
+                    suite.addTests(loader.loadTestsFromName(target["name"]))
+                elif target["kind"] == "folder":
+                    suite.addTests(loader.discover(target["start"], top_level_dir=target["top"]))
+                else:
+                    suite.addTests(loader.discover(target["start"], pattern=target["pattern"], top_level_dir=target["top"]))
+            except Exception as error:
+                unloadable.append((target.get("name") or target["start"], "%s: %s" % (type(error).__name__, error)))
+    else:
+        suite = loader.discover(start_dir)
 
-runner = unittest.TextTestRunner(resultclass=MercuryResult, verbosity=1)
-result = runner.run(suite)
-sys.exit(0 if result.wasSuccessful() else 1)
+    if mode == "discover":
+        for err in loader.errors:
+            emit({"t": "collect-error", "id": "loader", "message": str(err)[:800]})
+        for name, message in unloadable:
+            emit({"t": "collect-error", "id": name, "message": message[:800]})
+        for test in iter_tests(suite):
+            emit({"t": "collect", "id": test.id()})
+        sys.exit(0)
+
+    class MercuryResult(unittest.TextTestResult):
+        def _entry(self, test, outcome, err=None):
+            entry = {"t": "case", "id": test.id(), "outcome": outcome,
+                     "durationMs": int((time.time() - getattr(test, "_mercury_t0", time.time())) * 1000)}
+            if err is not None:
+                entry["message"] = self._exc_info_to_string(err, test)[:800]
+            fn = getattr(sys.modules.get(type(test).__module__), "__file__", None)
+            if fn:
+                entry["file"] = fn
+            emit(entry)
+        def startTest(self, test):
+            test._mercury_t0 = time.time()
+            super().startTest(test)
+        def addSuccess(self, test):
+            super().addSuccess(test)
+            self._entry(test, "passed")
+        def addFailure(self, test, err):
+            super().addFailure(test, err)
+            self._entry(test, "failed", err)
+        def addError(self, test, err):
+            super().addError(test, err)
+            self._entry(test, "errored", err)
+        def addSkip(self, test, reason):
+            super().addSkip(test, reason)
+            emit({"t": "case", "id": test.id(), "outcome": "skipped", "message": str(reason)[:200]})
+
+    for name, message in unloadable:
+        emit({"t": "case", "id": "unittest.loader._FailedTest." + name, "outcome": "errored", "message": message[:800]})
+    runner = unittest.TextTestRunner(resultclass=MercuryResult, verbosity=1)
+    result = runner.run(suite)
+    sys.exit(0 if result.wasSuccessful() and not unloadable else 1)
 `
 
 

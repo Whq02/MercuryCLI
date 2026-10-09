@@ -7,7 +7,7 @@
 # gate-watch: src/utils/permissions/decision/wrapper*
 # gate-watch: src/utils/messages/rejectionText* src/components/permissions/PermissionRuleExplanation* src/constants/prompts*
 # gate-watch: src/tools/BashTool/pathValidation* src/tools/BashTool/readOnlyValidation*
-# gate-watch: scripts/lib/firstRunSeed.ts scripts/lib/fixtureApi.ts scripts/lib/seedTranscript.ts scripts/lib/runnerHost.ts
+# gate-watch: scripts/lib/firstRunSeed.ts scripts/lib/fixtureApi.ts scripts/lib/seedTranscript.ts scripts/lib/runnerHost.ts scripts/lib/scriptedTurn.ts
 # gate-watch: scripts/api/read-instruction-heading.ts
 # gate-watch: docs/TRUST.md
 # gate-watch: src/tools/FileReadTool/FileReadTool.ts src/tools/GrepTool/GrepTool.ts src/tools/TransactionTool/TransactionTool.ts
