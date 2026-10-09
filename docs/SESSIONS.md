@@ -189,10 +189,17 @@ focused at any moment.
 
 Focus carries your seat. The focused chat launches workflows and agents on
 your own authority, under its own permission mode. A background session
-keeps working single-handed and waits — until you visit it, or until it
+keeps working single-handed and waits — until you visit it, until it
 holds the workflows-allowed grant (asked of the coordinator, chosen as
-keep-and-background on leave, or the manual-start option); a hop flips both
-answers at once. `/runs`,
+keep-and-background on leave, or the manual-start option), or until you turn
+on "Crewmates while backgrounded" (a `/config` row, the same row in the boot
+menu's Agents section; off by default). With it on, every session you have
+left in the background launches crewmates and workflows as a focused one
+does, under its own permission mode and its own Crewmates and Workflows
+switches, and a session born while it is on carries the Agent and Workflow
+tools from its first request; the one workflows-allowed grant stays what it
+is. With it off, a background session's launch refusal names the three roads.
+A hop flips the focus answers at once. `/runs`,
 `/workflows` and the board's work chip show the focused session's own work
 and never another's. A shell's row on the board, or in the cockpit rail's RUNS
 lane, opens its card: the whole command, the directory it runs in, the time it
