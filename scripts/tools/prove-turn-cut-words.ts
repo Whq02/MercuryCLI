@@ -31,8 +31,8 @@ for (const file of ['src/tools/WorkflowTool/agentHooks.ts', 'src/tools/WorkflowT
 {
   const stopHooks = readFileSync(join(ROOT, 'src/query/stopHooks.ts'), 'utf8')
   check(
-    "the Stop-hook interruption row carries the abort signal's own reason",
-    /createUserInterruptionMessage\(\{\s*toolUse: false,\s*reason: options\.signal\?\.reason,?\s*\}\)/.test(stopHooks),
+    "the turn.answer interruption row carries the abort signal's own reason",
+    /createUserInterruptionMessage\(\{\s*toolUse: false,\s*reason: signal\.reason,?\s*\}\)/.test(stopHooks),
   )
   const hooks = readFileSync(join(ROOT, 'src/tools/WorkflowTool/agentHooks.ts'), 'utf8')
   check(
