@@ -46,7 +46,7 @@ import {
 import { resolveOpenrouterAccount } from '../../services/providers/openrouter/openrouterAccounts.js'
 import { refreshOpenrouterCatalogue } from '../../services/providers/openrouter/openrouterCatalogue.js'
 
-export const ENGINE_DISPATCH_MODELS = ['gpt', 'glm', 'kimi', 'deepseek', 'grok', 'muse', 'compat', 'huggingface', 'local', 'gemini', 'openrouter'] as const
+export const ENGINE_DISPATCH_MODELS = ['gpt', 'glm', 'kimi', 'deepseek', 'grok', 'muse', 'compat', 'huggingface', 'local', 'gemini', 'openrouter', 'zen'] as const
 export type EngineDispatchModel = (typeof ENGINE_DISPATCH_MODELS)[number]
 
 export function isEngineDispatchModel(v: unknown): v is EngineDispatchModel {
@@ -285,6 +285,19 @@ async function resolveGeminiExactModel(id: string): Promise<EngineDispatch> {
   return { backend: 'gemini', model: id, displayLabel: `${id} (catalogue unreachable — the runtime validates at dispatch)` }
 }
 
+async function resolveZenClassDispatch(): Promise<EngineDispatch> {
+  const main = getEngineModel()
+  if (declaredRouteOf(main) === 'zen') {
+    return { backend: 'zen', model: main, displayLabel: zenCatalogueEntry(main)?.displayLabel ?? main.slice('zen/'.length) }
+  }
+  if (!zenCatalogueEntries().length) await readCatalogueIfPending('zen')
+  const head = zenCatalogueEntries()[0]
+  if (!head) {
+    throw new Error("The 'zen' class cannot resolve — the OpenCode Zen gateway's model list has not been read or lists no row this road carries. Name an exact zen/<id> instead, or retry when the list lands.")
+  }
+  return { backend: 'zen', model: head.id, displayLabel: head.displayLabel }
+}
+
 async function resolveOpenrouterClassDispatch(): Promise<EngineDispatch> {
   const main = getEngineModel()
   if (declaredRouteOf(main) === 'openrouter') {
@@ -371,6 +384,10 @@ export async function resolveEngineDispatch(
     if (modelParam === 'openrouter') {
       await requireProviderAvailable('openrouter')
       return resolveOpenrouterClassDispatch()
+    }
+    if (modelParam === 'zen') {
+      await requireProviderAvailable('zen')
+      return resolveZenClassDispatch()
     }
     await requireProviderAvailable('openai-compat')
     const first = compatSlotModelIds()[0]
