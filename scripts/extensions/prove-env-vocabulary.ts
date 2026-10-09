@@ -25,7 +25,12 @@ const reloadMod = await import('../../src/extensions/reload.ts')
 const loadServers = await import('../../src/extensions/load/servers.ts')
 const loadLanguage = await import('../../src/extensions/load/language.ts')
 const loadCommands = await import('../../src/extensions/load/commands.ts')
-const execution = await import('../../src/utils/hooks/execution.ts')
+const { startCommandHook } = await import('../../src/utils/hooks/commandRunner.ts')
+const runHook = async (command: string, name: string): Promise<{ status: number }> => {
+  const process_ = await startCommandHook({ command, shell: 'bash', name, event: 'tool.after', index: 0, payloadJson: '{}', timeoutMs: 20_000, source: { kind: 'extension', id: ID, root: installed.ok ? installed.root : '' } })
+  const end = await process_.result
+  return { status: end.kind === 'exited' ? end.code : 1 }
+}
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -61,8 +66,7 @@ await reloadMod.reloadExtensions({ cwd })
 console.log('[1] the hook child receives the three spellings and nothing retired')
 {
   const out = join(scratch, 'env-dump.txt')
-  const hook = { type: 'command' as const, command: `sh -c 'env > ${out}'` }
-  const result = await execution.execCommandHook(hook, 'PostToolUse', 'env-probe', '{}', new AbortController().signal, 'hook_env', 0, installed.ok ? installed.root : '', ID)
+  const result = await runHook(`sh -c 'env > ${out}'`, 'env-probe')
   check('the hook ran', result.status === 0, `status=${result.status}`)
   const env = readFileSync(out, 'utf8')
   check('MERCURY_EXTENSION_ROOT is the extension folder', env.includes(`MERCURY_EXTENSION_ROOT=${installed.ok ? installed.root : ''}`))
@@ -74,8 +78,7 @@ console.log('[1] the hook child receives the three spellings and nothing retired
 console.log('[2] the three templates substitute; every other ${…} stays literal')
 {
   const out = join(scratch, 'template-dump.txt')
-  const hook = { type: 'command' as const, command: `sh -c 'echo "root=\${MERCURY_EXTENSION_ROOT} data=\${MERCURY_EXTENSION_DATA} opt=\${option.FIXTURE_NAME} other=\${NOT_A_TEMPLATE} home=\$HOME" > ${out}'` }
-  const result = await execution.execCommandHook(hook, 'PostToolUse', 'template-probe', '{}', new AbortController().signal, 'hook_tpl', 0, installed.ok ? installed.root : '', ID)
+  const result = await runHook(`sh -c 'echo "root=\${MERCURY_EXTENSION_ROOT} data=\${MERCURY_EXTENSION_DATA} opt=\${option.FIXTURE_NAME} other=\${NOT_A_TEMPLATE} home=\$HOME" > ${out}'`, 'template-probe')
   check('the hook ran', result.status === 0)
   const line = readFileSync(out, 'utf8')
   check('${MERCURY_EXTENSION_ROOT} substituted', line.includes(`root=${installed.ok ? installed.root : ''}`))

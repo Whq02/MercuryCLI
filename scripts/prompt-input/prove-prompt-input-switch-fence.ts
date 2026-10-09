@@ -30,7 +30,7 @@ exit 0
 chmodSync(hook, 0o755)
 writeFileSync(
   join(home, 'settings.json'),
-  JSON.stringify({ events: { hooks: { SessionStart: [{ matcher: 'resume', hooks: [{ type: 'command', command: hook, timeout: 30 }] }] } } }),
+  JSON.stringify({ events: { hooks: { 'session.start': [{ name: 'stage hold', match: 'resumed', run: hook, timeout: 30 }] } } }),
 )
 
 const cfg = scenario('resume-2turn', 120, 40)

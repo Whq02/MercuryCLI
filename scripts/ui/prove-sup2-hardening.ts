@@ -374,7 +374,7 @@ console.log('§24 settings writes — the file round-trips whole')
     `${JSON.stringify(
       {
         guardrails: { allow: [42, 'Read(//ok/**)'] },
-        events: { hooks: { PreToolUse: [{ matcher: 'Bash', note: 'why this exists', hooks: [] }] } },
+        events: { hooks: { 'tool.before': [{ name: 'why', match: 'Bash', note: 'why this exists', run: 'true' }] } },
       },
       null,
       2,
@@ -385,12 +385,12 @@ console.log('§24 settings writes — the file round-trips whole')
   const after = JSON.parse(readFileSync(userPath, 'utf8')) as {
     voice?: { language?: string }
     guardrails?: { allow?: unknown[] }
-    events?: { hooks?: { PreToolUse?: Array<{ note?: string }> } }
+    events?: { hooks?: { 'tool.before'?: Array<{ note?: string }> } }
   }
   check('the write applied its own key', after.voice?.language === 'en')
   check('the warned-invalid rule SURVIVES the unrelated write', Array.isArray(after.guardrails?.allow) && after.guardrails.allow.includes(42))
   check('the valid sibling rule survives beside it', after.guardrails?.allow?.includes('Read(//ok/**)') === true)
-  check("the hook matcher's unknown key survives (the nested-strip disease)", after.events?.hooks?.PreToolUse?.[0]?.note === 'why this exists')
+  check("the hook entry's unknown key survives (the nested-strip disease)", after.events?.hooks?.['tool.before']?.[0]?.note === 'why this exists')
 }
 
 console.log('§25 stall wake — paired re-entry, repaint scheduled')

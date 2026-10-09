@@ -70,7 +70,7 @@ section('default-OFF gate truth table (DEFAULT-OFF, opt in MERCURY_COMMIT_GATE=1
   check('ON (MERCURY_COMMIT_GATE=1): commitGateEnabled() === true', fh.commitGateEnabled() === true)
 }
 
-section('engage installs the PreToolUse(Bash) gate (no ReferenceError — the original crash is fixed)')
+section('engage installs the Bash guard (no ReferenceError — the original crash is fixed)')
 {
   const installed = fh.engageCommitGate(sid)
   check('engageCommitGate returned true (installed)', installed === true)

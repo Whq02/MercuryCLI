@@ -34,6 +34,7 @@ export const HOOK_CUT_BUDGET_MS = 1500
 
 export const CUT_REASONS = ['operator', 'idle-timeout', 'parent-stop', 'cut'] as const satisfies readonly TurnCutKind[]
 export const SESSION_STATE_HOOK_STATES = ['needs-you', 'stalled', 'ready-to-review', 'paused', 'completed', 'failed', 'cancelled'] as const
+export const SESSION_BOARD_STATES = [...CONCOURSE_SESSION_STATES, 'attached', 'stopped', 'parked'] as const
 export const CREWMATE_END_STATUSES = ['finished', 'failed', 'stopped'] as const
 export const COMPACTION_METHODS = ['summary', 'notes', 'digest'] as const
 export const COMPACTION_TRIGGERS = ['manual', 'auto', 'overflow'] as const
@@ -259,7 +260,7 @@ const hookEventTableRows = {
     payload: lazySchema(() =>
       z.object({
         state: z.enum(SESSION_STATE_HOOK_STATES),
-        from: z.enum(CONCOURSE_SESSION_STATES),
+        from: z.enum(SESSION_BOARD_STATES),
         detail: z.string().optional().describe('The attention event, the stall reason, or the failure words'),
         title: z.string().optional(),
         workspace: z.string(),

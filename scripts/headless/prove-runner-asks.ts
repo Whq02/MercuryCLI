@@ -17,7 +17,7 @@ const { DeadlineExceededError } = await import('../../src/utils/deadline.ts')
 const { UNANSWERED_ASK_REJECT_MESSAGE, isDenialResultText, turnCutOf } = await import('../../src/utils/messages/rejectionText.ts')
 const { createPeer } = await import('../../src/runner/wire/peer.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { addSessionHook } = await import('../../src/utils/hooks/sessionHooks.ts')
+const { addSessionHooks } = await import('../../src/utils/hooks/sessionHooks.ts')
 const bootstrap = await import('../../src/bootstrap/state.ts')
 bootstrap.setIsInteractive(false)
 
@@ -128,7 +128,7 @@ function makeHarness(opts: { allow?: string[]; deny?: string[]; elicitation?: bo
     hold: () => {
       holding = true
     },
-    addHook: command => addSessionHook(setAppState as never, SESSION_ID, 'PermissionRequest', 'AskProbeTool', { type: 'command', command } as never),
+    addHook: command => addSessionHooks(setAppState as never, { sessionId: String(bootstrap.getSessionId()), crewmateId: SESSION_ID }, { 'permission.ask': [{ name: 'ask probe', match: 'AskProbeTool', run: command }] } as never, { kind: 'agent', type: 'ask-probe' }),
     waitAsk: () => new Promise<Ask>(resolve => (hostSaw.length > 0 && !holding ? resolve(hostSaw[hostSaw.length - 1]!) : askWaiters.push(resolve))),
     closeHost: () => {
       host.end('the host left')
@@ -148,7 +148,7 @@ const ASSISTANT = { message: { id: 'msg_asks' } } as never
 type Decision = { behavior: string; message?: string; updatedInput?: Record<string, unknown>; decisionReason?: { type?: string; hookName?: string; permissionPromptToolName?: string } }
 const callCanUseTool = (h: Harness, input: Record<string, unknown> = { probe: 'original' }): Promise<Decision> =>
   h.asks.createCanUseTool()(TOOL as never, input, h.ctx as never, ASSISTANT, 'toolu_asks') as never
-const hookJson = (decision: Record<string, unknown>): string => j({ hookSpecificOutput: { hookEventName: 'PermissionRequest', decision } })
+const hookJson = (decision: { behavior: 'allow' | 'deny'; message?: string; updatedInput?: Record<string, unknown> }): string => j(decision.behavior === 'deny' ? { block: decision.message } : { permission: 'allow', ...(decision.updatedInput !== undefined ? { input: decision.updatedInput } : {}) })
 
 section('R1 — an owned-chain allow/deny short-circuits: no permission/request leaves, hooks never run')
 {
@@ -159,7 +159,7 @@ section('R1 — an owned-chain allow/deny short-circuits: no permission/request 
   check('the rule-allow returns directly', d.behavior === 'allow', j(d))
   await settle(150)
   check('NO permission/request went out', h.hostSaw.length === 0, j(h.hostSaw))
-  check('the PermissionRequest hook NEVER fired', !existsSync(marker))
+  check('the permission.ask hook NEVER fired', !existsSync(marker))
   h.closeHost()
 }
 
@@ -169,7 +169,7 @@ section('R2 — the hook denies first: the hook wins, the pending permission/req
   h.addHook(`echo '${hookJson({ behavior: 'deny', message: 'hook fixture deny' })}'`)
   const d = await callCanUseTool(h)
   check('the decision is the HOOK deny', d.behavior === 'deny' && (d.message ?? '').includes('hook fixture deny'), j(d))
-  check("decisionReason is {type:'hook', hookName:'PermissionRequest'}", d.decisionReason?.type === 'hook' && d.decisionReason?.hookName === 'PermissionRequest', j(d.decisionReason))
+  check("decisionReason is {type:'hook', hookName:<the entry's name>}", d.decisionReason?.type === 'hook' && d.decisionReason?.hookName === 'ask probe', j(d.decisionReason))
   await settle(50)
   check('the ask DID reach the host before the hook won, as permission/request kind tool', h.hostSaw.length === 1 && h.hostSaw[0]!.params.kind === 'tool' && h.hostSaw[0]!.params.tool_name === 'AskProbeTool', j(h.hostSaw))
   check("the losing ask is withdrawn: the host's handler is cancelled ($/cancel_request names its id)", h.withdrawn.has(h.hostSaw[0]!.id), j([...h.withdrawn]))

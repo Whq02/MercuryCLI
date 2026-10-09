@@ -61,30 +61,15 @@ try {
   check('a differing entry without raw bytes caches its own content as a partial view', partial.readFileState.get(rule)?.content === `guide at ${rule}` && partial.readFileState.get(rule)?.isPartialView === true)
   check('the attachment still carries the entry as the model sees it', views[0]?.content === stripped && views[1]?.content === noRaw)
 
-  const seen: Array<Record<string, unknown>> = []
-  state.registerHookCallbacks({ InstructionsLoaded: [{ hooks: [{ type: 'callback', callback: async (input: Record<string, unknown>) => { seen.push(input); return {} } }] }] } as never)
-  const trigger = join(project, 'sub', 'file.ts')
   const parent = join(project, 'MERCURY.md')
-  memoryFilesToAttachments([
+  const admittedByReason = memoryFilesToAttachments([
     entry(join(project, 'a.md'), { type: 'User', globs: ['src/**'] }),
     entry(join(project, 'b.md'), { type: 'Local', parent }),
     entry(join(project, 'c.md'), { type: 'Managed' }),
-  ], context() as never, trigger)
-  await settle(() => seen.length >= 3)
-  const byPath = new Map(seen.map(input => [input.file_path, input]))
-  const a = byPath.get(join(project, 'a.md'))
-  const b = byPath.get(join(project, 'b.md'))
-  const c = byPath.get(join(project, 'c.md'))
-  check('a registered InstructionsLoaded hook hears every admitted file once', seen.length === 3 && byPath.size === 3)
-  check('a rule with path globs loads as path_glob_match, carrying its globs', a?.load_reason === 'path_glob_match' && Array.isArray(a?.globs) && (a?.globs as string[])[0] === 'src/**' && a?.instruction_scope === 'User')
-  check('an included file loads as include, naming its parent', b?.load_reason === 'include' && b?.parent_file_path === parent && b?.instruction_scope === 'Local')
-  check('a plain nested guide loads as nested_traversal', c?.load_reason === 'nested_traversal' && c?.parent_file_path === undefined && c?.instruction_scope === 'Managed')
-  check('every load names the file that triggered it', [a, b, c].every(input => input?.trigger_file_path === trigger))
-
-  state.clearRegisteredHooks()
-  const quiet = memoryFilesToAttachments([entry(join(project, 'd.md'))], context() as never, trigger)
-  await new Promise(resolve => setTimeout(resolve, 50))
-  check('with no hook registered the attachment still lands and nothing fires', quiet.length === 1 && seen.length === 3)
+  ], context() as never)
+  check('every admitted file lands as an attachment, whatever its load reason', admittedByReason.length === 3)
+  const quiet = memoryFilesToAttachments([entry(join(project, 'd.md'))], context() as never)
+  check('a plain nested guide lands too', quiet.length === 1)
 } finally {
   process.chdir(scratch)
   rmSync(scratch, { recursive: true, force: true })

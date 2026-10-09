@@ -212,10 +212,10 @@ section('§5 THE ARTIFACT LIVE (fresh checkout, headless)')
     }
 
     const untrustedRun = run(['run', 'hi'])
-    check('untrusted run: the checkout SessionStart hook did NOT fire', !existsSync(marker('proj-marker')))
+    check('untrusted run: the checkout session.start hook did NOT fire', !existsSync(marker('proj-marker')))
     check('untrusted run: the checkout credentials.keyCommand did NOT execute', !existsSync(marker('helper-marker')))
     check(
-      'untrusted run: the config-home SessionStart hook DID fire (source-scoped, not blanket)',
+      'untrusted run: the config-home session.start hook DID fire (source-scoped, not blanket)',
       existsSync(marker('user-marker')),
       `rc=${untrustedRun.status} err=${untrustedRun.stderr.slice(0, 120).replace(/\s+/g, ' ')}`,
     )

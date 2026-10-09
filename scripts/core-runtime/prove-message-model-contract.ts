@@ -591,7 +591,7 @@ const elementwiseSame = (a: AnyMsg[], b: AnyMsg[]): boolean =>
 section('LOOKUPS-DIFF — lookups vs legacy scans vs naive re-derivation')
 {
   const rand = lcg(0xdeadbe)
-  const HOOK_EVENTS = ['PreToolUse', 'PostToolUse'] as const
+  const HOOK_EVENTS = ['tool.before', 'tool.after'] as const
 
   function genLookupConversation(iter: number): { raw: AnyMsg[] } {
     const raw: AnyMsg[] = []
@@ -627,7 +627,7 @@ section('LOOKUPS-DIFF — lookups vs legacy scans vs naive re-derivation')
                 type: 'progress',
                 uuid: nextUuid(),
                 timestamp: PINNED_TS,
-                data: { type: 'hook_progress', hookEvent: ev, hookName: `hook${p}` },
+                data: { type: 'hook_progress', event: ev, name: `hook${p}`, state: 'running', count: nProg },
                 toolUseID: id,
                 parentToolUseID: id,
               })
@@ -635,16 +635,21 @@ section('LOOKUPS-DIFF — lookups vs legacy scans vs naive re-derivation')
             const nRes = Math.floor(rand() * 3)
             for (let r = 0; r < nRes; r++) {
               raw.push({
-                type: 'attachment',
+                type: 'progress',
                 uuid: nextUuid(),
                 timestamp: PINNED_TS,
-                attachment: {
-                  type: r === 1 && rand() < 0.5 ? 'hook_additional_context' : 'hook_success',
-                  toolUseID: id,
-                  hookEvent: ev,
-                  hookName: `hook${Math.floor(rand() * 2)}`,
-                },
+                data: { type: 'hook_progress', event: ev, name: `hook${r}`, state: 'ran', count: nProg },
+                toolUseID: id,
+                parentToolUseID: id,
               })
+              if (rand() < 0.5) {
+                raw.push({
+                  type: 'attachment',
+                  uuid: nextUuid(),
+                  timestamp: PINNED_TS,
+                  attachment: { type: 'hook', outcome: 'context', event: ev, name: `hook${r}`, words: 'w', callId: id },
+                })
+              }
             }
           }
         }
@@ -948,11 +953,7 @@ section('ORDER — reorderMessagesInUI vs an independent naive oracle')
       m.type === 'assistant' && (m.message.content as Block[])[0]?.type === 'tool_use'
     const useId = (m: AnyMsg): string => (m.message.content as Block[])[0]!.id
     const isHook = (m: AnyMsg, ev: string): boolean =>
-      m.type === 'attachment' &&
-      typeof m.attachment?.type === 'string' &&
-      m.attachment.type.startsWith('hook_') &&
-      m.attachment.type !== 'hook_permission_decision' &&
-      m.attachment.hookEvent === ev
+      m.type === 'attachment' && m.attachment?.type === 'hook' && m.attachment.event === ev && typeof m.attachment.callId === 'string'
     const isResult = (m: AnyMsg): boolean =>
       m.type === 'user' && (m.message.content as Block[])[0]?.type === 'tool_result'
     const resultId = (m: AnyMsg): string => (m.message.content as Block[])[0]!.tool_use_id
@@ -968,9 +969,9 @@ section('ORDER — reorderMessagesInUI vs an independent naive oracle')
     }
     for (const m of messages) {
       if (isUse(m)) g(useId(m)).use = m
-      else if (isHook(m, 'PreToolUse')) g(m.attachment.toolUseID).pre.push(m)
+      else if (isHook(m, 'tool.before')) g(m.attachment.callId).pre.push(m)
       else if (isResult(m)) g(resultId(m)).result = m
-      else if (isHook(m, 'PostToolUse')) g(m.attachment.toolUseID).post.push(m)
+      else if (isHook(m, 'tool.after')) g(m.attachment.callId).post.push(m)
     }
     const out: AnyMsg[] = []
     const done = new Set<string>()
@@ -987,7 +988,7 @@ section('ORDER — reorderMessagesInUI vs an independent naive oracle')
         }
         continue
       }
-      if (isHook(m, 'PreToolUse') || isHook(m, 'PostToolUse') || isResult(m)) continue
+      if (isHook(m, 'tool.before') || isHook(m, 'tool.after') || isResult(m)) continue
       if (m.type === 'system' && m.subtype === 'api_error') {
         const last = out.at(-1)
         if (last?.type === 'system' && last.subtype === 'api_error') out[out.length - 1] = m
@@ -1016,7 +1017,7 @@ section('ORDER — reorderMessagesInUI vs an independent naive oracle')
     type: 'attachment',
     uuid: nextUuid(),
     timestamp: PINNED_TS,
-    attachment: { type: 'hook_success', toolUseID: id, hookEvent: ev, hookName: 'h' },
+    attachment: { type: 'hook', outcome: 'context', event: ev, name: 'h', words: 'w', callId: id },
   })
 
   const rand = lcg(0x0bde5)
@@ -1037,8 +1038,8 @@ section('ORDER — reorderMessagesInUI vs an independent naive oracle')
     let display = M.normalizeMessages(raw as never) as AnyMsg[]
     const inserts: AnyMsg[] = []
     for (const id of ids) {
-      if (rand() < 0.5) inserts.push(mkHook(id, 'PreToolUse'))
-      if (rand() < 0.5) inserts.push(mkHook(id, 'PostToolUse'))
+      if (rand() < 0.5) inserts.push(mkHook(id, 'tool.before'))
+      if (rand() < 0.5) inserts.push(mkHook(id, 'tool.after'))
     }
     if (rand() < 0.5) inserts.push(mkApiError())
     if (rand() < 0.4) inserts.push(mkApiError())
@@ -1061,8 +1062,8 @@ section('ORDER — reorderMessagesInUI vs an independent naive oracle')
   const id = 'toolu_ui_directed'
   const useMsg = M.normalizeMessages([mkAssistant([tu(id)])] as never)[0] as AnyMsg
   const resMsg = M.normalizeMessages([mkUser([tr(id)])] as never)[0] as AnyMsg
-  const pre = mkHook(id, 'PreToolUse')
-  const post = mkHook(id, 'PostToolUse')
+  const pre = mkHook(id, 'tool.before')
+  const post = mkHook(id, 'tool.after')
   const standalone = M.normalizeMessages([mkUser('standalone')] as never)[0] as AnyMsg
   const got = M.reorderMessagesInUI([resMsg, post, standalone, useMsg, pre] as never, [] as never) as AnyMsg[]
   check(

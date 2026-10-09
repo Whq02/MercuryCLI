@@ -153,12 +153,7 @@ section('§2 a PermissionRequest hook decides first: the editor saw the ask and 
     JSON.stringify({
       events: {
         hooks: {
-          PermissionRequest: [
-            {
-              matcher: 'Write',
-              hooks: [{ type: 'command', command: `sleep 1; echo '${JSON.stringify({ hookSpecificOutput: { hookEventName: 'PermissionRequest', decision: { behavior: 'deny', message: 'the project hook says no' } } })}'` }],
-            },
-          ],
+          'permission.ask': [{ name: 'project gate', match: 'Write', run: `sleep 1; echo '${JSON.stringify({ block: 'the project hook says no' })}'` }],
         },
       },
     }),
