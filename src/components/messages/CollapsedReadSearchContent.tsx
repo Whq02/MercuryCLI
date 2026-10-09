@@ -27,6 +27,7 @@ import {
 } from '../../services/engine-connector/shellRunning.js'
 import { CtrlOToExpand } from '../CtrlOToExpand.js'
 import { MessageResponse } from '../MessageResponse.js'
+import { denialLineOf } from '../../utils/messages/rejectionText.js'
 import { toolFamilyFor, type ToolFamily } from '../mercury-ui/toolGlyphs.js'
 import { RunningShellBackgroundHint } from './AssistantToolUseMessage.js'
 import { ToolRowLead, toolRowStateOf } from './ToolRowLead.js'
@@ -52,6 +53,20 @@ function counted(verb: string, n: number, noun: string, family: ToolFamily): Fra
       </>
     ),
   }
+}
+
+function memberResultText(lookups: MessageLookups, id: string): string {
+  const holder = lookups.toolResultByToolUseID.get(id)
+  const content = holder?.type === 'user' ? holder.message.content : undefined
+  if (!Array.isArray(content)) return ''
+  for (const block of content) {
+    if (block.type !== 'tool_result' || block.tool_use_id !== id) continue
+    if (typeof block.content === 'string') return block.content
+    if (Array.isArray(block.content)) {
+      return block.content.map(part => (part.type === 'text' ? part.text : '')).join('\n')
+    }
+  }
+  return ''
 }
 
 function memberToolUses(group: CollapsedReadSearchGroup): ToolUseEntryV1[] {
@@ -296,7 +311,15 @@ export function CollapsedReadSearchContent({
       }
       const resolvedMember = lookups.resolvedToolUseIDs.has(entry.id)
       const erroredMember = lookups.erroredToolUseIDs.has(entry.id)
+      const deniedMember = lookups.deniedToolUseIDs.has(entry.id)
       let resultNode: React.ReactNode = null
+      if (deniedMember) {
+        resultNode = (
+          <Text dimColor wrap="wrap">
+            {denialLineOf(memberResultText(lookups, entry.id))}
+          </Text>
+        )
+      }
       if (resolvedMember && !erroredMember) {
         const raw = (
           lookups.toolResultByToolUseID.get(entry.id) as
@@ -330,7 +353,7 @@ export function CollapsedReadSearchContent({
                 state={toolRowStateOf({
                   resolved: resolvedMember,
                   errored: erroredMember,
-                  denied: lookups.deniedToolUseIDs.has(entry.id),
+                  denied: deniedMember,
                 })}
               />
               <Text bold>{safeUserFacingName(tool, entry.input, entry.name)}</Text>
@@ -450,6 +473,15 @@ export function CollapsedReadSearchContent({
           </Text>
         </MessageResponse>
       ) : null}
+      {memberEntries
+        .filter(entry => lookups.deniedToolUseIDs.has(entry.id))
+        .map(entry => (
+          <MessageResponse key={entry.id}>
+            <Text dimColor wrap="wrap">
+              {denialLineOf(memberResultText(lookups, entry.id))}
+            </Text>
+          </MessageResponse>
+        ))}
       {shellId !== null ? <RunningShellBackgroundHint id={shellId} /> : null}
       {movedByOperator ? (
         <MessageResponse height={1}>
