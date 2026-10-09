@@ -138,6 +138,20 @@ console.log('LAW 2 — the one leaf: off by default, read live, absent when off'
   check('the receipt words say what the switch does, on and off', setting !== null && setting.backgroundLaunchReceiptWords(true).startsWith(`${LABEL} on — `) && setting.backgroundLaunchReceiptWords(false).startsWith(`${LABEL} off — `))
 }
 
+console.log("LAW 4 — the worker's prompt sentence follows the setting at spawn")
+{
+  const { buildConcourseWorkerSpec } = await import('../../src/daemon/concourseWorkers.js')
+  const specOf = () => buildConcourseWorkerSpec({ runnerId: 'concourse-w9', sessionId: sidA, workspaceId, modelKey: 'claude-fable-5', cwd: join(workspaceId, '.wt', 'concourse-w9') })
+  const off = specOf().appendSystemPrompt ?? ''
+  check('setting OFF: the worker is told delegation needs the tag, the operator, or the setting turned on', off.includes('Delegation (subagents/workflows) is available only while this session holds the workflows-allowed tag, the operator is present, or the operator has turned on ' + LABEL + ' — when those tools are absent, plan and work single-handed; never wait for them.'), off)
+  setting?.setBackgroundSessionsLaunchCrewmates(true)
+  const on = specOf().appendSystemPrompt ?? ''
+  check('setting ON: the worker is told delegation is available and why', on.includes('Delegation (subagents/workflows) is available: the operator turned on ' + LABEL + ', so this session launches crewmates and workflows as a focused one does — when those tools are absent, plan and work single-handed; never wait for them.'), on)
+  check('the background posture line and the idle law stand on both', [off, on].every(p => p.startsWith("You run as a BACKGROUND session on the operator's switchboard.") && p.includes("'Idle', 'wait', or 'stand by' means END YOUR TURN")))
+  setting?.setBackgroundSessionsLaunchCrewmates(false)
+  check('the sentence is minted by the setting owner, read live at spawn', src('src/daemon/concourseWorkers.ts').includes('backgroundWorkerDelegationSentence(),') && !src('src/daemon/concourseWorkers.ts').includes('Delegation (subagents/workflows)'))
+}
+
 console.log('LAW 3 — the source pins')
 {
   const valve = src('src/services/switchboard/launchAuthority.ts')
