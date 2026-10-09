@@ -2,7 +2,7 @@
 # gate-class: cpu
 # gate-watch: build.ts src/constants/product* src/prompt/mercuryContract*
 # gate-watch: src/prompt/engineIdentity* package.json
-# gate-watch: docs/** *.md **/*.md .github/**
+# gate-watch: docs/** *.md **/*.md .github/** .gitignore
 # gate-watch: src/** scripts/**
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
@@ -39,6 +39,7 @@ __t=$SECONDS; __rc=0; "$bun" run "$here/prove-view-words-gone.ts" || { __rc=$?; 
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-crewmate-words-gone.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-crewmate-words-gone.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-crew-docs-words.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-crew-docs-words.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-tree-hygiene.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-tree-hygiene.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$bun" run "$here/prove-instruction-file-private.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-instruction-file-private.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-docs-altitude.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-docs-altitude.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-release-notes-words.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-release-notes-words.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-provider-neutral-vocabulary.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-provider-neutral-vocabulary.ts" "$__t" "$__rc"
