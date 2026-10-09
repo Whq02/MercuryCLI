@@ -192,7 +192,7 @@ async function drive(scene: Scene): Promise<void> {
     .filter(l => l.trim() !== '')
     .map(l => JSON.parse(l) as Wire)
   const at = (label: string): string => marks.get(label) ?? ''
-  const sleepers = (): string => spawnSync('/usr/bin/pgrep', ['-f', 'sleep 40'], { encoding: 'utf8' }).stdout.trim()
+  const sleepers = (): string => spawnSync('/usr/bin/pgrep', ['-f', '^sleep 40$'], { encoding: 'utf8' }).stdout.trim()
   let ledger: LedgerRow[] = []
   try {
     const raw = JSON.parse(readFileSync(path.join(daemonDir, 'concourse-control-ops.json'), 'utf8')) as { ops?: Record<string, LedgerRow> }
