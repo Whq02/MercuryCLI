@@ -6,12 +6,13 @@ import {
   HOOK_TIMEOUT_MAX_S,
   hookEventTable,
   hookKindsOf,
+  isHookEvent,
   type HookEvent,
   type HookKind,
 } from '../utils/hooks/contract.js'
 import { matcherCompiles } from '../utils/hooks/matcherGrammar.js'
 
-const entryShape = {
+const entryShape = () => ({
   run: z.string().min(1).optional().describe('A shell command; the payload arrives on stdin'),
   question: z.string().min(1).optional().describe('A question a model answers; $EVENT is replaced by the payload JSON'),
   crewmate: z.string().min(1).optional().describe('A brief a crewmate with tools checks; $EVENT as above'),
@@ -24,9 +25,9 @@ const entryShape = {
   wake: z.boolean().optional().describe('A background run hook whose block wakes the model'),
   once: z.boolean().optional().describe('Runs once in a session, then stands down'),
   watch: z.array(z.string().min(1)).optional().describe('file.changed only: the files to watch, relative to the project'),
-}
+})
 
-const entryObjectSchema = lazySchema(() => z.strictObject(entryShape))
+const entryObjectSchema = lazySchema(() => z.strictObject(entryShape()))
 
 export type HookEntry = z.infer<ReturnType<typeof entryObjectSchema>>
 
@@ -88,7 +89,11 @@ export const HookEntrySchema = lazySchema(() =>
   }, entryObjectSchema()),
 )
 
-export const HooksSchema = lazySchema(() =>
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+const hooksMapSchema = lazySchema(() =>
   z.partialRecord(z.enum(HOOK_EVENTS as [HookEvent, ...HookEvent[]]), z.array(HookEntrySchema())).superRefine((map, ctx) => {
     for (const event of Object.keys(map) as HookEvent[]) {
       const entries = map[event] ?? []
@@ -101,13 +106,21 @@ export const HooksSchema = lazySchema(() =>
   }),
 )
 
+export const HooksSchema = lazySchema(() =>
+  z.preprocess((value, ctx) => {
+    if (!isPlainObject(value)) return value
+    const kept: Record<string, unknown> = {}
+    for (const [key, entries] of Object.entries(value)) {
+      if (isHookEvent(key)) kept[key] = entries
+      else ctx.addIssue({ code: 'custom', message: `${key} is not a hook event Mercury fires`, path: [key] })
+    }
+    return kept
+  }, hooksMapSchema()),
+)
+
 export type HooksSettings = Partial<Record<HookEvent, HookEntry[]>>
 
 export type HooksMapReading = { hooks: HooksSettings; faults: string[] }
-
-function isPlainObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value)
-}
 
 export function readHooksMap(raw: unknown): HooksMapReading {
   if (raw === undefined || raw === null) return { hooks: {}, faults: [] }
@@ -119,13 +132,6 @@ export function readHooksMap(raw: unknown): HooksMapReading {
     if (parsed.success) return { hooks: parsed.data as HooksSettings, faults }
     const dropEntries = new Map<string, Set<number>>()
     for (const issue of parsed.error.issues) {
-      if (issue.code === 'unrecognized_keys' && issue.path.length === 0) {
-        for (const key of issue.keys) {
-          faults.push(`${key}: not a hook event Mercury fires — skipped`)
-          delete working[key]
-        }
-        continue
-      }
       const [event, index] = issue.path as [string | undefined, number | undefined]
       if (event === undefined) {
         return { hooks: {}, faults: [...faults, issue.message] }
