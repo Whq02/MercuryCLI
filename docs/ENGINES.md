@@ -27,6 +27,7 @@ arm.
 | `openrouter` | `openrouter/<vendor-slug>` (qualified; stripped — OpenRouter ids are themselves vendor/model slugs, so only a namespace disambiguates them) | OpenRouter |
 | `huggingface` | `huggingface/<org>/<model>[:provider\|:policy]` (qualified) | Hugging Face |
 | `local` | `local/<model>` (qualified; the model as the discovered local server lists it) | Local models |
+| `zen` | `zen/<model-id>` (qualified; stripped before the wire — the gateway's own ids are bare vendor names such as `glm-5.3` or `gpt-5.5`, so only the namespace tells a Zen row from the native family's) | OpenCode Zen |
 
 Display names have the same one-owner rule: every surface that names a
 family derives its label from it, and an unknown id shows itself. Persisted
@@ -141,6 +142,50 @@ was documented in the sources read on **2026-09-30**: [quickstart](https://dev.m
 [reasoning](https://dev.meta.ai/docs/reasoning), [authentication](https://dev.meta.ai/docs/authentication),
 [Muse Code sign-in](https://dev.meta.ai/docs/muse-code/auth) and
 [subscriptions](https://dev.meta.ai/docs/muse-code/subscriptions).
+
+OpenCode Zen (opencode.ai) is a model gateway: one API key, pasted, reaches
+every model the gateway lists, billed at the vendor's pay-as-you-go prices
+from a prepaid balance. Sign in at [opencode.ai/auth](https://opencode.ai/auth),
+add billing details, create a key, then `/logins zen` (or `/logins opencode`),
+`/router key zen`, or `OPENCODE_API_KEY`. The key is checked on the gateway's
+usage endpoint before it is stored — a refused key is never stored. Zen has no
+OAuth or device sign-in for a third-party client, and its keyless free tier
+answers third-party clients with a typed refusal; Mercury does not present
+itself as another client to reach it.
+
+Zen rows are persisted as `zen/<model-id>` and come from the gateway's live
+`GET /zen/v1/models` list, joined with Mercury's recorded pins (display name,
+context window, output ceiling, prices, effort vocabulary — observed
+**2026-10-09** from the vendor's [Zen page](https://opencode.ai/docs/zen/) and
+its model metadata). The gateway serves each model in one fixed wire shape and
+refuses another: this build carries its **chat-completions** shape (GLM, Kimi,
+DeepSeek, MiniMax, Mistral Large 4, Qwen3.8 Max, Big Pickle and the free
+models) and its **Responses** shape (GPT, Grok and Muse Spark rows); rows the
+gateway serves only in its Anthropic Messages or Gemini shapes are not listed
+on this road, and an id outside the list is refused like any other unlisted
+id. A live-listed id without a pin rides the chat-completions shape under its
+raw name. Free rows are labelled `(free)`.
+
+The chat shape sends streaming with usage, function tools, the model's
+documented `reasoning_effort` vocabulary (the thinking-off word where the
+vocabulary carries one) and, for the models that document it, the
+`thinking` toggle; Kimi's preserved-thinking rows return their historical
+reasoning as Moonshot documents. The Responses shape sends `store: false`,
+asks for encrypted reasoning and replays the recorded output items in order.
+Every Zen request carries Mercury's own user agent and an `x-opencode-session`
+header with the session id, which the vendor asks of clients for routing and
+prompt caching. The gateway's errors are typed: a refused or exhausted key
+(`AuthError`, `CreditsError`, `MonthlyLimitError`, `UserLimitError`) names the
+console page to fix it; a Go-plan window reached (`GoUsageLimitError`) carries
+its `retry-after`.
+
+The meter: the session's spend at the recorded prices, and — for a key that
+carries an **OpenCode Go** plan — the plan's 5-hour, weekly and monthly windows
+from `GET /zen/go/v1/usage`. The pay-as-you-go balance is shown only in the
+OpenCode console (the gateway states no balance to clients, and the opencode
+client itself reads none); `/usage` says so instead of inventing a figure. The
+Go plan bills only on its own base (`/zen/go/v1`), which this build does not
+address — a Go key on the Zen base draws the balance.
 
 Moonshot's default, picker and specialist choices follow the account's live
 model list. An API key reads the platform list; a Kimi sign-in reads its
@@ -521,7 +566,7 @@ come from its owning account resolvers:
   win independently. `/router key xai-management` adds the management key
   directly, and its `clear` road or its own `/accounts` row removes only that
   key — the inference key stays. A management key alone cannot run Grok;
-- **zai, deepseek, meta, huggingface, local, compat** — env pins and stored keys.
+- **zai, deepseek, meta, zen, huggingface, local, compat** — env pins and stored keys.
 
 Slots carry presence facts and masked key tails only — never a secret value.
 Removal is routed to each slot's owning store, never inlined. Env-pinned
