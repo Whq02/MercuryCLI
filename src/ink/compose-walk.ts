@@ -351,16 +351,11 @@ function wrapWithSoftWrap(
 }
 
 function applyPaddingToText(node: DOMElement, text: string, softWrap?: boolean[]): string {
-  const layoutNode = node.childNodes[0]?.layoutNode
-  if (layoutNode) {
-    const offsetX = layoutNode.getComputedLeft()
-    const offsetY = layoutNode.getComputedTop()
-    text = '\n'.repeat(offsetY) + indentString(text, offsetX)
-    if (softWrap && offsetY > 0) {
-      softWrap.unshift(...Array<boolean>(offsetY).fill(false))
-    }
-  }
-  return text
+  const layout = node.childNodes[0]?.layoutNode
+  if (!layout) return text
+  const top = layout.getComputedTop()
+  if (softWrap && top > 0) softWrap.unshift(...new Array<boolean>(top).fill(false))
+  return '\n'.repeat(top) + indentString(text, layout.getComputedLeft())
 }
 
 
