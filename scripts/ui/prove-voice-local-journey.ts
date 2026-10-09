@@ -271,15 +271,13 @@ const REPEAT_GAP_MS = REPEAT_TICKS * TICK_MS * SCALE
 const REPEAT = { afterPrevTicks: REPEAT_TICKS, data: ' ' }
 const repeatsFor = (ms: number): unknown[] => Array.from({ length: Math.max(1, Math.ceil(ms / REPEAT_GAP_MS)) }, () => REPEAT)
 const HOLD_PAST_THRESHOLD_MS = 1_200
-const OPENING_GRACE_MS = 2_400
 function hold(press: Record<string, unknown>, opts: { mark?: string; beyondMs?: number } = {}): unknown[] {
   const repeats = repeatsFor(HOLD_PAST_THRESHOLD_MS)
   if (opts.mark === undefined) return [{ ...press, data: ' ' }, ...repeats, REPEAT]
   return [
     { ...press, data: ' ' },
     ...repeats,
-    ...repeatsFor(OPENING_GRACE_MS).map(() => ({ ...REPEAT, awaitText: RECORDING_LINE })),
-    { requireAwait: true, awaitText: RECORDING_LINE, mark: opts.mark, data: ' ' },
+    { requireAwait: true, awaitText: RECORDING_LINE, repeatEveryTicks: REPEAT_TICKS, mark: opts.mark, data: ' ' },
     ...(opts.beyondMs === 0 ? [] : repeatsFor(opts.beyondMs ?? 400)),
   ]
 }
@@ -287,7 +285,7 @@ const stuckWords = (res: { status: number | null; stderr: string }): string => {
   const rows = res.stderr.split('\n').filter(l => l.includes('never settled within the ceiling')).map(l => l.replace(/; saw=.*$/, ''))
   return `vshot ${res.status}: ${rows.length > 0 ? rows.join(' · ') : res.stderr.slice(-300)}`
 }
-console.log(`  · budget scale ${SCALE}: a held key is one space per ${REPEAT_GAP_MS} ms (the product then allows ${releaseGapMs(REPEAT_GAP_MS)} ms between repeats before it reads a release), ${repeatsFor(HOLD_PAST_THRESHOLD_MS).length} repeats past the ${HOLD_PAST_THRESHOLD_MS} ms mark and up to ${repeatsFor(OPENING_GRACE_MS).length} more while the take opens`)
+console.log(`  · budget scale ${SCALE}: a held key is one space per ${REPEAT_GAP_MS} ms (the product then allows ${releaseGapMs(REPEAT_GAP_MS)} ms between repeats before it reads a release), ${repeatsFor(HOLD_PAST_THRESHOLD_MS).length} repeats past the ${HOLD_PAST_THRESHOLD_MS} ms mark, then the key keeps repeating every ${REPEAT_GAP_MS} ms while the take opens, until the recording line paints`)
 
 console.log('============================================================')
 console.log(` voice input — the on-device road on the bundle (${MODEL.name}, ${PLATFORM})`)

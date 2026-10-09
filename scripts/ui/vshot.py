@@ -368,6 +368,17 @@ if cfg.get("liveSeat"):
             "(awaitSettleTicks) or name the region the assertion reads "
             "(awaitStableRegion / stableRegion).\n" % "; ".join(_whole_grid))
         sys.exit(7)
+_blind_repeat = [
+    "send %d (%r every %s ticks)" % (i, str(s.get("data", ""))[:40], s.get("repeatEveryTicks"))
+    for i, s in enumerate(sends)
+    if s.get("repeatEveryTicks") and not (s.get("requireAwait") and (s.get("awaitText") or s.get("awaitRaw")))
+]
+if _blind_repeat:
+    sys.stderr.write(
+        "[vshot] BLIND-REPEAT: %s repeat(s) a held key with no strict needle to end on — "
+        "a hold ends on the product's word (requireAwait with awaitText or awaitRaw), "
+        "never on the clock.\n" % "; ".join(_blind_repeat))
+    sys.exit(8)
 
 def grid_text(region=None):
     if region:
@@ -389,6 +400,8 @@ send_stable_eval_tick = -1
 send_redraw_count = 0
 send_redraw_snapshot = None
 send_redraw_tick = -1
+hold_repeat_tick = None
+hold_repeats = []
 raw_seen = bytearray()
 TICK_S = 0.2
 _resizes_raw = list(cfg.get("resizes", []))
@@ -553,6 +566,15 @@ else:
                         due = False
                     else:
                         send_payload = send_payload.replace("{X}", str(tgt[0])).replace("{Y}", str(tgt[1]))
+            if not due and nxt.get("repeatEveryTicks"):
+                every = _scaled(int(nxt["repeatEveryTicks"]))
+                base = hold_repeat_tick if hold_repeat_tick is not None else (prev_send_tick or 0)
+                if every > 0 and tick >= base + every:
+                    held = nxt.get("data", "")
+                    if held:
+                        os.write(fd, held.encode())
+                    hold_repeats.append({"send": sent, "atTick": tick, "ts": int(time.time() * 1000)})
+                    hold_repeat_tick = tick
             if due:
                 if ready_texts and ready_at is None and not ready_seen_pre_sends:
                     pre_text = grid_text()
@@ -579,6 +601,7 @@ else:
                 send_redraw_count = 0
                 send_redraw_snapshot = None
                 send_redraw_tick = -1
+                hold_repeat_tick = None
                 sent += 1
         if (ready_texts or stable_need) and sent >= len(sends) and resized >= len(resizes):
             text = grid_text()
@@ -630,6 +653,8 @@ else:
         payload["stages"] = stages
     if send_receipts:
         payload["sendReceipts"] = send_receipts
+    if hold_repeats:
+        payload["holdRepeats"] = hold_repeats
     if marks:
         payload["marks"] = marks
     payload["refusals"] = capture_refusals(
