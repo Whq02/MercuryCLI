@@ -932,9 +932,10 @@ pin('60. BMP clipboard payload converts to PNG before encoding', /bmp/i.test(ima
 
 pin('62. relative pasted filename read from the clipboard path only on basename match', /basename/.test(imagePasteSrc))
 
-pin('65. hook-blocking submission ⇒ exactly ONE warning system message, no user message', /blocking/.test(processUserInputSrc) && /warning/.test(processUserInputSrc))
+pin('65. hook-blocking submission ⇒ exactly ONE warning system message, no user message', /answer\.block !== undefined/.test(processUserInputSrc) && /createSystemMessage\(`\$\{started\.answer\.block\}\\n\\nThe prompt was: \$\{promptText\}`, 'warning'\)/.test(processUserInputSrc))
 
-pin('66/79. 10k truncation applies to EXACTLY two targets (additional contexts + hook-success attachment)', (processUserInputSrc.match(/10[_,]?000|TRUNC/g) ?? []).length > 0 && /additional/i.test(processUserInputSrc))
+const attachmentTextSrc = src('src/utils/messages/attachmentText.ts')
+pin('66/79. the hook context bound applies where the model reads a hook row: the context and the tool.after objection', (attachmentTextSrc.match(/boundHookContext\(/g) ?? []).length === 2 && /outcome === 'context'/.test(attachmentTextSrc))
 
 pin('67. bridge-origin non-bridge-safe slash ⇒ refusal pair, never the model; unknown bridge slash ⇒ plain text', /bridge/i.test(processUserInputSrc) && /remote/i.test(processUserInputSrc))
 

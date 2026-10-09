@@ -570,7 +570,7 @@ console.log('§39 exit confirm — every firing key is named')
 
 console.log('§40 hook lane — bash prepends only to a leading .sh script')
 {
-  const ex = read('src/utils/hooks/execution.ts')
+  const ex = read('src/utils/hooks/commandRunner.ts')
   check('poison gone: no whole-command .sh match', !ex.includes("command.trim().match(/\\.sh(\\s|$|\")/)"))
   const LEADING_SH_SCRIPT = /^("[^"]*\.sh"|'[^']*\.sh'|\S+\.sh)(?:\s|$)/
   check('the leading token decides (bare or quoted)', ex.includes(`const firstToken = /${LEADING_SH_SCRIPT.source}/.exec(trimmed)`) && ex.includes("if (!firstToken || trimmed.startsWith('bash ')) return command"))
