@@ -146,6 +146,8 @@ export function subModelConnectHome(route: CallModelRoute | string): {
       return { command: '/logins xai', note: 'connect — /logins (API key)' }
     case 'meta':
       return { command: '/logins meta', note: 'connect — /logins (API key)' }
+    case 'mistral':
+      return { command: '/logins mistral', note: 'connect — /logins (API key)' }
     case 'openai-compat':
       return { note: 'MERCURY_COMPAT_BASE_URL configures the endpoint (key optional — /router key compat)' }
     case 'huggingface':

@@ -934,6 +934,7 @@ function backendRemedy(backendId: string): string | undefined {
   if (backendId === 'deepseek-chat') return 'add a DeepSeek API key via /logins deepseek (or set DEEPSEEK_API_KEY)'
   if (backendId === 'xai-chat') return 'add an xAI API key via /logins xai (or set XAI_API_KEY)'
   if (backendId === 'meta-chat') return 'add a Meta Model API key via /logins meta (or set MODEL_API_KEY)'
+  if (backendId === 'mistral-chat') return 'add a Mistral API key via /logins mistral (or set MISTRAL_API_KEY)'
   if (backendId === 'openai-compat-chat') return 'set MERCURY_COMPAT_BASE_URL (key optional — /router key compat)'
   if (backendId === 'openrouter-chat') return 'connect OpenRouter via /logins (OAuth mints a key) or set OPENROUTER_API_KEY'
   if (backendId === 'gemini-generate') return 'connect Gemini via /logins (API key or Google OAuth) or set GOOGLE_API_KEY / GEMINI_API_KEY'
@@ -955,6 +956,7 @@ const BACKEND_ROUTE_PROBES: readonly string[] = [
   'gemini',
   'huggingface/probe/probe',
   'local/probe',
+  'mistral',
 ]
 
 function backendRecords(): ReadinessRecord[] {

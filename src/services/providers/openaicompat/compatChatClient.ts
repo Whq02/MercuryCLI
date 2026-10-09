@@ -815,6 +815,20 @@ function decodeChunk(parsed: unknown, toolAcc: Map<number, ToolCallAccumulator>)
   const content = delta?.content
   if (typeof content === 'string' && content !== '') {
     out.push({ type: 'text-delta', text: content })
+  } else if (Array.isArray(content)) {
+    for (const chunk of content) {
+      const part = asRecord(chunk)
+      if (part?.type === 'text' && typeof part.text === 'string' && part.text !== '') {
+        out.push({ type: 'text-delta', text: part.text })
+      } else if (part?.type === 'thinking') {
+        const inner = Array.isArray(part.thinking) ? part.thinking : []
+        for (const piece of inner) {
+          const rec = asRecord(piece)
+          const text = typeof piece === 'string' ? piece : rec?.type === 'text' && typeof rec.text === 'string' ? rec.text : ''
+          if (text !== '') out.push({ type: 'reasoning-delta', text })
+        }
+      }
+    }
   }
   const toolCalls = Array.isArray(delta?.tool_calls) ? delta!.tool_calls : []
   for (const raw of toolCalls) {

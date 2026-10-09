@@ -240,6 +240,31 @@ section('3 · stream decode')
 }
 {
   const chunks = [
+    sseChunk({ choices: [{ delta: { role: 'assistant', content: '' } }] }),
+    sseChunk({ choices: [{ delta: { content: [{ type: 'thinking', thinking: [{ type: 'text', text: 'Weighing' }] }] } }] }),
+    sseChunk({ choices: [{ delta: { content: [{ type: 'thinking', thinking: [{ type: 'text', text: ' it.' }], closed: true }, { type: 'text', text: 'Hello' }] } }] }),
+    sseChunk({ choices: [{ delta: { content: ' world' } }] }),
+    sseChunk({ choices: [{ delta: {}, finish_reason: 'stop' }], usage: { prompt_tokens: 11, completion_tokens: 7, prompt_tokens_details: { cached_tokens: 4 } } }),
+    'data: [DONE]\n\n',
+  ]
+  const events = await collect(
+    streamCompatChat({
+      apiKey: 'k',
+      url: 'https://f/v1/chat/completions',
+      request: { model: 'mistral-fixture', messages: [] },
+      fetchImpl: capturingFetch(chunks, []),
+    }),
+  )
+  const reasoning = events.filter(e => e.type === 'reasoning-delta').map(e => (e as { text: string }).text).join('')
+  const text = events.filter(e => e.type === 'text-delta').map(e => (e as { text: string }).text).join('')
+  check('mistral chunk-list thinking decodes as reasoning deltas', reasoning === 'Weighing it.')
+  check('the transition chunk keeps its text beside the closing thinking chunk', text === 'Hello world')
+  const usage = events.find(e => e.type === 'usage')
+  check('mistral cached tokens decode from prompt_tokens_details', usage?.type === 'usage' && usage.usage.inputTokens === 11 && usage.usage.cachedInputTokens === 4)
+  check('the turn finishes on stop', events.some(e => e.type === 'finish' && e.reason === 'stop'))
+}
+{
+  const chunks = [
     sseChunk({ choices: [{ delta: { tool_calls: [{ index: 0, id: 'a1', function: { name: 'alpha', arguments: '{"x":' } }] } }] }),
     sseChunk({ choices: [{ delta: { tool_calls: [{ index: 1, id: 'b2', function: { name: 'beta', arguments: '{"y":true}' } }] } }] }),
     sseChunk({ choices: [{ delta: { tool_calls: [{ index: 0, function: { arguments: '1}' } }] } }] }),

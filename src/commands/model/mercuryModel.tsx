@@ -22,7 +22,7 @@ import {
 import { TransitionPreviewCard } from '../../components/TransitionPreviewCard.js'
 import { resolveProviderUsability, usabilityForRoute } from '../../services/providers/providerUsability.js'
 import type { TransitionPlan } from '../../utils/model/modelTransition.js'
-import { ANTHROPIC_CONNECT_OPTION_VALUE, ANTHROPIC_MODEL_GROUP, anthropicNotSignedInReason, applyModelAllowlist, COMPAT_MODEL_GROUP, DEEPSEEK_MODEL_GROUP, XAI_MODEL_GROUP, META_MODEL_GROUP, focusedOptionSupports1m, getGptSeatAvailability, getModelOptions, GPT_CONNECT_OPTION_VALUE, isCatalogueDoorRow, isProviderActionRow, type ModelOption, MOONSHOT_MODEL_GROUP, OPENAI_MODEL_GROUP, parseKeyConnectValue, signInFamilyOfRow, stripContext1m, withContext1m, ZAI_MODEL_GROUP } from '../../utils/model/modelOptions.js'
+import { ANTHROPIC_CONNECT_OPTION_VALUE, ANTHROPIC_MODEL_GROUP, anthropicNotSignedInReason, applyModelAllowlist, COMPAT_MODEL_GROUP, DEEPSEEK_MODEL_GROUP, XAI_MODEL_GROUP, META_MODEL_GROUP, MISTRAL_MODEL_GROUP, focusedOptionSupports1m, getGptSeatAvailability, getModelOptions, GPT_CONNECT_OPTION_VALUE, isCatalogueDoorRow, isProviderActionRow, type ModelOption, MOONSHOT_MODEL_GROUP, OPENAI_MODEL_GROUP, parseKeyConnectValue, signInFamilyOfRow, stripContext1m, withContext1m, ZAI_MODEL_GROUP } from '../../utils/model/modelOptions.js'
 import { nextBirthModel } from '../../services/switchboard/bootBirthFacts.js'
 import {
   OPENROUTER_CONNECT_OPTION_VALUE,
@@ -95,6 +95,8 @@ import {
 import { resolveXaiCredentialSnapshot, xaiInferenceBase } from '../../services/providers/xai/xaiAccounts.js'
 import { getCachedMetaCatalogue, refreshMetaCatalogue, type MetaCatalogueSnapshot } from '../../services/providers/meta/metaCatalogue.js'
 import { metaApiBase, resolveMetaApiKey } from '../../services/providers/meta/metaAccounts.js'
+import { getCachedMistralCatalogue, refreshMistralCatalogue, type MistralCatalogueSnapshot } from '../../services/providers/mistral/mistralCatalogue.js'
+import { mistralApiBase, resolveMistralApiKey } from '../../services/providers/mistral/mistralAccounts.js'
 import { LOCAL_MODEL_GROUP, localDiscoverySummary } from '../../services/providers/local/localCatalogue.js'
 import { getCachedLocalDiscovery, localProbeTargets, refreshLocalDiscovery, type LocalDiscoverySnapshot } from '../../services/providers/local/localDiscovery.js'
 import { requestCommandDispatch } from '../../utils/cockpit/helmFocus.js'
@@ -349,6 +351,19 @@ const META_ROAD: CatalogueRoad<MetaCatalogueSnapshot> = {
   changed: (before, after) => !isDeepStrictEqual(before.models, after.models),
 }
 
+const MISTRAL_ROAD: CatalogueRoad<MistralCatalogueSnapshot> = {
+  family: 'Mistral',
+  identity: () => {
+    const key = resolveMistralApiKey()
+    return key ? `${key.source}:${credentialFingerprint(key.key)}:${mistralApiBase()}` : undefined
+  },
+  cached: () => getCachedMistralCatalogue(),
+  refresh: () => refreshMistralCatalogue({ force: true }),
+  populated: snapshot => snapshot.fetchedAtMs > 0,
+  failed: snapshot => snapshot.lastError !== undefined,
+  changed: (before, after) => !isDeepStrictEqual(before.models, after.models),
+}
+
 const LOCAL_ROAD: CatalogueRoad<LocalDiscoverySnapshot> = {
   family: 'Local',
   identity: () => {
@@ -482,6 +497,7 @@ const MODEL_GROUP_FAMILIES: Record<string, string> = {
   [XAI_MODEL_GROUP]: 'xai',
   [META_MODEL_GROUP]: 'meta',
   [COMPAT_MODEL_GROUP]: 'openai-compat',
+  [MISTRAL_MODEL_GROUP]: 'mistral',
   [LOCAL_MODEL_GROUP]: 'local',
 }
 
@@ -558,7 +574,7 @@ function buildProviderHeadings(): Record<string, ProviderHeading> {
   const doorsOf = (family: string): ProviderHeading['doors'] => (presences.has(family) && presences.get(family)!.credentialed === false ? [] : signedInDoorsOf(family, slotsOf(family), presences.get(family)?.identity))
   const gptAvailability = getGptSeatAvailability()
   const usability = resolveProviderUsability()
-  const keyLaneHeading = (family: 'zai' | 'moonshot' | 'deepseek' | 'xai' | 'meta'): ProviderHeading => {
+  const keyLaneHeading = (family: 'zai' | 'moonshot' | 'deepseek' | 'xai' | 'meta' | 'mistral'): ProviderHeading => {
     const lane = usability[family]
     const doors = doorsOf(family)
     if (lane.credential === 'none' || doors.length === 0) return { name: nameOf(family), doors: [], reason: lane.blockers[0] ?? 'not connected' }
@@ -588,6 +604,7 @@ function buildProviderHeadings(): Record<string, ProviderHeading> {
     [DEEPSEEK_MODEL_GROUP]: keyLaneHeading('deepseek'),
     [XAI_MODEL_GROUP]: keyLaneHeading('xai'),
     [META_MODEL_GROUP]: keyLaneHeading('meta'),
+    [MISTRAL_MODEL_GROUP]: keyLaneHeading('mistral'),
     [OPENROUTER_MODEL_GROUP]:
       openrouterAvailability.state === 'ready'
         ? { name: nameOf('openrouter'), doors: doorsOf('openrouter') }
@@ -774,6 +791,7 @@ function MercuryModelWrapper({
   useCatalogueRefreshOnOpen(ZAI_ROAD, setNotice)
   useCatalogueRefreshOnOpen(XAI_ROAD, setNotice)
   useCatalogueRefreshOnOpen(META_ROAD, setNotice)
+  useCatalogueRefreshOnOpen(MISTRAL_ROAD, setNotice)
   useCatalogueRefreshOnOpen(LOCAL_ROAD, setNotice)
   useCatalogueRefreshOnOpen(ANTHROPIC_SUBSCRIPTION_ROAD, setNotice)
   useCatalogueRefreshOnOpen(ANTHROPIC_KEY_ROAD, setNotice)
@@ -950,7 +968,7 @@ function MercuryModelWrapper({
           return
         }
         onDone(
-          `${keyLane === 'zai' ? 'GLM (Z.AI)' : keyLane === 'xai' ? 'xAI' : keyLane === 'meta' ? 'Meta' : 'DeepSeek'} sign-in — running /logins ${keyLane}; the picker re-opens when it settles`,
+          `${keyLane === 'zai' ? 'GLM (Z.AI)' : keyLane === 'xai' ? 'xAI' : keyLane === 'meta' ? 'Meta' : keyLane === 'mistral' ? 'Mistral' : 'DeepSeek'} sign-in — running /logins ${keyLane}; the picker re-opens when it settles`,
           { nextInput: `/logins ${keyLane} --return=/model`, submitNextInput: true },
         )
         return
@@ -1118,6 +1136,7 @@ export function MercuryModelDefaultPicker({ onDone, onSignIn }: { onDone: () => 
   useCatalogueRefreshOnOpen(ZAI_ROAD, setNotice)
   useCatalogueRefreshOnOpen(XAI_ROAD, setNotice)
   useCatalogueRefreshOnOpen(META_ROAD, setNotice)
+  useCatalogueRefreshOnOpen(MISTRAL_ROAD, setNotice)
   useCatalogueRefreshOnOpen(LOCAL_ROAD, setNotice)
   useCatalogueRefreshOnOpen(ANTHROPIC_SUBSCRIPTION_ROAD, setNotice)
   useCatalogueRefreshOnOpen(ANTHROPIC_KEY_ROAD, setNotice)
@@ -1216,6 +1235,7 @@ export function MercurySessionModelPicker({
   useCatalogueRefreshOnOpen(ZAI_ROAD, setNotice)
   useCatalogueRefreshOnOpen(XAI_ROAD, setNotice)
   useCatalogueRefreshOnOpen(META_ROAD, setNotice)
+  useCatalogueRefreshOnOpen(MISTRAL_ROAD, setNotice)
   useCatalogueRefreshOnOpen(LOCAL_ROAD, setNotice)
   useCatalogueRefreshOnOpen(ANTHROPIC_SUBSCRIPTION_ROAD, setNotice)
   useCatalogueRefreshOnOpen(ANTHROPIC_KEY_ROAD, setNotice)
@@ -1290,6 +1310,7 @@ export function MercuryModelChoicePicker({ leading, current, onSelect, onSignIn,
   useCatalogueRefreshOnOpen(ZAI_ROAD, setNotice)
   useCatalogueRefreshOnOpen(XAI_ROAD, setNotice)
   useCatalogueRefreshOnOpen(META_ROAD, setNotice)
+  useCatalogueRefreshOnOpen(MISTRAL_ROAD, setNotice)
   useCatalogueRefreshOnOpen(LOCAL_ROAD, setNotice)
   useCatalogueRefreshOnOpen(ANTHROPIC_SUBSCRIPTION_ROAD, setNotice)
   useCatalogueRefreshOnOpen(ANTHROPIC_KEY_ROAD, setNotice)

@@ -368,6 +368,11 @@ const ENGINE_USAGE_PRESENTATION: Record<
     connect: 'set MERCURY_COMPAT_BASE_URL (key optional — /router key compat)',
     limitsNote: 'Usage bills to the endpoint you configured; no polled limit meter exists on this lane.',
   },
+  mistral: {
+    title: 'Mistral usage',
+    connect: '/logins mistral adds a Mistral API key (MISTRAL_API_KEY works too)',
+    limitsNote: 'A key draws on the plan’s included monthly usage, then pay-as-you-go when that is on; an Admin API key reads the organisation’s usage against its monthly limit and the rate limits.',
+  },
   huggingface: {
     title: 'Hugging Face usage',
     connect: '/logins adds Hugging Face (device-code sign-in, or paste a token; HF_TOKEN works too)',

@@ -27,7 +27,7 @@ VITALS                  │ │ none — /logins anthropic connects a subscripti
                         │ │ works too).                                                                              │ │
                         │ │                                                                                          │ │
                         │ │ JEV official · Mercury's count: no chat open · allowance $20.00 · off · credits: not re… │ │
-                        │ │ ↓ 9 more · OpenRouter · Gemini · Moonshot · DeepSeek · xAI · Meta · Custom endpoint · H… │ │
+                        │ │ ↓ 10 more · OpenRouter · Gemini · Moonshot · DeepSeek · xAI · Meta · Custom endpoint · … │ │
                         │ │                                                                                          │ │
                         │ │ ↑↓ scroll · esc or click outside closes                                                  │ │
                         │ ╰──────────────────────────────────────────────────────────────────────────────────────────╯ │

@@ -502,7 +502,7 @@ t.section('§4 — THE ROSTER LAYER (A3: one home, truthful chips, the boot-menu
   )
 
   const arms = loginsCatalogue()
-  t.check('the catalogue is the row owner’s eleven, engine legs offered', arms.length === 11 && arms.map(a => a.row.value).join(',') === 'openai,claudeai,console,openrouter,gemini,huggingface,moonshot,zai,deepseek,xai,meta')
+  t.check('the catalogue is the row owner’s twelve, engine legs offered', arms.length === 12 && arms.map(a => a.row.value).join(',') === 'openai,claudeai,console,openrouter,gemini,huggingface,moonshot,zai,deepseek,xai,meta,mistral')
   const { loginFamilyInitialFocus, loginFamilyFocusFor } = await import('../../src/components/loginFamilyRows.js')
   const signedOutRows = loginsSortedArms(signedOutFacts()).map(arm => arm.row)
   t.check('signed-out opening focus is the first displayed row', loginFamilyInitialFocus(signedOutRows, undefined) === signedOutRows[0]!.value && signedOutRows[0]!.value === 'openai')
@@ -524,12 +524,12 @@ t.section('§4 — THE ROSTER LAYER (A3: one home, truthful chips, the boot-menu
   t.check('the expired pane carries the typed blocker VERBATIM', loginsDetailLines(claudeArm, expired).join('\n').includes('the claude.ai sign-in has expired —\n/logins re-authenticates it'))
 
   const sorted = loginsSortedArms(facts)
-  t.check('signed-in rows float first, catalogue order within each class', sorted.map(a => a.row.value).join(',') === 'openai,claudeai,huggingface,moonshot,console,openrouter,gemini,zai,deepseek,xai,meta')
+  t.check('signed-in rows float first, catalogue order within each class', sorted.map(a => a.row.value).join(',') === 'openai,claudeai,huggingface,moonshot,console,openrouter,gemini,zai,deepseek,xai,meta,mistral')
   const entry = loginsEntryOf(claudeArm, facts)
   t.check('an entry groups under its state class with the owner’s row label', entry.group === 'signed in' && entry.label === 'Claude subscription account' && entry.valueLabel === 'op@example.com')
 
-  t.check('the summary counts distinct families (10), signed and ready', JSON.stringify(loginsSummaryRows(facts).map(r => `${r.key}=${r.value}`)) === JSON.stringify(['Families=10', 'Signed in=4 of 10', 'Ready=4 lanes']))
-  t.check('the status line: signed of total · ready', loginsStatusLine(facts) === '4 of 10 families signed in · 4 ready')
+  t.check('the summary counts distinct families (11), signed and ready', JSON.stringify(loginsSummaryRows(facts).map(r => `${r.key}=${r.value}`)) === JSON.stringify(['Families=11', 'Signed in=4 of 11', 'Ready=4 lanes']))
+  t.check('the status line: signed of total · ready', loginsStatusLine(facts) === '4 of 11 families signed in · 4 ready')
   t.check('the signed-out world says so honestly (lanes can be ready without a sign-in)', loginsStatusLine(signedOutFacts()) === 'no family signed in yet · 0 ready without one')
   const splashSource = ts.createSourceFile('BootSplashScreen.tsx', read('src/components/BootSplashScreen.tsx'), ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX)
   let countExpression = ''
@@ -556,7 +556,7 @@ t.section('§4 — THE ROSTER LAYER (A3: one home, truthful chips, the boot-menu
         const compose = new Function('providerFamilyPresences', 'deriveFamilySlotGroups', 'loginsFamilyCounts', `${js}\nreturn compose`)(
           () => groups.map(group => group.family), () => groups, sharedCount,
         ) as () => string | null
-        const expected = snapshot === facts ? '4 of 10 signed in' : null
+        const expected = snapshot === facts ? '4 of 11 signed in' : null
         t.check(`boot count matches the listed families, extra providers signed=${signedExtras}, listed signed=${snapshot === facts}`, compose() === expected, String(compose()))
       }
     }
@@ -564,7 +564,7 @@ t.section('§4 — THE ROSTER LAYER (A3: one home, truthful chips, the boot-menu
   t.check('the legend names only the moves that exist (↵ joined with the first flow)', loginsLegendOf() === '↑↓ move · ↵ sign in · esc back')
 
   const wide = composeLogins(120, 40, { sel: 0 }).join('\n')
-  t.check('the wide frame carries the classes, the chips and the LOGINS panel', ['signed in', 'available', 'op@example.com', 'not signed in', 'LOGINS', 'Signed in  4 of 10', 'xAI — Grok subscription sign-in or API …', 'Meta — API key (Muse)'].every(s => wide.includes(s)))
+  t.check('the wide frame carries the classes, the chips and the LOGINS panel', ['signed in', 'available', 'op@example.com', 'not signed in', 'LOGINS', 'Signed in  4 of 11', 'xAI — Grok subscription sign-in or API …', 'Meta — API key (Muse)', 'Mistral — API key (Mistral Large 4)'].every(s => wide.includes(s)))
   const floor = composeLogins(64, 12, { sel: 0 }).join('\n')
   t.check('the 64×12 floor frame WARNS and keeps the way out', floor.includes('wants at least') && floor.includes('esc back'))
 
@@ -680,7 +680,7 @@ t.section('§7 — THE KEY FAMILIES (A5: picks · the one guard spelling · driv
   const { keyPasteGuardNote } = await import('../../src/components/mercury-ui/screens/keyPasteGuards.js')
   const { zaiPlanLabel } = await import('../../src/services/providers/zai/zaiLogin.js')
 
-  t.check('↵ is live on EVERY catalogue row (the set closed at A6b)', ['claudeai', 'console', 'zai', 'deepseek', 'xai', 'meta', 'moonshot', 'huggingface', 'openai', 'openrouter', 'gemini'].every(v => loginsFlowReady(v as never)))
+  t.check('↵ is live on EVERY catalogue row (the set closed at A6b)', ['claudeai', 'console', 'zai', 'deepseek', 'xai', 'meta', 'mistral', 'moonshot', 'huggingface', 'openai', 'openrouter', 'gemini'].every(v => loginsFlowReady(v as never)))
 
   const { openaiArmPickRows } = await import('../../src/components/loginFamilyRows.js')
   t.check('the openai pick is the row owner\'s two-arm pair, byte-same labels', JSON.stringify(loginsPickOptions('openai').map(o => o.label)) === JSON.stringify(openaiArmPickRows.map(o => o.label)) && JSON.stringify(loginsPickOptions('openai').map(o => o.label)) === JSON.stringify(['ChatGPT subscription — browser sign-in', 'OpenAI API key — paste one (stored locally, mode 600)']))

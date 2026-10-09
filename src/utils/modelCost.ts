@@ -2,6 +2,7 @@ import { setHasUnknownModelCost } from '../bootstrap/state.js'
 import { deepseekDisplayPin } from '../services/providers/deepseek/deepseekPins.js'
 import { xaiModelFacts } from '../services/providers/xai/xaiCatalogue.js'
 import { metaDisplayPin } from '../services/providers/meta/metaPins.js'
+import { mistralDisplayPin } from '../services/providers/mistral/mistralPins.js'
 import { geminiPricePin, geminiPriceTierFor } from '../services/providers/gemini/geminiPins.js'
 import { huggingfaceDisplayPin } from '../services/providers/huggingface/huggingfacePins.js'
 import type { CallModelRoute } from '../services/providers/idSpaces.js'
@@ -210,6 +211,7 @@ const PRICING_OWNERS: Record<CallModelRoute, PricingOwner> = {
   huggingface: model => huggingfaceFloorPricing(model),
   local: () => ({ costs: COST_LOCAL_SERVER, basis: 'recorded' }),
   'openai-compat': () => undefined,
+  mistral: model => recorded(engineTier(mistralDisplayPin(model))),
 }
 
 export function resolveModelPricing(model: string, opts?: { promptTokens?: number }): ResolvedModelPricing {

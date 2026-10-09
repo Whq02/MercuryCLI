@@ -19,6 +19,8 @@ import { xaiCallModel, xaiLiveProofState } from './xai/xaiCallModel.js'
 import { resolveXaiCredentialSnapshot } from './xai/xaiAccounts.js'
 import { metaCallModel, metaLiveProofState } from './meta/metaCallModel.js'
 import { resolveMetaApiKey } from './meta/metaAccounts.js'
+import { mistralCallModel, mistralLiveProofState } from './mistral/mistralCallModel.js'
+import { resolveMistralApiKey } from './mistral/mistralAccounts.js'
 import { compatCallModel, compatSlotLiveProofState } from './openaicompat/compatCallModel.js'
 import { resolveCompatSlotConfig } from './openaicompat/compatAccounts.js'
 import {
@@ -45,6 +47,7 @@ export type PrimaryBackendId =
   | 'gemini-generate'
   | 'huggingface-chat'
   | 'local-chat'
+  | 'mistral-chat'
 
 export interface AgentRuntimeRef {
   contractVersion: typeof APEX_BACKEND_CONTRACT_VERSION
@@ -62,6 +65,7 @@ export interface AgentRuntimeRef {
     | 'gemini'
     | 'huggingface'
     | 'local'
+    | 'mistral'
   route: CallModelRoute | 'unrecognised' | 'absence'
   canonicalModel: string
   family:
@@ -77,6 +81,7 @@ export interface AgentRuntimeRef {
     | { kind: 'gemini' }
     | { kind: 'huggingface' }
     | { kind: 'local' }
+    | { kind: 'mistral' }
     | { kind: 'unknown' }
   walletEntryId?: string
 }
@@ -200,6 +205,17 @@ const metaBackend: PrimaryAgentBackend = {
       : { state: 'configured', detail: 'key present · no live turn proven this session' }
   },
 }
+const mistralBackend: PrimaryAgentBackend = {
+  id: 'mistral-chat', provider: 'mistral', label: 'Mistral (native, in-process)',
+  callModel: mistralCallModel as unknown as typeof queryModelWithStreaming,
+  readiness: (): BackendReadiness => {
+    if (!resolveMistralApiKey()) return { state: 'unavailable', reason: 'no API key (/logins mistral, or MISTRAL_API_KEY)' }
+    const proof = mistralLiveProofState()
+    return proof
+      ? { state: 'ready', detail: `live turn settled this session (${proof.model})` }
+      : { state: 'configured', detail: 'key present · no live turn proven this session' }
+  },
+}
 const compatBackend: PrimaryAgentBackend = {
   id: 'openai-compat-chat',
   provider: 'openai-compat',
@@ -310,6 +326,7 @@ const BACKENDS: Record<CallModelRoute, PrimaryAgentBackend> = {
   gemini: geminiBackend,
   huggingface: huggingfaceBackend,
   local: localBackend,
+  mistral: mistralBackend,
 }
 
 export function resolvePrimaryAgentBackend(model: string | undefined): PrimaryAgentBackend | null {
@@ -356,6 +373,8 @@ export function describeAgentRuntimeRef(model: string | undefined): AgentRuntime
     family = { kind: 'huggingface' }
   } else if (route === 'local') {
     family = { kind: 'local' }
+  } else if (route === 'mistral') {
+    family = { kind: 'mistral' }
   } else {
     family = canonical.toLowerCase().includes('claude') ? { kind: 'claude' } : { kind: 'unknown' }
   }

@@ -45,6 +45,7 @@ export type CacheLane =
   | 'gemini'
   | 'huggingface'
   | 'local'
+  | 'mistral'
 
 type PromptStateSnapshot = {
   system: NeutralSystemBlock[]
