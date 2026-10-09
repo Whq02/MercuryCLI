@@ -52,10 +52,11 @@ type Family =
   | 'huggingface'
   | 'local'
   | 'compat'
+  | 'nous'
 
 const FAMILIES: readonly Family[] = [
   'anthropic', 'openai', 'zai', 'moonshot', 'deepseek', 'xai', 'meta',
-  'gemini', 'openrouter', 'huggingface', 'local', 'compat',
+  'gemini', 'openrouter', 'huggingface', 'local', 'compat', 'nous',
 ]
 
 const sse = (obj: unknown): string => `data: ${JSON.stringify(obj)}\n\n`
@@ -158,6 +159,7 @@ function familyOfPath(path: string): Family | undefined {
   if (path.startsWith('/hf/')) return 'huggingface'
   if (path.startsWith('/localsrv/')) return 'local'
   if (path.startsWith('/compatslot/')) return 'compat'
+  if (path.startsWith('/nous/')) return 'nous'
   return undefined
 }
 
@@ -208,6 +210,14 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
         res.end(JSON.stringify({ models: [
           { name: 'models/gemini-3-pro', displayName: 'Gemini 3 Pro', supportedGenerationMethods: ['generateContent'] },
           { name: 'models/gemini-3-flash', displayName: 'Gemini 3 Flash', supportedGenerationMethods: ['generateContent'] },
+        ] }))
+        return
+      }
+      if (path === '/nous/v1/models') {
+        res.writeHead(200, { 'content-type': 'application/json' })
+        res.end(JSON.stringify({ data: [
+          { id: 'anthropic/claude-sonnet-4.6', name: 'Claude Sonnet 4.6', context_length: 1000000, supported_parameters: ['tools', 'tool_choice', 'max_tokens'] },
+          { id: 'openai/gpt-5.5-pro', name: 'OpenAI: GPT-5.5 Pro', context_length: 1050000, supported_parameters: ['tools', 'reasoning'] },
         ] }))
         return
       }
@@ -276,6 +286,9 @@ Object.assign(process.env, {
   MERCURY_HUGGINGFACE_API_BASE: `${base}/hf/v1`,
   MERCURY_HUGGINGFACE_HUB_BASE: `${base}/hf/hub`,
   HF_TOKEN: 'fixture-hf-token',
+  MERCURY_NOUS_API_BASE: `${base}/nous/v1`,
+  MERCURY_NOUS_PORTAL_BASE: `${base}/nous`,
+  NOUS_API_KEY: 'fixture-nous-key',
   MERCURY_COMPAT_BASE_URL: `${base}/compatslot/v1`,
   MERCURY_COMPAT_API_KEY: 'fixture-compat-key',
   MERCURY_COMPAT_MODELS: 'qwen-max',
@@ -308,6 +321,7 @@ await refreshLocalDiscovery({ force: true })
 await (await import('../../src/services/providers/moonshot/moonshotCatalogue.ts')).refreshMoonshotCatalogue({ force: true })
 await (await import('../../src/services/providers/xai/xaiCatalogue.ts')).refreshXaiCatalogue({ force: true })
 await (await import('../../src/services/providers/meta/metaCatalogue.ts')).refreshMetaCatalogue({ force: true })
+await (await import('../../src/services/providers/nous/nousCatalogue.ts')).refreshNousCatalogue({ force: true })
 
 const echoCalls: Array<{ family: string; text: string }> = []
 const EchoTool = {
@@ -452,6 +466,7 @@ const WORKER_SPELLINGS: Record<Family, { model: string; wireId: string }> = {
   },
   local: { model: 'local/qwen3-32b', wireId: 'qwen3-32b' },
   compat: { model: 'compat/qwen-max', wireId: 'qwen-max' },
+  nous: { model: 'nous/anthropic/claude-sonnet-4.6', wireId: 'anthropic/claude-sonnet-4.6' },
 }
 
 const RING: Array<{ parent: Family; worker: Family }> = [
@@ -466,7 +481,8 @@ const RING: Array<{ parent: Family; worker: Family }> = [
   { parent: 'openrouter', worker: 'huggingface' },
   { parent: 'huggingface', worker: 'local' },
   { parent: 'local', worker: 'compat' },
-  { parent: 'compat', worker: 'anthropic' },
+  { parent: 'compat', worker: 'nous' },
+  { parent: 'nous', worker: 'anthropic' },
 ]
 
 const IDENTITY_ANCHOR = 'Mercury was not built by the maker of any model it runs'
@@ -577,8 +593,8 @@ section('§C the workflow driver — scripted fan-out across every family')
     return results;
   `
   const o = await driveWorkflow('claude-opus-5', fanoutScript)
-  check('the twelve-family fan-out ran to completion (no run error)', o.error === undefined, String(o.error ?? ''))
-  check('all twelve agents were admitted and none failed', o.agentCount === FAMILIES.length && o.failures.length === 0,
+  check('the thirteen-family fan-out ran to completion (no run error)', o.error === undefined, String(o.error ?? ''))
+  check('all thirteen agents were admitted and none failed', o.agentCount === FAMILIES.length && o.failures.length === 0,
     `agentCount=${o.agentCount} failures=${text(o.failures).slice(0, 300)}`)
   const results = (o.result ?? {}) as Record<string, unknown>
   for (const family of FAMILIES) {
@@ -729,7 +745,7 @@ section('§A the dispatch boundary — the engine grammar is TOTAL over the rout
   const CLASS_TO_ROUTE: Record<string, string> = {
     gpt: 'openai', glm: 'zai', kimi: 'moonshot', deepseek: 'deepseek', grok: 'xai', muse: 'meta',
     compat: 'openai-compat', huggingface: 'huggingface', local: 'local',
-    gemini: 'gemini', openrouter: 'openrouter',
+    gemini: 'gemini', openrouter: 'openrouter', nous: 'nous',
   }
   const declaredRoutes = [...new Set(PROVIDER_ID_SPACES.map(s => s.route))].sort()
   const grammarRoutes = [...new Set(engine.ENGINE_DISPATCH_MODELS.map(c => CLASS_TO_ROUTE[c]).filter(Boolean))].sort()
@@ -751,6 +767,7 @@ section('§A the dispatch boundary — the engine grammar is TOTAL over the rout
     { cls: 'huggingface', backend: 'huggingface' },
     { cls: 'local', backend: 'local', model: 'local/qwen3-32b' },
     { cls: 'compat', backend: 'openai-compat' },
+    { cls: 'nous', backend: 'nous', model: 'nous/anthropic/claude-sonnet-4.6' },
   ]
   const bootState = await import('../../src/bootstrap/state.ts')
   const priorOverride = bootState.getEngineModelOverride()

@@ -16,7 +16,7 @@ function section(title: string): void {
 }
 
 console.log('============================================================')
-console.log(' PROVAUTH — the auth flow matrix: twelve families × six arms')
+console.log(' PROVAUTH — the auth flow matrix: thirteen families × six arms')
 console.log('============================================================')
 
 for (const key of [
@@ -149,6 +149,10 @@ const ABSENT: Partial<Record<string, Partial<Record<Arm, string>>>> = {
     refresh: 'a stored API key has no refresh protocol — honest absence',
     'expiry-at-rest': 'a key states no expiry; validity is unknowable at rest (no probe by law) — the wire speaks at the send',
   },
+  nous: {
+    refresh: 'a stored API key has no refresh protocol — honest absence',
+    'expiry-at-rest': 'a key states no expiry; validity is unknowable at rest (no probe by law) — the wire speaks at the send',
+  },
   'openai-compat': {
     refresh: 'a configured endpoint key has no refresh protocol — honest absence',
     'expiry-at-rest':
@@ -165,7 +169,7 @@ const ABSENT: Partial<Record<string, Partial<Record<Arm, string>>>> = {
   },
 }
 
-check('the family set is the resolver’s twelve (including Anthropic)', families.length === 12, families.join(', '))
+check('the family set is the resolver’s thirteen (including Anthropic)', families.length === 13, families.join(', '))
 {
   let driven = 0
   let absent = 0
@@ -207,6 +211,7 @@ const RECONNECT_DOORS: Record<string, string> = {
   huggingface: '/logins huggingface',
   'openai-compat': '/router key compat',
   local: '/router key local',
+  nous: '/logins nous',
 }
 
 section('§1 sign-in: the signed-out answers name the right door, every family')
@@ -227,6 +232,7 @@ section('§1 sign-in: the signed-out answers name the right door, every family')
     huggingface: 'no Hugging Face credential — /logins (or HF_TOKEN)',
     local:
       'no local server discovered — start Ollama/LM Studio/vLLM/llama.cpp-server or set MERCURY_LOCAL_BASE_URL',
+    nous: 'no Nous Portal API key — /logins nous (or NOUS_API_KEY)',
   }
   for (const family of families) {
     const lane = map[family as keyof typeof map]
@@ -251,6 +257,7 @@ section('§1 sign-in: the signed-out answers name the right door, every family')
     gemini: 'not connected — /logins adds Gemini',
     huggingface: 'not connected — /logins adds Hugging Face',
     local: 'no local server — start one, or set MERCURY_LOCAL_BASE_URL',
+    nous: 'not connected — /logins nous adds a key',
   }
   for (const family of families) {
     const view = activeSourceUsage({
@@ -297,7 +304,7 @@ section('§1 sign-in: the signed-out answers name the right door, every family')
   check(
     'the /logins catalogue carries the ten sign-in families (anthropic as claudeai+console)',
     rows.join('|') ===
-      ['openai', 'claudeai', 'console', 'openrouter', 'gemini', 'huggingface', 'moonshot', 'zai', 'deepseek', 'xai', 'meta'].join('|'),
+      ['openai', 'claudeai', 'console', 'openrouter', 'gemini', 'huggingface', 'moonshot', 'zai', 'deepseek', 'xai', 'meta', 'nous'].join('|'),
     rows.join('|'),
   )
   check(
@@ -307,7 +314,7 @@ section('§1 sign-in: the signed-out answers name the right door, every family')
   check(
     "the ten sign-in families parse a /logins focus (anthropic → 'claudeai')",
     loginFamilyFocusFor('anthropic') === 'claudeai' &&
-      (['openai', 'openrouter', 'gemini', 'huggingface', 'moonshot', 'zai', 'deepseek', 'xai', 'meta'] as const).every(
+      (['openai', 'openrouter', 'gemini', 'huggingface', 'moonshot', 'zai', 'deepseek', 'xai', 'meta', 'nous'] as const).every(
         family => loginFamilyFocusFor(family) === family,
       ),
   )
