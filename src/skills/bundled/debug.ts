@@ -40,7 +40,7 @@ async function readLogTail(logPath: string): Promise<
 export function registerDebugSkill(): void {
   registerBundledSkill({
     name: 'debug',
-    description: 'Enable debug logging for this session and help diagnose issues',
+    description: 'Turns on debug logging for the rest of this session and reads the log to diagnose the issue you describe',
     argumentHint: '<issue description>',
     allowedTools: ['Read', 'Grep', 'Glob'],
     disableModelInvocation: true,
