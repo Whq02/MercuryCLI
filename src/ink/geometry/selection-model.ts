@@ -66,9 +66,8 @@ export function moveFocus(s: SelectionState, col: number, row: number): void {
 }
 
 export function comparePoints(a: Point, b: Point): number {
-  if (a.row !== b.row) return a.row < b.row ? -1 : 1
-  if (a.col !== b.col) return a.col < b.col ? -1 : 1
-  return 0
+  const byRow = Math.sign(a.row - b.row)
+  return byRow !== 0 ? byRow : Math.sign(a.col - b.col)
 }
 
 export function hasSelection(s: SelectionState): boolean {
