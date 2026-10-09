@@ -10,5 +10,6 @@ prove-denied-glyph-split.ts
 prove-denied-fold-row.ts
 prove-hover-e2e.ts
 prove-keys-escape.ts
+prove-mode-flag-over-consent.ts
 prove-render-tui.ts
 prove-visual-baseline.ts

@@ -404,9 +404,10 @@ export function resolveSessionPermissionMode({
   envBypassArmed?: boolean
 }): SessionPermissionModeResolution {
   const requested = permissionModeCli ? permissionModeFromString(permissionModeCli) : undefined
+  const typedPosture = requested !== undefined && !modeBypassesPermissions(requested)
   const candidates: Array<{ mode: PermissionMode; source: SessionPermissionModeSource }> = []
 
-  if (dangerouslySkipPermissions) {
+  if (dangerouslySkipPermissions && !typedPosture) {
     candidates.push({ mode: 'sovereign', source: envBypassArmed === true ? 'session-birth' : 'launch-flag' })
   }
   if (requested) candidates.push({ mode: requested, source: 'mode-argument' })
@@ -414,7 +415,7 @@ export function resolveSessionPermissionMode({
   if (settingsMode) candidates.push({ mode: settingsMode, source: 'saved-settings' })
 
   const ordered: PermissionMode[] = candidates.map(c => c.mode)
-  const result = resolvePermissionModeCandidates(ordered, { dangerouslySkipPermissions })
+  const result = resolvePermissionModeCandidates(ordered, { dangerouslySkipPermissions: dangerouslySkipPermissions && !typedPosture })
   const winner = candidates.find(c => c.mode === result.mode) ?? { mode: result.mode as PermissionMode, source: 'default' as SessionPermissionModeSource }
   return { ...result, source: winner.source }
 }
