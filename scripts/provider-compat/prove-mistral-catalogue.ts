@@ -56,7 +56,11 @@ try {
   check('a saved 1M suffix never invents an activation mechanism', resolveContextWindow('mistral-large-4[1m]').effectiveWindow === 1_048_576 && resolveContextWindow('mistral-large-4[1m]').activation.kind === 'unavailable')
   check('an unrecorded served row takes its facts from the live list and invents no price', resolveModelPricing('mistral-fixture-new').basis === 'unpriced' && effortVocabularyFor('mistral-fixture-new').kind === 'provider' && !modelReceivesImageBlocks('mistral-fixture-new') && cat.mistralCatalogueRows().rows.at(-1)?.contextWindow === undefined)
   check('dated prices belong to the exact Mistral rows', resolveModelPricing('mistral-large-4').costs.inputTokens === 1.36 && resolveModelPricing('mistral-large-4').costs.outputTokens === 4.18 && resolveModelPricing('mistral-small-2603').costs.inputTokens === 0.15 && resolveModelPricing('ministral-3b-2512').basis === 'recorded')
-  check('named off-list, retired and non-chat ids are refused without inference', !(await validateModel('mistral-fixture-absent')).valid && !(await validateModel('devstral-2512')).valid && !(await validateModel('mistral-embed')).valid)
+  const homeBase = process.env.ANTHROPIC_BASE_URL
+  delete process.env.ANTHROPIC_BASE_URL
+  const refusedOffList = !(await validateModel('mistral-fixture-absent')).valid && !(await validateModel('devstral-2512')).valid && !(await validateModel('mistral-embed')).valid
+  if (homeBase !== undefined) process.env.ANTHROPIC_BASE_URL = homeBase
+  check('named off-list, retired and non-chat ids are refused without inference (on the first-party home base: a re-pointed ANTHROPIC_BASE_URL is the one operator-owned fact that admits an undeclared id, by the id-space law)', refusedOffList)
   await cat.refreshMistralCatalogue({ fetchImpl: page(models) })
   check('the cached TTL makes no second request', calls === 1)
   process.env.MERCURY_DISABLE_NONESSENTIAL_TRAFFIC = '1'

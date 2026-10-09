@@ -246,22 +246,18 @@ section('§4 the live leg — a real debugpy --listen program through the vendor
     const debuggeeOutput: string[] = []
     debuggee.stdout?.on('data', (chunk: Buffer) => debuggeeOutput.push(String(chunk)))
     debuggee.stderr?.on('data', (chunk: Buffer) => debuggeeOutput.push(String(chunk)))
-    const listening = await (async () => {
-      const until = Date.now() + 60_000
-      while (Date.now() < until) {
-        if (debuggee!.exitCode !== null) return false
-        const probe = spawnSync(process.execPath, ['-e', `require("net").connect(${port}, "127.0.0.1").on("connect", function(){ this.destroy(); process.exit(0) }).on("error", () => process.exit(1))`], { timeout: 5_000 })
-        if (probe.status === 0) return true
-        await new Promise(r => setTimeout(r, 250))
-      }
-      return false
-    })()
-    check(`debugpy ${interpreter} listens on 127.0.0.1:${port} (--wait-for-client)`, listening, debuggeeOutput.join('').slice(-300))
-    if (listening) {
-      const outcome = await attachOutcome('python', port, 'live')
+    let outcome = await attachOutcome('python', port, 'live')
+    const until = Date.now() + 60_000
+    while (outcome.error !== null && /ECONNREFUSED/.test(outcome.error) && debuggee!.exitCode === null && Date.now() < until) {
+      await new Promise(r => setTimeout(r, 250))
+      outcome = await attachOutcome('python', port, 'live')
+    }
+    const listening = outcome.error === null || !/ECONNREFUSED/.test(outcome.error)
+    check(`debugpy ${interpreter} listens on 127.0.0.1:${port} (--wait-for-client; the attach itself is the first client, never a probe that steals the one accept)`, listening, debuggeeOutput.join('').slice(-300))
+    if (outcome.session !== null) {
       check('the python adapter row attaches to the listening program', outcome.error === null, outcome.error ?? `${outcome.ms}ms`)
       check(`…inside the old 10 s silence (${outcome.ms}ms)`, outcome.ms < 10_000)
-      const threads = (await outcome.session?.request('threads').catch(e => ({ error: String(e) }))) as Frame | undefined
+      const threads = (await outcome.session.request('threads').catch(e => ({ error: String(e) }))) as Frame | undefined
       check('the attached program answers threads', Array.isArray(threads?.threads) && (threads!.threads as unknown[]).length > 0, JSON.stringify(threads).slice(0, 160))
       check('the session names the listener', outcome.session?.listener?.port === port)
       await removeDapSession(owner, 'live')
