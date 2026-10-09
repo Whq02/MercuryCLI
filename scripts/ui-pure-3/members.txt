@@ -83,3 +83,4 @@ prove-crew-ledger.ts
 prove-silent-command-surface.ts
 prove-crews-dialog-gone.ts
 prove-diff-chip-session-own.ts
+prove-crew-row-parked-ask.ts
