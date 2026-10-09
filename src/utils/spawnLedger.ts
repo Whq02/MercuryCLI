@@ -1,6 +1,5 @@
 import { existsSync } from 'node:fs'
 import { join } from 'node:path'
-import { getMercuryHome } from './envUtils.js'
 import { flagEnv } from '../substrate/flagRegistry.js'
 
 export const SPAWNED_BY_ENV = 'MERCURY_SPAWNED_BY'
@@ -40,14 +39,8 @@ export function spawnLedgerPath(): string {
   return join(forensicsDir(), 'spawn-ledger.jsonl')
 }
 
-export function legacySpawnLedgerPath(): string {
-  return join(getMercuryHome(), 'spawn-ledger.jsonl')
-}
-
 export function spawnLedgerPaths(): string[] {
-  const live = spawnLedgerPath()
-  const legacy = legacySpawnLedgerPath()
-  return legacy !== live && existsSync(legacy) ? [live, legacy] : [live]
+  return [spawnLedgerPath()]
 }
 
 export function bashAuditPath(): string {
