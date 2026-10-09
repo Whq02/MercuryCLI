@@ -157,6 +157,7 @@ async function midCell(name: string): Promise<void> {
   const beforeLine = new Promise<void>(resolve => {
     printed = resolve
   })
+  let liveStdout = ''
   const run = manager.runCell({
     owner: 'owner-exit',
     cwd: work,
@@ -164,10 +165,12 @@ async function midCell(name: string): Promise<void> {
     abortSignal: controller.signal,
     serveBridge: bridge,
     onLiveOutput: (stream, chunk) => {
-      if (stream === 'stdout' && chunk.includes('before')) printed()
+      if (stream !== 'stdout') return
+      liveStdout += chunk
+      if (liveStdout.includes('before\n')) printed()
     },
   })
-  await within(`${name}: the cell's first line`, 60_000, beforeLine)
+  await within(`${name}: the cell's first line, newline included (the unbuffered runner writes the word and its newline separately)`, 60_000, beforeLine)
   const live = attach(manager, before)
   check(`${name}: the manager retains one live kernel mid-cell`, live !== null, String(manager.kernelCount()))
   if (!live) {
