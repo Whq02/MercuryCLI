@@ -44,7 +44,7 @@ import {
 import { resolveOpenrouterAccount } from '../../services/providers/openrouter/openrouterAccounts.js'
 import { refreshOpenrouterCatalogue } from '../../services/providers/openrouter/openrouterCatalogue.js'
 
-export const ENGINE_DISPATCH_MODELS = ['gpt', 'glm', 'kimi', 'deepseek', 'grok', 'muse', 'compat', 'huggingface', 'local', 'gemini', 'openrouter'] as const
+export const ENGINE_DISPATCH_MODELS = ['gpt', 'glm', 'kimi', 'deepseek', 'grok', 'muse', 'compat', 'huggingface', 'local', 'gemini', 'openrouter', 'nous'] as const
 export type EngineDispatchModel = (typeof ENGINE_DISPATCH_MODELS)[number]
 
 export function isEngineDispatchModel(v: unknown): v is EngineDispatchModel {
@@ -57,6 +57,12 @@ function isOpenrouterModelId(v: string): boolean {
   return v.trim().toLowerCase().startsWith(OPENROUTER_MODEL_PREFIX)
 }
 
+const NOUS_ENGINE_MODEL_PREFIX = 'nous/'
+
+function isNousModelId(v: string): boolean {
+  return v.trim().toLowerCase().startsWith(NOUS_ENGINE_MODEL_PREFIX)
+}
+
 export function isExactEngineModelId(v: unknown): v is string {
   if (typeof v !== 'string') return false
   return (
@@ -65,7 +71,8 @@ export function isExactEngineModelId(v: unknown): v is string {
     isCompatModelId(v) ||
     isHuggingfaceModelId(v) ||
     isLocalModelId(v) ||
-    isOpenrouterModelId(v)
+    isOpenrouterModelId(v) ||
+    isNousModelId(v)
   )
 }
 
@@ -90,7 +97,7 @@ async function readLiveListsForBareId(modelParam: string | undefined): Promise<v
   await Promise.all(LIVE_LIST_FAMILIES.map(family => readCatalogueIfPending(family)))
 }
 
-const ENGINE_ID_SHAPES = 'gpt-*, glm-*, kimi-*, deepseek-*, grok-*, muse-spark-*, gemini-*, compat/*, huggingface/*, local/*, openrouter/*'
+const ENGINE_ID_SHAPES = 'gpt-*, glm-*, kimi-*, deepseek-*, grok-*, muse-spark-*, gemini-*, compat/*, huggingface/*, local/*, openrouter/*, nous/*'
 
 export function unrecognisedModelWordRefusal(model: string | undefined): string | null {
   if (model === undefined) return null
@@ -116,6 +123,7 @@ type EngineProvider =
   | 'local'
   | 'gemini'
   | 'openrouter'
+  | 'nous'
 
 export interface EngineDispatch {
   backend: EngineProvider
@@ -316,6 +324,40 @@ async function resolveOpenrouterExactModel(id: string): Promise<EngineDispatch> 
   return { backend: 'openrouter', model: id, displayLabel: `${slug} (catalogue unreachable — the router validates at dispatch)` }
 }
 
+async function resolveNousClassDispatch(): Promise<EngineDispatch> {
+  const main = getEngineModel()
+  if (declaredRouteOf(main) === 'nous') {
+    return { backend: 'nous', model: main, displayLabel: main.slice(NOUS_ENGINE_MODEL_PREFIX.length) }
+  }
+  const { getNousModelOptions, refreshNousCatalogue } = await import('../../services/providers/nous/nousCatalogue.js')
+  await refreshNousCatalogue().catch(() => null)
+  const head = getNousModelOptions().find(option => option.value.startsWith(NOUS_ENGINE_MODEL_PREFIX) && option.unavailable === undefined)
+  if (!head) {
+    throw new Error("The 'nous' class cannot resolve — the Nous Portal catalogue serves no selectable row yet (the key's live list has not been read, or listed none). Name an exact nous/<vendor>/<model> id.")
+  }
+  return { backend: 'nous', model: head.value, displayLabel: head.label }
+}
+
+async function resolveNousExactModel(id: string): Promise<EngineDispatch> {
+  const { resolveNousAccount } = await import('../../services/providers/nous/nousAccounts.js')
+  if (!resolveNousAccount()) {
+    throw new Error('Engine provider nous has no API key — /logins nous stores one (or set NOUS_API_KEY).')
+  }
+  const { refreshNousCatalogue } = await import('../../services/providers/nous/nousCatalogue.js')
+  const slug = id.slice(NOUS_ENGINE_MODEL_PREFIX.length)
+  const snapshot = await refreshNousCatalogue().catch(() => null)
+  if (snapshot && snapshot.models.length > 0) {
+    const match = snapshot.models.find(m => m.id.toLowerCase() === slug.toLowerCase())
+    if (!match) {
+      throw new Error(`Nous Portal model '${id}' is not listed by the live catalogue (${snapshot.models.length} models) — name a listed nous/<vendor>/<model> id.`)
+    }
+    return { backend: 'nous', model: `${NOUS_ENGINE_MODEL_PREFIX}${match.id}`, displayLabel: match.name ?? match.id }
+  }
+  const verdict = canonicalWireModelId(id)
+  if (!verdict.ok) throw new Error(verdict.reason)
+  return { backend: 'nous', model: id, displayLabel: `${slug} (catalogue unreachable — the Portal validates at dispatch)` }
+}
+
 async function resolveLocalExactModel(id: string): Promise<EngineDispatch> {
   if (!localRecordFor(id)) await refreshLocalDiscovery({ force: true }).catch(() => null)
   const record = localRecordFor(id)
@@ -367,6 +409,10 @@ export async function resolveEngineDispatch(
     if (modelParam === 'openrouter') {
       await requireProviderAvailable('openrouter')
       return resolveOpenrouterClassDispatch()
+    }
+    if (modelParam === 'nous') {
+      await requireProviderAvailable('nous')
+      return resolveNousClassDispatch()
     }
     await requireProviderAvailable('openai-compat')
     const first = compatSlotModelIds()[0]
@@ -427,6 +473,10 @@ export async function resolveEngineDispatch(
     if (isOpenrouterModelId(id)) {
       await requireProviderAvailable('openrouter')
       return resolveOpenrouterExactModel(id)
+    }
+    if (isNousModelId(id)) {
+      await requireProviderAvailable('nous')
+      return resolveNousExactModel(id)
     }
     if (isHuggingfaceModelId(id)) {
       await requireProviderAvailable('huggingface')
