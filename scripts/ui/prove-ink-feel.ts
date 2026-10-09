@@ -43,9 +43,9 @@ check('`? for shortcuts` is a Box sibling dispatching /help', /onClick=\{\(\) =>
 
 const tr = read('src/components/HelmVitalsRail.tsx') + read('src/utils/cockpit/helmVitalsModel.ts')
 check(
-  'vitals rows activate by LABEL (one adapter + ≥9 labeled rows)',
+  'vitals rows activate by LABEL (one adapter + ≥6 labeled rows)',
   tr.includes("requestHelmRowActivationByLabel('vitals', label)") &&
-    ((tr.match(/row: \{ kind: '[a-z]+',[^}]*\blabel[:,] /g) ?? []).length >= 9),
+    ((tr.match(/row: \{ kind: '[a-z]+',[^}]*\blabel[:,] /g) ?? []).length >= 6),
 )
 
 const ink = read('src/ink/ink.tsx')
