@@ -9,6 +9,8 @@ import {
   writeStoredCompatApiKey,
   writeStoredDeepseekApiKey,
   writeStoredMetaApiKey,
+  writeStoredMistralApiKey,
+  writeStoredMistralAdminApiKey,
   writeStoredHuggingfaceApiKey,
   writeStoredLocalApiKey,
   writeStoredMoonshotApiKey,
@@ -19,9 +21,10 @@ import {
 } from '../utils/router/providerSecrets.js'
 import { zaiKeySource } from '../utils/router/providerDiscovery.js'
 import { XAI_MANAGEMENT_KEY_PAGE } from '../services/providers/xai/xaiUsageState.js'
+import { MISTRAL_ADMIN_KEY_PAGE } from '../services/providers/mistral/mistralUsageState.js'
 
 
-export type KeyEntryProvider = 'zai' | 'moonshot' | 'deepseek' | 'xai' | 'xai-management' | 'meta' | 'compat' | 'huggingface' | 'local' | 'brave' | 'tavily'
+export type KeyEntryProvider = 'zai' | 'moonshot' | 'deepseek' | 'xai' | 'xai-management' | 'meta' | 'compat' | 'huggingface' | 'local' | 'brave' | 'tavily' | 'mistral' | 'mistral-admin'
 
 const LANES: Record<
   KeyEntryProvider,
@@ -98,6 +101,18 @@ const LANES: Record<
     write: writeStoredTavilyApiKey,
     envShadow: () => Boolean(process.env.TAVILY_API_KEY?.trim()),
   },
+  mistral: {
+    title: 'Mistral API key',
+    envVar: 'MISTRAL_API_KEY',
+    write: writeStoredMistralApiKey,
+    envShadow: () => Boolean(process.env.MISTRAL_API_KEY?.trim()),
+  },
+  'mistral-admin': {
+    title: 'Mistral Admin API key (usage meter)',
+    envVar: 'MISTRAL_ADMIN_API_KEY',
+    write: writeStoredMistralAdminApiKey,
+    envShadow: () => Boolean(process.env.MISTRAL_ADMIN_API_KEY?.trim()),
+  },
 }
 
 export function RouterKeyEntry({
@@ -141,6 +156,7 @@ export function RouterKeyEntry({
         {lane.title}
       </Text>
       {provider === 'xai-management' ? <Text>{XAI_MANAGEMENT_KEY_PAGE} Needs Management Keys Read + Write permission; the API key identifies the team.</Text> : null}
+      {provider === 'mistral-admin' ? <Text>{MISTRAL_ADMIN_KEY_PAGE}</Text> : null}
       <Text color={tokens.textSecondary}>
         Paste the key — input is masked (the last 6 characters stay visible so you can
         confirm the paste); the value never enters the transcript, receipts, or logs.
