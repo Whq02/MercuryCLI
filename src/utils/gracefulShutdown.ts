@@ -4,7 +4,7 @@ import { isSessionRunArgv as isRunArgv } from '../cli/sessionArgs.js'
 import { onExit } from 'signal-exit'
 
 import { getIsScrollDraining } from '../bootstrap/state.js'
-import { HOOK_CUT_BUDGET_MS, SESSION_END_REASONS } from './hooks/contract.js'
+import type { SESSION_END_REASONS } from './hooks/contract.js'
 
 import { runCleanupFunctions } from './cleanupRegistry.js'
 import { armInactivityDeadline } from './deadline.js'
@@ -21,6 +21,7 @@ export type GracefulShutdownOptions = {
 
 const CLEANUP_TIMEOUT_MS = 2000
 export type SessionEndReason = (typeof SESSION_END_REASONS)[number]
+const SESSION_END_HOOK_BUDGET_MS = 1_500
 
 const FAILSAFE_FLOOR_MS = 5000
 const FAILSAFE_HOOK_MARGIN_MS = 3500
@@ -451,12 +452,11 @@ export async function gracefulShutdown(
     }
   }
 
-  const hookBudgetMs = HOOK_CUT_BUDGET_MS
   failsafeTimer = setTimeout(() => {
     runTerminalRestoration()
     runResumeHint()
     forceExit(exitCode)
-  }, Math.max(FAILSAFE_FLOOR_MS, hookBudgetMs + FAILSAFE_HOOK_MARGIN_MS))
+  }, Math.max(FAILSAFE_FLOOR_MS, SESSION_END_HOOK_BUDGET_MS + FAILSAFE_HOOK_MARGIN_MS))
   failsafeTimer.unref()
 
   process.exitCode = exitCode
@@ -482,6 +482,7 @@ export async function gracefulShutdown(
   try {
     const { fireHooks } = await import('./hooks/fire.js')
     const { endBackgroundHooks } = await import('./hooks/background.js')
+    const hookBudgetMs = SESSION_END_HOOK_BUDGET_MS
     const { getSessionId } = await import('../bootstrap/state.js')
     const ended = await fireHooks('session.end', { reason }, { scope: { sessionId: String(getSessionId()) }, signal: AbortSignal.timeout(hookBudgetMs), budgetMs: hookBudgetMs })
     for (const outcome of ended.outcomes) {

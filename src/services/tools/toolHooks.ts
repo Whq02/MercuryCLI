@@ -4,7 +4,10 @@ import type { AssistantMessage } from '../../types/message.js'
 import type { PermissionDecision, PermissionDecisionReason } from '../../types/permissions.js'
 import { getSessionId } from '../../bootstrap/state.js'
 import { HOOK_CUT_BUDGET_MS } from '../../utils/hooks/contract.js'
+import { errorMessage } from '../../utils/errors.js'
+import { foldAnswers } from '../../utils/hooks/answer.js'
 import { fireHooks, type HookFireResult } from '../../utils/hooks/fire.js'
+import { hooksFor } from '../../utils/hooks/matching.js'
 import type { HookScope } from '../../utils/hooks/sessionHooks.js'
 import { checkRuleBasedPermissions } from '../../utils/permissions/permissions.js'
 import { getRuleBehaviorDescription } from '../../utils/permissions/PermissionResult.js'
@@ -21,7 +24,14 @@ export function hookScopeOf(toolUseContext: ToolUseContext): HookScope {
 }
 
 export function beforeToolHooks(tool: Tool, toolUseID: string, input: AnyObject, toolUseContext: ToolUseContext, signal: AbortSignal): Promise<HookFireResult> {
-  return fireHooks('tool.before', { tool: tool.name, input, call_id: toolUseID }, { scope: hookScopeOf(toolUseContext), signal, toolUseContext })
+  const scope = hookScopeOf(toolUseContext)
+  try {
+    hooksFor('tool.before', scope, toolUseContext.getAppState())
+  } catch (error) {
+    const block = `the hooks could not be read, so the ${tool.name} call is refused: ${errorMessage(error)}`
+    return Promise.resolve({ event: 'tool.before', answer: { ...foldAnswers('tool.before', []), block }, outcomes: [] })
+  }
+  return fireHooks('tool.before', { tool: tool.name, input, call_id: toolUseID }, { scope, signal, toolUseContext })
 }
 
 export async function afterToolHooks(

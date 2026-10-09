@@ -94,6 +94,7 @@ const SKIPPED: Record<string, string> = {
   suppressNextSkillListing: 'module-state mutator',
   tryGetPDFReference: 'filesystem stat-coupled',
   generateFileAttachment: 'filesystem read-coupled',
+  HOOK_ROW_OUTCOMES: 'the closed list of hook row outcomes — pinned by the hooks suite (prove-hook-fire, prove-hook-tool-road)',
 }
 
 const runtimeExports = Object.keys(A).filter(
