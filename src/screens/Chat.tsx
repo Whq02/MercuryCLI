@@ -96,7 +96,6 @@ import { useTerminalSize } from '../hooks/useTerminalSize.js';
 import { packHints } from '../components/mercury-ui/geometry.js';
 import { stringWidth } from '../ink/stringWidth.js';
 import type { VimMode } from '../hooks/useVimInput.js';
-import { useAutoModeUnavailableNotification } from '../hooks/notifs/useAutoModeUnavailableNotification.js';
 import { useDeprecationWarningNotification } from '../hooks/notifs/useDeprecationWarningNotification.js';
 import { useLspInitializationNotification } from '../hooks/notifs/useLspInitializationNotification.js';
 import { useRateLimitWarningNotification } from '../hooks/notifs/useRateLimitWarningNotification.js';
@@ -1603,7 +1602,6 @@ export function Chat({
     return () => clearTimeout(timer);
   }, []);
 
-  useAutoModeUnavailableNotification();
   useSettingsErrors();
   useRateLimitWarningNotification(engineModel);
   useDeprecationWarningNotification(engineModel);

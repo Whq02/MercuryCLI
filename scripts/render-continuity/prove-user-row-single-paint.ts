@@ -227,7 +227,7 @@ for (const scene of scenes) {
     )
   }
   let logText = ''
-  const projectsRoot = join(run.paths.home, '.claude', 'projects')
+  const projectsRoot = join(run.paths.home, '.mercury', 'projects')
   if (existsSync(projectsRoot)) {
     for (const dir of readdirSync(projectsRoot)) {
       const pdir = join(projectsRoot, dir)

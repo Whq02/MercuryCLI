@@ -69,7 +69,7 @@ export interface AgentSessionV1 {
   endedAt?: number
 }
 
-export interface IdentityMigrationReceiptV1 {
+interface IdentityMigrationReceiptV1 {
   schema: typeof AGENT_IDENTITY_SCHEMA
   migratedAt: number
   sources: Record<string, number>

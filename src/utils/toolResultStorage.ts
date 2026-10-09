@@ -18,7 +18,6 @@ export const TOOL_RESULTS_SUBDIR = 'tool-results'
 export const PERSISTED_OUTPUT_TAG = '<persisted-output>'
 export const PERSISTED_OUTPUT_CLOSING_TAG = '</persisted-output>'
 export const TOOL_RESULT_CLEARED_MESSAGE = '[stale tool result pruned — content cleared]'
-export const LEGACY_TOOL_RESULT_CLEARED_MESSAGE = '[Old tool result content cleared]'
 
 export const PREVIEW_SIZE_CHARS = 2000
 export const PREVIEW_MAX_LINE_CHARS = 400
@@ -253,7 +252,7 @@ function collectCandidates(message: Message): BudgetCandidate[] {
     if (block.type !== 'tool_result') continue
     if (typeof block.tool_use_id !== 'string') continue
     if (block.content === undefined || block.content === null) continue
-    if (typeof block.content === 'string' && (block.content.startsWith(TOOL_RESULT_CLEARED_MESSAGE) || block.content.startsWith(LEGACY_TOOL_RESULT_CLEARED_MESSAGE))) continue
+    if (typeof block.content === 'string' && block.content.startsWith(TOOL_RESULT_CLEARED_MESSAGE)) continue
     if (hasImageBlock(block.content)) continue
     candidates.push({ toolUseId: block.tool_use_id, content: block.content, size: contentSizeOf(block.content) })
   }

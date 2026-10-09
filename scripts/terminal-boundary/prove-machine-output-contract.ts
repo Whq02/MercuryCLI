@@ -63,12 +63,12 @@ async function runDist(
 ): Promise<Capture> {
   const home = mkdtempSync(join(tmpdir(), 'lucid-mo-home-'))
   const cwd = mkdtempSync(join(tmpdir(), 'lucid-mo-cwd-'))
-  mkdirSync(join(home, '.claude'), { recursive: true })
+  mkdirSync(join(home, '.mercury'), { recursive: true })
   const env: Record<string, string> = {
     HOME: home,
     PATH: `/usr/bin:/bin:${dirname(nodeBin!)}`,
     TERM: 'dumb',
-    MERCURY_CONFIG_DIR: join(home, '.claude'),
+    MERCURY_CONFIG_DIR: join(home, '.mercury'),
     ANTHROPIC_API_KEY: 'fixture-key-000',
     MERCURY_DAEMON_DIR: join(home, 'daemon'),
     ...opts.extraEnv,
@@ -237,12 +237,12 @@ async function driveDist(
 ): Promise<{ frames: Record<string, unknown>[]; lines: string[]; exit: number | null; stderr: string }> {
   const home = mkdtempSync(join(tmpdir(), 'lucid-mo-home-'))
   const cwd = mkdtempSync(join(tmpdir(), 'lucid-mo-cwd-'))
-  mkdirSync(join(home, '.claude'), { recursive: true })
+  mkdirSync(join(home, '.mercury'), { recursive: true })
   const env: Record<string, string> = {
     HOME: home,
     PATH: `/usr/bin:/bin:${dirname(nodeBin!)}`,
     TERM: 'dumb',
-    MERCURY_CONFIG_DIR: join(home, '.claude'),
+    MERCURY_CONFIG_DIR: join(home, '.mercury'),
     ANTHROPIC_API_KEY: 'fixture-key-000',
     ANTHROPIC_BASE_URL: baseUrl,
     MERCURY_DAEMON_DIR: join(home, 'daemon'),

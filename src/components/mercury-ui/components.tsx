@@ -719,12 +719,6 @@ export function GateRow({
   )
 }
 
-export type MapNode = {
-  name: string
-  state?: SnapshotState
-  detail?: string
-}
-
 export function UsageMeter({
   window,
   value,

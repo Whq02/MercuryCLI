@@ -11,7 +11,6 @@ import { getSystemThemeName } from '../../../utils/systemTheme.js'
 import { ConsentBodyText } from '../ConsentBodyText.js'
 import { PermissionDialog } from '../PermissionDialog.js'
 import { PermissionRuleExplanation } from '../PermissionRuleExplanation.js'
-import { logUnaryPermissionEvent } from '../utils.js'
 import { usePermissionRequestLogging } from '../hooks.js'
 import type { PermissionRequestProps } from '../PermissionRequest.js'
 
@@ -46,10 +45,7 @@ export function BrowserPermissionRequest({
     [toolUseConfirm.input, toolUseConfirm.toolUseContext],
   )
 
-  usePermissionRequestLogging(
-    toolUseConfirm,
-    useMemo(() => ({ completion_type: 'tool_use_single', language_name: 'none' }), []),
-  )
+  usePermissionRequestLogging(toolUseConfirm)
 
   const options: { label: React.ReactNode; value: BrowserOptionValue }[] = [{ label: 'Yes', value: 'yes' }]
   if (ruleContent !== null && shouldShowAlwaysAllowOptions()) {
@@ -70,12 +66,10 @@ export function BrowserPermissionRequest({
   function handleChange(value: BrowserOptionValue): void {
     switch (value) {
       case 'yes':
-        logUnaryPermissionEvent('tool_use_single', toolUseConfirm, 'accept', false)
         toolUseConfirm.onAllow(toolUseConfirm.input, [])
         onDone()
         break
       case 'yes-dont-ask-origin':
-        logUnaryPermissionEvent('tool_use_single', toolUseConfirm, 'accept', false)
         toolUseConfirm.onAllow(toolUseConfirm.input, [
           {
             type: 'addRules',
@@ -87,7 +81,6 @@ export function BrowserPermissionRequest({
         onDone()
         break
       case 'no':
-        logUnaryPermissionEvent('tool_use_single', toolUseConfirm, 'reject', false)
         toolUseConfirm.onReject()
         onReject()
         onDone()

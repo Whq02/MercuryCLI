@@ -48,7 +48,7 @@ export function acpDeclaredCapabilities(
   }
 }
 
-export interface AcpSeatOptions {
+interface AcpSeatOptions {
   command: [cmd: string, ...args: string[]]
   cwd?: string
   spawnImpl?: SpawnImpl

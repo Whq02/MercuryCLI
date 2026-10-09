@@ -27,7 +27,7 @@ export const SHADER_MARKER_PREFIX = 'MERCURY SHADER '
 export const SHADER_DONE_LINE = 'MERCURY SHADER DONE'
 export const WALK_CAP = 20_000
 
-export type EngineDiagnosticClass = 'parse-error' | 'compile-error' | 'shader-error' | 'preload-reaches-autoload' | 'engine-error'
+type EngineDiagnosticClass = 'parse-error' | 'compile-error' | 'shader-error' | 'preload-reaches-autoload' | 'engine-error'
 
 export interface EngineDiagnostic {
   file: string
@@ -107,7 +107,7 @@ export function projectAutoloads(projectRoot: string): string[] {
 const AUTOLOAD_NOT_FOUND_RE = /^Compile Error: Identifier not found: ([A-Za-z_][A-Za-z0-9_]*)$/
 const DEPENDED_RE = /^Compile Error: Failed to compile depended scripts\.?$/
 
-export function classifyScriptError(message: string): EngineDiagnosticClass {
+function classifyScriptError(message: string): EngineDiagnosticClass {
   if (message.startsWith('Parse Error:')) return 'parse-error'
   if (message.startsWith('Compile Error:')) return 'compile-error'
   return 'engine-error'

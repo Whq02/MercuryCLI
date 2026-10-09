@@ -6,9 +6,6 @@ export const MC_CLEARED_PLACEHOLDER = '[stale tool result pruned — content cle
 
 export const MC_DIGEST_PREFIX = '[stale tool result · digest:'
 
-const LEGACY_MC_CLEARED_PLACEHOLDER = '[Old tool result content cleared]'
-const LEGACY_MC_DIGEST_PREFIX = '[Old tool result · digest:'
-
 type ContentClass =
   | 'text'
   | 'file-listing'
@@ -29,10 +26,7 @@ export function isMicroCompactDigestEnabled(): boolean {
 export function isClearedOrDigested(content: DigestableContent): boolean {
   return (
     typeof content === 'string' &&
-    (content.startsWith(MC_CLEARED_PLACEHOLDER) ||
-      content === LEGACY_MC_CLEARED_PLACEHOLDER ||
-      content.startsWith(MC_DIGEST_PREFIX) ||
-      content.startsWith(LEGACY_MC_DIGEST_PREFIX))
+    (content.startsWith(MC_CLEARED_PLACEHOLDER) || content.startsWith(MC_DIGEST_PREFIX))
   )
 }
 

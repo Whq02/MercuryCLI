@@ -1,7 +1,7 @@
-import { flagEnabled, flagEnv } from '../substrate/flagRegistry.js'
+import { flagEnv } from '../substrate/flagRegistry.js'
 
 
-type PrivacyLevel = 'default' | 'no-telemetry' | 'essential-traffic'
+type PrivacyLevel = 'default' | 'essential-traffic'
 
 const NONESSENTIAL_TRAFFIC_VAR = 'MERCURY_DISABLE_NONESSENTIAL_TRAFFIC'
 const PROOF_SHAPE_VAR = 'MERCURY_LOCAL_PROBE_TARGETS'
@@ -25,7 +25,6 @@ export function isLoopbackUrl(url: string): boolean {
 
 export function getPrivacyLevel(): PrivacyLevel {
   if (process.env[NONESSENTIAL_TRAFFIC_VAR]) return 'essential-traffic'
-  if (!flagEnabled('MERCURY_TELEMETRY')) return 'no-telemetry'
   return 'default'
 }
 

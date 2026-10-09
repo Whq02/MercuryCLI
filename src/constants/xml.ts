@@ -34,8 +34,6 @@ export const STRUCTURED_TAG = 'structured'
 
 export const CREWMATE_MESSAGE_TAG = 'crewmate-message'
 export const CHANNEL_TAG = 'channel'
-export const FORK_BOILERPLATE_TAG = 'fork-boilerplate'
-export const FORK_DIRECTIVE_PREFIX = 'Your directive: '
 
 export const COMMON_HELP_ARGS: readonly string[] = ['help', '-h', '--help']
 export const COMMON_INFO_ARGS: readonly string[] = [

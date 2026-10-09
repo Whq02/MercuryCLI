@@ -629,40 +629,6 @@ export function getSearchReadSummaryText(
   return isActive ? `${text}…` : text
 }
 
-type RecentActivity = {
-  activityDescription?: string
-  isSearch?: boolean
-  isRead?: boolean
-}
-
-export function summarizeRecentActivities(
-  activities: readonly RecentActivity[],
-): string | undefined {
-  let searches = 0
-  let reads = 0
-  let runLength = 0
-  for (let i = activities.length - 1; i >= 0; i--) {
-    const activity = activities[i] as RecentActivity
-    if (activity.isSearch) {
-      searches++
-      runLength++
-    } else if (activity.isRead) {
-      reads++
-      runLength++
-    } else {
-      break
-    }
-  }
-  if (runLength >= 2) {
-    return getSearchReadSummaryText(searches, reads, true)
-  }
-  for (let i = activities.length - 1; i >= 0; i--) {
-    const description = (activities[i] as RecentActivity).activityDescription
-    if (description) return description
-  }
-  return undefined
-}
-
 
 export function getToolUseIdsFromCollapsedGroup(message: CollapsedReadSearchGroup): string[] {
   const ids: string[] = []

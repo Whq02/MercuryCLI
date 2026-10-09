@@ -57,7 +57,6 @@ import { markLaunchBegun, recordLaunchMilestone } from './substrate/launchMilest
 import { markExplicitBootJourney, retractExplicitBootJourney } from './substrate/splashHandover.js'
 import { getCwd } from './utils/cwd.js'
 import { applyBootMenuEnv, recordBootAdmissionSnapshot, resolveEffectiveSettingsSnapshot } from './substrate/startupMenu.js'
-import { setAssistantModeActive } from './tasks/LocalShellTask/LocalShellTask.js'
 import { getTools } from './tools.js'
 import { getAgentDefinitionsWithOverrides, computeActiveAgents, parseAgentsFromJson, type AgentDefinition } from './tools/AgentTool/loadAgentsDir.js'
 import { init } from './entrypoints/init.js'
@@ -96,7 +95,7 @@ import {
 import { PERMISSION_MODES, modeBypassesPermissions, type PermissionMode } from './utils/permissions/PermissionMode.js'
 import { MODE_GLOSS } from './utils/settings/validationTips.js'
 import { profileCheckpoint, profileReport } from './utils/startupProfiler.js'
-import { resetUserCache, getCoreUserData } from './utils/user.js'
+import { resetUserCache } from './utils/user.js'
 import { settingsChangeDetector } from './utils/settings/changeDetector.js'
 import { skillChangeDetector } from './utils/skills/skillChangeDetector.js'
 import { getSettingsWithErrors, getInitialSettings } from './utils/settings/settings.js'
@@ -1196,9 +1195,6 @@ async function defaultAction(inputPromptArg: string | undefined, opts: RootOptio
     toolPermissionContext = stripDangerousPermissionsForFlow(toolPermissionContext)
   }
 
-  const assistantBootActive = false
-  setAssistantModeActive(assistantBootActive)
-
   let worktreeName = typeof worktreeOpt === 'string' ? worktreeOpt : undefined
   let worktreePRNumber: number | undefined
   if (worktreeName) {
@@ -2239,7 +2235,6 @@ export function startDeferredPrefetches(): void {
     .catch((error: unknown) => logForDebugging(`client contract: the daily peek did not start: ${String(error)}`))
   void (async () => {
     try {
-      void getCoreUserData()
       void getUserContext().catch(() => {})
       if (!getIsInteractive()) {
         logForDiagnosticsNoPII('info', 'prefetch_system_context_non_interactive')

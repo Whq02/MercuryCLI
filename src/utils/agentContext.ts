@@ -26,10 +26,6 @@ export function runWithAgentContext<T>(context: AgentContext, fn: () => T): T {
   return storage.run(context, fn)
 }
 
-export function isSubagentContext(context: AgentContext | undefined): context is SubagentContext {
-  return context !== undefined && context.agentType === 'subagent'
-}
-
 
 export function consumeInvokingRequestId():
   | { invokingRequestId: string; invocationKind?: 'spawn' | 'resume' }

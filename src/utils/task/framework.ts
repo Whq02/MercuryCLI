@@ -8,7 +8,6 @@ import { projectTaskExecution } from './executionProjection.js'
 
 
 export const POLL_INTERVAL_MS = 1000
-export const STOPPED_DISPLAY_MS = 3000
 export const PANEL_GRACE_MS = 30_000
 
 export type TaskAttachment = {

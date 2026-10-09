@@ -71,13 +71,13 @@ console.log('— BOOT ORDER (the day-one bug): module init precedes the latch �
   }
 }
 
-console.log('— a SAVED defaultCritter naming the retired key resolves to the CLAM at read (never rewritten) —')
+console.log('— a SAVED defaultCritter the pool does not know resolves to the DEFAULT at read (never rewritten) —')
 {
   const { mkdtempSync, writeFileSync, rmSync } = await import('node:fs')
   const { tmpdir } = await import('node:os')
   const { spawnSync } = await import('node:child_process')
-  for (const legacy of ['mantis', 'mantis shrimp']) {
-    const home = mkdtempSync(join(tmpdir(), 'critter-legacy-'))
+  for (const legacy of ['dragon', 'hermit crab']) {
+    const home = mkdtempSync(join(tmpdir(), 'critter-unknown-'))
     try {
       const cfgPath = join(home, '.mercury.json')
       const before = JSON.stringify({ defaultCritter: legacy })
@@ -105,8 +105,8 @@ console.log('— a SAVED defaultCritter naming the retired key resolves to the C
         shape = parsed.shape ?? ''
       } catch {
       }
-      t(`saved '${legacy}' resolves the TINT key to the clam at read`, key === 'clam', key || r.stderr.slice(0, 200))
-      t(`saved '${legacy}' resolves the SHAPE to the clam def`, shape === 'clam', shape)
+      t(`saved '${legacy}' resolves the TINT key to the pool default at read`, key === 'jellyfish', key || r.stderr.slice(0, 200))
+      t(`saved '${legacy}' resolves the SHAPE to the pool default def`, shape === 'jellyfish', shape)
       t(
         `the stored value still says '${legacy}' — read-side only, never rewritten`,
         readFileSync(cfgPath, 'utf8') === before,

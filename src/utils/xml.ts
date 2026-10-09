@@ -10,7 +10,3 @@ export function escapeXmlAttr(s: string): string {
 export function unescapeXml(s: string): string {
   return s.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&')
 }
-
-export function unescapeXmlAttr(s: string): string {
-  return unescapeXml(s.replace(/&quot;/g, '"').replace(/&apos;/g, "'"))
-}

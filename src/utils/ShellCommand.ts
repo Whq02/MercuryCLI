@@ -20,7 +20,6 @@ export type ExecResult = {
   interrupted: boolean
   backgroundTaskId?: string
   backgroundedByUser?: boolean
-  assistantAutoBackgrounded?: boolean
   outputFilePath?: string
   outputFileSize?: number
   outputTaskId?: string

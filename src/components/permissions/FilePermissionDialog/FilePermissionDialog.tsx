@@ -6,7 +6,6 @@ import { Box, Text } from '../../../ink.js'
 import { Select } from '../../CustomSelect/select.js'
 import { getFocusedSessionConnector } from '../../../services/engine-connector/focusedConnector.js'
 import { expandPath } from '../../../utils/path.js'
-import type { CompletionType } from '../../../utils/unaryLogging.js'
 import { PermissionDialog } from '../PermissionDialog.js'
 import { PermissionRuleExplanation } from '../PermissionRuleExplanation.js'
 import type { ToolUseConfirm } from '../PermissionRequest.js'
@@ -22,8 +21,6 @@ type FilePermissionDialogProps<T extends ToolInput> = {
   subtitle?: React.ReactNode
   question?: React.ReactNode
   content: React.ReactNode
-  completionType?: CompletionType
-  languageName?: string | Promise<string>
   operationType?: FileOperationType
   path: string | null
   parseInput: (input: unknown) => T
@@ -38,8 +35,6 @@ export function FilePermissionDialog<T extends ToolInput>({
   subtitle,
   question = 'Do you want to proceed?',
   content,
-  completionType = 'tool_use_single',
-  languageName,
   operationType = 'write',
   path,
   parseInput,
@@ -47,8 +42,6 @@ export function FilePermissionDialog<T extends ToolInput>({
 }: FilePermissionDialogProps<T>): React.ReactNode {
   const dialog = useFilePermissionDialog<T>({
     filePath: path,
-    completionType,
-    languageName,
     toolUseConfirm,
     onDone,
     onReject,

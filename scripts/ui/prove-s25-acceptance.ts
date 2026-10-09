@@ -58,7 +58,6 @@ console.log('S25 §7.2 acceptance battery')
   check('color() undefined returns text unchanged', color(undefined, 'dark')('x') === 'x')
   const painted = color('brand', 'dark')('x')
   check('color() role paints (or degrades to identity under NO_COLOR)', typeof painted === 'string' && painted.includes('x'))
-  check('color() does NOT apply the legacy alias map', color('claude', 'dark')('x') === 'x' || !color('claude', 'dark')('x').includes('[38;'))
 }
 
 {
@@ -274,14 +273,12 @@ pin('ground sync on every resolved value (5)', 'components/design-system/ThemePr
 pin('auto resolves through the one owner on every read (3)', 'components/design-system/ThemeProvider.tsx', [
   "resolveThemeSetting(effectiveSetting)",
 ])
-pin('text primitive: hover>dim>explicit + alias map (6, §8-1/2)', 'components/design-system/ThemedText.tsx', [
+pin('text primitive: hover>dim>explicit (6, §8-1/2)', 'components/design-system/ThemedText.tsx', [
   'if (!color && hoverColor) {',
   '} else if (dimColor) {',
   'theme.inactive',
-  "claudeBlue_FOR_SYSTEM_SPINNER: 'systemSpinner'",
-  "briefLabelClaude: 'briefLabelAssistant'",
 ])
-pin('box primitive: no alias map, event props declared (6)', 'components/design-system/ThemedBox.tsx', [
+pin('box primitive: event props declared (6)', 'components/design-system/ThemedBox.tsx', [
   'resolveThemeColor',
   'onClick',
   'onMouseEnter',

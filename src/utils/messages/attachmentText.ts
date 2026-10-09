@@ -40,7 +40,7 @@ export function normalizeAttachmentForAPI(
   attachment: Attachment,
 ): UserMessage[] {
   if (attachment.capsuleReceipt) return []
-  // eslint-disable-next-line @typescript-eslint/switch-exhaustiveness-check -- retired types fall through to the legacy sink below
+  // eslint-disable-next-line @typescript-eslint/switch-exhaustiveness-check -- an unknown type projects to nothing
   switch (attachment.type) {
     case 'directory': {
       return wrapMessagesInSystemReminder([
@@ -739,18 +739,6 @@ capsule-digest:${attachment.digest}${attachment.delta ? `\nWorking-set delta vs 
     case 'dead_thinking':
     case 'images_left_out':
       return []
-  }
-
-  const LEGACY_ATTACHMENT_TYPES = [
-    'autocheckpointing',
-    'background_task_status',
-    'todo',
-    'todo_reminder',
-    'task_progress',
-    'ultramemory',
-  ]
-  if (LEGACY_ATTACHMENT_TYPES.includes((attachment as { type: string }).type)) {
-    return []
   }
 
   return []

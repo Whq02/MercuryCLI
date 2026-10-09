@@ -143,5 +143,81 @@ section('§5 the spellings the Flow gate and the needs-you feature shed are on n
   }
 }
 
+section('§6 the dead machinery, the alias maps and the retired words the excision shed are on no file under src, scripts, docs or assets')
+{
+  const TEXT = /\.(tsx?|mts|cts|[cm]?jsx?|sh|bash|json|jsonl|md|txt|tsv|csv|ya?ml|toml|html|css|ps1|py)$/
+  const SELF = relative(REPO, new URL(import.meta.url).pathname)
+  const UNKNOWN_COMMAND_LIST = 'scripts/identity/prove-unknown-command-answer.ts'
+  const SECURITY_INSTRUCTION = 'src/constants/cyberRiskInstruction.ts'
+  const TRANSCRIPT_KIND_MIGRATION = 'src/migrations/migrateTranscriptEntryKinds.ts'
+  const TELEMETRY_ENV_HOLDOUTS = [J('scripts/winreg/prove-process-sweep-', 'live.ts'), J('scripts/ui/prove-quiet-boot-', 'journey.ts'), J('scripts/ui/prove-voice-', 'journey.ts')]
+  const FOREIGN_HOME_LAWS = [J('scripts/accounts/prove-accounts-', 'display.ts'), J('scripts/accounts/prove-auth-scope-', 'isolation.ts'), J('scripts/accounts/prove-account-', 'isolation.ts'), J('scripts/build-identity/prove-config-', 'home.ts')]
+  const tree = execFileSync('git', ['-C', REPO, 'ls-files', '-z', '--', 'src', 'scripts', 'docs', 'assets', 'build.ts', '.gitignore'], { encoding: 'utf8', maxBuffer: 1 << 28 })
+    .split('\0')
+    .filter(rel => rel !== '' && rel !== SELF && (TEXT.test(rel) || rel === '.gitignore'))
+  const texts = new Map(tree.map(rel => [rel, readFileSync(join(REPO, rel), 'utf8')]))
+  const SPELLINGS: Array<{ word: string; except?: string[] }> = [
+    { word: J('MERCURY_', 'COUNSEL') },
+    { word: J('dispatch', ' throttle') },
+    { word: J('fork-', 'boilerplate') },
+    { word: J('FORK_BOILERPLATE', '_TAG') },
+    { word: J('FORK_DIRECTIVE', '_PREFIX') },
+    { word: J('UserFork', 'BoilerplateMessage') },
+    { word: J('fork', 'Subagent') },
+    { word: J('useAutoMode', 'UnavailableNotification') },
+    { word: J('logUnary', 'Event') },
+    { word: J('logUnary', 'PermissionEvent') },
+    { word: J('unary', 'Logging') },
+    { word: J('getCore', 'UserData') },
+    { word: J('getHostPlatform', 'ForAnalytics') },
+    { word: J('logAPI', 'Query') },
+    { word: J('React-', 'Compiler') },
+    { word: J('React ', 'Compiler') },
+    { word: J('peer', 'Address') },
+    { word: J('ultra', 'memory') },
+    { word: J('LEGACY_ATTACHMENT', '_TYPES') },
+    { word: J('LEGACY_TOOL_RESULT', '_CLEARED_MESSAGE') },
+    { word: J('LEGACY_MC_', 'CLEARED_PLACEHOLDER') },
+    { word: J('LEGACY_MC_', 'DIGEST_PREFIX') },
+    { word: J('legacySpawn', 'LedgerPath') },
+    { word: J('marble_', 'origami') },
+    { word: J('marble-', 'origami'), except: [TRANSCRIPT_KIND_MIGRATION] },
+    { word: J('LEGACY_ROLE', '_ALIASES') },
+    { word: J('resolveWith', 'Aliases') },
+    { word: J('claude', 'Shimmer') },
+    { word: J('claudeBlue', '_FOR_SYSTEM_SPINNER') },
+    { word: J('claudeBlueShimmer', '_FOR_SYSTEM_SPINNER') },
+    { word: J('briefLabel', 'Claude') },
+    { word: J('LEGACY_CRITTER', '_KEYS') },
+    { word: J('assistant', 'BootActive') },
+    { word: J('isAssistant', 'ModeActive') },
+    { word: J('setAssistant', 'ModeActive') },
+    { word: J('assistantAuto', 'Backgrounded') },
+    { word: J('armForeground', 'Budget') },
+    { word: J('ASSISTANT_BLOCKING', '_BUDGET_MS') },
+    { word: J('ANTHROPIC_', 'LOG') },
+    { word: J('domain', 'Runner') },
+    { word: J('MERCURY_', 'TELEMETRY'), except: TELEMETRY_ENV_HOLDOUTS },
+  ]
+  for (const { word, except } of SPELLINGS) {
+    const where = tree.filter(rel => !(except ?? []).includes(rel) && (rel.includes(word) || (texts.get(rel) ?? '').includes(word)))
+    check(`${word}: on no file name and in no file${except ? ` (${except.length} named holdout${except.length === 1 ? '' : 's'})` : ''}`, where.length === 0, where.slice(0, 6).join(' · ') + (where.length > 6 ? ` … (${where.length})` : ''))
+  }
+  const COUNSEL = new RegExp(`\\b${J('coun', 'sel')}\\b`, 'i')
+  const counselFiles = tree.filter(rel => rel !== UNKNOWN_COMMAND_LIST && rel !== SECURITY_INSTRUCTION && COUNSEL.test(texts.get(rel) ?? ''))
+  check(`the ${J('coun', 'sel')} word stands in no file outside the unknown-command list and the security instruction's English`, counselFiles.length === 0, counselFiles.slice(0, 6).join(' · '))
+  const MANTIS = new RegExp(`\\b${J('man', 'tis')}\\b`, 'i')
+  const mantisFiles = tree.filter(rel => MANTIS.test(texts.get(rel) ?? ''))
+  check(`the retired critter spelling ${J('man', 'tis')} stands in no file`, mantisFiles.length === 0, mantisFiles.slice(0, 6).join(' · '))
+  const ROLE_KEY = new RegExp(`(['"\`]${J('cla', 'ude')}['"\`]|\\b${J('cla', 'ude')}\\s*:)`)
+  const roleFiles = tree.filter(rel => rel.startsWith('src/components/design-system/') && ROLE_KEY.test(texts.get(rel) ?? ''))
+  check(`no design-system file carries ${J('cla', 'ude')} as a colour role`, roleFiles.length === 0, roleFiles.join(' · '))
+  const HOME_JOIN = new RegExp(`join\\([^)]*(?:\\bhome\\b|homedir\\(\\))[^)]*,\\s*'${J('\\.cla', 'ude')}'|MERCURY_CONFIG_DIR\\s*[:=]\\s*join\\([^)]*'${J('\\.cla', 'ude')}'`)
+  const homeFiles = tree.filter(rel => rel.startsWith('scripts/') && !FOREIGN_HOME_LAWS.includes(rel) && HOME_JOIN.test(texts.get(rel) ?? ''))
+  check(`no proof builds a home path ending ${J('.cla', 'ude')} (${FOREIGN_HOME_LAWS.length} foreign-home laws excepted)`, homeFiles.length === 0, homeFiles.slice(0, 6).join(' · '))
+  const ignore = texts.get('.gitignore') ?? ''
+  check(`.gitignore names no ${J('.cla', 'ude')} directory`, !ignore.split('\n').some(line => line.trim() === J('.cla', 'ude/')), ignore.split('\n').filter(line => line.includes(J('.cla', 'ude'))).join(' · '))
+}
+
 console.log(`\nflow judge words gone: ${failures === 0 ? 'ALL PASS' : `${failures} FAILED`}`)
 process.exit(failures === 0 ? 0 : 1)

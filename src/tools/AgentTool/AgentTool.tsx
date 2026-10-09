@@ -87,7 +87,7 @@ import {
   MERCURY_CREW_AGENT_TYPE,
   ONE_SHOT_BUILTIN_AGENT_TYPES,
 } from './constants.js'
-import { buildFrozenWorktreeNotice } from './forkSubagent.js'
+import { buildFrozenWorktreeNotice } from './frozenWorktreeNotice.js'
 import type { AgentDefinition } from './loadAgentsDir.js'
 import { isBuiltInAgent } from './loadAgentsDir.js'
 import { getPrompt } from './prompt.js'

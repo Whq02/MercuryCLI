@@ -41,7 +41,6 @@ function runHealth(args: string[]): Cert {
     env: {
       ...process.env,
       MERCURY_CONFIG_DIR: configDir,
-      MERCURY_COUNSEL: 'manual',
     },
   })
   if (result.error) throw result.error

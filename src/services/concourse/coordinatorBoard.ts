@@ -30,7 +30,7 @@ export interface CoordinatorBoardSessionV1 {
   carriedFrom?: string
 }
 
-export interface CoordinatorFinishedForkV1 {
+interface CoordinatorFinishedForkV1 {
   title: string
   branch: string
   project: string

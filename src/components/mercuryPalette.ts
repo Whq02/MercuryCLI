@@ -78,5 +78,3 @@ export const mercuryPalette = {
   SURFACE_PANEL,
   SURFACE_RAISED,
 } as const
-
-export type MercuryPalette = typeof mercuryPalette

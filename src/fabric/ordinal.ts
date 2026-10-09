@@ -19,8 +19,6 @@ export const ordinalOf = (n: number): Ordinal => {
   return s as Ordinal
 }
 
-export const ordinalValue = (o: Ordinal): number => Number(o)
-
 export function compareOrdinals(a: Ordinal, b: Ordinal): -1 | 0 | 1 {
   const na = Number(a)
   const nb = Number(b)

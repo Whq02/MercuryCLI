@@ -255,8 +255,6 @@ src/utils/exampleCommands.ts :: refreshExampleCommands :: invalidator=applyHarne
 src/utils/fileReadCache.ts :: fileReadCache :: keyed-by-truth
 src/utils/forkedAgent.ts :: lastCacheSafeParams :: keyed-by-truth
 src/utils/fullscreen.ts :: controlModeCache :: static-for-process
-src/utils/genericProcessUtils.ts :: cachedPowerShellExe :: static-for-process
-src/utils/genericProcessUtils.ts :: metaCache :: ttl-bounded
 src/utils/git.ts :: getIsGit :: invalidator=applyHarnessGround
 src/utils/git.ts :: gitExe :: static-for-process
 src/utils/git.ts :: lastSnapshot :: subscription-fed
@@ -325,7 +323,6 @@ src/utils/terminalDetection.ts :: insideITerm2Memo :: static-for-process
 src/utils/toolSchemaCache.ts :: toolSchemaCache :: keyed-by-truth
 src/utils/toolSearch.ts :: memoizedDeferredToolTokens :: keyed-by-truth
 src/utils/transcriptSearch.ts :: searchTextCache :: keyed-by-truth
-src/utils/user.ts :: getCoreUserData :: static-for-process
 src/utils/user.ts :: getGitEmail :: static-for-process
 src/utils/verification/projectGates.ts :: cache :: ttl-bounded
 src/utils/verification/verificationState.ts :: digestCache :: invalidator=markMutation

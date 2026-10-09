@@ -140,7 +140,7 @@ try {
   )
   t.check('the composer returned to the operator', textOf(final).includes('? for shortcuts'))
   {
-    const dir = join(run.paths.home, '.claude', 'interview')
+    const dir = join(run.paths.home, '.mercury', 'interview')
     const files = readdirSync(dir).filter(f => f.endsWith('.json'))
     t.check('the durable session log exists', files.length === 1, files.join(','))
     const log = JSON.parse(readFileSync(join(dir, files[0]!), 'utf8')) as {
