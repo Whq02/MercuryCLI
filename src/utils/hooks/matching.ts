@@ -1,361 +1,123 @@
-
+import { createHash } from 'node:crypto'
 import { logForDebugging } from '../debug.js'
 import { lspFamilyMatches } from '../../services/lsp/toolFamily.js'
-import {
-  getHooksConfigFromSnapshot,
-  shouldAllowManagedHooksOnly,
-} from './hooksConfigSnapshot.js'
-import { getIsNonInteractiveSession, getRegisteredHooks } from '../../bootstrap/state.js'
+import { getRegisteredHooks } from '../../bootstrap/state.js'
 import { matcherShape } from './matcherGrammar.js'
-import { hookEventMatchQuery } from './contract.js'
+import { hookMatchValue, type HookEvent, type HookPayload } from './contract.js'
 import type { AppState } from '../../state/AppState.js'
-import type { HookEvent, HookInput } from './contract.js'
-
-import type { Tools } from '../../Tool.js'
-import { findToolByName } from '../../Tool.js'
-import type {
-  HookCallback,
-  HookCallbackMatcher,
-} from '../../types/hooks.js'
-import type {
-  HookCommand,
-  HookMatcher,
-  ExtensionHookMatcher,
-  SkillHookMatcher,
-} from '../settings/types.js'
-import {
-  permissionRuleValueFromString,
-} from '../permissions/permissionRuleParser.js'
+import type { HookEntry } from '../settings/types.js'
+import { hookEntryText, hookKindOf } from '../../schemas/hooks.js'
 import { logError } from '../log.js'
-import { DEFAULT_HOOK_SHELL } from '../shell/shellProvider.js'
-import {
-  getSessionFunctionHooks,
-  getSessionHooks,
-  type FunctionHook,
-  type SessionDerivedHookMatcher,
-} from './sessionHooks.js'
+import { hooksDisabled, managedHooksOnly, settingsHooksFor, type HookSource, type LayeredHook } from './hooksConfigSnapshot.js'
+import { sessionHooksFor, type HookScope } from './sessionHooks.js'
 
-export function matchesPattern(matchQuery: string, matcher: string): boolean {
+export function matchesPattern(value: string, matcher: string): boolean {
   const shape = matcherShape(matcher)
-  if (shape === 'everything') {
-    return true
-  }
+  if (shape === 'everything') return true
   if (shape === 'names') {
-    const patterns = matcher.includes('|') ? matcher.split('|').map(p => p.trim()) : [matcher]
-    return patterns.some(pattern => pattern === matchQuery || lspFamilyMatches(pattern, matchQuery))
+    return matcher.split('|').some(name => name === value || lspFamilyMatches(name, value))
   }
-
   try {
-    const regex = new RegExp(matcher)
-    return regex.test(matchQuery)
+    return new RegExp(matcher).test(value)
   } catch {
     logForDebugging(`Invalid regex pattern in hook matcher: ${matcher}`)
     return false
   }
 }
 
-export type IfConditionMatcher = (ifCondition: string) => boolean
+export type MatchedHook = { id: string; event: HookEvent; entry: HookEntry; source: HookSource }
 
-const IF_CONDITION_EVENTS: readonly HookEvent[] = [
-  'PreToolUse',
-  'PostToolUse',
-  'PostToolUseFailure',
-  'PermissionRequest',
-]
-
-export function eventSupportsIfConditions(event: HookEvent): boolean {
-  return IF_CONDITION_EVENTS.includes(event)
-}
-
-export async function prepareIfConditionMatcher(
-  hookInput: HookInput,
-  tools: Tools | undefined,
-): Promise<IfConditionMatcher | undefined> {
-  if (!eventSupportsIfConditions(hookInput.hook_event_name)) {
-    return undefined
-  }
-  const toolEventInput = hookInput as Extract<HookInput, { tool_name: string; tool_input: unknown }>
-
-  const toolName = toolEventInput.tool_name
-  const tool = tools && findToolByName(tools, toolEventInput.tool_name)
-  const input = tool?.inputSchema.safeParse(toolEventInput.tool_input)
-  const patternMatcher =
-    input?.success && tool?.preparePermissionMatcher
-      ? await tool.preparePermissionMatcher(input.data)
-      : undefined
-
-  return ifCondition => {
-    const parsed = permissionRuleValueFromString(ifCondition)
-    if (parsed.ruleContent === undefined && lspFamilyMatches(parsed.toolName, toolName)) return true
-    if (parsed.toolName !== toolName) {
-      return false
-    }
-    if (!parsed.ruleContent) {
-      return true
-    }
-    return patternMatcher ? patternMatcher(parsed.ruleContent) : false
+function sourceKey(source: HookSource): string {
+  switch (source.kind) {
+    case 'settings':
+      return ''
+    case 'extension':
+      return `extension\0${source.root}`
+    case 'skill':
+      return `skill\0${source.root}`
+    case 'agent':
+      return `agent\0${source.type}`
   }
 }
 
-export type FunctionHookMatcher = {
-  matcher: string
-  hooks: FunctionHook[]
+export function hookIdentity(hook: LayeredHook): string {
+  const { entry } = hook
+  return [hook.event, sourceKey(hook.source), hookKindOf(entry), hookEntryText(entry), entry.match ?? ''].join('\0')
 }
 
-export type MatchedHook = {
-  hook: HookCommand | HookCallback | FunctionHook
-  extensionRoot?: string
-  extensionId?: string
-  skillRoot?: string
-  hookSource?: string
+export function hookId(hook: LayeredHook): string {
+  return createHash('sha1').update(hookIdentity(hook)).digest('hex').slice(0, 16)
 }
 
-export function isInternalHook(matched: MatchedHook): boolean {
-  return matched.hook.type === 'callback' && matched.hook.internal === true
+const spent = new Set<string>()
+
+export function markHookSpent(id: string, scope: HookScope): void {
+  spent.add(`${scope.sessionId}\0${id}`)
 }
 
-export function hookDedupKey(m: MatchedHook, payload: string): string {
-  return `${m.extensionRoot ?? m.skillRoot ?? ''}\0${payload}`
+export function isHookSpent(id: string, scope: HookScope): boolean {
+  return spent.has(`${scope.sessionId}\0${id}`)
 }
 
-export function getHooksConfig(
-  appState: AppState | undefined,
-  sessionId: string,
-  hookEvent: HookEvent,
-): Array<
-  | HookMatcher
-  | HookCallbackMatcher
-  | FunctionHookMatcher
-  | ExtensionHookMatcher
-  | SkillHookMatcher
-  | SessionDerivedHookMatcher
-> {
-  const hooks: Array<
-    | HookMatcher
-    | HookCallbackMatcher
-    | FunctionHookMatcher
-    | ExtensionHookMatcher
-    | SkillHookMatcher
-    | SessionDerivedHookMatcher
-  > = [...(getHooksConfigFromSnapshot()?.[hookEvent] ?? [])]
+export function forgetSpentHooks(): void {
+  spent.clear()
+}
 
-  const managedOnly = shouldAllowManagedHooksOnly()
-
-  const registeredHooks = getRegisteredHooks()?.[hookEvent]
-  if (registeredHooks) {
-    for (const matcher of registeredHooks) {
-      if (managedOnly && 'extensionRoot' in matcher) {
-        continue
-      }
-      hooks.push(matcher)
-    }
+function extensionHooksFor(event: HookEvent): LayeredHook[] {
+  const registered = getRegisteredHooks()?.[event]
+  if (!registered) return []
+  const out: LayeredHook[] = []
+  for (const matcher of registered) {
+    if (!('extensionRoot' in matcher)) continue
+    const source: HookSource = { kind: 'extension', name: matcher.extensionName, id: matcher.extensionId, root: matcher.extensionRoot }
+    for (const entry of matcher.hooks) out.push({ event, entry, source })
   }
+  return out
+}
 
-  if (!managedOnly && appState !== undefined) {
-    const sessionHooks = getSessionHooks(appState, sessionId, hookEvent).get(
-      hookEvent,
-    )
-    if (sessionHooks) {
-      for (const matcher of sessionHooks) {
-        hooks.push(matcher)
-      }
-    }
-
-    const sessionFunctionHooks = getSessionFunctionHooks(
-      appState,
-      sessionId,
-      hookEvent,
-    ).get(hookEvent)
-    if (sessionFunctionHooks) {
-      for (const matcher of sessionFunctionHooks) {
-        hooks.push(matcher)
-      }
-    }
-  }
-
+export function hooksFor(event: HookEvent, scope: HookScope, appState?: AppState): LayeredHook[] {
+  if (hooksDisabled()) return []
+  const hooks = [...settingsHooksFor(event, scope.cwd)]
+  if (managedHooksOnly()) return hooks
+  hooks.push(...extensionHooksFor(event))
+  if (appState !== undefined) hooks.push(...sessionHooksFor(appState, scope, event))
   return hooks
 }
 
-export function hasHookForEvent(
-  hookEvent: HookEvent,
-  appState: AppState | undefined,
-  sessionId: string,
-): boolean {
-  const snap = getHooksConfigFromSnapshot()?.[hookEvent]
-  if (snap && snap.length > 0) return true
-  const reg = getRegisteredHooks()?.[hookEvent]
-  if (reg && reg.length > 0) return true
-  if (appState?.sessionHooks.get(sessionId)?.hooks[hookEvent]) return true
-  return false
+export function hasHooksFor(event: HookEvent, scope: HookScope, appState?: AppState): boolean {
+  return hooksFor(event, scope, appState).length > 0
 }
 
-function matchQueryForInput(hookInput: HookInput): string | undefined {
-  return hookEventMatchQuery(hookInput.hook_event_name, hookInput)
+export function dedupeHooks(hooks: LayeredHook[]): MatchedHook[] {
+  const byIdentity = new Map<string, MatchedHook>()
+  for (const hook of hooks) {
+    const identity = hookIdentity(hook)
+    byIdentity.delete(identity)
+    byIdentity.set(identity, { id: hookId(hook), event: hook.event, entry: hook.entry, source: hook.source })
+  }
+  return [...byIdentity.values()]
 }
 
-const getIfCondition = (hook: { if?: string }): string => hook.if ?? ''
-
-function dedupByPayload(
-  hooks: MatchedHook[],
-  type: string,
-  payload: (m: MatchedHook) => string,
-): MatchedHook[] {
-  return Array.from(
-    new Map(
-      hooks
-        .filter(m => m.hook.type === type)
-        .map(m => [hookDedupKey(m, payload(m)), m] as const),
-    ).values(),
-  )
-}
-
-export async function getMatchingHooks(
-  appState: AppState | undefined,
-  sessionId: string,
-  hookEvent: HookEvent,
-  hookInput: HookInput,
-  tools?: Tools,
+export async function matchHooks(
+  event: HookEvent,
+  payload: HookPayload,
+  scope: HookScope,
+  options: { appState?: AppState } = {},
 ): Promise<MatchedHook[]> {
   try {
-    const hookMatchers = getHooksConfig(appState, sessionId, hookEvent)
-    const matchQuery = matchQueryForInput(hookInput)
-
-    logForDebugging(`Found ${hookMatchers.length} hook matchers in settings`, {
+    const candidates = hooksFor(event, scope, options.appState)
+    const value = hookMatchValue(event, payload as unknown as Record<string, unknown>)
+    const result = dedupeHooks(
+      candidates.filter(hook => hook.entry.match === undefined || value === undefined || matchesPattern(value, hook.entry.match)),
+    ).filter(hook => !isHookSpent(hook.id, scope))
+    logForDebugging(`${event}: ${result.length} hooks matched${value !== undefined ? ` for "${value}"` : ''} (${candidates.length} before deduplication)`, {
       level: 'verbose',
     })
-
-    const filteredMatchers = matchQuery
-      ? hookMatchers.filter(
-          matcher =>
-            !matcher.matcher || matchesPattern(matchQuery, matcher.matcher),
-        )
-      : hookMatchers
-
-    const matchedHooks: MatchedHook[] = filteredMatchers.flatMap(matcher => {
-      const extensionRoot =
-        'extensionRoot' in matcher ? matcher.extensionRoot : undefined
-      const extensionId = 'extensionId' in matcher ? matcher.extensionId : undefined
-      const skillRoot = 'skillRoot' in matcher ? matcher.skillRoot : undefined
-      const hookSource = extensionRoot
-        ? 'extensionName' in matcher
-          ? `extension:${matcher.extensionName}`
-          : 'extension'
-        : skillRoot
-          ? 'skillName' in matcher
-            ? `skill:${matcher.skillName}`
-            : 'skill'
-          : 'settings'
-      return matcher.hooks.map(hook => ({
-        hook,
-        extensionRoot,
-        extensionId,
-        skillRoot,
-        hookSource,
-      }))
-    })
-
-    if (
-      matchedHooks.every(
-        m => m.hook.type === 'callback' || m.hook.type === 'function',
-      )
-    ) {
-      return matchedHooks
-    }
-
-    const uniqueHooks = [
-      ...dedupByPayload(
-        matchedHooks,
-        'command',
-        m =>
-          `${(m.hook as HookCommand & { shell?: string }).shell ?? DEFAULT_HOOK_SHELL}\0${(m.hook as { command: string }).command}\0${getIfCondition(m.hook as { if?: string })}`,
-      ),
-      ...dedupByPayload(
-        matchedHooks,
-        'prompt',
-        m =>
-          `${(m.hook as { prompt: string }).prompt}\0${getIfCondition(m.hook as { if?: string })}`,
-      ),
-      ...dedupByPayload(
-        matchedHooks,
-        'agent',
-        m =>
-          `${(m.hook as { prompt: string }).prompt}\0${getIfCondition(m.hook as { if?: string })}`,
-      ),
-      ...dedupByPayload(
-        matchedHooks,
-        'http',
-        m =>
-          `${(m.hook as { url: string }).url}\0${getIfCondition(m.hook as { if?: string })}`,
-      ),
-      ...matchedHooks.filter(m => m.hook.type === 'callback'),
-      ...matchedHooks.filter(m => m.hook.type === 'function'),
-    ]
-
-    const hasIfCondition = uniqueHooks.some(
-      h =>
-        (h.hook.type === 'command' ||
-          h.hook.type === 'prompt' ||
-          h.hook.type === 'agent' ||
-          h.hook.type === 'http') &&
-        (h.hook as { if?: string }).if,
-    )
-    const ifMatcher = hasIfCondition
-      ? await prepareIfConditionMatcher(hookInput, tools)
-      : undefined
-    const ifFilteredHooks = uniqueHooks.filter(h => {
-      if (
-        h.hook.type !== 'command' &&
-        h.hook.type !== 'prompt' &&
-        h.hook.type !== 'agent' &&
-        h.hook.type !== 'http'
-      ) {
-        return true
-      }
-      const ifCondition = (h.hook as { if?: string }).if
-      if (!ifCondition) {
-        return true
-      }
-      if (!ifMatcher) {
-        const skipLine = `hook if condition "${ifCondition}" can never evaluate on ${hookInput.hook_event_name} (no tool input) — hook skipped`
-        logForDebugging(skipLine)
-        if (getIsNonInteractiveSession()) {
-          process.stderr.write(`${skipLine}\n`)
-        }
-        return false
-      }
-      if (ifMatcher(ifCondition)) {
-        return true
-      }
-      logForDebugging(
-        `hook skipped: its if condition "${ifCondition}" does not match`,
-      )
-      return false
-    })
-
-    const filteredHooks =
-      hookEvent === 'SessionStart' || hookEvent === 'Setup'
-        ? ifFilteredHooks.filter(h => {
-            if (h.hook.type === 'http') {
-              logForDebugging(
-                `${hookEvent} never runs HTTP hooks; ${(h.hook as { url: string }).url} skipped`,
-              )
-              return false
-            }
-            return true
-          })
-        : ifFilteredHooks
-
-    logForDebugging(
-      `${hookEvent}: ${filteredHooks.length} hooks matched${matchQuery ? ` for "${matchQuery}"` : ''} (${matchedHooks.length} before deduplication)`,
-      { level: 'verbose' },
-    )
-    return filteredHooks
+    return result
   } catch (error) {
-    logError(
-      new Error('hook matching failed — running no hooks for this event', {
-        cause: error instanceof Error ? error : new Error(String(error)),
-      }),
-    )
+    logError(new Error('hook matching failed — running no hooks for this event', { cause: error instanceof Error ? error : new Error(String(error)) }))
     return []
   }
 }
+
+export { getMatchingHooks, hasHookForEvent, isInternalHook } from './oldRoad.js'

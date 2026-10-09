@@ -1,271 +1,97 @@
-import { memoize } from 'lodash-es'
-
-import type { HookEvent } from './contract.js'
-
-import { HOOK_EVENTS } from './contract.js'
-
-import { INTERRUPT_REASONS } from './contract.js'
-
-import { getRegisteredHooks } from '../../bootstrap/state.js'
 import type { AppState } from '../../state/AppState.js'
 import {
-  getAllHooks,
-  sortMatchersByPriority,
-  type HooksByEventAndMatcher,
-  type IndividualHookConfig,
-} from './hooksSettings.js'
+  HOOK_EVENTS,
+  hookEventTable,
+  hookKindsOf,
+  hookMatchValues,
+  type HookAnswerField,
+  type HookEvent,
+  type HookKind,
+  type HookRoad,
+} from './contract.js'
+import { hookSourceRank, listHooks, type HookRow } from './hooksSettings.js'
 
-
-type MatcherMetadata = {
-  field: string
-  values?: string[]
+export type HookEventCard = {
+  event: HookEvent
+  moment: string
+  roads: readonly HookRoad[]
+  match?: string
+  matchValues?: readonly string[]
+  answers: readonly HookAnswerField[]
+  kinds: readonly HookKind[]
 }
 
-type HookEventMetadata = {
-  summary: string
-  description: string
-  matcherMetadata?: MatcherMetadata
-}
-
-function buildHookEventMetadata(toolNames: string[]): Record<HookEvent, HookEventMetadata> {
-  const exitCodes = 'Exit 0 succeeds; exit 2 blocks with stderr shown to the model; any other non-zero shows stderr to the user only and continues.'
+export function hookEventCard(event: HookEvent, toolNames: readonly string[] = []): HookEventCard {
+  const row = hookEventTable[event]
+  const values = row.match === 'tool' ? [...toolNames] : hookMatchValues(event)
   return {
-    PreToolUse: {
-      summary: 'Runs before every tool call',
-      description: `Payload: the tool call's arguments. ${exitCodes} Exit 2 blocks the tool call.`,
-      matcherMetadata: { field: 'tool_name', values: toolNames },
-    },
-    PostToolUse: {
-      summary: 'Runs after a tool call succeeds',
-      description: `Payload: the tool inputs and the tool response. Exit 0 output is shown in transcript mode; exit 2 shows stderr to the model immediately.`,
-      matcherMetadata: { field: 'tool_name', values: toolNames },
-    },
-    PostToolUseFailure: {
-      summary: 'Runs after a tool call fails',
-      description: 'Payload: tool name, tool input, tool-use id, the error, the error type, and interrupt/timeout flags.',
-      matcherMetadata: { field: 'tool_name', values: toolNames },
-    },
-    Notification: {
-      summary: 'Runs when Mercury sends a notification',
-      description: 'Payload: a message and a type.',
-      matcherMetadata: {
-        field: 'notification_type',
-        values: [
-          'permission_prompt',
-          'idle_prompt',
-          'auth_success',
-          'elicitation_dialog',
-          'elicitation_complete',
-          'elicitation_response',
-        ],
-      },
-    },
-    UserPromptSubmit: {
-      summary: 'Runs when the user submits a prompt',
-      description: `${exitCodes} Exit 0 stdout is shown to Mercury; exit 2 blocks processing and erases the original prompt.`,
-    },
-    UserPromptExpansion: {
-      summary: 'Runs when a slash command or MCP prompt expands',
-      description:
-        'Payload: the command name, arguments, source, and the original invocation. Exit 2 blocks the expansion.',
-      matcherMetadata: { field: 'command_name' },
-    },
-    SessionStart: {
-      summary: 'Runs when a session starts',
-      description: 'Payload: the start source. Blocking errors are ignored; stdout is added as context.',
-      matcherMetadata: { field: 'source', values: ['startup', 'resume', 'clear', 'compact'] },
-    },
-    SessionEnd: {
-      summary: 'Runs when a session ends',
-      description: 'Payload: the end reason.',
-      matcherMetadata: { field: 'reason', values: ['clear', 'logout', 'prompt_input_exit', 'other'] },
-    },
-    Stop: {
-      summary: 'Runs when the model finishes responding',
-      description: `${exitCodes} Exit 2 shows stderr to the model and the conversation continues.`,
-    },
-    StopFailure: {
-      summary: 'Runs instead of Stop when an API error ended the turn',
-      description: 'Fire-and-forget: output and exit codes are ignored.',
-      matcherMetadata: {
-        field: 'error',
-        values: [
-          'rate_limit',
-          'authentication_failed',
-          'billing_error',
-          'invalid_request',
-          'server_error',
-          'max_output_tokens',
-          'unknown',
-        ],
-      },
-    },
-    SubagentStart: {
-      summary: 'Runs when a crewmate starts',
-      description:
-        'Payload: agent id and agent type. Stdout is shown to the crewmate; blocking errors are ignored.',
-      matcherMetadata: { field: 'agent_type' },
-    },
-    SubagentStop: {
-      summary: 'Runs when a crewmate finishes',
-      description:
-        "Payload: agent id, agent type, and the agent's transcript path. Exit 2 shows stderr to the crewmate and keeps it running.",
-      matcherMetadata: { field: 'agent_type' },
-    },
-    PreCompact: {
-      summary: 'Runs before compaction',
-      description:
-        'Exit 0 stdout is appended as custom compaction instructions; exit 2 blocks compaction.',
-      matcherMetadata: { field: 'trigger', values: ['manual', 'auto'] },
-    },
-    PostCompact: {
-      summary: 'Runs after compaction',
-      description: 'Payload: compaction details and the summary. Exit 0 stdout is shown to the user.',
-      matcherMetadata: { field: 'trigger', values: ['manual', 'auto'] },
-    },
-    PermissionRequest: {
-      summary: 'Runs when a permission dialog is displayed',
-      description:
-        'Payload: tool name, tool input, tool-use id. The structured output may carry an allow-or-deny decision, used when the exit code is 0.',
-      matcherMetadata: { field: 'tool_name', values: toolNames },
-    },
-    Setup: {
-      summary: 'Repo setup hooks',
-      description:
-        'Payload: a trigger of init or maintenance. Stdout is shown to Mercury; blocking errors are ignored.',
-    },
-    TaskCreated: {
-      summary: 'Runs when a task is created',
-      description:
-        'Payload: task id, subject, and description. Exit 2 shows stderr to the model and prevents the creation.',
-    },
-    TaskCompleted: {
-      summary: 'Runs when a task is completed',
-      description:
-        'Payload: task id, subject, and description. Exit 2 shows stderr to the model and prevents the completion.',
-    },
-    Elicitation: {
-      summary: 'Runs when an MCP server requests user input',
-      description:
-        'Payload: the server name, message, and requested schema. The structured output carries an action of accept, decline, or cancel plus optional content; exit 2 denies.',
-      matcherMetadata: { field: 'mcp_server_name' },
-    },
-    ElicitationResult: {
-      summary: 'Runs after the user responds to an elicitation',
-      description:
-        'Payload: server name, action, content, mode, and elicitation id. The structured output may override the action and content; exit 2 blocks the response, turning the action into a decline.',
-      matcherMetadata: { field: 'mcp_server_name' },
-    },
-    ConfigChange: {
-      summary: 'Runs when configuration changes mid-session',
-      description:
-        'Payload: a source and a file path. Exit 2 blocks the change from being applied to the session.',
-      matcherMetadata: {
-        field: 'source',
-        values: ['user_settings', 'project_settings', 'local_settings', 'policy_settings', 'skills'],
-      },
-    },
-    WorktreeCreate: {
-      summary: 'Creates an isolated worktree',
-      description:
-        'Payload: a suggested worktree slug. Stdout MUST be the absolute path of the created worktree directory; exit 0 means created.',
-    },
-    WorktreeRemove: {
-      summary: 'Removes a worktree',
-      description: 'Payload: the absolute worktree path.',
-    },
-    InstructionsLoaded: {
-      summary: 'Runs when an instruction file is loaded',
-      description:
-        'Payload: the file path, memory type (User, Project, Local, Managed), load reason, optional matched glob patterns, an optional triggering file path, and an optional including-parent file path. Observability-only — blocking is not supported.',
-      matcherMetadata: {
-        field: 'load_reason',
-        values: ['session_start', 'nested_traversal', 'path_glob_match', 'include', 'compact'],
-      },
-    },
-    CwdChanged: {
-      summary: 'Runs when the working directory changes',
-      description:
-        'Payload: the old and new working directories. MERCURY_ENV_FILE is set so the hook can write shell exports applied to subsequent shell commands; the structured output may carry absolute watch paths to register with the file watcher.',
-    },
-    FileChanged: {
-      summary: 'Runs when a watched file changes',
-      description:
-        'Payload: the changed path and an event of change, add, or unlink. MERCURY_ENV_FILE is set. The matcher field names files to watch in the current directory, pipe-separated; the structured output may carry watch paths that dynamically update the watch list.',
-    },
-    Interrupt: {
-      summary: 'Runs when a turn is interrupted',
-      description:
-        "Payload: the run's turn id, the cut's reason (operator, idle-timeout, parent-stop or cut) with its words when it has any, and the names of the tool calls the interrupt ended. Fire-and-forget: output and exit codes are ignored; nothing a hook answers can block or change the cut.",
-      matcherMetadata: { field: 'reason', values: [...INTERRUPT_REASONS] },
-    },
+    event,
+    moment: row.moment,
+    roads: row.roads,
+    ...(row.match !== undefined ? { match: row.match } : {}),
+    ...(values !== undefined && values.length > 0 ? { matchValues: values } : {}),
+    answers: row.answers,
+    kinds: hookKindsOf(event),
   }
 }
 
-export const getHookEventMetadata = memoize(buildHookEventMetadata, (toolNames: string[]) =>
-  [...toolNames].sort().join(','),
-)
+export function hookEventCards(toolNames: readonly string[] = []): Record<HookEvent, HookEventCard> {
+  return Object.fromEntries(HOOK_EVENTS.map(event => [event, hookEventCard(event, toolNames)])) as Record<HookEvent, HookEventCard>
+}
 
-export function groupHooksByEventAndMatcher(
-  appState: AppState,
-  toolNames: string[],
-): HooksByEventAndMatcher {
-  const metadata = getHookEventMetadata(toolNames)
-  const grouped = {} as HooksByEventAndMatcher
-  for (const event of HOOK_EVENTS) {
-    grouped[event] = {}
-  }
-  const pushRow = (row: IndividualHookConfig, key: string): void => {
-    const byMatcher = grouped[row.event]
-    if (!byMatcher) return
-    const rows = byMatcher[key] ?? []
-    rows.push(row)
-    byMatcher[key] = rows
-  }
-  for (const row of getAllHooks(appState)) {
-    const key = metadata[row.event]?.matcherMetadata ? (row.matcher ?? '') : ''
-    pushRow(row, key)
-  }
+export function eventHasMatch(event: HookEvent): boolean {
+  return hookEventTable[event].match !== undefined
+}
 
-  const registered = getRegisteredHooks()
-  if (registered) {
-    for (const event of Object.keys(registered) as HookEvent[]) {
-      for (const matcher of registered[event] ?? []) {
-        if (!('extensionRoot' in matcher)) continue
-        const extensionId = 'extensionId' in matcher ? matcher.extensionId : undefined
-        for (const config of matcher.hooks ?? []) {
-          pushRow(
-            {
-              event,
-              config,
-              matcher: matcher.matcher,
-              source: 'extensionHook',
-              ...(extensionId !== undefined ? { extensionName: extensionId as string } : {}),
-            },
-            matcher.matcher ?? '',
-          )
-        }
-      }
-    }
+export type HooksByEventAndMatch = Record<HookEvent, Record<string, HookRow[]>>
+
+export function groupHooksByEventAndMatch(appState: AppState): HooksByEventAndMatch {
+  const grouped = Object.fromEntries(HOOK_EVENTS.map(event => [event, {}])) as HooksByEventAndMatch
+  for (const row of listHooks(appState)) {
+    const byMatch = grouped[row.event]
+    const key = eventHasMatch(row.event) ? row.match : ''
+    ;(byMatch[key] ??= []).push(row)
   }
   return grouped
 }
 
-export function getSortedMatchersForEvent(
-  hooksByEventAndMatcher: HooksByEventAndMatcher,
-  event: HookEvent,
-): string[] {
-  return sortMatchersByPriority(
-    Object.keys(hooksByEventAndMatcher[event] ?? {}),
-    hooksByEventAndMatcher,
-    event,
-  )
+export function sortedMatchesForEvent(grouped: HooksByEventAndMatch, event: HookEvent): string[] {
+  const byMatch = grouped[event] ?? {}
+  const rank = (match: string): number => Math.min(...(byMatch[match] ?? []).map(row => hookSourceRank(row.source)))
+  return Object.keys(byMatch).sort((a, b) => {
+    const difference = rank(a) - rank(b)
+    if (difference !== 0 && Number.isFinite(difference)) return difference
+    return a.localeCompare(b)
+  })
 }
 
-export function getHooksForMatcher(
-  hooksByEventAndMatcher: HooksByEventAndMatcher,
-  event: HookEvent,
-  matcher: string | null,
-): IndividualHookConfig[] {
-  return hooksByEventAndMatcher[event]?.[matcher ?? ''] ?? []
+export function hooksForMatch(grouped: HooksByEventAndMatch, event: HookEvent, match: string | null): HookRow[] {
+  return grouped[event]?.[match ?? ''] ?? []
+}
+
+export function answerWords(field: HookAnswerField): string {
+  switch (field) {
+    case 'block':
+      return 'block the moment'
+    case 'stop':
+      return 'stop the turn'
+    case 'context':
+      return 'add words the model reads'
+    case 'notice':
+      return 'add a line the operator reads'
+    case 'permission':
+      return 'settle the permission'
+    case 'input':
+      return "rewrite the tool's input"
+    case 'output':
+      return "rewrite the tool's result"
+    case 'rules':
+      return 'apply permission rules'
+    case 'instructions':
+      return 'guide the summariser'
+    case 'prompt':
+      return "set the session's first prompt"
+    case 'watch':
+      return 'name the files to watch'
+  }
 }
