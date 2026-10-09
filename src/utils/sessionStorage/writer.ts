@@ -641,7 +641,7 @@ class Project {
 
           if (fileSize > MAX_TOMBSTONE_REWRITE_BYTES) {
             logForDebugging(
-              `Skipping tombstone removal: session file too large (${formatFileSize(fileSize)})`,
+              `The removed row's bytes stay in the session file: it is ${formatFileSize(fileSize)}, past the rewrite ceiling`,
               { level: 'warn' },
             )
             return
@@ -795,7 +795,7 @@ class Project {
     if (!existing) {
       logError(
         new Error(
-          `appendEntry: session file not found for other session ${sessionId}`,
+          `An append for session ${sessionId} found no transcript file for it`,
         ),
       )
       return null
