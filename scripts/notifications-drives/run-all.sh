@@ -1,40 +1,21 @@
 #!/usr/bin/env bash
 # gate-class: pty
+# gate-env: MERCURY_DRIVE_JOBS
 # gate-watch: scripts/notifications/**
 # gate-watch: scripts/notifications/**
 # gate-watch: src/services/crew/**
 # gate-watch: scripts/engine-durability/harness.ts scripts/lib/captureDriver.ts
 # gate-watch: scripts/streaming/artifactArena.ts src/components/concourse/ConcourseScreen.tsx
 # gate-watch: src/components/concourse/NeedsYouRail.tsx src/components/mercury-ui/*
-set -u
+set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
-prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }
+. "$(dirname "$0")/../lib/drive-members.sh" || exit 78
 
 cd "$(dirname "$0")/../.." || exit 1
-bun="${BUN:-$HOME/.bun/bin/bun}"
 here="scripts/notifications-drives"
 if [ ! -f dist/mercury.mjs ]; then
-  echo "❌ notifications-drives: dist/mercury.mjs absent — every member boots the built bundle; build first (~/.bun/bin/bun run build.ts)"
+  printf '%s\n' 'notifications-drives: dist/mercury.mjs absent; build before running terminal drives'
   exit 1
 fi
 
-failed=0
-while IFS= read -r name; do
-  case "$name" in (''|'#'*) continue ;; esac
-  f="scripts/notifications/$name"
-  if [ ! -e "$f" ]; then
-    echo "❌ notifications-drives: member '$name' has no file at $f — a stale member row is a red, never a silent skip"
-    failed=1
-    continue
-  fi
-  echo "── notifications-drives: $name"
-  __t=$SECONDS; __rc=0
-  case "$name" in
-    (*.py) /usr/bin/python3 "$f" || { __rc=$?; failed=1; } ;;
-    (*.sh) bash "$f" || { __rc=$?; failed=1; } ;;
-    (*) "$bun" "$f" || { __rc=$?; failed=1; } ;;
-  esac
-  prover_mark "$f" "$__t" "$__rc"
-done < "$here/members.txt"
-
-exit "$failed"
+drive_members notifications-drives 'scripts/notifications/$name' "$here/members.txt"
