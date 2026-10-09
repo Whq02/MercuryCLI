@@ -41,7 +41,7 @@ export function loginFamilyRows({ engineLegs }: { engineLegs: boolean }): LoginF
           { label: 'DeepSeek — API key', value: 'deepseek' as const },
           { label: 'xAI — Grok subscription sign-in or API key', value: 'xai' as const },
           { label: 'Meta — API key (Muse)', value: 'meta' as const },
-          { label: 'Nous Portal — API key (the Portal\'s model gateway)', value: 'nous' as const },
+          { label: 'Nous Portal — API key (model gateway)', value: 'nous' as const },
         ]
       : []),
   ]
