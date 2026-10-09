@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { useCallback, useContext, useEffect, useMemo, useRef } from 'react'
-import { elementScreenTop, useInput } from '../ink.js'
+import { useInput } from '../ink.js'
 import ScrollBox, { type ScrollBoxHandle } from '../ink/components/ScrollBox.js'
 import CursorDeclarationContext, { type CursorDeclaration, type CursorDeclarationSetter } from '../ink/components/CursorDeclarationContext.js'
 import { TerminalSizeContext } from '../ink/components/TerminalSizeContext.js'
@@ -19,8 +19,10 @@ export function PopupForm({ width, rows, children, scrollRef: hostScrollRef }: {
       const body = scrollRef.current
       const current = cursor.current
       if (!body || !current || !current.node.parentNode) return
-      const y = elementScreenTop(current.node) + current.relativeY
-      const top = body.getViewportTop()
+      const elementTop = body.getElementTop(current.node)
+      if (elementTop === undefined) return
+      const y = elementTop + current.relativeY
+      const top = body.getScrollTop()
       const height = body.getViewportHeight()
       if (height > 0 && (y < top || y >= top + height)) body.scrollToElement(current.node, current.relativeY - (y < top ? 0 : height - 1))
     }, 0)
@@ -36,7 +38,10 @@ export function PopupForm({ width, rows, children, scrollRef: hostScrollRef }: {
     if (next === null) {
       if (cursor.current?.node === clearIfNode) {
         cursor.current = null
-        scrollRef.current?.scrollTo(0)
+        clearTimeout(pending.current)
+        pending.current = setTimeout(() => {
+          if (cursor.current === null) scrollRef.current?.scrollTo(0)
+        }, 0)
       }
       return
     }

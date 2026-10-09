@@ -135,6 +135,22 @@ if (driver.kind !== 'posix-pty') {
     check('PageDown pages the body: the readiness tail lands, the footer stays', paged.includes('OpenAI-compatible') && paged.includes('esc back'))
   }
   {
+    const r = capture('logins-wrap', [
+      { requireAwait: true, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
+      { requireAwait: true, awaitText: 'Type a prompt', minTick: 5, awaitSettleTicks: 2, data: '/logins' },
+      { requireAwait: true, awaitText: '❯ /logins', awaitSettleTicks: 2, data: '\r' },
+      { requireAwait: true, awaitText: 'Mercury · logins', awaitStableTicks: 3, data: '' },
+      { requireAwait: true, awaitText: 'OpenCode Zen', awaitPattern: '❯ OpenCode Zen', awaitStableTicks: 2, repeatEveryTicks: 3, mark: 'last', data: '\u001b[B' },
+      { requireAwait: true, awaitText: 'OpenAI — ChatGPT', awaitPattern: '❯ OpenAI — ChatGPT', awaitStableTicks: 3, mark: 'wrapped', data: '' },
+      { requireAwait: true, awaitText: 'esc back', awaitSettleTicks: 2, data: '\u001b' },
+    ], 90)
+    check('/logins wrap drive delivered every send', r.status === 0, `exit ${r.status}: ${r.stderr.trim().slice(-200)}`)
+    const last = r.marks.last ?? ''
+    const wrapped = r.marks.wrapped ?? ''
+    check('↓ walks the list to its last row with the body scrolled to show it', last.includes('❯ OpenCode Zen') && last.includes('esc back'))
+    check('↓ on the last row wraps to the first row AND the body scrolls up to show it (a focused row is never off screen)', wrapped.includes('❯ OpenAI — ChatGPT') && wrapped.includes('esc back'))
+  }
+  {
     const r = capture('help', [
       { atTick: 40, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
       { atTick: 60, data: '/help', awaitText: 'Type a prompt', minTick: 5 },
