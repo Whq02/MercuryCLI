@@ -198,8 +198,9 @@ section('§3 the wire laws: thinking always on, no forced tool choice, the four 
   check("the row's thinking leaves a request to Opus 5 and a request to Fable 5.1", !has(toOpus5, 'msg_55') && !has(toOpus5, 'msg_55_1m') && has(toOpus5, 'msg_opus5') && !has(toFable, 'msg_55') && has(toFable, 'msg_fable'))
   const foreign = thinkingFromOtherModels(history, ID, isSameModel)
   check('the foreign count names the two other writers, never the twin', foreign.count === 2 && foreign.models.join(',') === `${PREVIOUS},claude-fable-5-1`, show(foreign))
-  const receipt = modelSwitchReceipt('main', history, ID)
-  check("the switch receipt keeps its words and names the row 'Opus 5.5'", receipt !== null && receipt.text === `Preserved thinking: 2 thinking blocks written by Opus 5, Fable 5.1 stay out of the requests to Opus 5.5 (the conversation switched models); the model re-plans without them.` && receipt.key === `main|${ID}`, show(receipt))
+  const receipt = modelSwitchReceipt('main', history.slice(0, 2) as never[], ID)
+  check("the switch receipt keeps its words and names the row 'Opus 5.5'", receipt !== null && receipt.text === `Preserved thinking: 2 thinking blocks written by Opus 5, Fable 5.1 stay out of the requests to Opus 5.5 (the conversation switched models); the model re-plans without them.` && receipt.key === `main|msg_fable|${ID}`, show(receipt))
+  check('once the row has answered, a request to it is no switch (the twin included)', modelSwitchReceipt('main', history, ID) === null)
   const receiptToOpus5 = modelSwitchReceipt('main', [reply(ID, 'msg_a')] as never[], PREVIOUS)
   check("the receipt names the row as a writer the other way", receiptToOpus5 !== null && receiptToOpus5.text.includes('written by Opus 5.5 stay out of the requests to Opus 5'), show(receiptToOpus5))
 }
