@@ -3,7 +3,7 @@ import { getUserAgent } from '../../../utils/http.js'
 import { credentialFingerprint } from '../credentialIdentity.js'
 import { fetchWithProviderDeadline } from '../fetchDeadline.js'
 import { USAGE_POLL_TTL_MS } from '../usageFreshness.js'
-import { nousAccountUrl, resolveNousApiKey } from './nousAccounts.js'
+import { nousAccountIdentity, nousAccountUrl, resolveNousCredential, type NousCredentialSource } from './nousAccounts.js'
 
 export interface NousSubscriptionFacts {
   plan?: string
@@ -41,6 +41,7 @@ export interface NousAccountFailure {
   atMs: number
   status?: number
   message: string
+  source?: NousCredentialSource
 }
 
 let observed: NousObservedAccount | null = null
@@ -48,7 +49,7 @@ let failure: NousAccountFailure | null = null
 let observedIdentity = 'none'
 
 function activeIdentity(env: NodeJS.ProcessEnv = process.env): string {
-  return credentialFingerprint(resolveNousApiKey(env)?.key)
+  return nousAccountIdentity(env)
 }
 
 function dropIfStale(env: NodeJS.ProcessEnv = process.env): void {
@@ -149,11 +150,11 @@ export interface NousUsageIo {
   now?: () => number
 }
 
-export async function fetchNousAccount(key: string, io?: NousUsageIo): Promise<NousAccountProbe> {
+export async function fetchNousAccount(key: string, io?: NousUsageIo, source: NousCredentialSource = 'stored', identityOverride?: string): Promise<NousAccountProbe> {
   const fetchImpl = io?.fetchImpl ?? getApiFetch()
   const proxyOptions = io?.fetchImpl ? {} : getProxyFetchOptions()
   const now = io?.now?.() ?? Date.now()
-  const identity = credentialFingerprint(key)
+  const identity = identityOverride ?? credentialFingerprint(key)
   try {
     const response = await fetchWithProviderDeadline(fetchImpl, 'nous', PROBE_TIMEOUT_MS, nousAccountUrl(io?.env ?? process.env), {
       method: 'GET',
@@ -169,14 +170,14 @@ export async function fetchNousAccount(key: string, io?: NousUsageIo): Promise<N
     if (!response.ok) {
       const described = str(record(body)?.error_description) ?? str(record(body)?.message) ?? str(record(body)?.error)
       const message = `the Portal account endpoint answered HTTP ${response.status}${described ? ` (${described})` : ''}`
-      failure = { kind: 'refused', atMs: now, status: response.status, message }
+      failure = { kind: 'refused', atMs: now, status: response.status, message, source }
       observedIdentity = identity
       return { state: 'refused', status: response.status, message }
     }
     const decoded = decodeNousAccount(body, now)
     if (!decoded) {
       const message = 'the Portal account endpoint answered without account facts'
-      failure = { kind: 'refused', atMs: now, status: response.status, message }
+      failure = { kind: 'refused', atMs: now, status: response.status, message, source }
       observedIdentity = identity
       return { state: 'refused', status: response.status, message }
     }
@@ -186,7 +187,7 @@ export async function fetchNousAccount(key: string, io?: NousUsageIo): Promise<N
     return { state: 'confirmed', account: decoded }
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
-    failure = { kind: 'unreachable', atMs: now, message }
+    failure = { kind: 'unreachable', atMs: now, message, source }
     observedIdentity = identity
     return { state: 'unreachable', message }
   }
@@ -205,9 +206,9 @@ export function refreshNousAccount(io?: NousUsageIo & { force?: boolean }): Prom
   const work = (async (): Promise<NousObservedAccount | null> => {
     await Promise.resolve()
     try {
-      const key = resolveNousApiKey(env)
-      if (!key) return observed
-      await fetchNousAccount(key.key, io)
+      const credential = await resolveNousCredential(io).catch(() => undefined)
+      if (!credential) return observed
+      await fetchNousAccount(credential.key, io, credential.source, activeIdentity(env))
       return observed
     } finally {
       inFlight = null
@@ -226,6 +227,7 @@ export function nousCreditsDisplay(account: NousObservedAccount): string | undef
 export function nousAccountFailureWords(fail: NousAccountFailure): string {
   if (fail.kind === 'unreachable') return `the Portal account endpoint did not answer (${fail.message}) — usage shows at portal.nousresearch.com`
   if (fail.status === 401 || fail.status === 403) {
+    if (fail.source === 'signin') return `${fail.message} — the Portal did not accept the sign-in token; /logins nous signs in again, and usage shows at portal.nousresearch.com`
     return `${fail.message} — the Portal did not resolve this key to an account; a turn still proves the key, and usage shows at portal.nousresearch.com`
   }
   return `${fail.message} — usage shows at portal.nousresearch.com`

@@ -564,7 +564,7 @@ t.section('§4 — THE ROSTER LAYER (A3: one home, truthful chips, the boot-menu
   t.check('the legend names only the moves that exist (↵ joined with the first flow)', loginsLegendOf() === '↑↓ move · ↵ sign in · esc back')
 
   const wide = composeLogins(120, 40, { sel: 0 }).join('\n')
-  t.check('the wide frame carries the classes, the chips and the LOGINS panel', ['signed in', 'available', 'op@example.com', 'not signed in', 'LOGINS', 'Signed in  4 of 13', 'xAI — Grok subscription sign-in or API …', 'Meta — API key (Muse)', 'Mistral — API key (Mistral Large 4)', 'Nous Portal — API key (model gateway)', 'OpenCode Zen — API key (one key, the ga…'].every(s => wide.includes(s)))
+  t.check('the wide frame carries the classes, the chips and the LOGINS panel', ['signed in', 'available', 'op@example.com', 'not signed in', 'LOGINS', 'Signed in  4 of 13', 'xAI — Grok subscription sign-in or API …', 'Meta — API key (Muse)', 'Mistral — API key (Mistral Large 4)', 'Nous Portal — account sign-in or API ke…', 'OpenCode Zen — API key (one key, the ga…'].every(s => wide.includes(s)))
   const floor = composeLogins(64, 12, { sel: 0 }).join('\n')
   t.check('the 64×12 floor frame WARNS and keeps the way out', floor.includes('wants at least') && floor.includes('esc back'))
 

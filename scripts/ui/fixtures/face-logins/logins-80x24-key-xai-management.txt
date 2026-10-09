@@ -15,7 +15,7 @@
    ❯ xAI — Grok subscription sign-in or API …  not signed in
      Meta — API key (Muse)                     not signed in
      Mistral — API key (Mistral Large 4)       not signed in
-     Nous Portal — API key (model gateway)     not signed in
+     Nous Portal — account sign-in or API ke…  not signed in
      OpenCode Zen — API key (one key, the ga…  not signed in
 
 

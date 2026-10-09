@@ -2,6 +2,7 @@
 # gate-class: pure
 # gate-watch: LICENSE.md package.json scripts/release/releaseDocuments.mjs scripts/splash/deploy.sh
 # gate-watch: scripts/vendor/fetch-node.ts src/components/geminiConnectGuide.ts src/constants/oauth.ts
+# gate-watch: src/services/providers/nous/nousClientContract.ts
 # gate-watch: src/services/providers/deepseek/deepseekPins.ts src/services/providers/gemini/geminiPins.ts
 # gate-watch: src/services/providers/huggingface/huggingfacePins.ts
 # gate-watch: src/services/providers/moonshot/kimiPins.ts src/services/providers/openai/gptPins.ts
@@ -126,6 +127,9 @@ run_proof scripts/ops/prove-typed-model-ids.ts "$bun" run "$here/prove-typed-mod
 
 say '— the release-day client-contract clock —'
 run_proof scripts/ops/prove-client-contract-clock.ts "$bun" run "$here/prove-client-contract-clock.ts"; check 'client contract: the checked date covers the release day' $?
+
+say '— the release-day Nous client-contract clock —'
+run_proof scripts/ops/prove-nous-client-contract-clock.ts "$bun" run "$here/prove-nous-client-contract-clock.ts"; check 'Nous client contract: the checked date covers the release day' $?
 
 say '— the deploy skips a launcher it does not own —'
 run_proof scripts/ops/prove-deploy-launcher-step.ts "$bun" run "$here/prove-deploy-launcher-step.ts"; check 'deploy launcher step: a shim that is not ours is skipped quietly; ours is managed; an old one of ours still refuses' $?

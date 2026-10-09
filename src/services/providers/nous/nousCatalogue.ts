@@ -9,7 +9,8 @@ import { catalogueTrafficVerdict, connectToBrowseReason } from '../catalogueGate
 import { catalogueBodyJson, modelsEndpointUnreachable } from '../catalogueBody.js'
 import { canonicalWireModelId, declaredRouteOf, healListedCatalogueRowId, qualifiedWireId } from '../routeLaw.js'
 import { OPENROUTER_REASONING_EFFORTS } from '../openaicompat/compatWire.js'
-import { nousApiBase, nousModelsUrl, resolveNousAccount, resolveNousApiKey } from './nousAccounts.js'
+import { nousApiBase, nousAccountIdentity, nousModelsUrl, resolveNousAccount, resolveNousCredentialSnapshot, type NousCredentialSource } from './nousAccounts.js'
+import { NOUS_SIGNIN_EXPIRED_LINE } from './nousOauth.js'
 
 const CATALOGUE_FETCH_TIMEOUT_MS = 15_000
 const NOUS_CATALOGUE_TTL_MS = 5 * 60_000
@@ -123,7 +124,7 @@ export async function fetchNousLiveModels(opts: {
 }
 
 export interface NousCatalogueSnapshot {
-  keySource: 'env' | 'stored'
+  keySource: NousCredentialSource
   models: NousLiveModel[]
   fetchedAtMs: number
   lastAttemptAtMs?: number
@@ -134,13 +135,13 @@ const catalogueCache = new Map<string, NousCatalogueSnapshot>()
 const catalogueInFlight = new Map<string, Promise<NousCatalogueSnapshot | null>>()
 
 function catalogueIdentity(env: NodeJS.ProcessEnv): string {
-  const key = resolveNousApiKey(env)
+  const key = resolveNousCredentialSnapshot(env)
   if (!key) return 'none'
-  return `${key.source}:${credentialFingerprint(key.key)}:${nousApiBase(env)}`
+  return `${key.source}:${key.source === 'signin' ? nousAccountIdentity(env) : credentialFingerprint(key.key)}:${nousApiBase(env)}`
 }
 
 export function getCachedNousCatalogue(env: NodeJS.ProcessEnv = process.env): NousCatalogueSnapshot | null {
-  if (!resolveNousApiKey(env)) return null
+  if (!resolveNousCredentialSnapshot(env)) return null
   return catalogueCache.get(catalogueIdentity(env)) ?? null
 }
 
@@ -152,7 +153,7 @@ export function refreshNousCatalogue(opts?: {
 }): Promise<NousCatalogueSnapshot | null> {
   const env = opts?.env ?? process.env
   const now = opts?.now ?? Date.now
-  const key = resolveNousApiKey(env)
+  const key = resolveNousCredentialSnapshot(env)
   const identity = catalogueIdentity(env)
   const cached = key ? catalogueCache.get(identity) ?? null : null
   if (!key || !catalogueTrafficVerdict('nous', env).allowed) return Promise.resolve(cached)
@@ -200,11 +201,12 @@ export type NousDisabledWhy = 'no-account' | 'auth-invalid' | 'catalogue-pending
 
 export type NousAvailability =
   | { state: 'disabled'; why: NousDisabledWhy; reason: string }
-  | { state: 'ready'; ids: string[]; modelCount: number; source: string; keySource: 'env' | 'stored'; fetchedAtMs: number }
+  | { state: 'ready'; ids: string[]; modelCount: number; source: string; keySource?: 'env' | 'stored'; fetchedAtMs: number }
 
 export function getNousAvailability(env: NodeJS.ProcessEnv = process.env): NousAvailability {
   const account = resolveNousAccount(env)
   if (!account) return { state: 'disabled', why: 'no-account', reason: `${connectToBrowseReason('nous')} — /logins nous connects` }
+  if (account.expired) return { state: 'disabled', why: 'auth-invalid', reason: NOUS_SIGNIN_EXPIRED_LINE }
   const snapshot = getCachedNousCatalogue(env)
   const verdict = catalogueTrafficVerdict('nous', env)
   if (!verdict.allowed && (!snapshot || snapshot.models.length === 0)) return { state: 'disabled', why: 'traffic-off', reason: verdict.reason }
@@ -227,7 +229,7 @@ export function getNousAvailability(env: NodeJS.ProcessEnv = process.env): NousA
     ids: snapshot.models.map(m => m.id),
     modelCount: snapshot.models.length,
     source: overrideBase ? `${account.label} · base override ${overrideBase}` : account.label,
-    keySource: account.keySource,
+    ...(account.keySource !== undefined ? { keySource: account.keySource } : {}),
     fetchedAtMs: snapshot.fetchedAtMs,
   }
 }

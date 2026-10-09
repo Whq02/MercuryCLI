@@ -5,6 +5,34 @@ export const NOUS_FIXTURE_FILLER_ROWS = 28
 export const NOUS_FIXTURE_INVALID_KEY_MESSAGE = 'Your API key is invalid, blocked or out of funds. Please go visit the portal to sort that out: https://portal.nousresearch.com '
 export const NOUS_FIXTURE_RETIRED_MESSAGE = 'This model has been retired. Please select a different model to continue!'
 export const NOUS_FIXTURE_KEY_NOT_ACCOUNT = 'API key is not associated with a user account'
+export const NOUS_FIXTURE_CLIENT_ID = 'hermes-cli'
+export const NOUS_FIXTURE_SCOPE = 'inference:invoke'
+export const NOUS_FIXTURE_RELEASE_TAG = 'v0.21.6'
+export const NOUS_FIXTURE_USER_CODE = 'FIXT-CODE'
+export const NOUS_FIXTURE_DEVICE_CODE = 'device-fixture-0123456789'
+
+function b64url(value: unknown): string {
+  return Buffer.from(JSON.stringify(value)).toString('base64url')
+}
+
+export function nousFixtureAccessToken(serial: number, expSec: number, sub = 'user-fixture'): string {
+  return `${b64url({ alg: 'HS256', typ: 'JWT' })}.${b64url({ sub, scope: NOUS_FIXTURE_SCOPE, exp: expSec, iat: expSec - 3600, serial })}.fixture-signature-${serial}`
+}
+
+export function nousFixtureConstantsText(clientId: string, scope: string): string {
+  return [
+    '"""Shared constants for the auth package (fixture copy)."""',
+    '',
+    'AUTH_STORE_VERSION = 1',
+    'DEFAULT_NOUS_PORTAL_URL = "https://portal.nousresearch.com"',
+    'DEFAULT_NOUS_INFERENCE_URL = "https://inference-api.nousresearch.com/v1"',
+    `DEFAULT_NOUS_CLIENT_ID = "${clientId}"`,
+    `NOUS_INFERENCE_INVOKE_SCOPE = "${scope}"`,
+    'NOUS_BILLING_MANAGE_SCOPE = "billing:manage"',
+    'DEVICE_CODE_GRANT_TYPE = "urn:ietf:params:oauth:grant-type:device_code"',
+    '',
+  ].join('\n')
+}
 
 type Row = Record<string, unknown>
 
@@ -76,8 +104,64 @@ export interface NousFixtureCapture {
   body?: Record<string, unknown>
 }
 
+export interface NousFixtureOauthState {
+  clientIds: Set<string>
+  outcome: 'approved' | 'denied' | 'expired'
+  pendingPolls: number
+  polls: number
+  interval: number
+  expiresIn: number
+  accessTtlSec: number
+  serial: number
+  liveRefresh: string | undefined
+  spentRefresh: Set<string>
+  issuedAccess: Set<string>
+  refreshStatus: number
+  refreshEdge: string | undefined
+  startStatus: number
+  tokenHold: Promise<void> | undefined
+  handsInferenceBase: boolean
+  sub: string
+}
+
+export interface NousFixtureSourceState {
+  tag: string
+  clientId: string
+  scope: string
+  releaseStatus: number
+  contentsStatus: number
+  hold: Promise<void> | undefined
+}
+
 export function nousFixture() {
   const requests: NousFixtureCapture[] = []
+  const oauth: NousFixtureOauthState = {
+    clientIds: new Set([NOUS_FIXTURE_CLIENT_ID]),
+    outcome: 'approved',
+    pendingPolls: 1,
+    polls: 0,
+    interval: 1,
+    expiresIn: 300,
+    accessTtlSec: 3600,
+    serial: 0,
+    liveRefresh: undefined,
+    spentRefresh: new Set<string>(),
+    issuedAccess: new Set<string>(),
+    refreshStatus: 200,
+    refreshEdge: undefined,
+    startStatus: 200,
+    tokenHold: undefined,
+    handsInferenceBase: true,
+    sub: 'user-fixture',
+  }
+  const source: NousFixtureSourceState = {
+    tag: NOUS_FIXTURE_RELEASE_TAG,
+    clientId: NOUS_FIXTURE_CLIENT_ID,
+    scope: NOUS_FIXTURE_SCOPE,
+    releaseStatus: 200,
+    contentsStatus: 200,
+    hold: undefined,
+  }
   const state = {
     accountStatus: 200 as number,
     accountBody: undefined as Row | undefined,
@@ -88,8 +172,31 @@ export function nousFixture() {
     reasoningText: 'weighing the fixture question',
     replyText: 'OK from the Portal fixture',
     hold: undefined as Promise<void> | undefined,
+    oauth,
+    source,
   }
   const sse = (value: unknown): string => `data: ${JSON.stringify(value)}\n\n`
+  const bearerOf = (auth: string | null): string | undefined => (auth?.startsWith('Bearer ') ? auth.slice(7) : undefined)
+  const bearerAccepted = (auth: string | null): boolean => {
+    const bearer = bearerOf(auth)
+    return bearer === NOUS_FIXTURE_API_KEY || (bearer !== undefined && oauth.issuedAccess.has(bearer))
+  }
+  const issuePair = (): Record<string, unknown> => {
+    oauth.serial += 1
+    const nowSec = Math.floor(Date.now() / 1000)
+    const access = nousFixtureAccessToken(oauth.serial, nowSec + oauth.accessTtlSec, oauth.sub)
+    const refresh = `rt-fixture-${oauth.serial}`
+    oauth.issuedAccess.add(access)
+    oauth.liveRefresh = refresh
+    return {
+      access_token: access,
+      refresh_token: refresh,
+      token_type: 'Bearer',
+      scope: NOUS_FIXTURE_SCOPE,
+      expires_in: oauth.accessTtlSec,
+      ...(oauth.handsInferenceBase ? { inference_base_url: `http://127.0.0.1:${server.port}/v1` } : {}),
+    }
+  }
   const server = Bun.serve({
     hostname: '127.0.0.1',
     port: 0,
@@ -99,19 +206,82 @@ export function nousFixture() {
       const auth = req.headers.get('authorization')
       const capture: NousFixtureCapture = { path, method: req.method, headers: Object.fromEntries(req.headers.entries()) }
       if (req.method === 'POST') {
-        try {
-          capture.body = (await req.json()) as Record<string, unknown>
-        } catch {
-          capture.body = {}
+        const text = await req.text()
+        if ((req.headers.get('content-type') ?? '').includes('application/x-www-form-urlencoded')) {
+          capture.body = Object.fromEntries(new URLSearchParams(text).entries())
+        } else {
+          try {
+            capture.body = JSON.parse(text) as Record<string, unknown>
+          } catch {
+            capture.body = {}
+          }
         }
       }
       requests.push(capture)
+      if (path === '/api/oauth/device/code') {
+        const form = capture.body ?? {}
+        if (oauth.startStatus !== 200) return Response.json({ error: 'server_error', error_description: 'fixture portal fault' }, { status: oauth.startStatus })
+        if (typeof form.client_id !== 'string' || !oauth.clientIds.has(form.client_id)) {
+          return Response.json({ error: 'invalid_client', error_description: `Unsupported OAuth client_id: ${String(form.client_id ?? '')}` }, { status: 400 })
+        }
+        oauth.polls = 0
+        const base = `http://127.0.0.1:${server.port}`
+        return Response.json({
+          device_code: NOUS_FIXTURE_DEVICE_CODE,
+          user_code: NOUS_FIXTURE_USER_CODE,
+          verification_uri: `${base}/device`,
+          verification_uri_complete: `${base}/device?user_code=${NOUS_FIXTURE_USER_CODE}`,
+          expires_in: oauth.expiresIn,
+          interval: oauth.interval,
+        })
+      }
+      if (path === '/api/oauth/token') {
+        if (oauth.tokenHold) await oauth.tokenHold
+        const form = capture.body ?? {}
+        if (typeof form.client_id !== 'string' || !oauth.clientIds.has(form.client_id)) {
+          return Response.json({ error: 'invalid_client', error_description: `Unsupported OAuth client_id: ${String(form.client_id ?? '')}` }, { status: 400 })
+        }
+        if (form.grant_type === 'urn:ietf:params:oauth:grant-type:device_code') {
+          if (form.device_code !== NOUS_FIXTURE_DEVICE_CODE) return Response.json({ error: 'invalid_grant', error_description: 'unknown device code' }, { status: 400 })
+          oauth.polls += 1
+          if (oauth.polls <= oauth.pendingPolls) return Response.json({ error: 'authorization_pending', error_description: 'The user has not yet approved the device code' }, { status: 400 })
+          if (oauth.outcome === 'denied') return Response.json({ error: 'access_denied', error_description: 'The user declined the device authorization' }, { status: 400 })
+          if (oauth.outcome === 'expired') return Response.json({ error: 'expired_token', error_description: 'The device code has expired' }, { status: 400 })
+          return Response.json(issuePair())
+        }
+        if (form.grant_type === 'refresh_token') {
+          const presented = req.headers.get('x-nous-refresh-token') ?? (typeof form.refresh_token === 'string' ? form.refresh_token : null)
+          if (oauth.refreshStatus !== 200) {
+            return Response.json({ error: 'temporarily_unavailable', error_description: 'fixture portal fault' }, { status: oauth.refreshStatus, headers: oauth.refreshEdge ? { 'x-vercel-mitigated': oauth.refreshEdge } : {} })
+          }
+          if (!presented) return Response.json({ error: 'invalid_request', error_description: 'no refresh token presented' }, { status: 400 })
+          if (oauth.spentRefresh.has(presented)) {
+            oauth.liveRefresh = undefined
+            return Response.json({ error: 'invalid_grant', error_description: 'refresh token reuse detected; the session chain was revoked' }, { status: 400 })
+          }
+          if (presented !== oauth.liveRefresh) return Response.json({ error: 'invalid_grant', error_description: 'unknown refresh token' }, { status: 400 })
+          oauth.spentRefresh.add(presented)
+          return Response.json(issuePair())
+        }
+        return Response.json({ error: 'unsupported_grant_type', error_description: `grant ${String(form.grant_type ?? '')}` }, { status: 400 })
+      }
+      if (path === '/repos/NousResearch/hermes-agent/releases/latest') {
+        if (source.hold) await source.hold
+        if (source.releaseStatus !== 200) return new Response('fixture source fault', { status: source.releaseStatus })
+        return Response.json({ tag_name: source.tag, name: `Fixture ${source.tag}`, draft: false, prerelease: false })
+      }
+      if (path === '/repos/NousResearch/hermes-agent/contents/hermes_cli/auth_constants.py') {
+        if (source.hold) await source.hold
+        if (source.contentsStatus !== 200) return new Response('fixture source fault', { status: source.contentsStatus })
+        if (url.searchParams.get('ref') !== source.tag) return new Response('fixture: unknown ref', { status: 404 })
+        return new Response(nousFixtureConstantsText(source.clientId, source.scope), { status: 200, headers: { 'content-type': 'application/vnd.github.raw' } })
+      }
       if (path === '/v1/models') {
         if (state.modelsStatus !== 200) return new Response('fixture models refusal', { status: state.modelsStatus })
         return Response.json({ data: state.models })
       }
       if (path === '/api/oauth/account') {
-        if (auth !== `Bearer ${NOUS_FIXTURE_API_KEY}` || state.accountStatus === 401) {
+        if (!bearerAccepted(auth) || state.accountStatus === 401) {
           return Response.json({ error: 'invalid_token', error_description: NOUS_FIXTURE_KEY_NOT_ACCOUNT }, { status: 401 })
         }
         if (state.accountStatus !== 200) return new Response('fixture portal fault', { status: state.accountStatus })
@@ -127,7 +297,7 @@ export function nousFixture() {
         if (!state.models.some(m => m.id === model)) {
           return Response.json({ status: 404, message: `Model '${model}' not found. The requested model does not exist in our configuration or OpenRouter catalog.` }, { status: 404 })
         }
-        if (auth !== `Bearer ${NOUS_FIXTURE_API_KEY}` || state.chatStatus === 401) {
+        if (!bearerAccepted(auth) || state.chatStatus === 401) {
           return Response.json({ status: 401, message: NOUS_FIXTURE_INVALID_KEY_MESSAGE }, { status: 401 })
         }
         if (state.chatStatus !== 200) return Response.json({ status: state.chatStatus, message: 'fixture fault' }, { status: state.chatStatus })
@@ -155,5 +325,6 @@ export function nousFixture() {
   })
   const base = `http://127.0.0.1:${server.port}`
   const env = { NOUS_API_KEY: NOUS_FIXTURE_API_KEY, MERCURY_NOUS_API_BASE: `${base}/v1`, MERCURY_NOUS_PORTAL_BASE: base }
-  return { base, env, state, requests, stop: () => server.stop(true) }
+  const signinEnv = { MERCURY_NOUS_API_BASE: `${base}/v1`, MERCURY_NOUS_PORTAL_BASE: base, MERCURY_NOUS_CLIENT_SOURCE_BASE: base }
+  return { base, env, signinEnv, state, oauth, source, requests, stop: () => server.stop(true) }
 }
