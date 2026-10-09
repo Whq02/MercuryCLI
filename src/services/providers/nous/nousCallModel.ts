@@ -7,10 +7,16 @@ import {
 import { buildOpenrouterExtras } from '../openaicompat/compatWire.js'
 import { nousChatCompletionsUrl, resolveNousAccount, resolveNousCredential } from './nousAccounts.js'
 import { NOUS_MODEL_PREFIX, nousDeclaresTools, nousEffortVocabularyFor, nousWireModelId, refreshNousCatalogue } from './nousCatalogue.js'
-import { NOUS_SIGNIN_EXPIRED_LINE, refreshNousTokens } from './nousOauth.js'
+import { NOUS_KEY_LEG_OFFER } from './nousLogin.js'
+import { NOUS_SIGNIN_EXPIRED_LINE, nousRefreshTrouble, refreshNousTokens } from './nousOauth.js'
 import { refreshNousAccount } from './nousUsageState.js'
 
 export const NOUS_SIGNIN_AUTH_REMEDY = `${NOUS_SIGNIN_EXPIRED_LINE}; the Portal refused the sign-in token.`
+
+export function nousSigninCredentialHint(): string {
+  const trouble = nousRefreshTrouble()
+  return trouble === undefined ? `${NOUS_SIGNIN_EXPIRED_LINE}.` : `${trouble}. ${NOUS_KEY_LEG_OFFER}`
+}
 
 export const nousLaneProfile: CompatLaneProfile = {
   lane: 'nous',
@@ -62,11 +68,15 @@ export const nousSigninLaneProfile: CompatLaneProfile = {
   authRemedy: NOUS_SIGNIN_AUTH_REMEDY,
 }
 
+function nousSigninProfileNow(): CompatLaneProfile {
+  return { ...nousSigninLaneProfile, credentialHint: nousSigninCredentialHint() }
+}
+
 export function nousLiveProofState(): { at: number; model: string } | null {
   return compatLaneLiveProofState('nous')
 }
 
 export async function* nousCallModel(params: CallModelParams): CallModelStream {
   if (params.signal.aborted) return
-  yield* compatChatCallModel(resolveNousAccount()?.kind === 'signin' ? nousSigninLaneProfile : nousLaneProfile, params)
+  yield* compatChatCallModel(resolveNousAccount()?.kind === 'signin' ? nousSigninProfileNow() : nousLaneProfile, params)
 }

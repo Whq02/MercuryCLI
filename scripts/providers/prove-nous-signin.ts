@@ -175,13 +175,26 @@ try {
   fixture.oauth.refreshStatus = 200
   fixture.oauth.refreshEdge = undefined
 
+  console.log('── an outage at refresh time: a still-valid token rides the turn; an expired one names the fault and the key leg, never "expired sign-in" ──')
+  const live = oauth.nousStoredTokens()!
+  oauth.writeNousTokens({ ...live, expiresAtMs: Date.now() + 60_000 })
+  fixture.oauth.refreshStatus = 503
+  const outageTurn = await turn('nous/anthropic/claude-sonnet-4.6', 'Say OK')
+  check('a token inside the refresh skew but still valid rides the turn when the Portal cannot refresh it', outageTurn.errors.length === 0 && outageTurn.captures.find(c => c.path === '/v1/chat/completions')?.headers.authorization === `Bearer ${live.accessToken}` && outageTurn.captures.some(c => c.path === '/api/oauth/token'), JSON.stringify(outageTurn.errors))
+  oauth.writeNousTokens({ ...live, expiresAtMs: Date.now() - 1_000 })
+  const expiredOutage = await turn('nous/anthropic/claude-sonnet-4.6', 'Say OK')
+  check('an expired token the Portal cannot refresh refuses before the wire with the fault and the key leg, keeping the pair', expiredOutage.captures.filter(c => c.path === '/v1/chat/completions').length === 0 && expiredOutage.errors.length === 1 && expiredOutage.errors[0]!.includes('could not refresh the sign-in (HTTP 503') && expiredOutage.errors[0]!.includes(OFFER) && !expiredOutage.errors[0]!.includes(EXPIRED_LINE) && oauth.nousStoredTokens()?.refreshToken === live.refreshToken && oauth.nousSigninRefusal() === undefined, JSON.stringify(expiredOutage.errors))
+  fixture.oauth.refreshStatus = 200
+  const recovered = await turn('nous/anthropic/claude-sonnet-4.6', 'Say OK')
+  check('when the Portal answers again the next turn refreshes and rides the new token', recovered.errors.length === 0 && oauth.nousStoredTokens()?.refreshToken === 'rt-fixture-4' && recovered.captures.find(c => c.path === '/v1/chat/completions')?.headers.authorization === `Bearer ${oauth.nousStoredTokens()?.accessToken}`, JSON.stringify({ errors: recovered.errors, rt: oauth.nousStoredTokens()?.refreshToken }))
+
   console.log('── a lost race / a reused refresh token: invalid_grant ⇒ SIGNED OUT on every surface through the durable mark ──')
-  fixture.oauth.spentRefresh.add('rt-fixture-3')
+  fixture.oauth.spentRefresh.add('rt-fixture-4')
   let deadWords = ''
   try { await oauth.refreshNousTokens(undefined, true) } catch (error) { deadWords = error instanceof Error ? error.message : String(error) }
   check('the refresh refusal is the one plain line', deadWords.startsWith(EXPIRED_LINE) && deadWords.includes('invalid_grant'), deadWords)
   const mark = oauth.nousSigninRefusal()
-  check('the mark stands beside the credential and the refresh token is blanked, the token values untouched by the note', mark?.code === 'invalid_grant' && mark.status === 400 && oauth.nousStoredTokens()?.refreshToken === '' && !JSON.stringify(mark).includes('rt-fixture') && !readFileSync(oauth.nousAuthPathForDisplay(), 'utf8').includes('rt-fixture-3'), JSON.stringify(mark))
+  check('the mark stands beside the credential and the refresh token is blanked, the token values untouched by the note', mark?.code === 'invalid_grant' && mark.status === 400 && oauth.nousStoredTokens()?.refreshToken === '' && !JSON.stringify(mark).includes('rt-fixture') && !readFileSync(oauth.nousAuthPathForDisplay(), 'utf8').includes('rt-fixture-4'), JSON.stringify(mark))
   check('the usability resolver reads signed out with the line', !resolveProviderUsability().nous.usable && resolveProviderUsability().nous.blockers.some(b => b.startsWith(EXPIRED_LINE)), JSON.stringify(resolveProviderUsability().nous.blockers))
   check('/model reads the line', cat.getNousAvailability().state === 'disabled' && (cat.getNousAvailability() as { reason: string }).reason === EXPIRED_LINE, JSON.stringify(cat.getNousAvailability()))
   check('the backend reads the line', readinessForRoute('nous/anthropic/claude-sonnet-4.6').state === 'unavailable' && readinessForRoute('nous/anthropic/claude-sonnet-4.6').reason === EXPIRED_LINE, JSON.stringify(readinessForRoute('nous/anthropic/claude-sonnet-4.6')))
@@ -208,7 +221,7 @@ try {
   console.log('── a new sign-in after the mark clears it ──')
   fixture.oauth.outcome = 'approved'
   const again = await signIn()
-  check('the second sign-in stores a fresh pair with no mark', again.outcome.ok && oauth.nousStoredTokens()?.refreshToken === 'rt-fixture-4' && oauth.nousSigninRefusal() === undefined && resolveProviderUsability().nous.usable, again.outcome.receipt)
+  check('the second sign-in stores a fresh pair with no mark', again.outcome.ok && oauth.nousStoredTokens()?.refreshToken === 'rt-fixture-5' && oauth.nousSigninRefusal() === undefined && resolveProviderUsability().nous.usable, again.outcome.receipt)
   removeSlot('nous:signin')
 
   console.log('── the failure roads each end at the key leg with one plain line ──')

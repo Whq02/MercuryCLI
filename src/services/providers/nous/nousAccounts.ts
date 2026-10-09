@@ -1,6 +1,6 @@
 import { readStoredNousApiKey } from '../../../utils/router/providerSecrets.js'
 import { credentialFingerprint } from '../credentialIdentity.js'
-import { nousStoredTokens, nousSigninRefusal, readPreferredNousSource, refreshNousTokens, type NousOauthIo, type NousTokens } from './nousOauth.js'
+import { NousRefreshRefusedError, nousStoredTokens, nousSigninRefusal, readPreferredNousSource, refreshNousTokens, type NousOauthIo, type NousTokens } from './nousOauth.js'
 
 const NOUS_API_BASE_URL = 'https://inference-api.nousresearch.com/v1'
 const NOUS_PORTAL_BASE_URL = 'https://portal.nousresearch.com'
@@ -85,7 +85,15 @@ export async function resolveNousCredential(io?: NousOauthIo): Promise<{ key: st
   const env = io?.env ?? process.env
   if (signinWins(env)) {
     if (nousSigninRefusal() !== undefined) return undefined
-    const tokens = await refreshNousTokens(io)
+    let tokens: NousTokens | undefined
+    try {
+      tokens = await refreshNousTokens(io)
+    } catch (error) {
+      if (error instanceof NousRefreshRefusedError) return undefined
+      const stored = nousStoredTokens()
+      const now = io?.now?.() ?? Date.now()
+      tokens = stored?.refreshToken && stored.expiresAtMs !== undefined && stored.expiresAtMs > now ? stored : undefined
+    }
     return tokens?.refreshToken ? { key: tokens.accessToken, source: 'signin' } : undefined
   }
   return resolveNousApiKey(env)
