@@ -8,7 +8,7 @@
 # gate-watch: src/components/mercury-ui/sessionAccent.ts src/components/mercuryPalette.ts
 # gate-watch: src/constants/cyberRiskInstruction.ts src/daemon/workerRecon.ts src/skills/bundled/app-proof.ts
 # gate-watch: src/skills/bundled/app-proof/SKILL.md src/skills/bundled/updateConfig.ts
-# gate-watch: src/substrate/flagRegistry.ts src/tools/**/*.{ts,tsx} src/utils/* src/utils/hooks/engine.ts
+# gate-watch: src/substrate/flagRegistry.ts src/tools/**/*.{ts,tsx} src/utils/* src/utils/hooks/fire.ts src/guards/**
 # gate-watch: src/guards/generatedAssets.ts
 # gate-watch: scripts/lib/linearGrowth.ts
 # gate-watch: src/skills/bundled/** scripts/ui/lib/emojiProperties.ts
