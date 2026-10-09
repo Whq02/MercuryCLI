@@ -1,8 +1,7 @@
-import type { AssistantMessage, StreamEvent, SystemAPIErrorMessage } from '../../../types/message.js'
+import type { CallModelParams, CallModelStream } from '../callModelContract.js'
 import {
   compatChatCallModel,
   compatLaneLiveProofState,
-  type CompatCallModelParams,
   type CompatLaneProfile,
 } from '../openaicompat/compatChatCallModel.js'
 import { buildOpenrouterExtras } from '../openaicompat/compatWire.js'
@@ -41,9 +40,7 @@ export function nousLiveProofState(): { at: number; model: string } | null {
   return compatLaneLiveProofState('nous')
 }
 
-export async function* nousCallModel(
-  params: CompatCallModelParams,
-): AsyncGenerator<StreamEvent | AssistantMessage | SystemAPIErrorMessage, void> {
+export async function* nousCallModel(params: CallModelParams): CallModelStream {
   if (params.signal.aborted) return
   yield* compatChatCallModel(nousLaneProfile, params)
 }

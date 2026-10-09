@@ -1,11 +1,11 @@
-import type { AssistantMessage, StreamEvent, SystemAPIErrorMessage } from '../../../types/message.js'
+import type { CallModelParams, CallModelStream } from '../callModelContract.js'
 import { getSessionId } from '../../../bootstrap/state.js'
 import { getProductUserAgent } from '../../../utils/http.js'
 import { createAssistantAPIErrorMessage } from '../../../utils/messages.js'
 import { API_ERROR_MESSAGE_PREFIX } from '../../api/errors.js'
 import { readCatalogueIfPending } from '../catalogueOnDemand.js'
 import { modelNotOfferedByCatalogue } from '../catalogueAdmission.js'
-import { compatChatCallModel, compatLaneLiveProofState, type CompatCallModelParams, type CompatLaneProfile } from '../openaicompat/compatChatCallModel.js'
+import { compatChatCallModel, compatLaneLiveProofState, type CompatLaneProfile } from '../openaicompat/compatChatCallModel.js'
 import { buildXaiExtras, type LaneExtrasArgs } from '../openaicompat/compatWire.js'
 import { KIMI_PRESERVED_THINKING_MODELS } from '../moonshot/kimiPins.js'
 import { refreshProviderUsage } from '../providerUsage.js'
@@ -47,7 +47,7 @@ export function zenLiveProofState(): { at: number; model: string } | null {
   return compatLaneLiveProofState('zen')
 }
 
-export async function* zenCallModel(params: CompatCallModelParams): AsyncGenerator<StreamEvent | AssistantMessage | SystemAPIErrorMessage, void> {
+export async function* zenCallModel(params: CallModelParams): CallModelStream {
   if (params.signal.aborted) return
   const account = resolveZenAccount()
   if (!account) {

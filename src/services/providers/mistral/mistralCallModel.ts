@@ -1,16 +1,16 @@
-import type { AssistantMessage, StreamEvent, SystemAPIErrorMessage } from '../../../types/message.js'
+import type { CallModelParams, CallModelStream } from '../callModelContract.js'
 import { normalizeModelStringForAPI } from '../../../utils/model/model.js'
 import { createAssistantAPIErrorMessage } from '../../../utils/messages.js'
 import { API_ERROR_MESSAGE_PREFIX } from '../../api/errors.js'
 import { readCatalogueIfPending } from '../catalogueOnDemand.js'
 import { modelNotOfferedByCatalogue } from '../catalogueAdmission.js'
-import { compatChatCallModel, compatLaneLiveProofState, type CompatCallModelParams, type CompatLaneProfile } from '../openaicompat/compatChatCallModel.js'
+import { compatChatCallModel, compatLaneLiveProofState, type CompatLaneProfile } from '../openaicompat/compatChatCallModel.js'
 import type { LaneExtrasArgs } from '../openaicompat/compatWire.js'
 import { mistralChatCompletionsUrl, resolveMistralAccount, resolveMistralApiKey } from './mistralAccounts.js'
 import { getCachedMistralCatalogue, mistralListedModel, mistralModelFacts, newestMistralModel } from './mistralCatalogue.js'
 import { isMistralChatModelId } from './mistralPins.js'
 
-export function buildMistralExtras(args: LaneExtrasArgs, outputFormat?: CompatCallModelParams['options']['outputFormat']): Record<string, unknown> {
+export function buildMistralExtras(args: LaneExtrasArgs, outputFormat?: CallModelParams['options']['outputFormat']): Record<string, unknown> {
   const facts = mistralModelFacts(args.wireModel)
   return {
     ...(outputFormat ? { response_format: { type: 'json_schema', json_schema: { name: 'response', schema: outputFormat.schema } } } : {}),
@@ -38,7 +38,7 @@ export function mistralLiveProofState(): { at: number; model: string } | null {
   return compatLaneLiveProofState('mistral')
 }
 
-export async function* mistralCallModel(params: CompatCallModelParams): AsyncGenerator<StreamEvent | AssistantMessage | SystemAPIErrorMessage, void> {
+export async function* mistralCallModel(params: CallModelParams): CallModelStream {
   if (params.signal.aborted) return
   const account = resolveMistralAccount()
   if (!account) {
