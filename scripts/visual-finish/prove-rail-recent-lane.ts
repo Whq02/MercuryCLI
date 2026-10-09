@@ -102,7 +102,7 @@ check('the /sessions argument road excludes the conversation in the view', src('
 
 console.log('\n§2 a direct --resume boot beside an older session of the same project')
 const SESSIONS_SEND: Send[] = [
-  { minTick: 20, requireAwait: true, awaitText: 'Type a prompt', awaitStableTicks: 4, data: '', mark: 'direct' },
+  { minTick: 20, requireAwait: true, awaitText: 'ready ·', awaitStableTicks: 4, data: '', mark: 'direct' },
   { requireAwait: true, awaitText: 'Type a prompt', awaitSettleTicks: 2, data: '/sessions' },
   { requireAwait: true, awaitText: '❯ /sessions', awaitSettleTicks: 2, data: '\r' },
   { minTick: 4, requireAwait: true, awaitText: 'Switch to', awaitStableTicks: 3, data: '', mark: 'picker' },
@@ -128,7 +128,7 @@ try {
 
   for (const [cols, rows] of [[178, 51], [80, 21]] as const) {
     const tag = `${cols}x${rows}`
-    const shot = capture(tag, 'resume-2turn', cols, rows, [{ minTick: 20, requireAwait: true, awaitText: 'Type a prompt', awaitStableTicks: 4, data: '', mark: 'home' }], 80)
+    const shot = capture(tag, 'resume-2turn', cols, rows, [{ minTick: 20, requireAwait: true, awaitText: cols >= 100 ? 'ready ·' : 'Type a prompt', awaitStableTicks: 4, data: '', mark: 'home' }], 80)
     const frame = shot.marks.home ?? shot.frame
     saveFrame(`${tag}-direct`, frame)
     const rows2 = recentRows(railLines(frame))

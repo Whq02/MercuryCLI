@@ -14,7 +14,7 @@ export const LONG_LINE_A = 'atlas: one line that never breaks on its own — the
 export const LONG_LINE_F = 'fjord: the second crewmate says one long thing too — a wide unbroken line of prose that carries its own weight across the whole width of the centre and past it, so the view has to fold it under its nameplate without losing a character or painting one past the border of the view.'
 export const HARBOUR_DONE = `${MATE_TAG} harbour: finished — its turn ended while it was on screen`
 export const ATLAS_HOLD = 'atlas: holding the line for the view'
-export const ATLAS_LEDGER = [ATLAS_HOLD, ...Array.from({ length: 40 }, (_, i) => `ledger row ${String(i + 1).padStart(2, '0')} — a row of the crewmate's own transcript, tall enough that the view has to scroll`)].join('\n')
+export const ATLAS_LEDGER = [ATLAS_HOLD, ...Array.from({ length: 80 }, (_, i) => `ledger row ${String(i + 1).padStart(2, '0')} — a row of the crewmate's own transcript, tall enough that the view has to scroll`)].join('\n')
 export const HARBOUR_OPEN = 'harbour: a short run, then the turn ends'
 export const WIDE_ROW = (n: number): string => `wide-${n} ` + Array.from({ length: 30 }, (_, i) => `c${String(i).padStart(2, '0')}=${String(n * 31 + i).padStart(4, '0')}`).join(' ')
 export const TABLE_BEFORE = ['name\tid\tstage\tnote', 'harbour\tq7\tstage two\theld on the tree, uncommitted, pending the ruling; the options are listed on the shared page beside the second commit', 'lantern\tp3\tstage one\theld'].join('\n') + '\n'

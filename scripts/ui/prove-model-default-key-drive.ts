@@ -287,7 +287,7 @@ section("§4 the chat's /model: the picker without its frontier rows")
   ], { total: 360, ready: ['esc or click outside closes'] })
   check('the drive delivered every send (exit 0)', c.status === 0, `exit ${c.status}`)
   const chat = c.marks.get('chat') ?? []
-  check('the row above the composer reads ready · Opus 5.5 · high, the way back at its right, the project name gone from it', /^ready · Opus 5\.5 · high {2,}(?:⇧|shift\+)← back$/.test(trimmedRow(chat, '← back')) && !trimmedRow(chat, '← back').includes('fixture-cwd'), trimmedRow(chat, '← back'))
+  check('the row above the composer reads ready · Opus 5.5 · high, the folder right-aligned before the way back at its right', /^ready · Opus 5\.5 · high {2,}fixture-cwd {2}(?:⇧|shift\+)← back$/.test(trimmedRow(chat, '← back')), trimmedRow(chat, '← back'))
   const picker = c.marks.get('picker') ?? []
   const zai = headingOf(picker, ' Z.AI · ')
   check('no row of the picker reads frontier:', picker.length > 0 && !picker.some(l => l.includes('frontier:')), picker.filter(l => l.includes('frontier:')).join(' | '))

@@ -213,6 +213,7 @@ async function capture(name: string, cfg: Record<string, unknown>, env: NodeJS.P
 
 const gated = (data: string, awaitText: string, extra: Record<string, unknown> = {}): Record<string, unknown> => ({ data, atTick: 999, awaitText, requireAwait: true, minTick: 1, awaitSettleTicks: 3, ...extra })
 const after = (data: string, ticks: number, extra: Record<string, unknown> = {}): Record<string, unknown> => ({ data, afterPrevTicks: ticks, ...extra })
+const browseRowOpens = (): Record<string, unknown>[] => [gated(CLICK, 'or click · brow', { awaitSettleTicks: 2, targetText: 'or click · brow', targetDx: 2 }), after(CLICK, 4, { targetText: 'or click · brow', targetDx: 2 })]
 const boot = (): Array<Record<string, unknown>> => [
   gated('\r', 'New Session', { minTick: 5, awaitStableTicks: 6, awaitSettleTicks: 4 }),
   gated('\x1b[I', 'shortcuts', { minTick: 2, awaitSettleTicks: 6 }),
@@ -400,7 +401,7 @@ if (worlds.has('small')) {
     const { home, cwd } = seedWorld(`small-${label}`, {})
     const cap = await capture(`plain-${label}`, cfgFor(cols, rows, cwd, [
       ...boot(),
-      after(CLICK, 2, { targetText: 'FILES · fixture-cwd' }),
+      ...browseRowOpens(),
       gated('\x1b', TITLE, { awaitSettleTicks: 4, mark: 'menu' }),
       after('', 4, { mark: 'closed' }),
     ]), driveEnv(home))
@@ -432,7 +433,7 @@ if (worlds.has('hop')) {
       after('\r', 4),
       after('\r', 4),
       gated('', '← back', { awaitSettleTicks: 6, mark: 'hopped' }),
-      after(CLICK, 2, { targetText: 'FILES · fixture-cwd' }),
+      ...(cols >= 178 ? [gated(CLICK, 'FILES · fixture-cwd', { awaitSettleTicks: 2, targetText: 'FILES · fixture-cwd', targetDx: 1 })] : browseRowOpens()),
       gated('', TITLE, { awaitSettleTicks: 4, mark: 'hop-menu' }),
       after(DOWN, 2),
       after(DOWN, 2),

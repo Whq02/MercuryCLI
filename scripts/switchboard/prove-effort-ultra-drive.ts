@@ -28,6 +28,7 @@ function check(label: string, cond: boolean, detail = ''): void {
 }
 
 const SEAT_MODEL = 'gpt-6-astra'
+const SEAT_MODEL_LABEL = 'GPT-6 Astra'
 const SEAT_EFFORT = 'high'
 const LISTED = ['low', 'medium', 'high', 'xhigh', 'max', 'ultra'] as const
 const LADDER = ['low', 'medium', 'high', 'xhigh', 'max'] as const
@@ -116,7 +117,7 @@ const run = await runArtifactArena({
       title: SEAT_TITLE,
       modelKey: SEAT_MODEL,
       effort: SEAT_EFFORT,
-    } as never)) as { ok?: boolean; sessionId?: string; modelId?: string; effort?: string }
+    } as never, { timeoutMs: 15_000 })) as { ok?: boolean; sessionId?: string; modelId?: string; effort?: string }
     check(`the seat is born on the OpenAI row (${SEAT_MODEL}) at ${SEAT_EFFORT}`, a.ok === true && a.modelId === SEAT_MODEL && a.effort === SEAT_EFFORT, JSON.stringify(a))
     seatId = a.sessionId ?? ''
     transcript = join(paths.getProjectDir(cwd), `${seatId}.jsonl`)
@@ -167,7 +168,10 @@ try {
   check('U2 the refusal names the ladder up to max and no further', anyFrame(`Valid options: ${LADDER.join('|')}|auto`), distinct.map(f => flat(f.text)).filter(t => t.includes('Valid options')).map(t => t.slice(t.indexOf('Valid options'), t.indexOf('Valid options') + 80)).join(' | ').slice(0, 300))
   check(`U2 no frame ever says the seat was set to the list's word`, !anyFrame(`Effort set to ${LIST_WORD}`))
 
-  check(`U3 the /effort ${TOP} receipt is the seat's ("Effort set to ${TOP} for this session — its next request runs it")`, anyFrame(`Effort set to ${TOP} for this session`), distinct.map(f => flat(f.text)).filter(t => t.includes('Effort set to')).map(t => t.slice(t.indexOf('Effort set to'), t.indexOf('Effort set to') + 80)).join(' | ').slice(0, 400))
+  const statusRows = (text: string): string[] => text.split('\n').filter(r => r.includes('⇧← back')).map(r => r.replace(/\s+/g, ' ').trim())
+  const receiptRows = distinct.flatMap(f => statusRows(f.text)).filter(r => r.includes('Effort set to'))
+  const RECEIPT = new RegExp(`${SEAT_MODEL_LABEL} · (?:${SEAT_EFFORT}|${TOP}) · Effort set to ${TOP}(?: for this session|…) — its next request runs it\\. Saved as your default for future sessions\\.`)
+  check(`U3 the /effort ${TOP} receipt is the seat's on the status row ("Effort set to ${TOP} for this session — its next request runs it. Saved as your default for future sessions."), whole or cut in the middle with its tail clause intact, beside the model`, receiptRows.length > 0 && receiptRows.every(r => RECEIPT.test(r)), receiptRows.slice(0, 3).join(' | ').slice(0, 400))
   const seatHits = fixture.captured.filter(h => h.lane === 'openai-seat')
   const lastHit = seatHits[seatHits.length - 1]
   const lastEffort = (lastHit?.body as { reasoning?: { effort?: string } } | undefined)?.reasoning?.effort
@@ -180,8 +184,9 @@ try {
   const facts = projections.readSessionFacts(seatId)
   check(`U3 the record carries the one word twice — effort ${TOP} (asked), effortSent ${TOP} (sent)`, facts !== null && facts.effort === TOP && facts.effortSent === TOP, JSON.stringify({ effort: facts?.effort, effortSent: facts?.effortSent }))
 
-  const lateStrip = distinct.filter(f => f.atMs >= S(30000)).flatMap(f => f.text.split('\n').filter(r => r.includes('▚▛▀▜▞')))
-  check(`U4 after the turn the strip's chip paints ${TOP}`, lateStrip.length > 0 && lateStrip.every(r => new RegExp(`\\b${TOP}\\b`).test(r)), lateStrip.slice(-2).join(' | ').slice(0, 300))
+  const lateRows = distinct.filter(f => f.atMs >= S(30000)).flatMap(f => statusRows(f.text))
+  const CHIP = new RegExp(`(?:^|· )${SEAT_MODEL_LABEL} · ${TOP}(?: ·| )`)
+  check(`U4 after the turn the status row paints ${TOP} beside the model in every state (${SEAT_MODEL_LABEL} · ${TOP})`, lateRows.length > 0 && lateRows.every(r => CHIP.test(r)), lateRows.slice(-2).join(' | ').slice(0, 300))
   check(`U4 "/effort current" names the word ("Effort is ${TOP}")`, anyFrame(`Effort is ${TOP} —`), distinct.map(f => flat(f.text)).filter(t => t.includes('Effort is')).map(t => t.slice(t.indexOf('Effort is'), t.indexOf('Effort is') + 120)).join(' | ').slice(0, 400))
   check('U4 the readout never says the seat runs another word', !anyFrame(`(it runs`) && !anyFrame('runs its provider default'), rowsWith(distinct.map(f => f.text).join('\n'), 'it runs').join(' | ').slice(0, 200))
 } finally {

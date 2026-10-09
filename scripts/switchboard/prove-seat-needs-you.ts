@@ -115,7 +115,7 @@ try {
         title: N,
         modelKey: DEFAULT_OPUS,
         effort: 'xhigh',
-      } as never)) as { ok?: boolean; sessionId?: string }
+      } as never, { timeoutMs: 15_000 })) as { ok?: boolean; sessionId?: string }
       check('the session dispatched', d.ok === true && d.sessionId !== undefined, JSON.stringify(d))
       sid = d.sessionId ?? ''
       log = join(paths.getProjectDir(cwd), `${sid}.jsonl`)

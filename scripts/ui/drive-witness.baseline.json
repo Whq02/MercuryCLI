@@ -206,7 +206,6 @@
     "scripts/ui/prove-crew-look-drive.ts": 4,
     "scripts/ui/prove-crew-seats-drive.ts": 5,
     "scripts/ui/prove-crew-stop-drive.ts": 7,
-    "scripts/ui/prove-crew-wizard-picker-drive.ts": 6,
     "scripts/ui/prove-critter-resize.ts": 2,
     "scripts/ui/prove-ctrl-o-stable.ts": 6,
     "scripts/ui/prove-deepseek-live-rows-drive.ts": 5,

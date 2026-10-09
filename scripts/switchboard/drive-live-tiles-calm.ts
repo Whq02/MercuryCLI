@@ -90,7 +90,7 @@ try {
         title: 'Idle done',
         modelKey: 'claude-opus-5',
         effort: 'xhigh',
-      } as never)) as { ok?: boolean; sessionId?: string }
+      } as never, { timeoutMs: 15_000 })) as { ok?: boolean; sessionId?: string }
       check('idle session dispatched', c.ok === true && c.sessionId !== undefined)
       const cTranscript = join(paths.getProjectDir(workC), `${c.sessionId}.jsonl`)
       check('idle session settled before boot', await untilAsync(async () => existsSync(cTranscript) && readFileSync(cTranscript, 'utf8').includes('quiet done.'), 30_000))
@@ -102,7 +102,7 @@ try {
         title: 'Calm streamer',
         modelKey: 'claude-opus-5',
         effort: 'xhigh',
-      } as never)) as { ok?: boolean; sessionId?: string }
+      } as never, { timeoutMs: 15_000 })) as { ok?: boolean; sessionId?: string }
       check('streamer dispatched', a.ok === true && a.sessionId !== undefined)
       const aTranscript = join(paths.getProjectDir(work), `${a.sessionId}.jsonl`)
       check('streamer transcript born', await untilAsync(async () => existsSync(aTranscript) && statSync(aTranscript).size > 100, 30_000))
