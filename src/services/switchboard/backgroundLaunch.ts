@@ -2,7 +2,7 @@ import { getGlobalConfig, isConfigReadingAllowed, saveGlobalConfig } from '../..
 
 export const BACKGROUND_LAUNCH_KEY = 'backgroundSessionsLaunchCrewmates'
 
-export const BACKGROUND_LAUNCH_LABEL = 'Crewmates from backgrounded sessions'
+export const BACKGROUND_LAUNCH_LABEL = 'Crewmates while backgrounded'
 
 export const BACKGROUND_LAUNCH_DOORS = `the ${BACKGROUND_LAUNCH_LABEL} row of /config or of the boot menu's Agents section (one switch)`
 

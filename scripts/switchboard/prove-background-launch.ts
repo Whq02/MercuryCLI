@@ -41,7 +41,7 @@ try {
 } catch (error) {
   console.log(`  (the setting module is absent on this tree: ${error instanceof Error ? error.message.split('\n')[0] : String(error)})`)
 }
-const LABEL = setting?.BACKGROUND_LAUNCH_LABEL ?? 'Crewmates from backgrounded sessions'
+const LABEL = setting?.BACKGROUND_LAUNCH_LABEL ?? 'Crewmates while backgrounded'
 
 const recDir = mkdtempSync(join(tmpdir(), 'switchboard-bglaunch-records-'))
 const workspaceId = mkdtempSync(join(tmpdir(), 'switchboard-bglaunch-ws-'))
