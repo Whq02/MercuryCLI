@@ -214,7 +214,7 @@ check('/jev is a local, screen-seat, user-private command that is unavailable no
   check('the request opens the one popup store as the jev view, content-sized, 120 wide', request.view === 'jev' && request.width === jevBody.JEV_POPUP_WIDTH && request.rows === null && request.hint === jevBody.JEV_POPUP_HINT)
   const rows = withJevRow(STARTUP_MENU)
   const at = rows.findIndex(row => row.env === 'jev')
-  check('the Boot Menu row joins the AGENTS group of the startup table (one header, beside Crewmates and Workflows)', at > 0 && rows[at - 1]?.group === 'agents' && rows[at]?.group === 'agents' && rows.length === STARTUP_MENU.length + 1, String(at))
+  check('the Boot Menu row joins the AGENTS group of the startup table (one header, after Crewmates, Workflows and Crewmates while backgrounded)', at > 0 && rows[at - 1]?.group === 'agents' && rows[at]?.group === 'agents' && rows.length === STARTUP_MENU.length + 2, String(at))
   check('the detail width is the SETTING DETAIL text width and every detail line fits it', JEV_BOOT_DETAIL_WIDTH === 41 && jevBootDetailLines().every(line => stringWidth(line) <= JEV_BOOT_DETAIL_WIDTH), jevBootDetailLines().join(' | '))
   const keyStates = [{ present: false }, { present: true, source: 'stored' }, { present: true, source: 'env' }] as const
   const sessions: JevSessionFacts[] = [{ state: 'reported', facts: { ...runnerFacts(), spendUsd: 199.999999 } }, { state: 'unknown' }, { state: 'no-session' }]
@@ -255,7 +255,7 @@ section('§2 the Boot Settings face: the JEV row selected, its detail pane, the 
   const lines = keepFrame('boot-settings-jev-row-178x51', 'the Boot Settings face at 178x51 with the JEV row selected under AGENTS: the CONTROL PLANE row (off) and the SETTING DETAIL pane with the status, the key and the setting lines', m)
   const row = bootJevRow(lines)
   const rowAt = lines.indexOf(row)
-  check('the row sits under the AGENTS header beside Workflows', rowAt > 0 && (lines[rowAt - 1] ?? '').includes('Workflows'), `${lines[rowAt - 1] ?? ''} / ${row}`)
+  check('the row sits under the AGENTS header after the Crewmates while backgrounded row', rowAt > 0 && (lines[rowAt - 1] ?? '').includes('Crewmates while backgrounded'), `${lines[rowAt - 1] ?? ''} / ${row}`)
   check('the row\'s value column reads off', /❯ JEV\s+off\s/.test(row), row)
   const pane = paneText(lines, DETAIL_PANE, DETAIL_PANE_WIDTH)
   check('the detail pane carries the status line verbatim, wrapped at the pane width', pane.includes(collapse(status.jevStatusLine())), pane)
