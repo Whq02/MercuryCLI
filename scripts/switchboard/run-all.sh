@@ -12,6 +12,7 @@
 # gate-watch: docs/ENGINES.md
 # gate-watch: src/rows/* src/runner/wire/*
 # gate-watch: scripts/lib/seatDoor.ts
+# gate-watch: scripts/streaming/artifactArena.ts scripts/streaming/ptydrive.py scripts/streaming/screengrab.py scripts/lib/observed_walk.py
 # gate-watch: src/daemon/headlessRun.ts src/utils/config.ts src/utils/sessionStorage/paths.ts src/utils/sessionStorage/vnext.ts src/utils/model/model.ts src/components/mercury-ui/EffortChip.tsx
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
