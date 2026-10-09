@@ -30,7 +30,7 @@ import {
   openToolUseIDs,
   type OpenToolUses,
 } from './messages/openToolUses.js'
-import { processSessionStartHooks } from './sessionStart.js'
+import { runSessionStartHooks } from './sessionStart.js'
 import { resumeFactsOf, type ResumeFacts } from './sessionStorage/logs.js'
 import {
   buildConversationChain,
@@ -358,19 +358,9 @@ function dedupKeyFor(content: string): string {
 
 function hookKeysOf(message: Message): string[] {
   if (message.type !== 'attachment') return []
-  const attachment = message.attachment as {
-    type?: string
-    hookEvent?: string
-    content?: unknown
-  }
-  if (attachment.hookEvent !== 'SessionStart') return []
-  if (attachment.type === 'hook_additional_context' && Array.isArray(attachment.content)) {
-    return (attachment.content as string[]).map(dedupKeyFor)
-  }
-  if (attachment.type === 'hook_success' && typeof attachment.content === 'string' && attachment.content !== '') {
-    return [dedupKeyFor(attachment.content)]
-  }
-  return []
+  const attachment = message.attachment as { type?: string; event?: string; outcome?: string; words?: unknown }
+  if (attachment.type !== 'hook' || attachment.event !== 'session.start' || attachment.outcome !== 'context') return []
+  return typeof attachment.words === 'string' && attachment.words !== '' ? [dedupKeyFor(attachment.words)] : []
 }
 
 function filterDuplicateSessionStartHooks(incoming: Message[], transcript: Message[]): Message[] {
@@ -380,32 +370,10 @@ function filterDuplicateSessionStartHooks(incoming: Message[], transcript: Messa
     for (const key of hookKeysOf(message)) existing.add(key)
   }
   if (existing.size === 0) return [...incoming]
-  const survivors: Message[] = []
-  let changed = false
-  for (const message of incoming) {
+  return incoming.filter(message => {
     const keys = hookKeysOf(message)
-    if (keys.length === 0) {
-      survivors.push(message)
-      continue
-    }
-    changed = true
-    const attachment = (message as AttachmentMessage).attachment as { type?: string; content?: unknown }
-    if (attachment.type === 'hook_additional_context' && Array.isArray(attachment.content) && attachment.content.length > 1) {
-      const kept = (attachment.content as string[]).filter(entry => !existing.has(dedupKeyFor(entry)))
-      if (kept.length === 0) continue
-      if (kept.length === attachment.content.length) {
-        survivors.push(message)
-      } else {
-        survivors.push({
-          ...message,
-          attachment: { ...attachment, content: kept },
-        } as Message)
-      }
-      continue
-    }
-    if (!existing.has(keys[0] as string)) survivors.push(message)
-  }
-  return changed ? survivors : []
+    return keys.length === 0 || !existing.has(keys[0] as string)
+  })
 }
 
 
@@ -517,7 +485,7 @@ export async function loadConversationForResume(
     restoreBoundPrefixFromMessages(asMessages)
     const { messages: deserialized, turnInterruptionState } = deserializeMessagesWithInterruptDetection(asMessages)
     const recordedModel = getEngineModelOverride() === undefined ? facts.model : undefined
-    const hookMessages = await processSessionStartHooks('resume', {
+    const hookMessages = await runSessionStartHooks('resumed', {
       sessionId,
       model: recordedModel ? parseUserSpecifiedModel(recordedModel) : undefined,
     })

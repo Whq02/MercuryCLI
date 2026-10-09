@@ -14,7 +14,8 @@ import {
   SUBAGENT_REJECT_MESSAGE,
   SUBAGENT_REJECT_MESSAGE_WITH_REASON_PREFIX,
 } from '../../utils/messages.js'
-import { executePermissionRequestHooks } from '../../utils/hooks.js'
+import { fireHooks } from '../../utils/hooks/fire.js'
+import { getSessionId } from '../../bootstrap/state.js'
 import { decideRuleBasedPermissions } from '../../utils/permissions/decision/engine.js'
 import { guardHookUpdatedInput } from '../../utils/permissions/decision/wrapper.js'
 import { flowUserAllowUpdates } from '../../utils/permissions/flowPolicy.js'
@@ -225,63 +226,31 @@ export function createPermissionContext(
     },
 
     async runHooks(permissionMode, suggestions, updatedInput, promptStartMs) {
-      for await (const hookResult of executePermissionRequestHooks(
-        tool.name,
-        toolUseID,
-        input,
-        toolUseContext,
-        permissionMode,
-        suggestions,
-        toolUseContext.abortController.signal,
-      )) {
-        const decision = hookResult.permissionRequestResult
-        if (!decision) continue
-
-        if (decision.behavior === 'allow') {
-          const finalInput = decision.updatedInput ?? updatedInput ?? input
-          if (decision.updatedInput) {
-            const override = guardHookUpdatedInput(
-              (await decideRuleBasedPermissions(tool, finalInput, toolUseContext))
-                .decision,
-              tool.name,
-            )
-            if (override) {
-              if (override.behavior === 'deny') {
-                ctx.logDecision(
-                  { decision: 'reject', source: { type: 'hook' } },
-                  { promptStartMs },
-                )
-                return override
-              }
-              return null
-            }
+      const asked = await fireHooks(
+        'permission.ask',
+        { tool: tool.name, input, call_id: toolUseID, ...(suggestions !== undefined ? { suggestions } : {}) },
+        { scope: { sessionId: String(getSessionId()), ...(toolUseContext.agentId !== undefined ? { crewmateId: toolUseContext.agentId } : {}) }, signal: toolUseContext.abortController.signal, toolUseContext, permissionMode },
+      )
+      const hookNames = asked.outcomes.map(outcome => outcome.name).join(', ')
+      if (asked.answer.block !== undefined || asked.answer.stop !== undefined) {
+        ctx.logDecision({ decision: 'reject', source: { type: 'hook' } }, { promptStartMs })
+        if (asked.answer.stop !== undefined) toolUseContext.abortController.abort()
+        const words = asked.answer.block ?? asked.answer.stop ?? `a hook (${hookNames}) denied this ${tool.name} call`
+        return ctx.buildDeny(words, { type: 'hook', hookName: hookNames, reason: words })
+      }
+      if (asked.answer.permission !== 'allow') return null
+      const finalInput = asked.answer.input ?? updatedInput ?? input
+      if (asked.answer.input) {
+        const override = guardHookUpdatedInput((await decideRuleBasedPermissions(tool, finalInput, toolUseContext)).decision, tool.name)
+        if (override) {
+          if (override.behavior === 'deny') {
+            ctx.logDecision({ decision: 'reject', source: { type: 'hook' } }, { promptStartMs })
+            return override
           }
-          return ctx.handleHookAllow(
-            finalInput,
-            decision.updatedPermissions ?? [],
-            promptStartMs,
-          )
-        }
-
-        if (decision.behavior === 'deny') {
-          ctx.logDecision(
-            { decision: 'reject', source: { type: 'hook' } },
-            { promptStartMs },
-          )
-          if (decision.interrupt) {
-            toolUseContext.abortController.abort()
-          }
-          return ctx.buildDeny(
-            decision.message || 'A PermissionRequest hook denied this tool use.',
-            {
-              type: 'hook',
-              hookName: 'PermissionRequest',
-              reason: decision.message,
-            },
-          )
+          return null
         }
       }
-      return null
+      return ctx.handleHookAllow(finalInput, asked.answer.rules ?? [], promptStartMs)
     },
 
     buildAllow(updatedInput, opts) {

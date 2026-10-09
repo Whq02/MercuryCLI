@@ -18,12 +18,6 @@ import { normalizePathForComparison } from '../../utils/file.js'
 import { detectEncodingForResolvedPath } from '../../utils/fileRead.js'
 import { cacheKeys, type FileStateCache } from '../../utils/fileStateCache.js'
 import { findCanonicalGitRoot, findGitRoot } from '../../utils/git.js'
-import {
-  executeInstructionsLoadedHooks,
-  hasInstructionsLoadedHook,
-  type InstructionsLoadReason,
-  type InstructionsMemoryType,
-} from '../../utils/hooks.js'
 import { stripBOM } from '../../utils/jsonRead.js'
 import type { MemoryType } from '../../utils/memory/types.js'
 import { getEngineModel } from '../../utils/model/model.js'
@@ -385,46 +379,20 @@ export const getInstructionFiles = memoize(
       total_content_length: totalContentLength,
     })
 
-    if (!forceIncludeExternal) {
-      if (eagerLoadReason !== undefined && hasInstructionsLoadedHook()) {
-        for (const file of result) {
-          if (!isInstructionsMemoryType(file.type)) continue
-          const loadReason = file.parent ? 'include' : eagerLoadReason
-          void executeInstructionsLoadedHooks(
-            file.path,
-            file.type,
-            loadReason,
-            {
-              globs: file.globs,
-              parentFilePath: file.parent,
-            },
-          )
-        }
-      }
-    }
-
     return result
   },
 )
 
-function isInstructionsMemoryType(
-  type: MemoryType,
-): type is InstructionsMemoryType {
-  return (
-    type === 'User' ||
-    type === 'Project' ||
-    type === 'Local' ||
-    type === 'Managed'
-  )
-}
+
+export type InstructionsLoadReason = 'session_start' | 'compact'
 
 let nextEagerLoadReason: InstructionsLoadReason = 'session_start'
 
-let shouldFireHook = true
+let nextLoadIsEager = true
 
 function consumeNextEagerLoadReason(): InstructionsLoadReason | undefined {
-  if (!shouldFireHook) return undefined
-  shouldFireHook = false
+  if (!nextLoadIsEager) return undefined
+  nextLoadIsEager = false
   const reason = nextEagerLoadReason
   nextEagerLoadReason = 'session_start'
   return reason
@@ -454,7 +422,7 @@ export function resetInstructionFilesCache(
   reason: InstructionsLoadReason = 'session_start',
 ): void {
   nextEagerLoadReason = reason
-  shouldFireHook = true
+  nextLoadIsEager = true
   clearInstructionFileCaches()
 }
 

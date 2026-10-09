@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs'
 import { daemonHomeStands, publishInDaemonHome } from './daemonHome.js'
 import { join } from 'node:path'
 import { logForDebugging } from '../utils/debug.js'
+import { noteSessionAsking } from './sessionStateHooks.js'
 import { armInactivityDeadline, formatLimit, type InactivityDeadline } from '../utils/deadline.js'
 import { askExpiredCause, askLimitMs, isAskExpiredCause, unansweredAskRefusal } from '../utils/permissions/askClock.js'
 import { askBoardQuestion } from '../utils/permissions/askWords.js'
@@ -185,6 +186,7 @@ function publishAsksFor(sessionId: string, dir?: string): void {
   } catch (err) {
     logForDebugging(`[daemon] session asks publish failed for ${sessionId}: ${err}`)
   }
+  noteSessionAsking(sessionId, asks.length > 0, readSessionWorkers(dir))
 }
 
 export interface SeatAskAnswerV1 {

@@ -25,8 +25,8 @@ const { hasPermissionsToUseTool } = await import('../../src/utils/permissions/pe
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 const { connectToServer } = await import('../../src/services/mcp/client.ts')
 const { classifyMcpToolRisk, getMaxExposedRiskForServer } = await import('../../src/services/mcp/toolPolicy.ts')
-const hooksEngine = await import('../../src/utils/hooks/engine.ts')
-const execution = await import('../../src/utils/hooks/execution.ts')
+const { fireHooks } = await import('../../src/utils/hooks/fire.ts')
+const { startCommandHook } = await import('../../src/utils/hooks/commandRunner.ts')
 const state = await import('../../src/bootstrap/state.ts')
 
 let failures = 0
@@ -133,22 +133,15 @@ if (readTool && writeTool) {
 console.log('[4] an approved hook runs without a per-event ask; never before trust')
 const ext = { extensionRoot: installed.ok ? installed.root : '', extensionId: 'kitchen-sink@fixture-source', extensionName: 'kitchen-sink' }
 {
-  const engineSrc = await import('node:fs').then(fs => fs.readFileSync(join(import.meta.dir, '..', '..', 'src', 'utils', 'hooks', 'engine.ts'), 'utf8'))
-  check('the hook engine consults NO permission mode (structural: approval is the standing consent)', !engineSrc.includes('toolPermissionContext.mode') && !engineSrc.includes('hasPermissionsToUseTool'))
+  const fireSrc = await import('node:fs').then(fs => fs.readFileSync(join(import.meta.dir, '..', '..', 'src', 'utils', 'hooks', 'fire.ts'), 'utf8'))
+  check('the fire consults NO permission mode (structural: approval is the standing consent; the mode is read once, into the payload)', fireSrc.split('toolPermissionContext.mode').length === 2 && fireSrc.includes('permission_mode: permissionMode') && !fireSrc.includes('hasPermissionsToUseTool'), 'fire.ts decides on the mode')
   const outDir = join(scratch, 'hook-out')
   mkdirSync(outDir, { recursive: true })
   const marker = join(outDir, 'ran.txt')
-  state.registerHookCallbacks({ 'tool.after': [{ hooks: [{ run: `sh -c 'echo ran >> ${marker}'` }], ...ext }] } as never)
+  state.registerHookCallbacks({ 'tool.after': [{ hooks: [{ name: 'ran mark', run: `sh -c 'echo ran >> ${marker}'` }], ...ext }] } as never)
   const drain = async (mode: string): Promise<string[]> => {
-    const outcomes: string[] = []
-    for await (const r of hooksEngine.executeHooks({
-      hookInput: { ...execution.createBaseHookInput(mode), hook_event_name: 'PostToolUse', tool_name: 'Write', tool_input: {}, tool_response: {} } as never,
-      toolUseID: 'toolu_hooks',
-      signal: new AbortController().signal,
-    })) {
-      if (r && typeof r === 'object' && 'outcome' in (r as object)) outcomes.push(String((r as { outcome: string }).outcome))
-    }
-    return outcomes
+    const result = await fireHooks('tool.after', { tool: 'Write', input: {}, output: {}, call_id: 'toolu_hooks', ok: true, cut: false }, { scope: { sessionId: 'obedience' }, permissionMode: mode })
+    return result.outcomes.map(outcome => outcome.state.kind)
   }
   state.setIsInteractive(true)
   await drain('default')
@@ -169,29 +162,20 @@ console.log('[5] exit 1 · timeout · flood — bounded, counted, the call conti
 {
   health.resetRuntimeCounters()
   state.clearRegisteredExtensionHooks()
-  state.registerHookCallbacks({ 'tool.after': [{ hooks: [{ run: 'sh -c "echo boom >&2; exit 1"' }], ...ext }] } as never)
-  const results: string[] = []
-  for await (const r of hooksEngine.executeHooks({
-    hookInput: { ...execution.createBaseHookInput('default'), hook_event_name: 'PostToolUse', tool_name: 'Write', tool_input: {}, tool_response: {} } as never,
-    toolUseID: 'toolu_fail',
-    signal: new AbortController().signal,
-  })) {
-    const record = r as { message?: { attachment?: { type?: string } } }
-    const type = record.message?.attachment?.type
-    if (type) results.push(type)
-  }
-  check('exit 1 → a non-blocking-error attachment; the generator completes (the session survives)', results.includes('hook_non_blocking_error'), results.join(',') || '<no attachments>')
+  state.registerHookCallbacks({ 'tool.after': [{ hooks: [{ name: 'boom', run: 'sh -c "echo boom >&2; exit 1"' }], ...ext }] } as never)
+  const fired = await fireHooks('tool.after', { tool: 'Write', input: {}, output: {}, call_id: 'toolu_fail', ok: true, cut: false }, { scope: { sessionId: 'obedience' } })
+  const results = fired.outcomes.map(outcome => outcome.state.kind)
+  check('exit 1 → a failed outcome with its one line; the fire completes (the session survives)', results.includes('failed') && fired.outcomes.some(outcome => outcome.state.kind === 'failed' && outcome.state.line.includes('boom')), results.join(',') || '<no outcomes>')
   const counted = health.hookFailuresFor('kitchen-sink@fixture-source')
   check('…and the failure is COUNTED for the one health owner', counted.size >= 1 && [...counted.values()][0]!.count >= 1, String(counted.size))
   state.clearRegisteredExtensionHooks()
 
-  const hang = { type: 'command' as const, command: 'sleep 30', timeout: 1 }
+  const source = { kind: 'extension' as const, id: ext.extensionId, root: ext.extensionRoot }
   const started = Date.now()
-  const hung = await execution.execCommandHook(hang, 'PostToolUse', 'hang-probe', '{}', new AbortController().signal, 'hook_hang', 0, ext.extensionRoot, ext.extensionId)
-  check('a hang is bounded by its own timeout (aborted well under the 30s sleep)', Date.now() - started < 15_000 && (hung.aborted === true || hung.status !== 0), `elapsed=${Date.now() - started}ms status=${hung.status}`)
+  const hung = await (await startCommandHook({ command: 'sleep 30', shell: 'bash', name: 'hang-probe', event: 'tool.after', index: 0, payloadJson: '{}', timeoutMs: 1_000, source })).result
+  check('a hang is bounded by its own timeout (killed well under the 30s sleep)', Date.now() - started < 15_000 && hung.kind === 'ended' && hung.ending.class === 'timed_out', `elapsed=${Date.now() - started}ms ${hung.kind}`)
 
-  const flood = { type: 'command' as const, command: 'yes flood-line | head -c 30000000' }
-  const flooded = await execution.execCommandHook(flood, 'PostToolUse', 'flood-probe', '{}', new AbortController().signal, 'hook_flood', 0, ext.extensionRoot, ext.extensionId)
+  const flooded = await (await startCommandHook({ command: 'yes flood-line | head -c 30000000', shell: 'bash', name: 'flood-probe', event: 'tool.after', index: 0, payloadJson: '{}', timeoutMs: 60_000, source })).result
   check('a 30MB stdout flood returns BOUNDED output', flooded.stdout.length < 20_000_000, `stdout=${flooded.stdout.length} bytes`)
 }
 

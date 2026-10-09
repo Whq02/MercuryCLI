@@ -27,13 +27,13 @@ export async function call(
         onStay={() => onDone()}
         onQuit={() => {
           onDone(FAREWELL)
-          void gracefulShutdown(0, 'prompt_input_exit')
+          void gracefulShutdown(0, 'quit')
         }}
       />
     )
   }
 
   onDone(FAREWELL)
-  await gracefulShutdown(0, 'prompt_input_exit')
+  await gracefulShutdown(0, 'quit')
   return null
 }

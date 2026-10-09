@@ -20,7 +20,7 @@ import type { ServerResource } from '../services/mcp/types.js'
 import type { RosterEntry, Health } from '../extensions/types.js'
 import { createEmptyAttributionState, type AttributionState } from '../utils/commitAttribution.js'
 import type { PromptVariant } from '../services/PromptSuggestion/promptSuggestion.js'
-import type { ChatHookContext } from '../utils/hooks/postSamplingHooks.js'
+import type { TurnAnswerContext } from '../query/turnAnswerContext.js'
 import type { Store } from './store.js'
 import type { CrewLedger } from './crewLedger.js'
 
@@ -69,7 +69,7 @@ export type SpeculationState =
       suggestionLength: number
       toolUseCount: number
       isPipelined: boolean
-      contextRef: { current: ChatHookContext }
+      contextRef: { current: TurnAnswerContext }
       pipelinedSuggestion?: {
         text: string
         promptId: PromptVariant

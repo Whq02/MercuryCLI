@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # gate-class: pure
-# gate-watch: src/utils/hooks/sessionHooks* src/utils/hooks/wardsHook* src/utils/wards/wards*
+# gate-watch: src/utils/hooks/sessionHooks* src/guards/wardsGuard* src/utils/wards/wards*
 # gate-watch: assets/splash/splash-core.mjs design-system/live/manifest.json docs/EXTENSIONS.md
 # gate-watch: native/desktop/Cargo.lock scripts/builtin-tools/fixtures/tool-census.json
 # gate-watch: scripts/gate/generated-assets.tsv scripts/settings/settings-schema.json
@@ -8,8 +8,8 @@
 # gate-watch: src/components/mercury-ui/sessionAccent.ts src/components/mercuryPalette.ts
 # gate-watch: src/constants/cyberRiskInstruction.ts src/daemon/workerRecon.ts src/skills/bundled/app-proof.ts
 # gate-watch: src/skills/bundled/app-proof/SKILL.md src/skills/bundled/updateConfig.ts
-# gate-watch: src/substrate/flagRegistry.ts src/tools/**/*.{ts,tsx} src/utils/* src/utils/hooks/engine.ts
-# gate-watch: src/utils/hooks/generatedAssets.ts
+# gate-watch: src/substrate/flagRegistry.ts src/tools/**/*.{ts,tsx} src/utils/* src/utils/hooks/fire.ts src/guards/**
+# gate-watch: src/guards/generatedAssets.ts
 # gate-watch: scripts/lib/linearGrowth.ts
 # gate-watch: src/skills/bundled/** scripts/ui/lib/emojiProperties.ts
 set -u

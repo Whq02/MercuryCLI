@@ -219,7 +219,7 @@ section('§4 RECURRING RE-ARM (G09)')
 
 section('§5 HEADLESS MINT GATE (BM-17)')
 {
-  const { headlessMintAllowed } = await import('../../src/utils/hooks/runStopAdapter.ts')
+  const { headlessMintAllowed } = await import('../../src/guards/runStopAdapter.ts')
   const { setIsInteractive } = await import('../../src/bootstrap/state.ts')
   setIsInteractive(false)
   check('non-interactive + default-on flag ⇒ NO mint', headlessMintAllowed(undefined) === false)

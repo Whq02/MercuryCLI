@@ -20,7 +20,7 @@ import {
 import { gracefulShutdownSync } from 'src/utils/gracefulShutdown.js'
 import { logError } from 'src/utils/log.js'
 import { restoreSessionStateFromLog } from 'src/utils/sessionRestore.js'
-import { processSessionStartHooks } from 'src/utils/sessionStart.js'
+import { runSessionStartHooks } from 'src/utils/sessionStart.js'
 import { consumeSessionHomePin } from 'src/utils/sessionStorage/sessionHomePin.js'
 import {
   resetSessionFilePointer,
@@ -74,7 +74,7 @@ export async function loadInitialMessages(
     resumeSessionAt: string | undefined
     forkSession: boolean | undefined
     outputFormat: string | undefined
-    sessionStartHooksPromise?: ReturnType<typeof processSessionStartHooks>
+    sessionStartHooksPromise?: ReturnType<typeof runSessionStartHooks>
   },
 ): Promise<LoadInitialMessagesResult> {
   const persistSession = !isSessionPersistenceDisabled()
@@ -180,6 +180,6 @@ export async function loadInitialMessages(
 
   return {
     messages: await (options.sessionStartHooksPromise ??
-      processSessionStartHooks('startup')),
+      runSessionStartHooks('new')),
   }
 }

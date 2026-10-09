@@ -41,7 +41,6 @@ const ALL_NAVIGABLE_TYPES: readonly NavigableType[] = [
 
 const EXCLUDED_SYSTEM_SUBTYPES = new Set([
   'api_metrics',
-  'stop_hook_summary',
   'turn_duration',
   'memory_saved',
   'agents_killed',
@@ -52,8 +51,7 @@ const EXCLUDED_SYSTEM_SUBTYPES = new Set([
 const INCLUDED_ATTACHMENT_TYPES = new Set([
   'queued_command',
   'diagnostics',
-  'hook_blocking_error',
-  'hook_error_during_execution',
+  'hook',
 ])
 
 const SYNTHETIC_TEXTS = new Set([

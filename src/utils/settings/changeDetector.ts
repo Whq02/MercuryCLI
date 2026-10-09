@@ -6,7 +6,6 @@ import * as chokidar from 'chokidar'
 import { getIsRemoteMode } from '../../bootstrap/state.js'
 import { registerCleanup } from '../cleanupRegistry.js'
 import { logForDebugging } from '../debug.js'
-import { executeConfigChangeHooks, hasBlockingResult } from '../hooks.js'
 import { logError } from '../log.js'
 import { createSignal } from '../signal.js'
 import { ignoringSpecialFiles, resolveWatchRoot } from '../watchRoot.js'
@@ -43,19 +42,6 @@ let dropInDir: string | null = null
 let watchedRoots = new Set<string>()
 const changeSignal = createSignal<[SettingSource]>()
 
-function hookSourceFor(source: SettingSource): string {
-  switch (source) {
-    case 'userSettings':
-      return 'user_settings'
-    case 'projectSettings':
-      return 'project_settings'
-    case 'localSettings':
-      return 'local_settings'
-    case 'flagSettings':
-    case 'policySettings':
-      return 'policy_settings'
-  }
-}
 
 function normalizeEventPath(eventPath: string): string {
   return resolve(sep === '\\' ? eventPath.replace(/\//g, '\\') : eventPath)
@@ -76,7 +62,7 @@ function fanOut(source: SettingSource): void {
   changeSignal.emit(source)
 }
 
-async function handleChange(eventPath: string): Promise<void> {
+function handleChange(eventPath: string): void {
   const source = sourceForPath(eventPath)
   if (source === null) return
   const normalized = normalizeEventPath(eventPath)
@@ -86,12 +72,6 @@ async function handleChange(eventPath: string): Promise<void> {
     pendingDeletions.delete(normalized)
   }
   if (consumeInternalWrite(normalized, internalWriteWindowMs)) return
-  try {
-    const results = await executeConfigChangeHooks(hookSourceFor(source) as never, normalized)
-    if (hasBlockingResult(results)) return
-  } catch (error) {
-    logForDebugging(`config-change hook failed: ${String(error)}`)
-  }
   fanOut(source)
 }
 
@@ -103,15 +83,7 @@ function handleUnlink(eventPath: string): void {
   const graceMs = stabilityThresholdMs + pollIntervalMs + 250
   const timer = setTimeout(() => {
     pendingDeletions.delete(normalized)
-    void (async () => {
-      try {
-        const results = await executeConfigChangeHooks(hookSourceFor(source) as never, normalized)
-        if (hasBlockingResult(results)) return
-      } catch (error) {
-        logForDebugging(`config-change hook failed: ${String(error)}`)
-      }
-      fanOut(source)
-    })()
+    fanOut(source)
   }, graceMs)
   timer.unref?.()
   pendingDeletions.set(normalized, timer)
@@ -197,8 +169,8 @@ async function initialize(): Promise<void> {
       return true
     }),
   })
-  watcher.on('change', path => void handleChange(path))
-  watcher.on('add', path => void handleChange(path))
+  watcher.on('change', path => handleChange(path))
+  watcher.on('add', path => handleChange(path))
   watcher.on('unlink', path => handleUnlink(path))
   watcher.on('error', error => {
     logError(error)

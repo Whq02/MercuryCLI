@@ -5,7 +5,6 @@ import { Box, Text } from '../../ink.js'
 import Link from '../../ink/components/Link.js'
 import type {
   SystemMessage,
-  SystemStopHookSummaryMessage,
 } from '../../types/message.js'
 import { TURN_COMPLETION_VERBS } from '../../constants/turnCompletionVerbs.js'
 import { getGlobalConfig } from '../../utils/config.js'
@@ -90,70 +89,6 @@ function TurnDurationRow({
   )
 }
 
-function StopHookSummary({
-  message,
-  verbose,
-  isTranscriptMode,
-}: {
-  message: SystemStopHookSummaryMessage
-  verbose: boolean
-  isTranscriptMode: boolean
-}): React.ReactNode {
-  const hasErrors = message.hookErrors.length > 0
-  if (!hasErrors && !message.preventedContinuation && !message.hookLabel) {
-    if (message.hookCount === 0) return null
-  }
-  if (message.hookLabel) {
-    return (
-      <Box flexDirection="column">
-        <MessageResponse height={1}>
-          <Text dimColor>
-            Ran {message.hookCount} {message.hookLabel}{' '}
-            {plural(message.hookCount, 'hook')}
-          </Text>
-        </MessageResponse>
-        {isTranscriptMode
-          ? message.hookInfos.map((info, index) => (
-              <Box key={index} paddingLeft={2}>
-                <Text dimColor>{info.promptText ?? info.command ?? ''}</Text>
-              </Box>
-            ))
-          : null}
-      </Box>
-    )
-  }
-  return (
-    <Box flexDirection="column">
-      <Text>
-        <Text dimColor>● </Text>
-        <Text dimColor>
-          Ran {message.hookCount} stop-hook {plural(message.hookCount, 'hook')}
-        </Text>
-        {!verbose && message.hasOutput ? (
-          <>
-            {' '}
-            <CtrlOToExpand />
-          </>
-        ) : null}
-      </Text>
-      {verbose
-        ? message.hookInfos.map((info, index) => (
-            <Box key={index} paddingLeft={2}>
-              <Text dimColor>{info.command ?? info.promptText ?? ''}</Text>
-            </Box>
-          ))
-        : null}
-      {message.preventedContinuation && message.stopReason ? (
-        <Text color="warning">{message.stopReason}</Text>
-      ) : null}
-      {message.hookErrors.map((error, index) => (
-        <Text key={index} color="error">
-          {error}
-        </Text>
-      ))}
-    </Box>
-  )
-}
 
 export function SystemTextMessage({
   message,
@@ -350,15 +285,6 @@ export function SystemTextMessage({
 
     case 'api_error':
       return <SystemAPIErrorMessage message={message} verbose={verbose} />
-
-    case 'stop_hook_summary':
-      return (
-        <StopHookSummary
-          message={message}
-          verbose={verbose}
-          isTranscriptMode={isTranscriptMode}
-        />
-      )
 
     default: {
       const level = (message as { level?: string }).level ?? 'info'

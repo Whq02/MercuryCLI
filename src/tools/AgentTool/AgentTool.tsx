@@ -580,10 +580,6 @@ export const AgentTool = buildTool({
     }> => {
       if (cleanupDone || !worktreeInfo) return {}
       cleanupDone = true
-      if (worktreeInfo.hookBased) {
-        logForDebugging('AgentTool: worktree kept (hook-created)')
-        return { worktreePath: worktreeInfo.worktreePath }
-      }
       try {
         const leftover = await crewWorktreeLeftoverOf(
           {

@@ -46,7 +46,6 @@ import type { StreamingTailStore } from '../utils/messages/streamingTailStore.js
 import { applyGrouping } from '../utils/groupToolUses.js'
 import { collapseReadSearchGroups } from '../utils/collapseReadSearch.js'
 import { RowErrorBoundary } from './RowErrorBoundary.js'
-import { collapseHookSummaries } from '../utils/collapseHookSummaries.js'
 import { collapseBackgroundBashNotifications } from '../utils/collapseBackgroundBashNotifications.js'
 import { injectTurnReceipts, isTurnBoundary } from '../utils/cockpit/turnReceipt.js'
 import { getMercuryTempDir } from '../utils/permissions/filesystem.js'
@@ -340,9 +339,6 @@ export function composeTranscript(input: {
     collapsed as Parameters<typeof collapseReadSearchGroups>[0],
     tools,
     inProgressToolUseIDs,
-  ) as RenderableMessage[]
-  collapsed = collapseHookSummaries(
-    collapsed as Parameters<typeof collapseHookSummaries>[0],
   ) as RenderableMessage[]
   collapsed = collapseBackgroundBashNotifications(
     collapsed as Parameters<typeof collapseBackgroundBashNotifications>[0],

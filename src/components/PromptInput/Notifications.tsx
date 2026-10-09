@@ -17,10 +17,6 @@ import { useAppState, type AppState } from '../../state/AppState.js'
 import { useAnthropicLimits } from '../../services/anthropicLimitsHook.js'
 import { useNotifications, type Notification } from '../../context/notifications.js'
 import {
-  registerHookEventHandler,
-  type HookExecutionEvent,
-} from '../../utils/hooks/hookEvents.js'
-import {
   getApiKeyHelperElapsedMs,
   getConfiguredApiKeyHelper,
   getSubscriptionType,
@@ -123,34 +119,6 @@ function NotificationsColumn({
   const engineModel = useSyncExternalStore(subscribeFocusedModel, getFocusedModel, getFocusedModel)
   const limits = useAnthropicLimits()
 
-  const addRef = useRef(addNotification)
-  addRef.current = addNotification
-  useEffect(() => {
-    const handler = (event: HookExecutionEvent): void => {
-      if (event.type !== 'response') return
-      const text = (event.output || event.stderr || '').trim()
-      if (text === '') return
-      if (event.outcome === 'error') {
-        addRef.current({
-          key: 'env-hook',
-          text,
-          color: 'error',
-          priority: 'medium',
-          timeoutMs: 8000,
-        })
-      } else {
-        addRef.current({
-          key: 'env-hook',
-          text,
-          priority: 'low',
-          timeoutMs: FOOTER_TEMPORARY_STATUS_TIMEOUT,
-        })
-      }
-    }
-    registerHookEventHandler(handler)
-    return () => registerHookEventHandler(null)
-  }, [])
-
   const helperConfigured = getConfiguredApiKeyHelper() !== undefined
   const [helperElapsedMs, setHelperElapsedMs] = useState(0)
   useEffect(() => {
@@ -197,6 +165,8 @@ function NotificationsColumn({
     editorConfigured !== undefined &&
     editorConfigured !== ''
   const editorChord = useShortcutDisplay('chat:externalEditor', 'Chat', 'ctrl+x ctrl+e')
+  const addRef = useRef(addNotification)
+  addRef.current = addNotification
   const removeRef = useRef(removeNotification)
   removeRef.current = removeNotification
   useEffect(() => {

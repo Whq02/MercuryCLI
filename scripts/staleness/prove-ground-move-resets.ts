@@ -168,7 +168,7 @@ await detector.initialize()
 {
   const setupSrc = codeOnlyText('setup.ts', readFileSync(join(repoRoot, 'src/setup.ts'), 'utf8'))
   const transitionAt = setupSrc.indexOf('activeCwd = worktreeSession.worktreePath')
-  const transitionEnd = transitionAt === -1 ? -1 : setupSrc.indexOf('captureHooksConfigSnapshot()', transitionAt)
+  const transitionEnd = transitionAt === -1 ? -1 : setupSrc.indexOf('captureHooksSnapshot()', transitionAt)
   const transition = transitionAt === -1 || transitionEnd === -1 ? '' : setupSrc.slice(transitionAt, transitionEnd)
   check('S10 the worktree TRANSITION is located (activeCwd assignment through the hooks snapshot), past the tmux argument that spells the same path', transition.length > 0 && transitionAt > setupSrc.indexOf('worktreeSession.worktreePath') && !transition.includes('createTmuxSessionForWorktree'), `${transitionAt}..${transitionEnd}`)
   check(

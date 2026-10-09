@@ -12,7 +12,7 @@ export function SurfaceExitChord({ onPendingChange }: { onPendingChange: (pendin
   const press = useDoublePress(
     onPendingChange,
     () => {
-      void gracefulShutdown(0, 'prompt_input_exit')
+      void gracefulShutdown(0, 'quit')
     },
     undefined,
     EXIT_CHORD_WINDOW_MS,

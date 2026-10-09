@@ -159,14 +159,14 @@ async function main(): Promise<void> {
     const engine = src('src/rows/turn.ts')
     const settledAt = engine.indexOf("const settled = endedOnApiError ? { status: 'failed' as const, errorClass: 'model' as const } : statusOfTerminal(terminal, cut)")
     const gateAt = engine.indexOf("if (settled.status === 'completed') {", settledAt)
-    const completedAt = engine.indexOf("closeTurn('completed'", gateAt)
+    const completedAt = engine.indexOf("endTurn('completed'", gateAt)
     const { exitCodeOf, OUTCOME_STATUSES } = await import('../../src/rows/vocabulary.ts')
     check(
       'BM-14: the outcome derives from ONE typed settlement (no unguarded completed yield) and the exit code from the status alone',
       settledAt > 0 &&
         gateAt > settledAt &&
         completedAt > gateAt &&
-        engine.lastIndexOf("closeTurn('completed'") === completedAt &&
+        engine.lastIndexOf("endTurn('completed'") === completedAt &&
         exitCodeOf('completed') === 0 &&
         OUTCOME_STATUSES.filter(status => status !== 'completed').every(status => exitCodeOf(status) === 1),
       `settled=${settledAt} gate=${gateAt} completed=${completedAt}`,
@@ -363,8 +363,8 @@ async function main(): Promise<void> {
     const bare = mkdtempSync(join(tmpdir(), 'speedster-wk-'))
     const first = w.preflightWorktreeCapability(bare)
     check(
-      'WK-01/02/03: a non-git hookless dir preflights UNAVAILABLE with the exact prerequisite (typed, before any allocation)',
-      first.available === false && first.prerequisite === 'git-repository-or-worktree-create-hook',
+      'WK-01/02/03: a non-git dir preflights UNAVAILABLE with the exact prerequisite (typed, before any allocation)',
+      first.available === false && first.prerequisite === 'git-repository',
     )
     check('WK-06/07: the receipt names the cwd + the mechanical retry (strip isolation / move to the repo)', first.detail.includes(bare) && first.detail.includes('WITHOUT the isolation parameter'))
     const second = w.preflightWorktreeCapability(bare)

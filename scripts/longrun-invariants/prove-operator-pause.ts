@@ -64,7 +64,7 @@ console.log('\n=== B. the pause settles BEFORE completion evaluation ===')
 {
   const ok = await import('../../src/services/run/ownerKey.js')
   const coord = await import('../../src/services/run/runCoordinator.js')
-  const { evaluateStopAttempt } = await import('../../src/utils/hooks/runStopAdapter.js')
+  const { evaluateStopAttempt } = await import('../../src/guards/runStopAdapter.js')
   type Message = import('../../src/types/message.js').Message
 
   const owner = ok.makeOwnerKey({ workspace: '/tmp/vigil-pause', sessionId: 'vp1', lane: 'main' })

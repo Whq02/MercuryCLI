@@ -7,7 +7,7 @@ import {
 } from '../../utils/forkedAgent.js'
 import { logError } from '../../utils/log.js'
 import { createUserMessage } from '../../utils/messages.js'
-import type { ChatHookContext } from '../../utils/hooks/postSamplingHooks.js'
+import type { TurnAnswerContext } from '../../query/turnAnswerContext.js'
 import { currentLimits } from '../anthropicLimits.js'
 import type { AppState } from '../../state/AppState.js'
 import { isSpeculationEnabled, startSpeculation } from './speculation.js'
@@ -328,7 +328,7 @@ function isAbortShapedError(error: unknown): boolean {
   )
 }
 
-export async function executePromptSuggestion(context: ChatHookContext): Promise<void> {
+export async function executePromptSuggestion(context: TurnAnswerContext): Promise<void> {
   if (context.querySource === undefined || !context.querySource.startsWith('main_thread')) {
     return
   }

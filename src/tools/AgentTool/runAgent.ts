@@ -1,5 +1,6 @@
 
-import { getProjectRoot } from '../../bootstrap/state.js'
+import { getProjectRoot, getSessionId } from '../../bootstrap/state.js'
+import { getCwd } from '../../utils/cwd.js'
 import { ASK_ADVISOR_TOOL_NAME } from '../AskAdvisorTool/constants.js'
 import { COMPUTER_TOOL_NAME } from '../../services/desktop/toolName.js'
 import { getSkillToolCommands } from '../../commands.js'
@@ -30,9 +31,9 @@ import { endEngineSessionFor } from '../../utils/shell/engineSession.js'
 import { INSTRUCTIONS_CONTEXT_KEY } from '../../utils/userContextReminder.js'
 import { disposeBrowserOwner } from '../../services/browser/browserSession.js'
 import { processOwnerForLane } from '../../services/run/resolveOwner.js'
-import type { Message } from '../../types/message.js'
+import type { AssistantMessage, Message } from '../../types/message.js'
 import type { AgentId } from '../../types/ids.js'
-import type { Tool, Tools, ToolUseContext } from '../../Tool.js'
+import { readToolCallChain, type Tool, type Tools, type ToolUseContext } from '../../Tool.js'
 import { McpServerConfigSchema, type MCPServerConnection } from '../../services/mcp/types.js'
 import { generateTaskId } from '../../Task.js'
 import { getUserContext, getSystemContext, isInstructionDiscoveryDisabled } from '../../context.js'
@@ -44,9 +45,17 @@ import {
   createFileStateCacheWithSizeLimit,
   READ_FILE_STATE_CACHE_SIZE,
 } from '../../utils/fileStateCache.js'
-import { clearSessionHooks } from '../../utils/hooks/sessionHooks.js'
-import { registerFrontmatterHooks } from '../../utils/hooks/registerFrontmatterHooks.js'
-import { executeSubagentStartHooks } from '../../utils/hooks.js'
+import { removeSessionHooks } from '../../utils/hooks/sessionHooks.js'
+import { registerAgentHooks } from '../../utils/hooks/registerFrontmatterHooks.js'
+import { fireHooks } from '../../utils/hooks/fire.js'
+import { HOOK_CUT_BUDGET_MS } from '../../utils/hooks/contract.js'
+import { hookRowsOfResult } from '../../utils/hooks/rows.js'
+import { createAttachmentMessage } from '../../utils/attachments.js'
+import { EMPTY_USAGE } from '../../services/api/emptyUsage.js'
+import { accumulateUsage, updateUsage } from '../../services/providers/anthropic/cacheAndUsage.js'
+import { usageOf, type OutcomeStatus } from '../../rows/vocabulary.js'
+import { turnCutOf } from '../../utils/messages/rejectionText.js'
+import { agentStopReasonOf } from '../../tasks/LocalAgentTask/LocalAgentTask.js'
 import { logForDebugging } from '../../utils/debug.js'
 import {
   getSchemaBoundStructuredOutputTool,
@@ -70,7 +79,7 @@ import { heldBusyRetryNotice } from '../../services/providers/busyRetry.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { createChildAbortController } from '../../utils/abortController.js'
 import { AbortError, errorMessage } from '../../utils/errors.js'
-import { createUserMessage } from '../../utils/messages.js'
+import { createUserMessage, extractTextContent } from '../../utils/messages.js'
 import { isCompactBoundaryMessage } from '../../utils/messages/systemMessages.js'
 import { refusalRetryRowOf } from './refusalRetry.js'
 import { getAgentModel } from '../../utils/model/agent.js'
@@ -724,6 +733,45 @@ export async function* runAgent(
     tools: [] as Tool[],
     cleanup: async () => {},
   }
+  const hookScope = { sessionId: String(getSessionId()), crewmateId: agentId }
+  const crewmateRun = { usage: { ...EMPTY_USAGE }, steps: 0, answer: undefined as string | undefined, endedBy: 'completed' as OutcomeStatus, reason: undefined as string | undefined }
+  const fireCrewmateEnd = async (): Promise<void> => {
+    const aborted = abortController.signal.aborted
+    const status: OutcomeStatus = aborted && crewmateRun.endedBy === 'completed' ? 'interrupted' : crewmateRun.endedBy
+    const cut = aborted ? turnCutOf(abortController.signal.reason) : null
+    const usage = usageOf(crewmateRun.usage)
+    const wallMs = Date.now() - startedAt
+    try {
+      await fireHooks(
+        'turn.end',
+        {
+          turn_id: readToolCallChain(childContextRef.current)?.key ?? agentId,
+          status,
+          ...(crewmateRun.reason !== undefined && status === 'failed' ? { error: { message: crewmateRun.reason, class: 'internal' } } : {}),
+          ...(cut !== null ? { cut: { reason: cut.kind, ...(cut.detail !== undefined ? { detail: cut.detail } : {}), tools: [] } } : {}),
+          steps: crewmateRun.steps,
+          wall_ms: wallMs,
+          usage,
+          ...(crewmateRun.answer !== undefined ? { answer: crewmateRun.answer } : {}),
+        },
+        { scope: hookScope, toolUseContext: childContextRef.current ?? toolUseContext, crewmateType: agentDefinition.agentType, ...(cut !== null ? { budgetMs: HOOK_CUT_BUDGET_MS } : {}) },
+      )
+      await fireHooks(
+        'crewmate.end',
+        {
+          ...(name !== undefined ? { name } : {}),
+          status: status === 'failed' ? 'failed' : aborted ? 'stopped' : 'finished',
+          ...(crewmateRun.reason !== undefined ? { reason: crewmateRun.reason } : aborted ? { reason: agentStopReasonOf(abortController.signal.reason) ?? 'stopped' } : {}),
+          crewmate_transcript_path: getAgentTranscriptPath(agentId),
+          usage,
+        },
+        { scope: { sessionId: hookScope.sessionId }, toolUseContext, crewmateType: agentDefinition.agentType },
+      )
+    } catch (error) {
+      logForDebugging(`runAgent: the end-of-crewmate hooks failed: ${errorMessage(error)}`)
+    }
+  }
+  const childContextRef: { current: ToolUseContext | undefined } = { current: undefined }
 
   try {
     let userContext = override?.userContext ?? (await getUserContext())
@@ -825,21 +873,15 @@ export async function* runAgent(
 
     const hookContextMessages: Message[] = []
     try {
-      for await (const hookResult of executeSubagentStartHooks(
-        agentId,
-        agentDefinition.agentType,
-        abortController.signal,
-      )) {
-        for (const extra of hookResult.additionalContexts ?? []) {
-          hookContextMessages.push(
-            createUserMessage({ content: extra, isMeta: true }),
-          )
-        }
-      }
-    } catch (error) {
-      logForDebugging(
-        `runAgent: subagent-start hooks failed: ${errorMessage(error)}`,
+      const started = await fireHooks(
+        'crewmate.start',
+        { ...(name !== undefined ? { name } : {}), prompt: promptMessages.map(message => (message.type === 'user' || message.type === 'assistant' ? extractTextContent(message.message.content as never, '\n') : '')).filter(Boolean).join('\n'), model: resolvedAgentModel, directory: cwd ?? getCwd() },
+        { scope: hookScope, signal: abortController.signal, toolUseContext, crewmateType: agentDefinition.agentType },
       )
+      for (const row of hookRowsOfResult(started)) hookContextMessages.push(createAttachmentMessage(row) as Message)
+      for (const context of started.answer.contexts) hookContextMessages.push(createUserMessage({ content: context, isMeta: true }))
+    } catch (error) {
+      logForDebugging(`runAgent: the crewmate.start hooks failed: ${errorMessage(error)}`)
     }
 
     if (
@@ -847,13 +889,7 @@ export async function* runAgent(
       (!isRestrictedToExtensionsOnly('hooks') ||
         isSourceAdminTrusted(agentDefinition.source))
     ) {
-      registerFrontmatterHooks(
-        rootSetAppState,
-        agentId,
-        agentDefinition.hooks,
-        `agent:${agentDefinition.agentType}`,
-        true,
-      )
+      registerAgentHooks(rootSetAppState, hookScope, agentDefinition.hooks, agentDefinition.agentType)
     }
 
     const skillMessages = await preloadSkills(agentDefinition, toolUseContext)
@@ -959,6 +995,7 @@ export async function* runAgent(
         : {}),
       ...(contentReplacementState ? { contentReplacementState } : {}),
     })
+    childContextRef.current = childContext
     childContext.agentKind = agentKind
     childContext.seatHolder = seatHolder ?? description ?? agentDefinition.agentType
     if (onWait !== undefined) childContext.onSeatWait = onWait
@@ -1125,6 +1162,7 @@ export async function* runAgent(
           logForDebugging(
             `runAgent: ${agentId} hit its max-turns limit — stopping`,
           )
+          crewmateRun.endedBy = 'turn_limit'
           stoppedEarly = true
           yield message as Message
           break
@@ -1136,6 +1174,7 @@ export async function* runAgent(
           logForDebugging(
             `runAgent: ${agentId} was ended by the loop guard — stopping`,
           )
+          crewmateRun.endedBy = 'loop_stopped'
           stoppedEarly = true
           yield message as Message
           break
@@ -1160,7 +1199,12 @@ export async function* runAgent(
       if (anyMessage.type !== 'progress') {
         lastRecordedUuid = (message as { uuid?: string }).uuid
         streamedRows.push(message as Message)
-        if (anyMessage.type === 'assistant') lastAssistantRow = message as Message
+        if (anyMessage.type === 'assistant') {
+          lastAssistantRow = message as Message
+          crewmateRun.steps += 1
+          crewmateRun.usage = accumulateUsage(crewmateRun.usage, updateUsage(EMPTY_USAGE, (message as AssistantMessage).message.usage))
+          crewmateRun.answer = extractTextContent((message as AssistantMessage).message.content, '\n').trim() || crewmateRun.answer
+        }
       }
       yield message as Message
     }
@@ -1197,12 +1241,14 @@ export async function* runAgent(
       void agentDefinition.callback()
     }
   } catch (error) {
-    if (watchdog.fired && !(error instanceof DeadlineExceededError)) {
-      throw stalledError()
+    const thrown = watchdog.fired && !(error instanceof DeadlineExceededError) ? stalledError() : throttled !== null && error !== throttled ? throttled : error
+    if (!(thrown instanceof AbortError) && !abortController.signal.aborted) {
+      crewmateRun.endedBy = 'failed'
+      crewmateRun.reason = errorMessage(thrown)
     }
-    if (throttled !== null && error !== throttled) throw throttled
-    throw error
+    throw thrown
   } finally {
+    await fireCrewmateEnd()
     watchdog.cancel()
     accountant.end()
     if (askHeartbeat !== null) {
@@ -1218,7 +1264,7 @@ export async function* runAgent(
       executorClaims.delete(agentId)
       forgetAgentEffortWord(agentId)
       if (agentDefinition.hooks) {
-        clearSessionHooks(rootSetAppState, agentId)
+        removeSessionHooks(rootSetAppState, hookScope)
       }
       clearAgentTranscriptSubdir(agentId)
       killShellTasksForAgent(

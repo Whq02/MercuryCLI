@@ -96,7 +96,8 @@ export const EnterWorktreeTool = buildTool({
     const branchNote = session.worktreeBranch
       ? ` on branch ${session.worktreeBranch}`
       : ''
-    const message = `Created worktree ${session.worktreePath}${branchNote}. The session is now working in the worktree. Leave it mid-session with the exit tool, or you will be prompted on session exit.`
+    const prepareNote = session.prepareFailure !== undefined ? ` ${session.prepareFailure}; the worktree is used anyway.` : ''
+    const message = `Created worktree ${session.worktreePath}${branchNote}.${prepareNote} The session is now working in the worktree. Leave it mid-session with the exit tool, or you will be prompted on session exit.`
     return {
       data: {
         worktreePath: session.worktreePath,

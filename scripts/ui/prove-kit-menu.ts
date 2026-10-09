@@ -257,8 +257,8 @@ t.section("§7 — THE ENUMERATION: the rows are the doors' own spellings (C3)")
 {
   const { MCP_SKILLS_NOTE, contributesWords, enumerateKitCatalogue } = await import('../../src/services/kitMenu/kitCatalogue.js')
   const manifest = (name: string, contributes: Record<string, unknown>) => ({ name, version: '1.0.0', description: 'x', contributes }) as never
-  const orchard = manifest('orchard-tools', { skills: ['prune', 'graft'], servers: { db: { command: 'x' } }, commands: ['tidy'], hooks: { PreToolUse: [{ hooks: [{ type: 'command', command: 'x' }] }] } })
-  const quiet = manifest('quiet-hooks', { commands: ['lint'], hooks: { PreToolUse: [{ hooks: [{ type: 'command', command: 'x' }] }] } })
+  const orchard = manifest('orchard-tools', { skills: ['prune', 'graft'], servers: { db: { command: 'x' } }, commands: ['tidy'], hooks: { 'tool.before': [{ name: 'x', run: 'x' }] } })
+  const quiet = manifest('quiet-hooks', { commands: ['lint'], hooks: { 'tool.before': [{ name: 'x', run: 'x' }] } })
   const prompt = (name: string, extra: Record<string, unknown>) => ({ type: 'prompt', name, description: 'd', ...extra }) as never
   const doors = {
     mcpConfigs: async () => ({

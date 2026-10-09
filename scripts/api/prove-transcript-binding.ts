@@ -241,9 +241,10 @@ section("§4b the prefix's own movers — the fingerprint source, the persisted 
   const { isTranscribable } = await import('../../src/utils/sessionStorage/chain.ts')
   check('an attachment row persists (a resumed request replays the turns it once sent)', isTranscribable(attachmentRow({ type: 'mcp_instructions_delta', addedNames: ['x'], addedBlocks: ['## x\nhi'], removedNames: [] }) as never) === true)
   check('a progress row still does not persist', isTranscribable({ type: 'progress', data: { type: 'hook_progress' } } as never) === false)
-  check('a quiet hook success (renders nothing) stays out', isTranscribable(attachmentRow({ type: 'hook_success', hookName: 'h', hookEvent: 'UserPromptSubmit', content: '' }) as never) === false)
-  check('hook additional context WITH content persists (the request renders it)', isTranscribable(attachmentRow({ type: 'hook_additional_context', hookName: 'h', content: ['ctx'] }) as never) === true)
-  check("a hook's failure report persists though the model never reads it (the operator's record)", isTranscribable(attachmentRow({ type: 'hook_non_blocking_error', hookName: 'h', hookEvent: 'UserPromptSubmit', stderr: 'x' }) as never) === true)
+  check("a hook's plain text on an event the model does not read stays out", isTranscribable(attachmentRow({ type: 'hook', outcome: 'text', event: 'tool.after', name: 'h', words: 'plain' }) as never) === false)
+  check('a hook context row persists (the request renders it)', isTranscribable(attachmentRow({ type: 'hook', outcome: 'context', event: 'turn.start', name: 'h', words: 'ctx' }) as never) === true)
+  check("a hook's failed row persists though the model never reads it (the operator's record)", isTranscribable(attachmentRow({ type: 'hook', outcome: 'failed', event: 'turn.start', name: 'h', words: 'x' }) as never) === true)
+  check("a hook's block, stop and notice rows persist", (['block', 'stop', 'notice'] as const).every(outcome => isTranscribable(attachmentRow({ type: 'hook', outcome, event: 'turn.answer', name: 'h', words: 'x' }) as never) === true))
   check('a UI-only signal (context_efficiency) stays out', isTranscribable(attachmentRow({ type: 'context_efficiency' }) as never) === false)
   check('the user_context row persists (the request renders its body)', isTranscribable(attachmentRow({ type: 'user_context', body: REMINDER }) as never) === true)
 

@@ -9,7 +9,7 @@ import {
 } from '../../src/utils/projectConfig.js'
 import { projectLocalPath } from '../../src/services/projectLocal/paths.js'
 import { getProjectDirsUpToHome } from '../../src/utils/markdownConfigLoader.js'
-import { loadProjectWards } from '../../src/utils/hooks/wardsHook.js'
+import { loadProjectWards } from '../../src/guards/wardsGuard.js'
 
 let failures = 0
 const check = (cond: boolean, msg: string): void => {

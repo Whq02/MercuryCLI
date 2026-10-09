@@ -97,7 +97,7 @@ export function UserToolSuccessMessage({
       <RowErrorBoundary>{rendered ?? null}</RowErrorBoundary>
       <RowErrorBoundary>
         <HookProgressMessage
-          hookEvent="PostToolUse"
+          hookEvent="tool.after"
           toolUseID={toolUseID}
           lookups={lookups}
           isTranscriptMode={isTranscriptMode}

@@ -38,6 +38,10 @@ const { INTERRUPT_MESSAGE, INTERRUPT_MESSAGE_FOR_TOOL_USE } = await import(
 const qm = await import('../../src/utils/messageQueueManager.ts')
 const lifecycle = await import('../../src/utils/commandLifecycle.ts')
 const sessionHooks = await import('../../src/utils/hooks/sessionHooks.ts')
+const guards = await import('../../src/guards/guards.ts')
+const rigHooks = (setAppState: unknown, map: Record<string, unknown>): void => {
+  sessionHooks.addSessionHooks(setAppState as never, { sessionId: String(bootstrap.getSessionId()) }, map as never, { kind: 'agent', type: 'rig' })
+}
 const effort = await import('../../src/utils/effort.ts')
 const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
 
@@ -1064,22 +1068,18 @@ section('L14 STOP-HOOK BLOCKING — the block re-prompts, the loop continues')
   const r = record(
     await run({
       beforeRun: rig => {
-        sessionHooks.addFunctionHook(
-          rig.setAppState as never,
-          bootstrap.getSessionId(),
-          'Stop',
-          '',
-          async () => (blocks++ === 0 ? false : true),
-          'RIG-KEEP-WORKING: not done yet',
-          { id: 'rig-stop-block' },
-        )
+        guards.engageTurnGuard(String(bootstrap.getSessionId()), {
+          id: 'rig-stop-block',
+          judge: async () => (blocks++ === 0 ? { hold: true, words: 'RIG-KEEP-WORKING: not done yet' } : { hold: false }),
+        })
       },
       script: [[y(asstText('first answer'))], [y(asstText('second answer'))]],
     }),
   )
-  check('terminal completed after the hook passes', r.terminal.reason === 'completed', JSON.stringify(r.terminal))
-  check('two model calls (stop_hook_blocking continued the loop)', r.calls.length === 2, String(r.calls.length))
-  check('the hook ran twice (block, then pass)', blocks === 2, String(blocks))
+  guards.disengageTurnGuard(String(bootstrap.getSessionId()), 'rig-stop-block')
+  check('terminal completed after the guard lets go', r.terminal.reason === 'completed', JSON.stringify(r.terminal))
+  check('two model calls (the hold continued the loop)', r.calls.length === 2, String(r.calls.length))
+  check('the guard judged twice (hold, then pass)', blocks === 2, String(blocks))
   const blockYields = userTextMessages(r.yields).filter(t => t.includes('RIG-KEEP-WORKING'))
   check('the blocking re-prompt is yielded exactly once', blockYields.length === 1, String(blockYields.length))
   const call2Block = userTextMessages(r.calls[1]!.messages).filter(t =>
@@ -1093,16 +1093,7 @@ section('L15 STOP-HOOK PREVENTED — continue:false halts the turn')
   const r = record(
     await run({
       beforeRun: rig => {
-        sessionHooks.addSessionHook(
-          rig.setAppState as never,
-          bootstrap.getSessionId(),
-          'Stop',
-          '',
-          {
-            type: 'command',
-            command: `echo '{"continue": false, "stopReason": "rig halt"}'`,
-          } as never,
-        )
+        rigHooks(rig.setAppState, { 'turn.answer': [{ name: 'rig halt', run: `echo '{"stop": "rig halt"}'` }] })
       },
       script: [[y(asstText('answer'))]],
     }),
@@ -1110,11 +1101,11 @@ section('L15 STOP-HOOK PREVENTED — continue:false halts the turn')
   check('terminal stop_hook_prevented', r.terminal.reason === 'stop_hook_prevented', JSON.stringify(r.terminal))
   check('one model call only', r.calls.length === 1, String(r.calls.length))
   check(
-    'the hook_stopped_continuation attachment is yielded',
-    r.yields.some(
-      m =>
-        ((m as AnyMsg).attachment as AnyMsg | undefined)?.type === 'hook_stopped_continuation',
-    ),
+    'the hook stop row is yielded with its words',
+    r.yields.some(m => {
+      const att = (m as AnyMsg).attachment as AnyMsg | undefined
+      return att?.type === 'hook' && att.outcome === 'stop' && att.words === 'rig halt'
+    }),
   )
 }
 
@@ -1124,18 +1115,13 @@ section('L16 API-ERROR SKIPS HOOKS — the death-spiral guard')
   const r = record(
     await run({
       beforeRun: rig => {
-        sessionHooks.addFunctionHook(
-          rig.setAppState as never,
-          bootstrap.getSessionId(),
-          'Stop',
-          '',
-          async () => {
+        guards.engageTurnGuard(String(bootstrap.getSessionId()), {
+          id: 'rig-stop-apierr',
+          judge: async () => {
             hookRan++
-            return false
+            return { hold: true, words: 'RIG-SHOULD-NEVER-FIRE' }
           },
-          'RIG-SHOULD-NEVER-FIRE',
-          { id: 'rig-stop-apierr' },
-        )
+        })
       },
       script: [
         [y(createAssistantAPIErrorMessage({ content: 'API Error: 500 upstream' }))],
@@ -1143,7 +1129,8 @@ section('L16 API-ERROR SKIPS HOOKS — the death-spiral guard')
     }),
   )
   check('terminal completed (error surfaced, turn over)', r.terminal.reason === 'completed', JSON.stringify(r.terminal))
-  check('stop hooks were SKIPPED on the API-error turn', hookRan === 0, String(hookRan))
+  guards.disengageTurnGuard(String(bootstrap.getSessionId()), 'rig-stop-apierr')
+  check('the turn-end judges were SKIPPED on the API-error turn', hookRan === 0, String(hookRan))
   check('one model call — no blocking retry spiral', r.calls.length === 1)
   check(
     'the API error itself was yielded (not withheld)',
@@ -1171,21 +1158,12 @@ section('L16 API-ERROR SKIPS HOOKS — the death-spiral guard')
   check('the 413 turn makes exactly one model call', r413.calls.length === 1)
 }
 
-section('L17 HOOK_STOPPED — PreToolUse continue:false stops after the tool settles')
+section('L17 HOOK_STOPPED — a tool.before stop ends the run after the tool settles')
 {
   const r = record(
     await run({
       beforeRun: rig => {
-        sessionHooks.addSessionHook(
-          rig.setAppState as never,
-          bootstrap.getSessionId(),
-          'PreToolUse',
-          'EchoTool',
-          {
-            type: 'command',
-            command: `echo '{"continue": false, "stopReason": "rig tool halt"}'`,
-          } as never,
-        )
+        rigHooks(rig.setAppState, { 'tool.before': [{ name: 'rig tool halt', match: 'EchoTool', run: `echo '{"stop": "rig tool halt"}'` }] })
       },
       script: [[y(asstToolUse('tu_hs', 'EchoTool', { text: 'x' }))]],
     }),
@@ -1195,11 +1173,11 @@ section('L17 HOOK_STOPPED — PreToolUse continue:false stops after the tool set
   const paired = toolResultBlocks(r.yields).filter(b => b.tool_use_id === 'tu_hs')
   check('the tool still executed and its result settled (pairing law)', paired.length === 1, JSON.stringify(paired))
   check(
-    'the hook_stopped_continuation attachment is yielded',
-    r.yields.some(
-      m =>
-        ((m as AnyMsg).attachment as AnyMsg | undefined)?.type === 'hook_stopped_continuation',
-    ),
+    'the hook stop row is yielded with its words',
+    r.yields.some(m => {
+      const att = (m as AnyMsg).attachment as AnyMsg | undefined
+      return att?.type === 'hook' && att.outcome === 'stop' && att.words === 'rig tool halt'
+    }),
   )
 }
 

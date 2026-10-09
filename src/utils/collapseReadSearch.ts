@@ -24,8 +24,6 @@ import type {
   NormalizedAssistantMessage,
   NormalizedUserMessage,
   RenderableMessage,
-  StopHookInfo,
-  SystemStopHookSummaryMessage,
 } from '../types/message.js'
 import type { ToolUseBlock } from '../types/wire.js'
 import { getDisplayPath } from './file.js'
@@ -194,9 +192,6 @@ type OpenGroup = {
   pushes: Array<{ branch: string }>
   branches: Array<{ ref: string; action: BranchAction }>
   prs: Array<{ number: number; url?: string; action: PrAction }>
-  hookTotalMs: number
-  hookCount: number
-  hookInfos: StopHookInfo[]
   relevantMemories: Array<{ path: string; content: string; mtimeMs: number }>
   deferred: RenderableMessage[]
   deferredStatusToolUseIds: Set<string>
@@ -224,9 +219,6 @@ function emptyGroup(): OpenGroup {
     pushes: [],
     branches: [],
     prs: [],
-    hookTotalMs: 0,
-    hookCount: 0,
-    hookInfos: [],
     relevantMemories: [],
     deferred: [],
     deferredStatusToolUseIds: new Set(),
@@ -371,11 +363,6 @@ function buildCollapsedRow(group: OpenGroup): CollapsedReadSearchGroup {
     if (group.branches.length > 0) row.branches = group.branches
     if (group.prs.length > 0) row.prs = group.prs
   }
-  if (group.hookCount > 0) {
-    row.hookTotalMs = group.hookTotalMs
-    row.hookCount = group.hookCount
-    row.hookInfos = group.hookInfos
-  }
   if (group.relevantMemories.length > 0) {
     row.relevantMemories = group.relevantMemories
   }
@@ -433,14 +420,6 @@ function scanForGitOperations(group: OpenGroup, message: NormalizedUserMessage):
   }
 }
 
-function absorbHookSummary(group: OpenGroup, message: SystemStopHookSummaryMessage): void {
-  group.hookCount += message.hookCount
-  const duration =
-    message.totalDurationMs ??
-    message.hookInfos.reduce((total, info) => total + (info.durationMs ?? 0), 0)
-  group.hookTotalMs += duration
-  group.hookInfos.push(...message.hookInfos)
-}
 
 export function collapseReadSearchGroups(
   messages: RenderableMessage[],
@@ -514,16 +493,6 @@ export function collapseReadSearchGroups(
       }
       flush()
       out.push(message)
-      continue
-    }
-
-    if (
-      message.type === 'system' &&
-      message.subtype === 'stop_hook_summary' &&
-      message.hookLabel === 'PreToolUse' &&
-      groupOpen()
-    ) {
-      absorbHookSummary(group, message)
       continue
     }
 

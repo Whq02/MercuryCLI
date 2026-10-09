@@ -117,7 +117,7 @@ section('§6 the invocation contract resolves ONCE and threads to the decision')
   check('sdk ⇒ client-led', t({ interactive: false, missionArmed: false, querySource: 'sdk' }).terminalPolicy === 'client-led')
   check('agent lanes ⇒ worker one-shot', JSON.stringify(t({ interactive: false, missionArmed: false, querySource: 'agent:7' })) === JSON.stringify({ surface: 'worker', terminalPolicy: 'one-shot' }))
 
-  const adapter = src('src/utils/hooks/runStopAdapter.ts')
+  const adapter = src('src/guards/runStopAdapter.ts')
   check('the adapter resolves the contract at the evaluation seam', adapter.includes('resolveInvocationContract({'))
   check('…and threads surface + terminalPolicy into evaluateStop', adapter.includes('surface: contract.surface') && adapter.includes('terminalPolicy: contract.terminalPolicy'))
   check("the adapter records a continue decision as the stop-decision it is, the evaluator's reason as given, no admission receipt and no continuation claim", adapter.includes("type: 'stop-decision'") && /decision\.kind === 'continue'\s*\?\s*decision\.reason/.test(adapter) && !adapter.includes("type: 'continuation'") && !adapter.includes('admission'))
@@ -131,18 +131,10 @@ section('§7 one continuation per attempt across families; wording demoted; drai
 {
   const latch = await import('../../src/services/run/continuationLatch.ts')
   latch._resetContinuationLatchesForTesting()
-  const mission = await import('../../src/utils/hooks/missionHook.ts')
-  type AppStateish = { sessionHooks: Map<string, unknown> }
-  const state: AppStateish = { sessionHooks: new Map() }
-  const setAppState = (updater: (prev: AppStateish) => AppStateish): void => {
-    const next = updater(state)
-    state.sessionHooks = next.sessionHooks
-  }
-  mission.setActiveMission(setAppState as never, 'a mission that is not yet met', { sessionId: 'latch-arb' })
-  type StopCb = (m: unknown[]) => boolean | Promise<boolean>
-  type HookStore = { hooks: Record<string, Array<{ hooks: Array<{ hook: { callback: StopCb } }> }>> }
-  const hooks = (state.sessionHooks.get('latch-arb') as HookStore | undefined)?.hooks['Stop'] ?? []
-  const cb = hooks[0]?.hooks[0]?.hook.callback
+  const mission = await import('../../src/guards/mission.ts')
+  const { judgeTurnEnd } = await import('../../src/guards/guards.ts')
+  mission.setActiveMission('a mission that is not yet met', { sessionId: 'latch-arb' })
+  const cb = async (messages: unknown[]): Promise<boolean> => (await judgeTurnEnd('latch-arb', { messages: messages as never })).length === 0
   const transcript = [
     { type: 'user', message: { content: 'go' } },
     { type: 'assistant', message: { content: [{ type: 'text', text: 'working' }] } },

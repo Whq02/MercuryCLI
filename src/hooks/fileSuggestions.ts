@@ -11,8 +11,11 @@ import { getCwd } from '../utils/cwd.js'
 import { getInitialSettings } from '../utils/settings/settings.js'
 import { getMercuryHome } from '../utils/envUtils.js'
 import { logForDebugging } from '../utils/debug.js'
-import { createBaseHookInput } from '../utils/hooks/execution.js'
-import { executeFileSuggestionCommand } from '../utils/hooks/events.js'
+import type { FileSuggestionCommandInput } from '../types/fileSuggestion.js'
+import { startCommandHook } from '../utils/hooks/commandRunner.js'
+import { getSessionId } from '../bootstrap/state.js'
+import { getTranscriptPathForSession } from '../utils/sessionStorage/paths.js'
+import { hooksDisabled } from '../utils/hooks/hooksConfigSnapshot.js'
 import type { SuggestionItem } from '../components/PromptInput/PromptInputFooterSuggestions.js'
 
 const RESULT_CAP = 15
@@ -403,6 +406,23 @@ function topLevelListing(): SuggestionItem[] {
   return out
 }
 
+const FILE_SUGGESTER_TIMEOUT_MS = 5000
+
+export async function fileSuggestionsFromCommand(command: string, query: string): Promise<string[]> {
+  if (hooksDisabled()) return []
+  const sessionId = String(getSessionId())
+  const payload: FileSuggestionCommandInput = { session_id: sessionId, transcript_path: getTranscriptPathForSession(sessionId), cwd: getCwd(), query }
+  try {
+    const process = await startCommandHook({ command, shell: 'bash', name: 'files.suggester', event: 'files.suggester', index: 0, payloadJson: JSON.stringify(payload), timeoutMs: FILE_SUGGESTER_TIMEOUT_MS, source: { kind: 'settings' } })
+    const end = await process.result
+    if (end.kind !== 'exited' || end.code !== 0) return []
+    return end.stdout.split('\n').map(line => line.trim()).filter(Boolean)
+  } catch (error) {
+    logForDebugging(`files.suggester failed: ${error instanceof Error ? error.message : String(error)}`, { level: 'error' })
+    return []
+  }
+}
+
 export async function generateFileSuggestions(
   partialPath: string,
   showOnEmpty = false,
@@ -412,10 +432,7 @@ export async function generateFileSuggestions(
 
     const custom = getInitialSettings().files?.suggester
     if (custom?.type === 'command') {
-      const paths = await executeFileSuggestionCommand({
-        ...createBaseHookInput(),
-        query: partialPath,
-      })
+      const paths = await fileSuggestionsFromCommand(custom.command, partialPath)
       return paths
         .slice(0, RESULT_CAP)
         .map(path => ({ id: `file-${path}`, displayText: path }))

@@ -372,14 +372,6 @@ export function CollapsedReadSearchContent({
           <Text dimColor>Expanded group ({flat.length} {plural(flat.length, 'call')})</Text>
         </Text>
         {blocks}
-        {(message.hookCount ?? 0) > 0 ? (
-          <MessageResponse height={1}>
-            <Text dimColor>
-              Ran {message.hookCount} PreToolUse {plural(message.hookCount ?? 0, 'hook')}
-              {message.hookTotalMs ? ` in ${formatDuration(message.hookTotalMs)}` : ''}
-            </Text>
-          </MessageResponse>
-        ) : null}
         {(message.relevantMemories ?? []).map(memory => (
           <Box key={memory.path} flexDirection="column" paddingLeft={2}>
             <Text dimColor>{toTildePath(memory.path)}</Text>
@@ -486,15 +478,6 @@ export function CollapsedReadSearchContent({
       {movedByOperator ? (
         <MessageResponse height={1}>
           <Text dimColor>{BACKGROUND_MOVED_WORDS}</Text>
-        </MessageResponse>
-      ) : null}
-      {!verbose && (message.hookCount ?? 0) > 0 ? (
-        <MessageResponse height={1}>
-          <Text dimColor>
-            Ran {message.hookCount} PreToolUse{' '}
-            {plural(message.hookCount ?? 0, 'hook')}
-            {message.hookTotalMs ? ` in ${formatDuration(message.hookTotalMs)}` : ''}
-          </Text>
         </MessageResponse>
       ) : null}
     </Box>

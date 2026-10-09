@@ -21,8 +21,8 @@ has src/utils/model/modelAllowlist.ts 'CONTEXT_SUFFIX_RE' 'modelAllowlist strips
 res=$("$bun" -e "const f=(s)=>s.replace(/\[\d+m\]\$/,''); console.log(f('claude-opus-4-8[1m]')==='claude-opus-4-8' && f('opus[2m]')==='opus' && f('opus')==='opus' ? 'OK':'BAD');" 2>&1 | tail -1)
 [ "$res" = "OK" ] && ok "normalizer: [1m]/[2m] dropped, bare id unchanged" || no "normalizer wrong: $res"
 
-has src/utils/hooks/forcedReadHook.ts 'forcedReadEngagedSessions.has(sessionId)' 'forcedReadHook engage guard is session-keyed'
-if grep -qE 'let forcedReadEngaged = false' "$root/src/utils/hooks/forcedReadHook.ts"; then no 'forcedReadHook still has the process-global boolean'; else ok 'forcedReadHook process-global boolean is gone'; fi
+has src/guards/forcedRead.ts 'forcedReadEngagedSessions.has(sessionId)' 'forcedReadHook engage guard is session-keyed'
+if grep -qE 'let forcedReadEngaged = false' "$root/src/guards/forcedRead.ts"; then no 'forcedReadHook still has the process-global boolean'; else ok 'forcedReadHook process-global boolean is gone'; fi
 
 not_has() { if grep -qF "$2" "$1"; then echo "  ✗ $3 (found in $1)"; fail=1; else echo "  ✓ $3"; fi; }
 

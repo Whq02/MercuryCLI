@@ -14,7 +14,7 @@ section('§1 THE BLOCKED BRANCH')
 {
   const pui = src('src/utils/processUserInput/processUserInput.ts')
   check('the result type declares hookBlocked', /hookBlocked\?: true/.test(pui))
-  const branch = pui.slice(pui.indexOf('if (result.blockingError)'), pui.indexOf('if (result.preventContinuation)'))
+  const branch = pui.slice(pui.indexOf('if (started.answer.block !== undefined)'), pui.indexOf('if (started.answer.stop !== undefined)'))
   check('the blocking branch MARKS the result (call-shaped)', /hookBlocked: true/.test(branch), branch.slice(0, 100).replace(/\s+/g, ' '))
   check('and carries the reason as resultText', /resultText/.test(branch))
 }
@@ -24,7 +24,7 @@ section('§2 THE OUTCOME')
   const engine = src('src/rows/turn.ts')
   check(
     'a blocked prompt settles refused beside a refused command',
-    /const refused = inputResult\.commandRefused === true \|\| inputResult\.hookBlocked === true/.test(engine) && /closeTurn\(refused \? 'refused' : 'completed'/.test(engine),
+    /const refused = inputResult\.commandRefused === true \|\| inputResult\.hookBlocked === true/.test(engine) && /endTurn\(refused \? 'refused' : 'completed'/.test(engine),
   )
   check("and the hook's reason rides the error with class hook", /class: inputResult\.hookBlocked === true \? 'hook' : 'command'/.test(engine))
 }

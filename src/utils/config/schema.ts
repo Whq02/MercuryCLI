@@ -108,7 +108,6 @@ export type ProjectConfig = {
     worktreeName: string
     originalBranch?: string
     sessionId: string
-    hookBased?: boolean
   }
 }
 

@@ -3,7 +3,6 @@ import React from 'react'
 import { Ansi, Box, Text } from '../../ink.js'
 import Link from '../../ink/components/Link.js'
 import type { Attachment } from '../../utils/attachments/types.js'
-import { stoppedContinuationMessage } from '../../utils/attachments/stoppedContinuation.js'
 import { formatFileSize } from '../../utils/format.js'
 import { plural } from '../../utils/stringUtils.js'
 import { permissionModeTitle } from '../../utils/permissions/PermissionMode.js'
@@ -63,7 +62,7 @@ function HookOutputBlock({
         </Box>
       )}
       <AttachmentLine>
-        {hookName} · {hookEvent} · /hooks
+        hook {hookName} · {hookEvent} · /hooks
       </AttachmentLine>
     </Box>
   )
@@ -261,106 +260,40 @@ export function AttachmentMessage({
     case 'command_permissions':
       return null
 
-    case 'async_hook_response': {
-      if (!verbose) return null
-      if (attachment.hookEvent === 'SessionStart') return null
-      return (
-        <AttachmentLine>
-          Async hook {attachment.hookEvent} completed
-        </AttachmentLine>
-      )
-    }
-
-    case 'hook_blocking_error': {
-      if (attachment.hookEvent === 'Stop' || attachment.hookEvent === 'SubagentStop') {
-        return null
+    case 'hook': {
+      const lead = `hook ${attachment.name}`
+      switch (attachment.outcome) {
+        case 'block':
+          return (
+            <Box flexDirection="column">
+              <Text color="error">
+                {lead} blocked {attachment.event}: {attachment.words.split('\n')[0]}
+              </Text>
+              {attachment.words.includes('\n') ? <HookOutputBlock output={attachment.words.split('\n').slice(1).join('\n')} hookName={attachment.name} hookEvent={attachment.event} verbose={verbose} /> : null}
+            </Box>
+          )
+        case 'stop':
+          return (
+            <Text color="warning">
+              {lead} stopped the turn: {attachment.words}
+            </Text>
+          )
+        case 'failed':
+          return <Text color="error">{attachment.words}</Text>
+        case 'notice':
+          return (
+            <AttachmentLine>
+              {attachment.words} · {lead}
+            </AttachmentLine>
+          )
+        case 'context':
+        case 'text': {
+          if (!isTranscriptMode && !verbose) return null
+          return <HookOutputBlock output={attachment.words} hookName={attachment.name} hookEvent={attachment.event} verbose={verbose} />
+        }
       }
-      const blocking = attachment.blockingError as {
-        blockingError?: string
-        message?: string
-      }
-      return (
-        <Box flexDirection="column">
-          <Text color="error">
-            Hook {attachment.hookName} blocked this action
-          </Text>
-          <HookOutputBlock
-            output={String(
-              blocking?.blockingError ?? blocking?.message ?? '',
-            )}
-            hookName={attachment.hookName}
-            hookEvent={attachment.hookEvent}
-            verbose={verbose}
-          />
-        </Box>
-      )
-    }
-
-    case 'hook_non_blocking_error': {
-      if (attachment.hookEvent === 'Stop' || attachment.hookEvent === 'SubagentStop') {
-        return null
-      }
-      const output = attachment.stderr !== '' ? attachment.stderr : attachment.stdout
-      return (
-        <Box flexDirection="column">
-          <Text color="error">Hook {attachment.hookName} reported an error</Text>
-          <HookOutputBlock
-            output={output}
-            hookName={attachment.hookName}
-            hookEvent={attachment.hookEvent}
-            verbose={verbose}
-          />
-        </Box>
-      )
-    }
-
-    case 'hook_error_during_execution': {
-      if (attachment.hookEvent === 'Stop' || attachment.hookEvent === 'SubagentStop') {
-        return null
-      }
-      return (
-        <Box flexDirection="column">
-          <Text color="warning">
-            Hook {attachment.hookName} failed while running (nothing was
-            blocked)
-          </Text>
-          <HookOutputBlock
-            output={attachment.content}
-            hookName={attachment.hookName}
-            hookEvent={attachment.hookEvent}
-            verbose={verbose}
-          />
-        </Box>
-      )
-    }
-
-    case 'hook_success':
       return null
-
-    case 'hook_stopped_continuation':
-      if (attachment.hookEvent === 'Stop' || attachment.hookEvent === 'SubagentStop') {
-        return null
-      }
-      return (
-        <Text color="warning">
-          Hook {attachment.hookName} stopped continuation: {stoppedContinuationMessage(attachment)}
-        </Text>
-      )
-
-    case 'hook_system_message':
-      return (
-        <AttachmentLine>
-          {attachment.content} — {attachment.hookName}
-        </AttachmentLine>
-      )
-
-    case 'hook_permission_decision':
-      return (
-        <AttachmentLine>
-          {attachment.decision === 'allow' ? 'Allowed' : 'Denied'} by the{' '}
-          {attachment.hookEvent} hook
-        </AttachmentLine>
-      )
+    }
 
     case 'bypassed_ask':
       return (

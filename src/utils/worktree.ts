@@ -14,7 +14,7 @@ import { parseGitConfigValue } from './git/gitConfigParser.js'
 import { saveCurrentProjectConfig } from './config.js'
 import { containsPathTraversal } from './path.js'
 import { execFileNoThrowWithCwd } from './execFileNoThrow.js'
-import { executeWorktreeCreateHook, executeWorktreeRemoveHook, hasWorktreeCreateHook } from './hooks.js'
+import { startCommandHook } from './hooks/commandRunner.js'
 import { logError } from './log.js'
 import { projectLocalPath } from '../services/projectLocal/paths.js'
 import { getInitialSettings, getRelativeSettingsFilePathForSource } from './settings/settings.js'
@@ -437,7 +437,7 @@ async function hideLinksFromGit(repoRoot: string, worktreePath: string, sourceRo
   }
 }
 
-async function runPostCreationSetup(repoRoot: string, worktreePath: string, dependencyLinksFrom?: string): Promise<void> {
+async function runPostCreationSetup(repoRoot: string, worktreePath: string, dependencyLinksFrom?: string): Promise<string | undefined> {
   try {
     const relativeSettingsPath = getRelativeSettingsFilePathForSource('localSettings')
     const target = join(worktreePath, relativeSettingsPath)
@@ -482,6 +482,20 @@ async function runPostCreationSetup(repoRoot: string, worktreePath: string, depe
   if (dependencyLinksFrom !== undefined) await hideLinksFromGit(repoRoot, worktreePath, sourceRoot, linked)
 
   await copyWorktreeIncludeFiles(repoRoot, worktreePath)
+
+  return runWorktreePrepareCommand(worktreePath)
+}
+
+const WORKTREE_PREPARE_TIMEOUT_MS = 10 * 60 * 1000
+
+export async function runWorktreePrepareCommand(worktreePath: string): Promise<string | undefined> {
+  const command = getInitialSettings().workspace?.worktree?.prepare
+  if (command === undefined || command.trim() === '') return undefined
+  const process = await startCommandHook({ command, shell: 'bash', name: 'workspace.worktree.prepare', event: 'workspace.worktree.prepare', index: 0, payloadJson: '', timeoutMs: WORKTREE_PREPARE_TIMEOUT_MS, source: { kind: 'settings' }, cwd: worktreePath })
+  const end = await process.result
+  if (end.kind === 'ended') return `workspace.worktree.prepare ${end.ending.class === 'timed_out' ? `timed out after ${end.ending.detail ?? ''} and was killed` : end.ending.class === 'spawn' ? `could not run${end.ending.detail ? `: ${end.ending.detail}` : ''}` : end.ending.class.replace('_', ' ')}`
+  if (end.code === 0) return undefined
+  return `workspace.worktree.prepare failed with exit ${end.code}${end.stderr.trim() ? `: ${end.stderr.trim()}` : ''}`
 }
 
 
@@ -494,7 +508,7 @@ export type WorktreeSession = {
   originalHeadCommit?: string
   sessionId: string
   tmuxSessionName?: string
-  hookBased?: boolean
+  prepareFailure?: string
   creationDurationMs?: number
   usedSparsePaths?: boolean
 }
@@ -523,7 +537,7 @@ function persistWorktreeSession(session: WorktreeSession | null): void {
         worktreeName: session.worktreeName,
         ...(session.originalBranch !== undefined ? { originalBranch: session.originalBranch } : {}),
         sessionId: session.sessionId,
-        ...(session.hookBased !== undefined ? { hookBased: session.hookBased } : {}),
+        ...(session.prepareFailure !== undefined ? { prepareFailure: session.prepareFailure } : {}),
       },
     }
   })
@@ -538,27 +552,9 @@ export async function createWorktreeForSession(
   validateWorktreeSlug(slug)
   const originalCwd = getCwd()
 
-  if (hasWorktreeCreateHook()) {
-    const hookResult = await executeWorktreeCreateHook(slug)
-    const session: WorktreeSession = {
-      originalCwd,
-      worktreePath: hookResult.worktreePath,
-      worktreeName: slug,
-      sessionId,
-      ...(tmuxSessionName !== undefined ? { tmuxSessionName } : {}),
-      hookBased: true,
-    }
-    currentWorktreeSession = session
-    persistWorktreeSession(session)
-    return session
-  }
-
   const gitRoot = findGitRoot(originalCwd)
   if (!gitRoot) {
-    throw new Error(
-      'Cannot create a worktree: this is not a git repository and no WorktreeCreate hooks are configured. ' +
-        'Configure WorktreeCreate/WorktreeRemove hooks in settings to use worktree isolation with other VCS systems.',
-    )
+    throw new Error('Cannot create a worktree: this is not a git repository.')
   }
 
   let originalBranch: string | undefined
@@ -575,9 +571,7 @@ export async function createWorktreeForSession(
       ? `resumed worktree ${created.worktreePath}`
       : `created worktree ${created.worktreePath} from ${created.baseBranch ?? 'HEAD'}`,
   )
-  if (!created.existed) {
-    await runPostCreationSetup(gitRoot, created.worktreePath, originalCwd)
-  }
+  const prepareFailure = created.existed ? undefined : await runPostCreationSetup(gitRoot, created.worktreePath, originalCwd)
 
   const usedSparse = (getInitialSettings().workspace?.worktree?.sparsePaths ?? []).length > 0
   const session: WorktreeSession = {
@@ -591,6 +585,7 @@ export async function createWorktreeForSession(
     ...(tmuxSessionName !== undefined ? { tmuxSessionName } : {}),
     ...(created.existed ? {} : { creationDurationMs: Date.now() - startedAt }),
     ...(usedSparse && !created.existed ? { usedSparsePaths: true } : {}),
+    ...(prepareFailure !== undefined ? { prepareFailure } : {}),
   }
   currentWorktreeSession = session
   persistWorktreeSession(session)
@@ -621,15 +616,7 @@ export async function cleanupWorktree(): Promise<void> {
     logForDebugging(`cleanupWorktree chdir failed: ${String(error)}`)
   }
   try {
-    if (session.hookBased) {
-      const ran = await executeWorktreeRemoveHook(session.worktreePath)
-      if (ran) logForDebugging(`WorktreeRemove hook removed ${session.worktreePath}`)
-      else {
-        logForDebugging(`no WorktreeRemove hook configured; hook-based worktree left in place: ${session.worktreePath}`, {
-          level: 'warn' as never,
-        })
-      }
-    } else {
+    {
       const removal = await runGit(['worktree', 'remove', '--force', session.worktreePath], session.originalCwd)
       if (removal.code !== 0) {
         logForDebugging(`worktree remove failed: ${removal.stderr.trim()}`)
@@ -637,7 +624,7 @@ export async function cleanupWorktree(): Promise<void> {
     }
     currentWorktreeSession = null
     persistWorktreeSession(null)
-    if (!session.hookBased && session.worktreeBranch !== undefined) {
+    if (session.worktreeBranch !== undefined) {
       await sleep(100)
       const branchDelete = await runGit(['branch', '-D', session.worktreeBranch], session.originalCwd)
       if (branchDelete.code !== 0) {
@@ -653,7 +640,7 @@ export async function cleanupWorktree(): Promise<void> {
 export type WorktreeCapability = {
   available: boolean
   detail: string
-  prerequisite?: 'git-repository-or-worktree-create-hook'
+  prerequisite?: 'git-repository'
   repeatCount?: number
 }
 
@@ -664,9 +651,6 @@ export function _resetWorktreeRefusalCountsForTesting(): void {
 }
 
 export function preflightWorktreeCapability(cwd: string = getCwd()): WorktreeCapability {
-  if (hasWorktreeCreateHook()) {
-    return { available: true, detail: 'WorktreeCreate hook is configured', repeatCount: 0 } as WorktreeCapability
-  }
   const gitRoot = findCanonicalGitRoot(cwd)
   if (gitRoot) {
     return { available: true, detail: `git repository at ${gitRoot}`, repeatCount: 0 } as WorktreeCapability
@@ -674,7 +658,7 @@ export function preflightWorktreeCapability(cwd: string = getCwd()): WorktreeCap
   const repeatCount = (refusalCountsByDirectory.get(cwd) ?? 0) + 1
   refusalCountsByDirectory.set(cwd, repeatCount)
   let detail =
-    `Worktree isolation is unavailable in ${cwd}: not a git repository and no WorktreeCreate hook is configured. ` +
+    `Worktree isolation is unavailable in ${cwd}: not a git repository. ` +
     'For read-only work, retry the same call WITHOUT the isolation parameter. ' +
     'For write work, start Mercury inside the repository. ' +
     'This refusal is deterministic for this directory — an identical relaunch will refuse again.'
@@ -684,7 +668,7 @@ export function preflightWorktreeCapability(cwd: string = getCwd()): WorktreeCap
   return {
     available: false,
     detail,
-    prerequisite: 'git-repository-or-worktree-create-hook',
+    prerequisite: 'git-repository',
     repeatCount,
   }
 }
@@ -700,21 +684,14 @@ export async function createAgentWorktree(
   worktreeBranch?: string
   headCommit?: string
   gitRoot?: string
-  hookBased?: boolean
+  prepareFailure?: string
 }> {
   validateWorktreeSlug(slug)
-  if (hasWorktreeCreateHook()) {
-    if (options?.at !== undefined) {
-      throw new Error('A worktree pinned to a commit cannot be created through the WorktreeCreate hook; drop the pin or the hook.')
-    }
-    const hookResult = await executeWorktreeCreateHook(slug)
-    return { worktreePath: hookResult.worktreePath, hookBased: true }
-  }
   const from = options?.from ?? getCwd()
   const gitRoot = findCanonicalGitRoot(from)
   if (!gitRoot) {
     throw new Error(
-      'Worktree isolation is unavailable here: this is not a git repository and no WorktreeCreate hook is configured. ' +
+      'Worktree isolation is unavailable here: this is not a git repository. ' +
         'Retry the same Agent call WITHOUT the isolation parameter; the agent will run in the current directory.',
     )
   }
@@ -722,8 +699,9 @@ export async function createAgentWorktree(
     ...(options?.at !== undefined ? { at: options.at } : {}),
     baseFrom: findGitRoot(from) ?? gitRoot,
   })
+  let prepareFailure: string | undefined
   if (!created.existed) {
-    await runPostCreationSetup(gitRoot, created.worktreePath, from)
+    prepareFailure = await runPostCreationSetup(gitRoot, created.worktreePath, from)
     const lock = await runGit(
       ['worktree', 'lock', created.worktreePath, '--reason', `agent ${slug} (pid ${process.pid})`],
       gitRoot,
@@ -744,6 +722,7 @@ export async function createAgentWorktree(
     worktreeBranch: created.worktreeBranch,
     ...(created.headCommit !== null ? { headCommit: created.headCommit } : {}),
     gitRoot,
+    ...(prepareFailure !== undefined ? { prepareFailure } : {}),
   }
 }
 
@@ -755,17 +734,7 @@ async function removeAgentWorktree(
   worktreePath: string,
   worktreeBranch?: string,
   gitRoot?: string,
-  hookBased?: boolean,
 ): Promise<boolean> {
-  if (hookBased) {
-    const ran = await executeWorktreeRemoveHook(worktreePath)
-    if (!ran) {
-      logForDebugging(`no WorktreeRemove hook configured; hook-based worktree left in place: ${worktreePath}`, {
-        level: 'warn' as never,
-      })
-    }
-    return ran
-  }
   if (gitRoot === undefined) {
     logError(new Error(`removeAgentWorktree: no git root for ${worktreePath}`))
     return false
@@ -895,7 +864,6 @@ export async function hasWorktreeChanges(worktreePath: string, headCommit: strin
 export type WorktreeSettlementReceipt =
   | { outcome: 'settled'; worktreePath: string }
   | { outcome: 'preserved'; worktreePath: string; delta: WorktreeDelta; summary: string }
-  | { outcome: 'kept-hook-based'; worktreePath: string }
   | { outcome: 'inspection-unavailable'; worktreePath: string; detail: string }
   | { outcome: 'retryable-partial'; worktreePath: string; detail: string }
 
@@ -904,11 +872,7 @@ export async function settleAgentWorktree(info: {
   worktreeBranch?: string
   headCommit?: string
   gitRoot?: string
-  hookBased?: boolean
 }): Promise<WorktreeSettlementReceipt> {
-  if (info.hookBased) {
-    return { outcome: 'kept-hook-based', worktreePath: info.worktreePath }
-  }
   const delta = await readWorktreeDelta(info.worktreePath, info.headCommit)
   if (delta.uncertainty !== null) {
     return { outcome: 'inspection-unavailable', worktreePath: info.worktreePath, detail: delta.uncertainty }
@@ -921,7 +885,7 @@ export async function settleAgentWorktree(info: {
       summary: describeWorktreeDelta(delta),
     }
   }
-  const removed = await removeAgentWorktree(info.worktreePath, info.worktreeBranch, info.gitRoot, false)
+  const removed = await removeAgentWorktree(info.worktreePath, info.worktreeBranch, info.gitRoot)
   if (!removed) {
     return {
       outcome: 'retryable-partial',
@@ -1055,7 +1019,7 @@ export async function cleanupStaleAgentWorktrees(cutoffDate: Date): Promise<numb
         logForDebugging(`worktree janitor keeps ${candidatePath}: ${verdict.detail}`)
         continue
       }
-      const removed = await removeAgentWorktree(candidatePath, worktreeBranchName(slug), gitRoot, false)
+      const removed = await removeAgentWorktree(candidatePath, worktreeBranchName(slug), gitRoot)
       if (removed) removedCount++
       continue
     }
@@ -1076,7 +1040,7 @@ export async function cleanupStaleAgentWorktrees(cutoffDate: Date): Promise<numb
     if (deltaBlocksSettlement(delta)) continue
     if (unpushed.code !== 0 || unpushed.stdout.trim() !== '') continue
 
-    const removed = await removeAgentWorktree(candidatePath, worktreeBranchName(slug), gitRoot, false)
+    const removed = await removeAgentWorktree(candidatePath, worktreeBranchName(slug), gitRoot)
     if (removed) removedCount++
   }
 
@@ -1279,16 +1243,7 @@ export async function execIntoTmuxWorktree(args: string[]): Promise<{ handled: b
 
   let worktreeDir: string
   let repoName: string
-  if (hasWorktreeCreateHook()) {
-    try {
-      const hookResult = await executeWorktreeCreateHook(slug)
-      worktreeDir = hookResult.worktreePath
-      repoName = basename(findCanonicalGitRoot(getCwd()) || getCwd())
-      process.stdout.write(`Worktree: ${worktreeDir}\n`)
-    } catch (error) {
-      return { handled: false, error: error instanceof Error ? error.message : String(error) }
-    }
-  } else {
+  {
     const gitRoot = findCanonicalGitRoot(getCwd())
     if (!gitRoot) {
       return { handled: false, error: '--worktree requires a git repository' }
@@ -1302,7 +1257,8 @@ export async function execIntoTmuxWorktree(args: string[]): Promise<{ handled: b
       worktreeDir = created.worktreePath
       if (!created.existed) {
         process.stdout.write(`Created worktree ${created.worktreePath} (based on ${created.baseBranch ?? 'HEAD'})\n`)
-        await runPostCreationSetup(gitRoot, created.worktreePath, getCwd())
+        const prepareFailure = await runPostCreationSetup(gitRoot, created.worktreePath, getCwd())
+        if (prepareFailure !== undefined) process.stderr.write(`${prepareFailure}\n`)
       }
     } catch (error) {
       return { handled: false, error: error instanceof Error ? error.message : String(error) }

@@ -101,6 +101,7 @@ export type PermissionDecisionReason =
   | { type: 'subcommandResults'; reasons: Map<string, PermissionResult> }
   | { type: 'permissionPromptTool'; permissionPromptToolName?: string; toolResult?: unknown }
   | { type: 'hook'; hookName: string; hookSource?: string; reason?: string }
+  | { type: 'guard'; guard: string; reason: string }
   | { type: 'asyncAgent'; reason: string }
   | { type: 'sandboxOverride'; reason: 'excludedCommand' | 'sandboxDisabled' }
   | { type: 'workingDir'; reason: string }

@@ -12,10 +12,7 @@ import type {
   ProgressMessage,
 } from '../../types/message.js'
 import { count } from '../array.js'
-import type {
-  HookAttachment,
-  HookPermissionDecisionAttachment,
-} from '../attachments.js'
+import type { HookAttachment } from '../attachments.js'
 import {
   isContinuableStreamFaultMessage,
   isStreamFaultRecoveryNudgeText,
@@ -38,33 +35,18 @@ function toolResultText(content: unknown): string {
   return ''
 }
 
-type HookAttachmentWithName = Exclude<
-  HookAttachment,
-  HookPermissionDecisionAttachment
->
-
 
 export function isHookAttachmentMessage(
   message: Message,
 ): message is AttachmentMessage<HookAttachment> {
-  return (
-    message.type === 'attachment' &&
-    (message.attachment.type === 'hook_blocking_error' ||
-      message.attachment.type === 'hook_cancelled' ||
-      message.attachment.type === 'hook_error_during_execution' ||
-      message.attachment.type === 'hook_non_blocking_error' ||
-      message.attachment.type === 'hook_success' ||
-      message.attachment.type === 'hook_system_message' ||
-      message.attachment.type === 'hook_additional_context' ||
-      message.attachment.type === 'hook_stopped_continuation')
-  )
+  return message.type === 'attachment' && message.attachment.type === 'hook'
 }
 
 export function getToolUseID(message: NormalizedMessage): string | null {
   switch (message.type) {
     case 'attachment':
       return isHookAttachmentMessage(message)
-        ? message.attachment.toolUseID
+        ? (message.attachment.callId ?? null)
         : null
     case 'assistant':
       return message.message.content[0]?.type === 'tool_use'
@@ -85,37 +67,21 @@ export function getToolUseID(message: NormalizedMessage): string | null {
 }
 
 
-function getInProgressHookCount(
+function countHookProgress(
   messages: NormalizedMessage[],
   toolUseID: string,
   hookEvent: HookEvent,
+  state: 'running' | 'ran',
 ): number {
   return count(
     messages,
     m =>
       m.type === 'progress' &&
       m.data.type === 'hook_progress' &&
-      m.data.hookEvent === hookEvent &&
+      m.data.event === hookEvent &&
+      m.data.state === state &&
       m.parentToolUseID === toolUseID,
   )
-}
-
-function getResolvedHookCount(
-  messages: NormalizedMessage[],
-  toolUseID: string,
-  hookEvent: HookEvent,
-): number {
-  const uniqueHookNames = new Set(
-    messages
-      .filter(
-        (m): m is AttachmentMessage<HookAttachmentWithName> =>
-          isHookAttachmentMessage(m) &&
-          m.attachment.toolUseID === toolUseID &&
-          m.attachment.hookEvent === hookEvent,
-      )
-      .map(m => m.attachment.hookName),
-  )
-  return uniqueHookNames.size
 }
 
 export function hasUnresolvedHooks(
@@ -124,8 +90,8 @@ export function hasUnresolvedHooks(
   hookEvent: HookEvent,
 ) {
   return (
-    getInProgressHookCount(messages, toolUseID, hookEvent) >
-    getResolvedHookCount(messages, toolUseID, hookEvent)
+    countHookProgress(messages, toolUseID, hookEvent, 'running') >
+    countHookProgress(messages, toolUseID, hookEvent, 'ran')
   )
 }
 
@@ -220,7 +186,7 @@ export function buildMessageLookups(
 
   const progressMessagesByToolUseID = new Map<string, ProgressMessage[]>()
   const inProgressHookCounts = new Map<string, Map<HookEvent, number>>()
-  const resolvedHookNames = new Map<string, Map<HookEvent, Set<string>>>()
+  const resolvedHookCounts = new Map<string, Map<HookEvent, number>>()
   const toolResultByToolUseID = new Map<string, NormalizedMessage>()
   const resolvedToolUseIDs = new Set<string>()
   const erroredToolUseIDs = new Set<string>()
@@ -239,13 +205,13 @@ export function buildMessageLookups(
       else progressMessagesByToolUseID.set(toolUseID, [msg])
 
       if (msg.data.type === 'hook_progress') {
-        const hookEvent = msg.data.hookEvent
-        let byHookEvent = inProgressHookCounts.get(toolUseID)
+        const target = msg.data.state === 'running' ? inProgressHookCounts : resolvedHookCounts
+        let byHookEvent = target.get(toolUseID)
         if (!byHookEvent) {
           byHookEvent = new Map()
-          inProgressHookCounts.set(toolUseID, byHookEvent)
+          target.set(toolUseID, byHookEvent)
         }
-        byHookEvent.set(hookEvent, (byHookEvent.get(hookEvent) ?? 0) + 1)
+        byHookEvent.set(msg.data.event, (byHookEvent.get(msg.data.event) ?? 0) + 1)
       }
     }
 
@@ -295,34 +261,6 @@ export function buildMessageLookups(
         }
       }
     }
-
-    if (isHookAttachmentMessage(msg)) {
-      const toolUseID = msg.attachment.toolUseID
-      const hookEvent = msg.attachment.hookEvent
-      const hookName = (msg.attachment as HookAttachmentWithName).hookName
-      if (hookName !== undefined) {
-        let byHookEvent = resolvedHookNames.get(toolUseID)
-        if (!byHookEvent) {
-          byHookEvent = new Map()
-          resolvedHookNames.set(toolUseID, byHookEvent)
-        }
-        let names = byHookEvent.get(hookEvent)
-        if (!names) {
-          names = new Set()
-          byHookEvent.set(hookEvent, names)
-        }
-        names.add(hookName)
-      }
-    }
-  }
-
-  const resolvedHookCounts = new Map<string, Map<HookEvent, number>>()
-  for (const [toolUseID, byHookEvent] of resolvedHookNames) {
-    const countMap = new Map<HookEvent, number>()
-    for (const [hookEvent, names] of byHookEvent) {
-      countMap.set(hookEvent, names.size)
-    }
-    resolvedHookCounts.set(toolUseID, countMap)
   }
 
   for (const id of seenToolUseIDs) {

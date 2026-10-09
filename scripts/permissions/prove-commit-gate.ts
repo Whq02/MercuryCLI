@@ -38,42 +38,23 @@ console.log('============================================================')
 console.log(' Standalone commit gate (Feature B) — behavior proof')
 console.log('============================================================')
 
-const fh = await import('../../src/utils/hooks/commitGate.js')
-const sh = await import('../../src/utils/hooks/sessionHooks.js')
+const fh = await import('../../src/guards/commitGate.js')
+const { guardsEngaged, judgeToolCall } = await import('../../src/guards/guards.js')
 const { readFileSync } = await import('node:fs')
-const cg = await import('../../src/utils/hooks/commitGate.js')
+const cg = await import('../../src/guards/commitGate.js')
 
 const sid = 'proof-commit-gate'
-let appState: any = { sessionHooks: new Map() }
-const setAppState = (fn: (p: any) => any) => {
-  appState = fn(appState)
+const gateEngaged = (): boolean => guardsEngaged(sid).tool.includes(cg.COMMIT_GATE_ID)
+const judge = async (tool: string, command: string): Promise<boolean> => {
+  const verdict = await judgeToolCall(sid, { tool, input: { command }, callId: 'commit-gate-call', messages: [] })
+  return !verdict.refused
 }
-const gateCallback = () => {
-  const fnHooks = sh.getSessionFunctionHooks(appState, sid, 'PreToolUse' as any)
-  const matchers = (fnHooks.get('PreToolUse' as any) || []) as any[]
-  const all = matchers.flatMap(m => m.hooks)
-  return { matchers, gate: all.find((h: any) => h.id === cg.COMMIT_GATE_ID) }
-}
-const pre = (command: string) => ({
-  hookInput: {
-    hook_event_name: 'PreToolUse',
-    tool_name: 'Bash',
-    tool_input: { command },
-  },
-})
-const prePS = (command: string) => ({
-  hookInput: {
-    hook_event_name: 'PreToolUse',
-    tool_name: 'PowerShell',
-    tool_input: { command },
-  },
-})
 
 section('explicit MERCURY_COMMIT_GATE=0 short-circuits first (advertised opt-out is true)')
 {
-  const src = readFileSync('src/utils/hooks/commitGate.ts', 'utf8')
-  const hardOff = src.indexOf("if (flagEnv('MERCURY_COMMIT_GATE') === '0') return true")
-  const gate = src.indexOf('if (!commitGateEnabled()) return true')
+  const src = readFileSync('src/guards/commitGate.ts', 'utf8')
+  const hardOff = src.indexOf("if (flagEnv('MERCURY_COMMIT_GATE') === '0') return { allow: true }")
+  const gate = src.indexOf('if (!commitGateEnabled()) return { allow: true }')
   check('explicit =0 short-circuit present', hardOff !== -1)
   check('…and it sits BEFORE the live gate check', gate !== -1 && hardOff < gate)
 }
@@ -82,37 +63,34 @@ section('default-OFF gate truth table (DEFAULT-OFF, opt in MERCURY_COMMIT_GATE=1
 {
   delete process.env.MERCURY_COMMIT_GATE
   check('OFF (no flag): commitGateEnabled() === false', fh.commitGateEnabled() === false)
-  check('OFF: engageCommitGate is a no-op (returns false, no throw)', fh.engageCommitGate(setAppState, sid) === false)
-  check('OFF: nothing registered (byte-identical — no gate)', gateCallback().gate === undefined)
+  check('OFF: engageCommitGate is a no-op (returns false, no throw)', fh.engageCommitGate(sid) === false)
+  check('OFF: nothing registered (byte-identical — no gate)', gateEngaged() === false)
 
   process.env.MERCURY_COMMIT_GATE = '1'
   check('ON (MERCURY_COMMIT_GATE=1): commitGateEnabled() === true', fh.commitGateEnabled() === true)
 }
 
-section('engage installs the PreToolUse(Bash) gate (no ReferenceError — the original crash is fixed)')
+section('engage installs the Bash guard (no ReferenceError — the original crash is fixed)')
 {
-  const installed = fh.engageCommitGate(setAppState, sid)
+  const installed = fh.engageCommitGate(sid)
   check('engageCommitGate returned true (installed)', installed === true)
   check('isCommitGateEngaged(sid) === true (session-keyed guards)', fh.isCommitGateEngaged(sid) === true)
-  const { matchers, gate } = gateCallback()
-  check('a PreToolUse hook is registered matching Bash AND PowerShell (HB-0130)', matchers.some(m => m.matcher === 'Bash|PowerShell'))
-  check('the registered hook carries COMMIT_GATE_ID', !!gate && gate.id === cg.COMMIT_GATE_ID)
-  check('re-engage is idempotent (no second install)', fh.engageCommitGate(setAppState, sid) === false)
+  check('the gate is engaged before the session\'s tool calls under COMMIT_GATE_ID', gateEngaged())
+  check('re-engage is idempotent (no second install)', fh.engageCommitGate(sid) === false && guardsEngaged(sid).tool.filter(id => id === cg.COMMIT_GATE_ID).length === 1)
 }
 
 section('the installed gate DENIES a non-green commit and ALLOWS a green-gated one')
 {
-  const { gate } = gateCallback()
-  if (!gate) {
+  if (!gateEngaged()) {
     check('gate present to drive', false)
   } else {
-    const allowed = async (cmd: string) => await gate.callback([], undefined, pre(cmd))
-    check('bare `git commit -m "wip"` is DENIED (callback → false)', (await allowed('git commit -m "wip"')) === false)
+    const allowed = async (cmd: string) => judge('Bash', cmd)
+    check('bare `git commit -m "wip"` is DENIED (the gate refuses)', (await allowed('git commit -m "wip"')) === false)
     check('`git commit --no-verify` is DENIED', (await allowed('git commit --no-verify -m "skip"')) === false)
     check('a green-gated `bun run build.ts && git commit` is ALLOWED', (await allowed('bun run build.ts && git commit -m "done"')) === true)
     check('the canonical `bash scripts/run-all-suites.sh && git commit` is ALLOWED', (await allowed('bash scripts/run-all-suites.sh && git commit -m "x"')) === true)
     check('a non-commit Bash command passes straight through', (await allowed('ls -la')) === true)
-    const allowedPS = async (cmd: string) => await gate.callback([], undefined, prePS(cmd))
+    const allowedPS = async (cmd: string) => judge('PowerShell', cmd)
     check('PowerShell-tool bare `git commit` is DENIED (HB-0130)', (await allowedPS('git commit -m "wip"')) === false)
     check('PowerShell-tool green-gated commit is ALLOWED', (await allowedPS('bun run build.ts && git commit -m "ok"')) === true)
   }
@@ -120,9 +98,9 @@ section('the installed gate DENIES a non-green commit and ALLOWS a green-gated o
 
 section('disengage removes the gate (no leak)')
 {
-  check('disengageCommitGate returned true', fh.disengageCommitGate(setAppState, sid) === true)
+  check('disengageCommitGate returned true', fh.disengageCommitGate(sid) === true)
   check('isCommitGateEngaged(sid) === false after disengage', fh.isCommitGateEngaged(sid) === false)
-  check('the PreToolUse Bash gate is gone', gateCallback().gate === undefined)
+  check('the gate is gone', gateEngaged() === false)
 }
 
 section("pure evaluateCommitGate — the gate's deny rules (loadable, exported)")
@@ -152,8 +130,8 @@ section("pure evaluateCommitGate — the gate's deny rules (loadable, exported)"
 section('source: engageCommitGate is WIRED into the turn (not severed)')
 {
   const qe = readFileSync(join(import.meta.dir, '..', '..', 'src', 'rows', 'turn.ts'), 'utf-8')
-  check('the turn imports engageCommitGate', /import \{[^}]*engageCommitGate[^}]*\} from '..\/utils\/hooks\/commitGate.js'/.test(qe))
-  check('engageCommitGate is CALLED in the engage block (unconditional)', qe.includes('engageCommitGate(config.setAppState, getSessionId())'))
+  check('the turn imports engageCommitGate', /import \{[^}]*engageCommitGate[^}]*\} from '..\/guards\/commitGate.js'/.test(qe))
+  check('engageCommitGate is CALLED in the engage block (unconditional)', qe.includes('engageCommitGate(sessionId)'))
 }
 
 section('dist: the wired standalone gate ships in dist/mercury.mjs')

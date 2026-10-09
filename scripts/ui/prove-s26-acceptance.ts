@@ -111,17 +111,17 @@ section('structural pins — owner consumption (rule 4)')
   const hooksMenu = src('src/components/hooks/HooksConfigMenu.tsx')
   check(
     'the hooks browser consumes the ONE metadata/grouping owner',
-    hooksMenu.includes('getHookEventMetadata') &&
-      hooksMenu.includes('groupHooksByEventAndMatcher') &&
-      hooksMenu.includes('getSortedMatchersForEvent'),
+    hooksMenu.includes('hookEventCards') &&
+      hooksMenu.includes('groupHooksByEventAndMatch') &&
+      hooksMenu.includes('sortedMatchesForEvent'),
   )
   check(
     'no hand-authored event-summary table survives',
     !hooksMenu.includes('EVENT_SUMMARIES'),
   )
   check(
-    'matcher support comes from the metadata, not a hand list',
-    hooksMenu.includes('matcherMetadata !== undefined') && !hooksMenu.includes('MATCHERLESS_EVENTS'),
+    'match support comes from the table, not a hand list',
+    hooksMenu.includes('eventHasMatch(') && !hooksMenu.includes('MATCHERLESS_EVENTS'),
   )
 
   const memSel = src('src/components/memory/MemoryFileSelector.tsx')
