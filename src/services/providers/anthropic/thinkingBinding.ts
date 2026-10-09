@@ -553,10 +553,10 @@ export function modelSwitchReceipt(
   if (foreign.count === 0) return null
   const display = (model: string): string => getPublicModelDisplayName(model) ?? model
   const writers = foreign.models.map(display).join(', ')
-  const noun = foreign.count === 1 ? 'thinking block' : 'thinking blocks'
+  const one = foreign.count === 1
   return {
     key: `${owner}|${previous.uuid}|${getCanonicalName(currentModel)}`,
-    text: `Preserved thinking: ${foreign.count} ${noun} written by ${writers} stay out of the requests to ${display(currentModel)} (the conversation switched models); the model re-plans without them.`,
+    text: `Preserved thinking: ${foreign.count} ${one ? 'thinking block' : 'thinking blocks'} written by ${writers} ${one ? 'stays' : 'stay'} out of the requests to ${display(currentModel)} (the conversation switched models); the model re-plans without ${one ? 'it' : 'them'}.`,
   }
 }
 

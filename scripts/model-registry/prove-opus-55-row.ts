@@ -202,7 +202,7 @@ section('§3 the wire laws: thinking always on, no forced tool choice, the four 
   check("the switch receipt keeps its words and names the row 'Opus 5.5'", receipt !== null && receipt.text === `Preserved thinking: 2 thinking blocks written by Opus 5, Fable 5.1 stay out of the requests to Opus 5.5 (the conversation switched models); the model re-plans without them.` && receipt.key === `main|msg_fable|${ID}`, show(receipt))
   check('once the row has answered, a request to it is no switch (the twin included)', modelSwitchReceipt('main', history, ID) === null)
   const receiptToOpus5 = modelSwitchReceipt('main', [reply(ID, 'msg_a')] as never[], PREVIOUS)
-  check("the receipt names the row as a writer the other way", receiptToOpus5 !== null && receiptToOpus5.text.includes('written by Opus 5.5 stay out of the requests to Opus 5'), show(receiptToOpus5))
+  check("the receipt names the row as a writer the other way", receiptToOpus5 !== null && receiptToOpus5.text.includes('1 thinking block written by Opus 5.5 stays out of the requests to Opus 5 (the conversation switched models); the model re-plans without it.'), show(receiptToOpus5))
 }
 
 section('§4 thinking.display and its beta ride only when explicitly requested')
