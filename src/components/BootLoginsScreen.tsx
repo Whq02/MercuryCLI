@@ -17,7 +17,6 @@ import { resolveXaiApiKey } from '../services/providers/xai/xaiAccounts.js';
 import { XAI_MANAGEMENT_KEY_PAGE } from '../services/providers/xai/xaiUsageState.js';
 import { storeMetaApiKeyLogin } from '../services/providers/meta/metaLogin.js';
 import { storeMistralApiKeyLogin, storeMistralAdminKeyLogin } from '../services/providers/mistral/mistralLogin.js';
-import { resolveMistralApiKey } from '../services/providers/mistral/mistralAccounts.js';
 import { MISTRAL_ADMIN_KEY_PAGE } from '../services/providers/mistral/mistralUsageState.js';
 import {
   runKimiDeviceLogin,
@@ -626,7 +625,7 @@ export function keyPromptPaneLines(leg: FaceKeyLegId, note: string | null, draft
     lines.push('');
     lines.push(...wrapPlain(note, DETAIL_W));
   }
-  lines.push(storing ? 'checking the key…' : leg === 'xai-management' || leg === 'mistral-admin' ? '↵ stores · empty/esc skips; API key stays' : leg === 'xai' || leg === 'mistral' ? '↵ stores · empty keeps existing · esc back' : '↵ stores it · esc back');
+  lines.push(storing ? 'checking the key…' : leg === 'xai-management' || leg === 'mistral-admin' ? '↵ stores · empty/esc skips; API key stays' : leg === 'xai' ? '↵ stores · empty keeps existing · esc back' : '↵ stores it · esc back');
   return lines;
 }
 
@@ -1363,7 +1362,6 @@ export function BootLoginsScreen({ onClose, onSignedIn, family, fullScene, facts
       if (leg === 'xai-management') setFlow({ kind: 'receipt', receipt: `${xaiApiReceipt.current} Management key unchanged; /logins xai adds it later.`, ok: true });
       else if (leg === 'xai' && resolveXaiApiKey()) setFlow({ kind: 'key', leg: 'xai-management', note: null, storing: false });
       else if (leg === 'mistral-admin') setFlow({ kind: 'receipt', receipt: `${mistralApiReceipt.current} Admin API key unchanged; /logins mistral adds it later.`, ok: true });
-      else if (leg === 'mistral' && resolveMistralApiKey()) setFlow({ kind: 'key', leg: 'mistral-admin', note: null, storing: false });
       return;
     }
     const guard = keyPasteGuardNote(value, keyLegGuardOpts(leg));
