@@ -105,14 +105,14 @@ export function getRuntimePostureSection(): string | null {
 
   if (nonInteractive && canAnswerAsks()) {
     lines.push(
-      '- Session: NON-INTERACTIVE (mercury runner) with a host that holds the asks: a tool call that needs approval is put to the connected host, which answers allow or deny; a question to the operator travels the same door. Do not retry a denied call unchanged and do not invent tool failure as the cause — prefer tools your rules allow, or state the policy blocker plainly in your output.' +
+      '- Session: non-interactive (mercury runner) with a host that holds the asks: a tool call that needs approval is put to the connected host, which answers allow or deny; a question to the operator travels the same door. A denial is policy, not tool failure: prefer tools your rules allow, or state the blocker plainly in your output.' +
         (bootPermissionMode ? ` Permission mode for this run: ${bootPermissionMode}.` : ''),
     )
     const needs = composeOperatorNeedsLine(bootPermissionMode, bootRules)
     if (needs !== null) lines.push(needs)
   } else if (nonInteractive) {
     lines.push(
-      '- Session: NON-INTERACTIVE (mercury run). There is no human at a prompt and no host to answer an ask: any tool call that would need an interactive permission approval is DENIED automatically, and no question can reach the operator — choose the most reasonable option, state the assumption, and continue. Do not retry a denied call unchanged and do not invent tool failure as the cause — prefer tools your rules allow, or state the policy blocker plainly in your output.' +
+      '- Session: non-interactive (mercury run): no human is at a prompt and no host answers an ask, so a tool call that would need an interactive approval is denied automatically and no question can reach the operator — choose the most reasonable option, state the assumption, and continue. A denial is policy, not tool failure: prefer tools your rules allow, or state the blocker plainly in your output.' +
         (bootPermissionMode ? ` Permission mode for this run: ${bootPermissionMode}.` : ''),
     )
   } else {
@@ -146,7 +146,7 @@ export function getRuntimePostureSection(): string | null {
 export function getRuntimePostureDoctrineLine(): string | null {
   if (!runtimePostureEnabled()) return null
   const denyClause = nonInteractive
-    ? 'this process is HEADLESS — an unanswerable permission ask is an automatic DENY; treat a denied tool as policy, not failure, and say so instead of retrying'
+    ? 'this process is headless: an unanswerable permission ask is denied automatically, and a denial is policy, not tool failure'
     : 'a denied tool call may be permission policy, not tool failure — say which it was'
   return `Runtime posture: ${denyClause}; a file-lease denial means another agent holds those paths (coordinate, do not force).`
 }
