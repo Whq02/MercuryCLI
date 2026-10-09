@@ -26,18 +26,16 @@ const TEST_GLOBAL_CONFIG_FOR_TESTING: GlobalConfig = {
   ...DEFAULT_GLOBAL_CONFIG,
 }
 
-export function wouldLoseAuthState(fresh: {
-  oauthAccount?: unknown
-  hasCompletedOnboarding?: boolean
-}): boolean {
+type AuthStateView = { oauthAccount?: unknown; hasCompletedOnboarding?: boolean }
+
+const authStateLosses: ReadonlyArray<(cached: AuthStateView, fresh: AuthStateView) => boolean> = [
+  (cached, fresh) => cached.oauthAccount !== undefined && fresh.oauthAccount === undefined,
+  (cached, fresh) => cached.hasCompletedOnboarding === true && fresh.hasCompletedOnboarding !== true,
+]
+
+export function wouldLoseAuthState(fresh: AuthStateView): boolean {
   const cached = globalConfigCache.config
-  if (!cached) return false
-  const lostOauth =
-    cached.oauthAccount !== undefined && fresh.oauthAccount === undefined
-  const lostOnboarding =
-    cached.hasCompletedOnboarding === true &&
-    fresh.hasCompletedOnboarding !== true
-  return lostOauth || lostOnboarding
+  return !!cached && authStateLosses.some(lost => lost(cached, fresh))
 }
 
 let pendingDeferredUpdaters: Array<(currentConfig: GlobalConfig) => GlobalConfig> = []
