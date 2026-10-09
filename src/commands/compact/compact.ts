@@ -1,7 +1,6 @@
 import chalk from 'chalk'
 import { APIUserAbortError } from '../../services/api/sdkErrors.js'
 import { getLastCacheSafeParams } from '../../utils/forkedAgent.js'
-import { markPostCompaction } from '../../bootstrap/state.js'
 import { getUserContext } from '../../context.js'
 import {
   compactConversation,
@@ -159,7 +158,6 @@ async function callUnderFoldStatus(
       if (sessionMemoryResult !== null) {
         getUserContext.cache?.clear?.()
         runPostCompactCleanup()
-        markPostCompaction()
         suppressCompactWarning()
         return {
           type: 'compact',

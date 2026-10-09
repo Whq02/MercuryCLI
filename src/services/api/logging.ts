@@ -11,19 +11,6 @@ export { EMPTY_USAGE }
 export type { NonNullableUsage }
 
 
-let postCompactionPending = false
-
-export function markPostCompaction(): void {
-  postCompactionPending = true
-}
-
-function consumePostCompactionMarker(): boolean {
-  const was = postCompactionPending
-  postCompactionPending = false
-  return was
-}
-
-
 export type LogAPIErrorParams = {
   error: unknown
   clientRequestId?: string | null
@@ -71,6 +58,5 @@ export function logAPISuccessAndDuration({
   startIncludingRetries: number
 }): void {
   logAPIDuration({ start, startIncludingRetries })
-  consumePostCompactionMarker()
   consumeInvokingRequestId()
 }

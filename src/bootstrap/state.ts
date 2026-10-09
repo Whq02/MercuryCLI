@@ -633,14 +633,6 @@ export function setLastApiCompletionTimestamp(timestamp: number | null): void {
   apiCapture.lastApiCompletionTimestamp = timestamp
 }
 
-export function markPostCompaction(): void {
-  apiCapture.markPostCompaction()
-}
-
-export function consumePostCompaction(): boolean {
-  return apiCapture.consumePostCompaction()
-}
-
 export function setLastAPIRequest(
   request: Omit<ApiRequestParams, 'messages'> | null,
 ): void {

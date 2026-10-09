@@ -6,15 +6,4 @@ export class ApiCaptureOwner {
   promptId: string | null = null
   lastMainRequestId: string | undefined = undefined
   lastApiCompletionTimestamp: number | null = null
-  pendingPostCompaction = false
-
-  markPostCompaction(): void {
-    this.pendingPostCompaction = true
-  }
-
-  consumePostCompaction(): boolean {
-    const was = this.pendingPostCompaction
-    this.pendingPostCompaction = false
-    return was
-  }
 }
