@@ -226,6 +226,7 @@ export type GlobalConfig = {
 
   defaultProvider?: string
   concourseEnabled?: boolean
+  backgroundSessionsLaunchCrewmates?: boolean
   defaultCritter?: string
 
   voiceNoticeSeenCount?: number
@@ -339,6 +340,7 @@ export const GLOBAL_CONFIG_KEYS = [
   'defaultCritter',
   'defaultProvider',
   'concourseEnabled',
+  'backgroundSessionsLaunchCrewmates',
   'permissionExplainerEnabled',
   'prStatusFooterEnabled',
   'remoteControlAtStartup',
