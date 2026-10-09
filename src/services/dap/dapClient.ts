@@ -86,6 +86,52 @@ export type DapWriteMemoryReceipt = {
   bytesWritten?: number
 }
 
+export type DapListenerTarget = { host: string; port: number }
+
+export type DapListenerDial = { socket: Socket } | { refused: string }
+
+export function listenerAttachTarget(
+  spec: Pick<DapAdapterSpec, 'attachShape' | 'buildAttachArgs'>,
+  options: { mode?: 'launch' | 'attach'; port?: number; host?: string },
+): DapListenerTarget | null {
+  if (options.mode !== 'attach' || options.port === undefined) return null
+  if (spec.attachShape !== 'connect' || spec.buildAttachArgs !== undefined) return null
+  return { host: options.host ?? '127.0.0.1', port: options.port }
+}
+
+export function listenerRefusedLine(target: DapListenerTarget, refused: string, adapterKey: string): string {
+  const where = `${target.host}:${target.port}`
+  const start =
+    adapterKey === 'python'
+      ? `start the program with its listener first — python -m debugpy --listen ${where} --wait-for-client <script> — then attach again`
+      : `start the program with its debug listener on ${where} first, then attach again`
+  return `nothing is listening at ${where} (${refused}) — ${start}`
+}
+
+export function dialListener(target: DapListenerTarget, deadlineMs = REQUEST_TIMEOUT_MS): Promise<DapListenerDial> {
+  return new Promise(resolve => {
+    let settled = false
+    const settle = (outcome: DapListenerDial): void => {
+      if (settled) return
+      settled = true
+      resolve(outcome)
+    }
+    const socket = netConnect({ host: target.host, port: target.port })
+    socket.setTimeout(deadlineMs)
+    socket.once('connect', () => {
+      socket.setTimeout(0)
+      settle({ socket })
+    })
+    socket.once('timeout', () => {
+      socket.destroy()
+      settle({ refused: `no answer from ${target.host}:${target.port} within ${deadlineMs}ms` })
+    })
+    socket.once('error', (error: NodeJS.ErrnoException) => {
+      settle({ refused: error.code ?? error.message })
+    })
+  })
+}
+
 export type DapAdapterSpec = {
   command: string
   args: string[]
@@ -784,6 +830,7 @@ export class DapSession {
   #child: ChildProcessWithoutNullStreams | null
   #socket: Socket | null = null
   #tcpPort: number | undefined
+  #listener: DapListenerTarget | null = null
   #transportReady: Promise<void>
   #seq = 1
   #pending = new Map<number, Pending>()
@@ -814,6 +861,7 @@ export class DapSession {
     tcpPort?: number,
     wire: 'spawn' | 'dial' = 'spawn',
     treeInit?: { parent: DapSession | null; label: string },
+    listener?: DapListenerTarget & { socket?: Socket },
   ) {
     this.adapterKey = adapterKey
     this.program = program
@@ -827,6 +875,15 @@ export class DapSession {
       this.#resolveInitialized = res
     })
     if (this.parentSession) this.output = this.parentSession.root().output
+    if (wire === 'dial' && listener !== undefined) {
+      this.#child = null
+      this.#listener = { host: listener.host, port: listener.port }
+      this.#transportReady =
+        listener.socket !== undefined
+          ? this.#adoptSocket(listener.socket, `the program listening at ${listener.host}:${listener.port} closed the connection`)
+          : this.#connectTcp(listener.port, listener.host)
+      return
+    }
     if (wire === 'dial') {
       this.#child = null
       if (tcpPort === undefined) {
@@ -997,33 +1054,46 @@ export class DapSession {
     }
   }
 
-  async #connectTcp(port: number, deadlineMs = 6_000): Promise<void> {
+  async #connectTcp(port: number, host = '127.0.0.1', deadlineMs = 6_000): Promise<void> {
     const start = Date.now()
     for (;;) {
       if (this.terminated) throw new Error(this.exitDetail || 'adapter exited before the tcp port opened')
       const socket = await new Promise<Socket | null>(resolve => {
-        const s = netConnect({ host: '127.0.0.1', port }, () => resolve(s))
+        const s = netConnect({ host, port }, () => resolve(s))
         s.on('error', () => resolve(null))
       })
       if (socket) {
-        this.#socket = socket
-        socket.on('data', (chunk: Buffer) => this.#onData(chunk))
-        socket.on('close', () => {
-          if (!this.terminated) {
-            this.terminated = true
-            this.exitDetail = this.exitDetail || 'adapter socket closed'
-            this.#wakeStateWaiters()
-          }
-        })
-        socket.on('error', () => {
-        })
+        await this.#adoptSocket(socket, 'adapter socket closed')
         return
       }
       if (Date.now() - start > deadlineMs) {
-        throw new Error(`adapter never opened 127.0.0.1:${port} within ${deadlineMs}ms`)
+        throw new Error(`adapter never opened ${host}:${port} within ${deadlineMs}ms`)
       }
       await new Promise(r => setTimeout(r, 100))
     }
+  }
+
+  #adoptSocket(socket: Socket, closedDetail: string): Promise<void> {
+    this.#socket = socket
+    socket.on('data', (chunk: Buffer) => this.#onData(chunk))
+    socket.on('close', () => {
+      if (!this.terminated) {
+        this.terminated = true
+        this.exitDetail = this.exitDetail || closedDetail
+        this.#wakeStateWaiters()
+      }
+      for (const [, p] of this.#pending) {
+        clearTimeout(p.timer)
+        p.reject(new Error(this.exitDetail))
+      }
+      this.#pending.clear()
+    })
+    socket.on('error', () => undefined)
+    return Promise.resolve()
+  }
+
+  get listener(): DapListenerTarget | null {
+    return this.#listener
   }
 
   get alive(): boolean {
@@ -1213,7 +1283,9 @@ export class DapSession {
         ? configuration.program
         : this.program
     let child: DapSession
-    if (this.#spec.connect === 'tcp') {
+    if (this.#listener !== null) {
+      child = new DapSession(this.adapterKey, this.#spec, program, this.#cwd, this.#listener.port, 'dial', { parent: this, label }, this.#listener)
+    } else if (this.#spec.connect === 'tcp') {
       if (this.#tcpPort === undefined) throw new Error('tcp adapter session has no known server port')
       child = new DapSession(this.adapterKey, this.#spec, program, this.#cwd, this.#tcpPort, 'dial', {
         parent: this,
@@ -1347,6 +1419,9 @@ export class DapSession {
     this.capabilities = await this.request('initialize', {
       ...CLIENT_INIT_ARGS,
       adapterID: this.adapterKey,
+    }).catch((error: unknown) => {
+      if (this.#listener === null || !(error instanceof Error) || !/timed out/.test(error.message)) throw error
+      throw new Error(`the program listening at ${this.#listener.host}:${this.#listener.port} did not answer initialize within ${REQUEST_TIMEOUT_MS}ms — is it a debugpy --listen socket?`)
     })
     const attach = options.mode === 'attach' || this.#spec.startRequest === 'attach'
     this.startMode = attach ? 'attach' : 'launch'
@@ -1398,6 +1473,9 @@ export class DapSession {
       new Promise<boolean>(res => setTimeout(() => res(false), initializedTimeoutMs)),
     ])
     if (!sawInitialized && !options.noDebug) {
+      if (this.#listener !== null) {
+        throw new Error(`the program listening at ${this.#listener.host}:${this.#listener.port} never sent initialized (10s) — is it a debugpy --listen socket?`)
+      }
       throw new Error(adapterSilenceMessage('adapter never sent initialized (10s)', this.adapterKey))
     }
     if (sawInitialized) {
@@ -1617,9 +1695,11 @@ export class DapSession {
     for (const child of [...this.children]) {
       await child.dispose()
     }
-    try {
-      await this.request('disconnect', this.disconnectArguments(), 2_000)
-    } catch {
+    if (this.#listener === null || this.capabilities !== null) {
+      try {
+        await this.request('disconnect', this.disconnectArguments(), 2_000)
+      } catch {
+      }
     }
     const child = this.#child
     if (child !== null && child.exitCode === null) {
@@ -1753,13 +1833,17 @@ export async function createDapSession(options: {
         ` (extend via MERCURY_DAP_ADAPTERS or <configHome>/dap-adapters.json)`,
     )
   }
-  if (resolved.preflightError) {
+  const listener = listenerAttachTarget(resolved, options)
+  const dial = listener !== null ? await dialListener(listener) : null
+  if (dial !== null && 'refused' in dial) throw new Error(listenerRefusedLine(listener!, dial.refused, options.adapterKey))
+  const dialed = dial !== null && 'socket' in dial ? dial.socket : null
+  if (resolved.preflightError && dialed === null) {
     throw new Error(
       `adapter '${options.adapterKey}' is unavailable: ${resolved.preflightError}` +
         (resolved.installHint ? ` — ${resolved.installHint}` : ''),
     )
   }
-  const tcpPort = resolved.connect === 'tcp' ? await pickFreePort() : undefined
+  const tcpPort = resolved.connect === 'tcp' && dialed === null ? await pickFreePort() : undefined
   const spec: DapAdapterSpec = {
     ...resolved,
     args: resolved.args.flatMap(arg => {
@@ -1778,10 +1862,13 @@ export async function createDapSession(options: {
       outcome: { reason: 'replaced by a re-launch on the same alias' },
     })
   }
-  const session = new DapSession(options.adapterKey, spec, options.program, options.cwd, tcpPort, 'spawn', {
-    parent: null,
-    label: options.id,
-  })
+  const session =
+    dialed !== null && listener !== null
+      ? new DapSession(options.adapterKey, spec, options.program, options.cwd, listener.port, 'dial', { parent: null, label: options.id }, { ...listener, socket: dialed })
+      : new DapSession(options.adapterKey, spec, options.program, options.cwd, tcpPort, 'spawn', {
+          parent: null,
+          label: options.id,
+        })
   sessions.set(key, session)
   projectExternalState(options.owner, dapExecutionSpec(options.id, options.adapterKey), 'starting')
   registerOwnerDisposer(options.owner, `dap:${options.id}`, async () => {
