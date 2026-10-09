@@ -124,7 +124,7 @@ check('F6d the runner relays the rows with its facts and writes the row on every
 const seat = readFileSync(join(REPO, 'src/daemon/sessionSeat.ts'), 'utf8')
 check('F6e the daemon re-asks the facts on the row', /case 'samples_updated':/.test(seat))
 const connector = readFileSync(join(REPO, 'src/services/engine-connector/daemonConnector.ts'), 'utf8')
-check('F6f the connector folds the rows into the work roster it already publishes', connector.includes('const samples = this.facts?.samples ?? []') && connector.includes('this.workSnapshot = { rows, mission, samples, ...(reported ? {} : { reported: false }), ...(pauseGate !== undefined ? { pauseGate } : {}) }'))
+check('F6f the connector folds the rows into the work roster it already publishes', connector.includes('const samples = this.facts?.samples ?? []') && connector.includes('this.workSnapshot = { rows, mission, samples, ...(reported ? {} : { reported: false }), ...(gone ? { gone: true } : {}), ...(pauseGate !== undefined ? { pauseGate } : {}) }'))
 
 section('P the poison — the comparators bite on a spoiled fixture')
 const spoiled = after.map(r => ({ ...r, url: r.url?.replace(/t=[0-9a-f]{32}$/, 't=short') }))
