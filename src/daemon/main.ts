@@ -902,7 +902,11 @@ async function daemonRun(args: string[]): Promise<void> {
         onShutdown: async (reapWorkers, forwardedFromPlane) => {
           const workers: ReturnType<NonNullable<typeof roster>['liveWorkerFacts']> = []
           if (reapWorkers && roster) {
-            for (const w of roster.liveWorkerFacts()) {
+            const live = roster.liveWorkerFacts()
+            const parked = parkAllConcourseSessions('daemon:stop', roster, undefined, { reason: 'parked — the daemon was stopped', afterTurn: false })
+            // eslint-disable-next-line no-console
+            console.error(`[daemon] stop parks every active session: parked ${parked.parked.length}, released ${parked.released.length} newborn(s), skipped ${parked.skipped.length}${parked.refused.length > 0 ? `, refused ${parked.refused.join(', ')}` : ''}`)
+            for (const w of live) {
               if (roster.kill(w.short)) workers.push(w)
             }
           }
