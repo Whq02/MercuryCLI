@@ -65,6 +65,13 @@ export interface MetaDiscovery {
   keyPresent: boolean
   keySource?: 'env' | 'stored'
 }
+
+export interface NousDiscovery {
+  provider: 'nous'
+  probedAtMs: number
+  keyPresent: boolean
+  keySource?: 'env' | 'stored'
+}
 export interface CompatDiscovery {
   provider: 'openai-compat'
   probedAtMs: number
@@ -106,6 +113,7 @@ export type ProviderDiscovery =
   | CompatDiscovery
   | HuggingfaceDiscovery
   | LocalDiscovery
+  | NousDiscovery
 
 export interface DiscoveryIo {
   env: Record<string, string | undefined>
@@ -237,6 +245,18 @@ function probeMeta(io: DiscoveryIo): MetaDiscovery {
   const { resolveMetaApiKey } = require('../../services/providers/meta/metaAccounts.js') as typeof import('../../services/providers/meta/metaAccounts.js')
   const key = resolveMetaApiKey(io.env)
   return { provider: 'meta', probedAtMs: io.now(), keyPresent: key !== undefined, ...(key ? { keySource: key.source } : {}) }
+}
+
+function probeNous(io: DiscoveryIo): NousDiscovery {
+  const { resolveNousApiKey } = require('../../services/providers/nous/nousAccounts.js') as typeof import('../../services/providers/nous/nousAccounts.js')
+  const key = resolveNousApiKey(io.env)
+  return { provider: 'nous', probedAtMs: io.now(), keyPresent: key !== undefined, ...(key ? { keySource: key.source } : {}) }
+}
+
+export function primeNousDiscovery(io?: DiscoveryIo): NousDiscovery | null {
+  const record = probeNous(io ?? defaultIo())
+  cache.set('nous', record)
+  return record
 }
 
 function probeDeepseek(io: DiscoveryIo): DeepseekDiscovery {
@@ -384,6 +404,8 @@ export function refreshProviderDiscovery(
                           ? probeHuggingface(io)
                           : id === 'local'
                             ? probeLocal(io)
+                            : id === 'nous'
+                              ? probeNous(io)
                             : probeZai(io)
       cache.set(id, record)
       return record
