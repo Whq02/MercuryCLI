@@ -90,6 +90,7 @@ function seedChat(project: string, sessionId: string, words: string, ageMs: numb
   return file
 }
 const sid = (tail: string): string => `00000000-cccc-4000-8000-${tail.padStart(12, '0')}`
+const uncappedHas = (project: string, excluded: Set<string>, sessionId: string): boolean => olderChatsCensus(project, excluded, NOW, { entryCap: 99 }).entries.some(e => e.sessionId === sessionId)
 
 console.log('§1 — the older-chats census (L20): one enumeration behind the N and the browse')
 {
@@ -103,6 +104,7 @@ console.log('§1 — the older-chats census (L20): one enumeration behind the N 
   const S_O3 = sid('e3')
   const S_HUSK = sid('f1')
   const S_BLANK = sid('f2')
+  const S_CMD = sid('f3')
   seedChat(P, S_LIVE, 'the live chat', 5 * 60_000)
   seedChat(P, S_P1, 'painted one', 60 * 60_000)
   seedChat(P, S_P2, 'painted two', 2 * 60 * 60_000)
@@ -112,6 +114,7 @@ console.log('§1 — the older-chats census (L20): one enumeration behind the N 
   seedChat(P, S_O3, 'older three', 10 * DAY)
   seedChat(P, S_HUSK, '', 4 * 60 * 60_000, { husk: true })
   seedChat(P, S_BLANK, '', 5 * 60 * 60_000)
+  seedChat(P, S_CMD, '<command-name>/model</command-name><command-message>model</command-message><command-args>claude-opus-5</command-args>', 6 * 60 * 60_000)
   seedWorkers([liveRecord('concourse-w1', S_LIVE, P)])
   await markParkedCleared(S_CLR, draftDir)
 
@@ -119,6 +122,8 @@ console.log('§1 — the older-chats census (L20): one enumeration behind the N 
   const census = olderChatsCensus(P, excluded, NOW, { entryCap: 2 })
   check('the N counts exactly the enumerable older chats (cleared + beyond-week; 1 + 3 = 4)', census.total === 4, String(census.total))
   check('POISON (the 21-vs-0 lie): the husk and the wordless leftover are in the store but in NEITHER the count NOR the list', census.total === 4 && !census.entries.some(e => e.sessionId === S_HUSK || e.sessionId === S_BLANK))
+  check('a chat whose only input is a slash command (a /model switch, nothing said) is a leftover too: in the store, in neither the count nor the list', census.total === 4 && !uncappedHas(P, excluded, S_CMD))
+  check('…and it is no painted parked row either — the board carries nothing of a chat where nothing was said', !parkedBoardRows(P, new Set([S_LIVE]), new Set([S_CLR]), NOW).some(r => r.sessionId === S_CMD))
   check('the entries are newest-first and carry the L16 stage-2 title, the transcript and a real age', census.entries.map(e => e.sessionId).join(',') === [S_CLR, S_O1].join(',') && census.entries[0]?.title === 'the cleared chat' && census.entries.every(e => e.transcriptPath.endsWith('.jsonl') && e.ageMs > 0), census.entries.map(e => `${e.sessionId.slice(-2)}:${e.title}`).join(' | '))
   check('the cap bounds the LIST, never the COUNT — the "+N more" tail arithmetic is honest (4 total − 2 listed = 2 more)', census.entries.length === 2 && census.total - census.entries.length === 2)
   const uncapped = olderChatsCensus(P, excluded, NOW, { entryCap: 99 })

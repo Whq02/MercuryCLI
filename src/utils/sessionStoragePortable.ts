@@ -126,7 +126,7 @@ function collectTexts(content: unknown): string[] {
   return texts
 }
 
-export function extractFirstPromptFromHead(head: string): string {
+export function extractFirstPromptFromHead(head: string, opts: { promptsOnly?: boolean } = {}): string {
   let commandNameFallback: string | null = null
   for (const line of head.split('\n')) {
     if (!line.includes('"kind":"input"')) continue
@@ -177,7 +177,7 @@ export function extractFirstPromptFromHead(head: string): string {
       return text
     }
   }
-  return commandNameFallback ?? ''
+  return opts.promptsOnly === true ? '' : (commandNameFallback ?? '')
 }
 
 
