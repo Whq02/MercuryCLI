@@ -1,6 +1,7 @@
 #!/usr/bin/env bun
 import { spawn, spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { watch } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -61,18 +62,30 @@ const spawnDaemonWithHome = (configHome: string): void => {
 }
 
 const { daemonControlRpc } = await import('../../src/daemon/controlSocket.ts')
-const untilAsync = async (pred: () => Promise<boolean>, ms: number): Promise<boolean> => {
-  const t0 = Date.now()
-  while (Date.now() - t0 < ms) {
+const untilChanged = async (dir: string, pred: () => Promise<boolean>, ms: number): Promise<boolean> => {
+  const settled = async (): Promise<boolean> => {
     try {
-      if (await pred()) return true
+      return await pred()
     } catch {
+      return false
     }
-    await new Promise(r => setTimeout(r, 250))
   }
-  return false
+  if (await settled()) return true
+  const ceiling = new AbortController()
+  const timer = setTimeout(() => ceiling.abort(), ms)
+  timer.unref?.()
+  try {
+    for await (const _change of watch(dir, { signal: ceiling.signal, recursive: true })) {
+      if (await settled()) return true
+    }
+  } catch {
+  } finally {
+    clearTimeout(timer)
+  }
+  return settled()
 }
 const paths = await import('../../src/utils/sessionStorage/paths.ts')
+const { vshotBudgetMs } = await import('../lib/captureDriver.ts')
 
 console.log('the session board: a click selects a row, a second click on the selected row enters it — also when the second click lands inside the terminal’s double-click window (the built product in a PTY)')
 try {
@@ -103,7 +116,8 @@ try {
       gitRun(['-c', 'user.name=arena', '-c', 'user.email=arena@fixture.invalid', 'commit', '-q', '-m', 'base'])
       seedFirstRun(configDir, [cwd, work])
       spawnDaemonWithHome(configDir)
-      check('the daemon serves', await untilAsync(async () => (await daemonControlRpc({ op: 'ping' })).ok, 60_000))
+      check('the daemon serves', await untilChanged(daemonDir, async () => (await daemonControlRpc({ op: 'ping' })).ok, vshotBudgetMs(60_000)))
+      mkdirSync(paths.getProjectDir(cwd), { recursive: true })
       for (const [id, title] of [['click-twice-a', TITLE], ['click-twice-b', TITLE_B]] as const) {
         const dispatched = (await daemonControlRpc({
           op: 'concourseDispatch',
@@ -116,7 +130,7 @@ try {
         } as never, { timeoutMs: 15_000 })) as { ok?: boolean; sessionId?: string }
         check(`${title}: the session dispatched (working)`, dispatched.ok === true && dispatched.sessionId !== undefined, JSON.stringify(dispatched))
         const transcript = join(paths.getProjectDir(cwd), `${dispatched.sessionId ?? ''}.jsonl`)
-        check(`${title}: the runner is mid-thought before the board boots`, await untilAsync(async () => existsSync(transcript) && statSync(transcript).size > 200 && readFileSync(transcript, 'utf8').includes('stage-01 live-body'), 30_000), transcript)
+        check(`${title}: the runner is mid-thought before the board boots`, await untilChanged(paths.getProjectDir(cwd), async () => existsSync(transcript) && statSync(transcript).size > 200 && readFileSync(transcript, 'utf8').includes('stage-01 live-body'), vshotBudgetMs(30_000)), transcript)
       }
     },
     extraEnv: {

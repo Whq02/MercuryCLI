@@ -74,7 +74,7 @@ const rows = 40
 const sends = [
   { requireAwait: true, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
   { requireAwait: true, awaitText: 'Type a prompt', minTick: 5, awaitSettleTicks: 3, data: '/context' },
-  { afterPrevTicks: 2, data: '\r' },
+  { requireAwait: true, awaitText: '/context', awaitSettleTicks: 1, data: '\r' },
   { requireAwait: true, awaitText: 'counting the context window', awaitSettleTicks: 1, mark: 'card', data: '' },
 ]
 const cfgPath = join(SCRATCH, 'cfg.json')
