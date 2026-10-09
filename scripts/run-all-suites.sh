@@ -268,6 +268,20 @@ read_num() { # $1=file $2=default — a torn/garbled number reads as the default
   printf '%s' "$v"
 }
 
+red_proof_lines() { # $1 = captured suite output
+  awk -v max=12 '
+    function flush(head) {
+      print "      ┆ " head
+      shown = 0
+      for (i = 1; i <= n && shown < max; i++) { print "      ┆     " substr(buf[i], 1, 200); shown++ }
+      if (n > max) print "      ┆     … " (n - max) " more fail row(s) in the dump below"
+    }
+    /^── .* [0-9]+s rc=[0-9]+$/ { if ($0 !~ / rc=0$/) flush($0); n = 0; next }
+    /^__SUITE_(TIMEOUT|RUNNER_GONE|RUNNER_SIGNALLED)/ { flush($0); n = 0; next }
+    /\[FAIL\]|FAIL:|✗|❌|FAILED|TIMEOUT|error:/ { if (n < 500) buf[++n] = $0 }
+  ' "$1" 2>/dev/null
+}
+
 print_done() { # $1 = dom  $2 = dir
   local dom=$1 dir=$2 rc dt
   rc=$(read_num "$dir/$dom.rc" 1)   # a torn/garbled rc reads as RED, never a bash error
@@ -276,6 +290,7 @@ print_done() { # $1 = dom  $2 = dir
     PASS+=("$dom"); printf '  ✅ %-18s %3ds\n' "$dom" "$dt"
   else
     FAIL+=("$dom"); printf '  ❌ %-18s %3ds\n' "$dom" "$dt"
+    red_proof_lines "$dir/$dom.out"
     sed 's/^/      │ /' "$dir/$dom.out" 2>/dev/null
   fi
   PRINTED+=("$dom")
@@ -463,6 +478,7 @@ for dom in ${solo_doms[@]+"${solo_doms[@]}"}; do
     printf '  ✅ %-18s %3ds  (solo re-run GREEN — pool flake RECORDED in the verdict)\n' "$dom" "$ssec"
   else
     printf '  ❌ %-18s %3ds  (solo re-run still RED — genuine)\n' "$dom" "$ssec"
+    red_proof_lines "$outdir/retry2/$dom.out"
     sed 's/^/      │ /' "$outdir/retry2/$dom.out" 2>/dev/null
   fi
 done
@@ -573,6 +589,14 @@ if [ "$nflk" -gt 0 ]; then
   printf '⚠  %s pool flake row(s) recorded in the verdict ledger\n' "$nflk"
 fi
 if [ "${#FAIL[@]}" -gt 0 ]; then
+  echo "RED PROOFS (the deciding attempt of each red suite):"
+  for dom in ${FAIL[@]+"${FAIL[@]}"}; do
+    decided="$outdir/$dom.out"
+    [ -s "$outdir/retry1/$dom.out" ] && decided="$outdir/retry1/$dom.out"
+    [ -s "$outdir/retry2/$dom.out" ] && decided="$outdir/retry2/$dom.out"
+    printf '  ┆ %s — %s\n' "$dom" "$(case "$decided" in (*/retry2/*) echo 'the solo re-run' ;; (*/retry1/*) echo 'the in-pool re-run' ;; (*) echo 'the pooled attempt' ;; esac)"
+    red_proof_lines "$decided"
+  done
   printf '❌ %d/%d RED: %s  ·  %ds total\n' "${#FAIL[@]}" "$total" "${FAIL[*]}" "$(( SECONDS - T_START ))"
   exit 1
 fi
