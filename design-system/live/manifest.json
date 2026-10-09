@@ -30,7 +30,7 @@
       "terminalProfile": "pyte-xterm",
       "gridPath": "grids/cockpit-wide--120x40--dark--truecolor--full.grid.json",
       "gridDigest": "a9931121ba8973ae9346fa7f6f30c9e5874002fb684055941fa6de33912e483a",
-      "styleDigest": "e9c8b64c12276ccae11449651e371250a1723aa0d927e222d058010179df2a83",
+      "styleDigest": "4a1f67d4ba6b99f51a680e4385f88a95c6722fb27743bb86622a1514fc83789a",
       "masks": [
         "\\b\\d{2}:\\d{2}:\\d{2}\\b",
         "\\b\\d+[smhd] ago\\b",
@@ -68,7 +68,7 @@
       "terminalProfile": "pyte-xterm",
       "gridPath": "grids/frame--100x30--dark--truecolor--full.grid.json",
       "gridDigest": "105f683d918f5d8c9cb5d77e89a56fab20d16f4a7d998359cbad98ed20ac4735",
-      "styleDigest": "6ae31dbf6d4c8c2bec5df70ece17be4cf8a44a59a74dcef05243f77dde407dd9",
+      "styleDigest": "ced032bf1e4c97f0b9632151d3f0465ccc16add16dd1ded7a454ab746a960667",
       "masks": [
         "\\b\\d{2}:\\d{2}:\\d{2}\\b",
         "\\b\\d+[smhd] ago\\b",
@@ -106,7 +106,7 @@
       "terminalProfile": "pyte-xterm",
       "gridPath": "grids/frame--101x30--dark--truecolor--full.grid.json",
       "gridDigest": "71a7146589be35fadbf9f6b4aedce2c68b5937981ad1c72261e3084681b2d6c8",
-      "styleDigest": "44c7fc4d82de65aaa7a11dade694f5916e1656c98ef32d7e1693919184fff074",
+      "styleDigest": "61b27aaea8eadf55aee98a4fae93926eef2aa5ed27732b74f5ef384ef8f249e9",
       "masks": [
         "\\b\\d{2}:\\d{2}:\\d{2}\\b",
         "\\b\\d+[smhd] ago\\b",
@@ -144,7 +144,7 @@
       "terminalProfile": "pyte-xterm",
       "gridPath": "grids/frame--120x40--dark--256--full.grid.json",
       "gridDigest": "40358661918c82c94f84ea4cb6768d8439551d5af6e91b7952f5526c8058b513",
-      "styleDigest": "10216661eee6b81770e2d0f055f62bba5658bcf6d437f16952dedfcc1a63b9b8",
+      "styleDigest": "4d8fca96c903e35ba952fa66b7eb87109b17532b68632fceca9480987d6d1f98",
       "masks": [
         "\\b\\d{2}:\\d{2}:\\d{2}\\b",
         "\\b\\d+[smhd] ago\\b",
@@ -182,7 +182,7 @@
       "terminalProfile": "pyte-xterm",
       "gridPath": "grids/frame--120x40--dark--ansi--full.grid.json",
       "gridDigest": "40358661918c82c94f84ea4cb6768d8439551d5af6e91b7952f5526c8058b513",
-      "styleDigest": "5b7ee770d0b6e9e5511c9d78945527612488df53fcfa86167511f4d920cfb4b0",
+      "styleDigest": "4c7f5987ef048b7d685083fecbd9b50d447c51789a1eb15e44850a9c61c1f3bd",
       "masks": [
         "\\b\\d{2}:\\d{2}:\\d{2}\\b",
         "\\b\\d+[smhd] ago\\b",
@@ -258,7 +258,7 @@
       "terminalProfile": "pyte-xterm",
       "gridPath": "grids/frame--120x40--dark--truecolor--full.grid.json",
       "gridDigest": "40358661918c82c94f84ea4cb6768d8439551d5af6e91b7952f5526c8058b513",
-      "styleDigest": "cd14f6cd6af3bf558efd8bee04412a11cc721862bdf6d1d1e9a2c84965ae10e8",
+      "styleDigest": "1129e8021ab8e78109ad3f515719ca6570de4839b4fc3c4a2d627de8e29270f8",
       "masks": [
         "\\b\\d{2}:\\d{2}:\\d{2}\\b",
         "\\b\\d+[smhd] ago\\b",
@@ -296,7 +296,7 @@
       "terminalProfile": "pyte-xterm",
       "gridPath": "grids/frame--120x40--dark--truecolor--reduced.grid.json",
       "gridDigest": "40358661918c82c94f84ea4cb6768d8439551d5af6e91b7952f5526c8058b513",
-      "styleDigest": "cd14f6cd6af3bf558efd8bee04412a11cc721862bdf6d1d1e9a2c84965ae10e8",
+      "styleDigest": "1129e8021ab8e78109ad3f515719ca6570de4839b4fc3c4a2d627de8e29270f8",
       "masks": [
         "\\b\\d{2}:\\d{2}:\\d{2}\\b",
         "\\b\\d+[smhd] ago\\b",
@@ -334,7 +334,7 @@
       "terminalProfile": "pyte-xterm",
       "gridPath": "grids/frame--120x40--true-black--truecolor--full.grid.json",
       "gridDigest": "40358661918c82c94f84ea4cb6768d8439551d5af6e91b7952f5526c8058b513",
-      "styleDigest": "a7e0c78e79a3a4d0d293f2e65bacbed2d0030e1ab3ed1a929ff7d0ffc87eacaa",
+      "styleDigest": "e1b85f31fdfbdbf06221111b4c98988d48dab8171b6610e3519cde95b9a8b6fb",
       "masks": [
         "\\b\\d{2}:\\d{2}:\\d{2}\\b",
         "\\b\\d+[smhd] ago\\b",
@@ -372,7 +372,7 @@
       "terminalProfile": "pyte-xterm",
       "gridPath": "grids/frame--149x40--dark--truecolor--full.grid.json",
       "gridDigest": "7e3883f36b58f7995a5b35642070528bd60032d9f58fb38530abc42e8351bd19",
-      "styleDigest": "92093d91386db30b43abb39acd70f7902e41d94a3a65955cbfe16d973fff0802",
+      "styleDigest": "aceb129666e32987f5fb13d078c1fcf471496b3ea566a2a1c03eb9e13317e96a",
       "masks": [
         "\\b\\d{2}:\\d{2}:\\d{2}\\b",
         "\\b\\d+[smhd] ago\\b",
@@ -562,7 +562,7 @@
       "terminalProfile": "pyte-xterm",
       "gridPath": "grids/frame--60x18--dark--truecolor--full.grid.json",
       "gridDigest": "3711c5e748750c1efd22702b957f9ffea9bd5c10988ed36b6db00ceffcfb1438",
-      "styleDigest": "02e560992b2eb4c13a2555be810ee828839a8e516080281a726f086d6fa3d45a",
+      "styleDigest": "8a47b2fd5e885df390ac67ede43d89d50c72b7fd2bde5c04bc9a6bfd390afe2e",
       "masks": [
         "\\b\\d{2}:\\d{2}:\\d{2}\\b",
         "\\b\\d+[smhd] ago\\b",
@@ -599,8 +599,8 @@
       "stateFixture": "frame",
       "terminalProfile": "pyte-xterm",
       "gridPath": "grids/frame--80x24--dark--truecolor--full.grid.json",
-      "gridDigest": "5542a7fed8d35dd16ca1f3de7b0b48a231a27858bc75751cd1614f1f0fbdef0c",
-      "styleDigest": "b49e25b90c8ea759d61bd6b10d43d5c9cc7f8ab4d4d9af224c9b382a528cfac4",
+      "gridDigest": "2893e87ba98c84fd202b2485b6bc9da6cc7949f3e279f4c1397f2b7a3c94c47c",
+      "styleDigest": "bc12a57d70b9e422c5ba4a7c4a9c4070de8f232d7f0aa75ea3c25e1f18346c99",
       "masks": [
         "\\b\\d{2}:\\d{2}:\\d{2}\\b",
         "\\b\\d+[smhd] ago\\b",
@@ -638,7 +638,7 @@
       "terminalProfile": "pyte-xterm",
       "gridPath": "grids/frame--97x30--dark--truecolor--full.grid.json",
       "gridDigest": "6f07097be38c4a7aa53cf0c0633ed8b4f224dacf4723fdd7bfdfa5cf5eb016fd",
-      "styleDigest": "1b3c837c8978fda9df574da77ae2694f62d8cec91b161822da2c09c31e3e90d8",
+      "styleDigest": "361f5b7c3d52fc4149f4277b659a891ed6aa1f86e6aa3c256abbed35884c300f",
       "masks": [
         "\\b\\d{2}:\\d{2}:\\d{2}\\b",
         "\\b\\d+[smhd] ago\\b",
@@ -676,7 +676,7 @@
       "terminalProfile": "pyte-xterm",
       "gridPath": "grids/frame--99x30--dark--truecolor--full.grid.json",
       "gridDigest": "265c2c38308e265c80d23ca6f76ca8e7c41d877351dde9ac175023e980191db7",
-      "styleDigest": "656a815b637f82e6c54890d7a81de8ba5b001246cb48ff6e800ad052e6c50262",
+      "styleDigest": "fc02962a5a5a420893e8ab1f7e1aa25e58207f67c8658d2518260f80f5fd07f3",
       "masks": [
         "\\b\\d{2}:\\d{2}:\\d{2}\\b",
         "\\b\\d+[smhd] ago\\b",
@@ -714,7 +714,7 @@
       "terminalProfile": "pyte-xterm",
       "gridPath": "grids/help--120x40--dark--truecolor--full.grid.json",
       "gridDigest": "249c6fa3a4e0fa0b5c338690e64fa4dd0c9d390b3126f6670055bf6738004378",
-      "styleDigest": "9e807df40bc68fb6809dcbe65f595c8717426ccb44ddb2138d41b794e6af0771",
+      "styleDigest": "75aef0248f3f3a5c980ffb07e8eb4ccffe84c1b52555f34121e43bba06129c2b",
       "masks": [
         "\\b\\d{2}:\\d{2}:\\d{2}\\b",
         "\\b\\d+[smhd] ago\\b",
@@ -752,7 +752,7 @@
       "terminalProfile": "pyte-xterm",
       "gridPath": "grids/resume-2turn--100x30--dark--truecolor--full.grid.json",
       "gridDigest": "105f683d918f5d8c9cb5d77e89a56fab20d16f4a7d998359cbad98ed20ac4735",
-      "styleDigest": "6ae31dbf6d4c8c2bec5df70ece17be4cf8a44a59a74dcef05243f77dde407dd9",
+      "styleDigest": "ced032bf1e4c97f0b9632151d3f0465ccc16add16dd1ded7a454ab746a960667",
       "masks": [
         "\\b\\d{2}:\\d{2}:\\d{2}\\b",
         "\\b\\d+[smhd] ago\\b",
@@ -790,7 +790,7 @@
       "terminalProfile": "pyte-xterm",
       "gridPath": "grids/resume-2turn--101x30--dark--truecolor--full.grid.json",
       "gridDigest": "71a7146589be35fadbf9f6b4aedce2c68b5937981ad1c72261e3084681b2d6c8",
-      "styleDigest": "44c7fc4d82de65aaa7a11dade694f5916e1656c98ef32d7e1693919184fff074",
+      "styleDigest": "61b27aaea8eadf55aee98a4fae93926eef2aa5ed27732b74f5ef384ef8f249e9",
       "masks": [
         "\\b\\d{2}:\\d{2}:\\d{2}\\b",
         "\\b\\d+[smhd] ago\\b",
@@ -828,7 +828,7 @@
       "terminalProfile": "pyte-xterm",
       "gridPath": "grids/resume-2turn--120x40--dark--256--full.grid.json",
       "gridDigest": "40358661918c82c94f84ea4cb6768d8439551d5af6e91b7952f5526c8058b513",
-      "styleDigest": "10216661eee6b81770e2d0f055f62bba5658bcf6d437f16952dedfcc1a63b9b8",
+      "styleDigest": "4d8fca96c903e35ba952fa66b7eb87109b17532b68632fceca9480987d6d1f98",
       "masks": [
         "\\b\\d{2}:\\d{2}:\\d{2}\\b",
         "\\b\\d+[smhd] ago\\b",
@@ -866,7 +866,7 @@
       "terminalProfile": "pyte-xterm",
       "gridPath": "grids/resume-2turn--120x40--dark--ansi--full.grid.json",
       "gridDigest": "40358661918c82c94f84ea4cb6768d8439551d5af6e91b7952f5526c8058b513",
-      "styleDigest": "5b7ee770d0b6e9e5511c9d78945527612488df53fcfa86167511f4d920cfb4b0",
+      "styleDigest": "4c7f5987ef048b7d685083fecbd9b50d447c51789a1eb15e44850a9c61c1f3bd",
       "masks": [
         "\\b\\d{2}:\\d{2}:\\d{2}\\b",
         "\\b\\d+[smhd] ago\\b",
@@ -942,7 +942,7 @@
       "terminalProfile": "pyte-xterm",
       "gridPath": "grids/resume-2turn--120x40--dark--truecolor--full.grid.json",
       "gridDigest": "40358661918c82c94f84ea4cb6768d8439551d5af6e91b7952f5526c8058b513",
-      "styleDigest": "cd14f6cd6af3bf558efd8bee04412a11cc721862bdf6d1d1e9a2c84965ae10e8",
+      "styleDigest": "1129e8021ab8e78109ad3f515719ca6570de4839b4fc3c4a2d627de8e29270f8",
       "masks": [
         "\\b\\d{2}:\\d{2}:\\d{2}\\b",
         "\\b\\d+[smhd] ago\\b",
@@ -980,7 +980,7 @@
       "terminalProfile": "pyte-xterm",
       "gridPath": "grids/resume-2turn--149x40--dark--truecolor--full.grid.json",
       "gridDigest": "7e3883f36b58f7995a5b35642070528bd60032d9f58fb38530abc42e8351bd19",
-      "styleDigest": "92093d91386db30b43abb39acd70f7902e41d94a3a65955cbfe16d973fff0802",
+      "styleDigest": "aceb129666e32987f5fb13d078c1fcf471496b3ea566a2a1c03eb9e13317e96a",
       "masks": [
         "\\b\\d{2}:\\d{2}:\\d{2}\\b",
         "\\b\\d+[smhd] ago\\b",
@@ -1170,7 +1170,7 @@
       "terminalProfile": "pyte-xterm",
       "gridPath": "grids/resume-2turn--60x18--dark--truecolor--full.grid.json",
       "gridDigest": "3711c5e748750c1efd22702b957f9ffea9bd5c10988ed36b6db00ceffcfb1438",
-      "styleDigest": "02e560992b2eb4c13a2555be810ee828839a8e516080281a726f086d6fa3d45a",
+      "styleDigest": "8a47b2fd5e885df390ac67ede43d89d50c72b7fd2bde5c04bc9a6bfd390afe2e",
       "masks": [
         "\\b\\d{2}:\\d{2}:\\d{2}\\b",
         "\\b\\d+[smhd] ago\\b",
@@ -1207,8 +1207,8 @@
       "stateFixture": "resume-2turn",
       "terminalProfile": "pyte-xterm",
       "gridPath": "grids/resume-2turn--80x24--dark--truecolor--full.grid.json",
-      "gridDigest": "5542a7fed8d35dd16ca1f3de7b0b48a231a27858bc75751cd1614f1f0fbdef0c",
-      "styleDigest": "b49e25b90c8ea759d61bd6b10d43d5c9cc7f8ab4d4d9af224c9b382a528cfac4",
+      "gridDigest": "2893e87ba98c84fd202b2485b6bc9da6cc7949f3e279f4c1397f2b7a3c94c47c",
+      "styleDigest": "bc12a57d70b9e422c5ba4a7c4a9c4070de8f232d7f0aa75ea3c25e1f18346c99",
       "masks": [
         "\\b\\d{2}:\\d{2}:\\d{2}\\b",
         "\\b\\d+[smhd] ago\\b",
@@ -1246,7 +1246,7 @@
       "terminalProfile": "pyte-xterm",
       "gridPath": "grids/resume-2turn--97x30--dark--truecolor--full.grid.json",
       "gridDigest": "6f07097be38c4a7aa53cf0c0633ed8b4f224dacf4723fdd7bfdfa5cf5eb016fd",
-      "styleDigest": "1b3c837c8978fda9df574da77ae2694f62d8cec91b161822da2c09c31e3e90d8",
+      "styleDigest": "361f5b7c3d52fc4149f4277b659a891ed6aa1f86e6aa3c256abbed35884c300f",
       "masks": [
         "\\b\\d{2}:\\d{2}:\\d{2}\\b",
         "\\b\\d+[smhd] ago\\b",
@@ -1284,7 +1284,7 @@
       "terminalProfile": "pyte-xterm",
       "gridPath": "grids/resume-2turn--99x30--dark--truecolor--full.grid.json",
       "gridDigest": "265c2c38308e265c80d23ca6f76ca8e7c41d877351dde9ac175023e980191db7",
-      "styleDigest": "656a815b637f82e6c54890d7a81de8ba5b001246cb48ff6e800ad052e6c50262",
+      "styleDigest": "fc02962a5a5a420893e8ab1f7e1aa25e58207f67c8658d2518260f80f5fd07f3",
       "masks": [
         "\\b\\d{2}:\\d{2}:\\d{2}\\b",
         "\\b\\d+[smhd] ago\\b",
@@ -1322,7 +1322,7 @@
       "terminalProfile": "pyte-xterm",
       "gridPath": "grids/sessions--120x40--dark--truecolor--full.grid.json",
       "gridDigest": "11b5a2af1456e707385a3e8000117c1ada93a9ac97b9f83110a85901354f7eee",
-      "styleDigest": "cfcbe28825cabeec9fc8be645db1c004f77b159dee1cbf188a4f889b2ff30ae8",
+      "styleDigest": "0acbb95be2bac4d2a6698733ed2404a074670e0d8af0fd6f650554606e66be69",
       "masks": [
         "\\b\\d{2}:\\d{2}:\\d{2}\\b",
         "\\b\\d+[smhd] ago\\b",
@@ -1360,7 +1360,7 @@
       "terminalProfile": "pyte-xterm",
       "gridPath": "grids/tool-cards--120x40--dark--truecolor--full.grid.json",
       "gridDigest": "27fa0275ffc5a2f89ddb5743485a8f407086da1e6bbc926014742735b3697b12",
-      "styleDigest": "407bb2ef1f863744baa48bfec7d6065eb311231e3ead26b97af1b392119af0f8",
+      "styleDigest": "2c1ee2b77755a3490baf61f315cb60e3354b10107ccb39d5ccaca3da020a32ae",
       "masks": [
         "\\b\\d{2}:\\d{2}:\\d{2}\\b",
         "\\b\\d+[smhd] ago\\b",
