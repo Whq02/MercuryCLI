@@ -47,6 +47,8 @@ function run(verb: string[], env: Record<string, string>): { status: number; jso
     MERCURY_XAI_API_BASE: 'http://127.0.0.1:1/v1',
     MERCURY_XAI_MANAGEMENT_API_BASE: 'http://127.0.0.1:1',
     MERCURY_META_API_BASE: 'http://127.0.0.1:1/v1',
+    MERCURY_ZEN_API_BASE: 'http://127.0.0.1:1/zen/v1',
+    MERCURY_ZEN_GO_API_BASE: 'http://127.0.0.1:1/zen/go/v1',
   }
   for (const name of SCRUB) delete childEnv[name]
   Object.assign(childEnv, env)
