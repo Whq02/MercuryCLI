@@ -45,9 +45,9 @@ const REASON_TABLE: ReasonLines<ReasonByType> = {
     const parts = subcommandPartsNeedingApproval(toolName, sub.reasons)
     if (parts.length > 0) {
       const n = parts.length
-      return `This ${toolName} command contains multiple operations. The following ${plural(n, 'part')} ${plural(n, 'requires', 'require')} approval: ${parts.join(', ')}`
+      return `${plural(n, 'One part', 'Several parts')} of this ${toolName} command ${plural(n, 'needs', 'need')} approval: ${parts.join(', ')}`
     }
-    return `This ${toolName} command contains multiple operations that require approval`
+    return `Several parts of this ${toolName} command need approval`
   },
   permissionPromptTool: (toolName, prompt) => `Tool '${prompt.permissionPromptToolName}' requires approval for this ${toolName} command`,
   sandboxOverride: () => 'Run outside of the sandbox',
