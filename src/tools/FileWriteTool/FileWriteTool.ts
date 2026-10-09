@@ -54,7 +54,7 @@ import {
 const inputSchema = z.strictObject({
   file_path: z
     .string()
-    .describe('The absolute path to the file to write (must be absolute, not relative)'),
+    .describe('Absolute path of the file to write'),
   content: z.string().describe('The content to write to the file'),
 })
 
