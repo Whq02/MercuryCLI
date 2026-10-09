@@ -280,10 +280,11 @@ function ModelSet({
   if (held) {
     const heldIsDaemon = getFocusedSessionConnector().carrier === 'daemon'
     const effective = override ?? base
+    const fromModel = heldIsDaemon ? held.plan.from : effective
     return (
       <TransitionPreviewCard
         plan={held.plan}
-        fromLabel={renderModelLabel(heldIsDaemon ? held.plan.from : effective)}
+        fromLabel={renderModelLabel(fromModel)}
         toLabel={renderModelLabel(target)}
         refreshed={held.refreshed}
         targetUsability={usabilityForRoute(held.plan.targetRoute)}
@@ -311,7 +312,7 @@ function ModelSet({
         onCancel={() => {
           setHeld(null)
           onDone(
-            `Kept ${renderModelLabel(effective)} — the model switch was cancelled at the preview.`,
+            `Kept ${renderModelLabel(fromModel)} — the model switch was cancelled at the preview.`,
           )
         }}
       />

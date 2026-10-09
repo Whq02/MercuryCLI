@@ -110,7 +110,8 @@ section('§4 the wiring, structural')
     'the ambient refusal names what could not be resolved and builds no plan',
     model.includes("effectiveSource === 'ambient'") && model.includes('no live facts and no recorded model'),
   )
-  check("the held card names the plan's own from for a daemon carrier", model.includes('heldIsDaemon ? held.plan.from : effective'))
+  check("the held card names the plan's own from for a daemon carrier", model.includes('const fromModel = heldIsDaemon ? held.plan.from : effective') && model.includes('fromLabel={renderModelLabel(fromModel)}'))
+  check("the cancel line reads the same source as the from-label (RELEASE-29-AIR R29A-03: it read the screen's own fields and said Kept <the default>)", model.includes('`Kept ${renderModelLabel(fromModel)} — the model switch was cancelled at the preview.`'))
   check(
     "the confirm re-derives from the SAME source the plan was built from",
     /confirmMessages[\s\S]{0,400}reconfirmTransitionPlan\(held\.plan, confirmMessages\)/.test(model),
