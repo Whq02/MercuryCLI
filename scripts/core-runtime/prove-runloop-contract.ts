@@ -664,7 +664,7 @@ section('L5 FALLBACK — full retry on the fallback model, pairing synthesized')
   const warning = r.yields.find(
     m =>
       (m as AnyMsg).type === 'system' &&
-      String((m as AnyMsg).content).includes('Switched to'),
+      String((m as AnyMsg).content).includes('is overloaded; this turn runs on'),
   )
   check("a 'warning' system message announces the switch", warning !== undefined)
   check(
