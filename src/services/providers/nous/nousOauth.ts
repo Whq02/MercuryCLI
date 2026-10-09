@@ -311,6 +311,11 @@ function fresh(tokens: NousTokens | undefined, now: number): tokens is NousToken
 }
 
 const refreshes = new Map<string, Promise<NousTokens | undefined>>()
+let refreshTrouble: string | undefined
+
+export function nousRefreshTrouble(): string | undefined {
+  return refreshTrouble
+}
 
 export function refreshNousTokens(io?: NousOauthIo, force = false): Promise<NousTokens | undefined> {
   const path = nousAuthPathForDisplay()
@@ -328,7 +333,8 @@ export function refreshNousTokens(io?: NousOauthIo, force = false): Promise<Nous
     } catch {
       const latest = nousStoredTokens()
       if (latest?.refreshToken && (latest.refreshToken !== before.refreshToken || fresh(latest, now()))) return latest
-      throw new Error('another Mercury is refreshing the Nous Portal sign-in — retry in a moment')
+      refreshTrouble = 'another Mercury is refreshing the Nous Portal sign-in — the stored sign-in is kept'
+      throw new Error(`${refreshTrouble}; retry in a moment`)
     }
     try {
       if (nousAuthPathForDisplay() !== path) return undefined
@@ -343,6 +349,7 @@ export function refreshNousTokens(io?: NousOauthIo, force = false): Promise<Nous
       if (result.status === 200) {
         const tokens = tokensFromNousBody(result.body, io, old)
         writeNousTokens(tokens)
+        refreshTrouble = undefined
         return tokens
       }
       const code = typeof result.body.error === 'string' ? result.body.error : ''
@@ -350,10 +357,12 @@ export function refreshNousTokens(io?: NousOauthIo, force = false): Promise<Nous
       const dead = NOUS_GRANT_DEAD_CODES.has(code) || /reuse/i.test(words) || (!code && (result.status === 401 || result.status === 403) && result.edge === undefined)
       if (dead) {
         const verdict = code || 'invalid_grant'
+        refreshTrouble = undefined
         markNousSigninRefused(old, result.status, verdict, words, now)
         throw new NousRefreshRefusedError(nousSigninRefusalNote({ status: result.status, code: verdict, message: words }), result.status, verdict)
       }
-      throw new Error(`the Nous Portal could not refresh the sign-in (HTTP ${result.status}${words ? `: ${words}` : ''}) — the stored sign-in is kept; retry shortly`)
+      refreshTrouble = `the Nous Portal could not refresh the sign-in (HTTP ${result.status}${words ? `: ${words}` : ''}) — the stored sign-in is kept`
+      throw new Error(`${refreshTrouble}; retry shortly`)
     } finally {
       await release().catch(() => undefined)
     }
