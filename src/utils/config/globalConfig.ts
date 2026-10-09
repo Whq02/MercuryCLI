@@ -653,45 +653,39 @@ export function restoreConfigFromBackup(file: string, backupPath: string): { qua
 
 export function findMostRecentBackup(file: string): string | null {
   const fs = getFsImplementation()
-  const fileBase = basename(file)
-  const backupDir = getConfigBackupDir()
-
-  try {
-    const backups = fs
-      .readdirStringSync(backupDir)
-      .filter(f => f.startsWith(`${fileBase}.backup.`))
-      .sort()
-
-    const mostRecent = backups.at(-1)
-    if (mostRecent) {
-      return join(backupDir, mostRecent)
-    }
-  } catch {
-  }
-
-  const fileDir = dirname(file)
-
-  try {
-    const backups = fs
-      .readdirStringSync(fileDir)
-      .filter(f => f.startsWith(`${fileBase}.backup.`))
-      .sort()
-
-    const mostRecent = backups.at(-1)
-    if (mostRecent) {
-      return join(fileDir, mostRecent)
-    }
-
-    const legacyBackup = `${file}.backup`
+  const prefix = `${basename(file)}.backup.`
+  const newestNamed = (names: readonly string[]): string | null =>
+    names.reduce<string | null>(
+      (best, name) => name.startsWith(prefix) && (best === null || name > best) ? name : best,
+      null,
+    )
+  const listing = (dir: string): string[] | null => {
     try {
-      fs.statSync(legacyBackup)
-      return legacyBackup
+      return fs.readdirStringSync(dir)
     } catch {
+      return null
     }
-  } catch {
   }
-
-  return null
+  const inBackupHome = (): string | null => {
+    const home = getConfigBackupDir()
+    const newest = newestNamed(listing(home) ?? [])
+    return newest === null ? null : join(home, newest)
+  }
+  const besideTheFile = (): string | null => {
+    const dir = dirname(file)
+    const names = listing(dir)
+    if (names === null) return null
+    const newest = newestNamed(names)
+    if (newest !== null) return join(dir, newest)
+    const bare = `${file}.backup`
+    try {
+      fs.statSync(bare)
+    } catch {
+      return null
+    }
+    return bare
+  }
+  return inBackupHome() ?? besideTheFile()
 }
 
 let insideGetConfig = false
@@ -746,11 +740,6 @@ export function getConfig<A>(
     }
 
     if (error instanceof ConfigParseError) {
-      logForDebugging(
-        `Config file corrupted, resetting to defaults: ${error.message}`,
-        { level: 'error' },
-      )
-
       if (!insideGetConfig) {
         insideGetConfig = true
         try {
@@ -761,7 +750,7 @@ export function getConfig<A>(
       }
 
       process.stderr.write(
-        `\nMercury configuration file at ${file} is corrupted: ${error.message}\n`,
+        `\nThe configuration file ${file} is not valid JSON (${error.message}); defaults are in use for this run.\n`,
       )
 
       const fileBase = basename(file)
@@ -816,22 +805,15 @@ export function getConfig<A>(
       }
 
       const backupPath = findMostRecentBackup(file)
-      if (corruptedBackupPath) {
-        process.stderr.write(
-          `The corrupted file has been backed up to: ${corruptedBackupPath}\n`,
-        )
-      } else if (alreadyBackedUp) {
-        process.stderr.write(`The corrupted file has already been backed up.\n`)
-      }
-
-      if (backupPath) {
-        process.stderr.write(
-          `A backup file exists at: ${backupPath}\n` +
-            `You can manually restore it by running: cp "${backupPath}" "${file}"\n\n`,
-        )
-      } else {
-        process.stderr.write(`\n`)
-      }
+      const kept = corruptedBackupPath
+        ? `The unreadable bytes were kept at ${corruptedBackupPath}\n`
+        : alreadyBackedUp
+          ? `The unreadable bytes were already kept under ${corruptedBackupDir}\n`
+          : ''
+      const restore = backupPath
+        ? `The newest good copy is ${backupPath}; to bring it back: cp "${backupPath}" "${file}"\n`
+        : ''
+      process.stderr.write(`${kept}${restore}\n`)
     }
 
     return createDefault()
