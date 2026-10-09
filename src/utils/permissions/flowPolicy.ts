@@ -8,9 +8,6 @@ import { preparedSecurityParse, peelWrappers } from './decision/commandAnalysis.
 import { getCwd } from '../cwd.js'
 import { hasWildcards, suggestionForExactCommand } from './shellRuleMatching.js'
 
-export const FLOW_AWAY_TIMEOUT_MS = 5 * 60_000
-export const FLOW_AWAY_MESSAGE = 'the user is away; continue with an allowed tool call instead'
-
 function flowShellCommands(command: string): Array<{ text: string; words: string[]; opaque: boolean }> {
   const result: Array<{ text: string; words: string[]; opaque: boolean }> = []
   const pending = [command]

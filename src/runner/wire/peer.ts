@@ -342,11 +342,12 @@ export class Peer {
       this.pending.set(id, { method, resolve: resolve as (value: unknown) => void, reject, timer })
     })
     if (opts.signal !== undefined) {
+      const signal = opts.signal
       const abort = (): void => {
-        this.cancel(id, 'aborted')
+        this.cancel(id, typeof signal.reason === 'string' && signal.reason !== '' ? signal.reason : 'aborted')
       }
-      if (opts.signal.aborted) abort()
-      else opts.signal.addEventListener('abort', abort, { once: true })
+      if (signal.aborted) abort()
+      else signal.addEventListener('abort', abort, { once: true })
     }
     this.writer.write({ jsonrpc: '2.0', id, method, params })
     return { id, answer }
@@ -501,7 +502,8 @@ export class Peer {
         return
       }
       entry.answered = true
-      entry.controller.abort()
+      if (check.value.reason === undefined) entry.controller.abort()
+      else entry.controller.abort(check.value.reason)
       this.inFlight.delete(check.value.request_id)
       this.answer(check.value.request_id, entry.method, { error: cancelled(check.value.reason).toJSON() })
       return

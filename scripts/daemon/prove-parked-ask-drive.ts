@@ -281,9 +281,9 @@ try {
     title: TITLE,
     model: MODEL,
     effort: 'high',
-    permissionMode: 'flow',
+    permissionMode: 'default',
   } as never)) as { ok?: boolean; sessionId?: string }
-  check('P1 the session dispatched in flow mode with no screen attached', reply.ok === true && typeof reply.sessionId === 'string', JSON.stringify(reply))
+  check('P1 the session dispatched in default mode with no screen attached', reply.ok === true && typeof reply.sessionId === 'string', JSON.stringify(reply))
   const sid = reply.sessionId ?? ''
   const transcript = join(paths.getProjectDir(work), `${sid}.jsonl`)
   const transcriptText = (): string => (existsSync(transcript) ? readFileSync(transcript, 'utf8') : '')
@@ -299,7 +299,7 @@ try {
 
   const hitsAtPark = hits.length
   await sleep(8_000)
-  check("P3 the session's own parked ask has NO CLOCK — still parked long past the daemon's 3-second expiry knob", (asksOf()?.asks.length ?? 0) === 1 && (asksOf()?.asks[0]?.requestId ?? '') === (parked?.requestId ?? '?'), JSON.stringify(asksOf()))
+  check("P3 a default-mode session's own parked ask has NO CLOCK — still parked long past the 3-second ask-clock knob (only Flow and Sovereign asks expire)", (asksOf()?.asks.length ?? 0) === 1 && (asksOf()?.asks[0]?.requestId ?? '') === (parked?.requestId ?? '?'), JSON.stringify(asksOf()))
   check('P3 the needs-you row still stands; no denial reached the seat (nothing else left it)', (await openAsks()) === 1 && hits.length === hitsAtPark && transcriptText().split('\n').every(l => !isDenial(l)), `hits ${hitsAtPark}→${hits.length}`)
 
   const cap = await capture(

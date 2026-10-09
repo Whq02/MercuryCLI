@@ -3,8 +3,8 @@ import { readFileSync } from 'node:fs'
 import { daemonHomeStands, publishInDaemonHome } from './daemonHome.js'
 import { join } from 'node:path'
 import { logForDebugging } from '../utils/debug.js'
-import { armInactivityDeadline, formatLimit, minutesKnobToMs, type InactivityDeadline } from '../utils/deadline.js'
-import { flagEnv } from '../substrate/flagRegistry.js'
+import { armInactivityDeadline, formatLimit, type InactivityDeadline } from '../utils/deadline.js'
+import { askExpiredCause, askLimitMs, isAskExpiredCause, unansweredAskRefusal } from '../utils/permissions/askClock.js'
 import { recordSettledObligation, upsertObligation } from '../services/crew/obligations.js'
 import {
   publishSessionAsks,
@@ -62,18 +62,9 @@ function findGitInitFolderByRef(requestId: string): string | undefined {
   return readGitInitAsks()[requestId]
 }
 
-export const DEFAULT_PERMISSION_ASK_EXPIRY_MINUTES = 10
-
-export function permissionAskExpiryMs(): number {
-  return minutesKnobToMs(flagEnv('MERCURY_PERMISSION_ASK_EXPIRY_MINUTES'), DEFAULT_PERMISSION_ASK_EXPIRY_MINUTES)
-}
-
 export function expiredAskDenialMessage(toolName: string, limitMs: number, cause: 'expired' | 'evicted'): string {
-  const what =
-    cause === 'expired'
-      ? `nobody answered the permission ask within ${formatLimit(limitMs)}, so it expired`
-      : `the permission ask was dropped unanswered because the switchboard's parked-ask table was full`
-  return `Permission to use ${toolName} has been denied: ${what}. ${DENIAL_WORKAROUND_GUIDANCE}`
+  if (cause === 'expired') return unansweredAskRefusal(toolName, limitMs)
+  return `Permission to use ${toolName} has been denied: the permission ask was dropped unanswered because the switchboard's parked-ask table was full. ${DENIAL_WORKAROUND_GUIDANCE}`
 }
 
 export const NO_CLIENT_ATTACHED_CAUSE = 'no operator client is attached to the switchboard'
@@ -115,6 +106,7 @@ interface PendingAsk {
   obligationId?: string
   obligationLanded?: Promise<string | undefined>
   askedAt?: number
+  limitMs?: number
   deadline?: InactivityDeadline
   settle?: (answer: PermissionAnswer) => void
   local?: 'git-init'
@@ -214,7 +206,7 @@ function settleUnanswered(
   console.error(`[daemon] permission ask ${requestId} (${ask.toolName} for ${ask.workerId}) ${cause} after ${waited} — the runner was told`)
   settleAskObligation(ask, {
     kind: 'withdrawn',
-    by: cause === 'expired' ? `daemon: expired unanswered after ${formatLimit(limitMs)}` : 'daemon: dropped unanswered (parked-ask table full)',
+    by: cause === 'expired' ? `daemon: ${askExpiredCause(limitMs)}` : 'daemon: dropped unanswered (parked-ask table full)',
   })
 }
 
@@ -247,7 +239,7 @@ export function holdWorkerAsk(
   short: string,
   params: PermissionRequestParams,
   dir?: string,
-  expiryMs: number = permissionAskExpiryMs(),
+  expiryMs?: number,
   presence: (dir?: string) => OperatorClientPresence = operatorClientPresence,
 ): HeldAsk {
   const toolName = params.kind === 'tool' ? params.tool_name : SANDBOX_NETWORK_ACCESS_TOOL_NAME
@@ -265,10 +257,12 @@ export function holdWorkerAsk(
   if (pending.size >= MAX_PENDING) {
     for (const [oldestId, oldest] of pending) {
       if (oldest.local !== undefined) continue
-      settleUnanswered(oldestId, oldest, 'evicted', expiryMs)
+      settleUnanswered(oldestId, oldest, 'evicted', oldest.limitMs ?? 0)
       break
     }
   }
+  const askMode = params.kind === 'tool' && params.mode !== undefined ? params.mode : rec.permissionMode
+  const limitMs = expiryMs ?? askLimitMs({ mode: askMode, crewmate: true })
   const input = params.kind === 'tool' ? params.input : { host: params.host }
   const suggestions = params.kind === 'tool' ? (params.suggestions as PermissionUpdate[] | undefined) : undefined
   const ask: PendingAsk = {
@@ -288,6 +282,7 @@ export function holdWorkerAsk(
     ...(params.kind === 'tool' && params.description !== undefined ? { description: params.description } : {}),
     ...(params.kind === 'network' ? { description: `Allow network access to ${params.host}?` } : {}),
     askedAt: Date.now(),
+    limitMs,
   }
   const answer = new Promise<PermissionAnswer>(resolve => {
     ask.settle = resolve
@@ -297,10 +292,10 @@ export function holdWorkerAsk(
   if (ask.agentId !== undefined) {
     ask.deadline = armInactivityDeadline({
       seam: `permission ask ${requestId} (${toolName} for ${short})`,
-      limitMs: expiryMs,
+      limitMs,
       onExpire: () => {
         if (pending.get(requestId) !== ask) return
-        settleUnanswered(requestId, ask, 'expired', expiryMs)
+        settleUnanswered(requestId, ask, 'expired', limitMs)
       },
     })
   }
@@ -319,7 +314,7 @@ export function holdWorkerAsk(
       logForDebugging(`[daemon] permission-ask obligation write failed: ${err}`)
       return undefined
     })
-  return { answer, withdraw: () => onWorkerAskWithdrawn(requestId, dir) }
+  return { answer, withdraw: cause => onWorkerAskWithdrawn(requestId, dir, cause) }
 }
 
 export function mintGitInitAsk(folder: string): { requestId: string } | { refused: GitInitRefusal } {
@@ -336,7 +331,7 @@ export function mintGitInitAsk(folder: string): { requestId: string } | { refuse
   if (pending.size >= MAX_PENDING) {
     for (const [oldestId, oldest] of pending) {
       if (oldest.local !== undefined) continue
-      settleUnanswered(oldestId, oldest, 'evicted', permissionAskExpiryMs())
+      settleUnanswered(oldestId, oldest, 'evicted', oldest.limitMs ?? 0)
       break
     }
   }
@@ -378,13 +373,19 @@ export function mintGitRefusedReceipt(clientMessageId: string, folder: string, r
   }).catch(err => logForDebugging(`[daemon] git-refused receipt write failed: ${err}`))
 }
 
-export function onWorkerAskWithdrawn(requestId: string, dir?: string): void {
+export function onWorkerAskWithdrawn(requestId: string, dir?: string, cause?: string): void {
   const ask = pending.get(requestId)
   if (!ask || ask.local !== undefined) return
   pending.delete(requestId)
   ask.deadline?.cancel()
   publishAsksFor(ask.sessionId, dir)
-  settleAskObligation(ask, { kind: 'withdrawn', by: 'daemon: the session moved on (its ask was cancelled)' })
+  const expired = cause !== undefined && isAskExpiredCause(cause)
+  if (expired) {
+    const waited = ask.askedAt !== undefined ? formatLimit(Date.now() - ask.askedAt) : 'an unknown time'
+    // eslint-disable-next-line no-console
+    console.error(`[daemon] permission ask ${requestId} (${ask.toolName} for ${ask.workerId}) ${cause} (after ${waited}) — the runner refused it`)
+  }
+  settleAskObligation(ask, { kind: 'withdrawn', by: expired ? `the session: ${cause}` : 'daemon: the session moved on (its ask was cancelled)' })
 }
 
 export function answerPermissionAsk(
@@ -484,6 +485,7 @@ export function listPendingPermissionAsks(): ReadonlyArray<{
   toolName: string
   agentId?: string
   askedAt?: number
+  limitMs?: number
 }> {
   return [...pending.entries()].map(([requestId, a]) => ({
     requestId,
@@ -492,5 +494,6 @@ export function listPendingPermissionAsks(): ReadonlyArray<{
     toolName: a.toolName,
     ...(a.agentId !== undefined ? { agentId: a.agentId } : {}),
     ...(a.askedAt !== undefined ? { askedAt: a.askedAt } : {}),
+    ...(a.limitMs !== undefined ? { limitMs: a.limitMs } : {}),
   }))
 }
