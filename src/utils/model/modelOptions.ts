@@ -309,18 +309,19 @@ export const MOONSHOT_MODEL_GROUP = 'Mercury — Moonshot models'
 export const DEEPSEEK_MODEL_GROUP = 'Mercury — DeepSeek models'
 export const XAI_MODEL_GROUP = 'Mercury — xAI models'
 export const META_MODEL_GROUP = 'Mercury — Meta models'
+export const MISTRAL_MODEL_GROUP = 'Mercury — Mistral models'
 export const COMPAT_MODEL_GROUP = 'Mercury — custom endpoint'
 
 export const KEY_CONNECT_PREFIX = '__mercury_connect__:'
-export function keyConnectValue(provider: 'zai' | 'moonshot' | 'deepseek' | 'xai' | 'meta' | 'compat'): string {
+export function keyConnectValue(provider: 'zai' | 'moonshot' | 'deepseek' | 'xai' | 'meta' | 'compat' | 'mistral'): string {
   return `${KEY_CONNECT_PREFIX}${provider}`
 }
 export function parseKeyConnectValue(
   value: string,
-): 'zai' | 'moonshot' | 'deepseek' | 'xai' | 'meta' | 'compat' | undefined {
+): 'zai' | 'moonshot' | 'deepseek' | 'xai' | 'meta' | 'compat' | 'mistral' | undefined {
   if (!value.startsWith(KEY_CONNECT_PREFIX)) return undefined
   const provider = value.slice(KEY_CONNECT_PREFIX.length)
-  return provider === 'zai' || provider === 'moonshot' || provider === 'deepseek' || provider === 'xai' || provider === 'meta' || provider === 'compat'
+  return provider === 'zai' || provider === 'moonshot' || provider === 'deepseek' || provider === 'xai' || provider === 'meta' || provider === 'compat' || provider === 'mistral'
     ? provider
     : undefined
 }
@@ -481,7 +482,7 @@ export type KeyLaneListState =
   | { kind: 'pin' }
   | { kind: 'unread'; reading: boolean; error?: string }
 
-export function keyLaneListState(provider: 'zai' | 'moonshot' | 'deepseek' | 'xai' | 'meta'): KeyLaneListState {
+export function keyLaneListState(provider: 'zai' | 'moonshot' | 'deepseek' | 'xai' | 'meta' | 'mistral'): KeyLaneListState {
   if (provider === 'zai') {
     const { zaiCatalogueRows } = require('../../services/providers/zai/zaiCatalogue.js') as typeof import('../../services/providers/zai/zaiCatalogue.js')
     const { source } = zaiCatalogueRows()
@@ -507,6 +508,16 @@ export function keyLaneListState(provider: 'zai' | 'moonshot' | 'deepseek' | 'xa
     const error = !gate.allowed ? gate.reason : snapshot?.lastError
     return { kind: 'unread', reading: error === undefined, ...(error ? { error } : {}) }
   }
+  if (provider === 'mistral') {
+    const { getCachedMistralCatalogue, mistralCatalogueRows } = require('../../services/providers/mistral/mistralCatalogue.js') as typeof import('../../services/providers/mistral/mistralCatalogue.js')
+    const snapshot = getCachedMistralCatalogue()
+    const { source } = mistralCatalogueRows()
+    if (source.kind === 'live') return { kind: 'live', count: source.count }
+    const { catalogueTrafficVerdict } = require('../../services/providers/catalogueGate.js') as typeof import('../../services/providers/catalogueGate.js')
+    const gate = catalogueTrafficVerdict('mistral')
+    const error = !gate.allowed ? gate.reason : snapshot?.lastError
+    return { kind: 'unread', reading: error === undefined, ...(error ? { error } : {}) }
+  }
   if (provider === 'moonshot') {
     const { moonshotCatalogueRows } =
       require('../../services/providers/moonshot/moonshotCatalogue.js') as typeof import('../../services/providers/moonshot/moonshotCatalogue.js')
@@ -527,6 +538,7 @@ export interface KeyLaneReads {
   deepseekKeyPresent(): boolean
   xaiKeyPresent?(): boolean
   metaKeyPresent?(): boolean
+  mistralKeyPresent?(): boolean
   compat(): { label: string; models: string[]; keyPresent: boolean } | undefined
 }
 
@@ -550,6 +562,10 @@ function liveKeyLaneReads(): KeyLaneReads {
       const { resolveMetaApiKey } = require('../../services/providers/meta/metaAccounts.js') as typeof import('../../services/providers/meta/metaAccounts.js')
       return resolveMetaApiKey() !== undefined
     },
+    mistralKeyPresent: () => {
+      const { resolveMistralApiKey } = require('../../services/providers/mistral/mistralAccounts.js') as typeof import('../../services/providers/mistral/mistralAccounts.js')
+      return resolveMistralApiKey() !== undefined
+    },
     deepseekKeyPresent: () => {
       const { resolveDeepseekApiKey } =
         require('../../services/providers/deepseek/deepseekAccounts.js') as typeof import('../../services/providers/deepseek/deepseekAccounts.js')
@@ -569,7 +585,7 @@ function liveKeyLaneReads(): KeyLaneReads {
   }
 }
 
-export function keyLanePins(provider: 'zai' | 'moonshot' | 'deepseek' | 'xai' | 'meta'): KeyLanePin[] {
+export function keyLanePins(provider: 'zai' | 'moonshot' | 'deepseek' | 'xai' | 'meta' | 'mistral'): KeyLanePin[] {
   if (provider === 'xai') {
     const { xaiCatalogueRows } = require('../../services/providers/xai/xaiCatalogue.js') as typeof import('../../services/providers/xai/xaiCatalogue.js')
     const { xaiDisplayPin } = require('../../services/providers/xai/xaiPins.js') as typeof import('../../services/providers/xai/xaiPins.js')
@@ -579,6 +595,11 @@ export function keyLanePins(provider: 'zai' | 'moonshot' | 'deepseek' | 'xai' | 
     const { metaCatalogueRows } = require('../../services/providers/meta/metaCatalogue.js') as typeof import('../../services/providers/meta/metaCatalogue.js')
     const { metaDisplayPin } = require('../../services/providers/meta/metaPins.js') as typeof import('../../services/providers/meta/metaPins.js')
     return metaCatalogueRows().rows.map(row => ({ ...row, ...(metaDisplayPin(row.id) ? {} : { liveUnknown: true }) }))
+  }
+  if (provider === 'mistral') {
+    const { mistralCatalogueRows } = require('../../services/providers/mistral/mistralCatalogue.js') as typeof import('../../services/providers/mistral/mistralCatalogue.js')
+    const { mistralDisplayPin } = require('../../services/providers/mistral/mistralPins.js') as typeof import('../../services/providers/mistral/mistralPins.js')
+    return mistralCatalogueRows().rows.map(row => ({ ...row, ...(mistralDisplayPin(row.id) ? {} : { liveUnknown: true }) }))
   }
   if (provider === 'zai') {
     const { zaiCatalogueRows } = require('../../services/providers/zai/zaiCatalogue.js') as typeof import('../../services/providers/zai/zaiCatalogue.js')
@@ -731,6 +752,18 @@ export function keyLaneProviderRows(reads: KeyLaneReads = liveKeyLaneReads()): M
     out.push(...keyLaneGroupRows({ group: META_MODEL_GROUP, providerName: 'Meta', connectValue: keyConnectValue('meta'),
       connectHint: 'opens /logins meta (a pay-as-you-go API key) — MODEL_API_KEY works too',
       keyPresent: metaCredentialed, pins: metaRows, listState: metaState }))
+  }
+  const mistralRows = keyLanePins('mistral')
+  const mistralState = keyLaneListState('mistral')
+  const mistralCredentialed = reads.mistralKeyPresent?.() ?? false
+  if (mistralCredentialed && mistralRows.length === 0 && mistralState.kind === 'live') {
+    out.push({ value: keyConnectValue('mistral'), label: 'Mistral — no chat models listed', group: MISTRAL_MODEL_GROUP,
+      description: "the account's live list serves no supported chat model — /logins mistral checks the key",
+      descriptionForModel: 'The Mistral account returned an empty chat-model list; no model is selectable.' })
+  } else {
+    out.push(...keyLaneGroupRows({ group: MISTRAL_MODEL_GROUP, providerName: 'Mistral', connectValue: keyConnectValue('mistral'),
+      connectHint: 'opens /logins mistral (a Mistral API key) — MISTRAL_API_KEY works too',
+      keyPresent: mistralCredentialed, pins: mistralRows, listState: mistralState }))
   }
   const compat = reads.compat()
   if (compat === undefined) {
