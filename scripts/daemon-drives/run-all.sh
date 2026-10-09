@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 # gate-class: pty
-# gate-env: MERCURY_DRIVE_JOBS
 # gate-watch: scripts/daemon/**
 # gate-watch: src/daemon/permissionAsks.ts src/daemon/concourseWorkers.ts src/daemon/concourseDispatch.ts
 # gate-watch: src/components/concourse/LiveNowCell.tsx src/services/engine-connector/crewFacts.ts

@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 # gate-class: pty
-# gate-env: MERCURY_DRIVE_JOBS
 # gate-watch: scripts/api/prove-prefix-frozen-drive.ts scripts/lib/fixtureApi.ts scripts/api/prove-image-refusal-drive.ts scripts/api/prove-image-refusal-frames.ts scripts/api/prove-authentication-retry-frames.ts scripts/api/authRetryFixture.ts scripts/api/authRetryNetworkFixture.cjs src/services/api/withRetry.ts src/services/api/errors.ts
 # gate-watch: src/services/providers/anthropic/** src/services/providers/toolEconomy.ts src/constants/prompts.ts src/context.ts
 # gate-watch: scripts/lib/captureDriver.ts src/daemon/controlSocket.ts

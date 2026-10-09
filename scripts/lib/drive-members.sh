@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 drive_member_jobs() {
-  local jobs="${MERCURY_DRIVE_JOBS:-1}"
+  local jobs="${MERCURY_SUITE_JOBS:-1}"
   case "$jobs" in ('' | *[!0-9]*) jobs=1 ;; esac
   [ "$jobs" -lt 1 ] && jobs=1
   printf '%s' "$jobs"
@@ -44,7 +44,7 @@ drive_members() {
   fi
   local out
   out=$(mktemp -d "${TMPDIR:-/tmp}/drive-members-${suite}.XXXXXX") || return 1
-  printf '── %s: %s members, %s at a time (MERCURY_DRIVE_JOBS)\n' "$suite" "${#names[@]}" "$jobs"
+  printf '── %s: %s members, %s at a time (MERCURY_SUITE_JOBS)\n' "$suite" "${#names[@]}" "$jobs"
   local -a pids=() idxs=()
   local i j running=0 next=0 total=${#names[@]}
   collect() {

@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 # gate-class: pty
-# gate-env: MERCURY_DRIVE_JOBS
 # gate-env: MERCURY_TILES_DRIVE_SIZE
 # gate-watch: scripts/switchboard/** scripts/switchboard-5/**
 # gate-watch: src/services/concourse/** src/components/concourse/** src/daemon/concourseWorkers.ts

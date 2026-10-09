@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 # gate-class: pty
-# gate-env: MERCURY_DRIVE_JOBS
 # gate-watch: src/utils/runtime/** src/entrypoints/cli*
 # gate-watch: scripts/release/** .github/workflows/** package.json .node-version build.ts
 # gate-watch: src/**
