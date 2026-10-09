@@ -299,7 +299,7 @@ async function driveWire(route: 'openai' | 'anthropic', scene: 'hold' | 'tool' |
     const afterWords = marks.get('after-words') ?? ''
     const benchStop = marks.get('workbench-stop') ?? ''
     const settled = marks.get('settled') ?? fin
-    const sleepers = (): string => spawnSync('/usr/bin/pgrep', ['-f', `sleep ${'40'}`], { encoding: 'utf8' }).stdout.trim()
+    const sleepers = (): string => spawnSync('/usr/bin/pgrep', ['-f', `^sleep ${'40'}$`], { encoding: 'utf8' }).stdout.trim()
     section(`${label} — S1: a forced stop stops the tool, ends the turn typed, and the queue drains`)
     check(`${label}: vshot ran the stop journey as written`, res.status === 0, `status=${res.status} ${(res.stderr ?? '').split('\n').slice(-3).join(' | ')}`)
     check(`${label}: the Bash tool was running its long sleep when esc landed`, /Running 1 bash command/.test(running) && /sleep 40/.test(running) && /esc interrupt/.test(running), tail(running))
