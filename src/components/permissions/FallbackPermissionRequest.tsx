@@ -3,8 +3,6 @@ import { useMemo } from 'react'
 import { Box, Text } from '../../ink.js'
 import { getGlobalConfig } from '../../utils/config.js'
 import { getSystemThemeName } from '../../utils/systemTheme.js'
-import { env } from '../../utils/env.js'
-import { logUnaryEvent } from '../../utils/unaryLogging.js'
 import { truncateToLines } from '../../utils/stringUtils.js'
 import { shouldShowAlwaysAllowOptions } from '../../utils/permissions/permissionsLoader.js'
 import { ConsentBodyText } from './ConsentBodyText.js'
@@ -34,26 +32,11 @@ export function FallbackPermissionRequest({
 }: PermissionRequestProps): React.ReactNode {
   const tool = toolUseConfirm.tool
 
-  usePermissionRequestLogging(
-    toolUseConfirm,
-    useMemo(() => ({ completion_type: 'tool_use_single', language_name: 'none' }), []),
-  )
+  usePermissionRequestLogging(toolUseConfirm)
 
   const rawName = tool.userFacingName(toolUseConfirm.input as never) ?? ''
   const isMcpNamed = rawName.endsWith(MCP_SUFFIX)
   const displayName = isMcpNamed ? rawName.slice(0, -MCP_SUFFIX.length) : rawName
-
-  function logDecision(event: 'accept' | 'reject'): void {
-    void logUnaryEvent({
-      event,
-      completion_type: 'tool_use_single',
-      metadata: {
-        language_name: 'none',
-        message_id: toolUseConfirm.assistantMessage.message.id,
-        platform: env.platform,
-      },
-    })
-  }
 
   const options = useMemo<PermissionPromptOption<FallbackOptionValue>[]>(() => {
     const result: PermissionPromptOption<FallbackOptionValue>[] = [
@@ -80,12 +63,10 @@ export function FallbackPermissionRequest({
   function handleSelect(value: FallbackOptionValue, feedback?: string): void {
     switch (value) {
       case 'yes':
-        logDecision('accept')
         toolUseConfirm.onAllow(toolUseConfirm.input, [], feedback)
         onDone()
         break
       case 'yes-dont-ask-again':
-        logDecision('accept')
         toolUseConfirm.onAllow(toolUseConfirm.input, [
           {
             type: 'addRules',
@@ -97,7 +78,6 @@ export function FallbackPermissionRequest({
         onDone()
         break
       case 'no':
-        logDecision('reject')
         toolUseConfirm.onReject(feedback)
         onReject()
         onDone()

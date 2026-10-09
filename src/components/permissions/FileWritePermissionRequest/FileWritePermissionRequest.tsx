@@ -61,7 +61,6 @@ export function FileWritePermissionRequest({
           oldContent={existing.content}
         />
       }
-      completionType="write_file_single"
       path={parsed.file_path}
       parseInput={parseWriteInput}
       workerBadge={workerBadge}

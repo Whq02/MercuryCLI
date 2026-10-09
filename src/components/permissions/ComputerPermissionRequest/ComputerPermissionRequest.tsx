@@ -17,7 +17,6 @@ import { getSystemThemeName } from '../../../utils/systemTheme.js'
 import { ConsentBodyText } from '../ConsentBodyText.js'
 import { PermissionDialog } from '../PermissionDialog.js'
 import { PermissionRuleExplanation } from '../PermissionRuleExplanation.js'
-import { logUnaryPermissionEvent } from '../utils.js'
 import { usePermissionRequestLogging } from '../hooks.js'
 import type { PermissionRequestProps } from '../PermissionRequest.js'
 
@@ -119,10 +118,7 @@ export function ComputerPermissionRequest({
     return judgedAppFromAsk(ask.message ?? '', ask.suggestions, ask.decisionReason?.message ?? ask.decisionReason?.reason)
   }, [toolUseConfirm.toolUseContext, toolUseConfirm.permissionResult])
 
-  usePermissionRequestLogging(
-    toolUseConfirm,
-    useMemo(() => ({ completion_type: 'tool_use_single', language_name: 'none' }), []),
-  )
+  usePermissionRequestLogging(toolUseConfirm)
 
   const mode = useAppState(state => state.toolPermissionContext.mode)
   const bypassAvailable = useAppState(state => state.toolPermissionContext.isBypassPermissionsModeAvailable)
@@ -131,13 +127,11 @@ export function ComputerPermissionRequest({
   function handleChange(value: ComputerAskChoice): void {
     const effect = applyComputerAskChoice(value, conversationIdHere())
     if (!effect.allow) {
-      logUnaryPermissionEvent('tool_use_single', toolUseConfirm, 'reject', false)
       toolUseConfirm.onReject()
       onReject()
       onDone()
       return
     }
-    logUnaryPermissionEvent('tool_use_single', toolUseConfirm, 'accept', false)
     toolUseConfirm.onAllow(toolUseConfirm.input, effect.permissionUpdates)
     onDone()
   }
