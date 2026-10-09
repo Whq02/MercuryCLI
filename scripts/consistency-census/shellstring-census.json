@@ -1130,14 +1130,14 @@
       "why": "maintainer script running a named shell command line (audited: no interpolated revisions/paths reach cmd.exe — the fixed-tool sites were converted in W6-A)"
     },
     {
-      "file": "scripts/permissions/prove-auto-mode.ts",
+      "file": "scripts/permissions/prove-commit-gate.ts",
       "mechanism": "execSync-string",
       "excerpt": "execSync(`grep -F -c ${JSON.stringify(needle)} ${JSON.stringify(dist)} || true`, { encoding: 'utf-8' }).trim() !== '0'",
       "cls": "intentional-shell",
       "why": "maintainer script running a named shell command line (audited: no interpolated revisions/paths reach cmd.exe — the fixed-tool sites were converted in W6-A)"
     },
     {
-      "file": "scripts/permissions/prove-commit-gate.ts",
+      "file": "scripts/permissions/prove-flow-ladder.ts",
       "mechanism": "execSync-string",
       "excerpt": "execSync(`grep -F -c ${JSON.stringify(needle)} ${JSON.stringify(dist)} || true`, { encoding: 'utf-8' }).trim() !== '0'",
       "cls": "intentional-shell",
