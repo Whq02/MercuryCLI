@@ -112,6 +112,7 @@ export type QueuedCommand = {
   workload?: string
   agentId?: string
   waitsForTurnEnd?: true
+  ridesNextWords?: true
 }
 
 export type BatchedPrompt = Pick<QueuedCommand, 'value' | 'uuid' | 'origin'>

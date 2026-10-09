@@ -341,6 +341,7 @@ export type WorkRosterV1 = {
   mission: readonly MissionRowV1[]
   samples?: readonly SampleRowV1[]
   reported?: boolean
+  gone?: boolean
   pauseGate?: PauseGateFactsV1
 }
 

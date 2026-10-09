@@ -134,6 +134,9 @@ section('(3) /config — derived account rows + the read-only model pointer')
     { id: 'deepseek', available: true, credentialed: false },
     { id: 'xai', available: true, credentialed: false },
     { id: 'meta', available: true, credentialed: false },
+    { id: 'mistral', available: true, credentialed: false },
+    { id: 'nous', available: true, credentialed: false },
+    { id: 'zen', available: true, credentialed: false },
   ] as never)
   check('moonshot row: the /logins moonshot route (a sign-in exists)',
     keyLaneRows[0]?.valueText === 'not signed in — /logins moonshot connects (or MOONSHOT_API_KEY)', keyLaneRows[0]?.valueText ?? '')
@@ -144,6 +147,12 @@ section('(3) /config — derived account rows + the read-only model pointer')
   check('xai row: the /logins xai route, key-only wording, the xAI label',
     keyLaneRows[3]?.valueText === 'no key — /logins xai connects (or XAI_API_KEY)' && keyLaneRows[3]?.label === 'xAI account', `${keyLaneRows[3]?.label ?? ''}: ${keyLaneRows[3]?.valueText ?? ''}`)
   check('meta row: the /logins meta route and documented key spelling', keyLaneRows[4]?.valueText === 'no key — /logins meta connects (or MODEL_API_KEY)', keyLaneRows[4]?.valueText ?? '')
+  check('mistral row: the /logins mistral route, key-only wording, the family label',
+    keyLaneRows[5]?.valueText === 'no key — /logins mistral connects (or MISTRAL_API_KEY)' && keyLaneRows[5]?.label === 'Mistral account', `${keyLaneRows[5]?.label ?? ''}: ${keyLaneRows[5]?.valueText ?? ''}`)
+  check('nous row: the /logins nous route, key-only wording, the family label',
+    keyLaneRows[6]?.valueText === 'no key — /logins nous connects (or NOUS_API_KEY)' && keyLaneRows[6]?.label === 'Nous Portal account', `${keyLaneRows[6]?.label ?? ''}: ${keyLaneRows[6]?.valueText ?? ''}`)
+  check('zen row: the neighbours\' shape — the family\'s display name, the /logins zen route and the documented key spelling, never the unknown-family fallback',
+    keyLaneRows[7]?.valueText === 'no key — /logins zen connects (or OPENCODE_API_KEY)' && keyLaneRows[7]?.label === 'OpenCode Zen account', `${keyLaneRows[7]?.label ?? ''}: ${keyLaneRows[7]?.valueText ?? ''}`)
   check('Meta model pointer uses its own family', mainLoopPointerText('muse-spark-1.3').startsWith('Meta · '))
 
   const anthropicPtr = mainLoopPointerText('claude-opus-5')

@@ -99,6 +99,13 @@ fn failed_modifier_down_still_attempts_release() {
     assert!(held().keys.is_empty());
 }
 #[test]
+fn a_command_chord_reaches_the_leaf_as_four_events_with_the_modifier_active_on_the_key() {
+    reset();
+    key_tap("q".into(), vec!["super".into()]).unwrap();
+    assert_eq!(imp::event_list(), vec!["key:super:true:[Super]", "key:q:true:[Super]", "key:q:false:[Super]", "key:super:false:[]"]);
+    assert!(held().keys.is_empty());
+}
+#[test]
 fn chord_release_flags_drop_modifiers_in_reverse_order() {
     reset();
     key_tap("a".into(), vec!["control".into(), "shift".into()]).unwrap();
