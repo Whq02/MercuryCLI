@@ -1,5 +1,5 @@
 {
-  "base": "f46f44ad885924cca2487c97b8e0f947e98496c3",
+  "base": "3db86e162a5b2b74967df32ca6231b873db804f7",
   "model": "gpt-6-astra",
   "definitions": [
     {
@@ -680,7 +680,7 @@
     },
     {
       "name": "Skill",
-      "description": "Run a skill inline in this conversation.\n\nBefore acting on a request, sweep the available skills for one that covers it. When the user says \"slash command\" or types \"/something\", they mean a skill — invoke it with this tool.\n\nHow to invoke:\n- A bare skill name: skill: \"commit\"\n- With arguments: skill: \"review\", args: \"src/server.ts\"\n- An extension's skill by its namespaced name: skill: \"<extension>:skill\"\n\nThe available skills ride in system-reminder messages in this conversation.\n\nRules:\n- A matching skill comes first: invoke it ahead of any other response to the task.\n- Naming a skill means invoking it through this tool — never one without the other.\n- A skill already running is never re-invoked.\n- Built-in CLI commands are not skills and cannot be invoked here.\n- If a <command-name> tag appears in the current turn, that skill is already loaded: follow its instructions directly instead of calling Skill again.",
+      "description": "Run a skill inline in this conversation.\n\nBefore acting on a request, sweep the available skills for one that covers it. When the user says \"slash command\" or types \"/something\", they mean a skill — invoke it with this tool.\n\nHow to invoke:\n- A bare skill name: skill: \"commit\"\n- With arguments: skill: \"review\", args: \"src/server.ts\"\n- An extension's skill by its namespaced name: skill: \"<extension>:skill\"\n\nThe available skills ride in system-reminder messages in this conversation.\n\nRules:\n- A matching skill comes before anything else: invoke it ahead of any other response to the task.\n- Naming a skill means invoking it through this tool — never one without the other.\n- A skill already running is never re-invoked.\n- Built-in CLI commands are not skills and cannot be invoked here.\n- If a <command-name> tag appears in the current turn, that skill is already loaded: follow its instructions directly instead of calling Skill again.",
       "input_schema": {
         "type": "object",
         "properties": {
