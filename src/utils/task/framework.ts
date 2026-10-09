@@ -1,5 +1,5 @@
 import type { AppState } from '../../state/AppState.js'
-import type { TaskStatus, TaskType } from '../../Task.js'
+import type { TaskStatus } from '../../Task.js'
 import { isTerminalTaskStatus } from '../../Task.js'
 import { isBackgroundTask, type TaskState } from '../../tasks/types.js'
 import { emitTaskStarted } from '../sdkEventQueue.js'
@@ -9,16 +9,6 @@ import { projectTaskExecution } from './executionProjection.js'
 
 export const POLL_INTERVAL_MS = 1000
 export const PANEL_GRACE_MS = 30_000
-
-export type TaskAttachment = {
-  type: 'task_status'
-  taskId: string
-  toolUseId?: string
-  taskType: TaskType
-  status: TaskStatus
-  description: string
-  deltaSummary: string | null
-}
 
 type TaskAppStateSetter = (updater: (prevState: AppState) => AppState) => void
 
@@ -190,11 +180,9 @@ export function getRunningTasks(state: AppState): TaskState[] {
 }
 
 export async function generateTaskAttachments(state: AppState): Promise<{
-  attachments: TaskAttachment[]
   updatedTaskOffsets: Record<string, number>
   evictedTaskIds: string[]
 }> {
-  const attachments: TaskAttachment[] = []
   const updatedTaskOffsets: Record<string, number> = {}
   const evictedTaskIds: string[] = []
   for (const task of Object.values(state.tasks ?? {})) {
@@ -210,7 +198,7 @@ export async function generateTaskAttachments(state: AppState): Promise<{
     const delta = await getTaskOutputDelta(task.id, task.outputOffset)
     if (delta.content) updatedTaskOffsets[task.id] = delta.newOffset
   }
-  return { attachments, updatedTaskOffsets, evictedTaskIds }
+  return { updatedTaskOffsets, evictedTaskIds }
 }
 
 export function applyTaskOffsetsAndEvictions(

@@ -16,7 +16,6 @@ export const capsuleKinds = {
   relevant_memories: { section: 'Memory', cadence: 'state' },
   skill_listing: { section: 'Skills', cadence: 'state' },
   dynamic_skill: { section: 'Skills', cadence: 'state' },
-  task_status: { section: 'Tasks', cadence: 'event' },
   diagnostics: { section: 'Diagnostics', cadence: 'event' },
   task_reminder: { section: 'Reminders', cadence: 'event' },
   contract_reminder: { section: 'Reminders', cadence: 'event' },

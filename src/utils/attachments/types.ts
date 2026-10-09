@@ -8,7 +8,7 @@ import type { BoundPrefixSection, BoundPrefixToolMark, DeadThinkingMark, Message
 import type { BypassedAskRoad, PermissionMode } from '../../types/permissions.js'
 import type { DiagnosticFile } from '../../services/diagnosticTracking.js'
 import type { DiscoverySignal } from '../../services/skillSearch/signals.js'
-import type { TaskStatus, TaskType } from '../../Task.js'
+import type { TaskType } from '../../Task.js'
 import type { Output as FileReadToolOutput } from '../../tools/FileReadTool/FileReadTool.js'
 import type { InstructionSourceEntry } from '../../services/instructions/contracts.js'
 import type { EffortLevel } from '../effort.js'
@@ -303,15 +303,6 @@ export type Attachment =
       model?: string
     }
   | AgentMentionAttachment
-  | {
-      type: 'task_status'
-      taskId: string
-      taskType: TaskType
-      status: TaskStatus
-      description: string
-      deltaSummary: string | null
-      outputFilePath?: string
-    }
   | AgentRosterAttachment
   | AsyncHookResponseAttachment
   | {
