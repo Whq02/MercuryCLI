@@ -321,32 +321,27 @@ export function hookKindsOf(event: HookEvent): readonly HookKind[] {
   return hookEventTable[event].kinds ?? HOOK_KINDS
 }
 
-const answerValueSchemas: Record<HookAnswerField, () => z.ZodTypeAny> = {
-  block: () => z.string().describe('The moment is blocked with these words; the model reads them'),
-  stop: () => z.string().describe('The whole turn ends now; the operator reads the words'),
-  context: () => z.string().describe('Words the model reads at this moment'),
-  notice: () => z.string().describe('One line the operator reads, saved in the session'),
-  permission: () => z.enum(['allow', 'ask']).describe('allow: no ask (a deny rule still denies); ask: the operator is asked; a deny is block'),
-  input: () => z.record(z.string(), z.unknown()).describe('The input the tool runs with instead'),
-  output: () => z.unknown().describe('What the model sees as the result instead'),
-  rules: () => z.array(permissionUpdateSchema()).describe('Permission updates applied with the allow'),
-  instructions: () => z.string().describe("Guidance appended to the summariser's"),
-  prompt: () => z.string().describe("The session's first prompt"),
-  watch: () => z.array(z.string()).describe('The files to watch, replacing the list'),
-}
+const answerFields = () => ({
+  block: z.string().optional().describe('The moment is blocked with these words; the model reads them'),
+  stop: z.string().optional().describe('The whole turn ends now; the operator reads the words'),
+  context: z.string().optional().describe('Words the model reads at this moment'),
+  notice: z.string().optional().describe('One line the operator reads, saved in the session'),
+  permission: z.enum(['allow', 'ask']).optional().describe('allow: no ask (a deny rule still denies); ask: the operator is asked; a deny is block'),
+  input: z.record(z.string(), z.unknown()).optional().describe('The input the tool runs with instead'),
+  output: z.unknown().optional().describe('What the model sees as the result instead'),
+  rules: z.array(permissionUpdateSchema()).optional().describe('Permission updates applied with the allow'),
+  instructions: z.string().optional().describe("Guidance appended to the summariser's"),
+  prompt: z.string().optional().describe("The session's first prompt"),
+  watch: z.array(z.string()).optional().describe('The files to watch, replacing the list'),
+})
 
-function answerShape(fields: readonly HookAnswerField[]): Record<string, z.ZodTypeAny> {
-  const shape: Record<string, z.ZodTypeAny> = {}
-  for (const field of fields) shape[field] = answerValueSchemas[field]().optional()
-  return shape
-}
+export const HookAnswerSchema = lazySchema(() => z.strictObject(answerFields()))
+export type HookAnswer = z.infer<ReturnType<typeof HookAnswerSchema>>
 
 export function hookAnswerSchema(event: HookEvent): z.ZodObject<z.ZodRawShape> {
-  return z.strictObject(answerShape(hookEventTable[event].answers))
+  const mask = Object.fromEntries(hookEventTable[event].answers.map(field => [field, true as const]))
+  return HookAnswerSchema().pick(mask as Record<HookAnswerField, true>)
 }
-
-export const HookAnswerSchema = lazySchema(() => z.strictObject(answerShape(HOOK_ANSWER_FIELDS)))
-export type HookAnswer = z.infer<ReturnType<typeof HookAnswerSchema>>
 
 export function hookAnswerFieldsOf(event: HookEvent): readonly HookAnswerField[] {
   return hookEventTable[event].answers
