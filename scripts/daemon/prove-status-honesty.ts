@@ -60,6 +60,23 @@ console.log('§1 the warm line names its workspace')
   )
 }
 
+console.log('§1b every live worker names its runner pid beside its session (RELEASE-30-AIR R30A-07)')
+{
+  const { workerRowWords } = await import('../../src/daemon/status.js')
+  const live = { short: 'concourse-w1', sessionId: '5e7f61a7-0000-4000-8000-000000000000', prompt: '', source: 'operator', state: 'running', pid: 99490, startedAt: 1, cliVersion: '1.0.0', model: 'claude-opus-5-5', effort: 'high' }
+  const settled = { ...live, short: 'concourse-w2', sessionId: 'deadbeef-0000-4000-8000-000000000000', pid: 99500, outcome: 'completed' }
+  const spawning = { ...live, short: 'concourse-w3', sessionId: 'cafe1234-0000-4000-8000-000000000000', pid: undefined, state: 'starting', model: undefined, effort: undefined }
+  const text = formatMercuryDaemonStatus(baseStatus({ workersLive: 2, workersTotal: 3, workers: [live, settled, spawning] }))
+  const rows = text.split('\n')
+  const at = rows.findIndex(l => l.includes('workers:      2 live / 3 rostered'))
+  check('the live worker reads under the workers line: its short, its runner pid, its session and its state', at >= 0 && rows[at + 1] === '    concourse-w1: pid 99490 · session 5e7f61a7 · running · claude-opus-5-5@high', rows.slice(at, at + 4).join(' | '))
+  check('a worker whose pid is not yet recorded says so', rows[at + 2] === '    concourse-w3: pid not yet recorded · session cafe1234 · starting', rows[at + 2] ?? '')
+  check('a settled worker is not listed as live', !text.includes('concourse-w2'), text)
+  check('the words come from one owner', workerRowWords(live as never) === 'concourse-w1: pid 99490 · session 5e7f61a7 · running · claude-opus-5-5@high')
+  const none = formatMercuryDaemonStatus(baseStatus({ workersLive: 0, workersTotal: 0, workers: [] }))
+  check('no worker rows under an idle daemon', !/^\s{4}concourse-/m.test(none))
+}
+
 console.log('§2 the counting seam excludes the warm pool (call-shaped)')
 {
   const server = readFileSync(join(ROOT, 'src', 'daemon', 'controlServer.ts'), 'utf8')
