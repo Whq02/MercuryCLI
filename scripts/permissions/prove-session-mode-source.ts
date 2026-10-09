@@ -49,6 +49,27 @@ section('§1 the resolver names the source, every arm of the order')
   seedSettings(undefined)
 }
 
+section('§1b a typed --mode outranks the Boot Menu\'s standing consent (the Air\'s mercury --mode flow opened in sovereign mode)')
+{
+  seedSettings(undefined)
+  const typedFlow = setup.resolveSessionPermissionMode({ permissionModeCli: 'flow', dangerouslySkipPermissions: true, envBypassArmed: true })
+  check('--mode flow with the Sovereign mode row saved composes flow from the mode argument', typedFlow.mode === 'flow' && typedFlow.source === 'mode-argument', JSON.stringify(typedFlow))
+  check('…with no refusal line: nothing was refused', typedFlow.notification === undefined, JSON.stringify(typedFlow))
+  check('/config names the source: the mode argument', setup.describeSessionPermissionMode(typedFlow) === `${modes.permissionModeTitle('flow')} · from ${setup.sessionPermissionModeSourceWords('mode-argument')}`, setup.describeSessionPermissionMode(typedFlow))
+  const typedDefault = setup.resolveSessionPermissionMode({ permissionModeCli: 'default', dangerouslySkipPermissions: true, envBypassArmed: true })
+  check('--mode default with the row saved composes default from the mode argument', typedDefault.mode === 'default' && typedDefault.source === 'mode-argument', JSON.stringify(typedDefault))
+  const typedSovereign = setup.resolveSessionPermissionMode({ permissionModeCli: 'sovereign', dangerouslySkipPermissions: true, envBypassArmed: true })
+  check('--mode sovereign with the row saved is sovereign with no line', typedSovereign.mode === 'sovereign' && typedSovereign.notification === undefined, JSON.stringify(typedSovereign))
+  const bare = setup.resolveSessionPermissionMode({ dangerouslySkipPermissions: true, envBypassArmed: true })
+  check('no --mode with the row saved is still born sovereign from the standing consent', bare.mode === 'sovereign' && bare.source === 'session-birth' && bare.notification === undefined, JSON.stringify(bare))
+  const flagged = setup.resolveSessionPermissionMode({ permissionModeCli: 'flow', dangerouslySkipPermissions: false })
+  check('--mode flow with nothing armed carries no line', flagged.mode === 'flow' && flagged.notification === undefined, JSON.stringify(flagged))
+  process.env.MERCURY_SKIP_PERMISSIONS = '1'
+  const second = setup.initialPermissionModeFromCLI({ permissionModeCli: 'flow', dangerouslySkipPermissions: false })
+  check('the boot\'s second resolution (the mode already flow, the env row still set) stays flow', second.mode === 'flow' && second.notification === undefined, JSON.stringify(second))
+  delete process.env.MERCURY_SKIP_PERMISSIONS
+}
+
 section('§2 the composed read answers the field question')
 {
   seedSettings(undefined)
