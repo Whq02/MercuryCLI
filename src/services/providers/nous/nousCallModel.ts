@@ -1,0 +1,49 @@
+import type { AssistantMessage, StreamEvent, SystemAPIErrorMessage } from '../../../types/message.js'
+import {
+  compatChatCallModel,
+  compatLaneLiveProofState,
+  type CompatCallModelParams,
+  type CompatLaneProfile,
+} from '../openaicompat/compatChatCallModel.js'
+import { buildOpenrouterExtras } from '../openaicompat/compatWire.js'
+import { nousChatCompletionsUrl, NOUS_PORTAL_KEYS_PAGE, resolveNousApiKey } from './nousAccounts.js'
+import { NOUS_MODEL_PREFIX, nousDeclaresTools, nousEffortVocabularyFor, nousWireModelId, refreshNousCatalogue } from './nousCatalogue.js'
+import { refreshNousAccount } from './nousUsageState.js'
+
+export const nousLaneProfile: CompatLaneProfile = {
+  lane: 'nous',
+  providerLabel: 'Nous Portal',
+  resolveCredential: () => {
+    const key = resolveNousApiKey()
+    return key ? { apiKey: key.key } : undefined
+  },
+  credentialHint: `no Nous Portal API key detected — /logins nous stores one (${NOUS_PORTAL_KEYS_PAGE} issues them), or set NOUS_API_KEY.`,
+  authRemedy: `the Portal answers 401 for a key that is invalid, blocked, or out of funds — top up or renew the subscription at ${NOUS_PORTAL_KEYS_PAGE}, or store another key at /logins nous (NOUS_API_KEY wins over the store).`,
+  billingRemedy: `the Nous Portal account is out of credits — top up or renew the subscription at ${NOUS_PORTAL_KEYS_PAGE}, then retry; /model picks another model meanwhile.`,
+  requestUrl: () => nousChatCompletionsUrl(),
+  wireModelId: modelId => nousWireModelId(modelId),
+  buildExtras: args =>
+    buildOpenrouterExtras({
+      ...args,
+      vocabulary: nousEffortVocabularyFor(`${NOUS_MODEL_PREFIX}${args.wireModel}`),
+    }),
+  toolCapabilityRefusal: wireModel =>
+    nousDeclaresTools(`${NOUS_MODEL_PREFIX}${wireModel}`) === false
+      ? `the Nous Portal catalogue states that '${wireModel}' does not take tools — /model picks a row whose supported parameters list tools.`
+      : undefined,
+  onResponseHeaders: () => {
+    void refreshNousAccount().catch(() => {})
+    void refreshNousCatalogue().catch(() => {})
+  },
+}
+
+export function nousLiveProofState(): { at: number; model: string } | null {
+  return compatLaneLiveProofState('nous')
+}
+
+export async function* nousCallModel(
+  params: CompatCallModelParams,
+): AsyncGenerator<StreamEvent | AssistantMessage | SystemAPIErrorMessage, void> {
+  if (params.signal.aborted) return
+  yield* compatChatCallModel(nousLaneProfile, params)
+}
