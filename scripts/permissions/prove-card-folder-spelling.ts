@@ -49,7 +49,7 @@ const { Box, EventEmitter, Text, render, flushPendingSyncWork } = await import('
 
 const BOX_DIR = 'C:\\Users\\WHQ\\AppData\\Local\\Temp\\mercury\\C--Users-WHQ-Desktop-windowsbox\\f611f98b-d1c2-4f19-ad5b-379bf07e586e\\scratchpad\\f5'
 const BOX_DISPLAY = 'C:\\Users\\WHQ\\AppData\\Lo…f07e586e\\scratchpad\\f5'
-const MAC_DIR = '/Users/whq/Developer/orchard/tools/f5'
+const MAC_DIR = '/home/sam/orchard/tools/f5'
 
 const ruleContentOf = (update: ReturnType<typeof createEditRuleSuggestion>): string => {
   const rule = (update as { rules: Array<{ ruleContent?: string }> }).rules[0]!
@@ -115,7 +115,7 @@ try {
   {
     const text = await renderLabel(generateShellSuggestionsLabel([createEditRuleSuggestion(MAC_DIR, 'localSettings')!], 'Bash'))
     check('the single-folder choice reads "Yes, and allow access to <folder>/ in this project"', text === `Yes, and allow access to ${MAC_DIR}/ in this project`, text)
-    const two = await renderLabel(generateShellSuggestionsLabel([createEditRuleSuggestion(MAC_DIR, 'localSettings')!, createReadRuleSuggestion('/Users/whq/Developer/orchard/docs')!], 'Bash'))
+    const two = await renderLabel(generateShellSuggestionsLabel([createEditRuleSuggestion(MAC_DIR, 'localSettings')!, createReadRuleSuggestion('/home/sam/orchard/docs')!], 'Bash'))
     check('two folders read by their names with the trailing slash', two === 'Yes, and allow access to f5/ and docs/ in this project', two)
   }
 
