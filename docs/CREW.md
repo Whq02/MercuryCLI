@@ -43,6 +43,19 @@ same turn still runs, waits for the turn's end too and runs with the switched
 roster. Plain `/subagents` reads both switches with their sources; the health
 check's "Crewmates & workflows" row does the same.
 
+Beside the two switches sits one global setting, "Crewmates while
+backgrounded", off by default: the same row in the boot menu's Agents section
+and in `/config`, one switch wherever it is flipped. It decides whether a
+session you have left in the background may launch crewmates and workflows
+when its brief says so. Off, a backgrounded session works single-handed and
+waits for your visit or the one workflows-allowed grant, and its launch
+refusal names this row as the third road. On, it launches as a focused session
+does — under its own Crewmates and Workflows switches, which still rule first,
+and its own permission mode — and a session born while the setting is on
+carries the Agent and Workflow tools from its first request. The
+workflows-allowed grant is untouched. [SESSIONS.md](SESSIONS.md) has the
+focus law the setting sits beside.
+
 ## Starting a crewmate
 
 A crewmate starts through the Agent tool, with a name or without one. A named
