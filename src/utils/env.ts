@@ -195,7 +195,3 @@ export const env = {
   }),
   detectDeploymentEnvironment,
 }
-
-export function getHostPlatformForAnalytics(): 'win32' | 'darwin' | 'linux' {
-  return normalizedPlatform()
-}

@@ -325,7 +325,6 @@ src/utils/terminalDetection.ts :: insideITerm2Memo :: static-for-process
 src/utils/toolSchemaCache.ts :: toolSchemaCache :: keyed-by-truth
 src/utils/toolSearch.ts :: memoizedDeferredToolTokens :: keyed-by-truth
 src/utils/transcriptSearch.ts :: searchTextCache :: keyed-by-truth
-src/utils/user.ts :: getCoreUserData :: static-for-process
 src/utils/user.ts :: getGitEmail :: static-for-process
 src/utils/verification/projectGates.ts :: cache :: ttl-bounded
 src/utils/verification/verificationState.ts :: digestCache :: invalidator=markMutation

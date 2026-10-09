@@ -1,59 +1,10 @@
-
 import memoize from 'lodash-es/memoize.js'
 
-import { getSessionId } from '../bootstrap/state.js'
-import { getOauthAccountInfo, getRateLimitTier, getSubscriptionType } from './auth.js'
 import { getCwd } from './cwd.js'
-import { getHostPlatformForAnalytics } from './env.js'
 import { execFileNoThrowWithCwd } from './execFileNoThrow.js'
 import { gitExe } from './git.js'
 
-
-type CoreUserData = {
-  sessionId: string
-  email?: string
-  appVersion: string
-  platform: string
-  organizationUuid?: string
-  accountUuid?: string
-  userType: 'external'
-  subscriptionType?: string
-  rateLimitTier?: string
-}
-
-let resolvedEmail: string | undefined
-let emailResolution: Promise<void> | null = null
-
-export const getCoreUserData = memoize(
-  (includeAnalyticsMetadata?: boolean): CoreUserData => {
-    const account = getOauthAccountInfo()
-    return {
-      sessionId: getSessionId(),
-      ...(resolvedEmail !== undefined
-        ? { email: resolvedEmail }
-        : account?.emailAddress
-          ? { email: account.emailAddress }
-          : {}),
-      appVersion: MACRO.VERSION,
-      platform: getHostPlatformForAnalytics(),
-      ...(account?.organizationUuid ? { organizationUuid: account.organizationUuid } : {}),
-      ...(account?.accountUuid ? { accountUuid: account.accountUuid } : {}),
-      userType: 'external',
-      ...(includeAnalyticsMetadata === true
-        ? {
-            ...(getSubscriptionType() !== null ? { subscriptionType: getSubscriptionType() as string } : {}),
-            ...(getRateLimitTier() !== null ? { rateLimitTier: getRateLimitTier() as string } : {}),
-          }
-        : {}),
-    }
-  },
-)
-
 export function resetUserCache(): void {
-  resolvedEmail = undefined
-  emailResolution = null
-  void resolvedEmail
-  getCoreUserData.cache?.clear?.()
   getGitEmail.cache?.clear?.()
 }
 
