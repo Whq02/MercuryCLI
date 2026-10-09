@@ -174,6 +174,7 @@ src/services/providers/local/localDiscovery.ts :: cached :: ttl-bounded
 src/services/providers/meta/metaCatalogue.ts :: cache :: ttl-bounded
 src/services/providers/moonshot/moonshotCatalogue.ts :: catalogueCache :: ttl-bounded
 src/services/providers/moonshot/moonshotCatalogue.ts :: identityMemo :: keyed-by-truth
+src/services/providers/nous/nousCatalogue.ts :: catalogueCache :: ttl-bounded
 src/services/providers/openai/openaiCatalogue.ts :: catalogueCache :: ttl-bounded
 src/services/providers/openai/qualificationStore.ts :: wireMemoryCache :: ttl-bounded
 src/services/providers/openrouter/openrouterCatalogue.ts :: catalogueCache :: ttl-bounded
