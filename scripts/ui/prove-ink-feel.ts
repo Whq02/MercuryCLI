@@ -41,10 +41,10 @@ check('CommandCenter footer child keeps the spacer Box and inks on hover', /\{ho
 const ls = read('src/components/PromptInput/PromptInputFooterLeftSide.tsx')
 check('`? for shortcuts` is a Box sibling dispatching /help', /onClick=\{\(\) => \{[\s\S]{0,240}requestCommandDispatch\('\/help'\)/.test(ls))
 
-const tr = read('src/components/HelmTelemetryRail.tsx') + read('src/utils/cockpit/helmTelemetryModel.ts')
+const tr = read('src/components/HelmVitalsRail.tsx') + read('src/utils/cockpit/helmVitalsModel.ts')
 check(
-  'telemetry rows activate by LABEL (one adapter + ≥9 labeled rows)',
-  tr.includes("requestHelmRowActivationByLabel('telemetry', label)") &&
+  'vitals rows activate by LABEL (one adapter + ≥9 labeled rows)',
+  tr.includes("requestHelmRowActivationByLabel('vitals', label)") &&
     ((tr.match(/row: \{ kind: '[a-z]+',[^}]*\blabel[:,] /g) ?? []).length >= 9),
 )
 

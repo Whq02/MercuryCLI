@@ -40,7 +40,7 @@ type Centre = { left: number; width: number; innerLeft: number; innerRight: numb
 function centreOf(scene: Scene): Centre {
   const plan = railPlanAt(scene.columns, true)
   const left = plan.lanesW + scene.panel
-  const width = scene.columns - plan.lanesW - scene.panel - plan.telemetryW
+  const width = scene.columns - plan.lanesW - scene.panel - plan.vitalsW
   return { left, width, innerLeft: left + 1, innerRight: left + width - 2, innerWidth: width - 2 }
 }
 
@@ -87,7 +87,7 @@ function scaffold(scene: Scene, centreRef: React.RefObject<DOMElement | null>): 
             { ref: centreRef, flexDirection: 'column', flexGrow: 1, minWidth: 0, overflow: 'hidden', borderStyle: 'round' },
             ...Array.from({ length: body - 2 }, (_, index) => React.createElement(Text, { key: index, wrap: 'truncate-end' }, index === 0 ? 'CENTRE' : 'c'.repeat(scene.columns))),
           ),
-          rail(plan.telemetryW, body, 'R', 'TELEMETRY'),
+          rail(plan.vitalsW, body, 'R', 'VITALS'),
         ),
         React.createElement(Box, { height: bottom, flexShrink: 0 }, React.createElement(Text, {}, 'B'.repeat(scene.columns))),
         React.createElement(slot.SettingsPopupSlot, { overlay: true, hostRef: centreRef, framed: true }),
@@ -137,7 +137,7 @@ function painted(before: string[], after: string[]): Painted | null {
   return { left, right, top, bottom, rows, ragged }
 }
 
-const SCAFFOLD_MARKS = ['LANES', 'CENTRE', 'TELEMETRY', 'BBBB']
+const SCAFFOLD_MARKS = ['LANES', 'CENTRE', 'VITALS', 'BBBB']
 
 function scaffoldPainted(screen: string, scene: Scene): boolean {
   return SCAFFOLD_MARKS.every(mark => screen.includes(mark)) && (scene.panel === 0 || screen.includes(PANEL_ROWS[0]!))
@@ -203,7 +203,7 @@ function judge(label: string, scene: Scene, paint: Painted | null, before: strin
   check(`${label}: the popup is ${want} wide (the request ${requested} clamped to the centre's ${centre.innerWidth}) and centred in the column`, width === want && paint.left === centre.innerLeft + Math.floor((centre.innerWidth - want) / 2), `${width} wide at ${paint.left}`)
   check(`${label}: no row is wider than its frame (every row keeps its two border cells at the frame's edges)`, paint.ragged.length === 0, `ragged rows ${JSON.stringify(paint.ragged)}: ${JSON.stringify(paint.ragged.map(y => (after[y] ?? '').slice(paint.left, paint.right + 1)))}`)
   const plan = railPlanAt(scene.columns, true)
-  check(`${label}: the right rail's column is untouched beside the popup`, untouched(before, after, scene.columns - plan.telemetryW, scene.columns - 1, paint.top, paint.bottom))
+  check(`${label}: the right rail's column is untouched beside the popup`, untouched(before, after, scene.columns - plan.vitalsW, scene.columns - 1, paint.top, paint.bottom))
   check(`${label}: the lanes rail and the panel are untouched beside the popup`, untouched(before, after, 0, centre.left - 1, paint.top, paint.bottom))
   check(`${label}: the frame closes on both corners`, paint.rows[0]!.startsWith('╭') && paint.rows[0]!.endsWith('╮') && paint.rows.at(-1)!.startsWith('╰') && paint.rows.at(-1)!.endsWith('╯'))
 }

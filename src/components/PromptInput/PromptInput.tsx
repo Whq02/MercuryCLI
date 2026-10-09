@@ -598,7 +598,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
           openFilesMenu()
           break
         case 'console':
-          setHelmFocus('telemetry')
+          setHelmFocus('vitals')
           beginConsoleCompose()
           break
       }

@@ -229,7 +229,7 @@ section("§3 THE SURFACES (red on the base): the usage popup and the usage card 
   check("the popup's owner derivation: a provider's session spend carries its scheduled share (red on the base: no share on the spend)", scheduled !== undefined && scheduled.inputTokens === 1_500 && scheduled.outputTokens === 60 && scheduled.models === 1, j(anthropic))
   const cardLine = (ownerLoose.scheduledUsageLine as (() => string | null) | undefined)?.()
   check("the card's attribution line — 'scheduled 1.6k spent · $… + 1 unpriced turn'", typeof cardLine === 'string' && cardLine.startsWith('scheduled 1.6k spent · $') && cardLine.endsWith('+ 1 unpriced turn'), j(cardLine))
-  const rail = src('src/utils/cockpit/helmTelemetryModel.ts')
+  const rail = src('src/utils/cockpit/helmVitalsModel.ts')
   check('the rail paints the scheduled line under USAGE beside the crew line (red on the base: no such row)', rail.includes('scheduledUsageLine()') && rail.includes("muted('usage:scheduled', scheduledLine)"))
   const project = await import('../../src/rows/project.ts')
   const { OutcomeRowSchema } = await import('../../src/rows/vocabulary.ts')
@@ -344,7 +344,7 @@ if (frameDir !== null) {
   const cardLine = (ownerLoose.scheduledUsageLine as (() => string | null) | undefined)?.() ?? null
   const view = usageOwner.windowSourceUsages({ model: MODEL, reads: {} }).primary
   for (const [columns, rowCount] of SIZES) {
-    const rowW = railPanelInnerWidth(railPlanAt(columns, true).telemetryW)
+    const rowW = railPanelInnerWidth(railPlanAt(columns, true).vitalsW)
     const children: React.ReactElement[] = [
       React.createElement(Box, { key: 'label', width: rowW }, React.createElement(Text, { wrap: 'truncate-end' }, `  ${view.label}`)),
       React.createElement(Box, { key: 'spend', width: rowW }, React.createElement(Text, { wrap: 'truncate-end' }, `  spend ${view.spend.models > 0 ? `${tracker.formatLaneSpend(view.spend)} session` : 'none yet'}`)),

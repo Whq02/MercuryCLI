@@ -75,7 +75,7 @@ async function mount(tasks: Record<string, unknown>, availRows: number | undefin
   ) as unknown as NodeJS.WriteStream
   const stdin = Object.assign(new Readable({ read() {} }), { isTTY: true, setRawMode() {}, ref() {}, unref() {} }) as unknown as NodeJS.ReadStream
   const state = { ...getDefaultAppState(), tasks }
-  const tree = (rows: number | undefined) => h(AppStateProvider as never, { initialState: state }, h(HelmLanesRail as never, { width, mergedTelemetry: merged, availRows: rows }))
+  const tree = (rows: number | undefined) => h(AppStateProvider as never, { initialState: state }, h(HelmLanesRail as never, { width, mergedVitals: merged, availRows: rows }))
   const instance = await render(tree(availRows), { stdout, stdin, exitOnCtrlC: false, patchConsole: false })
   await settle(250)
   return {
@@ -144,7 +144,7 @@ section('§3 the shed bills the rows it paints: a merged rail whose painted rows
   await settle(400)
   const tall = m.frame()
   const inked = tall.split('\n').filter(l => l.trim() !== '')
-  check('tall: the merged solo rail paints its banner, the WORKBENCH card, the four NEXT hints, FILES and the three-row TELEMETRY glance (14 inked rows) with their flat headers and gaps', tall.includes('WORKBENCH') && tall.includes('NEXT') && tall.includes('FILES') && tall.includes('TELEMETRY') && !tall.includes('RECENT') && inked.length === 14, `${inked.length} inked: ${tall}`)
+  check('tall: the merged solo rail paints its banner, the WORKBENCH card, the four NEXT hints, FILES and the three-row VITALS glance (14 inked rows) with their flat headers and gaps', tall.includes('WORKBENCH') && tall.includes('NEXT') && tall.includes('FILES') && tall.includes('VITALS') && !tall.includes('RECENT') && inked.length === 14, `${inked.length} inked: ${tall}`)
   const glass = 1 + (1 + 2) + (1 + 2) + (1 + 2) + (3 + 2)
   await m.paint(glass)
   const exact = m.frame()

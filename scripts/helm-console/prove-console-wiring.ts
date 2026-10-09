@@ -33,7 +33,7 @@ check(
 
 section('PromptInput — the one input owner routes compose')
 const pi = read('src/components/PromptInput/PromptInput.tsx') + read('src/components/PromptInput/useComposerRawKeys.ts')
-check('compose branch gated on telemetry pane', pi.includes("focusPane === 'telemetry' && isConsoleComposing()"))
+check('compose branch gated on vitals pane', pi.includes("focusPane === 'vitals' && isConsoleComposing()"))
 check('↵ submits through the store (single usage seam)', pi.includes('consoleSubmitBuffer((question, controller) =>') && pi.includes('runConsoleAsk({'))
 check('esc aborts a pending ask first', pi.includes('if (!consoleAbortAsk()) exitConsoleCompose()'))
 check('Tab always escapes compose (never a trap)', /exitConsoleCompose\(\)\s*\n\s*setHelmFocus\(nextHelmPane\(focusPane\)\)/.test(pi))
@@ -46,17 +46,17 @@ check(
 )
 check(
   'printable on the console row auto-composes (gated on consoleEnabled)',
-  pi.includes("focusPane === 'telemetry' && consoleEnabled()") && pi.includes('beginConsoleCompose(rawInput)'),
+  pi.includes("focusPane === 'vitals' && consoleEnabled()") && pi.includes('beginConsoleCompose(rawInput)'),
 )
 check(
-  'click parity: console action focuses telemetry + composes',
-  read('src/components/HelmTelemetryRail.tsx').includes("requestHelmRowActivationByLabel('telemetry', label)") &&
+  'click parity: console action focuses vitals + composes',
+  read('src/components/HelmVitalsRail.tsx').includes("requestHelmRowActivationByLabel('vitals', label)") &&
     read('src/utils/cockpit/helmFocus.ts').includes('requestHelmRowActivation(pane, i)') &&
-    pi.includes("setHelmFocus('telemetry')"),
+    pi.includes("setHelmFocus('vitals')"),
 )
 
-section('HelmTelemetryRail — the last section (under TRACE)')
-const rail = read('src/components/HelmTelemetryRail.tsx') + read('src/utils/cockpit/helmTelemetryModel.ts')
+section('HelmVitalsRail — the last section (under TRACE)')
+const rail = read('src/components/HelmVitalsRail.tsx') + read('src/utils/cockpit/helmVitalsModel.ts')
 check('section gated on consoleEnabled()', rail.includes('const consoleOn = consoleEnabled()'))
 const traceIdx = rail.indexOf("label: 'TRACE'")
 const conIdx = rail.indexOf("label: 'CONSOLE'")
@@ -68,8 +68,8 @@ check('compose cursor uses the caretBlock glyph', rail.includes('GLYPH.caretBloc
 check('answer budget ceiling prefers the MEASURED rail height', rail.includes('availRows ?? termRows - CHROME_ROWS'))
 check('answer budget floors at 0 (receipt row is un-loseable)', rail.includes('Math.max(0, Math.min(9, shedCeiling - rowsAbove))'))
 const fsl = read('src/components/FullscreenLayout.tsx')
-check('FullscreenLayout measures the telemetry wrapper', fsl.includes('measureElement(telemetryBoxRef.current)'))
-check('…and hands the rail its ceiling', fsl.includes('availRows={telemetryRows}'))
+check('FullscreenLayout measures the vitals wrapper', fsl.includes('measureElement(vitalsBoxRef.current)'))
+check('…and hands the rail its ceiling', fsl.includes('availRows={vitalsRows}'))
 check('asking state uses the liveness grammar (WorkingGlyph)', /case 'consoleAsking':[\s\S]{0,400}WorkingGlyph/.test(rail) && /if \(c\.pending\) \{\s*\n\s*consoleRows\.push\(\{ kind: 'consoleAsking'/.test(rail))
 
 section('commands — stamp-gated /console + help domain')
@@ -115,11 +115,11 @@ check('console ask reuses the saved cache-safe prefix', ask.includes('getLastCac
 check('console ask strips a streaming tail (mid-turn safety)', ask.includes('stripInProgressAssistantMessage'))
 check('fallback prefix builders are DYNAMIC imports (cycle rule)', ask.includes("import('../../constants/prompts.js')"))
 
-section('telemetryBus crew channel + lanes rail')
-const bus = read('src/state/telemetryBus.ts')
+section('vitalsBus crew channel + lanes rail')
+const bus = read('src/state/vitalsBus.ts')
 const lanes = read('src/components/HelmLanesRail.tsx') + read('src/utils/cockpit/helmLanesModel.ts')
 
-section('workflow lead-run detail (telemetry rail)')
+section('workflow lead-run detail (vitals rail)')
 check('phase + agent progress derived from the one work-row owner', rail.includes('useFocusedWorkRows()') && rail.includes('focusedWorkflowRows(workRows)') && rail.includes('const leadDetail = workflowRowDetail(runningWf[0]!)'))
 
 console.log('')

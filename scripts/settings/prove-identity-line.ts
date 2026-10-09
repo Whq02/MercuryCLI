@@ -291,7 +291,7 @@ await stub('src/components/tasks/useFocusedWork.ts', {
   otherSessionRunnerPids: () => new Set(),
   focusedSessionIdOrNull: () => null,
 })
-await stub('src/state/telemetryBus.ts', { useTelemetry: () => ({ trace: null, workflowsDisk: [] }) })
+await stub('src/state/vitalsBus.ts', { useVitals: () => ({ trace: null, workflowsDisk: [] }) })
 
 const ink = await import(join(ROOT, 'src/ink.ts'))
 const { default: StdinContext } = await import(join(ROOT, 'src/ink/components/StdinContext.ts'))
@@ -348,7 +348,7 @@ function save(name: string, frame: string): void {
 const inBounds = (frame: string, columns: number, rows: number): boolean =>
   frame.split('\n').length <= rows && frame.split('\n').every(line => stringWidth(line) <= columns)
 
-const { HelmTelemetryRail } = await import(join(ROOT, 'src/components/HelmTelemetryRail.tsx'))
+const { HelmVitalsRail } = await import(join(ROOT, 'src/components/HelmVitalsRail.tsx'))
 const { railPlanAt } = await import(join(ROOT, 'src/utils/helmGeometry.ts'))
 const { railPanelInnerWidth } = await import(join(ROOT, 'src/components/mercury-ui/RailPanel.tsx'))
 const { settingsPopupGeometry } = await import(join(ROOT, 'src/components/SettingsPopupSlot.tsx'))
@@ -412,12 +412,12 @@ async function paintPopup(size: { columns: number; rows: number }, leg: Leg): Pr
 async function paintRail(family: Family, leg: Leg): Promise<string> {
   focusedModel = family.model
   const plan = railPlanAt(178, true)
-  const frame = (await paint(React.createElement(ink.Box, { flexDirection: 'row', justifyContent: 'flex-end', width: 178 }, React.createElement(HelmTelemetryRail, { width: plan.telemetryW, availRows: 51 - 7 })), 178, 51))[0]!
+  const frame = (await paint(React.createElement(ink.Box, { flexDirection: 'row', justifyContent: 'flex-end', width: 178 }, React.createElement(HelmVitalsRail, { width: plan.vitalsW, availRows: 51 - 7 })), 178, 51))[0]!
   save(`rail-${leg}-${family.id}-178x51`, frame)
   return frame
 }
 
-const railBudget = railPanelInnerWidth(railPlanAt(178, true).telemetryW) - 2
+const railBudget = railPanelInnerWidth(railPlanAt(178, true).vitalsW) - 2
 for (const leg of LEGS) {
   if (leg !== 'accounts') await settleLeg(leg)
   section(`${leg}: the /usage popup prints an identity line under every family's title`)
@@ -459,7 +459,7 @@ for (const leg of LEGS) {
       check(`178x51 accounts rail: the ${other} block beside the focused OpenAI block carries its line`, block !== undefined && (fits ? block.under === want : block.under.endsWith('…') && want.startsWith(block.under.slice(0, -1))), `block: ${JSON.stringify(block)}`)
     }
   }
-  save(`rail-${leg}-80x21`, `no sidebar usage card at 80x21: the cockpit's telemetry rail needs both rails engaged (railPlanAt telemetry=${railPlanAt(80, true).telemetry})`)
+  save(`rail-${leg}-80x21`, `no sidebar usage card at 80x21: the cockpit's vitals rail needs both rails engaged (railPlanAt vitals=${railPlanAt(80, true).vitals})`)
 }
 
 section('the fixture never left the loopback box')
@@ -481,7 +481,7 @@ section('one composer, one reader per family, both surfaces read it')
   const composer = read('src/services/providers/providerIdentityLine.ts')
   check('the identity composer exists beside the usage owner', composer !== '', 'src/services/providers/providerIdentityLine.ts is absent')
   check('the composer reads the presence owner and the roster, never a second grammar of its own', composer.includes('deriveFamilySlotGroups(') && composer.includes('presenceIdentityWords(') && composer.includes(`'${NO_ACCOUNT}'`))
-  check('the rail prints the composer\'s line under every block label', read('src/utils/cockpit/helmTelemetryModel.ts').includes('providerIdentityLine('))
+  check('the rail prints the composer\'s line under every block label', read('src/utils/cockpit/helmVitalsModel.ts').includes('providerIdentityLine('))
   check('the popup prints the composer\'s sentence under every section title', read('src/components/Settings/Usage.tsx').includes('providerIdentityLine('))
 }
 
@@ -491,7 +491,7 @@ if (framesDir) {
     'keys-*: keys only — ANTHROPIC_API_KEY OPENAI_API_KEY ZAI_API_KEY OPENROUTER_API_KEY GEMINI_API_KEY MOONSHOT_API_KEY DEEPSEEK_API_KEY MERCURY_COMPAT_API_KEY HF_TOKEN MERCURY_LOCAL_API_KEY (plus the discovered Ollama server the local key attaches to)',
     'nothing-*: no credential anywhere, no local server',
     'popup-<leg>-<columns>x<rows>-<NNN>: the /usage popup body at the store geometry, frame NNN of the ↓ walk (000 is the opening frame; later frames are the first in which a further family\'s block scrolled into view)',
-    'rail-<leg>-<family>-178x51: the cockpit telemetry rail (HelmTelemetryRail) with the focused chat on that family\'s model; rail-<leg>-80x21 records that no rail exists at 80x21',
+    'rail-<leg>-<family>-178x51: the cockpit vitals rail (HelmVitalsRail) with the focused chat on that family\'s model; rail-<leg>-80x21 records that no rail exists at 80x21',
     `fixture usage endpoint: ${JSON.stringify(utilization)}`,
     `fixture Kimi usages: ${JSON.stringify(kimiUsages)}`,
   ].join('\n') + '\n')

@@ -133,7 +133,7 @@ let unsubFocus: (() => void) | null = null
 function armFocusWatch(): void {
   if (unsubFocus) return
   unsubFocus = subscribeHelmFocus(() => {
-    if (composing && getHelmFocus() !== 'telemetry') exitConsoleCompose()
+    if (composing && getHelmFocus() !== 'vitals') exitConsoleCompose()
   })
 }
 

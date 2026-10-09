@@ -155,7 +155,7 @@ check('a session that spent nothing changes neither surface, and the popup carri
 
 section('§3 the laws this pin transcribes stand in the source (the rail, the popup, the composer)')
 {
-  const rail = src('src/utils/cockpit/helmTelemetryModel.ts')
+  const rail = src('src/utils/cockpit/helmVitalsModel.ts')
   check("the rail paints the focused source's LIVE rows, with the one meter tail, and the no-read hint only when none is live", rail.includes("const liveWindows = usage.windows.filter(w => w.state === 'live')") && rail.includes("const usageEmpty = usage.shape !== 'api-spend' && liveWindows.length === 0") && rail.includes('text: `${NO_USAGE_READ_WORDS} · fills after first reply`') && rail.includes('const age = usageAgeTail(w, readNow)'))
   check("every meter row — the focused source's and every other account's — carries the one meter tail, except a Moonshot or GLM Coding Plan row, whose reset and age ride its own detail rows", rail.includes("const detailRows = (provider: ActiveSourceUsage['provider']): boolean => provider === 'moonshot' || provider === 'zai'") && rail.includes('resetIn: detailRows(source.provider) ? undefined : meterTail(w, pool),') && rail.split('resetIn: detailRows(').length === 2 && rail.includes('if (detailRows(source.provider)) appendKimiDetails(w, label)') && rail.includes("meterRowsOf(usage, 'usage:', ") && rail.includes('meterRowsOf(other, `usage:${other.provider}:`, ') && rail.includes('const appendKimiDetails = (w: UsageWindowView, key: string): void => {') && rail.includes('usageAgeWords(w, readNow)].filter('))
   const tab = src('src/components/Settings/Usage.tsx')
@@ -193,7 +193,7 @@ if (frameDir !== undefined) {
   const frame = again.frame()
   again.close()
   writeFileSync(join(frameDir, 'openai-fresh-window-popup-178x51.txt'), `${frame}\n`)
-  const rowW = railPanelInnerWidth(railPlanAt(178, true).telemetryW)
+  const rowW = railPanelInnerWidth(railPlanAt(178, true).vitalsW)
   const view = owner.windowSourceUsages({ model, reads: {} }).primary
   const rows = view.windows.filter(w => w.state === 'live')
   const cardNode = React.createElement(

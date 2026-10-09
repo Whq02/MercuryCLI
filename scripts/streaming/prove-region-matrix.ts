@@ -8,7 +8,7 @@ const REGIONS = [
   'render:composer',
   'render:messages',
   'render:rail-lanes',
-  'render:rail-telemetry',
+  'render:rail-vitals',
   'render:frame',
   'render:tail',
 ] as const

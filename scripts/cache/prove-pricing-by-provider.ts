@@ -262,7 +262,7 @@ section('§5 the shape')
   const runner = readFileSync(join(ROOT, 'src/cli/run.ts'), 'utf8')
   check("the session's usage facts carry the count (additive) and the runner fills it", facts.includes('unpricedTurns?: number') && runner.includes('unpricedTurns: getTotalUnpricedTurns(),'))
   for (const [file, needle] of [
-    ['src/utils/cockpit/helmTelemetryModel.ts', 'formatLaneSpend(usage.spend)'],
+    ['src/utils/cockpit/helmVitalsModel.ts', 'formatLaneSpend(usage.spend)'],
     ['src/components/DeckPane.tsx', 'formatSessionCost(cost, unpricedTurns)'],
     ['src/components/MercuryFrame.tsx', 'formatSessionCost(cost, unpricedTurns)'],
     ['src/utils/cockpit/helmLanesModel.ts', 'formatSessionCost(focusedSpendUSD, focusedUnpriced)'],

@@ -8,7 +8,7 @@ import { useKeybindings } from '../../keybindings/useKeybinding.js'
 import { useTerminalSize } from '../../hooks/useTerminalSize.js'
 import { useAppState, useSetAppState, type AppState } from '../../state/AppState.js'
 import { enterCrewmateView } from '../../state/crewmateViewHelpers.js'
-import { useTelemetry } from '../../state/telemetryBus.js'
+import { useVitals } from '../../state/vitalsBus.js'
 import { isTopOverlayNow, useRegisterOverlay } from '../../context/overlayContext.js'
 import { useOpenEventGate } from '../mercury-ui/useOpenEventGate.js'
 import type { CompactWorkControls } from './CompactWorkSummary.js'
@@ -801,9 +801,9 @@ export function BackgroundTasksDialog({
 }
 function CompactSessionOverview(): React.ReactNode {
   const counts = useCompactWorkCounts()
-  const snapshot = useTelemetry(s => s.sessions)
-  const refreshedAt = useTelemetry(s => s.refreshedAt)
-  const git = useTelemetry(s => s.git)
+  const snapshot = useVitals(s => s.sessions)
+  const refreshedAt = useVitals(s => s.refreshedAt)
+  const git = useVitals(s => s.git)
   const connector = getFocusedSessionConnector()
   const records = connector.records()
   const model = connector.modelFacts()

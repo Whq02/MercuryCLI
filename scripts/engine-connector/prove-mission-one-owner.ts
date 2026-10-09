@@ -56,10 +56,10 @@ section('§2 the signal: one row from the writer, read by the daemon, admitted b
 
 section("§3 the screen: every task surface reads the focused seat's relay")
 {
-  const bus = src('src/state/telemetryBus.ts')
+  const bus = src('src/state/vitalsBus.ts')
   check("the rail's bus reads the focused seat's mission rows and subscribes through the focused slot", bus.includes("getFocusedSessionConnector().workRoster().mission") && bus.includes('subscribeThroughFocused((connector, listener) => connector.subscribeWork(listener))') && !bus.includes('listTasks(getTaskListId())'))
   const board = src('src/components/tasks/BackgroundTasksDialog.tsx')
-  check('the /tasks board reads the relay alone (the screen store is no source)', board.includes('= roster.mission') && !board.includes('useTelemetry(s => s.tasks)'))
+  check('the /tasks board reads the relay alone (the screen store is no source)', board.includes('= roster.mission') && !board.includes('useVitals(s => s.tasks)'))
   const strip = src('src/components/Spinner.tsx')
   check('the working strip reads the focused mission through the one hook', strip.includes('useFocusedMission()'))
   const hook = src('src/components/tasks/useFocusedWork.ts')

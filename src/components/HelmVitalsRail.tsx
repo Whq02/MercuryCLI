@@ -4,7 +4,7 @@ import { Box, Text } from '../ink.js'
 import {
   getHelmCursor,
   getHelmFocus,
-  getHelmTelemetryVersion,
+  getHelmVitalsVersion,
   helmRowSig,
   publishHelmRows,
   subscribeHelmFocus,
@@ -36,7 +36,7 @@ import { RailPanel } from './mercury-ui/RailPanel.js'
 import { Sparkline, UsageMeter, useNowTick } from './mercury-ui/components.js'
 import { CURSOR_NUDGE_MS, AttentionPulse, ValueGlow, WorkingGlyph } from './mercury-ui/LiveGlyphs.js'
 import { partitionDiskRuns } from '../tools/WorkflowTool/runManifest.js'
-import { useTelemetry } from '../state/telemetryBus.js'
+import { useVitals } from '../state/vitalsBus.js'
 import { useTerminalSize } from '../hooks/useTerminalSize.js'
 import {
   consoleEnabled,
@@ -50,12 +50,12 @@ import {
   subscribeConsole,
 } from '../utils/cockpit/helmConsole.js'
 import { fluxMark } from '../utils/flux/fluxProbe.js'
-import { buildTelemetryModel, type TelemetryInput, type TelemetryRowSpec, type TelemetrySectionSpec } from '../utils/cockpit/helmTelemetryModel.js'
+import { buildVitalsModel, type VitalsInput, type VitalsRowSpec, type VitalsSectionSpec } from '../utils/cockpit/helmVitalsModel.js'
 
 const subscribeFocusedRailModel = subscribeThroughFocused((connector, listener) => connector.subscribeModel(listener))
 const getFocusedRailModel = (): string => getFocusedSessionConnector().modelFacts().main
 
-function TelemetryRow({
+function VitalsRow({
   label,
   index,
   selected,
@@ -70,10 +70,10 @@ function TelemetryRow({
 }): React.ReactNode {
   return (
     <InteractiveRow
-      id={`helm:telemetry:${label}`}
+      id={`helm:vitals:${label}`}
       selected={selected}
-      onSelect={() => setHelmCursor('telemetry', index)}
-      onActivate={() => requestHelmRowActivationByLabel('telemetry', label)}
+      onSelect={() => setHelmCursor('vitals', index)}
+      onActivate={() => requestHelmRowActivationByLabel('vitals', label)}
       width={width}
       height={1}
     >
@@ -105,22 +105,22 @@ function EmptyHint({
   )
   if (label !== undefined && index !== undefined) {
     return (
-      <TelemetryRow label={label} index={index} selected={selected} width={width}>
+      <VitalsRow label={label} index={index} selected={selected} width={width}>
         {body}
-      </TelemetryRow>
+      </VitalsRow>
     )
   }
   return <Box width={width}>{body}</Box>
 }
 
-export const HelmTelemetryRail = React.memo(HelmTelemetryRailImpl)
+export const HelmVitalsRail = React.memo(HelmVitalsRailImpl)
 
-function HelmTelemetryRailImpl({ width, availRows }: { width: number; availRows?: number }): React.ReactNode {
-  fluxMark('render:rail-telemetry')
+function HelmVitalsRailImpl({ width, availRows }: { width: number; availRows?: number }): React.ReactNode {
+  fluxMark('render:rail-vitals')
   const tok = useMercuryTokens()
-  useSyncExternalStore(subscribeHelmFocus, getHelmTelemetryVersion, getHelmTelemetryVersion)
-  const focused = getHelmFocus() === 'telemetry'
-  const cur = getHelmCursor('telemetry')
+  useSyncExternalStore(subscribeHelmFocus, getHelmVitalsVersion, getHelmVitalsVersion)
+  const focused = getHelmFocus() === 'vitals'
+  const cur = getHelmCursor('vitals')
   const { accent } = useSessionAccent()
   const sessionModel = useSyncExternalStore(subscribeFocusedRailModel, getFocusedRailModel, getFocusedRailModel)
   useSyncExternalStore(subscribeUsageRecord, getUsageRecordVersion, getUsageRecordVersion)
@@ -135,17 +135,17 @@ function HelmTelemetryRailImpl({ width, availRows }: { width: number; availRows?
   const readNow = Date.now()
   useSyncExternalStore(subscribeLiveContextUsage, getLiveContextUsageVersion, getLiveContextUsageVersion)
   const ctx = getLiveContextUsage()
-  const trace = useTelemetry().trace
+  const trace = useVitals().trace
   const workRows = useFocusedWorkRows()
   const runningWf = runningWorkflowRows(workRows)
-  const wfDisk = useTelemetry().workflowsDisk
+  const wfDisk = useVitals().workflowsDisk
   const externalWf = React.useMemo(() => {
     const knownRunIds = new Set(focusedWorkflowRows(workRows).map(r => r.workflowRunId ?? ''))
     const otherPids = otherSessionRunnerPids(focusedSessionIdOrNull())
     return partitionDiskRuns(wfDisk, knownRunIds, now, pidAlive).external.filter(m => !otherPids.has(m.ownerPid))
   }, [wfDisk, workRows, now])
 
-  const input: TelemetryInput = {
+  const input: VitalsInput = {
     width,
     availRows,
     termRows,
@@ -175,11 +175,11 @@ function HelmTelemetryRailImpl({ width, availRows }: { width: number; availRows?
     readNow,
     tok,
   }
-  const model = buildTelemetryModel(input)
+  const model = buildVitalsModel(input)
 
   const rowsSig = model.rows.map(helmRowSig).join('|')
   useEffect(() => {
-    publishHelmRows('telemetry', model.rows)
+    publishHelmRows('vitals', model.rows)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rowsSig])
 
@@ -187,16 +187,16 @@ function HelmTelemetryRailImpl({ width, availRows }: { width: number; availRows?
   const caret = (i: number): React.ReactNode => <Text color={accent}>{isOn(i) ? `${GLYPH.prompt} ` : '  '}</Text>
   const rowW = model.rowW
   let index = 0
-  const paintRow = (spec: TelemetryRowSpec): React.ReactNode => {
+  const paintRow = (spec: VitalsRowSpec): React.ReactNode => {
     const row = 'row' in spec ? spec.row : undefined
     const i = row !== undefined ? index++ : -1
     const selectable = (body: React.ReactNode): React.ReactNode =>
       row === undefined ? (
         <Box key={spec.key} width={rowW}>{body}</Box>
       ) : (
-        <TelemetryRow key={spec.key} label={row.label} index={i} selected={isOn(i)} width={rowW}>
+        <VitalsRow key={spec.key} label={row.label} index={i} selected={isOn(i)} width={rowW}>
           {body}
-        </TelemetryRow>
+        </VitalsRow>
       )
     switch (spec.kind) {
       case 'text':
@@ -369,7 +369,7 @@ function HelmTelemetryRailImpl({ width, availRows }: { width: number; availRows?
         )
     }
   }
-  const paintSection = (s: TelemetrySectionSpec): React.ReactNode => (
+  const paintSection = (s: VitalsSectionSpec): React.ReactNode => (
     <RailPanel
       key={s.key}
       glyph={s.key === 'usage' ? SPARK[5] : s.glyph}
@@ -391,11 +391,11 @@ function HelmTelemetryRailImpl({ width, availRows }: { width: number; availRows?
           </ValueGlow>
           {focused ? (
             <>
-              <Text color={accent} bold>{'telemetry'}</Text>
+              <Text color={accent} bold>{'vitals'}</Text>
               <Text color={tok.textMuted}>{' · ↑↓ ↵ tab esc'}</Text>
             </>
           ) : (
-            <Text color={tok.textMuted}>{'telemetry'}</Text>
+            <Text color={tok.textMuted}>{'vitals'}</Text>
           )}
         </Text>
       </Box>

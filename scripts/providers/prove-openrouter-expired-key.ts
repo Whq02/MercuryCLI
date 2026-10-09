@@ -111,14 +111,14 @@ try {
   const connector = { modelFacts: () => ({ main: 'openrouter/fixture/model' }), subscribeModel: () => () => {}, usage: () => ({ totalCostUSD: 0, totalAPIDurationMs: 0, totalDurationMs: 0, totalLinesAdded: 0, totalLinesRemoved: 0, totalInputTokens: 0, totalOutputTokens: 0, totalCacheReadInputTokens: 0, totalCacheCreationInputTokens: 0, hasUnknownModelCost: false }) }
   await stub('../../src/services/engine-connector/focusedConnector.js', { getFocusedSessionConnector: () => connector, subscribeThroughFocused: () => () => () => {} })
   await stub('../../src/components/tasks/useFocusedWork.js', { useFocusedWorkRows: () => [], useFocusedWorkRoster: () => ({ rows: [], mission: [], reported: true }), otherSessionRunnerPids: () => new Set(), focusedSessionIdOrNull: () => null })
-  await stub('../../src/state/telemetryBus.js', { useTelemetry: () => ({ trace: null, workflowsDisk: [] }) })
+  await stub('../../src/state/vitalsBus.js', { useVitals: () => ({ trace: null, workflowsDisk: [] }) })
   await stub('../../src/utils/cockpit/healthCertSnapshot.js', { healthCertSnapshot: () => ({ state: 'unavailable' }) })
   let columns = 178
   let rows = 51
   await stub('../../src/hooks/useTerminalSize.js', { useTerminalSize: () => ({ columns, rows }) })
   await stub('../../src/components/mercury-ui/components.js', { useNowTick: () => Date.now() })
   const { Usage } = await import('../../src/components/Settings/Usage.js')
-  const { HelmTelemetryRail } = await import('../../src/components/HelmTelemetryRail.js')
+  const { HelmVitalsRail } = await import('../../src/components/HelmVitalsRail.js')
   const { railPlanAt } = await import('../../src/utils/helmGeometry.js')
   const ink = await import('../../src/ink.js')
   const { default: StdinContext } = await import('../../src/ink/components/StdinContext.js')
@@ -131,7 +131,7 @@ try {
         stream.resume()
         const stdout = Object.assign(stream, { columns, rows }) as unknown as NodeJS.WriteStream
         const context = { stdin, setRawMode() {}, isRawModeSupported: true, internal_exitOnCtrlC: false, internal_eventEmitter: new ink.EventEmitter(), internal_querier: null }
-        const child = surface === 'rail' ? React.createElement(HelmTelemetryRail, { width: railPlanAt(columns, true).telemetryW, availRows: rows }) : React.createElement(Usage, { width: Math.min(146, columns - 4), rowBudget: rows === 51 ? 29 : 21, openToken: columns })
+        const child = surface === 'rail' ? React.createElement(HelmVitalsRail, { width: railPlanAt(columns, true).vitalsW, availRows: rows }) : React.createElement(Usage, { width: Math.min(146, columns - 4), rowBudget: rows === 51 ? 29 : 21, openToken: columns })
         const node = React.createElement(StdinContext.Provider, { value: context }, React.createElement(ink.Box, { flexDirection: 'column', width: columns }, child))
         let painted = () => {}
         const firstFrame = new Promise<void>(resolve => { painted = resolve })

@@ -128,12 +128,12 @@ async function closePopup(m: Mounted): Promise<boolean> {
   return waitFor(() => !popup.isSettingsPopupOpen(), 3000)
 }
 
-section('§0 the real chat at 178x51: the Chat screen, its composer and the telemetry rail in one in-process tree')
+section('§0 the real chat at 178x51: the Chat screen, its composer and the vitals rail in one in-process tree')
 const m = await mountOffscreen(h(App, { initialState: getDefaultAppState(), getFpsMetrics: () => undefined }, h(SurfaceRouter, null, h(Chat, { commands, initialTools: [] }))), COLS, ROWS)
 await waitFor(() => composerRow(m).includes(PLACEHOLDER), 8000)
 await settle(300)
 check('the composer painted its empty prompt row', composerRow(m).includes(PLACEHOLDER), composerRow(m))
-check('the telemetry rail published the usage row the pointer activates', helm.getHelmRows('telemetry').some(row => row.label === 'usage:spend'), helm.getHelmRows('telemetry').map(row => row.label).join(','))
+check('the vitals rail published the usage row the pointer activates', helm.getHelmRows('vitals').some(row => row.label === 'usage:spend'), helm.getHelmRows('vitals').map(row => row.label).join(','))
 check('no usage surface is open and nothing has run', !popup.isSettingsPopupOpen() && usageRuns === 0)
 
 section('§1 a draft with a paste and a mid-text caret')
@@ -164,7 +164,7 @@ check('after esc the paste map is still the same', samePastes(), JSON.stringify(
 keepFrame('draft-after-esc-178x51', m)
 
 section('§3 the usage ROW road (a rail activation): the same seam, the same law')
-helm.requestHelmRowActivationByLabel('telemetry', 'usage:spend')
+helm.requestHelmRowActivationByLabel('vitals', 'usage:spend')
 const openedByRow = await waitFor(() => popup.isSettingsPopupOpen(), 5000)
 await settle(400)
 check('the row activation opened the popup and ran the command once more', openedByRow && usageRuns === 2, `open=${openedByRow} runs=${usageRuns}`)

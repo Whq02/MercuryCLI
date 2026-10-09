@@ -10,7 +10,7 @@ const t = (name: string, ok: boolean, detail = ''): void => {
 }
 
 {
-  const rail = readFileSync(join(import.meta.dir, '../../src/components/HelmTelemetryRail.tsx'), 'utf8')
+  const rail = readFileSync(join(import.meta.dir, '../../src/components/HelmVitalsRail.tsx'), 'utf8')
   t(
     '§1 the rail reads the FOCUSED CONNECTOR model facts',
     rail.includes('getFocusedSessionConnector().modelFacts().main'),

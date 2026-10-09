@@ -6,7 +6,7 @@
 # gate-watch: src/components/HelpV2/commandDomains.ts src/components/PromptInput/PromptInput.tsx src/components/PromptInput/useComposerRawKeys.ts
 # gate-watch: src/components/Spinner/SpinnerAnimationRow.tsx src/components/Spinner/SpinnerGlyph.tsx
 # gate-watch: src/services/providers/anthropic/streamCore.ts src/services/providers/routeLaw.ts
-# gate-watch: src/services/tools/toolExecution.ts src/state/telemetryBus.ts src/substrate/flagRegistry.ts
+# gate-watch: src/services/tools/toolExecution.ts src/state/vitalsBus.ts src/substrate/flagRegistry.ts
 # gate-watch: src/utils/* src/utils/model/subModelSlots.ts src/utils/sessionStorage/writer.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
