@@ -12,122 +12,130 @@ const check = (label: string, cond: boolean, detail = ''): void => {
 
 const C = await import('../../src/utils/hooks/contract.ts')
 
-const WIRE_EVENT_ORDER = [
-  'PreToolUse', 'PostToolUse', 'PostToolUseFailure', 'Notification', 'UserPromptSubmit',
-  'UserPromptExpansion', 'SessionStart', 'SessionEnd', 'Stop', 'StopFailure',
-  'SubagentStart', 'SubagentStop', 'PreCompact', 'PostCompact', 'PermissionRequest',
-  'Setup', 'TaskCreated', 'TaskCompleted',
-  'Elicitation', 'ElicitationResult', 'ConfigChange', 'WorktreeCreate', 'WorktreeRemove',
-  'InstructionsLoaded', 'CwdChanged', 'FileChanged', 'Interrupt',
+const EVENTS = [
+  'turn.start', 'turn.answer', 'turn.end',
+  'tool.before', 'tool.after',
+  'permission.ask', 'permission.decided',
+  'crewmate.start', 'crewmate.end',
+  'compaction.before', 'compaction.after',
+  'session.start', 'session.end', 'session.state',
+  'file.changed',
 ] as const
 
 const base = { session_id: 's', transcript_path: '/t.jsonl', cwd: '/w' }
+const usage = { input_tokens: 1, cached_input_tokens: 0, cache_write_input_tokens: 0, output_tokens: 1 }
 
-check('HOOK_EVENTS is the table\'s key list, in the wire order', JSON.stringify(C.HOOK_EVENTS) === JSON.stringify(WIRE_EVENT_ORDER), `got ${C.HOOK_EVENTS.length} names`)
-check('hookEventTable has a row for every event', Object.keys(C.hookEventTable).length === WIRE_EVENT_ORDER.length)
+check('HOOK_EVENTS is the fifteen moments, in the page order', JSON.stringify(C.HOOK_EVENTS) === JSON.stringify(EVENTS), JSON.stringify(C.HOOK_EVENTS))
+check('hookEventTable has a row for every event and no other', Object.keys(C.hookEventTable).length === EVENTS.length)
+check('isHookEvent knows the fifteen and nothing else', EVENTS.every(e => C.isHookEvent(e)) && !C.isHookEvent('turn.cut') && !C.isHookEvent('tool.failed') && !C.isHookEvent('') && !C.isHookEvent('constructor'))
+check('the kinds are run, question and crewmate', JSON.stringify(C.HOOK_KINDS) === JSON.stringify(['run', 'question', 'crewmate']))
+check('the timeout defaults are 600 / 30 / 60 seconds by kind', C.HOOK_TIMEOUT_DEFAULT_S.run === 600 && C.HOOK_TIMEOUT_DEFAULT_S.question === 30 && C.HOOK_TIMEOUT_DEFAULT_S.crewmate === 60)
+check('the cut budget is 1.5 s', C.HOOK_CUT_BUDGET_MS === 1500)
 
-const eventSpecificFields: Record<string, Record<string, unknown>> = {
-  PreToolUse: { tool_name: 'Bash', tool_input: {} },
-  PostToolUse: { tool_name: 'Bash', tool_input: {}, tool_response: {} },
-  PostToolUseFailure: { tool_name: 'Bash', tool_input: {}, error: 'boom' },
-  PermissionRequest: { tool_name: 'Bash', tool_input: {} },
-  Notification: { message: 'hi' },
-  UserPromptSubmit: { prompt: 'go' },
-  UserPromptExpansion: { expansion_type: 'slash_command', prompt: 'expanded' },
-  SessionStart: { source: 'startup' },
-  SessionEnd: { reason: 'clear' },
-  Stop: { stop_hook_active: false },
-  StopFailure: { error: 'x' },
-  SubagentStart: {},
-  SubagentStop: { stop_hook_active: false },
-  PreCompact: { trigger: 'manual', custom_instructions: null },
-  PostCompact: { trigger: 'auto' },
-  Setup: { trigger: 'init' },
-  TaskCreated: { task_id: 't1' },
-  TaskCompleted: { task_id: 't1' },
-  Elicitation: { mcp_server_name: 'srv', message: 'm' },
-  ElicitationResult: { mcp_server_name: 'srv', action: 'accept' },
-  ConfigChange: { source: 'user_settings' },
-  WorktreeCreate: { name: 'wt' },
-  WorktreeRemove: { worktree_path: '/w' },
-  InstructionsLoaded: { file_path: '/f', instruction_scope: 'User', load_reason: 'session_start' },
-  CwdChanged: { new_cwd: '/n' },
-  FileChanged: { file_path: '/f', event: 'change' },
-  Interrupt: { turn_id: 't', reason: 'operator', tools: [] },
+const fields: Record<(typeof EVENTS)[number], Record<string, unknown>> = {
+  'turn.start': { turn_id: 't1', prompt: 'go' },
+  'turn.answer': { turn_id: 't1', answer: 'done', again: false },
+  'turn.end': { turn_id: 't1', status: 'interrupted', cut: { reason: 'operator', tools: ['Bash'] }, steps: 2, wall_ms: 10, usage },
+  'tool.before': { tool: 'Bash', input: { command: 'ls' }, call_id: 'c1' },
+  'tool.after': { tool: 'Bash', input: {}, output: 'ok', call_id: 'c1', ok: true, cut: false },
+  'permission.ask': { tool: 'Bash', input: {}, call_id: 'c1' },
+  'permission.decided': { tool: 'Bash', input: {}, call_id: 'c1', decision: 'denied', by: 'rule' },
+  'crewmate.start': { prompt: 'do it', model: 'm', directory: '/w' },
+  'crewmate.end': { status: 'finished' },
+  'compaction.before': { trigger: 'manual', tokens: 100 },
+  'compaction.after': { method: 'summary', trigger: 'auto', tokens_before: 100, tokens_after: 10 },
+  'session.start': { reason: 'new', model: 'm' },
+  'session.end': { reason: 'quit' },
+  'session.state': { state: 'needs-you', from: 'working', workspace: '/w' },
+  'file.changed': { path: '.env', change: 'changed' },
 }
 
-for (const event of WIRE_EVENT_ORDER) {
-  const parsed = C.hookEventInputSchema(event)().safeParse({ ...base, hook_event_name: event, ...eventSpecificFields[event] })
-  check(`the ${event} row's input schema parses its own event`, parsed.success, parsed.success ? '' : JSON.stringify((parsed as { error?: { issues: unknown[] } }).error?.issues?.[0]))
+for (const event of EVENTS) {
+  const schema = C.hookPayloadSchema(event)
+  const own = schema.safeParse({ ...base, event, ...fields[event] })
+  check(`${event}: its payload schema parses its own payload`, own.success, own.success ? '' : JSON.stringify(own.error.issues).slice(0, 200))
+  const other = EVENTS.find(e => e !== event) as string
+  check(`${event}: the payload schema refuses another event's name`, !schema.safeParse({ ...base, event: other, ...fields[event] }).success)
+  check(`${event}: the row names its moment, its roads and its answers`, typeof C.hookEventTable[event].moment === 'string' && C.hookEventTable[event].moment.length > 10 && C.hookEventTable[event].roads.length > 0 && Array.isArray(C.hookEventTable[event].answers))
 }
 
-const outputSpecific: Record<string, Record<string, unknown>> = {
-  PreToolUse: { permissionDecision: 'allow' },
-  UserPromptSubmit: { additionalContext: 'c' },
-  SessionStart: { watchPaths: ['/tmp'] },
-  Setup: { additionalContext: 'c' },
-  SubagentStart: { additionalContext: 'c' },
-  PostToolUse: { updatedMCPToolOutput: {} },
-  PostToolUseFailure: { additionalContext: 'c' },
-  Notification: { additionalContext: 'c' },
-  PermissionRequest: { decision: { behavior: 'allow' } },
-  Elicitation: { action: 'accept', content: {} },
-  ElicitationResult: { action: 'cancel' },
-  WorktreeCreate: { worktreePath: '/wt' },
-  CwdChanged: { watchPaths: [] },
-  FileChanged: { watchPaths: [] },
+const matchFields: Record<(typeof EVENTS)[number], string | undefined> = {
+  'turn.start': undefined,
+  'turn.answer': undefined,
+  'turn.end': 'status',
+  'tool.before': 'tool',
+  'tool.after': 'tool',
+  'permission.ask': 'tool',
+  'permission.decided': 'tool',
+  'crewmate.start': 'crewmate_type',
+  'crewmate.end': 'status',
+  'compaction.before': 'trigger',
+  'compaction.after': 'method',
+  'session.start': 'reason',
+  'session.end': 'reason',
+  'session.state': 'state',
+  'file.changed': 'path',
 }
-
-const OUTPUT_UNION = [
-  'PreToolUse', 'UserPromptSubmit', 'SessionStart', 'Setup', 'SubagentStart',
-  'PostToolUse', 'PostToolUseFailure', 'Notification', 'PermissionRequest',
-  'Elicitation', 'ElicitationResult', 'WorktreeCreate', 'CwdChanged', 'FileChanged',
-] as const
-
-for (const event of OUTPUT_UNION) {
-  const parsed = C.SyncHookJSONOutputSchema().safeParse({ hookSpecificOutput: { hookEventName: event, ...outputSpecific[event] } })
-  check(`the ${event} row's output schema parses inside the sync output`, parsed.success)
+for (const event of EVENTS) {
+  check(`${event}: match field ${matchFields[event] ?? 'none'}`, C.hookEventTable[event].match === matchFields[event], String(C.hookEventTable[event].match))
 }
+check('hookMatchValue reads the match field from the payload', C.hookMatchValue('tool.before', { tool: 'Bash' }) === 'Bash' && C.hookMatchValue('turn.end', { status: 'failed' }) === 'failed' && C.hookMatchValue('turn.start', { prompt: 'x' }) === undefined)
+check('hookMatchValues lists a closed vocabulary and nothing for an open field', JSON.stringify(C.hookMatchValues('turn.end')) === JSON.stringify(['completed', 'blocked', 'refused', 'interrupted', 'turn_limit', 'budget_limit', 'schema_unmet', 'loop_stopped', 'failed']) && JSON.stringify(C.hookMatchValues('session.state')) === JSON.stringify(['needs-you', 'stalled', 'ready-to-review', 'paused', 'completed', 'failed', 'cancelled']) && C.hookMatchValues('tool.before') === undefined)
 
-const sync = C.SyncHookJSONOutputSchema().safeParse({ decision: 'block', reason: 'r', continue: false, stopReason: 's', suppressOutput: true, systemMessage: 'm' })
-check('the transport-wide fields of the sync output still parse', sync.success)
-
-const asyncOk = C.HookJSONOutputSchema().safeParse({ async: true, asyncTimeout: 5 })
-check('the async form still parses through the combined schema', asyncOk.success)
-
-const matchExpectations: Array<[string, Record<string, unknown>, string | undefined]> = [
-  ['PreToolUse', { tool_name: 'Bash' }, 'Bash'],
-  ['PostToolUse', { tool_name: 'Read' }, 'Read'],
-  ['SessionStart', { source: 'resume' }, 'resume'],
-  ['ConfigChange', { source: 'skills' }, 'skills'],
-  ['UserPromptExpansion', { command_name: 'review' }, 'review'],
-  ['Setup', { trigger: 'maintenance' }, 'maintenance'],
-  ['Notification', { notification_type: 'permission' }, 'permission'],
-  ['SessionEnd', { reason: 'logout' }, 'logout'],
-  ['Interrupt', { reason: 'cut' }, 'cut'],
-  ['StopFailure', { error: 'x' }, 'x'],
-  ['SubagentStop', { agent_type: 'crew' }, 'crew'],
-  ['Elicitation', { mcp_server_name: 'srv' }, 'srv'],
-  ['InstructionsLoaded', { load_reason: 'compact' }, 'compact'],
-  ['FileChanged', { file_path: '/a/b/c.txt' }, 'c.txt'],
-  ['FileChanged', { file_path: '/a/b/' }, 'b'],
-  ['TaskCreated', {}, undefined],
-  ['Stop', {}, undefined],
-]
-
-for (const [event, fields, expected] of matchExpectations) {
-  const got = C.hookEventMatchQuery(event as never, { hook_event_name: event, ...fields } as never)
-  check(`the ${event} row's match field answers ${JSON.stringify(expected)}`, got === expected, `got ${JSON.stringify(got)}`)
+const answers: Record<(typeof EVENTS)[number], string[]> = {
+  'turn.start': ['block', 'stop', 'context', 'notice'],
+  'turn.answer': ['block', 'stop', 'context', 'notice'],
+  'turn.end': ['notice'],
+  'tool.before': ['block', 'stop', 'context', 'notice', 'permission', 'input'],
+  'tool.after': ['block', 'stop', 'context', 'notice', 'output'],
+  'permission.ask': ['block', 'stop', 'notice', 'permission', 'input', 'rules'],
+  'permission.decided': ['notice'],
+  'crewmate.start': ['context', 'notice'],
+  'crewmate.end': ['notice'],
+  'compaction.before': ['instructions', 'notice'],
+  'compaction.after': ['context', 'notice'],
+  'session.start': ['context', 'notice', 'prompt', 'watch'],
+  'session.end': [],
+  'session.state': [],
+  'file.changed': ['notice', 'watch'],
 }
+for (const event of EVENTS) {
+  check(`${event}: reads exactly ${answers[event].join(', ') || 'nothing'}`, JSON.stringify(C.hookAnswerFieldsOf(event)) === JSON.stringify(answers[event]), JSON.stringify(C.hookAnswerFieldsOf(event)))
+  const schema = C.hookAnswerSchema(event)
+  for (const field of answers[event]) {
+    const value = field === 'permission' ? 'allow' : field === 'input' ? { a: 1 } : field === 'output' ? 'o' : field === 'rules' ? [] : field === 'watch' ? ['x'] : 'words'
+    check(`${event}: the answer schema accepts ${field}`, schema.safeParse({ [field]: value }).success)
+  }
+  const foreign = C.HOOK_ANSWER_FIELDS.find(f => !answers[event].includes(f))
+  if (foreign !== undefined) {
+    check(`${event}: the answer schema refuses ${foreign} (not a field this event reads)`, !schema.safeParse({ [foreign]: foreign === 'watch' ? ['x'] : foreign === 'rules' ? [] : foreign === 'input' ? {} : 'x' }).success)
+  }
+}
+check('permission answers allow or ask; a deny is block', C.hookAnswerSchema('tool.before').safeParse({ permission: 'ask' }).success && !C.hookAnswerSchema('tool.before').safeParse({ permission: 'deny' }).success)
+check('an answer with a field no event has is refused', !C.HookAnswerSchema().safeParse({ decision: 'block' }).success && !C.HookAnswerSchema().safeParse({ hookSpecificOutput: {} }).success)
 
-const matchingSource = readFileSync(join(import.meta.dir, '../../src/utils/hooks/matching.ts'), 'utf8')
-check('matching reads the table for the match field (no per-event switch left)', !matchingSource.includes("case 'PreToolUse':"), matchingSource.includes('hookEventMatchQuery') ? '' : 'and calls hookEventMatchQuery')
+check('session.end and session.state run only run hooks; every other event runs all three', JSON.stringify(C.hookKindsOf('session.end')) === '["run"]' && JSON.stringify(C.hookKindsOf('session.state')) === '["run"]' && EVENTS.filter(e => e !== 'session.end' && e !== 'session.state').every(e => C.hookKindsOf(e).length === 3))
+check('the 1.5 s budget rides session.end always, and turn.end and tool.after on a cut', C.hookEventTable['session.end'].budget?.when === 'always' && C.hookEventTable['turn.end'].budget?.when === 'cut' && C.hookEventTable['tool.after'].budget?.when === 'cut' && C.hookEventTable['tool.before'].budget === undefined)
+check('plain stdout is context on session.start, turn.start, crewmate.start and compaction.after only', EVENTS.filter(e => C.hookEventTable[e].stdoutIsContext === true).join(',') === 'turn.start,crewmate.start,compaction.after,session.start')
+check('the environment file rides session.start and file.changed only', EVENTS.filter(e => C.hookEventTable[e].envFile === true).join(',') === 'session.start,file.changed')
+check('session.state fires on the daemon road alone', JSON.stringify(C.hookEventTable['session.state'].roads) === '["daemon"]')
+check('file.changed is the one watchable event', EVENTS.filter(e => C.hookEventTable[e].watchable === true).join(',') === 'file.changed')
+check('a background answer reads context and notice only', JSON.stringify(C.HOOK_BACKGROUND_ANSWER_FIELDS) === '["context","notice"]')
 
-check('the SessionEnd row carries the 1500ms shutdown timeout', C.hookEventTable.SessionEnd.timeoutMs === 1500, String(C.hookEventTable.SessionEnd.timeoutMs))
-check('SessionStart and Setup refuse http hooks from the table', C.hookEventTable.SessionStart.noHttp === true && C.hookEventTable.Setup.noHttp === true)
+const docs = readFileSync(join(import.meta.dir, '..', '..', 'docs', 'HOOKS.md'), 'utf8')
+const documented = [...docs.matchAll(/^\| `([a-z]+\.[a-z]+)` \|/gm)].map(m => m[1])
+check('docs/HOOKS.md documents exactly the fifteen events, in the table order', JSON.stringify(documented) === JSON.stringify(EVENTS), JSON.stringify(documented))
+for (const event of EVENTS) {
+  const row = C.hookEventTable[event]
+  const line = docs.split('\n').find(l => l.startsWith(`| \`${event}\` |`)) ?? ''
+  if (row.match !== undefined) check(`docs: ${event} names its match field ${row.match}`, line.includes(`| \`${row.match}\` |`), line.slice(0, 120))
+  for (const field of row.answers.filter(f => f !== 'notice')) check(`docs: ${event} names the answer field ${field}`, line.includes(`\`${field}`), line.slice(0, 160))
+}
+const skillWords = readFileSync(join(import.meta.dir, '..', '..', 'src', 'skills', 'bundled', 'updateConfig.ts'), 'utf8')
+check('the bundled update-config skill lists no event by hand — it reads the table', /hookEventTable/.test(skillWords) && !/\| turn\.start \|/.test(skillWords))
 
 if (failures > 0) {
-  console.log(`❌ ${failures} HOOK EVENT TABLE CHECK(S) FAILED`)
+  console.error(`\nprove-hook-event-table: ${failures} FAILURE(S)`)
   process.exit(1)
 }
-console.log('✅ the hook event table is the one owner of the per-event facts')
+console.log('\nprove-hook-event-table: all green')

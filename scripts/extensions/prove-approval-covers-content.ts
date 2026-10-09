@@ -37,7 +37,7 @@ function writeManifest(version: string): void {
     name: 'battery', version, description: 'consent fixture',
     contributes: {
       skills: ['./skills'],
-      hooks: { SessionStart: [{ hooks: [{ type: 'command', command: '${MERCURY_EXTENSION_ROOT}/hook.sh' }] }] },
+      hooks: { 'session.start': [{ run: '${MERCURY_EXTENSION_ROOT}/hook.sh' }] },
     },
   }))
   writeFileSync(join(srcroot, 'mercury-extensions.json'), JSON.stringify({
