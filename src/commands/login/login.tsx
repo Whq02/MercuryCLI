@@ -127,6 +127,9 @@ export function parseFamilyFocus(token: string | undefined): LoginFamilyFocus | 
     case 'meta':
     case 'muse':
       return 'meta'
+    case 'nous':
+    case 'nous-portal':
+      return 'nous'
     default:
       return undefined
   }
