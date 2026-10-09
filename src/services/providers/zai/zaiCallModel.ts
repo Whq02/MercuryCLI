@@ -14,8 +14,8 @@ import type {
   BusyRefusalV1,
   Message,
   StreamEvent,
-  SystemAPIErrorMessage,
 } from '../../../types/message.js'
+import type { CallModelParams, CallModelStream } from '../callModelContract.js'
 import { API_ERROR_MESSAGE_PREFIX, streamFaultAfterPartialText } from '../../api/errors.js'
 import { coldPrefixOf, estimateRequestTokens, retryNoticeWait, retryReasonWords, silentAfterHeadersWindowMs, streamIdleTimeoutMsForRoute, typedStreamEndOf } from '../streamIdleBudget.js'
 import { providerWaitIsWindow, retrySeconds, stampProviderWait } from '../../api/recoveryBudget.js'
@@ -56,8 +56,6 @@ import {
   renderGenericInstructions,
   resolveBehaviourContract,
 } from '../../../prompt/behaviourContract.js'
-import type { SystemPrompt } from '../../../utils/systemPromptType.js'
-import type { ThinkingConfig } from '../../../utils/thinking.js'
 import { imagesSupportedForCompatModel } from '../openaicompat/compatChatCallModel.js'
 import { noteImageRefusal } from '../../desktop/desktopSession.js'
 import type { MediaRefusal } from '../../api/mediaRefusal.js'
@@ -95,15 +93,6 @@ export function zaiLiveProofState(): { at: number; model: string } | null {
 }
 const ZAI_MAX_ATTEMPTS = 2
 const ZAI_RETRY_BACKOFF_MS = 400
-
-export interface ZaiCallModelParams {
-  messages: Message[]
-  systemPrompt: SystemPrompt
-  thinkingConfig: ThinkingConfig
-  tools: Tools
-  signal: AbortSignal
-  options: Options
-}
 
 import { glmAcceptsEffort, glmEffortsFor, glmThinkingLocked } from './glmPins.js'
 import { nearestSupportedWireEffort } from '../openai/gptPins.js'
@@ -215,9 +204,7 @@ type AttemptOutcome =
   | { kind: 'cancelled' }
   | { kind: 'fault'; fault: ZaiFault; retryEligible: boolean }
 
-export async function* zaiCallModel(
-  params: ZaiCallModelParams,
-): AsyncGenerator<StreamEvent | AssistantMessage | SystemAPIErrorMessage, void> {
+export async function* zaiCallModel(params: CallModelParams): CallModelStream {
   const { messages, systemPrompt, thinkingConfig, tools, signal, options } = params
   const modelId = normalizeModelStringForAPI(options.model)
 

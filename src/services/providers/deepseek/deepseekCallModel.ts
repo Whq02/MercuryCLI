@@ -1,12 +1,7 @@
-import type {
-  AssistantMessage,
-  StreamEvent,
-  SystemAPIErrorMessage,
-} from '../../../types/message.js'
+import type { CallModelParams, CallModelStream } from '../callModelContract.js'
 import {
   compatChatCallModel,
   compatLaneLiveProofState,
-  type CompatCallModelParams,
   type CompatLaneProfile,
 } from '../openaicompat/compatChatCallModel.js'
 import { buildDeepseekExtras } from '../openaicompat/compatWire.js'
@@ -35,8 +30,6 @@ export function deepseekLiveProofState(): { at: number; model: string } | null {
   return compatLaneLiveProofState('deepseek')
 }
 
-export async function* deepseekCallModel(
-  params: CompatCallModelParams,
-): AsyncGenerator<StreamEvent | AssistantMessage | SystemAPIErrorMessage, void> {
+export async function* deepseekCallModel(params: CallModelParams): CallModelStream {
   yield* compatChatCallModel(deepseekLaneProfile, params)
 }
