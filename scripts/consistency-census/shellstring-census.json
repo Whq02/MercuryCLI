@@ -710,6 +710,13 @@
       "why": "IDE-lane provers pin the macOS system interpreter DELIBERATELY (the pyexpat healthy-fallback class); POSIX maintainer host is their declared profile"
     },
     {
+      "file": "scripts/ide/prove-unittest-path-selection.ts",
+      "mechanism": "hardcoded-interpreter",
+      "excerpt": "const SYS_PY = '/usr/bin/python3'",
+      "cls": "platform-owner",
+      "why": "IDE-lane provers pin the macOS system interpreter DELIBERATELY (the pyexpat healthy-fallback class); POSIX maintainer host is their declared profile"
+    },
+    {
       "file": "scripts/identity/prove-provider-neutral-vocabulary.ts",
       "mechanism": "execSync-string",
       "excerpt": "const tracked = execSync('git ls-files -z -- src', { cwd: ROOT })",
