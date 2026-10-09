@@ -28,6 +28,7 @@ interface ProviderSecretsFile {
   braveSearchApiKey?: string
   tavilyApiKey?: string
   typesafeApiKey?: string
+  nousApiKey?: string
   [k: string]: unknown
 }
 
@@ -175,6 +176,7 @@ type StoredKeyField =
   | 'braveSearchApiKey'
   | 'tavilyApiKey'
   | 'typesafeApiKey'
+  | 'nousApiKey'
 
 function readStoredKey(field: StoredKeyField): string | undefined {
   const file = readFile()
@@ -192,6 +194,7 @@ const KEY_FIELD_FAMILY: Partial<Record<StoredKeyField, string>> = {
   geminiApiKey: 'gemini',
   huggingfaceApiKey: 'huggingface',
   localApiKey: 'local',
+  nousApiKey: 'nous',
 }
 
 function writeStoredKey(field: StoredKeyField, key: string | null): void {
@@ -251,6 +254,13 @@ export function readStoredMetaApiKey(): string | undefined {
 }
 export function writeStoredMetaApiKey(key: string | null): void {
   writeStoredKey('metaApiKey', key)
+}
+
+export function readStoredNousApiKey(): string | undefined {
+  return readStoredKey('nousApiKey')
+}
+export function writeStoredNousApiKey(key: string | null): void {
+  writeStoredKey('nousApiKey', key)
 }
 
 export function readStoredCompatApiKey(): string | undefined {
@@ -325,5 +335,6 @@ export function credentialEnvNames(): readonly string[] {
     'BRAVE_API_KEY',
     'TAVILY_API_KEY',
     'TYPESAFE_API_KEY',
+    'NOUS_API_KEY',
   ]
 }
