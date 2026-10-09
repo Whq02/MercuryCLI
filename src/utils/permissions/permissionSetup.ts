@@ -219,10 +219,6 @@ export function transitionPermissionMode(
   return next
 }
 
-export function transitionPlanAutoMode(context: ToolPermissionContext): ToolPermissionContext {
-  return context
-}
-
 
 export type SetPermissionModeResult = { ok: true; mode: PermissionMode } | { ok: false; error: string }
 

@@ -4,7 +4,6 @@ import { loadAllPermissionRulesFromDisk } from '../permissions/permissionsLoader
 import {
   createSovereignDisabledContext,
   isSovereignDisabled,
-  transitionPlanAutoMode,
 } from '../permissions/permissionSetup.js'
 import { syncPermissionRulesFromDisk } from '../permissions/permissions.js'
 import type { SettingSource } from './constants.js'
@@ -26,7 +25,6 @@ export function applySettingsChange(
     ) {
       toolPermissionContext = createSovereignDisabledContext(toolPermissionContext as never) as never
     }
-    toolPermissionContext = transitionPlanAutoMode(toolPermissionContext as never) as never
 
     const previousEffort = prev.settings?.engine?.effort
     const nextEffort = settings.engine?.effort
