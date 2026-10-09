@@ -280,7 +280,7 @@ export function nousWireModelId(modelId: string, env: NodeJS.ProcessEnv = proces
 export const NOUS_PORTAL_RECOMMENDED: readonly string[] = [
   'anthropic/claude-sonnet-4.6',
   'openai/gpt-5.5-pro',
-  'google/gemini-3-pro-preview',
+  'google/gemini-3.1-pro-preview',
   'deepseek/deepseek-v4-pro',
 ]
 
