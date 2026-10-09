@@ -103,6 +103,7 @@ export type CompatLaneId =
   | 'gemini'
   | 'huggingface'
   | 'local'
+  | 'nous'
 
 export function imagesSupportedForCompatModel(model: string): boolean {
   return modelReceivesImageBlocks(model) && imageRefusalOf(model) === null
