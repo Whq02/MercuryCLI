@@ -34,6 +34,23 @@ export interface SendRecord {
   sent: number
   atMs: number
   b64: string
+  after?: string
+  step?: number
+  awaitText?: string | string[]
+  targetText?: string
+  screen?: string[]
+}
+
+export interface ObservedSend {
+  awaitText: string | string[]
+  awaitAbsent?: string | string[]
+  afterPrevMs?: number
+  settleMs?: number
+  text?: string
+  targetText?: string
+  targetHeader?: string
+  arrivedText?: string | string[]
+  arrivedAbsent?: string
 }
 
 export interface PulseRun {
@@ -62,7 +79,7 @@ export function restoreOffsets<T extends { atMs: number }>(run: { anchorShiftMs:
 
 export interface PulseArenaOpts {
   turns: ScriptedTurn[] | ((cwd: string) => ScriptedTurn[])
-  sends: string[]
+  sends: (string | ObservedSend)[]
   seconds: number
   cols?: number
   rows?: number
@@ -122,7 +139,13 @@ export async function runPulseArena(opts: PulseArenaOpts): Promise<PulseRun> {
 
   const sendArgs: string[] = []
   sendArgs.push('--send', `after:${FACE_READY_NEEDLE}:900:\\r`)
-  for (const s of opts.sends) sendArgs.push('--send', s)
+  for (const s of opts.sends) if (typeof s === 'string') sendArgs.push('--send', s)
+  const observed = opts.sends.filter((s): s is ObservedSend => typeof s !== 'string')
+  if (observed.length > 0) {
+    const walkFile = join(home, 'walk.json')
+    writeFileSync(walkFile, JSON.stringify(observed))
+    sendArgs.push('--send-file', walkFile)
+  }
   sendArgs.push('--anchor', `${COMPOSER_READY_NEEDLE}:${COMPOSER_NOMINAL_MS}`)
   for (const r of opts.resizes ?? []) sendArgs.push('--resize', r)
 

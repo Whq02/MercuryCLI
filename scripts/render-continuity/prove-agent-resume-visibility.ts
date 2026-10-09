@@ -25,7 +25,6 @@ const sgrClick = (col: number, row: number): string =>
   `${ESC}[<0;${col};${row}M${ESC}[<0;${col};${row}m`
 const LEAD_ROW = 3
 const FIRST_CHILD_ROW = 4
-const SECOND_CHILD_ROW = 5
 type Frame = { atMs: number; rows: string[] }
 const frameIn = (screens: Frame[], atMs: number): Frame => {
   const f = screens.find(s => s.atMs === atMs)
@@ -192,8 +191,8 @@ t.section("§2 words typed at main while a crewmate runs are the session's own t
     const final = frameIn(screens, -1)
     t.check(
       'the session answered the words and the crewmate ran on to its landing',
-      final.rows.some(r => r.includes('Taking your steer into account')) && final.rows.some(r => /Agent "poise probe" completed/.test(r)),
-      final.rows.filter(r => /steer into account|poise probe" completed/.test(r)).map(r => r.trim().slice(0, 60)).join(' | '),
+      final.rows.some(r => r.includes('Taking your steer into account')) && final.rows.some(r => /\[Crewmate\] poise probe · completed/.test(r)),
+      final.rows.filter(r => /steer into account|\[Crewmate\] poise probe/.test(r)).map(r => r.trim().slice(0, 60)).join(' | '),
     )
     t.check(
       'the words still paint exactly once on the transcript at settlement',
@@ -236,16 +235,19 @@ t.section('§3 one composer, one draft: the draft rides the view swap into eithe
     { kind: 'text', text: 'Spare3.', whenBody: 'spawn both probes' },
   ]
 
+  const ALPHA_ROW = 'alpha pro… · running'
+  const BETA_ROW = 'beta probe · running'
+  const LEAD_ROW_TEXT = '✶ Mercury Lead'
   const run = await runPulseArena({
     turns,
     sends: [
       '2000:\\r',
       '6000:spawn both probes\\r',
-      'after:beta probe · running:1000:draft-main-text',
-      `after:beta probe · running:3000:${sgrClick(10, FIRST_CHILD_ROW)}`,
-      `after:sends to alpha:1500:${sgrClick(10, LEAD_ROW)}`,
-      `after:sends to beta:1500:${sgrClick(10, LEAD_ROW)}`,
-      `after:sends to beta:4000:${sgrClick(10, SECOND_CHILD_ROW)}`,
+      { awaitText: [ALPHA_ROW, BETA_ROW], afterPrevMs: 1000, settleMs: 0, text: 'draft-main-text' },
+      { awaitText: 'draft-main-text', afterPrevMs: 1000, settleMs: 0, targetText: ALPHA_ROW },
+      { awaitText: 'sends to alpha probe', afterPrevMs: 1500, settleMs: 0, targetText: LEAD_ROW_TEXT },
+      { awaitText: ['draft-main-text', BETA_ROW], awaitAbsent: 'sends to alpha probe', afterPrevMs: 1000, settleMs: 0, targetText: BETA_ROW },
+      { awaitText: 'sends to beta probe', afterPrevMs: 1500, settleMs: 0, targetText: LEAD_ROW_TEXT },
     ],
     seconds: 26,
     cols: 120,
