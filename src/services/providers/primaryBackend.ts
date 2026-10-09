@@ -19,6 +19,8 @@ import { xaiCallModel, xaiLiveProofState } from './xai/xaiCallModel.js'
 import { resolveXaiCredentialSnapshot } from './xai/xaiAccounts.js'
 import { metaCallModel, metaLiveProofState } from './meta/metaCallModel.js'
 import { resolveMetaApiKey } from './meta/metaAccounts.js'
+import { nousCallModel, nousLiveProofState } from './nous/nousCallModel.js'
+import { resolveNousAccount } from './nous/nousAccounts.js'
 import { compatCallModel, compatSlotLiveProofState } from './openaicompat/compatCallModel.js'
 import { resolveCompatSlotConfig } from './openaicompat/compatAccounts.js'
 import {
@@ -45,6 +47,7 @@ export type PrimaryBackendId =
   | 'gemini-generate'
   | 'huggingface-chat'
   | 'local-chat'
+  | 'nous-chat'
 
 export interface AgentRuntimeRef {
   contractVersion: typeof APEX_BACKEND_CONTRACT_VERSION
@@ -62,6 +65,7 @@ export interface AgentRuntimeRef {
     | 'gemini'
     | 'huggingface'
     | 'local'
+    | 'nous'
   route: CallModelRoute | 'unrecognised' | 'absence'
   canonicalModel: string
   family:
@@ -78,6 +82,7 @@ export interface AgentRuntimeRef {
     | { kind: 'huggingface' }
     | { kind: 'local' }
     | { kind: 'unknown' }
+    | { kind: 'nous' }
   walletEntryId?: string
 }
 
@@ -297,6 +302,21 @@ const geminiBackend: PrimaryAgentBackend = {
   },
 }
 
+const nousBackend: PrimaryAgentBackend = {
+  id: 'nous-chat',
+  provider: 'nous',
+  label: 'Nous Portal (multi-vendor gateway, shared compat runtime)',
+  callModel: nousCallModel as unknown as typeof queryModelWithStreaming,
+  readiness: (): BackendReadiness => {
+    const account = resolveNousAccount()
+    if (!account) return { state: 'unavailable', reason: 'no Nous Portal API key (/logins nous, or NOUS_API_KEY)' }
+    const proof = nousLiveProofState()
+    return proof
+      ? { state: 'ready', detail: `live turn settled this session (${proof.model}) · ${account.label}` }
+      : { state: 'configured', detail: `${account.label} · shared compat runtime · no live turn proven this session` }
+  },
+}
+
 const BACKENDS: Record<CallModelRoute, PrimaryAgentBackend> = {
   anthropic: anthropicBackend,
   zai: zaiBackend,
@@ -310,6 +330,7 @@ const BACKENDS: Record<CallModelRoute, PrimaryAgentBackend> = {
   gemini: geminiBackend,
   huggingface: huggingfaceBackend,
   local: localBackend,
+  nous: nousBackend,
 }
 
 export function resolvePrimaryAgentBackend(model: string | undefined): PrimaryAgentBackend | null {
@@ -356,6 +377,8 @@ export function describeAgentRuntimeRef(model: string | undefined): AgentRuntime
     family = { kind: 'huggingface' }
   } else if (route === 'local') {
     family = { kind: 'local' }
+  } else if (route === 'nous') {
+    family = { kind: 'nous' }
   } else {
     family = canonical.toLowerCase().includes('claude') ? { kind: 'claude' } : { kind: 'unknown' }
   }
