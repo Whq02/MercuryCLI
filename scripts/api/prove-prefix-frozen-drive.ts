@@ -330,7 +330,7 @@ process.stdin.on('end', () => process.exit(0))
     { atTick: 1160, afterPrevTicks: 12, data: 'drive turn 4\r', mark: 'git-gone' },
     { atTick: 1300, minTick: 10, awaitText: 'TURN-4-DONE', awaitSettleTicks: 4, data: "! printf '# project\\nbe briefer\\n' > MERCURY.md\r", mark: 't4' },
     { atTick: 1360, afterPrevTicks: 12, data: 'drive turn 5\r', mark: 'instructions-edited' },
-    { atTick: 1500, minTick: 10, awaitText: 'TURN-5-DONE', awaitSettleTicks: 4, data: `! sh -c 'printf %s "{\\"permissions\\":{\\"allow\\":[\\"Bash(echo *)\\",\\"Bash(git *)\\",\\"Bash(rm *)\\",\\"Bash(printf *)\\",\\"Bash(sh *)\\",\\"Read\\"]},\\"language\\":\\"\\"}" > "$MERCURY_CONFIG_DIR/settings.json"'\r`, mark: 't5' },
+    { atTick: 1500, minTick: 10, awaitText: 'TURN-5-DONE', awaitSettleTicks: 4, data: `! sh -c 'printf %s "{\\"guardrails\\":{\\"allow\\":[\\"Bash(echo *)\\",\\"Bash(git *)\\",\\"Bash(rm *)\\",\\"Bash(printf *)\\",\\"Bash(sh *)\\",\\"Read\\"]}}" > "$MERCURY_CONFIG_DIR/settings.json"'\r`, mark: 't5' },
     { atTick: 1560, afterPrevTicks: 12, data: 'drive turn 6\r', mark: 'settings-edited' },
     { atTick: 1700, minTick: 10, awaitText: 'TURN-6-DONE', awaitSettleTicks: 4, data: '/effort low\r', mark: 't6' },
     { atTick: 1740, afterPrevTicks: 8, data: 'drive turn 7\r', mark: 'effort' },
