@@ -186,7 +186,7 @@ try {
   const row = rows.find(r => r.id === 'model-lists')
   check('health --json produced a certificate', j.status === 0 || j.status === 3, `status=${String(j.status)}`)
   check('the certificate carries the row "Model lists" in the AUTH section, after the usage rows', row !== undefined && row.label === 'Model lists' && rows.findIndex(r => r.id === 'model-lists') > rows.findIndex(r => r.id === 'usage-openai') && rows.findIndex(r => r.id === 'usage-openai') >= 0, rows.map(r => r.id).join(',').slice(0, 300))
-  check('a fresh process has read no list: the row reads info (never a caution) with the approved evidence', row?.status === 'info' && row.evidence === 'no list read in this process — /model or a chat naming the family reads it; the release-day check reads every list · lists read 0 of 9', `${row?.status} · ${row?.evidence}`)
+  check('a fresh process has read no list: the row reads info (never a caution) with the approved evidence', row?.status === 'info' && row.evidence === 'no list read in this process — /model or a chat naming the family reads it; the release-day check reads every list · lists read 0 of 12', `${row?.status} · ${row?.evidence}`)
   const detail = row?.detail ?? ''
   check('the OpenAI line names the signed-in source and the typed count', detail.includes(`OpenAI · ChatGPT pro subscription · no list read in this process — /model or a chat naming the family reads it · ${GPT_DISPLAY_PINS.length} typed ids not judged`), detail)
   check('Z.AI without a credential reads not judged, like every keyed family (its list is read live on the key\'s plan base)', /Z\.AI · no credential · \d+ typed ids not judged/.test(detail), detail)

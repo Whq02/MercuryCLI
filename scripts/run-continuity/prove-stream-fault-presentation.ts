@@ -35,8 +35,8 @@ console.log('recovered stream-fault presentation ──')
   const tm2 = src('src/run-core/turn-machine.ts')
   const qe = src('src/rows/turn.ts')
   check('the headless turn records the stream_cut row (the daemon-hosted cockpit paints from the transcript file)', /systemMessage\.subtype === 'thinking_note' \|\|\s*systemMessage\.subtype === 'stream_cut'/.test(qe))
-  const recordRule = /if \(level === 'warning' \|\| level === 'error' \|\| systemMessage\.subtype === 'thinking_note' \|\| systemMessage\.subtype === 'stream_cut' \|\| systemMessage\.subtype === 'busy_recovery'\) \{\s*turnMessages\.push\(systemMessage\)\s*await recordDelta\(\)\s*\}/
-  check('the record rule is bounded: a warning or error level, the thinking receipt, the stream_cut row, the busy_recovery row — an info row of any other kind still never leaves the runner', recordRule.test(qe))
+  const recordRule = /if \(level === 'warning' \|\| level === 'error' \|\| level === 'suggestion' \|\| systemMessage\.subtype === 'thinking_note' \|\| systemMessage\.subtype === 'stream_cut' \|\| systemMessage\.subtype === 'busy_recovery'\) \{\s*turnMessages\.push\(systemMessage\)\s*await recordDelta\(\)\s*\}/
+  check('the record rule is bounded: a warning, error or suggestion level (the preserved-thinking switch notice rides suggestion), the thinking receipt, the stream_cut row, the busy_recovery row — an info row of any other kind still never leaves the runner', recordRule.test(qe))
   check('the continue branch mints the typed row, the exhausted branch keeps the warning', tm2.includes('message: createStreamCutMessage({') && tm2.includes("`stopped after ${streamFaultRecoveryCount} continuation"))
   const msg = src('src/components/Message.tsx')
   check(

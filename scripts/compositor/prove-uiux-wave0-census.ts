@@ -586,10 +586,13 @@ section('UI-009 — every prover is enrolled in a permanent suite')
   const memberPaths = (runner: string, members: string): string[] => {
     const code = runner.split('\n').filter(line => !line.trimStart().startsWith('#')).join('\n')
     const parent = /scripts\/([A-Za-z0-9_-]+)\/\$name/.exec(code)?.[1]
-    if (!parent || !/done\s*<\s*"\$here\/members\.txt"/.test(code)) return []
+    const consumesMembers = /done\s*<\s*"\$here\/members\.txt"/.test(code) || /drive_members\s+\S+\s+'[^']*\$name[^']*'\s+"\$here\/members\.txt"/.test(code)
+    if (!parent || !consumesMembers) return []
     return members.split('\n').slice(0, -1).filter(line => line !== '' && !line.startsWith('#')).map(name => `${parent}/${name}`)
   }
   const fixtureRunner = 'f="scripts/fixture/$name"\ndone < "$here/members.txt"'
+  const sharedRunner = 'drive_members fixture-drives \'scripts/fixture/$name\' "$here/members.txt"'
+  check('UI-009: a member list handed to the shared drive runner enrolls its parent proof', memberPaths(sharedRunner, 'prove-fixture.ts\n').join() === 'fixture/prove-fixture.ts')
   check('UI-009: a consumed member list enrolls its parent proof', memberPaths(fixtureRunner, 'prove-fixture.ts\n').join() === 'fixture/prove-fixture.ts')
   check('UI-009: an unterminated final row is not consumed by read', memberPaths(fixtureRunner, 'prove-fixture.ts').length === 0)
   check('UI-009: an unconsumed list enrolls nothing', memberPaths('f="scripts/fixture/$name"', 'prove-fixture.ts\n').length === 0)
