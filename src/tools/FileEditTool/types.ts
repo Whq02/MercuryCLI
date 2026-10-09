@@ -21,7 +21,7 @@ const SECTION_DESCRIPTION =
 
 const hunksDescription = (): string =>
   lineAnchorsEnabled()
-    ? 'Line-addressed hunks against the anchored snapshot. Mutually exclusive with old_string/new_string; requires expected_anchor unless EVERY hunk is anchor-qualified ("12#ab3f" from a line_anchors read — then the line anchors are the staleness contract).'
+    ? 'Line-addressed hunks against the anchored snapshot. Mutually exclusive with old_string/new_string; requires expected_anchor unless every hunk is anchor-qualified ("12#ab3f" from a line_anchors read — then the line anchors are the staleness contract).'
     : 'Line-addressed hunks against the anchored snapshot. Mutually exclusive with old_string/new_string; requires expected_anchor.'
 
 const hunkLinesDescription = (): string =>
