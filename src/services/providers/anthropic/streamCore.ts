@@ -639,12 +639,11 @@ async function* queryModel(
   let streamResponse: Response | undefined = undefined
 
   function releaseStreamResources(): void {
-    cleanupStream(stream)
+    const held = { stream, response: streamResponse }
     stream = undefined
-    if (streamResponse) {
-      streamResponse.body?.cancel().catch(() => {})
-      streamResponse = undefined
-    }
+    streamResponse = undefined
+    cleanupStream(held.stream)
+    held.response?.body?.cancel().catch(() => {})
   }
 
   const consumedCacheEdits = cachedMCEnabled ? consumePendingCacheEdits() : null
