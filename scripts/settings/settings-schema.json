@@ -482,37 +482,26 @@
       "type": "object",
       "properties": {
         "hooks": {
+          "description": "The hooks, by event: one entry per hook with its own match; docs/HOOKS.md defines the events",
           "type": "object",
           "propertyNames": {
             "type": "string",
             "enum": [
-              "PreToolUse",
-              "PostToolUse",
-              "PostToolUseFailure",
-              "Notification",
-              "UserPromptSubmit",
-              "UserPromptExpansion",
-              "SessionStart",
-              "SessionEnd",
-              "Stop",
-              "StopFailure",
-              "SubagentStart",
-              "SubagentStop",
-              "PreCompact",
-              "PostCompact",
-              "PermissionRequest",
-              "Setup",
-              "TaskCreated",
-              "TaskCompleted",
-              "Elicitation",
-              "ElicitationResult",
-              "ConfigChange",
-              "WorktreeCreate",
-              "WorktreeRemove",
-              "InstructionsLoaded",
-              "CwdChanged",
-              "FileChanged",
-              "Interrupt"
+              "turn.start",
+              "turn.answer",
+              "turn.end",
+              "tool.before",
+              "tool.after",
+              "permission.ask",
+              "permission.decided",
+              "crewmate.start",
+              "crewmate.end",
+              "compaction.before",
+              "compaction.after",
+              "session.start",
+              "session.end",
+              "session.state",
+              "file.changed"
             ]
           },
           "additionalProperties": {
@@ -520,228 +509,79 @@
             "items": {
               "type": "object",
               "properties": {
-                "matcher": {
-                  "description": "Pattern matched against event-related values, typically tool names.",
+                "run": {
+                  "description": "A shell command; the payload arrives on stdin",
+                  "type": "string",
+                  "minLength": 1
+                },
+                "question": {
+                  "description": "A question a model answers; $EVENT is replaced by the payload JSON",
+                  "type": "string",
+                  "minLength": 1
+                },
+                "crewmate": {
+                  "description": "A brief a crewmate with tools checks; $EVENT as above",
+                  "type": "string",
+                  "minLength": 1
+                },
+                "name": {
+                  "description": "The words every line about the hook uses, and the status row while it runs",
                   "type": "string"
                 },
-                "hooks": {
+                "match": {
+                  "description": "Names (Bash, Read|Edit) or a regular expression, matched against the event's match field",
+                  "type": "string"
+                },
+                "shell": {
+                  "description": "The shell a command runs in; bash unless set",
+                  "type": "string",
+                  "enum": [
+                    "bash",
+                    "powershell"
+                  ]
+                },
+                "model": {
+                  "description": "The model a question or crewmate hook runs on",
+                  "type": "string"
+                },
+                "timeout": {
+                  "description": "Seconds before the hook is ended: 600 for a run, 30 for a question, 60 for a crewmate",
+                  "type": "number",
+                  "exclusiveMinimum": 0,
+                  "maximum": 2147483
+                },
+                "background": {
+                  "description": "A run hook that does not hold the moment; its answer arrives at the next turn",
+                  "type": "boolean"
+                },
+                "wake": {
+                  "description": "A background run hook whose block wakes the model",
+                  "type": "boolean"
+                },
+                "once": {
+                  "description": "Runs once in a session, then stands down",
+                  "type": "boolean"
+                },
+                "watch": {
+                  "description": "file.changed only: the files to watch, relative to the project",
                   "type": "array",
                   "items": {
-                    "oneOf": [
-                      {
-                        "type": "object",
-                        "properties": {
-                          "type": {
-                            "type": "string",
-                            "const": "command"
-                          },
-                          "command": {
-                            "type": "string",
-                            "description": "The shell command to execute."
-                          },
-                          "shell": {
-                            "description": "Shell to run the command with: 'bash' uses your login shell family; 'powershell' uses pwsh. Defaults to bash.",
-                            "type": "string",
-                            "enum": [
-                              "bash",
-                              "powershell"
-                            ]
-                          },
-                          "async": {
-                            "description": "Run in the background without blocking.",
-                            "type": "boolean"
-                          },
-                          "wake": {
-                            "description": "Run in the background and wake the model when the hook exits with the blocking-error status. Implies async.",
-                            "type": "boolean"
-                          },
-                          "if": {
-                            "description": "Condition in permission-rule syntax (tool name with an optional parenthesised pattern). The hook runs only when it matches the hook input.",
-                            "type": "string"
-                          },
-                          "timeout": {
-                            "description": "Timeout for this hook, in seconds.",
-                            "type": "number",
-                            "exclusiveMinimum": 0,
-                            "maximum": 2147483
-                          },
-                          "statusMessage": {
-                            "description": "Message shown in the spinner while the hook runs.",
-                            "type": "string"
-                          },
-                          "once": {
-                            "description": "Run this hook once, then remove it.",
-                            "type": "boolean"
-                          }
-                        },
-                        "required": [
-                          "type",
-                          "command"
-                        ],
-                        "additionalProperties": false
-                      },
-                      {
-                        "type": "object",
-                        "properties": {
-                          "type": {
-                            "type": "string",
-                            "const": "prompt"
-                          },
-                          "prompt": {
-                            "type": "string",
-                            "description": "Prompt evaluated by a model. An $ARGUMENTS placeholder receives the hook input JSON."
-                          },
-                          "model": {
-                            "description": "Model to evaluate the prompt with. Defaults to the default small fast model.",
-                            "type": "string"
-                          },
-                          "if": {
-                            "description": "Condition in permission-rule syntax (tool name with an optional parenthesised pattern). The hook runs only when it matches the hook input.",
-                            "type": "string"
-                          },
-                          "timeout": {
-                            "description": "Timeout for this hook, in seconds.",
-                            "type": "number",
-                            "exclusiveMinimum": 0,
-                            "maximum": 2147483
-                          },
-                          "statusMessage": {
-                            "description": "Message shown in the spinner while the hook runs.",
-                            "type": "string"
-                          },
-                          "once": {
-                            "description": "Run this hook once, then remove it.",
-                            "type": "boolean"
-                          }
-                        },
-                        "required": [
-                          "type",
-                          "prompt"
-                        ],
-                        "additionalProperties": false
-                      },
-                      {
-                        "type": "object",
-                        "properties": {
-                          "type": {
-                            "type": "string",
-                            "const": "agent"
-                          },
-                          "prompt": {
-                            "type": "string",
-                            "description": "What the agent should verify. An $ARGUMENTS placeholder receives the hook input JSON. Timeout defaults to 60 seconds."
-                          },
-                          "model": {
-                            "description": "Model for the agent. Defaults to the default small fast model floored to the mid-tier model — agent hooks never run the smallest model.",
-                            "type": "string"
-                          },
-                          "if": {
-                            "description": "Condition in permission-rule syntax (tool name with an optional parenthesised pattern). The hook runs only when it matches the hook input.",
-                            "type": "string"
-                          },
-                          "timeout": {
-                            "description": "Timeout for this hook, in seconds.",
-                            "type": "number",
-                            "exclusiveMinimum": 0,
-                            "maximum": 2147483
-                          },
-                          "statusMessage": {
-                            "description": "Message shown in the spinner while the hook runs.",
-                            "type": "string"
-                          },
-                          "once": {
-                            "description": "Run this hook once, then remove it.",
-                            "type": "boolean"
-                          }
-                        },
-                        "required": [
-                          "type",
-                          "prompt"
-                        ],
-                        "additionalProperties": false
-                      },
-                      {
-                        "type": "object",
-                        "properties": {
-                          "type": {
-                            "type": "string",
-                            "const": "http"
-                          },
-                          "url": {
-                            "type": "string",
-                            "format": "uri",
-                            "description": "URL that receives a POST of the hook input JSON."
-                          },
-                          "headers": {
-                            "description": "Request headers. Values may reference environment variables as $VAR or ${VAR}; only variables named in allowedEnvVars are interpolated.",
-                            "type": "object",
-                            "propertyNames": {
-                              "type": "string"
-                            },
-                            "additionalProperties": {
-                              "type": "string"
-                            }
-                          },
-                          "allowedEnvVars": {
-                            "description": "Environment variable names allowed in header interpolation. Required for any interpolation; unlisted references resolve to empty strings.",
-                            "type": "array",
-                            "items": {
-                              "type": "string"
-                            }
-                          },
-                          "if": {
-                            "description": "Condition in permission-rule syntax (tool name with an optional parenthesised pattern). The hook runs only when it matches the hook input.",
-                            "type": "string"
-                          },
-                          "timeout": {
-                            "description": "Timeout for this hook, in seconds.",
-                            "type": "number",
-                            "exclusiveMinimum": 0,
-                            "maximum": 2147483
-                          },
-                          "statusMessage": {
-                            "description": "Message shown in the spinner while the hook runs.",
-                            "type": "string"
-                          },
-                          "once": {
-                            "description": "Run this hook once, then remove it.",
-                            "type": "boolean"
-                          }
-                        },
-                        "required": [
-                          "type",
-                          "url"
-                        ],
-                        "additionalProperties": false
-                      }
-                    ]
+                    "type": "string",
+                    "minLength": 1
                   }
                 }
               },
-              "required": [
-                "hooks"
-              ],
               "additionalProperties": false
             }
           }
         },
         "disabled": {
+          "description": "True turns off every hook that is not managed; in the managed layer, every hook",
           "type": "boolean"
         },
         "managedOnly": {
+          "description": "True in the managed layer runs only the managed layer's hooks",
           "type": "boolean"
-        },
-        "httpDestinations": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        },
-        "httpEnvironment": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
         }
       },
       "additionalProperties": {}
@@ -1098,6 +938,10 @@
               "items": {
                 "type": "string"
               }
+            },
+            "prepare": {
+              "description": "A shell command run inside every new worktree after git makes it and before any seat uses it; a failure is named on the row",
+              "type": "string"
             }
           },
           "additionalProperties": false
