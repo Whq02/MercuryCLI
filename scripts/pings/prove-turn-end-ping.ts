@@ -226,6 +226,13 @@ function window(d: Drive, fromMark: string, toMark: string, lead = LEAD): Pings 
   if (from < 0 || to < 0) return { osc9: -1, bell: -1 }
   return pingsIn(bytesBetween(d.frames, Math.max(0, from - lead), to + 1))
 }
+const WALL_TICK_MS = 200
+const wallTicks = (ms: number): number => Math.ceil(ms / WALL_TICK_MS)
+function windowAfter(d: Drive, fromMark: string, fromMs: number, toMs: number): Pings {
+  const from = d.markTick(fromMark)
+  if (from < 0) return { osc9: -1, bell: -1 }
+  return pingsIn(bytesBetween(d.frames, Math.max(0, fromMs === 0 ? from - LEAD : from + wallTicks(fromMs)), from + wallTicks(toMs)))
+}
 function quietBetween(d: Drive, afterMark: string, nextEndMark: string): Pings {
   const from = d.markTick(afterMark)
   const to = d.markTick(nextEndMark)
@@ -333,10 +340,10 @@ if (wants('D')) {
     800,
   )
   check('D: the drive completed', d.status === 0 && d.final.some(r => r.includes(F2)), `status=${d.status} end=${d.endReason}`)
-  const early = window(d, 'end-1', 'after-1')
-  check('D: four seconds after the turn end nothing has pinged yet (the window is still open)', early.osc9 === 0 && early.bell === 0, words(early))
-  const later = window(d, 'after-1', 'later-1', 1)
-  check('D: between four and ten seconds the ping fires exactly once (no input in the window)', later.osc9 === 1 && later.bell === 0, words(later))
+  const early = windowAfter(d, 'end-1', 0, 4000)
+  check('D: four seconds after the turn end nothing has pinged yet (the window is still open)', early.osc9 === 0 && early.bell === 0, `${words(early)} · after-1 at +${(d.markTick('after-1') - d.markTick('end-1')) * WALL_TICK_MS} ms`)
+  const later = windowAfter(d, 'end-1', 4000, 10000)
+  check('D: between four and ten seconds the ping fires exactly once (no input in the window)', later.osc9 === 1 && later.bell === 0, `${words(later)} · later-1 at +${(d.markTick('later-1') - d.markTick('end-1')) * WALL_TICK_MS} ms`)
   const held = window(d, 'end-2', 'after-2')
   check('D: a key pressed inside the window after the second turn end holds the ping — nothing fires in eleven seconds', held.osc9 === 0 && held.bell === 0, words(held))
   if (failures === before) d.discard()
