@@ -244,6 +244,8 @@ export async function startOverflowFixture(): Promise<OverflowFixture> {
     MERCURY_XAI_API_BASE: `${base}/xai/v1`,
     XAI_API_KEY: 'fixture-xai-key',
     MERCURY_META_API_BASE: `${base}/meta/v1`,
+    MERCURY_ZEN_API_BASE: `${base}/zen/v1`,
+    MERCURY_ZEN_GO_API_BASE: `${base}/zen/go/v1`,
     MODEL_API_KEY: 'fixture-meta-key',
     MERCURY_OPENROUTER_API_BASE: `${base}/openrouter/api/v1`,
     MERCURY_OPENROUTER_AUTH_BASE: `${base}/openrouter/auth`,
