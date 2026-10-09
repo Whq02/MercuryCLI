@@ -20,6 +20,7 @@ __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-mention-gram
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-capsule-ledgers.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-capsule-ledgers.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-nested-memory-admission.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-nested-memory-admission.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-pasted-image-blocks.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-pasted-image-blocks.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-async-hook-delivery.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-async-hook-delivery.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-file-change-observation.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-file-change-observation.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-capsule-receipts.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-capsule-receipts.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-capsule-facts.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-capsule-facts.ts" "$__t" "$__rc"
