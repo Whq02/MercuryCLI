@@ -149,9 +149,9 @@ Status:
 (clean)
 
 Recent commits:
-92583c8 add the node:test suite (the even-length median case fails)
-b1dd159 add the stats, records and format helpers
-ab6f103 init: package manifest, readme
+506b7d6 add the node:test suite (the even-length median case fails)
+1b8a082 add the stats, records and format helpers
+2a3797f init: package manifest, readme
 gitRules: Git in this repository: commit only when the user asks for one, and never push unless asked. Never change the git config. A failing hook is investigated and fixed, never skipped (no `--no-verify`, no `--no-gpg-sign`); after a failed pre-commit hook there is no new commit, so the fix lands in a fresh commit, never an amend. Amend, force-push, `reset --hard`, `checkout .`, `restore .`, `clean -f` and `branch -D` only on an explicit ask. Stage named files, never `git add -A` or `git add .`; `git status` never with `-uall`; nothing staged means no commit. Git's interactive `-i` flag and `rebase --no-edit` do not work here, and a commit message travels in a quoted heredoc with the attribution trailer:
 
 ```
