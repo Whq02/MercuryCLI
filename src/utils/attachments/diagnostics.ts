@@ -35,10 +35,6 @@ export async function getLSPDiagnosticAttachments(
       return []
     }
 
-    logForDebugging(
-      `LSP Diagnostics: Found ${diagnosticSets.length} pending diagnostic set(s)`,
-    )
-
     const attachments: Attachment[] = diagnosticSets.map(({ files }) => ({
       type: 'diagnostics' as const,
       files,
@@ -48,13 +44,9 @@ export async function getLSPDiagnosticAttachments(
     if (diagnosticSets.length > 0) {
       clearAllLSPDiagnostics()
       logForDebugging(
-        `LSP Diagnostics: Cleared ${diagnosticSets.length} delivered diagnostic(s) from registry`,
+        `diagnostics: ${diagnosticSets.length} sets attached for the model and cleared from the registry`,
       )
     }
-
-    logForDebugging(
-      `LSP Diagnostics: Returning ${attachments.length} diagnostic attachment(s)`,
-    )
 
     return attachments
   } catch (error) {

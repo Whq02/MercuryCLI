@@ -219,7 +219,7 @@ let rowBytes = 0
 {
   const historical = { type: 'deferred_tools_delta' as const, addedNames: ['LegacyFixture'], addedLines: ['LegacyFixture'], removedNames: [] }
   const first = renderedContent(historical)
-  check('older recorded announcements keep their original wording', first.includes('deferred tools are now available via ToolSearch'))
+  check('older recorded announcements render the one deferred-tools head', first.includes('Deferred tools: offered in this session, but their definitions are not loaded.') && first.includes('LegacyFixture'))
   const current = deltaRow(POOL, ROUTE_MODELS.openai!, fresh())
   check('new announcements persist their exact body without promising an absent tool', current?.type === 'deferred_tools_delta' && typeof current.body === 'string' && !current.body.includes('via ToolSearch') && renderedContent(JSON.parse(JSON.stringify(current))) === renderedContent(current))
   check('rendering a new announcement does not change old recorded content', renderedContent(historical) === first)

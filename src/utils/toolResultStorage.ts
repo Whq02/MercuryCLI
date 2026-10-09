@@ -157,7 +157,7 @@ export async function persistToolResult(
 export function buildLargeToolResultMessage(result: PersistedToolResult): string {
   return (
     `${PERSISTED_OUTPUT_TAG}\n` +
-    `Output too large (${formatFileSize(result.originalSize)}). Full output saved to: ${result.filepath}\n\n` +
+    `Output of ${formatFileSize(result.originalSize)}, too large to carry whole. Full output saved to: ${result.filepath}\n\n` +
     `Preview (head + tail, ~${PREVIEW_SIZE_CHARS} chars; long lines clamped):\n` +
     `${result.preview}\n` +
     PERSISTED_OUTPUT_CLOSING_TAG

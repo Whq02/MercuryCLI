@@ -17,7 +17,7 @@ export const inputSchema = z.object({
   query: z
     .string()
     .describe(
-      'Query to find deferred tools. Use "select:<tool_name>" for direct selection, or keywords to search.',
+      'What to load: exact names as "select:<name>,<name>", or keywords ranked against the deferred roster.',
     ),
   max_results: z.number().optional().default(5).describe('Maximum number of results to return (default: 5)'),
 })

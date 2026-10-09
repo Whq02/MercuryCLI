@@ -281,7 +281,7 @@ if (!existsSync(BIN)) {
           check(`${leg.name}: the agent's shell did NOT run — one commit, no sha (the definition's word is not the consent)`, !isSha(shellResult) && commits === '1', `shell=${j(shellResult.slice(0, 160))} commits=${commits}`)
         }
       } else {
-        check(`${leg.name}: the definition is refused — no probe agent exists and the Agent tool says so`, !routes.includes('agent') && /Agent type 'probe' not found/.test(agentToolResult) && commits === '1', `routes=${routes.join(' → ')} agent tool=${j(agentToolResult.slice(0, 160))} commits=${commits}`)
+        check(`${leg.name}: the definition is refused — no probe agent exists and the Agent tool says so`, !routes.includes('agent') && /No agent type named 'probe'/.test(agentToolResult) && commits === '1', `routes=${routes.join(' → ')} agent tool=${j(agentToolResult.slice(0, 160))} commits=${commits}`)
       }
     }
   }

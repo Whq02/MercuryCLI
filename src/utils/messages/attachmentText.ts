@@ -20,10 +20,10 @@ import { TASK_STOP_TOOL_NAME } from '../../tools/TaskStopTool/prompt.js'
 import { TASK_UPDATE_TOOL_NAME } from '../../tools/TaskUpdateTool/constants.js'
 import type { MessageOrigin, UserMessage } from '../../types/message.js'
 import { type Attachment, memoryHeader } from '../attachments.js'
+import { DEFERRED_TOOLS_ANNOUNCEMENT_HEAD } from '../attachments/deltas.js'
 import { stoppedContinuationMessage } from '../attachments/stoppedContinuation.js'
 import { quote } from '../bash/shellQuote.js'
 import { formatFileSize, formatNumber } from '../format.js'
-import { logMCPDebug } from '../log.js'
 import { jsonStringify } from '../slowOperations.js'
 import { isTaskToolsEnabled } from '../tasks.js'
 import { operatorMessagesBlockText } from '../../services/compact/operatorMessages.js'
@@ -135,7 +135,7 @@ export function normalizeAttachmentForAPI(
       const skillsContent = attachment.skills
         .map(
           skill =>
-            `### Skill: ${skill.name}\nPath: ${skill.path}\n\n${skill.content}`,
+            `### ${skill.name} (${skill.path})\n\n${skill.content}`,
         )
         .join('\n\n---\n\n')
 
@@ -181,7 +181,7 @@ export function normalizeAttachmentForAPI(
     case 'nested_memory': {
       return wrapMessagesInSystemReminder([
         createUserMessage({
-          content: `Contents of ${attachment.content.path}:\n\n${attachment.content.content}`,
+          content: `Instruction file ${attachment.content.path} (it governs its folder):\n\n${attachment.content.content}`,
           isMeta: true,
         }),
       ])
@@ -204,7 +204,7 @@ export function normalizeAttachmentForAPI(
       const parts: string[] = []
       if (attachment.content) {
         parts.push(
-          `The following skills are available for use with the Skill tool:\n\n${attachment.content}`,
+          `The skills this session offers, run by name through the Skill tool:\n\n${attachment.content}`,
         )
       }
       const truncation = attachment.truncation
@@ -292,7 +292,7 @@ export function normalizeAttachmentForAPI(
 
       return wrapMessagesInSystemReminder([
         createUserMessage({
-          content: `<new-diagnostics>The following new diagnostic issues were detected:\n\n${diagnosticSummary}</new-diagnostics>`,
+          content: `<new-diagnostics>New diagnostics from the language server:\n\n${diagnosticSummary}</new-diagnostics>`,
           isMeta: true,
         }),
       ])
@@ -330,19 +330,9 @@ capsule-digest:${attachment.digest}${attachment.delta ? `\nWorking-set delta vs 
       ])
     }
     case 'mcp_resource': {
-      const content = attachment.content
-      if (!content || !content.contents || content.contents.length === 0) {
-        return wrapMessagesInSystemReminder([
-          createUserMessage({
-            content: `<mcp-resource server="${attachment.server}" uri="${attachment.uri}">(No content)</mcp-resource>`,
-            isMeta: true,
-          }),
-        ])
-      }
-
       const transformedBlocks: ContentBlockParam[] = []
 
-      for (const item of content.contents) {
+      for (const item of attachment.content?.contents ?? []) {
         if (item && typeof item === 'object') {
           if ('text' in item && typeof item.text === 'string') {
             transformedBlocks.push(
@@ -372,25 +362,20 @@ capsule-digest:${attachment.digest}${attachment.delta ? `\nWorking-set delta vs 
         }
       }
 
-      if (transformedBlocks.length > 0) {
+      if (transformedBlocks.length === 0) {
         return wrapMessagesInSystemReminder([
           createUserMessage({
-            content: transformedBlocks,
-            isMeta: true,
-          }),
-        ])
-      } else {
-        logMCPDebug(
-          attachment.server,
-          `No displayable content found in MCP resource ${attachment.uri}.`,
-        )
-        return wrapMessagesInSystemReminder([
-          createUserMessage({
-            content: `<mcp-resource server="${attachment.server}" uri="${attachment.uri}">(No displayable content)</mcp-resource>`,
+            content: `<mcp-resource server="${attachment.server}" uri="${attachment.uri}">the server returned nothing readable for this resource</mcp-resource>`,
             isMeta: true,
           }),
         ])
       }
+      return wrapMessagesInSystemReminder([
+        createUserMessage({
+          content: transformedBlocks,
+          isMeta: true,
+        }),
+      ])
     }
     case 'agent_mention': {
       return wrapMessagesInSystemReminder([
@@ -399,71 +384,6 @@ capsule-digest:${attachment.digest}${attachment.delta ? `\nWorking-set delta vs 
           isMeta: true,
         }),
       ])
-    }
-    case 'task_status': {
-      const displayStatus =
-        attachment.status === 'killed' ? 'stopped' : attachment.status
-
-      if (attachment.status === 'killed') {
-        return [
-          createUserMessage({
-            content: wrapInSystemReminder(
-              `Task "${attachment.description}" (${attachment.taskId}) was stopped by the user.`,
-            ),
-            isMeta: true,
-          }),
-        ]
-      }
-
-      if (attachment.status === 'running') {
-        const parts = [
-          `Background agent "${attachment.description}" (${attachment.taskId}) is still running.`,
-        ]
-        if (attachment.deltaSummary) {
-          parts.push(`Progress: ${attachment.deltaSummary}`)
-        }
-        if (attachment.outputFilePath) {
-          parts.push(
-            `Do NOT spawn a duplicate — you will be notified when it completes. Partial output is readable at ${attachment.outputFilePath}, and ${SEND_MESSAGE_TOOL_NAME} reaches it directly.`,
-          )
-        } else {
-          parts.push(
-            `Do NOT spawn a duplicate — you will be notified when it completes, and ${SEND_MESSAGE_TOOL_NAME} reaches it directly.`,
-          )
-        }
-        return [
-          createUserMessage({
-            content: wrapInSystemReminder(parts.join(' ')),
-            isMeta: true,
-          }),
-        ]
-      }
-
-      const messageParts: string[] = [
-        `Task ${attachment.taskId}`,
-        `(type: ${attachment.taskType})`,
-        `(status: ${displayStatus})`,
-        `(description: ${attachment.description})`,
-      ]
-
-      if (attachment.deltaSummary) {
-        messageParts.push(`Delta: ${attachment.deltaSummary}`)
-      }
-
-      if (attachment.outputFilePath) {
-        messageParts.push(
-          `The result is in its output file: ${attachment.outputFilePath}`,
-        )
-      } else {
-        messageParts.push('Its output file was not recorded.')
-      }
-
-      return [
-        createUserMessage({
-          content: wrapInSystemReminder(messageParts.join(' ')),
-          isMeta: true,
-        }),
-      ]
     }
     case 'agent_roster': {
       if (attachment.rows.length === 0) return []
@@ -526,20 +446,11 @@ capsule-digest:${attachment.digest}${attachment.delta ? `\nWorking-set delta vs 
 
       return wrapMessagesInSystemReminder(messages)
     }
-    case 'token_usage':
-      return [
-        createUserMessage({
-          content: wrapInSystemReminder(
-            `Token usage: ${attachment.used}/${attachment.total}; ${attachment.remaining} remaining`,
-          ),
-          isMeta: true,
-        }),
-      ]
     case 'budget_usd':
       return [
         createUserMessage({
           content: wrapInSystemReminder(
-            `USD budget: $${attachment.used}/$${attachment.total}; $${attachment.remaining} remaining`,
+            `Budget \u2014 spent $${attachment.used} of $${attachment.total} \u00b7 $${attachment.remaining} left`,
           ),
           isMeta: true,
         }),
@@ -616,22 +527,13 @@ capsule-digest:${attachment.digest}${attachment.delta ? `\nWorking-set delta vs 
           isMeta: true,
         }),
       ]
-    case 'compaction_reminder': {
-      return wrapMessagesInSystemReminder([
-        createUserMessage({
-          content:
-            'Auto-compact is enabled. When the context window is nearly full, older messages will be automatically summarized so you can continue working seamlessly. There is no need to stop or rush \u2014 you have unlimited context through automatic compaction.',
-          isMeta: true,
-        }),
-      ])
-    }
     case 'context_efficiency': {
       return []
     }
     case 'date_change': {
       return wrapMessagesInSystemReminder([
         createUserMessage({
-          content: `The date has changed. Today's date is now ${attachment.newDate}. DO NOT mention this to the user explicitly because they are already aware.`,
+          content: `The local date is now ${attachment.newDate}; the session context above still names the earlier one.`,
           isMeta: true,
         }),
       ])
@@ -652,7 +554,7 @@ capsule-digest:${attachment.digest}${attachment.delta ? `\nWorking-set delta vs 
       const parts: string[] = []
       if (attachment.addedLines.length > 0) {
         parts.push(
-          `The following deferred tools are now available via ToolSearch:\n${attachment.addedLines.join('\n')}`,
+          `${DEFERRED_TOOLS_ANNOUNCEMENT_HEAD}\n${attachment.addedLines.join('\n')}`,
         )
       }
       if (attachment.removedNames.length > 0) {
@@ -664,38 +566,16 @@ capsule-digest:${attachment.digest}${attachment.delta ? `\nWorking-set delta vs 
         createUserMessage({ content: parts.join('\n\n'), isMeta: true }),
       ])
     }
-    case 'agent_listing_delta': {
-      const parts: string[] = []
-      if (attachment.addedLines.length > 0) {
-        const header = attachment.isInitial
-          ? 'Available agent types for the Agent tool:'
-          : 'New agent types are now available for the Agent tool:'
-        parts.push(`${header}\n${attachment.addedLines.join('\n')}`)
-      }
-      if (attachment.removedTypes.length > 0) {
-        parts.push(
-          `The following agent types are no longer available:\n${attachment.removedTypes.map(t => `- ${t}`).join('\n')}`,
-        )
-      }
-      if (attachment.isInitial && attachment.showConcurrencyNote) {
-        parts.push(
-          `Launch multiple agents concurrently whenever possible, to maximize performance; to do that, use a single message with multiple tool uses.`,
-        )
-      }
-      return wrapMessagesInSystemReminder([
-        createUserMessage({ content: parts.join('\n\n'), isMeta: true }),
-      ])
-    }
     case 'mcp_instructions_delta': {
       const parts: string[] = []
       if (attachment.addedBlocks.length > 0) {
         parts.push(
-          `# MCP Server Instructions\n\nThe following MCP servers have provided instructions for how to use their tools and resources:\n\n${attachment.addedBlocks.join('\n\n')}`,
+          `# MCP server instructions\n\nEach server below says how its tools and resources are used:\n\n${attachment.addedBlocks.join('\n\n')}`,
         )
       }
       if (attachment.removedNames.length > 0) {
         parts.push(
-          `The following MCP servers have disconnected. Their instructions above no longer apply:\n${attachment.removedNames.join('\n')}`,
+          `MCP servers gone from this session; their instructions above no longer hold:\n${attachment.removedNames.join('\n')}`,
         )
       }
       return wrapMessagesInSystemReminder([
@@ -766,12 +646,12 @@ function createToolResultMessage<Output>(
         ? result.content
         : jsonStringify(result.content)
     return createUserMessage({
-      content: `Result of calling the ${tool.name} tool:\n${contentStr}`,
+      content: `${tool.name} returned:\n${contentStr}`,
       isMeta: true,
     })
   } catch {
     return createUserMessage({
-      content: `Result of calling the ${tool.name} tool: Error`,
+      content: `${tool.name} returned an error`,
       isMeta: true,
     })
   }
@@ -782,7 +662,7 @@ function createToolUseMessage(
   input: { [key: string]: string | number },
 ): UserMessage {
   return createUserMessage({
-    content: `Called the ${toolName} tool with the following input: ${jsonStringify(input)}`,
+    content: `Mercury ran ${toolName} with ${jsonStringify(input)}`,
     isMeta: true,
   })
 }

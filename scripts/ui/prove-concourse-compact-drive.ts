@@ -46,7 +46,7 @@ console.log('§1 the pure geometry and legends of the compact concourse')
   }
   check('the list frame top reads as the mockup draws it', board.compactFrameTop('sessions · 2', 28) === '╭─sessions · 2 ────────────╮')
   check('the live frame top reads as the mockup draws it', board.compactFrameTop('mercury-beta6-lead · running · 12m', 51) === '╭─mercury-beta6-lead · running · 12m ─────────────╮')
-  check('a long title truncates with the ellipsis and the frame stays its width', board.compactFrameTop('<local-command-caveat>Caveat: The messages below were generated', 28).length === 28 && board.compactFrameTop('<local-command-caveat>Caveat: The messages below were generated', 28).includes('…'))
+  check('a long title truncates with the ellipsis and the frame stays its width', board.compactFrameTop('<local-command-caveat>The rows below are commands the user ran', 28).length === 28 && board.compactFrameTop('<local-command-caveat>The rows below are commands the user ran', 28).includes('…'))
   check('the frame bottom closes at the width', board.compactFrameBottom(28) === '╰──────────────────────────╯')
   check('the bold fork keeps the collapsed-palette shape grammar', board.compactFrameTop('sessions · 2', 28, board.compactFrameGlyphs(true)).startsWith('┏━sessions · 2 ━'))
   check('the titles are one owner', board.compactListTitle(2, '') === 'sessions · 2' && board.compactListTitle(1, ' oauth ') === 'sessions · 1 · /oauth' && board.compactLiveTitle({ title: 'mercury-beta6-lead', stateWord: 'running', ageLabel: '12m' }) === 'mercury-beta6-lead · running · 12m' && board.compactLiveTitle({ title: 'x', stateWord: 'parked', ageLabel: null }) === 'x · parked')

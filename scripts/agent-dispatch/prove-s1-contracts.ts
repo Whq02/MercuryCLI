@@ -84,7 +84,7 @@ section('2 · buildAgentLaunchPlan — decision laws')
   }
   check(
     'unknown type throws the exact not-found shape',
-    notFoundMsg.startsWith("Agent type 'orbit-unknown' not found. Available agents: "),
+    notFoundMsg.startsWith("No agent type named 'orbit-unknown'; this session offers: "),
     notFoundMsg,
   )
 

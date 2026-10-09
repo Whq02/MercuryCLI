@@ -220,10 +220,6 @@ export async function getMatchingHooks(
     const hookMatchers = getHooksConfig(appState, sessionId, hookEvent)
     const matchQuery = matchQueryForInput(hookInput)
 
-    logForDebugging(
-      `Getting matching hook commands for ${hookEvent} with query: ${matchQuery}`,
-      { level: 'verbose' },
-    )
     logForDebugging(`Found ${hookMatchers.length} hook matchers in settings`, {
       level: 'verbose',
     })
@@ -331,7 +327,7 @@ export async function getMatchingHooks(
         return true
       }
       logForDebugging(
-        `Skipping hook due to if condition "${ifCondition}" not matching`,
+        `hook skipped: its if condition "${ifCondition}" does not match`,
       )
       return false
     })
@@ -341,7 +337,7 @@ export async function getMatchingHooks(
         ? ifFilteredHooks.filter(h => {
             if (h.hook.type === 'http') {
               logForDebugging(
-                `Skipping HTTP hook ${(h.hook as { url: string }).url} — HTTP hooks are not supported for ${hookEvent}`,
+                `${hookEvent} never runs HTTP hooks; ${(h.hook as { url: string }).url} skipped`,
               )
               return false
             }
@@ -350,7 +346,7 @@ export async function getMatchingHooks(
         : ifFilteredHooks
 
     logForDebugging(
-      `Matched ${filteredHooks.length} unique hooks for query "${matchQuery || 'no match query'}" (${matchedHooks.length} before deduplication)`,
+      `${hookEvent}: ${filteredHooks.length} hooks matched${matchQuery ? ` for "${matchQuery}"` : ''} (${matchedHooks.length} before deduplication)`,
       { level: 'verbose' },
     )
     return filteredHooks

@@ -1367,7 +1367,7 @@
       "id": "none\u00b7flow\u00b7git commit --allow-empty -q -m probe && git rev-parse --short HEAD",
       "behavior": "passthrough",
       "reasonType": "subcommandResults",
-      "message": "This Bash command contains multiple operations. The following part requires approval: git commit --allow-empty -q -m probe"
+      "message": "One part of this Bash command needs approval: git commit --allow-empty -q -m probe"
     },
     {
       "id": "none\u00b7flow\u00b7git commit --allow-empty -q -m probe",
@@ -1445,7 +1445,7 @@
       "id": "none\u00b7default\u00b7git commit --allow-empty -q -m probe && git rev-parse --short HEAD",
       "behavior": "passthrough",
       "reasonType": "subcommandResults",
-      "message": "This Bash command contains multiple operations. The following part requires approval: git commit --allow-empty -q -m probe"
+      "message": "One part of this Bash command needs approval: git commit --allow-empty -q -m probe"
     },
     {
       "id": "none\u00b7default\u00b7git commit --allow-empty -q -m probe",
@@ -1523,7 +1523,7 @@
       "id": "none\u00b7implement\u00b7git commit --allow-empty -q -m probe && git rev-parse --short HEAD",
       "behavior": "passthrough",
       "reasonType": "subcommandResults",
-      "message": "This Bash command contains multiple operations. The following part requires approval: git commit --allow-empty -q -m probe"
+      "message": "One part of this Bash command needs approval: git commit --allow-empty -q -m probe"
     },
     {
       "id": "none\u00b7implement\u00b7git commit --allow-empty -q -m probe",
@@ -1601,7 +1601,7 @@
       "id": "none\u00b7dontAsk\u00b7git commit --allow-empty -q -m probe && git rev-parse --short HEAD",
       "behavior": "passthrough",
       "reasonType": "subcommandResults",
-      "message": "This Bash command contains multiple operations. The following part requires approval: git commit --allow-empty -q -m probe"
+      "message": "One part of this Bash command needs approval: git commit --allow-empty -q -m probe"
     },
     {
       "id": "none\u00b7dontAsk\u00b7git commit --allow-empty -q -m probe",
@@ -2615,7 +2615,7 @@
       "id": "allow-all\u00b7flow\u00b7git commit --allow-empty -q -m probe && git rev-parse --short HEAD",
       "behavior": "passthrough",
       "reasonType": "subcommandResults",
-      "message": "This Bash command contains multiple operations. The following part requires approval: git commit --allow-empty -q -m probe"
+      "message": "One part of this Bash command needs approval: git commit --allow-empty -q -m probe"
     },
     {
       "id": "allow-all\u00b7flow\u00b7git commit --allow-empty -q -m probe",
@@ -2693,7 +2693,7 @@
       "id": "allow-all\u00b7default\u00b7git commit --allow-empty -q -m probe && git rev-parse --short HEAD",
       "behavior": "passthrough",
       "reasonType": "subcommandResults",
-      "message": "This Bash command contains multiple operations. The following part requires approval: git commit --allow-empty -q -m probe"
+      "message": "One part of this Bash command needs approval: git commit --allow-empty -q -m probe"
     },
     {
       "id": "allow-all\u00b7default\u00b7git commit --allow-empty -q -m probe",
@@ -2771,7 +2771,7 @@
       "id": "allow-all\u00b7implement\u00b7git commit --allow-empty -q -m probe && git rev-parse --short HEAD",
       "behavior": "passthrough",
       "reasonType": "subcommandResults",
-      "message": "This Bash command contains multiple operations. The following part requires approval: git commit --allow-empty -q -m probe"
+      "message": "One part of this Bash command needs approval: git commit --allow-empty -q -m probe"
     },
     {
       "id": "allow-all\u00b7implement\u00b7git commit --allow-empty -q -m probe",
@@ -2849,7 +2849,7 @@
       "id": "allow-all\u00b7dontAsk\u00b7git commit --allow-empty -q -m probe && git rev-parse --short HEAD",
       "behavior": "passthrough",
       "reasonType": "subcommandResults",
-      "message": "This Bash command contains multiple operations. The following part requires approval: git commit --allow-empty -q -m probe"
+      "message": "One part of this Bash command needs approval: git commit --allow-empty -q -m probe"
     },
     {
       "id": "allow-all\u00b7dontAsk\u00b7git commit --allow-empty -q -m probe",
@@ -2927,7 +2927,7 @@
       "id": "ask-tool\u00b7flow\u00b7git commit --allow-empty -q -m probe && git rev-parse --short HEAD",
       "behavior": "passthrough",
       "reasonType": "subcommandResults",
-      "message": "This Bash command contains multiple operations. The following part requires approval: git commit --allow-empty -q -m probe"
+      "message": "One part of this Bash command needs approval: git commit --allow-empty -q -m probe"
     },
     {
       "id": "ask-tool\u00b7flow\u00b7git commit --allow-empty -q -m probe",
@@ -3005,7 +3005,7 @@
       "id": "ask-tool\u00b7default\u00b7git commit --allow-empty -q -m probe && git rev-parse --short HEAD",
       "behavior": "passthrough",
       "reasonType": "subcommandResults",
-      "message": "This Bash command contains multiple operations. The following part requires approval: git commit --allow-empty -q -m probe"
+      "message": "One part of this Bash command needs approval: git commit --allow-empty -q -m probe"
     },
     {
       "id": "ask-tool\u00b7default\u00b7git commit --allow-empty -q -m probe",
@@ -3083,7 +3083,7 @@
       "id": "ask-tool\u00b7implement\u00b7git commit --allow-empty -q -m probe && git rev-parse --short HEAD",
       "behavior": "passthrough",
       "reasonType": "subcommandResults",
-      "message": "This Bash command contains multiple operations. The following part requires approval: git commit --allow-empty -q -m probe"
+      "message": "One part of this Bash command needs approval: git commit --allow-empty -q -m probe"
     },
     {
       "id": "ask-tool\u00b7implement\u00b7git commit --allow-empty -q -m probe",
@@ -3161,7 +3161,7 @@
       "id": "ask-tool\u00b7dontAsk\u00b7git commit --allow-empty -q -m probe && git rev-parse --short HEAD",
       "behavior": "passthrough",
       "reasonType": "subcommandResults",
-      "message": "This Bash command contains multiple operations. The following part requires approval: git commit --allow-empty -q -m probe"
+      "message": "One part of this Bash command needs approval: git commit --allow-empty -q -m probe"
     },
     {
       "id": "ask-tool\u00b7dontAsk\u00b7git commit --allow-empty -q -m probe",
