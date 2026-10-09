@@ -155,7 +155,7 @@ export async function loadInitialMessages(
         return refuse(
           parsedSessionId.isJsonlFile
             ? `No conversation could be loaded from: ${typeof options.resume === 'string' ? options.resume : parsedSessionId.sessionId}`
-            : `No conversation found with session ID: ${parsedSessionId.sessionId}`,
+            : `No conversation found for session id ${parsedSessionId.sessionId}`,
         )
       }
 
@@ -163,7 +163,7 @@ export async function loadInitialMessages(
         const index = result.messages.findIndex(
           m => m.uuid === options.resumeSessionAt,
         )
-        if (index < 0) return refuse(`No message found with message.uuid of: ${options.resumeSessionAt}`)
+        if (index < 0) return refuse(`No message in this conversation has the uuid ${options.resumeSessionAt}`)
         result.messages = result.messages.slice(0, index + 1)
       }
 
