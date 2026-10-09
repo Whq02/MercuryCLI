@@ -186,6 +186,7 @@ const CONFIG_PROVIDER_PRESENTATION: Record<
   deepseek: { label: 'DeepSeek', absent: 'no key — /logins deepseek connects (or DEEPSEEK_API_KEY)', manage: '/accounts' },
   xai: { label: 'xAI', absent: 'no key — /logins xai connects (or XAI_API_KEY)', manage: '/accounts' },
   meta: { label: 'Meta', absent: 'no key — /logins meta connects (or MODEL_API_KEY)', manage: '/accounts' },
+  mistral: { label: 'Mistral', absent: 'no key — /logins mistral connects (or MISTRAL_API_KEY)', manage: '/accounts' },
   'openai-compat': { label: 'Custom endpoint', absent: 'not configured — MERCURY_COMPAT_BASE_URL' },
   huggingface: { label: 'Hugging Face', absent: 'not signed in — /logins connects (or HF_TOKEN)', manage: '/accounts' },
   local: { label: 'Local', absent: `no sign-in — start a local server or MERCURY_LOCAL_BASE_URL, then ${LOCAL_PULL_RECOMMENDATION}, ${LOCAL_SETUP_OFFER}` },
