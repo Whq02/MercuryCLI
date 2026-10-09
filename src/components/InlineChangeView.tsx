@@ -30,6 +30,8 @@ export interface InlineChangeViewData {
     hunks: StructuredPatchHunk[];
     omittedHunks?: number;
     changedLines: number;
+    added?: number;
+    removed?: number;
   }[];
   matchCount?: number;
   diagnostics?: { planned: number } | { clean: number; failed: number };
