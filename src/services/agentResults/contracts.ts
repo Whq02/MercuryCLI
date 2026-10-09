@@ -43,4 +43,4 @@ export const declaredEnvelopeSchema = z
 
 export type DeclaredEnvelope = z.infer<typeof declaredEnvelopeSchema>
 
-export const ENVELOPE_DOCTRINE = `Structured completion (optional but preferred): end your FINAL message with a <${ENVELOPE_TAG}>{…}</${ENVELOPE_TAG}> block — JSON with any of: "summary" (one paragraph), "findings" (string[]), "unresolved" (string[]), "recommendedNextAction", "checks" (names of verification commands you actually ran). Changed paths and check outcomes are cross-checked against observed tool effects — never claim work the tools did not record.`
+export const ENVELOPE_DOCTRINE = `Structured completion (optional but preferred): end your final message with a <${ENVELOPE_TAG}>{…}</${ENVELOPE_TAG}> block — JSON with any of: "summary" (one paragraph), "findings" (string[]), "unresolved" (string[]), "recommendedNextAction", "checks" (names of verification commands you actually ran). Changed paths and check outcomes are cross-checked against observed tool effects.`
