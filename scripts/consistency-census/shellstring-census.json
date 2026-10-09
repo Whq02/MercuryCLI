@@ -2082,6 +2082,13 @@
       "why": "POSIX capture engine surfaces — interpreter/temp owned by the capture-driver resolver (W6-C); the /tmp default is a pinned byte-identity prover expectation on POSIX"
     },
     {
+      "file": "scripts/ui/prove-denied-fold-row.ts",
+      "mechanism": "hardcoded-interpreter",
+      "excerpt": "const res = spawnSync('/usr/bin/python3', [join(import.meta.dir, 'vshot.py'), cfgPath], {",
+      "cls": "platform-owner",
+      "why": "POSIX capture engine surfaces — interpreter/temp owned by the capture-driver resolver (W6-C); the /tmp default is a pinned byte-identity prover expectation on POSIX"
+    },
+    {
       "file": "scripts/ui/prove-denied-glyph-split.ts",
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const res = spawnSync('/usr/bin/python3', [join(import.meta.dir, 'vshot.py'), cfgPath], {",
@@ -2208,6 +2215,13 @@
       "why": "POSIX capture engine surfaces — interpreter/temp owned by the capture-driver resolver (W6-C); the /tmp default is a pinned byte-identity prover expectation on POSIX"
     },
     {
+      "file": "scripts/ui/prove-mode-flag-over-consent.ts",
+      "mechanism": "hardcoded-interpreter",
+      "excerpt": "const res = spawnSync('/usr/bin/python3', [join(import.meta.dir, 'vshot.py'), cfgPath], {",
+      "cls": "platform-owner",
+      "why": "POSIX capture engine surfaces — interpreter/temp owned by the capture-driver resolver (W6-C); the /tmp default is a pinned byte-identity prover expectation on POSIX"
+    },
+    {
       "file": "scripts/ui/prove-new-chat-effort-drive.ts",
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const engine = spawn('/usr/bin/python3', [join(ROOT, 'scripts/ui/vshot.py'), cfgPath], {",
@@ -2316,6 +2330,13 @@
       "file": "scripts/ui/prove-session-name-roads.ts",
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const result = spawnSync('/usr/bin/python3', [join(import.meta.dir, 'vshot.py'), config], {",
+      "cls": "platform-owner",
+      "why": "POSIX capture engine surfaces — interpreter/temp owned by the capture-driver resolver (W6-C); the /tmp default is a pinned byte-identity prover expectation on POSIX"
+    },
+    {
+      "file": "scripts/ui/prove-sessions-own-row-parked.ts",
+      "mechanism": "hardcoded-interpreter",
+      "excerpt": "const capture = spawn('/usr/bin/python3', [join(import.meta.dir, 'vshot.py'), cfgPath], { env, stdio: ['ignore', 'pipe', 'pipe'] })",
       "cls": "platform-owner",
       "why": "POSIX capture engine surfaces — interpreter/temp owned by the capture-driver resolver (W6-C); the /tmp default is a pinned byte-identity prover expectation on POSIX"
     },
