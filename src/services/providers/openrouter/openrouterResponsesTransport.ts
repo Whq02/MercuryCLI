@@ -239,7 +239,7 @@ function tapRaw(parsed: unknown, state: TurnRecordState): CompatStreamEvent[] {
   return out
 }
 
-export async function* streamOpenrouterResponses(options: CompatStreamOptions, body: string, state: TurnRecordState, lane: 'openrouter' | 'xai' = 'openrouter'): AsyncGenerator<CompatStreamEvent> {
+export async function* streamOpenrouterResponses(options: CompatStreamOptions, body: string, state: TurnRecordState, lane: 'openrouter' | 'xai' | 'zen' = 'openrouter'): AsyncGenerator<CompatStreamEvent> {
   const idleMs = options.idleTimeoutMs ?? streamIdleTimeoutMs()
   const url = openrouterResponsesUrl(options.url)
   const controller = new AbortController()
