@@ -143,7 +143,7 @@ section('§1 the boot posture of a seat with a permission channel says which cal
   const unstamped = postureFor('sdk', 'flow', undefined)
   check('never a guess: with no boot rules stamped, the seat says nothing about what its rules pre-authorise', needsLine(unstamped) === '' && /with a host that holds the asks/.test(sessionLine(unstamped)), needsLine(unstamped))
   const noChannel = postureFor('none', 'flow', contextOf('flow'))
-  check('a headless run with NO host keeps its own words (asks are denied; no operator line — there is no operator to be present)', /no host to answer an ask/.test(sessionLine(noChannel)) && /DENIED automatically/.test(sessionLine(noChannel)) && needsLine(noChannel) === '', `${sessionLine(noChannel)}\n${needsLine(noChannel)}`)
+  check('a headless run with NO host keeps its own words (asks are denied; no operator line — there is no operator to be present)', /no host answers an ask/.test(sessionLine(noChannel)) && /denied automatically/.test(sessionLine(noChannel)) && needsLine(noChannel) === '', `${sessionLine(noChannel)}\n${needsLine(noChannel)}`)
   const interactive = postureFor('sdk', undefined, contextOf('flow'))
   check('an interactive session keeps its own words (no operator line)', /Session: interactive/.test(sessionLine(interactive)) && needsLine(interactive) === '', sessionLine(interactive))
   const doctrine = posture.getRuntimePostureDoctrineLine() ?? ''
