@@ -12,7 +12,6 @@ type AgentSource =
 type CompactionSource =
   | 'compact'
   | 'session_memory'
-  | 'marble_origami'
   | 'extract_memories'
   | 'mneme_relevance'
   | 'away_summary'
