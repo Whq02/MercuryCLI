@@ -253,11 +253,13 @@ export function createTurnDriver(ports: TurnDriverPorts): TurnDriver {
   async function runOneTurn(first: QueuedCommand): Promise<void> {
     let command = first
     const initialNotices: QueuedCommand[] = []
-    if (noticesAwaitOperator && isOperatorWords(first)) {
+    if (isOperatorWords(first)) {
       noticesAwaitOperator = false
       for (const notice of queuedMainThread().filter(isTaskNotification)) {
         const taken = ports.dequeueCommand(notice)
-        if (taken !== undefined) initialNotices.push(taken)
+        if (taken === undefined) continue
+        if (taken.queueId !== undefined) settledAt.delete(taken.queueId)
+        initialNotices.push(taken)
       }
     }
 
