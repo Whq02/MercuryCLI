@@ -182,6 +182,7 @@ section('§6 the dead machinery, the alias maps and the retired words the excisi
     { word: J('marble-', 'origami') },
     { word: J('migrateTranscript', 'EntryKind') },
     { word: J('RETIRED_ENTRY', '_KINDS') },
+    { word: J('todo_', 'reminder') },
     { word: J('LEGACY_ROLE', '_ALIASES') },
     { word: J('resolveWith', 'Aliases') },
     { word: J('claude', 'Shimmer') },
