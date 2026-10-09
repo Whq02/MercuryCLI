@@ -15,7 +15,7 @@ process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'switch-notice-pure-
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 
 import { startFixtureApi, type FixtureApi, type ScriptedTurn } from '../lib/fixtureApi.ts'
-import { isOutcome } from '../lib/rows.ts'
+import { answerOf, isOutcome } from '../lib/rows.ts'
 import { hostRunner } from '../lib/runnerHost.ts'
 
 let checks = 0
@@ -206,25 +206,26 @@ if (!existsSync(DIST)) {
     })
     const killer = setTimeout(() => host.child.kill('SIGKILL'), 150_000)
     const switchErrors: string[] = []
-    const turn = async (prompt: string, switchTo?: string): Promise<void> => {
+    let turnsSent = 0
+    const turn = async (prompt: string, marker: string, switchTo?: string): Promise<void> => {
       if (switchTo !== undefined) {
         await host.request('session/set_model', { model: switchTo }).catch((error: unknown) => {
           switchErrors.push(error instanceof Error ? error.message : String(error))
         })
       }
-      const outcomes = host.rows.filter(isOutcome).length
+      const ordinal = ++turnsSent
       await host.prompt(prompt)
-      await host.waitFor(`outcome of "${prompt}"`, () => host.rows.filter(isOutcome).length > outcomes, 60_000)
+      await host.waitFor(`turn ${ordinal} ("${prompt}") settled on the fixture's ${marker}`, row => isOutcome(row) && row.turn === ordinal && answerOf(row).includes(marker), 60_000)
     }
     let seatError = ''
     try {
       await host.initialize({})
-      await turn(P[0]!)
-      await turn(P[1]!)
-      await turn(P[2]!)
-      await turn(P[3]!, OPUS)
-      await turn(P[4]!)
-      await turn(P[5]!, FABLE)
+      await turn(P[0]!, 'SN-F1')
+      await turn(P[1]!, 'SN-F2')
+      await turn(P[2]!, 'SN-F3')
+      await turn(P[3]!, 'SN-O1', OPUS)
+      await turn(P[4]!, 'SN-O2')
+      await turn(P[5]!, 'SN-F4', FABLE)
     } catch (error) {
       seatError = error instanceof Error ? error.message : String(error)
     }
