@@ -120,6 +120,7 @@ __t=$SECONDS; __rc=0; "$bun" run "$here/prove-respawn-retires-asks.ts" || { __rc
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-seat-door-direct.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-seat-door-direct.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-seat-protocol-refusal.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-seat-protocol-refusal.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-runner-slow-initialize.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-runner-slow-initialize.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$bun" run "$here/prove-respawn-unwritten-session.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-respawn-unwritten-session.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-credential-change-reaches-runner.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-credential-change-reaches-runner.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-openai-lane-after-relogin.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-openai-lane-after-relogin.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-midturn-line.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-midturn-line.ts" "$__t" "$__rc"
