@@ -5,7 +5,6 @@ import {
   CHANNEL_TAG,
   COMMAND_MESSAGE_TAG,
   COMMAND_NAME_TAG,
-  FORK_BOILERPLATE_TAG,
   LOCAL_COMMAND_CAVEAT_TAG,
   TASK_NOTIFICATION_TAG,
   TICK_TAG,
@@ -22,7 +21,6 @@ import { UserBashInputMessage } from './UserBashInputMessage.js'
 import { UserBashOutputMessage } from './UserBashOutputMessage.js'
 import { UserChannelMessage } from './UserChannelMessage.js'
 import { UserCommandMessage } from './UserCommandMessage.js'
-import { UserForkBoilerplateMessage } from './UserForkBoilerplateMessage.js'
 import { UserLocalCommandOutputMessage } from './UserLocalCommandOutputMessage.js'
 import { UserMemoryInputMessage } from './UserMemoryInputMessage.js'
 import { UserNoticeMessage } from './UserNoticeMessage.js'
@@ -132,10 +130,6 @@ export function UserTextMessage({
     head.startsWith('<mcp-polling-update')
   ) {
     return <UserResourceUpdateMessage addMargin={addMargin} param={param} />
-  }
-
-  if (head.startsWith(`<${FORK_BOILERPLATE_TAG}>`)) {
-    return <UserForkBoilerplateMessage addMargin={addMargin} param={param} />
   }
 
   if (head.startsWith(`<${CHANNEL_TAG} source="`)) {

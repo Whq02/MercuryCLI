@@ -396,7 +396,7 @@ export function encodeFixtureTranscript(
 }
 
 export function writeSyntheticSession(
-  variant: 'short' | 'long' | 'tall' | 'content' | 'link' | 'tools' | 'expand' | 'workflow' | 'errors' | 'denials' | 'model-noise' | 'channel' | 'fork' | 'thinking' | 'gpt-thinking' | 'gpt-record' | 'lifecycle' | 'structure' | 'changeset' | 'stream-fault' | 'stillpoint' | 'shell-interleave' | 'markdown-blocks' = 'short',
+  variant: 'short' | 'long' | 'tall' | 'content' | 'link' | 'tools' | 'expand' | 'workflow' | 'errors' | 'denials' | 'model-noise' | 'channel' | 'thinking' | 'gpt-thinking' | 'gpt-record' | 'lifecycle' | 'structure' | 'changeset' | 'stream-fault' | 'stillpoint' | 'shell-interleave' | 'markdown-blocks' = 'short',
   sid: string = SID,
 ): void {
   purgeFixtureDraft(sid)
@@ -868,18 +868,6 @@ export function writeSyntheticSession(
             content: [{ type: 'text', text: 'Both checks ran clean.' }], stop_reason: 'end_turn', stop_sequence: null,
             usage: { input_tokens: 1, output_tokens: 1 } },
           timestamp: '2026-06-19T12:02:06.000Z' }),
-      ]
-    : variant === 'fork'
-    ? [
-        base({ parentUuid: null, type: 'user', uuid: '00000000-0000-4000-8000-000000000001',
-          message: { role: 'user', content: '<fork-boilerplate>\nSTOP. READ THIS FIRST.\n\nYou are a forked worker process. You are NOT the main agent.\n\nRULES (non-negotiable):\n1. Do NOT spawn sub-agents; execute directly.\n2. Do NOT converse, ask questions, or suggest next steps\n3. USE your tools directly: Bash, Read, Write, etc.\n</fork-boilerplate>\n\nYour directive: audit the walker resolver and report the gaps' },
-          timestamp: '2026-06-19T12:00:01.000Z' }),
-        base({ parentUuid: '00000000-0000-4000-8000-000000000001', type: 'assistant',
-          uuid: '00000000-0000-4000-8000-000000000002', requestId: 'req_synth_fk1',
-          message: { id: 'msg_synth_fk1', type: 'message', role: 'assistant', model: 'claude-opus-4-8',
-            content: [{ type: 'text', text: 'Scope: the walker resolver.\nResult: two gaps found and reported.' }], stop_reason: 'end_turn', stop_sequence: null,
-            usage: { input_tokens: 1, output_tokens: 1 } },
-          timestamp: '2026-06-19T12:00:02.000Z' }),
       ]
     : variant === 'channel'
     ? [
@@ -1470,10 +1458,6 @@ function scenarioInner(name: string, cols: number, rows: number) {
   }
   if (name === 'thinking-row') {
     writeSyntheticSession('thinking')
-    return { argv: ['node', BIN, '--resume', SID], sends: [], total: 45, cols, rows }
-  }
-  if (name === 'fork-boilerplate') {
-    writeSyntheticSession('fork')
     return { argv: ['node', BIN, '--resume', SID], sends: [], total: 45, cols, rows }
   }
   if (name === 'channel-message') {

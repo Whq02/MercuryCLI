@@ -28,7 +28,6 @@ prove-field-findings-transcript-v.ts
 prove-field-w6-c1-controls.ts
 prove-file-open.ts
 prove-footer-dedup.ts
-prove-fork-boilerplate-render.ts
 prove-frame-fill.ts
 prove-glyph-width.ts
 prove-helm-focus.ts
