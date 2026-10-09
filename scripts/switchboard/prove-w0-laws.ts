@@ -1,6 +1,6 @@
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '0.0.0-prover' }
 
-import { existsSync, mkdtempSync, readFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -40,6 +40,14 @@ check(
   'pinned home + sessionId equals the reader derivation byte-for-byte',
   join(String(pin), `${sessionId}.jsonl`) === workerTranscriptPath({ sessionId, workspaceId }),
 )
+const unwritten = buildRunnerInvocation(spec, { respawn: true })
+check(
+  'a respawn before the session wrote a transcript rides --session-id (never --resume of a conversation nobody wrote)',
+  unwritten.argv.includes('--session-id') && unwritten.argv.includes(sessionId) && !unwritten.argv.includes('--resume'),
+  unwritten.argv.join(' '),
+)
+mkdirSync(String(pin), { recursive: true })
+writeFileSync(join(String(pin), `${sessionId}.jsonl`), `${JSON.stringify({ type: 'user', uuid: `${sessionId}-u1`, sessionId, message: { role: 'user', content: 'seeded turn' } })}\n`)
 const respawn = buildRunnerInvocation(spec, { respawn: true })
 check('respawn keeps the pin (spec-carried extraEnv)', respawn.env.MERCURY_SESSION_HOME === pin)
 check(

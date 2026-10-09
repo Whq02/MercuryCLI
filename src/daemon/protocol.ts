@@ -363,6 +363,11 @@ export interface WireRosterEntry {
   cwd?: string
   worktree?: string
   paused?: { why: string; words: string; resumesAtMs?: number }
+  maxRespawns?: number
+  ready?: boolean
+  spawnedAt?: number
+  crashedAt?: number
+  lastError?: string
 }
 
 export interface LeaseClient {

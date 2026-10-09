@@ -1,7 +1,9 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
+import { spawn } from 'node:child_process'
 import { mkdtempSync, writeFileSync } from 'node:fs'
+import { createServer } from 'node:net'
 import { tmpdir } from 'node:os'
 import * as path from 'node:path'
 
@@ -54,6 +56,17 @@ const { DebugTool } = await import('../../src/tools/DebugTool/DebugTool.ts')
 const { processMainOwner } = await import('../../src/services/run/resolveOwner.ts')
 const owner = processMainOwner()
 
+function freePort(): Promise<number> {
+  return new Promise(resolve => {
+    const server = createServer()
+    server.listen(0, '127.0.0.1', () => {
+      const address = server.address()
+      const port = typeof address === 'object' && address ? address.port : 0
+      server.close(() => resolve(port))
+    })
+  })
+}
+
 async function runOp(input: Record<string, unknown>) {
   const result = await (DebugTool as { call: Function }).call(input, {
     owner,
@@ -84,11 +97,21 @@ console.log('— P. attach by port/host —')
   check('the FLAT attach body carried port + host + the file-row defaults', /"port": 45678/.test(echo.data.result) && /"host": "10\.0\.0\.9"/.test(echo.data.result) && /"flavor": "file-row"/.test(echo.data.result), echo.data.result.slice(0, 300))
   await runOp({ op: 'disconnect', session: 'att' })
 
-  const r2 = await runOp({ op: 'attach', adapter: 'mock2connect', port: 5_678, session: 'att2' })
-  check('connect-shaped attach succeeded', r2.data.debuggee === 'stopped', r2.data.result.slice(0, 160))
+  const listenPort = await freePort()
+  const listening = spawn(process.execPath, [mock2, String(listenPort)], { stdio: 'ignore' })
+  let r2 = await runOp({ op: 'attach', adapter: 'mock2connect', port: listenPort, session: 'att2' })
+  for (const until = Date.now() + 10_000; Date.now() < until && /nothing is listening at/.test(r2.data.result); ) {
+    await new Promise(r => setTimeout(r, 100))
+    r2 = await runOp({ op: 'attach', adapter: 'mock2connect', port: listenPort, session: 'att2' })
+  }
+  check('connect-shaped attach succeeded — the attach dialed the listening program instead of starting an adapter', r2.data.debuggee === 'stopped', r2.data.result.slice(0, 160))
   const echo2 = await runOp({ op: 'customRequest', session: 'att2', method: 'mock/lastAttach' })
-  check('the debugpy spelling nests {connect:{host,port}}', /"connect": \{/.test(echo2.data.result) && /"port": 5678/.test(echo2.data.result), echo2.data.result.slice(0, 300))
+  check('the debugpy spelling nests {connect:{host,port}}', /"connect": \{/.test(echo2.data.result) && new RegExp(`"port": ${listenPort}`).test(echo2.data.result), echo2.data.result.slice(0, 300))
   await runOp({ op: 'disconnect', session: 'att2' })
+  if (listening.exitCode === null) listening.kill('SIGKILL')
+  const idlePort = await freePort()
+  const r3 = await runOp({ op: 'attach', adapter: 'mock2connect', port: idlePort, session: 'att3' })
+  check('a connect-shaped attach with nothing listening refuses at once in one line naming the dial', r3.data.outcome === 'failed' && new RegExp(`^attach failed: nothing is listening at 127\\.0\\.0\\.1:${idlePort} \\(ECONNREFUSED\\) — start the program`).test(r3.data.result), r3.data.result.slice(0, 220))
 
   const perm = await (DebugTool as { checkPermissions: Function }).checkPermissions({ op: 'attach', port: 5005 })
   check('a bare-port attach auto-picks the python adapter at the gate', perm.behavior === 'ask' && /adapter python/.test(perm.message), JSON.stringify(perm))

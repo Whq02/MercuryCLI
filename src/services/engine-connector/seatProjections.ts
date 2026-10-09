@@ -91,6 +91,29 @@ export interface SessionFactsV1 extends Omit<SessionFactsAnswerV1, 'permissionMo
   runnerGeneration?: number
   queueReady?: boolean
   box?: BoxReadingV1
+  runner?: RunnerStateFactV1
+}
+
+export type RunnerStateFactV1 =
+  | { state: 'starting'; sinceMs: number; respawns: number; maxRespawns: number }
+  | { state: 'crashed'; sinceMs: number; respawns: number; maxRespawns: number; reason?: string }
+  | { state: 'degraded'; sinceMs: number; respawns: number; maxRespawns: number; reason?: string }
+
+export function runnerStateFactOf(
+  entry: { state?: string; outcome?: string; ready?: boolean; respawns?: number; maxRespawns?: number; spawnedAt?: number; crashedAt?: number; lastError?: string } | undefined,
+  nowMs: number,
+): RunnerStateFactV1 | undefined {
+  if (entry === undefined) return undefined
+  const respawns = entry.respawns ?? 0
+  const maxRespawns = entry.maxRespawns ?? respawns
+  const reason = entry.lastError !== undefined && entry.lastError !== '' ? { reason: entry.lastError } : {}
+  if (entry.outcome === 'degraded') return { state: 'degraded', sinceMs: entry.crashedAt ?? nowMs, respawns, maxRespawns, ...reason }
+  if (entry.outcome !== undefined) return undefined
+  if (entry.state === 'spawning' && entry.crashedAt !== undefined) return { state: 'crashed', sinceMs: entry.crashedAt, respawns, maxRespawns, ...reason }
+  if (entry.state === 'spawning' || (entry.state === 'running' && entry.ready === false)) {
+    return { state: 'starting', sinceMs: entry.spawnedAt !== undefined && entry.spawnedAt > 0 ? entry.spawnedAt : nowMs, respawns, maxRespawns }
+  }
+  return undefined
 }
 
 

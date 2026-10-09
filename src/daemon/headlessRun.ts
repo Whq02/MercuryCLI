@@ -173,6 +173,23 @@ export function sessionPinArgv(pin: { sessionId: string; cwd: string } | undefin
   return existsSync(sessionPinTranscriptPath(pin)) ? ['--resume', pin.sessionId] : ['--session-id', pin.sessionId]
 }
 
+export function runnerSessionHome(spec: Pick<RunnerChildSpec, 'cwd' | 'extraEnv'>): string {
+  const pinned = spec.extraEnv?.MERCURY_SESSION_HOME
+  return typeof pinned === 'string' && pinned !== '' ? pinned : getProjectDir(spec.cwd ?? process.cwd())
+}
+
+export function identityArgvOf(spec: Pick<RunnerChildSpec, 'cwd' | 'extraEnv'>, argv: readonly string[], transcriptExists: (path: string) => boolean = existsSync): readonly string[] {
+  const at = argv.indexOf('--resume')
+  if (at === -1 || at + 1 >= argv.length) return argv
+  const sessionId = argv[at + 1]!
+  if (transcriptExists(join(runnerSessionHome(spec), `${sessionId}.jsonl`))) return argv
+  return [...argv.slice(0, at), '--session-id', sessionId, ...argv.slice(at + 2)]
+}
+
+export function respawnArgvOf(spec: Pick<RunnerChildSpec, 'cwd' | 'extraEnv' | 'extraArgv' | 'respawnExtraArgv'>, transcriptExists: (path: string) => boolean = existsSync): readonly string[] {
+  return identityArgvOf(spec, spec.respawnExtraArgv ?? spec.extraArgv ?? [], transcriptExists)
+}
+
 export function buildRunnerInvocation(
   spec: RunnerChildSpec,
   opts?: { respawn?: boolean },
@@ -195,7 +212,7 @@ export function buildRunnerInvocation(
     ...(spec.keyless ? [] : ['--model', model]),
     '--brief-add',
     spec.appendSystemPrompt,
-    ...((opts?.respawn ? (spec.respawnExtraArgv ?? spec.extraArgv) : spec.extraArgv) ?? []),
+    ...(opts?.respawn ? respawnArgvOf(spec) : identityArgvOf(spec, spec.extraArgv ?? [])),
     ...sessionPinArgv(spec.sessionPin),
   ]
   const inherited: NodeJS.ProcessEnv = { ...process.env }

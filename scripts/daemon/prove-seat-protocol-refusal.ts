@@ -178,12 +178,20 @@ section('§4 the handshake and the delivery carry the table’s deadlines; a del
   const queued = held.requests.find(r => r.method === 'queue/add')
   check(`a delivery the runner never answers settles refused at queue/add’s table deadline (${deadlineOf('queue/add')} ms; took ${deliveryMs} ms) and the runner sees it withdrawn`, delivered === false && queued !== undefined && queued.cancelled && deliveryMs >= deadlineOf('queue/add')! - 100 && deliveryMs < deadlineOf('queue/add')! + 2_000, j({ delivered, cancelled: queued?.cancelled, deliveryMs }))
   held.close()
+  let settledEarly = false
+  void silent.initialized.then(() => {
+    settledEarly = true
+  })
+  await new Promise(resolve => setTimeout(resolve, 50))
+  check(`the table carries no deadline for initialize — a slow boot is waited on while the runner lives (${Date.now() - startedAt} ms in, still pending)`, deadlineOf('initialize') === null && !settledEarly && refusals.length === 0, j({ deadline: deadlineOf('initialize'), settledEarly, refusals }))
+  const closedAt = Date.now()
+  mute.close('the runner exited')
+  silentOut.end()
   const initialized = await silent.initialized
-  const initializeMs = Date.now() - startedAt
-  check(`a runner that never answers initialize is given up at the table’s ${deadlineOf('initialize')} ms (took ${initializeMs} ms)`, initialized === null && initializeMs >= deadlineOf('initialize')! - 100 && initializeMs < deadlineOf('initialize')! + 2_000, j({ initialized, initializeMs }))
-  check('…and the seat hears it as a typed protocol refusal naming the deadline', refusals.length === 1 && refusals[0]!.code === RPC_REFUSED && refusals[0]!.kind === 'protocol' && /did not answer initialize within/.test(refusals[0]!.message), j(refusals))
+  const initializeMs = Date.now() - closedAt
+  check(`a runner that leaves before answering initialize settles the handshake at once (took ${initializeMs} ms after its wire closed) — the exit is the mark, never a clock`, initialized === null && initializeMs < 1_000, j({ initialized, initializeMs }))
+  check('…and the seat hears no protocol refusal for it (a slow or dead runner is not a protocol fault)', refusals.length === 0, j(refusals))
   check('a delivery on a door whose handshake failed is refused at once', (await silent.deliver({ type: 'prompt', content: 'late', id: '0b5c2d0a-6e9e-4c4b-8a2c-3f1d2e5b7a05' })) === false)
-  mute.close('done')
   silent.close('done')
 }
 

@@ -122,7 +122,7 @@ section('§4 structure: the clock is gone; the glyph reads the crew')
   check('a seat receipt takes the row while it stands, in the muted ink, and yields to the warning arms', tag.includes('const held = receipt !== \'\' && !statusRowWarns(live, status) ? receipt : null') && tag.includes('<Text color={held !== null || resting ? t.textMuted : t.textInstruction}>{fitted}</Text>') && bar.statusRowWarns({ ...IDLE_LIVE, inFlight: true }, { interrupting: true, hardStopping: false, wait: null, stuck: false }) && !bar.statusRowWarns(IDLE_LIVE, { interrupting: false, hardStopping: false, wait: null, stuck: false }))
   check('the receipt slot paints only while a row paints, stands for the composer receipt\'s eight seconds, and clears itself', bar.paintStatusRowReceipt('Effort set to medium for this session') === false && bar.statusRowReceipt() === '' && bar.STATUS_ROW_RECEIPT_MS === 8000 && tag.includes('rowsPainting += 1'))
   check('the row\'s words are statusLine over the crew\'s clock', tag.includes('statusLine(live, status, crew)'))
-  check('the crew tick is armed only while a sub-agent runs', tag.includes('useNowTick(crewActive ? 1000 : null)'))
+  check('the row\'s tick is armed only while a sub-agent runs or the runner is still booting (the boot clock)', tag.includes('useNowTick(crewActive || runnerBooting ? 1000 : null)'))
   check('the crew\'s clock reads the one work-row list and the crew facts owner', tag.includes('useFocusedWorkRows()') && tag.includes('crewAgentsOf(rows, null)') && tag.includes('focusedWorkflowRows(rows)'))
   check('the row omits the words\' separator when there are no words', tag.includes("{fitted !== '' ? (") && tag.includes("(restFloor > 0 && head !== '' ? 3 : 0)"))
 }
