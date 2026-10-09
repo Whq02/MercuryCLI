@@ -1,5 +1,5 @@
 import picomatch from 'picomatch'
-import { hasMalformedTokens, hasShellQuoteSingleQuoteBug, tryParseShellCommand } from '../bash/shellQuote.js'
+import { hasMalformedTokens, hasShellQuoteSingleQuoteBug, tryParseShellCommand } from '../utils/bash/shellQuote.js'
 import { basename } from 'node:path'
 
 export const GENERATED_ASSETS_MAP = 'scripts/gate/generated-assets.tsv'

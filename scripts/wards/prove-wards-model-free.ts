@@ -16,7 +16,7 @@ function section(t: string): void {
 
 const ROOT = join(import.meta.dir, '..', '..')
 const ENGINE_PATH = join(ROOT, 'src', 'utils', 'wards', 'wards.ts')
-const HOOK_PATH = join(ROOT, 'src', 'utils', 'hooks', 'wardsHook.ts')
+const HOOK_PATH = join(ROOT, 'src', 'guards', 'wardsGuard.ts')
 
 function importSpecifiers(source: string): string[] {
   const out: string[] = []
@@ -44,18 +44,18 @@ async function main(): Promise<void> {
   section('§2 hook import census — the adjudicated set, nothing else')
   {
     const ADJUDICATED = new Set([
-      '../projectConfig.js',
+      '../utils/projectConfig.js',
       'node:fs',
       'node:path',
-      '../../substrate/flagRegistry.js',
-      '../cwd.js',
-      '../debug.js',
-      '../messageQueueManager.js',
-      '../wards/wards.js',
-      './sessionHooks.js',
-      '../../context/notifications.js',
-      '../messages/systemMessages.js',
-      '../path.js',
+      '../substrate/flagRegistry.js',
+      '../utils/cwd.js',
+      '../utils/debug.js',
+      '../utils/messageQueueManager.js',
+      '../utils/wards/wards.js',
+      './guards.js',
+      '../context/notifications.js',
+      '../utils/messages/systemMessages.js',
+      '../utils/path.js',
     ])
     const hookImports = importSpecifiers(hookSrc)
     check('the hook imports something (parse sanity)', hookImports.length > 0)
@@ -98,10 +98,10 @@ async function main(): Promise<void> {
   {
     delete process.env.MERCURY_WARDS
     const { BUILTIN_WARDS, evaluateWards } = await import('../../src/utils/wards/wards.js')
-    const { registerWardsHook, resetWardsEngagedSessionsForTest } = await import(
-      '../../src/utils/hooks/wardsHook.js'
+    const { registerWardsGuard, resetWardsEngagedSessionsForTest } = await import(
+      '../../src/guards/wardsGuard.js'
     )
-    const { getSessionFunctionHooks } = await import('../../src/utils/hooks/sessionHooks.js')
+    const { judgeToolCall } = await import('../../src/guards/guards.js')
 
     const realFetch = globalThis.fetch
     let dialed = 0
@@ -126,33 +126,21 @@ async function main(): Promise<void> {
         state = updater(state)
       }) as never
       resetWardsEngagedSessionsForTest()
-      const id = registerWardsHook(setAppState, 'w-model-free')
+      const id = registerWardsGuard(setAppState, 'w-model-free')
       check('hook registers offline', id !== null)
-      const matchers =
-        getSessionFunctionHooks(
-          { sessionHooks: state.sessionHooks } as never,
-          'w-model-free',
-          'PreToolUse',
-        ).get('PreToolUse' as never) ?? []
-      const hooks = matchers.flatMap(
-        (m: { hooks: Array<{ callback: (mm: never[], s?: never, c?: unknown) => unknown }> }) =>
-          m.hooks,
-      )
-      const denial = await hooks[0]!.callback([], undefined as never, {
-        hookInput: {
-          tool_name: 'Edit',
-          tool_input: {
-            file_path: 'src/components/Foo.tsx',
-            old_string: '',
-            new_string: "const c = '#AB12CD'",
-          },
+      const denial = await judgeToolCall('w-model-free', {
+        tool: 'Edit',
+        input: {
+          file_path: 'src/components/Foo.tsx',
+          old_string: '',
+          new_string: "const c = '#AB12CD'",
         },
+        callId: 'model-free-edit',
+        messages: [],
       })
-      check('armed-hook denial round-trips offline (teaching string)', typeof denial === 'string')
-      const allow = await hooks[0]!.callback([], undefined as never, {
-        hookInput: { tool_name: 'Bash', tool_input: { command: 'git status' } },
-      })
-      check('armed-hook allow round-trips offline', allow === true)
+      check('armed-hook denial round-trips offline (teaching string)', denial.refused && typeof denial.reason === 'string')
+      const allow = await judgeToolCall('w-model-free', { tool: 'Bash', input: { command: 'git status' }, callId: 'model-free-bash', messages: [] })
+      check('armed-hook allow round-trips offline', allow.refused === false)
       check('the stubbed fetch was never called', dialed === 0, `${dialed} dial(s)`)
       resetWardsEngagedSessionsForTest()
     } finally {

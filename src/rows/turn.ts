@@ -27,12 +27,12 @@ import { cloneFileStateCache } from '../utils/fileStateCache.js'
 import { reconstructContentReplacementState, type ContentReplacementState } from '../utils/toolResultStorage.js'
 import { fileHistoryEnabled, fileHistoryMakeSnapshot } from '../utils/fileHistory.js'
 import { headlessProfilerCheckpoint } from '../utils/headlessProfiler.js'
-import { engageCommitGate } from '../utils/hooks/commitGate.js'
-import { registerForcedReadHook } from '../utils/hooks/forcedReadHook.js'
-import { registerStructuredOutputEnforcement } from '../utils/hooks/hookHelpers.js'
-import { registerRunStopHook } from '../utils/hooks/runStopHook.js'
-import { lastAssistantText } from '../utils/hooks/runStopAdapter.js'
-import { registerWardsHook } from '../utils/hooks/wardsHook.js'
+import { engageCommitGate } from '../guards/commitGate.js'
+import { registerForcedReadGuard } from '../guards/forcedRead.js'
+import { registerStructuredOutputGuard } from '../guards/structuredOutput.js'
+import { registerRunStopGuard } from '../guards/runStop.js'
+import { lastAssistantText } from '../guards/runStopAdapter.js'
+import { registerWardsGuard } from '../guards/wardsGuard.js'
 import { parseBlockerDeclaration } from '../services/run/blockerDeclaration.js'
 import { getInMemoryErrors, logError } from '../utils/log.js'
 import { normalizeMessages } from '../utils/messages.js'
@@ -384,15 +384,15 @@ export class Conversation {
 
     const sessionId = getSessionId()
     const hasSyntheticOutputTool = config.tools.some(tool => tool.name === SYNTHETIC_OUTPUT_TOOL_NAME)
-    if (config.jsonSchema && hasSyntheticOutputTool) registerStructuredOutputEnforcement(config.setAppState, sessionId)
+    if (config.jsonSchema && hasSyntheticOutputTool) registerStructuredOutputGuard(sessionId)
     const forcedReadList = (flagEnv('MERCURY_FORCE_READ_FILES') ?? '')
       .split(',')
       .map(entry => entry.trim())
       .filter(entry => entry.length > 0)
-    if (forcedReadList.length > 0) registerForcedReadHook(config.setAppState, sessionId, forcedReadList)
-    registerWardsHook(config.setAppState, sessionId)
-    registerRunStopHook(config.setAppState, sessionId)
-    engageCommitGate(config.setAppState, getSessionId())
+    if (forcedReadList.length > 0) registerForcedReadGuard(sessionId, forcedReadList)
+    registerWardsGuard(config.setAppState, sessionId)
+    registerRunStopGuard(sessionId)
+    engageCommitGate(sessionId)
     assertSingleRole()
     armWorkerParentWatch()
 

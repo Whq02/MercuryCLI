@@ -8,7 +8,7 @@ import type { AssistantMessage, Message } from '../types/message.js'
 import { logForDebugging } from './debug.js'
 import type { FileHistorySnapshot } from './fileHistory.js'
 import { fileHistoryRestoreStateFromLog } from './fileHistory.js'
-import { rearmMissionFromCard } from './hooks/missionHook.js'
+import { rearmMissionFromCard } from '../guards/mission.js'
 import { migrateOrphanedMissionCard } from '../services/mission/missionCard.js'
 import { billingSafeRetainedForm, servedModelOfAssistantRow } from './model/retainedModel.js'
 import { isTaskToolsEnabled } from './tasks.js'
@@ -65,18 +65,17 @@ export async function restoreSessionStateFromLog(
   const adopted = adoptedSessionIdOf(result)
   if (adopted === getSessionId()) await restoreCostStateForSession(adopted, result.fullPath)
 
-  restoreMissionContinuity(result, setAppState)
+  restoreMissionContinuity(result)
 
 }
 
 export function restoreMissionContinuity(
   result: Pick<ResumedConversationLog, 'messages' | 'sessionId'>,
-  setAppState: (updater: (prev: AppState) => AppState) => void,
 ): boolean {
   try {
     const adopted = adoptedSessionIdOf(result)
     migrateOrphanedMissionCard(adopted)
-    return rearmMissionFromCard(setAppState, { cardSessionId: adopted, armSessionId: adopted })
+    return rearmMissionFromCard({ cardSessionId: adopted, armSessionId: adopted })
   } catch (error) {
     logForDebugging(`resume: mission re-arm failed: ${String(error)}`)
     return false

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # gate-class: pure
-# gate-watch: src/utils/hooks/wardsHook* src/utils/markdownConfigLoader* src/utils/projectConfig*
+# gate-watch: src/guards/wardsGuard* src/utils/markdownConfigLoader* src/utils/projectConfig*
 # gate-watch: src/entrypoints/projectRoot.ts
 # gate-watch: scripts/lib/project-home.sh
 # gate-watch: scripts/lib/platformPath.ts scripts/sessionStorage/prove-sessionstorage-parity.ts

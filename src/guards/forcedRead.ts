@@ -3,12 +3,11 @@ import { resolve } from 'path'
 import {
   claimContinuation,
   turnBoundaryIndex,
-} from '../../services/run/continuationLatch.js'
-import { processMainOwner } from '../../services/run/resolveOwner.js'
-import type { Message } from '../../types/message.js'
-import { logForDebugging } from '../debug.js'
-import type { SetAppState } from '../messageQueueManager.js'
-import { addFunctionHook } from './sessionHooks.js'
+} from '../services/run/continuationLatch.js'
+import { processMainOwner } from '../services/run/resolveOwner.js'
+import type { Message } from '../types/message.js'
+import { logForDebugging } from '../utils/debug.js'
+import { engageTurnGuard } from './guards.js'
 
 const READ_TOOL_NAMES = new Set(['Read', 'NotebookRead'])
 
@@ -38,8 +37,8 @@ export function collectReadFilePaths(messages: Message[]): Set<string> {
   return read
 }
 
-export function registerForcedReadHook(
-  setAppState: SetAppState,
+
+export function registerForcedReadGuard(
   sessionId: string,
   targetFiles: string[],
   options?: { maxBlocks?: number },
@@ -59,26 +58,23 @@ export function registerForcedReadHook(
   }
   const describe = (p: string): string =>
     missing.has(p) ? `${p} (not found)` : p
-  addFunctionHook(
-    setAppState,
-    sessionId,
-    'Stop',
-    '',
-    messages => {
-      if (blocks >= maxBlocks) return true
+  const words = `You have not yet read a required file in this session. Before you can stop, use the Read tool on each of these files you have not read yet: ${targets
+    .map(describe)
+    .join(', ')}.`
+  engageTurnGuard(sessionId, {
+    id: FORCED_READ_STOP_HOOK_ID,
+    timeoutMs: 5000,
+    judge: ({ messages }) => {
+      if (blocks >= maxBlocks) return { hold: false }
       const read = collectReadFilePaths(messages)
       const unread = targets.filter(p => !read.has(p))
-      if (unread.length === 0) return true
+      if (unread.length === 0) return { hold: false }
       if (!claimContinuation(processMainOwner(), turnBoundaryIndex(messages), messages.length)) {
-        return true
+        return { hold: false }
       }
       blocks++
-      return false
+      return { hold: true, words }
     },
-    `You have not yet read a required file in this session. Before you can stop, use the Read tool on each of these files you have not read yet: ${targets
-      .map(describe)
-      .join(', ')}.`,
-    { timeout: 5000, id: FORCED_READ_STOP_HOOK_ID },
-  )
+  })
   forcedReadEngagedSessions.add(sessionId)
 }

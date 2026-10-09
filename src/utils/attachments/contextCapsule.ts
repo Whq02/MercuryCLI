@@ -132,7 +132,7 @@ export async function getContextCapsuleAttachment(
     const { assembleContextCapsule, renderCapsule } =
       require('../../services/projectIntel/capsule.js') as typeof import('../../services/projectIntel/capsule.js')
     const { getActiveMission } =
-      require('../hooks/missionHook.js') as typeof import('../hooks/missionHook.js')
+      require('../../guards/mission.js') as typeof import('../../guards/mission.js')
 
     const workspace = getOriginalCwd()
     const recentAbs = cacheKeys(toolUseContext.readFileState).slice(-10)

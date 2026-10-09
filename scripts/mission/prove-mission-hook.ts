@@ -4,7 +4,7 @@ import {
   MISSION_MET_SENTINEL,
   MISSION_DIRECTIVE_HEADER,
   buildMissionDirective,
-} from '../../src/utils/hooks/missionHook.js'
+} from '../../src/guards/mission.js'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
@@ -97,7 +97,7 @@ check(
 )
 
 section('sticky `met` flag wired in the Stop callback (structural)')
-const gh = src('utils', 'hooks', 'missionHook.ts')
+const gh = src('guards', 'mission.ts')
 check(
   'the block re-prompt (errorMessage) teaches the snapshot-condition rule',
   /snapshot-style condition[\s\S]{0,180}past the described state is completion/i.test(gh),
@@ -107,7 +107,7 @@ check(
   /Mission met — stops are allowed/.test(src('commands', 'mission', 'mission-jsx.tsx')) &&
     /Mission DISARMED \(block cap reached/.test(src('commands', 'mission', 'mission-jsx.tsx')),
 )
-check('callback short-circuits on mission.met (sticky completion)', /if \(mission\.met\) return true/.test(gh))
+check('the judge short-circuits on mission.met (sticky completion)', /if \(mission\.met\) return \{ hold: false \}/.test(gh))
 check('callback sets mission.met = true when the sentinel is first seen', /mission\.met = true/.test(gh))
 check('ActiveMission carries the met field', /met\?:\s*boolean/.test(gh))
 

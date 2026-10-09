@@ -6,18 +6,14 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 
-import type { AppState } from '../../src/state/AppState.js'
 import type { Message } from '../../src/types/message.js'
 import { runWithCwdOverride } from '../../src/utils/cwd.js'
 import {
   COMMIT_GATE_ID,
   disengageCommitGate,
   engageCommitGate,
-} from '../../src/utils/hooks/commitGate.js'
-import {
-  getSessionFunctionHooks,
-  type FunctionHookContext,
-} from '../../src/utils/hooks/sessionHooks.js'
+} from '../../src/guards/commitGate.js'
+import { guardsEngaged, judgeToolCall } from '../../src/guards/guards.js'
 import { evaluateStop } from '../../src/services/run/completionEvaluator.js'
 import {
   generatePreview,
@@ -47,27 +43,19 @@ for (const k of PINNED) {
 const vs = await import('../../src/utils/verification/verificationState.js')
 const scratch = mkdtempSync(join(tmpdir(), 'vigil-avs-'))
 
-let state = { sessionHooks: new Map() } as unknown as AppState
-const setAppState = (u: (p: AppState) => AppState): void => {
-  state = u(state)
-}
 const SESSION = 'vigil-avs'
 process.env.MERCURY_COMMIT_GATE = '1'
-check('setup: the standalone commit gate engages', engageCommitGate(setAppState, SESSION) === true)
-const hookById = (id: string) => {
-  const matchers = getSessionFunctionHooks(state, SESSION, 'PreToolUse').get('PreToolUse') ?? []
-  return matchers.flatMap(m => m.hooks).find(h => h.id === id)
+check('setup: the standalone commit gate engages', engageCommitGate(SESSION) === true)
+check('setup: the commit gate registered', guardsEngaged(SESSION).tool.includes(COMMIT_GATE_ID))
+const commitGateAllows = async (command: string): Promise<true | string> => {
+  const verdict = await judgeToolCall(SESSION, { tool: 'Bash', input: { command }, callId: 'avs-call', messages: [] })
+  return verdict.refused ? verdict.reason : true
 }
-const commitHook = hookById(COMMIT_GATE_ID)
-check('setup: the commit gate registered', !!commitHook)
 
 const mkAssistant = (blocks: unknown[]): Message =>
   ({ type: 'assistant', message: { content: blocks } }) as unknown as Message
 const mkUser = (blocks: unknown[]): Message =>
   ({ type: 'user', message: { content: blocks } }) as unknown as Message
-const preTool = (tool_name: string, tool_input: Record<string, unknown>): FunctionHookContext => ({
-  hookInput: { hook_event_name: 'PreToolUse', tool_name, tool_input } as never,
-})
 
 console.log('\n=== A. the read-back demand is satisfiable through the ONE contract store (field L429→L434) ===')
 {
@@ -129,27 +117,23 @@ console.log('\n=== B. commit-gate fresh receipts (field L357) ===')
 
   const commitCmd = 'git add -A _meta && git commit -m "docs(meta): reconcile the ledgers"'
   const fresh = await runWithCwdOverride(repo, () =>
-    Promise.resolve(commitHook!.callback([], undefined, preTool('Bash', { command: commitCmd }))),
+    commitGateAllows(commitCmd),
   )
   check('fresh current-tree receipt passes the commit gate (no rerun)', fresh === true, String(fresh))
 
   vs.observeCompletedToolCall('Edit', { file_path: join(repo, 'canon.md') }, true, repo)
   const stale = await runWithCwdOverride(repo, () =>
-    Promise.resolve(commitHook!.callback([], undefined, preTool('Bash', { command: commitCmd }))),
+    commitGateAllows(commitCmd),
   )
   check('a post-receipt mutation re-denies (stale receipts refuse)', stale !== true)
 
   const piped = await runWithCwdOverride(repo, () =>
-    Promise.resolve(
-      commitHook!.callback([], undefined, preTool('Bash', {
-        command: 'set -o pipefail && npm test 2>&1 | tail -40 && git commit -m "x"',
-      })),
-    ),
+    commitGateAllows('set -o pipefail && npm test 2>&1 | tail -40 && git commit -m "x"'),
   )
   check('pipefail|tail verify→commit form passes (readable AND gated)', piped === true, String(piped))
 
   const noVerify = await runWithCwdOverride(repo, () =>
-    Promise.resolve(commitHook!.callback([], undefined, preTool('Bash', { command: 'git commit --no-verify -m "x"' }))),
+    commitGateAllows('git commit --no-verify -m "x"'),
   )
   check('--no-verify stays denied even with receipts', noVerify !== true)
 }
@@ -176,7 +160,7 @@ console.log('\n=== C. preview truth: the 181.5 KB chain + the base64 line ===')
   check('the clamp marker names the original length', p2.preview.includes('…[line clamped:'))
 }
 
-disengageCommitGate(setAppState, SESSION)
+disengageCommitGate(SESSION)
 vs._resetVerificationStateForTesting()
 rmSync(scratch, { recursive: true, force: true })
 for (const [k, v] of saved) {

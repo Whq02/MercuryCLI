@@ -1,32 +1,32 @@
 
-import { parseBlockerDeclaration } from '../../services/run/blockerDeclaration.js'
-import { parseOperatorPauseDirective } from '../../services/run/operatorPause.js'
-import { evaluateStop, type StopDecision } from '../../services/run/completionEvaluator.js'
+import { parseBlockerDeclaration } from '../services/run/blockerDeclaration.js'
+import { parseOperatorPauseDirective } from '../services/run/operatorPause.js'
+import { evaluateStop, type StopDecision } from '../services/run/completionEvaluator.js'
 import {
   continuationsThisTurn,
   turnBoundaryIndex,
-} from '../../services/run/continuationLatch.js'
-import type { OwnerKey } from '../../services/run/ownerKey.js'
-import { processMainOwner } from '../../services/run/resolveOwner.js'
+} from '../services/run/continuationLatch.js'
+import type { OwnerKey } from '../services/run/ownerKey.js'
+import { processMainOwner } from '../services/run/resolveOwner.js'
 import {
   getRunSnapshot,
   noteRunEvent,
   syncDeliverablesFromTasks,
   syncVerification,
-} from '../../services/run/runCoordinator.js'
-import { isTerminalLifecycle } from '../../services/run/runKernel.js'
-import { resolveInvocationContract } from '../../services/run/invocationContract.js'
-import { getActiveMission } from './missionHook.js'
-import type { Message } from '../../types/message.js'
-import { getIsInteractive } from '../../bootstrap/state.js'
-import { getCwd } from '../cwd.js'
-import { isEnvDefinedFalsy, isEnvTruthy } from '../envUtils.js'
-import { flagEnv } from '../../substrate/flagRegistry.js'
+} from '../services/run/runCoordinator.js'
+import { isTerminalLifecycle } from '../services/run/runKernel.js'
+import { resolveInvocationContract } from '../services/run/invocationContract.js'
+import { getActiveMission } from './mission.js'
+import type { Message } from '../types/message.js'
+import { getIsInteractive } from '../bootstrap/state.js'
+import { getCwd } from '../utils/cwd.js'
+import { isEnvDefinedFalsy, isEnvTruthy } from '../utils/envUtils.js'
+import { flagEnv } from '../substrate/flagRegistry.js'
 import {
   evidenceDemandCount,
   verificationSummary,
   workspaceVerifiable,
-} from '../verification/verificationState.js'
+} from '../utils/verification/verificationState.js'
 
 function safeIsInteractive(): boolean {
   try {
@@ -265,12 +265,12 @@ export function mintDeliveryArtifact(owner: OwnerKey, runId: string, hasChanges:
   void (async () => {
     try {
       const { createWalkthroughArtifact } = await import(
-        '../../services/walkthrough/assembleWalkthrough.js'
+        '../services/walkthrough/assembleWalkthrough.js'
       )
       const { computeWorkingTreeDigestAsync } = await import(
-        '../verification/verificationState.js'
+        '../utils/verification/verificationState.js'
       )
-      const { getSessionId } = await import('../../bootstrap/state.js')
+      const { getSessionId } = await import('../bootstrap/state.js')
       let sessionId = 'unknown-session'
       try {
         sessionId = String(getSessionId())

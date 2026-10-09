@@ -2589,7 +2589,7 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
           id: 'wards',
           label: 'Content wards',
           run: async () => {
-            const { wardsEnabled, loadProjectWardsWithReport } = await import('./hooks/wardsHook.js')
+            const { wardsEnabled, loadProjectWardsWithReport } = await import('../guards/wardsGuard.js')
             const { BUILTIN_WARDS } = await import('./wards/wards.js')
             if (!wardsEnabled()) {
               return { status: 'off', evidence: 'MERCURY_WARDS=0 set — content wards off for this session' }

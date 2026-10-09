@@ -3,7 +3,7 @@
 # gate-watch: src/services/providers/meta/metaCatalogue.ts src/services/providers/xai/xaiCatalogue.ts
 # gate-watch: scripts/lib/seedTranscript.ts
 # gate-watch: src/utils/sessionStoragePortable*
-# gate-watch: src/utils/hooks/missionHook* src/services/mission/missionCard* src/utils/sessionRestore*
+# gate-watch: src/guards/mission* src/services/mission/missionCard* src/utils/sessionRestore*
 # gate-watch: src/services/providers/anthropic/** src/services/providers/toolEconomy.ts src/services/api/dumpPrompts.ts
 # gate-watch: src/components/mercury-ui/parity/AccountView* src/services/providers/accountSlots.ts scripts/journey/prove-accounts-header-drive.ts
 # gate-watch: src/components/mercury-ui/screens/anthropicLoginModel* src/services/oauth/** src/components/BootLoginsScreen* scripts/journey/prove-signin-receipt-drive.ts

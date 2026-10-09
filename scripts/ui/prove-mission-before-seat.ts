@@ -4,7 +4,7 @@ import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSy
 import { join, resolve } from 'node:path'
 import { findRows, firstOutputTs, runArtifactArena, type ArenaRun } from '../streaming/artifactArena.ts'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
-import { MISSION_MET_SENTINEL } from '../../src/utils/hooks/missionHook.ts'
+import { MISSION_MET_SENTINEL } from '../../src/guards/mission.ts'
 
 const argument = (name: string): string | undefined => {
   const at = process.argv.indexOf(name)

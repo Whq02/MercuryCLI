@@ -77,6 +77,7 @@ export function PermissionRuleExplanation({
         </Box>
       )
     case 'safetyCheck':
+    case 'guard':
     case 'other': {
       const text =
         (reason as { message?: string; reason?: string }).message ??

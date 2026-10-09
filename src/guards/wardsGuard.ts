@@ -1,19 +1,18 @@
 
-import { resolveProjectConfigPath } from '../projectConfig.js'
+import { resolveProjectConfigPath } from '../utils/projectConfig.js'
 import { closeSync, constants, existsSync, fstatSync, openSync, readFileSync, readSync, realpathSync } from 'node:fs'
 import { dirname, isAbsolute, join, sep } from 'node:path'
-import { enqueueNotification } from '../../context/notifications.js'
-import { flagEnabled, flagEnv } from '../../substrate/flagRegistry.js'
-import { getCwd } from '../cwd.js'
-import { logForDebugging } from '../debug.js'
-import type { SetAppState } from '../messageQueueManager.js'
-import { createSystemMessage } from '../messages/systemMessages.js'
-import { expandPath } from '../path.js'
+import { enqueueNotification } from '../context/notifications.js'
+import { flagEnabled, flagEnv } from '../substrate/flagRegistry.js'
+import { getCwd } from '../utils/cwd.js'
+import { logForDebugging } from '../utils/debug.js'
+import type { SetAppState } from '../utils/messageQueueManager.js'
+import { createSystemMessage } from '../utils/messages/systemMessages.js'
+import { expandPath } from '../utils/path.js'
 import {
   AUTONOMOUS_WARDS,
   BUILTIN_WARDS,
   REFUSAL_WARDS,
-  WARDS_TOOL_MATCHER,
   buildWardDenial,
   countWardWork,
   evaluateWards,
@@ -22,8 +21,8 @@ import {
   type ResolvedPath,
   type WardRule,
   type WardWork,
-} from '../wards/wards.js'
-import { addFunctionHook } from './sessionHooks.js'
+} from '../utils/wards/wards.js'
+import { engageToolGuard } from './guards.js'
 
 export const WARDS_HOOK_ID = 'wards-content-rules'
 
@@ -182,7 +181,7 @@ export function resetWardsEngagedSessionsForTest(): void {
   wardsEngagedSessions.clear()
 }
 
-export function registerWardsHook(
+export function registerWardsGuard(
   setAppState: SetAppState,
   sessionId: string,
   work?: WardWork,
@@ -209,31 +208,19 @@ export function registerWardsHook(
   ]
   const resolveTarget = makeTargetResolver(getCwd(), work)
   let denials = 0
-  addFunctionHook(
-    setAppState,
-    sessionId,
-    'PreToolUse',
-    WARDS_TOOL_MATCHER,
-    (_messages, _signal, context) => {
+  engageToolGuard(sessionId, {
+    id: WARDS_HOOK_ID,
+    timeoutMs: 5000,
+    judge: call => {
       const level = wardsLevel()
-      if (level === 'off') return true
+      if (level === 'off') return { allow: true }
       try {
-        const hookInput = context?.hookInput as
-          | { tool_name?: unknown; tool_input?: unknown; tool_use_id?: unknown }
-          | undefined
-        if (!hookInput || typeof hookInput.tool_name !== 'string') return true
-        const pending: PendingToolCall = {
-          toolName: hookInput.tool_name,
-          input:
-            hookInput.tool_input && typeof hookInput.tool_input === 'object'
-              ? (hookInput.tool_input as Record<string, unknown>)
-              : {},
-        }
-        pending.shellCommand = context?.tool?.shellCommandOf?.(pending.input)
+        const pending: PendingToolCall = { toolName: call.tool, input: call.input }
+        pending.shellCommand = call.toolRef?.shellCommandOf?.(pending.input)
         pending.readHead = work === undefined ? readTargetHead : path => readTargetHead(path, work)
         pending.resolvePath = resolveTarget
         const refusal = evaluateWards(REFUSAL_WARDS, pending, work)
-        if (!refusal.allow && level !== 'warn') return buildWardDenial(refusal, pending.toolName)
+        if (!refusal.allow && level !== 'warn') return { allow: false, reason: buildWardDenial(refusal, pending.toolName) }
         if (denials < WARD_DENIAL_CAP) {
           const verdict = evaluateWards(rules, pending, work)
           if (!verdict.allow) {
@@ -244,28 +231,24 @@ export function registerWardsHook(
                 `wards: denial cap (${WARD_DENIAL_CAP}) reached for session ${sessionId} — standing down`,
               )
             }
-            return denial
+            return { allow: false, reason: denial }
           }
         }
-        if (refusal.allow) return true
+        if (refusal.allow) return { allow: true }
         logForDebugging(`wards: warn — ${buildWardDenial(refusal, pending.toolName)}`)
         return {
-          pass: true,
+          allow: true,
           note: createSystemMessage(
             `Ward '${refusal.rule.name}' would have blocked this ${pending.toolName} call — matched "${refusal.excerpt}" (${refusal.target}:${refusal.line}); MERCURY_WARDS=warn let it run.`,
             'warning',
-            typeof hookInput.tool_use_id === 'string' ? hookInput.tool_use_id : undefined,
+            call.callId,
           ),
         }
       } catch {
-        return true
+        return { allow: true }
       }
     },
-    `Ward blocked this tool call: it violates a mechanical content rule ` +
-      `(see .mercury/wards.json + the builtin Mercury hard rules). Rewrite the ` +
-      `call to comply.`,
-    { timeout: 5000, id: WARDS_HOOK_ID },
-  )
+  })
   wardsEngagedSessions.add(sessionId)
   return WARDS_HOOK_ID
 }
