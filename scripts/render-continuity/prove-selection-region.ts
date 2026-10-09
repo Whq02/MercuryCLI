@@ -1,5 +1,6 @@
 #!/usr/bin/env bun
 import { spawnSync } from 'node:child_process'
+import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { vshotBudgetMs as S } from '../lib/captureDriver.ts'
@@ -53,6 +54,7 @@ type RunSpec = {
   name: string
   turns: ScriptedTurn[]
   dragAt: number
+  dragAfter?: string
   origin: [number, number]
   path: [number, number][]
   end: [number, number]
@@ -85,6 +87,7 @@ const specs: RunSpec[] = [
     name: 'run3 live-growing drag',
     turns: turnsLive,
     dragAt: 10500,
+    dragAfter: `${WORDS[11]}-segment`,
     origin: [40, 11],
     path: [[60, 11], [70, 12], [76, 12]],
     end: [80, 13],
@@ -165,15 +168,14 @@ specs.push({
 
 const activeSpecs = process.env.POISE_ONLY_RAIL ? specs.filter(sp => sp.kind === 'rail') : specs
 for (const spec of activeSpecs) {
-  const dragSends = [
-    `${spec.dragAt}:${press(...spec.origin)}`,
-    ...spec.path.map((p, i) => `${spec.dragAt + 250 * (i + 1)}:${move(...p)}`),
-    `${spec.dragAt + 250 * (spec.path.length + 1)}:${move(...spec.end)}`,
-    `${spec.dragAt + 250 * (spec.path.length + 1) + 350}:${release(...spec.end)}`,
-    ...(spec.kind === 'resize'
-      ? [`${spec.dragAt + 2600}:${press(30, 12)}${release(30, 12)}`]
-      : []),
+  const gesture: [number, string][] = [
+    [0, press(...spec.origin)],
+    ...spec.path.map((p, i): [number, string] => [250 * (i + 1), move(...p)]),
+    [250 * (spec.path.length + 1), move(...spec.end)],
+    [250 * (spec.path.length + 1) + 350, release(...spec.end)],
+    ...(spec.kind === 'resize' ? [[2600, `${press(30, 12)}${release(30, 12)}`] as [number, string]] : []),
   ]
+  const dragSends = gesture.map(([offset, payload]) => (spec.dragAfter === undefined ? `${spec.dragAt + offset}:${payload}` : `after:${spec.dragAfter}:${offset}:${payload}`))
   const run = await runPulseArena({
     turns: spec.turns,
     sends: ['2000:\\r', '6000:selection probe\\r', ...dragSends],
@@ -183,12 +185,20 @@ for (const spec of activeSpecs) {
     keep: true,
     extraEnv: { ...OSC52_ENV, COLORTERM: 'truecolor' },
   })
+  const pressAt = ((): number => {
+    if (spec.dragAfter === undefined) return anchoredOffset(run, S(spec.dragAt))
+    const records = readFileSync(run.paths.drive, 'utf8').split('\n').filter(Boolean).map(line => JSON.parse(line) as { ts?: number; sent?: number; after?: string })
+    const firstOutput = records.find(r => typeof r.ts === 'number')?.ts
+    const pressed = records.find(r => typeof r.sent === 'number' && r.after === spec.dragAfter)?.sent
+    return firstOutput === undefined || pressed === undefined ? -1 : pressed - firstOutput
+  })()
   const grab = spawnSync(
     '/usr/bin/python3',
-    [ATTRGRAB, run.paths.drive, '120', '40', String(anchoredOffset(run, S(spec.dragAt - 200))), String(anchoredOffset(run, S(spec.dragAt + 650))), String(anchoredOffset(run, S(spec.dragAt + 1150))), '-1'],
+    [ATTRGRAB, run.paths.drive, '120', '40', String(pressAt - S(200)), String(pressAt + S(650)), String(pressAt + S(1150)), '-1'],
     { encoding: 'utf8' },
   )
   t.section(spec.name)
+  if (spec.dragAfter !== undefined) t.check(`the drag pressed once ${spec.dragAfter} had painted (the body's third row exists while the text still streams)`, pressAt > 0, pressAt > 0 ? `pressed @${pressAt}` : 'the press has no record in the drive')
   if (grab.status !== 0) {
     t.check('attrgrab ran', false, grab.stderr)
     run.cleanup()
