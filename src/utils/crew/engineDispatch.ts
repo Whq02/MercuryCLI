@@ -21,6 +21,8 @@ import {
 } from '../../services/providers/openaicompat/compatAccounts.js'
 import { COMPAT_MODEL_PREFIX, isCompatModelId } from '../../services/providers/routeLaw.js'
 import { HUGGINGFACE_STATIC_CATALOGUE, huggingfaceLiveCatalogue } from '../router/providers/huggingface.js'
+import { zenCatalogueEntries, zenCatalogueEntry } from '../router/providers/zen.js'
+import { isZenModelId } from '../../services/providers/zen/zenPins.js'
 import { localLiveCatalogue } from '../router/providers/local.js'
 import {
   HUGGINGFACE_MODEL_PREFIX,
@@ -65,7 +67,8 @@ export function isExactEngineModelId(v: unknown): v is string {
     isCompatModelId(v) ||
     isHuggingfaceModelId(v) ||
     isLocalModelId(v) ||
-    isOpenrouterModelId(v)
+    isOpenrouterModelId(v) ||
+    isZenModelId(v)
   )
 }
 
@@ -116,6 +119,7 @@ type EngineProvider =
   | 'local'
   | 'gemini'
   | 'openrouter'
+  | 'zen'
 
 export interface EngineDispatch {
   backend: EngineProvider
@@ -435,6 +439,17 @@ export async function resolveEngineDispatch(
     if (isLocalModelId(id)) {
       await requireProviderAvailable('local')
       return resolveLocalExactModel(id)
+    }
+    if (isZenModelId(id)) {
+      await requireProviderAvailable('zen')
+      if (!zenCatalogueEntry(id)) await readCatalogueIfPending('zen')
+      const pin = zenCatalogueEntry(id)
+      if (!pin) {
+        throw new Error(
+          `OpenCode Zen model '${id}' is not a catalogue-verified id (listed: ${zenCatalogueEntries().map(c => c.id).join(', ')}) — never dispatching an unverified id.`,
+        )
+      }
+      return { backend: 'zen', model: pin.id, displayLabel: pin.displayLabel }
     }
     if (isCompatModelId(id)) {
       await requireProviderAvailable('openai-compat')
