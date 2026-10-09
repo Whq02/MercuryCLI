@@ -298,7 +298,7 @@ export async function execCommandHook(
   const safeCwd = (await pathExists(hookCwd)) ? hookCwd : getOriginalCwd()
   if (safeCwd !== hookCwd) {
     logForDebugging(
-      `Hooks: cwd ${hookCwd} not found, falling back to original cwd`,
+      `hook cwd ${hookCwd} is gone; running in ${safeCwd} instead`,
       { level: 'warn' },
     )
   }
@@ -308,9 +308,8 @@ export async function execCommandHook(
     const pwshPath = await getCachedPowerShellPath()
     if (!pwshPath) {
       throw new Error(
-        `Hook "${hook.command}" has shell: 'powershell' but no PowerShell ` +
-          `executable (pwsh or powershell) was found on PATH. Install ` +
-          `PowerShell, or remove "shell": "powershell" to use bash.`,
+        `No PowerShell on PATH (pwsh or powershell) for hook "${hook.command}", which asks for it: ` +
+          `install PowerShell, or remove "shell": "powershell" so the hook runs under bash.`,
       )
     }
     child = spawn(pwshPath, buildPowerShellArgs(finalCommand), {
@@ -380,7 +379,7 @@ export async function execCommandHook(
   if ((hook.async || hook.wake) && !forceSyncExecution) {
     const processId = `async_hook_${child.pid}`
     logForDebugging(
-      `Hooks: Config-based async hook, backgrounding process ${processId}`,
+      `hook ${processId} runs in the background (async in its config)`,
     )
 
     child.stdin.write(jsonInput + '\n', 'utf8')
@@ -499,7 +498,7 @@ export async function execCommandHook(
         if (isAsyncHookJSONOutput(parsed) && !forceSyncExecution) {
           const processId = `async_hook_${child.pid}`
           logForDebugging(
-            `Hooks: Detected async hook, backgrounding process ${processId}`,
+            `hook ${processId} runs in the background (it answered async)`,
           )
 
           const backgrounded = executeInBackground({
@@ -524,11 +523,7 @@ export async function execCommandHook(
           }
         } else if (isAsyncHookJSONOutput(parsed) && forceSyncExecution) {
           logForDebugging(
-            `Hooks: Detected async hook but forceSyncExecution is true, waiting for completion`,
-          )
-        } else {
-          logForDebugging(
-            `Hooks: Initial response is not async, continuing normal processing`,
+            `hook answered async, but this event runs it to completion`,
           )
         }
       } catch (e) {
@@ -564,7 +559,7 @@ export async function execCommandHook(
             reject(err)
           } else {
             logForDebugging(
-              `Hooks: stdin error during prompt flow (likely process exited): ${err}`,
+              `hook stdin closed early during the prompt exchange (the process likely exited): ${err}`,
             )
           }
         })
