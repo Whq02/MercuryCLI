@@ -194,7 +194,7 @@ export type EffortVocabularyView =
   | { kind: 'ladder'; source: 'first-party' | 'unknown-id'; vocabulary: readonly EffortLevel[] }
   | {
       kind: 'provider'
-      source: 'gpt-live' | 'glm' | 'kimi' | 'deepseek' | 'xai' | 'meta' | 'gemini' | 'openrouter' | 'local'
+      source: 'gpt-live' | 'glm' | 'kimi' | 'deepseek' | 'xai' | 'meta' | 'gemini' | 'openrouter' | 'local' | 'nous'
       vocabulary: readonly string[]
       defaultEffort?: string
       thinkingGated: boolean
@@ -216,6 +216,7 @@ export type EffortVocabularyView =
         | 'local'
         | 'carrier'
         | 'first-party-legacy'
+        | 'nous'
       defaultEffort?: string
     }
 
@@ -287,6 +288,14 @@ export function effortVocabularyFor(model: string): EffortVocabularyView {
     return vocabulary.length > 0
       ? { kind: 'provider', source: 'openrouter', vocabulary, thinkingGated: true, thinkingOffWire: thinkingOffWireEffort(vocabulary) }
       : { kind: 'none', source: 'openrouter' }
+  }
+  if (route === 'nous') {
+    const { nousEffortVocabularyFor } =
+      require('../../services/providers/nous/nousCatalogue.js') as typeof import('../../services/providers/nous/nousCatalogue.js')
+    const vocabulary = nousEffortVocabularyFor(model)
+    return vocabulary.length > 0
+      ? { kind: 'provider', source: 'nous', vocabulary, thinkingGated: true, thinkingOffWire: thinkingOffWireEffort(vocabulary) }
+      : { kind: 'none', source: 'nous' }
   }
   if (route === 'gemini') {
     const { geminiEffortVocabularyFor } =
@@ -508,12 +517,16 @@ export function resolveContextWindow(
   }
 
   const carrierRoute = declaredRouteOf(model)
-  if (carrierRoute === 'openrouter' || carrierRoute === 'gemini') {
+  if (carrierRoute === 'openrouter' || carrierRoute === 'gemini' || carrierRoute === 'nous') {
     const stated =
       carrierRoute === 'openrouter'
         ? (
             require('../../services/providers/openrouter/openrouterCatalogue.js') as typeof import('../../services/providers/openrouter/openrouterCatalogue.js')
           ).openrouterContextWindowFor(normalizeForEnginePins(model))
+        : carrierRoute === 'nous'
+          ? (
+              require('../../services/providers/nous/nousCatalogue.js') as typeof import('../../services/providers/nous/nousCatalogue.js')
+            ).nousContextWindowFor(normalizeForEnginePins(model))
         : (
             require('../../services/providers/gemini/geminiCatalogue.js') as typeof import('../../services/providers/gemini/geminiCatalogue.js')
           ).geminiContextWindowFor(normalizeForEnginePins(model))
@@ -531,7 +544,7 @@ export function resolveContextWindow(
     return finish({
       effectiveWindow: MODEL_CONTEXT_WINDOW_DEFAULT,
       source: 'fallback',
-      fallbackReason: `the ${carrierRoute === 'openrouter' ? 'OpenRouter' : 'Gemini'} catalogue states no context length for this model (or is not fetched yet) — conservative default`,
+      fallbackReason: `the ${carrierRoute === 'openrouter' ? 'OpenRouter' : carrierRoute === 'nous' ? 'Nous Portal' : 'Gemini'} catalogue states no context length for this model (or is not fetched yet) — conservative default`,
     })
   }
 
@@ -731,12 +744,16 @@ export function getModelMaxOutputTokens(model: string): {
   }
 
   const outputRoute = declaredRouteOf(model)
-  if (outputRoute === 'openrouter' || outputRoute === 'gemini') {
+  if (outputRoute === 'openrouter' || outputRoute === 'gemini' || outputRoute === 'nous') {
     const statedOut =
       outputRoute === 'openrouter'
         ? (
             require('../../services/providers/openrouter/openrouterCatalogue.js') as typeof import('../../services/providers/openrouter/openrouterCatalogue.js')
           ).openrouterMaxCompletionTokensFor(normalizeForEnginePins(model))
+        : outputRoute === 'nous'
+          ? (
+              require('../../services/providers/nous/nousCatalogue.js') as typeof import('../../services/providers/nous/nousCatalogue.js')
+            ).nousMaxCompletionTokensFor(normalizeForEnginePins(model))
         : (
             require('../../services/providers/gemini/geminiCatalogue.js') as typeof import('../../services/providers/gemini/geminiCatalogue.js')
           ).geminiOutputTokenLimitFor(normalizeForEnginePins(model))
@@ -975,6 +992,11 @@ function catalogueDeclaresImages(model: string, route: CallModelRoute): boolean 
     case 'local': {
       const declared = localModelRecord(localWireId(model))?.visionDeclared
       return declared === undefined || declared
+    }
+    case 'nous': {
+      const { nousListedModel } =
+        require('../../services/providers/nous/nousCatalogue.js') as typeof import('../../services/providers/nous/nousCatalogue.js')
+      return modalitiesAdmitImages(nousListedModel(model)?.inputModalities)
     }
     default:
       return true
