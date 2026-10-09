@@ -199,6 +199,44 @@ section('(3) the sandbox boundary — source pins at the owners')
   )
 }
 
+section('(4) a dialog context (the cockpit\'s) reaches the fork with the session\'s thinking configuration')
+{
+  const { consoleForkContext } = await import('../../src/utils/cockpit/helmConsoleAsk.ts')
+  const { noteSessionThinkingConfig, sessionThinkingConfig } = await import('../../src/utils/thinking.ts')
+  const owns = typeof consoleForkContext === 'function'
+  check('the console ask owns a fork-context writer', owns)
+  if (owns) {
+    const dialog = {
+      options: { commands: [], engineModel: 'claude-opus-5-5', tools: [], mcpClients: [], isNonInteractiveSession: false },
+      messages: [],
+      abortController: new AbortController(),
+    } as never
+    const completed = consoleForkContext(dialog) as { options: { thinkingConfig?: { type?: string }; engineModel?: string } }
+    check(
+      'a context with NO thinking configuration (the cockpit\'s dialog context) leaves with the session\'s',
+      completed.options.thinkingConfig !== undefined && completed.options.thinkingConfig.type === sessionThinkingConfig().type,
+      JSON.stringify(completed.options.thinkingConfig),
+    )
+    check('…and keeps every other option (the model, the tools)', completed.options.engineModel === 'claude-opus-5-5' && Array.isArray((completed.options as { tools?: unknown }).tools))
+    check('…without rewriting the host\'s own context object', (dialog as { options: { thinkingConfig?: unknown } }).options.thinkingConfig === undefined)
+    noteSessionThinkingConfig({ type: 'disabled' })
+    const offSession = consoleForkContext(dialog) as { options: { thinkingConfig?: { type?: string } } }
+    check('the session\'s configuration is the one noted at boot (thinking off ⇒ the fork declares none)', offSession.options.thinkingConfig?.type === 'disabled')
+    noteSessionThinkingConfig({ type: 'adaptive' })
+    const carrying = { ...dialog, options: { ...(dialog as { options: object }).options, thinkingConfig: { type: 'enabled', budgetTokens: 2048 } } } as never
+    const kept = consoleForkContext(carrying) as { options: { thinkingConfig?: { type?: string; budgetTokens?: number } } }
+    check(
+      'a context that carries its own thinking configuration (a headless host) keeps it',
+      kept === carrying && kept.options.thinkingConfig?.type === 'enabled' && kept.options.thinkingConfig.budgetTokens === 2048,
+    )
+  }
+  const askSource = read('src/utils/cockpit/helmConsoleAsk.ts')
+  check(
+    'both prefix roads (the saved params and the fresh build) hand the fork the completed context, never the raw host context',
+    (askSource.match(/toolUseContext: forkContext,/g) ?? []).length === 2 && !/toolUseContext: context,/.test(askSource),
+  )
+}
+
 console.log('')
 if (failures > 0) {
   console.error(`prove-console-ask: ${failures} failure(s)`)

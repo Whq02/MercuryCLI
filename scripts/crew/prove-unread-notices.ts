@@ -311,12 +311,15 @@ if (ledger === null) {
     const { renderToString } = await import('../../src/utils/staticRender.tsx')
     const { setFocusedSessionConnector } = await import('../../src/services/engine-connector/focusedConnector.ts')
     const { CrewView } = await import('../../src/components/mercury-ui/screens/CrewView.tsx')
+    const NO_ASKS: never[] = []
     const fakeConnector = (work: { rows: WorkRowV1[]; mission: never[] }): never =>
       ({
         sessionId: () => 'fx-session',
         workRoster: () => work,
         subscribeWork: () => () => {},
         subscribeRecords: () => () => {},
+        asks: () => NO_ASKS,
+        subscribeAsks: () => () => {},
         identity: () => ({ firstPartyApi: true, consoleBilling: false, claudeAiBilling: false, accountEmail: null }),
         spawnSwitches: () => ({ subagents: { on: true }, workflows: { on: true } }),
       }) as never

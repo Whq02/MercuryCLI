@@ -50,9 +50,6 @@ import {
   setHelmFocus,
   subscribeHelmFocus,
 } from '../../utils/cockpit/helmFocus.js'
-import {
-  beginConsoleCompose,
-} from '../../utils/cockpit/helmConsole.js'
 import { usePromptInputPlaceholder } from './usePromptInputPlaceholder.js'
 import { useCrewBanner } from './useCrewBanner.js'
 import { isVimModeEnabled } from './utils.js'
@@ -596,10 +593,6 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
         case 'files':
           setHelmFocus('prompt')
           openFilesMenu()
-          break
-        case 'console':
-          setHelmFocus('vitals')
-          beginConsoleCompose()
           break
       }
     }

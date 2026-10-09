@@ -172,8 +172,6 @@ const DOORS: Door[] = [
   row('usage-row', 'usage spend row (select, then activate) → /usage', 'spend none yet', 'Mercury · usage'),
   row('ctx-row', 'ctx row (select, then activate) → /deck', 'ctx — ·', 'Mercury — cockpit'),
   header('workflow-header', 'WORKFLOW card header → /workflows', 'WORKFLOW', 'Mercury — workflows'),
-  header('trace-header', 'TRACE card header → /trace', 'TRACE ·', 'Mercury — trace'),
-  header('console-header', 'CONSOLE card header → /console', 'CONSOLE', 'Mercury — console'),
   header('workbench-header', 'WORKBENCH card header → /workbench', 'WORKBENCH', 'Mercury — prompts'),
   header('files-header', 'FILES card header → the files menu', 'FILES ·', 'Mercury · files'),
   row('files-row', 'FILES browse row (select, then activate) → the files menu', 'or click · browse', 'Mercury · files'),

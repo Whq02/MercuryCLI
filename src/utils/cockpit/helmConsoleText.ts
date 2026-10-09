@@ -1,42 +1,6 @@
 
 import { charWidth, displayWidth } from '../../components/mercury-ui/glyphs.js'
 
-export function plainifyAnswer(text: string): string {
-  const lines = text.replace(/\r\n?/g, '\n').split('\n')
-  const out: string[] = []
-  let inFence = false
-  for (const raw of lines) {
-    if (/^\s*(```|~~~)/.test(raw)) {
-      inFence = !inFence
-      continue
-    }
-    if (inFence) {
-      out.push(raw)
-      continue
-    }
-    let l = raw
-    l = l.replace(/^#{1,6}\s+/, '')
-    l = l.replace(/^\s*>\s?/, '')
-    l = l.replace(/^(\s*)[-*+]\s+/, '$1· ')
-    l = l.replace(/\*\*([^*]+)\*\*/g, '$1')
-    l = l.replace(/__([^_]+)__/g, '$1')
-    l = l.replace(/(^|\W)\*([^*\s][^*]*)\*/g, '$1$2')
-    l = l.replace(/`([^`]+)`/g, '$1')
-    l = l.replace(/\[([^\]]+)\]\([^)]*\)/g, '$1')
-    out.push(l)
-  }
-  const collapsed: string[] = []
-  for (const l of out) {
-    if (l.trim() === '' && collapsed[collapsed.length - 1]?.trim() === '') {
-      continue
-    }
-    collapsed.push(l.trimEnd())
-  }
-  while (collapsed[0]?.trim() === '') collapsed.shift()
-  while (collapsed[collapsed.length - 1]?.trim() === '') collapsed.pop()
-  return collapsed.join('\n')
-}
-
 export function fmtTok(n: number): string {
   if (!Number.isFinite(n) || n < 0) return '0'
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1).replace(/\.0$/, '')}m`
@@ -64,46 +28,6 @@ function breakWord(word: string, width: number): string[] {
 }
 
 const WRAP_LINES_MAX = 400
-
-export function consoleInputWindow(
-  buffer: string,
-  cursor: number,
-  budget: number,
-): { pre: string; post: string; headClipped: boolean; tailClipped: boolean } {
-  const b = Math.max(4, budget)
-  const chars = Array.from(buffer)
-  const preChars = chars.slice(0, cursor)
-  const postChars = chars.slice(cursor)
-  const postCap = Math.min(8, Math.floor(b / 3))
-  let post = ''
-  let postW = 0
-  let tailClipped = false
-  for (const ch of postChars) {
-    const cw = charWidth(ch)
-    if (postW + cw > postCap) {
-      tailClipped = true
-      break
-    }
-    post += ch
-    postW += cw
-  }
-  const preBudget = b - 1 - postW
-  let pre = ''
-  let preW = 0
-  let headClipped = false
-  for (let i = preChars.length - 1; i >= 0; i--) {
-    const ch = preChars[i] ?? ''
-    const cw = charWidth(ch)
-    if (preW + cw > preBudget - (i > 0 ? 1 : 0)) {
-      headClipped = i >= 0
-      break
-    }
-    pre = ch + pre
-    preW += cw
-  }
-  if (headClipped) pre = `…${pre}`
-  return { pre, post, headClipped, tailClipped }
-}
 
 export function wrapPlain(text: string, width: number): string[] {
   const w = Math.max(4, width)

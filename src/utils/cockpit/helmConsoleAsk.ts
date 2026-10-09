@@ -16,6 +16,7 @@ import type { ProcessUserInputContext } from '../processUserInput/processUserInp
 import { runSideQuestion } from '../sideQuestion.js'
 import { noteCritterRealActivity } from './critterSleep.js'
 import { asSystemPrompt } from '../systemPromptType.js'
+import { sessionThinkingConfig } from '../thinking.js'
 import type { ConsoleRunnerResult } from './helmConsole.js'
 
 export const CONSOLE_ROLE =
@@ -35,6 +36,11 @@ export function consoleAskFailure(response: string | null): string | null {
   const text = response.trimStart()
   if (text.startsWith(API_ERROR_MESSAGE_PREFIX) || text.startsWith('An API error occurred')) return text
   return null
+}
+
+export function consoleForkContext(context: ProcessUserInputContext): ProcessUserInputContext {
+  if (context.options.thinkingConfig !== undefined) return context
+  return { ...context, options: { ...context.options, thinkingConfig: sessionThinkingConfig() } }
 }
 
 function stripInProgressAssistantMessage(messages: Message[]): Message[] {
@@ -66,6 +72,7 @@ export async function runConsoleAsk({
   const forkContextMessages = getMessagesAfterCompactBoundary(
     stripInProgressAssistantMessage(context.messages),
   )
+  const forkContext = consoleForkContext(context)
   const saved = getLastCacheSafeParams()
   let cacheSafeParams: CacheSafeParams
   if (saved) {
@@ -73,7 +80,7 @@ export async function runConsoleAsk({
       systemPrompt: saved.systemPrompt,
       userContext: saved.userContext,
       systemContext: saved.systemContext,
-      toolUseContext: context,
+      toolUseContext: forkContext,
       forkContextMessages,
     }
   } else {
@@ -95,7 +102,7 @@ export async function runConsoleAsk({
       systemPrompt: asSystemPrompt(rawSystemPrompt),
       userContext,
       systemContext,
-      toolUseContext: context,
+      toolUseContext: forkContext,
       forkContextMessages,
     }
   }

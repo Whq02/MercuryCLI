@@ -206,12 +206,15 @@ console.log('— §5 the surfaces —')
   const { RosterWorkDetail } = await import('../../src/components/tasks/BackgroundTasksDialog.tsx')
   const { AppStateProvider } = await import('../../src/state/AppState.tsx')
   const ui = await import('../../src/tools/AgentTool/UI.tsx')
+  const NO_ASKS: never[] = []
   const fake = (work: { rows: WorkRowV1[]; mission: never[] }): never =>
     ({
       sessionId: () => 'fx-session',
       workRoster: () => work,
       subscribeWork: () => () => {},
       subscribeRecords: () => () => {},
+      asks: () => NO_ASKS,
+      subscribeAsks: () => () => {},
       identity: () => ({ firstPartyApi: true, consoleBilling: true, claudeAiBilling: false, accountEmail: null }),
     }) as never
   setFocusedSessionConnector(fake({ rows, mission: [] }))

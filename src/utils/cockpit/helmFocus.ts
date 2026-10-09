@@ -7,14 +7,12 @@ export type HelmPane = 'prompt' | 'lanes' | 'vitals'
 export type HelmRow =
   | { kind: 'crewmate'; id: string; label: string }
   | { kind: 'command'; command: string; label: string }
-  | { kind: 'console'; label: string }
   | { kind: 'files'; label: string }
   | { kind: 'main'; label: string }
 
 export type HelmRowAction =
   | { type: 'crewmate'; id: string }
   | { type: 'command'; command: string }
-  | { type: 'console' }
   | { type: 'files' }
   | { type: 'main' }
 
@@ -44,7 +42,6 @@ export function nextHelmPane(p: HelmPane): HelmPane {
 export function helmRowAction(row: HelmRow | undefined): HelmRowAction | null {
   if (!row) return null
   if (row.kind === 'crewmate') return { type: 'crewmate', id: row.id }
-  if (row.kind === 'console') return { type: 'console' }
   if (row.kind === 'main') return { type: 'main' }
   if (row.kind === 'files') return { type: 'files' }
   return { type: 'command', command: row.command }

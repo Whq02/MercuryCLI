@@ -38,17 +38,6 @@ import { CURSOR_NUDGE_MS, AttentionPulse, ValueGlow, WorkingGlyph } from './merc
 import { partitionDiskRuns } from '../tools/WorkflowTool/runManifest.js'
 import { useVitals } from '../state/vitalsBus.js'
 import { useTerminalSize } from '../hooks/useTerminalSize.js'
-import {
-  consoleEnabled,
-  getConsoleAskCount,
-  getConsoleBuffer,
-  getConsoleCursor,
-  getConsoleEntries,
-  getConsolePending,
-  getConsoleVersion,
-  isConsoleComposing,
-  subscribeConsole,
-} from '../utils/cockpit/helmConsole.js'
 import { fluxMark } from '../utils/flux/fluxProbe.js'
 import { buildVitalsModel, type VitalsInput, type VitalsRowSpec, type VitalsSectionSpec } from '../utils/cockpit/helmVitalsModel.js'
 
@@ -127,15 +116,11 @@ function HelmVitalsRailImpl({ width, availRows }: { width: number; availRows?: n
   useProviderUsageOnShow(true, sessionModel)
   const { primary: usage, others: otherUsages } = windowSourceUsages({ model: sessionModel })
   const workRoster = useFocusedWorkRoster()
-  useSyncExternalStore(subscribeConsole, getConsoleVersion, getConsoleVersion)
-  const consoleOn = consoleEnabled()
-  const consolePending = consoleOn ? getConsolePending() : null
   const { rows: termRows } = useTerminalSize()
-  const now = useNowTick(consolePending ? 1000 : Math.min(30_000, usagePollTtlMs()))
+  const now = useNowTick(Math.min(30_000, usagePollTtlMs()))
   const readNow = Date.now()
   useSyncExternalStore(subscribeLiveContextUsage, getLiveContextUsageVersion, getLiveContextUsageVersion)
   const ctx = getLiveContextUsage()
-  const trace = useVitals().trace
   const workRows = useFocusedWorkRows()
   const runningWf = runningWorkflowRows(workRows)
   const wfDisk = useVitals().workflowsDisk
@@ -160,17 +145,7 @@ function HelmVitalsRailImpl({ width, availRows }: { width: number; availRows?: n
     ctxTurns: ctx.window > 0 && ctxForecastEnabled() ? estimateTurnsToCompact(ctx.usedPct, ctx.compactAtPct) : null,
     ctxGrowth: ctx.window > 0 ? ctxGrowthHistory() : [],
     activity: usageActivityBins(now),
-    trace,
     cert: healthCertSnapshot(),
-    console: {
-      on: consoleOn,
-      composing: consoleOn && isConsoleComposing(),
-      buffer: consoleOn ? getConsoleBuffer() : '',
-      cursor: consoleOn ? getConsoleCursor() : 0,
-      pending: consolePending,
-      last: consoleOn ? getConsoleEntries().at(-1) : undefined,
-      count: consoleOn ? getConsoleAskCount() : 0,
-    },
     now,
     readNow,
     tok,
@@ -309,61 +284,6 @@ function HelmVitalsRailImpl({ width, availRows }: { width: number; availRows?: n
             <Text wrap="truncate-end">
               <Text color={tok.textMuted}>{'  '}</Text>
               {spec.fault ? <Text color={tok.failure}>{`${GLYPH.fail} ${spec.text}`}</Text> : <Text color={tok.textMuted}>{spec.text}</Text>}
-            </Text>
-          </Box>
-        )
-      case 'trace':
-        return selectable(
-          <Text wrap="truncate-end">
-            {caret(i)}
-            <Text color={tok.textMuted}>{`${spec.clock} `}</Text>
-            <Text color={spec.bad ? tok.failure : tok.textPrimary}>{spec.tool}</Text>
-          </Text>,
-        )
-      case 'consoleInput':
-        return selectable(
-          spec.composing !== null ? (
-            <Text wrap="truncate-end">
-              <Text color={accent}>{`${GLYPH.prompt} `}</Text>
-              <Text color={tok.textPrimary}>{spec.composing.pre}</Text>
-              <Text color={accent}>{GLYPH.caretBlock}</Text>
-              <Text color={tok.textSecondary}>{spec.composing.post}</Text>
-            </Text>
-          ) : (
-            <Text wrap="truncate-end">
-              {caret(i)}
-              {spec.draft ? (
-                <Text color={tok.textSecondary}>{spec.draft}</Text>
-              ) : (
-                <Text color={tok.textMuted}>{isOn(i) ? 'ask — type or ↵' : 'ask anything…'}</Text>
-              )}
-            </Text>
-          ),
-        )
-      case 'consoleAsking':
-        return (
-          <Box key={spec.key} width={rowW}>
-            <Text wrap="truncate-end">
-              <Text color={tok.textMuted}>{'  '}</Text>
-              <WorkingGlyph color={tok.success} active />
-              <Text> </Text>
-              <Text color={tok.textPrimary}>{spec.question}</Text>
-              <Text color={tok.textMuted}>{` · ${spec.secs}s`}</Text>
-            </Text>
-          </Box>
-        )
-      case 'consoleLine':
-        return (
-          <Box key={spec.key} width={rowW}>
-            <Text wrap="truncate-end">
-              <Text color={tok.textMuted}>{'  '}</Text>
-              {spec.tone === 'question' ? (
-                <Text color={tok.textMuted}>{spec.text}</Text>
-              ) : spec.tone === 'answer' ? (
-                <Text color={tok.textPrimary}>{spec.text}</Text>
-              ) : (
-                <Text color={tok.failure}>{spec.tone === 'errorLead' ? `${GLYPH.fail} ` : '  '}{spec.text}</Text>
-              )}
             </Text>
           </Box>
         )

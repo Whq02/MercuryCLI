@@ -24,30 +24,9 @@ import {
   getHelmFocus,
   helmRailPastEntryBuffer,
   moveHelmCursor,
-  nextHelmPane,
   requestHelmRowActivation,
   setHelmFocus,
 } from '../../utils/cockpit/helmFocus.js'
-import {
-  beginConsoleCompose,
-  consoleAbortAsk,
-  consoleBackspace,
-  consoleClear,
-  consoleCursorEnd,
-  consoleCursorHome,
-  consoleDeleteForward,
-  consoleEnabled,
-  consoleHistoryMove,
-  consoleInsert,
-  consoleKillLine,
-  consoleKillWord,
-  consoleMoveCursor,
-  consoleSubmitBuffer,
-  exitConsoleCompose,
-  getConsoleBuffer,
-  isConsoleComposing,
-} from '../../utils/cockpit/helmConsole.js'
-import { runConsoleAsk } from '../../utils/cockpit/helmConsoleAsk.js'
 import { popupOwnsKeys } from '../../utils/cockpit/popupOwnsKeys.js'
 import { abortSpeculation } from '../../services/PromptSuggestion/speculation.js'
 import { flipToSession } from '../../utils/sessionFlip.js'
@@ -139,91 +118,6 @@ export function useComposerRawKeys({
       const focusPane = getHelmFocus()
 
       if (focusPane !== 'prompt') {
-        const composing = focusPane === 'vitals' && isConsoleComposing()
-        if (composing) {
-          event.stopImmediatePropagation()
-          if (key.escape) {
-            if (!consoleAbortAsk()) exitConsoleCompose()
-            return
-          }
-          if (key.tab) {
-            exitConsoleCompose()
-            setHelmFocus(nextHelmPane(focusPane))
-            return
-          }
-          if (key.return) {
-            const buffered = getConsoleBuffer()
-            if (buffered.trim() !== '') {
-              const context = getToolUseContext(
-                messages,
-                [],
-                new AbortController(),
-                engineModel ?? '',
-              )
-              consoleSubmitBuffer((question, controller) =>
-                runConsoleAsk({
-                  question,
-                  context,
-                  abortController: controller,
-                }),
-              )
-            }
-            return
-          }
-          if (key.backspace || rawInput === '\u007f') {
-            consoleBackspace()
-            return
-          }
-          if (key.delete) {
-            consoleDeleteForward()
-            return
-          }
-          if (key.leftArrow) {
-            consoleMoveCursor(-1)
-            return
-          }
-          if (key.rightArrow) {
-            consoleMoveCursor(1)
-            return
-          }
-          if (key.ctrl && rawInput === 'a') {
-            consoleCursorHome()
-            return
-          }
-          if (key.ctrl && rawInput === 'e') {
-            consoleCursorEnd()
-            return
-          }
-          if (key.ctrl && rawInput === 'k') {
-            consoleKillLine()
-            return
-          }
-          if (key.ctrl && rawInput === 'w') {
-            consoleKillWord()
-            return
-          }
-          if (key.ctrl && rawInput === 'l') {
-            consoleClear()
-            return
-          }
-          if (key.upArrow) {
-            consoleHistoryMove(-1)
-            return
-          }
-          if (key.downArrow) {
-            consoleHistoryMove(1)
-            return
-          }
-          if (
-            rawInput !== '' &&
-            !key.ctrl &&
-            !key.meta &&
-            rawInput >= ' '
-          ) {
-            consoleInsert(rawInput)
-          }
-          return
-        }
         if (key.escape) {
           event.stopImmediatePropagation()
           setHelmFocus('prompt')
@@ -278,14 +172,9 @@ export function useComposerRawKeys({
           rawInput >= ' ' &&
           !key.tab
         ) {
-          const composeCapable = focusPane === 'vitals' && consoleEnabled()
           event.stopImmediatePropagation()
-          if (composeCapable) {
-            beginConsoleCompose(rawInput)
-          } else {
-            setHelmFocus('prompt')
-            insertAtCursor(rawInput)
-          }
+          setHelmFocus('prompt')
+          insertAtCursor(rawInput)
           return
         }
         return
