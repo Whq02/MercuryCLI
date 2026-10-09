@@ -193,7 +193,7 @@ const transcriptText = (work: string, sid: string): string => {
   return existsSync(p) ? readFileSync(p, 'utf8') : ''
 }
 const dispatch = async (id: string, prompt: string, work: string): Promise<{ sid: string; rec: Rec | undefined }> => {
-  const reply = (await daemonControlRpc({ op: 'concourseDispatch', clientMessageId: id, prompt, workspaceDir: work, title: id, model: 'claude-opus-5', effort: 'high', permissionMode: 'sovereign' } as never)) as { ok?: boolean; sessionId?: string; error?: string }
+  const reply = (await daemonControlRpc({ op: 'concourseDispatch', clientMessageId: id, prompt, workspaceDir: work, title: id, model: 'claude-opus-5', effort: 'high', permissionMode: 'sovereign' } as never, { timeoutMs: 15_000 })) as { ok?: boolean; sessionId?: string; error?: string }
   tally.check(`${id}: the session dispatched onto a runner`, reply.ok === true && typeof reply.sessionId === 'string', JSON.stringify(reply))
   const sid = reply.sessionId ?? ''
   await until(() => readRec(sid)?.pid !== undefined, 30_000)

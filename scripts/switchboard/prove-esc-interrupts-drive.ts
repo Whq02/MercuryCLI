@@ -78,7 +78,7 @@ const hoppedLeg = async (
         title: 'Alpha think',
         model: DEFAULT_OPUS,
         effort: 'xhigh',
-      } as never)) as { ok?: boolean; sessionId?: string }
+      } as never, { timeoutMs: 15_000 })) as { ok?: boolean; sessionId?: string }
       check(`${tag}: dispatched`, a.ok === true, JSON.stringify(a))
       sid = a.sessionId ?? ''
       const t = join(paths.getProjectDir(_cwd), `${sid}.jsonl`)

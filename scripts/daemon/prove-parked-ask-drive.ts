@@ -282,7 +282,7 @@ try {
     model: MODEL,
     effort: 'high',
     permissionMode: 'default',
-  } as never)) as { ok?: boolean; sessionId?: string }
+  } as never, { timeoutMs: 15_000 })) as { ok?: boolean; sessionId?: string }
   check('P1 the session dispatched in default mode with no screen attached', reply.ok === true && typeof reply.sessionId === 'string', JSON.stringify(reply))
   const sid = reply.sessionId ?? ''
   const transcript = join(paths.getProjectDir(work), `${sid}.jsonl`)

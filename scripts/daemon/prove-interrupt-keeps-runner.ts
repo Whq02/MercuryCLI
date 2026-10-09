@@ -309,7 +309,7 @@ const cleanup = async (): Promise<void> => {
 
 try {
   tally.check('the scratch-home daemon serves', await until(ping, bound(60_000)), daemonLog().slice(-600))
-  const reply = (await daemonControlRpc({ op: 'concourseDispatch', clientMessageId: 'esc-probe', prompt: PROBE, workspaceDir: work, title: 'esc probe', model: 'claude-opus-5', effort: 'high', permissionMode: 'sovereign' } as never)) as { ok?: boolean; sessionId?: string; error?: string }
+  const reply = (await daemonControlRpc({ op: 'concourseDispatch', clientMessageId: 'esc-probe', prompt: PROBE, workspaceDir: work, title: 'esc probe', model: 'claude-opus-5', effort: 'high', permissionMode: 'sovereign' } as never, { timeoutMs: 15_000 })) as { ok?: boolean; sessionId?: string; error?: string }
   tally.check('the session dispatched onto a runner', reply.ok === true && typeof reply.sessionId === 'string', JSON.stringify(reply))
   const sid = reply.sessionId ?? ''
   await until(() => readRec(sid)?.pid !== undefined, bound(30_000))
@@ -323,7 +323,7 @@ try {
   await sleep(1_000)
 
   const requestsBefore = fixture.requests.length
-  const meanwhile = (await daemonControlRpc({ op: 'concourseDispatch', clientMessageId: 'esc-meanwhile', prompt: MEANWHILE, workspaceDir: work, targetSessionId: sid, title: 'esc probe', model: 'claude-opus-5', effort: 'high', permissionMode: 'sovereign' } as never)) as { ok?: boolean; state?: string; error?: string }
+  const meanwhile = (await daemonControlRpc({ op: 'concourseDispatch', clientMessageId: 'esc-meanwhile', prompt: MEANWHILE, workspaceDir: work, targetSessionId: sid, title: 'esc probe', model: 'claude-opus-5', effort: 'high', permissionMode: 'sovereign' } as never, { timeoutMs: 15_000 })) as { ok?: boolean; state?: string; error?: string }
   tally.check('a line sent while the command ran was delivered into the same session (queued behind the turn)', meanwhile.ok === true, JSON.stringify(meanwhile))
   await sleep(300)
   tally.check('…and the running command was not disturbed by it (no result yet, no new model call)', opResult(sid) === null && fixture.requests.length === requestsBefore, `${fixture.requests.length - requestsBefore} new request(s)`)
@@ -362,7 +362,7 @@ try {
   tally.check('the record names a new live runner pid', cameBack, JSON.stringify({ before: pid1, after: recBack?.pid }))
   tally.check('the crash row says the runner resumed', recBack?.crash?.respawning === true && /exit 143/.test(recBack.crash.reason), JSON.stringify(recBack?.crash))
   tally.check('the daemon log names the death and the first rung', daemonLog().includes(`long-lived ${runnerId} crashed (code=143 sig=null); respawn (1/5)`), daemonLog().split('\n').filter(l => l.includes('crashed')).join(' | ').slice(0, 300))
-  const after = (await daemonControlRpc({ op: 'concourseDispatch', clientMessageId: 'esc-after', prompt: AFTER, workspaceDir: work, targetSessionId: sid, title: 'esc probe', model: 'claude-opus-5', effort: 'high', permissionMode: 'sovereign' } as never)) as { ok?: boolean; error?: string }
+  const after = (await daemonControlRpc({ op: 'concourseDispatch', clientMessageId: 'esc-after', prompt: AFTER, workspaceDir: work, targetSessionId: sid, title: 'esc probe', model: 'claude-opus-5', effort: 'high', permissionMode: 'sovereign' } as never, { timeoutMs: 15_000 })) as { ok?: boolean; error?: string }
   tally.check('a line sent after the respawn delivers into the same session', after.ok === true, JSON.stringify(after))
   tally.check('…and the respawned runner answers it', await until(() => sawLine(AFTER), bound(60_000)), JSON.stringify(fixture.requests.map(r => [r.n, r.step, r.allTexts.filter(t => t.includes('esc probe')).map(t => t.slice(0, 32))])))
 } finally {

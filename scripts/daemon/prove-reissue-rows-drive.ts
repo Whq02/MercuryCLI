@@ -130,7 +130,7 @@ try {
     title: 'reissue rows',
     model: 'claude-opus-5',
     effort: 'high',
-  } as never)) as { ok?: boolean; sessionId?: string }
+  } as never, { timeoutMs: 15_000 })) as { ok?: boolean; sessionId?: string }
   check('the session dispatched', reply.ok === true && typeof reply.sessionId === 'string', JSON.stringify(reply))
   const sid = reply.sessionId ?? ''
   let retryWait: ReturnType<typeof decodeRequestWait> = null

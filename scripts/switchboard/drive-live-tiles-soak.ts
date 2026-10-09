@@ -121,7 +121,7 @@ try {
           title: `Soak ${n}`,
           modelKey: 'claude-opus-5',
           effort: 'xhigh',
-        } as never)) as { ok?: boolean; sessionId?: string }
+        } as never, { timeoutMs: 15_000 })) as { ok?: boolean; sessionId?: string }
         check(`${n} dispatched`, r.ok === true && r.sessionId !== undefined, JSON.stringify(r))
         sessionIds[n] = r.sessionId ?? ''
         const t = join(paths.getProjectDir(works[n]!), `${r.sessionId}.jsonl`)

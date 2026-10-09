@@ -183,7 +183,7 @@ try {
   const parkPromise = daemonControlRpc({ op: 'sessionControl', action: 'park', sessionId: sid, by: 'operator:retire-drive' } as never, { timeoutMs: 30_000 }) as Promise<{ ok?: boolean; outcome?: string; detail?: string }>
   const intentSeen = await untilAsync(() => recOf(sid)?.parkIntent !== undefined, 10_000, 20)
   const heldReply = intentSeen
-    ? ((await daemonControlRpc({ op: 'concourseDispatch', clientMessageId: 'retire-2', prompt: 'retire-probe-second: answer again', workspaceDir: work, targetSessionId: sid } as never)) as { ok?: boolean; heldReason?: string; error?: string; state?: string })
+    ? ((await daemonControlRpc({ op: 'concourseDispatch', clientMessageId: 'retire-2', prompt: 'retire-probe-second: answer again', workspaceDir: work, targetSessionId: sid } as never, { timeoutMs: 15_000 })) as { ok?: boolean; heldReason?: string; error?: string; state?: string })
     : undefined
   const park = await parkPromise
   check('R2 the park verb answered applied for the runner', park.ok === true && park.outcome === 'applied' && /parked/.test(park.detail ?? ''), JSON.stringify(park))

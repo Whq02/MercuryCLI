@@ -134,7 +134,7 @@ try {
         title: 'Alpha stream',
         modelKey: 'claude-opus-5',
         effort: 'xhigh',
-      } as never)) as { ok?: boolean; sessionId?: string }
+      } as never, { timeoutMs: 15_000 })) as { ok?: boolean; sessionId?: string }
       check('alpha dispatched', a.ok === true && a.sessionId !== undefined, JSON.stringify(a))
       alphaId = a.sessionId ?? ''
       const alphaTranscript = join(paths.getProjectDir(cwd), `${alphaId}.jsonl`)
@@ -147,7 +147,7 @@ try {
         title: 'Beta asker',
         modelKey: 'claude-opus-5',
         effort: 'xhigh',
-      } as never)) as { ok?: boolean; sessionId?: string }
+      } as never, { timeoutMs: 15_000 })) as { ok?: boolean; sessionId?: string }
       check('beta dispatched', b.ok === true && b.sessionId !== undefined, JSON.stringify(b))
       const bid = b.sessionId ?? ''
       check(

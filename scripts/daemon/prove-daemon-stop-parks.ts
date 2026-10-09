@@ -136,7 +136,7 @@ try {
     title: 'Long think under a daemon stop',
     model: 'claude-opus-5',
     effort: 'high',
-  } as never)) as { ok?: boolean; sessionId?: string }
+  } as never, { timeoutMs: 15_000 })) as { ok?: boolean; sessionId?: string }
   check('a session dispatched onto a real runner', dispatched.ok === true && typeof dispatched.sessionId === 'string', JSON.stringify(dispatched))
   const sid = dispatched.sessionId ?? ''
   check('its turn is in flight (the never-ending thinking phase opened on the wire)', await untilAsync(() => wire().filter(c => c.kind === 'anthropic-open').length > opensBefore, 60_000), JSON.stringify(wire().map(c => c.kind)))
