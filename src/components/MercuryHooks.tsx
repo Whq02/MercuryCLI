@@ -4,7 +4,7 @@ import { AMBER, CLAW, CRIMSON, FAINT, IVORY, OASIS, SAND, TEAL, TERRA } from './
 import { padTo } from './mercury-ui/glyphs.js'
 import { CRAB_GLYPHS as CRAB } from './mercury-ui/assets.js';
 
-const HK=[['PreToolUse','lease-guard',TEAL],['PostToolUse','format',TEAL],['Stop','none',FAINT]]
+const HK=[['tool.before','lease-guard',TEAL],['tool.after','format',TEAL],['turn.answer','none',FAINT]]
 export function MercuryHooks(){return (
   <Box flexDirection="column" borderStyle="round" borderColor={TERRA} paddingX={1}>
     <Text bold color={TERRA}>{CRAB} hooks</Text>
