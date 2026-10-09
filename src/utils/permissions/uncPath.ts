@@ -2,7 +2,7 @@ import { getPlatform } from '../platform.js'
 
 export type UncPathRisk = { risky: false } | { risky: true; host: string; form: string }
 
-export function uncPathRisk(input: string): UncPathRisk {
+export function uncPathRisk(input: string, opts: { command?: boolean } = {}): UncPathRisk {
   if (getPlatform() !== 'windows') return { risky: false }
   const decoded = input.replace(/%(?:2f|5c|3a|40)/gi, code => String.fromCharCode(parseInt(code.slice(1), 16)))
   const spelling = decoded.replace(/[`'"]/g, '')
@@ -16,6 +16,7 @@ export function uncPathRisk(input: string): UncPathRisk {
     if (host === '?' || host === '.' || host === '??') continue
     const before = text.slice(0, match.index)
     if (before.endsWith(':') && spelling[match.index] === '/' && spelling[match.index + 1] === '/') continue
+    if (opts.command === true && !text.slice(match.index + match[0].length).startsWith('/') && !/[.:[\]]/.test(host)) continue
     return { risky: true, host, form: /@|DavWWWRoot/i.test(match[0] + text.slice(match.index + match[0].length)) ? 'webdav' : 'unc' }
   }
   const marker = /([^\s/;|<>()]*)(?:@SSL@\d+|@\d+@SSL)/i.exec(text)

@@ -115,6 +115,13 @@ if (!process.argv.includes('--file-roads')) {
     ['host alone', '//localhost'],
   ] as const
   for (const [form, input] of forms) check(`Windows ${form}`, uncPathRisk(input).risky)
+  const gitBashFlags = ['taskkill //PID 1234 //F', 'reg query HKCU //v Foo', 'sc query //all', 'schtasks //Query //TN x', 'ipconfig //all']
+  for (const command of gitBashFlags) check(`a Git Bash flag spelling is no share on the command road: ${command}`, !uncPathRisk(command, { command: true }).risky)
+  const reachingCommands = ['ls //localhost/c$/', 'net view //10.0.0.5', 'net view //fileserver.corp', String.raw`type \\server\share\x.txt`, 'dir //[::1]/share', 'cat //localhost/share/file']
+  for (const command of reachingCommands) check(`a command reaching a share or a named machine still asks: ${command}`, uncPathRisk(command, { command: true }).risky)
+  check('a path input keeps the host-alone floor off the command road', uncPathRisk('//localhost').risky)
+  const flagged = await bashToolHasPermission({ command: 'taskkill //PID 1234 //F' }, shellContext)
+  check('Bash on Windows does not raise the share floor for a Git Bash flag spelling', !flagged.message.includes('SMB/WebDAV'))
   for (const input of ['C:\\project\\file.txt', '/usr/local/file', './file', 'https://localhost/page', String.raw`\\?\C:\project\file`, String.raw`\\.\C:\project\file`]) check(`local or web ${input}`, !uncPathRisk(input).risky)
   const { windowsPathNeedsPermission } = await import('../../src/utils/permissions/windowsPath.js')
   const inherited = [
