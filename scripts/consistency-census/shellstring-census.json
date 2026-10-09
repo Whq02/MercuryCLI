@@ -633,20 +633,6 @@
       "why": "POSIX-only proof invoking the POSIX capture engine (vshot/screengrab). Interactive entrypoints resolve their capture engine for the current platform."
     },
     {
-      "file": "scripts/hooks/prove-hooks-parity.ts",
-      "mechanism": "hardcoded-tmp",
-      "excerpt": "mkdirSync('/tmp/mercury-parity-home', { recursive: true })",
-      "cls": "platform-owner",
-      "why": "POSIX pool prover scratch/coordination root — declared POSIX profile; render-tui's /tmp default is additionally a pinned byte-identity prover expectation"
-    },
-    {
-      "file": "scripts/hooks/prove-hooks-parity.ts",
-      "mechanism": "hardcoded-tmp",
-      "excerpt": "mkdirSync('/tmp/mercury-parity-cwd', { recursive: true })",
-      "cls": "platform-owner",
-      "why": "POSIX pool prover scratch/coordination root — declared POSIX profile; render-tui's /tmp default is additionally a pinned byte-identity prover expectation"
-    },
-    {
       "file": "scripts/ide/prove-closed-loop.ts",
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const SYS_PY = '/usr/bin/python3'",
