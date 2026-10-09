@@ -400,7 +400,7 @@ if (worlds.has('small')) {
     const { home, cwd } = seedWorld(`small-${label}`, {})
     const cap = await capture(`plain-${label}`, cfgFor(cols, rows, cwd, [
       ...boot(),
-      after(CLICK, 2, { targetText: 'FILES · fixture-cwd' }),
+      gated(CLICK, 'FILES · fixture-cwd', { awaitSettleTicks: 2, targetText: 'FILES · fixture-cwd', targetDx: 1 }),
       gated('\x1b', TITLE, { awaitSettleTicks: 4, mark: 'menu' }),
       after('', 4, { mark: 'closed' }),
     ]), driveEnv(home))
@@ -432,7 +432,7 @@ if (worlds.has('hop')) {
       after('\r', 4),
       after('\r', 4),
       gated('', '← back', { awaitSettleTicks: 6, mark: 'hopped' }),
-      after(CLICK, 2, { targetText: 'FILES · fixture-cwd' }),
+      gated(CLICK, 'FILES · fixture-cwd', { awaitSettleTicks: 2, targetText: 'FILES · fixture-cwd', targetDx: 1 }),
       gated('', TITLE, { awaitSettleTicks: 4, mark: 'hop-menu' }),
       after(DOWN, 2),
       after(DOWN, 2),
