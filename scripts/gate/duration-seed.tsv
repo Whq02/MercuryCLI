@@ -231,6 +231,7 @@ engine-connector-drives	74
 daemon-drives	1000
 health-drives	91
 helm-console-drives	30
+distribution-drives	30
 mcp-drives	84
 mission-runner-drives	105
 navigation-drives	140

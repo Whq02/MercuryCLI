@@ -186,7 +186,7 @@ console.log('LAW 5 — the /health status row says why backgrounded sessions may
       if (leaf !== undefined) writeFileSync(join(configDir, '.mercury.json'), JSON.stringify({ numStartups: 1, backgroundSessionsLaunchCrewmates: leaf }))
       const out = spawnSync(nodeBin, [DIST, 'health', '--json', '--only', 'spawn-switches'], {
         cwd: home,
-        env: { HOME: home, PATH: `/usr/bin:/bin:${dirname(nodeBin)}`, TERM: 'dumb', MERCURY_CONFIG_DIR: configDir, MERCURY_CREDENTIAL_STORE: 'file', ANTHROPIC_API_KEY: 'fixture-key-000' },
+        env: { HOME: home, PATH: `/usr/bin:/bin:${dirname(nodeBin)}`, TERM: 'dumb', MERCURY_CONFIG_DIR: configDir, MERCURY_CREDENTIAL_STORE: 'file', ANTHROPIC_API_KEY: 'fixture-key-000', MERCURY_LOCAL_PROBE_TARGETS: 'none' },
         encoding: 'utf8',
         timeout: 60_000,
       })
@@ -213,7 +213,7 @@ console.log('LAW 3 — the source pins')
   const settingArmAt = valve.indexOf("posture: 'background-by-setting'")
   check('the valve carries the setting arm after the focused arm and the tag arm', focusedArmAt !== -1 && tagArmAt !== -1 && settingArmAt !== -1 && focusedArmAt < tagArmAt && tagArmAt < settingArmAt)
   check('the setting arm reads the one reader', valve.includes('backgroundSessionsLaunchCrewmates()'))
-  check("the session's own switch is still read first", valve.indexOf("cause: 'session-switch'") < valve.indexOf('flagEnv(\'MERCURY_CONCOURSE_WORKER\')'))
+  check("the session's own switch is still read first", valve.indexOf("cause: 'session-switch'") !== -1 && valve.indexOf("cause: 'session-switch'") < valve.indexOf('flagEnv(\'MERCURY_CONCOURSE_WORKER\')'))
   check('the refusal is minted in one place and names the setting by its row label', valve.includes('export function backgroundedLaunchRefusal(') && valve.includes('${BACKGROUND_LAUNCH_LABEL}'))
   const row = setting?.BACKGROUND_LAUNCH_MENU_ROW
   check("the boot-menu row descriptor: the agents group, a live toggle, off by default, keyed by the leaf", row !== undefined && row.group === 'agents' && row.kind === 'toggle' && row.defaultLabel === 'off' && row.applicationClass === 'live' && row.env === 'backgroundSessionsLaunchCrewmates' && row.label === LABEL, j(row))
