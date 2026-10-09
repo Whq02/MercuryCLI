@@ -95,7 +95,7 @@ section('§3 the painter keys on the fold (structural)')
 const painter = src('src/components/messages/UserTextMessage.tsx')
 check('UserTextMessage hands a wrapped notice to UserNoticeMessage before the operator prompt branch', /const noticeBlocks = noticeOfText\(param\.text, notice\)\s*if \(noticeBlocks !== null\) \{\s*return <UserNoticeMessage/.test(painter))
 const carry = src('src/cli/headless/restartCarry.ts')
-check('the carry queues the wrapped row, never the bare sentence', /enqueuePendingNotification\(\{ value: wrapInSystemReminder\(row\), mode: 'task-notification', priority: 'next' \}\)/.test(carry))
+check('the carry queues the wrapped row, never the bare sentence', /enqueuePendingNotification\(\{ value: wrapInSystemReminder\(row\), mode: 'task-notification', priority: 'next', ridesNextWords: true \}\)/.test(carry))
 
 console.log(failures === 0 ? '\nprove-restart-row-marked: all green' : `\nprove-restart-row-marked: ${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)
