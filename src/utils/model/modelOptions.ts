@@ -868,6 +868,7 @@ export function getModelOptions(reads: ModelOptionReads = {}): ModelOption[] {
     DEEPSEEK_MODEL_GROUP,
     XAI_MODEL_GROUP,
     META_MODEL_GROUP,
+    MISTRAL_MODEL_GROUP,
     COMPAT_MODEL_GROUP,
     LOCAL_MODEL_GROUP,
   ]
