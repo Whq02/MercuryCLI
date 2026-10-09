@@ -52,13 +52,6 @@ t.section('§1 — every registered critter authors a distinct 5-cell mark')
       critterDefForKey(dead).name,
     )
   }
-  for (const legacy of ['mantis', 'mantis shrimp']) {
-    t.check(
-      `the retired spelling '${legacy}' resolves to the clam (its successor), not the default`,
-      critterDefForKey(legacy).name === 'clam' && !isPoolCritterKey(legacy),
-      critterDefForKey(legacy).name,
-    )
-  }
 }
 
 t.section('§2 — crab byte-identity (the amendment changes NOTHING for crab)')

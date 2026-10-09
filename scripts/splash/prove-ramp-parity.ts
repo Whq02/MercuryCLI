@@ -287,10 +287,8 @@ t.section('§7 — GLOW: accent families + the mirrored greeting law')
     `${core.DEFAULT_CRITTER} vs ${cd.DEFAULT_CRITTER_KEY}`,
   )
   t.check(
-    "accentFamilyKeyOf normalises like sessionAccent's poolKeyOr (superseded creature spellings → the successor; keys with none → the default)",
-    core.accentFamilyKeyOf('mantis') === 'clam' &&
-      core.accentFamilyKeyOf('mantis shrimp') === 'clam' &&
-      core.accentFamilyKeyOf('dragon') === cd.DEFAULT_CRITTER_KEY &&
+    "accentFamilyKeyOf normalises like sessionAccent's poolKeyOr (unknown keys → the default)",
+    core.accentFamilyKeyOf('dragon') === cd.DEFAULT_CRITTER_KEY &&
       core.accentFamilyKeyOf('CRAB') === 'crab' &&
       core.accentFamilyKeyOf('') === cd.DEFAULT_CRITTER_KEY,
     'poolKey law',

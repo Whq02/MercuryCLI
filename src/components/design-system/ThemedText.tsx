@@ -7,14 +7,6 @@ import { useSessionAccent } from '../mercury-ui/sessionAccent.js'
 import { isRawColorValue } from './color.js'
 import { useTheme } from './ThemeProvider.js'
 
-const LEGACY_ROLE_ALIASES: Record<string, keyof Theme> = {
-  claude: 'brand',
-  claudeShimmer: 'brandShimmer',
-  claudeBlue_FOR_SYSTEM_SPINNER: 'systemSpinner',
-  claudeBlueShimmer_FOR_SYSTEM_SPINNER: 'systemSpinnerShimmer',
-  briefLabelClaude: 'briefLabelAssistant',
-}
-
 export const TextHoverColorContext = createContext<string | undefined>(
   undefined,
 )
@@ -32,14 +24,13 @@ export type Props = {
   readonly children?: React.ReactNode
 }
 
-function resolveWithAliases(
+function resolveColor(
   theme: Theme,
   value: string | undefined,
 ): Color | undefined {
   if (!value) return undefined
   if (isRawColorValue(value)) return value as Color
-  const role = LEGACY_ROLE_ALIASES[value] ?? (value as keyof Theme)
-  return theme[role] as Color | undefined
+  return theme[value as keyof Theme] as Color | undefined
 }
 
 export default function ThemedText({
@@ -61,17 +52,17 @@ export default function ThemedText({
 
   let resolvedColor: Color | undefined
   if (!color && hoverColor) {
-    resolvedColor = resolveWithAliases(theme, hoverColor)
+    resolvedColor = resolveColor(theme, hoverColor)
   } else if (dimColor) {
     resolvedColor = theme.inactive as Color
   } else {
-    resolvedColor = resolveWithAliases(theme, color)
+    resolvedColor = resolveColor(theme, color)
   }
 
   return (
     <Text
       color={resolvedColor}
-      backgroundColor={resolveWithAliases(theme, backgroundColor)}
+      backgroundColor={resolveColor(theme, backgroundColor)}
       bold={bold}
       italic={italic}
       underline={underline}
