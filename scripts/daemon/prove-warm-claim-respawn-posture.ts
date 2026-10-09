@@ -131,6 +131,14 @@ function crash(short: string): void {
   child?.emit('close', 1, null)
 }
 
+function seedTurn(short: string): void {
+  const rec = recordOf(short)
+  if (rec === undefined) return
+  const transcript = sup.concourseTranscriptPath(rec)
+  mkdirSync(join(transcript, '..'), { recursive: true })
+  writeFileSync(transcript, `${JSON.stringify({ type: 'user', uuid: `${rec.sessionId}-u1`, sessionId: rec.sessionId, message: { role: 'user', content: 'seeded turn' } })}\n`)
+}
+
 async function settle(short: string): Promise<void> {
   roster.expectExit(short, true)
   const child = latest.get(short)
@@ -172,6 +180,7 @@ async function claimedSeat(c: Claimed): Promise<void> {
     postureOf(short).permissionMode === c.claim && (postureOf(short).bypassConsent === true) === c.warmConsent,
     j(postureOf(short)),
   )
+  seedTurn(short)
   crash(short)
   const respawn = await until(() => spawnsOf(short).find(s => s.respawn))
   check(
@@ -262,6 +271,7 @@ section('§3 a model or effort change respawns the claimed seat: the same spec, 
   const admitted = await admit({ workspaceDir: ws, permissionMode: 'sovereign', bypassConsent: true })
   const sessionId = admitted.ok ? admitted.sessionId : ''
   check('reconfigure: the admission claims the warm runner', warmed.state === 'warmed' && admitted.ok && admitted.runnerId === short, j({ warmed, admitted }))
+  seedTurn(short)
   const changed = roster.reconfigureLongLived(short, { effort: 'low' })
   check('reconfigure: an effort change on the idle claimed seat respawns it at once', changed.ok && changed.respawned, j(changed))
   const respawn = await until(() => spawnsOf(short).find(s => s.respawn))
@@ -282,6 +292,7 @@ section("§4 controls: a claim that names the pool's own posture, an unclaimed w
   const admitted = await admit({ workspaceDir: ws, permissionMode: 'default' })
   const sessionId = admitted.ok ? admitted.sessionId : ''
   check(`${name}: the admission claims the warm runner`, warmed.state === 'warmed' && admitted.ok && admitted.runnerId === short, j({ warmed, admitted }))
+  seedTurn(short)
   crash(short)
   const respawn = await until(() => spawnsOf(short).find(s => s.respawn))
   check(
@@ -321,6 +332,7 @@ for (const c of [
     admitted.ok && boot !== undefined && !boot.respawn && claims.every(x => x.short !== short) && j(boot.argv) === j(['runner', ...c.words, '--model', boot.spec.model, '--brief-add', boot.spec.appendSystemPrompt, '--session-id', sessionId]),
     j(boot?.argv),
   )
+  seedTurn(short)
   crash(short)
   const respawn = await until(() => spawnsOf(short).find(s => s.respawn))
   check(
