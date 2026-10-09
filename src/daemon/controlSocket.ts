@@ -223,7 +223,7 @@ let lastUnreachableAt = 0
 export function daemonLastUnreachableAt(): number {
   return lastUnreachableAt
 }
-export const controlSocketCensus = { keyReads: 0, keyMemoHits: 0, eauthRetries: 0, waitsExtended: 0, waitsEndedDead: 0 }
+export const controlSocketCensus = { keyReads: 0, keyMemoHits: 0, eauthRetries: 0, waitsExtended: 0, waitsEndedDead: 0, waitsEndedIdle: 0 }
 
 let boxReadingForTesting: { load1: number; cores: number } | null = null
 
@@ -405,8 +405,11 @@ function speakProtoGap(req: DaemonRequest, reply: DaemonReply): DaemonReply {
   return { ...reply, error: olderDaemonRefusalLine(verb, needs, negotiated), refusal: 'daemon-older' }
 }
 
-function daemonServes(timeoutMs: number): Promise<boolean> {
-  return rpcOnce({ op: 'ping', proto: protoToStamp() } as DaemonRequest & { proto?: number }, timeoutMs, { probe: true }).then(reply => reply.ok === true)
+function daemonServes(timeoutMs: number): Promise<{ serves: boolean; working: number | null }> {
+  return rpcOnce({ op: 'ping', proto: protoToStamp() } as DaemonRequest & { proto?: number }, timeoutMs, { probe: true }).then(reply => {
+    const working = (reply as { working?: unknown }).working
+    return { serves: reply.ok === true, working: typeof working === 'number' && Number.isFinite(working) ? working : null }
+  })
 }
 
 function rpcOnce(outbound: DaemonRequest & { proto?: number; auth?: string }, timeoutMs: number, opts: { probe?: boolean } = {}): Promise<DaemonReply & { frameWritten?: boolean }> {
@@ -432,19 +435,28 @@ function rpcOnce(outbound: DaemonRequest & { proto?: number; auth?: string }, ti
     const arm = (ms: number): void => {
       timer = setTimeout(() => {
         if (settled) return
-        const remaining = ceilingMs - (Date.now() - startedAt)
-        if (opts.probe === true || !frameWritten || remaining <= 0) {
+        if (opts.probe === true || !frameWritten) {
           expired()
           return
         }
-        void daemonServes(timeoutMs).then(serves => {
+        void daemonServes(timeoutMs).then(pong => {
           if (settled) return
-          const left = ceilingMs - (Date.now() - startedAt)
-          if (!serves) {
+          if (!pong.serves) {
             controlSocketCensus.waitsEndedDead++
             expired()
             return
           }
+          if (pong.working !== null) {
+            if (pong.working === 0) {
+              controlSocketCensus.waitsEndedIdle++
+              expired()
+              return
+            }
+            controlSocketCensus.waitsExtended++
+            arm(timeoutMs)
+            return
+          }
+          const left = ceilingMs - (Date.now() - startedAt)
           if (left <= 0) {
             expired()
             return
