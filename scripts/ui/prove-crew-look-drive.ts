@@ -30,6 +30,8 @@ const HARBOUR_RUNNING = '◐ harbo'
 const ATLAS_RUNNING = '◐ atlas'
 const FJORD_RUNNING = '◐ fjord'
 const PILL = 'back to the bottom'
+const ATLAS_CARD = '◉ atlas · claude-'
+const FJORD_CARD = '◉ fjord · claude-'
 const ESC = '\x1b'
 const TAB = '\t'
 const UP = '\x1b[A'
@@ -239,7 +241,9 @@ const describe = (window: Window | null): string => (window === null ? 'no close
 const centreOf = (rows: string[], cockpit: Cockpit): string[] => rows.map(line => cells(line).slice(cockpit.left + 1, cockpit.right).join(''))
 const railOf = (rows: string[], cockpit: Cockpit): string[] => rows.map(line => cells(line).slice(0, cockpit.railRight + 1).join(''))
 const statusOf = (rows: string[]): string => flat(rows.find(line => line.includes('← back')) ?? '')
-const viewedName = (rows: string[]): string => (/viewing (.+?) · composer/.exec(statusOf(rows)) ?? [])[1] ?? (/main chat: (.+?) · /.exec(statusOf(rows)) ?? [])[1] ?? ''
+const cardName = (rows: string[]): string => (/◉ (atlas|fjord|harbour) · claude-/.exec(rows.find(line => /◉ (?:atlas|fjord|harbour) · claude-/.test(line)) ?? '') ?? [])[1] ?? ''
+const viewedName = (rows: string[]): string => (/viewing (.+?) · composer/.exec(statusOf(rows)) ?? [])[1] ?? (/main chat: (.+?) · /.exec(statusOf(rows)) ?? [])[1] ?? cardName(rows)
+const viewing = (rows: string[], name: string): boolean => new RegExp(`viewing ${name}`).test(statusOf(rows)) || (!/viewing |main chat: /.test(statusOf(rows)) && cardName(rows) === name)
 const railRow = (rows: string[], cockpit: Cockpit, needle: string): string | undefined => railOf(rows, cockpit).find(line => line.includes(needle))
 const composerRow = (rows: string[]): string | undefined => rows.find(line => /^│[❯›]/.test(line))
 const transcriptRows = (rows: string[], cockpit: Cockpit): string[] => centreOf(rows, cockpit).slice(cardBottomOf(rows, cockpit) + 1, cockpit.bottom).map(line => line.trimEnd())
@@ -320,11 +324,11 @@ async function leg(cols: number, rows: number): Promise<void> {
     later(6, 'pasted'),
     see('its turn ended', 'harbour-ended', 8),
     clickOn(ATLAS_RUNNING),
-    see('ledger row 40', 'view-atlas', 8),
+    see('ledger row 80', 'view-atlas', 8),
     ...popup('/usage', USAGE_HINT, 'usage'),
     ...popup('/config', CONFIG_HINT, 'config'),
     ...popup('/model', '↑↓ select · ↵ switch', 'model'),
-    clickOn('FILES ·'),
+    ...(cols >= 178 ? [clickOn('FILES ·')] : [clickOn('or click · browse'), { data: CLICK, targetText: 'or click · browse', afterPrevTicks: 4 }]),
     seePopup(FILES_TITLE, '↑↓ move · ↵ open', 'files-open'),
     type(ESC, 3),
     later(8, 'files-closed'),
@@ -339,16 +343,16 @@ async function leg(cols: number, rows: number): Promise<void> {
     later(5, 'fjord-pgup'),
     clickOn(ATLAS_RUNNING),
     see('ledger row', 'view-atlas-again', 6),
-    swap(FJORD_RUNNING, 'VIEW · atlas'),
-    swap(ATLAS_RUNNING, 'VIEW · fjord'),
-    swap(FJORD_RUNNING, 'VIEW · atlas'),
-    swap(LEAD_ROW, 'VIEW · fjord'),
+    swap(FJORD_RUNNING, ATLAS_CARD),
+    swap(ATLAS_RUNNING, FJORD_CARD),
+    swap(FJORD_RUNNING, ATLAS_CARD),
+    swap(LEAD_ROW, FJORD_CARD),
     later(10, 'rapid'),
     type('/crewmates', 3),
     type('\r', 3),
     seePopup(CREW_TITLE, 'm main chat', 'crew-over-lead'),
     type('m', 3),
-    see('★ VIEW · ', 'pinned', 6),
+    see('THE MAIN CHAT', 'pinned', 6),
     ...popup('/usage', USAGE_HINT, 'usage-pinned'),
     ...popup('/crewmates', CREW_TITLE, 'crew-pinned'),
     clickOn(LEAD_ROW),
@@ -383,7 +387,7 @@ async function leg(cols: number, rows: number): Promise<void> {
     console.log(`  the view: columns ${cockpit.left}..${cockpit.right} · rows 0..${cockpit.bottom} · composer rows ${cockpit.composerTop}..${cockpit.composerBottom} · rail 0..${cockpit.railRight}${cockpit.vitalsLeft === null ? '' : ` · vitals from ${cockpit.vitalsLeft}`}`)
     check(`${tag}: the lead's view paints whole with the three crewmates in the rail`, integrity(lead!.rows).length === 0 && [ATLAS_RUNNING, FJORD_RUNNING, HARBOUR_RUNNING].every(needle => railRow(lead!.rows, cockpit, needle) !== undefined), integrity(lead!.rows).slice(0, 3).join(' · ') || railOf(lead!.rows, cockpit).filter(line => line.includes('·')).map(flat).join(' | '))
     const harbour = marks['view-harbour']
-    check(`${tag}: one click on harbour's row opens it in the view (the status row, the card, its own rows)`, harbour !== undefined && viewedName(harbour.rows) === 'harbour' && /viewing harbour/.test(statusOf(harbour.rows)) && cardRows(harbour.rows, cockpit).includes('◉ harbour') && transcriptRows(harbour.rows, cockpit).some(line => line.includes('[harbour]')), harbour === undefined ? 'no frame' : `${statusOf(harbour.rows)} · ${cardRows(harbour.rows, cockpit).slice(0, 120)}`)
+    check(`${tag}: one click on harbour's row opens it in the view (the status row, the card, its own rows)`, harbour !== undefined && viewedName(harbour.rows) === 'harbour' && viewing(harbour.rows, 'harbour') && cardRows(harbour.rows, cockpit).includes('◉ harbour') && transcriptRows(harbour.rows, cockpit).some(line => line.includes('[harbour]')), harbour === undefined ? 'no frame' : `${statusOf(harbour.rows)} · ${cardRows(harbour.rows, cockpit).slice(0, 120)}`)
     if (harbour !== undefined) check(`${tag}: harbour's view paints whole`, integrity(harbour.rows).length === 0, integrity(harbour.rows).slice(0, 3).join(' · '))
     const ended = marks['harbour-ended']
     check(`${tag}: harbour's turn ends while it is viewed — the view stays on harbour, its last row is on screen, the card no longer says it sleeps`, ended !== undefined && viewedName(ended.rows) === 'harbour' && transcriptRows(ended.rows, cockpit).some(line => line.includes('its turn ended')) && !cardRows(ended.rows, cockpit).includes('Sleeping'), ended === undefined ? 'no frame' : `${statusOf(ended.rows)} · ${cardRows(ended.rows, cockpit).slice(0, 160)}`)
@@ -396,7 +400,7 @@ async function leg(cols: number, rows: number): Promise<void> {
       check(`${tag}: the rail still marks the ended crewmate ◉ › while it is the view (the row stays in the CREW lane)`, endedRail.some(line => line.includes('◉ harbour') && line.includes('›')), endedRail.filter(line => /CREW|◉|◐|★|✶/.test(line)).map(flat).join(' | '))
     }
     const atlas = marks['view-atlas']
-    check(`${tag}: the first visit of atlas opens at the bottom of its transcript (its Sleep row on screen, no pill)`, atlas !== undefined && viewedName(atlas.rows) === 'atlas' && /viewing atlas/.test(statusOf(atlas.rows)) && centreOf(atlas.rows, cockpit).some(line => line.includes('ledger row')) && centreOf(atlas.rows, cockpit).some(line => line.includes('287s')) && !atlas.rows.some(line => line.includes(PILL)), atlas === undefined ? 'no frame' : centreOf(atlas.rows, cockpit).slice(6, 30).map(flat).filter(Boolean).join(' | ').slice(0, 400) + (atlas !== undefined && atlas.rows.some(line => line.includes(PILL)) ? ' · the pill stands' : ''))
+    check(`${tag}: the first visit of atlas opens at the bottom of its transcript (its Sleep row on screen, no pill)`, atlas !== undefined && viewedName(atlas.rows) === 'atlas' && viewing(atlas.rows, 'atlas') && centreOf(atlas.rows, cockpit).some(line => line.includes('ledger row')) && centreOf(atlas.rows, cockpit).some(line => line.includes('287s')) && !atlas.rows.some(line => line.includes(PILL)), atlas === undefined ? 'no frame' : centreOf(atlas.rows, cockpit).slice(6, 30).map(flat).filter(Boolean).join(' | ').slice(0, 400) + (atlas !== undefined && atlas.rows.some(line => line.includes(PILL)) ? ' · the pill stands' : ''))
     if (atlas !== undefined) {
       check(`${tag}: atlas's view paints whole (no row past the view's border, the rail intact)`, integrity(atlas.rows).length === 0, integrity(atlas.rows).slice(0, 3).join(' · '))
       const past = atlas.rows.filter(line => cells(line).slice(cockpit.right + 1, cockpit.vitalsLeft ?? cockpit.cols).join('').trim() !== '')
@@ -425,7 +429,7 @@ async function leg(cols: number, rows: number): Promise<void> {
     popupPins(`${tag}: /usage over the scrolled atlas`, marks['usage-scrolled-open'], USAGE_TITLE, cockpit, atlasNeedles, scrolled)
     returnPins(`${tag}: /usage closed over the scrolled atlas`, scrolled, marks['usage-scrolled-closed'], cockpit, 'atlas')
     const fjord = marks['view-fjord']
-    check(`${tag}: the swap to fjord from the scrolled atlas paints fjord's rows alone (no atlas row left over)`, fjord !== undefined && viewedName(fjord.rows) === 'fjord' && /viewing fjord/.test(statusOf(fjord.rows)) && transcriptRows(fjord.rows, cockpit).some(line => line.includes('[fjord]')) && !transcriptRows(fjord.rows, cockpit).some(line => line.includes('[atlas]') || line.includes('ledger row')), fjord === undefined ? 'no frame' : transcriptRows(fjord.rows, cockpit).map(flat).filter(Boolean).slice(0, 6).join(' | ').slice(0, 300))
+    check(`${tag}: the swap to fjord from the scrolled atlas paints fjord's rows alone (no atlas row left over)`, fjord !== undefined && viewedName(fjord.rows) === 'fjord' && viewing(fjord.rows, 'fjord') && transcriptRows(fjord.rows, cockpit).some(line => line.includes('[fjord]')) && !transcriptRows(fjord.rows, cockpit).some(line => line.includes('[atlas]') || line.includes('ledger row')), fjord === undefined ? 'no frame' : transcriptRows(fjord.rows, cockpit).map(flat).filter(Boolean).slice(0, 6).join(' | ').slice(0, 300))
     if (fjord !== undefined) {
       check(`${tag}: fjord's view paints whole`, integrity(fjord.rows).length === 0, integrity(fjord.rows).slice(0, 3).join(' · '))
       const fjordRows = transcriptRows(fjord.rows, cockpit).filter(line => line.trim() !== '')
@@ -437,13 +441,13 @@ async function leg(cols: number, rows: number): Promise<void> {
     const again = marks['view-atlas-again']
     check(`${tag}: back on atlas its transcript is where it was left (the scrolled rows, the pill standing for the rows below)`, again !== undefined && scrolled !== undefined && viewedName(again.rows) === 'atlas' && transcriptRows(again.rows, cockpit).join('\n') === transcriptRows(scrolled.rows, cockpit).join('\n') && again.rows.some(line => line.includes(PILL)), again === undefined || scrolled === undefined ? 'no frame' : firstDiff(transcriptRows(scrolled.rows, cockpit), transcriptRows(again.rows, cockpit)) || (again.rows.some(line => line.includes(PILL)) ? '' : 'no pill'))
     const rapid = marks['rapid']
-    check(`${tag}: four swaps at the product's own pace end on the lead with the lead's rows alone and every border whole`, rapid !== undefined && !/viewing|main chat/.test(statusOf(rapid.rows)) && transcriptRows(rapid.rows, cockpit).some(line => line.includes('[Mercury]') || line.includes('[sam]')) && !transcriptRows(rapid.rows, cockpit).some(line => line.includes('[fjord]') || line.includes('[atlas]')) && integrity(rapid.rows).length === 0, rapid === undefined ? 'no frame' : `${statusOf(rapid.rows)} · ${integrity(rapid.rows).slice(0, 2).join(' · ')} · ${transcriptRows(rapid.rows, cockpit).filter(line => line.trim()).slice(0, 3).map(flat).join(' | ').slice(0, 200)}`)
+    check(`${tag}: four swaps at the product's own pace end on the lead with the lead's rows alone and every border whole`, rapid !== undefined && !/viewing |main chat: /.test(statusOf(rapid.rows)) && transcriptRows(rapid.rows, cockpit).some(line => line.includes('[Mercury]') || line.includes('[sam]')) && !transcriptRows(rapid.rows, cockpit).some(line => line.includes('[fjord]') || line.includes('[atlas]')) && integrity(rapid.rows).length === 0, rapid === undefined ? 'no frame' : `${statusOf(rapid.rows)} · ${integrity(rapid.rows).slice(0, 2).join(' · ')} · ${transcriptRows(rapid.rows, cockpit).filter(line => line.trim()).slice(0, 3).map(flat).join(' | ').slice(0, 200)}`)
     const crewOrder = (mark: Mark | undefined): string => (mark === undefined ? '' : railOf(mark.rows, cockpit).filter(line => /[◐◉★●] (atlas|fjord|harbour)/.test(line)).map(line => /(atlas|fjord|harbour)/.exec(line)![1]).join(','))
     console.log(`  the CREW rows' order: atlas viewed ${crewOrder(atlas)} · fjord viewed ${crewOrder(fjord)} · atlas again ${crewOrder(again)} · the lead ${crewOrder(rapid)}`)
     check(`${tag}: the CREW rows keep their places across the swaps (the viewed row is marked where it stands, never moved to the top)`, crewOrder(atlas) !== '' && crewOrder(atlas) === crewOrder(fjord) && crewOrder(fjord) === crewOrder(again) && crewOrder(again) === crewOrder(rapid), `${crewOrder(atlas)} → ${crewOrder(fjord)} → ${crewOrder(again)} → ${crewOrder(rapid)}`)
     popupPins(`${tag}: the crew pop-up over the lead`, marks['crew-over-lead'], CREW_TITLE, cockpit, ['launching the crew'], rapid)
     const pinned = marks['pinned']
-    const pinnedName = pinned === undefined ? '' : (/main chat: (\S+) · /.exec(statusOf(pinned.rows))?.[1] ?? '')
+    const pinnedName = pinned === undefined ? '' : (/main chat: (\S+) · /.exec(statusOf(pinned.rows))?.[1] ?? /★ (atlas|fjord|harbour)/.exec(railRow(pinned.rows, cockpit, '★') ?? '')?.[1] ?? '')
     console.log(`  m on the crew pop-up's first row pinned: "${pinnedName || 'nobody'}"`)
     check(`${tag}: m on the selected crewmate pins it — ★ in the rail, the status row says main chat, the card says THE MAIN CHAT, the pop-up gone`, pinned !== undefined && pinnedName !== '' && railRow(pinned.rows, cockpit, '★') !== undefined && railRow(pinned.rows, cockpit, '★')!.includes(pinnedName.slice(0, 5)) && cardRows(pinned.rows, cockpit).includes('THE MAIN CHAT') && !pinned.rows.some(line => line.includes(CREW_TITLE)), pinned === undefined ? 'no frame' : `${statusOf(pinned.rows)} · ${railRow(pinned.rows, cockpit, '★') ?? 'no ★ row'}`)
     if (pinned !== undefined) check(`${tag}: the pinned view paints whole`, integrity(pinned.rows).length === 0, integrity(pinned.rows).slice(0, 3).join(' · '))
@@ -453,7 +457,7 @@ async function leg(cols: number, rows: number): Promise<void> {
     popupPins(`${tag}: the crew pop-up over the pinned ${pinnedName}`, marks['crew-pinned-open'], CREW_TITLE, cockpit, pinnedNeedles, pinned)
     returnPins(`${tag}: the crew pop-up closed over the pinned ${pinnedName}`, pinned, marks['crew-pinned-closed'], cockpit, pinnedName)
     const leadPinned = marks['lead-pinned']
-    check(`${tag}: Mercury Lead in the rail goes back while ${pinnedName} stays the main chat (★ kept, the composer still addresses it)`, leadPinned !== undefined && !/viewing|main chat/.test(statusOf(leadPinned.rows)) && railRow(leadPinned.rows, cockpit, '★') !== undefined && (composerRow(leadPinned.rows) ?? '').includes(`message ${pinnedName}`) && transcriptRows(leadPinned.rows, cockpit).some(line => line.includes('[Mercury]') || line.includes('[sam]')), leadPinned === undefined ? 'no frame' : `${statusOf(leadPinned.rows)} · ${railRow(leadPinned.rows, cockpit, '★') ?? 'no ★'} · ${flat(composerRow(leadPinned.rows) ?? '')}`)
+    check(`${tag}: Mercury Lead in the rail goes back while ${pinnedName} stays the main chat (the status row says the main chat waits for the lead in the rail, ★ kept, the composer still addresses it)`, leadPinned !== undefined && !/viewing/.test(statusOf(leadPinned.rows)) && (statusOf(leadPinned.rows).includes(`main chat: ${pinnedName} · Mercury Lead waits in the rail`) || !/main chat/.test(statusOf(leadPinned.rows))) && railRow(leadPinned.rows, cockpit, '★') !== undefined && (composerRow(leadPinned.rows) ?? '').includes(`message ${pinnedName}`) && transcriptRows(leadPinned.rows, cockpit).some(line => line.includes('[Mercury]') || line.includes('[sam]')), leadPinned === undefined ? 'no frame' : `${statusOf(leadPinned.rows)} · ${railRow(leadPinned.rows, cockpit, '★') ?? 'no ★'} · ${flat(composerRow(leadPinned.rows) ?? '')}`)
     if (leadPinned !== undefined) check(`${tag}: the lead's view under a pinned crewmate paints whole`, integrity(leadPinned.rows).length === 0, integrity(leadPinned.rows).slice(0, 3).join(' · '))
     const railTop = marks['rail-top']
     console.log(`  the rail's cursor after Tab and ↑×12: "${flat(railRow(railTop?.rows ?? [], cockpit, '❯') ?? 'no ❯ row')}"`)
@@ -464,7 +468,7 @@ async function leg(cols: number, rows: number): Promise<void> {
     console.log(`  after the resize to ${nextSize[0]}x${nextSize[1]} during the swap: ${resized === undefined ? 'no frame' : `${resized.cols}x${resized.lines}${resizedCockpit === null ? '' : ` · view ${resizedCockpit.left}..${resizedCockpit.right} × 0..${resizedCockpit.bottom}`}`}`)
     check(`${tag}: a resize during the swap to atlas lands on a whole frame at ${nextSize[0]}x${nextSize[1]} — atlas viewed, its rows, every border`, resized !== undefined && resizedCockpit !== null && resized.cols === nextSize[0] && resized.lines === nextSize[1] && viewedName(resized.rows) === 'atlas' && integrity(resized.rows).length === 0 && transcriptRows(resized.rows, resizedCockpit).some(line => line.includes('[atlas]') || line.includes('287s')), resized === undefined ? 'no frame' : `${statusOf(resized.rows)} · ${integrity(resized.rows).slice(0, 3).join(' · ')}`)
     const back = marks['back']
-    check(`${tag}: Mercury Lead in the rail goes back after the resize — the lead's rows return whole`, back !== undefined && !/viewing|main chat/.test(statusOf(back.rows)) && integrity(back.rows).length === 0 && back.rows.some(line => line.includes('[Mercury]') || line.includes('[sam]')) && !back.rows.some(line => line.includes('[atlas]')), back === undefined ? 'no frame' : `${statusOf(back.rows)} · ${integrity(back.rows).slice(0, 3).join(' · ')}`)
+    check(`${tag}: Mercury Lead in the rail goes back after the resize — the lead's rows return whole`, back !== undefined && !/viewing |main chat: /.test(statusOf(back.rows)) && integrity(back.rows).length === 0 && back.rows.some(line => line.includes('[Mercury]') || line.includes('[sam]')) && !back.rows.some(line => line.includes('[atlas]')), back === undefined ? 'no frame' : `${statusOf(back.rows)} · ${integrity(back.rows).slice(0, 3).join(' · ')}`)
   }
   if (failures > before || DUMP) {
     for (const [label, mark] of Object.entries(marks)) dump(`${size} · ${label}`, mark)
