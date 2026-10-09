@@ -35,6 +35,7 @@ export const FAMILY_TRANSCRIBER: Record<CallModelRoute, { slot: 'api-key' } | { 
   huggingface: { slot: 'none', why: 'no speech-to-text endpoint wired' },
   'openai-compat': { slot: 'none', why: 'no speech-to-text endpoint declared' },
   local: { slot: 'none', why: 'no speech-to-text endpoint declared' },
+  zen: { slot: 'none', why: 'no speech-to-text endpoint' },
 }
 
 
