@@ -124,7 +124,7 @@ export function createHostCanUseTool(channel: AskChannel, onPermissionPrompt?: (
     let awayTimer: ReturnType<typeof setTimeout> | undefined
     let away = false
     let askLimit = 0
-    const forwardParentAbort = (): void => requestController.abort(parentSignal.reason)
+    const forwardParentAbort = (): void => requestController.abort()
     parentSignal.addEventListener('abort', forwardParentAbort, { once: true })
     try {
       const engineResult = (forceDecision ?? (await hasPermissionsToUseTool(tool, input, toolUseContext, assistantMessage, toolUseID))) as PermissionDecision
