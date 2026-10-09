@@ -318,7 +318,7 @@ export const COMMAND_SETTINGS_ROWS: readonly MenuRow[] = [
     options: ['5m', '1h'],
     defaultLabel: 'adaptive',
     summary:
-      'how long Anthropic keeps your conversation cached between prompts — Claude-family calls only; adaptive picks for you; set from /caching',
+      'how long Anthropic keeps your conversation cached between prompts — Anthropic calls only; adaptive picks for you; set from /caching',
   },
 ] as const
 

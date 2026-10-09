@@ -60,7 +60,7 @@ The script body's hooks:
 
 Workers hand back raw data as their final text. Whenever the result has fields, prefer \`schema\` over prose-parsing: the validation loop is free correctness.
 
-Mixing providers: because opts.model is per-call, one workflow may run Claude-family agents and a connected GPT lane's agents side by side. The strongest use is independence — run finders on one provider and the refute/verify lane on another, so verifier blind spots do not correlate with finder blind spots. Only mix when the second provider is actually connected for this session; a model string the catalog cannot resolve fails the dispatch.
+Mixing providers: because opts.model is per-call, one workflow may run agents on different providers side by side. The strongest use is independence — run finders on one provider and the refute/verify lane on another, so verifier blind spots do not correlate with finder blind spots. Only mix when the second provider is actually connected for this session; a model string the catalog cannot resolve fails the dispatch.
 
 Agents inside a workflow carry the same tool box as a background sub-agent launched by the Agent tool — one allow-set, with the spawn, plan and ask surfaces left out — so a model ingests the same tool schemas either way. The built-in worker reaches every session-connected MCP tool through its own tool search, loading schemas on demand; a custom agentType carries exactly the tools its definition declares, as it would under the Agent tool. Caveat: MCP servers that authenticate interactively may be unavailable in headless or scheduled runs.
 
