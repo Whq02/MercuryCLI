@@ -116,6 +116,3 @@ export function liveSkillRootsOf(commands: ReadonlyArray<{ name: string; skillRo
   for (const command of commands) if (command.skillRoot !== undefined) roots.add(command.skillRoot)
   return roots
 }
-
-export { addFunctionHook, addSessionHook, clearSessionHooks, getSessionFunctionHooks, getSessionHookCallback, getSessionHooks, removeFunctionHook } from './oldRoad.js'
-export type { FunctionHook, FunctionHookCallback, FunctionHookContext, FunctionHookPass, SessionHook } from './oldRoad.js'
