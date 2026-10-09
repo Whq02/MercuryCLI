@@ -111,19 +111,18 @@ section('(e1) memory front page — the verb sentence rides only with a reader t
   check('with no tool list given (the fork path) the full page stands', memoryOf(buildSubagentMercurySections({ agentDefinition: GP })).includes(MEMORY_WRITE_VERBS_SENTENCE))
 }
 
-section('(e2) API-currency: doctrine line for ALL agents + env-block currency note')
+section('(e2) API-currency: the env block carries the rule once; the doctrine sections repeat nothing')
 {
   const CURRENCY_MARK = 'provider-apis'
-  check('mercury-crew carries the API-currency line', join(buildSubagentMercurySections({ agentDefinition: GP })).includes(CURRENCY_MARK))
-  for (const a of EXEMPT) {
-    check(`${a}: carries the API-currency line (fact line, not a register)`, join(buildSubagentMercurySections({ agentDefinition: { agentType: a } })).includes(CURRENCY_MARK))
+  for (const a of ['mercury-crew', ...EXEMPT]) {
+    check(`${a}: the doctrine sections carry no provider-apis line of their own`, !join(buildSubagentMercurySections({ agentDefinition: { agentType: a } })).includes(CURRENCY_MARK))
   }
-  const doctrine = join(buildSubagentMercurySections({ agentDefinition: GP }))
-  check('the line ranks provider-apis over any external provider-API skill and bundled skills over same-named external ones', doctrine.includes('it outranks any external provider-API skill, and Mercury\'s bundled skills outrank external skills of the same name'))
-  check('the line names no external skill', !doctrine.includes(['claude', '-api'].join('')) && !doctrine.includes('legacy variants'))
   const pr = read('../../src/constants/prompts.ts')
+  const precedence = /PROVIDER_SKILL_PRECEDENCE = `([^`]*)`/.exec(pr)?.[1] ?? ''
+  check('the env-block line ranks provider-apis over any external provider-API skill and bundled skills over same-named external ones', precedence.includes('it outranks any external provider-API skill, and a bundled Mercury skill outranks an external skill of the same name'))
+  check('the line names no external skill', !precedence.includes(['claude', '-api'].join('')) && !precedence.includes('legacy variants'))
   const envFn = pr.slice(pr.indexOf('export async function computeEnvInfo'), pr.indexOf('export async function computeSimpleEnvInfo'))
-  check('computeEnvInfo interpolates MODEL_CURRENCY_NOTE', envFn.includes('${MODEL_CURRENCY_NOTE}'))
+  check('computeEnvInfo interpolates MODEL_CURRENCY_NOTE and PROVIDER_SKILL_PRECEDENCE (every seat gets the rule once)', envFn.includes('${MODEL_CURRENCY_NOTE}') && envFn.includes('${PROVIDER_SKILL_PRECEDENCE}'))
   check('…for EVERY family (no route gate on the currency rule)', !envFn.includes('isAnthropicRoutedModelId'))
   check('the model_currency section shares the same const (no drift-prone twin literal)', pr.includes('function getModelCurrencySection(): string {\n  return `${MODEL_CURRENCY_NOTE} ${PROVIDER_SKILL_PRECEDENCE}`\n}'))
   check('MODEL_CURRENCY_NOTE is the neutral rule — no vendor model list hardcoded', /MODEL_CURRENCY_NOTE = `Model currency:/.test(pr) && !/MODEL_CURRENCY_NOTE = `[^`]*claude-/.test(pr))

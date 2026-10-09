@@ -1,21 +1,12 @@
 export const WEB_FETCH_TOOL_NAME = 'WebFetch'
 
-const AUTHENTICATED_URL_WARNING = `IMPORTANT: an authenticated or private URL makes WebFetch fail. Before calling it, ask whether the URL points at an authenticated service (internal documents, wikis, issue trackers, code hosts). If it does, reach for a specialised MCP tool with authenticated access instead.`
+const AUTHENTICATED_URL_WARNING = `An authenticated or private URL (internal documents, wikis, issue trackers, code hosts) fails here; an MCP tool with authenticated access is the road to those, and a connected MCP web-fetch tool usually carries fewer restrictions than this one.`
 
 export const DESCRIPTION = `Pulls a web page and answers a prompt against it with a small fast model.
 
 - Input: a URL plus the prompt to run over the page
-- The page is fetched and its HTML rendered down to markdown
-- A small, fast model reads that markdown and answers your prompt
-- What comes back is the model's answer about the page
-- The tool for retrieving and analysing web content
-
-Usage notes:
-- IMPORTANT: prefer an MCP web-fetch tool whenever one is connected — those usually carry fewer restrictions.
-- Only a fully formed, valid URL works
-- An http:// URL silently becomes https://
-- Shape the prompt around the information you are after
-- A read-only tool: no file on disk changes
+- The page is fetched and its HTML rendered down to markdown; a small, fast model reads that markdown and answers your prompt
+- Only a fully formed, valid URL works; an http:// URL silently becomes https://
 - Very large pages may come back summarised
 - Repeat pulls ride a fifteen-minute self-cleaning cache
 - When this tool reports a redirect to a different host, call it again with the redirect URL and the same prompt

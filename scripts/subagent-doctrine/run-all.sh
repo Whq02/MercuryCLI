@@ -31,9 +31,8 @@ else
   grep_ship "NORMAL subagent doctrine ships"            "one of Mercury's agents, "
   grep_ship "the clause after the seat ships"           ", spawned for one assignment, whose caller reads only the output you return"
   grep_ship "the one seat word ships"                   "a crewmate"
-  grep_ship "multipurpose workflow preamble ships"      'Mercury workflow subagent'
-  grep_ship "workflow TEXT return-contract preserved"   'returned **verbatim**'
-  grep_ship "workflow SCHEMA return-contract preserved" 'exactly once to return your final answer'
+  grep_ship "workflow TEXT return-contract ships"       'reads your final text verbatim as its return value'
+  grep_ship "workflow SCHEMA return-contract ships"     'once with the answer in the shape its input schema requires'
 fi
 
 echo "############################################################"

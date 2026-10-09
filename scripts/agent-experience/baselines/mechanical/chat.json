@@ -6,11 +6,11 @@
     "backend": "zai-glm",
     "dialect": "chat",
     "mechanical": true,
-    "tree": "fa468c081",
+    "tree": "7108c1be0",
     "fold": "unlabelled",
-    "when": "2026-10-07T22:21:26.938Z",
-    "promptChars": 24072,
-    "promptTokensEst": 6018,
+    "when": "2026-10-09T18:13:17.579Z",
+    "promptChars": 18386,
+    "promptTokensEst": 4597,
     "toolCount": 55,
     "toolNames": [
       "Agent",
@@ -69,7 +69,7 @@
       "mcp__mercury__lease_list",
       "mcp__mercury__render_tui"
     ],
-    "toolSchemaChars": 173820,
+    "toolSchemaChars": 161840,
     "notes": [
       "browser task unmeasured: no browser to launch — no managed browser — your installed apps are never driven; /browser install downloads Chrome for Testing once with your consent"
     ]
@@ -117,12 +117,12 @@
       "errors": [
         {
           "tool": "Bash",
-          "text": "<tool_use_error>Shell command failed (exit code 1)\n✔ mean of a list (0.380208ms)\n✔ median of an odd-length list (0.073458ms)\n✖ median of an even-length list averages the middle pair (0.440917ms)\nℹ tests 3\nℹ suites 0\nℹ pass 2\nℹ fail 1\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 62.081834\n\n✖ failing tests:\n\ntest at test/stats.test.js:13:1\n✖ median of an even-length list averages the middle pair (0.440917ms)\n  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n  \n  3 !== 2.5\n  \n      at TestContext.<anonymous> (file://<fixture>/chat/tasks/fix-",
+          "text": "<tool_use_error>Shell command failed (exit code 1)\n✔ mean of a list (0.536834ms)\n✔ median of an odd-length list (0.083375ms)\n✖ median of an even-length list averages the middle pair (0.65775ms)\nℹ tests 3\nℹ suites 0\nℹ pass 2\nℹ fail 1\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 102.967167\n\n✖ failing tests:\n\ntest at test/stats.test.js:13:1\n✖ median of an even-length list averages the middle pair (0.65775ms)\n  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n  \n  3 !== 2.5\n  \n      at TestContext.<anonymous> (file://<fixture>/chat/tasks/fix-b",
           "namesFix": true,
           "probe": true
         }
       ],
-      "wallMs": 2512,
+      "wallMs": 3205,
       "exitCode": 0,
       "timedOut": false,
       "resultStatus": "completed",
@@ -174,7 +174,7 @@
       "asks": 0,
       "denials": 0,
       "errors": [],
-      "wallMs": 1892,
+      "wallMs": 3015,
       "exitCode": 0,
       "timedOut": false,
       "resultStatus": "completed",
@@ -233,7 +233,7 @@
           "probe": true
         }
       ],
-      "wallMs": 1164,
+      "wallMs": 1971,
       "exitCode": 0,
       "timedOut": false,
       "resultStatus": "completed",
@@ -261,13 +261,13 @@
       "success": true,
       "oracle": "definition cited: true; call site cited: true; searched: true",
       "turns": 3,
-      "toolCalls": 1,
+      "toolCalls": 2,
       "wasted": 1,
       "probes": 1,
       "unexpectedErrors": 0,
       "duplicates": 0,
-      "toolResultChars": 358,
-      "toolResultTokensEst": 90,
+      "toolResultChars": 490,
+      "toolResultTokensEst": 123,
       "imageChars": 0,
       "injectedTokensEst": 0,
       "subagentResultTokensEst": 0,
@@ -281,7 +281,7 @@
           "probe": true
         }
       ],
-      "wallMs": 1057,
+      "wallMs": 1692,
       "exitCode": 0,
       "timedOut": false,
       "resultStatus": "completed",
@@ -323,7 +323,7 @@
       "asks": 0,
       "denials": 0,
       "errors": [],
-      "wallMs": 1082,
+      "wallMs": 1521,
       "exitCode": 0,
       "timedOut": false,
       "resultStatus": "completed",
@@ -370,7 +370,7 @@
           "probe": true
         }
       ],
-      "wallMs": 1094,
+      "wallMs": 1579,
       "exitCode": 0,
       "timedOut": false,
       "resultStatus": "completed",
@@ -410,7 +410,7 @@
       "asks": 0,
       "denials": 0,
       "errors": [],
-      "wallMs": 1107,
+      "wallMs": 1588,
       "exitCode": 0,
       "timedOut": false,
       "resultStatus": "completed",
@@ -450,7 +450,7 @@
       "asks": 0,
       "denials": 0,
       "errors": [],
-      "wallMs": 1270,
+      "wallMs": 2489,
       "exitCode": 0,
       "timedOut": false,
       "resultStatus": "completed",
@@ -522,7 +522,7 @@
       "asks": 0,
       "denials": 0,
       "errors": [],
-      "wallMs": 1063,
+      "wallMs": 1188,
       "exitCode": 0,
       "timedOut": false,
       "resultStatus": "completed",
@@ -562,7 +562,7 @@
       "asks": 0,
       "denials": 0,
       "errors": [],
-      "wallMs": 1035,
+      "wallMs": 1262,
       "exitCode": 0,
       "timedOut": false,
       "resultStatus": "completed",
@@ -611,7 +611,7 @@
           "probe": true
         }
       ],
-      "wallMs": 1655,
+      "wallMs": 2638,
       "exitCode": 0,
       "timedOut": false,
       "resultStatus": "completed",
@@ -646,7 +646,7 @@
       "asks": 0,
       "denials": 0,
       "errors": [],
-      "wallMs": 1323,
+      "wallMs": 1201,
       "exitCode": 0,
       "timedOut": false,
       "resultStatus": "completed",
@@ -681,7 +681,7 @@
       "asks": 0,
       "denials": 0,
       "errors": [],
-      "wallMs": 1004,
+      "wallMs": 1261,
       "exitCode": 0,
       "timedOut": false,
       "resultStatus": "completed",

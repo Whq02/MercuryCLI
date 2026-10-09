@@ -5,7 +5,6 @@ import { COMPUTER_TOOL_NAME } from '../../services/desktop/toolName.js'
 import { getSkillToolCommands } from '../../commands.js'
 import type { Command, PromptCommand } from '../../types/command.js'
 import {
-  DEFAULT_AGENT_PROMPT,
   enhanceSystemPromptWithEnvDetails,
 } from '../../constants/prompts.js'
 import { query, type QueryParams } from '../../query.js'
@@ -412,7 +411,7 @@ async function buildAgentSystemPrompt(
     logForDebugging(
       `runAgent: system prompt build failed for ${definition.agentType}: ${errorMessage(error)}`,
     )
-    ownPrompt = DEFAULT_AGENT_PROMPT
+    ownPrompt = ''
   }
   const doctrine = buildSubagentMercurySections({
     agentDefinition: definition,

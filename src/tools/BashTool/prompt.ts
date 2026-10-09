@@ -104,7 +104,7 @@ function buildOutputParagraph(): string {
 
 function buildToolsParagraph(embedded: boolean): string {
   const search = embedded ? '' : `${GLOB_TOOL_NAME} to find files, ${GREP_TOOL_NAME} to search contents, `
-  return `Prefer the dedicated tools when they fit: ${search}${FILE_READ_TOOL_NAME} to read a file, ${FILE_EDIT_TOOL_NAME} to change one, ${FILE_WRITE_TOOL_NAME} to create one. Run independent commands as parallel calls; chain dependent ones with \`&&\` (\`;\` only when an earlier failure does not matter). A bare newline does not separate commands.`
+  return `Prefer the dedicated tools when they fit: ${search}${FILE_READ_TOOL_NAME} to read a file, ${FILE_EDIT_TOOL_NAME} to change one, ${FILE_WRITE_TOOL_NAME} to create one. Chain dependent commands with \`&&\` (\`;\` only when an earlier failure does not matter); a bare newline does not separate commands.`
 }
 
 function brushShellParagraphs(): string[] {

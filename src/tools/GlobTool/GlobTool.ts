@@ -31,7 +31,7 @@ const inputSchema = z.strictObject({
     .string()
     .optional()
     .describe(
-      'Directory the search runs in; leaving the field out entirely selects the current working directory. IMPORTANT: omission IS the default — never write "undefined" or "null" here. When given, it must be a real directory path.',
+      'Directory the search runs in: a real directory path, or left out for the current working directory — never "undefined" or "null".',
     ),
 })
 

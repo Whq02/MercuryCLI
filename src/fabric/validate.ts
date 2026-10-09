@@ -224,7 +224,6 @@ const ATTACHMENT_BODY_SHAPES: Record<string, z.ZodType> = {
   bound_prefix: z.looseObject({ boundKey: z.string(), rosterEnabled: z.boolean(), roster: objectList, sections: objectList, systemContext: z.looseObject({}).optional() }),
   dead_thinking: z.looseObject({ dead: objectList }),
   images_left_out: z.looseObject({ count: z.number(), images: z.number(), sidePx: z.number() }),
-  run_protocol_delta: z.looseObject({ tools: strings, body: z.string() }),
   bagel_console: z.looseObject({ errorCount: z.number(), warningCount: z.number(), sample: z.string() }),
   user_context: z.looseObject({ body: z.string() }),
   compact_operator_messages: z.looseObject({ messages: z.array(z.looseObject({ ordinal: z.number(), text: z.string() })), omitted: z.number() }),

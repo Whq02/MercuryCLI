@@ -15,7 +15,7 @@ t.section('§1 — the assembled question-tool prompt carries the doctrine')
   const CLAUSES: [string, string][] = [
     ['research-before-question', 'Investigate before asking'],
     ['evidence-eliminates-decided-choices', 'eliminate choices already decided'],
-    ['never-ask-what-code-answers', 'Never ask what you could find out by reading the code'],
+    ['never-ask-what-code-answers', 'a question the code answers is not a question'],
     ['consequential-only', 'unresolved, consequential decisions'],
     ['no-self-resolvable-details', 'test frameworks the repository already uses'],
     ['why-still-open', 'why the decision is still open'],

@@ -16,12 +16,12 @@ Options may carry a \`preview\` rendered when the option is focused. Use preview
 export const ASK_USER_QUESTION_TOOL_PROMPT = `Ask the user structured multiple-choice questions to collect facts, resolve ambiguity, learn preferences, or settle decisions.
 
 ## The asking doctrine
-Investigate before asking. Use what the request itself, the architecture already committed to, the project's conventions, decisions already on record, and measurable constraints tell you to eliminate choices already decided — a question the code answers is not a question. Never ask what you could find out by reading the code.
+Investigate before asking. Use what the request itself, the architecture already committed to, the project's conventions, decisions already on record, and measurable constraints tell you to eliminate choices already decided — a question the code answers is not a question.
 
 - Ask only unresolved, consequential decisions. Do not ask about file names, internal types, or test frameworks the repository already uses — those details are yours to settle.
 - State briefly why the decision is still open despite what you found.
 - Offer 2–4 genuinely distinct options. Each description spells out honestly what follows from picking it — never steer with loaded phrasing.
-- When the evidence supports a recommendation, put that option FIRST and append "(Recommended)" to its label. Recommend nothing otherwise.
+- When the evidence supports a recommendation, put that option first and append "(Recommended)" to its label. Recommend nothing otherwise.
 - Group independent decisions into one call; ask a dependent question only after its parent answer is known.
 - Do not re-ask a question the user already answered unless new evidence makes the earlier answer inconsistent — and then say what changed.
 - Stop asking when all material ambiguity is resolved.

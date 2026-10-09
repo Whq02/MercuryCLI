@@ -76,7 +76,7 @@ function check(name: string, ok: boolean, detail?: string): void {
 
 {
   const s = read('src/constants/subagentDoctrine.ts')
-  check('subagentDoctrine: getLspDoctrineLine spliced', s.includes('getLspDoctrineLine()'))
+  check('subagentDoctrine: no IDE-evidence line of its own', !s.includes('getLspDoctrineLine') && !s.includes('ide-evidence'))
 }
 
 {

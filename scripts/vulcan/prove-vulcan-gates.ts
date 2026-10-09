@@ -83,7 +83,7 @@ section('§2 · ARMED — tool + seams')
   check('prompt section renders inside a project', runWithCwdOverride(proj, () => (gates.getVulcanSection() ?? '').includes('VULCAN')))
   check('prompt section null outside a project', runWithCwdOverride(scratch, () => gates.getVulcanSection() === null))
   check('doctrine line renders', runWithCwdOverride(proj, () => (gates.getVulcanDoctrineLine() ?? '').includes('Godot tool')))
-  check('harness-map line renders (flag-gated)', (gates.getVulcanHarnessMapLine() ?? '').includes('ARMED'))
+  check('harness-map line renders (flag-gated)', (gates.getVulcanHarnessMapLine() ?? '').includes('is armed'))
   check('a project without a discovered agent editor gets no implicit bridge client', runWithCwdOverride(proj, () => getVulcanClient() === null))
   check('no fixed bridge port and no shared token seam remain: every instance carries its own', !('vulcanPort' in gates) && !('vulcanTokenOverride' in gates) && !('VULCAN_DEFAULT_PORT' in gates))
   check('arming writes no instance files into the project', !existsSync(path.join(proj, '.godot', 'mercury-vulcan')) && !existsSync(path.join(proj, '.godot', 'mercury-vulcan-token')))
@@ -192,7 +192,7 @@ section('§7 · behavioral seams — harness map, doctrine, boot menu, health, p
   check('harness map: no VULCAN line when off', !computeHarnessMapLines().some(l => l.includes('VULCAN')))
   process.env.MERCURY_GODOT_TOOLS = '1'
   resetHarnessMapForTest()
-  check('harness map: VULCAN line when armed (delta machinery sees the flip)', computeHarnessMapLines().some(l => l.includes('VULCAN') && l.includes('ARMED')))
+  check('harness map: VULCAN line when armed (delta machinery sees the flip)', computeHarnessMapLines().some(l => l.includes('VULCAN') && l.includes('is armed')))
 
   const { buildSubagentMercurySections } = await import('../../src/constants/subagentDoctrine.js')
   const doctrine = () =>

@@ -80,7 +80,7 @@ const JOURNAL_VERSION = 'v2'
 const THROTTLE_BACKOFF_MS = 45_000
 const RECOVERY_HEARTBEAT_MS = 30_000
 const MAX_STRUCTURED_OUTPUT_NUDGES = 2
-export const STRUCTURED_OUTPUT_NUDGE_PROMPT = `You stopped without calling the ${STRUCTURED_OUTPUT_TOOL_NAME} tool. Your work above is preserved — do NOT redo it. Call the ${STRUCTURED_OUTPUT_TOOL_NAME} tool now, exactly once, with your final answer in the shape its input schema requires. Do not reply with text; the calling script reads ONLY the ${STRUCTURED_OUTPUT_TOOL_NAME} tool call.`
+export const STRUCTURED_OUTPUT_NUDGE_PROMPT = `You stopped without calling ${STRUCTURED_OUTPUT_TOOL_NAME}. Your work above is preserved; call ${STRUCTURED_OUTPUT_TOOL_NAME} now, once, with your final answer in the shape its input schema requires — the script reads only that call, not text.`
 const DETERMINISTIC_400_RE =
   /prompt is too long|prompt too long|maximum context length|context window exceeded|invalid_request_error/i
 
@@ -105,43 +105,28 @@ export class WorkflowBudgetExceededError extends Error {
   }
 }
 
-export const SUBAGENT_TEXT_PROMPT = `You are a subagent spawned by a workflow orchestration script. Use the tools available to complete the task.
+export const SUBAGENT_TEXT_PROMPT = `A workflow script spawned you and reads your final text verbatim as its return value — no human reads it. Output the literal result (data, JSON or text) and nothing else: no confirmation, and when JSON is asked for, the raw JSON with no code fence or prose around it.`
 
-CRITICAL: Your final text response is returned **verbatim** as a string to the calling script — it is your return value, not a message to a human.
-- Output the literal result (data, JSON, text). Do NOT output confirmations like "Done." or "Sent."
-- If asked for JSON, return ONLY the raw JSON — no code fences, no prose, no markdown.
-- Put your answer in your final text response.
-- Be concise. The script will parse your output.`
-
-export const SUBAGENT_SCHEMA_PROMPT = `You are a subagent spawned by a workflow orchestration script. Use the tools available to complete the task.
-
-CRITICAL: You MUST call the ${STRUCTURED_OUTPUT_TOOL_NAME} tool exactly once to return your final answer. The tool's input schema defines the required shape.
-- Do your work (Read files, run commands, etc.), then call ${STRUCTURED_OUTPUT_TOOL_NAME} with your answer.
-- Do NOT put your answer in a text response. The script reads ONLY the ${STRUCTURED_OUTPUT_TOOL_NAME} tool call.
-- If the schema validation fails, read the error and call ${STRUCTURED_OUTPUT_TOOL_NAME} again with a corrected shape.
-- After calling ${STRUCTURED_OUTPUT_TOOL_NAME} successfully, end your turn. No acknowledgment needed.`
+export const SUBAGENT_SCHEMA_PROMPT = `A workflow script spawned you and reads only your ${STRUCTURED_OUTPUT_TOOL_NAME} tool call: do the work, then call ${STRUCTURED_OUTPUT_TOOL_NAME} once with the answer in the shape its input schema requires — a text answer is not read. A validation error means call it again with the shape corrected. After the call, end the turn.`
 
 export const SCHEMA_APPEND = `
 
 ---
 
-NOTE: You are running inside a workflow script. You MUST return your final answer by calling the ${STRUCTURED_OUTPUT_TOOL_NAME} tool exactly once — the tool's input schema defines the required shape. Do your work, then call ${STRUCTURED_OUTPUT_TOOL_NAME}; do NOT put your answer in a text response (the script reads ONLY the tool call). If validation fails, read the error and call ${STRUCTURED_OUTPUT_TOOL_NAME} again with a corrected shape.`
+${SUBAGENT_SCHEMA_PROMPT}`
 export const TEXT_APPEND = `
 
 ---
 
-NOTE: You are running inside a workflow script. Your final text response is returned verbatim as a string to the calling script — it is your return value, not a message to a human. Output the literal result; do not output confirmations like "Done." Be concise — the script will parse your output.`
+${SUBAGENT_TEXT_PROMPT}`
 
 const SUBAGENT_DISALLOWED_TOOLS = ['Agent', 'Workflow']
 
-const WORKFLOW_SUBAGENT_PREAMBLE = (): string =>
-  `You are a Mercury workflow subagent — a focused worker spawned by an orchestration script. Recon before you edit, verify from observed output (not "should work"), never fabricate paths/output/results, and end this assignment in exactly one outcome: the return value below, or a clean blocked stated in it. Reason privately, act through tools.\n\n`
-
 export function buildSubagentTextPrompt(): string {
-  return `${WORKFLOW_SUBAGENT_PREAMBLE()}${SUBAGENT_TEXT_PROMPT}`
+  return SUBAGENT_TEXT_PROMPT
 }
 export function buildSubagentSchemaPrompt(): string {
-  return `${WORKFLOW_SUBAGENT_PREAMBLE()}${SUBAGENT_SCHEMA_PROMPT}`
+  return SUBAGENT_SCHEMA_PROMPT
 }
 
 export const WORKFLOW_SUBAGENT_DEF = {
@@ -587,9 +572,9 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
   }
 
   const STALL_RESUME_PROMPT =
-    'Your previous turn was cut off by a no-progress timeout (the provider went quiet). Everything above is your own completed work — it is preserved; do NOT redo it. Continue from exactly where you stopped and finish the task.'
+    'Your previous turn was cut off by a no-progress timeout (the provider went quiet). Everything above is your own completed work and is preserved; continue from exactly where you stopped and finish the task.'
   const CAP_RESUME_PROMPT =
-    'Your previous turn ended on a spent usage window (the provider refused the request until its window resets). Everything above is your own completed work — it is preserved; do NOT redo it. Continue from exactly where you stopped and finish the task.'
+    'Your previous turn ended on a spent usage window (the provider refused the request until its window resets). Everything above is your own completed work and is preserved; continue from exactly where you stopped and finish the task.'
 
   const stableSchemaByRaw = new WeakMap<object, unknown>()
 
@@ -826,7 +811,7 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
     }
     const worktreePath = worktree?.worktreePath
     const effectivePrompt = worktree
-      ? `${prompt}\n\n---\nYou are running in an isolated git worktree at ${worktree.worktreePath} (a separate working copy of the repo). Changes you make here do NOT affect the main working directory or other agents. Work normally — the worktree will be cleaned up automatically if you made no changes, or preserved for review if you did.`
+      ? `${prompt}\n\n---\nYou work in an isolated git worktree at ${worktree.worktreePath}, a separate working copy of the repository: nothing you change here reaches the main working directory or another agent. An untouched worktree is removed when you finish; one with changes is kept for review.`
       : prompt
 
     const carryover: CallFrameStatics['carryover'] = { tokens: 0, toolCalls: 0, durationMs: 0, usage: EMPTY_WORKFLOW_USAGE }

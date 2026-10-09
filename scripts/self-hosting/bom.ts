@@ -29,8 +29,9 @@ if (mode === 'headless') {
   setIsInteractive(false)
 }
 
-const { getSystemPrompt, DEFAULT_AGENT_PROMPT, enhanceSystemPromptWithEnvDetails } =
+const { getSystemPrompt, enhanceSystemPromptWithEnvDetails } =
   await import('../../src/constants/prompts.js')
+const { MERCURY_CREW_AGENT } = await import('../../src/tools/AgentTool/built-in/mercuryCrewAgent.js')
 const { getAllBaseTools } = await import('../../src/tools.js')
 const { readPromptProvenance } = await import(
   '../../src/utils/cockpit/promptProvenance.js'
@@ -58,7 +59,7 @@ const rows: Row[] = []
 const tools = getAllBaseTools()
 if (mode === 'subagent') {
   const agentPrompt = await enhanceSystemPromptWithEnvDetails(
-    [DEFAULT_AGENT_PROMPT],
+    [MERCURY_CREW_AGENT.getSystemPrompt({ toolUseContext: {} as never })],
     model,
   )
   agentPrompt.forEach((seg, i) => {

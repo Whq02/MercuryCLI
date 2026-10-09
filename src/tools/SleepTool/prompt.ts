@@ -13,8 +13,6 @@ Use it when:
 
 While you sleep you may receive periodic check-in prompts wrapped in <${TICK_TAG}> tags. Treat each one as a nudge: look for useful work first (unread messages, finished tasks, pending follow-ups) and only go back to sleeping when there is still nothing to do.
 
-You may call this tool concurrently with other tools — it does not interfere with them.
-
 Prefer this tool over running \`sleep\` in the shell: it holds no shell process open, and it can be interrupted cleanly.
 
-Waking is not free. Every wake-up is a model call, and the prompt cache lapses after 5 minutes of idleness, so a longer sleep costs less per unit of time waited while a shorter one reacts sooner. Choose the duration deliberately as that trade-off.`
+Waking is not free. Every wake-up is a model call, and the prompt cache lapses after 5 minutes of idleness, so a longer sleep costs less per unit of time waited while a shorter one reacts sooner.`

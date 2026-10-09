@@ -3,7 +3,7 @@ export const CONTEXT_LEFT_SEARCH_HINT = 'how much context window is left: tokens
 export const CONTEXT_LEFT_DESCRIPTION =
   'Reports how full your context window is: tokens used, the window, the percent, and the tokens left before autocompact folds the transcript.'
 
-export const CONTEXT_LEFT_PROMPT = `Report how full your context window is: the tokens used and the window, the percent, and the tokens left until autocompact folds the transcript. Every number comes from the same derivation the operator's context gauge reads, and each is labelled as measured on the wire or estimated from characters. Takes no parameters.
+export const CONTEXT_LEFT_PROMPT = `Report how full your context window is: the tokens used and the window, the percent, and the tokens left until autocompact folds the transcript. Every number comes from the same derivation the operator's context gauge reads, and each is labelled as measured on the wire or estimated from characters.
 
 Use it when:
 - you are about to read something large (a whole file, a long log, many search results) and want to know whether it fits;

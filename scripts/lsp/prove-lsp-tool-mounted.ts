@@ -77,7 +77,7 @@ section('§2 the readers (source pins)')
   const tool = readFileSync(path.join(SRC, 'tools/LSPTool/LSPTool.ts'), 'utf8')
   check('the roster gate is the mount predicate', tool.includes('isEnabled: isLspToolMounted'))
   const map = readFileSync(path.join(SRC, 'utils/cockpit/harnessMap.ts'), 'utf8')
-  check('the harness map keys on the same mount predicate', /lspConnectedSafe[\s\S]{0,600}isLspToolMounted\(\)/.test(map))
+  check('the harness map advertises no LSP line of its own (the roster gate is the one reader)', !map.includes('isLspToolMounted') && !map.includes('Code intelligence'))
   const manager = readFileSync(path.join(SRC, 'services/lsp/manager.ts'), 'utf8')
   check('isLspConnected keeps its health meaning (any server not in error)', /export function isLspConnected[\s\S]{0,400}server\.state !== 'error'/.test(manager))
 }
