@@ -27,7 +27,7 @@ await import('../../src/Tool.ts')
 const { decideToolPermissionWithModes, defaultWrapperPorts } = await import('../../src/utils/permissions/decision/wrapper.ts')
 const { bashToolHasPermission } = await import('../../src/tools/BashTool/bashPermissions.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { stripDangerousPermissionsForAutoMode } = await import('../../src/utils/permissions/permissionSetup.ts')
+const { stripDangerousPermissionsForFlow } = await import('../../src/utils/permissions/permissionSetup.ts')
 const { loadAllPermissionRulesFromDisk } = await import('../../src/utils/permissions/permissionsLoader.ts')
 const { applyPermissionRulesToPermissionContext } = await import('../../src/utils/permissions/permissions.ts')
 const { resetSettingsCache } = await import('../../src/utils/settings/settingsCache.ts')
@@ -229,7 +229,7 @@ const runsWithoutChannel = (c: Cell): boolean => c.behavior === 'allow' && c.wra
   const ruledDefault = await decide(contextOf('default', { allow: [PUSH_RULE] }), PUSH, 'default')
   check('a default-mode seat with the rule: allowed in the engine', runsWithoutChannel(ruledDefault), j(ruledDefault))
 
-  const stripped = stripDangerousPermissionsForAutoMode({ ...contextOf('flow', { allow: [PUSH_RULE, 'Bash'] }) } as never) as unknown as { alwaysAllowRules: Record<string, string[]> }
+  const stripped = stripDangerousPermissionsForFlow({ ...contextOf('flow', { allow: [PUSH_RULE, 'Bash'] }) } as never) as unknown as { alwaysAllowRules: Record<string, string[]> }
   check('flow-mode entry keeps `Bash(git push *)` (a push is not a code-execution prefix) and strips the whole-tool `Bash` allow', j(stripped.alwaysAllowRules['userSettings']) === j([PUSH_RULE]), j(stripped.alwaysAllowRules))
 }
 

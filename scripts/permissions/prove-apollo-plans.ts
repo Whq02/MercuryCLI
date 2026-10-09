@@ -132,7 +132,7 @@ section('§4 the mode word: --mode strategy is an unknown value, the lists and s
   check('the carousel never reaches a planning stop other than apollo from any mode', (vocab.PERMISSION_MODES as readonly string[]).every(mode => {
     const { getNextPermissionMode } = require('../../src/utils/permissions/getNextPermissionMode.ts') as typeof import('../../src/utils/permissions/getNextPermissionMode.ts')
     for (const bypass of [false, true]) {
-      const next = getNextPermissionMode({ mode, isBypassPermissionsModeAvailable: bypass, isAutoModeAvailable: false } as never)
+      const next = getNextPermissionMode({ mode, isBypassPermissionsModeAvailable: bypass, isFlowAvailable: false } as never)
       if (/strateg/.test(next)) return false
     }
     return true

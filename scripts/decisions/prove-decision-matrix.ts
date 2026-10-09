@@ -250,22 +250,22 @@ section("stages 1f/1f'/1g × the postures — the three ask roads ask, and stand
   check('sovereign × requiresUserInteraction → ask, unchanged (a question is the tool\'s purpose)', r.behavior === 'ask', j(r))
 }
 
-section('auto mode — pre-classifier floors and fast paths')
+section('flow — pre-classifier floors and fast paths')
 {
   let r = await decide(makeTool({ verdict: { behavior: 'ask', reason: 'rule-ask' } }), makeContext({ mode: 'flow' }))
-  check('auto: content ask-rule floors to a human ask', r.behavior === 'ask', j(r))
+  check('flow: content ask-rule floors to a human ask', r.behavior === 'ask', j(r))
 
   r = await decide(
     makeTool({ verdict: { behavior: 'ask', reason: 'rule-ask' } }),
     makeContext({ mode: 'flow', avoidPrompts: true }),
   )
-  check('auto+headless: the floor becomes a structured deny (asyncAgent)', r.behavior === 'deny' && r.decisionReason?.type === 'asyncAgent', j(r))
+  check('flow+headless: the floor becomes a structured deny (asyncAgent)', r.behavior === 'deny' && r.decisionReason?.type === 'asyncAgent', j(r))
 
   r = await decide(makeTool({ verdict: { behavior: 'ask', reason: 'safetyCheck' } }), makeContext({ mode: 'flow' }))
-  check('auto: non-approvable safetyCheck stays a human ask', r.behavior === 'ask', j(r))
+  check('flow: non-approvable safetyCheck stays a human ask', r.behavior === 'ask', j(r))
 
   r = await decide(makeTool({ name: 'PowerShell', verdict: { behavior: 'ask', reason: 'plain' } }), makeContext({ mode: 'flow' }))
-  check('auto: PowerShell asks the human (never the classifier)', r.behavior === 'ask', j(r))
+  check('flow: PowerShell asks the human (never the classifier)', r.behavior === 'ask', j(r))
 
   r = await decide(makeTool({ verdict: { behavior: 'allow-under-acceptEdits' } }), makeContext({ mode: 'flow' }))
   check(

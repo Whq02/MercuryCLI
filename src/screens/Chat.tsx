@@ -56,7 +56,7 @@ import { isSettingsPopupOpen } from '../utils/cockpit/settingsPopup.js';
 import { publishTurnSignals, turnEndedInError } from '../utils/cockpit/turnSignals.js';
 import { publishMcpConnections } from '../utils/cockpit/mcpGauge.js';
 import { useSeatReceipts } from '../hooks/useSeatReceipts.js';
-import { useAgentStateClassifier } from '../hooks/useAgentStateClassifier.js';
+import { useAgentNeedsYou } from '../hooks/useAgentNeedsYou.js';
 import { ElicitationDialog } from '../components/mcp/ElicitationDialog.js';
 import { useMcpConnectivityStatus } from '../hooks/notifs/useMcpConnectivityStatus.js';
 import { recordBootInteractive } from '../utils/observability/frictionStopwatch.js';
@@ -850,7 +850,7 @@ export function Chat({
       for (const row of rows) paintScreenRow(row, '');
     },
   });
-  useAgentStateClassifier(messages, isLoading);
+  useAgentNeedsYou(messages, isLoading);
   const elicitationQueue = useAppState(state => state.elicitation.queue);
   const respondToElicitation = useCallback(
     (action: 'accept' | 'decline' | 'cancel', content?: Record<string, string | number | boolean | string[]>) => {

@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-
 import { execSync } from 'node:child_process'
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -19,7 +18,7 @@ console.log('============================================================')
 console.log(' Permission ladder / flow — surface proof')
 console.log('============================================================')
 
-section('the THREE auto-mode safety floors (decision/wrapper.ts) — force a human ask before the shortcuts')
+section('the THREE flow safety floors (decision/wrapper.ts) — force a human ask before the shortcuts')
 {
   const perms = src('utils', 'permissions', 'decision', 'wrapper.ts')
   const has = (needle: string) => perms.includes(needle)
@@ -54,14 +53,14 @@ section('isReadOnlyAllowlistedTool name gating (readOnlyAllowlist.ts)')
 section('Flow availability is the settings lock alone')
 {
   const ps = src('utils', 'permissions', 'permissionSetup.ts')
-  check('settings close availability, and nothing else does', ps.includes('return !isAutoModeDisabledBySettings()') && !ps.includes('CircuitBroken') && !ps.includes('getEngineModel'))
-  check('the settings restriction has its reason and its words', ps.includes("if (isAutoModeDisabledBySettings()) return 'settings'") && ps.includes("return 'Flow is closed by your settings.'"))
+  check('settings close availability, and nothing else does', ps.includes('return !isFlowDisabledBySettings()') && !ps.includes('CircuitBroken') && !ps.includes('getEngineModel'))
+  check('the settings restriction has its reason and its words', ps.includes("if (isFlowDisabledBySettings()) return 'settings'") && ps.includes("return 'Flow is closed by your settings.'"))
   const gnpm = src('utils', 'permissions', 'getNextPermissionMode.ts')
-  check('the carousel gates auto SOLELY on canCycleToAuto (unconditional)', gnpm.includes('canCycleToAuto(toolPermissionContext)'))
+  check('the carousel gates flow SOLELY on canCycleToFlow (unconditional)', gnpm.includes('canCycleToFlow(toolPermissionContext)'))
   const apolloBlock = gnpm.slice(gnpm.indexOf("case 'apollo':"), gnpm.indexOf("case 'flow':"))
-  const autoIdx = apolloBlock.indexOf("return 'flow'")
+  const flowIdx = apolloBlock.indexOf("return 'flow'")
   const bypassIdx = apolloBlock.indexOf("return 'sovereign'")
-  check('the cycle reaches flow from apollo, BEFORE sovereign (flow ≠ bypass; flow is the safer step)', autoIdx > 0 && bypassIdx > 0 && autoIdx < bypassIdx && apolloBlock.includes('canCycleToAuto'))
+  check('the cycle reaches flow from apollo, BEFORE sovereign (flow ≠ bypass; flow is the safer step)', flowIdx > 0 && bypassIdx > 0 && flowIdx < bypassIdx && apolloBlock.includes('canCycleToFlow'))
 }
 
 section('a session that BOOTS into flow sets its dangerous allow rules aside, as a runtime entry does')
@@ -73,8 +72,8 @@ section('a session that BOOTS into flow sets its dangerous allow rules aside, as
     /permissionMode === 'flow'\n?\s*\) \{\n?\s*dangerousPermissions = findDangerousPermissions/.test(ps),
   )
   check(
-    'the isAutoModeAvailable context flag is set from the gate at startup',
-    /\{ isAutoModeAvailable: isAutoModeGateEnabled\(\) \}/.test(ps),
+    'the isFlowAvailable context flag is set from the gate at startup',
+    /\{ isFlowAvailable: isFlowGateEnabled\(\) \}/.test(ps),
   )
   check(
     'the main.tsx strip call fires on dangerous permissions',
@@ -97,12 +96,12 @@ section('dist ships the flow decision branches (floors, fast-paths, kill deny)')
     check('read-only set fast-path log ships', present('the read-only tool set'))
     check('no denial ledger ships', !present('actions were blocked this session') && !present('consecutive actions were blocked') && !present('denial limit reached'))
     check('capability kill-switch deny message ships', present('capability switched off by operator'))
-    check('PowerShell auto-mode interactive-approval floor ships', present('PowerShell runs only with interactive approval'))
+    check('PowerShell flow interactive-approval floor ships', present('PowerShell runs only with interactive approval'))
   }
 }
 
 console.log('\n' + '═'.repeat(76))
-if (failures === 0) console.log('✅ ALL PERMISSION / AUTO-MODE PROOFS PASS')
-else console.log(`❌ ${failures} PERMISSION / AUTO-MODE PROOF(S) FAILED`)
+if (failures === 0) console.log('✅ ALL PERMISSION / FLOW PROOFS PASS')
+else console.log(`❌ ${failures} PERMISSION / FLOW PROOF(S) FAILED`)
 console.log('═'.repeat(76))
 process.exit(failures === 0 ? 0 : 1)
