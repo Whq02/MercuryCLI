@@ -55,6 +55,7 @@ export interface ProviderUsabilityReads {
   huggingfaceAccount?: () => { kind: 'oauth' | 'api-key' } | undefined
   localServerPresent?: () => boolean
   openrouterKeyPresent?: () => boolean
+  openrouterKeyRefused?: () => string | undefined
   geminiAccount?: () => { kind: 'oauth' | 'api-key' } | undefined
   openaiLimitWindow?: () => { state: 'limited' | 'clear' }
   openrouterLimitWindow?: () => { state: 'limited' | 'clear' }
@@ -190,6 +191,12 @@ function liveProviderUsabilityReads(opts?: ProviderUsabilityReadOptions): Provid
       const { resolveOpenrouterApiKey } =
         require('./openrouter/openrouterAccounts.js') as typeof import('./openrouter/openrouterAccounts.js')
       return resolveOpenrouterApiKey() !== undefined
+    },
+    openrouterKeyRefused: () => {
+      const { openrouterKeyRefusal, openrouterRefusalNote } =
+        require('./openrouter/openrouterAccounts.js') as typeof import('./openrouter/openrouterAccounts.js')
+      const refused = openrouterKeyRefusal()
+      return refused === undefined ? undefined : openrouterRefusalNote(refused)
     },
     geminiAccount: () => {
       const { resolveGeminiAccount } =
@@ -359,11 +366,16 @@ function resolveProviderUsabilityFrom(reads: ProviderUsabilityReads): Record<Pro
     'keyless',
   )
 
-  const openrouter = keyLane(
+  const openrouterPresent = keyLane(
     'openrouter',
     reads.openrouterKeyPresent?.() ?? false,
     'no OpenRouter credential — /logins (or OPENROUTER_API_KEY)',
   )
+  const openrouterRefused = openrouterPresent.credential === 'none' ? undefined : reads.openrouterKeyRefused?.()
+  const openrouter: ProviderUsability =
+    openrouterRefused === undefined
+      ? openrouterPresent
+      : { ...openrouterPresent, usable: false, blockers: [...openrouterPresent.blockers, openrouterRefused] }
   const geminiAccount = reads.geminiAccount?.()
   const gemini = keyLane(
     'gemini',
