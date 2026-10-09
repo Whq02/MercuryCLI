@@ -90,6 +90,8 @@ function childEnv(home: string): NodeJS.ProcessEnv {
     MERCURY_DEEPSEEK_API_BASE: DEAD,
     MERCURY_XAI_API_BASE: DEAD,
     MERCURY_META_API_BASE: DEAD,
+    MERCURY_ZEN_API_BASE: DEAD,
+    MERCURY_ZEN_GO_API_BASE: DEAD,
     MERCURY_ANTHROPIC_OAUTH_BASE: 'http://127.0.0.1:1',
   }
   for (const k of [
