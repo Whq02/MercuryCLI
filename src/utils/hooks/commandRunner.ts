@@ -4,7 +4,7 @@ import { getExtensionDataDir } from '../../extensions/paths.js'
 import { recordHookFailure } from '../../extensions/health.js'
 import { optionSchemaFor } from '../../extensions/load/optionSchema.js'
 import { loadOptionValues, optionEnv, substituteOptionsInCommand, type OptionValues } from '../../extensions/options.js'
-import type { HookEnding } from '../../rows/vocabulary.js'
+import { secondsWord, type HookEnding } from '../../rows/vocabulary.js'
 import { formatShellPrefixCommand } from '../bash/shellPrefix.js'
 import { getCwd } from '../cwd.js'
 import { logForDebugging } from '../debug.js'
@@ -186,7 +186,7 @@ export async function startCommandHook(run: CommandHookRun): Promise<CommandHook
   }
   const endOf = (code: number | null): CommandHookEnd => {
     const durationMs = Date.now() - startedAt
-    if (timedOut) return { kind: 'ended', ending: { status: 'failed', class: 'timed_out', exit_code: code ?? 143, detail: `${Math.round(run.timeoutMs / 1000)}s` }, stdout, stderr, durationMs }
+    if (timedOut) return { kind: 'ended', ending: { status: 'failed', class: 'timed_out', exit_code: code ?? 143, detail: secondsWord(run.timeoutMs) }, stdout, stderr, durationMs }
     if (cancelled) return { kind: 'ended', ending: { status: 'failed', class: 'cancelled', exit_code: code ?? 137 }, stdout, stderr, durationMs }
     return { kind: 'exited', code: code ?? 1, stdout, stderr, durationMs }
   }

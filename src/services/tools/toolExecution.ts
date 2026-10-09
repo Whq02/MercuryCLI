@@ -15,6 +15,7 @@ import type { AssistantMessage, Message, UserMessage } from '../../types/message
 import type { PermissionDecision, PermissionDecisionReason } from '../../types/permissions.js'
 import { createPermissionRequestMessage } from '../../utils/permissions/decision/requestMessage.js'
 import type { ToolResultBlockParam, ToolUseBlock } from '../../types/wire.js'
+import { jsonStringify } from '../../utils/slowOperations.js'
 import { createAttachmentMessage } from '../../utils/attachments/orchestrator.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { isAbortError, ShellError, type ShellRunFact } from '../../utils/errors.js'
@@ -41,10 +42,7 @@ import { getCwd } from '../../utils/cwd.js'
 import { startSessionActivity, stopSessionActivity } from '../../utils/sessionActivity.js'
 import { Stream } from '../../utils/stream.js'
 import { formatError, formatZodValidationError } from '../../utils/toolErrors.js'
-import {
-  processPreMappedToolResultBlock,
-  processToolResultBlock,
-} from '../../utils/toolResultStorage.js'
+import { processPreMappedToolResultBlock } from '../../utils/toolResultStorage.js'
 import {
   extractDiscoveredToolNames,
   isToolSearchEnabledOptimistic,
@@ -794,17 +792,8 @@ async function runTransactionBody(args: {
     const acceptFeedback = (decision as { acceptFeedback?: string }).acceptFeedback
     const allowBlocks = (decision as { contentBlocks?: unknown[] }).contentBlocks ?? []
 
-    const buildResultUpdate = async (
-      blockForEmission: ToolResultBlockParam,
-      preMapped: boolean,
-    ): Promise<MessageUpdateLazy> => {
-      const processed = preMapped
-        ? await processPreMappedToolResultBlock(
-            blockForEmission,
-            tool.name,
-            tool.maxResultSizeChars,
-          )
-        : await processToolResultBlock(tool as never, result!.data, toolUseID)
+    const buildResultUpdate = async (blockForEmission: ToolResultBlockParam): Promise<MessageUpdateLazy> => {
+      const processed = await processPreMappedToolResultBlock(blockForEmission, tool.name, tool.maxResultSizeChars)
       const blocks: unknown[] = [processed]
       if (acceptFeedback) blocks.push({ type: 'text', text: acceptFeedback })
       blocks.push(...allowBlocks)
@@ -837,7 +826,7 @@ async function runTransactionBody(args: {
     const after = await afterToolHooks(
       tool,
       toolUseID,
-      observableInput,
+      callInput,
       { ok: !returnedError, output: result.data, ...(returnedError ? { error: effect.evidence } : {}), cut: false },
       toolUseContext,
       signal,
@@ -847,14 +836,13 @@ async function runTransactionBody(args: {
       logForDebugging(`post-tool hooks for ${tool.name} took ${postDuration}ms`)
     }
     if (after.answer.output !== undefined) {
-      result = { ...result, data: after.answer.output }
-      mappedBlock = tool.mapToolResultToToolResultBlockParam(after.answer.output as never, toolUseID)
-      if (returnedError) mappedBlock = { ...mappedBlock, is_error: true }
+      const words = typeof after.answer.output === 'string' ? after.answer.output : jsonStringify(after.answer.output)
+      mappedBlock = { type: 'tool_result', tool_use_id: toolUseID, content: words, ...(returnedError ? { is_error: true } : {}) }
     }
+    const resultUpdate = await buildResultUpdate(mappedBlock)
     if (tool.isMcp || after.answer.output !== undefined) {
-      push(await buildResultUpdate(mappedBlock, after.answer.output === undefined))
+      push(resultUpdate)
     } else {
-      const resultUpdate = await buildResultUpdate(mappedBlock, true)
       const shellRun = shellRunOfResult(tool, result.data)
       push(shellRun === null ? resultUpdate : { ...resultUpdate, shellRun })
     }

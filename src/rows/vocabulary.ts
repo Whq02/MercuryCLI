@@ -70,6 +70,11 @@ export const ERROR_CLASSES = [
 ] as const
 export type ErrorClass = (typeof ERROR_CLASSES)[number]
 
+export function secondsWord(ms: number): string {
+  const seconds = ms / 1000
+  return Number.isInteger(seconds) ? `${seconds}s` : `${seconds.toFixed(1)}s`
+}
+
 export const HOOK_ENDING_CLASSES = ['closed_pipe', 'cancelled', 'timed_out', 'exit', 'spawn', 'answer'] as const
 export type HookEndingClass = (typeof HOOK_ENDING_CLASSES)[number]
 

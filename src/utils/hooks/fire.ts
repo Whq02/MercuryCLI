@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import type { AppState } from '../../state/AppState.js'
 import type { ToolUseContext } from '../../Tool.js'
-import { hookEndingSentence, type HookEnding } from '../../rows/vocabulary.js'
+import { hookEndingSentence, secondsWord, type HookEnding } from '../../rows/vocabulary.js'
 import { hookEntryName, hookKindOf, type HookEntry } from '../../schemas/hooks.js'
 import { getCwd } from '../cwd.js'
 import { logForDebugging } from '../debug.js'
@@ -91,7 +91,7 @@ function modelEndToState(event: HookEvent, name: string, end: ModelHookEnd, time
     case 'answered':
       return readToState(event, name, readAnswerObject(event, end.answer))
     case 'timed_out':
-      return { kind: 'failed', line: failedLine({ status: 'failed', class: 'timed_out', exit_code: 1, detail: `${Math.round(timeoutMs / 1000)}s` }, name, event) }
+      return { kind: 'failed', line: failedLine({ status: 'failed', class: 'timed_out', exit_code: 1, detail: secondsWord(timeoutMs) }, name, event) }
     case 'cancelled':
       return { kind: 'failed', line: failedLine({ status: 'failed', class: 'cancelled', exit_code: 1 }, name, event) }
     default:
