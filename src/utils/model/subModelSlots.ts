@@ -154,6 +154,8 @@ export function subModelConnectHome(route: CallModelRoute | string): {
       return {
         note: 'no sign-in — start a local server (Ollama · LM Studio · vLLM · llama.cpp) or set MERCURY_LOCAL_BASE_URL',
       }
+    case 'nous':
+      return { command: '/logins nous', note: 'connect — /logins (API key)' }
     default:
       return { command: '/logins', note: 'sign in — /logins' }
   }
