@@ -186,35 +186,23 @@ export function stripToolReferenceBlocksFromUserMessage(
   }
 }
 
+const wireToolUse = (block: Extract<ContentBlock, { type: 'tool_use' }>) => ({
+  type: 'tool_use' as const,
+  id: block.id,
+  name: block.name,
+  input: block.input,
+})
+
 export function stripCallerFieldFromAssistantMessage(
   message: AssistantMessage,
 ): AssistantMessage {
-  const hasCallerField = message.message.content.some(
-    block =>
-      block.type === 'tool_use' && 'caller' in block && block.caller !== null,
+  const carriesCaller = (block: ContentBlock): boolean =>
+    block.type === 'tool_use' && 'caller' in block && block.caller !== null
+  if (!message.message.content.some(carriesCaller)) return message
+  const content = message.message.content.map(block =>
+    block.type === 'tool_use' ? wireToolUse(block) : block,
   )
-
-  if (!hasCallerField) {
-    return message
-  }
-
-  return {
-    ...message,
-    message: {
-      ...message.message,
-      content: message.message.content.map(block => {
-        if (block.type !== 'tool_use') {
-          return block
-        }
-        return {
-          type: 'tool_use' as const,
-          id: block.id,
-          name: block.name,
-          input: block.input,
-        }
-      }),
-    },
-  }
+  return { ...message, message: { ...message.message, content } }
 }
 
 function contentHasToolReference(
