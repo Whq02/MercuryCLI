@@ -401,7 +401,7 @@ try {
       title,
       modelKey,
       effort: 'high',
-    } as never)) as { ok?: boolean; sessionId?: string; runnerId?: string }
+    } as never, { timeoutMs: 15_000 })) as { ok?: boolean; sessionId?: string; runnerId?: string }
     check(`P5 session ${title} dispatched`, d.ok === true && d.sessionId !== undefined, JSON.stringify(d))
     return { sessionId: d.sessionId ?? '', runnerId: d.runnerId ?? '' }
   }

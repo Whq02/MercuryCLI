@@ -119,7 +119,7 @@ try {
         title: 'Alpha probe',
         modelKey: 'claude-opus-5',
         effort: 'xhigh',
-      } as never)) as { ok?: boolean; sessionId?: string }
+      } as never, { timeoutMs: 15_000 })) as { ok?: boolean; sessionId?: string }
       check('ALPHA dispatched', a.ok === true && a.sessionId !== undefined, JSON.stringify(a))
       alphaSid = a.sessionId ?? ''
       const alphaLog = join(paths.getProjectDir(cwd), `${alphaSid}.jsonl`)
@@ -135,7 +135,7 @@ try {
         title: 'Beta probe',
         modelKey: 'claude-opus-5',
         effort: 'xhigh',
-      } as never)) as { ok?: boolean; sessionId?: string }
+      } as never, { timeoutMs: 15_000 })) as { ok?: boolean; sessionId?: string }
       check('BETA dispatched', b.ok === true && b.sessionId !== undefined, JSON.stringify(b))
       betaSid = b.sessionId ?? ''
       const betaLog = join(paths.getProjectDir(cwd), `${betaSid}.jsonl`)

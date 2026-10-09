@@ -130,7 +130,7 @@ try {
         title: N,
         modelKey: DEFAULT_OPUS,
         effort: 'xhigh',
-      } as never)) as { ok?: boolean; sessionId?: string }
+      } as never, { timeoutMs: 15_000 })) as { ok?: boolean; sessionId?: string }
       check('the board session dispatched', b.ok === true && b.sessionId !== undefined, JSON.stringify(b))
       boardSid = b.sessionId ?? ''
       boardLog = join(paths.getProjectDir(cwd), `${boardSid}.jsonl`)

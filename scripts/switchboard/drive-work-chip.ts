@@ -117,7 +117,7 @@ try {
         title: 'Alpha worker',
         modelKey: DEFAULT_OPUS,
         effort: 'high',
-      } as never)) as { ok?: boolean; sessionId?: string; runnerId?: string }
+      } as never, { timeoutMs: 15_000 })) as { ok?: boolean; sessionId?: string; runnerId?: string }
       check('alpha dispatched', a.ok === true && a.sessionId !== undefined, JSON.stringify(a))
       alphaId = a.sessionId ?? ''
       const transcriptOf = (sid: string): string | null => {
@@ -159,7 +159,7 @@ try {
         title: 'Beta idle',
         modelKey: DEFAULT_OPUS,
         effort: 'high',
-      } as never)) as { ok?: boolean; sessionId?: string }
+      } as never, { timeoutMs: 15_000 })) as { ok?: boolean; sessionId?: string }
       check('beta dispatched', b.ok === true && b.sessionId !== undefined, JSON.stringify(b))
       betaId = b.sessionId ?? ''
       const sup = await import('../../src/daemon/concourseWorkers.ts')

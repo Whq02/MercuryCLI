@@ -151,7 +151,7 @@ try {
       title,
       model: modelKey,
       effort: 'high',
-    } as never)) as { ok?: boolean; sessionId?: string; modelId?: string; error?: string; detail?: string }
+    } as never, { timeoutMs: 15_000 })) as { ok?: boolean; sessionId?: string; modelId?: string; error?: string; detail?: string }
     check(`${title} dispatched under the requested model`, d.ok === true && d.sessionId !== undefined && d.modelId === modelKey, JSON.stringify(d))
     return d.sessionId ?? ''
   }
