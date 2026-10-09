@@ -184,8 +184,9 @@ section('§4 the wire laws as the real model answered: thinking always on, no fo
   check("the row's thinking leaves a request to Sonnet 5", !has(toSonnet5, 'msg_55') && !has(toSonnet5, 'msg_55_1m') && has(toSonnet5, 'msg_sonnet5'))
   const foreign = thinkingFromOtherModels(history, ID, isSameModel)
   check('the foreign count names the two other writers, never the twin', foreign.count === 2 && foreign.models.join(',') === `${PREVIOUS},claude-opus-5-5`, show(foreign))
-  const receipt = modelSwitchReceipt('main', history, ID)
-  check("the switch receipt names the row 'Sonnet 5.5'", receipt !== null && receipt.text.includes('stay out of the requests to Sonnet 5.5') && receipt.key === `main|${ID}`, show(receipt))
+  const receipt = modelSwitchReceipt('main', history.slice(0, 2) as never[], ID)
+  check("the switch receipt names the row 'Sonnet 5.5'", receipt !== null && receipt.text.includes('stay out of the requests to Sonnet 5.5') && receipt.key === `main|msg_opus55|${ID}`, show(receipt))
+  check('once the row has answered, a request to it is no switch (the twin included)', modelSwitchReceipt('main', history, ID) === null)
 }
 
 section('§5 the docs say what the family word means and which wire laws the row takes')

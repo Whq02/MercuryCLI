@@ -13,6 +13,7 @@ import { getMercuryHome } from '../../../utils/envUtils.js'
 import { thinkingFromOtherModels } from '../../../utils/messages/apiFilters.js'
 import { getCanonicalName, getPublicModelDisplayName } from '../../../utils/model/model.js'
 import { isFirstPartyAnthropicBaseUrl } from '../../../utils/model/providers.js'
+import { servedModelOfAssistantRow } from '../../../utils/model/retainedModel.js'
 import { SPAWN_SWITCH_LABEL } from '../../switchboard/spawnSwitches.js'
 import { consumeLawfulPrefixChange } from '../lawfulPrefixChange.js'
 import { PUBLIC_HOME_SLUG } from '../../privateChannel/channelCore.js'
@@ -531,18 +532,30 @@ export function isSameModel(a: string, b: string): boolean {
   return getCanonicalName(a) === getCanonicalName(b)
 }
 
+export function lastServedRow(messages: readonly Message[]): { uuid: string; model: string } | null {
+  for (let index = messages.length - 1; index >= 0; index--) {
+    const row = messages[index]!
+    if (row.type !== 'assistant') continue
+    const model = servedModelOfAssistantRow(row)
+    if (model !== undefined) return { uuid: String(row.uuid), model }
+  }
+  return null
+}
+
 export function modelSwitchReceipt(
   owner: string,
   messages: readonly Message[],
   currentModel: string,
 ): { key: string; text: string } | null {
+  const previous = lastServedRow(messages)
+  if (previous === null || isSameModel(previous.model, currentModel)) return null
   const foreign = thinkingFromOtherModels(messages, currentModel, isSameModel)
   if (foreign.count === 0) return null
   const display = (model: string): string => getPublicModelDisplayName(model) ?? model
   const writers = foreign.models.map(display).join(', ')
   const noun = foreign.count === 1 ? 'thinking block' : 'thinking blocks'
   return {
-    key: `${owner}|${getCanonicalName(currentModel)}`,
+    key: `${owner}|${previous.uuid}|${getCanonicalName(currentModel)}`,
     text: `Preserved thinking: ${foreign.count} ${noun} written by ${writers} stay out of the requests to ${display(currentModel)} (the conversation switched models); the model re-plans without them.`,
   }
 }
