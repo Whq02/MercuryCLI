@@ -1,6 +1,29 @@
 
 export const MERCURY_CHANGELOG = `# Mercury changelog
 
+## 1.0.0-beta.30
+- Added Mistral AI as a provider family: paste a Mistral API key and run Mistral Large 4, Medium 3.5, Small 4 and the vendor's current models from the account's own list, with the organisation usage meter when an Admin API key is added beside it
+- Added Nous Portal as a provider family: a Nous Portal API key connects the Portal's model gateway (Claude, GPT, Gemini, DeepSeek, Qwen, Kimi, GLM, Grok and more at the Portal's own ids), with the Portal's plan and usable credits shown on /usage
+- Added OpenCode Zen as a provider family: paste an OpenCode API key and run the gateway's GLM, Kimi, DeepSeek, MiniMax, Mistral, Qwen, GPT, Grok and Muse models as zen/<id>, with the session's spend and an OpenCode Go plan's windows shown on /usage
+- Added an official headless image: the Dockerfile at the repository root builds a Linux x64 image whose entry point is mercury run, for CI and servers: a provider key as an environment variable, the project mounted at /work, the run's exit code as the container's
+- Added a setting, Crewmates while backgrounded, off by default, one row in /config and the same row in the boot menu's Agents section: with it on, a session left in the background launches crewmates and workflows when its brief says so, as a focused one does; with it off, a backgrounded session's refusal names the setting as the way to allow it
+- Added, in the crew view, a crewmate row that says what its parked permission ask is for and when the ask refuses itself, beside "waiting for your answer"
+- Changed an unanswered permission card: in Flow it is withdrawn after ten minutes and in Sovereign after three, the operator-only safety checks included, and the call is refused with words the model reads and carries on from; a crewmate's card follows the mode of the session that launched it, wherever it is parked; a Default card still waits for you
+- Changed the critter a new home meets first: the crab, in its red; a saved pick still wins, and /critter or the first-run fitting picks another
+- Changed the cockpit's side rail of live readings: it is the vitals rail, with usage, workflow and health under one header; the Console and the invocation trace are the /console and /trace commands, painting the surfaces they painted before
+- Changed the chat's status row while a runner is not up: it says what the daemon knows (starting with its seconds, crashed and restarting with the count, or without a live runner and how to revive it), never ready over a runner that is not there
+- Changed the Debug tool when a program already listens for a debugger: it attaches to that port instead of starting a debugger of its own; a port with nothing listening refuses at once, naming the port and the start command
+- Fixed asking the Console a question: it answers, instead of returning an API error card after a second, whichever model the Console is pinned to
+- Fixed a slow or busy machine losing a session that was fine: the daemon waits for a runner to finish starting instead of ending it after ten seconds, and a session whose first runner died before it wrote anything is restarted on its own id, never resumed as a conversation nobody wrote
+- Fixed the preserved-thinking notice a model switch earns: it is written and shown in the turn whose request it describes, never a turn late and never lost when the session ends on that turn; it is painted once per real switch, so a resumed session no longer re-announces an old switch; and the /model rows reach the session at the switch
+- Fixed quitting a session that had edited code filing a crash record, so the next start opened on "previous session crashed"
+- Fixed the turn's work line counting only Edit's files: it counts every file a turn wrote, a change set's files and lines and a created file's lines among them
+- Fixed cancelling a model switch at its preview naming the default a new chat would get instead of the model the session kept
+- Fixed the "runner restarted" line after a restart being painted under your name and answered as your words; it is a system notice and never becomes the session's last prompt
+- Fixed mercury daemon stop reading as a crash on the next start: it parks the sessions it ends, and the next start reads them as parked and does not relaunch their crewmates
+- Fixed a chat whose background daemon had gone waiting on work that would never finish: it says so within seconds, and the next prompt starts a new daemon
+- Fixed the health report's Sovereign row: it says the posture record is per project and names the folder to open
+
 ## 1.0.0-beta.29
 - Added focused language-service tools for code questions, renames, declaration and file moves, code actions, formatting and raw protocol requests; a small read-only tool answers the questions and the refactor tools load when needed
 - Added structural code search and rewriting: AstSearch and AstEdit find and rewrite code by its shape across files as one reviewed change; Structure answers JavaScript and TypeScript queries by node kind
