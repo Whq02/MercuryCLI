@@ -72,7 +72,7 @@ export function InvalidSettingsDialog({
   };
 
   const skipText = hasHardErrors
-    ? 'Files with errors are skipped entirely, not just the invalid settings.'
+    ? 'A file with an error is left out whole; none of its settings are in effect.'
     : 'The values listed above were skipped; the rest of the file is in effect.';
   const footerText = onRemove
     ? `${skipText} Removing deletes the unrecognized fields from the file where they sit and keeps every other setting.`

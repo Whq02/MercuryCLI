@@ -26,7 +26,7 @@ export function validateHookJson(
     .map(err => `  - ${err.path.join('.')}: ${err.message}`)
     .join('\n')
   return {
-    validationError: `Hook JSON output validation failed:\n${errors}\n\nThe hook's output was: ${jsonStringify(parsed, null, 2)}`,
+    validationError: `The hook's JSON does not fit the hook output shape:\n${errors}\n\nIt printed: ${jsonStringify(parsed, null, 2)}`,
   }
 }
 
@@ -92,9 +92,6 @@ export function parseHttpHookOutput(body: string): {
   if (trimmed === '') {
     const validation = HookJSONOutputSchema().safeParse({})
     if (validation.success) {
-      logForDebugging(
-        'HTTP hook returned empty body, treating as empty JSON object',
-      )
       return { json: validation.data }
     }
   }
@@ -181,7 +178,7 @@ export function processHookJSONOutput({
       json.hookSpecificOutput.hookEventName !== expectedHookEvent
     ) {
       throw new Error(
-        `Hook returned incorrect event name: expected '${expectedHookEvent}' but got '${json.hookSpecificOutput.hookEventName}'. Full stdout: ${jsonStringify(json, null, 2)}`,
+        `The hook answered for the ${json.hookSpecificOutput.hookEventName} event; this was a ${expectedHookEvent} hook. Its full output: ${jsonStringify(json, null, 2)}`,
       )
     }
 

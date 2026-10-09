@@ -76,7 +76,7 @@ export function buildAgentLaunchPlan(i: AgentLaunchPlanInput): AgentLaunchPlan {
       )
     }
     throw new Error(
-      `Agent type '${effectiveType}' not found. Available agents: ${agents.map(a => a.agentType).join(', ')}`,
+      `No agent type named '${effectiveType}'; this session offers: ${agents.map(a => a.agentType).join(', ')}`,
     )
   }
   const definition: AgentDefinition = found

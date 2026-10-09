@@ -20,7 +20,7 @@ function check(label: string, ok: boolean, detail = ''): void {
   if (!ok) failures++
   console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
 }
-const quoted = '<local-command-caveat>Caveat: The messages below'
+const quoted = '<local-command-caveat>The rows below are commands'
 const { scenario, cleanupScenario, SID } = await import('../ui/renderScenarios.ts')
 const { startFixtureApi } = await import('../lib/fixtureApi.ts')
 const { daemonControlRpc } = await import('../../src/daemon/controlSocket.ts')

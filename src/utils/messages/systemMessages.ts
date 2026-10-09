@@ -342,7 +342,7 @@ export function createMicrocompactBoundaryMessage(
   clearedAttachmentUUIDs: string[],
 ): SystemMicrocompactBoundaryMessage {
   logForDebugging(
-    `[microcompact] saved ~${formatTokens(tokensSaved)} tokens (cleared ${compactedToolIds.length} tool results)`,
+    `microcompact: about ${formatTokens(tokensSaved)} tokens freed by clearing ${compactedToolIds.length} tool results`,
   )
   return {
     type: 'system',

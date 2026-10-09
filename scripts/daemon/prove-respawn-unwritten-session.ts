@@ -22,7 +22,7 @@ const j = (v: unknown): string => JSON.stringify(v)
 const headless = await import('../../src/daemon/headlessRun.ts')
 const { buildConcourseWorkerSpec } = await import('../../src/daemon/concourseWorkers.ts')
 
-section('§3 a respawn never rides --resume onto a conversation nobody wrote (the receipt: "No conversation found with session ID" ×3, each counted as a crash)')
+section('§3 a respawn never rides --resume onto a conversation nobody wrote (the receipt: "No conversation found for session id" ×3, each counted as a crash)')
 {
   const workspaceId = realpathSync(mkdtempSync(join(tmpdir(), 'runner-slow-init-ws-')))
   const sessionId = '90555e9a-3846-4405-9e48-ca69a8c175af'

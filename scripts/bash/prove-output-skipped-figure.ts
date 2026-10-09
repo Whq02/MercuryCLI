@@ -78,7 +78,7 @@ function splitPreview(preview: string): Parts | null {
   return { head: preview.slice(0, m.index), figure: m[1] as string, tail: preview.slice(m.index + m[0].length) }
 }
 function parseNotice(content: string): Notice | null {
-  const m = /<persisted-output>\nOutput too large \(([^)]+)\)\. Full output saved to: ([^\n]+)\n\nPreview \(head \+ tail, ~2000 chars; long lines clamped\):\n([\s\S]*?)\n<\/persisted-output>/.exec(content)
+  const m = /<persisted-output>\nOutput of ([^,]+), too large to carry whole\. Full output saved to: ([^\n]+)\n\nPreview \(head \+ tail, ~2000 chars; long lines clamped\):\n([\s\S]*?)\n<\/persisted-output>/.exec(content)
   if (m === null) return null
   const parts = splitPreview(m[3] as string)
   return parts === null ? null : { ...parts, header: m[1] as string, path: m[2] as string }

@@ -52,9 +52,6 @@ import {
 } from './discovery.js'
 import { resolveRequestedInstructionProfile } from './profile.js'
 
-const MEMORY_INSTRUCTION_PROMPT =
-  'Codebase and user instructions are shown below. Be sure to adhere to these instructions. IMPORTANT: These instructions OVERRIDE any default behavior and you MUST follow them exactly as written.'
-
 export const MIN_MEMORY_CHARACTER_COUNT = 40000
 
 export const MAX_INSTRUCTION_FILE_TOKEN_CONTEXT_RATIO = 0.05
@@ -490,11 +487,7 @@ export const composeInstructionPrompt = (
     }
   }
 
-  if (memories.length === 0) {
-    return ''
-  }
-
-  return `${MEMORY_INSTRUCTION_PROMPT}\n\n${memories.join('\n\n')}`
+  return memories.join('\n\n')
 }
 
 function describeInstructionSource(file: InstructionSourceEntry): string {

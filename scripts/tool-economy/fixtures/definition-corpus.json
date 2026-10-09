@@ -1,5 +1,5 @@
 {
-  "base": "5a32a0e8c9f5233d4527ad98a20d02a6c16e7f3b",
+  "base": "97544893ef46f9e4d134eaadd0fe22b2b9769519",
   "model": "gpt-6-astra",
   "definitions": [
     {
@@ -346,7 +346,7 @@
         "properties": {
           "file_path": {
             "type": "string",
-            "description": "The absolute path to the file to write (must be absolute, not relative)"
+            "description": "Absolute path of the file to write"
           },
           "content": {
             "type": "string",
@@ -3330,7 +3330,7 @@
         "properties": {
           "query": {
             "type": "string",
-            "description": "Query to find deferred tools. Use \"select:<tool_name>\" for direct selection, or keywords to search."
+            "description": "What to load: exact names as \"select:<name>,<name>\", or keywords ranked against the deferred roster."
           },
           "max_results": {
             "default": 5,
