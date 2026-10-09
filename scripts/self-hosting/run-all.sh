@@ -3,7 +3,7 @@
 # gate-watch: src/services/instructions/** src/constants/prompts.ts src/prompt/** AGENTS.md
 # gate-watch: src/bootstrap/state.ts src/mneme/mnemeFrontPage.ts src/tools.ts src/utils/cockpit/promptProvenance.ts
 # gate-watch: src/utils/config/globalConfig.ts src/utils/config/projectConfig.ts src/utils/settings/types.ts
-# gate-watch: src/Tool.ts src/context.ts src/utils/attachments/nestedMemory.ts src/utils/fileStateCache.ts
+# gate-watch: src/Tool.ts src/context.ts src/utils/attachments/nestedMemory.ts src/utils/fileStateCache.ts src/tools/AgentTool/built-in/mercuryCrewAgent.ts
 # gate-watch: scripts/lib/firstRunSeed.ts
 # gate-watch: src/projectOnboardingState.ts src/utils/cockpit/repoSurfaceMap.ts src/utils/config/trust.ts
 # gate-watch: src/components/mercury-ui/TrimChip.tsx
