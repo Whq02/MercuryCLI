@@ -593,21 +593,16 @@ class Project {
   }
 
   async flush(): Promise<void> {
-    if (this.flushTimer) {
-      clearTimeout(this.flushTimer)
-      this.flushTimer = null
-    }
-    if (this.activeDrain) {
-      await this.activeDrain
-    }
+    if (this.flushTimer) clearTimeout(this.flushTimer)
+    this.flushTimer = null
+    const inFlight = this.activeDrain
+    if (inFlight) await inFlight
     await this.runDrain()
+    if (this.pendingWriteCount > 0) await this.trackedWritesLanded()
+  }
 
-    if (this.pendingWriteCount === 0) {
-      return
-    }
-    return new Promise<void>(resolve => {
-      this.flushResolvers.push(resolve)
-    })
+  private trackedWritesLanded(): Promise<void> {
+    return new Promise<void>(resolve => this.flushResolvers.push(resolve))
   }
 
   async removeMessageByUuid(targetUuid: UUID): Promise<void> {
