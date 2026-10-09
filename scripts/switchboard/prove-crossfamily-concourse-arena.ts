@@ -123,7 +123,7 @@ try {
         workspaceDir: cwd,
         title: 'CMA Beta',
         model: 'claude-sonnet-5',
-      } as never)) as { ok?: boolean; sessionId?: string; modelId?: string }
+      } as never, { timeoutMs: 15_000 })) as { ok?: boolean; sessionId?: string; modelId?: string }
       check('BETA dispatched at the daemon door', b.ok === true && b.sessionId !== undefined, JSON.stringify(b))
       check('the named model rode the door (claude-sonnet-5, never a silent substitute)', b.modelId === 'claude-sonnet-5', String(b.modelId))
       betaSid = b.sessionId ?? ''

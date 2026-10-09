@@ -71,8 +71,9 @@ const exited = new Promise<number | null>(resolve =>
 
 tally.section('a daemon boots in a scratch world and records its plane')
 let booted = false
+const BOOT_FILES = ['daemon.json', 'concourse-workers.json', 'concourse-delta.json']
 for (const until = Date.now() + bound(BOOT_BOUND_MS); Date.now() < until; ) {
-  if (existsSync(join(daemonDir, 'daemon.json')) && logOf().includes('control socket up')) {
+  if (BOOT_FILES.every(name => existsSync(join(daemonDir, name))) && logOf().includes('control socket up')) {
     booted = true
     break
   }
@@ -81,7 +82,7 @@ for (const until = Date.now() + bound(BOOT_BOUND_MS); Date.now() < until; ) {
 }
 const before = listing()
 console.log(`the daemon directory before the removal:\n  ${before.join('\n  ')}`)
-tally.check('the daemon booted and wrote its record', booted, logOf().slice(-600))
+tally.check('the daemon booted and wrote its record, its control socket is up and its boot reconcile has published the session records and the delta stamp (the last writes before the home watch is armed)', booted, logOf().slice(-600))
 
 tally.section("the daemon directory is removed under the running daemon")
 rmSync(daemonDir, { recursive: true, force: true })

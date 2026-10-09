@@ -88,7 +88,7 @@ try {
         title: 'Door probe session',
         modelKey: 'claude-opus-5',
         effort: 'xhigh',
-      } as never)) as { ok?: boolean; sessionId?: string }
+      } as never, { timeoutMs: 15_000 })) as { ok?: boolean; sessionId?: string }
       check('the foreign session dispatched (working)', dispatched.ok === true && dispatched.sessionId !== undefined, JSON.stringify(dispatched))
       const transcript = join(paths.getProjectDir(work), `${dispatched.sessionId ?? ''}.jsonl`)
       check('the worker transcript was born in the foreign project home', await untilAsync(async () => existsSync(transcript) && statSync(transcript).size > 200, 30_000), transcript)

@@ -34,3 +34,4 @@ unexported	ClipboardPath	no reader outside its own file: the export keyword leav
 unexported	tmuxLoadBuffer	no reader outside its own file: the export keyword leaves, the declaration stays	rename fold	b35ca5ca7
 shape	src/ink.ts:color	the theme name it takes is one of the two appearances (dark, true-black) or any other name: the other theme families left the code with their palettes	themes	e04b433a4
 shape	src/ink.ts:useThemeSetting	the setting it returns is auto, one of the two appearances (dark, true-black) or any other name: the other theme families left the code with their palettes	themes	e04b433a4
+shape	src/ink/components/ScrollBox.tsx:ScrollBoxHandle	the scroll box handle gains getElementTop(el): an element's top in content space, so a popup form's follow compares the focused row with the scroll position and an up-move past the top edge scrolls the body back (the sign-in list wrapping from its last row to its first)	popup-follow	d9c712151

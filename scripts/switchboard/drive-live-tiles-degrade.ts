@@ -88,7 +88,7 @@ try {
         title: 'Busy streamer',
         modelKey: 'claude-opus-5',
         effort: 'xhigh',
-      } as never)) as { ok?: boolean; sessionId?: string }
+      } as never, { timeoutMs: 15_000 })) as { ok?: boolean; sessionId?: string }
       check('streamer dispatched', a.ok === true && a.sessionId !== undefined)
       const t = join(paths.getProjectDir(work), `${a.sessionId}.jsonl`)
       check('transcript born', await untilAsync(async () => existsSync(t) && statSync(t).size > 100, 30_000))

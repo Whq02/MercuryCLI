@@ -176,7 +176,7 @@ console.log('\nR7 non-recreation — a home repository removed by the operator i
 {
   const { spawnSync } = await import('node:child_process')
   const g = (...args: string[]): void => {
-    spawnSync('git', ['-C', HOME_FX, ...args], { stdio: 'ignore', env: { ...process.env } })
+    spawnSync('git', ['-C', HOME_FX, '-c', 'maintenance.auto=false', '-c', 'gc.auto=0', ...args], { stdio: 'ignore', env: { ...process.env } })
   }
   g('init', '-q')
   g('commit', '-q', '--allow-empty', '-m', wt.FORK_BASE_COMMIT_SUBJECT)

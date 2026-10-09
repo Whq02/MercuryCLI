@@ -112,7 +112,7 @@ const run = await runArtifactArena({
       title: SEAT_TITLE,
       modelKey: SEAT_MODEL,
       effort: SEAT_EFFORT,
-    } as never)) as { ok?: boolean; sessionId?: string; modelId?: string; effort?: string }
+    } as never, { timeoutMs: 15_000 })) as { ok?: boolean; sessionId?: string; modelId?: string; effort?: string }
     check(`the seat is born on the OpenAI row (${SEAT_MODEL}) at ${SEAT_EFFORT}`, a.ok === true && a.modelId === SEAT_MODEL && a.effort === SEAT_EFFORT, JSON.stringify(a))
     seatId = a.sessionId ?? ''
     transcript = join(paths.getProjectDir(cwd), `${seatId}.jsonl`)

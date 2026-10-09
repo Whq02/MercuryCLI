@@ -403,7 +403,7 @@ if (ONLY === undefined || ONLY === 'D') {
     const { clientVersionFacts } = await import('../../src/daemon/handshake.ts')
     const sup = await import('../../src/daemon/concourseWorkers.ts')
     const proj = await import('../../src/services/engine-connector/seatProjections.ts')
-    const rpc = (req: Record<string, unknown>): Promise<Record<string, unknown>> => daemonControlRpc(req as never) as Promise<Record<string, unknown>>
+    const rpc = (req: Record<string, unknown>, opts?: { timeoutMs?: number }): Promise<Record<string, unknown>> => daemonControlRpc(req as never, opts) as Promise<Record<string, unknown>>
     const client = clientVersionFacts()
     tally.check(
       'D0 the daemon serves and is ready',
@@ -412,7 +412,7 @@ if (ONLY === undefined || ONLY === 'D') {
         return hello.ok === true && hello.ready === true
       }, bound(60_000)),
     )
-    const dispatched = (await rpc({ op: 'concourseDispatch', clientMessageId: 'switch-boundary-A', prompt: 'say ready', workspaceDir: work, title: 'A', modelKey: OLD_SEAT_MODEL, effort: 'high' })) as { ok?: boolean; sessionId?: string; runnerId?: string }
+    const dispatched = (await rpc({ op: 'concourseDispatch', clientMessageId: 'switch-boundary-A', prompt: 'say ready', workspaceDir: work, title: 'A', modelKey: OLD_SEAT_MODEL, effort: 'high' }, { timeoutMs: 15_000 })) as { ok?: boolean; sessionId?: string; runnerId?: string }
     tally.check('D0 session A dispatched', dispatched.ok === true && dispatched.sessionId !== undefined, JSON.stringify(dispatched))
     const sessionId = dispatched.sessionId ?? ''
     const runnerId = dispatched.runnerId ?? ''

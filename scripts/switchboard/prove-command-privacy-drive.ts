@@ -109,7 +109,7 @@ const run = await runArtifactArena({
       title: 'Alpha count',
       modelKey: DEFAULT_OPUS,
       effort: 'xhigh',
-    } as never)) as { ok?: boolean; sessionId?: string }
+    } as never, { timeoutMs: 15_000 })) as { ok?: boolean; sessionId?: string }
     check('alpha dispatched', a.ok === true, JSON.stringify(a))
     alphaId = a.sessionId ?? ''
     const alphaTranscript = join(paths.getProjectDir(_cwd), `${alphaId}.jsonl`)

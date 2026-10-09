@@ -39,6 +39,7 @@ const { seedFirstRun } = await import('../lib/firstRunSeed.ts')
 const { runArtifactArena, grabScreens } = await import('../streaming/artifactArena.ts')
 const { daemonControlRpc } = await import('../../src/daemon/controlSocket.ts')
 const { keyHintLabel } = await import('../../src/components/mercury-ui/keyHintLabel.ts')
+const { CARRIER_GONE_WORDS } = await import('../../src/services/engine-connector/daemonConnector.ts')
 const TAG = keyHintLabel('⇧← back')
 
 const api = await startFixtureApi([
@@ -166,7 +167,7 @@ const runPromise = runArtifactArena({
       title: 'Hold the turn',
       modelKey: 'claude-opus-5',
       effort: 'xhigh',
-    } as never)) as { ok?: boolean; sessionId?: string }
+    } as never, { timeoutMs: 15_000 })) as { ok?: boolean; sessionId?: string }
     check('the holding session dispatched', dispatched.ok === true, JSON.stringify(dispatched))
     sessionId = dispatched.sessionId ?? ''
     check('its facts say BUSY (the hanging turn is real)', await untilAsync(() => factsBusy(), 45_000))
@@ -227,10 +228,12 @@ mkdirSync(KEEP_DIR, { recursive: true })
     writeFileSync(join(KEEP_DIR, `at${String(g.atMs).padStart(6, '0')}.txt`), g.rows.map((r: string) => r.replace(/\s+$/, '')).join('\n') + '\n')
   }
   check(`pre-kill: the chat was ENTERED (the tag bar with the way back, over the held prompt) — read at arena+${attached?.atMs ?? 0}ms`, attached !== undefined && entered(attached), `no frame between the attach (+${attachedAtArenaMs}ms) and the kill (+${killedAtArenaMs}ms) carried both; see the kept capture`)
-  check('post-kill: the frame still stands (the freeze is painted, not a crash)', text(frozen).length > 0)
-  check('post-deadline: the frame stands and differs from the frozen-busy paint', text(settled).length > 0 && text(settled) !== text(frozen))
+  const settledIdle = (g: { rows: string[] } | undefined): boolean => text(g).includes(CARRIER_GONE_WORDS) && /\bready ·/.test(text(g))
+  check(`post-kill: 9 s after the kill the chat has settled idle through the carrier-gone road — the notice "${CARRIER_GONE_WORDS}" painted, the status row ready (the held prompt stays a transcript row)`, text(frozen).length > 0 && settledIdle(frozen), text(frozen).split('\n').filter(r => /ready ·|daemon ended|⇧← back/.test(r)).map(r => r.trim()).join(' | ').slice(0, 300) || '(no frame)')
+  check('late: the settled chat stands the same way at the late grab (idle, the notice once, the status row ready)', text(settled).length > 0 && settledIdle(settled) && text(settled).split(CARRIER_GONE_WORDS).length === 2, text(settled).split('\n').filter(r => /ready ·|daemon ended|⇧← back/.test(r)).map(r => r.trim()).join(' | ').slice(0, 300) || '(no frame)')
 
   let settleSeen = false
+  let stallSeen = false
   const looked: string[] = []
   const walkForSettle = (dir: string, depth: number): void => {
     if (depth > 6 || settleSeen) return
@@ -248,7 +251,8 @@ mkdirSync(KEEP_DIR, { recursive: true })
         else if (st.size > 0 && st.size < 32 * 1024 * 1024 && (name.endsWith('.txt') || name.endsWith('.log'))) {
           looked.push(p)
           const body = readFileSync(p, 'utf8')
-          if (body.includes('busy turn stalled') && body.includes('settling idle')) settleSeen = true
+          if (body.includes('is gone (') && body.includes('settling idle, dropping its work rows, saying so')) settleSeen = true
+          if (body.includes('busy turn stalled')) stallSeen = true
           if (p.includes(`${sep}debug${sep}`)) writeFileSync(join(KEEP_DIR, `debug-${name}`), body)
         }
       } catch {
@@ -273,7 +277,7 @@ mkdirSync(KEEP_DIR, { recursive: true })
   } catch {
   }
   console.log(`  ${traceNote}`)
-  check('GROUND TRUTH: the 45s deadline road fired — the settle line in the debug log', settleSeen, `walked ${looked.length} log file(s) under ${run.paths.home}: ${looked.map(p => p.slice(run.paths.home.length)).join(' · ') || '(none)'}; ${traceNote}`)
+  check('GROUND TRUTH: the carrier-gone road fired — the connector\'s settle line in the debug log (the daemon carrying the session is gone, 3 reads — settling idle), and the 45s stall probe never had to', settleSeen && !stallSeen, `walked ${looked.length} log file(s) under ${run.paths.home}: ${looked.map(p => p.slice(run.paths.home.length)).join(' · ') || '(none)'}; ${traceNote}`)
   console.log(`  captures kept: ${KEEP_DIR}`)
 }
 

@@ -135,13 +135,12 @@ async function seatOnFake(short: string, cfg: Record<string, number> = {}): Prom
 }
 
 async function seatOnReal(short: string, fixture: string, cfg: Record<string, number> = {}): Promise<void> {
+  seed(short)
   realFixture = fixture
   const registered = roster.registerLongLived(short, specOf(short), cfg)
   realFixture = null
   tally.check(`the fixture runner ${short} runs as a real child process`, registered.ok && typeof registered.pid === 'number', JSON.stringify(registered))
   seatOf(short)?.child?.once('close', () => roster.expectExit(short, true))
-  await sleep(30)
-  seed(short)
 }
 
 function exitAndClose(short: string, child: FakeChild): void {

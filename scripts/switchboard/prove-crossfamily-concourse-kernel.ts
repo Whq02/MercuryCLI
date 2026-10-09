@@ -235,7 +235,7 @@ section('§5 Anthropic coordinator × GPT-named seat — the sovereign seat LAUN
     workspaceDir: work4,
     title: 'CMA Probe',
     model: 'gpt-5.5',
-  } as never)) as { ok?: boolean; sessionId?: string }
+  } as never, { timeoutMs: 15_000 })) as { ok?: boolean; sessionId?: string }
   check('a direct gpt-5.5 dispatch ADMITS at the daemon door (the session arm)', probe.ok === true, text(probe))
   const probeSid = String(probe.sessionId ?? '')
   check('…and the sovereign seat streams its turn (transcript lands from the Responses dialect)',

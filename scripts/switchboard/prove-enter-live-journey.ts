@@ -128,7 +128,7 @@ try {
         title: 'Enter live probe',
         modelKey: 'claude-opus-5',
         effort: 'xhigh',
-      } as never)) as { ok?: boolean; sessionId?: string; state?: string }
+      } as never, { timeoutMs: 15_000 })) as { ok?: boolean; sessionId?: string; state?: string }
       check('the session dispatched (working)', dispatched.ok === true && dispatched.sessionId !== undefined, JSON.stringify(dispatched))
       sessionId = dispatched.sessionId ?? ''
       transcript = join(paths.getProjectDir(cwd), `${sessionId}.jsonl`)

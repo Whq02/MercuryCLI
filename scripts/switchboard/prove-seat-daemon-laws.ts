@@ -293,7 +293,7 @@ try {
       prompt: 'first words into the warm runner',
       workspaceDir: work2,
       title: 'Warm probe',
-    } as never)) as { ok?: boolean; sessionId?: string; runnerId?: string }
+    } as never, { timeoutMs: 15_000 })) as { ok?: boolean; sessionId?: string; runnerId?: string }
     check('W the dispatch admits', w2.ok === true && typeof w2.sessionId === 'string', JSON.stringify(w2))
     check('W claim-over-spawn: the admitted worker IS the pre-spawned warm runner (same short + pid, live)', await untilAsync(async () => {
       const l = (await daemonControlRpc({ op: 'concourseList' } as never)) as { workers?: Array<{ runnerId?: string; pid?: number; sessionId?: string }> }
