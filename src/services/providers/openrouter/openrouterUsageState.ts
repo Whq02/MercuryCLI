@@ -4,7 +4,7 @@ import { credentialFingerprint } from '../credentialIdentity.js'
 import { catalogueTrafficVerdict } from '../catalogueGate.js'
 import { fetchWithProviderDeadline } from '../fetchDeadline.js'
 import { USAGE_POLL_TTL_MS } from '../usageFreshness.js'
-import { clearOpenrouterKeyRefusal, markOpenrouterKeyRefused, markOpenrouterMintedKeyExpired, openrouterAuthPathForDisplay, openrouterKeyRefusal, openrouterRefusalNote, readMintedOpenrouterKey, resolveOpenrouterApiKey, resolveOpenrouterRequestAuth, type OpenrouterKeySource, type OpenrouterRequestAuth } from './openrouterAccounts.js'
+import { clearOpenrouterKeyRefusal, markOpenrouterKeyRefused, markOpenrouterMintedKeyExpired, openrouterAuthPathForDisplay, openrouterKeyRefusal, readMintedOpenrouterKey, resolveOpenrouterApiKey, resolveOpenrouterRequestAuth, type OpenrouterKeySource, type OpenrouterRequestAuth } from './openrouterAccounts.js'
 
 const KEY_PROBE_TIMEOUT_MS = 10_000
 
@@ -101,7 +101,7 @@ export function openrouterObservedKeyUsage(env: NodeJS.ProcessEnv = process.env)
   if (lastError === undefined) {
     const refused = openrouterKeyRefusal(env)
     if (refused !== undefined) {
-      return { usage: observedKeyUsage, lastError: openrouterRefusalNote(refused), errorSource: refused.source, errorStatus: refused.status }
+      return { usage: observedKeyUsage, lastError: refused.message, errorSource: refused.source, errorStatus: refused.status }
     }
   }
   return {
@@ -169,7 +169,7 @@ export function refreshOpenrouterKeyUsage(opts?: {
         }
         if (!response.ok) {
           const refusal = response.status === 401 || response.status === 403
-          lastError = refusal ? openrouterRefusalNote({ source, status: response.status, message: error! }) : error
+          lastError = error
           lastErrorSource = source
           lastErrorStatus = response.status
           if (refusal && probed !== undefined && probed.source === source) markOpenrouterKeyRefused(probed, response.status, error!, now)

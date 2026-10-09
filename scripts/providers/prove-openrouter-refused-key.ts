@@ -179,7 +179,7 @@ try {
     const lane = usability.resolveProviderUsability().openrouter
     check('the usability resolver: not usable, with the refused words', !lane.usable && lane.blockers.length === 1 && lane.blockers[0] === REFUSED_NOTE, j(lane))
     const slot = storedSlot()
-    check('/logins: the stored slot is not signed in and carries the refused words', slot?.signedIn === false && slot.stateNote === REFUSED_NOTE, j(slot))
+    check('/logins: the stored slot is not signed in and carries the provider\'s words', slot?.signedIn === false && slot.stateNote === WIRE_MESSAGE, j(slot))
     const groups = slots.deriveFamilySlotGroups()
     const counts = loginsFamilyCounts(groups)
     const signedFamilies = counts.familyIds.filter(id => (groups.find(g => g.family.id === id)?.slots ?? []).some(s => s.signedIn))
@@ -215,7 +215,7 @@ try {
     check('a served turn clears the mark', usability.resolveProviderUsability().openrouter.usable === true && authFile().refused === undefined, j(authFile()))
     keyStatus = 401
     await usageState.refreshOpenrouterKeyUsage({ fetchImpl, force: true })
-    check('the key probe\'s 401 marks the key refused with the same words', authFile().refused !== undefined && storedSlot()?.stateNote === REFUSED_NOTE && usability.resolveProviderUsability().openrouter.usable === false, `${j(storedSlot())} observed=${j(usageState.openrouterObservedKeyUsage())} hits=${hits.slice(-3).join('|')} file=${j(authFile().refused)}`)
+    check('the key probe\'s 401 marks the key refused with the same words', authFile().refused !== undefined && storedSlot()?.stateNote === WIRE_MESSAGE && usability.resolveProviderUsability().openrouter.blockers[0] === REFUSED_NOTE, `${j(storedSlot())} observed=${j(usageState.openrouterObservedKeyUsage())} hits=${hits.slice(-3).join('|')} file=${j(authFile().refused)}`)
     keyStatus = 200
     await usageState.refreshOpenrouterKeyUsage({ fetchImpl, force: true })
     check('the key probe\'s 200 clears it and the credit truth is read', authFile().refused === undefined && storedSlot()?.signedIn === true && usageState.openrouterObservedKeyUsage().usage?.limitRemaining === 18.5, j(storedSlot()))
