@@ -35,6 +35,7 @@ const PROVIDER_DISPLAY_NAMES: Record<CallModelRoute, string> = {
   local: 'Local models',
   mistral: 'Mistral',
   nous: 'Nous Portal',
+  zen: 'OpenCode Zen',
 }
 
 export function providerDisplayName(route: string): string {

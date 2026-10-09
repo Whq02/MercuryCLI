@@ -58,6 +58,9 @@ export function parseDefaultProviderWord(token: string | undefined): string | un
     case 'nous':
     case 'nous-portal':
       return 'nous'
+    case 'zen':
+    case 'opencode':
+      return 'zen'
     case 'local':
       return 'local'
     case 'compat':

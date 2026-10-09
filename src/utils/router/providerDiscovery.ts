@@ -78,6 +78,12 @@ export interface NousDiscovery {
   keyPresent: boolean
   keySource?: 'env' | 'stored'
 }
+export interface ZenDiscovery {
+  provider: 'zen'
+  probedAtMs: number
+  keyPresent: boolean
+  keySource?: 'env' | 'stored'
+}
 export interface CompatDiscovery {
   provider: 'openai-compat'
   probedAtMs: number
@@ -121,6 +127,7 @@ export type ProviderDiscovery =
   | LocalDiscovery
   | MistralDiscovery
   | NousDiscovery
+  | ZenDiscovery
 
 export interface DiscoveryIo {
   env: Record<string, string | undefined>
@@ -272,6 +279,12 @@ export function primeNousDiscovery(io?: DiscoveryIo): NousDiscovery | null {
   return record
 }
 
+function probeZen(io: DiscoveryIo): ZenDiscovery {
+  const { resolveZenApiKey } = require('../../services/providers/zen/zenAccounts.js') as typeof import('../../services/providers/zen/zenAccounts.js')
+  const key = resolveZenApiKey(io.env as NodeJS.ProcessEnv)
+  return { provider: 'zen', probedAtMs: io.now(), keyPresent: key !== undefined, ...(key ? { keySource: key.source } : {}) }
+}
+
 function probeDeepseek(io: DiscoveryIo): DeepseekDiscovery {
   const { resolveDeepseekApiKey } =
     require('../../services/providers/deepseek/deepseekAccounts.js') as typeof import('../../services/providers/deepseek/deepseekAccounts.js')
@@ -421,7 +434,9 @@ export function refreshProviderDiscovery(
                               ? probeMistral(io)
                               : id === 'nous'
                                 ? probeNous(io)
-                                : probeZai(io)
+                                : id === 'zen'
+                                  ? probeZen(io)
+                                  : probeZai(io)
       cache.set(id, record)
       return record
     } finally {

@@ -23,9 +23,9 @@
    │   Meta — API key (Muse)                          not signed in │  │                                            │
    │   Mistral — API key (Mistral Large 4)            not signed in │  ╰────────────────────────────────────────────╯
    │   Nous Portal — API key (model gateway)          not signed in │  ╭────────────────────────────────────────────╮
-   ╰────────────────────────────────────────────────────────────────╯  │ LOGINS                                     │
-                                                                       │ Families   12                              │
-                                                                       │ Signed in  0 of 12                         │
+   │   OpenCode Zen — API key (one key, the ga…       not signed in │  │ LOGINS                                     │
+   ╰────────────────────────────────────────────────────────────────╯  │ Families   13                              │
+                                                                       │ Signed in  0 of 13                         │
                                                                        │ Ready      0 lanes                         │
                                                                        ╰────────────────────────────────────────────╯
                                                                        ╭────────────────────────────────────────────╮

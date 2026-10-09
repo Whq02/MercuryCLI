@@ -26,6 +26,7 @@ import { huggingfaceProviderAdapter } from './providers/huggingface.js'
 import { localProviderAdapter } from './providers/local.js'
 import { mistralProviderAdapter } from './providers/mistral.js'
 import { nousProviderAdapter } from './providers/nous.js'
+import { zenProviderAdapter } from './providers/zen.js'
 import { catalogueEpoch } from '../../services/providers/catalogueEpoch.js'
 import { signInLedgerEpoch } from '../accounts/signInLedger.js'
 import { credentialEnvNames } from './providerSecrets.js'
@@ -58,6 +59,7 @@ const PROVIDER_ADAPTERS: readonly RouterProviderAdapter[] = [
   localProviderAdapter,
   mistralProviderAdapter,
   nousProviderAdapter,
+  zenProviderAdapter,
 ]
 
 function classForCanonical(canonical: string): RouterModelClass | null {

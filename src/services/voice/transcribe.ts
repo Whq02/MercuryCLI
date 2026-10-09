@@ -37,6 +37,7 @@ export const FAMILY_TRANSCRIBER: Record<CallModelRoute, { slot: 'api-key' } | { 
   local: { slot: 'none', why: 'no speech-to-text endpoint declared' },
   mistral: { slot: 'none', why: 'no speech-to-text endpoint wired' },
   nous: { slot: 'none', why: 'no speech-to-text endpoint wired' },
+  zen: { slot: 'none', why: 'no speech-to-text endpoint' },
 }
 
 

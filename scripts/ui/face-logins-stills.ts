@@ -79,6 +79,7 @@ export function mixedFacts(): LoginsScreenFactsV1 {
     { family: presence('meta'), slots: [] },
     { family: presence('mistral'), slots: [] },
     { family: presence('nous'), slots: [] },
+    { family: presence('zen'), slots: [] },
   ]
   const usability: Record<ProviderId, ProviderUsability> = {
     anthropic: usable('anthropic', { credential: 'oauth', limit: 'allowed', usable: true, blockers: [] }),
@@ -95,6 +96,7 @@ export function mixedFacts(): LoginsScreenFactsV1 {
     'openai-compat': usable('openai-compat'),
     local: usable('local'),
     nous: usable('nous'),
+    zen: usable('zen'),
   }
   return { groups, usability }
 }

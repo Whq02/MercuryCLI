@@ -322,6 +322,23 @@ const skipped: string[] = []
   } else skipped.push(`nous · no credential · ${typed.length} typed ids not judged`)
 }
 
+{
+  const accounts = await import('../../src/services/providers/zen/zenAccounts.js')
+  const { fetchZenLiveModels } = await import('../../src/services/providers/zen/zenCatalogue.js')
+  const { ZEN_DISPLAY_PINS } = await import('../../src/services/providers/zen/zenPins.js')
+  const typed = ZEN_DISPLAY_PINS.map(pin => pin.id)
+  const key = accounts.resolveZenApiKey(env)
+  families.push({
+    family: 'zen',
+    source: key ? `OpenCode Zen API key (${key.source})` : 'OpenCode Zen public model list (no key needed)',
+    typed,
+    list: async () => {
+      const result = await fetchZenLiveModels({ baseUrl: accounts.zenApiBase(env), ...(key ? { key: key.key } : {}) })
+      return { ids: result.models.filter(model => model.shape === 'chat' || model.shape === 'responses').map(model => model.id) }
+    },
+  })
+}
+
 let notServed = 0
 let judged = 0
 let fetchable = 0

@@ -53,10 +53,11 @@ type Family =
   | 'local'
   | 'compat'
   | 'nous'
+  | 'zen'
 
 const FAMILIES: readonly Family[] = [
   'anthropic', 'openai', 'zai', 'moonshot', 'deepseek', 'xai', 'meta',
-  'gemini', 'openrouter', 'huggingface', 'local', 'compat', 'nous',
+  'gemini', 'openrouter', 'huggingface', 'local', 'compat', 'nous', 'zen',
 ]
 
 const sse = (obj: unknown): string => `data: ${JSON.stringify(obj)}\n\n`
@@ -160,6 +161,7 @@ function familyOfPath(path: string): Family | undefined {
   if (path.startsWith('/localsrv/')) return 'local'
   if (path.startsWith('/compatslot/')) return 'compat'
   if (path.startsWith('/nous/')) return 'nous'
+  if (path.startsWith('/zen/')) return 'zen'
   return undefined
 }
 
@@ -193,6 +195,11 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
       if (path === '/meta/v1/models') {
         res.writeHead(200, { 'content-type': 'application/json' })
         res.end(JSON.stringify({ object: 'list', data: [{ id: 'muse-spark-1.3', object: 'model', owned_by: 'meta', created: 3 }] }))
+        return
+      }
+      if (path === '/zen/v1/models') {
+        res.writeHead(200, { 'content-type': 'application/json' })
+        res.end(JSON.stringify({ object: 'list', data: [{ id: 'glm-5.3', object: 'model', owned_by: 'opencode', created: 3 }, { id: 'claude-fable-5-1', object: 'model', owned_by: 'opencode', created: 2 }] }))
         return
       }
       if (path === '/moonshot/v1/models') {
@@ -276,6 +283,9 @@ Object.assign(process.env, {
   XAI_API_KEY: 'fixture-xai-key',
   MERCURY_META_API_BASE: `${base}/meta/v1`,
   MODEL_API_KEY: 'fixture-meta-key',
+  MERCURY_ZEN_API_BASE: `${base}/zen/v1`,
+  MERCURY_ZEN_GO_API_BASE: 'http://127.0.0.1:1/zen/go/v1',
+  OPENCODE_API_KEY: 'sk-fixture-zen-key-0000000000000000000000000000000000000000000000000000000',
   MERCURY_GEMINI_API_BASE: `${base}/gemini/v1beta`,
   MERCURY_GEMINI_OAUTH_AUTH_BASE: `${base}/gemini/oauth/auth`,
   MERCURY_GEMINI_OAUTH_TOKEN_BASE: `${base}/gemini/oauth/token`,
@@ -322,6 +332,7 @@ await (await import('../../src/services/providers/moonshot/moonshotCatalogue.ts'
 await (await import('../../src/services/providers/xai/xaiCatalogue.ts')).refreshXaiCatalogue({ force: true })
 await (await import('../../src/services/providers/meta/metaCatalogue.ts')).refreshMetaCatalogue({ force: true })
 await (await import('../../src/services/providers/nous/nousCatalogue.ts')).refreshNousCatalogue({ force: true })
+await (await import('../../src/services/providers/zen/zenCatalogue.ts')).refreshZenCatalogue({ force: true })
 
 const echoCalls: Array<{ family: string; text: string }> = []
 const EchoTool = {
@@ -467,6 +478,7 @@ const WORKER_SPELLINGS: Record<Family, { model: string; wireId: string }> = {
   local: { model: 'local/qwen3-32b', wireId: 'qwen3-32b' },
   compat: { model: 'compat/qwen-max', wireId: 'qwen-max' },
   nous: { model: 'nous/anthropic/claude-sonnet-4.6', wireId: 'anthropic/claude-sonnet-4.6' },
+  zen: { model: 'zen/glm-5.3', wireId: 'glm-5.3' },
 }
 
 const RING: Array<{ parent: Family; worker: Family }> = [
@@ -482,7 +494,8 @@ const RING: Array<{ parent: Family; worker: Family }> = [
   { parent: 'huggingface', worker: 'local' },
   { parent: 'local', worker: 'compat' },
   { parent: 'compat', worker: 'nous' },
-  { parent: 'nous', worker: 'anthropic' },
+  { parent: 'nous', worker: 'zen' },
+  { parent: 'zen', worker: 'anthropic' },
 ]
 
 const IDENTITY_ANCHOR = 'Mercury was not built by the maker of any model it runs'
@@ -745,7 +758,7 @@ section('§A the dispatch boundary — the engine grammar is TOTAL over the rout
   const CLASS_TO_ROUTE: Record<string, string> = {
     gpt: 'openai', glm: 'zai', kimi: 'moonshot', deepseek: 'deepseek', grok: 'xai', muse: 'meta',
     compat: 'openai-compat', huggingface: 'huggingface', local: 'local',
-    gemini: 'gemini', openrouter: 'openrouter', mistral: 'mistral', nous: 'nous',
+    gemini: 'gemini', openrouter: 'openrouter', mistral: 'mistral', nous: 'nous', zen: 'zen',
   }
   const declaredRoutes = [...new Set(PROVIDER_ID_SPACES.map(s => s.route))].sort()
   const grammarRoutes = [...new Set(engine.ENGINE_DISPATCH_MODELS.map(c => CLASS_TO_ROUTE[c]).filter(Boolean))].sort()
@@ -768,6 +781,7 @@ section('§A the dispatch boundary — the engine grammar is TOTAL over the rout
     { cls: 'local', backend: 'local', model: 'local/qwen3-32b' },
     { cls: 'compat', backend: 'openai-compat' },
     { cls: 'nous', backend: 'nous', model: 'nous/anthropic/claude-sonnet-4.6' },
+    { cls: 'zen', backend: 'zen', model: 'zen/glm-5.3' },
   ]
   const bootState = await import('../../src/bootstrap/state.ts')
   const priorOverride = bootState.getEngineModelOverride()

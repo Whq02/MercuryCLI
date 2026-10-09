@@ -1,23 +1,23 @@
 
- (>_) MERCURY · logins
- xAI management key (optional) Optional management key from console.x.ai's
- settings page unlocks the team usage meter. Stored auth-scoped (mode 600);
- XAI_MANAGEMENT_API_KEY wins. key: ▌ ↵ stores · empty/esc skips; API key
- stays
+   (>_) MERCURY · logins
+   xAI management key (optional) Optional management key from console.x.ai's
+   settings page unlocks the team usage meter. Stored auth-scoped (mode 600);
+   XAI_MANAGEMENT_API_KEY wins. key: ▌ ↵ stores · empty/esc skips; API key
+   stays
 
- ↑ 4 more
-   Kimi (Moonshot) — device-code sign-in o…  kimi.ai (global) · window reached
- available
-   Usage-based billing — Anthropic Console…  not signed in
-   OpenRouter — one credential, the whole …  not signed in
-   Google Gemini — API key or Google OAuth   not signed in
-   GLM (Z.AI) — API key (general or GLM Co…  not signed in
-   DeepSeek — API key                        not signed in
- ❯ xAI — Grok subscription sign-in or API …  not signed in
-   Meta — API key (Muse)                     not signed in
-   Mistral — API key (Mistral Large 4)       not signed in
-   Nous Portal — API key (model gateway)     not signed in
+   ↑ 5 more
+   available
+     Usage-based billing — Anthropic Console…  not signed in
+     OpenRouter — one credential, the whole …  not signed in
+     Google Gemini — API key or Google OAuth   not signed in
+     GLM (Z.AI) — API key (general or GLM Co…  not signed in
+     DeepSeek — API key                        not signed in
+   ❯ xAI — Grok subscription sign-in or API …  not signed in
+     Meta — API key (Muse)                     not signed in
+     Mistral — API key (Mistral Large 4)       not signed in
+     Nous Portal — API key (model gateway)     not signed in
+     OpenCode Zen — API key (one key, the ga…  not signed in
 
 
- xAI · not signed in
- ↵ store key · empty/esc skip
+   xAI · not signed in
+   ↵ store key · empty/esc skip

@@ -502,7 +502,7 @@ t.section('§4 — THE ROSTER LAYER (A3: one home, truthful chips, the boot-menu
   )
 
   const arms = loginsCatalogue()
-  t.check('the catalogue is the row owner’s thirteen, engine legs offered', arms.length === 13 && arms.map(a => a.row.value).join(',') === 'openai,claudeai,console,openrouter,gemini,huggingface,moonshot,zai,deepseek,xai,meta,mistral,nous')
+  t.check('the catalogue is the row owner’s fourteen, engine legs offered', arms.length === 14 && arms.map(a => a.row.value).join(',') === 'openai,claudeai,console,openrouter,gemini,huggingface,moonshot,zai,deepseek,xai,meta,mistral,nous,zen')
   const { loginFamilyInitialFocus, loginFamilyFocusFor } = await import('../../src/components/loginFamilyRows.js')
   const signedOutRows = loginsSortedArms(signedOutFacts()).map(arm => arm.row)
   t.check('signed-out opening focus is the first displayed row', loginFamilyInitialFocus(signedOutRows, undefined) === signedOutRows[0]!.value && signedOutRows[0]!.value === 'openai')
@@ -524,12 +524,12 @@ t.section('§4 — THE ROSTER LAYER (A3: one home, truthful chips, the boot-menu
   t.check('the expired pane carries the typed blocker VERBATIM', loginsDetailLines(claudeArm, expired).join('\n').includes('the claude.ai sign-in has expired —\n/logins re-authenticates it'))
 
   const sorted = loginsSortedArms(facts)
-  t.check('signed-in rows float first, catalogue order within each class', sorted.map(a => a.row.value).join(',') === 'openai,claudeai,huggingface,moonshot,console,openrouter,gemini,zai,deepseek,xai,meta,mistral,nous')
+  t.check('signed-in rows float first, catalogue order within each class', sorted.map(a => a.row.value).join(',') === 'openai,claudeai,huggingface,moonshot,console,openrouter,gemini,zai,deepseek,xai,meta,mistral,nous,zen')
   const entry = loginsEntryOf(claudeArm, facts)
   t.check('an entry groups under its state class with the owner’s row label', entry.group === 'signed in' && entry.label === 'Claude subscription account' && entry.valueLabel === 'op@example.com')
 
-  t.check('the summary counts distinct families (12), signed and ready', JSON.stringify(loginsSummaryRows(facts).map(r => `${r.key}=${r.value}`)) === JSON.stringify(['Families=12', 'Signed in=4 of 12', 'Ready=4 lanes']))
-  t.check('the status line: signed of total · ready', loginsStatusLine(facts) === '4 of 12 families signed in · 4 ready')
+  t.check('the summary counts distinct families (13), signed and ready', JSON.stringify(loginsSummaryRows(facts).map(r => `${r.key}=${r.value}`)) === JSON.stringify(['Families=13', 'Signed in=4 of 13', 'Ready=4 lanes']))
+  t.check('the status line: signed of total · ready', loginsStatusLine(facts) === '4 of 13 families signed in · 4 ready')
   t.check('the signed-out world says so honestly (lanes can be ready without a sign-in)', loginsStatusLine(signedOutFacts()) === 'no family signed in yet · 0 ready without one')
   const splashSource = ts.createSourceFile('BootSplashScreen.tsx', read('src/components/BootSplashScreen.tsx'), ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX)
   let countExpression = ''
@@ -556,7 +556,7 @@ t.section('§4 — THE ROSTER LAYER (A3: one home, truthful chips, the boot-menu
         const compose = new Function('providerFamilyPresences', 'deriveFamilySlotGroups', 'loginsFamilyCounts', `${js}\nreturn compose`)(
           () => groups.map(group => group.family), () => groups, sharedCount,
         ) as () => string | null
-        const expected = snapshot === facts ? '4 of 12 signed in' : null
+        const expected = snapshot === facts ? '4 of 13 signed in' : null
         t.check(`boot count matches the listed families, extra providers signed=${signedExtras}, listed signed=${snapshot === facts}`, compose() === expected, String(compose()))
       }
     }
@@ -564,7 +564,7 @@ t.section('§4 — THE ROSTER LAYER (A3: one home, truthful chips, the boot-menu
   t.check('the legend names only the moves that exist (↵ joined with the first flow)', loginsLegendOf() === '↑↓ move · ↵ sign in · esc back')
 
   const wide = composeLogins(120, 40, { sel: 0 }).join('\n')
-  t.check('the wide frame carries the classes, the chips and the LOGINS panel', ['signed in', 'available', 'op@example.com', 'not signed in', 'LOGINS', 'Signed in  4 of 12', 'xAI — Grok subscription sign-in or API …', 'Meta — API key (Muse)', 'Mistral — API key (Mistral Large 4)', 'Nous Portal — API key (model gateway)'].every(s => wide.includes(s)))
+  t.check('the wide frame carries the classes, the chips and the LOGINS panel', ['signed in', 'available', 'op@example.com', 'not signed in', 'LOGINS', 'Signed in  4 of 13', 'xAI — Grok subscription sign-in or API …', 'Meta — API key (Muse)', 'Mistral — API key (Mistral Large 4)', 'Nous Portal — API key (model gateway)', 'OpenCode Zen — API key (one key, the ga…'].every(s => wide.includes(s)))
   const floor = composeLogins(64, 12, { sel: 0 }).join('\n')
   t.check('the 64×12 floor frame WARNS and keeps the way out', floor.includes('wants at least') && floor.includes('esc back'))
 

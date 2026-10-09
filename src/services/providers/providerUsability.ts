@@ -19,6 +19,7 @@ export type ProviderId =
   | 'local'
   | 'mistral'
   | 'nous'
+  | 'zen'
 
 export interface ProviderUsability {
   provider: ProviderId | 'unrecognised'
@@ -48,6 +49,7 @@ export interface ProviderUsabilityReads {
   metaKeyPresent?: () => boolean
   mistralKeyPresent?: () => boolean
   nousKeyPresent?: () => boolean
+  zenKeyPresent?: () => boolean
   compatConfigured?: () => boolean
   compatAccount?: () => { kind: 'api-key' | 'keyless' } | undefined
   huggingfaceAccount?: () => { kind: 'oauth' | 'api-key' } | undefined
@@ -146,6 +148,10 @@ function liveProviderUsabilityReads(opts?: ProviderUsabilityReadOptions): Provid
     nousKeyPresent: () => {
       const { resolveNousApiKey } = require('./nous/nousAccounts.js') as typeof import('./nous/nousAccounts.js')
       return resolveNousApiKey() !== undefined
+    },
+    zenKeyPresent: () => {
+      const { resolveZenApiKey } = require('./zen/zenAccounts.js') as typeof import('./zen/zenAccounts.js')
+      return resolveZenApiKey() !== undefined
     },
     deepseekKeyPresent: () => {
       const { resolveDeepseekApiKey } =
@@ -323,6 +329,7 @@ function resolveProviderUsabilityFrom(reads: ProviderUsabilityReads): Record<Pro
   const meta = keyLane('meta', reads.metaKeyPresent?.() ?? false, 'no Meta API key — /logins meta (or MODEL_API_KEY)')
   const mistral = keyLane('mistral', reads.mistralKeyPresent?.() ?? false, 'no Mistral API key — /logins mistral (or MISTRAL_API_KEY)')
   const nous = keyLane('nous', reads.nousKeyPresent?.() ?? false, 'no Nous Portal API key — /logins nous (or NOUS_API_KEY)')
+  const zen = keyLane('zen', reads.zenKeyPresent?.() ?? false, 'no OpenCode Zen API key — /logins zen (or OPENCODE_API_KEY)')
   const deepseek = keyLane(
     'deepseek',
     reads.deepseekKeyPresent?.() ?? false,
@@ -425,6 +432,7 @@ function resolveProviderUsabilityFrom(reads: ProviderUsabilityReads): Record<Pro
     local: applyLaneBilling(local),
     mistral: applyLaneBilling(mistral),
     nous: applyLaneBilling(nous),
+    zen: applyLaneBilling(zen),
   }
 }
 

@@ -24,9 +24,9 @@
    │   xAI — Grok subscription sign-in or API …       not signed in │  ╰────────────────────────────────────────────╯
    │   Meta — API key (Muse)                          not signed in │  ╭────────────────────────────────────────────╮
    │ ❯ Mistral — API key (Mistral Large 4)            not signed in │  │ LOGINS                                     │
-   │   Nous Portal — API key (model gateway)          not signed in │  │ Families   12                              │
-   ╰────────────────────────────────────────────────────────────────╯  │ Signed in  4 of 12                         │
-                                                                       │ Ready      4 lanes                         │
+   │   Nous Portal — API key (model gateway)          not signed in │  │ Families   13                              │
+   │   OpenCode Zen — API key (one key, the ga…       not signed in │  │ Signed in  4 of 13                         │
+   ╰────────────────────────────────────────────────────────────────╯  │ Ready      4 lanes                         │
                                                                        ╰────────────────────────────────────────────╯
                                                                        ╭────────────────────────────────────────────╮
                                                                        │ ENVIRONMENT                                │

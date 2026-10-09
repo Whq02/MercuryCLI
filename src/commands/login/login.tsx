@@ -132,6 +132,9 @@ export function parseFamilyFocus(token: string | undefined): LoginFamilyFocus | 
     case 'nous':
     case 'nous-portal':
       return 'nous'
+    case 'zen':
+    case 'opencode':
+      return 'zen'
     default:
       return undefined
   }

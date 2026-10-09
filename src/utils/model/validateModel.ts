@@ -25,7 +25,8 @@ async function validateNonAnthropicModel(
     | 'huggingface'
     | 'local'
     | 'mistral'
-    | 'nous',
+    | 'nous'
+    | 'zen',
   trimmed: string,
 ): Promise<ValidateModelResult & { skipCache?: boolean }> {
   if (route !== 'openrouter') {
@@ -202,6 +203,20 @@ async function validateNonAnthropicModel(
     if (id === 'mistral') return newestMistralModel() ? { valid: true, skipCache: true } : { valid: false, error: "Mistral's live list has not served a chat model for 'mistral' yet — /model refreshes it." }
     if (!isMistralChatModelId(id)) return { valid: false, error: 'This Mistral model is not on the chat-completions road.' }
     if (snapshot?.fetchedAtMs && !mistralListedModel(snapshot, id)) return { valid: false, error: `Model "${trimmed}" is not listed by the Mistral account's live catalogue.` }
+    return { valid: true, skipCache: true }
+  }
+  if (route === 'zen') {
+    const { resolveZenAccount } = await import('../../services/providers/zen/zenAccounts.js')
+    if (!resolveZenAccount()) return { valid: false, error: 'OpenCode Zen is unavailable — no API key (/logins zen, or set OPENCODE_API_KEY).' }
+    const { zenWireId } = await import('../../services/providers/zen/zenPins.js')
+    const wire = zenWireId(trimmed)
+    if (wire === '') return { valid: false, error: `'${trimmed}' names no model inside the zen/ namespace — /model lists the live Zen rows.` }
+    const { readCatalogueIfPending } = await import('../../services/providers/catalogueOnDemand.js')
+    await readCatalogueIfPending('zen')
+    const { getCachedZenCatalogue, cachedLiveIds } = await import('../../services/providers/zen/zenCatalogue.js')
+    const snapshot = getCachedZenCatalogue()
+    if (snapshot?.lastError?.includes('refused the credential')) return { valid: false, error: `${snapshot.lastError} — /logins zen replaces the key.` }
+    if (snapshot?.fetchedAtMs && !cachedLiveIds().has(wire.toLowerCase())) return { valid: false, error: `Model "${trimmed}" is not listed by the OpenCode Zen catalogue.` }
     return { valid: true, skipCache: true }
   }
   if (route === 'deepseek') {

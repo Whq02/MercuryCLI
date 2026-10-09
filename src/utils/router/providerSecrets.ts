@@ -27,6 +27,7 @@ interface ProviderSecretsFile {
   mistralAdminApiKey?: string
   huggingfaceApiKey?: string
   localApiKey?: string
+  zenApiKey?: string
   braveSearchApiKey?: string
   tavilyApiKey?: string
   typesafeApiKey?: string
@@ -175,6 +176,7 @@ type StoredKeyField =
   | 'geminiApiKey'
   | 'huggingfaceApiKey'
   | 'localApiKey'
+  | 'zenApiKey'
   | 'braveSearchApiKey'
   | 'tavilyApiKey'
   | 'typesafeApiKey'
@@ -200,6 +202,7 @@ const KEY_FIELD_FAMILY: Partial<Record<StoredKeyField, string>> = {
   localApiKey: 'local',
   mistralApiKey: 'mistral',
   nousApiKey: 'nous',
+  zenApiKey: 'zen',
 }
 
 function writeStoredKey(field: StoredKeyField, key: string | null): void {
@@ -295,6 +298,13 @@ export function writeStoredHuggingfaceApiKey(key: string | null): void {
   writeStoredKey('huggingfaceApiKey', key)
 }
 
+export function readStoredZenApiKey(): string | undefined {
+  return readStoredKey('zenApiKey')
+}
+export function writeStoredZenApiKey(key: string | null): void {
+  writeStoredKey('zenApiKey', key)
+}
+
 export function readStoredLocalApiKey(): string | undefined {
   return readStoredKey('localApiKey')
 }
@@ -356,5 +366,6 @@ export function credentialEnvNames(): readonly string[] {
     'MISTRAL_API_KEY',
     'MISTRAL_ADMIN_API_KEY',
     'NOUS_API_KEY',
+    'OPENCODE_API_KEY',
   ]
 }

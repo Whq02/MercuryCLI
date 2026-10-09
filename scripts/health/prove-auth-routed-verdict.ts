@@ -47,6 +47,8 @@ function run(verb: string[], env: Record<string, string>): { status: number; jso
     MERCURY_XAI_API_BASE: 'http://127.0.0.1:1/v1',
     MERCURY_XAI_MANAGEMENT_API_BASE: 'http://127.0.0.1:1',
     MERCURY_META_API_BASE: 'http://127.0.0.1:1/v1',
+    MERCURY_ZEN_API_BASE: 'http://127.0.0.1:1/zen/v1',
+    MERCURY_ZEN_GO_API_BASE: 'http://127.0.0.1:1/zen/go/v1',
   }
   for (const name of SCRUB) delete childEnv[name]
   Object.assign(childEnv, env)
@@ -129,7 +131,7 @@ section('§4 auth status --json: per-family rows, frozen fields, routed exit')
   })
   check('stdout is JSON-only', engineRouted.json !== null, `stdout: ${engineRouted.stdout.slice(0, 120)} · stderr: ${engineRouted.stderr.slice(0, 200)}`)
   const providers = (engineRouted.json?.providers ?? []) as Array<{ id: string; kind: string; source: string; present: boolean }>
-  check('one row per declared family (fourteen including Anthropic)', providers.length === 14 && ['xai', 'meta', 'mistral', 'nous'].every(id => providers.some(provider => provider.id === id)), String(providers.length))
+  check('one row per declared family (fifteen including Anthropic)', providers.length === 15 && ['xai', 'meta', 'mistral', 'nous', 'zen'].every(id => providers.some(provider => provider.id === id)), String(providers.length))
   check(
     'each row carries id, kind, source, present — and no value is secret-shaped',
     providers.every(p => typeof p.id === 'string' && typeof p.kind === 'string' && typeof p.source === 'string' && typeof p.present === 'boolean') &&

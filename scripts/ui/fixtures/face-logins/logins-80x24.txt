@@ -1,5 +1,4 @@
 
-
  (>_) MERCURY · logins
 
  signed in
@@ -17,6 +16,7 @@
    Meta — API key (Muse)                     not signed in
    Mistral — API key (Mistral Large 4)       not signed in
    Nous Portal — API key (model gateway)     not signed in
+   OpenCode Zen — API key (one key, the ga…  not signed in
 
  OpenAI · ChatGPT Plus
  ↑↓ move · ↵ sign in · esc back

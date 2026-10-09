@@ -13,6 +13,7 @@ export type LoginFamilyValue =
   | 'meta'
   | 'mistral'
   | 'nous'
+  | 'zen'
 
 export interface LoginFamilyRow {
   label: string
@@ -44,6 +45,7 @@ export function loginFamilyRows({ engineLegs }: { engineLegs: boolean }): LoginF
           { label: 'Meta — API key (Muse)', value: 'meta' as const },
           { label: 'Mistral — API key (Mistral Large 4)', value: 'mistral' as const },
           { label: 'Nous Portal — API key (model gateway)', value: 'nous' as const },
+          { label: 'OpenCode Zen — API key (one key, the gateway\'s model list)', value: 'zen' as const },
         ]
       : []),
   ]
@@ -80,6 +82,7 @@ export const KEY_PAGES: Record<KeyFamilyValue, string> = {
   meta: 'dev.meta.ai',
   mistral: 'console.mistral.ai/api-keys',
   nous: 'portal.nousresearch.com',
+  zen: 'opencode.ai/auth',
 }
 
 export const KEY_FAMILIES = Object.keys(KEY_PAGES) as KeyFamilyValue[]
@@ -108,6 +111,7 @@ export function loginFamilyFocusFor(defaultProvider: string | undefined): LoginF
     case 'meta':
     case 'mistral':
     case 'nous':
+    case 'zen':
       return defaultProvider
     default:
       return undefined

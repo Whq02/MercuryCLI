@@ -122,6 +122,7 @@ export type AssistantMessage = {
     refused?: Array<{ id: string; reason: string }>
   }
   xaiProviderTurn?: { model: string; items: unknown[]; responseId?: string }
+  zenProviderTurn?: { model: string; items: unknown[]; responseId?: string }
   openrouterProviderTurn?: {
     model: string
     items: unknown[]

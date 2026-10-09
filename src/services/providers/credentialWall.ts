@@ -25,7 +25,7 @@ export function classifyCredentialWall(
   return undefined
 }
 
-const LOGINS_FAMILY_WORDS = new Set(['anthropic', 'openai', 'openrouter', 'gemini', 'huggingface', 'moonshot', 'zai', 'deepseek', 'xai', 'meta', 'mistral', 'nous'])
+const LOGINS_FAMILY_WORDS = new Set(['anthropic', 'openai', 'openrouter', 'gemini', 'huggingface', 'moonshot', 'zai', 'deepseek', 'xai', 'meta', 'mistral', 'nous', 'zen'])
 
 export function reconnectDoorFor(route: string): string {
   if (LOGINS_FAMILY_WORDS.has(route)) return `/logins ${route}`
