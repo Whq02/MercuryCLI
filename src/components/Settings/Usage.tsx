@@ -373,6 +373,11 @@ const ENGINE_USAGE_PRESENTATION: Record<
     connect: '/logins adds Hugging Face (device-code sign-in, or paste a token; HF_TOKEN works too)',
     limitsNote: 'Usage bills to your Hugging Face account; the connected section states what the provider publishes.',
   },
+  zen: {
+    title: 'OpenCode Zen usage',
+    connect: '/logins zen adds an OpenCode Zen API key (OPENCODE_API_KEY works too)',
+    limitsNote: 'One key bills the pay-as-you-go balance at the vendor\'s prices; the OpenCode console shows the balance and auto-reload. An OpenCode Go plan on the same key meters its 5-hour, weekly and monthly windows here.',
+  },
   local: {
     title: 'Local models usage',
     connect: `start Ollama, LM Studio, vLLM or llama.cpp-server (or set MERCURY_LOCAL_BASE_URL), then ollama pull qwen3.5:9b (tool-capable), ${LOCAL_SETUP_OFFER}`,
@@ -709,6 +714,7 @@ function EngineUsageSection({ section, width }: { section: UsageSection; width?:
   if (section.id === 'moonshot') return <MoonshotUsageSection {...(width !== undefined ? { width } : {})} />
   if (section.id === 'zai') return <ZaiUsageSection {...(width !== undefined ? { width } : {})} {...(section.family.credentialLabel !== undefined ? { credentialLabel: section.family.credentialLabel } : {})} />
   if (section.id === 'xai') return <XaiUsageSection {...(width !== undefined ? { width } : {})} />
+  if (section.id === 'zen') return <ZenUsageSection {...(width !== undefined ? { width } : {})} {...(section.family.credentialLabel !== undefined ? { credentialLabel: section.family.credentialLabel } : {})} credentialed={section.family.credentialed} />
   if (section.id === 'local') return <LocalUsageSection />
   const spend = providerSessionSpend(section.id)
   return (
@@ -784,6 +790,34 @@ function MoonshotUsageSection({ width }: { width?: number }): React.ReactNode {
         {account
           ? ENGINE_USAGE_PRESENTATION.moonshot!.limitsNote
           : `Not connected — ${ENGINE_USAGE_PRESENTATION.moonshot!.connect}.`}
+      </Text>
+    </Box>
+  )
+}
+
+function ZenUsageSection({ width, credentialLabel, credentialed }: { width?: number; credentialLabel?: string; credentialed: boolean }): React.ReactNode {
+  const spend = providerSessionSpend('zen')
+  const usage = useOwnerUsage('zen', credentialed)
+  const windows = usage.windows
+  return (
+    <Box flexDirection="column">
+      <Text bold>OpenCode Zen usage</Text>
+      <IdentityLine family="zen" />
+      <Box flexDirection="column" marginTop={1}>
+        <SlotHeading text="OpenCode Go plan" />
+        {credentialed && windows.length > 0 ? (
+          windows.map(window => window.usedPct !== undefined ? (
+            <ObservedWindowMeter key={window.key} window={window} {...(width !== undefined ? { maxWidth: width } : {})} />
+          ) : (
+            <Text key={window.key} dimColor>{`${window.label}: no limit stated`}</Text>
+          ))
+        ) : (
+          <Text dimColor>{credentialed ? (usage.readerNote ?? 'none stated for this key — the usage endpoint is asked on this tab') : absentSlotLine('a Go plan meters here once its key is stored')}</Text>
+        )}
+      </Box>
+      <ApiKeySlot presentLabel={credentialLabel} isActive={credentialed} route="zen" spend={spend} />
+      <Text dimColor>
+        {credentialed ? (usage.absence ?? ENGINE_USAGE_PRESENTATION.zen!.limitsNote) : `Not connected — ${ENGINE_USAGE_PRESENTATION.zen!.connect}.`}
       </Text>
     </Box>
   )
