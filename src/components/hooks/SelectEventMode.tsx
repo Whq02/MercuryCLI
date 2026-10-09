@@ -1,4 +1,3 @@
-
 import * as React from 'react'
 import { Text } from '../../ink.js'
 import type { HookEvent } from '../../utils/hooks/contract.js'
@@ -8,36 +7,29 @@ import { Select } from '../CustomSelect/select.js'
 
 export function SelectEventMode({
   events,
-  summaries,
+  moments,
   countsByEvent,
   totalCount,
   onSelect,
   onExit,
 }: {
   events: readonly HookEvent[]
-  summaries: Record<string, string>
+  moments: Record<string, string>
   countsByEvent: Record<string, number>
   totalCount: number
   onSelect: (event: HookEvent) => void
   onExit: () => void
 }): React.ReactNode {
   return (
-    <Dialog
-      title="Hooks"
-      subtitle={`${totalCount} configured ${plural(totalCount, 'hook')}`}
-      onCancel={onExit}
-    >
-      <Text dimColor>
-        This menu is read-only — edit settings.json (or ask Mercury) to change
-        hooks.
-      </Text>
+    <Dialog title="Hooks" subtitle={`${totalCount} configured ${plural(totalCount, 'hook')}`} onCancel={onExit}>
+      <Text dimColor>This menu is read-only — edit settings.json (or ask Mercury) to change hooks.</Text>
       <Select
         options={events.map(event => {
           const count = countsByEvent[event] ?? 0
           return {
             label: count > 0 ? `${event} (${count})` : event,
             value: event,
-            description: summaries[event],
+            description: moments[event],
           }
         })}
         onChange={value => onSelect(value as HookEvent)}
