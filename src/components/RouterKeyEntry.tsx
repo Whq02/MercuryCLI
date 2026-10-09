@@ -16,12 +16,13 @@ import {
   writeStoredXaiApiKey,
   writeStoredXaiManagementApiKey,
   writeStoredZaiApiKey,
+  writeStoredZenApiKey,
 } from '../utils/router/providerSecrets.js'
 import { zaiKeySource } from '../utils/router/providerDiscovery.js'
 import { XAI_MANAGEMENT_KEY_PAGE } from '../services/providers/xai/xaiUsageState.js'
 
 
-export type KeyEntryProvider = 'zai' | 'moonshot' | 'deepseek' | 'xai' | 'xai-management' | 'meta' | 'compat' | 'huggingface' | 'local' | 'brave' | 'tavily'
+export type KeyEntryProvider = 'zai' | 'moonshot' | 'deepseek' | 'xai' | 'xai-management' | 'meta' | 'compat' | 'huggingface' | 'local' | 'brave' | 'tavily' | 'zen'
 
 const LANES: Record<
   KeyEntryProvider,
@@ -97,6 +98,12 @@ const LANES: Record<
     envVar: 'TAVILY_API_KEY',
     write: writeStoredTavilyApiKey,
     envShadow: () => Boolean(process.env.TAVILY_API_KEY?.trim()),
+  },
+  zen: {
+    title: 'OpenCode Zen API key',
+    envVar: 'OPENCODE_API_KEY',
+    write: writeStoredZenApiKey,
+    envShadow: () => Boolean(process.env.OPENCODE_API_KEY?.trim()),
   },
 }
 
