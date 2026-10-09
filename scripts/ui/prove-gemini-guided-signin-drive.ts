@@ -227,8 +227,8 @@ function reopenCard(): Send[] {
   return [gate('press Enter to continue', '\r'), { ...composerGate, data: '/logins gemini' }, after(4, '\r'), gate('Google Gemini —', '\r', undefined, 3), gate('Sign in / re-login', '\r')]
 }
 
-function statusEnd(receipt = true): Send[] {
-  return [...(receipt ? [gate('press Enter to continue', '\r')] : []), { ...composerGate, data: '/status' }, after(4, '\r')]
+function composerEnd(receipt = true): Send[] {
+  return [...(receipt ? [gate('press Enter to continue', '\r')] : []), { ...composerGate, data: '', mark: 'composer-back' }]
 }
 
 function walkSends(): Send[] {
@@ -259,7 +259,7 @@ function walkSends(): Send[] {
     after(2, PASTED_CODE),
     after(3, '\r'),
     gate('Gemini connected: Google account', '', 'end-receipt', 6),
-    ...statusEnd(),
+    ...composerEnd(),
   ]
 }
 
@@ -279,12 +279,12 @@ function deniedSends(): Send[] {
     after(2, PASTED_CODE),
     after(3, '\r'),
     gate('Gemini connected: Google account', '', 'denied-receipt'),
-    ...statusEnd(),
+    ...composerEnd(),
   ]
 }
 
 function lookSends(): Send[] {
-  return [...openCard(), gate('Connect Google Gemini', '\x1b[B', 'card'), after(3, '\r'), after(15, '', 'second'), after(2, '\x1b'), after(4, '\x1b'), after(4, '\x1b'), ...statusEnd(false)]
+  return [...openCard(), gate('Connect Google Gemini', '\x1b[B', 'card'), after(3, '\r'), after(15, '', 'second'), after(2, '\x1b'), after(4, '\x1b'), after(4, '\x1b'), ...composerEnd(false)]
 }
 
 async function runLeg(leg: 'walk' | 'denied' | 'look'): Promise<{
@@ -307,7 +307,7 @@ async function runLeg(leg: 'walk' | 'denied' | 'look'): Promise<{
     argv: [NODE, DIST, '--model', 'claude-opus-5'],
     cwd: FIXTURE_CWD,
     sends: leg === 'walk' ? walkSends() : leg === 'denied' ? deniedSends() : lookSends(),
-    readyText: ['Mercury · status'],
+    readyText: ['Type a prompt'],
     readySettleTicks: 6,
     stableTicks: 8,
     total: leg === 'walk' ? 1500 : 900,
@@ -473,7 +473,7 @@ if (LEG === 'walk' || LEG === 'all') {
   record('capture', `vshot=${r.status} end=${r.payload?.endReason ?? '?'} marks=${(r.payload?.marks ?? []).map(m => m.label).join(',')} · ${r.daemon}`)
   record('fixture hits', r.hits.join(' | ') || 'none')
   record('browser opens', r.opens.map(u => (isAuthorize(u) ? 'authorize(state)' : u)).join(' | ') || 'none')
-  check('the walk delivered every step and returned to status', r.status === 0 && r.payload !== null && gridText(r.payload.grid).includes('Mercury · status'), r.stderr.slice(-600))
+  check('the walk delivered every step and returned to the composer', r.status === 0 && r.payload !== null && gridText(r.payload.grid).includes('Type a prompt'), r.stderr.slice(-600))
   check('the card offers the API key first, with the ruled words, and the Google account second', card.includes('1. API key — the easiest: create one in AI Studio, paste it here') && card.includes('2. Google account — six steps, each opens its Console page'), tail(markText(r.payload, 'card'), 16) || r.stderr.slice(-600))
   check('the key row opened AI Studio in the browser before the paste', r.opens[0] === AI_STUDIO && keyLeg.includes('AI Studio opened: create a key there.') && keyLeg.includes(AI_STUDIO), `${r.opens[0] ?? 'no open'} · ${tail(markText(r.payload, 'key-leg'), 8)}`)
   check('the pasted key was stored and proved on the live catalogue with the key itself', r.keyStored && r.hits.some(h => h.startsWith('GET /v1beta/models') && h.includes(`key=${FIXTURE_KEY}`)) && keyReceipt.includes('Gemini API key stored'), r.hits.join(' | '))
@@ -507,7 +507,7 @@ if (LEG === 'denied' || LEG === 'all') {
   record('capture', `vshot=${r.status} end=${r.payload?.endReason ?? '?'} marks=${(r.payload?.marks ?? []).map(m => m.label).join(',')} · ${r.daemon}`)
   record('fixture hits', r.hits.join(' | ') || 'none')
   record('browser opens', r.opens.map(u => (isAuthorize(u) ? 'authorize(state)' : u)).join(' | ') || 'none')
-  check('the refusal journey delivered every step and returned to status', r.status === 0 && r.payload !== null && gridText(r.payload.grid).includes('Mercury · status'), r.stderr.slice(-600))
+  check('the refusal journey delivered every step and returned to the composer', r.status === 0 && r.payload !== null && gridText(r.payload.grid).includes('Type a prompt'), r.stderr.slice(-600))
   check('a stored client id reads on the row and the account road starts at step 6', cardStored.includes('Google account — the client id is stored · ↵ signs in (step 6)') && step6First.includes('step 6 of 6') && r.opens.length > 0 && isAuthorize(r.opens[0]!), `${r.opens[0] ?? 'no open'} · ${tail(markText(r.payload, 'card-stored'), 12)}`)
   check("Google's access_denied, pasted as the redirected URL, returned the card to step 3 with today's refusal words under the page", step3.includes('step 3 of 6') && step3.includes('access_denied') && step3.includes('not one of its test users') && step3.includes('add your account under Test users'), tail(markText(r.payload, 'denied-step3'), 16) || r.stderr.slice(-600))
   check('the Audience page opened again for the return to step 3', r.opens[1] === STEP_PAGES[2], r.opens.join(' | '))
