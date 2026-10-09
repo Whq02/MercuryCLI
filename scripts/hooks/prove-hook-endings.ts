@@ -37,6 +37,8 @@ const fire = src('src/utils/hooks/fire.ts')
 check('the command runner builds every ending as a row and never writes a line itself', /class: 'closed_pipe'/.test(runner) && /class: 'cancelled'/.test(runner) && /class: 'timed_out'/.test(runner) && /class: 'spawn'/.test(runner) && !runner.includes('hookEndingSentence('))
 check('the fire asks the one writer for the words of every failed hook', fire.includes('hookEndingSentence(') && /class: 'exit'/.test(fire) && /class: 'answer'/.test(fire) && /class: 'spawn'/.test(fire))
 check('no hand-written ending line remains in the runner or the fire', !/closed stdin before|Error occurred while executing hook|Failed with non-blocking status|timed out after \$\{seconds\}/.test(runner + fire))
+const { HOOK_CUT_BUDGET_MS } = (await import(join(ROOT, 'src/utils/hooks/contract.ts'))) as { HOOK_CUT_BUDGET_MS: number }
+check('the session.end budget the light shutdown installer carries is the one cut budget of the table', HOOK_CUT_BUDGET_MS === 1_500 && src('src/utils/gracefulShutdown.ts').includes('const SESSION_END_HOOK_BUDGET_MS = 1_500'))
 if (existsSync(join(ROOT, 'sdk/src/rows.ts'))) check('the SDK vocabulary carries the same row', src('sdk/src/rows.ts').includes('HookEnding'))
 check('the hooks page says a failure is one line, saved with the session', src('docs/HOOKS.md').includes('a failure is one line') && src('docs/HOOKS.md').includes('Every line is saved with the'))
 process.exit(fail)
