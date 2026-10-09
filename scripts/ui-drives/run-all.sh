@@ -12,6 +12,7 @@
 # gate-watch: src/components/Settings/Jev.tsx src/components/Settings/Settings.tsx src/components/SettingsPopupSlot.tsx src/components/MercuryFilesMenu.tsx src/utils/cockpit/settingsPopup.ts src/utils/cockpit/filesMenu.ts src/utils/cockpit/popupOwnsKeys.ts src/components/PromptInput/PromptInput.tsx
 # gate-watch: src/services/jev/jevSetting.ts
 # gate-watch: src/utils/model/modelPickerFooter.ts src/utils/model/modelPickerGroups.ts
+# gate-watch: src/components/ConsoleOAuthFlow.tsx src/components/loginFamilyRows.ts src/components/Onboarding.tsx src/components/MercurySetupFrame.tsx
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 . "$(dirname "$0")/../lib/drive-members.sh" || exit 78

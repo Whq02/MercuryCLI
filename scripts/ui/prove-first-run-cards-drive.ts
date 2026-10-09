@@ -6,7 +6,10 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync,
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { captureEngineEntry, resolveCaptureDriver, vshotBudgetMs } from '../lib/captureDriver.ts'
-import { firstRunCardsCentred } from '../../src/components/MercurySetupFrame.tsx'
+import { firstRunCardsCentred, setupFrameBodyRows } from '../../src/components/MercurySetupFrame.tsx'
+import { MORE_BELOW_ROW, READINESS_ROWS, signInCardFit, type SignInCardFit } from '../../src/components/ConsoleOAuthFlow.tsx'
+import { SIGN_IN_LATER_ROW, loginFamilyRows } from '../../src/components/loginFamilyRows.ts'
+import { SIGN_IN_WORDS } from '../../src/components/Onboarding.tsx'
 import { FIXTURE_API_KEY, seedFirstRun } from '../lib/firstRunSeed.ts'
 
 const arg = (name: string): string | undefined => {
@@ -118,6 +121,13 @@ const WALK: Send[] = [
 ]
 
 const gridText = (grid: Grid): string => grid.map(row => row.map(cell => cell.c || ' ').join('').trimEnd()).join('\n')
+
+const ROSTER_ROWS = loginFamilyRows({ engineLegs: true }).length + 1
+function rosterFit(cols: number, rows: number): SignInCardFit {
+  const width = Math.max(Math.min(cols - 2, 100), 40)
+  const bodyRows = setupFrameBodyRows({ rows, bootNoteRows: 0 })
+  return signInCardFit({ bodyRows, textWidth: width - 8, intro: SIGN_IN_WORDS.intro, rosterRows: ROSTER_ROWS, readinessRows: READINESS_ROWS.length + 1 })
+}
 
 function cardBox(grid: Grid): Box | null {
   for (let y = 0; y < grid.length; y++) {
@@ -267,12 +277,24 @@ try {
         if (box === null) continue
         const width = Math.max(Math.min(cols - 2, 100), 40)
         check(`${label}: the card keeps its width ${width}`, box.width === width, `width ${box.width}`)
-        const clippedProvider = station === 'provider' && rows - 1 < 43
-        if (station === 'provider') check(`${label}: the twelve-row sign-in card uses its measured height or the frame cap`, box.height === Math.min(43, rows - 1), `height ${box.height}`)
+        if (station === 'provider') {
+          const text = gridText(grid)
+          const lines = text.split('\n')
+          const readinessAt = lines.findIndex(row => row.includes('Provider readiness'))
+          const rosterPart = (readinessAt >= 0 ? lines.slice(0, readinessAt) : lines).join('\n')
+          const readinessPart = readinessAt >= 0 ? lines.slice(readinessAt).join('\n') : ''
+          check(`${label}: the card is no taller than the ${rows - 1} usable rows`, box.height <= rows - 1, `height ${box.height}`)
+          check(`${label}: the roster is whole (${ROSTER_ROWS} rows, no scroll tail)`, rosterPart.includes(SIGN_IN_LATER_ROW.label) && !rosterPart.includes('more below'), lines.find(row => row.includes('more below')) ?? '')
+          check(`${label}: the sign-in card keeps its outline (its bottom edge is on screen)`, lines.filter(row => row.includes('╰')).length === 2)
+          const readinessWhole = readinessPart.includes('Nous Portal') && readinessPart.includes('OpenAI-compatible') && !readinessPart.includes('more below')
+          const readinessClipped = /…and \d+ more below/.test(readinessPart)
+          check(`${label}: the readiness block is on screen — whole, or clipped to the rows left with its tail naming the rest`, readinessAt >= 0 && (readinessWhole || readinessClipped), lines.filter(row => row.includes('more below') || row.includes('Nous Portal')).join(' | '))
+          console.log(`       ${label}: ${box.height} rows; readiness ${readinessWhole ? 'whole' : readinessClipped ? 'clipped' : 'absent'}`)
+        }
         if (state === 'centred') {
-          const left = clippedProvider ? 0 : Math.round((cols - box.width) / 2)
-          const top = clippedProvider ? 0 : Math.floor((rows - box.height) / 2)
-          check(`${label}: ${clippedProvider ? 'clipped at the shipped anchor' : 'centred'} at row ${top}, column ${left}`, box.top === top && box.left === left, `card ${box.width}x${box.height} at row ${box.top}, column ${box.left}`)
+          const left = Math.round((cols - box.width) / 2)
+          const top = Math.floor((rows - box.height) / 2)
+          check(`${label}: centred at row ${top}, column ${left}`, box.top === top && box.left === left, `card ${box.width}x${box.height} at row ${box.top}, column ${box.left}`)
           check(`${label}: no amber cell remains`, countFg(grid, AMBER_FG) === 0, `${countFg(grid, AMBER_FG)} amber cells`)
         } else {
           check(`${label}: top-left as shipped`, box.top === 0 && box.left === 0, `card ${box.width}x${box.height} at row ${box.top}, column ${box.left}`)
@@ -353,39 +375,56 @@ try {
   }
   for (const [cols, rows] of BAND_SIZES) {
     const size = `${cols}x${rows}`
-    console.log(`\n── ${size} · the sign-in card is taller than the rows: the shipped anchoring in both states`)
-    const shots: Partial<Record<string, Grid>> = {}
+    const want = rosterFit(cols, rows)
+    const hidden = ROSTER_ROWS - want.roster
+    console.log(`\n── ${size} · the roster does not fit the rows: the card keeps its outline, the roster scrolls (${want.roster} rows + "${MORE_BELOW_ROW(hidden)}"), every family stays reachable`)
+    const shots: Partial<Record<string, { windowed: Grid; end: Grid }>> = {}
     for (const state of STATES) {
       const tag = `${state}-${size}-provider`
       let shot: Shot
       try {
-        shot = await capture(tag, homeFor(tag, state), cols, rows, [WALK[0]!], ['Provider readiness'], 200)
+        shot = await capture(tag, homeFor(tag, state), cols, rows, [WALK[0]!, { requireAwait: true, awaitText: 'more below', awaitSettleTicks: 3, awaitStableTicks: 3, mark: 'windowed', data: '\x1b[B'.repeat(ROSTER_ROWS - 1) }], [SIGN_IN_LATER_ROW.label], 240)
       } catch (err) {
         check(`${tag}: the capture ran`, false, err instanceof Error ? err.message.slice(0, 400) : String(err))
         continue
       }
       if (shot.refusal !== null) {
-        check(`${tag}: the sign-in card paints`, false, shot.refusal.slice(0, 200))
+        check(`${tag}: the sign-in card paints its scroll tail, and ↓ reaches the last row`, false, shot.refusal.slice(0, 200))
         continue
       }
-      const grid = shot.grid
-      shots[state] = grid
-      if (FRAMES !== undefined) {
-        writeFileSync(join(FRAMES, `${tag}.txt`), `${gridText(grid)}\n`)
-        writeFileSync(join(FRAMES, `${tag}.json`), JSON.stringify({ cols, rows, grid }))
+      const windowed = shot.marks.find(m => m.label === 'windowed')?.grid
+      if (windowed === undefined) {
+        check(`${tag}: the windowed frame was marked`, false)
+        continue
       }
-      const box = cardBox(grid)
+      shots[state] = { windowed, end: shot.grid }
+      if (FRAMES !== undefined) {
+        writeFileSync(join(FRAMES, `${tag}.txt`), `${gridText(windowed)}\n`)
+        writeFileSync(join(FRAMES, `${tag}.json`), JSON.stringify({ cols, rows, grid: windowed }))
+        writeFileSync(join(FRAMES, `${tag}-end.txt`), `${gridText(shot.grid)}\n`)
+      }
+      const box = cardBox(windowed)
       check(`${tag}: one card box on the screen`, box !== null)
       if (box === null) continue
-      const text = gridText(grid)
-      check(`${tag}: the card fills the ${rows - 1} usable rows and its readiness tail is cut`, box.height === rows - 1 && !text.includes('OpenAI-compatible'), `height ${box.height}`)
-      check(`${tag}: the card keeps the shipped anchoring (row 0, column 0)`, box.top === 0 && box.left === 0, `row ${box.top}, column ${box.left}`)
+      const text = gridText(windowed)
+      check(`${tag}: the card fills the ${rows - 1} usable rows`, box.height === rows - 1, `height ${box.height}`)
+      check(`${tag}: the sign-in card keeps its outline (its bottom edge is on screen)`, text.split('\n').filter(row => row.includes('╰')).length === 2)
+      check(`${tag}: the roster shows ${want.roster} rows and names the ${hidden} below it`, text.includes(MORE_BELOW_ROW(hidden)) && !text.includes(SIGN_IN_LATER_ROW.label), text.split('\n').find(row => row.includes('more below')) ?? 'no tail row')
+      check(`${tag}: the readiness block waits for a taller terminal`, !text.includes('Provider readiness'))
+      const left = state === 'centred' ? Math.round((cols - box.width) / 2) : 0
+      check(`${tag}: ${state === 'centred' ? 'centred' : 'top-left as shipped'} at row 0, column ${left}`, box.top === 0 && box.left === left, `row ${box.top}, column ${box.left}`)
+      const end = gridText(shot.grid)
+      check(`${tag}: ↓ reaches the last row — the cursor sits on "${SIGN_IN_LATER_ROW.label.slice(0, 13)}…" and nothing is left below`, new RegExp(`❯[^\\n]*${SIGN_IN_LATER_ROW.label.slice(0, 13)}`).test(end) && !end.includes('more below'), end.split('\n').find(row => row.includes('❯')) ?? 'no cursor row')
     }
     const on = shots.centred
     const off = shots['top-left']
     if (on && off) {
-      const first = sameGrid(on, off)
-      check(`${size} provider: where the card is taller than the rows, the centred frame is the shipped frame cell for cell`, first === null, first ?? '')
+      const onBox = cardBox(on.windowed)
+      const offBox = cardBox(off.windowed)
+      if (onBox !== null && offBox !== null) {
+        const verdict = sameCard(on.windowed, onBox, off.windowed, offBox)
+        check(`${size} provider: every cell inside the card is the shipped cell moved by (${onBox.top}, ${onBox.left})`, verdict.same && onBox.height === offBox.height, verdict.first)
+      }
     }
   }
   if (LOGINS) {
@@ -401,7 +440,7 @@ try {
     ]
     let shot: Shot | null = null
     try {
-      shot = await capture('logins-178x51', home, 178, 51, sends, ['Provider readiness'], 320, { ANTHROPIC_API_KEY: FIXTURE_API_KEY })
+      shot = await capture('logins-178x51', home, 178, 51, sends, ['esc or click outside closes'], 320, { ANTHROPIC_API_KEY: FIXTURE_API_KEY })
     } catch (err) {
       check('logins-178x51: the capture ran', false, err instanceof Error ? err.message.slice(0, 400) : String(err))
     }
@@ -418,7 +457,7 @@ try {
           writeFileSync(join(FRAMES, 'logins-178x51.json'), JSON.stringify({ cols: 178, rows: 51, grid: shot.grid }))
         }
         const introRow = text.split('\n').find(row => row.includes('subscription')) ?? 'no intro row'
-        check('logins-178x51: the /logins card opens in the cockpit', text.includes('Sign in') && text.includes('Provider readiness'))
+        check('logins-178x51: the /logins card opens in the cockpit with its roster and close hint (the readiness block sits below the popup\'s fold, reachable by ↓)', text.includes('Sign in') && text.includes('OpenCode Zen') && text.includes('esc or click outside closes'))
         check(`logins-178x51: the /logins intro is the walk's own sentence`, text.includes('Use a Claude or OpenAI subscription'), introRow)
         check('logins-178x51: the shipped default sentence is gone from /logins', !text.includes('Mercury can run on a Claude or OpenAI subscription'), introRow)
         check(`logins-178x51: the chat's card and the walk read one exported source`, readFileSync(join(ROOT, 'src/commands/login/login.tsx'), 'utf8').includes('startingMessage={SIGN_IN_WORDS.intro}') && readFileSync(join(ROOT, 'src/components/Onboarding.tsx'), 'utf8').includes('export const SIGN_IN_WORDS = {'))
