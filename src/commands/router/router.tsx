@@ -174,7 +174,7 @@ export const call: LocalJSXCommandCall = async (onDone, _context, args) => {
   }
 
   if (head === 'key') {
-    const KEY_LANES = ['zai', 'moonshot', 'deepseek', 'xai', 'xai-management', 'meta', 'compat', 'huggingface', 'local', 'brave', 'tavily', 'nous'] as const
+    const KEY_LANES = ['zai', 'moonshot', 'deepseek', 'xai', 'xai-management', 'meta', 'compat', 'huggingface', 'local', 'nous', 'brave', 'tavily'] as const
     const word = rest.find(token => token !== 'clear' && !token.startsWith('--return='))
     if (word !== undefined && !(KEY_LANES as readonly string[]).includes(word)) {
       const loginsFamilies = ['openrouter', 'gemini', 'openai', 'anthropic', 'claude', 'console']
@@ -236,7 +236,7 @@ export const call: LocalJSXCommandCall = async (onDone, _context, args) => {
   }
 
   if (head) {
-    onDone(`unknown /router argument '${head}' — usage: /router [adaptive|quality|balanced|fast|fixed | pin opus|sonnet|auto | explain | engines | source sub|api|clear | key [zai|moonshot|deepseek|xai|xai-management|meta|compat|huggingface|local|brave|tavily|nous] [clear] | reset-history] (OpenAI sign-in lives at /logins; disconnect at /accounts; brave/tavily are web-search keys)`)
+    onDone(`unknown /router argument '${head}' — usage: /router [adaptive|quality|balanced|fast|fixed | pin opus|sonnet|auto | explain | engines | source sub|api|clear | key [zai|moonshot|deepseek|xai|xai-management|meta|compat|huggingface|local|nous|brave|tavily] [clear] | reset-history] (OpenAI sign-in lives at /logins; disconnect at /accounts; brave/tavily are web-search keys)`)
     return null
   }
 
