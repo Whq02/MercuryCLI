@@ -134,10 +134,6 @@ const ATTACHMENTS: Record<string, Fixture> = {
   mcp_resource: { good: { server: 's', uri: 'u', name: 'n', content: { contents: [] } }, bad: [{ label: 'content is text', field: 'content', fields: { server: 's', uri: 'u', name: 'n', content: 'c' } }] },
   command_permissions: { good: { allowedTools: ['Bash(ls *)'] }, bad: [{ label: 'allowedTools carries a number', field: 'allowedTools', fields: { allowedTools: [1] } }] },
   agent_mention: { good: { agentType: 'scout' }, bad: [{ label: 'agentType is missing', field: 'agentType', fields: {} }] },
-  task_status: {
-    good: { taskId: 'i', taskType: 'local_agent', status: 'completed', description: 'd', deltaSummary: null },
-    bad: [{ label: 'deltaSummary is a list', field: 'deltaSummary', fields: { taskId: 'i', taskType: 'local_agent', status: 'completed', description: 'd', deltaSummary: ['s'] } }],
-  },
   async_hook_response: {
     good: { processId: 'p', hookName: 'h', hookEvent: 'PostToolUse', response: { continue: true }, stdout: '', stderr: '' },
     bad: [{ label: 'response is text', field: 'response', fields: { processId: 'p', hookName: 'h', hookEvent: 'PostToolUse', response: 'ok', stdout: '', stderr: '' } }],

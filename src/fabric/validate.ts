@@ -202,7 +202,6 @@ const ATTACHMENT_BODY_SHAPES: Record<string, z.ZodType> = {
   mcp_resource: z.looseObject({ server: z.string(), uri: z.string(), name: z.string(), content: z.looseObject({}) }),
   command_permissions: z.looseObject({ allowedTools: strings }),
   agent_mention: z.looseObject({ agentType: z.string() }),
-  task_status: z.looseObject({ taskId: z.string(), taskType: z.string(), status: z.string(), description: z.string(), deltaSummary: z.string().nullable() }),
   async_hook_response: z.looseObject({ processId: z.string(), hookName: z.string(), hookEvent: z.string(), response: z.looseObject({}), stdout: z.string(), stderr: z.string() }),
   budget_usd: z.looseObject({ used: z.number(), total: z.number(), remaining: z.number() }),
   output_token_usage: z.looseObject({ turn: z.number(), session: z.number(), budget: z.number().nullable() }),

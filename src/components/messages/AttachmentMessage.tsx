@@ -371,32 +371,6 @@ export function AttachmentMessage({
         </MessageResponse>
       )
 
-    case 'task_status': {
-      const description = `"${attachment.description}"`
-      switch (String(attachment.status)) {
-        case 'completed':
-          return (
-            <AttachmentLine>
-              {description} finished in the background
-            </AttachmentLine>
-          )
-        case 'killed':
-          return <AttachmentLine>{description} was stopped</AttachmentLine>
-        case 'running':
-          return (
-            <AttachmentLine>
-              {description} is still running in the background
-            </AttachmentLine>
-          )
-        default:
-          return (
-            <AttachmentLine>
-              {description} {String(attachment.status)}
-            </AttachmentLine>
-          )
-      }
-    }
-
     default: {
       const nullRendering: NullRenderingAttachmentType = attachment.type
       void nullRendering
