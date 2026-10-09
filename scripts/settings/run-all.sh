@@ -40,6 +40,7 @@
 # gate-watch: docs/SETTINGS.md docs/SESSIONS.md scripts/lib/fixtureApi.ts src/utils/sessionStorage/paths.ts src/utils/cleanup.ts
 # gate-watch: src/schemas/hooks.ts src/utils/hooks/matching.ts src/utils/hooks/matcherGrammar.ts
 # gate-watch: src/services/api/errors.ts src/services/providers/anthropicRefusal.ts scripts/ui/saturn-screen-stills.ts scripts/ui/fixtures/settings-popup-header/* src/commands/model/mercuryModel.tsx src/commands/router/router.tsx
+# gate-watch: scripts/providers/lib/nous-fixture.ts src/services/providers/nous/nousUsageState.ts src/services/providers/nous/nousAccounts.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }
