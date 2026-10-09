@@ -27,11 +27,11 @@ let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => { if (!ok) failures++; console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`) }
 try {
   const preCompact = await executeLifecycleHooks({ hookInput: input('PreCompact', { trigger: 'manual', custom_instructions: 'ci' }) as never, timeoutMs: 4000 })
-  check('a PreCompact hook answering PreToolUse-shaped output is refused loudly, never silently merged', preCompact.length === 1 && preCompact[0]?.succeeded === false && /incorrect event name: expected 'PreCompact' but got 'PreToolUse'/.test(preCompact[0]?.output ?? ''), `output: ${preCompact[0]?.output?.slice(0, 90)}`)
+  check('a PreCompact hook answering PreToolUse-shaped output is refused loudly, never silently merged', preCompact.length === 1 && preCompact[0]?.succeeded === false && /answered for the PreToolUse event; this was a PreCompact hook/.test(preCompact[0]?.output ?? ''), `output: ${preCompact[0]?.output?.slice(0, 90)}`)
   const sessionEnd = await executeLifecycleHooks({ hookInput: input('SessionEnd', { reason: 'clear' }) as never, timeoutMs: 4000 })
-  check('a SessionEnd hook answering another event\'s shape is refused loudly', sessionEnd.length === 1 && sessionEnd[0]?.succeeded === false && /incorrect event name/.test(sessionEnd[0]?.output ?? ''), `output: ${sessionEnd[0]?.output?.slice(0, 90)}`)
+  check('a SessionEnd hook answering another event\'s shape is refused loudly', sessionEnd.length === 1 && sessionEnd[0]?.succeeded === false && /answered for the \w+ event; this was a SessionEnd hook/.test(sessionEnd[0]?.output ?? ''), `output: ${sessionEnd[0]?.output?.slice(0, 90)}`)
   const worktree = await executeLifecycleHooks({ hookInput: input('WorktreeCreate', { name: 'wt' }) as never, timeoutMs: 4000 })
-  check('a WorktreeCreate hook can no longer leak another event\'s JSON text as the worktree path', worktree.length === 1 && worktree[0]?.succeeded === false && /incorrect event name/.test(worktree[0]?.output ?? ''), `output: ${worktree[0]?.output?.slice(0, 90)}`)
+  check('a WorktreeCreate hook can no longer leak another event\'s JSON text as the worktree path', worktree.length === 1 && worktree[0]?.succeeded === false && /answered for the \w+ event; this was a WorktreeCreate hook/.test(worktree[0]?.output ?? ''), `output: ${worktree[0]?.output?.slice(0, 90)}`)
 } finally {
   rmSync(home, { recursive: true, force: true })
 }
