@@ -566,6 +566,7 @@ product reads everywhere: `ANTHROPIC_API_KEY` or `ANTHROPIC_AUTH_TOKEN`,
 `XAI_MANAGEMENT_API_KEY` for its usage meter), `DEEPSEEK_API_KEY`,
 `MOONSHOT_API_KEY`, `ZAI_API_KEY`, `OPENROUTER_API_KEY`, `HF_TOKEN`,
 `MISTRAL_API_KEY` (and `MISTRAL_ADMIN_API_KEY` for its organisation meter),
+`NOUS_API_KEY`,
 `MODEL_API_KEY` or `META_API_KEY`, `MERCURY_COMPAT_API_KEY` for a custom
 OpenAI-compatible endpoint and `MERCURY_LOCAL_API_KEY` for a local server.
 With no key the run refuses in one line and exits 1. `docker run -i … mercury
