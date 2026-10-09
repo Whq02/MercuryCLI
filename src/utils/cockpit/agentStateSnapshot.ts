@@ -3,9 +3,9 @@ import { getSessionId } from '../../bootstrap/state.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import {
   type AgentStateVerdict,
-  agentStateClassifierEnabled,
+  agentNeedsYouEnabled,
   getAgentStateVerdict,
-} from '../../services/agentStateClassifier.js'
+} from '../../services/agentNeedsYou.js'
 import { type Snapshot, withState } from './types.js'
 
 export type AgentStateData = {
@@ -21,14 +21,14 @@ const EMPTY: AgentStateData = {
 }
 
 export function agentStateSnapshot(): Snapshot<{ data: AgentStateData }> {
-  if (!agentStateClassifierEnabled()) {
+  if (!agentNeedsYouEnabled()) {
     return withState(
       'off',
       EMPTY,
-      flagEnv('MERCURY_AGENT_CLASSIFIER') === '0'
-        ? 'MERCURY_AGENT_CLASSIFIER=0 (opted out)'
-        : 'classifier off',
-      'agentStateClassifier',
+      flagEnv('MERCURY_AGENT_NEEDS_YOU') === '0'
+        ? 'MERCURY_AGENT_NEEDS_YOU=0 (opted out)'
+        : 'needs-you off',
+      'agentNeedsYou',
     )
   }
   try {
@@ -38,7 +38,7 @@ export function agentStateSnapshot(): Snapshot<{ data: AgentStateData }> {
         'unavailable',
         EMPTY,
         'no verdict yet this session',
-        'agentStateClassifier',
+        'agentNeedsYou',
       )
     }
     return withState(
@@ -49,14 +49,14 @@ export function agentStateSnapshot(): Snapshot<{ data: AgentStateData }> {
         ageMs: Date.now() - rec.at,
       },
       undefined,
-      'agentStateClassifier',
+      'agentNeedsYou',
     )
   } catch (e) {
     return withState(
       'failed',
       EMPTY,
       `agentStateSnapshot error: ${e instanceof Error ? e.message : String(e)}`,
-      'agentStateClassifier',
+      'agentNeedsYou',
     )
   }
 }

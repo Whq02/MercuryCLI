@@ -154,7 +154,7 @@ type MutableRuleMaps = {
 
 const VALID_DESTINATIONS = new Set(['userSettings', 'projectSettings', 'localSettings', 'cliArg', 'session'])
 
-export function stripDangerousPermissionsForAutoMode(
+export function stripDangerousPermissionsForFlow(
   context: ToolPermissionContext,
 ): ToolPermissionContext {
   const allowRules = getAllowRulesFromContext(context)
@@ -208,19 +208,15 @@ export function transitionPermissionMode(
   let next = context
 
   if (fromMode !== 'flow' && toMode === 'flow') {
-    if (!isAutoModeGateEnabled()) {
+    if (!isFlowGateEnabled()) {
       throw new Error('Flow is not available.')
     }
-    next = stripDangerousPermissionsForAutoMode(next)
+    next = stripDangerousPermissionsForFlow(next)
   } else if (fromMode === 'flow' && toMode !== 'flow') {
     next = restoreDangerousPermissions(next)
   }
 
   return next
-}
-
-export function transitionPlanAutoMode(context: ToolPermissionContext): ToolPermissionContext {
-  return context
 }
 
 
@@ -266,9 +262,9 @@ export function validateModeEntry(mode: PermissionMode, context: ToolPermissionC
     }
   }
   if (mode === 'flow') {
-    if (!isAutoModeGateEnabled()) {
-      const reason = getAutoModeUnavailableReason()
-      const suffix = reason ? ` ${getAutoModeUnavailableNotification(reason)}` : ''
+    if (!isFlowGateEnabled()) {
+      const reason = getFlowUnavailableReason()
+      const suffix = reason ? ` ${getFlowUnavailableNotification(reason)}` : ''
       return { ok: false, error: `Flow is not available.${suffix}` }
     }
   }
@@ -276,22 +272,22 @@ export function validateModeEntry(mode: PermissionMode, context: ToolPermissionC
 }
 
 
-function isAutoModeDisabledBySettings(): boolean {
+function isFlowDisabledBySettings(): boolean {
   return getInitialSettings().guardrails?.disableFlowMode === true
 }
 
-export function isAutoModeGateEnabled(): boolean {
-  return !isAutoModeDisabledBySettings()
+export function isFlowGateEnabled(): boolean {
+  return !isFlowDisabledBySettings()
 }
 
-export type AutoModeUnavailableReason = 'settings'
+export type FlowUnavailableReason = 'settings'
 
-export function getAutoModeUnavailableReason(): AutoModeUnavailableReason | null {
-  if (isAutoModeDisabledBySettings()) return 'settings'
+export function getFlowUnavailableReason(): FlowUnavailableReason | null {
+  if (isFlowDisabledBySettings()) return 'settings'
   return null
 }
 
-export function getAutoModeUnavailableNotification(reason: AutoModeUnavailableReason): string {
+export function getFlowUnavailableNotification(reason: FlowUnavailableReason): string {
   switch (reason) {
     case 'settings':
       return 'Flow is closed by your settings.'
@@ -528,7 +524,7 @@ export async function initializeToolPermissionContext(args: {
     alwaysDenyRules: { cliArg: denyRules },
     alwaysAskRules: {},
     isBypassPermissionsModeAvailable: bypassAvailable,
-    ...{ isAutoModeAvailable: isAutoModeGateEnabled() },
+    ...{ isFlowAvailable: isFlowGateEnabled() },
   } as unknown as ToolPermissionContext
 
   context = applyPermissionRulesToPermissionContext(context, diskRules)

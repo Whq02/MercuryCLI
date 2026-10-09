@@ -5,7 +5,7 @@ import { isSaturnSchedulingEnabled } from '../../tools/ScheduleCronTool/prompt.j
 import { isMercurySubstrateProfileOn } from '../config.js'
 import { isEnvDefinedFalsy, isEnvTruthy } from '../envUtils.js'
 import { truncateToWidth } from '../truncate.js'
-import { agentStateClassifierEnabled } from '../../services/agentStateHeuristic.js'
+import { agentNeedsYouEnabled } from '../../services/agentStateHeuristic.js'
 import { isInvocationTraceEnabled } from '../observability/invocationTrace.js'
 import { daemonSnapshot } from './daemonSnapshot.js'
 import { listCapabilityKills, getAgentCapParseRejects } from '../permissions/capabilityGate.js'
@@ -88,7 +88,7 @@ function buildSections(): { sections: SubstrateSection[]; activeKills: string[] 
   const traceOn = isInvocationTraceEnabled()
   const compactAdvanceOn = isEnvTruthy(flagEnv('MERCURY_CTX_COMPACTION'))
   const ctxOn = (compactAdvanceOn || substrate)
-  const agentClassifierOn = agentStateClassifierEnabled()
+  const agentNeedsYouOn = agentNeedsYouEnabled()
   const observability: SubstrateSection = {
     title: 'Observability / perf',
     rows: [
@@ -102,7 +102,7 @@ function buildSections(): { sections: SubstrateSection[]; activeKills: string[] 
             ? 'retry breaker · advance =1'
             : 'MERCURY_CTX_COMPACTION=1',
       },
-      { name: 'Agent-state classifier', on: agentClassifierOn, hint: agentClassifierOn ? 'live (opt out =0) · heuristic' : 'MERCURY_AGENT_CLASSIFIER=0 set' },
+      { name: 'Agent needs-you', on: agentNeedsYouOn, hint: agentNeedsYouOn ? 'live (opt out =0) · heuristic' : 'MERCURY_AGENT_NEEDS_YOU=0 set' },
       {
         name: 'ctx autocompact forecast',
         on: ctxForecastEnabled(),

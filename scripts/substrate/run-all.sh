@@ -2,8 +2,8 @@
 # gate-class: cpu
 # gate-watch: src/bootstrap/state* src/commands/kill/**
 # gate-watch: src/components/messages/nullRenderingAttachments* src/constants/** src/daemon/**
-# gate-watch: src/hooks/useAgentStateClassifier*
-# gate-watch: src/services/agentStateClassifier* src/services/agentStateHeuristic*
+# gate-watch: src/hooks/useAgentNeedsYou*
+# gate-watch: src/services/agentNeedsYou* src/services/agentStateHeuristic*
 # gate-watch: src/services/compact/microCompactDigest*
 # gate-watch: src/services/compact/verbatimTail* src/services/mcp/**
 # gate-watch: src/utils/secrets/secretScanner* src/substrate/**
@@ -60,7 +60,7 @@ __t=$SECONDS; __rc=0; "$bun" run "$here/prove-runtime-posture.ts" || { __rc=$?; 
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-harness-map.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-harness-map.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-mcp-policy-honest.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-mcp-policy-honest.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-substrate-umbrella.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-substrate-umbrella.ts" "$__t" "$__rc"
-__t=$SECONDS; __rc=0; "$bun" run "$here/prove-agent-classifier.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-agent-classifier.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$bun" run "$here/prove-agent-needs-you.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-agent-needs-you.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-trace-rotation.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-trace-rotation.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-capability-kill.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-capability-kill.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-kill-command.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-kill-command.ts" "$__t" "$__rc"

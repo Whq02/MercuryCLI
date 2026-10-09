@@ -22,8 +22,8 @@ export interface FlagSpec {
 
 export const FLAG_REGISTRY: readonly FlagSpec[] = [
   { env: 'MERCURY_AGENT_CAP', kind: 'value', summary: 'read by capabilityGate', off: 'see consumer', consumer: 'src/utils/permissions/capabilityGate.ts' },
-  { env: 'MERCURY_AGENT_CLASSIFIER', kind: 'default-on', tier: 'display', summary: 'heuristic agent-state classification feeding cockpit CREW rows', off: 'see consumer', consumer: 'src/utils/cockpit/agentStateSnapshot.ts' },
-  { env: 'MERCURY_AGENT_CLASSIFIER_LLM', kind: 'opt-in', tier: 'behavioral', summary: 'LLM-backed agent-state classification (costed calls)', off: 'see consumer', consumer: 'src/services/agentStateClassifier.ts' },
+  { env: 'MERCURY_AGENT_NEEDS_YOU', kind: 'default-on', tier: 'display', summary: 'heuristic agent-state classification feeding cockpit CREW rows', off: 'see consumer', consumer: 'src/utils/cockpit/agentStateSnapshot.ts' },
+  { env: 'MERCURY_AGENT_NEEDS_YOU_LLM', kind: 'opt-in', tier: 'behavioral', summary: 'LLM-backed agent-state classification (costed calls)', off: 'see consumer', consumer: 'src/services/agentNeedsYou.ts' },
   { env: 'MERCURY_ANTISYC_ALWAYS_ON', kind: 'value', summary: 'always-on anti-sycophancy arm', off: 'byte-identical', consumer: 'src/utils/antiSycophancy.ts' },
   { env: 'MERCURY_GROUP_COMMIT', kind: 'default-on', tier: 'infra', summary: 'group commit: batch a busy period into one lock/read/publish (REMOVE after)', off: 'one full critical section per mutation — the legacy convoy, which DROPPED commits at 40 writers', consumer: 'src/substrate/groupCommit.ts', interactsWith: ['MERCURY_DURABLE_FSYNC', 'MERCURY_FAULT_INJECT'], retirement: 'REMOVE after 2026-10-27 (the summary names the date)' },
   { env: 'MERCURY_ARTIFACT_KEEP', kind: 'value', summary: 'daemon artifact-store retention count (envInt helper read)', off: 'default 200', consumer: 'src/utils/artifacts/store.ts' },

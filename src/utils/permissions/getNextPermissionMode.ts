@@ -1,15 +1,15 @@
 import type { ToolPermissionContext } from '../../Tool.js'
 import { logForDebugging } from '../debug.js'
 import type { PermissionMode } from '../../types/permissions.js'
-import { isAutoModeGateEnabled, transitionPermissionMode } from './permissionSetup.js'
+import { isFlowGateEnabled, transitionPermissionMode } from './permissionSetup.js'
 
 
 function bypassAvailable(context: ToolPermissionContext): boolean {
   return (context as { isBypassPermissionsModeAvailable?: boolean }).isBypassPermissionsModeAvailable === true
 }
 
-function canCycleToAuto(_context: ToolPermissionContext): boolean {
-  const gateEnabled = isAutoModeGateEnabled()
+function canCycleToFlow(_context: ToolPermissionContext): boolean {
+  const gateEnabled = isFlowGateEnabled()
   return gateEnabled
 }
 
@@ -23,7 +23,7 @@ export function getNextPermissionMode(
     case 'implement':
       return 'apollo'
     case 'apollo':
-      if (canCycleToAuto(toolPermissionContext)) return 'flow'
+      if (canCycleToFlow(toolPermissionContext)) return 'flow'
       if (bypassAvailable(toolPermissionContext)) return 'sovereign'
       return 'default'
     case 'flow':
