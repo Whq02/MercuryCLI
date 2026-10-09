@@ -93,7 +93,6 @@ import type {
   StreamCapabilityAdvertisement,
 } from '../../../types/wire.js'
 import { logAPIPrefix, toolToAPISchema } from '../../../utils/api.js'
-import { count } from '../../../utils/array.js'
 import {
   getMergedBetas,
   modelSupportsTemperature,
@@ -536,15 +535,6 @@ async function* queryModel(
       }),
     ),
   )
-
-  if (useToolSearch) {
-    const includedDeferredTools = count(filteredTools, t =>
-      deferredToolNames.has(t.name),
-    )
-    logForDebugging(
-      `Dynamic tool loading: ${includedDeferredTools}/${deferredToolNames.size} deferred tools included`,
-    )
-  }
 
   let messagesForAPI = normalizeMessagesForAPI(messages, filteredTools)
 
@@ -1305,7 +1295,7 @@ async function* queryModel(
             if (stopReason === 'model_context_window_exceeded') {
               yield {
                 ...createAssistantAPIErrorMessage({
-                  content: `${API_ERROR_MESSAGE_PREFIX}: The model has reached its context window limit.`,
+                  content: `${API_ERROR_MESSAGE_PREFIX}: Mercury's response stopped at the model's context window limit.`,
                   apiError: 'max_output_tokens',
                   error: 'max_output_tokens',
                 }),
@@ -1453,7 +1443,7 @@ async function* queryModel(
 
       if (disableFallback) {
         logForDebugging(
-          `Error streaming (non-streaming fallback disabled): ${errorMessage(streamingError)}`,
+          `The stream failed and the one-shot retry is off: ${errorMessage(streamingError)}`,
           { level: 'error' },
         )
         throw streamingError
@@ -1509,7 +1499,7 @@ async function* queryModel(
       }
 
       logForDebugging(
-        `Error streaming, falling back to non-streaming mode: ${errorMessage(streamingError)}`,
+        `The stream failed; the request is retried as one shot: ${errorMessage(streamingError)}`,
         { level: 'error' },
       )
       if (streamIdleAborted) resetApiConnectionPool()
@@ -1591,7 +1581,7 @@ async function* queryModel(
       const failedRequestId =
         (errorFromRetry.originalError as APIError).requestID ?? 'unknown'
       logForDebugging(
-        'Streaming endpoint returned 404, falling back to non-streaming mode',
+        'The streaming endpoint answered 404; the request is retried as one shot',
         { level: 'warn' },
       )
       didFallBackToNonStreaming = true
@@ -1638,7 +1628,7 @@ async function* queryModel(
         }
 
         logForDebugging(
-          `Non-streaming fallback also failed: ${errorMessage(fallbackError)}`,
+          `The one-shot retry failed too: ${errorMessage(fallbackError)}`,
           { level: 'error' },
         )
 
