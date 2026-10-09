@@ -17,7 +17,7 @@ VITALS              │ │ Subscription                                        
                     │ │ console is the view                                                      │ │
                     │ │                                                                          │ │
                     │ │ JEV official · Mercury's count: no chat open · allowance $20.00 · off ·… │ │
-                    │ │ ↓ 11 more · OpenAI · Z.AI · OpenRouter · Gemini · Moonshot · DeepSeek ·… │ │
+                    │ │ ↓ 12 more · OpenAI · Z.AI · OpenRouter · Gemini · Moonshot · DeepSeek ·… │ │
                     │ │                                                                          │ │
                     │ │ ↑↓ scroll · esc or click outside closes                                  │ │
                     │ ╰──────────────────────────────────────────────────────────────────────────╯ │

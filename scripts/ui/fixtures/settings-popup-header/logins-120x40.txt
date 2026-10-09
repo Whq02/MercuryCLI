@@ -24,10 +24,10 @@ VITALS                  │ │                                                 
                         │ │   DeepSeek — API key                                                                     │ │
                         │ │   xAI — Grok subscription sign-in or API key                                             │ │
                         │ │   Meta — API key (Muse)                                                                  │ │
+                        │ │   OpenCode Zen — API key (one key, the gateway's model list)                             │ │
                         │ │                                                                                          │ │
                         │ │ Provider readiness                                                                       │ │
                         │ │   Anthropic          ready · api-key                                                     │ │
-                        │ │   OpenAI             connect OpenAI to browse its models — /logins connects              │ │
                         │ │                                                                                          │ │
                         │ │ esc or click outside closes                                                              │ │
                         │ ╰──────────────────────────────────────────────────────────────────────────────────────────╯ │
