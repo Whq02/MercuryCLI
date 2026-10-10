@@ -1,6 +1,44 @@
 
 export const MERCURY_CHANGELOG = `# Mercury changelog
 
+## 1.0.0-beta.31
+- Added a setting, workspace.worktree.prepare: a command Mercury runs inside every new worktree after git makes it and before any session uses it, for the dependency links and copies a project needs
+- Changed hooks: a hook is one entry under events.hooks at one of Mercury's fifteen moments (a turn, a tool call, a permission decision, a crewmate, a compaction, a session's start, end and board state, a watched file) and is a shell command, a question a model answers or a crewmate that checks; its answer can block the moment, stop the turn, add words for the model or leave you a note; /hooks lists every hook the session carries with where it came from
+- Changed the prompt the model reads: about a tenth lighter on every request, each fact stated once in plain words; a tool's description says what its parameters do not already say; the git rules state only what nothing else in the prompt states
+- Changed the words the model reads around its context (the date notice, the skills and MCP server headers, the deferred-tools notice, a nested instruction file's label, the notice standing in for an oversized tool result): each says its fact once
+- Changed the row under a tool call that Sovereign or Flow allowed: it reads "allowed by sovereign" (or "allowed by flow") and nothing more
+- Fixed a faulty hook entry (a typo, an unknown event, a field of another kind) silently matching everything or nothing: the entry is named on /health and dropped alone, and the rest of the file applies
+- Fixed a run-once hook editing your settings file: it runs once in the session and stands down
+- Fixed a note a hook leaves you vanishing on a resume and never reaching a daemon-hosted cockpit: it is saved with the session
+- Fixed a background hook running with no clock: it is ended at its timeout like any other, and a hook that fails or times out is one line while the moment goes on
+- Fixed Sovereign on Windows asking before shell commands that carry a Git Bash flag such as taskkill //PID 1234 or reg query //v: a double-slash flag is not a network share; a command that reaches another machine or a share still asks
+- Fixed a session hosted by the daemon telling the model the wrong permission mode: a session opened in Sovereign, or switched with shift+tab, no longer tells the model it is in Default
+- Fixed the daemon's expiry line reading "after 2m60s"
+- Fixed the Test tool failing a unittest file or folder given as a path: the module is named relative to the project root, a folder is discovered the way unittest discovers it, and an import error counts once
+- Fixed an OpenRouter key the provider has refused still reading as usable: /health, the Boot face's signed-in count, /logins, /model and the picker say the key was refused, with the words and the way out, until a key is re-entered or OpenRouter accepts it again
+- Fixed the /logins opening sentence leaving out the last family of the list below it
+- Fixed the permission card on Windows naming the folder with a backslash on its tail in a shell it was not typed in: it reads the way the box's own shell prints it
+- Fixed the Computer tool's keyboard chords on macOS: cmd+q, cmd+w, cmd+n and a held chord reach the application in front
+- Fixed a collapsed tool row whose call was refused showing a bare cross: the refusal's line sits under the compact row and under the opened group's member row
+- Fixed mercury --mode flow opening in Sovereign on a box whose Boot Menu saves Sovereign: a typed --mode outranks the saved row, and /config names the argument as the source
+- Fixed the first dropped-thinking notice after an update reading as a defect: it reads as the update, expected once, and /health reads it as info
+- Fixed the preserved-thinking notice's count: one block stays out of the requests and the model re-plans without it
+- Fixed the /config account row for OpenCode Zen reading unlike its neighbours
+- Fixed /sessions showing a parked session as active: it reads parked, the daemon was stopped, the next prompt resumes it
+- Fixed the crew rail keeping a stopped crewmate row after mercury daemon stop
+- Fixed mercury daemon status naming no runners: each live worker is listed with its runner pid, its session and its state
+- Fixed a crewmate's stop notice reaching the model only after its next answer: after a daemon stop the notice rides the next prompt
+- Fixed a fresh daemon refusing the first chat on a local model with "model refused (unreachable:local)" while Ollama was serving: the first prompt starts the chat
+- Fixed an empty reply from a local model settling the turn as completed with a stale answer: the model is asked once more
+- Fixed Gemma 4's context window being sized far too small, which compacted the conversation after every tool result
+- Fixed the first-run sign-in card running off the bottom of a short terminal: the provider list scrolls inside the card with "…and N more below"
+- Fixed opening a row on the health page jumping the page to its end
+- Fixed a quick second click on a session in the session board selecting a word instead of opening the session
+- Fixed the resume recap counting only some tools: every tool the previous run used, and a ChangeSet's files count as touched
+- Fixed a busy machine's daemon answers being cut off after a fixed two seconds: they are waited for as long as the daemon is working
+- Fixed /context showing nothing for minutes when the provider cannot answer: the card shows at once, counting, and the chart arrives within one count's budget
+- Fixed the status row saying "after unknown" while a provider is retried: it says the cause in words
+
 ## 1.0.0-beta.30
 - Added Mistral AI as a provider family: paste a Mistral API key and run Mistral Large 4, Medium 3.5, Small 4 and the vendor's current models from the account's own list, with the organisation usage meter when an Admin API key is added beside it
 - Added Nous Portal as a provider family: a Nous Portal API key connects the Portal's model gateway (Claude, GPT, Gemini, DeepSeek, Qwen, Kimi, GLM, Grok and more at the Portal's own ids), with the Portal's plan and usable credits shown on /usage

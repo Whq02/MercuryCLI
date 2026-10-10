@@ -10,7 +10,7 @@ import { getEssentialTrafficOnlyReason, isLoopbackUrl, isProofShapeRun, proofSha
 export const NOUS_PORTAL_CLIENT_ID = 'hermes-cli'
 export const NOUS_PORTAL_SIGNIN_SCOPE = 'inference:invoke'
 export const NOUS_CLIENT_CONTRACT_RELEASE = '0.21.6'
-export const NOUS_CLIENT_CONTRACT_AS_OF = '2026-10-09'
+export const NOUS_CLIENT_CONTRACT_AS_OF = '2026-10-10'
 export const NOUS_CLIENT_SOURCE_DEFAULT_BASE = 'https://api.github.com'
 export const NOUS_CLIENT_SOURCE_REPO = 'NousResearch/hermes-agent'
 export const NOUS_CLIENT_SOURCE_FILE = 'hermes_cli/auth_constants.py'
