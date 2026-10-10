@@ -38,6 +38,7 @@ export const MERCURY_CHANGELOG = `# Mercury changelog
 - Fixed a busy machine's daemon answers being cut off after a fixed two seconds: they are waited for as long as the daemon is working
 - Fixed /context showing nothing for minutes when the provider cannot answer: the card shows at once, counting, and the chart arrives within one count's budget
 - Fixed the status row saying "after unknown" while a provider is retried: it says the cause in words
+- Fixed a temporary folder left in the temp directory when Mercury exits in the middle of reading a project's tree for the health certificate: the read is ended and the folder goes with it
 
 ## 1.0.0-beta.30
 - Added Mistral AI as a provider family: paste a Mistral API key and run Mistral Large 4, Medium 3.5, Small 4 and the vendor's current models from the account's own list, with the organisation usage meter when an Admin API key is added beside it
