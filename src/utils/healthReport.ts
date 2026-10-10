@@ -7,7 +7,7 @@ import { MERCURY_PROJECT_DIR } from './projectConfig.js'
 import { homeDirectory, isHomeDirectory, projectScopePathspec, USER_ROOT_NAMES } from './projectBoundary.js'
 import { findGitRoot, gitProbeNote } from './git.js'
 import { settleChildRun } from './childSettle.js'
-import { endProcessTree } from './processGroup.js'
+import { endProcessTree, strikeProcessGroupNow } from './processGroup.js'
 import { subprocessEnv } from './subprocessEnv.js'
 import { projectLocalPath } from '../services/projectLocal/paths.js'
 import { workflowRunsRoot } from '../tools/WorkflowTool/runManifest.js'
@@ -136,7 +136,7 @@ function sweepTreeScratch(): void {
   for (const child of treeScratchGits) {
     if (child.pid === undefined || child.exitCode !== null || child.signalCode !== null) continue
     if (windows) void endProcessTree(child, 'SIGKILL')
-    else child.kill('SIGKILL')
+    else strikeProcessGroupNow(child)
   }
   const giveUpAt = Date.now() + TREE_SCRATCH_RELEASE_MS
   for (const dir of [...treeScratchDirs]) {
@@ -181,7 +181,7 @@ export async function computeWorkingTreeSha(cwdDir: string, opts?: { signal?: Ab
       const child = execFile(
         'git',
         args,
-        { windowsHide: true, cwd: cwdDir, env, ...(windows ? {} : { timeout: 15_000, ...(signal ? { signal } : {}) }) },
+        { windowsHide: true, cwd: cwdDir, env, ...(windows ? {} : { detached: true, timeout: 15_000, ...(signal ? { signal } : {}) }) },
         (err, stdout) => {
           treeScratchGits.delete(child)
           resolvePromise(err ? null : stdout.trim())
