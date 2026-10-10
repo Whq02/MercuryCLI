@@ -161,7 +161,7 @@ async function main(): Promise<void> {
     delete process.env.MERCURY_MODEL
     const anthropicLight = sessionLightModel()
     check(
-      'anthropic session: the mid-class owner (execAgentHook default unchanged)',
+      'anthropic session: the mid-class owner (the crewmate runner default unchanged)',
       getCanonicalName(anthropicLight) === getCanonicalName(getDefaultSonnetModel()),
       `${anthropicLight} vs ${getDefaultSonnetModel()}`,
     )
@@ -191,10 +191,10 @@ async function main(): Promise<void> {
     check('Feedback title rides the routed seam', feedback.includes('routedCallModelSettled'))
     check('Feedback title rides the family resolver', feedback.includes('sessionSmallFastModel()'))
     check('Feedback carries no getSmallFastModel / sideQuery residue', !feedback.includes('getSmallFastModel') && !feedback.includes('sideQuery'))
-    const agentHook = srcText('utils', 'hooks', 'execAgentHook.ts')
+    const crewmateRunner = srcText('utils', 'hooks', 'crewmateRunner.ts')
     check(
-      'execAgentHook defaults to sessionLightModel, the hook\'s own model first',
-      /const model = hook\.model \?\? sessionLightModel\(\)/.test(agentHook),
+      'the crewmate hook runner defaults to sessionLightModel, the entry\'s own model first',
+      /run\.model \?\? sessionLightModel\(\)/.test(crewmateRunner),
     )
     const evalBridge = srcText('services', 'eval', 'evalBridge.ts')
     check(
@@ -221,10 +221,10 @@ async function main(): Promise<void> {
         srcText(...path).includes('querySmallFast'),
       )
     }
-    const promptHook = srcText('utils', 'hooks', 'execPromptHook.ts')
+    const questionRunner = srcText('utils', 'hooks', 'questionRunner.ts')
     check(
-      'execPromptHook paid its debt: the hook default rides sessionSmallFastModel (no getSmallFastModel residue)',
-      promptHook.includes('sessionSmallFastModel()') && !promptHook.includes('getSmallFastModel'),
+      'the question hook runner rides sessionSmallFastModel (no getSmallFastModel residue)',
+      questionRunner.includes('sessionSmallFastModel()') && !questionRunner.includes('getSmallFastModel'),
     )
     const tokenEstimation = srcText('services', 'tokenEstimation.ts')
     check(
