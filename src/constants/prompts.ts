@@ -4,9 +4,12 @@ import { getCwd } from '../utils/cwd.js'
 import { composeSystemPrompt } from '../prompt/composer.js'
 import type { NamedSection } from '../prompt/mercuryContract.js'
 import {
+  MERCURY_HONESTY_FLOOR,
   MERCURY_IDENTITY_FLOOR,
   MERCURY_IDENTITY_RECONCILE,
   getMercuryContractSections,
+  promptLayerSet,
+  promptReplacementText,
 } from '../prompt/mercuryContract.js'
 import { getAntiSycophancyAlwaysOnSection } from '../utils/antiSycophancy.js'
 import { isEnvTruthy } from '../utils/envUtils.js'
@@ -337,8 +340,11 @@ export async function getSystemPrompt(
   mcpClients?: MCPServerConnection[],
   permissionMode?: import('../types/permissions.js').InternalPermissionMode,
 ): Promise<string[]> {
-  if (isEnvTruthy(process.env.MERCURY_BARE)) {
+  const layers = promptLayerSet()
+  if (isEnvTruthy(process.env.MERCURY_BARE) || layers !== 'stock') {
     const simpleHead = `Mercury — a private terminal software-development harness.\nWorking directory: ${getOriginalCwd()}\nSession date: ${getSessionStartDate()}`
+    if (layers === 'vessel') return [`${simpleHead}\n\n${MERCURY_HONESTY_FLOOR}`]
+    if (layers === 'replace') return [simpleHead, promptReplacementText(), MERCURY_HONESTY_FLOOR]
     return [`${simpleHead}\n\n${MERCURY_IDENTITY_FLOOR}`]
   }
 

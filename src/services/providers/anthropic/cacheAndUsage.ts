@@ -12,6 +12,7 @@ import {
 } from '../../../types/message.js'
 import type { ApiMessageDeltaUsage, ApiUsage } from '../../../types/wire.js'
 import { getCLISyspromptPrefix } from '../../../constants/system.js'
+import { promptLayersCarryIdentity } from '../../../prompt/mercuryContract.js'
 import { splitSysPromptPrefix } from '../../../utils/api.js'
 import { insertBlockAfterToolResults } from '../../../utils/contentArray.js'
 import { asSystemPrompt, type SystemPrompt } from '../../../utils/systemPromptType.js'
@@ -283,7 +284,8 @@ export function assembleTurnSystemPrompt(
   systemPrompt: SystemPrompt,
   posture: SystemPromptPosture,
 ): SystemPrompt {
-  return asSystemPrompt([attribution, getCLISyspromptPrefix(posture), ...systemPrompt].filter(Boolean))
+  const prefix = promptLayersCarryIdentity() ? getCLISyspromptPrefix(posture) : ''
+  return asSystemPrompt([attribution, prefix, ...systemPrompt].filter(Boolean))
 }
 
 export function buildTurnSystemBlocks(
