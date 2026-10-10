@@ -15,6 +15,7 @@
 # gate-watch: src/cli/headless/resume.ts src/utils/model/model.ts src/utils/sessionStorage/vnext.ts
 # gate-watch: src/utils/sessionStorage/rowGraph.ts src/utils/sessionStorage/transcriptReader.ts src/utils/conversationRecovery.ts
 # gate-watch: src/components/Messages.tsx src/ink.ts src/state/AppState.tsx src/state/AppStateStore.ts src/tools.ts
+# gate-watch: src/utils/shell/powershellDetection.ts
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }
