@@ -25,6 +25,7 @@ type StandInRunner = ReturnType<typeof standInRunner>
 type RunnerDoor = import('../../src/daemon/runnerConnection.ts').RunnerDoor
 const { validateWorkerModelChoice } = await import('../../src/services/concourse/workerModels.ts')
 const snapshot = await import('../../src/services/concourse/concourseSnapshot.ts')
+const workers = await import('../../src/daemon/concourseWorkers.ts')
 import type { ConcourseWorkerRecordV1 } from '../../src/daemon/concourseWorkers.ts'
 import type { RunnerChildSpec } from '../../src/daemon/headlessRun.ts'
 
@@ -173,7 +174,7 @@ console.log('\n── R1: ↵ on a parked row rides the warm claim ──')
   check('R1 ONE record owns the session, keyed by the claimed short — the old short freed', standing.length === 1 && live?.runnerId === warmShort && sup.readSessionWorkers(dir)['concourse-w1'] === undefined, JSON.stringify(standing.map(r => r.runnerId)))
   check('R1 the row flipped parked → live: pid re-pointed, the park cleared, title and birth time kept', live?.pid === process.pid && live?.parkedAt === undefined && live?.parkedBy === undefined && live?.parkReason === undefined && live?.title === 'the parked chat' && live?.spawnedAt === now - 5 * T)
   check('R1 in ONE publication (the delta stamp advanced exactly once for the flip)', revisionOf() === revisionBefore + 1, `${revisionBefore} → ${revisionOf()}`)
-  check("R1 the ladder reads the record live now (never parked, never NEEDS YOU)", ['working', 'ready-to-review'].includes(snapshot.concourseRecordState(live!, { needsYou: false, alive: true })))
+  check("R1 the ladder reads the record live now (never parked, never NEEDS YOU)", ['working', 'ready-to-review'].includes(workers.concourseRecordState(live!, { needsYou: false, alive: true })))
   check('R1 the respawn argv flipped to --resume <id> (a crash later continues the same chat)', roster.patched.some(p => p.short === warmShort && p.patch.respawnExtraArgv.join(' ').startsWith(`--resume ${parkedSid}`)))
   await new Promise(r => setTimeout(r, 20))
   check('R1 the pool re-warms the workspace behind the answer', rewarmed.includes(wsId))
@@ -221,7 +222,7 @@ console.log('\n── R4: refusals leave the row PARKED with the daemon\'s sente
   const after = recordsOf(crashedSid)[0]
   check('R4 the cold road\'s spawn refusal is typed', !res.ok && res.code === 'spawn-failed' && /scripted spawn refusal/.test(res.error), JSON.stringify(res))
   check('R4 the crashed row is now PARKED with the reason on it — never a ghost, never a crash', after?.parkedAt !== undefined && after.crash === undefined && after.endedAt === undefined && typeof after.parkReason === 'string' && /scripted spawn refusal/.test(after.parkReason), JSON.stringify(after))
-  check('R4 the reason line is the row\'s cell', snapshot.concourseRecordState(after!, { needsYou: false, alive: false }) === 'parked')
+  check('R4 the reason line is the row\'s cell', workers.concourseRecordState(after!, { needsYou: false, alive: false }) === 'parked')
   const lostSid = sid('d2')
   seedRecord({ runnerId: 'concourse-w8', sessionId: lostSid, workspaceId: wsId, pid: DEAD_PID, parkedAt: now - T, parkedBy: 'operator:test', title: 'the lost chat' })
   rmSync(sup.concourseTranscriptPath({ sessionId: lostSid, workspaceId: wsId }), { force: true })
@@ -229,7 +230,7 @@ console.log('\n── R4: refusals leave the row PARKED with the daemon\'s sente
   const lost = await admit({ workspaceDir: wsD, resumeSessionId: lostSid })
   const lostAfter = recordsOf(lostSid)[0]
   check('R4 a parked row whose transcript is gone is refused BEFORE any spawn (nothing to resume it around)', !lost.ok && /transcript is gone/.test(lost.error) && roster.registered.length === registeredBeforeLost, JSON.stringify(lost))
-  check('R4 …and stays parked with the loss as its reason, never a ghost, never live', lostAfter?.parkedAt !== undefined && lostAfter.pid === DEAD_PID && /transcript is gone/.test(lostAfter.parkReason ?? '') && snapshot.concourseRecordState(lostAfter, { needsYou: false, alive: false }) === 'parked', JSON.stringify(lostAfter))
+  check('R4 …and stays parked with the loss as its reason, never a ghost, never live', lostAfter?.parkedAt !== undefined && lostAfter.pid === DEAD_PID && /transcript is gone/.test(lostAfter.parkReason ?? '') && workers.concourseRecordState(lostAfter, { needsYou: false, alive: false }) === 'parked', JSON.stringify(lostAfter))
   const holderSid = sid('e1')
   const parkedSid = sid('e2')
   const wsIdE = sup.canonicalWorkspaceId(wsE)

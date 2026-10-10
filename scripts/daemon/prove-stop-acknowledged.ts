@@ -52,7 +52,7 @@ const { seedFirstRun } = await import('../lib/firstRunSeed.ts')
 seedFirstRun(configDir, [work])
 const { daemonControlRpc } = await import('../../src/daemon/controlSocket.ts')
 const paths = await import('../../src/utils/sessionStorage/paths.ts')
-const { concourseRecordState } = await import('../../src/services/concourse/concourseSnapshot.ts')
+const { concourseRecordState } = await import('../../src/daemon/concourseWorkers.ts')
 
 const LONG_THINK_ASK = 'think long please'
 

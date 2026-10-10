@@ -32,37 +32,8 @@ import { ELSEWHERE_CAP, elsewhereLine, projectActivity } from './projectActivity
 import { sessionTitleOf } from './sessionNaming.js'
 import { stripTerminalControls } from '../../utils/stringUtils.js'
 import { keyHintLabel } from '../../components/mercury-ui/keyHintLabel.js'
-import type { ConcourseWorkerRecordV1 } from '../../daemon/concourseWorkers.js'
+import { concourseRecordState, type ConcourseWorkerRecordV1 } from '../../daemon/concourseWorkers.js'
 import type { DaemonSessionRecordV1 } from '../engine-connector/daemonConnector.js'
-
-export function concourseRecordState(
-  rec: Pick<ConcourseWorkerRecordV1, 'pausedAt' | 'lastDeliveryAt' | 'lastTurnSettledAt' | 'attachedAt' | 'stoppedAt' | 'crash' | 'parkedAt' | 'bornBlankAt' | 'pid'>,
-  liveness: { needsYou: boolean; alive: boolean },
-): ConcourseRowV1['state'] {
-  const turnSettled =
-    rec.lastTurnSettledAt !== undefined &&
-    (rec.lastDeliveryAt === undefined || rec.lastTurnSettledAt >= rec.lastDeliveryAt)
-  const wordlessNewborn = rec.bornBlankAt !== undefined && rec.lastDeliveryAt === undefined
-  return rec.attachedAt !== undefined
-    ? 'attached'
-    : rec.parkedAt !== undefined
-      ? 'parked'
-      : rec.stoppedAt !== undefined
-        ? 'stopped'
-        : rec.pausedAt !== undefined
-          ? 'paused'
-          : rec.crash !== undefined
-            ? 'needs-you'
-            : liveness.needsYou
-              ? 'needs-you'
-              : liveness.alive
-                ? turnSettled || wordlessNewborn
-                  ? 'ready-to-review'
-                  : 'working'
-                : rec.pid !== undefined
-                  ? 'needs-you'
-                  : 'starting'
-}
 
 export const PARKING_NOW_LEAD = 'parking — '
 export const PARK_REFUSED_NOW_LEAD = 'park refused — '

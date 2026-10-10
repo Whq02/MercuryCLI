@@ -11,7 +11,7 @@ const check = (label: string, cond: boolean, detail = ''): void => {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
 }
 
-const { concourseRecordState } = await import('../../src/services/concourse/concourseSnapshot.ts')
+const { concourseRecordState } = await import('../../src/daemon/concourseWorkers.ts')
 const alive = { needsYou: false, alive: true }
 const now = Date.now()
 

@@ -47,6 +47,7 @@ import { writeSessionCloseReceipts } from '../services/switchboard/sessionReceip
 import { RetirementFence } from './runnerQuiescence.js'
 import type { RunnerDoor } from './runnerConnection.js'
 import { deriveSessionKitForPreset, deriveSessionKitForWorkspace, kitStampOf, noteRecordlessResumeKit, restampSessionKit, type KitStampSource, type SessionKitV1 } from './sessionKit.js'
+import type { ConcourseRowV1 } from '../components/concourse/contracts.js'
 
 
 export const CONCOURSE_SHORT_PREFIX = 'concourse-w'
@@ -2574,4 +2575,33 @@ export function countLiveConcourseWorkers(dir?: string): number {
     if (rec.endedAt === undefined && workerPidAlive(rec)) n++
   }
   return n
+}
+
+export function concourseRecordState(
+  rec: Pick<ConcourseWorkerRecordV1, 'pausedAt' | 'lastDeliveryAt' | 'lastTurnSettledAt' | 'attachedAt' | 'stoppedAt' | 'crash' | 'parkedAt' | 'bornBlankAt' | 'pid'>,
+  liveness: { needsYou: boolean; alive: boolean },
+): ConcourseRowV1['state'] {
+  const turnSettled =
+    rec.lastTurnSettledAt !== undefined &&
+    (rec.lastDeliveryAt === undefined || rec.lastTurnSettledAt >= rec.lastDeliveryAt)
+  const wordlessNewborn = rec.bornBlankAt !== undefined && rec.lastDeliveryAt === undefined
+  return rec.attachedAt !== undefined
+    ? 'attached'
+    : rec.parkedAt !== undefined
+      ? 'parked'
+      : rec.stoppedAt !== undefined
+        ? 'stopped'
+        : rec.pausedAt !== undefined
+          ? 'paused'
+          : rec.crash !== undefined
+            ? 'needs-you'
+            : liveness.needsYou
+              ? 'needs-you'
+              : liveness.alive
+                ? turnSettled || wordlessNewborn
+                  ? 'ready-to-review'
+                  : 'working'
+                : rec.pid !== undefined
+                  ? 'needs-you'
+                  : 'starting'
 }
