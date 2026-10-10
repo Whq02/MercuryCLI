@@ -34,7 +34,7 @@ export type HookEnding = {
   exit_code: 0
 } | {
   status: 'failed'
-  class: 'closed_pipe' | 'cancelled' | 'timed_out' | 'exit' | 'spawn' | 'answer'
+  class: 'cancelled' | 'timed_out' | 'exit' | 'spawn' | 'answer'
   exit_code: number
   detail?: string
 }

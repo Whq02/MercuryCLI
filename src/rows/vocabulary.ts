@@ -75,7 +75,7 @@ export function secondsWord(ms: number): string {
   return Number.isInteger(seconds) ? `${seconds}s` : `${seconds.toFixed(1)}s`
 }
 
-export const HOOK_ENDING_CLASSES = ['closed_pipe', 'cancelled', 'timed_out', 'exit', 'spawn', 'answer'] as const
+export const HOOK_ENDING_CLASSES = ['cancelled', 'timed_out', 'exit', 'spawn', 'answer'] as const
 export type HookEndingClass = (typeof HOOK_ENDING_CLASSES)[number]
 
 export const HookEndingSchema = lazySchema(() =>
@@ -87,7 +87,6 @@ export const HookEndingSchema = lazySchema(() =>
 export type HookEnding = z.infer<ReturnType<typeof HookEndingSchema>>
 
 const HOOK_ENDING_WORDS: Record<HookEndingClass, (ending: Extract<HookEnding, { status: 'failed' }>, event: string) => string> = {
-  closed_pipe: () => 'closed its input before Mercury finished writing it',
   cancelled: () => 'was cancelled',
   timed_out: (ending, event) => `timed out${ending.detail ? ` after ${ending.detail}` : ''} and was killed; the ${event} it guarded proceeded`,
   exit: ending => `failed with exit ${ending.exit_code}: ${ending.detail || 'no stderr output'}`,

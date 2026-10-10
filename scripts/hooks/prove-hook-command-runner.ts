@@ -156,7 +156,13 @@ const run = (over: Partial<Parameters<typeof startCommandHook>[0]> & { command: 
   writeFileSync(join(root, 'closer.sh'), 'exec 0<&-\nsleep 0.3\necho closed-stdin\n')
   const process_ = await run({ command: `bash ${JSON.stringify(join(root, 'closer.sh'))}` })
   const end = await process_.result
-  check('a hook that never reads its stdin still settles (closed_pipe or a clean exit, never a wedge)', (end.kind === 'exited' && end.code === 0) || (end.kind === 'ended' && end.ending.class === 'closed_pipe'), end.kind === 'ended' ? end.ending.class : String(end.code))
+  check('a hook that closes its stdin before Mercury wrote the payload exits clean with its answer read: a closed input is no ending', end.kind === 'exited' && end.code === 0 && end.stdout.trim() === 'closed-stdin', end.kind === 'ended' ? end.ending.class : `${end.code} ${JSON.stringify(end.stdout)}`)
+}
+
+{
+  const answer = JSON.stringify({ block: 'never reads its input' })
+  const ends = await Promise.all(Array.from({ length: 12 }, () => run({ command: `echo ${JSON.stringify(answer)}` }).then(p => p.result)))
+  check('twelve bare echo hooks that never read their input all exit 0 with the answer on stdout, none ended early', ends.every(end => end.kind === 'exited' && end.code === 0 && end.stdout.trim() === answer), ends.map(end => (end.kind === 'ended' ? end.ending.class : `${end.code}`)).join(','))
 }
 
 clearTimeout(watchdog)

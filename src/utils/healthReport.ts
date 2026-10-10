@@ -133,13 +133,12 @@ function removeTreeScratch(dir: string): boolean {
 
 function sweepTreeScratch(): void {
   const windows = process.platform === 'win32'
-  if (windows) {
-    for (const child of treeScratchGits) {
-      if (child.pid === undefined || child.exitCode !== null || child.signalCode !== null) continue
-      void endProcessTree(child, 'SIGKILL')
-    }
+  for (const child of treeScratchGits) {
+    if (child.pid === undefined || child.exitCode !== null || child.signalCode !== null) continue
+    if (windows) void endProcessTree(child, 'SIGKILL')
+    else child.kill('SIGKILL')
   }
-  const giveUpAt = Date.now() + (windows ? TREE_SCRATCH_RELEASE_MS : 0)
+  const giveUpAt = Date.now() + TREE_SCRATCH_RELEASE_MS
   for (const dir of [...treeScratchDirs]) {
     while (!removeTreeScratch(dir) && Date.now() < giveUpAt) {
       Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, TREE_SCRATCH_RETRY_MS)
@@ -188,10 +187,8 @@ export async function computeWorkingTreeSha(cwdDir: string, opts?: { signal?: Ab
           resolvePromise(err ? null : stdout.trim())
         },
       )
-      if (windows) {
-        treeScratchGits.add(child)
-        void settleChildRun(child, { timeoutMs: 15_000, ...(signal ? { signal } : {}) })
-      }
+      treeScratchGits.add(child)
+      if (windows) void settleChildRun(child, { timeoutMs: 15_000, ...(signal ? { signal } : {}) })
     })
   try {
     if (signal?.aborted) return null

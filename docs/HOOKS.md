@@ -170,10 +170,10 @@ A `run` hook answers with its exit code and its stdout:
   `turn.start`, `crewmate.start` and `compaction.after` plain text is
   `context` the model reads;
 - exit 2: the moment is blocked and stderr is the words; stdout is not read;
-- any other exit, a timeout, a kill, a closed pipe or a command that could
-  not run: the hook failed, the moment proceeds, and the operator reads one
-  line naming the hook, the event and what happened. JSON that is not the
-  answer shape is a failure, not prose.
+- any other exit, a timeout, a kill or a command that could not run: the
+  hook failed, the moment proceeds, and the operator reads one line naming
+  the hook, the event and what happened. JSON that is not the answer shape
+  is a failure, not prose. A hook need not read its input.
 
 Every kind is ended at its `timeout` — the command killed, the model call
 abandoned, the crewmate stopped — and the line reads `hook <name> (<event>)

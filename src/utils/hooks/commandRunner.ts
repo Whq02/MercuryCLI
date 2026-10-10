@@ -194,12 +194,9 @@ export async function startCommandHook(run: CommandHookRun): Promise<CommandHook
     new Promise<void>(resolve => child.stdout.once('end', () => resolve())),
     new Promise<void>(resolve => child.stderr.once('end', () => resolve())),
   ])
-  child.once('error', error => {
-    const code = getErrnoCode(error)
-    const ending: Extract<HookEnding, { status: 'failed' }> = code === 'EPIPE'
-      ? { status: 'failed', class: 'closed_pipe', exit_code: 1 }
-      : { status: 'failed', class: 'spawn', exit_code: 1, detail: errorMessage(error) }
-    finish({ kind: 'ended', ending, stdout, stderr, durationMs: Date.now() - startedAt })
+  child.on('error', error => {
+    if (getErrnoCode(error) === 'EPIPE') return
+    finish({ kind: 'ended', ending: { status: 'failed', class: 'spawn', exit_code: 1, detail: errorMessage(error) }, stdout, stderr, durationMs: Date.now() - startedAt })
   })
   child.once('exit', code => {
     const grace = setTimeout(() => {
@@ -214,11 +211,7 @@ export async function startCommandHook(run: CommandHookRun): Promise<CommandHook
     })
   })
   child.stdin.on('error', error => {
-    if (getErrnoCode(error) === 'EPIPE') {
-      finish({ kind: 'ended', ending: { status: 'failed', class: 'closed_pipe', exit_code: 1 }, stdout, stderr, durationMs: Date.now() - startedAt })
-      return
-    }
-    logForDebugging(`hook ${run.name} stdin: ${errorMessage(error)}`)
+    if (getErrnoCode(error) !== 'EPIPE') logForDebugging(`hook ${run.name} stdin: ${errorMessage(error)}`)
   })
   child.stdin.write(run.payloadJson + '\n', 'utf8')
   child.stdin.end()
