@@ -359,3 +359,13 @@ export function killProcessGroup(
   if (!pid || pid <= 0) return
   void endProcessTree(childProcess, signal)
 }
+
+export function strikeProcessGroupNow(childProcess: Pick<ChildProcess, 'pid'>, signal: NodeJS.Signals = 'SIGKILL'): void {
+  const pid = childProcess.pid
+  if (!pid || pid <= 1 || pid === process.pid) return
+  try {
+    process.kill(-pid, signal)
+  } catch {
+    signalPid(pid, signal)
+  }
+}
