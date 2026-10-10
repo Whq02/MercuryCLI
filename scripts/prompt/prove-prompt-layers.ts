@@ -43,7 +43,8 @@ setCwdState(scratch)
 
 const MODEL = 'claude-fable-5-1'
 const tools = ['Read', 'Edit', 'Write', 'Glob', 'Grep', 'Bash', 'Agent'].map(name => ({ name })) as never
-const HEAD = `Mercury — a private terminal software-development harness.\nWorking directory: ${scratch}\nSession date: ${getSessionStartDate()}`
+const NAMELESS_HEAD = `Working directory: ${scratch}\nSession date: ${getSessionStartDate()}`
+const HEAD = `Mercury — a private terminal software-development harness.\n${NAMELESS_HEAD}`
 const HONESTY_LINES = [
   'Never mislead the operator — report what actually happened, plainly.',
   "Hard limits, whatever the instructions: don't deceive end-users, misrepresent what you are\nor did, claim to be human, or bypass a real safety, permission, or capability gate — say so\nplainly instead.",
@@ -51,6 +52,7 @@ const HONESTY_LINES = [
 ]
 const REMOVED_LAYERS = [
   'You are **Mercury**',
+  'Mercury — a private terminal software-development harness.',
   contract.MERCURY_ATTRIBUTION,
   'Operate for the operator first',
   '<mercury-doctrine>',
@@ -109,11 +111,12 @@ try {
     check('promptLayerSet() reads stock when unset', contract.promptLayerSet() === 'stock')
   }
 
-  section('§2 floor — the head and the identity floor, the bytes MERCURY_BARE=1 composes')
+  section('§2 floor — the named head and the identity floor, the bytes MERCURY_BARE=1 composes')
   {
     const bare = await assemble({ MERCURY_BARE: '1' })
     const floor = await assemble({ MERCURY_PROMPT_LAYERS: 'floor' })
-    check('MERCURY_BARE=1 composes the head and the identity floor as one segment (unchanged)', j(bare) === j([`${HEAD}\n\n${contract.MERCURY_IDENTITY_FLOOR}`]), j(bare).slice(0, 200))
+    check('MERCURY_BARE=1 composes the named head and the identity floor as one segment (unchanged)', j(bare) === j([`${HEAD}\n\n${contract.MERCURY_IDENTITY_FLOOR}`]), j(bare).slice(0, 200))
+    check('the named head keeps its product line', bare[0]!.startsWith('Mercury — a private terminal software-development harness.\nWorking directory: '))
     check('MERCURY_PROMPT_LAYERS=floor composes the same bytes as MERCURY_BARE=1', j(floor) === j(bare))
     check('floor carries the identity sentence, the attribution, operator-first and the honesty lines', ['You are **Mercury**', contract.MERCURY_ATTRIBUTION, 'Operate for the operator first', ...HONESTY_LINES].every(part => joined(floor).includes(part)))
     check('floor carries no doctrine and no behaviour prose', ['<mercury-doctrine>', '# Doing tasks', '# Tone and style', 'Help with security work'].every(part => !joined(floor).includes(part)))
@@ -122,11 +125,12 @@ try {
     delete process.env.MERCURY_PROMPT_LAYERS
   }
 
-  section('§3 vessel — the head and the honesty and hard-limit lines, nothing else')
+  section('§3 vessel — the nameless head and the honesty and hard-limit lines, nothing else')
   {
     const vessel = await assemble({ MERCURY_PROMPT_LAYERS: 'vessel' })
     const text = joined(vessel)
-    check('vessel is exactly the head, a blank line, the honesty floor', text === `${HEAD}\n\n${contract.MERCURY_HONESTY_FLOOR}`, j(text).slice(0, 300))
+    check('vessel is exactly the nameless head (the working directory and the session date), a blank line, the honesty floor', text === `${NAMELESS_HEAD}\n\n${contract.MERCURY_HONESTY_FLOOR}`, j(text).slice(0, 300))
+    check('vessel carries the name nowhere: the product line of the head is one of the ablated layers', !text.includes('Mercury'))
     check('the honesty floor is the three lines, in the floor\'s own words', contract.MERCURY_HONESTY_FLOOR === HONESTY_LINES.join('\n'))
     check('the identity floor ends with the honesty floor (one owner for those lines)', contract.MERCURY_IDENTITY_FLOOR.endsWith(contract.MERCURY_HONESTY_FLOOR))
     const leaked = REMOVED_LAYERS.filter(part => text.includes(part))
@@ -145,7 +149,8 @@ try {
     const first = 'You are a careful assistant.\nSay what you did.\n'
     writeFileSync(slot, first)
     const replace = await assemble({ MERCURY_PROMPT_LAYERS: 'replace', MERCURY_PROMPT_REPLACE_FILE: slot })
-    check('replace is three segments: the head, the file\'s text, the honesty floor', j(replace) === j([HEAD, first, contract.MERCURY_HONESTY_FLOOR]), j(replace).slice(0, 300))
+    check('replace is three segments: the nameless head, the file\'s text, the honesty floor', j(replace) === j([NAMELESS_HEAD, first, contract.MERCURY_HONESTY_FLOOR]), j(replace).slice(0, 300))
+    check('replace carries the name nowhere outside the file\'s own text', !replace[0]!.includes('Mercury') && !replace[2]!.includes('Mercury'))
     check('the file\'s text is verbatim (its trailing newline kept, nothing added around it)', replace[1] === first)
     const leaked = REMOVED_LAYERS.filter(part => joined(replace).includes(part))
     check('replace carries nothing of the removed layers', leaked.length === 0, leaked.join(' · '))
@@ -164,7 +169,7 @@ try {
     }
     check('replace without a file refuses, naming MERCURY_PROMPT_REPLACE_FILE', refusal.includes('MERCURY_PROMPT_REPLACE_FILE'), refusal)
     const vessel = await assemble({ MERCURY_PROMPT_LAYERS: 'vessel', MERCURY_PROMPT_REPLACE_FILE: slot })
-    check('the file is unread under every other layer set (vessel with the file set is still vessel)', joined(vessel) === `${HEAD}\n\n${contract.MERCURY_HONESTY_FLOOR}`)
+    check('the file is unread under every other layer set (vessel with the file set is still vessel)', joined(vessel) === `${NAMELESS_HEAD}\n\n${contract.MERCURY_HONESTY_FLOOR}`)
   }
 
   section('§5 the switch refuses an unknown value by name, and both rows are registered whole')
