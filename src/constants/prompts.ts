@@ -345,6 +345,7 @@ export async function getSystemPrompt(
     const namelessHead = `Working directory: ${getOriginalCwd()}\nSession date: ${getSessionStartDate()}`
     if (layers === 'vessel') return [`${namelessHead}\n\n${MERCURY_HONESTY_FLOOR}`]
     if (layers === 'replace') return [namelessHead, promptReplacementText(), MERCURY_HONESTY_FLOOR]
+    if (layers === 'whole') return [namelessHead, promptReplacementText()]
     const simpleHead = `Mercury — a private terminal software-development harness.\n${namelessHead}`
     return [`${simpleHead}\n\n${MERCURY_IDENTITY_FLOOR}`]
   }
