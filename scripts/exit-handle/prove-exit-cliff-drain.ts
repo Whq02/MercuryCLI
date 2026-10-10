@@ -214,7 +214,7 @@ section('§3 — POISONS (source shape)')
   const shutdown = readFileSync(join(ROOT, 'src/utils/gracefulShutdown.ts'), 'utf8')
   check(
     'POISON (the unseen seams): gracefulShutdown drains the named seams AFTER the session-end hooks and BEFORE the stdout drain + forceExit',
-    /executeSessionEndHooks\([\s\S]*?drainExitCliffSeams\(\)[\s\S]*?await drainPipedStdoutForExit\(\)[\s\S]*?forceExit\(exitCode\)/.test(shutdown),
+    /fireHooks\('session\.end'[\s\S]*?drainExitCliffSeams\(\)[\s\S]*?await drainPipedStdoutForExit\(\)[\s\S]*?forceExit\(exitCode\)/.test(shutdown),
   )
   check(
     'POISON (the stage-1 closure): the drain owner is a fire-time import, never a static one',
