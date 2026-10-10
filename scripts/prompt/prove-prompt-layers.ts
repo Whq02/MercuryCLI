@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -170,6 +170,8 @@ try {
     check('replace without a file refuses, naming MERCURY_PROMPT_REPLACE_FILE', refusal.includes('MERCURY_PROMPT_REPLACE_FILE'), refusal)
     const vessel = await assemble({ MERCURY_PROMPT_LAYERS: 'vessel', MERCURY_PROMPT_REPLACE_FILE: slot })
     check('the file is unread under every other layer set (vessel with the file set is still vessel)', joined(vessel) === `${NAMELESS_HEAD}\n\n${contract.MERCURY_HONESTY_FLOOR}`)
+    const whole = await assemble({ MERCURY_PROMPT_LAYERS: 'whole', MERCURY_PROMPT_REPLACE_FILE: slot })
+    check('whole is the nameless head and the file alone: two segments, no honesty floor appended', whole.length === 2 && whole[0] === NAMELESS_HEAD && whole[1] === readFileSync(slot, 'utf8') && !joined(whole).includes(contract.MERCURY_HONESTY_FLOOR))
   }
 
   section('§5 the switch refuses an unknown value by name, and both rows are registered whole')
@@ -180,7 +182,7 @@ try {
     } catch (error) {
       refusal = String(error)
     }
-    check('an unknown value refuses at assembly, naming the value and the vocabulary', refusal.includes('MERCURY_PROMPT_LAYERS=vesel') && refusal.includes('stock · floor · vessel · replace'), refusal)
+    check('an unknown value refuses at assembly, naming the value and the vocabulary', refusal.includes('MERCURY_PROMPT_LAYERS=vesel') && refusal.includes('stock · floor · vessel · replace · whole'), refusal)
     const layers = getFlagSpec('MERCURY_PROMPT_LAYERS')
     const file = getFlagSpec('MERCURY_PROMPT_REPLACE_FILE')
     check('MERCURY_PROMPT_LAYERS is a registered value row owned by the contract module', layers?.kind === 'value' && layers.consumer === 'src/prompt/mercuryContract.ts')

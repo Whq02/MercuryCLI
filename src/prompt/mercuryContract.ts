@@ -80,9 +80,9 @@ export function mercuryDoctrineEnabled(): boolean {
   return flagEnv('MERCURY_WRAPPER_APPEND') !== '0'
 }
 
-export type PromptLayerSet = 'stock' | 'floor' | 'vessel' | 'replace'
+export type PromptLayerSet = 'stock' | 'floor' | 'vessel' | 'replace' | 'whole'
 
-const PROMPT_LAYER_SETS: readonly PromptLayerSet[] = ['stock', 'floor', 'vessel', 'replace']
+const PROMPT_LAYER_SETS: readonly PromptLayerSet[] = ['stock', 'floor', 'vessel', 'replace', 'whole']
 
 export function promptLayerSet(): PromptLayerSet {
   const raw = flagEnv('MERCURY_PROMPT_LAYERS')
