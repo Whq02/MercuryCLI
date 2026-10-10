@@ -2,6 +2,7 @@
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { getCachedPowerShellPath } from '../../src/utils/shell/powershellDetection.ts'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 const root = mkdtempSync(join(tmpdir(), 'hook-command-runner-'))
@@ -126,7 +127,7 @@ const run = (over: Partial<Parameters<typeof startCommandHook>[0]> & { command: 
 {
   const process_ = await startCommandHook({ ...base, event: 'turn.start', command: 'echo hi', shell: 'powershell' })
   const end = await process_.result
-  const pwsh = process.platform === 'win32' || existsSync('/usr/local/bin/pwsh') || existsSync('/opt/homebrew/bin/pwsh')
+  const pwsh = (await getCachedPowerShellPath()) !== null
   check(pwsh ? 'a powershell hook runs under pwsh' : 'a powershell hook on a box without pwsh ends spawn with the one sentence naming the fix', pwsh ? end.kind === 'exited' : end.kind === 'ended' && end.ending.class === 'spawn' && String(end.ending.detail).includes('No PowerShell on PATH'), end.kind === 'ended' ? String(end.ending.detail) : end.kind)
 }
 
