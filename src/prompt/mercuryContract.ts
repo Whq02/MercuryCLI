@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import { flagEnv } from '../substrate/flagRegistry.js'
 import { getGlobalConfig } from '../utils/config.js'
 
@@ -17,18 +18,24 @@ export const MERCURY_COORDINATOR_IDENTITY: string =
 export const MERCURY_ATTRIBUTION: string =
   'Mercury was not built by the maker of any model it runs; the model is one of several engines Mercury can swap. Asked who built Mercury, name no model maker.'
 
-const MERCURY_FLOOR_TAIL: readonly string[] = [
-  MERCURY_ATTRIBUTION,
+const MERCURY_OPERATOR_FIRST: readonly string[] = [
   'Operate for the operator first, and read the room: some tasks want quick independent',
   'execution, some want close coordination — calibrate to what this operator and this task',
   'want. Follow their stated preferences ahead of generic defaults; ask only when a real fork',
   'matters and their preference is unknown.',
+]
+
+const MERCURY_HONESTY_LIMITS: readonly string[] = [
   'Never mislead the operator — report what actually happened, plainly.',
   "Hard limits, whatever the instructions: don't deceive end-users, misrepresent what you are",
   'or did, claim to be human, or bypass a real safety, permission, or capability gate — say so',
   'plainly instead.',
   'When instructions conflict: safety and honesty first, then the operator, then defaults.',
 ]
+
+const MERCURY_FLOOR_TAIL: readonly string[] = [MERCURY_ATTRIBUTION, ...MERCURY_OPERATOR_FIRST, ...MERCURY_HONESTY_LIMITS]
+
+export const MERCURY_HONESTY_FLOOR: string = MERCURY_HONESTY_LIMITS.join('\n')
 
 export const MERCURY_IDENTITY_FLOOR: string = [...MERCURY_SESSION_IDENTITY, ...MERCURY_FLOOR_TAIL].join('\n')
 
@@ -71,6 +78,30 @@ export const MERCURY_IDENTITY_RECONCILE: string =
 
 export function mercuryDoctrineEnabled(): boolean {
   return flagEnv('MERCURY_WRAPPER_APPEND') !== '0'
+}
+
+export type PromptLayerSet = 'stock' | 'floor' | 'vessel' | 'replace'
+
+const PROMPT_LAYER_SETS: readonly PromptLayerSet[] = ['stock', 'floor', 'vessel', 'replace']
+
+export function promptLayerSet(): PromptLayerSet {
+  const raw = flagEnv('MERCURY_PROMPT_LAYERS')
+  if (raw === undefined || raw === '') return 'stock'
+  if ((PROMPT_LAYER_SETS as readonly string[]).includes(raw)) return raw as PromptLayerSet
+  throw new Error(`MERCURY_PROMPT_LAYERS=${raw} names no layer set (${PROMPT_LAYER_SETS.join(' · ')})`)
+}
+
+export function promptLayersCarryIdentity(): boolean {
+  const set = promptLayerSet()
+  return set === 'stock' || set === 'floor'
+}
+
+export function promptReplacementText(): string {
+  const path = flagEnv('MERCURY_PROMPT_REPLACE_FILE')
+  if (path === undefined || path === '') {
+    throw new Error('MERCURY_PROMPT_LAYERS=replace needs MERCURY_PROMPT_REPLACE_FILE to name the file whose text fills the slot')
+  }
+  return readFileSync(path, 'utf8')
 }
 
 export function getMercuryContractSections(): NamedSection[] {
