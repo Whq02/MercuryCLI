@@ -342,9 +342,10 @@ export async function getSystemPrompt(
 ): Promise<string[]> {
   const layers = promptLayerSet()
   if (isEnvTruthy(process.env.MERCURY_BARE) || layers !== 'stock') {
-    const simpleHead = `Mercury — a private terminal software-development harness.\nWorking directory: ${getOriginalCwd()}\nSession date: ${getSessionStartDate()}`
-    if (layers === 'vessel') return [`${simpleHead}\n\n${MERCURY_HONESTY_FLOOR}`]
-    if (layers === 'replace') return [simpleHead, promptReplacementText(), MERCURY_HONESTY_FLOOR]
+    const namelessHead = `Working directory: ${getOriginalCwd()}\nSession date: ${getSessionStartDate()}`
+    if (layers === 'vessel') return [`${namelessHead}\n\n${MERCURY_HONESTY_FLOOR}`]
+    if (layers === 'replace') return [namelessHead, promptReplacementText(), MERCURY_HONESTY_FLOOR]
+    const simpleHead = `Mercury — a private terminal software-development harness.\n${namelessHead}`
     return [`${simpleHead}\n\n${MERCURY_IDENTITY_FLOOR}`]
   }
 
