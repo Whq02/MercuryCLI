@@ -168,7 +168,7 @@ try {
     const lifted = entered.filter(g => /\b\d+s\b/.test(text(g)) && /esc|interrupt|thinking|✻|✶|responding/i.test(text(g)))
     check('§2 THE ONE THINKING LIFT is up while the followed runner works', lifted.length > 0, `lifted frames: ${lifted.map(g => g.atMs).join(',') || 'none'}`)
     const recDuring = Object.values(sup.readSessionWorkers(daemonDir)).find(r => r.sessionId === sessionId)
-    const { concourseRecordState } = await import('../../src/services/concourse/concourseSnapshot.ts')
+    const { concourseRecordState } = await import('../../src/daemon/concourseWorkers.ts')
     const stateDuring = recDuring ? concourseRecordState(recDuring, { needsYou: false, alive: true }) : 'missing'
     check("§3 the record never reads PAUSED while the operator watches (enter valve ≠ pause)", stateDuring !== 'paused', `state=${stateDuring} attachRequestedAt=${recDuring?.attachRequestedAt} pausedAt=${recDuring?.pausedAt}`)
     const hostHome = paths.getProjectDir(run.paths.cwd)

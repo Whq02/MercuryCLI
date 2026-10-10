@@ -33,6 +33,7 @@ type StandInRunner = ReturnType<typeof standInRunner>
 type RunnerDoor = import('../../src/daemon/runnerConnection.ts').RunnerDoor
 const idle = await import('../../src/daemon/idleRetirement.ts')
 const snapshot = await import('../../src/services/concourse/concourseSnapshot.ts')
+const workers = await import('../../src/daemon/concourseWorkers.ts')
 const { workerTranscriptPath } = await import('../../src/services/concourse/workerTranscript.ts')
 const { encodeSeedTranscript } = await import('../lib/seedTranscript.ts')
 const { getCwd } = await import('../../src/utils/cwd.ts')
@@ -87,7 +88,7 @@ console.log('L1 the state ladder — the truth table')
       lastDeliveryAt: now - 1000,
       ...(r.settled ? { lastTurnSettledAt: now } : {}),
     }
-    const state = snapshot.concourseRecordState(record, { needsYou: r.needsYou, alive: r.alive })
+    const state = workers.concourseRecordState(record, { needsYou: r.needsYou, alive: r.alive })
     if (typeof state === 'string') oneState++
     if (r.parked && !r.attached) {
       if (state === 'parked') parkedRight++
@@ -99,8 +100,8 @@ console.log('L1 the state ladder — the truth table')
   check(`every one of the ${rows.length} rows yields exactly one state`, oneState === rows.length)
   check(`every parked row (${parkedRows}) reads 'parked' — whatever its pid, crash fact, stop, pause or turn stamps say`, parkedRight === parkedRows, poisons.slice(0, 3).join(' | '))
   check(`every unparked row (${rows.length - parkedRows}) reads what the pre-lane ladder read (the arm changed nothing else)`, unparkedUnchanged === rows.length - parkedRows, poisons.slice(0, 3).join(' | '))
-  check("POISON: no parked record ever paints NEEDS YOU or a live state", !rows.some(r => r.parked && !r.attached && ['needs-you', 'working', 'ready-to-review', 'starting'].includes(snapshot.concourseRecordState({ parkedAt: now, ...(r.crash ? { crash: { at: now, reason: 'x', respawning: false } } : {}) }, { needsYou: r.needsYou, alive: r.alive }))))
-  check("attached outranks parked (the one-terminal swap is the operator's own terminal)", snapshot.concourseRecordState({ attachedAt: now, parkedAt: now }, { needsYou: false, alive: false }) === 'attached')
+  check("POISON: no parked record ever paints NEEDS YOU or a live state", !rows.some(r => r.parked && !r.attached && ['needs-you', 'working', 'ready-to-review', 'starting'].includes(workers.concourseRecordState({ parkedAt: now, ...(r.crash ? { crash: { at: now, reason: 'x', respawning: false } } : {}) }, { needsYou: r.needsYou, alive: r.alive }))))
+  check("attached outranks parked (the one-terminal swap is the operator's own terminal)", workers.concourseRecordState({ attachedAt: now, parkedAt: now }, { needsYou: false, alive: false }) === 'attached')
 }
 
 console.log('L2 the park verb')

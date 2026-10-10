@@ -57,7 +57,7 @@ export function elsewhereLine(p: ConcourseElsewhereV1): string {
 export async function runningByProjectKey(recordsDir?: string): Promise<Map<string, number>> {
   const out = new Map<string, number>()
   try {
-    const { concourseRecordState } = await import('./concourseSnapshot.js')
+    const { concourseRecordState } = await import('../../daemon/concourseWorkers.js')
     for (const rec of listConcourseWorkers(null, recordsDir)) {
       const alive = rec.pid !== undefined && isProcessAlive(rec.pid)
       const state = concourseRecordState(rec, { needsYou: rec.crash !== undefined, alive })

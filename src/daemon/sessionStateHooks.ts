@@ -1,8 +1,7 @@
-import { concourseRecordState } from '../services/concourse/concourseSnapshot.js'
 import { SESSION_BOARD_STATES, SESSION_STATE_HOOK_STATES } from '../utils/hooks/contract.js'
 import { fireHooks } from '../utils/hooks/fire.js'
 import { logForDebugging } from '../utils/debug.js'
-import type { ConcourseWorkerRecordV1 } from './concourseWorkers.js'
+import { concourseRecordState, type ConcourseWorkerRecordV1 } from './concourseWorkers.js'
 import { isProcessAlive } from './ownerWatch.js'
 
 type BoardState = ReturnType<typeof concourseRecordState>
