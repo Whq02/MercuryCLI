@@ -199,7 +199,6 @@ const { reorderMessagesInUI } = await import('../../src/utils/messages/uiOrder.t
 const { applyGrouping } = await import('../../src/utils/groupToolUses.ts')
 const { injectTurnReceipts, isTurnBoundary } = await import('../../src/utils/cockpit/turnReceipt.ts')
 const { collapseReadSearchGroups } = await import('../../src/utils/collapseReadSearch.ts')
-const { collapseHookSummaries } = await import('../../src/utils/collapseHookSummaries.ts')
 const { collapseBackgroundBashNotifications } = await import('../../src/utils/collapseBackgroundBashNotifications.ts')
 const { renderableSearchText } = await import('../../src/utils/transcriptSearch.ts')
 const { shouldShowUserMessage, findLastCompactBoundaryIndex } = await import('../../src/utils/messages.ts')
@@ -339,7 +338,6 @@ function projectRenderables(transcript: AnyMsg[]): AnyMsg[] {
   let collapsed = applyGrouping(working as never, TOOLS as never, false).messages as AnyMsg[]
   collapsed = injectTurnReceipts(collapsed as never) as AnyMsg[]
   collapsed = collapseReadSearchGroups(collapsed as never, TOOLS as never) as AnyMsg[]
-  collapsed = collapseHookSummaries(collapsed as never) as AnyMsg[]
   collapsed = collapseBackgroundBashNotifications(collapsed as never, false) as AnyMsg[]
   return collapsed
 }
