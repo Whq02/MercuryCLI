@@ -10,7 +10,6 @@ import type {
 import type { Tools } from '../Tool.js'
 import type { Command } from '../commands.js'
 import type { MessageLookups } from '../utils/messages/lookups.js'
-import { declaredRouteOf } from '../services/providers/callModelRouter.js'
 import { AssistantRedactedThinkingMessage } from './messages/AssistantRedactedThinkingMessage.js'
 import { AssistantTextMessage } from './messages/AssistantTextMessage.js'
 import { AssistantThinkingMessage } from './messages/AssistantThinkingMessage.js'
@@ -226,15 +225,6 @@ function MessageInner({
               )
             }
             case "thinking": {
-              const servedModel =
-                typeof message.message.model === 'string' ? message.message.model : ''
-              if (
-                declaredRouteOf(servedModel) === 'openai' &&
-                !isTranscriptMode &&
-                !verbose
-              ) {
-                return null
-              }
               return (
                 <AssistantThinkingMessage
                   key={index}

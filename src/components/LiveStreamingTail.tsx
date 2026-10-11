@@ -9,18 +9,6 @@ import { StreamingMarkdown } from './Markdown.js'
 import { MercuryStreamingNameplate } from './messages/ChatLine.js'
 import { fluxMark } from '../utils/flux/fluxProbe.js'
 import { cockpitEngine } from '../render-engine/cockpit/engineMount.js'
-import { useAppState, type AppState } from '../state/AppState.js'
-import { declaredRouteOf } from '../services/providers/callModelRouter.js'
-import {
-  getFocusedSessionConnector,
-  subscribeThroughFocused,
-} from '../services/engine-connector/focusedConnector.js'
-import { ThinkingLabel } from './messages/thinkingGrammar.js'
-
-const subscribeFocusedTailModel = subscribeThroughFocused((connector, listener) =>
-  connector.subscribeModel(listener),
-)
-const getFocusedTailModel = (): string => getFocusedSessionConnector().modelFacts().effective
 
 export function openFenceOf(prefix: string): string | null {
   const open = foldFenceRange(prefix, 0, prefix.length, null)
@@ -135,7 +123,6 @@ export function LiveStreamingTail({
   )
   const published = useSyncExternalStore(subscribe, textSuppressed ? readPhase : store.getSnapshot)
   const { rows, columns } = useTerminalSize()
-  const turnActive = useAppState((s: AppState) => s.foregroundTurnActive)
   const settled = !textSuppressed && published === null ? store.readSettled() : null
   const settledSince = settled !== null ? store.readSettledSinceMs() : null
   const [lingerExpired, setLingerExpired] = useState(false)
@@ -166,22 +153,7 @@ export function LiveStreamingTail({
     bounded.truncated && bounded.openFence && bounded.text
       ? `${bounded.openFence}\n${bounded.text}`
       : bounded.text
-  const liveModel = useSyncExternalStore(
-    subscribeFocusedTailModel,
-    getFocusedTailModel,
-    getFocusedTailModel,
-  )
-  if (!text) {
-    const quiet = !textSuppressed || published === null
-    if (turnActive && quiet && declaredRouteOf(liveModel) === 'openai') {
-      return (
-        <Box marginTop={1} width="100%">
-          <ThinkingLabel />
-        </Box>
-      )
-    }
-    return null
-  }
+  if (!text) return null
   return (
     <Box marginTop={1} width="100%" flexDirection="column">
       {bounded.truncated ? (
