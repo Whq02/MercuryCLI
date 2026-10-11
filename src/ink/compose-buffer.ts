@@ -399,14 +399,14 @@ export default class ComposeBuffer {
 }
 
 
-function stylesEqual(a: AnsiCode[], b: AnsiCode[]): boolean {
-  if (a === b) return true
-  if (a.length !== b.length) return false
-  for (let i = 0; i < a.length; i++) {
-    if (a[i]!.code !== b[i]!.code) return false
-  }
-  return true
+function firstCodeMismatch(a: AnsiCode[], b: AnsiCode[]): number {
+  let at = 0
+  while (at < a.length && a[at]!.code === b[at]!.code) at++
+  return at < a.length ? at : -1
 }
+
+const stylesEqual = (a: AnsiCode[], b: AnsiCode[]): boolean =>
+  a === b || (a.length === b.length && firstCodeMismatch(a, b) < 0)
 
 function clusterStyledLine(line: string, pool: StylePool): ClusteredChar[] {
   const chars: StyledChar[] = styledCharsFromTokens(tokenize(line))
