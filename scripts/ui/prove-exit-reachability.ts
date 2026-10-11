@@ -273,6 +273,7 @@ section('§4 raw-input census — every useInput surface decodes an exit and pri
     'src/components/concourse/SessionMirror.tsx': 'a Concourse pane — ConcourseScreen owns esc for the whole board',
     'src/components/Settings/Usage.tsx': 'the usage popup body (its keys scroll the window) — the settings shell owns esc and the click outside',
     'src/components/PopupForm.tsx': 'the popup body frame (its keys page the window) — the settings shell owns esc and the click outside',
+    'src/components/ExitHandoff.tsx': 'the exit handoff notice — the session is already leaving; its one key, ctrl-c, skips the wait for the note; there is no surface to exit',
   }
   const HINT_ROSTER: Record<string, { reason: string; witness?: string }> = {
     'src/components/BaseTextInput.tsx': { reason: 'a primitive; the host prints the hint' },
@@ -287,6 +288,7 @@ section('§4 raw-input census — every useInput surface decodes an exit and pri
     'src/components/mercury-ui/useFlatList.ts': { reason: 'a list engine; its host prints the composed hints' },
     'src/components/mercury-ui/useInteractiveList.ts': { reason: 'a list engine; its host prints the composed hints' },
     'src/components/mercury-ui/useNavigablePanes.ts': { reason: 'the panes engine; NavigablePanes prints the footer', witness: 'src/components/mercury-ui/NavigablePanes.tsx' },
+    'src/components/ExitHandoff.tsx': { reason: 'prints the one notice it has — "writing the handoff for the next session… (ctrl-c skips)" — through the constant the mneme module owns; ctrl-c is not a spelling the needles know' },
   }
 
   const routeMissing: string[] = []
