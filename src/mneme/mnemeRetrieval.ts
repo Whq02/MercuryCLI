@@ -6,7 +6,7 @@ import { join } from 'node:path'
 import { pendingRows, recentObservations } from './mnemeBuffer.js'
 import { mnemeLibraryDir } from './mnemeGates.js'
 import { listArchiveDocs, listTopicDocs } from './mnemeLibrary.js'
-import { ARCHIVE_PREFIX, archiveFileName, computeDocTokens, docFileName } from './mnemeTopicDocs.js'
+import { ARCHIVE_PREFIX, archiveFileName, computeDocTokens, docFileName, parseEntryLine, type MnemeEntry } from './mnemeTopicDocs.js'
 
 export function pageFileForSlug(slug: string): string {
   return slug.startsWith(ARCHIVE_PREFIX) ? archiveFileName(slug.slice(ARCHIVE_PREFIX.length)) : docFileName(slug)
@@ -34,6 +34,7 @@ export interface MnemeGrepHit {
   slug: string
   line: number
   text: string
+  entry?: MnemeEntry
 }
 
 function grepText(slug: string, raw: string, pattern: string, maxHits: number, out: MnemeGrepHit[]): void {
@@ -45,7 +46,10 @@ function grepText(slug: string, raw: string, pattern: string, maxHits: number, o
   }
   const lines = raw.split('\n')
   for (let i = 0; i < lines.length && out.length < maxHits; i++) {
-    if (re.test(lines[i]!)) out.push({ slug, line: i + 1, text: lines[i]!.slice(0, 240) })
+    if (re.test(lines[i]!)) {
+      const entry = parseEntryLine(lines[i]!.trim())
+      out.push({ slug, line: i + 1, text: lines[i]!.slice(0, 240), ...(entry ? { entry } : {}) })
+    }
   }
 }
 
