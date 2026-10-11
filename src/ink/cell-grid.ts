@@ -430,6 +430,15 @@ function sanitizeDim(v: number, label: string): number {
   return v
 }
 
+function cellPlanes(size: number): Pick<Screen, 'cells' | 'cells64' | 'noSelect'> {
+  const buffer = new ArrayBuffer(size << 3)
+  return {
+    cells: new Int32Array(buffer),
+    cells64: new BigInt64Array(buffer),
+    noSelect: new Uint8Array(size),
+  }
+}
+
 export function createScreen(
   width: number,
   height: number,
@@ -439,18 +448,14 @@ export function createScreen(
 ): Screen {
   width = sanitizeDim(width, 'createScreen width')
   height = sanitizeDim(height, 'createScreen height')
-  const size = width * height
-  const buf = new ArrayBuffer(size << 3)
   return {
     width,
     height,
-    cells: new Int32Array(buf),
-    cells64: new BigInt64Array(buf),
+    ...cellPlanes(width * height),
     charPool,
     hyperlinkPool,
     emptyStyleId: styles.none,
     damage: undefined,
-    noSelect: new Uint8Array(size),
     softWrap: new Int32Array(height),
   }
 }
@@ -459,15 +464,8 @@ export function resetScreen(screen: Screen, width: number, height: number): void
   width = sanitizeDim(width, 'resetScreen width')
   height = sanitizeDim(height, 'resetScreen height')
   const size = width * height
-  if (screen.cells64.length < size) {
-    const buf = new ArrayBuffer(size << 3)
-    screen.cells = new Int32Array(buf)
-    screen.cells64 = new BigInt64Array(buf)
-    screen.noSelect = new Uint8Array(size)
-  }
-  if (screen.softWrap.length < height) {
-    screen.softWrap = new Int32Array(height)
-  }
+  if (screen.cells64.length < size) Object.assign(screen, cellPlanes(size))
+  if (screen.softWrap.length < height) screen.softWrap = new Int32Array(height)
   screen.cells64.fill(EMPTY_CELL_VALUE, 0, size)
   screen.noSelect.fill(0, 0, size)
   screen.softWrap.fill(0, 0, height)
