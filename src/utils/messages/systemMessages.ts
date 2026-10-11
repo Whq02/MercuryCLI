@@ -118,14 +118,15 @@ function transportDetail(error: unknown, message: string, name: unknown, deep: R
 
 export function apiErrorDetailOf(error: unknown): ErrorDetail {
   const value = error as { name?: unknown; message?: unknown; status?: unknown } | null
-  const words = typeof value?.message === 'string' && value.message ? value.message : String(error ?? 'unknown error')
+  const status = typeof value?.status === 'number' ? value.status : undefined
   const deep = deepestErrorDetail(error)
+  const words = typeof value?.message === 'string' && value.message ? value.message : String(error ?? 'unknown error')
   const transport = transportDetail(error, words, value?.name, deep)
   return {
     message: words,
     name: typeof value?.name === 'string' && value.name ? value.name : 'Error',
     ...optional(deep, ['code']),
-    ...optional({ transport, status: typeof value?.status === 'number' ? value.status : undefined }, ['status', 'transport']),
+    ...optional({ status, transport }, ['status', 'transport']),
   }
 }
 
