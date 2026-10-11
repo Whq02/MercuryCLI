@@ -106,7 +106,7 @@ console.log('============================================================')
 const { enableConfigs } = await import('../../src/utils/config.ts')
 enableConfigs()
 const q = await import('../../src/services/providers/openai/qualificationStore.ts')
-const { MERCURY_IDENTITY_FLOOR } = await import('../../src/prompt/mercuryContract.ts')
+const { MERCURY_CONSTITUTION } = await import('../../src/prompt/mercuryContract.ts')
 const { COORDINATOR_CONTRACT, COORDINATOR_CONTRACT_VERSION } = await import('../../src/services/concourse/coordinatorLane.ts')
 const { liveCoordinatorCallModel } = await import('../../src/services/concourse/coordinatorCall.ts')
 const { coordinatorToolSet } = await import('../../src/services/concourse/coordinatorTools.ts')
@@ -147,14 +147,14 @@ const proposal = await liveCoordinatorCallModel(
   check('the wire carries the exact model id', body.model === MODEL, String(body.model))
   check("the reply is the fixture's text", proposal.reply === 'ok', JSON.stringify(proposal))
   const instructions = typeof body.instructions === 'string' ? body.instructions : ''
-  const floorAt = instructions.indexOf('You are the Mercury coordinator')
-  const attributionAt = instructions.indexOf('Mercury was not built by the maker of any model it runs')
+  const floorAt = instructions.indexOf(MERCURY_CONSTITUTION)
+  const seatAt = instructions.indexOf('This seat is the Mercury coordinator')
   const personaAt = instructions.indexOf('Your seat is the Mercury switchboard')
-  check('the coordinator floor rides the wire (the seat’s own identity statement)', floorAt >= 0, instructions.slice(0, 160))
-  check('the attribution line rides the wire behind it', attributionAt > floorAt, `${floorAt} vs ${attributionAt}`)
+  check('the constitution rides the wire, opening the seat’s prompt', floorAt === 0, instructions.slice(0, 160))
+  check('the seat fact rides the wire behind it', seatAt > floorAt, `${floorAt} vs ${seatAt}`)
   check('the persona rides the wire', personaAt >= 0, instructions.slice(0, 160))
-  check('the floor LEADS the persona (the composition stays intact)', floorAt >= 0 && personaAt > floorAt, `${floorAt} vs ${personaAt}`)
-  check('exactly ONE identity statement on the wire (no session statement beside the seat’s)', (instructions.match(/^You are /gm) ?? []).length === 1 && !instructions.includes('You are **Mercury**'))
+  check('the constitution LEADS the persona (the composition stays intact)', floorAt >= 0 && personaAt > seatAt, `${floorAt} vs ${personaAt}`)
+  check('exactly ONE identity statement on the wire (the constitution’s; the seat fact states no second one)', (instructions.match(/^You are /gm) ?? []).length === 1 && instructions.startsWith('You are Mercury, the self that exists in this harness.'))
   const declared = coordinatorToolSet().map(d => d.name)
   const wired = Array.isArray(body.tools) ? (body.tools as Array<{ name?: string }>).map(t => t.name) : []
   check('every declared coordinator tool rides the wire', declared.length > 0 && declared.every(n => wired.includes(n)), `${declared.length} declared / ${wired.length} wired`)
@@ -191,7 +191,7 @@ section("§4 — the contrast: a side question on the same model mints 'primary'
   const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
   const stream = routedCallModel({
     messages: [createUserMessage({ content: 'say ok' })],
-    systemPrompt: asSystemPrompt([MERCURY_IDENTITY_FLOOR]),
+    systemPrompt: asSystemPrompt([MERCURY_CONSTITUTION]),
     thinkingConfig: { type: 'disabled' },
     tools: [] as never,
     signal: AbortSignal.timeout(30_000),

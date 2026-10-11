@@ -82,42 +82,43 @@ setCwdState(scratch)
 
 const LOCAL_MODEL = `local/${MODEL_ID}`
 const CLOUD_MODEL = 'claude-fable-5-1'
-const TOOLS_HEADING = '# Using your tools'
-const TONE_HEADING = '# Tone and style'
+const ENV_HEADING = '# Environment'
 const MEMORY_WORDS = 'What Mercury remembers about this project lives in topic pages under'
 const ENV_LINE = `Primary working directory: ${scratch}`
-const LINE = `Files you create go in the working directory: ${scratch}. The memory folder named below is not it.`
+const LINE = `Files you create go in the working directory: ${scratch}. The memory folder named above is not it.`
 const tool = (name: string): { name: string } => ({ name })
 const pool = ['Read', 'Edit', 'Write', 'Glob', 'Grep', 'Bash', 'Agent', 'Skill', 'AskUserQuestion'].map(tool)
 const build = async (model: string): Promise<string> => (await getSystemPrompt(pool as never, model)).join('\n\n')
-const toolsBlock = (prompt: string): string => {
-  const start = prompt.indexOf(TOOLS_HEADING)
-  const end = prompt.indexOf(TONE_HEADING)
-  return start === -1 || end === -1 ? '' : prompt.slice(start, end).trimEnd()
+const envBlock = (prompt: string): string => {
+  const start = prompt.indexOf(ENV_HEADING)
+  if (start === -1) return ''
+  const end = prompt.indexOf('\n\n', start)
+  return end === -1 ? prompt.slice(start) : prompt.slice(start, end)
 }
 
 try {
   section('0 · the lane: the fixture model is a discovered local record')
   check('local record present', localRecordFor(LOCAL_MODEL) !== undefined)
 
-  section('1 · a first build for a local record: the tools section opens with the working-directory line; the memory folder is named below it')
+  section('1 · a first build for a local record: the environment section carries the working-directory line, right after the primary working directory; the memory folder is named above it')
   clearSystemPromptSections()
   const local = await build(LOCAL_MODEL)
-  const block = toolsBlock(local)
-  check('the tools section renders', block.startsWith(TOOLS_HEADING), block.slice(0, 80))
-  const firstLine = block.split('\n').map(l => l.trim()).filter(l => l !== '')[1] ?? ''
-  check('its first line after the heading is the working-directory line', firstLine === LINE, j(firstLine))
-  check('the line names the same cwd the environment section states', local.includes(ENV_LINE) && local.indexOf(LINE) !== -1)
-  check('the memory section (the memory home) is named BELOW the line', local.includes(MEMORY_WORDS) && local.indexOf(LINE) !== -1 && local.indexOf(MEMORY_WORDS) > local.indexOf(LINE), `memory at ${local.indexOf(MEMORY_WORDS)}, line at ${local.indexOf(LINE)}`)
-  check('the section cache keys the tools section on the local model', getSystemPromptSectionCache().get('using_tools')?.key === LOCAL_MODEL, j(getSystemPromptSectionCache().get('using_tools')?.key))
+  const block = envBlock(local)
+  check('the environment section renders', block.startsWith(ENV_HEADING), block.slice(0, 80))
+  const lines = block.split('\n').map(l => l.trim()).filter(l => l !== '')
+  check('the working-directory line follows the primary working directory', lines[1] === `- ${ENV_LINE}` && lines[2] === `- ${LINE}`, j(lines.slice(0, 3)))
+  check('the memory section (the memory home) is named ABOVE the line', local.includes(MEMORY_WORDS) && local.indexOf(LINE) !== -1 && local.indexOf(MEMORY_WORDS) < local.indexOf(LINE), `memory at ${local.indexOf(MEMORY_WORDS)}, line at ${local.indexOf(LINE)}`)
+  check('the section cache keys the environment section on the local model', getSystemPromptSectionCache().get('env_info_simple')?.key === LOCAL_MODEL, j(getSystemPromptSectionCache().get('env_info_simple')?.key))
 
-  section('2 · a cloud model: no such line, the section bytes are the local section minus the line, the cache key stays null (the resume record\'s shape)')
+  section('2 · a cloud model: no such line, the section bytes are the local section minus the line, the key is the cloud model')
   clearSystemPromptSections()
   const cloud = await build(CLOUD_MODEL)
-  const cloudBlock = toolsBlock(cloud)
-  check('the cloud tools section carries no working-directory line', !cloud.includes('Files you create go in the working directory'), cloudBlock.slice(0, 200))
-  check('nothing removed: the local section is the cloud section plus the one line', block.split('\n').filter(l => l.trim() !== LINE).join('\n').replace(/\n{3,}/g, '\n\n') === cloudBlock, j({ local: block.slice(0, 160), cloud: cloudBlock.slice(0, 160) }))
-  check('the cloud key is null (as first recorded)', getSystemPromptSectionCache().get('using_tools')?.key === null, j(getSystemPromptSectionCache().get('using_tools')?.key))
+  const cloudBlock = envBlock(cloud)
+  check('the cloud environment section carries no working-directory line', !cloud.includes('Files you create go in the working directory'), cloudBlock.slice(0, 200))
+  const localWithoutLine = block.split('\n').filter(l => l.trim() !== `- ${LINE}`).join('\n')
+  const cloudWithoutEngine = (text: string): string => text.split('\n').filter(l => !l.includes('In this seat the model you run through Mercury is') && !l.startsWith(' - Knowledge cutoff')).join('\n')
+  check('nothing removed: the local section is the cloud section plus the one line (the engine and cutoff lines aside, which name each model)', cloudWithoutEngine(localWithoutLine) === cloudWithoutEngine(cloudBlock), j({ local: localWithoutLine.slice(0, 160), cloud: cloudBlock.slice(0, 160) }))
+  check('the cloud key is the cloud model', getSystemPromptSectionCache().get('env_info_simple')?.key === CLOUD_MODEL, j(getSystemPromptSectionCache().get('env_info_simple')?.key))
   check('a second cloud build in the same process is byte-identical (the frozen conversation)', (await build(CLOUD_MODEL)) === cloud)
 
   section('3 · a /model switch mid-conversation: cloud → local adds the line, local → cloud drops it')
@@ -125,9 +126,9 @@ try {
   const first = await build(CLOUD_MODEL)
   check('the conversation starts on the cloud model without the line', !first.includes(LINE))
   const switched = await build(LOCAL_MODEL)
-  check('after the switch the tools section opens with the line (recomputed at the model switch, not frozen)', toolsBlock(switched).includes(LINE), toolsBlock(switched).slice(0, 200))
+  check('after the switch the environment section carries the line (recomputed at the model switch, not frozen)', envBlock(switched).includes(LINE), envBlock(switched).slice(0, 200))
   const back = await build(CLOUD_MODEL)
-  check('switching back drops the line again', !back.includes(LINE) && toolsBlock(back) === toolsBlock(first))
+  check('switching back drops the line again', !back.includes(LINE) && envBlock(back) === envBlock(first))
 } finally {
   clearSystemPromptSections()
   process.chdir(cwd)

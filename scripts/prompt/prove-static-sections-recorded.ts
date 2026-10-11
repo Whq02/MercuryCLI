@@ -54,11 +54,11 @@ setOriginalCwd(scratch)
 setCwdState(scratch)
 
 const MODEL = 'claude-fable-5-1'
-const USING_TOOLS = '# Using your tools'
-const ESTATE = '# The project instruction estate'
-const TONE = '# Tone and style'
-const BULLET = 'Break down and manage work with the'
-const ESTATE_TOOL_WORDS = `with the ${RECORD_CONVENTION_TOOL_NAME} tool`
+const ESTATE = '# The project estate'
+const MEMORY = '# Memory'
+const RUNS = '# Autonomous runs'
+const BULLET = 'For multi-deliverable work, create and update task items as you go'
+const ESTATE_TOOL_WORDS = `the ${RECORD_CONVENTION_TOOL_NAME} tool writes it there`
 const tool = (name: string): { name: string } => ({ name })
 const firstPool = ['Read', 'Edit', 'Write', 'Glob', 'Grep', 'Bash', 'Agent', 'Skill', 'AskUserQuestion', RECORD_CONVENTION_TOOL_NAME, RETAIN_TOOL_NAME].map(tool)
 const taskTools = [TASK_CREATE_TOOL_NAME, 'TaskGet', 'TaskList', 'TaskUpdate'].map(tool)
@@ -80,10 +80,9 @@ try {
   section('§1 the first process — a pool without the task tools builds, plans and writes the first exchange record')
   freshProcess()
   const first = await build(firstPool)
-  check('the control: the first build names no work-breakdown bullet (no task tool in the pool) and names the convention tool in the estate section', !first.includes(BULLET) && first.includes(USING_TOOLS) && first.includes(ESTATE_TOOL_WORDS))
+  check('the control: the first build names no task-items bullet (no task tool in the pool) and names the convention tool in the estate section', !first.includes(BULLET) && first.includes(RUNS) && first.includes(ESTATE_TOOL_WORDS))
   const snapshot = readFileSync(join(ROOT, 'scripts/agent-experience/baselines/mechanical/prompts/anthropic.system.txt'), 'utf8')
-  check('a first build renders the "Using your tools" section line for line as the recorded first request (no first-build change)', blockOf(first, USING_TOOLS, TONE) !== '' && blockOf(first, USING_TOOLS, TONE) === blockOf(snapshot, USING_TOOLS, TONE), firstDifference(blockOf(first, USING_TOOLS, TONE), blockOf(snapshot, USING_TOOLS, TONE)))
-  check('a first build renders the instruction-estate section line for line as the recorded first request (no first-build change)', blockOf(first, ESTATE, USING_TOOLS) !== '' && blockOf(first, ESTATE, USING_TOOLS) === blockOf(snapshot, ESTATE, USING_TOOLS), firstDifference(blockOf(first, ESTATE, USING_TOOLS), blockOf(snapshot, ESTATE, USING_TOOLS)))
+  check('a first build renders the estate section line for line as the recorded first request (no first-build change)', blockOf(first, ESTATE, MEMORY) !== '' && blockOf(first, ESTATE, MEMORY) === blockOf(snapshot, ESTATE, MEMORY), firstDifference(blockOf(first, ESTATE, MEMORY), blockOf(snapshot, ESTATE, MEMORY)))
   check('a second build in the same process is byte-identical (the frozen conversation)', (await build(firstPool)) === first)
   await planToolPayload({ model: MODEL, tools: firstPool as never, messages: messages as never, getToolPermissionContext: async () => getEmptyToolPermissionContext(), agents: [], source: 'prove', latchKey: owner })
   const row = await boundPrefixRecordToEmit(owner, messages as never, MODEL)
@@ -92,14 +91,14 @@ try {
   const sections = persisted.attachment.sections
   const named = (name: string): SectionRow | undefined => sections.find(s => s.name === name)
   check('every recorded section keeps the record\'s row shape (name, key, value)', sections.length > 0 && sections.every(s => typeof s.name === 'string' && 'key' in s && 'value' in s), j(sections.map(s => s.name)))
-  check('RED ON A TREE THAT RENDERS THE TOOL-NAMING SECTIONS LIVE: the record carries the "Using your tools" section and the instruction-estate section beside the dynamic ones', named('using_tools')?.value?.startsWith(USING_TOOLS) === true && named('instruction_estate')?.value?.startsWith(ESTATE) === true, `recorded sections: ${sections.map(s => s.name).join(', ')}`)
+  check('RED ON A TREE THAT RENDERS THE TOOL-NAMING SECTIONS LIVE: the record carries the estate section and the run protocol beside the other cached sections', named('project_estate')?.value?.startsWith(ESTATE) === true && named('run_protocol')?.value?.startsWith(RUNS) === true, `recorded sections: ${sections.map(s => s.name).join(', ')}`)
 
   section('§2 a new process — the task tools joined the pool; the resumed build must re-send the bytes first sent')
   freshProcess()
   check('a new process starts with an empty section cache', getSystemPromptSectionCache().size === 0)
   restoreBoundPrefixFromMessages([persisted as never])
   const resumed = await build(grownPool)
-  check('RED ON A TREE THAT RENDERS THE TOOL-NAMING SECTIONS LIVE: the resumed build is byte-identical to the first although the task tools joined the pool — no work-breakdown bullet appears', resumed === first && !resumed.includes(BULLET), firstDifference(first, resumed))
+  check('RED ON A TREE THAT RENDERS THE TOOL-NAMING SECTIONS LIVE: the resumed build is byte-identical to the first although the task tools joined the pool — no task-items bullet appears', resumed === first && !resumed.includes(BULLET), firstDifference(first, resumed))
 
   section('§3 a new process — the convention tool left the pool; the estate section still names it as first sent')
   freshProcess()
@@ -110,7 +109,7 @@ try {
   section('§4 the controls — the pool\'s truth returns at the lawful boundary and on a first build')
   clearSystemPromptSections()
   const cleared = await build(grownPool)
-  check('after a lawful clear (the /clear and /compact boundary) the work-breakdown bullet appears: the pool\'s truth after the boundary', cleared !== first && cleared.includes(BULLET) && blockOf(cleared, USING_TOOLS, TONE).endsWith('do not batch completions.'))
+  check('after a lawful clear (the /clear and /compact boundary) the task-items bullet appears: the pool\'s truth after the boundary', cleared !== first && cleared.includes(BULLET) && cleared.slice(cleared.indexOf(RUNS)).includes('instead of narrating future action.'))
   freshProcess()
   const grownFirst = await build(grownPool)
   check('a first build with the task tools in the pool carries the bullet (the record freezes nothing on a first build)', grownFirst.includes(BULLET) && grownFirst === cleared)

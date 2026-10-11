@@ -26,23 +26,22 @@ delete process.env.MERCURY_WORKFLOW_ROUTING
 const appearance = await import('../../src/utils/profile/appearanceSnapshot.js')
 const composer = await import('../../src/prompt/composer.js')
 
-section('§5 — composition order: identity → operator/dynamic → mode → tail')
+section('§5 — composition order: identity → operator/dynamic → wrapper → mode')
 {
   const composed = composer.composeSystemPrompt({
     staticSections: ['IDENTITY', null, 'TONE'],
     dynamicBoundary: [],
     dynamicSpecs: [{ name: 'memory', cacheBreak: false }],
     dynamicResolved: ['OPERATOR-CONTEXT'],
-    wrapperSections: [{ name: 'mercury-doctrine', text: 'WRAPPER-DOCTRINE' }],
+    wrapperSections: [{ name: 'response-profile', text: 'WRAPPER-PROFILE' }],
     modeSections: [{ name: 'mode-apollo', text: 'MODE-PACK' }],
     antiSycSections: [],
-    reconcileTailSections: ['RECONCILE-TAIL'],
   })
-  const order = ['IDENTITY', 'TONE', 'OPERATOR-CONTEXT', 'WRAPPER-DOCTRINE', 'MODE-PACK', 'RECONCILE-TAIL']
+  const order = ['IDENTITY', 'TONE', 'OPERATOR-CONTEXT', 'WRAPPER-PROFILE', 'MODE-PACK']
   check('nulls filtered, order preserved', JSON.stringify(composed) === JSON.stringify(order))
   check('identity precedes the mode pack', composed.indexOf('IDENTITY') !== -1 && composed.indexOf('IDENTITY') < composed.indexOf('MODE-PACK'))
   check('operator context precedes the mode pack', composed.indexOf('OPERATOR-CONTEXT') !== -1 && composed.indexOf('OPERATOR-CONTEXT') < composed.indexOf('MODE-PACK'))
-  check('reconcile tail is the LAST word', composed.at(-1) === 'RECONCILE-TAIL')
+  check('the mode pack is the LAST word (no tail follows a mode pack)', composed.at(-1) === 'MODE-PACK')
 
   const engine = readFileSync(join(ROOT, 'src/rows/turn.ts'), 'utf8')
   const captures = engine.match(/fetchSystemPromptParts\(/g) ?? []

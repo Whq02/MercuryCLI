@@ -1,4 +1,4 @@
-import { MERCURY_IDENTITY_FLOOR } from '../prompt/mercuryContract.js'
+import { MERCURY_CONSTITUTION } from '../prompt/mercuryContract.js'
 import type { ToolUseContext } from '../Tool.js'
 import type { AgentDefinition } from '../tools/AgentTool/loadAgentsDir.js'
 import { isBuiltInAgent } from '../tools/AgentTool/loadAgentsDir.js'
@@ -36,9 +36,9 @@ export function buildEffectiveSystemPrompt({
 
   const parts: string[] = []
   if (agentPrompt !== undefined && agentPrompt !== '') {
-    parts.push(MERCURY_IDENTITY_FLOOR, agentPrompt)
+    parts.push(MERCURY_CONSTITUTION, agentPrompt)
   } else if (customSystemPrompt !== undefined) {
-    parts.push(MERCURY_IDENTITY_FLOOR, customSystemPrompt)
+    parts.push(MERCURY_CONSTITUTION, customSystemPrompt)
   } else {
     parts.push(...defaultSystemPrompt)
   }

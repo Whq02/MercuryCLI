@@ -140,7 +140,6 @@ const composed = (opts: { intro?: string; sessionId?: string; tail?: string } = 
     wrapperSections: [],
     modeSections: [],
     antiSycSections: [],
-    reconcileTailSections: [],
   }),
   opts.tail ?? 'gitStatus: (clean)',
 ]

@@ -270,7 +270,7 @@ section('1 · the yield contract + the turn record')
   {
     const { composeSystemPrompt } = await import('../../src/prompt/composer.js')
     const composedBase = (intro: string): string[] =>
-      composeSystemPrompt({ staticSections: [intro], dynamicBoundary: [], dynamicSpecs: [], dynamicResolved: [], wrapperSections: [], modeSections: [], antiSycSections: [], reconcileTailSections: [] })
+      composeSystemPrompt({ staticSections: [intro], dynamicBoundary: [], dynamicSpecs: [], dynamicResolved: [], wrapperSections: [], modeSections: [], antiSycSections: [] })
     const keyOf = async (systemPrompt: string[]): Promise<string | undefined> => {
       patchWire()
       makeResponses = () => sseResponse(HAPPY_STREAM)
