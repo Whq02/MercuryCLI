@@ -6,6 +6,7 @@ import {
 import { type TextBlockParam } from '@anthropic-ai/sdk/resources/index.mjs'
 import { type Stream } from '@anthropic-ai/sdk/streaming.mjs'
 import { logForDebugging } from 'src/utils/debug.js'
+import { isWholeRecordedComposition } from '../../../prompt/recordedComposition.js'
 import {
   type AssistantMessage,
   type UserMessage,
@@ -276,6 +277,7 @@ export function assembleTurnSystemPrompt(
   attribution: string,
   systemPrompt: SystemPrompt,
 ): SystemPrompt {
+  if (isWholeRecordedComposition(systemPrompt)) return systemPrompt
   return asSystemPrompt([attribution, ...systemPrompt].filter(Boolean))
 }
 
