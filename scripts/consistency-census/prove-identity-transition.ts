@@ -32,16 +32,17 @@ function check(label: string, cond: boolean, detail = ''): void {
 }
 const lineOf = (blocks: string[]): string =>
   blocks.join('\n\n').match(/the model you run through Mercury is[^\n]*/)?.[0] ?? '(no identity line)'
+const namesModel = (blocks: string[]): boolean => blocks.join('\n\n').includes(MODEL_A) || blocks.join('\n\n').includes(MODEL_B)
 const cache = bootstrap.getSystemPromptSectionCache()
 
 const promptA = await getSystemPrompt([], MODEL_A)
-check('§A env line names the composed model', lineOf(promptA).includes(MODEL_A))
+check('§A no env line names an engine, and no block names the model id', lineOf(promptA) === '(no identity line)' && !namesModel(promptA))
 const entryA = cache.get('env_info_simple')
 check('§A env_info_simple entry keyed on the model', entryA?.key?.includes(MODEL_A) === true)
 
 const promptB = await getSystemPrompt([], MODEL_B)
 const lineB = lineOf(promptB)
-check('§B post-switch line follows the APPLIED model (UN-05)', lineB.includes(MODEL_B) && !lineB.includes(MODEL_A), lineB)
+check('§B post-switch: still no engine line and no model id (UN-05: the APPLIED model is a fact of the seat reference)', lineB === '(no identity line)' && !namesModel(promptB), lineB)
 const entryB = cache.get('env_info_simple')
 check('§B entry rekeyed to the applied model', entryB?.key?.includes(MODEL_B) === true)
 check('§B frc entry keyed on the applied model too', cache.get('frc')?.key === MODEL_B)
@@ -59,12 +60,12 @@ for (let i = 0; i < Math.max(promptA2.length, promptB2.length); i++) {
   if (promptA2[i] !== promptB2[i]) changed.push(i)
 }
 check('§E switch moves exactly one resolved block', changed.length === 1, `changed blocks: ${changed.length}`)
-check('§E the moved block is the identity line', changed.length === 1 && lineOf([promptA2[changed[0]!] ?? '']).includes(MODEL_A))
+check('§E the moved block is the environment section (its catalogue facts follow the model), naming no engine', changed.length === 1 && (promptA2[changed[0]!] ?? '').includes('# Environment') && lineOf([promptA2[changed[0]!] ?? '']) === '(no identity line)')
 
 const entryPreClear = cache.get('env_info_simple')
 clearSystemPromptSections()
 const promptA3 = await getSystemPrompt([], MODEL_A)
-check('§F cleared recompose mints a fresh entry', cache.get('env_info_simple') !== entryPreClear && lineOf(promptA3).includes(MODEL_A))
+check('§F cleared recompose mints a fresh entry', cache.get('env_info_simple') !== entryPreClear && lineOf(promptA3) === '(no identity line)')
 
 const { settleModelSelection, settlePendingAtBoundary } = await import(
   '../../src/utils/model/modelTransition.ts'

@@ -70,7 +70,8 @@ import type { UUID } from 'node:crypto'
 
 import type { FileState } from '../../utils/fileStateCache.js'
 import { MAX_LINES_TO_READ } from '../FileReadTool/prompt.js'
-import { FILE_EDIT_TOOL_NAME, FILE_UNEXPECTEDLY_MODIFIED_ERROR } from './constants.js'
+import { FILE_EDIT_TOOL_NAME } from './constants.js'
+import { modifiedSinceReadMessage, otherLiveSessionsClause, UNREAD_EXISTING_FILE_NOTE } from './otherSession.js'
 import { getEditToolDescription, localSpanRefusalMessage } from './prompt.js'
 import {
   inputSchema,
@@ -599,15 +600,20 @@ function readKnowledge(
     'Read ownership/coverage check failed: neither a recorded Read nor the current owner\'s ledger covers all addressed lines.',
   ].join(' ')
   const words = readKnowledgeWords(displayPath, read, addressed, named?.missing ?? 'the old_string was not found in the current content', carried, retry)
+  const neverRead = read.ranges.length === 0 && !read.earlier
+  const why = neverRead ? `${UNREAD_EXISTING_FILE_NOTE}; ` : read.earlier ? "it changed after the lines you read, which may be another session's work; " : ''
+  const others = why === '' ? '' : otherLiveSessionsClause()
   const lead = !full
-    ? `Read the file before editing it — the edit needs ${READ_NEED}.`
+    ? `Read the file before editing it — ${why}the edit needs ${READ_NEED}.${others}`
     : anchorFailed
       ? `expected_anchor does not match the file as it stands; the lines the edit touches are below with their current anchor and count as read: ${retry} The edit needs ${READ_NEED}.`
       : outsideBound
         ? `expected_anchor covers lines ${spellLineRanges([bound!])} only, not every line the edit touches; the lines the edit touches are below with their current anchor and count as read: ${retry} The edit needs ${READ_NEED}.`
       : read.earlier
-        ? `The file ${displayPath} changed after the lines you read; the lines the edit touches, as they stand now, are below and count as read: check them, then ${retry} The edit needs ${READ_NEED}.`
-        : `The lines the edit touches are below and count as read: ${retry} The edit needs ${READ_NEED}.`
+        ? `The file ${displayPath} changed after the lines you read — the change may be another session's work; the lines the edit touches, as they stand now, are below and count as read: check them, then ${retry} The edit needs ${READ_NEED}.${others}`
+        : neverRead
+          ? `The file ${displayPath} was not read in this session, so it may be another session's work; the lines the edit touches are below and count as read: check them, then ${retry} The edit needs ${READ_NEED}.${others}`
+          : `The lines the edit touches are below and count as read: ${retry} The edit needs ${READ_NEED}.`
   const law = `${lead} ${failed} ${words}`
   return { verdict: 'refused', message: carried === null ? law : `${law}\n\n${carried.text}` }
 }
@@ -986,7 +992,7 @@ export const FileEditTool = buildTool({
       return {
         result: false as const,
         behavior: 'ask' as const,
-        message: FILE_UNEXPECTEDLY_MODIFIED_ERROR,
+        message: modifiedSinceReadMessage(),
         errorCode: 7,
       }
     }
@@ -1142,7 +1148,7 @@ export const FileEditTool = buildTool({
       )
       if (!intact) {
         const knowledge = readKnowledge(context, expandedPath, input.file_path, freshContent, input.expected_anchor, touched, 'content', undefined, { generation: fileGeneration(expandedPath), record: false })
-        if (knowledge.verdict === 'refused') throw new Error(FILE_UNEXPECTEDLY_MODIFIED_ERROR)
+        if (knowledge.verdict === 'refused') throw new Error(modifiedSinceReadMessage())
         if (knowledge.verdict === 'carry') {
           recordCarry(ownerFromToolUseContext(context), expandedPath, knowledge.carry.generation, knowledge.carry.windows)
           sameCall = knowledge

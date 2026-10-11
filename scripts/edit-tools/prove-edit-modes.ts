@@ -183,7 +183,7 @@ section('K. read knowledge keyed to content')
   const body = 'const a = 1\nconst b = 2\nconst c = 3\n'
   writeFileSync(file, body)
   const none = await edit({ file_path: file, old_string: 'const b = 2', new_string: 'const b = 20' }, makeContext())
-  check('K1 no read, no anchor, no shown lines: refused, leading with what to do, in the content-keyed words', !none.ok && none.error.startsWith('The lines the edit touches are below and count as read: edit again without a Read.') && none.error.includes('expected_anchor'), none.ok ? '' : none.error)
+  check('K1 no read, no anchor, no shown lines: refused, naming another session\'s possible work and leading to what to do, in the content-keyed words', !none.ok && none.error.startsWith(`The file ${file} was not read in this session, so it may be another session's work; the lines the edit touches are below and count as read: check them, then edit again without a Read.`) && none.error.includes('expected_anchor'), none.ok ? '' : none.error)
   const anchored = await edit({ file_path: file, old_string: 'const b = 2', new_string: 'const b = 20', expected_anchor: mintFileAnchor(body) }, makeContext())
   check('K2 no read but a matching full anchor edits', anchored.ok && readFileSync(file, 'utf8').includes('const b = 20'), anchored.ok ? '' : anchored.error)
   const stale = await edit({ file_path: file, old_string: 'const c = 3', new_string: 'const c = 30', expected_anchor: mintFileAnchor(body) }, makeContext())

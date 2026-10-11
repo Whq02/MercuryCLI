@@ -138,22 +138,25 @@ section('§1 — the owner: one line, any family, the exact id verbatim')
   )
 }
 
-section('§2 — the main loop: the env block states the seat’s engine')
+section('§2 — the main loop: the env block names no engine (the seat reads mercury://seat for the model it runs on)')
 {
   const env = await prompts.computeSimpleEnvInfo('claude-opus-5')
-  check('the main-loop env block carries the engine line', env.includes(mercuryEngineIdentityLine('claude-opus-5')), env.slice(0, 200))
-  check('…and the id in it is the model the block was assembled with', idInPrompt(env) === 'claude-opus-5', String(idInPrompt(env)))
+  check('the main-loop env block carries no engine line', !env.includes('the model you run through Mercury is') && idInPrompt(env) === null, env.slice(0, 200))
+  check('…and names no model id at all', !env.includes('claude-opus-5'), env)
   const other = await prompts.computeSimpleEnvInfo('gpt-5.6-sol')
-  check('a different seat model re-assembles onto that id', idInPrompt(other) === 'gpt-5.6-sol', String(idInPrompt(other)))
+  check('a different seat model still names no id (the block is keyed on the model for its catalogue facts only)', idInPrompt(other) === null && !other.includes('gpt-5.6-sol'), other)
+  const { seatReferenceText } = await import('../../src/services/resources/adapters/seat.ts')
+  const reference = seatReferenceText({ model: 'claude-opus-5', effort: 'high', posture: 'interactive', engines: [] })
+  check('the seat reference is where the id lives, verbatim', reference.includes('claude-opus-5'), reference)
 }
 
-section('§3 — subagents: the child’s own model, not the parent’s')
+section('§3 — subagents: the child’s env block names no engine either')
 {
   const sections = await prompts.enhanceSystemPromptWithEnvDetails(['<task prompt>'], 'claude-sonnet-5')
   const whole = sections.join('\n\n')
-  check('the subagent env block carries the engine line', whole.includes(mercuryEngineIdentityLine('claude-sonnet-5')), whole.slice(-300))
-  check('…with the CHILD’s resolved id', idInPrompt(whole) === 'claude-sonnet-5', String(idInPrompt(whole)))
-  check('the task prompt still rides ahead of it', whole.indexOf('<task prompt>') !== -1 && whole.indexOf('<task prompt>') < whole.indexOf('the model you run through Mercury is'))
+  check('the subagent env block carries no engine line', !whole.includes('the model you run through Mercury is') && idInPrompt(whole) === null, whole.slice(-300))
+  check('…and names no model id', !whole.includes('claude-sonnet-5'), whole.slice(-300))
+  check('the task prompt still rides ahead of the env block', whole.indexOf('<task prompt>') !== -1 && whole.indexOf('<task prompt>') < whole.indexOf('The environment this session runs in'))
 }
 
 section('§4 — the coordinator, LIVE: prompt id === dispatch stamp')
@@ -202,7 +205,7 @@ section('§5 — workers: the spec boots on the model admission resolved')
   })
   check('the worker spec carries the admitted model id', spec.model === 'claude-opus-5', String(spec.model))
   const env = await prompts.computeSimpleEnvInfo(String(spec.model))
-  check('…so the worker’s own prompt states that id', idInPrompt(env) === 'claude-opus-5', String(idInPrompt(env)))
+  check('…and the worker’s own prompt states no id (its seat reference does)', idInPrompt(env) === null && !env.includes('claude-opus-5'), env)
 }
 
 server.close()

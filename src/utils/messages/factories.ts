@@ -307,12 +307,22 @@ export function createModelSwitchBreadcrumbs(
   resolvedDisplay: string,
 ): UserMessage[] {
   return [
-    createSyntheticUserCaveatMessage(),
-    createUserMessage({ content: formatCommandInputTags('model', modelArg) }),
+    { ...createSyntheticUserCaveatMessage(), isVirtual: true },
+    createUserMessage({ content: formatCommandInputTags('model', modelArg), isVirtual: true }),
     createUserMessage({
       content: `<${LOCAL_COMMAND_STDOUT_TAG}>Set model to ${resolvedDisplay}</${LOCAL_COMMAND_STDOUT_TAG}>`,
+      isVirtual: true,
     }),
   ]
+}
+
+export function engineSwitchNoticeText(modelId: string, resolvedDisplay: string, at: string): string {
+  const named = resolvedDisplay !== '' && resolvedDisplay !== modelId ? ` (${resolvedDisplay})` : ''
+  return `The engine running this seat changed at ${at}: it is now \`${modelId}\`${named}. The replies above this line were written by the engine before it.`
+}
+
+export function createEngineSwitchNotice(modelId: string, resolvedDisplay: string, at: string): UserMessage {
+  return createUserMessage({ content: engineSwitchNoticeText(modelId, resolvedDisplay, at), isMeta: true })
 }
 
 

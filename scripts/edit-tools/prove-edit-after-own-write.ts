@@ -98,7 +98,9 @@ const messageOf = (v: Verdict): string => (v.ok ? `(landed) ${v.text.slice(0, 20
 const contentOf = (p: string): string => readFileSync(p, 'utf8').replaceAll('\r\n', '\n')
 const owner = processMainOwner()
 const TWELVE_TIMES = 'The lines the edit touches are below and count as read: edit again without a Read.'
-const UNREAD_WRITE = 'Read the file before overwriting it — a prior read of the current content is required.'
+const unreadLead = (file: string): string => `The file ${file} was not read in this session, so it may be another session's work; the lines the edit touches are below and count as read: check them, then edit again without a Read.`
+const { unreadExistingWriteMessage } = await import('../../src/tools/FileEditTool/otherSession.ts')
+const UNREAD_WRITE = unreadExistingWriteMessage()
 const body = (n: number): string => Array.from({ length: n }, (_, i) => `const w${i + 1} = ${i + 1}`).join('\n') + '\n'
 const wholeLedger = (file: string, lastLine: number): boolean => {
   const ledger = seenLinesOf(owner, file)
@@ -116,7 +118,7 @@ section('A. THE RESUMED OWNER\'S OWN WRITE — Write in one context, then a fres
   const resumed = makeContext()
   const first = await edit({ file_path: file, old_string: 'const w7 = 7', new_string: 'const w7 = 70' }, resumed)
   check('A3 the fresh context\'s first exact edit of the file it wrote lands without a Read (RED on the base: refused with the twelve-times lead)', first.ok && contentOf(file).includes('const w7 = 70'), messageOf(first))
-  check('A4 …and no refusal named the file as unread', first.ok || (!first.message.includes(TWELVE_TIMES) && !first.message.includes(`No lines of ${file} were read this session`)), messageOf(first))
+  check('A4 …and no refusal named the file as unread', first.ok || (!first.message.includes(TWELVE_TIMES) && !first.message.includes(unreadLead(file)) && !first.message.includes(`No lines of ${file} were read this session`)), messageOf(first))
   const second = await edit({ file_path: file, old_string: 'const w25 = 25', new_string: 'const w25 = 250' }, resumed)
   check('A5 the next edit in the fresh context lands on the entry the first edit refreshed', second.ok && contentOf(file).includes('const w25 = 250'), messageOf(second))
   check('A6 the ledger followed the edits: its generation is the file\'s and it still covers the whole file', wholeLedger(file, 30), JSON.stringify({ ledger: seenLinesOf(owner, file), generation: fileGeneration(file) }))
@@ -157,7 +159,7 @@ section('D. THE LAW KEPT — bytes the owner never observed still refuse, word f
   writeFileSync(other, body(20))
   const ctx = makeContext()
   const unread = await edit({ file_path: other, old_string: 'const w4 = 4', new_string: 'const w4 = 44' }, ctx)
-  check('D1 a file made by another road, never read, refuses with the twelve-times lead', !unread.ok && unread.message.startsWith(TWELVE_TIMES) && unread.message.includes(`No lines of ${other} were read this session`), messageOf(unread))
+  check('D1 a file made by another road, never read, refuses naming another session\'s possible work and the lines to check', !unread.ok && unread.message.startsWith(unreadLead(other)) && unread.message.includes(`No lines of ${other} were read this session`), messageOf(unread))
   check('D2 …and nothing was written', !contentOf(other).includes('const w4 = 44'))
   const retried = await edit({ file_path: other, old_string: 'const w4 = 4', new_string: 'const w4 = 44' }, ctx)
   check('D3 the retry after the refusal\'s carry lands (the carried lines were shown for the current generation)', retried.ok && contentOf(other).includes('const w4 = 44'), messageOf(retried))
@@ -193,7 +195,7 @@ section('E. ANOTHER OWNER\'S WRITE IS NOT THIS OWNER\'S READ — a sub-agent\'s 
   const agentLedger = seenLinesOf(processOwnerForLane('agentfixture'), file)
   check('E1 the sub-agent\'s Write stamps the sub-agent owner\'s ledger (RED on the base)', agentWrite.ok && agentLedger !== undefined && agentLedger.generation === fileGeneration(file), JSON.stringify(agentLedger))
   const parent = await edit({ file_path: file, old_string: 'const w2 = 2', new_string: 'const w2 = 22' }, makeContext())
-  check('E2 the main owner\'s fresh context is refused with the twelve-times lead: it never observed the bytes', !parent.ok && parent.message.startsWith(TWELVE_TIMES) && parent.message.includes(`No lines of ${file} were read this session`), messageOf(parent))
+  check('E2 the main owner\'s fresh context is refused naming another session\'s possible work: it never observed the bytes', !parent.ok && parent.message.startsWith(unreadLead(file)) && parent.message.includes(`No lines of ${file} were read this session`), messageOf(parent))
   check('E3 …and nothing was written', !contentOf(file).includes('const w2 = 22'))
 }
 
