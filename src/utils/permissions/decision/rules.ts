@@ -119,29 +119,28 @@ export function getAskRules(context: ToolPermissionContext): PermissionRule[] {
   return ruleTable(context).byBehavior.ask.map(copyRule)
 }
 
+function namesWholeServerOf(ruleToolName: string, toolName: string): boolean {
+  const ruleTarget = mcpInfoFromString(ruleToolName)
+  const toolTarget = mcpInfoFromString(toolName)
+  if (ruleTarget === null || toolTarget === null) return false
+  const serverWide = ruleTarget.toolName === undefined || ruleTarget.toolName === '*'
+  return serverWide && ruleTarget.serverName === toolTarget.serverName
+}
+
+const WHOLE_TOOL_MATCHERS: ReadonlyArray<(ruleToolName: string, toolName: string) => boolean> = [
+  (ruleToolName, toolName) => ruleToolName === toolName,
+  (ruleToolName, toolName) => RULE_INHERITS[toolName]?.includes(ruleToolName) === true,
+  lspFamilyMatches,
+  namesWholeServerOf,
+]
+
 function toolMatchesRule(
   tool: Pick<Tool, 'name' | 'mcpInfo'>,
   rule: PermissionRule,
 ): boolean {
-  if (rule.ruleValue.ruleContent !== undefined) {
-    return false
-  }
-
-  const nameForRuleMatch = getToolNameForPermissionCheck(tool)
-
-  if (rule.ruleValue.toolName === nameForRuleMatch || RULE_INHERITS[nameForRuleMatch]?.includes(rule.ruleValue.toolName) || lspFamilyMatches(rule.ruleValue.toolName, nameForRuleMatch)) {
-    return true
-  }
-
-  const ruleInfo = mcpInfoFromString(rule.ruleValue.toolName)
-  const toolInfo = mcpInfoFromString(nameForRuleMatch)
-
-  return (
-    ruleInfo !== null &&
-    toolInfo !== null &&
-    (ruleInfo.toolName === undefined || ruleInfo.toolName === '*') &&
-    ruleInfo.serverName === toolInfo.serverName
-  )
+  if (rule.ruleValue.ruleContent !== undefined) return false
+  const toolName = getToolNameForPermissionCheck(tool)
+  return WHOLE_TOOL_MATCHERS.some(matches => matches(rule.ruleValue.toolName, toolName))
 }
 
 export function toolAlwaysAllowedRule(
