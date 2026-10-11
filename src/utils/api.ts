@@ -9,7 +9,6 @@ import { getEngineModel } from './model/model.js'
 import { declaredRouteOf } from '../services/providers/routeLaw.js'
 import { deferralWireFormFor, toolReferenceWireAccepted } from '../services/providers/deferralWire.js'
 import { zodToJsonSchema } from './zodToJsonSchema.js'
-import { CLI_SYSPROMPT_PREFIXES } from '../constants/system.js'
 import { userContextReminderBody } from './userContextReminder.js'
 
 import { BASH_TOOL_NAME } from '../tools/BashTool/toolName.js'
@@ -33,37 +32,23 @@ type SystemPromptBlock = { text: string; cached: boolean }
 
 const BILLING_HEADER_PREFIX = 'x-anthropic-billing-header'
 
-function classifyBlock(text: string): 'attribution' | 'prefix' | 'rest' {
-  if (text.startsWith(BILLING_HEADER_PREFIX)) return 'attribution'
-  if (CLI_SYSPROMPT_PREFIXES.has(text)) return 'prefix'
-  return 'rest'
-}
-
 function joinGroup(blocks: string[]): string {
   return blocks.filter(block => block).join('\n\n')
 }
 
-export function splitSysPromptPrefix(systemPrompt: readonly string[]): SystemPromptBlock[] {
+export function splitSystemPromptBlocks(systemPrompt: readonly string[]): SystemPromptBlock[] {
   let attribution: string | undefined
-  let prefix: string | undefined
   const rest: string[] = []
   for (const block of systemPrompt) {
     if (!block) continue
-    const kind = classifyBlock(block)
-    if (kind === 'attribution') attribution = block
-    else if (kind === 'prefix') prefix = block
+    if (block.startsWith(BILLING_HEADER_PREFIX)) attribution = block
     else rest.push(block)
   }
   const blocks: SystemPromptBlock[] = []
   if (attribution) blocks.push({ text: attribution, cached: false })
-  if (prefix) blocks.push({ text: prefix, cached: true })
   const restText = joinGroup(rest)
   if (restText) blocks.push({ text: restText, cached: true })
   return blocks
-}
-
-export function logAPIPrefix(systemPrompt: readonly string[]): void {
-  void splitSysPromptPrefix(systemPrompt)[0]
 }
 
 

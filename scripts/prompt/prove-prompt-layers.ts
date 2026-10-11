@@ -30,8 +30,6 @@ const { clearSystemPromptSections } = await import('../../src/constants/systemPr
 const { getOriginalCwd, setOriginalCwd, setCwdState } = await import('../../src/bootstrap/state.ts')
 const { getSessionStartDate } = await import('../../src/constants/common.ts')
 const contract = await import('../../src/prompt/mercuryContract.ts')
-const { assembleTurnSystemPrompt } = await import('../../src/services/providers/anthropic/cacheAndUsage.ts')
-const { CLI_SYSPROMPT_PREFIXES } = await import('../../src/constants/system.ts')
 const { getFlagSpec } = await import('../../src/substrate/flagRegistry.ts')
 
 const scratch = mkdtempSync(join(tmpdir(), 'prompt-layers-cwd-'))
@@ -92,11 +90,6 @@ async function assemble(env: Record<string, string | undefined>): Promise<string
   }
 }
 const joined = (segments: string[]): string => segments.join('\n\n')
-const wirePrefix = (): string => {
-  const posture = { isNonInteractive: true, hasAppendSystemPrompt: false }
-  const blocks = assembleTurnSystemPrompt('x-anthropic-billing-header: proof', ['BODY'] as never, posture) as unknown as string[]
-  return blocks.find(block => CLI_SYSPROMPT_PREFIXES.has(block)) ?? ''
-}
 
 try {
   section('§1 stock — the switch unset is the shipped composition; =stock is the same bytes')
@@ -107,7 +100,6 @@ try {
     check('the shipped composition carries every layer: the security head, the eight static sections, the identity floor, the doctrine', ['Help with security work', '# System behaviour', '# Doing tasks', '# Acting with care', '# The project instruction estate', '# Using your tools', '# Tone and style', '# Communicating with the user', contract.MERCURY_IDENTITY_FLOOR, contract.MERCURY_SESSION_DOCTRINE].every(part => text.includes(part)))
     check('MERCURY_PROMPT_LAYERS=stock composes byte-identically to unset (stock cannot drift)', j(stock) === j(unset))
     check('the shipped composition never takes the reduced road (no bare head)', !text.startsWith(HEAD))
-    check('the Anthropic wire keeps its identity prefix under stock', wirePrefix() !== '')
     check('promptLayerSet() reads stock when unset', contract.promptLayerSet() === 'stock')
   }
 
@@ -120,9 +112,6 @@ try {
     check('MERCURY_PROMPT_LAYERS=floor composes the same bytes as MERCURY_BARE=1', j(floor) === j(bare))
     check('floor carries the identity sentence, the attribution, operator-first and the honesty lines', ['You are **Mercury**', contract.MERCURY_ATTRIBUTION, 'Operate for the operator first', ...HONESTY_LINES].every(part => joined(floor).includes(part)))
     check('floor carries no doctrine and no behaviour prose', ['<mercury-doctrine>', '# Doing tasks', '# Tone and style', 'Help with security work'].every(part => !joined(floor).includes(part)))
-    process.env.MERCURY_PROMPT_LAYERS = 'floor'
-    check('the Anthropic wire keeps its identity prefix under floor', wirePrefix() !== '')
-    delete process.env.MERCURY_PROMPT_LAYERS
   }
 
   section('§3 vessel — the nameless head and the honesty and hard-limit lines, nothing else')
@@ -136,7 +125,6 @@ try {
     const leaked = REMOVED_LAYERS.filter(part => text.includes(part))
     check('vessel carries none of the removed layers (identity, attribution, operator-first, doctrine, every static and dynamic section)', leaked.length === 0, leaked.join(' · '))
     process.env.MERCURY_PROMPT_LAYERS = 'vessel'
-    check('the Anthropic wire drops its identity prefix under vessel', wirePrefix() === '')
     check('promptLayersCarryIdentity() is false under vessel', contract.promptLayersCarryIdentity() === false)
     delete process.env.MERCURY_PROMPT_LAYERS
     const lean = await assemble({ MERCURY_BARE: '1', MERCURY_PROMPT_LAYERS: 'vessel' })
@@ -158,9 +146,6 @@ try {
     writeFileSync(slot, second)
     const again = await assemble({ MERCURY_PROMPT_LAYERS: 'replace', MERCURY_PROMPT_REPLACE_FILE: slot })
     check('the file is read at assembly: a changed file changes the next assembly', again[1] === second)
-    process.env.MERCURY_PROMPT_LAYERS = 'replace'
-    check('the Anthropic wire drops its identity prefix under replace', wirePrefix() === '')
-    delete process.env.MERCURY_PROMPT_LAYERS
     let refusal = ''
     try {
       await assemble({ MERCURY_PROMPT_LAYERS: 'replace' })

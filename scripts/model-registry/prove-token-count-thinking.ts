@@ -107,7 +107,7 @@ try {
   check('the Haiku fallback stays on the create endpoint with the current adaptive model', seen.length === before + 1 && hit?.path === '/v1/messages' && hit.body.model === 'claude-haiku-5-5' && show(hit.body.thinking) === show({ type: 'adaptive' }) && fallback === 37, hit)
 
   const { assembleTurnSystemPrompt, buildSystemPromptBlocks, buildTurnSystemBlocks } = await import('../../src/services/providers/anthropic/cacheAndUsage.js')
-  const { getAttributionHeader, getCLISyspromptPrefix } = await import('../../src/constants/system.js')
+  const { getAttributionHeader } = await import('../../src/constants/system.js')
   const { asSystemPrompt } = await import('../../src/utils/systemPromptType.js')
   const { computeFingerprintFromMessages } = await import('../../src/utils/fingerprint.js')
   const { createUserMessage } = await import('../../src/utils/messages.js')
@@ -115,13 +115,12 @@ try {
   const { readFileSync } = await import('node:fs')
   const { join } = await import('node:path')
   const attribution = getAttributionHeader(computeFingerprintFromMessages([createUserMessage({ content: 'Say OK.' })]))
-  const posture = { isNonInteractive: false, hasAppendSystemPrompt: false }
   const session = asSystemPrompt(['# Session\nA session prompt for the count proof.', 'A second part.'])
-  const turnBlocks = buildTurnSystemBlocks(attribution, session, posture, true)
-  check('the shared builder assembles the attribution line, the CLI prefix for the posture, then the session prompt, and marks the cached blocks as the stream always did', show(turnBlocks) === show(buildSystemPromptBlocks(asSystemPrompt([attribution, getCLISyspromptPrefix(posture), ...session]), true)) && turnBlocks.length === 3 && turnBlocks[0]!.text === attribution && turnBlocks[1]!.text === getCLISyspromptPrefix(posture) && !('cache_control' in turnBlocks[0]!) && 'cache_control' in turnBlocks[1]! && 'cache_control' in turnBlocks[2]!, turnBlocks.map(block => Object.keys(block)))
-  check('an empty attribution line drops out of the join, as the stream\'s own filter did', show(assembleTurnSystemPrompt('', session, posture)) === show([getCLISyspromptPrefix(posture), ...session]))
+  const turnBlocks = buildTurnSystemBlocks(attribution, session, true)
+  check('the shared builder assembles the attribution line, then the session prompt — no prefix between them — and marks the cached block as the stream always did', show(turnBlocks) === show(buildSystemPromptBlocks(asSystemPrompt([attribution, ...session]), true)) && turnBlocks.length === 2 && turnBlocks[0]!.text === attribution && !('cache_control' in turnBlocks[0]!) && turnBlocks[1]!.text === session.join('\n\n') && 'cache_control' in turnBlocks[1]!, turnBlocks.map(block => Object.keys(block)))
+  check('an empty attribution line drops out of the join, as the stream\'s own filter did', show(assembleTurnSystemPrompt('', session)) === show([...session]))
   const streamCore = readFileSync(join(import.meta.dir, '..', '..', 'src', 'services', 'providers', 'anthropic', 'streamCore.ts'), 'utf8')
-  check('the main stream assembles its system prompt through the shared owner and nowhere else (one spelling)', streamCore.includes('assembleTurnSystemPrompt(attribution, sessionSystemPrompt, posture)') && !streamCore.includes('systemPromptBody') && !streamCore.includes('getCLISyspromptPrefix('))
+  check('the main stream assembles its system prompt through the shared owner and nowhere else (one spelling)', streamCore.includes('assembleTurnSystemPrompt(attribution, sessionSystemPrompt)') && !streamCore.includes('systemPromptBody') && !streamCore.includes('SyspromptPrefix('))
   const withSystemBefore = seen.length
   const counted = await countMessagesTokensWithAPI(history({ type: 'thinking', thinking: 'A short plan.', signature: 'fixture-signature' }), tools, turnBlocks)
   const carried = seen.at(-1)
