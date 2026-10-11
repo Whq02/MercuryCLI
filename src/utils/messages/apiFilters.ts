@@ -80,8 +80,8 @@ export function filterTrailingThinkingFromLastAssistant(messages: ConversationRo
   const tail = blocks.at(-1)
   if (!tail || !isThinkingBlock(tail)) return messages
   const end = blocks.findLastIndex(block => !block || !isThinkingBlock(block)) + 1
-  return messages.slice(0, -1).concat(withAssistantContent(final,
-    end === 0 ? placeholder(DEAD_THINKING_PLACEHOLDER) : blocks.slice(0, end)))
+  return [...messages.slice(0, -1), withAssistantContent(final,
+    end === 0 ? placeholder(DEAD_THINKING_PLACEHOLDER) : blocks.slice(0, end))]
 }
 
 export function dropEmptyTextBlocks<M extends Message>(messages: M[]): M[] {
