@@ -430,6 +430,15 @@ function sanitizeDim(v: number, label: string): number {
   return v
 }
 
+function cellPlanes(size: number): Pick<Screen, 'cells' | 'cells64' | 'noSelect'> {
+  const buffer = new ArrayBuffer(size << 3)
+  return {
+    cells: new Int32Array(buffer),
+    cells64: new BigInt64Array(buffer),
+    noSelect: new Uint8Array(size),
+  }
+}
+
 export function createScreen(
   width: number,
   height: number,
@@ -439,18 +448,14 @@ export function createScreen(
 ): Screen {
   width = sanitizeDim(width, 'createScreen width')
   height = sanitizeDim(height, 'createScreen height')
-  const size = width * height
-  const buf = new ArrayBuffer(size << 3)
   return {
     width,
     height,
-    cells: new Int32Array(buf),
-    cells64: new BigInt64Array(buf),
+    ...cellPlanes(width * height),
     charPool,
     hyperlinkPool,
     emptyStyleId: styles.none,
     damage: undefined,
-    noSelect: new Uint8Array(size),
     softWrap: new Int32Array(height),
   }
 }
@@ -459,15 +464,8 @@ export function resetScreen(screen: Screen, width: number, height: number): void
   width = sanitizeDim(width, 'resetScreen width')
   height = sanitizeDim(height, 'resetScreen height')
   const size = width * height
-  if (screen.cells64.length < size) {
-    const buf = new ArrayBuffer(size << 3)
-    screen.cells = new Int32Array(buf)
-    screen.cells64 = new BigInt64Array(buf)
-    screen.noSelect = new Uint8Array(size)
-  }
-  if (screen.softWrap.length < height) {
-    screen.softWrap = new Int32Array(height)
-  }
+  if (screen.cells64.length < size) Object.assign(screen, cellPlanes(size))
+  if (screen.softWrap.length < height) screen.softWrap = new Int32Array(height)
   screen.cells64.fill(EMPTY_CELL_VALUE, 0, size)
   screen.noSelect.fill(0, 0, size)
   screen.softWrap.fill(0, 0, height)
@@ -528,16 +526,26 @@ export function cellAt(screen: Screen, x: number, y: number): Cell | undefined {
   return cellAtIndex(screen, y * screen.width + x)
 }
 
-export function cellAtIndex(screen: Screen, index: number): Cell {
-  const ci = index << 1
-  const word1 = screen.cells[ci + 1]!
+function decodeWords(charPool: CharPool, hyperlinkPool: HyperlinkPool, charId: number, word1: number): Cell {
   const linkId = (word1 >>> HYPERLINK_SHIFT) & HYPERLINK_MASK
   return {
-    char: screen.charPool.get(screen.cells[ci]!),
+    char: charPool.get(charId),
     styleId: word1 >>> STYLE_SHIFT,
     width: word1 & WIDTH_MASK,
-    hyperlink: linkId === 0 ? undefined : screen.hyperlinkPool.get(linkId),
+    hyperlink: linkId === 0 ? undefined : hyperlinkPool.get(linkId),
   }
+}
+
+export function cellAtIndex(screen: Screen, index: number): Cell {
+  const ci = index << 1
+  return decodeWords(screen.charPool, screen.hyperlinkPool, screen.cells[ci]!, screen.cells[ci + 1]!)
+}
+
+function paintsNothing(charId: number, word1: number, lastRenderedStyleId: number): boolean {
+  if (charId === SPACER_CHAR_INDEX) return true
+  if (charId !== EMPTY_CHAR_INDEX || (word1 & SPACE_VISIBLE_MASK) !== 0) return false
+  const styleId = word1 >>> STYLE_SHIFT
+  return styleId === 0 || styleId === lastRenderedStyleId
 }
 
 export function visibleCellAtIndex(
@@ -549,19 +557,8 @@ export function visibleCellAtIndex(
 ): Cell | undefined {
   const ci = index << 1
   const charId = cells[ci]!
-  if (charId === SPACER_CHAR_INDEX) return undefined
   const word1 = cells[ci + 1]!
-  if (charId === EMPTY_CHAR_INDEX && (word1 & SPACE_VISIBLE_MASK) === 0) {
-    const fgStyle = word1 >>> STYLE_SHIFT
-    if (fgStyle === 0 || fgStyle === lastRenderedStyleId) return undefined
-  }
-  const linkId = (word1 >>> HYPERLINK_SHIFT) & HYPERLINK_MASK
-  return {
-    char: charPool.get(charId),
-    styleId: word1 >>> STYLE_SHIFT,
-    width: word1 & WIDTH_MASK,
-    hyperlink: linkId === 0 ? undefined : hyperlinkPool.get(linkId),
-  }
+  return paintsNothing(charId, word1, lastRenderedStyleId) ? undefined : decodeWords(charPool, hyperlinkPool, charId, word1)
 }
 
 function decodeCellInto(screen: Screen, ci: number, out: Cell): void {

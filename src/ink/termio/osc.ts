@@ -62,8 +62,9 @@ export const PROGRESS = {
   INDETERMINATE: 3,
 } as const
 
-export const CLEAR_ITERM2_PROGRESS = `${OSC_PREFIX}${OSC.ITERM2};${ITERM2.PROGRESS};${PROGRESS.CLEAR};${BEL}`
-export const CLEAR_TERMINAL_TITLE = `${OSC_PREFIX}${OSC.SET_TITLE_AND_ICON};${BEL}`
+const belTerminated = (...parts: (string | number)[]): string => `${OSC_PREFIX}${parts.join(SEP)}${BEL}`
+export const CLEAR_ITERM2_PROGRESS = belTerminated(OSC.ITERM2, ITERM2.PROGRESS, PROGRESS.CLEAR, '')
+export const CLEAR_TERMINAL_TITLE = belTerminated(OSC.SET_TITLE_AND_ICON, '')
 
 
 type ClipboardPath = 'native' | 'tmux-buffer' | 'osc52'

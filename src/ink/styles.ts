@@ -218,7 +218,7 @@ const FLEX_DIRECTIONS = {
 } as const
 
 const FLEX_WRAPS = {
-  nowrap: LayoutWrap.NoWrap,
+  nowrap: LayoutWrap.Nowrap,
   wrap: LayoutWrap.Wrap,
   'wrap-reverse': LayoutWrap.WrapReverse,
 } as const

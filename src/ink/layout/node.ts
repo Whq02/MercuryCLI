@@ -1,145 +1,126 @@
+type Pascal<Word extends string> = Word extends `${infer Head}-${infer Tail}`
+  ? `${Capitalize<Head>}${Pascal<Tail>}`
+  : Capitalize<Word>
 
-export const LayoutEdge = {
-  All: 'all',
-  Horizontal: 'horizontal',
-  Vertical: 'vertical',
-  Left: 'left',
-  Right: 'right',
-  Top: 'top',
-  Bottom: 'bottom',
-  Start: 'start',
-  End: 'end',
-} as const
-export type LayoutEdge = (typeof LayoutEdge)[keyof typeof LayoutEdge]
+type Named<Words extends readonly string[]> = {
+  readonly [Word in Words[number] as Pascal<Word>]: Word
+}
 
-export const LayoutGutter = {
-  All: 'all',
-  Column: 'column',
-  Row: 'row',
-} as const
-export type LayoutGutter = (typeof LayoutGutter)[keyof typeof LayoutGutter]
+function pascal(word: string): string {
+  return word
+    .split('-')
+    .map(part => part.charAt(0).toUpperCase() + part.slice(1))
+    .join('')
+}
 
-export const LayoutDisplay = {
-  Flex: 'flex',
-  None: 'none',
-} as const
-export type LayoutDisplay = (typeof LayoutDisplay)[keyof typeof LayoutDisplay]
+function vocabulary<const Words extends readonly string[]>(words: Words): Named<Words> {
+  return Object.fromEntries(words.map(word => [pascal(word), word])) as Named<Words>
+}
 
-export const LayoutFlexDirection = {
-  Row: 'row',
-  RowReverse: 'row-reverse',
-  Column: 'column',
-  ColumnReverse: 'column-reverse',
-} as const
-export type LayoutFlexDirection =
-  (typeof LayoutFlexDirection)[keyof typeof LayoutFlexDirection]
+const EDGES = ['all', 'horizontal', 'vertical', 'left', 'right', 'top', 'bottom', 'start', 'end'] as const
+const GUTTERS = ['all', 'column', 'row'] as const
+const DISPLAYS = ['flex', 'none'] as const
+const FLEX_DIRECTIONS = ['row', 'row-reverse', 'column', 'column-reverse'] as const
+const ALIGNMENTS = ['auto', 'stretch', 'flex-start', 'center', 'flex-end'] as const
+const JUSTIFICATIONS = ['flex-start', 'center', 'flex-end', 'space-between', 'space-around', 'space-evenly'] as const
+const WRAPS = ['nowrap', 'wrap', 'wrap-reverse'] as const
+const POSITION_TYPES = ['relative', 'absolute'] as const
+const OVERFLOWS = ['visible', 'hidden', 'scroll'] as const
+const MEASURE_MODES = ['undefined', 'exactly', 'at-most'] as const
 
-export const LayoutAlign = {
-  Auto: 'auto',
-  Stretch: 'stretch',
-  FlexStart: 'flex-start',
-  Center: 'center',
-  FlexEnd: 'flex-end',
-} as const
-export type LayoutAlign = (typeof LayoutAlign)[keyof typeof LayoutAlign]
+export type LayoutEdge = (typeof EDGES)[number]
+export type LayoutGutter = (typeof GUTTERS)[number]
+export type LayoutDisplay = (typeof DISPLAYS)[number]
+export type LayoutFlexDirection = (typeof FLEX_DIRECTIONS)[number]
+export type LayoutAlign = (typeof ALIGNMENTS)[number]
+export type LayoutJustify = (typeof JUSTIFICATIONS)[number]
+export type LayoutWrap = (typeof WRAPS)[number]
+export type LayoutPositionType = (typeof POSITION_TYPES)[number]
+export type LayoutOverflow = (typeof OVERFLOWS)[number]
+export type LayoutMeasureMode = (typeof MEASURE_MODES)[number]
 
-export const LayoutJustify = {
-  FlexStart: 'flex-start',
-  Center: 'center',
-  FlexEnd: 'flex-end',
-  SpaceBetween: 'space-between',
-  SpaceAround: 'space-around',
-  SpaceEvenly: 'space-evenly',
-} as const
-export type LayoutJustify = (typeof LayoutJustify)[keyof typeof LayoutJustify]
+export const LayoutEdge = vocabulary(EDGES)
+export const LayoutGutter = vocabulary(GUTTERS)
+export const LayoutDisplay = vocabulary(DISPLAYS)
+export const LayoutFlexDirection = vocabulary(FLEX_DIRECTIONS)
+export const LayoutAlign = vocabulary(ALIGNMENTS)
+export const LayoutJustify = vocabulary(JUSTIFICATIONS)
+export const LayoutWrap = vocabulary(WRAPS)
+export const LayoutPositionType = vocabulary(POSITION_TYPES)
+export const LayoutOverflow = vocabulary(OVERFLOWS)
+export const LayoutMeasureMode = vocabulary(MEASURE_MODES)
 
-export const LayoutWrap = {
-  NoWrap: 'nowrap',
-  Wrap: 'wrap',
-  WrapReverse: 'wrap-reverse',
-} as const
-export type LayoutWrap = (typeof LayoutWrap)[keyof typeof LayoutWrap]
+export type LayoutMeasureFunc = (width: number, widthMode: LayoutMeasureMode) => { width: number; height: number }
 
-export const LayoutPositionType = {
-  Relative: 'relative',
-  Absolute: 'absolute',
-} as const
-export type LayoutPositionType =
-  (typeof LayoutPositionType)[keyof typeof LayoutPositionType]
+type Setters<Facts extends Record<string, unknown>> = {
+  [Fact in keyof Facts & string as `set${Fact}`]: (value: Facts[Fact]) => void
+}
 
-export const LayoutOverflow = {
-  Visible: 'visible',
-  Hidden: 'hidden',
-  Scroll: 'scroll',
-} as const
-export type LayoutOverflow =
-  (typeof LayoutOverflow)[keyof typeof LayoutOverflow]
+type Dimension = 'Width' | 'Height' | 'MinWidth' | 'MinHeight' | 'MaxWidth' | 'MaxHeight'
 
-export const LayoutMeasureMode = {
-  Undefined: 'undefined',
-  Exactly: 'exactly',
-  AtMost: 'at-most',
-} as const
-export type LayoutMeasureMode =
-  (typeof LayoutMeasureMode)[keyof typeof LayoutMeasureMode]
+type DimensionSetters = Setters<Record<Dimension | `${Dimension}Percent`, number>> & {
+  [Side in 'Width' | 'Height' as `set${Side}Auto`]: () => void
+}
 
-export type LayoutMeasureFunc = (
-  width: number,
-  widthMode: LayoutMeasureMode,
-) => { width: number; height: number }
+type EdgeSetters = {
+  [Box in 'Position' | 'PositionPercent' | 'Margin' | 'Padding' | 'Border' as `set${Box}`]: (
+    edge: LayoutEdge,
+    value: number,
+  ) => void
+}
 
-export interface LayoutNode {
+type FlexSetters = Setters<{
+  FlexDirection: LayoutFlexDirection
+  FlexGrow: number
+  FlexShrink: number
+  FlexBasis: number
+  FlexBasisPercent: number
+  FlexWrap: LayoutWrap
+  AlignItems: LayoutAlign
+  AlignSelf: LayoutAlign
+  JustifyContent: LayoutJustify
+}> & {
+  setGap(gutter: LayoutGutter, value: number): void
+}
+
+type PlacementSetters = Setters<{
+  Display: LayoutDisplay
+  PositionType: LayoutPositionType
+  Overflow: LayoutOverflow
+}> & {
+  getDisplay(): LayoutDisplay
+}
+
+type ComputedReads = {
+  [Side in 'Left' | 'Top' | 'Width' | 'Height' as `getComputed${Side}`]: () => number
+} & {
+  [Box in 'Border' | 'Padding' as `getComputed${Box}`]: (edge: LayoutEdge) => number
+}
+
+type TreeLinks = {
   insertChild(child: LayoutNode, index: number): void
   removeChild(child: LayoutNode): void
   getChildCount(): number
   getParent(): LayoutNode | null
+}
 
+type LayoutPass = {
   calculateLayout(width?: number, height?: number): void
   setMeasureFunc(fn: LayoutMeasureFunc): void
   unsetMeasureFunc(): void
   markDirty(): void
+}
 
-  getComputedLeft(): number
-  getComputedTop(): number
-  getComputedWidth(): number
-  getComputedHeight(): number
-  getComputedBorder(edge: LayoutEdge): number
-  getComputedPadding(edge: LayoutEdge): number
-
-  setWidth(value: number): void
-  setWidthPercent(value: number): void
-  setWidthAuto(): void
-  setHeight(value: number): void
-  setHeightPercent(value: number): void
-  setHeightAuto(): void
-  setMinWidth(value: number): void
-  setMinWidthPercent(value: number): void
-  setMinHeight(value: number): void
-  setMinHeightPercent(value: number): void
-  setMaxWidth(value: number): void
-  setMaxWidthPercent(value: number): void
-  setMaxHeight(value: number): void
-  setMaxHeightPercent(value: number): void
-  setFlexDirection(direction: LayoutFlexDirection): void
-  setFlexGrow(value: number): void
-  setFlexShrink(value: number): void
-  setFlexBasis(value: number): void
-  setFlexBasisPercent(value: number): void
-  setFlexWrap(wrap: LayoutWrap): void
-  setAlignItems(align: LayoutAlign): void
-  setAlignSelf(align: LayoutAlign): void
-  setJustifyContent(justify: LayoutJustify): void
-  getDisplay(): LayoutDisplay
-  setDisplay(display: LayoutDisplay): void
-  setPositionType(type: LayoutPositionType): void
-  setPosition(edge: LayoutEdge, value: number): void
-  setPositionPercent(edge: LayoutEdge, value: number): void
-  setOverflow(overflow: LayoutOverflow): void
-  setMargin(edge: LayoutEdge, value: number): void
-  setPadding(edge: LayoutEdge, value: number): void
-  setBorder(edge: LayoutEdge, value: number): void
-  setGap(gutter: LayoutGutter, value: number): void
-
+type Lifecycle = {
   free(): void
   freeRecursive(): void
 }
+
+export type LayoutNode = TreeLinks &
+  LayoutPass &
+  ComputedReads &
+  DimensionSetters &
+  EdgeSetters &
+  FlexSetters &
+  PlacementSetters &
+  Lifecycle

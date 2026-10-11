@@ -6,7 +6,7 @@ import type { DOMElement } from './dom.js'
 import getMaxWidth from './get-max-width.js'
 import type { Rectangle } from './layout/geometry.js'
 import { LayoutDisplay, LayoutEdge, type LayoutNode } from './layout/node.js'
-import { nodeCache, pendingClears } from './node-cache.js'
+import { type CachedLayout, nodeCache, pendingClears } from './node-cache.js'
 import type ComposeBuffer from './compose-buffer.js'
 import renderBorder from './render-border.js'
 import type { Screen } from './cell-grid.js'
@@ -108,29 +108,15 @@ const SCROLL_MAX_PENDING = 30
 
 function drainAdaptive(node: DOMElement, pending: number, innerHeight: number): number {
   const sign = pending > 0 ? 1 : -1
-  let abs = Math.abs(pending)
-  let applied = 0
-  if (abs > SCROLL_MAX_PENDING) {
-    applied += sign * (abs - SCROLL_MAX_PENDING)
-    abs = SCROLL_MAX_PENDING
-  }
-  const step =
-    abs <= SCROLL_INSTANT_THRESHOLD
-      ? abs
-      : abs < SCROLL_HIGH_PENDING
-        ? SCROLL_STEP_MED
-        : SCROLL_STEP_HIGH
-  applied += sign * step
-  const rem = abs - step
+  const backlog = Math.abs(pending)
+  const snap = Math.max(0, backlog - SCROLL_MAX_PENDING)
+  const window = backlog - snap
+  const step = window <= SCROLL_INSTANT_THRESHOLD ? window : window < SCROLL_HIGH_PENDING ? SCROLL_STEP_MED : SCROLL_STEP_HIGH
   const cap = Math.max(1, innerHeight - 1)
-  const totalAbs = Math.abs(applied)
-  if (totalAbs > cap) {
-    const excess = totalAbs - cap
-    ;(node.scroll ??= {}).pendingScrollDelta = sign * (rem + excess)
-    return sign * cap
-  }
-  ;(node.scroll ??= {}).pendingScrollDelta = rem > 0 ? sign * rem : undefined
-  return applied
+  const applied = Math.min(snap + step, cap)
+  const leftover = backlog - applied
+  ;(node.scroll ??= {}).pendingScrollDelta = leftover > 0 ? sign * leftover : undefined
+  return sign * applied
 }
 
 function drainProportional(node: DOMElement, pending: number, innerHeight: number): number {
@@ -1075,6 +1061,8 @@ function composeScrollBox(
 }
 
 
+type ScreenOffer = 'open' | 'clipped' | 'closed'
+
 function composeChildren(
   node: DOMElement,
   ctx: WalkCtx,
@@ -1085,31 +1073,20 @@ function composeChildren(
   inheritedBackgroundColor: Color | undefined,
   inheritedRowBg?: (row: number) => Color | undefined,
 ): void {
-  let seenDirtyChild = false
-  let seenDirtyClipped = false
-  for (const childNode of node.childNodes) {
-    const childElem = childNode as DOMElement
-    const wasDirty = childElem.dirty
-    const isAbsolute = childElem.style.position === 'absolute'
-    composeNode(childElem, ctx, {
+  let offer: ScreenOffer = hasRemovedChild ? 'closed' : 'open'
+  for (const child of node.childNodes as DOMElement[]) {
+    const wasDirty = child.dirty
+    const floating = child.style.position === 'absolute'
+    const seeThrough = floating && !child.style.opaque && child.style.backgroundColor === undefined
+    composeNode(child, ctx, {
       offsetX,
       offsetY,
-      prevScreen: hasRemovedChild || seenDirtyChild ? undefined : prevScreen,
-      skipSelfBlit:
-        seenDirtyClipped &&
-        isAbsolute &&
-        !childElem.style.opaque &&
-        childElem.style.backgroundColor === undefined,
+      prevScreen: offer === 'closed' ? undefined : prevScreen,
+      skipSelfBlit: offer === 'clipped' && seeThrough,
       inheritedBackgroundColor,
       inheritedRowBg,
     })
-    if (wasDirty && !seenDirtyChild) {
-      if (!clipsBothAxes(childElem) || isAbsolute) {
-        seenDirtyChild = true
-      } else {
-        seenDirtyClipped = true
-      }
-    }
+    if (wasDirty && offer !== 'closed') offer = !floating && clipsBothAxes(child) ? 'clipped' : 'closed'
   }
 }
 
@@ -1138,6 +1115,30 @@ function siblingSharesY(node: DOMElement, layoutNode: LayoutNode): boolean {
   return neighbour !== null && neighbour.getComputedTop() === layoutNode.getComputedTop()
 }
 
+function pushElementChildren(stack: DOMElement[], parent: DOMElement): void {
+  for (let i = parent.childNodes.length - 1; i >= 0; i--) {
+    const child = parent.childNodes[i]!
+    if (child.nodeName !== '#text') stack.push(child as DOMElement)
+  }
+}
+
+function restoreIfEscaping(
+  ctx: WalkCtx,
+  prevScreen: Screen,
+  rect: Rectangle,
+  left: number,
+  top: number,
+  right: number,
+  bottom: number,
+): void {
+  const x = Math.floor(rect.x)
+  const y = Math.floor(rect.y)
+  const width = Math.floor(rect.width)
+  const height = Math.floor(rect.height)
+  const inside = x >= left && y >= top && x + width <= right && y + height <= bottom
+  if (!inside) ctx.buffer.blit(prevScreen, x, y, width, height)
+}
+
 function blitEscapingAbsoluteDescendants(
   node: DOMElement,
   ctx: WalkCtx,
@@ -1147,27 +1148,41 @@ function blitEscapingAbsoluteDescendants(
   pw: number,
   ph: number,
 ): void {
-  const pr = px + pw
-  const pb = py + ph
-  for (const child of node.childNodes) {
-    if (child.nodeName === '#text') continue
-    const elem = child as DOMElement
-    if (elem.style.position === 'absolute') {
-      const cached = nodeCache.get(elem)
-      if (cached) {
-        ctx.signals.absoluteRectsCur.push(cached)
-        const cx = Math.floor(cached.x)
-        const cy = Math.floor(cached.y)
-        const cw = Math.floor(cached.width)
-        const ch = Math.floor(cached.height)
-        if (cx < px || cy < py || cx + cw > pr || cy + ch > pb) {
-          ctx.buffer.blit(prevScreen, cx, cy, cw, ch)
-        }
-      }
+  const right = px + pw
+  const bottom = py + ph
+  const pending: DOMElement[] = []
+  pushElementChildren(pending, node)
+  while (pending.length > 0) {
+    const elem = pending.pop()!
+    const cached = elem.style.position === 'absolute' ? nodeCache.get(elem) : undefined
+    if (cached) {
+      ctx.signals.absoluteRectsCur.push(cached)
+      restoreIfEscaping(ctx, prevScreen, cached, px, py, right, bottom)
     }
-    blitEscapingAbsoluteDescendants(elem, ctx, prevScreen, px, py, pw, ph)
+    pushElementChildren(pending, elem)
   }
 }
+
+type Band = { top: number; height: number; grewBy: number }
+
+const measured: Band = { top: 0, height: 0, grewBy: 0 }
+
+function measureScrolledChild(child: DOMElement, layout: LayoutNode, cached: CachedLayout | undefined, shiftAbove: number): Band {
+  if (cached?.top !== undefined && !child.dirty && shiftAbove === 0) {
+    measured.top = cached.top
+    measured.height = cached.height
+    measured.grewBy = 0
+    return measured
+  }
+  measured.top = layout.getComputedTop()
+  measured.height = layout.getComputedHeight()
+  measured.grewBy = child.dirty ? measured.height - (cached?.height ?? 0) : 0
+  if (cached) cached.top = measured.top
+  return measured
+}
+
+const outsideBand = (band: Band, bandTop: number, bandBottom: number): boolean =>
+  band.top + band.height <= bandTop || band.top >= bandBottom
 
 function composeScrolledChildren(
   node: DOMElement,
@@ -1182,41 +1197,27 @@ function composeScrolledChildren(
   preserveCulledCache = false,
   inheritedRowBg?: (row: number) => Color | undefined,
 ): void {
-  let seenDirtyChild = false
-  let cumHeightShift = 0
-  for (const childNode of node.childNodes) {
-    const childElem = childNode as DOMElement
-    const cy = childElem.layoutNode
-    if (cy) {
-      const cached = nodeCache.get(childElem)
-      let top: number
-      let height: number
-      if (cached?.top !== undefined && !childElem.dirty && cumHeightShift === 0) {
-        top = cached.top
-        height = cached.height
-      } else {
-        top = cy.getComputedTop()
-        height = cy.getComputedHeight()
-        if (childElem.dirty) {
-          cumHeightShift += height - (cached ? cached.height : 0)
-        }
-        if (cached) cached.top = top
-      }
-      const bottom = top + height
-      if (bottom <= scrollTopY || top >= scrollBottomY) {
-        if (!preserveCulledCache) dropSubtreeCache(childElem)
+  let offerOpen = !hasRemovedChild
+  let shift = 0
+  for (const child of node.childNodes as DOMElement[]) {
+    const layout = child.layoutNode
+    if (layout) {
+      const band = measureScrolledChild(child, layout, nodeCache.get(child), shift)
+      shift += band.grewBy
+      if (outsideBand(band, scrollTopY, scrollBottomY)) {
+        if (!preserveCulledCache) dropSubtreeCache(child)
         continue
       }
     }
-    const wasDirty = childElem.dirty
-    composeNode(childElem, ctx, {
+    const wasDirty = child.dirty
+    composeNode(child, ctx, {
       offsetX,
       offsetY,
-      prevScreen: hasRemovedChild || seenDirtyChild ? undefined : prevScreen,
+      prevScreen: offerOpen ? prevScreen : undefined,
       inheritedBackgroundColor,
       inheritedRowBg,
     })
-    if (wasDirty) seenDirtyChild = true
+    if (wasDirty) offerOpen = false
   }
 }
 
