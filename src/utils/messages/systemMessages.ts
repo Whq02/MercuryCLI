@@ -57,13 +57,20 @@ function resultIn(row: Rows.Message | undefined, id: string): ToolResultBlockPar
   return row.message.content.find((block): block is ToolResultBlockParam => block.type === 'tool_result' && block.tool_use_id === id)
 }
 
+function* toolCallingRows(rows: Rows.Message[], name: string): IterableIterator<Rows.Message> {
+  for (const row of rows) {
+    const content = row?.type === 'assistant' ? row.message.content : undefined
+    if (Array.isArray(content) && content.some(block => block.type === 'tool_use' && block.name === name)) yield row
+  }
+}
+
 export function countToolCalls(messages: Rows.Message[], toolName: string, maxCount?: number): number {
+  const callers = toolCallingRows(messages, toolName)
   let found = 0
-  messages.some(row => {
-    if (!callIn(row, toolName)) return false
+  while (!callers.next().done) {
     found += 1
-    return !!maxCount && found >= maxCount
-  })
+    if (maxCount && found >= maxCount) break
+  }
   return found
 }
 
