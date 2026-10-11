@@ -4,6 +4,7 @@ import { createServer, type IncomingMessage, type ServerResponse } from 'node:ht
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
+import { isHandoffRequest } from '../lib/fixtureApi.ts'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
 import { answerOf, frameLines, isCompleted, isMainThread, isText, lastOutcome } from '../lib/rows.ts'
 
@@ -121,7 +122,7 @@ export async function startEmptyReplyFixture(readmePath: string): Promise<EmptyR
       } catch {
       }
       captured.push({ n: captured.length + 1, dialect, path, body, at: Date.now() })
-      const turn = turnFor(dialect)
+      const turn: Turn = isHandoffRequest({ body }) ? { text: 'The note for the next session.' } : turnFor(dialect)
       res.writeHead(200, { 'content-type': 'text/event-stream' })
       res.end(dialect === 'responses' ? responsesSse(turn, counts[dialect]) : chatSse(turn))
     })
@@ -207,7 +208,10 @@ async function runRoute(route: { route: string; model: string; dialect: Dialect 
   const outcome = lastOutcome(frames)
   const answer = answerOf(outcome)
   const texts = frames.filter(f => isText(f) && isMainThread(f)).map(f => String(f.text ?? ''))
-  const requests = fixture.captured.filter(c => c.dialect === route.dialect)
+  const allRequests = fixture.captured.filter(c => c.dialect === route.dialect)
+  const requests = allRequests.filter(c => !isHandoffRequest(c))
+  const substantiveCount = route.route === 'zai' ? 2 : 3
+  check(`${route.route}: the marked closing ask follows the substantive requests exactly once`, JSON.stringify(allRequests.map(isHandoffRequest)) === JSON.stringify([...Array(substantiveCount).fill(false), true]), JSON.stringify(allRequests.map(isHandoffRequest)))
   const tail = stderr.split('\n').filter(l => l.trim() !== '').slice(-4).join(' | ')
   check(`${route.route}: the turn settled with a completed outcome`, exit === 0 && isCompleted(outcome), `exit ${String(exit)} ${String(outcome?.status)} ${tail}`)
   if (route.route === 'zai') {
