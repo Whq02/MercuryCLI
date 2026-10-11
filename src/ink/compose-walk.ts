@@ -6,7 +6,7 @@ import type { DOMElement } from './dom.js'
 import getMaxWidth from './get-max-width.js'
 import type { Rectangle } from './layout/geometry.js'
 import { LayoutDisplay, LayoutEdge, type LayoutNode } from './layout/node.js'
-import { nodeCache, pendingClears } from './node-cache.js'
+import { type CachedLayout, nodeCache, pendingClears } from './node-cache.js'
 import type ComposeBuffer from './compose-buffer.js'
 import renderBorder from './render-border.js'
 import type { Screen } from './cell-grid.js'
@@ -1197,41 +1197,27 @@ function composeScrolledChildren(
   preserveCulledCache = false,
   inheritedRowBg?: (row: number) => Color | undefined,
 ): void {
-  let seenDirtyChild = false
-  let cumHeightShift = 0
-  for (const childNode of node.childNodes) {
-    const childElem = childNode as DOMElement
-    const cy = childElem.layoutNode
-    if (cy) {
-      const cached = nodeCache.get(childElem)
-      let top: number
-      let height: number
-      if (cached?.top !== undefined && !childElem.dirty && cumHeightShift === 0) {
-        top = cached.top
-        height = cached.height
-      } else {
-        top = cy.getComputedTop()
-        height = cy.getComputedHeight()
-        if (childElem.dirty) {
-          cumHeightShift += height - (cached ? cached.height : 0)
-        }
-        if (cached) cached.top = top
-      }
-      const bottom = top + height
-      if (bottom <= scrollTopY || top >= scrollBottomY) {
-        if (!preserveCulledCache) dropSubtreeCache(childElem)
+  let offerOpen = !hasRemovedChild
+  let shift = 0
+  for (const child of node.childNodes as DOMElement[]) {
+    const layout = child.layoutNode
+    if (layout) {
+      const band = measureScrolledChild(child, layout, nodeCache.get(child), shift)
+      shift += band.grewBy
+      if (outsideBand(band, scrollTopY, scrollBottomY)) {
+        if (!preserveCulledCache) dropSubtreeCache(child)
         continue
       }
     }
-    const wasDirty = childElem.dirty
-    composeNode(childElem, ctx, {
+    const wasDirty = child.dirty
+    composeNode(child, ctx, {
       offsetX,
       offsetY,
-      prevScreen: hasRemovedChild || seenDirtyChild ? undefined : prevScreen,
+      prevScreen: offerOpen ? prevScreen : undefined,
       inheritedBackgroundColor,
       inheritedRowBg,
     })
-    if (wasDirty) seenDirtyChild = true
+    if (wasDirty) offerOpen = false
   }
 }
 
