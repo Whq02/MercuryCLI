@@ -1,8 +1,4 @@
-
-import {
-  checkForLSPDiagnostics,
-  clearAllLSPDiagnostics,
-} from '../../services/lsp/LSPDiagnosticRegistry.js'
+import { checkForLSPDiagnostics, clearAllLSPDiagnostics } from '../../services/lsp/LSPDiagnosticRegistry.js'
 import { toolMatchesName, type ToolUseContext } from '../../Tool.js'
 import { BASH_TOOL_NAME } from '../../tools/BashTool/toolName.js'
 import { logForDebugging } from '../debug.js'
@@ -10,50 +6,30 @@ import { toError } from '../errors.js'
 import { logError } from '../log.js'
 import type { Attachment } from './types.js'
 
-export async function getLSPDiagnosticAttachments(
-  toolUseContext: ToolUseContext,
-): Promise<Attachment[]> {
-  if (
-    !toolUseContext.options.tools.some(t => toolMatchesName(t, BASH_TOOL_NAME))
-  ) {
-    return []
-  }
-
-  logForDebugging('LSP Diagnostics: getLSPDiagnosticAttachments called')
-
+async function refreshDiagnosticDocuments(): Promise<void> {
   try {
-    const { getLspServerManager } = await import('../../services/lsp/manager.js')
-    const manager = getLspServerManager()
-    if (manager) await manager.revalidateOpenDocuments()
-  } catch {
-  }
+    const lsp = await import('../../services/lsp/manager.js')
+    await lsp.getLspServerManager()?.revalidateOpenDocuments()
+  } catch {}
+}
 
+function deliverDiagnostics(): Attachment[] {
   try {
-    const diagnosticSets = checkForLSPDiagnostics()
-
-    if (diagnosticSets.length === 0) {
-      return []
-    }
-
-    const attachments: Attachment[] = diagnosticSets.map(({ files }) => ({
-      type: 'diagnostics' as const,
-      files,
-      isNew: true,
-    }))
-
-    if (diagnosticSets.length > 0) {
+    const rows = checkForLSPDiagnostics().map<Attachment>(set => ({ type: 'diagnostics', files: set.files, isNew: true }))
+    if (rows.length) {
       clearAllLSPDiagnostics()
-      logForDebugging(
-        `diagnostics: ${diagnosticSets.length} sets attached for the model and cleared from the registry`,
-      )
+      logForDebugging(`diagnostics: ${rows.length} sets attached for the model and cleared from the registry`)
     }
-
-    return attachments
-  } catch (error) {
-    const err = toError(error)
-    logError(
-      new Error(`Failed to get LSP diagnostic attachments: ${err.message}`),
-    )
+    return rows
+  } catch (failure) {
+    logError(new Error(`Failed to get LSP diagnostic attachments: ${toError(failure).message}`))
     return []
   }
+}
+
+export async function getLSPDiagnosticAttachments(context: ToolUseContext): Promise<Attachment[]> {
+  if (!context.options.tools.some(tool => toolMatchesName(tool, BASH_TOOL_NAME))) return []
+  logForDebugging('LSP Diagnostics: getLSPDiagnosticAttachments called')
+  await refreshDiagnosticDocuments()
+  return deliverDiagnostics()
 }
