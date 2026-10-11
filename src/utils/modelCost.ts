@@ -296,7 +296,8 @@ function formatPrice(price: number): string {
 }
 
 export function formatModelPricing(costs: ModelCosts): string {
-  return `${formatPrice(costs.inputTokens)}/${formatPrice(costs.outputTokens)} per Mtok`
+  const inThenOut = [costs.inputTokens, costs.outputTokens].map(formatPrice).join('/')
+  return `${inThenOut} per Mtok`
 }
 
 export function getModelPricingString(model: string): string | undefined {
