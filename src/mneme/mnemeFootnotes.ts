@@ -1,26 +1,15 @@
 import { listArchiveDocs, listTopicDocs } from './mnemeLibrary.js'
 import { expandSeqRange, type MnemeEntry, type MnemeTopicDoc } from './mnemeTopicDocs.js'
 import { readPins } from './mnemeUsage.js'
+import { readLedger } from './ledger.js'
+import { mnemeProjectKey } from './paths.js'
+import type { LedgerEntry } from './types.js'
 
 export interface Footnotes {
   session?: number
   ruling?: string
   supersededBy?: string
   supersedes?: string
-}
-
-export interface LineageSession {
-  ordinal: number
-  sessionId: string
-  startedAt: string
-  endedAt: string | null
-  engines: { model: string; at: string }[]
-  rulings: string[]
-  retained: string[]
-  corrected: string[]
-  files: string[]
-  outcome: string | null
-  handoff: { text: string; at: string } | null
 }
 
 export interface RulingRecord {
@@ -31,8 +20,16 @@ export interface RulingRecord {
 }
 
 export interface FootnoteContext {
-  sessions: readonly LineageSession[]
+  sessions: readonly LedgerEntry[]
   rulings: readonly RulingRecord[]
+}
+
+export function currentLedger(): LedgerEntry[] {
+  try {
+    return readLedger(mnemeProjectKey())
+  } catch {
+    return []
+  }
 }
 
 export function sessionOfSource(source: string): string | null {
@@ -40,7 +37,7 @@ export function sessionOfSource(source: string): string | null {
   return m ? m[1]! : null
 }
 
-export function sessionOrdinal(session: string | null, sessions: readonly LineageSession[]): number | undefined {
+export function sessionOrdinal(session: string | null, sessions: readonly LedgerEntry[]): number | undefined {
   if (!session) return undefined
   const hit = sessions.find(s => s.sessionId === session || s.sessionId.startsWith(session))
   return hit?.ordinal
@@ -65,7 +62,7 @@ function resolveRulingId(id: string, entries: Map<number, MnemeEntry>): MnemeEnt
   return undefined
 }
 
-export function rulingRecords(dir: string, sessions: readonly LineageSession[]): RulingRecord[] {
+export function rulingRecords(dir: string, sessions: readonly LedgerEntry[]): RulingRecord[] {
   const entries = entryIndex([...listTopicDocs(dir), ...listArchiveDocs(dir)])
   const out = new Map<number, RulingRecord>()
   const add = (e: MnemeEntry, ordinal?: number): void => {
@@ -97,7 +94,7 @@ export function rulingRecords(dir: string, sessions: readonly LineageSession[]):
   return [...out.values()].sort((a, b) => a.seq - b.seq)
 }
 
-export function footnoteContext(dir: string, sessions: readonly LineageSession[] = []): FootnoteContext {
+export function footnoteContext(dir: string, sessions: readonly LedgerEntry[] = []): FootnoteContext {
   return { sessions, rulings: rulingRecords(dir, sessions) }
 }
 
@@ -142,7 +139,7 @@ function idList(label: string, ids: readonly string[]): string {
   return ids.length === 0 ? `${label}: none` : `${label} (${ids.length}): ${ids.join(', ')}`
 }
 
-export function renderLedgerEntry(s: LineageSession, count: number): string {
+export function renderLedgerEntry(s: LedgerEntry, count: number): string {
   const lines: string[] = [`session ${s.ordinal} of ${count} · ${s.sessionId}`]
   lines.push(s.endedAt === null ? `started ${s.startedAt} · still open` : `started ${s.startedAt} · ended ${s.endedAt}${s.outcome ? ` (${s.outcome})` : ''}`)
   if (s.endedAt !== null) {

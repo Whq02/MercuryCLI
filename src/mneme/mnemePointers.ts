@@ -6,15 +6,16 @@ import {
   renderFootnotes,
   sessionOfSource,
   sessionOrdinal,
+  currentLedger,
   type FootnoteContext,
   type Footnotes,
-  type LineageSession,
 } from './mnemeFootnotes.js'
 import { mnemeLibraryDir } from './mnemeGates.js'
 import { listArchiveDocs, listTopicDocs } from './mnemeLibrary.js'
 import { escapeRegExp, lookupTokens } from './mnemeLookup.js'
 import { ARCHIVE_PREFIX, isArchiveDoc, type MnemeEntry } from './mnemeTopicDocs.js'
 import { readPins } from './mnemeUsage.js'
+import type { LedgerEntry } from './types.js'
 
 export type PointerKind = 'fact' | 'ruling' | 'handoff' | 'session'
 
@@ -103,7 +104,7 @@ function factPointer(hit: RecallHit, row: LiveRow | undefined, pinned: ReadonlyS
   }
 }
 
-function sessionText(s: LineageSession): string {
+function sessionText(s: LedgerEntry): string {
   return [
     `session ${s.ordinal}`,
     s.sessionId,
@@ -120,7 +121,7 @@ function wordCount(text: string): number {
   return text.split(/\s+/).filter(Boolean).length
 }
 
-export function ledgerPointers(query: string, sessions: readonly LineageSession[], limit: number = LEDGER_POINTERS_MAX): MemoryPointer[] {
+export function ledgerPointers(query: string, sessions: readonly LedgerEntry[], limit: number = LEDGER_POINTERS_MAX): MemoryPointer[] {
   const ms = matchers(query)
   const pattern = patternOf(query)
   const count = sessions.length
@@ -162,11 +163,11 @@ export function ledgerPointers(query: string, sessions: readonly LineageSession[
 
 export function searchPointers(
   query: string,
-  opts: { dir?: string; limit?: number; sessions?: readonly LineageSession[] } = {},
+  opts: { dir?: string; limit?: number; sessions?: readonly LedgerEntry[] } = {},
 ): PointerResult {
   const dir = opts.dir ?? mnemeLibraryDir()
   const limit = Math.min(Math.max(opts.limit ?? POINTER_DEFAULT_LIMIT, 1), POINTER_LIMIT)
-  const sessions = opts.sessions ?? []
+  const sessions = opts.sessions ?? currentLedger()
   const recall = recallQuery(query, { limit, dir })
   const ctx: SearchContext = { ...footnoteContext(dir, sessions), dir }
   const rows = liveRows(dir)

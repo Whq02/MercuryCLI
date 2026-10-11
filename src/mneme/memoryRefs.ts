@@ -1,11 +1,11 @@
 
 import { existsSync } from 'node:fs'
 import { join } from 'node:path'
-import type { LineageSession } from './mnemeFootnotes.js'
 import { mnemeEnabled, mnemeLibraryDir } from './mnemeGates.js'
 import { escapeRegExp, lookupTokens } from './mnemeLookup.js'
 import { ledgerPointers, type MemoryPointer } from './mnemePointers.js'
 import { catalogDocs, grepLibrary, grepPending, PENDING_SLUG } from './mnemeRetrieval.js'
+import type { LedgerEntry } from './types.js'
 
 export type MemoryRefKind = 'mneme-fact' | 'mneme-topic' | 'mneme-pending' | 'mneme-session'
 
@@ -38,7 +38,7 @@ export interface CollectOpts {
   maxRefs?: number
   libraryDir?: string
   projectRoot?: string | null
-  sessions?: readonly LineageSession[]
+  sessions?: readonly LedgerEntry[]
 }
 
 export function sessionRef(pointer: MemoryPointer): MemoryRef {

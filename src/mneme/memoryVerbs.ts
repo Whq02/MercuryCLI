@@ -9,7 +9,8 @@ import { correctFact, pointFact, retireFact, userAskedRuleMessage, type MnemeCor
 import { ARCHIVE_PREFIX, isArchiveDoc, parseEntryLine, liveSeqs, serializeSignature, type MnemeTopicDoc } from './mnemeTopicDocs.js'
 import { bumpUsage, readPins, readUsage } from './mnemeUsage.js'
 import { candidates, rankCandidates } from './mnemeLookup.js'
-import { footnoteContext, footnotesOf, renderLedgerEntry, type Footnotes, type LineageSession } from './mnemeFootnotes.js'
+import { currentLedger, footnoteContext, footnotesOf, renderLedgerEntry, type Footnotes } from './mnemeFootnotes.js'
+import type { LedgerEntry } from './types.js'
 
 function allDocs(dir: string): MnemeTopicDoc[] {
   return [...listTopicDocs(dir), ...listArchiveDocs(dir)]
@@ -304,9 +305,9 @@ function nameDroppedRows(droppedSeqs: number[]): string {
 export function readMemoryRecord(
   id: string,
   dir: string = mnemeLibraryDir(),
-  opts: { sessions?: readonly LineageSession[] } = {},
+  opts: { sessions?: readonly LedgerEntry[] } = {},
 ): MemoryReadResult {
-  const sessions = opts.sessions ?? []
+  const sessions = opts.sessions ?? currentLedger()
   const seqMatch = /^seq:(\d+)$/.exec(id)
   if (seqMatch) {
     const seq = Number(seqMatch[1])
@@ -362,7 +363,7 @@ export function readMemoryRecord(
     if (!session) {
       return { found: false, id, note: sessions.length === 0 ? 'the ledger has no session yet' : `no session ${ordinal} in the ledger (${sessions.length} so far)` }
     }
-    return { found: true, id, content: renderLedgerEntry(session, sessions.length), footnotes: { session: ordinal } }
+    return { found: true, id, content: renderLedgerEntry(session, sessions.length) }
   }
   const docMatch = /^doc:([a-z0-9-]+)/.exec(id)
   const slug = docMatch?.[1] ?? (id.startsWith('pending:') ? null : id)
