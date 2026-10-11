@@ -1,113 +1,32 @@
-
-export const EXTERNAL_PERMISSION_MODES = [
-  'default',
-  'dontAsk',
-  'implement',
-  'sovereign',
-] as const
+export const EXTERNAL_PERMISSION_MODES = ['default', 'dontAsk', 'implement', 'sovereign'] as const
+export const INTERNAL_PERMISSION_MODES = [...EXTERNAL_PERMISSION_MODES, 'flow', 'bubble', 'apollo'] as const
+export const PERMISSION_MODES = [...EXTERNAL_PERMISSION_MODES, 'flow', 'apollo'] as const
 
 export type ExternalPermissionMode = (typeof EXTERNAL_PERMISSION_MODES)[number]
-
-export type InternalPermissionMode =
-  | ExternalPermissionMode
-  | 'flow'
-  | 'bubble'
-  | 'apollo'
-
-export const INTERNAL_PERMISSION_MODES = [
-  ...EXTERNAL_PERMISSION_MODES,
-  'flow',
-  'bubble',
-  'apollo',
-] as const satisfies readonly InternalPermissionMode[]
-
+export type InternalPermissionMode = (typeof INTERNAL_PERMISSION_MODES)[number]
 export type PermissionMode = InternalPermissionMode
 
-export const PERMISSION_MODES = [
-  ...EXTERNAL_PERMISSION_MODES,
-  'flow',
-  'apollo',
-] as const
-
 export type PermissionBehavior = 'allow' | 'deny' | 'ask'
+export type RiskLevel = 'LOW' | 'MEDIUM' | 'HIGH'
 
-export type PermissionRuleSource =
-  | 'userSettings'
-  | 'projectSettings'
-  | 'localSettings'
-  | 'flagSettings'
-  | 'policySettings'
-  | 'cliArg'
-  | 'command'
-  | 'session'
-  | 'toolsNarrowing'
-  | 'mcpServerPolicy'
+type SettingsRuleSource = 'userSettings' | 'projectSettings' | 'localSettings' | 'flagSettings' | 'policySettings'
+type RuntimeRuleSource = 'cliArg' | 'command' | 'session' | 'toolsNarrowing' | 'mcpServerPolicy'
+export type PermissionRuleSource = SettingsRuleSource | RuntimeRuleSource
+export type PermissionUpdateDestination = Exclude<SettingsRuleSource, 'flagSettings' | 'policySettings'> | 'session' | 'cliArg'
 
-export type PermissionRuleValue = {
-  toolName: string
-  ruleContent?: string
-  reason?: string
-}
+export type PermissionRuleValue = { toolName: string; ruleContent?: string; reason?: string }
+export type PermissionRule = { source: PermissionRuleSource; ruleBehavior: PermissionBehavior; ruleValue: PermissionRuleValue }
 
-export type PermissionRule = {
-  source: PermissionRuleSource
-  ruleBehavior: PermissionBehavior
-  ruleValue: PermissionRuleValue
-}
-
-export type PermissionUpdateDestination =
-  | 'userSettings'
-  | 'projectSettings'
-  | 'localSettings'
-  | 'session'
-  | 'cliArg'
+type RuleListUpdate<Kind extends string> = Kind extends unknown
+  ? { type: Kind; rules: PermissionRuleValue[]; behavior: PermissionBehavior; destination: PermissionUpdateDestination }
+  : never
 
 export type PermissionUpdate =
-  | {
-      type: 'addRules'
-      rules: PermissionRuleValue[]
-      behavior: PermissionBehavior
-      destination: PermissionUpdateDestination
-    }
-  | {
-      type: 'replaceRules'
-      rules: PermissionRuleValue[]
-      behavior: PermissionBehavior
-      destination: PermissionUpdateDestination
-    }
-  | {
-      type: 'removeRules'
-      rules: PermissionRuleValue[]
-      behavior: PermissionBehavior
-      destination: PermissionUpdateDestination
-    }
-  | {
-      type: 'setMode'
-      mode: ExternalPermissionMode
-      destination: PermissionUpdateDestination
-    }
+  | RuleListUpdate<'addRules' | 'replaceRules' | 'removeRules'>
+  | { type: 'setMode'; mode: ExternalPermissionMode; destination: PermissionUpdateDestination }
 
-export type PermissionCommandMetadata = {
-  name: string
-  description?: string
-  [key: string]: unknown
-}
-
+export type PermissionCommandMetadata = { name: string; description?: string; [key: string]: unknown }
 export type PermissionMetadata = { command: PermissionCommandMetadata } | undefined
-
-export type PermissionDecisionReason =
-  | { type: 'rule'; rule: PermissionRule }
-  | { type: 'mode'; mode: PermissionMode }
-  | { type: 'subcommandResults'; reasons: Map<string, PermissionResult> }
-  | { type: 'permissionPromptTool'; permissionPromptToolName?: string; toolResult?: unknown }
-  | { type: 'hook'; hookName: string; hookSource?: string; reason?: string }
-  | { type: 'guard'; guard: string; reason: string }
-  | { type: 'asyncAgent'; reason: string }
-  | { type: 'sandboxOverride'; reason: 'excludedCommand' | 'sandboxDisabled' }
-  | { type: 'workingDir'; reason: string }
-  | { type: 'safetyCheck'; reason: string; operatorOnly: boolean; floor?: true }
-  | { type: 'other'; reason: string }
-  | { type: 'bypassedAsk'; mode: PermissionMode; road: BypassedAskRoad; reason: PermissionDecisionReason }
 
 export type BypassedAskRoad = 'toolAskRule' | 'contentAskRule' | 'orgAskCeiling' | 'safetyCheckAsk'
 
@@ -118,37 +37,38 @@ export const BYPASSED_ASK_ROAD_WORDS: Readonly<Record<BypassedAskRoad, string>> 
   safetyCheckAsk: 'the path-safety check',
 })
 
-export type PermissionAllowDecision<
-  ToolInput = Record<string, unknown>,
-> = {
-  behavior: 'allow'
-  updatedInput?: ToolInput
-  userModified?: boolean
-  decisionReason?: PermissionDecisionReason
-  toolUseID?: string
-  acceptFeedback?: string
-  contentBlocks?: unknown[]
+type ReasonPayloads = {
+  rule: { rule: PermissionRule }
+  mode: { mode: PermissionMode }
+  subcommandResults: { reasons: Map<string, PermissionResult> }
+  permissionPromptTool: { permissionPromptToolName?: string; toolResult?: unknown }
+  hook: { hookName: string; hookSource?: string; reason?: string }
+  guard: { guard: string; reason: string }
+  asyncAgent: { reason: string }
+  sandboxOverride: { reason: 'excludedCommand' | 'sandboxDisabled' }
+  workingDir: { reason: string }
+  safetyCheck: { reason: string; operatorOnly: boolean; floor?: true }
+  other: { reason: string }
+  bypassedAsk: { mode: PermissionMode; road: BypassedAskRoad; reason: PermissionDecisionReason }
 }
 
-export type PermissionAskDecision<
-  ToolInput = Record<string, unknown>,
-> = {
-  behavior: 'ask'
-  message: string
-  updatedInput?: ToolInput
-  decisionReason?: PermissionDecisionReason
-  suggestions?: PermissionUpdate[]
-  blockedPath?: string
-  metadata?: PermissionMetadata
-  contentBlocks?: unknown[]
-}
+export type PermissionDecisionReason = { [Kind in keyof ReasonPayloads]: { type: Kind } & ReasonPayloads[Kind] }[keyof ReasonPayloads]
 
-export type PermissionDenyDecision = {
-  behavior: 'deny'
-  message: string
-  decisionReason: PermissionDecisionReason
-  toolUseID?: string
-}
+type Reasoned = { decisionReason?: PermissionDecisionReason }
+type Steered = { suggestions?: PermissionUpdate[]; blockedPath?: string }
+type Answered<Behavior extends string, Fields> = { behavior: Behavior } & Fields
+
+export type PermissionAllowDecision<ToolInput = Record<string, unknown>> = Answered<
+  'allow',
+  Reasoned & { updatedInput?: ToolInput; userModified?: boolean; toolUseID?: string; acceptFeedback?: string; contentBlocks?: unknown[] }
+>
+
+export type PermissionAskDecision<ToolInput = Record<string, unknown>> = Answered<
+  'ask',
+  Reasoned & Steered & { message: string; updatedInput?: ToolInput; metadata?: PermissionMetadata; contentBlocks?: unknown[] }
+>
+
+export type PermissionDenyDecision = Answered<'deny', { message: string; decisionReason: PermissionDecisionReason; toolUseID?: string }>
 
 export type PermissionDecision<ToolInput = Record<string, unknown>> =
   | PermissionAllowDecision<ToolInput>
@@ -157,30 +77,12 @@ export type PermissionDecision<ToolInput = Record<string, unknown>> =
 
 export type PermissionResult<ToolInput = Record<string, unknown>> =
   | PermissionDecision<ToolInput>
-  | {
-      behavior: 'passthrough'
-      message: string
-      decisionReason?: PermissionDecisionReason
-      suggestions?: PermissionUpdate[]
-      blockedPath?: string
-    }
+  | Answered<'passthrough', Reasoned & Steered & { message: string }>
 
-export type RiskLevel = 'LOW' | 'MEDIUM' | 'HIGH'
+export type PermissionExplanation = { risk: RiskLevel; explanation: string; reasoning: string; riskStatement: string }
 
-export type PermissionExplanation = {
-  risk: RiskLevel
-  explanation: string
-  reasoning: string
-  riskStatement: string
-}
-
-export type ToolPermissionRulesBySource = {
-  [K in PermissionRuleSource]?: string[]
-}
-
-export type PermissionRuleReasonsBySource = {
-  [K in PermissionRuleSource]?: Record<string, string>
-}
+export type ToolPermissionRulesBySource = Partial<Record<PermissionRuleSource, string[]>>
+export type PermissionRuleReasonsBySource = Partial<Record<PermissionRuleSource, Record<string, string>>>
 
 export type ToolPermissionContext = {
   mode: InternalPermissionMode
