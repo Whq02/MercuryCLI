@@ -99,15 +99,34 @@ journal, not that the session's own engine does not see it.
 
 ## The memory centre
 
-`/memory` is the front door. Type to search facts and rules; open one to see
-why it matched and the page it lives on; press `c` to correct it (the old
-fact moves to history), `x` to retire it, `p` to pin it word for word or `u`
-to unpin it. The overview lists the topics and opens each page; it lists the
-journal and opens each entry. It shows how many facts the library holds, how
-full the pinned shelf is, the state of maintenance and its recent receipts.
-`/memory stats` prints the same numbers; `/memory enqueue` runs maintenance
-now. `/health` carries a memory row with the front page's size and the
-shelf's fill.
+`/memory` is the front door. It opens as a popup over the chat, in the frame
+the files menu and `/config` use: the title "Mercury · memory" with the
+project and its memory folder under it, a search line at the top, the body,
+and the keys in the footer. The overview is a table with one row per
+section — facts and decisions, pinned rules, topics, the lineage, the
+journal, notes to take in (while there are any), maintenance and the
+instruction files — and three columns beside the name: the count, the newest
+date, and a one-word state. The selected row's detail reads under the table
+and its action in the footer: `↵` lists the pinned rules or the topics,
+opens the sessions or the journal, runs maintenance now, takes the old notes
+in, opens the instruction files picker.
+
+A section opens in the body with the overview folded to a breadcrumb. The
+pinned rules and the topics are lists; `u` on a rule unpins it. The lineage
+is a table of the sessions of this work, newest first — session, engine,
+started, ended, and whether it left a note — and `↵` on a noted session
+opens its note. The journal is a dated list, newest first, and `↵` opens an
+entry whole. A topic page, a session's note and a journal entry open as
+pages wrapped to the frame; `↑↓` scroll one that runs past it. Type to
+search: on the overview the search reads the facts and rules; in a list it
+filters the list. Open a fact to see why it matched and the page it lives
+on, the fact marked; press `c` to correct it (the old fact moves to history),
+`x` to retire it, `p` to pin it word for word or `u` to unpin it. `esc` backs
+out one level and closes the popup from the overview; a click outside closes
+it too. `/memory files` opens the instruction files picker straight away, in
+the same popup. `/memory stats` prints the numbers; `/memory enqueue` runs
+maintenance now. `/health` carries a memory row with the front page's size
+and the shelf's fill.
 
 ## On disk
 
