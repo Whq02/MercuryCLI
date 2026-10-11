@@ -27,7 +27,6 @@ const tiny = buildBehaviourContract({
   wrapperSections: [],
   modeSections: [],
   antiSycSections: [],
-  reconcileTailSections: [],
 })
 recordPromptComposition({ contract: tiny, composedSegments: renderAnthropicSections(tiny) })
 assert(readPromptProvenance() !== null, 'provenance state recorded under a bare stamp')
@@ -47,12 +46,11 @@ const contract = buildBehaviourContract({
   ],
   dynamicResolved: ['D1', 'D22', 'D333', null],
   wrapperSections: [
-    { name: 'identity-floor', text: 'W-1' },
-    { name: 'mercury-doctrine', text: 'W-22' },
+    { name: 'response-profile', text: 'W-1' },
+    { name: 'another', text: 'W-22' },
   ],
   modeSections: [{ name: 'mode-apollo', text: 'MODEPACK' }],
-  antiSycSections: [],
-  reconcileTailSections: ['R'],
+  antiSycSections: ['R'],
 })
 const segments = renderAnthropicSections(contract)
 recordPromptComposition({
@@ -69,7 +67,7 @@ if (p) {
   assert(p.sections.length === contract.sections.length, 'one record per composed section')
   const wrapperRecs = p.sections.filter(s => s.group === 'wrapper')
   assert(
-    wrapperRecs.map(s => s.name).join(',') === 'identity-floor,mercury-doctrine',
+    wrapperRecs.map(s => s.name).join(',') === 'response-profile,another',
     'wrapper sections carry semantic names',
   )
   assert(

@@ -3,7 +3,7 @@ import { getSessionId, isSessionPersistenceDisabled } from '../bootstrap/state.j
 import type { Command } from '../commands.js'
 import { LOCAL_COMMAND_STDERR_TAG, LOCAL_COMMAND_STDOUT_TAG } from '../constants/xml.js'
 import { armWorkerParentWatch } from '../daemon/workerParentWatch.js'
-import { MERCURY_IDENTITY_FLOOR } from '../prompt/mercuryContract.js'
+import { MERCURY_CONSTITUTION } from '../prompt/mercuryContract.js'
 import { queryEvents } from '../query.js'
 import type { Terminal } from '../query/transitions.js'
 import type { RunEvent } from '../run-core/events.js'
@@ -381,7 +381,7 @@ export class Conversation {
     let memoryMechanicsPrompt: string | null = null
     if (config.customSystemPrompt !== undefined && hasMnemeHomeOverride()) memoryMechanicsPrompt = await loadMemoryPrompt()
 
-    const systemPromptSections: string[] = config.customSystemPrompt !== undefined ? [MERCURY_IDENTITY_FLOOR, config.customSystemPrompt] : [...promptParts.defaultSystemPrompt]
+    const systemPromptSections: string[] = config.customSystemPrompt !== undefined ? [MERCURY_CONSTITUTION, config.customSystemPrompt] : [...promptParts.defaultSystemPrompt]
     if (memoryMechanicsPrompt) systemPromptSections.push(memoryMechanicsPrompt)
     if (config.appendSystemPrompt) systemPromptSections.push(config.appendSystemPrompt)
     const systemPrompt = asSystemPrompt(systemPromptSections)

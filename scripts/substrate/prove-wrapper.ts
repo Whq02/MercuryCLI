@@ -3,15 +3,17 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import {
-  MERCURY_IDENTITY_FLOOR,
-  MERCURY_IDENTITY_RECONCILE,
-  MERCURY_SESSION_CONTRACT,
-  MERCURY_SESSION_DOCTRINE,
+  MERCURY_CONSTITUTION,
+  MERCURY_COORDINATOR_CONTRACT,
+  MERCURY_COORDINATOR_SEAT,
+  MERCURY_SUBAGENT_CONTRACT,
   getMercuryContractSections,
-  mercuryDoctrineEnabled,
 } from '../../src/prompt/mercuryContract.js'
 
-const STATIC_HEAD = readFileSync(join(import.meta.dir, '..', '..', 'src/constants/prompts.ts'), 'utf8')
+const J = (...parts: string[]): string => parts.join('')
+const ROOT = join(import.meta.dir, '..', '..')
+const PROMPTS = readFileSync(join(ROOT, 'src/constants/prompts.ts'), 'utf8')
+const CONTRACT = readFileSync(join(ROOT, 'src/prompt/mercuryContract.ts'), 'utf8')
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -23,58 +25,38 @@ function section(t: string): void {
 }
 
 console.log('============================================================')
-console.log(' Mercury contract — model-wake + always-on-floor proof')
+console.log(' Mercury constitution — model-wake + ungated proof')
 console.log('============================================================')
 
-section('identity/honesty/safety FLOOR — content')
-check('floor is a non-empty string', typeof MERCURY_IDENTITY_FLOOR === 'string' && MERCURY_IDENTITY_FLOOR.length > 0)
-check('floor names Mercury', /Mercury/.test(MERCURY_IDENTITY_FLOOR))
-check('session identity ends with its name before attribution', MERCURY_IDENTITY_FLOOR.startsWith('You are **Mercury** — this command-line coding harness and the agent running in it; the\nmodel is the engine. The one name you go by is Mercury.\nMercury was not built'))
-check('closing identity states the engine and harness directly', MERCURY_IDENTITY_RECONCILE.includes('powers you is your engine, Mercury is what you are. Project docs'))
-check('floor states operator-first', /OPERATOR FIRST|operator/i.test(MERCURY_IDENTITY_FLOOR))
-check(
-  'floor states the honesty/safety boundary (no deceive / no gate-bypass)',
-  /don't deceive|bypass a real safety, permission, or/i.test(MERCURY_IDENTITY_FLOOR),
-)
-check(
-  'floor is provider-neutral (no model-family identity — cross-provider law)',
-  !/Claude|Anthropic|GPT|OpenAI/.test(MERCURY_IDENTITY_FLOOR),
-)
-check('floor precedence tie-break present', /safety and honesty first, then the operator, then defaults/.test(MERCURY_IDENTITY_FLOOR))
+section('the constitution — content')
+check('the constitution is a non-empty string', typeof MERCURY_CONSTITUTION === 'string' && MERCURY_CONSTITUTION.length > 0)
+check('it opens on who the seat is', MERCURY_CONSTITUTION.startsWith('You are Mercury, the self that exists in this harness.'))
+check('it names Mercury once as the identity and states nothing the seat is not', (MERCURY_CONSTITUTION.match(/^You are /gm) ?? []).length === 1 && !/claim to be human|misrepresent what you are|not a person/i.test(MERCURY_CONSTITUTION))
+check('it states the operator relation (read the room; their stated preferences ahead of defaults)', /Read the room/.test(MERCURY_CONSTITUTION) && /their stated preferences ahead of defaults/.test(MERCURY_CONSTITUTION))
+check('it states the honesty and gate lines (report plainly; a real gate respected and named, never worked around)', /Report what actually happened, plainly/.test(MERCURY_CONSTITUTION) && /A real safety, permission or capability gate is respected and\nnamed, never worked around/.test(MERCURY_CONSTITUTION))
+check('it is provider-neutral (no model-family identity — cross-provider law)', !/Claude|Anthropic|GPT|OpenAI/.test(MERCURY_CONSTITUTION))
+check('the precedence tie-break is its last statement', MERCURY_CONSTITUTION.endsWith('When instructions conflict: safety and honesty\nfirst, then the operator, then defaults.'))
 
-section('model-wake: getMercuryContractSections() — named sections, floor leads')
-delete process.env.MERCURY_WRAPPER_APPEND
+section('model-wake: the constitution is a static section; getMercuryContractSections() carries no identity or doctrine')
 const secs = getMercuryContractSections()
-check('returns 2 sections when the doctrine layer is on (no family overlay)', secs.length === 2, `len=${secs.length}`)
+check('the contract sections carry no identity or doctrine section', secs.every(s => s.name !== J('identity', '-floor') && s.name !== J('mercury', '-doctrine') && !/You are/.test(s.text)))
 check('every section carries a semantic name + string text', secs.every(s => typeof s.name === 'string' && s.name.length > 0 && typeof s.text === 'string'))
-check('section[0] is the identity floor (LEADS at model-wake)', secs[0]!.name === 'identity-floor' && secs[0]!.text === MERCURY_IDENTITY_FLOOR)
-check('section[1] is the Mercury doctrine: the session contract inside its tag', secs[1]!.name === 'mercury-doctrine' && secs[1]!.text === MERCURY_SESSION_DOCTRINE && MERCURY_SESSION_DOCTRINE === `<mercury-doctrine>\n${MERCURY_SESSION_CONTRACT}\n</mercury-doctrine>`)
-check('the closing reconcile fixes the brand to Mercury', /Mercury/.test(MERCURY_IDENTITY_RECONCILE))
 check('no positional section names (semantic-ID law)', secs.every(s => !/^wrapper-\d|^mode-\d+$/.test(s.name)))
+check('prompts.ts composes the constitution into the static group right after the head', PROMPTS.includes("const law = layers === 'replace' ? promptReplacementText() : MERCURY_CONSTITUTION") && PROMPTS.includes('const staticSections: Array<string | null> = [frozenHead ?? head, law]'))
+check('prompts.ts carries no behaviour prose of its own: no tone, no communication, no care, no doing-tasks section', !/# Tone and style|# Communicating with the user|# Acting with care|# Doing tasks|# System behaviour|# Using your tools|# Session-specific guidance/.test(PROMPTS))
 
-section('session contract content: voice · autonomy · evidence · ending the turn; the mechanics stay with the static head (one owner each)')
-check('contract carries the voice clause (open on the read or the move, close outcome first with the evidence named)', /Open on what you found or what you are about to do, never on a pleasantry or a restatement of the request/.test(MERCURY_SESSION_CONTRACT) && /close with the outcome first/.test(MERCURY_SESSION_CONTRACT) && /one line naming the evidence you verified/.test(MERCURY_SESSION_CONTRACT))
-check('contract carries the autonomy clause (act with enough information, name the assumption, stop only for the destructive, a scope change or operator-only input)', /With enough information, act and name any assumption you made/.test(MERCURY_SESSION_CONTRACT) && /stopping only for a destructive act, a real scope change or input only the operator can give/.test(MERCURY_SESSION_CONTRACT))
-check('contract carries the assessment-mode boundary', /describes a problem rather than asking for a change, assess and stop/.test(MERCURY_SESSION_CONTRACT))
-check('contract carries the evidence clause (claims only from this session\'s tool results; name what is not verified)', /Claim only what a tool result from this session shows, name what is not verified/.test(MERCURY_SESSION_CONTRACT))
-check('contract carries the persistence clause (keep going while evidence advances; never wind down because the session is long)', /keep going while evidence advances the outcome, never winding down because the session is long/.test(MERCURY_SESSION_CONTRACT))
-check('contract carries the last-paragraph check (never end on a plan, a promise or a self-answerable question)', /Before ending your turn, check your last paragraph and do now any work it only plans, promises or asks about/.test(MERCURY_SESSION_CONTRACT))
-check('contract carries the idle rule (end the turn when the work settles or when told to idle; no sleeps or timers)', /end the turn when the work settles or when told to idle, never holding it open with sleeps or timers/.test(MERCURY_SESSION_CONTRACT))
-check('the tool-call working note, the quick-task preamble rule and the evidence-reuse condition stay with the static head alone (one owner)', !/tool call|narration|appendix|reuse/.test(MERCURY_SESSION_CONTRACT) && STATIC_HEAD.includes('Text written before a tool call is a one-line working note about the next step') && STATIC_HEAD.includes('Skip preambles for quick tasks') && STATIC_HEAD.includes('on the rare occasion process or reasoning must appear, put it at the end') && STATIC_HEAD.includes('no re-verifying what was already checked while its evidence still applies to the current state'))
-check('the brevity preference stays with the floor alone (one owner)', !/brevity/.test(MERCURY_SESSION_CONTRACT) && /Follow their stated preferences ahead of generic defaults/.test(MERCURY_IDENTITY_FLOOR))
+section('the seat contracts stay beside the constitution, one per seat')
+check('the coordinator seat fact names the role and no second identity', MERCURY_COORDINATOR_SEAT.includes('"coordinator" is your role, never a second name') && !/^You are/.test(MERCURY_COORDINATOR_SEAT))
+check('the coordinator contract carries its evidence rule and its smallest-honest-question rule', /Claim only what the board or this turn's receipts show/.test(MERCURY_COORDINATOR_CONTRACT) && /ask the smallest honest question/.test(MERCURY_COORDINATOR_CONTRACT))
+check('the crewmate contract carries its evidence rule and its gate rule', /Claim only what you opened or ran shows/.test(MERCURY_SUBAGENT_CONTRACT) && /Never bypass a safety, permission, approval, or capability gate/.test(MERCURY_SUBAGENT_CONTRACT))
+check('no session contract and no doctrine tag exist beside the constitution', !new RegExp([J('MERCURY_SESSION', '_CONTRACT'), J('MERCURY_SESSION', '_DOCTRINE'), J('<mercury', '-doctrine>'), J('MERCURY_IDENTITY', '_RECONCILE')].join('|')).test(CONTRACT))
 
-section('doctrine gate: MERCURY_WRAPPER_APPEND=0 opts out the DOCTRINE, never the floor')
-delete process.env.MERCURY_WRAPPER_APPEND
-check('default ⇒ doctrine layer ON', mercuryDoctrineEnabled() === true)
-process.env.MERCURY_WRAPPER_APPEND = '0'
-check('MERCURY_WRAPPER_APPEND=0 ⇒ doctrine OFF (opt-out)', mercuryDoctrineEnabled() === false)
-const offSecs = getMercuryContractSections()
-check('doctrine section absent when off', !offSecs.some(s => s.name === 'mercury-doctrine'))
-check('floor SURVIVES the opt-out (always-on guarantee)', offSecs[0]!.name === 'identity-floor' && offSecs[0]!.text === MERCURY_IDENTITY_FLOOR)
-delete process.env.MERCURY_WRAPPER_APPEND
+section('ungated: no flag names the constitution or drops it')
+check('the contract module reads no doctrine flag', !new RegExp([J('MERCURY_WRAPPER', '_APPEND'), J('mercuryDoctrine', 'Enabled')].join('|')).test(CONTRACT))
+check('the only flags the module reads are the prompt-ablation instrument\'s', (CONTRACT.match(/flagEnv\('([A-Z_]+)'\)/g) ?? []).join(',') === "flagEnv('MERCURY_PROMPT_LAYERS'),flagEnv('MERCURY_PROMPT_REPLACE_FILE')")
 
 console.log('\n' + '═'.repeat(76))
-if (failures === 0) console.log('✅ ALL CONTRACT PROOFS PASS (model-wake + always-on floor)')
+if (failures === 0) console.log('✅ ALL CONTRACT PROOFS PASS (model-wake + ungated constitution)')
 else console.log(`❌ ${failures} CONTRACT PROOF(S) FAILED`)
 console.log('═'.repeat(76))
 process.exit(failures === 0 ? 0 : 1)

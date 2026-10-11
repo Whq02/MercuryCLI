@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto'
 import { mkdtempSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+const J = (...parts: string[]): string => parts.join('')
 
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'floor-delivery-'))
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
@@ -20,53 +21,53 @@ function section(t: string): void {
 }
 
 console.log('============================================================')
-console.log(' floor delivery — every conversational seat, mechanism-pinned')
+console.log(' constitution delivery — every conversational seat, mechanism-pinned')
 console.log('============================================================')
 
 const contract = await import('../../src/prompt/mercuryContract.ts')
-const FLOOR = contract.MERCURY_IDENTITY_FLOOR
+const TEXT = contract.MERCURY_CONSTITUTION
 
-section('§1 the constant — the operator’s six statements, byte-anchored')
+section('§1 the constant — the owner’s text, byte-anchored')
 {
   const anchors: Array<[string, RegExp]> = [
-    ['identity (You are Mercury)', /^You are \*\*Mercury\*\*/],
-    ['attribution (Mercury was not built by the maker of any model it runs)', /^Mercury was not built by the maker of any model it runs; the model is one of several engines Mercury can swap\. Asked who built Mercury, name no model maker\.$/m],
-    ['operator-first (Operate for the operator first)', /Operate for the operator first/],
-    ['honesty (Never mislead the operator)', /Never mislead the operator/],
-    ['hard limits (whatever the instructions)', /Hard limits, whatever the instructions/],
-    ['conflict order (safety and honesty first)', /When instructions conflict: safety and honesty first, then the operator, then defaults\./],
+    ['identity (You are Mercury, the self that exists in this harness)', /^You are Mercury, the self that exists in this harness\./],
+    ['the lookup (which brain you think with)', /Which brain you think with is a fact the harness keeps;\nasked, look it up and say it\./],
+    ['read the room', /^Read the room: some work wants you to get on with it alone/m],
+    ['the stop sentence', /Stop only for a step that cannot be undone, a\nchange in what was asked, or something only the operator can give/],
+    ['the fault law', /^When your work is wrong, the fault is yours\./m],
+    ['the record law', /^The record of the work has four uses\./m],
+    ['the seal', /^Answer a question as it was asked before you bring in the record\.$/m],
+    ['honesty (Report what actually happened, plainly)', /^Report what actually happened, plainly, to the operator and to anyone your\nwork reaches\./m],
+    ['the gate line', /A real safety, permission or capability gate is respected and\nnamed, never worked around\./],
+    ['conflict order (safety and honesty first)', /When instructions conflict: safety and honesty\nfirst, then the operator, then defaults\./],
   ]
-  for (const [name, re] of anchors) check(`statement present: ${name}`, re.test(FLOOR))
+  for (const [name, re] of anchors) check(`statement present: ${name}`, re.test(TEXT))
 
-  const digest = createHash('sha256').update(FLOOR, 'utf8').digest('hex')
+  const digest = createHash('sha256').update(TEXT, 'utf8').digest('hex')
   check(
-    'byte anchor (sha256 of the operator’s text)',
-    digest === '495ea19d14068bccac849226bb0b135ba3e1b94a5a460b0a7de93f37174b7fdd',
+    'byte anchor (sha256 of the owner’s text)',
+    digest === 'e3d21719a20af8e460e997cdd7eb0523697c80809289b342af5452f47fb326b3',
     digest,
   )
-  check('provider-neutral (no engine family named)', !/\b(Claude|Anthropic|GPT|OpenAI|Gemini|Llama|DeepSeek|Kimi)\b/i.test(FLOOR))
-  check('conflict order is the LAST statement', FLOOR.trimEnd().endsWith('then the operator, then defaults.'))
+  check('provider-neutral (no engine family named)', !/\b(Claude|Anthropic|GPT|OpenAI|Gemini|Llama|DeepSeek|Kimi)\b/i.test(TEXT))
+  check('conflict order is the LAST statement', TEXT.trimEnd().endsWith('then the operator, then defaults.'))
+  check('exactly ONE identity statement, stated positively and nowhere negated', (TEXT.match(/^You are /gm) ?? []).length === 1 && !/claim to be human|misrepresent what you are|not a person/i.test(TEXT))
 }
 
-section('§1b the coordinator floor — its own identity statement, the shared tail, one floor per seat')
+section('§1b the coordinator seat — the same constitution, its seat fact behind it, one identity per seat')
 {
-  const COORD = contract.MERCURY_COORDINATOR_FLOOR
-  const IDENT = contract.MERCURY_COORDINATOR_IDENTITY
-  check('the coordinator floor OPENS on the coordinator identity statement', COORD.startsWith(IDENT + '\n'))
+  const SEAT = contract.MERCURY_COORDINATOR_SEAT
   check(
-    'the identity statement is the operator’s text, byte-exact',
-    IDENT === `You are the Mercury coordinator — Mercury's own coordinating seat in this session. The one name you go by is still Mercury; "coordinator" is your role, never a second name.`,
+    'the seat fact is the owner’s text, byte-exact',
+    SEAT === `This seat is the Mercury coordinator — Mercury's own coordinating seat in this session; "coordinator" is your role, never a second name.`,
   )
-  const attributionAt = FLOOR.indexOf('\n' + contract.MERCURY_ATTRIBUTION)
-  check('the attribution line sits directly behind the session identity statement', attributionAt !== -1 && FLOOR.slice(0, attributionAt).endsWith('The one name you go by is Mercury.'))
-  check('the tail behind the identity statement is the SAME text on both seats', COORD.slice(IDENT.length) === FLOOR.slice(attributionAt))
-  check('exactly ONE identity statement per floor', (COORD.match(/^You are /gm) ?? []).length === 1 && (FLOOR.match(/^You are /gm) ?? []).length === 1)
-  check('the session statement is absent from the coordinator floor', !COORD.includes('You are **Mercury**'))
-  const coordDigest = createHash('sha256').update(COORD, 'utf8').digest('hex')
-  check('byte anchor (sha256 of the coordinator floor)', coordDigest === 'eebfcac4b08829c5003b04d9ccaf723f391ab2ef88c58ec08bb18f5bae88ccdf', coordDigest)
+  check('the seat fact states no second identity', !/^You are /m.test(SEAT))
+  check('the coordinator composition opens on the constitution with the seat fact directly behind it', SRC('src/services/concourse/coordinatorCall.ts').includes('MERCURY_CONSTITUTION,\n          MERCURY_COORDINATOR_SEAT,'))
+  const seatDigest = createHash('sha256').update(SEAT, 'utf8').digest('hex')
+  check('byte anchor (sha256 of the seat fact)', seatDigest === createHash('sha256').update(`This seat is the Mercury coordinator — Mercury's own coordinating seat in this session; "coordinator" is your role, never a second name.`, 'utf8').digest('hex'), seatDigest)
 }
 
-section('§2 buildEffectiveSystemPrompt — floor FIRST on every replacing path')
+section('§2 buildEffectiveSystemPrompt — the constitution FIRST on every replacing path')
 {
   const { buildEffectiveSystemPrompt } = await import('../../src/utils/systemPrompt.ts')
   const ctx = { options: {} } as never
@@ -79,7 +80,7 @@ section('§2 buildEffectiveSystemPrompt — floor FIRST on every replacing path'
     defaultSystemPrompt: DEFAULT,
     appendSystemPrompt: undefined,
   })
-  check('custom prompt: floor is element 0', custom[0] === FLOOR)
+  check('custom prompt: the constitution is element 0', custom[0] === TEXT)
   check('custom prompt: the custom text follows as its own element', custom[1] === 'CUSTOM' && custom.length === 2)
 
   const agentDef = {
@@ -94,8 +95,8 @@ section('§2 buildEffectiveSystemPrompt — floor FIRST on every replacing path'
     defaultSystemPrompt: DEFAULT,
     appendSystemPrompt: 'APPEND',
   })
-  check('agent prompt beats custom and floor still leads', agent[0] === FLOOR && agent[1] === 'AGENT-PROMPT')
-  check('append rides LAST behind the floor+agent pair', agent[agent.length - 1] === 'APPEND' && agent.length === 3)
+  check('agent prompt beats custom and the constitution still leads', agent[0] === TEXT && agent[1] === 'AGENT-PROMPT')
+  check('append rides LAST behind the constitution+agent pair', agent[agent.length - 1] === 'APPEND' && agent.length === 3)
 
   const dflt = buildEffectiveSystemPrompt({
     mainThreadAgentDefinition: undefined,
@@ -104,7 +105,7 @@ section('§2 buildEffectiveSystemPrompt — floor FIRST on every replacing path'
     defaultSystemPrompt: DEFAULT,
     appendSystemPrompt: 'APPEND',
   })
-  check('default path passes the default through untouched (floor lives inside it)', dflt[0] === 'default-head' && dflt[1] === 'default-tail')
+  check('default path passes the default through untouched (the constitution lives inside it)', dflt[0] === 'default-head' && dflt[1] === 'default-tail')
   check('default path: append rides last', dflt[2] === 'APPEND' && dflt.length === 3)
 
   const override = buildEffectiveSystemPrompt({
@@ -127,7 +128,7 @@ section('§2 buildEffectiveSystemPrompt — floor FIRST on every replacing path'
     appendSystemPrompt: undefined,
     overrideSystemPrompt: '',
   })
-  check('an EMPTY override falls through to the floored custom path', emptyOverride[0] === FLOOR && emptyOverride[1] === 'CUSTOM')
+  check('an EMPTY override falls through to the custom path, the constitution first', emptyOverride[0] === TEXT && emptyOverride[1] === 'CUSTOM')
 
   const callers = ['src/rows/turn.ts', 'src/cli/run.ts', 'src/commands/compact/compact.ts', 'src/utils/analyzeContext.ts', 'src/tools/AgentTool/AgentTool.tsx']
   check(
@@ -136,23 +137,11 @@ section('§2 buildEffectiveSystemPrompt — floor FIRST on every replacing path'
   )
 }
 
-section('§3 contract sections — floor unconditional, doctrine gated')
+section('§3 contract sections — no identity or doctrine section; the constitution is static, ungated')
 {
   const sections = contract.getMercuryContractSections()
-  check('identity-floor is the FIRST contract section', sections[0]?.name === 'identity-floor')
-  check('its text IS the constant (no re-copy)', sections[0]?.text === FLOOR)
-  check('the doctrine follows when the layer is on', sections[1]?.name === 'mercury-doctrine')
-
-  const prev = process.env.MERCURY_WRAPPER_APPEND
-  process.env.MERCURY_WRAPPER_APPEND = '0'
-  try {
-    const bare = contract.getMercuryContractSections()
-    check('doctrine OFF (MERCURY_WRAPPER_APPEND=0): the floor STILL ships first', bare[0]?.name === 'identity-floor' && bare[0]?.text === FLOOR)
-    check('doctrine OFF: the doctrine section is gone', bare.every(s => s.name !== 'mercury-doctrine'))
-  } finally {
-    if (prev === undefined) delete process.env.MERCURY_WRAPPER_APPEND
-    else process.env.MERCURY_WRAPPER_APPEND = prev
-  }
+  check('the contract sections carry no identity text and no doctrine', sections.every(s => !s.text.includes('You are') && s.name !== J('identity', '-floor') && s.name !== J('mercury', '-doctrine')))
+  check('no gate flag names the constitution', !SRC('src/prompt/mercuryContract.ts').includes(J('MERCURY_WRAPPER', '_APPEND')) && !SRC('src/substrate/flagRegistry.ts').includes(J('MERCURY_WRAPPER', '_APPEND')))
 }
 
 section('§4 composer + renderers — position law, both wires')
@@ -167,7 +156,7 @@ section('§4 composer + renderers — position law, both wires')
   } = await import('../../src/prompt/behaviourContract.ts')
 
   const parts = {
-    staticSections: ['STATIC-HEAD'],
+    staticSections: ['STATIC-HEAD', TEXT],
     dynamicBoundary: [],
     dynamicSpecs: [
       { name: 'env_info_simple', cacheBreak: false },
@@ -177,60 +166,61 @@ section('§4 composer + renderers — position law, both wires')
     wrapperSections: contract.getMercuryContractSections(),
     modeSections: [{ name: 'mode-proof', text: 'MODE-PACK' }],
     antiSycSections: [],
-    reconcileTailSections: [contract.MERCURY_IDENTITY_RECONCILE],
   }
 
   const composed = composeSystemPrompt(parts as never)
-  const floorAt = composed.indexOf(FLOOR)
-  check('composed default prompt carries the floor as its OWN segment', floorAt !== -1)
-  check('exactly once (never duplicated)', composed.filter(s => s === FLOOR).length === 1)
-  check('after the dynamic registry', floorAt > composed.indexOf('DYNAMIC-ENV'))
-  check('before the mode packs', floorAt < composed.indexOf('MODE-PACK'))
-  check('the reconcile tail is the LAST segment', composed[composed.length - 1] === contract.MERCURY_IDENTITY_RECONCILE)
+  const at = composed.indexOf(TEXT)
+  check('composed default prompt carries the constitution as its OWN segment', at !== -1)
+  check('exactly once (never duplicated)', composed.filter(s => s === TEXT).length === 1)
+  check('right after the head, before every fact', at === 1 && at < composed.indexOf('DYNAMIC-ENV'))
+  check('before the mode packs', at < composed.indexOf('MODE-PACK'))
+  check('the mode pack is the LAST segment: no identity tail follows it', composed[composed.length - 1] === 'MODE-PACK')
 
   const behaviour = buildBehaviourContract(parts as never)
-  const floorSection = behaviour.sections.find(s => s.name === 'identity-floor')
-  check('behaviour contract: floor section exists in the wrapper group', floorSection?.group === 'wrapper')
-  check('scope is ALL — no provider may drop it', floorSection?.scope === 'all')
-  check('owner is the contract module', floorSection?.owner === 'src/prompt/mercuryContract.ts')
+  const constitutionSection = behaviour.sections.find(s => s.name === 'constitution')
+  check('behaviour contract: the constitution section exists in the static group', constitutionSection?.group === 'static' && constitutionSection.text === TEXT)
+  check('scope is ALL — no provider may drop it', constitutionSection?.scope === 'all')
+  check('owner is the contract module', constitutionSection?.owner === 'src/prompt/mercuryContract.ts')
+  check('cache class is stable (paid once per session)', constitutionSection?.cacheClass === 'stable')
 
   const anthropic = renderAnthropicSections(behaviour)
-  check('Anthropic wire carries the floor', anthropic.includes(FLOOR))
+  check('Anthropic wire carries the constitution', anthropic.includes(TEXT))
 
   const openai = renderOpenaiInstructions(behaviour)
-  check('OpenAI instructions carry the floor', openai.includes(FLOOR))
+  check('OpenAI instructions carry the constitution', openai.includes(TEXT))
   check('one content: OpenAI instructions == the Anthropic segments joined', openai === anthropic.join('\n\n'))
   check('the currency rule reaches EVERY wire (no anthropic-only scope)', openai.includes('NEUTRAL-CURRENCY-RULE') && anthropic.includes('NEUTRAL-CURRENCY-RULE'))
 
   __resetBehaviourContractRegistryForTest()
-  const rawResolved = resolveBehaviourContract([FLOOR, 'A CUSTOM REPLACEMENT PROMPT'])
-  check('raw decode (custom path, registry miss) keeps the floor', rawResolved.sections.some(s => s.text === FLOOR))
-  check('raw decode renders the floor into OpenAI instructions', renderOpenaiInstructions(rawResolved).includes(FLOOR))
+  const rawResolved = resolveBehaviourContract([TEXT, 'A CUSTOM REPLACEMENT PROMPT'])
+  check('raw decode (custom path, registry miss) keeps the constitution', rawResolved.sections.some(s => s.text === TEXT))
+  check('raw decode renders the constitution into OpenAI instructions', renderOpenaiInstructions(rawResolved).includes(TEXT))
 }
 
-section('§5 subagent doctrine — floor LEADS every spawned child')
+section('§5 subagent doctrine — the constitution LEADS every spawned child')
 {
   const { buildSubagentMercurySections } = await import('../../src/constants/subagentDoctrine.ts')
   const { MERCURY_SCOUT_AGENT } = await import('../../src/tools/AgentTool/built-in/mercuryScoutAgent.ts')
 
   const normal = buildSubagentMercurySections({ agentDefinition: { agentType: 'mercury-crew' } })
-  check('normal agent: floor is element 0', normal[0] === FLOOR)
+  check('normal agent: the constitution is element 0', normal[0] === TEXT)
   check('normal agent: the operating register follows', typeof normal[1] === 'string' && normal[1]!.includes('<subagent-doctrine>'))
 
   const fixed = buildSubagentMercurySections({ agentDefinition: MERCURY_SCOUT_AGENT })
-  check('fixed-output agent (the scout): floor is STILL element 0', fixed[0] === FLOOR)
+  check('fixed-output agent (the scout): the constitution is STILL element 0', fixed[0] === TEXT)
 }
 
 section('§6 source pins — the bun-unloadable seats, one line each')
 {
   const pins: Array<[string, string, string]> = [
-    ['every session turn — interactive (the concourse runner) and headless alike (custom prompt)', 'src/rows/turn.ts', '? [MERCURY_IDENTITY_FLOOR, config.customSystemPrompt]'],
-    ['bare MERCURY_BARE prompt', 'src/constants/prompts.ts', '${simpleHead}\\n\\n${MERCURY_IDENTITY_FLOOR}'],
-    ['default prompt contract splice (frozen per conversation through the section cache)', 'src/constants/prompts.ts', "systemPromptSection('mercury-contract', () => JSON.stringify(getMercuryContractSections()))"],
-    ['switchboard coordinator seat (its own floor, then its engine line, then its contract, then the persona)', 'src/services/concourse/coordinatorCall.ts', 'asSystemPrompt([\n          MERCURY_COORDINATOR_FLOOR,\n          engineLine,\n          MERCURY_COORDINATOR_CONTRACT,\n          input.contract,'],
+    ['every session turn — interactive (the concourse runner) and headless alike (custom prompt)', 'src/rows/turn.ts', '? [MERCURY_CONSTITUTION, config.customSystemPrompt]'],
+    ['bare MERCURY_BARE prompt', 'src/constants/prompts.ts', 'return [`${head}\\n\\n${law}`]'],
+    ['the shipped prompt: the head then the constitution as the static group', 'src/constants/prompts.ts', 'const staticSections: Array<string | null> = [frozenHead ?? head, law]'],
+    ['the constitution is the law under stock', 'src/constants/prompts.ts', "const law = layers === 'replace' ? promptReplacementText() : MERCURY_CONSTITUTION"],
+    ['switchboard coordinator seat (the constitution, its seat fact, then its engine line, then its contract, then the persona)', 'src/services/concourse/coordinatorCall.ts', 'asSystemPrompt([\n          MERCURY_CONSTITUTION,\n          MERCURY_COORDINATOR_SEAT,\n          engineLine,\n          MERCURY_COORDINATOR_CONTRACT,\n          input.contract,'],
     ['every seat states its engine from ONE owner', 'src/constants/prompts.ts', 'return mercuryEngineIdentityLine(modelId)'],
-    ['agent-prompt replacement seat', 'src/utils/systemPrompt.ts', 'parts.push(MERCURY_IDENTITY_FLOOR, agentPrompt)'],
-    ['custom-prompt replacement seat', 'src/utils/systemPrompt.ts', 'parts.push(MERCURY_IDENTITY_FLOOR, customSystemPrompt)'],
+    ['agent-prompt replacement seat', 'src/utils/systemPrompt.ts', 'parts.push(MERCURY_CONSTITUTION, agentPrompt)'],
+    ['custom-prompt replacement seat', 'src/utils/systemPrompt.ts', 'parts.push(MERCURY_CONSTITUTION, customSystemPrompt)'],
     ['AgentTool default spawn (doctrine leads)', 'src/tools/AgentTool/AgentTool.tsx', '[...doctrine, ownPrompt]'],
     ['runAgent fallback build (doctrine leads)', 'src/tools/AgentTool/runAgent.ts', '[...doctrine, ownPrompt]'],
     ['runAgent honors override only when supplied', 'src/tools/AgentTool/runAgent.ts', 'override?.systemPrompt ??'],
@@ -244,6 +234,7 @@ section('§6 source pins — the bun-unloadable seats, one line each')
     SRC('src/tools/AgentTool/AgentTool.tsx').includes('buildSubagentMercurySections({') &&
       SRC('src/tools/AgentTool/runAgent.ts').includes('buildSubagentMercurySections({'),
   )
+  check('no road splices an identity sentence of its own (the Anthropic wire, the side query)', !/You are/.test(SRC('src/constants/system.ts')) && !/You are/.test(SRC('src/utils/sideQuery.ts')) && SRC('src/services/providers/anthropic/cacheAndUsage.ts').includes('return asSystemPrompt([attribution, ...systemPrompt].filter(Boolean))'))
 }
 
 console.log(failures ? '\n❌ FLOOR-DELIVERY RED' : '\n✅ FLOOR-DELIVERY GREEN')

@@ -26,11 +26,11 @@ console.log('============================================================')
 console.log(' composer contract and configuration absence')
 console.log('============================================================')
 
-section('(1) composer — group order, null filtering, reconcile-last')
+section('(1) composer — group order, null filtering, the anti-sycophancy arm last')
 {
   __resetPromptProvenanceForTest()
   const out = composeSystemPrompt({
-    staticSections: ['intro', null, 'tone'],
+    staticSections: ['head', null, 'law'],
     dynamicBoundary: [],
     dynamicSpecs: [
       { name: 'memory', cacheBreak: false },
@@ -38,14 +38,13 @@ section('(1) composer — group order, null filtering, reconcile-last')
       { name: 'absent', cacheBreak: false },
     ],
     dynamicResolved: ['MEM', 'MCP', null],
-    wrapperSections: [{ name: 'identity-floor', text: 'WRAP' }],
+    wrapperSections: [{ name: 'response-profile', text: 'WRAP' }],
     modeSections: [{ name: 'mode-apollo', text: 'MODE' }],
-    antiSycSections: [],
-    reconcileTailSections: ['RECONCILE'],
+    antiSycSections: ['ARM'],
   })
   check('null static + null dynamic filtered, order preserved',
-    JSON.stringify(out) === JSON.stringify(['intro', 'tone', 'MEM', 'MCP', 'WRAP', 'MODE', 'RECONCILE']))
-  check('reconcile tail is the LAST segment (#9 contract)', out[out.length - 1] === 'RECONCILE')
+    JSON.stringify(out) === JSON.stringify(['head', 'law', 'MEM', 'MCP', 'WRAP', 'MODE', 'ARM']))
+  check('the anti-sycophancy arm is the LAST segment (no tail follows it)', out[out.length - 1] === 'ARM')
 
   const boundary = composeSystemPrompt({
     staticSections: ['s'],
@@ -55,7 +54,6 @@ section('(1) composer — group order, null filtering, reconcile-last')
     wrapperSections: [],
     modeSections: [],
     antiSycSections: [],
-    reconcileTailSections: [],
   })
   check('boundary marker sits between static and dynamic', boundary[1] === '<<BOUNDARY>>')
 
@@ -66,15 +64,14 @@ section('(1) composer — group order, null filtering, reconcile-last')
     dynamicSpecs: [],
     dynamicResolved: [],
     wrapperSections: [
-      { name: 'identity-floor', text: 'FLOOR' },
-      { name: 'mercury-doctrine', text: 'DOCTRINE' },
+      { name: 'response-profile', text: 'PROFILE' },
+      { name: 'another', text: 'OTHER' },
     ],
     modeSections: [],
     antiSycSections: [],
-    reconcileTailSections: [],
   })
   check('the one-content law: every wrapper section rides the composition',
-    JSON.stringify(scoped) === JSON.stringify(['s', 'FLOOR', 'DOCTRINE']))
+    JSON.stringify(scoped) === JSON.stringify(['s', 'PROFILE', 'OTHER']))
 }
 
 section('(2) provenance shape-parity — the recorder cannot drift')
@@ -89,16 +86,15 @@ section('(2) provenance shape-parity — the recorder cannot drift')
     ],
     dynamicResolved: ['XX', null],
     wrapperSections: [
-      { name: 'identity-floor', text: 'w1' },
-      { name: 'mercury-doctrine', text: 'w2' },
+      { name: 'response-profile', text: 'w1' },
+      { name: 'another', text: 'w2' },
     ],
     modeSections: [{ name: 'mode-apollo', text: 'm' }],
     antiSycSections: ['anti'],
-    reconcileTailSections: ['r'],
   })
   const prov = readPromptProvenance()
   check('provenance recorded', prov !== null)
-  check('segment count matches composition', prov?.segmentCount === 8)
+  check('segment count matches composition', prov?.segmentCount === 7)
   check('typed sections carry semantic names (no positional ids)',
     prov?.sections.every(s => !/^wrapper-\d+$|^mode-\d+$/.test(s.name)) === true)
   const dyn = prov?.sections.find(s => s.name === 'x')
@@ -106,11 +102,11 @@ section('(2) provenance shape-parity — the recorder cannot drift')
     dyn?.group === 'dynamic' && dyn.chars === 2 && dyn.cacheClass === 'turn' && typeof dyn.owner === 'string' && /^[0-9a-f]{8}$/.test(dyn.sha8))
   check('absent dynamic section recorded with a reason',
     prov?.absent.some(a => a.name === 'gone' && a.reason.length > 0) === true)
-  check('wrapper sections named identity-floor + mercury-doctrine',
-    prov?.sections.filter(s => s.group === 'wrapper').map(s => s.name).join(',') === 'identity-floor,mercury-doctrine')
+  check('wrapper sections carry their semantic names',
+    prov?.sections.filter(s => s.group === 'wrapper').map(s => s.name).join(',') === 'response-profile,another')
   check('mode section named mode-apollo', prov?.sections.some(s => s.group === 'mode' && s.name === 'mode-apollo') === true)
   check('contract digest recorded (bc1-)', typeof prov?.digest === 'string' && prov.digest.startsWith('bc1-'))
-  check('total chars accounted', prov?.totalChars === 'ab'.length + 'XX'.length + 'w1w2'.length + 'm'.length + 'anti'.length + 'r'.length)
+  check('total chars accounted', prov?.totalChars === 'ab'.length + 'XX'.length + 'w1w2'.length + 'm'.length + 'anti'.length)
   composeSystemPrompt({
     staticSections: ['a'],
     dynamicBoundary: [],
@@ -119,7 +115,6 @@ section('(2) provenance shape-parity — the recorder cannot drift')
     wrapperSections: [],
     modeSections: [],
     antiSycSections: [],
-    reconcileTailSections: [],
   })
   const prov2 = readPromptProvenance()
   check('previous composition totals retained (before/after)',
@@ -173,7 +168,12 @@ section('main and sub-agent instructions match the available interaction model')
 {
   const { getSystemPrompt, enhanceSystemPromptWithEnvDetails } = await import('../../src/constants/prompts.ts')
   const { clearSystemPromptSections } = await import('../../src/constants/systemPromptSections.ts')
-  const { markSessionNonInteractive, resetRuntimePostureForTest } = await import('../../src/utils/cockpit/runtimePosture.ts')
+  const { markSessionNonInteractive, resetRuntimePostureForTest: resetPosture } = await import('../../src/utils/cockpit/runtimePosture.ts')
+  const { resetHarnessMapForTest } = await import('../../src/utils/cockpit/harnessMap.ts')
+  const resetRuntimePostureForTest = (): void => {
+    resetPosture()
+    resetHarnessMapForTest()
+  }
   const { getOriginalCwd, setOriginalCwd, setCwdState, setAskChannel } = await import('../../src/bootstrap/state.ts')
   const cwd = process.cwd()
   const originalCwd = getOriginalCwd()
@@ -194,35 +194,29 @@ section('main and sub-agent instructions match the available interaction model')
     process.env.MERCURY_ENTRYPOINT = 'headless'
     clearSystemPromptSections()
     const headless = (await getSystemPrompt(tools, 'claude-fable-5-1')).join('\n\n')
-    check('headless guidance names neither an unavailable question prompt nor interactive-only commands', !headless.includes('When a tool denial is not understood, use AskUserQuestion') && !headless.includes('/kill'))
+    check('headless guidance names no interactive-only command and no question prompt', !headless.includes('AskUserQuestion') && !headless.includes('/kill') && !headless.includes('starts with `!`'))
     resetRuntimePostureForTest()
     setAskChannel('sdk')
     markSessionNonInteractive('default')
     clearSystemPromptSections()
     const channelled = (await getSystemPrompt(tools, 'claude-fable-5-1')).join('\n\n')
-    check('a headless run with a permission channel keeps the question hint and never claims automatic denial', channelled.includes('When a tool denial is not understood, use AskUserQuestion') && !channelled.includes('denied automatically') && !channelled.includes('/kill'))
+    check('a headless run with a permission channel says a host holds the asks and never claims automatic denial', channelled.includes('a host that holds the asks') && !channelled.includes('denied automatically') && !channelled.includes('/kill'))
     setAskChannel('operator')
     check('task-item guidance is absent when task tools are not provided', !headless.includes('create and update task items'))
     check('headless provider guidance ranks provider-apis over any external provider-API skill and bundled skills over same-named external ones', headless.includes(PROVIDER_GUIDANCE))
     check('headless provider guidance names no external skill', FOREIGN_SKILL_NAMES.every(name => !headless.includes(name)))
     check('the prompt names no foreign agent type (the Agent roster names mercury-scout; the prompt does not repeat it)', !headless.includes('the Explore agent') && !headless.includes('mercury-scout'))
-    check('the feedback instruction contains no doubled verb', headless.includes('report the issue with /feedback.') && !headless.includes('use report the issue'))
-    const toolsBlock = headless.slice(headless.indexOf('# Using your tools')).split('# Tone and style')[0]!
-    check('batching leads the main tool instructions and preserves dependency ordering', toolsBlock.trim().startsWith('# Using your tools\n\n - Default to batching:') && toolsBlock.includes('Call dependent tools sequentially'))
+    check('the session prompt carries no tool-usage prose: the tool roster speaks for itself', !headless.includes('# Using your tools') && !headless.includes('Default to batching:') && !headless.includes('instead of cat, head, tail'))
     const child = (await enhanceSystemPromptWithEnvDetails(['Sub-agent instructions.'], 'claude-fable-5-1')).join('\n\n')
-    check('sub-agents receive the same batching and dependency instruction', child.includes('Default to batching:') && child.includes('Call dependent tools sequentially'))
+    check('sub-agents keep their batching and dependency note', child.includes('Default to batching:') && child.includes('Call dependent tools sequentially'))
     check('sub-agent provider guidance retains bundled-skill precedence', child.includes(PROVIDER_GUIDANCE) && FOREIGN_SKILL_NAMES.every(name => !child.includes(name)))
     resetRuntimePostureForTest()
     delete process.env.MERCURY_ENTRYPOINT
     clearSystemPromptSections()
     const interactive = (await getSystemPrompt([...tools, { name: 'TaskCreate' }] as never, 'claude-fable-5-1')).join('\n\n')
-    check('interactive guidance retains supported questions and commands', interactive.includes('When a tool denial is not understood, use AskUserQuestion') && interactive.includes('/kill'))
+    check('interactive facts name the interactive-only surfaces: /kill on the posture, the `!` form on the harness map', interactive.includes('/kill') && interactive.includes('starts with `!`'))
     check('task-item guidance remains when the task tools are provided', interactive.includes('create and update task items'))
     check('interactive provider guidance retains bundled-skill precedence', interactive.includes(PROVIDER_GUIDANCE) && FOREIGN_SKILL_NAMES.every(name => !interactive.includes(name)))
-    const { getCLISyspromptPrefix, CLI_SYSPROMPT_PREFIXES } = await import('../../src/constants/system.ts')
-    const preset = getCLISyspromptPrefix({ isNonInteractive: true, hasAppendSystemPrompt: true })
-    check('the headless prefix with an appended brief speaks of a headless session for the operator', preset === 'You are Mercury, a private source-built terminal coding harness, running a headless session for its operator.' && CLI_SYSPROMPT_PREFIXES.has(preset))
-    check('no identity prefix names a development kit', [...CLI_SYSPROMPT_PREFIXES].every(prefix => !/\bSDK\b/.test(prefix)))
   } finally {
     resetRuntimePostureForTest()
     clearSystemPromptSections()

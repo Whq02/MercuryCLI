@@ -23,7 +23,7 @@ enableConfigs()
 const { analyzeContextUsage } = await import('../../src/utils/analyzeContext.ts')
 const { getSystemPrompt } = await import('../../src/constants/prompts.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { MERCURY_IDENTITY_FLOOR } = await import('../../src/prompt/mercuryContract.ts')
+const { MERCURY_CONSTITUTION } = await import('../../src/prompt/mercuryContract.ts')
 
 const MODEL = 'claude-fable-5-1'
 const agents = { activeAgents: [], allAgents: [] }
@@ -39,7 +39,7 @@ const rowsFor = async (options: Record<string, unknown>): Promise<string[]> => {
 }
 const defaultParts = (await getSystemPrompt([], MODEL)).filter(p => p !== '')
 const expectedDefault = defaultParts.map(displayName)
-const floorName = displayName(MERCURY_IDENTITY_FLOOR)
+const floorName = displayName(MERCURY_CONSTITUTION)
 const startsWith = (rows: string[], head: string[]): boolean => head.length <= rows.length && head.every((n, i) => rows[i] === n)
 
 console.log('/context counts the prompt the request path composes')

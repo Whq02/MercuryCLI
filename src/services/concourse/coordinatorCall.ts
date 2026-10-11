@@ -82,7 +82,7 @@ export async function liveCoordinatorCallModel(
     { createUserMessage, createAssistantMessage },
     { getEmptyToolPermissionContext },
     { getCwd },
-    { MERCURY_COORDINATOR_FLOOR, MERCURY_COORDINATOR_CONTRACT },
+    { MERCURY_CONSTITUTION, MERCURY_COORDINATOR_SEAT, MERCURY_COORDINATOR_CONTRACT },
     { mercuryEngineIdentityLine },
   ] = await Promise.all([
     import('../providers/callModelRouter.js'),
@@ -167,7 +167,8 @@ export async function liveCoordinatorCallModel(
       const stream = routedCallModel({
         messages,
         systemPrompt: asSystemPrompt([
-          MERCURY_COORDINATOR_FLOOR,
+          MERCURY_CONSTITUTION,
+          MERCURY_COORDINATOR_SEAT,
           engineLine,
           MERCURY_COORDINATOR_CONTRACT,
           input.contract,

@@ -2,7 +2,7 @@
 import { flagEnv } from '../substrate/flagRegistry.js'
 import type { AgentDefinition } from '../tools/AgentTool/loadAgentsDir.js'
 import type { ToolUseContext } from '../Tool.js'
-import { MERCURY_IDENTITY_FLOOR, mercurySubagentContract, type MercuryAgentSeat } from '../prompt/mercuryContract.js'
+import { MERCURY_CONSTITUTION, mercurySubagentContract, type MercuryAgentSeat } from '../prompt/mercuryContract.js'
 import { getRuntimePostureDoctrineLine } from '../utils/cockpit/runtimePosture.js'
 import { getVulcanDoctrineLine } from '../utils/vulcan/vulcanGates.js'
 import { loadMemoryPrompt } from '../mneme/mnemeFrontPage.js'
@@ -56,7 +56,7 @@ export function buildSubagentMercurySections(args: {
 
   const exempt = isFixedOutputAgent(agentDefinition)
 
-  const floor = MERCURY_IDENTITY_FLOOR
+  const floor = MERCURY_CONSTITUTION
 
   const operating = subagentDoctrineFor(seat)
 

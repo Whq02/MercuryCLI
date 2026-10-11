@@ -445,19 +445,19 @@ section('RV — reasoning depth is not answer length; one balanced default + one
   const contract = await import('../../src/prompt/mercuryContract.js')
   const PERSIST = 'keep going while evidence advances the outcome'
   check(
-    'RV-06: persistence is ONE clause, the same words on the session and the sub-agent contract (never a parallel clause, no separate law constant)',
-    contract.MERCURY_SESSION_CONTRACT.includes(PERSIST) &&
-      contract.MERCURY_SUBAGENT_CONTRACT.includes(PERSIST) &&
+    'RV-06: persistence is ONE clause on the crewmate seat; the session seat\'s finishing clause is the constitution\'s (never a parallel clause, no separate law constant)',
+    contract.MERCURY_SUBAGENT_CONTRACT.includes(PERSIST) &&
+      contract.MERCURY_CONSTITUTION.includes('If your last words only say what you will do next, do it,\nand stop when the work is done.') &&
       !src('src/prompt/mercuryContract.ts').includes('PERSISTENCE_LAW'),
   )
   check(
-    'RV-02/08: the session contract names no reasoning-depth knob (no retired word); answer length is the static head\'s communication rule (scripts/substrate/prove-wrapper.ts pins it there)',
-    !new RegExp('\\b(effort|' + ['deep', 'think'].join('') + '|' + ['super', 'code'].join('') + '|verbosity)\\b', 'i').test(contract.MERCURY_SESSION_CONTRACT),
+    'RV-02/08: the constitution names no reasoning-depth knob (no retired word) and no answer-length rule',
+    !new RegExp('\\b(effort|' + ['deep', 'think'].join('') + '|' + ['super', 'code'].join('') + '|verbosity|brevity)\\b', 'i').test(contract.MERCURY_CONSTITUTION),
   )
   check(
-    'RV-03/04/05: the brevity preference is the floor\'s rule; short-work narration and evidence-behind-outcome are the static head\'s (scripts/substrate/prove-wrapper.ts pins them there); the contract repeats none',
-    /Follow their stated preferences ahead of generic defaults/.test(contract.MERCURY_IDENTITY_FLOOR) &&
-      !/brevity|narration|appendix/.test(contract.MERCURY_SESSION_CONTRACT),
+    'RV-03/04/05: the stated-preferences rule is the constitution\'s; no narration or appendix rule rides any seat text',
+    /put\ntheir stated preferences ahead of defaults/.test(contract.MERCURY_CONSTITUTION) &&
+      !/narration|appendix/.test([contract.MERCURY_CONSTITUTION, contract.MERCURY_COORDINATOR_CONTRACT, contract.MERCURY_SUBAGENT_CONTRACT].join('\n')),
   )
   check(
     'RV-01: the concise profile is ONE settings override at the contract owner (schema key + conditional section; no knob wall)',

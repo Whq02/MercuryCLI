@@ -8,7 +8,6 @@ export type BehaviourGroup =
   | 'wrapper'
   | 'mode'
   | 'antisyc'
-  | 'reconcile'
   | 'context'
   | 'segment'
 
@@ -42,12 +41,11 @@ function scopeFor(group: BehaviourGroup, name: string): BehaviourScope {
 }
 
 const SECTION_OWNERS: ReadonlyMap<string, string> = new Map([
+  ['static:constitution', 'src/prompt/mercuryContract.ts'],
   ['dynamic:memory', 'src/mneme/mnemeFrontPage.ts'],
   ['dynamic:harness_map', 'src/utils/cockpit/harnessMap.ts'],
   ['dynamic:run_protocol', 'src/utils/cockpit/runProtocol.ts'],
   ['dynamic:runtime_posture', 'src/utils/cockpit/runtimePosture.ts'],
-  ['wrapper:identity-floor', 'src/prompt/mercuryContract.ts'],
-  ['wrapper:mercury-doctrine', 'src/prompt/mercuryContract.ts'],
   ['mode:mode-apollo', 'src/prompt/apolloMode.ts'],
   ['mode:mode-vulcan', 'src/utils/vulcan/vulcanGates.ts'],
 ])
@@ -59,7 +57,6 @@ const GROUP_OWNERS: Readonly<Record<BehaviourGroup, string>> = {
   wrapper: 'src/prompt/mercuryContract.ts',
   mode: 'src/constants/prompts.ts',
   antisyc: 'src/utils/antiSycophancy.ts',
-  reconcile: 'src/prompt/mercuryContract.ts',
   context: 'runtime (appendSystemContext)',
   segment: 'unresolved (raw decode)',
 }
@@ -91,16 +88,7 @@ export function stableBehaviourDigest(contract: BehaviourContract): string {
   return digestOf(contract.sections, section => section.cacheClass === 'stable')
 }
 
-export const STATIC_SECTION_NAMES: readonly string[] = [
-  'intro',
-  'system',
-  'doing-tasks',
-  'actions',
-  'instruction-estate',
-  'using-tools',
-  'tone-style',
-  'output-efficiency',
-]
+export const STATIC_SECTION_NAMES: readonly string[] = ['head', 'constitution']
 
 export function buildBehaviourContract(parts: PromptParts): BehaviourContract {
   const sections: BehaviourSection[] = []
@@ -149,9 +137,6 @@ export function buildBehaviourContract(parts: PromptParts): BehaviourContract {
         ? 'anti-sycophancy'
         : `anti-sycophancy-${index}`
     push('antisyc', name, 'session', text)
-  })
-  parts.reconcileTailSections.forEach(text => {
-    push('reconcile', 'identity-reconcile', 'session', text)
   })
   return { sections, digest: digestOf(sections) }
 }

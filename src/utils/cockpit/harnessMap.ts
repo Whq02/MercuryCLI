@@ -44,6 +44,7 @@ function dapReachableSafe(): boolean {
 export function computeHarnessMapLines(): string[] {
   const lines: Array<string | null> = [
     `- Discovery: /help lists commands; /capabilities is the live capability matrix for this build${healthCertEnabled() ? '; /health runs the evidence-backed health certificate' : ''}; a surface missing from this map is gated off in this boot.`,
+    '- The `!` form: a prompt the user starts with `!` runs that command inside this very session, and whatever it prints arrives in the conversation — the road for a command that needs their own hands, such as an interactive login.',
     dynamicWorkflowsEnabled()
       ? '- Deterministic multi-agent orchestration: the Workflow tool; /workflows is its board → run → inspector.'
       : null,

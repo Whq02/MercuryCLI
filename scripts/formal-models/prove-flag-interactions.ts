@@ -108,9 +108,8 @@ const DOMAINS: Record<string, string[]> = {
   MERCURY_NOUS_API_BASE: ['', 'http://127.0.0.1:9/v1'],
   MERCURY_NOUS_PORTAL_BASE: ['', 'http://127.0.0.1:9'],
   MERCURY_NOUS_CLIENT_SOURCE_BASE: ['', 'http://127.0.0.1:9'],
-  MERCURY_PROMPT_LAYERS: ['', 'floor', 'vessel', 'replace', 'whole'],
+  MERCURY_PROMPT_LAYERS: ['', 'replace', 'whole'],
   MERCURY_PROMPT_REPLACE_FILE: ['', '/tmp/sweep-prompt-slot.txt'],
-  MERCURY_WRAPPER_APPEND: ['', '0'],
   MERCURY_BARE: ['', '1'],
 }
 
