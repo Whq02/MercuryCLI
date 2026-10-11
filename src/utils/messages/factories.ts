@@ -316,6 +316,15 @@ export function createModelSwitchBreadcrumbs(
   ]
 }
 
+export function engineSwitchNoticeText(modelId: string, resolvedDisplay: string, at: string): string {
+  const named = resolvedDisplay !== '' && resolvedDisplay !== modelId ? ` (${resolvedDisplay})` : ''
+  return `The engine running this seat changed at ${at}: it is now \`${modelId}\`${named}. The replies above this line were written by the engine before it.`
+}
+
+export function createEngineSwitchNotice(modelId: string, resolvedDisplay: string, at: string): UserMessage {
+  return createUserMessage({ content: engineSwitchNoticeText(modelId, resolvedDisplay, at), isMeta: true })
+}
+
 
 export function createProgressMessage<P extends Progress>({
   toolUseID,

@@ -811,7 +811,7 @@ if (!existsSync(DIST)) {
         check(`${leg.label}: the last request replays both earlier thinking blocks (no spelling read as a switch)`, last !== undefined && thinkingBlocksOf(last) === 2, String(last && thinkingBlocksOf(last)))
         census(`§5 ${leg.wire}`, reqs, true)
         const q3 = reqs[2]?.body as Body | undefined
-        check(`${leg.label} [1m]: the identity line spells the wire id, never the window suffix`, q3 !== undefined && systemTextOf(q3).includes(`the model you run through Mercury is \`${leg.wire}\``) && !systemTextOf(q3).includes('[1m]') && !systemTextOf(q3).includes('1M context'), systemTextOf(q3).slice(systemTextOf(q3).indexOf('the model you run through'), systemTextOf(q3).indexOf('the model you run through') + 120))
+        check(`${leg.label} [1m]: the system prompt names no engine and never the window suffix`, q3 !== undefined && !systemTextOf(q3).includes('the model you run through Mercury is') && !systemTextOf(q3).includes(leg.wire) && !systemTextOf(q3).includes('[1m]') && !systemTextOf(q3).includes('1M context'), systemTextOf(q3).slice(0, 200))
         check(`${leg.label}: no switch receipt, no drop notice`, transcriptNotices(arena, SID).length === 0, j(transcriptNotices(arena, SID)))
         await fixture.close()
       }
