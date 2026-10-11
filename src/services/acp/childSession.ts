@@ -81,6 +81,8 @@ export function inputBlocksOf(blocks: ReadonlyArray<Record<string, unknown>>): A
   return out.length > 0 ? out : [{ type: 'text', text: '' }]
 }
 
+const IDLE_EXIT_MS = 20_000
+
 export class MercuryChildSession {
   readonly child: ChildProcess
   readonly cwd: string
@@ -354,7 +356,7 @@ export class MercuryChildSession {
     await this.peer.request('session/set_mode', { mode })
   }
 
-  close(graceMs = 1_500): Promise<void> {
+  close(graceMs = 1_500, exitMs = IDLE_EXIT_MS): Promise<void> {
     this.closedByUs = true
     this.peer.close('the session was closed')
     try {
@@ -363,32 +365,33 @@ export class MercuryChildSession {
     }
     if (this.dead) return Promise.resolve()
     return new Promise<void>(resolve => {
-      let escalation: NodeJS.Timeout | null = null
-      let hardBound: NodeJS.Timeout | null = null
+      const timers: NodeJS.Timeout[] = []
       const finish = (): void => {
-        if (escalation) clearTimeout(escalation)
-        if (hardBound) clearTimeout(hardBound)
+        for (const timer of timers) clearTimeout(timer)
         resolve()
       }
-      this.child.once('exit', finish)
-      try {
-        this.child.kill('SIGTERM')
-      } catch (e) {
-        logForDebugging(`[acp] child kill failed (already dead?): ${e}`)
+      const arm = (ms: number, step: () => void): void => {
+        const timer = setTimeout(step, ms)
+        timer.unref?.()
+        timers.push(timer)
       }
-      escalation = setTimeout(() => {
+      const signal = (name: 'SIGTERM' | 'SIGKILL'): void => {
         try {
-          this.child.kill('SIGKILL')
-        } catch {
+          this.child.kill(name)
+        } catch (e) {
+          logForDebugging(`[acp] child ${name} failed (already dead?): ${e}`)
         }
-      }, graceMs)
-      escalation.unref?.()
-      hardBound = setTimeout(() => {
-        this.child.removeListener('exit', finish)
-        logForDebugging('[acp] child survived close() escalation (unkillable?) — resolving bounded')
-        finish()
-      }, graceMs + 1_500)
-      hardBound.unref?.()
+      }
+      this.child.once('exit', finish)
+      arm(exitMs, () => {
+        signal('SIGTERM')
+        arm(graceMs, () => signal('SIGKILL'))
+        arm(graceMs + 1_500, () => {
+          this.child.removeListener('exit', finish)
+          logForDebugging('[acp] child survived close() escalation (unkillable?) — resolving bounded')
+          finish()
+        })
+      })
     })
   }
 }
