@@ -36,7 +36,7 @@ import { getFsImplementation } from '../../utils/fsOperations.js'
 import type { UUID } from 'node:crypto'
 
 import type { FileState } from '../../utils/fileStateCache.js'
-import { FILE_UNEXPECTEDLY_MODIFIED_ERROR } from '../FileEditTool/constants.js'
+import { modifiedSinceReadMessage, unreadExistingWriteMessage } from '../FileEditTool/otherSession.js'
 import { APPLIED_NO_REREAD_NOTE } from '../FileEditTool/FileEditTool.js'
 import { gitDiffSchema, hunkSchema, type FileEditOutput } from '../FileEditTool/types.js'
 import { DESCRIPTION, FILE_WRITE_TOOL_NAME, getWriteToolDescription } from './prompt.js'
@@ -92,7 +92,6 @@ function isFullReadEntry(entry: FileState): boolean {
   return (entry.offset === undefined || entry.offset === 0) && entry.limit === undefined
 }
 
-const UNREAD_FILE_MESSAGE = 'Read the file before overwriting it — a prior read of the current content is required.'
 
 export const FileWriteTool = buildTool({
   name: FILE_WRITE_TOOL_NAME,
@@ -246,7 +245,7 @@ export const FileWriteTool = buildTool({
       const entry = context.readFileState.get(expandedPath)
       if (!entry || entry.isPartialView) {
         if (!wholeFileSeen(ownerFromToolUseContext(context), expandedPath, normalizedContent)) {
-          throw new Error(UNREAD_FILE_MESSAGE)
+          throw new Error(unreadExistingWriteMessage())
         }
       } else {
         const mtime = getFileModificationTime(expandedPath)
@@ -254,7 +253,7 @@ export const FileWriteTool = buildTool({
           mtime > entry.timestamp &&
           !(isFullReadEntry(entry) && entry.content === normalizedContent)
         ) {
-          throw new Error(FILE_UNEXPECTEDLY_MODIFIED_ERROR)
+          throw new Error(modifiedSinceReadMessage())
         }
       }
     }

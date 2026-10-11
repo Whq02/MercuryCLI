@@ -14,6 +14,7 @@
 # gate-watch: src/tools/ToolSearchTool/ToolSearchTool.ts src/utils/* src/utils/config/globalConfig.ts
 # gate-watch: src/services/providers/local/localCatalogue.ts src/services/providers/local/localDiscovery.ts
 # gate-watch: src/rows/* src/runner/wire/*
+# gate-watch: src/bootstrap/state.ts src/mneme/ledger.ts src/mneme/paths.ts
 # gate-watch: src/services/schema/jsonSchemaEngine.ts src/services/providers/zai/zaiCodec.ts src/services/providers/openai/responsesBridge.ts src/services/providers/gemini/geminiCodec.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
