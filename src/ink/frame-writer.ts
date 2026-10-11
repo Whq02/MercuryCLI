@@ -1,5 +1,6 @@
 import { logForDebugging } from '../utils/debug.js'
 import type { Diff, FlickerReason, Frame } from './frame.js'
+import type { Rectangle } from './layout/geometry.js'
 import {
   type Cell,
   CellWidth,
@@ -340,6 +341,9 @@ function emitDirtyCells(
   return { droppedFrozen }
 }
 
+const describeDamage = (damage: Rectangle | undefined): string =>
+  damage === undefined ? 'none' : `${damage.width}x${damage.height} at (${damage.x},${damage.y})`
+
 export class FrameWriter {
   private flushedRows = 0
 
@@ -361,11 +365,9 @@ export class FrameWriter {
       : this.renderInline(prev, next)
     const elapsed = performance.now() - started
     if (elapsed > 50) {
-      const damage = next.screen.damage
       logForDebugging(
         `Slow render: ${elapsed.toFixed(1)}ms, screen: ${next.screen.height}x${next.screen.width}, ` +
-          `damage: ${damage ? `${damage.width}x${damage.height} at (${damage.x},${damage.y})` : 'none'}, ` +
-          `patches: ${diff.length}`,
+          `damage: ${describeDamage(next.screen.damage)}, patches: ${diff.length}`,
       )
     }
     return diff
