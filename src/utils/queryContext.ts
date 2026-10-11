@@ -65,7 +65,7 @@ export async function buildSideQuestionFallbackParams(input: ForkInputs): Promis
   const { tools, commands, mcpClients, messages, readFileState, getAppState, setAppState, customSystemPrompt, appendSystemPrompt, thinkingConfig, agents } = input
   input = { tools, commands, mcpClients, messages, readFileState, getAppState, setAppState, customSystemPrompt, appendSystemPrompt, thinkingConfig, agents }
   const engineModel = getEngineModel()
-  const appState = input.getAppState()
+  const appState = getAppState()
   const parts = await fetchSystemPromptParts({
     tools: input.tools, engineModel, mcpClients: input.mcpClients,
     customSystemPrompt: input.customSystemPrompt, permissionMode: appState.toolPermissionContext.mode,
