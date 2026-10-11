@@ -19,7 +19,11 @@ import { handoverDue, handoverIfDue, readHandoverReceipt, renderHandoverReceipt 
 import { listTopicDocs } from '../../mneme/mnemeLibrary.js'
 import type { MnemeEntry } from '../../mneme/mnemeTopicDocs.js'
 import { formatTextSize, pinFact, pinnedTextLimit, readPins, unpinFact, type PinRecord } from '../../mneme/mnemeUsage.js'
-import { getMnemeHome } from '../../mneme/paths.js'
+import { getMnemeHome, mnemeProjectKey } from '../../mneme/paths.js'
+import { composeEntryPage, ENTRY_PAGE_HEADING } from '../../mneme/entryPage.js'
+import { readLedger } from '../../mneme/ledger.js'
+import type { LedgerEntry } from '../../mneme/types.js'
+import { getSessionId } from '../../bootstrap/state.js'
 
 
 const MAX_ROWS = 10
@@ -91,6 +95,38 @@ export function topicsListHeading(count: number): string {
   return `${count} topic${count === 1 ? '' : 's'} on the index, as the model reads ${count === 1 ? 'it' : 'them'} · ↵ opens the page`
 }
 
+export function lineageRowWords(entries: readonly LedgerEntry[], sessionId: string): string {
+  const previous = entries.filter(entry => entry.sessionId !== sessionId)
+  if (previous.length === 0) return 'lineage: first session of this work — no record before it'
+  const own = entries.find(entry => entry.sessionId === sessionId)
+  const ordinal = own?.ordinal ?? entries.length + 1
+  const lastNoted = [...previous].reverse().find(entry => entry.handoff !== null)
+  const last = lastNoted ? `last note from session ${lastNoted.ordinal}` : 'no note left yet'
+  return `lineage: session ${ordinal} · ${previous.length} before · ${last} — ↵ page`
+}
+
+export function lineagePageRows(page: string | null, width: number = 70): string[] {
+  if (page === null) return ['(memory is off — no page was composed)']
+  const out: string[] = []
+  for (const line of page.split('\n')) {
+    if (line === ENTRY_PAGE_HEADING) continue
+    if (line.trim() === '') {
+      out.push('')
+      continue
+    }
+    const words = line.split(' ')
+    let current = ''
+    for (const word of words) {
+      if (current !== '' && current.length + 1 + word.length > width) {
+        out.push(current)
+        current = word
+      } else current = current === '' ? word : `${current} ${word}`
+    }
+    if (current !== '') out.push(current)
+  }
+  return out
+}
+
 export function topicRef(row: IndexLine): MemoryRef {
   const slug = row.slugs[0] ?? row.key
   return {
@@ -129,7 +165,7 @@ export function pinnedRuleRow(row: { pin: PinRecord; entry: MnemeEntry; slug: st
 export function MemoryCentreView({ onClose, onOpenFiles }: { onClose: () => void; onOpenFiles?: () => void }): React.ReactNode {
   const accent = useSessionAccent().accent
   const [query, setQuery] = React.useState('')
-  const [view, setView] = React.useState<'overview' | 'pinned' | 'topics'>('overview')
+  const [view, setView] = React.useState<'overview' | 'pinned' | 'topics' | 'lineage'>('overview')
   const [detail, setDetail] = React.useState<MemoryRef | null>(null)
   const detailLines = React.useMemo(() => (detail ? refDetail(detail) : []), [detail])
   const [correcting, setCorrecting] = React.useState<{ seq: number; buffer: string } | null>(null)
@@ -159,6 +195,12 @@ export function MemoryCentreView({ onClose, onOpenFiles }: { onClose: () => void
       for (const row of index) rows.push({ id: `topic-${row.key}`, kind: 'ref', label: row.line.slice(2), ref: topicRef(row) })
       return rows
     }
+    if (view === 'lineage') {
+      const sessionId = String(getSessionId())
+      const rows: CentreRow[] = [{ id: 'page', kind: 'info', label: 'the page this session was given at its start, composed from the ledger · the last note is in it, word for word' }]
+      lineagePageRows(composeEntryPage(mnemeProjectKey(), sessionId)).forEach((line, index) => rows.push({ id: `page-${index}`, kind: 'info', label: line === '' ? ' ' : line }))
+      return rows
+    }
     const rows: CentreRow[] = []
     const st = mnemeStatus()
     rows.push({
@@ -172,6 +214,7 @@ export function MemoryCentreView({ onClose, onOpenFiles }: { onClose: () => void
       const shelfStatus = readPinnedStatus()
       rows.push({ id: 'pinned', kind: shelfStatus && shelfStatus.pinned > 0 ? 'action' : 'info', label: pinnedShelfWords(shelfStatus), run: () => {} })
       rows.push({ id: 'topics', kind: st.topicCount > 0 ? 'action' : 'info', label: topicsRowWords(st.topicCount), run: () => {} })
+      rows.push({ id: 'lineage', kind: 'action', label: lineageRowWords(readLedger(mnemeProjectKey()), String(getSessionId())), run: () => {} })
       const intake = readHandoverReceipt()
       if (intake) {
         const [first, pages] = renderHandoverReceipt(intake)
@@ -208,13 +251,14 @@ export function MemoryCentreView({ onClose, onOpenFiles }: { onClose: () => void
       else if (detail) setDetail(null)
       else if (query) {
         setQuery('')
-      } else if (view === 'pinned' || view === 'topics') setView('overview')
+      } else if (view === 'pinned' || view === 'topics' || view === 'lineage') setView('overview')
       else onClose()
     },
     onPrimary: row => {
       if (row.kind === 'ref' && row.ref) setDetail(row.ref)
       else if (row.id === 'pinned' && row.kind === 'action') setView('pinned')
       else if (row.id === 'topics' && row.kind === 'action') setView('topics')
+      else if (row.id === 'lineage' && row.kind === 'action') setView('lineage')
       else if (row.id === 'maintenance') runMaintenance()
       else if (row.id === 'intake' && row.kind === 'action') runIntake()
       else if (row.id === 'files' && onOpenFiles) onOpenFiles()
@@ -361,7 +405,9 @@ export function MemoryCentreView({ onClose, onOpenFiles }: { onClose: () => void
           ? '↑↓ move · ↵ inspect · u unpin · /config raises the limit · esc back'
           : view === 'topics'
             ? '↑↓ move · ↵ open the page · esc back'
-            : 'type to search · ↑↓ move · ↵ act · esc close'
+            : view === 'lineage'
+              ? '↑↓ move · esc back'
+              : 'type to search · ↑↓ move · ↵ act · esc close'
 
   return (
     <CommandCenter view="memory" subtitle="memory centre" onClose={onClose} captureInput={false} footer={footer}>
@@ -405,7 +451,7 @@ export function MemoryCentreView({ onClose, onOpenFiles }: { onClose: () => void
           </Box>
         ) : (
           <Box flexDirection="column">
-            <SectionHeader count={(view === 'pinned' || view === 'topics') && !query ? Math.max(0, list.length - 1) : list.length}>{query ? 'Matches' : view === 'pinned' ? 'Pinned rules' : view === 'topics' ? 'Topics' : 'Memory'}</SectionHeader>
+            <SectionHeader count={(view === 'pinned' || view === 'topics' || view === 'lineage') && !query ? Math.max(0, list.length - 1) : list.length}>{query ? 'Matches' : view === 'pinned' ? 'Pinned rules' : view === 'topics' ? 'Topics' : view === 'lineage' ? 'Lineage' : 'Memory'}</SectionHeader>
             {above > 0 ? <Text color={FAINT}>{`  +${above} above`}</Text> : null}
             {visible.map((row, i) => {
               const active = i === clampedSel
