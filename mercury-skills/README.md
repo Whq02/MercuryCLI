@@ -13,15 +13,10 @@ renderers the project has installed, checked before use.
 
 | Skill | What it does |
 |---|---|
-| `app-proof` | proves a web journey with Mercury's `Browser` and `Service` tools: readiness, actions, an observable result, a failure case, a recorded verdict per journey |
 | `extension-maker` | makes or repairs a Mercury extension or source catalogue — one manifest contributing skills, commands, agents, hooks, servers, or keybindings — validated with `mercury extensions inspect` |
 | `mcp-smithy` | builds an MCP server for a Mercury session around a small tool contract, proves it with the SDK client, and registers it with `mercury mcp add` only when asked |
-| `pdf-documents` | inspects, transforms, fills, redacts, and generates PDFs with the installed PDF libraries, reopening the output to verify it |
 | `provider-apis` | the reference for every provider API Mercury speaks — Anthropic Messages, OpenAI Responses, and the OpenAI-compatible chat-completions families — with request shapes, streaming, tool calls, caching, and live model sources |
 | `skill-forge` | writes and fixes a Mercury `SKILL.md` and its discovery rules, then checks discovery and expansion through the real loader |
-| `slide-decks` | creates and revises PowerPoint slides, layouts, and speaker notes from a template's layouts, rendering every slide to check it |
-| `spreadsheets` | edits Excel workbooks and turns tabular data into one without losing formulas, recalculating and cross-checking totals |
-| `word-documents` | creates and revises Word files while preserving styles, sections, tables, comments, and tracked revisions |
 
 ## Editing and regenerating
 
@@ -29,7 +24,7 @@ Edit here, then regenerate the compiled modules under `src/skills/bundled/`:
 
 ```bash
 bun run scripts/skills/gen-bundled.ts            # every skill; prunes retired output
-bun run scripts/skills/gen-bundled.ts app-proof  # one skill; touches nothing else
+bun run scripts/skills/gen-bundled.ts mcp-smithy  # one skill; touches nothing else
 bun run scripts/skills/gen-bundled.ts --check    # report drift without writing
 bash scripts/skills/run-all.sh                   # the bundled-skills suite
 ```
