@@ -1,4 +1,3 @@
-
 import {
   createScreen,
   type CharPool,
@@ -11,31 +10,38 @@ import type { Cursor } from './cursor.js'
 
 export type FlickerReason = 'resize' | 'offscreen' | 'clear'
 
-export type Patch =
+type BarePatchKind = 'cursorHide' | 'cursorShow' | 'carriageReturn'
+
+type BarePatch = { [Kind in BarePatchKind]: { type: Kind } }[BarePatchKind]
+
+type BytesPatch =
   | { type: 'stdout'; content: string }
-  | { type: 'clear'; count: number }
-  | {
-      type: 'clearTerminal'
-      reason: FlickerReason
-      debug?: { triggerY: number; prevLine: string; nextLine: string }
-    }
-  | { type: 'cursorHide' }
-  | { type: 'cursorShow' }
-  | { type: 'cursorMove'; x: number; y: number }
-  | { type: 'cursorTo'; col: number }
-  | { type: 'carriageReturn' }
-  | { type: 'hyperlink'; uri: string }
   | { type: 'styleStr'; str: string }
+  | { type: 'hyperlink'; uri: string }
+
+type CursorPatch = { type: 'cursorMove'; x: number; y: number } | { type: 'cursorTo'; col: number }
+
+type ResetDebug = { triggerY: number; prevLine: string; nextLine: string }
+
+type ClearPatch =
+  | { type: 'clear'; count: number }
+  | { type: 'clearTerminal'; reason: FlickerReason; debug?: ResetDebug }
+
+export type Patch = BytesPatch | CursorPatch | ClearPatch | BarePatch
 
 export type Diff = Patch[]
 
+type Viewport = { readonly width: number; readonly height: number }
+
 export type Frame = {
   readonly screen: Screen
-  readonly viewport: { readonly width: number; readonly height: number }
+  readonly viewport: Viewport
   readonly cursor: Cursor
   readonly scrollHint?: ScrollHint | null
   readonly scrollDrainPending?: boolean
 }
+
+const homeCursor = (): Cursor => ({ x: 0, y: 0, visible: true })
 
 export function emptyFrame(
   rows: number,
@@ -44,11 +50,9 @@ export function emptyFrame(
   charPool: CharPool,
   hyperlinkPool: HyperlinkPool,
 ): Frame {
-  return {
-    screen: createScreen(columns, 0, stylePool, charPool, hyperlinkPool),
-    viewport: { width: columns, height: rows },
-    cursor: { x: 0, y: 0, visible: true },
-  }
+  const viewport: Viewport = { width: columns, height: rows }
+  const screen = createScreen(viewport.width, 0, stylePool, charPool, hyperlinkPool)
+  return { screen, viewport, cursor: homeCursor() }
 }
 
 export type FlickerRecord = {
@@ -57,18 +61,12 @@ export type FlickerRecord = {
   reason: FlickerReason
 }
 
-export type FramePhases = {
-  renderer: number
-  diff: number
-  optimize: number
-  write: number
-  patches: number
-  yoga: number
-  commit: number
-  yogaVisited: number
-  yogaMeasured: number
-  yogaCacheHits: number
-  yogaLive: number
+type TimedPhase = 'renderer' | 'diff' | 'optimize' | 'write' | 'yoga' | 'commit'
+
+type LayoutCounter = 'yogaVisited' | 'yogaMeasured' | 'yogaCacheHits' | 'yogaLive'
+
+export type FramePhases = { [Phase in TimedPhase]: number } & { patches: number } & {
+  [Counter in LayoutCounter]: number
 }
 
 export type FrameEvent = {
