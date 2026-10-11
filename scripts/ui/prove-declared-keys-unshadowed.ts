@@ -175,8 +175,8 @@ section('§2 raw-input captures — a closed roster: the guard that scopes the c
     'src/components/MercuryModelPicker.tsx': {
       guard: ['if (filterFocus) {', 'if (input.length > 0 && !key.ctrl && !key.meta && !key.tab) {'],
       legendIn: 'src/utils/model/modelPickerFooter.ts',
-      legend: ["{ text: 'type to filter', show: opts.filterFocus === true, drop: 0 }", "opts.filterFocus ? (opts.filtering ? 'esc clears the filter' : 'esc leaves the filter')"],
-      reason: 'the / filter line: while it has focus a printable is filter text (the arm sits ahead of the c/e/s letter actions and the / opener); the hint row swaps to type to filter and its exit word to the filter state (esc clears the filter · esc leaves the filter)',
+      legend: ["{ text: 'type to search', show: opts.filterFocus === true, drop: 0 }", "{ text: 'tab back to the rows', show: opts.filterFocus === true, drop: 2 }", "const tail = opts.filtering ? 'esc clears the search' : MODEL_PICKER_EXIT_WORDS"],
+      reason: 'the search box: while it has focus a printable is search text (the arm sits ahead of the c/e/s letter actions and the / opener); tab moves between the box and the rows; the hint row swaps to type to search · tab back to the rows, and its exit word to the search state (esc clears the search while one stands)',
     },
     'src/components/concourse/ConcourseScreen.tsx': {
       guard: ["if (region !== 'coordinator' && region !== 'live') {", 'if (filtering) {'],

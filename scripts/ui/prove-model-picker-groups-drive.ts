@@ -232,29 +232,31 @@ try {
     { requireAwait: true, awaitText: 'coordinator model', awaitStableTicks: 3, data: TAB },
     ...birth,
     ...openPicker,
-    { requireAwait: true, awaitText: 'Mercury · model', awaitStableTicks: 3, mark: 'open', data: '/' },
-    { requireAwait: true, awaitText: 'type to filter', awaitStableTicks: 2, data: 'llama' },
-    { requireAwait: true, awaitText: '/ llama', awaitStableTicks: 3, mark: 'filtered', data: ESC },
-    { requireAwait: true, awaitText: 'filter by name or id', awaitStableTicks: 2, mark: 'cleared', data: LEFT },
+    { requireAwait: true, awaitText: 'Mercury · model', awaitStableTicks: 3, mark: 'open', data: 'llama' },
+    { requireAwait: true, awaitText: 'tab to search by name or id', awaitStableTicks: 3, mark: 'typed-in-rows', data: TAB },
+    { requireAwait: true, awaitText: 'type to search', awaitStableTicks: 2, mark: 'box', data: 'llama' },
+    { requireAwait: true, awaitText: '/ llama', awaitStableTicks: 3, mark: 'filtered', data: TAB },
+    { requireAwait: true, awaitText: 'c context', awaitStableTicks: 3, mark: 'kept', data: ESC },
+    { requireAwait: true, awaitText: 'tab to search by name or id', awaitStableTicks: 2, mark: 'cleared', data: LEFT },
     { afterPrevTicks: 3, data: LEFT },
     { afterPrevTicks: 4, mark: 'folded', data: RIGHT },
-    { afterPrevTicks: 4, mark: 'unfolded', data: '/' },
-    { requireAwait: true, awaitText: 'type to filter', awaitStableTicks: 2, data: 'llama' },
+    { afterPrevTicks: 4, mark: 'unfolded', data: TAB },
+    { requireAwait: true, awaitText: 'type to search', awaitStableTicks: 2, data: 'llama' },
     { requireAwait: true, awaitText: '/ llama', awaitStableTicks: 3, data: '\r' },
     { requireAwait: true, awaitText: `Set model to ${LLAMA_NAME}`, awaitStableTicks: 3, mark: 'switched', data: '' },
     ...openPicker,
     { requireAwait: true, awaitText: 'Mercury · model', awaitStableTicks: 3, mark: 'reopened', data: '/' },
-    { requireAwait: true, awaitText: 'type to filter', awaitStableTicks: 2, data: '(' },
+    { requireAwait: true, awaitText: 'type to search', awaitStableTicks: 2, data: '(' },
     { requireAwait: true, awaitText: '/ (', awaitStableTicks: 3, mark: 'metacharacter', data: ESC },
-    { requireAwait: true, awaitText: 'filter by name or id', awaitStableTicks: 2, data: ESC },
+    { requireAwait: true, awaitText: '/ search by name or id', awaitStableTicks: 2, mark: 'cleared-in-box', data: ESC },
     { requireAwait: true, awaitText: 'Kept model as', awaitStableTicks: 2, data: DRAFT },
     { requireAwait: true, awaitText: DRAFT, awaitStableTicks: 2, data: PICKER_CHORD[0]! },
     { afterPrevTicks: 2, data: PICKER_CHORD[1]! },
     { requireAwait: true, awaitText: 'Mercury · model', awaitStableTicks: 3, mark: 'draft-open', data: CLICK_OUTSIDE },
     { requireAwait: true, awaitText: 'Kept model as', awaitStableTicks: 3, mark: 'draft-closed', data: BACKSPACE.repeat(DRAFT.length) },
     ...openPicker,
-    { requireAwait: true, awaitText: 'Mercury · model', awaitStableTicks: 3, data: '/' },
-    { requireAwait: true, awaitText: 'type to filter', awaitStableTicks: 2, data: SEAT_ID },
+    { requireAwait: true, awaitText: 'Mercury · model', awaitStableTicks: 3, data: TAB },
+    { requireAwait: true, awaitText: 'type to search', awaitStableTicks: 2, data: SEAT_ID },
     { requireAwait: true, awaitText: `/ ${SEAT_ID}`, awaitStableTicks: 3, data: '\r' },
     { requireAwait: true, awaitText: `Set model to ${SEAT_NAME}`, awaitStableTicks: 3, mark: 'back', data: '' },
     { requireAwait: true, awaitText: 'Type a prompt', awaitStableTicks: 2, data: SHIFT_LEFT },
@@ -277,8 +279,12 @@ try {
     for (const [mark, lines] of c.marks) writeFileSync(join(FRAMES, `groups-178x51-${mark}.txt`), lines.join('\n') + '\n')
   }
   const open = pickerWindow(c.marks.get('open') ?? [])
+  const typedInRows = pickerWindow(c.marks.get('typed-in-rows') ?? [])
+  const box = pickerWindow(c.marks.get('box') ?? [])
   const filtered = pickerWindow(c.marks.get('filtered') ?? [])
+  const kept = pickerWindow(c.marks.get('kept') ?? [])
   const cleared = pickerWindow(c.marks.get('cleared') ?? [])
+  const clearedInBox = pickerWindow(c.marks.get('cleared-in-box') ?? [])
   const folded = pickerWindow(c.marks.get('folded') ?? [])
   const unfolded = pickerWindow(c.marks.get('unfolded') ?? [])
   const switched = c.marks.get('switched') ?? []
@@ -295,9 +301,14 @@ try {
   check("the seat's own provider leads: ANTHROPIC · API key · its tail · N live, its current row boxed", /^▾ ANTHROPIC · API key · …\S+ · \d+ live$/.test(headingOf(open, 'ANTHROPIC')) && headingRow(open, 'ANTHROPIC') < headingRow(open, 'OPENROUTER') && /\S.* {2,}claude-\S+ {2,}current {2,}/.test(boxedRow(open)), `${headingOf(open, 'ANTHROPIC')} · ${boxedRow(open)}`)
   check('the OpenRouter heading reads the key door with the fixture count', /^[▾▸] OPENROUTER · API key · …\S+ · 5 live$/.test(headingOf(open, 'OPENROUTER')), headingOf(open, 'OPENROUTER'))
   check('no row reads switch and no ○ / ● glyph paints', !open.some(l => l.includes('○') || l.includes('●') || / switch {2,}/.test(l)))
-  check('the hint row is the ratified line', open.some(l => innerOf(l) === '↑↓ select · ↵ switch · c context · → ← fold · / filter · esc or click outside closes'), open.filter(l => l.includes('↑↓ select')).map(innerOf).join(' | '))
+  check('the hint row is the ratified line', open.some(l => innerOf(l) === '↑↓ select · ↵ switch · c context · → ← fold · tab to search · esc or click outside closes'), open.filter(l => l.includes('↑↓ select')).map(innerOf).join(' | '))
+  check('the search box sits at the top, under the title, and says tab opens it', open.findIndex(l => innerOf(l) === '/ tab to search by name or id') === open.findIndex(l => innerOf(l) === 'Mercury · model') + 1, open.slice(1, 4).map(innerOf).join(' | '))
+  check('letters typed in the rows are not a search (the header stays plain, the box empty)', typedInRows.some(l => innerOf(l) === 'Mercury · model') && typedInRows.some(l => innerOf(l) === '/ tab to search by name or id') && !typedInRows.some(l => l.includes('/ llama')), typedInRows.slice(1, 4).map(innerOf).join(' | '))
+  check('tab moves into the box: the legend reads type to search · tab back to the rows, the placeholder swaps', box.some(l => innerOf(l) === '/ search by name or id') && box.some(l => innerOf(l).includes('type to search') && innerOf(l).includes('tab back to the rows')), box.filter(l => l.includes('↑↓ select') || l.includes('/ ')).map(innerOf).join(' | '))
+  check('tab again returns to the rows with the search kept: the matches stand, the header counts, the legend is the rows’ own and says esc clears the search', kept.some(l => innerOf(l) === '/ llama') && /Mercury · model · 1 of \d+ match/.test(kept.map(innerOf).join('\n')) && kept.some(l => innerOf(l).includes('c context') && innerOf(l).endsWith('esc clears the search')), kept.filter(l => l.includes('↑↓ select') || l.includes('/ ') || l.includes('Mercury · model')).map(innerOf).join(' | '))
   check('the filter narrows every group: the header counts the match, only OpenRouter stands, the llama row is boxed', /Mercury · model · 1 of \d+ match/.test(filtered.map(innerOf).join('\n')) && headingRow(filtered, 'ANTHROPIC') < 0 && headingRow(filtered, 'OPENROUTER') >= 0 && boxedRow(filtered).includes(LLAMA_STEM), `${filtered.slice(2, 8).map(innerOf).join(' | ')} · ${boxedRow(filtered)}`)
-  check('the first esc clears the filter and keeps the picker (the placeholder is back, the header plain)', cleared.some(l => innerOf(l) === '/ filter by name or id') && cleared.some(l => innerOf(l) === 'Mercury · model') && headingRow(cleared, 'ANTHROPIC') >= 0, cleared.slice(2, 6).map(innerOf).join(' | '))
+  check('the first esc clears the search and keeps the picker (the placeholder is back, the header plain)', cleared.some(l => innerOf(l) === '/ tab to search by name or id') && cleared.some(l => innerOf(l) === 'Mercury · model') && headingRow(cleared, 'ANTHROPIC') >= 0, cleared.slice(1, 6).map(innerOf).join(' | '))
+  check('esc in the box clears the search and keeps the box focused; the next esc closes', clearedInBox.some(l => innerOf(l) === '/ search by name or id') && clearedInBox.some(l => innerOf(l) === 'Mercury · model'), clearedInBox.slice(1, 4).map(innerOf).join(' | '))
   check('the cleared filter leaves the cursor on the row it focused (the llama row, in OPENROUTER)', boxedRow(cleared).includes(LLAMA_STEM), boxedRow(cleared))
   check('← ← folds the provider the cursor was in — OPENROUTER: the first ← climbs to its heading, the second folds it (▸ or ❯, no row under it); ANTHROPIC keeps its rows', /^[▸❯] OPENROUTER · /.test(headingOf(folded, 'OPENROUTER')) && groupRows(folded, 'OPENROUTER').length === 0 && groupRows(folded, 'ANTHROPIC').some(row => row.includes('claude-')), `${headingOf(folded, 'OPENROUTER')} · ${groupRows(folded, 'OPENROUTER').length} openrouter rows · ${groupRows(folded, 'ANTHROPIC').length} anthropic rows`)
   check('→ unfolds it again (the openrouter rows are back under an open heading)', /^[▾❯] OPENROUTER · /.test(headingOf(unfolded, 'OPENROUTER')) && groupRows(unfolded, 'OPENROUTER').some(row => row.includes('openrouter/')), `${headingOf(unfolded, 'OPENROUTER')} · ${groupRows(unfolded, 'OPENROUTER').length} rows`)

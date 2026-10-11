@@ -34,6 +34,7 @@ type StepId = 'theme' | 'provider' | 'api-key' | 'guardrails' | 'terminal'
 const THEME_ROWS: { value: ThemeSetting; label: string }[] = [
   { value: 'dark', label: 'Oasis dark · Oasis background' },
   { value: 'true-black', label: 'True Black · the same palette on a pure black background' },
+  { value: 'mono', label: 'Black and white · no colour at all' },
 ]
 
 const THEME_WORDS = {

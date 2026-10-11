@@ -46,7 +46,7 @@ const check = (label: string, cond: boolean, detail = ''): void => {
 }
 
 console.log('============================================================')
-console.log(' no retired theme remains: the tree names two appearances, dark and true-black')
+console.log(' no retired theme remains: the tree names three appearances, dark, true-black and mono')
 console.log('============================================================')
 
 const trips = [
