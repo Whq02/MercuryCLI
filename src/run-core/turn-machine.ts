@@ -166,7 +166,7 @@ import { streamEndReceiptLine } from '../services/providers/streamIdleBudget.js'
 import { interruptedToolsLine, turnCutOf, turnCutResultText } from '../utils/messages/rejectionText.js'
 import { ownerFromToolUseContext, rosterOwnerFromToolUseContext } from '../services/run/resolveOwner.js'
 import { createCacheSafeParams, recordSentRequest } from '../utils/forkedAgent.js'
-import { askForHandoff, handoffAskDue } from '../mneme/handoffAsk.js'
+import { askForHandoff, handoffAskDue, handoffNotice } from '../mneme/handoffAsk.js'
 import { emptyReplyKindOf, emptyReplyNoticeLine } from '../services/providers/emptyReply.js'
 import { buildQueryConfig, type QueryConfig } from '../query/config.js'
 import { productionDeps, type QueryDeps } from '../query/deps.js'
@@ -1788,7 +1788,7 @@ export async function* runEventCore(
         yield emit({
           kind: 'notice',
           message: createSystemMessage(
-            note === null ? 'the session ends with no note left for the next one' : `the note for the next session is in the ledger (${note.text.length} characters)`,
+            handoffNotice(note),
             'info',
           ),
         })

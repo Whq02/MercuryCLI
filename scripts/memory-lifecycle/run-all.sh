@@ -22,6 +22,7 @@ for proof in \
   prove-ledger-torn-tail.ts \
   prove-lineage-session.ts \
   prove-handoff-tool-wall.ts \
+  prove-handoff-write-receipt.ts \
   prove-lineage-retention-zero.ts \
   prove-exit-handoff.ts \
 ; do
