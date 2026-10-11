@@ -924,26 +924,15 @@ export const getModelBetas = memoize((model: string): string[] => {
   return getAllModelBetas(model)
 }, betasMemoKey)
 
-export function getMergedBetas(
-  model: string,
-  options?: { isAgenticQuery?: boolean },
-): string[] {
-  const baseBetas = [...getModelBetas(model)]
-
-  if (options?.isAgenticQuery) {
-    if (!baseBetas.includes(CODING_20250219_BETA_HEADER)) {
-      baseBetas.push(CODING_20250219_BETA_HEADER)
-    }
-
+export function getMergedBetas(model: string, options?: { isAgenticQuery?: boolean }): string[] {
+  const merged = Array.from(getModelBetas(model))
+  const appendNew = (headers: readonly string[]): void => {
+    const present = new Set(merged)
+    headers.forEach(header => { if (!present.has(header)) merged.push(header) })
   }
-
-  const sdkBetas = getSdkBetas()
-
-  if (!sdkBetas || sdkBetas.length === 0) {
-    return baseBetas
-  }
-
-  return [...baseBetas, ...sdkBetas.filter(b => !baseBetas.includes(b))]
+  if (options?.isAgenticQuery) appendNew([CODING_20250219_BETA_HEADER])
+  appendNew(getSdkBetas() ?? [])
+  return merged
 }
 
 export function clearBetasCaches(): void {

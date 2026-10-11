@@ -554,8 +554,9 @@ section('UI-088..100 — selection/tokens/plates/transitions adjudicated to thei
   }
   check(
     'UI-096: first text rides the shared stream owner (no plate delays first text)',
-    src('src/utils/messages/streaming.ts').includes("case 'text_delta': {") &&
-      src('src/utils/messages/streaming.ts').includes("onStreamingText?.(text => (text ?? '') + deltaText)"),
+    src('src/utils/messages/streaming.ts').includes("if (delta.type === 'text_delta') {") &&
+      src('src/utils/messages/streaming.ts').includes("text?.(before => (before ?? '') + chunk)") &&
+      src('src/utils/messages/streaming.ts').includes('publishDelta(event, onUpdateLength, onStreamingToolUses, onStreamingText)'),
   )
   check(
     'UI-097..100: the transition families keep their standing owners (board-coverage · view-target-parity · agent-resume-visibility)',

@@ -44,226 +44,119 @@ function resultsAnsweredOnce(
 }
 
 
-export function ensureToolResultPairing(
-  messages: (UserMessage | AssistantMessage)[],
-): (UserMessage | AssistantMessage)[] {
-  const result: (UserMessage | AssistantMessage)[] = []
+type PairingRow = UserMessage | AssistantMessage
+
+function detachedUser(row: UserMessage, first: boolean): UserMessage | null {
+  const before = row.message.content
+  if (!Array.isArray(before)) return row
+  const content = before.filter(block => !(typeof block === 'object' && 'type' in block && block.type === 'tool_result'))
+  if (content.length === before.length) return row
+  if (content.length === 0) {
+    if (!first) return null
+    content.push({ type: 'text', text: '[Orphaned tool result removed due to conversation resume]' })
+  }
+  return { ...row, message: { ...row.message, content } }
+}
+
+function admitAssistant(row: AssistantMessage, known: Set<string>): {
+  row: AssistantMessage; called: Set<string>; repaired: boolean
+} {
+  const before = contentBlocksOf(row.message.content) as ContentBlock[]
+  const serverAnswers = new Set(before.flatMap(block =>
+    'tool_use_id' in block && typeof block.tool_use_id === 'string' ? [block.tool_use_id] : []))
+  const called = new Set<string>()
   let repaired = false
-
-  const allSeenToolUseIds = new Set<string>()
-
-  for (let i = 0; i < messages.length; i++) {
-    const msg = messages[i]!
-
-    if (msg.type !== 'assistant') {
-      if (
-        msg.type === 'user' &&
-        Array.isArray(msg.message.content) &&
-        result.at(-1)?.type !== 'assistant'
-      ) {
-        const stripped = msg.message.content.filter(
-          block =>
-            !(
-              typeof block === 'object' &&
-              'type' in block &&
-              block.type === 'tool_result'
-            ),
-        )
-        if (stripped.length !== msg.message.content.length) {
-          repaired = true
-          const content =
-            stripped.length > 0
-              ? stripped
-              : result.length === 0
-                ? [
-                    {
-                      type: 'text' as const,
-                      text: '[Orphaned tool result removed due to conversation resume]',
-                    },
-                  ]
-                : null
-          if (content !== null) {
-            result.push({
-              ...msg,
-              message: { ...msg.message, content },
-            })
-          }
-          continue
-        }
-      }
-      result.push(msg)
-      continue
-    }
-
-    const msgContent = contentBlocksOf(msg.message.content) as ContentBlock[]
-
-    const serverResultIds = new Set<string>()
-    for (const c of msgContent) {
-      if ('tool_use_id' in c && typeof c.tool_use_id === 'string') {
-        serverResultIds.add(c.tool_use_id)
-      }
-    }
-
-    const seenToolUseIds = new Set<string>()
-    const finalContent = contentItemsOf(msgContent).filter(item => {
-      if (item.type !== 'tool_call') return true
-      if (item.native === 'tool_use') {
-        if (allSeenToolUseIds.has(item.call_id)) {
-          repaired = true
-          return false
-        }
-        allSeenToolUseIds.add(item.call_id)
-        seenToolUseIds.add(item.call_id)
-      } else if (!serverResultIds.has(item.call_id)) {
+  const content: ContentBlock[] = []
+  for (const item of contentItemsOf(before)) {
+    if (item.type === 'tool_call') {
+      const client = item.native === 'tool_use'
+      if (client ? known.has(item.call_id) : !serverAnswers.has(item.call_id)) {
         repaired = true
-        return false
+        continue
       }
-      return true
-    }).map(item => item.value) as ContentBlock[]
-
-    const assistantContentChanged =
-      finalContent.length !== msgContent.length ||
-      msgContent !== msg.message.content
-
-    if (finalContent.length === 0) {
-      finalContent.push({
-        type: 'text' as const,
-        text: '[Tool use interrupted]',
-        citations: [],
-      })
-    }
-
-    result.push(
-      assistantContentChanged
-        ? { ...msg, message: { ...msg.message, content: finalContent } }
-        : msg,
-    )
-
-    const toolUseIds = [...seenToolUseIds]
-
-    const nextMsg = messages[i + 1]
-    const existingToolResultIds = new Set<string>()
-    let hasDuplicateToolResults = false
-
-    if (nextMsg?.type === 'user') {
-      const content = nextMsg.message.content
-      if (Array.isArray(content)) {
-        for (const item of resultItemsOf(content)) {
-          if (existingToolResultIds.has(item.call_id)) hasDuplicateToolResults = true
-          existingToolResultIds.add(item.call_id)
-        }
+      if (client) {
+        known.add(item.call_id)
+        called.add(item.call_id)
       }
     }
+    content.push(item.value as ContentBlock)
+  }
+  const changed = content.length !== before.length || before !== row.message.content
+  if (!content.length) content.push({ type: 'text', text: '[Tool use interrupted]', citations: [] })
+  return { row: changed ? { ...row, message: { ...row.message, content } } : row, called, repaired }
+}
 
-    const toolUseIdSet = new Set(toolUseIds)
-    const missingIds = toolUseIds.filter(id => !existingToolResultIds.has(id))
-    const orphanedIds = [...existingToolResultIds].filter(
-      id => !toolUseIdSet.has(id),
-    )
+function reconcileResults(called: Set<string>, next: PairingRow | undefined): UserMessage | undefined {
+  const following = next?.type === 'user' ? next : undefined
+  const ids = following && Array.isArray(following.message.content)
+    ? resultItemsOf(following.message.content).map(item => item.call_id) : []
+  const answered = new Set(ids)
+  const clean = ids.length !== answered.size || ids.some(id => !called.has(id))
+  const absent = [...called].filter(id => !answered.has(id))
+  if (!clean && absent.length === 0) return undefined
+  const missing: ToolResultBlockParam[] = absent.map(tool_use_id => ({
+    type: 'tool_result', tool_use_id, content: SYNTHETIC_TOOL_RESULT_PLACEHOLDER, is_error: true,
+  }))
+  if (!following) return missing.length ? createUserMessage({ content: missing, isMeta: true }) : undefined
+  const body = following.message.content
+  const blocks = Array.isArray(body) ? body : [{ type: 'text' as const, text: body }]
+  const content = [...missing, ...(clean ? resultsAnsweredOnce(blocks, called) : blocks)]
+  return content.length
+    ? { ...following, message: { ...following.message, content } }
+    : createUserMessage({ content: NO_CONTENT_MESSAGE, isMeta: true })
+}
 
-    if (
-      missingIds.length === 0 &&
-      orphanedIds.length === 0 &&
-      !hasDuplicateToolResults
-    ) {
+function pairingStructure(row: PairingRow, index: number): string {
+  if (row.type === 'assistant') {
+    const client: string[] = []
+    const server: string[] = []
+    for (const item of contentItemsOf(row.message.content)) {
+      if (item.type === 'tool_call') (item.native === 'tool_use' ? client : server).push(item.call_id)
+    }
+    const parts = [`id=${row.message.id}`, `tool_uses=[${client.join(',')}]`]
+    if (server.length) parts.push(`server_tool_uses=[${server.join(',')}]`)
+    return `[${index}] assistant(${parts.join(', ')})`
+  }
+  const body = row.message.content
+  if (Array.isArray(body)) {
+    const ids = body.filter(block => typeof block === 'object' && 'type' in block && block.type === 'tool_result')
+      .map(block => (block as ToolResultBlockParam).tool_use_id)
+    if (ids.length) return `[${index}] user(tool_results=[${ids.join(',')}])`
+  }
+  return `[${index}] ${row.type}`
+}
+
+export function ensureToolResultPairing(messages: PairingRow[]): PairingRow[] {
+  const output: PairingRow[] = []
+  const known = new Set<string>()
+  let repaired = false
+  let cursor = 0
+  while (cursor < messages.length) {
+    const row = messages[cursor++]!
+    if (row.type !== 'assistant') {
+      const accepted = row.type === 'user' && output.at(-1)?.type !== 'assistant'
+        ? detachedUser(row, output.length === 0) : row
+      if (accepted !== row) repaired = true
+      if (accepted) output.push(accepted)
       continue
     }
-
+    const accepted = admitAssistant(row, known)
+    repaired ||= accepted.repaired
+    output.push(accepted.row)
+    const answer = reconcileResults(accepted.called, messages[cursor])
+    if (!answer) continue
     repaired = true
-
-    const syntheticBlocks: ToolResultBlockParam[] = missingIds.map(id => ({
-      type: 'tool_result' as const,
-      tool_use_id: id,
-      content: SYNTHETIC_TOOL_RESULT_PLACEHOLDER,
-      is_error: true,
-    }))
-
-    if (nextMsg?.type === 'user') {
-      let content: (ContentBlockParam | ContentBlock)[] = Array.isArray(
-        nextMsg.message.content,
-      )
-        ? nextMsg.message.content
-        : [{ type: 'text' as const, text: nextMsg.message.content }]
-
-      if (orphanedIds.length > 0 || hasDuplicateToolResults) {
-        content = resultsAnsweredOnce(content, toolUseIdSet)
-      }
-
-      const patchedContent = [...syntheticBlocks, ...content]
-
-      if (patchedContent.length > 0) {
-        const patchedNext: UserMessage = {
-          ...nextMsg,
-          message: { ...nextMsg.message, content: patchedContent },
-        }
-        i++
-        result.push(patchedNext)
-      } else {
-        i++
-        result.push(
-          createUserMessage({
-            content: NO_CONTENT_MESSAGE,
-            isMeta: true,
-          }),
-        )
-      }
-    } else {
-      if (syntheticBlocks.length > 0) {
-        result.push(
-          createUserMessage({
-            content: syntheticBlocks,
-            isMeta: true,
-          }),
-        )
-      }
-    }
+    output.push(answer)
+    if (messages[cursor]?.type === 'user') cursor++
   }
-
   if (repaired) {
-    const messageTypes = messages.map((m, idx) => {
-      if (m.type === 'assistant') {
-        const toolUses: string[] = []
-        const serverToolUses: string[] = []
-        for (const item of contentItemsOf(m.message.content)) {
-          if (item.type === 'tool_call') (item.native === 'tool_use' ? toolUses : serverToolUses).push(item.call_id)
-        }
-        const parts = [
-          `id=${m.message.id}`,
-          `tool_uses=[${toolUses.join(',')}]`,
-        ]
-        if (serverToolUses.length > 0) {
-          parts.push(`server_tool_uses=[${serverToolUses.join(',')}]`)
-        }
-        return `[${idx}] assistant(${parts.join(', ')})`
-      }
-      if (m.type === 'user' && Array.isArray(m.message.content)) {
-        const toolResults = m.message.content
-          .filter(
-            b =>
-              typeof b === 'object' && 'type' in b && b.type === 'tool_result',
-          )
-          .map(b => (b as ToolResultBlockParam).tool_use_id)
-        if (toolResults.length > 0) {
-          return `[${idx}] user(tool_results=[${toolResults.join(',')}])`
-        }
-      }
-      return `[${idx}] ${m.type}`
-    })
-
+    const structure = messages.map(pairingStructure).join('; ')
     if (getStrictToolResultPairing()) {
-      throw new Error(
-        `The tool calls and their results do not pair up and strict pairing is on, so no placeholder is written into the model's context. Message structure: ${messageTypes.join('; ')}`,
-      )
+      throw new Error(`The tool calls and their results do not pair up and strict pairing is on, so no placeholder is written into the model's context. Message structure: ${structure}`)
     }
-
-    logError(
-      new Error(
-        `Tool results were repaired on the way to the wire (${messages.length} rows in, ${result.length} out). Message structure: ${messageTypes.join('; ')}`,
-      ),
-    )
+    logError(new Error(`Tool results were repaired on the way to the wire (${messages.length} rows in, ${output.length} out). Message structure: ${structure}`))
   }
-
-  return result
+  return output
 }
 
 export function foldSplitTurnsForWire(

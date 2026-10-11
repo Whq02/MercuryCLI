@@ -357,7 +357,8 @@ async function main(): Promise<void> {
     const callModelSrc = src('src/services/providers/openai/openaiCallModel.ts')
     check(
       'C10: the SHARED canonical consumer serves the openai lane (input_json_delta → pulse activity + silent tool-input accumulation) — no second grammar',
-      streaming.includes("case 'input_json_delta'") &&
+      streaming.includes("if (delta.type === 'input_json_delta')") &&
+        streaming.includes('tools(appendInput(index, chunk), { silent: true })') &&
         streaming.includes("'tool-input'") &&
         callModelSrc.includes("type: 'input_json_delta'") &&
         !callModelSrc.includes('openai_tool_delta'),
