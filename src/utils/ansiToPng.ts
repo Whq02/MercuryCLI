@@ -1,7 +1,7 @@
 import { deflateSync } from 'node:zlib'
 
 import { stringWidth } from '../ink/stringWidth.js'
-import { DEFAULT_BG, parseAnsi, type AnsiColor, type ParsedLine } from './ansiToSvg.js'
+import { DEFAULT_BG, parseAnsi, type AnsiColor, type ParsedLine } from './ansiSpans.js'
 
 
 const CELL_WIDTH = 24
