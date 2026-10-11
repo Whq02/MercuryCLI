@@ -1,4 +1,3 @@
-
 import { parse, relative } from 'path'
 import { getCwd } from 'src/utils/cwd.js'
 import { getSnippetForTwoFileDiff } from 'src/tools/FileEditTool/utils.js'
@@ -6,17 +5,10 @@ import { getDefaultFileReadingLimits } from 'src/tools/FileReadTool/limits.js'
 import { MAX_LINES_TO_READ } from 'src/tools/FileReadTool/prompt.js'
 import { PDF_AT_MENTION_INLINE_THRESHOLD } from '../../constants/apiLimits.js'
 import type { ToolUseContext } from '../../Tool.js'
-import {
-  FileReadTool,
-  MaxFileReadTokenExceededError,
-  readImageWithTokenBudget,
-} from '../../tools/FileReadTool/FileReadTool.js'
+import { FileReadTool, MaxFileReadTokenExceededError, readImageWithTokenBudget, type Output as ReadOutput } from '../../tools/FileReadTool/FileReadTool.js'
 import { isENOENT } from '../errors.js'
-import {
-  getFileModificationTimeAsync,
-  isFileWithinReadSizeLimit,
-} from '../file.js'
-import { cacheKeys } from '../fileStateCache.js'
+import { getFileModificationTimeAsync, isFileWithinReadSizeLimit } from '../file.js'
+import { cacheKeys, type FileState } from '../fileStateCache.js'
 import { getFsImplementation } from '../fsOperations.js'
 import { logError } from '../log.js'
 import { expandPath } from '../path.js'
@@ -25,269 +17,136 @@ import { isPDFExtension } from '../pdfUtils.js'
 import { FileTooLargeError } from '../readFileInRange.js'
 import { countCharInString } from '../stringUtils.js'
 import { isFileReadDenied } from './shared.js'
-import type {
-  AlreadyReadFileAttachment,
-  Attachment,
-  CompactFileReferenceAttachment,
-  FileAttachment,
-  PDFReferenceAttachment,
-} from './types.js'
+import type { AlreadyReadFileAttachment, Attachment, CompactFileReferenceAttachment, FileAttachment, PDFReferenceAttachment } from './types.js'
 
-export async function getChangedFiles(
-  toolUseContext: ToolUseContext,
-): Promise<Attachment[]> {
-  const filePaths = cacheKeys(toolUseContext.readFileState)
-  if (filePaths.length === 0) return []
-
-  const appState = toolUseContext.getAppState()
-  const results = await Promise.all(
-    filePaths.map(async filePath => {
-      const fileState = toolUseContext.readFileState.get(filePath)
-      if (!fileState) return null
-
-      if ((fileState.offset ?? 0) !== 0 || fileState.limit !== undefined) {
-        return null
-      }
-
-      const normalizedPath = expandPath(filePath)
-
-      if (isFileReadDenied(normalizedPath, appState.toolPermissionContext)) {
-        return null
-      }
-
-      try {
-        const mtime = await getFileModificationTimeAsync(normalizedPath)
-        if (mtime <= fileState.timestamp) {
-          return null
-        }
-
-        const fileInput = { file_path: normalizedPath }
-
-        const isValid = await FileReadTool.validateInput(
-          fileInput,
-          toolUseContext,
-        )
-        if (!isValid.result) {
-          return null
-        }
-
-        const result = await FileReadTool.call(fileInput, toolUseContext)
-        const recorded = toolUseContext.readFileState.get(normalizedPath)
-        if (recorded !== undefined) {
-          toolUseContext.readFileState.set(normalizedPath, { ...recorded, offset: undefined })
-        }
-        if (result.data.type === 'text') {
-          const snippet = getSnippetForTwoFileDiff(
-            fileState.content,
-            result.data.file.content,
-          )
-
-          if (snippet === '') {
-            return null
-          }
-
-          return {
-            type: 'edited_text_file' as const,
-            filename: normalizedPath,
-            snippet,
-          }
-        }
-
-        if (result.data.type === 'image') {
-          try {
-            const data = await readImageWithTokenBudget(normalizedPath)
-            return {
-              type: 'edited_image_file' as const,
-              filename: normalizedPath,
-              content: data,
-            }
-          } catch (compressionError) {
-            logError(compressionError)
-            return null
-          }
-        }
-
-        return null
-      } catch (err) {
-        if (isENOENT(err)) {
-          toolUseContext.readFileState.delete(filePath)
-        }
-        return null
-      }
-    }),
-  )
-  return results.filter(result => result != null) as Attachment[]
-}
-
-export async function tryGetPDFReference(
-  filename: string,
-): Promise<PDFReferenceAttachment | null> {
-  const ext = parse(filename).ext.toLowerCase()
-  if (!isPDFExtension(ext)) {
-    return null
-  }
-  try {
-    const [stats, pageCount] = await Promise.all([
-      getFsImplementation().stat(filename),
-      getPDFPageCount(filename),
-    ])
-    const effectivePageCount = pageCount ?? Math.ceil(stats.size / (100 * 1024))
-    if (effectivePageCount > PDF_AT_MENTION_INLINE_THRESHOLD) {
-      return {
-        type: 'pdf_reference',
-        filename,
-        pageCount: effectivePageCount,
-        fileSize: stats.size,
-        displayPath: relative(getCwd(), filename),
-      }
-    }
-  } catch {
-  }
-  return null
-}
-
-export async function generateFileAttachment(
-  filename: string,
-  toolUseContext: ToolUseContext,
-  mode: 'compact' | 'at-mention',
-  options?: {
-    offset?: number
-    limit?: number
-  },
-): Promise<
-  | FileAttachment
-  | CompactFileReferenceAttachment
-  | PDFReferenceAttachment
-  | AlreadyReadFileAttachment
-  | null
-> {
-  const { offset, limit } = options ?? {}
-  const policy = FILE_READ_MODES[mode]
-
-  const appState = toolUseContext.getAppState()
-  if (isFileReadDenied(filename, appState.toolPermissionContext)) {
-    return null
-  }
-
-  if (
-    policy.checkSize &&
-    !isFileWithinReadSizeLimit(
-      filename,
-      getDefaultFileReadingLimits().maxSizeBytes,
-    )
-  ) {
-    const ext = parse(filename).ext.toLowerCase()
-    if (!isPDFExtension(ext)) {
-      try {
-        await getFsImplementation().stat(filename)
-        return null
-      } catch {
-      }
-    }
-  }
-
-  if (policy.referencePDF) {
-    const pdfRef = await tryGetPDFReference(filename)
-    if (pdfRef) {
-      return pdfRef
-    }
-  }
-
-  const existingFileState = toolUseContext.readFileState.get(filename)
-  if (existingFileState && policy.reuseRead) {
-    try {
-      const mtimeMs = await getFileModificationTimeAsync(filename)
-
-      if (mtimeMs === existingFileState.timestamp) {
-        return {
-          type: 'already_read_file',
-          filename,
-          displayPath: relative(getCwd(), filename),
-          content: {
-            type: 'text',
-            file: {
-              filePath: filename,
-              content: existingFileState.content,
-              numLines: countCharInString(existingFileState.content, '\n') + 1,
-              startLine: offset ?? 1,
-              totalLines:
-                countCharInString(existingFileState.content, '\n') + 1,
-            },
-          },
-        }
-      }
-    } catch {
-    }
-  }
-
-  try {
-    const fileInput = {
-      file_path: filename,
-      offset,
-      limit,
-    }
-
-    async function read(input: typeof fileInput, truncated = false): Promise<FileAttachment> {
-      const result = await FileReadTool.call(input, toolUseContext)
-      return {
-        type: 'file', filename, content: result.data, displayPath: relative(getCwd(), filename),
-        ...(truncated ? { truncated: true } : {}),
-      }
-    }
-
-    async function readTruncatedFile(): Promise<
-      | FileAttachment
-      | CompactFileReferenceAttachment
-      | AlreadyReadFileAttachment
-      | null
-    > {
-      if (policy.oversizedReference) {
-        return {
-          type: 'compact_file_reference',
-          filename,
-          displayPath: relative(getCwd(), filename),
-        }
-      }
-
-      const appState = toolUseContext.getAppState()
-      if (isFileReadDenied(filename, appState.toolPermissionContext)) {
-        return null
-      }
-
-      try {
-        const truncatedInput = {
-          file_path: filename,
-          offset: offset ?? 1,
-          limit: MAX_LINES_TO_READ,
-        }
-        return await read(truncatedInput, true)
-      } catch {
-        return null
-      }
-    }
-
-    const isValid = await FileReadTool.validateInput(fileInput, toolUseContext)
-    if (!isValid.result) {
-      return null
-    }
-
-    try {
-      return await read(fileInput)
-    } catch (error) {
-      if (
-        error instanceof MaxFileReadTokenExceededError ||
-        error instanceof FileTooLargeError
-      ) {
-        return await readTruncatedFile()
-      }
-      throw error
-    }
-  } catch {
-    return null
-  }
-}
-
-const FILE_READ_MODES = {
+type FileRow = FileAttachment | CompactFileReferenceAttachment | PDFReferenceAttachment | AlreadyReadFileAttachment
+type ReadWindow = { offset?: number; limit?: number }
+type ReadRequest = ReadWindow & { file_path: string }
+type ReadMode = 'compact' | 'at-mention'
+const modes = {
   compact: { checkSize: false, referencePDF: false, reuseRead: false, oversizedReference: true },
   'at-mention': { checkSize: true, referencePDF: true, reuseRead: true, oversizedReference: false },
 } as const
+const displayOf = (filename: string): string => relative(getCwd(), filename)
+const pdfPath = (filename: string): boolean => isPDFExtension(parse(filename).ext.toLowerCase())
+
+async function fileRow(input: ReadRequest, context: ToolUseContext, clipped = false): Promise<FileAttachment> {
+  const answer = await FileReadTool.call(input, context)
+  return { type: 'file', filename: input.file_path, content: answer.data, displayPath: displayOf(input.file_path), ...(clipped ? { truncated: true } : {}) }
+}
+
+async function oversizedFallback(input: ReadRequest, context: ToolUseContext, mode: ReadMode): Promise<FileRow | null> {
+  if (modes[mode].oversizedReference) return { type: 'compact_file_reference', filename: input.file_path, displayPath: displayOf(input.file_path) }
+  if (isFileReadDenied(input.file_path, context.getAppState().toolPermissionContext)) return null
+  return fileRow({ file_path: input.file_path, offset: input.offset ?? 1, limit: MAX_LINES_TO_READ }, context, true)
+}
+
+async function validatedRead(input: ReadRequest, context: ToolUseContext, mode: ReadMode): Promise<FileRow | null> {
+  try {
+    if (!(await FileReadTool.validateInput(input, context)).result) return null
+    try {
+      return await fileRow(input, context)
+    } catch (failure) {
+      if (!(failure instanceof MaxFileReadTokenExceededError || failure instanceof FileTooLargeError)) return null
+      return await oversizedFallback(input, context, mode)
+    }
+  } catch {
+    return null
+  }
+}
+
+async function tooLargeToMention(filename: string): Promise<boolean> {
+  if (isFileWithinReadSizeLimit(filename, getDefaultFileReadingLimits().maxSizeBytes) || pdfPath(filename)) return false
+  try {
+    await getFsImplementation().stat(filename)
+    return true
+  } catch {
+    return false
+  }
+}
+
+async function reusableRead(filename: string, recorded: FileState, offset?: number): Promise<AlreadyReadFileAttachment | null> {
+  try {
+    if (await getFileModificationTimeAsync(filename) !== recorded.timestamp) return null
+    const lines = countCharInString(recorded.content, '\n') + 1
+    return {
+      type: 'already_read_file', filename, displayPath: displayOf(filename),
+      content: { type: 'text', file: { filePath: filename, content: recorded.content, numLines: lines, startLine: offset ?? 1, totalLines: lines } },
+    }
+  } catch {
+    return null
+  }
+}
+
+export async function generateFileAttachment(filename: string, context: ToolUseContext, mode: ReadMode, options?: ReadWindow): Promise<FileRow | null> {
+  const { offset, limit } = options ?? {}
+  const plan = modes[mode]
+  if (isFileReadDenied(filename, context.getAppState().toolPermissionContext)) return null
+  if (plan.checkSize && await tooLargeToMention(filename)) return null
+  if (plan.referencePDF) {
+    const reference = await tryGetPDFReference(filename)
+    if (reference) return reference
+  }
+  const recorded = context.readFileState.get(filename)
+  if (recorded && plan.reuseRead) {
+    const held = await reusableRead(filename, recorded, offset)
+    if (held) return held
+  }
+  return validatedRead({ file_path: filename, offset, limit }, context, mode)
+}
+
+export async function tryGetPDFReference(filename: string): Promise<PDFReferenceAttachment | null> {
+  if (!pdfPath(filename)) return null
+  try {
+    const measurements = await Promise.all([getFsImplementation().stat(filename), getPDFPageCount(filename)])
+    const fileSize = measurements[0].size
+    const pageCount = measurements[1] ?? Math.ceil(fileSize / 102400)
+    return pageCount > PDF_AT_MENTION_INLINE_THRESHOLD
+      ? { type: 'pdf_reference', filename, pageCount, fileSize, displayPath: displayOf(filename) }
+      : null
+  } catch {
+    return null
+  }
+}
+
+async function changedContent(filename: string, previous: string, output: ReadOutput): Promise<Attachment[]> {
+  switch (output.type) {
+    case 'text': {
+      const snippet = getSnippetForTwoFileDiff(previous, output.file.content)
+      return snippet ? [{ type: 'edited_text_file', filename, snippet }] : []
+    }
+    case 'image':
+      try {
+        return [{ type: 'edited_image_file', filename, content: await readImageWithTokenBudget(filename) }]
+      } catch (failure) {
+        logError(failure)
+      }
+  }
+  return []
+}
+
+async function changedFile(key: string, context: ToolUseContext, state: ReturnType<ToolUseContext['getAppState']>): Promise<Attachment[]> {
+  const previous = context.readFileState.get(key)
+  if (!previous || (previous.offset ?? 0) !== 0 || previous.limit !== undefined) return []
+  const path = expandPath(key)
+  if (isFileReadDenied(path, state.toolPermissionContext)) return []
+  try {
+    if (await getFileModificationTimeAsync(path) <= previous.timestamp) return []
+    const input = { file_path: path }
+    if (!(await FileReadTool.validateInput(input, context)).result) return []
+    const read = await FileReadTool.call(input, context)
+    const now = context.readFileState.get(path)
+    if (now !== undefined) context.readFileState.set(path, { ...now, offset: undefined })
+    return await changedContent(path, previous.content, read.data)
+  } catch (failure) {
+    if (isENOENT(failure)) context.readFileState.delete(key)
+    return []
+  }
+}
+
+export async function getChangedFiles(context: ToolUseContext): Promise<Attachment[]> {
+  const keys = cacheKeys(context.readFileState)
+  if (!keys.length) return []
+  const state = context.getAppState()
+  return (await Promise.all(keys.map(key => changedFile(key, context, state)))).flat()
+}
