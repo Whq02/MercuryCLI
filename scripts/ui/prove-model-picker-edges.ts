@@ -245,10 +245,10 @@ for (const [columns, rows] of SIZES) {
   const shorter = inner(lineWith(board.lines(), '/ ')).trim()
   check(`${columns}x${rows}: ⌫ takes the last character and the tail follows ("the-en")`, shorter.endsWith('the-en') && shorter.startsWith('/ …'), shorter)
   await board.key('escape')
-  await board.key('/', '/')
+  check(`${columns}x${rows}: esc clears the search and keeps the box focused (the placeholder is back)`, inner(lineWith(board.lines(), '/ ')).trim() === '/ search by name or id', inner(lineWith(board.lines(), '/ ')).trim())
   await board.type('opus')
   const short = inner(lineWith(board.lines(), '/ ')).trim()
-  check(`${columns}x${rows}: a filter that fits reads whole, untouched: "/ opus"`, short === '/ opus', short)
+  check(`${columns}x${rows}: a search that fits reads whole, untouched: "/ opus"`, short === '/ opus', short)
   board.close()
 }
 
@@ -267,7 +267,7 @@ const floorCase = async (columns: number, rows: number, slotRows: number | undef
   const windowLines = box.length - 2 - 1 - 1 - 1 - (effort ? 1 : 0)
   const read: FloorRead = { box, effort, markers, pinned, windowLines, cursor: cursorLine(lines) }
   check(`${label}: the box paints ${slot} lines at most — ${box.length}`, box.length > 0 && box.length <= slot, `${box.length} lines: ${box.map(inner).map(line => line.trim()).join(' | ')}`)
-  check(`${label}: the title, the filter line, the hint row with the exit words and the cursor row all stand`, box.some(line => line.includes('Mercury · model')) && box.some(line => line.includes('/ filter by name or id')) && hint !== '' && read.cursor.startsWith('❯ '), box.map(inner).map(line => line.trim()).join(' | '))
+  check(`${label}: the title, the filter line, the hint row with the exit words and the cursor row all stand`, box.some(line => line.includes('Mercury · model')) && box.some(line => line.includes('/ tab to search by name or id')) && hint !== '' && read.cursor.startsWith('❯ '), box.map(inner).map(line => line.trim()).join(' | '))
   check(`${label}: nothing crosses the border`, auditBox(label, lines, columns).length === 0, auditBox(label, lines, columns).join(' | '))
   board.close()
   return read
