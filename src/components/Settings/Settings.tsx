@@ -29,6 +29,7 @@ export function nextSettingsOpen(): number {
 export type SettingsPopupFrame = {
   close: (summary?: string) => void
   setLine: (line: string | null) => void
+  setHint: (hint: string | null) => void
   setOwnsEscape: (owns: boolean) => void
   setMarker: (marker: string | null) => void
 }
@@ -82,6 +83,7 @@ export function Settings({
   const surfaceRef = useElevatedSurface()
   const { addNotification } = useNotifications()
   const [line, setLine] = useState<string | null>(null)
+  const [hint, setHint] = useState<string | null>(null)
   const [marker, setMarker] = useState<string | null>(null)
   const [bodyOwnsEscape, setOwnsEscape] = useState(false)
   const view = request.view
@@ -92,7 +94,7 @@ export function Settings({
     },
     [view, addNotification],
   )
-  const frame = useMemo<SettingsPopupFrame>(() => ({ close, setLine, setOwnsEscape, setMarker }), [close])
+  const frame = useMemo<SettingsPopupFrame>(() => ({ close, setLine, setHint, setOwnsEscape, setMarker }), [close])
   const compactFrame = useMemo(() => ({ compact: geometry.compact && (geometry.rows === null || geometry.rows > SETTINGS_POPUP_COMPACT_CHROME_ROWS), setMarker }), [geometry.compact, geometry.rows])
   useKeybinding(
     'confirm:no',
@@ -145,7 +147,7 @@ export function Settings({
       </Box>
       <Box height={folded ? 0 : 1} flexShrink={0} />
       <Box height={compact ? 0 : 1} flexShrink={0} width={inner + 1} marginRight={-1} overflow="hidden">
-        <Text color={tok.textMuted}>{cutToWidth(request.hint, inner + 1)}</Text>
+        <Text color={tok.textMuted}>{cutToWidth(hint ?? request.hint, inner + 1)}</Text>
       </Box>
     </Box>
   )

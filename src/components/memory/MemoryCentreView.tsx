@@ -1,33 +1,55 @@
 import * as React from 'react'
 import { Box, Text, useInput } from '../../ink.js'
-import { AMBER, CRIMSON, FAINT, IVORY, SECOND, TEAL } from '../mercuryPalette.js'
-import { CommandCenter, EmptyState, SectionHeader, StateBadge } from '../mercury-ui/components.js'
-import { GLYPH, truncateToWidth } from '../mercury-ui/glyphs.js'
+import { AMBER, CRIMSON, FAINT, SECOND, TEAL } from '../mercuryPalette.js'
+import { EmptyState, StateBadge } from '../mercury-ui/components.js'
+import { GLYPH, padTo, truncateToWidth } from '../mercury-ui/glyphs.js'
+import { MenuFilterLine } from '../mercury-ui/menuFold.js'
 import { useSessionAccent } from '../mercury-ui/sessionAccent.js'
+import { useMercuryTokens } from '../mercury-ui/useMercuryTokens.js'
 import { useFlatList } from '../mercury-ui/useFlatList.js'
 import { collectMemoryRefs, type MemoryRef } from '../../mneme/memoryRefs.js'
 import { correctFact, retireFact } from '../../mneme/mnemeCorrect.js'
 import { mnemeEnabled } from '../../mneme/mnemeGates.js'
-import {
-  mnemeStatus,
-  readMaintenanceReceipts,
-  runDueMaintenance,
-} from '../../mneme/mnemeMaintenance.js'
+import { mnemeStatus, readMaintenanceReceipts, runDueMaintenance } from '../../mneme/mnemeMaintenance.js'
 import { readDocLines } from '../../mneme/mnemeRetrieval.js'
 import { indexLines, liveEntryIndex, pinnedLine, pinnedView, readPinnedStatus, type IndexLine } from '../../mneme/mnemeFrontPage.js'
 import { handoverDue, handoverIfDue, readHandoverReceipt, renderHandoverReceipt } from '../../mneme/mnemeHandover.js'
 import { journalEnabled, journalPath, readJournal, type JournalEntry } from '../../mneme/journal.js'
 import { listTopicDocs } from '../../mneme/mnemeLibrary.js'
-import type { MnemeEntry } from '../../mneme/mnemeTopicDocs.js'
+import type { MnemeEntry, MnemeTopicDoc } from '../../mneme/mnemeTopicDocs.js'
 import { formatTextSize, pinFact, pinnedTextLimit, readPins, unpinFact, type PinRecord } from '../../mneme/mnemeUsage.js'
 import { getMnemeHome, mnemeProjectKey } from '../../mneme/paths.js'
-import { composeEntryPage, ENTRY_PAGE_HEADING } from '../../mneme/entryPage.js'
 import { readLedger } from '../../mneme/ledger.js'
-import type { LedgerEntry } from '../../mneme/types.js'
 import { getSessionId } from '../../bootstrap/state.js'
-
-
-const MAX_ROWS = 10
+import { getInstructionCompositionState, getInstructionFiles } from '../../services/instructions/engine.js'
+import {
+  MEMORY_SEARCH_PLACEHOLDER,
+  LINEAGE_COLUMNS,
+  OVERVIEW_COLUMNS,
+  VIEW_LEGEND,
+  humanStamp,
+  itemLines,
+  journalHeading,
+  lineageHeading,
+  lineageRows,
+  lineageWidths,
+  memoryBodySpacing,
+  memoryFooter,
+  newestOf,
+  overviewCells,
+  overviewRows,
+  overviewWidths,
+  pageLines,
+  pageWindow,
+  pinnedHeading,
+  plural,
+  tableLine,
+  topicsHeading,
+  type LineageTableRow,
+  type MemoryFooterState,
+  type OverviewRow,
+  type PageLine,
+} from './memoryCentreLayout.js'
 
 const NOTE_COLOR: Record<'ok' | 'warn' | 'fail' | 'pending', string> = {
   ok: TEAL,
@@ -42,131 +64,126 @@ const STATUS_TONE: Record<MemoryRef['status'], { glyph: string; color: string; l
   'needs-review': { glyph: '▲', color: AMBER, label: 'needs review — cited path moved' },
 }
 
+const WARNING_STATES = new Set(['off', 'over', 'due', 'degraded', 'no note', 'unclosed'])
+const QUIET_STATES = new Set(['none', 'first', '—'])
+
+type View = 'overview' | 'pinned' | 'topics' | 'lineage' | 'journal'
+
+const VIEW_WORDS: Record<Exclude<View, 'overview'>, string> = {
+  pinned: 'pinned rules',
+  topics: 'topics',
+  lineage: 'lineage',
+  journal: 'journal',
+}
+
 interface CentreRow {
   id: string
-  kind: 'ref' | 'action' | 'info'
+  kind: 'overview' | 'ref' | 'pin' | 'missing-pin' | 'topic' | 'session' | 'journal'
   label: string
+  cells?: string[]
+  overview?: OverviewRow
   ref?: MemoryRef
+  session?: LineageTableRow
   entry?: JournalEntry
-  run?: () => void
 }
+
+interface Page {
+  kind: 'topic' | 'note' | 'journal'
+  crumb: string
+  title: string
+  meta: string
+  lines: PageLine[]
+}
+
+export const MEMORY_DEFAULT_INNER = 76
+export const MEMORY_DEFAULT_ROWS = 30
 
 function seqOf(ref: MemoryRef): number | null {
   const m = /^mneme:(\d+)$/.exec(ref.refId)
   return m ? Number(m[1]) : null
 }
 
-function refDetail(ref: MemoryRef): string[] {
-  const lines: string[] = []
-  if (ref.kind === 'mneme-topic' || ref.kind === 'mneme-fact') {
-    const slug = ref.kind === 'mneme-topic' ? ref.refId.slice('mneme-topic:'.length) : ref.deref.replace(/^Recall read:"doc:/, '').replace(/"$/, '')
-    const r = readDocLines(slug, {})
-    if (r) {
-      lines.push(...r.content.split('\n').slice(0, 14))
-      if (r.recent.length > 0) lines.push(`(+${r.recent.length} recent unconsolidated)`)
-    } else lines.push('(topic page unavailable)')
-  } else {
-    lines.push(ref.summary, '(unconsolidated — consolidates at the next maintenance pass)')
+function slugOf(ref: MemoryRef): string | null {
+  if (ref.kind === 'mneme-topic') return ref.refId.slice('mneme-topic:'.length)
+  if (ref.kind === 'mneme-fact') return ref.deref.replace(/^Recall read:"doc:/, '').replace(/"$/, '')
+  return null
+}
+
+export function topicTitle(doc: Pick<MnemeTopicDoc, 'slug' | 'summary'>): string {
+  const summary = doc.summary.replace(/ \(split\)$/, '').trim()
+  const bare = summary === '' || summary.toLowerCase() === doc.slug || summary.toLowerCase().replace(/[^a-z0-9]+/g, '-') === doc.slug
+  return bare ? doc.slug : `${doc.slug} — ${summary}`
+}
+
+export function entryWords(e: MnemeEntry): string {
+  const by = e.supersededBy !== undefined ? ` · superseded by ${e.supersededBy}` : ''
+  return `${e.text} (seq ${e.seq} · ${humanStamp(e.time)} · ${e.source}${by})`
+}
+
+export function topicPageLines(doc: MnemeTopicDoc, width: number): PageLine[] {
+  const out: PageLine[] = []
+  for (const section of doc.sections) {
+    out.push({ kind: 'heading', text: section.heading }, { kind: 'blank', text: '' })
+    for (const e of section.entries) out.push(...itemLines(entryWords(e), width, e.seq))
+    out.push({ kind: 'blank', text: '' })
   }
-  return lines
-}
-
-export function pinnedShelfWords(status: { pinned: number; used: number; limit: number; over: boolean } | null): string {
-  const limit = status?.limit ?? pinnedTextLimit()
-  if (!status || status.pinned === 0) return `pinned rules: none — ${formatTextSize(limit)} of room; open a fact and press p to pin it as said`
-  const fill = `${formatTextSize(status.used)} of ${formatTextSize(limit)}`
-  return status.over
-    ? `pinned rules: ${status.pinned} · ${fill} · over, all still loaded — ↵ list them`
-    : `pinned rules: ${status.pinned} · ${fill} · loaded every session — ↵ list them`
-}
-
-export function pinnedListHeading(status: { pinned: number; used: number; limit: number; over: boolean } | null): string {
-  const limit = status?.limit ?? pinnedTextLimit()
-  const fill = `${formatTextSize(status?.used ?? 0)} of ${formatTextSize(limit)}`
-  return status?.over
-    ? `${fill} · over the limit, all still loaded · u on a rule unpins it`
-    : `${fill} · loaded word for word every session · u on a rule unpins it`
-}
-
-export function topicsRowWords(count: number): string {
-  if (count === 0) return 'topics: none yet — the first fact Mercury saves opens one'
-  return `topics: ${count} page${count === 1 ? '' : 's'} in the index the model reads — ↵ list them`
-}
-
-export function topicsListHeading(count: number): string {
-  return `${count} topic${count === 1 ? '' : 's'} on the index, as the model reads ${count === 1 ? 'it' : 'them'} · ↵ opens the page`
-}
-
-export function lineageRowWords(entries: readonly LedgerEntry[], sessionId: string): string {
-  const previous = entries.filter(entry => entry.sessionId !== sessionId)
-  if (previous.length === 0) return 'lineage: first session of this work — no record before it'
-  const own = entries.find(entry => entry.sessionId === sessionId)
-  const ordinal = own?.ordinal ?? entries.length + 1
-  const lastNoted = [...previous].reverse().find(entry => entry.handoff !== null)
-  const last = lastNoted ? `last note from session ${lastNoted.ordinal}` : 'no note left yet'
-  return `lineage: session ${ordinal} · ${previous.length} before · ${last} — ↵ page`
-}
-
-export function lineagePageRows(page: string | null, width: number = 70): string[] {
-  if (page === null) return ['(memory is off — no page was composed)']
-  const out: string[] = []
-  for (const line of page.split('\n')) {
-    if (line === ENTRY_PAGE_HEADING) continue
-    if (line.trim() === '') {
-      out.push('')
-      continue
-    }
-    const words = line.split(' ')
-    let current = ''
-    for (const word of words) {
-      if (current !== '' && current.length + 1 + word.length > width) {
-        out.push(current)
-        current = word
-      } else current = current === '' ? word : `${current} ${word}`
-    }
-    if (current !== '') out.push(current)
+  if (doc.history.length > 0) {
+    out.push({ kind: 'heading', text: 'history' }, { kind: 'blank', text: '' })
+    for (const e of doc.history) out.push(...itemLines(entryWords(e), width, e.seq))
   }
+  while (out.length > 0 && out[out.length - 1]!.kind === 'blank') out.pop()
   return out
+}
+
+export function topicPage(slug: string, width: number, docs: MnemeTopicDoc[] = listTopicDocs()): Page {
+  const doc = docs.find(d => d.slug === slug)
+  if (!doc) return { kind: 'topic', crumb: `topics › ${slug}`, title: slug, meta: 'topic page unavailable', lines: [] }
+  const facts = doc.sections.reduce((n, s) => n + s.entries.length, 0)
+  const recent = readDocLines(slug, {})?.recent.length ?? 0
+  const lines = topicPageLines(doc, width)
+  if (recent > 0) lines.push({ kind: 'blank', text: '' }, { kind: 'meta', text: `+${recent} recent, unconsolidated — consolidated at the next maintenance pass` })
+  return {
+    kind: 'topic',
+    crumb: `topics › ${slug}`,
+    title: topicTitle(doc),
+    meta: `${plural(facts, 'fact')} · ${doc.history.length} in history · updated ${humanStamp(doc.updated)}`,
+    lines,
+  }
+}
+
+export function notePage(row: LineageTableRow, width: number): Page {
+  const entry = row.entry
+  const engines = [...new Set(entry.engines.map(engine => engine.model))].join(', ')
+  const note = entry.handoff
+  return {
+    kind: 'note',
+    crumb: `lineage › session ${entry.ordinal}`,
+    title: `session ${entry.ordinal}${row.current ? ' (this session)' : ''} — the note it left`,
+    meta: `${humanStamp(entry.startedAt)} → ${entry.endedAt === null ? 'open' : humanStamp(entry.endedAt)} · ${engines || 'no engine recorded'}${note ? ` · note left ${humanStamp(note.at)}` : ''}`,
+    lines: note ? pageLines(note.text, width) : [{ kind: 'meta', text: 'this session left no note' }],
+  }
 }
 
 export function journalStamp(at: string): string {
   return at.slice(0, 16).replace('T', ' ')
 }
 
-export function journalRowWords(entries: JournalEntry[], enabled: boolean): string {
-  if (!enabled) return 'journal: off — memory.journal in /config'
-  if (entries.length === 0) return 'journal: no entry yet — the model writes one, in its own words, when a session ends'
-  const last = entries.reduce((a, b) => (b.at >= a.at ? b : a))
-  return `journal: ${entries.length} entr${entries.length === 1 ? 'y' : 'ies'} · last ${journalStamp(last.at)} — ↵ read it`
-}
-
-export function journalListHeading(count: number): string {
-  return `${count} entr${count === 1 ? 'y' : 'ies'}, newest first · the model's own words · ↵ opens one`
+export function journalPage(entry: JournalEntry, width: number): Page {
+  return {
+    kind: 'journal',
+    crumb: `journal › ${humanStamp(entry.at)}`,
+    title: `journal · ${humanStamp(entry.at)}`,
+    meta: `written ${journalStamp(entry.at)} UTC · the model's own words · ${journalPath()}`,
+    lines: pageLines(entry.text, width),
+  }
 }
 
 export function journalEntryRows(entries: JournalEntry[]): JournalEntry[] {
   return [...entries].sort((a, b) => (a.at === b.at ? 0 : a.at > b.at ? -1 : 1))
 }
 
-export function wrapJournalText(text: string, width: number): string[] {
-  const out: string[] = []
-  for (const paragraph of text.split('\n')) {
-    if (paragraph.trim() === '') {
-      out.push('')
-      continue
-    }
-    let line = ''
-    for (const word of paragraph.split(/\s+/)) {
-      if (line === '') line = word
-      else if (line.length + 1 + word.length <= width) line = `${line} ${word}`
-      else {
-        out.push(line)
-        line = word
-      }
-    }
-    if (line !== '') out.push(line)
-  }
-  return out
+export function journalRowLabel(entry: JournalEntry): string {
+  return `${humanStamp(entry.at)}  ${entry.text.split('\n')[0] ?? ''}`
 }
 
 export function topicRef(row: IndexLine): MemoryRef {
@@ -197,25 +214,66 @@ export function pinnedRuleRow(row: { pin: PinRecord; entry: MnemeEntry; slug: st
       summary: row.entry.text.length > 140 ? `${row.entry.text.slice(0, 139)}…` : row.entry.text,
       source: row.entry.source,
       capturedAt: row.entry.time,
-      why: `pinned ${row.pin.at.slice(0, 16)}${row.pin.asked ? ' · asked for by you' : ' · by Mercury'}`,
+      why: `pinned ${humanStamp(row.pin.at)}${row.pin.asked ? ' · asked for by you' : ' · by Mercury'}`,
       deref: `Recall read:"doc:${row.slug}"`,
       tier: 1,
     },
   }
 }
 
-export function MemoryCentreView({ onClose, onOpenFiles }: { onClose: () => void; onOpenFiles?: () => void }): React.ReactNode {
+function matches(query: string, text: string): boolean {
+  const needle = query.trim().toLowerCase()
+  return needle === '' || text.toLowerCase().includes(needle)
+}
+
+async function instructionFileFacts(): Promise<{ count: number; profile: string } | null> {
+  try {
+    const files = await getInstructionFiles()
+    return { count: files.length, profile: getInstructionCompositionState().resolution.resolved }
+  } catch {
+    return null
+  }
+}
+
+export function factPageLines(ref: MemoryRef, width: number, docs: MnemeTopicDoc[] = listTopicDocs()): PageLine[] {
+  const slug = slugOf(ref)
+  if (slug === null) {
+    return [{ kind: 'text', text: ref.summary }, { kind: 'meta', text: '(unconsolidated — consolidates at the next maintenance pass)' }]
+  }
+  const page = topicPage(slug, width, docs)
+  if (page.lines.length === 0) return [{ kind: 'meta', text: '(topic page unavailable)' }]
+  const seq = seqOf(ref)
+  const lines = page.lines.map(line => (seq !== null && line.seq === seq ? { ...line, marked: true } : line))
+  return [{ kind: 'heading', text: page.title }, { kind: 'meta', text: page.meta }, { kind: 'blank', text: '' }, ...lines]
+}
+
+export function MemoryCentreView({
+  onClose,
+  onOpenFiles,
+  width = MEMORY_DEFAULT_INNER,
+  rowBudget = MEMORY_DEFAULT_ROWS,
+  onHint,
+}: {
+  onClose: () => void
+  onOpenFiles?: () => void
+  width?: number
+  rowBudget?: number
+  onHint?: (hint: string) => void
+}): React.ReactNode {
+  const tok = useMercuryTokens()
   const accent = useSessionAccent().accent
   const [query, setQuery] = React.useState('')
-  const [view, setView] = React.useState<'overview' | 'pinned' | 'topics' | 'lineage' | 'journal'>('overview')
+  const [view, setView] = React.useState<View>('overview')
   const [detail, setDetail] = React.useState<MemoryRef | null>(null)
-  const [journalDetail, setJournalDetail] = React.useState<JournalEntry | null>(null)
-  const journalLines = React.useMemo(() => (journalDetail ? wrapJournalText(journalDetail.text, 76) : []), [journalDetail])
-  const detailLines = React.useMemo(() => (detail ? refDetail(detail) : []), [detail])
+  const [page, setPage] = React.useState<Page | null>(null)
+  const [pageOffset, setPageOffset] = React.useState(0)
   const [correcting, setCorrecting] = React.useState<{ seq: number; buffer: string } | null>(null)
+  const inner = Math.max(20, width)
+  const textWidth = Math.max(8, inner - 2)
+  const detailLines = React.useMemo(() => (detail ? factPageLines(detail, textWidth) : []), [detail, textWidth])
 
   const buildRows = React.useCallback(async (): Promise<CentreRow[]> => {
-    if (query.trim().length > 0) {
+    if (view === 'overview' && query.trim().length > 0) {
       const pins = new Set(readPins().map(p => p.seq))
       const refs = collectMemoryRefs(query, { maxRefs: 12 })
       return refs.map(r => {
@@ -225,109 +283,131 @@ export function MemoryCentreView({ onClose, onOpenFiles }: { onClose: () => void
     }
     if (view === 'pinned') {
       const shelf = pinnedView(readPins(), liveEntryIndex(listTopicDocs()))
-      const rows: CentreRow[] = [{ id: 'shelf', kind: 'info', label: pinnedListHeading(readPinnedStatus()) }]
+      const rows: CentreRow[] = []
       for (const row of shelf.loaded) {
         const built = pinnedRuleRow(row)
-        rows.push({ id: `pin-${row.entry.seq}`, kind: 'ref', label: built.label, ref: built.ref })
+        if (matches(query, built.label)) rows.push({ id: `pin-${row.entry.seq}`, kind: 'pin', label: built.label, ref: built.ref })
       }
-      for (const seq of shelf.missing) rows.push({ id: `pin-${seq}`, kind: 'action', label: `seq ${seq} — pinned, but no page holds it any more; u unpins`, run: () => {} })
+      for (const seq of shelf.missing) {
+        const label = `seq ${seq} — pinned, but no page holds it any more; u unpins`
+        if (matches(query, label)) rows.push({ id: `pin-${seq}`, kind: 'missing-pin', label })
+      }
       return rows
     }
     if (view === 'topics') {
-      const index = indexLines(listTopicDocs())
-      const rows: CentreRow[] = [{ id: 'index', kind: 'info', label: topicsListHeading(index.length) }]
-      for (const row of index) rows.push({ id: `topic-${row.key}`, kind: 'ref', label: row.line.slice(2), ref: topicRef(row) })
-      return rows
+      return indexLines(listTopicDocs())
+        .filter(row => matches(query, row.line))
+        .map(row => ({ id: `topic-${row.key}`, kind: 'topic' as const, label: row.line.slice(2), ref: topicRef(row) }))
     }
     if (view === 'lineage') {
-      const sessionId = String(getSessionId())
-      const rows: CentreRow[] = [{ id: 'page', kind: 'info', label: 'the page this session was given at its start, composed from the ledger · the last note is in it, word for word' }]
-      lineagePageRows(composeEntryPage(mnemeProjectKey(), sessionId)).forEach((line, index) => rows.push({ id: `page-${index}`, kind: 'info', label: line === '' ? ' ' : line }))
-      return rows
+      return lineageRows(readLedger(mnemeProjectKey()), String(getSessionId()))
+        .filter(row => matches(query, row.cells.join(' ')))
+        .map(row => ({ id: row.id, kind: 'session' as const, label: row.cells.join(' '), cells: row.cells, session: row }))
     }
     if (view === 'journal') {
-      const entries = journalEntryRows(readJournal())
-      const rows: CentreRow[] = [{ id: 'journal-heading', kind: 'info', label: journalListHeading(entries.length) }]
-      entries.forEach((entry, i) => rows.push({ id: `journal-${i}`, kind: 'action', label: `${journalStamp(entry.at)} · ${entry.text.split('\n')[0] ?? ''}`, entry, run: () => {} }))
-      return rows
+      return journalEntryRows(readJournal())
+        .map((entry, i) => ({ id: `journal-${i}`, kind: 'journal' as const, label: journalRowLabel(entry), entry }))
+        .filter(row => matches(query, row.label))
     }
-    const rows: CentreRow[] = []
     const st = mnemeStatus()
-    rows.push({
-      id: 'facts',
-      kind: 'info',
-      label: st.enabled
-        ? `project facts & decisions: ${st.entryCount} current · ${st.buffered + st.pendingConsuming} recent · ${st.historyCount} history · ${st.topicCount} topics`
-        : 'project facts & decisions: off — memory is disabled in settings (memory.enabled)',
+    const docs = st.enabled ? listTopicDocs() : []
+    const pins = st.enabled ? readPins() : []
+    const receipt = st.enabled ? readHandoverReceipt() : null
+    const rows = overviewRows({
+      enabled: st.enabled,
+      entryCount: st.entryCount,
+      recent: st.buffered + st.pendingConsuming,
+      historyCount: st.historyCount,
+      topicCount: st.topicCount,
+      newestFact: newestOf(docs.flatMap(d => d.sections.flatMap(s => s.entries.map(e => e.time)))),
+      pinned: st.enabled ? readPinnedStatus() : null,
+      pinnedLimit: pinnedTextLimit(),
+      newestPin: newestOf(pins.map(p => p.at)),
+      newestTopic: newestOf(docs.map(d => d.updated)),
+      ledger: st.enabled ? readLedger(mnemeProjectKey()) : [],
+      sessionId: String(getSessionId()),
+      journal: st.enabled && journalEnabled() ? { enabled: true, entries: readJournal() } : { enabled: false, entries: [] },
+      intake: receipt ? { kind: 'done', receipt } : st.enabled && handoverDue(getMnemeHome()) ? { kind: 'due' } : null,
+      maintenance: {
+        due: st.due,
+        dueReason: st.dueReason,
+        running: st.running,
+        degraded: st.degraded,
+        lastConsolidatedAt: st.lastConsolidatedAt,
+        receipts: st.enabled ? readMaintenanceReceipts(undefined, 50).reverse() : [],
+      },
+      files: await instructionFileFacts(),
     })
-    if (st.enabled) {
-      const shelfStatus = readPinnedStatus()
-      rows.push({ id: 'pinned', kind: shelfStatus && shelfStatus.pinned > 0 ? 'action' : 'info', label: pinnedShelfWords(shelfStatus), run: () => {} })
-      rows.push({ id: 'topics', kind: st.topicCount > 0 ? 'action' : 'info', label: topicsRowWords(st.topicCount), run: () => {} })
-      rows.push({ id: 'lineage', kind: 'action', label: lineageRowWords(readLedger(mnemeProjectKey()), String(getSessionId())), run: () => {} })
-      const journalOn = journalEnabled()
-      const journalEntries = journalOn ? readJournal() : []
-      rows.push({ id: 'journal', kind: journalEntries.length > 0 ? 'action' : 'info', label: journalRowWords(journalEntries, journalOn), run: () => {} })
-      const intake = readHandoverReceipt()
-      if (intake) {
-        const [first, pages] = renderHandoverReceipt(intake)
-        rows.push({ id: 'intake', kind: 'info', label: `notes taken in: ${first} · ${pages}` })
-      } else if (handoverDue(getMnemeHome())) {
-        rows.push({ id: 'intake', kind: 'action', label: 'notes to take in: the existing notes are not in memory yet — ↵ take them in now', run: () => {} })
-      }
-      const due = st.due ? `DUE — ${st.dueReason}` : st.running ? 'running' : 'idle'
-      const degraded = st.degraded.length > 0 ? ` · ${GLYPH.fail} ${st.degraded[0]}` : ''
-      rows.push({
-        id: 'maintenance',
-        kind: 'action',
-        label: `maintenance: ${due} · last ${st.lastConsolidatedAt ? st.lastConsolidatedAt.slice(0, 16) : 'never'}${degraded} — ↵ run now`,
-        run: () => {},
-      })
-      for (const r of readMaintenanceReceipts(undefined, 3).reverse()) {
-        rows.push({
-          id: `act-${r.ts}`,
-          kind: 'info',
-          label: `  ${r.ts.slice(5, 16)} ${r.trigger}: ${r.reason}${r.entries ? ` (${r.entries} entries)` : ''}`,
-        })
-      }
-    }
-    rows.push({ id: 'files', kind: 'action', label: 'instruction files (MERCURY.md, editor, the memory switch) — ↵ open picker', run: onOpenFiles })
-    return rows
-  }, [query, view, onOpenFiles])
+    return rows.map(row => ({ id: row.id, kind: 'overview' as const, label: row.section, cells: overviewCells(row), overview: row }))
+  }, [query, view])
+
+  const searching = view === 'overview' && query.trim().length > 0
+  const { roomy, fixedRows } = memoryBodySpacing(rowBudget)
+  const headerRows = view === 'lineage' ? 2 : 1
+  const listRoom = Math.max(1, rowBudget - fixedRows - headerRows)
+  const [overflow, setOverflow] = React.useState(false)
+  const maxRows = overflow ? Math.max(1, listRoom - 2) : listRoom
+  const engineActive = detail === null && page === null && correcting === null
 
   const fl = useFlatList<CentreRow>({
     load: buildRows,
-    maxRows: MAX_ROWS,
+    maxRows,
     charKeys: false,
+    isActive: engineActive,
     onClose: () => {
-      if (correcting) setCorrecting(null)
-      else if (detail) setDetail(null)
-      else if (journalDetail) setJournalDetail(null)
-      else if (query) {
-        setQuery('')
-      } else if (view === 'pinned' || view === 'topics' || view === 'lineage' || view === 'journal') setView('overview')
+      if (query) setQuery('')
+      else if (view !== 'overview') setView('overview')
       else onClose()
     },
     onPrimary: row => {
-      if (row.kind === 'ref' && row.ref) setDetail(row.ref)
-      else if (row.entry) setJournalDetail(row.entry)
-      else if (row.id === 'pinned' && row.kind === 'action') setView('pinned')
-      else if (row.id === 'topics' && row.kind === 'action') setView('topics')
-      else if (row.id === 'lineage' && row.kind === 'action') setView('lineage')
-      else if (row.id === 'journal' && row.kind === 'action') setView('journal')
-      else if (row.id === 'maintenance') runMaintenance()
-      else if (row.id === 'intake' && row.kind === 'action') runIntake()
-      else if (row.id === 'files' && onOpenFiles) onOpenFiles()
+      if (row.kind === 'ref' || row.kind === 'pin') {
+        if (row.ref) {
+          setPageOffset(0)
+          setDetail(row.ref)
+        }
+        return
+      }
+      if (row.kind === 'topic' && row.ref) {
+        const slug = slugOf(row.ref)
+        if (slug !== null) openPage(topicPage(slug, textWidth))
+        return
+      }
+      if (row.kind === 'session' && row.session) {
+        if (row.session.entry.handoff !== null) openPage(notePage(row.session, textWidth))
+        return
+      }
+      if (row.kind === 'journal' && row.entry) {
+        openPage(journalPage(row.entry, textWidth))
+        return
+      }
+      const section = row.overview
+      if (!section) return
+      if (section.id === 'pinned' && section.action) setView('pinned')
+      else if (section.id === 'topics' && section.action) setView('topics')
+      else if (section.id === 'lineage') setView('lineage')
+      else if (section.id === 'journal' && section.action) setView('journal')
+      else if (section.id === 'maintenance') runMaintenance()
+      else if (section.id === 'intake' && section.action) runIntake()
+      else if (section.id === 'files' && onOpenFiles) onOpenFiles()
     },
     reloadNote: 're-read memory stores',
     rowId: r => r.id,
   })
+  const listLength = fl.list.length
+  React.useLayoutEffect(() => {
+    setOverflow(listLength > listRoom)
+  }, [listLength, listRoom])
 
   const reloadRef = React.useRef(fl.reload)
   reloadRef.current = fl.reload
   React.useEffect(() => {
-    reloadRef.current()
+    reloadRef.current({ top: true })
   }, [query, view])
+
+  function openPage(next: Page): void {
+    setPageOffset(0)
+    setPage(next)
+  }
 
   function runMaintenance(): void {
     if (fl.busyRef.current) return
@@ -414,16 +494,38 @@ export function MemoryCentreView({ onClose, onOpenFiles }: { onClose: () => void
 
   const detailSeq = detail ? seqOf(detail) : null
   const detailPinned = detailSeq !== null && readPins().some(p => p.seq === detailSeq)
+  const pageRows = Math.max(1, rowBudget - fixedRows - 4 - (fl.note ? 2 : 0))
+  const openLines = page ? page.lines : detail ? detailLines : []
+  const pageWin = pageWindow(openLines.length, pageOffset, pageRows)
+  const { visible, above, below, clampedSel, note, loadError, list } = fl
+
   useInput(
-    (input, key) => {
+    (input, key, event) => {
       if (correcting) {
-        if (key.return) commitCorrection()
+        if (key.escape) {
+          event.stopImmediatePropagation()
+          setCorrecting(null)
+        } else if (key.return) commitCorrection()
         else if (key.backspace || key.delete) setCorrecting({ ...correcting, buffer: correcting.buffer.slice(0, -1) })
         else if (input && !key.ctrl && !key.meta) setCorrecting({ ...correcting, buffer: correcting.buffer + input })
         return
       }
-      if (journalDetail) return
-      if (detail) {
+      if (page || detail) {
+        if (key.escape || key.leftArrow) {
+          event.stopImmediatePropagation()
+          if (page) setPage(null)
+          else setDetail(null)
+          setPageOffset(0)
+          return
+        }
+        if (key.upArrow || key.downArrow || key.pageUp || key.pageDown) {
+          event.stopImmediatePropagation()
+          const step = key.pageUp || key.pageDown ? Math.max(1, pageRows - 1) : 1
+          const direction = key.upArrow || key.pageUp ? -1 : 1
+          setPageOffset(offset => Math.max(0, Math.min(Math.max(0, openLines.length - pageRows), offset + direction * step)))
+          return
+        }
+        if (page) return
         if (input === 'c' && !key.ctrl && !key.meta && detailSeq !== null && mnemeEnabled()) setCorrecting({ seq: detailSeq, buffer: '' })
         else if (input === 'x' && detailSeq !== null && mnemeEnabled()) retireSelected(detailSeq)
         else if (input === 'p' && detailSeq !== null && mnemeEnabled() && !detailPinned) togglePin(detailSeq, true)
@@ -434,7 +536,7 @@ export function MemoryCentreView({ onClose, onOpenFiles }: { onClose: () => void
         fl.reload()
         return
       }
-      if (view === 'pinned' && !query && input === 'u' && !key.ctrl && !key.meta) {
+      if (view === 'pinned' && input === 'u' && !key.ctrl && !key.meta) {
         const pinSeq = /^pin-(\d+)$/.exec(fl.selected?.id ?? '')
         if (pinSeq && mnemeEnabled()) togglePin(Number(pinSeq[1]), false)
         return
@@ -450,114 +552,165 @@ export function MemoryCentreView({ onClose, onOpenFiles }: { onClose: () => void
     { isActive: true },
   )
 
-  const { visible, above, below, clampedSel, note, loadError, list } = fl
-
-  const footer = correcting
-    ? '↵ save correction · esc cancel'
+  const selectedOverview = fl.selected?.kind === 'overview' ? fl.selected.overview ?? null : null
+  const footerState: MemoryFooterState = correcting
+    ? { kind: 'correcting' }
     : detail
-      ? `${detailSeq !== null && mnemeEnabled() ? `c correct · x retire · ${detailPinned ? 'u unpin' : 'p pin'} · ` : ''}esc back`
-      : journalDetail
-        ? 'esc back'
-        : query
-          ? '↑↓ move · ↵ inspect · esc clear'
+      ? { kind: 'fact', verbs: detailSeq !== null && mnemeEnabled() ? `c correct · x retire · ${detailPinned ? 'u unpin' : 'p pin'}` : null }
+      : page
+        ? { kind: 'page', scrolls: openLines.length > pageRows }
+        : searching
+          ? { kind: 'search' }
           : view === 'pinned'
-            ? '↑↓ move · ↵ inspect · u unpin · /config raises the limit · esc back'
+            ? { kind: 'pinned' }
             : view === 'topics'
-              ? '↑↓ move · ↵ open the page · esc back'
+              ? { kind: 'topics' }
               : view === 'lineage'
-                ? '↑↓ move · esc back'
+                ? { kind: 'lineage', noted: (fl.selected?.session?.entry.handoff ?? null) !== null }
                 : view === 'journal'
-                  ? '↑↓ move · ↵ read the entry · esc back'
-                  : 'type to search · ↑↓ move · ↵ act · esc close'
+                  ? { kind: 'journal' }
+                  : { kind: 'overview', action: selectedOverview?.action ?? null }
+  const footer = memoryFooter(footerState)
+  React.useLayoutEffect(() => {
+    onHint?.(footer)
+  }, [footer, onHint])
+
+  const subHeading = (): string => {
+    if (view === 'pinned') return pinnedHeading(readPinnedStatus(), pinnedTextLimit())
+    if (view === 'topics') return topicsHeading(list.length)
+    if (view === 'lineage') return lineageHeading(readLedger(mnemeProjectKey()), String(getSessionId()))
+    if (view === 'journal') return journalHeading(list.length)
+    return ''
+  }
+
+  const widths = view === 'lineage' ? lineageWidths(inner) : overviewWidths(inner)
+  const columns = view === 'lineage' ? LINEAGE_COLUMNS : OVERVIEW_COLUMNS
+  const stateColor = (state: string): string => (WARNING_STATES.has(state) ? tok.warning : QUIET_STATES.has(state) ? tok.textMuted : tok.textSecondary)
+
+  const renderTableRow = (row: CentreRow, active: boolean): React.ReactNode => {
+    const cells = row.cells ?? []
+    const head = cells.slice(0, -1).map((cell, i) => padTo(cell, widths[i] ?? 0)).join(' ')
+    const last = cells[cells.length - 1] ?? ''
+    const lastWidth = widths[cells.length - 1] ?? 0
+    return (
+      <Text key={row.id} wrap="truncate-end">
+        <Text color={active ? accent : tok.textMuted}>{active ? `${GLYPH.prompt} ` : '  '}</Text>
+        <Text color={active ? tok.textPrimary : tok.textSecondary} bold={active}>{head}</Text>
+        <Text> </Text>
+        <Text color={active ? tok.textPrimary : stateColor(last)}>{truncateToWidth(last, lastWidth)}</Text>
+      </Text>
+    )
+  }
+
+  const renderListRow = (row: CentreRow, active: boolean): React.ReactNode => {
+    const tone = row.ref && (row.kind === 'ref' || row.kind === 'pin') ? STATUS_TONE[row.ref.status] : null
+    return (
+      <Text key={row.id} wrap="truncate-end">
+        <Text color={active ? accent : tok.textMuted}>{active ? `${GLYPH.prompt} ` : '  '}</Text>
+        {tone ? <Text color={tone.color}>{`${tone.glyph} `}</Text> : null}
+        <Text color={active ? tok.textPrimary : tok.textSecondary} bold={active}>{truncateToWidth(row.label, inner - (tone ? 4 : 2))}</Text>
+      </Text>
+    )
+  }
+
+  const renderPageLine = (line: PageLine, i: number): React.ReactNode => {
+    const marked = line.marked === true
+    const color = line.kind === 'heading' ? tok.textPrimary : line.kind === 'meta' ? tok.textMuted : marked ? tok.textPrimary : tok.textSecondary
+    return (
+      <Text key={i} wrap="truncate-end">
+        <Text color={marked ? accent : tok.textMuted}>{marked ? `${GLYPH.prompt} ` : '  '}</Text>
+        <Text color={color} bold={line.kind === 'heading' || marked}>{truncateToWidth(line.text, textWidth)}</Text>
+      </Text>
+    )
+  }
+
+  const pageBlock = (title: string, meta: string, crumb: string): React.ReactNode => (
+    <Box flexDirection="column">
+      <Text color={tok.textMuted} wrap="truncate-end">{truncateToWidth(`memory › ${crumb}`, inner)}</Text>
+      <Text color={tok.textPrimary} bold wrap="truncate-end">{truncateToWidth(title, inner)}</Text>
+      <Text color={tok.textInstruction} wrap="truncate-end">{truncateToWidth(meta, inner)}</Text>
+      {roomy ? <Box height={1} /> : null}
+      {pageWin.above > 0 ? <Text color={tok.textMuted}>{`  +${pageWin.above} above`}</Text> : null}
+      {openLines.slice(pageWin.start, pageWin.end).map((line, i) => renderPageLine(line, pageWin.start + i))}
+      {pageWin.below > 0 ? <Text color={tok.textMuted}>{`  +${pageWin.below} more below`}</Text> : null}
+    </Box>
+  )
 
   return (
-    <CommandCenter view="memory" subtitle="memory centre" onClose={onClose} captureInput={false} footer={footer}>
-      <Box flexDirection="column">
-        <Box marginTop={1}>
-          <Text color={FAINT}>{'search: '}</Text>
-          <Text color={query ? IVORY : FAINT}>{query || '(type to search facts and rules)'}</Text>
-          <Text color={accent}>{correcting ? '' : '▁'}</Text>
+    <Box flexDirection="column">
+      <MenuFilterLine focused={query !== ''} text={query} placeholder={MEMORY_SEARCH_PLACEHOLDER} accent={accent} muted={tok.textMuted} primary={tok.textPrimary} />
+      {roomy ? <Box height={1} /> : null}
+      {correcting && detail ? (
+        <Box flexDirection="column">
+          <Text color={AMBER}>{`correcting seq ${correcting.seq} — the old fact moves to history:`}</Text>
+          <Text color={tok.textPrimary}>{`> ${correcting.buffer}`}<Text color={accent}>▁</Text></Text>
         </Box>
-
-        {correcting && detail ? (
-          <Box marginTop={1} flexDirection="column">
-            <Text color={AMBER}>{`correcting seq ${correcting.seq} — the old fact moves to history:`}</Text>
-            <Text color={IVORY}>{`> ${correcting.buffer}`}<Text color={accent}>▁</Text></Text>
+      ) : detail ? (
+        <Box flexDirection="column">
+          <Box>
+            <StateBadge state={detail.status === 'current' ? 'live' : 'gated'} label={STATUS_TONE[detail.status].label} />
+            <Text color={tok.textMuted}>{`  ${detail.refId}${detailPinned ? ' · pinned' : ''}`}</Text>
           </Box>
-        ) : journalDetail ? (
-          <Box marginTop={1} flexDirection="column">
-            <Text color={FAINT}>{truncateToWidth(`journal · ${journalStamp(journalDetail.at)} · the model's own words · ${journalPath()}`, 78)}</Text>
-            <Box marginTop={1} flexDirection="column">
-              {journalLines.slice(0, 24).map((l, i) => (
-                <Text key={i} color={SECOND}>{truncateToWidth(`  ${l}`, 78)}</Text>
-              ))}
-              {journalLines.length > 24 ? <Text color={FAINT}>{`  (+${journalLines.length - 24} more lines in the file)`}</Text> : null}
+          <Text color={tok.textInstruction} wrap="truncate-end">{truncateToWidth(`why recalled: ${detail.why}${detail.capturedAt ? ` · captured ${humanStamp(detail.capturedAt)}` : ''}${detail.source ? ` · source ${detail.source}` : ''}`, inner)}</Text>
+          {roomy ? <Box height={1} /> : null}
+          {pageWin.above > 0 ? <Text color={tok.textMuted}>{`  +${pageWin.above} above`}</Text> : null}
+          {openLines.slice(pageWin.start, pageWin.end).map((line, i) => renderPageLine(line, pageWin.start + i))}
+          {pageWin.below > 0 ? <Text color={tok.textMuted}>{`  +${pageWin.below} more below`}</Text> : null}
+        </Box>
+      ) : page ? (
+        pageBlock(page.title, page.meta, page.crumb)
+      ) : fl.raw === null ? (
+        <Text color={tok.textMuted}>◓ reading memory stores …</Text>
+      ) : loadError ? (
+        <Box flexDirection="column">
+          <Text color={AMBER}>{`▲ memory unreadable — ${truncateToWidth(loadError, inner - 22)}`}</Text>
+          <Text color={tok.textMuted}>the stores are unknown, not empty · r retries</Text>
+        </Box>
+      ) : (
+        <Box flexDirection="column">
+          {view === 'overview' && !searching ? (
+            <Text color={tok.textInstruction} wrap="truncate-end">{`  ${tableLine([...columns], widths)}`}</Text>
+          ) : view === 'lineage' ? (
+            <Box flexDirection="column">
+              <Text color={tok.textMuted} wrap="truncate-end">{truncateToWidth(`memory › ${VIEW_WORDS.lineage} · ${subHeading()}`, inner)}</Text>
+              <Text color={tok.textInstruction} wrap="truncate-end">{`  ${tableLine([...columns], widths)}`}</Text>
             </Box>
-          </Box>
-        ) : detail ? (
-          <Box marginTop={1} flexDirection="column">
-            <Box>
-              <StateBadge state={detail.status === 'current' ? 'live' : 'gated'} label={STATUS_TONE[detail.status].label} />
-              <Text color={FAINT}>{`  ${detail.refId}${detailPinned ? ' · pinned' : ''}`}</Text>
+          ) : searching ? (
+            <Text color={tok.textMuted} wrap="truncate-end">{truncateToWidth(`memory › matches for “${query}” · ${plural(list.length, 'match', 'matches')}`, inner)}</Text>
+          ) : (
+            <Text color={tok.textMuted} wrap="truncate-end">{truncateToWidth(`memory › ${VIEW_WORDS[view as Exclude<View, 'overview'>]} · ${subHeading()}`, inner)}</Text>
+          )}
+          {list.length === 0 ? (
+            <Box marginTop={1}>
+              <EmptyState glyph="○" title={searching || query ? 'nothing matches' : 'nothing here yet'} hint={searching || query ? 'different words, or esc to clear the search' : 'esc back'} />
             </Box>
-            <Text color={FAINT}>{truncateToWidth(`why recalled: ${detail.why}${detail.capturedAt ? ` · captured ${detail.capturedAt.slice(0, 16)}` : ''}${detail.source ? ` · source ${detail.source}` : ''}`, 76)}</Text>
-            <Box marginTop={1} flexDirection="column">
-              {detailLines.map((l, i) => (
-                <Text key={i} color={SECOND}>{truncateToWidth(`  ${l}`, 78)}</Text>
-              ))}
-            </Box>
-          </Box>
-        ) : fl.raw === null ? (
-          <Box marginTop={1}>
-            <Text color={FAINT}>◓ reading memory stores …</Text>
-          </Box>
-        ) : loadError ? (
-          <Box marginTop={1} flexDirection="column">
-            <Text color={AMBER}>{`▲ memory unreadable — ${truncateToWidth(loadError, 56)}`}</Text>
-            <Text color={FAINT}>the stores are unknown, not empty · r retries</Text>
-          </Box>
-        ) : list.length === 0 ? (
-          <Box marginTop={1}>
-            <EmptyState glyph="○" title="nothing matches" hint="different words, or esc to clear the search" />
-          </Box>
-        ) : (
-          <Box flexDirection="column">
-            <SectionHeader count={(view === 'pinned' || view === 'topics' || view === 'lineage' || view === 'journal') && !query ? Math.max(0, list.length - 1) : list.length}>{query ? 'Matches' : view === 'pinned' ? 'Pinned rules' : view === 'topics' ? 'Topics' : view === 'lineage' ? 'Lineage' : view === 'journal' ? 'Journal' : 'Memory'}</SectionHeader>
-            {above > 0 ? <Text color={FAINT}>{`  +${above} above`}</Text> : null}
-            {visible.map((row, i) => {
-              const active = i === clampedSel
-              const tone = row.ref ? STATUS_TONE[row.ref.status] : null
-              return (
-                <Text key={row.id}>
-                  <Text color={active ? accent : FAINT}>{active ? '▸ ' : '  '}</Text>
-                  {tone ? <Text color={tone.color}>{`${tone.glyph} `}</Text> : <Text color={FAINT}>{row.kind === 'action' ? `${GLYPH.chevronRight} ` : '· '}</Text>}
-                  <Text color={row.kind === 'info' ? SECOND : IVORY}>{truncateToWidth(row.label, 70)}</Text>
-                </Text>
-              )
-            })}
-            {below > 0 ? <Text color={FAINT}>{`  +${below} more below`}</Text> : null}
-            {query && fl.selected?.ref ? (
-              <Box marginTop={1}>
-                <Text color={FAINT}>{truncateToWidth(`  ${fl.selected.ref.why} · ${STATUS_TONE[fl.selected.ref.status].label}`, 76)}</Text>
-              </Box>
+          ) : null}
+          {above > 0 ? <Text color={tok.textMuted}>{`  +${above} above`}</Text> : null}
+          {visible.map((row, i) => (row.cells ? renderTableRow(row, i === clampedSel) : renderListRow(row, i === clampedSel)))}
+          {below > 0 ? <Text color={tok.textMuted}>{`  +${below} more below`}</Text> : null}
+          <Box marginTop={roomy ? 1 : 0}>
+            {note ? (
+              <Text color={NOTE_COLOR[note.kind]} wrap="truncate-end">{truncateToWidth(`  ${note.text}`, inner)}</Text>
+            ) : selectedOverview ? (
+              <Text color={tok.textInstruction} wrap="truncate-end">{truncateToWidth(`  ${selectedOverview.detail}`, inner)}</Text>
+            ) : searching ? (
+              <Text color={tok.textInstruction} wrap="truncate-end">{truncateToWidth(fl.selected?.ref ? `  ${fl.selected.ref.why} · ${STATUS_TONE[fl.selected.ref.status].label}` : '  the search reads topic pages, pinned rules and recent facts', inner)}</Text>
+            ) : view !== 'overview' ? (
+              <Text color={tok.textInstruction} wrap="truncate-end">{truncateToWidth(`  ${VIEW_LEGEND[view]}`, inner)}</Text>
             ) : null}
           </Box>
-        )}
-
-        {note ? (
-          <Box marginTop={1}>
-            <Text color={NOTE_COLOR[note.kind]}>{truncateToWidth(note.text, 72)}</Text>
-          </Box>
-        ) : null}
-
-        <Box marginTop={1}>
-          <Text color={FAINT}>
-            {view === 'journal' || journalDetail
-              ? 'the journal is the model\'s own account of each session · kept in the Mercury home, never pushed or synced · /config turns it off'
-              : 'facts live in topic pages; corrections keep history · pinned rules load every session · the model saves with Retain'}
-          </Text>
         </Box>
-      </Box>
-    </CommandCenter>
+      )}
+      {note && (detail !== null || page !== null || correcting !== null || fl.raw === null || loadError !== null) ? (
+        <Box marginTop={1}>
+          <Text color={NOTE_COLOR[note.kind]} wrap="truncate-end">{truncateToWidth(note.text, inner)}</Text>
+        </Box>
+      ) : null}
+      {onHint === undefined ? (
+        <Box marginTop={1}>
+          <Text color={tok.textMuted} wrap="truncate-end">{truncateToWidth(footer, inner)}</Text>
+        </Box>
+      ) : null}
+    </Box>
   )
 }
