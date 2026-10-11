@@ -2,6 +2,7 @@
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { existsSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { isHandoffRequest } from '../lib/fixtureApi.ts'
 import { bootRunner, bound, DIST, NODE, MODEL, childEnv, isSession, isOutcome, j, makeTally, removeWorld, REPO, SCRATCH_ROOT, seedHome } from '../daemon/dupline-world.ts'
 import {
   answerText,
@@ -51,7 +52,7 @@ const src = (rel: string): string => readFileSync(join(REPO, rel), 'utf8')
 
 type Item = { role?: string; content?: unknown }
 type ResultBlock = { type?: string; content?: unknown; is_error?: boolean }
-type CycleHit = { n: number; step: number; arm: string; tools: number; opening: string; answer: string; nudged: boolean; stopped: boolean }
+type CycleHit = { ask: boolean; n: number; step: number; arm: string; tools: number; opening: string; answer: string; nudged: boolean; stopped: boolean }
 type CycleFixture = { port: number; hits: CycleHit[]; close: () => Promise<void> }
 
 const toolResultsOf = (item: Item): ResultBlock[] => (Array.isArray(item.content) ? (item.content as ResultBlock[]).filter(b => b.type === 'tool_result') : [])
@@ -96,8 +97,9 @@ export async function startCycleFixture(cwd: string, pairs = CYCLE_PAIRS): Promi
       const raw = JSON.stringify(body)
       const nudged = REPEAT_NUDGE_PATTERN.test(raw)
       const stopped = raw.includes('The loop guard ended the turn')
-      const arm = tools === 0 || opening !== CYCLE_ASK ? 'svc' : step < pairs * 2 ? (step % 2 === 0 ? 'bash' : 'grep') : 'end'
-      hits.push({ n, step, arm, tools, opening: opening.slice(0, 48), answer: lastAnswer(items), nudged, stopped })
+      const ask = isHandoffRequest({ body })
+      const arm = ask || tools === 0 || opening !== CYCLE_ASK ? 'svc' : step < pairs * 2 ? (step % 2 === 0 ? 'bash' : 'grep') : 'end'
+      hits.push({ ask, n, step, arm, tools, opening: opening.slice(0, 48), answer: lastAnswer(items), nudged, stopped })
       if (arm === 'svc') return answerText(res, n, model, 'svc')
       if (arm === 'bash') return answerTool(res, n, model, `toolu_bash_${n}`, 'Bash', { command: 'echo the first check', description: 'The first check', inherit_session_env: true })
       if (arm === 'grep') return answerTool(res, n, model, `toolu_grep_${n}`, 'Grep', { pattern: 'fixture', path: cwd, output_mode: 'content' })
@@ -180,11 +182,12 @@ if (import.meta.main) {
     const result = await runner.waitFor('the turn result', isOutcome, bound(240_000))
     await runner.stop(bound(8_000))
     await fixture.close()
-    const hits = fixture.hits
+    const hits = fixture.hits.filter(h => !h.ask)
     const arms = (arm: string): CycleHit[] => hits.filter(h => h.arm === arm)
     const wire = hits.filter(h => h.arm !== 'svc')
     const resultText = String(result?.answer ?? '')
     check('the runner booted and the turn settled', init !== null && result !== null, runner.stderr().split('\n').slice(-6).join(' | '))
+    check('one marked closing ask follows the final answer, never another repetition', fixture.hits.filter(h => h.ask).length === 1 && fixture.hits.at(-1)?.ask === true && fixture.hits.at(-2)?.arm === 'end', j(fixture.hits.map(h => [h.n, h.arm, h.ask])))
     check(`the model was answered ${CYCLE_PAIRS} Bash and ${CYCLE_PAIRS} Grep calls and then its own end`, arms('bash').length === CYCLE_PAIRS && arms('grep').length === CYCLE_PAIRS && arms('end').length === 1, j(hits.map(h => [h.n, h.arm, h.step, h.tools, h.opening])))
     const answers = distinctAnswers(wire)
     check('every Bash result and every Grep result the model saw was the same bytes, never an error: the cycle is identical from its first pair', sameAnswers(answers), j(answers))
@@ -210,7 +213,7 @@ if (import.meta.main) {
     const result = await runner.waitFor('the turn result', isOutcome, bound(240_000))
     await runner.stop(bound(8_000))
     await fixture.close()
-    const hits = fixture.hits
+    const hits = fixture.hits.filter(h => !h.ask)
     const arms = (arm: string): CycleHit[] => hits.filter(h => h.arm === arm)
     const errors = result?.error !== undefined && result.error !== null ? [String((result.error as { message?: unknown }).message ?? '')] : []
     check('the runner booted and the turn settled', init !== null && result !== null, runner.stderr().split('\n').slice(-6).join(' | '))
