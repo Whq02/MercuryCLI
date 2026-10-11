@@ -142,27 +142,9 @@ export function anthropicEffortWireFact(
 }
 
 export function getAPIMetadata() {
-  let extra: JsonObject = {}
-  const extraStr = process.env.MERCURY_EXTRA_METADATA
-  if (extraStr) {
-    const parsed = safeParseJSON(extraStr, false)
-    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
-      extra = parsed as JsonObject
-    } else {
-      logForDebugging(
-        `MERCURY_EXTRA_METADATA env var must be a JSON object, but was given ${extraStr}`,
-        { level: 'error' },
-      )
-    }
-  }
-
-  return {
-    user_id: jsonStringify({
-      ...extra,
-      account_uuid: getOauthAccountInfo()?.accountUuid ?? '',
-      session_id: getSessionId(),
-    }),
-  }
+  const extra = extraObject('MERCURY_EXTRA_METADATA', false)
+  const identity = { account_uuid: getOauthAccountInfo()?.accountUuid ?? '', session_id: getSessionId() }
+  return { user_id: jsonStringify({ ...extra, ...identity }) }
 }
 
 export async function verifyApiKey(
