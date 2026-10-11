@@ -254,6 +254,8 @@ export function refusedExpansionError(
   return new Error(reason === '' ? `Skill /${name} did not run (the processor answered nothing to query and gave no reason).` : `Skill /${name} failed: ${reason}`)
 }
 
+const FORK_CONTEXT_REFUSAL = 'Fork-context skills run only in the main session. Report what you checked to the session that launched you; it runs any independent verification.'
+
 export const SkillTool = buildTool({
   name: SKILL_TOOL_NAME,
   searchHint: 'invoke a slash-command skill by name',
@@ -289,6 +291,9 @@ export const SkillTool = buildTool({
     }
     if (!isPromptCommand(command)) {
       return { result: false, message: `Skill "${name}" is not a prompt-based skill and cannot be invoked.`, errorCode: 5 }
+    }
+    if (context.agentId !== undefined && command.context === 'fork') {
+      return { result: false, message: FORK_CONTEXT_REFUSAL, errorCode: 6 }
     }
     return { result: true }
   },
@@ -339,6 +344,9 @@ export const SkillTool = buildTool({
     const command = findCommand(name, commands)
     if (!command || !isPromptCommand(command)) {
       throw new Error(unknownSkillMessage(name, commands))
+    }
+    if (context.agentId !== undefined && command.context === 'fork') {
+      throw new Error(FORK_CONTEXT_REFUSAL)
     }
 
     recordSkillUsage(name)
