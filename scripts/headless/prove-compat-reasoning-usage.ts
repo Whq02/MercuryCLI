@@ -12,14 +12,15 @@ const rawUsage = (reasoning: number | undefined): Record<string, unknown> => ({
 })
 
 for (const reasoning of [123, 0, undefined]) {
-  const { frames, requests } = await compatUsageReply(rawUsage(reasoning), true)
+  const { frames, requests, asks } = await compatUsageReply(rawUsage(reasoning), true)
+  const served = requests + asks
   const result = frames.find(row => row.type === 'outcome')
   const reasoningOut = result?.usage?.reasoning_output_tokens
   console.log(JSON.stringify({ reasoning: reasoning ?? 'unstated', usage: result?.usage, models: result?.models }))
-  tally.check('the compat fixture completes one headless request', requests === 1 && result?.status === 'completed')
+  tally.check('the compat fixture completes one headless request (the session\'s closing ask served apart)', requests === 1 && asks === 1 && result?.status === 'completed')
   tally.check('the outcome exposes the reasoning count as reasoning_output_tokens, absent when unstated or zero', reasoning === undefined || reasoning === 0 ? reasoningOut === undefined : reasoningOut === reasoning, JSON.stringify(reasoningOut))
-  tally.check('reasoning remains a subset of output, never an extra output charge', result?.usage?.output_tokens === 160 && Object.values(result.models ?? {}).reduce((sum, row) => sum + row.output_tokens!, 0) === 160)
-  tally.check('the input counts the whole prompt and names the cached part', result?.usage?.input_tokens === 211 && result.usage.cached_input_tokens === 41)
+  tally.check('reasoning remains a subset of output, never an extra output charge (every request served counted once)', result?.usage?.output_tokens === 160 * served && Object.values(result.models ?? {}).reduce((sum, row) => sum + row.output_tokens!, 0) === 160 * served)
+  tally.check('the input counts the whole prompt and names the cached part, per request served', result?.usage?.input_tokens === 211 * served && result.usage.cached_input_tokens === 41 * served)
 }
 
 const { decodeCompatUsage } = await import('../../src/services/providers/openaicompat/compatChatClient.ts')
