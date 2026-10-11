@@ -307,10 +307,11 @@ export function createModelSwitchBreadcrumbs(
   resolvedDisplay: string,
 ): UserMessage[] {
   return [
-    createSyntheticUserCaveatMessage(),
-    createUserMessage({ content: formatCommandInputTags('model', modelArg) }),
+    { ...createSyntheticUserCaveatMessage(), isVirtual: true },
+    createUserMessage({ content: formatCommandInputTags('model', modelArg), isVirtual: true }),
     createUserMessage({
       content: `<${LOCAL_COMMAND_STDOUT_TAG}>Set model to ${resolvedDisplay}</${LOCAL_COMMAND_STDOUT_TAG}>`,
+      isVirtual: true,
     }),
   ]
 }
