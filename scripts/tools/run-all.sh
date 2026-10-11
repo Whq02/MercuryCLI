@@ -5,6 +5,8 @@
 # gate-watch: src/tasks/LocalWorkflowTask/LocalWorkflowTask* src/tools/AgentTool/AgentTool*
 # gate-watch: src/tools/AskUserQuestionTool/AskUserQuestionTool*
 # gate-watch: src/tools/DebugTool/DebugTool* src/tools/MonitorTool/**
+# gate-watch: src/tools/TaskListTool/** src/utils/tasks.ts src/tasks.ts
+# gate-watch: src/tools/SyntheticOutputTool/** src/tools.ts
 # gate-watch: src/tools/SleepTool/SleepTool*
 # gate-watch: src/tools/ToolSearchTool/ToolSearchTool* src/tools/ToolSearchTool/cooccurPrior*
 # gate-watch: src/tools/WorkflowTool/** src/utils/**

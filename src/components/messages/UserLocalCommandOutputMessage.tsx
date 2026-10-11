@@ -1,10 +1,6 @@
-
 import React from 'react'
+import { LOCAL_COMMAND_STDERR_TAG, LOCAL_COMMAND_STDOUT_TAG } from '../../constants/xml.js'
 import { Box, Text } from '../../ink.js'
-import {
-  LOCAL_COMMAND_STDERR_TAG,
-  LOCAL_COMMAND_STDOUT_TAG,
-} from '../../constants/xml.js'
 import { extractTag } from '../../utils/messages.js'
 import { earlierReleasesCount } from '../../utils/releaseNotes.js'
 import { ctrlOToExpand } from '../CtrlOToExpand.js'
@@ -13,14 +9,21 @@ import { MessageResponse } from '../MessageResponse.js'
 
 const CLOUD_LAUNCH_LEAD = /^([◇◆]) /
 
-function CloudLaunchNotice({ text }: { text: string }): React.ReactNode {
-  const lines = text.split('\n')
-  const first = lines[0] ?? ''
-  const diamond = first.slice(0, 1)
+const LABEL_SEPARATOR = ' · '
+
+type Notice = { diamond: string; label: string; remainder: string; rest: string[] }
+
+function noticeOf(text: string): Notice | null {
+  if (!CLOUD_LAUNCH_LEAD.test(text)) return null
+  const [first = '', ...rest] = text.split('\n')
   const header = first.slice(2)
-  const middotAt = header.indexOf(' · ')
-  const label = middotAt === -1 ? header : header.slice(0, middotAt)
-  const remainder = middotAt === -1 ? '' : header.slice(middotAt)
+  const at = header.indexOf(LABEL_SEPARATOR)
+  const label = at === -1 ? header : header.slice(0, at)
+  const remainder = at === -1 ? '' : header.slice(at)
+  return { diamond: first.slice(0, 1), label, remainder, rest }
+}
+
+function CloudLaunchNotice({ diamond, label, remainder, rest }: Notice): React.ReactNode {
   return (
     <Box flexDirection="column">
       <Text>
@@ -28,55 +31,55 @@ function CloudLaunchNotice({ text }: { text: string }): React.ReactNode {
         <Text bold>{label}</Text>
         {remainder ? <Text dimColor>{remainder}</Text> : null}
       </Text>
-      {lines.length > 1 ? (
+      {rest.length > 0 ? (
         <MessageResponse>
-          <Text dimColor>{lines.slice(1).join('\n')}</Text>
+          <Text dimColor>{rest.join('\n')}</Text>
         </MessageResponse>
       ) : null}
     </Box>
   )
 }
 
-function foldEarlierReleases(text: string, verbose: boolean): { shown: string; fold: string | null } {
+type Folded = { shown: string; fold: string | null }
+
+function withoutEarlierReleases(lines: string[], at: number): string {
+  return lines.filter((_, index) => index !== at).join('\n').replace(/\n{3,}/g, '\n\n')
+}
+
+function foldedEarlierReleases(text: string, verbose: boolean): Folded {
   const lines = text.split('\n')
   const at = lines.findIndex(line => earlierReleasesCount(line) !== null)
   if (at < 0) return { shown: text, fold: null }
-  if (verbose) {
-    return { shown: [...lines.slice(0, at), ...lines.slice(at + 1)].join('\n').replace(/\n{3,}/g, '\n\n'), fold: null }
-  }
+  if (verbose) return { shown: withoutEarlierReleases(lines, at), fold: null }
   return { shown: lines.slice(0, at).join('\n').trimEnd(), fold: `${lines[at]!.trim()} ${ctrlOToExpand()}` }
 }
 
-function Stream({ text, verbose }: { text: string; verbose: boolean }): React.ReactNode {
-  if (CLOUD_LAUNCH_LEAD.test(text)) return <CloudLaunchNotice text={text} />
-  const { shown, fold } = foldEarlierReleases(text, verbose)
-  if (fold === null) {
-    return (
-      <MessageResponse>
-        <Markdown>{shown}</Markdown>
-      </MessageResponse>
-    )
-  }
+function FoldedMarkdown({ shown, fold }: Folded): React.ReactNode {
+  const body = <Markdown>{shown}</Markdown>
   return (
     <MessageResponse>
-      <Box flexDirection="column">
-        <Markdown>{shown}</Markdown>
-        <Text dimColor>{fold}</Text>
-      </Box>
+      {fold === null ? (
+        body
+      ) : (
+        <Box flexDirection="column">
+          {body}
+          <Text dimColor>{fold}</Text>
+        </Box>
+      )}
     </MessageResponse>
   )
 }
 
-export function UserLocalCommandOutputMessage({
-  content,
-  verbose = false,
-}: {
-  content: string
-  verbose?: boolean
-}): React.ReactNode {
-  const stdout = (extractTag(content, LOCAL_COMMAND_STDOUT_TAG) ?? '').trim()
-  const stderr = (extractTag(content, LOCAL_COMMAND_STDERR_TAG) ?? '').trim()
-  if (!stdout && !stderr) {
+function Stream({ text, verbose }: { text: string; verbose: boolean }): React.ReactNode {
+  const notice = noticeOf(text)
+  return notice ? <CloudLaunchNotice {...notice} /> : <FoldedMarkdown {...foldedEarlierReleases(text, verbose)} />
+}
+
+const taggedText = (content: string, tag: string): string => (extractTag(content, tag) ?? '').trim()
+
+export function UserLocalCommandOutputMessage({ content, verbose = false }: { content: string; verbose?: boolean }): React.ReactNode {
+  const streams = [LOCAL_COMMAND_STDOUT_TAG, LOCAL_COMMAND_STDERR_TAG].map(tag => taggedText(content, tag)).filter(text => text !== '')
+  if (streams.length === 0) {
     return (
       <MessageResponse height={1}>
         <Text dimColor>(no content)</Text>
@@ -85,10 +88,9 @@ export function UserLocalCommandOutputMessage({
   }
   return (
     <Box flexDirection="column">
-      {stdout ? <Stream text={stdout} verbose={verbose} /> : null}
-      {stderr ? <Stream text={stderr} verbose={verbose} /> : null}
+      {streams.map((text, index) => (
+        <Stream key={index} text={text} verbose={verbose} />
+      ))}
     </Box>
   )
 }
-
-export default UserLocalCommandOutputMessage

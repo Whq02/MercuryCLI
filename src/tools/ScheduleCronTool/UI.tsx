@@ -1,40 +1,65 @@
 import * as React from 'react'
-
 import { MessageResponse } from '../../components/MessageResponse.js'
 import { Box, Text } from '../../ink.js'
 import type { CreateOutput } from './CronCreateTool.js'
 import type { DeleteOutput } from './CronDeleteTool.js'
 import type { ListOutput } from './CronListTool.js'
 
-
 const HEADER_PROMPT_CHARS = 60
 
-export function renderCreateToolUseMessage(input?: { cron?: string; at?: string; delayMinutes?: number; prompt?: string }): React.ReactNode {
-  const cron = input?.cron ?? (input?.at !== undefined ? `at ${input.at}` : input?.delayMinutes !== undefined ? `in ${input.delayMinutes} min` : '')
-  if (!input?.prompt) return cron
-  const prompt =
-    input.prompt.length > HEADER_PROMPT_CHARS ? `${input.prompt.slice(0, HEADER_PROMPT_CHARS)}…` : input.prompt
-  return `${cron}: ${prompt}`
-}
+type CreateHeaderInput = { cron?: string; at?: string; delayMinutes?: number; prompt?: string }
 
-export function renderCreateResultMessage(output: CreateOutput): React.ReactNode {
-  if (output.state === 'scheduled') return (
-    <MessageResponse height={1}>
-      <Text>Scheduled <Text bold>{output.id}</Text>{output.title !== undefined ? ` "${output.title}"` : ''} <Text dimColor>({output.nextFireLocal})</Text></Text>
-    </MessageResponse>
-  )
-  if (output.state === 'queued') return (
-    <MessageResponse height={1}>
-      <Text>Queued, not confirmed <Text dimColor>({output.humanSchedule})</Text></Text>
-    </MessageResponse>
-  )
+function Row({ children }: { children: React.ReactNode }): React.ReactNode {
   return (
     <MessageResponse height={1}>
-      <Text>
-        Schedule{output.title !== undefined ? ` "${output.title}"` : ''} submitted <Text dimColor>({output.humanSchedule})</Text>
-      </Text>
+      <Text>{children}</Text>
     </MessageResponse>
   )
+}
+
+const Dim = ({ children }: { children: React.ReactNode }): React.ReactNode => <Text dimColor>{children}</Text>
+
+const quoted = (title: string | undefined): string => (title === undefined ? '' : ` "${title}"`)
+
+const scheduleSpelling = (input: CreateHeaderInput): string => {
+  if (input.cron !== undefined) return input.cron
+  if (input.at !== undefined) return `at ${input.at}`
+  if (input.delayMinutes !== undefined) return `in ${input.delayMinutes} min`
+  return ''
+}
+
+const cutPrompt = (prompt: string): string =>
+  prompt.length > HEADER_PROMPT_CHARS ? `${prompt.slice(0, HEADER_PROMPT_CHARS)}…` : prompt
+
+export function renderCreateToolUseMessage(input?: CreateHeaderInput): React.ReactNode {
+  const spelling = scheduleSpelling(input ?? {})
+  return input?.prompt ? `${spelling}: ${cutPrompt(input.prompt)}` : spelling
+}
+
+type CreateVerdict = 'scheduled' | 'queued' | 'submitted'
+
+const CREATE_ROWS: Record<CreateVerdict, (output: CreateOutput) => React.ReactNode> = {
+  scheduled: output => (
+    <Row>
+      Scheduled <Text bold>{output.id}</Text>{quoted(output.title)} <Dim>({output.nextFireLocal})</Dim>
+    </Row>
+  ),
+  queued: output => (
+    <Row>
+      Queued, not confirmed <Dim>({output.humanSchedule})</Dim>
+    </Row>
+  ),
+  submitted: output => (
+    <Row>
+      Schedule{quoted(output.title)} submitted <Dim>({output.humanSchedule})</Dim>
+    </Row>
+  ),
+}
+
+const verdictOf = (output: CreateOutput): CreateVerdict => (output.state === 'scheduled' || output.state === 'queued' ? output.state : 'submitted')
+
+export function renderCreateResultMessage(output: CreateOutput): React.ReactNode {
+  return CREATE_ROWS[verdictOf(output)](output)
 }
 
 export function renderDeleteToolUseMessage(input?: { id?: string }): React.ReactNode {
@@ -43,11 +68,9 @@ export function renderDeleteToolUseMessage(input?: { id?: string }): React.React
 
 export function renderDeleteResultMessage(output: DeleteOutput): React.ReactNode {
   return (
-    <MessageResponse height={1}>
-      <Text>
-        Cancel submitted for <Text bold>{output.id}</Text>
-      </Text>
-    </MessageResponse>
+    <Row>
+      Cancel submitted for <Text bold>{output.id}</Text>
+    </Row>
   )
 }
 
@@ -55,21 +78,28 @@ export function renderListToolUseMessage(): React.ReactNode {
   return ''
 }
 
+function ScheduleLine({ row }: { row: NonNullable<ListOutput['schedules']>[number] }): React.ReactNode {
+  return (
+    <Text>
+      <Text bold>{row.id}</Text>{row.title !== undefined ? ` · ${row.title}` : ''} <Dim>{row.when}</Dim>
+    </Text>
+  )
+}
+
 export function renderListResultMessage(output: ListOutput): React.ReactNode {
-  if (!output.rosterKnown || !output.schedules || output.schedules.length === 0) {
+  const schedules = output.rosterKnown ? output.schedules ?? [] : null
+  if (schedules === null || schedules.length === 0) {
     return (
       <MessageResponse height={1}>
-        <Text dimColor>{output.rosterKnown ? 'No schedules' : 'No roster yet'}</Text>
+        <Dim>{schedules === null ? 'No roster yet' : 'No schedules'}</Dim>
       </MessageResponse>
     )
   }
   return (
     <MessageResponse>
       <Box flexDirection="column">
-        {output.schedules.map(row => (
-          <Text key={row.id}>
-            <Text bold>{row.id}</Text>{row.title !== undefined ? ` · ${row.title}` : ''} <Text dimColor>{row.when}</Text>
-          </Text>
+        {schedules.map(row => (
+          <ScheduleLine key={row.id} row={row} />
         ))}
       </Box>
     </MessageResponse>

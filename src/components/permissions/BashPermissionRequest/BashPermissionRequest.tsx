@@ -74,7 +74,6 @@ function BashCommandPermissionRequest(
     toolUseConfirm,
     onDone,
     onReject,
-    explainerVisible: undefined,
   })
 
   const derived = useMemo(() => {
