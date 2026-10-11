@@ -10,9 +10,10 @@ type Props = {
   param: TextBlockParam
 }
 
-const CHANNEL_RE = new RegExp(
-  `<${CHANNEL_TAG}\\s+source="([^"]+)"([^>]*)>\\n?([\\s\\S]*?)\\n?</${CHANNEL_TAG}>`,
-)
+const OPENING_TAG = `<${CHANNEL_TAG}\\s+source="([^"]+)"([^>]*)>`
+const BODY_BETWEEN_NEWLINES = '\\n?([\\s\\S]*?)\\n?'
+const CLOSING_TAG = `</${CHANNEL_TAG}>`
+const CHANNEL_RE = new RegExp(OPENING_TAG + BODY_BETWEEN_NEWLINES + CLOSING_TAG)
 const USER_ATTR_RE = /\buser="([^"]+)"/
 
 function displayServerName(name: string): string {

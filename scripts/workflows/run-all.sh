@@ -11,6 +11,7 @@
 # gate-watch: src/tools/SendMessageTool/** src/tools/ResumeAgentTool/** src/utils/cwd.ts src/utils/task/workRoster.ts
 # gate-watch: src/components/tasks/WorkflowsBoard.tsx src/ink.ts src/ink/components/StdinContext.ts
 # gate-watch: src/state/AppState.tsx src/utils/config.ts
+# gate-watch: src/Tool.ts src/services/providers/callModelRouter.ts src/utils/messages.ts
 # gate-watch: src/rows/* src/runner/wire/*
 # gate-watch: src/services/resources/adapters/workflow.ts src/services/resources/registry.ts src/state/vitalsBus.ts
 # gate-watch: src/hooks/useFocusedWorkspaceCwd.ts src/components/tasks/WorkflowsBoard.tsx src/services/run/ownerKey.ts src/utils/cwd.ts
