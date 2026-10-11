@@ -4,6 +4,7 @@
 # gate-watch: src/cli/run* src/components/App* src/constants/betas* src/constants/oauth*
 # gate-watch: src/ink/** src/input-core/command-queue*
 # gate-watch: src/hooks/useVimInput.ts src/vim/operators.ts
+# gate-watch: src/ink/termio/ansi.ts src/ink/termio/csi.ts src/ink/termio/display-types.ts src/ink/termio/osc.ts
 # gate-watch: scripts/lib/hermetic.ts
 # gate-watch: src/input-core/pending-input* src/query/** src/chatLauncher* src/screens/Chat*
 # gate-watch: src/services/providers/anthropic/** src/services/api/errors* src/services/api/withRetry*
@@ -39,6 +40,9 @@ __t=$SECONDS; __rc=0; "$BUN" run scripts/core-runtime/prove-compose-clip-memo.ts
 
 echo "── core-runtime: input contract (T4)"
 __t=$SECONDS; __rc=0; "$BUN" run scripts/core-runtime/prove-input-contract.ts || { __rc=$?; fail=1; }; prover_mark scripts/core-runtime/prove-input-contract.ts "$__t" "$__rc"
+
+echo "── core-runtime: the terminal byte tables"
+__t=$SECONDS; __rc=0; "$BUN" run scripts/core-runtime/prove-terminal-byte-tables.ts || { __rc=$?; fail=1; }; prover_mark scripts/core-runtime/prove-terminal-byte-tables.ts "$__t" "$__rc"
 
 echo "── core-runtime: vim dot repeat through the live hook"
 __t=$SECONDS; __rc=0; "$BUN" run scripts/core-runtime/prove-vim-dot-repeat.ts || { __rc=$?; fail=1; }; prover_mark scripts/core-runtime/prove-vim-dot-repeat.ts "$__t" "$__rc"
