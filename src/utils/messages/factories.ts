@@ -200,8 +200,10 @@ export function createAssistantAPIErrorMessage(input: {
   })
 }
 
+const nonSyntheticRoles = new Set<Message['type']>(['progress', 'attachment', 'system'])
+
 export function isSyntheticMessage(row: Message): boolean {
-  if (!('message' in row)) return false
+  if (nonSyntheticRoles.has(row.type) || !('message' in row)) return false
   const first = Array.isArray(row.message.content) ? row.message.content[0] : undefined
   return first?.type === 'text' ? SYNTHETIC_MESSAGES.has(first.text) : false
 }
