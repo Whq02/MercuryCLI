@@ -16,6 +16,7 @@ import {
 } from './mnemeConsolidate.js'
 import {
   applyRevision,
+  expandSeqRange,
   fileNameFor,
   liveSeqs,
   parseTopicDoc,
@@ -33,7 +34,7 @@ const oneLine = (s: string): string => s.replace(/[\r\n]+/g, ' ')
 const sigSafe = (s: string): string => s.replace(/[,<>\r\n]+/g, '-')
 
 export type MnemeCorrectResult =
-  | { ok: true; action: 'corrected' | 'retired'; seq: number; targetSeq: number; slug: string }
+  | { ok: true; action: 'corrected' | 'retired' | 'pointed'; seq: number; targetSeq: number; slug: string }
   | {
       ok: false
       code: 'off' | 'unknown-target' | 'already-superseded' | 'busy' | 'invalid' | 'user-asked-rule' | 'error'
@@ -224,5 +225,105 @@ export function retireFact(input: {
     return { ok: false, code: 'error', message: String(e).slice(0, 200) }
   } finally {
     releaseConsolidateLock(dir)
+  }
+}
+
+export function pointFact(input: {
+  targetSeq: number
+  replacementSeq: number
+  reason: string
+  source: string
+  dir?: string
+  now?: Date
+  byUser?: boolean
+}): MnemeCorrectResult {
+  if (!mnemeEnabled()) return { ok: false, code: 'off', message: 'memory is off (memory.enabled is false in settings).' }
+  const dir = input.dir ?? mnemeLibraryDir()
+  const reason = oneLine(String(input.reason ?? '')).trim()
+  const source = sigSafe(String(input.source ?? '')).trim()
+  if (!reason || !source) return { ok: false, code: 'invalid', message: 'pointing at an existing truth needs a non-empty reason and source' }
+  for (const seq of [input.targetSeq, input.replacementSeq]) {
+    if (!Number.isInteger(seq) || seq < 1) return { ok: false, code: 'invalid', message: `seq must be a positive integer, got ${String(seq)}` }
+  }
+  if (input.targetSeq === input.replacementSeq) return { ok: false, code: 'invalid', message: `seq ${input.targetSeq} cannot replace itself` }
+  if (!acquireConsolidateLock(dir)) {
+    return { ok: false, code: 'busy', message: 'a consolidation/correction is in progress — retry in a moment' }
+  }
+  try {
+    const found = findTarget(input.targetSeq, dir)
+    if (!found.live) {
+      if (found.history) {
+        return {
+          ok: false,
+          code: 'already-superseded',
+          message: `seq ${input.targetSeq} is already history in topic-${found.history.slug}`,
+          supersededBy: found.history.supersededBy,
+        }
+      }
+      return { ok: false, code: 'unknown-target', message: `seq ${input.targetSeq} is not in this library` }
+    }
+    const replacement = findTarget(input.replacementSeq, dir)
+    if (!replacement.live) return { ok: false, code: 'unknown-target', message: `replacement seq ${input.replacementSeq} is not live in this library` }
+    const asked = userAskedRule(input.targetSeq, dir, input.byUser)
+    if (asked) return asked
+    const { doc, heading, entry: target } = found.live
+    const holder = replacement.live.doc.id === doc.id ? doc : replacement.live.doc
+    const successor = holder === doc ? doc.sections.flatMap(s => s.entries).find(e => e.seq === input.replacementSeq)! : replacement.live.entry
+    const meta = readLibraryMeta(dir)
+    const newSeq = meta.seqCounter + 1
+    const nowIso = (input.now ?? new Date()).toISOString()
+    writeLibraryMeta({ version: 1, seqCounter: newSeq, lastConsolidatedAt: meta.lastConsolidatedAt }, dir)
+    const section = doc.sections.find(s => s.heading === heading)!
+    section.entries = section.entries.filter(e => e.seq !== input.targetSeq)
+    doc.history.push({ ...target, supersededBy: input.replacementSeq })
+    doc.history.push({
+      text: `superseded by seq ${input.replacementSeq}: ${reason} (was: ${target.text.slice(0, 120)})`,
+      seq: newSeq,
+      time: nowIso,
+      source,
+      supersedes: String(input.targetSeq),
+    })
+    doc.updated = nowIso
+    doc.updateLog.push(`${nowIso} seq ${input.targetSeq} superseded by ${input.replacementSeq} (${reason.slice(0, 60)})`)
+    const already = successor.supersedes ? expandSeqRange(successor.supersedes).includes(input.targetSeq) : false
+    if (!already) successor.supersedes = successor.supersedes ? `${successor.supersedes},${input.targetSeq}` : String(input.targetSeq)
+    if (holder !== doc) {
+      holder.updated = nowIso
+      holder.updateLog.push(`${nowIso} seq ${input.replacementSeq} now supersedes ${input.targetSeq} (in topic-${doc.slug})`)
+    }
+    writeDoc(doc, dir)
+    if (holder !== doc) writeDoc(holder, dir)
+    if (!verifyPointed(dir, doc, holder, newSeq, input.targetSeq, input.replacementSeq)) {
+      return { ok: false, code: 'error', message: 'post-write verification failed — the supersede may not have landed; re-read and retry' }
+    }
+    if (isPinned(input.targetSeq, dir)) {
+      movePin(input.targetSeq, input.replacementSeq, dir, input.byUser === true)
+      publishFrontPage(dir, input.now ?? new Date())
+    }
+    return { ok: true, action: 'pointed', seq: newSeq, targetSeq: input.targetSeq, slug: doc.slug }
+  } catch (e) {
+    return { ok: false, code: 'error', message: String(e).slice(0, 200) }
+  } finally {
+    releaseConsolidateLock(dir)
+  }
+}
+
+function verifyPointed(dir: string, written: MnemeTopicDoc, holder: MnemeTopicDoc, auditSeq: number, targetSeq: number, replacementSeq: number): boolean {
+  try {
+    const doc = parseTopicDoc(readFileSync(join(dir, fileNameFor(written)), 'utf8'))
+    const other = holder === written ? doc : parseTopicDoc(readFileSync(join(dir, fileNameFor(holder)), 'utf8'))
+    if (!doc || !other) return false
+    const moved = doc.history.find(e => e.seq === targetSeq)
+    const audit = doc.history.find(e => e.seq === auditSeq)
+    const successor = other.sections.flatMap(s => s.entries).find(e => e.seq === replacementSeq)
+    return (
+      !liveSeqs(doc).has(targetSeq) &&
+      moved?.supersededBy === replacementSeq &&
+      audit?.supersedes === String(targetSeq) &&
+      successor !== undefined &&
+      expandSeqRange(successor.supersedes ?? '').includes(targetSeq)
+    )
+  } catch {
+    return false
   }
 }

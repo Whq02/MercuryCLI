@@ -5,7 +5,7 @@ import { mnemeEnabled, mnemeLibraryDir } from './mnemeGates.js'
 import { appendObservation, pendingRows } from './mnemeBuffer.js'
 import { listArchiveDocs, listTopicDocs } from './mnemeLibrary.js'
 import { grepAll, readDocLines, catalogDocs, pageFileForSlug, PENDING_SLUG } from './mnemeRetrieval.js'
-import { correctFact, retireFact, userAskedRuleMessage, type MnemeCorrectResult } from './mnemeCorrect.js'
+import { correctFact, pointFact, retireFact, userAskedRuleMessage, type MnemeCorrectResult } from './mnemeCorrect.js'
 import { ARCHIVE_PREFIX, isArchiveDoc, parseEntryLine, liveSeqs, serializeSignature, type MnemeTopicDoc } from './mnemeTopicDocs.js'
 import { bumpUsage, readPins, readUsage } from './mnemeUsage.js'
 import { candidates, rankCandidates } from './mnemeLookup.js'
@@ -428,9 +428,7 @@ export function correctMemory(
         if (!live) {
           return { ok: false, op, code: 'unknown-target', message: `replacement seq ${replacementSeq} is not live in this library` }
         }
-        return finish(
-          retireFact({ targetSeq, reason: `superseded by seq ${replacementSeq}: ${reason}`, source, dir }),
-        )
+        return finish(pointFact({ targetSeq, replacementSeq, reason, source, dir }))
       }
       const content = (input.content ?? '').trim()
       if (!content) return { ok: false, op, code: 'invalid', message: 'supersede needs content (the new truth) or a replacementId' }
