@@ -4,6 +4,7 @@
 # gate-watch: src/components/* src/components/concourse/CoordinatorPane.tsx
 # gate-watch: src/components/messages/AssistantTextMessage.tsx src/components/messages/UserTextMessage.tsx
 # gate-watch: src/components/messages/UserToolResultMessage/UserToolErrorMessage.tsx
+# gate-watch: src/components/mercury-ui/glyphs.ts src/constants/figures.ts src/ink/components/StdinContext.ts src/ink/components/TerminalSizeContext.tsx src/state/store.ts
 # gate-watch: src/components/messages/UserToolResultMessage/UserToolResultMessage.tsx
 # gate-watch: src/components/messages/TranscriptNameplate.tsx src/services/compact/foldStatus.ts
 # gate-watch: src/components/messages/thinkingGrammar.tsx src/ink.ts
