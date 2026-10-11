@@ -1,5 +1,5 @@
 import { platform, release, type as osType, version as osVersion } from 'node:os'
-import { getOriginalCwd } from '../bootstrap/state.js'
+import { canAnswerAsks, getOriginalCwd, getSessionId } from '../bootstrap/state.js'
 import { getCwd } from '../utils/cwd.js'
 import { composeSystemPrompt } from '../prompt/composer.js'
 import type { NamedSection } from '../prompt/mercuryContract.js'
@@ -20,6 +20,10 @@ import { getInitialSettings } from '../utils/settings/settings.js'
 import { getCurrentWorktreeSession } from '../utils/worktree.js'
 import { ensureScratchpadDir, scratchpadPromptLine } from '../utils/scratchpad.js'
 import { loadMemoryPrompt, memoryPromptKey } from '../mneme/mnemeFrontPage.js'
+import { composeEntryPage } from '../mneme/entryPage.js'
+import { noteSessionEngine } from '../mneme/lineageSession.js'
+import { mnemeEnabled } from '../mneme/mnemeGates.js'
+import { mnemeProjectKey } from '../mneme/paths.js'
 import { getSessionStartDate } from './common.js'
 import {
   DANGEROUS_uncachedSystemPromptSection,
@@ -176,6 +180,7 @@ export async function getSystemPrompt(
   if (isEnvTruthy(process.env.MERCURY_BARE)) return [`${head}\n\n${law}`]
 
   const toolNames: ReadonlySet<string> = new Set((tools as ReadonlyArray<{ name: string }>).map(tool => tool.name))
+  noteSessionEngine(model)
 
   const [frozenHead] = await resolveSystemPromptSections([
     keyedSystemPromptSection('head', () => model, () => head),
@@ -188,6 +193,11 @@ export async function getSystemPrompt(
       'memory',
       () => memoryPromptKey(),
       () => loadMemoryPrompt(),
+    ),
+    keyedSystemPromptSection(
+      'entry_page',
+      () => (mnemeEnabled() ? 'page' : 'off'),
+      () => composeEntryPage(mnemeProjectKey(), String(getSessionId())),
     ),
     keyedSystemPromptSection(
       'env_info_simple',

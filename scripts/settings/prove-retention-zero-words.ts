@@ -79,10 +79,11 @@ console.log('§3 the sweep at 0 ages a recording and leaves every transcript (th
 console.log('§4 the built product: a run under retentionDays 0 writes no transcript; the default writes one')
 {
   const API_KEY = 'fixture-key-000'
-  const { startFixtureApi } = await import('../lib/fixtureApi.ts')
+  const { startFixtureApi, handoffTurn } = await import('../lib/fixtureApi.ts')
   const api = await startFixtureApi([
     { kind: 'text', text: 'Answered under zero.' },
     { kind: 'text', text: 'Answered by default.' },
+    handoffTurn(),
   ])
   const mkWorld = (tag: string, settings: Record<string, unknown> | null): { home: string; configDir: string; cwd: string; env: Record<string, string> } => {
     const home = mkdtempSync(join(SCRATCH, `${tag}-home-`))
@@ -126,7 +127,7 @@ console.log('§4 the built product: a run under retentionDays 0 writes no transc
     const root = join(configDir, 'projects')
     if (!existsSync(root)) return []
     return readdirSync(root, { recursive: true, withFileTypes: true })
-      .filter(e => e.isFile() && e.name.endsWith('.jsonl'))
+      .filter(e => e.isFile() && e.name.endsWith('.jsonl') && !(e.parentPath ?? e.path).endsWith('lineage'))
       .map(e => join(e.parentPath ?? e.path, e.name))
   }
 
@@ -134,11 +135,21 @@ console.log('§4 the built product: a run under retentionDays 0 writes no transc
   const z = await run(zero, ['run', '--format', 'text', 'hello under zero'])
   check('the run under 0 answers (exit 0, the scripted text)', z.code === 0 && /Answered under zero\./.test(z.out), `${z.code} · ${z.out.trim().slice(0, 120)}`)
   check('…and writes no transcript', transcripts(zero.configDir).length === 0, transcripts(zero.configDir).join(','))
+  const lineageFiles = (configDir: string): string[] => {
+    const root = join(configDir, 'projects')
+    if (!existsSync(root)) return []
+    return readdirSync(root, { recursive: true, withFileTypes: true })
+      .filter(e => e.isFile() && (e.parentPath ?? e.path).endsWith('lineage'))
+      .map(e => join(e.parentPath ?? e.path, e.name))
+  }
+  check('…and no lineage entry: a run under 0 leaves no lineage file (the closing ask has nothing to write into)', lineageFiles(zero.configDir).length === 0, lineageFiles(zero.configDir).join(','))
+  check('…and the engine was asked once (the turn) — never for a note', api.messageRequests().length === 1, String(api.messageRequests().length))
 
   const plain = mkWorld('plain', null)
   const p = await run(plain, ['run', '--format', 'text', 'hello by default'])
   check('the default run answers (exit 0, the scripted text)', p.code === 0 && /Answered by default\./.test(p.out), `${p.code} · ${p.out.trim().slice(0, 120)}`)
   check('…and writes one transcript', transcripts(plain.configDir).length === 1, transcripts(plain.configDir).join(','))
+  check('…and by default a lineage entry is written and the note asked for (the second request)', lineageFiles(plain.configDir).length === 1 && api.messageRequests().length === 3, `${lineageFiles(plain.configDir).join(',')} · ${api.messageRequests().length} requests`)
   await api.close()
 }
 

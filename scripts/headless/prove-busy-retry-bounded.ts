@@ -4,6 +4,7 @@ import { chmodSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSyn
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
+import { HANDOFF_ASK_MARK } from '../lib/fixtureApi.ts'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 const { BUSY_RETRY_QUIET_MS, BUSY_RETRY_RUNGS_MS } = await import('../../src/services/providers/busyRetry.ts')
@@ -141,6 +142,10 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
       if (listed !== undefined) {
         res.writeHead(200, { 'content-type': 'application/json' })
         res.end(JSON.stringify(listed))
+        return
+      }
+      if (req.method === 'POST' && road.modelRoad(url) && Buffer.concat(chunks).toString('utf8').includes(HANDOFF_ASK_MARK)) {
+        road.answer(res)
         return
       }
       if (req.method === 'POST' && road.modelRoad(url)) {

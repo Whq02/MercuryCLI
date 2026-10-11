@@ -15,6 +15,16 @@ export function saidBlock(words: string): string {
   return JSON.stringify({ text: words }).slice(1, -1)
 }
 
+export const HANDOFF_ASK_MARK = 'Leave the note for the next session'
+
+export function handoffTurn(text: string = 'The note for the next session.'): ScriptedTurn {
+  return { kind: 'text', text, whenBody: HANDOFF_ASK_MARK }
+}
+
+export function isHandoffRequest(request: { body: unknown; raw?: string }): boolean {
+  return (request.raw ?? JSON.stringify(request.body ?? null)).includes(HANDOFF_ASK_MARK)
+}
+
 type ScriptedTurnBody =
   | {
       kind: 'text'

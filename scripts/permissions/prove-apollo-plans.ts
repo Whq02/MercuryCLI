@@ -26,8 +26,8 @@ const check = (label: string, cond: boolean, detail = ''): void => {
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
 
-const { startFixtureApi } = await import('../lib/fixtureApi.ts')
-const api = await startFixtureApi(Array.from({ length: 16 }, () => ({ kind: 'text' as const, text: 'The run answered.' })))
+const { startFixtureApi, handoffTurn, isHandoffRequest } = await import('../lib/fixtureApi.ts')
+const api = await startFixtureApi([...Array.from({ length: 16 }, () => ({ kind: 'text' as const, text: 'The run answered.' })), ...Array.from({ length: 16 }, () => handoffTurn())])
 const KEY = 'fixture-key-apollo-plans'
 const env = {
   HOME,
@@ -88,9 +88,10 @@ section('§1 the command roster: an unregistered planning word answers as any un
 
 section('§2 the tool roster: the planning tools the model is offered are Apollo\'s alone')
 {
-  const before = api.messageRequests().length
+  const mainRequests = (): number => api.messageRequests().filter(r => !isHandoffRequest(r)).length
+  const before = mainRequests()
   const run2 = await run(['run', 'hello'])
-  check('control: a plain run reaches the fixture provider once', run2.code === 0 && api.messageRequests().length === before + 1, JSON.stringify(run2))
+  check('control: a plain run reaches the fixture provider once (the session\'s closing ask set aside)', run2.code === 0 && mainRequests() === before + 1, JSON.stringify(run2))
   const request = api.messageRequests()[before] as { body?: { tools?: Array<{ name: string }> } } | undefined
   const offered = (request?.body?.tools ?? []).map(t => t.name)
   check('the wire carries a tool roster', offered.length > 5, offered.join(','))

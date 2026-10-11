@@ -5,6 +5,7 @@ import { createHash, randomUUID } from 'node:crypto'
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
+import { HANDOFF_ASK_MARK } from '../lib/fixtureApi.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
 delete process.env.NODE_ENV
@@ -482,7 +483,7 @@ section('§5 driven: a real run paints the notice and writes its mark once; a re
         const blocks = Array.isArray(content) ? (content as Array<Record<string, unknown>>).map(block => (block.type === 'image' ? { type: 'image', media_type: (block.source as { media_type: string }).media_type, data: (block.source as { data: string }).data } : block)) : content
         child.stdin.end(`${j({ type: 'prompt', content: blocks, id: randomUUID() })}\n`)
       })
-    const mainRequests = (): Array<Record<string, unknown>> => fixture.captured.filter(entry => entry.dialect === 'anthropic' && entry.body.model === MODEL_B && j(entry.body).includes(`drive-${road}`)).map(entry => entry.body)
+    const mainRequests = (): Array<Record<string, unknown>> => fixture.captured.filter(entry => entry.dialect === 'anthropic' && entry.body.model === MODEL_B && j(entry.body).includes(`drive-${road}`) && !j(entry.body).includes(HANDOFF_ASK_MARK)).map(entry => entry.body)
     const first = await drive(['--session-id', sid], [...driveImages, { type: 'text', text: `drive-${road}: twenty-one images, say what you see` }])
     check(`${road}: the first process answers (exit 0) and one main request reached the fixture`, first.exit === 0 && mainRequests().length === 1, `exit=${first.exit} requests=${mainRequests().length} stderr=${first.stderr.slice(-400)}`)
     check(`${road}: the first request carries the ${MANY_THRESHOLD} sizable images and not the unreadable one`, mainRequests().length === 1 && wireImages(mainRequests()[0]!).length === MANY_THRESHOLD && !j(mainRequests()[0]).includes(unreadableBase64), `images=${mainRequests()[0] ? wireImages(mainRequests()[0]!).length : -1}`)

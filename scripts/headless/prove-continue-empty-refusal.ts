@@ -18,11 +18,13 @@ const check = (label: string, cond: boolean, detail = ''): void => {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
 }
 const API_KEY = 'fixture-key-000'
-const { startFixtureApi } = await import('../lib/fixtureApi.ts')
+const { startFixtureApi, handoffTurn } = await import('../lib/fixtureApi.ts')
 const api = await startFixtureApi([
   { kind: 'text', text: 'First answered.' },
   { kind: 'text', text: 'Continued.' },
   { kind: 'text', text: 'Spare.' },
+  handoffTurn(),
+  handoffTurn(),
 ])
 const mkHome = (tag: string): { home: string; cwd: string; env: Record<string, string> } => {
   const home = mkdtempSync(join(tmpdir(), `cont-${tag}-home-`))

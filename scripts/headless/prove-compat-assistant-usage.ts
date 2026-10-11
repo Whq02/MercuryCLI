@@ -6,19 +6,23 @@ import { join } from 'node:path'
 import { DIST, NODE, SCRATCH_ROOT, bound, childEnv, makeTally } from '../daemon/dupline-world.ts'
 import { seedScratchHome } from '../lib/scriptedTurn.ts'
 import { frameLines } from '../lib/rows.ts'
+import { HANDOFF_ASK_MARK } from '../lib/fixtureApi.ts'
 
 type Frame = { type: string; status?: string; stop?: string; text?: string; answer?: string; parent_call_id?: string; usage?: Record<string, number>; models?: Record<string, Record<string, number>> }
 
-export async function compatUsageReply(usage: Record<string, unknown>, thinking = false): Promise<{ frames: Frame[]; requests: number }> {
+export async function compatUsageReply(usage: Record<string, unknown>, thinking = false): Promise<{ frames: Frame[]; requests: number; asks: number }> {
   const root = realpathSync(mkdtempSync(join(SCRATCH_ROOT, 'compat-assistant-usage-')))
   const home = join(root, 'home')
   const cwd = join(root, 'work')
   seedScratchHome(home, cwd)
   let requests = 0
+  let asks = 0
   const sse = (row: unknown): string => `data: ${JSON.stringify(row)}\n\n`
   const server = createServer((req, res) => {
-    req.resume()
+    const chunks: Buffer[] = []
+    req.on('data', chunk => chunks.push(chunk as Buffer))
     req.on('end', () => {
+      const raw = Buffer.concat(chunks).toString('utf8')
       if (req.method === 'GET' && req.url?.endsWith('/models')) {
         res.setHeader('content-type', 'application/json')
         res.end(JSON.stringify({ data: [{ id: 'fixture-usage', object: 'model' }] }))
@@ -28,7 +32,9 @@ export async function compatUsageReply(usage: Record<string, unknown>, thinking 
         res.writeHead(404).end('{}')
         return
       }
-      requests++
+      const closing = raw.includes(HANDOFF_ASK_MARK)
+      if (closing) asks++
+      else requests++
       res.setHeader('content-type', 'text/event-stream')
       if (thinking) res.write(sse({ choices: [{ delta: { reasoning_content: 'Checking the fixture.' } }] }))
       res.write(sse({ choices: [{ delta: { content: 'Settled fixture answer.' } }] }))
@@ -58,7 +64,7 @@ export async function compatUsageReply(usage: Record<string, unknown>, thinking 
       child.on('exit', resolve)
     })
     if (code !== 0) throw new Error(`headless exit ${code}: ${stderr}\n${stdout}`)
-    return { frames: frameLines(stdout) as Frame[], requests }
+    return { frames: frameLines(stdout) as Frame[], requests, asks }
   } finally {
     clearTimeout(deadline)
     await new Promise<void>(resolve => server.close(() => resolve()))
@@ -70,20 +76,21 @@ if (import.meta.main) {
   const tally = makeTally('prove-compat-assistant-usage')
   const usage = { prompt_tokens: 211, completion_tokens: 37, prompt_tokens_details: { cached_tokens: 41 } }
   for (const thinking of [false, true]) {
-    const { frames, requests } = await compatUsageReply(usage, thinking)
+    const { frames, requests, asks } = await compatUsageReply(usage, thinking)
+    const served = requests + asks
     const items = frames.filter(row => (row.type === 'text' || row.type === 'reasoning') && row.parent_call_id === undefined)
     const steps = frames.filter(row => row.type === 'step')
     const step = steps.at(-1)
     const text = items.find(row => row.type === 'text')
     const result = frames.find(row => row.type === 'outcome')
     console.log(JSON.stringify({ thinking, items, step_usage: step?.usage, outcome_usage: result?.usage }))
-    tally.check('one fixture request settles completed', requests === 1 && result?.status === 'completed')
+    tally.check('one fixture request settles completed (the session\'s closing ask served apart)', requests === 1 && asks === 1 && result?.status === 'completed')
     tally.check('one item row per content block, no settlement duplicate', items.length === (thinking ? 2 : 1))
     tally.check('one step row per model call', steps.length === 1)
     tally.check('the step row carries the settled usage: the whole prompt as input, the cached part named', step?.usage?.input_tokens === 211 && step.usage.cached_input_tokens === 41 && step.usage.output_tokens === 37, JSON.stringify(step?.usage))
     tally.check('the step row carries its settled stop', step?.stop === 'end_turn', String(step?.stop))
     tally.check('the text row carries the answer', text?.text === 'Settled fixture answer.' && result?.answer === 'Settled fixture answer.')
-    tally.check('the outcome totals agree', result?.usage?.input_tokens === 211 && result.usage.cached_input_tokens === 41 && result.usage.output_tokens === 37, JSON.stringify(result?.usage))
+    tally.check('the outcome totals agree: every request the fixture served, the closing ask included', result?.usage?.input_tokens === 211 * served && result.usage.cached_input_tokens === 41 * served && result.usage.output_tokens === 37 * served, JSON.stringify(result?.usage))
     tally.check('partial content still streams before the settled text row', frames.findIndex(row => row.type === 'text_delta') < frames.findLastIndex(row => row.type === 'text'))
   }
   tally.finish()

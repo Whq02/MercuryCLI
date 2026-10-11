@@ -5,6 +5,7 @@ import { createServer } from 'node:http'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { answeredWith, frameLines, lastOutcome } from '../lib/rows.ts'
+import { HANDOFF_ASK_MARK } from '../lib/fixtureApi.ts'
 
 const root = resolve(import.meta.dir, '..', '..')
 const dist = join(root, 'dist', 'mercury.mjs')
@@ -100,7 +101,7 @@ try {
     const outcome = lastOutcome(frameLines(result.stdout))
     check(`${route}: the built product completes its fixture turn — one completed outcome row carrying the answer`, result.code === 0 && answeredWith(result.stdout, 'FIRST-CALL-DONE'), `${JSON.stringify(outcome ?? null)} ${result.stderr.slice(-300)}`)
     const requests = captured.filter(request => request.route === route)
-    check(`${route}: exactly one main request is captured`, requests.length === 1, String(requests.length))
+    check(`${route}: exactly one main request is captured, then the session's closing ask for its note`, requests.length === 2 && JSON.stringify(requests[1]?.body).includes(HANDOFF_ASK_MARK) && !JSON.stringify(requests[0]?.body).includes(HANDOFF_ASK_MARK), String(requests.length))
     const body = requests[0]?.body
     if (!body) continue
     const normalize = (value: string) => value.replaceAll(home, '<home>').replaceAll(cwd, '<project>')

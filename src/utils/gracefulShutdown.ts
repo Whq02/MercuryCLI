@@ -480,6 +480,13 @@ export async function gracefulShutdown(
   }
 
   try {
+    const { closeLineageSession } = await import('../mneme/lineageSession.js')
+    await closeLineageSession(reason, SESSION_END_HOOK_BUDGET_MS)
+  } catch (err) {
+    logForDebugging(`gracefulShutdown: the lineage close failed (ignored): ${String(err)}`)
+  }
+
+  try {
     const { fireHooks } = await import('./hooks/fire.js')
     const { endBackgroundHooks } = await import('./hooks/background.js')
     const hookBudgetMs = SESSION_END_HOOK_BUDGET_MS
