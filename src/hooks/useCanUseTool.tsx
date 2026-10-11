@@ -67,8 +67,8 @@ async function ask(ctx: PermissionContext, result: PermissionAskDecision, descri
 async function decide(ctx: PermissionContext, forced: PermissionDecision | undefined): Promise<PermissionDecision> {
   if (withdrawn(ctx)) return cancelled(ctx)
   const result = await readDecision(ctx, forced)
-  if (withdrawn(ctx)) return cancelled(ctx)
   if (result.behavior === 'allow') {
+    if (withdrawn(ctx)) return cancelled(ctx)
     ctx.logDecision({ decision: 'accept', source: 'config' })
     return ctx.buildAllow(result.updatedInput ?? ctx.input, { decisionReason: result.decisionReason })
   }
