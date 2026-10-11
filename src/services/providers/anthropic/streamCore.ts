@@ -1737,7 +1737,8 @@ function sideQuestionParams(question: OneShotQuestion, systemPrompt: SystemPromp
 }
 
 export async function queryWithModel(question: OneShotQuestion): Promise<AssistantMessage> {
-  const systemPrompt = question.systemPrompt === undefined ? asSystemPrompt([]) : question.systemPrompt
+  const { systemPrompt = asSystemPrompt([]), userPrompt, outputFormat, signal, options } = question
+  question = { systemPrompt, userPrompt, outputFormat, signal, options }
   const { routedCallModel, settleAssistantTurn } = await import('../../providers/callModelRouter.js')
   const recordedInput = [
     createUserMessage({ content: systemPrompt.map(text => ({ type: 'text', text })) }),
