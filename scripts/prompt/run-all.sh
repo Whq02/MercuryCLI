@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # gate-class: pure
-# gate-watch: src/prompt/composer* src/tools/AgentTool/builtInAgents*
+# gate-watch: src/prompt/composer* src/tools/AgentTool/builtInAgents* scripts/lib/fixtureApi.ts
 # gate-watch: src/utils/effort*
 # gate-watch: src/utils/profile/appearanceSnapshot*
 # gate-watch: src/utils/cockpit/promptProvenance* src/utils/cockpit/runProtocol*
