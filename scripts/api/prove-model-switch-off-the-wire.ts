@@ -49,6 +49,7 @@ const has = (texts: string[], needle: string): boolean => texts.some(text => tex
 section('§1 the wire plan — the /model rows are the operator\'s record, never the model\'s view; a caveat with no rows under it never leaves')
 {
   const { createModelSwitchBreadcrumbs, createSyntheticUserCaveatMessage, createUserMessage, formatCommandInputTags } = await import('../../src/utils/messages/factories.ts')
+  const { createAttachmentMessage } = await import('../../src/utils/attachments/orchestrator.ts')
   const { requestConversationPlan } = await import('../../src/utils/messages/apiPlan.ts')
   const prompt = (text: string) => createUserMessage({ content: text, permissionMode: 'default' })
   const reply = (id: string, text: string) => ({ type: 'assistant' as const, uuid: id, timestamp: '2026-10-11T00:00:00.000Z', message: { id, model: FABLE, role: 'assistant' as const, type: 'message' as const, content: [{ type: 'text' as const, text, citations: [] }], stop_reason: 'end_turn', stop_sequence: null, usage: { input_tokens: 1, output_tokens: 1 } } })
@@ -80,6 +81,12 @@ section('§1 the wire plan — the /model rows are the operator\'s record, never
     check(`${geometry}: a caveat followed by an answer has nothing under it and leaves`, !wireTexts(requestConversationPlan(beforeAnswer, [], geometry).messages).some(text => text.includes(CAVEAT_MARK)))
     const doubled = [prompt('first'), reply('a1', 'one'), caveat(), caveat(), helpRow, helpOut, prompt('next')] as never[]
     check(`${geometry}: of two caveats in a row only the one over the rows stands`, wireTexts(requestConversationPlan(doubled, [], geometry).messages).filter(text => text.includes(CAVEAT_MARK)).length === 1)
+    const notice = createAttachmentMessage({ type: 'queued_command', prompt: '<task-notification>a crewmate landed</task-notification>', commandMode: 'task-notification' } as never)
+    const pastNotice = [prompt('first'), reply('a1', 'one'), caveat(), notice, prompt('what are you?')] as never[]
+    const pastNoticeSent = wireTexts(requestConversationPlan(pastNotice, [], geometry).messages)
+    check(`${geometry}: an attachment between the orphaned caveat and the prompt is not "the rows below" — the caveat still leaves and the attachment rides`, !has(pastNoticeSent, CAVEAT_MARK) && has(pastNoticeSent, 'a crewmate landed') && has(pastNoticeSent, 'what are you?'), j(pastNoticeSent))
+    const noticeThenRows = [prompt('first'), reply('a1', 'one'), caveat(), notice, helpRow, helpOut, prompt('next')] as never[]
+    check(`${geometry}: a caveat whose rows follow an attachment stands`, wireTexts(requestConversationPlan(noticeThenRows, [], geometry).messages).filter(text => text.includes(CAVEAT_MARK)).length === 1)
   }
   const untouched = [prompt('first'), reply('a1', 'one'), caveat(), helpRow, helpOut, prompt('next')] as never[]
   const plan = (await import('../../src/utils/messages/apiPlan.ts')) as { withoutOrphanCaveats?: (rows: unknown[]) => unknown[] }
