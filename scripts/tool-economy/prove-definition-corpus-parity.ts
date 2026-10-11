@@ -46,8 +46,8 @@ const tools = getAllBaseTools().filter(tool => tool.name !== ComputerTool.name)
 const browserIndex = tools.findIndex(tool => tool.name === 'Browser')
 assert.notEqual(browserIndex, -1, 'the corpus has its desktop insertion point')
 tools.splice(browserIndex + 1, 0, ComputerTool)
-assert.equal(tools.length, 58, 'the corpus covers all 58 base catalogue entries')
-assert.equal(new Set(tools.map(tool => tool.name)).size, 58, 'every definition has a distinct name')
+assert.equal(tools.length, 59, 'the corpus covers all 59 base catalogue entries')
+assert.equal(new Set(tools.map(tool => tool.name)).size, 59, 'every definition has a distinct name')
 const permissionContext = getEmptyToolPermissionContext()
 const definitions = []
 for (const tool of tools) {
@@ -61,7 +61,7 @@ for (const tool of tools) {
 const bytes = JSON.stringify({ base, model, definitions }, null, 2) + '\n'
 if (record) {
   writeFileSync(fixture, bytes)
-  console.log(`RECORDED 58 definitions at ${base}`)
+  console.log(`RECORDED 59 definitions at ${base}`)
 }
 const moved = tools
   .map((tool, i) => (JSON.stringify(definitions[i]) === JSON.stringify((recorded ?? { definitions }).definitions[i]) ? null : tool.name))
@@ -69,4 +69,4 @@ const moved = tools
 if (record) console.log(moved.length === 0 ? 'no definition moved since the previous recording' : `moved since the previous recording (list the diff in the fold log): ${moved.join(', ')}`)
 else assert.deepEqual(moved, [], `a definition moved since the recording at ${base} — re-record with --record and list the diff: ${moved.join(', ')}`)
 assert.equal(bytes, readFileSync(fixture, 'utf8'), 'every definition remains byte-identical in catalogue order')
-console.log(`PASS CORPUS 58 definitions identical; ${Buffer.byteLength(bytes)} bytes; sha256 ${createHash('sha256').update(bytes).digest('hex')}`)
+console.log(`PASS CORPUS 59 definitions identical; ${Buffer.byteLength(bytes)} bytes; sha256 ${createHash('sha256').update(bytes).digest('hex')}`)

@@ -19,6 +19,15 @@ const LONG_PROMPT_THRESHOLD = 200_000
 
 export const GEMINI_PRICE_PINS: readonly GeminiPricePin[] = [
   {
+    id: 'gemini-3.8-flash',
+    observedAt: '2026-10-11',
+    source: GEMINI_PRICING_PAGE,
+    costInPerMtok: 0.75,
+    costOutPerMtok: 3.75,
+    cachedInPerMtok: 0.075,
+    announced: { effectiveOn: '2027-01-01', costInPerMtok: 1.5, costOutPerMtok: 7.5, cachedInPerMtok: 0.15 },
+  },
+  {
     id: 'gemini-3.7-flash',
     observedAt: '2026-09-01',
     source: GEMINI_PRICING_PAGE,
