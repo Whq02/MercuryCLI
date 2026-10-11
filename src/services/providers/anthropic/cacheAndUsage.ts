@@ -2,7 +2,10 @@ import { type BetaMessageParam as MessageParam, type BetaRawMessageStreamEvent }
 import { type TextBlockParam } from '@anthropic-ai/sdk/resources/index.mjs'
 import { type Stream } from '@anthropic-ai/sdk/streaming.mjs'
 import { logForDebugging } from 'src/utils/debug.js'
-import { type AssistantMessage, type UserMessage } from '../../../types/message.js'
+import {
+  type AssistantMessage,
+  type UserMessage,
+} from '../../../types/message.js'
 import type { ApiMessageDeltaUsage, ApiUsage } from '../../../types/wire.js'
 import { splitSystemPromptBlocks } from '../../../utils/api.js'
 import { insertBlockAfterToolResults } from '../../../utils/contentArray.js'
@@ -21,6 +24,13 @@ export function buildSystemPromptBlocks(systemPrompt: SystemPrompt, enablePrompt
     if (enablePromptCaching && cached) block.cache_control = getCacheControl()
     return block
   })
+}
+
+export function assembleTurnSystemPrompt(
+  attribution: string,
+  systemPrompt: SystemPrompt,
+): SystemPrompt {
+  return asSystemPrompt([attribution, ...systemPrompt].filter(Boolean))
 }
 
 export function buildTurnSystemBlocks(attribution: string, systemPrompt: SystemPrompt, enablePromptCaching: boolean): TextBlockParam[] {
@@ -158,9 +168,3 @@ export function cleanupStream(stream: Stream<BetaRawMessageStreamEvent> | undefi
   } catch {}
 }
 
-export function assembleTurnSystemPrompt(
-  attribution: string,
-  systemPrompt: SystemPrompt,
-): SystemPrompt {
-  return asSystemPrompt([attribution, ...systemPrompt].filter(Boolean))
-}
