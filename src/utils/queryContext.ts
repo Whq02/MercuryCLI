@@ -62,6 +62,8 @@ function forkContext(input: ForkInputs, engineModel: string, messages: Message[]
 }
 
 export async function buildSideQuestionFallbackParams(input: ForkInputs): Promise<CacheSafeParams> {
+  const { tools, commands, mcpClients, messages, readFileState, getAppState, setAppState, customSystemPrompt, appendSystemPrompt, thinkingConfig, agents } = input
+  input = { tools, commands, mcpClients, messages, readFileState, getAppState, setAppState, customSystemPrompt, appendSystemPrompt, thinkingConfig, agents }
   const engineModel = getEngineModel()
   const appState = input.getAppState()
   const parts = await fetchSystemPromptParts({
@@ -69,7 +71,7 @@ export async function buildSideQuestionFallbackParams(input: ForkInputs): Promis
     customSystemPrompt: input.customSystemPrompt, permissionMode: appState.toolPermissionContext.mode,
   })
   const selected = input.customSystemPrompt === undefined ? parts.defaultSystemPrompt : [input.customSystemPrompt]
-  const systemPrompt = asSystemPrompt(input.appendSystemPrompt ? selected.concat(input.appendSystemPrompt) : selected)
+  const systemPrompt = asSystemPrompt(input.appendSystemPrompt ? [...selected, input.appendSystemPrompt] : selected)
   const forkContextMessages = settledForkMessages(input.messages)
   const thinking = input.thinkingConfig ?? { type: shouldEnableThinkingByDefault() ? 'adaptive' : 'disabled' }
   return {
