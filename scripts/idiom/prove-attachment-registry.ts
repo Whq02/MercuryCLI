@@ -76,7 +76,32 @@ function keysOf(literal: ts.ObjectLiteralExpression): string[] {
 
 type Member = { kind: string; fields: string[]; via: string; line: number }
 
+function resolvedUnionMembers(sf: ts.SourceFile, root: string): { members: Member[]; shapeless: string[] } {
+  const options: ts.CompilerOptions = { noResolve: true, types: [], target: ts.ScriptTarget.Latest }
+  const host = ts.createCompilerHost(options)
+  const loadSource = host.getSourceFile
+  host.getSourceFile = (path, ...args) => path === sf.fileName ? sf : loadSource(path, ...args)
+  const program = ts.createProgram([sf.fileName], options, host)
+  const checker = program.getTypeChecker()
+  const declaration = sf.statements.find((node): node is ts.TypeAliasDeclaration => ts.isTypeAliasDeclaration(node) && node.name.text === root)
+  const members: Member[] = []
+  const shapeless = program.getSemanticDiagnostics(sf).filter(issue => issue.code === 2300 || issue.code === 2717).map(issue => ts.flattenDiagnosticMessageText(issue.messageText, ' '))
+  if (!declaration) return { members, shapeless: [...shapeless, `no type alias ${root}`] }
+  const resolved = checker.getTypeAtLocation(declaration)
+  for (const member of resolved.isUnion() ? resolved.types : [resolved]) {
+    const discriminant = checker.getTypeOfPropertyOfType(member, 'type')
+    if (!discriminant?.isStringLiteral()) {
+      shapeless.push(`${root} has a member without a single literal discriminant`)
+      continue
+    }
+    members.push({ kind: discriminant.value, fields: checker.getPropertiesOfType(member).map(field => field.name).filter(name => name !== 'type'), via: root, line: lineOf(sf, declaration) })
+  }
+  return { members, shapeless }
+}
+
 function unionMembers(sf: ts.SourceFile, root: string): { members: Member[]; shapeless: string[] } {
+  const alias = sf.statements.find((node): node is ts.TypeAliasDeclaration => ts.isTypeAliasDeclaration(node) && node.name.text === root)
+  if (alias && ts.isIndexedAccessTypeNode(alias.type)) return resolvedUnionMembers(sf, root)
   const aliases = new Map<string, ts.TypeNode>()
   for (const st of sf.statements) if (ts.isTypeAliasDeclaration(st)) aliases.set(st.name.text, st.type)
   const members: Member[] = []
@@ -202,6 +227,14 @@ const intersectionRows = unionMembers(intersectionFixture, UNION_NAME)
 check('the census reads every discriminant and shared field through an additive intersection', intersectionRows.shapeless.length === 0 && intersectionRows.members.length === 2 && intersectionRows.members.every(member => member.fields.includes('receipt')) && intersectionRows.members[0]!.fields.includes('first') && intersectionRows.members[1]!.fields.includes('second'))
 const shapelessFixture = ts.createSourceFile('fixture.ts', 'type Attachment = { receipt?: string } & { other?: number }', ts.ScriptTarget.Latest, true)
 check('an intersection without a discriminated member still fails the census', unionMembers(shapelessFixture, UNION_NAME).shapeless.length > 0)
+
+const mappedFixture = ts.createSourceFile('fixture.ts', "type Bodies = { one: { first: string }; two: { second: number } }; type Row<K extends keyof Bodies> = { type: K } & Bodies[K]; type Attachment = { [K in keyof Bodies]: Row<K> & { receipt?: string } }[keyof Bodies]", ts.ScriptTarget.Latest, true)
+const mappedRows = unionMembers(mappedFixture, UNION_NAME)
+check('the census resolves mapped discriminants and shared fields without dropping any member', mappedRows.shapeless.length === 0 && mappedRows.members.length === 2 && mappedRows.members.every(member => member.fields.includes('receipt')) && mappedRows.members.find(member => member.kind === 'one')?.fields.includes('first') === true && mappedRows.members.find(member => member.kind === 'two')?.fields.includes('second') === true)
+const openMappedFixture = ts.createSourceFile('fixture.ts', 'type Bodies = { one: { first: string } }; type Attachment = { [K in keyof Bodies]: { type: string } & Bodies[K] }[keyof Bodies]', ts.ScriptTarget.Latest, true)
+check('a mapped member with an open string discriminant still fails', unionMembers(openMappedFixture, UNION_NAME).shapeless.length > 0)
+const duplicateMappedFixture = ts.createSourceFile('fixture.ts', 'type Bodies = { one: {}; one: {} }; type Attachment = { [K in keyof Bodies]: { type: K } & Bodies[K] }[keyof Bodies]', ts.ScriptTarget.Latest, true)
+check('duplicate payload keys cannot disappear during type resolution', unionMembers(duplicateMappedFixture, UNION_NAME).shapeless.length > 0)
 
 section(`§A the ${UNION_NAME} union, read from ${UNION_SOURCE}`)
 const { members, shapeless } = unionMembers(parse(UNION_SOURCE), UNION_NAME)

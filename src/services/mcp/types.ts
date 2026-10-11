@@ -1,197 +1,87 @@
-import type { Client } from './sdk.js'
-import type { Implementation, Resource, ServerCapabilities } from './sdk.js'
+import type { Client, Implementation, Resource, ServerCapabilities } from './sdk.js'
 import { z } from 'zod'
 
-
-function lazy<T>(build: () => T): () => T {
-  let cached: T | undefined
+function once<T>(build: () => T): () => T {
+  const held: T[] = []
   return () => {
-    if (cached === undefined) cached = build()
-    return cached
+    if (!held.length) held.push(build())
+    return held[0]!
   }
 }
 
-export const ConfigScopeSchema = lazy(() =>
-  z.enum(['local', 'user', 'project', 'dynamic', 'enterprise', 'claudeai', 'managed']),
-)
+export const ConfigScopeSchema = once(() => z.enum(['local', 'user', 'project', 'dynamic', 'enterprise', 'claudeai', 'managed']))
+export const TransportSchema = once(() => z.enum(['stdio', 'sse', 'http', 'ws']))
 export type ConfigScope = z.infer<ReturnType<typeof ConfigScopeSchema>>
-
-export const TransportSchema = lazy(() =>
-  z.enum(['stdio', 'sse', 'http', 'ws']),
-)
 export type Transport = z.infer<ReturnType<typeof TransportSchema>>
 
+function secureMetadataUrl(value: string | undefined): boolean {
+  if (value === undefined) return true
+  try {
+    new URL(value)
+    return value.startsWith('https://')
+  } catch {
+    return false
+  }
+}
 
-const oauthConfigSchema = lazy(() =>
-  z.object({
-    clientId: z.string().optional(),
-    callbackPort: z.number().int().positive().optional(),
-    authServerMetadataUrl: z
-      .string()
-      .optional()
-      .refine(
-        value => {
-          if (value === undefined) return true
-          try {
-            new URL(value)
-          } catch {
-            return false
-          }
-          return value.startsWith('https://')
-        },
-        { message: 'authServerMetadataUrl must be a valid https:// URL' },
-      ),
-  }),
-)
+const strings = () => z.record(z.string(), z.string())
+const oauth = once(() => z.object({
+  clientId: z.string().optional(),
+  callbackPort: z.number().int().positive().optional(),
+  authServerMetadataUrl: z.string().optional().refine(secureMetadataUrl, { message: 'authServerMetadataUrl must be a valid https:// URL' }),
+}))
+const toolPermissions = once(strings)
+const remoteFields = () => ({ url: z.string(), headers: strings().optional(), headersHelper: z.string().optional() })
+const authenticatedFields = () => ({ oauth: oauth().optional(), toolPermissions: toolPermissions().optional() })
 
-const toolPermissionsSchema = lazy(() => z.record(z.string(), z.string()))
+export const McpStdioServerConfigSchema = once(() => z.object({
+  type: z.literal('stdio').optional(), command: z.string().min(1, 'Command cannot be empty'),
+  args: z.array(z.string()).default([]), env: strings().optional(),
+}))
+export const McpSSEServerConfigSchema = once(() => z.object({ type: z.literal('sse'), ...remoteFields(), ...authenticatedFields() }))
+export const McpHTTPServerConfigSchema = once(() => z.object({ type: z.literal('http'), ...remoteFields(), ...authenticatedFields() }))
+export const McpWebSocketServerConfigSchema = once(() => z.object({ type: z.literal('ws'), ...remoteFields() }))
+export const McpAnthropicProxyServerConfigSchema = once(() => z.object({ type: z.literal('claudeai-proxy'), url: z.string(), id: z.string(), toolPermissions: toolPermissions().optional() }))
+export const McpServerConfigSchema = once(() => z.union([
+  McpStdioServerConfigSchema(), McpSSEServerConfigSchema(), McpHTTPServerConfigSchema(),
+  McpWebSocketServerConfigSchema(), McpAnthropicProxyServerConfigSchema(),
+]))
+export const McpJsonConfigSchema = once(() => z.object({ mcpServers: z.record(z.string(), McpServerConfigSchema()) }))
 
-export const McpStdioServerConfigSchema = lazy(() =>
-  z.object({
-    type: z.literal('stdio').optional(),
-    command: z.string().min(1, 'Command cannot be empty'),
-    args: z.array(z.string()).default([]),
-    env: z.record(z.string(), z.string()).optional(),
-  }),
-)
 export type McpStdioServerConfig = z.infer<ReturnType<typeof McpStdioServerConfigSchema>>
-
-export const McpSSEServerConfigSchema = lazy(() =>
-  z.object({
-    type: z.literal('sse'),
-    url: z.string(),
-    headers: z.record(z.string(), z.string()).optional(),
-    headersHelper: z.string().optional(),
-    oauth: oauthConfigSchema().optional(),
-    toolPermissions: toolPermissionsSchema().optional(),
-  }),
-)
 export type McpSSEServerConfig = z.infer<ReturnType<typeof McpSSEServerConfigSchema>>
-
-export const McpHTTPServerConfigSchema = lazy(() =>
-  z.object({
-    type: z.literal('http'),
-    url: z.string(),
-    headers: z.record(z.string(), z.string()).optional(),
-    headersHelper: z.string().optional(),
-    oauth: oauthConfigSchema().optional(),
-    toolPermissions: toolPermissionsSchema().optional(),
-  }),
-)
 export type McpHTTPServerConfig = z.infer<ReturnType<typeof McpHTTPServerConfigSchema>>
-
-export const McpWebSocketServerConfigSchema = lazy(() =>
-  z.object({
-    type: z.literal('ws'),
-    url: z.string(),
-    headers: z.record(z.string(), z.string()).optional(),
-    headersHelper: z.string().optional(),
-  }),
-)
 export type McpWebSocketServerConfig = z.infer<ReturnType<typeof McpWebSocketServerConfigSchema>>
-
-export const McpAnthropicProxyServerConfigSchema = lazy(() =>
-  z.object({
-    type: z.literal('claudeai-proxy'),
-    url: z.string(),
-    id: z.string(),
-    toolPermissions: toolPermissionsSchema().optional(),
-  }),
-)
-export type McpAnthropicProxyServerConfig = z.infer<
-  ReturnType<typeof McpAnthropicProxyServerConfigSchema>
->
-
-export const McpServerConfigSchema = lazy(() =>
-  z.union([
-    McpStdioServerConfigSchema(),
-    McpSSEServerConfigSchema(),
-    McpHTTPServerConfigSchema(),
-    McpWebSocketServerConfigSchema(),
-    McpAnthropicProxyServerConfigSchema(),
-  ]),
-)
+export type McpAnthropicProxyServerConfig = z.infer<ReturnType<typeof McpAnthropicProxyServerConfigSchema>>
 export type McpServerConfig = z.infer<ReturnType<typeof McpServerConfigSchema>>
-
-export const McpJsonConfigSchema = lazy(() =>
-  z.object({
-    mcpServers: z.record(z.string(), McpServerConfigSchema()),
-  }),
-)
 export type McpJsonConfig = z.infer<ReturnType<typeof McpJsonConfigSchema>>
+export type ScopedMcpServerConfig = McpServerConfig & { scope: ConfigScope; extensionSource?: string }
 
-export type ScopedMcpServerConfig = McpServerConfig & {
-  scope: ConfigScope
-  extensionSource?: string
+type ServerIdentity = { name: string; config: ScopedMcpServerConfig }
+type ConnectionFacts = {
+  connected: { client: Client; capabilities: ServerCapabilities; serverInfo?: Implementation; instructions?: string; cleanup: () => Promise<void> }
+  failed: { error?: string }
+  'needs-auth': Record<never, never>
+  pending: { reconnectAttempt?: number; maxReconnectAttempts?: number }
+  disabled: Record<never, never>
 }
-
-
-export type ConnectedMCPServer = {
-  type: 'connected'
-  name: string
-  client: Client
-  capabilities: ServerCapabilities
-  serverInfo?: Implementation
-  instructions?: string
-  config: ScopedMcpServerConfig
-  cleanup: () => Promise<void>
-}
-
-export type FailedMCPServer = {
-  type: 'failed'
-  name: string
-  config: ScopedMcpServerConfig
-  error?: string
-}
-
-export type NeedsAuthMCPServer = {
-  type: 'needs-auth'
-  name: string
-  config: ScopedMcpServerConfig
-}
-
-export type PendingMCPServer = {
-  type: 'pending'
-  name: string
-  config: ScopedMcpServerConfig
-  reconnectAttempt?: number
-  maxReconnectAttempts?: number
-}
-
-export type DisabledMCPServer = {
-  type: 'disabled'
-  name: string
-  config: ScopedMcpServerConfig
-}
-
-export type MCPServerConnection =
-  | ConnectedMCPServer
-  | FailedMCPServer
-  | NeedsAuthMCPServer
-  | PendingMCPServer
-  | DisabledMCPServer
-
+type Connection<State extends keyof ConnectionFacts> = ServerIdentity & { type: State } & ConnectionFacts[State]
+export type ConnectedMCPServer = Connection<'connected'>
+export type FailedMCPServer = Connection<'failed'>
+export type NeedsAuthMCPServer = Connection<'needs-auth'>
+export type PendingMCPServer = Connection<'pending'>
+export type DisabledMCPServer = Connection<'disabled'>
+export type MCPServerConnection = { [State in keyof ConnectionFacts]: Connection<State> }[keyof ConnectionFacts]
 export type ServerResource = Resource & { server: string }
 
-
-export type SerializedTool = {
-  name: string
-  description: string
-  inputJSONSchema?: { type: 'object'; [key: string]: unknown }
-  isMcp?: boolean
-  originalToolName?: string
-}
-
-export type SerializedClient = {
-  name: string
-  type: MCPServerConnection['type']
-  capabilities?: ServerCapabilities
-}
-
 export type MCPCliState = {
-  clients: SerializedClient[]
-  configs: Record<string, ScopedMcpServerConfig>
-  tools: SerializedTool[]
-  resources: Record<string, ServerResource[]>
+  clients: SerializedClient[]; configs: Record<string, ScopedMcpServerConfig>
+  tools: SerializedTool[]; resources: Record<string, ServerResource[]>
   normalizedNames?: Record<string, string>
+}
+export type SerializedClient = { name: string; type: MCPServerConnection['type']; capabilities?: ServerCapabilities }
+export type SerializedTool = {
+  name: string; description: string
+  inputJSONSchema?: { type: 'object'; [key: string]: unknown }
+  isMcp?: boolean; originalToolName?: string
 }

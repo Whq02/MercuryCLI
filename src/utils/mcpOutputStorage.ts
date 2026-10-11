@@ -42,30 +42,17 @@ export function getLargeOutputInstructions(
   )
 }
 
-const MIME_EXTENSIONS: Record<string, string> = {
-  'application/pdf': 'pdf',
-  'application/json': 'json',
-  'text/csv': 'csv',
-  'text/plain': 'txt',
-  'text/html': 'html',
-  'text/markdown': 'md',
-  'application/zip': 'zip',
-  'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'docx',
-  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 'xlsx',
-  'application/vnd.openxmlformats-officedocument.presentationml.presentation': 'pptx',
-  'application/msword': 'doc',
-  'application/vnd.ms-excel': 'xls',
-  'audio/mpeg': 'mp3',
-  'audio/wav': 'wav',
-  'audio/ogg': 'ogg',
-  'video/mp4': 'mp4',
-  'video/webm': 'webm',
-  'image/png': 'png',
-  'image/jpeg': 'jpg',
-  'image/gif': 'gif',
-  'image/webp': 'webp',
-  'image/svg+xml': 'svg',
-}
+const MIME_EXTENSIONS: Record<string, string> = Object.fromEntries(Object.entries({
+  pdf: 'application/pdf', json: 'application/json', zip: 'application/zip',
+  csv: 'text/csv', txt: 'text/plain', html: 'text/html', md: 'text/markdown',
+  docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  doc: 'application/msword', xls: 'application/vnd.ms-excel',
+  mp3: 'audio/mpeg', wav: 'audio/wav', ogg: 'audio/ogg',
+  mp4: 'video/mp4', webm: 'video/webm',
+  png: 'image/png', jpg: 'image/jpeg', gif: 'image/gif', webp: 'image/webp', svg: 'image/svg+xml',
+}).map(([extension, mime]) => [mime, extension]))
 
 function normalizeMime(mimeType: string | undefined): string {
   if (!mimeType) return ''
@@ -97,13 +84,18 @@ export async function persistBinaryContent(
   await ensureToolResultsDir()
   const ext = extensionForMimeType(mimeType)
   const filepath = join(getToolResultsDir(), `${persistId}.${ext}`)
+  const failure = await binaryWriteFailure(filepath, bytes)
+  return failure === null ? { filepath, size: bytes.length, ext } : failure
+}
+
+async function binaryWriteFailure(filepath: string, bytes: Buffer): Promise<{ error: string } | null> {
   try {
     await writeFile(filepath, bytes)
-    return { filepath, size: bytes.length, ext }
-  } catch (err) {
-    const error = toError(err)
-    logError(error)
-    return { error: error.message }
+    return null
+  } catch (reason) {
+    const failure = toError(reason)
+    logError(failure)
+    return { error: failure.message }
   }
 }
 
