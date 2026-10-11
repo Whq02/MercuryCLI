@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 // gate-watch: src/utils/statusNoticeDefinitions.tsx src/components/Settings/Config.tsx src/mneme/mnemeFrontPage.ts src/mneme/mnemeUsage.ts
-// gate-watch: src/components/Messages.tsx src/components/CrewmateTranscript.tsx src/components/memory/MemoryCentreView.tsx
+// gate-watch: src/components/Messages.tsx src/components/CrewmateTranscript.tsx src/components/memory/MemoryCentreView.tsx src/commands/memory/memory.tsx src/components/SettingsPopupSlot.tsx
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { KEY, mountOffscreen, pinScratchHome, releaseScratchHome, settle, waitFor, type Mounted } from '../lib/settingsPopupHarness.ts'
@@ -164,50 +164,57 @@ section("§4 the line paints in the person's chat and never in a crewmate's chat
   save('crewmate-view-120x40.txt', crewmate)
 }
 
-section('§5 /memory lists the pinned rules — size, the asked mark, u unpins on the row — so "trim in /memory" is a real instruction')
-{
+async function mountMemoryPopup(): Promise<{ m: Mounted; close: () => void }> {
   const React = await import('react')
   const { Box } = await import('../../src/ink.js')
   const { AppStateProvider } = await import('../../src/state/AppState.js')
   const { ThemeProvider } = await import('../../src/components/design-system/ThemeProvider.js')
-  const { MemoryCentreView } = await import('../../src/components/memory/MemoryCentreView.js')
-  const { readPins } = await import('../../src/mneme/mnemeUsage.js')
-  const pinsBefore = readPins(dir).length
+  const { SettingsPopupSlot } = await import('../../src/components/SettingsPopupSlot.js')
+  const store = await import('../../src/utils/cockpit/settingsPopup.js')
+  const { memoryPopupRequest } = await import('../../src/commands/memory/memory.js')
   const element = React.createElement(
     AppStateProvider as never,
     {},
-    React.createElement(ThemeProvider as never, {}, React.createElement(Box, { flexDirection: 'column', width: 120, height: 40 }, React.createElement(MemoryCentreView as never, { onClose: () => {} }))),
+    React.createElement(ThemeProvider as never, {}, React.createElement(Box, { flexDirection: 'column', width: 120, height: 40 }, React.createElement(SettingsPopupSlot, { overlay: true }))),
   )
   const m: Mounted = await mountOffscreen(element, 120, 40)
-  const overview = await waitFor(() => m.lines().some(l => l.includes('pinned rules:')), 6000)
-  check('the overview painted with the shelf row', overview)
+  store.openSettingsPopup(memoryPopupRequest('centre', () => {}))
+  return { m, close: () => store.closeSettingsPopup() }
+}
+
+section('§5 /memory lists the pinned rules — size, the asked mark, u unpins on the row — so "trim in /memory" is a real instruction')
+{
+  const { readPins } = await import('../../src/mneme/mnemeUsage.js')
+  const pinsBefore = readPins(dir).length
+  const { m, close } = await mountMemoryPopup()
+  const overview = await waitFor(() => m.lines().some(l => l.includes('pinned rules')) && m.lines().some(l => l.includes('Mercury · memory')), 6000)
+  check('the overview painted as the memory popup with the pinned rules row', overview)
   await settle(150)
-  let shelfRow = m.lines().find(l => l.includes('pinned rules:')) ?? ''
+  let shelfRow = m.lines().find(l => l.includes('pinned rules')) ?? ''
   console.log(`  row: ${shelfRow.trim()}`)
-  check('the shelf row reads how full the shelf is and offers the list', /pinned rules: \d+ · [\d.]+k of [\d.]+k · over, all still loaded — ↵ list them/.test(shelfRow), shelfRow.trim())
+  check('the shelf row reads the count and the fill as table cells and the state over', new RegExp(`pinned rules\\s+${RULES.length} · [\\d.]+k of [\\d.]+k\\s+\\d\\d [A-Z][a-z]{2} \\d\\d:\\d\\d\\s+over`).test(shelfRow), shelfRow.trim())
   save('memory-120x40.txt', m.lines())
   for (let step = 0; step < 6; step++) {
-    if ((m.lines().find(l => l.includes('pinned rules:')) ?? '').includes('▸')) break
+    if ((m.lines().find(l => l.includes('pinned rules')) ?? '').includes('❯')) break
     m.push(KEY.down)
     await settle(40)
   }
-  shelfRow = m.lines().find(l => l.includes('pinned rules:')) ?? ''
-  check('the shelf row is selectable', shelfRow.includes('▸'), shelfRow.trim())
+  shelfRow = m.lines().find(l => l.includes('pinned rules')) ?? ''
+  check('the shelf row is selectable and its detail says every rule still loads', shelfRow.includes('❯') && m.lines().some(l => l.includes('over the limit, all still loaded')), shelfRow.trim())
+  check('the footer offers the list once, for the selected row', m.lines().some(l => l.includes('↵ list the rules')))
   m.push(KEY.enter)
-  const listed = await waitFor(() => m.lines().some(l => l.includes('Pinned rules')) && m.lines().some(l => l.includes('asked for by you')), 6000)
-  check('↵ lists the pinned rules', listed)
+  const listed = await waitFor(() => m.lines().some(l => l.includes('memory › pinned rules')) && m.lines().some(l => l.includes('asked for by you')), 6000)
+  check('↵ lists the pinned rules under the breadcrumb', listed)
   await settle(150)
   const ruleRows = m.lines().filter(l => /\d+(\.\d+)?k? chars · asked for by you · About /.test(l))
   console.log(`  ${ruleRows.length} rule rows on screen; first: ${ruleRows[0]?.trim()}`)
   check('each row carries the rule\'s size, its asked mark and its words', ruleRows.length >= 5 && ruleRows.every(l => l.includes('chars · asked for by you · About')), ruleRows.slice(0, 2).join(' | '))
-  const heading = m.lines().find(l => l.includes('over the limit, all still loaded')) ?? ''
-  check('the list heading says how full the shelf is and how to trim', /[\d.]+k of [\d.]+k · over the limit, all still loaded · u on a rule unpins it/.test(heading), heading.trim())
+  const heading = m.lines().find(l => l.includes('memory › pinned rules')) ?? ''
+  check('the breadcrumb says how full the shelf is and that all still loads', /memory › pinned rules · [\d.]+k of [\d.]+k · over the limit, all still loaded/.test(heading), heading.trim())
   check('the footer offers u unpin on the row and names /config for the limit', m.lines().some(l => l.includes('u unpin') && l.includes('/config raises the limit')))
   save('memory-pinned-120x40.txt', m.lines())
-  m.push(KEY.down)
-  await settle(60)
-  const selected = m.lines().find(l => l.includes('▸') && l.includes('chars ·')) ?? ''
-  check('a rule row is selected', selected !== '', selected.trim())
+  const selected = m.lines().find(l => l.includes('❯') && l.includes('chars ·')) ?? ''
+  check('the first rule row is selected on entry', selected !== '', selected.trim())
   const selectedWord = /About (\w+):/.exec(selected)?.[1]
   m.push('u')
   const unpinned = await waitFor(() => readPins(dir).length === pinsBefore - 1, 8000)
@@ -217,63 +224,53 @@ section('§5 /memory lists the pinned rules — size, the asked mark, u unpins o
   check('the list says so and no longer shows the rule', m.lines().some(l => l.includes('unpinned')) && !m.lines().some(l => l.includes(`About ${selectedWord}:`)), m.lines().filter(l => l.includes('unpinned')).join(' | '))
   save('memory-pinned-unpin-120x40.txt', m.lines())
   m.push(KEY.esc)
-  await waitFor(() => m.lines().some(l => l.includes('pinned rules:')), 4000)
-  check('esc returns to the overview with the new count', (m.lines().find(l => l.includes('pinned rules:')) ?? '').includes(`pinned rules: ${pinsBefore - 1}`), (m.lines().find(l => l.includes('pinned rules:')) ?? '').trim())
+  await waitFor(() => m.lines().some(l => /pinned rules\s+\d+ ·/.test(l)), 4000)
+  check('esc returns to the overview with the new count', new RegExp(`pinned rules\\s+${pinsBefore - 1} ·`).test(m.lines().find(l => l.includes('pinned rules')) ?? ''), (m.lines().find(l => l.includes('pinned rules')) ?? '').trim())
+  close()
   m.unmount()
   maybeConsolidate({ force: true, dir })
 }
 
 section('§5b /memory lists the topics — one row per index line, as the model reads it; ↵ opens the page')
 {
-  const React = await import('react')
-  const { Box } = await import('../../src/ink.js')
-  const { AppStateProvider } = await import('../../src/state/AppState.js')
-  const { ThemeProvider } = await import('../../src/components/design-system/ThemeProvider.js')
-  const { MemoryCentreView } = await import('../../src/components/memory/MemoryCentreView.js')
   const { readFrontPage } = await import('../../src/mneme/mnemeFrontPage.js')
   const page = readFrontPage(dir) ?? ''
   const indexText = page.slice(page.indexOf('## Index'), page.indexOf('## Pinned'))
   const index = indexText.split('\n').filter(l => l.startsWith('- '))
   check('the front page has at least one topic on its index', index.length >= 1, String(index.length))
-  const element = React.createElement(
-    AppStateProvider as never,
-    {},
-    React.createElement(ThemeProvider as never, {}, React.createElement(Box, { flexDirection: 'column', width: 120, height: 40 }, React.createElement(MemoryCentreView as never, { onClose: () => {} }))),
-  )
-  const m: Mounted = await mountOffscreen(element, 120, 40)
-  await waitFor(() => m.lines().some(l => l.includes('topics:')), 6000)
+  const { m, close } = await mountMemoryPopup()
+  await waitFor(() => m.lines().some(l => /^.*\s+topics\s+\d+ pages?\s/.test(l)), 6000)
   await settle(150)
-  let topicsRow = m.lines().find(l => l.includes('topics:')) ?? ''
+  let topicsRow = m.lines().find(l => /\s+topics\s+\d+ pages?\s/.test(l)) ?? ''
   console.log(`  row: ${topicsRow.trim()}`)
-  check('the overview offers the topic list', new RegExp(`topics: ${index.length} pages? in the index the model reads — ↵ list them`).test(topicsRow), topicsRow.trim())
+  check('the overview counts the pages as a cell and reads indexed', new RegExp(`topics\\s+${index.length} pages?\\s+\\d\\d [A-Z][a-z]{2} \\d\\d:\\d\\d\\s+indexed`).test(topicsRow), topicsRow.trim())
   for (let step = 0; step < 8; step++) {
-    if ((m.lines().find(l => l.includes('topics:')) ?? '').includes('▸')) break
+    if ((m.lines().find(l => /\s+topics\s+\d+ pages?\s/.test(l)) ?? '').includes('❯')) break
     m.push(KEY.down)
     await settle(40)
   }
-  topicsRow = m.lines().find(l => l.includes('topics:')) ?? ''
-  check('the topics row is selectable', topicsRow.includes('▸'), topicsRow.trim())
+  topicsRow = m.lines().find(l => /\s+topics\s+\d+ pages?\s/.test(l)) ?? ''
+  check('the topics row is selectable and the footer offers the list', topicsRow.includes('❯') && m.lines().some(l => l.includes('↵ list the topics')), topicsRow.trim())
   m.push(KEY.enter)
-  const listed = await waitFor(() => m.lines().some(l => l.includes('Topics')) && m.lines().some(l => /on the index, as the model reads (it|them) · ↵ opens the page/.test(l)), 6000)
-  check('↵ lists the topics', listed)
+  const listed = await waitFor(() => m.lines().some(l => /memory › topics · \d+ topics? on the index, as the model reads (it|them)/.test(l)), 6000)
+  check('↵ lists the topics under the breadcrumb', listed)
   await settle(150)
   const indexRows = index.map(line => line.slice(2))
   check('every index line is a row, in the words the model reads', indexRows.every(words => m.lines().some(l => l.includes(words.slice(0, 60)))), indexRows.join(' | '))
   check('the footer says ↵ opens the page', m.lines().some(l => l.includes('↵ open the page')))
   save('memory-topics-120x40.txt', m.lines())
-  m.push(KEY.down)
-  await settle(60)
   m.push(KEY.enter)
-  const opened = await waitFor(() => m.lines().some(l => l.includes('why recalled:')), 6000)
+  const opened = await waitFor(() => m.lines().some(l => l.includes('memory › topics › ')), 6000)
   check('↵ on a topic opens its page', opened)
   await settle(100)
-  check("the detail names the page's facts and shows the page's lines", m.lines().some(l => /\d+ facts? on \d+ pages?/.test(l)) && m.lines().some(l => l.includes('mneme-topic:')) && m.lines().some(l => /│\s+- About \w+:/.test(l)), m.lines().filter(l => l.includes('why recalled')).join(' | '))
+  check("the page names its facts and shows the page's lines as items under their heading", m.lines().some(l => /\d+ facts? · \d+ in history · updated/.test(l)) && m.lines().some(l => /•\s+About \w+:/.test(l)), m.lines().filter(l => l.includes('facts ·')).join(' | '))
   save('memory-topic-page-120x40.txt', m.lines())
   m.push(KEY.esc)
   await settle(100)
   m.push(KEY.esc)
-  await waitFor(() => m.lines().some(l => l.includes('topics:')), 4000)
-  check('esc, esc returns to the overview', (m.lines().find(l => l.includes('topics:')) ?? '').includes('list them'))
+  await waitFor(() => m.lines().some(l => /\s+topics\s+\d+ pages?\s/.test(l)), 4000)
+  check('esc, esc returns to the overview', m.lines().some(l => /\s+topics\s+\d+ pages?\s/.test(l)) && m.lines().some(l => l.includes('facts and decisions')))
+  close()
   m.unmount()
 }
 

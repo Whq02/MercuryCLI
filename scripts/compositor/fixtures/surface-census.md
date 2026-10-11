@@ -64,7 +64,7 @@ the interaction primitives the view actually mounts (1-hop join).
 | /logins | ilist irow | `src/commands/login` |
 | /logout | — | `src/commands/logout` |
 | /mcp | ilist irow | `src/commands/mcp` |
-| /memory | flat irow | `src/commands/memory` |
+| /memory | flat | `src/commands/memory` |
 | /mission | — | `src/commands/mission` |
 | /model | irow | `src/commands/model` |
 | /palette | — | `src/commands/palette` |
