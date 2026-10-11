@@ -12,18 +12,19 @@ import type { Attachment } from './types.js'
 
 export function processAgentMentions(input: string, agents: AgentDefinition[]): Attachment[] {
   return extractAgentMentions(input).flatMap(word => {
-    const known = agents.find(agent => agent.agentType === word.replace('agent-', ''))
+    const type = word.replace('agent-', '')
+    const known = agents.find(agent => agent.agentType === type)
     return known ? [{ type: 'agent_mention' as const, agentType: known.agentType }] : []
   })
 }
 
-async function readMentionedResource(word: string, context: ToolUseContext): Promise<Attachment[]> {
+async function readMentionedResource(word: string, context: ToolUseContext, clients: ToolUseContext['options']['mcpClients']): Promise<Attachment[]> {
   try {
     const colon = word.indexOf(':')
     if (colon < 1 || colon === word.length - 1) return []
     const server = word.slice(0, colon)
     const uri = word.slice(colon + 1)
-    const connection = (context.options.mcpClients || []).find(client => client.name === server)
+    const connection = clients.find(client => client.name === server)
     if (connection?.type !== 'connected') return []
     const info = (context.options.mcpResources?.[server] || []).find(resource => resource.uri === uri)
     if (!info) return []
@@ -40,7 +41,10 @@ async function readMentionedResource(word: string, context: ToolUseContext): Pro
 }
 
 export async function processMcpResourceAttachments(input: string, context: ToolUseContext): Promise<Attachment[]> {
-  return (await Promise.all(extractMcpResourceMentions(input).map(word => readMentionedResource(word, context)))).flat()
+  const mentions = extractMcpResourceMentions(input)
+  if (!mentions.length) return []
+  const clients = context.options.mcpClients || []
+  return (await Promise.all(mentions.map(word => readMentionedResource(word, context, clients)))).flat()
 }
 
 const networkPath = (path: string): boolean => path.startsWith('\\\\') || path.startsWith('//')
@@ -62,7 +66,7 @@ async function fileMention(word: string, context: ToolUseContext, state: ReturnT
     const range = parseAtMentionedFileLines(word)
     const path = expandPath(range.filename)
     if ([range.filename, path].some(networkPath) || isFileReadDenied(path, state.toolPermissionContext)) return []
-    const isDirectory = await stat(path).then(info => info.isDirectory(), () => false)
+    const isDirectory = await stat(path).then(info => info.isDirectory()).catch(() => false)
     if (isDirectory) return directoryMention(path)
     const row = await generateFileAttachment(path, context, 'at-mention', {
       offset: range.lineStart,
