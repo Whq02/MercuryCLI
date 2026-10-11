@@ -217,6 +217,7 @@ if (import.meta.main) {
     const arms = (arm: string): CycleHit[] => hits.filter(h => h.arm === arm)
     const errors = result?.error !== undefined && result.error !== null ? [String((result.error as { message?: unknown }).message ?? '')] : []
     check('the runner booted and the turn settled', init !== null && result !== null, runner.stderr().split('\n').slice(-6).join(' | '))
+    check('the stopped cycle makes no closing ask', fixture.hits.every(h => !h.ask), j(fixture.hits.map(h => [h.n, h.arm, h.ask])))
     check('the model was answered ten Bash and ten Grep calls and never reached its own end: the fixture’s end arm was never asked', arms('bash').length === 10 && arms('grep').length === 10 && arms('end').length === 0, j(hits.map(h => [h.n, h.arm, h.step, h.tools, h.opening])))
     const wire = hits.filter(h => h.arm !== 'svc')
     const answers = distinctAnswers(wire)
