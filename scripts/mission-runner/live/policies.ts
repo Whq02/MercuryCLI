@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto'
+import { VERIFIER_BRIEF } from '../../../src/commands/verify.js'
 import type { HelixFamilyId, HelixTask } from '../corpus/contracts.js'
 
 export interface HelixPolicy {
@@ -48,7 +49,7 @@ export const HELIX_POLICIES: HelixPolicy[] = [
     env: {},
     reviewerArmed: true,
     briefSuffix:
-      ' Before declaring completion, invoke the verifier skill (the Skill tool, skill "verifier") to adversarially review the work against this mission, then address any real findings it reports. End your final message with ONE line of the exact form: REVIEW: accept|revise|reject [reqs: <ids>] [next: <one action>] reflecting the reviewer’s verdict.',
+      ` Before declaring completion, launch an independent crewmate through the Agent tool to adversarially review the work against this mission. Give it the verification brief below, the original task, changed files and approach, then address any real findings it reports. End your final message with ONE line of the exact form: REVIEW: accept|revise|reject [reqs: <ids>] [next: <one action>] reflecting the reviewer’s verdict.\n\nVerification brief for the crewmate:\n${VERIFIER_BRIEF}`,
   },
   {
     id: 'specialist-sol',
