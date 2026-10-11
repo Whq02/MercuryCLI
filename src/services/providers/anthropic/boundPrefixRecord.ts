@@ -6,6 +6,8 @@ import { createAttachmentMessage } from '../../../utils/attachments/orchestrator
 import { logForDebugging } from '../../../utils/debug.js'
 import { armToolRosterRestore, conversationRosterKey, toolRosterLatchFor, type RosterRestore } from '../toolEconomy.js'
 import { getConversationToolSchemas } from '../../../utils/toolSchemaCache.js'
+import { clearSystemPromptSections } from '../../../constants/systemPromptSections.js'
+import { restoreWholeRecordedComposition, staticCompositionChanged } from '../../../prompt/recordedComposition.js'
 
 export interface BoundPrefixRecordOptions {
   rosterOnly?: boolean
@@ -79,15 +81,16 @@ export async function boundPrefixRecordToEmit(
   if (emittedKeys.get(data.boundKey) === signature) return null
   emittedKeys.set(data.boundKey, signature)
   const recorded = [...messages].reverse().map(boundPrefixAttachmentOf).find(record => record?.boundKey === data.boundKey) ?? null
-  if (recorded !== null && rosterSignatureOf(recorded) === signature) return null
+  const compatible = recorded !== null && Array.isArray(recorded.sections) && !staticCompositionChanged(recorded.sections)
+  if (compatible && rosterSignatureOf(recorded) === signature) return null
   return createAttachmentMessage({
     type: 'bound_prefix',
     boundKey: data.boundKey,
     rosterEnabled: data.rosterEnabled,
     roster: data.roster,
-    sections: recorded !== null && Array.isArray(recorded.sections) ? recorded.sections : data.sections,
+    sections: compatible ? recorded.sections : data.sections,
     systemContext:
-      recorded !== null && recorded.systemContext !== null && typeof recorded.systemContext === 'object' && !Array.isArray(recorded.systemContext)
+      compatible && recorded.systemContext !== null && typeof recorded.systemContext === 'object' && !Array.isArray(recorded.systemContext)
         ? recorded.systemContext
         : data.systemContext,
   })
@@ -108,7 +111,14 @@ export function restoreBoundPrefixFromMessages(messages: readonly Message[], opt
   const boundKey = newest.boundKey
   const record = opts?.rosterOnly === true ? null : ([...records].reverse().find(entry => Array.isArray(entry.sections) && entry.sections.length > 0) ?? newest)
 
-  const sections = record !== null && Array.isArray(record.sections) ? (record.sections as BoundPrefixSection[]) : []
+  const recordedSections = record !== null && Array.isArray(record.sections) ? (record.sections as BoundPrefixSection[]) : []
+  const changed = staticCompositionChanged(recordedSections)
+  if (changed) {
+    emittedKeys.delete(boundKey)
+    clearSystemPromptSections()
+    restoreWholeRecordedComposition(boundKey)
+  }
+  const sections = changed ? [] : recordedSections
   for (const section of sections) {
     if (typeof section?.name !== 'string') continue
     setSystemPromptSectionCacheEntry(section.name, section.value ?? null, section.key ?? null)
@@ -133,7 +143,7 @@ export function restoreBoundPrefixFromMessages(messages: readonly Message[], opt
     armToolRosterRestore({ key: entry.boundKey, enabled: entry.rosterEnabled === true, marks })
   }
 
-  const systemContext = record?.systemContext
+  const systemContext = changed ? undefined : record?.systemContext
   if (systemContext !== null && systemContext !== undefined && typeof systemContext === 'object' && !Array.isArray(systemContext)) {
     const cache = getSystemContext.cache as { set?: (key: unknown, value: unknown) => unknown } | undefined
     cache?.set?.(MEMO_KEY, Promise.resolve({ ...(systemContext as Record<string, string>) }))

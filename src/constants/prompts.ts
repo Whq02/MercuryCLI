@@ -2,6 +2,7 @@ import { platform, release, type as osType, version as osVersion } from 'node:os
 import { canAnswerAsks, getOriginalCwd, getSessionId } from '../bootstrap/state.js'
 import { getCwd } from '../utils/cwd.js'
 import { composeSystemPrompt } from '../prompt/composer.js'
+import { recordedComposition, recordCurrentStaticComposition } from '../prompt/recordedComposition.js'
 import type { NamedSection } from '../prompt/mercuryContract.js'
 import {
   MERCURY_CONSTITUTION,
@@ -166,6 +167,12 @@ export async function getSystemPrompt(
   mcpClients?: MCPServerConnection[],
   permissionMode?: import('../types/permissions.js').InternalPermissionMode,
 ): Promise<string[]> {
+  const recorded = recordedComposition(model)
+  if (recorded !== null) {
+    noteSessionEngine(model)
+    return recorded
+  }
+  recordCurrentStaticComposition()
   const layers = promptLayerSet()
   const namelessHead = `Working directory: ${getOriginalCwd()}\nSession date: ${getSessionStartDate()}`
   if (layers === 'whole') return [namelessHead, promptReplacementText()]

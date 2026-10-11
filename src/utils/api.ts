@@ -1,4 +1,5 @@
 import { isEnvTruthy } from './envUtils.js'
+import { isWholeRecordedComposition } from '../prompt/recordedComposition.js'
 import { logForDebugging } from './debug.js'
 import {
   fineGrainedToolStreamingEnabled,
@@ -37,6 +38,7 @@ function joinGroup(blocks: string[]): string {
 }
 
 export function splitSystemPromptBlocks(systemPrompt: readonly string[]): SystemPromptBlock[] {
+  if (isWholeRecordedComposition(systemPrompt)) return systemPrompt.map(text => ({ text, cached: !text.startsWith(BILLING_HEADER_PREFIX) }))
   let attribution: string | undefined
   const rest: string[] = []
   for (const block of systemPrompt) {
@@ -56,6 +58,7 @@ export function appendSystemContext(
   systemPrompt: readonly string[],
   context: Record<string, string>,
 ): string[] {
+  if (isWholeRecordedComposition(systemPrompt)) return [...systemPrompt]
   const line = Object.entries(context)
     .map(([key, value]) => `${key}: ${value}`)
     .join('\n')
