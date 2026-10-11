@@ -23,6 +23,7 @@ export interface ResourceContext {
   owner: OwnerKey
   cwd: string
   getAppState?: () => unknown
+  engineModel?: string
 }
 
 export interface ResourceChild {

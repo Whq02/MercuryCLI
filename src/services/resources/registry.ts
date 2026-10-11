@@ -99,6 +99,7 @@ import { ownerAdapter } from './adapters/owner.js'
 import { executionAdapter } from './adapters/execution.js'
 import { transactionAdapter } from './adapters/transaction.js'
 import { evidenceAdapter } from './adapters/evidence.js'
+import { seatAdapter } from './adapters/seat.js'
 
 for (const adapter of [
   fileAdapter,
@@ -113,6 +114,7 @@ for (const adapter of [
   executionAdapter,
   transactionAdapter,
   evidenceAdapter,
+  seatAdapter,
 ]) {
   registerResourceAdapter(adapter)
 }

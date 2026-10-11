@@ -112,6 +112,7 @@ export const SettingsSchema = lazySchema(() => {
       enabled: z.boolean().optional(),
       directory: z.string().optional().describe('Where memory is written (default under the Mercury config home); ignored when set by checked-in project settings'),
       pinnedLimit: z.number().int().min(1000).optional().describe('How much pinned memory text (characters) loads into every session before Mercury says the shelf is full; every pinned rule still loads past it (default 8000)'),
+      tellEngineSwitch: z.boolean().optional().describe('Tell the model when its engine is switched: with it on, one line reaches the model at the switch naming the new engine and the time; off (the default), a switch is invisible to the model — the /model rows stay your record, and the model learns its engine by reading mercury://seat'),
     }).passthrough().optional(),
     turns: z.object({
       loopGuard: z.boolean().optional().describe('Loop guard turn end: when true, the second detection of one repeated cycle of tool calls (or one chanted stretch of reply text) ends the turn with a loop_stopped result; absent or false, these cycles only draw reminders; headless runs still end after eight consecutive identical failing tool calls'),

@@ -954,6 +954,16 @@ export async function runHeadless(
       logForDebugging(`model switch: the /model rows were not recorded — ${error instanceof Error ? error.message : String(error)}`)
     })
   }
+  const tellSeatEngineSwitch = async (toModel: string): Promise<void> => {
+    const { createEngineSwitchNotice } = await import('../utils/messages/factories.js')
+    const { ledgerClock } = await import('../mneme/ledger.js')
+    const display = modelInfos.find(info => info.value === toModel)?.display_name ?? toModel
+    const notice = createEngineSwitchNotice(toModel, display, ledgerClock())
+    messages.push(notice)
+    await recordTranscript([notice], undefined, messages).catch((error: unknown) => {
+      logForDebugging(`model switch: the engine notice was not recorded — ${error instanceof Error ? error.message : String(error)}`)
+    })
+  }
 
   const applySeatModel = async (model: string): Promise<void> => {
     const previous = activeModel ?? getEngineModel()
@@ -961,7 +971,10 @@ export async function runHeadless(
     setEngineModelOverride(model)
     saveSessionModel(model)
     notifySessionStateChanged('idle')
-    if (model !== previous) await injectModelSwitchBreadcrumbs(model)
+    if (model !== previous) {
+      await injectModelSwitchBreadcrumbs(model)
+      if (getSettingsWithSources().effective.memory?.tellEngineSwitch === true) await tellSeatEngineSwitch(model)
+    }
   }
   const applySeatEffort = (effort: string): void => {
     if (!isEffortLevel(effort)) return
