@@ -23,6 +23,17 @@ const outputSchema = lazySchema(() => {
 type OutputSchema = ReturnType<typeof outputSchema>
 export type Output = z.infer<OutputSchema>
 
+const TASK_ROW_TAILS: ReadonlyArray<(task: Output['tasks'][number]) => string | null> = [
+  task => (task.owner ? `(${task.owner})` : null),
+  task => (task.blockedBy.length > 0 ? `[blocked by ${task.blockedBy.map(id => `#${id}`).join(', ')}]` : null),
+]
+
+function taskRow(task: Output['tasks'][number]): string {
+  const head = `#${task.id} [${task.status}] ${task.subject}`
+  const tails = TASK_ROW_TAILS.map(tail => tail(task)).filter((part): part is string => part !== null)
+  return [head, ...tails].join(' ')
+}
+
 export const TaskListTool = buildTool({
   name: TASK_LIST_TOOL_NAME,
   searchHint: 'list all tasks in the task list',
@@ -58,17 +69,7 @@ export const TaskListTool = buildTool({
     return { data: { tasks } satisfies Output }
   },
   mapToolResultToToolResultBlockParam(output: Output, toolUseID: string) {
-    const content =
-      output.tasks.length === 0
-        ? 'No tasks found'
-        : output.tasks
-            .map(task => {
-              const owner = task.owner ? ` (${task.owner})` : ''
-              const blocked =
-                task.blockedBy.length > 0 ? ` [blocked by ${task.blockedBy.map(id => `#${id}`).join(', ')}]` : ''
-              return `#${task.id} [${task.status}] ${task.subject}${owner}${blocked}`
-            })
-            .join('\n')
+    const content = output.tasks.length === 0 ? 'No tasks found' : output.tasks.map(taskRow).join('\n')
     return {
       tool_use_id: toolUseID,
       type: 'tool_result' as const,
