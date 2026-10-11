@@ -5,6 +5,7 @@ const root = resolve(process.argv[2] ?? new URL('../..', import.meta.url).pathna
 const merge = await import(`${root}/src/utils/messages/merge.ts`)
 const view = await import(`${root}/src/utils/messages/apiView.ts`)
 const cache = await import(`${root}/src/services/providers/anthropic/cacheAndUsage.ts`)
+const params = await import(`${root}/src/services/providers/anthropic/requestParams.ts`)
 const caps = await import(`${root}/src/utils/model/capabilities.ts`)
 const state = await import(`${root}/src/bootstrap/state.ts`)
 const filters = await import(`${root}/src/utils/messages/apiFilters.ts`)
@@ -98,6 +99,16 @@ check('cache edit dedup ignores sparse slots and stamps a copied dense prefix', 
   assert.equal(0 in stamped[0].content, true)
   assert.equal(stamped[0].content[1].cache_reference, 'x')
   assert.equal(0 in blocks, false)
+})
+check('extra-body headers materialize holes in a caller-mutated cached header array', () => {
+  process.env.MERCURY_EXTRA_BODY = '{"anthropic_beta":["gone","kept"],"proof":"sparse-cached"}'
+  try {
+    const first = params.getExtraBodyParams()
+    delete first.anthropic_beta[0]
+    const out = params.getExtraBodyParams(['added'])
+    assert.equal(0 in out.anthropic_beta, true)
+    assert.deepEqual(out.anthropic_beta, [undefined, 'kept', 'added'])
+  } finally { delete process.env.MERCURY_EXTRA_BODY }
 })
 check('SDK header holes are ignored while duplicates are retained', () => {
   const headers = new Array(3); headers[1] = 'edge-beta'; headers[2] = 'edge-beta'

@@ -55,7 +55,7 @@ export function getExtraBodyParams(betaHeaders?: string[]): JsonObject {
   if (!betaHeaders?.length) return body
   const previous = body.anthropic_beta
   body.anthropic_beta = Array.isArray(previous)
-    ? previous.concat(betaHeaders.filter(header => !previous.includes(header))) : betaHeaders
+    ? [...previous, ...betaHeaders.filter(header => !previous.includes(header))] : betaHeaders
   return body
 }
 
