@@ -307,35 +307,31 @@ export function subscribeGlobalConfigCache(listener: () => void): () => void {
   }
 }
 
+function acceptConfigRefresh(content: string, stamp: number): void {
+  if (stamp <= globalConfigCache.mtime) return
+  const fields = safeParseJSON(stripBOM(content))
+  if (fields === null || typeof fields !== 'object') return
+  const config = foldPendingUpdaters({ ...createDefaultGlobalConfig(), ...(decodeGlobalConfigFields(fields) as Partial<GlobalConfig>) })
+  globalConfigCache = { config, mtime: stamp }
+  notifyGlobalConfigCache()
+}
+
+function configRefreshListener(file: string): (current: { mtimeMs: number }) => void {
+  return current => {
+    if (current.mtimeMs <= globalConfigCache.mtime) return
+    void getFsImplementation().readFile(file, { encoding: 'utf-8' })
+      .then(content => acceptConfigRefresh(content, current.mtimeMs))
+      .catch(() => {})
+  }
+}
+
 function startGlobalConfigFreshnessWatcher(): void {
-  if (freshnessWatcherStarted || process.env.NODE_ENV === 'test') return
+  if (process.env.NODE_ENV === 'test' || freshnessWatcherStarted) return
   freshnessWatcherStarted = true
-  const file = getGlobalMercuryFile()
-  watchFile(
-    file,
-    { interval: CONFIG_FRESHNESS_POLL_MS, persistent: false },
-    curr => {
-      if (curr.mtimeMs <= globalConfigCache.mtime) return
-      void getFsImplementation()
-        .readFile(file, { encoding: 'utf-8' })
-        .then(content => {
-          if (curr.mtimeMs <= globalConfigCache.mtime) return
-          const parsed = safeParseJSON(stripBOM(content))
-          if (parsed === null || typeof parsed !== 'object') return
-          globalConfigCache = {
-            config: foldPendingUpdaters({
-              ...createDefaultGlobalConfig(),
-              ...(decodeGlobalConfigFields(parsed) as Partial<GlobalConfig>),
-            }),
-            mtime: curr.mtimeMs,
-          }
-          notifyGlobalConfigCache()
-        })
-        .catch(() => {})
-    },
-  )
+  const path = getGlobalMercuryFile()
+  watchFile(path, { interval: CONFIG_FRESHNESS_POLL_MS, persistent: false }, configRefreshListener(path))
   registerCleanup(async () => {
-    unwatchFile(file)
+    unwatchFile(path)
     freshnessWatcherStarted = false
   })
 }
