@@ -11,9 +11,7 @@ import {
   type UserMessage,
 } from '../../../types/message.js'
 import type { ApiMessageDeltaUsage, ApiUsage } from '../../../types/wire.js'
-import { getCLISyspromptPrefix } from '../../../constants/system.js'
-import { promptLayersCarryIdentity } from '../../../prompt/mercuryContract.js'
-import { splitSysPromptPrefix } from '../../../utils/api.js'
+import { splitSystemPromptBlocks } from '../../../utils/api.js'
 import { insertBlockAfterToolResults } from '../../../utils/contentArray.js'
 import { asSystemPrompt, type SystemPrompt } from '../../../utils/systemPromptType.js'
 import { pinCacheEdits } from '../../compact/microCompact.js'
@@ -262,7 +260,7 @@ export function buildSystemPromptBlocks(
   systemPrompt: SystemPrompt,
   enablePromptCaching: boolean,
 ): TextBlockParam[] {
-  return splitSysPromptPrefix(systemPrompt).map(block => {
+  return splitSystemPromptBlocks(systemPrompt).map(block => {
     return {
       type: 'text' as const,
       text: block.text,
@@ -274,25 +272,17 @@ export function buildSystemPromptBlocks(
   })
 }
 
-export type SystemPromptPosture = {
-  isNonInteractive: boolean
-  hasAppendSystemPrompt: boolean
-}
-
 export function assembleTurnSystemPrompt(
   attribution: string,
   systemPrompt: SystemPrompt,
-  posture: SystemPromptPosture,
 ): SystemPrompt {
-  const prefix = promptLayersCarryIdentity() ? getCLISyspromptPrefix(posture) : ''
-  return asSystemPrompt([attribution, prefix, ...systemPrompt].filter(Boolean))
+  return asSystemPrompt([attribution, ...systemPrompt].filter(Boolean))
 }
 
 export function buildTurnSystemBlocks(
   attribution: string,
   systemPrompt: SystemPrompt,
-  posture: SystemPromptPosture,
   enablePromptCaching: boolean,
 ): TextBlockParam[] {
-  return buildSystemPromptBlocks(assembleTurnSystemPrompt(attribution, systemPrompt, posture), enablePromptCaching)
+  return buildSystemPromptBlocks(assembleTurnSystemPrompt(attribution, systemPrompt), enablePromptCaching)
 }

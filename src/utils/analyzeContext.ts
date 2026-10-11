@@ -370,10 +370,6 @@ async function countSystemPrompt(
   const requestSystem = buildTurnSystemBlocks(
     getAttributionHeader(computeFingerprintFromMessages(messages)),
     asSystemPrompt(appendSystemContext(effective, systemContext)),
-    {
-      isNonInteractive: options?.isNonInteractiveSession === true,
-      hasAppendSystemPrompt: Boolean(options?.appendSystemPrompt),
-    },
     getPromptCachingEnabled(runtimeModel),
   )
   if (parts.length === 0 && contextEntries.length === 0) {
