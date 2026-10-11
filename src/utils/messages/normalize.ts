@@ -1,4 +1,3 @@
-
 import type { ContentBlock, ContentBlockParam, ToolResultBlockParam, ToolUseBlock } from '../../types/wire.js'
 import type {
   AssistantMessage,
@@ -18,158 +17,109 @@ export function contentBlocksOf(content: unknown): (ContentBlock | ContentBlockP
 
 export let _normalizePassesForProof = 0
 
-const NORMALIZED_BY_MESSAGE = new WeakMap<
-  Message,
-  { chained?: NormalizedMessage[]; unchained?: NormalizedMessage[] }
->()
+type RowsByLatch = { chained?: NormalizedMessage[]; unchained?: NormalizedMessage[] }
 
-function normalizedCacheGet(
-  message: Message,
-  chained: boolean,
-): NormalizedMessage[] | undefined {
-  const slot = NORMALIZED_BY_MESSAGE.get(message)
-  return slot === undefined ? undefined : chained ? slot.chained : slot.unchained
+const ROWS_OF_PARENT = new WeakMap<Message, RowsByLatch>()
+
+function remembered(parent: Message, latched: boolean, mint: () => NormalizedMessage[]): NormalizedMessage[] {
+  let slot = ROWS_OF_PARENT.get(parent)
+  if (!slot) ROWS_OF_PARENT.set(parent, (slot = {}))
+  const key = latched ? 'chained' : 'unchained'
+  return (slot[key] ??= mint())
 }
 
-function normalizedCacheSet(
-  message: Message,
-  chained: boolean,
-  rows: NormalizedMessage[],
-): void {
-  let slot = NORMALIZED_BY_MESSAGE.get(message)
-  if (slot === undefined) {
-    slot = {}
-    NORMALIZED_BY_MESSAGE.set(message, slot)
+const uuidOfRow = (parent: Message, latched: boolean, index: number): string =>
+  latched ? deriveUUID(parent.uuid, index) : parent.uuid
+
+function assistantRows(parent: AssistantMessage, blocks: (ContentBlock | ContentBlockParam)[], latched: boolean): NormalizedMessage[] {
+  return blocks.map(
+    (block, index) =>
+      ({
+        type: 'assistant' as const,
+        timestamp: parent.timestamp,
+        message: { ...parent.message, content: [block], context_management: parent.message.context_management ?? null },
+        isMeta: parent.isMeta,
+        isVirtual: parent.isVirtual,
+        requestId: parent.requestId,
+        uuid: uuidOfRow(parent, latched, index),
+        error: parent.error,
+        isApiErrorMessage: parent.isApiErrorMessage,
+      }) as NormalizedAssistantMessage,
+  )
+}
+
+function userTextRow(parent: UserMessage, text: string, latched: boolean): NormalizedMessage[] {
+  return [
+    {
+      ...parent,
+      uuid: uuidOfRow(parent, latched, 0),
+      message: { ...parent.message, content: [{ type: 'text', text }] },
+    } as NormalizedMessage,
+  ]
+}
+
+function userBlockRows(parent: UserMessage, blocks: (ContentBlock | ContentBlockParam)[], latched: boolean): NormalizedMessage[] {
+  let imagesSeen = 0
+  const dress = {
+    ...(parent.queued === true ? { queued: true as const } : {}),
+    ...(parent.heldFor === 'compaction' ? { heldFor: 'compaction' as const } : {}),
   }
-  if (chained) slot.chained = rows
-  else slot.unchained = rows
+  return blocks.map((block, index) => {
+    const pasteId = block.type === 'image' && parent.imagePasteIds ? parent.imagePasteIds[imagesSeen++] : undefined
+    return {
+      ...createUserMessage({
+        content: [block],
+        toolUseResult: parent.toolUseResult,
+        mcpMeta: parent.mcpMeta,
+        isMeta: parent.isMeta,
+        isVisibleInTranscriptOnly: parent.isVisibleInTranscriptOnly,
+        isVirtual: parent.isVirtual,
+        timestamp: parent.timestamp,
+        imagePasteIds: pasteId !== undefined ? [pasteId] : undefined,
+        origin: parent.origin,
+      }),
+      ...dress,
+      uuid: uuidOfRow(parent, latched, index),
+    } as NormalizedMessage
+  })
 }
 
-export function normalizeMessages(
-  messages: AssistantMessage[],
-): NormalizedAssistantMessage[]
-export function normalizeMessages(
-  messages: UserMessage[],
-): NormalizedUserMessage[]
-export function normalizeMessages(
-  messages: (AssistantMessage | UserMessage)[],
-): (NormalizedAssistantMessage | NormalizedUserMessage)[]
+export function normalizeMessages(messages: AssistantMessage[]): NormalizedAssistantMessage[]
+export function normalizeMessages(messages: UserMessage[]): NormalizedUserMessage[]
+export function normalizeMessages(messages: (AssistantMessage | UserMessage)[]): (NormalizedAssistantMessage | NormalizedUserMessage)[]
 export function normalizeMessages(messages: Message[]): NormalizedMessage[]
 export function normalizeMessages(messages: Message[]): NormalizedMessage[] {
   _normalizePassesForProof++
-  let isNewChain = false
-  return messages.flatMap(message => {
-    switch (message.type) {
-      case 'assistant': {
-        const content = contentBlocksOf(message.message.content)
-        isNewChain = isNewChain || content.length > 1
-        const cached = normalizedCacheGet(message, isNewChain)
-        if (cached !== undefined) return cached
-        const rows = content.map((block, index) => {
-          const uuid = isNewChain
-            ? deriveUUID(message.uuid, index)
-            : message.uuid
-          return {
-            type: 'assistant' as const,
-            timestamp: message.timestamp,
-            message: {
-              ...message.message,
-              content: [block],
-              context_management: message.message.context_management ?? null,
-            },
-            isMeta: message.isMeta,
-            isVirtual: message.isVirtual,
-            requestId: message.requestId,
-            uuid,
-            error: message.error,
-            isApiErrorMessage: message.isApiErrorMessage,
-          } as NormalizedAssistantMessage
-        })
-        normalizedCacheSet(message, isNewChain, rows)
-        return rows
-      }
-      case 'attachment':
-      case 'progress':
-      case 'system':
-        return [message]
-      case 'user': {
-        if (typeof message.message.content === 'string') {
-          const cachedString = normalizedCacheGet(message, isNewChain)
-          if (cachedString !== undefined) return cachedString
-          const uuid = isNewChain ? deriveUUID(message.uuid, 0) : message.uuid
-          const rows = [
-            {
-              ...message,
-              uuid,
-              message: {
-                ...message.message,
-                content: [{ type: 'text', text: message.message.content }],
-              },
-            } as NormalizedMessage,
-          ]
-          normalizedCacheSet(message, isNewChain, rows)
-          return rows
-        }
-        const content = contentBlocksOf(message.message.content)
-        isNewChain = isNewChain || content.length > 1
-        const cached = normalizedCacheGet(message, isNewChain)
-        if (cached !== undefined) return cached
-        let imageIndex = 0
-        const rows = content.map((block, index) => {
-          const isImage = block.type === 'image'
-          const imageId =
-            isImage && message.imagePasteIds
-              ? message.imagePasteIds[imageIndex]
-              : undefined
-          if (isImage) imageIndex++
-          return {
-            ...createUserMessage({
-              content: [block],
-              toolUseResult: message.toolUseResult,
-              mcpMeta: message.mcpMeta,
-              isMeta: message.isMeta,
-              isVisibleInTranscriptOnly: message.isVisibleInTranscriptOnly,
-              isVirtual: message.isVirtual,
-              timestamp: message.timestamp,
-              imagePasteIds: imageId !== undefined ? [imageId] : undefined,
-              origin: message.origin,
-            }),
-            ...(message.queued === true ? { queued: true as const } : {}),
-            ...(message.heldFor === 'compaction' ? { heldFor: 'compaction' as const } : {}),
-            uuid: isNewChain ? deriveUUID(message.uuid, index) : message.uuid,
-          } as NormalizedMessage
-        })
-        normalizedCacheSet(message, isNewChain, rows)
-        return rows
-      }
+  let latched = false
+  const widen = (blocks: unknown[]): boolean => (latched ||= blocks.length > 1)
+  const rowsOf = (message: Message): NormalizedMessage[] => {
+    if (message.type === 'assistant') {
+      const blocks = contentBlocksOf(message.message.content)
+      return remembered(message, widen(blocks), () => assistantRows(message, blocks, latched))
     }
-  })
+    if (message.type !== 'user') return [message]
+    const content = message.message.content
+    if (typeof content === 'string') return remembered(message, latched, () => userTextRow(message, content, latched))
+    const blocks = contentBlocksOf(content)
+    return remembered(message, widen(blocks), () => userBlockRows(message, blocks, latched))
+  }
+  return messages.flatMap(rowsOf)
 }
 
 export type ToolUseRequestMessage = NormalizedAssistantMessage & {
   message: { content: [ToolUseBlock] }
 }
 
-export function isToolUseRequestMessage(
-  message: Message,
-): message is ToolUseRequestMessage {
-  return (
-    message.type === 'assistant' &&
-    contentBlocksOf(message.message.content).some(block => block.type === 'tool_use')
-  )
+export function isToolUseRequestMessage(message: Message): message is ToolUseRequestMessage {
+  return message.type === 'assistant' && contentBlocksOf(message.message.content).some(block => block.type === 'tool_use')
 }
 
 export type ToolUseResultMessage = NormalizedUserMessage & {
   message: { content: [ToolResultBlockParam] }
 }
 
-export function isToolUseResultMessage(
-  message: Message,
-): message is ToolUseResultMessage {
-  return (
-    message.type === 'user' &&
-    ((Array.isArray(message.message.content) &&
-      message.message.content[0]?.type === 'tool_result') ||
-      Boolean(message.toolUseResult))
-  )
+export function isToolUseResultMessage(message: Message): message is ToolUseResultMessage {
+  if (message.type !== 'user') return false
+  const content = message.message.content
+  return (Array.isArray(content) && content[0]?.type === 'tool_result') || Boolean(message.toolUseResult)
 }

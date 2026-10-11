@@ -2,7 +2,6 @@ import { normalize } from 'node:path'
 
 import { LRUCache } from 'lru-cache'
 
-
 export type FileState = {
   content: string
   timestamp: number
@@ -14,88 +13,84 @@ export type FileState = {
 export const READ_FILE_STATE_CACHE_SIZE = 100
 const DEFAULT_MAX_SIZE_BYTES = 25 * 1024 * 1024
 
-function entrySize(state: FileState): number {
-  return Math.max(1, Buffer.byteLength(state.content))
-}
+type Snapshot = Array<[string, LRUCache.Entry<FileState>]>
+
+const weightOf = ({ content }: FileState): number => Math.max(1, Buffer.byteLength(content))
+
+const boundedStore = (max: number, maxSize: number): LRUCache<string, FileState> =>
+  new LRUCache<string, FileState>({ max, maxSize, sizeCalculation: weightOf })
 
 export class FileStateCache {
-  private readonly cache: LRUCache<string, FileState>
-  readonly max: number
-  readonly maxSize: number
+  private readonly store: LRUCache<string, FileState>
 
   constructor(maxEntries: number, maxSizeBytes: number) {
-    this.max = maxEntries
-    this.maxSize = maxSizeBytes
-    this.cache = new LRUCache<string, FileState>({
-      max: maxEntries,
-      maxSize: maxSizeBytes,
-      sizeCalculation: entrySize,
-    })
+    this.store = boundedStore(maxEntries, maxSizeBytes)
   }
 
-  private key(path: string): string {
-    return normalize(path)
+  get max(): number {
+    return this.store.max
+  }
+
+  get maxSize(): number {
+    return this.store.maxSize
+  }
+
+  get size(): number {
+    return this.store.size
+  }
+
+  get calculatedSize(): number {
+    return this.store.calculatedSize
   }
 
   get(path: string): FileState | undefined {
-    return this.cache.get(this.key(path))
+    return this.store.get(normalize(path))
   }
 
   set(path: string, state: FileState): this {
-    this.cache.set(this.key(path), state)
+    this.store.set(normalize(path), state)
     return this
   }
 
   has(path: string): boolean {
-    return this.cache.has(this.key(path))
+    return this.store.has(normalize(path))
   }
 
   delete(path: string): boolean {
-    return this.cache.delete(this.key(path))
+    return this.store.delete(normalize(path))
   }
 
   clear(): void {
-    this.cache.clear()
-  }
-
-  get size(): number {
-    return this.cache.size
-  }
-
-  get calculatedSize(): number {
-    return this.cache.calculatedSize
+    this.store.clear()
   }
 
   keys(): IterableIterator<string> {
-    return this.cache.keys()
+    return this.store.keys()
   }
 
   entries(): IterableIterator<[string, FileState]> {
-    return this.cache.entries()
+    return this.store.entries()
   }
 
-  dump(): Array<[string, LRUCache.Entry<FileState>]> {
-    return this.cache.dump()
+  dump(): Snapshot {
+    return this.store.dump()
   }
 
-  load(entries: Array<[string, LRUCache.Entry<FileState>]>): void {
-    this.cache.load(entries)
+  load(entries: Snapshot): void {
+    this.store.load(entries)
   }
 }
 
-export function createFileStateCacheWithSizeLimit(
-  maxEntries: number,
-  maxSizeBytes: number = DEFAULT_MAX_SIZE_BYTES,
-): FileStateCache {
+export function createFileStateCacheWithSizeLimit(maxEntries: number, maxSizeBytes: number = DEFAULT_MAX_SIZE_BYTES): FileStateCache {
   return new FileStateCache(maxEntries, maxSizeBytes)
 }
 
 export function cacheKeys(cache: FileStateCache): string[] {
-  return [...cache.keys()]
+  return Array.from(cache.keys())
 }
 
 export function cloneFileStateCache(cache: FileStateCache): FileStateCache {
-  const clone = new FileStateCache(cache.max, cache.maxSize)
+  const clone = createFileStateCacheWithSizeLimit(cache.max, cache.maxSize)
   clone.load(cache.dump())
   return clone
 }

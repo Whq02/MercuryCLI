@@ -9,7 +9,6 @@ import { getMercuryHome } from './envUtils.js'
 import { isFsInaccessible } from './errors.js'
 import { isProcessRunning } from './genericProcessUtils.js'
 
-
 type SessionKind = 'interactive' | 'bg' | 'daemon'
 
 type SessionRecord = {
@@ -23,97 +22,83 @@ type SessionRecord = {
   bridgeSessionId?: string | null
 }
 
-function sessionsDir(): string {
-  return join(getMercuryHome(), 'sessions')
+const PRIVATE_DIR = 0o700
+const PRIVATE_FILE = 0o600
+const RECORD_NAME = /^(\d+)\.json$/
+
+const sessionsDir = (): string => join(getMercuryHome(), 'sessions')
+const recordPathOf = (pid: number): string => join(sessionsDir(), `${pid}.json`)
+
+const note = (what: string, err: unknown): void => logForDebugging(`concurrentSessions: ${what}: ${String(err)}`)
+
+const unlinkQuietly = async (path: string): Promise<void> => {
+  try {
+    await unlink(path)
+  } catch {}
 }
 
-function ownSessionFile(): string {
-  return join(sessionsDir(), `${process.pid}.json`)
+const writeOwnRecord = (record: SessionRecord): Promise<void> =>
+  writeFile(recordPathOf(process.pid), JSON.stringify(record), { mode: PRIVATE_FILE })
+
+async function patchOwnRecord(patch: Partial<SessionRecord>): Promise<void> {
+  try {
+    const current = JSON.parse(await readFile(recordPathOf(process.pid), 'utf8')) as SessionRecord
+    await writeOwnRecord({ ...current, ...patch })
+  } catch (err) {
+    note('patch failed', err)
+  }
 }
+
+const ownRecord = (): SessionRecord => ({
+  pid: process.pid,
+  sessionId: getSessionId(),
+  cwd: getOriginalCwd(),
+  startedAt: Date.now(),
+  kind: 'interactive',
+  entrypoint: process.env.MERCURY_ENTRYPOINT,
+})
 
 export async function registerSession(): Promise<boolean> {
-  const filePath = ownSessionFile()
-  registerCleanup(async () => {
-    try {
-      await unlink(filePath)
-    } catch {
-    }
-  })
+  registerCleanup(() => unlinkQuietly(recordPathOf(process.pid)))
   try {
-    const dir = sessionsDir()
-    await mkdir(dir, { recursive: true, mode: 0o700 })
-    await chmod(dir, 0o700)
-    const record: SessionRecord = {
-      pid: process.pid,
-      sessionId: getSessionId(),
-      cwd: getOriginalCwd(),
-      startedAt: Date.now(),
-      kind: 'interactive',
-      entrypoint: process.env.MERCURY_ENTRYPOINT,
-    }
-    await writeFile(filePath, JSON.stringify(record), { mode: 0o600 })
-    onSessionSwitch(id => {
-      void patchSessionRecord({ sessionId: id })
-    })
+    await mkdir(sessionsDir(), { recursive: true, mode: PRIVATE_DIR })
+    await chmod(sessionsDir(), PRIVATE_DIR)
+    await writeOwnRecord(ownRecord())
+    onSessionSwitch(sessionId => void patchOwnRecord({ sessionId }))
     return true
   } catch (err) {
-    logForDebugging(`concurrentSessions: registration failed: ${String(err)}`)
+    note('registration failed', err)
     return false
   }
 }
 
-async function patchSessionRecord(patch: Partial<SessionRecord>): Promise<void> {
-  try {
-    const filePath = ownSessionFile()
-    const current = JSON.parse(await readFile(filePath, 'utf8')) as SessionRecord
-    await writeFile(filePath, JSON.stringify({ ...current, ...patch }), { mode: 0o600 })
-  } catch (err) {
-    logForDebugging(`concurrentSessions: patch failed: ${String(err)}`)
-  }
-}
-
 export async function updateSessionName(name: string | undefined): Promise<void> {
-  if (!name) return
-  await patchSessionRecord({ name })
-}
-
-export async function updateSessionId(sessionId: string): Promise<void> {
-  if (!sessionId) return
-  await patchSessionRecord({ sessionId })
+  if (name) await patchOwnRecord({ name })
 }
 
 export async function updateSessionBridgeId(bridgeSessionId: string | null): Promise<void> {
-  await patchSessionRecord({ bridgeSessionId })
+  await patchOwnRecord({ bridgeSessionId })
 }
 
-export async function countConcurrentSessions(): Promise<number> {
-  let entries: string[]
+async function recordedPids(): Promise<number[]> {
   try {
-    entries = await readdir(sessionsDir())
+    return (await readdir(sessionsDir())).flatMap(entry => {
+      const digits = RECORD_NAME.exec(entry)?.[1]
+      return digits === undefined ? [] : [Number(digits)]
+    })
   } catch (err) {
-    if (!isFsInaccessible(err)) {
-      logForDebugging(`concurrentSessions: could not list sessions dir: ${String(err)}`)
-    }
-    return 0
+    if (!isFsInaccessible(err)) note('could not list sessions dir', err)
+    return []
   }
-  let count = 0
-  for (const entry of entries) {
-    const match = /^(\d+)\.json$/.exec(entry)
-    if (!match) continue
-    const pid = Number(match[1])
-    if (pid === process.pid) {
-      count++
-      continue
-    }
-    if (isProcessRunning(pid)) {
-      count++
-      continue
-    }
-    if (getPlatform() === 'wsl') continue
-    try {
-      await unlink(join(sessionsDir(), entry))
-    } catch {
-    }
+}
+
+const isLive = (pid: number): boolean => pid === process.pid || isProcessRunning(pid)
+
+export async function countConcurrentSessions(): Promise<number> {
+  const pids = await recordedPids()
+  const live = pids.filter(isLive)
+  if (getPlatform() !== 'wsl') {
+    for (const pid of pids) if (!isLive(pid)) await unlinkQuietly(recordPathOf(pid))
   }
-  return count
+  return live.length
 }

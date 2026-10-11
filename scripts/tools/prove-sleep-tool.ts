@@ -10,9 +10,9 @@ delete process.env.MERCURY_HOME
 const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..')
 const TOOLS = readFileSync(join(root, 'src/tools.ts'), 'utf-8')
 const SLEEP = readFileSync(join(root, 'src/tools/SleepTool/SleepTool.tsx'), 'utf-8')
-const ROSTER = readFileSync(join(root, 'src/constants/tools.ts'), 'utf-8')
+const { ALL_AGENT_DISALLOWED_TOOLS, ASYNC_AGENT_ALLOWED_TOOLS } = await import('../../src/constants/tools.ts')
+const { SLEEP_TOOL_NAME } = await import('../../src/tools/SleepTool/prompt.ts')
 const AGENT_FILTER = readFileSync(join(root, 'src/tools/AgentTool/agentToolUtils.ts'), 'utf-8')
-const blockOf = (text: string, name: string): string => text.split(`export const ${name}`)[1]?.split('])')[0] ?? ''
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
@@ -49,9 +49,9 @@ check("the seconds parameter's own words name both bounds and say a value outsid
 check('cleans up the timer + listener (no leak)',
   /clearTimeout\(timer\)/.test(SLEEP) && /removeEventListener\('abort'/.test(SLEEP))
 check("a sub-agent's roster: Sleep is not in the deny set every agent loses",
-  !blockOf(ROSTER, 'ALL_AGENT_DISALLOWED_TOOLS').includes('SLEEP_TOOL_NAME'))
+  !ALL_AGENT_DISALLOWED_TOOLS.has(SLEEP_TOOL_NAME))
 check("a BACKGROUND crewmate's roster keeps the async allow-set alone, and Sleep is in it",
-  AGENT_FILTER.includes('if (isAsync) {\n      return ASYNC_AGENT_ALLOWED_TOOLS.has(tool.name)') && blockOf(ROSTER, 'ASYNC_AGENT_ALLOWED_TOOLS').includes('SLEEP_TOOL_NAME,'))
+  AGENT_FILTER.includes('if (isAsync) {\n      return ASYNC_AGENT_ALLOWED_TOOLS.has(tool.name)') && ASYNC_AGENT_ALLOWED_TOOLS.has(SLEEP_TOOL_NAME))
 check("a sub-agent's wait shadows the background shells it owns, by the spawning agent's id",
   /SUBAGENT_TRACKED_TASK_TYPES[\s\S]*?\['local_bash',/.test(SLEEP) && /SUBAGENT_TRACKED_TASK_TYPES\.has\(t\.type\) && t\.agentId === selfTaskId/.test(SLEEP))
 check("the sub-agent's ceiling is the same one (one MAX_SLEEP_SECONDS)",
