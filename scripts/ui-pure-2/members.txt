@@ -52,6 +52,7 @@ prove-vim-input-mode-follow.ts
 prove-prompt-suggestion-stamps.ts
 prove-copy-on-select-latch.ts
 prove-rejected-edit-row.ts
+prove-local-command-output-row.ts
 prove-select-scroll-drive-hints.ts
 prove-selection-drag-coalesce.ts
 prove-selection-pointer.ts
