@@ -13,7 +13,7 @@ process.env.ANTHROPIC_API_KEY = 'sk-ant-fixture-not-a-real-key'
 delete process.env.MERCURY_THINKING_BINDING
 delete process.env.ANTHROPIC_BASE_URL
 
-import { startFixtureApi, type FixtureApi, type ScriptedTurn } from '../lib/fixtureApi.ts'
+import { startFixtureApi, type FixtureApi, type ScriptedTurn, handoffTurn, isHandoffRequest } from '../lib/fixtureApi.ts'
 
 const ROOT = resolve(import.meta.dir, '..', '..')
 const DIST = join(ROOT, 'dist', 'mercury.mjs')
@@ -340,6 +340,9 @@ if (!existsSync(DIST)) {
       { kind: 'text', text: 'B-TURN-1-DONE', thinking: 'the note is read', inputTransformations: [] },
       { kind: 'text', text: 'B-TURN-2-DONE', thinking: 'second turn' },
       { kind: 'text', text: 'B-TURN-3-DONE', inputTransformations: [DROP] },
+      handoffTurn(),
+      handoffTurn(),
+      handoffTurn(),
     ]
     const fixture = await startFixtureApi(turns)
     const arena = makeArena(fixture)
@@ -358,8 +361,8 @@ if (!existsSync(DIST)) {
     check('turn 3 (resumed) exit 0', r3.exit === 0, `exit=${r3.exit} stderr=${r3.stderr.slice(0, 300)}`)
     check('turn 3 answered — a completed outcome row carrying the answer', answeredWith(r3.stdout, 'B-TURN-3-DONE'), j(r3.stdout.slice(0, 200)))
 
-    const reqs = fixture.messageRequests()
-    check('four message requests: two for the tool round, one per resumed turn', reqs.length === 4, String(reqs.length))
+    const reqs = fixture.messageRequests().filter(q => !isHandoffRequest(q))
+    check('four message requests: two for the tool round, one per resumed turn (the session\'s closing ask set aside)', reqs.length === 4, String(reqs.length))
 
     for (let i = 0; i < reqs.length; i++) {
       const body = reqs[i]!.body as Body

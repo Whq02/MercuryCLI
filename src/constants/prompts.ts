@@ -385,7 +385,7 @@ export async function getSystemPrompt(
     ),
     keyedSystemPromptSection(
       'entry_page',
-      () => (mnemeEnabled() ? String(getSessionId()) : 'off'),
+      () => (mnemeEnabled() ? 'page' : 'off'),
       () => composeEntryPage(mnemeProjectKey(), String(getSessionId())),
     ),
     keyedSystemPromptSection(
