@@ -405,15 +405,8 @@ function pidFieldsOf(pid: number | undefined): { pid?: number; procStart?: strin
   return { pid, ...(token !== null && token !== '' ? { procStart: token } : {}) }
 }
 
-export function workerPidAlive(rec: { pid?: number; procStart?: string }): boolean {
-  if (rec.pid === undefined || !isProcessAlive(rec.pid)) return false
-  if (rec.procStart !== undefined) {
-    const current = getProcessStartTokenCachedOrRefresh(rec.pid)
-    if (current === '') return false
-    if (current !== null && current !== rec.procStart) return false
-  }
-  return true
-}
+import { workerPidAlive } from './workerIdentity.js'
+export { workerPidAlive } from './workerIdentity.js'
 
 export function markConcourseWorkerRespawn(runnerId: string, pid: number, dir?: string): void {
   try {

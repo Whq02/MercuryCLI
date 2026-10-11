@@ -27,7 +27,7 @@ export function openLineageSession(): OpenSession | null {
 }
 
 async function settle(session: OpenSession, outcome: string, budgetMs: number, kept: boolean): Promise<SessionCloseContext | null> {
-  const entry = kept ? closeEntry(session.projectKey, session.sessionId, { outcome }) : null
+  const entry = kept && lineageKept() ? closeEntry(session.projectKey, session.sessionId, { outcome }) : null
   const ctx: SessionCloseContext = {
     projectKey: session.projectKey,
     sessionId: session.sessionId,
@@ -57,7 +57,7 @@ export function noteSessionEngine(model: string): void {
   const sessionId = String(getSessionId())
   try {
     if (seen !== null && seen.sessionId === sessionId) {
-      if (open !== null && open.engine !== model) {
+      if (open !== null && open.engine !== model && lineageKept()) {
         recordEngine(open.projectKey, sessionId, model)
         open.engine = model
       }
@@ -78,18 +78,18 @@ export function noteSessionEngine(model: string): void {
 }
 
 export function noteRetained(id: string, pinned: boolean): void {
-  if (open === null) return
+  if (open === null || !lineageKept()) return
   recordFact(open.projectKey, open.sessionId, id, 'retained')
   if (pinned) recordRuling(open.projectKey, open.sessionId, id)
 }
 
 export function noteCorrected(id: string): void {
-  if (open === null) return
+  if (open === null || !lineageKept()) return
   recordFact(open.projectKey, open.sessionId, id, 'corrected')
 }
 
 export function noteFileTouched(path: string): void {
-  if (open === null) return
+  if (open === null || !lineageKept()) return
   recordFile(open.projectKey, open.sessionId, path)
 }
 

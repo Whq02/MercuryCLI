@@ -7,7 +7,7 @@ import { logForDebugging } from '../utils/debug.js'
 import { runForkedAgent, type CacheSafeParams, type ForkedAgentParams } from '../utils/forkedAgent.js'
 import { createUserMessage } from '../utils/messages/factories.js'
 import { ledgerEntryOf, recordHandoff } from './ledger.js'
-import { mnemeEnabled } from './mnemeGates.js'
+import { lineageKept } from './lineageSession.js'
 import { mnemeProjectKey } from './paths.js'
 import { sessionCloseAsks } from './sessionClose.js'
 
@@ -18,12 +18,16 @@ export const HANDOFF_ASK_BUDGET_MS = 120_000
 
 const asked = new Set<string>()
 
+export function handoffAsked(sessionId: string): boolean {
+  return asked.has(sessionId)
+}
+
 export function sessionEndsWithThisTurn(): boolean {
   return isRunInputClosed() && !getCommandQueue().some(command => command.agentId === undefined)
 }
 
 export function handoffAskDue(input: { agentId?: string; querySource?: string; sessionId?: string }): boolean {
-  if (!mnemeEnabled()) return false
+  if (!lineageKept()) return false
   if (input.agentId !== undefined) return false
   if (input.querySource !== 'sdk' && input.querySource !== 'main_thread') return false
   const sessionId = input.sessionId ?? String(getSessionId())
@@ -39,15 +43,13 @@ function textOf(message: Message): string {
   for (const block of message.message.content) {
     if (block.type === 'text' && typeof block.text === 'string') parts.push(block.text)
   }
-  return parts.join('\n').trim()
+  return parts.join('\n')
 }
 
 export function assistantText(messages: readonly Message[]): string {
-  for (let index = messages.length - 1; index >= 0; index--) {
-    const text = textOf(messages[index]!)
-    if (text !== '') return text
-  }
-  return ''
+  const message = messages.findLast(row => row.type === 'assistant' || row.type === 'user')
+  if (message?.type !== 'assistant' || message.message.content.some(block => block.type === 'tool_use')) return ''
+  return textOf(message)
 }
 
 export function handoffAskText(sessionId: string): { text: string; tools: Set<string> } {
@@ -57,7 +59,13 @@ export function handoffAskText(sessionId: string): { text: string; tools: Set<st
   return { text: [HANDOFF_ASK, ...extra.map(ask => ask.line.trim())].join('\n'), tools }
 }
 
-export type AskRunner = (params: ForkedAgentParams) => Promise<{ messages: Message[] }>
+export function handoffNotice(note: { text: string; stored: boolean } | null): string {
+  if (note === null) return 'the session ends with no note left for the next one'
+  if (!note.stored) return 'the note could not be stored; the session ends with no note left for the next one'
+  return `the note for the next session is in the ledger (${note.text.length} characters)`
+}
+
+export type AskRunner = (params: ForkedAgentParams) => Promise<{ messages: Message[]; terminal?: { reason: string } }>
 
 export async function askForHandoff(input: {
   cacheSafeParams: CacheSafeParams
@@ -68,7 +76,7 @@ export async function askForHandoff(input: {
   run?: AskRunner
 }): Promise<{ text: string; stored: boolean } | null> {
   const sessionId = input.sessionId ?? String(getSessionId())
-  if (asked.has(sessionId)) return null
+  if (!lineageKept() || asked.has(sessionId)) return null
   asked.add(sessionId)
   const abortController = new AbortController()
   const budget = setTimeout(() => abortController.abort(new Error('the handoff ask ran past its budget')), input.budgetMs ?? HANDOFF_ASK_BUDGET_MS)
@@ -93,13 +101,14 @@ export async function askForHandoff(input: {
       canUseTool,
       querySource: 'side_question',
       forkLabel: 'handoff',
-      overrides: { abortController },
+      overrides: { abortController, alwaysCallCanUseTool: true },
       maxTurns: ask.tools.size > 0 ? 4 : 2,
       skipTranscript: true,
       skipCacheWrite: true,
     } as ForkedAgentParams)
+    if (result.terminal?.reason !== 'completed' || abortController.signal.aborted) return null
     const text = assistantText(result.messages)
-    if (text === '') return null
+    if (text.trim() === '' || !lineageKept()) return null
     const entry = recordHandoff(mnemeProjectKey(), sessionId, text)
     return { text, stored: entry?.handoff?.text === text || (entry?.handoff !== null && entry?.handoff !== undefined && text.startsWith(entry.handoff.text)) }
   } catch (error) {

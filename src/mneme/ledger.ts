@@ -1,7 +1,7 @@
-import { appendFileSync, mkdirSync, readFileSync } from 'node:fs'
+import { appendFileSync, closeSync, fstatSync, mkdirSync, openSync, readFileSync, readSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { daemonDir } from '../daemon/controlSocket.js'
-import { isProcessAlive } from '../daemon/ownerWatch.js'
+import { workerPidAlive } from '../daemon/workerIdentity.js'
 import { logForDebugging } from '../utils/debug.js'
 import { lineagePath, mnemeProjectKeyFor } from './paths.js'
 import type { LedgerEntry, LiveSession } from './types.js'
@@ -97,7 +97,15 @@ export function ledgerEntryOf(projectKey: string, sessionId: string): LedgerEntr
 function appendLine(projectKey: string, entry: LedgerEntry): void {
   const path = lineagePath(projectKey)
   mkdirSync(dirname(path), { recursive: true })
-  appendFileSync(path, `${JSON.stringify(entry)}\n`, 'utf8')
+  const fd = openSync(path, 'a+')
+  try {
+    const size = fstatSync(fd).size
+    const last = Buffer.alloc(1)
+    const separator = size > 0 && readSync(fd, last, 0, 1, size - 1) === 1 && last[0] !== 10 ? '\n' : ''
+    appendFileSync(fd, `${separator}${JSON.stringify(entry)}\n`, 'utf8')
+  } finally {
+    closeSync(fd)
+  }
 }
 
 function update(projectKey: string, sessionId: string, change: (entry: LedgerEntry, now: string) => LedgerEntry | null): LedgerEntry | null {
@@ -178,19 +186,18 @@ export function recordFile(projectKey: string, sessionId: string, path: string):
 const clipHandoff = (text: string): string => (text.length > HANDOFF_TEXT_CAP ? text.slice(0, HANDOFF_TEXT_CAP) : text)
 
 export function recordHandoff(projectKey: string, sessionId: string, text: string): LedgerEntry | null {
-  const trimmed = text.trim()
-  if (trimmed === '') return ledgerEntryOf(projectKey, sessionId)
-  return update(projectKey, sessionId, (entry, now) => ({ ...entry, handoff: { text: clipHandoff(trimmed), at: now } }))
+  if (text.trim() === '') return ledgerEntryOf(projectKey, sessionId)
+  return update(projectKey, sessionId, (entry, now) => ({ ...entry, handoff: { text: clipHandoff(text), at: now } }))
 }
 
 export function closeEntry(projectKey: string, sessionId: string, close: { outcome: string; handoff?: string }): LedgerEntry | null {
   return update(projectKey, sessionId, (entry, now) => {
-    const text = close.handoff?.trim() ?? ''
+    const text = close.handoff ?? ''
     return {
       ...entry,
       endedAt: now,
       outcome: close.outcome,
-      handoff: text !== '' ? { text: clipHandoff(text), at: now } : entry.handoff,
+      handoff: text.trim() !== '' ? { text: clipHandoff(text), at: now } : entry.handoff,
     }
   })
 }
@@ -199,6 +206,7 @@ interface WorkerRow {
   sessionId?: unknown
   workspaceId?: unknown
   pid?: unknown
+  procStart?: unknown
   spawnedAt?: unknown
   endedAt?: unknown
   attachedAt?: unknown
@@ -221,7 +229,7 @@ export function liveSessions(projectKey: string): LiveSession[] {
   for (const row of Object.values(workers)) {
     if (typeof row.sessionId !== 'string' || typeof row.workspaceId !== 'string') continue
     if (row.endedAt !== undefined || row.attachedAt !== undefined) continue
-    if (typeof row.pid !== 'number' || !isProcessAlive(row.pid)) continue
+    if (typeof row.pid !== 'number' || !workerPidAlive({ pid: row.pid, procStart: typeof row.procStart === 'string' ? row.procStart : undefined })) continue
     if (mnemeProjectKeyFor(row.workspaceId) !== projectKey) continue
     const spawnedAt = typeof row.spawnedAt === 'number' ? new Date(row.spawnedAt).toISOString() : ''
     out.push({ sessionId: row.sessionId, startedAt: spawnedAt })

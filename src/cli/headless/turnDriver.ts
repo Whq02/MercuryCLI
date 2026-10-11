@@ -75,6 +75,7 @@ export type TurnDriverPorts = {
   settleIdle(): Promise<'reenter' | 'close' | 'stay'>
   wakeSettle?(): void
   closeOutput(): Promise<void>
+  beforeCloseOutput?(): Promise<void>
 
   notifySessionState(state: 'running' | 'idle'): void
   isShuttingDown(): boolean
@@ -103,6 +104,7 @@ export function createTurnDriver(ports: TurnDriverPorts): TurnDriver {
   let phase: DriverPhase = 'idle'
   let heldBackResult: RowDraft | null = null
   let outputClosed = false
+  let lastTurnCompleted = false
   let holdReleased = false
   let noticesAwaitOperator = false
   let wakeAgentWait: (() => void) | undefined
@@ -247,6 +249,7 @@ export function createTurnDriver(ports: TurnDriverPorts): TurnDriver {
   const closeOutputOnce = async (): Promise<void> => {
     if (outputClosed) return
     outputClosed = true
+    if (lastTurnCompleted && !ports.isShuttingDown()) await ports.beforeCloseOutput?.()
     await ports.closeOutput()
   }
 
@@ -286,6 +289,7 @@ export function createTurnDriver(ports: TurnDriverPorts): TurnDriver {
       .map(c => c.uuid)
       .filter((u): u is NonNullable<typeof u> => u !== undefined)
 
+    lastTurnCompleted = false
     ports.onTurnStart(command, batch)
     let turnOpen = false
     const openIfUnopened = (): void => {
@@ -303,6 +307,7 @@ export function createTurnDriver(ports: TurnDriverPorts): TurnDriver {
       const row = message as LooseRow
       if (turnOpened(row)) turnOpen = true
       if (isOutcome(row)) {
+        lastTurnCompleted = row.status === 'completed'
         answered = true
         flushSdkEvents()
         openIfUnopened()

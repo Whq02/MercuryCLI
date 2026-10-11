@@ -74,7 +74,9 @@ try {
   console.log('L4 structural — one liveness owner, stamped writers')
   {
     const src = readFileSync(join(SRC, 'daemon/concourseWorkers.ts'), 'utf8')
-    t('the liveness owner exists', src.includes('function workerPidAlive('))
+    const identity = await import(join(SRC, 'daemon/workerIdentity.ts'))
+    const identitySource = readFileSync(join(SRC, 'daemon/workerIdentity.ts'), 'utf8')
+    t('the liveness owner exists and the daemon exports that same owner', identitySource.includes('function workerPidAlive(') && workers.workerPidAlive === identity.workerPidAlive)
     const stamps = (src.match(/pidFieldsOf\(/g) ?? []).length
     t('the record writers ride pidFieldsOf (admission, revive, reactivate, respawn)', stamps >= 5, `${stamps} sites`)
     const bare = (src.match(/\w+\.pid !== undefined && isProcessAlive\(\w+\.pid\)/g) ?? []).length

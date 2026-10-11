@@ -1,4 +1,5 @@
 import { MERCURY_CONSTITUTION } from '../prompt/mercuryContract.js'
+import { isWholeRecordedComposition } from '../prompt/recordedComposition.js'
 import type { ToolUseContext } from '../Tool.js'
 import type { AgentDefinition } from '../tools/AgentTool/loadAgentsDir.js'
 import { isBuiltInAgent } from '../tools/AgentTool/loadAgentsDir.js'
@@ -27,6 +28,7 @@ export function buildEffectiveSystemPrompt({
   if (overrideSystemPrompt !== undefined && overrideSystemPrompt !== '') {
     return asSystemPrompt([overrideSystemPrompt])
   }
+  if (isWholeRecordedComposition(defaultSystemPrompt)) return asSystemPrompt(defaultSystemPrompt)
 
   const agentPrompt = mainThreadAgentDefinition
     ? isBuiltInAgent(mainThreadAgentDefinition)
