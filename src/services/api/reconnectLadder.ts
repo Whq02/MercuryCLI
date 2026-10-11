@@ -104,6 +104,7 @@ export interface ReconnectLadder {
   readonly firstWaitMs: number
   readonly ceilingMs: number
   reconnects: number
+  spent: boolean
   cause: OutageCause
 }
 
@@ -114,6 +115,7 @@ export function openReconnectLadder(nowMs: number, cause: OutageCause, capMs: nu
     firstWaitMs: Math.max(1, Math.round(RECONNECT_FIRST_WAIT_MS * scale)),
     ceilingMs: Math.max(1, Math.round(RECONNECT_WAIT_CEILING_MS * scale)),
     reconnects: 0,
+    spent: false,
     cause,
   }
 }
@@ -138,8 +140,9 @@ export function reconnectsWithin(ladder: Pick<ReconnectLadder, 'firstWaitMs' | '
 export function nextReconnect(ladder: ReconnectLadder, cause: OutageCause, nowMs: number): OutageWaitFacts {
   ladder.cause = cause
   const words = outageCauseWords(cause)
-  const left = ladder.capMs - Math.max(0, nowMs - ladder.startedAtMs)
+  const left = ladder.spent ? 0 : ladder.capMs - Math.max(0, nowMs - ladder.startedAtMs)
   if (left <= 0) {
+    ladder.spent = true
     return {
       cause: words,
       code: cause.code,
@@ -158,6 +161,7 @@ export function nextReconnect(ladder: ReconnectLadder, cause: OutageCause, nowMs
   const waitMs = Math.min(rungMs, left)
   const leftMs = left - waitMs
   ladder.reconnects = reconnect
+  ladder.spent = leftMs <= 0
   return {
     cause: words,
     code: cause.code,
