@@ -186,8 +186,12 @@ section('F4 the wiring — the seat, the roster, the daemon, the hint row, the c
   check("the composer's lost-line notice outlives the plain refusal", composer.includes("addNotification({ key: 'recall-send', text: receipt.detail") && composer.includes('receipt.retired === true ? LOST_LINE_NOTICE_MS : 4000'))
   const live = read('services/engine-connector/seatLive.ts')
   check('the live extension names the lost line', live.includes('lostLine?(): LostLineV1 | null'))
-  const normalize = read('utils/messages/normalize.ts')
-  check('the normalizer carries the held dress beside the queued one onto the row the plate reads', normalize.includes("...(message.queued === true ? { queued: true as const } : {})") && normalize.includes("...(message.heldFor === 'compaction' ? { heldFor: 'compaction' as const } : {})"))
+  const { normalizeMessages } = await import('../../src/utils/messages/normalize.ts')
+  const dressed = normalizeMessages([
+    { type: 'user', uuid: '00000000-0000-4000-8000-0000000000d1', timestamp: '2026-01-01T00:00:00.000Z', queued: true, heldFor: 'compaction', message: { role: 'user', content: [{ type: 'text', text: 'held' }] } },
+    { type: 'user', uuid: '00000000-0000-4000-8000-0000000000d2', timestamp: '2026-01-01T00:00:00.000Z', message: { role: 'user', content: [{ type: 'text', text: 'plain' }] } },
+  ] as never) as Array<{ queued?: boolean; heldFor?: string }>
+  check('the normalizer carries the held dress beside the queued one onto the row the plate reads', dressed[0]?.queued === true && dressed[0]?.heldFor === 'compaction' && dressed[1]?.queued === undefined && dressed[1]?.heldFor === undefined)
   const rowMemo = read('components/Message.tsx')
   check('the row repaints when the held dress moves, as it does for the queued one', rowMemo.includes("(prev.message as { heldFor?: 'compaction' }).heldFor !== (next.message as { heldFor?: 'compaction' }).heldFor) return false"))
 }
