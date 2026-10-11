@@ -104,9 +104,9 @@ section('§1 THE CENSUS — every slash name the roster can carry, by what a bar
 {
   const kinds = new Set(roster.map(command => command.type))
   check('the roster carries the three kinds and no other', [...kinds].every(kind => kind === 'local' || kind === 'local-jsx' || kind === 'prompt'), [...kinds].join(','))
-  check('the eighteen bundled skills register', bundled.length === 18, `bundled=${bundled.length}: ${bundled.map(command => command.name).join(' ')}`)
+  check('the eleven bundled skills register', bundled.length === 11, `bundled=${bundled.length}: ${bundled.map(command => command.name).join(' ')}`)
   console.log(`  ${builtGenerated.size} generated wrappers were compiled with the build's text loader, so their description and hint are the ones the build ships: ${[...builtGenerated.keys()].join(' ')}`)
-  check('the nine generated skills are the ones with a SKILL.md source, every one built', generatedNames.length === 9 && builtGenerated.size === 9 && generatedNames.every(name => builtGenerated.has(name)), `${generatedNames.length} sources, ${builtGenerated.size} built`)
+  check('the four generated skills are the ones with a SKILL.md source, every one built', generatedNames.length === 4 && builtGenerated.size === 4 && generatedNames.every(name => builtGenerated.has(name)), `${generatedNames.length} sources, ${builtGenerated.size} built`)
   check('every built wrapper registers the description and hint its SKILL.md declares (extension-maker alone declares no hint)', [...generatedFrontmatter.entries()].every(([name, fields]) => fields.description !== undefined && builtGenerated.get(name)?.description === fields.description && builtGenerated.get(name)?.argumentHint === fields.argumentHint && (fields.argumentHint !== undefined || name === 'extension-maker')), [...generatedFrontmatter.entries()].map(([name, fields]) => `${name}:${fields.argumentHint ?? 'none'}=${builtGenerated.get(name)?.argumentHint ?? 'none'}`).join(' '))
   const dist = join(ROOT, 'dist', 'mercury.mjs')
   if (existsSync(dist)) {
@@ -141,8 +141,8 @@ section('§1 THE CENSUS — every slash name the roster can carry, by what a bar
 section('§2 THE LAW OF THE HINT — a required first token <…> answers bare; no hint or [optional] runs bare')
 {
   const byName = new Map(roster.map(command => [command.name, command]))
-  const expectRequired = ['update-config', 'debug', 'app-proof', 'mcp-smithy', 'pdf-documents', 'skill-forge', 'slide-decks', 'spreadsheets', 'word-documents', 'needs-thing']
-  const expectBare = ['simplify', 'schedule', 'skillify', 'provider-apis', 'loop', 'extension-maker', 'takes-nothing', 'optional-only', 'verify', 'review', 'orient']
+  const expectRequired = ['update-config', 'debug', 'mcp-smithy', 'skill-forge', 'needs-thing']
+  const expectBare = ['schedule', 'skillify', 'provider-apis', 'loop', 'extension-maker', 'takes-nothing', 'optional-only', 'verify', 'review', 'orient']
   for (const name of expectRequired) {
     const command = byName.get(name)
     check(`/${name} declares a required argument (RED on the base for update-config and debug: no hint / [issue description])`, command !== undefined && requiresArgument(command), `hint=${command === undefined ? 'absent' : argumentHintOf(command) ?? 'none'}`)
@@ -211,7 +211,7 @@ section('§3 THE DISPATCHER — a bare send of every user-invocable prompt comma
     }
   }
   console.log(`\n  ${prompts.length} user-invocable prompt commands: ${usage} answer bare, ${turns} run bare`)
-  check('the dispatcher was exercised over the whole prompt roster', prompts.length >= 18 && usage >= 10 && turns >= 8, `prompts=${prompts.length} usage=${usage} turns=${turns}`)
+  check('the dispatcher was exercised over the whole prompt roster', prompts.length === 17 && usage === 6 && turns === 11, `prompts=${prompts.length} usage=${usage} turns=${turns}`)
 }
 
 console.log(`\n${failures === 0 ? `ALL GREEN (${checks} checks)` : `${failures} FAILURE(S) of ${checks}`}`)

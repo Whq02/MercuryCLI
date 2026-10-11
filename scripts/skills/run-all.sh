@@ -7,11 +7,12 @@
 # gate-watch: src/services/instructions/sourceText.ts src/services/kitMenu/kitCatalogue.ts
 # gate-watch: src/services/mcp/sessionKitPin.ts src/skills/* src/tools/AgentTool/loadAgentsDir.ts
 # gate-watch: src/tools/SkillTool/* src/utils/* src/utils/attachments/skillListing.ts
+# gate-watch: src/tools/AgentTool/constants.ts src/tools/TaskUpdateTool/prompt.ts
 # gate-watch: src/utils/cockpit/substrateSnapshot.ts src/utils/config/globalConfig.ts
 # gate-watch: src/utils/messages/attachmentText.ts src/utils/messages/rejectionText.ts
 # gate-watch: src/utils/processUserInput/processSlashCommand.tsx src/utils/skills/skillChangeDetector.ts
 # gate-watch: src/utils/suggestions/commandSuggestions.ts
-# gate-watch: scripts/lib/fixtureApi.ts scripts/lib/firstRunSeed.ts
+# gate-watch: scripts/lib/fixtureApi.ts scripts/lib/firstRunSeed.ts scripts/lib/rows.ts scripts/lib/runnerHost.ts
 # gate-watch: README.md docs/** src/utils/settings/**
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"

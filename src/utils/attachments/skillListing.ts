@@ -54,7 +54,8 @@ export async function getSkillListingAttachments(
   const state = capsuleStateFor(toolUseContext, toolUseContext.messages)
   const localCommands = await getSkillToolCommands(getProjectRoot())
   const mcpSkills = getMcpSkillCommands(toolUseContext.getAppState().mcp.commands)
-  const commands = mcpSkills.length ? uniqBy([...localCommands, ...mcpSkills], 'name') : localCommands
+  const commands = (mcpSkills.length ? uniqBy([...localCommands, ...mcpSkills], 'name') : localCommands)
+    .filter(command => toolUseContext.agentId === undefined || command.type !== 'prompt' || command.context !== 'fork')
   const sent = state.sentSkillNames
   if (state.suppressNextSkills) {
     state.suppressNextSkills = false

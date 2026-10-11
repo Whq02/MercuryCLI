@@ -95,19 +95,19 @@ async function buildRegistry(label: string, wrappers: string[]): Promise<BuiltRe
 }
 
 const EXPECTED = gen.discoverSkills().names
-const GENERATED = ['app-proof', 'extension-maker', 'mcp-smithy', 'pdf-documents', 'provider-apis', 'skill-forge', 'slide-decks', 'spreadsheets', 'word-documents']
+const GENERATED = ['extension-maker', 'mcp-smithy', 'provider-apis', 'skill-forge']
 
 initBundledSkills()
 const skills = getBundledSkills()
 const byName = new Map(skills.map(s => [s.name, s]))
 
-section(`§1 REGISTERED — exactly the nine source skills; eighteen bundled, each with description + prompt`)
+section(`§1 REGISTERED — exactly the four source skills; eleven bundled, each with description + prompt`)
 {
-  check(same(EXPECTED, GENERATED), 'the source root carries exactly the nine generated skills', EXPECTED.join(' '))
+  check(same(EXPECTED, GENERATED), 'the source root carries exactly the four generated skills', EXPECTED.join(' '))
   check(gen.discoverSkills().invalid.length === 0, 'every source dir name is a valid skill name')
-  check(skills.length === 18, 'eighteen bundled skills register (nine hand-written + nine generated)', skills.map(s => s.name).join(' '))
+  check(skills.length === 11, 'eleven bundled skills register (seven hand-written + four generated)', skills.map(s => s.name).join(' '))
   const handWritten = skills.filter(s => !GENERATED.includes(s.name)).map(s => s.name)
-  check(handWritten.length === 9, 'the nine hand-written skills register beside the generated ones', handWritten.join(' '))
+  check(handWritten.length === 7, 'the seven hand-written skills register beside the generated ones', handWritten.join(' '))
   for (const n of EXPECTED) {
     const s = byName.get(n)
     check(
@@ -151,12 +151,12 @@ section('§3 ISOLATION — extract to the temp root, never a user config home')
 process.env.MERCURY_TMPDIR = join(SCRATCH, 'tmp')
 mkdirSync(process.env.MERCURY_TMPDIR, { recursive: true })
 
-section('§4 BUILT CONTENT — the nine wrappers under the text loader carry the source frontmatter, body and reference files')
+section('§4 BUILT CONTENT — the four wrappers under the text loader carry the source frontmatter, body and reference files')
 {
   const built = await buildRegistry('generated', EXPECTED.map(n => join(BUNDLED_DIR, `${n}.ts`)))
   built.registerAll()
   const registered = new Map(built.getBundledSkills().map(s => [s.name, s]))
-  check(same([...registered.keys()], EXPECTED), 'the nine generated wrappers register under their source names', [...registered.keys()].join(' '))
+  check(same([...registered.keys()], EXPECTED), 'the four generated wrappers register under their source names', [...registered.keys()].join(' '))
   for (const n of EXPECTED) {
     const source = readFileSync(join(SOURCE_ROOT, n, 'SKILL.md'), 'utf8')
     const { frontmatter, content } = parseFrontmatter(source)
@@ -383,7 +383,7 @@ section('§5 GENERATOR CONTRACT — a hermetic fixture: embed / mirror / skip, b
   check(readFileSync(assetsMap).equals(assetsBefore), 'no fixture run recorded the generated-assets row')
 }
 
-section('§6 SOURCE↔MIRROR SYNC + the discovery budget + the browser-first driving law')
+section('§6 SOURCE↔MIRROR SYNC + the discovery budget')
 {
   for (const n of EXPECTED) {
     const drift = gen.checkSkill(n)
@@ -420,12 +420,6 @@ section('§6 SOURCE↔MIRROR SYNC + the discovery budget + the browser-first dri
   }
   if (!dist) console.log('  (skip dist-inlining checks — no dist/mercury.mjs)')
 
-  const appProof = readFileSync(join(SOURCE_ROOT, 'app-proof', 'SKILL.md'), 'utf8')
-  const desc = String(parseFrontmatter(appProof).frontmatter.description ?? '')
-  check(desc.includes('Browser') && !desc.includes('Playwright'), 'app-proof routes on the Browser tool, never Playwright (the description IS the router)')
-  check(/`Browser` tool is the default driver/.test(appProof), 'the Browser tool is named the default driver for journeys')
-  check(!/Playwright[^.]{0,80}is the default driver/.test(appProof), 'Playwright is never named the default driver')
-  check(appProof.includes('never hand-roll a headless-Chrome harness'), 'the hand-rolled-harness ban is spelled in the skill')
 }
 
 console.log('\n' + '='.repeat(60))
