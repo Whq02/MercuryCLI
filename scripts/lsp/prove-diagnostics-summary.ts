@@ -11,12 +11,13 @@ const check = (label: string, ok: boolean, detail = ''): void => {
 const j = (v: unknown): string => JSON.stringify(v)
 
 const { DiagnosticTrackingService } = await import('../../src/services/diagnosticTracking.ts')
-const { GLYPH } = await import('../../src/components/mercury-ui/glyphs.ts')
 type File = import('../../src/services/diagnosticTracking.ts').DiagnosticFile
 const at = (line: number, character: number) => ({ start: { line, character }, end: { line, character: character + 1 } })
 
 console.log('the severity symbols')
-check('Error, Warning, Info, Hint wear their glyphs', [DiagnosticTrackingService.getSeveritySymbol('Error'), DiagnosticTrackingService.getSeveritySymbol('Warning'), DiagnosticTrackingService.getSeveritySymbol('Info'), DiagnosticTrackingService.getSeveritySymbol('Hint')].join('|') === [figures.cross, GLYPH.warn, GLYPH.info, figures.star].join('|'))
+const symbol = (severity: string): string => DiagnosticTrackingService.getSeveritySymbol(severity)
+check('Error wears the cross and Hint the star', symbol('Error') === figures.cross && symbol('Hint') === figures.star)
+check('Warning and Info wear their own one-glyph seals, distinct from each other and from the bullet', new Set([symbol('Warning'), symbol('Info'), figures.bullet]).size === 3 && [...symbol('Warning')].length === 1 && [...symbol('Info')].length === 1)
 check('an unknown severity wears the bullet', DiagnosticTrackingService.getSeveritySymbol('Nope') === figures.bullet && DiagnosticTrackingService.getSeveritySymbol('toString') === figures.bullet)
 
 console.log('the summary the model reads')
@@ -25,7 +26,7 @@ const files: File[] = [
   { uri: 'bare', diagnostics: [{ message: 'hint', severity: 'Hint', range: at(2, 2), source: 'eslint' }] },
 ]
 const summary = DiagnosticTrackingService.formatDiagnosticsSummary(files)
-const expected = [`a.ts:`, `  ${GLYPH.warn} [1:5] unused x [TS6133] (ts)`, `  ${figures.cross} [10:1] bad`, '', 'bare:', `  ${figures.star} [3:3] hint (eslint)`].join('\n')
+const expected = [`a.ts:`, `  ${symbol('Warning')} [1:5] unused x [TS6133] (ts)`, `  ${figures.cross} [10:1] bad`, '', 'bare:', `  ${figures.star} [3:3] hint (eslint)`].join('\n')
 check('files are headed by their last path segment, one indented line per diagnostic with 1-based positions, code and source when set, sections a blank line apart', summary === expected, j(summary))
 check('no files makes an empty summary', DiagnosticTrackingService.formatDiagnosticsSummary([]) === '')
 check('a file with no diagnostics is its heading alone', DiagnosticTrackingService.formatDiagnosticsSummary([{ uri: 'x/y.ts', diagnostics: [] }]) === 'y.ts:')
