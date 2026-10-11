@@ -1054,6 +1054,7 @@ export const FileReadTool = buildTool({
           owner: ownerFromToolUseContext(context),
           cwd: getCwd(),
           getAppState: context.getAppState,
+          engineModel: context.options?.engineModel,
         })
         return settle({
           data: {

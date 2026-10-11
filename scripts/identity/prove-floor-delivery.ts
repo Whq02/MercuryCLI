@@ -228,7 +228,7 @@ section('§6 source pins — the bun-unloadable seats, one line each')
     ['bare MERCURY_BARE prompt', 'src/constants/prompts.ts', '${simpleHead}\\n\\n${MERCURY_IDENTITY_FLOOR}'],
     ['default prompt contract splice (frozen per conversation through the section cache)', 'src/constants/prompts.ts', "systemPromptSection('mercury-contract', () => JSON.stringify(getMercuryContractSections()))"],
     ['switchboard coordinator seat (its own floor, then its engine line, then its contract, then the persona)', 'src/services/concourse/coordinatorCall.ts', 'asSystemPrompt([\n          MERCURY_COORDINATOR_FLOOR,\n          engineLine,\n          MERCURY_COORDINATOR_CONTRACT,\n          input.contract,'],
-    ['every seat states its engine from ONE owner', 'src/constants/prompts.ts', 'return mercuryEngineIdentityLine(modelId)'],
+    ['the coordinator seat states its engine from ONE owner', 'src/services/concourse/coordinatorCall.ts', 'const engineLine = mercuryEngineIdentityLine(modelId)'],
     ['agent-prompt replacement seat', 'src/utils/systemPrompt.ts', 'parts.push(MERCURY_IDENTITY_FLOOR, agentPrompt)'],
     ['custom-prompt replacement seat', 'src/utils/systemPrompt.ts', 'parts.push(MERCURY_IDENTITY_FLOOR, customSystemPrompt)'],
     ['AgentTool default spawn (doctrine leads)', 'src/tools/AgentTool/AgentTool.tsx', '[...doctrine, ownPrompt]'],
@@ -238,6 +238,7 @@ section('§6 source pins — the bun-unloadable seats, one line each')
   for (const [label, file, needle] of pins) {
     check(`${label} — ${file}`, SRC(file).includes(needle))
   }
+  check('the session env blocks state no engine (the seat reads mercury://seat) — src/constants/prompts.ts', !SRC('src/constants/prompts.ts').includes('mercuryEngineIdentityLine'))
 
   check(
     'buildSubagentMercurySections is called at both chokepoints',
