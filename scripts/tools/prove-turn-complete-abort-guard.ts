@@ -15,7 +15,8 @@ const machine = readFileSync(join(root, 'src', 'run-core', 'turn-machine.ts'), '
 const engine = readFileSync(join(root, 'src', 'rows', 'turn.ts'), 'utf-8')
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 const { statusOfTerminal, OUTCOME_STATUSES } = await import('../../src/rows/vocabulary.ts')
-const factories = readFileSync(join(root, 'src', 'utils', 'messages', 'factories.ts'), 'utf-8')
+const { createUserInterruptionMessage } = await import('../../src/utils/messages/factories.js')
+const { turnCutLine, turnCutOf } = await import('../../src/utils/messages/rejectionText.js')
 const driver = readFileSync(join(root, 'src', 'cli', 'headless', 'turnDriver.ts'), 'utf-8')
 
 console.log('============================================================')
@@ -51,7 +52,10 @@ check(
 )
 check(
   'the interruption line is TEXT content (the transcript says the turn was cut)',
-  /createUserInterruptionMessage\(\{[\s\S]{0,240}?content: \[\s*\{\s*type: 'text',\s*text: turnCutLine\(turnCutOf\(reason\), toolUse\),/.test(factories),
+  [false, true].every(toolUse => [undefined, 'stalled', 'workflow-abort', new Error('cut detail')].every(reason => {
+    const content = createUserInterruptionMessage({ toolUse, reason }).message.content
+    return Array.isArray(content) && content.length === 1 && content[0]?.type === 'text' && content[0].text === turnCutLine(turnCutOf(reason), toolUse)
+  })),
 )
 const cuts = [null, 'operator', 'idle-timeout', 'parent-stop', 'cut'] as const
 check(
