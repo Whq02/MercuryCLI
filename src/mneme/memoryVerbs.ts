@@ -193,7 +193,7 @@ export function recallQuery(
       })
       continue
     }
-    const entry = parseEntryLine(hit.text.trim())
+    const entry = hit.entry ?? parseEntryLine(hit.text.trim())
     if (entry) {
       hits.push({
         id: `seq:${entry.seq}`,
