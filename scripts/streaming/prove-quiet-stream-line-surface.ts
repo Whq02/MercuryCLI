@@ -15,6 +15,7 @@ const check = (label: string, ok: boolean, detail = ''): void => {
   if (!ok) failures++
 }
 const section = (t: string): void => console.log(`\n${'─'.repeat(76)}\n${t}`)
+const code = (src: string): string => src.split('\n').filter(l => !/^\s*(\/\/|\*|\/\*)/.test(l)).join('\n')
 
 const React = (await import('react')).default
 const { render, Box, Text } = await import(join(ROOT, 'src/ink.ts'))
@@ -58,6 +59,7 @@ const h = React.createElement as (...a: unknown[]) => React.ReactElement
 const tailRenders = (): number => probe.fluxProbeDump().allMarks.filter((m: { k: string }) => m.k === 'render:tail').length
 const MARKER = 'frame-marker'
 const framed = (): boolean => painted().includes(MARKER)
+const PROSE = 'Streamed prose that must stay unseen here'
 
 async function mount(store: TailStore, props: Record<string, unknown>, turnActive = true): Promise<{ unmount: () => void }> {
   written = ''
@@ -75,17 +77,22 @@ async function mount(store: TailStore, props: Record<string, unknown>, turnActiv
 
 check('the flux probe is armed (the leaf\'s render marks are countable)', probe.fluxProbeEnabled() === true)
 
-section('§1 THE DEFECT PIN: the suppressed leaf paints the quiet-stream line')
+section('§1 THE PIN: the leaf paints nothing while the stream is quiet')
 {
   const store = createStreamingTailStore()
   const m = await mount(store, { textSuppressed: true })
-  check('quiet GPT stream, turn live, reveal suppressed — the thinking line paints', framed() && painted().includes('thinking'), JSON.stringify(painted().slice(-120)))
+  check('quiet GPT stream, turn live, reveal suppressed — the frame carries the marker and no thinking line', framed() && !painted().includes('thinking'), JSON.stringify(painted().slice(-120)))
   m.unmount()
   await settle()
   const idle = createStreamingTailStore()
   const m2 = await mount(idle, { textSuppressed: true }, false)
-  check('no turn, no line (control — a framed frame without the line)', framed() && !painted().includes('thinking'), JSON.stringify(painted().slice(-120)))
+  check('no turn — the same nothing (the turn\'s liveness is no reader of the leaf)', framed() && !painted().includes('thinking'), JSON.stringify(painted().slice(-120)))
   m2.unmount()
+  await settle()
+  const open = createStreamingTailStore()
+  const m3 = await mount(open, { textSuppressed: false })
+  check('the open surface, quiet GPT stream, turn live — the same nothing', framed() && !painted().includes('thinking'), JSON.stringify(painted().slice(-120)))
+  m3.unmount()
   await settle()
 }
 
@@ -93,13 +100,12 @@ section('§2 text flows: the suppressed surface paints neither prose nor line')
 {
   const store = createStreamingTailStore()
   const m = await mount(store, { textSuppressed: true })
-  check('fixture: the line stands while quiet', framed() && painted().includes('thinking'))
-  written = ''
-  store.update(() => 'Streamed prose that must stay unseen here')
+  check('fixture: the marker alone while quiet', framed() && !painted().includes('thinking'))
+  store.update(() => PROSE)
   await settle(200)
-  check('the phase change repainted (a fresh frame carries the marker)', framed(), JSON.stringify(painted().slice(-160)))
-  check('no prose on the suppressed surface', !painted().includes('Streamed prose'), JSON.stringify(painted().slice(-160)))
-  check('the thinking line stands down while text flows unseen (the verb row is the feedback there)', !painted().includes('thinking'), JSON.stringify(painted().slice(-160)))
+  check('the store holds the prose (the stream flowed)', store.read() === PROSE)
+  check('no prose on the suppressed surface', framed() && !painted().includes('Streamed prose'), JSON.stringify(painted().slice(-160)))
+  check('no thinking line over the flowing prose either', !painted().includes('thinking'), JSON.stringify(painted().slice(-160)))
   m.unmount()
   await settle()
   const control = createStreamingTailStore()
@@ -120,7 +126,7 @@ section('§3 the settle ghost never paints on a suppressed surface')
   check('fixture: the hold stands', store.readSettled() === 'The settled reply')
   const m = await mount(store, { textSuppressed: true })
   check('the ghost is not painted there', framed() && !painted().includes('The settled reply'), JSON.stringify(painted().slice(-160)))
-  check('…and the quiet line stands in for the quiet stretch', painted().includes('thinking'), JSON.stringify(painted().slice(-160)))
+  check('…and no line stands in for the quiet stretch', !painted().includes('thinking'), JSON.stringify(painted().slice(-160)))
   m.unmount()
   await settle()
   const control = createStreamingTailStore()
@@ -160,7 +166,7 @@ section('§4 the suppressed leaf is quiet under deltas (the probe counts the lea
   await settle()
 }
 
-section('§5 structural: one gate, two halves')
+section('§5 structural: one gate, one owner of the row')
 {
   const repl = readFileSync(join(ROOT, 'src/screens/Chat.tsx'), 'utf8')
   check('the three transcript arms mount the focused tail on every surface', (repl.match(/streamingTail=\{focusedTail\}/g) ?? []).length === 3)
@@ -169,9 +175,15 @@ section('§5 structural: one gate, two halves')
   const messages = readFileSync(join(ROOT, 'src/components/Messages.tsx'), 'utf8')
   check('Messages threads the gate to the leaf', messages.includes('textSuppressed={streamingTextSuppressed}'))
   const message = readFileSync(join(ROOT, 'src/components/Message.tsx'), 'utf8')
-  check('Message.tsx keeps the pure suppression with the tail as the owner', /declaredRouteOf\(servedModel\) === 'openai' &&\s*\n\s*!isTranscriptMode &&\s*\n\s*!verbose\s*\n\s*\) \{\s*\n(?:\s*\/\/[^\n]*\n)*\s*return null\s*\n\s*\}/.test(message))
+  const thinkingStart = message.indexOf('case "thinking":')
+  const thinkingCase = code(message.slice(thinkingStart, message.indexOf('default:', thinkingStart)))
+  check('Message.tsx: the thinking case returns null nowhere and reads no route (the row paints on every provider)', thinkingStart >= 0 && thinkingCase.includes('<AssistantThinkingMessage') && !thinkingCase.includes('return null') && !thinkingCase.includes('declaredRouteOf'))
+  check('Message.tsx: imports no route reader', !code(message).includes('declaredRouteOf'))
   const leaf = readFileSync(join(ROOT, 'src/components/LiveStreamingTail.tsx'), 'utf8')
   check('the suppressed leaf reads the phase, not the text', leaf.includes('textSuppressed ? readPhase : store.getSnapshot'))
+  const leafCode = code(leaf)
+  check('the tail reads no model: no focused-connector subscription, no model facts, no route read, no turn read', !leafCode.includes('subscribeThroughFocused') && !leafCode.includes('getFocusedSessionConnector') && !leafCode.includes('modelFacts') && !leafCode.includes('declaredRouteOf') && !leafCode.includes('useAppState'))
+  check('the tail draws no thinking line (no grammar import, no label, no thinking word)', !leafCode.includes('thinkingGrammar') && !leafCode.includes('ThinkingLabel') && !/\bthinking\b/i.test(leafCode))
 }
 
 focus._resetFocusedSessionConnectorForTesting()

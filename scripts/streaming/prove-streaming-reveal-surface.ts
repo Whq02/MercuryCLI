@@ -67,7 +67,7 @@ section('§4 source pins — the consumers ride the one owner')
     repl.includes('!textActive || streamingSuppressed'),
   )
   check(
-    'the three transcript arms mount the focused tail on every surface (its quiet-stream line paints where the text is suppressed — FN-016 R12)',
+    'the three transcript arms mount the focused tail on every surface (the gate suppresses its text half, never its mount — FN-016 R12)',
     (repl.match(/streamingTail=\{focusedTail\}/g) ?? []).length === 3,
   )
   check(

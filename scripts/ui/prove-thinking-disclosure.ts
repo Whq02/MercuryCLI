@@ -31,30 +31,15 @@ check(
   'Message.tsx thinking case exists',
   thinkingCase.length > 0 && thinkingCase.includes('<AssistantThinkingMessage'),
 );
-const thinkingNulls = thinkingCase.match(/return null/g) ?? [];
-const routeIf = thinkingCase.search(/declaredRouteOf\(servedModel\) === 'openai' &&\s*!isTranscriptMode &&\s*!verbose\s*\) \{/);
-const routeBlockEnd = ((): number => {
-  if (routeIf < 0) return -1;
-  const open = thinkingCase.indexOf('{', routeIf);
-  let depth = 0;
-  let at = open;
-  for (const line of thinkingCase.slice(open).split('\n')) {
-    if (!/^\s*\/\//.test(line)) {
-      for (let col = 0; col < line.length; col++) {
-        const ch = line[col];
-        if (ch === '{') depth++;
-        else if (ch === '}' && --depth === 0) return at + col;
-      }
-    }
-    at += line.length + 1;
-  }
-  return -1;
-})();
-const nullAt = thinkingCase.indexOf('return null');
+const thinkingNulls = code(thinkingCase).match(/return null/g) ?? [];
 check(
-  'thinking rows are never nulled out of the default view (the only null-return is the OpenAI-route ruling)',
-  thinkingNulls.length === 1 && routeIf >= 0 && routeBlockEnd > routeIf && nullAt > routeIf && nullAt < routeBlockEnd,
-  `null-returns=${thinkingNulls.length} route-if=${routeIf} block-end=${routeBlockEnd} null-at=${nullAt} — a bare !isTranscriptMode && !verbose null-return makes Claude reasoning unreachable`,
+  'thinking rows are never nulled out of the default view on any provider (zero null-returns in the case)',
+  thinkingNulls.length === 0,
+  `null-returns=${thinkingNulls.length} — a null-return in the case makes reasoning unreachable in the default view`,
+);
+check(
+  'the thinking case reads no route and no served model, and Message.tsx imports no route reader',
+  !/declaredRouteOf|servedModel|message\.message\.model/.test(code(thinkingCase)) && !code(message).includes('declaredRouteOf'),
 );
 const redactedCase = message.slice(
   message.indexOf('case "redacted_thinking":'),
@@ -136,7 +121,6 @@ check(
 const RENDERERS: Record<string, string> = {
   settled: 'src/components/messages/AssistantThinkingMessage.tsx',
   redacted: 'src/components/messages/AssistantRedactedThinkingMessage.tsx',
-  live: 'src/components/LiveStreamingTail.tsx',
   spinner: 'src/components/Spinner/SpinnerAnimationRow.tsx',
 };
 const sources = Object.fromEntries(Object.entries(RENDERERS).map(([k, p]) => [k, readFileSync(p, 'utf8') + (k === 'spinner' ? `\n${readFileSync('src/components/Spinner/spinnerHud.ts', 'utf8')}` : '')]));
@@ -148,7 +132,11 @@ for (const [name, src] of Object.entries(sources)) {
 check('settled + redacted: no accent anywhere (the row is not identity)', !/accent/i.test(code(sources.settled!)) && !/accent/i.test(code(sources.redacted!)));
 check('settled: the collapsed branch and the expanded header draw the one element', (sources.settled!.match(/<ThinkingLabel/g) ?? []).length === 2);
 check('redacted: the stub draws the one element, with nothing to expand', sources.redacted!.includes('<ThinkingLabel />') && !sources.redacted!.includes('CtrlOToExpand'));
-check('live: the quiet-stream line draws the one element (no bare word, no dim override)', sources.live!.includes('<ThinkingLabel />') && !/<Text[^>]*>\s*thinking\s*<\/Text>/.test(sources.live!));
+const tail = code(readFileSync('src/components/LiveStreamingTail.tsx', 'utf8'));
+check(
+  'live tail: draws no thinking line of its own (no grammar import, no label, no thinking word, no route read, no model subscription)',
+  !tail.includes("/thinkingGrammar.js'") && !tail.includes('ThinkingLabel') && !/\bthinking\b/i.test(tail) && !tail.includes('declaredRouteOf') && !tail.includes('subscribeThroughFocused') && !tail.includes('modelFacts') && !tail.includes('useAppState'),
+);
 check('spinner: the HUD word is the grammar word (full label and bare fallback)', sources.spinner!.includes('`${THINKING_WORD}${effortSuffix') && sources.spinner!.includes('text: THINKING_WORD') && !/text: 'thinking'/.test(sources.spinner!) && !/`thinking\$\{/.test(sources.spinner!));
 check('spinner: the segment paints the grammar colour at rest (the dim override that beat it is gone)', sources.spinner!.includes('return THINKING_COLOR') && !sources.spinner!.includes('dimColor={!shimmerActive}'));
 
@@ -212,6 +200,57 @@ const redactedAnsi = await renderToAnsiString(mounted(React.createElement(Assist
 const redacted = stripAnsi(redactedAnsi);
 check('rendered redacted stub: the same label, nothing to expand', redacted.trim() === grammar.THINKING_LABEL, JSON.stringify(redacted.trim()));
 check('rendered redacted stub: painted in the subtle colour, never the accent', redactedAnsi.includes(`38;2;${subtle}`) && !redactedAnsi.includes(`38;2;${accent}`));
+
+const { Message } = await import('../../src/components/Message.tsx');
+const { declaredRouteOf } = await import('../../src/services/providers/callModelRouter.ts');
+const GPT_MODEL = 'gpt-5.6-sol';
+const CLAUDE_MODEL = 'claude-opus-4-8';
+const dispatched = async (model: string): Promise<string> =>
+  renderToAnsiString(
+    mounted(
+      React.createElement(Message as never, {
+        message: {
+          type: 'assistant',
+          uuid: 'row-under-proof',
+          timestamp: '2026-06-19T12:00:02.000Z',
+          message: {
+            id: 'msg-under-proof',
+            type: 'message',
+            role: 'assistant',
+            model,
+            content: [{ type: 'thinking', thinking: 'the reasoning body', signature: '' }],
+            stop_reason: 'end_turn',
+            stop_sequence: null,
+            usage: { input_tokens: 1, output_tokens: 1 },
+          },
+        },
+        messages: [],
+        tools: [],
+        commands: [],
+        verbose: false,
+        addMargin: false,
+        shouldAnimate: false,
+        shouldShowDot: false,
+        isTranscriptMode: false,
+        isStatic: false,
+        inProgressToolUseIDs: new Set<string>(),
+        streamingToolUseIDs: new Set<string>(),
+        progressMessagesForMessage: [],
+        lookups: { recoveredStreamFaultUuids: new Set<string>() },
+        width: 60,
+      } as never),
+    ),
+    60,
+  );
+check('fixture: the two ids route to openai and anthropic', declaredRouteOf(GPT_MODEL) === 'openai' && declaredRouteOf(CLAUDE_MODEL) === 'anthropic', `${declaredRouteOf(GPT_MODEL)} / ${declaredRouteOf(CLAUDE_MODEL)}`);
+const gptRowAnsi = await dispatched(GPT_MODEL);
+const claudeRowAnsi = await dispatched(CLAUDE_MODEL);
+const gptRow = stripAnsi(gptRowAnsi);
+check('dispatched GPT-route row: the collapsed label paints in the default view', gptRow.includes(grammar.THINKING_LABEL), JSON.stringify(gptRow.trim()));
+check('dispatched GPT-route row: the expand cue rides the same row', /thinking…\s+\(.*to expand\)|thinking…\s+⌄/.test(gptRow), JSON.stringify(gptRow.trim()));
+check('dispatched GPT-route row: the body stays folded', !gptRow.includes('the reasoning body'));
+check('dispatched GPT-route row: painted in the subtle colour, never the accent', gptRowAnsi.includes(`38;2;${subtle}`) && !gptRowAnsi.includes(`38;2;${accent}`));
+check('dispatched rows: the GPT-route row and the Claude row are the same bytes', gptRowAnsi === claudeRowAnsi, JSON.stringify({ gpt: gptRow.trim(), claude: stripAnsi(claudeRowAnsi).trim() }));
 
 rmSync(HOME, { recursive: true, force: true });
 process.exit(fail);
