@@ -15,6 +15,8 @@ import {
   type RecallResult,
   type RetainItemOutcome,
 } from '../../mneme/memoryVerbs.js'
+import { renderFootnotes } from '../../mneme/mnemeFootnotes.js'
+import { POINTER_DEFAULT_LIMIT, POINTER_LIMIT, renderPointerLine, searchPointers, type PointerResult } from '../../mneme/mnemePointers.js'
 import { runDueMaintenance } from '../../mneme/mnemeMaintenance.js'
 import {
   CORRECT_DESCRIPTION,
@@ -141,9 +143,9 @@ export const RetainTool = buildTool({
 const recallSchema = lazySchema(() =>
   z
     .strictObject({
-      query: z.string().optional().describe('Search memory (pages, archive and pending observations): a phrase or regex matches lines literally; otherwise the words of the query are matched and the best facts come first.'),
-      read: z.string().optional().describe('Read one full record by id (seq:<n> · doc:<slug> · pending:<ts>).'),
-      limit: z.number().int().min(1).max(50).optional().describe('Max hits (default 12).'),
+      query: z.string().optional().describe('Search memory for pointers: facts and pinned rulings in the pages, archive and pending observations, and the sessions and handoffs of the lineage ledger. A phrase or regex matches literally; otherwise the words of the query are matched. A pointer is an id, a title and footnotes: open one with read to see the record.'),
+      read: z.string().optional().describe('Read one full record by id: seq:<n> (a fact or ruling) · doc:<slug> (a whole page) · pending:<ts> · ledger:<ordinal> (a session\'s entry and its handoff).'),
+      limit: z.number().int().min(1).max(POINTER_LIMIT).optional().describe(`Max pointers (default ${POINTER_DEFAULT_LIMIT}, at most ${POINTER_LIMIT}).`),
     })
     .refine(value => Boolean(value.query) !== Boolean(value.read), {
       message: 'pass exactly one of query or read',
@@ -151,7 +153,7 @@ const recallSchema = lazySchema(() =>
 )
 type RecallSchema = ReturnType<typeof recallSchema>
 export type RecallOutput =
-  | ({ kind: 'hits' } & RecallResult)
+  | ({ kind: 'pointers' } & PointerResult)
   | ({ kind: 'record' } & MemoryReadResult)
 
 export const RecallTool = buildTool({
@@ -183,19 +185,20 @@ export const RecallTool = buildTool({
     }
     return {
       data: {
-        kind: 'hits' as const,
-        ...recallQuery(input.query ?? '', input.limit !== undefined ? { limit: input.limit } : {}),
+        kind: 'pointers' as const,
+        ...searchPointers(input.query ?? '', input.limit !== undefined ? { limit: input.limit } : {}),
       },
     }
   },
   mapToolResultToToolResultBlockParam(output: RecallOutput, toolUseID) {
     if (output.kind === 'record') {
+      const footnotes = output.footnotes ? renderFootnotes(output.footnotes) : ''
       const content = output.found
-        ? `${output.content ?? ''}${output.note ? `\n[${output.note}]` : ''}`
+        ? `${output.content ?? ''}${output.note ? `\n[${output.note}]` : ''}${footnotes ? `\n[footnotes: ${footnotes}]` : ''}`
         : `not found: ${output.id}${output.note ? ` — ${output.note}` : ''}`
       return { tool_use_id: toolUseID, type: 'tool_result', content, ...(output.found ? {} : { is_error: true }) }
     }
-    if (output.hits.length === 0) {
+    if (output.pointers.length === 0) {
       return {
         tool_use_id: toolUseID,
         type: 'tool_result',
@@ -206,9 +209,6 @@ export const RecallTool = buildTool({
             : ''),
       }
     }
-    const lines = output.hits.map(
-      hit => `- [${hit.id}] (${hit.label}${hit.slug !== '(recent)' ? ` · ${hit.slug}` : ''}) ${hit.preview} <${hit.signature}>`,
-    )
     const catalog =
       output.catalog.length > 0
         ? `\nTopics: ${output.catalog.map(row => `${row.slug} (${row.summary.slice(0, 60)})`).join(' · ')}`
@@ -216,7 +216,7 @@ export const RecallTool = buildTool({
     return {
       tool_use_id: toolUseID,
       type: 'tool_result',
-      content: `${output.hits.length} hit(s) — read a full record with read:"<id>" before amending it\n${lines.join('\n')}${catalog}`,
+      content: `${output.pointers.length} pointer(s) — a pointer carries no content: open one with read:"<id>" before you rely on it\n${output.pointers.map(renderPointerLine).join('\n')}${catalog}`,
     }
   },
   renderToolUseMessage: input => renderMemoryToolUse('recall', input),
