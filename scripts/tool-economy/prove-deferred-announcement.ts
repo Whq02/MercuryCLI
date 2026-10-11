@@ -56,7 +56,7 @@ const SPEC_BODY = [
   'EnterWorktree — switch this session into an isolated git worktree',
   'ExitWorktree — end the worktree session and return to the original directory',
   'Git — typed local git work graph: status diff hunks conflicts commit plans, atomic stale-safe multi-commit…',
-  'Inspect — inspect Mercury work-graph objects by mercury:// ref (runs, receipts, tasks, crews, workflows…',
+  'Inspect — read Mercury work-graph objects by mercury:// ref (runs, receipts, tasks, crews, workflows…',
   'JevEval — Jev second opinion: rank hypotheses, judge calls, check proposals',
   'Journey — run and verify a local application end to end: start services, request loopback http, assert status…',
   'Launch — launch.json, Python test, CMake, Godot, script profiles: debug via Debug, test via Test, run, build…',
@@ -183,7 +183,7 @@ section('§2 over the bench roster the body is the specification\'s text byte fo
   const row = getDeferredToolsDeltaAttachment(roster, MODEL, [first])[0] as { addedNames: string[]; body: string } | undefined
   const announced = computerToolEnabled() ? 44 : 43
   check(`${announced} tools are announced`, row !== undefined && row.addedNames.length === announced, String(row?.addedNames.length))
-  check(computerToolEnabled() ? 'the body equals the split announcement byte for byte (3,820 bytes; 3,857 wrapped)' : 'the body equals the split announcement without the Computer line (this build has no desktop driver)', row !== undefined && row.body === specBody && (!computerToolEnabled() || (Buffer.byteLength(row.body, 'utf8') === 3820 && Buffer.byteLength(rendered(row as never), 'utf8') === 3857)), row === undefined ? 'no row' : `${Buffer.byteLength(row.body, 'utf8')} bytes; first differing line: ${row.body.split('\n').find((line, i) => line !== specBody.split('\n')[i]) ?? 'none'}`)
+  check(computerToolEnabled() ? 'the body equals the split announcement byte for byte (3,817 bytes; 3,854 wrapped)' : 'the body equals the split announcement without the Computer line (this build has no desktop driver)', row !== undefined && row.body === specBody && (!computerToolEnabled() || (Buffer.byteLength(row.body, 'utf8') === 3817 && Buffer.byteLength(rendered(row as never), 'utf8') === 3854)), row === undefined ? 'no row' : `${Buffer.byteLength(row.body, 'utf8')} bytes; first differing line: ${row.body.split('\n').find((line, i) => line !== specBody.split('\n')[i]) ?? 'none'}`)
   if (row !== undefined) {
     for (const name of ['JevEval', 'Debug', 'Git', 'AstEdit', 'Test', 'Monitor', 'Checkpoint', 'Rewind']) {
       check(`${name} has its line`, row.body.split('\n').some(line => line.startsWith(`${name} — `)))
