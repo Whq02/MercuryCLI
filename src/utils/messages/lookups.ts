@@ -173,9 +173,17 @@ export function getToolUseID(message: NormalizedMessage): string | null {
   if (message.type === 'progress') return message.toolUseID
   if (message.type === 'attachment') return isHookAttachmentMessage(message) ? message.attachment.callId ?? null : null
   if (message.type === 'system') return message.subtype === 'informational' ? message.toolUseID ?? null : null
-  const first = message.message.content[0]
-  if (message.type === 'user') return message.sourceToolUseID || (first?.type === 'tool_result' ? first.tool_use_id : null)
-  return first?.type === 'tool_use' ? first.id : null
+  switch (message.type) {
+    case 'user': {
+      if (message.sourceToolUseID) return message.sourceToolUseID
+      const first = message.message.content[0]
+      return first?.type === 'tool_result' ? first.tool_use_id : null
+    }
+    case 'assistant': {
+      const first = message.message.content[0]
+      return first?.type === 'tool_use' ? first.id : null
+    }
+  }
 }
 
 export function getSiblingToolUseIDsFromLookup(message: NormalizedMessage, lookups: MessageLookups): ReadonlySet<string> {
