@@ -1,5 +1,5 @@
 import { getLastCacheSafeParams } from '../utils/forkedAgent.js'
-import { askForHandoff, type AskRunner } from './handoffAsk.js'
+import { askForHandoff, handoffAsked, type AskRunner } from './handoffAsk.js'
 import { ledgerEntryOf } from './ledger.js'
 import { lineageKept, openLineageSession } from './lineageSession.js'
 
@@ -11,7 +11,7 @@ export type ExitNoteOutcome = 'stored' | 'skipped' | 'none'
 export function exitNoteDue(): boolean {
   if (!lineageKept()) return false
   const session = openLineageSession()
-  if (session === null) return false
+  if (session === null || handoffAsked(session.sessionId)) return false
   const entry = ledgerEntryOf(session.projectKey, session.sessionId)
   if (entry === null || entry.handoff !== null) return false
   return getLastCacheSafeParams() !== null
