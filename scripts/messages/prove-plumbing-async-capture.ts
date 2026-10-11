@@ -48,7 +48,7 @@ console.log('PASS prompt calls start in order; empty custom prompt skips both de
 userPending = true
 const rows: any[] = [{ type: 'user', message: { content: 'original rows' } }]
 const originalTools: any[] = []
-const input: any = { tools: originalTools, commands: [], mcpClients: [], messages: rows, readFileState: new Map(), getAppState: () => ({ toolPermissionContext: { mode: 'default' } }), setAppState: () => {}, customSystemPrompt: 'original', appendSystemPrompt: 'append', thinkingConfig: { type: 'disabled' }, agents: [] }
+const input: any = { tools: originalTools, commands: [], mcpClients: [], messages: rows, readFileState: new Map(), getAppState: function(this: unknown) { assert.equal(this, undefined); return { toolPermissionContext: { mode: 'default' } } }, setAppState: () => {}, customSystemPrompt: 'original', appendSystemPrompt: 'append', thinkingConfig: { type: 'disabled' }, agents: [] }
 const pending = context.buildSideQuestionFallbackParams(input)
 input.customSystemPrompt = 'mutated'
 input.appendSystemPrompt = 'changed'
