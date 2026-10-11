@@ -55,7 +55,9 @@ function closesCaveatBatch(message: Message): boolean {
 
 export function withoutOrphanCaveats<M extends Message>(messages: M[]): M[] {
   const orphaned = (index: number): boolean => {
-    const next = messages[index + 1]
+    let at = index + 1
+    while (messages[at]?.type === 'attachment') at++
+    const next = messages[at]
     return next === undefined || closesCaveatBatch(next)
   }
   if (!messages.some((message, index) => isLocalCommandCaveat(message) && orphaned(index))) return messages
