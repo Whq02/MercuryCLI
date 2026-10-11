@@ -37,7 +37,7 @@ const INVENTORY: Record<string, [number, string]> = {
   'apiView.ts': [2, 'two chains in model post-processing that run AFTER normalizeMessagesForAPI, whose assistant arm coerces through the owner — array by construction'],
   'pairing.ts': [3, 'foldSplitTurnsForWire and the two repairResultAdjacency chains each follow an Array.isArray guard; pairing helpers read guarded local content'],
   'streaming.ts': [1, 'one .find over the stream assembler\'s own self-minted block array — never a foreign shape'],
-  'systemMessages.ts': [4, 'four chains each under an Array.isArray guard on the previous line'],
+  'systemMessages.ts': [2, 'callIn and resultIn guard the two direct .find chains; toolCallingRows guards its local content before .some'],
 }
 
 {

@@ -23283,7 +23283,7 @@
   {
    "isVirtual": true,
    "message": {
-    "content": "<local-command-stdout>Set model to sonnet</local-command-stdout>",
+    "content": "<local-command-stdout>Model now: sonnet</local-command-stdout>",
     "role": "user"
    },
    "timestamp": "«ts»",

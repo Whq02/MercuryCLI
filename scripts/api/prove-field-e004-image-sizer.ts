@@ -310,8 +310,8 @@ section('§2 the once-per-session notice: the receipt, the transcript mark, the 
   check('the turn machine reads the conversation\'s receipt after the stream settles, paints the notice when the transcript carries no mark yet, and writes the mark beside it', turn.includes('takeImagesLeftOutReceipt(owner)') && turn.includes('!imagesLeftOutMarked(iter.messagesForQuery)') && turn.includes('createSystemMessage(imagesLeftOutNoticeLine(leftOut)') && turn.includes("createAttachmentMessage({ type: 'images_left_out'"))
   const chain = await import(join(ROOT, 'src/utils/sessionStorage/chain.ts'))
   const render = readFileSync(join(ROOT, 'src/components/messages/nullRenderingAttachments.ts'), 'utf8')
-  const wire = readFileSync(join(ROOT, 'src/utils/messages/attachmentText.ts'), 'utf8')
-  check('the mark persists in the transcript (a resume reads it back), renders nothing on screen and projects nothing to the wire', chain.isTranscribable(leftOutMark) && render.includes("'images_left_out'") && /case 'images_left_out':\n\s*return \[\]/.test(wire))
+  const { normalizeAttachmentForAPI } = await import(join(ROOT, 'src/utils/messages/attachmentText.ts'))
+  check('the mark persists in the transcript (a resume reads it back), renders nothing on screen and projects nothing to the wire', chain.isTranscribable(leftOutMark) && render.includes("'images_left_out'") && normalizeAttachmentForAPI(leftOutMark.attachment as never).length === 0)
   for (const road of ['anthropic/streamCore.ts', 'openaicompat/compatChatCallModel.ts', 'openai/openaiCallModel.ts', 'zai/zaiCallModel.ts']) {
     const source = readFileSync(join(ROOT, 'src/services/providers', road), 'utf8')
     check(`${road} fits the request's images under the conversation's owner, so the receipt lands on the right conversation`, /fitImagesToRequestCap\([^)]*owner: /.test(source), road)
