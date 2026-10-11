@@ -3,9 +3,11 @@ import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { mnemeEnabled, mnemeLibraryDir } from './mnemeGates.js'
 import { escapeRegExp, lookupTokens } from './mnemeLookup.js'
+import { ledgerPointers, type MemoryPointer } from './mnemePointers.js'
 import { catalogDocs, grepLibrary, grepPending, PENDING_SLUG } from './mnemeRetrieval.js'
+import type { LedgerEntry } from './types.js'
 
-export type MemoryRefKind = 'mneme-fact' | 'mneme-topic' | 'mneme-pending'
+export type MemoryRefKind = 'mneme-fact' | 'mneme-topic' | 'mneme-pending' | 'mneme-session'
 
 export interface MemoryRef {
   refId: string
@@ -36,6 +38,22 @@ export interface CollectOpts {
   maxRefs?: number
   libraryDir?: string
   projectRoot?: string | null
+  sessions?: readonly LedgerEntry[]
+}
+
+export function sessionRef(pointer: MemoryPointer): MemoryRef {
+  const ordinal = pointer.footnotes.session ?? Number(pointer.id.slice('ledger:'.length))
+  return {
+    refId: `mneme-session:${ordinal}`,
+    kind: 'mneme-session',
+    store: 'mneme',
+    scope: 'project',
+    status: 'current',
+    summary: cap(pointer.title),
+    why: pointer.kind === 'handoff' ? 'a handoff of this project matches' : 'a session of this project matches',
+    deref: `Recall read:"ledger:${ordinal}"`,
+    tier: pointer.kind === 'handoff' ? 1 : 2,
+  }
 }
 
 export function collectMemoryRefs(query: string, opts: CollectOpts = {}): MemoryRef[] {
@@ -53,6 +71,7 @@ export function collectMemoryRefs(query: string, opts: CollectOpts = {}): Memory
 
   const dir = opts.libraryDir ?? mnemeLibraryDir()
   const matchers = tokens.map(t => ({ token: t, pattern: wordStart(t), re: new RegExp(wordStart(t)) }))
+  for (const pointer of ledgerPointers(query, opts.sessions ?? [])) push(sessionRef(pointer))
   for (const d of catalogDocs(dir)) {
     const slug = d.slug.toLowerCase()
     const summary = d.summary.toLowerCase()

@@ -1,5 +1,5 @@
 {
-  "base": "caf21cfa030b58ff29ecb7a93353bda8b01f5976",
+  "base": "52f321a59895adaf63becf8797399e0017471171",
   "model": "gpt-6-astra",
   "definitions": [
     {
@@ -3199,23 +3199,23 @@
     },
     {
       "name": "Recall",
-      "description": "Search project memory, or read one full record.\n\n- `query` — grep topic documents and pending (unconsolidated) observations. Hits carry: a stable id (seq:<n> for consolidated rows, pending:<ts> for staged ones), a bounded preview (clipped previews say so), the provenance signature, and a consolidated|pending label.\n- `read` — fetch one full record by id (seq:<n> · doc:<slug> · pending:<ts>), heading-expanded for topic rows; Correct amends a record only after a full read.\n- An empty result is flagged elidable — treat it as droppable context, not an error.\n- Recall never writes anything.",
+      "description": "Search project memory for pointers, or read one full record.\n\n- `query` — searches the topic pages, the archive, the pending (unconsolidated) observations, and the lineage ledger: the sessions of this project and the handoff notes they left. Words, paths and topic names match; a phrase or regex matches literally. The answer is at most 20 pointers, each: a stable id (seq:<n> for a fact or ruling, pending:<ts> for a staged row, ledger:<ordinal> for a session or its handoff), a kind (fact · ruling · handoff · session), a one-line title (where it lives, when, from whom, which of your words matched) and footnotes (the session it came from, the ruling it fell under, what it supersedes or was superseded by).\n- `read` — fetch one full record by id (seq:<n> · doc:<slug> · pending:<ts> · ledger:<ordinal>), heading-expanded for topic rows, with its footnotes; a ledger read shows the session's entry and its handoff verbatim (\"no note left\" when none). Correct amends a record only after a full read.\n- A pointer carries no content: open the record with read before you rely on it or quote it. Follow a footnote by reading the id it names.\n- An empty result is flagged elidable — treat it as droppable context, not an error.\n- Recall never writes anything.",
       "input_schema": {
         "type": "object",
         "properties": {
           "query": {
-            "description": "Search memory (pages, archive and pending observations): a phrase or regex matches lines literally; otherwise the words of the query are matched and the best facts come first.",
+            "description": "Search memory for pointers: facts and pinned rulings in the pages, archive and pending observations, and the sessions and handoffs of the lineage ledger. A phrase or regex matches literally; otherwise the words of the query are matched. A pointer is an id, a title and footnotes: open one with read to see the record.",
             "type": "string"
           },
           "read": {
-            "description": "Read one full record by id (seq:<n> · doc:<slug> · pending:<ts>).",
+            "description": "Read one full record by id: seq:<n> (a fact or ruling) · doc:<slug> (a whole page) · pending:<ts> · ledger:<ordinal> (a session's entry and its handoff).",
             "type": "string"
           },
           "limit": {
-            "description": "Max hits (default 12).",
+            "description": "Max pointers (default 12, at most 20).",
             "type": "integer",
             "minimum": 1,
-            "maximum": 50
+            "maximum": 20
           }
         },
         "additionalProperties": false

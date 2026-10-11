@@ -5,11 +5,13 @@ import { mnemeEnabled, mnemeLibraryDir } from './mnemeGates.js'
 import { appendObservation, pendingRows } from './mnemeBuffer.js'
 import { listArchiveDocs, listTopicDocs } from './mnemeLibrary.js'
 import { grepAll, readDocLines, catalogDocs, pageFileForSlug, PENDING_SLUG } from './mnemeRetrieval.js'
-import { correctFact, retireFact, userAskedRuleMessage, type MnemeCorrectResult } from './mnemeCorrect.js'
+import { correctFact, pointFact, retireFact, userAskedRuleMessage, type MnemeCorrectResult } from './mnemeCorrect.js'
 import { ARCHIVE_PREFIX, isArchiveDoc, parseEntryLine, liveSeqs, serializeSignature, type MnemeTopicDoc } from './mnemeTopicDocs.js'
 import { bumpUsage, readPins, readUsage } from './mnemeUsage.js'
 import { candidates, rankCandidates } from './mnemeLookup.js'
 import { noteCorrected, noteRetained } from './lineageSession.js'
+import { currentLedger, footnoteContext, footnotesOf, renderLedgerEntry, type Footnotes } from './mnemeFootnotes.js'
+import type { LedgerEntry } from './types.js'
 
 function allDocs(dir: string): MnemeTopicDoc[] {
   return [...listTopicDocs(dir), ...listArchiveDocs(dir)]
@@ -255,6 +257,7 @@ export interface MemoryReadResult {
   content?: string
   slug?: string
   note?: string
+  footnotes?: Footnotes
 }
 
 function clipDocRender(
@@ -301,7 +304,12 @@ function nameDroppedRows(droppedSeqs: number[]): string {
   return droppedSeqs.length > 12 ? `${named} … and ${droppedSeqs.length - 12} more` : named
 }
 
-export function readMemoryRecord(id: string, dir: string = mnemeLibraryDir()): MemoryReadResult {
+export function readMemoryRecord(
+  id: string,
+  dir: string = mnemeLibraryDir(),
+  opts: { sessions?: readonly LedgerEntry[] } = {},
+): MemoryReadResult {
+  const sessions = opts.sessions ?? currentLedger()
   const seqMatch = /^seq:(\d+)$/.exec(id)
   if (seqMatch) {
     const seq = Number(seqMatch[1])
@@ -312,6 +320,8 @@ export function readMemoryRecord(id: string, dir: string = mnemeLibraryDir()): M
       const lineIndex = lines.findIndex(line => line.includes(`<seq=${seq},`))
       if (lineIndex < 0) continue
       bumpUsage([seq], dir)
+      const row = parseEntryLine(lines[lineIndex]!.trim())
+      const footnotes = row ? footnotesOf(row, footnoteContext(dir, sessions)) : {}
       const block = readDocLines(recallSlug(doc), { from: lineIndex + 1, to: lineIndex + 1, dir, recent: 0 })
       const sectionContent = block?.content ?? lines[lineIndex]!
       if (sectionContent.length > DOC_RENDER_BUDGET_CHARS) {
@@ -323,6 +333,7 @@ export function readMemoryRecord(id: string, dir: string = mnemeLibraryDir()): M
             slug: doc.slug,
             content: `${rowLine.slice(0, DOC_RENDER_BUDGET_CHARS)}…`,
             note: `this row alone is ${rowLine.length} chars — past the ${DOC_RENDER_BUDGET_CHARS}-char render budget, the FULL row cannot be shown, and amend stays locked for seq ${seq}`,
+            footnotes,
           }
         }
         seenFullRows.add(seq)
@@ -332,6 +343,7 @@ export function readMemoryRecord(id: string, dir: string = mnemeLibraryDir()): M
           slug: doc.slug,
           content: rowLine,
           note: `full record read — amend is now unlocked for this seq (only the row is shown: its enclosing section is ${sectionContent.length} chars, past the ${DOC_RENDER_BUDGET_CHARS}-char render budget)`,
+          footnotes,
         }
       }
       seenFullRows.add(seq)
@@ -341,9 +353,19 @@ export function readMemoryRecord(id: string, dir: string = mnemeLibraryDir()): M
         slug: doc.slug,
         content: sectionContent,
         note: 'full record read — amend is now unlocked for this seq',
+        footnotes,
       }
     }
     return { found: false, id, note: `seq ${seq} is not live in this library (it may be history — recall again)` }
+  }
+  const ledgerMatch = /^ledger:(\d+)$/.exec(id)
+  if (ledgerMatch) {
+    const ordinal = Number(ledgerMatch[1])
+    const session = sessions.find(s => s.ordinal === ordinal)
+    if (!session) {
+      return { found: false, id, note: sessions.length === 0 ? 'the ledger has no session yet' : `no session ${ordinal} in the ledger (${sessions.length} so far)` }
+    }
+    return { found: true, id, content: renderLedgerEntry(session, sessions.length) }
   }
   const docMatch = /^doc:([a-z0-9-]+)/.exec(id)
   const slug = docMatch?.[1] ?? (id.startsWith('pending:') ? null : id)
@@ -373,7 +395,7 @@ export function readMemoryRecord(id: string, dir: string = mnemeLibraryDir()): M
     if (!row) return { found: false, id, note: 'that pending row is gone (consolidated or never existed) — recall again' }
     return { found: true, id, content: `${row.text} [unconsolidated, ${row.ts}, ${row.source}]` }
   }
-  return { found: false, id, note: 'unrecognized id — use seq:<n>, doc:<slug>, or pending:<ts>' }
+  return { found: false, id, note: 'unrecognized id — use seq:<n>, doc:<slug>, pending:<ts>, or ledger:<ordinal>' }
 }
 
 
@@ -433,9 +455,7 @@ export function correctMemory(
         if (!live) {
           return { ok: false, op, code: 'unknown-target', message: `replacement seq ${replacementSeq} is not live in this library` }
         }
-        return finish(
-          retireFact({ targetSeq, reason: `superseded by seq ${replacementSeq}: ${reason}`, source, dir }),
-        )
+        return finish(pointFact({ targetSeq, replacementSeq, reason, source, dir }))
       }
       const content = (input.content ?? '').trim()
       if (!content) return { ok: false, op, code: 'invalid', message: 'supersede needs content (the new truth) or a replacementId' }
