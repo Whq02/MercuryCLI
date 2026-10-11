@@ -248,6 +248,11 @@ reg(
   'NewMessagesPill jump-to-tail — one true single-purpose control',
 )
 reg(
+  ['src/components/ExitHandoff.tsx'],
+  'direct-control',
+  'the exit handoff notice while the note for the next session is written: one ctrl-c chord aborts the ask (useInput), no pointer, no selection, nothing else to own',
+)
+reg(
   ['src/components/CompactIdentityBand.tsx', 'src/components/mercury-ui/MiniCritter.tsx'],
   'direct-control',
   'the compact critter berth (the deck dock and the session card): one click cycles the session critter at every size, the same single-purpose control the hero berth carries — no hover paint, no selection state',

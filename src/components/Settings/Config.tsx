@@ -931,7 +931,7 @@ export function Config({
       kind: 'boolean',
       value: boolValue(onEntryPage),
       setByYou: merged.memory?.journalOnEntryPage !== undefined,
-      warning: "hands the journal's last entry to the model at session start · what the model reads at entry travels to the engine's provider with the request — never uploaded means Mercury itself never pushes, syncs or shares the journal, not that the session's own engine does not see it",
+      warning: "hands the journal's last entry to the model at session start — what the model reads at entry travels to the engine's provider with the request — never uploaded means Mercury itself never pushes, syncs or shares the journal, not that the session's own engine does not see it",
       change: () => {
         if (writeSource('userSettings', { memory: { journalOnEntryPage: !onEntryPage } })) {
           recordToggle('memory.journalOnEntryPage', `set the journal on the entry page to ${onEntryPage ? 'off' : 'on'}`)
