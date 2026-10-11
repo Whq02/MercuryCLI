@@ -169,7 +169,8 @@ section('§4 the runner door: the same asks reach the host and its answer stands
   const row = run.results[0]
   check('the client answer is what the model reads (no headless auto-deny note)', row !== undefined && row.is_error === true && !OPERATOR_LINE.test(row.text) && !RECIPE_LINE.test(row.text), row?.text.slice(0, 300))
   check('the posture line names the host', /with a host that holds the asks/.test(run.system) && !/no host to answer/.test(run.system), run.system.match(/- Session:[^\n]{0,200}/)?.[0] ?? 'no posture line')
-  check('the guidance keeps the AskUserQuestion hint (a client can answer)', /use AskUserQuestion to ask rather than guessing/.test(run.system))
+  const retiredHint = new RegExp(['use AskUserQuestion to ask', 'rather than guessing'].join(' '))
+  check('the guidance carries no ask hint of its own (the posture line is the fact; the tool describes itself)', !retiredHint.test(run.system) && /with a host that holds the asks/.test(run.system))
 }
 
 console.log(failures === 0 ? '\nprove-headless-ask-refusals: ALL LAWS HOLD' : `\nprove-headless-ask-refusals: ${failures} FAILURE(S)`)
