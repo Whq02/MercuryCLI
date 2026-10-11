@@ -33,9 +33,7 @@ export function journalResultWords(output: JournalOutput): string {
 
 export const JournalTool = buildTool({
   name: JOURNAL_TOOL_NAME,
-  searchHint: "write this session's journal entry in your own words",
   maxResultSizeChars: 2_000,
-  shouldDefer: true,
   get inputSchema(): JournalSchema {
     return journalSchema()
   },
