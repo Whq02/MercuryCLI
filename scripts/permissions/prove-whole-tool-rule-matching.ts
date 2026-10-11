@@ -30,7 +30,7 @@ const asked = (rules: string[], tool: Tool): string | null =>
 console.log('the whole-tool ladder')
 check('a rule naming the tool matches it', allowed(['Read'], { name: 'Read' }) === 'Read')
 check('a rule naming another tool does not', allowed(['Read'], { name: 'Edit' }) === null)
-check('a rule with content never matches the whole tool', allowed(['Bash(ls:*)'], { name: 'Bash' }) === null && denied(['Bash(ls:*)'], { name: 'Bash' }) === null)
+check('a rule with content never matches the whole tool', allowed(['Bash(ls *)'], { name: 'Bash' }) === null && denied(['Bash(ls *)'], { name: 'Bash' }) === null)
 check('the first matching rule in table order answers', denied(['Edit', 'Read', 'Read'], { name: 'Read' }) === 'Read')
 check('an inherited name matches through the inherits table', denied(['SendMessage'], { name: 'ResumeAgent' }) === 'SendMessage')
 check('inheritance runs one way only', denied(['ResumeAgent'], { name: 'SendMessage' }) === null)
