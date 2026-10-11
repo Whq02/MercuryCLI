@@ -513,7 +513,7 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
     const found = registry.find(a => a.agentType === type)
     if (!found) {
       throw new Error(
-        `Agent type '${type}' not found. Available agents: ${registry.map(a => a.agentType).join(', ')}`,
+        `No agent type named '${type}'; this session offers: ${registry.map(a => a.agentType).join(', ')}`,
       )
     }
     const ownPrompt =
