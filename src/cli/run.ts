@@ -162,6 +162,8 @@ import { SandboxManager } from '../utils/sandbox/sandbox-adapter.js'
 import { GLYPH } from '../components/mercury-ui/glyphs.js'
 import { isBuiltInAgent } from '../tools/AgentTool/loadAgentsDir.js'
 import { gracefulShutdown, gracefulShutdownSync, isShuttingDown, markRunModeSignalsOwned } from '../utils/gracefulShutdown.js'
+import { leaveNoteBeforeExit } from '../mneme/exitHandoff.js'
+import { HANDOFF_ASK_BUDGET_MS } from '../mneme/handoffAsk.js'
 import { saveCurrentSessionCosts } from '../cost-tracker.js'
 import {
   headlessProfilerCheckpoint,
@@ -2082,6 +2084,7 @@ export async function runHeadless(
       inputClosed = true
       setRunInputClosed(true)
       if (!driver.isRunning()) {
+        await leaveNoteBeforeExit({ budgetMs: HANDOFF_ASK_BUDGET_MS })
         await stopShellsForClose()
         await driver.closeOutputOnce()
       }
