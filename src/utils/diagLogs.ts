@@ -28,22 +28,34 @@ export function logForDiagnosticsNoPII(
   }
 }
 
+type TimedRun<T> =
+  | { outcome: 'completed'; value: T; duration_ms: number }
+  | { outcome: 'failed'; error: unknown; duration_ms: number }
+
+async function timed<T>(operation: () => Promise<T>): Promise<TimedRun<T>> {
+  const startedAt = Date.now()
+  try {
+    const value = await operation()
+    return { outcome: 'completed', value, duration_ms: Date.now() - startedAt }
+  } catch (error) {
+    return { outcome: 'failed', error, duration_ms: Date.now() - startedAt }
+  }
+}
+
 export async function withDiagnosticsTiming<T>(
   event: string,
   fn: () => Promise<T>,
   getData?: (result: T) => Record<string, unknown>,
 ): Promise<T> {
-  const start = Date.now()
   logForDiagnosticsNoPII('info', `${event}_started`)
-  try {
+  const run = await timed(async () => {
     const result = await fn()
-    logForDiagnosticsNoPII('info', `${event}_completed`, {
-      duration_ms: Date.now() - start,
-      ...(getData ? getData(result) : {}),
-    })
-    return result
-  } catch (err) {
-    logForDiagnosticsNoPII('error', `${event}_failed`, { duration_ms: Date.now() - start })
-    throw err
+    return { result, data: getData?.(result) ?? {} }
+  })
+  if (run.outcome === 'failed') {
+    logForDiagnosticsNoPII('error', `${event}_failed`, { duration_ms: run.duration_ms })
+    throw run.error
   }
+  logForDiagnosticsNoPII('info', `${event}_completed`, { duration_ms: run.duration_ms, ...run.value.data })
+  return run.value.result
 }
