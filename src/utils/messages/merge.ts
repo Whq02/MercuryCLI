@@ -23,7 +23,7 @@ export function mergeUserMessagesAndToolResults(left: UserMessage, right: UserMe
 }
 
 export function mergeAssistantMessages(left: AssistantMessage, right: AssistantMessage): AssistantMessage {
-  const content = storedBlocksOf(left.message.content).concat(storedBlocksOf(right.message.content))
+  const content = [...storedBlocksOf(left.message.content), ...storedBlocksOf(right.message.content)]
   return { ...left, message: { ...left.message, content: content as AssistantMessage['message']['content'] } }
 }
 
@@ -31,8 +31,8 @@ export function mergeUserContentBlocks(left: ContentBlockParam[], right: Content
   const tail = left.at(-1)
   const absorb = tail?.type === 'tool_result' && typeof tail.content === 'string' && right.every(isTextBlock)
   return absorb
-    ? [...left.slice(0, -1), smooshIntoToolResult(tail, right)!]
-    : left.concat(right)
+    ? left.slice(0, -1).concat([smooshIntoToolResult(tail, right)!])
+    : [...left, ...right]
 }
 
 export function isToolResultMessage(row: Message): boolean {
