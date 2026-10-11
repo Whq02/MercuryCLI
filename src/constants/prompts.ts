@@ -1,5 +1,5 @@
 import { platform, release, type as osType, version as osVersion } from 'node:os'
-import { canAnswerAsks, getOriginalCwd } from '../bootstrap/state.js'
+import { canAnswerAsks, getOriginalCwd, getSessionId } from '../bootstrap/state.js'
 import { getCwd } from '../utils/cwd.js'
 import { composeSystemPrompt } from '../prompt/composer.js'
 import type { NamedSection } from '../prompt/mercuryContract.js'
@@ -19,6 +19,10 @@ import { getInitialSettings } from '../utils/settings/settings.js'
 import { getCurrentWorktreeSession } from '../utils/worktree.js'
 import { ensureScratchpadDir, scratchpadPromptLine } from '../utils/scratchpad.js'
 import { loadMemoryPrompt, memoryPromptKey } from '../mneme/mnemeFrontPage.js'
+import { composeEntryPage } from '../mneme/entryPage.js'
+import { noteSessionEngine } from '../mneme/lineageSession.js'
+import { mnemeEnabled } from '../mneme/mnemeGates.js'
+import { mnemeProjectKey } from '../mneme/paths.js'
 import { getSessionStartDate } from './common.js'
 import { CYBER_RISK_INSTRUCTION } from './cyberRiskInstruction.js'
 import {
@@ -343,6 +347,7 @@ export async function getSystemPrompt(
   }
 
   const toolNames: ReadonlySet<string> = new Set((tools as ReadonlyArray<{ name: string }>).map(tool => tool.name))
+  noteSessionEngine(model)
 
 
   const localLane = declaredRouteOf(model) === 'local'
@@ -377,6 +382,11 @@ export async function getSystemPrompt(
       'memory',
       () => memoryPromptKey(),
       () => loadMemoryPrompt(),
+    ),
+    keyedSystemPromptSection(
+      'entry_page',
+      () => (mnemeEnabled() ? String(getSessionId()) : 'off'),
+      () => composeEntryPage(mnemeProjectKey(), String(getSessionId())),
     ),
     keyedSystemPromptSection(
       'env_info_simple',
