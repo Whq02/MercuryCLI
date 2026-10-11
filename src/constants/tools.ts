@@ -30,48 +30,53 @@ import { WORKFLOW_TOOL_NAME } from '../tools/WorkflowTool/constants.js'
 import { CORRECT_TOOL_NAME, RECALL_TOOL_NAME, REFLECT_TOOL_NAME, RETAIN_TOOL_NAME } from '../tools/MemoryTools/prompt.js'
 import { JOURNAL_TOOL_NAME } from '../tools/JournalTool/prompt.js'
 
-export const ALL_AGENT_DISALLOWED_TOOLS: Set<string> = new Set([
-  AGENT_TOOL_NAME,
-  ASK_USER_QUESTION_TOOL_NAME,
-  TASK_STOP_TOOL_NAME,
-  WORKFLOW_TOOL_NAME,
-  COMPUTER_TOOL_NAME,
-  JOURNAL_TOOL_NAME,
-])
+type AgentReach = 'barred' | 'background'
 
+const AGENT_REACH: Readonly<Record<string, AgentReach>> = {
+  [AGENT_TOOL_NAME]: 'barred',
+  [ASK_USER_QUESTION_TOOL_NAME]: 'barred',
+  [TASK_STOP_TOOL_NAME]: 'barred',
+  [WORKFLOW_TOOL_NAME]: 'barred',
+  [COMPUTER_TOOL_NAME]: 'barred',
+  [JOURNAL_TOOL_NAME]: 'barred',
+  [FILE_READ_TOOL_NAME]: 'background',
+  [GREP_TOOL_NAME]: 'background',
+  [GLOB_TOOL_NAME]: 'background',
+  [WEB_FETCH_TOOL_NAME]: 'background',
+  [WEB_SEARCH_TOOL_NAME]: 'background',
+  [PROVIDER_SEARCH_TOOL_NAME]: 'background',
+  [FILE_EDIT_TOOL_NAME]: 'background',
+  [FILE_WRITE_TOOL_NAME]: 'background',
+  [NOTEBOOK_EDIT_TOOL_NAME]: 'background',
+  [BASH_TOOL_NAME]: 'background',
+  [POWERSHELL_TOOL_NAME]: 'background',
+  [TASK_CREATE_TOOL_NAME]: 'background',
+  [TASK_UPDATE_TOOL_NAME]: 'background',
+  [TASK_GET_TOOL_NAME]: 'background',
+  [TASK_LIST_TOOL_NAME]: 'background',
+  [SKILL_TOOL_NAME]: 'background',
+  [SYNTHETIC_OUTPUT_TOOL_NAME]: 'background',
+  [TOOL_SEARCH_TOOL_NAME]: 'background',
+  [ENTER_WORKTREE_TOOL_NAME]: 'background',
+  [EXIT_WORKTREE_TOOL_NAME]: 'background',
+  [SEND_MESSAGE_TOOL_NAME]: 'background',
+  [RESUME_AGENT_TOOL_NAME]: 'background',
+  [SLEEP_TOOL_NAME]: 'background',
+  [CONTEXT_LEFT_TOOL_NAME]: 'background',
+  [JEV_TOOL_NAME]: 'background',
+  [RETAIN_TOOL_NAME]: 'background',
+  [RECALL_TOOL_NAME]: 'background',
+  [REFLECT_TOOL_NAME]: 'background',
+  [CORRECT_TOOL_NAME]: 'background',
+}
+
+const toolsReaching = (reach: AgentReach): Set<string> =>
+  new Set(Object.keys(AGENT_REACH).filter(name => AGENT_REACH[name] === reach))
+
+export const ALL_AGENT_DISALLOWED_TOOLS: Set<string> = toolsReaching('barred')
 export const CUSTOM_AGENT_DISALLOWED_TOOLS: Set<string> = ALL_AGENT_DISALLOWED_TOOLS
+export const ASYNC_AGENT_ALLOWED_TOOLS: Set<string> = toolsReaching('background')
 
-export const ASYNC_AGENT_ALLOWED_TOOLS: Set<string> = new Set([
-  FILE_READ_TOOL_NAME,
-  WEB_SEARCH_TOOL_NAME,
-  PROVIDER_SEARCH_TOOL_NAME,
-  TASK_CREATE_TOOL_NAME,
-  TASK_UPDATE_TOOL_NAME,
-  TASK_GET_TOOL_NAME,
-  TASK_LIST_TOOL_NAME,
-  GREP_TOOL_NAME,
-  WEB_FETCH_TOOL_NAME,
-  GLOB_TOOL_NAME,
-  BASH_TOOL_NAME,
-  POWERSHELL_TOOL_NAME,
-  FILE_EDIT_TOOL_NAME,
-  FILE_WRITE_TOOL_NAME,
-  NOTEBOOK_EDIT_TOOL_NAME,
-  SKILL_TOOL_NAME,
-  SYNTHETIC_OUTPUT_TOOL_NAME,
-  TOOL_SEARCH_TOOL_NAME,
-  ENTER_WORKTREE_TOOL_NAME,
-  EXIT_WORKTREE_TOOL_NAME,
-  SLEEP_TOOL_NAME,
-  SEND_MESSAGE_TOOL_NAME,
-  RESUME_AGENT_TOOL_NAME,
-  CONTEXT_LEFT_TOOL_NAME,
-  JEV_TOOL_NAME,
-  RETAIN_TOOL_NAME,
-  RECALL_TOOL_NAME,
-  REFLECT_TOOL_NAME,
-  CORRECT_TOOL_NAME,
-])
 export const RULE_INHERITS: Readonly<Partial<Record<string, readonly string[]>>> = {
   [RESUME_AGENT_TOOL_NAME]: [SEND_MESSAGE_TOOL_NAME],
 }
