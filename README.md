@@ -269,8 +269,10 @@ Mercury consults `gh` only if the anonymous release request is refused.
 
 On your first interactive run, choose an appearance, then sign in to a
 provider. The screen previews theme changes as you browse. True Black is
-the default; the other option is the oasis dark theme. You can change this
-later with `/appearance`.
+the default; the other options are the oasis dark theme and Black and
+white, which paints no colour at all: the terminal's own ink on its own
+ground, the way Mercury looks on a terminal without colour. You can change
+this later with `/appearance`.
 
 You can also choose "sign in later" to look around without connecting an
 account. When a provider key in your environment already signs a provider

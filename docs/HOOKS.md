@@ -2,7 +2,7 @@
 
 A hook is something you ask Mercury to run at a moment it has: a shell
 command, a question a model answers, or a crewmate that checks something.
-Hooks live in settings files (user, project, local, the `--settings` file and
+Hooks live in settings files (user, project, local, the `--config` file and
 managed policy) under `events.hooks`; a skill, an agent or an extension may
 bring its own. A hook sees the moment's facts on its input and answers with
 one small JSON object; the answer may block the moment, change what the model
@@ -84,13 +84,13 @@ event name is a fault like any other.
 
 ### Layers
 
-user → project → local → `--settings` → managed. Entries from every layer
+user → project → local → `--config` → managed. Entries from every layer
 run; an entry identical in kind, text and match across layers runs once.
 `events.disabled` in any layer turns off every hook that is not managed; in
 the managed layer it turns off every hook. `events.managedOnly` in the
 managed layer runs only the managed layer's hooks. `extensions.exclusive`
 naming `hooks` runs only managed and extension hooks. An untrusted workspace
-runs no checkout hook: a headless run loads the user, `--settings` and
+runs no checkout hook: a headless run loads the user, `--config` and
 managed layers only, and the cockpit runs nothing until the workspace is
 trusted ([TRUST.md](TRUST.md)).
 
