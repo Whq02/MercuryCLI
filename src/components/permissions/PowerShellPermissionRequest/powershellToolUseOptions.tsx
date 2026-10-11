@@ -1,22 +1,56 @@
 import * as React from 'react'
 import { Text } from '../../../ink.js'
-import type { OptionWithDescription } from '../../CustomSelect/select.js'
 import { POWERSHELL_TOOL_NAME } from '../../../tools/PowerShellTool/toolName.js'
-import { generateShellSuggestionsLabel } from '../shellPermissionHelpers.js'
 import type { PermissionUpdate } from '../../../types/permissions.js'
+import type { OptionWithDescription } from '../../CustomSelect/select.js'
+import { generateShellSuggestionsLabel } from '../shellPermissionHelpers.js'
 
-export type PowerShellToolUseOption =
-  | 'yes'
-  | 'yes-apply-suggestions'
-  | 'yes-edited-prefix'
-  | 'no'
+export type PowerShellToolUseOption = 'yes' | 'yes-apply-suggestions' | 'yes-edited-prefix' | 'no'
 
-function editableCanRepresent(suggestions: PermissionUpdate[]): boolean {
-  return suggestions.every(
-    update =>
-      update.type === 'addRules' &&
-      update.rules.every(rule => rule.toolName === POWERSHELL_TOOL_NAME),
-  )
+type Row = OptionWithDescription<PowerShellToolUseOption>
+
+type AmendableRole = Extract<PowerShellToolUseOption, 'yes' | 'no'>
+
+const AMENDABLE_WORDS: Record<AmendableRole, { label: string; placeholder: string }> = {
+  yes: { label: 'Yes', placeholder: 'tell Mercury what to do next' },
+  no: { label: 'No, and tell Mercury what to do differently (esc)', placeholder: 'tell Mercury what to do differently' },
+}
+
+function amendableRow(role: AmendableRole, open: boolean | undefined, onChange: (text: string) => void): Row {
+  const { label, placeholder } = AMENDABLE_WORDS[role]
+  return open ? { type: 'input', label, value: role, onChange, placeholder, allowEmptySubmitToCancel: true } : { label, value: role }
+}
+
+const onlyPowerShellRules = (suggestions: PermissionUpdate[]): boolean =>
+  suggestions.every(update => update.type === 'addRules' && update.rules.every(rule => rule.toolName === POWERSHELL_TOOL_NAME))
+
+function editedPrefixRow(initialValue: string, onChange: (prefix: string) => void): Row {
+  return {
+    type: 'input',
+    label: "Yes, and don't ask again for commands starting with",
+    value: 'yes-edited-prefix',
+    initialValue,
+    onChange,
+    placeholder: 'Get-Process *',
+    showLabelWithValue: true,
+    labelValueSeparator: ': ',
+    resetCursorOnUpdate: true,
+  }
+}
+
+function applySuggestionsRow(suggestions: PermissionUpdate[]): Row | null {
+  const label = generateShellSuggestionsLabel(suggestions, POWERSHELL_TOOL_NAME)
+  return label === null ? null : { label: <Text>{label}</Text>, value: 'yes-apply-suggestions' }
+}
+
+function alwaysAllowRow(
+  suggestions: PermissionUpdate[] | undefined,
+  editablePrefix: string | undefined,
+  onEditablePrefixChange: ((prefix: string) => void) | undefined,
+): Row | null {
+  if (!suggestions?.length) return null
+  const editable = onlyPowerShellRules(suggestions) && editablePrefix !== undefined && onEditablePrefixChange !== undefined
+  return editable ? editedPrefixRow(editablePrefix, onEditablePrefixChange) : applySuggestionsRow(suggestions)
 }
 
 export function powershellToolUseOptions({
@@ -35,59 +69,11 @@ export function powershellToolUseOptions({
   noInputMode?: boolean
   editablePrefix?: string
   onEditablePrefixChange?: (prefix: string) => void
-}): OptionWithDescription<PowerShellToolUseOption>[] {
-  const options: OptionWithDescription<PowerShellToolUseOption>[] = []
-
-  if (yesInputMode) {
-    options.push({
-      type: 'input',
-      label: 'Yes',
-      value: 'yes',
-      onChange: onAcceptFeedbackChange,
-      placeholder: 'tell Mercury what to do next',
-      allowEmptySubmitToCancel: true,
-    })
-  } else {
-    options.push({ label: 'Yes', value: 'yes' })
-  }
-
-  if (suggestions && suggestions.length > 0) {
-    if (
-      editableCanRepresent(suggestions) &&
-      editablePrefix !== undefined &&
-      onEditablePrefixChange
-    ) {
-      options.push({
-        type: 'input',
-        label: "Yes, and don't ask again for commands starting with",
-        value: 'yes-edited-prefix',
-        initialValue: editablePrefix,
-        onChange: onEditablePrefixChange,
-        placeholder: 'Get-Process *',
-        showLabelWithValue: true,
-        labelValueSeparator: ': ',
-        resetCursorOnUpdate: true,
-      })
-    } else {
-      const label = generateShellSuggestionsLabel(suggestions, POWERSHELL_TOOL_NAME)
-      if (label !== null) {
-        options.push({ label: <Text>{label}</Text>, value: 'yes-apply-suggestions' })
-      }
-    }
-  }
-
-  if (noInputMode) {
-    options.push({
-      type: 'input',
-      label: 'No, and tell Mercury what to do differently (esc)',
-      value: 'no',
-      onChange: onRejectFeedbackChange,
-      placeholder: 'tell Mercury what to do differently',
-      allowEmptySubmitToCancel: true,
-    })
-  } else {
-    options.push({ label: 'No, and tell Mercury what to do differently (esc)', value: 'no' })
-  }
-
-  return options
+}): Row[] {
+  const rows = [
+    amendableRow('yes', yesInputMode, onAcceptFeedbackChange),
+    alwaysAllowRow(suggestions, editablePrefix, onEditablePrefixChange),
+    amendableRow('no', noInputMode, onRejectFeedbackChange),
+  ]
+  return rows.filter((row): row is Row => row !== null)
 }
