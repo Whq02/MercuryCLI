@@ -13,17 +13,7 @@ import { CRIMSON, FAINT, IVORY, SECOND } from '../../mercuryPalette.js'
 import { MessageResponse } from '../../MessageResponse.js'
 import { RejectedToolUseMessage } from './RejectedToolUseMessage.js'
 
-type Props = {
-  progressMessagesForMessage: ProgressMessage[]
-  tool?: Tool
-  tools: Tools
-  param: ToolResultBlockParam
-  verbose: boolean
-  isTranscriptMode?: boolean
-  hermesKill?: HermesKillInfo
-  toolUseResult?: unknown
-  input?: unknown
-}
+type Props = { progressMessagesForMessage: ProgressMessage[]; tool?: Tool; tools: Tools; param: ToolResultBlockParam; verbose: boolean; isTranscriptMode?: boolean; hermesKill?: HermesKillInfo; toolUseResult?: unknown; input?: unknown }
 
 const interrupted = (param: ToolResultBlockParam): boolean =>
   typeof param.content === 'string' && param.content.includes(INTERRUPT_MESSAGE_FOR_TOOL_USE)

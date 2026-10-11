@@ -12,16 +12,7 @@ const PREVIEW_LINES = 10
 
 const BODY_INSET = 12
 
-type Props = {
-  file_path: string
-  operation: 'write' | 'update'
-  patch?: StructuredPatchHunk[]
-  firstLine: string | null
-  fileContent?: string
-  content?: string
-  style?: 'condensed'
-  verbose: boolean
-}
+type Props = { file_path: string; operation: 'write' | 'update'; patch?: StructuredPatchHunk[]; firstLine: string | null; fileContent?: string; content?: string; style?: 'condensed'; verbose: boolean }
 
 function Headline({ file_path, operation, verbose }: Props): React.ReactNode {
   const displayPath = verbose ? file_path : relative(getCwd(), file_path)
@@ -35,13 +26,7 @@ function Headline({ file_path, operation, verbose }: Props): React.ReactNode {
 }
 
 function WritePreview({ content, file_path, verbose, width }: { content: string; file_path: string; verbose: boolean; width: number }): React.ReactNode {
-  if (content === '') {
-    return (
-      <MessageResponse height={1}>
-        <Text dimColor>(no content)</Text>
-      </MessageResponse>
-    )
-  }
+  if (content === '') return <MessageResponse height={1}><Text dimColor>(no content)</Text></MessageResponse>
   const lines = content.split('\n')
   const shown = verbose ? lines : lines.slice(0, PREVIEW_LINES)
   const cut = lines.length - shown.length
@@ -55,13 +40,11 @@ function WritePreview({ content, file_path, verbose, width }: { content: string;
   )
 }
 
-function PatchPreview({ patch, file_path, firstLine, fileContent, width }: { patch: StructuredPatchHunk[]; file_path: string; firstLine: string | null; fileContent?: string; width: number }): React.ReactNode {
-  return (
-    <MessageResponse>
-      <StructuredDiffList hunks={patch} dim width={width} filePath={file_path} firstLine={firstLine} fileContent={fileContent} />
-    </MessageResponse>
-  )
-}
+const PatchPreview = ({ patch, file_path, firstLine, fileContent, width }: { patch: StructuredPatchHunk[]; file_path: string; firstLine: string | null; fileContent?: string; width: number }): React.ReactNode => (
+  <MessageResponse>
+    <StructuredDiffList hunks={patch} dim width={width} filePath={file_path} firstLine={firstLine} fileContent={fileContent} />
+  </MessageResponse>
+)
 
 function bodyOf(props: Props, width: number): React.ReactNode {
   const { operation, content, patch, file_path, firstLine, fileContent, verbose, style } = props
@@ -75,11 +58,5 @@ export function FileEditToolUseRejectedMessage(props: Props): React.ReactNode {
   const { columns } = useTerminalSize()
   const body = bodyOf(props, columns - BODY_INSET)
   const headline = <Headline {...props} />
-  if (body === null) return headline
-  return (
-    <Box flexDirection="column">
-      {headline}
-      {body}
-    </Box>
-  )
+  return body === null ? headline : <Box flexDirection="column">{headline}{body}</Box>
 }

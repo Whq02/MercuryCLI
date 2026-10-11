@@ -6,20 +6,9 @@ import { TASK_LIST_TOOL_NAME } from './constants.js'
 import { DESCRIPTION, getPrompt } from './prompt.js'
 
 const inputSchema = lazySchema(() => z.strictObject({}))
-type InputSchema = ReturnType<typeof inputSchema>
-
-const outputSchema = lazySchema(() => {
-  const taskRow = z.object({
-    id: z.string(),
-    subject: z.string(),
-    status: z.enum(TASK_STATUSES),
-    owner: z.string().optional(),
-    blockedBy: z.string().array(),
-  })
-  return z.object({ tasks: taskRow.array() })
-})
-type OutputSchema = ReturnType<typeof outputSchema>
-export type Output = z.infer<OutputSchema>
+const taskRow = lazySchema(() => z.object({ id: z.string(), subject: z.string(), status: z.enum(TASK_STATUSES), owner: z.string().optional(), blockedBy: z.string().array() }))
+const outputSchema = lazySchema(() => z.object({ tasks: taskRow().array() }))
+export type Output = z.infer<ReturnType<typeof outputSchema>>
 
 type Row = Output['tasks'][number]
 
@@ -43,39 +32,26 @@ function lineOf(task: Row): string {
   return parts.join('')
 }
 
+async function rowsOfCurrentList(): Promise<Output> {
+  const shown = (await listTasks(getTaskListId())).filter(visible)
+  const completed = new Set(shown.filter(task => task.status === 'completed').map(task => task.id))
+  return { tasks: shown.map(task => rowOf(task, completed)) }
+}
+
 export const TaskListTool = buildTool({
   name: TASK_LIST_TOOL_NAME,
   searchHint: 'list all tasks in the task list',
   shouldDefer: true,
   maxResultSizeChars: 100_000,
-  get inputSchema(): InputSchema {
-    return inputSchema()
-  },
-  get outputSchema(): OutputSchema {
-    return outputSchema()
-  },
+  get inputSchema(): ReturnType<typeof inputSchema> { return inputSchema() },
+  get outputSchema(): ReturnType<typeof outputSchema> { return outputSchema() },
   isEnabled: () => isTaskToolsEnabled(),
   isReadOnly: () => true,
   isConcurrencySafe: () => true,
   userFacingName: () => 'TaskList',
-  async description() {
-    return DESCRIPTION
-  },
-  async prompt() {
-    return getPrompt()
-  },
-  async call() {
-    const shown = (await listTasks(getTaskListId())).filter(visible)
-    const completed = new Set(shown.filter(task => task.status === 'completed').map(task => task.id))
-    const data: Output = { tasks: shown.map(task => rowOf(task, completed)) }
-    return { data }
-  },
-  mapToolResultToToolResultBlockParam(output: Output, toolUseID: string) {
-    return {
-      tool_use_id: toolUseID,
-      type: 'tool_result' as const,
-      content: output.tasks.length === 0 ? NO_TASKS : output.tasks.map(lineOf).join('\n'),
-    }
-  },
+  description: async () => DESCRIPTION,
+  prompt: async () => getPrompt(),
+  call: async () => ({ data: await rowsOfCurrentList() }),
+  mapToolResultToToolResultBlockParam: (output: Output, toolUseID: string) => ({ tool_use_id: toolUseID, type: 'tool_result' as const, content: output.tasks.length === 0 ? NO_TASKS : output.tasks.map(lineOf).join('\n') }),
   renderToolUseMessage: () => null,
-} satisfies ToolDef<InputSchema, Output>)
+} satisfies ToolDef<ReturnType<typeof inputSchema>, Output>)
