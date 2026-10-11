@@ -17,6 +17,7 @@ fail=0
 echo "── context-assembly proofs ──"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-attachments-parity.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-attachments-parity.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-mention-grammar.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-mention-grammar.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-mention-resolution.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-mention-resolution.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-capsule-ledgers.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-capsule-ledgers.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-nested-memory-admission.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-nested-memory-admission.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-pasted-image-blocks.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-pasted-image-blocks.ts" "$__t" "$__rc"
