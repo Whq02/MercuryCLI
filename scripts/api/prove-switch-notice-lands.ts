@@ -268,8 +268,8 @@ if (!existsSync(DIST)) {
       check(`§1 ${leg.label} — the receipt's ordinal follows the prompt's and precedes the answer's (written in the turn, never re-recorded later)`, prompt !== undefined && answer !== undefined && r !== undefined && prompt.ordinal < r.ordinal && r.ordinal < answer.ordinal, `${prompt?.ordinal} < ${r?.ordinal} < ${answer?.ordinal}`)
     }
     const switches: Array<{ label: string; prompt: string; word: string }> = [
-      { label: 'to Opus', prompt: P[3]!, word: 'Set model to' },
-      { label: 'back to Fable', prompt: P[5]!, word: 'Set model to' },
+      { label: 'to Opus', prompt: P[3]!, word: 'Model now:' },
+      { label: 'back to Fable', prompt: P[5]!, word: 'Model now:' },
     ]
     for (const sw of switches) {
       const enqueue = enqueueOf(records, sw.prompt)

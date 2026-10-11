@@ -80,8 +80,12 @@ resetSettingsCache()
 const first = warnings.usageWarningNoticeText('Anthropic: 80% of the weekly limit used', 80)
 assert.equal(first, 'Usage limit near — Anthropic: 80% of the weekly limit used. The provider stops this session only when the window is used up.')
 assert.equal(warnings.usageWarningNoticeText('Anthropic: 90% of the weekly limit used', 90), 'Usage limit near — Anthropic: 90% of the weekly limit used. The provider stops this session only when the window is used up. Keep the work resumable: finish the step in hand; commit what is done and write down where it stands.')
-const attachment = readFileSync(new URL('../../src/utils/messages/attachmentText.ts', import.meta.url), 'utf8')
-assert.match(attachment, /usageWarningNoticeText\(attachment\.text, attachment\.pct\)/)
+{
+  const { normalizeAttachmentForAPI } = await import('../../src/utils/messages/attachmentText.ts')
+  const notice = { type: 'usage_limit_notice', key: 'anthropic:weekly', provider: 'anthropic', window: 'weekly', pct: 90, text: 'Anthropic: 90% of the weekly limit used' } as const
+  const rendered = normalizeAttachmentForAPI(notice as never).map(row => (typeof row.message.content === 'string' ? row.message.content : row.message.content.map(block => (block.type === 'text' ? block.text : '')).join('\n'))).join('\n')
+  assert.ok(rendered.includes(warnings.usageWarningNoticeText(notice.text, notice.pct)), rendered)
+}
 console.log('PASS warning tiers, words-only postures and one context notice per tier')
 
 console.log('RED on the base: the bare 36% latch beats the quiet meter and the time-relative table remains')
