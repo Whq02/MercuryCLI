@@ -169,26 +169,27 @@ export async function writeAgentMetadata(
   await durableAtomicPublish(path, JSON.stringify(metadata))
 }
 
+const bytesIfPresent = (path: string): Promise<string | null> =>
+  readFile(path, 'utf-8').catch((error: unknown) => {
+    if (isFsInaccessible(error)) return null
+    throw error
+  })
+
+function decodeSidecar(path: string, raw: string): AgentMetadata | null {
+  try {
+    return JSON.parse(raw) as AgentMetadata
+  } catch {
+    logForDebugging(`The launch sidecar at ${path} does not decode; the resume re-resolves the agent instead`, { level: 'warn' })
+    return null
+  }
+}
+
 export async function readAgentMetadata(
   agentId: AgentId,
 ): Promise<AgentMetadata | null> {
   const path = getAgentMetadataPath(agentId)
-  let raw: string
-  try {
-    raw = await readFile(path, 'utf-8')
-  } catch (e) {
-    if (isFsInaccessible(e)) return null
-    throw e
-  }
-  try {
-    return JSON.parse(raw) as AgentMetadata
-  } catch {
-    logForDebugging(
-      `agent metadata sidecar unreadable (corrupt JSON) at ${path} — resume falls back to re-resolution`,
-      { level: 'warn' },
-    )
-    return null
-  }
+  const raw = await bytesIfPresent(path)
+  return raw === null ? null : decodeSidecar(path, raw)
 }
 
 export function sessionIdExists(sessionId: string): boolean {
