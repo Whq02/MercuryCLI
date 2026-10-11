@@ -6,7 +6,7 @@ export const CORRECT_TOOL_NAME = 'Correct'
 export const RETAIN_DESCRIPTION =
   'Store durable facts into project memory; a rule the user asks Mercury to remember about how to work with them is pinned in their words and on the shelf at once (a project convention about the code goes to the instruction file instead). Per-item outcomes — a failed store is reported, never swallowed.'
 export const RECALL_DESCRIPTION =
-  'Search project memory: topic documents and still-unconsolidated observations, with stable ids and provenance signatures. Read a full record by id.'
+  'Search project memory for pointers — facts, pinned rulings, the sessions of this project and the handoffs they left — each an id, a one-line title and footnotes (which session, which ruling, superseded by what), never the content. Read one full record by id.'
 export const REFLECT_DESCRIPTION =
   'Synthesize an answer over recalled memory with citations to the records used. Costs one model call; falls back to raw recall when synthesis cannot be grounded.'
 export const CORRECT_DESCRIPTION =
@@ -21,10 +21,11 @@ export const RETAIN_PROMPT = `Store one or more durable facts into project memor
 - When the user says the new rule replaces a pinned one ("instead of …", "that replaces the old rule"), pass replaces: "seq:<n>" naming that rule from the pinned shelf: the new rule takes its place and the old one is kept as history. Two rules that merely share words are not a conflict — both stay. A rule marked asked for by the user is never replaced by you: tell the user to change it in /memory.
 - Use for: decisions made, facts discovered, constraints learned, outcomes worth keeping across sessions. Not for: secrets, transcripts, or anything the repo already records.`
 
-export const RECALL_PROMPT = `Search project memory, or read one full record.
+export const RECALL_PROMPT = `Search project memory for pointers, or read one full record.
 
-- \`query\` — grep topic documents and pending (unconsolidated) observations. Hits carry: a stable id (seq:<n> for consolidated rows, pending:<ts> for staged ones), a bounded preview (clipped previews say so), the provenance signature, and a consolidated|pending label.
-- \`read\` — fetch one full record by id (seq:<n> · doc:<slug> · pending:<ts>), heading-expanded for topic rows; Correct amends a record only after a full read.
+- \`query\` — searches the topic pages, the archive, the pending (unconsolidated) observations, and the lineage ledger: the sessions of this project and the handoff notes they left. Words, paths and topic names match; a phrase or regex matches literally. The answer is at most 20 pointers, each: a stable id (seq:<n> for a fact or ruling, pending:<ts> for a staged row, ledger:<ordinal> for a session or its handoff), a kind (fact · ruling · handoff · session), a one-line title (where it lives, when, from whom, which of your words matched) and footnotes (the session it came from, the ruling it fell under, what it supersedes or was superseded by). A pointer never carries the content.
+- \`read\` — fetch one full record by id (seq:<n> · doc:<slug> · pending:<ts> · ledger:<ordinal>), heading-expanded for topic rows, with its footnotes; a ledger read shows the session's entry and its handoff verbatim ("no note left" when none). Correct amends a record only after a full read.
+- A ruling is quoted from the record, never from a pointer: open it first. Follow a footnote by reading the id it names.
 - An empty result is flagged elidable — treat it as droppable context, not an error.
 - Recall never writes anything.`
 
