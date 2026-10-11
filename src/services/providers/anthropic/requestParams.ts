@@ -35,42 +35,28 @@ type JsonValue = string | number | boolean | null | JsonObject | JsonArray
 type JsonObject = { [key: string]: JsonValue }
 type JsonArray = JsonValue[]
 
+function extraObject(name: 'MERCURY_EXTRA_BODY' | 'MERCURY_EXTRA_METADATA', cache: boolean): JsonObject {
+  const raw = process.env[name]
+  if (!raw) return {}
+  const value = safeParseJSON(raw, cache)
+  if (value && typeof value === 'object' && !Array.isArray(value)) return value as JsonObject
+  logForDebugging(`${name} env var must be a JSON object, but was given ${raw}`, { level: 'error' })
+  return {}
+}
+
 export function getExtraBodyParams(betaHeaders?: string[]): JsonObject {
-  let result: JsonObject = {}
-
-  const extraBodyStr = process.env.MERCURY_EXTRA_BODY
-  if (extraBodyStr) {
-    try {
-      const parsed = safeParseJSON(extraBodyStr)
-      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
-        result = { ...(parsed as JsonObject) }
-      } else {
-        logForDebugging(
-          `MERCURY_EXTRA_BODY env var must be a JSON object, but was given ${extraBodyStr}`,
-          { level: 'error' },
-        )
-      }
-    } catch (error) {
-      logForDebugging(
-        `Error parsing MERCURY_EXTRA_BODY: ${errorMessage(error)}`,
-        { level: 'error' },
-      )
-    }
+  let body: JsonObject
+  try {
+    body = { ...extraObject('MERCURY_EXTRA_BODY', true) }
+  } catch (error) {
+    logForDebugging(`Error parsing MERCURY_EXTRA_BODY: ${errorMessage(error)}`, { level: 'error' })
+    body = {}
   }
-
-  if (betaHeaders && betaHeaders.length > 0) {
-    if (result.anthropic_beta && Array.isArray(result.anthropic_beta)) {
-      const existingHeaders = result.anthropic_beta as string[]
-      const newHeaders = betaHeaders.filter(
-        header => !existingHeaders.includes(header),
-      )
-      result.anthropic_beta = [...existingHeaders, ...newHeaders]
-    } else {
-      result.anthropic_beta = betaHeaders
-    }
-  }
-
-  return result
+  if (!betaHeaders?.length) return body
+  const previous = body.anthropic_beta
+  body.anthropic_beta = Array.isArray(previous)
+    ? previous.concat(betaHeaders.filter(header => !previous.includes(header))) : betaHeaders
+  return body
 }
 
 export function getPromptCachingEnabled(model: string): boolean {
