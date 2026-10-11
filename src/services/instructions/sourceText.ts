@@ -1,132 +1,47 @@
 import { Lexer } from 'marked'
 import { dirname, extname } from 'path'
-import { stripBOM } from '../../utils/jsonRead.js'
 
 import { logForDebugging } from '../../utils/debug.js'
-import {
-  parseFrontmatter,
-  splitPathInFrontmatter,
-} from '../../utils/frontmatterParser.js'
+import { parseFrontmatter, splitPathInFrontmatter } from '../../utils/frontmatterParser.js'
+import { stripBOM } from '../../utils/jsonRead.js'
 import type { MemoryType } from '../../utils/memory/types.js'
 import { expandPath } from '../../utils/path.js'
 import type { InstructionSourceEntry } from './contracts.js'
 
-export const TEXT_FILE_EXTENSIONS = new Set([
-  '.md',
-  '.txt',
-  '.text',
-  '.json',
-  '.yaml',
-  '.yml',
-  '.toml',
-  '.xml',
-  '.csv',
-  '.html',
-  '.htm',
-  '.css',
-  '.scss',
-  '.sass',
-  '.less',
-  '.js',
-  '.ts',
-  '.tsx',
-  '.jsx',
-  '.mjs',
-  '.cjs',
-  '.mts',
-  '.cts',
-  '.py',
-  '.pyi',
-  '.pyw',
-  '.rb',
-  '.erb',
-  '.rake',
-  '.go',
-  '.rs',
-  '.java',
-  '.kt',
-  '.kts',
-  '.scala',
-  '.c',
-  '.cpp',
-  '.cc',
-  '.cxx',
-  '.h',
-  '.hpp',
-  '.hxx',
-  '.cs',
-  '.swift',
-  '.sh',
-  '.bash',
-  '.zsh',
-  '.fish',
-  '.ps1',
-  '.bat',
-  '.cmd',
-  '.env',
-  '.ini',
-  '.cfg',
-  '.conf',
-  '.config',
-  '.properties',
-  '.sql',
-  '.graphql',
-  '.gql',
-  '.proto',
-  '.vue',
-  '.svelte',
-  '.astro',
-  '.ejs',
-  '.hbs',
-  '.pug',
-  '.jade',
-  '.php',
-  '.pl',
-  '.pm',
-  '.lua',
-  '.r',
-  '.R',
-  '.dart',
-  '.ex',
-  '.exs',
-  '.erl',
-  '.hrl',
-  '.clj',
-  '.cljs',
-  '.cljc',
-  '.edn',
-  '.hs',
-  '.lhs',
-  '.elm',
-  '.ml',
-  '.mli',
-  '.f',
-  '.f90',
-  '.f95',
-  '.for',
-  '.cmake',
-  '.make',
-  '.makefile',
-  '.gradle',
-  '.sbt',
-  '.rst',
-  '.adoc',
-  '.asciidoc',
-  '.org',
-  '.tex',
-  '.latex',
-  '.lock',
-  '.log',
-  '.diff',
-  '.patch',
-])
+const COMPOSABLE_EXTENSIONS = {
+  prose: ['.md', '.txt', '.text', '.rst', '.adoc', '.asciidoc', '.org', '.tex', '.latex'],
+  data: ['.json', '.yaml', '.yml', '.toml', '.xml', '.csv'],
+  web: ['.html', '.htm', '.css', '.scss', '.sass', '.less', '.vue', '.svelte', '.astro'],
+  templates: ['.ejs', '.hbs', '.pug', '.jade'],
+  scripts: [
+    '.js', '.ts', '.tsx', '.jsx', '.mjs', '.cjs', '.mts', '.cts',
+    '.py', '.pyi', '.pyw', '.rb', '.erb', '.rake', '.php', '.pl', '.pm', '.lua', '.r', '.R',
+    '.sh', '.bash', '.zsh', '.fish', '.ps1', '.bat', '.cmd',
+  ],
+  compiled: [
+    '.go', '.rs', '.java', '.kt', '.kts', '.scala', '.cs', '.swift', '.dart',
+    '.c', '.cpp', '.cc', '.cxx', '.h', '.hpp', '.hxx',
+    '.ex', '.exs', '.erl', '.hrl', '.clj', '.cljs', '.cljc', '.edn',
+    '.hs', '.lhs', '.elm', '.ml', '.mli', '.f', '.f90', '.f95', '.for',
+  ],
+  config: ['.env', '.ini', '.cfg', '.conf', '.config', '.properties', '.lock'],
+  schemas: ['.sql', '.graphql', '.gql', '.proto'],
+  build: ['.cmake', '.make', '.makefile', '.gradle', '.sbt'],
+  records: ['.log', '.diff', '.patch'],
+}
 
-function conditionPatternsOf(paths: string | string[]): string[] | null {
-  const patterns = splitPathInFrontmatter(paths).flatMap(pattern => {
-    const bare = pattern.endsWith('/**') ? pattern.slice(0, -3) : pattern
-    return bare.length > 0 ? [bare] : []
-  })
-  return patterns.some(pattern => pattern !== '**') ? patterns : null
+export const TEXT_FILE_EXTENSIONS = new Set(Object.values(COMPOSABLE_EXTENSIONS).flat())
+
+function composable(filePath: string): boolean {
+  const ext = extname(filePath).toLowerCase()
+  return ext === '' || TEXT_FILE_EXTENSIONS.has(ext)
+}
+
+function narrowingPatterns(paths: string | string[]): string[] {
+  const patterns = splitPathInFrontmatter(paths)
+    .map(pattern => pattern.replace(/\/\*\*$/, ''))
+    .filter(pattern => pattern !== '')
+  return patterns.every(pattern => pattern === '**') ? [] : patterns
 }
 
 export function parseFrontmatterPaths(rawContent: string): {
@@ -134,104 +49,103 @@ export function parseFrontmatterPaths(rawContent: string): {
   paths?: string[]
 } {
   const { frontmatter, content } = parseFrontmatter(rawContent)
-  const paths = frontmatter.paths ? conditionPatternsOf(frontmatter.paths) : null
-  return paths ? { content, paths } : { content }
+  const paths = frontmatter.paths ? narrowingPatterns(frontmatter.paths) : []
+  return paths.length === 0 ? { content } : { content, paths }
 }
 
-const COMMENT_SPANS = /<!--[\s\S]*?-->/g
-
-function commentResidueOf(raw: string): string | null {
-  const lead = raw.trimStart()
-  if (!lead.startsWith('<!--') || !lead.includes('-->')) return null
-  return raw.replace(COMMENT_SPANS, '')
-}
-
-function stripHtmlCommentsFromTokens(tokens: ReturnType<Lexer['lex']>): {
-  content: string
-  stripped: boolean
-} {
-  let stripped = false
-  const kept = tokens.map(token => {
-    const residue = token.type === 'html' ? commentResidueOf(token.raw) : null
-    if (residue === null) return token.raw
-    stripped = true
-    return residue.trim().length > 0 ? residue : ''
-  })
-  return { content: kept.join(''), stripped }
-}
-
-type MarkdownToken = {
+type LexedToken = {
   type: string
+  raw: string
   text?: string
-  href?: string
-  tokens?: MarkdownToken[]
-  raw?: string
-  items?: MarkdownToken[]
+  tokens?: LexedToken[]
+  items?: LexedToken[]
 }
 
-function isAcceptedImportSpelling(path: string): boolean {
-  return (
-    path.startsWith('./') ||
-    path.startsWith('~/') ||
-    (path.startsWith('/') && path !== '/') ||
-    (!path.startsWith('@') &&
-      !path.match(/^[#%^&*()]+/) &&
-      path.match(/^[a-zA-Z0-9._-]/) !== null)
-  )
+const lexMarkdown = (text: string): LexedToken[] => new Lexer({ gfm: false }).lex(text) as LexedToken[]
+
+const COMMENT_SPAN = /<!--[\s\S]*?-->/g
+
+function commentResidue(token: LexedToken): string | null {
+  if (token.type !== 'html') return null
+  const opening = token.raw.trimStart()
+  return opening.startsWith('<!--') && opening.includes('-->') ? token.raw.replace(COMMENT_SPAN, '') : null
 }
 
-function extractIncludePathsFromTokens(
-  tokens: ReturnType<Lexer['lex']>,
-  basePath: string,
-): { includePaths: string[]; bareMentionPaths: string[] } {
-  const absolutePaths = new Set<string>()
-  const bareMentions = new Set<string>()
+function contributionOf(token: LexedToken): string {
+  const residue = commentResidue(token)
+  if (residue === null) return token.raw
+  return residue.trim() === '' ? '' : residue
+}
 
-  const IMPORT_TOKEN = /(?:^|\s)@((?:[^\s\\]|\\ |\\(?=\S))+)/g
-  const SENTENCE_PUNCTUATION = /[.,;:!?]+$/
+const withoutHtmlComments = (tokens: LexedToken[]): string => tokens.map(contributionOf).join('')
 
-  function extractPathsFromText(textContent: string) {
-    for (const match of textContent.matchAll(IMPORT_TOKEN)) {
-      let path = match[1]
-      if (!path) continue
-
-      const hashIndex = path.indexOf('#')
-      if (hashIndex !== -1) {
-        path = path.substring(0, hashIndex)
-      }
-      if (!path) continue
-
-      path = path.replace(/\\ /g, ' ')
-      path = path.replace(SENTENCE_PUNCTUATION, '')
-
-      if (path) {
-        const isValidPath = isAcceptedImportSpelling(path)
-        if (isValidPath) {
-          const resolvedPath = expandPath(path, dirname(basePath))
-          const hasPathEvidence = path.includes('/') || path.includes('.')
-          if (hasPathEvidence) {
-            absolutePaths.add(resolvedPath)
-          } else {
-            bareMentions.add(resolvedPath)
-          }
-        }
-      }
-    }
-  }
-
-  const pending: MarkdownToken[] = [...(tokens as MarkdownToken[])].reverse()
-  while (pending.length > 0) {
-    const token = pending.pop()!
+function* readableTexts(tokens: LexedToken[]): Generator<string> {
+  for (const token of tokens) {
     if (token.type === 'code' || token.type === 'codespan') continue
     if (token.type === 'html') {
-      const residue = commentResidueOf(token.raw ?? '')
-      if (residue !== null && residue.trim().length > 0) extractPathsFromText(residue)
+      const residue = commentResidue(token)
+      if (residue !== null && residue.trim() !== '') yield residue
       continue
     }
-    if (token.type === 'text') extractPathsFromText(token.text ?? '')
-    for (const child of [...(token.tokens ?? []), ...(token.items ?? [])].reverse()) pending.push(child)
+    if (token.type === 'text') yield token.text ?? ''
+    yield* readableTexts(token.tokens ?? [])
+    yield* readableTexts(token.items ?? [])
   }
-  return { includePaths: [...absolutePaths], bareMentionPaths: [...bareMentions] }
+}
+
+const AT_SPELLING = /(?:^|\s)@((?:[^\s\\]|\\ |\\(?=\S))+)/g
+const SENTENCE_TAIL = /[.,;:!?]+$/
+const PATH_OPENING = /^[A-Za-z0-9._-]/
+
+function importSpellingsIn(text: string): string[] {
+  const spellings: string[] = []
+  for (const [, captured = ''] of text.matchAll(AT_SPELLING)) {
+    const spelling = captured.split('#', 1)[0]!.replace(/\\ /g, ' ').replace(SENTENCE_TAIL, '')
+    if (spelling !== '') spellings.push(spelling)
+  }
+  return spellings
+}
+
+const isImportSpelling = (spelling: string): boolean =>
+  PATH_OPENING.test(spelling) || spelling.startsWith('~/') || (spelling.startsWith('/') && spelling !== '/')
+
+const carriesPathEvidence = (spelling: string): boolean => spelling.includes('/') || spelling.includes('.')
+
+type IncludeMentions = { includePaths: string[]; bareMentionPaths: string[] }
+
+const noMentions = (): IncludeMentions => ({ includePaths: [], bareMentionPaths: [] })
+
+function includeMentionsOf(tokens: LexedToken[], includeBasePath: string): IncludeMentions {
+  const home = dirname(includeBasePath)
+  const includes = new Set<string>()
+  const bare = new Set<string>()
+  for (const text of readableTexts(tokens)) {
+    for (const spelling of importSpellingsIn(text).filter(isImportSpelling)) {
+      (carriesPathEvidence(spelling) ? includes : bare).add(expandPath(spelling, home))
+    }
+  }
+  return { includePaths: [...includes], bareMentionPaths: [...bare] }
+}
+
+function readBody(body: string, includeBasePath: string | undefined): { content: string } & IncludeMentions {
+  const commented = body.includes('<!--')
+  if (!commented && includeBasePath === undefined) return { content: body, ...noMentions() }
+  const tokens = lexMarkdown(body)
+  return {
+    content: commented ? withoutHtmlComments(tokens) : body,
+    ...(includeBasePath === undefined ? noMentions() : includeMentionsOf(tokens, includeBasePath)),
+  }
+}
+
+function entryOf(
+  path: string,
+  type: MemoryType,
+  raw: string,
+  content: string,
+  globs: string[] | undefined,
+): InstructionSourceEntry {
+  const transformed = content !== raw
+  return { path, type, content, globs, contentDiffersFromDisk: transformed, rawContent: transformed ? raw : undefined }
 }
 
 export function parseInstructionFileContent(
@@ -239,47 +153,13 @@ export function parseInstructionFileContent(
   filePath: string,
   type: MemoryType,
   includeBasePath?: string,
-): { info: InstructionSourceEntry | null; includePaths: string[]; bareMentionPaths: string[] } {
-  const ext = extname(filePath).toLowerCase()
-  if (ext && !TEXT_FILE_EXTENSIONS.has(ext)) {
-    logForDebugging(`Skipping non-text file in @include: ${filePath}`)
-    return { info: null, includePaths: [], bareMentionPaths: [] }
+): { info: InstructionSourceEntry | null } & IncludeMentions {
+  if (!composable(filePath)) {
+    logForDebugging(`An @import target that is not a text file composes nothing: ${filePath}`)
+    return { info: null, ...noMentions() }
   }
-
-  rawContent = stripBOM(rawContent)
-
-  const { content: withoutFrontmatter, paths } =
-    parseFrontmatterPaths(rawContent)
-
-  const hasComment = withoutFrontmatter.includes('<!--')
-  const tokens =
-    hasComment || includeBasePath !== undefined
-      ? new Lexer({ gfm: false }).lex(withoutFrontmatter)
-      : undefined
-
-  const strippedContent =
-    hasComment && tokens
-      ? stripHtmlCommentsFromTokens(tokens).content
-      : withoutFrontmatter
-
-  const extracted =
-    tokens && includeBasePath !== undefined
-      ? extractIncludePathsFromTokens(tokens, includeBasePath)
-      : { includePaths: [], bareMentionPaths: [] }
-
-  const finalContent = strippedContent
-
-  const contentDiffersFromDisk = finalContent !== rawContent
-  return {
-    info: {
-      path: filePath,
-      type,
-      content: finalContent,
-      globs: paths,
-      contentDiffersFromDisk,
-      rawContent: contentDiffersFromDisk ? rawContent : undefined,
-    },
-    includePaths: extracted.includePaths,
-    bareMentionPaths: extracted.bareMentionPaths,
-  }
+  const raw = stripBOM(rawContent)
+  const { content: body, paths } = parseFrontmatterPaths(raw)
+  const { content, ...mentions } = readBody(body, includeBasePath)
+  return { info: entryOf(filePath, type, raw, content, paths), ...mentions }
 }
