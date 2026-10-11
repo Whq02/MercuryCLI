@@ -60,6 +60,7 @@ const usageCommand = await import('../../src/commands/usage/usage.tsx')
 const configCommand = await import('../../src/commands/config/config.tsx')
 const jevCommand = await import('../../src/commands/jev/jev.tsx')
 const modelCommand = await import('../../src/commands/model/mercuryModel.tsx')
+const memoryCommand = await import('../../src/commands/memory/memory.tsx')
 const submodelsCommand = await import('../../src/commands/submodels/submodels.tsx')
 const { resetOverlayStackForTests } = await import('../../src/context/overlayStack.ts')
 const { railPlanAt } = await import('../../src/utils/helmGeometry.ts')
@@ -137,6 +138,7 @@ const surfaces = [
   { name: 'usage', title: 'Mercury · usage', open: async () => { await usageCommand.call('', context) } },
   { name: 'config', title: 'Mercury · config', open: async () => { await configCommand.call('', context) } },
   { name: 'jev', title: 'Mercury · jev', open: async () => { await jevCommand.call('', context) } },
+  { name: 'memory', title: 'Mercury · memory', open: async () => { await memoryCommand.call(() => {}, context, '') } },
   { name: 'model', title: 'Mercury · model', open: async () => { setModal(await modelCommand.call(() => setModal(null), context, '')) } },
   { name: 'files', title: 'Mercury · files', open: async () => { files.openFilesMenu() } },
   { name: 'crew', title: 'Mercury — crew', open: async () => { crew.openCrewView() } },

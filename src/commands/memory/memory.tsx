@@ -1,24 +1,38 @@
 import * as React from 'react'
-import { Suspense, useState } from 'react'
+import { Suspense, useCallback, useLayoutEffect, useState } from 'react'
 import { writeFileSync, mkdirSync } from 'node:fs'
 import { Box, Text } from '../../ink.js'
-import { CommandCenter } from '../../components/mercury-ui/components.js'
 import { MemoryCentreView } from '../../components/memory/MemoryCentreView.js'
 import { MemoryFileSelector } from '../../components/memory/MemoryFileSelector.js'
+import {
+  MEMORY_POPUP_ROWS,
+  MEMORY_POPUP_TITLE_VIEW,
+  MEMORY_POPUP_WIDTH,
+  memoryFooter,
+  memoryPopupLine,
+} from '../../components/memory/memoryCentreLayout.js'
+import { useSettingsPopupFrame } from '../../components/Settings/Settings.js'
 import { useMercuryTokens } from '../../components/mercury-ui/useMercuryTokens.js'
+import { getProjectRoot } from '../../bootstrap/state.js'
+import { getMnemeHome } from '../../mneme/paths.js'
 import {
   clearInstructionFileCaches,
   getInstructionCompositionState,
   getInstructionFiles,
 } from '../../services/instructions/engine.js'
 import type { LocalJSXCommandOnDone } from '../../types/command.js'
+import { openSettingsPopup, type SettingsPopupGeometry, type SettingsPopupRequest } from '../../utils/cockpit/settingsPopup.js'
 import { getErrnoCode } from '../../utils/errors.js'
 import { getMercuryHome } from '../../utils/envUtils.js'
 import { logError } from '../../utils/log.js'
-import { toRelativePath } from '../../utils/path.js'
+import { toRelativePath, toTildePath } from '../../utils/path.js'
 import { editFileInEditor } from '../../utils/promptEditor.js'
 
-function profileStatusLine(): string {
+export type MemoryRoute = 'centre' | 'files'
+
+export const MEMORY_FILES_CLOSED = 'Closed memory files'
+
+export function profileStatusLine(): string {
   const { resolution } = getInstructionCompositionState()
   const profile =
     resolution.resolved === 'native'
@@ -64,54 +78,91 @@ async function openMemoryFile(path: string, onDone: LocalJSXCommandOnDone): Prom
   }
 }
 
-function MemoryCommand({
-  initialRoute,
-  onDone,
-}: {
-  initialRoute: 'centre' | 'files'
-  onDone: LocalJSXCommandOnDone
-}): React.ReactNode {
-  const tokens = useMercuryTokens()
-  const [route, setRoute] = useState<'centre' | 'files'>(initialRoute)
+type Settle = (...args: Parameters<LocalJSXCommandOnDone>) => void
 
+function MemoryFilesRoute({ direct, onPick, onCancel }: { direct: boolean; onPick: (path: string) => void; onCancel: () => void }): React.ReactNode {
+  const frame = useSettingsPopupFrame()
+  const tokens = useMercuryTokens()
+  useLayoutEffect(() => {
+    frame.setHint(memoryFooter({ kind: 'files', direct }))
+  }, [frame, direct])
+  return (
+    <Box flexDirection="column">
+      <Suspense>
+        <MemoryFileSelector onSelect={onPick} onCancel={onCancel} />
+      </Suspense>
+      <Text color={tokens.textMuted} wrap="truncate-end">{profileStatusLine()}</Text>
+    </Box>
+  )
+}
+
+export function MemoryPopupBody({
+  geometry,
+  initialRoute,
+  settle,
+}: {
+  geometry: SettingsPopupGeometry
+  initialRoute: MemoryRoute
+  settle: Settle
+}): React.ReactNode {
+  const frame = useSettingsPopupFrame()
+  const [route, setRoute] = useState<MemoryRoute>(initialRoute)
+  useLayoutEffect(() => {
+    frame.setOwnsEscape(true)
+    return () => frame.setOwnsEscape(false)
+  }, [frame])
+  useLayoutEffect(() => () => settle(undefined, { display: 'skip' }), [settle])
+  const close = useCallback(
+    (text?: string, options?: Parameters<LocalJSXCommandOnDone>[1]): void => {
+      settle(text, options ?? (text === undefined ? { display: 'skip' } : undefined))
+      frame.close()
+    },
+    [settle, frame],
+  )
   if (route === 'centre') {
     return (
       <MemoryCentreView
-        onClose={() => onDone(undefined, { display: 'system' })}
+        onClose={() => close()}
         onOpenFiles={() => setRoute('files')}
+        width={geometry.inner}
+        rowBudget={geometry.rowBudget}
+        onHint={frame.setHint}
       />
     )
   }
-
-  const closeFiles = (): void => {
-    if (initialRoute === 'files') {
-      onDone('Closed memory files', { display: 'system' })
-    } else {
-      setRoute('centre')
-    }
-  }
-
   return (
-    <CommandCenter
-      view="memory"
-      subtitle="instruction & note files"
-      footer="open in editor · back"
-      captureInput={false}
-      onClose={closeFiles}
-    >
-      <Box flexDirection="column">
-        <Suspense>
-          <MemoryFileSelector
-            onSelect={path => {
-              void openMemoryFile(path, onDone)
-            }}
-            onCancel={closeFiles}
-          />
-        </Suspense>
-        <Text color={tokens.textMuted}>{profileStatusLine()}</Text>
-      </Box>
-    </CommandCenter>
+    <MemoryFilesRoute
+      direct={initialRoute === 'files'}
+      onPick={path => {
+        void openMemoryFile(path, (text, options) => close(text, options))
+      }}
+      onCancel={() => {
+        if (initialRoute === 'files') close(MEMORY_FILES_CLOSED, { display: 'system' })
+        else setRoute('centre')
+      }}
+    />
   )
+}
+
+export function memoryPopupLineNow(): string {
+  return memoryPopupLine(getProjectRoot(), toTildePath(getMnemeHome()))
+}
+
+export function memoryPopupRequest(initialRoute: MemoryRoute, onDone: LocalJSXCommandOnDone): SettingsPopupRequest {
+  let settled = false
+  const settle: Settle = (text, options) => {
+    if (settled) return
+    settled = true
+    onDone(text, options)
+  }
+  return {
+    view: MEMORY_POPUP_TITLE_VIEW,
+    width: hostColumns => Math.min(MEMORY_POPUP_WIDTH, hostColumns),
+    rows: MEMORY_POPUP_ROWS,
+    line: memoryPopupLineNow(),
+    hint: memoryFooter(initialRoute === 'files' ? { kind: 'files', direct: true } : { kind: 'overview', action: null }),
+    body: geometry => <MemoryPopupBody geometry={geometry} initialRoute={initialRoute} settle={settle} />,
+  }
 }
 
 async function statsReply(): Promise<string> {
@@ -159,7 +210,7 @@ export async function call(
   }
   clearInstructionFileCaches()
   await getInstructionFiles()
-
-  const route = trimmed === 'files' ? 'files' : 'centre'
-  return <MemoryCommand initialRoute={route} onDone={onDone} />
+  const route: MemoryRoute = trimmed === 'files' ? 'files' : 'centre'
+  openSettingsPopup(memoryPopupRequest(route, onDone))
+  return null
 }
