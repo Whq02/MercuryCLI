@@ -100,7 +100,7 @@ export function handleMessageFromStream(
       if (mode) onSetStreamMode(mode)
       if (block.type === 'tool_use') {
         const index = event.index
-        onStreamingToolUses(current => current.concat({ index, contentBlock: block, unparsedToolInput: '' }))
+        onStreamingToolUses(current => [...current, { index, contentBlock: block, unparsedToolInput: '' }])
       }
       return
     }
