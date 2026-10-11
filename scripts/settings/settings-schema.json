@@ -99,6 +99,14 @@
           "type": "integer",
           "minimum": 1000,
           "maximum": 9007199254740991
+        },
+        "journal": {
+          "description": "The session journal: at session end the model writes, in its own words, what happened, what you wanted, how you like to work and what it got wrong, into a file in the Mercury home beside the project's memory — never under the project tree, never pushed, synced or shared by Mercury (default on)",
+          "type": "boolean"
+        },
+        "journalOnEntryPage": {
+          "description": "The journal's last entry on the entry page the model reads at session start (default off); what the model reads at entry travels to the engine's provider with the request — never uploaded means Mercury itself never pushes, syncs or shares the journal, not that the session's own engine does not see it",
+          "type": "boolean"
         }
       },
       "additionalProperties": {}
