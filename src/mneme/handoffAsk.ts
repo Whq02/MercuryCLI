@@ -34,7 +34,7 @@ export function handoffAskDue(input: { agentId?: string; querySource?: string; s
 }
 
 function textOf(message: Message): string {
-  if (message.type !== 'assistant') return ''
+  if (message.type !== 'assistant' || message.isApiErrorMessage === true) return ''
   const parts: string[] = []
   for (const block of message.message.content) {
     if (block.type === 'text' && typeof block.text === 'string') parts.push(block.text)
