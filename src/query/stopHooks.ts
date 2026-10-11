@@ -36,6 +36,7 @@ export async function* handleStopHooks(
   querySource: QuerySource | undefined,
   stopHookActive?: boolean,
 ): AsyncGenerator<Message, StopHookOutcome> {
+  if (querySource === 'side_question') return { blockingErrors: [], preventContinuation: false }
   const history = [...messagesForQuery, ...assistantMessages]
   const hookContext: TurnAnswerContext = { messages: history, systemPrompt, userContext, systemContext, toolUseContext, querySource }
 

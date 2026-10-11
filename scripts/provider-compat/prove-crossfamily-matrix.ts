@@ -498,7 +498,7 @@ const RING: Array<{ parent: Family; worker: Family }> = [
   { parent: 'zen', worker: 'anthropic' },
 ]
 
-const IDENTITY_ANCHOR = 'Mercury was not built by the maker of any model it runs'
+const IDENTITY_ANCHOR = 'You are Mercury, the self that exists in this harness.'
 
 function assertWorkerLeg(tag: string, workerFamily: Family, o: DriveOutcome, expectedWireId: string, expectedResolved: string): void {
   const workerHits = o.wire.filter(h => h.family === workerFamily)
@@ -726,7 +726,7 @@ section('§D the coordinator seat — every family takes a coordinator turn')
     if (own.length === 0) continue
     const serialized = text(own[0]!.body)
     check(`coordinator@${family}: the coordinator seat identity rides its wire`,
-      serialized.includes('You are the Mercury coordinator'))
+      serialized.includes(IDENTITY_ANCHOR) && serialized.includes('This seat is the Mercury coordinator'))
     check(`coordinator@${family}: the cross-family board reaches the wire (both seats' model ids)`,
       serialized.includes('gpt-5.6-sol') && serialized.includes(WORKER_SPELLINGS.zai.model))
     check(`coordinator@${family}: the switchboard tools are declared on its wire`,

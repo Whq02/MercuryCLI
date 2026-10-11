@@ -50,7 +50,7 @@ export const InspectTool = buildTool({
   shouldDefer: true,
   name: INSPECT_TOOL_NAME,
   searchHint:
-    'inspect Mercury work-graph objects by mercury:// ref (runs, receipts, tasks, crews, workflows, artifacts, agents, health, this seat and the model it runs on)',
+    'read Mercury work-graph objects by mercury:// ref (runs, receipts, tasks, crews, workflows, artifacts, agents, health, seat identity, model, effort, posture, engine history)',
   maxResultSizeChars: 100_000,
   strict: true,
   isEnabled() {

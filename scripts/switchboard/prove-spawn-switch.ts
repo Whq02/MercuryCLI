@@ -352,7 +352,7 @@ if (!existsSync(DIST)) {
 } else if (!nodeBin) {
   check('a node binary on PATH', false)
 } else {
-  const { startFixtureApi } = await import('../lib/fixtureApi.ts')
+  const { startFixtureApi, handoffTurn, isHandoffRequest } = await import('../lib/fixtureApi.ts')
   type ScriptedTurn = Parameters<typeof startFixtureApi>[0][number]
   interface Arena { home: string; cwd: string; env: Record<string, string> }
   function makeArena(baseUrl: string, extraEnv: Record<string, string> = {}): Arena {
@@ -421,11 +421,12 @@ if (!existsSync(DIST)) {
   section('§8a the wire — born with both switches off, the request carries neither tool')
   {
     const turns: ScriptedTurn[] = [{ kind: 'text', text: 'S8A-DONE', thinking: 'born off', inputTransformations: [] }]
-    const fixture = await startFixtureApi(turns)
+    const fixture = await startFixtureApi([handoffTurn(), ...turns])
     const arena = makeArena(fixture.url, { [SUB]: '0', [WF]: '0' })
     const r = await runStreaming(arena, common, [{ prompt: 'hi' }])
     check('the process exits 0 and answers', r.exit === 0 && r.stdout.includes('S8A-DONE'), `exit=${r.exit} stderr=${r.stderr.slice(0, 300)}`)
-    const reqs = fixture.messageRequests()
+    const reqs = fixture.messageRequests().filter(q => !isHandoffRequest(q))
+    check('one marked closing ask follows the first turn', j(fixture.messageRequests().map(isHandoffRequest)) === j([false, true]), j(fixture.messageRequests().map(isHandoffRequest)))
     const names = reqs.length > 0 ? toolNames(reqs[0]!.body as Body) : []
     check('the first request carries no Agent tool and no Workflow tool', reqs.length >= 1 && !names.includes(AgentTool.name) && !names.includes(WorkflowTool.name) && names.includes('Read'), names.join(','))
     await fixture.close()
@@ -439,7 +440,7 @@ if (!existsSync(DIST)) {
       { kind: 'text', text: 'S8B-TURN-2-DONE', thinking: 'after the toggle', inputTransformations: [DROP] },
       { kind: 'text', text: 'S8B-TURN-3-DONE', thinking: 'third', inputTransformations: [] },
     ]
-    const fixture = await startFixtureApi(turns)
+    const fixture = await startFixtureApi([handoffTurn(), ...turns])
     const arena = makeArena(fixture.url)
     const SID = 'c0ffee00-0000-4000-8000-0000000005b8'
     const r = await runStreaming(arena, [...common, '--session-id', SID], [
@@ -449,7 +450,8 @@ if (!existsSync(DIST)) {
     ])
     check('the three-turn process exits 0 and answers every turn', r.exit === 0 && r.stdout.includes('S8B-TURN-1-DONE') && r.stdout.includes('S8B-TURN-2-DONE') && r.stdout.includes('S8B-TURN-3-DONE'), `exit=${r.exit} stderr=${r.stderr.slice(0, 400)}`)
     check('the runner acknowledged the toggle (the request answered with where it lands)', r.answers.some(a => a.method === 'session/set_spawn_switch' && a.error === undefined && (a.result as { switch?: string } | undefined)?.switch === 'subagents'), j(r.answers))
-    const reqs = fixture.messageRequests()
+    const reqs = fixture.messageRequests().filter(q => !isHandoffRequest(q))
+    check('one marked closing ask follows the third turn', j(fixture.messageRequests().map(isHandoffRequest)) === j([false, false, false, true]), j(fixture.messageRequests().map(isHandoffRequest)))
     check('three message requests', reqs.length === 3, String(reqs.length))
     if (reqs.length === 3) {
       const b1 = reqs[0]!.body as Body

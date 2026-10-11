@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from 'node:fs'
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { isHandoffRequest } from '../../lib/fixtureApi.ts'
 
 export type FixtureLane = 'anthropic' | 'openai' | 'openai-models' | 'ddg-html' | 'ddg-lite' | 'brave' | 'tavily' | 'other'
 export interface SearchFixtureHit {
@@ -72,7 +73,7 @@ function scriptedStepOf(body: string): { side: boolean; step: number } {
   try {
     const parsed = JSON.parse(body) as { tools?: unknown; input?: unknown }
     const items = Array.isArray(parsed.input) ? (parsed.input as Array<{ type?: string }>) : []
-    return { side: !Array.isArray(parsed.tools) || parsed.tools.length === 0, step: items.filter(item => item?.type === 'function_call_output').length }
+    return { side: isHandoffRequest({ body: parsed, raw: body }) || !Array.isArray(parsed.tools) || parsed.tools.length === 0, step: items.filter(item => item?.type === 'function_call_output').length }
   } catch {
     return { side: true, step: 0 }
   }

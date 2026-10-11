@@ -2,7 +2,7 @@ import { spawn } from 'node:child_process'
 import { mkdirSync, mkdtempSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { startFixtureApi, type ScriptedTurn } from '../../lib/fixtureApi.ts'
+import { startFixtureApi, type CapturedRequest, type ScriptedTurn } from '../../lib/fixtureApi.ts'
 
 export type Row = Record<string, unknown>
 
@@ -14,6 +14,7 @@ export type RunDoorResult = {
   tookMs: number
   sessionRows: Row[]
   requests: number
+  wire: CapturedRequest[]
 }
 
 export type RunDoorScene = {
@@ -107,7 +108,7 @@ export async function runDoor(paths: { home: string; cwd: string }, scene: RunDo
       return { bad: line }
     }
   })
-  return { code, rows, stdout, stderr, tookMs, sessionRows: sessionFilesOf(paths.home), requests }
+  return { code, rows, stdout, stderr, tookMs, sessionRows: sessionFilesOf(paths.home), requests, wire: fixture.messageRequests() }
 }
 
 export type SavedHookRow = { recordId: string; parentId?: string; ordinal: number; fields: Row }

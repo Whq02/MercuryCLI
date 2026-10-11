@@ -14,7 +14,7 @@ delete process.env.MERCURY_THINKING_BINDING
 delete process.env.MERCURY_PREFIX_INDUCE_EDIT
 delete process.env.ANTHROPIC_BASE_URL
 
-import { bindingDropsFor, startFixtureApi, type FixtureApi, type ScriptedTurn } from '../lib/fixtureApi.ts'
+import { bindingDropsFor, startFixtureApi, handoffTurn, isHandoffRequest, type FixtureApi, type ScriptedTurn } from '../lib/fixtureApi.ts'
 
 const ROOT = resolve(import.meta.dir, '..', '..')
 const DIST = join(ROOT, 'dist', 'mercury.mjs')
@@ -200,7 +200,7 @@ if (!existsSync(DIST)) {
         { kind: 'text', text: 'S2-TURN-3-DONE', thinking: 'third turn done', model: MODEL },
         { kind: 'text', text: 'S2-RESUMED-DONE', thinking: 'resumed turn done', model: MODEL },
       ]
-      const fixture = await startFixtureApi(turns, { bindingCheck: true })
+      const fixture = await startFixtureApi([handoffTurn(), ...turns], { bindingCheck: true })
       const arena = makeArena(fixture)
       const filePath = join(arena.cwd, 'win-notes.txt')
       ;(turns[1] as Extract<ScriptedTurn, { kind: 'tool_use' }>).input = { file_path: filePath, content: 'alpha  \r\nbeta\t\r\nC:\\Users\\WHQ\\x\r\n' }
@@ -217,8 +217,9 @@ if (!existsSync(DIST)) {
       check('§2 the three-turn process exits 0 and every turn answered', r.exit === 0 && ['S2-TURN-1-DONE', 'S2-TURN-2-DONE', 'S2-TURN-3-DONE'].every(t => r.stdout.includes(t)), `exit=${r.exit} stderr=${r.stderr.slice(0, 300)}`)
       const r2 = await runStreaming(arena, [...common, '--resume', SID, '--log-file', debugFile], ['and after the resume?'])
       check('§2 the resumed process exits 0 and answered', r2.exit === 0 && r2.stdout.includes('S2-RESUMED-DONE'), `exit=${r2.exit} stderr=${r2.stderr.slice(0, 300)}`)
-      const reqs = fixture.messageRequests()
+      const reqs = fixture.messageRequests().filter(q => !isHandoffRequest(q))
       check('§2 nine message requests (five rounds, a two-round turn, a plain turn, the resumed turn)', reqs.length === 9, String(reqs.length))
+      check('§2 one marked closing ask follows the first process\'s last turn, before the resume', j(fixture.messageRequests().map(isHandoffRequest)) === j([...Array(8).fill(false), true, false]), j(fixture.messageRequests().map(isHandoffRequest)))
       census('§2', reqs)
       check('§2 the fixture refused nothing and its binding check dropped nothing on any request', fixture.refusals.length === 0 && reqs.every(q => dropPaths(q).length === 0), `refusals=${fixture.refusals.length} drops=${j(reqs.map(dropPaths))}`)
       const settledInputs = (((reqs[reqs.length - 1]!.body as Body).messages ?? []) as Array<{ role: string; content: unknown }>)
@@ -244,7 +245,7 @@ if (!existsSync(DIST)) {
         { kind: 'text', text: 'S3-TURN-2-DONE', thinking: 'the loop is done', model: MODEL },
         { kind: 'text', text: 'S3-TURN-3-DONE', thinking: 'third turn', model: MODEL },
       ]
-      const fixture = await startFixtureApi(turns, { bindingCheck: true })
+      const fixture = await startFixtureApi([handoffTurn(), ...turns], { bindingCheck: true })
       const arena = makeArena(fixture, { MERCURY_PREFIX_INDUCE_EDIT: 'turn:0' })
       const notePath = join(arena.cwd, 'note.txt')
       writeFileSync(notePath, 'a note\n')
@@ -258,8 +259,9 @@ if (!existsSync(DIST)) {
         'and now?',
       ])
       check('§3 the three-turn process exits 0 and every turn answered', r.exit === 0 && ['S3-TURN-1-DONE', 'S3-TURN-2-DONE', 'S3-TURN-3-DONE'].every(t => r.stdout.includes(t)), `exit=${r.exit} stderr=${r.stderr.slice(0, 300)}`)
-      const reqs = fixture.messageRequests()
+      const reqs = fixture.messageRequests().filter(q => !isHandoffRequest(q))
       check("§3 six message requests (turn 1; the loop's four rounds; turn 3)", reqs.length === 6, String(reqs.length))
+      check('§3 one marked closing ask follows all six substantive requests', j(fixture.messageRequests().map(isHandoffRequest)) === j([...Array(6).fill(false), true]), j(fixture.messageRequests().map(isHandoffRequest)))
       const drops = reqs.map(dropPaths)
       console.log(`    drops per request: ${j(drops)}`)
       console.log(`    live thinking per request: ${j(reqs.map(liveThinking))}`)
