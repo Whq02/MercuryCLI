@@ -93,7 +93,7 @@ export async function askForHandoff(input: {
       canUseTool,
       querySource: 'side_question',
       forkLabel: 'handoff',
-      overrides: { abortController },
+      overrides: { abortController, alwaysCallCanUseTool: true },
       maxTurns: ask.tools.size > 0 ? 4 : 2,
       skipTranscript: true,
       skipCacheWrite: true,
