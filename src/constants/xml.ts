@@ -1,16 +1,33 @@
+type TagFamily<Prefix extends string, Members extends readonly string[]> = {
+  readonly [Member in Members[number]]: `${Prefix}-${Member}`
+}
 
-export const COMMAND_NAME_TAG = 'command-name'
-export const COMMAND_MESSAGE_TAG = 'command-message'
-export const COMMAND_ARGS_TAG = 'command-args'
+function tagFamily<const Prefix extends string, const Members extends readonly string[]>(
+  prefix: Prefix,
+  members: Members,
+): TagFamily<Prefix, Members> {
+  return Object.fromEntries(members.map(member => [member, `${prefix}-${member}`])) as TagFamily<Prefix, Members>
+}
 
-export const BASH_INPUT_TAG = 'bash-input'
-export const BASH_STDOUT_TAG = 'bash-stdout'
-export const BASH_STDERR_TAG = 'bash-stderr'
-export const BASH_EXIT_CODE_TAG = 'bash-exit-code'
-export const BASH_DURATION_MS_TAG = 'bash-duration-ms'
-export const LOCAL_COMMAND_STDOUT_TAG = 'local-command-stdout'
-export const LOCAL_COMMAND_STDERR_TAG = 'local-command-stderr'
-export const LOCAL_COMMAND_CAVEAT_TAG = 'local-command-caveat'
+export const {
+  name: COMMAND_NAME_TAG,
+  message: COMMAND_MESSAGE_TAG,
+  args: COMMAND_ARGS_TAG,
+} = tagFamily('command', ['name', 'message', 'args'])
+
+export const {
+  input: BASH_INPUT_TAG,
+  stdout: BASH_STDOUT_TAG,
+  stderr: BASH_STDERR_TAG,
+  'exit-code': BASH_EXIT_CODE_TAG,
+  'duration-ms': BASH_DURATION_MS_TAG,
+} = tagFamily('bash', ['input', 'stdout', 'stderr', 'exit-code', 'duration-ms'])
+
+export const {
+  stdout: LOCAL_COMMAND_STDOUT_TAG,
+  stderr: LOCAL_COMMAND_STDERR_TAG,
+  caveat: LOCAL_COMMAND_CAVEAT_TAG,
+} = tagFamily('local-command', ['stdout', 'stderr', 'caveat'])
 
 export const TERMINAL_OUTPUT_TAGS = [
   BASH_INPUT_TAG,
@@ -37,17 +54,6 @@ export const CHANNEL_TAG = 'channel'
 
 export const COMMON_HELP_ARGS: readonly string[] = ['help', '-h', '--help']
 export const COMMON_INFO_ARGS: readonly string[] = [
-  'list',
-  'show',
-  'display',
-  'current',
-  'view',
-  'get',
-  'check',
-  'describe',
-  'print',
-  'version',
-  'about',
-  'status',
-  '?',
+  'list', 'show', 'display', 'current', 'view', 'get', 'check',
+  'describe', 'print', 'version', 'about', 'status', '?',
 ]
