@@ -53,11 +53,11 @@ try {
     tick({ mtimeMs: stamp + 1 })
     const pending = requests.shift()!
     const now = spyOn(Date, 'now').mockReturnValue(stamp + 2)
-    config.writeThroughGlobalConfigCache({ ...config.getGlobalConfig(), theme: 'light' })
+    config.writeThroughGlobalConfigCache({ ...config.getGlobalConfig(), theme: 'fixture-newer-theme' })
     now.mockRestore()
     pending('{"theme":"dark"}')
     await settle()
-    assert.equal(config.getGlobalConfig().theme, 'light')
+    assert.equal(config.getGlobalConfig().theme, 'fixture-newer-theme')
     assert.equal(config.getGlobalConfigCacheStamp(), stamp + 2)
     assert.equal(notifications, 1)
     console.log('PASS global refresh singleton, mtime gates, BOM, torn reads and in-flight write-through race')
