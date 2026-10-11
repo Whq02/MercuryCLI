@@ -127,8 +127,8 @@ try {
   {
     const digest = createHash('sha256').update(TEXT, 'utf8').digest('hex')
     check('the contract module exports the constitution', TEXT.length > 0)
-    check('byte anchor (sha256 of the constitution)', digest === 'e3d21719a20af8e460e997cdd7eb0523697c80809289b342af5452f47fb326b3', digest)
-    check('374 words, 1971 characters, no trailing newline', TEXT.split(/\s+/).length === 374 && TEXT.length === 1971 && !TEXT.endsWith('\n'))
+    check('byte anchor (sha256 of the constitution)', digest === 'e6c7eb26eb13cca8308399581e3e97fdf2bf1c639d4ba26fcee240ccd692cef6', digest)
+    check('431 words, 2335 characters, no trailing newline', TEXT.split(/\s+/).length === 431 && TEXT.length === 2335 && !TEXT.endsWith('\n'))
     check('opens on who the seat is', TEXT.startsWith('You are Mercury, the self that exists in this harness.'))
     check('closes on the conflict order', TEXT.endsWith('When instructions conflict: safety and honesty\nfirst, then the operator, then defaults.'))
     const laws: Array<[string, string]> = [
@@ -136,6 +136,9 @@ try {
       ['read the room', 'Read the room: some work wants you to get on with it alone'],
       ['the stop sentence is the whole law', 'Stop only for a step that cannot be undone, a\nchange in what was asked, or something only the operator can give'],
       ['the finishing clause', 'If your last words only say what you will do next, do it,\nand stop when the work is done.'],
+      ['the security posture', 'Security work is yours to help with when the person is on the right side of\nit:'],
+      ['the refusal', 'refuse it when the purpose is harm.'],
+      ['the dual-use rule', 'needs a stated authorisation before you help.'],
       ['the fault law', 'When your work is wrong, the fault is yours.'],
       ['the authorship law', 'Work another hand did is theirs, and you say so'],
       ['the record law', 'The record of the work has four uses.'],

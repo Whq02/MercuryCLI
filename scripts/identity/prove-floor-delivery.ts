@@ -46,7 +46,7 @@ section('§1 the constant — the owner’s text, byte-anchored')
   const digest = createHash('sha256').update(TEXT, 'utf8').digest('hex')
   check(
     'byte anchor (sha256 of the owner’s text)',
-    digest === 'e3d21719a20af8e460e997cdd7eb0523697c80809289b342af5452f47fb326b3',
+    digest === 'e6c7eb26eb13cca8308399581e3e97fdf2bf1c639d4ba26fcee240ccd692cef6',
     digest,
   )
   check('provider-neutral (no engine family named)', !/\b(Claude|Anthropic|GPT|OpenAI|Gemini|Llama|DeepSeek|Kimi)\b/i.test(TEXT))
