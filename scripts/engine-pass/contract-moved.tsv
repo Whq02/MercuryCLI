@@ -79,3 +79,6 @@ unexported	Color	the declaration line moved: the vocabulary is built from payloa
 unexported	TextStyle	the declaration line moved: the vocabulary is built from payload tables and name lists; the export, its name and its members stay	remainder-ink-tables	5eb440dbe2
 unexported	Action	the declaration line moved: the vocabulary is built from payload tables and name lists; the export, its name and its members stay	remainder-ink-tables	5eb440dbe2
 unexported	stylesEqual	no reader anywhere in src or scripts: the declaration leaves with the export (compose-buffer keeps its own stylesEqual over code lists)	remainder-ink-tables	5eb440dbe2
+unexported	cellAtIndex	the declaration line moved: the four-field decode it shared with visibleCellAtIndex is one decodeWords owner both call; the export, its name, its signature and its answer stay	remainder-ink-tables	591e33cc12
+unexported	CLEAR_ITERM2_PROGRESS	the declaration line moved: the exit cleanup is built by the BEL-terminated OSC builder; the export, its name and its bytes stay (ESC ] 9;4;0; BEL)	remainder-ink-tables	10641b0bbf
+unexported	CLEAR_TERMINAL_TITLE	the declaration line moved: the exit cleanup is built by the BEL-terminated OSC builder; the export, its name and its bytes stay (ESC ] 0; BEL)	remainder-ink-tables	10641b0bbf
