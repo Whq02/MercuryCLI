@@ -526,16 +526,26 @@ export function cellAt(screen: Screen, x: number, y: number): Cell | undefined {
   return cellAtIndex(screen, y * screen.width + x)
 }
 
-export function cellAtIndex(screen: Screen, index: number): Cell {
-  const ci = index << 1
-  const word1 = screen.cells[ci + 1]!
+function decodeWords(charPool: CharPool, hyperlinkPool: HyperlinkPool, charId: number, word1: number): Cell {
   const linkId = (word1 >>> HYPERLINK_SHIFT) & HYPERLINK_MASK
   return {
-    char: screen.charPool.get(screen.cells[ci]!),
+    char: charPool.get(charId),
     styleId: word1 >>> STYLE_SHIFT,
     width: word1 & WIDTH_MASK,
-    hyperlink: linkId === 0 ? undefined : screen.hyperlinkPool.get(linkId),
+    hyperlink: linkId === 0 ? undefined : hyperlinkPool.get(linkId),
   }
+}
+
+export function cellAtIndex(screen: Screen, index: number): Cell {
+  const ci = index << 1
+  return decodeWords(screen.charPool, screen.hyperlinkPool, screen.cells[ci]!, screen.cells[ci + 1]!)
+}
+
+function paintsNothing(charId: number, word1: number, lastRenderedStyleId: number): boolean {
+  if (charId === SPACER_CHAR_INDEX) return true
+  if (charId !== EMPTY_CHAR_INDEX || (word1 & SPACE_VISIBLE_MASK) !== 0) return false
+  const styleId = word1 >>> STYLE_SHIFT
+  return styleId === 0 || styleId === lastRenderedStyleId
 }
 
 export function visibleCellAtIndex(
@@ -547,19 +557,8 @@ export function visibleCellAtIndex(
 ): Cell | undefined {
   const ci = index << 1
   const charId = cells[ci]!
-  if (charId === SPACER_CHAR_INDEX) return undefined
   const word1 = cells[ci + 1]!
-  if (charId === EMPTY_CHAR_INDEX && (word1 & SPACE_VISIBLE_MASK) === 0) {
-    const fgStyle = word1 >>> STYLE_SHIFT
-    if (fgStyle === 0 || fgStyle === lastRenderedStyleId) return undefined
-  }
-  const linkId = (word1 >>> HYPERLINK_SHIFT) & HYPERLINK_MASK
-  return {
-    char: charPool.get(charId),
-    styleId: word1 >>> STYLE_SHIFT,
-    width: word1 & WIDTH_MASK,
-    hyperlink: linkId === 0 ? undefined : hyperlinkPool.get(linkId),
-  }
+  return paintsNothing(charId, word1, lastRenderedStyleId) ? undefined : decodeWords(charPool, hyperlinkPool, charId, word1)
 }
 
 function decodeCellInto(screen: Screen, ci: number, out: Cell): void {
