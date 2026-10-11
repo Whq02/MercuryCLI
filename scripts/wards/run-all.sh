@@ -6,8 +6,8 @@
 # gate-watch: scripts/gate/generated-assets.tsv scripts/settings/settings-schema.json
 # gate-watch: scripts/skills/gen-bundled.ts scripts/splash/deploy.sh
 # gate-watch: src/components/mercury-ui/sessionAccent.ts src/components/mercuryPalette.ts
-# gate-watch: src/constants/cyberRiskInstruction.ts src/daemon/workerRecon.ts src/skills/bundled/app-proof.ts
-# gate-watch: src/skills/bundled/app-proof/SKILL.md src/skills/bundled/updateConfig.ts
+# gate-watch: src/constants/cyberRiskInstruction.ts src/daemon/workerRecon.ts src/skills/bundled/mcp-smithy.ts
+# gate-watch: src/skills/bundled/mcp-smithy/SKILL.md src/skills/bundled/updateConfig.ts
 # gate-watch: src/substrate/flagRegistry.ts src/tools/**/*.{ts,tsx} src/utils/* src/utils/hooks/fire.ts src/guards/**
 # gate-watch: src/guards/generatedAssets.ts
 # gate-watch: scripts/lib/linearGrowth.ts

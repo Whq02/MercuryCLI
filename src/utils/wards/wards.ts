@@ -124,15 +124,10 @@ export const GENERATED_HEAD_LINES = 12
 export const GENERATED_HEAD_CHARS = 4096
 
 const BUNDLED_SKILLS = [
-  'app-proof',
   'extension-maker',
   'mcp-smithy',
-  'pdf-documents',
   'provider-apis',
   'skill-forge',
-  'slide-decks',
-  'spreadsheets',
-  'word-documents',
 ]
 const BUNDLED_SKILL_MODULES = `^src/skills/bundled/(?:${BUNDLED_SKILLS.join('|')})(?:Content)?\\.ts$`
 

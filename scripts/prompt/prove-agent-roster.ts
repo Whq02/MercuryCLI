@@ -4,7 +4,7 @@ import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { getBuiltInAgents } from '../../src/tools/AgentTool/builtInAgents.js'
 import { REVIEW_BRIEF } from '../../src/tools/AgentTool/reviewerPolicy.js'
-import { VERIFIER_BRIEF, VERIFIER_SKILL_NAME } from '../../src/skills/bundled/verifier.js'
+import { VERIFIER_BRIEF } from '../../src/commands/verify.js'
 import { MERCURY_DOCS_SKILL_NAME } from '../../src/skills/bundled/mercuryDocs.js'
 import { getIsInteractive, setIsInteractive } from '../../src/bootstrap/state.js'
 
@@ -61,9 +61,9 @@ function promptTextOf(a: { agentType: string; getSystemPrompt?: (ctx?: unknown) 
   check('§4 the verifier brief carries the verdict contract verbatim (VERDICT: PASS|FAIL|PARTIAL)', VERIFIER_BRIEF.includes('`VERDICT: ` then one of `PASS`, `FAIL`, `PARTIAL`'))
   check("§4 the verifier brief opens as Mercury's break-it charge", VERIFIER_BRIEF.startsWith("You are verifying someone else's work for Mercury."))
   const verify = readFileSync(join(ROOT, 'src/commands/verify.ts'), 'utf8')
-  check('§4 /verify hands the work to the verifier skill through the Skill tool', verify.includes('VERIFIER_SKILL_NAME') && verify.includes('SKILL_TOOL_NAME') && VERIFIER_SKILL_NAME === 'verifier')
+  check('§4 /verify hands the work and brief directly to a crew agent', verify.includes('AGENT_TOOL_NAME') && verify.includes('MERCURY_CREW_AGENT_TYPE') && verify.includes('verifierPrompt(work)'))
   const taskUpdate = readFileSync(join(ROOT, 'src/tools/TaskUpdateTool/prompt.ts'), 'utf8')
-  check('§4 the task-list verification nudge names the verifier skill', taskUpdate.includes('Invoke the ${VERIFIER_SKILL_NAME} skill'))
+  check('§4 the task-list verification nudge names the command', taskUpdate.includes('Run /verify to check the work'))
 }
 
 {

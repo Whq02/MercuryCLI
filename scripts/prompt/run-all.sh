@@ -20,7 +20,7 @@
 # gate-watch: src/main.tsx src/services/providers/anthropic/streamCore.ts src/services/lsp/**
 # gate-watch: scripts/lsp/fixtures/fake-lsp-server.mjs src/utils/config/globalConfig.ts
 # gate-watch: src/services/providers/local/localCatalogue.ts src/services/providers/local/localDiscovery.ts
-# gate-watch: src/skills/bundled/mercuryDocs.ts src/skills/bundled/verifier.ts src/tools.ts
+# gate-watch: src/skills/bundled/mercuryDocs.ts src/commands/verify.ts src/tools.ts
 # gate-watch: src/rows/* src/runner/wire/* scripts/lib/rows.ts
 # gate-watch: src/prompt/mercuryContract.ts src/constants/subagentDoctrine.ts src/services/concourse/coordinatorCall.ts src/services/concourse/coordinatorPersona.ts
 # gate-watch: src/services/providers/anthropic/cacheAndUsage.ts src/substrate/flagRegistry.ts src/constants/common.ts
