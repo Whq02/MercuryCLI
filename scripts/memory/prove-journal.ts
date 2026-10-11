@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 // gate-watch: src/mneme/journal.ts src/mneme/sessionClose.ts src/mneme/ledger.ts src/mneme/paths.ts src/mneme/handoffAsk.ts src/mneme/entryPage.ts src/constants/prompts.ts
 // gate-watch: src/tools/JournalTool/** src/tools.ts src/constants/tools.ts src/utils/settings/types.ts
-// gate-watch: src/components/Settings/Config.tsx scripts/settings/settings-schema.json
+// gate-watch: src/components/Settings/Config.tsx src/utils/settings/schemaOutput.ts
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, statSync, writeFileSync } from 'node:fs'
@@ -183,7 +183,7 @@ check('the refused block is marked is_error', block.is_error === true)
 check('no agent may hold the Journal tool', ALL_AGENT_DISALLOWED_TOOLS.has(JOURNAL_TOOL_NAME))
 const forAgent = filterToolsForAgent({ tools: getAllBaseTools(), isBuiltIn: true })
 check('a crewmate\'s tool pool has no Journal', !forAgent.some(t => t.name === JOURNAL_TOOL_NAME))
-check('the tool carries its capability and its proof', (JournalTool as { capability?: { proof?: string; units?: string[] } }).capability?.proof === 'scripts/memory-lifecycle/prove-journal.ts' && (JournalTool as { capability?: { units?: string[] } }).capability?.units?.includes('memory') === true)
+check('the tool carries its capability and its proof', (JournalTool as { capability?: { proof?: string; units?: string[] } }).capability?.proof === 'scripts/memory/prove-journal.ts' && (JournalTool as { capability?: { units?: string[] } }).capability?.units?.includes('memory') === true)
 const description = await JournalTool.description()
 check('the description names the home, the project tree and the no-sharing line', description.includes('Mercury home') && description.includes('never under the project tree') && description.includes('never pushes, syncs or shares'))
 const prompt = await JournalTool.prompt()
@@ -211,7 +211,8 @@ const networkReaders = network.filter(p => /journal/i.test(readFileSync(p, 'utf8
 check('no provider, notification, daemon, switchboard or telemetry module reads the journal', networkReaders.length === 0, networkReaders.join(', '))
 
 section('§8 the settings: the two keys, their defaults, the honesty line where the setting lives')
-const schema = JSON.parse(readFileSync(join(ROOT, 'scripts/settings/settings-schema.json'), 'utf8')) as { properties?: Record<string, { properties?: Record<string, { description?: string; type?: string }> }> }
+const { generateSettingsJSONSchema } = await import('../../src/utils/settings/schemaOutput.js')
+const schema = JSON.parse(generateSettingsJSONSchema()) as { properties?: Record<string, { properties?: Record<string, { description?: string; type?: string }> }> }
 const memoryProps = schema.properties?.memory?.properties ?? {}
 check('memory.journal is a boolean in the schema', memoryProps.journal?.type === 'boolean')
 check('memory.journalOnEntryPage is a boolean in the schema', memoryProps.journalOnEntryPage?.type === 'boolean')

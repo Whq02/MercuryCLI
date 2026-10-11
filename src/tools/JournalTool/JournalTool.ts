@@ -52,7 +52,7 @@ export const JournalTool = buildTool({
     class: 'mutation',
     cancellation: 'not-applicable',
     latency: 'fast',
-    proof: 'scripts/memory-lifecycle/prove-journal.ts',
+    proof: 'scripts/memory/prove-journal.ts',
   },
   async description() {
     return JOURNAL_DESCRIPTION
