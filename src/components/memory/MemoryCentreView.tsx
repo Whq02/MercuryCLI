@@ -125,6 +125,10 @@ export function lineagePageRows(page: string | null, width: number = 70): string
       } else current = current === '' ? word : `${current} ${word}`
     }
     if (current !== '') out.push(current)
+  }
+  return out
+}
+
 export function journalStamp(at: string): string {
   return at.slice(0, 16).replace('T', ' ')
 }
@@ -203,8 +207,7 @@ export function pinnedRuleRow(row: { pin: PinRecord; entry: MnemeEntry; slug: st
 export function MemoryCentreView({ onClose, onOpenFiles }: { onClose: () => void; onOpenFiles?: () => void }): React.ReactNode {
   const accent = useSessionAccent().accent
   const [query, setQuery] = React.useState('')
-  const [view, setView] = React.useState<'overview' | 'pinned' | 'topics' | 'lineage'>('overview')
-  const [view, setView] = React.useState<'overview' | 'pinned' | 'topics' | 'journal'>('overview')
+  const [view, setView] = React.useState<'overview' | 'pinned' | 'topics' | 'lineage' | 'journal'>('overview')
   const [detail, setDetail] = React.useState<MemoryRef | null>(null)
   const [journalDetail, setJournalDetail] = React.useState<JournalEntry | null>(null)
   const journalLines = React.useMemo(() => (journalDetail ? wrapJournalText(journalDetail.text, 76) : []), [journalDetail])
@@ -240,6 +243,8 @@ export function MemoryCentreView({ onClose, onOpenFiles }: { onClose: () => void
       const sessionId = String(getSessionId())
       const rows: CentreRow[] = [{ id: 'page', kind: 'info', label: 'the page this session was given at its start, composed from the ledger · the last note is in it, word for word' }]
       lineagePageRows(composeEntryPage(mnemeProjectKey(), sessionId)).forEach((line, index) => rows.push({ id: `page-${index}`, kind: 'info', label: line === '' ? ' ' : line }))
+      return rows
+    }
     if (view === 'journal') {
       const entries = journalEntryRows(readJournal())
       const rows: CentreRow[] = [{ id: 'journal-heading', kind: 'info', label: journalListHeading(entries.length) }]
@@ -300,8 +305,7 @@ export function MemoryCentreView({ onClose, onOpenFiles }: { onClose: () => void
       else if (journalDetail) setJournalDetail(null)
       else if (query) {
         setQuery('')
-      } else if (view === 'pinned' || view === 'topics' || view === 'lineage') setView('overview')
-      } else if (view === 'pinned' || view === 'topics' || view === 'journal') setView('overview')
+      } else if (view === 'pinned' || view === 'topics' || view === 'lineage' || view === 'journal') setView('overview')
       else onClose()
     },
     onPrimary: row => {
@@ -452,15 +456,6 @@ export function MemoryCentreView({ onClose, onOpenFiles }: { onClose: () => void
     ? '↵ save correction · esc cancel'
     : detail
       ? `${detailSeq !== null && mnemeEnabled() ? `c correct · x retire · ${detailPinned ? 'u unpin' : 'p pin'} · ` : ''}esc back`
-      : query
-        ? '↑↓ move · ↵ inspect · esc clear'
-        : view === 'pinned'
-          ? '↑↓ move · ↵ inspect · u unpin · /config raises the limit · esc back'
-          : view === 'topics'
-            ? '↑↓ move · ↵ open the page · esc back'
-            : view === 'lineage'
-              ? '↑↓ move · esc back'
-              : 'type to search · ↑↓ move · ↵ act · esc close'
       : journalDetail
         ? 'esc back'
         : query
@@ -469,9 +464,11 @@ export function MemoryCentreView({ onClose, onOpenFiles }: { onClose: () => void
             ? '↑↓ move · ↵ inspect · u unpin · /config raises the limit · esc back'
             : view === 'topics'
               ? '↑↓ move · ↵ open the page · esc back'
-              : view === 'journal'
-                ? '↑↓ move · ↵ read the entry · esc back'
-                : 'type to search · ↑↓ move · ↵ act · esc close'
+              : view === 'lineage'
+                ? '↑↓ move · esc back'
+                : view === 'journal'
+                  ? '↑↓ move · ↵ read the entry · esc back'
+                  : 'type to search · ↑↓ move · ↵ act · esc close'
 
   return (
     <CommandCenter view="memory" subtitle="memory centre" onClose={onClose} captureInput={false} footer={footer}>
@@ -525,8 +522,7 @@ export function MemoryCentreView({ onClose, onOpenFiles }: { onClose: () => void
           </Box>
         ) : (
           <Box flexDirection="column">
-            <SectionHeader count={(view === 'pinned' || view === 'topics' || view === 'lineage') && !query ? Math.max(0, list.length - 1) : list.length}>{query ? 'Matches' : view === 'pinned' ? 'Pinned rules' : view === 'topics' ? 'Topics' : view === 'lineage' ? 'Lineage' : 'Memory'}</SectionHeader>
-            <SectionHeader count={(view === 'pinned' || view === 'topics' || view === 'journal') && !query ? Math.max(0, list.length - 1) : list.length}>{query ? 'Matches' : view === 'pinned' ? 'Pinned rules' : view === 'topics' ? 'Topics' : view === 'journal' ? 'Journal' : 'Memory'}</SectionHeader>
+            <SectionHeader count={(view === 'pinned' || view === 'topics' || view === 'lineage' || view === 'journal') && !query ? Math.max(0, list.length - 1) : list.length}>{query ? 'Matches' : view === 'pinned' ? 'Pinned rules' : view === 'topics' ? 'Topics' : view === 'lineage' ? 'Lineage' : view === 'journal' ? 'Journal' : 'Memory'}</SectionHeader>
             {above > 0 ? <Text color={FAINT}>{`  +${above} above`}</Text> : null}
             {visible.map((row, i) => {
               const active = i === clampedSel
