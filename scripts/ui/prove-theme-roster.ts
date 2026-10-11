@@ -25,11 +25,11 @@ const systemMod = await import('../../src/utils/systemTheme.js')
 const RETIRED = ['light', 'light-daltonized', 'dark-daltonized', 'light-ansi', 'dark-ansi'] as const
 const UNKNOWN = 'not-a-theme'
 
-section('§1 the roster is exactly the two appearances')
+section('§1 the roster is exactly the three appearances')
 {
   check(
-    'THEME_NAMES equals [dark, true-black]',
-    JSON.stringify(themeMod.THEME_NAMES) === JSON.stringify(['dark', 'true-black']),
+    'THEME_NAMES equals [dark, true-black, mono]',
+    JSON.stringify(themeMod.THEME_NAMES) === JSON.stringify(['dark', 'true-black', 'mono']),
     JSON.stringify(themeMod.THEME_NAMES),
   )
   check(
@@ -39,7 +39,7 @@ section('§1 the roster is exactly the two appearances')
   )
   check(
     'the settings vocabulary is auto first, then the roster',
-    JSON.stringify(themeMod.THEME_SETTINGS) === JSON.stringify(['auto', 'dark', 'true-black']),
+    JSON.stringify(themeMod.THEME_SETTINGS) === JSON.stringify(['auto', 'dark', 'true-black', 'mono']),
     JSON.stringify(themeMod.THEME_SETTINGS),
   )
   check('the one default owner names True Black', systemMod.DEFAULT_THEME_SETTING === 'true-black')
@@ -49,15 +49,16 @@ section('§2 the chooser rows equal the roster')
 {
   const picker = readFileSync(join(ROOT, 'src/components/ThemePicker.tsx'), 'utf8')
   check(
-    'the theme picker maps the reachable roster and labels the two appearances',
+    'the theme picker maps the reachable roster and labels the three appearances',
     picker.includes('REACHABLE_THEME_SETTINGS.map') &&
       picker.includes("dark: 'Oasis dark'") &&
-      picker.includes("'true-black': 'True Black'"),
+      picker.includes("'true-black': 'True Black'") &&
+      picker.includes("mono: 'Black and white'"),
   )
   const onboarding = readFileSync(join(ROOT, 'src/components/Onboarding.tsx'), 'utf8')
   check(
-    'the first-run fitting offers the two appearances and no third row',
-    onboarding.includes("value: 'dark'") && onboarding.includes("value: 'true-black'") && !onboarding.includes("value: 'auto'"),
+    'the first-run fitting offers the three appearances and no auto row',
+    onboarding.includes("value: 'dark'") && onboarding.includes("value: 'true-black'") && onboarding.includes("value: 'mono'") && !onboarding.includes("value: 'auto'"),
   )
   const config = readFileSync(join(ROOT, 'src/components/Settings/Config.tsx'), 'utf8')
   const labels = /const THEME_LABELS: Record<string, string> = \{([\s\S]*?)\}/.exec(config)?.[1] ?? ''
