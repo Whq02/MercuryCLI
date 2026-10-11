@@ -11,7 +11,7 @@
 # gate-watch: src/state/AppState.tsx src/state/AppStateStore.ts src/utils/permissions/filesystem.ts
 # gate-watch: src/daemon/sessionSeat.ts src/fabric/entryCodec.ts src/fabric/ordinal.ts
 # gate-watch: src/query/stopHooks.ts src/run-core/turn-machine.ts
-# gate-watch: src/services/api/errors.ts src/services/concourse/coordinatorCall.ts
+# gate-watch: src/services/api/errors.ts src/services/api/transportEvidence.ts src/services/compact/operatorMessages.ts src/services/concourse/coordinatorCall.ts
 # gate-watch: src/services/engine-connector/daemonConnector.ts src/services/engine-connector/recordIdentity.ts
 # gate-watch: src/services/providers/anthropic/streamCore.ts src/services/providers/anthropic/messageParams.ts src/services/providers/openai/responsesBridge.ts src/services/providers/openai/openaiWire.ts src/services/providers/gemini/geminiCodec.ts src/services/providers/gemini/geminiClient.ts src/services/providers/zai/zaiCodec.ts src/services/providers/openaicompat/compatChatClient.ts src/services/providers/local/ollamaChatTransport.ts
 # gate-watch: src/tools.ts src/tools/SkillTool/SkillTool.ts
@@ -20,7 +20,7 @@
 # gate-watch: src/utils/hooks/questionRunner.ts src/utils/hooks/rows.ts
 # gate-watch: src/utils/sessionStorage/chain.ts src/utils/sessionStorage/loading.ts
 # gate-watch: src/Tool.ts src/bootstrap/state.ts src/fabric/record.ts src/fabric/validate.ts src/services/providers/deepseek/deepseekCallModel.ts src/services/providers/huggingface/huggingfaceCallModel.ts src/services/providers/local/localCallModel.ts src/services/providers/local/localDiscovery.ts src/services/providers/local/localWindow.ts src/services/providers/moonshot/moonshotCallModel.ts src/services/providers/openai/openaiCallModel.ts src/services/providers/openai/openaiCatalogue.ts src/services/providers/openaicompat/compatChatCallModel.ts src/services/providers/openaicompat/compatWire.ts src/services/providers/zai/zaiCallModel.ts src/services/resources/adapters/transcript.ts src/utils/model/subModelSlots.ts src/utils/sessionStorage/writer.ts
-# gate-watch: src/constants/oauth.ts src/constants/messages.ts
+# gate-watch: src/constants/oauth.ts src/constants/messages.ts src/constants/xml.ts
 # gate-watch: src/utils/hooks/contract.ts
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
