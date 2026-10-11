@@ -1,10 +1,6 @@
-
 import { useCallback, useState } from 'react'
 import type { OptionWithDescription } from './option-map.js'
-import {
-  useSelectNavigation,
-  type SelectNavigation,
-} from './use-select-navigation.js'
+import { useSelectNavigation, type SelectNavigation } from './use-select-navigation.js'
 
 type UseSelectStateProps<T> = {
   visibleOptionCount?: number
@@ -24,6 +20,19 @@ export type SelectState<T> = SelectNavigation<T> & {
   onCancel?: () => void
 }
 
+function useCommittedValue<T>(defaultValue: T | undefined, onChange: ((value: T) => void) | undefined) {
+  const [value, setValue] = useState<T | undefined>(defaultValue)
+  const commit = useCallback(
+    (next: T | undefined): void => {
+      if (next === undefined) return
+      setValue(next)
+      onChange?.(next)
+    },
+    [onChange],
+  )
+  return { value, commit }
+}
+
 export function useSelectState<T>({
   visibleOptionCount = 5,
   options,
@@ -33,35 +42,9 @@ export function useSelectState<T>({
   onFocus,
   focusValue,
 }: UseSelectStateProps<T>): SelectState<T> {
-  const navigation = useSelectNavigation({
-    visibleOptionCount,
-    options,
-    focusValue,
-    onFocus,
-  })
-  const [value, setValue] = useState<T | undefined>(defaultValue)
-
+  const navigation = useSelectNavigation({ visibleOptionCount, options, focusValue, onFocus })
+  const { value, commit } = useCommittedValue(defaultValue, onChange)
   const { focusedValue } = navigation
-  const selectFocusedOption = useCallback(() => {
-    if (focusedValue === undefined) return
-    setValue(focusedValue)
-    onChange?.(focusedValue)
-  }, [focusedValue, onChange])
-
-  const selectValue = useCallback(
-    (next: T) => {
-      setValue(next)
-      onChange?.(next)
-    },
-    [onChange],
-  )
-
-  return {
-    ...navigation,
-    value,
-    selectFocusedOption,
-    selectValue,
-    onChange,
-    onCancel,
-  }
+  const selectFocusedOption = useCallback(() => commit(focusedValue), [commit, focusedValue])
+  return { ...navigation, value, selectFocusedOption, selectValue: commit, onChange, onCancel }
 }
