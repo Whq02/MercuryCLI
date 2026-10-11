@@ -1,6 +1,7 @@
 #!/usr/bin/env bun
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
+const J = (...parts: string[]): string => parts.join('')
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
@@ -21,22 +22,19 @@ console.log('============================================================')
 section('§1 ownership — one repository owner')
 {
   const mod = readFileSync(join(ROOT, 'src/prompt/mercuryContract.ts'), 'utf8')
-  check('mercuryContract.ts owns floor + the three seat contracts + reconcile',
-    mod.includes('MERCURY_IDENTITY_FLOOR') && mod.includes('MERCURY_SESSION_CONTRACT') && mod.includes('MERCURY_COORDINATOR_CONTRACT') && mod.includes('MERCURY_SUBAGENT_CONTRACT') && mod.includes('MERCURY_IDENTITY_RECONCILE'))
+  check('mercuryContract.ts owns the constitution + the two seat contracts, and no floor, doctrine or reconcile',
+    mod.includes('MERCURY_CONSTITUTION') && mod.includes('MERCURY_COORDINATOR_CONTRACT') && mod.includes('MERCURY_SUBAGENT_CONTRACT') && !mod.includes(J('MERCURY_IDENTITY', '_FLOOR')) && !mod.includes(J('MERCURY_SESSION', '_CONTRACT')) && !mod.includes(J('MERCURY_IDENTITY', '_RECONCILE')))
   check('no external text import (repository-owned bytes only)', !/require\(|from '[^']*\.txt'/.test(mod))
 }
 
-section('§2 gate — the doctrine opt-out never drops the floor')
+section('§2 ungated — no flag drops the constitution; the contract sections carry no identity or doctrine')
 {
-  delete process.env.MERCURY_WRAPPER_APPEND
   const contract = await import('../../src/prompt/mercuryContract.ts')
-  const on = contract.getMercuryContractSections()
-  check('doctrine ON by default', on.some(s => s.name === 'mercury-doctrine'))
-  process.env.MERCURY_WRAPPER_APPEND = '0'
-  const off = contract.getMercuryContractSections()
-  check('=0 drops exactly the doctrine section', !off.some(s => s.name === 'mercury-doctrine') && off.length === on.length - 1)
-  check('the identity floor survives the opt-out', off[0]?.name === 'identity-floor')
-  delete process.env.MERCURY_WRAPPER_APPEND
+  const sections = contract.getMercuryContractSections()
+  check('the contract sections carry no identity or doctrine section', sections.every(s => s.name !== J('identity', '-floor') && s.name !== J('mercury', '-doctrine') && !/You are/.test(s.text)))
+  const mod = readFileSync(join(ROOT, 'src/prompt/mercuryContract.ts'), 'utf8')
+  check('no doctrine flag is read anywhere in the module', !new RegExp([J('MERCURY_WRAPPER', '_APPEND'), J('mercuryDoctrine', 'Enabled')].join('|')).test(mod))
+  check('the constitution is one constant, byte-stable across reads', contract.MERCURY_CONSTITUTION === (await import('../../src/prompt/mercuryContract.ts')).MERCURY_CONSTITUTION && contract.MERCURY_CONSTITUTION.length > 0)
 }
 
 section('§3 byte-stability — identical stable inputs ⇒ identical bytes + digest')
@@ -45,14 +43,13 @@ section('§3 byte-stability — identical stable inputs ⇒ identical bytes + di
   const { buildBehaviourContract } = await import('../../src/prompt/behaviourContract.ts')
   const { getMercuryContractSections } = await import('../../src/prompt/mercuryContract.ts')
   const parts = () => ({
-    staticSections: ['intro', 'system'],
+    staticSections: ['head', 'law'],
     dynamicBoundary: [],
     dynamicSpecs: [{ name: 'memory', cacheBreak: false }],
     dynamicResolved: ['MEM'],
     wrapperSections: getMercuryContractSections(),
     modeSections: [],
     antiSycSections: [],
-    reconcileTailSections: [],
   })
   const a = composeSystemPrompt(parts())
   const b = composeSystemPrompt(parts())

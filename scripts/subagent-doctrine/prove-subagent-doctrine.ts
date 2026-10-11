@@ -2,7 +2,7 @@
 
 import { readFileSync } from 'node:fs'
 import { buildSubagentMercurySections } from '../../src/constants/subagentDoctrine.js'
-import { MERCURY_IDENTITY_FLOOR, mercurySubagentContract } from '../../src/prompt/mercuryContract.js'
+import { MERCURY_CONSTITUTION, mercurySubagentContract } from '../../src/prompt/mercuryContract.js'
 import { MERCURY_SCOUT_AGENT } from '../../src/tools/AgentTool/built-in/mercuryScoutAgent.js'
 
 const read = (p: string) => readFileSync(new URL(p, import.meta.url), 'utf-8')
@@ -47,12 +47,12 @@ check('no capital for emphasis in the three contracts', !/\b[A-Z]{2,}\b/.test(me
 
 check('exempt agent: bare-stamped === full-stamped', exemptStock === JSON.stringify(buildSubagentMercurySections({ agentDefinition: { agentType: 'mercury-scout' } })))
 
-section('(b) stamped ⇒ floor leads, the ONE NORMAL doctrine')
+section('(b) stamped ⇒ the constitution leads, the ONE NORMAL doctrine')
 setStamp(true)
 {
   const s = buildSubagentMercurySections({ agentDefinition: GP })
   check('returns a non-empty section list', s.length >= 2, `len=${s.length}`)
-  check('section[0] is the identity floor (LEADS)', s[0] === MERCURY_IDENTITY_FLOOR)
+  check('section[0] is the constitution (LEADS)', s[0] === MERCURY_CONSTITUTION)
   check('NORMAL doctrine present', join(s).includes(NORMAL_MARK) && join(s).includes('<subagent-doctrine>'))
 }
 

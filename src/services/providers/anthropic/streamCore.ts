@@ -92,7 +92,7 @@ import type {
   JsonOutputFormat,
   StreamCapabilityAdvertisement,
 } from '../../../types/wire.js'
-import { logAPIPrefix, toolToAPISchema } from '../../../utils/api.js'
+import { toolToAPISchema } from '../../../utils/api.js'
 import {
   getMergedBetas,
   modelSupportsTemperature,
@@ -191,7 +191,6 @@ import {
   type CachedMCEditsBlock,
   type CachedMCPinnedEdits,
   cleanupStream,
-  type SystemPromptPosture,
   updateUsage,
 } from './cacheAndUsage.js'
 import { stripExcessMediaItems } from './media.js'
@@ -582,16 +581,10 @@ async function* queryModel(
   }
 
   const sessionSystemPrompt = systemPrompt
-  const posture: SystemPromptPosture = {
-    isNonInteractive: options.isNonInteractiveSession,
-    hasAppendSystemPrompt: options.hasAppendSystemPrompt,
-  }
   const assembleSystemPrompt = (attribution: string): SystemPrompt =>
-    assembleTurnSystemPrompt(attribution, sessionSystemPrompt, posture)
+    assembleTurnSystemPrompt(attribution, sessionSystemPrompt)
   let attributionLine = getAttributionHeader(fingerprint)
   systemPrompt = assembleSystemPrompt(attributionLine)
-
-  logAPIPrefix(systemPrompt)
 
   const enablePromptCaching =
     options.enablePromptCaching ?? getPromptCachingEnabled(options.model)

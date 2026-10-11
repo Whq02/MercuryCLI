@@ -25,21 +25,23 @@ src() {
 }
 
 echo "############################################################"
-echo "# Mercury FLOOR presence — dist + assembly-seam invariants (#5)"
+echo "# Mercury constitution presence — dist + assembly-seam invariants (#5)"
 echo "############################################################"
 
-eq "floor identity line"         "this command-line coding harness and the agent running in it" 1
-eq "floor precedence tie-break"  "safety and honesty first, then the operator" 1
-ge "floor harm-bound clause"     "bypass a real safety, permission, or"
-ge "identity reconcile (tail)"   "Identity, final word"
+eq "the identity line"            "You are Mercury, the self that exists in this harness." 1
+eq "the precedence tie-break"     "first, then the operator, then defaults." 1
+ge "the gate line"                "A real safety, permission or capability gate is respected and"
+eq "no identity floor remains"    "this command-line coding harness and the agent running in it" 0
+eq "no identity tail remains"     "Identity, final word" 0
+eq "no wire prefix remains"       "source-built terminal coding harness" 0
 
-src "main-path contract splice"  "$prompts" "getMercuryContractSections"
-src "simple-path floor fallback" "$prompts" "MERCURY_IDENTITY_FLOOR"
-src "#9 conditional reconcile"   "$prompts" "modeSections.length > 0"
-src "#11 simple-path floor head" "$prompts" "simpleHead"
-src "floor precedence in source" "$wrap"    "safety and honesty first, then the operator"
+src "main-path contract splice"   "$prompts" "getMercuryContractSections"
+src "the constitution is the law" "$prompts" "promptReplacementText() : MERCURY_CONSTITUTION"
+src "the static group: head, law" "$prompts" "[frozenHead ?? head, law]"
+src "bare-path: head and law"     "$prompts" '${head}\n\n${law}'
+src "precedence in source"        "$wrap"    "first, then the operator, then defaults."
 
 echo "############################################################"
-if [ "$fail" = 0 ]; then echo "# ✅ FLOOR PRESENCE OK"; else echo "# ❌ FLOOR PRESENCE FAILED"; fi
+if [ "$fail" = 0 ]; then echo "# ✅ CONSTITUTION PRESENCE OK"; else echo "# ❌ CONSTITUTION PRESENCE FAILED"; fi
 echo "############################################################"
 exit "$fail"

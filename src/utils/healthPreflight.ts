@@ -4,10 +4,9 @@ import { readFile } from 'node:fs/promises'
 import { basename, join } from 'node:path'
 import { flagEnv } from '../substrate/flagRegistry.js'
 import {
+  MERCURY_CONSTITUTION,
   MERCURY_COORDINATOR_CONTRACT,
-  MERCURY_SESSION_CONTRACT,
   MERCURY_SUBAGENT_CONTRACT,
-  mercuryDoctrineEnabled,
 } from '../prompt/mercuryContract.js'
 import { publishAtomic } from '../substrate/fileStore.js'
 import { getCwd } from './cwd.js'
@@ -50,17 +49,10 @@ export async function runPreflight(): Promise<PreflightSummary> {
   const t0 = Date.now()
   const checks = await Promise.all([
     wrapped('wrapper', () => {
-      if (!mercuryDoctrineEnabled()) {
-        return {
-          id: 'wrapper',
-          status: 'off' as const,
-          evidence: 'MERCURY_WRAPPER_APPEND=0 — session contract deliberately dropped (floor still ships)',
-        }
-      }
       return {
         id: 'wrapper',
         status: 'ok' as const,
-        evidence: `Mercury contracts on — repo-owned source, session ${MERCURY_SESSION_CONTRACT.length} · coordinator ${MERCURY_COORDINATOR_CONTRACT.length} · crewmate ${MERCURY_SUBAGENT_CONTRACT.length} chars`,
+        evidence: `the constitution ${MERCURY_CONSTITUTION.length} chars — repo-owned source; seat contracts coordinator ${MERCURY_COORDINATOR_CONTRACT.length} · crewmate ${MERCURY_SUBAGENT_CONTRACT.length} chars`,
       }
     }),
     wrapped('gate', async () => {

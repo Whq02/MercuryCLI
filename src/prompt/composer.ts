@@ -1,4 +1,3 @@
-
 import { recordPromptComposition } from '../utils/cockpit/promptProvenance.js'
 import {
   buildBehaviourContract,
@@ -22,7 +21,6 @@ export interface PromptParts {
   wrapperSections: ReadonlyArray<NamedSection>
   modeSections: ReadonlyArray<NamedSection>
   antiSycSections: ReadonlyArray<string>
-  reconcileTailSections: ReadonlyArray<string>
 }
 
 export function composeSystemPrompt(parts: PromptParts): string[] {

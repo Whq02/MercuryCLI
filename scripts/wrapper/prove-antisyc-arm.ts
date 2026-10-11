@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { getAntiSycophancyAlwaysOnSection } from '../../src/utils/antiSycophancy.js'
 import { lintWeakeners } from '../../src/prompt/behaviourContract.js'
+const J = (...parts: string[]): string => parts.join('')
 
 const MACRO_KEY = 'MACRO' as const
 function setStamp(on: boolean): void {
@@ -87,12 +88,12 @@ section('(e) getSystemPrompt wiring — spliced after the wrapper, reconcile-tai
   )
   const behaviourContract = src('prompt', 'behaviourContract.ts')
   check(
-    'composer orders ...modeSections → ...antiSycSections → ...reconcileTail',
-    /parts\.modeSections\)[\s\S]{0,600}parts\.antiSycSections\.forEach[\s\S]{0,600}parts\.reconcileTailSections\.forEach/.test(
+    'composer orders ...modeSections → ...antiSycSections, the arm last (no identity tail follows it)',
+    /parts\.modeSections\)[\s\S]{0,600}parts\.antiSycSections\.forEach[\s\S]{0,400}return \{ sections, digest: digestOf\(sections\) \}/.test(
       behaviourContract,
-    ) && /renderAnthropicSections\(contract\)/.test(composer),
+    ) && !new RegExp(J('reconcile', 'TailSections')).test(behaviourContract) && /renderAnthropicSections\(contract\)/.test(composer),
   )
-  check('reconcile-tail re-emits identity when the arm (or a mode) is engaged', /modeSections\.length > 0 \|\| antiSycSections\.length > 0/.test(p))
+  check('no identity tail is re-emitted behind the arm: one identity, in the constitution', !new RegExp([J('MERCURY_IDENTITY', '_RECONCILE'), J('reconcile', 'TailSections')].join('|')).test(p))
   const md = src('utils', 'antiSycophancy.ts')
   check('the section module does NOT read/import the bridge .txt (pure constant + gate)', !md.includes('readFileSync') && !md.includes('require(') && !/import[^\n]*append/.test(md))
 }

@@ -97,15 +97,15 @@ process.env.ANTHROPIC_AUTH_TOKEN = 'fixture-token'
 process.env.MERCURY_LOCAL_BASE_URL = `http://127.0.0.1:${port}`
 
 console.log('============================================================')
-console.log(' floor under pressure — wire truths on both families')
+console.log(' the constitution under pressure — wire truths on both families')
 console.log('============================================================')
 
 const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
 enableConfigs()
 
 const contract = await import('../../src/prompt/mercuryContract.ts')
-const FLOOR = contract.MERCURY_IDENTITY_FLOOR
-const ATTRIBUTION = contract.MERCURY_ATTRIBUTION
+const FLOOR = contract.MERCURY_CONSTITUTION
+const BILLING_HEADER = 'x-anthropic-billing-header: '
 const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
 const { createUserMessage } = await import('../../src/utils/messages.ts')
 const { routedCallModel } = await import('../../src/services/providers/callModelRouter.ts')
@@ -159,16 +159,16 @@ const countOf = (haystack: string, needle: string): number => haystack.split(nee
 function wireChecks(label: string, texts: string[], expectAppend: boolean): void {
   const callerAt = texts.findIndex(t => t.includes(FLOOR))
   const caller = callerAt === -1 ? '' : texts[callerAt]!
-  check(`${label}: one wire block carries the floor byte-intact`, callerAt !== -1, JSON.stringify(texts.map(t => t.slice(0, 40))))
-  check(`${label}: the floor LEADS the caller block`, caller.startsWith(FLOOR))
-  check(`${label}: the attribution line rides inside the floor on this wire`, caller.includes(ATTRIBUTION))
+  check(`${label}: one wire block carries the constitution byte-intact`, callerAt !== -1, JSON.stringify(texts.map(t => t.slice(0, 40))))
+  check(`${label}: exactly two system blocks — the billing header, then the caller block (no road splices a block between them)`, texts.length === 2 && texts[0]!.startsWith(BILLING_HEADER) && callerAt === 1, JSON.stringify(texts.map(t => t.slice(0, 60))))
+  check(`${label}: the constitution LEADS the caller block`, caller.startsWith(FLOOR))
   check(`${label}: the hostile custom prompt rides too (assembly did not censor it)`, caller.includes('GizmoBot'))
-  check(`${label}: the floor PRECEDES the custom prompt`, caller.indexOf(FLOOR) !== -1 && caller.indexOf(FLOOR) < caller.indexOf('GizmoBot'))
+  check(`${label}: the constitution PRECEDES the custom prompt`, caller.indexOf(FLOOR) !== -1 && caller.indexOf(FLOOR) < caller.indexOf('GizmoBot'))
   check(
-    `${label}: the envelope blocks before it carry no caller content`,
-    texts.slice(0, Math.max(callerAt, 0)).every(t => !t.includes('GizmoBot') && !t.includes(APPEND_TEXT) && !t.includes(FLOOR)),
+    `${label}: the header block carries no caller content and no identity sentence`,
+    texts.slice(0, Math.max(callerAt, 0)).every(t => !t.includes('GizmoBot') && !t.includes(APPEND_TEXT) && !t.includes(FLOOR) && !/You are/.test(t)),
   )
-  check(`${label}: the floor appears exactly once on the whole wire`, countOf(texts.join('\n'), FLOOR) === 1)
+  check(`${label}: the constitution appears exactly once on the whole wire`, countOf(texts.join('\n'), FLOOR) === 1)
   if (expectAppend) {
     check(`${label}: the append segment rides LAST of the caller segments`, caller.endsWith(APPEND_TEXT) && caller.indexOf(APPEND_TEXT) > caller.indexOf('GizmoBot'))
   }
@@ -202,7 +202,7 @@ section('§2 Anthropic family — append path + long-context assembly')
   if (longReq?.body) {
     const texts = anthropicSystemTexts(longReq.body)
     const caller = texts.find(t => t.includes(FLOOR)) ?? ''
-    check('long-context: the floor still LEADS the caller block, intact', caller.startsWith(FLOOR))
+    check('long-context: the constitution still LEADS the caller block, intact', caller.startsWith(FLOOR))
     check('long-context: the 300KB prompt follows it whole', caller.indexOf(FLOOR) !== -1 && caller.indexOf('END-OF-LONG-PROMPT') > caller.indexOf(FLOOR) && caller.length > 300_000)
   }
 }
@@ -218,9 +218,9 @@ section('§3 provider-routed transport (OpenAI-compat loopback)')
     const sys = messages.filter(m => m.role === 'system' || m.role === 'developer')
     const sysText = sys.map(m => (typeof m.content === 'string' ? m.content : JSON.stringify(m.content))).join('\n')
     check('a system/developer message exists', sys.length > 0)
-    check('it carries the floor byte-intact', sysText.includes(FLOOR))
-    check('the attribution line reaches this wire too', sysText.includes(ATTRIBUTION))
-    check('the floor precedes the hostile prompt on this wire too', sysText.indexOf(FLOOR) !== -1 && sysText.indexOf(FLOOR) < sysText.indexOf('GizmoBot'))
+    check('it carries the constitution byte-intact', sysText.includes(FLOOR))
+    check('no identity sentence precedes the constitution on this wire', sysText.indexOf('You are ') === sysText.indexOf(FLOOR))
+    check('the constitution precedes the hostile prompt on this wire too', sysText.indexOf(FLOOR) !== -1 && sysText.indexOf(FLOOR) < sysText.indexOf('GizmoBot'))
     check('the append text rides after both', sysText.indexOf(APPEND_TEXT) > sysText.indexOf('GizmoBot'))
     check('no user-turn leakage: the user message is untouched', messages.some(m => m.role === 'user' && typeof m.content === 'string' && m.content.includes('one word')))
   }
