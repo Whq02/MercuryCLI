@@ -1061,6 +1061,8 @@ function composeScrollBox(
 }
 
 
+type ScreenOffer = 'open' | 'clipped' | 'closed'
+
 function composeChildren(
   node: DOMElement,
   ctx: WalkCtx,
@@ -1071,31 +1073,20 @@ function composeChildren(
   inheritedBackgroundColor: Color | undefined,
   inheritedRowBg?: (row: number) => Color | undefined,
 ): void {
-  let seenDirtyChild = false
-  let seenDirtyClipped = false
-  for (const childNode of node.childNodes) {
-    const childElem = childNode as DOMElement
-    const wasDirty = childElem.dirty
-    const isAbsolute = childElem.style.position === 'absolute'
-    composeNode(childElem, ctx, {
+  let offer: ScreenOffer = hasRemovedChild ? 'closed' : 'open'
+  for (const child of node.childNodes as DOMElement[]) {
+    const wasDirty = child.dirty
+    const floating = child.style.position === 'absolute'
+    const seeThrough = floating && !child.style.opaque && child.style.backgroundColor === undefined
+    composeNode(child, ctx, {
       offsetX,
       offsetY,
-      prevScreen: hasRemovedChild || seenDirtyChild ? undefined : prevScreen,
-      skipSelfBlit:
-        seenDirtyClipped &&
-        isAbsolute &&
-        !childElem.style.opaque &&
-        childElem.style.backgroundColor === undefined,
+      prevScreen: offer === 'closed' ? undefined : prevScreen,
+      skipSelfBlit: offer === 'clipped' && seeThrough,
       inheritedBackgroundColor,
       inheritedRowBg,
     })
-    if (wasDirty && !seenDirtyChild) {
-      if (!clipsBothAxes(childElem) || isAbsolute) {
-        seenDirtyChild = true
-      } else {
-        seenDirtyClipped = true
-      }
-    }
+    if (wasDirty && offer !== 'closed') offer = !floating && clipsBothAxes(child) ? 'clipped' : 'closed'
   }
 }
 
