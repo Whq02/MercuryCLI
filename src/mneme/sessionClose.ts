@@ -43,7 +43,38 @@ export async function runSessionClosers(ctx: SessionCloseContext): Promise<{ ran
   return { ran, failed, skipped: false }
 }
 
+export interface SessionCloseAsk {
+  line: string
+  tools?: string[]
+}
+
+export type SessionCloseAskSource = (sessionId: string) => SessionCloseAsk | null
+
+const asks: SessionCloseAskSource[] = []
+
+export function registerSessionCloseAsk(fn: SessionCloseAskSource): () => void {
+  asks.push(fn)
+  return () => {
+    const index = asks.indexOf(fn)
+    if (index >= 0) asks.splice(index, 1)
+  }
+}
+
+export function sessionCloseAsks(sessionId: string): SessionCloseAsk[] {
+  const out: SessionCloseAsk[] = []
+  for (const source of [...asks]) {
+    try {
+      const ask = source(sessionId)
+      if (ask !== null && ask.line.trim() !== '') out.push(ask)
+    } catch (error) {
+      logForDebugging(`session close ask failed for ${sessionId}: ${error instanceof Error ? error.message : String(error)}`)
+    }
+  }
+  return out
+}
+
 export function _resetSessionClosersForTesting(): void {
   closers.length = 0
+  asks.length = 0
   ranFor.clear()
 }
