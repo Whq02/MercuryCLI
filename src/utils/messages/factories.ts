@@ -53,7 +53,7 @@ export function prepareUserContent(input: {
   precedingInputBlocks: ContentBlockParam[]
 }): string | ContentBlockParam[] {
   return input.precedingInputBlocks.length
-    ? input.precedingInputBlocks.concat({ type: 'text', text: input.inputString })
+    ? Array.from(input.precedingInputBlocks).concat({ type: 'text', text: input.inputString })
     : input.inputString
 }
 
@@ -177,7 +177,7 @@ export function createAssistantMessage(input: {
 }): AssistantMessage {
   return localAssistant({
     ...fields(input, ['usage', 'isVirtual']),
-    content: Array.isArray(input.content) ? input.content : [textBlock(input.content)],
+    content: typeof input.content === 'string' ? [textBlock(input.content)] : input.content,
   })
 }
 
