@@ -32,6 +32,35 @@ import { isToolSearchEnabledOptimistic } from '../toolSearch.js'
 import { normalizeToolInputForAPI } from '../api.js'
 import { toolMatchesName } from '../../Tool.js'
 import { validateImagesForAPI } from '../imageValidation.js'
+import { LOCAL_COMMAND_CAVEAT_TAG } from '../../constants/xml.js'
+
+const CAVEAT_MARK = `<${LOCAL_COMMAND_CAVEAT_TAG}>`
+
+function leadingTextOf(message: UserMessage): string {
+  const content = message.message.content
+  if (typeof content === 'string') return content
+  const block = content.find(candidate => candidate.type === 'text') as { text?: string } | undefined
+  return block?.text ?? ''
+}
+
+export function isLocalCommandCaveat(message: Message): message is UserMessage {
+  return message.type === 'user' && message.isMeta === true && leadingTextOf(message).trimStart().startsWith(CAVEAT_MARK)
+}
+
+function closesCaveatBatch(message: Message): boolean {
+  if (message.type === 'assistant') return true
+  if (message.type !== 'user') return false
+  return message.permissionMode !== undefined || isToolResultMessage(message) || isLocalCommandCaveat(message)
+}
+
+export function withoutOrphanCaveats<M extends Message>(messages: M[]): M[] {
+  const orphaned = (index: number): boolean => {
+    const next = messages[index + 1]
+    return next === undefined || closesCaveatBatch(next)
+  }
+  if (!messages.some((message, index) => isLocalCommandCaveat(message) && orphaned(index))) return messages
+  return messages.filter((message, index) => !(isLocalCommandCaveat(message) && orphaned(index)))
+}
 
 export type PlannedMessage =
   | UserMessage
@@ -198,16 +227,18 @@ export function planApiConversation(
   const stripTargets = stripTargetsOf(reorderedMessages)
 
   const selected = foldBatchedRows(
-    reorderedMessages.filter((m): m is PlannedMessage => {
-      if (
-        m.type === 'progress' ||
-        (m.type === 'system' && !isSystemLocalCommandMessage(m)) ||
-        isSyntheticApiErrorMessage(m)
-      ) {
-        return false
-      }
-      return true
-    }),
+    withoutOrphanCaveats(
+      reorderedMessages.filter((m): m is PlannedMessage => {
+        if (
+          m.type === 'progress' ||
+          (m.type === 'system' && !isSystemLocalCommandMessage(m)) ||
+          isSyntheticApiErrorMessage(m)
+        ) {
+          return false
+        }
+        return true
+      }),
+    ),
   )
 
   return { selected, stripTargets, availableToolNames }
@@ -246,9 +277,9 @@ export function requestConversationPlan(
   const selection = geometry === 'anthropic'
     ? planApiConversation(messages as Message[], tools)
     : {
-      selected: messages.filter((message): message is PlannedMessage =>
+      selected: withoutOrphanCaveats(messages.filter((message): message is PlannedMessage =>
         ((message.type === 'user' || message.type === 'assistant') && !message.isVirtual) ||
-        message.type === 'attachment' || isSystemLocalCommandMessage(message)),
+        message.type === 'attachment' || isSystemLocalCommandMessage(message))),
       stripTargets: new Map<string, Set<string>>(),
       availableToolNames: new Set(tools.map(tool => tool.name)),
     }

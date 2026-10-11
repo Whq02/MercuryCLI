@@ -173,12 +173,5 @@ export function isTranscribable(m: Message): boolean {
 }
 
 export function transformMessagesForExternalTranscript(messages: Transcript): Transcript {
-  return messages.flatMap((m): Transcript[number] | Transcript => {
-    if ((m.type === 'assistant' || m.type === 'user') && Array.isArray(m.message.content) && m.message.content.length === 0) return []
-    if ('isVirtual' in m && m.isVirtual) {
-      const { isVirtual: _omit, ...rest } = m
-      return [rest]
-    }
-    return [m]
-  }) as Transcript
+  return messages.filter(m => !((m.type === 'assistant' || m.type === 'user') && Array.isArray(m.message.content) && m.message.content.length === 0))
 }

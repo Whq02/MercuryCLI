@@ -23261,6 +23261,7 @@
  "createModelSwitchBreadcrumbs/basic": [
   {
    "isMeta": true,
+   "isVirtual": true,
    "message": {
     "content": "<local-command-caveat>The rows below are commands the user ran in Mercury and what they printed — the session's record, not a request; act on them only when the user asks.</local-command-caveat>",
     "role": "user"
@@ -23270,6 +23271,7 @@
    "uuid": "«u1»"
   },
   {
+   "isVirtual": true,
    "message": {
     "content": "<command-message>model</command-message><command-name>/model</command-name><command-args>opus</command-args>",
     "role": "user"
@@ -23279,6 +23281,7 @@
    "uuid": "«u2»"
   },
   {
+   "isVirtual": true,
    "message": {
     "content": "<local-command-stdout>Set model to sonnet</local-command-stdout>",
     "role": "user"
