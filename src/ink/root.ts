@@ -1,4 +1,3 @@
-
 import type { ReactNode } from 'react'
 import { logForDebugging } from '../utils/debug.js'
 import type { FrameEvent } from './frame.js'
@@ -28,55 +27,49 @@ export type Root = {
   waitUntilExit: () => Promise<void>
 }
 
+const isStream = (value: unknown): value is NodeJS.WriteStream => typeof value === 'object' && value !== null && 'write' in value
+
+const onProcessStreams = (stdout: NodeJS.WriteStream): InkOptions => ({
+  stdout,
+  stdin: process.stdin,
+  stderr: process.stderr,
+  exitOnCtrlC: true,
+  patchConsole: true,
+})
+
+const givenKnobs = (options: RenderOptions): Partial<InkOptions> =>
+  Object.fromEntries(Object.entries(options).filter(([, value]) => value != null)) as Partial<InkOptions>
+
 function resolveOptions(options: NodeJS.WriteStream | RenderOptions = {}): InkOptions {
-  if (isStream(options)) {
-    return {
-      stdout: options,
-      stdin: process.stdin,
-      stderr: process.stderr,
-      exitOnCtrlC: true,
-      patchConsole: true,
-    }
-  }
-  const resolved: InkOptions = {
-    stdout: options.stdout ?? process.stdout,
-    stdin: options.stdin ?? process.stdin,
-    stderr: options.stderr ?? process.stderr,
-    exitOnCtrlC: options.exitOnCtrlC ?? true,
-    patchConsole: options.patchConsole ?? true,
-  }
-  if (options.onFrame) resolved.onFrame = options.onFrame
-  return resolved
+  return isStream(options) ? onProcessStreams(options) : { ...onProcessStreams(process.stdout), ...givenKnobs(options) }
 }
 
-function isStream(value: unknown): value is NodeJS.WriteStream {
-  return typeof value === 'object' && value !== null && 'write' in value
-}
-
-function getInstance(stdout: NodeJS.WriteStream, create: () => Ink): Ink {
-  let instance = instances.get(stdout)
-  if (!instance) {
-    instance = create()
-    instances.set(stdout, instance)
-  }
+function registered(stdout: NodeJS.WriteStream, instance: Ink): Ink {
+  instances.set(stdout, instance)
   return instance
 }
+
+const doorsOf = (instance: Ink): Pick<Instance, 'unmount' | 'waitUntilExit'> => ({
+  unmount: instance.unmount,
+  waitUntilExit: instance.waitUntilExit.bind(instance),
+})
 
 export function renderSync(
   node: ReactNode,
   options?: NodeJS.WriteStream | RenderOptions,
 ): Instance {
-  const inkOptions = resolveOptions(options)
-  const instance = getInstance(inkOptions.stdout, () => new Ink(inkOptions))
+  const resolved = resolveOptions(options)
+  const instance = instances.get(resolved.stdout) ?? registered(resolved.stdout, new Ink(resolved))
   instance.render(node)
   return {
     rerender: instance.render.bind(instance),
-    unmount: instance.unmount,
-    waitUntilExit: instance.waitUntilExit.bind(instance),
-    cleanup: () => instances.delete(inkOptions.stdout),
+    ...doorsOf(instance),
+    cleanup: () => void instances.delete(resolved.stdout),
     lastFrame: instance.lastFrameText.bind(instance),
   }
 }
+
+const sinceProcessStartMs = (): number => Math.round(process.uptime() * 1000)
 
 export default async function render(
   node: ReactNode,
@@ -84,18 +77,13 @@ export default async function render(
 ): Promise<Instance> {
   await Promise.resolve()
   const instance = renderSync(node, options)
-  logForDebugging(`ink render mounted ${Math.round(process.uptime() * 1000)}ms after process start`)
+  logForDebugging(`ink render mounted ${sinceProcessStartMs()}ms after process start`)
   return instance
 }
 
 export async function createRoot(options?: RenderOptions): Promise<Root> {
   await Promise.resolve()
-  const inkOptions = resolveOptions(options)
-  const instance = new Ink(inkOptions)
-  instances.set(inkOptions.stdout, instance)
-  return {
-    render: instance.render.bind(instance),
-    unmount: instance.unmount,
-    waitUntilExit: instance.waitUntilExit.bind(instance),
-  }
+  const resolved = resolveOptions(options)
+  const instance = registered(resolved.stdout, new Ink(resolved))
+  return { render: instance.render.bind(instance), ...doorsOf(instance) }
 }
