@@ -12,7 +12,6 @@ import { getAntiSycophancyAlwaysOnSection } from '../utils/antiSycophancy.js'
 import { isEnvTruthy } from '../utils/envUtils.js'
 import { isMcpInstructionsDeltaEnabled } from '../utils/mcpInstructionsDelta.js'
 import { getVulcanSection } from '../utils/vulcan/vulcanGates.js'
-import { mercuryEngineIdentityLine } from '../prompt/engineIdentity.js'
 import { getModelKnowledgeCutoff } from '../utils/model/capabilities.js'
 import { declaredRouteOf } from '../services/providers/routeLaw.js'
 import { getInitialSettings } from '../utils/settings/settings.js'
@@ -77,10 +76,6 @@ function getUnameSR(): string {
   return `${osType()} ${release()}`
 }
 
-function modelIdentitySentence(modelId: string): string {
-  return mercuryEngineIdentityLine(modelId)
-}
-
 function knowledgeCutoffSentence(modelId: string): string | null {
   const cutoff = getModelKnowledgeCutoff(modelId)
   if (!cutoff) return null
@@ -106,8 +101,7 @@ ${scratchpad}
 Platform: ${platform()}
 ${shellLine()}
 OS Version: ${getUnameSR()}
-</env>
-${modelIdentitySentence(modelId)}${cutoff ? `\n\n${cutoff}` : ''}${currency}`
+</env>${cutoff ? `\n\n${cutoff}` : ''}${currency}`
 }
 
 export async function computeSimpleEnvInfo(
@@ -125,7 +119,6 @@ export async function computeSimpleEnvInfo(
   items.push(`Platform: ${platform()}`)
   items.push(shellLine())
   items.push(`OS Version: ${getUnameSR()}`)
-  items.push(modelIdentitySentence(modelId))
   const cutoff = knowledgeCutoffSentence(modelId)
   if (cutoff) items.push(cutoff)
   return `# Environment\n${prependBullets(items).join('\n')}`
