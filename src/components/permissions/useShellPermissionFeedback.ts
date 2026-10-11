@@ -1,36 +1,9 @@
 import { useCallback, useState } from 'react'
 import { useSetAppState } from '../../state/AppState.js'
 import type { ToolUseConfirm } from './PermissionRequest.js'
+import { useOptionAmendments } from './useOptionAmendments.js'
 
-type AmendableRole = 'yes' | 'no'
-
-type Amendment = { open: boolean; text: string }
-
-type Amendments = Record<AmendableRole, Amendment>
-
-const ROLES: readonly AmendableRole[] = ['yes', 'no']
-
-const CLOSED: Amendment = { open: false, text: '' }
-
-const isAmendableRole = (option: string): option is AmendableRole => ROLES.includes(option as AmendableRole)
-
-const blank = (text: string): boolean => text.trim() === ''
-
-function withRole(
-  amendments: Amendments,
-  role: AmendableRole,
-  change: (current: Amendment) => Amendment,
-): Amendments {
-  return { ...amendments, [role]: change(amendments[role]) }
-}
-
-function collapsedAwayFrom(amendments: Amendments, kept: string): Amendments {
-  return ROLES.reduce((state, role) => {
-    const amendment = state[role]
-    const leaves = role !== kept && amendment.open && blank(amendment.text)
-    return leaves ? withRole(state, role, current => ({ ...current, open: false })) : state
-  }, amendments)
-}
+const AMENDABLE = ['yes', 'no'] as const
 
 export function useShellPermissionFeedback({
   toolUseConfirm,
@@ -42,33 +15,27 @@ export function useShellPermissionFeedback({
   onReject: () => void
 }) {
   const setAppState = useSetAppState()
-  const [amendments, setAmendments] = useState<Amendments>({ yes: CLOSED, no: CLOSED })
+  const { amendments, isRole, setText, toggle, collapseAwayFrom } = useOptionAmendments(AMENDABLE)
   const [focusedOption, setFocusedOption] = useState<string>('yes')
 
-  const setText = useCallback(
-    (role: AmendableRole, text: string) =>
-      setAmendments(current => withRole(current, role, amendment => ({ ...amendment, text }))),
-    [],
-  )
   const setAcceptFeedback = useCallback((text: string) => setText('yes', text), [setText])
   const setRejectFeedback = useCallback((text: string) => setText('no', text), [setText])
 
   const handleInputModeToggle = useCallback(
     (option: string) => {
       toolUseConfirm.onUserInteraction()
-      if (!isAmendableRole(option)) return
-      setAmendments(current => withRole(current, option, amendment => ({ ...amendment, open: !amendment.open })))
+      if (isRole(option)) toggle(option)
     },
-    [toolUseConfirm],
+    [toolUseConfirm, isRole, toggle],
   )
 
   const handleFocus = useCallback(
     (value: string) => {
       if (value !== focusedOption) toolUseConfirm.onUserInteraction()
-      setAmendments(current => collapsedAwayFrom(current, value))
+      collapseAwayFrom(value)
       setFocusedOption(value)
     },
-    [focusedOption, toolUseConfirm],
+    [focusedOption, toolUseConfirm, collapseAwayFrom],
   )
 
   const countEscape = useCallback(
