@@ -1,7 +1,7 @@
 import { appendFileSync, closeSync, fstatSync, mkdirSync, openSync, readFileSync, readSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { daemonDir } from '../daemon/controlSocket.js'
-import { isProcessAlive } from '../daemon/ownerWatch.js'
+import { workerPidAlive } from '../daemon/workerIdentity.js'
 import { logForDebugging } from '../utils/debug.js'
 import { lineagePath, mnemeProjectKeyFor } from './paths.js'
 import type { LedgerEntry, LiveSession } from './types.js'
@@ -206,6 +206,7 @@ interface WorkerRow {
   sessionId?: unknown
   workspaceId?: unknown
   pid?: unknown
+  procStart?: unknown
   spawnedAt?: unknown
   endedAt?: unknown
   attachedAt?: unknown
@@ -228,7 +229,7 @@ export function liveSessions(projectKey: string): LiveSession[] {
   for (const row of Object.values(workers)) {
     if (typeof row.sessionId !== 'string' || typeof row.workspaceId !== 'string') continue
     if (row.endedAt !== undefined || row.attachedAt !== undefined) continue
-    if (typeof row.pid !== 'number' || !isProcessAlive(row.pid)) continue
+    if (typeof row.pid !== 'number' || !workerPidAlive({ pid: row.pid, procStart: typeof row.procStart === 'string' ? row.procStart : undefined })) continue
     if (mnemeProjectKeyFor(row.workspaceId) !== projectKey) continue
     const spawnedAt = typeof row.spawnedAt === 'number' ? new Date(row.spawnedAt).toISOString() : ''
     out.push({ sessionId: row.sessionId, startedAt: spawnedAt })
