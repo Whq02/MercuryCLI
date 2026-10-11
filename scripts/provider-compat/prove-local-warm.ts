@@ -216,6 +216,8 @@ const { getSystemContext, getUserContext } = await import('../../src/context.ts'
 const { createUserMessage } = await import('../../src/utils/messages.ts')
 const { appendSystemContext, prependUserContext } = await import('../../src/utils/api.ts')
 const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
+const { MERCURY_CONSTITUTION } = await import('../../src/prompt/mercuryContract.ts')
+const { resolveBehaviourContract, renderGenericInstructions } = await import('../../src/prompt/behaviourContract.ts')
 const { getEngineModel } = await import('../../src/utils/model/model.ts')
 const { rosterOwnerFromToolUseContext } = await import('../../src/services/run/resolveOwner.ts')
 const { clearToolRosterLatches } = await import('../../src/services/providers/toolEconomy.ts')
@@ -234,6 +236,7 @@ const systemContext = await getSystemContext()
 const userContext = await getUserContext()
 const systemPrompt = asSystemPrompt(systemPromptSections)
 const fullSystemPrompt = asSystemPrompt(appendSystemContext(systemPrompt, systemContext))
+const renderedSystemPrompt = renderGenericInstructions(resolveBehaviourContract([...fullSystemPrompt]))
 const thinkingConfig = { type: 'adaptive' as const }
 const history: unknown[] = []
 const appStateStub = { toolPermissionContext: permissionContext, mcp: { clients: [], tools: [] }, effortValue: undefined }
@@ -286,7 +289,7 @@ async function firstTurn(text: string): Promise<{ usage: Record<string, number> 
 section('0 · the world: a fixture Ollama that records requests, models the prompt cache and keep_alive, and the real prompt + tool catalogue')
 {
   check('discovery found the fixture model (ollama, tools, thinking)', record !== undefined && record.server === 'ollama' && record.toolsDeclared === true && record.thinkingDeclared === true && record.modelMaxContext === TRAINED_MAX, JSON.stringify(record))
-  check(`the catalogue is the real one (${tools.length} tools) and the system prompt is the real one (${fullSystemPrompt.join('').length} chars)`, tools.length >= 20 && fullSystemPrompt.join('').length > 10_000)
+  check(`the catalogue is the real one (${tools.length} tools) and the system prompt carries the constitution`, tools.length >= 20 && renderedSystemPrompt.includes(MERCURY_CONSTITUTION))
   check('no load, chat or generate rode discovery', !hits.some(h => h.path === '/api/chat' || h.path === '/api/generate'), shape(hits))
 }
 
@@ -312,7 +315,7 @@ let warmHit: Hit | undefined
   check('a warm request reached the server after the switch, before any turn (the base sends nothing until the operator\'s first message)', arrived && warmHit !== undefined, `chats after the switch: ${chats().length - before}`)
   const body = warmHit?.body ?? {}
   const messages = Array.isArray(body.messages) ? (body.messages as Array<Record<string, unknown>>) : []
-  check('the warm body carries ONLY the rendered system prompt as its one message', messages.length === 1 && messages[0]?.role === 'system' && typeof messages[0]?.content === 'string' && (messages[0].content as string).length > 10_000, `${messages.length} messages: ${messages.map(m => String(m.role)).join(',')}`)
+  check('the warm body carries ONLY the rendered system prompt as its one message', messages.length === 1 && messages[0]?.role === 'system' && messages[0]?.content === renderedSystemPrompt, `${messages.length} messages: ${messages.map(m => String(m.role)).join(',')}`)
   check(`the warm body carries the tool catalogue as the turn will (${Array.isArray(body.tools) ? (body.tools as unknown[]).length : 0} tools — the roster the tool-payload plan gives the local road, deferred or whole)`, Array.isArray(body.tools) && (body.tools as unknown[]).length >= 5)
   check('the smallest generation: options.num_predict = 1 (Ollama 0.34.4 hands num_predict to llama-server as n_predict; 0 is not a bounded budget there)', optionsOf(warmHit).num_predict === 1, JSON.stringify(optionsOf(warmHit)))
   check('the window rides as the turn will send it: num_ctx (the auto window for this prefix) and num_batch', typeof optionsOf(warmHit).num_ctx === 'number' && (optionsOf(warmHit).num_ctx as number) >= 32_768 && typeof optionsOf(warmHit).num_batch === 'number', JSON.stringify(optionsOf(warmHit)))
