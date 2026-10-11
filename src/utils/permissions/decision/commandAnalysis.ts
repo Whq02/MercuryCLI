@@ -1,14 +1,6 @@
-import {
-  checkSemantics,
-  nodeTypeId,
-  parseForSecurityFromAst,
-} from '../../bash/ast.js'
-import {
-  extractOutputRedirections,
-  getCommandSubcommandPrefix,
-  splitCommand,
-} from '../../bash/commands.js'
 import { parseCommandRaw } from '../../bash/parser.js'
+import { checkSemantics, nodeTypeId, parseForSecurityFromAst } from '../../bash/ast.js'
+import { extractOutputRedirections, getCommandSubcommandPrefix, splitCommand } from '../../bash/commands.js'
 import { tryParseShellCommand } from '../../bash/shellQuote.js'
 import {
   classifyCommandName,
@@ -19,18 +11,46 @@ import {
   stripModulePrefix,
 } from '../../powershell/parser.js'
 
-export type {
-  ParseForSecurityResult,
-  Redirect,
-  SimpleCommand,
+const bashLane = {
+  parseCommandRaw,
+  parseForSecurityFromAst,
+  checkSemantics,
+  nodeTypeId,
+  splitCommand,
+  getCommandSubcommandPrefix,
+  extractOutputRedirections,
+  tryParseShellCommand,
+}
+
+const powershellLane = {
+  parsePowerShellCommand,
+  deriveSecurityFlags,
+  getAllCommandNames,
+  getFileRedirections,
+  stripModulePrefix,
+  classifyCommandName,
+}
+
+export type CommandAnalysisProvider = typeof bashLane & typeof powershellLane
+
+export const pinnedCommandAnalysis: CommandAnalysisProvider = { ...bashLane, ...powershellLane }
+
+export { PARSE_ABORTED, preparedCommandRoot, withBashParseScope, type Node } from '../../bash/parser.js'
+export type { TreeSitterAnalysis } from '../../bash/treeSitterAnalysis.js'
+export { extractHeredocs } from '../../bash/heredoc.js'
+
+export {
+  checkSemantics,
+  parseForSecurity,
+  peelWrappers,
+  preparedSecurityParse,
+  preparedSimpleCommand,
+  shellCommandText,
+  WILDCARD_REASON,
+  type ParseForSecurityResult,
+  type Redirect,
+  type SimpleCommand,
 } from '../../bash/ast.js'
-export type { CommandPrefixResult } from '../../bash/commands.js'
-export { PARSE_ABORTED, withBashParseScope, type Node } from '../../bash/parser.js'
-export type {
-  ParsedCommandElement,
-  ParsedPowerShellCommand,
-} from '../../powershell/parser.js'
-export { PS_TOKENIZER_DASH_CHARS } from '../../powershell/parser.js'
 
 export {
   extractInputRedirections,
@@ -38,23 +58,15 @@ export {
   splitCommand,
   splitCommandWithOperators,
   splitListSegments,
+  type CommandPrefixResult,
 } from '../../bash/commands.js'
-export { parseForSecurity, checkSemantics, preparedSecurityParse, preparedSimpleCommand, shellCommandText, peelWrappers, WILDCARD_REASON } from '../../bash/ast.js'
-export { preparedCommandRoot } from '../../bash/parser.js'
-export type { TreeSitterAnalysis } from '../../bash/treeSitterAnalysis.js'
-export { extractHeredocs } from '../../bash/heredoc.js'
-export {
-  hasMalformedTokens,
-  hasShellQuoteSingleQuoteBug,
-  tryParseShellCommand,
-} from '../../bash/shellQuote.js'
-export {
-  buildParsedCommandFromRoot,
-  type IParsedCommand,
-  ParsedCommand,
-} from '../../bash/ParsedCommand.js'
+
+export { hasMalformedTokens, hasShellQuoteSingleQuoteBug, tryParseShellCommand } from '../../bash/shellQuote.js'
+export { buildParsedCommandFromRoot, ParsedCommand, type IParsedCommand } from '../../bash/ParsedCommand.js'
+
 export {
   COMMON_ALIASES,
+  PS_TOKENIZER_DASH_CHARS,
   commandHasArgAbbreviation,
   deriveSecurityFlags,
   getAllCommands,
@@ -63,38 +75,6 @@ export {
   hasCommandNamed,
   isNullRedirectionTarget,
   isPowerShellParameter,
+  type ParsedCommandElement,
+  type ParsedPowerShellCommand,
 } from '../../powershell/parser.js'
-
-export interface CommandAnalysisProvider {
-  parseCommandRaw: typeof parseCommandRaw
-  parseForSecurityFromAst: typeof parseForSecurityFromAst
-  checkSemantics: typeof checkSemantics
-  nodeTypeId: typeof nodeTypeId
-  splitCommand: typeof splitCommand
-  getCommandSubcommandPrefix: typeof getCommandSubcommandPrefix
-  extractOutputRedirections: typeof extractOutputRedirections
-  tryParseShellCommand: typeof tryParseShellCommand
-  parsePowerShellCommand: typeof parsePowerShellCommand
-  deriveSecurityFlags: typeof deriveSecurityFlags
-  getAllCommandNames: typeof getAllCommandNames
-  getFileRedirections: typeof getFileRedirections
-  stripModulePrefix: typeof stripModulePrefix
-  classifyCommandName: typeof classifyCommandName
-}
-
-export const pinnedCommandAnalysis: CommandAnalysisProvider = {
-  parseCommandRaw,
-  parseForSecurityFromAst,
-  checkSemantics,
-  nodeTypeId,
-  splitCommand: splitCommand,
-  getCommandSubcommandPrefix,
-  extractOutputRedirections,
-  tryParseShellCommand,
-  parsePowerShellCommand,
-  deriveSecurityFlags,
-  getAllCommandNames,
-  getFileRedirections,
-  stripModulePrefix,
-  classifyCommandName,
-}
