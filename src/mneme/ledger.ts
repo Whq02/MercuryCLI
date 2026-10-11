@@ -1,4 +1,4 @@
-import { appendFileSync, mkdirSync, readFileSync } from 'node:fs'
+import { appendFileSync, closeSync, fstatSync, mkdirSync, openSync, readFileSync, readSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { daemonDir } from '../daemon/controlSocket.js'
 import { isProcessAlive } from '../daemon/ownerWatch.js'
@@ -97,7 +97,15 @@ export function ledgerEntryOf(projectKey: string, sessionId: string): LedgerEntr
 function appendLine(projectKey: string, entry: LedgerEntry): void {
   const path = lineagePath(projectKey)
   mkdirSync(dirname(path), { recursive: true })
-  appendFileSync(path, `${JSON.stringify(entry)}\n`, 'utf8')
+  const fd = openSync(path, 'a+')
+  try {
+    const size = fstatSync(fd).size
+    const last = Buffer.alloc(1)
+    const separator = size > 0 && readSync(fd, last, 0, 1, size - 1) === 1 && last[0] !== 10 ? '\n' : ''
+    appendFileSync(fd, `${separator}${JSON.stringify(entry)}\n`, 'utf8')
+  } finally {
+    closeSync(fd)
+  }
 }
 
 function update(projectKey: string, sessionId: string, change: (entry: LedgerEntry, now: string) => LedgerEntry | null): LedgerEntry | null {

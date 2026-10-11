@@ -19,6 +19,7 @@ for proof in \
   prove-topic-memory-maintenance.ts \
   prove-memory-refs.ts \
   prove-lineage-ledger.ts \
+  prove-ledger-torn-tail.ts \
   prove-lineage-session.ts \
   prove-handoff-tool-wall.ts \
   prove-lineage-retention-zero.ts \
