@@ -304,7 +304,7 @@ section('§0 the wiring: one road per seat into one drain, the framing, the tool
   check("the per-turn orchestrator runs the note drain as a consume-once producer on every thread, handing it the query source and the local-submission fact", producer.includes('getAdvisorNoteAttachments(toolUseContext, {') && producer.includes('querySource') && producer.includes('localSubmission'), producer)
   check('no prompt road exists any more: the note service mints no queued command', !src('src/services/advisor/advisorNote.ts').includes('QueuedCommand') && advisor.advisorNoteQueueCommand === undefined && advisor.advisorCountsTurn === undefined)
   const framing = src('src/utils/messages/attachmentText.ts')
-  check('a drained advisor note is never a hidden meta row (the origin law excepts the advisor)', framing.includes('(origin !== undefined && !isAdvisorOrigin(origin)) || attachment.isMeta'))
+  check('a drained advisor note is never a hidden meta row (the origin law excepts the advisor)', framing.includes('(origin !== undefined && !isAdvisorOrigin(origin)) || queued.isMeta'))
   const painter = src('src/components/messages/AttachmentMessage.tsx')
   check('the attachment painter hands the advisor origin to the row painter, so the crewmate transcript shows the muted row', painter.includes('origin={attachment.origin}'))
   const catalogue = src('src/tools.ts')
