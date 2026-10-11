@@ -1,8 +1,9 @@
 import { useCallback, useState } from 'react'
-import { useAppState } from '../../../state/AppState.js'
 import { useKeybinding } from '../../../keybindings/useKeybinding.js'
+import { useAppState } from '../../../state/AppState.js'
 import { usePermissionRequestLogging } from '../hooks.js'
 import type { ToolUseConfirm } from '../PermissionRequest.js'
+import { useOptionAmendments } from '../useOptionAmendments.js'
 import {
   getFilePermissionOptions,
   type FileOperationType,
@@ -11,21 +12,21 @@ import {
 } from './permissionOptions.js'
 import { PERMISSION_HANDLERS, type PermissionHandlerParams } from './usePermissionHandler.js'
 
-type UseFilePermissionDialogResult<T> = {
-  options: PermissionOptionWithLabel[]
-  onChange: (option: PermissionOption, input: T, feedback?: string) => void
-  acceptFeedback: string
-  rejectFeedback: string
-  focusedOption: string
-  setFocusedOption: (value: string) => void
-  handleInputModeToggle: (value: string) => void
-  yesInputMode: boolean
-  noInputMode: boolean
-}
+const AMENDABLE = ['accept-once', 'reject'] as const
+
+type HandlerOptions = Parameters<(typeof PERMISSION_HANDLERS)['accept-session']>[1]
 
 export function cycleModeMayApprove(state: { yesInputMode: boolean; noInputMode: boolean }): boolean {
-  return !state.yesInputMode && !state.noInputMode
+  return !(state.yesInputMode || state.noInputMode)
 }
+
+function handlerOptionsFor(option: PermissionOption, feedback: string | undefined): HandlerOptions {
+  const grant = option.type === 'accept-session' ? { scope: option.scope, pattern: option.pattern } : {}
+  return { feedback, ...grant }
+}
+
+const sessionOptionOf = (options: PermissionOptionWithLabel[]): PermissionOption | undefined =>
+  options.find(candidate => candidate.option.type === 'accept-session')?.option
 
 export function useFilePermissionDialog<T extends Record<string, unknown>>({
   filePath,
@@ -41,84 +42,62 @@ export function useFilePermissionDialog<T extends Record<string, unknown>>({
   onReject: () => void
   parseInput: (input: unknown) => T
   operationType?: FileOperationType
-}): UseFilePermissionDialogResult<T> {
+}) {
   const toolPermissionContext = useAppState(state => state.toolPermissionContext)
-  const [acceptFeedback, setAcceptFeedback] = useState('')
-  const [rejectFeedback, setRejectFeedback] = useState('')
-  const [yesInputMode, setYesInputMode] = useState(false)
-  const [noInputMode, setNoInputMode] = useState(false)
-  const [focusedOption, setFocusedOptionState] = useState('accept-once')
-
+  const { amendments, isRole, setText, toggle, collapseAwayFrom } = useOptionAmendments(AMENDABLE)
+  const [focusedOption, setFocused] = useState<string>('accept-once')
   usePermissionRequestLogging(toolUseConfirm)
+
+  const yesInputMode = amendments['accept-once'].open
+  const noInputMode = amendments.reject.open
+  const setAcceptText = useCallback((text: string) => setText('accept-once', text), [setText])
+  const setRejectText = useCallback((text: string) => setText('reject', text), [setText])
 
   const options = getFilePermissionOptions({
     filePath,
     toolPermissionContext,
     operationType,
-    onAcceptFeedbackChange: setAcceptFeedback,
-    onRejectFeedbackChange: setRejectFeedback,
+    onAcceptFeedbackChange: setAcceptText,
+    onRejectFeedbackChange: setRejectText,
     yesInputMode,
     noInputMode,
   })
 
-  const handleInputModeToggle = useCallback((value: string) => {
-    if (value === 'accept-once') {
-      setYesInputMode(current => !current)
-    } else if (value === 'reject') {
-      setNoInputMode(current => !current)
-    }
-  }, [])
+  const handleInputModeToggle = useCallback(
+    (value: string) => {
+      if (isRole(value)) toggle(value)
+    },
+    [isRole, toggle],
+  )
 
   const setFocusedOption = useCallback(
     (value: string) => {
-      if (value !== 'accept-once' && yesInputMode && acceptFeedback.trim() === '') {
-        setYesInputMode(false)
-      }
-      if (value !== 'reject' && noInputMode && rejectFeedback.trim() === '') {
-        setNoInputMode(false)
-      }
-      setFocusedOptionState(value)
+      collapseAwayFrom(value)
+      setFocused(value)
     },
-    [yesInputMode, noInputMode, acceptFeedback, rejectFeedback],
+    [collapseAwayFrom],
   )
 
   const onChange = useCallback(
     (option: PermissionOption, input: T, feedback?: string) => {
-      const trimmed = feedback?.trim() || undefined
-      const wrapped: ToolUseConfirm = { ...toolUseConfirm, input }
-      const params: PermissionHandlerParams = {
+      const request: PermissionHandlerParams = {
         path: filePath,
-        toolUseConfirm: wrapped,
+        toolUseConfirm: { ...toolUseConfirm, input },
         toolPermissionContext,
         onDone,
         onReject,
         operationType,
       }
-      PERMISSION_HANDLERS[option.type](params, {
-        feedback: trimmed,
-        ...(option.type === 'accept-session'
-          ? { scope: option.scope, pattern: option.pattern }
-          : {}),
-      })
+      PERMISSION_HANDLERS[option.type](request, handlerOptionsFor(option, feedback?.trim() || undefined))
     },
-    [
-      toolUseConfirm,
-      filePath,
-      toolPermissionContext,
-      onDone,
-      onReject,
-      operationType,
-    ],
+    [filePath, toolUseConfirm, toolPermissionContext, onDone, onReject, operationType],
   )
 
-  const cycleModeArmed = cycleModeMayApprove({ yesInputMode, noInputMode })
   useKeybinding(
     'confirm:cycleMode',
     () => {
-      if (!cycleModeArmed) return
-      const session = options.find(candidate => candidate.option.type === 'accept-session')
-      if (!session) return
-      onChange(session.option, parseInput(toolUseConfirm.input))
+      const session = cycleModeMayApprove({ yesInputMode, noInputMode }) ? sessionOptionOf(options) : undefined
+      if (session) onChange(session, parseInput(toolUseConfirm.input))
     },
     { context: 'Confirmation' },
   )
@@ -126,8 +105,8 @@ export function useFilePermissionDialog<T extends Record<string, unknown>>({
   return {
     options,
     onChange,
-    acceptFeedback,
-    rejectFeedback,
+    acceptFeedback: amendments['accept-once'].text,
+    rejectFeedback: amendments.reject.text,
     focusedOption,
     setFocusedOption,
     handleInputModeToggle,
