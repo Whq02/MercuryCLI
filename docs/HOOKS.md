@@ -139,6 +139,9 @@ own run key inside a crewmate. The event adds its own fields:
 | `session.state` | a hosted session moved to a board state worth acting on; fired by the daemon with the hooks of the session's workspace (its project and local layers when the workspace is trusted); `run` hooks only | `state` (`needs-you`, `stalled`, `ready-to-review`, `paused`, `completed`, `failed`, `cancelled`), `from`, `detail`, `title`, `workspace`, `model` | `state` | nothing |
 | `file.changed` | a watched file changed; the entry's `watch` names the files | `path` (relative to the project), `change` (`changed`, `added`, `removed`) | `path` | `watch` (replaces the list); and the environment file |
 
+A side question Mercury asks the model on its own account, such as the note
+for the next session, fires no turn hook.
+
 A `by` of `mode` includes a posture that answered an ask on its own; `safety`
 is one of Mercury's own guards — the wards, the commit gate, the path-safety
 check.
