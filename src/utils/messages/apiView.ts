@@ -94,9 +94,10 @@ export function withToolReferenceTurnBoundary(message: UserMessage): UserMessage
   const blocks = message.message.content
   if (!Array.isArray(blocks)) return message
   const hasBoundary = blocks.some(block => block.type === 'text' && block.text.startsWith(TOOL_REFERENCE_TURN_BOUNDARY))
+  if (hasBoundary) return message
   const hasReference = blocks.some(block => resultArray(block) && block.content.some(isToolReferenceBlock))
-  return hasBoundary || !hasReference ? message : {
-    ...message, message: { ...message.message, content: blocks.concat({ type: 'text', text: TOOL_REFERENCE_TURN_BOUNDARY }) },
+  return !hasReference ? message : {
+    ...message, message: { ...message.message, content: [...blocks, { type: 'text', text: TOOL_REFERENCE_TURN_BOUNDARY }] },
   }
 }
 
