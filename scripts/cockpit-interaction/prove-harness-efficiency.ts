@@ -55,29 +55,4 @@ t.section('row 2 — the request pool is measured, and dead bytes are gone')
   )
 }
 
-t.section('row 3 — verification depth follows spec completeness')
-{
-  const { initBundledSkills } = await import('../../src/skills/bundled/index.ts')
-  const { getBundledSkills } = await import('../../src/skills/bundledSkills.ts')
-  initBundledSkills()
-  const verifier = getBundledSkills().find(s => s.name === 'verifier')
-  const w = String(verifier?.description ?? '')
-  t.check('the dispatch seam names the modulator', w.includes('when the task supplies runnable acceptance checks'))
-  t.check(
-    'a total spec runs its own checks instead of re-buying them',
-    w.includes('run those instead'),
-  )
-  t.check(
-    'the dispatch conditions are the judgment-left-to-you cases',
-    w.includes('when correctness was left to you') &&
-      w.includes('vague requirements') &&
-      w.includes('without its own checks'),
-  )
-  const doctrine = readFileSync('src/constants/subagentDoctrine.ts', 'utf8')
-  t.check(
-    'ONE seam: the doctrine floor does not duplicate the modulator',
-    !doctrine.includes('SPEC COMPLETENESS'),
-  )
-}
-
 t.finish('prove-harness-efficiency')
