@@ -16,7 +16,7 @@ delete process.env.MERCURY_HOME
 delete process.env.CI
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0', PACKAGE_URL: 'https://github.com/example/mercury' }
 
-import { bindingDropsFor, prefixHashOf, startFixtureApi, type FixtureApi, type ScriptedTurn } from '../lib/fixtureApi.ts'
+import { bindingDropsFor, prefixHashOf, startFixtureApi, handoffTurn, isHandoffRequest, type FixtureApi, type ScriptedTurn } from '../lib/fixtureApi.ts'
 
 const ROOT = resolve(import.meta.dir, '..', '..')
 const DIST = join(ROOT, 'dist', 'mercury.mjs')
@@ -391,7 +391,7 @@ if (!existsSync(DIST)) {
     const common = ['--model', MODEL, '--allowed-tools', 'Read']
     const scripted = (n: number): ScriptedTurn[] => Array.from({ length: n }, (_, i) => ({ kind: 'text' as const, text: `revive-T${i + 1}`, thinking: `revive thinking ${i + 1}`, model: MODEL }))
     const SID = 'c0ffee00-0000-4000-8000-00000000e001'
-    const fixture = await startFixtureApi(scripted(3), { bindingCheck: true })
+    const fixture = await startFixtureApi([handoffTurn(), ...scripted(3)], { bindingCheck: true })
     const arena = makeArena(fixture)
     const firstDebug = join(arena.home, 'first.debug.log')
     const first = await runStreaming(arena, [...common, '--session-id', SID, '--log-file', firstDebug], ['revive turn 1', 'revive turn 2'])
@@ -406,7 +406,9 @@ if (!existsSync(DIST)) {
     const revivedArena = { ...arena, env: { ...arena.env, MERCURY_PREFIX_INDUCE_EDIT: 'system' } }
     const second = await runStreaming(revivedArena, [...common, '--resume', SID, '--log-file', revivedDebug], ['revive turn 3'])
     check('[wire] the revived process runs its turn and exits 0', second.exit === 0, `exit=${second.exit} stderr=${second.stderr.slice(0, 300)}`)
-    const reqs = fixture.messageRequests().map(q => q.body as Body)
+    const allRequests = fixture.messageRequests()
+    check('[wire] the closing ask carries its mark once, after the first process\'s two turns and before the resume', j(allRequests.map(isHandoffRequest)) === j([false, false, true, false]), j(allRequests.map(isHandoffRequest)))
+    const reqs = allRequests.filter(q => !isHandoffRequest(q)).map(q => q.body as Body)
     check('[wire] three requests; only the revived one carries the system edit', reqs.length === 3 && !systemTextOf(reqs[1]!).includes('[induced edit]') && systemTextOf(reqs[2]!).endsWith('[induced edit]'), `${reqs.length} requests`)
     const dropped = transcriptLines(arena, SID).some(l => l.includes('"attachmentType":"dead_thinking"'))
     check("[wire] the fixture's binding check dropped the first process's blocks on the revived request (the dead-block record beside the session)", dropped)

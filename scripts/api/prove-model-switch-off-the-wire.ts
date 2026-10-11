@@ -13,7 +13,7 @@ for (const ambient of ['MERCURY_MODEL', 'MERCURY_SMALL_FAST_MODEL', 'ANTHROPIC_A
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'model-switch-wire-pure-'))
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 
-import { startFixtureApi, type ScriptedTurn } from '../lib/fixtureApi.ts'
+import { startFixtureApi, handoffTurn, isHandoffRequest, type ScriptedTurn } from '../lib/fixtureApi.ts'
 import { answerOf, isOutcome } from '../lib/rows.ts'
 import { hostRunner } from '../lib/runnerHost.ts'
 
@@ -107,7 +107,7 @@ if (!existsSync(DIST)) {
       { kind: 'text', text: 'MS-O1', model: OPUS },
       { kind: 'text', text: 'MS-O2', model: OPUS },
     ]
-    const fixture = await startFixtureApi(turns, { apiChecks: true })
+    const fixture = await startFixtureApi([handoffTurn(), ...turns], { apiChecks: true })
     const home = mkdtempSync(join(tmpdir(), 'model-switch-wire-home-'))
     const cwd = mkdtempSync(join(tmpdir(), 'model-switch-wire-cwd-'))
     mkdirSync(join(home, '.mercury'), { recursive: true })
@@ -182,7 +182,9 @@ if (!existsSync(DIST)) {
       resumeError = error instanceof Error ? error.message : String(error)
     }
     check('the resumed runner took a turn', resumeError === '', resumeError)
-    const third = fixture.messageRequests()[2]?.body as { messages?: Array<{ content?: unknown }> } | undefined
+    const requestsAfterResume = fixture.messageRequests()
+    check('the closing ask carries its mark once, between the first process and the resume', j(requestsAfterResume.map(isHandoffRequest)) === j([false, false, true, false]), j(requestsAfterResume.map(isHandoffRequest)))
+    const third = requestsAfterResume.filter(q => !isHandoffRequest(q))[2]?.body as { messages?: Array<{ content?: unknown }> } | undefined
     const thirdTexts = (third?.messages ?? []).flatMap(m => textsOf(m.content))
     check('the resumed session\'s request carries the earlier turns but none of the three /model rows (RED on the base: the record dropped the mark and the rows rode again)', has(thirdTexts, 'first on fable') && has(thirdTexts, 'and after the resume?') && !thirdTexts.some(text => text.includes(CAVEAT_MARK) || text.includes(MODEL_COMMAND_MARK) || text.includes(STDOUT_MARK)), j(thirdTexts.map(text => text.slice(0, 80))))
     clearTimeout(resumeKiller)

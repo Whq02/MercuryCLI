@@ -5,6 +5,7 @@ import { existsSync, mkdirSync, mkdtempSync, realpathSync, writeFileSync } from 
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
+import { isHandoffRequest } from '../lib/fixtureApi.ts'
 import { isOutcome, parseRow, type LooseRow } from '../../src/rows/read.ts'
 import type { CompatCallModelParams } from '../../src/services/providers/openaicompat/compatChatCallModel.ts'
 import type { Options } from '../../src/services/providers/anthropic/streamCore.ts'
@@ -449,6 +450,8 @@ function checkChild(tag: string, outcome: ChildOutcome, capture: Capture | undef
     JSON.stringify({ exit: outcome.exitCode, timedOut: outcome.timedOut, spawnError: outcome.spawnError, stderr: outcome.stderrTail }),
   )
   check(`${tag}: exactly one chat request reached the fixture`, count === 1, `count=${count}`)
+  const all = captures.filter(c => c.tag === tag)
+  check(`${tag}: one marked closing ask follows the substantive request`, JSON.stringify(all.map(isHandoffRequest)) === JSON.stringify([false, true]), JSON.stringify(all.map(isHandoffRequest)))
   check(
     `${tag}: the turn settled cleanly (not a vacuous capture)`,
     outcome.status === 'completed' && outcome.answer.includes(FIXTURE_TEXT),
@@ -465,7 +468,7 @@ for (const word of ['low', 'high', 'max']) {
   const tag = `dist-${word}`
   const outcome = await runDist(tag, { MERCURY_EFFORT_LEVEL: word, MERCURY_THINKING_BUDGET: '4096' })
   outcomes.push(outcome)
-  const mine = captures.filter(c => c.tag === tag)
+  const mine = captures.filter(c => c.tag === tag && !isHandoffRequest(c))
   const c = mine.at(-1)
   checkChild(tag, outcome, c, mine.length)
   check(`${tag}: reasoning_effort '${word}' sits at the TOP LEVEL`, c?.body.reasoning_effort === word, JSON.stringify({ top: c?.body.reasoning_effort, thinking: thinkingOf(c) }))
@@ -476,7 +479,7 @@ for (const word of ['low', 'high', 'max']) {
   const tag = 'dist-thinking-off'
   const outcome = await runDist(tag, { MERCURY_EFFORT_LEVEL: 'max', MERCURY_THINKING_BUDGET: '0' })
   outcomes.push(outcome)
-  const mine = captures.filter(c => c.tag === tag)
+  const mine = captures.filter(c => c.tag === tag && !isHandoffRequest(c))
   const c = mine.at(-1)
   checkChild(tag, outcome, c, mine.length)
   check(`${tag}: no top-level effort when thinking is off`, c !== undefined && !('reasoning_effort' in c.body), String(c?.body.reasoning_effort))

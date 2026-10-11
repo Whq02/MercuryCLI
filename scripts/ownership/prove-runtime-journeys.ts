@@ -3,7 +3,7 @@ import { spawn } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
-import { startFixtureApi, type FixtureApi, type ScriptedTurn } from '../lib/fixtureApi.ts'
+import { startFixtureApi, handoffTurn, isHandoffRequest, type FixtureApi, type ScriptedTurn } from '../lib/fixtureApi.ts'
 import { makeNormalizer } from '../lib/goldenReplay.ts'
 
 const ROOT = resolve(import.meta.dir, '..', '..')
@@ -89,15 +89,21 @@ function run(
   })
 }
 
+function turnRequests(fixture: FixtureApi, pattern: boolean[]) {
+  const all = fixture.messageRequests()
+  check('the closing ask is marked, once, after the last turn of the process that leaves the note', JSON.stringify(all.map(isHandoffRequest)) === JSON.stringify(pattern), JSON.stringify(all.map(isHandoffRequest)))
+  return all.filter(q => !isHandoffRequest(q))
+}
+
 const norm = makeNormalizer()
 const journeys: Record<string, unknown> = {}
 
 section('J1 — headless text run (exact stdout · wire shape)')
 {
-  const fixture = await startFixtureApi([{ kind: 'text', text: 'J1-FIXTURE-REPLY' }])
+  const fixture = await startFixtureApi([{ kind: 'text', text: 'J1-FIXTURE-REPLY' }, handoffTurn()])
   const arena = makeArena(fixture)
   const r = await run(arena, ['run', 'journey one', '--model', 'claude-opus-4-8'])
-  const msgs = fixture.messageRequests()
+  const msgs = turnRequests(fixture, [false, true])
   const body = (msgs[0]?.body ?? {}) as Record<string, unknown>
   check('exit 0', r.exit === 0, `exit=${r.exit} stderr=${r.stderr.slice(0, 200)}`)
   check('stdout is exactly the scripted text', r.stdout === 'J1-FIXTURE-REPLY\n', JSON.stringify(r.stdout.slice(0, 120)))
@@ -119,7 +125,7 @@ section('J1 — headless text run (exact stdout · wire shape)')
 
 section('J2 — headless rows run (byte-parseable protocol · row types)')
 {
-  const fixture = await startFixtureApi([{ kind: 'text', text: 'J2-STREAM-REPLY' }])
+  const fixture = await startFixtureApi([{ kind: 'text', text: 'J2-STREAM-REPLY' }, handoffTurn()])
   const arena = makeArena(fixture)
   const r = await run(arena, [
     'run',
@@ -152,6 +158,7 @@ section('J2 — headless rows run (byte-parseable protocol · row types)')
   }
   check('every stdout line is individually JSON-parseable', allParse)
   check('a terminal outcome row exists', kinds.some(k => k.startsWith('outcome')))
+  check('J2 has exactly one substantive request', turnRequests(fixture, [false, true]).length === 1)
   journeys['J2'] = { exit: r.exit, kinds, resultMeta }
   await fixture.close()
 }
@@ -162,7 +169,7 @@ section('J3 — read-tool round (tool_use → local execution → tool_result �
     { kind: 'tool_use', name: 'Read', input: {} },
     { kind: 'text', text: 'J3-TOOL-DONE' },
   ]
-  const fixture2 = await startFixtureApi(fixtureTurns)
+  const fixture2 = await startFixtureApi([handoffTurn(), ...fixtureTurns])
   const arena = makeArena(fixture2)
   const notePath = join(arena.cwd, 'note.txt')
   writeFileSync(notePath, 'hello-from-the-fixture-file\n')
@@ -177,7 +184,7 @@ section('J3 — read-tool round (tool_use → local execution → tool_result �
     '--allowed-tools',
     'Read',
   ])
-  const msgs = fixture2.messageRequests()
+  const msgs = turnRequests(fixture2, [false, false, true])
   check('exit 0', r.exit === 0, `exit=${r.exit} stderr=${r.stderr.slice(0, 200)}`)
   check('final stdout is the post-tool text', r.stdout === 'J3-TOOL-DONE\n', JSON.stringify(r.stdout.slice(0, 120)))
   check('exactly two message requests (tool round-trip)', msgs.length === 2, String(msgs.length))
@@ -202,7 +209,7 @@ section('J4 — mutating-tool round + the evidence-based stop evaluator (default
     { kind: 'text', text: 'J4-CONT-2' },
     { kind: 'text', text: 'J4-CONT-3' },
   ]
-  const fixture = await startFixtureApi(fixtureTurns)
+  const fixture = await startFixtureApi([handoffTurn(), ...fixtureTurns])
   const arena = makeArena(fixture)
   const outPath = join(arena.cwd, 'j4-out.txt')
   ;(fixtureTurns[0] as Extract<ScriptedTurn, { kind: 'tool_use' }>).input = {
@@ -217,7 +224,7 @@ section('J4 — mutating-tool round + the evidence-based stop evaluator (default
     '--mode',
     'implement',
   ])
-  const msgs = fixture.messageRequests()
+  const msgs = turnRequests(fixture, [false, false, true])
   check('exit 0', r.exit === 0, `exit=${r.exit} stderr=${r.stderr.slice(0, 200)}`)
   check('final stdout is the post-tool text (one-shot completion on the settled, receipted mutation)', r.stdout === 'J4-MUTATION-DONE\n', JSON.stringify(r.stdout.slice(0, 120)))
   const written = existsSync(outPath) ? readFileSync(outPath, 'utf-8') : '«absent»'
@@ -268,6 +275,7 @@ section('J6 — resumed session (turn 1 persisted; --resume carries the transcri
   const fixture = await startFixtureApi([
     { kind: 'text', text: 'J6-FIRST-REPLY' },
     { kind: 'text', text: 'J6-SECOND-REPLY' },
+    handoffTurn(),
   ])
   const arena = makeArena(fixture)
   const r1 = await run(arena, ['run', 'first prompt', '--model', 'claude-opus-4-8', '--session-id', SID])
@@ -276,7 +284,7 @@ section('J6 — resumed session (turn 1 persisted; --resume carries the transcri
   const r2 = await run(arena, ['run', 'second prompt', '--model', 'claude-opus-4-8', '--resume', SID])
   check('turn 2 (resume) exit 0', r2.exit === 0, `exit=${r2.exit} stderr=${r2.stderr.slice(0, 200)}`)
   check('turn 2 stdout', r2.stdout === 'J6-SECOND-REPLY\n', JSON.stringify(r2.stdout.slice(0, 120)))
-  const msgs = fixture.messageRequests()
+  const msgs = turnRequests(fixture, [false, true, false])
   const req2 = JSON.stringify(msgs[1]?.body ?? {})
   check('resume request carries turn 1 user prompt', req2.includes('first prompt'))
   check('resume request carries turn 1 assistant reply', req2.includes('J6-FIRST-REPLY'))

@@ -3,7 +3,7 @@ import { spawn } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
-import { startFixtureApi, type FixtureApi, type ScriptedTurn } from '../lib/fixtureApi.ts'
+import { startFixtureApi, handoffTurn, isHandoffRequest, type FixtureApi, type ScriptedTurn } from '../lib/fixtureApi.ts'
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -89,7 +89,7 @@ const fixtureTurns: ScriptedTurn[] = [
   { kind: 'text', text: MARKER },
   { kind: 'text', text: 'S16-SECOND-REPLY' },
 ]
-const fixture = await startFixtureApi(fixtureTurns)
+const fixture = await startFixtureApi([handoffTurn(), ...fixtureTurns])
 const arena = makeArena(fixture)
 const target = join(arena.cwd, 's16-effect.txt')
 ;(fixtureTurns[0] as Extract<ScriptedTurn, { kind: 'tool_use' }>).input = {
@@ -112,7 +112,7 @@ function transcriptFiles(): Array<{ path: string; text: string }> {
     const dir = stack.pop()!
     for (const e of readdirSync(dir, { withFileTypes: true })) {
       const p = join(dir, e.name)
-      if (e.isDirectory()) stack.push(p)
+      if (e.isDirectory() && !['lineage', 'memory'].includes(e.name)) stack.push(p)
       else if (e.name.endsWith('.jsonl')) out.push({ path: p, text: readFileSync(p, 'utf-8') })
     }
   }
@@ -128,7 +128,9 @@ check('turn 2 completed', r2.stdout.includes('S16-SECOND-REPLY'), JSON.stringify
 
 check('the effect did NOT replay across restart', readFileSync(target, 'utf-8') === 'S16-EFFECT-ONCE')
 
-const msgs = fixture.messageRequests()
+const allRequests = fixture.messageRequests()
+check('one marked closing ask follows the completed tool turn, before the resume', JSON.stringify(allRequests.map(isHandoffRequest)) === JSON.stringify([false, false, true, false]), JSON.stringify(allRequests.map(isHandoffRequest)))
+const msgs = allRequests.filter(q => !isHandoffRequest(q))
 check('three model calls total (tool round = 2, resume = 1)', msgs.length === 3, String(msgs.length))
 const resumeBody = JSON.stringify(msgs[2]?.body ?? {})
 check('the resume request carries the turn-1 prompt exactly once', countOf(resumeBody, 'write the file') === 1, `count=${countOf(resumeBody, 'write the file')}`)

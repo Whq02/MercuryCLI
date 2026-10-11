@@ -2,6 +2,7 @@
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
+import { isHandoffRequest } from '../lib/fixtureApi.ts'
 import { argAfter, bootRunner, bound, childEnv, isOutcome, isSession, j, makeTally, removeWorld, SCRATCH_ROOT, seedHome } from '../daemon/dupline-world.ts'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
@@ -17,7 +18,7 @@ export const REPROMPT_WORDS = 'work the open deliverable'
 
 type Block = { type?: string; text?: string; content?: unknown }
 type Item = { role?: string; content?: unknown }
-export type Hit = { n: number; step: number; arm: string; reprompted: boolean; reprompts: number; tools: number; at: number }
+export type Hit = { ask: boolean; n: number; step: number; arm: string; reprompted: boolean; reprompts: number; tools: number; at: number }
 
 function textParts(content: unknown): string[] {
   if (typeof content === 'string') return [content]
@@ -102,13 +103,14 @@ export async function startTaskFixture(): Promise<TaskFixture> {
       const reprompts = repromptCount(items)
       const results = toolResultTexts(items)
       const filed = results.map(t => /Task #(\S+) created/.exec(t)?.[1]).find(id => id !== undefined)
+      const ask = isHandoffRequest({ body })
       const arm =
-        tools === 0 || opening !== FILE_ASK ? 'svc'
+        ask || tools === 0 || opening !== FILE_ASK ? 'svc'
         : step === 0 ? 'create'
         : reprompted && step === 1 && filed !== undefined ? 'close'
         : step >= 2 ? 'closed-end'
         : 'filed-end'
-      hits.push({ n, step, arm, reprompted, reprompts, tools, at: Date.now() })
+      hits.push({ ask, n, step, arm, reprompted, reprompts, tools, at: Date.now() })
       if (arm === 'svc') return answerText(res, n, model, 'svc')
       if (arm === 'create') return answerTool(res, n, model, `toolu_create_${n}`, 'TaskCreate', { subject: TASK_SUBJECT, description: 'the parser is the one deliverable of this ask' })
       if (arm === 'close') return answerTool(res, n, model, `toolu_close_${n}`, 'TaskUpdate', { taskId: filed, status: 'completed' })
@@ -189,9 +191,11 @@ if (import.meta.main) {
   {
     const failedAtOpen = failed()
     const world = await runWorld('record', {})
-    const arms = world.hits.map(h => h.arm)
+    const turns = world.hits.filter(h => !h.ask)
+    const arms = turns.map(h => h.arm)
+    check('one marked closing ask follows the filed-task answer, not a re-prompt', world.hits.filter(h => h.ask).length === 1 && world.hits.at(-1)?.ask === true && world.hits.at(-2)?.arm === 'filed-end', j(world.hits.map(h => [h.n, h.arm, h.ask])))
     check('the runner booted and the turn settled on the model’s own last words', world.status === 'completed' && world.answer === FILED_END, `${world.status}: ${world.answer.slice(0, 120)} | ${world.stderrTail}`)
-    check('the fixture answered one TaskCreate and one end of turn, nothing more, and no re-prompt reached the wire', j(arms.filter(a => a !== 'svc')) === j(['create', 'filed-end']) && world.hits.every(h => h.reprompts === 0 && !h.reprompted), j(world.hits))
+    check('the fixture answered one TaskCreate and one end of turn, nothing more, and no re-prompt reached the wire', j(arms.filter(a => a !== 'svc')) === j(['create', 'filed-end']) && turns.every(h => h.reprompts === 0 && !h.reprompted), j(world.hits))
     const run = world.record
     check('the run record holds the filed task as an open deliverable', run !== null && openOf(run).length === 1 && openOf(run)[0]!.title === TASK_SUBJECT, run ? brief(run) : `${world.records} record(s)`)
     check('the record does not read completed while a deliverable is open', run !== null && run.lifecycle !== 'completed' && run.phase !== 'done', run ? brief(run) : 'no record')

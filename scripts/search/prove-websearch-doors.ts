@@ -6,6 +6,7 @@ import { existsSync, mkdirSync, mkdtempSync, rmSync, statSync, writeFileSync, re
 import { tmpdir, userInfo } from 'node:os'
 import { dirname, join } from 'node:path'
 import { answeredWith } from '../lib/rows.ts'
+import { isHandoffRequest } from '../lib/fixtureApi.ts'
 import { fileURLToPath } from 'node:url'
 
 const accountName = (() => { try { return userInfo().username } catch { return '' } })()
@@ -606,11 +607,17 @@ section("§13 THE BUILT BUNDLE — a headless gpt session on dist/mercury.mjs: t
     check('a node binary on PATH', false)
   } else {
     type Body = { tools?: Array<{ name?: string }>; input?: Array<Record<string, unknown>> }
-    const openaiBodies = (): Body[] => fixture.hitsOn('openai').map(h => { try { return JSON.parse(h.body) as Body } catch { return {} } })
+    const openaiBodies = (): Body[] => fixture.hitsOn('openai').filter(h => !isHandoffRequest({ body: null, raw: h.body })).map(h => { try { return JSON.parse(h.body) as Body } catch { return {} } })
     const toolResults = (): string[] => [...new Set(openaiBodies().flatMap(body => (body.input ?? []).filter(i => i.type === 'function_call_output').map(i => (typeof i.output === 'string' ? i.output : j(i.output)))))]
     const censusNow = (): Record<string, number> => {
       const out: Record<string, number> = {}
-      for (const h of fixture.hits) out[h.lane] = (out[h.lane] ?? 0) + 1
+      const model = fixture.hitsOn('openai')
+      const marks = model.map(h => isHandoffRequest({ body: null, raw: h.body }))
+      check('one marked closing ask follows the three model turns, apart from the search census', j(marks) === j([false, false, false, true]), j(marks))
+      for (const h of fixture.hits) {
+        if (h.lane === 'openai' && isHandoffRequest({ body: null, raw: h.body })) continue
+        out[h.lane] = (out[h.lane] ?? 0) + 1
+      }
       return out
     }
     const ddgKnocks = (): Array<{ lane: string; at: number }> => fixture.hits.filter(h => h.lane === 'ddg-html' || h.lane === 'ddg-lite').map(h => ({ lane: h.lane, at: h.at }))

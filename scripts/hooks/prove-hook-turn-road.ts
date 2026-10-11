@@ -1,6 +1,7 @@
 #!/usr/bin/env bun
 import { existsSync, readFileSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
+import { handoffTurn, isHandoffRequest } from '../lib/fixtureApi.ts'
 import { dist, quote, runDoor, savedHookRowsOf, say, sceneRoot, type Row } from './lib/runDoor.ts'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
@@ -17,6 +18,20 @@ const readJson = (path: string): Row | undefined => (existsSync(path) ? (JSON.pa
 const readLines = (path: string): Row[] => (existsSync(path) ? readFileSync(path, 'utf8').split('\n').filter(Boolean).map(line => JSON.parse(line) as Row) : [])
 
 {
+  const { handleStopHooks } = await import('../../src/query/stopHooks.ts')
+  const unreadable = new Proxy([], { get() { throw new Error('the side question entered the turn stop stage') } })
+  let settled = false
+  let detail = ''
+  try {
+    const result = await handleStopHooks(unreadable as never, [], [] as never, {}, {}, {} as never, 'side_question').next()
+    settled = result.done === true && JSON.stringify(result.value) === JSON.stringify({ blockingErrors: [], preventContinuation: false })
+  } catch (error) {
+    detail = String(error)
+  }
+  check('a side question returns before reading turn state, guards, suggestions, maintenance or hooks', settled, detail)
+}
+
+{
   const paths = sceneRoot('hook-turn-road-')
   const startPayload = join(paths.root, 'session-start.json')
   const turnStart = join(paths.root, 'turn-start.json')
@@ -24,11 +39,13 @@ const readLines = (path: string): Row[] => (existsSync(path) ? readFileSync(path
   const ends = join(paths.root, 'turn-ends.jsonl')
   const endPayload = join(paths.root, 'session-end.json')
   const marks = join(paths.root, 'marks.txt')
+  let orderAtHandoff = ''
   const result = await runDoor(paths, {
     prompt: 'count the beans',
     turns: [
       { kind: 'text', text: 'first answer' },
       { kind: 'text', text: 'second answer' },
+      { ...handoffTurn(), get text() { orderAtHandoff = readFileSync(marks, 'utf8').trim().split('\n').join(' '); return 'The note for the next session.' } },
     ],
     hooks: {
       'session.start': [{ name: 'hello', match: 'new', run: `tee ${quote(startPayload)} > /dev/null; echo session >> ${quote(marks)}; echo the project is a bean counter` }],
@@ -48,7 +65,9 @@ const readLines = (path: string): Row[] => (existsSync(path) ? readFileSync(path
   check('turn.start carries the prompt and the turn id', turn?.event === 'turn.start' && turn.prompt === 'count the beans' && typeof turn.turn_id === 'string' && (turn.turn_id as string).length > 0, JSON.stringify(turn))
   const answered = readLines(answers)
   check('turn.answer carries the answer text; the first fire has again false, the fire after the block has again true', answered.length === 2 && answered[0]!.answer === 'first answer' && answered[0]!.again === false && answered[1]!.answer === 'second answer' && answered[1]!.again === true, JSON.stringify(answered))
-  check('the block sent the model back: the fixture served two turns', result.requests === 2, `${result.requests} requests`)
+  check('the block sent the model back: the fixture served two turns', result.wire.filter(q => !isHandoffRequest(q)).length === 2, `${result.requests} requests`)
+  check('the closing ask is marked and follows the two answers exactly once', JSON.stringify(result.wire.map(isHandoffRequest)) === JSON.stringify([false, false, true]), JSON.stringify(result.wire.map(isHandoffRequest)))
+  check('the marked ask is served after the two answer hooks and before turn.end', orderAtHandoff === 'session turn answer answer', orderAtHandoff)
   const ended = readLines(ends)
   const turnRow = rows.find(row => row.type === 'turn')
   const outcome = rows.find(row => row.type === 'outcome')

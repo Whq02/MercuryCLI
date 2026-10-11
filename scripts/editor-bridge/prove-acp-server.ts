@@ -96,8 +96,11 @@ process.on('exit', () => {
 const { seedFirstRun } = await import('../lib/firstRunSeed.ts')
 seedFirstRun(configHome, [projDir])
 
-const { startFixtureApi } = await import('../lib/fixtureApi.ts')
+const { startFixtureApi, handoffTurn, isHandoffRequest } = await import('../lib/fixtureApi.ts')
 const api = await startFixtureApi([
+  handoffTurn(),
+  handoffTurn(),
+  handoffTurn(),
   { kind: 'text', text: 'fixture says hi' },
   {
     kind: 'tool_use',
@@ -687,8 +690,11 @@ section('(7) close reaps ONLY its own child')
   check('sibling session created', typeof sid2 === 'string' && sid2 !== sid1)
   const before = childPids(server1.pid!)
   check('two children live', before.length >= 2, String(before.length))
+  const requestsBeforeClose = api.messageRequests().length
   await h1.agentCtx.request('session/close', { sessionId: sid1 })
   await untilTrue(() => childPids(server1.pid!).length === before.length - 1, 10_000)
+  const closeRequests = api.messageRequests().slice(requestsBeforeClose)
+  check('closing the first session asks once for its note after its last turn', closeRequests.length === 1 && closeRequests.every(isHandoffRequest), JSON.stringify(closeRequests.map(isHandoffRequest)))
   const after = childPids(server1.pid!)
   check('exactly the closed session was reaped', after.length === before.length - 1, `${before.length} → ${after.length}`)
   const sibling = await h1.agentCtx.request('session/prompt', {
@@ -700,11 +706,14 @@ section('(7) close reaps ONLY its own child')
 
 section('(8) reconnect — session/load replays the transcript, never the model')
 {
-  const requestsBefore = api.messageRequests().length
+  const requestsAtShutdown = api.messageRequests().length
   h1.close()
   server1.kill('SIGTERM')
   await untilTrue(() => server1.exitCode !== null || server1.signalCode !== null, 10_000)
 
+  const shutdownRequests = api.messageRequests().slice(requestsAtShutdown)
+  check('the old server closes its sibling with one marked ask, after its answer and before any load', shutdownRequests.length === 1 && shutdownRequests.every(isHandoffRequest) && JSON.stringify(shutdownRequests[0]?.body).includes('sibling session says hi'), JSON.stringify(shutdownRequests.map(isHandoffRequest)))
+  const requestsBefore = api.messageRequests().length
   const server2 = spawnServer()
   const h2 = await connectClient(server2)
   await h2.agentCtx.request('initialize', { protocolVersion: acp.PROTOCOL_VERSION })
