@@ -63,7 +63,7 @@ section('§1 /exit with nothing staged: one ask, the reply stored in the entry; 
   const run = async (params: { promptMessages: Array<{ message: { content: unknown } }> }) => {
     calls++
     askedWith = j(params.promptMessages[0]?.message.content)
-    return { messages: [reply('The work: the exit road.\nStill to do: nothing.')] }
+    return { messages: [reply('The work: the exit road.\nStill to do: nothing.')], terminal: { reason: 'completed' } }
   }
   const outcome = await leaveNoteBeforeExit({ run: run as never })
   check('the ask ran once and the note was stored', outcome === 'stored' && calls === 1, `${outcome} calls=${calls}`)
