@@ -18,6 +18,10 @@ export const HANDOFF_ASK_BUDGET_MS = 120_000
 
 const asked = new Set<string>()
 
+export function handoffAsked(sessionId: string): boolean {
+  return asked.has(sessionId)
+}
+
 export function sessionEndsWithThisTurn(): boolean {
   return isRunInputClosed() && !getCommandQueue().some(command => command.agentId === undefined)
 }

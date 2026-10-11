@@ -1364,6 +1364,9 @@ export async function runHeadless(
     },
     settleIdle,
     wakeSettle: () => {},
+    beforeCloseOutput: async () => {
+      await leaveNoteBeforeExit({ budgetMs: HANDOFF_ASK_BUDGET_MS })
+    },
     closeOutput: async () => {
       const { endBackgroundHooks } = await import('../utils/hooks/background.js')
       await endBackgroundHooks().catch(() => {})
@@ -2084,7 +2087,6 @@ export async function runHeadless(
       inputClosed = true
       setRunInputClosed(true)
       if (!driver.isRunning()) {
-        await leaveNoteBeforeExit({ budgetMs: HANDOFF_ASK_BUDGET_MS })
         await stopShellsForClose()
         await driver.closeOutputOnce()
       }
