@@ -6,41 +6,36 @@ import { getGlobalConfig, saveGlobalConfig } from './config.js'
 import { execFileNoThrow } from './execFileNoThrow.js'
 import { logError } from './log.js'
 
-
 const TERMINAL_DEFAULTS_DOMAIN = 'com.apple.Terminal'
+
+type RestoreOutcome = { status: 'restored' | 'no_backup' } | { status: 'failed'; backupPath: string }
 
 export function getTerminalPlistPath(): string {
   return join(homedir(), 'Library', 'Preferences', 'com.apple.Terminal.plist')
 }
 
-function markTerminalSetupInProgress(backupPath: string): void {
-  saveGlobalConfig(currentConfig => ({
-    ...currentConfig,
-    appleTerminalSetupInProgress: true,
-    appleTerminalBackupPath: backupPath,
+const defaults = (verb: 'export' | 'import', path: string): Promise<{ code: number }> =>
+  execFileNoThrow('defaults', [verb, TERMINAL_DEFAULTS_DOMAIN, path])
+
+const recordSetup = (inProgress: boolean, backupPath?: string): void =>
+  saveGlobalConfig(current => ({
+    ...current,
+    appleTerminalSetupInProgress: inProgress,
+    ...(backupPath === undefined ? {} : { appleTerminalBackupPath: backupPath }),
   }))
-}
 
 export function markTerminalSetupComplete(): void {
-  saveGlobalConfig(currentConfig => ({
-    ...currentConfig,
-    appleTerminalSetupInProgress: false,
-  }))
+  recordSetup(false)
 }
 
 export async function backupTerminalPreferences(): Promise<string | null> {
   try {
     const plistPath = getTerminalPlistPath()
-    const exportResult = await execFileNoThrow('defaults', [
-      'export',
-      TERMINAL_DEFAULTS_DOMAIN,
-      plistPath,
-    ])
-    if (exportResult.code !== 0) return null
-    if (!existsSync(plistPath)) return null
+    const exported = await defaults('export', plistPath)
+    if (exported.code !== 0 || !existsSync(plistPath)) return null
     const backupPath = `${plistPath}.bak`
-    await execFileNoThrow('defaults', ['export', TERMINAL_DEFAULTS_DOMAIN, backupPath])
-    markTerminalSetupInProgress(backupPath)
+    await defaults('export', backupPath)
+    recordSetup(true, backupPath)
     return backupPath
   } catch (err) {
     logError(err)
@@ -48,31 +43,23 @@ export async function backupTerminalPreferences(): Promise<string | null> {
   }
 }
 
-export async function checkAndRestoreTerminalBackup(): Promise<
-  { status: 'restored' | 'no_backup' } | { status: 'failed'; backupPath: string }
-> {
+const pendingBackupPath = (): string | null => {
+  const { appleTerminalSetupInProgress, appleTerminalBackupPath } = getGlobalConfig()
+  return appleTerminalSetupInProgress ? appleTerminalBackupPath || '' : null
+}
+
+export async function checkAndRestoreTerminalBackup(): Promise<RestoreOutcome> {
   let backupPath = ''
   try {
-    const config = getGlobalConfig()
-    const inProgress = config.appleTerminalSetupInProgress ?? false
-    backupPath = config.appleTerminalBackupPath || ''
-    if (!inProgress) return { status: 'no_backup' }
-    if (!backupPath) {
+    const pending = pendingBackupPath()
+    if (pending === null) return { status: 'no_backup' }
+    backupPath = pending
+    if (!backupPath || !existsSync(backupPath)) {
       markTerminalSetupComplete()
       return { status: 'no_backup' }
     }
-    if (!existsSync(backupPath)) {
-      markTerminalSetupComplete()
-      return { status: 'no_backup' }
-    }
-    const importResult = await execFileNoThrow('defaults', [
-      'import',
-      TERMINAL_DEFAULTS_DOMAIN,
-      backupPath,
-    ])
-    if (importResult.code !== 0) {
-      return { status: 'failed', backupPath }
-    }
+    const imported = await defaults('import', backupPath)
+    if (imported.code !== 0) return { status: 'failed', backupPath }
     await execFileNoThrow('killall', ['cfprefsd'])
     markTerminalSetupComplete()
     return { status: 'restored' }
