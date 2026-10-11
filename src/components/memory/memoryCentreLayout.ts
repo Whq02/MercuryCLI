@@ -1,5 +1,5 @@
 import { basename } from 'node:path'
-import { displayWidth, padTo, truncateToWidth } from '../mercury-ui/glyphs.js'
+import { GLYPH, displayWidth, padTo, truncateToWidth } from '../mercury-ui/glyphs.js'
 import { formatTextSize } from '../../mneme/mnemeUsage.js'
 import type { LedgerEntry } from '../../mneme/types.js'
 import type { HandoverReceipt } from '../../mneme/mnemeHandover.js'
@@ -240,7 +240,7 @@ export function maintenanceRow(m: OverviewFacts['maintenance']): OverviewRow {
   const last = m.receipts[0] ?? null
   const state = m.due ? 'due' : m.running ? 'running' : m.degraded.length > 0 ? 'degraded' : 'idle'
   const lastWords = last ? `last run ${humanStamp(last.ts)} (${last.trigger}): ${last.reason}${last.entries ? ` — ${plural(last.entries, 'entry', 'entries')}` : ''}` : 'no run yet'
-  const degraded = m.degraded.length > 0 ? ` · ${m.degraded[0]}` : ''
+  const degraded = m.degraded.length > 0 ? ` · ${GLYPH.warn} ${m.degraded[0]}` : ''
   return {
     id: 'maintenance',
     section: 'maintenance',

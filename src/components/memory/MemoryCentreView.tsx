@@ -117,7 +117,7 @@ export function topicTitle(doc: Pick<MnemeTopicDoc, 'slug' | 'summary'>): string
 
 export function entryWords(e: MnemeEntry): string {
   const by = e.supersededBy !== undefined ? ` · superseded by ${e.supersededBy}` : ''
-  return `${e.text} (seq ${e.seq} · ${humanStamp(e.time)} · ${e.source}${by})`
+  return `${e.text} ${`(seq ${e.seq} · ${humanStamp(e.time)} · ${e.source}${by})`.replace(/ /g, '\u00a0')}`
 }
 
 export function topicPageLines(doc: MnemeTopicDoc, width: number): PageLine[] {
