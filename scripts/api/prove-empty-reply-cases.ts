@@ -5,6 +5,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
+import { HANDOFF_ASK_MARK } from '../lib/fixtureApi.ts'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
@@ -257,7 +258,7 @@ export async function runCase(kind: EmptyReplyCase, dist = DIST): Promise<CaseRu
   const frames = stdout.split('\n').filter(line => line.startsWith('{')).flatMap(line => {
     try { return [JSON.parse(line) as Frame] } catch { return [] }
   })
-  const requests = fixture.captured.filter(c => c.body.model === EMPTY_REPLY_CASES_MODEL)
+  const requests = fixture.captured.filter(c => c.body.model === EMPTY_REPLY_CASES_MODEL && !JSON.stringify(c.body).includes(HANDOFF_ASK_MARK))
   return { exit, frames, requests, notices: persistedNotices(config), stderr, home }
 }
 

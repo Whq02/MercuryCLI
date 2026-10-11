@@ -6,7 +6,7 @@ import { execFileSync } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
-import { startFixtureApi } from '../lib/fixtureApi.ts'
+import { handoffTurn, startFixtureApi } from '../lib/fixtureApi.ts'
 import { seedFirstRun } from '../lib/firstRunSeed.ts'
 import { composeProcessSweepFacts } from '../../src/daemon/processSweep.ts'
 import { createPeer } from '../../src/runner/wire/peer.ts'
@@ -16,7 +16,7 @@ const dist = resolve(at < 0 ? join(import.meta.dir, '../../dist/mercury.mjs') : 
 if (!existsSync(dist)) { console.error(`FAIL worker bundle exists: ${dist}`); process.exit(1) }
 const home = realpathSync(mkdtempSync(join(tmpdir(), 'run-workers-')))
 seedFirstRun(home, [home])
-const api = await startFixtureApi([{ kind: 'text', text: 'The worker answered.' }, { kind: 'text', text: 'The scheduled run answered.' }])
+const api = await startFixtureApi([{ kind: 'text', text: 'The worker answered.' }, { kind: 'text', text: 'The scheduled run answered.' }, handoffTurn(), handoffTurn()])
 Object.assign(process.env, { HOME: home, MERCURY_CONFIG_DIR: home, MERCURY_DAEMON_DIR: join(home, 'daemon'), MERCURY_CREDENTIAL_STORE: 'file', MERCURY_LOCAL_PROBE_TARGETS: 'none', ANTHROPIC_BASE_URL: api.url, ANTHROPIC_API_KEY: 'fixture-key' })
 delete process.env.MERCURY_DAEMON_PERMISSION_MODE
 const executable = Object.getOwnPropertyDescriptor(process, 'execPath')!

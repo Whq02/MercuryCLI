@@ -13,7 +13,10 @@ process.env.ANTHROPIC_API_KEY = 'sk-ant-fixture-not-a-real-key'
 delete process.env.MERCURY_THINKING_BINDING
 delete process.env.ANTHROPIC_BASE_URL
 
-import { bindingDropsFor, startFixtureApi, type FixtureApi, type ScriptedTurn } from '../lib/fixtureApi.ts'
+import { bindingDropsFor, handoffTurn, isHandoffRequest, startFixtureApi as startScriptedApi, type FixtureApi, type ScriptedTurn } from '../lib/fixtureApi.ts'
+
+const startFixtureApi = (turns: ScriptedTurn[], opts?: Parameters<typeof startScriptedApi>[1]): ReturnType<typeof startScriptedApi> => startScriptedApi([...turns, ...Array.from({ length: 6 }, () => handoffTurn())], opts)
+const mainRequests = (api: FixtureApi): ReturnType<FixtureApi['messageRequests']> => api.messageRequests().filter(q => !isHandoffRequest(q))
 
 const ROOT = resolve(import.meta.dir, '..', '..')
 const DIST = join(ROOT, 'dist', 'mercury.mjs')
@@ -585,7 +588,7 @@ if (!existsSync(DIST)) {
         const resumed = await run(arena, ['run', 'Continue without tools.', ...args, '--resume', sid])
         const returned = await runStreaming(arena, [...args, '--resume', sid], [{ prompt: 'Continue once more without tools.' }])
         check('all three entry-mode transitions settle successfully', first.exit === 0 && first.stdout.includes('MIXED-FIRST') && resumed.exit === 0 && resumed.stdout.includes('MIXED-RESUMED') && returned.exit === 0 && returned.stdout.includes('MIXED-RETURNED'), [first.stderr, resumed.stderr, returned.stderr].join('\n').slice(-600))
-        const requests = fixture.messageRequests()
+        const requests = mainRequests(fixture)
         check('every transition makes its expected request', requests.length === 3, String(requests.length))
         check('entry-mode changes drop no preserved reasoning', requests.every(request => bindingDropsFor(request.body).length === 0), requests.map(request => bindingDropsFor(request.body).length).join(','))
         census('mixed entry modes', requests, true)
@@ -635,7 +638,7 @@ if (!existsSync(DIST)) {
           const continued = await runStreaming(arena, [...args, '--continue'], [{ prompt: 'Continue without tools.' }])
           check('§11 continue restores the same replacement state', continued.exit === 0 && continued.stdout.includes('PRUNE-CONTINUED'), continued.stderr.slice(-300))
         }
-        const requests = fixture.messageRequests()
+        const requests = mainRequests(fixture)
         check('§11 all expected model requests occurred', requests.length === 20, String(requests.length))
         const cleared = requests.slice(14)
         const placeholderCounts = cleared.map(request => {
@@ -676,7 +679,7 @@ if (!existsSync(DIST)) {
       ])
       check('the three-turn process exits 0', r.exit === 0, `exit=${r.exit} stderr=${r.stderr.slice(0, 400)}`)
       check('every turn answered', r.stdout.includes('S2-TURN-1-DONE') && r.stdout.includes('S2-TURN-2-DONE') && r.stdout.includes('S2-TURN-3-DONE'), r.stdout.slice(0, 300))
-      const reqs = fixture.messageRequests()
+      const reqs = mainRequests(fixture)
       check('five message requests (two tool rounds, one plain turn)', reqs.length === 5, String(reqs.length))
       for (let i = 0; i < reqs.length; i++) {
         const body = reqs[i]!.body as Body
@@ -709,7 +712,7 @@ if (!existsSync(DIST)) {
       check('turn 2 (resumed, file rewritten) exit 0', r2.exit === 0, `exit=${r2.exit} stderr=${r2.stderr.slice(0, 300)}`)
       const r3 = await run(arena, ['run', 'thanks', ...common, '--resume', SID])
       check('turn 3 (resumed) exit 0', r3.exit === 0, `exit=${r3.exit} stderr=${r3.stderr.slice(0, 300)}`)
-      const reqs = fixture.messageRequests()
+      const reqs = mainRequests(fixture)
       check('three message requests', reqs.length === 3, String(reqs.length))
       census('§3', reqs, true)
       const head = j(withoutCacheControl(((reqs[2]?.body as Body)?.messages ?? []).slice(0, 2)))
@@ -735,7 +738,7 @@ if (!existsSync(DIST)) {
       ])
       check('the two-turn process exits 0', r.exit === 0, `exit=${r.exit} stderr=${r.stderr.slice(0, 400)}`)
       check('both turns answered around the fold', r.stdout.includes('S4-FAT-DONE') && r.stdout.includes('S4-POST-COMPACT-DONE'), r.stdout.slice(0, 300))
-      const reqs = fixture.messageRequests()
+      const reqs = mainRequests(fixture)
       check('three message requests: the fat turn, the summary, the post-compaction turn', reqs.length === 3, String(reqs.length))
       const diffs = census('§4', reqs, false)
       check('the post-compaction request starts from a rewritten messages[0] (the lawful change)', diffs[1] === 0, j(diffs))
@@ -771,7 +774,7 @@ if (!existsSync(DIST)) {
       const r3 = await run(arena, ['run', 'now on fable', ...switchArgs('claude-fable-5-1'), '--resume', SID, '--log-file', debug3])
       const r4 = await run(arena, ['run', 'still on fable', ...switchArgs('claude-fable-5-1'), '--resume', SID, '--log-file', debug4])
       check('four turns exit 0', [r1, r2, r3, r4].every(r => r.exit === 0), [r1, r2, r3, r4].map(r => `${r.exit}:${r.stderr.slice(0, 120)}`).join(' | '))
-      const reqs = fixture.messageRequests()
+      const reqs = mainRequests(fixture)
       check('four message requests', reqs.length === 4, String(reqs.length))
       const [q1, q2, q3, q4] = reqs.map(r => r.body as Body)
       check('the opus turns replay their thinking to opus (request 2 carries one block)', q2 !== undefined && thinkingBlocksOf(q2) === 1, String(q2 && thinkingBlocksOf(q2)))
@@ -805,7 +808,7 @@ if (!existsSync(DIST)) {
           runs.push(await run(arena, ['run', `turn ${i + 1}`, ...switchArgs(leg.spellings[i]!), ...(i === 0 ? ['--session-id', SID] : ['--resume', SID])]))
         }
         check(`${leg.label}: every spelling's turn exits 0`, runs.every(r => r.exit === 0), runs.map(r => `${r.exit}:${r.stderr.slice(0, 100)}`).join(' | '))
-        const reqs = fixture.messageRequests()
+        const reqs = mainRequests(fixture)
         check(`${leg.label}: three requests, one wire id (${leg.wire}) whatever the spelling`, reqs.length === 3 && reqs.every(r => (r.body as Body).model === leg.wire), reqs.map(r => String((r.body as Body).model)).join(' · '))
         const last = reqs[2]?.body as Body | undefined
         check(`${leg.label}: the last request replays both earlier thinking blocks (no spelling read as a switch)`, last !== undefined && thinkingBlocksOf(last) === 2, String(last && thinkingBlocksOf(last)))
@@ -837,7 +840,7 @@ if (!existsSync(DIST)) {
         { prompt: 'carry on' },
       ])
       check('§6a three turns exit 0', r.exit === 0, `exit=${r.exit} stderr=${r.stderr.slice(0, 300)}`)
-      const reqs = fixture.messageRequests()
+      const reqs = mainRequests(fixture)
       check('§6a five message requests (turn 2 carries the lookup round and the Godot round)', reqs.length === 5, String(reqs.length))
       census('§6a', reqs, true)
       check('§6a the section stays absent (no project at the first request)', reqs.every(q => !systemTextOf(q.body as Body).includes('Godot control surface')), reqs.map(q => systemTextOf(q.body as Body).includes('Godot control surface')).join(','))
@@ -861,7 +864,7 @@ if (!existsSync(DIST)) {
         { prompt: 'carry on' },
       ])
       check('§6b three turns exit 0', r.exit === 0, `exit=${r.exit} stderr=${r.stderr.slice(0, 300)}`)
-      const reqs = fixture.messageRequests()
+      const reqs = mainRequests(fixture)
       check('§6b three message requests', reqs.length === 3, String(reqs.length))
       census('§6b', reqs, true)
       const offersGodot = (q: { raw: string; body: unknown }): boolean => toolNamesOf(q.body as Body).includes('Godot') || /\\nGodot\\n/.test(q.raw)
@@ -890,7 +893,7 @@ if (!existsSync(DIST)) {
       writeFileSync(join(arena.cwd, 'project.godot'), godotProject)
       const r2 = await run(arena, ['run', 'inspect the scene', ...common, '--resume', SID])
       check('§6c turn 2 (resumed, the flag armed, the project born) exit 0 — the binding check refused nothing', r2.exit === 0, `exit=${r2.exit} stderr=${r2.stderr.slice(0, 400)}`)
-      const reqs = fixture.messageRequests()
+      const reqs = mainRequests(fixture)
       check('§6c two message requests', reqs.length === 2, String(reqs.length))
       const sysA = systemTextOf(reqs[0]!.body as Body)
       const sysB = systemTextOf(reqs[1]!.body as Body)
@@ -915,14 +918,14 @@ if (!existsSync(DIST)) {
       const SID = 'c0ffee00-0000-4000-8000-00000000c06d'
       const r1 = await run(arena, ['run', 'look around', ...common, '--session-id', SID])
       check('§6d turn 1 (a clean repository) exit 0', r1.exit === 0, `exit=${r1.exit} stderr=${r1.stderr.slice(0, 300)}`)
-      const reqs1 = fixture.messageRequests()
+      const reqs1 = mainRequests(fixture)
       const sysA = systemTextOf(reqs1[0]!.body as Body)
       check('§6d the first request appended the git-status snapshot as its last system block', sysA.includes('gitStatus:'), sysA.slice(-200))
       check('§6d the record carries that snapshot', /"systemContext":\{"gitStatus":/.test(transcriptText(arena, SID)) || transcriptText(arena, SID).includes('"gitStatus"'), transcriptText(arena, SID).includes('bound_prefix') ? 'record present, snapshot absent' : 'no record')
       writeFileSync(join(arena.cwd, 'notes.txt'), 'saved between the turns\n')
       const r2 = await run(arena, ['run', 'and now?', ...common, '--resume', SID])
       check('§6d turn 2 (resumed, the tree moved) exit 0 — the binding check refused nothing', r2.exit === 0, `exit=${r2.exit} stderr=${r2.stderr.slice(0, 400)}`)
-      const reqs = fixture.messageRequests()
+      const reqs = mainRequests(fixture)
       check('§6d two message requests', reqs.length === 2, String(reqs.length))
       const sysB = systemTextOf(reqs[1]!.body as Body)
       check('§6d the resumed request re-sent the FIRST snapshot (the system is byte-identical; the saved file is not in the prefix)', sysA === sysB && !sysB.includes('notes.txt'), `A=${sysA.length}B B=${sysB.length}B notes=${sysB.includes('notes.txt')}`)
@@ -947,12 +950,12 @@ if (!existsSync(DIST)) {
       const r1 = await run(arena, ['run', 'start the work', ...common, '--session-id', SID])
       check('§6e turn 1 (the task tools off in this process) exit 0', r1.exit === 0, `exit=${r1.exit} stderr=${r1.stderr.slice(0, 300)}`)
       check('§6e the first exchange record persisted (a bound_prefix attachment)', transcriptText(arena, SID).includes('bound_prefix'), transcriptText(arena, SID).slice(0, 120))
-      const sysA = systemTextOf(fixture.messageRequests()[0]!.body as Body)
-      check('§6e the control: the first request named no task tool in its system prompt and carried none in its tools array', !sysA.includes('TaskCreate') && !toolNamesOf(fixture.messageRequests()[0]!.body as Body).includes('TaskCreate'), `taskCreateInSystem=${sysA.includes('TaskCreate')}`)
+      const sysA = systemTextOf(mainRequests(fixture)[0]!.body as Body)
+      check('§6e the control: the first request named no task tool in its system prompt and carried none in its tools array', !sysA.includes('TaskCreate') && !toolNamesOf(mainRequests(fixture)[0]!.body as Body).includes('TaskCreate'), `taskCreateInSystem=${sysA.includes('TaskCreate')}`)
       arena.env.MERCURY_TASKS = '1'
       const r2 = await run(arena, ['run', 'carry on', ...common, '--resume', SID])
       check('§6e turn 2 (resumed with the task tools in the pool) exit 0', r2.exit === 0, `exit=${r2.exit} stderr=${r2.stderr.slice(0, 400)}`)
-      const reqs = fixture.messageRequests()
+      const reqs = mainRequests(fixture)
       check('§6e two message requests', reqs.length === 2, String(reqs.length))
       const sysB = systemTextOf(reqs[1]!.body as Body)
       check(`§6e RED WHERE THE TOOL-NAMING SECTIONS RENDER FROM THE LIVE POOL (bundle tree ${bundleTree}): the resumed request re-sent the system prompt byte for byte — the run protocol never gained the task-items bullet`, sysA === sysB && !sysB.includes('create and update task items'), `A=${sysA.length}B B=${sysB.length}B bullet=${sysB.includes('Break down and manage work')}`)
@@ -1006,7 +1009,7 @@ if (!existsSync(DIST)) {
       )
       check('§7 the seven-turn process exits 0', r.exit === 0, `exit=${r.exit} stderr=${r.stderr.slice(0, 400)}`)
       check('§7 every turn answered around the lookups and the fold', ['S7-T1', 'S7-T2', 'S7-T3', 'S7-T4', 'S7-T5', 'S7-T6', 'S7-T7'].every(t => r.stdout.includes(t)), r.stdout.slice(0, 300))
-      const reqs = fixture.messageRequests()
+      const reqs = mainRequests(fixture)
       check('§7 ten message requests (seven turns, two lookup rounds, one summary)', reqs.length === 10, String(reqs.length))
       const beforeFold = reqs.slice(0, 9)
       census('§7 before the fold', beforeFold, true)
@@ -1088,7 +1091,7 @@ if (!existsSync(DIST)) {
       )
       check('§8 the six-turn process exits 0 (no stall: every turn answered within the run budget)', r.exit === 0, `exit=${r.exit} stderr=${r.stderr.slice(0, 400)}`)
       check('§8 every turn answered on both models', ['S8-F1', 'S8-F2', 'S8-O1', 'S8-O2', 'S8-F3', 'S8-F4'].every(t => r.stdout.includes(t)), r.stdout.slice(0, 300))
-      const reqs = fixture.messageRequests()
+      const reqs = mainRequests(fixture)
       check('§8 eight message requests (two tool rounds) and NOT ONE refused by the API\'s own checks', reqs.length === 8 && fixture.refusals.length === 0, `${reqs.length} requests; refusals=${j(fixture.refusals)}`)
       const bodies = reqs.map(q => q.body as Body)
       check('§8 the wire model follows the switch: fable · fable · fable · opus · opus · opus · fable · fable', j(bodies.map(b => b.model)) === j([FABLE, FABLE, FABLE, OPUS, OPUS, OPUS, FABLE, FABLE]), j(bodies.map(b => b.model)))
@@ -1144,7 +1147,7 @@ if (!existsSync(DIST)) {
       check('§9 the process exits 0 (the turn held for the seat, the fold ran, the notice turn landed)', r.exit === 0, `exit=${r.exit} stderr=${r.stderr.slice(0, 400)}`)
       check('§9 the main answered after the fold and after the notice', r.stdout.includes('S9-POST') && r.stdout.includes('S9-NOTED'), r.stdout.slice(0, 300))
       const debugText = (() => { try { return readFileSync(debugFile, 'utf8') } catch { return '' } })()
-      const reqs = fixture.messageRequests()
+      const reqs = mainRequests(fixture)
       const modelOf = (q: { body: unknown }): string => String((q.body as Body).model ?? '')
       const seatReqs = reqs.filter(q => modelOf(q).includes('opus'))
       const mainReqs = reqs.filter(q => modelOf(q).includes('fable'))
@@ -1214,7 +1217,7 @@ if (!existsSync(DIST)) {
       check(`§10 ${tag}: the process exits 0`, r.exit === 0, `exit=${r.exit} stderr=${r.stderr.slice(0, 400)}`)
       check(`§10 ${tag}: the main answered after the dispatch`, r.stdout.includes('S10-DISPATCHED'), r.stdout.slice(0, 300))
       const debugText = (() => { try { return readFileSync(debugFile, 'utf8') } catch { return '' } })()
-      const reqs = fixture.messageRequests()
+      const reqs = mainRequests(fixture)
       const modelOf = (q: { body: unknown }): string => String((q.body as Body).model ?? '')
       const mainReqs = reqs.filter(q => modelOf(q).includes('opus'))
       const seatReqs = reqs.filter(q => modelOf(q).includes('sonnet'))

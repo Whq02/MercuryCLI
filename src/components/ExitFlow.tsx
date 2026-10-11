@@ -1,6 +1,8 @@
 
-import React, { useEffect, useRef } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
+import { ExitHandoff } from './ExitHandoff.js'
 import { WorktreeExitDialog } from './WorktreeExitDialog.js'
+import { exitNoteDue } from '../mneme/exitHandoff.js'
 import { gracefulShutdown } from '../utils/gracefulShutdown.js'
 
 const FAREWELLS = [
@@ -32,27 +34,38 @@ export function ExitFlow({
   showWorktree: boolean
 }): React.ReactNode {
   const firedRef = useRef(false)
+  const [note, setNote] = useState<{ message?: string } | null>(null)
+
+  const leave = (message?: string): void => {
+    if (firedRef.current) return
+    firedRef.current = true
+    if (exitNoteDue()) {
+      setNote({ message })
+      return
+    }
+    onDone(message)
+    exitNow(message)
+  }
 
   useEffect(() => {
-    if (showWorktree || firedRef.current) return
-    firedRef.current = true
-    onDone()
-    exitNow()
-  }, [showWorktree, onDone])
+    if (showWorktree) return
+    leave()
+  }, [showWorktree])
+
+  if (note !== null) {
+    return (
+      <ExitHandoff
+        onSettled={() => {
+          onDone(note.message)
+          exitNow(note.message)
+        }}
+      />
+    )
+  }
 
   if (!showWorktree) return null
 
-  return (
-    <WorktreeExitDialog
-      onDone={result => {
-        if (firedRef.current) return
-        firedRef.current = true
-        onDone(result)
-        exitNow(result)
-      }}
-      onCancel={onCancel}
-    />
-  )
+  return <WorktreeExitDialog onDone={result => leave(result)} onCancel={onCancel} />
 }
 
 export default ExitFlow

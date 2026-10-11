@@ -165,7 +165,8 @@ import { declaredRouteOf } from '../services/providers/callModelRouter.js'
 import { streamEndReceiptLine } from '../services/providers/streamIdleBudget.js'
 import { interruptedToolsLine, turnCutOf, turnCutResultText } from '../utils/messages/rejectionText.js'
 import { ownerFromToolUseContext, rosterOwnerFromToolUseContext } from '../services/run/resolveOwner.js'
-import { recordSentRequest } from '../utils/forkedAgent.js'
+import { createCacheSafeParams, recordSentRequest } from '../utils/forkedAgent.js'
+import { askForHandoff, handoffAskDue } from '../mneme/handoffAsk.js'
 import { emptyReplyKindOf, emptyReplyNoticeLine } from '../services/providers/emptyReply.js'
 import { buildQueryConfig, type QueryConfig } from '../query/config.js'
 import { productionDeps, type QueryDeps } from '../query/deps.js'
@@ -1769,6 +1770,28 @@ export async function* runEventCore(
           state = next
           continue
         }
+      }
+
+      if (handoffAskDue({ agentId: toolUseContext.agentId, querySource })) {
+        const note = await askForHandoff({
+          cacheSafeParams: createCacheSafeParams({
+            messages: [...messagesForQuery, ...assistantMessages],
+            systemPrompt,
+            userContext,
+            systemContext,
+            toolUseContext,
+            querySource,
+          }),
+          signal: toolUseContext.abortController.signal,
+          canUseTool,
+        })
+        yield emit({
+          kind: 'notice',
+          message: createSystemMessage(
+            note === null ? 'the session ends with no note left for the next one' : `the note for the next session is in the ledger (${note.text.length} characters)`,
+            'info',
+          ),
+        })
       }
 
       const terminal: Terminal = { reason: 'completed' }

@@ -4,7 +4,7 @@ import { spawn } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
-import { startFixtureApi, type ScriptedTurn } from '../lib/fixtureApi.ts'
+import { startFixtureApi, type ScriptedTurn, isHandoffRequest, handoffTurn } from '../lib/fixtureApi.ts'
 import { seedFirstRun } from '../lib/firstRunSeed.ts'
 
 const ROOT = resolve(import.meta.dir, '..', '..')
@@ -89,7 +89,7 @@ async function openDoor(turns: ScriptedTurn[]): Promise<Door> {
   const projectDir = join(home, 'headless')
   mkdirSync(projectDir, { recursive: true })
   seedFirstRun(home, [projectDir])
-  const api = await startFixtureApi(turns)
+  const api = await startFixtureApi([...turns, handoffTurn(), handoffTurn()])
   const env = {
     HOME: home,
     PATH: process.env.PATH,
@@ -160,7 +160,7 @@ section('§3 THE DOOR (rows) — a run whose every write was auto-denied and who
     check('the resume condition rides the error detail', (outcome?.error?.detail ?? []).some(line => line.includes('Write and Bash are pre-approved')), j(outcome?.error?.detail))
     check('the answer (the model\'s account) still rides the blocked outcome', typeof outcome?.answer === 'string' && outcome.answer.includes('fizz.py was not created'), j({ answer: outcome?.answer?.slice(0, 80) }))
     check('the outcome is the last row', rows.at(-1)?.type === 'outcome')
-    check('the fixture saw both requests (the denied write, then the declaration)', door.api.messageRequests().length === 2, String(door.api.messageRequests().length))
+    check('the fixture saw both requests (the denied write, then the declaration; the session\'s closing ask set aside)', door.api.messageRequests().filter(q => !isHandoffRequest(q)).length === 2, String(door.api.messageRequests().length))
   } finally {
     await door.close()
   }

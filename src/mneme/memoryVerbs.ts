@@ -9,6 +9,7 @@ import { correctFact, retireFact, userAskedRuleMessage, type MnemeCorrectResult 
 import { ARCHIVE_PREFIX, isArchiveDoc, parseEntryLine, liveSeqs, serializeSignature, type MnemeTopicDoc } from './mnemeTopicDocs.js'
 import { bumpUsage, readPins, readUsage } from './mnemeUsage.js'
 import { candidates, rankCandidates } from './mnemeLookup.js'
+import { noteCorrected, noteRetained } from './lineageSession.js'
 
 function allDocs(dir: string): MnemeTopicDoc[] {
   return [...listTopicDocs(dir), ...listArchiveDocs(dir)]
@@ -126,6 +127,7 @@ export function retainItems(
     const id = `pending:${row.ts}`
     sessionRetained.set(duplicateKey, id)
     outcomes.push({ index, status: 'stored', id })
+    noteRetained(id, pin === true)
   })
   return outcomes
 }
@@ -409,10 +411,13 @@ export function correctMemory(
   const reason = (input.reason ?? '').trim()
   if (!reason) return { ok: false, op, code: 'invalid', message: 'a correction always carries its reason' }
 
-  const finish = (result: MnemeCorrectResult): CorrectOutcome =>
-    result.ok
-      ? { ok: true, op, newSeq: result.seq, targetSeq: result.targetSeq, slug: result.slug }
-      : { ok: false, op, code: result.code, message: result.message }
+  const finish = (result: MnemeCorrectResult): CorrectOutcome => {
+    if (result.ok) {
+      noteCorrected(`seq:${result.targetSeq}`)
+      return { ok: true, op, newSeq: result.seq, targetSeq: result.targetSeq, slug: result.slug }
+    }
+    return { ok: false, op, code: result.code, message: result.message }
+  }
 
   switch (op) {
     case 'retract':
