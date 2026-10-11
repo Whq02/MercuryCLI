@@ -35,6 +35,7 @@ const environment = (home: string, url: string): Record<string, string> => ({
 try {
   if (!baseDist) {
     const base = join(scratch, 'base')
+    const baseOut = mkdtempSync(join(tmpdir(), 'upgrade-composition-dist-'))
     mkdirSync(base)
     const archive = spawnSync('git', ['archive', '961944cbb6'], { cwd: root, maxBuffer: 256 * 1024 * 1024 })
     assert.equal(archive.status, 0, archive.stderr.toString())
@@ -45,9 +46,9 @@ try {
       if (name === 'desktop' || existsSync(join(base, 'vendor', name))) continue
       symlinkSync(join(root, 'vendor', name), join(base, 'vendor', name))
     }
-    const build = spawnSync('nice', ['-n', '10', process.execPath, 'run', 'build.ts'], { cwd: base, env: { ...process.env, MERCURY_CONFIG_DIR: join(scratch, 'build-home') }, encoding: 'utf8', maxBuffer: 8 * 1024 * 1024 })
+    const build = spawnSync('nice', ['-n', '10', process.execPath, 'run', 'build.ts'], { cwd: base, env: { ...process.env, MERCURY_CONFIG_DIR: join(scratch, 'build-home'), MERCURY_BUILD_OUTDIR: baseOut }, encoding: 'utf8', maxBuffer: 8 * 1024 * 1024 })
     assert.equal(build.status, 0, build.stdout + build.stderr)
-    baseDist = join(base, 'dist/mercury.mjs')
+    baseDist = join(baseOut, 'mercury.mjs')
   }
   for (const sidecar of [true, false]) {
     const home = join(scratch, sidecar ? 'kept' : 'missing')

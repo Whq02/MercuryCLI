@@ -36,7 +36,7 @@ const FABLE = 'claude-fable-5-1'
 const OPUS = 'claude-opus-5'
 const CAVEAT_MARK = '<local-command-caveat>'
 const MODEL_COMMAND_MARK = '<command-name>/model</command-name>'
-const STDOUT_MARK = 'Set model to'
+const STDOUT_MARK = 'Model now:'
 
 const textsOf = (content: unknown): string[] => {
   if (typeof content === 'string') return [content]
@@ -59,7 +59,7 @@ section('§1 the wire plan — the /model rows are the operator\'s record, never
   for (const geometry of ['anthropic', 'family'] as const) {
     const conversation = [prompt('first'), reply('a1', 'one'), ...rows, prompt('second')] as never[]
     const sent = wireTexts(requestConversationPlan(conversation, [], geometry).messages)
-    check(`${geometry}: the request after a switch carries no caveat, no /model command row and no "Set model to" (RED on the base: all three rode)`, !sent.some(text => text.includes(CAVEAT_MARK) || text.includes(MODEL_COMMAND_MARK) || text.includes(STDOUT_MARK)), j(sent))
+    check(`${geometry}: the request after a switch carries no caveat, no /model command row and no "Model now:" (RED on the base: all three rode)`, !sent.some(text => text.includes(CAVEAT_MARK) || text.includes(MODEL_COMMAND_MARK) || text.includes(STDOUT_MARK)), j(sent))
     check(`${geometry}: the operator's words are untouched around the gap`, has(sent, 'first') && has(sent, 'second'), j(sent))
   }
   const caveat = () => createSyntheticUserCaveatMessage()
@@ -146,7 +146,7 @@ if (!existsSync(DIST)) {
     const second = requests[1]?.body as { model?: string; messages?: Array<{ role?: string; content?: unknown }> } | undefined
     const secondTexts = (second?.messages ?? []).flatMap(m => textsOf(m.content))
     check('the request after the switch dispatches on the new model', second?.model === OPUS, j(second?.model))
-    check('that request carries no local-command caveat, no /model command row and no "Set model to" (RED on the base: the three rows rode in it)', !secondTexts.some(text => text.includes(CAVEAT_MARK) || text.includes(MODEL_COMMAND_MARK) || text.includes(STDOUT_MARK)), j(secondTexts))
+    check('that request carries no local-command caveat, no /model command row and no "Model now:" (RED on the base: the three rows rode in it)', !secondTexts.some(text => text.includes(CAVEAT_MARK) || text.includes(MODEL_COMMAND_MARK) || text.includes(STDOUT_MARK)), j(secondTexts))
     check('the operator\'s question rides whole', secondTexts.some(text => text.includes('what are you running on now?')), j(secondTexts))
     const commandRows = host.rows.filter(row => row.type === 'command_output' && typeof row.text === 'string' && row.text.includes(STDOUT_MARK))
     check('the host still receives the /model receipt as a command-output row (the operator sees the switch)', commandRows.length === 1, j(commandRows.map(row => row.text)))

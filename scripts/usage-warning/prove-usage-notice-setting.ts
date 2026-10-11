@@ -91,7 +91,11 @@ check('on: the 90% window attaches after the first', second.length === 1 && seco
 const overage = getUsageLimitNoticeAttachment(context, messages, overageReads)
 check('on: the spending-limit state attaches with the base words', overage.length === 1 && overage[0]!.pct === 0 && overage[0]!.text === 'Anthropic says this account is close to its extra usage spending limit')
 check('on: the words are byte-equal to the base law', usageWarningNoticeText(overage[0]!.text, 0).startsWith('Usage limit near — Anthropic says this account is close to its extra usage spending limit.'))
-check('on: the render law is untouched', readFileSync(new URL('../../src/utils/messages/attachmentText.ts', import.meta.url), 'utf8').includes("case 'usage_limit_notice':"))
+{
+  const { normalizeAttachmentForAPI } = await import('../../src/utils/messages/attachmentText.js')
+  const rendered = normalizeAttachmentForAPI(overage[0]!).map(row => (typeof row.message.content === 'string' ? row.message.content : row.message.content.map(block => (block.type === 'text' ? block.text : '')).join('\n'))).join('\n')
+  check('on: the render law holds — the notice row carries usageWarningNoticeText(text, pct)', rendered.includes(usageWarningNoticeText(overage[0]!.text, 0)), rendered.slice(0, 160))
+}
 setSetting(undefined)
 
 rmSync(root, { recursive: true, force: true })

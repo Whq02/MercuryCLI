@@ -37,7 +37,7 @@ const OPUS = 'claude-opus-5'
 const NOTICE_MARK = 'The engine running this seat changed at '
 const CAVEAT_MARK = '<local-command-caveat>'
 const MODEL_COMMAND_MARK = '<command-name>/model</command-name>'
-const STDOUT_MARK = 'Set model to'
+const STDOUT_MARK = 'Model now:'
 
 const textsOf = (content: unknown): string[] => {
   if (typeof content === 'string') return [content]
