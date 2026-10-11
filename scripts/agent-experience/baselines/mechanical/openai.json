@@ -6,12 +6,12 @@
     "backend": "openai-responses",
     "dialect": "responses",
     "mechanical": true,
-    "tree": "3f9819413",
+    "tree": "5e94b2c5f",
     "fold": "unlabelled",
-    "when": "2026-10-11T01:26:09.978Z",
-    "promptChars": 8337,
-    "promptTokensEst": 2084,
-    "toolCount": 13,
+    "when": "2026-10-11T04:14:56.131Z",
+    "promptChars": 8268,
+    "promptTokensEst": 2067,
+    "toolCount": 14,
     "toolNames": [
       "Agent",
       "Bash",
@@ -25,9 +25,10 @@
       "Eval",
       "AstSearch",
       "ChangeSet",
+      "Journal",
       "ToolSearch"
     ],
-    "toolSchemaChars": 41569,
+    "toolSchemaChars": 42827,
     "notes": [
       "browser task unmeasured: no browser to launch — no managed browser — your installed apps are never driven; /browser install downloads Chrome for Testing once with your consent"
     ]
@@ -65,8 +66,8 @@
       "probes": 1,
       "unexpectedErrors": 0,
       "duplicates": 0,
-      "toolResultChars": 3592,
-      "toolResultTokensEst": 898,
+      "toolResultChars": 3460,
+      "toolResultTokensEst": 865,
       "imageChars": 0,
       "injectedTokensEst": 0,
       "subagentResultTokensEst": 0,
@@ -75,20 +76,20 @@
       "errors": [
         {
           "tool": "Bash",
-          "text": "<tool_use_error>Shell command failed (exit code 1)\n✔ mean of a list (0.319125ms)\n✔ median of an odd-length list (0.062166ms)\n✖ median of an even-length list averages the middle pair (0.358958ms)\nℹ tests 3\nℹ suites 0\nℹ pass 2\nℹ fail 1\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 51.080584\n\n✖ failing tests:\n\ntest at test/stats.test.js:13:1\n✖ median of an even-length list averages the middle pair (0.358958ms)\n  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n  \n  3 !== 2.5\n  \n      at TestContext.<anonymous> (<fixture>",
+          "text": "<tool_use_error>Shell command failed (exit code 1)\n✔ mean of a list (0.333625ms)\n✔ median of an odd-length list (0.064584ms)\n✖ median of an even-length list averages the middle pair (0.389875ms)\nℹ tests 3\nℹ suites 0\nℹ pass 2\nℹ fail 1\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 47.354417\n\n✖ failing tests:\n\ntest at test/stats.test.js:13:1\n✖ median of an even-length list averages the middle pair (0.389875ms)\n  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n  \n  3 !== 2.5\n  \n      at TestContext.<anonymous> (file://<fixture>/openai/tasks/fi",
           "namesFix": true,
           "probe": true
         }
       ],
-      "wallMs": 1725,
+      "wallMs": 1822,
       "exitCode": 0,
       "timedOut": false,
       "resultStatus": "completed",
       "usage": {
-        "input_tokens": 40,
+        "input_tokens": 48,
         "cached_input_tokens": 0,
         "cache_write_input_tokens": 0,
-        "output_tokens": 25
+        "output_tokens": 30
       },
       "costUsd": null
     },
@@ -124,23 +125,23 @@
       "probes": 0,
       "unexpectedErrors": 0,
       "duplicates": 0,
-      "toolResultChars": 2512,
-      "toolResultTokensEst": 628,
+      "toolResultChars": 2380,
+      "toolResultTokensEst": 595,
       "imageChars": 0,
       "injectedTokensEst": 0,
       "subagentResultTokensEst": 0,
       "asks": 0,
       "denials": 0,
       "errors": [],
-      "wallMs": 1263,
+      "wallMs": 1412,
       "exitCode": 0,
       "timedOut": false,
       "resultStatus": "completed",
       "usage": {
-        "input_tokens": 32,
+        "input_tokens": 40,
         "cached_input_tokens": 0,
         "cache_write_input_tokens": 0,
-        "output_tokens": 20
+        "output_tokens": 25
       },
       "costUsd": null
     },
@@ -176,8 +177,8 @@
       "probes": 1,
       "unexpectedErrors": 0,
       "duplicates": 0,
-      "toolResultChars": 2179,
-      "toolResultTokensEst": 545,
+      "toolResultChars": 2128,
+      "toolResultTokensEst": 532,
       "imageChars": 0,
       "injectedTokensEst": 0,
       "subagentResultTokensEst": 0,
@@ -186,20 +187,20 @@
       "errors": [
         {
           "tool": "Edit",
-          "text": "<tool_use_error>Read the file before editing it — the edit needs a prior read of the current content (a Read of the lines it touches, or expected_anchor from a full Read of the file as it stands). Read ownership/coverage check failed: neither a recorded Read nor the current owner's ledger covers all addressed lines. No lines of <fixture>/openai/tasks/anchored-edit/project/README.md were read this session; the old_string was not found in the current content, so the lines the edit touches are unknown ",
+          "text": "<tool_use_error>Read the file before editing it — it exists and was not read in this session, so it may be another session's work; the edit needs a prior read of the current content (a Read of the lines it touches, or expected_anchor from a full Read of the file as it stands). Read ownership/coverage check failed: neither a recorded Read nor the current owner's ledger covers all addressed lines. No lines of <fixture>/openai/tasks/anchored-edit/project/README.md were read this session; the old_string was not found in the current content, so the lines the edit touch",
           "namesFix": true,
           "probe": true
         }
       ],
-      "wallMs": 1392,
+      "wallMs": 934,
       "exitCode": 0,
       "timedOut": false,
       "resultStatus": "completed",
       "usage": {
-        "input_tokens": 32,
+        "input_tokens": 40,
         "cached_input_tokens": 0,
         "cache_write_input_tokens": 0,
-        "output_tokens": 20
+        "output_tokens": 25
       },
       "costUsd": null
     },
@@ -239,15 +240,15 @@
           "probe": true
         }
       ],
-      "wallMs": 929,
+      "wallMs": 905,
       "exitCode": 0,
       "timedOut": false,
       "resultStatus": "completed",
       "usage": {
-        "input_tokens": 24,
+        "input_tokens": 32,
         "cached_input_tokens": 0,
         "cache_write_input_tokens": 0,
-        "output_tokens": 15
+        "output_tokens": 20
       },
       "costUsd": null
     },
@@ -281,15 +282,15 @@
       "asks": 0,
       "denials": 0,
       "errors": [],
-      "wallMs": 1219,
+      "wallMs": 1043,
       "exitCode": 0,
       "timedOut": false,
       "resultStatus": "completed",
       "usage": {
-        "input_tokens": 16,
+        "input_tokens": 24,
         "cached_input_tokens": 0,
         "cache_write_input_tokens": 0,
-        "output_tokens": 10
+        "output_tokens": 15
       },
       "costUsd": null
     },
@@ -328,15 +329,15 @@
           "probe": true
         }
       ],
-      "wallMs": 1019,
+      "wallMs": 927,
       "exitCode": 0,
       "timedOut": false,
       "resultStatus": "completed",
       "usage": {
-        "input_tokens": 24,
+        "input_tokens": 32,
         "cached_input_tokens": 0,
         "cache_write_input_tokens": 0,
-        "output_tokens": 15
+        "output_tokens": 20
       },
       "costUsd": null
     },
@@ -368,15 +369,15 @@
       "asks": 0,
       "denials": 0,
       "errors": [],
-      "wallMs": 973,
+      "wallMs": 970,
       "exitCode": 0,
       "timedOut": false,
       "resultStatus": "completed",
       "usage": {
-        "input_tokens": 32,
+        "input_tokens": 40,
         "cached_input_tokens": 0,
         "cache_write_input_tokens": 0,
-        "output_tokens": 20
+        "output_tokens": 25
       },
       "costUsd": null
     },
@@ -408,15 +409,15 @@
       "asks": 0,
       "denials": 0,
       "errors": [],
-      "wallMs": 1308,
+      "wallMs": 1594,
       "exitCode": 0,
       "timedOut": false,
       "resultStatus": "completed",
       "usage": {
-        "input_tokens": 16,
+        "input_tokens": 24,
         "cached_input_tokens": 0,
         "cache_write_input_tokens": 0,
-        "output_tokens": 10
+        "output_tokens": 15
       },
       "costUsd": null
     },
@@ -480,15 +481,15 @@
       "asks": 0,
       "denials": 0,
       "errors": [],
-      "wallMs": 1026,
+      "wallMs": 1200,
       "exitCode": 0,
       "timedOut": false,
       "resultStatus": "completed",
       "usage": {
-        "input_tokens": 16,
+        "input_tokens": 24,
         "cached_input_tokens": 0,
         "cache_write_input_tokens": 0,
-        "output_tokens": 10
+        "output_tokens": 15
       },
       "costUsd": null
     },
@@ -520,15 +521,15 @@
       "asks": 0,
       "denials": 0,
       "errors": [],
-      "wallMs": 1101,
+      "wallMs": 1035,
       "exitCode": 0,
       "timedOut": false,
       "resultStatus": "completed",
       "usage": {
-        "input_tokens": 48,
+        "input_tokens": 56,
         "cached_input_tokens": 0,
         "cache_write_input_tokens": 0,
-        "output_tokens": 30
+        "output_tokens": 35
       },
       "costUsd": null
     },
@@ -554,8 +555,8 @@
       "probes": 1,
       "unexpectedErrors": 0,
       "duplicates": 0,
-      "toolResultChars": 3029,
-      "toolResultTokensEst": 757,
+      "toolResultChars": 2897,
+      "toolResultTokensEst": 724,
       "imageChars": 0,
       "injectedTokensEst": 0,
       "subagentResultTokensEst": 0,
@@ -569,15 +570,15 @@
           "probe": true
         }
       ],
-      "wallMs": 1676,
+      "wallMs": 1675,
       "exitCode": 0,
       "timedOut": false,
       "resultStatus": "completed",
       "usage": {
-        "input_tokens": 48,
+        "input_tokens": 56,
         "cached_input_tokens": 0,
         "cache_write_input_tokens": 0,
-        "output_tokens": 30
+        "output_tokens": 35
       },
       "costUsd": null
     },
@@ -604,15 +605,15 @@
       "asks": 0,
       "denials": 0,
       "errors": [],
-      "wallMs": 914,
+      "wallMs": 837,
       "exitCode": 0,
       "timedOut": false,
       "resultStatus": "completed",
       "usage": {
-        "input_tokens": 8,
+        "input_tokens": 16,
         "cached_input_tokens": 0,
         "cache_write_input_tokens": 0,
-        "output_tokens": 5
+        "output_tokens": 10
       },
       "costUsd": null
     },
@@ -639,7 +640,7 @@
       "asks": 0,
       "denials": 0,
       "errors": [],
-      "wallMs": 864,
+      "wallMs": 820,
       "exitCode": 0,
       "timedOut": false,
       "resultStatus": "completed",

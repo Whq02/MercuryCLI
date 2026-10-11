@@ -6,12 +6,12 @@
     "backend": "zai-glm",
     "dialect": "chat",
     "mechanical": true,
-    "tree": "3f9819413",
+    "tree": "5e94b2c5f",
     "fold": "unlabelled",
-    "when": "2026-10-11T01:26:09.978Z",
-    "promptChars": 8327,
-    "promptTokensEst": 2082,
-    "toolCount": 55,
+    "when": "2026-10-11T04:14:56.131Z",
+    "promptChars": 8268,
+    "promptTokensEst": 2067,
+    "toolCount": 56,
     "toolNames": [
       "Agent",
       "Bash",
@@ -64,12 +64,13 @@
       "Recall",
       "Reflect",
       "Correct",
+      "Journal",
       "mcp__mercury__lease_take",
       "mcp__mercury__lease_release",
       "mcp__mercury__lease_list",
       "mcp__mercury__render_tui"
     ],
-    "toolSchemaChars": 161605,
+    "toolSchemaChars": 164277,
     "notes": [
       "browser task unmeasured: no browser to launch — no managed browser — your installed apps are never driven; /browser install downloads Chrome for Testing once with your consent"
     ]
@@ -107,8 +108,8 @@
       "probes": 1,
       "unexpectedErrors": 0,
       "duplicates": 0,
-      "toolResultChars": 3589,
-      "toolResultTokensEst": 897,
+      "toolResultChars": 3455,
+      "toolResultTokensEst": 864,
       "imageChars": 0,
       "injectedTokensEst": 0,
       "subagentResultTokensEst": 0,
@@ -117,22 +118,22 @@
       "errors": [
         {
           "tool": "Bash",
-          "text": "<tool_use_error>Shell command failed (exit code 1)\n✔ mean of a list (0.448917ms)\n✔ median of an odd-length list (0.075334ms)\n✖ median of an even-length list averages the middle pair (0.395417ms)\nℹ tests 3\nℹ suites 0\nℹ pass 2\nℹ fail 1\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 49.795042\n\n✖ failing tests:\n\ntest at test/stats.test.js:13:1\n✖ median of an even-length list averages the middle pair (0.395417ms)\n  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n  \n  3 !== 2.5\n  \n      at TestContext.<anonymous> (<fixture>",
+          "text": "<tool_use_error>Shell command failed (exit code 1)\n✔ mean of a list (0.3255ms)\n✔ median of an odd-length list (0.065375ms)\n✖ median of an even-length list averages the middle pair (0.380125ms)\nℹ tests 3\nℹ suites 0\nℹ pass 2\nℹ fail 1\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 48.431958\n\n✖ failing tests:\n\ntest at test/stats.test.js:13:1\n✖ median of an even-length list averages the middle pair (0.380125ms)\n  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n  \n  3 !== 2.5\n  \n      at TestContext.<anonymous> (file://<fixture>/chat/tasks/fix-bu",
           "namesFix": true,
           "probe": true
         }
       ],
-      "wallMs": 1721,
+      "wallMs": 1911,
       "exitCode": 0,
       "timedOut": false,
       "resultStatus": "completed",
       "usage": {
-        "input_tokens": 40,
+        "input_tokens": 48,
         "cached_input_tokens": 0,
         "cache_write_input_tokens": 0,
-        "output_tokens": 22
+        "output_tokens": 24
       },
-      "costUsd": 0.0001528
+      "costUsd": 0.0001728
     },
     {
       "task": "add-test",
@@ -166,25 +167,25 @@
       "probes": 0,
       "unexpectedErrors": 0,
       "duplicates": 0,
-      "toolResultChars": 2508,
-      "toolResultTokensEst": 627,
+      "toolResultChars": 2376,
+      "toolResultTokensEst": 594,
       "imageChars": 0,
       "injectedTokensEst": 0,
       "subagentResultTokensEst": 0,
       "asks": 0,
       "denials": 0,
       "errors": [],
-      "wallMs": 1367,
+      "wallMs": 1421,
       "exitCode": 0,
       "timedOut": false,
       "resultStatus": "completed",
       "usage": {
-        "input_tokens": 32,
+        "input_tokens": 40,
         "cached_input_tokens": 0,
         "cache_write_input_tokens": 0,
-        "output_tokens": 17
+        "output_tokens": 19
       },
-      "costUsd": 0.00011960000000000001
+      "costUsd": 0.0001396
     },
     {
       "task": "anchored-edit",
@@ -218,8 +219,8 @@
       "probes": 1,
       "unexpectedErrors": 0,
       "duplicates": 0,
-      "toolResultChars": 2175,
-      "toolResultTokensEst": 544,
+      "toolResultChars": 2124,
+      "toolResultTokensEst": 531,
       "imageChars": 0,
       "injectedTokensEst": 0,
       "subagentResultTokensEst": 0,
@@ -228,22 +229,22 @@
       "errors": [
         {
           "tool": "Edit",
-          "text": "<tool_use_error>Read the file before editing it — the edit needs a prior read of the current content (a Read of the lines it touches, or expected_anchor from a full Read of the file as it stands). Read ownership/coverage check failed: neither a recorded Read nor the current owner's ledger covers all addressed lines. No lines of <fixture>/chat/tasks/anchored-edit/project/README.md were read this session; the old_string was not found in the current content, so the lines the edit touches are unknown — ",
+          "text": "<tool_use_error>Read the file before editing it — it exists and was not read in this session, so it may be another session's work; the edit needs a prior read of the current content (a Read of the lines it touches, or expected_anchor from a full Read of the file as it stands). Read ownership/coverage check failed: neither a recorded Read nor the current owner's ledger covers all addressed lines. No lines of <fixture>/chat/tasks/anchored-edit/project/README.md were read this session; the old_string was not found in the current content, so the lines the edit touches",
           "namesFix": true,
           "probe": true
         }
       ],
-      "wallMs": 1228,
+      "wallMs": 842,
       "exitCode": 0,
       "timedOut": false,
       "resultStatus": "completed",
       "usage": {
-        "input_tokens": 32,
+        "input_tokens": 40,
         "cached_input_tokens": 0,
         "cache_write_input_tokens": 0,
-        "output_tokens": 17
+        "output_tokens": 19
       },
-      "costUsd": 0.00011960000000000001
+      "costUsd": 0.0001396
     },
     {
       "task": "search-symbol",
@@ -281,17 +282,17 @@
           "probe": true
         }
       ],
-      "wallMs": 932,
+      "wallMs": 853,
       "exitCode": 0,
       "timedOut": false,
       "resultStatus": "completed",
       "usage": {
-        "input_tokens": 24,
+        "input_tokens": 32,
         "cached_input_tokens": 0,
         "cache_write_input_tokens": 0,
-        "output_tokens": 12
+        "output_tokens": 14
       },
-      "costUsd": 0.0000864
+      "costUsd": 0.0001064
     },
     {
       "task": "shell-pipeline",
@@ -323,17 +324,17 @@
       "asks": 0,
       "denials": 0,
       "errors": [],
-      "wallMs": 1125,
+      "wallMs": 1048,
       "exitCode": 0,
       "timedOut": false,
       "resultStatus": "completed",
       "usage": {
-        "input_tokens": 16,
+        "input_tokens": 24,
         "cached_input_tokens": 0,
         "cache_write_input_tokens": 0,
-        "output_tokens": 7
+        "output_tokens": 9
       },
-      "costUsd": 0.0000532
+      "costUsd": 0.00007319999999999999
     },
     {
       "task": "use-skill",
@@ -370,17 +371,17 @@
           "probe": true
         }
       ],
-      "wallMs": 1035,
+      "wallMs": 900,
       "exitCode": 0,
       "timedOut": false,
       "resultStatus": "completed",
       "usage": {
-        "input_tokens": 24,
+        "input_tokens": 32,
         "cached_input_tokens": 0,
         "cache_write_input_tokens": 0,
-        "output_tokens": 12
+        "output_tokens": 14
       },
-      "costUsd": 0.0000864
+      "costUsd": 0.0001064
     },
     {
       "task": "delegate-agent",
@@ -410,17 +411,17 @@
       "asks": 0,
       "denials": 0,
       "errors": [],
-      "wallMs": 985,
+      "wallMs": 986,
       "exitCode": 0,
       "timedOut": false,
       "resultStatus": "completed",
       "usage": {
-        "input_tokens": 32,
+        "input_tokens": 40,
         "cached_input_tokens": 0,
         "cache_write_input_tokens": 0,
-        "output_tokens": 14
+        "output_tokens": 16
       },
-      "costUsd": 0.0001064
+      "costUsd": 0.00012639999999999998
     },
     {
       "task": "ide-diagnostics",
@@ -450,17 +451,17 @@
       "asks": 0,
       "denials": 0,
       "errors": [],
-      "wallMs": 1422,
+      "wallMs": 1778,
       "exitCode": 0,
       "timedOut": false,
       "resultStatus": "completed",
       "usage": {
-        "input_tokens": 16,
+        "input_tokens": 24,
         "cached_input_tokens": 0,
         "cache_write_input_tokens": 0,
-        "output_tokens": 7
+        "output_tokens": 9
       },
-      "costUsd": 0.0000532
+      "costUsd": 0.00007319999999999999
     },
     {
       "task": "browser-page",
@@ -522,17 +523,17 @@
       "asks": 0,
       "denials": 0,
       "errors": [],
-      "wallMs": 910,
+      "wallMs": 1021,
       "exitCode": 0,
       "timedOut": false,
       "resultStatus": "completed",
       "usage": {
-        "input_tokens": 16,
+        "input_tokens": 24,
         "cached_input_tokens": 0,
         "cache_write_input_tokens": 0,
-        "output_tokens": 7
+        "output_tokens": 9
       },
-      "costUsd": 0.0000532
+      "costUsd": 0.00007319999999999999
     },
     {
       "task": "two-seats",
@@ -562,17 +563,17 @@
       "asks": 0,
       "denials": 0,
       "errors": [],
-      "wallMs": 1077,
+      "wallMs": 1060,
       "exitCode": 0,
       "timedOut": false,
       "resultStatus": "completed",
       "usage": {
-        "input_tokens": 48,
+        "input_tokens": 56,
         "cached_input_tokens": 0,
         "cache_write_input_tokens": 0,
-        "output_tokens": 21
+        "output_tokens": 23
       },
-      "costUsd": 0.0001596
+      "costUsd": 0.0001796
     },
     {
       "task": "structural-rename",
@@ -596,8 +597,8 @@
       "probes": 1,
       "unexpectedErrors": 0,
       "duplicates": 0,
-      "toolResultChars": 3025,
-      "toolResultTokensEst": 756,
+      "toolResultChars": 2893,
+      "toolResultTokensEst": 723,
       "imageChars": 0,
       "injectedTokensEst": 0,
       "subagentResultTokensEst": 0,
@@ -611,17 +612,17 @@
           "probe": true
         }
       ],
-      "wallMs": 1794,
+      "wallMs": 1638,
       "exitCode": 0,
       "timedOut": false,
       "resultStatus": "completed",
       "usage": {
-        "input_tokens": 48,
+        "input_tokens": 56,
         "cached_input_tokens": 0,
         "cache_write_input_tokens": 0,
-        "output_tokens": 27
+        "output_tokens": 29
       },
-      "costUsd": 0.000186
+      "costUsd": 0.000206
     },
     {
       "task": "resume-a",
@@ -646,17 +647,17 @@
       "asks": 0,
       "denials": 0,
       "errors": [],
-      "wallMs": 908,
+      "wallMs": 831,
       "exitCode": 0,
       "timedOut": false,
       "resultStatus": "completed",
       "usage": {
-        "input_tokens": 8,
+        "input_tokens": 16,
         "cached_input_tokens": 0,
         "cache_write_input_tokens": 0,
-        "output_tokens": 2
+        "output_tokens": 4
       },
-      "costUsd": 0.000019999999999999998
+      "costUsd": 0.000039999999999999996
     },
     {
       "task": "resume-b",
@@ -681,7 +682,7 @@
       "asks": 0,
       "denials": 0,
       "errors": [],
-      "wallMs": 849,
+      "wallMs": 807,
       "exitCode": 0,
       "timedOut": false,
       "resultStatus": "completed",
