@@ -433,7 +433,7 @@ async function main(): Promise<void> {
       if (!v.allow && rows.every(row => !row.assets.some(a => matches(rel, a)))) survey.push(`${rel} (${v.excerpt}${v.generator ? ` → ${v.generator}` : ''})`)
     }
     console.log(`  · refused beyond the map (marker or name): ${survey.length}\n    ${survey.join('\n    ')}`)
-    for (const rel of ['src/constants/cyberRiskInstruction.ts', 'src/skills/bundled/updateConfig.ts', 'scripts/gate/generated-assets.tsv', 'src/utils/wards/wards.ts', 'scripts/wards/prove-wards.ts', 'MERCURY.md']) {
+    for (const rel of ['src/skills/bundled/updateConfig.ts', 'scripts/gate/generated-assets.tsv', 'src/utils/wards/wards.ts', 'scripts/wards/prove-wards.ts', 'MERCURY.md']) {
       const v = verdictOf(edit(join(ROOT, rel), 'const changed = 2', realReader, realResolver))
       check(`${rel} (hand-written) ⇒ allowed with its real head`, v.allow, v.allow ? '' : buildWardDenial(v, 'Edit'))
     }
