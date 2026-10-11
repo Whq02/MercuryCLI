@@ -34,9 +34,10 @@ const runs = (arm: string): boolean => only.size === 0 || only.has(arm)
 
 section('S the doors a sub-agent could nest or fork through are shut at their owners (the source)')
 {
-  const tools = src('constants/tools.ts')
-  const denySet = tools.slice(tools.indexOf('export const ALL_AGENT_DISALLOWED_TOOLS'), tools.indexOf('export const CUSTOM_AGENT_DISALLOWED_TOOLS'))
-  check('every sub-agent loses the Agent tool and the Workflow tool (the one deny set)', denySet.includes('AGENT_TOOL_NAME,') && denySet.includes('WORKFLOW_TOOL_NAME,'))
+  const { ALL_AGENT_DISALLOWED_TOOLS, CUSTOM_AGENT_DISALLOWED_TOOLS } = await import('../../src/constants/tools.ts')
+  const { AGENT_TOOL_NAME } = await import('../../src/tools/AgentTool/constants.ts')
+  const { WORKFLOW_TOOL_NAME } = await import('../../src/tools/WorkflowTool/constants.ts')
+  check('every sub-agent loses the Agent tool and the Workflow tool (the one deny set)', ALL_AGENT_DISALLOWED_TOOLS.has(AGENT_TOOL_NAME) && ALL_AGENT_DISALLOWED_TOOLS.has(WORKFLOW_TOOL_NAME) && CUSTOM_AGENT_DISALLOWED_TOOLS === ALL_AGENT_DISALLOWED_TOOLS)
   check('a launch that names no type takes the default type', src('utils/crew/agentLaunchPlan.ts').includes("(i.requestedType || undefined) ?? i.defaultAgentType"))
   const hooks = src('tools/WorkflowTool/agentHooks.ts')
   check("a workflow's agent queries under its own source label and its own agent id", hooks.includes('querySource: getQuerySourceForAgent(') && hooks.includes('agentId: args.agentId,'))
