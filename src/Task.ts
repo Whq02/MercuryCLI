@@ -5,7 +5,6 @@ import type { TaskRow } from './rows/vocabulary.js'
 import { TASK_ID_ALPHABET, TASK_ID_SUFFIX_LENGTH } from './types/ids.js'
 import { getTaskOutputPath } from './utils/task/diskOutput.js'
 
-
 export type TaskType =
   | 'local_bash'
   | 'local_agent'
@@ -15,17 +14,13 @@ export type TaskType =
 
 export type TaskStatus = 'pending' | 'running' | 'completed' | 'failed' | 'killed'
 
+const SETTLED_STATUSES: ReadonlySet<TaskStatus> = new Set(['completed', 'failed', 'killed'])
+
 export function isTerminalTaskStatus(status: TaskStatus): boolean {
-  return status === 'completed' || status === 'failed' || status === 'killed'
+  return SETTLED_STATUSES.has(status)
 }
 
 export type SetAppState = (updater: (prevState: AppState) => AppState) => void
-
-export type TaskHandle = {
-  taskId: string
-  cleanup?: () => void
-  accepted?: boolean
-}
 
 export type TaskContext = {
   abortController: AbortController
@@ -33,19 +28,18 @@ export type TaskContext = {
   setAppState: SetAppState
 }
 
-export type TaskStateBase = {
-  id: string
+export type TaskHandle = { taskId: string; cleanup?: () => void; accepted?: boolean }
+
+export type Task = {
+  name: string
   type: TaskType
-  status: TaskStatus
-  description: string
-  toolUseId?: string
-  startTime: number
-  endTime?: number
-  totalPausedMs?: number
-  outputFile: string
-  outputOffset: number
-  notified: boolean
+  kill: (taskId: string, setAppState: SetAppState) => unknown
 }
+
+type TaskIdentity = { id: string; type: TaskType; status: TaskStatus; description: string; toolUseId?: string }
+type TaskClock = { startTime: number; endTime?: number; totalPausedMs?: number }
+type TaskOutput = { outputFile: string; outputOffset: number; notified: boolean }
+export type TaskStateBase = TaskIdentity & TaskClock & TaskOutput
 
 export type LocalShellSpawnInput = {
   command: string
@@ -56,22 +50,15 @@ export type LocalShellSpawnInput = {
   kind?: 'bash' | 'monitor'
 }
 
-export type TaskKillReceipt = {
-  settled: boolean
-  exitCode?: number
-  interrupted?: boolean
-  reason?: string
-  processesEnded?: number
-  processSurvivors?: number
-}
+export type TaskKillReceipt = { settled: boolean } & Partial<{
+  exitCode: number
+  interrupted: boolean
+  reason: string
+  processesEnded: number
+  processSurvivors: number
+}>
 
-export type Task = {
-  name: string
-  type: TaskType
-  kill: (taskId: string, setAppState: SetAppState) => unknown
-}
-
-const TASK_ID_PREFIXES: Record<TaskType, string> = {
+const KIND_LETTER: Record<TaskType, string> = {
   local_bash: 'b',
   local_agent: 'a',
   remote_agent: 'r',
@@ -79,27 +66,24 @@ const TASK_ID_PREFIXES: Record<TaskType, string> = {
   monitor_mcp: 'm',
 }
 
+const randomSymbols = (count: number): string =>
+  Array.from(randomBytes(count), byte => TASK_ID_ALPHABET[byte % TASK_ID_ALPHABET.length]).join('')
+
 export function generateTaskId(type: TaskType): string {
-  const prefix = TASK_ID_PREFIXES[type] ?? 'x'
-  const bytes = randomBytes(TASK_ID_SUFFIX_LENGTH)
-  let suffix = ''
-  for (const byte of bytes) {
-    suffix += TASK_ID_ALPHABET[byte % TASK_ID_ALPHABET.length]
-  }
-  return prefix + suffix
+  return (KIND_LETTER[type] ?? 'x') + randomSymbols(TASK_ID_SUFFIX_LENGTH)
 }
 
-export type TaskStart = Pick<TaskRow, 'task_id' | 'call_id'> & { task_type: TaskType; description: string }
+type TaskStart = Pick<TaskRow, 'task_id' | 'call_id'> & { task_type: TaskType; description: string }
 
-export function createTaskStateBase(start: TaskStart): TaskStateBase {
+export function createTaskStateBase({ task_id, task_type, description, call_id }: TaskStart): TaskStateBase {
   return {
-    id: start.task_id,
-    type: start.task_type,
+    id: task_id,
+    type: task_type,
     status: 'pending',
-    description: start.description,
-    toolUseId: start.call_id,
+    description,
+    toolUseId: call_id,
     startTime: Date.now(),
-    outputFile: getTaskOutputPath(start.task_id),
+    outputFile: getTaskOutputPath(task_id),
     outputOffset: 0,
     notified: false,
   }
