@@ -31,7 +31,7 @@
 # gate-watch: src/services/providers/moonshot/moonshotCatalogue.ts
 # gate-watch: src/tools/AgentTool/runAgent.ts scripts/api/read-instruction-heading.ts
 # gate-watch: src/services/providers/openaicompat/compatChatCallModel.ts
-# gate-watch: src/rows/* src/runner/wire/*
+# gate-watch: src/rows/* src/runner/wire/* scripts/settings/settings-schema.json
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }
@@ -65,6 +65,8 @@ __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-switch-notic
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-wire-dump.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-wire-dump.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-typed-word-is-a-word.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-typed-word-is-a-word.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-opus-55-display.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-opus-55-display.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-tell-engine-switch.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-tell-engine-switch.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-model-switch-off-the-wire.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-model-switch-off-the-wire.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-prefix-ledger.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-prefix-ledger.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-resume-history-bytes.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-resume-history-bytes.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-prefix-record-life.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-prefix-record-life.ts" "$__t" "$__rc"
