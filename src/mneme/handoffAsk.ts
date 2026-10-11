@@ -57,12 +57,15 @@ export function handoffAskText(sessionId: string): { text: string; tools: Set<st
   return { text: [HANDOFF_ASK, ...extra.map(ask => ask.line.trim())].join('\n'), tools }
 }
 
+export type AskRunner = (params: ForkedAgentParams) => Promise<{ messages: Message[] }>
+
 export async function askForHandoff(input: {
   cacheSafeParams: CacheSafeParams
   sessionId?: string
   signal?: AbortSignal
   budgetMs?: number
   canUseTool?: CanUseToolFn
+  run?: AskRunner
 }): Promise<{ text: string; stored: boolean } | null> {
   const sessionId = input.sessionId ?? String(getSessionId())
   if (asked.has(sessionId)) return null
@@ -83,7 +86,8 @@ export async function askForHandoff(input: {
     return input.canUseTool(tool, toolInput, toolUseContext, assistantMessage, toolUseID, forceDecision)
   }
   try {
-    const result = await runForkedAgent({
+    const run: AskRunner = input.run ?? runForkedAgent
+    const result = await run({
       promptMessages: [createUserMessage({ content: ask.text, isMeta: true })],
       cacheSafeParams: input.cacheSafeParams,
       canUseTool,

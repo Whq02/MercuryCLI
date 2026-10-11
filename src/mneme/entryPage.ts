@@ -1,5 +1,6 @@
 import { dirname } from 'node:path'
 import { ledgerEntryOf, liveSessions, readLedger } from './ledger.js'
+import { lineageKept } from './lineageSession.js'
 import { mnemeEnabled, mnemeLibraryDir } from './mnemeGates.js'
 import { readPinnedStatus } from './mnemeFrontPage.js'
 import { readPins } from './mnemeUsage.js'
@@ -8,6 +9,7 @@ import type { LedgerEntry } from './types.js'
 
 export const ENTRY_PAGE_HEADING = '# Lineage'
 export const FIRST_SESSION_LINE = 'First session of this work; no record.'
+export const NO_RECORD_KEPT_LINE = 'No record of this work is kept: records.retentionDays is 0.'
 export const NO_NOTE_LEFT = 'left no note'
 
 const pad = (n: number): string => String(n).padStart(2, '0')
@@ -46,6 +48,7 @@ function rulingsLine(): string {
 
 export function composeEntryPage(projectKey: string, sessionId?: string, options: EntryPageOptions = {}): string | null {
   if (!mnemeEnabled()) return null
+  if (!lineageKept()) return `${ENTRY_PAGE_HEADING}\n${NO_RECORD_KEPT_LINE}`
   const entries = readLedger(projectKey)
   const own = sessionId !== undefined ? (ledgerEntryOf(projectKey, sessionId) ?? null) : null
   const previous = entries.filter(entry => entry.sessionId !== sessionId)

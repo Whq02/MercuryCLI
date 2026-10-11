@@ -63,8 +63,9 @@ export function findTranscripts(runHome: string): string[] {
     for (const name of readdirSync(dir)) {
       const full = join(dir, name)
       const st = statSync(full)
-      if (st.isDirectory()) walk(full)
-      else if (name.endsWith('.jsonl')) out.push(full)
+      if (st.isDirectory()) {
+        if (name !== 'lineage' && name !== 'memory') walk(full)
+      } else if (name.endsWith('.jsonl')) out.push(full)
     }
   }
   walk(join(runHome, 'projects'))

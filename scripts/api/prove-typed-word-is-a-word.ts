@@ -15,7 +15,7 @@ process.env.ANTHROPIC_API_KEY = 'sk-ant-fixture-not-a-real-key'
 delete process.env.ANTHROPIC_BASE_URL
 delete process.env.MERCURY_EFFORT_LEVEL
 
-import { startFixtureApi, type ScriptedTurn } from '../lib/fixtureApi.ts'
+import { startFixtureApi, type ScriptedTurn, handoffTurn } from '../lib/fixtureApi.ts'
 
 const ROOT = resolve(import.meta.dir, '..', '..')
 const DIST = process.env.MERCURY_PROOF_BUNDLE ?? join(ROOT, 'dist', 'mercury.mjs')
@@ -79,7 +79,7 @@ if (!existsSync(DIST)) {
   if (!nodeBin) {
     check('a node binary on PATH', false)
   } else {
-    const turns: ScriptedTurn[] = Array.from({ length: 40 }, () => ({ kind: 'text', text: 'seven' }))
+    const turns: ScriptedTurn[] = [...Array.from({ length: 40 }, () => ({ kind: 'text' as const, text: 'seven' })), ...Array.from({ length: 40 }, () => handoffTurn())]
     const fixture = await startFixtureApi(turns)
     const home = mkdtempSync(join(tmpdir(), 'typed-word-home-'))
     const cwd = mkdtempSync(join(tmpdir(), 'typed-word-cwd-'))
@@ -96,9 +96,9 @@ if (!existsSync(DIST)) {
       MERCURY_DAEMON_DIR: join(home, 'daemon'),
       MERCURY_DAP: '0',
     }
-    const run = (args: string[]): Promise<{ exit: number | null; stdout: string; stderr: string }> =>
+    const run = (args: string[], extra: Record<string, string> = {}): Promise<{ exit: number | null; stdout: string; stderr: string }> =>
       new Promise(resolvePromise => {
-        const child = spawn(nodeBin, [DIST, ...args], { cwd, env })
+        const child = spawn(nodeBin, [DIST, ...args], { cwd, env: { ...env, ...extra } })
         let stdout = ''
         let stderr = ''
         child.stdout.on('data', d => (stdout += d))
@@ -113,7 +113,8 @@ if (!existsSync(DIST)) {
 
     async function mainRequestFor(word: string): Promise<Body | null> {
       const before = fixture.messageRequests().length
-      const r = await run(['run', promptFor(word), ...common])
+      const config = mkdtempSync(join(home, 'config-'))
+      const r = await run(['run', promptFor(word), ...common], { MERCURY_CONFIG_DIR: config })
       check(`"${word}": the turn runs and the fixture answers`, r.exit === 0 && r.stdout.includes('seven'), `exit=${r.exit} stderr=${r.stderr.slice(0, 300)}`)
       const fresh = fixture.messageRequests().slice(before)
       const main = fresh.find(req => {
@@ -121,7 +122,7 @@ if (!existsSync(DIST)) {
         return body.model === 'claude-opus-4-8' && JSON.stringify(body).includes(PHRASE)
       })
       check(`"${word}": one main request carries the prompt`, main !== undefined, `${fresh.length} fresh requests`)
-      return main ? (main.body as Body) : null
+      return main ? (JSON.parse(JSON.stringify(main.body).replaceAll(config, '<config>')) as Body) : null
     }
 
     const control = await mainRequestFor(CONTROL)

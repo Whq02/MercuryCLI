@@ -14,7 +14,7 @@ for (const ambient of ['MERCURY_MODEL', 'MERCURY_SMALL_FAST_MODEL', 'ANTHROPIC_A
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'switch-notice-pure-'))
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 
-import { startFixtureApi, type FixtureApi, type ScriptedTurn } from '../lib/fixtureApi.ts'
+import { startFixtureApi, type FixtureApi, type ScriptedTurn, handoffTurn, isHandoffRequest } from '../lib/fixtureApi.ts'
 import { answerOf, isOutcome } from '../lib/rows.ts'
 import { hostRunner } from '../lib/runnerHost.ts'
 
@@ -186,6 +186,9 @@ if (!existsSync(DIST)) {
       { kind: 'text', text: 'SN-F4', thinking: 'fable four', model: FABLE },
       { kind: 'text', text: 'SN-F5', thinking: 'fable five', model: FABLE },
       { kind: 'text', text: 'SN-O3', thinking: 'opus three', model: OPUS },
+      handoffTurn(),
+      handoffTurn(),
+      handoffTurn(),
     ]
     const fixture = await startFixtureApi(turns, { bindingCheck: true, apiChecks: true })
     const arena = makeArena(fixture)
@@ -291,7 +294,7 @@ if (!existsSync(DIST)) {
     const answer8 = firstOutputAfter(records8, prompt8)
     const third = after8.find(r => prompt8 !== undefined && r.line > prompt8.line)
     check('§2 RED ON THE BASE: the one-shot road writes its receipt too — three in the file, the third between its prompt and its answer', after8.length === 3 && third !== undefined && prompt8 !== undefined && answer8 !== undefined && prompt8.line < third.line && third.line < answer8.line, `${after8.length}: ${after8.map(describe).join(' | ')} · prompt ${describe(prompt8)} · answer ${describe(answer8)}`)
-    const wire = fixture.messageRequests().map(q => (q.body as Body).model)
+    const wire = fixture.messageRequests().filter(q => !isHandoffRequest(q)).map(q => (q.body as Body).model)
     check('§2 the wire carried fable for the same-model resume and opus for the switching one', j(wire.slice(6)) === j([FABLE, OPUS]), j(wire))
     await fixture.close()
   }

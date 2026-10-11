@@ -4,6 +4,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { createServer } from 'node:http'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
+import { HANDOFF_ASK_MARK } from '../lib/fixtureApi.ts'
 
 const root = resolve(import.meta.dir, '../..')
 const source = process.env.PROVE_SRC ?? join(root, 'src')
@@ -98,8 +99,9 @@ try {
       child.stdin.end(mode === 'rows' ? `${JSON.stringify({ type: 'prompt', content: 'Reply with ready.' })}\n` : '')
     })
     check(`${mode}: the real runner completes its fixture turn`, result.code === 0 && result.out.includes('RUNNER-LSP-DONE'), result.err.slice(0, 300))
-    const requests = captured.slice(before)
-    check(`${mode}: the expected request sequence was captured`, requests.length === (edits ? 3 : 1))
+    const requests = captured.slice(before).filter((body: any) => !JSON.stringify(body).includes(HANDOFF_ASK_MARK))
+    const asks = captured.slice(before).length - requests.length
+    check(`${mode}: the expected request sequence was captured, plus the session's closing ask for its note wherever memory keeps a ledger (none under --lean)`, requests.length === (edits ? 3 : 1) && asks === (mode === 'lean' ? 0 : 1), `asks=${asks}`)
     if (edits) check(`${mode}: the real edit completed`, readFileSync(join(cwd, 'file.ts'), 'utf8').includes('value = 2'), JSON.stringify(requests.at(-1)?.messages.slice(-2)))
     const tool = requests[0]?.tools?.find((t: any) => t.name === 'LspRead')
     check(`${mode}: LSP ${enabled ? 'rides in full' : 'is absent'}`, enabled ? tool !== undefined && tool.defer_loading !== true && tool.input_schema?.properties?.operation !== undefined : tool === undefined)

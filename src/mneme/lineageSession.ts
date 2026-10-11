@@ -1,4 +1,5 @@
 import { getSessionId } from '../bootstrap/state.js'
+import { retentionWindowDays } from '../utils/cleanup.js'
 import { logForDebugging } from '../utils/debug.js'
 import { getTranscriptPathForSession } from '../utils/sessionStorage/paths.js'
 import { closeEntry, ledgerClock, openEntry, recordEngine, recordFact, recordFile, recordRuling } from './ledger.js'
@@ -13,15 +14,20 @@ interface OpenSession {
 }
 
 let open: OpenSession | null = null
+let seen: OpenSession | null = null
 
 export const SESSION_CLOSERS_BUDGET_MS = 1_500
+
+export function lineageKept(): boolean {
+  return mnemeEnabled() && retentionWindowDays() !== 0
+}
 
 export function openLineageSession(): OpenSession | null {
   return open
 }
 
-async function settle(session: OpenSession, outcome: string, budgetMs: number): Promise<SessionCloseContext | null> {
-  const entry = closeEntry(session.projectKey, session.sessionId, { outcome })
+async function settle(session: OpenSession, outcome: string, budgetMs: number, kept: boolean): Promise<SessionCloseContext | null> {
+  const entry = kept ? closeEntry(session.projectKey, session.sessionId, { outcome }) : null
   const ctx: SessionCloseContext = {
     projectKey: session.projectKey,
     sessionId: session.sessionId,
@@ -50,18 +56,22 @@ export function noteSessionEngine(model: string): void {
   if (!mnemeEnabled()) return
   const sessionId = String(getSessionId())
   try {
-    if (open !== null && open.sessionId === sessionId) {
-      if (open.engine !== model) {
+    if (seen !== null && seen.sessionId === sessionId) {
+      if (open !== null && open.engine !== model) {
         recordEngine(open.projectKey, sessionId, model)
         open.engine = model
       }
       return
     }
-    const previous = open
+    const previous = seen
+    const previousOpen = open
     const projectKey = mnemeProjectKey()
-    openEntry(projectKey, { sessionId, model })
-    open = { projectKey, sessionId, engine: model }
-    if (previous !== null) void settle(previous, 'cleared', SESSION_CLOSERS_BUDGET_MS)
+    seen = { projectKey, sessionId, engine: model }
+    if (lineageKept()) {
+      openEntry(projectKey, { sessionId, model })
+      open = { projectKey, sessionId, engine: model }
+    } else open = null
+    if (previous !== null) void settle(previous, 'cleared', SESSION_CLOSERS_BUDGET_MS, previousOpen !== null)
   } catch (error) {
     logForDebugging(`lineage session note failed: ${error instanceof Error ? error.message : String(error)}`)
   }
@@ -84,12 +94,15 @@ export function noteFileTouched(path: string): void {
 }
 
 export async function closeLineageSession(outcome: string, budgetMs: number = SESSION_CLOSERS_BUDGET_MS): Promise<SessionCloseContext | null> {
-  const session = open
+  const session = seen
   if (session === null) return null
+  const kept = open !== null
+  seen = null
   open = null
-  return settle(session, outcome, budgetMs)
+  return settle(session, outcome, budgetMs, kept)
 }
 
 export function _resetLineageSessionForTesting(): void {
   open = null
+  seen = null
 }
