@@ -239,7 +239,9 @@ if (!existsSync(DIST)) {
     const seat = { exit: seatExit, stdout: seatStdout, stderr: host.stderr() }
     check('§1 the six-turn process exits 0, every switch applied', seat.exit === 0 && seatError === '' && switchErrors.length === 0, `exit=${seat.exit} ${seatError} ${j(switchErrors)} stderr=${seat.stderr.slice(0, 400)}`)
     check('§1 every turn answered', ['SN-F1', 'SN-F2', 'SN-F3', 'SN-O1', 'SN-O2', 'SN-F4'].every(t => seat.stdout.includes(t)), seat.stdout.slice(0, 300))
-    const reqs = fixture.messageRequests()
+    const allRequests = fixture.messageRequests()
+    check('§1 the marked closing ask follows the sixth turn exactly once', allRequests.filter(isHandoffRequest).length === 1 && isHandoffRequest(allRequests[6]!), j(allRequests.map(isHandoffRequest)))
+    const reqs = allRequests.filter(q => !isHandoffRequest(q))
     const bodies = reqs.map(q => q.body as Body)
     check('§1 six requests on the wire, the model following the switch: fable · fable · fable · opus · opus · fable', j(bodies.map(b => b.model)) === j([FABLE, FABLE, FABLE, OPUS, OPUS, FABLE]), j(bodies.map(b => b.model)))
     check('§1 the first Opus request carries none of the Fable thinking; the return to Fable carries none of the Opus thinking and replays the three Fable blocks', bodies[3] !== undefined && thinkingBlocksOf(bodies[3]) === 0 && bodies[5] !== undefined && thinkingBlocksOf(bodies[5]) === 3, j(bodies.map(b => thinkingBlocksOf(b))))
