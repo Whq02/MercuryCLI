@@ -102,6 +102,8 @@
         },
         "tellEngineSwitch": {
           "description": "Tell the model when its engine is switched: with it on, one line reaches the model at the switch naming the new engine and the time; off (the default), a switch is invisible to the model — the /model rows stay your record, and the model learns its engine by reading mercury://seat",
+          "type": "boolean"
+        },
         "journal": {
           "description": "The session journal: at session end the model writes, in its own words, what happened, what you wanted, how you like to work and what it got wrong, into a file in the Mercury home beside the project's memory — never under the project tree, never pushed, synced or shared by Mercury (default on)",
           "type": "boolean"
