@@ -167,4 +167,3 @@ export function cleanupStream(stream: Stream<BetaRawMessageStreamEvent> | undefi
     if (controller && !controller.signal.aborted) controller.abort()
   } catch {}
 }
-
