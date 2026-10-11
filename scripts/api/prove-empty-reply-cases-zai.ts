@@ -5,6 +5,7 @@ import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
+import { HANDOFF_ASK_MARK } from '../lib/fixtureApi.ts'
 import { CAP_WORDS, EMPTY_WORDS, OLD_RESEND_WORDS, RETRY_WORDS, SILENCE_WORDS, jsonNeedle, lastRowIsUserCarrying, persistedNotices } from './prove-empty-reply-cases.ts'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
@@ -179,7 +180,7 @@ export async function runZaiCase(kind: ZaiEmptyReplyCase, dist = DIST): Promise<
   const frames = stdout.split('\n').filter(line => line.startsWith('{')).flatMap(line => {
     try { return [JSON.parse(line) as Frame] } catch { return [] }
   })
-  const requests = fixture.captured.filter(c => c.body.model === ZAI_CASES_MODEL)
+  const requests = fixture.captured.filter(c => c.body.model === ZAI_CASES_MODEL && !JSON.stringify(c.body).includes(HANDOFF_ASK_MARK))
   return { exit, frames, requests, notices: persistedNotices(config), stderr, home }
 }
 

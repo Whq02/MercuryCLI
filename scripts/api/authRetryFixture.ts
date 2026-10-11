@@ -3,6 +3,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFi
 import { createServer } from 'node:http'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
+import { HANDOFF_ASK_MARK } from '../lib/fixtureApi.ts'
 
 export const REPO = resolve(import.meta.dir, '../..')
 export const MODEL = 'claude-opus-5'
@@ -52,7 +53,7 @@ export async function authWorld(arm: Arm, retryAfter = '0.001') {
       }
       if (path.endsWith('/v1/messages')) {
         const bearer = String(req.headers.authorization ?? '').replace(/^Bearer /, '')
-        const target = raw.includes(ASK)
+        const target = raw.includes(ASK) && !raw.includes(HANDOFF_ASK_MARK)
         if (target) requests++
         const succeeds = !target || ((arm === 'refreshed' || arm === 'helper-refreshed') && bearer === 'fixture-fresh') || (arm === 'burst' && requests > 1)
         const status = succeeds ? 200 : arm === 'revoked' ? 403 : arm === 'burst' ? 503 : 401

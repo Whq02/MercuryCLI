@@ -14,7 +14,7 @@ delete process.env.ANTHROPIC_BASE_URL
 const PURE_DIR = mkdtempSync(join(tmpdir(), 'wire-dump-rows-'))
 process.env.MERCURY_WIRE_DUMP = PURE_DIR
 
-import { startFixtureApi, type ScriptedTurn } from '../lib/fixtureApi.ts'
+import { HANDOFF_ASK_MARK, startFixtureApi, type ScriptedTurn, handoffTurn } from '../lib/fixtureApi.ts'
 import { readCapture, reportPairs } from './wire-prefix-replay.ts'
 
 const ROOT = resolve(import.meta.dir, '..', '..')
@@ -328,6 +328,9 @@ if (!existsSync(DIST)) {
       { kind: 'text', text: 'DUMP-WIRE-DONE', thinking: 'read the probe', usage: { input_tokens: 40, cache_read_input_tokens: 7 } },
       { kind: 'text', text: 'DUMP-WIRE-DONE-2', thinking: 'again', usage: { input_tokens: 60, cache_read_input_tokens: 40 } },
       { kind: 'text', text: 'DUMP-WIRE-UNARMED', thinking: 'control' },
+      handoffTurn(),
+      handoffTurn(),
+      handoffTurn(),
     ]
     const fixture = await startFixtureApi(turns)
     const home = mkdtempSync(join(tmpdir(), 'wire-dump-home-'))
@@ -374,7 +377,7 @@ if (!existsSync(DIST)) {
     const r2 = await run(['run', 'second turn', ...common, '--resume', SID], { MERCURY_WIRE_DUMP: dumpDir })
     check('a resumed turn appends to the same file', r2.exit === 0 && (await waitForRows(file, 2)).length >= 2, `exit=${r2.exit}`)
     const capture = readCapture(file)
-    const pairs = reportPairs(capture.filter(r => r.model === 'claude-opus-4-8'))
+    const pairs = reportPairs(capture.filter(r => r.model === 'claude-opus-4-8' && !j(r.body).includes(HANDOFF_ASK_MARK)))
     check('the replay tool reads the dump as it is and diffs the pair', capture.length >= 2 && pairs.length >= 1 && typeof pairs[0]!.verdict.held === 'boolean' && pairs[0]!.cacheRead === 40, pairs.map(p => `${p.verdict.held} cache=${p.cacheRead}`).join(' | '))
     const r3 = await run(['run', 'unarmed turn', ...common, '--session-id', 'd0d0d0d0-0000-4000-8000-00000000d0d1'], {})
     check('unarmed: the turn runs and no file is written', r3.exit === 0 && !existsSync(join(dumpDir, 'd0d0d0d0-0000-4000-8000-00000000d0d1.jsonl')), `exit=${r3.exit}`)

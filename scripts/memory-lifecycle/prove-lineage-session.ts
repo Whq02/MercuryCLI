@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { answeredWith } from '../lib/rows.ts'
 import { seedFirstRun } from '../lib/firstRunSeed.ts'
-import { startFixtureApi, type ScriptedTurn } from '../lib/fixtureApi.ts'
+import { HANDOFF_ASK_MARK, startFixtureApi, type ScriptedTurn } from '../lib/fixtureApi.ts'
 
 const REPO = resolve(import.meta.dir, '..', '..')
 const DIST = join(REPO, 'dist', 'mercury.mjs')
@@ -48,6 +48,7 @@ const mnemeProjectKeyFor: (root: string) => string = (pathsModule as { mnemeProj
 const lineagePath: (key: string) => string = (pathsModule as { lineagePath?: (key: string) => string }).lineagePath ?? (() => join(configDir, 'projects', '(no lineage path in this tree)'))
 const readLedger: (key: string) => Array<{ ordinal: number; sessionId: string; endedAt: string | null; outcome: string | null; engines: Array<{ model: string; at: string }>; handoff: { text: string; at: string } | null }> = ledgerModule?.readLedger ?? (() => [])
 check('the lineage modules are in the tree (ledger, entry page, handoff ask)', handoffModule !== null && entryModule !== null && ledgerModule !== null)
+check('the ask carries the mark the proof fixtures answer to (scripts/lib/fixtureApi.ts HANDOFF_ASK_MARK) — the two cannot drift apart', HANDOFF_ASK.includes(HANDOFF_ASK_MARK), HANDOFF_ASK)
 
 console.log('a headless session reads the entry page at its start and leaves its note at its end, in the ledger of the scratch home')
 
