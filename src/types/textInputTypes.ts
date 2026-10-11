@@ -1,4 +1,4 @@
-import type * as React from 'react'
+import type { MutableRefObject, ReactNode } from 'react'
 import type { UUID } from 'crypto'
 import type { Key } from '../ink.js'
 import type { InputEvent } from '../ink/events/input-event.js'
@@ -14,106 +14,129 @@ export type InlineGhostText = {
   insertPosition: number
 }
 
-export type BaseTextInputProps = {
+type Signal = () => void
+
+type SignalName =
+  | 'onExit'
+  | 'onEscape'
+  | 'onHistoryReset'
+  | 'onClearInput'
+  | 'onHistoryUp'
+  | 'onHistoryDown'
+  | 'onUndo'
+
+type SwitchName =
+  | 'multiline'
+  | 'focus'
+  | 'showCursor'
+  | 'highlightPastedText'
+  | 'disableCursorMovementForUpDownKeys'
+  | 'disableEscapeDoublePress'
+  | 'disablePageKeyCursorMovement'
+  | 'suppressEnterSubmit'
+  | 'dimColor'
+
+type RouteVerdict = 'edit' | 'edit-and-consume' | 'consume' | 'yield'
+
+type ImagePasteHandler = (
+  base64Image: string,
+  mediaType?: string,
+  filename?: string,
+  dimensions?: ImageDimensions,
+  sourcePath?: string,
+  byteLength?: number,
+) => void
+
+type ValueProps = {
   value: string
   onChange: (value: string) => void
   onSubmit?: (value: string) => void
-  onExit?: () => void
-  onEscape?: () => void
+  cursorOffset: number
+  onChangeCursorOffset: (offset: number) => void
+}
+
+type RoutingProps = {
+  routeInput?: (input: string, key: Key, event: InputEvent, pastePending: boolean) => RouteVerdict
+  pastePendingRef?: MutableRefObject<(() => boolean) | null>
+  inputFilter?: (input: string, key: Key) => string
   onExitMessage?: (show: boolean, key?: string) => void
-  onHistoryReset?: () => void
-  onClearInput?: () => void
-  onHistoryUp?: () => void
-  onHistoryDown?: () => void
-  placeholder?: string
-  placeholderElement?: React.ReactNode
-  multiline?: boolean
-  focus?: boolean
-  routeInput?: (input: string, key: Key, event: InputEvent, pastePending: boolean) => 'edit' | 'edit-and-consume' | 'consume' | 'yield'
-  pastePendingRef?: React.MutableRefObject<(() => boolean) | null>
-  mask?: string
-  showCursor?: boolean
-  highlightPastedText?: boolean
-  columns: number
-  maxVisibleLines?: number
-  onImagePaste?: (
-    base64Image: string,
-    mediaType?: string,
-    filename?: string,
-    dimensions?: ImageDimensions,
-    sourcePath?: string,
-    byteLength?: number,
-  ) => void
+}
+
+type PasteProps = {
+  onImagePaste?: ImagePasteHandler
   onImageError?: (message: string) => void
   onPaste?: (text: string) => void
   onIsPastingChange?: (isPasting: boolean) => void
-  disableCursorMovementForUpDownKeys?: boolean
+}
+
+type AppearanceProps = {
+  columns: number
+  placeholder?: string
+  placeholderElement?: ReactNode
+  mask?: string
+  maxVisibleLines?: number
   argumentHint?: string
-  onUndo?: () => void
-  dimColor?: boolean
-  cursorOffset: number
-  onChangeCursorOffset: (offset: number) => void
   highlights?: TextHighlight[]
   inlineGhostText?: InlineGhostText
-  inputFilter?: (input: string, key: Key) => string
-  disableEscapeDoublePress?: boolean
-  disablePageKeyCursorMovement?: boolean
-  suppressEnterSubmit?: boolean
   userTextColor?: string
 }
 
+export type BaseTextInputProps = ValueProps &
+  { [Name in SignalName]?: Signal } &
+  { [Name in SwitchName]?: boolean } &
+  RoutingProps &
+  PasteProps &
+  AppearanceProps
+
 export type VimMode = 'INSERT' | 'NORMAL'
 
-type BaseInputState = {
+type Placement = 'cursorLine' | 'cursorColumn' | 'viewportCharOffset' | 'viewportCharEnd'
+
+export type TextInputState = {
   onInput: (input: string, key: Key) => void
   renderedValue: string
   offset: number
   setOffset: (offset: number) => void
-  cursorLine: number
-  cursorColumn: number
-  viewportCharOffset: number
-  viewportCharEnd: number
-}
-
-export type TextInputState = BaseInputState & {
   isPasting?: boolean
-}
+} & { [Measure in Placement]: number }
 
 export type VimInputState = TextInputState & {
   mode: VimMode
   setMode: (mode: VimMode) => void
 }
 
-export type PromptInputMode =
-  | 'bash'
-  | 'prompt'
-  | 'task-notification'
+export type EditablePromptInputMode = 'bash' | 'prompt'
 
-export type EditablePromptInputMode = Exclude<
-  PromptInputMode,
-  `${string}-notification`
->
+export type PromptInputMode = EditablePromptInputMode | 'task-notification'
 
 export type QueuePriority = 'now' | 'next' | 'later'
 
-export type QueuedCommand = {
+type QueuePayload = {
   value: string | ContentBlockParam[]
   mode: PromptInputMode
-  priority?: QueuePriority
-  queueId?: string
-  uuid?: UUID
   pastedContents?: Record<number, PastedContent>
   preExpansionValue?: string
-  skipSlashCommands?: boolean
-  bridgeOrigin?: boolean
-  isMeta?: boolean
-  origin?: MessageOrigin
-  sentAt?: string
-  workload?: string
+}
+
+type QueueIdentity = {
+  queueId?: string
+  uuid?: UUID
+}
+
+type QueueRouting = {
+  priority?: QueuePriority
   agentId?: string
   waitsForTurnEnd?: true
   ridesNextWords?: true
 }
+
+type QueueSource = {
+  origin?: MessageOrigin
+  sentAt?: string
+  workload?: string
+} & { [Flag in 'skipSlashCommands' | 'bridgeOrigin' | 'isMeta']?: boolean }
+
+export type QueuedCommand = QueuePayload & QueueIdentity & QueueRouting & QueueSource
 
 export type BatchedPrompt = Pick<QueuedCommand, 'value' | 'uuid' | 'origin'>
 
@@ -121,12 +144,11 @@ export function isValidImagePaste(content: PastedContent): boolean {
   return content.type === 'image' && content.content.length > 0
 }
 
-export function getImagePasteIds(
-  pastedContents?: Record<number, PastedContent>,
-): number[] | undefined {
+const imagePastesOf = (pasted: Record<number, PastedContent>): PastedContent[] =>
+  Object.values(pasted).filter(isValidImagePaste)
+
+export function getImagePasteIds(pastedContents?: Record<number, PastedContent>): number[] | undefined {
   if (!pastedContents) return undefined
-  const ids = Object.values(pastedContents)
-    .filter(isValidImagePaste)
-    .map(content => content.id)
-  return ids.length > 0 ? ids : undefined
+  const ids = imagePastesOf(pastedContents).map(paste => paste.id)
+  return ids.length ? ids : undefined
 }
