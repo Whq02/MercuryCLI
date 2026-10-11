@@ -28,7 +28,8 @@ export async function leaveNoteBeforeExit(opts: { signal?: AbortSignal; budgetMs
     budgetMs: opts.budgetMs ?? HANDOFF_EXIT_BUDGET_MS,
     run: opts.run,
   })
-  if (note?.stored !== true) {
+  if (note === null) return 'none'
+  if (!note.stored) {
     const notice = handoffNotice(note)
     if (opts.onNotice) opts.onNotice(notice)
     else process.stderr.write(`${notice}\n`)

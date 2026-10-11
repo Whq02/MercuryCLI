@@ -1785,13 +1785,15 @@ export async function* runEventCore(
           signal: toolUseContext.abortController.signal,
           canUseTool,
         })
-        yield emit({
-          kind: 'notice',
-          message: createSystemMessage(
-            handoffNotice(note),
-            'info',
-          ),
-        })
+        if (note?.stored === false) {
+          yield emit({
+            kind: 'notice',
+            message: createSystemMessage(
+              handoffNotice(note),
+              'warning',
+            ),
+          })
+        }
       }
 
       const terminal: Terminal = { reason: 'completed' }
