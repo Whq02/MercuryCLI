@@ -274,7 +274,7 @@ async function main(): Promise<void> {
     const streamCore = srcText('services', 'providers', 'anthropic', 'streamCore.ts')
     check(
       'queryWithModel delegates to settleAssistantTurn (one fold, one owner)',
-      streamCore.includes('settleAssistantTurn(settled, signal.aborted)'),
+      /settleAssistantTurn\(\w+, (?:question\.)?signal\.aborted\)/.test(streamCore),
     )
   }
 

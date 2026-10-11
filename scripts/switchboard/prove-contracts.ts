@@ -200,7 +200,12 @@ console.log('G — warm re-surfacing (T3 mechanism 1: at birth, then on cadence,
   const reminders = read('src/utils/attachments/reminders.ts')
   check('G1 the birth ride: a contract never surfaced and never touched is due IMMEDIATELY', reminders.includes('turnsSinceLastReminder === null && turnsSinceLastTouch === null'))
   check('G2 the producer rides the ONE orchestrator fan-out (no parallel channel)', read('src/utils/attachments/orchestrator.ts').includes("maybe('contract_reminder'"))
-  check('G3 the reminder renders through the estate’s system-reminder envelope and never claims force', read('src/utils/messages/attachmentText.ts').includes("case 'contract_reminder'") && read('src/utils/messages/attachmentText.ts').includes('never blocks'))
+  {
+    const { normalizeAttachmentForAPI } = await import('../../src/utils/messages/attachmentText.ts')
+    const rows = normalizeAttachmentForAPI({ type: 'contract_reminder', text: 'the work agreement', status: 'in force', amendments: 0, ackOwed: false } as never)
+    const words = rows.map(row => (typeof row.message.content === 'string' ? row.message.content : row.message.content.map(block => (block.type === 'text' ? block.text : '')).join('\n'))).join('\n')
+    check('G3 the reminder renders through the estate’s system-reminder envelope and never claims force', words.includes('<system-reminder>') && words.includes('never blocks'), words.slice(0, 160))
+  }
 }
 
 rmSync(SCRATCH, { recursive: true, force: true })
