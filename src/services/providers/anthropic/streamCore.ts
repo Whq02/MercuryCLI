@@ -374,7 +374,7 @@ export async function* executeNonStreamingRequest(
 ): AsyncGenerator<SystemAPIErrorMessage, BetaMessage> {
   const timeout = getNonstreamingFallbackTimeoutMs()
   const client = () => getAnthropicClient({ maxRetries: 0, fetchOverride: clientOptions.fetchOverride, source: clientOptions.source })
-  const attemptRequest = async (anthropic: Awaited<ReturnType<typeof getAnthropicClient>>, attempt: number, context: RetryContext): Promise<BetaMessage> => {
+  const attemptRequest = async (anthropic: Awaited<ReturnType<typeof getAnthropicClient>>, attempt: number, context: RetryContext) => {
     if (attempt > 1 || anthropicLimitVerdict().status === 'rejected') await refreshProviderUsage('anthropic', { force: true, reason: 'operator' })
     const started = Date.now()
     const params = paramsFromContext(context)
@@ -399,7 +399,7 @@ export async function* executeNonStreamingRequest(
 async function nonStreamingAnswer(
   client: Awaited<ReturnType<typeof getAnthropicClient>>, params: BetaMessageStreamParams,
   signal: AbortSignal, timeout: number, started: number, silence?: { idleMs: number; model: string },
-): Promise<BetaMessage> {
+) {
   try {
     const reply = await client.beta.messages.create(
       { ...params, model: normalizeModelStringForAPI(params.model) }, { signal, timeout },
@@ -1720,62 +1720,37 @@ export async function querySmallFast({
 
 type QueryWithModelOptions = Omit<Options, 'getToolPermissionContext'>
 
-export async function queryWithModel({
-  systemPrompt = asSystemPrompt([]),
-  userPrompt,
-  outputFormat,
-  signal,
-  options,
-}: {
-  systemPrompt: SystemPrompt
-  userPrompt: string
-  outputFormat?: JsonOutputFormat
-  signal: AbortSignal
-  options: QueryWithModelOptions
-}): Promise<AssistantMessage> {
-  const { routedCallModel, settleAssistantTurn } = await import(
-    '../../providers/callModelRouter.js'
-  )
-  const result = await withVCR(
-    [
-      createUserMessage({
-        content: systemPrompt.map(text => ({ type: 'text', text })),
-      }),
-      createUserMessage({
-        content: userPrompt,
-      }),
-    ],
-    async () => {
-      const messages = [
-        createUserMessage({
-          content: userPrompt,
-        }),
-      ]
+type OneShotQuestion = {
+  systemPrompt: SystemPrompt; userPrompt: string; outputFormat?: JsonOutputFormat
+  signal: AbortSignal; options: QueryWithModelOptions
+}
 
-      const settled: AssistantMessage[] = []
-      for await (const message of routedCallModel({
-        messages,
-        systemPrompt,
-        thinkingConfig: { type: 'disabled' },
-        tools: [],
-        signal,
-        options: {
-          ...options,
-          enablePromptCaching: options.enablePromptCaching ?? false,
-          outputFormat,
-          async getToolPermissionContext() {
-            return getEmptyToolPermissionContext()
-          },
-        },
-      })) {
-        if (message.type === 'assistant') {
-          settled.push(message as AssistantMessage)
-        }
-      }
-      return [settleAssistantTurn(settled, signal.aborted)]
+function sideQuestionParams(question: OneShotQuestion, systemPrompt: SystemPrompt): CallModelParams {
+  return {
+    messages: [createUserMessage({ content: question.userPrompt })], systemPrompt,
+    thinkingConfig: { type: 'disabled' }, tools: [], signal: question.signal,
+    options: {
+      ...question.options, enablePromptCaching: question.options.enablePromptCaching ?? false,
+      outputFormat: question.outputFormat, getToolPermissionContext: async () => getEmptyToolPermissionContext(),
     },
-  )
-  return result[0]! as AssistantMessage
+  }
+}
+
+export async function queryWithModel(question: OneShotQuestion): Promise<AssistantMessage> {
+  const systemPrompt = question.systemPrompt === undefined ? asSystemPrompt([]) : question.systemPrompt
+  const { routedCallModel, settleAssistantTurn } = await import('../../providers/callModelRouter.js')
+  const recordedInput = [
+    createUserMessage({ content: systemPrompt.map(text => ({ type: 'text', text })) }),
+    createUserMessage({ content: question.userPrompt }),
+  ]
+  const answer = async (): Promise<AssistantMessage[]> => {
+    const stream = routedCallModel(sideQuestionParams(question, systemPrompt))
+    const replies: AssistantMessage[] = []
+    for await (const row of stream) if (row.type === 'assistant') replies.push(row)
+    return [settleAssistantTurn(replies, question.signal.aborted)]
+  }
+  const [reply] = await withVCR(recordedInput, answer)
+  return reply! as AssistantMessage
 }
 
 export const MAX_NON_STREAMING_TOKENS = 64_000

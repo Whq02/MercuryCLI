@@ -187,10 +187,11 @@ section('(3) the sandbox boundary — source pins at the owners')
   )
 
   const core = read('src/services/providers/anthropic/streamCore.ts')
-  const qwm = core.slice(core.indexOf('export async function queryWithModel('))
+  const qwm = core.slice(core.indexOf('function sideQuestionParams('), core.indexOf('// The API caps non-streaming'))
   check(
     'queryWithModel sends NO tools and an EMPTY permission context',
-    qwm.includes('tools: [],') && qwm.includes('getEmptyToolPermissionContext()'),
+    qwm.includes('routedCallModel(sideQuestionParams(question, systemPrompt))') &&
+      qwm.includes('tools: [],') && qwm.includes('getEmptyToolPermissionContext()'),
   )
   const console_ = read('src/utils/cockpit/helmConsole.ts')
   check(
