@@ -934,8 +934,13 @@ pin('62. relative pasted filename read from the clipboard path only on basename 
 
 pin('65. hook-blocking submission ⇒ exactly ONE warning system message, no user message', /answer\.block !== undefined/.test(processUserInputSrc) && /createSystemMessage\(`\$\{started\.answer\.block\}\\n\\nThe prompt was: \$\{promptText\}`, 'warning'\)/.test(processUserInputSrc))
 
-const attachmentTextSrc = src('src/utils/messages/attachmentText.ts')
-pin('66/79. the hook context bound applies where the model reads a hook row: the context and the tool.after objection', (attachmentTextSrc.match(/boundHookContext\(/g) ?? []).length === 2 && /outcome === 'context'/.test(attachmentTextSrc))
+const { normalizeAttachmentForAPI } = await import('../../src/utils/messages/attachmentText.js')
+const hookWords = 'HOOK-HEAD' + 'x'.repeat(80_000) + 'HOOK-TAIL'
+pin('66/79. the hook context bound applies where the model reads a hook row: the context and the tool.after objection', (['context', 'block'] as const).every(outcome => {
+  const projected = normalizeAttachmentForAPI({ type: 'hook', outcome, name: 'acceptance-bound', event: 'tool.after', words: hookWords })
+  const content = projected[0]?.message.content
+  return projected.length === 1 && typeof content === 'string' && content.length < hookWords.length && content.includes('characters omitted') && content.includes('HOOK-HEAD') && content.includes('HOOK-TAIL')
+}))
 
 pin('67. bridge-origin non-bridge-safe slash ⇒ refusal pair, never the model; unknown bridge slash ⇒ plain text', /bridge/i.test(processUserInputSrc) && /remote/i.test(processUserInputSrc))
 

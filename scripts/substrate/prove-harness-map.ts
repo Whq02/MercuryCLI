@@ -135,8 +135,10 @@ check(
 {
   const orch = readFileSync(join(import.meta.dir, '../../src/utils/attachments/orchestrator.ts'), 'utf8')
   check('orchestrator wires getHarnessMapDelta', orch.includes('getHarnessMapDelta'))
-  const text = readFileSync(join(import.meta.dir, '../../src/utils/messages/attachmentText.ts'), 'utf8')
-  check('attachmentText renders harness_map_delta', text.includes("case 'harness_map_delta'"))
+  const { normalizeAttachmentForAPI } = await import('../../src/utils/messages/attachmentText.js')
+  const projected = normalizeAttachmentForAPI({ type: 'harness_map_delta', added: ['ADDED-SURFACE'], removed: ['REMOVED-SURFACE'] })
+  const content = projected[0]?.message.content
+  check('attachmentText renders harness_map_delta', projected.length === 1 && projected[0]?.isMeta === true && typeof content === 'string' && content.includes('ADDED-SURFACE') && content.includes('REMOVED-SURFACE'))
   const nullr = readFileSync(join(import.meta.dir, '../../src/components/messages/nullRenderingAttachments.ts'), 'utf8')
   check('harness_map_delta is null-rendering (no transcript chrome)', nullr.includes("'harness_map_delta'"))
 }
