@@ -67,17 +67,29 @@ console.log('============================================================')
 }
 {
   const streaming = src('src', 'utils', 'messages', 'streaming.ts')
-  check(
-    'input_json_delta routes through the silent path',
-    /case 'input_json_delta'[\s\S]{0,1600}\{ silent: true \}/.test(streaming),
-  )
+  {
+    const { handleMessageFromStream } = await import('../../src/utils/messages/streaming.ts')
+    type Update = { updater: (current: never[]) => unknown; opts: { silent?: boolean; flushSilent?: boolean } | undefined }
+    const updates: Update[] = []
+    const drive = (event: Record<string, unknown>): void =>
+      handleMessageFromStream(
+        { type: 'stream_event', event } as never,
+        () => {},
+        () => {},
+        () => {},
+        ((updater: Update['updater'], opts?: Update['opts']) => { updates.push({ updater, opts }) }) as never,
+      )
+    drive({ type: 'content_block_delta', index: 0, delta: { type: 'input_json_delta', partial_json: '{"a":' } })
+    check('input_json_delta routes through the silent path', updates.length === 1 && updates[0]!.opts?.silent === true, JSON.stringify(updates[0]?.opts))
+    drive({ type: 'message_stop' })
+    const empty: never[] = []
+    const cleared = updates[updates.length - 1]!.updater(empty)
+    check('message_stop clear is identity when already empty', updates.length === 2 && cleared === empty)
+    check('message_stop clear empties a populated list', updates[1]!.updater([{ index: 0 }] as never) !== empty && (updates[1]!.updater([{ index: 0 }] as never) as unknown[]).length === 0)
+  }
   check(
     'content_block_stop flushes the silent accumulation',
     /case 'content_block_stop':[\s\S]{0,400}\{ flushSilent: true \}/.test(streaming),
-  )
-  check(
-    'message_stop clear is identity when already empty',
-    streaming.includes('current.length === 0 ? current : []'),
   )
   const repl = src('src', 'screens', 'Chat.tsx')
   check(
