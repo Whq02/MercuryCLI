@@ -36,26 +36,30 @@ export function renderCreateToolUseMessage(input?: CreateHeaderInput): React.Rea
   return input?.prompt ? `${spelling}: ${cutPrompt(input.prompt)}` : spelling
 }
 
-export function renderCreateResultMessage(output: CreateOutput): React.ReactNode {
-  if (output.state === 'scheduled') {
-    return (
-      <Row>
-        Scheduled <Text bold>{output.id}</Text>{quoted(output.title)} <Dim>({output.nextFireLocal})</Dim>
-      </Row>
-    )
-  }
-  if (output.state === 'queued') {
-    return (
-      <Row>
-        Queued, not confirmed <Dim>({output.humanSchedule})</Dim>
-      </Row>
-    )
-  }
-  return (
+type CreateVerdict = 'scheduled' | 'queued' | 'submitted'
+
+const CREATE_ROWS: Record<CreateVerdict, (output: CreateOutput) => React.ReactNode> = {
+  scheduled: output => (
+    <Row>
+      Scheduled <Text bold>{output.id}</Text>{quoted(output.title)} <Dim>({output.nextFireLocal})</Dim>
+    </Row>
+  ),
+  queued: output => (
+    <Row>
+      Queued, not confirmed <Dim>({output.humanSchedule})</Dim>
+    </Row>
+  ),
+  submitted: output => (
     <Row>
       Schedule{quoted(output.title)} submitted <Dim>({output.humanSchedule})</Dim>
     </Row>
-  )
+  ),
+}
+
+const verdictOf = (output: CreateOutput): CreateVerdict => (output.state === 'scheduled' || output.state === 'queued' ? output.state : 'submitted')
+
+export function renderCreateResultMessage(output: CreateOutput): React.ReactNode {
+  return CREATE_ROWS[verdictOf(output)](output)
 }
 
 export function renderDeleteToolUseMessage(input?: { id?: string }): React.ReactNode {

@@ -3,26 +3,15 @@ import { SATURN_ID_PATTERN } from '../../daemon/saturn.js'
 import { sessionScheduleRoster, submitSessionScheduleEdit } from '../../services/saturn/sessionScheduleBridge.js'
 import { buildTool, type ToolDef, type ValidationResult } from '../../Tool.js'
 import { lazySchema } from '../../utils/lazySchema.js'
-import {
-  buildCronDeletePrompt,
-  CRON_DELETE_DESCRIPTION,
-  CRON_DELETE_TOOL_NAME,
-  CRON_LIST_TOOL_NAME,
-  cronToolsMountable,
-} from './prompt.js'
+import { buildCronDeletePrompt, CRON_DELETE_DESCRIPTION, CRON_DELETE_TOOL_NAME, CRON_LIST_TOOL_NAME, cronToolsMountable } from './prompt.js'
 import { renderDeleteResultMessage, renderDeleteToolUseMessage } from './UI.js'
 
-const inputSchema = lazySchema(() =>
-  z.strictObject({
-    id: z.string().describe(`The schedule id to cancel (eight hex characters — ${CRON_LIST_TOOL_NAME} shows them)`),
-  }),
-)
-type InputSchema = ReturnType<typeof inputSchema>
-type Input = z.infer<InputSchema>
+const ID_HINT = `The schedule id to cancel (eight hex characters — ${CRON_LIST_TOOL_NAME} shows them)`
 
+const inputSchema = lazySchema(() => z.strictObject({ id: z.string().describe(ID_HINT) }))
 const outputSchema = lazySchema(() => z.object({ id: z.string(), note: z.string() }))
-type OutputSchema = ReturnType<typeof outputSchema>
-export type DeleteOutput = z.infer<OutputSchema>
+type DeleteInput = z.infer<ReturnType<typeof inputSchema>>
+export type DeleteOutput = z.infer<ReturnType<typeof outputSchema>>
 
 const REMOVAL_NOTE = 'Removal submitted — the daemon applies it at the facts beat; the session receipt confirms.'
 
@@ -45,40 +34,25 @@ function validateId(id: string): ValidationResult {
   return failed ? failed[1](id) : { result: true }
 }
 
+function submitRemoval(id: string): DeleteOutput {
+  const submitted = submitSessionScheduleEdit({ op: 'remove', scheduleId: id })
+  if (submitted.road === 'refused') throw new Error(`${CRON_DELETE_TOOL_NAME}: ${submitted.reason}`)
+  return { id, note: REMOVAL_NOTE }
+}
+
 export const CronDeleteTool = buildTool({
   name: CRON_DELETE_TOOL_NAME,
   searchHint: 'cancel a scheduled job by id',
   shouldDefer: true,
   maxResultSizeChars: 100_000,
-  get inputSchema(): InputSchema {
-    return inputSchema()
-  },
-  get outputSchema(): OutputSchema {
-    return outputSchema()
-  },
+  get inputSchema(): ReturnType<typeof inputSchema> { return inputSchema() },
+  get outputSchema(): ReturnType<typeof outputSchema> { return outputSchema() },
   isEnabled: () => cronToolsMountable(),
-  async description() {
-    return CRON_DELETE_DESCRIPTION
-  },
-  async prompt() {
-    return buildCronDeletePrompt()
-  },
-  async validateInput(input: Input): Promise<ValidationResult> {
-    return validateId(input.id)
-  },
-  async call(input: Input) {
-    const submitted = submitSessionScheduleEdit({ op: 'remove', scheduleId: input.id })
-    if (submitted.road === 'refused') throw new Error(`${CRON_DELETE_TOOL_NAME}: ${submitted.reason}`)
-    const data: DeleteOutput = { id: input.id, note: REMOVAL_NOTE }
-    return { data }
-  },
-  mapToolResultToToolResultBlockParam(output: DeleteOutput, toolUseID: string) {
-    return {
-      tool_use_id: toolUseID,
-      type: 'tool_result' as const,
-      content: `Cancel submitted for schedule ${output.id}. ${output.note}`,
-    }
-  },
+  description: async () => CRON_DELETE_DESCRIPTION,
+  prompt: async () => buildCronDeletePrompt(),
+  validateInput: async (input: DeleteInput): Promise<ValidationResult> => validateId(input.id),
+  call: async (input: DeleteInput) => ({ data: submitRemoval(input.id) }),
+  mapToolResultToToolResultBlockParam: (output: DeleteOutput, toolUseID: string) => ({ tool_use_id: toolUseID, type: 'tool_result' as const, content: `Cancel submitted for schedule ${output.id}. ${output.note}` }),
   renderToolUseMessage: renderDeleteToolUseMessage,
   renderToolResultMessage: renderDeleteResultMessage,
-} satisfies ToolDef<InputSchema, DeleteOutput>)
+} satisfies ToolDef<ReturnType<typeof inputSchema>, DeleteOutput>)

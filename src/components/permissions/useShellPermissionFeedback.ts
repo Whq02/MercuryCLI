@@ -5,15 +5,9 @@ import { useOptionAmendments } from './useOptionAmendments.js'
 
 const AMENDABLE = ['yes', 'no'] as const
 
-export function useShellPermissionFeedback({
-  toolUseConfirm,
-  onDone,
-  onReject,
-}: {
-  toolUseConfirm: ToolUseConfirm
-  onDone: () => void
-  onReject: () => void
-}) {
+type ShellCardArgs = { toolUseConfirm: ToolUseConfirm; onDone: () => void; onReject: () => void }
+
+export function useShellPermissionFeedback({ toolUseConfirm, onDone, onReject }: ShellCardArgs) {
   const setAppState = useSetAppState()
   const { amendments, isRole, setText, toggle, collapseAwayFrom } = useOptionAmendments(AMENDABLE)
   const [focusedOption, setFocusedOption] = useState<string>('yes')
@@ -58,16 +52,6 @@ export function useShellPermissionFeedback({
     [toolUseConfirm, onReject, onDone, countEscape],
   )
 
-  return {
-    yesInputMode: amendments.yes.open,
-    noInputMode: amendments.no.open,
-    acceptFeedback: amendments.yes.text,
-    rejectFeedback: amendments.no.text,
-    setAcceptFeedback,
-    setRejectFeedback,
-    focusedOption,
-    handleInputModeToggle,
-    handleReject,
-    handleFocus,
-  }
+  const { yes, no } = amendments
+  return { yesInputMode: yes.open, noInputMode: no.open, acceptFeedback: yes.text, rejectFeedback: no.text, setAcceptFeedback, setRejectFeedback, focusedOption, handleInputModeToggle, handleReject, handleFocus }
 }

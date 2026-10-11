@@ -10,10 +10,7 @@ import { BaseTextInput } from './BaseTextInput.js'
 import { color } from './design-system/color.js'
 import { useTheme } from './design-system/ThemeProvider.js'
 
-export type Props = BaseTextInputProps & {
-  onModeChange?: (mode: VimMode) => void
-  initialMode?: VimMode
-}
+export type Props = BaseTextInputProps & { onModeChange?: (mode: VimMode) => void; initialMode?: VimMode }
 
 type Painter = (text: string) => string
 
@@ -21,43 +18,26 @@ type Paint = Pick<UseVimInputProps, 'cursorChar' | 'invert' | 'dim' | 'themeText
 
 const asIs: Painter = text => text
 
-function caretPaint(props: Props, terminalFocused: boolean, caretPhaseOn: boolean, themeName: ThemeName): Paint {
-  return {
-    cursorChar: props.showCursor === false ? '' : ' ',
-    invert: terminalFocused && caretPhaseOn ? chalk.inverse : asIs,
-    dim: chalk.dim,
-    themeText: color('text', themeName),
-  }
-}
+const caretPaint = (props: Props, terminalFocused: boolean, caretPhaseOn: boolean, themeName: ThemeName): Paint => ({
+  cursorChar: props.showCursor === false ? '' : ' ',
+  invert: terminalFocused && caretPhaseOn ? chalk.inverse : asIs,
+  dim: chalk.dim,
+  themeText: color('text', themeName),
+})
+
+const PASSED_THROUGH = [
+  'value', 'onChange', 'columns', 'onSubmit', 'onExit', 'onExitMessage', 'onHistoryUp', 'onHistoryDown', 'onHistoryReset', 'onClearInput',
+  'maxVisibleLines', 'multiline', 'disableCursorMovementForUpDownKeys', 'disableEscapeDoublePress', 'suppressEnterSubmit', 'inputFilter',
+  'focus', 'highlightPastedText', 'onImagePaste', 'onModeChange', 'onUndo',
+] as const
+
+type PassedThrough = Pick<Props, (typeof PASSED_THROUGH)[number]>
+
+const passedThrough = (props: Props): PassedThrough =>
+  Object.fromEntries(PASSED_THROUGH.map(key => [key, props[key]])) as PassedThrough
 
 function vimInputOptions(props: Props, paint: Paint): UseVimInputProps {
-  return {
-    ...paint,
-    value: props.value,
-    onChange: props.onChange,
-    externalOffset: props.cursorOffset,
-    onOffsetChange: props.onChangeCursorOffset,
-    columns: props.columns,
-    onSubmit: props.onSubmit,
-    onExit: props.onExit,
-    onExitMessage: props.onExitMessage,
-    onHistoryUp: props.onHistoryUp,
-    onHistoryDown: props.onHistoryDown,
-    onHistoryReset: props.onHistoryReset,
-    onClearInput: props.onClearInput,
-    mask: props.mask,
-    maxVisibleLines: props.maxVisibleLines,
-    multiline: props.multiline,
-    disableCursorMovementForUpDownKeys: props.disableCursorMovementForUpDownKeys,
-    disableEscapeDoublePress: props.disableEscapeDoublePress,
-    suppressEnterSubmit: props.suppressEnterSubmit,
-    inputFilter: props.inputFilter,
-    focus: props.focus,
-    highlightPastedText: props.highlightPastedText,
-    onImagePaste: props.onImagePaste,
-    onModeChange: props.onModeChange,
-    onUndo: props.onUndo,
-  }
+  return { ...paint, ...passedThrough(props), externalOffset: props.cursorOffset, onOffsetChange: props.onChangeCursorOffset, mask: props.mask }
 }
 
 function useFollowedMode(inputState: VimInputState, initialMode: VimMode | undefined): void {
