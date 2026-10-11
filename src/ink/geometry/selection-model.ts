@@ -1,23 +1,17 @@
-
 export type Point = { col: number; row: number }
 
-export type SelectionState = {
-  anchor: Point | null
-  clipLo?: number
-  clipHi?: number
-  clipTop?: number
-  clipBottom?: number
-  focus: Point | null
-  isDragging: boolean
-  anchorSpan: { lo: Point; hi: Point; kind: 'word' | 'line' } | null
+type Geometry = { anchor: Point | null; focus: Point | null; isDragging: boolean }
+type ModeSpan = { anchorSpan: { lo: Point; hi: Point; kind: 'word' | 'line' } | null }
+type ClipBand = { clipLo?: number; clipHi?: number; clipTop?: number; clipBottom?: number }
+type OffscreenLedger = {
   scrolledOffAbove: string[]
   scrolledOffBelow: string[]
   scrolledOffAboveSW: boolean[]
   scrolledOffBelowSW: boolean[]
-  virtualAnchorRow?: number
-  virtualFocusRow?: number
-  lastPressHadAlt: boolean
 }
+type ClampDebt = { virtualAnchorRow?: number; virtualFocusRow?: number }
+
+export type SelectionState = Geometry & ModeSpan & ClipBand & OffscreenLedger & ClampDebt & { lastPressHadAlt: boolean }
 
 export function createSelectionState(): SelectionState {
   return {
@@ -33,21 +27,19 @@ export function createSelectionState(): SelectionState {
   }
 }
 
+const NO_DEBT: ClampDebt = { virtualAnchorRow: undefined, virtualFocusRow: undefined }
+const NO_BAND: ClipBand = { clipLo: undefined, clipHi: undefined, clipTop: undefined, clipBottom: undefined }
+
 export function startSelection(s: SelectionState, col: number, row: number): void {
-  s.clipLo = undefined
-  s.clipHi = undefined
-  s.clipTop = undefined
-  s.clipBottom = undefined
-  clearSelection(s)
-  s.anchor = { col, row }
-  s.isDragging = true
+  Object.assign(s, createSelectionState(), NO_DEBT, NO_BAND, { anchor: { col, row }, isDragging: true })
 }
 
-const isAnchorTremor = (s: SelectionState, col: number, row: number): boolean =>
-  s.focus === null && s.anchor !== null && s.anchor.col === col && s.anchor.row === row
+const atAnchorBeforeAnyMotion = (s: SelectionState, col: number, row: number): boolean =>
+  s.focus === null && s.anchor?.col === col && s.anchor.row === row
 
 export function updateSelection(s: SelectionState, col: number, row: number): void {
-  if (s.isDragging && !isAnchorTremor(s, col, row)) s.focus = { col, row }
+  if (!s.isDragging || atAnchorBeforeAnyMotion(s, col, row)) return
+  s.focus = { col, row }
 }
 
 export function finishSelection(s: SelectionState): void {
@@ -55,19 +47,17 @@ export function finishSelection(s: SelectionState): void {
 }
 
 export function clearSelection(s: SelectionState): void {
-  Object.assign(s, createSelectionState(), { virtualAnchorRow: undefined, virtualFocusRow: undefined })
+  Object.assign(s, createSelectionState(), NO_DEBT)
 }
 
 export type FocusMove = 'left' | 'right' | 'up' | 'down' | 'lineStart' | 'lineEnd'
 
 export function moveFocus(s: SelectionState, col: number, row: number): void {
-  if (!s.focus) return
-  Object.assign(s, { anchorSpan: null, focus: { col, row }, virtualFocusRow: undefined })
+  if (s.focus) Object.assign(s, { anchorSpan: null, focus: { col, row }, virtualFocusRow: undefined })
 }
 
 export function comparePoints(a: Point, b: Point): number {
-  const byRow = Math.sign(a.row - b.row)
-  return byRow !== 0 ? byRow : Math.sign(a.col - b.col)
+  return Math.sign(a.row - b.row) || Math.sign(a.col - b.col)
 }
 
 export function hasSelection(s: SelectionState): boolean {
@@ -75,10 +65,17 @@ export function hasSelection(s: SelectionState): boolean {
 }
 
 export function selectionBounds(s: SelectionState): { start: Point; end: Point } | null {
-  if (!s.anchor || !s.focus) return null
-  return comparePoints(s.anchor, s.focus) <= 0
-    ? { start: s.anchor, end: s.focus }
-    : { start: s.focus, end: s.anchor }
+  const { anchor, focus } = s
+  if (!anchor || !focus) return null
+  return comparePoints(anchor, focus) <= 0 ? { start: anchor, end: focus } : { start: focus, end: anchor }
+}
+
+type Band = [lo: number | undefined, hi: number | undefined]
+
+const bandWithin = (lo: number, hi: number, extent: number): Band => {
+  if (lo <= 0 && hi >= extent - 1) return [undefined, undefined]
+  const from = Math.max(0, lo)
+  return [from, Math.max(from, hi)]
 }
 
 export function setSelectionClipBand(
@@ -90,19 +87,7 @@ export function setSelectionClipBand(
   bottom?: number,
   screenHeight?: number,
 ): void {
-  if (lo <= 0 && hi >= screenWidth - 1) {
-    s.clipLo = undefined
-    s.clipHi = undefined
-  } else {
-    s.clipLo = Math.max(0, lo)
-    s.clipHi = Math.max(s.clipLo, hi)
-  }
+  ;[s.clipLo, s.clipHi] = bandWithin(lo, hi, screenWidth)
   if (top === undefined || bottom === undefined || screenHeight === undefined) return
-  if (top <= 0 && bottom >= screenHeight - 1) {
-    s.clipTop = undefined
-    s.clipBottom = undefined
-    return
-  }
-  s.clipTop = Math.max(0, top)
-  s.clipBottom = Math.max(s.clipTop, bottom)
+  ;[s.clipTop, s.clipBottom] = bandWithin(top, bottom, screenHeight)
 }
