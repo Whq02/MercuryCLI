@@ -196,7 +196,7 @@ export async function getURLMarkdownContent(
   let persistedPath: string | undefined
   let persistedSize: number | undefined
   if (isBinaryContentType(contentType)) {
-    const identifier = `webfetch-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+    const identifier = ['webfetch', Date.now(), Math.random().toString(36).slice(2, 8)].join('-')
     const persisted = await persistBinaryContent(buffer, contentType, identifier)
     if ('filepath' in persisted) {
       persistedPath = persisted.filepath
