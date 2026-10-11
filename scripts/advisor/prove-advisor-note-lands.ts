@@ -7,6 +7,7 @@ import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { Readable, Writable } from 'node:stream'
 import { outcomeCount } from '../lib/rows.ts'
+import { isHandoffRequest } from '../lib/fixtureApi.ts'
 
 delete process.env.NODE_ENV
 for (const ambient of ['MERCURY_MODEL', 'MERCURY_OAUTH_TOKEN', 'MERCURY_SCRIPTED_STREAM', 'MERCURY_BARE', 'MERCURY_ADVISOR_MODEL', 'MERCURY_CONSOLE_MODEL', 'ANTHROPIC_AUTH_TOKEN', 'ANTHROPIC_BASE_URL', 'MERCURY_COMPACT', 'MERCURY_AUTO_COMPACT', 'MERCURY_HOME']) {
@@ -70,9 +71,14 @@ let advisorMode: AdvisorMode = 'note'
 let agentReplies = 0
 let agentScript: Array<{ read: string } | { text: string }> = []
 let agentDelayMs = 0
-const wire: Array<{ kind: 'agent' | 'advisor' | 'other'; model: string; path: string; body: Raw }> = []
+const wire: Array<{ kind: 'agent' | 'advisor' | 'handoff' | 'other'; model: string; path: string; body: Raw }> = []
 const sse = (name: string, obj: unknown): string => `event: ${name}\ndata: ${JSON.stringify(obj)}\n\n`
 const bodyText = (body: Raw): string => JSON.stringify(body.messages ?? '')
+function agentTurnRequests() {
+  const all = wire.filter(w => w.kind === 'agent' || w.kind === 'handoff')
+  check('one marked closing ask follows the last agent request, apart from the advisor', all.filter(isHandoffRequest).length === 1 && all.at(-1)?.kind === 'handoff', j(all.map(isHandoffRequest)))
+  return all.filter(w => !isHandoffRequest(w))
+}
 function agentReply(model: string, text: string): string {
   const usage = { input_tokens: 40, cache_creation_input_tokens: 0, cache_read_input_tokens: 0, output_tokens: 6 }
   return [
@@ -137,6 +143,12 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
       wire.push({ kind: 'other', model, path, body })
       res.writeHead(404, { 'content-type': 'application/json' })
       res.end('{}')
+      return
+    }
+    if (isHandoffRequest({ body })) {
+      wire.push({ kind: 'handoff', model, path, body })
+      res.writeHead(200, { 'content-type': 'text/event-stream' })
+      res.end(agentReply(model, 'The note for the next session.'))
       return
     }
     if (model === ADVISOR_MODEL) {
@@ -383,7 +395,7 @@ section(`§1 A NOTE COMPOSED AT A TURN'S END LANDS INSIDE THE NEXT TURN: the rea
   })
   check(`the session took ${ADVISE_ON} and the three operator turns and no more, then exit 0 (closed on ${run.closedOn}) — the note cost the agent no turn`, run.exit === 0 && run.results === 4 && adviseLineOf(run) === `advisor on for this chat · ${ADVISOR_MODEL} · ${CADENCE}`, `exit=${run.exit} results=${run.results} closedOn=${run.closedOn} stderr=${run.stderr.slice(-400)}`)
   const advisorRequests = wire.filter(w => w.kind === 'advisor')
-  const agentRequests = wire.filter(w => w.kind === 'agent')
+  const agentRequests = agentTurnRequests()
   check(`ONE advisor request left the box — at turn 1's end, the hour-old note making it due — on ${ADVISOR_MODEL}, under the advisor's system prompt, carrying the first operator row and the earlier note as memory; the later turn ends were within the interval`, advisorRequests.length === 1 && j(advisorRequests[0]!.body.system).includes('You are the Advisor') && bodyText(advisorRequests[0]!.body).includes('operator line 1') && !bodyText(advisorRequests[0]!.body).includes('operator line 2') && bodyText(advisorRequests[0]!.body).includes(EARLIER_NOTE), j(advisorRequests.map(w => [w.model, w.body.max_tokens, bodyText(w.body).slice(0, 200)])))
   const body = advisorRequests[0]?.body ?? {}
   check("that request rides the model's own ceiling with no thinking key (the always-on law) — red on the base: max_tokens 1200", body.max_tokens === VENDOR_OUTPUT_CAP && !('thinking' in body), j({ max: body.max_tokens, thinking: body.thinking }))
@@ -484,7 +496,7 @@ section(`§1b A NOTE COMPOSED INSIDE A RUNNING TURN LANDS AT ITS NEXT TOOL-ROUND
   agentDelayMs = 0
   check(`the session took ${ADVISE_ON} and the one operator turn and no more, then exit 0 (closed on ${run.closedOn})`, run.exit === 0 && run.results === 2, `exit=${run.exit} results=${run.results} closedOn=${run.closedOn} stderr=${run.stderr.slice(-400)}`)
   const advisorRequests = wire.filter(w => w.kind === 'advisor')
-  const agentRequests = wire.filter(w => w.kind === 'agent')
+  const agentRequests = agentTurnRequests()
   check("ONE advisor request left the box — at the boundary after the first read, inside the turn — carrying the first tool call", advisorRequests.length === 1 && bodyText(advisorRequests[0]!.body).includes('[tool] Read'), j(advisorRequests.map(w => bodyText(w.body).slice(0, 200))))
   check("the agent made three requests in the one turn: the third, after the second boundary, carries the note framed as advice from the advisor; the first two do not; none carries it as the operator's words", agentRequests.length === 3 && !bodyText(agentRequests[1]!.body).includes(NOTE.split('\n')[0]!) && bodyText(agentRequests[2]!.body).includes(text.ADVISOR_NOTE_HEAD) && bodyText(agentRequests[2]!.body).includes(NOTE.split('\n')[0]!) && agentRequests.every(w => !bodyText(w.body).includes('The operator sent a new message')), `${agentRequests.length}: ${agentRequests.map(w => bodyText(w.body).slice(-160)).join(' | ')}`)
   const transcript = transcriptFileOf(arena, SID)
@@ -522,7 +534,7 @@ section(`§2 THE ADVISOR HAD NOTHING: the fixture answers thinking only, twice, 
   check(`the session took ${ADVISE_ON} and the two operator turns and no more, then exit 0 (closed on ${run.closedOn})`, run.exit === 0 && run.results === 3, `exit=${run.exit} results=${run.results} closedOn=${run.closedOn} stderr=${run.stderr.slice(-400)}`)
   check("the quiet row reached the transcript file while the session was still open — the chat's reader would have painted it then", run.closedOn === 'the quiet row on disk while the session was still open', run.closedOn)
   const advisorRequests = wire.filter(w => w.kind === 'advisor')
-  const agentRequests = wire.filter(w => w.kind === 'agent')
+  const agentRequests = agentTurnRequests()
   check('the advisor was asked twice for the one round — once more after the empty answer, never a third time, and not again at the next turn end (red on the base: once)', advisorRequests.length === 2 && bodyText(advisorRequests[0]!.body) === bodyText(advisorRequests[1]!.body), String(advisorRequests.length))
   check('the agent made exactly two requests — a quiet round costs it no turn', agentRequests.length === 2, String(agentRequests.length))
   if (file === null) file = transcriptFileOf(arena, SID)
