@@ -47,11 +47,9 @@ function textOf(message: Message): string {
 }
 
 export function assistantText(messages: readonly Message[]): string {
-  for (let index = messages.length - 1; index >= 0; index--) {
-    const text = textOf(messages[index]!)
-    if (text !== '') return text
-  }
-  return ''
+  const message = messages.findLast(row => row.type === 'assistant' || row.type === 'user')
+  if (message?.type !== 'assistant' || message.message.content.some(block => block.type === 'tool_use')) return ''
+  return textOf(message)
 }
 
 export function handoffAskText(sessionId: string): { text: string; tools: Set<string> } {
@@ -67,7 +65,7 @@ export function handoffNotice(note: { text: string; stored: boolean } | null): s
   return `the note for the next session is in the ledger (${note.text.length} characters)`
 }
 
-export type AskRunner = (params: ForkedAgentParams) => Promise<{ messages: Message[] }>
+export type AskRunner = (params: ForkedAgentParams) => Promise<{ messages: Message[]; terminal?: { reason: string } }>
 
 export async function askForHandoff(input: {
   cacheSafeParams: CacheSafeParams
@@ -108,6 +106,7 @@ export async function askForHandoff(input: {
       skipTranscript: true,
       skipCacheWrite: true,
     } as ForkedAgentParams)
+    if (result.terminal?.reason !== 'completed' || abortController.signal.aborted) return null
     const text = assistantText(result.messages)
     if (text === '' || !lineageKept()) return null
     const entry = recordHandoff(mnemeProjectKey(), sessionId, text)

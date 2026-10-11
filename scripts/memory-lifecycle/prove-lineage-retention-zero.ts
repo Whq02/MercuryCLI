@@ -55,7 +55,7 @@ try {
   await ask.askForHandoff({ cacheSafeParams, run: async () => {
     await Promise.resolve()
     setRetention(0)
-    return { messages: [createAssistantMessage({ content: 'must not persist' })] }
+    return { messages: [createAssistantMessage({ content: 'must not persist' })], terminal: { reason: 'completed' } }
   } })
   assert.equal(readFileSync(paths.lineagePath(key), 'utf8'), beforeAwait, 'retention is rechecked after the awaited note')
   console.log('LINEAGE RETENTION ZERO GREEN')

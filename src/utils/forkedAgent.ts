@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto'
 import type { UUID } from 'node:crypto'
 
 import type { QuerySource } from '../constants/querySource.js'
+import type { Terminal } from '../query/transitions.js'
 import type { CanUseToolFn } from '../hooks/useCanUseTool.js'
 import { query } from '../query.js'
 import { accumulateUsage, updateUsage } from '../services/providers/anthropic/cacheAndUsage.js'
@@ -75,6 +76,7 @@ export type ForkedAgentParams = {
 type ForkedAgentResult = {
   messages: Message[]
   totalUsage: NonNullableUsage
+  terminal: Terminal | undefined
 }
 
 type PreparedForkedContext = {
@@ -303,8 +305,9 @@ export async function runForkedAgent(params: ForkedAgentParams): Promise<ForkedA
       logForDebugging(`forkedAgent(${label}): initial transcript record failed: ${String(err)}`)
     }
   }
-  try {
-    for await (const item of settledSidechainMessages(query({
+  let terminal: Terminal | undefined
+  const stream = async function* () {
+    terminal = yield* query({
       messages,
       systemPrompt: cacheSafeParams.systemPrompt,
       userContext: cacheSafeParams.userContext,
@@ -315,7 +318,10 @@ export async function runForkedAgent(params: ForkedAgentParams): Promise<ForkedA
       maxOutputTokensOverride: maxOutputTokens,
       maxTurns,
       skipCacheWrite,
-    }))) {
+    })
+  }
+  try {
+    for await (const item of settledSidechainMessages(stream())) {
       if (item.type === 'stream_event') {
         fold = foldForkUsageEvent(fold, item.event as { type?: string; usage?: unknown; message?: { usage?: unknown } })
         onStreamEvent?.(item.event)
@@ -347,5 +353,5 @@ export async function runForkedAgent(params: ForkedAgentParams): Promise<ForkedA
     `forkedAgent(${label}): done in ${durationMs}ms — ${collected.length} message(s) [${collected.map(m => m.type).join(', ')}]; ` +
       `input=${usage.input_tokens} output=${usage.output_tokens} cache_create=${usage.cache_creation_input_tokens} cache_read=${usage.cache_read_input_tokens}`,
   )
-  return { messages: collected, totalUsage: usage }
+  return { messages: collected, totalUsage: usage, terminal }
 }
