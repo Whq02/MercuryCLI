@@ -60,6 +60,8 @@ import { JevEvalTool, jevEvalEnabled } from './tools/JevEvalTool/JevEvalTool.js'
 import { AskAdvisorTool } from './tools/AskAdvisorTool/AskAdvisorTool.js'
 import { advisorEnabled } from './services/advisor/advisorSettings.js'
 import { JourneyTool } from './tools/JourneyTool/JourneyTool.js'
+import { JournalTool } from './tools/JournalTool/JournalTool.js'
+import { journalEnabled } from './mneme/journal.js'
 import { LaunchTool } from './tools/LaunchTool/LaunchTool.js'
 import { ListMcpResourcesTool } from './tools/ListMcpResourcesTool/ListMcpResourcesTool.js'
 import { LSP_TOOLS } from './tools/LSPTool/LSPTool.js'
@@ -197,6 +199,7 @@ export function getAllBaseTools(): Tools {
     ...(contractToolHosted() ? [ContractTool] : []),
     RECORD_CONVENTION_TOOL,
     ...(memoryVerbsEnabled() ? [RetainTool, RecallTool, ReflectTool, CorrectTool] : []),
+    ...(journalEnabled() ? [JournalTool] : []),
     ...(isPowerShellToolEnabled() && powerShell ? [powerShell] : []),
     ...(process.env.NODE_ENV === 'test' ? [TestingPermissionTool] : []),
     ListMcpResourcesTool,
