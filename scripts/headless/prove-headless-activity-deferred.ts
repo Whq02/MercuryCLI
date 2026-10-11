@@ -90,8 +90,10 @@ section("§3 the built artifact: a -p run's note is on disk after the process ex
   if (!existsSync(DIST) || !nodeBin) {
     check('dist/mercury.mjs and a node binary exist (build first — this leg drives the artifact)', false, `dist=${existsSync(DIST)} node=${String(nodeBin)}`)
   } else {
-    const { startFixtureApi } = await import('../lib/fixtureApi.ts')
+    const { startFixtureApi, handoffTurn } = await import('../lib/fixtureApi.ts')
     const api = await startFixtureApi([
+      handoffTurn(),
+      handoffTurn(),
       { kind: 'text', text: 'First answered.' },
       { kind: 'text', text: 'Second answered.' },
     ])

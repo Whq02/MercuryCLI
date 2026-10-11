@@ -87,7 +87,8 @@ try {
     const input = models.reduce((sum, row) => sum + row.input_tokens, 0)
     const outputTokens = models.reduce((sum, row) => sum + row.output_tokens, 0)
     const cost = models.reduce((sum, row) => sum + row.cost_usd, 0)
-    check(`${label}: billing usage includes every fixture call and agrees with per-model sums`, outcome?.usage.input_tokens === api.requests.length * 40 && outcome?.usage.output_tokens === api.requests.length * 8 && outcome.usage.input_tokens === input && outcome.usage.output_tokens === outputTokens, outcome)
+    const calls = api.requests.length + api.asks.length
+    check(`${label}: billing usage includes every fixture call — the session's closing ask too — and agrees with per-model sums`, outcome?.usage.input_tokens === calls * 40 && outcome?.usage.output_tokens === calls * 8 && outcome.usage.input_tokens === input && outcome.usage.output_tokens === outputTokens, outcome)
     check(`${label}: cost equals the sum of the model costs`, typeof outcome?.cost_usd === 'number' && Math.abs(outcome.cost_usd - cost) < 1e-9, outcome)
     check(`${label}: model identities cover parent and child`, childModel !== 'haiku' || (Object.keys(outcome?.models ?? {}).length === 2 && new Set(steps.map(row => row.model)).size === 2), { models: outcome?.models, steps })
     rmSync(runHome, { recursive: true, force: true })

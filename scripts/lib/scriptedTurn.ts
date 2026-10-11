@@ -5,12 +5,13 @@ import { createServer, type IncomingMessage, type ServerResponse } from 'node:ht
 import { join } from 'node:path'
 import { DIST, MODEL, NODE, PROBE_KEY, bootRunner, bound, childEnv, configKeyOf, isOutcome, type AskHost } from '../daemon/dupline-world.ts'
 import { inputLine, parseFrame, promptRow } from './rows.ts'
+import { HANDOFF_ASK_MARK } from './fixtureApi.ts'
 
 export type WireBlock = { type: 'text'; text: string } | { type: 'tool_use'; name: string; input: Record<string, unknown> }
 export type SeenResult = { toolUseId: string; text: string; isError: boolean }
 export type ScriptedRequest = { n: number; ask: string; askTexts: string[]; allTexts: string[]; atMs: number; opening: string; step: number; results: SeenResult[]; toolNames: string[]; system: string }
 export type Script = (req: ScriptedRequest) => WireBlock[]
-export type ScriptedFixture = { base: string; requests: ScriptedRequest[]; close: () => Promise<void> }
+export type ScriptedFixture = { base: string; requests: ScriptedRequest[]; asks: ScriptedRequest[]; close: () => Promise<void> }
 export type ScriptedFixtureOptions = { answerDelayMs?: (req: ScriptedRequest) => number }
 
 type Block = { type?: string; text?: string; tool_use_id?: string; content?: unknown; is_error?: unknown }
@@ -142,6 +143,7 @@ function sseAnswer(n: number, model: string, blocks: WireBlock[]): string {
 
 export async function startScriptedFixture(script: Script, options: ScriptedFixtureOptions = {}): Promise<ScriptedFixture> {
   const requests: ScriptedRequest[] = []
+  const asks: ScriptedRequest[] = []
   const server = createServer((req: IncomingMessage, res: ServerResponse) => {
     const chunks: Buffer[] = []
     req.on('data', c => chunks.push(c as Buffer))
@@ -160,13 +162,17 @@ export async function startScriptedFixture(script: Script, options: ScriptedFixt
       }
       const model = typeof (body as { model?: unknown })?.model === 'string' ? (body as { model: string }).model : 'fixture'
       const streaming = (body as { stream?: unknown })?.stream === true
-      const described = describeRequest(body, requests.length + 1)
-      requests.push(described)
+      const closing = JSON.stringify(body ?? null).includes(HANDOFF_ASK_MARK)
+      const described = describeRequest(body, (closing ? asks : requests).length + 1)
+      ;(closing ? asks : requests).push(described)
       let blocks: WireBlock[]
-      try {
-        blocks = script(described)
-      } catch (err) {
-        blocks = [{ type: 'text', text: `fixture script failed: ${err instanceof Error ? err.message : String(err)}` }]
+      if (closing) blocks = [{ type: 'text', text: 'The note for the next session.' }]
+      else {
+        try {
+          blocks = script(described)
+        } catch (err) {
+          blocks = [{ type: 'text', text: `fixture script failed: ${err instanceof Error ? err.message : String(err)}` }]
+        }
       }
       const answer = (): void => {
         if (!streaming) {
@@ -187,6 +193,7 @@ export async function startScriptedFixture(script: Script, options: ScriptedFixt
   return {
     base,
     requests,
+    asks,
     close: () => new Promise<void>(resolve => server.close(() => resolve())),
   }
 }

@@ -1,4 +1,5 @@
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
+import { HANDOFF_ASK_MARK } from '../lib/fixtureApi.ts'
 
 export type Dialect = 'anthropic' | 'responses' | 'chat'
 export type ScriptedCall = { id: string; name: string; args: string }
@@ -148,6 +149,7 @@ const OPENAI_MODELS_BODY = {
 export interface OverflowFixture {
   base: string
   captured: Captured[]
+  asks: Captured[]
   inputRule: boolean
   refusals: Array<{ request: number; message: string }>
   script(turns: Turn[] | ((request: Captured) => Turn)): void
@@ -157,6 +159,7 @@ export interface OverflowFixture {
 
 export async function startOverflowFixture(): Promise<OverflowFixture> {
   const captured: Captured[] = []
+  const asks: Captured[] = []
   const refusals: OverflowFixture['refusals'] = []
   const control = { inputRule: false }
   let turns: Turn[] | ((request: Captured) => Turn) = [{ text: 'idle' }]
@@ -190,6 +193,12 @@ export async function startOverflowFixture(): Promise<OverflowFixture> {
           : path.endsWith('/chat/completions')
             ? 'chat'
             : undefined
+      if (req.method === 'POST' && dialect !== undefined && JSON.stringify(body ?? null).includes(HANDOFF_ASK_MARK)) {
+        asks.push({ dialect, path, body })
+        res.writeHead(200, { 'content-type': 'text/event-stream' })
+        res.end(dialect === 'anthropic' ? anthropicSse({ text: 'The note for the next session.' }, 10_000 + asks.length) : dialect === 'responses' ? responsesSse({ text: 'The note for the next session.' }, 10_000 + asks.length) : chatSse({ text: 'The note for the next session.' }))
+        return
+      }
       if (req.method === 'POST' && dialect !== undefined) {
         captured.push({ dialect, path, body })
         if (control.inputRule && dialect === 'responses') {
@@ -267,6 +276,7 @@ export async function startOverflowFixture(): Promise<OverflowFixture> {
   return {
     base,
     captured,
+    asks,
     get inputRule(): boolean {
       return control.inputRule
     },

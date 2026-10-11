@@ -3,7 +3,7 @@ import { spawn } from 'node:child_process'
 import { existsSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
-import { startFixtureApi } from '../lib/fixtureApi.ts'
+import { handoffTurn, startFixtureApi } from '../lib/fixtureApi.ts'
 import { seedFirstRun } from '../lib/firstRunSeed.ts'
 
 const at = process.argv.indexOf('--dist')
@@ -14,7 +14,7 @@ seedFirstRun(home, [home])
 const note = join(home, 'note.txt')
 const marker = 'THE_FILE_ATTACHMENT_MARKER'
 writeFileSync(note, marker)
-const api = await startFixtureApi(Array.from({ length: 12 }, () => ({ kind: 'text' as const, text: 'The literal input answered.' })))
+const api = await startFixtureApi([...Array.from({ length: 12 }, () => ({ kind: 'text' as const, text: 'The literal input answered.' })), ...Array.from({ length: 12 }, () => handoffTurn())])
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => { console.log(`${ok ? 'PASS' : 'FAIL'} ${label}${ok ? '' : `: ${detail}`}`); if (!ok) failures++ }
 async function run(prompt: string | undefined, input: string) {
