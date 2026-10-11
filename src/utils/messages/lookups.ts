@@ -1,434 +1,257 @@
-
-import type { ToolUseBlock, ToolUseBlockParam } from '../../types/wire.js'
+import type { ToolUseBlockParam } from '../../types/wire.js'
 import type { HookEvent } from '../hooks/contract.js'
-
-import type {
-  AssistantMessage,
-  AttachmentMessage,
-  Message,
-  NormalizedAssistantMessage,
-  NormalizedMessage,
-  NormalizedUserMessage,
-  ProgressMessage,
-} from '../../types/message.js'
-import { count } from '../array.js'
+import type { AssistantMessage, AttachmentMessage, Message, NormalizedMessage, NormalizedUserMessage, ProgressMessage } from '../../types/message.js'
 import type { HookAttachment } from '../attachments.js'
-import {
-  isContinuableStreamFaultMessage,
-  isStreamFaultRecoveryNudgeText,
-} from '../../services/api/errors.js'
+import { isContinuableStreamFaultMessage, isStreamFaultRecoveryNudgeText } from '../../services/api/errors.js'
 import { contentBlocksOf } from './normalize.js'
 import { accumulateOpenToolUses, freshOpenToolUses } from './openToolUses.js'
 import { isDenialResultText } from './rejectionText.js'
 
-function toolResultText(content: unknown): string {
-  if (typeof content === 'string') return content
-  if (Array.isArray(content)) {
-    return content
-      .map(b =>
-        b && typeof b === 'object' && (b as { type?: string }).type === 'text'
-          ? String((b as { text?: unknown }).text ?? '')
-          : '',
-      )
-      .join('\n')
-  }
-  return ''
+type HookCounts = Map<string, Map<HookEvent, number>>
+export type MessageLookups = {
+  normalizedMessageCount: number
+  toolUseByToolUseID: Map<string, ToolUseBlockParam>
+  toolResultByToolUseID: Map<string, NormalizedMessage>
+  siblingToolUseIDs: Map<string, Set<string>>
+  resolvedToolUseIDs: Set<string>
+  erroredToolUseIDs: Set<string>
+  deniedToolUseIDs: Set<string>
+  progressMessagesByToolUseID: Map<string, ProgressMessage[]>
+  inProgressHookCounts: HookCounts
+  resolvedHookCounts: HookCounts
+  recoveredStreamFaultUuids: Set<string>
 }
 
+function emptyIndexes(): MessageLookups {
+  return {
+    normalizedMessageCount: 0,
+    toolUseByToolUseID: new Map(), toolResultByToolUseID: new Map(), siblingToolUseIDs: new Map(),
+    resolvedToolUseIDs: new Set(), erroredToolUseIDs: new Set(), deniedToolUseIDs: new Set(),
+    progressMessagesByToolUseID: new Map(), inProgressHookCounts: new Map(), resolvedHookCounts: new Map(),
+    recoveredStreamFaultUuids: new Set(),
+  }
+}
 
-export function isHookAttachmentMessage(
-  message: Message,
-): message is AttachmentMessage<HookAttachment> {
+export const EMPTY_LOOKUPS: MessageLookups = emptyIndexes()
+export const EMPTY_STRING_SET: ReadonlySet<string> = Object.freeze(new Set<string>())
+
+function bucket<K, V>(map: Map<K, V>, key: K, create: () => V): V {
+  let value = map.get(key)
+  if (value === undefined) map.set(key, value = create())
+  return value
+}
+
+function indexCalls(target: Map<string, ToolUseBlockParam>, body: unknown, accept?: (id: string) => void): void {
+  for (const block of contentBlocksOf(body)) {
+    if (block.type !== 'tool_use') continue
+    target.set(block.id, block)
+    accept?.(block.id)
+  }
+}
+
+function indexCallGraph(rows: Message[], index: MessageLookups): void {
+  const groups = new Map<string, Set<string>>()
+  const owners = new Map<string, string>()
+  for (const row of rows) {
+    if (row.type !== 'assistant') continue
+    const group = bucket(groups, row.message.id, () => new Set<string>())
+    indexCalls(index.toolUseByToolUseID, row.message.content, id => {
+      group.add(id)
+      owners.set(id, row.message.id)
+    })
+  }
+  for (const [id, owner] of owners) index.siblingToolUseIDs.set(id, groups.get(owner)!)
+}
+
+function indexProgress(row: ProgressMessage, index: MessageLookups): void {
+  const id = row.parentToolUseID
+  bucket(index.progressMessagesByToolUseID, id, () => []).push(row)
+  if (row.data.type !== 'hook_progress') return
+  const plane = row.data.state === 'running' ? index.inProgressHookCounts : index.resolvedHookCounts
+  const counts = bucket(plane, id, () => new Map<HookEvent, number>())
+  counts.set(row.data.event, 1 + (counts.get(row.data.event) ?? 0))
+}
+
+function toolResultText(value: unknown): string {
+  if (!Array.isArray(value)) return typeof value === 'string' ? value : ''
+  return value.map(item => item && typeof item === 'object' && item.type === 'text' ? String(item.text ?? '') : '').join('\n')
+}
+
+function indexResults(row: NormalizedUserMessage, index: MessageLookups, classify: boolean): void {
+  for (const block of contentBlocksOf(row.message.content)) {
+    if (block.type !== 'tool_result') continue
+    const id = block.tool_use_id
+    index.toolResultByToolUseID.set(id, row)
+    index.resolvedToolUseIDs.add(id)
+    if (!classify || !block.is_error) continue
+    index.erroredToolUseIDs.add(id)
+    if (isDenialResultText(toolResultText(block.content))) index.deniedToolUseIDs.add(id)
+  }
+}
+
+function recoveryTracker(recovered: Set<string>): (row: NormalizedMessage) => void {
+  const pending: string[] = []
+  return row => {
+    if (row.type === 'assistant') {
+      if (isContinuableStreamFaultMessage(row as unknown as AssistantMessage)) pending.push(row.uuid)
+      return
+    }
+    if (!pending.length) return
+    const cut = row.type === 'system' && row.subtype === 'stream_cut'
+    const user = row.type === 'user' && Array.isArray(row.message.content)
+    if (!cut && !user) return
+    const resumes = cut || (row.type === 'user' && row.message.content.some(block => block.type === 'text' && isStreamFaultRecoveryNudgeText(block.text)))
+    if (resumes) for (const id of pending) recovered.add(id)
+    pending.length = 0
+  }
+}
+
+function closeServerCalls(rows: NormalizedMessage[], last: Message | undefined, index: MessageLookups): void {
+  const streamingId = last?.type === 'assistant' ? last.message.id : undefined
+  for (const row of rows) {
+    if (row.type !== 'assistant' || row.message.id === streamingId) continue
+    for (const block of contentBlocksOf(row.message.content)) {
+      if (block.type !== 'server_tool_use' && block.type !== 'mcp_tool_use') continue
+      if (index.resolvedToolUseIDs.has(block.id)) continue
+      index.resolvedToolUseIDs.add(block.id)
+      index.erroredToolUseIDs.add(block.id)
+    }
+  }
+}
+
+export function buildMessageLookups(normalizedMessages: NormalizedMessage[], messages: Message[]): MessageLookups {
+  const index = emptyIndexes()
+  index.normalizedMessageCount = normalizedMessages.length
+  indexCallGraph(messages, index)
+  const trackRecovery = recoveryTracker(index.recoveredStreamFaultUuids)
+  const open = freshOpenToolUses()
+  const seen: string[] = []
+  for (const row of normalizedMessages) {
+    if (row.type === 'user' || row.type === 'assistant') accumulateOpenToolUses(open, row)
+    trackRecovery(row)
+    switch (row.type) {
+      case 'progress': indexProgress(row, index); break
+      case 'user': indexResults(row, index, true); break
+      case 'assistant':
+        for (const block of contentBlocksOf(row.message.content)) {
+          if (block.type === 'tool_use') seen.push(block.id)
+          if ('tool_use_id' in block && typeof block.tool_use_id === 'string') index.resolvedToolUseIDs.add(block.tool_use_id)
+        }
+    }
+  }
+  for (const id of seen) if (!open.owners.has(id)) index.resolvedToolUseIDs.add(id)
+  closeServerCalls(normalizedMessages, messages.at(-1), index)
+  return index
+}
+
+export function buildSubagentLookups(messages: { message: AssistantMessage | NormalizedUserMessage }[]): {
+  lookups: MessageLookups; inProgressToolUseIDs: Set<string>
+} {
+  const lookups: MessageLookups = {
+    ...EMPTY_LOOKUPS, toolUseByToolUseID: new Map(), toolResultByToolUseID: new Map(), resolvedToolUseIDs: new Set(),
+  }
+  const open = freshOpenToolUses()
+  for (const entry of messages) {
+    const row = entry.message
+    accumulateOpenToolUses(open, row)
+    if (row.type === 'assistant') indexCalls(lookups.toolUseByToolUseID, row.message.content)
+    else if (row.type === 'user') indexResults(row, lookups, false)
+  }
+  const inProgressToolUseIDs = new Set<string>()
+  lookups.toolUseByToolUseID.forEach((_, id) => {
+    const plane = open.owners.has(id) ? inProgressToolUseIDs : lookups.resolvedToolUseIDs
+    plane.add(id)
+  })
+  return { lookups, inProgressToolUseIDs }
+}
+
+export function isHookAttachmentMessage(message: Message): message is AttachmentMessage<HookAttachment> {
   return message.type === 'attachment' && message.attachment.type === 'hook'
 }
 
 export function getToolUseID(message: NormalizedMessage): string | null {
+  if (message.type === 'progress') return message.toolUseID
+  if (message.type === 'attachment') return isHookAttachmentMessage(message) ? message.attachment.callId ?? null : null
+  if (message.type === 'system') return message.subtype === 'informational' ? message.toolUseID ?? null : null
   switch (message.type) {
-    case 'attachment':
-      return isHookAttachmentMessage(message)
-        ? (message.attachment.callId ?? null)
-        : null
-    case 'assistant':
-      return message.message.content[0]?.type === 'tool_use'
-        ? message.message.content[0].id
-        : null
-    case 'user':
+    case 'user': {
       if (message.sourceToolUseID) return message.sourceToolUseID
-      return message.message.content[0]?.type === 'tool_result'
-        ? message.message.content[0].tool_use_id
-        : null
-    case 'progress':
-      return message.toolUseID
-    case 'system':
-      return message.subtype === 'informational'
-        ? (message.toolUseID ?? null)
-        : null
-  }
-}
-
-
-function countHookProgress(
-  messages: NormalizedMessage[],
-  toolUseID: string,
-  hookEvent: HookEvent,
-  state: 'running' | 'ran',
-): number {
-  return count(
-    messages,
-    m =>
-      m.type === 'progress' &&
-      m.data.type === 'hook_progress' &&
-      m.data.event === hookEvent &&
-      m.data.state === state &&
-      m.parentToolUseID === toolUseID,
-  )
-}
-
-export function hasUnresolvedHooks(
-  messages: NormalizedMessage[],
-  toolUseID: string,
-  hookEvent: HookEvent,
-) {
-  return (
-    countHookProgress(messages, toolUseID, hookEvent, 'running') >
-    countHookProgress(messages, toolUseID, hookEvent, 'ran')
-  )
-}
-
-export function getToolResultIDs(normalizedMessages: NormalizedMessage[]): {
-  [toolUseID: string]: boolean
-} {
-  return Object.fromEntries(
-    normalizedMessages.flatMap(m =>
-      m.type === 'user' && m.message.content[0]?.type === 'tool_result'
-        ? [
-            [
-              m.message.content[0].tool_use_id,
-              m.message.content[0].is_error ?? false,
-            ],
-          ]
-        : ([] as [string, boolean][]),
-    ),
-  )
-}
-
-export function getSiblingToolUseIDs(
-  message: NormalizedMessage,
-  messages: Message[],
-): Set<string> {
-  const toolUseID = getToolUseID(message)
-  if (!toolUseID) return new Set()
-
-  const owner = messages.find(
-    (m): m is AssistantMessage =>
-      m.type === 'assistant' &&
-      contentBlocksOf(m.message.content).some(b => b.type === 'tool_use' && b.id === toolUseID),
-  )
-  if (!owner) return new Set()
-
-  const messageID = owner.message.id
-  const siblings = messages.filter(
-    (m): m is AssistantMessage =>
-      m.type === 'assistant' && m.message.id === messageID,
-  )
-  return new Set(
-    siblings.flatMap(m =>
-      contentBlocksOf(m.message.content)
-        .filter(b => b.type === 'tool_use')
-        .map(b => b.id),
-    ),
-  )
-}
-
-
-export type MessageLookups = {
-  siblingToolUseIDs: Map<string, Set<string>>
-  progressMessagesByToolUseID: Map<string, ProgressMessage[]>
-  inProgressHookCounts: Map<string, Map<HookEvent, number>>
-  resolvedHookCounts: Map<string, Map<HookEvent, number>>
-  toolResultByToolUseID: Map<string, NormalizedMessage>
-  toolUseByToolUseID: Map<string, ToolUseBlockParam>
-  normalizedMessageCount: number
-  resolvedToolUseIDs: Set<string>
-  erroredToolUseIDs: Set<string>
-  deniedToolUseIDs: Set<string>
-  recoveredStreamFaultUuids: Set<string>
-}
-
-export function buildMessageLookups(
-  normalizedMessages: NormalizedMessage[],
-  messages: Message[],
-): MessageLookups {
-  const toolUseIDsByMessageID = new Map<string, Set<string>>()
-  const toolUseIDToMessageID = new Map<string, string>()
-  const toolUseByToolUseID = new Map<string, ToolUseBlockParam>()
-  for (const msg of messages) {
-    if (msg.type !== 'assistant') continue
-    const id = msg.message.id
-    let toolUseIDs = toolUseIDsByMessageID.get(id)
-    if (!toolUseIDs) {
-      toolUseIDs = new Set()
-      toolUseIDsByMessageID.set(id, toolUseIDs)
+      const first = message.message.content[0]
+      return first?.type === 'tool_result' ? first.tool_use_id : null
     }
-    for (const content of contentBlocksOf(msg.message.content)) {
-      if (content.type === 'tool_use') {
-        toolUseIDs.add(content.id)
-        toolUseIDToMessageID.set(content.id, id)
-        toolUseByToolUseID.set(content.id, content)
-      }
+    case 'assistant': {
+      const first = message.message.content[0]
+      return first?.type === 'tool_use' ? first.id : null
     }
   }
-
-  const siblingToolUseIDs = new Map<string, Set<string>>()
-  for (const [toolUseID, messageID] of toolUseIDToMessageID) {
-    siblingToolUseIDs.set(toolUseID, toolUseIDsByMessageID.get(messageID)!)
-  }
-
-  const progressMessagesByToolUseID = new Map<string, ProgressMessage[]>()
-  const inProgressHookCounts = new Map<string, Map<HookEvent, number>>()
-  const resolvedHookCounts = new Map<string, Map<HookEvent, number>>()
-  const toolResultByToolUseID = new Map<string, NormalizedMessage>()
-  const resolvedToolUseIDs = new Set<string>()
-  const erroredToolUseIDs = new Set<string>()
-  const deniedToolUseIDs = new Set<string>()
-  const recoveredStreamFaultUuids = new Set<string>()
-  const pendingStreamFaultUuids: string[] = []
-  const openToolUses = freshOpenToolUses()
-  const seenToolUseIDs: string[] = []
-
-  for (const msg of normalizedMessages) {
-    if (msg.type === 'user' || msg.type === 'assistant') accumulateOpenToolUses(openToolUses, msg)
-    if (msg.type === 'progress') {
-      const toolUseID = msg.parentToolUseID
-      const existing = progressMessagesByToolUseID.get(toolUseID)
-      if (existing) existing.push(msg)
-      else progressMessagesByToolUseID.set(toolUseID, [msg])
-
-      if (msg.data.type === 'hook_progress') {
-        const target = msg.data.state === 'running' ? inProgressHookCounts : resolvedHookCounts
-        let byHookEvent = target.get(toolUseID)
-        if (!byHookEvent) {
-          byHookEvent = new Map()
-          target.set(toolUseID, byHookEvent)
-        }
-        byHookEvent.set(msg.data.event, (byHookEvent.get(msg.data.event) ?? 0) + 1)
-      }
-    }
-
-    if (msg.type === 'user') {
-      if (pendingStreamFaultUuids.length > 0 && Array.isArray(msg.message.content)) {
-        if (
-          msg.message.content.some(
-            c => c.type === 'text' && isStreamFaultRecoveryNudgeText(c.text),
-          )
-        ) {
-          for (const uuid of pendingStreamFaultUuids) recoveredStreamFaultUuids.add(uuid)
-        }
-        pendingStreamFaultUuids.length = 0
-      }
-      for (const content of contentBlocksOf(msg.message.content)) {
-        if (content.type === 'tool_result') {
-          toolResultByToolUseID.set(content.tool_use_id, msg)
-          resolvedToolUseIDs.add(content.tool_use_id)
-          if (content.is_error) {
-            erroredToolUseIDs.add(content.tool_use_id)
-            if (isDenialResultText(toolResultText(content.content))) {
-              deniedToolUseIDs.add(content.tool_use_id)
-            }
-          }
-        }
-      }
-    }
-
-    if (msg.type === 'system' && (msg as { subtype?: string }).subtype === 'stream_cut' && pendingStreamFaultUuids.length > 0) {
-      for (const uuid of pendingStreamFaultUuids) recoveredStreamFaultUuids.add(uuid)
-      pendingStreamFaultUuids.length = 0
-    }
-
-    if (msg.type === 'assistant') {
-      if (isContinuableStreamFaultMessage(msg as unknown as AssistantMessage)) {
-        pendingStreamFaultUuids.push(msg.uuid)
-      }
-      for (const content of contentBlocksOf(msg.message.content)) {
-        if (content.type === 'tool_use') seenToolUseIDs.push(content.id)
-        if (
-          'tool_use_id' in content &&
-          typeof (content as { tool_use_id: string }).tool_use_id === 'string'
-        ) {
-          resolvedToolUseIDs.add(
-            (content as { tool_use_id: string }).tool_use_id,
-          )
-        }
-      }
-    }
-  }
-
-  for (const id of seenToolUseIDs) {
-    if (!openToolUses.owners.has(id)) resolvedToolUseIDs.add(id)
-  }
-
-  const lastMsg = messages.at(-1)
-  const lastAssistantMsgId =
-    lastMsg?.type === 'assistant' ? lastMsg.message.id : undefined
-  for (const msg of normalizedMessages) {
-    if (msg.type !== 'assistant') continue
-    if (msg.message.id === lastAssistantMsgId) continue
-    for (const content of contentBlocksOf(msg.message.content)) {
-      if (
-        (content.type === 'server_tool_use' ||
-          content.type === 'mcp_tool_use') &&
-        !resolvedToolUseIDs.has((content as { id: string }).id)
-      ) {
-        const id = (content as { id: string }).id
-        resolvedToolUseIDs.add(id)
-        erroredToolUseIDs.add(id)
-      }
-    }
-  }
-
-  return {
-    siblingToolUseIDs,
-    progressMessagesByToolUseID,
-    inProgressHookCounts,
-    resolvedHookCounts,
-    toolResultByToolUseID,
-    toolUseByToolUseID,
-    normalizedMessageCount: normalizedMessages.length,
-    resolvedToolUseIDs,
-    erroredToolUseIDs,
-    recoveredStreamFaultUuids,
-    deniedToolUseIDs,
-  }
 }
 
-export const EMPTY_LOOKUPS: MessageLookups = {
-  siblingToolUseIDs: new Map(),
-  progressMessagesByToolUseID: new Map(),
-  inProgressHookCounts: new Map(),
-  resolvedHookCounts: new Map(),
-  toolResultByToolUseID: new Map(),
-  toolUseByToolUseID: new Map(),
-  normalizedMessageCount: 0,
-  resolvedToolUseIDs: new Set(),
-  erroredToolUseIDs: new Set(),
-  recoveredStreamFaultUuids: new Set(),
-  deniedToolUseIDs: new Set(),
+export function getSiblingToolUseIDsFromLookup(message: NormalizedMessage, lookups: MessageLookups): ReadonlySet<string> {
+  const id = getToolUseID(message)
+  return (id ? lookups.siblingToolUseIDs.get(id) : undefined) ?? EMPTY_STRING_SET
 }
 
-export const EMPTY_STRING_SET: ReadonlySet<string> = Object.freeze(
-  new Set<string>(),
-)
+export function getProgressMessagesFromLookup(message: NormalizedMessage, lookups: MessageLookups): ProgressMessage[] {
+  const id = getToolUseID(message)
+  return (id ? lookups.progressMessagesByToolUseID.get(id) : undefined) ?? []
+}
 
-export function buildSubagentLookups(
-  messages: { message: AssistantMessage | NormalizedUserMessage }[],
-): { lookups: MessageLookups; inProgressToolUseIDs: Set<string> } {
-  const toolUseByToolUseID = new Map<string, ToolUseBlockParam>()
-  const resolvedToolUseIDs = new Set<string>()
-  const toolResultByToolUseID = new Map<
-    string,
-    NormalizedUserMessage & { type: 'user' }
-  >()
+export function hasUnresolvedHooksFromLookup(toolUseID: string, hookEvent: HookEvent, lookups: MessageLookups): boolean {
+  const at = (plane: HookCounts): number => plane.get(toolUseID)?.get(hookEvent) ?? 0
+  return at(lookups.inProgressHookCounts) > at(lookups.resolvedHookCounts)
+}
 
-  const openToolUses = freshOpenToolUses()
-  for (const { message: msg } of messages) {
-    accumulateOpenToolUses(openToolUses, msg as Message)
-    if (msg.type === 'assistant') {
-      for (const content of contentBlocksOf(msg.message.content)) {
-        if (content.type === 'tool_use') {
-          toolUseByToolUseID.set(content.id, content as ToolUseBlockParam)
-        }
-      }
-    } else if (msg.type === 'user') {
-      for (const content of contentBlocksOf(msg.message.content)) {
-        if (content.type === 'tool_result') {
-          resolvedToolUseIDs.add(content.tool_use_id)
-          toolResultByToolUseID.set(content.tool_use_id, msg)
-        }
-      }
-    }
+export function hasUnresolvedHooks(messages: NormalizedMessage[], toolUseID: string, hookEvent: HookEvent) {
+  let balance = 0
+  for (const row of messages) {
+    if (row.type !== 'progress' || row.parentToolUseID !== toolUseID || row.data.type !== 'hook_progress' || row.data.event !== hookEvent) continue
+    if (row.data.state === 'running') balance++
+    if (row.data.state === 'ran') balance--
   }
+  return balance > 0
+}
 
-  const inProgressToolUseIDs = new Set<string>()
-  for (const id of toolUseByToolUseID.keys()) {
-    if (openToolUses.owners.has(id)) inProgressToolUseIDs.add(id)
-    else resolvedToolUseIDs.add(id)
+export function getToolResultIDs(normalizedMessages: NormalizedMessage[]): { [toolUseID: string]: boolean } {
+  const entries: [string, boolean][] = []
+  for (const row of normalizedMessages) {
+    if (row.type !== 'user') continue
+    const first = row.message.content[0]
+    if (first?.type === 'tool_result') entries.push([first.tool_use_id, first.is_error ?? false])
   }
+  return Object.fromEntries(entries)
+}
 
-  return {
-    lookups: {
-      ...EMPTY_LOOKUPS,
-      toolUseByToolUseID,
-      resolvedToolUseIDs,
-      toolResultByToolUseID,
-    },
-    inProgressToolUseIDs,
+export function getToolUseIDs(normalizedMessages: NormalizedMessage[]): Set<string> {
+  const ids = new Set<string>()
+  for (const row of normalizedMessages) {
+    if (row.type !== 'assistant' || !Array.isArray(row.message.content)) continue
+    const first = row.message.content[0]
+    if (first?.type === 'tool_use') ids.add(first.id)
   }
+  return ids
 }
 
-
-export function getSiblingToolUseIDsFromLookup(
-  message: NormalizedMessage,
-  lookups: MessageLookups,
-): ReadonlySet<string> {
-  const toolUseID = getToolUseID(message)
-  if (!toolUseID) return EMPTY_STRING_SET
-  return lookups.siblingToolUseIDs.get(toolUseID) ?? EMPTY_STRING_SET
+export function getSiblingToolUseIDs(message: NormalizedMessage, messages: Message[]): Set<string> {
+  const siblings = new Set<string>()
+  const id = getToolUseID(message)
+  if (!id) return siblings
+  const owner = messages.find(row => row.type === 'assistant' &&
+    contentBlocksOf(row.message.content).some(block => block.type === 'tool_use' && block.id === id))
+  if (owner?.type !== 'assistant') return siblings
+  for (const row of messages) {
+    if (row.type !== 'assistant' || row.message.id !== owner.message.id) continue
+    for (const block of contentBlocksOf(row.message.content)) if (block.type === 'tool_use') siblings.add(block.id)
+  }
+  return siblings
 }
 
-export function getProgressMessagesFromLookup(
-  message: NormalizedMessage,
-  lookups: MessageLookups,
-): ProgressMessage[] {
-  const toolUseID = getToolUseID(message)
-  if (!toolUseID) return []
-  return lookups.progressMessagesByToolUseID.get(toolUseID) ?? []
-}
-
-export function hasUnresolvedHooksFromLookup(
-  toolUseID: string,
-  hookEvent: HookEvent,
-  lookups: MessageLookups,
-): boolean {
-  const inProgressCount =
-    lookups.inProgressHookCounts.get(toolUseID)?.get(hookEvent) ?? 0
-  const resolvedCount =
-    lookups.resolvedHookCounts.get(toolUseID)?.get(hookEvent) ?? 0
-  return inProgressCount > resolvedCount
-}
-
-export function getToolUseIDs(
-  normalizedMessages: NormalizedMessage[],
-): Set<string> {
-  return new Set(
-    normalizedMessages
-      .filter(
-        (m): m is NormalizedAssistantMessage<ToolUseBlock> =>
-          m.type === 'assistant' &&
-          Array.isArray(m.message.content) &&
-          m.message.content[0]?.type === 'tool_use',
-      )
-      .map(m => m.message.content[0].id),
-  )
-}
-
-
-export function getLastAssistantMessage(
-  messages: Message[],
-): AssistantMessage | undefined {
-  return messages.findLast(
-    (msg: Message): msg is AssistantMessage => msg.type === 'assistant',
-  )
+export function getLastAssistantMessage(messages: Message[]): AssistantMessage | undefined {
+  return messages.findLast((row): row is AssistantMessage => row.type === 'assistant')
 }
 
 export function hasToolCallsInLastAssistantTurn(messages: Message[]): boolean {
-  for (let i = messages.length - 1; i >= 0; i--) {
-    const message = messages[i]
-    if (message && message.type === 'assistant') {
-      const content = (message as AssistantMessage).message.content
-      if (Array.isArray(content)) {
-        return content.some(block => block.type === 'tool_use')
-      }
-    }
-  }
-  return false
+  const row = messages.findLast(item => item?.type === 'assistant' && Array.isArray(item.message.content))
+  if (row?.type !== 'assistant') return false
+  const blocks = row.message.content
+  return blocks.some(block => block.type === 'tool_use')
 }

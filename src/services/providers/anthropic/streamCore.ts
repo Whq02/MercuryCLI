@@ -372,72 +372,48 @@ export async function* executeNonStreamingRequest(
   originatingRequestId?: string | null,
   afterSilence?: { idleMs: number; model: string },
 ): AsyncGenerator<SystemAPIErrorMessage, BetaMessage> {
-  const fallbackTimeoutMs = getNonstreamingFallbackTimeoutMs()
-  const generator = withRetry(
-    () =>
-      getAnthropicClient({
-        maxRetries: 0,
-        fetchOverride: clientOptions.fetchOverride,
-        source: clientOptions.source,
-      }),
-    async (anthropic, attempt, context) => {
-      if (attempt > 1 || anthropicLimitVerdict().status === 'rejected') await refreshProviderUsage('anthropic', { force: true, reason: 'operator' })
-      const start = Date.now()
-      const retryParams = paramsFromContext(context)
-      captureRequest(retryParams)
-      onAttempt(attempt, start, retryParams.max_tokens)
+  const timeout = getNonstreamingFallbackTimeoutMs()
+  const client = () => getAnthropicClient({ maxRetries: 0, fetchOverride: clientOptions.fetchOverride, source: clientOptions.source })
+  const attemptRequest = async (anthropic: Awaited<ReturnType<typeof getAnthropicClient>>, attempt: number, context: RetryContext) => {
+    if (attempt > 1 || anthropicLimitVerdict().status === 'rejected') await refreshProviderUsage('anthropic', { force: true, reason: 'operator' })
+    const started = Date.now()
+    const params = paramsFromContext(context)
+    captureRequest(params)
+    onAttempt(attempt, started, params.max_tokens)
+    const fitted = adjustParamsForNonStreaming(params, MAX_NON_STREAMING_TOKENS)
+    return nonStreamingAnswer(anthropic, fitted, retryOptions.signal, timeout, started, afterSilence)
+  }
+  const retries = withRetry(client, attemptRequest, {
+    model: retryOptions.model, fallbackModel: retryOptions.fallbackModel,
+    thinkingConfig: retryOptions.thinkingConfig, signal: retryOptions.signal,
+    initialConsecutive529Errors: retryOptions.initialConsecutive529Errors, querySource: retryOptions.querySource,
+    ...(retryOptions.onHeldWait !== undefined ? { onHeldWait: retryOptions.onHeldWait } : {}), healClientContract: true,
+  })
+  while (true) {
+    const step = await retries.next()
+    if (step.done) return step.value as BetaMessage
+    if (step.value.type === 'system') yield step.value
+  }
+}
 
-      const adjustedParams = adjustParamsForNonStreaming(
-        retryParams,
-        MAX_NON_STREAMING_TOKENS,
-      )
-
-      try {
-        const response = await anthropic.beta.messages.create(
-          {
-            ...adjustedParams,
-            model: normalizeModelStringForAPI(adjustedParams.model),
-          },
-          {
-            signal: retryOptions.signal,
-            timeout: fallbackTimeoutMs,
-          },
-        )
-        clearAnthropicUsageLimit(start)
-        return response
-      } catch (err) {
-        if (err instanceof APIUserAbortError) throw err
-
-        logForDiagnosticsNoPII('error', 'cli_nonstreaming_fallback_error')
-        if (afterSilence !== undefined && isFirstByteTimeout(err)) {
-          throw new Error(
-            `the stream went quiet for ${patienceSeconds(afterSilence.idleMs)} and one non-streamed answer got nothing in ${patienceSeconds(fallbackTimeoutMs)} from ${afterSilence.model} — no keep-alive arrived: a dead connection, or a request the provider parked; the turn was ended`,
-          )
-        }
-        throw err
-      }
-    },
-    {
-      model: retryOptions.model,
-      fallbackModel: retryOptions.fallbackModel,
-      thinkingConfig: retryOptions.thinkingConfig,
-      signal: retryOptions.signal,
-      initialConsecutive529Errors: retryOptions.initialConsecutive529Errors,
-      querySource: retryOptions.querySource,
-      ...(retryOptions.onHeldWait !== undefined ? { onHeldWait: retryOptions.onHeldWait } : {}),
-      healClientContract: true,
-    },
-  )
-
-  let e
-  do {
-    e = await generator.next()
-    if (!e.done && e.value.type === 'system') {
-      yield e.value
+async function nonStreamingAnswer(
+  client: Awaited<ReturnType<typeof getAnthropicClient>>, params: BetaMessageStreamParams,
+  signal: AbortSignal, timeout: number, started: number, silence?: { idleMs: number; model: string },
+) {
+  try {
+    const reply = await client.beta.messages.create(
+      { ...params, model: normalizeModelStringForAPI(params.model) }, { signal, timeout },
+    )
+    clearAnthropicUsageLimit(started)
+    return reply
+  } catch (error) {
+    if (error instanceof APIUserAbortError) throw error
+    logForDiagnosticsNoPII('error', 'cli_nonstreaming_fallback_error')
+    if (silence !== undefined && isFirstByteTimeout(error)) {
+      throw new Error(`the stream went quiet for ${patienceSeconds(silence.idleMs)} and one non-streamed answer got nothing in ${patienceSeconds(timeout)} from ${silence.model} — no keep-alive arrived: a dead connection, or a request the provider parked; the turn was ended`)
     }
-  } while (!e.done)
-
-  return e.value as BetaMessage
+    throw error
+  }
 }
 
 function isFirstByteTimeout(error: unknown): boolean {
@@ -1744,62 +1720,38 @@ export async function querySmallFast({
 
 type QueryWithModelOptions = Omit<Options, 'getToolPermissionContext'>
 
-export async function queryWithModel({
-  systemPrompt = asSystemPrompt([]),
-  userPrompt,
-  outputFormat,
-  signal,
-  options,
-}: {
-  systemPrompt: SystemPrompt
-  userPrompt: string
-  outputFormat?: JsonOutputFormat
-  signal: AbortSignal
-  options: QueryWithModelOptions
-}): Promise<AssistantMessage> {
-  const { routedCallModel, settleAssistantTurn } = await import(
-    '../../providers/callModelRouter.js'
-  )
-  const result = await withVCR(
-    [
-      createUserMessage({
-        content: systemPrompt.map(text => ({ type: 'text', text })),
-      }),
-      createUserMessage({
-        content: userPrompt,
-      }),
-    ],
-    async () => {
-      const messages = [
-        createUserMessage({
-          content: userPrompt,
-        }),
-      ]
+type OneShotQuestion = {
+  systemPrompt: SystemPrompt; userPrompt: string; outputFormat?: JsonOutputFormat
+  signal: AbortSignal; options: QueryWithModelOptions
+}
 
-      const settled: AssistantMessage[] = []
-      for await (const message of routedCallModel({
-        messages,
-        systemPrompt,
-        thinkingConfig: { type: 'disabled' },
-        tools: [],
-        signal,
-        options: {
-          ...options,
-          enablePromptCaching: options.enablePromptCaching ?? false,
-          outputFormat,
-          async getToolPermissionContext() {
-            return getEmptyToolPermissionContext()
-          },
-        },
-      })) {
-        if (message.type === 'assistant') {
-          settled.push(message as AssistantMessage)
-        }
-      }
-      return [settleAssistantTurn(settled, signal.aborted)]
+function sideQuestionParams(question: OneShotQuestion, systemPrompt: SystemPrompt): CallModelParams {
+  return {
+    messages: [createUserMessage({ content: question.userPrompt })], systemPrompt,
+    thinkingConfig: { type: 'disabled' }, tools: [], signal: question.signal,
+    options: {
+      ...question.options, enablePromptCaching: question.options.enablePromptCaching ?? false,
+      outputFormat: question.outputFormat, getToolPermissionContext: async () => getEmptyToolPermissionContext(),
     },
-  )
-  return result[0]! as AssistantMessage
+  }
+}
+
+export async function queryWithModel(question: OneShotQuestion): Promise<AssistantMessage> {
+  const { systemPrompt = asSystemPrompt([]), userPrompt, outputFormat, signal, options } = question
+  question = { systemPrompt, userPrompt, outputFormat, signal, options }
+  const { routedCallModel, settleAssistantTurn } = await import('../../providers/callModelRouter.js')
+  const recordedInput = [
+    createUserMessage({ content: systemPrompt.map(text => ({ type: 'text', text })) }),
+    createUserMessage({ content: question.userPrompt }),
+  ]
+  const answer = async (): Promise<AssistantMessage[]> => {
+    const stream = routedCallModel(sideQuestionParams(question, systemPrompt))
+    const replies: AssistantMessage[] = []
+    for await (const row of stream) if (row.type === 'assistant') replies.push(row)
+    return [settleAssistantTurn(replies, question.signal.aborted)]
+  }
+  const [reply] = await withVCR(recordedInput, answer)
+  return reply! as AssistantMessage
 }
 
 export const MAX_NON_STREAMING_TOKENS = 64_000

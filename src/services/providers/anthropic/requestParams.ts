@@ -35,42 +35,28 @@ type JsonValue = string | number | boolean | null | JsonObject | JsonArray
 type JsonObject = { [key: string]: JsonValue }
 type JsonArray = JsonValue[]
 
+function extraObject(name: 'MERCURY_EXTRA_BODY' | 'MERCURY_EXTRA_METADATA', logParseError: boolean): JsonObject {
+  const raw = process.env[name]
+  if (!raw) return {}
+  const value = safeParseJSON(raw, logParseError)
+  if (value && typeof value === 'object' && !Array.isArray(value)) return value as JsonObject
+  logForDebugging(`${name} env var must be a JSON object, but was given ${raw}`, { level: 'error' })
+  return {}
+}
+
 export function getExtraBodyParams(betaHeaders?: string[]): JsonObject {
-  let result: JsonObject = {}
-
-  const extraBodyStr = process.env.MERCURY_EXTRA_BODY
-  if (extraBodyStr) {
-    try {
-      const parsed = safeParseJSON(extraBodyStr)
-      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
-        result = { ...(parsed as JsonObject) }
-      } else {
-        logForDebugging(
-          `MERCURY_EXTRA_BODY env var must be a JSON object, but was given ${extraBodyStr}`,
-          { level: 'error' },
-        )
-      }
-    } catch (error) {
-      logForDebugging(
-        `Error parsing MERCURY_EXTRA_BODY: ${errorMessage(error)}`,
-        { level: 'error' },
-      )
-    }
+  let body: JsonObject
+  try {
+    body = { ...extraObject('MERCURY_EXTRA_BODY', true) }
+  } catch (error) {
+    logForDebugging(`Error parsing MERCURY_EXTRA_BODY: ${errorMessage(error)}`, { level: 'error' })
+    body = {}
   }
-
-  if (betaHeaders && betaHeaders.length > 0) {
-    if (result.anthropic_beta && Array.isArray(result.anthropic_beta)) {
-      const existingHeaders = result.anthropic_beta as string[]
-      const newHeaders = betaHeaders.filter(
-        header => !existingHeaders.includes(header),
-      )
-      result.anthropic_beta = [...existingHeaders, ...newHeaders]
-    } else {
-      result.anthropic_beta = betaHeaders
-    }
-  }
-
-  return result
+  if (!betaHeaders?.length) return body
+  const previous = body.anthropic_beta
+  body.anthropic_beta = Array.isArray(previous)
+    ? [...previous, ...betaHeaders.filter(header => !previous.includes(header))] : betaHeaders
+  return body
 }
 
 export function getPromptCachingEnabled(model: string): boolean {
@@ -156,78 +142,46 @@ export function anthropicEffortWireFact(
 }
 
 export function getAPIMetadata() {
-  let extra: JsonObject = {}
-  const extraStr = process.env.MERCURY_EXTRA_METADATA
-  if (extraStr) {
-    const parsed = safeParseJSON(extraStr, false)
-    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
-      extra = parsed as JsonObject
-    } else {
-      logForDebugging(
-        `MERCURY_EXTRA_METADATA env var must be a JSON object, but was given ${extraStr}`,
-        { level: 'error' },
-      )
-    }
-  }
+  const extra = extraObject('MERCURY_EXTRA_METADATA', false)
+  const identity = { account_uuid: getOauthAccountInfo()?.accountUuid ?? '', session_id: getSessionId() }
+  return { user_id: jsonStringify({ ...extra, ...identity }) }
+}
 
+function keyProbeBody(model: string, betas: string[]) {
+  const messages: MessageParam[] = [{ role: 'user', content: 'test' }]
   return {
-    user_id: jsonStringify({
-      ...extra,
-      account_uuid: getOauthAccountInfo()?.accountUuid ?? '',
-      session_id: getSessionId(),
-    }),
+    model, max_tokens: 1, messages,
+    ...(modelSupportsTemperature(model) ? { temperature: 1 } : {}),
+    ...(betas.length ? { betas } : {}),
+    metadata: getAPIMetadata(), ...getExtraBodyParams(),
   }
 }
 
-export async function verifyApiKey(
-  apiKey: string,
-  isNonInteractiveSession: boolean,
-): Promise<boolean> {
-  if (isNonInteractiveSession) {
-    return true
-  }
+function keyProbeFailure(caught: unknown): false {
+  const error = caught instanceof CannotRetryError ? caught.originalError : caught
+  logError(error)
+  const invalid = error instanceof Error && error.message.includes(
+    '{"type":"error","error":{"type":"authentication_error","message":"invalid x-api-key"}}',
+  )
+  if (invalid) return false
+  throw error
+}
 
+export async function verifyApiKey(apiKey: string, isNonInteractiveSession: boolean): Promise<boolean> {
+  if (isNonInteractiveSession) return true
   try {
     const model = getSmallFastModel()
     const betas = getModelBetas(model)
-    return await returnValue(
-      withRetry(
-        () =>
-          getAnthropicClient({
-            apiKey,
-            maxRetries: 3,
-            source: 'verify_api_key',
-          }),
-        async anthropic => {
-          const messages: MessageParam[] = [{ role: 'user', content: 'test' }]
-          await anthropic.beta.messages.create({
-            model,
-            max_tokens: 1,
-            messages,
-            ...(modelSupportsTemperature(model) && { temperature: 1 }),
-            ...(betas.length > 0 && { betas }),
-            metadata: getAPIMetadata(),
-            ...getExtraBodyParams(),
-          })
-          return true
-        },
-        { maxRetries: 2, model, thinkingConfig: { type: 'disabled' }, reconnect: false },
-      ),
-    )
-  } catch (errorFromRetry) {
-    let error = errorFromRetry
-    if (errorFromRetry instanceof CannotRetryError) {
-      error = errorFromRetry.originalError
+    const createClient = () => getAnthropicClient({ apiKey, maxRetries: 3, source: 'verify_api_key' })
+    const probe = async (anthropic: Awaited<ReturnType<typeof getAnthropicClient>>): Promise<true> => {
+      await anthropic.beta.messages.create(keyProbeBody(model, betas))
+      return true
     }
-    logError(error)
-    if (
-      error instanceof Error &&
-      error.message.includes(
-        '{"type":"error","error":{"type":"authentication_error","message":"invalid x-api-key"}}',
-      )
-    ) {
-      return false
-    }
-    throw error
+    const attempts = withRetry(createClient, probe, {
+      maxRetries: 2, model, thinkingConfig: { type: 'disabled' }, reconnect: false,
+    })
+    return await returnValue(attempts)
+  } catch (caught) {
+    return keyProbeFailure(caught)
   }
 }

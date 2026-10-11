@@ -1,291 +1,152 @@
-
 import type { ContentBlock, RedactedThinkingBlock, ThinkingBlock, ContentBlockParam, RedactedThinkingBlockParam, TextBlockParam, ThinkingBlockParam, ToolResultBlockParam } from '../../types/wire.js'
+import type { AssistantMessage, Message, UserMessage } from '../../types/message.js'
 import { NO_CONTENT_MESSAGE } from '../../constants/messages.js'
-import type {
-  AssistantMessage,
-  Message,
-  UserMessage,
-} from '../../types/message.js'
-import { mergeUserMessages } from './merge.js'
-import { clientCallItemsOf, contentItemsOf, isReasoningContent, resultItemsOf } from '../../rows/content.js'
 import { DEAD_THINKING_PLACEHOLDER } from '../../services/providers/anthropic/deadThinkingPlaceholder.js'
+import { clientCallItemsOf, contentItemsOf, isReasoningContent, resultItemsOf } from '../../rows/content.js'
+import { mergeUserMessages } from './merge.js'
 
-type ThinkingBlockType =
-  | ThinkingBlock
-  | RedactedThinkingBlock
-  | ThinkingBlockParam
-  | RedactedThinkingBlockParam
-  | ThinkingBlock
-  | RedactedThinkingBlock
+type ThinkingBlockType = ThinkingBlock | RedactedThinkingBlock | ThinkingBlockParam | RedactedThinkingBlockParam
+type ConversationRow = UserMessage | AssistantMessage
+type AssistantContent = AssistantMessage['message']['content']
 
-export function isThinkingBlock(
-  block: ContentBlockParam | ContentBlock | ContentBlock,
-): block is ThinkingBlockType {
+function reviseRows<M extends Message>(rows: M[], revise: (row: M, index: number) => M): M[] {
+  let copy: M[] | undefined
+  rows.forEach((row, index) => {
+    const next = revise(row, index)
+    if (next === row) return
+    copy ??= rows.slice()
+    copy[index] = next
+  })
+  return copy ?? rows
+}
+
+function withAssistantContent<M extends Message>(row: M, content: AssistantContent): M {
+  const assistant = row as AssistantMessage
+  return { ...assistant, message: { ...assistant.message, content } } as M
+}
+
+const placeholder = (text: string): AssistantContent => [{ type: 'text', text, citations: [] }]
+
+export function isThinkingBlock(block: ContentBlockParam | ContentBlock): block is ThinkingBlockType {
   return isReasoningContent(block)
 }
 
-export function filterTrailingThinkingFromLastAssistant(
-  messages: (UserMessage | AssistantMessage)[],
-): (UserMessage | AssistantMessage)[] {
-  const lastMessage = messages.at(-1)
-  if (!lastMessage || lastMessage.type !== 'assistant') {
-    return messages
-  }
-
-  const content = lastMessage.message.content
-  const lastBlock = content.at(-1)
-  if (!lastBlock || !isThinkingBlock(lastBlock)) {
-    return messages
-  }
-
-  let lastValidIndex = content.length - 1
-  while (lastValidIndex >= 0) {
-    const block = content[lastValidIndex]
-    if (!block || !isThinkingBlock(block)) break
-    lastValidIndex--
-  }
-
-
-  const filteredContent =
-    lastValidIndex < 0
-      ? [{ type: 'text' as const, text: DEAD_THINKING_PLACEHOLDER, citations: [] }]
-      : content.slice(0, lastValidIndex + 1)
-
-  const result = [...messages]
-  result[messages.length - 1] = {
-    ...lastMessage,
-    message: { ...lastMessage.message, content: filteredContent },
-  }
-  return result
-}
-
-export function dropEmptyTextBlocks<M extends Message>(messages: M[]): M[] {
-  let changed = false
-  const result = messages.map(msg => {
-    if (msg.type !== 'assistant') return msg
-    const content = msg.message.content
-    if (!Array.isArray(content) || content.length < 2) return msg
-    const kept = content.filter(
-      block => !(block.type === 'text' && (typeof block.text !== 'string' || block.text.trim() === '')),
-    )
-    if (kept.length === content.length || kept.length === 0) return msg
-    changed = true
-    return { ...msg, message: { ...msg.message, content: kept } } as typeof msg
-  })
-  return changed ? result : messages
-}
-
-function hasOnlyWhitespaceTextContent(
-  content: Array<{ type: string; text?: string }>,
-): boolean {
-  if (content.length === 0) return false
-  for (const block of content) {
-    if (block.type !== 'text') return false
-    if (block.text !== undefined && block.text.trim() !== '') return false
-  }
-  return true
-}
-
-export function filterWhitespaceOnlyAssistantMessages(
-  messages: (UserMessage | AssistantMessage)[],
-): (UserMessage | AssistantMessage)[]
-export function filterWhitespaceOnlyAssistantMessages(
-  messages: Message[],
-): Message[]
-export function filterWhitespaceOnlyAssistantMessages(
-  messages: Message[],
-): Message[] {
-  let hasChanges = false
-
-  const filtered = messages.filter(message => {
-    if (message.type !== 'assistant') return true
-    const content = message.message.content
-    if (!Array.isArray(content) || content.length === 0) return true
-    if (hasOnlyWhitespaceTextContent(content)) {
-      hasChanges = true
-      return false
-    }
-    return true
-  })
-
-  if (!hasChanges) return messages
-
-  const merged: Message[] = []
-  for (const message of filtered) {
-    const prev = merged.at(-1)
-    if (message.type === 'user' && prev?.type === 'user') {
-      merged[merged.length - 1] = mergeUserMessages(prev, message)
-    } else {
-      merged.push(message)
-    }
-  }
-  return merged
-}
-
-export function ensureNonEmptyAssistantContent(
-  messages: (UserMessage | AssistantMessage)[],
-): (UserMessage | AssistantMessage)[] {
-  if (messages.length === 0) return messages
-
-  let hasChanges = false
-  const result = messages.map((message, index) => {
-    if (message.type !== 'assistant') return message
-    if (index === messages.length - 1) return message
-    const content = message.message.content
-    if (Array.isArray(content) && content.length === 0) {
-      hasChanges = true
-      return {
-        ...message,
-        message: {
-          ...message.message,
-          content: [
-            { type: 'text' as const, text: NO_CONTENT_MESSAGE, citations: [] },
-          ],
-        },
-      }
-    }
-    return message
-  })
-
-  return hasChanges ? result : messages
-}
-
-export function filterOrphanedThinkingOnlyMessages(
-  messages: (UserMessage | AssistantMessage)[],
-): (UserMessage | AssistantMessage)[]
-export function filterOrphanedThinkingOnlyMessages(
-  messages: Message[],
-): Message[]
-export function filterOrphanedThinkingOnlyMessages(
-  messages: Message[],
-): Message[] {
-  const messageIdsWithNonThinkingContent = new Set<string>()
-  for (const msg of messages) {
-    if (msg.type !== 'assistant') continue
-    const content = msg.message.content
-    if (!Array.isArray(content)) continue
-    const hasNonThinking = contentItemsOf(content).some(item => item.type !== 'reasoning')
-    if (hasNonThinking && msg.message.id) {
-      messageIdsWithNonThinkingContent.add(msg.message.id)
-    }
-  }
-
-  return messages.filter(msg => {
-    if (msg.type !== 'assistant') return true
-    const content = msg.message.content
-    if (!Array.isArray(content) || content.length === 0) return true
-
-    const allThinking = contentItemsOf(content).every(item => item.type === 'reasoning')
-    if (!allThinking) return true
-    if (
-      msg.message.id &&
-      messageIdsWithNonThinkingContent.has(msg.message.id)
-    ) {
-      return true
-    }
-
-    return false
-  })
+function withoutThinking<M extends Message>(row: M, emptyText?: string): M {
+  if (row.type !== 'assistant' || !Array.isArray(row.message.content)) return row
+  const before = row.message.content
+  const after = before.filter(block => !isThinkingBlock(block))
+  return after.length === before.length ? row : withAssistantContent(row,
+    after.length === 0 && emptyText !== undefined ? placeholder(emptyText) : after)
 }
 
 export function stripSignatureBlocks(messages: Message[]): Message[] {
   return stripThinkingFromIndex(messages, 0)
 }
 
-export function stripThinkingFromIndex<M extends Message>(
-  messages: M[],
-  fromIndex: number,
-): M[] {
-  let changed = false
-  const result = messages.map((msg, index) => {
-    if (index < fromIndex || msg.type !== 'assistant') return msg
-    const content = msg.message.content
-    if (!Array.isArray(content)) return msg
+export function stripThinkingFromIndex<M extends Message>(messages: M[], fromIndex: number): M[] {
+  return reviseRows(messages, (row, index) => index < fromIndex ? row : withoutThinking(row))
+}
 
-    const filtered = content.filter(block => !isThinkingBlock(block))
-    if (filtered.length === content.length) return msg
-
-    changed = true
-    return {
-      ...msg,
-      message: { ...msg.message, content: filtered },
-    } as typeof msg
-  })
-  return changed ? result : messages
+function isOtherModel(row: Message, target: string, same: (a: string, b: string) => boolean): row is AssistantMessage {
+  return row.type === 'assistant' && typeof row.message.model === 'string' &&
+    row.message.model.length > 0 && !same(row.message.model, target)
 }
 
 export function thinkingFromOtherModels(
-  messages: readonly Message[],
-  requestModel: string,
-  sameModel: (a: string, b: string) => boolean,
+  messages: readonly Message[], requestModel: string, sameModel: (a: string, b: string) => boolean,
 ): { count: number; models: string[] } {
-  let count = 0
-  const models: string[] = []
-  for (const msg of messages) {
-    if (msg.type !== 'assistant') continue
-    const model = msg.message.model
-    if (typeof model !== 'string' || model.length === 0 || sameModel(model, requestModel)) continue
-    const content = msg.message.content
-    if (!Array.isArray(content)) continue
-    const own = content.filter(isThinkingBlock).length
-    if (own === 0) continue
-    count += own
-    if (!models.includes(model)) models.push(model)
-  }
-  return { count, models }
+  const models = new Set<string>()
+  const count = messages.reduce((total, row) => {
+    if (!isOtherModel(row, requestModel, sameModel) || !Array.isArray(row.message.content)) return total
+    const reasoning = row.message.content.filter(isThinkingBlock).length
+    if (reasoning > 0) models.add(row.message.model)
+    return total + reasoning
+  }, 0)
+  return { count, models: [...models] }
 }
 
 export function stripThinkingFromOtherModels<M extends Message>(
-  messages: M[],
-  requestModel: string,
-  sameModel: (a: string, b: string) => boolean,
+  messages: M[], requestModel: string, sameModel: (a: string, b: string) => boolean,
 ): M[] {
-  let changed = false
-  const result = messages.map(msg => {
-    if (msg.type !== 'assistant') return msg
-    const model = msg.message.model
-    if (typeof model !== 'string' || model.length === 0 || sameModel(model, requestModel)) return msg
-    const content = msg.message.content
-    if (!Array.isArray(content)) return msg
-    const filtered = content.filter(block => !isThinkingBlock(block))
-    if (filtered.length === content.length) return msg
-    changed = true
-    if (filtered.length === 0) {
-      filtered.push({
-        type: 'text' as const,
-        text: '[reasoning written by another model — not carried across the switch]',
-        citations: [],
-      })
-    }
-    return { ...msg, message: { ...msg.message, content: filtered } } as typeof msg
+  return reviseRows(messages, row => isOtherModel(row, requestModel, sameModel)
+    ? withoutThinking(row, '[reasoning written by another model — not carried across the switch]')
+    : row)
+}
+
+export function filterTrailingThinkingFromLastAssistant(messages: ConversationRow[]): ConversationRow[] {
+  const final = messages.at(-1)
+  if (final?.type !== 'assistant') return messages
+  const blocks = final.message.content
+  const tail = blocks.at(-1)
+  if (!tail || !isThinkingBlock(tail)) return messages
+  const end = blocks.findLastIndex(block => !block || !isThinkingBlock(block)) + 1
+  return [...messages.slice(0, -1), withAssistantContent(final,
+    end === 0 ? placeholder(DEAD_THINKING_PLACEHOLDER) : blocks.slice(0, end))]
+}
+
+export function dropEmptyTextBlocks<M extends Message>(messages: M[]): M[] {
+  return reviseRows(messages, row => {
+    if (row.type !== 'assistant' || !Array.isArray(row.message.content) || row.message.content.length < 2) return row
+    const before = row.message.content
+    const after = before.filter(block => block.type !== 'text' || (typeof block.text === 'string' && block.text.trim() !== ''))
+    return after.length > 0 && after.length !== before.length ? withAssistantContent(row, after) : row
   })
-  return changed ? result : messages
+}
+
+export function ensureNonEmptyAssistantContent(messages: ConversationRow[]): ConversationRow[] {
+  return reviseRows(messages, (row, index) => row.type === 'assistant' && index < messages.length - 1 &&
+    Array.isArray(row.message.content) && row.message.content.length === 0
+    ? withAssistantContent(row, placeholder(NO_CONTENT_MESSAGE)) : row)
+}
+
+function isBlankAssistant(row: Message): boolean {
+  if (row.type !== 'assistant' || !Array.isArray(row.message.content)) return false
+  const blocks = row.message.content
+  return blocks.length > 0 && blocks.every(block => block.type === 'text' &&
+    (block.text === undefined || block.text.trim() === ''))
+}
+
+export function filterWhitespaceOnlyAssistantMessages(messages: ConversationRow[]): ConversationRow[]
+export function filterWhitespaceOnlyAssistantMessages(messages: Message[]): Message[]
+export function filterWhitespaceOnlyAssistantMessages(messages: Message[]): Message[] {
+  const kept = messages.filter(row => !isBlankAssistant(row))
+  if (kept.length === messages.length) return messages
+  return kept.reduce<Message[]>((out, row) => {
+    const previous = out.at(-1)
+    if (previous?.type === 'user' && row.type === 'user') out[out.length - 1] = mergeUserMessages(previous, row)
+    else out.push(row)
+    return out
+  }, [])
+}
+
+export function filterOrphanedThinkingOnlyMessages(messages: ConversationRow[]): ConversationRow[]
+export function filterOrphanedThinkingOnlyMessages(messages: Message[]): Message[]
+export function filterOrphanedThinkingOnlyMessages(messages: Message[]): Message[] {
+  const candidates = new Set<Message>()
+  const completeIds = new Set<string>()
+  for (const row of messages) {
+    if (row.type !== 'assistant' || !Array.isArray(row.message.content)) continue
+    const items = contentItemsOf(row.message.content)
+    if (items.some(item => item.type !== 'reasoning')) {
+      if (row.message.id) completeIds.add(row.message.id)
+    } else if (row.message.content.length > 0) candidates.add(row)
+  }
+  return messages.filter(row => !candidates.has(row) ||
+    (row.type === 'assistant' && Boolean(row.message.id) && completeIds.has(row.message.id)))
 }
 
 export function filterUnresolvedToolUses(messages: Message[]): Message[] {
-  const toolUseIds = new Set<string>()
-  const toolResultIds = new Set<string>()
-
-  for (const msg of messages) {
-    if (msg.type !== 'user' && msg.type !== 'assistant') continue
-    const content = msg.message.content
-    if (!Array.isArray(content)) continue
-    for (const item of clientCallItemsOf(content)) toolUseIds.add(item.call_id)
-    for (const item of resultItemsOf(content)) toolResultIds.add(item.call_id)
+  const answered = new Set<string>()
+  const calls = new Map<Message, string[]>()
+  for (const row of messages) {
+    if ((row.type !== 'user' && row.type !== 'assistant') || !Array.isArray(row.message.content)) continue
+    calls.set(row, clientCallItemsOf(row.message.content).map(item => item.call_id))
+    for (const item of resultItemsOf(row.message.content)) answered.add(item.call_id)
   }
-
-  const unresolvedIds = new Set(
-    [...toolUseIds].filter(id => !toolResultIds.has(id)),
-  )
-  if (unresolvedIds.size === 0) return messages
-
-  return messages.filter(msg => {
-    if (msg.type !== 'assistant') return true
-    const content = msg.message.content
-    if (!Array.isArray(content)) return true
-    const toolUseBlockIds = clientCallItemsOf(content).map(item => item.call_id)
-    if (toolUseBlockIds.length === 0) return true
-    return !toolUseBlockIds.every(id => unresolvedIds.has(id))
+  if (![...calls.values()].some(ids => ids.some(id => !answered.has(id)))) return messages
+  return messages.filter(row => {
+    const ids = calls.get(row)
+    return row.type !== 'assistant' || !ids?.length || ids.some(id => answered.has(id))
   })
 }
 
@@ -303,9 +164,7 @@ function textOnlyResult(block: ToolResultBlockParam): ToolResultBlockParam {
   return { ...block, content }
 }
 
-export function sanitizeErrorToolResultContent(
-  messages: (UserMessage | AssistantMessage)[],
-): (UserMessage | AssistantMessage)[] {
+export function sanitizeErrorToolResultContent(messages: ConversationRow[]): ConversationRow[] {
   return messages.map(msg => {
     if (msg.type !== 'user' || !Array.isArray(msg.message.content)) return msg
     const before = msg.message.content

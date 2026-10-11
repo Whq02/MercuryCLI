@@ -32,9 +32,10 @@ function chainCount(file: string): number {
 
 const INVENTORY: Record<string, [number, string]> = {
   'normalize.ts': [0, 'the door — every read routes through contentBlocksOf'],
-  'lookups.ts': [1, 'one .some in buildMessageLookups\'s user pass, under its own Array.isArray guard; every raw walk routes through the owner'],
+  'lookups.ts': [1, 'one .some in recoveryTracker after its user/Array.isArray decision; every raw walk routes through the owner'],
+  'apiFilters.ts': [1, 'thinkingFromOtherModels filters only after its Array.isArray guard on the preceding line'],
   'apiView.ts': [2, 'two chains in model post-processing that run AFTER normalizeMessagesForAPI, whose assistant arm coerces through the owner — array by construction'],
-  'pairing.ts': [5, 'five chains each under an Array.isArray predicate or guard on the adjacent line; the raw walks route through the owner'],
+  'pairing.ts': [3, 'foldSplitTurnsForWire and the two repairResultAdjacency chains each follow an Array.isArray guard; pairing helpers read guarded local content'],
   'streaming.ts': [1, 'one .find over the stream assembler\'s own self-minted block array — never a foreign shape'],
   'systemMessages.ts': [4, 'four chains each under an Array.isArray guard on the previous line'],
 }

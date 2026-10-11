@@ -129,7 +129,7 @@ section('§2 the routed helpers stay routed — queryWithModel / querySmallFast'
   const withModelEnd = core.indexOf('export const MAX_NON_STREAMING_TOKENS')
   const withModel = withModelStart >= 0 && withModelEnd > withModelStart ? core.slice(withModelStart, withModelEnd) : ''
   check('queryWithModel late-imports the router', withModel.includes("import(") && withModel.includes('providers/callModelRouter.js'))
-  check('queryWithModel drains routedCallModel (never queryModel directly)', withModel.includes('routedCallModel({') && !/\bqueryModel\(/.test(withModel))
+  check('queryWithModel drains routedCallModel (never queryModel directly)', withModel.includes('routedCallModel(sideQuestionParams(question, systemPrompt))') && !/\bqueryModel\(/.test(withModel))
   check('queryWithModel settles through the router-owned fold', withModel.includes('settleAssistantTurn('))
   const smallStart = core.indexOf('export async function querySmallFast(')
   const smallFast = smallStart >= 0 ? core.slice(smallStart, withModelStart) : ''
