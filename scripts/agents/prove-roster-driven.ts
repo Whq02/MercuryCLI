@@ -441,8 +441,8 @@ section('§5 the docs skill in a fresh chat: how do I schedule a prompt — answ
   const toolUses = all.flatMap(body => ((body.messages as Array<{ content?: unknown }> | undefined) ?? []).flatMap(m => (Array.isArray(m.content) ? (m.content as Array<{ type?: string; name?: string }>).filter(b => b.type === 'tool_use').map(b => b.name ?? '') : [])))
   check('no WebFetch and no WebSearch anywhere in the run', toolUses.length > 0 && !toolUses.includes('WebFetch') && !toolUses.includes('WebSearch'), toolUses.join(','))
   check('the answer names the real command and tool the docs name', /\/saturn/.test(resultText(run)) && /CronCreate/.test(resultText(run)), resultText(run))
-  const systemText = systemTextOf(all[0] ?? {})
-  check("the session's guidance sends questions about Mercury to the docs skill", systemText.includes('invoke the `mercury-docs` skill through the Skill tool'))
+  const firstRequestText = JSON.stringify(all[0] ?? {})
+  check("the session is told, in the docs skill's own listing line, that a question about using Mercury goes to the docs skill", firstRequestText.includes('mercury-docs') && firstRequestText.includes('Use when the user asks how to use Mercury itself'))
   drop(world)
 }
 
