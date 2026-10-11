@@ -41,16 +41,19 @@ function publishDelta(event: Extract<StreamEvent['event'], { type: 'content_bloc
     return
   }
   if (delta.type === 'text_delta') {
+    const chunk = delta.text
     fluxCount('text-delta')
-    fluxMark('delta:text', delta.text.length)
-    length(delta.text)
-    text?.(before => (before ?? '') + delta.text)
+    fluxMark('delta:text', chunk.length)
+    length(chunk)
+    text?.(before => (before ?? '') + chunk)
     return
   }
   if (delta.type === 'input_json_delta') {
+    const chunk = delta.partial_json
+    const index = event.index
     fluxCount('tool-delta')
-    length(delta.partial_json)
-    tools(appendInput(event.index, delta.partial_json), { silent: true })
+    length(chunk)
+    tools(appendInput(index, chunk), { silent: true })
   }
 }
 
@@ -96,7 +99,8 @@ export function handleMessageFromStream(
       const mode = Object.hasOwn(openingModes, block.type) ? openingModes[block.type] : undefined
       if (mode) onSetStreamMode(mode)
       if (block.type === 'tool_use') {
-        onStreamingToolUses(current => current.concat({ index: event.index, contentBlock: block, unparsedToolInput: '' }))
+        const index = event.index
+        onStreamingToolUses(current => current.concat({ index, contentBlock: block, unparsedToolInput: '' }))
       }
       return
     }
