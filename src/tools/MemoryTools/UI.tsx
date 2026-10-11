@@ -54,11 +54,11 @@ export function renderRecallResult(output?: RecallOutput): React.ReactNode {
     <MessageResponse>
       <Box flexDirection="column">
         <Text dimColor>
-          {output.hits.length === 0 ? 'no memory matched (elidable)' : `${output.hits.length} hit(s)`}
+          {output.pointers.length === 0 ? 'no memory matched (elidable)' : `${output.pointers.length} pointer(s)`}
         </Text>
-        {output.hits.slice(0, 5).map((hit, index) => (
+        {output.pointers.slice(0, 5).map((pointer, index) => (
           <Text key={index} dimColor wrap="truncate-end">
-            [{hit.id}] {hit.preview}
+            [{pointer.id}] {pointer.kind} · {pointer.title}
           </Text>
         ))}
       </Box>
