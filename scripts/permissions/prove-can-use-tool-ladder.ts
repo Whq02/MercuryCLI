@@ -156,6 +156,19 @@ section('§5 AUTOMATED CHECKS FIRST — with no hook decision the dialog still f
   check('the queue is empty again', queue.length === 0)
 }
 
+section('§5b A WITHDRAWAL DURING THE DESCRIPTION — the description is still read; the deny never settles; the cancel decision does')
+{
+  describes = 0
+  const context = useContext()
+  const describing = { ...tool, async description() { describes++; context.abortController.abort(); return 'late' } }
+  const decision = await canUseTool(describing as never, input, context as never, assistantMessage as never, 'toolu_late', { behavior: 'deny', message: 'no' } as never)
+  check('a deny withdrawn while the tool describes settles with the cancel decision, after one description read', decision.behavior === 'ask' && decision.message === REJECT_MESSAGE && describes === 1, j([decision, describes]))
+  describes = 0
+  const allowed = useContext()
+  const allowDecision = await canUseTool(describing as never, input, allowed as never, assistantMessage as never, 'toolu_allow', { behavior: 'allow' } as never)
+  check('an allow never reads the description, so a withdrawal there cannot touch it', allowDecision.behavior === 'allow' && describes === 0, j([allowDecision, describes]))
+}
+
 section('§6 A FAULT ON THE ROAD — a throwing description settles with the cancel decision instead of rejecting')
 {
   describeFault = new Error('the describer broke')
