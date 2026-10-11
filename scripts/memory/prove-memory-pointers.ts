@@ -57,7 +57,7 @@ check(
 check('the pointer kinds are fact pointers', pointers.every(p => p.kind === 'fact'), JSON.stringify(pointers.map(p => p.kind)))
 const leaked = SECRETS.filter(s => JSON.stringify(search.data).includes(s) || search.text.includes(s))
 check('no content word of any record is in the answer (data or text)', leaked.length === 0, leaked.join(', '))
-check('the text teaches the read before the quote', search.text.includes('open one with read:"<id>"') && search.text.includes('never from a pointer'), search.text.split('\n')[0])
+check('the answer states the fact and no law of negation', search.text.startsWith('3 pointer(s) — a pointer carries no content: open one with read:"<id>" before you rely on it\n') && !search.text.includes('never from a pointer') && !search.text.includes('quoted from the record'), search.text.split('\n')[0])
 check('a pointer title names the page, the section, the day and the source', pointers.some(p => /^deploy › notes · \d{4}-\d{2}-\d{2} · tool:Retain s:alpha-se · matches deploy, gate$/.test(String(p.title))), JSON.stringify(pointers.map(p => p.title)))
 check('the pending row is a pointer too, named pending', pointers.some(p => String(p.id).startsWith('pending:') && String(p.title).startsWith('pending · deploy · ')), JSON.stringify(pointers.map(p => p.title)))
 const noMatch = await recallTool({ query: 'zebrafrost quintuple' })
@@ -73,7 +73,14 @@ const pendingPointer = pointers.find(p => String(p.id).startsWith('pending:'))!
 const pendingRead = await recallTool({ read: String(pendingPointer.id) })
 check('a pending pointer opens to its row', pendingRead.data.found === true && String(pendingRead.data.content).includes(SECRETS[3]!))
 const { RECALL_PROMPT, RECALL_DESCRIPTION } = await import('../../src/tools/MemoryTools/prompt.js')
-check('the tool teaches the ledger spelling and the pointer law', RECALL_PROMPT.includes('ledger:<ordinal>') && RECALL_PROMPT.includes('never from a pointer') && RECALL_DESCRIPTION.includes('never the content'))
+check(
+  'the tool teaches the ledger spelling and the pointer fact, with no law of negation',
+  RECALL_PROMPT.includes('ledger:<ordinal>') &&
+    RECALL_PROMPT.includes('- A pointer carries no content: open the record with read before you rely on it or quote it.') &&
+    !RECALL_PROMPT.includes('never from a pointer') &&
+    !RECALL_PROMPT.includes('quoted from the record') &&
+    RECALL_DESCRIPTION.includes('footnotes (which session, which ruling, superseded by what)'),
+)
 
 section('§3 the footnotes point both ways after a Correct')
 const { searchPointers } = await import('../../src/mneme/mnemePointers.js')

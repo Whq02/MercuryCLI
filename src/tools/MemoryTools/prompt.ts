@@ -25,7 +25,7 @@ export const RECALL_PROMPT = `Search project memory for pointers, or read one fu
 
 - \`query\` — searches the topic pages, the archive, the pending (unconsolidated) observations, and the lineage ledger: the sessions of this project and the handoff notes they left. Words, paths and topic names match; a phrase or regex matches literally. The answer is at most 20 pointers, each: a stable id (seq:<n> for a fact or ruling, pending:<ts> for a staged row, ledger:<ordinal> for a session or its handoff), a kind (fact · ruling · handoff · session), a one-line title (where it lives, when, from whom, which of your words matched) and footnotes (the session it came from, the ruling it fell under, what it supersedes or was superseded by). A pointer never carries the content.
 - \`read\` — fetch one full record by id (seq:<n> · doc:<slug> · pending:<ts> · ledger:<ordinal>), heading-expanded for topic rows, with its footnotes; a ledger read shows the session's entry and its handoff verbatim ("no note left" when none). Correct amends a record only after a full read.
-- A ruling is quoted from the record, never from a pointer: open it first. Follow a footnote by reading the id it names.
+- A pointer carries no content: open the record with read before you rely on it or quote it. Follow a footnote by reading the id it names.
 - An empty result is flagged elidable — treat it as droppable context, not an error.
 - Recall never writes anything.`
 
