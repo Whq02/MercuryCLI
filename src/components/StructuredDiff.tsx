@@ -1,6 +1,7 @@
 
 import React from 'react'
 import { Box, RawAnsi } from '../ink.js'
+import { colorStripped } from '../ink/colorize.js'
 import { NoSelect } from '../ink/components/NoSelect.js'
 import { useSettings } from '../hooks/useSettings.js'
 import type { StructuredPatchHunk } from '../utils/diff.js'
@@ -125,7 +126,7 @@ export const StructuredDiff = React.memo(function StructuredDiff({
   const settings = useSettings()
   const renderWidth = Math.max(1, Math.floor(width))
   const highlightingOff =
-    skipHighlighting || Boolean(settings.view?.syntaxOff)
+    skipHighlighting || Boolean(settings.view?.syntaxOff) || colorStripped()
 
   const bounded = expandPatchTabs(boundPatchForRender(patch))
   const boundedFirstLine =

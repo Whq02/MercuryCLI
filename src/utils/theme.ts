@@ -76,7 +76,7 @@ export type Theme = {
   briefLabelAssistant: string
 }
 
-export const THEME_NAMES = ['dark', 'true-black'] as const
+export const THEME_NAMES = ['dark', 'true-black', 'mono'] as const
 
 export type ThemeName = (typeof THEME_NAMES)[number] | (string & {})
 
@@ -84,7 +84,13 @@ export const THEME_SETTINGS = ['auto', ...THEME_NAMES] as const
 
 export type ThemeSetting = (typeof THEME_SETTINGS)[number] | (string & {})
 
-export const REACHABLE_THEME_SETTINGS = ['dark', 'true-black'] as const
+export const REACHABLE_THEME_SETTINGS = ['dark', 'true-black', 'mono'] as const
+
+export const MONO_THEME_NAME = 'mono'
+
+export function isMonochromeTheme(themeName: ThemeName): boolean {
+  return themeName === MONO_THEME_NAME
+}
 
 
 export function lerpHex(from: string, to: string, t: number): string {
@@ -182,6 +188,7 @@ const TRUE_BLACK: Theme = {
 const BASE_PALETTES: Record<string, Theme> = {
   dark: DARK,
   'true-black': TRUE_BLACK,
+  [MONO_THEME_NAME]: DARK,
 }
 
 

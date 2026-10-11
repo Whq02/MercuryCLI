@@ -2,6 +2,7 @@
 import chalk from 'chalk'
 import { flagEnv } from '../substrate/flagRegistry.js'
 import { isEnvTruthy } from '../utils/envUtils.js'
+import instances from './instances.js'
 import type { Color, TextStyles } from './styles.js'
 
 export type ColorType = 'foreground' | 'background'
@@ -83,6 +84,26 @@ function clampChalkLevelForTmux(): boolean {
 }
 export const CHALK_CLAMPED_FOR_TMUX = clampChalkLevelForTmux()
 
+export const DETECTED_CHALK_LEVEL = chalk.level
+
+let monochromeTheme = false
+
+export function monochromeThemeActive(): boolean {
+  return monochromeTheme
+}
+
+export function setMonochromeTheme(on: boolean): boolean {
+  if (on === monochromeTheme) return false
+  monochromeTheme = on
+  chalk.level = on ? 0 : DETECTED_CHALK_LEVEL
+  instances.get(process.stdout)?.invalidatePrevFrame()
+  return true
+}
+
+export function colorStripped(): boolean {
+  return chalk.level === 0
+}
+
 export function paletteCollapsed(): boolean {
   return chalk.level <= 1
 }
@@ -92,6 +113,7 @@ export function truecolorActive(): boolean {
 }
 
 export function colorDepthWhy(): string {
+  if (monochromeTheme) return 'the Black and white theme paints no colour'
   if (CHALK_DISABLED_FOR_NO_COLOR) return 'NO_COLOR is set'
   if (CHALK_CLAMPED_FOR_TMUX) return 'tmux carries 256 colors unless it is configured for 24-bit'
   if (CHALK_CLAMPED_FOR_MERCURY) return 'MERCURY_TRUECOLOR=0 clamps the depth to 256 colors'
