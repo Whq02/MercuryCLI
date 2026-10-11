@@ -14,7 +14,7 @@ delete process.env.MERCURY_THINKING_BINDING
 delete process.env.MERCURY_PREFIX_INDUCE_EDIT
 delete process.env.ANTHROPIC_BASE_URL
 
-import { bindingDropsFor, startFixtureApi, type FixtureApi, type ScriptedTurn } from '../lib/fixtureApi.ts'
+import { bindingDropsFor, startFixtureApi, handoffTurn, isHandoffRequest, type FixtureApi, type ScriptedTurn } from '../lib/fixtureApi.ts'
 
 const ROOT = resolve(import.meta.dir, '..', '..')
 const DIST = join(ROOT, 'dist', 'mercury.mjs')
@@ -607,9 +607,15 @@ if (!existsSync(DIST)) {
     }
     const debugText = (file: string): string => { try { return readFileSync(file, 'utf8') } catch { return '' } }
     const ledgerFile = (arena: Arena): string => join(arena.home, '.mercury', 'preserved-thinking.json')
+    function turnRequests(fixture: FixtureApi, askAfter: number) {
+      const all = fixture.messageRequests()
+      const asks = all.flatMap((request, index) => isHandoffRequest(request) ? [index] : [])
+      check(`the closing ask carries its mark once, after substantive request ${askAfter}`, j(asks) === j([askAfter]), j(asks))
+      return all.filter(q => !isHandoffRequest(q))
+    }
     const common = ['--model', 'claude-fable-5-1', '--allowed-tools', 'Read']
     const scripted = (tag: string, n: number, over: Partial<Extract<ScriptedTurn, { kind: 'text' }>> = {}): ScriptedTurn[] =>
-      Array.from({ length: n }, (_, i) => ({ kind: 'text' as const, text: `${tag}-T${i + 1}`, thinking: `${tag} thinking ${i + 1}`, model: 'claude-fable-5-1', ...over }))
+      [handoffTurn(), ...Array.from({ length: n }, (_, i) => ({ kind: 'text' as const, text: `${tag}-T${i + 1}`, thinking: `${tag} thinking ${i + 1}`, model: 'claude-fable-5-1', ...over }))]
 
     const legs: Array<{ edit: string; part: string; sid: string; wireCheck: (first: Body, second: Body) => boolean }> = [
       { edit: 'system', part: "the system prompt's", sid: 'c0ffee00-0000-4000-8000-00000000d001', wireCheck: (a, b) => !systemTextOf(a).includes('[induced edit]') && systemTextOf(b).endsWith('[induced edit]') },
@@ -622,7 +628,7 @@ if (!existsSync(DIST)) {
       const debugFile = join(arena.home, `${leg.edit}.debug.log`)
       const r = await runStreaming(arena, [...common, '--session-id', leg.sid, '--log-file', debugFile], [{ prompt: 'ledger turn 1' }, { prompt: 'ledger turn 2' }, { prompt: 'ledger turn 3' }])
       check(`[${leg.edit}] the three-turn process exits 0`, r.exit === 0, `exit=${r.exit} stderr=${r.stderr.slice(0, 300)}`)
-      const reqs = fixture.messageRequests().map(q => q.body as Body)
+      const reqs = turnRequests(fixture, 3).map(q => q.body as Body)
       check(`[${leg.edit}] three requests; the first clean, the second carrying the induced edit on the wire`, reqs.length === 3 && leg.wireCheck(reqs[0]!, reqs[1]!), `${reqs.length} requests`)
       const notices = transcriptNotices(arena, leg.sid)
       check(`[${leg.edit}] the fixture dropped the replayed block and the receipt names the part (${leg.part}…)`, notices.length >= 1 && notices[0]!.includes('the API dropped') && notices[0]!.includes(`Mercury's prefix ledger names the part that moved: ${leg.part}`), j(notices))
@@ -665,9 +671,7 @@ if (!existsSync(DIST)) {
       const debugFile = join(arena.home, 'kill.debug.log')
       const r = await runStreaming(arena, [...common, '--session-id', SID, '--log-file', debugFile], [1, 2, 3, 4, 5].map(n => ({ prompt: `kill turn ${n}` })))
       check('[killer] the five-turn process exits 0', r.exit === 0, `exit=${r.exit} stderr=${r.stderr.slice(0, 300)}`)
-      const reqs = fixture.messageRequests().map(q => q.body as Body)
-      const dropsPer = fixture.messageRequests().map(q => (fixture as unknown as { drops?: unknown }) && 0)
-      void dropsPer
+      const reqs = turnRequests(fixture, 5).map(q => q.body as Body)
       const dropLines = debugText(debugFile).split('\n').filter(l => l.includes('preserved thinking: [{"type":"thinking_dropped"'))
       check('[killer] exactly ONE drop report reached the product (request 2, the rewrite) — not one per turn', reqs.length === 5 && dropLines.length === 1, `${reqs.length} requests, ${dropLines.length} drop report(s)`)
       const thinkingPer = reqs.map(q => ((q.messages ?? []) as Array<{ role?: string; content?: unknown }>).reduce((n, m) => n + (Array.isArray(m.content) ? (m.content as Block[]).filter(b => b.type === 'thinking').length : 0), 0))
@@ -683,7 +687,7 @@ if (!existsSync(DIST)) {
       const resumeArena = { ...arena, env: { ...arena.env, MERCURY_THINKING_BINDING: 'error' } }
       const r2 = await runStreaming(resumeArena, [...common, '--resume', SID, '--log-file', join(arena.home, 'kill-resume.debug.log')], [{ prompt: 'kill turn 6 after the resume' }])
       check('[killer] the resumed turn exits 0 under `error` (nothing refused)', r2.exit === 0 && fixture.refusals.length === 0, `exit=${r2.exit} refusals=${j(fixture.refusals)} stderr=${r2.stderr.slice(0, 200)}`)
-      const resumed = fixture.messageRequests().map(q => q.body as Body)
+      const resumed = turnRequests(fixture, 5).map(q => q.body as Body)
       const resumedThinking = ((resumed[5]?.messages ?? []) as Array<{ content?: unknown }>).reduce((n, m) => n + (Array.isArray(m.content) ? (m.content as Block[]).filter(b => b.type === 'thinking').length : 0), 0)
       check('[killer] the resumed request replays the four live blocks and never the dead one; the fixture dropped nothing', resumed.length === 6 && resumedThinking === 4 && !j(resumed[5]!.messages).includes('kill thinking 1') && !r2.stdout.includes('"type":"thinking_dropped"'), `${resumed.length} requests, ${resumedThinking} blocks`)
       check('[killer] no new notice after the resume', transcriptNotices(arena, SID).length === 1, j(transcriptNotices(arena, SID)))
@@ -699,7 +703,7 @@ if (!existsSync(DIST)) {
         { kind: 'text', text: 'SW-F4', thinking: 'fable four', model: 'claude-fable-5-1', whenModel: 'fable' },
         { kind: 'text', text: 'SW-F5', thinking: 'fable five', model: 'claude-fable-5-1', whenModel: 'fable' },
       ]
-      const fixture = await startFixtureApi(switchTurns, { bindingCheck: true })
+      const fixture = await startFixtureApi([handoffTurn(), ...switchTurns], { bindingCheck: true })
       const arena = makeArena(fixture)
       const SID = 'c0ffee00-0000-4000-8000-00000000d009'
       const one = (model: string, first: boolean, extra: Record<string, string> = {}): Promise<{ exit: number | null; stdout: string; stderr: string }> =>
@@ -711,7 +715,7 @@ if (!existsSync(DIST)) {
       await one('claude-fable-5-1', false, IND)
       await one('claude-fable-5-1', false, IND)
       await one('claude-fable-5-1', false, IND)
-      const reqs = fixture.messageRequests().map(q => q.body as Body)
+      const reqs = turnRequests(fixture, 1).map(q => q.body as Body)
       const dropsOf = (b: Body): number => (bindingDropsFor(b) as unknown[]).length
       const dropSeq = reqs.map(dropsOf)
       check('[switch] the switch-back request drops the early Fable blocks ONCE, then the next requests drop NOTHING (no growing run)', reqs.length === 6 && dropSeq[3]! >= 1 && dropSeq[4] === 0 && dropSeq[5] === 0, `drops per request: ${j(dropSeq)}`)
@@ -727,6 +731,7 @@ if (!existsSync(DIST)) {
     {
       const drop = [{ type: 'thinking_dropped', path: 'messages.3.content.0', reason: 'prefix_binding_mismatch' }]
       const fixture = await startFixtureApi([
+        handoffTurn(),
         { kind: 'text', text: 'AD-T1', thinking: 'ad one', model: 'claude-fable-5-1' },
         { kind: 'text', text: 'AD-T2', thinking: 'ad two', model: 'claude-fable-5-1' },
         { kind: 'text', text: 'AD-T3', thinking: 'ad three', model: 'claude-fable-5-1', inputTransformations: drop },
@@ -737,7 +742,7 @@ if (!existsSync(DIST)) {
       const debugFile = join(arena.home, 'after-drop.debug.log')
       const r = await runStreaming(arena, [...common, '--session-id', SID, '--log-file', debugFile], [{ prompt: 'after-drop turn 1' }, { prompt: 'after-drop turn 2' }, { prompt: 'after-drop turn 3' }, { prompt: 'after-drop turn 4' }])
       check('[after drop] the four-turn process exits 0', r.exit === 0, `exit=${r.exit} stderr=${r.stderr.slice(0, 300)}`)
-      const reqs = fixture.messageRequests().map(q => q.body as Body)
+      const reqs = turnRequests(fixture, 4).map(q => q.body as Body)
       const rowThree = reqs[2]?.messages?.[3] as { role?: string; content?: Block[] } | undefined
       check("[after drop] the reported path names real reasoning on the third request (the second reply's block)", reqs.length === 4 && rowThree?.role === 'assistant' && rowThree.content?.[0]?.type === 'thinking' && rowThree.content[0].thinking === 'ad two', j(rowThree).slice(0, 200))
       const thinkingOf = (b: Body | undefined): unknown[] => ((b?.messages ?? []) as Array<{ content?: unknown }>).flatMap(m => Array.isArray(m.content) ? (m.content as Block[]).filter(x => x.type === 'thinking').map(x => x.thinking) : [])
@@ -753,6 +758,7 @@ if (!existsSync(DIST)) {
 
     {
       const fixture = await startFixtureApi([
+        handoffTurn(),
         { kind: 'text', text: 'WT-T1', thinking: 'wt one', model: 'claude-fable-5-1' },
         { kind: 'tool_use', name: 'EnterWorktree', input: { name: 'proof-hop' }, thinking: 'wt hop', model: 'claude-fable-5-1' },
         { kind: 'text', text: 'WT-T2', thinking: 'wt two', model: 'claude-fable-5-1' },
@@ -771,7 +777,7 @@ if (!existsSync(DIST)) {
         { prompt: 'worktree turn 3' },
       ])
       check('[worktree] the three-turn process exits 0 under `error` (nothing refused)', r.exit === 0 && fixture.refusals.length === 0, `exit=${r.exit} refusals=${j(fixture.refusals)} stderr=${r.stderr.slice(0, 300)}`)
-      const reqs = fixture.messageRequests().map(q => q.body as Body)
+      const reqs = turnRequests(fixture, 4).map(q => q.body as Body)
       const hopped = j(reqs[2]?.messages ?? []).includes('Created worktree')
       check('[worktree] the hop happened (the tool result names the new worktree in the history)', reqs.length === 4 && hopped, `${reqs.length} requests; hopped=${hopped}`)
       check('[worktree] the system prompt is byte-identical across the hop (the cache survived it)', reqs.length === 4 && reqs.every(q => systemTextOf(q) === systemTextOf(reqs[0]!)), reqs.map(q => systemTextOf(q).length).join(','))
@@ -791,7 +797,7 @@ if (!existsSync(DIST)) {
         { prompt: 'control turn 3' },
       ])
       check('[control] the three-turn process exits 0', r.exit === 0, `exit=${r.exit} stderr=${r.stderr.slice(0, 200)}`)
-      const reqs = fixture.messageRequests().map(q => q.body as Body)
+      const reqs = turnRequests(fixture, 3).map(q => q.body as Body)
       check('[control] the system prompt carries no git-repository line on any request (the fact left the prefix)', reqs.length === 3 && reqs.every(q => !/git repo/i.test(systemTextOf(q))), reqs.map(q => /git repo/i.test(systemTextOf(q))).join(','))
       check('[control] the first request carries the fact in the user context ("Is a git repository: No")', reqs.length === 3 && j(reqs[0]!.messages?.[0]).includes('Is a git repository: No'), j(reqs[0]?.messages?.[0]).slice(0, 300))
       check('[control] the system prompt is byte-identical across the git init (the fact no longer rides it)', reqs.length === 3 && systemTextOf(reqs[0]!) === systemTextOf(reqs[1]!) && systemTextOf(reqs[1]!) === systemTextOf(reqs[2]!))
