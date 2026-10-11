@@ -105,9 +105,12 @@ export type VimInputState = TextInputState & {
   setMode: (mode: VimMode) => void
 }
 
-export type EditablePromptInputMode = 'bash' | 'prompt'
+export type PromptInputMode =
+  | 'bash'
+  | 'prompt'
+  | 'task-notification'
 
-export type PromptInputMode = EditablePromptInputMode | 'task-notification'
+export type EditablePromptInputMode = Exclude<PromptInputMode, 'task-notification'>
 
 export type QueuePriority = 'now' | 'next' | 'later'
 
