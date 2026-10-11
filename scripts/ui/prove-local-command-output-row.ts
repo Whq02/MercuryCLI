@@ -59,7 +59,14 @@ const paint = async (content: string, verbose = false): Promise<string[]> => {
   const instance = await render(tree, { stdin, stdout, patchConsole: false, exitOnCtrlC: false, onFrame: () => painted() })
   await firstFrame
   await settle()
-  const lines = stripAnsi(instance.lastFrame()).replace(/\s+$/, '').split('\n').map(line => line.trimEnd()).filter(line => line !== '')
+  let frame = instance.lastFrame()
+  for (let waited = 0; waited < 3000; waited += 25) {
+    await settle()
+    const next = instance.lastFrame()
+    if (next === frame && stripAnsi(next).trim() !== '') break
+    frame = next
+  }
+  const lines = stripAnsi(frame).replace(/\s+$/, '').split('\n').map(line => line.trimEnd()).filter(line => line !== '')
   instance.unmount()
   instance.cleanup()
   stream.destroy()
