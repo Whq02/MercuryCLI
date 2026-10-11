@@ -159,6 +159,7 @@ export const NON_INDEXING_TOOLS: ReadonlySet<string> = new Set([
   'EnterWorktree',
   'ExitWorktree',
   'Eval',
+  'Journal',
   'ListMcpResources',
   'Monitor',
   'NotebookEdit',
