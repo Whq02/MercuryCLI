@@ -54,11 +54,25 @@ export function hasMnemeHomeOverride(): boolean {
 export const getMnemeHome = memoize((): string => {
   const override = validateMemoryPathOverride(readMnemeDirectoryOverride())
   if (override !== undefined) return override
-  const projectRoot = getProjectRoot()
-  const canonical = findCanonicalGitRoot(projectRoot) ?? projectRoot
-  const key = sanitizePathComponent(canonical)
+  const key = mnemeProjectKey()
   return `${join(getMemoryBaseDir(), 'projects', key, 'memory')}${sep}`.normalize('NFC')
 }, () => getProjectRoot())
+
+export function mnemeProjectKeyFor(root: string): string {
+  return sanitizePathComponent(findCanonicalGitRoot(root) ?? root)
+}
+
+export function mnemeProjectKey(): string {
+  return mnemeProjectKeyFor(getProjectRoot())
+}
+
+export function projectRecordsDir(projectKey: string): string {
+  return join(getMemoryBaseDir(), 'projects', projectKey)
+}
+
+export function lineagePath(projectKey: string): string {
+  return join(projectRecordsDir(projectKey), 'lineage', 'ledger.jsonl')
+}
 
 export function isMnemePath(absolutePath: string): boolean {
   return normalize(absolutePath).startsWith(getMnemeHome())
