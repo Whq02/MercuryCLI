@@ -415,6 +415,19 @@ export async function processRulesDir({
   }
 }
 
+function ruleAnchorOf(type: MemoryType, rulesDir: string): string {
+  return type === 'Project' ? dirname(dirname(rulesDir)) : getOriginalCwd()
+}
+
+function targetSpellingUnder(anchor: string, targetPath: string): string | null {
+  const spelling = isAbsolute(targetPath) ? relative(anchor, targetPath) : targetPath
+  const judgeable = spelling !== '' && !spelling.startsWith('..') && !isAbsolute(spelling)
+  return judgeable ? spelling : null
+}
+
+const ruleGoverns = (globs: string[] | undefined, spelling: string): boolean =>
+  globs !== undefined && globs.length > 0 && ignore().add(globs).ignores(spelling)
+
 export async function processConditionedRules(
   convention: InstructionConvention,
   targetPath: string,
@@ -423,7 +436,7 @@ export async function processConditionedRules(
   processedPaths: Set<string>,
   includeExternal: boolean,
 ): Promise<InstructionSourceEntry[]> {
-  const conditionedRuleMdFiles = await processRulesDir({
+  const rules = await processRulesDir({
     convention,
     rulesDir,
     type,
@@ -431,27 +444,6 @@ export async function processConditionedRules(
     includeExternal,
     conditionalRule: true,
   })
-
-  return conditionedRuleMdFiles.filter(file => {
-    if (!file.globs || file.globs.length === 0) {
-      return false
-    }
-
-    const baseDir =
-      type === 'Project'
-        ? dirname(dirname(rulesDir))
-        : getOriginalCwd()
-
-    const relativePath = isAbsolute(targetPath)
-      ? relative(baseDir, targetPath)
-      : targetPath
-    if (
-      !relativePath ||
-      relativePath.startsWith('..') ||
-      isAbsolute(relativePath)
-    ) {
-      return false
-    }
-    return ignore().add(file.globs).ignores(relativePath)
-  })
+  const spelling = targetSpellingUnder(ruleAnchorOf(type, rulesDir), targetPath)
+  return spelling === null ? [] : rules.filter(rule => ruleGoverns(rule.globs, spelling))
 }

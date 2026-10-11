@@ -98,6 +98,7 @@ __t=$SECONDS; __rc=0; "$BUN" run scripts/core-runtime/prove-field-findings-input
 
 echo "── core-runtime: boot contract (T15)"
 __t=$SECONDS; __rc=0; "$BUN" run scripts/core-runtime/prove-boot-contract.ts || { __rc=$?; fail=1; }; prover_mark scripts/core-runtime/prove-boot-contract.ts "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$BUN" run scripts/core-runtime/prove-diagnostics-timing.ts || { __rc=$?; fail=1; }; prover_mark scripts/core-runtime/prove-diagnostics-timing.ts "$__t" "$__rc"
 
 echo "── core-runtime: boot-env attribution (a saved default is never a real env pin)"
 __t=$SECONDS; __rc=0; "$BUN" run scripts/core-runtime/prove-bootenv-attribution.ts || { __rc=$?; fail=1; }; prover_mark scripts/core-runtime/prove-bootenv-attribution.ts "$__t" "$__rc"

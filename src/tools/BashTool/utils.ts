@@ -66,8 +66,11 @@ export async function resizeShellImageOutput(
   const buffer = Buffer.from(parsed.data, 'base64')
   const subtype = mediaSubtype(parsed.mediaType)
   const resized = await maybeResizeAndDownsampleImageBuffer(buffer, buffer.byteLength, subtype, { role: 'tool-result' })
-  return `data:image/${resized.mediaType};base64,${resized.buffer.toString('base64')}`
+  return imageDataUrl(resized.mediaType, resized.buffer)
 }
+
+const imageDataUrl = (subtype: string, bytes: Buffer): string =>
+  ['data:image/', subtype, ';base64,', bytes.toString('base64')].join('')
 
 function mediaSubtype(mediaType: string): string {
   const parts = mediaType.split('/')
