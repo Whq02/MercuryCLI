@@ -186,19 +186,18 @@ export function recordFile(projectKey: string, sessionId: string, path: string):
 const clipHandoff = (text: string): string => (text.length > HANDOFF_TEXT_CAP ? text.slice(0, HANDOFF_TEXT_CAP) : text)
 
 export function recordHandoff(projectKey: string, sessionId: string, text: string): LedgerEntry | null {
-  const trimmed = text.trim()
-  if (trimmed === '') return ledgerEntryOf(projectKey, sessionId)
-  return update(projectKey, sessionId, (entry, now) => ({ ...entry, handoff: { text: clipHandoff(trimmed), at: now } }))
+  if (text.trim() === '') return ledgerEntryOf(projectKey, sessionId)
+  return update(projectKey, sessionId, (entry, now) => ({ ...entry, handoff: { text: clipHandoff(text), at: now } }))
 }
 
 export function closeEntry(projectKey: string, sessionId: string, close: { outcome: string; handoff?: string }): LedgerEntry | null {
   return update(projectKey, sessionId, (entry, now) => {
-    const text = close.handoff?.trim() ?? ''
+    const text = close.handoff ?? ''
     return {
       ...entry,
       endedAt: now,
       outcome: close.outcome,
-      handoff: text !== '' ? { text: clipHandoff(text), at: now } : entry.handoff,
+      handoff: text.trim() !== '' ? { text: clipHandoff(text), at: now } : entry.handoff,
     }
   })
 }

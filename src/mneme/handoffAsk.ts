@@ -43,7 +43,7 @@ function textOf(message: Message): string {
   for (const block of message.message.content) {
     if (block.type === 'text' && typeof block.text === 'string') parts.push(block.text)
   }
-  return parts.join('\n').trim()
+  return parts.join('\n')
 }
 
 export function assistantText(messages: readonly Message[]): string {
@@ -108,7 +108,7 @@ export async function askForHandoff(input: {
     } as ForkedAgentParams)
     if (result.terminal?.reason !== 'completed' || abortController.signal.aborted) return null
     const text = assistantText(result.messages)
-    if (text === '' || !lineageKept()) return null
+    if (text.trim() === '' || !lineageKept()) return null
     const entry = recordHandoff(mnemeProjectKey(), sessionId, text)
     return { text, stored: entry?.handoff?.text === text || (entry?.handoff !== null && entry?.handoff !== undefined && text.startsWith(entry.handoff.text)) }
   } catch (error) {
