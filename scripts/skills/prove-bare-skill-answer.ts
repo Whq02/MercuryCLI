@@ -122,17 +122,17 @@ section('§1 THE DISPATCHER WITH A FIXTURE ROSTER — a required hint answers ba
   check('a hidden (model-only) skill keeps its own answer and builds no prompt', hiddenBare.calls === 0 && hiddenBare.shouldQuery === false && hiddenBare.contents.some(text => text.includes('can only be invoked by the assistant')), hiddenBare.contents.join(' | '))
 }
 
-section('§2 THE REAL SKILLS — /debug bare turns nothing on and answers; /simplify bare stays a turn (RED on the base: /debug switched debug logging on and ran)')
+section('§2 THE REAL SKILLS — /debug bare turns nothing on and answers; /extension-maker bare stays a turn (RED on the base: /debug switched debug logging on and ran)')
 {
   initBundledSkills()
   const bundled = getBundledSkills()
   const debug = bundled.find(command => command.name === 'debug')
-  const simplify = bundled.find(command => command.name === 'simplify')
+  const extensionMaker = bundled.find(command => command.name === 'extension-maker')
   const updateConfig = bundled.find(command => command.name === 'update-config')
-  check('the three skills register', debug !== undefined && simplify !== undefined && updateConfig !== undefined)
+  check('the three skills register', debug !== undefined && extensionMaker !== undefined && updateConfig !== undefined)
   check('/debug declares a required hint <issue description>', debug !== undefined && debug.argumentHint === '<issue description>' && requiresArgument(debug), `hint=${debug?.argumentHint}`)
   check('/update-config declares a required hint', updateConfig !== undefined && requiresArgument(updateConfig) && (updateConfig.argumentHint ?? '').startsWith('<the change:'), `hint=${updateConfig?.argumentHint}`)
-  check('/simplify declares no hint', simplify !== undefined && simplify.argumentHint === undefined && !requiresArgument(simplify))
+  check('/extension-maker declares no hint', extensionMaker !== undefined && extensionMaker.argumentHint === undefined && !requiresArgument(extensionMaker))
   check('debug logging is off before the send', isDebugMode() === false)
   if (debug !== undefined) {
     const live = { ...debug, isEnabled: () => true } as Command
@@ -146,11 +146,11 @@ section('§2 THE REAL SKILLS — /debug bare turns nothing on and answers; /simp
     check('/update-config bare answers a row within the width, ending in the usage with the hint', row.length <= BARE_USAGE_ROW_COLUMNS && row.startsWith('/update-config — Use this skill for any change to Mercury settings files') && row.endsWith(' · usage: /update-config <the change: allow X · set X=Y · enable server Y · whenever X do Y>') && row.includes('…'), row)
     console.log(`  the row: ${row}`)
   }
-  if (simplify !== undefined) {
+  if (extensionMaker !== undefined) {
     let calls = 0
-    const spied = { ...simplify, isEnabled: () => true, getPromptForCommand: async () => { calls++; return [{ type: 'text', text: 'the simplify pass' }] } } as Command
-    const result = await processSlashCommand('/simplify', [], [], [], makeContext([spied]) as never, () => {})
-    check('/simplify bare builds its prompt and starts the turn, as today', calls === 1 && result.shouldQuery === true, `calls=${calls} shouldQuery=${result.shouldQuery}`)
+    const spied = { ...extensionMaker, isEnabled: () => true, getPromptForCommand: async () => { calls++; return [{ type: 'text', text: 'the extensionMaker pass' }] } } as Command
+    const result = await processSlashCommand('/extension-maker', [], [], [], makeContext([spied]) as never, () => {})
+    check('/extension-maker bare builds its prompt and starts the turn, as today', calls === 1 && result.shouldQuery === true, `calls=${calls} shouldQuery=${result.shouldQuery}`)
   }
 }
 

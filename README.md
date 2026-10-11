@@ -749,10 +749,10 @@ and copying. The preference is saved and appears in `/config` as Mouse
 capture.
 
 A required argument starts with `<…>` in a skill’s usage. For example,
-`/update-config`, `/debug` and `/app-proof` need an argument. Send one
+`/update-config` and `/debug` need an argument. Send one
 alone and you get its description and usage; no turn starts. Select it
 in typeahead and Enter leaves `/name ` ready for you to add the argument.
-`/simplify` and `/loop` have no required argument and run immediately.
+`/loop` has no required argument and runs immediately.
 
 ## Reporting a problem
 

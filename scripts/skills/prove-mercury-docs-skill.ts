@@ -25,8 +25,6 @@ const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' 
 const { initBundledSkills } = await import('../../src/skills/bundled/index.ts')
 const { getBundledSkills, getBundledSkillExtractDir } = await import('../../src/skills/bundledSkills.ts')
 const docsSkill = await import('../../src/skills/bundled/mercuryDocs.ts')
-const verifierSkill = await import('../../src/skills/bundled/verifier.ts')
-const { SKILL_TOOL_NAME } = await import('../../src/tools/SkillTool/constants.ts')
 type Command = import('../../src/types/command.ts').Command
 
 initBundledSkills()
@@ -100,19 +98,6 @@ check('the skill source names no other product\'s docs host', !foreignDocs.test(
 check('the rendered prompt names no other product\'s docs host', !foreignDocs.test(text))
 const hosts = [...text.matchAll(/https?:\/\/([a-z0-9.-]+)/gi)].map(m => m[1]!.toLowerCase())
 check('the only host the guidance names is mercury-cli.ai', hosts.length > 0 && hosts.every(h => h === 'mercury-cli.ai'), [...new Set(hosts)].join(' '))
-
-section('§6 the verifier skill — the adversarial brief, forked into a crew agent, the model\'s door')
-const verifier = byName.get(verifierSkill.VERIFIER_SKILL_NAME)
-check('the skill registers under its name', verifier !== undefined)
-check('model-invocable, not a menu entry (the operator\'s door is /verify)', verifier?.type === 'prompt' && verifier.disableModelInvocation === false && verifier.userInvocable === false && verifier.isHidden === true)
-check('it forks into the mercury-crew agent', verifier?.context === 'fork' && (verifier as { agent?: string } | undefined)?.agent === 'mercury-crew')
-const brief = await promptText(verifier!, 'the task: add a parser; files: src/parse.ts; approach: recursive descent')
-check('the brief opens on the break-it charge and forbids project writes', brief.startsWith('You are verifying someone else\'s work for Mercury.') && /## Do not modify the project/.test(brief))
-check('the brief ends on the verdict contract', /End your response with exactly one line: `VERDICT: ` then one of `PASS`, `FAIL`, `PARTIAL`/.test(brief))
-check('the handed work rides under its own heading', brief.endsWith('## The work to verify\nthe task: add a parser; files: src/parse.ts; approach: recursive descent'))
-check('an empty argument tells the agent to reconstruct the change itself', /reconstruct the change from the working tree/.test(await promptText(verifier!, '')))
-check('the description names the verdict line and when to reach for it', /VERDICT: PASS, FAIL or PARTIAL/.test(String(verifier?.description)) && /run those instead/.test(String(verifier?.description)))
-check('the Skill tool is the door the model takes', SKILL_TOOL_NAME === 'Skill')
 
 console.log(`\n${failures === 0 ? '✅' : '❌'} MERCURY DOCS SKILL ${failures === 0 ? 'GREEN' : 'RED'} (${checks - failures} of ${checks})`)
 process.exit(failures === 0 ? 0 : 1)

@@ -7,6 +7,7 @@
 # gate-watch: src/services/instructions/sourceText.ts src/services/kitMenu/kitCatalogue.ts
 # gate-watch: src/services/mcp/sessionKitPin.ts src/skills/* src/tools/AgentTool/loadAgentsDir.ts
 # gate-watch: src/tools/SkillTool/* src/utils/* src/utils/attachments/skillListing.ts
+# gate-watch: src/tools/AgentTool/constants.ts src/tools/TaskUpdateTool/prompt.ts
 # gate-watch: src/utils/cockpit/substrateSnapshot.ts src/utils/config/globalConfig.ts
 # gate-watch: src/utils/messages/attachmentText.ts src/utils/messages/rejectionText.ts
 # gate-watch: src/utils/processUserInput/processSlashCommand.tsx src/utils/skills/skillChangeDetector.ts

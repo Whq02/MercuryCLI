@@ -185,9 +185,9 @@ extension — resolved by the Agent tool's `subagent_type`, so a given kind is
 the same agent however it was launched. A saved crewmate record whose type
 Mercury does not know resumes as `mercury-crew`.
 
-Three briefs ride as skills and launch options rather than as agent kinds:
-`/verify` hands the session's work to the `verifier` skill, which red-teams it
-in a crewmate of its own and ends with a `VERDICT: PASS`, `FAIL` or `PARTIAL`
+Three briefs ride as commands, skills and launch options rather than as agent kinds:
+`/verify` hands the session's work and an adversarial brief directly to a
+crewmate through the Agent tool, ending with a `VERDICT: PASS`, `FAIL` or `PARTIAL`
 line; an Agent launch with `isolation: "worktree"`, `worktree_at` and
 `review_receipt` is a review of a committed change on a frozen worktree whose
 one permitted write is the receipt's `## Review` section, ending with
