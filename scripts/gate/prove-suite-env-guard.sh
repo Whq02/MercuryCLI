@@ -87,6 +87,12 @@ done
 out="$(clean MERCURY_REACTIVATE_KEEP=1 MERCURY_SEATS=2 MERCURY_GODOT_TOOLS=1 bash -c '. "$1"; suite_env_guard "$2"' _ "$root/scripts/lib/suite-env.sh" "$routed/run-all.sh" 2>&1)"; rc=$?
 check "routed declarations do not admit session stamps" "$([ "$rc" = 78 ] && echo 0 || echo 1)" "rc=$rc $out"
 
+echo "── the no-browser pin"
+out="$(clean MERCURY_SYNTH_KNOB=1 bash -c '. "$1"; suite_env_guard "$2" >/dev/null; printf %s "$BROWSER"' _ "$scratch/scripts/lib/suite-env.sh" "$runner" 2>/dev/null)"; rc=$?
+check "a runner with no BROWSER of its own opens nothing: the guard exports BROWSER=/usr/bin/true" "$([ "$rc" = 0 ] && [ "$out" = /usr/bin/true ] && echo 0 || echo 1)" "rc=$rc BROWSER=$out"
+out="$(clean MERCURY_SYNTH_KNOB=1 BROWSER=/opt/own-browser bash -c '. "$1"; suite_env_guard "$2" >/dev/null; printf %s "$BROWSER"' _ "$scratch/scripts/lib/suite-env.sh" "$runner" 2>/dev/null)"; rc=$?
+check "…and never overrides an explicit BROWSER" "$([ "$rc" = 0 ] && [ "$out" = /opt/own-browser ] && echo 0 || echo 1)" "rc=$rc BROWSER=$out"
+
 echo "── the census"
 missing=""
 for r in "$root"/scripts/*/run-all.sh; do

@@ -3,6 +3,7 @@
 suite_env_guard() {
   local runner="${1:?suite_env_guard: the path of the runner}" dir name line declared="" foreign=""
   local -a inputs
+  export BROWSER="${BROWSER:-/usr/bin/true}"
   suite_home_guard "$runner"
   suite_scratch_init "$runner"
   export MERCURY_LOCAL_PROBE_TARGETS="${MERCURY_LOCAL_PROBE_TARGETS:-none}"
