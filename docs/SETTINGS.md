@@ -131,6 +131,7 @@ relying on these boundaries.
 | `memory.pinnedLimit` | The pinned shelf's text limit in characters, at least 1000; 8000 by default. Every pinned rule still loads above the limit. |
 | `memory.journal` | The session journal is written unless this is `false`: at session end the model's own account of the session, in a file in the Mercury home beside the project's memory — never under the project tree, never pushed, synced or shared by Mercury. |
 | `memory.journalOnEntryPage` | `true` hands the journal's last entry to the model at session start on its entry page; off by default. What the model reads at entry travels to the engine's provider with the request — "never uploaded" means Mercury itself never pushes, syncs or shares the journal, not that the session's own engine does not see it. |
+| `memory.tellEngineSwitch` | `true` tells the model when its engine is switched: one line reaches it at the switch naming the new engine and the time. Off by default: a switch is invisible to the model — the `/model` rows stay your record, and the model learns its engine by reading `mercury://seat`. |
 | `workspace.worktree.symlinkDirectories` | Additional directories linked into a managed worktree. |
 | `workspace.worktree.sparsePaths` | Paths included in a managed sparse worktree. |
 | `workspace.worktree.prepare` | A shell command run inside every new worktree after git makes it and before any seat uses it; a failure is named on the row. |
