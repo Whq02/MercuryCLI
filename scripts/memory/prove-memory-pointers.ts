@@ -73,14 +73,19 @@ const pendingPointer = pointers.find(p => String(p.id).startsWith('pending:'))!
 const pendingRead = await recallTool({ read: String(pendingPointer.id) })
 check('a pending pointer opens to its row', pendingRead.data.found === true && String(pendingRead.data.content).includes(SECRETS[3]!))
 const { RECALL_PROMPT, RECALL_DESCRIPTION } = await import('../../src/tools/MemoryTools/prompt.js')
+const { zodToJsonSchema } = await import('../../src/utils/zodToJsonSchema.js')
+const querySchemaText = String((zodToJsonSchema(RecallTool.inputSchema as never) as { properties?: { query?: { description?: string } } }).properties?.query?.description ?? '')
+const NEGATIONS = ['never from a pointer', 'quoted from the record', 'never the content', 'never carries the content']
+const negated = [RECALL_PROMPT, RECALL_DESCRIPTION, querySchemaText].flatMap(text => NEGATIONS.filter(phrase => text.includes(phrase)))
 check(
-  'the tool teaches the ledger spelling and the pointer fact, with no law of negation',
+  'the tool teaches the ledger spelling and the pointer fact',
   RECALL_PROMPT.includes('ledger:<ordinal>') &&
     RECALL_PROMPT.includes('- A pointer carries no content: open the record with read before you rely on it or quote it.') &&
-    !RECALL_PROMPT.includes('never from a pointer') &&
-    !RECALL_PROMPT.includes('quoted from the record') &&
-    RECALL_DESCRIPTION.includes('footnotes (which session, which ruling, superseded by what)'),
+    RECALL_DESCRIPTION.includes('footnotes (which session, which ruling, superseded by what). Read one full record by id.') &&
+    querySchemaText.includes('A pointer is an id, a title and footnotes: open one with read to see the record.'),
+  querySchemaText.slice(-90),
 )
+check('no law of negation in the prompt, the description or the query schema', negated.length === 0, negated.join(' | '))
 
 section('§3 the footnotes point both ways after a Correct')
 const { searchPointers } = await import('../../src/mneme/mnemePointers.js')
