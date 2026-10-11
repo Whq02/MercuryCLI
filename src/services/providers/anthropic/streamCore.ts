@@ -372,72 +372,48 @@ export async function* executeNonStreamingRequest(
   originatingRequestId?: string | null,
   afterSilence?: { idleMs: number; model: string },
 ): AsyncGenerator<SystemAPIErrorMessage, BetaMessage> {
-  const fallbackTimeoutMs = getNonstreamingFallbackTimeoutMs()
-  const generator = withRetry(
-    () =>
-      getAnthropicClient({
-        maxRetries: 0,
-        fetchOverride: clientOptions.fetchOverride,
-        source: clientOptions.source,
-      }),
-    async (anthropic, attempt, context) => {
-      if (attempt > 1 || anthropicLimitVerdict().status === 'rejected') await refreshProviderUsage('anthropic', { force: true, reason: 'operator' })
-      const start = Date.now()
-      const retryParams = paramsFromContext(context)
-      captureRequest(retryParams)
-      onAttempt(attempt, start, retryParams.max_tokens)
+  const timeout = getNonstreamingFallbackTimeoutMs()
+  const client = () => getAnthropicClient({ maxRetries: 0, fetchOverride: clientOptions.fetchOverride, source: clientOptions.source })
+  const attemptRequest = async (anthropic: Awaited<ReturnType<typeof getAnthropicClient>>, attempt: number, context: RetryContext): Promise<BetaMessage> => {
+    if (attempt > 1 || anthropicLimitVerdict().status === 'rejected') await refreshProviderUsage('anthropic', { force: true, reason: 'operator' })
+    const started = Date.now()
+    const params = paramsFromContext(context)
+    captureRequest(params)
+    onAttempt(attempt, started, params.max_tokens)
+    const fitted = adjustParamsForNonStreaming(params, MAX_NON_STREAMING_TOKENS)
+    return nonStreamingAnswer(anthropic, fitted, retryOptions.signal, timeout, started, afterSilence)
+  }
+  const retries = withRetry(client, attemptRequest, {
+    model: retryOptions.model, fallbackModel: retryOptions.fallbackModel,
+    thinkingConfig: retryOptions.thinkingConfig, signal: retryOptions.signal,
+    initialConsecutive529Errors: retryOptions.initialConsecutive529Errors, querySource: retryOptions.querySource,
+    ...(retryOptions.onHeldWait !== undefined ? { onHeldWait: retryOptions.onHeldWait } : {}), healClientContract: true,
+  })
+  while (true) {
+    const step = await retries.next()
+    if (step.done) return step.value as BetaMessage
+    if (step.value.type === 'system') yield step.value
+  }
+}
 
-      const adjustedParams = adjustParamsForNonStreaming(
-        retryParams,
-        MAX_NON_STREAMING_TOKENS,
-      )
-
-      try {
-        const response = await anthropic.beta.messages.create(
-          {
-            ...adjustedParams,
-            model: normalizeModelStringForAPI(adjustedParams.model),
-          },
-          {
-            signal: retryOptions.signal,
-            timeout: fallbackTimeoutMs,
-          },
-        )
-        clearAnthropicUsageLimit(start)
-        return response
-      } catch (err) {
-        if (err instanceof APIUserAbortError) throw err
-
-        logForDiagnosticsNoPII('error', 'cli_nonstreaming_fallback_error')
-        if (afterSilence !== undefined && isFirstByteTimeout(err)) {
-          throw new Error(
-            `the stream went quiet for ${patienceSeconds(afterSilence.idleMs)} and one non-streamed answer got nothing in ${patienceSeconds(fallbackTimeoutMs)} from ${afterSilence.model} — no keep-alive arrived: a dead connection, or a request the provider parked; the turn was ended`,
-          )
-        }
-        throw err
-      }
-    },
-    {
-      model: retryOptions.model,
-      fallbackModel: retryOptions.fallbackModel,
-      thinkingConfig: retryOptions.thinkingConfig,
-      signal: retryOptions.signal,
-      initialConsecutive529Errors: retryOptions.initialConsecutive529Errors,
-      querySource: retryOptions.querySource,
-      ...(retryOptions.onHeldWait !== undefined ? { onHeldWait: retryOptions.onHeldWait } : {}),
-      healClientContract: true,
-    },
-  )
-
-  let e
-  do {
-    e = await generator.next()
-    if (!e.done && e.value.type === 'system') {
-      yield e.value
+async function nonStreamingAnswer(
+  client: Awaited<ReturnType<typeof getAnthropicClient>>, params: BetaMessageStreamParams,
+  signal: AbortSignal, timeout: number, started: number, silence?: { idleMs: number; model: string },
+): Promise<BetaMessage> {
+  try {
+    const reply = await client.beta.messages.create(
+      { ...params, model: normalizeModelStringForAPI(params.model) }, { signal, timeout },
+    )
+    clearAnthropicUsageLimit(started)
+    return reply
+  } catch (error) {
+    if (error instanceof APIUserAbortError) throw error
+    logForDiagnosticsNoPII('error', 'cli_nonstreaming_fallback_error')
+    if (silence !== undefined && isFirstByteTimeout(error)) {
+      throw new Error(`the stream went quiet for ${patienceSeconds(silence.idleMs)} and one non-streamed answer got nothing in ${patienceSeconds(timeout)} from ${silence.model} — no keep-alive arrived: a dead connection, or a request the provider parked; the turn was ended`)
     }
-  } while (!e.done)
-
-  return e.value as BetaMessage
+    throw error
+  }
 }
 
 function isFirstByteTimeout(error: unknown): boolean {
