@@ -2,14 +2,12 @@ import { OAUTH_BETA_HEADER } from '../constants/oauth.js'
 import { getAnthropicApiKey, getClaudeAIOAuthTokens, isClaudeAISubscriber } from './auth.js'
 import { getWorkload } from './workloadContext.js'
 
-const hostSegments = (): string[] => {
-  const { MERCURY_ENTRYPOINT, MERCURY_HOST_VERSION, MERCURY_HOST_CLIENT_APP } = process.env
-  return [
-    MERCURY_ENTRYPOINT,
-    MERCURY_HOST_VERSION && `host/${MERCURY_HOST_VERSION}`,
-    MERCURY_HOST_CLIENT_APP && `host-app/${MERCURY_HOST_CLIENT_APP}`,
+const hostSegments = (): string[] =>
+  [
+    process.env.MERCURY_ENTRYPOINT,
+    process.env.MERCURY_HOST_VERSION && `host/${process.env.MERCURY_HOST_VERSION}`,
+    process.env.MERCURY_HOST_CLIENT_APP && `host-app/${process.env.MERCURY_HOST_CLIENT_APP}`,
   ].filter((segment): segment is string => Boolean(segment))
-}
 
 function productIdentity(segments: string[]): string {
   const suffix = segments.length > 0 ? ` (${segments.join(', ')})` : ''
