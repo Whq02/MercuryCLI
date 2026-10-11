@@ -61,6 +61,12 @@ export function handoffAskText(sessionId: string): { text: string; tools: Set<st
   return { text: [HANDOFF_ASK, ...extra.map(ask => ask.line.trim())].join('\n'), tools }
 }
 
+export function handoffNotice(note: { text: string; stored: boolean } | null): string {
+  if (note === null) return 'the session ends with no note left for the next one'
+  if (!note.stored) return 'the note could not be stored; the session ends with no note left for the next one'
+  return `the note for the next session is in the ledger (${note.text.length} characters)`
+}
+
 export type AskRunner = (params: ForkedAgentParams) => Promise<{ messages: Message[] }>
 
 export async function askForHandoff(input: {
