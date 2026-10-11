@@ -123,7 +123,8 @@ const readLines = (path: string): Row[] => (existsSync(path) ? readFileSync(path
   })
   const rows = result.rows
   const outcome = rows.find(row => row.type === 'outcome')
-  check('a turn.answer stop ends the turn without a send-back: one model call, the turn completed', outcome?.status === 'completed' && result.requests === 1, JSON.stringify({ outcome, requests: result.requests }))
+  check('a turn.answer stop ends the turn without a send-back: one model call, the turn completed', outcome?.status === 'completed' && result.wire.filter(q => !isHandoffRequest(q)).length === 1, JSON.stringify({ outcome, requests: result.requests }))
+  check('the closing ask follows the stopped turn once, as its own marked request', JSON.stringify(result.wire.map(isHandoffRequest)) === JSON.stringify([false, true]), JSON.stringify(result.wire.map(isHandoffRequest)))
   const stopNotice = rows.find(row => row.type === 'notice' && String(row.text).includes('that is enough for tonight'))
   check('the stop reaches the rows stream as a notice naming the hook', stopNotice !== undefined && String(stopNotice.text).includes('enough') && stopNotice.code === 'hook_stopped', JSON.stringify(rows.filter(row => row.type === 'notice')))
   if (failures) console.log(JSON.stringify({ rows, stderr: result.stderr.slice(0, 600) }))
