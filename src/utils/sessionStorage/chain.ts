@@ -74,21 +74,30 @@ export function applySnipRemovals(messages: Map<UUID, TranscriptMessage>): void 
   transcriptRows(messages).removeSnipped()
 }
 
+function* accepted<T>(rows: Iterable<T>, accepts: (row: T) => boolean): Generator<T> {
+  for (const row of rows) if (accepts(row)) yield row
+}
+
+function lastHighestBy<T>(rows: Iterable<T>, score: (row: T) => number): T | undefined {
+  let best: T | undefined
+  let bestScore = -Infinity
+  for (const row of rows) {
+    const rowScore = score(row)
+    if (rowScore >= bestScore) {
+      best = row
+      bestScore = rowScore
+    }
+  }
+  return best
+}
+
+const stampOf = (row: { timestamp: string }): number => Date.parse(row.timestamp)
+
 export function findLatestMessage<T extends { timestamp: string }>(
   messages: Iterable<T>,
   predicate: (m: T) => boolean,
 ): T | undefined {
-  let latest: T | undefined
-  let maxTime = -Infinity
-  for (const m of messages) {
-    if (!predicate(m)) continue
-    const t = Date.parse(m.timestamp)
-    if (t >= maxTime) {
-      maxTime = t
-      latest = m
-    }
-  }
-  return latest
+  return lastHighestBy(accepted(messages, predicate), stampOf)
 }
 
 export function buildConversationChain(
