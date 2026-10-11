@@ -1,6 +1,7 @@
 #!/usr/bin/env bun
 import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { handoffTurn, isHandoffRequest } from '../lib/fixtureApi.ts'
 import { dist, payloadKindsOf, quote, runDoor, savedHookRowsOf, say, sceneRoot, type Row } from './lib/runDoor.ts'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
@@ -25,6 +26,7 @@ if (!existsSync(dist)) {
     turns: [
       { kind: 'tool_use', name: 'Read', input: { file_path: target }, id: 'road_block_1' },
       { kind: 'text', text: 'fixture answered' },
+      handoffTurn(),
     ],
     hooks: {
       'tool.before': [{ name: 'no secrets', match: 'Read', run: `tee ${quote(before)} > /dev/null; echo "no reads of secrets here" >&2; exit 2` }],
@@ -47,7 +49,8 @@ if (!existsSync(dist)) {
   const saved = savedHookRowsOf(result.sessionRows)
   const savedBlock = saved.find(row => row.fields.outcome === 'block' && row.fields.event === 'tool.before')
   check('the session file keeps the block as a hook row with its call id', savedBlock !== undefined && savedBlock.fields.name === 'no secrets' && savedBlock.fields.callId === 'road_block_1' && String(savedBlock.fields.words).includes('no reads of secrets here'), JSON.stringify(saved.map(row => row.fields)))
-  check('the model was asked twice: the refusal went back as the tool result', result.requests === 2, `${result.requests} requests`)
+  check('the model was asked twice: the refusal went back as the tool result', result.wire.filter(q => !isHandoffRequest(q)).length === 2, `${result.requests} requests`)
+  check('the closing ask is marked and follows both substantive requests exactly once', JSON.stringify(result.wire.map(isHandoffRequest)) === JSON.stringify([false, false, true]), JSON.stringify(result.wire.map(isHandoffRequest)))
   check('every row on the stream is valid JSON', rows.every(row => !('bad' in row)))
   if (failures) console.log(JSON.stringify({ rows, stderr: result.stderr.slice(0, 600) }))
   rmSync(paths.root, { recursive: true, force: true })
@@ -65,6 +68,7 @@ if (!existsSync(dist)) {
     turns: [
       { kind: 'tool_use', name: 'Read', input: { file_path: target }, id: 'road_shape_1' },
       { kind: 'text', text: 'fixture answered' },
+      handoffTurn(),
     ],
     hooks: {
       'tool.before': [
@@ -93,8 +97,9 @@ if (!existsSync(dist)) {
   const savedFailed = saved.find(row => row.fields.outcome === 'failed')
   const savedContext = saved.find(row => row.fields.outcome === 'context' && row.fields.event === 'tool.before')
   check('the session file keeps the context row and the failed row with the call id, after the call and before the result', savedFailed !== undefined && savedContext !== undefined && savedFailed.fields.callId === 'road_shape_1' && savedContext.fields.callId === 'road_shape_1' && kinds.indexOf('output') < result.sessionRows.findIndex(row => (row.payload as Row)?.kind === 'attachment' && ((row.payload as Row).fields as Row)?.outcome === 'failed'), JSON.stringify(saved.map(row => row.fields)))
-  const secondRequest = result.requests
+  const secondRequest = result.wire.filter(q => !isHandoffRequest(q)).length
   check('the model was asked twice, the second time with the rewritten output as the tool result', secondRequest === 2, `${secondRequest} requests`)
+  check('the closing ask is marked and follows both substantive requests exactly once', JSON.stringify(result.wire.map(isHandoffRequest)) === JSON.stringify([false, false, true]), JSON.stringify(result.wire.map(isHandoffRequest)))
   check('every row on the stream is valid JSON', rows.every(row => !('bad' in row)))
   if (failures) console.log(JSON.stringify({ rows, stderr: result.stderr.slice(0, 600) }))
   rmSync(paths.root, { recursive: true, force: true })
