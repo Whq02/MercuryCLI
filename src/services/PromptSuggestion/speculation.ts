@@ -1,101 +1,71 @@
+import { IDLE_SPECULATION_STATE, type AppState, type SpeculationState } from '../../state/AppState.js'
 import { logForDebugging } from '../../utils/debug.js'
-import { logError } from '../../utils/log.js'
-import { IDLE_SPECULATION_STATE } from '../../state/AppState.js'
-import type { AppState } from '../../state/AppState.js'
 import type { CacheSafeParams } from '../../utils/forkedAgent.js'
-import type { TurnAnswerContext } from '../../query/turnAnswerContext.js'
-import type { PromptVariant } from './promptSuggestion.js'
+import { logError } from '../../utils/log.js'
 
 type SetAppState = (updater: (prev: AppState) => AppState) => void
 
-export type CompletionBoundary = {
-  type: string
-  [key: string]: unknown
+type ActiveSpeculation = Extract<SpeculationState, { status: 'active' }>
+
+const SPECULATION_ENABLED = false
+
+const CLEARED_SUGGESTION: AppState['promptSuggestion'] = {
+  text: null,
+  promptId: null,
+  shownAt: 0,
+  acceptedAt: 0,
+  generationRequestId: null,
 }
 
-type ActiveSpeculationState = {
-  id: string
-  abort: () => void
-  startTime: number
-  messagesRef: { current: unknown[] }
-  writtenPathsRef: { current: Set<string> }
-  boundary: CompletionBoundary | null
-  suggestionLength: number
-  toolUseCount: number
-  isPipelined: boolean
-  contextRef: { current: TurnAnswerContext }
-  pipelinedSuggestion?: {
-    text: string
-    promptId: PromptVariant
-    generationRequestId: string | null
-  } | null
+const isActive = (state: unknown): state is ActiveSpeculation =>
+  typeof state === 'object' && state !== null && (state as { status?: unknown }).status === 'active'
+
+function stopQuietly(active: ActiveSpeculation): void {
+  try {
+    active.abort()
+  } catch (error) {
+    logForDebugging(`speculation abort thunk failed: ${String(error)}`)
+  }
+}
+
+export function clearPromptSuggestion(prev: AppState): AppState {
+  return prev.promptSuggestion.text === null ? prev : { ...prev, promptSuggestion: CLEARED_SUGGESTION }
 }
 
 export function isSpeculationEnabled(): boolean {
-  logForDebugging('speculation enabled: false')
-  return false
+  logForDebugging(`speculation enabled: ${SPECULATION_ENABLED}`)
+  return SPECULATION_ENABLED
 }
 
 export async function startSpeculation(
-  text: string,
-  context: unknown,
-  setAppState: SetAppState,
-  isPipelined?: boolean,
-  cacheSafeParams?: CacheSafeParams,
+  _text: string,
+  _context: unknown,
+  _setAppState: SetAppState,
+  _isPipelined?: boolean,
+  _cacheSafeParams?: CacheSafeParams,
 ): Promise<void> {
-  void text
-  void context
-  void setAppState
-  void isPipelined
-  void cacheSafeParams
-  if (!isSpeculationEnabled()) return
+  isSpeculationEnabled()
 }
 
 export function abortSpeculation(setAppState: SetAppState): void {
   setAppState(prev => {
-    const speculation = (prev as { speculation?: { status?: string } }).speculation
-    if (speculation?.status !== 'active') return prev
-    const active = speculation as unknown as Partial<ActiveSpeculationState>
-    try {
-      active.abort?.()
-    } catch (error) {
-      logForDebugging(`speculation abort thunk failed: ${String(error)}`)
-    }
-    return { ...prev, speculation: IDLE_SPECULATION_STATE } as AppState
+    if (!isActive(prev.speculation)) return prev
+    stopQuietly(prev.speculation)
+    return { ...prev, speculation: IDLE_SPECULATION_STATE }
   })
 }
 
 export function handleSpeculationAccept(
   state: unknown,
-  sessionTimeSaved: number,
+  _sessionTimeSaved: number,
   setAppState: SetAppState,
-  input: string,
-  deps: unknown,
+  _input: string,
+  _deps: unknown,
 ): { queryRequired: boolean } {
-  void sessionTimeSaved
-  void input
-  void deps
   try {
-    const speculation = (state as { status?: string } | null | undefined) ?? undefined
-    if (speculation?.status !== 'active') {
-      setAppState(prev => {
-        if (prev.promptSuggestion.text === null) return prev
-        return {
-          ...prev,
-          promptSuggestion: {
-            text: null,
-            promptId: null,
-            shownAt: 0,
-            acceptedAt: 0,
-            generationRequestId: null,
-          },
-        }
-      })
-      return { queryRequired: true }
-    }
-    return { queryRequired: true }
+    if (!isActive(state)) setAppState(clearPromptSuggestion)
   } catch (error) {
     logError(error)
-    return { queryRequired: true }
   }
+  return { queryRequired: true }
 }

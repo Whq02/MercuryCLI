@@ -49,6 +49,7 @@ prove-saturn-screen.ts
 prove-select-mouse.ts
 prove-select-commit.ts
 prove-vim-input-mode-follow.ts
+prove-prompt-suggestion-stamps.ts
 prove-select-scroll-drive-hints.ts
 prove-selection-drag-coalesce.ts
 prove-selection-pointer.ts
