@@ -18,6 +18,7 @@ import {
 import { transition, type TransitionContext } from '../vim/transitions.js'
 import {
   getSessionVimPersistentState,
+  type RecordedChange,
   type CommandState,
   type PersistentState,
 } from '../vim/types.js'
@@ -37,6 +38,35 @@ function isMotionExpectingState(state: CommandState): boolean {
     state.type === 'operator' ||
     state.type === 'operatorCount'
   )
+}
+
+type ChangeKind = RecordedChange['type']
+
+type Replayer<Kind extends ChangeKind> = (
+  change: Extract<RecordedChange, { type: Kind }>,
+  ctx: TransitionContext,
+) => void
+
+const REPLAYERS: { [Kind in ChangeKind]: Replayer<Kind> } = {
+  insert: ({ text }, ctx) => {
+    const next = ctx.cursor.insert(text)
+    ctx.setText(next.text)
+    ctx.setOffset(next.offset)
+  },
+  operator: ({ op, motion, count }, ctx) => executeOperatorMotion(op, motion, count, ctx),
+  operatorTextObj: ({ op, scope, objType, count }, ctx) => executeOperatorTextObj(op, scope, objType, count, ctx),
+  operatorFind: ({ op, find, char, count }, ctx) => executeOperatorFind(op, find, char, count, ctx),
+  replace: ({ char, count }, ctx) => executeReplace(char, count, ctx),
+  x: ({ count }, ctx) => executeX(count, ctx),
+  toggleCase: ({ count }, ctx) => executeToggleCase(count, ctx),
+  indent: ({ dir, count }, ctx) => executeIndent(dir, count, ctx),
+  openLine: ({ direction }, ctx) => executeOpenLine(direction, ctx),
+  join: ({ count }, ctx) => executeJoin(count, ctx),
+}
+
+function replay(change: RecordedChange, ctx: TransitionContext): void {
+  const run = REPLAYERS[change.type] as (change: RecordedChange, ctx: TransitionContext) => void
+  run(change, ctx)
 }
 
 export function useVimInput(props: UseVimInputProps): VimInputState {
@@ -117,54 +147,7 @@ export function useVimInput(props: UseVimInputProps): VimInputState {
     if (!change) return
     replayingRef.current = true
     try {
-      const ctx = makeContext()
-      switch (change.type) {
-        case 'insert': {
-          const next = ctx.cursor.insert(change.text)
-          ctx.setText(next.text)
-          ctx.setOffset(next.offset)
-          break
-        }
-        case 'operator':
-          executeOperatorMotion(change.op, change.motion, change.count, ctx)
-          break
-        case 'operatorTextObj':
-          executeOperatorTextObj(
-            change.op,
-            change.scope,
-            change.objType,
-            change.count,
-            ctx,
-          )
-          break
-        case 'operatorFind':
-          executeOperatorFind(
-            change.op,
-            change.find,
-            change.char,
-            change.count,
-            ctx,
-          )
-          break
-        case 'replace':
-          executeReplace(change.char, change.count, ctx)
-          break
-        case 'x':
-          executeX(change.count, ctx)
-          break
-        case 'toggleCase':
-          executeToggleCase(change.count, ctx)
-          break
-        case 'indent':
-          executeIndent(change.dir, change.count, ctx)
-          break
-        case 'openLine':
-          executeOpenLine(change.direction, ctx)
-          break
-        case 'join':
-          executeJoin(change.count, ctx)
-          break
-      }
+      replay(change, makeContext())
     } finally {
       replayingRef.current = false
     }

@@ -3,6 +3,7 @@
 # gate-watch: src/rows/turn.ts src/boot/launchGraph* src/bootstrap/state* src/cli/headless/**
 # gate-watch: src/cli/run* src/components/App* src/constants/betas* src/constants/oauth*
 # gate-watch: src/ink/** src/input-core/command-queue*
+# gate-watch: src/hooks/useVimInput.ts src/vim/operators.ts
 # gate-watch: scripts/lib/hermetic.ts
 # gate-watch: src/input-core/pending-input* src/query/** src/chatLauncher* src/screens/Chat*
 # gate-watch: src/services/providers/anthropic/** src/services/api/errors* src/services/api/withRetry*
@@ -38,6 +39,9 @@ __t=$SECONDS; __rc=0; "$BUN" run scripts/core-runtime/prove-compose-clip-memo.ts
 
 echo "── core-runtime: input contract (T4)"
 __t=$SECONDS; __rc=0; "$BUN" run scripts/core-runtime/prove-input-contract.ts || { __rc=$?; fail=1; }; prover_mark scripts/core-runtime/prove-input-contract.ts "$__t" "$__rc"
+
+echo "── core-runtime: vim dot repeat through the live hook"
+__t=$SECONDS; __rc=0; "$BUN" run scripts/core-runtime/prove-vim-dot-repeat.ts || { __rc=$?; fail=1; }; prover_mark scripts/core-runtime/prove-vim-dot-repeat.ts "$__t" "$__rc"
 
 echo "── core-runtime: input/Unicode fidelity corpus (WAVE C1; HOLD-MAC: native receipts pending)"
 __t=$SECONDS; __rc=0; "$BUN" run scripts/core-runtime/prove-input-unicode-corpus.ts || { __rc=$?; fail=1; }; prover_mark scripts/core-runtime/prove-input-unicode-corpus.ts "$__t" "$__rc"
