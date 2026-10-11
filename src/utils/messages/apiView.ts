@@ -18,7 +18,7 @@ type ReferencePolicy = (item: ResultItem) => boolean
 const TOOL_REFERENCE_TURN_BOUNDARY = 'Tool loaded.'
 
 export function normalizeContentFromAPI(contentBlocks: ApiMessage['content'], tools: Tools): ApiMessage['content'] {
-  let present = contentBlocks ?? []
+  let present = contentBlocks || []
   if (present.some(block => block == null)) {
     logForDebugging('normalizeContentFromAPI: dropping null content block(s) from a provider response — not a decodable block shape', { level: 'warn' })
     present = present.filter(block => block != null)
