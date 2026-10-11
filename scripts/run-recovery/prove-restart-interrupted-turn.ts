@@ -3,7 +3,7 @@ import { spawn } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
-import { startFixtureApi, type ScriptedTurn } from '../lib/fixtureApi.ts'
+import { startFixtureApi, handoffTurn, isHandoffRequest, type ScriptedTurn } from '../lib/fixtureApi.ts'
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -38,7 +38,7 @@ const fixtureTurns: ScriptedTurn[] = [
   { kind: 'hang', deltas: [PARTIAL] },
   { kind: 'text', text: 'S17-SECOND-REPLY' },
 ]
-const fixture = await startFixtureApi(fixtureTurns)
+const fixture = await startFixtureApi([handoffTurn(), ...fixtureTurns])
 
 const home = mkdtempSync(join(tmpdir(), 'convergence-s17-home-'))
 const cwd = mkdtempSync(join(tmpdir(), 'convergence-s17-cwd-'))
@@ -131,7 +131,9 @@ const r2 = await new Promise<{ exit: number | null; stdout: string; stderr: stri
 check('resume exit 0 (an interrupted predecessor is recoverable, not fatal)', r2.exit === 0, `exit=${r2.exit} stderr=${r2.stderr.slice(0, 300)}`)
 check('turn 2 completed', r2.stdout.includes('S17-SECOND-REPLY'), JSON.stringify(r2.stdout.slice(0, 160)))
 
-const msgs = fixture.messageRequests()
+const allRequests = fixture.messageRequests()
+check('the marked closing ask comes only after the resumed answer, never before the kill', JSON.stringify(allRequests.map(isHandoffRequest)) === JSON.stringify([false, false, true]), JSON.stringify(allRequests.map(isHandoffRequest)))
+const msgs = allRequests.filter(q => !isHandoffRequest(q))
 check('exactly two model calls (killed turn + resumed turn — no replay storm)', msgs.length === 2, String(msgs.length))
 const resumeBody = JSON.stringify(msgs[1]?.body ?? {})
 const promptCount = (resumeBody.match(/interrupted prompt/g) ?? []).length
