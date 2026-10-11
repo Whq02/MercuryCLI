@@ -7,7 +7,7 @@ import { logForDebugging } from '../utils/debug.js'
 import { runForkedAgent, type CacheSafeParams, type ForkedAgentParams } from '../utils/forkedAgent.js'
 import { createUserMessage } from '../utils/messages/factories.js'
 import { ledgerEntryOf, recordHandoff } from './ledger.js'
-import { mnemeEnabled } from './mnemeGates.js'
+import { lineageKept } from './lineageSession.js'
 import { mnemeProjectKey } from './paths.js'
 import { sessionCloseAsks } from './sessionClose.js'
 
@@ -23,7 +23,7 @@ export function sessionEndsWithThisTurn(): boolean {
 }
 
 export function handoffAskDue(input: { agentId?: string; querySource?: string; sessionId?: string }): boolean {
-  if (!mnemeEnabled()) return false
+  if (!lineageKept()) return false
   if (input.agentId !== undefined) return false
   if (input.querySource !== 'sdk' && input.querySource !== 'main_thread') return false
   const sessionId = input.sessionId ?? String(getSessionId())
@@ -68,7 +68,7 @@ export async function askForHandoff(input: {
   run?: AskRunner
 }): Promise<{ text: string; stored: boolean } | null> {
   const sessionId = input.sessionId ?? String(getSessionId())
-  if (asked.has(sessionId)) return null
+  if (!lineageKept() || asked.has(sessionId)) return null
   asked.add(sessionId)
   const abortController = new AbortController()
   const budget = setTimeout(() => abortController.abort(new Error('the handoff ask ran past its budget')), input.budgetMs ?? HANDOFF_ASK_BUDGET_MS)
@@ -99,7 +99,7 @@ export async function askForHandoff(input: {
       skipCacheWrite: true,
     } as ForkedAgentParams)
     const text = assistantText(result.messages)
-    if (text === '') return null
+    if (text === '' || !lineageKept()) return null
     const entry = recordHandoff(mnemeProjectKey(), sessionId, text)
     return { text, stored: entry?.handoff?.text === text || (entry?.handoff !== null && entry?.handoff !== undefined && text.startsWith(entry.handoff.text)) }
   } catch (error) {
