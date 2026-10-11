@@ -164,7 +164,7 @@ section('E the source census over every recogniser of the interrupt text')
     ['src/components/messageActions.tsx', 'isTurnCutText(first.text)'],
     ['src/components/FallbackToolUseErrorMessage.tsx', 'isDenialResultText(rawText)'],
     ['src/utils/messages/text.ts', 'text !== INTERRUPT_MESSAGE_FOR_TOOL_USE'],
-    ['src/utils/messages/lookups.ts', 'isDenialResultText(toolResultText(content.content))'],
+    ['src/utils/messages/lookups.ts', 'isDenialResultText(toolResultText(block.content))'],
     ['src/utils/messages/rejectionText.ts', 'text.includes(INTERRUPT_MESSAGE_FOR_TOOL_USE)'],
     ['src/utils/messages/rejectionText.ts', 'isInterruptedResultText(text)'],
     ['src/utils/transcriptSearch.ts', 'return isTurnCutText(text)'],
