@@ -660,132 +660,67 @@ export function findMostRecentBackup(file: string): string | null {
 
 let insideGetConfig = false
 
-export function getConfig<A>(
-  file: string,
-  createDefault: () => A,
-  throwOnInvalid?: boolean,
-): A {
-  if (!configReadingAllowed && process.env.NODE_ENV !== 'test') {
-    throw new Error('Config accessed before allowed.')
-  }
-
-  const fs = getFsImplementation()
-
+function decodeConfigRead<A>(file: string, text: string, defaults: () => A): A {
   try {
-    const fileContent = fs.readFileSync(file, {
-      encoding: 'utf-8',
-    })
-    try {
-      const parsedConfig = jsonParse(stripBOM(fileContent))
-      const decoded = file === getGlobalMercuryFile() ? decodeGlobalConfigFields(parsedConfig) : parsedConfig
-      return {
-        ...createDefault(),
-        ...(decoded as Partial<A>),
-      }
-    } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : String(error)
-      throw new ConfigParseError(errorMessage, file, createDefault())
-    }
-  } catch (error) {
-    const errCode = getErrnoCode(error)
-    if (errCode === 'ENOENT' || errCode === 'ENOTDIR') {
-      const backupPath = findMostRecentBackup(file)
-      if (backupPath) {
-        process.stderr.write(
-          `\nNo configuration file at ${file}; defaults are in use.\nThe newest backup is ${backupPath}; to bring it back: cp "${backupPath}" "${file}"\n\n`,
-        )
-      }
+    const value = jsonParse(stripBOM(text))
+    const fields = file === getGlobalMercuryFile() ? decodeGlobalConfigFields(value) : value
+    return { ...defaults(), ...(fields as Partial<A>) }
+  } catch (failure) {
+    throw new ConfigParseError(failure instanceof Error ? failure.message : String(failure), file, defaults())
+  }
+}
+
+function quarantineConfigRead(file: string, disk: ReturnType<typeof getFsImplementation>): { directory: string; copy?: string; matched: boolean } {
+  const stem = basename(file)
+  const directory = prepareConfigBackupHome(disk)
+  const names = disk.readdirStringSync(directory).filter(name => name.startsWith(`${stem}.corrupted.`))
+  const bytes = disk.readFileSync(file, { encoding: 'utf-8' })
+  const matched = names.some(name => {
+    try { return disk.readFileSync(join(directory, name), { encoding: 'utf-8' }) === bytes } catch { return false }
+  })
+  if (matched) return { directory, matched }
+  const copy = join(directory, `${stem}.corrupted.${Date.now()}`)
+  try {
+    disk.copyFileSync(file, copy)
+    logForDebugging(`Corrupted config backed up to: ${copy}`, { level: 'error' })
+  } catch {}
+  return { directory, copy, matched }
+}
+
+function reportConfigCorruption(file: string, error: ConfigParseError, disk: ReturnType<typeof getFsImplementation>): void {
+  if (!insideGetConfig) {
+    insideGetConfig = true
+    try { logError(error) } finally { insideGetConfig = false }
+  }
+  process.stderr.write(`\nThe configuration file ${file} is not valid JSON (${error.message}); defaults are in use for this run.\n`)
+  const kept = quarantineConfigRead(file, disk)
+  const backup = findMostRecentBackup(file)
+  const location = kept.copy
+    ? `The unreadable bytes were kept at ${kept.copy}\n`
+    : kept.matched ? `The unreadable bytes were already kept under ${kept.directory}\n` : ''
+  const restore = backup ? `The newest good copy is ${backup}; to bring it back: cp "${backup}" "${file}"\n` : ''
+  process.stderr.write(`${location}${restore}\n`)
+}
+
+export function getConfig<A>(file: string, createDefault: () => A, throwOnInvalid?: boolean): A {
+  if (!configReadingAllowed && process.env.NODE_ENV !== 'test') throw new Error('Config accessed before allowed.')
+  const disk = getFsImplementation()
+  try {
+    return decodeConfigRead(file, disk.readFileSync(file, { encoding: 'utf-8' }), createDefault)
+  } catch (failure) {
+    const code = getErrnoCode(failure)
+    if (code === 'ENOENT' || code === 'ENOTDIR') {
+      const backup = findMostRecentBackup(file)
+      if (backup) process.stderr.write(`\nNo configuration file at ${file}; defaults are in use.\nThe newest backup is ${backup}; to bring it back: cp "${backup}" "${file}"\n\n`)
       return createDefault()
     }
-
-    if (error instanceof ConfigParseError && throwOnInvalid) {
-      throw error
+    if (!(failure instanceof ConfigParseError)) {
+      const unreadable = new ConfigReadError(file, code ?? 'EUNKNOWN', failure)
+      logForDebugging(unreadable.message, { level: 'error' })
+      throw unreadable
     }
-
-    if (!(error instanceof ConfigParseError)) {
-      const readError = new ConfigReadError(file, errCode ?? 'EUNKNOWN', error)
-      logForDebugging(readError.message, { level: 'error' })
-      throw readError
-    }
-
-    if (error instanceof ConfigParseError) {
-      if (!insideGetConfig) {
-        insideGetConfig = true
-        try {
-          logError(error)
-        } finally {
-          insideGetConfig = false
-        }
-      }
-
-      process.stderr.write(
-        `\nThe configuration file ${file} is not valid JSON (${error.message}); defaults are in use for this run.\n`,
-      )
-
-      const fileBase = basename(file)
-      const corruptedBackupDir = getConfigBackupDir()
-
-      try {
-        fs.mkdirSync(corruptedBackupDir)
-      } catch (mkdirErr) {
-        const mkdirCode = getErrnoCode(mkdirErr)
-        if (mkdirCode !== 'EEXIST') {
-          throw mkdirErr
-        }
-      }
-
-      const existingCorruptedBackups = fs
-        .readdirStringSync(corruptedBackupDir)
-        .filter(f => f.startsWith(`${fileBase}.corrupted.`))
-
-      let corruptedBackupPath: string | undefined
-      let alreadyBackedUp = false
-
-      const currentContent = fs.readFileSync(file, { encoding: 'utf-8' })
-      for (const backup of existingCorruptedBackups) {
-        try {
-          const backupContent = fs.readFileSync(
-            join(corruptedBackupDir, backup),
-            { encoding: 'utf-8' },
-          )
-          if (currentContent === backupContent) {
-            alreadyBackedUp = true
-            break
-          }
-        } catch {
-        }
-      }
-
-      if (!alreadyBackedUp) {
-        corruptedBackupPath = join(
-          corruptedBackupDir,
-          `${fileBase}.corrupted.${Date.now()}`,
-        )
-        try {
-          fs.copyFileSync(file, corruptedBackupPath)
-          logForDebugging(
-            `Corrupted config backed up to: ${corruptedBackupPath}`,
-            {
-              level: 'error',
-            },
-          )
-        } catch {
-        }
-      }
-
-      const backupPath = findMostRecentBackup(file)
-      const kept = corruptedBackupPath
-        ? `The unreadable bytes were kept at ${corruptedBackupPath}\n`
-        : alreadyBackedUp
-          ? `The unreadable bytes were already kept under ${corruptedBackupDir}\n`
-          : ''
-      const restore = backupPath
-        ? `The newest good copy is ${backupPath}; to bring it back: cp "${backupPath}" "${file}"\n`
-        : ''
-      process.stderr.write(`${kept}${restore}\n`)
-    }
-
+    if (throwOnInvalid) throw failure
+    reportConfigCorruption(file, failure, disk)
     return createDefault()
   }
 }
