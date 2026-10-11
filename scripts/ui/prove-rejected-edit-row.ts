@@ -42,7 +42,7 @@ const paint = async (props: Record<string, unknown>): Promise<string[]> => {
   const stdin = Object.assign(new NodeEventEmitter(), { isTTY: true, isRaw: false, setRawMode() { return this }, setEncoding() { return this }, read() { return null }, unref() { return this }, ref() { return this }, pause() { return this }, resume() { return this } }) as unknown as NodeJS.ReadStream
   const stream = new PassThrough()
   stream.resume()
-  const stdout = Object.assign(stream, { columns: 100, rows: 30 }) as unknown as NodeJS.WriteStream
+  const stdout = Object.assign(stream, { columns: 200, rows: 30 }) as unknown as NodeJS.WriteStream
   const store = createStore(getDefaultAppState())
   const stdinValue = { stdin, setRawMode() {}, isRawModeSupported: true, internal_exitOnCtrlC: false, internal_eventEmitter: emitter, internal_querier: null }
   const tree = React.createElement(
@@ -50,8 +50,8 @@ const paint = async (props: Record<string, unknown>): Promise<string[]> => {
     { value: stdinValue as never },
     React.createElement(
       TerminalSizeContext.Provider,
-      { value: { columns: 100, rows: 30 } },
-      React.createElement(AppStoreContext.Provider, { value: store as never }, React.createElement(Box, { flexDirection: 'column', width: 100 }, React.createElement(FileEditToolUseRejectedMessage, props as never))),
+      { value: { columns: 200, rows: 30 } },
+      React.createElement(AppStoreContext.Provider, { value: store as never }, React.createElement(Box, { flexDirection: 'column', width: 200 }, React.createElement(FileEditToolUseRejectedMessage, props as never))),
     ),
   )
   let painted = (): void => {}
