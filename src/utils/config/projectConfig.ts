@@ -30,189 +30,133 @@ import {
   noteConfigLocklessFallback,
 } from './globalConfig.js'
 
-const TEST_PROJECT_CONFIG_FOR_TESTING: ProjectConfig = {
-  ...DEFAULT_PROJECT_CONFIG,
-}
+type SliceUpdater = (currentConfig: ProjectConfig) => ProjectConfig
+
+const underTest = (): boolean => process.env.NODE_ENV === 'test'
+
+const TEST_PROJECT_CONFIG_FOR_TESTING: ProjectConfig = { ...DEFAULT_PROJECT_CONFIG }
 
 function projectConfigKeyOf(dir: string): string {
-  const gitRoot = findCanonicalGitRoot(dir)
+  return normalizePathForConfigKey(findCanonicalGitRoot(dir) ?? resolve(dir))
+}
 
-  if (gitRoot) {
-    return normalizePathForConfigKey(gitRoot)
+const realFolderOr = (spelling: string): string => {
+  try {
+    return realpathSync(spelling)
+  } catch {
+    return spelling
   }
-
-  return normalizePathForConfigKey(resolve(dir))
 }
 
 export function projectConfigKeyForWorkspace(workspaceDir: string): string {
-  let dir = workspaceDir
-  try {
-    dir = realpathSync(workspaceDir)
-  } catch {
-  }
-  return projectConfigKeyOf(dir)
+  return projectConfigKeyOf(realFolderOr(workspaceDir))
 }
 
 export const getProjectPathForConfig = memoize((): string => projectConfigKeyOf(getOriginalCwd()))
 
+const recordOf = (config: GlobalConfig, key: string): ProjectConfig => config.projects?.[key] ?? DEFAULT_PROJECT_CONFIG
+
+function withRecordReplaced(config: GlobalConfig, key: string, updater: SliceUpdater): GlobalConfig | null {
+  const current = recordOf(config, key)
+  const next = updater(current)
+  return next === current ? null : { ...config, projects: { ...config.projects, [key]: next } }
+}
+
 function readProjectSlice(absolutePath: string): ProjectConfig {
-  const config = getGlobalConfig()
-
-  if (!config.projects) {
-    return DEFAULT_PROJECT_CONFIG
+  const slice = recordOf(getGlobalConfig(), absolutePath)
+  if (slice !== DEFAULT_PROJECT_CONFIG && typeof slice.allowedTools === 'string') {
+    slice.allowedTools = (safeParseJSON(slice.allowedTools) as string[]) ?? []
   }
-
-  const projectConfig = config.projects[absolutePath] ?? DEFAULT_PROJECT_CONFIG
-  if (
-    projectConfig !== DEFAULT_PROJECT_CONFIG &&
-    typeof projectConfig.allowedTools === 'string'
-  ) {
-    projectConfig.allowedTools =
-      (safeParseJSON(projectConfig.allowedTools) as string[]) ?? []
-  }
-
-  return projectConfig
+  return slice
 }
 
 export function getCurrentProjectConfig(): ProjectConfig {
-  if (process.env.NODE_ENV === 'test') {
-    return TEST_PROJECT_CONFIG_FOR_TESTING
-  }
-
-  return readProjectSlice(getProjectPathForConfig())
+  return underTest() ? TEST_PROJECT_CONFIG_FOR_TESTING : readProjectSlice(getProjectPathForConfig())
 }
 
 export function getProjectConfigForWorkspace(workspaceDir: string): ProjectConfig {
-  if (process.env.NODE_ENV === 'test') {
-    return TEST_PROJECT_CONFIG_FOR_TESTING
-  }
-
-  return readProjectSlice(projectConfigKeyForWorkspace(workspaceDir))
+  return underTest() ? TEST_PROJECT_CONFIG_FOR_TESTING : readProjectSlice(projectConfigKeyForWorkspace(workspaceDir))
 }
 
-function saveTestProjectSlice(updater: (currentConfig: ProjectConfig) => ProjectConfig): void {
-  const config = updater(TEST_PROJECT_CONFIG_FOR_TESTING)
-  if (config === TEST_PROJECT_CONFIG_FOR_TESTING) {
+function saveTestProjectSlice(updater: SliceUpdater): void {
+  const next = updater(TEST_PROJECT_CONFIG_FOR_TESTING)
+  if (next !== TEST_PROJECT_CONFIG_FOR_TESTING) Object.assign(TEST_PROJECT_CONFIG_FOR_TESTING, next)
+}
+
+const refuse = (why: string): void => logForDebugging(why, { level: 'error' })
+
+function readForLocklessWrite(): GlobalConfig | null {
+  try {
+    return getConfig(getGlobalMercuryFile(), createDefaultGlobalConfig)
+  } catch (error) {
+    if (!(error instanceof ConfigReadError)) throw error
+    refuse(`saveCurrentProjectConfig fallback: refusing the write — ${error.message}`)
+    return null
+  }
+}
+
+function writeSliceWithoutLock(absolutePath: string, updater: SliceUpdater): void {
+  const read = readForLocklessWrite()
+  if (!read) return
+  if (wouldLoseAuthState(read)) {
+    refuse('saveCurrentProjectConfig fallback: the re-read view lost auth state the cache still holds; refusing the write (auth-wipe guard).')
     return
   }
-  Object.assign(TEST_PROJECT_CONFIG_FOR_TESTING, config)
+  const config = foldPendingUpdaters(read)
+  const replaced = withRecordReplaced(config, absolutePath, updater)
+  if (!replaced && !hasPendingDeferredGlobalConfigSaves()) return
+  const written = replaced ?? config
+  saveConfig(getGlobalMercuryFile(), written, DEFAULT_GLOBAL_CONFIG)
+  writeThroughGlobalConfigCache(written)
 }
 
-function writeProjectSlice(
-  absolutePath: string,
-  updater: (currentConfig: ProjectConfig) => ProjectConfig,
-): void {
+function writeSliceUnderLock(absolutePath: string, updater: SliceUpdater): void {
   let written: GlobalConfig | null = null
+  const didWrite = saveConfigWithLock(getGlobalMercuryFile(), createDefaultGlobalConfig, current => {
+    written = withRecordReplaced(current, absolutePath, updater)
+    return written ?? current
+  })
+  if (didWrite && written) writeThroughGlobalConfigCache(written)
+}
+
+function writeProjectSlice(absolutePath: string, updater: SliceUpdater): void {
   try {
-    const didWrite = saveConfigWithLock(
-      getGlobalMercuryFile(),
-      createDefaultGlobalConfig,
-      current => {
-        const currentProjectConfig =
-          current.projects?.[absolutePath] ?? DEFAULT_PROJECT_CONFIG
-        const newProjectConfig = updater(currentProjectConfig)
-        if (newProjectConfig === currentProjectConfig) {
-          return current
-        }
-        written = {
-          ...current,
-          projects: {
-            ...current.projects,
-            [absolutePath]: newProjectConfig,
-          },
-        }
-        return written
-      },
-    )
-    if (didWrite && written) {
-      writeThroughGlobalConfigCache(written)
-    }
+    writeSliceUnderLock(absolutePath, updater)
+    return
   } catch (error) {
     if (error instanceof ConfigReadError) {
-      logForDebugging(
-        `saveCurrentProjectConfig: refusing the write — ${error.message}`,
-        { level: 'error' },
-      )
+      refuse(`saveCurrentProjectConfig: refusing the write — ${error.message}`)
       return
     }
     if ((error as NodeJS.ErrnoException | null)?.code === 'ELOCKED') {
       noteConfigContentionRefusal('writeProjectSlice')
       return
     }
-    logForDebugging(`Failed to save config with lock: ${error}`, {
-      level: 'error',
-    })
+    refuse(`Failed to save config with lock: ${error}`)
     noteConfigLocklessFallback()
-
-    let config: GlobalConfig
-    try {
-      config = getConfig(getGlobalMercuryFile(), createDefaultGlobalConfig)
-    } catch (readError) {
-      if (readError instanceof ConfigReadError) {
-        logForDebugging(
-          `saveCurrentProjectConfig fallback: refusing the write — ${readError.message}`,
-          { level: 'error' },
-        )
-        return
-      }
-      throw readError
-    }
-    if (wouldLoseAuthState(config)) {
-      logForDebugging(
-        'saveCurrentProjectConfig fallback: the re-read view lost auth state the cache still holds; refusing the write (auth-wipe guard).',
-        { level: 'error' },
-      )
-      return
-    }
-    config = foldPendingUpdaters(config)
-    const currentProjectConfig =
-      config.projects?.[absolutePath] ?? DEFAULT_PROJECT_CONFIG
-    const newProjectConfig = updater(currentProjectConfig)
-    if (newProjectConfig === currentProjectConfig && !hasPendingDeferredGlobalConfigSaves()) {
-      return
-    }
-    written = newProjectConfig === currentProjectConfig ? config : {
-      ...config,
-      projects: {
-        ...config.projects,
-        [absolutePath]: newProjectConfig,
-      },
-    }
-    saveConfig(getGlobalMercuryFile(), written, DEFAULT_GLOBAL_CONFIG)
-    writeThroughGlobalConfigCache(written)
   }
+  writeSliceWithoutLock(absolutePath, updater)
 }
 
-export function saveCurrentProjectConfigDeferred(
-  updater: (currentConfig: ProjectConfig) => ProjectConfig,
-): void {
-  if (process.env.NODE_ENV === 'test') {
+export function saveCurrentProjectConfigDeferred(updater: SliceUpdater): void {
+  if (underTest()) {
     saveTestProjectSlice(updater)
     return
   }
   const key = getProjectPathForConfig()
-  saveGlobalConfigDeferred(config => {
-    const current = config.projects?.[key] ?? DEFAULT_PROJECT_CONFIG
-    const next = updater(current)
-    return next === current ? config : { ...config, projects: { ...config.projects, [key]: next } }
-  })
+  saveGlobalConfigDeferred(config => withRecordReplaced(config, key, updater) ?? config)
 }
 
-export function saveCurrentProjectConfig(
-  updater: (currentConfig: ProjectConfig) => ProjectConfig,
-): void {
-  if (process.env.NODE_ENV === 'test') {
+export function saveCurrentProjectConfig(updater: SliceUpdater): void {
+  if (underTest()) {
     saveTestProjectSlice(updater)
     return
   }
   writeProjectSlice(getProjectPathForConfig(), updater)
 }
 
-export function saveProjectConfigForWorkspace(
-  workspaceDir: string,
-  updater: (currentConfig: ProjectConfig) => ProjectConfig,
-): void {
-  if (process.env.NODE_ENV === 'test') {
+export function saveProjectConfigForWorkspace(workspaceDir: string, updater: SliceUpdater): void {
+  if (underTest()) {
     saveTestProjectSlice(updater)
     return
   }
