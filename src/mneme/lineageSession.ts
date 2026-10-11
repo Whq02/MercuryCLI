@@ -1,5 +1,5 @@
 import { getSessionId } from '../bootstrap/state.js'
-import { retentionWindowDays } from '../utils/cleanup.js'
+import { getInitialSettings } from '../utils/settings/settings.js'
 import { logForDebugging } from '../utils/debug.js'
 import { getTranscriptPathForSession } from '../utils/sessionStorage/paths.js'
 import { closeEntry, ledgerClock, openEntry, recordEngine, recordFact, recordFile, recordRuling } from './ledger.js'
@@ -19,7 +19,7 @@ let seen: OpenSession | null = null
 export const SESSION_CLOSERS_BUDGET_MS = 1_500
 
 export function lineageKept(): boolean {
-  return mnemeEnabled() && retentionWindowDays() !== 0
+  return mnemeEnabled() && getInitialSettings().records?.retentionDays !== 0
 }
 
 export function openLineageSession(): OpenSession | null {
