@@ -4,6 +4,9 @@ import type { BillingType } from '../../services/oauth/types.js'
 import type { ImageDimensions } from '../imageResizer.js'
 import { DEFAULT_THEME_SETTING } from '../systemTheme.js'
 import type { ThemeSetting } from '../theme.js'
+import type { EDITOR_MODES } from '../configConstants.js'
+
+export { EDITOR_MODES } from '../configConstants.js'
 
 export type PastedContent = {
   id: number
@@ -16,41 +19,44 @@ export type PastedContent = {
   sourcePath?: string
 }
 
-export interface SerializedStructuredHistoryEntry {
+export type SerializedStructuredHistoryEntry = {
   display: string
   pastedContents?: Record<number, PastedContent>
   pastedText?: string
 }
-export interface HistoryEntry {
+
+export type HistoryEntry = {
   display: string
   pastedContents: Record<number, PastedContent>
 }
 
-export type ProjectConfig = {
-  allowedTools: string[]
-  mcpServers?: Record<string, McpServerConfig>
-  lastAPIDuration?: number
-  lastAPIDurationWithoutRetries?: number
-  lastToolDuration?: number
-  lastCost?: number
-  lastDuration?: number
-  lastLinesAdded?: number
-  lastLinesRemoved?: number
-  lastTotalInputTokens?: number
-  lastTotalOutputTokens?: number
-  lastTotalCacheCreationInputTokens?: number
-  lastTotalCacheReadInputTokens?: number
-  lastTotalWebSearchRequests?: number
-  lastFpsAverage?: number
-  lastFpsLow1Pct?: number
+type UsageFigures = {
+  inputTokens: number
+  outputTokens: number
+  cacheReadInputTokens: number
+  cacheCreationInputTokens: number
+  webSearchRequests: number
+  costUSD: number
+}
+
+type LastSessionFigure =
+  | 'lastAPIDuration'
+  | 'lastAPIDurationWithoutRetries'
+  | 'lastToolDuration'
+  | 'lastCost'
+  | 'lastDuration'
+  | 'lastLinesAdded'
+  | 'lastLinesRemoved'
+  | 'lastTotalInputTokens'
+  | 'lastTotalOutputTokens'
+  | 'lastTotalCacheCreationInputTokens'
+  | 'lastTotalCacheReadInputTokens'
+  | 'lastTotalWebSearchRequests'
+  | 'lastFpsAverage'
+  | 'lastFpsLow1Pct'
+
+type LastSession = Partial<Record<LastSessionFigure, number>> & {
   lastSessionId?: string
-  permissionPosture?: {
-    mode: 'bypass' | 'standard'
-    armedBy?: 'env-standing-consent' | 'cli-flag' | 'session-choice'
-    consentDialog: 'shown-accepted' | 'suppressed-by-standing-consent' | 'not-required'
-    trustDialogAccepted: boolean
-    recordedAtMs: number
-  }
   lastCostWindow?: {
     kind: 'session-cumulative'
     sessionId?: string
@@ -61,47 +67,37 @@ export type ProjectConfig = {
     pid: number
     savedAtMs: number
   }
-  lastModelUsage?: Record<
-    string,
-    {
-      inputTokens: number
-      outputTokens: number
-      cacheReadInputTokens: number
-      cacheCreationInputTokens: number
-      webSearchRequests: number
-      costUSD: number
-    }
-  >
+  lastModelUsage?: Record<string, UsageFigures>
   lastUnpricedTurns?: Record<string, number>
-  lastWorkloadUsage?: Record<
-    string,
-    Record<
-      string,
-      {
-        inputTokens: number
-        outputTokens: number
-        cacheReadInputTokens: number
-        cacheCreationInputTokens: number
-        webSearchRequests: number
-        costUSD: number
-      }
-    >
-  >
+  lastWorkloadUsage?: Record<string, Record<string, UsageFigures>>
   lastWorkloadUnpricedTurns?: Record<string, Record<string, number>>
   lastSessionMetrics?: Record<string, number>
-  exampleFiles?: string[]
-  exampleFilesGeneratedAt?: number
+}
 
+type ProjectPosture = {
+  permissionPosture?: {
+    mode: 'bypass' | 'standard'
+    armedBy?: 'env-standing-consent' | 'cli-flag' | 'session-choice'
+    consentDialog: 'shown-accepted' | 'suppressed-by-standing-consent' | 'not-required'
+    trustDialogAccepted: boolean
+    recordedAtMs: number
+  }
   hasTrustDialogAccepted?: boolean
-
   hasCompletedProjectOnboarding?: boolean
   projectOnboardingSeenCount: number
   hasExternalIncludesApproved?: boolean
   hasExternalIncludesWarningShown?: boolean
+}
+
+type ProjectKit = {
+  allowedTools: string[]
+  mcpServers?: Record<string, McpServerConfig>
   disabledMcpServers?: string[]
   enabledMcpServers?: string[]
   skillStates?: Record<string, 'off' | 'invocable'>
   extensionStates?: Record<string, 'off'>
+  exampleFiles?: string[]
+  exampleFilesGeneratedAt?: number
   activeWorktreeSession?: {
     originalCwd: string
     worktreePath: string
@@ -111,6 +107,8 @@ export type ProjectConfig = {
   }
 }
 
+export type ProjectConfig = ProjectKit & ProjectPosture & LastSession
+
 export const DEFAULT_PROJECT_CONFIG: ProjectConfig = {
   allowedTools: [],
   mcpServers: {},
@@ -119,12 +117,6 @@ export const DEFAULT_PROJECT_CONFIG: ProjectConfig = {
   hasExternalIncludesApproved: false,
   hasExternalIncludesWarningShown: false,
 }
-
-export {
-  EDITOR_MODES,
-} from '../configConstants.js'
-
-import type { EDITOR_MODES } from '../configConstants.js'
 
 export type AccountInfo = {
   accountUuid: string
@@ -141,8 +133,7 @@ export type AccountInfo = {
 
 export type EditorMode = 'emacs' | (typeof EDITOR_MODES)[number]
 
-export type GlobalConfig = {
-  projects?: Record<string, ProjectConfig>
+type BootRecord = {
   numStartups: number
   headlessActivity?: {
     print: number
@@ -151,19 +142,71 @@ export type GlobalConfig = {
     lastKind: string
     lastAt: number
   }
-  theme: ThemeSetting
+  firstStartTime?: string
   hasCompletedOnboarding?: boolean
   lastOnboardingVersion?: string
   lastReleaseNotesSeen?: string
+  tipsHistory: { [tipId: string]: number }
+  projects?: Record<string, ProjectConfig>
+}
+
+type Appearance = {
+  theme: ThemeSetting
+  motion?: 'auto' | 'full' | 'reduced' | 'off'
+  toolOutput: 'compact' | 'full'
+  expandedView?: 'none' | 'tasks'
+  showTurnDuration: boolean
+  showExpandedTasks?: boolean
+  defaultCritter?: string
+  editorMode?: EditorMode
+  copyFullResponse: boolean
+  copyOnSelect?: boolean
+  mouseCapture?: boolean
+  terminalProgressBarEnabled: boolean
+}
+
+type Credentials = {
+  customApiKeyResponses?: {
+    approved?: string[]
+    rejected?: string[]
+  }
+  primaryApiKey?: string
+  hasAcknowledgedCostThreshold?: boolean
+  oauthAccount?: AccountInfo
+  anthropicPreferredSource?: 'subscription' | 'api-key'
+  defaultProvider?: string
+  compatProvider?: {
+    baseUrl?: string
+    label?: string
+    models?: string[]
+  }
+}
+
+type Servers = {
   mcpServers?: Record<string, McpServerConfig>
   kitPresets?: Record<string, { mcpOff: string[]; skillStates: Record<string, 'off' | 'invocable'>; extensionsOff: string[] }>
   claudeAiMcpEverConnected?: string[]
+}
+
+type Concourse = {
+  concourseEnabled?: boolean
   concourseCoordinator?: {
     mode?: 'off' | 'rules-only' | 'agent-assisted'
     assistModel?: string
     effort?: string
   }
-  motion?: 'auto' | 'full' | 'reduced' | 'off'
+  switchboardCapacity?: {
+    askedAt?: number
+    allowed?: boolean
+    recommendedSeats?: number
+    operatorSeats?: number
+  }
+  hasSeenCoordinatorOffHint?: boolean
+  backgroundSessionsLaunchCrewmates?: boolean
+}
+
+type ModelChoices = {
+  responseProfile?: 'balanced' | 'concise'
   jev?: {
     enabled?: boolean
     road?: 'official' | 'openrouter'
@@ -185,98 +228,11 @@ export type GlobalConfig = {
       advisor?: string
     }
   }
-  switchboardCapacity?: {
-    askedAt?: number
-    allowed?: boolean
-    recommendedSeats?: number
-    operatorSeats?: number
-  }
-  hasSeenCoordinatorOffHint?: boolean
-  responseProfile?: 'balanced' | 'concise'
-  toolOutput: 'compact' | 'full'
-  customApiKeyResponses?: {
-    approved?: string[]
-    rejected?: string[]
-  }
-  primaryApiKey?: string
-  hasAcknowledgedCostThreshold?: boolean
-  oauthAccount?: AccountInfo
-  anthropicPreferredSource?: 'subscription' | 'api-key'
-  editorMode?: EditorMode
-  hasUsedBackslashReturn?: boolean
-  autoCompactEnabled: boolean
-  autoCompactWindow?: number
-  localModelWindows?: { [model: string]: 'server' | 'max' | number }
-  localModelBatch?: { [model: string]: number }
-  showTurnDuration: boolean
-  hasSeenTasksHint?: boolean
-  hasUsedStash?: boolean
-  hasUsedBackgroundTask?: boolean
-  expandedView?: 'none' | 'tasks'
-  appleTerminalBackupPath?: string
-  appleTerminalSetupInProgress?: boolean
-
-  shiftEnterKeyBindingInstalled?: boolean
-  optionAsMetaKeyInstalled?: boolean
-
-  tipsHistory: {
-    [tipId: string]: number
-  }
-
-  defaultProvider?: string
-  concourseEnabled?: boolean
-  backgroundSessionsLaunchCrewmates?: boolean
-  defaultCritter?: string
-
-  voiceNoticeSeenCount?: number
-  voiceLangHintShownCount?: number
-  voiceLangHintLastLanguage?: string
-  voiceFooterHintSeenCount?: number
-
-  promptQueueUseCount: number
-
-
-  showExpandedTasks?: boolean
-
-  firstStartTime?: string
-
-  fileCheckpointingEnabled: boolean
-
-  terminalProgressBarEnabled: boolean
-
-  remoteDialogSeen?: boolean
-
-  bridgeOauthDeadExpiresAt?: number
-  bridgeOauthDeadFailCount?: number
-
-  copyFullResponse: boolean
-
-  copyOnSelect?: boolean
-
-  mouseCapture?: boolean
-
-  githubRepoPaths?: Record<string, string[]>
-
-  skillUsage?: Record<string, { usageCount: number; lastUsedAt: number }>
-
-  lspRecommendationIgnoredCount?: number
-
-  permissionExplainerEnabled?: boolean
-
   agents?: {
     defaultEffort?: EffortLevel
     defaultModel?: string
     maxConcurrent?: number
   }
-
-  prStatusFooterEnabled?: boolean
-
-  voiceInputEnabled?: boolean
-
-  voiceTranscriber?: string
-
-  remoteControlAtStartup?: boolean
-
   launchEffortUnpins?: {
     opus47?: boolean
     opus48?: boolean
@@ -285,13 +241,59 @@ export type GlobalConfig = {
     opus55?: boolean
     sonnet55?: boolean
   }
-
-  compatProvider?: {
-    baseUrl?: string
-    label?: string
-    models?: string[]
-  }
+  autoCompactEnabled: boolean
+  autoCompactWindow?: number
+  localModelWindows?: { [model: string]: 'server' | 'max' | number }
+  localModelBatch?: { [model: string]: number }
+  fileCheckpointingEnabled: boolean
+  permissionExplainerEnabled?: boolean
+  prStatusFooterEnabled?: boolean
+  lspRecommendationIgnoredCount?: number
+  skillUsage?: Record<string, { usageCount: number; lastUsedAt: number }>
+  githubRepoPaths?: Record<string, string[]>
 }
+
+type Hints = {
+  hasUsedBackslashReturn?: boolean
+  hasSeenTasksHint?: boolean
+  hasUsedStash?: boolean
+  hasUsedBackgroundTask?: boolean
+  promptQueueUseCount: number
+}
+
+type TerminalSetup = {
+  appleTerminalBackupPath?: string
+  appleTerminalSetupInProgress?: boolean
+  shiftEnterKeyBindingInstalled?: boolean
+  optionAsMetaKeyInstalled?: boolean
+}
+
+type Voice = {
+  voiceInputEnabled?: boolean
+  voiceTranscriber?: string
+  voiceNoticeSeenCount?: number
+  voiceLangHintShownCount?: number
+  voiceLangHintLastLanguage?: string
+  voiceFooterHintSeenCount?: number
+}
+
+type Bridge = {
+  remoteDialogSeen?: boolean
+  remoteControlAtStartup?: boolean
+  bridgeOauthDeadExpiresAt?: number
+  bridgeOauthDeadFailCount?: number
+}
+
+export type GlobalConfig = BootRecord &
+  Appearance &
+  Credentials &
+  Servers &
+  Concourse &
+  ModelChoices &
+  Hints &
+  TerminalSetup &
+  Voice &
+  Bridge
 
 export function createDefaultGlobalConfig(): GlobalConfig {
   return {
@@ -305,10 +307,7 @@ export function createDefaultGlobalConfig(): GlobalConfig {
     hasUsedStash: false,
     hasUsedBackgroundTask: false,
     expandedView: 'none',
-    customApiKeyResponses: {
-      approved: [],
-      rejected: [],
-    },
+    customApiKeyResponses: { approved: [], rejected: [] },
     tipsHistory: {},
     promptQueueUseCount: 0,
     showExpandedTasks: false,
@@ -319,6 +318,11 @@ export function createDefaultGlobalConfig(): GlobalConfig {
 }
 
 export const DEFAULT_GLOBAL_CONFIG: GlobalConfig = createDefaultGlobalConfig()
+
+const keyGuard = <Key extends string>(keys: readonly Key[]) => {
+  const known: ReadonlySet<string> = new Set(keys)
+  return (key: string): key is Key => known.has(key)
+}
 
 export const GLOBAL_CONFIG_KEYS = [
   'theme',
@@ -348,10 +352,7 @@ export const GLOBAL_CONFIG_KEYS = [
 ] as const satisfies readonly (keyof GlobalConfig)[]
 
 export type GlobalConfigKey = (typeof GLOBAL_CONFIG_KEYS)[number]
-
-export function isGlobalConfigKey(key: string): key is GlobalConfigKey {
-  return GLOBAL_CONFIG_KEYS.includes(key as GlobalConfigKey)
-}
+export const isGlobalConfigKey = keyGuard(GLOBAL_CONFIG_KEYS)
 
 export const PROJECT_CONFIG_KEYS = [
   'allowedTools',
@@ -360,7 +361,4 @@ export const PROJECT_CONFIG_KEYS = [
 ] as const satisfies readonly (keyof ProjectConfig)[]
 
 export type ProjectConfigKey = (typeof PROJECT_CONFIG_KEYS)[number]
-
-export function isProjectConfigKey(key: string): key is ProjectConfigKey {
-  return PROJECT_CONFIG_KEYS.includes(key as ProjectConfigKey)
-}
+export const isProjectConfigKey = keyGuard(PROJECT_CONFIG_KEYS)

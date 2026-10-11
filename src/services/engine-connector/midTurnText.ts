@@ -11,7 +11,7 @@ export interface CommittedTextRow {
   row: Message
 }
 
-const EMPTY_USAGE = {
+const NOTHING_SPENT = {
   input_tokens: 0,
   output_tokens: 0,
   cache_creation: null,
@@ -25,37 +25,34 @@ const EMPTY_USAGE = {
   speed: null,
 }
 
-export function createTextRow(args: { messageId: string; text: string; phase: TextPhase | null; atMs: number; model: string }): Message {
-  return {
-    type: 'assistant',
-    uuid: randomUUID(),
-    timestamp: new Date(args.atMs).toISOString(),
-    requestId: undefined,
-    isVirtual: true,
-    message: {
-      id: args.messageId,
-      container: null,
-      role: 'assistant',
-      type: 'message',
-      model: args.model,
-      content: [{ type: 'text', text: args.text, ...(args.phase !== null ? { phase: args.phase } : {}) }],
-      stop_reason: null,
-      stop_sequence: null,
-      context_management: null,
-      usage: EMPTY_USAGE,
-    },
-  } as unknown as Message
+const textBlock = (text: string, phase: TextPhase | null) => (phase === null ? { type: 'text', text } : { type: 'text', text, phase })
+
+export function createTextRow({ messageId, text, phase, atMs, model }: { messageId: string; text: string; phase: TextPhase | null; atMs: number; model: string }): Message {
+  const message = {
+    id: messageId,
+    container: null,
+    role: 'assistant',
+    type: 'message',
+    model,
+    content: [textBlock(text, phase)],
+    stop_reason: null,
+    stop_sequence: null,
+    context_management: null,
+    usage: NOTHING_SPENT,
+  }
+  return { type: 'assistant', uuid: randomUUID(), timestamp: new Date(atMs).toISOString(), requestId: undefined, isVirtual: true, message } as unknown as Message
+}
+
+const textsOf = (content: unknown): string[] => {
+  if (typeof content === 'string') return [content]
+  if (!Array.isArray(content)) return []
+  return content.flatMap(block => {
+    const candidate = block as { type?: unknown; text?: unknown } | null
+    return candidate?.type === 'text' && typeof candidate.text === 'string' ? [candidate.text] : []
+  })
 }
 
 export function textRowLanded(row: Message, messageId: string, text: string): boolean {
-  if (row.type !== 'assistant') return false
-  const message = (row as { message?: { id?: unknown; content?: unknown } }).message
-  if (message?.id !== messageId) return false
-  const content = message.content
-  if (typeof content === 'string') return content.startsWith(text)
-  if (!Array.isArray(content)) return false
-  return content.some(block => {
-    const b = block as { type?: unknown; text?: unknown } | null
-    return b?.type === 'text' && typeof b.text === 'string' && b.text.startsWith(text)
-  })
+  const message = row.type === 'assistant' ? (row as { message?: { id?: unknown; content?: unknown } }).message : undefined
+  return message?.id === messageId && textsOf(message.content).some(landed => landed.startsWith(text))
 }
