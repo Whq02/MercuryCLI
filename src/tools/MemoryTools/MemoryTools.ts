@@ -143,7 +143,7 @@ export const RetainTool = buildTool({
 const recallSchema = lazySchema(() =>
   z
     .strictObject({
-      query: z.string().optional().describe('Search memory for pointers: facts and pinned rulings in the pages, archive and pending observations, and the sessions and handoffs of the lineage ledger. A phrase or regex matches literally; otherwise the words of the query are matched. A pointer is an id, a title and footnotes, never the content: open one with read.'),
+      query: z.string().optional().describe('Search memory for pointers: facts and pinned rulings in the pages, archive and pending observations, and the sessions and handoffs of the lineage ledger. A phrase or regex matches literally; otherwise the words of the query are matched. A pointer is an id, a title and footnotes: open one with read to see the record.'),
       read: z.string().optional().describe('Read one full record by id: seq:<n> (a fact or ruling) · doc:<slug> (a whole page) · pending:<ts> · ledger:<ordinal> (a session\'s entry and its handoff).'),
       limit: z.number().int().min(1).max(POINTER_LIMIT).optional().describe(`Max pointers (default ${POINTER_DEFAULT_LIMIT}, at most ${POINTER_LIMIT}).`),
     })
