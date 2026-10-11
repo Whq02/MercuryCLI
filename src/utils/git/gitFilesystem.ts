@@ -415,14 +415,12 @@ export async function readWorktreeHeadSha(worktreePath: string): Promise<string 
   }
 }
 
+const linkedWorktreeCount = (adminDir: string): Promise<number> =>
+  readdir(join(adminDir, 'worktrees')).then(entries => entries.length, () => 0)
+
 export async function getWorktreeCountFromFs(): Promise<number> {
   const gitDir = await resolveGitDir()
   if (gitDir === null) return 0
-  const commonDir = (await getCommonDir(gitDir)) ?? gitDir
-  try {
-    const entries = await readdir(join(commonDir, 'worktrees'))
-    return entries.length + 1
-  } catch {
-    return 1
-  }
+  const adminDir = (await getCommonDir(gitDir)) ?? gitDir
+  return 1 + (await linkedWorktreeCount(adminDir))
 }
