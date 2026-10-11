@@ -187,7 +187,7 @@ section('(3) the sandbox boundary — source pins at the owners')
   )
 
   const core = read('src/services/providers/anthropic/streamCore.ts')
-  const qwm = core.slice(core.indexOf('function sideQuestionParams('), core.indexOf('// The API caps non-streaming'))
+  const qwm = core.slice(core.indexOf('function sideQuestionParams('), core.indexOf('export const MAX_NON_STREAMING_TOKENS'))
   check(
     'queryWithModel sends NO tools and an EMPTY permission context',
     qwm.includes('routedCallModel(sideQuestionParams(question, systemPrompt))') &&
