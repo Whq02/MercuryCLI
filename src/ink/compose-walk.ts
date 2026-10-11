@@ -1115,6 +1115,30 @@ function siblingSharesY(node: DOMElement, layoutNode: LayoutNode): boolean {
   return neighbour !== null && neighbour.getComputedTop() === layoutNode.getComputedTop()
 }
 
+function pushElementChildren(stack: DOMElement[], parent: DOMElement): void {
+  for (let i = parent.childNodes.length - 1; i >= 0; i--) {
+    const child = parent.childNodes[i]!
+    if (child.nodeName !== '#text') stack.push(child as DOMElement)
+  }
+}
+
+function restoreIfEscaping(
+  ctx: WalkCtx,
+  prevScreen: Screen,
+  rect: Rectangle,
+  left: number,
+  top: number,
+  right: number,
+  bottom: number,
+): void {
+  const x = Math.floor(rect.x)
+  const y = Math.floor(rect.y)
+  const width = Math.floor(rect.width)
+  const height = Math.floor(rect.height)
+  const inside = x >= left && y >= top && x + width <= right && y + height <= bottom
+  if (!inside) ctx.buffer.blit(prevScreen, x, y, width, height)
+}
+
 function blitEscapingAbsoluteDescendants(
   node: DOMElement,
   ctx: WalkCtx,
@@ -1124,27 +1148,41 @@ function blitEscapingAbsoluteDescendants(
   pw: number,
   ph: number,
 ): void {
-  const pr = px + pw
-  const pb = py + ph
-  for (const child of node.childNodes) {
-    if (child.nodeName === '#text') continue
-    const elem = child as DOMElement
-    if (elem.style.position === 'absolute') {
-      const cached = nodeCache.get(elem)
-      if (cached) {
-        ctx.signals.absoluteRectsCur.push(cached)
-        const cx = Math.floor(cached.x)
-        const cy = Math.floor(cached.y)
-        const cw = Math.floor(cached.width)
-        const ch = Math.floor(cached.height)
-        if (cx < px || cy < py || cx + cw > pr || cy + ch > pb) {
-          ctx.buffer.blit(prevScreen, cx, cy, cw, ch)
-        }
-      }
+  const right = px + pw
+  const bottom = py + ph
+  const pending: DOMElement[] = []
+  pushElementChildren(pending, node)
+  while (pending.length > 0) {
+    const elem = pending.pop()!
+    const cached = elem.style.position === 'absolute' ? nodeCache.get(elem) : undefined
+    if (cached) {
+      ctx.signals.absoluteRectsCur.push(cached)
+      restoreIfEscaping(ctx, prevScreen, cached, px, py, right, bottom)
     }
-    blitEscapingAbsoluteDescendants(elem, ctx, prevScreen, px, py, pw, ph)
+    pushElementChildren(pending, elem)
   }
 }
+
+type Band = { top: number; height: number; grewBy: number }
+
+const measured: Band = { top: 0, height: 0, grewBy: 0 }
+
+function measureScrolledChild(child: DOMElement, layout: LayoutNode, cached: CachedLayout | undefined, shiftAbove: number): Band {
+  if (cached?.top !== undefined && !child.dirty && shiftAbove === 0) {
+    measured.top = cached.top
+    measured.height = cached.height
+    measured.grewBy = 0
+    return measured
+  }
+  measured.top = layout.getComputedTop()
+  measured.height = layout.getComputedHeight()
+  measured.grewBy = child.dirty ? measured.height - (cached?.height ?? 0) : 0
+  if (cached) cached.top = measured.top
+  return measured
+}
+
+const outsideBand = (band: Band, bandTop: number, bandBottom: number): boolean =>
+  band.top + band.height <= bandTop || band.top >= bandBottom
 
 function composeScrolledChildren(
   node: DOMElement,
