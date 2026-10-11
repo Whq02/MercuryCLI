@@ -22,8 +22,9 @@ export const PICKER_TOP_ROWS = 12
 export const PICKER_FILTER_REACH = 50
 
 export const MODEL_PICKER_TITLE = 'Mercury · model'
-export const MODEL_PICKER_FILTER_PLACEHOLDER = 'filter by name or id'
-export const MODEL_PICKER_HINT = '↑↓ select · ↵ switch · c context · → ← fold · / filter · esc or click outside closes'
+export const MODEL_PICKER_FILTER_PLACEHOLDER = 'tab to search by name or id'
+export const MODEL_PICKER_SEARCH_PLACEHOLDER = 'search by name or id'
+export const MODEL_PICKER_HINT = '↑↓ select · ↵ switch · c context · → ← fold · tab to search · esc or click outside closes'
 export const MODEL_PICKER_NO_ALIAS = 'new · no alias'
 export const MODEL_PICKER_CURRENT = 'current'
 export const MODEL_PICKER_UNAVAILABLE = 'unavailable'
@@ -235,7 +236,7 @@ export function lastStop<T extends PickerRow>(lines: readonly PickerLine<T>[]): 
 }
 
 export function moreLineWords(hidden: number, reach: boolean): string {
-  return `↓ ${hidden} more · → unfolds the rest${reach ? ' · / filter reaches every one' : ''}`
+  return `↓ ${hidden} more · → unfolds the rest${reach ? ' · search reaches every one' : ''}`
 }
 
 export function matchWords(matched: number, total: number): string {
