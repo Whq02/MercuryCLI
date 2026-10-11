@@ -682,7 +682,7 @@ section('§10 a moved number reads as a lawful prefix change — named by the le
     { role: 'assistant', content: [{ type: 'thinking', thinking: 'reasoning bound to the prefix', signature: 'sig-bound' }, { type: 'text', text: 'first answer' }] },
     { role: 'user', content: [{ type: 'text', text: 'second question' }] },
   ]
-  const parts = (line: string) => ({ system: [{ type: 'text', text: line }, { type: 'text', text: 'You are a Mercury agent.' }], tools: [], messages })
+  const parts = (line: string) => ({ system: [{ type: 'text', text: line }, { type: 'text', text: 'The session prompt.' }], tools: [], messages })
   ledger.judgeAndRecordPrefix(owner, key, parts(lineOld) as never)
   const moved = ledger.judgeAndRecordPrefix(owner, key, parts(lineNew) as never)
   check('the ledger names block 0 of the system prompt when only the contract number moved', moved.mismatch !== null && moved.mismatch.path.startsWith('system[0]'), JSON.stringify(moved.mismatch))

@@ -402,10 +402,9 @@ function runRemedyCmd(
   })
 }
 import {
+  MERCURY_CONSTITUTION,
   MERCURY_COORDINATOR_CONTRACT,
-  MERCURY_SESSION_CONTRACT,
   MERCURY_SUBAGENT_CONTRACT,
-  mercuryDoctrineEnabled,
 } from '../prompt/mercuryContract.js'
 
 export type {
@@ -1005,17 +1004,11 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
         },
         {
           id: 'wrapper',
-          label: 'Mercury doctrine',
+          label: 'Mercury constitution',
           run: () => {
-            if (!mercuryDoctrineEnabled()) {
-              return {
-                status: 'off',
-                evidence: 'MERCURY_WRAPPER_APPEND=0 — the session contract is off this session by choice',
-              }
-            }
             return {
               status: 'ok',
-              evidence: `contracts on — built-in source, session ${MERCURY_SESSION_CONTRACT.length} · coordinator ${MERCURY_COORDINATOR_CONTRACT.length} · crewmate ${MERCURY_SUBAGENT_CONTRACT.length} chars`,
+              evidence: `the constitution ${MERCURY_CONSTITUTION.length} chars — built-in source; seat contracts coordinator ${MERCURY_COORDINATOR_CONTRACT.length} · crewmate ${MERCURY_SUBAGENT_CONTRACT.length} chars`,
             }
           },
         },

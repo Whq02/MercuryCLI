@@ -171,21 +171,19 @@ section('§7 one continuation per attempt across families; wording demoted; drai
   )
 }
 
-section('§8 ONE persistence law, the same words on every seat that works a task (SS-08/10/11)')
+section('§8 ONE persistence law on the seat that works a task for a caller; the session\'s finishing clause is the constitution\'s (SS-08/10/11)')
 {
-  const { MERCURY_SESSION_CONTRACT, MERCURY_SUBAGENT_CONTRACT } = await import(
+  const { MERCURY_CONSTITUTION, MERCURY_SUBAGENT_CONTRACT } = await import(
     '../../src/prompt/mercuryContract.ts'
   )
   const PERSIST = 'keep going while evidence advances the outcome'
-  const BLOCKED: Record<string, RegExp> = { session: /input only the operator can give/, 'sub-agent': /returning blocked, with what you need named/ }
-  for (const [seat, text] of [['session', MERCURY_SESSION_CONTRACT], ['sub-agent', MERCURY_SUBAGENT_CONTRACT]] as const) {
-    check(`${seat}: the law suggests and never counts (keep going while evidence advances; no repetition count, no strategy switch)`, text.includes(PERSIST) && !/strategy once|stop looping|handoff|strateg/.test(text))
-    check(`${seat}: a block stops for what only the operator or the caller can give, named`, BLOCKED[seat]!.test(text))
-  }
+  check('sub-agent: the law suggests and never counts (keep going while evidence advances; no repetition count, no strategy switch)', MERCURY_SUBAGENT_CONTRACT.includes(PERSIST) && !/strategy once|stop looping|handoff|strateg/.test(MERCURY_SUBAGENT_CONTRACT))
+  check('sub-agent: a block stops for what only the caller can give, named', /returning blocked, with what you need named/.test(MERCURY_SUBAGENT_CONTRACT))
+  check('session: the constitution stops only for a step that cannot be undone, a change in what was asked, or something only the operator can give, and finishes the turn (no repetition count, no strategy switch)', /Stop only for a step that cannot be undone, a\nchange in what was asked, or something only the operator can give/.test(MERCURY_CONSTITUTION) && /If your last words only say what you will do next, do it,\nand stop when the work is done/.test(MERCURY_CONSTITUTION) && !/strategy once|stop looping|strateg/.test(MERCURY_CONSTITUTION))
   const doctrineSrc = src('src/constants/subagentDoctrine.ts')
   check('the subagent doctrine splices the sub-agent contract in its one register (the seat word slotted in)', (doctrineSrc.match(/\$\{mercurySubagentContract\(seat\)\}/g) ?? []).length === 1 && !doctrineSrc.includes('${MERCURY_SUBAGENT_CONTRACT}'))
   const contract = src('src/prompt/mercuryContract.ts')
-  check('no separate law constant exists (SS-11: the words live in the contracts, one owner)', !contract.includes('PERSISTENCE_LAW') && (contract.match(new RegExp(PERSIST, 'g')) ?? []).length === 2)
+  check('no separate law constant exists (SS-11: the words live in the contract, one owner)', !contract.includes('PERSISTENCE_LAW') && (contract.match(new RegExp(PERSIST, 'g')) ?? []).length === 1)
   check('the retired GPT overlay is GONE (one content for every family)', !contract.includes('agentic_persistence'))
 }
 

@@ -538,9 +538,9 @@ export function buildConcourseWorkerSpec(args: {
     ...(args.keyless ? { keyless: true } : {}),
     effort: args.effort ?? 'high',
     appendSystemPrompt: [
-      "You run as a BACKGROUND session on the operator's switchboard.",
+      "This session lives on the operator's switchboard: the operator opens it to work in it and leaves it running otherwise, and either way their messages reach you through the harness.",
       backgroundWorkerDelegationSentence(),
-      "'Idle', 'wait', or 'stand by' means END YOUR TURN — the harness wakes you on the next delivery. Never hold a turn open with sleeps or timers to stay available.",
+      "'Idle', 'wait', or 'stand by' means end your turn — the harness wakes you on the next delivery. Never hold a turn open with sleeps or timers to stay available.",
       ...(runnerArgv.append !== null ? ['', runnerArgv.append] : []),
     ].join('\n'),
     role: 'MERCURY_CONCOURSE_WORKER',

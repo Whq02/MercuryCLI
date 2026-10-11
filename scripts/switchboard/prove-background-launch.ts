@@ -147,7 +147,8 @@ console.log("LAW 4 — the worker's prompt sentence follows the setting at spawn
   setting?.setBackgroundSessionsLaunchCrewmates(true)
   const on = specOf().appendSystemPrompt ?? ''
   check('setting ON: the worker is told delegation is available and why', on.includes('Delegation (subagents/workflows) is available: the operator turned on ' + LABEL + ', so this session launches crewmates and workflows as a focused one does — when those tools are absent, plan and work single-handed; never wait for them.'), on)
-  check('the background posture line and the idle law stand on both', [off, on].every(p => p.startsWith("You run as a BACKGROUND session on the operator's switchboard.") && p.includes("'Idle', 'wait', or 'stand by' means END YOUR TURN")))
+  check('the posture line says what the session is to the operator — one on the switchboard, sat in or left running — and the idle law stands, on both', [off, on].every(p => p.startsWith("This session lives on the operator's switchboard: the operator opens it to work in it and leaves it running otherwise, and either way their messages reach you through the harness.") && p.includes("'Idle', 'wait', or 'stand by' means end your turn — the harness wakes you on the next delivery.")))
+  check('the posture tail never calls the session a background session (the operator may be sitting in it)', [off, on].every(p => !/background session/i.test(p)), [off, on].map(p => p.slice(0, 80)).join(' | '))
   setting?.setBackgroundSessionsLaunchCrewmates(false)
   check('the sentence is minted by the setting owner, read live at spawn', src('src/daemon/concourseWorkers.ts').includes('backgroundWorkerDelegationSentence(),') && !src('src/daemon/concourseWorkers.ts').includes('Delegation (subagents/workflows)'))
 }

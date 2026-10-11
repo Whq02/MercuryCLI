@@ -28,6 +28,7 @@ const prompts = await import('../../src/constants/prompts.ts')
 const bc = await import('../../src/prompt/behaviourContract.ts')
 const sections = await import('../../src/constants/systemPromptSections.ts')
 const { setOriginalCwd } = await import('../../src/bootstrap/state.ts')
+const { MERCURY_CONSTITUTION } = await import('../../src/prompt/mercuryContract.ts')
 
 const toolNames = ['Bash', 'Glob', 'Grep', 'Read', 'Edit', 'Write', 'Agent', 'Skill', 'TaskCreate', 'AskUserQuestion']
 const tools = toolNames.map(name => ({ name })) as never
@@ -79,7 +80,9 @@ for (const [family, model] of FAMILY_MODELS) {
   check('the renders differ across the boundary (the input is render-visible)', base !== moved)
   check('a non-empty shared prefix precedes the first difference', firstDiff > 0,
     `firstDiff=${firstDiff}`)
-  check('the shared prefix covers the intro section', firstDiff > 200,
+  const headLine = 'Mercury — a private terminal software-development harness.\nWorking directory: '
+  check('the first difference is the working directory in the head (the head leads; the constitution beneath it is byte-identical on both sides)',
+    firstDiff >= headLine.length && base.startsWith(headLine) && moved.startsWith(headLine) && base.includes(MERCURY_CONSTITUTION) && moved.includes(MERCURY_CONSTITUTION),
     `firstDiff=${firstDiff}`)
 
   section(`§4 the per-turn context tail — ${family}`)

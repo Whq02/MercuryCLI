@@ -21,8 +21,8 @@ console.log('prove-agent-roster')
 {
   const prompts = readFileSync(join(ROOT, 'src/constants/prompts.ts'), 'utf8')
   const contract = readFileSync(join(ROOT, 'src/prompt/mercuryContract.ts'), 'utf8')
-  check('§1 the identity is stated by the floor, once: the intro carries no identity line of its own', !prompts.includes('You are Mercury — a private, source-built terminal coding harness') && contract.includes('You are **Mercury** — this command-line coding harness and the agent running in it'))
-  check('§1 the floor names the operator allegiance', contract.includes('Operate for the operator first') && contract.includes('Never mislead the operator'))
+  check('§1 the identity is stated by the constitution, once: the part supplier carries no identity line of its own', !/You are Mercury/.test(prompts) && contract.includes('You are Mercury, the self that exists in this harness.'))
+  check('§1 the constitution names the operator and the honesty line', contract.includes('calibrate to this operator and this task') && contract.includes('Report what actually happened, plainly, to the operator'))
 }
 
 const agents = getBuiltInAgents()
@@ -96,8 +96,8 @@ function promptTextOf(a: { agentType: string; getSystemPrompt?: (ctx?: unknown) 
 
 {
   const prompts = readFileSync(join(ROOT, 'src/constants/prompts.ts'), 'utf8')
-  check('§6 the prompt\'s questions-about-Mercury line names the docs skill through the Skill tool', prompts.includes(`invoke the \\\`${MERCURY_DOCS_SKILL_NAME}\\\` skill through the \${SKILL_TOOL_NAME} tool`) && MERCURY_DOCS_SKILL_NAME === 'mercury-docs')
-  check('§6 the line answers from the documentation the skill opens, never from memory', prompts.includes('answer from the documentation it opens, never from memory'))
+  check('§6 the prompt names no docs line of its own: the docs skill\'s roster description carries the law once', !prompts.includes(MERCURY_DOCS_SKILL_NAME) && MERCURY_DOCS_SKILL_NAME === 'mercury-docs')
+  check('§6 the skill description answers from the documentation that ships with the install, never from memory', readFileSync(join(ROOT, 'src/skills/bundled/mercuryDocs.ts'), 'utf8').includes('answered from the documentation that ships with this install, never from memory'))
   check('§6 no agent type is advertised for questions about Mercury', !/subagent_type \\`\$\{MERCURY_/.test(prompts))
   const prevKill = process.env.MERCURY_HOST_DISABLE_BUILTIN_AGENTS
   const prevInteractive = getIsInteractive()

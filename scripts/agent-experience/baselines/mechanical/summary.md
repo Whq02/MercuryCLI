@@ -1,14 +1,14 @@
-# Agent-experience benchmark — 7108c1be0
+# Agent-experience benchmark — 3f9819413
 
-Tree 7108c1be0 · unlabelled · 2026-10-09T18:13:17.579Z
+Tree 3f9819413 · unlabelled · 2026-10-11T01:26:09.978Z
 
 Cell legend: PASS/FAIL (the oracle) · t = model turns · w = wasted tool calls (p = the script's deliberate probes) · r = tokens read from tool results (est. chars/4; +img = screenshot payload; +inj = harness-injected text such as a skill expansion, shown from 200) · a = asks/denials that a headless run could not answer.
 
 | task | anthropic | openai | chat | openrouter |
 |---|---|---|---|---|
-| fix-bug — find and fix a bug | PASS · t5 · w1(1p) · r735 · a0 | PASS · t5 · w1(1p) · r865 · a0 | PASS · t5 · w1(1p) · r864 · a0 | PASS · t5 · w1(1p) · r867 · a0 |
-| add-test — add a test and run it | PASS · t4 · w0 · r465 · a0 | PASS · t4 · w0 · r595 · a0 | PASS · t4 · w0 · r594 · a0 | PASS · t4 · w0 · r597 · a0 |
-| anchored-edit — edit a file precisely | PASS · t4 · w1(1p) · r381 · a0 | PASS · t4 · w1(1p) · r512 · a0 | PASS · t4 · w1(1p) · r511 · a0 | PASS · t4 · w1(1p) · r514 · a0 |
+| fix-bug — find and fix a bug | PASS · t5 · w1(1p) · r768 · a0 | PASS · t5 · w1(1p) · r898 · a0 | PASS · t5 · w1(1p) · r897 · a0 | PASS · t5 · w1(1p) · r900 · a0 |
+| add-test — add a test and run it | PASS · t4 · w0 · r498 · a0 | PASS · t4 · w0 · r628 · a0 | PASS · t4 · w0 · r627 · a0 | PASS · t4 · w0 · r630 · a0 |
+| anchored-edit — edit a file precisely | PASS · t4 · w1(1p) · r414 · a0 | PASS · t4 · w1(1p) · r545 · a0 | PASS · t4 · w1(1p) · r544 · a0 | PASS · t4 · w1(1p) · r547 · a0 |
 | search-symbol — search the repo for a symbol | PASS · t3 · w1(1p) · r131 · a0 | PASS · t3 · w1(1p) · r123 · a0 | PASS · t3 · w1(1p) · r123 · a0 | PASS · t3 · w1(1p) · r123 · a0 |
 | shell-pipeline — run a shell pipeline and read its output | PASS · t2 · w0 · r38 · a0 | PASS · t2 · w0 · r38 · a0 | PASS · t2 · w0 · r38 · a0 | PASS · t2 · w0 · r38 · a0 |
 | use-skill — use a bundled skill | PASS · t3 · w1(1p) · r49 · a0 | PASS · t3 · w1(1p) · r49 · a0 | PASS · t3 · w1(1p) · r49 · a0 | PASS · t3 · w1(1p) · r49 · a0 |
@@ -16,20 +16,20 @@ Cell legend: PASS/FAIL (the oracle) · t = model turns · w = wasted tool calls 
 | ide-diagnostics — open a file in the IDE seam | PASS · t2 · w0 · r24 · a0 | PASS · t2 · w0 · r24 · a0 | PASS · t2 · w0 · r24 · a0 | PASS · t2 · w0 · r24 · a0 |
 | browser-page — drive the browser tool on a fixture page | skip (unmeasured — no browser to launch — no managed browser — your installed apps are never driven; /browser install downloads Chrome for Testing once with your consent) | skip (unmeasured — no browser to launch — no managed browser — your installed apps are never driven; /browser install downloads Chrome for Testing once with your consent) | skip (unmeasured — no browser to launch — no managed browser — your installed apps are never driven; /browser install downloads Chrome for Testing once with your consent) | skip (unmeasured — no browser to launch — no managed browser — your installed apps are never driven; /browser install downloads Chrome for Testing once with your consent) |
 | guide-question — ask a how-do-I question about Mercury | PASS · t2 · w0 · r7 · a0 | PASS · t2 · w0 · r7 · a0 | PASS · t2 · w0 · r7 · a0 | PASS · t2 · w0 · r7 · a0 |
-| two-seats — coordinate two seats | PASS · t2 · w0 · r228 · a0 | PASS · t2 · w0 · r227 · a0 | PASS · t2 · w0 · r227 · a0 | PASS · t2 · w0 · r227 · a0 |
-| structural-rename — rename a function structurally across three files | PASS · t6 · w1(1p) · r726 · a0 | PASS · t6 · w1(1p) · r724 · a0 | PASS · t6 · w1(1p) · r723 · a0 | PASS · t6 · w1(1p) · r726 · a0 |
+| two-seats — coordinate two seats | PASS · t2 · w0 · r227 · a0 | PASS · t2 · w0 · r227 · a0 | PASS · t2 · w0 · r227 · a0 | PASS · t2 · w0 · r227 · a0 |
+| structural-rename — rename a function structurally across three files | PASS · t6 · w1(1p) · r759 · a0 | PASS · t6 · w1(1p) · r757 · a0 | PASS · t6 · w1(1p) · r756 · a0 | PASS · t6 · w1(1p) · r759 · a0 |
 | resume-a — resume a session (phase 1: the codeword) | PASS · t1 · w0 · r0 · a0 | PASS · t1 · w0 · r0 · a0 | PASS · t1 · w0 · r0 · a0 | PASS · t1 · w0 · r0 · a0 |
 | resume-b — resume a session (phase 2: recall) | PASS · t1 · w0 · r0 · a0 | PASS · t1 · w0 · r0 · a0 | PASS · t1 · w0 · r0 · a0 | PASS · t1 · w0 · r0 · a0 |
-| **totals** | 13/13 pass (1 skipped) · t37 · w5 (unexpected 0) · r2.9k · a0 · 25s | 13/13 pass (1 skipped) · t37 · w5 (unexpected 0) · r3.3k · a0 · 24s | 13/13 pass (1 skipped) · t37 · w5 (unexpected 0) · r3.3k · a0 · 25s | 13/13 pass (1 skipped) · t37 · w5 (unexpected 0) · r3.3k · a0 · 25s |
+| **totals** | 13/13 pass (1 skipped) · t37 · w5 (unexpected 0) · r3.1k · a0 · 15s | 13/13 pass (1 skipped) · t37 · w5 (unexpected 0) · r3.4k · a0 · 15s | 13/13 pass (1 skipped) · t37 · w5 (unexpected 0) · r3.4k · a0 · 15s | 13/13 pass (1 skipped) · t37 · w5 (unexpected 0) · r3.4k · a0 · 16s |
 
 ## What the model reads before its first move
 
 | family | model | backend | dialect | prompt chars | ≈tokens | tools | tool-schema chars |
 |---|---|---|---|---|---|---|---|
-| anthropic | claude-opus-4-8 | anthropic-messages | anthropic | 18555 | 4639 | 56 | 161972 |
-| openai | gpt-5.5 | openai-responses | responses | 18396 | 4599 | 13 | 41753 |
-| chat | glm-5.3 | zai-glm | chat | 18386 | 4597 | 55 | 161840 |
-| openrouter | openrouter/stealth/ox-alpha | openrouter-responses | responses | 18406 | 4602 | 55 | 162062 |
+| anthropic | claude-opus-4-8 | anthropic-messages | anthropic | 8471 | 2118 | 56 | 161737 |
+| openai | gpt-5.5 | openai-responses | responses | 8337 | 2084 | 13 | 41569 |
+| chat | glm-5.3 | zai-glm | chat | 8327 | 2082 | 55 | 161605 |
+| openrouter | openrouter/stealth/ox-alpha | openrouter-responses | responses | 8347 | 2087 | 55 | 161827 |
 
 Notes (anthropic): browser task unmeasured: no browser to launch — no managed browser — your installed apps are never driven; /browser install downloads Chrome for Testing once with your consent
 
@@ -43,7 +43,7 @@ Notes (openrouter): browser task unmeasured: no browser to launch — no managed
 
 ### anthropic
 
-- **fix-bug / Bash** (probe) — names a fix: yes — `<tool_use_error>Shell command failed (exit code 1) ✔ mean of a list (0.423625ms) ✔ median of an odd-length list (0.083208ms) ✖ median of an even-length list averages the middle pair (0.467125ms) ℹ tests 3 ℹ suites 0 ℹ pa`
+- **fix-bug / Bash** (probe) — names a fix: yes — `<tool_use_error>Shell command failed (exit code 1) ✔ mean of a list (0.301667ms) ✔ median of an odd-length list (0.061333ms) ✖ median of an even-length list averages the middle pair (0.351667ms) ℹ tests 3 ℹ suites 0 ℹ pa`
 - **anchored-edit / Edit** (probe) — names a fix: yes — `<tool_use_error>Read the file before editing it — the edit needs a prior read of the current content (a Read of the lines it touches, or expected_anchor from a full Read of the file as it stands). Read ownership/coverage`
 - **search-symbol / Grep** (probe) — names a fix: yes — `<tool_use_error>The Grep tool failed due to the following issues: The required parameter `pattern` is missing The parameter `query` was not expected</tool_use_error>`
 - **use-skill / Skill** (probe) — names a fix: yes — `<tool_use_error>Unknown skill: provider-api. Did you mean: provider-apis? The available skills ride in system-reminder messages in this conversation.</tool_use_error>`
@@ -51,7 +51,7 @@ Notes (openrouter): browser task unmeasured: no browser to launch — no managed
 
 ### openai
 
-- **fix-bug / Bash** (probe) — names a fix: yes — `<tool_use_error>Shell command failed (exit code 1) ✔ mean of a list (0.634084ms) ✔ median of an odd-length list (0.132958ms) ✖ median of an even-length list averages the middle pair (0.53225ms) ℹ tests 3 ℹ suites 0 ℹ pas`
+- **fix-bug / Bash** (probe) — names a fix: yes — `<tool_use_error>Shell command failed (exit code 1) ✔ mean of a list (0.319125ms) ✔ median of an odd-length list (0.062166ms) ✖ median of an even-length list averages the middle pair (0.358958ms) ℹ tests 3 ℹ suites 0 ℹ pa`
 - **anchored-edit / Edit** (probe) — names a fix: yes — `<tool_use_error>Read the file before editing it — the edit needs a prior read of the current content (a Read of the lines it touches, or expected_anchor from a full Read of the file as it stands). Read ownership/coverage`
 - **search-symbol / Grep** (probe) — names a fix: yes — `[openai] the provider emitted a malformed tool call (Grep): the arguments do not match the tool's input schema (The required parameter `pattern` is missing; The parameter `query` was not expected) — it was not executed.`
 - **use-skill / Skill** (probe) — names a fix: yes — `<tool_use_error>Unknown skill: provider-api. Did you mean: provider-apis? The available skills ride in system-reminder messages in this conversation.</tool_use_error>`
@@ -59,7 +59,7 @@ Notes (openrouter): browser task unmeasured: no browser to launch — no managed
 
 ### chat
 
-- **fix-bug / Bash** (probe) — names a fix: yes — `<tool_use_error>Shell command failed (exit code 1) ✔ mean of a list (0.536834ms) ✔ median of an odd-length list (0.083375ms) ✖ median of an even-length list averages the middle pair (0.65775ms) ℹ tests 3 ℹ suites 0 ℹ pas`
+- **fix-bug / Bash** (probe) — names a fix: yes — `<tool_use_error>Shell command failed (exit code 1) ✔ mean of a list (0.448917ms) ✔ median of an odd-length list (0.075334ms) ✖ median of an even-length list averages the middle pair (0.395417ms) ℹ tests 3 ℹ suites 0 ℹ pa`
 - **anchored-edit / Edit** (probe) — names a fix: yes — `<tool_use_error>Read the file before editing it — the edit needs a prior read of the current content (a Read of the lines it touches, or expected_anchor from a full Read of the file as it stands). Read ownership/coverage`
 - **search-symbol / Grep** (probe) — names a fix: yes — `[zai] the provider emitted a malformed tool call (Grep): the arguments do not match the tool's input schema (The required parameter `pattern` is missing; The parameter `query` was not expected) — it was not executed.`
 - **use-skill / Skill** (probe) — names a fix: yes — `<tool_use_error>Unknown skill: provider-api. Did you mean: provider-apis? The available skills ride in system-reminder messages in this conversation.</tool_use_error>`
@@ -67,7 +67,7 @@ Notes (openrouter): browser task unmeasured: no browser to launch — no managed
 
 ### openrouter
 
-- **fix-bug / Bash** (probe) — names a fix: yes — `<tool_use_error>Shell command failed (exit code 1) ✔ mean of a list (0.46475ms) ✔ median of an odd-length list (0.120333ms) ✖ median of an even-length list averages the middle pair (0.485709ms) ℹ tests 3 ℹ suites 0 ℹ pas`
+- **fix-bug / Bash** (probe) — names a fix: yes — `<tool_use_error>Shell command failed (exit code 1) ✔ mean of a list (0.325541ms) ✔ median of an odd-length list (0.065166ms) ✖ median of an even-length list averages the middle pair (0.371583ms) ℹ tests 3 ℹ suites 0 ℹ pa`
 - **anchored-edit / Edit** (probe) — names a fix: yes — `<tool_use_error>Read the file before editing it — the edit needs a prior read of the current content (a Read of the lines it touches, or expected_anchor from a full Read of the file as it stands). Read ownership/coverage`
 - **search-symbol / Grep** (probe) — names a fix: yes — `[openrouter] the provider emitted a malformed tool call (Grep): the arguments do not match the tool's input schema (The required parameter `pattern` is missing; The parameter `query` was not expected) — it was not execut`
 - **use-skill / Skill** (probe) — names a fix: yes — `<tool_use_error>Unknown skill: provider-api. Did you mean: provider-apis? The available skills ride in system-reminder messages in this conversation.</tool_use_error>`

@@ -8,7 +8,6 @@ const cwd = mkdtempSync(join(tmpdir(), 'vox-cwd-'))
 mkdirSync(home, { recursive: true })
 process.env.MERCURY_CONFIG_DIR = home
 process.env.ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY ?? 'sk-ant-proof-render'
-delete process.env.MERCURY_WRAPPER_APPEND
 process.chdir(cwd)
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
@@ -43,23 +42,23 @@ check("no render steers toward one vendor's models (the neutral rule instead)", 
 check('OpenAI render == Anthropic render (same content, join shape apart)', openai === anthropic)
 check('generic render == OpenAI render (chat lanes carry the same content)', contractMod.renderGenericInstructions(contract) === openai)
 check('no section is family-scoped (every scope is "all")', contract.sections.every(s => s.scope === 'all'))
-check('identity floor provider-neutral in the composed output', /model is the engine/.test(anthropic) && anthropic.includes('Mercury was not built by the maker of any model it runs'))
-const WORKING_NOTE_RULE =
-  'Text written before a tool call is a one-line working note about the next step; the final answer never restates it and stands on its own.'
-check('the working-note rule rides the Anthropic render', anthropic.includes(WORKING_NOTE_RULE))
-check('the working-note rule rides the OpenAI render', openai.includes(WORKING_NOTE_RULE))
-check('the working-note rule names no vendor or model', !/claude|anthropic|openai|gpt/i.test(WORKING_NOTE_RULE))
+const { MERCURY_CONSTITUTION } = await import('../../src/prompt/mercuryContract.ts')
+check('the constitution rides the composed output, provider-neutral, once', anthropic.split(MERCURY_CONSTITUTION).length === 2 && !/Claude|Anthropic|GPT|OpenAI/.test(MERCURY_CONSTITUTION))
+check('the constitution rides the OpenAI render too', openai.includes(MERCURY_CONSTITUTION))
 
 section('§2 one-owner law — sentinel doctrine phrases live in ONE section')
 {
   const sentinels: Array<[string, RegExp]> = [
-    ['methodName-to-snake-case example', /methodName.{0,60}snake/s],
-    ['authorization-scope-bound', /Authorization stands for the scope/],
-    ['no-colon-before-tool-calls', /colon before tool calls/],
-    ['working-note-before-a-tool-call', /working note about the next step/],
-    ['outcome-first close', /close with the outcome first/],
-    ['end-turn-on-promise guard', /Before ending your turn, check your last paragraph/],
-    ['claims-only-from-tool-results', /Claim only what a tool result from this session shows/],
+    ['the identity (You are Mercury)', /^You are Mercury, the self that exists in this harness\./m],
+    ['the stop sentence', /Stop only for a step that cannot be undone/],
+    ['the record law', /The record of the work has four uses/],
+    ['the instruction file (MERCURY.md)', /MERCURY\.md is the project's standing instruction file/],
+    ['pinned memory (the user\'s own rule)', /is pinned memory instead/],
+    ['the hooks fact', /Hooks are shell commands the user set up in settings/],
+    ['the model-currency rule', /^Model currency:/m],
+    ['the engine line', /In this seat the model you run through Mercury is/],
+    ['the blocker form', /BLOCKED ON OPERATOR/],
+    ['tool effects are ground truth', /Tool effects and verification evidence are ground truth/],
   ]
   for (const [label, re] of sentinels) {
     const owners = contract.sections.filter(s => re.test(s.text)).map(s => s.name)
@@ -71,8 +70,8 @@ section('§3 semantic ids — no positional section names; live references resol
 {
   check('no positional section names', contract.sections.every(s => !/^(wrapper|mode)-\d+$/.test(s.name)))
   const all = contract.sections.map(s => s.text).join('\n')
-  check('tool references match the live catalog names (Read/Grep/Glob spot set)',
-    all.includes('Read') && all.includes('Grep'))
+  check('live references resolve (spot set): the task items the run protocol names ride only with the task tool in the roster, and the discovery commands the harness map names exist',
+    all.includes('create and update task items') && all.includes('/help lists commands') && all.includes('/capabilities'))
 }
 
 console.log('\n' + '═'.repeat(76))

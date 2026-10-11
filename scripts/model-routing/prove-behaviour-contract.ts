@@ -41,13 +41,12 @@ function legacyCompose(parts: PromptParts): string[] {
     ...parts.wrapperSections.map(s => s.text),
     ...parts.modeSections.map(s => s.text),
     ...parts.antiSycSections,
-    ...parts.reconcileTailSections,
   ].filter((s): s is string => s !== null)
 }
 
 function parts(overrides: Partial<PromptParts> = {}): PromptParts {
   return {
-    staticSections: ['intro text', 'system text', null, 'actions', 'tools', 'tone', 'efficiency'],
+    staticSections: ['head text', 'law text', null],
     dynamicBoundary: [],
     dynamicSpecs: [
       { name: 'session_guidance', cacheBreak: false },
@@ -56,12 +55,11 @@ function parts(overrides: Partial<PromptParts> = {}): PromptParts {
     ],
     dynamicResolved: ['guidance body', null, 'env body'],
     wrapperSections: [
-      { name: 'identity-floor', text: 'the identity floor' },
-      { name: 'mercury-doctrine', text: 'the mercury doctrine' },
+      { name: 'response-profile', text: 'the response profile' },
+      { name: 'another', text: 'another wrapper section' },
     ],
     modeSections: [],
     antiSycSections: [],
-    reconcileTailSections: [],
     ...overrides,
   }
 }
@@ -72,20 +70,19 @@ section('1 · parity — composeSystemPrompt ≡ the frozen legacy expression')
     ['baseline (nulls filtered)', parts()],
     ['boundary marker present', parts({ dynamicBoundary: ['=== boundary ==='] })],
     [
-      'mode packs + anti-syc + reconcile tail',
+      'mode packs + anti-syc',
       parts({
         modeSections: [
           { name: 'mode-apollo', text: 'apollo pack' },
           { name: 'mode-vulcan', text: 'vulcan pack' },
         ],
         antiSycSections: ['anti-syc arm'],
-        reconcileTailSections: ['reconcile tail'],
       }),
     ],
     ['empty-string section survives (only null filters)', parts({ staticSections: ['', 'x'] })],
     [
-      'identity floor only (doctrine off)',
-      parts({ wrapperSections: [{ name: 'identity-floor', text: 'identity floor' }] }),
+      'one wrapper section only',
+      parts({ wrapperSections: [{ name: 'response-profile', text: 'the response profile' }] }),
     ],
   ]
   for (const [label, p] of shapes) {
@@ -105,8 +102,8 @@ section('2 · renderers — one content on every wire (empty scope sets)')
     ],
     dynamicResolved: ['guidance body', 'NEUTRAL CURRENCY RULE', 'env body'],
     wrapperSections: [
-      { name: 'identity-floor', text: 'the identity floor' },
-      { name: 'mercury-doctrine', text: 'the mercury doctrine' },
+      { name: 'response-profile', text: 'the response profile' },
+      { name: 'another', text: 'another wrapper section' },
     ],
   })
   const contract = buildBehaviourContract(p)
@@ -118,7 +115,7 @@ section('2 · renderers — one content on every wire (empty scope sets)')
   check('openai render == the same sections joined (content identical)', openai === anthropic.join('\n\n'))
   check(
     'openai renderer keeps canonical order',
-    openai.startsWith('intro text') && openai.includes('guidance body\n\nNEUTRAL CURRENCY RULE\n\nenv body'),
+    openai.startsWith('head text') && openai.includes('guidance body\n\nNEUTRAL CURRENCY RULE\n\nenv body'),
   )
   const generic = renderGenericInstructions(contract)
   check('generic render == openai render (chat lanes: same content)', generic === openai)
@@ -130,7 +127,7 @@ section('3 · digest — stable · content-sensitive · context-excluded')
   const b = buildBehaviourContract(parts())
   check('identical parts → identical digest', a.digest === b.digest && a.digest.startsWith('bc1-'))
   const c = buildBehaviourContract(
-    parts({ wrapperSections: [{ name: 'identity-floor', text: 'the identity floor v2' }] }),
+    parts({ wrapperSections: [{ name: 'response-profile', text: 'the response profile v2' }] }),
   )
   check('changed section text → changed digest', c.digest !== a.digest)
   __resetBehaviourContractRegistryForTest()
@@ -149,8 +146,8 @@ section('4 · registry — anthropic-content hit · tail probe · typed recovery
   const typed = buildBehaviourContract(
     parts({
       wrapperSections: [
-        { name: 'identity-floor', text: 'the identity floor' },
-        { name: 'mercury-doctrine', text: 'the mercury doctrine' },
+        { name: 'response-profile', text: 'the response profile' },
+        { name: 'another', text: 'another wrapper section' },
       ],
     }),
   )
@@ -158,7 +155,7 @@ section('4 · registry — anthropic-content hit · tail probe · typed recovery
   const anthropicRender = renderAnthropicSections(typed)
   const resolved = resolveBehaviourContract(anthropicRender)
   check('registry resolves the TYPED contract from the anthropic render', resolved.digest === typed.digest)
-  check('…with semantic names intact (not a raw decode)', resolved.sections.some(s => s.name === 'mercury-doctrine'))
+  check('…with semantic names intact (not a raw decode)', resolved.sections.some(s => s.name === 'response-profile'))
   check('…and the OpenAI join renders the same content', renderOpenaiInstructions(resolved) === anthropicRender.join('\n\n'))
   const unknown = resolveBehaviourContract(['alien prompt', 'segments'])
   check('unknown content decodes raw (total fallback)', unknown.sections.every(s => s.group === 'segment'))
@@ -255,7 +252,6 @@ section('6 · section metadata — semantic names, owner, cacheClass')
     parts({
       modeSections: [{ name: 'mode-apollo', text: 'apollo pack' }],
       antiSycSections: ['arm'],
-      reconcileTailSections: ['tail'],
       dynamicBoundary: ['boundary'],
     }),
   )
@@ -264,8 +260,9 @@ section('6 · section metadata — semantic names, owner, cacheClass')
   check('every section carries a cacheClass', contract.sections.every(s => ['stable', 'session', 'turn'].includes(s.cacheClass)))
   const apollo = contract.sections.find(s => s.name === 'mode-apollo')
   check('mode-apollo owner is the apollo pack', apollo?.owner === 'src/prompt/apolloMode.ts')
-  const staticIntro = contract.sections.find(s => s.name === 'intro')
-  check('static sections are cache-stable', staticIntro?.cacheClass === 'stable')
+  const staticHead = contract.sections.find(s => s.name === 'head')
+  const constitution = contract.sections.find(s => s.name === 'constitution')
+  check('static sections are cache-stable and the constitution names the contract module as its owner', staticHead?.cacheClass === 'stable' && constitution?.cacheClass === 'stable' && constitution.owner === 'src/prompt/mercuryContract.ts')
 }
 
 console.log('\n' + '═'.repeat(76))

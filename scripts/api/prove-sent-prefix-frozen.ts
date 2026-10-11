@@ -937,7 +937,7 @@ if (!existsSync(DIST)) {
         return 'unknown'
       }
     })()
-    section(`§6e the resume road — the tool pool moves between two processes (the task tools join the resumed one) and the sections of the system prompt that name tools never rewrite: the "Using your tools" bullets ride the first exchange record (bundle tree ${bundleTree})`)
+    section(`§6e the resume road — the tool pool moves between two processes (the task tools join the resumed one) and the sections of the system prompt that name tools never rewrite: the run protocol's task-items bullet rides the first exchange record (bundle tree ${bundleTree})`)
     {
       const turns: ScriptedTurn[] = [1, 2].map(n => ({ kind: 'text' as const, text: `S6E-T${n}`, thinking: `pool ${n}` }))
       const fixture = await startFixtureApi(turns, { bindingCheck: true })
@@ -955,7 +955,7 @@ if (!existsSync(DIST)) {
       const reqs = fixture.messageRequests()
       check('§6e two message requests', reqs.length === 2, String(reqs.length))
       const sysB = systemTextOf(reqs[1]!.body as Body)
-      check(`§6e RED WHERE THE TOOL-NAMING SECTIONS RENDER FROM THE LIVE POOL (bundle tree ${bundleTree}): the resumed request re-sent the system prompt byte for byte — the "Using your tools" section never gained the work-breakdown bullet`, sysA === sysB && !sysB.includes('Break down and manage work'), `A=${sysA.length}B B=${sysB.length}B bullet=${sysB.includes('Break down and manage work')}`)
+      check(`§6e RED WHERE THE TOOL-NAMING SECTIONS RENDER FROM THE LIVE POOL (bundle tree ${bundleTree}): the resumed request re-sent the system prompt byte for byte — the run protocol never gained the task-items bullet`, sysA === sysB && !sysB.includes('create and update task items'), `A=${sysA.length}B B=${sysB.length}B bullet=${sysB.includes('Break down and manage work')}`)
       check('§6e the resumed bound tools are byte-identical (the task tools the switch now seats are joiners held outside the bound prefix)', j(withoutCacheControl(reqs[0]!.body.tools)) === j(withoutCacheControl(reqs[1]!.body.tools)), `${toolNamesOf(reqs[0]!.body as Body).length} → ${toolNamesOf(reqs[1]!.body as Body).length}`)
       check('§6e the API dropped no thinking block on the resumed request', bindingDropsFor(reqs[1]!.body).length === 0, `drops=${j(bindingDropsFor(reqs[1]!.body))}`)
       await fixture.close()

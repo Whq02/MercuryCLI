@@ -181,10 +181,11 @@ section('§4 — the coordinator, LIVE: prompt id === dispatch stamp')
     idInPrompt(instructions) !== null && idInPrompt(instructions) === body.model,
     `${String(idInPrompt(instructions))} vs ${String(body.model)}`,
   )
-  const floorAt = instructions.indexOf('You are the Mercury coordinator')
+  const floorAt = instructions.indexOf('You are Mercury, the self that exists in this harness.')
+  const seatAt = instructions.indexOf('This seat is the Mercury coordinator')
   const engineAt = instructions.indexOf('the model you run through Mercury is')
   const personaAt = instructions.indexOf('Your seat is the Mercury switchboard')
-  check('the seat floor still LEADS, the engine line behind it, the persona last', floorAt >= 0 && engineAt > floorAt && personaAt > engineAt, `${floorAt}/${engineAt}/${personaAt}`)
+  check('the constitution still LEADS, the seat fact and the engine line behind it, the persona last', floorAt === 0 && seatAt > floorAt && engineAt > seatAt && personaAt > engineAt, `${floorAt}/${seatAt}/${engineAt}/${personaAt}`)
   check('still exactly ONE identity statement on the wire', (instructions.match(/^You are /gm) ?? []).length === 1, instructions.slice(0, 120))
 }
 

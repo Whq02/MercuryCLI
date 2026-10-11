@@ -2,7 +2,7 @@
 import type { ApiMessage } from '../types/wire.js'
 import { setLastApiCompletionTimestamp } from '../bootstrap/state.js'
 import { STRUCTURED_OUTPUTS_BETA_HEADER } from '../constants/betas.js'
-import { getAttributionHeader, getCLISyspromptPrefix } from '../constants/system.js'
+import { getAttributionHeader } from '../constants/system.js'
 import type { QuerySource } from '../constants/querySource.js'
 import { getAnthropicClient } from '../services/api/client.js'
 import { isClientContractRefusalError } from '../services/api/clientContractGate.js'
@@ -31,7 +31,6 @@ export type SideQueryOptions = {
   max_tokens?: number
   maxRetries?: number
   signal?: AbortSignal
-  skipSystemPromptPrefix?: boolean
   temperature?: number
   thinking?: number | false
   stop_sequences?: string[]
@@ -88,9 +87,6 @@ export async function sideQuery(opts: SideQueryOptions): Promise<ApiMessage> {
   const attributionHeader = getAttributionHeader(fingerprint)
   const systemBlocks: TextBlockParam[] = []
   if (attributionHeader) systemBlocks.push({ type: 'text', text: attributionHeader })
-  if (!opts.skipSystemPromptPrefix) {
-    systemBlocks.push({ type: 'text', text: getCLISyspromptPrefix({ isNonInteractive: false, hasAppendSystemPrompt: false }) })
-  }
   if (typeof opts.system === 'string') {
     systemBlocks.push({ type: 'text', text: opts.system })
   } else if (Array.isArray(opts.system)) {
