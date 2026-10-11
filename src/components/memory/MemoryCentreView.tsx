@@ -16,6 +16,7 @@ import {
 import { readDocLines } from '../../mneme/mnemeRetrieval.js'
 import { indexLines, liveEntryIndex, pinnedLine, pinnedView, readPinnedStatus, type IndexLine } from '../../mneme/mnemeFrontPage.js'
 import { handoverDue, handoverIfDue, readHandoverReceipt, renderHandoverReceipt } from '../../mneme/mnemeHandover.js'
+import { journalEnabled, journalPath, readJournal, type JournalEntry } from '../../mneme/journal.js'
 import { listTopicDocs } from '../../mneme/mnemeLibrary.js'
 import type { MnemeEntry } from '../../mneme/mnemeTopicDocs.js'
 import { formatTextSize, pinFact, pinnedTextLimit, readPins, unpinFact, type PinRecord } from '../../mneme/mnemeUsage.js'
@@ -46,6 +47,7 @@ interface CentreRow {
   kind: 'ref' | 'action' | 'info'
   label: string
   ref?: MemoryRef
+  entry?: JournalEntry
   run?: () => void
 }
 
@@ -123,6 +125,42 @@ export function lineagePageRows(page: string | null, width: number = 70): string
       } else current = current === '' ? word : `${current} ${word}`
     }
     if (current !== '') out.push(current)
+export function journalStamp(at: string): string {
+  return at.slice(0, 16).replace('T', ' ')
+}
+
+export function journalRowWords(entries: JournalEntry[], enabled: boolean): string {
+  if (!enabled) return 'journal: off — memory.journal in /config'
+  if (entries.length === 0) return 'journal: no entry yet — the model writes one, in its own words, when a session ends'
+  const last = entries.reduce((a, b) => (b.at >= a.at ? b : a))
+  return `journal: ${entries.length} entr${entries.length === 1 ? 'y' : 'ies'} · last ${journalStamp(last.at)} — ↵ read it`
+}
+
+export function journalListHeading(count: number): string {
+  return `${count} entr${count === 1 ? 'y' : 'ies'}, newest first · the model's own words · ↵ opens one`
+}
+
+export function journalEntryRows(entries: JournalEntry[]): JournalEntry[] {
+  return [...entries].sort((a, b) => (a.at === b.at ? 0 : a.at > b.at ? -1 : 1))
+}
+
+export function wrapJournalText(text: string, width: number): string[] {
+  const out: string[] = []
+  for (const paragraph of text.split('\n')) {
+    if (paragraph.trim() === '') {
+      out.push('')
+      continue
+    }
+    let line = ''
+    for (const word of paragraph.split(/\s+/)) {
+      if (line === '') line = word
+      else if (line.length + 1 + word.length <= width) line = `${line} ${word}`
+      else {
+        out.push(line)
+        line = word
+      }
+    }
+    if (line !== '') out.push(line)
   }
   return out
 }
@@ -166,7 +204,10 @@ export function MemoryCentreView({ onClose, onOpenFiles }: { onClose: () => void
   const accent = useSessionAccent().accent
   const [query, setQuery] = React.useState('')
   const [view, setView] = React.useState<'overview' | 'pinned' | 'topics' | 'lineage'>('overview')
+  const [view, setView] = React.useState<'overview' | 'pinned' | 'topics' | 'journal'>('overview')
   const [detail, setDetail] = React.useState<MemoryRef | null>(null)
+  const [journalDetail, setJournalDetail] = React.useState<JournalEntry | null>(null)
+  const journalLines = React.useMemo(() => (journalDetail ? wrapJournalText(journalDetail.text, 76) : []), [journalDetail])
   const detailLines = React.useMemo(() => (detail ? refDetail(detail) : []), [detail])
   const [correcting, setCorrecting] = React.useState<{ seq: number; buffer: string } | null>(null)
 
@@ -199,6 +240,10 @@ export function MemoryCentreView({ onClose, onOpenFiles }: { onClose: () => void
       const sessionId = String(getSessionId())
       const rows: CentreRow[] = [{ id: 'page', kind: 'info', label: 'the page this session was given at its start, composed from the ledger · the last note is in it, word for word' }]
       lineagePageRows(composeEntryPage(mnemeProjectKey(), sessionId)).forEach((line, index) => rows.push({ id: `page-${index}`, kind: 'info', label: line === '' ? ' ' : line }))
+    if (view === 'journal') {
+      const entries = journalEntryRows(readJournal())
+      const rows: CentreRow[] = [{ id: 'journal-heading', kind: 'info', label: journalListHeading(entries.length) }]
+      entries.forEach((entry, i) => rows.push({ id: `journal-${i}`, kind: 'action', label: `${journalStamp(entry.at)} · ${entry.text.split('\n')[0] ?? ''}`, entry, run: () => {} }))
       return rows
     }
     const rows: CentreRow[] = []
@@ -215,6 +260,9 @@ export function MemoryCentreView({ onClose, onOpenFiles }: { onClose: () => void
       rows.push({ id: 'pinned', kind: shelfStatus && shelfStatus.pinned > 0 ? 'action' : 'info', label: pinnedShelfWords(shelfStatus), run: () => {} })
       rows.push({ id: 'topics', kind: st.topicCount > 0 ? 'action' : 'info', label: topicsRowWords(st.topicCount), run: () => {} })
       rows.push({ id: 'lineage', kind: 'action', label: lineageRowWords(readLedger(mnemeProjectKey()), String(getSessionId())), run: () => {} })
+      const journalOn = journalEnabled()
+      const journalEntries = journalOn ? readJournal() : []
+      rows.push({ id: 'journal', kind: journalEntries.length > 0 ? 'action' : 'info', label: journalRowWords(journalEntries, journalOn), run: () => {} })
       const intake = readHandoverReceipt()
       if (intake) {
         const [first, pages] = renderHandoverReceipt(intake)
@@ -249,16 +297,20 @@ export function MemoryCentreView({ onClose, onOpenFiles }: { onClose: () => void
     onClose: () => {
       if (correcting) setCorrecting(null)
       else if (detail) setDetail(null)
+      else if (journalDetail) setJournalDetail(null)
       else if (query) {
         setQuery('')
       } else if (view === 'pinned' || view === 'topics' || view === 'lineage') setView('overview')
+      } else if (view === 'pinned' || view === 'topics' || view === 'journal') setView('overview')
       else onClose()
     },
     onPrimary: row => {
       if (row.kind === 'ref' && row.ref) setDetail(row.ref)
+      else if (row.entry) setJournalDetail(row.entry)
       else if (row.id === 'pinned' && row.kind === 'action') setView('pinned')
       else if (row.id === 'topics' && row.kind === 'action') setView('topics')
       else if (row.id === 'lineage' && row.kind === 'action') setView('lineage')
+      else if (row.id === 'journal' && row.kind === 'action') setView('journal')
       else if (row.id === 'maintenance') runMaintenance()
       else if (row.id === 'intake' && row.kind === 'action') runIntake()
       else if (row.id === 'files' && onOpenFiles) onOpenFiles()
@@ -366,6 +418,7 @@ export function MemoryCentreView({ onClose, onOpenFiles }: { onClose: () => void
         else if (input && !key.ctrl && !key.meta) setCorrecting({ ...correcting, buffer: correcting.buffer + input })
         return
       }
+      if (journalDetail) return
       if (detail) {
         if (input === 'c' && !key.ctrl && !key.meta && detailSeq !== null && mnemeEnabled()) setCorrecting({ seq: detailSeq, buffer: '' })
         else if (input === 'x' && detailSeq !== null && mnemeEnabled()) retireSelected(detailSeq)
@@ -408,6 +461,17 @@ export function MemoryCentreView({ onClose, onOpenFiles }: { onClose: () => void
             : view === 'lineage'
               ? '↑↓ move · esc back'
               : 'type to search · ↑↓ move · ↵ act · esc close'
+      : journalDetail
+        ? 'esc back'
+        : query
+          ? '↑↓ move · ↵ inspect · esc clear'
+          : view === 'pinned'
+            ? '↑↓ move · ↵ inspect · u unpin · /config raises the limit · esc back'
+            : view === 'topics'
+              ? '↑↓ move · ↵ open the page · esc back'
+              : view === 'journal'
+                ? '↑↓ move · ↵ read the entry · esc back'
+                : 'type to search · ↑↓ move · ↵ act · esc close'
 
   return (
     <CommandCenter view="memory" subtitle="memory centre" onClose={onClose} captureInput={false} footer={footer}>
@@ -422,6 +486,16 @@ export function MemoryCentreView({ onClose, onOpenFiles }: { onClose: () => void
           <Box marginTop={1} flexDirection="column">
             <Text color={AMBER}>{`correcting seq ${correcting.seq} — the old fact moves to history:`}</Text>
             <Text color={IVORY}>{`> ${correcting.buffer}`}<Text color={accent}>▁</Text></Text>
+          </Box>
+        ) : journalDetail ? (
+          <Box marginTop={1} flexDirection="column">
+            <Text color={FAINT}>{truncateToWidth(`journal · ${journalStamp(journalDetail.at)} · the model's own words · ${journalPath()}`, 78)}</Text>
+            <Box marginTop={1} flexDirection="column">
+              {journalLines.slice(0, 24).map((l, i) => (
+                <Text key={i} color={SECOND}>{truncateToWidth(`  ${l}`, 78)}</Text>
+              ))}
+              {journalLines.length > 24 ? <Text color={FAINT}>{`  (+${journalLines.length - 24} more lines in the file)`}</Text> : null}
+            </Box>
           </Box>
         ) : detail ? (
           <Box marginTop={1} flexDirection="column">
@@ -452,6 +526,7 @@ export function MemoryCentreView({ onClose, onOpenFiles }: { onClose: () => void
         ) : (
           <Box flexDirection="column">
             <SectionHeader count={(view === 'pinned' || view === 'topics' || view === 'lineage') && !query ? Math.max(0, list.length - 1) : list.length}>{query ? 'Matches' : view === 'pinned' ? 'Pinned rules' : view === 'topics' ? 'Topics' : view === 'lineage' ? 'Lineage' : 'Memory'}</SectionHeader>
+            <SectionHeader count={(view === 'pinned' || view === 'topics' || view === 'journal') && !query ? Math.max(0, list.length - 1) : list.length}>{query ? 'Matches' : view === 'pinned' ? 'Pinned rules' : view === 'topics' ? 'Topics' : view === 'journal' ? 'Journal' : 'Memory'}</SectionHeader>
             {above > 0 ? <Text color={FAINT}>{`  +${above} above`}</Text> : null}
             {visible.map((row, i) => {
               const active = i === clampedSel
@@ -480,7 +555,11 @@ export function MemoryCentreView({ onClose, onOpenFiles }: { onClose: () => void
         ) : null}
 
         <Box marginTop={1}>
-          <Text color={FAINT}>facts live in topic pages; corrections keep history · pinned rules load every session · the model saves with Retain</Text>
+          <Text color={FAINT}>
+            {view === 'journal' || journalDetail
+              ? 'the journal is the model\'s own account of each session · kept in the Mercury home, never pushed or synced · /config turns it off'
+              : 'facts live in topic pages; corrections keep history · pinned rules load every session · the model saves with Retain'}
+          </Text>
         </Box>
       </Box>
     </CommandCenter>

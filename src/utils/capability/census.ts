@@ -193,6 +193,7 @@ function supplementalTools(): Tool[] {
     () => require('../../tools/MemoryTools/MemoryTools.js').RecallTool,
     () => require('../../tools/MemoryTools/MemoryTools.js').ReflectTool,
     () => require('../../tools/MemoryTools/MemoryTools.js').CorrectTool,
+    () => require('../../tools/JournalTool/JournalTool.js').JournalTool,
     () => require('../../tools/PowerShellTool/PowerShellTool.js').PowerShellTool,
     () => require('../../tools/JevEvalTool/JevEvalTool.js').JevEvalTool,
     () => require('../../tools/AskAdvisorTool/AskAdvisorTool.js').AskAdvisorTool,

@@ -6,13 +6,13 @@
 > skips regeneration is RED). Live columns (enabled/support) reflect the
 > generating environment and are NOT drift-anchored.
 
-Census version 1 — 68 built-in production tools · 179 operations · 68 with a declared capability contract.
+Census version 1 — 69 built-in production tools · 180 operations · 69 with a declared capability contract.
 
 ## Summary
 
-- support (at generation time): 41 available · 17 conditional · 0 degraded · 10 unavailable (gated out of this environment's catalog — still rowed, never silently dropped)
-- class: 22 observation · 26 mutation · 10 execution · 10 coordination · 0 unclassified
-- integrations: 13 declare transactions · 12 declare executions · 32 declare mercury:// outputs · 46 name a focused proof
+- support (at generation time): 42 available · 17 conditional · 0 degraded · 10 unavailable (gated out of this environment's catalog — still rowed, never silently dropped)
+- class: 22 observation · 27 mutation · 10 execution · 10 coordination · 0 unclassified
+- integrations: 13 declare transactions · 12 declare executions · 32 declare mercury:// outputs · 47 name a focused proof
 - capability units covered: application-verification · browser-drive · capability-discovery · code-intelligence · debugging · desktop-drive · game-engine · git-inspection · git-transactions · memory · operator-io · persistent-evaluation · pixel-art · process-execution · resource-inspection · scheduling · service-management · source-reading · structural-mutation · task-coordination · text-mutation · web-access
 - every tool is unit-classified
 
@@ -48,6 +48,7 @@ Census version 1 — 68 built-in production tools · 179 operations · 68 with a
 | Grep | observation | source-reading | — | block | no | — | — | — | NAMED GAP |
 | Inspect | observation | resource-inspection | — | block | yes | — | — | mercury://file, mercury://run, mercury://receipt, mercury://task, mercury://execution, mercury://transaction, mercury://evidence | scripts/project-services/prove-resource-plane.ts |
 | JevEval | observation | web-access | — | cancel | yes | — | — | — | scripts/jev/run-all.sh |
+| Journal | mutation | memory | — | block | no | — | — | — | scripts/memory/prove-journal.ts |
 | Journey | execution | application-verification, service-management | 3 | cancel | yes | — | journey (full-execution-owner) | mercury://journey, mercury://service, mercury://execution, mercury://evidence | scripts/builtin-tools/prove-journeys.ts |
 | Launch | execution | process-execution, debugging | 7 | block | yes | — | debug-adapter (external-projection) | — | scripts/ide/prove-launch-profiles.ts |
 | ListMcpResources | observation | resource-inspection | — | block | yes | — | — | — | NAMED GAP |
