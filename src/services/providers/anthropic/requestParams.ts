@@ -35,10 +35,10 @@ type JsonValue = string | number | boolean | null | JsonObject | JsonArray
 type JsonObject = { [key: string]: JsonValue }
 type JsonArray = JsonValue[]
 
-function extraObject(name: 'MERCURY_EXTRA_BODY' | 'MERCURY_EXTRA_METADATA', cache: boolean): JsonObject {
+function extraObject(name: 'MERCURY_EXTRA_BODY' | 'MERCURY_EXTRA_METADATA', logParseError: boolean): JsonObject {
   const raw = process.env[name]
   if (!raw) return {}
-  const value = safeParseJSON(raw, cache)
+  const value = safeParseJSON(raw, logParseError)
   if (value && typeof value === 'object' && !Array.isArray(value)) return value as JsonObject
   logForDebugging(`${name} env var must be a JSON object, but was given ${raw}`, { level: 'error' })
   return {}
