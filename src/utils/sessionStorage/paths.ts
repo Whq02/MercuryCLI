@@ -59,12 +59,11 @@ export function getTranscriptPath(): string {
   return join(projectDir, `${getSessionId()}.jsonl`)
 }
 
+const transcriptPathUnderOriginalCwd = (sessionId: string): string =>
+  join(getProjectDir(getOriginalCwd()), `${sessionId}.jsonl`)
+
 export function getTranscriptPathForSession(sessionId: string): string {
-  if (sessionId === getSessionId()) {
-    return getTranscriptPath()
-  }
-  const projectDir = getProjectDir(getOriginalCwd())
-  return join(projectDir, `${sessionId}.jsonl`)
+  return sessionId === getSessionId() ? getTranscriptPath() : transcriptPathUnderOriginalCwd(sessionId)
 }
 
 export const MAX_TRANSCRIPT_READ_BYTES = 50 * 1024 * 1024
@@ -192,16 +191,17 @@ export async function readAgentMetadata(
   return raw === null ? null : decodeSidecar(path, raw)
 }
 
-export function sessionIdExists(sessionId: string): boolean {
-  const projectDir = getProjectDir(getOriginalCwd())
-  const sessionFile = join(projectDir, `${sessionId}.jsonl`)
-  const fs = getFsImplementation()
+const statsQuietly = (path: string): boolean => {
   try {
-    fs.statSync(sessionFile)
+    getFsImplementation().statSync(path)
     return true
   } catch {
     return false
   }
+}
+
+export function sessionIdExists(sessionId: string): boolean {
+  return statsQuietly(transcriptPathUnderOriginalCwd(sessionId))
 }
 
 export function getNodeEnv(): string {
