@@ -108,29 +108,15 @@ const SCROLL_MAX_PENDING = 30
 
 function drainAdaptive(node: DOMElement, pending: number, innerHeight: number): number {
   const sign = pending > 0 ? 1 : -1
-  let abs = Math.abs(pending)
-  let applied = 0
-  if (abs > SCROLL_MAX_PENDING) {
-    applied += sign * (abs - SCROLL_MAX_PENDING)
-    abs = SCROLL_MAX_PENDING
-  }
-  const step =
-    abs <= SCROLL_INSTANT_THRESHOLD
-      ? abs
-      : abs < SCROLL_HIGH_PENDING
-        ? SCROLL_STEP_MED
-        : SCROLL_STEP_HIGH
-  applied += sign * step
-  const rem = abs - step
+  const backlog = Math.abs(pending)
+  const snap = Math.max(0, backlog - SCROLL_MAX_PENDING)
+  const window = backlog - snap
+  const step = window <= SCROLL_INSTANT_THRESHOLD ? window : window < SCROLL_HIGH_PENDING ? SCROLL_STEP_MED : SCROLL_STEP_HIGH
   const cap = Math.max(1, innerHeight - 1)
-  const totalAbs = Math.abs(applied)
-  if (totalAbs > cap) {
-    const excess = totalAbs - cap
-    ;(node.scroll ??= {}).pendingScrollDelta = sign * (rem + excess)
-    return sign * cap
-  }
-  ;(node.scroll ??= {}).pendingScrollDelta = rem > 0 ? sign * rem : undefined
-  return applied
+  const applied = Math.min(snap + step, cap)
+  const leftover = backlog - applied
+  ;(node.scroll ??= {}).pendingScrollDelta = leftover > 0 ? sign * leftover : undefined
+  return sign * applied
 }
 
 function drainProportional(node: DOMElement, pending: number, innerHeight: number): number {
