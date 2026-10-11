@@ -13,6 +13,7 @@ import { flagEnv } from '../substrate/flagRegistry.js'
 import type { SessionListing } from '../types/logs.js'
 import { getGlobalConfig } from './config.js'
 import { logForDebugging } from './debug.js'
+import { noteFileTouched } from '../mneme/lineageSession.js'
 import { getMercuryHome } from './envUtils.js'
 import { isENOENT } from './errors.js'
 import { stripBOM } from './jsonRead.js'
@@ -172,6 +173,7 @@ function latestSnapshot(state: FileHistoryState): FileHistorySnapshot | undefine
 
 export async function fileHistoryTrackEdit(updateState: StateUpdater, filePath: string, messageId: UUID): Promise<void> {
   try {
+    noteFileTouched(filePath)
     if (!fileHistoryEnabled()) return
     const state = captureState(updateState)
     if (!state) return
