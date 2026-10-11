@@ -1,91 +1,51 @@
 import { z } from 'zod/v4'
-
 import { buildTool, type ToolDef } from '../../Tool.js'
 import { lazySchema } from '../../utils/lazySchema.js'
 import { getTask, getTaskListId, isTaskToolsEnabled, TASK_STATUSES } from '../../utils/tasks.js'
 import { TASK_GET_TOOL_NAME } from './constants.js'
 import { DESCRIPTION, PROMPT } from './prompt.js'
 
-
-const inputSchema = lazySchema(() =>
-  z.strictObject({
-    taskId: z.string().describe('The id of the task to retrieve'),
-  }),
-)
+const inputSchema = lazySchema(() => z.strictObject({ taskId: z.string().describe('The id of the task to retrieve') }))
+const outputSchema = lazySchema(() => z.object({ task: z.object({
+  id: z.string(), subject: z.string(), description: z.string(), status: z.enum(TASK_STATUSES),
+  blocks: z.array(z.string()), blockedBy: z.array(z.string()),
+}).nullable() }))
 type InputSchema = ReturnType<typeof inputSchema>
-type Input = z.infer<InputSchema>
+export type Output = z.infer<ReturnType<typeof outputSchema>>
 
-const outputSchema = lazySchema(() =>
-  z.object({
-    task: z
-      .object({
-        id: z.string(),
-        subject: z.string(),
-        description: z.string(),
-        status: z.enum(TASK_STATUSES),
-        blocks: z.array(z.string()),
-        blockedBy: z.array(z.string()),
-      })
-      .nullable(),
-  }),
-)
-type OutputSchema = ReturnType<typeof outputSchema>
-export type Output = z.infer<OutputSchema>
+async function readTask({ taskId }: z.infer<InputSchema>): Promise<{ data: Output }> {
+  const found = await getTask(getTaskListId(), taskId)
+  let task: Output['task'] = null
+  if (found) {
+    const { id, subject, description, status, blocks, blockedBy } = found
+    task = { id, subject, description, status, blocks, blockedBy }
+  }
+  return { data: { task } }
+}
+
+function taskText(task: Output['task']): string {
+  if (!task) return 'Task not found'
+  const dependencies: Array<[string, string[]]> = [['Depends on', task.blockedBy], ['Blocks', task.blocks]]
+  return [
+    `#${task.id}: ${task.subject}`, `Status: ${task.status}`, `Description: ${task.description}`,
+    ...dependencies.flatMap(([label, ids]) => ids.length ? [`${label}: ${ids.map(id => '#' + id).join(', ')}`] : []),
+  ].join('\n')
+}
 
 export const TaskGetTool = buildTool({
+  call: readTask,
+  mapToolResultToToolResultBlockParam: (output: Output, toolUseID: string) => ({ type: 'tool_result' as const, tool_use_id: toolUseID, content: taskText(output.task) }),
+  renderToolUseMessage: () => null,
   name: TASK_GET_TOOL_NAME,
   searchHint: 'retrieve a task by id from the task list',
   shouldDefer: true,
   maxResultSizeChars: 100_000,
-  get inputSchema(): InputSchema {
-    return inputSchema()
-  },
-  get outputSchema(): OutputSchema {
-    return outputSchema()
-  },
+  get inputSchema() { return inputSchema() },
+  get outputSchema() { return outputSchema() },
   isEnabled: () => isTaskToolsEnabled(),
   isReadOnly: () => true,
   isConcurrencySafe: () => true,
   userFacingName: () => 'TaskGet',
-  async description() {
-    return DESCRIPTION
-  },
-  async prompt() {
-    return PROMPT
-  },
-  async call(input: Input) {
-    const task = await getTask(getTaskListId(), input.taskId)
-    if (!task) return { data: { task: null } satisfies Output }
-    return {
-      data: {
-        task: {
-          id: task.id,
-          subject: task.subject,
-          description: task.description,
-          status: task.status,
-          blocks: task.blocks,
-          blockedBy: task.blockedBy,
-        },
-      } satisfies Output,
-    }
-  },
-  mapToolResultToToolResultBlockParam(output: Output, toolUseID: string) {
-    const task = output.task
-    if (!task) {
-      return {
-        tool_use_id: toolUseID,
-        type: 'tool_result' as const,
-        content: 'Task not found',
-      }
-    }
-    const lines = [`#${task.id}: ${task.subject}`, `Status: ${task.status}`, `Description: ${task.description}`]
-    if (task.blockedBy.length > 0) lines.push(`Blocked by: ${task.blockedBy.map(id => `#${id}`).join(', ')}`)
-    if (task.blocks.length > 0) lines.push(`Blocks: ${task.blocks.map(id => `#${id}`).join(', ')}`)
-    return {
-      tool_use_id: toolUseID,
-      type: 'tool_result' as const,
-      content: lines.join('\n'),
-    }
-  },
-  renderToolUseMessage: () => null,
+  description: async () => DESCRIPTION,
+  prompt: async () => PROMPT,
 } satisfies ToolDef<InputSchema, Output>)
