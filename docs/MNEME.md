@@ -73,20 +73,46 @@ unpin it. Consolidation leaves it as said; you change or unpin it in
 keeps the earlier text as history. Rules that merely share words are not a
 conflict — both stay.
 
+## The journal
+
+Beside the facts, Mercury keeps a journal: the model's own account of each
+session, in the first person — what happened, what you wanted, what it
+noticed about how you like to work, what it got wrong. The model writes the
+entry with the **Journal** tool, in plain words and kept short; a fault is
+its own and said so. When a session ends Mercury appends the entry, dated
+from its own clock, to the project's journal. One entry per session; a later
+call replaces the earlier; a session that leaves no entry adds no line.
+Project facts and conventions do not go here — they go to the instruction
+file or to Retain — and what the model noticed about you goes here and never
+into the instruction file.
+
+The journal lives in the Mercury home beside the project's memory, never
+under the project tree, and Mercury never pushes, syncs or shares it. Read it
+in `/memory`: the overview row counts the entries and dates the newest, `↵`
+lists them newest first, and `↵` on one opens it whole. `memory.journal`
+turns the writing off (the tool leaves the roster and nothing is written).
+`memory.journalOnEntryPage`, off by default, hands the last entry to the
+model at the start of the next session on its entry page — and whatever the
+model reads at entry travels to the engine's provider with the request;
+"never uploaded" means Mercury itself never pushes, syncs or shares the
+journal, not that the session's own engine does not see it.
+
 ## The memory centre
 
 `/memory` is the front door. Type to search facts and rules; open one to see
 why it matched and the page it lives on; press `c` to correct it (the old
 fact moves to history), `x` to retire it, `p` to pin it word for word or `u`
-to unpin it. The overview lists the topics and opens each page. It shows how
-many facts the library holds, how full the pinned shelf is, the state of
-maintenance and its recent receipts. `/memory stats` prints the same numbers;
-`/memory enqueue` runs maintenance now. `/health` carries a memory row with
-the front page's size and the shelf's fill.
+to unpin it. The overview lists the topics and opens each page; it lists the
+journal and opens each entry. It shows how many facts the library holds, how
+full the pinned shelf is, the state of maintenance and its recent receipts.
+`/memory stats` prints the same numbers; `/memory enqueue` runs maintenance
+now. `/health` carries a memory row with the front page's size and the
+shelf's fill.
 
 ## On disk
 
-The library lives at `<config home>/projects/<project>/memory/library/`:
+The journal is `<config home>/projects/<project>/journal/journal.md`. The
+library lives at `<config home>/projects/<project>/memory/library/`:
 
 - `topic-<slug>.md` — one topic page; `archive-<slug>.md` — its archive;
 - `current.jsonl` — the staging buffer of facts not yet consolidated;
@@ -96,4 +122,5 @@ The library lives at `<config home>/projects/<project>/memory/library/`:
 - `library.json` — the sequence counter; `maintenance.jsonl` — the receipts.
 
 Memory is off when `memory.enabled` is `false` in settings; then nothing
-is loaded, saved or looked up, and the four tools leave the roster.
+is loaded, saved or looked up, and the four tools leave the roster, the
+Journal tool with them.
