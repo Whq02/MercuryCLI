@@ -1,80 +1,57 @@
 import { useCallback, useState } from 'react'
 import { useSetAppState } from '../../state/AppState.js'
 import type { ToolUseConfirm } from './PermissionRequest.js'
+import { useOptionAmendments } from './useOptionAmendments.js'
 
-export function useShellPermissionFeedback({
-  toolUseConfirm,
-  onDone,
-  onReject,
-  explainerVisible: _explainerVisible,
-}: {
-  toolUseConfirm: ToolUseConfirm
-  onDone: () => void
-  onReject: () => void
-  explainerVisible?: boolean
-}) {
+const AMENDABLE = ['yes', 'no'] as const
+
+type ShellCardArgs = { toolUseConfirm: ToolUseConfirm; onDone: () => void; onReject: () => void }
+
+export function useShellPermissionFeedback({ toolUseConfirm, onDone, onReject }: ShellCardArgs) {
   const setAppState = useSetAppState()
-  const [yesInputMode, setYesInputMode] = useState(false)
-  const [noInputMode, setNoInputMode] = useState(false)
-  const [acceptFeedback, setAcceptFeedback] = useState('')
-  const [rejectFeedback, setRejectFeedback] = useState('')
+  const { amendments, isRole, setText, toggle, collapseAwayFrom } = useOptionAmendments(AMENDABLE)
   const [focusedOption, setFocusedOption] = useState<string>('yes')
+
+  const setAcceptFeedback = useCallback((text: string) => setText('yes', text), [setText])
+  const setRejectFeedback = useCallback((text: string) => setText('no', text), [setText])
 
   const handleInputModeToggle = useCallback(
     (option: string) => {
       toolUseConfirm.onUserInteraction()
-      if (option === 'yes') {
-        setYesInputMode(current => !current)
-      } else if (option === 'no') {
-        setNoInputMode(current => !current)
-      }
+      if (isRole(option)) toggle(option)
     },
-    [toolUseConfirm],
+    [toolUseConfirm, isRole, toggle],
   )
 
   const handleFocus = useCallback(
     (value: string) => {
       if (value !== focusedOption) toolUseConfirm.onUserInteraction()
-      if (value !== 'yes' && yesInputMode && acceptFeedback.trim() === '') {
-        setYesInputMode(false)
-      }
-      if (value !== 'no' && noInputMode && rejectFeedback.trim() === '') {
-        setNoInputMode(false)
-      }
+      collapseAwayFrom(value)
       setFocusedOption(value)
     },
-    [focusedOption, yesInputMode, noInputMode, acceptFeedback, rejectFeedback, toolUseConfirm],
+    [focusedOption, toolUseConfirm, collapseAwayFrom],
+  )
+
+  const countEscape = useCallback(
+    () =>
+      setAppState(prev => ({
+        ...prev,
+        attribution: { ...prev.attribution, escapeCount: prev.attribution.escapeCount + 1 },
+      })),
+    [setAppState],
   )
 
   const handleReject = useCallback(
     (feedback?: string) => {
-      const trimmed = feedback?.trim()
-      if (!trimmed) {
-        setAppState(prev => ({
-          ...prev,
-          attribution: {
-            ...prev.attribution,
-            escapeCount: prev.attribution.escapeCount + 1,
-          },
-        }))
-      }
-      toolUseConfirm.onReject(trimmed || undefined)
+      const text = feedback?.trim() || undefined
+      if (text === undefined) countEscape()
+      toolUseConfirm.onReject(text)
       onReject()
       onDone()
     },
-    [toolUseConfirm, onReject, onDone, setAppState],
+    [toolUseConfirm, onReject, onDone, countEscape],
   )
 
-  return {
-    yesInputMode,
-    noInputMode,
-    acceptFeedback,
-    rejectFeedback,
-    setAcceptFeedback,
-    setRejectFeedback,
-    focusedOption,
-    handleInputModeToggle,
-    handleReject,
-    handleFocus,
-  }
+  const { yes, no } = amendments
+  return { yesInputMode: yes.open, noInputMode: no.open, acceptFeedback: yes.text, rejectFeedback: no.text, setAcceptFeedback, setRejectFeedback, focusedOption, handleInputModeToggle, handleReject, handleFocus }
 }

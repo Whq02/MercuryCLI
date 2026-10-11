@@ -51,7 +51,6 @@ export function PowerShellPermissionRequest({
     toolUseConfirm,
     onDone,
     onReject,
-    explainerVisible: undefined,
   })
 
   const explainer = usePermissionExplainerUI({

@@ -1,24 +1,52 @@
-import * as React from 'react';
-import { Box, Text, useTheme } from '../../ink.js';
-import { getTheme, type Theme } from '../../utils/theme.js';
-import { STILL_WAITING_MAX_INTENSITY } from './useStalledAnimation.js';
-import { getDefaultCharacters, interpolateColor, parseRGB, toRGBColor } from './utils.js';
+import * as React from 'react'
+import { Box, Text, useTheme } from '../../ink.js'
+import { getTheme, type Theme } from '../../utils/theme.js'
+import { STILL_WAITING_MAX_INTENSITY } from './useStalledAnimation.js'
+import { getDefaultCharacters, interpolateColor, parseRGB, toRGBColor } from './utils.js'
 
-const DEFAULT_CHARACTERS = getDefaultCharacters();
-const SPINNER_FRAMES = [...DEFAULT_CHARACTERS, ...[...DEFAULT_CHARACTERS].reverse()];
-const REDUCED_MOTION_DOT = '●';
-const REDUCED_MOTION_CYCLE_MS = 2000;
-
-const QUICKSILVER_SWING = [0, 0, 1, 2, 2, 3, 4, 5] as const;
+type Cadence = 'standard' | 'quicksilver'
 
 type Props = {
-  frame: number;
-  messageColor: keyof Theme;
-  attentionIntensity?: number;
-  reducedMotion?: boolean;
-  time?: number;
-  cadence?: 'standard' | 'quicksilver';
-};
+  frame: number
+  messageColor: keyof Theme
+  attentionIntensity?: number
+  reducedMotion?: boolean
+  time?: number
+  cadence?: Cadence
+}
+
+const FORWARD = getDefaultCharacters()
+const FRAMES = [...FORWARD, ...[...FORWARD].reverse()]
+const REDUCED_MOTION_DOT = '●'
+const REDUCED_MOTION_HALF_BREATH_MS = 1000
+const QUICKSILVER_SWING = [0, 0, 1, 2, 2, 3, 4, 5] as const
+const QUICKSILVER_BAR_ADVANCE = 6
+
+const swung = (frame: number): number =>
+  Math.floor(frame / QUICKSILVER_SWING.length) * QUICKSILVER_BAR_ADVANCE + QUICKSILVER_SWING[frame % QUICKSILVER_SWING.length]!
+
+const glyphAt = (frame: number, cadence: Cadence): string => {
+  const index = cadence === 'quicksilver' ? swung(frame) : frame
+  return FRAMES[index % FRAMES.length]!
+}
+
+function attentionColor(theme: Theme, messageColor: keyof Theme, intensity: number): string {
+  const base = theme[messageColor]
+  const baseRGB = base ? parseRGB(base) : null
+  const warningRGB = parseRGB(theme.warning)
+  if (baseRGB && warningRGB) return toRGBColor(interpolateColor(baseRGB, warningRGB, intensity))
+  return intensity >= STILL_WAITING_MAX_INTENSITY / 2 ? 'warning' : messageColor
+}
+
+function Cell({ color, dim = false, children }: { color: string; dim?: boolean; children: string }): React.ReactNode {
+  return (
+    <Box flexWrap="wrap" height={1} width={2}>
+      <Text color={color} dimColor={dim}>
+        {children}
+      </Text>
+    </Box>
+  )
+}
 
 export function SpinnerGlyph({
   frame,
@@ -28,51 +56,15 @@ export function SpinnerGlyph({
   time = 0,
   cadence = 'standard',
 }: Props): React.ReactNode {
-  const [themeName] = useTheme();
-  const theme = getTheme(themeName);
-
+  const [themeName] = useTheme()
   if (reducedMotion) {
-    const isDim = Math.floor(time / (REDUCED_MOTION_CYCLE_MS / 2)) % 2 === 1;
+    const dim = Math.floor(time / REDUCED_MOTION_HALF_BREATH_MS) % 2 === 1
     return (
-      <Box flexWrap="wrap" height={1} width={2}>
-        <Text color={messageColor} dimColor={isDim}>
-          {REDUCED_MOTION_DOT}
-        </Text>
-      </Box>
-    );
+      <Cell color={messageColor} dim={dim}>
+        {REDUCED_MOTION_DOT}
+      </Cell>
+    )
   }
-
-  const frameIndex =
-    cadence === 'quicksilver'
-      ? Math.floor(frame / QUICKSILVER_SWING.length) * 6 +
-        QUICKSILVER_SWING[frame % QUICKSILVER_SWING.length]!
-      : frame;
-  const spinnerChar = SPINNER_FRAMES[frameIndex % SPINNER_FRAMES.length];
-
-  if (attentionIntensity > 0) {
-    const baseColorStr = theme[messageColor];
-    const baseRGB = baseColorStr ? parseRGB(baseColorStr) : null;
-    const attentionRGB = parseRGB(theme.warning);
-    if (baseRGB && attentionRGB) {
-      const interpolated = interpolateColor(baseRGB, attentionRGB, attentionIntensity);
-      return (
-        <Box flexWrap="wrap" height={1} width={2}>
-          <Text color={toRGBColor(interpolated)}>{spinnerChar}</Text>
-        </Box>
-      );
-    }
-    const color =
-      attentionIntensity >= STILL_WAITING_MAX_INTENSITY / 2 ? 'warning' : messageColor;
-    return (
-      <Box flexWrap="wrap" height={1} width={2}>
-        <Text color={color}>{spinnerChar}</Text>
-      </Box>
-    );
-  }
-
-  return (
-    <Box flexWrap="wrap" height={1} width={2}>
-      <Text color={messageColor}>{spinnerChar}</Text>
-    </Box>
-  );
+  const color = attentionIntensity > 0 ? attentionColor(getTheme(themeName), messageColor, attentionIntensity) : messageColor
+  return <Cell color={color}>{glyphAt(frame, cadence)}</Cell>
 }

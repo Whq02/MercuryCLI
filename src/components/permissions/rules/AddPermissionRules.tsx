@@ -1,56 +1,49 @@
 import * as React from 'react'
 import { Box, Text } from '../../../ink.js'
-import { Dialog } from '../../design-system/Dialog.js'
+import type { ToolPermissionContext } from '../../../Tool.js'
+import type { PermissionBehavior, PermissionRule, PermissionRuleValue, PermissionUpdate } from '../../../types/permissions.js'
+import { toTildePath } from '../../../utils/path.js'
+import { permissionRuleValueToString } from '../../../utils/permissions/permissionRuleParser.js'
+import { applyPermissionUpdate, persistPermissionUpdate } from '../../../utils/permissions/PermissionUpdate.js'
+import { detectUnreachableRules, type UnreachableRule } from '../../../utils/permissions/shadowedRuleDetection.js'
+import { SandboxManager } from '../../../utils/sandbox/sandbox-adapter.js'
+import { SOURCES, type EditableSettingSource } from '../../../utils/settings/constants.js'
+import { getRelativeSettingsFilePathForSource, getSettingsFilePathForSource } from '../../../utils/settings/settings.js'
+import { plural } from '../../../utils/stringUtils.js'
 import { Select } from '../../CustomSelect/select.js'
 import type { OptionWithDescription } from '../../CustomSelect/select.js'
-import { plural } from '../../../utils/stringUtils.js'
-import { toTildePath } from '../../../utils/path.js'
-import {
-  SOURCES,
-  type EditableSettingSource,
-} from '../../../utils/settings/constants.js'
-import {
-  getRelativeSettingsFilePathForSource,
-  getSettingsFilePathForSource,
-} from '../../../utils/settings/settings.js'
-import {
-  applyPermissionUpdate,
-  persistPermissionUpdate,
-} from '../../../utils/permissions/PermissionUpdate.js'
-import { detectUnreachableRules, type UnreachableRule } from '../../../utils/permissions/shadowedRuleDetection.js'
-import { permissionRuleValueToString } from '../../../utils/permissions/permissionRuleParser.js'
-import { SandboxManager } from '../../../utils/sandbox/sandbox-adapter.js'
-import type { ToolPermissionContext } from '../../../Tool.js'
-import type {
-  PermissionBehavior,
-  PermissionRule,
-  PermissionRuleValue,
-} from '../../../types/permissions.js'
+import { Dialog } from '../../design-system/Dialog.js'
 import { PermissionRuleDescription } from './PermissionRuleDescription.js'
 
-function optionForPermissionSaveDestination(
-  source: EditableSettingSource,
-): OptionWithDescription<string> {
-  if (source === 'userSettings') {
-    const path = getSettingsFilePathForSource(source)
-    return {
-      label: 'User settings',
-      value: source,
-      description: path ? toTildePath(path) : 'your user settings',
-    }
-  }
-  if (source === 'projectSettings') {
-    return {
-      label: 'Project settings (checked in)',
-      value: source,
-      description: getRelativeSettingsFilePathForSource(source) ?? undefined,
-    }
-  }
-  return {
-    label: 'Project settings (local)',
-    value: source,
-    description: getRelativeSettingsFilePathForSource(source) ?? undefined,
-  }
+const DESTINATION_LABEL: Record<EditableSettingSource, string> = {
+  userSettings: 'User settings',
+  projectSettings: 'Project settings (checked in)',
+  localSettings: 'Project settings (local)',
+}
+
+function destinationDescription(source: EditableSettingSource): string | undefined {
+  if (source !== 'userSettings') return getRelativeSettingsFilePathForSource(source)
+  const path = getSettingsFilePathForSource(source)
+  return path ? toTildePath(path) : 'your user settings'
+}
+
+const destinationOption = (source: EditableSettingSource): OptionWithDescription<EditableSettingSource> => ({
+  label: DESTINATION_LABEL[source],
+  value: source,
+  description: destinationDescription(source),
+})
+
+const sameSpelling = (a: PermissionRuleValue, b: PermissionRuleValue): boolean =>
+  a.toolName === b.toolName && a.ruleContent === b.ruleContent
+
+const sandboxAutoAllows = (): boolean =>
+  SandboxManager.isSandboxingEnabled() && SandboxManager.isAutoAllowBashIfSandboxedEnabled()
+
+function newlyUnreachable(context: ToolPermissionContext, added: PermissionRuleValue[]): UnreachableRule[] | undefined {
+  const findings = detectUnreachableRules(context, { sandboxAutoAllowEnabled: sandboxAutoAllows() }).filter(finding =>
+    added.some(value => sameSpelling(value, finding.rule.ruleValue)),
+  )
+  return findings.length > 0 ? findings : undefined
 }
 
 export function AddPermissionRules({
@@ -68,50 +61,27 @@ export function AddPermissionRules({
   initialContext: ToolPermissionContext
   setToolPermissionContext: (context: ToolPermissionContext) => void
 }): React.ReactNode {
-  const options = SOURCES.map(optionForPermissionSaveDestination)
+  const several = ruleValues.length !== 1
 
-  function handleChange(destination: string): void {
-    const update = {
-      type: 'addRules' as const,
-      rules: ruleValues,
-      behavior: ruleBehavior,
-      destination: destination as EditableSettingSource,
-    }
+  const save = (destination: EditableSettingSource): void => {
+    const update: PermissionUpdate = { type: 'addRules', rules: ruleValues, behavior: ruleBehavior, destination }
     const updated = applyPermissionUpdate(initialContext, update)
     persistPermissionUpdate(update)
     setToolPermissionContext(updated)
-
-    const created: PermissionRule[] = ruleValues.map(ruleValue => ({
-      source: destination as EditableSettingSource,
-      ruleBehavior,
-      ruleValue,
-    }))
-    const sandboxAutoAllowEnabled =
-      SandboxManager.isSandboxingEnabled() &&
-      SandboxManager.isAutoAllowBashIfSandboxedEnabled()
-    const unreachable = detectUnreachableRules(updated, { sandboxAutoAllowEnabled }).filter(
-      finding =>
-        ruleValues.some(
-          added =>
-            added.toolName === finding.rule.ruleValue.toolName &&
-            added.ruleContent === finding.rule.ruleValue.ruleContent,
-        ),
-    )
-    onAddRules(created, unreachable.length > 0 ? unreachable : undefined)
+    const created = ruleValues.map(ruleValue => ({ source: destination, ruleBehavior, ruleValue }))
+    onAddRules(created, newlyUnreachable(updated, ruleValues))
   }
 
   return (
     <Dialog title={`Add ${plural(ruleValues.length, 'rule')}`} onCancel={onCancel} color="permission">
-      <Text>
-        Where should {ruleValues.length === 1 ? 'this rule' : 'these rules'} be saved?
-      </Text>
+      <Text>Where should {several ? 'these rules' : 'this rule'} be saved?</Text>
       {ruleValues.map((ruleValue, index) => (
         <Box key={index} flexDirection="column">
           <Text bold>{permissionRuleValueToString(ruleValue)}</Text>
           <PermissionRuleDescription ruleValue={ruleValue} />
         </Box>
       ))}
-      <Select options={options} onChange={handleChange} onCancel={onCancel} />
+      <Select options={SOURCES.map(destinationOption)} onChange={save} onCancel={onCancel} />
     </Dialog>
   )
 }
