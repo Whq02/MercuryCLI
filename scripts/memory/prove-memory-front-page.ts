@@ -292,7 +292,7 @@ check('a pending fact is findable before consolidation', lookupFacts('fact retai
 
 section('archive: facts nobody has used in a long time leave the index, nothing is lost')
 const before = seqCensus([...listTopicDocs(dir), ...listArchiveDocs(dir)])
-const later = new Date(T0.getTime() + (ARCHIVE_AFTER_DAYS + 10) * 24 * 60 * 60 * 1000)
+const later = new Date(Math.max(T0.getTime(), Date.now()) + (ARCHIVE_AFTER_DAYS + 10) * 24 * 60 * 60 * 1000)
 mkdirSync(dir, { recursive: true })
 appendFileSync(join(dir, 'current.jsonl'), JSON.stringify({ ts: later.toISOString(), source: 'proof', text: 'a brand-new fact keeps its topic warm', topicHint: 'fresh' }) + '\n')
 const c3 = maybeConsolidate({ force: true, dir, now: later })
