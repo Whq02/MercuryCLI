@@ -925,10 +925,10 @@ export const getModelBetas = memoize((model: string): string[] => {
 }, betasMemoKey)
 
 export function getMergedBetas(model: string, options?: { isAgenticQuery?: boolean }): string[] {
-  const merged = getModelBetas(model).slice()
+  const merged = Array.from(getModelBetas(model))
   const appendNew = (headers: readonly string[]): void => {
     const present = new Set(merged)
-    for (const header of headers) if (!present.has(header)) merged.push(header)
+    headers.forEach(header => { if (!present.has(header)) merged.push(header) })
   }
   if (options?.isAgenticQuery) appendNew([CODING_20250219_BETA_HEADER])
   appendNew(getSdkBetas() ?? [])
