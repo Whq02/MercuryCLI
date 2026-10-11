@@ -4,7 +4,7 @@
 import { existsSync, mkdirSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
-import { startFixtureApi, type FixtureApi } from '../lib/fixtureApi.ts'
+import { startFixtureApi, handoffTurn, isHandoffRequest, type FixtureApi } from '../lib/fixtureApi.ts'
 import { hostRunner } from '../lib/runnerHost.ts'
 
 const ROOT = resolve(import.meta.dir, '..', '..')
@@ -88,6 +88,7 @@ async function driveProtocol(): Promise<void> {
     { kind: 'hang', deltas: ['h-stream…'] },
     { kind: 'text', text: 'H-TURN-THREE.' },
     { kind: 'hang', deltas: ['h-stream-again…'] },
+    handoffTurn(),
   ])
   const home = mkdtempSync(join(tmpdir(), 'headless-home-'))
   const cwd = mkdtempSync(join(tmpdir(), 'headless-cwd-'))
@@ -228,7 +229,9 @@ async function driveProtocol(): Promise<void> {
   const { exit } = await exited
   check("stdin end → the exit code carries the last turn's status (interrupted ⇒ 1 here)", exit === 1, `exit=${exit} stderr=${stderr.slice(0, 300)}`)
   check('every stdout line is individually JSON-parseable', unparseable === 0, `${unparseable} unparseable of ${lines.length}`)
-  check('exactly four model calls — an interrupted turn never continues; only the QUEUED prompt ran after it', fixture.messageRequests().length === 4, `${fixture.messageRequests().length}`)
+  const requests = fixture.messageRequests()
+  check('exactly four model calls — an interrupted turn never continues; only the QUEUED prompt ran after it', requests.filter(q => !isHandoffRequest(q)).length === 4, `${requests.length}`)
+  check('the closing ask is its own marked request after the four turns, once', j(requests.map(isHandoffRequest)) === j([false, false, false, false, true]), j(requests.map(isHandoffRequest)))
   await fixture.close()
 }
 
