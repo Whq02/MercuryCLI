@@ -51,7 +51,7 @@ type ListingPlace = Partial<{
   prRepository: string
   worktreeSession: PersistedWorktreeSession | null
 }>
-type ListingRun = Partial<{ endedOnError: boolean; mode: 'coordinator' | 'normal'; advisor: boolean; model: string }>
+type ListingRun = { endedOnError?: boolean; mode?: 'coordinator' | 'normal'; advisor?: boolean; model?: string }
 type ListingRecords = Partial<{
   fileHistorySnapshots: FileHistorySnapshot[]
   attributionSnapshots: AttributionSnapshotEntry[]
