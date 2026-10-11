@@ -6,7 +6,7 @@ import { isDarkThemeFamily } from '../mercuryTokens.js'
 import { DEFAULT_THEME_SETTING, resolveThemeSetting } from '../systemTheme.js'
 import type { ThemeName } from '../theme.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
-import { truecolorFingerprint } from '../../ink/colorize.js'
+import { shouldHonorNoColor, truecolorFingerprint } from '../../ink/colorize.js'
 import { parseOscColor } from '../../ink/termio/osc.js'
 import { isEnvTruthy } from '../envUtils.js'
 
@@ -23,7 +23,7 @@ export function oasisBgEnabled(
   theme: ThemeName = concreteTheme(),
 ): boolean {
   if (flagEnv('MERCURY_OASIS_BG') === '0') return false
-  if (!isTTY) return false
+  if (!isTTY || shouldHonorNoColor()) return false
   if (/^(dumb|linux)$/.test(process.env.TERM || '')) return false
   if (!isDarkThemeFamily(theme)) return false
   return true
@@ -94,7 +94,7 @@ export function noteOriginalGroundReply(
   spec: string,
   write: (s: string) => void = s => process.stdout.write(s),
 ): void {
-  if (!spec) return
+  if (!spec || shouldHonorNoColor() || /^(dumb|linux)$/.test(process.env.TERM || '') || concreteTheme() === 'mono') return
   if (paintedAtQuerySend !== false) return
   if (exactOriginal === undefined && !launcherHeldAtBoot()) {
     exactOriginal = spec
