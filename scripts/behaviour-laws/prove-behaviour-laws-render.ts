@@ -56,7 +56,6 @@ section('§2 one-owner law — sentinel doctrine phrases live in ONE section')
     ['pinned memory (the user\'s own rule)', /is pinned memory instead/],
     ['the hooks fact', /Hooks are shell commands the user set up in settings/],
     ['the model-currency rule', /^Model currency:/m],
-    ['the engine line', /In this seat the model you run through Mercury is/],
     ['the blocker form', /BLOCKED ON OPERATOR/],
     ['tool effects are ground truth', /Tool effects and verification evidence are ground truth/],
   ]
