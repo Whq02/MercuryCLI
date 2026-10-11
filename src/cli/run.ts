@@ -1365,7 +1365,7 @@ export async function runHeadless(
     settleIdle,
     wakeSettle: () => {},
     beforeCloseOutput: async () => {
-      await leaveNoteBeforeExit({ budgetMs: HANDOFF_ASK_BUDGET_MS, onNotice: text => io.outbound.enqueue(noticeRow(liveScope(), 'info', text)) })
+      await leaveNoteBeforeExit({ budgetMs: HANDOFF_ASK_BUDGET_MS, onNotice: text => io.outbound.enqueue(noticeRow(liveScope(), 'warning', text)) })
     },
     closeOutput: async () => {
       const { endBackgroundHooks } = await import('../utils/hooks/background.js')
