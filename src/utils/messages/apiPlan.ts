@@ -98,42 +98,26 @@ function refusedBlockTypesOf(
   return stamped === null ? undefined : new Set<string>(stamped.blockTypes)
 }
 
-function stripTargetsOf(reorderedMessages: Message[]): Map<string, Set<string>> {
-  const errorToBlockTypes: Record<string, Set<string>> = {
-    [getPdfTooLargeErrorMessage()]: new Set(['document']),
-    [getPdfPasswordProtectedErrorMessage()]: new Set(['document']),
-    [getPdfInvalidErrorMessage()]: new Set(['document']),
-    [getImageTooLargeErrorMessage()]: new Set(['image']),
-    [getRequestTooLargeErrorMessage()]: new Set(['document', 'image']),
-  }
-
-  const stripTargets = new Map<string, Set<string>>()
-  for (let i = 0; i < reorderedMessages.length; i++) {
-    const msg = reorderedMessages[i]!
-    const blockTypesToStrip = refusedBlockTypesOf(msg, errorToBlockTypes)
-    if (!blockTypesToStrip) {
-      continue
+function stripTargetsOf(rows: Message[]): Map<string, Set<string>> {
+  const refusals = Object.fromEntries(([
+    [getPdfTooLargeErrorMessage(), ['document']],
+    [getPdfPasswordProtectedErrorMessage(), ['document']],
+    [getPdfInvalidErrorMessage(), ['document']],
+    [getImageTooLargeErrorMessage(), ['image']],
+    [getRequestTooLargeErrorMessage(), ['document', 'image']],
+  ] as Array<[string, string[]]>).map(([words, kinds]) => [words, new Set(kinds)]))
+  const targets = new Map<string, Set<string>>()
+  let eligible: UserMessage | undefined
+  for (const row of rows) {
+    const refused = refusedBlockTypesOf(row, refusals)
+    if (eligible && refused) {
+      const kinds = targets.get(eligible.uuid) ?? new Set<string>()
+      refused.forEach(kind => kinds.add(kind))
+      targets.set(eligible.uuid, kinds)
     }
-    for (let j = i - 1; j >= 0; j--) {
-      const candidate = reorderedMessages[j]!
-      if (candidate.type === 'user' && candidate.isMeta) {
-        const existing = stripTargets.get(candidate.uuid)
-        if (existing) {
-          for (const t of blockTypesToStrip) {
-            existing.add(t)
-          }
-        } else {
-          stripTargets.set(candidate.uuid, new Set(blockTypesToStrip))
-        }
-        break
-      }
-      if (isSyntheticApiErrorMessage(candidate)) {
-        continue
-      }
-      break
-    }
+    if (!isSyntheticApiErrorMessage(row)) eligible = row.type === 'user' && row.isMeta ? row : undefined
   }
-  return stripTargets
+  return targets
 }
 
 export function errorDrivenStripTargets(messages: Message[]): Map<string, Set<string>> {
