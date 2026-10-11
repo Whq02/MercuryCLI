@@ -164,12 +164,11 @@ const stored = await capture('stored-mono', 'mono', [
   { ...gate, awaitText: 'Type a prompt', awaitSettleTicks: 12, awaitStableTicks: 3, data: '', mark: 'session' },
   { ...gate, awaitText: 'Type a prompt', data: '/appearance' },
   { ...gate, awaitText: '❯ /appearance', awaitStableTicks: 2, data: '\r' },
-  { ...gate, awaitText: 'Black and white', awaitStableTicks: 3, data: '', mark: 'picker' },
-  { ...gate, awaitText: 'Black and white', data: UP },
-  { afterPrevTicks: 6, awaitStableTicks: 3, data: '', mark: 'preview-true-black' },
-  { afterPrevTicks: 2, data: ESC },
-  { afterPrevTicks: 6, awaitStableTicks: 3, data: '', mark: 'restored' },
-  { afterPrevTicks: 2, data: '' },
+  { ...gate, awaitText: '❯ 3. Black and white', awaitStableTicks: 3, data: '', mark: 'picker' },
+  { ...gate, awaitText: '❯ 3. Black and white', data: UP },
+  { ...gate, awaitText: '❯ 2. True Black', awaitStableTicks: 3, data: '', mark: 'preview-true-black' },
+  { ...gate, awaitText: '❯ 2. True Black', data: ESC },
+  { ...gate, awaitText: 'Appearance center dismissed', awaitStableTicks: 3, data: '', mark: 'restored' },
 ], 420)
 writeFrames(stored)
 {
@@ -198,12 +197,11 @@ const chosen = await capture('chosen-mono', 'true-black', [
   { ...gate, awaitText: 'Type a prompt', awaitSettleTicks: 12, awaitStableTicks: 3, data: '', mark: 'session' },
   { ...gate, awaitText: 'Type a prompt', data: '/appearance' },
   { ...gate, awaitText: '❯ /appearance', awaitStableTicks: 2, data: '\r' },
-  { ...gate, awaitText: 'Black and white', awaitStableTicks: 3, data: '', mark: 'picker' },
-  { ...gate, awaitText: 'Black and white', data: DOWN },
-  { afterPrevTicks: 6, awaitStableTicks: 3, data: '', mark: 'preview-mono' },
-  { afterPrevTicks: 2, data: '\r' },
+  { ...gate, awaitText: '❯ 2. True Black', awaitStableTicks: 3, data: '', mark: 'picker' },
+  { ...gate, awaitText: '❯ 2. True Black', data: DOWN },
+  { ...gate, awaitText: '❯ 3. Black and white', awaitStableTicks: 3, data: '', mark: 'preview-mono' },
+  { ...gate, awaitText: '❯ 3. Black and white', data: '\r' },
   { ...gate, awaitText: 'Theme set to mono', awaitStableTicks: 3, data: '', mark: 'saved' },
-  { afterPrevTicks: 2, data: '' },
 ], 420)
 writeFrames(chosen)
 {
@@ -226,9 +224,9 @@ const noColor = await capture('no-color', 'true-black', [
   { ...gate, awaitText: 'Type a prompt', awaitSettleTicks: 12, awaitStableTicks: 3, data: '', mark: 'session' },
   { ...gate, awaitText: 'Type a prompt', data: '/appearance' },
   { ...gate, awaitText: '❯ /appearance', awaitStableTicks: 2, data: '\r' },
-  { ...gate, awaitText: 'True Black', awaitStableTicks: 3, data: '', mark: 'picker' },
-  { afterPrevTicks: 2, data: ESC },
-  { ...gate, awaitText: 'Type a prompt', awaitStableTicks: 2, data: '' },
+  { ...gate, awaitText: '❯ 2. True Black', awaitStableTicks: 3, data: '', mark: 'picker' },
+  { ...gate, awaitText: '❯ 2. True Black', data: ESC },
+  { ...gate, awaitText: 'Appearance center dismissed', awaitStableTicks: 2, data: '', mark: 'closed' },
 ], 420, { NO_COLOR: '1', FORCE_COLOR: undefined })
 writeFrames(noColor)
 {

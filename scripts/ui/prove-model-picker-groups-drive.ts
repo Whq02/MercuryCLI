@@ -233,7 +233,7 @@ try {
     ...birth,
     ...openPicker,
     { requireAwait: true, awaitText: 'Mercury · model', awaitStableTicks: 3, mark: 'open', data: 'llama' },
-    { afterPrevTicks: 4, awaitStableTicks: 2, mark: 'typed-in-rows', data: TAB },
+    { requireAwait: true, awaitText: 'tab to search by name or id', awaitStableTicks: 3, mark: 'typed-in-rows', data: TAB },
     { requireAwait: true, awaitText: 'type to search', awaitStableTicks: 2, mark: 'box', data: 'llama' },
     { requireAwait: true, awaitText: '/ llama', awaitStableTicks: 3, mark: 'filtered', data: TAB },
     { requireAwait: true, awaitText: 'c context', awaitStableTicks: 3, mark: 'kept', data: ESC },
