@@ -1,8 +1,7 @@
 import { getLastCacheSafeParams } from '../utils/forkedAgent.js'
 import { askForHandoff, type AskRunner } from './handoffAsk.js'
 import { ledgerEntryOf } from './ledger.js'
-import { openLineageSession } from './lineageSession.js'
-import { mnemeEnabled } from './mnemeGates.js'
+import { lineageKept, openLineageSession } from './lineageSession.js'
 
 export const HANDOFF_EXIT_BUDGET_MS = 20_000
 export const HANDOFF_EXIT_NOTICE = 'writing the handoff for the next session… (ctrl-c skips)'
@@ -10,7 +9,7 @@ export const HANDOFF_EXIT_NOTICE = 'writing the handoff for the next session… 
 export type ExitNoteOutcome = 'stored' | 'skipped' | 'none'
 
 export function exitNoteDue(): boolean {
-  if (!mnemeEnabled()) return false
+  if (!lineageKept()) return false
   const session = openLineageSession()
   if (session === null) return false
   const entry = ledgerEntryOf(session.projectKey, session.sessionId)
