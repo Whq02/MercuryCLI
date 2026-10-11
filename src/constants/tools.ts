@@ -28,6 +28,7 @@ import { WEB_FETCH_TOOL_NAME } from '../tools/WebFetchTool/prompt.js'
 import { PROVIDER_SEARCH_TOOL_NAME, WEB_SEARCH_TOOL_NAME } from '../tools/WebSearchTool/prompt.js'
 import { WORKFLOW_TOOL_NAME } from '../tools/WorkflowTool/constants.js'
 import { CORRECT_TOOL_NAME, RECALL_TOOL_NAME, REFLECT_TOOL_NAME, RETAIN_TOOL_NAME } from '../tools/MemoryTools/prompt.js'
+import { JOURNAL_TOOL_NAME } from '../tools/JournalTool/prompt.js'
 
 export const ALL_AGENT_DISALLOWED_TOOLS: Set<string> = new Set([
   AGENT_TOOL_NAME,
@@ -35,6 +36,7 @@ export const ALL_AGENT_DISALLOWED_TOOLS: Set<string> = new Set([
   TASK_STOP_TOOL_NAME,
   WORKFLOW_TOOL_NAME,
   COMPUTER_TOOL_NAME,
+  JOURNAL_TOOL_NAME,
 ])
 
 export const CUSTOM_AGENT_DISALLOWED_TOOLS: Set<string> = ALL_AGENT_DISALLOWED_TOOLS
