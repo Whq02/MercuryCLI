@@ -12,7 +12,7 @@
 # gate-watch: src/utils/messages/attachmentText.ts src/utils/messages/rejectionText.ts
 # gate-watch: src/utils/processUserInput/processSlashCommand.tsx src/utils/skills/skillChangeDetector.ts
 # gate-watch: src/utils/suggestions/commandSuggestions.ts
-# gate-watch: scripts/lib/fixtureApi.ts scripts/lib/firstRunSeed.ts
+# gate-watch: scripts/lib/fixtureApi.ts scripts/lib/firstRunSeed.ts scripts/lib/rows.ts scripts/lib/runnerHost.ts
 # gate-watch: README.md docs/** src/utils/settings/**
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
