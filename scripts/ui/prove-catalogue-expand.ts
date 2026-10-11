@@ -340,16 +340,16 @@ function familySends(spec: FamilySpec, settle: { atTick: number; settleTicks: nu
       { requireAwait: true, awaitText: spec.firstLabel, awaitStableTicks: 2, mark: 'expanded', data: DOWN.repeat(spec.listedRows) },
       { requireAwait: true, awaitText: '→ unfolds the rest', awaitStableTicks: 2, mark: 'listed-tail', data: UP.repeat(spec.listedRows) },
       { afterPrevTicks: 3, data: '\x1b[C' },
-      { afterPrevTicks: 5, mark: 'unfolded', data: '/' },
-      { requireAwait: true, awaitText: 'type to filter', awaitStableTicks: 2, data: NEEDLE_FILTER },
+      { afterPrevTicks: 5, mark: 'unfolded', data: '\t' },
+      { requireAwait: true, awaitText: 'type to search', awaitStableTicks: 2, data: NEEDLE_FILTER },
       { requireAwait: true, awaitText: `/ ${NEEDLE_FILTER}`, awaitStableTicks: 2, mark: 'filtered', data: ESC },
-      { requireAwait: true, awaitText: 'filter by name or id', awaitStableTicks: 2, mark: 'cleared', data: ESC },
+      { requireAwait: true, awaitText: '/ search by name or id', awaitStableTicks: 2, mark: 'cleared', data: ESC },
       { requireAwait: true, awaitText: 'Kept model as', awaitStableTicks: 2, mark: 'closed', data: '' },
       { afterPrevTicks: 6, data: '/model' },
       { requireAwait: true, awaitText: '❯ /model', awaitStableTicks: 2, data: '' },
       { afterPrevTicks: 2, data: '\r' },
-      { requireAwait: true, awaitText: 'Mercury · model', awaitStableTicks: 3, data: '/' },
-      { requireAwait: true, awaitText: 'type to filter', awaitStableTicks: 2, data: NEEDLE_FILTER },
+      { requireAwait: true, awaitText: 'Mercury · model', awaitStableTicks: 3, data: '\t' },
+      { requireAwait: true, awaitText: 'type to search', awaitStableTicks: 2, data: NEEDLE_FILTER },
       { requireAwait: true, awaitText: `/ ${NEEDLE_FILTER}`, awaitStableTicks: 2, mark: 'refiltered', data: DOWN.repeat(spec.needleDowns) },
       { requireAwait: true, awaitText: `│ │ ${spec.needleLabel}`, awaitStableTicks: 2, mark: 'targeted', data: '\r' },
       { requireAwait: true, awaitText: 'Set model to', awaitStableTicks: 3, mark: 'selected', data: '' },
@@ -395,9 +395,9 @@ function familyDrive(spec: FamilySpec): void {
   check(`${spec.family}: the family open at its top — the first listed row paints under its heading, the rest is named, the deep row is not listed`, rowsOn(expanded, spec.firstLabel, spec.firstRow) === 1 && /↓ \d+ more · → unfolds the rest/.test(listedTail) && rowsOn(expanded, spec.needleLabel, spec.needleId) === 0 && rowsOn(listedTail, spec.needleLabel, spec.needleId) === 0, lines(listedTail, 'more'))
   check(`${spec.family}: → unfolds the rest — no more line under the heading, the heading open (▾ or ❯)`, !ownLines(unfolded).includes('→ unfolds the rest') && live30('▾❯').test(headingWords(unfolded)), headingWords(unfolded) + ' · ' + lines(unfolded, 'more'))
   check(`${spec.family}: typing narrows every group — the header reads N of M match, the family's deep row is listed and the first match is focused`, /Mercury · model · \d+ of \d+ match/.test(filtered) && rowsOn(filtered, spec.needleLabel, spec.needleId) === 1 && filtered.includes('│ │ '), lines(filtered, 'needle'))
-  check(`${spec.family}: the hint says esc clears the filter while a filter stands`, filtered.includes('esc clears the filter'), lines(filtered, '↑↓ select'))
+  check(`${spec.family}: the hint says esc clears the search while a search stands`, filtered.includes('esc clears the search'), lines(filtered, '↑↓ select'))
   check(`${spec.family}: the rows the filter does not match are gone from the picker (no "${spec.firstLabel}" row)`, rowsOn(filtered, spec.firstLabel, spec.firstRow) === 0, lines(filtered, 'expand-model'))
-  check(`${spec.family}: esc clears the filter — the plain header is back and the picker stays`, !cleared.includes(`/ ${NEEDLE_FILTER}`) && cleared.includes('filter by name or id') && !cleared.includes(' match') && cleared.includes('Mercury · model'), lines(cleared, 'Mercury'))
+  check(`${spec.family}: esc clears the search — the plain header is back, the box still focused, and the picker stays`, !cleared.includes(`/ ${NEEDLE_FILTER}`) && cleared.includes('/ search by name or id') && !cleared.includes(' match') && cleared.includes('Mercury · model'), lines(cleared, 'Mercury'))
   check(`${spec.family}: esc with no filter closes the picker (the receipt line)`, closed.includes('Kept model as'), lines(closed, 'Kept'))
   check(`${spec.family}: ${spec.needleDowns} ↓ from the first match (the composition's count) focuses the family's own deep row`, focusedRowPattern(spec.needleLabel, spec.needleId).test(targeted), lines(targeted, '│ │ '))
   check(`${spec.family}: ↵ on the focused deep row selects it — the receipt names the row`, selected.includes(`Set model to ${spec.needleLabel}`), lines(selected, 'Set model'))

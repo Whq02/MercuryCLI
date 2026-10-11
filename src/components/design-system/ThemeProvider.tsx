@@ -3,14 +3,17 @@ import React, {
   createContext,
   useContext,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useState,
 } from 'react'
+import { setMonochromeTheme } from '../../ink/colorize.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { getGlobalConfig, saveGlobalConfig } from '../../utils/config.js'
 import { DEFAULT_THEME_SETTING, resolveThemeSetting } from '../../utils/systemTheme.js'
 import { syncOasisBgToTheme } from '../../utils/cockpit/oasisBg.js'
 import {
+  isMonochromeTheme,
   REACHABLE_THEME_SETTINGS,
   THEME_SETTINGS,
   type ThemeName,
@@ -71,6 +74,15 @@ export function ThemeProvider({
 
   const effectiveSetting = previewSetting ?? savedSetting
   const resolvedTheme: ThemeName = resolveThemeSetting(effectiveSetting)
+  const ownsColorDepth = useContext(ThemeContext) === DEFAULT_CONTEXT
+  if (ownsColorDepth) setMonochromeTheme(isMonochromeTheme(resolvedTheme))
+
+  useLayoutEffect(() => {
+    if (!ownsColorDepth) return
+    return () => {
+      setMonochromeTheme(false)
+    }
+  }, [ownsColorDepth])
 
   useEffect(() => {
     syncOasisBgToTheme(resolvedTheme)

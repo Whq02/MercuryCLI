@@ -259,7 +259,7 @@ if (bootWindow !== null && sessionWindow !== null) {
 if (sessionWindow !== null) {
   const before = session.scene.lines()
   const beforeWindow = windowOf(before)!
-  const firstRow = inner(beforeWindow.rows[3]!)
+  const firstRow = inner(beforeWindow.rows[4]!)
   for (let step = 0; step < 60; step++) {
     session.scene.push(DOWN)
     await sleep(25)
@@ -270,7 +270,7 @@ if (sessionWindow !== null) {
   const afterWindow = windowOf(after)
   console.log(`session window after ↓×60: ${describe(afterWindow)}`)
   check('after ↓ past the last visible row the window keeps its place and its height', afterWindow !== null && afterWindow.top === beforeWindow.top && afterWindow.left === beforeWindow.left && afterWindow.width === beforeWindow.width && afterWindow.height === beforeWindow.height, describe(afterWindow))
-  check('the rows scrolled inside the window (the first row changed and a ↑ more line leads)', afterWindow !== null && inner(afterWindow.rows[3]!) !== firstRow && afterWindow.rows.some(row => /↑ \d+ more/.test(row)), afterWindow === null ? '' : afterWindow.rows.slice(1, 5).map(inner).join(' | '))
+  check('the rows scrolled inside the window (the first row changed and a ↑ more line leads)', afterWindow !== null && inner(afterWindow.rows[4]!) !== firstRow && afterWindow.rows.some(row => /↑ \d+ more/.test(row)), afterWindow === null ? '' : afterWindow.rows.slice(1, 5).map(inner).join(' | '))
   const footer = afterWindow === null ? '' : inner(afterWindow.rows[afterWindow.height - 2]!)
   check('the footer stays the window\'s last inner row while the rows scroll', footer.startsWith(KEYS), footer)
   session.scene.push(ESC)

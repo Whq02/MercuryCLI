@@ -33,6 +33,7 @@ import { FOLD_CLOSED_LEAD, FOLD_OPEN_LEAD, MenuFilterLine } from './mercury-ui/m
 import {
   MODEL_PICKER_CURRENT,
   MODEL_PICKER_FILTER_PLACEHOLDER,
+  MODEL_PICKER_SEARCH_PLACEHOLDER,
   MODEL_PICKER_NO_ALIAS,
   MODEL_PICKER_PANEL,
   MODEL_PICKER_UNAVAILABLE,
@@ -316,7 +317,7 @@ export function MercuryModelPicker({ models: listed, current = 'opus-4-8', ctxPc
   const pastOpenEvent = useOpenEventGate()
   const overlayToken = useRegisterOverlay('model-picker', true)
   useInput((input, key, event) => {
-    const rowAxis = decodeNavKey(input, key, { orientation: 'vertical', hierarchy: true })
+    const rowAxis = decodeNavKey(input, key, { orientation: 'vertical', hierarchy: true, tabFocus: true })
     if (windowTyping !== null) {
       event.stopImmediatePropagation()
       if (rowAxis === 'cancel') {
@@ -342,12 +343,17 @@ export function MercuryModelPicker({ models: listed, current = 'opus-4-8', ctxPc
     if (rowAxis === 'cancel') {
       if (overlayToken !== null && !isTopOverlayNow(overlayToken)) return
       event.stopImmediatePropagation()
-      if ((filterFocus || filter !== '') && !escapeFromOutsidePress()) {
-        setFilterFocus(false)
+      if (filter !== '' && !escapeFromOutsidePress()) {
         setFilterText('')
         return
       }
       onClose?.()
+      return
+    }
+    if (rowAxis === 'focusNext' || rowAxis === 'focusPrevious') {
+      event.stopImmediatePropagation()
+      if (!pastOpenEvent()) return
+      setFilterFocus(!filterFocus)
       return
     }
     if (rowAxis === 'moveNext') { event.stopImmediatePropagation(); selectRow(nextStop(lines, i, 1)); return }
@@ -632,6 +638,7 @@ export function MercuryModelPicker({ models: listed, current = 'opus-4-8', ctxPc
     <Box flexDirection="column" alignItems={modelPickerCentred() ? 'center' : 'flex-start'}>
     <Box ref={surfaceRef} flexDirection="column" borderStyle="round" borderColor={tokens.borderStrong} paddingX={1} width={panelWidth} flexShrink={0}>
       <ProductLockup view="model" separator=" · " plain {...(filtering ? { subtitle: matchWords(matched, totalModels) } : {})} />
+      <MenuFilterLine focused={filterFocus} text={truncateStartToWidth(filter, inner - 2)} placeholder={filterFocus ? MODEL_PICKER_SEARCH_PLACEHOLDER : MODEL_PICKER_FILTER_PLACEHOLDER} accent={TERRA} muted={FAINT} primary={IVORY} id="model:filter" onFocus={() => setFilterFocus(true)} />
       {compact ? null : <Box height={1} />}
       {pendingLine !== null ? (
         <Text>
@@ -676,7 +683,6 @@ export function MercuryModelPicker({ models: listed, current = 'opus-4-8', ctxPc
           </Text>
         )
       })}
-      <MenuFilterLine focused={filterFocus} text={truncateStartToWidth(filter, inner - 2)} placeholder={MODEL_PICKER_FILTER_PLACEHOLDER} accent={TERRA} muted={FAINT} primary={IVORY} id="model:filter" onFocus={() => setFilterFocus(true)} />
       <Text color={FAINT} wrap="truncate-end">{footer}</Text>
     </Box>
     </Box>

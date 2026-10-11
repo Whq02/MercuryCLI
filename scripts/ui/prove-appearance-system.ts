@@ -124,8 +124,8 @@ section('§6 — True Black: the second appearance')
 {
   const reachable = themeMod.REACHABLE_THEME_SETTINGS as readonly string[]
   check(
-    'the reachable registry carries exactly two appearances (dark · true-black)',
-    reachable.length === 2 && reachable[0] === 'dark' && reachable[1] === 'true-black',
+    'the reachable registry carries exactly three appearances (dark · true-black · mono)',
+    reachable.length === 3 && reachable[0] === 'dark' && reachable[1] === 'true-black' && reachable[2] === 'mono',
     reachable.join(','),
   )
   check(

@@ -171,6 +171,7 @@ const THEME_LABELS: Record<string, string> = {
   auto: 'auto',
   dark: 'Dark',
   'true-black': 'True Black',
+  mono: 'Black and white',
 }
 
 

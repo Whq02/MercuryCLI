@@ -13,18 +13,19 @@ export function modelPickerFooter(
   innerWidth: number,
 ): string {
   const head = '↑↓ select'
-  const tail = opts.filterFocus ? (opts.filtering ? 'esc clears the filter' : 'esc leaves the filter') : MODEL_PICKER_EXIT_WORDS
+  const tail = opts.filtering ? 'esc clears the search' : MODEL_PICKER_EXIT_WORDS
   const action = opts.heading !== undefined
     ? opts.heading.fold === 'folded' ? '↵ unfold' : '↵ fold'
     : opts.gated
       ? `gated${opts.enableFlag ? ` (${opts.enableFlag})` : ''}`
       : '↵ switch'
   const middle = [
-    { text: 'type to filter', show: opts.filterFocus === true, drop: 0 },
+    { text: 'type to search', show: opts.filterFocus === true, drop: 0 },
     { text: action, show: true, drop: 1 },
     { text: 'c context', show: opts.filterFocus !== true, drop: 4 },
     { text: '→ ← fold', show: opts.filterFocus !== true, drop: 3 },
-    { text: '/ filter', show: opts.filterFocus !== true, drop: 2 },
+    { text: 'tab to search', show: opts.filterFocus !== true, drop: 2 },
+    { text: 'tab back to the rows', show: opts.filterFocus === true, drop: 2 },
   ]
   const join = (parts: string[]): string => parts.join(' · ')
   let shown = middle.filter(s => s.show)
