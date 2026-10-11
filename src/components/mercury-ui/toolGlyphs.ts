@@ -95,6 +95,7 @@ export const TOOL_FAMILY_BY_NAME: Record<string, ToolFamily> = {
   Recall: 'memory',
   Reflect: 'memory',
   Correct: 'memory',
+  Journal: 'memory',
   RecordConvention: 'memory',
   AskAdvisor: 'system',
   AskUserQuestion: 'system',
