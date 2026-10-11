@@ -6,6 +6,7 @@ import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
 import { seedFirstRun } from '../lib/firstRunSeed.ts'
+import { HANDOFF_ASK_MARK } from '../lib/fixtureApi.ts'
 
 const REPO = resolve(join(import.meta.dir, '..', '..'))
 const argAfter = (flag: string): string | undefined => {
@@ -46,7 +47,7 @@ console.log(`bundle: ${DIST}\nnode: ${NODE}`)
 
 type Road = 'anthropic' | 'deepseek'
 type Mode = 'empty' | 'mid'
-type Seen = { n: number; stream: boolean; empty: boolean; at: number }
+type Seen = { n: number; stream: boolean; empty: boolean; ask: boolean; at: number }
 type Fixture = { base: string; seen: Seen[]; close: () => Promise<void> }
 
 const sse = (obj: unknown): string => `data: ${JSON.stringify(obj)}\n\n`
@@ -83,14 +84,16 @@ async function startFixture(emptyTries: number, mode: Mode): Promise<Fixture> {
         res.end('{}')
         return
       }
+      const raw = Buffer.concat(chunks).toString('utf8')
       let body: { stream?: unknown } = {}
       try {
-        body = JSON.parse(Buffer.concat(chunks).toString('utf8')) as { stream?: unknown }
+        body = JSON.parse(raw) as { stream?: unknown }
       } catch {}
       const stream = body.stream === true
+      const ask = raw.includes(HANDOFF_ASK_MARK)
       const n = seen.length + 1
-      const empty = n <= emptyTries
-      seen.push({ n, stream, empty, at: Date.now() })
+      const empty = !ask && n <= emptyTries
+      seen.push({ n, stream, empty, ask, at: Date.now() })
       if (empty) {
         res.writeHead(200, { 'content-type': stream ? 'text/event-stream' : 'application/json' })
         if (mode === 'mid' && stream) {
@@ -201,7 +204,9 @@ const retryRows = (run: Run): Row[] => run.rows.filter(row => row.type === 'wait
 const textRows = (run: Run): string[] => run.rows.filter(row => row.type === 'text').map(row => String(row.text ?? ''))
 const outcome = (run: Run): Row | undefined => run.rows.find(row => row.type === 'outcome')
 const places = (run: Run): string => retryRows(run).map(row => `${row.attempt} of ${row.of}`).join(', ')
-const wire = (run: Run): string => run.seen.map(s => `#${s.n}${s.stream ? '' : '(collected)'}${s.empty ? ' empty' : ' answered'}`).join(', ')
+const wire = (run: Run): string => run.seen.map(s => `#${s.n}${s.stream ? '' : '(collected)'}${s.ask ? '(the closing ask)' : ''}${s.empty ? ' empty' : ' answered'}`).join(', ')
+const turnSeen = (run: Run): Seen[] => run.seen.filter(s => !s.ask)
+const askFollowed = (run: Run): boolean => run.seen.filter(s => s.ask).length === 1 && run.seen.at(-1)?.ask === true && run.seen.at(-1)?.empty === false
 const tail = (run: Run): string => run.stderr.split('\n').filter(line => line.trim() !== '').slice(-3).join(' | ')
 const emptyNotices = (run: Run): Row[] => run.notices.filter(notice => notice.noticeKind === 'api_error' && String((notice.errorDetail as { message?: string } | undefined)?.message ?? '').includes(MARKER))
 const label: Record<Road, string> = { anthropic: 'Anthropic', deepseek: 'DeepSeek' }
@@ -214,11 +219,12 @@ async function proveAnswered(road: Road, emptyTries: number): Promise<void> {
   const places_ = Array.from({ length: emptyTries }, (_, i) => `${i + 2} of ${TRIES}`).join(', ')
   check('the turn settles with the answer, exit 0', run.exit === 0 && outcome(run)?.answer === ANSWER, `exit ${String(run.exit)} answer=${JSON.stringify(outcome(run)?.answer ?? outcome(run)?.error)} ${tail(run)}`)
   check('the transcript holds ONE answer and the rows paint it once', run.answers.length === 1 && run.answers[0] === ANSWER && textRows(run).length === 1, `transcript answers ${JSON.stringify(run.answers)} · text rows ${JSON.stringify(textRows(run))}`)
-  check(`${emptyTries + 1} requests reached the provider, every one a stream — no collected fallback request`, run.seen.length === emptyTries + 1 && run.seen.every(s => s.stream), wire(run))
+  check(`${emptyTries + 1} requests of the turn reached the provider, every one a stream — no collected fallback request`, turnSeen(run).length === emptyTries + 1 && turnSeen(run).every(s => s.stream), wire(run))
+  check('the closing ask followed the answer as its own request, once, and was answered', askFollowed(run), wire(run))
   check(`the retry rows say ${places_} — the capacity retries' row, no new row type`, places(run) === places_ && retryRows(run).every(row => row.type === 'wait' && row.state === 'retry'), `rows: ${places(run) || '(none)'} · wire ${wire(run)}`)
   const delays = retryRows(run).map(row => Number(row.delay_ms))
   check('each wait is the capacity ladder\'s first rung with its jitter: 750 ms to 1250 ms', delays.length === emptyTries && delays.every(ms => ms >= 750 && ms <= 1250), JSON.stringify(delays))
-  const gaps = run.seen.slice(1).map((s, i) => s.at - run.seen[i]!.at)
+  const gaps = turnSeen(run).slice(1).map((s, i) => s.at - turnSeen(run)[i]!.at)
   check('the wire shows the wait between the tries (at least 700 ms each)', gaps.length === emptyTries && gaps.every(ms => ms >= 700), JSON.stringify(gaps))
   const notices = emptyNotices(run)
   check(`the transcript's retry notices name the empty stream and their place (${places_})`, notices.length === emptyTries && notices.every((notice, i) => notice.retryAttempt === i + 2 && notice.maxRetries === TRIES), JSON.stringify(notices.map(n => [(n.errorDetail as { message?: string }).message, n.retryAttempt, n.maxRetries])).slice(0, 600))
@@ -235,7 +241,7 @@ async function proveSpent(road: Road): Promise<void> {
   check('the turn fails (exit 1) with one line', run.exit === 1 && typeof error?.message === 'string', `exit ${String(run.exit)} ${JSON.stringify(error)} ${tail(run)}`)
   check(`the line reads "API Error: ${label[road]} ended the stream before its first event 3 times in a row over N s — …"`, new RegExp(`^API Error: ${label[road]} ${MARKER} 3 times in a row over \\d+ s — `).test(error?.message ?? ''), error?.message ?? '(no error)')
   check(`the error class is the one this road's failure carries today (${failClass[road]}) — no new class`, error?.class === failClass[road], JSON.stringify(error))
-  check('exactly three requests reached the provider, all streams — never a fourth', run.seen.length === TRIES && run.seen.every(s => s.stream), wire(run))
+  check('exactly three requests reached the provider, all streams — never a fourth, and no closing ask rides a failed run', run.seen.length === TRIES && run.seen.every(s => s.stream && !s.ask), wire(run))
   check(`the retry rows say 2 of ${TRIES}, 3 of ${TRIES} before the failure`, places(run) === `2 of ${TRIES}, 3 of ${TRIES}`, places(run) || '(none)')
   check('no answer was painted; the transcript holds the one error row and no answer', textRows(run).length === 0 && run.answers.length === 1 && run.answers.every(text => text.startsWith('API Error: ')), JSON.stringify([textRows(run), run.answers]))
   if (failures === before) rmSync(run.home, { recursive: true, force: true })
@@ -249,12 +255,12 @@ async function proveMidAnswer(road: Road): Promise<void> {
   check('no retry row of this law (none says "of 3")', retryRows(run).every(row => row.of !== TRIES) && emptyNotices(run).length === 0, `${places(run) || '(none)'} · ${emptyNotices(run).length} empty-stream notices`)
   check('the turn still settles with the answer, exit 0', run.exit === 0 && outcome(run)?.answer === ANSWER, `exit ${String(run.exit)} ${JSON.stringify(outcome(run)?.answer ?? outcome(run)?.error)} ${tail(run)}`)
   if (road === 'anthropic') {
-    check('the second request is the collected (non-streamed) recovery, as today', run.seen.length === 2 && run.seen[1]?.stream === false, wire(run))
+    check('the second request of the turn is the collected (non-streamed) recovery, as today', turnSeen(run).length === 2 && turnSeen(run)[1]?.stream === false && askFollowed(run), wire(run))
     check('its notice is the recovery notice of today: attempt 1 of 1', places(run) === '1 of 1', places(run) || '(none)')
   } else {
     const cut = run.notices.filter(notice => notice.noticeKind === 'stream_cut').map(notice => String(notice.content ?? notice.text ?? ''))
     check('the partial words stand and the continuation notice of today follows (continuation 1 of 1)', textRows(run)[0] === PARTIAL && cut.length === 1 && /continuation 1 of 1/.test(cut[0] ?? ''), `${JSON.stringify(textRows(run))} · ${JSON.stringify(cut)}`)
-    check('two streamed requests: the cut one and the continuation', run.seen.length === 2 && run.seen.every(s => s.stream), wire(run))
+    check('two streamed requests of the turn: the cut one and the continuation; then the closing ask', turnSeen(run).length === 2 && turnSeen(run).every(s => s.stream) && askFollowed(run), wire(run))
   }
   if (failures === before) rmSync(run.home, { recursive: true, force: true })
   else console.log(`  [forensics] the world stays at ${run.home}\n${run.debug.split('\n').filter(l => /ERROR|WARN/.test(l)).slice(-8).join('\n')}`)
