@@ -1,7 +1,6 @@
 import figures from 'figures'
 import { GLYPH } from '../components/mercury-ui/glyphs.js'
 
-
 export interface Diagnostic {
   message: string
   severity: 'Error' | 'Warning' | 'Info' | 'Hint'
@@ -21,39 +20,36 @@ export interface DiagnosticFile {
 const SUMMARY_CHAR_CAP = 4000
 const TRUNCATION_MARKER = '… [diagnostics truncated]'
 
+const SEVERITY_SYMBOLS: ReadonlyMap<string, string> = new Map<Diagnostic['severity'], string>([
+  ['Error', figures.cross],
+  ['Warning', GLYPH.warn],
+  ['Info', GLYPH.info],
+  ['Hint', figures.star],
+])
+
+const fileLabel = (uri: string): string => {
+  const segments = uri.split('/')
+  return segments.length > 1 ? segments[segments.length - 1]! : uri
+}
+
+const diagnosticLine = ({ severity, range, message, code, source }: Diagnostic): string =>
+  [
+    `  ${DiagnosticTrackingService.getSeveritySymbol(severity)} [${range.start.line + 1}:${range.start.character + 1}] ${message}`,
+    code !== undefined ? ` [${code}]` : '',
+    source !== undefined ? ` (${source})` : '',
+  ].join('')
+
+const fileSection = (file: DiagnosticFile): string => [`${fileLabel(file.uri)}:`, ...file.diagnostics.map(diagnosticLine)].join('\n')
+
+const capped = (summary: string): string =>
+  summary.length <= SUMMARY_CHAR_CAP ? summary : summary.slice(0, SUMMARY_CHAR_CAP - TRUNCATION_MARKER.length) + TRUNCATION_MARKER
+
 export class DiagnosticTrackingService {
   static getSeveritySymbol(severity: string): string {
-    switch (severity) {
-      case 'Error':
-        return figures.cross
-      case 'Warning':
-        return GLYPH.warn
-      case 'Info':
-        return GLYPH.info
-      case 'Hint':
-        return figures.star
-      default:
-        return figures.bullet
-    }
+    return SEVERITY_SYMBOLS.get(severity) ?? figures.bullet
   }
 
   static formatDiagnosticsSummary(files: DiagnosticFile[]): string {
-    const sections: string[] = []
-    for (const file of files) {
-      const segments = file.uri.split('/')
-      const name = segments.length > 1 ? segments[segments.length - 1] : file.uri
-      const lines = [`${name}:`]
-      for (const diagnostic of file.diagnostics) {
-        const position = `[${diagnostic.range.start.line + 1}:${diagnostic.range.start.character + 1}]`
-        let line = `  ${DiagnosticTrackingService.getSeveritySymbol(diagnostic.severity)} ${position} ${diagnostic.message}`
-        if (diagnostic.code !== undefined) line += ` [${diagnostic.code}]`
-        if (diagnostic.source !== undefined) line += ` (${diagnostic.source})`
-        lines.push(line)
-      }
-      sections.push(lines.join('\n'))
-    }
-    const summary = sections.join('\n\n')
-    if (summary.length <= SUMMARY_CHAR_CAP) return summary
-    return summary.slice(0, SUMMARY_CHAR_CAP - TRUNCATION_MARKER.length) + TRUNCATION_MARKER
+    return capped(files.map(fileSection).join('\n\n'))
   }
 }
