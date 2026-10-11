@@ -15,7 +15,7 @@ import { useSetAppState } from '../state/AppState.js'
 import type { StructuredPatchHunk } from '../utils/diff.js'
 import { updateSettingsForSource } from '../utils/settings/settings.js'
 import { DEFAULT_THEME_SETTING } from '../utils/systemTheme.js'
-import { REACHABLE_THEME_SETTINGS, type ThemeSetting } from '../utils/theme.js'
+import { isMonochromeTheme, REACHABLE_THEME_SETTINGS, type ThemeSetting } from '../utils/theme.js'
 import { Select, type OptionWithDescription } from './CustomSelect/index.js'
 import Byline from './design-system/Byline.js'
 import Divider from './design-system/Divider.js'
@@ -45,10 +45,12 @@ type ThemePickerProps = {
 const THEME_LABELS_BY_SETTING: Record<string, string> = {
   dark: 'Oasis dark',
   'true-black': 'True Black',
+  mono: 'Black and white',
 }
 const THEME_DESCRIPTIONS_BY_SETTING: Record<string, string> = {
   dark: 'the oasis ground — the Mercury identity',
   'true-black': 'the same palette on a pure-black ground',
+  mono: 'no colour at all — the terminal’s own ink on its own ground',
 }
 const THEME_OPTIONS: OptionWithDescription<string>[] = REACHABLE_THEME_SETTINGS.map(
   setting => ({
@@ -144,6 +146,8 @@ export function ThemePicker({
   let statusLine: string
   if (settings.view?.syntaxOff) {
     statusLine = `Syntax highlighting disabled (${toggleChord} to enable)`
+  } else if (isMonochromeTheme(themeName)) {
+    statusLine = `Syntax highlighting enabled — no colour on Black and white (${toggleChord} to disable)`
   } else {
     const syntaxTheme = getSyntaxTheme(themeName)
     if (syntaxTheme) {
