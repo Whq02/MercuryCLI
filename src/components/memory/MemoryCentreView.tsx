@@ -15,7 +15,7 @@ import { readDocLines } from '../../mneme/mnemeRetrieval.js'
 import { indexLines, liveEntryIndex, pinnedLine, pinnedView, readPinnedStatus, type IndexLine } from '../../mneme/mnemeFrontPage.js'
 import { handoverDue, handoverIfDue, readHandoverReceipt, renderHandoverReceipt } from '../../mneme/mnemeHandover.js'
 import { journalEnabled, journalPath, readJournal, type JournalEntry } from '../../mneme/journal.js'
-import { listTopicDocs } from '../../mneme/mnemeLibrary.js'
+import { listArchiveDocs, listTopicDocs } from '../../mneme/mnemeLibrary.js'
 import type { MnemeEntry, MnemeTopicDoc } from '../../mneme/mnemeTopicDocs.js'
 import { formatTextSize, pinFact, pinnedTextLimit, readPins, unpinFact, type PinRecord } from '../../mneme/mnemeUsage.js'
 import { getMnemeHome, mnemeProjectKey } from '../../mneme/paths.js'
@@ -135,7 +135,11 @@ export function topicPageLines(doc: MnemeTopicDoc, width: number): PageLine[] {
   return out
 }
 
-export function topicPage(slug: string, width: number, docs: MnemeTopicDoc[] = listTopicDocs()): Page {
+function topicPageDocs(): MnemeTopicDoc[] {
+  return [...listTopicDocs(), ...listArchiveDocs().map(doc => ({ ...doc, slug: doc.id }))]
+}
+
+export function topicPage(slug: string, width: number, docs: MnemeTopicDoc[] = topicPageDocs()): Page {
   const doc = docs.find(d => d.slug === slug)
   if (!doc) return { kind: 'topic', crumb: `topics › ${slug}`, title: slug, meta: 'topic page unavailable', lines: [] }
   const facts = doc.sections.reduce((n, s) => n + s.entries.length, 0)
@@ -235,7 +239,7 @@ async function instructionFileFacts(): Promise<{ count: number; profile: string 
   }
 }
 
-export function factPageLines(ref: MemoryRef, width: number, docs: MnemeTopicDoc[] = listTopicDocs()): PageLine[] {
+export function factPageLines(ref: MemoryRef, width: number, docs: MnemeTopicDoc[] = topicPageDocs()): PageLine[] {
   const slug = slugOf(ref)
   if (slug === null) {
     return [{ kind: 'text', text: ref.summary }, { kind: 'meta', text: '(unconsolidated — consolidates at the next maintenance pass)' }]
