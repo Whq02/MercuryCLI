@@ -83,7 +83,7 @@ section("D the daemon road's clock — the frame and the wiring")
   const printSrc = read('cli/run.ts')
   check("the runner stamps the queued command from the frame's timestamp, or the arrival", printSrc.includes("const sentAt = typeof input.sentAt === 'string' && Number.isFinite(Date.parse(input.sentAt)) ? input.sentAt : new Date().toISOString()") && printSrc.includes("...(row.sent_at !== undefined ? { sentAt: row.sent_at } : {})"))
   const attachments = read('utils/attachments/queuedCommands.ts')
-  check('the queued_command attachment carries the clock', attachments.includes("...(_.sentAt !== undefined ? { sentAt: _.sentAt } : {}),"))
+  check('the queued_command attachment carries the clock', /\.\.\.\(\w+\.sentAt !== undefined \? \{ sentAt: \w+\.sentAt \} : \{\}\),/.test(attachments))
   const orchestrator = read('utils/attachments/orchestrator.ts')
   check("the attachment row is stamped with the line's own clock when it has one", orchestrator.includes('timestamp: sentClockOf(attachment) ?? new Date().toISOString(),'))
 }
