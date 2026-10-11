@@ -905,6 +905,40 @@ export function Config({
       },
     })
   }
+  {
+    const journalOn = merged.memory?.journal !== false
+    items.push({
+      id: 'memory.journal',
+      label: 'Session journal',
+      searchText: 'session journal model own words what happened how you like to work',
+      kind: 'boolean',
+      value: boolValue(journalOn),
+      setByYou: merged.memory?.journal !== undefined,
+      warning: "at session end the model writes, in its own words, what happened, what you wanted, how you like to work and what it got wrong · a file in the Mercury home beside the project's memory, never under the project tree · Mercury never pushes, syncs or shares it · read it in /memory",
+      change: () => {
+        if (writeSource('userSettings', { memory: { journal: !journalOn } })) {
+          recordToggle('memory.journal', `set the session journal to ${journalOn ? 'off' : 'on'}`)
+          bump()
+        }
+      },
+    })
+    const onEntryPage = merged.memory?.journalOnEntryPage === true
+    items.push({
+      id: 'memory.journalOnEntryPage',
+      label: 'Journal on the entry page',
+      searchText: 'journal entry page session start last entry model reads provider request',
+      kind: 'boolean',
+      value: boolValue(onEntryPage),
+      setByYou: merged.memory?.journalOnEntryPage !== undefined,
+      warning: "hands the journal's last entry to the model at session start · what the model reads at entry travels to the engine's provider with the request — never uploaded means Mercury itself never pushes, syncs or shares the journal, not that the session's own engine does not see it",
+      change: () => {
+        if (writeSource('userSettings', { memory: { journalOnEntryPage: !onEntryPage } })) {
+          recordToggle('memory.journalOnEntryPage', `set the journal on the entry page to ${onEntryPage ? 'off' : 'on'}`)
+          bump()
+        }
+      },
+    })
+  }
   items.push({
     id: 'files.honourGitignore',
     label: 'Respect .gitignore in file picker',

@@ -112,6 +112,8 @@ export const SettingsSchema = lazySchema(() => {
       enabled: z.boolean().optional(),
       directory: z.string().optional().describe('Where memory is written (default under the Mercury config home); ignored when set by checked-in project settings'),
       pinnedLimit: z.number().int().min(1000).optional().describe('How much pinned memory text (characters) loads into every session before Mercury says the shelf is full; every pinned rule still loads past it (default 8000)'),
+      journal: z.boolean().optional().describe("The session journal: at session end the model writes, in its own words, what happened, what you wanted, how you like to work and what it got wrong, into a file in the Mercury home beside the project's memory — never under the project tree, never pushed, synced or shared by Mercury (default on)"),
+      journalOnEntryPage: z.boolean().optional().describe("The journal's last entry on the entry page the model reads at session start (default off); what the model reads at entry travels to the engine's provider with the request — never uploaded means Mercury itself never pushes, syncs or shares the journal, not that the session's own engine does not see it"),
     }).passthrough().optional(),
     turns: z.object({
       loopGuard: z.boolean().optional().describe('Loop guard turn end: when true, the second detection of one repeated cycle of tool calls (or one chanted stretch of reply text) ends the turn with a loop_stopped result; absent or false, these cycles only draw reminders; headless runs still end after eight consecutive identical failing tool calls'),
