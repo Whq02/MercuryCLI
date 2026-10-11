@@ -4,7 +4,8 @@ import { logForDebugging } from '../utils/debug.js'
 import { getInitialSettings } from '../utils/settings/settings.js'
 import { ledgerClock } from './ledger.js'
 import { isMnemeEnabled, mnemeProjectKey, projectRecordsDir } from './paths.js'
-import { registerSessionCloser, type SessionCloseContext } from './sessionClose.js'
+import { registerSessionCloseAsk, registerSessionCloser, type SessionCloseAsk, type SessionCloseContext } from './sessionClose.js'
+import { JOURNAL_TOOL_NAME } from '../tools/JournalTool/prompt.js'
 
 export const JOURNAL_ENTRY_CAP = 4000
 export const JOURNAL_FILE = 'journal.md'
@@ -133,13 +134,26 @@ export function installJournalCloser(): void {
   closerInstalled = registerSessionCloser(journalCloser)
 }
 
-export function journalAsk(sessionId: string): string | null {
+export const JOURNAL_ASK = `Before this session ends, write its journal entry with the ${JOURNAL_TOOL_NAME} tool: what happened, what the operator wanted, what you noticed about how they like to work, what you got wrong. Plain words, kept short; a fault is yours and said so.`
+
+export function journalAsk(sessionId: string): SessionCloseAsk | null {
   if (!journalEnabled() || staged.has(sessionId)) return null
-  return 'Before this session ends, write its journal entry with the Journal tool: what happened, what the operator wanted, what you noticed about how they like to work, what you got wrong. Plain words, kept short; a fault is yours and said so.'
+  return { line: JOURNAL_ASK, tools: [JOURNAL_TOOL_NAME] }
+}
+
+let askInstalled: (() => void) | null = null
+
+export function installJournalAsk(): void {
+  if (askInstalled !== null) return
+  askInstalled = registerSessionCloseAsk(journalAsk)
 }
 
 export function _resetJournalForTesting(): void {
   staged.clear()
   if (closerInstalled !== null) closerInstalled()
   closerInstalled = null
+  if (askInstalled !== null) askInstalled()
+  askInstalled = null
 }
+
+installJournalAsk()

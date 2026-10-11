@@ -20,6 +20,7 @@ import { getCurrentWorktreeSession } from '../utils/worktree.js'
 import { ensureScratchpadDir, scratchpadPromptLine } from '../utils/scratchpad.js'
 import { loadMemoryPrompt, memoryPromptKey } from '../mneme/mnemeFrontPage.js'
 import { composeEntryPage } from '../mneme/entryPage.js'
+import { journalOnEntryPage, lastJournalEntry } from '../mneme/journal.js'
 import { noteSessionEngine } from '../mneme/lineageSession.js'
 import { mnemeEnabled } from '../mneme/mnemeGates.js'
 import { mnemeProjectKey } from '../mneme/paths.js'
@@ -386,7 +387,7 @@ export async function getSystemPrompt(
     keyedSystemPromptSection(
       'entry_page',
       () => (mnemeEnabled() ? String(getSessionId()) : 'off'),
-      () => composeEntryPage(mnemeProjectKey(), String(getSessionId())),
+      () => composeEntryPage(mnemeProjectKey(), String(getSessionId()), journalOnEntryPage() ? { journal: () => lastJournalEntry(mnemeProjectKey()) } : {}),
     ),
     keyedSystemPromptSection(
       'env_info_simple',

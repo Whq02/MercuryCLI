@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/mneme/journal.ts src/mneme/sessionClose.ts src/mneme/ledger.ts src/mneme/paths.ts
+// gate-watch: src/mneme/journal.ts src/mneme/sessionClose.ts src/mneme/ledger.ts src/mneme/paths.ts src/mneme/handoffAsk.ts src/mneme/entryPage.ts src/constants/prompts.ts
 // gate-watch: src/tools/JournalTool/** src/tools.ts src/constants/tools.ts src/utils/settings/types.ts
 // gate-watch: src/components/Settings/Config.tsx scripts/settings/settings-schema.json
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
@@ -32,13 +32,17 @@ setOriginalCwd(project)
 setProjectRoot(project)
 const { resetSettingsCache } = await import('../../src/utils/settings/settingsCache.js')
 const { mnemeProjectKey, projectRecordsDir, lineagePath } = await import('../../src/mneme/paths.js')
-const { runSessionClosers, _resetSessionClosersForTesting, sessionClosersCount } = await import('../../src/mneme/sessionClose.js')
+const { runSessionClosers, _resetSessionClosersForTesting, sessionClosersCount, sessionCloseAsks } = await import('../../src/mneme/sessionClose.js')
+const { handoffAskText, HANDOFF_ASK } = await import('../../src/mneme/handoffAsk.js')
+const { openEntry, closeEntry, readLedger } = await import('../../src/mneme/ledger.js')
 const journal = await import('../../src/mneme/journal.js')
 const {
   JOURNAL_ENTRY_CAP,
   _resetJournalForTesting,
   appendJournalEntry,
+  installJournalAsk,
   journalAsk,
+  JOURNAL_ASK,
   journalEnabled,
   journalOnEntryPage,
   journalPath,
@@ -159,7 +163,11 @@ clearSettings()
 section('§6 the door: one entry per session, the cap named, the ask, no crewmate')
 _resetSessionClosersForTesting()
 _resetJournalForTesting()
-check('the ask is one plain line before the seat has written', typeof journalAsk('session-D') === 'string' && /journal entry/.test(journalAsk('session-D') ?? '') && /Journal/.test(journalAsk('session-D') ?? ''), journalAsk('session-D') ?? 'null')
+installJournalAsk()
+const ask = journalAsk('session-D')
+check('the ask is one plain line that names the tool, before the seat has written', ask !== null && ask.line === JOURNAL_ASK && /journal entry/.test(ask.line) && ask.tools?.includes(JOURNAL_TOOL_NAME) === true, JSON.stringify(ask))
+check('the ask is registered with the session close: the closing ask carries it and allows the tool', sessionCloseAsks('session-D').some(a => a.line === JOURNAL_ASK) && handoffAskText('session-D').text === `${HANDOFF_ASK}\n${JOURNAL_ASK}` && handoffAskText('session-D').tools.has(JOURNAL_TOOL_NAME), handoffAskText('session-D').text)
+check('the tool loads in full (the closing ask allows no tool search)', JournalTool.shouldDefer !== true)
 const empty = stageJournalEntry('session-D', '   \n ')
 check('an empty entry is refused', empty.staged === false && empty.reason === 'the entry is empty', JSON.stringify(empty))
 const long = stageJournalEntry('session-D', 'x'.repeat(JOURNAL_ENTRY_CAP + 1))
@@ -167,7 +175,7 @@ check('an over-cap entry is refused with the cap named, never clipped', long.sta
 const first = stageJournalEntry('session-D', 'first words')
 const replaced = stageJournalEntry('session-D', 'second words')
 check('a later call replaces the earlier one', first.staged && !first.replaced && replaced.staged && replaced.replaced && stagedJournalEntry('session-D') === 'second words')
-check('the ask falls silent once the seat has written', journalAsk('session-D') === null)
+check('the ask falls silent once the seat has written', journalAsk('session-D') === null && handoffAskText('session-D').text === HANDOFF_ASK && handoffAskText('session-D').tools.size === 0)
 check('the tool result says the write waits for the session end', journalResultWords(replaced).includes('when this session ends') && journalResultWords(replaced).includes('replaced'))
 check('a refused result is an error with its reason', journalResultWords(long).startsWith('journal entry refused: '))
 const block = JournalTool.mapToolResultToToolResultBlockParam(long, 'tu-1') as { is_error?: boolean }
@@ -190,7 +198,6 @@ const readers = srcFiles
 const allowed = new Set([
   'src/components/memory/MemoryCentreView.tsx',
   'src/constants/prompts.ts',
-  'src/mneme/entryPage.ts',
   'src/tools.ts',
   'src/tools/JournalTool/JournalTool.ts',
   'src/tools/JournalTool/UI.tsx',
@@ -214,7 +221,52 @@ const config = readFileSync(join(ROOT, 'src/components/Settings/Config.tsx'), 'u
 check('/config carries both rows', config.includes("id: 'memory.journal'") && config.includes("id: 'memory.journalOnEntryPage'"))
 check('/config states the honesty line on the entry-page row', /travels to the engine's provider with the request/.test(config))
 
-section('§9 the project tree stays clean')
+section("§9 the entry page carries the journal's last entry only when memory.journalOnEntryPage is on")
+{
+  const { getSystemPrompt } = await import('../../src/constants/prompts.js')
+  const { clearSystemPromptSections } = await import('../../src/constants/systemPromptSections.js')
+  const { setCwdState } = await import('../../src/bootstrap/state.js')
+  const cwd = process.cwd()
+  const oldEntry = process.env.MERCURY_ENTRYPOINT
+  process.env.MERCURY_ENTRYPOINT = 'headless'
+  process.chdir(project)
+  setCwdState(project)
+  _resetSessionClosersForTesting()
+  _resetJournalForTesting()
+  openEntry(key, { sessionId: 'session-before', model: 'claude-fable-5-1' })
+  closeEntry(key, 'session-before', { outcome: 'quit', handoff: 'the note the earlier session left' })
+  check('an earlier session stands closed in the ledger', readLedger(key).some(e => e.sessionId === 'session-before' && e.endedAt !== null))
+  Date.now = () => FROZEN + 300_000
+  appendJournalEntry(key, 'The newest journal entry: the operator likes short rows and plain words.')
+  Date.now = realNow
+  const tools = [{ name: 'Read' }] as never
+  try {
+    clearSettings()
+    clearSystemPromptSections()
+    const off = await getSystemPrompt(tools, 'claude-fable-5-1')
+    const offText = off.join('\n\n')
+    check('the setting off: the prompt carries the lineage page but no journal', offText.includes('# Lineage') && !offText.includes("The journal's last entry") && !offText.includes('the operator likes short rows'), offText.slice(offText.indexOf('# Lineage'), offText.indexOf('# Lineage') + 400))
+    setSettings({ journalOnEntryPage: true })
+    clearSystemPromptSections()
+    const on = await getSystemPrompt(tools, 'claude-fable-5-1')
+    const carriers = on.filter(section => section.includes("The journal's last entry"))
+    check('the setting on: exactly one system segment carries the journal block, inside the lineage page', carriers.length === 1 && carriers[0]!.includes('# Lineage') && carriers[0]!.includes('The newest journal entry: the operator likes short rows and plain words.'), on.map(s => s.slice(0, 60)).join(' | '))
+    check('the block is the newest entry, dated', carriers[0]?.includes("## The journal's last entry (2026-10-11") === true, carriers[0]?.slice(carriers[0].indexOf("## The journal"), carriers[0].indexOf("## The journal") + 120) ?? '')
+    setSettings({ journalOnEntryPage: true, journal: false })
+    clearSystemPromptSections()
+    const journalOff = await getSystemPrompt(tools, 'claude-fable-5-1')
+    check('memory.journal off takes the entry-page line with it even when journalOnEntryPage is on', !journalOff.join('\n\n').includes("The journal's last entry"))
+  } finally {
+    clearSettings()
+    clearSystemPromptSections()
+    process.chdir(cwd)
+    setCwdState(cwd)
+    if (oldEntry === undefined) delete process.env.MERCURY_ENTRYPOINT
+    else process.env.MERCURY_ENTRYPOINT = oldEntry
+  }
+}
+
+section('§10 the project tree stays clean')
 const projectFiles = walk(project).map(p => relative(project, p))
 check('no journal file under the project tree after every write', !projectFiles.some(p => /journal/i.test(p)), projectFiles.join(', '))
 check('the home holds the journal', existsSync(path))
