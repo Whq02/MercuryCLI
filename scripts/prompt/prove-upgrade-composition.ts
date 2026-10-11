@@ -37,7 +37,10 @@ try {
     const base = join(scratch, 'base')
     const baseOut = mkdtempSync(join(tmpdir(), 'upgrade-composition-dist-'))
     mkdirSync(base)
-    const archive = spawnSync('git', ['archive', '961944cbb6'], { cwd: root, maxBuffer: 256 * 1024 * 1024 })
+    const baseSpellings = ['961944cbb6', '04a4d2da3755']
+    const baseSha = baseSpellings.find(sha => spawnSync('git', ['rev-parse', '--verify', '--quiet', `${sha}^{commit}`], { cwd: root }).status === 0)
+    assert.ok(baseSha, `the 1.0.0-beta.31 base is on neither spelling this checkout carries (${baseSpellings.join(' / ')})`)
+    const archive = spawnSync('git', ['archive', baseSha], { cwd: root, maxBuffer: 256 * 1024 * 1024 })
     assert.equal(archive.status, 0, archive.stderr.toString())
     const unpack = spawnSync('tar', ['-xf', '-', '-C', base], { input: archive.stdout })
     assert.equal(unpack.status, 0, unpack.stderr.toString())

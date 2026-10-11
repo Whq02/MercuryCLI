@@ -710,6 +710,7 @@ section('(8) reconnect — session/load replays the transcript, never the model'
   h1.close()
   server1.kill('SIGTERM')
   await untilTrue(() => server1.exitCode !== null || server1.signalCode !== null, 10_000)
+  await untilTrue(() => api.messageRequests().slice(requestsAtShutdown).some(isHandoffRequest), 10_000)
 
   const shutdownRequests = api.messageRequests().slice(requestsAtShutdown)
   check('the old server closes its sibling with one marked ask, after its answer and before any load', shutdownRequests.length === 1 && shutdownRequests.every(isHandoffRequest) && JSON.stringify(shutdownRequests[0]?.body).includes('sibling session says hi'), JSON.stringify(shutdownRequests.map(isHandoffRequest)))
