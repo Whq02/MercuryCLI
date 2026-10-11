@@ -76,7 +76,7 @@ const sse = (name: string, obj: unknown): string => `event: ${name}\ndata: ${JSO
 const bodyText = (body: Raw): string => JSON.stringify(body.messages ?? '')
 function agentTurnRequests() {
   const all = wire.filter(w => w.kind === 'agent' || w.kind === 'handoff')
-  check('one marked closing ask follows the last agent request, apart from the advisor', all.filter(isHandoffRequest).length === 1 && all.at(-1)?.kind === 'handoff', j(all.map(isHandoffRequest)))
+  check('one marked closing ask follows the last agent request on the agent model, apart from the advisor', all.filter(isHandoffRequest).length === 1 && all.at(-1)?.kind === 'handoff' && all.at(-1)?.model === AGENT_MODEL, j(all.map(w => [w.model, isHandoffRequest(w)])))
   return all.filter(w => !isHandoffRequest(w))
 }
 function agentReply(model: string, text: string): string {
