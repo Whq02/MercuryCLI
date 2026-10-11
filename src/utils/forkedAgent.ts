@@ -54,6 +54,7 @@ type SubagentContextOverrides = {
   agentType?: string
   standingRule?: string
   requireCanUseTool?: boolean
+  alwaysCallCanUseTool?: boolean
 }
 
 export type ForkedAgentParams = {
@@ -236,6 +237,7 @@ export function createSubagentContext(parentContext: ToolUseContext, overrides: 
     fileReadingLimits: parentContext.fileReadingLimits,
     standingRule: overrides.standingRule,
     requireCanUseTool: overrides.requireCanUseTool,
+    alwaysCallCanUseTool: overrides.alwaysCallCanUseTool ?? parentContext.alwaysCallCanUseTool,
     pauseGate: parentContext.pauseGate,
   }
 }
