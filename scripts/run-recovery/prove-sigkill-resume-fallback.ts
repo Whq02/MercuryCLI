@@ -11,7 +11,7 @@ import {
 } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
-import { startFixtureApi, type ScriptedTurn } from '../lib/fixtureApi.ts'
+import { startFixtureApi, handoffTurn, isHandoffRequest, type ScriptedTurn } from '../lib/fixtureApi.ts'
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -165,6 +165,7 @@ interface KilledWorld {
 
 async function killRun(label: string, sid: string): Promise<KilledWorld> {
   const fixture = await startFixtureApi([
+    handoffTurn(),
     { kind: 'text', text: MARKER },
     { kind: 'text', text: FOLLOWUP_REPLY },
   ] as ScriptedTurn[])
@@ -195,7 +196,9 @@ async function resumeAndAssert(label: string, w: KilledWorld): Promise<void> {
   check(`${label}: the follow-up turn completed`, resumed.stdout.includes('T2-SECOND-REPLY'),
     JSON.stringify(resumed.stdout.slice(0, 200)))
 
-  const msgs = w.fixture.messageRequests()
+  const allRequests = w.fixture.messageRequests()
+  check(`${label}: the first process left one marked closing ask after its completed turn, before the resume`, JSON.stringify(allRequests.map(isHandoffRequest)) === JSON.stringify([false, true, false]), JSON.stringify(allRequests.map(isHandoffRequest)))
+  const msgs = allRequests.filter(q => !isHandoffRequest(q))
   const resumeBody = JSON.stringify(msgs[msgs.length - 1]?.body ?? {})
   check(`${label}: the resume request carries the turn-1 prompt exactly once`,
     countOf(resumeBody, PROMPT) === 1, `count=${countOf(resumeBody, PROMPT)}`)
@@ -239,6 +242,7 @@ console.log('\n-- leg A2: the metadata-only-jsonl world, pinned deterministicall
 {
   const sid = 'a3e70000-0000-4000-8000-0000000000b2'
   const fixture = await startFixtureApi([
+    handoffTurn(),
     { kind: 'text', text: MARKER },
     { kind: 'text', text: FOLLOWUP_REPLY },
   ] as ScriptedTurn[])
