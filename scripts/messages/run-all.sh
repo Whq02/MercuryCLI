@@ -20,7 +20,7 @@
 # gate-watch: src/utils/hooks/questionRunner.ts src/utils/hooks/rows.ts
 # gate-watch: src/utils/sessionStorage/chain.ts src/utils/sessionStorage/loading.ts
 # gate-watch: src/Tool.ts src/bootstrap/state.ts src/fabric/record.ts src/fabric/validate.ts src/services/providers/deepseek/deepseekCallModel.ts src/services/providers/huggingface/huggingfaceCallModel.ts src/services/providers/local/localCallModel.ts src/services/providers/local/localDiscovery.ts src/services/providers/local/localWindow.ts src/services/providers/moonshot/moonshotCallModel.ts src/services/providers/openai/openaiCallModel.ts src/services/providers/openai/openaiCatalogue.ts src/services/providers/openaicompat/compatChatCallModel.ts src/services/providers/openaicompat/compatWire.ts src/services/providers/zai/zaiCallModel.ts src/services/resources/adapters/transcript.ts src/utils/model/subModelSlots.ts src/utils/sessionStorage/writer.ts
-# gate-watch: src/constants/oauth.ts
+# gate-watch: src/constants/oauth.ts src/constants/messages.ts
 # gate-watch: src/utils/hooks/contract.ts
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
