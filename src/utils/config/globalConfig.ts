@@ -453,62 +453,36 @@ export async function runExclusiveOnFileSync<T>(file: string, section: () => Pro
   }
 }
 
+function prepareConfigBackupHome(disk: ReturnType<typeof getFsImplementation>): string {
+  const directory = getConfigBackupDir()
+  try {
+    disk.mkdirSync(directory)
+  } catch (failure) {
+    if (getErrnoCode(failure) !== 'EEXIST') throw failure
+  }
+  return directory
+}
+
+function stampedCopies(disk: ReturnType<typeof getFsImplementation>, directory: string, prefix: string): string[] {
+  return disk.readdirStringSync(directory).filter(name => name.startsWith(prefix)).sort().reverse()
+}
+
 function backupOutgoingConfig(file: string, fs: ReturnType<typeof getFsImplementation>): void {
   try {
-    const fileBase = basename(file)
-    const backupDir = getConfigBackupDir()
-
-    try {
-      fs.mkdirSync(backupDir)
-    } catch (mkdirErr) {
-      const mkdirCode = getErrnoCode(mkdirErr)
-      if (mkdirCode !== 'EEXIST') {
-        throw mkdirErr
-      }
+    const stem = basename(file)
+    const directory = prepareConfigBackupHome(fs)
+    const prefix = `${stem}.backup.`
+    let copies = stampedCopies(fs, directory, prefix)
+    const stamp = copies.length ? Number(copies[0]!.split('.backup.').at(-1)) : 0
+    if (Number.isNaN(stamp) || Date.now() - stamp >= 60000) {
+      fs.copyFileSync(file, join(directory, prefix + Date.now()))
+      copies = stampedCopies(fs, directory, prefix)
     }
-
-    const MIN_BACKUP_INTERVAL_MS = 60_000
-    const existingBackups = fs
-      .readdirStringSync(backupDir)
-      .filter(f => f.startsWith(`${fileBase}.backup.`))
-      .sort()
-      .reverse()
-
-    const mostRecentBackup = existingBackups[0]
-    const mostRecentTimestamp = mostRecentBackup
-      ? Number(mostRecentBackup.split('.backup.').pop())
-      : 0
-    const shouldCreateBackup =
-      Number.isNaN(mostRecentTimestamp) ||
-      Date.now() - mostRecentTimestamp >= MIN_BACKUP_INTERVAL_MS
-
-    if (shouldCreateBackup) {
-      const backupPath = join(backupDir, `${fileBase}.backup.${Date.now()}`)
-      fs.copyFileSync(file, backupPath)
-    }
-
-    const MAX_BACKUPS = 5
-    const backupsForCleanup = shouldCreateBackup
-      ? fs
-          .readdirStringSync(backupDir)
-          .filter(f => f.startsWith(`${fileBase}.backup.`))
-          .sort()
-          .reverse()
-      : existingBackups
-
-    for (const oldBackup of backupsForCleanup.slice(MAX_BACKUPS)) {
-      try {
-        fs.unlinkSync(join(backupDir, oldBackup))
-      } catch {
-      }
-    }
-  } catch (e) {
-    const code = getErrnoCode(e)
-    if (code !== 'ENOENT') {
-      logForDebugging(`Failed to backup config: ${e}`, {
-        level: 'error',
-      })
-    }
+    copies.slice(5).forEach(name => {
+      try { fs.unlinkSync(join(directory, name)) } catch {}
+    })
+  } catch (failure) {
+    if (getErrnoCode(failure) !== 'ENOENT') logForDebugging(`Failed to backup config: ${failure}`, { level: 'error' })
   }
 }
 
