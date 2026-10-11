@@ -1069,6 +1069,31 @@
       }
     },
     {
+      "name": "Journal",
+      "category": "other",
+      "risk": "medium",
+      "cancellation": "block",
+      "deferred": false,
+      "operations": null,
+      "units": [
+        "memory"
+      ],
+      "proof": "scripts/memory/prove-journal.ts",
+      "declared": {
+        "intents": [
+          "write this session's journal entry",
+          "leave an account of the session for the sessions that follow"
+        ],
+        "units": [
+          "memory"
+        ],
+        "class": "mutation",
+        "cancellation": "not-applicable",
+        "latency": "fast",
+        "proof": "scripts/memory/prove-journal.ts"
+      }
+    },
+    {
       "name": "Journey",
       "category": "read",
       "risk": "low",
