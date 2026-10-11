@@ -48,52 +48,24 @@ function reminderClock(messages: Message[], kind: 'task_reminder' | 'contract_re
   return { touched, reminded, turnsSinceTouch, turnsSinceReminder }
 }
 
-function getTaskReminderTurnCounts(messages: Message[]): {
-  turnsSinceLastTaskManagement: number
-  turnsSinceLastReminder: number
-} {
+function taskReminderDue(messages: Message[]): boolean {
   const clock = reminderClock(messages, 'task_reminder', [TASK_CREATE_TOOL_NAME, TASK_UPDATE_TOOL_NAME])
-  return { turnsSinceLastTaskManagement: clock.turnsSinceTouch, turnsSinceLastReminder: clock.turnsSinceReminder }
+  return [
+    clock.turnsSinceTouch - TASK_REMINDER_CONFIG.TURNS_SINCE_WRITE,
+    clock.turnsSinceReminder - TASK_REMINDER_CONFIG.TURNS_BETWEEN_REMINDERS,
+  ].every(remaining => remaining >= 0)
 }
 
 export async function getTaskReminderAttachments(
   messages: Message[] | undefined,
-  toolUseContext: ToolUseContext,
+  context: ToolUseContext,
 ): Promise<Attachment[]> {
-  if (!isTaskToolsEnabled()) {
-    return []
-  }
-
-  if (
-    !toolUseContext.options.tools.some(t =>
-      toolMatchesName(t, TASK_UPDATE_TOOL_NAME),
-    )
-  ) {
-    return []
-  }
-
-  if (!messages || messages.length === 0) {
-    return []
-  }
-
-  const { turnsSinceLastTaskManagement, turnsSinceLastReminder } =
-    getTaskReminderTurnCounts(messages)
-
-  if (
-    turnsSinceLastTaskManagement >= TASK_REMINDER_CONFIG.TURNS_SINCE_WRITE &&
-    turnsSinceLastReminder >= TASK_REMINDER_CONFIG.TURNS_BETWEEN_REMINDERS
-  ) {
-    const tasks = await listTasks(getTaskListId())
-    return [
-      {
-        type: 'task_reminder',
-        content: tasks,
-        itemCount: tasks.length,
-      },
-    ]
-  }
-
-  return []
+  const admitted = isTaskToolsEnabled() &&
+    context.options.tools.some(tool => toolMatchesName(tool, TASK_UPDATE_TOOL_NAME)) &&
+    !!messages?.length
+  if (!admitted || !taskReminderDue(messages!)) return []
+  const content = await listTasks(getTaskListId())
+  return [{ type: 'task_reminder', content, itemCount: content.length }]
 }
 
 function getContractReminderTurnCounts(messages: Message[]): {
