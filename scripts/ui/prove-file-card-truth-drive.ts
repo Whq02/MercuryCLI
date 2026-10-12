@@ -1,12 +1,16 @@
 #!/usr/bin/env bun
 // gate-watch: src/components/permissions/FileEditPermissionRequest/FileEditPermissionRequest.tsx src/components/permissions/PermissionRequest.tsx
 // gate-watch: src/tools/FileEditTool/sectionEdit.ts src/tools/FileEditTool/UI.tsx src/tools/RecordConventionTool/RecordConventionTool.ts
+// gate-watch: src/components/permissions/GitPermissionRequest/GitPermissionRequest.tsx src/services/gitGraph/plan.ts src/services/gitGraph/observe.ts
+import { execFileSync } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import type { ScriptedTurn } from '../lib/fixtureApi.ts'
 import { type ArenaRun, grabScreens, requireDist, runArtifactArena, sendStamp } from '../streaming/artifactArena.ts'
 
 requireDist()
+const { preparePlan, _resetGitPlanStoreForTesting } = await import('../../src/services/gitGraph/plan.ts')
+const { processMainOwner } = await import('../../src/services/run/resolveOwner.ts')
 
 const onlyArg = process.argv.find(a => a.startsWith('--only='))
 const ONLY = onlyArg ? new Set(onlyArg.slice('--only='.length).split(',').map(s => s.trim()).filter(Boolean)) : null
@@ -127,6 +131,44 @@ SCENES.push({
   mustNotShow: ['⦿ Tool use', `-- ${FIRST_RULE}`, '-# MERCURY.md'],
   noRowLike: /│\s+\d+\s-/,
   disk: cwd => readFileSync(join(cwd, 'MERCURY.md'), 'utf8') === `# MERCURY.md\nStanding orders for the Mercury harness in this repository.\n\n- ${FIRST_RULE}\n- ${RULE}\n`,
+})
+
+const GIT_ENV = { ...process.env, GIT_AUTHOR_NAME: 'proof', GIT_AUTHOR_EMAIL: 'proof@local', GIT_COMMITTER_NAME: 'proof', GIT_COMMITTER_EMAIL: 'proof@local', GIT_AUTHOR_DATE: '2026-10-12T10:00:00Z', GIT_COMMITTER_DATE: '2026-10-12T10:00:00Z' }
+const COMMIT_SUBJECT = 'two files via the git tool'
+const COMMIT_MESSAGE = `${COMMIT_SUBJECT}\n\nThe calculator and the notes, nothing else.`
+let gitPlanId = ''
+function seedGitRepo(cwd: string): void {
+  const sh = (args: string[]): string => execFileSync('git', args, { cwd, encoding: 'utf8', env: GIT_ENV })
+  sh(['init', '--quiet', '--initial-branch=main'])
+  for (const name of ['calc.py', 'NOTES.md', 'report.py']) writeFileSync(join(cwd, name), `${name} line one\n`)
+  sh(['add', '.'])
+  sh(['commit', '--quiet', '-m', 'seed'])
+  for (const name of ['calc.py', 'NOTES.md', 'report.py']) writeFileSync(join(cwd, name), `${name} line one\n${name} line two\n`)
+  sh(['add', '--', 'report.py'])
+}
+SCENES.push({
+  id: 'git-apply',
+  title: 'Git commit',
+  needle: 'Do you want to proceed',
+  turns: cwd => {
+    seedGitRepo(cwd)
+    const planned = preparePlan(processMainOwner(), cwd, [{ files: ['calc.py', 'NOTES.md'], message: COMMIT_MESSAGE }])
+    gitPlanId = 'id' in planned ? planned.id : ''
+    _resetGitPlanStoreForTesting()
+    return [
+      { kind: 'tool_use', preText: 'Planning the commit.\n', name: 'Git', input: { op: 'plan', groups: [{ files: ['calc.py', 'NOTES.md'], message: COMMIT_MESSAGE }] } },
+      { kind: 'tool_use', preText: 'Committing.\n', name: 'Git', input: { op: 'apply', planId: gitPlanId } },
+      { kind: 'text', text: 'Done.' },
+    ]
+  },
+  mustShow: ['Git commit', `Commit: ${COMMIT_SUBJECT}`, 'calc.py, NOTES.md', 'The calculator and the notes, nothing else.', 'Stays uncommitted: report.py'],
+  mustNotShow: ['⦿ Tool use', 'Typed local Git work graph', `Git(apply ${'gp-'}`],
+  disk: cwd => {
+    const sh = (args: string[]): string => execFileSync('git', args, { cwd, encoding: 'utf8', env: GIT_ENV })
+    const committed = sh(['show', '--name-only', '--format=', 'HEAD']).split('\n').filter(Boolean).sort()
+    const status = sh(['status', '--porcelain']).split('\n').filter(Boolean).sort()
+    return sh(['log', '-1', '--format=%s']).trim() === COMMIT_SUBJECT && JSON.stringify(committed) === JSON.stringify(['NOTES.md', 'calc.py']) && JSON.stringify(status) === JSON.stringify(['M  report.py'])
+  },
 })
 
 type RowScene = { id: string; seed: Record<string, string>; turns: (cwd: string) => ScriptedTurn[]; mustShow: string[]; mustNotShow: string[] }

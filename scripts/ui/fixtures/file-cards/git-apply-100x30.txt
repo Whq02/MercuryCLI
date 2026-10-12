@@ -1,0 +1,12 @@
+│  ⦿ Git commit                                                                                    │
+│  Commit: two files via the git tool                                                              │
+│    calc.py, NOTES.md                                                                             │
+│    The calculator and the notes, nothing else.                                                   │
+│  Stays uncommitted: report.py                                                                    │
+│  Do you want to proceed?                                                                         │
+│  ❯ 1. Yes                                                                                        │
+│    2. Yes, and don't ask again for Git in this project                                           │
+│    3. No, and tell Mercury what to do differently (esc)                                          │
+│                                                                                                  │
+│  ↑↓ choose · ↵ confirm · esc cancel · tab amend                                                  │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯

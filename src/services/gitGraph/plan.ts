@@ -32,6 +32,14 @@ export function getPlan(owner: OwnerKey, id: string): GitPlan | undefined {
   return store.peek(owner)?.plans.get(id)
 }
 
+export function findPlan(id: string): GitPlan | undefined {
+  for (const owner of store.owners()) {
+    const found = store.peek(owner)?.plans.get(id)
+    if (found) return found
+  }
+  return undefined
+}
+
 export function listPlans(owner: OwnerKey): GitPlan[] {
   const owned = store.peek(owner)
   if (!owned) return []
