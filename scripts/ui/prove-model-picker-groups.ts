@@ -168,8 +168,8 @@ async function mount(opts: { models: ModelChoice[]; current: string; top: string
   return {
     frame: (): string => stripAnsi(instance.lastFrame()).replace(/\n$/, ''),
     lines: (): string[] => stripAnsi(instance.lastFrame()).replace(/\n$/, '').split('\n'),
-    async key(name: string, sequence = ''): Promise<boolean> {
-      const event = new InputEvent({ name, sequence, ctrl: false, shift: false, fn: false, meta: false, option: false, super: false, isPasted: false } as never)
+    async key(name: string, sequence = '', ctrl = false): Promise<boolean> {
+      const event = new InputEvent({ name, sequence, ctrl, shift: false, fn: false, meta: false, option: false, super: false, isPasted: false } as never)
       emitter.emit('input', event)
       await settle()
       return event.didStopImmediatePropagation()
@@ -235,9 +235,9 @@ section('§1 the home state at 178x51: header · groups · doors · rows · orde
   const gated = rowOf(lines, 'glm-5.3-vision')
   check('a gated row says unavailable in the state column', /GLM 5\.3 Vision\s+glm-5\.3-vision\s+unavailable\s+64k ctx/.test(gated), gated)
   const tail = lines.filter(line => /[A-Za-z]/.test(inner(line))).slice(-3).map(line => inner(line).trim())
-  check('the foot is the context bar, the effort row, the hint row', tail[0]!.startsWith('context ') && tail[1]!.startsWith('effort  ') && tail[2] === '↑↓ select · ↵ switch · c context · → ← fold · tab to search · esc or click outside closes', tail.join(' | '))
-  check('the search line sits at the top, right under the title, and says tab opens it', inner(lines[lines.indexOf(title) + 1] ?? '').trim() === '/ tab to search by name or id', inner(lines[lines.indexOf(title) + 1] ?? '').trim())
-  check('the effort row keeps the ladder, ends at max and names its key', tail[1]!.includes('[max]') && /\[max\]\s+·/.test(tail[1]!) && tail[1]!.endsWith('e cycles'), tail[1])
+  check('the foot is the context bar, the effort row, the hint row', tail[0]!.startsWith('context ') && tail[1]!.startsWith('effort  ') && tail[2] === '↑↓ select · ↵ switch · ctrl+w context · → ← fold · tab to search · esc or click outside closes', tail.join(' | '))
+  check('the search line sits at the top, right under the title, and says to type', inner(lines[lines.indexOf(title) + 1] ?? '').trim() === '/ type to search by name or id', inner(lines[lines.indexOf(title) + 1] ?? '').trim())
+  check('the effort row keeps the ladder, ends at max and names its chord', tail[1]!.includes('[max]') && /\[max\]\s+·/.test(tail[1]!) && tail[1]!.endsWith('ctrl+e cycles'), tail[1])
   check('the picker fits 178x51 whole', lines.length <= 51 && lines.every(line => line.length <= 178))
 
   section('§2 fold: ← walks to the heading and folds, → unfolds; ↵ on a heading toggles')
@@ -272,9 +272,12 @@ section('§1 the home state at 178x51: header · groups · doors · rows · orde
   check('→ on a row of the partly shown list unfolds the rest (the full live list behind the door)', !unfolded.includes('→ unfolds the rest') && unfolded.includes('anthropic/claude-opus-5.5'), unfolded.split('\n').filter(line => line.includes('more')).join(' | '))
   check('the cursor stays on the row it was on', board.lines()[board.lines().indexOf(rowOf(board.lines(), 'deepseek/deepseek-v4.1-flash')) - 1]?.includes('╭') === true)
 
-  section('§3 the search: tab opens the box, typing narrows every group, empty groups drop, ↵ switches, tab returns to the rows with the search kept, esc clears then closes')
+  section('§3 the search: typing or tab opens the box, typing narrows every group, empty groups drop, ↵ switches, tab returns to the rows with the search kept, esc clears then closes')
   await board.type('opus')
-  check('typing in the rows is not a search (the letters belong to the rows)', !board.frame().includes('/ opus') && inner(lineWith(board.lines(), 'Mercury · model')).trim() === 'Mercury · model', inner(lineWith(board.lines(), '/ ')).trim())
+  check('typing in the rows is a search (a letter never fires a key)', board.frame().includes('/ opus') && /Mercury · model · 4 of \d+ match$/.test(inner(lineWith(board.lines(), 'Mercury · model')).trim()), inner(lineWith(board.lines(), 'Mercury · model')).trim())
+  await board.key('escape')
+  await board.key('tab')
+  check('esc clears the typed search and tab hands the rows back', lineWith(board.lines(), '/ type to search by name or id') !== '' && !lineWith(board.lines(), '↑↓ select').includes('type to search'), inner(lineWith(board.lines(), '↑↓ select')).trim())
   await board.key('tab')
   now = board.lines()
   check('tab focuses the search box (its slash lights up, the placeholder swaps, the legend says type to search and tab back to the rows)', lineWith(now, '/ search by name or id') !== '' && lineWith(now, '↑↓ select').includes('type to search') && lineWith(now, '↑↓ select').includes('tab back to the rows'), inner(lineWith(now, '↑↓ select')).trim())
@@ -292,10 +295,10 @@ section('§1 the home state at 178x51: header · groups · doors · rows · orde
   check('the legend while searching: esc clears the search', lineWith(now, '↑↓ select').includes('esc clears the search'), inner(lineWith(now, '↑↓ select')).trim())
   await board.key('tab')
   now = board.lines()
-  check('tab returns to the rows and keeps the search: the matches stand, the header still counts, the legend is the rows’ own', lineWith(now, '/ opus') !== '' && /Mercury · model · 4 of \d+ match$/.test(inner(lineWith(now, 'Mercury · model')).trim()) && lineWith(now, '↑↓ select').includes('c context') && !lineWith(now, '↑↓ select').includes('type to search'), inner(lineWith(now, '↑↓ select')).trim())
+  check('tab returns to the rows and keeps the search: the matches stand, the header still counts, the legend is the rows’ own', lineWith(now, '/ opus') !== '' && /Mercury · model · 4 of \d+ match$/.test(inner(lineWith(now, 'Mercury · model')).trim()) && lineWith(now, '↑↓ select').includes('ctrl+w context') && !lineWith(now, '↑↓ select').includes('type to search'), inner(lineWith(now, '↑↓ select')).trim())
   await board.type('x')
-  check('a letter typed in the rows never reaches the kept search', lineWith(board.lines(), '/ opus') !== '' && !board.frame().includes('/ opusx'))
-  await board.key('tab')
+  check('a letter typed in the rows joins the kept search and hands the box focus', board.frame().includes('/ opusx') && lineWith(board.lines(), '↑↓ select').includes('type to search'))
+  await board.key('backspace')
   await board.key('return')
   check('↵ switches the selected row and names the door it sits under', selected.length === 1 && selected[0] === 'claude-opus-5-5' && selectedDoors[0] === LOGIN, `${selected.join(',')} · ${selectedDoors.join(',')}`)
   await board.key('down')
@@ -308,12 +311,12 @@ section('§1 the home state at 178x51: header · groups · doors · rows · orde
   await board.key('escape')
   check('the second esc closes', closed === 1)
 
-  section('§4 c answers on a carrier row and never dies silent')
+  section('§4 ctrl+w answers on a carrier row and never dies silent')
   await board.key('tab')
   check('the harness keeps the closed picker mounted with its box focused; tab hands the rows back', !lineWith(board.lines(), '↑↓ select').includes('type to search'))
   for (let k = 0; k < 40; k++) await board.key('down')
-  await board.key('c', 'c')
-  check('c on a row with no toggle answers with the window law', board.frame().includes('not a toggle'), board.lines().filter(line => line.includes('ctx ·')).join(' | '))
+  await board.key('w', 'w', true)
+  check('ctrl+w on a row with no toggle answers with the window law', board.frame().includes('not a toggle'), board.lines().filter(line => line.includes('ctx ·')).join(' | '))
   board.close()
 }
 
@@ -374,7 +377,7 @@ section('§8 the pure composition (the module the picker derives its lines from)
     check('the filter reaches the door group\'s full list and drops empty groups', filtered.some(line => line.kind === 'row' && line.row.id === 'anthropic/claude-opus-5.5') && !filtered.some(line => line.kind === 'heading' && line.group === GEMINI))
     check('the heading words: one door, two doors, a reason', pure.headingWords({ name: 'OPENAI', doors: [{ door: 'ChatGPT Pro login', account: 'a@b.c' }] }, OPENAI, { live: 7 }) === 'OPENAI · ChatGPT Pro login · a@b.c · 7 live' && pure.headingWords({ name: 'ANTHROPIC', doors: [{ door: 'Claude Max login' }, { door: 'API key' }] }, ANTHROPIC, { live: 10 }) === 'ANTHROPIC · Claude Max login + API key · 10 live' && pure.headingWords({ name: 'DEEPSEEK', doors: [], reason: 'not connected' }, DEEPSEEK, { live: 0 }) === 'DEEPSEEK · not connected')
     check('the columns at the ratified width: alias 22 · id 32 · state 13 · ctx 11 · tail 14 (each cell two spaces short of its width)', JSON.stringify(pure.pickerColumns(92)) === JSON.stringify({ alias: 22, id: 32, state: 13, ctx: 11, tail: 14 }), JSON.stringify(pure.pickerColumns(92)))
-    check('the hint row is the owner\'s line', pure.MODEL_PICKER_HINT === '↑↓ select · ↵ switch · c context · → ← fold · tab to search · esc or click outside closes')
+    check('the hint row is the owner\'s line', pure.MODEL_PICKER_HINT === '↑↓ select · ↵ switch · ctrl+w context · → ← fold · tab to search · esc or click outside closes')
   }
 }
 

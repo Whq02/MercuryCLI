@@ -313,15 +313,15 @@ try {
     m.unmount()
   }
   localServer = false
-  const PICKER_OFFER = 'no local server · s sets one up'
+  const PICKER_OFFER = 'no local server · /localsetup sets one up'
   const ANTHROPIC_ROW = { id: 'claude-fable-5-1', name: 'fable', tag: '', ctx: '1M', group: ANTHROPIC_MODEL_GROUP }
   const LOCAL_ROW = { id: 'local/qwen3.5:9b', name: 'qwen3.5:9b', tag: '', ctx: '256k', group: LOCAL_MODEL_GROUP }
   const pickerHeadings = (answering: boolean) => ({
     [ANTHROPIC_MODEL_GROUP]: { name: 'ANTHROPIC', doors: [] },
     [LOCAL_MODEL_GROUP]: answering ? { name: 'LOCAL', doors: [{ door: 'Ollama 0.34.4' }] } : { name: 'LOCAL', doors: [], reason: 'no local server answered' },
   })
-  const pickerRecord = { closed: 0, slot: [] as string[] }
-  function PickerHost({ answering, slotReceipt }: { answering: boolean; slotReceipt: string | null }): React.ReactNode {
+  const pickerRecord = { closed: 0 }
+  function PickerHost({ answering }: { answering: boolean }): React.ReactNode {
     const [open, setOpen] = React.useState(true)
     return React.createElement(
       React.Fragment,
@@ -334,10 +334,6 @@ try {
             efforts: ['low', 'medium', 'high', 'max'],
             effort: 'high',
             headings: pickerHeadings(answering),
-            onSlotSwitch: (group: string) => {
-              pickerRecord.slot.push(group)
-              return slotReceipt
-            },
             onClose: () => {
               pickerRecord.closed += 1
               setOpen(false)
@@ -350,8 +346,7 @@ try {
   for (const [cols, rows] of [[178, 51], [80, 21]] as const) {
     const tag = `${cols}x${rows}`
     pickerRecord.closed = 0
-    pickerRecord.slot.length = 0
-    const offer = await mountOffscreen(wrap(React.createElement(PickerHost, { answering: false, slotReceipt: null }), cols, rows), cols, rows)
+    const offer = await mountOffscreen(wrap(React.createElement(PickerHost, { answering: false }), cols, rows), cols, rows)
     await waitFor(() => offer.screen().includes('Mercury · model'), 4000)
     await settle(120)
     const offerLine = lineWith(offer, PICKER_OFFER)
@@ -368,33 +363,25 @@ try {
     check(`${tag}: esc clears the search and the offer row returns`, await waitFor(() => offer.screen().includes(PICKER_OFFER) && pickerRecord.closed === 0, 4000))
     offer.push('\t')
     await settle(80)
-    check(`${tag}: tab hands the rows back (the legend is no longer the box's)`, await waitFor(() => !offer.screen().includes('type to search') && offer.screen().includes('tab to search'), 4000))
+    check(`${tag}: tab hands the rows back (the legend is no longer the box's)`, await waitFor(() => !(lineWith(offer, '↑↓ select') ?? '').includes('type to search') && (lineWith(offer, '↑↓ select') ?? '').includes('↵ switch'), 4000))
     offer.push('s')
-    check(`${tag}: s opens the set-up dialog in the shared popup and closes the picker`, (await waitFor(() => popup.settingsPopupRequest()?.view === 'localsetup' && offer.screen().includes('Mercury · localsetup'), 4000)) && pickerRecord.closed === 1 && pickerRecord.slot.length === 1, `closed ${pickerRecord.closed} · slot asks ${pickerRecord.slot.join(',')} · view ${popup.settingsPopupRequest()?.view ?? 'none'}`)
-    check(`${tag}: the dialog asks step 1 with nothing run`, (await untilAsk(offer, '1 · find a server')) && record.ran.length === 0 && !offer.screen().includes('Mercury · model'))
-    keep(`picker-s-opens-dialog-${tag}`, offer, cols, rows)
-    popup.closeSettingsPopup()
+    await settle(120)
+    check(`${tag}: s typed in the rows is a search, never the set-up dialog: the box reads it, the picker stays open, nothing ran`, (await waitFor(() => offer.lines().some(line => /\/ s\b/.test(bodyOf(line))), 4000)) && popup.settingsPopupRequest() === null && pickerRecord.closed === 0 && record.ran.length === 0 && offer.screen().includes('Mercury · model') && !offer.screen().includes('Mercury · localsetup'))
+    keep(`picker-s-searches-${tag}`, offer, cols, rows)
+    offer.push(KEY.esc)
+    await settle(80)
+    check(`${tag}: esc clears that search and the offer row, naming /localsetup, returns`, await waitFor(() => offer.screen().includes(PICKER_OFFER) && pickerRecord.closed === 0, 4000))
     offer.unmount()
     resetRecord()
 
     pickerRecord.closed = 0
-    pickerRecord.slot.length = 0
-    const switched = await mountOffscreen(wrap(React.createElement(PickerHost, { answering: false, slotReceipt: 'switched to the Console key' }), cols, rows), cols, rows)
-    await waitFor(() => switched.screen().includes(PICKER_OFFER), 4000)
-    switched.push('s')
-    await settle(120)
-    check(`${tag}: a slot switch that consumes s keeps the dialog closed`, pickerRecord.slot.length === 1 && popup.settingsPopupRequest() === null && pickerRecord.closed === 0 && switched.screen().includes('switched to the Console key'))
-    switched.unmount()
-
-    pickerRecord.closed = 0
-    pickerRecord.slot.length = 0
-    const answering = await mountOffscreen(wrap(React.createElement(PickerHost, { answering: true, slotReceipt: null }), cols, rows), cols, rows)
+    const answering = await mountOffscreen(wrap(React.createElement(PickerHost, { answering: true }), cols, rows), cols, rows)
     await waitFor(() => answering.screen().includes('qwen3.5:9b'), 4000)
     await settle(80)
     check(`${tag}: the picker drops the offer when a local server answers`, !answering.screen().includes(PICKER_OFFER) && answering.screen().includes('Ollama 0.34.4'))
     answering.push('s')
     await settle(120)
-    check(`${tag}: s without the offer opens nothing`, popup.settingsPopupRequest() === null && pickerRecord.closed === 0)
+    check(`${tag}: s without the offer searches and opens nothing`, popup.settingsPopupRequest() === null && pickerRecord.closed === 0 && answering.lines().some(line => /\/ s\b/.test(bodyOf(line))))
     answering.unmount()
   }
   for (const [cols, rows] of [[178, 51], [80, 21]] as const) {

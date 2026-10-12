@@ -61,7 +61,7 @@ const model120 = shoot('/model', 120)
 
 console.log('\n── /model (responsive: stack < 110 cols · footer + rows intact, not shrink-wrapped) ──')
 expect('@80  footer tail intact on one line (stacked, no wrap)', /tab to search · esc or click outside closes/.test(model80))
-expect('@120 footer tail intact on one line (side-by-side, no wrap)', /↑↓ select · ↵ switch · c context · → ← fold · tab to search · esc or click outside closes/.test(model120))
+expect('@120 footer tail intact on one line (side-by-side, no wrap)', /↑↓ select · ↵ switch · ctrl\+w context · → ← fold · tab to search · esc or click outside closes/.test(model120))
 expect('@80  longest rail row intact (not shrink-wrapped)', /current\s+\S+ ctx/.test(model80))
 expect('@80  the model header renders as the plain title line and a provider heading', /Mercury · model/.test(model80) && /[▾▸❯] [A-Z.]+ · /.test(model80))
 console.log('\nHTML written to /tmp/mercury-surface-model-{80,120}.html')

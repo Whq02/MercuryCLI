@@ -1,0 +1,40 @@
+  lanes                 ╭──────────────────────────────────────────────────────────────────────────────────────────────╮
+WORKBENCH               │╭────────────────────────────────────────────────────────────────────────────────────────────╮│
+  no prompts sent yet   │                                                                                              │
+                        │ ╭──────────────────────────────────────────────────────────────────────────────────────────╮ │
+NEXT                    │ │ Mercury · model                                                                          │ │
+  · /workflows — agent …│ │ / type to search by name or id                                                           │ │
+  · /health — health ce…│ │                                                                                          │ │
+  · /memory — memory    │ │ ▾ ANTHROPIC · API key · …-key · 12 live                                                  │ │
+  · /mission — set a mi…│ │   Fable 5.1           claude-fable-5-1                       1M ctx                      │ │
+                        │ │   Fable 5             claude-fable-5                         1M ctx                      │ │
+FILES · agent-a02hyxpf  │ │   Sonnet 5.5          claude-sonnet-5-5                      1M ctx                      │ │
+  ↵ or click · browse   │ │   Sonnet 5            claude-sonnet-5                        1M ctx                      │ │
+                        │ │   Sonnet 4.6          claude-sonnet-4-6                      1M ctx                      │ │
+VITALS                  │ │ ╭──────────────────────────────────────────────────────────────────────────────────────╮ │ │
+  · spend —             │ │ │ Opus 5.5            claude-opus-5-5           current      1M ctx                    │ │ │
+  · ctx — · —           │ │ ╰──────────────────────────────────────────────────────────────────────────────────────╯ │ │
+  · health — run /health│ │   Opus 5              claude-opus-5                          1M ctx                      │ │
+                        │ │   Opus 4.8            claude-opus-4-8                        1M ctx                      │ │
+                        │ │   Opus 4.7            claude-opus-4-7                        1M ctx                      │ │
+                        │ │   Opus 4.6            claude-opus-4-6                        1M ctx                      │ │
+                        │ │   Haiku 5.5           claude-haiku-5-5                       1M ctx                      │ │
+                        │ │   Haiku 4.5           claude-haiku-4-5-202510…               200k ctx                    │ │
+                        │ │ ▾ OPENAI · connect OpenAI to browse its models — /logins connects                        │ │
+                        │ │   GPT — sign in                                                                          │ │
+                        │ │ ▾ OPENROUTER · connect OpenRouter to browse its models — /logins connects                │ │
+                        │ │   ↓ 33 more                                                                              │ │
+                        │ │ ▾ LOCAL MODELS · no local server · /localsetup sets one up                               │ │
+                        │ │                                                                                          │ │
+                        │ │ context —  · tier API billing                                                            │ │
+                        │ │ effort  low medium [high] xhigh max · ctrl+e cycles                                      │ │
+                        │ │ 1M ctx · native to this model · not a toggle                                             │ │
+                        │ │ ↑↓ select · ↵ switch · ctrl+w context · → ← fold · esc or click outside closes           │ │
+                        │ ╰──────────────────────────────────────────────────────────────────────────────────────────╯ │
+                        │                                                                                              │
+                        ╰──────────────────────────────────────────────────────────────────────────────────────────────╯
+╭──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│❯ Type a prompt, start a slash command, or Tab to focus the rails                                                     │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+? for shortcuts · ctrl+x p for commands + files
+shift + ↵ for a new line

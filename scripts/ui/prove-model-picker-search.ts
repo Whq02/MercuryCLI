@@ -91,8 +91,8 @@ async function mount(columns: number, height: number) {
   return {
     frame: (): string => stripAnsi(instance.lastFrame()).replace(/\n$/, ''),
     lines: (): string[] => stripAnsi(instance.lastFrame()).replace(/\n$/, '').split('\n'),
-    async key(name: string, sequence = ''): Promise<boolean> {
-      const event = new InputEvent({ name, sequence, ctrl: false, shift: false, fn: false, meta: false, option: false, super: false, isPasted: false } as never)
+    async key(name: string, sequence = '', ctrl = false): Promise<boolean> {
+      const event = new InputEvent({ name, sequence, ctrl, shift: false, fn: false, meta: false, option: false, super: false, isPasted: false } as never)
       emitter.emit('input', event)
       await settle()
       return event.didStopImmediatePropagation()
@@ -121,8 +121,8 @@ const cursorRow = (lines: string[]): string => {
 
 section('§1 the words: the owner’s hint, the box at rest and in focus, the legends')
 {
-  check('the rows’ hint says tab to search', words.MODEL_PICKER_HINT === '↑↓ select · ↵ switch · c context · → ← fold · tab to search · esc or click outside closes', words.MODEL_PICKER_HINT)
-  check('the box at rest says how to reach it', words.MODEL_PICKER_FILTER_PLACEHOLDER === 'tab to search by name or id')
+  check('the rows’ hint names the chords and says tab to search', words.MODEL_PICKER_HINT === '↑↓ select · ↵ switch · ctrl+w context · → ← fold · tab to search · esc or click outside closes', words.MODEL_PICKER_HINT)
+  check('the box at rest says to type', words.MODEL_PICKER_FILTER_PLACEHOLDER === 'type to search by name or id')
   check('the box in focus says what it searches', words.MODEL_PICKER_SEARCH_PLACEHOLDER === 'search by name or id')
   check('the more line says the search reaches every folded row', words.moreLineWords(38, true) === '↓ 38 more · → unfolds the rest · search reaches every one')
   check('the rows’ legend is the hint, whole, at width', modelPickerFooter({ gated: false }, 120) === words.MODEL_PICKER_HINT)
@@ -137,18 +137,22 @@ const board = await mount(120, 40)
   const lines = board.lines()
   const titleAt = lines.findIndex(line => line.includes('Mercury · model'))
   check('the title is the first line of the panel', titleAt === 1, `${titleAt}`)
-  check('the search box is the line right under it, at rest', inner(lines[titleAt + 1] ?? '').trim() === '/ tab to search by name or id', inner(lines[titleAt + 1] ?? '').trim())
+  check('the search box is the line right under it, at rest', inner(lines[titleAt + 1] ?? '').trim() === '/ type to search by name or id', inner(lines[titleAt + 1] ?? '').trim())
   check('the box is the only slash line: nothing of it remains at the foot', lines.filter(line => /│ \/ /.test(line)).length === 1)
   check('the legend is the rows’ own', legend(lines) === words.MODEL_PICKER_HINT, legend(lines))
   check('the cursor sits on the current row', cursorRow(lines).includes('claude-fable-5-1'), cursorRow(lines))
 }
 
-section('§3 letters in the rows are the rows’ keys, never a search')
+section('§3 letters typed in the rows go to the search; the row keys are chords')
 {
   await board.type('sonnet')
-  check('typing in the rows leaves the box empty and the title plain', box(board.lines()) === '/ tab to search by name or id' && title(board.lines()) === 'Mercury · model', `${box(board.lines())} · ${title(board.lines())}`)
-  await board.key('c', 'c')
-  check('c in the rows answers for the focused row (the context law), not the box', board.frame().includes('ctx ·') && box(board.lines()) === '/ tab to search by name or id', board.lines().filter(line => line.includes('ctx ·')).map(inner).join(' | '))
+  check('typing in the rows lands in the box and the title counts the matches', box(board.lines()) === '/ sonnet' && title(board.lines()) === 'Mercury · model · 1 of 7 match' && legend(board.lines()).includes('type to search'), `${box(board.lines())} · ${title(board.lines())}`)
+  check('no letter of sonnet fired a key: nothing selected, nothing closed, no window notice', selected.length === 0 && closed === 0 && !board.frame().includes('ctx ·'))
+  await board.key('escape')
+  await board.key('tab')
+  check('esc clears the typed search and tab hands the rows back', box(board.lines()) === '/ type to search by name or id' && legend(board.lines()) === words.MODEL_PICKER_HINT, `${box(board.lines())} · ${legend(board.lines())}`)
+  await board.key('w', 'w', true)
+  check('ctrl+w in the rows answers for the focused row (the context law), not the box', board.frame().includes('ctx ·') && box(board.lines()) === '/ type to search by name or id', board.lines().filter(line => line.includes('ctx ·')).map(inner).join(' | '))
 }
 
 section('§4 tab moves into the box: typing searches, the counts follow every key, ↑↓ walk the matches')
@@ -178,10 +182,13 @@ section('§4 tab moves into the box: typing searches, the counts follow every ke
 section('§5 tab again returns to the rows with the search kept')
 {
   await board.key('tab')
-  check('the legend is the rows’ own again, with esc clears the search as its tail', legend(board.lines()).includes('c context') && !legend(board.lines()).includes('type to search') && legend(board.lines()).endsWith('esc clears the search'), legend(board.lines()))
+  check('the legend is the rows’ own again, with esc clears the search as its tail', legend(board.lines()).includes('ctrl+w context') && !legend(board.lines()).includes('type to search') && legend(board.lines()).endsWith('esc clears the search'), legend(board.lines()))
   check('the search stands: the box shows it, the title counts, only the matches are listed', box(board.lines()) === '/ so' && title(board.lines()) === 'Mercury · model · 2 of 7 match' && !board.frame().includes('claude-fable-5-1'), `${box(board.lines())} · ${title(board.lines())}`)
   await board.type('x')
-  check('a letter typed in the rows stays out of the kept search', box(board.lines()) === '/ so', box(board.lines()))
+  check('a letter typed in the rows joins the kept search and hands the box focus', box(board.lines()) === '/ sox' && legend(board.lines()).includes('type to search'), `${box(board.lines())} · ${legend(board.lines())}`)
+  await board.key('backspace')
+  await board.key('tab')
+  check('⌫ takes it back and tab returns to the rows with the search kept', box(board.lines()) === '/ so' && !legend(board.lines()).includes('type to search'), `${box(board.lines())} · ${legend(board.lines())}`)
   await board.key('down')
   await board.key('down')
   check('↑↓ still walk the matches from the rows', cursorRow(board.lines()).includes('gpt-6-sol'), cursorRow(board.lines()))
@@ -195,7 +202,7 @@ section('§5 tab again returns to the rows with the search kept')
 section('§6 escape clears the search before it closes the picker, from either side; / is the second way in')
 {
   await board.key('escape')
-  check('esc in the rows with a search standing clears it and keeps the picker (the rows keep focus)', closed === 0 && box(board.lines()) === '/ tab to search by name or id' && title(board.lines()) === 'Mercury · model' && legend(board.lines()) === words.MODEL_PICKER_HINT, `${box(board.lines())} · ${legend(board.lines())}`)
+  check('esc in the rows with a search standing clears it and keeps the picker (the rows keep focus)', closed === 0 && box(board.lines()) === '/ type to search by name or id' && title(board.lines()) === 'Mercury · model' && legend(board.lines()) === words.MODEL_PICKER_HINT, `${box(board.lines())} · ${legend(board.lines())}`)
   check('the cleared search leaves the cursor on the row it focused', cursorRow(board.lines()).includes('claude-sonnet-5'), cursorRow(board.lines()))
   await board.key('/', '/')
   check('/ in the rows is the second way into the box', legend(board.lines()).includes('type to search') && box(board.lines()) === '/ search by name or id', legend(board.lines()))
@@ -217,5 +224,5 @@ section('§7 esc in the rows with no search closes at once')
 }
 
 rmSync(scratch, { recursive: true, force: true })
-console.log(failures === 0 ? '\n✅ the model picker’s search: tab in, type, tab back, esc clears then closes' : `\n❌ ${failures} check(s) failed`)
+console.log(failures === 0 ? '\n✅ the model picker’s search: type or tab in, tab back, esc clears then closes' : `\n❌ ${failures} check(s) failed`)
 process.exit(failures === 0 ? 0 : 1)

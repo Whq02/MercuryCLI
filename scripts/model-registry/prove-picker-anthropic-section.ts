@@ -334,7 +334,7 @@ section('§5 the box spans its band whatever the cursor\'s row: from the first s
   const markerOf = (lines: string[]): number => lines.findIndex(l => /│\s+↓ \d+ more/.test(l))
   const aboveOf = (lines: string[]): number => lines.findIndex(l => /│\s+↑ \d+ more/.test(l))
   const focusOf = (lines: string[]): string => (lines.find(l => l.includes('│ │ ')) ?? '').split('│ │ ')[1]?.replace(/\s+│.*$/, '').trim() ?? ''
-  const offerOf = (lines: string[]): number => lines.findIndex(l => l.includes('no local server · s sets one up'))
+  const offerOf = (lines: string[]): number => lines.findIndex(l => l.includes('no local server · /localsetup sets one up'))
   type Stop = { row: number; lines: number; bottom: number; marker: number; above: number; meter: number; offer: number; focus: string }
   const walk: Stop[] = []
   const record = (row: number): void => {

@@ -131,12 +131,12 @@ async function mount(columns: number, rows: number, current: string) {
       const at = rows.findIndex(l => l.startsWith('window'))
       if (at < 0) return ''
       let out = rows[at]!
-      for (let i = at + 1; i < rows.length && !/w cycles$|▍$|not a toggle$/.test(out); i++) out += ` ${rows[i]}`
+      for (let i = at + 1; i < rows.length && !/ctrl\+w cycles$|▍$|not a toggle$/.test(out); i++) out += ` ${rows[i]}`
       return out
     },
     closed: () => closed,
-    async key(name: string, sequence = name) {
-      const event = new InputEvent({ name, sequence, ctrl: false, shift: false, fn: false, meta: false, option: false, super: false, isPasted: false } as never)
+    async key(name: string, sequence = name, ctrl = false) {
+      const event = new InputEvent({ name, sequence, ctrl, shift: false, fn: false, meta: false, option: false, super: false, isPasted: false } as never)
       emitter.emit('input', event)
       await settle()
       return event.didStopImmediatePropagation()
@@ -159,7 +159,7 @@ for (const geometry of [{ columns: 178, rows: 51, tag: '178x51' }, { columns: 80
 
   const board = await mount(geometry.columns, geometry.rows, `local/${SERVED_MODEL}`)
   const fits = (frame: string): boolean => frame.split('\n').every(line => stringWidth(line) <= geometry.columns) && frame.split('\n').length <= geometry.rows
-  check(`${geometry.tag}: the served row paints its window line unasked — auto resolved to the fit rung (128k on this 16 GiB box, f16, 1 slot) and held, the served figure the server's word`, board.line() === (wide ? 'window · served 256k · [auto → 128k fit held] · server · 32k · 64k · 128k · max · number · w cycles' : 'window [auto → 128k fit held] · server · 32k · 64k · 128k · max · w cycles') && fits(board.frame()), board.line())
+  check(`${geometry.tag}: the served row paints its window line unasked — auto resolved to the fit rung (128k on this 16 GiB box, f16, 1 slot) and held, the served figure the server's word`, board.line() === (wide ? 'window · served 256k · [auto → 128k fit held] · server · 32k · 64k · 128k · max · number · ctrl+w cycles' : 'window [auto → 128k fit held] · server · 32k · 64k · 128k · max · ctrl+w cycles') && fits(board.frame()), board.line())
   save(`served-row-choice-${geometry.tag}`, board.frame())
   const steps: Array<{ expect: string; setting: unknown }> = [
     { expect: '[server]', setting: 'server' },
@@ -170,7 +170,7 @@ for (const geometry of [{ columns: 178, rows: 51, tag: '178x51' }, { columns: 80
   ]
   let walked = true
   for (const step of steps) {
-    const consumed = await board.key('w')
+    const consumed = await board.key('w', 'w', true)
     const line = board.line().replace(/\s+/g, ' ')
     walked &&= consumed && line.includes(step.expect) && w.localWindowSettingOf(served) === step.setting
     if (!walked) {
@@ -181,31 +181,31 @@ for (const geometry of [{ columns: 178, rows: 51, tag: '178x51' }, { columns: 80
   if (walked) check(`${geometry.tag}: w walks the ladder server → 32k → 64k → 128k → max, each persisted as the setting; max refuses politely — ${REFUSED_MAX}`, true)
   check(`${geometry.tag}: the refusal is painted in the failure ink (an SGR opens right before the bracket)`, /\x1b\[[0-9;]*m\[max — /.test(board.raw()), board.raw().slice(Math.max(0, board.raw().indexOf('[max') - 30), board.raw().indexOf('[max') + 8))
   save(`served-row-refused-${geometry.tag}`, board.frame())
-  await board.key('w')
+  await board.key('w', 'w', true)
   check(`${geometry.tag}: after max, w opens the number prompt (type the tokens · ↵ sets · esc cancels)`, board.line().startsWith('window · type the tokens') && w.localWindowSettingOf(served) === 'max', board.line())
   save(`served-row-typing-${geometry.tag}`, board.frame())
   await board.key('escape', '\x1b')
   check(`${geometry.tag}: esc cancels the prompt without closing the picker and leaves max (still refused)`, board.closed() === 0 && board.line().includes('[max —') && w.localWindowSettingOf(served) === 'max', board.line())
-  await board.key('w')
+  await board.key('w', 'w', true)
   for (const ch of ['4', '8', 'k']) await board.key(ch)
   check(`${geometry.tag}: the typed tokens echo on the prompt`, board.line().endsWith('48k▍'), board.line())
   await board.key('return', '\r')
   check(`${geometry.tag}: ↵ sets 48k as the number rung and persists 49152; 48k fits so no refusal`, board.line().includes('[48k]') && w.localWindowSettingOf(served) === 49152, board.line())
   save(`served-row-number-${geometry.tag}`, board.frame())
-  await board.key('w')
+  await board.key('w', 'w', true)
   check(`${geometry.tag}: from a number, w returns to auto (the setting cleared)`, board.line().includes('[auto') && w.localWindowSettingOf(served) === undefined, board.line())
   await board.key('down')
-  check(`${geometry.tag}: the unloaded row says so — not loaded, the trained max, auto predicting the fit rung (the 27B on 16 GiB: nothing fits, the 32k floor) with nothing held yet`, board.line() === (wide ? 'window · not loaded · max 256k · [auto → 32k fit] · server · 32k · 64k · 128k · max · number · w cycles' : 'window · not loaded [auto → 32k fit] · server · 32k · 64k · 128k · max · w cycles'), board.line())
+  check(`${geometry.tag}: the unloaded row says so — not loaded, the trained max, auto predicting the fit rung (the 27B on 16 GiB: nothing fits, the 32k floor) with nothing held yet`, board.line() === (wide ? 'window · not loaded · max 256k · [auto → 32k fit] · server · 32k · 64k · 128k · max · number · ctrl+w cycles' : 'window · not loaded [auto → 32k fit] · server · 32k · 64k · 128k · max · ctrl+w cycles'), board.line())
   save(`unloaded-row-choice-${geometry.tag}`, board.frame())
-  await board.key('w')
-  await board.key('w')
-  await board.key('w')
+  await board.key('w', 'w', true)
+  await board.key('w', 'w', true)
+  await board.key('w', 'w', true)
   check(`${geometry.tag}: the hybrid 27B at 64k on 16 GiB (f16, no runner read) refuses with the 16-layer sum and says no rung fits — [64k — 20.5 GiB does not fit 12.0 GiB usable · no rung fits], never 32.8 GiB (65 layers)`, board.line().replace(/\s+/g, ' ').includes('[64k — 20.5 GiB does not fit 12.0 GiB usable · no rung fits]') && w.localWindowSettingOf(unloaded) === 65536, board.line())
   save(`unloaded-row-refused-${geometry.tag}`, board.frame())
   w.writeLocalWindowSetting(unloaded, undefined)
   await board.key('up')
   await board.key('up')
-  check(`${geometry.tag}: a non-local row paints no window line and w is not consumed there`, board.line() === '' && !(await board.key('w')), board.line())
+  check(`${geometry.tag}: a non-local row paints no window line; ctrl+w there answers with that row's own window, never the local ladder`, board.line() === '' && (await board.key('w', 'w', true)) && board.line() === '', board.line())
   board.close()
 }
 
@@ -219,10 +219,10 @@ for (const geometry of [{ columns: 178, rows: 51, tag: '178x51' }, { columns: 80
   w.writeLocalWindowSetting(served, 32768)
   const board = await mount(geometry.columns, geometry.rows, `local/${SERVED_MODEL}`)
   const fits = (frame: string): boolean => frame.split('\n').every(line => stringWidth(line) <= geometry.columns) && frame.split('\n').length <= geometry.rows
-  check(`${geometry.tag}: on an 8 GiB Linux box (8.0 GiB usable) the 9B picked at 32k fits but leaves 0.9 GiB, under the 1 GiB floor — the row warns inside the bracket and auto still predicts 32k: ${TIGHT_32K}`, board.line().replace(/\s+/g, ' ') === (wide ? `window · served 256k · auto → 32k fit · server · ${TIGHT_32K} · 64k · 128k · max · number · w cycles` : `window auto → 32k fit · server · ${TIGHT_32K} · 64k · 128k · max · w cycles`) && fits(board.frame()), board.line())
+  check(`${geometry.tag}: on an 8 GiB Linux box (8.0 GiB usable) the 9B picked at 32k fits but leaves 0.9 GiB, under the 1 GiB floor — the row warns inside the bracket and auto still predicts 32k: ${TIGHT_32K}`, board.line().replace(/\s+/g, ' ') === (wide ? `window · served 256k · auto → 32k fit · server · ${TIGHT_32K} · 64k · 128k · max · number · ctrl+w cycles` : `window auto → 32k fit · server · ${TIGHT_32K} · 64k · 128k · max · ctrl+w cycles`) && fits(board.frame()), board.line())
   const warningInk = sgrBefore(board.raw(), '[32k — ')
   save(`small-box-tight-${geometry.tag}`, board.frame())
-  await board.key('w')
+  await board.key('w', 'w', true)
   check(`${geometry.tag}: w to 64k on that box is refused, not warned — ${REFUSED_64K}`, board.line().replace(/\s+/g, ' ').includes(REFUSED_64K) && !board.line().includes('leaves') && w.localWindowSettingOf(served) === 65536, board.line())
   const failureInk = sgrBefore(board.raw(), '[64k — ')
   check(`${geometry.tag}: the warning is painted in its own ink — an SGR opens right before the warned bracket and it is not the refusal's failure ink`, warningInk !== undefined && failureInk !== undefined && warningInk !== failureInk, `warning ${JSON.stringify(warningInk)} · failure ${JSON.stringify(failureInk)}`)
