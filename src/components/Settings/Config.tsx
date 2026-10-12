@@ -380,6 +380,7 @@ export function Config({
     }
   }
   const snapshots = snapshotsRef.current
+  const mountTheme = useRef(themeSetting)
 
   const changesRef = useRef(new Map<string, string>())
   const recordToggle = (key: string, text: string): void => {
@@ -1294,8 +1295,7 @@ export function Config({
 
   const composeSummary = (): string | undefined => {
     const lines: string[] = [...changesRef.current.values()]
-    const nowTheme = themeSetting
-    if (nowTheme !== snapshots.theme) lines.push(`set theme to ${nowTheme}`)
+    if (themeSetting !== mountTheme.current) lines.push(`set theme to ${themeSetting}`)
     if (lines.length === 0) return undefined
     return lines.join('\n')
   }
@@ -1486,9 +1486,10 @@ export function Config({
           value: setting,
         }))}
         defaultValue={themeSetting}
+        defaultFocusValue={themeSetting}
         onChange={value => {
           setThemeSetting(value)
-          snapshots.dirty = true
+          snapshots.theme = value
           setSubMenu(null)
         }}
         onCancel={() => setSubMenu(null)}
