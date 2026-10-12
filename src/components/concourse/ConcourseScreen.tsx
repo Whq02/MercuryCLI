@@ -121,7 +121,7 @@ export function coordinatorDraftOriginOf(storedText: string, ownText: string | n
   return storedText === ownText ? 'own' : 'restored'
 }
 
-export const RESTORED_DRAFT_LINE = 'restored draft — typed in another window or an earlier visit · ↵↵ sends it · ⌃c clears it'
+export const RESTORED_DRAFT_LINE = keyHintLabel('restored draft — typed in another window or an earlier visit · ↵↵ sends it · ⌃c clears it')
 export const RESTORED_DRAFT_ARMED_LINE = 'restored draft — ↵ again sends it · esc keeps it'
 
 export type SignInPickerV1 = { kind: 'default' } | { kind: 'session'; sessionId: string; title: string }
@@ -588,6 +588,46 @@ export function ConcourseScreen({
       sel !== undefined ? wallLineBySession.get(sel.sessionId) : undefined,
     )
 
+  const [forkAsk, setForkAsk] = useState<{ text: string; folder: string; holderTitle: string | null } | null>(null)
+  const forkAskRef = useRef<{ text: string; folder: string; holderTitle: string | null } | null>(null)
+  forkAskRef.current = forkAsk
+  const launchPreviewBusyRef = useRef(false)
+  const dispatchDirect = (text: string): void => {
+    void callbacks.sendCoordinatorMessage?.(text).catch(() => {})
+    callbacks.submitSessionDraft(text)
+    clearDraft()
+  }
+  const launchDirect = (text: string): void => {
+    if (launchPreviewBusyRef.current) return
+    const preview = callbacks.previewLaunch
+    if (preview === undefined) {
+      dispatchDirect(text)
+      return
+    }
+    launchPreviewBusyRef.current = true
+    void preview()
+      .catch(() => null)
+      .then(p => {
+        launchPreviewBusyRef.current = false
+        if (!aliveRef.current) return
+        if (p !== null && p.forks) {
+          setForkAsk({ text, folder: p.folder, holderTitle: p.mainHolderTitle })
+          return
+        }
+        dispatchDirect(text)
+      })
+  }
+  const answerForkAsk = (allowed: boolean): void => {
+    const ask = forkAskRef.current
+    setForkAsk(null)
+    if (ask === null) return
+    if (!allowed) {
+      setNote({ tone: 'muted', text: 'kept — nothing dispatched; your draft stays' })
+      return
+    }
+    dispatchDirect(ask.text)
+  }
+
   const sendLive = (): void => {
     if (reducedStage) return
     const ctx = composeContextRef.current
@@ -643,46 +683,6 @@ export function ConcourseScreen({
     }
     callbacks.redirectSession(sel!.sessionId, text)
     clearLiveDraft()
-  }
-
-  const [forkAsk, setForkAsk] = useState<{ text: string; folder: string; holderTitle: string | null } | null>(null)
-  const forkAskRef = useRef<{ text: string; folder: string; holderTitle: string | null } | null>(null)
-  forkAskRef.current = forkAsk
-  const launchPreviewBusyRef = useRef(false)
-  const dispatchDirect = (text: string): void => {
-    void callbacks.sendCoordinatorMessage?.(text).catch(() => {})
-    callbacks.submitSessionDraft(text)
-    clearDraft()
-  }
-  const launchDirect = (text: string): void => {
-    if (launchPreviewBusyRef.current) return
-    const preview = callbacks.previewLaunch
-    if (preview === undefined) {
-      dispatchDirect(text)
-      return
-    }
-    launchPreviewBusyRef.current = true
-    void preview()
-      .catch(() => null)
-      .then(p => {
-        launchPreviewBusyRef.current = false
-        if (!aliveRef.current) return
-        if (p !== null && p.forks) {
-          setForkAsk({ text, folder: p.folder, holderTitle: p.mainHolderTitle })
-          return
-        }
-        dispatchDirect(text)
-      })
-  }
-  const answerForkAsk = (allowed: boolean): void => {
-    const ask = forkAskRef.current
-    setForkAsk(null)
-    if (ask === null) return
-    if (!allowed) {
-      setNote({ tone: 'muted', text: 'kept — nothing started; your draft stays' })
-      return
-    }
-    dispatchDirect(ask.text)
   }
 
   const sendCoordinator = (): void => {
@@ -2469,7 +2469,7 @@ export function ConcourseScreen({
                   }
                   contextLine={
                     draftRestored && draft.text.length > 0
-                      ? { tone: 'warning', text: keyHintLabel(restoredArmed ? RESTORED_DRAFT_ARMED_LINE : RESTORED_DRAFT_LINE) }
+                      ? { tone: 'warning', text: restoredArmed ? RESTORED_DRAFT_ARMED_LINE : RESTORED_DRAFT_LINE }
                       : null
                   }
                   onComposerClick={onCoordinatorComposerClick}
