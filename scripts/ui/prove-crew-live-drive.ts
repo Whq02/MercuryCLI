@@ -419,8 +419,8 @@ async function landLeg(dialect: Dialect): Promise<void> {
     agentRow(running, SEAT_ONE, servedModel) && agentRow(running, SEAT_TWO, servedModel) && rowTokens(running, SEAT_ONE) && rowTokens(running, SEAT_TWO),
   )
   check(
-    `${tag}: the CREW lane rows carry a token verb while they run`,
-    (flat(running).match(/◐ [a-z-…]+ · \d[\d.,]*k? context/g) ?? []).length >= 2,
+    `${tag}: the CREW lane rows carry the token figure while they run (the word where the row has room), the names whole`,
+    (flat(running).match(/◐ (?:reef-survey|tide-gauges) · \d[\d.,]*k?(?: context)?\b/g) ?? []).length >= 2,
   )
   check(`${tag}: the usage attribution line counts the crew`, /crewmates \d[\d.,]*k? spent/.test(flat(running)))
   const crewRunning = crewPopup(marks['crew-running'] ?? '')
