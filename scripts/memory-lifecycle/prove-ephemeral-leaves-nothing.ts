@@ -192,7 +192,8 @@ if (!existsSync(DIST)) {
   check('the third run exits 0 and answers', three.exit === 0 && answeredWith(three.stdout, 'ANSWER-THREE'), `exit=${three.exit} stderr=${three.stderr.slice(0, 300)}`)
   const page = systemText(three.requests[0]?.body ?? {})
   const start = page.indexOf(ENTRY_PAGE_HEADING)
-  const lineage = start >= 0 ? page.slice(start, start + 400) : ''
+  const nextHeading = start >= 0 ? page.indexOf('\n# ', start + 1) : -1
+  const lineage = start >= 0 ? page.slice(start, nextHeading > start ? nextHeading : start + 2000) : ''
   check('its page counts one session before it, the control, and never a third', lineage.includes('Session 2 of this work; 1 session before it') && !lineage.includes(FIRST_SESSION_LINE), lineage)
   check('its page carries the control\'s note as the last one left', lineage.includes('## The last note left (session 1, ') && lineage.includes('NOTE-ONE'), lineage)
   const final = readLedger(projectKey)
