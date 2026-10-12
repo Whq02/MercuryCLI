@@ -39,7 +39,9 @@ import { CtrlOToExpand } from '../CtrlOToExpand.js'
 import { InterruptedByUser } from '../InterruptedByUser.js'
 import { Markdown } from '../Markdown.js'
 import { RateLimitMessage } from './RateLimitMessage.js'
-import { TranscriptNameplate } from './TranscriptNameplate.js'
+import { CrewmatePlateContext, TranscriptNameplate } from './TranscriptNameplate.js'
+import { ENVELOPE_TAG, type DeclaredEnvelope } from '../../services/agentResults/contracts.js'
+import { parseDeclaration } from '../../services/agentResults/normalize.js'
 
 const subscribeFocusedRowModel = subscribeThroughFocused((connector, listener) => connector.subscribeModel(listener))
 const getFocusedRowModel = (): string => getFocusedSessionConnector().modelFacts().main
@@ -128,6 +130,17 @@ function ErrorCard({
   )
 }
 
+export function crewmateCloseNoteOf(declared: DeclaredEnvelope): string {
+  const parts: string[] = []
+  const summary = declared.summary?.replace(/\s+/g, ' ').trim() ?? ''
+  if (summary.length > 0) parts.push(summary)
+  if (declared.findings !== undefined && declared.findings.length > 0) parts.push(`${declared.findings.length} finding${declared.findings.length === 1 ? '' : 's'}`)
+  if (declared.unresolved !== undefined && declared.unresolved.length > 0) parts.push(`${declared.unresolved.length} unresolved: ${declared.unresolved.map(u => u.replace(/\s+/g, ' ').trim()).join('; ')}`)
+  if (declared.recommendedNextAction !== undefined && declared.recommendedNextAction.trim().length > 0) parts.push(`next: ${declared.recommendedNextAction.replace(/\s+/g, ' ').trim()}`)
+  if (declared.checks !== undefined) parts.push(declared.checks.length === 0 ? 'no checks named' : `checks: ${declared.checks.join(', ')}`)
+  return `close note — ${parts.length > 0 ? parts.join(' · ') : 'nothing declared'}`
+}
+
 export function AssistantTextMessage({
   param,
   addMargin = false,
@@ -144,6 +157,7 @@ export function AssistantTextMessage({
   width?: number | string
 }): React.ReactNode {
   const engineModel = useSyncExternalStore(subscribeFocusedRowModel, getFocusedRowModel, getFocusedRowModel)
+  const crewmatePlate = React.useContext(CrewmatePlateContext)
   const text = param.text
   if (text === '' || text === NO_RESPONSE_REQUESTED) return null
 
@@ -261,18 +275,29 @@ export function AssistantTextMessage({
   }
 
   const workingNote = param.phase === 'commentary'
+  const declaration = crewmatePlate !== null && text.includes(`<${ENVELOPE_TAG}>`) ? parseDeclaration(text) : null
+  const prose = declaration !== null ? declaration.prose : text
+  const closeNote = declaration === null ? null : declaration.declared !== null ? crewmateCloseNoteOf(declaration.declared) : declaration.malformedRaw !== null ? `close note (unreadable) — ${declaration.malformedRaw}` : null
   return (
     <Box
       flexDirection="column"
       marginTop={addMargin ? 1 : 0}
       width={width}
     >
-      <Markdown
-        color={workingNote ? 'subtle' : undefined}
-        leadingInline={shouldShowDot ? <TranscriptNameplate /> : undefined}
-      >
-        {text}
-      </Markdown>
+      {prose.length > 0 || closeNote === null ? (
+        <Markdown
+          color={workingNote ? 'subtle' : undefined}
+          leadingInline={shouldShowDot ? <TranscriptNameplate /> : undefined}
+        >
+          {prose}
+        </Markdown>
+      ) : null}
+      {closeNote !== null ? (
+        <Text dimColor wrap="wrap">
+          {prose.length === 0 && shouldShowDot ? <TranscriptNameplate /> : null}
+          {closeNote}
+        </Text>
+      ) : null}
     </Box>
   )
 }

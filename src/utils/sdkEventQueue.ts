@@ -1,5 +1,6 @@
 import { getIsNonInteractiveSession, getSessionId } from '../bootstrap/state.js'
 import { taskRow, type RowDraft } from '../rows/project.js'
+import { getTaskOutputPath } from './task/diskOutput.js'
 import type { TaskRow } from '../rows/vocabulary.js'
 import { createSignal } from './signal.js'
 
@@ -57,7 +58,7 @@ export function emitTaskEnded(
         taskId,
         ...(options.toolUseId !== undefined ? { callId: options.toolUseId } : {}),
         status,
-        outputFile: options.outputFile ?? '',
+        outputFile: options.outputFile ?? getTaskOutputPath(taskId),
         summary: options.summary ?? '',
         ...(options.usage !== undefined ? { usage: options.usage } : {}),
       },

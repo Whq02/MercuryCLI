@@ -134,9 +134,10 @@ export function shellOutcomeState(args: {
   code: number
   interrupted: boolean
   wasKilled: boolean
+  killedBy?: 'operator' | 'agent-end'
   stderr?: string
 }): { state: TaskOutcomeState; terminationReason?: string } {
-  if (args.wasKilled) return { state: 'stopped', terminationReason: 'user-stop' }
+  if (args.wasKilled) return { state: 'stopped', terminationReason: args.killedBy === 'agent-end' ? 'agent-ended' : 'user-stop' }
   const stderr = args.stderr ?? ''
   if (stderr.includes('absolute deadline elapsed')) {
     return { state: 'killed-policy', terminationReason: 'deadline' }
