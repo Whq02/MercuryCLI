@@ -92,6 +92,7 @@ import {
   CHALK_CLAMPED_FOR_TMUX,
   CHALK_DISABLED_FOR_NO_COLOR,
   colorDepthWhy,
+  monochromeThemeActive,
 } from '../ink/colorize.js'
 import { getLiveContextUsage } from './cockpit/contextUsageLive.js'
 import { ctxForecastEnabled } from './cockpit/ctxForecast.js'
@@ -3000,6 +3001,12 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
           label: 'Terminal color',
           run: () => {
             const level = chalk.level
+            if (monochromeThemeActive()) {
+              return {
+                status: 'info',
+                evidence: `no color — ${colorDepthWhy()}; bold and reverse stay (the terminal itself offers chalk level ${level})`,
+              }
+            }
             if (CHALK_DISABLED_FOR_NO_COLOR || level === 0) {
               return {
                 status: 'info',

@@ -30,7 +30,7 @@ export const MODEL_PICKER_CONTEXT_CHORD = `ctrl+${MODEL_PICKER_CONTEXT_CHORD_KEY
 export const MODEL_PICKER_EFFORT_CHORD_KEY = 'e'
 export const MODEL_PICKER_EFFORT_CHORD = `ctrl+${MODEL_PICKER_EFFORT_CHORD_KEY}`
 export const MODEL_PICKER_CONTEXT_WORDS = `${MODEL_PICKER_CONTEXT_CHORD} context`
-export const MODEL_PICKER_EFFORT_WORDS = `${MODEL_PICKER_EFFORT_CHORD} cycles`
+export const MODEL_PICKER_EFFORT_WORDS = `${MODEL_PICKER_EFFORT_CHORD} changes it`
 export const MODEL_PICKER_HINT = `↑↓ select · ↵ switch · ${MODEL_PICKER_CONTEXT_WORDS} · → ← fold · tab to search · esc or click outside closes`
 
 export function isSearchCharacter(input: string, key: { ctrl: boolean; meta: boolean; tab: boolean }): boolean {

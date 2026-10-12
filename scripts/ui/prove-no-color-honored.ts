@@ -30,7 +30,7 @@ section('source wiring: chalk.level forced 0 + colorize() short-circuit + correc
 const src = readFileSync(join(root, 'src', 'ink', 'colorize.ts'), 'utf-8')
 check('honorNoColor() forces chalk.level = 0', /honorNoColor[\s\S]*?chalk\.level = 0/.test(src))
 check('MERCURY_HONORS_NO_COLOR derives from the pure rule', /MERCURY_HONORS_NO_COLOR = shouldHonorNoColor\(process\.env\)/.test(src))
-check('colorize() short-circuits to raw str when honoring', /if \(MERCURY_HONORS_NO_COLOR\) return str/.test(src))
+check('colorize() short-circuits to raw str when honoring (and under the Black and white theme)', /if \(MERCURY_HONORS_NO_COLOR \|\| monochromeTheme\) return str/.test(src))
 const noColorIdx = src.indexOf('CHALK_DISABLED_FOR_NO_COLOR = honorNoColor()')
 const boostIdx = src.indexOf('CHALK_BOOSTED_FOR_FINGERPRINT = boostChalkLevelForFingerprint()')
 check('honorNoColor() runs BEFORE the chalk-level boosts', noColorIdx !== -1 && boostIdx !== -1 && noColorIdx < boostIdx)

@@ -130,7 +130,7 @@ export function CritterSelect({ onClose }: { onClose: () => void }): React.React
       ) : (
         <Box marginTop={1}>
           <Text color={FAINT}>
-            ↵ / click launch switches live (morphs + recolors); the status spine (teal·amber·crimson) is fixed in every theme
+            ↵ / click launch switches live (morphs + recolors); the status colours (teal·amber·crimson) are the same in Oasis dark and True Black; Black and white paints none
           </Text>
         </Box>
       )}

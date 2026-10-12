@@ -1,4 +1,6 @@
 
+import { colorStripped } from '../ink/colorize.js'
+
 export type CliHighlight = {
   highlight: typeof import('cli-highlight').highlight
   supportsLanguage: typeof import('cli-highlight').supportsLanguage
@@ -36,7 +38,7 @@ function loadBundle(): Promise<LoadedBundle> {
         const getLanguage =
           (hljsNamespace as unknown as { getLanguage?: LanguageLookup }).getLanguage ?? null
         const guardedHighlight = ((code: string, options?: Parameters<typeof cliHighlight.highlight>[1]) =>
-          shouldSkipHighlight(code) ? code : cliHighlight.highlight(code, options)) as CliHighlight['highlight']
+          shouldSkipHighlight(code) || colorStripped() ? code : cliHighlight.highlight(code, options)) as CliHighlight['highlight']
         return {
           api: {
             highlight: guardedHighlight,

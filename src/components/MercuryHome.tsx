@@ -217,15 +217,16 @@ function MercuryHomeBody(): React.ReactNode {
       <Box marginTop={1} flexDirection="column">
         {!deckPresent ? (
           <InteractiveRow {...rowClick('model', '/model')}>
-            <Text>
+            <Text wrap="truncate-end">
               <Text color={tok.textMuted}>{'  model   '}</Text>
               <Text color={tok.textPrimary}>{model}</Text>
+              <Text color={tok.textMuted}>{'   the model this session runs on · /model changes it'}</Text>
             </Text>
           </InteractiveRow>
         ) : null}
         <InteractiveRow {...rowClick('theme', '/critter')}>
           <Text>
-            <Text color={tok.textMuted}>{'  theme   '}</Text>
+            <Text color={tok.textMuted}>{'  critter '}</Text>
             <Text color={accent}>{critterLabel}</Text>
           </Text>
         </InteractiveRow>

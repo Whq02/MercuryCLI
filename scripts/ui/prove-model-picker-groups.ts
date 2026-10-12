@@ -237,7 +237,7 @@ section('§1 the home state at 178x51: header · groups · doors · rows · orde
   const tail = lines.filter(line => /[A-Za-z]/.test(inner(line))).slice(-3).map(line => inner(line).trim())
   check('the foot is the context bar, the effort row, the hint row', tail[0]!.startsWith('context ') && tail[1]!.startsWith('effort  ') && tail[2] === '↑↓ select · ↵ switch · ctrl+w context · → ← fold · tab to search · esc or click outside closes', tail.join(' | '))
   check('the search line sits at the top, right under the title, and says to type', inner(lines[lines.indexOf(title) + 1] ?? '').trim() === '/ type to search by name or id', inner(lines[lines.indexOf(title) + 1] ?? '').trim())
-  check('the effort row keeps the ladder, ends at max and names its chord', tail[1]!.includes('[max]') && /\[max\]\s+·/.test(tail[1]!) && tail[1]!.endsWith('ctrl+e cycles'), tail[1])
+  check('the effort row keeps the ladder, ends at max and names its key', tail[1]!.includes('[max]') && /\[max\]\s+·/.test(tail[1]!) && tail[1]!.endsWith('ctrl+e changes it'), tail[1])
   check('the picker fits 178x51 whole', lines.length <= 51 && lines.every(line => line.length <= 178))
 
   section('§2 fold: ← walks to the heading and folds, → unfolds; ↵ on a heading toggles')

@@ -1,5 +1,6 @@
 import chalk from 'chalk'
 
+import { colorStripped } from '../ink/colorize.js'
 import { supportsHyperlinks } from '../ink/session/capabilities.js'
 
 const OSC8_START = '\u001b]8;;'
@@ -12,6 +13,6 @@ export function createHyperlink(
 ): string {
   const supported = options?.supportsHyperlinks ?? supportsHyperlinks()
   if (!supported) return url
-  const text = chalk.blue(content ?? url)
+  const text = colorStripped() ? (content ?? url) : chalk.blue(content ?? url)
   return `${OSC8_START}${url}${OSC8_END}${text}${OSC8_START}${OSC8_END}`
 }
