@@ -17,13 +17,33 @@ export interface MnemeObservation {
   replaces?: number
 }
 
-const CAP = { text: 2000, source: 60, topicHint: 60 } as const
+export const OBSERVATION_TEXT_LIMIT = 2000
+const CAP = { source: 60, topicHint: 60 } as const
 const clamp = (s: string, n: number): string => (s.length > n ? s.slice(0, n - 1) + '…' : s)
+const withThousands = (n: number): string => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ',')
 const oneLine = (s: string): string => s.replace(/[\r\n]+/g, ' ')
 const sigSafe = (s: string): string => s.replace(/[,<>\r\n]+/g, '-')
 
+export function observationText(text: string): string {
+  return oneLine(String(text ?? '')).trim()
+}
+
+export function observationOverflow(text: string): string | null {
+  const chars = observationText(text).length
+  if (chars <= OBSERVATION_TEXT_LIMIT) return null
+  return `${withThousands(chars)} characters; the limit is ${withThousands(OBSERVATION_TEXT_LIMIT)} per fact — split it into facts under the limit`
+}
+
 export function currentBufferPath(dir: string = mnemeLibraryDir()): string {
   return join(dir, 'current.jsonl')
+}
+
+let lastObservationMs = 0
+
+function observationStamp(): string {
+  const now = Math.max(Date.now(), lastObservationMs + 1)
+  lastObservationMs = now
+  return new Date(now).toISOString()
 }
 
 export function appendObservation(
@@ -32,12 +52,12 @@ export function appendObservation(
 ): boolean {
   if (!mnemeEnabled()) return false
   try {
-    const text = clamp(oneLine(String(input.text ?? '')).trim(), CAP.text)
+    const text = observationText(input.text)
     const source = clamp(sigSafe(String(input.source ?? '')).trim(), CAP.source)
-    if (!text || !source) return false
+    if (!text || !source || text.length > OBSERVATION_TEXT_LIMIT) return false
     const replaces = input.pin === true && Number.isInteger(input.replaces) && (input.replaces as number) > 0 ? { replaces: input.replaces as number } : {}
     const row: MnemeObservation = {
-      ts: new Date().toISOString(),
+      ts: observationStamp(),
       source,
       text,
       ...(input.topicHint ? { topicHint: clamp(String(input.topicHint).trim(), CAP.topicHint) } : {}),

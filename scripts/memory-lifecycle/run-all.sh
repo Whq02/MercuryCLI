@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # gate-class: pure
 # gate-watch: src/mneme/** src/utils/backgroundHousekeeping* src/query/stopHooks* src/services/projectIntel/capsule.ts
+# gate-watch: src/tools/JournalTool/** src/main.tsx
 # gate-watch: src/constants/prompts.ts src/run-core/turn-machine.ts src/utils/gracefulShutdown.ts src/utils/fileHistory.ts
 # gate-watch: src/bootstrap/state.ts src/input-core/command-queue.ts scripts/lib/fixtureApi.ts scripts/lib/firstRunSeed.ts scripts/lib/rows.ts
 # gate-watch: src/components/ExitHandoff.tsx src/commands/exit/exit.tsx src/components/ExitFlow.tsx src/utils/forkedAgent.ts src/utils/config/globalConfig.ts scripts/lib/settingsPopupHarness.ts
@@ -31,6 +32,8 @@ for proof in \
   prove-lineage-retention-zero.ts \
   prove-exit-handoff.ts \
   prove-exit-hosted-road.ts \
+  prove-ephemeral-leaves-nothing.ts \
+  prove-entry-page-journal-label.ts \
 ; do
   echo "── $proof"
   __t=$SECONDS; __rc=0; if ! { "$BUN" run "$here/$proof"; __rc=$?; [ "$__rc" -eq 0 ]; }; then

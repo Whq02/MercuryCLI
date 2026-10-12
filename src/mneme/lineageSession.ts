@@ -1,4 +1,4 @@
-import { getSessionId } from '../bootstrap/state.js'
+import { getSessionId, isSessionPersistenceDisabled } from '../bootstrap/state.js'
 import { getInitialSettings } from '../utils/settings/settings.js'
 import { logForDebugging } from '../utils/debug.js'
 import { getTranscriptPathForSession } from '../utils/sessionStorage/paths.js'
@@ -20,6 +20,10 @@ export const SESSION_CLOSERS_BUDGET_MS = 1_500
 
 export function lineageKept(): boolean {
   return mnemeEnabled() && getInitialSettings().records?.retentionDays !== 0
+}
+
+export function lineageJoined(): boolean {
+  return lineageKept() && !isSessionPersistenceDisabled()
 }
 
 export function openLineageSession(): OpenSession | null {
@@ -67,7 +71,7 @@ export function noteSessionEngine(model: string): void {
     const previousOpen = open
     const projectKey = mnemeProjectKey()
     seen = { projectKey, sessionId, engine: model }
-    if (lineageKept()) {
+    if (lineageJoined()) {
       openEntry(projectKey, { sessionId, model })
       open = { projectKey, sessionId, engine: model }
     } else open = null

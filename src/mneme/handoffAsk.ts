@@ -7,7 +7,7 @@ import { logForDebugging } from '../utils/debug.js'
 import { runForkedAgent, type CacheSafeParams, type ForkedAgentParams } from '../utils/forkedAgent.js'
 import { createUserMessage } from '../utils/messages/factories.js'
 import { ledgerEntryOf, recordHandoff } from './ledger.js'
-import { lineageKept } from './lineageSession.js'
+import { lineageJoined } from './lineageSession.js'
 import { mnemeProjectKey } from './paths.js'
 import { sessionCloseAsks } from './sessionClose.js'
 
@@ -27,7 +27,7 @@ export function sessionEndsWithThisTurn(): boolean {
 }
 
 export function handoffAskDue(input: { agentId?: string; querySource?: string; sessionId?: string }): boolean {
-  if (!lineageKept()) return false
+  if (!lineageJoined()) return false
   if (input.agentId !== undefined) return false
   if (input.querySource !== 'sdk' && input.querySource !== 'main_thread') return false
   const sessionId = input.sessionId ?? String(getSessionId())
@@ -76,7 +76,7 @@ export async function askForHandoff(input: {
   run?: AskRunner
 }): Promise<{ text: string; stored: boolean } | null> {
   const sessionId = input.sessionId ?? String(getSessionId())
-  if (!lineageKept() || asked.has(sessionId)) return null
+  if (!lineageJoined() || asked.has(sessionId)) return null
   asked.add(sessionId)
   const abortController = new AbortController()
   const budget = setTimeout(() => abortController.abort(new Error('the handoff ask ran past its budget')), input.budgetMs ?? HANDOFF_ASK_BUDGET_MS)
@@ -108,7 +108,7 @@ export async function askForHandoff(input: {
     } as ForkedAgentParams)
     if (result.terminal?.reason !== 'completed' || abortController.signal.aborted) return null
     const text = assistantText(result.messages)
-    if (text.trim() === '' || !lineageKept()) return null
+    if (text.trim() === '' || !lineageJoined()) return null
     const entry = recordHandoff(mnemeProjectKey(), sessionId, text)
     return { text, stored: entry?.handoff?.text === text || (entry?.handoff !== null && entry?.handoff !== undefined && text.startsWith(entry.handoff.text)) }
   } catch (error) {

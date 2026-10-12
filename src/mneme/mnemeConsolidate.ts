@@ -248,6 +248,18 @@ interface Consumed {
   landedPins: ManifestRow[]
 }
 
+export function claimBufferFile(dir: string, stem: string): string | null {
+  const current = currentBufferPath(dir)
+  if (!existsSync(current)) return null
+  const claim = join(dir, `${stem}-${process.pid}-${Date.now().toString(36)}.jsonl`)
+  try {
+    renameWithWin32RetrySync(current, claim)
+    return claim
+  } catch {
+    return null
+  }
+}
+
 function consumeBuffer(dir: string): Consumed {
   const files: string[] = []
   const staleManifests: string[] = []
@@ -356,7 +368,7 @@ function tidySummary(tidy: TidyResult): NonNullable<ConsolidateResult['tidy']> {
 
 export function replacementAllowed(target: number, pins: readonly PinRecord[], libraryLive: ReadonlySet<number>): boolean {
   const pin = pins.find(p => p.seq === target)
-  return pin !== undefined && pin.asked !== true && libraryLive.has(target)
+  return pin?.asked !== true && libraryLive.has(target)
 }
 
 function applyNamedReplacements(draft: MnemeDraft, rows: readonly AssignedRow[], pins: readonly PinRecord[], libraryLive: ReadonlySet<number>): void {

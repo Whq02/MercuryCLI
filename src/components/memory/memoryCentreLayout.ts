@@ -332,7 +332,7 @@ export function journalHeading(count: number): string {
 }
 
 export const VIEW_LEGEND = {
-  pinned: 'a pinned rule loads word for word every session · u on a rule unpins it · /config raises the limit',
+  pinned: '↵ opens a rule: c corrects it, x retires it, u unpins it · /config raises the limit',
   topics: 'one page per topic · a page holds its facts and their history',
   lineage: 'every session of this work · a noted session left words for the next one',
   journal: 'kept in the Mercury home, never pushed or synced · /config turns it off',
@@ -433,7 +433,7 @@ export function memoryFooter(state: MemoryFooterState): string {
     case 'search':
       return '↑↓ move · ↵ inspect · esc clears the search'
     case 'pinned':
-      return '↑↓ move · ↵ inspect · u unpin · /config raises the limit · esc back'
+      return '↑↓ move · ↵ open · u unpin · /config raises the limit · esc back'
     case 'topics':
       return '↑↓ move · ↵ open the page · esc back'
     case 'lineage':
