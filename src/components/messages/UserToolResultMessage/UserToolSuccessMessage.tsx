@@ -100,6 +100,7 @@ export function UserToolSuccessMessage({
           hookEvent="tool.after"
           toolUseID={toolUseID}
           lookups={lookups}
+          progress={progressMessagesForMessage}
           isTranscriptMode={isTranscriptMode}
         />
       </RowErrorBoundary>

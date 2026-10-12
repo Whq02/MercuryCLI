@@ -4,6 +4,9 @@ export type HookProgress = {
   type: 'hook_progress'
   event: HookEvent
   name: string
-  state: 'running' | 'ran'
+  state: 'running' | 'ran' | 'waiting'
   count: number
+  timeoutS?: number
+  elapsedS?: number
+  line?: string
 }

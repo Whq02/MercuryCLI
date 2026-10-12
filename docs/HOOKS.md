@@ -46,6 +46,10 @@ and may carry:
 
 - `name` — the words every line about the hook uses, and the status row
   while it runs; without it, the first line of the command or question.
+  While a `tool.before` or `tool.after` hook holds a call, the working strip
+  and the call's own row read `waiting on hook <name> · 12 s of 30` — the
+  seconds so far against the hook's timeout — until the hook answers or is
+  ended.
 - `match` — names (`Bash`, `Read|Edit`) or a regular expression, matched
   against the event's match field in the table below. Absent, or `*`, matches
   everything. An entry whose match is not a valid regular expression is a
