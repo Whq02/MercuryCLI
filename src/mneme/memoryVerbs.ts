@@ -2,7 +2,7 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { mnemeEnabled, mnemeLibraryDir } from './mnemeGates.js'
-import { appendObservation, pendingRows } from './mnemeBuffer.js'
+import { appendObservation, observationOverflow, pendingRows } from './mnemeBuffer.js'
 import { listArchiveDocs, listTopicDocs } from './mnemeLibrary.js'
 import { grepAll, readDocLines, catalogDocs, pageFileForSlug, PENDING_SLUG } from './mnemeRetrieval.js'
 import { correctFact, pointFact, retireFact, userAskedRuleMessage, type MnemeCorrectResult } from './mnemeCorrect.js'
@@ -85,6 +85,11 @@ export function retainItems(
     const topic = item.topic?.trim() ?? ''
     const replaces = item.replaces?.trim() ?? ''
     const text = context ? `${content} (context: ${context})` : content
+    const overflow = observationOverflow(text)
+    if (overflow !== null) {
+      outcomes.push({ index, status: 'refused', reason: context ? overflow.replace(' characters;', ' characters with its context;') : overflow })
+      return
+    }
     const duplicateKey = text
     const existing = sessionRetained.get(duplicateKey)
     if (existing) {
@@ -115,7 +120,7 @@ export function retainItems(
         index,
         status: 'refused',
         reason: mnemeEnabled()
-          ? 'the buffer append failed (disk error or over-cap content) — the fact was NOT stored'
+          ? 'the buffer append failed (a disk error) — the fact was NOT stored'
           : 'memory is off — nothing was stored',
       })
       return
