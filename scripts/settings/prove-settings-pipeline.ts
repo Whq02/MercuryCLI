@@ -172,9 +172,17 @@ section('(4) invalid-file taxonomy')
   resetSettingsCache()
   const parsed = parseSettingsFile(userPath)
   check(
-    'JSON syntax error → settings null + a malformed-JSON validation error',
-    parsed.settings === null && parsed.errors.some(e => /malformed JSON/i.test(e.message)),
+    'JSON syntax error on a file read good before → the last good settings are held + a malformed-JSON validation error graded held',
+    parsed.settings !== null && parsed.errors.length === 1 && parsed.errors.every(e => /malformed JSON/i.test(e.message) && e.severity === 'held'),
     j(parsed),
+  )
+  const neverGood = join(HOME, 'never-good.json')
+  writeFileSync(neverGood, '{ not json')
+  const fresh = parseSettingsFile(neverGood)
+  check(
+    'JSON syntax error on a file never read good → settings null + the malformed-JSON validation error',
+    fresh.settings === null && fresh.errors.some(e => /malformed JSON/i.test(e.message) && e.severity === undefined),
+    j(fresh),
   )
 
   writeFileSync(userPath, JSON.stringify({ engine: { model: 42 } }))

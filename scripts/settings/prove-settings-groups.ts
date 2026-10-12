@@ -140,7 +140,10 @@ try {
       }
     }
   }
-  check('engine effort invalid value degrades to absence', valueAt(SettingsSchema().parse({ engine: { effort: 'not-an-effort' } }), 'engine.effort') === undefined)
+  check('engine effort invalid value is refused by the schema', !SettingsSchema().safeParse({ engine: { effort: 'not-an-effort' } }).success)
+  fixture([{ engine: { effort: 'not-an-effort', model: 'fixture-model' } }])
+  const badEffort = pipeline.getSettingsWithErrors()
+  check('engine effort invalid value is dropped alone by the loader and named', valueAt(badEffort.settings, 'engine.effort') === undefined && valueAt(badEffort.settings, 'engine.model') === 'fixture-model' && badEffort.errors.some(error => error.path === 'engine.effort'))
   for (const value of [1, null, {}, 'not-a-boolean']) {
     check('extension lock fails closed', valueAt(SettingsSchema().parse({ extensions: { exclusive: value } }), 'extensions.exclusive') === true)
   }

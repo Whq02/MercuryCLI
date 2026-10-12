@@ -10,6 +10,8 @@ import { FOCAL_TICK_MS, WORK_TICK_MS } from '../../utils/cockpit/liveGlyphs.js'
 import { getLiveContextUsage } from '../../utils/cockpit/contextUsageLive.js'
 import { GLYPH } from '../mercury-ui/glyphs.js'
 import { GlimmerMessage } from './GlimmerMessage.js'
+import { hookWaitLineOf } from '../../utils/hooks/wait.js'
+import { getEphemeralProgressFrame, useEphemeralProgressVersion } from '../../state/ephemeralProgressStore.js'
 import { SpinnerGlyph } from './SpinnerGlyph.js'
 import { useShimmerAnimation } from './useShimmerAnimation.js'
 import { useStalledAnimation } from './useStalledAnimation.js'
@@ -40,12 +42,15 @@ type SpinnerAnimationRowProps = {
   totalPausedMsRef: React.MutableRefObject<number>
   pauseStartTimeRef: React.MutableRefObject<number | null>
   spinnerSuffix?: string | null
+  hookWaitKeys?: readonly string[]
   verbose: boolean
   columns: number
   effortSuffix?: string
   inWorkCapsule?: boolean
   still?: boolean
 }
+
+const NO_KEYS: readonly string[] = []
 
 export function SpinnerAnimationRow(props: SpinnerAnimationRowProps): React.ReactNode {
   const {
@@ -63,6 +68,7 @@ export function SpinnerAnimationRow(props: SpinnerAnimationRowProps): React.Reac
     totalPausedMsRef,
     pauseStartTimeRef,
     spinnerSuffix,
+    hookWaitKeys = NO_KEYS,
     verbose,
     columns,
     effortSuffix,
@@ -125,7 +131,8 @@ export function SpinnerAnimationRow(props: SpinnerAnimationRowProps): React.Reac
 
   const ctxPctRaw = getLiveContextUsage().usedPct
   const ctxPct = ctxPctRaw != null ? Math.round(ctxPctRaw) : null
-  const suffixText = spinnerSuffix ?? ''
+  useEphemeralProgressVersion(hookWaitKeys)
+  const suffixText = spinnerSuffix ?? hookWaitLineOf(hookWaitKeys.map(getEphemeralProgressFrame)) ?? ''
 
   const plan = planSpinnerHud(
     {

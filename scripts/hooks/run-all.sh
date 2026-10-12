@@ -16,6 +16,7 @@
 # gate-watch: src/utils/sessionStorage/rowGraph.ts src/utils/sessionStorage/transcriptReader.ts src/utils/conversationRecovery.ts
 # gate-watch: src/components/Messages.tsx src/ink.ts src/state/AppState.tsx src/state/AppStateStore.ts src/tools.ts
 # gate-watch: src/utils/shell/powershellDetection.ts
+# gate-watch: src/utils/settings/faultNotices.ts src/utils/settings/validation.ts scripts/lib/scriptedTurn.ts scripts/lib/firstRunSeed.ts
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }
@@ -33,6 +34,8 @@ __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-hook-session
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-session-start-model.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-session-start-model.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-hook-tool-road.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-hook-tool-road.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-hook-turn-road.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-hook-turn-road.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-hooks-survive-broken-settings.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-hooks-survive-broken-settings.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-hooks-untrusted-said.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-hooks-untrusted-said.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-hook-cut.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-hook-cut.ts" "$__t" "$__rc"
 if [[ "$fail" == "0" ]]; then echo "✅ HOOKS SUITE GREEN"; exit 0; else
   echo "❌ HOOKS SUITE RED"; exit 1; fi

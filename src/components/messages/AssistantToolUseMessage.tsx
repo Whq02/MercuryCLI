@@ -280,6 +280,7 @@ export function AssistantToolUseMessage({
           hookEvent="tool.before"
           toolUseID={param.id}
           lookups={lookups}
+          progress={progressMessagesForMessage}
           isTranscriptMode={isTranscriptMode}
         />
         {totalBody}

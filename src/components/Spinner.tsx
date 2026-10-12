@@ -58,6 +58,7 @@ export type SpinnerWithVerbProps = {
   overrideMessage?: string | null
   still?: boolean
   spinnerSuffix?: string | null
+  hookWaitKeys?: readonly string[]
   verbose: boolean
   hasActiveTools: boolean
   activeToolCount: number
@@ -93,6 +94,7 @@ export function SpinnerWithVerb({
   overrideMessage,
   still = false,
   spinnerSuffix,
+  hookWaitKeys,
   verbose,
   hasActiveTools,
   activeToolCount,
@@ -207,6 +209,7 @@ export function SpinnerWithVerb({
       totalPausedMsRef={totalPausedMsRef}
       pauseStartTimeRef={pauseStartTimeRef}
       spinnerSuffix={spinnerSuffix}
+      hookWaitKeys={hookWaitKeys}
       verbose={verbose}
       columns={columns}
       effortSuffix={getEffortSuffix(engineModel, appEffort)}

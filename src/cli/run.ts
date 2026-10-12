@@ -241,7 +241,8 @@ import {
 } from '../utils/sessionState.js'
 import { generateSessionTitle } from '../utils/sessionTitle.js'
 import { getSettingsWithSources } from '../utils/settings/settings.js'
-import { getSettingsWithAllErrors } from '../utils/settings/allErrors.js'
+import { currentSettingsFaults, untoldSettingsFaults } from '../utils/settings/faultNotices.js'
+import { hooksSkippedForTrustLine } from '../utils/hooks/hooksConfigSnapshot.js'
 import { settingsFaultLine } from '../utils/settings/validation.js'
 import { settingsChangeDetector } from '../utils/settings/changeDetector.js'
 import { applySettingsChange } from '../utils/settings/applySettingsChange.js'
@@ -388,9 +389,11 @@ export async function runHeadless(
   markSessionBootRules(getAppState().toolPermissionContext)
   const shellRoadNotice = windowsShellRoadNotice()
   if (shellRoadNotice !== null) process.stderr.write(`${shellRoadNotice}\n`)
-  for (const fault of getSettingsWithAllErrors().errors) {
-    if (fault.mcpErrorMetadata === undefined) process.stderr.write(`${GLYPH.warn} ${settingsFaultLine(fault)}\n`)
+  for (const fault of options.door === 'wire' ? currentSettingsFaults() : untoldSettingsFaults()) {
+    process.stderr.write(`${GLYPH.warn} ${settingsFaultLine(fault)}\n`)
   }
+  const skippedHooks = hooksSkippedForTrustLine()
+  if (skippedHooks !== null && options.door !== 'wire') process.stderr.write(`${GLYPH.warn} ${skippedHooks}\n`)
   const streamingInput = typeof inputPrompt !== 'string'
   noteHeadlessActivity(
     options.outputFormat === 'rows' && streamingInput ? 'sdk' : 'print',

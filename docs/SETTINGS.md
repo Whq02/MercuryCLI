@@ -4,7 +4,9 @@ Mercury keeps settings in JSON files. `/config` opens the settings screen;
 `/model`, `/effort`, `/permissions`, `/memory` and the MCPs & Skills menu
 provide the focused controls. This page covers the grouped keys you can set
 in a file. The Boot Menu also keeps machine and session choices of its own;
-not every screen row is a key in `settings.json`.
+not every screen row is a key in `settings.json`. `/config`'s header counts
+the rows you set: a settings file names the row's key, or a saved choice
+differs from Mercury's default.
 
 ## Files and precedence
 
@@ -19,7 +21,10 @@ From lowest to highest priority:
    `managed-settings.json` and platform-managed policy.
 
 Objects merge by key and arrays combine, with repeated scalar entries kept
-once. A scalar in a higher-priority source wins. `--config-layers user,local` selects which
+once. A scalar in a higher-priority source wins. A running session reads an
+edit to any of these files as it lands, a `.mercury/` folder created while
+the session runs included — a rule a permission card saves into it is
+honoured on the next call. `--config-layers user,local` selects which
 of the three user-owned sources load; flag settings and managed policy still
 apply. Permission denies and managed locks remain binding.
 
@@ -28,8 +33,13 @@ The schema at `<config home>/schema/settings.schema.json` belongs to the
 installed build and works offline. Use it for completion and validation.
 A value Mercury cannot read, and a key it does not know, is named where
 settings faults are reported: the health check's Settings row, the chat's
-settings notice, and one `settings:` line on stderr at the start of a
-headless run; the rest of the file still applies.
+settings notice, one line in the chat at the start of the next turn (said
+once, and again only if the fault goes away and comes back), and one
+`settings:` line on stderr at the start of a headless run; the rest of the
+file still applies. A file that does not parse at all is left out whole at
+launch; a file that stops parsing while a session is open keeps its last good
+settings in force — its hooks and rules keep working — and the line says so,
+until the file reads again.
 Settings that execute project commands still require workspace trust
 ([TRUST.md](TRUST.md)). Keep secrets in `/logins` or a credential helper,
 not in a shared project file.
@@ -184,7 +194,7 @@ the server definitions themselves.
 | `activity.tips.enabled` | Whether activity tips are shown. |
 | `activity.tips.words` | Custom tips: `tips` is a string list and `excludeDefault` chooses whether the built-in tips also appear. |
 | `activity.verbs` | Custom activity verbs: `verbs` is a string list and `mode` is `append` or `replace`. |
-| `activity.progress` | Terminal progress reporting. |
+| `activity.progress` | The ring in the terminal tab while a turn runs: `false` turns it off, `true` keeps it on where the terminal draws one; unset, the terminal's own capability decides. `/config`'s Terminal progress bar row reads it and names it when set. |
 | `view.files` | Shows the FILES box in the sidebar. |
 | `view.modelPicker.centred` | Centres the model picker; `false` places it at the left edge. |
 | `view.syntaxOff` | Disables syntax colouring. |

@@ -2060,6 +2060,7 @@ export function Chat({
     !textActive || streamingSuppressed
   );
   const spinnerSuffix = stopHookSuffix(messages, isLoading);
+  const hookWaitKeys = useMemo(() => [...viewInProgressToolUseIDs], [viewInProgressToolUseIDs]);
   const compactStatus = isCompact && hasSeatLive(focusedConnector) ? statusLine(seatLive, { ...focusedConnector.status(), wait: null }, null, true) : '';
   const workingStatusStrip = <Box flexDirection="column">
     {showSpinner || (isCompact && spinnerSlotReserved) ? (
@@ -2076,6 +2077,7 @@ export function Chat({
         overrideMessage={compactStatus !== '' && compactStatus !== 'ready' ? compactStatus : viewCompacting ? FOLD_ROW_HEAD : viewAgentWait}
         still={viewCompacting}
         spinnerSuffix={spinnerSuffix ?? null}
+        hookWaitKeys={hookWaitKeys}
         verbose={verbose}
         hasActiveTools={viewInProgressToolUseIDs.size > 0}
         activeToolCount={viewInProgressToolUseIDs.size}

@@ -494,7 +494,7 @@
       "type": "object",
       "properties": {
         "hooks": {
-          "description": "The hooks, by event: one entry per hook with its own match; docs/HOOKS.md defines the events",
+          "description": "The hooks, by event: one entry per hook with its own match; the Hooks page of the built-in docs defines the events and the entry — ask Mercury how hooks work (the mercury-docs skill reads docs/HOOKS.md, shipped inside Mercury)",
           "type": "object",
           "propertyNames": {
             "type": "string",

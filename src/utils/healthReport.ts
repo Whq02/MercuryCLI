@@ -2400,12 +2400,30 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
             const order = firstParty.candidates
               .map(c => `${c.family}@${c.rank} ${c.eligible ? 'eligible' : c.code}`)
               .join(' · ')
+            const computed =
+              decision.source === 'keyless'
+                ? describeComputedDefault(decision, providerDisplayName)
+                : `fresh-session default ${renderModelChip(decision.setting)} · ${describeComputedDefault(decision, providerDisplayName)}`
+            const pinned = getUserSpecifiedModelSetting()
+            if (pinned !== null) {
+              let resolved = pinned
+              try {
+                resolved = parseUserSpecifiedModel(pinned)
+              } catch {
+                resolved = pinned
+              }
+              const { getEngineModelOverride } = require('../bootstrap/state.js') as typeof import('../bootstrap/state.js')
+              const pinSource = getEngineModelOverride() !== undefined ? 'the --model flag' : process.env.MERCURY_MODEL ? 'MERCURY_MODEL' : 'the settings pin engine.model'
+              return {
+                status: 'info' as const,
+                evidence: `fresh-session default ${renderModelChip(resolved)} · ${pinSource}${resolved !== pinned ? ` '${pinned}' (resolved)` : ''} — without the pin: ${computed.replace(/^fresh-session default /, '')}`,
+                detail: `first-party gating: ${describeFrontierDecision(firstParty)} — candidates: ${order}`,
+                link: '/model',
+              }
+            }
             return {
               status: 'info' as const,
-              evidence:
-                decision.source === 'keyless'
-                  ? describeComputedDefault(decision, providerDisplayName)
-                  : `fresh-session default ${renderModelChip(decision.setting)} · ${describeComputedDefault(decision, providerDisplayName)}`,
+              evidence: computed,
               detail: `first-party gating: ${describeFrontierDecision(firstParty)} — candidates: ${order}`,
               link: '/model',
             }
