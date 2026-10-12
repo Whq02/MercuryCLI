@@ -11,7 +11,7 @@ const journalSchema = lazySchema(() =>
     entry: z
       .string()
       .describe(
-        `Your account of this session, first person, plain words: what happened, what the operator wanted, what you noticed about how they like to work, what you got wrong. Under ${JOURNAL_ENTRY_CAP} characters.`,
+        `A brief entry: where the project is, what the queued backlog is, and constraints set by the operator. Plain words, concise, no longer than a sentence (under ${JOURNAL_ENTRY_CAP} characters).`,
       ),
   }),
 )

@@ -21,7 +21,7 @@ export type JournalStageOutcome = { staged: true; chars: number; replaced: boole
 
 export function journalEnabled(): boolean {
   if (!isMnemeEnabled()) return false
-  return getInitialSettings().memory?.journal !== false
+  return getInitialSettings().memory?.journal === true
 }
 
 export function journalOnEntryPage(): boolean {
@@ -134,7 +134,7 @@ export function installJournalCloser(): void {
   closerInstalled = registerSessionCloser(journalCloser)
 }
 
-export const JOURNAL_ASK = `Before this session ends, write its journal entry with the ${JOURNAL_TOOL_NAME} tool: what happened, what the operator wanted, what you noticed about how they like to work, what you got wrong. Plain words, kept short; a fault is yours and said so.`
+export const JOURNAL_ASK = `Before the session ends, write a brief entry into the journal with the ${JOURNAL_TOOL_NAME} tool: where the project is, what the queued backlog is, and constraints set by the operator. Plain words, concise, no longer than a sentence.`
 
 export function journalAsk(sessionId: string): SessionCloseAsk | null {
   if (!journalEnabled() || staged.has(sessionId)) return null
