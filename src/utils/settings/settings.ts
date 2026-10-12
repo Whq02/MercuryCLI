@@ -25,12 +25,15 @@ import { getManagedFilePath, getManagedSettingsDropInDir } from './managedPath.j
 import { getHkcuSettings, getMdmSettings } from './mdm/settings.js'
 import { markInternalWrite } from './internalWrites.js'
 import {
+  forgetLastGoodParsedFile,
   getCachedParsedFile,
   getCachedSettingsForSource,
+  getLastGoodParsedFile,
   getSessionSettingsCache,
   resetSettingsCache,
   setCachedParsedFile,
   setCachedSettingsForSource,
+  setLastGoodParsedFile,
   setSessionSettingsCache,
 } from './settingsCache.js'
 import type { SettingsJson } from './types.js'
@@ -55,12 +58,27 @@ function cloneParsed(value: { settings: SettingsJson | null; errors: ValidationE
 }
 
 function parseSettingsFileUncached(filePath: string): { settings: SettingsJson | null; errors: ValidationError[] } {
+  const parsed = readSettingsFileUncached(filePath)
+  if (parsed.settings !== null) {
+    setLastGoodParsedFile(filePath, structuredClone(parsed.settings))
+    return parsed
+  }
+  const lastGood = getLastGoodParsedFile(filePath)
+  if (lastGood === undefined || !parsed.errors.some(error => error.path === '' && error.severity === undefined)) return parsed
+  return {
+    settings: structuredClone(lastGood),
+    errors: parsed.errors.map(error => (error.path === '' && error.severity === undefined ? { ...error, severity: 'held' as const } : error)),
+  }
+}
+
+function readSettingsFileUncached(filePath: string): { settings: SettingsJson | null; errors: ValidationError[] } {
   let raw: string
   try {
     raw = readFileSync(filePath)
   } catch (error) {
     if (isENOENT(error)) {
       logForDebugging(`settings file absent: ${filePath}`)
+      forgetLastGoodParsedFile(filePath)
       return { settings: null, errors: [] }
     }
     logError(error)
