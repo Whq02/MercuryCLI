@@ -320,7 +320,7 @@ export async function validateModel(model: string): Promise<ValidateModelResult>
   const recognition = recognizeModelId(trimmed)
 
   try {
-    await queryModelWithoutStreaming({
+    const answer = await queryModelWithoutStreaming({
       messages: [createUserMessage({ content: 'hi' })],
       systemPrompt: asSystemPrompt([]),
       thinkingConfig: { type: 'disabled' },
@@ -340,6 +340,19 @@ export async function validateModel(model: string): Promise<ValidateModelResult>
         skipCacheWrite: true,
       },
     } as never)
+    if (answer.isApiErrorMessage === true) {
+      const said = answer.message.content
+        .map(block => (block.type === 'text' ? block.text : ''))
+        .join(' ')
+        .trim()
+      if (/\b404\b|not found|not served|does not exist/i.test(said)) {
+        return {
+          valid: false,
+          error: `Model not found — ${trimmed} is not served to this account (${said}). The /model picker lists the live catalogues.`,
+        }
+      }
+      return { valid: false, error: `Unable to validate model: ${said}` }
+    }
     validatedModels.add(trimmed)
     return { valid: true }
   } catch (error) {

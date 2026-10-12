@@ -123,7 +123,7 @@ import { providerDisplayName } from '../../services/providers/routeLaw.js'
 import { catalogueEpoch } from '../../services/providers/catalogueEpoch.js'
 import { signInLedgerEpoch } from '../../utils/accounts/signInLedger.js'
 import { getSubscriptionType } from '../../utils/auth.js'
-import { orderPickerRows, type ProviderHeading } from '../../utils/model/modelPickerGroups.js'
+import { matchesPickerFilter, orderPickerRows, type ProviderHeading } from '../../utils/model/modelPickerGroups.js'
 import { readModelUseLedger, recordModelUse } from '../../utils/model/modelUseLedger.js'
 import { has1mContext } from '../../utils/context.js'
 import {
@@ -143,6 +143,8 @@ import { updateSettingsForSource } from '../../utils/settings/settings.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { useCatalogueEpoch } from '../../hooks/useCatalogueEpoch.js'
 import { persistModelChoice } from './persistModelChoice.js'
+import { matchReachableModelName, modelNameAskWords, reachableModelEntries } from '../../utils/model/modelNameRoad.js'
+import { COMMON_HELP_ARGS, COMMON_INFO_ARGS } from '../../constants/xml.js'
 
 const CATALOGUE_DOORS: Record<string, () => ModelOption[]> = {
   [OPENROUTER_MODEL_GROUP]: () => getOpenrouterFullModelOptions(),
@@ -712,15 +714,19 @@ function noteModelUse(setting: string, door?: string): void {
 
 type PickRoad = { flip: boolean; door?: string }
 
+type ModelNameAsk = { notice: string; filter: string }
+
 function MercuryModelWrapper({
   messages,
   onDone,
+  ask,
 }: {
   messages: Message[]
   onDone: (
     result?: string,
     options?: { display?: CommandResultDisplay; nextInput?: string; submitNextInput?: boolean },
   ) => void
+  ask?: ModelNameAsk
 }): React.ReactNode {
   const engineModel = useAppState(s => s.engineModel)
   const engineModelForSession = useAppState(s => s.engineModelForSession)
@@ -772,7 +778,7 @@ function MercuryModelWrapper({
           ? `Effort switch queued: ${level} applies when this session's turn settles`
           : receipt.state === 'no-op'
             ? `Already on ${level}`
-            : `Effort set to ${level} — this session's next request runs it`,
+            : `Effort set to ${level} — this session's next request runs it · saved as your default for future sessions`,
       )
     })
     return true
@@ -804,7 +810,7 @@ function MercuryModelWrapper({
     ctxPct = null
   }
 
-  const [notice, setNotice] = React.useState<string | undefined>(undefined)
+  const [notice, setNotice] = React.useState<string | undefined>(ask?.notice)
   const [transitionConfirm, setTransitionConfirm] = React.useState<{
     value: string
     id: string
@@ -1155,9 +1161,9 @@ function MercuryModelWrapper({
       notice={notice}
       headings={headings}
       {...(topGroup !== undefined ? { topGroup } : {})}
-      onSlotSwitch={handleSlotSwitch}
       expandRows={expandRows}
       {...(pendingNext !== undefined ? { pendingNext } : {})}
+      {...(ask !== undefined && ask.filter !== '' ? { initialFilter: ask.filter } : {})}
       onSelect={handleSelect}
       onClose={() =>
         onDone(
@@ -1179,8 +1185,7 @@ export function MercuryModelDefaultPicker({ onDone, onSignIn }: { onDone: () => 
   const model = nextBirthModel() ?? getEngineModel()
   const efforts = modelSupportsEffort(model) ? [...selectableEffortLevels(model)] : []
   const [effort, setEffort] = React.useState<string>(() => getDisplayedEffortLabel(model, getInitialEffortSetting()))
-  const [slotVersion, setSlotVersion] = React.useState(0)
-  void slotVersion
+  const [slotVersion] = React.useState(0)
   const [notice, setNotice] = React.useState<string | undefined>(undefined)
   useCatalogueRefreshOnOpen(GPT_ROAD, setNotice)
   useCatalogueRefreshOnOpen(OPENROUTER_ROAD, setNotice)
@@ -1251,7 +1256,6 @@ export function MercuryModelDefaultPicker({ onDone, onSignIn }: { onDone: () => 
       notice={notice}
       headings={providerHeadingsOf(slotVersion)}
       {...(topGroup !== undefined ? { topGroup } : {})}
-      onSlotSwitch={group => slotSwitchOf(group, () => setSlotVersion(v => v + 1))}
       expandRows={group => expandRowsOf(group, betas)}
       onSelect={handleSelect}
       onClose={onDone}
@@ -1279,8 +1283,7 @@ export function MercurySessionModelPicker({
   const model = currentModel ?? nextBirthModel() ?? getEngineModel()
   const efforts = modelSupportsEffort(model) ? [...selectableEffortLevels(model)] : []
   const effort = currentEffort ?? 'default'
-  const [slotVersion, setSlotVersion] = React.useState(0)
-  void slotVersion
+  const [slotVersion] = React.useState(0)
   const [notice, setNotice] = React.useState<string | undefined>(undefined)
   useCatalogueRefreshOnOpen(GPT_ROAD, setNotice)
   useCatalogueRefreshOnOpen(OPENROUTER_ROAD, setNotice)
@@ -1326,7 +1329,6 @@ export function MercurySessionModelPicker({
       notice={notice}
       headings={providerHeadingsOf(slotVersion)}
       {...(topGroup !== undefined ? { topGroup } : {})}
-      onSlotSwitch={group => slotSwitchOf(group, () => setSlotVersion(v => v + 1))}
       expandRows={group => expandRowsOf(group, betas)}
       onSelect={handleSelect}
       onClose={onDone}
@@ -1335,15 +1337,28 @@ export function MercurySessionModelPicker({
 }
 
 export const call: LocalJSXCommandCall = async (onDone, context, args) => {
-  if (args?.trim()) {
-    const base = await import('./model.js')
-    return base.call(onDone, context, args)
+  const typed = args?.trim() ?? ''
+  let ask: ModelNameAsk | undefined
+  if (typed !== '') {
+    const lowered = typed.toLowerCase()
+    const matched = COMMON_INFO_ARGS.includes(lowered) || COMMON_HELP_ARGS.includes(lowered) ? null : matchReachableModelName(typed)
+    if (matched === null || matched.kind === 'exact') {
+      const base = await import('./model.js')
+      return base.call(onDone, context, matched === null ? typed : matched.id)
+    }
+    if (matched.kind === 'match') {
+      const base = await import('./model.js')
+      return base.call((result, options) => onDone(result === undefined ? undefined : `${matched.said} · ${result}`, options), context, matched.id)
+    }
+    const options = getModelOptions()
+    const filter = reachableModelEntries().some(entry => matchesPickerFilter({ id: entry.id, name: entry.name ?? '', tag: '', group: '' }, typed)) ? typed : ''
+    ask = { notice: modelNameAskWords(matched, id => pickLabelOf(options, id)), filter }
   }
   claimModelPickerPopup()
   return (
     <ModelPickerPopupLease>
       <MercuryModelLandingGate>
-        <MercuryModelWrapper messages={context.messages ?? []} onDone={onDone} />
+        <MercuryModelWrapper messages={context.messages ?? []} onDone={onDone} {...(ask !== undefined ? { ask } : {})} />
       </MercuryModelLandingGate>
     </ModelPickerPopupLease>
   )

@@ -50,11 +50,13 @@ console.log('§3 the poison from the real command table')
   if (commands === null || !Array.isArray(commands) || commands.length === 0) {
     console.log('  [INFO] the live command table did not assemble in this harness — §3 rides §1/§2')
   } else {
-    const themed = generateCommandSuggestions('/theme', commands as never)
+    const themed = generateCommandSuggestions('/motion', commands as never)
     const modeled = generateCommandSuggestions('/mo', commands as never)
-    check('the live "/theme" menu is non-empty (the description match still SHOWS — only the bare ↵ refuses it)', themed.length > 0)
-    check('its top row is not name-anchored (the guard bites)', themed.length > 0 && !isNameAnchoredSuggestion('/theme', themed[0]!))
+    const aliased = generateCommandSuggestions('/theme', commands as never)
+    check('the live "/motion" menu is non-empty (the description match still SHOWS — only the bare ↵ refuses it)', themed.length > 0)
+    check('its top row is not name-anchored (the guard bites)', themed.length > 0 && !isNameAnchoredSuggestion('/motion', themed[0]!))
     check('the live "/mo" top row IS name-anchored (completion keeps working)', modeled.length > 0 && isNameAnchoredSuggestion('/mo', modeled[0]!))
+    check('the live "/theme" top row IS name-anchored since theme became a second name of /appearance (an alias anchors)', aliased.length > 0 && isNameAnchoredSuggestion('/theme', aliased[0]!) && aliased[0]!.displayText === '/appearance (theme)', aliased[0]?.displayText)
   }
 }
 

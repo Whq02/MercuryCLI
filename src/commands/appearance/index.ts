@@ -4,7 +4,8 @@ import { currentStoredThemeSetting } from '../../components/design-system/ThemeP
 const appearance = {
   type: 'local-jsx',
   name: 'appearance',
-  description: 'Appearance — theme, accent, and motion in one place',
+  aliases: ['theme'],
+  description: 'Appearance — theme, accent, and motion in one place (also /theme)',
   argumentHint: '[accent <name|#hex|reset>]',
   currentValue: () => currentStoredThemeSetting(),
   isEnabled: () => true,

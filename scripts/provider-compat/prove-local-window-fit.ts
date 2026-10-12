@@ -265,7 +265,7 @@ section("6 · the words: the picker's w row, the /config row, the rail's reason 
   __pinLocalServerTruthForTest(OWNER_BOX)
   w.__resetLocalWindowsForTest()
   const record = localRecordFor(`local/${MODEL_27}`)!
-  check('before any send the w row already says what auto will pick: auto → 256k max', w.localWindowChoiceLine(record, { wide: true }) === 'window · not loaded · max 256k · [auto → 256k max] · server · 32k · 64k · 128k · max · number · w cycles', w.localWindowChoiceLine(record, { wide: true }))
+  check('before any send the w row already says what auto will pick: auto → 256k max', w.localWindowChoiceLine(record, { wide: true }) === 'window · not loaded · max 256k · [auto → 256k max] · server · 32k · 64k · 128k · max · number · ctrl+w cycles', w.localWindowChoiceLine(record, { wide: true }))
   w.decideLocalWindow(record, 73_000, undefined)
   check('after the send it says held with the reason: auto → 256k max held', w.localWindowChoiceLine(record, { wide: true }).includes('[auto → 256k max held]'), w.localWindowChoiceLine(record, { wide: true }))
   check('the /config value words: auto → 256k held this session (the trained max) · num_ctx on every request', w.localWindowValueWords(record, undefined) === 'auto → 256k held this session (the trained max) · num_ctx on every request', w.localWindowValueWords(record, undefined))
@@ -277,7 +277,7 @@ section("6 · the words: the picker's w row, the /config row, the rail's reason 
   const nine = localRecordFor(`local/${MODEL_9}`)!
   w.writeLocalWindowSetting(nine, 'max')
   const refused = w.localWindowChoiceLine(nine, { wide: true })
-  check("on a 16 GiB box the 9B's picked max rung refuses politely and names the biggest rung that fits: [max — 14.1 GiB does not fit 12.0 GiB usable · 128k fits]", refused === 'window · not loaded · max 256k · auto → 128k fit · server · 32k · 64k · 128k · [max — 14.1 GiB does not fit 12.0 GiB usable · 128k fits] · number · w cycles', refused)
+  check("on a 16 GiB box the 9B's picked max rung refuses politely and names the biggest rung that fits: [max — 14.1 GiB does not fit 12.0 GiB usable · 128k fits]", refused === 'window · not loaded · max 256k · auto → 128k fit · server · 32k · 64k · 128k · [max — 14.1 GiB does not fit 12.0 GiB usable · 128k fits] · number · ctrl+w cycles', refused)
   w.writeLocalWindowSetting(nine, 131072)
   check('a rung that fits carries no refusal: [128k]', w.localWindowChoiceLine(nine, { wide: true }).includes(' · [128k] · '), w.localWindowChoiceLine(nine, { wide: true }))
   w.writeLocalWindowSetting(nine, 200_000)
@@ -290,13 +290,13 @@ section("6 · the words: the picker's w row, the /config row, the rail's reason 
   const narrow27 = { ...localRecordFor(`local/${MODEL_27}`)! }
   w.writeLocalWindowSetting(narrow27, 131072)
   const narrow = w.localWindowChoiceLine(narrow27, { wide: false })
-  check('the narrow row (80 columns) carries the refusal too; when nothing fits it says so', narrow === 'window · not loaded auto → 32k fit · server · 32k · 64k · [128k — 24.2 GiB does not fit 12.0 GiB usable · no rung fits] · max · w cycles', narrow)
+  check('the narrow row (80 columns) carries the refusal too; when nothing fits it says so', narrow === 'window · not loaded auto → 32k fit · server · 32k · 64k · [128k — 24.2 GiB does not fit 12.0 GiB usable · no rung fits] · max · ctrl+w cycles', narrow)
   w.writeLocalWindowSetting(narrow27, undefined)
   const span = (line: string) => {
     const s = w.localWindowRefusalSpan(line)
     return s === undefined ? undefined : line.slice(s.start, s.end)
   }
-  check('the failure-ink span: the whole bracket on one line; a wrapped head runs to the line end; a wrapped tail runs to the closing bracket; a plain rung has none', span(refused) === '[max — 14.1 GiB does not fit 12.0 GiB usable · 128k fits]' && span('window · [max — 14.1 GiB does not fit') === '[max — 14.1 GiB does not fit' && span('12.0 GiB usable · 128k fits] · number · w cycles') === '12.0 GiB usable · 128k fits]' && span('window · served 256k · [128k] · max · w cycles') === undefined && span('window [auto → 128k fit held] · server') === undefined)
+  check('the failure-ink span: the whole bracket on one line; a wrapped head runs to the line end; a wrapped tail runs to the closing bracket; a plain rung has none', span(refused) === '[max — 14.1 GiB does not fit 12.0 GiB usable · 128k fits]' && span('window · [max — 14.1 GiB does not fit') === '[max — 14.1 GiB does not fit' && span('12.0 GiB usable · 128k fits] · number · ctrl+w cycles') === '12.0 GiB usable · 128k fits]' && span('window · served 256k · [128k] · max · ctrl+w cycles') === undefined && span('window [auto → 128k fit held] · server') === undefined)
   __pinLocalServerTruthForTest(null)
   __resetLocalServerTruthForTest()
   w.__resetLocalWindowsForTest()
@@ -344,7 +344,7 @@ section(`8 · the hybrid law (red on the base): ${HYBRID_27} states one head_cou
   check(`the send writes the decision to the debug log: [local-window] ${HYBRID_27}: 262144 · max — the rule's words`, decisionLine === `[local-window] ${HYBRID_27}: 262144 · max — 256k · 16.5 GiB weights + 8.5 GiB cache of 36.9 GiB usable (48.0 GiB box) · q8_0 · 1 slot`, String(decisionLine))
   const byHand = w.chooseLocalWindow(h27, 73_000, 'max', OWNER_BOX)
   check("the trained max picked by hand is accepted: 256k · the trained max — your setting, no refusal", byHand.window === 262144 && byHand.reason === 'max' && byHand.words === '256k · the trained max — your setting' && w.localWindowRefusalWords(h27, 'max', OWNER_BOX) === undefined && w.localWindowRefusalWords(h27, 262144, OWNER_BOX) === undefined, byHand.words)
-  check("the picker's w row shows [max] with no refusal beside the held auto → 256k max", w.localWindowChoiceLine(h27, { wide: true, setting: 'max', truth: OWNER_BOX }) === 'window · not loaded · max 256k · auto → 256k max held · server · 32k · 64k · 128k · [max] · number · w cycles', w.localWindowChoiceLine(h27, { wide: true, setting: 'max', truth: OWNER_BOX }))
+  check("the picker's w row shows [max] with no refusal beside the held auto → 256k max", w.localWindowChoiceLine(h27, { wide: true, setting: 'max', truth: OWNER_BOX }) === 'window · not loaded · max 256k · auto → 256k max held · server · 32k · 64k · 128k · [max] · number · ctrl+w cycles', w.localWindowChoiceLine(h27, { wide: true, setting: 'max', truth: OWNER_BOX }))
   const nine = w.decideLocalWindow(localRecordFor(`local/${MODEL_9}`)!, 73_000, undefined)
   check(`${MODEL_9} on the same box: 256k max (6.1 GiB weights + 4.3 GiB cache)`, nine.window === 262144 && nine.reason === 'max' && nine.words === '256k · 6.1 GiB weights + 4.3 GiB cache of 36.9 GiB usable (48.0 GiB box) · q8_0 · 1 slot', nine.words)
   const mH27 = { name: HYBRID_27, weightsBytes: WEIGHTS_H27, geometry: gH27!, trainedMax: 262144 }
@@ -375,7 +375,7 @@ section(`8 · the hybrid law (red on the base): ${HYBRID_27} states one head_cou
   w.__resetLocalWindowsForTest()
   const decided = w.decideLocalWindow(loadedRecord, 73_000, undefined)
   check('auto on the loaded record takes the measured arm: 256k max with the measured words', decided.window === 262144 && decided.reason === 'max' && decided.words === MEASURED_WORDS && decided.fit?.measured?.bytes === RESIDENT_H27_128K, `${decided.window} · ${decided.words}`)
-  check("the picker's w row on the loaded record: served 128k, auto → 256k max held", w.localWindowChoiceLine(loadedRecord, { wide: true, truth: OWNER_BOX }) === 'window · served 128k · [auto → 256k max held] · server · 32k · 64k · 128k · max · number · w cycles', w.localWindowChoiceLine(loadedRecord, { wide: true, truth: OWNER_BOX }))
+  check("the picker's w row on the loaded record: served 128k, auto → 256k max held", w.localWindowChoiceLine(loadedRecord, { wide: true, truth: OWNER_BOX }) === 'window · served 128k · [auto → 256k max held] · server · 32k · 64k · 128k · max · number · ctrl+w cycles', w.localWindowChoiceLine(loadedRecord, { wide: true, truth: OWNER_BOX }))
   const { localCallModel } = await import('../../src/services/providers/local/localCallModel.ts')
   const from = hits.length
   const yielded: Array<{ isApiErrorMessage?: boolean }> = []

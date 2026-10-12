@@ -56,7 +56,7 @@ const THEME_OPTIONS: OptionWithDescription<string>[] = REACHABLE_THEME_SETTINGS.
   setting => ({
     label: THEME_LABELS_BY_SETTING[setting] ?? setting,
     value: setting,
-    description: THEME_DESCRIPTIONS_BY_SETTING[setting] ?? 'a Mercury appearance',
+    description: `${THEME_DESCRIPTIONS_BY_SETTING[setting] ?? 'a Mercury appearance'}${setting === DEFAULT_THEME_SETTING ? ' (default)' : ''}`,
   }),
 )
 
@@ -88,8 +88,8 @@ export function ThemePicker({
   onCancel,
 }: ThemePickerProps): React.ReactNode {
   const savedSetting = useThemeSetting()
-  const [themeName] = useTheme()
-  const { setPreviewTheme, savePreview, cancelPreview } = usePreviewTheme()
+  const [themeName, setThemeSetting] = useTheme()
+  const { setPreviewTheme, cancelPreview } = usePreviewTheme()
   const { columns } = useTerminalSize()
   const settings = useSettings()
   const setAppState = useSetAppState()
@@ -183,7 +183,7 @@ export function ThemePicker({
           setPreviewTheme(value)
         }}
         onChange={value => {
-          savePreview()
+          setThemeSetting(value)
           onThemeSelect(value)
         }}
         onCancel={() => {

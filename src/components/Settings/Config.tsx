@@ -55,8 +55,9 @@ import {
   permissionModeTitle,
   type PermissionMode,
 } from '../../utils/permissions/PermissionMode.js'
-import { getEngineModel, modelDisplayString } from '../../utils/model/model.js'
+import { getEngineModel, modelDisplayString, renderModelName } from '../../utils/model/model.js'
 import { glmThinkingLocked } from '../../services/providers/zai/glmPins.js'
+import { modelThinkingAlwaysOn } from '../../utils/model/capabilities.js'
 import { useFocusedServedModel } from '../../hooks/useDisplayedSessionModel.js'
 import { customPatienceSetting, patienceEnvPins, patienceOf, patienceWords } from '../../services/providers/patience.js'
 import {
@@ -214,7 +215,7 @@ export function configRowApplicability(
 
 export function thinkingRowApplicability(
   model: string,
-  reads?: { locked?: (id: string) => boolean; routeOf?: (id: string) => string | null },
+  reads?: { locked?: (id: string) => boolean; routeOf?: (id: string) => string | null; alwaysOn?: (id: string) => boolean; nameOf?: (id: string) => string },
 ): { applies: true } | { applies: false; naText: string; refuseNote: string } {
   const route = reads?.routeOf?.(model) ?? declaredRouteOf(model)
   if (route === 'openai') {
@@ -229,6 +230,13 @@ export function thinkingRowApplicability(
       applies: false,
       naText: `n/a — ${model} keeps thinking on`,
       refuseNote: 'This model locks thinking on at the provider; the setting cannot turn it off.',
+    }
+  }
+  if ((reads?.alwaysOn ?? modelThinkingAlwaysOn)(model)) {
+    return {
+      applies: false,
+      naText: `n/a — ${(reads?.nameOf ?? renderModelName)(model)} keeps thinking on`,
+      refuseNote: 'This model thinks on every request; the setting cannot turn it off — /effort is the lever.',
     }
   }
   return { applies: true }
@@ -381,6 +389,7 @@ export function Config({
     }
   }
   const snapshots = snapshotsRef.current
+  const mountTheme = useRef(themeSetting)
 
   const changesRef = useRef(new Map<string, string>())
   const recordToggle = (key: string, text: string): void => {
@@ -436,7 +445,7 @@ export function Config({
   const conversationHasAssistantTurn = context.messages.some(
     message => message.type === 'assistant',
   )
-  const thinkingOn = merged.engine?.reasoning === true
+  const thinkingOn = merged.engine?.reasoning !== false
   const permissions = merged.guardrails ?? {}
   const defaultMode = validated(
     PERMISSION_MODES,
@@ -805,7 +814,7 @@ export function Config({
           snapshots.dirty = true
           recordToggle('thinking', `set thinking to ${next ? 'on' : 'off'}`)
           if (conversationHasAssistantTurn) {
-            const initial = snapshots.user.engine?.reasoning === true
+            const initial = snapshots.user.engine?.reasoning !== false
             setThinkingWarning(next !== initial)
           }
           bump()
@@ -1295,8 +1304,7 @@ export function Config({
 
   const composeSummary = (): string | undefined => {
     const lines: string[] = [...changesRef.current.values()]
-    const nowTheme = themeSetting
-    if (nowTheme !== snapshots.theme) lines.push(`set theme to ${nowTheme}`)
+    if (themeSetting !== mountTheme.current) lines.push(`set theme to ${themeSetting}`)
     if (lines.length === 0) return undefined
     return lines.join('\n')
   }
@@ -1487,9 +1495,10 @@ export function Config({
           value: setting,
         }))}
         defaultValue={themeSetting}
+        defaultFocusValue={themeSetting}
         onChange={value => {
           setThemeSetting(value)
-          snapshots.dirty = true
+          snapshots.theme = value
           setSubMenu(null)
         }}
         onCancel={() => setSubMenu(null)}

@@ -1,3 +1,5 @@
+import { MODEL_PICKER_CONTEXT_WORDS } from './modelPickerGroups.js'
+
 export type ModelPickerFooterHeading = { fold: 'folded' | 'open' }
 
 export const MODEL_PICKER_EXIT_WORDS = 'esc or click outside closes'
@@ -22,9 +24,9 @@ export function modelPickerFooter(
   const middle = [
     { text: 'type to search', show: opts.filterFocus === true, drop: 0 },
     { text: action, show: true, drop: 1 },
-    { text: 'c context', show: opts.filterFocus !== true, drop: 4 },
-    { text: '→ ← fold', show: opts.filterFocus !== true, drop: 3 },
-    { text: 'tab to search', show: opts.filterFocus !== true, drop: 2 },
+    { text: MODEL_PICKER_CONTEXT_WORDS, show: opts.filterFocus !== true, drop: 3 },
+    { text: '→ ← fold', show: opts.filterFocus !== true, drop: 2 },
+    { text: 'tab to search', show: opts.filterFocus !== true, drop: 4 },
     { text: 'tab back to the rows', show: opts.filterFocus === true, drop: 2 },
   ]
   const join = (parts: string[]): string => parts.join(' · ')
