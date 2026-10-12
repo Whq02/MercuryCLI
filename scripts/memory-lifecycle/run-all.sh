@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # gate-class: pure
 # gate-watch: src/mneme/** src/utils/backgroundHousekeeping* src/query/stopHooks* src/services/projectIntel/capsule.ts
+# gate-watch: src/tools/JournalTool/** src/main.tsx
 # gate-watch: src/constants/prompts.ts src/run-core/turn-machine.ts src/utils/gracefulShutdown.ts src/utils/fileHistory.ts
 # gate-watch: src/bootstrap/state.ts src/input-core/command-queue.ts scripts/lib/fixtureApi.ts scripts/lib/firstRunSeed.ts scripts/lib/rows.ts
 # gate-watch: src/components/ExitHandoff.tsx src/commands/exit/exit.tsx src/components/ExitFlow.tsx src/utils/forkedAgent.ts src/utils/config/globalConfig.ts scripts/lib/settingsPopupHarness.ts
