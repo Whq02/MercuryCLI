@@ -3,7 +3,11 @@ import React from 'react'
 import { Box } from '../../ink.js'
 import { CtrlOToExpand } from '../CtrlOToExpand.js'
 import { Markdown } from '../Markdown.js'
-import { THINKING_COLOR, ThinkingLabel } from './thinkingGrammar.js'
+import { THINKING_COLOR, ThinkingLabel, WITHHELD_THINKING_WORDS } from './thinkingGrammar.js'
+
+export function thinkingTextWithheld(param: { thinking?: string; signature?: string }): boolean {
+  return (param.thinking ?? '') === '' && typeof param.signature === 'string' && param.signature !== ''
+}
 
 export function AssistantThinkingMessage({
   param,
@@ -12,14 +16,22 @@ export function AssistantThinkingMessage({
   isTranscriptMode = false,
   hideInTranscript = false,
 }: {
-  param: { type?: string; thinking?: string }
+  param: { type?: string; thinking?: string; signature?: string }
   addMargin?: boolean
   verbose?: boolean
   isTranscriptMode?: boolean
   hideInTranscript?: boolean
 }): React.ReactNode {
   const thinking = param.thinking ?? ''
-  if (thinking === '' || hideInTranscript) return null
+  if (hideInTranscript) return null
+  if (thinking === '') {
+    if (!thinkingTextWithheld(param)) return null
+    return (
+      <Box marginTop={addMargin ? 1 : 0}>
+        <ThinkingLabel>{` — ${WITHHELD_THINKING_WORDS}`}</ThinkingLabel>
+      </Box>
+    )
+  }
 
   const expanded = verbose || isTranscriptMode
   if (!expanded) {

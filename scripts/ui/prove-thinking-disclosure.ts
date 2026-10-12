@@ -130,7 +130,7 @@ for (const [name, src] of Object.entries(sources)) {
   check(`${name}: spells no label of its own`, !/[Tt]hinking…/.test(src));
 }
 check('settled + redacted: no accent anywhere (the row is not identity)', !/accent/i.test(code(sources.settled!)) && !/accent/i.test(code(sources.redacted!)));
-check('settled: the collapsed branch and the expanded header draw the one element', (sources.settled!.match(/<ThinkingLabel/g) ?? []).length === 2);
+check('settled: the collapsed branch, the withheld-text row and the expanded header draw the one element', (sources.settled!.match(/<ThinkingLabel/g) ?? []).length === 3);
 check('redacted: the stub draws the one element, with nothing to expand', sources.redacted!.includes('<ThinkingLabel />') && !sources.redacted!.includes('CtrlOToExpand'));
 const tail = code(readFileSync('src/components/LiveStreamingTail.tsx', 'utf8'));
 check(
