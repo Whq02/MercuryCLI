@@ -74,6 +74,7 @@ import type {
   EditOutcomeRowV1,
   EngineConnectorV1,
   KitDialReceiptV1,
+  LeaveReceiptV1,
   SpawnSwitchReceiptV1,
   McpRosterV1,
   ModelFactsV1,
@@ -203,6 +204,7 @@ export function imageBlocksOf(pastes: Record<number, PastedContent>): ContentBlo
     )
 }
 const RPC_TIMEOUT_MS = 15_000
+const LEAVE_RPC_TIMEOUT_MS = 135_000
 export const HEARTBEAT_MS = 400
 const IDLE_TRANSCRIPT_FLOOR_MS = 2000
 export const IDLE_PROJECTION_FLOOR_MS = 10_000
@@ -2077,6 +2079,37 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
       return { outcome: 'refused', detail: detail ?? `unexpected outcome ${String(reply.outcome)}` }
     } catch (e) {
       return { outcome: 'refused', detail: `the daemon is not answering — ${e instanceof Error ? e.message : String(e)}` }
+    }
+  }
+
+  async leave(opts?: { signal?: AbortSignal }): Promise<LeaveReceiptV1> {
+    const skip = (): void => {
+      void this.rpc({ op: 'sessionControl', action: 'interrupt', sessionId: this.record.sessionId, by: 'operator', clientOpId: randomUUID() }).catch(() => {})
+    }
+    if (opts?.signal?.aborted) return { note: 'none', detail: 'the handoff was skipped' }
+    opts?.signal?.addEventListener('abort', skip, { once: true })
+    try {
+      await this.verbChain
+      const { daemonControlRpc } = await import('../../daemon/controlSocket.js')
+      const reply = (await daemonControlRpc(
+        { op: 'sessionControl', action: 'leave', sessionId: this.record.sessionId, by: 'operator' } as never,
+        { timeoutMs: LEAVE_RPC_TIMEOUT_MS },
+      )) as Record<string, unknown>
+      if (reply.ok !== true) return { note: 'none', detail: String(reply.error ?? 'the daemon refused the verb') }
+      const detail = typeof reply.detail === 'string' ? reply.detail : undefined
+      if (reply.outcome !== 'applied') return { note: 'none', detail: detail ?? `unexpected outcome ${String(reply.outcome)}` }
+      let answer: { note?: unknown } = {}
+      try {
+        answer = JSON.parse(detail ?? '{}') as { note?: unknown }
+      } catch {
+        answer = {}
+      }
+      if (answer.note === 'stored' || answer.note === 'skipped' || answer.note === 'none') return { note: answer.note }
+      return { note: 'none', detail: detail ?? 'the runner answered the leave with a receipt the screen cannot read' }
+    } catch (e) {
+      return { note: 'none', detail: `the daemon is not answering — ${e instanceof Error ? e.message : String(e)}` }
+    } finally {
+      opts?.signal?.removeEventListener('abort', skip)
     }
   }
 

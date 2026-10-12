@@ -67,6 +67,7 @@ import {
   relayCredentialChange,
   backgroundSessionShell,
   pauseSessionGate,
+  leaveSession,
 } from './sessionSeat.js'
 import { resetSeatProjections } from '../services/engine-connector/seatProjections.js'
 import { sessionParkDrainMs, sweepIdleEmptyConcourseSessions } from './idleRetirement.js'
@@ -814,6 +815,10 @@ async function daemonRun(args: string[]): Promise<void> {
             if (typeof paused !== 'boolean') return { outcome: 'refused' as const, detail: 'pause-gate requires paused' }
             if (roster === null) return { outcome: 'refused' as const, detail: 'daemon roster not ready' }
             return pauseSessionGate(sessionId, paused, roster)
+          }
+          if (action === 'leave') {
+            if (roster === null) return { outcome: 'refused' as const, detail: 'daemon roster not ready' }
+            return leaveSession(sessionId, roster)
           }
           if (action === 'stop') {
             roster?.door(rec.runnerId)?.request('turn/interrupt', { hard: true }).catch(() => {})

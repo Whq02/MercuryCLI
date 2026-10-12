@@ -260,6 +260,15 @@ export const METHODS = {
     scope: 'session',
     deadlineMs: 10_000,
   }),
+  'session/leave': method({
+    name: 'session/leave',
+    from: 'host',
+    kind: 'request',
+    params: empty,
+    result: lazySchema(() => z.object({ note: z.enum(['stored', 'skipped', 'none']), ledger: z.enum(['closed', 'absent']) })),
+    scope: 'none',
+    deadlineMs: null,
+  }),
   'queue/add': method({
     name: 'queue/add',
     from: 'host',

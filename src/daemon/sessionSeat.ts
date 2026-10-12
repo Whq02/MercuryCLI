@@ -1066,6 +1066,26 @@ export async function pauseSessionGate(
   return crewVerbRefusal(asked.failure, "this session's runner predates the pause gate · /daemon restart, then reopen the session")
 }
 
+export const LEAVE_ANSWER_DEADLINE_MS = 130_000
+
+export async function leaveSession(
+  sessionId: string,
+  roster: SeatRosterPort,
+  dir?: string,
+  opts?: { deadlineMs?: number },
+): Promise<SeatVerbOutcome> {
+  const rec = liveRecordBySession(sessionId, dir)
+  if (!rec) return { outcome: 'refused', detail: 'unknown-session: no live worker record owns this session' }
+  const deadlineMs = opts?.deadlineMs ?? LEAVE_ANSWER_DEADLINE_MS
+  const asked = await askSeat(roster, rec.runnerId, 'session/leave', {}, 'leave', deadlineMs)
+  if (asked.ok) {
+    // eslint-disable-next-line no-console
+    console.error(`[daemon] seat leave answered: ${rec.runnerId} → note ${asked.result.note} · ledger ${asked.result.ledger}`)
+    return appliedDetail(asked.result)
+  }
+  return crewVerbRefusal(asked.failure, "this session's runner predates the note at close · /daemon restart, then reopen the session")
+}
+
 export const QUIESCE_ANSWER_DEADLINE_MS = 10_000
 
 export async function quiesceSessionRunner(

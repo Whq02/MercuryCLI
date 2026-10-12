@@ -164,6 +164,7 @@ import { isBuiltInAgent } from '../tools/AgentTool/loadAgentsDir.js'
 import { gracefulShutdown, gracefulShutdownSync, isShuttingDown, markRunModeSignalsOwned } from '../utils/gracefulShutdown.js'
 import { leaveNoteBeforeExit } from '../mneme/exitHandoff.js'
 import { HANDOFF_ASK_BUDGET_MS } from '../mneme/handoffAsk.js'
+import { closeLineageSession, lineageKept } from '../mneme/lineageSession.js'
 import { saveCurrentSessionCosts } from '../cost-tracker.js'
 import {
   headlessProfilerCheckpoint,
@@ -800,6 +801,7 @@ export async function runHeadless(
   const interruptOutcomes = new Map<string, boolean>()
   let inputClosed = false
   let inFlightAbort: AbortController | null = null
+  let leaveAbort: AbortController | null = null
   let hostAsks: HostAskLiveness | null = null
   asks.setOnControlRequestSent(() => hostAsks?.noteParked())
   asks.setOnControlRequestResolved(() => hostAsks?.noteSettled())
@@ -1631,12 +1633,13 @@ export async function runHeadless(
     'turn/interrupt': params => {
       if (params.op_id !== undefined && interruptOutcomes.has(params.op_id)) return { interrupted: interruptOutcomes.get(params.op_id)! }
       if (params.turn_id !== undefined && currentTurnId !== null && params.turn_id !== currentTurnId) return { interrupted: false }
-      const interrupted = inFlightAbort !== null
+      const interrupted = inFlightAbort !== null || leaveAbort !== null
       if (params.op_id !== undefined) {
         interruptOutcomes.set(params.op_id, interrupted)
         if (interruptOutcomes.size > INTERRUPT_DEDUPE_CAP) interruptOutcomes.delete(interruptOutcomes.keys().next().value!)
       }
       inFlightAbort?.abort()
+      leaveAbort?.abort(new Error('the handoff was skipped by ctrl-c'))
       driver.releaseHold()
       if (params.hard === true) {
         for (const task of Object.values(getAppState().tasks)) {
@@ -2012,6 +2015,21 @@ export async function runHeadless(
         setTimeout(() => gracefulShutdownSync(0, 'closed'), 50)
       }
       return { token: answer.token, phase: answer.phase }
+    },
+    'session/leave': async (_params, _ref, signal) => {
+      if (inFlightAbort !== null || leaveAbort !== null) return { note: 'skipped', ledger: 'absent' }
+      const controller = new AbortController()
+      leaveAbort = controller
+      const onCancel = (): void => controller.abort(signal.reason)
+      signal.addEventListener('abort', onCancel, { once: true })
+      try {
+        const note = await leaveNoteBeforeExit({ budgetMs: HANDOFF_ASK_BUDGET_MS, signal: controller.signal, onNotice: text => io.outbound.enqueue(noticeRow(liveScope(), 'warning', text)) })
+        const closed = await closeLineageSession('quit')
+        return { note, ledger: closed !== null && lineageKept() ? 'closed' : 'absent' }
+      } finally {
+        signal.removeEventListener('abort', onCancel)
+        if (leaveAbort === controller) leaveAbort = null
+      }
     },
     'agent/resume': async params => {
       const lastParams = getLastCacheSafeParams()
