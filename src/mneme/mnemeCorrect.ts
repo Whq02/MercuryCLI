@@ -390,9 +390,10 @@ function dropRowFrom(file: string, ts: string, dir: string): MnemeObservation | 
 export function strikePendingRow(input: { ts: string; dir?: string; byUser?: boolean }): PendingCorrectResult {
   if (!mnemeEnabled()) return { ok: false, code: 'off', message: 'memory is off (memory.enabled is false in settings).' }
   const dir = input.dir ?? mnemeLibraryDir()
-  const target = pendingRows(dir).find(row => row.ts === input.ts)
-  if (target === undefined) return { ok: false, code: 'unknown-target', message: `no pending row pending:${input.ts} — it was consolidated (recall again for its seq:<n>), struck, or never existed` }
-  if (target.asked === true && input.byUser !== true) return { ok: false, code: 'user-asked-rule', message: userAskedRuleMessage(`pending:${input.ts}`) }
+  const targets = pendingRows(dir).filter(row => row.ts === input.ts)
+  if (targets.length === 0) return { ok: false, code: 'unknown-target', message: `no pending row pending:${input.ts} — it was consolidated (recall again for its seq:<n>), struck, or never existed` }
+  if (targets.length > 1) return { ok: false, code: 'invalid', message: `${targets.length} pending rows share the time pending:${input.ts} — nothing was struck; they resolve at consolidation, correct the consolidated facts instead` }
+  if (targets[0]!.asked === true && input.byUser !== true) return { ok: false, code: 'user-asked-rule', message: userAskedRuleMessage(`pending:${input.ts}`) }
   if (!acquireConsolidateLock(dir)) {
     return { ok: false, code: 'busy', message: 'a consolidation/correction is in progress — retry in a moment' }
   }

@@ -38,6 +38,14 @@ export function currentBufferPath(dir: string = mnemeLibraryDir()): string {
   return join(dir, 'current.jsonl')
 }
 
+let lastObservationMs = 0
+
+function observationStamp(): string {
+  const now = Math.max(Date.now(), lastObservationMs + 1)
+  lastObservationMs = now
+  return new Date(now).toISOString()
+}
+
 export function appendObservation(
   input: { text: string; source: string; topicHint?: string; pin?: boolean; asked?: boolean; replaces?: number },
   dir: string = mnemeLibraryDir(),
@@ -49,7 +57,7 @@ export function appendObservation(
     if (!text || !source || text.length > OBSERVATION_TEXT_LIMIT) return false
     const replaces = input.pin === true && Number.isInteger(input.replaces) && (input.replaces as number) > 0 ? { replaces: input.replaces as number } : {}
     const row: MnemeObservation = {
-      ts: new Date().toISOString(),
+      ts: observationStamp(),
       source,
       text,
       ...(input.topicHint ? { topicHint: clamp(String(input.topicHint).trim(), CAP.topicHint) } : {}),

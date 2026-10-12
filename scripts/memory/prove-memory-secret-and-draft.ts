@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 // gate-watch: src/mneme/memoryVerbs.ts src/mneme/mnemeCorrect.ts src/mneme/mnemeBuffer.ts src/mneme/mnemeSecretGuard.ts src/tools/MemoryTools/MemoryTools.ts src/tools/MemoryTools/prompt.ts src/utils/detectSecrets.ts
 ;(globalThis as Record<string, unknown>)['MACRO'] = { VERSION: '1.0.0' }
-import { existsSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { appendFileSync, existsSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -110,6 +110,15 @@ const stranded = correctMemory({ op: 'retract', id: 'pending:2026-10-12T00:00:00
 const texts = pendingRows(dir).map(r => r.text)
 check('the stranded row is struck', stranded.ok === true && !texts.includes('stranded secretless row to strike'), JSON.stringify(texts))
 check('every other row, in the consuming file and the buffer, survives', texts.includes('stranded row kept') && texts.includes('row kept one') && texts.includes('row kept two'), JSON.stringify(texts))
+
+section('§7b every pending id names exactly one row: back-to-back appends carry distinct times; a hand-made duplicate is refused, nothing struck')
+const burst = retainItems(Array.from({ length: 6 }, (_, i) => ({ content: `burst fact number ${i}` })), { session: 'secret-draft' }, dir)
+const burstIds = burst.map(o => (o.status === 'stored' ? o.id : ''))
+check('six facts stored in one call carry six distinct pending ids', burstIds.every(id => id.startsWith('pending:')) && new Set(burstIds).size === 6, JSON.stringify(burstIds))
+const twin = '2026-10-12T00:00:02.000Z'
+appendFileSync(currentBufferPath(dir), `${JSON.stringify({ ts: twin, source: 'proof', text: 'twin row one' })}\n${JSON.stringify({ ts: twin, source: 'proof', text: 'twin row two' })}\n`, 'utf8')
+const ambiguous = correctMemory({ op: 'retract', id: `pending:${twin}`, reason: 'x', session: 'secret-draft' }, dir)
+check('a pending id two rows share is refused as ambiguous and nothing is struck', ambiguous.ok === false && ambiguous.code === 'invalid' && /share the time/.test(ambiguous.message) && pendingRows(dir).filter(r => r.ts === twin).length === 2, JSON.stringify(ambiguous))
 
 section('§8 the Correct prompt tells the model the draft road')
 check('the prompt says a pending row is a draft: retract strikes it, supersede or amend replaces it, history is for consolidated rows', /pending:<ts>/.test(CORRECT_PROMPT) && /draft/.test(CORRECT_PROMPT) && /struck/.test(CORRECT_PROMPT), CORRECT_PROMPT.split('\n').find(l => /pending/.test(l)) ?? '')
