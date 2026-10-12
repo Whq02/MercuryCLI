@@ -107,17 +107,17 @@ async function run(label: string, settings: Record<string, unknown>, turns: Scri
   }
 }
 
-section('§1 the whole road: a headless run answers, is asked at its end, writes its entry with Journal, and the entry is in the home when the session is gone')
+section('§1 the whole road with memory.journal on: a headless run answers, is asked at its end, writes its entry with Journal, and the entry is in the home when the session is gone')
 {
-  const on = await run('on', {}, [
+  const on = await run('on', { memory: { journal: true } }, [
     { kind: 'text', text: 'The first heading is Lantern.' },
-    { kind: 'tool_use', name: 'Journal', input: { entry: ENTRY }, whenBody: 'This session is ending' },
+    { kind: 'tool_use', name: 'Journal', input: { entry: ENTRY }, whenBody: 'The session is ending' },
     { kind: 'text', text: NOTE, whenBody: 'journal entry staged' },
   ])
   check('the run completed with its answer', on.exit === 0 && on.frames.some(f => isOutcome(f)), `exit ${on.exit} · ${on.stderr.slice(-300)}`)
   check('three model requests were made: the answer, the closing ask, the note after the tool round', on.bodies.length === 3, String(on.bodies.length))
   const askText = on.bodies[1] ? lastUserText(on.bodies[1]) : ''
-  check('the closing ask carries the handoff ask and the journal line', askText.includes('This session is ending') && askText.includes('write its journal entry with the Journal tool'), askText.slice(0, 300))
+  check('the closing ask carries the handoff ask and the journal line', askText.includes('The session is ending') && askText.includes('write a brief entry into the journal with the Journal tool'), askText.slice(0, 300))
   check('the Journal tool is on the wire in full for the closing ask', on.bodies[1] !== undefined && toolNamesOf(on.bodies[1]).includes('Journal'))
   const resultText = on.bodies[2] ? lastUserText(on.bodies[2]) : ''
   check('the tool result says the entry is staged for the session end', resultText.includes('journal entry staged') && resultText.includes('when this session ends'), resultText.slice(0, 300))
@@ -137,16 +137,16 @@ section('§1 the whole road: a headless run answers, is asked at its end, writes
   rmSync(on.cwd, { recursive: true, force: true })
 }
 
-section('§2 memory.journal off: no journal line in the closing ask, no Journal tool on the wire, nothing written')
+section('§2 nothing set (memory.journal is off by default): no journal line in the closing ask, no Journal tool on the wire, nothing written')
 {
-  const off = await run('off', { memory: { journal: false } }, [
+  const off = await run('off', {}, [
     { kind: 'text', text: 'The first heading is Lantern.' },
-    { kind: 'text', text: NOTE, whenBody: 'This session is ending' },
+    { kind: 'text', text: NOTE, whenBody: 'The session is ending' },
   ])
   check('the run completed with its answer', off.exit === 0 && off.frames.some(f => isOutcome(f)), `exit ${off.exit} · ${off.stderr.slice(-300)}`)
   check('two model requests were made: the answer and the closing ask', off.bodies.length === 2, String(off.bodies.length))
   const askText = off.bodies[1] ? lastUserText(off.bodies[1]) : ''
-  check('the closing ask carries the handoff ask alone', askText.includes('This session is ending') && !askText.includes('journal entry'), askText.slice(0, 300))
+  check('the closing ask carries the handoff ask alone', askText.includes('The session is ending') && !askText.includes('into the journal'), askText.slice(0, 300))
   check('no request offered a Journal tool', off.bodies.every(body => !toolNamesOf(body).includes('Journal')))
   check('no journal file anywhere in the home', !walk(off.home).some(p => p.endsWith('journal.md')))
   rmSync(off.home, { recursive: true, force: true })

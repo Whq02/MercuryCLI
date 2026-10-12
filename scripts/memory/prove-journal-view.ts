@@ -20,6 +20,10 @@ function section(title: string): void {
 const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
 enableConfigs()
 const { resetSettingsCache } = await import('../../src/utils/settings/settingsCache.js')
+const setJournal = (on: boolean | null): void => {
+  writeFileSync(join(HOME, 'settings.json'), JSON.stringify(on === null ? {} : { memory: { journal: on } }))
+  resetSettingsCache()
+}
 const { mnemeProjectKey } = await import('../../src/mneme/paths.js')
 const { appendJournalEntry, journalPath, readJournal } = await import('../../src/mneme/journal.js')
 const { humanStamp, journalHeading, journalRow, wrapText } = await import('../../src/components/memory/memoryCentreLayout.js')
@@ -74,7 +78,8 @@ section('§1 the cells of the row, the heading and the page')
   check('long text wraps at the width without losing words', wrapText('one two three four five six', 9).join('|') === 'one two|three|four five|six')
 }
 
-section('§2 /memory with no journal yet: the row stands, as information')
+section('§2 memory.journal on, no journal yet: the row stands, as information')
+setJournal(true)
 {
   const { m, close } = await mountMemory()
   const painted = await waitFor(() => m.lines().some(l => JOURNAL_ROW.test(l)), 6000)
@@ -140,9 +145,8 @@ const olderStamp = humanStamp(new Date(T1).toISOString())
   m.unmount()
 }
 
-section('§4 the setting off: the row says so and offers nothing to open')
-writeFileSync(join(HOME, 'settings.json'), JSON.stringify({ memory: { journal: false } }))
-resetSettingsCache()
+section('§4 nothing set (the journal is off by default): the row says so and offers nothing to open')
+setJournal(null)
 {
   const { m, close } = await mountMemory()
   await waitFor(() => m.lines().some(l => JOURNAL_ROW.test(l)), 6000)
@@ -154,8 +158,7 @@ resetSettingsCache()
   close()
   m.unmount()
 }
-writeFileSync(join(HOME, 'settings.json'), '{}')
-resetSettingsCache()
+setJournal(null)
 
 await releaseScratchHome(HOME)
 console.log(`\nprove-journal-view: ${failures === 0 ? 'ALL PASS' : `${failures} FAILED`}`)
