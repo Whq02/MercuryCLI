@@ -236,7 +236,7 @@ export function journalPage(entry: JournalEntry, width: number): Page {
     kind: 'journal',
     crumb: `journal › ${humanStamp(entry.at)}`,
     title: `journal · ${humanStamp(entry.at)}`,
-    meta: `written ${journalStamp(entry.at)} UTC · the model's own words · ${journalPath()}`,
+    meta: `written ${journalStamp(entry.at)} UTC · the model's own words · ${fileWords(journalPath())}`,
     lines: pageLines(entry.text, width),
   }
 }

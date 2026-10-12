@@ -371,7 +371,7 @@ section('§5 the instruction files picker rides the same popup; /memory files op
   await moveTo(scene.m, 'instruction files')
   check('the files row\'s footer offers the picker', rowOf(scene.m, layout.MEMORY_CLOSE_HINT).includes('↵ open the picker'))
   scene.m.push(KEY.enter)
-  const picker = await waitFor(() => scene.m.screen().includes('Memory: on') && scene.m.screen().includes('instruction profile:'), 8000)
+  const picker = await waitFor(() => scene.m.screen().includes('Memory: on') && scene.m.screen().includes('profile auto:'), 8000)
   check('↵ opens the picker inside the popup, the title kept', picker && scene.m.screen().includes(TITLE) && rowOf(scene.m, 'open in editor').includes('esc back'))
   scene.m.push(KEY.esc)
   const back = await waitFor(() => scene.m.screen().includes('facts and decisions'), 6000)
