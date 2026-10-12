@@ -556,7 +556,7 @@ t.section('§4 — THE ROSTER LAYER (A3: one home, truthful chips, the boot-menu
         const compose = new Function('providerFamilyPresences', 'deriveFamilySlotGroups', 'loginsFamilyCounts', `${js}\nreturn compose`)(
           () => groups.map(group => group.family), () => groups, sharedCount,
         ) as () => string | null
-        const expected = snapshot === facts ? '4 of 13 signed in' : null
+        const expected = snapshot === facts ? '4 of 13 signed in' : 'not signed in — sign in to providers'
         t.check(`boot count matches the listed families, extra providers signed=${signedExtras}, listed signed=${snapshot === facts}`, compose() === expected, String(compose()))
       }
     }
