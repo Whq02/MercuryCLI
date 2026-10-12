@@ -38,6 +38,7 @@ check('CRLF line endings, like the cmd command', ps1.includes('\r\n') && !/[^\r]
 check('root: MERCURY_VERSIONS_DIR first', ps1.includes('$root = $env:MERCURY_VERSIONS_DIR'))
 check('root: MERCURY_CONFIG_DIR > MERCURY_HOME > ~/.mercury, then <home>/versions', ps1.includes('if ($env:MERCURY_CONFIG_DIR) { $env:MERCURY_CONFIG_DIR } elseif ($env:MERCURY_HOME) { $env:MERCURY_HOME } else { Join-Path $HOME \'.mercury\' }') && ps1.includes("Join-Path $mercuryHome 'versions'"))
 check('pointer: the first non-blank line of current.txt', ps1.includes("if ($line.Trim() -ne '') { $ver = $line; break }"))
+check('pointer: current.txt is read whole and closed (ReadAllLines) — never through a ReadLines enumerator, whose handle the break left open in the PowerShell window and every pointer swap from that window then refused', ps1.includes('foreach ($line in [System.IO.File]::ReadAllLines($pointer))') && !ps1.includes('::ReadLines('))
 check('pointer: quotes stripped and trailing whitespace trimmed (parity with the cmd and sh twins)', ps1.includes(".Replace('\"', '').TrimEnd()"))
 check('pointer: a separator or dot-dot refuses before any path is built', ps1.includes("$ver.Contains('\\') -or $ver.Contains('/') -or $ver.Contains('..')") && ps1.indexOf("$ver.Contains('\\')") !== -1 && ps1.indexOf("$ver.Contains('\\')") < ps1.indexOf('$dir = Join-Path $root $ver'))
 check('pointer: an empty pointer refuses plainly', ps1.includes("if ($ver -eq '') {"))

@@ -20,6 +20,8 @@ const {
   listInstalledVersions,
   pathEntryEquals,
   payloadDigestOf,
+  POINTER_HELD_REMEDY,
+  PointerHeldError,
   readCurrentVersion,
   readCurrentVersionState,
   readPreviousVersion,
@@ -488,9 +490,11 @@ console.log('── §13 reconciling sweep (dead-pid residue; parked copies REST
   rmSync(join(roots.versionsDir, vGone), { recursive: true, force: true })
   mkdirSync(join(roots.versionsDir, `.replaced-${vHere}-${dead}`), { recursive: true })
   writeFileSync(join(roots.versionsDir, `current.txt.tmp.${dead}`), 'orphan')
+  writeFileSync(join(roots.versionsDir, `previous.txt.tmp.${dead}`), 'orphan')
   mkdirSync(join(roots.versionsDir, `.download-${process.pid}`), { recursive: true })
   const report = sweepUpdaterResidue(roots)
   check('dead download + staging + pointer-tmp removed', !existsSync(join(roots.versionsDir, `.download-${dead}`)) && !existsSync(join(roots.versionsDir, `.staging-${vGone}-${dead}`)) && !existsSync(join(roots.versionsDir, `current.txt.tmp.${dead}`)))
+  check('a dead updater\'s temp pointer files, current and previous, are swept and reported', !existsSync(join(roots.versionsDir, `previous.txt.tmp.${dead}`)) && report.removed.includes(`current.txt.tmp.${dead}`) && report.removed.includes(`previous.txt.tmp.${dead}`))
   check('parked .replaced-* with ABSENT version dir is RESTORED, not deleted', existsSync(join(roots.versionsDir, vGone, 'mercury.mjs')) && report.restored.includes(`.replaced-${vGone}-${dead}`))
   check('parked .replaced-* with PRESENT version dir is garbage (removed)', !existsSync(join(roots.versionsDir, `.replaced-${vHere}-${dead}`)))
   check('OWN-pid residue is untouched (a live transaction owns it)', existsSync(join(roots.versionsDir, `.download-${process.pid}`)))
@@ -532,17 +536,40 @@ console.log('── §15 seamark SM-I: activation renames + PATH identity + host
   process.env.MERCURY_UPDATE_FAULT = 'shim-rename:2'
   const healed = writeShim(winRoots)
   check('SM-I: EPERM twice then success — the shim swap completes through the bounded retry', healed.state === 'written')
+  const pointerTmp = join(winRoots.versionsDir, `current.txt.tmp.${process.pid}`)
   process.env.MERCURY_UPDATE_FAULT = 'pointer-rename-current'
-  let ptrThrew = false
-  try {
-    switchCurrent(winRoots, '9.9.1-beta.1')
-  } catch {
-    ptrThrew = true
-  }
-  check('SM-I: the pointer swap consults the transient-lock seam (unbounded fault throws)', ptrThrew)
-  process.env.MERCURY_UPDATE_FAULT = 'pointer-rename-current:2'
+  switchCurrent(winRoots, '9.9.1-beta.1')
+  check('SM-I: a rename refused on every attempt (EPERM, a reader holding current.txt) no longer stops the swap — the in-place write lands the value', readCurrentVersion(winRoots) === '9.9.1-beta.1')
+  check('SM-I: the temp pointer file is gone once the in-place write landed', !existsSync(pointerTmp))
+  process.env.MERCURY_UPDATE_FAULT = 'pointer-rename-current:1,pointer-overwrite-current:1'
+  const roundStart = Date.now()
   switchCurrent(winRoots, '9.9.1-beta.2')
-  check('SM-I: pointer swap completes through the bounded retry', readCurrentVersion(winRoots) === '9.9.1-beta.2')
+  const roundWait = Date.now() - roundStart
+  check('SM-I: rename and in-place write both refused once — the next round, after the first wait of the ladder (0.5 s), lands the value by rename', readCurrentVersion(winRoots) === '9.9.1-beta.2' && roundWait >= 500, `${roundWait}ms`)
+  check('SM-I: no temp pointer file after the second-round rename', !existsSync(pointerTmp))
+  process.env.MERCURY_UPDATE_FAULT = 'pointer-rename-current,pointer-overwrite-current'
+  const ladderStart = Date.now()
+  let held: unknown = null
+  try {
+    switchCurrent(winRoots, '9.9.1-beta.3')
+  } catch (e) {
+    held = e
+  }
+  const ladderWait = Date.now() - ladderStart
+  check('SM-I: a file held through the whole ladder refuses with the one line: the file named, what to do', held instanceof PointerHeldError && held.message.includes(join(winRoots.versionsDir, 'current.txt')) && held.message.includes('is held open by another program (often the PowerShell window this ran from) — close it, or run `mercury update` once from Command Prompt'), held instanceof Error ? held.message : String(held))
+  check('SM-I: the refusal carries the remedy the update prints and the last code', held instanceof PointerHeldError && held.remedy === POINTER_HELD_REMEDY && held.code === 'EPERM')
+  check('SM-I: the ladder is measured in seconds (0.5 + 1 + 2 + 4 s before the refusal)', ladderWait >= 7500, `${ladderWait}ms`)
+  check('SM-I: the refused swap left the pointer naming the version it named before', readCurrentVersion(winRoots) === '9.9.1-beta.2')
+  check('SM-I: the refused swap left no temp pointer file behind', !existsSync(pointerTmp))
+  process.env.MERCURY_UPDATE_FAULT = 'pointer-rename-current:1'
+  let posixThrew = false
+  try {
+    switchCurrent(roots, '9.9.1-beta.4')
+  } catch {
+    posixThrew = true
+  }
+  check('SM-I: non-windows roots keep single-attempt semantics for the pointer swap (no in-place write, no ladder)', posixThrew && readCurrentVersion(roots) === '9.9.0-beta.8')
+  check('SM-I: the refused POSIX swap left no temp pointer file behind either', !existsSync(join(roots.versionsDir, `current.txt.tmp.${process.pid}`)))
   delete process.env.MERCURY_UPDATE_FAULT
 }
 {

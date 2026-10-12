@@ -207,14 +207,58 @@ export const readCurrentVersion = (roots: LayoutRoots): string | null =>
 export const readPreviousVersion = (roots: LayoutRoots): string | null =>
   readPointerFile(join(roots.versionsDir, 'previous.txt'))
 
+const POINTER_SWAP_RETRY_DELAYS_MS: readonly number[] = [500, 1000, 2000, 4000]
+
+export const POINTER_HELD_REMEDY = 'close the program that holds the version file open (often the PowerShell window this ran from), or run `mercury update` once from Command Prompt'
+
+export class PointerHeldError extends Error {
+  readonly remedy = POINTER_HELD_REMEDY
+  constructor(path: string, readonly code: string | undefined) {
+    super(`the version file ${path} is held open by another program (often the PowerShell window this ran from) — close it, or run \`mercury update\` once from Command Prompt`)
+    this.name = 'PointerHeldError'
+  }
+}
+
+function pointerStep(faultPoint: string, act: () => void): void {
+  if (injectFault(faultPoint)) {
+    const err = new Error(`injected ${faultPoint} failure`) as NodeJS.ErrnoException
+    err.code = 'EPERM'
+    throw err
+  }
+  act()
+}
+
 function writePointerFile(path: string, value: string, isWindows: boolean): void {
   const pointerName = path.endsWith('current.txt') ? 'current' : 'previous'
   if (injectFault(`pointer-write-${pointerName}`)) {
     throw new Error(`injected pointer-write-${pointerName} failure`)
   }
   const tmp = `${path}.tmp.${process.pid}`
-  writeFileSync(tmp, value + '\n')
-  renameWithRetry(tmp, path, `pointer-rename-${pointerName}`, isWindows)
+  const line = value + '\n'
+  try {
+    writeFileSync(tmp, line)
+    for (let round = 0; ; round++) {
+      try {
+        pointerStep(`pointer-rename-${pointerName}`, () => renameSync(tmp, path))
+        return
+      } catch (renameErr) {
+        if (!isWindows || !isTransientFsCode((renameErr as NodeJS.ErrnoException).code)) throw renameErr
+      }
+      try {
+        pointerStep(`pointer-overwrite-${pointerName}`, () => writeFileSync(path, line))
+        return
+      } catch (overwriteErr) {
+        const code = (overwriteErr as NodeJS.ErrnoException).code
+        if (!isTransientFsCode(code)) throw overwriteErr
+        if (round >= POINTER_SWAP_RETRY_DELAYS_MS.length) throw new PointerHeldError(path, code)
+        sleepSync(POINTER_SWAP_RETRY_DELAYS_MS[round]!)
+      }
+    }
+  } finally {
+    try {
+      rmSync(tmp, { force: true })
+    } catch {}
+  }
 }
 
 export function switchCurrent(roots: LayoutRoots, version: string): { previous: string | null } {
@@ -742,7 +786,7 @@ export function powershellEntryContent(): string {
     '  exit 1',
     '}',
     "$ver = ''",
-    "foreach ($line in [System.IO.File]::ReadLines($pointer)) { if ($line.Trim() -ne '') { $ver = $line; break } }",
+    "foreach ($line in [System.IO.File]::ReadAllLines($pointer)) { if ($line.Trim() -ne '') { $ver = $line; break } }",
     "$ver = $ver.Replace('\"', '').TrimEnd()",
     "if ($ver -eq '') {",
     "  [Console]::Error.WriteLine('mercury: ' + $pointer + ' is empty - run `mercury update`, or set it to an installed version directory name')",
