@@ -184,7 +184,7 @@ const sleep = (ms: number) => new Promise(r => setTimeout(r, ms))
     const source = readFileSync('src/utils/cliHighlight.ts', 'utf8')
     t(
       'the guard wraps the bundle seam (structural - optional dep absent in-repo)',
-      source.includes('shouldSkipHighlight(code) ? code : cliHighlight.highlight(code, options)'),
+      source.includes('shouldSkipHighlight(code) || colorStripped() ? code : cliHighlight.highlight(code, options)'),
     )
   }
 }

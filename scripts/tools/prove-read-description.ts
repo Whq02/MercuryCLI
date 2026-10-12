@@ -22,14 +22,14 @@ const LINE = '- With no window parameters the read returns up to 2000 lines from
 const OLD_LINE = '- With no window parameters the read returns up to 2000 lines from the top of the file\n'
 const NEXT_LINE = '- An optional line offset and limit narrow the window (handy for very long files). Leaving them out and taking the whole file is the default unless the file is huge.'
 
-tally.section('4.2 — the description: each fact once, 1,888 bytes with read targets on for a PDF- and image-capable model')
+tally.section('4.2 — the description: each fact once, 2,189 bytes with read targets on for a PDF- and image-capable model')
 {
   const prompt: string = await FileReadTool.prompt({ model: 'claude-sonnet-5-5' })
   tally.check('read targets are on for this rendering', readTargetsEnabled() === true)
   tally.check('the line stands once, exactly, followed by the unchanged offset-and-limit line', prompt.split(LINE).length === 2 && prompt.includes(`${LINE}\n${NEXT_LINE}\n`), prompt)
   tally.check('.28\'s bare line is gone', !prompt.includes(OLD_LINE), prompt)
   tally.check('the 256 KB sentence stays off (FORK 5 side B)', !prompt.includes('256KB') && !prompt.includes('256 KB'), prompt)
-  tally.check('the description is 1,888 bytes (the opener folds the path facts; the absolute-path line, the second whole-file sentence and the capitals are gone)', Buffer.byteLength(prompt) === 1888, `${Buffer.byteLength(prompt)} bytes`)
+  tally.check('the description is 2,189 bytes (the opener folds the path facts; the absolute-path line, the second whole-file sentence and the capitals are gone; .34 adds the mercury://seat sentence — the model looks its own engine up there)', Buffer.byteLength(prompt) === 2189, `${Buffer.byteLength(prompt)} bytes`)
   const lines = prompt.split('\n')
   tally.check('the other lines: the opener, the clipping line, the prefix line, the media lines, the target lines, the empty-file line', lines[0] === 'Read the contents of a local file: any file on the machine, and a path that does not exist returns an error.' && lines[5] === '- Individual lines are cut off past 2000 characters' && lines[6]!.startsWith('- Every returned line carries a prefix — a line number followed by a tab, then the line content; with `line_anchors: true`') && lines[7] === '- Image files (PNG, JPG, and similar) are shown as the picture itself.' && lines.at(-1) === '- A file that exists but is empty produces a system-reminder note in place of content.' && lines.length === 15, JSON.stringify(lines))
   const noMedia: string = await FileReadTool.prompt({ model: 'glm-5.3' })

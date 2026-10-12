@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { mkdtempSync, readFileSync, rmSync, writeFileSync, mkdirSync } from 'node:fs'
+import { mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync, mkdirSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -54,6 +54,22 @@ console.log('§3 absent-only: an existing config file is never touched')
   seedFirstRun(home, [home])
   check('the operator-shaped file is byte-identical after the seed', readFileSync(join(home, '.mercury.json'), 'utf8') === before)
   rmSync(home, { recursive: true, force: true })
+}
+
+console.log('§4 a capture cwd reached through a symlink is trusted under the spelling the product keys (its real path)')
+{
+  const base = mkdtempSync(join(tmpdir(), 'first-run-seed-'))
+  const real = join(base, 'real-project')
+  mkdirSync(real, { recursive: true })
+  const link = join(base, 'link-to-project')
+  symlinkSync(real, link)
+  const home = join(base, 'home')
+  seedFirstRun(home, [link])
+  const projects = (JSON.parse(readFileSync(join(home, '.mercury.json'), 'utf8')) as { projects?: Record<string, { hasTrustDialogAccepted?: boolean }> }).projects ?? {}
+  check('the raw spelling is trusted', projects[link]?.hasTrustDialogAccepted === true, Object.keys(projects).join(' · '))
+  check('the real path is trusted too (process.cwd() under /var/folders reads /private/var/folders — the trust walk keys the real path)', projects[realpathSync(link)]?.hasTrustDialogAccepted === true, Object.keys(projects).join(' · '))
+  check('a folder that is its own real path is keyed once', Object.keys(projects).filter(key => key === real || key === realpathSync(real)).length <= 1, Object.keys(projects).join(' · '))
+  rmSync(base, { recursive: true, force: true })
 }
 
 console.log(failures === 0 ? '\nfirst-run seed: GREEN' : `\nfirst-run seed: ${failures} RED`)
