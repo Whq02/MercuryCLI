@@ -103,7 +103,7 @@ section('A. no other session live — the refusal names the possibility, nothing
   check('A1 …without naming a live session (none is)', !w.ok && !w.message.includes('is live:') && !w.message.includes('are live:'), messageOf(w))
   const e = await edit({ file_path: file, old_string: 'first draft', new_string: 'second draft' }, makeContext())
   check('A2 an Edit of a file never read in this session is refused', !e.ok)
-  check(`A2 …and says it may be another session's work before it shows the lines (RED on the base)`, !e.ok && e.message.startsWith(`The file ${file} was not read in this session, so it may be another session's work; the lines the edit touches are below and count as read`), messageOf(e))
+  check(`A2 …and says it may be another session's work, and shows no line of the file`, !e.ok && e.message.startsWith(`Read the file before editing it — it exists and was not read in this session, so it may be another session's work`) && !/\n\d+\t/.test(e.message), messageOf(e))
   check('A3 the changed-since-read sentence names the possibility too (RED on the base)', FILE_UNEXPECTEDLY_MODIFIED_ERROR.includes(NOTE) && FILE_UNEXPECTEDLY_MODIFIED_ERROR.startsWith('The file changed on disk after your last read'), FILE_UNEXPECTEDLY_MODIFIED_ERROR)
 }
 

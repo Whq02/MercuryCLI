@@ -164,10 +164,10 @@ section('C. THE LAW KEPT — a file another writer changed between the read and 
   check('C2 with the read entry present, the other writer\'s change refuses as it always did', !withEntry.ok && withEntry.message === FILE_UNEXPECTEDLY_MODIFIED_ERROR, messageOf(withEntry))
   ctx.readFileState.delete(file)
   const withoutEntry = await edit({ file_path: file, old_string: 'const v7 = 7', new_string: 'const v7 = 77' }, ctx)
-  check('C3 with the read entry gone, the other writer\'s change refuses with the change named: the ledger\'s generation is not the file\'s', !withoutEntry.ok && withoutEntry.message.startsWith(`The file ${file} changed after the lines you read`) && withoutEntry.message.includes('File generation check failed: earlier read coverage belongs to the file before it changed.'), messageOf(withoutEntry))
+  check('C3 with the read entry gone, the other writer\'s change refuses with the change named and no line of the file: the ledger\'s generation is not the file\'s', !withoutEntry.ok && withoutEntry.message.startsWith('Read the file before editing it — it changed after the lines you read') && withoutEntry.message.includes('File generation check failed: earlier read coverage belongs to the file before it changed.') && !/\n\d+\t/.test(withoutEntry.message), messageOf(withoutEntry))
   check('C4 …and nothing was written', !contentOf(file).includes('const v7 = 77'))
   const retried = await edit({ file_path: file, old_string: 'const v7 = 7', new_string: 'const v7 = 77' }, ctx)
-  check('C5 the retry after the refusal\'s carry lands (the carried lines were shown for the current generation)', retried.ok && contentOf(file).includes('const v7 = 77'), messageOf(retried))
+  check('C5 the retry without a Read is refused again: a refusal records nothing a retry could ride', !retried.ok && retried.message.startsWith('Read the file before editing it') && !contentOf(file).includes('const v7 = 77'), messageOf(retried))
 }
 
 section('D. THE STAMP\'S RESOLUTION — two of the tool\'s own edits inside one second keep the ledger current (the generation keys the millisecond and the size)')
