@@ -1,6 +1,11 @@
 
 export const MERCURY_CHANGELOG = `# Mercury changelog
 
+## 1.0.0-beta.33
+- Fixed a few issues in the model's instructions: shorter turns, the outcome first, and a short note left at the end of a session for the next one
+- Fixed the journal entry to one line, written only when the memory.journal setting is true
+- Fixed the Windows update through the PowerShell route: the launcher no longer holds the version file open, the version switch completes while another program holds that file, and a refused update leaves nothing behind. From 1.0.0-beta.32 or earlier, run the one update from Command Prompt: open cmd.exe and run mercury update. After it, updates complete from PowerShell too
+
 ## 1.0.0-beta.32
 - Added the lineage: Mercury keeps a ledger of a project's sessions in the Mercury home — one entry each: the session's number, its engines with the time of every switch, the rules pinned, the facts retained and corrected, the files touched, how it ended, and the note it left — written by the harness from what it knows, every time from the clock at the moment of writing
 - Added the entry page: a session starts knowing where it is — its number, how many came before, the engines before it, how many rules stand pinned, whether another session of the work is live now, and the last note word for word — as its own section of the system prompt, apart from your first message; a first session reads "First session of this work; no record."
