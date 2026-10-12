@@ -1033,10 +1033,14 @@ export const FileEditTool = buildTool({
 
     const actualOldString = located !== null && located.kind === 'found' ? located.actual : null
     if (actualOldString === null) {
+      const composedElsewhere = oldString !== '' && currentContent.normalize('NFC').includes(oldString.normalize('NFC'))
+      const hint = composedElsewhere
+        ? ' The file spells this text with another Unicode composition of the same letters (accents stored as separate combining marks, or the reverse) — a Read of the lines carries the file\'s own spelling; copy old_string from it.'
+        : ''
       return {
         result: false as const,
         behavior: 'ask' as const,
-        message: `The old_string was not found in the file.\nString: ${oldString}`,
+        message: `The old_string was not found in the file.${hint}\nString: ${oldString}`,
         errorCode: 8,
         meta: { isPathAbsolute: String(isAbsolute(input.file_path)) },
       }
