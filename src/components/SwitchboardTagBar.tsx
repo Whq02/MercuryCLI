@@ -30,6 +30,8 @@ import { AttachedAttributionContext } from './messages/TranscriptNameplate.js'
 import { useCoordinatorAttribution } from './concourse/workerTranscriptFold.js'
 import { useDisplayedSessionModel, useFocusedBornEffort, useFocusedSentEffort, useFocusedServedEffort } from '../hooks/useDisplayedSessionModel.js'
 import { useFocusedWorkspaceBranch } from '../hooks/useFocusedWorkspaceBranch.js'
+import { useSessionSignInGate } from '../hooks/useSessionSignInGate.js'
+import { signedOutStatusWords } from '../utils/accounts/sessionSignIn.js'
 import { useCrewmateModel } from './tasks/useCrewmateModel.js'
 import { renderModelChip } from '../utils/model/model.js'
 import { focusedEffortLabelOf } from './mercury-ui/EffortChip.js'
@@ -313,6 +315,7 @@ export function FocusedSessionStatusRow(): React.ReactNode {
   const composerCrewmate = useComposerCrewmate()
   const crewmateModel = useCrewmateModel(crewmate)
   const { folder, branch } = useFocusedWorkspaceBranch()
+  const signedOutWords = signedOutStatusWords(useSessionSignInGate(effectiveModel))
   const painting = hasSeatLive(c)
   useEffect(() => {
     if (!painting) return
@@ -334,7 +337,8 @@ export function FocusedSessionStatusRow(): React.ReactNode {
   const modelWords = [modelStatusWords(shownModel, shownEffort), daemonBuild].filter(Boolean).join(' · ')
   const held = receipt !== '' && !statusRowWarns(live, status) ? receipt : null
   const resting = daemonBuild === '' && held === null && line === 'ready'
-  const head = [resting ? restingStatusWords(shownModel, shownEffort) : modelWords, motionWords].filter(Boolean).join(' · ')
+  const signedOut = resting && crewmate === null && signedOutWords !== null ? signedOutWords : null
+  const head = [signedOut !== null ? [signedOut, modelWords].filter(Boolean).join(' · ') : resting ? restingStatusWords(shownModel, shownEffort) : modelWords, motionWords].filter(Boolean).join(' · ')
   const rest = held ?? (resting ? '' : line)
   const plan = statusRowPlan({ columns, head, rest, samples, folder, branch, backHint })
   const fitted = plan.rest
@@ -343,7 +347,12 @@ export function FocusedSessionStatusRow(): React.ReactNode {
       {
 }
       <Text wrap="truncate-end">
-        {resting ? (
+        {signedOut !== null ? (
+          <Text>
+            <Text color={t.warning}> {signedOut}</Text>
+            <Text color={t.textMuted}>{head.slice(signedOut.length)}</Text>
+          </Text>
+        ) : resting ? (
           <Text>
             <Text color={t.textInstruction}> ready</Text>
             <Text color={t.textMuted}>{head.slice('ready'.length)}</Text>
