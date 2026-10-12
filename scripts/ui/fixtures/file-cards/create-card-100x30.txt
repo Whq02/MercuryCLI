@@ -1,0 +1,12 @@
+│  ⦿ Create file                                                                                   │
+│  intro.md                                                                                        │
+│  ╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌  │
+│   1  # Intro                                                                                     │
+│   2                                                                                              │
+│   3  This guide explains how to get started with the project.                                    │
+│  ╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌  │
+│  Do you want to create intro.md?                                                                 │
+│  ❯ 1. Yes                                                                                        │
+│    2. Yes, allow all edits for this session (shift+tab)                                          │
+│    3. No, and tell Mercury what to do differently (esc)                                          │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
