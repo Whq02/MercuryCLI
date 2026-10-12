@@ -1,11 +1,12 @@
 import { appendFileSync, mkdirSync, readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
+import { isSessionPersistenceDisabled } from '../bootstrap/state.js'
 import { logForDebugging } from '../utils/debug.js'
 import { getInitialSettings } from '../utils/settings/settings.js'
 import { ledgerClock } from './ledger.js'
 import { isMnemeEnabled, mnemeProjectKey, projectRecordsDir } from './paths.js'
 import { registerSessionCloseAsk, registerSessionCloser, type SessionCloseAsk, type SessionCloseContext } from './sessionClose.js'
-import { JOURNAL_TOOL_NAME } from '../tools/JournalTool/prompt.js'
+import { JOURNAL_ENTRY_SHAPE, JOURNAL_TOOL_NAME } from '../tools/JournalTool/prompt.js'
 
 export const JOURNAL_ENTRY_CAP = 4000
 export const JOURNAL_FILE = 'journal.md'
@@ -96,8 +97,11 @@ export function appendJournalEntry(projectKey: string, text: string): JournalEnt
 const staged = new Map<string, string>()
 let closerInstalled: (() => void) | null = null
 
+export const EPHEMERAL_JOURNAL_REFUSAL = 'this run is ephemeral (--ephemeral): nothing of it is kept, the journal included'
+
 export function journalStageRefusal(text: string): string | null {
   if (!journalEnabled()) return 'the session journal is off (memory.journal in /config)'
+  if (isSessionPersistenceDisabled()) return EPHEMERAL_JOURNAL_REFUSAL
   const body = text.trim()
   if (body === '') return 'the entry is empty'
   if (body.length > JOURNAL_ENTRY_CAP) return `the entry is ${body.length} characters; the journal keeps an entry under ${JOURNAL_ENTRY_CAP} — say less`
@@ -134,10 +138,10 @@ export function installJournalCloser(): void {
   closerInstalled = registerSessionCloser(journalCloser)
 }
 
-export const JOURNAL_ASK = `Before the session ends, write a brief entry into the journal with the ${JOURNAL_TOOL_NAME} tool: where the project is, what the queued backlog is, and constraints set by the operator. Plain words, concise, no longer than a sentence.`
+export const JOURNAL_ASK = `Before the session ends, write a brief entry into the journal with the ${JOURNAL_TOOL_NAME} tool: ${JOURNAL_ENTRY_SHAPE}`
 
 export function journalAsk(sessionId: string): SessionCloseAsk | null {
-  if (!journalEnabled() || staged.has(sessionId)) return null
+  if (!journalEnabled() || isSessionPersistenceDisabled() || staged.has(sessionId)) return null
   return { line: JOURNAL_ASK, tools: [JOURNAL_TOOL_NAME] }
 }
 

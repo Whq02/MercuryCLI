@@ -194,7 +194,7 @@ check('the tool carries its capability and its proof', (JournalTool as { capabil
 const description = await JournalTool.description()
 check('the description names the home, the project tree and the no-sharing line', description.includes('Mercury home') && description.includes('never under the project tree') && description.includes('never pushes, syncs or shares'))
 const prompt = await JournalTool.prompt()
-check('the prompt says what the entry carries, its length, its home and its reader', prompt.includes('where the project is, what the queued backlog is, and constraints set by the operator') && prompt.includes('no longer than a sentence') && prompt.includes('never under the project tree') && prompt.includes('memory.journalOnEntryPage'))
+check('the prompt says what the entry carries, its length, its home and its reader', prompt.includes("where the project is, what the queued backlog is, and what the user asked for in this session, in their words — never Mercury's own standing instructions") && prompt.includes('no longer than a sentence') && prompt.includes('never under the project tree') && prompt.includes('memory.journalOnEntryPage'))
 
 section('§7 nothing Mercury sends anywhere but the session\'s own request can carry the journal (the readers are a closed set)')
 const srcFiles = walk(join(ROOT, 'src')).filter(p => /\.(ts|tsx)$/.test(p))
