@@ -272,7 +272,7 @@ provider. The screen previews theme changes as you browse. True Black is
 the default; the other options are the oasis dark theme and Black and
 white, which paints no colour at all: the terminal's own ink on its own
 ground, the way Mercury looks on a terminal without colour. You can change
-this later with `/appearance` (or `/theme`, the same picker).
+this later with `/appearance`.
 
 You can also choose "sign in later" to look around without connecting an
 account. When a provider key in your environment already signs a provider
@@ -741,7 +741,7 @@ the live list can also include skills and extension commands.
 | git & review | `/review` `/audit` |
 | health & introspection | `/health` `/verify` `/trace` `/capabilities` |
 | config & setup | `/config` `/jev` `/localsetup` `/permissions` `/hooks` `/mcp` `/extensions` `/skills` `/sandbox` `/browser` `/orient` `/keybindings` `/keys` `/vim` `/mouse` `/keysetup` `/bootmenu` `/voice` |
-| appearance & cockpit | `/appearance` (also `/theme`) `/critter` `/palette` |
+| appearance & cockpit | `/appearance` `/critter` `/palette` |
 | account & app | `/logins` `/logout` `/accounts` `/defaultprovider` `/update-notes` `/feedback` `/help` `/exit` |
 
 `/mouse off` returns the pointer to the terminal for native text selection
