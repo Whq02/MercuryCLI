@@ -353,8 +353,8 @@ export const ReflectTool = buildTool({
 
 const correctSchema = lazySchema(() =>
   z.strictObject({
-    op: z.enum(['supersede', 'amend', 'retract']).describe('supersede = new truth; amend = fix wording (read the full record first); retract = mark wrong.'),
-    id: z.string().describe('The record id (seq:<n>, from Recall).'),
+    op: z.enum(['supersede', 'amend', 'retract']).describe('supersede = new truth; amend = fix wording (read the full record first); retract = mark wrong (a consolidated row keeps its history; a pending row is a draft and is struck).'),
+    id: z.string().describe('The record id from Recall: seq:<n> for a consolidated row, pending:<ts> for a draft still in the buffer.'),
     content: z.string().optional().describe('The new/corrected content (supersede/amend).'),
     replacementId: z.string().optional().describe('supersede only: an existing seq:<n> already carrying the truth.'),
     reason: z.string().describe('Why — corrections always carry their reason.'),
@@ -398,6 +398,19 @@ export const CorrectTool = buildTool({
     return { data: outcome }
   },
   mapToolResultToToolResultBlockParam(output: CorrectToolOutput, toolUseID) {
+    if (output.ok && 'draft' in output) {
+      const tail =
+        output.newId !== null
+          ? `the draft was replaced by ${output.newId}`
+          : output.replacedBy !== undefined
+            ? `the draft was struck; seq ${output.replacedBy} carries the truth`
+            : 'the draft was struck'
+      return {
+        tool_use_id: toolUseID,
+        type: 'tool_result',
+        content: `${output.op} landed on the pending row ${output.targetId}: ${tail}. A pending row is a draft — it leaves no history and its bytes are gone from the buffer.`,
+      }
+    }
     if (output.ok) {
       return {
         tool_use_id: toolUseID,

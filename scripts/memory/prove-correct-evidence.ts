@@ -72,7 +72,7 @@ check('a dead replacementId refuses typed', deadReplacement.ok === false && dead
 
 section('typed edges: pending, unknown, already-superseded')
 const pendingRefusal = correctMemory({ op: 'retract', id: 'pending:2026-01-01T00:00:00Z', reason: 'x', session: 'evidence' })
-check('pending rows are not correctable (typed)', pendingRefusal.ok === false && pendingRefusal.code === 'not-editable', JSON.stringify(pendingRefusal))
+check('a pending id that names no row is typed unknown-target', pendingRefusal.ok === false && pendingRefusal.code === 'unknown-target', JSON.stringify(pendingRefusal))
 const unknown = correctMemory({ op: 'retract', id: 'seq:424242', reason: 'x', session: 'evidence' })
 check('unknown seq is typed not-found', unknown.ok === false && unknown.code === 'unknown-target', JSON.stringify(unknown))
 const doubled = correctMemory({ op: 'retract', id: ttlHit.id, reason: 'again', session: 'evidence' })
