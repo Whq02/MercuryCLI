@@ -64,7 +64,8 @@ if (!existsSync(BIN)) {
 console.log(POISON_DIST === undefined ? '§2 the drive — a restored draft on arrival (120×40)' : '§2 POISON — the pre-fix bundle: one ↵ on the restored draft launches')
 const { seedFirstRun } = await import('../lib/firstRunSeed.ts')
 const { referenceFixtureSnapshot } = await import('../notifications/concourseReferenceSeed.ts')
-const OUT_DIR = process.env.RESTORED_DRAFT_CAPTURE_DIR ?? join(tmpdir(), `restored-draft-captures-${process.pid}`)
+const framesArg = process.argv.indexOf('--frames')
+const OUT_DIR = (framesArg !== -1 ? process.argv[framesArg + 1] : undefined) ?? process.env.RESTORED_DRAFT_CAPTURE_DIR ?? join(tmpdir(), `restored-draft-captures-${process.pid}`)
 mkdirSync(OUT_DIR, { recursive: true })
 
 type Grid = { grid: { c: string }[][] }
