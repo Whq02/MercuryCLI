@@ -8,6 +8,7 @@ import {
   resolveBrowser,
 } from '../../services/browser/browserResolver.js'
 import { driverVersion } from '../../services/browser/browserSession.js'
+import { APPROVAL_RULE_LINE, INSTALLED_NOT_DRIVEN } from '../../services/browser/browserWords.js'
 
 
 function statusText(): string {
@@ -23,7 +24,7 @@ function statusText(): string {
   }
   const installed = detectInstalledBrowsers()
   lines.push(...(installed.length
-    ? installed.map(b => `installed: ${b.label} (${b.executablePath}) — not driven: it is your app; the tool drives Chrome for Testing`)
+    ? installed.map(b => `installed: ${b.label} (${b.executablePath}) — ${INSTALLED_NOT_DRIVEN}`)
     : ['installed: none found']))
   const managed = listManagedBrowsers()
   lines.push(
@@ -31,6 +32,7 @@ function statusText(): string {
       ? `managed cache: ${managed.map(m => `${m.buildId} (${(m.sizeBytes / 1024 / 1024).toFixed(0)} MB)`).join(' · ')}`
       : 'managed cache: empty — /browser install downloads Chrome for Testing once with your consent',
   )
+  lines.push(APPROVAL_RULE_LINE)
   return lines.join('\n')
 }
 
@@ -51,7 +53,7 @@ export const call = async (arg: string, _context: LocalJSXCommandContext): Promi
     if (buildArg !== undefined && !/^\d+(\.\d+)*$/.test(buildArg)) {
       return {
         type: 'text',
-        value: `unrecognized install argument '${buildArg}' — usage: /browser install [<buildId>] [confirm]`,
+        value: `unrecognized install argument '${buildArg}' — usage: /browser install [build-id] [confirm]`,
       }
     }
     if (confirming) {
@@ -84,10 +86,10 @@ export const call = async (arg: string, _context: LocalJSXCommandContext): Promi
 
   if (verb === 'remove') {
     const buildId = parts[1]
-    if (!buildId) return { type: 'text', value: 'usage: /browser remove <buildId> (see /browser status)' }
+    if (!buildId) return { type: 'text', value: 'usage: /browser remove build-id (the ids are listed by /browser status)' }
     const removed = removeManagedBrowser(buildId)
     return { type: 'text', value: removed ? `removed Chrome for Testing ${buildId}` : `no managed build '${buildId}'` }
   }
 
-  return { type: 'text', value: `unknown verb '${verb}' — usage: /browser [status | install [<buildId>] [confirm] | remove <buildId>]` }
+  return { type: 'text', value: `unknown verb '${verb}' — usage: /browser [status | install [build-id] [confirm] | remove build-id]` }
 }

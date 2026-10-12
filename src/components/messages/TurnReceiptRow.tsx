@@ -60,6 +60,13 @@ export function TurnReceiptRow({
       </Text>,
     )
   }
+  if (c.browser > 0) {
+    push(
+      <Text key="browser">
+        {c.browser} browser {plural(c.browser, 'action')}
+      </Text>,
+    )
+  }
   const delegated = delegatedSpendLine(c)
   if (delegated !== null) {
     push(<Text key="delegated">{delegated}</Text>)

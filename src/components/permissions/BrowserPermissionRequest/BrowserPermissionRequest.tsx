@@ -3,6 +3,7 @@ import { useMemo } from 'react'
 import { Box, Text } from '../../../ink.js'
 import { Select } from '../../CustomSelect/select.js'
 import { activeSession, originOf } from '../../../services/browser/browserSession.js'
+import { approvalScopeWords, crossingScopeWords } from '../../../services/browser/browserWords.js'
 import { ownerFromToolUseContext } from '../../../services/run/resolveOwner.js'
 import type { OwnerKey } from '../../../services/run/ownerKey.js'
 import { shouldShowAlwaysAllowOptions } from '../../../utils/permissions/permissionsLoader.js'
@@ -47,7 +48,31 @@ export function BrowserPermissionRequest({
 
   usePermissionRequestLogging(toolUseConfirm)
 
-  const options: { label: React.ReactNode; value: BrowserOptionValue }[] = [{ label: 'Yes', value: 'yes' }]
+  const input = toolUseConfirm.input as { op?: string; secretRef?: string }
+  const provisioning = input.op === 'provision'
+  const reason =
+    'decisionReason' in toolUseConfirm.permissionResult ? toolUseConfirm.permissionResult.decisionReason : undefined
+  const downloadLines =
+    provisioning && reason?.type === 'other' ? reason.reason.split('\n').filter(Boolean) : []
+  const suggestedRule =
+    'suggestions' in toolUseConfirm.permissionResult
+      ? toolUseConfirm.permissionResult.suggestions?.find(s => s.type === 'addRules')
+      : undefined
+  const suggestedContent =
+    suggestedRule && suggestedRule.type === 'addRules' ? suggestedRule.rules[0]?.ruleContent : undefined
+  const askedOrigin = (ruleContent ?? suggestedContent ?? '').replace(/^origin:/, '')
+  const scopeLines =
+    provisioning || input.secretRef !== undefined || !askedOrigin.startsWith('http')
+      ? []
+      : input.op === 'open'
+        ? approvalScopeWords(askedOrigin)
+        : reason?.type === 'safetyCheck' && reason.reason.includes('reached by navigation')
+          ? crossingScopeWords(askedOrigin)
+          : []
+
+  const options: { label: React.ReactNode; value: BrowserOptionValue }[] = [
+    { label: provisioning ? 'Yes, download it' : 'Yes', value: 'yes' },
+  ]
   if (ruleContent !== null && shouldShowAlwaysAllowOptions()) {
     options.push({
       label: (
@@ -93,6 +118,21 @@ export function BrowserPermissionRequest({
     verbose,
   })
 
+  if (provisioning) {
+    return (
+      <PermissionDialog title="Browser download" workerBadge={workerBadge}>
+        <Box flexDirection="column">
+          {downloadLines.map((line, i) => (
+            <Text key={i}>{line}</Text>
+          ))}
+          <Text dimColor>Nothing is downloaded until you say yes; your installed browsers are never driven.</Text>
+          <Text bold>Download this browser build?</Text>
+          <Select options={options} onChange={handleChange} onCancel={() => handleChange('no')} />
+        </Box>
+      </PermissionDialog>
+    )
+  }
+
   return (
     <PermissionDialog title="Browser" workerBadge={workerBadge}>
       <Box flexDirection="column">
@@ -101,7 +141,11 @@ export function BrowserPermissionRequest({
         ) : (
           <Text>{useMessage}</Text>
         )}
-        <Text dimColor>{toolUseConfirm.description}</Text>
+        {scopeLines.length > 0 ? (
+          scopeLines.map((line, i) => <Text key={i}>{line}</Text>)
+        ) : (
+          <Text dimColor>{toolUseConfirm.description}</Text>
+        )}
         <PermissionRuleExplanation permissionResult={toolUseConfirm.permissionResult} />
         <Text bold>Do you want to allow Mercury to drive this page?</Text>
         <Select options={options} onChange={handleChange} onCancel={() => handleChange('no')} />

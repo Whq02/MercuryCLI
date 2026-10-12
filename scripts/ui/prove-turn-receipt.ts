@@ -112,6 +112,20 @@ withEnv('1', () => {
   check('+3 −3 line delta summed across both patches', c['adds'] === 3 && c['dels'] === 3)
   check('1 read · 1 search · 1 shell command', c['reads'] === 1 && c['searches'] === 1 && c['commands'] === 1)
 })
+withEnv('1', () => {
+  const rows = inject([
+    prompt('drive the page', 'p1'),
+    toolUse('Bash', { command: 'echo shell-tally-check' }, 'a1'),
+    toolUse('Browser', { op: 'open', url: 'http://127.0.0.1:8765/slow.html' }, 'a2'),
+    toolUse('Browser', { op: 'waitFor', text: 'SLOW CONTENT ARRIVED' }, 'a3'),
+    toolUse('Browser', { op: 'extract', mode: 'text' }, 'a4'),
+    toolUse('Browser', { op: 'console', limit: 3 }, 'a5'),
+  ])
+  const c = receipts(rows)[0]!.counts
+  check('the mixed field turn counts the shell command AND the four browser actions', c['commands'] === 1 && c['browser'] === 4, JSON.stringify(c))
+  const only = inject([prompt('browser only', 'p1'), toolUse('Browser', { op: 'open', url: 'http://127.0.0.1:8765/' }, 'a1'), toolUse('Browser', { op: 'screenshot' }, 'a2')])
+  check('a Browser-only turn gets a receipt of its own (the field saw none in 18 such turns)', receipts(only).length === 1 && receipts(only)[0]!.counts['browser'] === 2, JSON.stringify(receipts(only).map(r => r.counts)))
+})
 
 section('turn boundaries')
 withEnv('1', () => {

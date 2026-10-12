@@ -16,6 +16,7 @@ export interface TurnReceiptCounts {
   reads: number
   searches: number
   commands: number
+  browser: number
   agents: number
   delegatedTokens: number
   delegatedCostUSD: number
@@ -31,6 +32,7 @@ function emptyCounts(): TurnReceiptCounts {
     reads: 0,
     searches: 0,
     commands: 0,
+    browser: 0,
     agents: 0,
     delegatedTokens: 0,
     delegatedCostUSD: 0,
@@ -40,13 +42,14 @@ function emptyCounts(): TurnReceiptCounts {
 
 function hasActivity(c: TurnReceiptCounts): boolean {
   return (
-    c.scratchpadEdits + c.fileEdits + c.reads + c.searches + c.commands + c.agents > 0
+    c.scratchpadEdits + c.fileEdits + c.reads + c.searches + c.commands + c.browser + c.agents > 0
   )
 }
 
 const READ_TOOLS = new Set(['Read', 'NotebookRead'])
 const SEARCH_TOOLS = new Set(['Grep', 'Glob', 'WebSearch', 'ProviderSearch', 'WebFetch'])
 const COMMAND_TOOLS = new Set(['Bash'])
+const BROWSER_TOOLS = new Set(['Browser'])
 const EDIT_TOOLS = new Set(['Edit', 'Write', 'NotebookEdit'])
 const DELEGATE_TOOLS = new Set(['Agent'])
 
@@ -102,6 +105,7 @@ function countToolUses(m: LooseMessage, c: TurnReceiptCounts): void {
     if (READ_TOOLS.has(name)) c.reads += 1
     else if (SEARCH_TOOLS.has(name)) c.searches += 1
     else if (COMMAND_TOOLS.has(name)) c.commands += 1
+    else if (BROWSER_TOOLS.has(name)) c.browser += 1
     else if (DELEGATE_TOOLS.has(name)) c.agents += 1
   }
 }
@@ -247,7 +251,7 @@ function walkTurnReceipts(
     for (const row of [m, ...(m.messages ?? []), ...(m.results ?? [])]) {
       const carry = row.uuid === undefined ? undefined : pending.get(row.uuid)
       if (!carry) continue
-      for (const key of Object.keys(counts) as Array<keyof TurnReceiptCounts>) counts[key] += carry.counts[key]
+      for (const key of Object.keys(counts) as Array<keyof TurnReceiptCounts>) counts[key] += carry.counts[key] ?? 0
       anchorUuid = carry.anchorUuid
       pending.delete(carry.beforeUuid)
       pending.delete(deriveUUID(carry.beforeUuid as Message['uuid'], carry.blockIndex ?? 0))
@@ -273,7 +277,7 @@ export function foldedTurnReceipts(
     const retained = emptyCounts()
     for (const m of surviving) countMessage(m, retained, tempRoot)
     const missing = { ...counts }
-    for (const key of Object.keys(missing) as Array<keyof TurnReceiptCounts>) missing[key] -= retained[key]
+    for (const key of Object.keys(missing) as Array<keyof TurnReceiptCounts>) missing[key] -= retained[key] ?? 0
     let target: { beforeUuid: string; blockIndex?: number } | undefined
     for (const m of surviving) {
       if (m.type !== 'assistant' && m.type !== 'user') continue
