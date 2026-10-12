@@ -9,6 +9,7 @@ import { foldAnswers } from '../../utils/hooks/answer.js'
 import { fireHooks, prepareHooks, type HookFireResult, type PreparedHooks } from '../../utils/hooks/fire.js'
 import { hooksFor } from '../../utils/hooks/matching.js'
 import type { HookScope } from '../../utils/hooks/sessionHooks.js'
+import { postureBypassesAsks } from '../../utils/permissions/decision/engine.js'
 import { checkRuleBasedPermissions } from '../../utils/permissions/permissions.js'
 import { getRuleBehaviorDescription } from '../../utils/permissions/PermissionResult.js'
 
@@ -136,7 +137,7 @@ export async function resolveHookPermissionDecision(
   }
   const inputForCallback = hookResult?.updatedInput ?? input
   const forcedDecision =
-    hookResult?.behavior === 'ask'
+    hookResult?.behavior === 'ask' && !postureBypassesAsks(context.getAppState().toolPermissionContext)
       ? ({
           behavior: 'ask',
           ...(hookResult.message !== undefined ? { message: hookResult.message } : {}),
