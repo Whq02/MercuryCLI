@@ -89,9 +89,11 @@ function ShimmerLine({ message }: { message: string }): React.ReactNode {
 export function PermissionExplainerContent({
   visible,
   promise,
+  fallback,
 }: {
   visible: boolean
   promise: Promise<PermissionExplanation | null> | null
+  fallback?: React.ReactNode
 }): React.ReactNode {
   const [resolved, setResolved] = useState<PermissionExplanation | null | 'pending'>('pending')
   useEffect(() => {
@@ -108,7 +110,7 @@ export function PermissionExplainerContent({
 
   if (!visible || !promise) return null
   if (resolved === 'pending') return <ShimmerLine message="Loading explanation…" />
-  if (resolved === null) return <Text dimColor>No explanation available</Text>
+  if (resolved === null) return <>{fallback ?? <Text dimColor>No explanation available</Text>}</>
   return (
     <Box flexDirection="column" gap={1}>
       <Text>{resolved.explanation}</Text>

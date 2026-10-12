@@ -17,6 +17,8 @@ import { parseSedEditCommand } from '../../../tools/BashTool/sedEditParser.js'
 import { shouldUseSandbox } from '../../../tools/BashTool/shouldUseSandbox.js'
 import { getCompoundCommandPrefixesStatic } from '../../../utils/bash/prefix.js'
 import { shouldShowAlwaysAllowOptions } from '../../../utils/permissions/permissionsLoader.js'
+import { toTildePath } from '../../../utils/path.js'
+import { getFocusedSessionConnector } from '../../../services/engine-connector/focusedConnector.js'
 import { SandboxManager } from '../../../utils/sandbox/sandbox-adapter.js'
 import type { Message } from '../../../types/message.js'
 import type { PermissionUpdate } from '../../../types/permissions.js'
@@ -230,8 +232,9 @@ function BashCommandPermissionRequest(
             {explainer.visible ? null : (
               <Text dimColor>{toolUseConfirm.description}</Text>
             )}
+            <Text dimColor>in {toTildePath(getFocusedSessionConnector().workspace().originalCwd)}</Text>
           </Box>
-          <PermissionExplainerContent visible={explainer.visible} promise={explainer.promise} />
+          <PermissionExplainerContent visible={explainer.visible} promise={explainer.promise} fallback={<Text dimColor>{toolUseConfirm.description}</Text>} />
           {debugVisible ? (
             <PermissionDecisionDebugInfo
               permissionResult={toolUseConfirm.permissionResult}
