@@ -15,13 +15,11 @@ import { useMercuryTokens } from '../../components/mercury-ui/useMercuryTokens.j
 import { TOOL_SUMMARY_MAX_LENGTH } from '../../constants/toolLimits.js'
 import { Text } from '../../ink.js'
 import type { ToolResultBlockParam } from '../../types/wire.js'
-import { FILE_NOT_FOUND_CWD_NOTE, getDisplayPath } from '../../utils/file.js'
-import { extractTag } from '../../utils/messages.js'
+import { getDisplayPath } from '../../utils/file.js'
 import { firstLineOf } from '../../utils/stringUtils.js'
+import { toolErrorReason } from '../../utils/toolErrorReason.js'
 import type { FileEditInput, FileEditOutput } from './types.js'
 
-
-const UNREAD_FILE_REFUSAL = 'File has not been read yet'
 
 type MaybeLegacyInput = Partial<FileEditInput> & { edits?: unknown[] }
 
@@ -135,15 +133,7 @@ export function renderToolUseErrorMessage(
   { verbose }: { verbose: boolean },
 ): React.ReactNode {
   if (!verbose && typeof result === 'string') {
-    if (result.includes(UNREAD_FILE_REFUSAL)) {
-      return <ShortErrorLine text="File must be read before it can be edited" />
-    }
-    if (result.includes(FILE_NOT_FOUND_CWD_NOTE)) {
-      return <ShortErrorLine text="File not found" />
-    }
-    if (extractTag(result, 'tool_use_error') !== null) {
-      return <ShortErrorLine text="Error editing file" />
-    }
+    return <ShortErrorLine text={toolErrorReason(result, 'Error editing file')} />
   }
   return <FallbackToolUseErrorMessage result={result} verbose={verbose} />
 }
