@@ -81,7 +81,7 @@ function queuedRows(queued: Of<'queued_command'>): UserMessage[] {
   const wrapped = wrapCommandText(raw, origin)
   const content: Body = blocks ? [text(wrapped), ...blocks.filter(block => block.type === 'image')] : wrapped
   const hide = (origin !== undefined && !isAdvisorOrigin(origin)) || queued.isMeta
-  return wrapMessagesInSystemReminder([createUserMessage({ content, origin, uuid: queued.source_uuid, ...(hide ? { isMeta: true } : {}) })])
+  return wrapMessagesInSystemReminder([createUserMessage({ content, origin, uuid: queued.source_uuid, queued: true, ...(hide ? { isMeta: true } : {}) })])
 }
 
 const workingSetGuidance = 'These are evidence-ranked STARTING POINTS (exact task names > active work > import adjacency > current changes), not a complete file list — dereference to read, verify before relying, and explore beyond them when the task needs it.'
