@@ -10,6 +10,7 @@ import {
   MEMORY_POPUP_WIDTH,
   memoryFooter,
   memoryPopupLine,
+  plural,
 } from '../../components/memory/memoryCentreLayout.js'
 import { useSettingsPopupFrame } from '../../components/Settings/Settings.js'
 import { useMercuryTokens } from '../../components/mercury-ui/useMercuryTokens.js'
@@ -181,10 +182,10 @@ async function statsReply(): Promise<string> {
     ? 'Retain/Recall/Reflect/Correct available'
     : `memory verbs absent — ${memoryVerbsWhyNot() ?? 'unknown'}`
   return [
-    `buffer: ${status.buffered} row(s)${status.pendingConsuming > 0 ? ` (+${status.pendingConsuming} mid-consolidation)` : ''}`,
-    `library: ${status.topicCount} topic doc(s) · ${status.entryCount} live entr(ies) · ${status.historyCount} history`,
+    `buffer: ${plural(status.buffered, 'row')}${status.pendingConsuming > 0 ? ` (+${status.pendingConsuming} mid-consolidation)` : ''}`,
+    `library: ${plural(status.topicCount, 'topic page')} · ${plural(status.entryCount, 'live fact')} · ${status.historyCount} in history`,
     `last consolidation: ${status.lastConsolidatedAt ?? 'never'} · due now: ${status.due ? `yes (${status.dueReason})` : 'no'}`,
-    `validator refusals (last ${receipts.length} maintenance runs): ${refusals}`,
+    `validator refusals (last ${plural(receipts.length, 'maintenance run')}): ${refusals}`,
     verbs,
     ...(status.degraded.length > 0 ? [`degraded: ${status.degraded.join(' · ')}`] : []),
   ].join('\n')
