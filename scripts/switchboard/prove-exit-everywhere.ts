@@ -35,8 +35,8 @@ const SPELLING = 'twice to close Mercury'
 
 check("the owner counts ctrl+c by the Chat composer's own spelling and NEVER consumes the press",
   owner.includes("if (key.ctrl && input === 'c') press()") && !owner.includes('stopImmediatePropagation'))
-check('the second press routes through the ONE graceful shutdown (prompt_input_exit)',
-  owner.includes("gracefulShutdown(0, 'prompt_input_exit')"))
+check('the second press routes through the ONE graceful shutdown (quit)',
+  owner.includes("gracefulShutdown(0, 'quit')"))
 check("the chord rides the Chat's own window (EXIT_CHORD_WINDOW_MS through useDoublePress)",
   owner.includes('EXIT_CHORD_WINDOW_MS') && owner.includes('useDoublePress('))
 check("ctrl+d is not this owner's key (it keeps its own rules where it has any)", !/input === 'd'/.test(owner))
