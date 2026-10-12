@@ -1,0 +1,14 @@
+│  ⦿ Record a convention                                                                           │
+│  MERCURY.md                                                                                      │
+│  ╭────────────────────────────────────────────────────────────────────────────────────────────╮  │
+│  │ MERCURY.md                                                                                 │  │
+│  │  2  Standing orders for the Mercury harness in this repository.                            │  │
+│  │  3                                                                                         │  │
+│  │  4  - Never change the existing tests in the tests folder without asking first             │  │
+│  │  5 +- Always run the tests with python -m unittest discover tests, never pytest            │  │
+│  ╰────────────────────────────────────────────────────────────────────────────────────────────╯  │
+│  Do you want to record this rule in MERCURY.md?                                                  │
+│  ❯ 1. Yes                                                                                        │
+│    2. Yes, allow all edits for this session (shift+tab)                                          │
+│    3. No, and tell Mercury what to do differently (esc)                                          │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯

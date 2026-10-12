@@ -99,6 +99,36 @@ const SCENES: Scene[] = [
   },
 ]
 
+const RULE = 'Always run the tests with python -m unittest discover tests, never pytest'
+SCENES.push({
+  id: 'convention',
+  title: 'Record a convention',
+  needle: 'Do you want to record this rule in',
+  turns: () => [
+    { kind: 'tool_use', preText: 'Recording the rule.\n', name: 'RecordConvention', input: { rule: RULE } },
+    { kind: 'text', text: 'Done.' },
+  ],
+  mustShow: ['MERCURY.md', `+- ${RULE}`],
+  mustNotShow: ['⦿ Tool use', 'Record a durable project convention the user stated'],
+  disk: cwd => existsSync(join(cwd, 'MERCURY.md')) && readFileSync(join(cwd, 'MERCURY.md'), 'utf8').endsWith(`\n- ${RULE}\n`),
+})
+
+const FIRST_RULE = 'Never change the existing tests in the tests folder without asking first'
+SCENES.push({
+  id: 'convention-append',
+  title: 'Record a convention',
+  needle: 'Do you want to record this rule in',
+  seed: { 'MERCURY.md': `# MERCURY.md\nStanding orders for the Mercury harness in this repository.\n\n- ${FIRST_RULE}\n` },
+  turns: () => [
+    { kind: 'tool_use', preText: 'Recording the rule.\n', name: 'RecordConvention', input: { rule: RULE } },
+    { kind: 'text', text: 'Done.' },
+  ],
+  mustShow: ['MERCURY.md', `+- ${RULE}`, `- ${FIRST_RULE}`],
+  mustNotShow: ['⦿ Tool use', `-- ${FIRST_RULE}`, '-# MERCURY.md'],
+  noRowLike: /│\s+\d+\s-/,
+  disk: cwd => readFileSync(join(cwd, 'MERCURY.md'), 'utf8') === `# MERCURY.md\nStanding orders for the Mercury harness in this repository.\n\n- ${FIRST_RULE}\n- ${RULE}\n`,
+})
+
 const rowsHaving = (rows: string[], needle: string): boolean => rows.some(r => r.includes(needle))
 const cardRows = (rows: string[]): string[] => {
   const start = rows.findIndex(r => r.includes('⦿ '))

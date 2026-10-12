@@ -23,6 +23,7 @@ import { BrowserTool } from '../../tools/BrowserTool/BrowserTool.js'
 import { ApolloReviewTool } from '../../tools/ApolloReviewTool/ApolloReviewTool.js'
 import { AskUserQuestionTool } from '../../tools/AskUserQuestionTool/AskUserQuestionTool.js'
 import { WorkflowTool } from '../../tools/WorkflowTool/WorkflowTool.js'
+import { RecordConventionTool } from '../../tools/RecordConventionTool/RecordConventionTool.js'
 import { ApolloReviewPermissionRequest } from './ApolloReviewPermissionRequest/ApolloReviewPermissionRequest.js'
 import { AskUserQuestionPermissionRequest } from './AskUserQuestionPermissionRequest/AskUserQuestionPermissionRequest.js'
 import { ChangeSetPermissionRequest } from './ChangeSetPermissionRequest/ChangeSetPermissionRequest.js'
@@ -33,6 +34,7 @@ import { FileEditPermissionRequest } from './FileEditPermissionRequest/FileEditP
 import { FileWritePermissionRequest } from './FileWritePermissionRequest/FileWritePermissionRequest.js'
 import { FilesystemPermissionRequest } from './FilesystemPermissionRequest/FilesystemPermissionRequest.js'
 import { NotebookEditPermissionRequest } from './NotebookEditPermissionRequest/NotebookEditPermissionRequest.js'
+import { RecordConventionPermissionRequest } from './RecordConventionPermissionRequest/RecordConventionPermissionRequest.js'
 import { SkillPermissionRequest } from './SkillPermissionRequest/SkillPermissionRequest.js'
 import { WebFetchPermissionRequest } from './WebFetchPermissionRequest/WebFetchPermissionRequest.js'
 import { BrowserPermissionRequest } from './BrowserPermissionRequest/BrowserPermissionRequest.js'
@@ -120,6 +122,7 @@ export function PermissionRequest(props: PermissionRequestProps): React.ReactNod
   if (tool === BrowserTool) return <BrowserPermissionRequest key={key} {...props} />
   if (tool.name === COMPUTER_TOOL_NAME) return <ComputerPermissionRequest key={key} {...props} />
   if (tool === NotebookEditTool) return <NotebookEditPermissionRequest key={key} {...props} />
+  if (tool === RecordConventionTool) return <RecordConventionPermissionRequest key={key} {...props} />
   if (tool === ApolloReviewTool) return <ApolloReviewPermissionRequest key={key} {...props} />
   if (tool === SkillTool) return <SkillPermissionRequest key={key} {...props} />
   if (tool === AskUserQuestionTool) {
