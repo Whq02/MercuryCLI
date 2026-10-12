@@ -42,6 +42,17 @@ import { buildLanesModel, planningObjectiveOf, soloOf, wrapRailRows, type LanesI
 
 export { wrapRailRows }
 
+export const RAIL_ROW_NAME_FLOOR = 12
+
+export function railRowBudgets(available: number, nameW: number, verbW: number, sepW: number): { name: number; verb: number } {
+  if (verbW === 0) return { name: Math.max(3, available), verb: 0 }
+  const verbCap = Math.min(12, verbW)
+  const natural = available - sepW - verbCap
+  const name = Math.max(3, Math.max(natural, Math.min(nameW, RAIL_ROW_NAME_FLOOR)))
+  const verb = Math.min(verbCap, available - name - sepW)
+  return verb < 4 ? { name: Math.max(3, available), verb: 0 } : { name, verb }
+}
+
 function RailRow({
   width,
   glyph,
@@ -82,16 +93,9 @@ function RailRow({
   const indentW = 2
   const dotW = 2
   const sep = ' · '
-  const sepW = verb ? displayWidth(sep) : 0
-  const verbBudget = verb
-    ? Math.min(12, Math.max(0, width - indentW - dotW - sepW - 4))
-    : 0
-  const verbT = verb ? truncateToWidth(verb, verbBudget) : ''
-  const nameBudget = Math.max(
-    3,
-    width - indentW - dotW - (verbT ? sepW + displayWidth(verbT) : 0),
-  )
-  const nameT = truncateToWidth(name, nameBudget)
+  const budgets = railRowBudgets(width - indentW - dotW, displayWidth(name), verb !== undefined && verb !== '' ? displayWidth(verb) : 0, displayWidth(sep))
+  const verbT = verb !== undefined && budgets.verb > 0 ? truncateToWidth(verb, budgets.verb) : ''
+  const nameT = truncateToWidth(name, budgets.name)
 
   const clickable = rowIndex != null
   return (
