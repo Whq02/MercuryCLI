@@ -19,6 +19,7 @@ export type OAuthFlowOptions = {
   loginHint?: string
   loginMethod?: string
   skipBrowserOpen?: boolean
+  onBrowserOpen?: (opened: boolean) => void
 }
 
 type AuthUrlHandler = (autoUrl: string, manualUrl: string) => void | Promise<void>
@@ -64,7 +65,8 @@ export class OAuthService {
               await authUrlHandler(autoUrl, manualUrl)
               if (options?.skipBrowserOpen !== true) {
                 logForDebugging(`oauth: opening browser to ${autoUrl}`)
-                await openBrowser(autoUrl)
+                const opened = await openBrowser(autoUrl)
+                options?.onBrowserOpen?.(opened)
               }
             })()
           })

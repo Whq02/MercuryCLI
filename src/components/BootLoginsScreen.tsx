@@ -6,6 +6,7 @@ import { Box, useInput } from '../ink.js';
 import { createSplashCore, WORD_W, type BootMenuData } from '../../assets/splash/splash-core.mjs';
 import {
   useAnthropicLoginModel,
+  waitingHeadline,
   type AnthropicLoginSnapshot,
 } from './mercury-ui/screens/anthropicLoginModel.js';
 import { keyPasteGuardNote } from './mercury-ui/screens/keyPasteGuards.js';
@@ -368,7 +369,8 @@ export function anthropicFlowPaneLines(snap: AnthropicLoginSnapshot, draftLen: n
     case 'ready':
       return ['Opening your browser…', '', 'esc cancels — nothing is stored'];
     case 'waiting': {
-      const lines: string[] = ['A browser window has been opened —', 'finish signing in there.'];
+      const headline = waitingHeadline(snap);
+      const lines: string[] = headline.warns ? wrapPlain(headline.words, DETAIL_W) : ['A browser window has been opened —', 'finish signing in there.'];
       if (flow.forcedMethod) lines.push(`(login method pre-selected: ${flow.forcedMethod})`);
       if (snap.pastePromptUp) {
         lines.push('Browser did not open? Use this URL:');
@@ -1794,6 +1796,8 @@ export function BootLoginsScreen({ onClose, onSignedIn, family, fullScene, facts
                     snap: {
                       flow: model.flow,
                       pastePromptUp: model.pastePromptUp,
+                      noCodeYet: model.noCodeYet,
+                      browserOpened: model.browserOpened,
                       copied: model.copied,
                       shadowWarning: model.shadowWarning,
                       accountLabel: model.accountLabel,

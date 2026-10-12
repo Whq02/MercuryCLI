@@ -24,9 +24,14 @@ import { getAuthScope } from '../../../utils/envUtils.js'
 
 const ONE_YEAR_SECONDS = 365 * 24 * 60 * 60
 export const PASTE_PROMPT_DELAY_MS = 3000
+export const NO_CODE_DELAY_MS = 30_000
 export const COPY_ACK_MS = 2000
 export const RETRY_DELAY_MS = 1000
 export const TOKEN_FINISH_MS = 500
+
+export const BROWSER_OPENED_WORDS = 'A browser window has been opened — finish signing in there.'
+export const BROWSER_DID_NOT_OPEN_WORDS = 'The browser did not open. Press c to copy the sign-in URL and open it yourself; the code goes in the field below.'
+export const NO_CODE_ARRIVED_WORDS = 'No code arrived from the browser yet. If no window opened, press c to copy the sign-in URL and open it yourself; the code goes in the field below.'
 
 export type AnthropicFlowState =
   | { name: 'idle' }
@@ -40,9 +45,17 @@ export type AnthropicFlowState =
 export interface AnthropicLoginSnapshot {
   flow: AnthropicFlowState
   pastePromptUp: boolean
+  noCodeYet: boolean
+  browserOpened: boolean | null
   copied: boolean
   shadowWarning: string | null
   accountLabel: string | null
+}
+
+export function waitingHeadline(snap: Pick<AnthropicLoginSnapshot, 'noCodeYet' | 'browserOpened'>): { words: string; warns: boolean } {
+  if (snap.browserOpened === false) return { words: BROWSER_DID_NOT_OPEN_WORDS, warns: true }
+  if (snap.noCodeYet) return { words: NO_CODE_ARRIVED_WORDS, warns: true }
+  return { words: BROWSER_OPENED_WORDS, warns: false }
 }
 
 export const MANUAL_CODE_ERROR =
@@ -94,6 +107,7 @@ export interface AnthropicOAuthServiceLike {
       expiresIn?: number
       orgUUID?: string
       loginMethod?: string
+      onBrowserOpen?: (opened: boolean) => void
     },
   ): Promise<OAuthTokens>
   handleManualAuthCodeInput(input: { authorizationCode: string; state: string }): void
@@ -173,6 +187,8 @@ export function createAnthropicLoginMachine(
       ? { name: 'ready', loginWithClaudeAi: forcedMethod === 'claudeai' }
       : { name: 'idle' }
   let pastePromptUp = false
+  let noCodeYet = false
+  let browserOpened: boolean | null = null
   let copied = false
   let shadowWarning: string | null = null
   let accountLabel: string | null = null
@@ -183,7 +199,7 @@ export function createAnthropicLoginMachine(
   let rolesRequest: AbortController | null = null
   const timers = new Set<unknown>()
 
-  const snapshot = (): AnthropicLoginSnapshot => ({ flow, pastePromptUp, copied, shadowWarning, accountLabel })
+  const snapshot = (): AnthropicLoginSnapshot => ({ flow, pastePromptUp, noCodeYet, browserOpened, copied, shadowWarning, accountLabel })
   const publish = (): void => {
     if (!disposed) onChange(snapshot())
   }
@@ -270,6 +286,8 @@ export function createAnthropicLoginMachine(
     const gen = generation
     const created = deps.createService()
     service = created
+    noCodeYet = false
+    browserOpened = null
     created
       .startOAuthFlow(
         (autoUrl, manualUrl) => {
@@ -281,12 +299,22 @@ export function createAnthropicLoginMachine(
             pastePromptUp = true
             publish()
           }, PASTE_PROMPT_DELAY_MS)
+          arm(() => {
+            if (gen !== generation || flow.name !== 'waiting') return
+            noCodeYet = true
+            publish()
+          }, NO_CODE_DELAY_MS)
         },
         {
           loginWithClaudeAi,
           ...(setupToken ? { inferenceOnly: true, expiresIn: ONE_YEAR_SECONDS } : {}),
           ...(forcedOrg ? { orgUUID: forcedOrg } : {}),
           ...(forcedMethod ? { loginMethod: forcedMethod } : {}),
+          onBrowserOpen: opened => {
+            if (gen !== generation) return
+            browserOpened = opened
+            publish()
+          },
         },
       )
       .then(tokens => {
@@ -355,6 +383,8 @@ export function createAnthropicLoginMachine(
       started = false
       flow = { name: 'idle' }
       pastePromptUp = false
+      noCodeYet = false
+      browserOpened = null
       copied = false
       shadowWarning = null
       accountLabel = null
