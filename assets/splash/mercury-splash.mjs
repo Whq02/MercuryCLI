@@ -881,6 +881,7 @@ function menuData() {
     const ch = choiceOf(r2)
     const pinnedVal = pinOf(r2)
     const follows = r2.defaultFollows
+    const readsAs = pinnedVal === undefined ? ch.v : pinnedVal
     return {
       label: r2.label,
       group: r2.group,
@@ -888,6 +889,7 @@ function menuData() {
       valueLabel: ch.v === null && follows && effectiveOf(follows.env) === follows.value ? follows.label : ch.l,
       valueIsDefault: ch.v === null,
       pinnedVal: pinnedVal === undefined ? null : pinnedVal,
+      warn: r2.warnWhenOn && readsAs !== null && r2.choices.some(c => c.v === readsAs && c.l === 'on') ? r2.warnWhenOn : null,
       detail: r2.detail || null,
     }
   })

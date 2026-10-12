@@ -1,0 +1,40 @@
+
+                                    ■ ────────────────··· (>_) ···──────────────── ■
+
+                                 ██▄██   █▀▀▀▀   █▀▀▀█   █▀▀▀▀   █   █   █▀▀▀█   █   █
+                                 █   █   █▀▀▀    █▀▀█    █       █   █   █▀▀█     ▀█▀
+                                 ▀   ▀   ▀▀▀▀▀   ▀   ▀   ▀▀▀▀▀   ▀▀▀▀▀   ▀   ▀     ▀
+
+                                                      ⌁ boot menu
+
+   ╭────────────────────────────────────────────────────────────────╮  ╭────────────────────────────────────────────╮
+   │ CONTROL PLANE                                                  │  │ SETTING DETAIL                             │
+   │                                                                │  │ ❯ Sovereign mode                           │
+   │ TRUST COMBO                                                    │  │                                            │
+   │   Content-rule wards                              default (on) │  │ What it controls                           │
+   │   Debug tool (real debugger)                      default (on) │  │ The one bypass: interactive boots start    │
+   │   C/C++ IDE lane (clangd)                         default (on) │  │ in sovereign mode, as if --sovereign was   │
+   │ ❯ Sovereign mode                                            on │  │ passed, and no permission question is      │
+   │ ▲ nothing asks or stops you — every action runs as you         │  │ asked — not for files, not for commands,   │
+   │                                                                │  │ not for computer use. Saving this row is   │
+   │ COMPUTER USE                                                   │  │ the standing consent; the launch           │
+   │   Computer use                                    default (on) │  │ confirmation dialog still applies and      │
+   │   Access type                  default (full · sovereign mode) │  │ root users receive a notice, a deny rule   │
+   │                                                                │  │ … (the trail continues — a taller termina… │
+   │ SAMPLES                                                        │  ╰────────────────────────────────────────────╯
+   │   Samples                                        default (off) │  ╭────────────────────────────────────────────╮
+   │                                                                │  │ LAUNCH SUMMARY                             │
+   │ AGENTS                                                         │  │ Profile    r1 · custom · 1 set             │
+   │   Crewmates                                       default (on) │  │ Harness    helm · console                  │
+   │   Workflows                                       default (on) │  │ Readiness  ● ready                         │
+   │                                                                │  ╰────────────────────────────────────────────╯
+   │ MISCELLANEOUS                                                  │  ╭────────────────────────────────────────────╮
+   │   Launch animation                                default (on) │  │ ENVIRONMENT                                │
+   │   Godot language lanes                           default (off) │  │ Mercury    Opus 5                          │
+   │   Godot control surface (VULCAN)                 default (off) │  │ Critter    Octopus                         │
+   │ … 9 more below                                                 │  │ Dir        orchard-src                     │
+   ╰────────────────────────────────────────────────────────────────╯  ╰────────────────────────────────────────────╯
+   ╭────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+   │ ● System ready  │  1 choice saved — applies to new sessions                                                    │
+   ╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+                          ↑↓ move · ↵ change (saved) · ⌫ default · a apply receipts · esc back

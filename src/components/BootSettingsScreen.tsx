@@ -13,6 +13,7 @@ import {
   evaluateExplicitApply,
   menuRowChoices,
   menuRowValueLabel,
+  menuRowWarning,
   readBootDefaultsProfile,
   bootAdmissionSnapshot,
   resolveEffectiveSettingsSnapshot,
@@ -493,6 +494,7 @@ export function BootSettingsScreen({
         }),
         valueIsDefault: saved[row.env] === undefined,
         pinnedVal: envPinned ? (effective?.value ?? '') : null,
+        warn: menuRowWarning(row, envPinned ? (effective?.value ?? null) : (saved[row.env] ?? null)),
         detail: row.detail ?? null,
         detailExtra: [
           `this session  ${effective ? (effective.value ?? 'default') : 'default'} (${effective?.source ?? 'default'})`,
