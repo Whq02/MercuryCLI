@@ -267,6 +267,20 @@ export function standingModelRefusals(): readonly ModelRefusal[] {
     .map(file => ({ ...file.row }))
 }
 
+export const MODEL_REFUSAL_NOTICE_MS = 60 * 60 * 1000
+
+export function modelRefusalHealthStatus(refusal: Pick<ModelRefusal, 'kind' | 'seenAtMs'>, nowMs: number): 'warn' | 'info' {
+  if (refusal.kind !== 'not-served') return 'warn'
+  return nowMs - refusal.seenAtMs <= MODEL_REFUSAL_NOTICE_MS ? 'warn' : 'info'
+}
+
+export function forgetModelRefusals(home = getAuthConfigHomeDir()): number {
+  const files = readModelRefusals(home)
+  for (const file of files) removeModelRefusalFile(file.path)
+  modelRefusalCache = null
+  return files.length
+}
+
 export function modelRefusalWords(id: string): string | undefined {
   const door = activeModelRefusalDoor()
   if (door === undefined) return undefined

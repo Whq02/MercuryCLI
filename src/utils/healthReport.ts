@@ -38,8 +38,10 @@ import { buildRouterModelSnapshot } from './router/modelRegistry.js'
 import { binaryName, isMercurySubstrateProfileOn } from './config.js'
 import { getCwd } from './cwd.js'
 import {
+  carryDeepReadings,
   countByStatus,
   decodeGateVerdict,
+  decodeLastCertSummary,
   flattenChecks,
   formatAge,
   interpretGateVerdict,
@@ -51,6 +53,7 @@ import {
   type HealthCheck,
   type HealthSection,
   type HealthStatus,
+  type LastCertSummary,
 } from './healthCertCore.js'
 import { isInvocationTraceEnabled } from './observability/invocationTrace.js'
 import { mercuryLspEnabled } from '../services/lsp/mercuryLsp.js'
@@ -640,10 +643,10 @@ function providerAuthChecks(): CheckSpec[] {
               }
             }
             return {
-              status: 'fail' as const,
+              status: 'warn' as const,
               evidence:
-                'absent — no bearer token or API key from the owning resolvers (getAuthTokenSource + getAnthropicApiKeyWithSource)',
-              fix: `${meta.signIn} — no turn can run without it.`,
+                'not signed in — no bearer token or API key (owning resolvers: getAuthTokenSource + getAnthropicApiKeyWithSource)',
+              fix: `${meta.signIn} — no turn can run until you sign in.`,
             }
           }
           if (presence.expired) {
@@ -678,9 +681,9 @@ function providerAuthChecks(): CheckSpec[] {
         if (account.kind === 'none') {
           if (provider.id === routedFamily) {
             return {
-              status: 'fail' as const,
-              evidence: `absent — ${account.label} (the session routes to ${routedFamily}; no turn can run without it)`,
-              fix: `${meta.signIn} — no turn can run without it.`,
+              status: 'warn' as const,
+              evidence: `not signed in — ${account.label} (the session routes to ${routedFamily}; no turn can run until you sign in)`,
+              fix: `${meta.signIn} — no turn can run until you sign in.`,
             }
           }
           return {
@@ -781,18 +784,35 @@ export function modelRefusalsCheck(): CheckSpec {
     id: 'model-refusals',
     label: 'Refused models',
     run: () => {
-      const { standingModelRefusals, modelRefusalFix } =
+      const { standingModelRefusals, modelRefusalFix, modelRefusalHealthStatus, forgetModelRefusals } =
         require('../services/providers/anthropic/modelRefusal.js') as typeof import('../services/providers/anthropic/modelRefusal.js')
       const { renderModelName } = require('./model/model.js') as typeof import('./model/model.js')
       const refusals = standingModelRefusals()
       if (refusals.length === 0) return { status: 'info', evidence: 'no model refused on any door in this session' }
       const now = Date.now()
       const kinds = { 'contract-floor': 'minimum client version', tier: 'subscription tier', 'not-served': 'not served' }
+      const status = refusals.some(refusal => modelRefusalHealthStatus(refusal, now) === 'warn') ? 'warn' : 'info'
       return {
-        status: 'warn',
+        status,
         evidence: refusals.map(refusal => `${renderModelName(refusal.id)} · ${refusal.door} · ${kinds[refusal.kind]} · seen ${formatAge(now - refusal.seenAtMs)}`).join('\n'),
-        detail: refusals.map(refusal => refusal.words).join('\n'),
+        detail: `${refusals.map(refusal => refusal.words).join('\n')}${status === 'info' ? '\nA refused model id older than an hour is a record, not a caution.' : ''}`,
         fix: [...new Set(refusals.map(refusal => `${modelRefusalFix(refusal)}.`))].join('\n'),
+        ...(status === 'warn' && healthFixEnabled()
+          ? {
+              remedy: {
+                plan: `forget the ${refusals.length} recorded model refusal${refusals.length === 1 ? '' : 's'} (derived evidence under the credential home; a refusal that recurs is recorded again)`,
+                class: 'safe' as const,
+                apply: async () => {
+                  const removed = forgetModelRefusals()
+                  return { ok: true, note: `${removed} record${removed === 1 ? '' : 's'} removed` }
+                },
+                verify: async () => {
+                  const left = standingModelRefusals().length
+                  return left === 0 ? { ok: true, note: 'no model refusal stands' } : { ok: false, note: `${left} refusal record(s) still stand` }
+                },
+              },
+            }
+          : {}),
       }
     },
   }
@@ -2215,10 +2235,21 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
           id: 'preserved-thinking',
           label: 'Preserved thinking',
           run: async () => {
-            const { preservedThinkingHealth, readThinkingDropLedger } = await import(
+            const { preservedThinkingHealth, readThinkingDropLedger, forgetThinkingDropLedger } = await import(
               '../services/providers/anthropic/thinkingBinding.js'
             )
-            return preservedThinkingHealth(readThinkingDropLedger())
+            const ledger = readThinkingDropLedger()
+            const row = preservedThinkingHealth(ledger)
+            if (ledger === null || row.status !== 'warn' || !healthFixEnabled()) return row
+            return {
+              ...row,
+              remedy: {
+                plan: 'forget the recorded thinking drop (derived evidence under the config home; a new drop is recorded again)',
+                class: 'safe' as const,
+                apply: async () => (forgetThinkingDropLedger() ? { ok: true, note: 'the record was removed' } : { ok: false, note: 'the record could not be removed' }),
+                verify: async () => (readThinkingDropLedger() === null ? { ok: true, note: 'no dropped thinking block recorded' } : { ok: false, note: 'the record still stands' }),
+              },
+            }
           },
         },
       ],
@@ -2954,13 +2985,13 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
               return {
                 status: 'warn',
                 evidence: reason,
-                fix: 'Run /sandbox for details, or unset sandbox.enabled if intentional.',
+                fix: 'Run /sandbox for details, or unset guardrails.sandbox.enabled if intentional.',
               }
             }
             return {
               status: 'info',
               evidence: 'off — Bash runs unconfined (no OS filesystem/network boundary)',
-              fix: 'Set sandbox.enabled:true in settings.json to confine Bash (macOS seatbelt / Linux bubblewrap).',
+              fix: 'Set guardrails.sandbox.enabled: true in settings.json to confine Bash (macOS seatbelt / Linux bubblewrap).',
             }
           },
         },
@@ -4405,9 +4436,16 @@ export async function runAndRecordHealthReport(opts?: RunHealthReportOptions): P
   const cert = await runHealthReport(opts)
   if (healthCertEnabled()) {
     try {
+      let previous: LastCertSummary | null = null
+      try {
+        previous = decodeLastCertSummary(JSON.parse(readFileSync(lastCertPath(), 'utf8')))
+      } catch {
+        previous = null
+      }
+      const summary = carryDeepReadings(summarizeCert(cert), previous, new Set(flattenChecks(cert).map(c => c.id)))
       await publishAtomic(
         lastCertPath(),
-        JSON.stringify({ ...summarizeCert(cert), _v: 1 }, null, 2),
+        JSON.stringify({ ...summary, _v: 1 }, null, 2),
       )
     } catch {
     }

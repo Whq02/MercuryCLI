@@ -246,7 +246,8 @@ export interface LastCertSummary {
   head: CertHead
   version: string
   counts: Record<HealthStatus, number>
-  attention: Array<{ id: string; label: string; status: HealthStatus; evidence: string }>
+  attention: Array<{ id: string; label: string; status: HealthStatus; evidence: string; depth?: HealthDepth; ranAt?: string }>
+  depth?: HealthDepth
 }
 
 export const ATTENTION_ROWS_MAX = 12
@@ -258,7 +259,7 @@ export function attentionRows(
   const rows: LastCertSummary['attention'] = []
   for (const sev of ATTENTION_SEVERITY) {
     for (const c of checks) {
-      if (c.status === sev) rows.push({ id: c.id, label: c.label, status: c.status, evidence: c.evidence })
+      if (c.status === sev) rows.push({ id: c.id, label: c.label, status: c.status, evidence: c.evidence, ...(c.depth !== undefined ? { depth: c.depth } : {}) })
     }
   }
   return rows.slice(0, ATTENTION_ROWS_MAX)
@@ -273,6 +274,36 @@ export function summarizeCert(cert: HealthCertificate): LastCertSummary {
     version: cert.version,
     counts: countByStatus(checks),
     attention: attentionRows(checks),
+    ...(cert.depth !== undefined ? { depth: cert.depth } : {}),
+  }
+}
+
+const VERDICT_RANK: Record<CertVerdict, number> = { certified: 0, caution: 1, fault: 2 }
+
+export function worseVerdict(a: CertVerdict, b: CertVerdict): CertVerdict {
+  return VERDICT_RANK[a] >= VERDICT_RANK[b] ? a : b
+}
+
+export function carryDeepReadings(
+  fresh: LastCertSummary,
+  previous: LastCertSummary | null,
+  freshCheckIds: ReadonlySet<string>,
+): LastCertSummary {
+  if (fresh.depth === 'deep' || previous === null) return fresh
+  const carried = previous.attention
+    .filter(row => row.depth === 'deep' && !freshCheckIds.has(row.id))
+    .map(row => ({ ...row, ranAt: row.ranAt ?? previous.ranAt }))
+  if (carried.length === 0) return fresh
+  const counts = { ...fresh.counts }
+  for (const row of carried) counts[row.status]++
+  const merged = [...fresh.attention, ...carried]
+  const attention: LastCertSummary['attention'] = []
+  for (const sev of ATTENTION_SEVERITY) for (const row of merged) if (row.status === sev) attention.push(row)
+  return {
+    ...fresh,
+    verdict: worseVerdict(fresh.verdict, verdictFromStatuses(carried.map(row => row.status))),
+    counts,
+    attention: attention.slice(0, ATTENTION_ROWS_MAX),
   }
 }
 
@@ -299,11 +330,19 @@ export function decodeLastCertSummary(raw: unknown): LastCertSummary | null {
           typeof r.label === 'string' &&
           isStatus(r.status) &&
           typeof r.evidence === 'string'
-          ? [{ id: r.id, label: r.label, status: r.status, evidence: r.evidence }]
+          ? [{
+              id: r.id,
+              label: r.label,
+              status: r.status,
+              evidence: r.evidence,
+              ...(r.depth === 'fast' || r.depth === 'deep' ? { depth: r.depth as HealthDepth } : {}),
+              ...(typeof r.ranAt === 'string' && !Number.isNaN(Date.parse(r.ranAt)) ? { ranAt: r.ranAt } : {}),
+            }]
           : []
       })
     : []
   return {
+    ...(o.depth === 'fast' || o.depth === 'deep' ? { depth: o.depth as HealthDepth } : {}),
     verdict: o.verdict,
     ranAt: o.ranAt,
     head: {

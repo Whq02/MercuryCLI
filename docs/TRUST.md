@@ -253,6 +253,13 @@ The verdicts are:
   `--allow-unsigned` — download the release again, and if it repeats report
   it through the repository's Security tab.
 
+An installed payload is never written after install. On macOS the vendored
+search binary ships with the linker's own ad-hoc signature; the first search
+re-signs a copy of it under the config home (`cache/ripgrep/<digest>/rg`,
+keyed by the shipped file's digest) and runs that copy, so the payload stays
+byte for byte what was signed: a clean install reads `signed` at every depth,
+and `tampered` means the bytes really changed.
+
 How to check:
 
 - `mercury health` — the rows **Artifact signature** (the bundle's bytes) and

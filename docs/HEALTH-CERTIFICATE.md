@@ -71,8 +71,16 @@ stays visible with the same sentence as the chat and picker. The row warns
 with the model, credential door, cause and time since the refusal; expanding
 it shows the sentence and remedy. A successful request for that model on
 that door clears the refusal, and changing the presented client version
-clears a minimum-version refusal. With no recorded refusal the row reads
-`info`: `no model refused on any door in this session`. The observations are
+clears a minimum-version refusal. A refusal for a model the service does not
+serve is a notice: it warns for an hour after it was seen and then stays as
+an `info` record; a minimum-version or tier refusal keeps warning until the
+client or the plan moves. While a refusal warns, `mercury health --fix --only
+model-refusals` (or the fix engine in the panel) forgets the records; a
+refusal that recurs is recorded again. The `Preserved thinking` row follows
+the same law: a recorded drop warns for an hour and for the session it
+happened in, then reads `info`, and its warn carries a forget remedy. With no
+recorded refusal the row reads `info`: `no model refused on any door in this
+session`. The observations are
 shared by the runner, picker and the health check through the current credential home's
 `model-refusals` directory, so a separate health check can read a recorded refusal
 too; it never makes a provider request to discover one.
@@ -248,7 +256,11 @@ store; it is not a direct certificate-directory override:
 - `health/last-cert.json` — an atomic, best-effort summary written after each
   certificate; the certificate chip in the session chrome folds it in (a
   summary older than a day reads stale), and resume honesty reads it too.
-  Skipped entirely when the certificate surface is gated off.
+  A fast certificate written after a deep one keeps the deep-only rows'
+  last reading (each with its own time) and the worse verdict of the two, so
+  a payload fault found at depth is never hidden behind a later fast
+  caution; the next deep run replaces them. Skipped entirely when the
+  certificate surface is gated off.
 - `health/last-preflight.json` — the boot preflight's summary. The preflight
   (`MERCURY_BOOT_PREFLIGHT`) runs a cheap subset of `/health` after the UI
   mounts and notifies only on a fault; it is not a certificate and never

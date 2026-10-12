@@ -100,23 +100,25 @@ section('§1 engine-routed with its credential: Anthropic absence is info, exit 
   check('exit 0 (no FAULT from the unused lane)', r.status === 0, `status=${r.status} verdict=${String(r.json?.verdict)}`)
 }
 
-section('§2 engine-routed with the engine credential MISSING: fail, FAULT, exit 3')
+section('§2 engine-routed with the engine credential MISSING: warn, caution, exit 0 — signed out is not a fault')
 {
   const r = run(['health', '--json'], {
     ANTHROPIC_API_KEY: 'fixture-anthropic-key',
     MERCURY_MODEL: 'deepseek-chat',
   })
   const deepseekRow = rowOf(r.json, 'auth-deepseek')
-  check('the routed family with no credential reads fail', deepseekRow?.status === 'fail', JSON.stringify(deepseekRow))
-  check('verdict FAULT, exit 3 (preflight no longer false-greens the missing engine credential)', r.status === 3 && String(r.json?.verdict ?? '').toLowerCase().includes('fault'), `status=${r.status} verdict=${String(r.json?.verdict)}`)
+  check('the routed family with no credential reads warn and says not signed in', deepseekRow?.status === 'warn' && (deepseekRow.evidence ?? '').startsWith('not signed in'), JSON.stringify(deepseekRow))
+  check('its fix names the way in', ((deepseekRow as { fix?: string } | undefined)?.fix ?? '').includes('/logins'), JSON.stringify(deepseekRow))
+  check('verdict caution, exit 0 (a missing sign-in never reads as a broken install)', r.status === 0 && String(r.json?.verdict ?? '') === 'caution', `status=${r.status} verdict=${String(r.json?.verdict)}`)
 }
 
-section('§3 the default Anthropic posture is unchanged')
+section('§3 anthropic-routed with no credential anywhere: warn, not signed in, exit 0')
 {
   const r = run(['health', '--json'], {})
   const anthropicRow = rowOf(r.json, 'auth-anthropic')
-  check('anthropic-routed with no credential: the anthropic row still fails', anthropicRow?.status === 'fail', JSON.stringify(anthropicRow))
-  check('…and the report exits 3 as before', r.status === 3, `status=${r.status}`)
+  check('anthropic-routed with no credential: the anthropic row reads warn and says not signed in', anthropicRow?.status === 'warn' && (anthropicRow.evidence ?? '').startsWith('not signed in'), JSON.stringify(anthropicRow))
+  check('its fix names /logins', ((anthropicRow as { fix?: string } | undefined)?.fix ?? '').includes('/logins'), JSON.stringify(anthropicRow))
+  check('…and the report exits 0 with verdict caution, never fault', r.status === 0 && String(r.json?.verdict ?? '') === 'caution', `status=${r.status} verdict=${String(r.json?.verdict)}`)
   const ok = run(['health', '--json'], { ANTHROPIC_API_KEY: 'fixture-anthropic-key' })
   const okRow = rowOf(ok.json, 'auth-anthropic')
   check('anthropic-routed with the credential: the row is ok', okRow?.status === 'ok', JSON.stringify(okRow))
@@ -162,7 +164,7 @@ for (const lane of [
     const env = { MERCURY_MODEL: lane.model, ...(present ? { [lane.key]: key } : { ANTHROPIC_API_KEY: 'fixture-anthropic-key' }) }
     const health = run(['health', '--json'], env)
     const row = rowOf(health.json, `auth-${lane.family}`)
-    check(`${lane.family}: health follows its own ${present ? 'present' : 'missing'} credential`, row !== undefined && (present ? row.status !== 'fail' && health.status === 0 : row.status === 'fail' && health.status === 3), JSON.stringify({ row, exit: health.status }))
+    check(`${lane.family}: health follows its own ${present ? 'present' : 'missing'} credential`, row !== undefined && health.status === 0 && (present ? row.status !== 'fail' && row.status !== 'warn' : row.status === 'warn' && (row.evidence ?? '').startsWith('not signed in')), JSON.stringify({ row, exit: health.status }))
     const auth = run(['auth', 'status', '--json'], { ...env, CI: 'true' })
     const providers = (auth.json?.providers ?? []) as Array<{ id: string; present: boolean }>
     check(`${lane.family}: auth status names the routed family and its own presence`, auth.json?.routedProvider === lane.family && providers.find(provider => provider.id === lane.family)?.present === present && auth.status === (present ? 0 : 1), auth.stdout)
