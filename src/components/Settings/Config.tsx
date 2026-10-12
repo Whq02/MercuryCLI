@@ -73,6 +73,7 @@ import {
 } from '../../services/providers/providerUsage.js'
 import { shownIdentityWords } from '../../services/providers/providerIdentityLine.js'
 import { REACHABLE_THEME_SETTINGS } from '../../utils/theme.js'
+import { DEFAULT_THEME_SETTING } from '../../utils/systemTheme.js'
 import { useTheme, useThemeSetting } from '../design-system/ThemeProvider.js'
 import { GLYPH } from '../mercury-ui/glyphs.js'
 import { InteractiveRow } from '../mercury-ui/InteractiveRow.js'
@@ -473,6 +474,7 @@ export function Config({
     id: 'autoCompact',
     label: 'Auto-compact',
     kind: 'boolean',
+    setByYou: config.autoCompactEnabled === false,
     value: boolValue(config.autoCompactEnabled !== false),
     change: () => {
       writeGlobal(c => ({ ...c, autoCompactEnabled: c.autoCompactEnabled === false }))
@@ -487,6 +489,7 @@ export function Config({
     label: 'Auto-compact window',
     searchText: 'auto compact window context tokens condense threshold',
     kind: 'enum',
+    setByYou: config.autoCompactWindow !== undefined,
     value: <Text>{windowWords(WINDOW_RUNGS[windowIdx])}</Text>,
     warning: `the window auto-compact aims for; ${windowIdx === 0 ? 'auto picks one tuned to the model' : 'a manual override can cost more tokens on long sessions'}`,
     change: direction => {
@@ -503,6 +506,7 @@ export function Config({
     label: 'Session concourse',
     searchText: 'session concourse coordinator live view concourse-off chat plain world',
     kind: 'boolean',
+    setByYou: config.concourseEnabled === false,
     value: world.chatBoot ? (
       <Text>
         {boolValue(config.concourseEnabled !== false)}
@@ -551,6 +555,7 @@ export function Config({
     id: 'tips',
     label: 'Tips',
     kind: 'boolean',
+    setByYou: merged.activity?.tips?.enabled !== undefined,
     value: boolValue(merged.activity?.tips?.enabled !== false),
     change: () => {
       const next = merged.activity?.tips?.enabled === false
@@ -565,6 +570,7 @@ export function Config({
     id: 'reducedMotion',
     label: 'Reduced motion',
     kind: 'boolean',
+    setByYou: merged.view?.reducedMotion !== undefined,
     value: boolValue(merged.view?.reducedMotion === true),
     change: () => {
       const next = merged.view?.reducedMotion !== true
@@ -580,6 +586,7 @@ export function Config({
     label: 'Ping',
     searchText: 'ping terminal bell iterm2 notification turn finished away',
     kind: 'boolean',
+    setByYou: merged.view?.ping !== undefined,
     value: boolValue(merged.view?.ping !== false),
     warning: 'one ping when a chat finishes its turn while you are away — an iTerm2 notification there, the terminal bell elsewhere · view.ping in settings',
     change: () => {
@@ -596,6 +603,7 @@ export function Config({
     label: 'Account identity',
     searchText: 'account identity email address username key tail hide hidden shown recording privacy',
     kind: 'boolean',
+    setByYou: merged.view?.accountIdentity !== undefined,
     value: (
       <Text color={merged.view?.accountIdentity !== false ? tokens.success : tokens.textSecondary}>
         {merged.view?.accountIdentity !== false ? 'shown' : 'hidden'}
@@ -617,6 +625,7 @@ export function Config({
       id: 'motion',
       label: 'Motion',
       kind: 'enum',
+      setByYou: motionSetting !== 'auto',
       value: <Text>{motionValueWords(motionSetting)}</Text>,
       warning: `${motionDetailLines().slice(0, 2).join(' · ')} · auto = full until painting falls behind, then reduced · full never reduces · reduced slows the clock and stills the critter · off stops idle motion · doors: ${MOTION_DOORS}`,
       change: direction => {
@@ -636,6 +645,7 @@ export function Config({
       label: 'JEV',
       searchText: 'jev typesafe official openrouter road second opinion jeveval eval tool key allowance pace ceiling crewmates sub-agents',
       kind: 'boolean',
+      setByYou: jevSettings.enabled,
       value: <Text color={jevSettings.enabled ? tokens.success : tokens.textSecondary}>{jevValueWords(jevSettings)}</Text>,
       warning: [jevStatusLine(jevSessionStatus(jevSessionFacts(), jevSettings)), ...jevSettingLines(jevSettings)].join(' · '),
       change: () => {
@@ -652,6 +662,7 @@ export function Config({
     id: 'briefs.profile',
     label: 'Instruction profile',
     kind: 'enum',
+    setByYou: merged.briefs?.profile !== undefined,
     value: <Text>{merged.briefs?.profile ?? 'auto'}</Text>,
     change: direction => {
       const profiles = ['auto', 'native'] as const
@@ -679,6 +690,7 @@ export function Config({
       id: 'shell.engine',
       label: 'Shell engine',
       kind: 'enum',
+      setByYou: merged.shell?.engine !== undefined,
       value: <Text>{engineSetting}{detail}</Text>,
       warning:
         engineSetting === 'brush' && resolved.engine !== 'brush'
@@ -705,6 +717,7 @@ export function Config({
       label: 'Patience with a quiet model',
       searchText: 'patience quiet model stream idle watchdog stuck silent fallback retry budget timeout wait slow link',
       kind: 'enum',
+      setByYou: merged.patience !== undefined,
       value: (
         <Text>
           {patience.mode}
@@ -740,6 +753,7 @@ export function Config({
       label: 'OpenRouter routing policy',
       searchText: 'openrouter routing policy privacy collection parameters fallbacks zero data retention zdr',
       kind: 'enum',
+      setByYou: merged.routing?.openrouter !== undefined,
       value: <Text>{`${collection} · parameters ${parameters ? 'required' : 'optional'} · fallbacks ${fallbacks ? 'on' : 'off'} · ZDR ${zdr ? 'on' : 'off'}`}</Text>,
       warning: 'the endpoints OpenRouter may use · strict denies data collection, requires every parameter, turns fallbacks off and zero data retention on · balanced is on from the start: denies collection and requires parameters, with fallbacks on and ZDR off · open leaves routing to OpenRouter · a model with no matching endpoint refuses with the no-provider error; allow collection or relax parameters to widen the pool · ←/→ walk strict, balanced, open · edit routing.openrouter in your user settings for each switch: dataCollection, requireParameters, allowFallbacks, zeroDataRetention',
       change: direction => {
@@ -768,6 +782,7 @@ export function Config({
       id: 'shell.sessions',
       label: 'Shell engine sessions',
       kind: 'enum',
+      setByYou: merged.shell?.sessions !== undefined,
       value: <Text>{ceiling} · {share}{pinned ? ' · pinned by MERCURY_SHELL_ENGINE_SESSIONS' : ''}</Text>,
       warning: pinned
         ? 'The env pin MERCURY_SHELL_ENGINE_SESSIONS decides the ceiling for this process; a value written here applies once the pin is gone.'
@@ -790,6 +805,7 @@ export function Config({
       id: 'thinking',
       label: 'Thinking',
       kind: 'boolean',
+      setByYou: merged.engine?.reasoning !== undefined,
       value: thinkingApplicability.applies ? boolValue(thinkingOn) : <Text color={tokens.textSecondary}>{thinkingApplicability.naText}</Text>,
       warning:
         !thinkingApplicability.applies
@@ -817,6 +833,7 @@ export function Config({
     label: 'Usage notice to the model',
     searchText: 'usage notice model told limit warning window spend 80 90 tokens awareness',
     kind: 'boolean',
+    setByYou: merged.engine?.usageNotice !== undefined,
     value: boolValue(merged.engine?.usageNotice === true),
     warning: "with it on, the model is told when the session's usage window or spending limit is near (80% and 90%); off, the model is told nothing and only you see the meters · engine.usageNotice in settings",
     change: () => {
@@ -832,6 +849,7 @@ export function Config({
     id: 'toolOutput',
     label: 'Tool output',
     kind: 'enum',
+    setByYou: appState.verbose === true,
     value: <Text>{appState.verbose === true ? 'full' : 'compact'}</Text>,
     change: direction => {
       const levels = ['compact', 'full'] as const
@@ -841,12 +859,30 @@ export function Config({
       recordToggle('toolOutput', `set tool output to ${next}`)
     },
   })
+  const progressPin = merged.activity?.progress
+  const progressBarOn = config.terminalProgressBarEnabled !== false && progressPin !== false
   items.push({
     id: 'terminalProgressBar',
     label: 'Terminal progress bar',
+    searchText: 'terminal progress bar tab ring activity.progress',
     kind: 'boolean',
-    value: boolValue(config.terminalProgressBarEnabled !== false),
+    setByYou: config.terminalProgressBarEnabled === false || progressPin !== undefined,
+    value: progressPin === undefined ? boolValue(progressBarOn) : (
+      <Text>
+        {boolValue(progressBarOn)}
+        <Text color={tokens.textSecondary}> · activity.progress {String(progressPin)} in settings</Text>
+      </Text>
+    ),
+    warning: 'the ring in the terminal tab while a turn runs · activity.progress in settings decides when set (false turns it off, true keeps it on where the terminal allows); otherwise this switch',
     change: () => {
+      if (progressPin !== undefined) {
+        if (writeSource('userSettings', { activity: { progress: progressPin ? false : undefined } })) {
+          snapshots.dirty = true
+          recordToggle('terminalProgressBar', `set activity.progress to ${progressPin ? 'false' : 'unset'}`)
+          bump()
+        }
+        return
+      }
       writeGlobal(c => ({ ...c, terminalProgressBarEnabled: c.terminalProgressBarEnabled === false }))
       recordToggle('terminalProgressBar', `set terminal progress bar to ${config.terminalProgressBarEnabled === false ? 'on' : 'off'}`)
     },
@@ -855,6 +891,7 @@ export function Config({
     id: 'turnDuration',
     label: 'Turn duration',
     kind: 'boolean',
+    setByYou: config.showTurnDuration === false,
     value: boolValue(config.showTurnDuration !== false),
     change: () => {
       writeGlobal(c => ({ ...c, showTurnDuration: c.showTurnDuration === false }))
@@ -865,6 +902,7 @@ export function Config({
     id: 'defaultPermissionMode',
     label: 'Default permission mode',
     kind: 'enum',
+    setByYou: merged.guardrails?.mode !== undefined,
     value: sessionModeDiffers ? (
       <Text>
         {permissionModeTitle(defaultMode)}
@@ -944,6 +982,7 @@ export function Config({
     id: 'files.honourGitignore',
     label: 'Respect .gitignore in file picker',
     kind: 'boolean',
+    setByYou: merged.files?.honourGitignore !== undefined,
     value: boolValue(merged.files?.honourGitignore !== false),
     change: () => {
       const next = merged.files?.honourGitignore === false
@@ -957,6 +996,7 @@ export function Config({
     id: 'copyFullResponse',
     label: 'Always copy full response',
     kind: 'boolean',
+    setByYou: config.copyFullResponse === true,
     value: boolValue(config.copyFullResponse === true),
     change: () => {
       writeGlobal(c => ({ ...c, copyFullResponse: c.copyFullResponse !== true }))
@@ -968,6 +1008,7 @@ export function Config({
     id: 'theme',
     label: 'Theme',
     kind: 'managed-enum',
+    setByYou: themeSetting !== DEFAULT_THEME_SETTING,
     value: <Text>{THEME_LABELS[themeSetting] ?? themeSetting}</Text>,
     open: 'theme',
   })
@@ -975,6 +1016,7 @@ export function Config({
     id: 'language',
     label: 'Language',
     kind: 'managed-enum',
+    setByYou: merged.voice?.language !== undefined,
     value: <Text>{merged.voice?.language ?? 'auto'}</Text>,
     open: 'language',
   })
@@ -982,6 +1024,7 @@ export function Config({
     id: 'editorMode',
     label: 'Editor mode',
     kind: 'enum',
+    setByYou: validated(EDITOR_MODES, config.editorMode, 'normal') !== 'normal',
     value: <Text>{validated(EDITOR_MODES, config.editorMode, 'normal')}</Text>,
     change: direction => {
       const current = validated(EDITOR_MODES, config.editorMode, 'normal')
@@ -994,6 +1037,7 @@ export function Config({
     id: 'prStatusFooter',
     label: 'PR status footer',
     kind: 'boolean',
+    setByYou: config.prStatusFooterEnabled === false,
     value: boolValue(config.prStatusFooterEnabled !== false),
     change: () => {
       writeGlobal(c => ({ ...c, prStatusFooterEnabled: c.prStatusFooterEnabled === false }))
@@ -1005,6 +1049,7 @@ export function Config({
     label: 'Model (main loop)',
     searchText: 'model provider main loop',
     kind: 'info',
+    setByYou: merged.engine?.model !== undefined,
     value: (
       <Text>
         {mainLoopPointerText(servedModel ?? appState.engineModelForSession ?? appState.engineModel)}
@@ -1082,6 +1127,7 @@ export function Config({
       id: 'fileCheckpointing',
       label: 'File checkpointing',
       kind: 'boolean',
+      setByYou: config.fileCheckpointingEnabled === false,
       value: boolValue(config.fileCheckpointingEnabled !== false),
       change: () => {
         writeGlobal(c => ({ ...c, fileCheckpointingEnabled: c.fileCheckpointingEnabled === false }))
@@ -1110,6 +1156,7 @@ export function Config({
       id: 'copyOnSelect',
       label: 'Copy on select',
       kind: 'boolean',
+      setByYou: config.copyOnSelect === false,
       value: boolValue(config.copyOnSelect !== false),
       change: () => {
         writeGlobal(c => ({ ...c, copyOnSelect: c.copyOnSelect === false }))
@@ -1120,6 +1167,7 @@ export function Config({
       id: 'mouseCapture',
       label: 'Mouse capture',
       kind: 'boolean',
+      setByYou: config.mouseCapture === false,
       value: boolValue(config.mouseCapture !== false),
       change: () => {
         const next = config.mouseCapture === false
@@ -1183,6 +1231,7 @@ export function Config({
     label: 'Crewmate default effort',
     searchText: 'crewmate sub-agent subagent agent default effort delegate workflow',
     kind: 'enum',
+    setByYou: agentDefaults.effortSource === 'setting',
     value: (
       <Text>
         {agentDefaults.effort}
@@ -1201,6 +1250,7 @@ export function Config({
     label: 'Crewmate default model',
     searchText: 'crewmate sub-agent subagent agent default model inherit parent',
     kind: 'managed-enum',
+    setByYou: agentDefaults.model !== undefined,
     value: (
       <Text>
         {agentDefaults.model === undefined || agentDefaults.model === AGENT_INHERIT_ROW.id ? AGENT_INHERIT_ROW.name : modelChoiceLabel(agentDefaults.model)}
@@ -1215,6 +1265,7 @@ export function Config({
     label: 'Crewmates at once',
     searchText: 'crewmate sub-agent subagent agents at once concurrent cap fan-out maximum',
     kind: 'enum',
+    setByYou: agentDefaults.maxConcurrentSource === 'setting',
     value: (
       <Text>
         {agentDefaults.maxConcurrent}
@@ -1237,6 +1288,7 @@ export function Config({
     label: BACKGROUND_LAUNCH_LABEL,
     searchText: 'crewmate sub-agent subagent workflow backgrounded background session launch delegate workflows-allowed tag visit',
     kind: 'boolean',
+    setByYou: backgroundLaunchOn,
     value: <Text color={backgroundLaunchOn ? tokens.success : tokens.textSecondary}>{backgroundLaunchValueWords(backgroundLaunchOn)}</Text>,
     warning: `${BACKGROUND_LAUNCH_SUMMARY} · ${BACKGROUND_LAUNCH_NOTE} · doors: ${BACKGROUND_LAUNCH_DOORS}`,
     change: () => {

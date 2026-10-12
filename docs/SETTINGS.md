@@ -4,7 +4,9 @@ Mercury keeps settings in JSON files. `/config` opens the settings screen;
 `/model`, `/effort`, `/permissions`, `/memory` and the MCPs & Skills menu
 provide the focused controls. This page covers the grouped keys you can set
 in a file. The Boot Menu also keeps machine and session choices of its own;
-not every screen row is a key in `settings.json`.
+not every screen row is a key in `settings.json`. `/config`'s header counts
+the rows you set: a settings file names the row's key, or a saved choice
+differs from Mercury's default.
 
 ## Files and precedence
 
@@ -189,7 +191,7 @@ the server definitions themselves.
 | `activity.tips.enabled` | Whether activity tips are shown. |
 | `activity.tips.words` | Custom tips: `tips` is a string list and `excludeDefault` chooses whether the built-in tips also appear. |
 | `activity.verbs` | Custom activity verbs: `verbs` is a string list and `mode` is `append` or `replace`. |
-| `activity.progress` | Terminal progress reporting. |
+| `activity.progress` | The ring in the terminal tab while a turn runs: `false` turns it off, `true` keeps it on where the terminal draws one; unset, the terminal's own capability decides. `/config`'s Terminal progress bar row reads it and names it when set. |
 | `view.files` | Shows the FILES box in the sidebar. |
 | `view.modelPicker.centred` | Centres the model picker; `false` places it at the left edge. |
 | `view.syntaxOff` | Disables syntax colouring. |
