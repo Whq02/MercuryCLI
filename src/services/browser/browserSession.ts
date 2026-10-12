@@ -35,6 +35,17 @@ interface Session {
   nav: { seq: number; seen: number }
   sandboxDowngraded: boolean
   popups: { count: number; last: string }
+  navFailure: { last: NavFailure | null }
+}
+
+export interface NavFailure {
+  url: string
+  errorText: string
+  at: number
+}
+
+export function isBrowserErrorPage(url: string): boolean {
+  return url.startsWith('chrome-error://')
 }
 
 interface OwnerBrowserState {
@@ -343,9 +354,11 @@ async function launchOwnerSession(owner: OwnerKey, state: OwnerBrowserState): Pr
       const q = url.indexOf('?')
       return q === -1 ? url : `${url.slice(0, q)}?…`
     }
+    const navFailure: Session['navFailure'] = { last: null }
     page.on('framenavigated', frame => {
       if (frame.parentFrame() === null) {
         nav.seq++
+        if (!isBrowserErrorPage(frame.url())) navFailure.last = null
         capture('nav', `navigated to ${redactUrl(frame.url())}`)
       }
     })
@@ -390,10 +403,11 @@ async function launchOwnerSession(owner: OwnerKey, state: OwnerBrowserState): Pr
       })()
     })
     page.on('requestfailed', request => {
-      capture(
-        'net',
-        `${request.method()} ${redactUrl(request.url())} FAILED ${request.failure()?.errorText ?? ''} (${request.resourceType()})`,
-      )
+      const errorText = request.failure()?.errorText ?? ''
+      if (request.isNavigationRequest() && request.frame() === page.mainFrame()) {
+        navFailure.last = { url: redactUrl(request.url()), errorText, at: Date.now() }
+      }
+      capture('net', `${request.method()} ${redactUrl(request.url())} FAILED ${errorText} (${request.resourceType()})`)
     })
     page.on('response', response => {
       const status = response.status()
@@ -425,6 +439,7 @@ async function launchOwnerSession(owner: OwnerKey, state: OwnerBrowserState): Pr
       nav,
       sandboxDowngraded,
       popups,
+      navFailure,
     }
     unhanded = null
   } finally {
