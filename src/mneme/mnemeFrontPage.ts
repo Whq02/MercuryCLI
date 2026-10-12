@@ -182,11 +182,6 @@ export function frontPageKey(dir: string = mnemeLibraryDir()): string {
   }
 }
 
-export function memoryPromptKey(): string | null {
-  if (!mnemeEnabled()) return 'off'
-  return frontPageKey()
-}
-
 export function forReader(page: string, verbs: 'all' | 'read'): string {
   if (verbs === 'all') return page
   return page.replace(` ${MEMORY_WRITE_VERBS_SENTENCE}`, '').replace(EMPTY_INDEX_LINE, EMPTY_INDEX_LINE_READ_ONLY)

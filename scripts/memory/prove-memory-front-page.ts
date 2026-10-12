@@ -353,7 +353,7 @@ check('the index keeps the three pages under the one topic line', grouped.size =
 
 section('the system prompt wiring')
 const prompts = readFileSync(join(ROOT, 'src/constants/prompts.ts'), 'utf8')
-check("the memory section is keyed on the front page so it moves only at consolidation", /keyedSystemPromptSection\(\s*'memory',\s*\(\) => memoryPromptKey\(\),\s*\(\) => loadMemoryPrompt\(\),?\s*\)/.test(prompts))
+check('the memory section is composed once per conversation and never re-keyed on the front page mid-session (a save leaves the sent prompt as it was; the shelf reaches the model at the next session)', /systemPromptSection\(\s*'memory',\s*\(\) => loadMemoryPrompt\(\),?\s*\)/.test(prompts) && !/keyedSystemPromptSection\(\s*'memory'/.test(prompts) && !prompts.includes('memoryPromptKey'))
 check('the memory prompt comes from the front page module', prompts.includes("from '../mneme/mnemeFrontPage.js'"))
 const doctrine = readFileSync(join(ROOT, 'src/constants/subagentDoctrine.ts'), 'utf8')
 check('crewmates and sub-agents get the front page with the pinned rules', doctrine.includes("from '../mneme/mnemeFrontPage.js'") && /\.\.\.\(memory \? \[memory\] : \[\]\)/.test(doctrine))
