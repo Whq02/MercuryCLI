@@ -124,6 +124,9 @@ export function MemoryPopupBody({
       <MemoryCentreView
         onClose={() => close()}
         onOpenFiles={() => setRoute('files')}
+        onOpenFile={path => {
+          void openMemoryFile(path, (text, options) => close(text, options))
+        }}
         width={geometry.inner}
         rowBudget={geometry.rowBudget}
         onHint={frame.setHint}

@@ -61,7 +61,7 @@ section('§1 the layout words: human dates, the overview cells, the lineage rows
   })
   check('one row per section, in the order facts · pinned · topics · lineage · journal · notes to take in · maintenance · instruction files', rows.map(r => r.section).join(' · ') === 'facts and decisions · pinned rules · topics · lineage · journal · notes to take in · maintenance · instruction files', rows.map(r => r.section).join(' · '))
   const cell = (id: string) => rows.find(r => r.id === id)!
-  check('the facts row counts current and recent, dates the newest fact and reads on', cell('facts').count === '12 current · 2 recent' && cell('facts').newest === stamp && cell('facts').state === 'on' && cell('facts').action === null, JSON.stringify(cell('facts')))
+  check('the facts row counts current and recent, dates the newest fact, reads on and opens the facts', cell('facts').count === '12 current · 2 recent' && cell('facts').newest === stamp && cell('facts').state === 'on' && cell('facts').action === 'list the facts', JSON.stringify(cell('facts')))
   check('the pinned row carries the count and the fill, reads loaded and offers the list', cell('pinned').count === '1 · 300 of 8k' && cell('pinned').state === 'loaded' && cell('pinned').action === 'list the rules', JSON.stringify(cell('pinned')))
   check('the lineage row names the ordinal and the count, the state says whether the last session left a note', cell('lineage').count === 'session 3 · 2 before' && cell('lineage').state === 'no note' && cell('lineage').detail.includes('last note from session 1'), JSON.stringify(cell('lineage')))
   check('the journal row counts the entries, dates the newest and reads on', cell('journal').count === '2 entries' && cell('journal').newest === layout.humanStamp('2026-10-11T03:40:00.000Z') && cell('journal').state === 'on' && cell('journal').action === 'read the entries', JSON.stringify(cell('journal')))
@@ -83,7 +83,7 @@ section('§1 the layout words: human dates, the overview cells, the lineage rows
   check('a page renders headings, paragraphs and items wrapped to the width, blank lines collapsed', page[0]!.kind === 'heading' && page[0]!.text === 'Lineage' && page[1]!.kind === 'text' && page.some(l => l.kind === 'item' && l.text.startsWith('• ')) && page.every(l => l.text.length <= 40) && !page.some((l, i) => l.kind === 'blank' && page[i + 1]?.kind === 'blank'), JSON.stringify(page))
   check('a wrapped item hangs its continuation under the first word', page.filter(l => l.kind === 'item').slice(1).every(l => l.text.startsWith('  ')), JSON.stringify(page.filter(l => l.kind === 'item')))
   check('the footer names the selected row\'s action once and the close hint', layout.memoryFooter({ kind: 'overview', action: 'run now' }) === '↑↓ move · ↵ run now · esc or click outside closes' && layout.memoryFooter({ kind: 'overview', action: null }) === '↑↓ move · esc or click outside closes')
-  check('the sub-view footers back out with esc; the page footer scrolls only when the page overflows', layout.memoryFooter({ kind: 'pinned' }).endsWith('esc back') && layout.memoryFooter({ kind: 'page', scrolls: false }) === 'esc back' && layout.memoryFooter({ kind: 'page', scrolls: true }) === '↑↓ scroll · esc back')
+  check('the sub-view footers back out with esc; the page footer scrolls only when the page overflows', layout.memoryFooter({ kind: 'list', open: 'open', empty: false }).endsWith('esc back') && layout.memoryFooter({ kind: 'page', scrolls: false, editable: false }) === 'esc back' && layout.memoryFooter({ kind: 'page', scrolls: true, editable: false }) === '↑↓ scroll · esc back')
   check('the context line is the project name and the memory folder', layout.memoryPopupLine('/Users/someone/code/app/', '~/.mercury/projects/-Users-someone-code-app/memory/') === 'app · ~/.mercury/projects/-Users-someone-code-app/memory')
 }
 
@@ -177,6 +177,8 @@ function frameOf(lines: string[]): Rect | null {
 const inside = (lines: string[], frame: Rect): string[] => lines.slice(frame.top + 1, frame.bottom).map(line => Array.from(line).slice(frame.left + 1, frame.right).join('').replace(/\s+$/, ''))
 const rowOf = (m: Mounted, needle: string): string => m.lines().find(l => l.includes(needle)) ?? ''
 async function moveTo(m: Mounted, needle: string): Promise<string> {
+  for (let step = 0; step < 10 && !rowOf(m, needle).includes('❯'); step++) m.push(KEY.up)
+  await settle(60)
   for (let step = 0; step < 14 && !rowOf(m, needle).includes('❯'); step++) {
     m.push(KEY.down)
     await settle(40)
@@ -358,7 +360,7 @@ section('§4 the journal newest first and an entry as a page; the topics and a t
   const hits = await waitFor(() => scene.m.screen().includes('matches for “deploys”') && scene.m.screen().includes('About deploys:'), 6000)
   check('typing on the overview searches the facts and rules', hits, rowOf(scene.m, 'matches for'))
   scene.m.push(KEY.enter)
-  const detail = await waitFor(() => scene.m.screen().includes('why recalled:') && scene.m.screen().includes('c correct · x retire'), 6000)
+  const detail = await waitFor(() => /seq \d+ · pinned · asked for by you/.test(scene.m.screen()) && scene.m.screen().includes('c correct · x retire'), 6000)
   check('↵ opens the fact with its verbs and the page it lives on, the fact marked', detail && scene.m.lines().some(l => /❯\s+•\s+About deploys:/.test(l)), scene.m.lines().filter(l => l.includes('│ │')).slice(0, 10).join(' | '))
   await closeScene(scene)
 }

@@ -182,7 +182,7 @@ async function mountMemoryPopup(): Promise<{ m: Mounted; close: () => void }> {
   return { m, close: () => store.closeSettingsPopup() }
 }
 
-section('§5 /memory lists the pinned rules — size, the asked mark, u unpins on the row — so "trim in /memory" is a real instruction')
+section('§5 /memory lists the pinned rules — size, the asked mark, ↵ opens a rule and u unpins it there — so "trim in /memory" is a real instruction')
 {
   const { readPins } = await import('../../src/mneme/mnemeUsage.js')
   const pinsBefore = readPins(dir).length
@@ -211,18 +211,30 @@ section('§5 /memory lists the pinned rules — size, the asked mark, u unpins o
   check('each row carries the rule\'s size, its asked mark and its words', ruleRows.length >= 5 && ruleRows.every(l => l.includes('chars · asked for by you · About')), ruleRows.slice(0, 2).join(' | '))
   const heading = m.lines().find(l => l.includes('memory › pinned rules')) ?? ''
   check('the breadcrumb says how full the shelf is and that all still loads', /memory › pinned rules · [\d.]+k of [\d.]+k · over the limit, all still loaded/.test(heading), heading.trim())
-  check('the footer offers u unpin on the row and names /config for the limit', m.lines().some(l => l.includes('u unpin') && l.includes('/config raises the limit')))
+  check('the list footer offers ↵ open and no letter key; the legend names the road and /config for the limit', m.lines().some(l => l.includes('↑↓ move · ↵ open · esc back')) && !m.lines().some(l => l.includes('↑↓ move') && l.includes('u unpin')) && m.lines().some(l => l.includes('↵ opens a rule: c corrects it, x retires it, u unpins it') && l.includes('/config raises the limit')), m.lines().filter(l => l.includes('↵ open')).join(' | '))
   save('memory-pinned-120x40.txt', m.lines())
   const selected = m.lines().find(l => l.includes('❯') && l.includes('chars ·')) ?? ''
   check('the first rule row is selected on entry', selected !== '', selected.trim())
   const selectedWord = /About (\w+):/.exec(selected)?.[1]
   m.push('u')
+  await settle(300)
+  check('u in the list is a filter letter, never an action: the rule stays pinned', readPins(dir).length === pinsBefore && m.lines().some(l => l.includes('/ u')), `${pinsBefore} → ${readPins(dir).length}`)
+  m.push(KEY.esc)
+  await settle(150)
+  m.push(KEY.enter)
+  const opened = await waitFor(() => m.lines().some(l => l.includes('c correct · x retire · u unpin · esc back')), 8000)
+  check('↵ opens the rule with c correct · x retire · u unpin in the footer', opened, m.lines().filter(l => l.includes('esc back')).join(' | '))
+  m.push('u')
   const unpinned = await waitFor(() => readPins(dir).length === pinsBefore - 1, 8000)
-  check('u on the row unpins that rule', unpinned && selectedWord !== undefined && !readPins(dir).some(p => listTopicDocs(dir).find(d => d.slug === 'rules')!.sections[0]!.entries.find(e => e.seq === p.seq)?.text.startsWith(`About ${selectedWord}:`)), `${pinsBefore} → ${readPins(dir).length}`)
+  check('u on the opened rule unpins it', unpinned && selectedWord !== undefined && !readPins(dir).some(p => listTopicDocs(dir).find(d => d.slug === 'rules')!.sections[0]!.entries.find(e => e.seq === p.seq)?.text.startsWith(`About ${selectedWord}:`)), `${pinsBefore} → ${readPins(dir).length}`)
   await waitFor(() => m.lines().some(l => l.includes('unpinned')), 8000)
   await settle(200)
-  check('the list says so and no longer shows the rule', m.lines().some(l => l.includes('unpinned')) && !m.lines().some(l => l.includes(`About ${selectedWord}:`)), m.lines().filter(l => l.includes('unpinned')).join(' | '))
+  check('the receipt offers the way back (p pins it again) and says the open chat keeps what it loaded', m.lines().some(l => l.includes('unpinned') && l.includes('p pins it again')), m.lines().filter(l => l.includes('unpinned')).join(' | '))
   save('memory-pinned-unpin-120x40.txt', m.lines())
+  m.push(KEY.esc)
+  await waitFor(() => m.lines().some(l => l.includes('memory › pinned rules')), 6000)
+  await settle(150)
+  check('back in the list the rule is gone', !m.lines().some(l => l.includes(`About ${selectedWord}:`)), m.lines().filter(l => l.includes('About')).join(' | '))
   m.push(KEY.esc)
   await waitFor(() => m.lines().some(l => /pinned rules\s+\d+ ·/.test(l)), 4000)
   check('esc returns to the overview with the new count', new RegExp(`pinned rules\\s+${pinsBefore - 1} ·`).test(m.lines().find(l => l.includes('pinned rules')) ?? ''), (m.lines().find(l => l.includes('pinned rules')) ?? '').trim())
