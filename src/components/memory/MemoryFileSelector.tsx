@@ -4,14 +4,12 @@ import { join } from 'path'
 import * as React from 'react'
 import { use, useMemo, useState } from 'react'
 import { Box, Text } from '../../ink.js'
-import { getOriginalCwd } from '../../bootstrap/state.js'
 import { useExitOnCtrlCDWithKeybindings } from '../../hooks/useExitOnCtrlCDWithKeybindings.js'
 import { useKeybinding } from '../../keybindings/useKeybinding.js'
 import { getInstructionFiles } from '../../services/instructions/engine.js'
 import type { InstructionSourceEntry } from '../../services/instructions/contracts.js'
 import { openPath } from '../../utils/browser.js'
 import { getMemoryPath } from '../../utils/config.js'
-import { projectIsInGitRepo } from '../../utils/memory/versions.js'
 import { toTildePath } from '../../utils/path.js'
 import { getMnemeHome, isMnemeEnabled } from '../../mneme/paths.js'
 import { updateSettingsForSource } from '../../utils/settings/settings.js'
@@ -99,7 +97,6 @@ export function MemoryFileSelector({
     const byPath = new Map(visible.map(entry => [entry.path, entry]))
     const userCanonical = getMemoryPath('User')
     const projectCanonical = getMemoryPath('Project')
-    const inGitRepo = projectIsInGitRepo(getOriginalCwd())
 
     const nativePrefix = (entry: InstructionSourceEntry | undefined) =>
       entry?.family === 'native' ? 'Mercury-native · ' : entry?.family === 'shared' ? 'shared guide · ' : ''
@@ -117,9 +114,7 @@ export function MemoryFileSelector({
         return {
           label: 'Project memory',
           value: entry.path,
-          description: `${nativePrefix(entry)}${
-            inGitRepo ? 'checked in at' : 'saved in'
-          } ${getRelativeMemoryPath(entry.path)}`,
+          description: `${nativePrefix(entry)}${getRelativeMemoryPath(entry.path)} · loads every session`,
         }
       }
       if (depth > 0) {
@@ -149,9 +144,7 @@ export function MemoryFileSelector({
       result.push({
         label: 'Project memory (new)',
         value: projectCanonical,
-        description: `${
-          inGitRepo ? 'checked in at' : 'saved in'
-        } ${getRelativeMemoryPath(projectCanonical)}`,
+        description: `will be written at ${getRelativeMemoryPath(projectCanonical)}`,
       })
     }
 

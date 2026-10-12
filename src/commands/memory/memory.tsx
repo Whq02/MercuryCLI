@@ -10,6 +10,7 @@ import {
   MEMORY_POPUP_WIDTH,
   memoryFooter,
   memoryPopupLine,
+  plural,
 } from '../../components/memory/memoryCentreLayout.js'
 import { useSettingsPopupFrame } from '../../components/Settings/Settings.js'
 import { useMercuryTokens } from '../../components/mercury-ui/useMercuryTokens.js'
@@ -34,11 +35,8 @@ export const MEMORY_FILES_CLOSED = 'Closed memory files'
 
 export function profileStatusLine(): string {
   const { resolution } = getInstructionCompositionState()
-  const profile =
-    resolution.resolved === 'native'
-      ? 'instruction profile: native (MERCURY.md only)'
-      : 'instruction profile: auto (MERCURY.md, or AGENTS.md when there is none)'
-  return `${profile} · instruction files load every session · memory management lives in the centre`
+  const profile = resolution.resolved === 'native' ? 'profile native: MERCURY.md only' : 'profile auto: MERCURY.md, or AGENTS.md when there is none'
+  return `${profile} · every file here loads every session`
 }
 
 async function openMemoryFile(path: string, onDone: LocalJSXCommandOnDone): Promise<void> {
@@ -107,6 +105,7 @@ export function MemoryPopupBody({
 }): React.ReactNode {
   const frame = useSettingsPopupFrame()
   const [route, setRoute] = useState<MemoryRoute>(initialRoute)
+  const [returnRow, setReturnRow] = useState<string | null>(null)
   useLayoutEffect(() => {
     frame.setOwnsEscape(true)
     return () => frame.setOwnsEscape(false)
@@ -123,7 +122,14 @@ export function MemoryPopupBody({
     return (
       <MemoryCentreView
         onClose={() => close()}
-        onOpenFiles={() => setRoute('files')}
+        onOpenFiles={() => {
+          setReturnRow('files')
+          setRoute('files')
+        }}
+        initialRow={returnRow}
+        onOpenFile={path => {
+          void openMemoryFile(path, (text, options) => close(text, options))
+        }}
         width={geometry.inner}
         rowBudget={geometry.rowBudget}
         onHint={frame.setHint}
@@ -178,10 +184,10 @@ async function statsReply(): Promise<string> {
     ? 'Retain/Recall/Reflect/Correct available'
     : `memory verbs absent — ${memoryVerbsWhyNot() ?? 'unknown'}`
   return [
-    `buffer: ${status.buffered} row(s)${status.pendingConsuming > 0 ? ` (+${status.pendingConsuming} mid-consolidation)` : ''}`,
-    `library: ${status.topicCount} topic doc(s) · ${status.entryCount} live entr(ies) · ${status.historyCount} history`,
+    `buffer: ${plural(status.buffered, 'row')}${status.pendingConsuming > 0 ? ` (+${status.pendingConsuming} mid-consolidation)` : ''}`,
+    `library: ${plural(status.topicCount, 'topic page')} · ${plural(status.entryCount, 'live fact')} · ${status.historyCount} in history`,
     `last consolidation: ${status.lastConsolidatedAt ?? 'never'} · due now: ${status.due ? `yes (${status.dueReason})` : 'no'}`,
-    `validator refusals (last ${receipts.length} maintenance runs): ${refusals}`,
+    `validator refusals (last ${plural(receipts.length, 'maintenance run')}): ${refusals}`,
     verbs,
     ...(status.degraded.length > 0 ? [`degraded: ${status.degraded.join(' · ')}`] : []),
   ].join('\n')

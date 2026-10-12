@@ -32,7 +32,7 @@ export type FlatList<T> = {
   note: FlatListNote | null
   setNote: (n: FlatListNote | null) => void
   busyRef: React.MutableRefObject<boolean>
-  reload: (opts?: { top?: boolean }) => void
+  reload: (opts?: { top?: boolean; at?: string }) => void
 }
 
 export function useFlatList<T>(opts: FlatListOptions<T>): FlatList<T> {
@@ -50,6 +50,7 @@ export function useFlatList<T>(opts: FlatListOptions<T>): FlatList<T> {
   const selRef = React.useRef(0)
   const selKeyRef = React.useRef<string | null>(null)
   const topRef = React.useRef(false)
+  const atRef = React.useRef<string | null>(null)
   const busyRef = React.useRef(false)
 
   const loadRef = React.useRef(load)
@@ -69,6 +70,10 @@ export function useFlatList<T>(opts: FlatListOptions<T>): FlatList<T> {
           topRef.current = false
           selRef.current = 0
           selKeyRef.current = null
+        }
+        if (atRef.current !== null) {
+          selKeyRef.current = atRef.current
+          atRef.current = null
         }
         if (id && selKeyRef.current !== null) {
           const byKey = rows.findIndex(r => id(r) === selKeyRef.current)
@@ -160,6 +165,7 @@ export function useFlatList<T>(opts: FlatListOptions<T>): FlatList<T> {
     busyRef,
     reload: opts => {
       if (opts?.top) topRef.current = true
+      if (opts?.at !== undefined) atRef.current = opts.at
       setLoadId(n => n + 1)
     },
   }

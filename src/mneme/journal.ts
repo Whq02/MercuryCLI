@@ -3,6 +3,7 @@ import { dirname, join } from 'node:path'
 import { isSessionPersistenceDisabled } from '../bootstrap/state.js'
 import { logForDebugging } from '../utils/debug.js'
 import { getInitialSettings } from '../utils/settings/settings.js'
+import { journalSettingOn } from './journalSetting.js'
 import { ledgerClock } from './ledger.js'
 import { isMnemeEnabled, mnemeProjectKey, projectRecordsDir } from './paths.js'
 import { registerSessionCloseAsk, registerSessionCloser, type SessionCloseAsk, type SessionCloseContext } from './sessionClose.js'
@@ -22,7 +23,7 @@ export type JournalStageOutcome = { staged: true; chars: number; replaced: boole
 
 export function journalEnabled(): boolean {
   if (!isMnemeEnabled()) return false
-  return getInitialSettings().memory?.journal === true
+  return journalSettingOn(getInitialSettings())
 }
 
 export function journalOnEntryPage(): boolean {

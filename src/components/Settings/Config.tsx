@@ -34,6 +34,7 @@ import {
   getInitialSettings,
 } from '../../utils/settings/settings.js'
 import type { SettingsJson } from '../../utils/settings/types.js'
+import { journalSettingOn } from '../../mneme/journalSetting.js'
 import { readPinnedStatus } from '../../mneme/mnemeFrontPage.js'
 import { runDueMaintenance } from '../../mneme/mnemeMaintenance.js'
 import { formatTextSize, PINNED_TEXT_LIMIT_MIN, PINNED_TEXT_LIMIT_STEP, pinnedTextLimit } from '../../mneme/mnemeUsage.js'
@@ -907,7 +908,7 @@ export function Config({
     })
   }
   {
-    const journalOn = merged.memory?.journal !== false
+    const journalOn = journalSettingOn(merged)
     items.push({
       id: 'memory.journal',
       label: 'Session journal',
@@ -915,7 +916,7 @@ export function Config({
       kind: 'boolean',
       value: boolValue(journalOn),
       setByYou: merged.memory?.journal !== undefined,
-      warning: "at session end the model writes, in its own words, what happened, what you wanted, how you like to work and what it got wrong · a file in the Mercury home beside the project's memory, never under the project tree · Mercury never pushes, syncs or shares it · read it in /memory",
+      warning: "off unless you turn it on · at session end the model writes, in its own words, what happened, what you wanted, how you like to work and what it got wrong · a file in the Mercury home beside the project's memory, never under the project tree · Mercury never pushes, syncs or shares it · read it in /memory",
       change: () => {
         if (writeSource('userSettings', { memory: { journal: !journalOn } })) {
           recordToggle('memory.journal', `set the session journal to ${journalOn ? 'off' : 'on'}`)
