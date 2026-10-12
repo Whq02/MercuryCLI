@@ -13,6 +13,7 @@
 # gate-watch: src/cli/run.ts src/services/engine-connector/daemonConnector.ts src/services/engine-connector/focusedConnector.ts src/services/engine-connector/seatProjections.ts src/services/engine-connector/seatWire.ts
 # gate-watch: src/services/providers/anthropic/anthropicCatalogue.ts
 # gate-watch: src/services/providers/anthropic/modelRefusal.ts
+# gate-watch: src/services/providers/anthropic/thinkingBinding.ts src/constants/oauth.ts
 # gate-watch: src/services/providers/credentialEnvSpellings.ts
 # gate-watch: src/services/providers/deepseek/deepseekCatalogue.ts
 # gate-watch: src/services/providers/deepseek/deepseekPins.ts src/services/providers/gemini/geminiCatalogue.ts
