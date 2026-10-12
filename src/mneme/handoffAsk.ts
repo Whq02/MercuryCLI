@@ -12,7 +12,7 @@ import { mnemeProjectKey } from './paths.js'
 import { sessionCloseAsks } from './sessionClose.js'
 
 export const HANDOFF_ASK =
-  'This session is ending. Leave the note for the next session of this work, in your own words: what the work is for, what was decided and why, what is still to do, what you got wrong — and nothing else. Keep it short. Reply with the note alone; it is stored exactly as written.'
+  'The session is ending. Leave one note for the next session to orient itself just enough for the next session to know the repo\'s workings, nothing else. Keep prose concise, effective, and short. Reply with the note alone; it is stored exactly as written.'
 
 export const HANDOFF_ASK_BUDGET_MS = 120_000
 

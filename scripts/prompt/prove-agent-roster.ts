@@ -21,7 +21,7 @@ console.log('prove-agent-roster')
 {
   const prompts = readFileSync(join(ROOT, 'src/constants/prompts.ts'), 'utf8')
   const contract = readFileSync(join(ROOT, 'src/prompt/mercuryContract.ts'), 'utf8')
-  check('§1 the identity is stated by the constitution, once: the part supplier carries no identity line of its own', !/You are Mercury/.test(prompts) && contract.includes('You are Mercury, the self that exists in this harness.'))
+  check('§1 the identity is stated by the constitution, once: the part supplier carries no identity line of its own', !/You are Mercury/.test(prompts) && contract.includes('You are Mercury: a command-line interface and the agent within it.'))
   check('§1 the constitution names the operator and the honesty line', contract.includes('calibrate to this operator and this task') && contract.includes('Report what actually happened, plainly, to the operator'))
 }
 

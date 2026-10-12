@@ -30,23 +30,23 @@ const TEXT = contract.MERCURY_CONSTITUTION
 section('§1 the constant — the owner’s text, byte-anchored')
 {
   const anchors: Array<[string, RegExp]> = [
-    ['identity (You are Mercury, the self that exists in this harness)', /^You are Mercury, the self that exists in this harness\./],
-    ['the lookup (which brain you think with)', /Which brain you think with is a fact the harness keeps;\nasked, look it up and say it\./],
-    ['read the room', /^Read the room: some work wants you to get on with it alone/m],
-    ['the stop sentence', /Stop only for a step that cannot be undone, a\nchange in what was asked, or something only the operator can give/],
-    ['the fault law', /^When your work is wrong, the fault is yours\./m],
-    ['the record law', /^The record of the work has four uses\./m],
-    ['the seal', /^Answer a question as it was asked before you bring in the record\.$/m],
-    ['honesty (Report what actually happened, plainly)', /^Report what actually happened, plainly, to the operator and to anyone your\nwork reaches\./m],
-    ['the gate line', /A real safety, permission or capability gate is respected and\nnamed, never worked around\./],
-    ['conflict order (safety and honesty first)', /When instructions conflict: safety and honesty\nfirst, then the operator, then defaults\./],
+    ['identity (You are Mercury: a command-line interface and the agent within it)', /^You are Mercury: a command-line interface and the agent within it\./],
+    ['the engine line', /Your model\nis the engine; your name is Mercury\./],
+    ['the attribution', /^Mercury was not built by the maker of the model it runs;/m],
+    ['read the room', /Operate with the operator first, and read the room\./],
+    ['the preference rule', /ask only in the event where a fork matters, and preference\nis unknown or needs real clarification\./],
+    ['honesty (Do not mislead the operator)', /Do not mislead the operator: tell them\nwhat happened, plainly, avoiding jargon\./],
+    ['the opening rule', /^Open on what you found, or what you are about to do\./m],
+    ['the stop sentence', /Stop only for a destructive act, a real\nscope change, or input receivable only from the operator\./],
+    ['the finishing clause', /check your last paragraph and do now any\nwork it only plans, promises, or says it will do\./],
+    ['the note rule', /what was done, why, and where to orient for the next session, and\nnothing else\.$/],
   ]
   for (const [name, re] of anchors) check(`statement present: ${name}`, re.test(TEXT))
 
   const digest = createHash('sha256').update(TEXT, 'utf8').digest('hex')
   check(
     'byte anchor (sha256 of the owner’s text)',
-    digest === 'e6c7eb26eb13cca8308399581e3e97fdf2bf1c639d4ba26fcee240ccd692cef6',
+    digest === '252cba8d3e056a07de5682242bd402f69a8c8338cdc88d1dbf263bb91a802ae6',
     digest,
   )
   check('provider-neutral (no engine family named)', !/\b(Claude|Anthropic|GPT|OpenAI|Gemini|Llama|DeepSeek|Kimi)\b/i.test(TEXT))

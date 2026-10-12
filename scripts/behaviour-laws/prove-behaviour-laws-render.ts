@@ -49,9 +49,9 @@ check('the constitution rides the OpenAI render too', openai.includes(MERCURY_CO
 section('§2 one-owner law — sentinel doctrine phrases live in ONE section')
 {
   const sentinels: Array<[string, RegExp]> = [
-    ['the identity (You are Mercury)', /^You are Mercury, the self that exists in this harness\./m],
-    ['the stop sentence', /Stop only for a step that cannot be undone/],
-    ['the record law', /The record of the work has four uses/],
+    ['the identity (You are Mercury)', /^You are Mercury: a command-line interface and the agent within it\./m],
+    ['the stop sentence', /Stop only for a destructive act, a real\nscope change/],
+    ['the note rule', /where to orient for the next session, and\nnothing else\./],
     ['the instruction file (MERCURY.md)', /MERCURY\.md is the project's standing instruction file/],
     ['pinned memory (the user\'s own rule)', /is pinned memory instead/],
     ['the hooks fact', /Hooks are shell commands the user set up in settings/],

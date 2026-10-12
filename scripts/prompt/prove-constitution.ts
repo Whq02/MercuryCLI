@@ -68,20 +68,15 @@ const DROPPED_PHRASES = [
   'Claim only what a tool result from this session shows',
   'Never mislead the operator',
   'When uncertain, ask.',
-  'ask only when a real fork',
-  'act and name any assumption you made',
   'Skip preambles for quick tasks',
   'no narrated numbered steps',
-  'Open on what you found',
   'The classes of action treated as risky',
   'Authorization stands for the scope',
   'Earlier messages are automatically compressed',
   'Tools run under a user-selected permission mode',
   'When a tool denial is not understood',
-  'Operate for the operator first',
   'The one name you go by',
   'this command-line coding harness and the agent running in it',
-  'Mercury was not built by the maker of any model it runs',
   '<mercury-doctrine>',
   'Identity, final word',
   'claim to be human',
@@ -127,30 +122,29 @@ try {
   {
     const digest = createHash('sha256').update(TEXT, 'utf8').digest('hex')
     check('the contract module exports the constitution', TEXT.length > 0)
-    check('byte anchor (sha256 of the constitution)', digest === 'e6c7eb26eb13cca8308399581e3e97fdf2bf1c639d4ba26fcee240ccd692cef6', digest)
-    check('431 words, 2335 characters, no trailing newline', TEXT.split(/\s+/).length === 431 && TEXT.length === 2335 && !TEXT.endsWith('\n'))
-    check('opens on who the seat is', TEXT.startsWith('You are Mercury, the self that exists in this harness.'))
-    check('closes on the conflict order', TEXT.endsWith('When instructions conflict: safety and honesty\nfirst, then the operator, then defaults.'))
+    check('byte anchor (sha256 of the constitution)', digest === '252cba8d3e056a07de5682242bd402f69a8c8338cdc88d1dbf263bb91a802ae6', digest)
+    check('285 words, 1621 characters, no trailing newline', TEXT.split(/\s+/).length === 285 && TEXT.length === 1621 && !TEXT.endsWith('\n'))
+    check('opens on who the seat is', TEXT.startsWith('You are Mercury: a command-line interface and the agent within it.'))
+    check('closes on the note rule', TEXT.endsWith('what was done, why, and where to orient for the next session, and\nnothing else.'))
     const laws: Array<[string, string]> = [
-      ['the lookup line', 'Which brain you think with is a fact the harness keeps;\nasked, look it up and say it.'],
-      ['read the room', 'Read the room: some work wants you to get on with it alone'],
-      ['the stop sentence is the whole law', 'Stop only for a step that cannot be undone, a\nchange in what was asked, or something only the operator can give'],
-      ['the finishing clause', 'If your last words only say what you will do next, do it,\nand stop when the work is done.'],
-      ['the security posture', 'Security work is yours to help with when the person is on the right side of\nit:'],
-      ['the refusal', 'refuse it when the purpose is harm.'],
-      ['the dual-use rule', 'needs a stated authorisation before you help.'],
-      ['the fault law', 'When your work is wrong, the fault is yours.'],
-      ['the authorship law', 'Work another hand did is theirs, and you say so'],
-      ['the record law', 'The record of the work has four uses.'],
-      ['the seal', 'Answer a question as it was asked before you bring in the record.'],
-      ['the honesty line', 'Report what actually happened, plainly, to the operator and to anyone your\nwork reaches.'],
-      ['the gate line', 'A real safety, permission or capability gate is respected and\nnamed, never worked around.'],
+      ['the engine line', 'Your model\nis the engine; your name is Mercury.'],
+      ['the attribution', 'Mercury was not built by the maker of the model it runs'],
+      ['read the room', 'Operate with the operator first, and read the room.'],
+      ['the preference rule', 'Follow their stated preferences ahead of\ngeneric defaults; ask only in the event where a fork matters'],
+      ['the honesty line', 'Do not mislead the operator: tell them\nwhat happened, plainly, avoiding jargon.'],
+      ['the opening rule', 'Open on what you found, or what you are about to do.'],
+      ['the assumption rule', 'act\nand name the assumption you made.'],
+      ['the stop sentence', 'Stop only for a destructive act, a real\nscope change, or input receivable only from the operator.'],
+      ['the evidence rule', 'Claim only what a\ntool result shows, name what is not verified'],
+      ['the finishing clause', 'check your last paragraph and do now any\nwork it only plans, promises, or says it will do.'],
+      ['the idle rule', 'never holding it open with sleeps, timers, or\nwasted time.'],
+      ['the note rule', 'keep a concise, one-to-two-sentence note\nif needed: what was done, why, and where to orient for the next session'],
     ]
     for (const [name, words] of laws) check(`carries ${name}`, TEXT.includes(words))
     check('exactly one identity statement', (TEXT.match(/^You are /gm) ?? []).length === 1)
     check('names no engine family', !/\b(Claude|Anthropic|GPT|OpenAI|Gemini|Llama|DeepSeek|Kimi|Qwen|Mistral|Grok)\b/i.test(TEXT))
     check('negates nothing about what the seat is', !/claim to be human|misrepresent what you are|not a person|not the model|not human/i.test(TEXT))
-    check('the only module that states the identity is the contract module', SRC('src/prompt/mercuryContract.ts').includes('You are Mercury, the self that exists in this harness.'))
+    check('the only module that states the identity is the contract module', SRC('src/prompt/mercuryContract.ts').includes('You are Mercury: a command-line interface and the agent within it.'))
   }
 
   section('§2 the shipped composition — the head, the constitution as its own segment, then the facts, nothing of the prose')

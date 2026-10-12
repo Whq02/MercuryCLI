@@ -28,10 +28,10 @@ echo "############################################################"
 echo "# Mercury constitution presence — dist + assembly-seam invariants (#5)"
 echo "############################################################"
 
-eq "the identity line"            "You are Mercury, the self that exists in this harness." 1
-eq "the precedence tie-break"     "first, then the operator, then defaults." 1
-ge "the gate line"                "A real safety, permission or capability gate is respected and"
-eq "no identity floor remains"    "this command-line coding harness and the agent running in it" 0
+eq "the identity line"            "You are Mercury: a command-line interface and the agent within it." 1
+eq "the note rule"                "where to orient for the next session, and" 1
+ge "the honesty line"             "Do not mislead the operator: tell them"
+eq "no old identity floor remains" "this command-line coding harness and the agent running in it" 0
 eq "no identity tail remains"     "Identity, final word" 0
 eq "no wire prefix remains"       "source-built terminal coding harness" 0
 

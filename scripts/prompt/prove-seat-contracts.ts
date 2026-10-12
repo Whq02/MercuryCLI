@@ -84,7 +84,7 @@ section('§5 the same words where the seats agree')
   const [coordinator, subagent] = seats.map(([, t]) => t ?? '')
   check('both seat contracts open their evidence rule with "Claim only what"', [coordinator, subagent].every(t => t.includes('Claim only what')))
   check('each seat ends a block by naming what it needs from the operator or the caller', /with what you need named/.test(subagent) && /ask the smallest honest question/.test(coordinator))
-  check('the constitution carries the shared laws the seats build on: the stop sentence, the fault, the record, the honesty line', ['Stop only for a step that cannot be undone', 'the fault is yours', 'The record of the work has four uses', 'Report what actually happened, plainly'].every(words => contract.MERCURY_CONSTITUTION.includes(words)))
+  check('the constitution carries the shared laws the seats build on: the stop sentence, the evidence rule, the honesty line, the finishing clause', ['Stop only for a destructive act', 'Claim only what a\ntool result shows', 'Do not mislead the operator', 'check your last paragraph'].every(words => contract.MERCURY_CONSTITUTION.includes(words)))
 }
 
 rmSync(process.env.MERCURY_CONFIG_DIR, { recursive: true, force: true })
