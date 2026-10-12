@@ -186,6 +186,42 @@ async function runSeat(tag: string, script: () => ScriptedTurn[], prompts: strin
   }
 }
 
+section('§0 the closure row carries the refusal fact and the closing — never the operator remedy, never a retry invitation')
+{
+  ;(globalThis as Record<string, unknown>).MACRO ??= { VERSION: '1.0.0' }
+  const planHome = realpathSync(mkdtempSync(join(tmpdir(), 'refusal-closed-plan-')))
+  process.env.MERCURY_CONFIG_DIR ??= planHome
+  process.env.MERCURY_CREDENTIAL_STORE ??= 'file'
+  process.env.MERCURY_LOCAL_PROBE_TARGETS ??= 'none'
+  const { requestConversationPlan } = await import('../../src/utils/messages/apiPlan.ts')
+  const { createAssistantAPIErrorMessage, createUserMessage } = await import('../../src/utils/messages/factories.ts')
+  const COCKPIT_WORDS = 'The model ended the response early (stop_reason: refusal). Use /rewind (or shift+up) to edit your last message, or start a new session. If refusals repeat, consider running /model claude-haiku-4-5-20251001.'
+  const HEADLESS_WORDS = 'The model ended the response early (stop_reason: refusal). Try rephrasing the request or a different approach.'
+  for (const [road, words] of [['cockpit', COCKPIT_WORDS], ['headless', HEADLESS_WORDS]] as const) {
+    const refused = createUserMessage({ content: `Use the Bash tool to run exactly this command and nothing else: ${ROOT_DELETE}` })
+    const refusal = createAssistantAPIErrorMessage({ content: words, error: 'invalid_request', errorDetails: 'stop_reason: refusal · model: fixture · request_id: unknown' })
+    const next = createUserMessage({ content: 'Count slowly from 1 to 3, one number per line, and nothing else.' })
+    const plan = requestConversationPlan([refused, refusal, next], [])
+    const texts: string[] = []
+    for (const message of plan.messages) {
+      const content = message.message.content
+      if (typeof content === 'string') { texts.push(content); continue }
+      if (!Array.isArray(content)) continue
+      for (const block of content as Array<{ type?: string; text?: string }>) if (block.type === 'text' && typeof block.text === 'string') texts.push(block.text)
+    }
+    const closure = texts.find(text => text.includes('refusal is final')) ?? ''
+    check(`${road}: the closure row reaches the plan as an assistant row`, closure !== '' && plan.messages.some(m => m.type === 'assistant' && JSON.stringify(m.message.content).includes('refusal is final')), JSON.stringify(texts).slice(0, 200))
+    check(`${road}: the closure keeps the refusal fact`, closure.startsWith('The model ended the response early (stop_reason: refusal).'), closure)
+    check(`${road}: the closure carries no retry invitation`, !/Try rephrasing|different approach|try again/i.test(closure), closure)
+    check(`${road}: the closure carries no operator remedy (/rewind, shift+up, a new session, /model)`, !/\/rewind|shift\+up|new session|\/model/.test(closure), closure)
+    check(`${road}: the closure says the refusal is final and never to re-issue, rephrased or not`, closure.includes('never repeat, retry or re-issue it, rephrased or not') && closure.includes('answer only the newest instruction'), closure)
+    const refusedIndex = plan.messages.findIndex(m => m.type === 'user' && JSON.stringify(m.message.content).includes(ROOT_DELETE))
+    const nextIndex = plan.messages.findIndex(m => m.type === 'user' && JSON.stringify(m.message.content).includes('Count slowly'))
+    check(`${road}: the refused prompt and the next prompt stay separate rows with the closure between them`, refusedIndex >= 0 && nextIndex > refusedIndex + 1, JSON.stringify({ refusedIndex, nextIndex, rows: plan.messages.map(m => m.type) }))
+  }
+  rmSync(planHome, { recursive: true, force: true })
+}
+
 section('§1 the model view: a refused turn is a closed matter on the next request')
 {
   const prompts = [
@@ -206,6 +242,12 @@ section('§1 the model view: a refused turn is a closed matter on the next reque
     check(
       'the closure says never re-issue',
       wireJoined.includes('never repeat, retry or re-issue'),
+    )
+    const closures = seat.wire.filter(text => text.includes('refusal is final'))
+    check(
+      'the closure on the wire carries no retry invitation and no operator remedy (the runner road words "Try rephrasing" never reach the model)',
+      closures.length > 0 && closures.every(text => !/Try rephrasing|different approach|\/rewind|shift\+up|\/model/i.test(text)),
+      JSON.stringify(closures.slice(0, 1)).slice(0, 300),
     )
     void lastWire
   } finally {

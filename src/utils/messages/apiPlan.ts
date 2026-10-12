@@ -217,13 +217,20 @@ function refusalClosureOf(row: Message): AssistantMessage | null {
   return null
 }
 
+function refusalFactOf(words: string): string {
+  const mark = words.indexOf(REFUSAL_STOP_MARK)
+  if (mark < 0) return words
+  const end = words.indexOf('.', mark)
+  return end < 0 ? words : words.slice(0, end + 1)
+}
+
 function withRefusalClosure(row: AssistantMessage, words: string): AssistantMessage {
   return {
     ...row,
     isApiErrorMessage: undefined,
     message: {
       ...row.message,
-      content: [{ type: 'text', text: `${words} This refusal is final: the request above was refused and is closed; never repeat, retry or re-issue it; answer only the newest instruction.` } as ContentBlock],
+      content: [{ type: 'text', text: `${refusalFactOf(words)} This refusal is final: the request above was refused and is closed; never repeat, retry or re-issue it, rephrased or not; answer only the newest instruction.` } as ContentBlock],
     },
   }
 }
