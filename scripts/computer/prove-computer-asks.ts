@@ -350,10 +350,10 @@ for (const value of ['asks', 'permissive', 'full'] as const) {
     permissionContext.isBypassPermissionsModeAvailable = true
     check(`${tag}: the opening screenshot recorded TextEdit as the turn's home application`, session.turnHomeApp(owner, session.turnKeyOf(context))?.identity === TEXTEDIT.identity, JSON.stringify(session.turnHomeApp(owner, session.turnKeyOf(context))))
     const home = await decideToolPermission(ComputerTool, { action: 'click', x: 812, y: 300 }, context)
-    if (value === 'asks') {
-      check(`${tag}: the first act in the home application asks${sovereign ? ' even under sovereign mode — a saved asks wins' : ''}, at the bypass-immune road a pinned value declares`, home.decision.behavior === 'ask' && home.trace.decidedBy === 'userInteractionAsk', JSON.stringify({ decidedBy: home.trace.decidedBy, decision: home.decision }))
+    if (value === 'asks' && !sovereign) {
+      check(`${tag}: the first act in the home application asks, at the bypass-immune road a pinned value declares`, home.decision.behavior === 'ask' && home.trace.decidedBy === 'userInteractionAsk', JSON.stringify({ decidedBy: home.trace.decidedBy, decision: home.decision }))
     } else {
-      check(`${tag}: the first act in the home application never asks (${sovereign ? 'the posture band' : 'the check itself'})`, home.decision.behavior === 'allow' && home.trace.decidedBy === (sovereign ? 'bypassPosture' : 'resolution'), JSON.stringify({ decidedBy: home.trace.decidedBy, decision: home.decision }))
+      check(`${tag}: the first act in the home application never asks (${sovereign ? 'the posture answers every question — a saved asks or permissive waits for it to go off' : 'the check itself'})`, home.decision.behavior === 'allow' && home.trace.decidedBy === (sovereign ? 'bypassPosture' : 'resolution'), JSON.stringify({ decidedBy: home.trace.decidedBy, decision: home.decision }))
       check(`${tag}: the check wrote no per-application grant and marked the act as opened by the access`, session.appApproved(owner, TEXTEDIT.identity) === false && session.peekCheckedActApp(owner)?.viaGrant === true)
     }
     for (const action of COMPUTER_READS) {
@@ -362,10 +362,10 @@ for (const value of ['asks', 'permissive', 'full'] as const) {
     }
     useScene(`access-${value}-${posture}-finder`, { frontmost: FINDER })
     const other = await decideToolPermission(ComputerTool, { action: 'click', x: 100, y: 100 }, context)
-    if (value === 'full') {
-      check(`${tag}: an act in another application never asks either`, other.decision.behavior === 'allow', JSON.stringify(other.decision))
+    if (value === 'full' || sovereign) {
+      check(`${tag}: an act in another application never asks either${sovereign ? ' (not one card under sovereign mode)' : ''}`, other.decision.behavior === 'allow', JSON.stringify(other.decision))
     } else {
-      check(`${tag}: an act that lands in another application asks for it by name, at the bypass-immune road${sovereign ? ' — it asks under sovereign mode too' : ''}`, other.decision.behavior === 'ask' && other.trace.decidedBy === 'userInteractionAsk' && (other.decision.message ?? '').includes('Finder (com.example.Finder)'), JSON.stringify({ decidedBy: other.trace.decidedBy, decision: other.decision }))
+      check(`${tag}: an act that lands in another application asks for it by name, at the bypass-immune road`, other.decision.behavior === 'ask' && other.trace.decidedBy === 'userInteractionAsk' && (other.decision.message ?? '').includes('Finder (com.example.Finder)'), JSON.stringify({ decidedBy: other.trace.decidedBy, decision: other.decision }))
       session.approveApp(owner, { identity: FINDER.identity, name: FINDER.name })
       const covered = await decideToolPermission(ComputerTool, { action: 'click', x: 100, y: 100 }, context)
       check(`${tag}: a Yes covers that application for the session`, covered.decision.behavior === 'allow', JSON.stringify(covered.decision))

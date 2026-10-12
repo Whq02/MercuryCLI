@@ -89,7 +89,7 @@ section('§7 the access words beside the switch: the setting in words, the postu
   process.env.MERCURY_SKIP_PERMISSIONS = '1'
   check('unset with Sovereign mode on: access full (by sovereign mode)', computerAccessWords() === 'access full (by sovereign mode)' && row()?.detail.endsWith('access full (by sovereign mode)') === true, JSON.stringify(row()))
   process.env.MERCURY_COMPUTER_ACCESS = 'asks'
-  check('asks saved with Sovereign mode on: access asks — a saved value wins', computerAccessWords() === 'access asks', computerAccessWords())
+  check('asks saved with Sovereign mode on: access full (by sovereign mode) — the posture answers every question, the saved value waits for it to go off', computerAccessWords() === 'access full (by sovereign mode)', computerAccessWords())
   delete process.env.MERCURY_COMPUTER_ACCESS
   delete process.env.MERCURY_SKIP_PERMISSIONS
   const driver = sourceText('src/services/desktop/nativeDriver.ts')
