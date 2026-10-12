@@ -13,9 +13,10 @@ const ASSET = {
 }
 if (registerOnlyRequested(ASSET)) process.exit(0)
 const sourceRef = pinSourceRef()
-const REPO = join(import.meta.dir, '..', '..')
-process.chdir(REPO)
 const HOME = pinScratchHome('mercury-config-thinking')
+const PROJECT = join(HOME, 'project')
+mkdirSync(PROJECT, { recursive: true })
+process.chdir(PROJECT)
 Object.assign(process.env, {
   MERCURY_FULLSCREEN: '1', MERCURY_HELM_HOME: '1', MERCURY_DISABLE_NONESSENTIAL_TRAFFIC: '1',
   MERCURY_BOOT_PREFLIGHT: '0', MERCURY_REDUCED_MOTION: '1', MERCURY_LOCAL_PROBE_TARGETS: 'none',

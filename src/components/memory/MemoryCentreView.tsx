@@ -756,7 +756,7 @@ export function MemoryCentreView({
           }
           return
         }
-        if (input === 'c' && detailLive) setCorrecting({ seq: detailSeq, buffer: '' })
+        if (input === 'c' && !key.ctrl && !key.meta && detailLive) setCorrecting({ seq: detailSeq, buffer: '' })
         else if (input === 'x' && detailLive) {
           setArmed(detailSeq)
           fl.setNote({ text: `retire seq ${detailSeq}? x again retires it (kept in history) · any other key keeps it`, kind: 'warn' })
