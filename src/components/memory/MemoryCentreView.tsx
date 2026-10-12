@@ -348,9 +348,10 @@ export function refWhyLine(ref: MemoryRef, pins: readonly PinRecord[]): string {
   const seq = seqOf(ref)
   const pin = seq === null ? undefined : pins.find(p => p.seq === seq)
   const parts: string[] = []
-  if (pin && !ref.why.startsWith('pinned')) parts.push(`pinned ${humanStamp(pin.at)}`)
-  parts.push(ref.why)
-  if (!ref.why.startsWith('saved') && ref.capturedAt) parts.push(`saved ${humanStamp(ref.capturedAt)}${ref.source ? ` ${sourceWords(ref.source)}` : ''}`)
+  if (pin) parts.push(`pinned ${humanStamp(pin.at)}`)
+  if (ref.capturedAt) parts.push(`saved ${humanStamp(ref.capturedAt)}${ref.source ? ` ${sourceWords(ref.source)}` : ''}`)
+  const why = ref.why.replace(/^content matches/, 'matches').replace(/ · asked for by you$| · by Mercury$/, '')
+  if (!/^(pinned|saved) /.test(why)) parts.push(why)
   return parts.join(' · ')
 }
 
@@ -702,7 +703,7 @@ export function MemoryCentreView({
     const live = liveEntryIndex(listTopicDocs()).get(correcting.seq)
     return wrapText(live?.entry.text ?? detail?.summary ?? '', Math.max(8, textWidth - 5))
   }, [correcting, detail, textWidth])
-  const pageRows = Math.max(1, rowBudget - fixedRows - 4 - (fl.note ? 2 : 0))
+  const pageRows = Math.max(1, rowBudget - (roomy ? 2 : 1) - 4 - (fl.note ? 2 : 0))
   const openLines = page ? page.lines : detail ? detailLines : []
   const pageWin = pageWindow(openLines.length, pageOffset, pageRows)
   const { visible, above, below, clampedSel, note, loadError, list } = fl
