@@ -32,7 +32,7 @@ for (const kind of ['managed', 'pin', 'absent', 'broken'] as const) {
   assert.equal(row.status, kind === 'managed' || kind === 'pin' ? 'ok' : 'info')
   if (kind === 'managed') assert.equal(row.evidence, `drives Chrome for Testing 142.0.7444.0 (managed cache ${cache})`)
   if (kind === 'pin') assert.equal(row.evidence, `operator pin ${executablePath}`)
-  if (kind === 'absent') assert.equal(row.evidence, 'no managed browser — /browser install downloads Chrome for Testing (150-200 MB); your installed Google Chrome is never driven')
+  if (kind === 'absent') assert.equal(row.evidence, 'no managed browser — /browser install downloads Chrome for Testing once (the consent step names the exact download size; the current stable is about 185 MB, twice that unpacked); your installed Google Chrome is never driven')
   if (kind === 'broken') assert.match(row.evidence, /MERCURY_BROWSER_PATH.*no silent fallback/)
   assert.match(row.detail, /not driven: it is your app/)
   const text = renderPlainCertificate({ sections: json.sections, verdict: 'certified', durationMs: 0 })
