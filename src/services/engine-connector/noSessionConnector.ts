@@ -8,6 +8,7 @@ import type {
   CheckpointFactsV1,
   EngineConnectorV1,
   KitDialReceiptV1,
+  LeaveReceiptV1,
   SpawnSwitchReceiptV1,
   McpRosterV1,
   ModelFactsV1,
@@ -117,6 +118,9 @@ export class NoSessionConnector implements EngineConnectorV1 {
   }
   async pauseGate(): Promise<AgentControlReceiptV1> {
     return { outcome: 'refused', detail: NO_CHAT_OPEN }
+  }
+  async leave(): Promise<LeaveReceiptV1> {
+    return { note: 'skipped', detail: NO_CHAT_OPEN }
   }
   modelFacts(): ModelFactsV1 {
     const landing = landingWordsOf(bootBirthFacts())

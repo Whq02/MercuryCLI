@@ -68,6 +68,11 @@ export type AgentControlReceiptV1 = {
   detail?: string
 }
 
+export type LeaveReceiptV1 = {
+  note: 'stored' | 'skipped' | 'none'
+  detail?: string
+}
+
 export type PauseGateFactsV1 = {
   paused: boolean
   parked: number
@@ -398,6 +403,7 @@ export interface EngineConnectorV1 {
   resumeAgent(agentId: string, note?: string): Promise<AgentControlReceiptV1>
   backgroundShell(): Promise<AgentControlReceiptV1>
   pauseGate(paused: boolean): Promise<AgentControlReceiptV1>
+  leave(opts?: { signal?: AbortSignal }): Promise<LeaveReceiptV1>
 
   modelFacts(): ModelFactsV1
   subscribeModel(listener: () => void): () => void
