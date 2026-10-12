@@ -286,14 +286,6 @@ function headSha(root: string): string | null {
   }
 }
 
-function commitSigningOn(root: string): boolean {
-  try {
-    return git(root, ['config', '--get', '--type=bool', 'commit.gpgsign']).trim() === 'true'
-  } catch {
-    return false
-  }
-}
-
 export interface PlanApplyOutcome {
   state: 'applied'
   plan: GitPlan
@@ -397,17 +389,8 @@ export function applyPlan(
         throw new Error(`staged set [${staged.join(', ')}] ≠ planned [${wantedFiles.join(', ')}]`)
       }
       if (staged.length === 0) throw new Error('empty staged set — an empty commit is refused')
-      const tree = gitIndexed(['write-tree']).trim()
-      const sign = commitSigningOn(plan.root)
-      const sha = execFileSync('git', ['commit-tree', tree, ...(parent === null ? [] : ['-p', parent]), ...(sign ? ['-S'] : []), '-m', group.message], {
-        windowsHide: true,
-        cwd: plan.root,
-        encoding: 'utf8',
-        env: { ...subprocessEnv(), GIT_OPTIONAL_LOCKS: '0' },
-        timeout: 30_000,
-        stdio: ['ignore', 'pipe', 'pipe'],
-      }).trim()
-      git(plan.root, ['update-ref', '-m', `commit: ${group.message.split('\n')[0] ?? ''}`, 'HEAD', sha, ...(parent === null ? [] : [parent])])
+      gitIndexed(['commit', '--quiet', '--no-verify', '-m', group.message])
+      const sha = git(plan.root, ['rev-parse', 'HEAD']).trim()
       git(plan.root, ['reset', '--quiet', '--', ...group.files])
       const committed = git(plan.root, ['show', '--name-only', '--format=', sha])
         .split('\n')
