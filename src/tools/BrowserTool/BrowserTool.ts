@@ -253,9 +253,7 @@ export function isDriverTimeout(err: unknown): boolean {
   if (!e || typeof e !== 'object') return false
   if (e.name === 'TimeoutError') return true
   const message = typeof e.message === 'string' ? e.message : ''
-  return /Timed out after waiting \d+ms|Waiting failed: \d+ms exceeded|Navigation timeout of \d+ ?ms exceeded|Waiting for (?:selector|function|target) .* failed/.test(
-    message,
-  )
+  return /Timed out after waiting \d+ms|Waiting failed: \d+ms exceeded|Navigation timeout of \d+ ?ms exceeded/.test(message)
 }
 
 export function errorChainText(err: unknown): string {
