@@ -191,7 +191,7 @@ section('§5 THE DOOR (json) — the one JSON result says blocked')
   }
 }
 
-section('§6 A RUN THAT DELIVERED STILL EXITS 0 — a denial alone never fails a completed turn; a quoted grammar mid-prose never blocks')
+section('§6 a refused tool with nothing delivered reports blocked and exits 1; a quoted grammar mid-prose never blocks by itself; a run that delivered exits 0')
 {
   const door = await openDoor([
     { kind: 'tool_use', name: 'Write', input: { file_path: 'fizz.py', content: 'print(1)\n' }, preText: 'Trying a write.' },
@@ -199,8 +199,8 @@ section('§6 A RUN THAT DELIVERED STILL EXITS 0 — a denial alone never fails a
   ])
   try {
     const exit = await runDoor(door, ['--format', 'rows', '--', 'Answer me.'])
-    const outcome = rowsOf(exit.stdout).find(row => row.type === 'outcome') as { status?: string; denials?: unknown[]; answer?: string } | undefined
-    check('a completed turn with a denial and no declaration exits 0 and says completed', exit.code === 0 && outcome?.status === 'completed' && (outcome?.denials?.length ?? 0) === 1, j({ code: exit.code, status: outcome?.status, denials: outcome?.denials?.length }))
+    const outcome = rowsOf(exit.stdout).find(row => row.type === 'outcome') as { status?: string; denials?: unknown[]; answer?: string; error?: { class?: string } } | undefined
+    check('a turn whose only tool call was refused says blocked with the blocked class (the .34 ruling: the exit code tells the truth)', exit.code === 1 && outcome?.status === 'blocked' && outcome?.error?.class === 'blocked' && (outcome?.denials?.length ?? 0) === 1, j({ code: exit.code, status: outcome?.status, denials: outcome?.denials?.length }))
     check('its answer is the model\'s text', outcome?.answer === QUOTED_MID_PROSE)
   } finally {
     await door.close()

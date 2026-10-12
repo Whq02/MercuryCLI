@@ -181,7 +181,7 @@ import { clearSystemPromptSections } from '../constants/systemPromptSections.js'
 
 const DEFAULT_HEADLESS_IDLE_MINUTES = 20
 const SIGNAL_SETTLE_MS = 5_000
-import { getInMemoryErrors, logError } from '../utils/log.js'
+import { getInMemoryErrors, logError, withoutStackFrames } from '../utils/log.js'
 import { processMainOwner } from '../services/run/resolveOwner.js'
 import { editOutcomeRows } from '../services/changeTransaction/editOutcomeLedger.js'
 import { getRunSnapshot, reconcileOnResume } from '../services/run/runCoordinator.js'
@@ -1402,7 +1402,7 @@ export async function runHeadless(
           usage: EMPTY_USAGE,
           models: {},
           denials: [],
-          error: { message: errorMessage(error), class: 'internal', detail: getInMemoryErrors().map(entry => entry.error) },
+          error: { message: errorMessage(error), class: 'internal', detail: getInMemoryErrors().map(entry => withoutStackFrames(entry.error)) },
         },
       ),
     shutdown: code => void gracefulShutdown(code),

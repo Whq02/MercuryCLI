@@ -41,8 +41,10 @@ export class AskAborted extends Error {
 
 export type ToolAskParams = Extract<PermissionRequestParams, { kind: 'tool' }>
 
+export type AskAnswer = PermissionAnswer & { unanswered?: true }
+
 export interface AskChannel {
-  askPermission(params: PermissionRequestParams, opts: { signal?: AbortSignal; key: string }): Promise<PermissionAnswer>
+  askPermission(params: PermissionRequestParams, opts: { signal?: AbortSignal; key: string }): Promise<AskAnswer>
   parkedAsks(): number
 }
 
@@ -85,7 +87,7 @@ export function describeToolAction(tool: Tool, input: Record<string, unknown>): 
 }
 
 export function decisionOfAnswer(
-  answer: PermissionAnswer,
+  answer: AskAnswer,
   tool: Tool,
   originalInput: Record<string, unknown>,
   toolUseContext: Pick<ToolUseContext, 'abortController' | 'setAppState'> & Partial<Pick<ToolUseContext, 'getAppState'>>,
@@ -113,6 +115,7 @@ export function decisionOfAnswer(
     behavior: 'deny',
     message: answer.message ?? 'Permission denied by the host',
     decisionReason: { type: 'permissionPromptTool', permissionPromptToolName: tool.name, toolResult: answer },
+    ...(answer.unanswered === true ? { unanswered: true } : {}),
   }
 }
 
@@ -180,7 +183,7 @@ export function createHostCanUseTool(channel: AskChannel, onPermissionPrompt?: (
         requestPromise.then(answer => ({ source: 'host' as const, answer })),
       ])
 
-      if (away) return decisionOfAnswer({ outcome: 'deny', message: unansweredAskRefusal(tool.name, askLimit) }, tool as Tool, input, toolUseContext)
+      if (away) return decisionOfAnswer({ outcome: 'deny', message: unansweredAskRefusal(tool.name, askLimit), unanswered: true }, tool as Tool, input, toolUseContext)
       if (raceOutcome.source === 'hook' && raceOutcome.decision) {
         const asked = raceOutcome.decision
         const hookNames = asked.outcomes.map(outcome => outcome.name).join(', ')
@@ -212,10 +215,10 @@ export function createHostCanUseTool(channel: AskChannel, onPermissionPrompt?: (
       const answer = raceOutcome.source === 'host' ? raceOutcome.answer : await requestPromise
       return decisionOfAnswer(answer, tool as Tool, input, toolUseContext, askResult.suggestions)
     } catch (error) {
-      if (away) return decisionOfAnswer({ outcome: 'deny', message: unansweredAskRefusal(tool.name, askLimit) }, tool as Tool, input, toolUseContext)
+      if (away) return decisionOfAnswer({ outcome: 'deny', message: unansweredAskRefusal(tool.name, askLimit), unanswered: true }, tool as Tool, input, toolUseContext)
       const unanswered = parentSignal.aborted ? unansweredAskCause(parentSignal.reason) : undefined
       if (unanswered !== undefined) {
-        return decisionOfAnswer({ outcome: 'deny', message: UNANSWERED_ASK_REJECT_MESSAGE(tool.name, unanswered) }, tool as Tool, input, toolUseContext)
+        return decisionOfAnswer({ outcome: 'deny', message: UNANSWERED_ASK_REJECT_MESSAGE(tool.name, unanswered), unanswered: true }, tool as Tool, input, toolUseContext)
       }
       return {
         behavior: 'deny',
@@ -245,7 +248,7 @@ export function createSandboxAsk(channel: AskChannel): (ask: { host: string; por
 type ParkedAsk = {
   id: number | null
   toolName: string
-  settle: (answer: PermissionAnswer) => void
+  settle: (answer: AskAnswer) => void
 }
 
 export function createRunnerAsks(peer: Peer, capabilities: () => Capabilities): AskHost {
@@ -253,10 +256,10 @@ export function createRunnerAsks(peer: Peer, capabilities: () => Capabilities): 
   let onParked: (() => void) | undefined
   let onSettled: (() => void) | undefined
 
-  const askPermission = (params: PermissionRequestParams, opts: { signal?: AbortSignal; key: string }): Promise<PermissionAnswer> => {
+  const askPermission = (params: PermissionRequestParams, opts: { signal?: AbortSignal; key: string }): Promise<AskAnswer> => {
     if (peer.closed) return Promise.reject(new PeerClosed('permission/request', 'the runner door is closed'))
     if (opts.signal?.aborted) return Promise.reject(new AskAborted('the ask was aborted before it was sent'))
-    return new Promise<PermissionAnswer>((resolve, reject) => {
+    return new Promise<AskAnswer>((resolve, reject) => {
       let settled = false
       const entry: ParkedAsk = {
         id: null,
@@ -290,7 +293,7 @@ export function createRunnerAsks(peer: Peer, capabilities: () => Capabilities): 
           if (settled) return
           finish()
           if (error instanceof PeerClosed) {
-            resolve({ outcome: 'deny', message: UNANSWERED_ASK_REJECT_MESSAGE(entry.toolName, DOOR_CLOSED_CAUSE) })
+            resolve({ outcome: 'deny', message: UNANSWERED_ASK_REJECT_MESSAGE(entry.toolName, DOOR_CLOSED_CAUSE), unanswered: true })
             return
           }
           reject(error instanceof Error ? error : new Error(String(error)))
@@ -328,7 +331,7 @@ export function createRunnerAsks(peer: Peer, capabilities: () => Capabilities): 
     denyPendingPermissionRequests(cause) {
       let settledCount = 0
       for (const entry of [...parked.values()]) {
-        entry.settle({ outcome: 'deny', message: UNANSWERED_ASK_REJECT_MESSAGE(entry.toolName, cause) })
+        entry.settle({ outcome: 'deny', message: UNANSWERED_ASK_REJECT_MESSAGE(entry.toolName, cause), unanswered: true })
         settledCount++
       }
       return settledCount
@@ -347,7 +350,7 @@ export function createRuleOnlyAsks(): AskHost {
   const canUseTool: CanUseToolFn = async (tool, input, toolUseContext, assistantMessage, toolUseId, forceDecision) =>
     forceDecision ?? (await hasPermissionsToUseTool(tool, input, toolUseContext, assistantMessage, toolUseId))
   return {
-    askPermission: params => Promise.resolve({ outcome: 'deny', message: UNANSWERED_ASK_REJECT_MESSAGE(params.kind === 'tool' ? params.tool_name : SANDBOX_NETWORK_ACCESS_TOOL_NAME, 'this run has no host to answer it') }),
+    askPermission: params => Promise.resolve({ outcome: 'deny', message: UNANSWERED_ASK_REJECT_MESSAGE(params.kind === 'tool' ? params.tool_name : SANDBOX_NETWORK_ACCESS_TOOL_NAME, 'this run has no host to answer it'), unanswered: true }),
     parkedAsks: () => 0,
     createCanUseTool: () => canUseTool,
     handleElicitation: () => Promise.resolve({ action: 'cancel' } as ElicitResult),

@@ -55,7 +55,7 @@ try {
     check(`…its receipt rides resultText alone and names the command's one seat`, new RegExp(`The /${name} command is an interactive surface`).test(result.resultText ?? '') && (result as { commandRefused?: boolean }).commandRefused === true, result.resultText ?? '(none)')
   }
   const halt = await dispatch('/halt')
-  check('a stray /halt answers as an unknown skill', /Unknown skill: halt/.test(halt.resultText ?? '') && halt.shouldQuery === false, halt.resultText ?? '(none)')
+  check('a stray /halt answers as an unknown command, refused', /^Unknown command: \/halt/.test(halt.resultText ?? '') && halt.shouldQuery === false && (halt as { commandRefused?: boolean }).commandRefused === true, halt.resultText ?? '(none)')
 } finally {
   rmSync(SCRATCH, { recursive: true, force: true })
 }

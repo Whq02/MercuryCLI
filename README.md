@@ -519,10 +519,17 @@ The status is `completed`, `blocked`, `refused`, `failed`, `interrupted`,
 `turn_limit`, `budget_limit`, `schema_unmet` or `loop_stopped`. A completed
 run exits 0, other outcomes exit 1, and a usage error exits 2. SIGINT and
 SIGTERM exit 130 and 143 after the interrupted turn's outcome is flushed. A
-refused tool call is listed in `denials`; it does not make a completed turn a
-failure. A run whose final answer ends with the two lines `BLOCKED ON
-OPERATOR: …` and `RESUME WHEN: …` is `blocked`: the answer is kept, `error`
-carries the blocker and the resume condition, and the run exits 1.
+refused tool call is listed in `denials`. When the refusal was an ask nobody
+could answer — a run with no host in a mode that asks, `--mode dontAsk`, or a
+host's ask that expired — the run is `blocked`: the answer is kept, `error`
+names the tool and how to resume (`--allowed-tools`, another `--mode`, or a
+host that answers asks), and the run exits 1. A refusal the operator did
+answer — a deny rule, a hook, a host that said no — leaves a completed turn
+completed. A run whose final answer ends with the two lines `BLOCKED ON
+OPERATOR: …` and `RESUME WHEN: …` is `blocked` the same way: `error` carries
+the blocker and the resume condition, and the run exits 1. An unknown slash
+command is `refused` with the same sentence the cockpit gives (`Unknown
+command: /name · /help lists commands`) and exits 1.
 
 `--input rows` requires `--format rows` and reads one input object per line:
 
@@ -651,7 +658,8 @@ Available commands include:
   [docs/VULCAN-GODOT-TOOLS.md](docs/VULCAN-GODOT-TOOLS.md).
 - **`mercury image <image>`**: display an image in the terminal.
 - **`mercury install`** and **`mercury update`** (alias `upgrade`): install or
-  update release archives. See [Install](#install).
+  update release archives; with `--json` the document is on stdout whatever
+  the verdict, and the exit code says whether it failed. See [Install](#install).
 - **`mercury version`** and **`mercury help [command]`**: print the version
   line or a help page, the same as `--version` and `--help`; neither starts a
   session.
