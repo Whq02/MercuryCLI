@@ -126,7 +126,19 @@ export function CollapsedReadSearchContent({
 
   const anyErrored = memberIds.some(id => lookups.erroredToolUseIDs.has(id))
   const anyDenied = memberIds.some(id => lookups.deniedToolUseIDs.has(id))
-  const active = isActiveGroup && memberIds.some(id => inProgressToolUseIDs.has(id))
+  const deniedIds = React.useMemo(
+    () => memberIds.filter(id => lookups.deniedToolUseIDs.has(id)),
+    [memberIds, lookups.deniedToolUseIDs],
+  )
+  const runningIds = React.useMemo(
+    () => memberIds.filter(id => inProgressToolUseIDs.has(id)),
+    [memberIds, inProgressToolUseIDs],
+  )
+  const active = isActiveGroup && runningIds.length > 0
+  const settledCount = Math.max(0, memberIds.length - runningIds.length)
+  const bashDenied = Math.min(deniedIds.length, bashCount)
+  const bashRan = Math.max(0, bashCount - bashDenied)
+  const bashBlocked = Math.min(bashDenied, settledCount)
   const shellId = active && shouldAnimate && !isTranscriptMode ? firstRunningShellId(memberEntries, inProgressToolUseIDs) : null
   const movedByOperator = memberIds.some(id =>
     movedToBackgroundByOperator(
@@ -251,8 +263,11 @@ export function CollapsedReadSearchContent({
       ),
     })
   }
-  if (bashCount > 0) {
-    fragments.push(counted(past ? 'ran' : 'running', bashCount, 'bash command', 'shell'))
+  if (bashRan > 0) {
+    fragments.push(counted(past ? 'ran' : 'running', bashRan, 'bash command', 'shell'))
+  }
+  if (bashBlocked > 0) {
+    fragments.push(counted(past ? 'blocked' : 'blocking', bashBlocked, 'bash command', 'shell'))
   }
   const hadNonMemory = fragments.length > 0
   if (memoryReads > 0) {
@@ -277,7 +292,8 @@ export function CollapsedReadSearchContent({
     latch.read +
     latch.list +
     latch.mcp +
-    bashCount +
+    bashRan +
+    bashBlocked +
     memoryReads +
     memoryWrites
 
