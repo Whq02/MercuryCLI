@@ -45,8 +45,10 @@ export type MnemeCorrectResult =
       supersededBy?: number
     }
 
+export const USER_ASKED_RULE_ROAD = 'in /memory, under pinned rules, ↵ opens the rule: c corrects it (the old wording goes to history, the pin follows the new one), u unpins it'
+
 export function userAskedRuleMessage(ref: number | string): string {
-  return `${typeof ref === 'number' ? `seq ${ref}` : ref} is a rule the user asked Mercury to remember — only the user changes or unpins it, in /memory`
+  return `${typeof ref === 'number' ? `seq ${ref}` : ref} is a rule the user asked Mercury to remember — only the user changes it: ${USER_ASKED_RULE_ROAD}`
 }
 
 function userAskedRule(targetSeq: number, dir: string, byUser: boolean | undefined): MnemeCorrectResult | null {

@@ -45,6 +45,7 @@ import {
   plural,
   tableLine,
   topicsHeading,
+  wrapText,
   type LineageTableRow,
   type MemoryFooterState,
   type OverviewRow,
@@ -498,6 +499,11 @@ export function MemoryCentreView({
 
   const detailSeq = detail ? seqOf(detail) : null
   const detailPinned = detailSeq !== null && readPins().some(p => p.seq === detailSeq)
+  const correctingLines = React.useMemo(() => {
+    if (!correcting) return []
+    const live = liveEntryIndex(listTopicDocs()).get(correcting.seq)
+    return wrapText(live?.entry.text ?? detail?.summary ?? '', Math.max(8, textWidth - 5))
+  }, [correcting, detail, textWidth])
   const pageRows = Math.max(1, rowBudget - fixedRows - 4 - (fl.note ? 2 : 0))
   const openLines = page ? page.lines : detail ? detailLines : []
   const pageWin = pageWindow(openLines.length, pageOffset, pageRows)
@@ -510,8 +516,8 @@ export function MemoryCentreView({
           event.stopImmediatePropagation()
           setCorrecting(null)
         } else if (key.return) commitCorrection()
-        else if (key.backspace || key.delete) setCorrecting({ ...correcting, buffer: correcting.buffer.slice(0, -1) })
-        else if (input && !key.ctrl && !key.meta) setCorrecting({ ...correcting, buffer: correcting.buffer + input })
+        else if (key.backspace || key.delete) setCorrecting(prev => (prev ? { ...prev, buffer: prev.buffer.slice(0, -1) } : prev))
+        else if (input && !key.ctrl && !key.meta) setCorrecting(prev => (prev ? { ...prev, buffer: prev.buffer + input } : prev))
         return
       }
       if (page || detail) {
@@ -646,7 +652,11 @@ export function MemoryCentreView({
       {roomy ? <Box height={1} /> : null}
       {correcting && detail ? (
         <Box flexDirection="column">
-          <Text color={AMBER}>{`correcting seq ${correcting.seq} — the old fact moves to history:`}</Text>
+          <Text color={AMBER} wrap="truncate-end">{`correcting seq ${correcting.seq} — retype it; the wording below goes to history:`}</Text>
+          {detailPinned ? <Text color={AMBER} wrap="truncate-end">the pin and its asked-for mark follow the new wording</Text> : null}
+          {correctingLines.map((line, i) => (
+            <Text key={i} color={tok.textSecondary} wrap="truncate-end">{`${i === 0 ? 'now: ' : '     '}${line}`}</Text>
+          ))}
           <Text color={tok.textPrimary}>{`> ${correcting.buffer}`}<Text color={accent}>▁</Text></Text>
         </Box>
       ) : detail ? (

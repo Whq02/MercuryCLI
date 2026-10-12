@@ -60,7 +60,7 @@ section('§2 the four tools, with nothing set, round-trip through the isolated h
   const blankReplaces = retainItems([{ content: 'a fact with a blank replaces field', replaces: '   ' }], { session: 'proof' })
   check('a blank replaces is absent too', blankReplaces[0]?.status === 'stored', JSON.stringify(blankReplaces))
   const namedReplaces = retainItems([{ content: 'a rule that names a replacement that is not a pinned rule', replaces: 'seq:999' }], { session: 'proof' })
-  check('a replaces that names a seq is still checked and refused when it is no pinned rule', namedReplaces[0]?.status === 'refused' && /seq 999 is not a pinned rule/.test((namedReplaces[0] as { reason?: string }).reason ?? ''), JSON.stringify(namedReplaces))
+  check('a replaces that names a seq is still checked and refused when that seq is not live', namedReplaces[0]?.status === 'refused' && /seq 999 is not live/.test((namedReplaces[0] as { reason?: string }).reason ?? ''), JSON.stringify(namedReplaces))
   check('force consolidation', maybeConsolidate({ force: true, dir: libDir }).consolidated)
   const recalled = recallQuery('round-trip', {})
   check('Recall finds the consolidated fact by id', recalled.hits.some(h => h.id.startsWith('seq:') && h.slug === 'tool-surface'), JSON.stringify(recalled.hits))
