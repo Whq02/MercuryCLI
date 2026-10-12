@@ -772,7 +772,7 @@ function MercuryModelWrapper({
           ? `Effort switch queued: ${level} applies when this session's turn settles`
           : receipt.state === 'no-op'
             ? `Already on ${level}`
-            : `Effort set to ${level} — this session's next request runs it`,
+            : `Effort set to ${level} — this session's next request runs it · saved as your default for future sessions`,
       )
     })
     return true
@@ -1153,7 +1153,6 @@ function MercuryModelWrapper({
       notice={notice}
       headings={headings}
       {...(topGroup !== undefined ? { topGroup } : {})}
-      onSlotSwitch={handleSlotSwitch}
       expandRows={expandRows}
       {...(pendingNext !== undefined ? { pendingNext } : {})}
       onSelect={handleSelect}
@@ -1177,8 +1176,7 @@ export function MercuryModelDefaultPicker({ onDone, onSignIn }: { onDone: () => 
   const model = nextBirthModel() ?? getEngineModel()
   const efforts = modelSupportsEffort(model) ? [...selectableEffortLevels(model)] : []
   const [effort, setEffort] = React.useState<string>(() => getDisplayedEffortLabel(model, getInitialEffortSetting()))
-  const [slotVersion, setSlotVersion] = React.useState(0)
-  void slotVersion
+  const [slotVersion] = React.useState(0)
   const [notice, setNotice] = React.useState<string | undefined>(undefined)
   useCatalogueRefreshOnOpen(GPT_ROAD, setNotice)
   useCatalogueRefreshOnOpen(OPENROUTER_ROAD, setNotice)
@@ -1249,7 +1247,6 @@ export function MercuryModelDefaultPicker({ onDone, onSignIn }: { onDone: () => 
       notice={notice}
       headings={providerHeadingsOf(slotVersion)}
       {...(topGroup !== undefined ? { topGroup } : {})}
-      onSlotSwitch={group => slotSwitchOf(group, () => setSlotVersion(v => v + 1))}
       expandRows={group => expandRowsOf(group, betas)}
       onSelect={handleSelect}
       onClose={onDone}
@@ -1277,8 +1274,7 @@ export function MercurySessionModelPicker({
   const model = currentModel ?? nextBirthModel() ?? getEngineModel()
   const efforts = modelSupportsEffort(model) ? [...selectableEffortLevels(model)] : []
   const effort = currentEffort ?? 'default'
-  const [slotVersion, setSlotVersion] = React.useState(0)
-  void slotVersion
+  const [slotVersion] = React.useState(0)
   const [notice, setNotice] = React.useState<string | undefined>(undefined)
   useCatalogueRefreshOnOpen(GPT_ROAD, setNotice)
   useCatalogueRefreshOnOpen(OPENROUTER_ROAD, setNotice)
@@ -1324,7 +1320,6 @@ export function MercurySessionModelPicker({
       notice={notice}
       headings={providerHeadingsOf(slotVersion)}
       {...(topGroup !== undefined ? { topGroup } : {})}
-      onSlotSwitch={group => slotSwitchOf(group, () => setSlotVersion(v => v + 1))}
       expandRows={group => expandRowsOf(group, betas)}
       onSelect={handleSelect}
       onClose={onDone}

@@ -22,9 +22,19 @@ export const PICKER_TOP_ROWS = 12
 export const PICKER_FILTER_REACH = 50
 
 export const MODEL_PICKER_TITLE = 'Mercury · model'
-export const MODEL_PICKER_FILTER_PLACEHOLDER = 'tab to search by name or id'
+export const MODEL_PICKER_FILTER_PLACEHOLDER = 'type to search by name or id'
 export const MODEL_PICKER_SEARCH_PLACEHOLDER = 'search by name or id'
-export const MODEL_PICKER_HINT = '↑↓ select · ↵ switch · c context · → ← fold · tab to search · esc or click outside closes'
+export const MODEL_PICKER_CONTEXT_CHORD_KEY = 'w'
+export const MODEL_PICKER_CONTEXT_CHORD = `ctrl+${MODEL_PICKER_CONTEXT_CHORD_KEY}`
+export const MODEL_PICKER_EFFORT_CHORD_KEY = 'e'
+export const MODEL_PICKER_EFFORT_CHORD = `ctrl+${MODEL_PICKER_EFFORT_CHORD_KEY}`
+export const MODEL_PICKER_CONTEXT_WORDS = `${MODEL_PICKER_CONTEXT_CHORD} context`
+export const MODEL_PICKER_EFFORT_WORDS = `${MODEL_PICKER_EFFORT_CHORD} cycles`
+export const MODEL_PICKER_HINT = `↑↓ select · ↵ switch · ${MODEL_PICKER_CONTEXT_WORDS} · → ← fold · tab to search · esc or click outside closes`
+
+export function isSearchCharacter(input: string, key: { ctrl: boolean; meta: boolean; tab: boolean }): boolean {
+  return input.length > 0 && !key.ctrl && !key.meta && !key.tab && input >= ' ' && input.charCodeAt(0) !== 0x7f
+}
 export const MODEL_PICKER_NO_ALIAS = 'new · no alias'
 export const MODEL_PICKER_CURRENT = 'current'
 export const MODEL_PICKER_UNAVAILABLE = 'unavailable'

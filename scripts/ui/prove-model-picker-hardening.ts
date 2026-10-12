@@ -141,8 +141,8 @@ async function mount(opts: Mount) {
     closed: () => closed,
     frame: (): string => stripAnsi(instance.lastFrame()).replace(/\n$/, ''),
     lines: (): string[] => stripAnsi(instance.lastFrame()).replace(/\n$/, '').split('\n'),
-    async key(name: string, sequence = '', pasted = false): Promise<boolean> {
-      const event = new InputEvent({ name, sequence, ctrl: false, shift: false, fn: false, meta: false, option: false, super: false, isPasted: pasted } as never)
+    async key(name: string, sequence = '', pasted = false, ctrl = false): Promise<boolean> {
+      const event = new InputEvent({ name, sequence, ctrl, shift: false, fn: false, meta: false, option: false, super: false, isPasted: pasted } as never)
       emitter.emit('input', event)
       await settle()
       return event.didStopImmediatePropagation()
@@ -273,7 +273,7 @@ section('§2 the pointer: a click outside closes at once even with the filter op
   await sleep(600)
   await clickN(leftN + 4, n.lines().findIndex(l => l.includes('OPENAI ·')))
   check('two clicks on a heading select it then fold it (the files menu grammar)', n.lines().some(l => /[❯▸] OPENAI ·/.test(l)) && !n.screen().includes('gpt-6-astra'), lineWith(n.lines(), 'OPENAI'))
-  const filterY = n.lines().findIndex(l => l.includes('tab to search by name or id'))
+  const filterY = n.lines().findIndex(l => l.includes('type to search by name or id'))
   await clickN(leftN + 4, filterY)
   check('a click on the search line focuses it (the legend swaps to type to search)', n.screen().includes('type to search'), inner(lineWith(n.lines(), '↑↓ select')).trim())
   await pressN('astra', 200)
@@ -334,21 +334,21 @@ section('§4 the two-door split: current and next sit on the row under the wire\
   board.close()
 }
 
-section('§5 c never dies silent: a heading, a choice row and a sign-in row answer in the notice slot')
+section('§5 ctrl+w never dies silent: a heading, a choice row and a sign-in row answer in the notice slot')
 {
   const board = await mount({ models: [INHERIT, ...estate], current: 'inherit', top: 'Crewmate', columns: 120, height: 40 })
-  await board.key('c', 'c')
-  check('c on a choice row speaks the choice', board.frame().includes("a choice, not a model — the spawned agent runs its parent's model"), board.lines().filter(l => l.includes('choice')).map(inner).join(' | '))
+  await board.key('w', 'w', false, true)
+  check('ctrl+w on a choice row speaks the choice', board.frame().includes("a choice, not a model — the spawned agent runs its parent's model"), board.lines().filter(l => l.includes('choice')).map(inner).join(' | '))
   await board.key('left')
-  await board.key('c', 'c')
-  check('c on a heading answers with the heading law', board.frame().includes('no context window on a provider heading · ↓ reaches its rows'), cursorLine(board.lines()))
+  await board.key('w', 'w', false, true)
+  check('ctrl+w on a heading answers with the heading law', board.frame().includes('no context window on a provider heading · ↓ reaches its rows'), cursorLine(board.lines()))
   await board.key('tab')
   await board.type('sign in')
   await board.key('escape')
   await board.key('tab')
   while (!cursorLine(board.lines()).includes('Sign in to ChatGPT')) { const before = board.frame(); await board.key('down'); if (board.frame() === before) break }
-  await board.key('c', 'c')
-  check('c on a sign-in row says it is not a model', board.frame().includes('Sign in to ChatGPT · not a model · no context window'), cursorLine(board.lines()))
+  await board.key('w', 'w', false, true)
+  check('ctrl+w on a sign-in row says it is not a model', board.frame().includes('Sign in to ChatGPT · not a model · no context window'), cursorLine(board.lines()))
   board.close()
 }
 

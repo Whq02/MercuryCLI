@@ -31,7 +31,11 @@ import { modelPickerFooter } from '../utils/model/modelPickerFooter.js'
 import { wrapPlain } from './BootHealthScreen.js'
 import { FOLD_CLOSED_LEAD, FOLD_OPEN_LEAD, MenuFilterLine } from './mercury-ui/menuFold.js'
 import {
+  MODEL_PICKER_CONTEXT_CHORD,
+  MODEL_PICKER_CONTEXT_CHORD_KEY,
   MODEL_PICKER_CURRENT,
+  MODEL_PICKER_EFFORT_CHORD_KEY,
+  MODEL_PICKER_EFFORT_WORDS,
   MODEL_PICKER_FILTER_PLACEHOLDER,
   MODEL_PICKER_SEARCH_PLACEHOLDER,
   MODEL_PICKER_NO_ALIAS,
@@ -48,6 +52,7 @@ import {
   initialPickerFolds,
   isCursorStop,
   isModelRow,
+  isSearchCharacter,
   lastStop,
   matchWords,
   moreLineWords,
@@ -63,7 +68,6 @@ import {
 } from '../utils/model/modelPickerGroups.js'
 import { isLocalModelId, LOCAL_MODEL_GROUP, localPickerWindowNotice, localRecordFor } from '../services/providers/local/localCatalogue.js'
 import { LOCAL_SETUP_PICKER_OFFER } from '../commands/localsetup/words.js'
-import { openLocalSetupPopup } from '../commands/localsetup/localsetup.js'
 import { LOCAL_WINDOW_CHOICES, localWindowApplication, localWindowChoiceLine, localWindowNoticeKind, localWindowRefusalSpan, localWindowSettingOf, nextLocalWindowSetting, parseLocalWindowSetting, writeLocalWindowSetting } from '../services/providers/local/localWindow.js'
 import { localServerTruthStamp, refreshLocalMachineTruth, subscribeLocalServerTruth } from '../services/localServer/localServerTruth.js'
 import {
@@ -124,13 +128,12 @@ type Props = {
   pendingNext?: string
   headings?: Record<string, ProviderHeading>
   topGroup?: string
-  onSlotSwitch?: (group: string) => string | null
   expandRows?: (group: string) => ModelChoice[]
 }
 
 const cell = (text: string, width: number): string => (width <= 2 ? '' : `${padTo(text, width - 2)}  `)
 
-export function MercuryModelPicker({ models: listed, current = 'opus-4-8', ctxPct = 62, efforts, effort, onEffort, onSelect, onClose, notice, pendingNext, headings, topGroup, onSlotSwitch, expandRows }: Props): React.ReactNode {
+export function MercuryModelPicker({ models: listed, current = 'opus-4-8', ctxPct = 62, efforts, effort, onEffort, onSelect, onClose, notice, pendingNext, headings, topGroup, expandRows }: Props): React.ReactNode {
   const surfaceRef = useElevatedSurface()
   React.useEffect(() => {
     markTransitionEnd('picker-open')
@@ -384,6 +387,85 @@ export function MercuryModelPicker({ models: listed, current = 'opus-4-8', ctxPc
       else if (line.kind === 'heading') selectRow(firstRowIndex(lines, i))
       return
     }
+    const chord = key.ctrl && !key.meta ? input : ''
+    if (chord === MODEL_PICKER_CONTEXT_CHORD_KEY && focusedSupports1m) {
+      if (!pastOpenEvent()) return
+      event.stopImmediatePropagation()
+      setContext1m(v => !v)
+      return
+    }
+    if (chord === MODEL_PICKER_CONTEXT_CHORD_KEY && focusedGptWindow && focusedGptWindow.ceiling !== undefined) {
+      if (!pastOpenEvent()) return
+      event.stopImmediatePropagation()
+      const big = !context1m
+      setContext1m(big)
+      setCtxNotice(
+        big
+          ? `${fmtCtx(focusedGptWindow.ceiling)} ctx active · the source-declared max (served default ${fmtCtx(focusedGptWindow.served)}) · ${MODEL_PICKER_CONTEXT_CHORD} toggles`
+          : `${fmtCtx(focusedGptWindow.served)} ctx active · the source's served default (declared max ${fmtCtx(focusedGptWindow.ceiling)}) · ${MODEL_PICKER_CONTEXT_CHORD} toggles`,
+      )
+      return
+    }
+    if (chord === MODEL_PICKER_CONTEXT_CHORD_KEY && focusedGptWindow) {
+      if (!pastOpenEvent()) return
+      event.stopImmediatePropagation()
+      setCtxNotice(
+        focusedGptWindow.observed !== undefined
+          ? `${fmtCtx(focusedGptWindow.served)} ctx · model-page figure as observed ${focusedGptWindow.observed} — the live account catalogue decides at dispatch · not a toggle`
+          : `${fmtCtx(focusedGptWindow.served)} ctx · set by the GPT account source · not a toggle`,
+      )
+      return
+    }
+    if (chord === MODEL_PICKER_CONTEXT_CHORD_KEY && focusedNative1m) {
+      if (!pastOpenEvent()) return
+      event.stopImmediatePropagation()
+      setCtxNotice('1M ctx · native to this model · not a toggle')
+      return
+    }
+    if (chord === MODEL_PICKER_CONTEXT_CHORD_KEY && focusedLocal !== undefined && focusedLocalCycles) {
+      if (!pastOpenEvent()) return
+      event.stopImmediatePropagation()
+      setCtxNotice(null)
+      const current = localWindowSettingOf(focusedLocal)
+      if (current === 'max') {
+        setWindowTyping('')
+        return
+      }
+      const next = typeof current === 'number' && !LOCAL_WINDOW_CHOICES.includes(current) ? undefined : nextLocalWindowSetting(current, 1)
+      writeLocalWindowSetting(focusedLocal, next)
+      setWindowStamp(s => s + 1)
+      return
+    }
+    if (chord === MODEL_PICKER_CONTEXT_CHORD_KEY && focusedModel !== undefined && isModelRow(focusedModel) && isLocalModelId(focusedModel.id)) {
+      if (!pastOpenEvent()) return
+      event.stopImmediatePropagation()
+      setCtxNotice(localPickerWindowNotice(focusedModel.id))
+      return
+    }
+    if (chord === MODEL_PICKER_CONTEXT_CHORD_KEY && focusedModel !== undefined && isModelRow(focusedModel)) {
+      if (!pastOpenEvent()) return
+      event.stopImmediatePropagation()
+      setCtxNotice(focusedModel.ctx !== '' ? `${focusedModel.ctx} · stated by the provider · not a toggle` : 'context window unknown · the provider states none · not a toggle')
+      return
+    }
+    if (chord === MODEL_PICKER_CONTEXT_CHORD_KEY && focusedModel !== undefined) {
+      if (!pastOpenEvent()) return
+      event.stopImmediatePropagation()
+      setCtxNotice(focusedModel.choice ?? `${focusedModel.name} · not a model · no context window`)
+      return
+    }
+    if (chord === MODEL_PICKER_CONTEXT_CHORD_KEY && focusedHeading !== undefined) {
+      if (!pastOpenEvent()) return
+      event.stopImmediatePropagation()
+      setCtxNotice('no context window on a provider heading · ↓ reaches its rows')
+      return
+    }
+    if (chord === MODEL_PICKER_EFFORT_CHORD_KEY && hasEffort) {
+      if (!pastOpenEvent()) return
+      event.stopImmediatePropagation()
+      onEffort?.(efforts![(ei + 1) % efforts!.length]!)
+      return
+    }
     if (filterFocus) {
       if (key.backspace || key.delete) {
         event.stopImmediatePropagation()
@@ -403,92 +485,11 @@ export function MercuryModelPicker({ models: listed, current = 'opus-4-8', ctxPc
       setFilterFocus(true)
       return
     }
-    if (input === 'c' && !key.ctrl && !key.meta && focusedSupports1m) {
-      if (!pastOpenEvent()) return
+    if (isSearchCharacter(input, key)) {
       event.stopImmediatePropagation()
-      setContext1m(v => !v)
-    }
-    else if (input === 'c' && !key.ctrl && !key.meta && focusedGptWindow && focusedGptWindow.ceiling !== undefined) {
       if (!pastOpenEvent()) return
-      event.stopImmediatePropagation()
-      const big = !context1m
-      setContext1m(big)
-      setCtxNotice(
-        big
-          ? `${fmtCtx(focusedGptWindow.ceiling)} ctx active · the source-declared max (served default ${fmtCtx(focusedGptWindow.served)}) · c toggles`
-          : `${fmtCtx(focusedGptWindow.served)} ctx active · the source's served default (declared max ${fmtCtx(focusedGptWindow.ceiling)}) · c toggles`,
-      )
-    }
-    else if (input === 'c' && !key.ctrl && !key.meta && focusedGptWindow) {
-      if (!pastOpenEvent()) return
-      event.stopImmediatePropagation()
-      setCtxNotice(
-        focusedGptWindow.observed !== undefined
-          ? `${fmtCtx(focusedGptWindow.served)} ctx · model-page figure as observed ${focusedGptWindow.observed} — the live account catalogue decides at dispatch · not a toggle`
-          : `${fmtCtx(focusedGptWindow.served)} ctx · set by the GPT account source · not a toggle`,
-      )
-    }
-    else if (input === 'c' && !key.ctrl && !key.meta && focusedNative1m) {
-      if (!pastOpenEvent()) return
-      event.stopImmediatePropagation()
-      setCtxNotice('1M ctx · native to this model · not a toggle')
-    }
-    else if (input === 'w' && !key.ctrl && !key.meta && focusedLocal !== undefined && focusedLocalCycles) {
-      if (!pastOpenEvent()) return
-      event.stopImmediatePropagation()
-      setCtxNotice(null)
-      const current = localWindowSettingOf(focusedLocal)
-      if (current === 'max') {
-        setWindowTyping('')
-        return
-      }
-      const next = typeof current === 'number' && !LOCAL_WINDOW_CHOICES.includes(current) ? undefined : nextLocalWindowSetting(current, 1)
-      writeLocalWindowSetting(focusedLocal, next)
-      setWindowStamp(s => s + 1)
-    }
-    else if (input === 'c' && !key.ctrl && !key.meta && focusedModel !== undefined && isModelRow(focusedModel) && isLocalModelId(focusedModel.id)) {
-      if (!pastOpenEvent()) return
-      event.stopImmediatePropagation()
-      setCtxNotice(localPickerWindowNotice(focusedModel.id))
-    }
-    else if (input === 'c' && !key.ctrl && !key.meta && focusedModel !== undefined && isModelRow(focusedModel)) {
-      if (!pastOpenEvent()) return
-      event.stopImmediatePropagation()
-      setCtxNotice(focusedModel.ctx !== '' ? `${focusedModel.ctx} · stated by the provider · not a toggle` : 'context window unknown · the provider states none · not a toggle')
-    }
-    else if (input === 'c' && !key.ctrl && !key.meta && focusedModel !== undefined) {
-      if (!pastOpenEvent()) return
-      event.stopImmediatePropagation()
-      setCtxNotice(focusedModel.choice ?? `${focusedModel.name} · not a model · no context window`)
-    }
-    else if (input === 'c' && !key.ctrl && !key.meta && focusedHeading !== undefined) {
-      if (!pastOpenEvent()) return
-      event.stopImmediatePropagation()
-      setCtxNotice('no context window on a provider heading · ↓ reaches its rows')
-    }
-    else if (input === 'e' && !key.ctrl && !key.meta && hasEffort) {
-      if (!pastOpenEvent()) return
-      event.stopImmediatePropagation()
-      onEffort?.(efforts![(ei + 1) % efforts!.length]!)
-    }
-    else if (input === 'E' && !key.ctrl && !key.meta && hasEffort) {
-      if (!pastOpenEvent()) return
-      event.stopImmediatePropagation()
-      onEffort?.(efforts![(ei - 1 + efforts!.length) % efforts!.length]!)
-    }
-    else if (input === 's' && !key.ctrl && !key.meta && onSlotSwitch && focusedModel) {
-      if (!pastOpenEvent()) return
-      const receipt = onSlotSwitch(focusedModel.group)
-      if (receipt !== null) {
-        event.stopImmediatePropagation()
-        setCtxNotice(receipt)
-      }
-    }
-    if (input === 's' && !key.ctrl && !key.meta && localOffer && !event.didStopImmediatePropagation()) {
-      if (!pastOpenEvent()) return
-      event.stopImmediatePropagation()
-      onClose?.()
-      openLocalSetupPopup()
+      setFilterFocus(true)
+      setFilterText(filter + input)
     }
   })
   const linePaint = (idx: number): number => {
@@ -666,12 +667,12 @@ export function MercuryModelPicker({ models: listed, current = 'opus-4-8', ctxPc
           <Text wrap="truncate-end">
             <Text color={FAINT}>effort  </Text>
             <Text bold color={TERRA}>[{effort}]</Text>
-            <Text color={FAINT}> e cycles</Text>
+            <Text color={FAINT}> {MODEL_PICKER_EFFORT_WORDS}</Text>
           </Text>
         ) : (
           <Text wrap="truncate-end">
             <EffortStrip levels={efforts!} current={effort} accent={TERRA} faint={FAINT} />
-            <Text color={FAINT}>· e cycles</Text>
+            <Text color={FAINT}>· {MODEL_PICKER_EFFORT_WORDS}</Text>
           </Text>
         )
       ) : null}

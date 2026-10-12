@@ -260,14 +260,14 @@ const floorCase = async (columns: number, rows: number, slotRows: number | undef
   const box = boxLines(lines)
   const slot = slotRows ?? rows
   const hint = box.find(line => /esc (?:or click outside )?closes/.test(line)) ?? ''
-  const effort = box.some(line => line.includes('e cycles'))
+  const effort = box.some(line => line.includes('ctrl+e cycles'))
   const markers = box.filter(line => /[↑↓] \d+ more/.test(line)).length
   const aboveAt = box.findIndex(line => /↑ \d+ more/.test(line))
   const pinned = aboveAt >= 0 && /[▾▸] [A-Z]/.test(box[aboveAt + 1] ?? '')
   const windowLines = box.length - 2 - 1 - 1 - 1 - (effort ? 1 : 0)
   const read: FloorRead = { box, effort, markers, pinned, windowLines, cursor: cursorLine(lines) }
   check(`${label}: the box paints ${slot} lines at most — ${box.length}`, box.length > 0 && box.length <= slot, `${box.length} lines: ${box.map(inner).map(line => line.trim()).join(' | ')}`)
-  check(`${label}: the title, the filter line, the hint row with the exit words and the cursor row all stand`, box.some(line => line.includes('Mercury · model')) && box.some(line => line.includes('/ tab to search by name or id')) && hint !== '' && read.cursor.startsWith('❯ '), box.map(inner).map(line => line.trim()).join(' | '))
+  check(`${label}: the title, the filter line, the hint row with the exit words and the cursor row all stand`, box.some(line => line.includes('Mercury · model')) && box.some(line => line.includes('/ type to search by name or id')) && hint !== '' && read.cursor.startsWith('❯ '), box.map(inner).map(line => line.trim()).join(' | '))
   check(`${label}: nothing crosses the border`, auditBox(label, lines, columns).length === 0, auditBox(label, lines, columns).join(' | '))
   board.close()
   return read

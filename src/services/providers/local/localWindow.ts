@@ -342,8 +342,8 @@ export function localWindowChoiceLine(record: LocalWindowWordsRecord, opts: { wi
   const shown = opts.wide || rung === 'number' ? rungs : rungs.filter(([key]) => key !== 'number')
   const ladder = shown.map(([key, label]) => (key === rung ? `[${label}${notice !== undefined ? ` — ${notice}` : ''}]` : label)).join(' · ')
   if (application === 'server-start' || application === 'none') return `window · ${state} · set at server start · not a toggle`
-  if (!opts.wide) return record.contextWindow === undefined ? `window · not loaded ${ladder} · w cycles` : `window ${ladder} · w cycles`
-  return `window · ${state}${trained} · ${ladder} · w cycles`
+  if (!opts.wide) return record.contextWindow === undefined ? `window · not loaded ${ladder} · ctrl+w cycles` : `window ${ladder} · ctrl+w cycles`
+  return `window · ${state}${trained} · ${ladder} · ctrl+w cycles`
 }
 
 export function localWindowRefusalSpan(line: string): { start: number; end: number } | undefined {
