@@ -17,6 +17,7 @@ export type WardRule = {
   pathPattern?: string
   allowPathPattern?: string
   newContentOnly?: boolean
+  outsideProjectOnly?: boolean
   skipCommentLines?: boolean
   outsideQuotes?: boolean
   refusal?: boolean
@@ -257,6 +258,7 @@ export const AUTONOMOUS_WARDS: readonly WardRule[] = [
       '\\bfind\\s+(?:~(?:\\/|\\s)|\\$\\{?HOME|\\/Users\\/)[^\\n;|&]*\\s-delete\\b',
     ],
     skipCommentLines: false,
+    outsideProjectOnly: true,
   },
 ]
 
@@ -624,6 +626,42 @@ export function evaluateWards(
   return { allow: true }
 }
 
+const ABSOLUTE_OPERAND = /(?:^|[\s;"'=])((?:\/(?:Users|home|private|var|Volumes|root|etc|opt|tmp)\/|~\/)[^\s"'`;&|)]*)/g
+
+function lineResolvesInsideProject(
+  line: string,
+  resolvePath: (path: string) => ResolvedPath,
+  work?: WardWork,
+): boolean {
+  let resolvedAny = false
+  ABSOLUTE_OPERAND.lastIndex = 0
+  for (const m of line.matchAll(ABSOLUTE_OPERAND)) {
+    const operand = m[1]
+    if (operand === undefined || operand === '') continue
+    if (work) countWardWork(work, 'steps')
+    const expanded = operand.startsWith('~') ? expandTildeOf(operand) : operand
+    if (expanded === undefined) continue
+    let resolved: ResolvedPath
+    try {
+      resolved = resolvePath(expanded)
+    } catch {
+      continue
+    }
+    const root = resolved.root
+    if (root === undefined || root === '') continue
+    resolvedAny = true
+    const base = root.endsWith('/') ? root : `${root}/`
+    if (!resolved.path.startsWith(base)) return false
+  }
+  return resolvedAny
+}
+
+function expandTildeOf(operand: string): string | undefined {
+  if (operand === '~') return process.env.HOME
+  if (operand.startsWith('~/')) return process.env.HOME === undefined ? undefined : `${process.env.HOME}/${operand.slice(2)}`
+  return undefined
+}
+
 function evaluateTarget(rules: readonly WardRule[], pending: PendingToolCall, target: WardTarget, work?: WardWork): WardVerdict {
   let words: string | undefined
   let oldFolded: string | undefined
@@ -705,6 +743,7 @@ function evaluateTarget(rules: readonly WardRule[], pending: PendingToolCall, ta
           const previous = fold ? (oldFolded ??= target.oldText.replace(BLANK_RUN, ' ')) : target.oldText
           if (previous.includes(m[0])) continue
         }
+        if (rule.outsideProjectOnly === true && pending.resolvePath !== undefined && lineResolvesInsideProject(view, pending.resolvePath, work)) continue
         return {
           allow: false,
           rule,
