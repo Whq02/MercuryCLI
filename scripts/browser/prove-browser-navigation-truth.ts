@@ -133,6 +133,81 @@ console.log('§4 back onto a dead server is the same failure')
   check('open on the dead server is the failure it always was', open.outcome === 'failed' && /ERR_CONNECTION_REFUSED/.test(open.result), open.result)
 }
 
+console.log('§5 a link the session refuses as a download is named: type, size, filename, and what to use instead')
+const d = await serve(0, (url, res) => {
+  if (url === '/dl.bin') {
+    res.writeHead(200, { 'content-type': 'application/octet-stream', 'content-length': '13' })
+    return res.end('payload-bytes')
+  }
+  if (url === '/attach.txt') {
+    res.writeHead(200, { 'content-type': 'text/plain', 'content-disposition': 'attachment; filename="notes.txt"' })
+    return res.end('hello notes')
+  }
+  if (url === '/slow.bin') {
+    setTimeout(() => {
+      res.writeHead(200, { 'content-type': 'application/octet-stream' })
+      res.end('slow-bytes')
+    }, 600)
+    return
+  }
+  if (url === '/two') return html(res, 200, '<title>download-two</title><body><p>the second page</p></body>')
+  if (url === '/pop') return html(res, 200, '<title>popped</title><body><p>the popped page</p></body>')
+  return html(
+    res,
+    200,
+    `<title>download-fixture</title><body><h1>Downloads</h1>
+<a id="dl" href="/dl.bin">Get data.bin (octet-stream)</a>
+<a id="att" href="/attach.txt">attachment header</a>
+<a id="dla" href="/dl.bin" download="named.bin">download attribute</a>
+<a id="slow" href="/slow.bin">slow download</a>
+<a id="two" href="/two">an ordinary link</a>
+<button id="js" onclick="location.href='/dl.bin'">Script download</button>
+<button id="pop" onclick="window.open('/pop', '_blank')">new tab</button>
+<button id="alert-now" onclick="alert('ALERT-MARKER-77')">alert</button>
+<button id="confirm-now" onclick="document.getElementById('seen').textContent = confirm('Delete it?') ? 'yes' : 'no'">confirm</button>
+<p id="seen"></p>
+</body>`,
+  )
+})
+const D = `http://127.0.0.1:${d.port}`
+const NOT_FOLLOWED = 'downloads are not followed here; fetch the file with WebFetch or Bash instead'
+{
+  const opened = await run({ op: 'open', url: `${D}/` })
+  check('the download fixture opens', opened.outcome === 'succeeded' && opened.result.includes('download-fixture'), opened.result)
+  const link = await run({ op: 'click', selector: 'aria/Get data.bin (octet-stream)[role="link"]' })
+  check('a click on a link the server serves as a download says so in the result', link.result.includes('the link is a download'), link.result)
+  check('…naming the type, the size and the filename', link.result.includes('application/octet-stream') && link.result.includes('13 bytes') && link.result.includes('saves as dl.bin'), link.result)
+  check('…and what to use instead', link.result.includes(NOT_FOLLOWED), link.result)
+  check('the page itself did not move', (await page().url()) === `${D}/`, await page().url())
+  const attach = await run({ op: 'click', selector: '#att' })
+  check('a Content-Disposition attachment is named with its filename', attach.result.includes('the link is a download') && attach.result.includes('text/plain') && attach.result.includes('11 bytes') && attach.result.includes('saves as notes.txt'), attach.result)
+  const attr = await run({ op: 'click', selector: '#dla' })
+  check('a download-attribute link (no network request of its own) is named too', attr.result.includes('the link is a download') && attr.result.includes('saves as named.bin') && attr.result.includes(NOT_FOLLOWED), attr.result)
+  const script = await run({ op: 'click', selector: '#js' })
+  check('a script-started download is named', script.result.includes('is a download') && script.result.includes('dl.bin'), script.result)
+  const slow = await run({ op: 'click', selector: '#slow' })
+  check('a slow download (the server answers 600ms later) is still named — the act waits for the navigation it started', slow.result.includes('the link is a download') && slow.result.includes('saves as slow.bin'), slow.result)
+  const direct = await run({ op: 'open', url: `${D}/dl.bin` })
+  check('open on a download URL fails naming the download, not a bare protocol error', direct.outcome === 'failed' && direct.result.includes(`open failed: ${D}/dl.bin is a download`) && direct.result.includes('application/octet-stream') && direct.result.includes('13 bytes') && direct.result.includes(NOT_FOLLOWED), direct.result)
+  const ring = await run({ op: 'console', limit: 60 })
+  check('the console ring carries the refused download by name', /download: the page asked to download dl\.bin/.test(ring.result) && /denied: downloads are not followed here/.test(ring.result), ring.result.split('\n').slice(-6).join(' | '))
+  const ordinary = await run({ op: 'click', selector: '#two' })
+  check('an ordinary link click reports the navigation it caused, with no download note', ordinary.result.includes(`navigated to ${D}/two`) && !ordinary.result.includes('download'), ordinary.result)
+}
+
+console.log('§6 a click that opens a tab or a dialog says so in its own result')
+{
+  await run({ op: 'open', url: `${D}/` })
+  const pop = await run({ op: 'click', selector: '#pop' })
+  check('a window.open click names the new tab in the click result', pop.result.includes('note: the page opened a new tab') && pop.result.includes(`${D}/pop`), pop.result)
+  const alertNow = await run({ op: 'click', selector: '#alert-now' })
+  check('an alert raised by the click is named in the click result', alertNow.result.includes('note: the page opened a dialog') && alertNow.result.includes('alert("ALERT-MARKER-77") auto-dismissed'), alertNow.result)
+  const confirmNow = await run({ op: 'click', selector: '#confirm-now' })
+  check('a confirm raised by the click is named with the answer the page received', confirmNow.result.includes('confirm("Delete it?") auto-dismissed (the page received false)'), confirmNow.result)
+  check('…and the page did receive false', (await page().$eval('#seen', el => el.textContent)) === 'no')
+}
+
+await kill(d)
 await run({ op: 'close' })
 console.log(`\n${checks} checks, ${failures} failures`)
 if (failures > 0) {

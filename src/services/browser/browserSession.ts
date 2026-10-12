@@ -2,7 +2,7 @@
 import { ChildProcess } from 'node:child_process'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
-import type { Browser as DriverBrowser, LaunchOptions, Page } from 'puppeteer-core'
+import type { Browser as DriverBrowser, HTTPRequest, LaunchOptions, Page } from 'puppeteer-core'
 import puppeteerPkg from 'puppeteer-core/package.json' with { type: 'json' }
 import { getMercuryHome } from '../../utils/envUtils.js'
 import { endProcessTree } from '../../utils/processGroup.js'
@@ -36,12 +36,24 @@ interface Session {
   sandboxDowngraded: boolean
   popups: { count: number; last: string }
   navFailure: { last: NavFailure | null }
+  downloads: { count: number; last: DownloadNotice | null; waiters: Array<() => void> }
+  navWatch: { pendingUrl: string | null; abortedAt: number; waiters: Array<() => void> }
 }
 
 export interface NavFailure {
   url: string
   errorText: string
   at: number
+}
+
+export interface DownloadNotice {
+  guid: string
+  url: string
+  filename: string
+  bytes: number | null
+  type: string | null
+  at: number
+  done: Promise<void>
 }
 
 export function isBrowserErrorPage(url: string): boolean {
@@ -355,13 +367,61 @@ async function launchOwnerSession(owner: OwnerKey, state: OwnerBrowserState): Pr
       return q === -1 ? url : `${url.slice(0, q)}?…`
     }
     const navFailure: Session['navFailure'] = { last: null }
+    const downloads: Session['downloads'] = { count: 0, last: null, waiters: [] }
+    const navWatch: Session['navWatch'] = { pendingUrl: null, abortedAt: 0, waiters: [] }
+    const docResponses = new Map<string, string | null>()
+    const settleNav = (): void => {
+      navWatch.pendingUrl = null
+      for (const wake of navWatch.waiters.splice(0)) wake()
+    }
+    const isMainNavigation = (request: HTTPRequest): boolean =>
+      request.isNavigationRequest() && request.frame() === page.mainFrame()
     page.on('framenavigated', frame => {
       if (frame.parentFrame() === null) {
         nav.seq++
         if (!isBrowserErrorPage(frame.url())) navFailure.last = null
+        settleNav()
         capture('nav', `navigated to ${redactUrl(frame.url())}`)
       }
     })
+    page.on('request', request => {
+      if (isMainNavigation(request)) navWatch.pendingUrl = redactUrl(request.url())
+    })
+    page.on('requestfinished', request => {
+      if (isMainNavigation(request)) settleNav()
+    })
+    const cdp =
+      typeof page.createCDPSession === 'function' ? await page.createCDPSession().catch(() => null) : null
+    if (cdp !== null) {
+      await cdp.send('Browser.setDownloadBehavior', { behavior: 'deny', eventsEnabled: true }).catch(() => undefined)
+      cdp.on('Browser.downloadWillBegin', event => {
+        let finish = (): void => {}
+        const done = new Promise<void>(resolve => {
+          finish = resolve
+        })
+        const notice: DownloadNotice & { finish: () => void } = {
+          guid: event.guid,
+          url: redactUrl(event.url),
+          filename: event.suggestedFilename,
+          bytes: null,
+          type: docResponses.get(redactUrl(event.url)) ?? null,
+          at: Date.now(),
+          done,
+          finish,
+        }
+        downloads.count++
+        downloads.last = notice
+        for (const wake of downloads.waiters.splice(0)) wake()
+        capture('download', `the page asked to download ${notice.filename} (${notice.url}) — denied: downloads are not followed here`)
+      })
+      cdp.on('Browser.downloadProgress', event => {
+        const last = downloads.last as (DownloadNotice & { finish: () => void }) | null
+        if (!last || last.guid !== event.guid) return
+        if (event.totalBytes > 0) last.bytes = event.totalBytes
+        if (last.type === null) last.type = docResponses.get(last.url) ?? null
+        if (event.state !== 'inProgress') last.finish()
+      })
+    }
     page.on('console', message => {
       const loc = message.location()
       const where = loc.url ? ` @ ${redactUrl(loc.url)}:${loc.lineNumber ?? 0}` : ''
@@ -404,21 +464,28 @@ async function launchOwnerSession(owner: OwnerKey, state: OwnerBrowserState): Pr
     })
     page.on('requestfailed', request => {
       const errorText = request.failure()?.errorText ?? ''
-      if (request.isNavigationRequest() && request.frame() === page.mainFrame()) {
-        navFailure.last = { url: redactUrl(request.url()), errorText, at: Date.now() }
+      if (isMainNavigation(request)) {
+        if (errorText === 'net::ERR_ABORTED') navWatch.abortedAt = Date.now()
+        else navFailure.last = { url: redactUrl(request.url()), errorText, at: Date.now() }
+        settleNav()
       }
       capture('net', `${request.method()} ${redactUrl(request.url())} FAILED ${errorText} (${request.resourceType()})`)
     })
     page.on('response', response => {
+      const req = response.request()
+      if (isMainNavigation(req)) {
+        docResponses.set(redactUrl(response.url()), response.headers()['content-type'] ?? null)
+        if (docResponses.size > 32) docResponses.delete(docResponses.keys().next().value!)
+      }
       const status = response.status()
       if (status < 400) return
-      const req = response.request()
       capture('net', `${req.method()} ${redactUrl(response.url())} ${status} (${req.resourceType()})`)
     })
     page.on('dialog', dialog => {
       const kind = dialog.type()
       const verb = kind === 'beforeunload' ? 'accepted' : 'dismissed'
-      capture('dialog', `${kind}("${dialog.message()}") auto-${verb} — the page was blocked on it`)
+      const saw = kind === 'confirm' ? ' (the page received false)' : kind === 'prompt' ? ' (the page received null)' : ''
+      capture('dialog', `${kind}("${dialog.message()}") auto-${verb}${saw} — the page was blocked on it`)
       void (kind === 'beforeunload' ? dialog.accept() : dialog.dismiss()).catch(() => {
       })
     })
@@ -440,6 +507,8 @@ async function launchOwnerSession(owner: OwnerKey, state: OwnerBrowserState): Pr
       sandboxDowngraded,
       popups,
       navFailure,
+      downloads,
+      navWatch,
     }
     unhanded = null
   } finally {

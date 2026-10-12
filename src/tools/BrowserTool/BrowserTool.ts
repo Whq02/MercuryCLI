@@ -403,6 +403,72 @@ function failedNavigationWords(op: string, s: LiveSession, wanted: string): stri
   return `${op} failed: ${failed ? `${failed.errorText} at ${failed.url}` : `${wanted} did not load`} — the browser shows its own error page (${s.page.url()}), not the site; the server is down or refusing connections`
 }
 
+function bytesWords(n: number): string {
+  if (n < 1024) return `${n} bytes`
+  if (n < 1024 * 1024) return `${(n / 1024).toFixed(n < 10 * 1024 ? 1 : 0)} KB`
+  if (n < 1024 * 1024 * 1024) return `${(n / 1024 / 1024).toFixed(n < 10 * 1024 * 1024 ? 1 : 0)} MB`
+  return `${(n / 1024 / 1024 / 1024).toFixed(1)} GB`
+}
+
+export const DOWNLOADS_NOT_FOLLOWED = 'downloads are not followed here; fetch the file with WebFetch or Bash instead'
+
+function downloadWords(notice: NonNullable<LiveSession['downloads']['last']>): string {
+  const facts = [notice.type, notice.bytes !== null ? bytesWords(notice.bytes) : null, `saves as ${notice.filename}`].filter(
+    (f): f is string => f !== null && f !== '',
+  )
+  return `a download (${facts.join(', ')}) — ${DOWNLOADS_NOT_FOLLOWED}`
+}
+
+interface ActMarks {
+  at: number
+  ringMark: number
+  popups: number
+  downloads: number
+  url: string
+}
+
+function markAct(s: LiveSession): ActMarks {
+  return { at: Date.now(), ringMark: s.consoleRing.length, popups: s.popups.count, downloads: s.downloads.count, url: s.page.url() }
+}
+
+function bounded(ms: number): Promise<void> {
+  return new Promise(resolve => {
+    const t = setTimeout(resolve, ms)
+    ;(t as { unref?: () => void }).unref?.()
+  })
+}
+
+async function settleAfterAct(s: LiveSession, deadline: number, marks: ActMarks): Promise<void> {
+  await Promise.race([
+    s.page.evaluate(() => new Promise(r => requestAnimationFrame(() => setTimeout(r, 0)))).catch(() => undefined),
+    bounded(1000),
+  ])
+  if (s.navWatch.pendingUrl !== null) {
+    await Promise.race([new Promise<void>(wake => s.navWatch.waiters.push(wake)), bounded(deadline)])
+  }
+  if (s.navWatch.abortedAt >= marks.at && s.downloads.count === marks.downloads) {
+    await Promise.race([new Promise<void>(wake => s.downloads.waiters.push(wake)), bounded(1000)])
+  }
+  const download = s.downloads.last
+  if (download !== null && s.downloads.count > marks.downloads) await Promise.race([download.done, bounded(1000)])
+}
+
+function actConsequences(s: LiveSession, marks: ActMarks): string {
+  const notes: string[] = []
+  if (s.downloads.count > marks.downloads && s.downloads.last !== null) {
+    notes.push(`the link is ${downloadWords(s.downloads.last)}`)
+  }
+  if (s.popups.count > marks.popups) {
+    notes.push(
+      `the page opened a new tab (${s.popups.last}) — this session drives ONE page; the tab was closed unadopted. op:"open" that URL follows it (a new origin will ask).`,
+    )
+  }
+  for (const entry of s.consoleRing.slice(marks.ringMark)) {
+    if (entry.kind === 'dialog') notes.push(`the page opened a dialog: ${entry.text}`)
+  }
+  return notes.map(n => `\n  note: ${n}`).join('')
+}
+
 function framesDiagnosis(s: LiveSession): string {
   try {
     const children = s.page.frames().filter(f => f.parentFrame() !== null)
@@ -635,7 +701,7 @@ A click that opens a new tab closes it unadopted (one owned page) — op:"open" 
 
 Permissions: the first visit to an origin asks ${getIsNonInteractiveSession() && !canAnswerAsks() ? 'for approval by URL — in this headless session no one can answer, so an unapproved origin is refused unless the tool was pre-approved at launch with --allowed-tools Browser or the run started in a permission mode that does not stop here' : 'the operator by URL'}; once approved, opening and acting anywhere on that origin rides the grant for the rest of the session. A navigation that crosses to an unapproved origin (a link click, a redirect) re-asks before the next act there. Reads (status/waitFor/extract/console/info/screenshot) never ask. Sessions and origin approvals are per agent: an approval granted in one agent's session never authorizes another agent, and concurrent browser children are capped (close another session, or the operator raises MERCURY_BROWSER_MAX_SESSIONS). A secret fill (type + secretRef) is its own consent class, approved per secret + origin pairing for the session.
 
-Downloads are never implicit: the driven session denies page-initiated downloads at the protocol level (fetch a file with WebFetch or Bash instead), and the one consented download road is provisioning the engine itself — op:"provision" (buildId?) asks the operator before installing a Chrome-for-Testing build (/browser install is the same road by hand). When nothing resolves, provision instead of dead-ending or hand-rolling a headless-Chrome harness. File uploads stay out of scope. The driver needs node >= 22.12.`
+Downloads are never implicit: the driven session denies page-initiated downloads at the protocol level and the result names what was refused — "the link is a download (<type>, <size>, saves as <name>)" on a click, "open failed: <url> is a download (…)" on an open — ${DOWNLOADS_NOT_FOLLOWED}; the one consented download road is provisioning the engine itself — op:"provision" (buildId?) asks the operator before installing a Chrome-for-Testing build (/browser install is the same road by hand). When nothing resolves, provision instead of dead-ending or hand-rolling a headless-Chrome harness. File uploads stay out of scope. The driver needs node >= 22.12.`
   },
   userFacingName,
   shouldDefer: true,
@@ -891,11 +957,22 @@ Downloads are never implicit: the driven session denies page-initiated downloads
           s.nav.seen = s.nav.seq
           const target = originOf(input.url!)
           const ringMark = s.consoleRing.length
-          const response = await s.page.goto(input.url!, {
-            waitUntil: input.waitUntil ?? 'load',
-            timeout: Math.min(Math.max(input.timeoutMs ?? 30_000, 1000), NAVIGATION_CAP_MS),
-            signal: signalFor(s),
-          })
+          const openMarks = markAct(s)
+          let response: Awaited<ReturnType<typeof s.page.goto>>
+          try {
+            response = await s.page.goto(input.url!, {
+              waitUntil: input.waitUntil ?? 'load',
+              timeout: Math.min(Math.max(input.timeoutMs ?? 30_000, 1000), NAVIGATION_CAP_MS),
+              signal: signalFor(s),
+            })
+          } catch (err) {
+            if (!/net::ERR_ABORTED/.test((err as Error).message)) throw err
+            await settleAfterAct(s, 1000, openMarks)
+            if (s.downloads.count === openMarks.downloads || s.downloads.last === null) throw err
+            result = `open failed: ${input.url} is ${downloadWords(s.downloads.last)}`
+            outcome = 'failed'
+            break
+          }
           approveWebOrigin(owner, input.url!)
           const landed = originOf(s.page.url())
           const status = response === null ? null : response.status()
@@ -933,11 +1010,10 @@ Downloads are never implicit: the driven session denies page-initiated downloads
             break
           }
           s.nav.seen = s.nav.seq
-          const before = s.page.url()
-          const popupsBefore = s.popups.count
+          const marks = markAct(s)
+          const deadline = actDeadline(input)
           let target: string
           if (input.selector) {
-            const deadline = actDeadline(input)
             const handle = await resolveActTarget(s, input.selector, deadline, signalFor(s))
             await handle.scrollIntoView()
             await settleBoundingBox(handle, deadline)
@@ -953,15 +1029,13 @@ Downloads are never implicit: the driven session denies page-initiated downloads
             await s.page.mouse.click(input.x!, input.y!)
             target = `(${input.x}, ${input.y})`
           }
+          await settleAfterAct(s, deadline, marks)
           const after = s.page.url()
-          const popupsAfter = s.popups.count
           result =
-            after === before
+            after === marks.url
               ? `click ${target} at ${pageWhere(s)}`
-              : `click ${target} — navigated to ${pageWhere(s)} (from ${before}; waitFor settles late loads)`
-          if (popupsAfter > popupsBefore) {
-            result += `\n  note: the click opened a new tab (${s.popups.last}) — this session drives ONE page; the tab was closed unadopted. op:"open" that URL follows it (a new origin will ask).`
-          }
+              : `click ${target} — navigated to ${pageWhere(s)} (from ${marks.url}; waitFor settles late loads)`
+          result += actConsequences(s, marks)
           outcome = 'succeeded'
           break
         }
@@ -1375,13 +1449,19 @@ Downloads are never implicit: the driven session denies page-initiated downloads
           }
           s.nav.seen = s.nav.seq
           const mods = input.modifiers ?? []
+          const pressMarks = markAct(s)
           for (const m of mods) await s.page.keyboard.down(m)
           try {
             await s.page.keyboard.press(input.key! as Parameters<typeof s.page.keyboard.press>[0])
           } finally {
             for (const m of [...mods].reverse()) await s.page.keyboard.up(m)
           }
-          result = `press ${[...mods, input.key].join('+')} at ${pageWhere(s)}`
+          await settleAfterAct(s, actDeadline(input), pressMarks)
+          result =
+            s.page.url() === pressMarks.url
+              ? `press ${[...mods, input.key].join('+')} at ${pageWhere(s)}`
+              : `press ${[...mods, input.key].join('+')} — navigated to ${pageWhere(s)} (from ${pressMarks.url})`
+          result += actConsequences(s, pressMarks)
           outcome = 'succeeded'
           break
         }
