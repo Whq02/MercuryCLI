@@ -19,6 +19,7 @@ import {
   getEphemeralProgressFrame,
   useEphemeralProgressVersion,
 } from '../../state/ephemeralProgressStore.js'
+import { hookWaitLineOf } from '../../utils/hooks/wait.js'
 import {
   BACKGROUND_MOVED_WORDS,
   firstRunningShellId,
@@ -388,12 +389,14 @@ export function CollapsedReadSearchContent({
   let tail: React.ReactNode = null
   if (active) {
     let slowest: { elapsed: number; lines: number } | null = null
+    const latestFrames = memberIds
+      .filter(id => inProgressToolUseIDs.has(id))
+      .map(id =>
+        getEphemeralProgressFrame(id) ??
+        lookups.progressMessagesByToolUseID.get(id)?.at(-1),
+      )
     if (fullscreen) {
-      for (const id of memberIds) {
-        if (!inProgressToolUseIDs.has(id)) continue
-        const frame =
-          getEphemeralProgressFrame(id) ??
-          lookups.progressMessagesByToolUseID.get(id)?.at(-1)
+      for (const frame of latestFrames) {
         const data = frame?.data as
           | { type?: string; elapsedTimeSeconds?: number; totalLines?: number }
           | undefined
@@ -411,6 +414,7 @@ export function CollapsedReadSearchContent({
         }
       }
     }
+    const hookWait = hookWaitLineOf(latestFrames)
     tail = (
       <Text dimColor>
         {' '}
@@ -418,6 +422,7 @@ export function CollapsedReadSearchContent({
         {slowest
           ? ` · ${Math.floor(slowest.elapsed)}s${slowest.lines > 0 ? ` · ${slowest.lines} ${plural(slowest.lines, 'line')}` : ''}`
           : ''}
+        {hookWait !== null ? ` · ${hookWait}` : ''}
       </Text>
     )
   }

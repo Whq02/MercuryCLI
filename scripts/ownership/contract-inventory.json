@@ -148,6 +148,7 @@
     "editTimeSettingsSchema",
     "filterInvalidPermissionRules",
     "formatZodError",
+    "settingsFaultEffect",
     "settingsFaultLine",
     "type:FieldPath",
     "type:SettingsWithErrors",
@@ -156,12 +157,15 @@
     "validateSettingsFileContent"
    ],
    "src/utils/settings/settingsCache.ts": [
+    "forgetLastGoodParsedFile",
     "getCachedParsedFile",
     "getCachedSettingsForSource",
+    "getLastGoodParsedFile",
     "getSessionSettingsCache",
     "resetSettingsCache",
     "setCachedParsedFile",
     "setCachedSettingsForSource",
+    "setLastGoodParsedFile",
     "setSessionSettingsCache"
    ],
    "src/utils/settings/applySettingsChange.ts": [

@@ -171,24 +171,25 @@ async function runOne(event: HookEvent, match: MatchedHook, payloadJson: string,
   return outcome(modelEndToState(event, name, end, timeoutMs), end.durationMs)
 }
 
-export type PreparedHooks = { names: string[]; run: () => Promise<HookFireResult> }
+export type PreparedHooks = { names: string[]; timeoutsS: number[]; run: () => Promise<HookFireResult> }
 
 export function workspaceUntrustedForHooks(): boolean {
   return !getIsNonInteractiveSession() && !checkHasTrustDialogAccepted()
 }
 
 export async function prepareHooks<E extends HookEvent>(event: E, fields: HookFields<E>, options: HookFireOptions): Promise<PreparedHooks> {
-  if (isEnvTruthy(process.env.MERCURY_BARE)) return { names: [], run: async () => nothingFired(event) }
+  if (isEnvTruthy(process.env.MERCURY_BARE)) return { names: [], timeoutsS: [], run: async () => nothingFired(event) }
   if (workspaceUntrustedForHooks()) {
     logForDebugging(`${event}: the workspace is not trusted yet, so no hook runs`)
-    return { names: [], run: async () => nothingFired(event) }
+    return { names: [], timeoutsS: [], run: async () => nothingFired(event) }
   }
   const payload = buildHookPayload(event, fields, options)
   const matched = await matchHooks(event, payload, options.scope, { appState: options.appState ?? options.toolUseContext?.getAppState() })
-  if (matched.length === 0) return { names: [], run: async () => nothingFired(event) }
+  if (matched.length === 0) return { names: [], timeoutsS: [], run: async () => nothingFired(event) }
   const payloadJson = jsonStringify(payload)
   return {
     names: matched.map(match => hookEntryName(match.entry)),
+    timeoutsS: matched.map(match => clockOf(match.entry, options.budgetMs) / 1000),
     run: async () => {
       if (options.signal?.aborted) return nothingFired(event)
       const outcomes = await Promise.all(matched.map((match, index) => runOne(event, match, payloadJson, index, options).catch(error => {

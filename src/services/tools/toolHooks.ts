@@ -6,7 +6,7 @@ import { getSessionId } from '../../bootstrap/state.js'
 import { HOOK_CUT_BUDGET_MS } from '../../utils/hooks/contract.js'
 import { errorMessage } from '../../utils/errors.js'
 import { foldAnswers } from '../../utils/hooks/answer.js'
-import { fireHooks, type HookFireResult } from '../../utils/hooks/fire.js'
+import { fireHooks, prepareHooks, type HookFireResult, type PreparedHooks } from '../../utils/hooks/fire.js'
 import { hooksFor } from '../../utils/hooks/matching.js'
 import type { HookScope } from '../../utils/hooks/sessionHooks.js'
 import { checkRuleBasedPermissions } from '../../utils/permissions/permissions.js'
@@ -23,15 +23,19 @@ export function hookScopeOf(toolUseContext: ToolUseContext): HookScope {
   return { sessionId: getSessionId(), ...(toolUseContext.agentId !== undefined ? { crewmateId: toolUseContext.agentId } : {}) }
 }
 
-export function beforeToolHooks(tool: Tool, toolUseID: string, input: AnyObject, toolUseContext: ToolUseContext, signal: AbortSignal): Promise<HookFireResult> {
+export type HookAnnounce = (prepared: PreparedHooks) => void
+
+export async function beforeToolHooks(tool: Tool, toolUseID: string, input: AnyObject, toolUseContext: ToolUseContext, signal: AbortSignal, announce?: HookAnnounce): Promise<HookFireResult> {
   const scope = hookScopeOf(toolUseContext)
   try {
     hooksFor('tool.before', scope, toolUseContext.getAppState())
   } catch (error) {
     const block = `the hooks could not be read, so the ${tool.name} call is refused: ${errorMessage(error)}`
-    return Promise.resolve({ event: 'tool.before', answer: { ...foldAnswers('tool.before', []), block }, outcomes: [] })
+    return { event: 'tool.before', answer: { ...foldAnswers('tool.before', []), block }, outcomes: [] }
   }
-  return fireHooks('tool.before', { tool: tool.name, input, call_id: toolUseID }, { scope, signal, toolUseContext })
+  const prepared = await prepareHooks('tool.before', { tool: tool.name, input, call_id: toolUseID }, { scope, signal, toolUseContext })
+  if (prepared.names.length > 0) announce?.(prepared)
+  return prepared.run()
 }
 
 export async function afterToolHooks(
@@ -41,12 +45,15 @@ export async function afterToolHooks(
   ended: { ok: boolean; output?: unknown; error?: string; cut: boolean },
   toolUseContext: ToolUseContext,
   signal: AbortSignal | undefined,
+  announce?: HookAnnounce,
 ): Promise<HookFireResult> {
-  return fireHooks(
+  const prepared = await prepareHooks(
     'tool.after',
     { tool: tool.name, input, output: ended.output, call_id: toolUseID, ok: ended.ok, ...(ended.error !== undefined ? { error: ended.error } : {}), cut: ended.cut },
     { scope: hookScopeOf(toolUseContext), toolUseContext, ...(ended.cut ? { budgetMs: HOOK_CUT_BUDGET_MS } : { signal }) },
   )
+  if (prepared.names.length > 0) announce?.(prepared)
+  return prepared.run()
 }
 
 export function permissionDecidedHooks(
