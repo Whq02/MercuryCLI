@@ -61,6 +61,7 @@ export type HooksSnapshot = {
   managedOnly: boolean
   extensionsOnly: boolean
   untrustedCheckout: boolean
+  skippedForTrust: number
 }
 
 function computeSnapshot(): HooksSnapshot {
@@ -71,18 +72,22 @@ function computeSnapshot(): HooksSnapshot {
   const disabledBelow = layers.some(l => l.layer !== 'managed' && l.disabled)
   const extensionsOnly = isRestrictedToExtensionsOnly('hooks')
   const untrustedCheckout = untrustedWorkspaceHeadless()
-  if (disabledByManaged) return { hooks: [], disabled: true, managedOnly: false, extensionsOnly, untrustedCheckout }
+  if (disabledByManaged) return { hooks: [], disabled: true, managedOnly: false, extensionsOnly, untrustedCheckout, skippedForTrust: 0 }
   const keepOnlyManaged = managedOnly || disabledBelow || extensionsOnly
   if (untrustedCheckout && !keepOnlyManaged) {
     logForDebugging('hooks: untrusted workspace on a non-interactive road — checkout hooks are not loaded (boot interactively once here to trust this directory)')
   }
   const hooks: LayeredHook[] = []
+  let skippedForTrust = 0
   for (const { layer, map } of layers) {
     if (keepOnlyManaged && layer !== 'managed') continue
-    if (untrustedCheckout && CHECKOUT_LAYERS.has(layer)) continue
+    if (untrustedCheckout && CHECKOUT_LAYERS.has(layer)) {
+      skippedForTrust += entriesOf(map, layer).length
+      continue
+    }
     hooks.push(...entriesOf(map, layer))
   }
-  return { hooks, disabled: false, managedOnly: keepOnlyManaged, extensionsOnly, untrustedCheckout }
+  return { hooks, disabled: false, managedOnly: keepOnlyManaged, extensionsOnly, untrustedCheckout, skippedForTrust }
 }
 
 let snapshot: HooksSnapshot | undefined
@@ -126,6 +131,13 @@ export function workspaceHooks(cwd: string): LayeredHook[] {
 
 export function hooksDisabled(): boolean {
   return hooksSnapshot().disabled
+}
+
+export function hooksSkippedForTrustLine(): string | null {
+  const snapshot = hooksSnapshot()
+  if (snapshot.skippedForTrust === 0) return null
+  const count = snapshot.skippedForTrust
+  return `hooks: this folder is not trusted, so ${count === 1 ? 'its 1 project or local hook was' : `its ${count} project and local hooks were`} not loaded — start Mercury here once and accept the trust card, and they run`
 }
 
 export function managedHooksOnly(): boolean {
