@@ -6,7 +6,7 @@ import { armInactivityDeadline } from '../../utils/deadline.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { getMercuryHome } from '../../utils/envUtils.js'
 import { comparePrivateVersions, parsePrivateVersion } from './channelCore.js'
-import { resolveLayoutRoots } from './installLayout.js'
+import { reconcileManagedShims, resolveLayoutRoots } from './installLayout.js'
 import { checkForUpdate, type CheckOutcome } from './updateService.js'
 
 export const UPDATE_NOTICE_CACHE_FILE = 'update-notice.json'
@@ -172,6 +172,7 @@ export async function runQuietUpdateCheck(deps: QuietCheckDeps): Promise<QuietCh
 export function scheduleQuietUpdateNotice(notify: (text: string) => void, opts: { delayMs?: number } = {}): () => void {
   if (!flagEnabled('MERCURY_UPDATE_NOTICE')) return () => {}
   const timer = setTimeout(() => {
+    reconcileManagedShims(resolveLayoutRoots())
     void runQuietUpdateCheck({
       check: () => checkForUpdate(resolveLayoutRoots(), () => {}),
       readCache: () => readUpdateNoticeCache(),
