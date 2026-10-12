@@ -45,6 +45,7 @@
 # gate-watch: src/utils/wards/wards.ts src/utils/windowsPaths.ts
 # gate-watch: src/guards/**
 # gate-watch: src/hooks/useCanUseTool.tsx src/keybindings/KeybindingContext.tsx
+# gate-watch: src/services/engine-connector/focusedConnector.ts src/services/engine-connector/noSessionConnector.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }
