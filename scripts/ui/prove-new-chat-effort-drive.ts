@@ -73,6 +73,7 @@ for (const world of worlds) {
         ? [
             { afterPrevTicks: 2, data: '\x1b[1;2D', mark: 'to-concourse' },
             { requireAwait: true, awaitText: 'coordinator', minTick: 1, awaitSettleTicks: 6, data: `${stripPrompt}\r`, mark: 'strip-sent' },
+            { requireAwait: true, awaitText: 'A worktree for this session', minTick: 1, awaitSettleTicks: 3, data: '\r', mark: 'fork-card' },
             { afterPrevTicks: 40, data: '', mark: 'strip-born' },
           ]
         : []),
@@ -134,8 +135,10 @@ for (const world of worlds) {
   const undelivered = /UNDELIVERED-SENDS/.test(engineLog)
   check(`${world.tag}: every send became due`, !undelivered, engineLog.split('\n').filter(l => l.includes('UNDELIVERED')).join(' '))
   let bornText = ''
+  let payloadMarks: Mark[] = []
   if (existsSync(out)) {
     const payload = JSON.parse(readFileSync(out, 'utf-8')) as { marks: Mark[] }
+    payloadMarks = payload.marks
     const born = payload.marks.find(m => m.label === 'born')
     bornText = born ? textOf(born.grid) : ''
     writeFileSync(join(SCRATCH, world.tag, 'born.txt'), `${bornText}\n`)
@@ -150,8 +153,11 @@ for (const world of worlds) {
   check(`${world.tag}: the daemon admitted the face-born worker at '${world.expected}'`, admitted.length > 0 && admitted[0]!.includes(`@${world.expected},`), admitted.join(' | ').slice(0, 300))
   check(`${world.tag}: the face-born seat's facts carry the runner's applied word '${world.expected}'`, faceBorn?.factsEffort === world.expected, String(faceBorn?.factsEffort))
   if (full) {
+    const forkCard = payloadMarks.find(m => m.label === 'fork-card')
+    const forkText = forkCard ? textOf(forkCard.grid) : ''
+    check(`${world.tag}: the strip's launch into the checkout the face-born chat holds met the worktree card first, naming the holder`, forkText.includes('A worktree for this session') && forkText.includes('held by') && forkText.includes('Yes — start it on a worktree'), forkText.split('\n').filter(l => /worktree|held by/.test(l)).map(l => l.trim().slice(0, 100)).join(' | '))
     const stripBorn = all.find(r => r.bornBlankAt === undefined && r.title === stripPrompt)
-    check(`${world.tag}: a second chat was born through the New Session strip`, stripBorn !== undefined, all.map(brief).join(' | '))
+    check(`${world.tag}: a second chat was born through the New Session strip once the card was answered Yes`, stripBorn !== undefined, all.map(brief).join(' | '))
     check(`${world.tag}: the strip-born worker's record carries '${world.expected}'`, stripBorn?.effort === world.expected, brief(stripBorn))
     check(`${world.tag}: the daemon admitted the strip-born worker at '${world.expected}'`, admitted.length > 1 && admitted[1]!.includes(`@${world.expected},`), admitted.join(' | ').slice(0, 300))
   }

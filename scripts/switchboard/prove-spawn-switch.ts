@@ -328,7 +328,7 @@ section('§7 the preserved-thinking seam — a roster transition is a lawful pre
   const mark0 = tb.prefixMarkOf(history as never, 'claude-fable-5-1')
   check('no roster transition ⇒ the mark carries none', mark0.rosterTransition === null && mark0.rosterChange === null)
   const row = createRosterTransitionMessage('subagents', false, sw.spawnSwitchTransitionLine('subagents', false))
-  check("the row's sentence names the operator's toggle and the boundary", row.content.includes('the operator toggled crewmates off for this session') && row.content.includes('reasoning restarts on the next turn') && row.subtype === 'roster_transition' && row.toggle === 'subagents' && row.on === false)
+  check("the row's sentence names the operator's toggle as landed and the boundary, in words the command's receipt does not repeat", row.content.includes('the operator toggled crewmates off — landed') && row.content.includes('reasoning restarts on the next turn') && row.content !== sw.spawnSwitchToggleReceipt('subagents', false, 'applied') && row.subtype === 'roster_transition' && row.toggle === 'subagents' && row.on === false)
   const mark1 = tb.prefixMarkOf([...history, row] as never, 'claude-fable-5-1')
   check("the newest roster transition marks the prefix with the toggle's word", mark1.rosterTransition === row.uuid && mark1.rosterChange === 'crewmates off' && mark1.firstRow === mark0.firstRow && mark1.model === mark0.model)
   tb.resetThinkingDropStates()

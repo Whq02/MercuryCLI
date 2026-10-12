@@ -346,7 +346,7 @@ console.log('E — the seat-overload ask: every time, never silent, never rememb
   )
   check(
     'E6 one Select listens at a time — the git offer’s two mounts yield while the seat card stands, and the key stream has ONE declared owner (seat-ask outranks git-offer in boardModalOwner)',
-    screen.includes("gitOffer !== undefined && seatAsk === null && !contractAsk && geo.profile === 'wide'") &&
+    screen.includes("gitOffer !== undefined && seatAsk === null && forkAsk === null && !contractAsk && geo.profile === 'wide'") &&
       /gitOffer !== undefined &&\s*\n\s*!contractAsk &&\s*\n\s*geo\.profile !== 'wide' &&/.test(screen) &&
       screen.includes('gitOfferOwnsTheKeys({') &&
       screen.includes('seatAsk: seatAsk !== null,') &&

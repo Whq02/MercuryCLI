@@ -19,9 +19,11 @@ export function crewmateHeaderTail(state: CrewmateWordsState): string {
   return `· ${state.name} · ${state.pinned ? MAIN_CHAT_WORD : VIEWING_WORD}`
 }
 
+export const CREW_BOARD_STOP_PAUSE_KEYS = `x x stop · p pause in ${CREW_VIEW_DOOR}`
+
 export function crewmateCardKeys(pinned: boolean, live = true): string {
   if (!live) return pinned ? `${ESC_BACK_HINT} · ${MAIN_CHAT_HAND_BACK_HINT} · ${CREW_CLEAR_DOOR}` : `${ESC_BACK_HINT} · ${CREW_MAIN_CHAT_KEY} · ${CREW_CLEAR_DOOR} · ${BACK_HINT}`
-  return pinned ? `${ESC_INTERRUPT_HINT} · ${MAIN_CHAT_HAND_BACK_HINT} · x stop · p pause` : `${ESC_INTERRUPT_HINT} · ${CREW_MAIN_CHAT_KEY} · x stop · p pause · ${BACK_HINT}`
+  return pinned ? `${ESC_INTERRUPT_HINT} · ${MAIN_CHAT_HAND_BACK_HINT} · ${CREW_BOARD_STOP_PAUSE_KEYS}` : `${ESC_INTERRUPT_HINT} · ${CREW_MAIN_CHAT_KEY} · ${CREW_BOARD_STOP_PAUSE_KEYS} · ${BACK_HINT}`
 }
 
 export function crewClearedWords(name: string): string {

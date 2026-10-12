@@ -6,7 +6,7 @@ import { logError } from '../../utils/log.js'
 import { dequeueAllMatching } from '../../utils/messageQueueManager.js'
 import { evictTaskOutput } from '../../utils/task/diskOutput.js'
 import { updateTaskState } from '../../utils/task/framework.js'
-import type { LocalShellTaskState } from './guards.js'
+import type { LocalShellTaskState, ShellKillSource } from './guards.js'
 import { isLocalShellTask } from './guards.js'
 
 
@@ -19,7 +19,7 @@ export type KillSettlement =
   | { settled: true; exitCode: undefined; reason: 'not-running' }
   | { settled: false; reason: 'settlement-grace-expired' }
 
-export function killTask(taskId: string, setAppState: SetAppState): Promise<KillSettlement> {
+export function killTask(taskId: string, setAppState: SetAppState, killedBy: ShellKillSource = 'operator'): Promise<KillSettlement> {
   let resultPromise: Promise<{ code: number; interrupted: boolean }> | null = null
   let handleToKill: LocalShellTaskState['shellCommand'] = null
   let cleanupToRun: (() => void) | undefined
@@ -36,6 +36,7 @@ export function killTask(taskId: string, setAppState: SetAppState): Promise<Kill
     return {
       ...task,
       status: 'killed',
+      killedBy,
       notified: true,
       shellCommand: null,
       unregisterCleanup: undefined,
@@ -130,7 +131,7 @@ export function killShellTasksForAgent(
     if (task.status !== 'running') continue
     if (task.agentId !== agentId) continue
     logForDebugging(`killing orphaned shell task ${task.id} for agent ${agentId}`)
-    void killTask(task.id, setAppState)
+    void killTask(task.id, setAppState, 'agent-end')
   }
   dequeueAllMatching(cmd => cmd.agentId === agentId)
 }

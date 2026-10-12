@@ -480,7 +480,7 @@ try {
         after(70, 'crew-landed'),
         after(12, 'crew-landed+'),
         { data: '', awaitText: '[Crewmate] hdr-three · completed', requireAwait: true, minTick: 2, awaitSettleTicks: 2 },
-        { data: 'hdr: wait\r', awaitText: '[Crewmate] hdr-four · completed', requireAwait: true, minTick: 2, awaitSettleTicks: 4 },
+        { data: 'hdr: wait\r', awaitText: '[Crewmate] hdr-four · completed', requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'landed-beat' },
         after(25, 'first-byte'),
         after(2, 'first-byte+'),
         { data: 'hdr: tool\r', awaitText: 'HDR-WAITED', requireAwait: true, minTick: 2, awaitSettleTicks: 8, mark: 'idle-2' },
@@ -508,7 +508,7 @@ if (cap !== null) {
   const t0 = fixture.hits[0]?.atMs ?? 0
   console.log(`  routes: ${fixture.hits.map(h => `+${((h.atMs - t0) / 1000).toFixed(1)}s ${h.route}`).join(' → ')}`)
   console.log(`  marks: ${Object.entries(cap.markTicks).map(([k, v]) => `${k}@${v}`).join(' ')} · end: ${cap.endReason}`)
-  const scenes = ['idle', 'thinking', 'esc', 'interrupting', 'after-esc', 'crew', 'x2', 'x4', 'crew-done', 'waiting', 'after-esc-2', 'crew-landed', 'first-byte', 'idle-2', 'tool', 'fore', 'stuck', 'end']
+  const scenes = ['idle', 'thinking', 'esc', 'interrupting', 'after-esc', 'crew', 'x2', 'x4', 'crew-done', 'waiting', 'after-esc-2', 'crew-landed', 'landed-beat', 'first-byte', 'idle-2', 'tool', 'fore', 'stuck', 'end']
   for (const label of scenes) dump(label, m[label])
 
   console.log('\n— H1 no title row —')
@@ -556,8 +556,8 @@ if (cap !== null) {
   const crewRow = (frame: string | undefined, name: string): string[] => rows(frame).filter(r => r.includes(name) && /✕|◐|◓|◑|◒/.test(r) && /stopped|running|waiting|reasoning|request sent|Read/.test(r))
   check('both crew rows read stopped after x x on each', crewRow(m['x4'], SEATS.one).some(r => /stopped/.test(r)) && crewRow(m['x4'], SEATS.two).some(r => /stopped/.test(r)), [...crewRow(m['x4'], SEATS.one), ...crewRow(m['x4'], SEATS.two)].map(flat).join(' | ').slice(0, 240))
   const doneRow = statusRow(m['crew-done'])
-  check('H2 after the last stop the crew clock stands', crewClockStands(m['crew-done'], m['crew-done+']), `${crewClock(m['crew-done'])} → ${crewClock(m['crew-done+'])}`)
-  check('H3 after the last stop the words follow: the crew\'s settled clock stands, past tense', CREW_CLOCK.test(doneRow) && !PHASE_WORDS.test(doneRow), flat(doneRow))
+  check('H2 after the last stop the crew clock is gone from the row (both frames)', crewClock(m['crew-done']) === '' && crewClock(m['crew-done+']) === '', `${crewClock(m['crew-done'])} → ${crewClock(m['crew-done+'])}`)
+  check('H3 after the last stop the row reads "ready" — no settled clock, no phase word', /\bready\b/.test(doneRow) && !CREW_CLOCK.test(doneRow) && !PHASE_WORDS.test(doneRow), flat(doneRow))
 
   console.log('\n— waiting on agents —')
   const waitingRow = statusRow(m['waiting'])
@@ -569,8 +569,10 @@ if (cap !== null) {
   const landedRow = statusRow(m['crew-landed'])
   const seatsThreeFour = fixture.hits.filter(h => h.seat === 'three' || h.seat === 'four').length
   check(`the second crew landed on their own (${seatsThreeFour} seat calls)`, seatsThreeFour >= 8)
-  check('H2 after the crew land the crew clock stands', crewClockStands(m['crew-landed'], m['crew-landed+']), `${crewClock(m['crew-landed'])} → ${crewClock(m['crew-landed+'])}`)
-  check('H3 after the crew land the settled clock stands, past tense', CREW_CLOCK.test(landedRow) && !PHASE_WORDS.test(landedRow), flat(landedRow))
+  check('H2 after the crew land the crew clock is gone from the row (both frames)', crewClock(m['crew-landed']) === '' && crewClock(m['crew-landed+']) === '', `${crewClock(m['crew-landed'])} → ${crewClock(m['crew-landed+'])}`)
+  check('H3 after the crew land the row reads "ready" — no settled clock, no phase word', /\bready\b/.test(landedRow) && !CREW_CLOCK.test(landedRow) && !PHASE_WORDS.test(landedRow), flat(landedRow))
+  const landedBeat = statusRow(m['landed-beat'])
+  check('H3 the beat after the last crewmate\'s completed row paints, the row already reads "ready"', /\bready\b/.test(landedBeat) && !CREW_CLOCK.test(landedBeat), flat(landedBeat))
 
   console.log('\n— the first-byte wait —')
   const fbRow = statusRow(m['first-byte'])
@@ -584,7 +586,7 @@ if (cap !== null) {
   check('H3 the bottom row carries no "running a tool" word', !PHASE_WORDS.test(toolRow), flat(toolRow))
   check('H2 with no crew running the row wears no glyph', noGlyph(m['tool']) && noGlyph(m['tool+']), flat(statusRow(m['tool'])))
   const idle2Row = statusRow(m['idle-2'])
-  check('between turns the row reads "ready" with the settled crew clock gone or standing, never a phase word', /\bready\b|thought for/.test(idle2Row) && !PHASE_WORDS.test(idle2Row), flat(idle2Row))
+  check('between turns the row reads "ready", the landed crew\'s clock gone, never a phase word', /\bready\b/.test(idle2Row) && !CREW_CLOCK.test(idle2Row) && !PHASE_WORDS.test(idle2Row), flat(idle2Row))
 
   console.log('\n— the foreground agent —')
   const foreRow = statusRow(m['fore'])

@@ -1,0 +1,40 @@
+   ▄▄▄▄▄▄▄▄▄    MERCURY — SESSION CONCOURSE                    BOOT › CONCOURSE › FOCUSED CHAT                     sam  
+   ▄▄▄▄▄▄▄▄▄                                                                                                            
+   ▀▄▄▄▀▄▄▄▀                                                                                                            
+  ╭────────────────────────────────────────────╮ ╭───────────────────────────────────────────────────────────────────╮  
+  │ COORDINATOR                                │ │ SESSIONS                                            + new session │  
+  │ it launches, watches, and reconciles your  │ │ STATUS & TITLE              PROJECT   NOW                    AGE  │  
+  │ sessions — ask in plain words              │ │   n starts a blank session in this project                        │  
+  │ ▸ launch two sessions on this project · ↵… │ │ ⊞ READY TO REVIEW · 1                                             │  
+  │   what needs me right now?                 │ │ ▸ ● ready     Audit billing…Moodle                           12m  │  
+  │   pause the parser session                 │ │ ⊞ WORKING · 3                                                     │  
+  │ coordinator off · ▸ turn on · ⌃a           │ │   ◐           Fix OAuth cal…Moodle    editing src/auth/c…    07m  │  
+  │ ╭────────────────────────────────────────╮ │ │   ◐           Refactor pars…orchard-… Bash · bun test pa…    18m  │  
+  │ │ ❯ ….py. Do both n                                                                                         03m  │  
+  │ │ restored draft —  ╭──────────────────────────────────────────────────────────────────────╮                     │  
+  │ ╰────────────────── │  ⦿ A worktree for this session                                       │ r a seat     waits  │  
+  │                     │  a new session in held-repo would fork a worktree                    │ r a seat     waits  │  
+  │                     │  held-repo is already held by “Fix the parser” — this session would  │ ────────────────────╯  
+  │                     │  start on a worktree of its own: a second checkout of the            │ ────────────────────╮  
+  │                     │  repository on a new branch (mercury/…). Its edits land on that      │     ↵ enter session │  
+  │                     │  branch, not on the checkout you are in. Yes starts it there (the    │                     │  
+  │                     │  launch receipt names the branch). No starts nothing — your words    │ nters it            │  
+  │                     │  stay in the composer.                                               │                     │  
+  │                     │  Do you want to proceed?                                             │                     │  
+  │                     │  ❯ 1. Yes — start it on a worktree and its own branch                │                     │  
+  │                     │    2. No, start nothing (esc)                                        │                     │  
+  │                     │                                                                      │                     │  
+  │                     │  ↑↓ choose · ↵ confirm · esc cancel                                  │                     │  
+  │                     ╰──────────────────────────────────────────────────────────────────────╯                     │  
+  │                                                                                                                  │  
+  │                                            │ │                                                                   │  
+  │                                            │ │                                                                   │  
+  │                                            │ ╰───────────────────────────────────────────────────────────────────╯  
+  │                                            │ ╭───────────────────────────────────────────────────────────────────╮  
+  │                                            │ │ ❯ message Audit billing receipts · queued for its next turn       │  
+  │                                            │ │ tab or click to type                                              │  
+  ╰────────────────────────────────────────────╯ ╰───────────────────────────────────────────────────────────────────╯  
+  ╭──────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮  
+  │ ▚▛▀▜▞ │ coordinator off ⌄ │ Moodle ⌄                                            2 live · 1 needs you · 2/5 seats │  
+  ╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯  
+  tab panes · ⌃g ground · ↵ send · ⇧↵/⌃j newline · ⌃s coordinator model · pgup/pgdn scroll · esc boot face              

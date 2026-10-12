@@ -641,7 +641,7 @@ function LiveConcourse(): React.ReactNode {
               parkApplied
                 ? released
                   ? { state: 'applied', reason: 'removed from the board — the chat held no message' }
-                  : { state: 'applied', reason: `archived — the chat stands parked; ${keyHintLabel('⌃x ⌃x')} again deletes it` }
+                  : { state: 'applied', reason: `archived — the chat stands parked; ${keyHintLabel('⌃x ⌃x')} again in 5 s deletes it` }
                 : { state: 'refused', reason: reply.detail ?? reply.error ?? `archive refused${reply.code !== undefined ? ` (${reply.code})` : ''}` },
             )
           } catch {
@@ -1510,6 +1510,16 @@ function LiveConcourse(): React.ReactNode {
     },
     submitSessionDraft: (text: string) => {
       if (text.trim().length > 0) submitDraft(text)
+    },
+    previewLaunch: async () => {
+      await seedWriteChain.current
+      const seeds = await readConcourseSeedOverrides()
+      const si = dispatchSeedInputs(seeds, getCwd(), snapshotRef.current?.newSession.seeds.modelId, getInitialEffortSetting())
+      const folder = basename(si.workspaceDir) || si.workspaceDir
+      if (seeds.isolation !== undefined) return { folder, forks: false, mainHolderTitle: null }
+      const { previewDefaultedLaunch } = await import('../../daemon/concourseDispatch.js')
+      const preview = previewDefaultedLaunch(si.workspaceDir)
+      return { folder, forks: preview.forks, mainHolderTitle: preview.mainHolderTitle ?? null }
     },
     daemonOfferArmed: () => daemonOfferRef.current !== null,
     answerDaemonOffer,

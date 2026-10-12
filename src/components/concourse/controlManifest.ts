@@ -213,7 +213,7 @@ export function closeChordLegendOf(rung: CloseChordRung): string | null {
 export function closeChordReceiptOf(rung: CloseChordRung): string | null {
   switch (rung) {
     case 'arm-delete':
-      return `⌃x ⌃x within ${CLOSE_CHORD_WINDOW_WORDS} deletes it`
+      return `armed — ⌃x ⌃x again deletes (${CLOSE_CHORD_WINDOW_WORDS})`
     case 'resend-stop':
       return 'stop is on its way — the row reads stopped once its runner is gone; ⌃x ⌃x then archives it'
     default:
