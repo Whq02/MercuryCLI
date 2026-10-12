@@ -37,6 +37,8 @@ import { parseBlockerDeclaration } from '../services/run/blockerDeclaration.js'
 import { askNobodyAnswered, unansweredAsksBlocker } from '../services/run/unansweredAsk.js'
 import type { PermissionDecision } from '../types/permissions.js'
 import { getInMemoryErrors, logError, withoutStackFrames } from '../utils/log.js'
+import { isClaudeAISubscriber } from '../utils/auth.js'
+import { declaredRouteOf } from '../services/providers/routeLaw.js'
 import { normalizeMessages } from '../utils/messages.js'
 import { isNotEmptyMessage } from '../utils/messages/text.js'
 import { NO_CONTENT_MESSAGE } from '../constants/messages.js'
@@ -627,8 +629,12 @@ export class Conversation {
       const unpricedNow = getUnpricedTurns()
       const unpricedModels = new Set(Object.keys(unpricedNow).filter(model => (unpricedNow[model] ?? 0) > (unpricedAtStart[model] ?? 0)))
       const apiMs = Math.max(0, getTotalAPIDuration() - apiDurationAtStart)
-      const costUsd = Math.max(0, getTotalCostUSD() - costAtStart)
       const billed = usageSince(getModelUsage(), modelUsageAtStart)
+      const subscriber = isClaudeAISubscriber()
+      const hasUnknownCost = (model: string): boolean => unpricedModels.has(model) || (subscriber && declaredRouteOf(model) === 'anthropic')
+      const pricedModels = Object.keys(billed).filter(model => !hasUnknownCost(model))
+      const costUsd = subscriber ? pricedModels.reduce((sum, model) => sum + Math.max(0, billed[model]?.costUSD ?? 0), 0) : Math.max(0, getTotalCostUSD() - costAtStart)
+      const costKnown = subscriber ? pricedModels.length > 0 : unpricedModels.size === 0 || costUsd > 0
       const usage = Object.values(billed).reduce((sum, row) => ({
         ...sum,
         input_tokens: sum.input_tokens + row.inputTokens,
@@ -643,9 +649,9 @@ export class Conversation {
         steps: steps.count,
         wallMs: Date.now() - turnStartedAt,
         ...(apiMs > 0 ? { apiMs } : {}),
-        ...(unpricedModels.size === 0 || costUsd > 0 ? { costUsd } : {}),
+        ...(costKnown ? { costUsd } : {}),
         usage,
-        models: modelUsageRows(billed, model => unpricedModels.has(model)),
+        models: modelUsageRows(billed, hasUnknownCost),
         denials: this.denials.slice(denialsBefore),
         ...(notices.length > 0 ? { notices: [...notices] } : {}),
         ...extra,

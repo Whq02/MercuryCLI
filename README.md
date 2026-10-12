@@ -507,7 +507,9 @@ can exceed `wall_ms` when requests overlapped. `cost_usd` is the USD of the turn
 requests, whatever the status: a request Mercury cannot price (no rate on
 file, no cost stated on the wire) adds nothing to it and leaves its model
 listed in `models` without a `cost_usd` of its own; the field is absent only
-when nothing in the turn was priced. Usage names `input_tokens` (cached tokens included),
+when nothing in the turn was priced. On a Claude subscription sign-in the
+Anthropic requests have no dollar price, so neither they nor the row carry a
+`cost_usd` — the usage stays. Usage names `input_tokens` (cached tokens included),
 `cached_input_tokens`, `cache_write_input_tokens`, `output_tokens` and,
 when reported, `reasoning_output_tokens`, summed over the main thread and
 the crewmates. `models` gives the per-model figures; `steps` counts the main
@@ -545,8 +547,10 @@ produces a `notice` with code `input_refused`; malformed JSON ends the run.
 These are input rows, not permission answers.
 
 Use `mercury run -` or pipe text into `mercury run` to read the whole prompt
-from stdin. Beside a prompt argument, piped text is collected for up to one
-second and appended as delimited context. With no prompt and a terminal on
+from stdin. Beside a prompt argument, piped text is appended as delimited
+context: the pipe is read until it closes or has been silent for one second,
+so a stream that keeps delivering is read to its end and a pipe that stays
+open and silent does not hold the run. With no prompt and a terminal on
 stdin, `run` prints its usage and exits 2.
 
 `--mode <mode>` selects the permission posture. `--sovereign` runs without
