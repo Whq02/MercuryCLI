@@ -71,11 +71,13 @@ starting folder.
   it proceed.
 - **Default mode** asks for writes and edits in either place unless a
   permission rule already allows them.
-- **Sovereign mode** does not ask because of a file's
-  location. Capability gates, explicit deny rules and wards still apply. The
-  few checks reserved for the operator (a remote path on Windows) still raise
-  a card; one unanswered for three minutes is withdrawn and the call is
-  refused with the same denial.
+- **Sovereign mode** asks nothing: not one permission card of any kind — not
+  for a file's location, a command, a remote path on Windows, a hook's ask or
+  the first act in an application. You accept every risk; Flow mode is where
+  the guardrails live. Capability gates, explicit deny rules and wards still
+  apply, and a refusal is not a card. The model's own questions to you
+  (AskUserQuestion, the Apollo review) are not permission cards and still
+  appear.
 - **Flow mode** allows what Implement mode allows and the read-only
   tools without asking. A yes on a permission card is remembered as a saved
   rule for the project where a rule can name the call; destructive calls
@@ -88,7 +90,7 @@ starting folder.
 - **Apollo and dontAsk** keep their existing permission
   behaviour; a folder does not add a separate refusal.
 
-On Windows, a UNC path can send this machine's login to a remote SMB/WebDAV host: shell and file tools ask before opening it, including a share-hosted workspace, unless an explicit path or command rule grants access.
+On Windows, a UNC path can send this machine's login to a remote SMB/WebDAV host: shell and file tools ask before opening it, including a share-hosted workspace, unless an explicit path or command rule grants access — in every mode that asks; Sovereign mode does not.
 
 Sensitive files, such as credentials and Mercury configuration, retain their
 own permission checks. The sandbox is a separate feature and keeps its own
@@ -204,9 +206,11 @@ Sovereign mode row as standing consent, the CLI flag, or the session's own
 choice), whether the consent dialog was shown or suppressed, and whether
 workspace trust was accepted. A fresh config read alone answers "what permission
 posture does this project run under"; `mercury health` and `/health` show it
-as the `Sovereign mode` row. Computer use keeps one setting under the
-posture, the Boot Menu's `Access type` row: unset, it follows Sovereign mode
-(`full` with it on, `asks` with it off); a saved value wins either way
+as the `Sovereign mode` row. While the Boot Menu's `Sovereign mode` row is
+on, a small amber warning line sits under it: nothing asks or stops you —
+every action runs as you. Computer use follows the posture too: with
+Sovereign mode on nothing asks, whatever the Boot Menu's `Access type` row
+saves; with it off the row decides (`asks` by default)
 ([COMPUTER-USE.md](COMPUTER-USE.md)).
 
 ## Release provenance — what "signed" means

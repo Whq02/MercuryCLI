@@ -43,9 +43,7 @@ this order:
 - **Enable sovereign mode to avoid further permissions by default** turns
   sovereign mode on for this session and saves the Boot Menu's `Sovereign
   mode` row, so no later session asks either — for anything — until you
-  turn the row off. When the card is shown while sovereign mode is already
-  on (the access type saved as `asks` or `permissive`), this answer would
-  offer what is already on, so the card offers the first four answers only.
+  turn the row off. Under sovereign mode the card never appears.
 
 A timed grant lives with the session: a resume inside its span keeps it, a
 new session never inherits it, and it is never written into your settings.
@@ -57,8 +55,7 @@ is not driven: the act is refused and the model takes a new screenshot. No
 classifier answers this ask: the screen, not you, chose the application, so
 the consent is yours alone — and sovereign mode is the one posture that
 answers it, because sovereign mode answers every permission question,
-unless the access type below is saved as `asks` or `permissive`, which
-keeps this one question asked even then.
+whatever the access type below saves.
 
 ## The access type
 
@@ -81,10 +78,9 @@ asks.
 Unset, the row follows sovereign mode: with the `Sovereign mode` row on the
 default is `full`, and the row's value reads `default (full · sovereign
 mode)`; with it off the default is `asks`, and it reads `default (asks)`.
-Sovereign mode writes nothing into the row. A saved value wins either way:
-`asks` or `permissive` saved with sovereign mode on keeps computer use
-asking while every other permission question is skipped, and `full` saved
-with sovereign mode off makes computer use never ask while files and
+Sovereign mode writes nothing into the row. With sovereign mode on nothing
+asks, whatever the row saves; the saved value applies with sovereign mode
+off — `full` saved then makes computer use never ask while files and
 commands ask as the permission mode says. Whatever the value, a
 `guardrails.deny` rule refuses its application before any act, the
 terminal running Mercury is never typed into, an application that moved in
@@ -100,15 +96,17 @@ name the access beside the switch: `computer use on · access asks`,
 ## Sovereign mode
 
 Sovereign mode is Mercury's one bypass, and computer use is under it like
-everything else: with sovereign mode on, no permission question is asked —
-not for files, not for commands, not for computer use — and the crimson
-band says so. The Boot Menu's `Sovereign mode` row (in the trust combo)
-turns it on for new sessions; the ask card's last answer turns it on for
-the running session and saves the same row; `shift+tab` reaches it in a
-session launched with the bypass flag. Computer use follows it through the
-`Access type` row's default — unset, the row reads `full` under sovereign
-mode — and a saved `asks` or `permissive` keeps computer use asking even
-then. What stays under sovereign mode is what was never a question: a
+everything else: with sovereign mode on, not one permission card of any
+kind is shown — not for files, not for commands, not for computer use —
+and the crimson band says so; you accept every risk, and Flow mode is where
+the guardrails live. The Boot Menu's `Sovereign mode` row (in the trust
+combo) turns it on for new sessions and shows a small amber warning line
+under it while it is on; the ask card's last answer turns it on for the
+running session and saves the same row; `shift+tab` reaches it in a
+session launched with the bypass flag. Computer use follows it whatever the
+`Access type` row saves: under sovereign mode the first act in an
+application never asks, and the row's saved value applies when sovereign
+mode is off. What stays under sovereign mode is what was never a question: a
 `guardrails.deny` rule refuses its application before any act, the
 terminal running Mercury is never typed into, and an application that
 moved in front between the check and the act is not driven. `mercury
