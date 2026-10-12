@@ -74,7 +74,8 @@ section('§5 the callers read the outcome, never the words')
   const verb = readFileSync(join(ROOT, 'src/commands/model/model.tsx'), 'utf8')
   check('the default picker decides on the outcome', picker.includes("if (saved.outcome !== 'saved') {") && picker.includes('setNotice(saved.sentence)'))
   check('the receipt words live in the owner alone', !picker.includes('saved as your default') && !verb.includes('saved as your default'))
-  check('the painting callers take the sentence', picker.split('persistModelChoice(value).sentence').length - 1 === 2 && verb.split('persistModelChoice(target).sentence').length - 1 === 2)
+  const sentenceReads = (src: string, arg: string): number => (src.match(new RegExp(`persistModelChoice\\(${arg}\\)\\.sentence|choice\\.sentence`, 'g')) ?? []).length
+  check('the painting callers take the sentence (the daemon road holds the choice before the door and reads its sentence after the receipt)', sentenceReads(picker, 'value') === 2 && sentenceReads(verb, 'target') === 2, JSON.stringify({ picker: sentenceReads(picker, 'value'), verb: sentenceReads(verb, 'target') }))
 }
 
 console.log('\n' + '─'.repeat(76))
