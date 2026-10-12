@@ -47,7 +47,15 @@ export function BrowserPermissionRequest({
 
   usePermissionRequestLogging(toolUseConfirm)
 
-  const options: { label: React.ReactNode; value: BrowserOptionValue }[] = [{ label: 'Yes', value: 'yes' }]
+  const provisioning = (toolUseConfirm.input as { op?: string }).op === 'provision'
+  const reason =
+    'decisionReason' in toolUseConfirm.permissionResult ? toolUseConfirm.permissionResult.decisionReason : undefined
+  const downloadLines =
+    provisioning && reason?.type === 'other' ? reason.reason.split('\n').filter(Boolean) : []
+
+  const options: { label: React.ReactNode; value: BrowserOptionValue }[] = [
+    { label: provisioning ? 'Yes, download it' : 'Yes', value: 'yes' },
+  ]
   if (ruleContent !== null && shouldShowAlwaysAllowOptions()) {
     options.push({
       label: (
@@ -92,6 +100,21 @@ export function BrowserPermissionRequest({
     theme: resolveThemeName(),
     verbose,
   })
+
+  if (provisioning) {
+    return (
+      <PermissionDialog title="Browser download" workerBadge={workerBadge}>
+        <Box flexDirection="column">
+          {downloadLines.map((line, i) => (
+            <Text key={i}>{line}</Text>
+          ))}
+          <Text dimColor>Nothing is downloaded until you say yes; your installed browsers are never driven.</Text>
+          <Text bold>Download this browser build?</Text>
+          <Select options={options} onChange={handleChange} onCancel={() => handleChange('no')} />
+        </Box>
+      </PermissionDialog>
+    )
+  }
 
   return (
     <PermissionDialog title="Browser" workerBadge={workerBadge}>

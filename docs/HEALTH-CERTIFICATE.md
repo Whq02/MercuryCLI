@@ -82,7 +82,10 @@ Chrome for Testing with its build id and managed cache path, or the operator's
 explicit executable pin. Installed Chrome, Edge, Chromium and Brave apps are
 discovered for information only; the tool never selects them automatically.
 With no managed browser, the row reads `info` and names `/browser install`,
-the one-time consented Chrome for Testing download (typically 150-200 MB).
+the one-time consented Chrome for Testing download; the consent step names the
+exact download size for the build it plans (the current stable is about 185 MB
+and unpacks to roughly twice that on disk), and `/browser status` shows the
+size a build takes once installed.
 A broken pin names itself instead of falling through to another browser.
 This is a configuration check: it reads the cache and paths without launching
 a browser, probing its version, or downloading anything. The tool's status
