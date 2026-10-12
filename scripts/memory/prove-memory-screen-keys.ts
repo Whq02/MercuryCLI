@@ -319,6 +319,18 @@ section('§2 the opened fact is one view with its keys, whatever list or search 
   check('a three-character chunk lands whole in the search', chunk, rowOf(m, '/ ').trim())
   m.push(KEY.esc)
   await waitFor(() => m.screen().includes('section'), 6000)
+  const filesRow = (): string => m.lines().find(l => /instruction files\s+\d+ files?\s/.test(l)) ?? ''
+  for (let step = 0; step < 14 && !filesRow().includes('❯'); step++) {
+    m.push(KEY.down)
+    await settle(40)
+  }
+  m.push(KEY.enter)
+  const picker = await waitFor(() => m.screen().includes('Memory: on') && m.screen().includes('profile auto:'), 8000)
+  check('↵ on instruction files opens the picker', picker)
+  m.push(KEY.esc)
+  await waitFor(() => m.screen().includes('section'), 6000)
+  await settle(200)
+  check('esc from the picker returns to the instruction files row, not the first', filesRow().includes('❯') && !rowOf(m, 'facts and decisions').includes('❯'), filesRow().trim())
   await type(m, 'qqqzzxw')
   const emptySearch = await waitFor(() => m.screen().includes('nothing matches'), 6000)
   check('a search with no match says so and its footer is esc clears the search alone — no ↑↓, no ↵', emptySearch && footerOf(m).includes('esc clears the search') && !footerOf(m).includes('↵') && !footerOf(m).includes('↑↓'), footerOf(m))
