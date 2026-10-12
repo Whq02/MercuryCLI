@@ -7,7 +7,7 @@ import type { PromptInputMode } from '../../types/textInputTypes.js'
 import type { ImageDimensions } from '../../utils/imageResizer.js'
 import type { PastedContent } from '../../utils/config.js'
 import type { useInputBuffer } from '../../hooks/useInputBuffer.js'
-import { normalizePastedInput } from '../../input-core/composer-document.js'
+import { normalizePastedLines } from '../../input-core/composer-document.js'
 import { useMaybeTruncateInput } from './useMaybeTruncateInput.js'
 import { getModeFromInput, getValueFromInput } from './inputModes.js'
 import { setComposerInsert } from './composerInsert.js'
@@ -193,7 +193,8 @@ export function useComposerAttachments({
   const handleTextPaste = useCallback(
     (raw: string): void => {
       deferredSpaceArmedRef.current = false
-      const text = stripControls(normalizePastedInput(raw))
+      const exact = stripControls(normalizePastedLines(raw))
+      const text = expandTabs(exact)
       const lineCount = (text.match(/\n/g) ?? []).length + 1
       if (
         input === '' &&
@@ -211,15 +212,15 @@ export function useComposerAttachments({
       const lineCap = Math.max(1, Math.min(rows - 10, 2))
       if (text.length > PASTE_THRESHOLD || lineCount > lineCap) {
         const id = allocatePasteId()
-        const numLines = getPastedTextRefNumLines(text)
-        const contentHash = hashPastedText(text)
+        const numLines = getPastedTextRefNumLines(exact)
+        const contentHash = hashPastedText(exact)
         const entry: PastedContent = {
           id,
           type: 'text',
-          content: text,
+          content: exact,
           contentHash,
         } as PastedContent
-        void storePastedText(contentHash, text).catch(() => {})
+        void storePastedText(contentHash, exact).catch(() => {})
         setPastedContents(prev => ({ ...prev, [id]: entry }))
         insertAtCursor(formatPastedTextRef(id, numLines), { atomic: true })
         return
