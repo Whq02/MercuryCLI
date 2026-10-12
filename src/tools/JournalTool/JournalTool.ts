@@ -52,6 +52,7 @@ export const JournalTool = buildTool({
     class: 'mutation',
     cancellation: 'not-applicable',
     latency: 'fast',
+    conditions: ['memory.journal set to true in /config (the session journal is off by default)'],
     proof: 'scripts/memory/prove-journal.ts',
   },
   async description() {
