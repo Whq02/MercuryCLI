@@ -29,6 +29,7 @@ import {
   consumeCheckedActOrigin,
   driverVersion,
   ensureBrowserSession,
+  isBrowserErrorPage,
   liveBrowserSessionCensus,
   noteCheckedActOrigin,
   originApproved,
@@ -384,6 +385,23 @@ function capExtract(header: string, body: string, offset = 0): string {
 }
 
 type LiveSession = NonNullable<ReturnType<typeof activeSession>>
+
+function errorPageWords(s: LiveSession): string {
+  const failed = s.navFailure.last
+  return failed
+    ? `the browser's own error page — ${failed.errorText} at ${failed.url}; the site did not load`
+    : "the browser's own error page — the site did not load"
+}
+
+function pageWhere(s: LiveSession): string {
+  const url = s.page.url()
+  return isBrowserErrorPage(url) ? `${url} (${errorPageWords(s)})` : url
+}
+
+function failedNavigationWords(op: string, s: LiveSession, wanted: string): string {
+  const failed = s.navFailure.last
+  return `${op} failed: ${failed ? `${failed.errorText} at ${failed.url}` : `${wanted} did not load`} — the browser shows its own error page (${s.page.url()}), not the site; the server is down or refusing connections`
+}
 
 function framesDiagnosis(s: LiveSession): string {
   try {
@@ -939,8 +957,8 @@ Downloads are never implicit: the driven session denies page-initiated downloads
           const popupsAfter = s.popups.count
           result =
             after === before
-              ? `click ${target} at ${after}`
-              : `click ${target} — navigated to ${after} (from ${before}; waitFor settles late loads)`
+              ? `click ${target} at ${pageWhere(s)}`
+              : `click ${target} — navigated to ${pageWhere(s)} (from ${before}; waitFor settles late loads)`
           if (popupsAfter > popupsBefore) {
             result += `\n  note: the click opened a new tab (${s.popups.last}) — this session drives ONE page; the tab was closed unadopted. op:"open" that URL follows it (a new origin will ask).`
           }
@@ -1015,7 +1033,7 @@ Downloads are never implicit: the driven session denies page-initiated downloads
             await s.page.keyboard.type(resolved.value)
             if (input.enter === true) await s.page.keyboard.press('Enter')
             approveSecretPairing(owner, input.secretRef, originOf(s.page.url()))
-            result = `type: filled secret ${input.secretRef} into ${probe.desc}${input.enter === true ? ' + Enter' : ''} at ${s.page.url()}`
+            result = `type: filled secret ${input.secretRef} into ${probe.desc}${input.enter === true ? ' + Enter' : ''} at ${pageWhere(s)}`
             outcome = 'succeeded'
             break
           }
@@ -1109,7 +1127,7 @@ Downloads are never implicit: the driven session denies page-initiated downloads
           }
           result = `type: ${input.text!.length} chars into ${probe.desc}${input.enter === true ? ' + Enter' : ''}${
             valueLen !== null ? ` (value now ${valueLen} chars)` : ''
-          } at ${s.page.url()}`
+          } at ${pageWhere(s)}`
           outcome = 'succeeded'
           break
         }
@@ -1131,13 +1149,13 @@ Downloads are never implicit: the driven session denies page-initiated downloads
             const handle = await resolveActTarget(s, input.selector, actDeadline(input), signalFor(s))
             await handle.evaluate(el => (el as HTMLElement).scrollIntoView({ block: 'center' }))
             const yNow = await s.page.evaluate(() => window.scrollY)
-            result = `scroll: ${input.selector} into view (scrollY ${Math.round(yNow)}) at ${s.page.url()}`
+            result = `scroll: ${input.selector} into view (scrollY ${Math.round(yNow)}) at ${pageWhere(s)}`
           } else {
             const yNow = await s.page.evaluate(delta => {
               window.scrollBy(0, delta)
               return window.scrollY
             }, input.dy!)
-            result = `scroll: by ${input.dy} (scrollY now ${Math.round(yNow)}) at ${s.page.url()}`
+            result = `scroll: by ${input.dy} (scrollY now ${Math.round(yNow)}) at ${pageWhere(s)}`
           }
           outcome = 'succeeded'
           break
@@ -1166,7 +1184,7 @@ Downloads are never implicit: the driven session denies page-initiated downloads
               })
               const landedState =
                 state === 'hidden' ? 'hidden/gone' : state === 'visible' ? 'present and visible' : 'present (attached)'
-              result = `waitFor selector ${input.selector}: ${landedState} after ${Date.now() - t0}ms at ${s.page.url()}`
+              result = `waitFor selector ${input.selector}: ${landedState} after ${Date.now() - t0}ms at ${pageWhere(s)}`
             } else if (input.text !== undefined) {
               await s.page.waitForFunction(
                 (needle: string) => {
@@ -1176,7 +1194,7 @@ Downloads are never implicit: the driven session denies page-initiated downloads
                 { timeout: deadline, polling: 'raf', signal: signalFor(s) },
                 input.text,
               )
-              result = `waitFor text "${preview(input.text)}": present after ${Date.now() - t0}ms at ${s.page.url()}`
+              result = `waitFor text "${preview(input.text)}": present after ${Date.now() - t0}ms at ${pageWhere(s)}`
             } else if (s.nav.seq > s.nav.seen) {
               await s.page
                 .waitForFunction(() => document.readyState !== 'loading', {
@@ -1185,7 +1203,7 @@ Downloads are never implicit: the driven session denies page-initiated downloads
                   signal: signalFor(s),
                 })
                 .catch(() => {})
-              result = `waitFor navigation: already landed at ${s.page.url()} (${Date.now() - t0}ms — the navigation completed during the previous act)`
+              result = `waitFor navigation: already landed at ${pageWhere(s)} (${Date.now() - t0}ms — the navigation completed during the previous act)`
             } else {
               await s.page.waitForNavigation({
                 waitUntil: 'domcontentloaded',
@@ -1196,7 +1214,7 @@ Downloads are never implicit: the driven session denies page-initiated downloads
             }
           } catch (err) {
             if ((err as Error).name === 'TimeoutError') {
-              result = `waitFor ${waited}: deadline ${deadline}ms exceeded (the event never arrived) at ${s.page.url()}`
+              result = `waitFor ${waited}: deadline ${deadline}ms exceeded (the event never arrived) at ${pageWhere(s)}`
               outcome = 'failed'
               break
             }
@@ -1235,6 +1253,11 @@ Downloads are never implicit: the driven session denies page-initiated downloads
             result = 'back: no earlier history entry'
             break
           }
+          if (isBrowserErrorPage(after)) {
+            result = failedNavigationWords('back', s, 'the earlier page')
+            outcome = 'failed'
+            break
+          }
           const backStatus = response === null ? '' : ` [${response.status()}]`
           result = `back: ${after}${backStatus} — ${await s.page.title()}`
           outcome = 'succeeded'
@@ -1254,11 +1277,17 @@ Downloads are never implicit: the driven session denies page-initiated downloads
             break
           }
           s.nav.seen = s.nav.seq
+          const reloading = s.navFailure.last?.url ?? s.page.url()
           const reloadResponse = await s.page.reload({
             waitUntil: input.waitUntil ?? 'load',
             timeout: Math.min(Math.max(input.timeoutMs ?? 30_000, 1000), NAVIGATION_CAP_MS),
             signal: signalFor(s),
           })
+          if (isBrowserErrorPage(s.page.url())) {
+            result = failedNavigationWords('reload', s, reloading)
+            outcome = 'failed'
+            break
+          }
           const reloadStatus =
             reloadResponse === null
               ? ''
@@ -1322,7 +1351,7 @@ Downloads are never implicit: the driven session denies page-initiated downloads
               .map(o => `${o.value} "${(o.label ?? '').trim()}"`)
               .join(', '),
           )
-          result = `select ${input.selector} (by ${via}): now ${chosen} at ${s.page.url()}`
+          result = `select ${input.selector} (by ${via}): now ${chosen} at ${pageWhere(s)}`
           outcome = 'succeeded'
           break
         }
@@ -1352,7 +1381,7 @@ Downloads are never implicit: the driven session denies page-initiated downloads
           } finally {
             for (const m of [...mods].reverse()) await s.page.keyboard.up(m)
           }
-          result = `press ${[...mods, input.key].join('+')} at ${s.page.url()}`
+          result = `press ${[...mods, input.key].join('+')} at ${pageWhere(s)}`
           outcome = 'succeeded'
           break
         }
@@ -1372,7 +1401,7 @@ Downloads are never implicit: the driven session denies page-initiated downloads
           s.nav.seen = s.nav.seq
           const handle = await resolveActTarget(s, input.selector!, actDeadline(input), signalFor(s))
           await handle.hover()
-          result = `hover ${input.selector} at ${s.page.url()}`
+          result = `hover ${input.selector} at ${pageWhere(s)}`
           outcome = 'succeeded'
           break
         }
@@ -1399,7 +1428,7 @@ Downloads are never implicit: the driven session denies page-initiated downloads
             input.deviceScaleFactor !== undefined ? Math.min(Math.max(input.deviceScaleFactor, 1), 3) : undefined
           await s.page.setViewport({ width, height, ...(dsf !== undefined ? { deviceScaleFactor: dsf } : {}) })
           const vp = s.page.viewport()
-          result = `viewport: ${vp?.width}x${vp?.height}${vp?.deviceScaleFactor ? ` @${vp.deviceScaleFactor}x` : ''} at ${s.page.url()}`
+          result = `viewport: ${vp?.width}x${vp?.height}${vp?.deviceScaleFactor ? ` @${vp.deviceScaleFactor}x` : ''} at ${pageWhere(s)}`
           outcome = 'succeeded'
           break
         }
@@ -1416,10 +1445,10 @@ Downloads are never implicit: the driven session denies page-initiated downloads
             const text = root
               ? await root.evaluate(el => (el as HTMLElement).innerText)
               : await s.page.$eval('body', el => (el as HTMLElement).innerText)
-            result = capExtract(`extract text (${scope}) at ${s.page.url()}`, text, input.offset ?? 0)
+            result = capExtract(`extract text (${scope}) at ${pageWhere(s)}`, text, input.offset ?? 0)
           } else {
             const snapshot = await s.page.accessibility.snapshot({ includeIframes: true, ...(root ? { root } : {}) })
-            result = capExtract(`extract tree (${scope}) at ${s.page.url()}`, serializeAxTree(snapshot), input.offset ?? 0)
+            result = capExtract(`extract tree (${scope}) at ${pageWhere(s)}`, serializeAxTree(snapshot), input.offset ?? 0)
           }
           break
         }
@@ -1454,7 +1483,9 @@ Downloads are never implicit: the driven session denies page-initiated downloads
             ? originApproved(owner, origin)
               ? ' (approved this session)'
               : ' (NOT approved — acts will ask)'
-            : ''
+            : isBrowserErrorPage(s.page.url())
+              ? ` (${errorPageWords(s)})`
+              : ''
           const vp = s.page.viewport()
           result = [
             `url: ${s.page.url()}`,
@@ -1494,7 +1525,7 @@ Downloads are never implicit: the driven session denies page-initiated downloads
             }
           }
           const vp = s.page.viewport()
-          result = `screenshot: ${file}${input.selector ? ` (element ${input.selector})` : ''} (${s.page.url()}, viewport ${vp?.width}x${vp?.height})${sizeNote}`
+          result = `screenshot: ${file}${input.selector ? ` (element ${input.selector})` : ''} (${pageWhere(s)}, viewport ${vp?.width}x${vp?.height})${sizeNote}`
           outcome = 'succeeded'
           break
         }
