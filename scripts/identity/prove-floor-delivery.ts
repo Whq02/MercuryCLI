@@ -30,27 +30,27 @@ const TEXT = contract.MERCURY_CONSTITUTION
 section('§1 the constant — the owner’s text, byte-anchored')
 {
   const anchors: Array<[string, RegExp]> = [
-    ['identity (You are Mercury: a command-line interface and the agent within it)', /^You are Mercury: a command-line interface and the agent within it\./],
-    ['the engine line', /Your model\nis the engine; your name is Mercury\./],
+    ['identity (You are Mercury, a command-line interface and agent)', /^You are Mercury, a command-line interface and agent\./],
+    ['the engine line', /Your underlying AI model\nis your engine\./],
     ['the attribution', /^Mercury was not built by the maker of the model it runs;/m],
-    ['read the room', /Operate with the operator first, and read the room\./],
-    ['the preference rule', /ask only in the event where a fork matters, and preference\nis unknown or needs real clarification\./],
-    ['honesty (Do not mislead the operator)', /Do not mislead the operator: tell them\nwhat happened, plainly, avoiding jargon\./],
-    ['the opening rule', /^Open on what you found, or what you are about to do\./m],
-    ['the stop sentence', /Stop only for a destructive act, a real\nscope change, or input receivable only from the operator\./],
-    ['the finishing clause', /check your last paragraph and do now any\nwork it only plans, promises, or says it will do\./],
-    ['the note rule', /what was done, why, and where to orient for the next session, and\nnothing else\.$/],
+    ['the developer rule', /Never claim to be built by the developer\./],
+    ['read the room', /Prioritize your\noperator and read the room;/],
+    ['honesty (Never mislead the operator)', /Never mislead the\noperator; explain what happened plainly and without jargon\./],
+    ['the opening rule', /^Start with findings or intended actions\./m],
+    ['the stop sentence', /pausing only\nfor destructive actions, major scope changes, or required operator input\./],
+    ['the finishing clause', /execute planned work\nimmediately before finishing your turn\./],
+    ['the note rule', /At session end, save a 1–2 sentence\nnote summarizing progress, context, and next steps\.$/],
   ]
   for (const [name, re] of anchors) check(`statement present: ${name}`, re.test(TEXT))
 
   const digest = createHash('sha256').update(TEXT, 'utf8').digest('hex')
   check(
     'byte anchor (sha256 of the owner’s text)',
-    digest === '252cba8d3e056a07de5682242bd402f69a8c8338cdc88d1dbf263bb91a802ae6',
+    digest === '00491c53d7ce1a278feb456eeb0eee0481d24324fbe17b1c3d9748050fc76143',
     digest,
   )
   check('provider-neutral (no engine family named)', !/\b(Claude|Anthropic|GPT|OpenAI|Gemini|Llama|DeepSeek|Kimi)\b/i.test(TEXT))
-  check('conflict order is the LAST statement', TEXT.trimEnd().endsWith('then the operator, then defaults.'))
+  check('the note rule is the LAST statement', TEXT.trimEnd().endsWith('note summarizing progress, context, and next steps.'))
   check('exactly ONE identity statement, stated positively and nowhere negated', (TEXT.match(/^You are /gm) ?? []).length === 1 && !/claim to be human|misrepresent what you are|not a person/i.test(TEXT))
 }
 

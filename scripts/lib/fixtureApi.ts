@@ -15,7 +15,7 @@ export function saidBlock(words: string): string {
   return JSON.stringify({ text: words }).slice(1, -1)
 }
 
-export const HANDOFF_ASK_MARK = 'Leave the note for the next session'
+export const HANDOFF_ASK_MARK = 'Leave one note for the next session'
 
 export function handoffTurn(text: string = 'The note for the next session.'): ScriptedTurn {
   return { kind: 'text', text, whenBody: HANDOFF_ASK_MARK }

@@ -41,7 +41,7 @@ const handoffModule = await import('../../src/mneme/handoffAsk.ts').catch(() => 
 const entryModule = await import('../../src/mneme/entryPage.ts').catch(() => null)
 const pathsModule = await import('../../src/mneme/paths.ts')
 const ledgerModule = await import('../../src/mneme/ledger.ts').catch(() => null)
-const HANDOFF_ASK: string = handoffModule?.HANDOFF_ASK ?? 'Leave the note for the next session of this work'
+const HANDOFF_ASK: string = handoffModule?.HANDOFF_ASK ?? 'Leave one note for the next session'
 const ENTRY_PAGE_HEADING: string = entryModule?.ENTRY_PAGE_HEADING ?? '# Lineage'
 const NO_NOTE_LEFT: string = entryModule?.NO_NOTE_LEFT ?? 'left no note'
 const mnemeProjectKeyFor: (root: string) => string = (pathsModule as { mnemeProjectKeyFor?: (root: string) => string }).mnemeProjectKeyFor ?? absent('mnemeProjectKeyFor')
@@ -121,7 +121,7 @@ if (!existsSync(DIST)) {
   section('§1 the first session: no record at the start; asked for its note at the end; the note stored exactly as written; the answer untouched')
   const one = await session(SID1, 'first probe', [
     { kind: 'text', text: 'ANSWER-ONE', whenBody: 'first probe' },
-    { kind: 'text', text: NOTE_ONE, whenBody: 'Leave the note for the next session' },
+    { kind: 'text', text: NOTE_ONE, whenBody: 'Leave one note for the next session' },
   ])
   check('the run exits 0 and its outcome row answers the operator\'s prompt, not the note', one.exit === 0 && answeredWith(one.stdout, 'ANSWER-ONE') && !answeredWith(one.stdout, NOTE_ONE), `exit=${one.exit} stderr=${one.stderr.slice(0, 300)}`)
   check('two requests reached the engine: the turn, then the ask', one.requests.length === 2, `${one.requests.length}`)
@@ -142,7 +142,7 @@ if (!existsSync(DIST)) {
   section('§2 the second session: the page composed from the ledger rides the system prompt, apart from the operator\'s words')
   const two = await session(SID2, 'second probe', [
     { kind: 'text', text: 'ANSWER-TWO', whenBody: 'second probe' },
-    { kind: 'text', text: 'NOTE-TWO', whenBody: 'Leave the note for the next session' },
+    { kind: 'text', text: 'NOTE-TWO', whenBody: 'Leave one note for the next session' },
   ])
   check('the second run answers its own prompt', two.exit === 0 && answeredWith(two.stdout, 'ANSWER-TWO'), `exit=${two.exit} stderr=${two.stderr.slice(0, 300)}`)
   const first = two.requests.find(r => j(r.body).includes('second probe'))

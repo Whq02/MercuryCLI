@@ -30,12 +30,13 @@ console.log('============================================================')
 
 section('the constitution — content')
 check('the constitution is a non-empty string', typeof MERCURY_CONSTITUTION === 'string' && MERCURY_CONSTITUTION.length > 0)
-check('it opens on who the seat is', MERCURY_CONSTITUTION.startsWith('You are Mercury: a command-line interface and the agent within it.'))
+check('it opens on who the seat is', MERCURY_CONSTITUTION.startsWith('You are Mercury, a command-line interface and agent.'))
 check('it names Mercury once as the identity and states nothing the seat is not', (MERCURY_CONSTITUTION.match(/^You are /gm) ?? []).length === 1 && !/claim to be human|misrepresent what you are|not a person/i.test(MERCURY_CONSTITUTION))
-check('it states the operator relation (read the room; their stated preferences ahead of defaults)', /Read the room/.test(MERCURY_CONSTITUTION) && /their stated preferences ahead of defaults/.test(MERCURY_CONSTITUTION))
-check('it states the honesty and gate lines (report plainly; a real gate respected and named, never worked around)', /Report what actually happened, plainly/.test(MERCURY_CONSTITUTION) && /A real safety, permission or capability gate is respected and\nnamed, never worked around/.test(MERCURY_CONSTITUTION))
+check('it states the operator relation (read the room; operator preferences over generic defaults)', /read the room/.test(MERCURY_CONSTITUTION) && /operator preferences over generic defaults/.test(MERCURY_CONSTITUTION))
+check('it states the honesty line (never mislead the operator; plainly and without jargon)', /Never mislead the
+operator; explain what happened plainly and without jargon\./.test(MERCURY_CONSTITUTION))
 check('it is provider-neutral (no model-family identity — cross-provider law)', !/Claude|Anthropic|GPT|OpenAI/.test(MERCURY_CONSTITUTION))
-check('the precedence tie-break is its last statement', MERCURY_CONSTITUTION.endsWith('When instructions conflict: safety and honesty\nfirst, then the operator, then defaults.'))
+check('the note rule is its last statement', MERCURY_CONSTITUTION.endsWith('note summarizing progress, context, and next steps.'))
 
 section('model-wake: the constitution is a static section; getMercuryContractSections() carries no identity or doctrine')
 const secs = getMercuryContractSections()

@@ -122,29 +122,31 @@ try {
   {
     const digest = createHash('sha256').update(TEXT, 'utf8').digest('hex')
     check('the contract module exports the constitution', TEXT.length > 0)
-    check('byte anchor (sha256 of the constitution)', digest === '252cba8d3e056a07de5682242bd402f69a8c8338cdc88d1dbf263bb91a802ae6', digest)
-    check('285 words, 1621 characters, no trailing newline', TEXT.split(/\s+/).length === 285 && TEXT.length === 1621 && !TEXT.endsWith('\n'))
-    check('opens on who the seat is', TEXT.startsWith('You are Mercury: a command-line interface and the agent within it.'))
-    check('closes on the note rule', TEXT.endsWith('what was done, why, and where to orient for the next session, and\nnothing else.'))
+    check('byte anchor (sha256 of the constitution)', digest === '00491c53d7ce1a278feb456eeb0eee0481d24324fbe17b1c3d9748050fc76143', digest)
+    check('170 words, 1117 characters, no trailing newline', TEXT.split(/\s+/).length === 170 && TEXT.length === 1117 && !TEXT.endsWith('\n'))
+    check('opens on who the seat is', TEXT.startsWith('You are Mercury, a command-line interface and agent.'))
+    check('closes on the note rule', TEXT.endsWith('note summarizing progress, context, and next steps.'))
     const laws: Array<[string, string]> = [
-      ['the engine line', 'Your model\nis the engine; your name is Mercury.'],
+      ['the engine line', 'Your underlying AI model\nis your engine.'],
       ['the attribution', 'Mercury was not built by the maker of the model it runs'],
-      ['read the room', 'Operate with the operator first, and read the room.'],
-      ['the preference rule', 'Follow their stated preferences ahead of\ngeneric defaults; ask only in the event where a fork matters'],
-      ['the honesty line', 'Do not mislead the operator: tell them\nwhat happened, plainly, avoiding jargon.'],
-      ['the opening rule', 'Open on what you found, or what you are about to do.'],
-      ['the assumption rule', 'act\nand name the assumption you made.'],
-      ['the stop sentence', 'Stop only for a destructive act, a real\nscope change, or input receivable only from the operator.'],
-      ['the evidence rule', 'Claim only what a\ntool result shows, name what is not verified'],
-      ['the finishing clause', 'check your last paragraph and do now any\nwork it only plans, promises, or says it will do.'],
-      ['the idle rule', 'never holding it open with sleeps, timers, or\nwasted time.'],
-      ['the note rule', 'keep a concise, one-to-two-sentence note\nif needed: what was done, why, and where to orient for the next session'],
+      ['the developer rule', 'Never claim to be built by the developer.'],
+      ['read the room', 'Prioritize your\noperator and read the room'],
+      ['the preference rule', 'operator preferences over generic defaults'],
+      ['the honesty line', 'Never mislead the\noperator; explain what happened plainly and without jargon.'],
+      ['the opening rule', 'Start with findings or intended actions.'],
+      ['the outcome rule', 'state the\noutcome first, followed by relevant details and a single-line verification\nnote.'],
+      ['the assumption rule', 'Act on sufficient information while stating assumptions'],
+      ['the stop sentence', 'pausing only\nfor destructive actions, major scope changes, or required operator input.'],
+      ['the evidence rule', 'Base\nclaims strictly on tool outputs and state what remains unverified'],
+      ['the finishing clause', 'execute planned work\nimmediately before finishing your turn.'],
+      ['the idle rule', 'Conclude turns when work settles or\nwhen instructed to idle, without delays.'],
+      ['the note rule', 'At session end, save a 1–2 sentence\nnote summarizing progress, context, and next steps.'],
     ]
     for (const [name, words] of laws) check(`carries ${name}`, TEXT.includes(words))
     check('exactly one identity statement', (TEXT.match(/^You are /gm) ?? []).length === 1)
     check('names no engine family', !/\b(Claude|Anthropic|GPT|OpenAI|Gemini|Llama|DeepSeek|Kimi|Qwen|Mistral|Grok)\b/i.test(TEXT))
     check('negates nothing about what the seat is', !/claim to be human|misrepresent what you are|not a person|not the model|not human/i.test(TEXT))
-    check('the only module that states the identity is the contract module', SRC('src/prompt/mercuryContract.ts').includes('You are Mercury: a command-line interface and the agent within it.'))
+    check('the only module that states the identity is the contract module', SRC('src/prompt/mercuryContract.ts').includes('You are Mercury, a command-line interface and agent.'))
   }
 
   section('§2 the shipped composition — the head, the constitution as its own segment, then the facts, nothing of the prose')
