@@ -194,9 +194,16 @@ type EditResult = {
   structuredPatch?: PatchHunk[]
   type?: string
   content?: string
+  outcome?: string
+  changeView?: { state?: string; files?: Array<{ file: string; added: number; removed: number }> }
 }
 
-function statsBetween(
+function createdLineCount(content: string): number {
+  if (content === '') return 0
+  return content.split('\n').length - (content.endsWith('\n') ? 1 : 0)
+}
+
+export function statsBetween(
   messages: Message[],
   fromUuid: string,
   toUuid: string | undefined,
@@ -218,11 +225,21 @@ function statsBetween(
       | EditResult
       | undefined
     if (!result || typeof result !== 'object') continue
+    if (result.changeView !== undefined && Array.isArray(result.changeView.files)) {
+      if (result.changeView.state === 'applied' && result.outcome === 'succeeded') {
+        for (const changed of result.changeView.files) {
+          files.add(changed.file)
+          insertions += changed.added
+          deletions += changed.removed
+        }
+      }
+      continue
+    }
     const filePath = result.filePath ?? result.file_path
     if (typeof filePath !== 'string') continue
     if (result.type === 'create' && typeof result.content === 'string') {
       files.add(filePath)
-      insertions += result.content.split('\n').length
+      insertions += createdLineCount(result.content)
       continue
     }
     if (!Array.isArray(result.structuredPatch)) continue

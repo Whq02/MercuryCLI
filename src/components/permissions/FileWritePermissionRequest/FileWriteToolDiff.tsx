@@ -65,6 +65,7 @@ export function FileWriteToolDiff({
       return { hunks: plan.hunks, body: null, hidden: plan.hiddenLines }
     }
     const lines = (content || '(No content)').split('\n')
+    if (lines.length > 1 && lines[lines.length - 1] === '') lines.pop()
     const plan = boundLines(lines, filePaintWidth(bodyWidth, lines.length), budget)
     return { hunks: null, body: plan.lines.join('\n'), hidden: plan.hiddenLines }
   }, [hunks, content, bodyWidth, budget])

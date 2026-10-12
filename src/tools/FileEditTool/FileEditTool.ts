@@ -91,13 +91,10 @@ import {
 import { findSection, planAppend, planSectionEdit, sectionHeadingOf } from './sectionEdit.js'
 import {
   EDIT_RESULT_CLOSE,
-  anchorShownWindows,
   buildEditedLines,
   editResultHead,
   matchRangesOf,
   notUniqueMessage,
-  planShownWindows,
-  renderShownWindows,
   spellNamedRanges,
 } from './editResult.js'
 import {
@@ -259,8 +256,6 @@ function readCoversRanges(entry: FileState, ranges: { start: number; end: number
 
 const READ_RANGES_NAMED = 5
 
-type CarriedLines = { ranges: LineRange[]; rest: LineRange[]; text: string }
-
 type Carry = { windows: CarriedWindow[]; ranges: LineRange[]; rest: LineRange[]; generation: string }
 
 function planCarry(content: string, expandedPath: string, gaps: readonly LineRange[]): ReadThroughPlan {
@@ -405,13 +400,10 @@ function sameCallReadThrough(gaps: readonly LineRange[], before: string, after: 
 type NotUniqueRefusal = { result: false; behavior: 'ask'; message: string; errorCode: 9; meta: Record<string, string> }
 
 function notUniqueRefusal(
-  context: ToolUseContext,
-  expandedPath: string,
   currentContent: string,
   oldString: string,
   replaceAll: boolean,
   located: Exclude<ActualMatchOutcome, { kind: 'none' }>,
-  generationAtStat: string | null,
 ): NotUniqueRefusal | null {
   let matches: LineRange[]
   let spelling: 'same' | 'differs'
@@ -423,23 +415,11 @@ function notUniqueRefusal(
     if (matches.length < 2 || replaceAll) return null
     spelling = 'same'
   }
-  const lineCount = lineCountOf(currentContent)
-  const planned = planShownWindows(currentContent, widenLineRanges(matches, READ_THROUGH_MARGIN, lineCount), expandedPath)
-  const recorded = generationAtStat !== null && fileGeneration(expandedPath) === generationAtStat
-  if (recorded) recordCarry(ownerFromToolUseContext(context), expandedPath, generationAtStat, planned)
-  const shownRanges = planned.map(window => ({ start: window.start, end: window.end }))
-  const covered = (match: LineRange): boolean => shownRanges.some(range => range.start <= match.start && match.end <= range.end)
-  let shownMatches = 0
-  while (shownMatches < matches.length && covered(matches[shownMatches]!)) shownMatches++
-  const next = shownMatches < matches.length ? matches[shownMatches]! : null
-  const windows = recorded
-    ? renderShownWindows(anchorShownWindows(planned.map(window => ({ start: window.start, rows: window.content.split('\n') })), { lineCount, text: currentContent }))
-    : ''
   return {
     result: false,
     behavior: 'ask',
     errorCode: 9,
-    message: notUniqueMessage({ count: matches.length, road: located.road, spelling, replaceAll, matches, lineCount, shownMatches, next, recorded, windows, oldString }),
+    message: notUniqueMessage({ count: matches.length, road: located.road, spelling, replaceAll, matches, lineCount: lineCountOf(currentContent), oldString }),
     meta: { oldString, ...(located.kind === 'found' ? { actualOldString: located.actual } : {}), matchLines: spellNamedRanges(matches) },
   }
 }
@@ -493,7 +473,7 @@ function readLinesOf(entry: FileState | undefined, currentContent: string, inclu
   return { ranges: coalesceLineRanges(ranges), recorded, ledger: currentLedger, earlier, attachmentOnly }
 }
 
-function readKnowledgeWords(displayPath: string, read: ReadLines, addressed: LineRange[] | null, missing: string, carried: CarriedLines | null = null, retry = 'edit again without a Read.'): string {
+function readKnowledgeWords(displayPath: string, read: ReadLines, addressed: LineRange[] | null, missing: string): string {
   const named = read.ranges.slice(0, READ_RANGES_NAMED)
   const rest = read.ranges.length - named.length
   let reads: string
@@ -503,11 +483,11 @@ function readKnowledgeWords(displayPath: string, read: ReadLines, addressed: Lin
     reads = `Lines of ${displayPath} read this session: ${spellLineRanges(named)}${rest > 0 ? ` (and ${rest} more ${plural(rest, 'range')})` : ''}`
     if (read.earlier) reads += ', plus a read of the file before it last changed'
   } else if (read.earlier) {
-    reads = `The lines of ${displayPath} read this session were of the file before it last changed`
+    return `The lines of ${displayPath} read this session were of the file before it last changed — a Read of the file shows what stands.`
   } else if (read.attachmentOnly) {
-    reads = `No lines of ${displayPath} were read this session (an automatic attachment showed part of it, which is not a read)`
+    return `No lines of ${displayPath} were read this session (an automatic attachment showed part of it, which is not a read) — a Read of the file shows what stands.`
   } else {
-    reads = `No lines of ${displayPath} were read this session`
+    return `No lines of ${displayPath} were read this session — a Read of the file shows what stands.`
   }
   if (addressed === null || addressed.length === 0) {
     return `${reads}; ${missing}, so the lines the edit touches are unknown — a Read of the file shows what stands.`
@@ -515,13 +495,6 @@ function readKnowledgeWords(displayPath: string, read: ReadLines, addressed: Lin
   const one = addressed.length === 1 && addressed[0]!.start === addressed[0]!.end
   const touches = `the edit touches ${one ? 'line' : 'lines'} ${spellLineRanges(addressed)}`
   const gaps = linesOutside(addressed, read.ranges)
-  if (carried !== null && carried.ranges.length > 0) {
-    const oneBelow = carried.ranges.length === 1 && carried.ranges[0]!.start === carried.ranges[0]!.end
-    const below = `${oneBelow ? 'line' : 'lines'} ${spellLineRanges(carried.ranges)} ${oneBelow ? 'is' : 'are'} below and ${oneBelow ? 'counts' : 'count'} as read`
-    if (carried.rest.length === 0) return `${reads}; ${touches} — ${below}: ${retry}`
-    const next = carried.rest[0]!
-    return `${reads}; ${touches} — ${below}; Read(offset: ${next.start}, limit: ${next.end - next.start + 1}) covers the rest${carried.rest.length > 1 ? ` (unread: ${spellLineRanges(carried.rest)})` : ''}, then edit again.`
-  }
   const first = gaps[0] ?? addressed[0]!
   const covers =
     gaps.length === 0
@@ -536,7 +509,7 @@ function readKnowledgeWords(displayPath: string, read: ReadLines, addressed: Lin
 
 type ReadKnowledge =
   | { verdict: 'known' }
-  | { verdict: 'refused'; message: string }
+  | { verdict: 'refused'; message: string; unread: boolean }
   | { verdict: 'carry'; gaps: LineRange[]; carry: Carry }
 
 const READ_NEED = 'a prior read of the current content (a Read of the lines it touches, or expected_anchor from a full Read of the file as it stands)'
@@ -550,7 +523,7 @@ function readKnowledge(
   touched: { start: number; end: number }[] | null,
   includeRead: boolean | 'content' = true,
   named?: { lines: LineRange[] | null; missing: string; hunks?: boolean },
-  carry?: { generation: string | null; record: boolean },
+  carry?: { generation: string | null },
 ): ReadKnowledge {
   const entry = context.readFileState.get(expandedPath)
   if (includeRead === true && entry !== undefined && readCoversRanges(entry, touched)) return { verdict: 'known' }
@@ -589,33 +562,23 @@ function readKnowledge(
       throw new Error(`Read-knowledge carry failed for ${displayPath}: ${error instanceof Error ? error.message : String(error)}. No edit was applied; Read the addressed lines before retrying.`, { cause: error })
     }
     if (planned !== null && planned.rest.length === 0 && admissible) return { verdict: 'carry', gaps, carry: planned }
-    if (planned !== null && carry.record) recordCarry(owner, expandedPath, planned.generation, planned.windows)
   }
-  const carried: CarriedLines | null = planned === null ? null : { ranges: planned.ranges, rest: planned.rest, text: renderCarriedWindows(planned.windows) }
-  const full = carried !== null && carried.rest.length === 0
-  const retry = anchorFailed || outsideBound ? 'edit again with a carried anchor, without a Read.' : 'edit again without a Read.'
   const failed = [
     ...(anchor !== null && !anchor.ok ? [`Anchor check failed: ${formatAnchorFailure(anchor, expectedAnchor!)}`] : []),
     ...(generation === null ? ['File generation check failed: the current generation could not be read.'] : read.earlier ? ['File generation check failed: earlier read coverage belongs to the file before it changed.'] : []),
     'Read ownership/coverage check failed: neither a recorded Read nor the current owner\'s ledger covers all addressed lines.',
   ].join(' ')
-  const words = readKnowledgeWords(displayPath, read, addressed, named?.missing ?? 'the old_string was not found in the current content', carried, retry)
-  const neverRead = read.ranges.length === 0 && !read.earlier
+  const unread = read.ranges.length === 0 && read.separate !== true
+  const neverRead = unread && !read.earlier
+  const words = readKnowledgeWords(displayPath, read, unread ? null : addressed, named?.missing ?? 'the old_string was not found in the current content')
   const why = neverRead ? `${UNREAD_EXISTING_FILE_NOTE}; ` : read.earlier ? "it changed after the lines you read, which may be another session's work; " : ''
   const others = why === '' ? '' : otherLiveSessionsClause()
-  const lead = !full
+  const lead = unread || (!anchorFailed && !outsideBound)
     ? `Read the file before editing it — ${why}the edit needs ${READ_NEED}.${others}`
     : anchorFailed
-      ? `expected_anchor does not match the file as it stands; the lines the edit touches are below with their current anchor and count as read: ${retry} The edit needs ${READ_NEED}.`
-      : outsideBound
-        ? `expected_anchor covers lines ${spellLineRanges([bound!])} only, not every line the edit touches; the lines the edit touches are below with their current anchor and count as read: ${retry} The edit needs ${READ_NEED}.`
-      : read.earlier
-        ? `The file ${displayPath} changed after the lines you read — the change may be another session's work; the lines the edit touches, as they stand now, are below and count as read: check them, then ${retry} The edit needs ${READ_NEED}.${others}`
-        : neverRead
-          ? `The file ${displayPath} was not read in this session, so it may be another session's work; the lines the edit touches are below and count as read: check them, then ${retry} The edit needs ${READ_NEED}.${others}`
-          : `The lines the edit touches are below and count as read: ${retry} The edit needs ${READ_NEED}.`
-  const law = `${lead} ${failed} ${words}`
-  return { verdict: 'refused', message: carried === null ? law : `${law}\n\n${carried.text}` }
+      ? `expected_anchor does not match the file as it stands — Read the lines the edit touches again and carry the anchor that Read returns. The edit needs ${READ_NEED}.`
+      : `expected_anchor covers lines ${spellLineRanges([bound!])} only, not every line the edit touches — Read the lines outside it, then edit again. The edit needs ${READ_NEED}.`
+  return { verdict: 'refused', message: `${lead} ${failed} ${words}`, unread }
 }
 
 function rangeAnchorWindow(anchor: string | undefined): LineRange | null {
@@ -942,10 +905,6 @@ export const FileEditTool = buildTool({
     }
 
     const located = mode === 'exact' ? locateActualString(currentContent, oldString) : null
-    if (located !== null && located.kind !== 'none') {
-      const notUnique = notUniqueRefusal(context, expandedPath, currentContent, oldString, input.replace_all === true, located, generationAtStat)
-      if (notUnique !== null) return notUnique
-    }
 
     const touched =
       mode === 'exact'
@@ -970,7 +929,12 @@ export const FileEditTool = buildTool({
                   ? "a hunk's line address does not parse"
                   : 'the old_string was not found in the current content',
             hunks: mode === 'hunks',
-          }, { generation: generationAtStat, record: true })
+          }, { generation: generationAtStat })
+    const refusedUnread = knowledge !== null && knowledge.verdict === 'refused' && knowledge.unread
+    if (located !== null && located.kind !== 'none' && !refusedUnread) {
+      const notUnique = notUniqueRefusal(currentContent, oldString, input.replace_all === true, located)
+      if (notUnique !== null) return notUnique
+    }
     if (knowledge !== null && knowledge.verdict === 'refused') {
       return {
         result: false as const,
@@ -1069,10 +1033,14 @@ export const FileEditTool = buildTool({
 
     const actualOldString = located !== null && located.kind === 'found' ? located.actual : null
     if (actualOldString === null) {
+      const composedElsewhere = oldString !== '' && currentContent.normalize('NFC').includes(oldString.normalize('NFC'))
+      const hint = composedElsewhere
+        ? ' The file spells this text with another Unicode composition of the same letters (accents stored as separate combining marks, or the reverse) — a Read of the lines carries the file\'s own spelling; copy old_string from it.'
+        : ''
       return {
         result: false as const,
         behavior: 'ask' as const,
-        message: `The old_string was not found in the file.\nString: ${oldString}`,
+        message: `The old_string was not found in the file.${hint}\nString: ${oldString}`,
         errorCode: 8,
         meta: { isPathAbsolute: String(isAbsolute(input.file_path)) },
       }
@@ -1147,7 +1115,7 @@ export const FileEditTool = buildTool({
         (isFullReadEntry(entry) && entry.content === freshContent)
       )
       if (!intact) {
-        const knowledge = readKnowledge(context, expandedPath, input.file_path, freshContent, input.expected_anchor, touched, 'content', undefined, { generation: fileGeneration(expandedPath), record: false })
+        const knowledge = readKnowledge(context, expandedPath, input.file_path, freshContent, input.expected_anchor, touched, 'content', undefined, { generation: fileGeneration(expandedPath) })
         if (knowledge.verdict === 'refused') throw new Error(modifiedSinceReadMessage())
         if (knowledge.verdict === 'carry') {
           recordCarry(ownerFromToolUseContext(context), expandedPath, knowledge.carry.generation, knowledge.carry.windows)

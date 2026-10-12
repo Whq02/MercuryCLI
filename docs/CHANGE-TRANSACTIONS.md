@@ -84,12 +84,17 @@ bought nothing, so there is none.
 The edit is refused instead when the file was never read this session, when
 it changed after the lines the model read, when `expected_anchor` no longer
 matches or, for hunks, covers only part of the lines addressed, or when the
-unread lines exceed a Read window. The refusal carries the lines the same
-way, recorded as displayed for the file's current generation, and its first
-sentence says what to do: edit again without a Read, check the carried lines
-first, edit again with a carried anchor, or read the window the refusal
-names for the rest. A file that changes on disk after the carry refuses
-again, with the lines of the new state.
+unread lines exceed a Read window. A refusal names the path and the reason
+and nothing of the file: no line of it, no anchor over it, and it records
+nothing, so the same call again is refused again until a Read. A file the
+session has no current knowledge of — never read, or read only before it
+last changed — gets one and the same refusal whatever the `old_string`,
+whether the text occurs once, twice or not at all; the refusal of a file a
+Read deny rule or the project boundary protects therefore tells the model
+nothing about it. With current knowledge of part of the file, the refusal
+names the lines read, the lines the edit touches and the `Read(offset,
+limit)` that covers the gap; a non-unique `old_string` names the line of
+every match and the Read that shows the first with its neighbours.
 
 The Edit tool's own write advances the ledger with it: the lines the model
 had read shift through the edit and the lines it wrote count as seen, at
@@ -137,6 +142,18 @@ configuration, data, and every file the registry cannot name (no
 extension, a dotfile, a suffix it does not know, a script whose first line
 names no language it knows) land byte for byte, a comment block inside a
 code file included.
+
+A write preserves what it did not change. Edit, Write and ChangeSet read
+the file's shape before writing it back: every untouched line keeps its
+own terminator, so a mixed file stays mixed and a CRLF file stays CRLF
+whatever spelling the model's text arrived in; a line the change adds takes
+the file's majority ending; a file that does not end with a newline keeps
+ending without one, an append included, and one that does keeps its final
+newline; a byte-order mark stays, a change on the first line included. A
+one-word change through any of the three is a one-line diff. Write on an
+existing file therefore takes its line endings from the file, never from
+the content: the same lines in another spelling settle as no change.
+Changing a file's line endings is a shell command's job.
 
 ## Change receipts
 

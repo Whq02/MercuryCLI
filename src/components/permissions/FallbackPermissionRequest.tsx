@@ -29,7 +29,9 @@ export function FallbackPermissionRequest({
   onDone,
   onReject,
   workerBadge,
-}: PermissionRequestProps): React.ReactNode {
+  title = 'Tool use',
+  body,
+}: PermissionRequestProps & { title?: string; body?: React.ReactNode }): React.ReactNode {
   const tool = toolUseConfirm.tool
 
   usePermissionRequestLogging(toolUseConfirm)
@@ -92,16 +94,18 @@ export function FallbackPermissionRequest({
   const suffix = isMcpNamed ? <Text dimColor>{MCP_SUFFIX}</Text> : null
 
   return (
-    <PermissionDialog title="Tool use" workerBadge={workerBadge}>
+    <PermissionDialog title={title} workerBadge={workerBadge}>
       <Box flexDirection="column">
-        {typeof useMessage === 'string' ? (
+        {body !== undefined ? (
+          body
+        ) : typeof useMessage === 'string' ? (
           <ConsentBodyText text={`${displayName}(${useMessage})`} after={suffix} />
         ) : (
           <Text>
             {displayName}({useMessage}){suffix}
           </Text>
         )}
-        <Text dimColor>{truncateToLines(toolUseConfirm.description, 3)}</Text>
+        {body !== undefined ? null : <Text dimColor>{truncateToLines(toolUseConfirm.description, 3)}</Text>}
         <PermissionRuleExplanation
           permissionResult={toolUseConfirm.permissionResult}
         />

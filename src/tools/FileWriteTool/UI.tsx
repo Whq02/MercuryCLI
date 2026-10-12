@@ -16,7 +16,7 @@ import { Box, Text } from '../../ink.js'
 import type { ToolResultBlockParam } from '../../types/wire.js'
 import { getPatchForDisplay } from '../../utils/diff.js'
 import { getDisplayPath } from '../../utils/file.js'
-import { extractTag } from '../../utils/messages.js'
+import { toolErrorReason } from '../../utils/toolErrorReason.js'
 import { readFileInRange, FileTooLargeError } from '../../utils/readFileInRange.js'
 import { countCharInString, firstLineOf, plural } from '../../utils/stringUtils.js'
 import { FILE_WRITE_TOOL_NAME } from './prompt.js'
@@ -270,12 +270,8 @@ export function renderToolUseErrorMessage(
   result: ToolResultBlockParam['content'],
   { verbose }: { verbose: boolean },
 ): React.ReactNode {
-  if (
-    !verbose &&
-    typeof result === 'string' &&
-    extractTag(result, 'tool_use_error') !== null
-  ) {
-    return <ShortErrorLine text="Error writing file" />
+  if (!verbose && typeof result === 'string') {
+    return <ShortErrorLine text={toolErrorReason(result, 'Error writing file')} />
   }
   return <FallbackToolUseErrorMessage result={result} verbose={verbose} />
 }

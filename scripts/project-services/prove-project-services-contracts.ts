@@ -69,7 +69,8 @@ section('A. FileEdit staleness + refusal laws (validateInput/call)')
     { file_path: filePath, old_string: 'const alpha = 1', new_string: 'const gamma = 1' } as never,
     makeContext(new Map()),
   )
-  check('A1b lines carried by the refusal count as current read evidence', carried.result === true)
+  check('A1b a refusal carries no line and records nothing: the next edit of the unread file refuses the same way (errorCode 6)',
+    carried.result === false && (carried as { errorCode?: number }).errorCode === 6 && !/\n\d+\t/.test(String((carried as { message?: string }).message ?? '')))
 
   const stalePath = join(fixtureDir, 'stale.ts')
   writeFileSync(stalePath, readFileSync(filePath, 'utf8'))

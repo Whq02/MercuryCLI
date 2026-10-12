@@ -102,52 +102,17 @@ const J = [
 const DIFFERING = 'def a():\n    if x:\n        y()\n\ndef b():\n  if x:\n      y()\n'
 
 const EXPECTED_NU_A = [
-  'Found 2 matches of the string to replace, but replace_all is false, so nothing was written. The matches are at lines 5, 9; they are below with their neighbours and count as read. To change one, send old_string again with a neighbouring line that differs between them; to change every match, set replace_all to true.',
-  '',
-  '2\tRETRIES = 3',
-  '3\t',
-  '4\tdef load():',
-  '5\t    timeout = TIMEOUT',
-  '6\t    return timeout',
-  '7\t',
-  '8\tdef save():',
-  '9\t    timeout = TIMEOUT',
-  '10\t    return timeout',
-  '(anchor: ra:ecc692b69d74:L2+9)',
+  'Found 2 matches of the string to replace, but replace_all is false, so nothing was written. The matches are at lines 5, 9; Read(offset: 2, limit: 7) shows the first with its neighbours. To change one, send old_string again with a neighbouring line that differs between them; to change every match, set replace_all to true.',
   '',
   'String:     timeout = TIMEOUT',
 ].join('\n')
 const EXPECTED_NU_J = [
-  'Found 2 matches of the string to replace, but replace_all is false, so nothing was written. The matches are at lines 5, 11; they are below with their neighbours and count as read. To change one, send old_string again with a neighbouring line that differs between them; to change every match, set replace_all to true.',
-  '',
-  '2\t',
-  '3\t',
-  '4\tdef connect(host):',
-  '5\t    retries = 3',
-  '6\t    return open_socket(host, retries)',
-  '7\t',
-  '8\t',
-  '9\tdef reconnect(host, wait):',
-  '10\t    if wait:',
-  '11\t        retries = 3',
-  '12\t        return open_socket(host, retries)',
-  '13\t    return None',
-  '14\t',
-  '(anchor: ra:c4301c7bb00d:L2+13)',
+  'Found 2 matches of the string to replace, but replace_all is false, so nothing was written. The matches are at lines 5, 11; Read(offset: 2, limit: 7) shows the first with its neighbours. To change one, send old_string again with a neighbouring line that differs between them; to change every match, set replace_all to true.',
   '',
   'String:     retries = 3',
 ].join('\n')
 const EXPECTED_NU_DIFF = [
-  'Found 2 matches of the string to replace, but they differ from each other in whitespace or characters; nothing was written. The matches (found after ignoring indentation) are at lines 2-3, 6-7; they are below with their neighbours and count as read. Send old_string spelled as the file spells the one you mean, with a neighbouring line if that spelling occurs more than once.',
-  '',
-  '1\tdef a():',
-  '2\t    if x:',
-  '3\t        y()',
-  '4\t',
-  '5\tdef b():',
-  '6\t  if x:',
-  '7\t      y()',
-  '(anchor: fa:b168c9e9362e)',
+  'Found 2 matches of the string to replace, but they differ from each other in whitespace or characters; nothing was written. The matches (found after ignoring indentation) are at lines 2-3, 6-7; Read(offset: 1, limit: 6) shows the first with its neighbours. Send old_string spelled as the file spells the one you mean, with a neighbouring line if that spelling occurs more than once.',
   '',
   'String: \tif x:',
   '\t\ty()',
@@ -155,7 +120,7 @@ const EXPECTED_NU_DIFF = [
 
 const texts: string[] = []
 
-section('N1-N2. (a\u2032) the file read in full: the refusal names both lines and shows them; the next call lands with no Read')
+section('N1-N2. (a\u2032) the file read in full: the refusal names both lines and the Read that shows the first, never the lines themselves; the next call lands with no Read')
 _resetSeenLinesForTesting()
 mkdirSync(join(fixtures, 'a_three'))
 const aPath = join(fixtures, 'a_three', 'config.py')
@@ -164,24 +129,29 @@ const aCtx = makeContext()
 await read({ file_path: aPath }, aCtx)
 const n1 = await edit({ file_path: aPath, old_string: '    timeout = TIMEOUT', new_string: '    timeout = TIMEOUT * 2' }, aCtx)
 texts.push(textOf(n1))
-check('N1 the refusal is the specification\'s a\u2032 text byte for byte, code 9 (RED on .28: no lines, "set replace_all to true" only)', !n1.ok && n1.message === EXPECTED_NU_A && codeOf(n1) === 9, textOf(n1))
+check('N1 the refusal is the specification\'s a\u2032 text byte for byte, code 9: the lines named, the Read that shows the first, no row of the file', !n1.ok && n1.message === EXPECTED_NU_A && codeOf(n1) === 9 && rowsOf(n1.message).length === 0, textOf(n1))
 check('N1b nothing was written', readFileSync(aPath, 'utf8') === CONFIG)
 check('N1c meta keeps oldString and actualOldString and adds matchLines', !n1.ok && n1.meta?.oldString === '    timeout = TIMEOUT' && n1.meta?.actualOldString === '    timeout = TIMEOUT' && n1.meta?.matchLines === '5, 9', JSON.stringify(n1.ok ? null : n1.meta))
 const n2 = await edit({ file_path: aPath, old_string: 'def save():\n    timeout = TIMEOUT', new_string: 'def save():\n    timeout = TIMEOUT * 2' }, aCtx)
 check('N2 with a neighbouring line and no Read between, the edit lands and HEAD ends "1 occurrence replaced; changed line 9 (the file has 10 lines)."', n2.ok && (n2.text.split('\n')[0] ?? '').endsWith('1 occurrence replaced; changed line 9 (the file has 10 lines).'), textOf(n2))
 
-section('N3. the file never read: the matches are counted first, every match\'s lines count as read, and the next call lands')
+section('N3. the file never read: the read law answers first with nothing of the file — no match count, no line numbers, no rows; after a Read the matches are named')
 _resetSeenLinesForTesting()
 const unreadPath = join(fixtures, 'a_three', 'unread.py')
 writeFileSync(unreadPath, CONFIG)
 const unreadCtx = makeContext()
 const n3 = await edit({ file_path: unreadPath, old_string: '    timeout = TIMEOUT', new_string: '    timeout = TIMEOUT * 2' }, unreadCtx)
-texts.push(textOf(n3))
-check('N3 the first answer is code 9 naming lines 5 and 9 and showing 2-10 (RED on .28: code 6, the first match\'s lines only, "edit again without a Read")', !n3.ok && codeOf(n3) === 9 && n3.message.includes('The matches are at lines 5, 9; they are below with their neighbours and count as read.') && rowsOf(n3.message).map(row => row.split('\t')[0]).join(',') === '2,3,4,5,6,7,8,9,10', `code ${codeOf(n3)}: ${textOf(n3)}`)
+check('N3 the first answer is the read law, code 6, with no match count, no line numbers and no row of the file (RED on the base: code 9, "Found 2 matches" and rows 2-10 of a file never read)', !n3.ok && codeOf(n3) === 6 && n3.message.startsWith('Read the file before editing it — it exists and was not read in this session') && !/Found \d+ matches/.test(n3.message) && !/lines 5, 9/.test(n3.message) && rowsOf(n3.message).length === 0, `code ${codeOf(n3)}: ${textOf(n3)}`)
 const n3b = await edit({ file_path: unreadPath, old_string: 'def save():\n    timeout = TIMEOUT', new_string: 'def save():\n    timeout = TIMEOUT * 2' }, unreadCtx)
-check('N3b the next call lands with no Read: one refusal, then a landing edit', n3b.ok && readFileSync(unreadPath, 'utf8').includes('def save():\n    timeout = TIMEOUT * 2\n'), textOf(n3b))
+check('N3b the next call without a Read is refused the same way: the refusal recorded nothing (RED on the base: the edit landed)', !n3b.ok && codeOf(n3b) === 6 && readFileSync(unreadPath, 'utf8') === CONFIG, textOf(n3b))
+await read({ file_path: unreadPath }, unreadCtx)
+const n3c = await edit({ file_path: unreadPath, old_string: '    timeout = TIMEOUT', new_string: '    timeout = TIMEOUT * 2' }, unreadCtx)
+texts.push(textOf(n3c))
+check('N3c after a Read the same call gets the not-unique refusal naming lines 5 and 9, code 9', !n3c.ok && codeOf(n3c) === 9 && n3c.message.includes('The matches are at lines 5, 9;'), textOf(n3c))
+const n3d = await edit({ file_path: unreadPath, old_string: 'def save():\n    timeout = TIMEOUT', new_string: 'def save():\n    timeout = TIMEOUT * 2' }, unreadCtx)
+check('N3d …and the widened old_string lands', n3d.ok && readFileSync(unreadPath, 'utf8').includes('def save():\n    timeout = TIMEOUT * 2\n'), textOf(n3d))
 
-section('N4. (j) the four-space trap: the rows show the eight spaces the model needs')
+section('N4. (j) the four-space trap: the refusal names the lines and the Read that shows the eight spaces the model needs')
 _resetSeenLinesForTesting()
 const jPath = join(fixtures, 'j_net.py')
 writeFileSync(jPath, J)
@@ -207,7 +177,7 @@ texts.push(textOf(n6))
 check('N6 with replace_all the message opens with the replace_all clause and names lines 2-3, 6-7', !n6.ok && n6.message.startsWith('Found 2 matches of the string to replace, but they differ from each other in whitespace or characters, so replace_all cannot rewrite them as one string; nothing was written.') && n6.message.includes('are at lines 2-3, 6-7'), textOf(n6))
 check('N6b nothing was written by either call', readFileSync(dPath, 'utf8') === DIFFERING)
 
-section('N7. the cap: thirty identical lines name twenty ranges, show at most sixty rows and point the Read at the next')
+section('N7. the cap: thirty identical lines name twenty ranges, show no row and point the Read at the first')
 _resetSeenLinesForTesting()
 {
   const path = join(fixtures, 'cap.py')
@@ -220,18 +190,14 @@ _resetSeenLinesForTesting()
   const named = /are at lines ([^;]*?), and (\d+) more;/.exec(textOf(n7))
   check('N7 L names 20 ranges, then ", and 10 more"', !n7.ok && n7.message.startsWith('Found 30 matches of the string to replace, but replace_all is false, so nothing was written.') && named !== null && named[1]!.split(', ').length === 20 && named[2] === '10', textOf(n7).split('\n')[0] ?? '')
   const rows = rowsOf(textOf(n7))
-  check('N7b at most 60 rows are shown', rows.length <= 60 && rows.length > 0, `${rows.length} rows`)
-  const shown = /the first (\d+) are below with their neighbours and count as read, and Read\(offset: (\d+), limit: (\d+)\) shows the next\./.exec(textOf(n7))
-  const shownNumbers = new Set(rows.map(row => Number(row.split('\t')[0])))
-  const matches = Array.from({ length: 30 }, (_, k) => 2 + 4 * k)
-  const fullyShown = matches.filter(line => shownNumbers.has(line)).length
-  const next = matches.find(line => !shownNumbers.has(line))
-  check('N7c SHOWN counts the matches shown and names the Read(offset, limit) that shows the next', shown !== null && Number(shown[1]) === fullyShown && next !== undefined && Number(shown[2]) === next - 3 && Number(shown[3]) === 7, shown?.[0] ?? textOf(n7).split('\n')[0] ?? '')
+  check('N7b no row of the file is shown (RED on the base: up to 60 rows)', rows.length === 0, `${rows.length} rows`)
+  check('N7c the words name the Read(offset, limit) that shows the first match with its neighbours', textOf(n7).includes('Read(offset: 1, limit: 5) shows the first with its neighbours.'), textOf(n7).split('\n')[0] ?? '')
 }
 
 section('N8. the bench\'s own error class matches every text, and the chokepoint counts error-9 in the edit-outcome ledger')
 {
   check('N8 every not-unique text matches /matches of the string to replace|is not unique|Found \\d+ matches/i', texts.length === 6 && texts.every(text => BENCH_CLASS.test(text)), texts.map(text => text.split('\n')[0]).join(' | '))
+  check('N8a no not-unique text carries a row of the file', texts.every(text => rowsOf(text).length === 0), texts.map(text => String(rowsOf(text).length)).join(','))
   _resetSeenLinesForTesting()
   const path = join(fixtures, 'ledger.py')
   writeFileSync(path, CONFIG)
@@ -245,7 +211,7 @@ section('N8. the bench\'s own error class matches every text, and the chokepoint
     agentType: undefined,
     agentId: undefined,
     toolDecisions: new Map(),
-    readFileState: new Map(),
+    readFileState: new Map([[path, { content: CONFIG, timestamp: Date.now() + 60_000, offset: undefined, limit: undefined }]]),
     userModified: false,
     updateFileHistoryState: () => {},
     dynamicSkillDirTriggers: new Set<string>(),
@@ -264,10 +230,10 @@ section('N8. the bench\'s own error class matches every text, and the chokepoint
   }
   const first = (updates[0] as { message?: { message?: { content?: Array<{ content?: unknown; is_error?: boolean }> } } } | undefined)?.message?.message?.content?.[0]
   const content = String(first?.content ?? '')
-  check('N8b through the real tool-call road the refusal is a tool_use_error that matches the bench class and names the lines', first?.is_error === true && content.startsWith('<tool_use_error>Found 2 matches of the string to replace') && content.includes('are at lines 5, 9;') && BENCH_CLASS.test(content), content.slice(0, 300))
+  check('N8b through the real tool-call road, on a file read in full, the refusal is a tool_use_error that matches the bench class, names the lines and shows no row', first?.is_error === true && content.startsWith('<tool_use_error>Found 2 matches of the string to replace') && content.includes('are at lines 5, 9;') && BENCH_CLASS.test(content) && rowsOf(content).length === 0, content.slice(0, 300))
   const rows = editOutcomeRows(ownerFromToolUseContext(ctx as never))
   const row = rows.find(r => r.model === 'proof-model-not-unique' && r.surface === 'edit')
-  check('N8c the edit-outcome ledger records error-9 for it (the one FORK 2 move: error-6 on .28 for a file not fully read)', row !== undefined && row.outcome === 'error-9' && row.count === 1, JSON.stringify(rows))
+  check('N8c the edit-outcome ledger records error-9 for it (a file read in full; an unread file answers error-6, the read law, before any match is counted)', row !== undefined && row.outcome === 'error-9' && row.count === 1, JSON.stringify(rows))
 }
 
 console.log(`\n${failures === 0 ? `ALL GREEN (${checks} checks)` : `${failures} FAILURE(S) of ${checks}`}`)
