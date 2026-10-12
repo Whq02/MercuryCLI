@@ -60,8 +60,8 @@ section('§1 the roster: Black and white is the third appearance, reachable and 
   process.env.TERM = 'xterm-256color'
   check('the ground owner never paints OSC 11 under it (the terminal keeps its own ground)', oasis.oasisBgEnabled(true, 'mono') === false)
   const picker = readFileSync(join(ROOT, 'src/components/ThemePicker.tsx'), 'utf8')
-  check('the picker labels the row Black and white', picker.includes("mono: 'Black and white'"))
-  check('the /config submenu labels it', readFileSync(join(ROOT, 'src/components/Settings/Config.tsx'), 'utf8').includes("mono: 'Black and white'"))
+  check('the one label owner names the row Black and white and the picker reads it', readFileSync(join(ROOT, 'src/utils/theme.ts'), 'utf8').includes("mono: 'Black and white'") && picker.includes('THEME_LABELS_BY_SETTING: Record<string, string> = THEME_LABELS') && themeMod.themeLabel('mono') === 'Black and white' && themeMod.themeLabel('dark') === 'Oasis dark')
+  check('the /config submenu reads the same owner', readFileSync(join(ROOT, 'src/components/Settings/Config.tsx'), 'utf8').includes("{ auto: 'auto', ...THEME_NAMES_BY_SETTING }"))
   check('the first-run fitting offers it', readFileSync(join(ROOT, 'src/components/Onboarding.tsx'), 'utf8').includes("value: 'mono'"))
   const provider = readFileSync(join(ROOT, 'src/components/design-system/ThemeProvider.tsx'), 'utf8')
   check('the root provider applies the depth in the render that carries the theme and restores it on unmount', provider.includes('if (ownsColorDepth) setMonochromeTheme(isMonochromeTheme(resolvedTheme))') && provider.includes('useLayoutEffect(') && provider.includes('setMonochromeTheme(false)'))
@@ -231,7 +231,7 @@ const chosen = await capture('chosen-mono', 'true-black', [
   { ...gate, awaitText: '❯ 2. True Black', data: DOWN },
   { ...gate, awaitText: '❯ 3. Black and white', awaitStableTicks: 3, data: '', mark: 'preview-mono' },
   { ...gate, awaitText: '❯ 3. Black and white', data: '\r' },
-  { ...gate, awaitText: 'Theme set to mono', awaitStableTicks: 3, data: '', mark: 'saved' },
+  { ...gate, awaitText: 'Theme set to Black and white', awaitStableTicks: 3, data: '', mark: 'saved' },
 ], 420)
 writeFrames(chosen)
 {
@@ -244,7 +244,7 @@ writeFrames(chosen)
   check('the picker opens focused on True Black with Black and white one row below', picker !== undefined && textOf(picker.grid).some(l => /[❯>] .*True Black/.test(l)) && textOf(picker.grid).some(l => l.includes('Black and white')), picker ? textOf(picker.grid).filter(l => /Black and white|True Black/.test(l)).join(' | ') : 'no picker mark')
   check('↓ onto Black and white previews it: every cell loses its colour at once', preview !== undefined && colouredCells(preview.grid) === 0, preview ? `${colouredCells(preview.grid)} coloured` : 'no preview mark')
   check('the bytes after the preview carry no colour sequence', colourSgrCount(bytesBetween(chosen, 'preview-mono', null)) === 0, `${colourSgrCount(bytesBetween(chosen, 'preview-mono', null))} colour sequences`)
-  check('enter saves it: the receipt names mono and the frame stays plain', saved !== undefined && textOf(saved.grid).some(l => l.includes('Theme set to mono')) && colouredCells(saved.grid) === 0, saved ? textOf(saved.grid).filter(l => l.includes('Theme set')).join(' | ') : 'no saved mark')
+  check('enter saves it: the receipt names Black and white, never the stored spelling, and the frame stays plain', saved !== undefined && textOf(saved.grid).some(l => l.includes('Theme set to Black and white')) && !textOf(saved.grid).some(l => l.includes('Theme set to mono')) && colouredCells(saved.grid) === 0, saved ? textOf(saved.grid).filter(l => l.includes('Theme set')).join(' | ') : 'no saved mark')
   check('the config home now stores mono', (JSON.parse(readFileSync(chosen.config, 'utf8')) as { theme?: string }).theme === 'mono')
 }
 

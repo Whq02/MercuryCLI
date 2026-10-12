@@ -37,7 +37,7 @@ const answers: Record<string, string[]> = {
   effort: ['Saved as your default for future sessions', 'saved as your default for future sessions'],
   vim: ['Editor mode set to ${next} — saved for later boots'],
   mouse: ['saved for later boots'],
-  appearance: ['Theme set to ${setting} — saved for later boots', 'decorative animation off, state changes stay visible; saved for later boots', 'decorative animation on; saved for later boots'],
+  appearance: ['Theme set to ${themeLabel(setting)} — saved for later boots', 'decorative animation off, state changes stay visible; saved for later boots', 'decorative animation on; saved for later boots'],
 }
 for (const [name, needles] of Object.entries(answers)) {
   const text = sourcesOf(join(COMMANDS, name)).map(file => readFileSync(file, 'utf8')).join('\n')

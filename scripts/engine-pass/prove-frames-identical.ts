@@ -110,6 +110,7 @@ families.push(
   { id: 'crew-tokens', paths: currentFrames.filter(path => path.startsWith('scripts/engine-connector/fixtures/crew-tokens/')), script: 'scripts/engine-connector/prove-crew-token-rows.ts', args: ['--frames', '$OUT'], output: file },
   { id: 'settings-popup-header', paths: currentFrames.filter(path => path.startsWith('scripts/ui/fixtures/settings-popup-header/')), script: 'scripts/ui/prove-settings-popup-header.ts', args: ['--frames', '$OUT'], output: file },
   { id: 'live-grids', paths: currentFrames.filter(path => path.startsWith('design-system/live/grids/')), script: 'scripts/ui/generate-visual-baseline.ts', args: ['--out', '$OUT', '--jobs', '1'], output: (path, dir) => readFileSync(join(dir, 'grids', basename(path))), judge: liveGridVerdict },
+  { id: 'session-start', paths: currentFrames.filter(path => /session-start-frames-/.test(path)), script: 'scripts/ui/prove-session-start-screen.ts', args: ['--pin', '--pin-dir', '$OUT'], output: file },
   { id: 'crew-screens', paths: currentFrames.filter(path => /crew-screens-frames-/.test(path)), script: 'scripts/ui/prove-crew-screens-unchanged.ts', args: ['--frames', '$OUT', '--jobs', '1'], judge: (path, actual, expected) => crewScreensVerdict(join(work, 'crew-screens'))(path, actual, expected), output: (path, dir) => {
     const size = /frames-(.*)\.json$/.exec(path)![1]!
     const stored = JSON.parse(readFileSync(join(ROOT, path), 'utf8')) as Record<string, string[]>

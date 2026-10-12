@@ -377,8 +377,8 @@ try:
     check('card renders at the standard tier (continue · menu · agents · health · logins · sessions)',
           'Continue Last Session' in plain and 'Boot Menu' in plain and 'Health Check' in plain
           and 'Agents' in plain and 'Logins' in plain and 'Sessions · Projects' in plain)
-    check('status strip present (Model · Theme · Dir)',
-          'Model' in plain and 'Theme' in plain and 'Dir' in plain)
+    check('status strip present (Model · Critter · Dir)',
+          'Model' in plain and 'Critter' in plain and 'Dir' in plain)
     check('ready line advertises the card (↑↓ choose) only when shown', '↑↓ choose' in plain)
     lines = vis_lines(raw)
     check('card tier fits 120 cols', all(len(l) <= 120 for l in lines),

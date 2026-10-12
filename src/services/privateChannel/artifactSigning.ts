@@ -158,7 +158,7 @@ export function describeSignatureVerdict(verdict: SignatureVerdict): string {
   switch (verdict.state) {
     case 'signed': {
       const lic = verdict.statement.licenseId ? ` · license-id ${verdict.statement.licenseId}` : ''
-      return `signed — key ${verdict.keyId} (${verdict.keyLabel}) · ${verdict.statement.version} · ${verdict.statement.channel}/${verdict.statement.target} · packaged ${verdict.statement.packagedAt}${lic}`
+      return `signed — key ${verdict.keyId} (${verdict.keyLabel}) · ${verdict.statement.version} for ${verdict.statement.target} · packaged ${verdict.statement.packagedAt}${lic}`
     }
     case 'unsigned':
       return 'unsigned — the payload manifest carries no signing block; provenance is unattested'
