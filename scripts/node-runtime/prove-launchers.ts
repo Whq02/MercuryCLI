@@ -229,10 +229,11 @@ section('(6) console UTF-8 + enter-screen chain — structural, all three')
       check(`${name} boots straight for the '${verb}' verb`, text.includes(verb))
     }
     check(`${name} still boots mercury.mjs with forwarded args`, text.includes('mercury.mjs'))
-    check(`${name} post-child heal resets focus tracking after the alt-screen exit`, text.includes('?1049l\\x1b[?1004l\\x1b[?25h'))
+    check(`${name} post-child heal resets focus tracking after the alt-screen exit`, name === 'POSIX' || text.includes('?1049l\\x1b[?1004l\\x1b[?25h'))
     const heals = text.split('\n').filter(l => l.includes('process.stdout.write(') && l.includes('?1049l'))
-    check(`${name} both heals open with ?2026l`, heals.length === 2 && heals.every(l => l.includes('\\x1b[?2026l\\x1b[0m')))
+    check(`${name} every heal opens with ?2026l (${heals.length} heal${heals.length === 1 ? '' : 's'})`, heals.length >= 1 && heals.every(l => l.includes('\\x1b[?2026l\\x1b[0m')))
   }
+  check('POSIX execs the runtime — one process, no wrapper pid (a signal to the started pid reaches the run; ctrl+z hands the terminal to the shell)', posix.includes('exec "$node_bin" "$dir/mercury.mjs" "$@"') && !/\nrt=\$\?/.test(posix))
   check('POSIX gates on BOTH stdin+stdout TTY', posix.includes('[ -t 0 ] && [ -t 1 ]'))
   check('POSIX carries no splash-action reader (BM-30 ratchet)', !posix.includes('IFS= read -r MERCURY_SA_ACT') && !posix.includes('rm -f "$MERCURY_SA_TXT"') && !posix.includes('SPLASH_ACTION_CONSUMER'))
   check('CMD carries no splash-action reader (BM-30 ratchet — the killer line)', !cmdT.includes('set /p "') && !cmdT.includes('<"%MERCURY_SA_HOME%') && !cmdT.includes('del /q "%MERCURY_SA_HOME%'))

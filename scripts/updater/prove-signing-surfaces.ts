@@ -76,7 +76,7 @@ try {
     'POSIX verify is bare-boot-gated (the takeover decision: no verb, no flag) + interactive-gated (TTY test) + presence-guarded',
     /\[ "\$MERCURY_TAKEOVER" = "1" \] && \[ -t 0 \] && \[ -t 2 \] && \[ -f "\$dir\/verify-artifact\.mjs" \]/.test(posix),
   )
-  check('POSIX verify runs BEFORE the runtime boot line', posix.indexOf('verify-artifact.mjs" --launcher') !== -1 && posix.indexOf('"$node_bin" "$dir/mercury.mjs" "$@"') !== -1 && posix.indexOf('verify-artifact.mjs" --launcher') < posix.indexOf('"$node_bin" "$dir/mercury.mjs" "$@"'))
+  check('POSIX verify runs BEFORE the runtime boot line', posix.indexOf('verify-artifact.mjs" --launcher') !== -1 && posix.indexOf('exec "$node_bin" "$dir/mercury.mjs" "$@"') !== -1 && posix.indexOf('verify-artifact.mjs" --launcher') < posix.indexOf('exec "$node_bin" "$dir/mercury.mjs" "$@"'))
 
   check('cmd launcher invokes the shipped verifier in --launcher mode', cmd.includes('verify-artifact.mjs" --launcher'))
   check(
