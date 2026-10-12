@@ -68,10 +68,14 @@ to trim. The line never appears in a crewmate's chat or in `mercury run`
 output. Crewmates receive the front page with the pinned rules.
 
 A rule you asked for is yours alone: the model cannot correct, replace or
-unpin it. Consolidation leaves it as said; you change or unpin it in
-`/memory`. For another pinned rule, a replacement names that rule's id and
-keeps the earlier text as history. Rules that merely share words are not a
-conflict — both stay.
+unpin it. Consolidation leaves it as said; you change it in `/memory`: under
+pinned rules, `↵` opens the rule and `c` corrects it — you retype it, the old
+wording goes to history linked to the new one, and the pin and its "asked for
+by you" mark follow the new wording; `u` unpins it. Once you have unpinned a
+rule it is a plain fact again: restate the rule in the chat and the model
+replaces it, so one rule stays current. For another pinned rule, a
+replacement names that rule's id and keeps the earlier text as history. Rules
+that merely share words are not a conflict — both stay.
 
 ## The journal
 
@@ -112,7 +116,9 @@ opens the sessions or the journal, runs maintenance now, takes the old notes
 in, opens the instruction files picker.
 
 A section opens in the body with the overview folded to a breadcrumb. The
-pinned rules and the topics are lists; `u` on a rule unpins it. The lineage
+pinned rules and the topics are lists; `↵` opens a rule (there `c` corrects
+it with its current wording in view, `x` retires it, `u` unpins it) and `u`
+on a rule in the list unpins it. The lineage
 is a table of the sessions of this work, newest first — session, engine,
 started, ended, and whether it left a note — and `↵` on a noted session
 opens its note. The journal is a dated list, newest first, and `↵` opens an

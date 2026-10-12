@@ -88,7 +88,15 @@ export function renderCorrectResult(output?: CorrectToolOutput): React.ReactNode
   if (!output) return null
   return (
     <MessageResponse>
-      {output.ok ? (
+      {output.ok && 'draft' in output ? (
+        <Text>
+          <Text color="success">{output.op}</Text>
+          <Text dimColor>
+            {' '}
+            {output.newId !== null ? `draft ${output.targetId} → ${output.newId}` : `draft ${output.targetId} struck`} (no history: a draft)
+          </Text>
+        </Text>
+      ) : output.ok ? (
         <Text>
           <Text color="success">{output.op}</Text>
           <Text dimColor>

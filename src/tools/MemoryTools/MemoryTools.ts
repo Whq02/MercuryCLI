@@ -58,7 +58,7 @@ const retainSchema = lazySchema(() =>
           context: z.string().optional().describe('Where the fact came from (provenance note).'),
           topic: z.string().optional().describe('Topic routing hint (slugified).'),
           pin: z.boolean().optional().describe("Only when the user asked to remember this as a standing rule or preference: pins it, in their words, marked as asked for by the user. The asked mark comes from the user's own chat alone — a crewmate's pin is a plain pin."),
-          replaces: z.string().optional().describe('Only when the user said this rule replaces a pinned one: that rule as seq:<n> (from the pinned shelf). The new rule takes its place and the old one becomes history. Refused for a rule marked asked for by the user — only the user changes those, in /memory.'),
+          replaces: z.string().optional().describe('Only when the user said this rule replaces an earlier one: that rule as seq:<n> — from the pinned shelf, or the rule the user unpinned in /memory and now restates. The new rule takes its place and the old one becomes history, so one rule stays current. Refused for a rule marked asked for by the user — only the user changes those, in /memory (↵ on the rule, then c).'),
         }),
       )
       .min(1)
@@ -353,8 +353,8 @@ export const ReflectTool = buildTool({
 
 const correctSchema = lazySchema(() =>
   z.strictObject({
-    op: z.enum(['supersede', 'amend', 'retract']).describe('supersede = new truth; amend = fix wording (read the full record first); retract = mark wrong.'),
-    id: z.string().describe('The record id (seq:<n>, from Recall).'),
+    op: z.enum(['supersede', 'amend', 'retract']).describe('supersede = new truth; amend = fix wording (read the full record first); retract = mark wrong (a consolidated row keeps its history; a pending row is a draft and is struck).'),
+    id: z.string().describe('The record id from Recall: seq:<n> for a consolidated row, pending:<ts> for a draft still in the buffer.'),
     content: z.string().optional().describe('The new/corrected content (supersede/amend).'),
     replacementId: z.string().optional().describe('supersede only: an existing seq:<n> already carrying the truth.'),
     reason: z.string().describe('Why — corrections always carry their reason.'),
@@ -398,6 +398,19 @@ export const CorrectTool = buildTool({
     return { data: outcome }
   },
   mapToolResultToToolResultBlockParam(output: CorrectToolOutput, toolUseID) {
+    if (output.ok && 'draft' in output) {
+      const tail =
+        output.newId !== null
+          ? `the draft was replaced by ${output.newId}`
+          : output.replacedBy !== undefined
+            ? `the draft was struck; seq ${output.replacedBy} carries the truth`
+            : 'the draft was struck'
+      return {
+        tool_use_id: toolUseID,
+        type: 'tool_result',
+        content: `${output.op} landed on the pending row ${output.targetId}: ${tail}. A pending row is a draft — it leaves no history and its bytes are gone from the buffer.`,
+      }
+    }
     if (output.ok) {
       return {
         tool_use_id: toolUseID,

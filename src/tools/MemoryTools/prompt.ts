@@ -10,16 +10,17 @@ export const RECALL_DESCRIPTION =
 export const REFLECT_DESCRIPTION =
   'Synthesize an answer over recalled memory with citations to the records used. Costs one model call; falls back to raw recall when synthesis cannot be grounded.'
 export const CORRECT_DESCRIPTION =
-  'Correct project memory: supersede a fact with a new truth, amend its wording (after reading the full record), or retract it with a reason. History is always retained.'
+  'Correct project memory: supersede a fact with a new truth, amend its wording (after reading the full record), or retract it with a reason. A consolidated fact keeps its history; a pending row is a draft and is struck or replaced.'
 
 export const RETAIN_PROMPT = `Store one or more durable facts into project memory.
 
 - Each item is one self-contained fact (content), with optional context (where it came from) and topic (routing hint).
 - The response reports a per-item outcome: stored (with its id), already-staged (this session), or refused with the reason; a refused fact was not stored.
+- One fact holds at most 2,000 characters, content and context together; a longer one is refused whole with its count, never cut — split it into facts under the limit. The disk holds exactly what the result says was stored; tell the user what was stored and what was refused, nothing more.
 - Facts stage as pending observations and consolidate into topic pages automatically; they are recallable seconds after storing, labeled pending until consolidation.
 - When the user asks you to remember a rule or a preference about how to work with them ("remember: …", "always …", "from now on …", "keep this as a rule"), store their words as said with pin: true — it is on the pinned shelf at once, loaded into every session, marked as asked for by the user, and never reworded, merged or dropped by Mercury. This is the door for a remembered rule; a project convention about the code (how it is built, run or tested, what not to touch) goes to the instruction file, never here. Never pin on your own judgement.
-- When the user says the new rule replaces a pinned one ("instead of …", "that replaces the old rule"), pass replaces: "seq:<n>" naming that rule from the pinned shelf: the new rule takes its place and the old one is kept as history. Two rules that merely share words are not a conflict — both stay. A rule marked asked for by the user is never replaced by you: tell the user to change it in /memory.
-- Use for: decisions made, facts discovered, constraints learned, outcomes worth keeping across sessions. Not for: secrets, transcripts, or anything the repo already records.`
+- When the user says the new rule replaces an earlier one ("instead of …", "that replaces the old rule", a restatement after they unpinned the old rule in /memory), pass replaces: "seq:<n>" naming that rule — from the pinned shelf, or the unpinned rule the relevant memories show — so ONE rule stays current: the new rule takes its place and the old one is kept as history. Two rules that merely share words are not a conflict — both stay. A rule marked asked for by the user is never replaced by you: tell the user the road — in /memory, under pinned rules, ↵ opens the rule and c corrects it (u unpins it).
+- Use for: decisions made, facts discovered, constraints learned, outcomes worth keeping across sessions. Not for: secrets, transcripts, or anything the repo already records. A fact that looks like a key, a token or a password is refused by the tool itself, whoever asked: memory is a plain-text record on disk.`
 
 export const RECALL_PROMPT = `Search project memory for pointers, or read one full record.
 
@@ -35,10 +36,12 @@ export const REFLECT_PROMPT = `Answer a question by synthesizing over recalled m
 - No usable model/credentials degrades typed: you get the raw recall plus the reason.
 - This costs a model call — use Recall alone when you just need the records. Reflect never writes anything.`
 
-export const CORRECT_PROMPT = `Correct one consolidated memory record (id seq:<n>, from Recall).
+export const CORRECT_PROMPT = `Correct one memory record by its id from Recall: seq:<n> (a consolidated fact) or pending:<ts> (a draft still in the buffer).
 
 - op 'supersede' — a new truth replaces the fact; pass content (or replacementId naming an existing seq that already carries the truth). The old fact moves to history with a superseded-by pointer.
-- op 'amend' — fix the record's own wording; requires the full record to have been read this session (Recall read:"seq:<n>" first) so a clipped preview can never destroy an unseen tail.
-- op 'retract' — mark the fact wrong with a reason. Nothing is ever hard-deleted: history is the audit spine.
-- A pinned rule marked "asked for by the user" is the user's: every op on it is refused — the user changes or unpins it in /memory. Tell the user that when they want it changed.
-- Every op carries a reason. Pending rows are not correctable — they resolve at consolidation.`
+- op 'amend' — fix the record's own wording; requires the full record to have been read this session (Recall read:"<id>" first) so a clipped preview can never destroy an unseen tail.
+- op 'retract' — mark the fact wrong with a reason. A consolidated fact is never hard-deleted: history is the audit spine.
+- A pending row (pending:<ts>) is a draft, not yet a fact: retract strikes it — its bytes leave the buffer and no history is kept; supersede or amend replaces it with a new pending row. This is the road when the user corrects or wants to forget something said minutes ago, before consolidation. A corrected or struck draft never lands on a page.
+- A pinned rule marked "asked for by the user" is the user's: every op on it is refused — the user changes it in /memory: under pinned rules, ↵ opens the rule and c corrects it (the old wording goes to history), u unpins it. Tell the user that road when they want it changed; a rule they have unpinned is a plain fact again and Retain with replaces supersedes it when they restate it.
+- Content that looks like a key, a token or a password is refused: memory never holds a secret.
+- Every op carries a reason.`

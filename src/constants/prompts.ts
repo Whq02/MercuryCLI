@@ -19,7 +19,7 @@ import { declaredRouteOf } from '../services/providers/routeLaw.js'
 import { getInitialSettings } from '../utils/settings/settings.js'
 import { getCurrentWorktreeSession } from '../utils/worktree.js'
 import { ensureScratchpadDir, scratchpadPromptLine } from '../utils/scratchpad.js'
-import { loadMemoryPrompt, memoryPromptKey } from '../mneme/mnemeFrontPage.js'
+import { loadMemoryPrompt } from '../mneme/mnemeFrontPage.js'
 import { composeEntryPage } from '../mneme/entryPage.js'
 import { journalOnEntryPage, lastJournalEntry } from '../mneme/journal.js'
 import { noteSessionEngine } from '../mneme/lineageSession.js'
@@ -190,11 +190,7 @@ export async function getSystemPrompt(
 
   const dynamicSpecs = [
     systemPromptSection('project_estate', () => projectEstateSection(toolNames)),
-    keyedSystemPromptSection(
-      'memory',
-      () => memoryPromptKey(),
-      () => loadMemoryPrompt(),
-    ),
+    systemPromptSection('memory', () => loadMemoryPrompt()),
     keyedSystemPromptSection(
       'entry_page',
       () => (mnemeEnabled() ? 'page' : 'off'),

@@ -447,7 +447,7 @@ async function run(): Promise<void> {
     .option('--fork', 'Fork to a new session id on resume')
     .option('--pr [value]', 'Resume a session linked to a PR')
     .addOption(new Option('--draft <text>', 'Prefill the input buffer').hideHelp())
-    .option('--ephemeral', 'Do not persist the session transcript')
+    .option('--ephemeral', 'Keep nothing of the run: no transcript, no lineage row, no note for the next session, no journal line')
     .addOption(new Option('--replay-to <message-id>', 'Truncate the resumed session at a message').hideHelp())
     .addOption(new Option('--restore-files <user-message-id>', 'Rewind files to a user message').hideHelp())
     .option('--model <model>', 'The model for the session')
