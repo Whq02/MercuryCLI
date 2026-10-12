@@ -640,10 +640,10 @@ function providerAuthChecks(): CheckSpec[] {
               }
             }
             return {
-              status: 'fail' as const,
+              status: 'warn' as const,
               evidence:
-                'absent — no bearer token or API key from the owning resolvers (getAuthTokenSource + getAnthropicApiKeyWithSource)',
-              fix: `${meta.signIn} — no turn can run without it.`,
+                'not signed in — no bearer token or API key (owning resolvers: getAuthTokenSource + getAnthropicApiKeyWithSource)',
+              fix: `${meta.signIn} — no turn can run until you sign in.`,
             }
           }
           if (presence.expired) {
@@ -678,9 +678,9 @@ function providerAuthChecks(): CheckSpec[] {
         if (account.kind === 'none') {
           if (provider.id === routedFamily) {
             return {
-              status: 'fail' as const,
-              evidence: `absent — ${account.label} (the session routes to ${routedFamily}; no turn can run without it)`,
-              fix: `${meta.signIn} — no turn can run without it.`,
+              status: 'warn' as const,
+              evidence: `not signed in — ${account.label} (the session routes to ${routedFamily}; no turn can run until you sign in)`,
+              fix: `${meta.signIn} — no turn can run until you sign in.`,
             }
           }
           return {
