@@ -44,6 +44,7 @@ import {
   resolveBrowserSecret,
   scrubSecretFromText,
 } from '../../services/browser/browserSecrets.js'
+import { APPROVAL_RULE_LINE, INSTALLED_NOT_DRIVEN } from '../../services/browser/browserWords.js'
 import { ownerFromToolUseContext } from '../../services/run/resolveOwner.js'
 import type { OwnerKey } from '../../services/run/ownerKey.js'
 import { getRuleByContentsForToolName } from '../../utils/permissions/permissions.js'
@@ -304,7 +305,7 @@ function statusReport(owner: OwnerKey): string {
   const installed = detectInstalledBrowsers()
   lines.push(
     installed.length
-      ? `installed: ${installed.map(b => `${b.label} (${b.executablePath})`).join(' · ')}`
+      ? `installed: ${installed.map(b => `${b.label} (${b.executablePath})`).join(' · ')} — ${INSTALLED_NOT_DRIVEN}`
       : 'installed: none found at the standard locations',
   )
   const managed = listManagedBrowsers()
@@ -324,6 +325,7 @@ function statusReport(owner: OwnerKey): string {
   if (live?.sandboxDowngraded) lines.push('  sandbox: DISABLED (running as uid 0 — container mode; --no-sandbox appended)')
   const grants = approvedOriginList(owner)
   if (grants.length > 0) lines.push(`approved origins (this session): ${grants.join(' · ')}`)
+  lines.push(APPROVAL_RULE_LINE)
   const others = liveBrowserSessionCensus().filter(row => row.owner !== owner)
   if (others.length > 0) {
     lines.push(
@@ -671,12 +673,12 @@ export const BrowserTool = buildTool({
   },
   maxResultSizeChars: 20_000,
   async description() {
-    return 'Drive a real Chromium-family browser (installed or managed-cache) with full provenance: navigate, click, type, scroll, wait on events, extract text or the accessibility tree, read the console, screenshot'
+    return 'Drive a headless Chrome for Testing from the managed cache (or an operator-pinned browser; installed browsers are never driven) with full provenance: navigate, click, type, scroll, wait on events, extract text or the accessibility tree, read the console, screenshot'
   },
   async prompt() {
     return `Drive a real browser through the bundled driver: one owned headless session per agent (launched on first open, reaped on close/exit — concurrent agents each drive their own, they never share a page), full provenance on every act.
 
-op:"status" — the resolution verdict (operator pin > installed browser > managed Chrome-for-Testing cache > unavailable), driver/browser versions, the live-session state and the session's approved origins; never launches a browser session.
+op:"status" — the resolution verdict (operator pin > managed Chrome-for-Testing cache > unavailable; installed browsers are discovered for information and never driven), driver/browser versions, the live-session state, the session's approved origins and the approval rule; never launches a browser session.
 op:"open" (url, waitUntil?, timeoutMs?) — navigate to an http(s) URL (settles on load by default — networkidle2 for busy SPAs, domcontentloaded for speed; timeoutMs reaches 90s for a cold dev-server compile). A page census of 0 body-text chars means the app is still rendering: waitFor a selector or text before extract/screenshot.
 op:"click" (selector, or x+y) — click an element or a viewport point. Selector clicks auto-wait (present and visible, bounded by timeoutMs) and gate on actionability: a disabled or covered target refuses instead of clicking nowhere. After a click that starts a navigation, op:"waitFor" (navigation) lets it settle.
 op:"type" (text, selector?, clear?, enter?) — type into the selector-named element (auto-waited, focused first, shadow roots resolved) or the currently focused element. Only text-bearing targets accept text (text/search/url/tel/email/number/date-family inputs, textarea, contenteditable); checkboxes/radios/buttons, file inputs and readOnly fields refuse. Credential-shaped fields (password inputs, one-time-code/cc-* autocomplete, password/otp/secret/api-key-shaped names) refuse plain text; the one road into a credential field is secretRef: the operator registers a named secret out-of-band (a MERCURY_BROWSER_SECRET_<NAME> env var, or the browser-secrets file in the config home, owner-only mode) and op:"type" with secretRef:"NAME" + selector fills it — the value never enters this conversation, the fill lands only on credential-shaped targets, and the operator approves the secret + origin pairing (an approved origin alone never covers it).
@@ -699,7 +701,7 @@ Auto-wait: selector acts (click/type/scroll) resolve with a bounded present-and-
 
 A click that opens a new tab closes it unadopted (one owned page) — op:"open" its URL to follow it.
 
-Permissions: the first visit to an origin asks ${getIsNonInteractiveSession() && !canAnswerAsks() ? 'for approval by URL — in this headless session no one can answer, so an unapproved origin is refused unless the tool was pre-approved at launch with --allowed-tools Browser or the run started in a permission mode that does not stop here' : 'the operator by URL'}; once approved, opening and acting anywhere on that origin rides the grant for the rest of the session. A navigation that crosses to an unapproved origin (a link click, a redirect) re-asks before the next act there. Reads (status/waitFor/extract/console/info/screenshot) never ask. Sessions and origin approvals are per agent: an approval granted in one agent's session never authorizes another agent, and concurrent browser children are capped (close another session, or the operator raises MERCURY_BROWSER_MAX_SESSIONS). A secret fill (type + secretRef) is its own consent class, approved per secret + origin pairing for the session.
+Permissions: the first visit to an origin asks ${getIsNonInteractiveSession() && !canAnswerAsks() ? 'for approval by URL — in this headless session no one can answer, so an unapproved origin is refused unless the tool was pre-approved at launch with --allowed-tools Browser or the run started in a permission mode that does not stop here' : 'the operator by URL'}; once approved, opening and acting anywhere on that origin rides the grant for the rest of the session. A navigation that crosses to an unapproved origin (a link click, a redirect) re-asks before the next act there. Reads (status/waitFor/extract/console/info/screenshot) never ask — on a crossed-to origin too, so an approved page can lead you to read pages elsewhere: name the origin when you report them, and know the operator approved only the origin they were asked for. Sessions and origin approvals are per agent: an approval granted in one agent's session never authorizes another agent, and concurrent browser children are capped (close another session, or the operator raises MERCURY_BROWSER_MAX_SESSIONS). A secret fill (type + secretRef) is its own consent class, approved per secret + origin pairing for the session.
 
 Downloads are never implicit: the driven session denies page-initiated downloads at the protocol level and the result names what was refused — "the link is a download (<type>, <size>, saves as <name>)" on a click, "open failed: <url> is a download (…)" on an open — ${DOWNLOADS_NOT_FOLLOWED}; the one consented download road is provisioning the engine itself — op:"provision" (buildId?) asks the operator before installing a Chrome-for-Testing build (/browser install is the same road by hand). When nothing resolves, provision instead of dead-ending or hand-rolling a headless-Chrome harness. File uploads stay out of scope. The driver needs node >= 22.12.`
   },
