@@ -46,13 +46,12 @@ export function replacementTarget(
   dir: string,
 ): { ok: true; seq: number; slug: string } | { ok: false; reason: string } {
   const m = /^seq:(\d+)$/.exec(spec.trim())
-  if (!m) return { ok: false, reason: `replaces must name a pinned rule as seq:<n> (got '${spec}')` }
+  if (!m) return { ok: false, reason: `replaces must name the rule it replaces as seq:<n> (got '${spec}')` }
   const seq = Number(m[1])
   const pin = readPins(dir).find(p => p.seq === seq)
   if (pin?.asked) return { ok: false, reason: `${userAskedRuleMessage(seq)}; retain the new rule without replaces to add it beside` }
-  if (!pin) return { ok: false, reason: `seq ${seq} is not a pinned rule — Correct supersedes a fact` }
   const holder = allDocs(dir).find(doc => liveSeqs(doc).has(seq))
-  if (!holder) return { ok: false, reason: `seq ${seq} is not live in this library` }
+  if (!holder) return { ok: false, reason: `seq ${seq} is not live in this library — recall it again for its current id` }
   return { ok: true, seq, slug: holder.slug }
 }
 
