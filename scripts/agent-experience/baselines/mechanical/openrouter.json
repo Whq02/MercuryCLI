@@ -6,12 +6,12 @@
     "backend": "openrouter-responses",
     "dialect": "responses",
     "mechanical": true,
-    "tree": "c36fb2c25",
+    "tree": "76c839e40",
     "fold": "unlabelled",
-    "when": "2026-10-12T04:07:13.912Z",
-    "promptChars": 7918,
-    "promptTokensEst": 1980,
-    "toolCount": 54,
+    "when": "2026-10-12T04:16:13.737Z",
+    "promptChars": 7414,
+    "promptTokensEst": 1854,
+    "toolCount": 53,
     "toolNames": [
       "Agent",
       "Bash",
@@ -62,13 +62,12 @@
       "Recall",
       "Reflect",
       "Correct",
-      "Journal",
       "mcp__mercury__lease_take",
       "mcp__mercury__lease_release",
       "mcp__mercury__lease_list",
       "mcp__mercury__render_tui"
     ],
-    "toolSchemaChars": 149265,
+    "toolSchemaChars": 148007,
     "notes": [
       "browser task unmeasured: no browser to launch — no managed browser — your installed apps are never driven; /browser install downloads Chrome for Testing once with your consent"
     ]
@@ -106,8 +105,8 @@
       "probes": 1,
       "unexpectedErrors": 0,
       "duplicates": 0,
-      "toolResultChars": 3466,
-      "toolResultTokensEst": 867,
+      "toolResultChars": 3465,
+      "toolResultTokensEst": 866,
       "imageChars": 0,
       "injectedTokensEst": 0,
       "subagentResultTokensEst": 0,
@@ -116,12 +115,12 @@
       "errors": [
         {
           "tool": "Bash",
-          "text": "<tool_use_error>Shell command failed (exit code 1)\n✔ mean of a list (0.529416ms)\n✔ median of an odd-length list (0.073583ms)\n✖ median of an even-length list averages the middle pair (0.378625ms)\nℹ tests 3\nℹ suites 0\nℹ pass 2\nℹ fail 1\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 53.502125\n\n✖ failing tests:\n\ntest at test/stats.test.js:13:1\n✖ median of an even-length list averages the middle pair (0.378625ms)\n  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n  \n  3 !== 2.5\n  \n      at TestContext.<anonymous> (file://<fixture>/openrouter/task",
+          "text": "<tool_use_error>Shell command failed (exit code 1)\n✔ mean of a list (0.321375ms)\n✔ median of an odd-length list (0.066209ms)\n✖ median of an even-length list averages the middle pair (0.379834ms)\nℹ tests 3\nℹ suites 0\nℹ pass 2\nℹ fail 1\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 50.32025\n\n✖ failing tests:\n\ntest at test/stats.test.js:13:1\n✖ median of an even-length list averages the middle pair (0.379834ms)\n  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n  \n  3 !== 2.5\n  \n      at TestContext.<anonymous> (file://<fixture>/openrouter/tasks",
           "namesFix": true,
           "probe": true
         }
       ],
-      "wallMs": 2092,
+      "wallMs": 1953,
       "exitCode": 0,
       "timedOut": false,
       "resultStatus": "completed",
@@ -173,7 +172,7 @@
       "asks": 0,
       "denials": 0,
       "errors": [],
-      "wallMs": 1411,
+      "wallMs": 1387,
       "exitCode": 0,
       "timedOut": false,
       "resultStatus": "completed",
@@ -232,7 +231,7 @@
           "probe": true
         }
       ],
-      "wallMs": 830,
+      "wallMs": 801,
       "exitCode": 0,
       "timedOut": false,
       "resultStatus": "completed",
@@ -280,7 +279,7 @@
           "probe": true
         }
       ],
-      "wallMs": 780,
+      "wallMs": 799,
       "exitCode": 0,
       "timedOut": false,
       "resultStatus": "completed",
@@ -322,7 +321,7 @@
       "asks": 0,
       "denials": 0,
       "errors": [],
-      "wallMs": 967,
+      "wallMs": 928,
       "exitCode": 0,
       "timedOut": false,
       "resultStatus": "completed",
@@ -369,7 +368,7 @@
           "probe": true
         }
       ],
-      "wallMs": 774,
+      "wallMs": 770,
       "exitCode": 0,
       "timedOut": false,
       "resultStatus": "completed",
@@ -409,7 +408,7 @@
       "asks": 0,
       "denials": 0,
       "errors": [],
-      "wallMs": 795,
+      "wallMs": 785,
       "exitCode": 0,
       "timedOut": false,
       "resultStatus": "completed",
@@ -449,7 +448,7 @@
       "asks": 0,
       "denials": 0,
       "errors": [],
-      "wallMs": 1167,
+      "wallMs": 1231,
       "exitCode": 0,
       "timedOut": false,
       "resultStatus": "completed",
@@ -521,7 +520,7 @@
       "asks": 0,
       "denials": 0,
       "errors": [],
-      "wallMs": 789,
+      "wallMs": 792,
       "exitCode": 0,
       "timedOut": false,
       "resultStatus": "completed",
@@ -561,7 +560,7 @@
       "asks": 0,
       "denials": 0,
       "errors": [],
-      "wallMs": 881,
+      "wallMs": 805,
       "exitCode": 0,
       "timedOut": false,
       "resultStatus": "completed",
@@ -610,7 +609,7 @@
           "probe": true
         }
       ],
-      "wallMs": 1773,
+      "wallMs": 1679,
       "exitCode": 0,
       "timedOut": false,
       "resultStatus": "completed",
@@ -645,7 +644,7 @@
       "asks": 0,
       "denials": 0,
       "errors": [],
-      "wallMs": 906,
+      "wallMs": 733,
       "exitCode": 0,
       "timedOut": false,
       "resultStatus": "completed",
@@ -680,7 +679,7 @@
       "asks": 0,
       "denials": 0,
       "errors": [],
-      "wallMs": 827,
+      "wallMs": 663,
       "exitCode": 0,
       "timedOut": false,
       "resultStatus": "completed",
