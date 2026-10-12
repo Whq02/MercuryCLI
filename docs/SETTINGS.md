@@ -21,7 +21,10 @@ From lowest to highest priority:
    `managed-settings.json` and platform-managed policy.
 
 Objects merge by key and arrays combine, with repeated scalar entries kept
-once. A scalar in a higher-priority source wins. `--config-layers user,local` selects which
+once. A scalar in a higher-priority source wins. A running session reads an
+edit to any of these files as it lands, a `.mercury/` folder created while
+the session runs included — a rule a permission card saves into it is
+honoured on the next call. `--config-layers user,local` selects which
 of the three user-owned sources load; flag settings and managed policy still
 apply. Permission denies and managed locks remain binding.
 
