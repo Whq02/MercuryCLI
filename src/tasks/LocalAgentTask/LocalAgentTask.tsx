@@ -35,7 +35,7 @@ import {
 } from '../../utils/task/diskOutput.js'
 import { PANEL_GRACE_MS, registerTask, updateTaskState } from '../../utils/task/framework.js'
 import { emitTaskProgress } from '../../utils/task/sdkProgress.js'
-import { emitTaskEnded, enqueueRow } from '../../utils/sdkEventQueue.js'
+import { emitTaskEnded, enqueueRow, type TaskUsage } from '../../utils/sdkEventQueue.js'
 import { AGENT_MESSAGE_STATUS, MAIN_AGENT_MESSAGE_SUMMARY } from '../../constants/agentMessage.js'
 import { foldAgentWaitEvent, type AgentWaitV1 } from './agentWait.js'
 import { pauseClockWords, type AgentPauseV1 } from './agentPause.js'
@@ -701,6 +701,7 @@ export function completeAgentTask(
   result: { agentId: string; [key: string]: unknown },
   setAppState: SetAppState,
   registration?: AbortController,
+  options: { usage?: TaskUsage; settleFrame?: boolean } = {},
 ): void {
   const taskId = result.agentId
   let successorHolds = false
@@ -715,14 +716,14 @@ export function completeAgentTask(
     return terminalPatch(task, 'completed', { result })
   })
   if (!successorHolds) void evictTaskOutput(taskId)
-  if (settled !== undefined) emitSettleFrame(settled, 'completed')
+  if (settled !== undefined && options.settleFrame !== false) emitSettleFrame(settled, 'completed', options.usage)
 }
 
-function emitSettleFrame(task: LocalAgentTaskState, status: 'completed' | 'failed'): void {
+function emitSettleFrame(task: LocalAgentTaskState, status: 'completed' | 'failed', usage?: TaskUsage): void {
   emitTaskEnded(task.id, status, {
     ...(task.toolUseId !== undefined ? { toolUseId: task.toolUseId } : {}),
     summary: task.description,
-    settle: true,
+    ...(usage !== undefined ? { usage } : {}),
   })
 }
 
@@ -731,6 +732,7 @@ export function failAgentTask(
   error: string,
   setAppState: SetAppState,
   registration?: AbortController,
+  options: { settleFrame?: boolean } = {},
 ): void {
   let successorHolds = false
   let settled: LocalAgentTaskState | undefined
@@ -745,7 +747,7 @@ export function failAgentTask(
   })
   if (!successorHolds) void evictTaskOutput(taskId)
   if (settled !== undefined) {
-    emitSettleFrame(settled, 'failed')
+    if (options.settleFrame !== false) emitSettleFrame(settled, 'failed')
     releaseForegroundSiblings({ taskId, description: settled.description, status: 'failed', error }, setAppState)
   }
 }

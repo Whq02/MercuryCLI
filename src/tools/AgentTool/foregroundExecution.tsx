@@ -278,7 +278,7 @@ export async function runForegroundAgentExecution(
       const overloadEpisode = overload !== null ? overloadEpisodeOf(backgroundedTaskId) : null
       if (overloadEpisode !== null) noteOverloadDeath(overloadEpisode)
       if (declined) {
-        failAsyncAgent(backgroundedTaskId, declined.error, rootSetAppState)
+        failAsyncAgent(backgroundedTaskId, declined.error, rootSetAppState, undefined, { settleFrame: backgrounded ? !(overloadEpisode === null || overloadDeathNotifies(overloadEpisode)) : false })
         if (overload !== null && foregroundTask !== undefined) {
           armOverloadProbe({
             taskId: backgroundedTaskId,
@@ -292,7 +292,10 @@ export async function runForegroundAgentExecution(
           })
         }
       } else {
-        completeAgentTask(finalized, rootSetAppState)
+        completeAgentTask(finalized, rootSetAppState, undefined, {
+          usage: { tokens: getTokenCountFromTracker(tracker), toolUses: tracker.toolUseCount, durationMs: Date.now() - agentStartTime },
+          settleFrame: backgrounded ? !(overloadEpisode === null || overloadDeathNotifies(overloadEpisode)) : false,
+        })
         closeOverloadEpisode(backgroundedTaskId)
       }
 
@@ -383,9 +386,9 @@ export async function runForegroundAgentExecution(
         return
       }
       const failure = errorMessage(error)
-      failAsyncAgent(backgroundedTaskId, failure, rootSetAppState)
       const overload = overloadBudgetCutOf(error, metadata.resolvedAgentModel)
       const overloadEpisode = overload !== null ? overloadEpisodeOf(backgroundedTaskId) : null
+      failAsyncAgent(backgroundedTaskId, failure, rootSetAppState, undefined, { settleFrame: backgrounded ? !(overloadEpisode === null || overloadDeathNotifies(overloadEpisode)) : false })
       if (overloadEpisode !== null) noteOverloadDeath(overloadEpisode)
       const worktreeResult = await cleanupWorktreeIfNeeded()
       await flushSessionStorage()
