@@ -7,6 +7,7 @@ import { Browser as CftBrowser, BrowserPlatform, computeExecutablePath } from '@
 import { getMercuryHome } from '../../utils/envUtils.js'
 import { whichSync } from '../../utils/which.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
+import { INSTALLED_NOT_DRIVEN } from './browserWords.js'
 
 export type BrowserFamily = 'chrome' | 'edge' | 'chromium' | 'brave' | 'chrome-for-testing'
 
@@ -272,7 +273,7 @@ export function resolveBrowser(reads?: BrowserResolverReads): BrowserResolution 
 export function describeBrowserReadiness(reads?: BrowserResolverReads): { ready: boolean; line: string; detail: string; fix?: string } {
   const resolution = resolveBrowser(reads)
   const installed = (reads?.installed ?? detectInstalledBrowsers)()
-  const discovery = installed.map(b => `${b.label} (${b.executablePath}) — not driven: it is your app; the tool drives Chrome for Testing`).join('\n')
+  const discovery = installed.map(b => `${b.label} (${b.executablePath}) — ${INSTALLED_NOT_DRIVEN}`).join('\n')
   if (resolution.state === 'ok') {
     const line = resolution.source === 'operator-pin'
       ? `operator pin ${resolution.executablePath}`
