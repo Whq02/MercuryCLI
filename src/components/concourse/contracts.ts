@@ -192,6 +192,12 @@ export const controlNoteOf = (n: ControlNoteState): ControlNote =>
 export const CONTROL_NOTE_REFUSED_MS = 10_000
 export const CONTROL_NOTE_SETTLED_MS = 4_000
 
+export interface LaunchPreviewV1 {
+  folder: string
+  forks: boolean
+  mainHolderTitle: string | null
+}
+
 export interface ConcourseCallbacks {
   enterSession: (sessionId: string) => void
   resumeOlderChat?: (sessionId: string, transcriptPath: string, title: string) => void
@@ -227,6 +233,7 @@ export interface ConcourseCallbacks {
     seatsMax?: 1 | 2 | null
   }) => void
   submitSessionDraft: (text: string) => void
+  previewLaunch?: () => Promise<LaunchPreviewV1 | null>
   enterBootSettings: (door?: 'logins', opener?: { family?: string; returnToOpener?: boolean }) => boolean
   exitToChat: () => void
   retrySnapshot?: () => void

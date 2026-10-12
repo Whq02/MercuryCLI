@@ -188,12 +188,10 @@ function crewSpansOf(rows: readonly WorkRowV1[]): { agents: CrewSpan[]; workflow
 }
 
 function kindClockOf(spans: readonly CrewSpan[], words: readonly [string, string], nowMs: number): KindClock | null {
-  if (spans.length === 0) return null
   const running = spans.filter(s => s.running)
-  const counted = running.length > 0 ? running : spans
-  const from = Math.min(...counted.map(s => s.startedAt))
-  const to = running.length > 0 ? nowMs : Math.max(...counted.map(s => s.endedAt ?? s.startedAt))
-  return { word: counted.length === 1 ? words[0] : words[1], running: running.length > 0, ms: Math.max(0, to - from) }
+  if (running.length === 0) return null
+  const from = Math.min(...running.map(s => s.startedAt))
+  return { word: running.length === 1 ? words[0] : words[1], running: true, ms: Math.max(0, nowMs - from) }
 }
 
 export function crewActiveIn(rows: readonly WorkRowV1[]): boolean {

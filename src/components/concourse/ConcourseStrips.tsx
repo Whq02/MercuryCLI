@@ -222,9 +222,9 @@ export function seatDemandOf(snapshot: ConcourseSnapshotV1): number {
   return snapshot.counts.live + queuedForSeat
 }
 
-export function seatsCellText(demanded: number, live: number, ceiling: number): { text: string; over: boolean } {
+export function seatsCellText(demanded: number, live: number, ceiling: number): { text: string; over: boolean; overWords: string | null } {
   const over = demanded > ceiling
-  return { text: over ? `${demanded}/${ceiling}·` : `${live}/${ceiling}`, over }
+  return { text: over ? `${demanded}/${ceiling}·` : `${live}/${ceiling}`, over, overWords: over ? `${demanded - ceiling} over the ${ceiling}-seat reading` : null }
 }
 
 export function ConcourseStatusRail({
@@ -247,7 +247,7 @@ export function ConcourseStatusRail({
   const { isCompact } = useLayoutChrome();
   const counts = snapshot.counts;
   const seatsCell = seatsCellText(seatDemandOf(snapshot), counts.live, effectiveSeatCeiling());
-  const countsText = `${counts.live} live · ${needsYouCount(counts.needsYou)} · ${seatsCell.text} seats`;
+  const countsText = `${counts.live} live · ${needsYouCount(counts.needsYou)} · ${seatsCell.text} seats${seatsCell.overWords !== null ? ` · ${seatsCell.overWords}` : ''}`;
   const chipBudget = width - 4 - (isCompact ? 0 : 8) - (countsText.length + 1) - (width >= 96 ? 12 : 0);
   const assistNotReady = snapshot.coordinator.assistModelAvailability !== undefined;
   const coordinatorRun =
@@ -339,6 +339,7 @@ export function ConcourseStatusRail({
           <Text color={seatsCell.over ? t.warning : t.textSecondary}>
             {seatsCell.text} seats
           </Text>
+          {seatsCell.overWords !== null ? <Text color={t.warning}> · {seatsCell.overWords}</Text> : null}
         </Text>
       </Box>
     </Box>

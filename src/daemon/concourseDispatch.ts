@@ -510,6 +510,30 @@ export async function preflightConcourseDispatch(
   return refusals.length === 0 ? { ok: true } : { ok: false, refusals }
 }
 
+export interface DefaultedLaunchPreviewV1 {
+  workspaceId: string
+  forks: boolean
+  mainHolderTitle?: string
+}
+
+export function previewDefaultedLaunch(workspaceDir: string, dir?: string): DefaultedLaunchPreviewV1 {
+  const workspaceId = canonicalWorkspaceId(workspaceDir)
+  const live = Object.values(readSessionWorkers(dir)).filter(
+    r =>
+      r.endedAt === undefined &&
+      ((r.pid !== undefined && isProcessAlive(r.pid)) || r.attachedAt !== undefined),
+  )
+  const resolution = resolveDefaultedAdmission(
+    live.map(r => ({ workspaceId: r.workspaceId, isolation: r.isolation })),
+    { workspaceId },
+  )
+  const forks = resolution.kind === 'decision' && resolution.decision.admit && resolution.effectiveIsolation === 'worktree-isolated'
+  const mainHolderTitle = forks
+    ? live.find(r => r.workspaceId === workspaceId && ['exclusive', 'shared'].includes(r.isolation ?? 'exclusive'))?.title
+    : undefined
+  return { workspaceId, forks, ...(mainHolderTitle !== undefined ? { mainHolderTitle } : {}) }
+}
+
 export interface ConcourseDispatchRequest extends ConcourseAdmitRequest {
   clientMessageId: string
   prompt: string

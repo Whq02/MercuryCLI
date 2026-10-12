@@ -39,7 +39,7 @@ import { registerTask, updateTaskState } from '../../utils/task/framework.js'
 import { getToolResultPath } from '../../utils/toolResultStorage.js'
 import { recordShellCommandOutcome } from '../../utils/verification/verificationState.js'
 import type { AgentId } from '../../types/ids.js'
-import type { BashTaskKind, LocalShellTaskState } from './guards.js'
+import type { BashTaskKind, LocalShellTaskState, ShellKillSource } from './guards.js'
 import { isLocalShellTask } from './guards.js'
 import { killTask } from './killShellTasks.js'
 
@@ -248,6 +248,7 @@ async function settleShellTask(args: {
   }
 
   let wasKilled = false
+  let killedBy: ShellKillSource | undefined
   let wasNotified = false
   let startTime = args.launch?.startTime ?? Date.now()
   let command = args.launch?.command ?? ''
@@ -269,6 +270,7 @@ async function settleShellTask(args: {
     kind = task.kind
     if (task.status === 'killed') {
       wasKilled = true
+      killedBy = task.killedBy
       return task
     }
     wasNotified = task.notified
@@ -300,6 +302,7 @@ async function settleShellTask(args: {
     code: result.code,
     interrupted: result.interrupted,
     wasKilled,
+    ...(killedBy !== undefined ? { killedBy } : {}),
     stderr: result.stderr,
   })
   void recordTaskOutcome(getSessionId(), {

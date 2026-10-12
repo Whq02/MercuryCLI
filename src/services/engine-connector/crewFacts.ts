@@ -132,6 +132,44 @@ export function crewAgentFactsOf(row: WorkRowV1, sessionId: string | null): Crew
   }
 }
 
+export function workRowOfCrewFacts(facts: CrewAgentFacts): WorkRowV1 {
+  const t = facts.tokens
+  return {
+    id: facts.id,
+    kind: 'agent',
+    name: facts.name,
+    status: facts.status,
+    startTime: facts.startedAt,
+    ...(facts.endedAt !== null ? { endTime: facts.endedAt } : {}),
+    ...(facts.description !== null ? { description: facts.description } : {}),
+    ...(facts.model !== null ? { model: facts.model } : {}),
+    ...(facts.error !== null ? { error: facts.error } : {}),
+    ...(t !== null ? { totalTokens: t.total } : {}),
+    ...(t !== null && t.input !== null ? { inputTokens: t.input } : {}),
+    ...(t !== null && t.output !== null ? { outputTokens: t.output } : {}),
+    ...(t !== null && t.cached !== null && t.cached !== undefined ? { cacheReadTokens: t.cached } : {}),
+    ...(t !== null && t.context !== null ? { contextTokens: t.context } : {}),
+    ...(facts.costUSD !== null ? { costUSD: facts.costUSD } : {}),
+    ...(facts.unpricedTurns > 0 ? { unpricedTurns: facts.unpricedTurns } : {}),
+    ...(facts.toolUses !== null ? { toolUses: facts.toolUses } : {}),
+    ...(facts.activity !== null ? { activity: facts.activity } : {}),
+    ...(facts.wait !== null ? { wait: facts.wait } : {}),
+    ...(facts.toolUseId !== null ? { toolUseId: facts.toolUseId } : {}),
+    pendingAsks: facts.pendingAsks,
+    ...(facts.agentType !== null ? { agentType: facts.agentType } : {}),
+    ...(facts.crew !== null ? { crew: facts.crew } : {}),
+    ...(facts.effort !== null ? { effort: facts.effort } : {}),
+    ...(facts.transcriptAgentId !== null ? { transcriptAgentId: facts.transcriptAgentId } : {}),
+    ...(facts.state === 'idle' ? { idle: true } : {}),
+    ...(facts.stopReason !== null ? { stopReason: facts.stopReason } : {}),
+    ...(facts.phase !== null ? { phase: facts.phase } : {}),
+    ...(facts.paused !== null ? { paused: facts.paused } : {}),
+    ...(facts.unreadNotices > 0 ? { unreadNotices: facts.unreadNotices } : {}),
+    ...(facts.cwd !== null ? { cwd: facts.cwd } : {}),
+    ...(facts.worktree !== null ? { worktree: facts.worktree } : {}),
+  }
+}
+
 export function crewAgentsOf(rows: readonly WorkRowV1[], sessionId: string | null): CrewAgentFacts[] {
   const out: CrewAgentFacts[] = []
   for (const row of rows) {

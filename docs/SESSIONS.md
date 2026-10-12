@@ -271,66 +271,69 @@ above the composer; the rails beside it run the same height.
 
 The status row above the composer keeps the session's model and the
 effort word its chip paints in every state: it rests on
-`ready · <model> · <effort>` while the session is idle with no crew, and
-otherwise reads `<model> · <effort>` followed by what the session is doing
-— the wait on agents, a request wait, a held receipt, a warning, or the
-CREW's clock — the crewmates (sub-agents) and workflow agents the session's runner
-hosts — past tense, by kind: "agents thought for 28m", "workflow thought
-for 12m", both when both stand (the larger first). At its right end, before
-the way back, the row names the folder and the branch the session works on
-(`mercury ⌥ main`; the folder alone where there is no branch). When the
-row is too narrow for everything, the state words shorten first, then the
-folder leaves, then the branch — the model and its effort stay. The row
-wears no glyph and paints no session name. The main agent is narrated
-once, by the transcript's thinking row and the card under the critter, and
-never repeated here; a session with no crew paints no clock while its main
-agent works. A `/effort` pick's receipt — the daemon's own sentence — stands
-on that row for eight seconds in place of its words, then the resting words
-return with the new effort; where the row is not painted (the compact
-layout) the receipt stays a notice under the composer. That is what makes esc read
-true: esc interrupts the main agent alone, so the card's glyph stops while
-the row's clock keeps counting for the crew that runs on. The interrupt ends
-the tool call in flight as well as the request: a tool that answers the
-interrupt within its grace (three quarters of a second) settles with its own
-words, and one that cannot — a browser whose process is gone, a call waiting
-on something that will never answer — is left behind, its result replaced by
-the interrupt's own, and its late answer, if one ever comes, is dropped. A
-second esc while the first is still on its way delivers the interrupt again
-and nothing more: the runner is never signalled, its crewmates run on, and a
-runner that cannot answer stays busy until you stop it by hand — x on its row
-stops the session, the crew view stops one crewmate. A stop you ask for is
-recorded on the session as your stop, never as a crash, and a resume after it
-brings the runner back saying so. A turn that fails inside the runner's
-own machinery before it has answered ends in a failed `outcome`:
-`error.message` names the failure and `error.detail` carries any further
-diagnostics. The session lives on to read the next line; only a failure
-after the turn has already answered still ends the runner. While a shell
-command runs for the main agent, ⇧b moves it to the runner's background
-tasks and the turn goes on without waiting: the hint row under the composer
-reads `esc interrupt · ⇧b background the command` and the row's tail
-`esc interrupts · ⇧b backgrounds · ⇧← back` for as long as the command
-runs, and the agent is told the command was moved to the background as a
-task whose output arrives as a notification; with a draft in the composer
-the key types its letter. `view.backgroundKey: false` in settings.json turns the
-key and both hints off, and esc keeps its meaning either way. The row's
-warnings stay its own: a request wait names what the runner waits on and the budget that
-fires ("waiting for the first byte from Opus 5.5 — within 6m"); a held turn
-names what it waits on ("waiting on 1 workflow · 2 agents"); an interrupt
-says the request is torn down. The row says the session may be stuck only
-when the runner's stream has carried no event of any kind — the provider's
-heartbeats included — for longer than its own watchdog's warning point:
-never sooner than five minutes of silence, and never later than the
-watchdog's own cut. On the routes whose keep-alives feed the watchdog the
-budget is six minutes (twelve in patient mode), so the row can name the
-silence from five: "no stream events for 5m — the session may be stuck (the
-watchdog aborts at 6m)"; on the quiet routes, whose budget is fifteen
-minutes, the row names what it saw from seven and a half: "no stream events
-for 8m — the session may be stuck (the watchdog aborts at 15m)". Every
-wait, warning and reissue line spells a minute or more in minutes ("within
-2m", "within 2m of dispatch") and anything shorter in seconds. A
-running tool is never called stuck. The chat pane carries no clock: every
-row of the chat carries its own timestamp, and a clock that ticks is a
-repaint a second on an idle screen.
+`ready · <model> · <effort>` while the session is idle and no crewmate is
+running, and otherwise reads `<model> · <effort>` followed by what the
+session is doing — the wait on agents, a request wait, a held receipt, a
+warning, or the CREW's clock while a crewmate (sub-agent) or workflow agent
+the session's runner hosts is still running — by kind: "agent thought for
+28m", "workflow thought for 12m", both when both run (the larger first).
+The clock counts the crew that is running now; when the last of them lands
+or is stopped the row reads `ready` again on the next beat, and the landed
+rows keep their own time in the CREW box, `/crewmates` and `/runs`. At its
+right end, before the way back, the row names the folder and the branch the
+session works on (`mercury ⌥ main`; the folder alone where there is no
+branch). When the row is too narrow for everything, the state words
+shorten first, then the folder leaves, then the branch — the model and its
+effort stay. The row wears no glyph and paints no session name. The main
+agent is narrated once, by the transcript's thinking row and the card under
+the critter, and never repeated here; a session with no crew paints no
+clock while its main agent works. A `/effort` pick's receipt — the daemon's
+own sentence — stands on that row for eight seconds in place of its words,
+then the resting words return with the new effort; where the row is not
+painted (the compact layout) the receipt stays a notice under the composer.
+That is what makes esc read true: esc interrupts the main agent alone, so
+the card's glyph stops while the row's clock keeps counting for the crew
+that runs on. The interrupt ends the tool call in flight as well as the
+request: a tool that answers the interrupt within its grace (three quarters
+of a second) settles with its own words, and one that cannot — a browser
+whose process is gone, a call waiting on something that will never answer —
+is left behind, its result replaced by the interrupt's own, and its late
+answer, if one ever comes, is dropped. A second esc while the first is still
+on its way delivers the interrupt again and nothing more: the runner is
+never signalled, its crewmates run on, and a runner that cannot answer stays
+busy until you stop it by hand — x on its row stops the session, the crew
+view stops one crewmate. A stop you ask for is recorded on the session as
+your stop, never as a crash, and a resume after it brings the runner back
+saying so. A turn that fails inside the runner's own machinery before it has
+answered ends in a failed `outcome`: `error.message` names the failure and
+`error.detail` carries any further diagnostics. The session lives on to read
+the next line; only a failure after the turn has already answered still ends
+the runner. While a shell command runs for the main agent, ⇧b moves it to
+the runner's background tasks and the turn goes on without waiting: the hint
+row under the composer reads `esc interrupt · ⇧b background the command` and
+the row's tail `esc interrupts · ⇧b backgrounds · ⇧← back` for as long as
+the command runs, and the agent is told the command was moved to the
+background as a task whose output arrives as a notification; with a draft in
+the composer the key types its letter. `view.backgroundKey: false` in
+settings.json turns the key and both hints off, and esc keeps its meaning
+either way. The row's warnings stay its own: a request wait names what the
+runner waits on and the budget that fires ("waiting for the first byte from
+Opus 5.5 — within 6m"); a held turn names what it waits on ("waiting on 1
+workflow · 2 agents"); an interrupt says the request is torn down. The row
+says the session may be stuck only when the runner's stream has carried no
+event of any kind — the provider's heartbeats included — for longer than its
+own watchdog's warning point: never sooner than five minutes of silence, and
+never later than the watchdog's own cut. On the routes whose keep-alives
+feed the watchdog the budget is six minutes (twelve in patient mode), so the
+row can name the silence from five: "no stream events for 5m — the session
+may be stuck (the watchdog aborts at 6m)"; on the quiet routes, whose budget
+is fifteen minutes, the row names what it saw from seven and a half: "no
+stream events for 8m — the session may be stuck (the watchdog aborts at
+15m)". Every wait, warning and reissue line spells a minute or more in
+minutes ("within 2m", "within 2m of dispatch") and anything shorter in
+seconds. A running tool is never called stuck. The chat pane carries no
+clock: every row of the chat carries its own timestamp, and a clock that
+ticks is a repaint a second on an idle screen.
 
 ## The concourse shows the project you are in
 
