@@ -100,7 +100,9 @@ managed layer runs only the managed layer's hooks. `extensions.exclusive`
 naming `hooks` runs only managed and extension hooks. An untrusted workspace
 runs no checkout hook: a headless run loads the user, `--config` and
 managed layers only, and the cockpit runs nothing until the workspace is
-trusted ([TRUST.md](TRUST.md)).
+trusted ([TRUST.md](TRUST.md)); a headless run in an untrusted folder says
+on stderr, once at the start, how many project and local hooks it left
+unloaded and how to trust the folder.
 
 ### Skills, agents and extensions
 
@@ -205,7 +207,7 @@ every block are joined in order; every `context` is added in order; for
 wins and the operator reads a notice naming both.
 
 What each outcome shows: a hook that ran with nothing to say shows nothing
-(transcript mode counts them); `context` reaches the model and the
+(`/hooks` lists what is wired); `context` reaches the model and the
 transcript; a `block` is a red line, `hook <name> blocked <event>: <words>`,
 and the model reads the words; a `stop` ends the turn with its words; a
 `notice` is one line; a failure is one line. Every line is saved with the

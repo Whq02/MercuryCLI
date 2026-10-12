@@ -144,7 +144,7 @@ export const SettingsSchema = lazySchema(() => {
       managedOnly: z.boolean().optional(),
     }).passthrough().optional(),
     events: z.object({
-      hooks: HooksSchema().optional().describe('The hooks, by event: one entry per hook with its own match; docs/HOOKS.md defines the events'),
+      hooks: HooksSchema().optional().describe('The hooks, by event: one entry per hook with its own match; the Hooks page of the built-in docs defines the events and the entry — ask Mercury how hooks work (the mercury-docs skill reads docs/HOOKS.md, shipped inside Mercury)'),
       disabled: z.boolean().optional().describe('True turns off every hook that is not managed; in the managed layer, every hook'),
       managedOnly: z.boolean().optional().describe("True in the managed layer runs only the managed layer's hooks"),
     }).passthrough().optional(),

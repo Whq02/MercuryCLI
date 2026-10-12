@@ -35,6 +35,7 @@ __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-session-star
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-hook-tool-road.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-hook-tool-road.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-hook-turn-road.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-hook-turn-road.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-hooks-survive-broken-settings.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-hooks-survive-broken-settings.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-hooks-untrusted-said.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-hooks-untrusted-said.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-hook-cut.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-hook-cut.ts" "$__t" "$__rc"
 if [[ "$fail" == "0" ]]; then echo "✅ HOOKS SUITE GREEN"; exit 0; else
   echo "❌ HOOKS SUITE RED"; exit 1; fi
