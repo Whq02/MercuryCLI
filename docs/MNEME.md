@@ -111,28 +111,44 @@ section — facts and decisions, pinned rules, topics, the lineage, the
 journal, notes to take in (while there are any), maintenance and the
 instruction files — and three columns beside the name: the count, the newest
 date, and a one-word state. The selected row's detail reads under the table
-and its action in the footer: `↵` lists the pinned rules or the topics,
-opens the sessions or the journal, runs maintenance now, takes the old notes
-in, opens the instruction files picker.
+and its action in the footer: `↵` lists the facts, the pinned rules or the
+topics, opens the sessions or the journal, runs maintenance now, takes the
+old notes in, opens the instruction files picker. The lineage row counts the
+sessions before this one; the chat you are in is never among them.
 
 A section opens in the body with the overview folded to a breadcrumb. The
-pinned rules and the topics are lists; `↵` opens a rule (there `c` corrects
-it with its current wording in view, `x` retires it, `u` unpins it) and `u`
-on a rule in the list unpins it. The lineage
+facts (newest first), the pinned rules and the topics are lists. The lineage
 is a table of the sessions of this work, newest first — session, engine,
 started, ended, and whether it left a note — and `↵` on a noted session
 opens its note. The journal is a dated list, newest first, and `↵` opens an
 entry whole. A topic page, a session's note and a journal entry open as
-pages wrapped to the frame; `↑↓` scroll one that runs past it. Type to
-search: on the overview the search reads the facts and rules; in a list it
-filters the list. Open a fact to see why it matched and the page it lives
-on, the fact marked; press `c` to correct it (the old fact moves to history),
-`x` to retire it, `p` to pin it word for word or `u` to unpin it. `esc` backs
-out one level and closes the popup from the overview; a click outside closes
-it too. `/memory files` opens the instruction files picker straight away, in
-the same popup. `/memory stats` prints the numbers; `/memory enqueue` runs
-maintenance now. `/health` carries a memory row with the front page's size
-and the shelf's fill.
+pages wrapped to the frame; `↑↓` scroll one that runs past it.
+
+One rule holds everywhere: a list filters by typing, so no letter is ever an
+action in a list; a row acts once you open it with `↵`. Type to search: on
+the overview the search reads the topic pages, the pinned rules, the recent
+facts and the instruction files; in a list it filters the list; `/` focuses
+the search. A convention you stated in the chat lives in MERCURY.md and the
+search finds it by its words as `MERCURY.md:12 · the line`; `↵` opens the
+file as a page at that line and `e` opens it in your editor.
+
+Open a fact — from the facts, the pinned rules or the search, it is the same
+view — to see its seq, whether it is pinned and asked for by you, when it was
+saved and from where, and the page it lives on with the fact marked. The
+footer names only the keys that work there: `c` corrects it (you retype it
+with the current wording in view; the old wording goes to history and the
+pin follows the new one), `x` retires it — `x` asks first and `x` again
+retires it, any other key keeps it — `p` pins it word for word as asked for
+by you, `u` unpins it; pin and unpin act at once and the receipt names the
+key that undoes them. A change made here reaches new sessions; the chat you
+are in keeps the rules it loaded when it started, and every receipt says so.
+
+`esc` backs out one level and returns to the row you came from; from the
+overview it closes the popup, and a click outside closes it too. `/memory
+files` opens the instruction files picker straight away, in the same popup.
+`/memory stats` prints the numbers; `/memory enqueue` runs maintenance now.
+`/health` carries a memory row with the front page's size and the shelf's
+fill.
 
 ## On disk
 

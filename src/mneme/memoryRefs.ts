@@ -94,16 +94,18 @@ export function collectMemoryRefs(query: string, opts: CollectOpts = {}): Memory
   for (const { token: t, pattern } of matchers) {
     for (const h of grepLibrary(pattern, { dir, maxHits: 3 })) {
       const sig = h.text.match(/<seq=(\d+), time=([^,>]+), source=([^,>]*?)[,>]/)
+      const seq = h.entry?.seq ?? (sig ? Number(sig[1]) : null)
+      const words = h.entry?.text ?? h.text.replace(/<seq=.*$/, '').replace(/^\s*-\s+/, '').trim()
       push({
-        refId: sig ? `mneme:${sig[1]}` : `mneme-line:${h.slug}:${h.line}`,
+        refId: seq !== null ? `mneme:${seq}` : `mneme-line:${h.slug}:${h.line}`,
         kind: 'mneme-fact',
         store: 'mneme',
         scope: 'project',
-        status: pathFreshness(h.text, projectRoot),
-        summary: cap(h.text.replace(/<seq=.*$/, '').trim()),
-        capturedAt: sig?.[2]?.trim(),
-        source: sig?.[3]?.trim(),
-        why: `content matches '${t}'`,
+        status: pathFreshness(words, projectRoot),
+        summary: cap(words),
+        capturedAt: h.entry?.time ?? sig?.[2]?.trim(),
+        source: h.entry?.source ?? sig?.[3]?.trim(),
+        why: `content matches '${t}'${h.entry?.supersededBy !== undefined ? ' · in history' : ''}`,
         deref: `Recall read:"doc:${h.slug}"`,
         tier: 2,
       })

@@ -228,10 +228,10 @@ export function describeCaptureResult(result: CaptureResult): string {
   switch (result.action) {
     case 'recorded':
       return result.created
-        ? `Recorded in ${basename(result.path)} (born now) — ${result.path}`
-        : `Recorded in ${basename(result.path)} — ${result.path}`
+        ? `Recorded in ${basename(result.path)} (born now) — ${result.path} · the user finds it in /memory by its words`
+        : `Recorded in ${basename(result.path)} — ${result.path} · the user finds it in /memory by its words`
     case 'updated':
-      return `Updated the existing rule in ${basename(result.path)} — ${result.path}`
+      return `Updated the existing rule in ${basename(result.path)} — ${result.path} · the user finds it in /memory by its words`
     case 'already-recorded':
       return `Already recorded in ${basename(result.path)} — nothing written`
     case 'replace-miss':

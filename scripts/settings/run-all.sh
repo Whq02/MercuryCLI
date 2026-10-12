@@ -22,6 +22,7 @@
 # gate-watch: scripts/lib/fixtureApi.ts scripts/lib/runnerHost.ts src/services/providers/openai/openaiCatalogue.ts src/services/providers/catalogueOnDemand.ts src/hooks/useCatalogueEpoch.ts src/services/providers/moonshot/moonshotAccounts.ts src/services/providers/huggingface/huggingfaceAccounts.ts src/services/providers/huggingface/huggingfaceCatalogue.ts src/services/providers/local/localDiscovery.ts src/services/providers/local/localAccounts.ts src/components/ConfigurableShortcutHint.tsx src/components/HelmLanesRail.tsx
 # gate-watch: scripts/providers/lib/usage-plan-world.ts src/* src/commands/config/config.tsx
 # gate-watch: src/components/InvalidConfigDialog.tsx src/components/InvalidSettingsDialog.tsx src/components/SettingsPopupSlot.tsx src/context/popupFormContext.ts
+# gate-watch: src/mneme/journal.ts src/mneme/journalSetting.ts src/components/memory/memoryCentreLayout.ts
 # gate-watch: src/components/design-system/ThemeProvider.tsx src/components/mercury-ui/RailPanel.tsx
 # gate-watch: src/components/mercury-ui/components.tsx src/components/tasks/useFocusedWork.ts
 # gate-watch: src/context/notifications.tsx src/entrypoints/init.ts src/hooks/useExitOnCtrlCD.ts

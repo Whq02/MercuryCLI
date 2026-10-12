@@ -10,6 +10,7 @@
 # gate-watch: src/utils/capability/declarations.ts src/query/stopHooks.ts
 # gate-watch: src/commands.ts src/utils/memory/types.ts src/tools/AgentTool/agentMemory.ts
 # gate-watch: src/utils/config/globalConfig.ts scripts/lib/settingsPopupHarness.ts
+# gate-watch: src/components/mercury-ui/useFlatList.ts src/services/engine-connector/focusedConnector.ts src/services/engine-connector/noSessionConnector.ts
 # gate-watch: scripts/lib/captureDriver.ts scripts/lib/firstRunSeed.ts scripts/lib/fixtureApi.ts scripts/lib/rows.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
