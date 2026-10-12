@@ -13,7 +13,7 @@ FILES · project         │ │ ╰──────────────�
                         │ │   Sonnet 4.6          claude-sonnet-4-6                      1M ctx                      │ │
 VITALS                  │ │                                                                                          │ │
   · spend —             │ │ context —  · tier API billing                                                            │ │
-  · ctx — · —           │ │ effort  low medium [high] xhigh max · ctrl+e cycles                                      │ │
+  · ctx — · —           │ │ effort  low medium [high] xhigh max · ctrl+e changes it                                  │ │
   · health — run /health│ │ ↑↓ select · type to search · ↵ switch · tab back to the rows · esc clears the search     │ │
                         │ ╰──────────────────────────────────────────────────────────────────────────────────────────╯ │
                         │                                                                                              │

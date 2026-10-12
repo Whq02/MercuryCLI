@@ -63,7 +63,7 @@ section('§1 the words: no bare letter is a key in the picker; the chords are na
 {
   const hint: string = words.MODEL_PICKER_HINT
   check('the rows’ hint names the context chord and no bare letter', hint.includes('ctrl+w context') && !/ c context/.test(hint) && hint.includes('tab to search'), hint)
-  check('the effort strip names its chord', (words as Record<string, unknown>).MODEL_PICKER_EFFORT_WORDS === 'ctrl+e cycles', String((words as Record<string, unknown>).MODEL_PICKER_EFFORT_WORDS))
+  check('the effort strip names its chord', (words as Record<string, unknown>).MODEL_PICKER_EFFORT_WORDS === 'ctrl+e changes it', String((words as Record<string, unknown>).MODEL_PICKER_EFFORT_WORDS))
   check('the box at rest says to type', words.MODEL_PICKER_FILTER_PLACEHOLDER === 'type to search by name or id', words.MODEL_PICKER_FILTER_PLACEHOLDER)
   check('the local offer names the command, not a letter', LOCAL_SETUP_PICKER_OFFER.includes('/localsetup') && !/\bs sets/.test(LOCAL_SETUP_PICKER_OFFER), LOCAL_SETUP_PICKER_OFFER)
   check('the legend at width carries the chord', modelPickerFooter({ gated: false }, 120).includes('ctrl+w context') && !modelPickerFooter({ gated: false }, 120).includes(' c context'), modelPickerFooter({ gated: false }, 120))
@@ -170,7 +170,7 @@ section('§2 the chat picker at 120x40: a typed name searches, saves nothing and
   const scene = await openPicker(120, 40)
   const before = JSON.stringify(engineOf())
   const effortBefore = effortRow(scene.m)
-  check('the opened picker shows the effort strip with its chord', effortBefore.includes('[') && effortBefore.endsWith('ctrl+e cycles'), effortBefore)
+  check('the opened picker shows the effort strip with its chord', effortBefore.includes('[') && effortBefore.endsWith('ctrl+e changes it'), effortBefore)
   check('the box at rest invites typing', boxText(scene.m) === '/ type to search by name or id', boxText(scene.m))
   check('the legend names the context chord at this width', rowOf(scene.m, '↑↓ select').includes('ctrl+w context'), rowOf(scene.m, '↑↓ select').trim())
   await typeSlowly(scene.m, 'sonnet')
@@ -212,7 +212,7 @@ section('§2 the chat picker at 120x40: a typed name searches, saves nothing and
   check('ctrl+w typed nothing into the search', boxText(scene.m) === '/ type to search by name or id', boxText(scene.m))
   scene.m.push(CTRL_E)
   const saved = await waitFor(() => engineOf().effort !== undefined, 6000)
-  check('ctrl+e cycles the effort and that choice is saved as the default', saved, JSON.stringify(engineOf()))
+  check('ctrl+e changes it the effort and that choice is saved as the default', saved, JSON.stringify(engineOf()))
   check('ctrl+e typed nothing into the search', boxText(scene.m) === '/ type to search by name or id', boxText(scene.m))
   await settle(300)
   save('chords-120x40', scene.m.lines())

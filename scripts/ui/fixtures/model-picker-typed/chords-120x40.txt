@@ -27,7 +27,7 @@ VITALS                  │ │ ╭───────────────
                         │ │ ▾ LOCAL MODELS · no local server · /localsetup sets one up                               │ │
                         │ │                                                                                          │ │
                         │ │ context —  · tier API billing                                                            │ │
-                        │ │ effort  low medium [high] xhigh max · ctrl+e cycles                                      │ │
+                        │ │ effort  low medium [high] xhigh max · ctrl+e changes it                                  │ │
                         │ │ 1M ctx · native to this model · not a toggle                                             │ │
                         │ │ ↑↓ select · ↵ switch · ctrl+w context · → ← fold · esc or click outside closes           │ │
                         │ ╰──────────────────────────────────────────────────────────────────────────────────────────╯ │

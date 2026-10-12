@@ -11,7 +11,7 @@
  │     Opus 4.7         claude-opus-4-7                  1M ctx               │
  │     Opus 4.6         claude-opus-4-6                  1M ctx               │
  │ context —                                                                  │
- │ effort  [medium] ctrl+e cycles                                             │
+ │ effort  [medium] ctrl+e changes it                                         │
  │ ↑↓ select · type to search · ↵ switch · esc clears the search              │
  ╰────────────────────────────────────────────────────────────────────────────╯
 
