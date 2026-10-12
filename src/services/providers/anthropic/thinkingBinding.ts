@@ -1,4 +1,4 @@
-import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
+import { mkdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { THINKING_BINDING_CONTROLS_BETA_HEADER } from '../../../constants/betas.js'
 import { flagEnv } from '../../../substrate/flagRegistry.js'
@@ -683,6 +683,23 @@ function writeThinkingDropLedger(ledger: ThinkingDropLedger): void {
   renameSync(staging, path)
 }
 
+export const THINKING_DROP_NOTICE_MS = 60 * 60 * 1000
+
+export function thinkingDropIsRecent(ledger: ThinkingDropLedger, nowMs: number, sessionId: string): boolean {
+  if (ledger.session?.id === sessionId) return true
+  const at = Date.parse(ledger.last.at)
+  return !Number.isFinite(at) || nowMs - at <= THINKING_DROP_NOTICE_MS
+}
+
+export function forgetThinkingDropLedger(): boolean {
+  try {
+    unlinkSync(thinkingDropLedgerPath())
+    return true
+  } catch {
+    return false
+  }
+}
+
 export function readThinkingDropLedger(): ThinkingDropLedger | null {
   try {
     const parsed = JSON.parse(readFileSync(thinkingDropLedgerPath(), 'utf8')) as unknown
@@ -704,7 +721,7 @@ function sessionClause(ledger: ThinkingDropLedger, sessionId: string): string {
   return `${count}${cause}`
 }
 
-export function preservedThinkingHealth(ledger: ThinkingDropLedger | null, sessionId: string = getSessionId()): {
+export function preservedThinkingHealth(ledger: ThinkingDropLedger | null, sessionId: string = getSessionId(), nowMs: number = Date.now()): {
   status: 'ok' | 'info' | 'warn'
   evidence: string
   detail?: string
@@ -713,6 +730,21 @@ export function preservedThinkingHealth(ledger: ThinkingDropLedger | null, sessi
   if (ledger === null) {
     return { status: 'ok', evidence: 'no dropped thinking block recorded on this machine (input_transformations empty on every response seen)' }
   }
+  const fresh = preservedThinkingFreshHealth(ledger, sessionId)
+  if (fresh.status !== 'warn' || thinkingDropIsRecent(ledger, nowMs, sessionId)) return fresh
+  return {
+    ...fresh,
+    status: 'info',
+    detail: `${fresh.detail ?? ''}${fresh.detail ? ' ' : ''}Older than an hour and from another session: a record, not a caution.`,
+  }
+}
+
+function preservedThinkingFreshHealth(ledger: ThinkingDropLedger, sessionId: string): {
+  status: 'ok' | 'info' | 'warn'
+  evidence: string
+  detail?: string
+  fix?: string
+} {
   const { last } = ledger
   const blocks = `${last.count} ${last.count === 1 ? 'block' : 'blocks'}`
   const where = `${last.reason ?? 'unknown reason'} at ${last.path ?? 'unknown path'}`
