@@ -139,7 +139,7 @@ export function factsRow(facts: Pick<OverviewFacts, 'enabled' | 'entryCount' | '
     count: `${facts.entryCount} current${recent}`,
     newest: humanStamp(facts.newestFact),
     state: 'on',
-    detail: `facts live in topic pages; corrections keep history · ${facts.historyCount} in history${facts.recent > 0 ? ` · ${facts.recent} recent, consolidated at the next pass` : ''}`,
+    detail: `facts live in topic pages · ${facts.historyCount} in history${facts.recent > 0 ? ` · ${facts.recent} recent, consolidated at the next pass` : ''} · corrections keep history`,
     action: facts.entryCount + facts.recent > 0 ? 'list the facts' : null,
   }
 }
