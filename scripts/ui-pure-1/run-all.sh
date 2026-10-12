@@ -10,7 +10,7 @@
 # gate-watch: src/services/rateLimitMessages* src/services/run/** src/state/AppState*
 # gate-watch: src/state/AppStateStore* src/substrate/bootNotes*
 # gate-watch: src/types/logs* src/utils/**
-# gate-watch: assets/splash/mercury-splash.mjs assets/splash/splash-core.mjs
+# gate-watch: assets/splash/mercury-splash.mjs assets/splash/splash-core.mjs scripts/splash/bake-menu.mjs
 # gate-watch: scripts/cockpit-interaction/prove-action-graph.ts scripts/engine-durability/harness.ts
 # gate-watch: scripts/gate/prove-suite-class-census.ts scripts/gate/sourceCensus.ts
 # gate-watch: scripts/ink-runtime/prove-viewport-clamp.ts scripts/lib/* scripts/ops/launcher-mercury.sh
