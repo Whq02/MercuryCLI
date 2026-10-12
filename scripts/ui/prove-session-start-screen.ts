@@ -96,7 +96,7 @@ for (const [cols, rows] of SIZES) {
     const sends = [
       { atTick: 40, awaitText: FACE_READY, minTick: 3, awaitSettleTicks: 2, requireAwait: true, data: '\r', mark: 'boot' },
       { atTick: 120, awaitText: ADMITTED, minTick: 5, awaitSettleTicks: 6, requireAwait: true, data: PROMPT, mark: 'chat' },
-      { afterPrevTicks: 3, data: '\r' },
+      { atTick: 160, awaitText: `❯ ${PROMPT}`, minTick: 5, awaitSettleTicks: 2, requireAwait: true, data: '\r' },
       { atTick: 220, awaitText: REPLY, minTick: 5, awaitSettleTicks: 8, requireAwait: true, data: '', mark: 'after-turn' },
     ]
     writeFileSync(cfgPath, JSON.stringify({ argv: [productNode(), DIST], cwd: realCwd, cols, rows, sends, resizes: [], readyText: REPLY, readySettleTicks: 4, total: 300, out: grid }))
