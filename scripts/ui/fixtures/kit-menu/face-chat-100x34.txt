@@ -23,6 +23,6 @@
         │   ↺ Sessions · Projects                               pick a session or a repo → │
         ╰──────────────────────────────────────────────────────────────────────────────────╯
         ╭──────────────────────────────────────────────────────────────────────────────────╮
-        │ Model Opus 5  │  Theme Octopus  │  Dir orchard-src                               │
+        │ Model Opus 5  │  Critter Octopus  │  Dir orchard-src                             │
         │ Acct operator@example.com  │  Health ✓ certified · 2h                            │
         ╰──────────────────────────────────────────────────────────────────────────────────╯

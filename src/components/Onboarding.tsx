@@ -39,7 +39,7 @@ const THEME_ROWS: { value: ThemeSetting; label: string }[] = [
 
 const THEME_WORDS = {
   bubble: 'Choose your theme',
-  tagline: 'Your theme applies throughout Mercury. Status colors stay the same.',
+  tagline: 'Your theme applies throughout Mercury. Status colors stay the same in the two colour themes; Black and white paints none.',
   fileName: 'helm.tsx',
 }
 

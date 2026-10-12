@@ -103,16 +103,16 @@ export function resolveTerminalProfile(probe: ProfileProbe = {}): TerminalProfil
     const firstClass = fingerprinted || (sync && !minttyLike)
     checks.push({
       id: 'win32-first-class-host',
-      label: 'full-profile Windows host',
+      label: 'this window',
       requirement: 'required',
       ok: firstClass,
       evidence: fingerprinted
-        ? fingerprints
+        ? `Windows Terminal or the VS Code terminal (${fingerprints})`
         : sync
-          ? `${fingerprints} · DEC 2026 live latch: supported (Windows Terminal as the default terminal injects no fingerprint)`
-          : `${fingerprints} · DEC 2026 live latch: unsupported`,
+          ? `draws frames atomically, as Windows Terminal does when it is the default terminal and names itself to nothing (${fingerprints})`
+          : `the old Windows console — it names itself to nothing and does not draw frames atomically (${fingerprints})`,
       remediation:
-        'The full Windows profile runs in Windows Terminal (stable) or the VS Code integrated terminal — PowerShell 7 preferred. You can continue knowingly, but the presentation is not the complete design.',
+        'Mercury looks right in Windows Terminal (stable) or the VS Code integrated terminal — PowerShell 7 preferred. You can continue here knowingly; the screen will not be the complete design.',
     })
   }
 

@@ -131,6 +131,8 @@ export function computeNextCronRun(fields: CronFields, from: Date): Date | null 
   return null
 }
 
+const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
+
 const WEEKDAY_NAMES = [
   'Sunday',
   'Monday',
@@ -194,6 +196,11 @@ export function cronToHuman(cron: string): string {
   }
   if (domPart === '*' && monthPart === '*' && dowPart === '1-5') {
     return `Weekdays at ${time}`
+  }
+  const dom = parseIntStrict(domPart)
+  const month = parseIntStrict(monthPart)
+  if (dom !== null && month !== null && month >= 1 && month <= 12 && dowPart === '*') {
+    return `${time} on ${dom} ${MONTH_NAMES[month - 1]}`
   }
   return cron
 }

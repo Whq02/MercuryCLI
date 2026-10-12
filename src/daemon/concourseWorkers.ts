@@ -92,7 +92,7 @@ export function evaluateConcourseAdmission(
     return {
       admit: false,
       code: 'runtime-ceiling',
-      reason: `every seat is taken — ${describeSeatReading(ceiling)}`,
+      reason: `every seat is taken — ${describeSeatReading(ceiling)} · close a session you are done with (/concourse lists the live ones) or raise Seats in /config`,
       moves: [
         { verb: 'queue', label: 'it queues and starts when a seat frees' },
         { verb: 'pause-holder', label: 'or stop a running session to free one' },

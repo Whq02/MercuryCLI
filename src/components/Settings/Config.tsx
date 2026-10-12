@@ -74,7 +74,7 @@ import {
   type ProviderFamilyPresence,
 } from '../../services/providers/providerUsage.js'
 import { shownIdentityWords } from '../../services/providers/providerIdentityLine.js'
-import { REACHABLE_THEME_SETTINGS } from '../../utils/theme.js'
+import { REACHABLE_THEME_SETTINGS, THEME_LABELS as THEME_NAMES_BY_SETTING } from '../../utils/theme.js'
 import { useTheme, useThemeSetting } from '../design-system/ThemeProvider.js'
 import { GLYPH } from '../mercury-ui/glyphs.js'
 import { InteractiveRow } from '../mercury-ui/InteractiveRow.js'
@@ -169,12 +169,7 @@ type SettingsItem = {
   setByYou?: boolean
 }
 
-const THEME_LABELS: Record<string, string> = {
-  auto: 'auto',
-  dark: 'Dark',
-  'true-black': 'True Black',
-  mono: 'Black and white',
-}
+const THEME_LABELS: Record<string, string> = { auto: 'auto', ...THEME_NAMES_BY_SETTING }
 
 
 const CONFIG_PROVIDER_PRESENTATION: Record<
@@ -799,6 +794,7 @@ export function Config({
     items.push({
       id: 'thinking',
       label: 'Thinking',
+      searchText: 'thinking reasoning think reason extended',
       kind: 'boolean',
       value: thinkingApplicability.applies ? boolValue(thinkingOn) : <Text color={tokens.textSecondary}>{thinkingApplicability.naText}</Text>,
       warning:
@@ -806,7 +802,7 @@ export function Config({
           ? thinkingApplicability.refuseNote
           : thinkingWarning && conversationHasAssistantTurn
             ? 'Thinking raises latency and can reduce quality mid-conversation.'
-            : undefined,
+            : 'the model reasons before it answers; on is the default · off asks the model not to — Sonnet 5.5 and Opus 5.5 keep thinking on regardless · engine.reasoning in settings',
       change: () => {
         if (!thinkingApplicability.applies) return
         const next = !thinkingOn

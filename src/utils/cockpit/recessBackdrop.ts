@@ -1,5 +1,5 @@
 import chalk from 'chalk'
-import { CHALK_DISABLED_FOR_NO_COLOR } from '../../ink/colorize.js'
+import { CHALK_DISABLED_FOR_NO_COLOR, monochromeThemeActive } from '../../ink/colorize.js'
 import type { RecessTransform } from '../../ink/cell-grid.js'
 import type { MercuryThemeTokens } from '../mercuryTokens.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
@@ -13,7 +13,7 @@ function parseHex(c: string | undefined): [number, number, number] | null {
 
 export function recessBackdropEnabled(): boolean {
   if (flagEnv('MERCURY_RECESS') === '0') return false
-  if (CHALK_DISABLED_FOR_NO_COLOR) return false
+  if (CHALK_DISABLED_FOR_NO_COLOR || monochromeThemeActive()) return false
   return chalk.level >= 2
 }
 

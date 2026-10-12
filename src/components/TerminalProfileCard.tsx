@@ -125,8 +125,8 @@ export function TerminalProfileCard({
     >
       <Box flexDirection="column" gap={1}>
         <Text>
-          This terminal does not satisfy Mercury&apos;s full profile
-          <Text color={tokens.textMuted}> (v{resolution.version})</Text>.
+          This window cannot show Mercury the way it is designed
+          <Text color={tokens.textMuted}> (terminal profile v{resolution.version})</Text>.
         </Text>
         <Box flexDirection="column">
           {failing.map(c => (
@@ -167,7 +167,7 @@ export function TerminalProfileCard({
         {note ? <Text color={tokens.textSecondary}>{note}</Text> : null}
         <Select
           options={[
-            { label: 'Continue anyway (not the complete design)', value: 'continue' },
+            { label: 'Continue anyway (the screen will not be the complete design)', value: 'continue' },
             { label: 'Exit — relaunch in a supported terminal', value: 'exit' },
             ...actions.map(a => ({ label: a.label, value: a.id })),
           ]}
