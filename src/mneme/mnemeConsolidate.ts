@@ -248,6 +248,18 @@ interface Consumed {
   landedPins: ManifestRow[]
 }
 
+export function claimBufferFile(dir: string, stem: string): string | null {
+  const current = currentBufferPath(dir)
+  if (!existsSync(current)) return null
+  const claim = join(dir, `${stem}-${process.pid}-${Date.now().toString(36)}.jsonl`)
+  try {
+    renameWithWin32RetrySync(current, claim)
+    return claim
+  } catch {
+    return null
+  }
+}
+
 function consumeBuffer(dir: string): Consumed {
   const files: string[] = []
   const staleManifests: string[] = []

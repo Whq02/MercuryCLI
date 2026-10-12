@@ -3,12 +3,13 @@
 
 import { appendFileSync, existsSync, readdirSync, readFileSync, unlinkSync } from 'node:fs'
 import { join } from 'node:path'
-import { durableAtomicPublishSync, renameWithWin32RetrySync } from '../substrate/durablePublish.js'
 import { mnemeEnabled, mnemeLibraryDir } from './mnemeGates.js'
 import { appendObservation, currentBufferPath, observationOverflow, pendingRows, type MnemeObservation } from './mnemeBuffer.js'
+import { publishLibraryFile } from './mnemeLibrary.js'
 import { memorySecretRefusal } from './mnemeSecretGuard.js'
 import {
   acquireConsolidateLock,
+  claimBufferFile,
   listArchiveDocs,
   listTopicDocs,
   readLibraryMeta,
@@ -362,8 +363,8 @@ function dropRowFrom(file: string, ts: string, dir: string): MnemeObservation | 
   if (!existsSync(file)) return null
   const current = currentBufferPath(dir)
   const isCurrent = file === current
-  const claim = isCurrent ? join(dir, `striking-${process.pid}-${Date.now().toString(36)}.jsonl`) : file
-  if (isCurrent) renameWithWin32RetrySync(current, claim)
+  const claim = isCurrent ? claimBufferFile(dir, 'striking') : file
+  if (claim === null) return null
   let struck: MnemeObservation | null = null
   const kept: string[] = []
   for (const line of readFileSync(claim, 'utf8').split('\n')) {
@@ -379,7 +380,7 @@ function dropRowFrom(file: string, ts: string, dir: string): MnemeObservation | 
     if (kept.length > 0) appendFileSync(current, `${kept.join('\n')}\n`, 'utf8')
     unlinkSync(claim)
   } else if (kept.length > 0) {
-    durableAtomicPublishSync(file, `${kept.join('\n')}\n`)
+    publishLibraryFile(file, `${kept.join('\n')}\n`)
   } else {
     unlinkSync(file)
   }
