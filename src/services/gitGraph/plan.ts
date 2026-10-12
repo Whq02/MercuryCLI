@@ -270,6 +270,22 @@ export function preparePlan(
 }
 
 
+function headSha(root: string): string | null {
+  try {
+    return git(root, ['rev-parse', '--verify', '--quiet', 'HEAD']).trim() || null
+  } catch {
+    return null
+  }
+}
+
+function commitSigningOn(root: string): boolean {
+  try {
+    return git(root, ['config', '--get', '--type=bool', 'commit.gpgsign']).trim() === 'true'
+  } catch {
+    return false
+  }
+}
+
 export interface PlanApplyOutcome {
   state: 'applied'
   plan: GitPlan
@@ -333,12 +349,25 @@ export function applyPlan(
         commitsCreated: commits.map(c => ({ sha: c.sha, message: c.message })),
       }
     }
+    const tmpIndex = path.join(tmpdir(), `mercury-gitplan-commit-${process.pid}-${Date.now()}-${index}`)
     try {
-      git(plan.root, ['reset', '--quiet'])
+      const indexEnv = { ...subprocessEnv(), GIT_OPTIONAL_LOCKS: '0', GIT_INDEX_FILE: tmpIndex }
+      const gitIndexed = (args: string[], input?: string): string =>
+        execFileSync('git', args, {
+          windowsHide: true,
+          cwd: plan.root,
+          encoding: 'utf8',
+          env: indexEnv,
+          timeout: 30_000,
+          ...(input === undefined ? { stdio: ['ignore', 'pipe', 'pipe'] as const } : { input }),
+        })
+      const parent = headSha(plan.root)
+      if (parent === null) gitIndexed(['read-tree', '--empty'])
+      else gitIndexed(['read-tree', parent])
       for (const file of group.files) {
         const wanted = group.hunks?.[file]
         if (!wanted) {
-          git(plan.root, ['add', '--', file])
+          gitIndexed(['add', '--', file])
           continue
         }
         const patch = rawPatches.get(file)
@@ -349,15 +378,9 @@ export function applyPlan(
           throw new Error(`hunk id(s) no longer reproduce for '${file}': ${missing.join(', ')}`)
         }
         const patchText = `${[...patch.headerLines, ...chosen.flatMap(h => [h.header, ...h.raw])].join('\n')}\n`
-        execFileSync('git', ['apply', '--cached', '--whitespace=nowarn', '-'], {
-          windowsHide: true,
-          cwd: plan.root,
-          input: patchText,
-          timeout: 30_000,
-          env: { ...subprocessEnv() },
-        })
+        gitIndexed(['apply', '--cached', '--whitespace=nowarn', '-'], patchText)
       }
-      const staged = git(plan.root, ['diff', '--cached', '--name-only'])
+      const staged = (parent === null ? gitIndexed(['ls-files']) : gitIndexed(['diff', '--cached', '--name-only', parent]))
         .split('\n')
         .filter(Boolean)
         .sort()
@@ -366,8 +389,18 @@ export function applyPlan(
         throw new Error(`staged set [${staged.join(', ')}] ≠ planned [${wantedFiles.join(', ')}]`)
       }
       if (staged.length === 0) throw new Error('empty staged set — an empty commit is refused')
-      git(plan.root, ['commit', '--quiet', '--no-verify', '-m', group.message])
-      const sha = git(plan.root, ['rev-parse', 'HEAD']).trim()
+      const tree = gitIndexed(['write-tree']).trim()
+      const sign = commitSigningOn(plan.root)
+      const sha = execFileSync('git', ['commit-tree', tree, ...(parent === null ? [] : ['-p', parent]), ...(sign ? ['-S'] : []), '-m', group.message], {
+        windowsHide: true,
+        cwd: plan.root,
+        encoding: 'utf8',
+        env: { ...subprocessEnv(), GIT_OPTIONAL_LOCKS: '0' },
+        timeout: 30_000,
+        stdio: ['ignore', 'pipe', 'pipe'],
+      }).trim()
+      git(plan.root, ['update-ref', '-m', `commit: ${group.message.split('\n')[0] ?? ''}`, 'HEAD', sha, ...(parent === null ? [] : [parent])])
+      git(plan.root, ['reset', '--quiet', '--', ...group.files])
       const committed = git(plan.root, ['show', '--name-only', '--format=', sha])
         .split('\n')
         .filter(Boolean)
@@ -416,6 +449,8 @@ export function applyPlan(
         reason: `group ${index + 1}/${plan.groups.length} FAILED (${(err as Error).message.slice(0, 200)}) — ${commits.length} earlier commit(s) stand; working content untouched`,
         commitsCreated: commits.map(c => ({ sha: c.sha, message: c.message })),
       }
+    } finally {
+      rmSync(tmpIndex, { force: true })
     }
   }
 
