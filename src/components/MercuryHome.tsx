@@ -1,7 +1,10 @@
 import { pathTailLabel } from '../utils/pathLabel.js'
 import * as React from 'react'
 import { useContext, useEffect, useMemo, useState } from 'react'
-import { useDisplayedSessionModel } from '../hooks/useDisplayedSessionModel.js'
+import { useDisplayedSessionModel, useFocusedServedModel } from '../hooks/useDisplayedSessionModel.js'
+import { useSessionSignInGate } from '../hooks/useSessionSignInGate.js'
+import { getEngineModel } from '../utils/model/model.js'
+import { NOT_SIGNED_IN_WORDS, SIGN_IN_COMMAND } from '../utils/accounts/sessionSignIn.js'
 import { Box, Text } from '../ink.js'
 import { CockpitActiveContext } from '../context/cockpitActiveContext.js'
 import { useCwdState } from '../hooks/useCwdState.js'
@@ -109,6 +112,8 @@ export function MercuryHome(): React.ReactNode {
 function MercuryHomeBody(): React.ReactNode {
   const tok = useMercuryTokens()
   const model = useDisplayedSessionModel().label
+  const servedModel = useFocusedServedModel()
+  const signInGate = useSessionSignInGate(servedModel ?? getEngineModel())
   const cwd = useCwdState()
   const dir = pathTailLabel(cwd)
 
@@ -183,15 +188,28 @@ function MercuryHomeBody(): React.ReactNode {
         )}
         {
 }
-        <InteractiveRow {...rowClick('standing-by', '/palette')}>
-          <BreathingDot />
-          <Text color={tok.success}> ready</Text>
-          <Text color={tok.textMuted}>
-            {' · type a prompt, or '}
-            <Text color={tok.info}>/</Text>
-            {' for commands'}
-          </Text>
-        </InteractiveRow>
+        {signInGate.state === 'ok' ? (
+          <InteractiveRow {...rowClick('standing-by', '/palette')}>
+            <BreathingDot />
+            <Text color={tok.success}> ready</Text>
+            <Text color={tok.textMuted}>
+              {' · type a prompt, or '}
+              <Text color={tok.info}>/</Text>
+              {' for commands'}
+            </Text>
+          </InteractiveRow>
+        ) : (
+          <InteractiveRow {...rowClick('standing-by', SIGN_IN_COMMAND)}>
+            <Text color={tok.warning}>○ {signInGate.state === 'not-logged-in' ? NOT_SIGNED_IN_WORDS : `no ${signInGate.missingProvider} account`}</Text>
+            <Text color={tok.textMuted}>
+              {' · '}
+              <Text color={tok.info}>{SIGN_IN_COMMAND}</Text>
+              {' connects, or '}
+              <Text color={tok.info}>/</Text>
+              {' for commands'}
+            </Text>
+          </InteractiveRow>
+        )}
       </Box>
 
       {
