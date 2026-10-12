@@ -145,7 +145,7 @@ export function spawnSwitchToggleReceipt(
 }
 
 export function spawnSwitchTransitionLine(kind: SpawnSwitchKind, on: boolean): string {
-  return `the operator toggled ${SPAWN_SWITCH_LABEL[kind]} ${on ? 'on' : 'off'} for this session — ${spawnSwitchBoundaryNote(kind, on)}`
+  return `the operator toggled ${SPAWN_SWITCH_LABEL[kind]} ${on ? 'on' : 'off'} — landed: ${SPAWN_SWITCH_TOOL[kind]} ${on ? 'is back on' : 'has left'} the roster; reasoning restarts on the next turn`
 }
 
 export function parseSpawnSwitchArg(raw: string): { op: 'on' | 'off' | 'show' } | { op: 'unknown'; word: string } {
