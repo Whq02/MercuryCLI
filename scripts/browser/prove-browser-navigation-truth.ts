@@ -209,6 +209,43 @@ console.log('§6 a click that opens a tab or a dialog says so in its own result'
 
 await kill(d)
 await run({ op: 'close' })
+
+console.log("§7 a process that leaves with the browser open takes the browser's temp profile with it")
+{
+  const { execFileSync } = await import('node:child_process')
+  const { existsSync, mkdtempSync, writeFileSync } = await import('node:fs')
+  const { tmpdir } = await import('node:os')
+  const scratch = mkdtempSync(join(tmpdir(), 'browser-exit-drill-'))
+  const drill = join(scratch, 'drill.ts')
+  writeFileSync(
+    drill,
+    [
+      `process.env.MERCURY_BROWSER ??= '1'`,
+      `const { ensureBrowserSession } = await import(${JSON.stringify(join(ROOT, 'src/services/browser/browserSession.ts'))})`,
+      `const { processOwnerForLane } = await import(${JSON.stringify(join(ROOT, 'src/services/run/resolveOwner.ts'))})`,
+      `const s = await ensureBrowserSession(processOwnerForLane(null))`,
+      `if ('state' in s) { console.log('NO-SESSION ' + s.note); process.exit(3) }`,
+      `await s.page.goto(${JSON.stringify(`${A}/`)}).catch(() => undefined)`,
+      `const dirArg = (s.browser.process()?.spawnargs ?? []).find(a => a.startsWith('--user-data-dir='))`,
+      `console.log('PROFILE ' + (dirArg ? dirArg.slice('--user-data-dir='.length) : '(none)'))`,
+      `process.exit(0)`,
+    ].join('\n'),
+  )
+  let out = ''
+  try {
+    out = execFileSync(process.execPath, [drill], { encoding: 'utf8', env: process.env, timeout: 60_000 })
+  } catch (err) {
+    out = `${(err as { stdout?: string }).stdout ?? ''}\nDRILL FAILED: ${(err as Error).message}`
+  }
+  const profile = /PROFILE (.+)/.exec(out)?.[1] ?? ''
+  check('the drill opened a session on a temp profile of its own', profile.startsWith('/') && /puppeteer_dev_[a-z]+_profile-/.test(profile), out.trim().slice(-300))
+  if (profile.startsWith('/')) {
+    const t0 = Date.now()
+    while (existsSync(profile) && Date.now() - t0 < 3000) await new Promise(r => setTimeout(r, 50))
+    check('the temp profile folder is gone after the process exit (no Local State left behind)', !existsSync(profile), `${profile} still exists`)
+  }
+}
+
 console.log(`\n${checks} checks, ${failures} failures`)
 if (failures > 0) {
   console.error(`browser navigation truth: ${failures} FAILURES`)

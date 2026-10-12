@@ -77,6 +77,25 @@ export const NAVIGATION_CAP_MS = BROWSER_PROTOCOL_TIMEOUT_MS
 
 export type CloseOutcome = 'closed' | 'killed' | 'gone'
 
+export function tempProfileDirOf(browser: DriverBrowser): string | null {
+  const args = browser.process()?.spawnargs ?? []
+  const arg = args.find(a => a.startsWith('--user-data-dir='))
+  if (arg === undefined) return null
+  const dir = arg.slice('--user-data-dir='.length)
+  return /^puppeteer_dev_[a-z]+_profile-/.test(path.basename(dir)) ? dir : null
+}
+
+export function removeTempProfile(browser: DriverBrowser): boolean {
+  const dir = tempProfileDirOf(browser)
+  if (dir === null || !fs.existsSync(dir)) return false
+  try {
+    fs.rmSync(dir, { recursive: true, force: true })
+  } catch {
+    return false
+  }
+  return true
+}
+
 function killChild(browser: DriverBrowser): void {
   const child = browser.process()
   if (!child) return
@@ -92,9 +111,11 @@ async function endChild(browser: DriverBrowser): Promise<void> {
   if (!child) return
   if (child instanceof ChildProcess) {
     await endProcessTree(child, 'SIGKILL')
+    removeTempProfile(browser)
     return
   }
   killChild(browser)
+  removeTempProfile(browser)
 }
 
 export function childGone(browser: DriverBrowser): boolean {
@@ -119,6 +140,7 @@ async function closeChild(browser: DriverBrowser): Promise<CloseOutcome> {
       await endChild(browser)
       return 'killed'
     }
+    removeTempProfile(browser)
     return 'closed'
   } catch {
     await endChild(browser)
@@ -520,7 +542,9 @@ async function launchOwnerSession(owner: OwnerKey, state: OwnerBrowserState): Pr
     process.on('exit', () => {
       for (const key of ownerStates.owners()) {
         const st = ownerStates.peek(key)
-        if (st?.session) killChild(st.session.browser)
+        if (!st?.session) continue
+        killChild(st.session.browser)
+        removeTempProfile(st.session.browser)
       }
     })
   }
