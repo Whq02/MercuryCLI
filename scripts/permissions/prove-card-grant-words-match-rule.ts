@@ -119,6 +119,24 @@ section('§3 the label never promises shell coverage')
   check('no promise of shell-command coverage rides the edit-grant option', !label.includes('access to') && !label.includes('run commands'), label)
 }
 
+section('§4 an edit folder beside a read folder: each folder is named under the grant its rule writes')
+{
+  const { createReadRuleSuggestion } = await import('../../src/utils/permissions/PermissionUpdate.js')
+  const READ_DIR = realpathSync(mkdtempSync(join(tmpdir(), 'card-grant-read-')))
+  const readRule = createReadRuleSuggestion(READ_DIR)!
+  check('the read suggestion is a Read rule on the folder', readRule.type === 'addRules' && readRule.rules.every(rule => rule.toolName === 'Read'), JSON.stringify(readRule))
+  const editName = PROJECT.split('/').pop() ?? ''
+  const readName = READ_DIR.split('/').pop() ?? ''
+  const mixed = await renderLabel(generateShellSuggestionsLabel([createEditRuleSuggestion(PROJECT, 'localSettings')!, readRule], 'Bash'))
+  check('the edit folder is named under "file edits in"', new RegExp(`allow file edits in ${editName}/`).test(mixed), mixed)
+  const [editPart, readPart] = mixed.split(' and reading from ')
+  check('the read folder is named under "reading from", never under file edits', readPart === `${readName}/ in this project` && editPart !== undefined && editPart.includes(editName) && !editPart.includes(readName), mixed)
+  check('the read folder is never listed as an edit folder', !mixed.includes(`${editName}/ and ${readName}/`), mixed)
+  const withCommand = await renderLabel(generateShellSuggestionsLabel([readRule, { type: 'addRules', rules: [{ toolName: 'Bash', ruleContent: 'cat *' }], behavior: 'allow', destination: 'localSettings' }], 'Bash'))
+  check('one read folder plus one command: the grant is reading, not file edits', /^Yes, and allow reading from .* plus cat commands in /.test(withCommand) && !withCommand.includes('file edits'), withCommand)
+  rmSync(READ_DIR, { recursive: true, force: true })
+}
+
 rmSync(HOME, { recursive: true, force: true })
 rmSync(PROJECT, { recursive: true, force: true })
 if (failures > 0) {
