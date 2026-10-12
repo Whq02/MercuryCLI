@@ -1,6 +1,6 @@
-import chalk from 'chalk'
 import * as React from 'react'
 import { Box, Text } from '../../ink.js'
+import { colorStripped } from '../../ink/colorize.js'
 import { applyGazeKey } from '../../utils/cockpit/critterGaze.js'
 import { subscribeTerminalGround, terminalGround } from '../../utils/cockpit/oasisBg.js'
 import {
@@ -164,7 +164,7 @@ export function paintCritterArt({
   ground,
 }: CritterArtProps & { ground?: string }): React.ReactNode {
   const { art, sleepSlots } = composeCritterFrame(def, { square, pupil, gazeKey, swayPhase, sleepPhase })
-  const groundInk = chalk.level > 0 ? (ground ?? groundSnapshot()) : ''
+  const groundInk = colorStripped() ? '' : (ground ?? groundSnapshot())
   const colorOf = (ch: string | undefined): string | undefined =>
     (ch !== undefined && legendOverride?.[ch]) || cellColor(def, ch)
 

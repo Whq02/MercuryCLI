@@ -24,6 +24,7 @@ const KEEP = process.env.THEME_BLACK_AND_WHITE_KEEP === '1'
 const ESC = '\x1b'
 const UP = `${ESC}[A`
 const DOWN = `${ESC}[B`
+const RIGHT = `${ESC}[C`
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -67,7 +68,7 @@ section('§1 the roster: Black and white is the third appearance, reachable and 
   check('the diff highlighter stands down whenever the depth is 0 (the native renderer writes its own colour bytes)', readFileSync(join(ROOT, 'src/components/StructuredDiff.tsx'), 'utf8').includes('|| colorStripped()') && colorize.colorStripped() === (chalk.level === 0))
 }
 
-section('§2 the depth switch: the theme is the no-colour fallback, and it hands the detected depth back')
+section('§2 the depth switch: the theme strips every colour and keeps the terminal’s own ink weight — bold, dim and reverse stay')
 {
   const detected = colorize.DETECTED_CHALK_LEVEL
   check('the detected depth is recorded after the load-time ladder', detected === chalk.level, `${detected} vs ${chalk.level}`)
@@ -77,13 +78,16 @@ section('§2 the depth switch: the theme is the no-colour fallback, and it hands
   const coloured = colorize.colorize(sample, 'rgb(221, 68, 68)', 'foreground')
   check('at depth 3 the colouriser paints (the control)', coloured !== sample)
   chalk.level = detected
-  check('switching on reports a change and sets depth 0', colorize.setMonochromeTheme(true) === true && chalk.level === 0 && colorize.monochromeThemeActive())
-  check('switching on again is a no-op', colorize.setMonochromeTheme(true) === false && chalk.level === 0)
-  check('the colouriser returns the text untouched for rgb, hex, ansi256 and named colours', [colorize.colorize(sample, 'rgb(221, 68, 68)', 'foreground'), colorize.colorize(sample, '#dd4444', 'background'), colorize.colorize(sample, 'ansi256(196)', 'foreground'), colorize.colorize(sample, 'ansi:red', 'foreground')].every(s => s === sample))
-  check('bold, dim and inverse are dropped too — the exact level-0 rendering', colorize.applyTextStyles(sample, { bold: true, dim: true, inverse: true, color: '#dd4444' }) === sample)
+  check('switching on reports a change, leaves the detected depth alone and reads as stripped', colorize.setMonochromeTheme(true) === true && chalk.level === detected && colorize.monochromeThemeActive() && colorize.colorStripped())
+  check('switching on again is a no-op', colorize.setMonochromeTheme(true) === false && chalk.level === detected)
+  chalk.level = 3
+  check('the colouriser returns the text untouched for rgb, hex, ansi256 and named colours, even at depth 3', [colorize.colorize(sample, 'rgb(221, 68, 68)', 'foreground'), colorize.colorize(sample, '#dd4444', 'background'), colorize.colorize(sample, 'ansi256(196)', 'foreground'), colorize.colorize(sample, 'ansi:red', 'foreground')].every(s => s === sample))
+  const weighted = colorize.applyTextStyles(sample, { bold: true, dim: true, inverse: true, color: '#dd4444', backgroundColor: '#000000' })
+  check('bold, dim and inverse stay — the terminal’s own ink; only the colour goes', weighted === chalk.dim(chalk.bold(chalk.inverse(sample))) && weighted !== sample && !/\x1b\[(3[0-8]|4[0-8]|9[0-7]|10[0-7])/.test(weighted), JSON.stringify(weighted))
+  chalk.level = detected
   check('the palette reads as collapsed and 24-bit as inactive', colorize.paletteCollapsed() && !colorize.truecolorActive())
   check('the depth words name the theme', colorize.colorDepthWhy() === 'the Black and white theme paints no colour', colorize.colorDepthWhy())
-  check('switching off restores the detected depth', colorize.setMonochromeTheme(false) === true && chalk.level === detected && !colorize.monochromeThemeActive())
+  check('switching off hands the colour back', colorize.setMonochromeTheme(false) === true && chalk.level === detected && !colorize.monochromeThemeActive() && colorize.colorStripped() === (chalk.level === 0))
   check('switching off again is a no-op', colorize.setMonochromeTheme(false) === false)
   check('the depth words are the ladder’s own again', colorize.colorDepthWhy() !== 'the Black and white theme paints no colour')
 }
@@ -162,6 +166,13 @@ section('§3 the built product with the theme stored: a terminal that advertises
 const stored = await capture('stored-mono', 'mono', [
   { ...gate, awaitText: '↑↓ choose', awaitSettleTicks: 5, data: '\r', mark: 'boot' },
   { ...gate, awaitText: 'Type a prompt', awaitSettleTicks: 12, awaitStableTicks: 3, data: '', mark: 'session' },
+  { ...gate, awaitText: 'Type a prompt', data: '/help' },
+  { ...gate, awaitText: '❯ /help', awaitStableTicks: 2, data: '\r' },
+  { ...gate, awaitText: 'custom-commands', awaitStableTicks: 3, data: '', mark: 'help' },
+  { ...gate, awaitText: 'custom-commands', data: RIGHT },
+  { ...gate, awaitText: 'custom-commands', awaitSettleTicks: 4, awaitStableTicks: 3, data: '', mark: 'help-commands' },
+  { ...gate, awaitText: 'custom-commands', data: ESC },
+  { ...gate, awaitText: 'Type a prompt', awaitPattern: '\\A(?![\\s\\S]*custom-commands)', awaitSettleTicks: 3, data: '' },
   { ...gate, awaitText: 'Type a prompt', data: '/appearance' },
   { ...gate, awaitText: '❯ /appearance', awaitStableTicks: 2, data: '\r' },
   { ...gate, awaitText: '❯ 3. Black and white', awaitStableTicks: 3, data: '', mark: 'picker' },
@@ -178,9 +189,8 @@ writeFrames(stored)
   const restored = markOf(stored, 'restored')
   check('the drive delivered every send (exit 0)', stored.status === 0, `exit ${stored.status}`)
   check('the session frame paints no colour in any cell', session !== undefined && colouredCells(session.grid) === 0, session ? `${colouredCells(session.grid)} coloured cells` : 'no session mark')
-  check('no bold either — the level-0 rendering exactly', session !== undefined && boldCells(session.grid) === 0, session ? `${boldCells(session.grid)} bold cells` : 'no session mark')
   const boot = markOf(stored, 'boot')
-  check('the Boot face is plain too', boot !== undefined && colouredCells(boot.grid) === 0 && boldCells(boot.grid) === 0, boot ? `${colouredCells(boot.grid)} coloured · ${boldCells(boot.grid)} bold` : 'no boot mark')
+  check('the Boot face is plain too', boot !== undefined && colouredCells(boot.grid) === 0, boot ? `${colouredCells(boot.grid)} coloured` : 'no boot mark')
   check('the runtime’s bytes from the Boot face to the session carry no colour sequence (24-bit or 256; the direct splash before the runtime keeps its own capability law)', colourSgrCount(bytesBetween(stored, 'boot', 'session')) === 0, `${colourSgrCount(bytesBetween(stored, 'boot', 'session'))} colour sequences`)
   check('nor do the bytes that open the picker', colourSgrCount(bytesBetween(stored, 'session', 'picker')) === 0, `${colourSgrCount(bytesBetween(stored, 'session', 'picker'))} colour sequences`)
   check('/appearance lists the three rows with Black and white focused', picker !== undefined && textOf(picker.grid).some(l => l.includes('Oasis dark')) && textOf(picker.grid).some(l => l.includes('True Black')) && textOf(picker.grid).some(l => /[❯>] .*Black and white/.test(l)), picker ? textOf(picker.grid).filter(l => /Black and white|True Black|Oasis dark/.test(l)).join(' | ') : 'no picker mark')
@@ -189,6 +199,26 @@ writeFrames(stored)
   check('↑ previews True Black: colour returns to the frame', preview !== undefined && colouredCells(preview.grid) > 0 && colourSgrCount(bytesBetween(stored, 'picker', 'preview-true-black')) > 0, preview ? `${colouredCells(preview.grid)} coloured cells · ${colourSgrCount(bytesBetween(stored, 'picker', 'preview-true-black'))} colour sequences` : 'no preview mark')
   check('esc releases the preview: the frame is plain again and the picker is gone', restored !== undefined && colouredCells(restored.grid) === 0 && !textOf(restored.grid).some(l => l.includes('Oasis dark')), restored ? `${colouredCells(restored.grid)} coloured cells` : 'no restored mark')
   check('the stored theme is untouched by the preview', (JSON.parse(readFileSync(stored.config, 'utf8')) as { theme?: string }).theme === 'mono')
+}
+
+section('§3b the one distinction that carries meaning survives: the /help tab bar marks its active tab in bold and reverse with no colour anywhere')
+{
+  const help = markOf(stored, 'help')
+  const commands = markOf(stored, 'help-commands')
+  const tabRow = (grid: Grid): Cell[] | undefined => grid.find(row => { const text = row.map(c => c.c || ' ').join(''); return text.includes(' general ') && text.includes(' custom-commands ') })
+  const cellsOf = (row: Cell[] | undefined, word: string): Cell[] => {
+    if (row === undefined) return []
+    const text = row.map(c => c.c || ' ').join('')
+    const at = text.indexOf(word)
+    return at < 0 ? [] : row.slice(at, at + word.length)
+  }
+  const marked = (cells: Cell[]): boolean => cells.length > 0 && cells.every(c => c.bold && c.rev)
+  const plain = (cells: Cell[]): boolean => cells.length > 0 && cells.every(c => !c.bold && !c.rev)
+  check('/help opened in Black and white with its four tabs on one row', help !== undefined && tabRow(help.grid) !== undefined, help ? textOf(help.grid).slice(0, 6).join(' | ') : 'no help mark')
+  check('the help frame paints no colour in any cell', help !== undefined && colouredCells(help.grid) === 0, help ? `${colouredCells(help.grid)} coloured cells` : 'no help mark')
+  check('the active tab (general) is bold and reverse; the others are neither', help !== undefined && marked(cellsOf(tabRow(help.grid), 'general')) && plain(cellsOf(tabRow(help.grid), 'commands')) && plain(cellsOf(tabRow(help.grid), 'shortcuts')), help ? JSON.stringify(cellsOf(tabRow(help.grid), 'general').map(c => [c.c, c.bold, c.rev])) : 'no help mark')
+  check('→ moves the mark to the commands tab and general goes plain', commands !== undefined && marked(cellsOf(tabRow(commands.grid), 'commands')) && plain(cellsOf(tabRow(commands.grid), 'general')), commands ? JSON.stringify(cellsOf(tabRow(commands.grid), 'commands').map(c => [c.c, c.bold, c.rev])) : 'no help-commands mark')
+  check('the bytes that opened /help and moved the tab carry no colour sequence', colourSgrCount(bytesBetween(stored, 'session', 'picker')) === 0, `${colourSgrCount(bytesBetween(stored, 'session', 'picker'))} colour sequences`)
 }
 
 section('§4 the built product on True Black: the row previews live, enter saves it, and the next boot is plain')
@@ -212,7 +242,7 @@ writeFrames(chosen)
   check('the drive delivered every send (exit 0)', chosen.status === 0, `exit ${chosen.status}`)
   check('the True Black session paints colour (the control)', session !== undefined && colouredCells(session.grid) > 0)
   check('the picker opens focused on True Black with Black and white one row below', picker !== undefined && textOf(picker.grid).some(l => /[❯>] .*True Black/.test(l)) && textOf(picker.grid).some(l => l.includes('Black and white')), picker ? textOf(picker.grid).filter(l => /Black and white|True Black/.test(l)).join(' | ') : 'no picker mark')
-  check('↓ onto Black and white previews it: every cell loses its colour at once', preview !== undefined && colouredCells(preview.grid) === 0 && boldCells(preview.grid) === 0, preview ? `${colouredCells(preview.grid)} coloured · ${boldCells(preview.grid)} bold` : 'no preview mark')
+  check('↓ onto Black and white previews it: every cell loses its colour at once', preview !== undefined && colouredCells(preview.grid) === 0, preview ? `${colouredCells(preview.grid)} coloured` : 'no preview mark')
   check('the bytes after the preview carry no colour sequence', colourSgrCount(bytesBetween(chosen, 'preview-mono', null)) === 0, `${colourSgrCount(bytesBetween(chosen, 'preview-mono', null))} colour sequences`)
   check('enter saves it: the receipt names mono and the frame stays plain', saved !== undefined && textOf(saved.grid).some(l => l.includes('Theme set to mono')) && colouredCells(saved.grid) === 0, saved ? textOf(saved.grid).filter(l => l.includes('Theme set')).join(' | ') : 'no saved mark')
   check('the config home now stores mono', (JSON.parse(readFileSync(chosen.config, 'utf8')) as { theme?: string }).theme === 'mono')
