@@ -53,7 +53,7 @@ export const call = async (arg: string, _context: LocalJSXCommandContext): Promi
     if (buildArg !== undefined && !/^\d+(\.\d+)*$/.test(buildArg)) {
       return {
         type: 'text',
-        value: `unrecognized install argument '${buildArg}' — usage: /browser install [<buildId>] [confirm]`,
+        value: `unrecognized install argument '${buildArg}' — usage: /browser install [build-id] [confirm]`,
       }
     }
     if (confirming) {
@@ -86,10 +86,10 @@ export const call = async (arg: string, _context: LocalJSXCommandContext): Promi
 
   if (verb === 'remove') {
     const buildId = parts[1]
-    if (!buildId) return { type: 'text', value: 'usage: /browser remove <buildId> (see /browser status)' }
+    if (!buildId) return { type: 'text', value: 'usage: /browser remove build-id (the ids are listed by /browser status)' }
     const removed = removeManagedBrowser(buildId)
     return { type: 'text', value: removed ? `removed Chrome for Testing ${buildId}` : `no managed build '${buildId}'` }
   }
 
-  return { type: 'text', value: `unknown verb '${verb}' — usage: /browser [status | install [<buildId>] [confirm] | remove <buildId>]` }
+  return { type: 'text', value: `unknown verb '${verb}' — usage: /browser [status | install [build-id] [confirm] | remove build-id]` }
 }
