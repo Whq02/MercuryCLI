@@ -146,6 +146,8 @@ export function composeLogins(
 export const FLOW_WAITING_SNAP: AnthropicLoginSnapshot = {
   flow: { name: 'waiting', url: 'https://console.example.test/authorize?code=elided', loginWithClaudeAi: true, forcedMethod: null },
   pastePromptUp: true,
+  noCodeYet: false,
+  browserOpened: null,
   copied: false,
   shadowWarning: null,
   accountLabel: null,
@@ -153,6 +155,8 @@ export const FLOW_WAITING_SNAP: AnthropicLoginSnapshot = {
 export const FLOW_SUCCESS_SNAP: AnthropicLoginSnapshot = {
   flow: { name: 'success' },
   pastePromptUp: false,
+  noCodeYet: false,
+  browserOpened: null,
   copied: false,
   shadowWarning: 'ANTHROPIC_AUTH_TOKEN is set and will shadow this sign-in for this session.',
   accountLabel: 'op@example.com',

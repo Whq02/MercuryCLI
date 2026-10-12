@@ -490,7 +490,7 @@ if (!existsSync(DIST)) {
     const stagedHome = mkdtempSync(join(tmpdir(), 'drop-notice-health-staged-'))
     mkdirSync(join(stagedHome, '.mercury'), { recursive: true })
     writeFileSync(join(stagedHome, '.mercury', 'preserved-thinking.json'), j({
-      last: { at: '2026-09-02T12:00:00.000Z', kind: 'recurrent', lawful: null, reason: 'prefix_binding_mismatch', path: 'messages.1.content.0', count: 21, consecutive: 4, model: 'claude-fable-5-1' },
+      last: { at: new Date(Date.now() - 10 * 60_000).toISOString(), kind: 'recurrent', lawful: null, reason: 'prefix_binding_mismatch', path: 'messages.1.content.0', count: 21, consecutive: 4, model: 'claude-fable-5-1' },
       longestRun: 4,
     }))
     const staged = health(stagedHome)

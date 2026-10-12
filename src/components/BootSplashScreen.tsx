@@ -270,7 +270,7 @@ export function BootSplashScreen(): React.ReactNode {
   const loginsCtx = useMemo(() => {
     try {
       const { familyIds, signed } = loginsFamilyCounts(deriveFamilySlotGroups());
-      return signed > 0 ? `${signed} of ${familyIds.length} signed in` : null;
+      return signed > 0 ? `${signed} of ${familyIds.length} signed in` : 'not signed in — sign in to providers';
     } catch {
       return null;
     }

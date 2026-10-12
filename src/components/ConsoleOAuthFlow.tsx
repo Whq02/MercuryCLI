@@ -25,6 +25,7 @@ import { useNotifications } from '../context/notifications.js'
 import { useInput } from '../ink.js'
 import {
   useAnthropicLoginModel,
+  waitingHeadline,
 } from './mercury-ui/screens/anthropicLoginModel.js'
 import {
   resolveProviderUsability,
@@ -358,11 +359,14 @@ export function ConsoleOAuthFlow({
     case 'waiting': {
       const promptLabel = 'Paste code here if prompted > '
       const inputColumns = Math.max(10, columns - promptLabel.length - 1)
+      const headline = waitingHeadline(model)
       return frame(
         <Box flexDirection="column" gap={compact ? 0 : 1}>
-          {compact ? null : (
-            <Text>
-              A browser window has been opened — finish signing in there.
+          {compact ? (
+            headline.warns ? <Text color={tokens.warning} wrap="wrap">{headline.words}</Text> : null
+          ) : (
+            <Text color={headline.warns ? tokens.warning : undefined} wrap="wrap">
+              {headline.words}
               {state.forcedMethod
                 ? ` (login method pre-selected: ${state.forcedMethod})`
                 : ''}
