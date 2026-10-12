@@ -132,6 +132,8 @@ t.section('§2 journey: header + CREW lead row + mouse return')
     `${ESC}[<0;${col};${row}M${ESC}[<0;${col};${row}m`
   const ROOT_ROW = 3
   const CHILD_ROW = 4
+  const CHILD_RAIL_ROW = 'poise probe · runni…'
+  const CARD_KEYS = 'x x stop · p pause'
 
   const turns: ScriptedTurn[] = [
     {
@@ -161,8 +163,8 @@ t.section('§2 journey: header + CREW lead row + mouse return')
     sends: [
       '2000:\\r',
       '6000:spawn the probe\\r',
-      `after:probe · runni…:1000:${sgrClick(10, CHILD_ROW)}`,
-      `after:x stop · p pause:2500:${sgrClick(10, ROOT_ROW)}`,
+      `after:${CHILD_RAIL_ROW}:1000:${sgrClick(10, CHILD_ROW)}`,
+      `after:${CARD_KEYS}:2500:${sgrClick(10, ROOT_ROW)}`,
     ],
     seconds: 20,
     cols: 120,
@@ -190,15 +192,15 @@ t.section('§2 journey: header + CREW lead row + mouse return')
       return -1
     }
     const leadMarked = (f: { rows: string[] }): boolean => f.rows.some(r => /›\s*✶ Mercury Lead/.test(r))
-    const childMarked = (f: { rows: string[] }): boolean => f.rows.some(r => /›\s*◉ poise pro/.test(r))
-    const childRunning = (f: { rows: string[] }): boolean => f.rows.some(r => r.includes('poise pro') && r.includes('running'))
+    const childMarked = (f: { rows: string[] }): boolean => f.rows.some(r => r.includes(`› ◉ ${CHILD_RAIL_ROW}`))
+    const childRunning = (f: { rows: string[] }): boolean => f.rows.some(r => r.includes(CHILD_RAIL_ROW))
     const inView = (f: { rows: string[] }): boolean => has(f, /❯ message poise probe/)
 
     const iMain = idxOf(0, f => leadMarked(f) && childRunning(f) && !has(f, '❯ message poise'))
-    t.check('at main, the lead row reads Mercury Lead and wears the › mark (its chat is the view)', iMain >= 0)
+    t.check(`at main, the lead row reads Mercury Lead and wears the › mark (its chat is the view); the child's row reads "${CHILD_RAIL_ROW}" — the .34 rail keeps the name whole and cuts the verb (137a2c1214)`, iMain >= 0)
     const mf = frames[iMain] ?? { rows: [] as string[] }
     const rootIdx = mf.rows.findIndex(r => /✶ Mercury Lead/.test(r))
-    const childIdx = mf.rows.findIndex(r => r.includes('poise pro'))
+    const childIdx = mf.rows.findIndex(r => r.includes(CHILD_RAIL_ROW))
     t.check(
       `CREW lists Mercury Lead first at row ${ROOT_ROW} and the child under it`,
       iMain >= 0 && rootIdx + 1 === ROOT_ROW && childIdx + 1 === CHILD_ROW,
@@ -222,10 +224,10 @@ t.section('§2 journey: header + CREW lead row + mouse return')
       f => !inView(f) && leadMarked(f) && has(f, 'spawn the probe') && childRunning(f),
     )
     t.check(
-      'one click on Mercury Lead in the rail returns to main WITHOUT stopping the child (return ≠ stop): the › mark back on the lead, the child still running',
+      `one click on Mercury Lead in the rail returns to main WITHOUT stopping the child (return ≠ stop): the › mark back on the lead, the child still running (its row reads "${CHILD_RAIL_ROW}")`,
       iView >= 0 && iBack > iView,
       iBack >= 0
-        ? frames[iBack]!.rows.find(r => r.includes('poise pro'))?.trim().slice(0, 50)
+        ? frames[iBack]!.rows.find(r => r.includes(CHILD_RAIL_ROW))?.trim().slice(0, 50)
         : 'no main frame with the child running after the view frame',
     )
   }

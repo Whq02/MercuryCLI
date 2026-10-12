@@ -109,6 +109,8 @@ t.section('§3 journey: agent view routes commands locally, guidance to the agen
   const ESC = String.fromCharCode(27)
   const sgrClick = (col: number, row: number): string =>
     `${ESC}[<0;${col};${row}M${ESC}[<0;${col};${row}m`
+  const CHILD_RAIL_ROW = 'poise probe · runni…'
+  const CARD_KEYS = 'x x stop · p pause'
 
   const turns: ScriptedTurn[] = [
     {
@@ -140,9 +142,9 @@ t.section('§3 journey: agent view routes commands locally, guidance to the agen
     sends: [
       'after:↑↓ choose:900:\\r',
       '7400:spawn the probe\\r',
-      `after:probe · runni…:1000:${sgrClick(10, 4)}`,
-      `after:x stop · p pause:2000:${sgrClick(10, 3)}`,
-      'after:x stop · p pause:4600:/frobnicate\\r',
+      `after:${CHILD_RAIL_ROW}:1000:${sgrClick(10, 4)}`,
+      `after:${CARD_KEYS}:2000:${sgrClick(10, 3)}`,
+      `after:${CARD_KEYS}:4600:/frobnicate\\r`,
       'after:/frobnicate:2400:/vim\\r',
     ],
     seconds: 40,
@@ -204,11 +206,11 @@ t.section('§3 journey: agent view routes commands locally, guidance to the agen
             `${has(f, /❯ message poise probe/) ? ' VIEW' : ''}`,
         )
         .join(' ↵ ')
-    const crewRow = (f: Fr): boolean => f.rows.some(r => r.includes('poise pro') && r.includes('running'))
+    const crewRow = (f: Fr): boolean => f.rows.some(r => r.includes(CHILD_RAIL_ROW))
     const inView = (f: Fr): boolean => has(f, /❯ message poise probe/)
     const iCrew = idxOf(0, crewRow)
     t.check(
-      "the hosted agent lists in the CREW lane (the runner's roster over the connector)",
+      `the hosted agent lists in the CREW lane (the runner's roster over the connector) — its row reads "${CHILD_RAIL_ROW}", the .34 rail keeping the name whole and cutting the verb (137a2c1214)`,
       iCrew >= 0,
       iCrew >= 0 ? undefined : forensics(frames.findIndex(f => f.rows.some(r => r.includes('poise probe')))),
     )
@@ -220,7 +222,7 @@ t.section('§3 journey: agent view routes commands locally, guidance to the agen
     )
     const iClosed = idxOf(iView + 1, f => !inView(f) && has(f, /›\s*✶ Mercury Lead/) && crewRow(f))
     t.check(
-      'Mercury Lead in the rail goes back: the lead owns the view again and the agent keeps running (return ≠ stop)',
+      `Mercury Lead in the rail goes back: the lead owns the view again and the agent keeps running (return ≠ stop; its row still reads "${CHILD_RAIL_ROW}")`,
       iView >= 0 && iClosed > iView,
       iClosed > iView ? undefined : forensics(iView),
     )
