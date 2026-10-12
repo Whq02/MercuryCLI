@@ -158,7 +158,7 @@ export function CollapsedReadSearchContent({
   }
   const hint = useMinDisplayTime(rawHint, HINT_MIN_DISPLAY_MS)
 
-  const past = !active
+  const past = runningIds.length === 0
   const fragments: Fragment[] = []
   if (fullscreen) {
     for (const commit of message.commits ?? []) {
@@ -267,7 +267,7 @@ export function CollapsedReadSearchContent({
     fragments.push(counted(past ? 'ran' : 'running', bashRan, 'bash command', 'shell'))
   }
   if (bashBlocked > 0) {
-    fragments.push(counted(past ? 'blocked' : 'blocking', bashBlocked, 'bash command', 'shell'))
+    fragments.push(counted('blocked', bashBlocked, 'bash command', 'shell'))
   }
   const hadNonMemory = fragments.length > 0
   if (memoryReads > 0) {
