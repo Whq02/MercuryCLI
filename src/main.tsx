@@ -546,7 +546,7 @@ async function run(): Promise<void> {
   })
   const runCommand = program.command('run')
     .description('Run a prompt without a terminal UI; use only in directories you trust')
-    .argument('[prompt]', 'The prompt; - or no prompt reads it from stdin to the end; with a prompt, anything piped in within 1 s is added as context')
+    .argument('[prompt]', 'The prompt; - or no prompt reads it from stdin to the end; with a prompt, anything piped in is added as context — the pipe is read until it closes or has been silent for 1 s')
     .configureHelp({ sortOptions: true })
     .action(async (prompt: string | undefined) => {
       await defaultAction(prompt, { ...sessionOptions(runCommand), runMode: true })
@@ -1545,9 +1545,18 @@ async function* noStdinChunks(): AsyncIterable<string> {}
 function readStdinWithPeek(timeoutMs: number): Promise<string | null> {
   return new Promise(resolvePeek => {
     const chunks: string[] = []
-    const onData = (chunk: string): void => { chunks.push(chunk) }
+    let timer: ReturnType<typeof setTimeout> | undefined
+    const armSilence = (): void => {
+      if (timeoutMs < 0) return
+      if (timer !== undefined) clearTimeout(timer)
+      timer = setTimeout(() => finish(null), timeoutMs)
+    }
+    const onData = (chunk: string): void => {
+      chunks.push(chunk)
+      armSilence()
+    }
     const finish = (empty: string | null): void => {
-      clearTimeout(timer)
+      if (timer !== undefined) clearTimeout(timer)
       process.stdin.pause()
       process.stdin.off('data', onData)
       process.stdin.off('end', onEnd)
@@ -1556,7 +1565,7 @@ function readStdinWithPeek(timeoutMs: number): Promise<string | null> {
     }
     const onEnd = (): void => finish('')
     const onError = (): void => finish(null)
-    const timer = timeoutMs < 0 ? undefined : setTimeout(() => finish(null), timeoutMs)
+    armSilence()
     process.stdin.setEncoding('utf8')
     process.stdin.on('data', onData)
     process.stdin.once('end', onEnd)
