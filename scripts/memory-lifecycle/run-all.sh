@@ -5,6 +5,7 @@
 # gate-watch: src/bootstrap/state.ts src/input-core/command-queue.ts scripts/lib/fixtureApi.ts scripts/lib/firstRunSeed.ts scripts/lib/rows.ts
 # gate-watch: src/components/ExitHandoff.tsx src/commands/exit/exit.tsx src/components/ExitFlow.tsx src/utils/forkedAgent.ts src/utils/config/globalConfig.ts scripts/lib/settingsPopupHarness.ts
 # gate-watch: src/components/design-system/ThemeProvider.tsx src/ink.ts
+# gate-watch: src/services/engine-connector/focusedConnector.ts src/services/engine-connector/noSessionConnector.ts src/services/engine-connector/types.ts src/utils/task/framework.ts
 # gate-watch: src/daemon/ownerWatch.ts src/daemon/workerIdentity.ts src/utils/settings/settings.ts
 # gate-watch: src/services/tools/toolHooks.ts src/state/AppStateStore.ts src/utils/fileStateCache.ts src/utils/messages/factories.ts
 set -u
@@ -29,6 +30,7 @@ for proof in \
   prove-handoff-verbatim.ts \
   prove-lineage-retention-zero.ts \
   prove-exit-handoff.ts \
+  prove-exit-hosted-road.ts \
 ; do
   echo "── $proof"
   __t=$SECONDS; __rc=0; if ! { "$BUN" run "$here/$proof"; __rc=$?; [ "$__rc" -eq 0 ]; }; then
