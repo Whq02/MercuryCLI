@@ -6,12 +6,12 @@
     "backend": "anthropic-messages",
     "dialect": "anthropic",
     "mechanical": true,
-    "tree": "5e94b2c5f",
+    "tree": "c36fb2c25",
     "fold": "unlabelled",
-    "when": "2026-10-11T04:14:56.131Z",
-    "promptChars": 8393,
-    "promptTokensEst": 2098,
-    "toolCount": 57,
+    "when": "2026-10-12T04:07:13.912Z",
+    "promptChars": 8043,
+    "promptTokensEst": 2011,
+    "toolCount": 55,
     "toolNames": [
       "Agent",
       "Bash",
@@ -37,7 +37,6 @@
       "LspRequest",
       "Inspect",
       "Service",
-      "Debug",
       "Test",
       "Eval",
       "Launch",
@@ -49,7 +48,6 @@
       "Git",
       "Journey",
       "Browser",
-      "Computer",
       "EnterWorktree",
       "ExitWorktree",
       "Checkpoint",
@@ -71,7 +69,7 @@
       "mcp__mercury__lease_list",
       "mcp__mercury__render_tui"
     ],
-    "toolSchemaChars": 164380,
+    "toolSchemaChars": 149233,
     "notes": [
       "browser task unmeasured: no browser to launch — no managed browser — your installed apps are never driven; /browser install downloads Chrome for Testing once with your consent"
     ]
@@ -109,8 +107,8 @@
       "probes": 1,
       "unexpectedErrors": 0,
       "duplicates": 0,
-      "toolResultChars": 2936,
-      "toolResultTokensEst": 734,
+      "toolResultChars": 2938,
+      "toolResultTokensEst": 735,
       "imageChars": 0,
       "injectedTokensEst": 0,
       "subagentResultTokensEst": 0,
@@ -119,12 +117,12 @@
       "errors": [
         {
           "tool": "Bash",
-          "text": "<tool_use_error>Shell command failed (exit code 1)\n✔ mean of a list (0.312042ms)\n✔ median of an odd-length list (0.056667ms)\n✖ median of an even-length list averages the middle pair (0.345458ms)\nℹ tests 3\nℹ suites 0\nℹ pass 2\nℹ fail 1\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 47.82375\n\n✖ failing tests:\n\ntest at test/stats.test.js:13:1\n✖ median of an even-length list averages the middle pair (0.345458ms)\n  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n  \n  3 !== 2.5\n  \n      at TestContext.<anonymous> (file://<fixture>/anthropic/tasks/",
+          "text": "<tool_use_error>Shell command failed (exit code 1)\n✔ mean of a list (0.559667ms)\n✔ median of an odd-length list (0.089833ms)\n✖ median of an even-length list averages the middle pair (0.483333ms)\nℹ tests 3\nℹ suites 0\nℹ pass 2\nℹ fail 1\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 51.901916\n\n✖ failing tests:\n\ntest at test/stats.test.js:13:1\n✖ median of an even-length list averages the middle pair (0.483333ms)\n  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n  \n  3 !== 2.5\n  \n      at TestContext.<anonymous> (file://<fixture>/anthropic/tasks",
           "namesFix": true,
           "probe": true
         }
       ],
-      "wallMs": 1738,
+      "wallMs": 1869,
       "exitCode": 0,
       "timedOut": false,
       "resultStatus": "completed",
@@ -176,7 +174,7 @@
       "asks": 0,
       "denials": 0,
       "errors": [],
-      "wallMs": 1356,
+      "wallMs": 1313,
       "exitCode": 0,
       "timedOut": false,
       "resultStatus": "completed",
@@ -235,7 +233,7 @@
           "probe": true
         }
       ],
-      "wallMs": 1043,
+      "wallMs": 1038,
       "exitCode": 0,
       "timedOut": false,
       "resultStatus": "completed",
@@ -283,7 +281,7 @@
           "probe": true
         }
       ],
-      "wallMs": 894,
+      "wallMs": 834,
       "exitCode": 0,
       "timedOut": false,
       "resultStatus": "completed",
@@ -325,7 +323,7 @@
       "asks": 0,
       "denials": 0,
       "errors": [],
-      "wallMs": 1049,
+      "wallMs": 905,
       "exitCode": 0,
       "timedOut": false,
       "resultStatus": "completed",
@@ -372,7 +370,7 @@
           "probe": true
         }
       ],
-      "wallMs": 928,
+      "wallMs": 806,
       "exitCode": 0,
       "timedOut": false,
       "resultStatus": "completed",
@@ -412,7 +410,7 @@
       "asks": 0,
       "denials": 0,
       "errors": [],
-      "wallMs": 940,
+      "wallMs": 808,
       "exitCode": 0,
       "timedOut": false,
       "resultStatus": "completed",
@@ -452,7 +450,7 @@
       "asks": 0,
       "denials": 0,
       "errors": [],
-      "wallMs": 1215,
+      "wallMs": 1014,
       "exitCode": 0,
       "timedOut": false,
       "resultStatus": "completed",
@@ -524,7 +522,7 @@
       "asks": 0,
       "denials": 0,
       "errors": [],
-      "wallMs": 1407,
+      "wallMs": 934,
       "exitCode": 0,
       "timedOut": false,
       "resultStatus": "completed",
@@ -564,7 +562,7 @@
       "asks": 0,
       "denials": 0,
       "errors": [],
-      "wallMs": 974,
+      "wallMs": 864,
       "exitCode": 0,
       "timedOut": false,
       "resultStatus": "completed",
@@ -613,7 +611,7 @@
           "probe": true
         }
       ],
-      "wallMs": 1506,
+      "wallMs": 1492,
       "exitCode": 0,
       "timedOut": false,
       "resultStatus": "completed",
@@ -648,7 +646,7 @@
       "asks": 0,
       "denials": 0,
       "errors": [],
-      "wallMs": 870,
+      "wallMs": 1033,
       "exitCode": 0,
       "timedOut": false,
       "resultStatus": "completed",
@@ -683,7 +681,7 @@
       "asks": 0,
       "denials": 0,
       "errors": [],
-      "wallMs": 846,
+      "wallMs": 900,
       "exitCode": 0,
       "timedOut": false,
       "resultStatus": "completed",

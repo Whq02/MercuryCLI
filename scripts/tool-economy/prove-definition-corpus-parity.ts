@@ -1,10 +1,12 @@
-import '../lib/hermetic.ts'
+import { proofHome } from '../lib/hermetic.ts'
 import assert from 'node:assert/strict'
 import { mock, setSystemTime } from 'bun:test'
 import { execFileSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
+
+writeFileSync(join(proofHome, 'settings.json'), '{"memory":{"journal":true}}\n')
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 delete process.env.NODE_ENV

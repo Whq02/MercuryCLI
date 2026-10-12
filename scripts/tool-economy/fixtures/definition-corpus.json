@@ -1,5 +1,5 @@
 {
-  "base": "cbed52e00b3c105e175b76268fd2ad61391f5c30",
+  "base": "c36fb2c257806d22611e776033d6e6b48a5564dc",
   "model": "gpt-6-astra",
   "definitions": [
     {
@@ -3287,13 +3287,13 @@
     },
     {
       "name": "Journal",
-      "description": "Write this session's journal entry, in your own words.\n\n- One entry per session: what happened, what the operator wanted, what you noticed about how they like to work, what you got wrong. First person, plain words, kept short (under 4000 characters). A fault is yours and said so; no praise of the work and no grand words.\n- Not for project facts or conventions: those go to the instruction file or Retain. What you noticed about the operator goes here and never into the instruction file.\n- The entry is written to the journal when this session ends; a later call replaces the earlier one. The journal lives in the Mercury home beside the project's memory, never under the project tree, and Mercury never pushes, syncs or shares it. The next session reads the last entry only when the operator's setting (memory.journalOnEntryPage) says so; the operator reads it in /memory.",
+      "description": "Write a brief entry into the journal: where the project is, what the queued backlog is, and constraints set by the operator. Plain words, concise, no longer than a sentence.\n\n- One entry per session; a later call replaces the earlier one. The entry is written to the journal when this session ends. The journal lives in the Mercury home beside the project's memory, never under the project tree, and Mercury never pushes, syncs or shares it. The next session reads the last entry only when the operator's setting (memory.journalOnEntryPage) says so; the operator reads it in /memory.",
       "input_schema": {
         "type": "object",
         "properties": {
           "entry": {
             "type": "string",
-            "description": "Your account of this session, first person, plain words: what happened, what the operator wanted, what you noticed about how they like to work, what you got wrong. Under 4000 characters."
+            "description": "A brief entry: where the project is, what the queued backlog is, and constraints set by the operator. Plain words, concise, no longer than a sentence (under 4000 characters)."
           }
         },
         "required": [
