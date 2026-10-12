@@ -6,6 +6,7 @@ export interface BoardModalFactsV1 {
   groundPickerOpen: boolean
   rowPick: boolean
   seatAsk: boolean
+  forkAsk?: boolean
   gitOffer: boolean
   contractAsk: boolean
   managerSeatAsk: boolean
@@ -23,6 +24,7 @@ export type BoardModalOwnerV1 =
   | 'ground-picker'
   | 'row-pick'
   | 'seat-ask'
+  | 'fork-ask'
   | 'git-offer'
   | 'contract-ask'
   | 'manager-seat-ask'
@@ -36,6 +38,7 @@ export function boardModalOwner(facts: BoardModalFactsV1): BoardModalOwnerV1 | n
   if (facts.groundPickerOpen) return 'ground-picker'
   if (facts.managerSeatAsk) return 'manager-seat-ask'
   if (facts.seatAsk) return 'seat-ask'
+  if (facts.forkAsk === true) return 'fork-ask'
   if (facts.capacityAsk) return 'capacity-ask'
   if (facts.settingsOpen) return 'settings'
   if (facts.helpOpen === true) return 'help'
