@@ -33,7 +33,8 @@ export function seedFirstRun(configHome: string, trustedCwds: string[]): void {
   for (const cwd of trustedCwds) {
     const keyOf = (dir: string): string => (process.platform === 'win32' ? dir.replace(/\\/g, '/') : dir)
     const canonical = canonicalProjectKeyOf(cwd)
-    for (const key of new Set([keyOf(cwd), ...(canonical !== null ? [keyOf(canonical)] : [])])) {
+    const real = existsSync(cwd) ? realpathSync(cwd).normalize('NFC') : null
+    for (const key of new Set([keyOf(cwd), ...(real !== null ? [keyOf(real)] : []), ...(canonical !== null ? [keyOf(canonical)] : [])])) {
       projects[key] = {
         hasTrustDialogAccepted: true,
         hasCompletedProjectOnboarding: true,
