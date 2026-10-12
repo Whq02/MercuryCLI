@@ -30,7 +30,7 @@ const until = async (pred: () => boolean, ms: number): Promise<boolean> => {
 
 const seat = await import('../../src/services/engine-connector/daemonConnector.ts')
 const projections = await import('../../src/services/engine-connector/seatProjections.ts')
-const { statusLine, statusDuration } = await import('../../src/components/SwitchboardTagBar.tsx')
+const { statusLine, statusDuration, crewClockOf } = await import('../../src/components/SwitchboardTagBar.tsx')
 const { streamIdleWarningMsOf } = await import('../../src/services/providers/streamIdleBudget.ts')
 type SeatStatusV1 = import('../../src/services/engine-connector/seatLive.ts').SeatStatusV1
 type SessionLiveV1 = import('../../src/services/engine-connector/seatLive.ts').SessionLiveV1
@@ -174,7 +174,7 @@ section('§6 interrupting wins over every other sentence')
   check('the crew\'s clock paints under a thinking main agent', statusLine(live, young, crew) === 'agents thought for 28m', statusLine(live, young, crew))
   check('the crew\'s clock paints under a running tool', statusLine(tool, young, crew) === 'agents thought for 28m')
   check('the crew\'s clock stands after the turn ends (esc left the crew running: never "ready")', statusLine(idle, { ...young }, crew) === 'agents thought for 28m')
-  check('a settled crew\'s receipt stands while idle', statusLine(idle, young, { active: false, line: 'agents thought for 28m' }) === 'agents thought for 28m')
+  check('a settled crew paints no receipt — idle reads "ready" again', statusLine(idle, young, crewClockOf([{ id: 'a1', name: 'a1', kind: 'agent', status: 'completed', startTime: Date.now() - 60_000, endTime: Date.now() - 32_000 } as never], Date.now())) === 'ready')
   check('the interrupt outranks the crew\'s clock', statusLine(live, { ...young, interrupting: true }, crew) === 'interrupting — the request is torn down')
   check('the stuck verdict outranks the crew\'s clock', statusLine(live, { ...stuck, interrupting: false }, crew).startsWith('no stream events for '))
   check('a wait on agents outranks the crew\'s clock', statusLine({ ...live, phase: 'waiting', agentsWaiting: 2 }, young, crew) === 'waiting on 2 agents')
