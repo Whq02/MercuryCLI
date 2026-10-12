@@ -1,8 +1,7 @@
 
 import React, { useEffect, useRef, useState } from 'react'
-import { ExitHandoff } from './ExitHandoff.js'
+import { ExitHandoff, noteAskedAtExit } from './ExitHandoff.js'
 import { WorktreeExitDialog } from './WorktreeExitDialog.js'
-import { exitNoteDue } from '../mneme/exitHandoff.js'
 import { gracefulShutdown } from '../utils/gracefulShutdown.js'
 
 const FAREWELLS = [
@@ -39,7 +38,7 @@ export function ExitFlow({
   const leave = (message?: string): void => {
     if (firedRef.current) return
     firedRef.current = true
-    if (exitNoteDue()) {
+    if (noteAskedAtExit()) {
       setNote({ message })
       return
     }

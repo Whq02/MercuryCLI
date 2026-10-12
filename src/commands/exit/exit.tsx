@@ -1,8 +1,7 @@
 import * as React from 'react'
 import { ExitFlow } from '../../components/ExitFlow.js'
-import { ExitHandoff } from '../../components/ExitHandoff.js'
+import { ExitHandoff, noteAskedAtExit } from '../../components/ExitHandoff.js'
 import { MercuryExitConfirm } from '../../components/MercuryExitConfirm.js'
-import { exitNoteDue } from '../../mneme/exitHandoff.js'
 import { getFocusedSessionConnector, hasFocusedSession } from '../../services/engine-connector/focusedConnector.js'
 import { workCounts } from '../../services/engine-connector/workCounts.js'
 import type { AppState } from '../../state/AppState.js'
@@ -14,10 +13,6 @@ import { gracefulShutdown } from '../../utils/gracefulShutdown.js'
 import { getCurrentWorktreeSession } from '../../utils/worktree.js'
 
 const FAREWELL = 'Session saved. Reopen it any time with /sessions.'
-
-export function noteAskedAtExit(): boolean {
-  return hasFocusedSession() || exitNoteDue()
-}
 
 export function liveWorkAtExit(tasks: Record<string, TaskState> | undefined): LiveWorkCounts {
   const counts = liveBackgroundCounts(tasks)
