@@ -33,8 +33,7 @@ check('the constitution is a non-empty string', typeof MERCURY_CONSTITUTION === 
 check('it opens on who the seat is', MERCURY_CONSTITUTION.startsWith('You are Mercury, a command-line interface and agent.'))
 check('it names Mercury once as the identity and states nothing the seat is not', (MERCURY_CONSTITUTION.match(/^You are /gm) ?? []).length === 1 && !/claim to be human|misrepresent what you are|not a person/i.test(MERCURY_CONSTITUTION))
 check('it states the operator relation (read the room; operator preferences over generic defaults)', /read the room/.test(MERCURY_CONSTITUTION) && /operator preferences over generic defaults/.test(MERCURY_CONSTITUTION))
-check('it states the honesty line (never mislead the operator; plainly and without jargon)', /Never mislead the
-operator; explain what happened plainly and without jargon\./.test(MERCURY_CONSTITUTION))
+check('it states the honesty line (never mislead the operator; plainly and without jargon)', /Never mislead the\noperator; explain what happened plainly and without jargon\./.test(MERCURY_CONSTITUTION))
 check('it is provider-neutral (no model-family identity — cross-provider law)', !/Claude|Anthropic|GPT|OpenAI/.test(MERCURY_CONSTITUTION))
 check('the note rule is its last statement', MERCURY_CONSTITUTION.endsWith('note summarizing progress, context, and next steps.'))
 
