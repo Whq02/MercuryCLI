@@ -11,6 +11,7 @@ import {
 } from '../../../services/changeTransaction/hunks.js'
 import { getFocusedSessionConnector } from '../../../services/engine-connector/focusedConnector.js'
 import { FilePermissionDialog } from '../FilePermissionDialog/FilePermissionDialog.js'
+import { planAppend, planSectionEdit } from '../../../tools/FileEditTool/sectionEdit.js'
 import type { FileEdit } from '../../../tools/FileEditTool/types.js'
 import type { PermissionRequestProps } from '../PermissionRequest.js'
 
@@ -21,13 +22,41 @@ type EditToolInput = {
   replace_all?: boolean
   hunks?: EditHunkInput[]
   expected_anchor?: string
+  append?: string
+  section?: string
 }
 
 function parseEditInput(input: unknown): EditToolInput {
   return input as EditToolInput
 }
 
+function currentContentOf(path: string): string {
+  try {
+    return readFileSync(path, 'utf8').replace(/^\uFEFF/, '').replaceAll('\r\n', '\n')
+  } catch {
+    return ''
+  }
+}
+
+function previewAppendOrSection(input: EditToolInput): FileEdit[] {
+  const content = currentContentOf(input.file_path)
+  const hasAppend = typeof input.append === 'string' && input.append.length > 0
+  const hasSection = typeof input.section === 'string' && input.section.length > 0
+  let updated: string
+  if (hasSection) {
+    const plan = planSectionEdit(content, input.section ?? '', hasAppend ? { append: input.append ?? '' } : { replace: input.new_string ?? '' })
+    if (!plan.ok) return [{ old_string: content, new_string: content, replace_all: false }]
+    updated = plan.updated
+  } else {
+    updated = planAppend(content, input.append ?? '')
+  }
+  return [{ old_string: content, new_string: updated, replace_all: false }]
+}
+
 function previewEditsFor(input: EditToolInput): FileEdit[] {
+  if ((typeof input.append === 'string' && input.append.length > 0) || (typeof input.section === 'string' && input.section.length > 0)) {
+    return previewAppendOrSection(input)
+  }
   if (input.hunks && input.hunks.length > 0) {
     try {
       const content = readFileSync(input.file_path, 'utf8').replaceAll('\r\n', '\n')
