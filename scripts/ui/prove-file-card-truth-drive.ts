@@ -133,6 +133,20 @@ SCENES.push({
   disk: cwd => readFileSync(join(cwd, 'MERCURY.md'), 'utf8') === `# MERCURY.md\nStanding orders for the Mercury harness in this repository.\n\n- ${FIRST_RULE}\n- ${RULE}\n`,
 })
 
+SCENES.push({
+  id: 'create-card',
+  title: 'Create file',
+  needle: 'Do you want to create',
+  turns: cwd => [
+    { kind: 'tool_use', preText: 'Writing the guide.\n', name: 'Write', input: { file_path: join(cwd, 'intro.md'), content: '# Intro\n\nThis guide explains how to get started with the project.\n' } },
+    { kind: 'text', text: 'Done.' },
+  ],
+  mustShow: ['1  # Intro', '3  This guide explains how to get started with the project.'],
+  mustNotShow: ['4  '],
+  noRowLike: /│\s+4\s/,
+  disk: cwd => readFileSync(join(cwd, 'intro.md'), 'utf8') === '# Intro\n\nThis guide explains how to get started with the project.\n',
+})
+
 const GIT_ENV = { ...process.env, GIT_AUTHOR_NAME: 'proof', GIT_AUTHOR_EMAIL: 'proof@local', GIT_COMMITTER_NAME: 'proof', GIT_COMMITTER_EMAIL: 'proof@local', GIT_AUTHOR_DATE: '2026-10-12T10:00:00Z', GIT_COMMITTER_DATE: '2026-10-12T10:00:00Z' }
 const COMMIT_SUBJECT = 'two files via the git tool'
 const COMMIT_MESSAGE = `${COMMIT_SUBJECT}\n\nThe calculator and the notes, nothing else.`
