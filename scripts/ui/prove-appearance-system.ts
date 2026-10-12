@@ -207,9 +207,10 @@ section('§6 — True Black: the second appearance')
     picker.includes("'true-black': 'True Black'") && picker.includes("dark: 'Oasis dark'"),
   )
   check(
-    'the picker previews on focus, saves on select, releases on cancel',
+    'the picker previews on focus, saves the SELECTED row on select (a digit picks a row it never focused), releases on cancel',
     picker.includes('setPreviewTheme(value)') &&
-      picker.includes('savePreview()') &&
+      picker.includes('setThemeSetting(value)') &&
+      !picker.includes('savePreview()') &&
       picker.includes('cancelPreview()'),
   )
   const config = src('components', 'Settings', 'Config.tsx')

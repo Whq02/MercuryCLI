@@ -39,12 +39,12 @@ const wideSegs = modelPickerFooter(stress, innerOf(120)).split(' · ').length
 const narrowSegs = modelPickerFooter(stress, innerOf(50)).split(' · ').length
 check('wide footer shows more segments than narrow (shedding actually fires)', wideSegs > narrowSegs, `wide=${wideSegs} narrow=${narrowSegs}`)
 const mid = modelPickerFooter(stress, 60)
-check('sheds "c context" before "tab to search" (drop-priority)', !mid.includes('c context') || mid.includes('tab to search'), `"${mid}"`)
+check('sheds "tab to search" before "ctrl+w context" (the chord stays named while the box already says to type)', !mid.includes('tab to search') || mid.includes('ctrl+w context'), `"${mid}"`)
 const home = modelPickerFooter({ gated: false }, innerOf(120))
 check('the home footer is the ratified hint row, whole', home === MODEL_PICKER_HINT, `"${home}"`)
 check('on a heading the action word follows the fold', modelPickerFooter({ gated: false, heading: { fold: 'folded' } }, innerOf(120)).includes('↵ unfold') && modelPickerFooter({ gated: false, heading: { fold: 'open' } }, innerOf(120)).includes('↵ fold'))
 check('while the search box has focus the legend swaps: type to search · ↵ switch · tab back to the rows · esc clears the search', modelPickerFooter({ gated: false, filterFocus: true, filtering: true }, innerOf(120)) === '↑↓ select · type to search · ↵ switch · tab back to the rows · esc clears the search' && modelPickerFooter({ gated: false, filterFocus: true, filtering: false }, innerOf(120)).endsWith('tab back to the rows · esc or click outside closes'))
-check('a search kept while the rows have focus still says esc clears it', modelPickerFooter({ gated: false, filterFocus: false, filtering: true }, innerOf(120)) === '↑↓ select · ↵ switch · c context · → ← fold · tab to search · esc clears the search')
+check('a search kept while the rows have focus still says esc clears it', modelPickerFooter({ gated: false, filterFocus: false, filtering: true }, innerOf(120)) === '↑↓ select · ↵ switch · ctrl+w context · → ← fold · tab to search · esc clears the search')
 
 section('source wiring: single-column, boxed-selected, click-driven')
 const src = readFileSync(join(root, 'src', 'components', 'MercuryModelPicker.tsx'), 'utf-8')

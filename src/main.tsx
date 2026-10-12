@@ -1257,6 +1257,20 @@ async function defaultAction(inputPromptArg: string | undefined, opts: RootOptio
   }
 
   let userSpecifiedModel = typedString(opts.model)
+  if (userSpecifiedModel !== undefined && userSpecifiedModel !== 'default') {
+    const { matchReachableModelName, modelNameHeadlessRefusal } = await import('./utils/model/modelNameRoad.js')
+    const matched = matchReachableModelName(userSpecifiedModel)
+    if (matched?.kind === 'match') {
+      addBootNote('info', `--model ${matched.said}`)
+      userSpecifiedModel = matched.id
+    } else if (matched?.kind === 'exact') {
+      userSpecifiedModel = matched.id
+    } else if (matched !== null && (matched.kind === 'ambiguous' || matched.kind === 'none')) {
+      if (runMode) failCli(modelNameHeadlessRefusal(matched, '--model'), 1)
+      addBootNote('warn', `${modelNameHeadlessRefusal(matched, '--model')} The session starts on its default model; /model picks another.`)
+      userSpecifiedModel = undefined
+    }
+  }
   if (userSpecifiedModel === 'default') userSpecifiedModel = getDefaultEngineModelSetting() ?? undefined
   let fallbackModel = typedString(opts.backupModel)
   if (fallbackModel === 'default') fallbackModel = getDefaultEngineModelSetting() ?? undefined
