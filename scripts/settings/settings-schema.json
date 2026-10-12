@@ -105,7 +105,7 @@
           "type": "boolean"
         },
         "journal": {
-          "description": "The session journal: at session end the model writes, in its own words, what happened, what you wanted, how you like to work and what it got wrong, into a file in the Mercury home beside the project's memory — never under the project tree, never pushed, synced or shared by Mercury (default on)",
+          "description": "The session journal (default off): when `true`, at session end the model writes a brief entry — where the project is, the queued backlog, the operator's constraints — into a file in the Mercury home beside the project's memory, never under the project tree, never pushed, synced or shared by Mercury",
           "type": "boolean"
         },
         "journalOnEntryPage": {
