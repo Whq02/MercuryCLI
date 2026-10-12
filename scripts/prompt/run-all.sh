@@ -12,6 +12,7 @@
 # gate-watch: src/entrypoints/init.ts src/prompt/behaviourContract.ts
 # gate-watch: src/services/resources/adapters/seat.ts src/services/resources/registry.ts src/services/resources/contracts.ts src/services/run/resolveOwner.ts
 # gate-watch: src/mneme/ledger.ts src/mneme/paths.ts scripts/lib/fixtureApi.ts scripts/lib/rows.ts scripts/lib/runnerHost.ts
+# gate-watch: src/mneme/entryPage.ts src/substrate/envStamps.ts
 # gate-watch: src/services/providers/anthropic/boundPrefixRecord.ts src/services/providers/toolEconomy.ts
 # gate-watch: src/utils/attachments/orchestrator.ts src/utils/cleanupRegistry.ts
 # gate-watch: src/utils/cockpit/runtimePosture.ts src/utils/cockpit/turnReceipt.ts

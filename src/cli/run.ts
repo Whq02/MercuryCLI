@@ -971,6 +971,7 @@ export async function runHeadless(
     const previous = activeModel ?? getEngineModel()
     activeModel = model
     setEngineModelOverride(model)
+    setFlagEnv('MERCURY_MODEL', model)
     saveSessionModel(model)
     notifySessionStateChanged('idle')
     if (model !== previous) {

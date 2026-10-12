@@ -1,4 +1,5 @@
 import { canAnswerAsks, getAskChannel, getSessionId } from '../../../bootstrap/state.js'
+import { stampLocal } from '../../../mneme/entryPage.js'
 import { ledgerEntryOf } from '../../../mneme/ledger.js'
 import { mnemeProjectKey } from '../../../mneme/paths.js'
 import type { LedgerEngine } from '../../../mneme/types.js'
@@ -45,18 +46,24 @@ export function seatReference(ctx: ResourceContext): SeatReference | null {
   }
 }
 
+export const SEAT_SWITCH_SENTENCE = 'The operator switches the model with /model and the effort with /effort, typed in the chat; a switch takes effect from the next message, and this page is read live, so it already shows it.'
+
+export const SEAT_EVIDENCE_SENTENCE =
+  'Asked which model runs you, answer from this reference: the id above is the one this turn dispatched on. The engines list is the record of switches in this session, in local time with the zone in brackets; a model named in an earlier reply, an environment variable such as MERCURY_MODEL, or a copy of the ledger read earlier is not evidence of the one running now.'
+
 export function seatReferenceText(seat: SeatReference): string {
   const engines =
     seat.engines.length === 0
       ? ['engines this session: no ledger entry for this session yet']
-      : ['engines this session, from the lineage ledger (each time is the clock at the write):', ...seat.engines.map(engine => `  ${engine.at}  ${modelWords(engine.model)}`)]
+      : ['engines this session, from the lineage ledger (local time, the zone in brackets; the first row is the start, each later row a switch, stamped by the clock at the write):', ...seat.engines.map(engine => `  ${stampLocal(engine.at)}  ${modelWords(engine.model)}`)]
   return [
     `model this turn runs on: ${modelWords(seat.model)}`,
     `effort: ${seat.effort ?? 'not set (the provider default applies)'}`,
     `posture: ${seat.posture}`,
     ...engines,
+    SEAT_SWITCH_SENTENCE,
     '',
-    'Asked which model runs you, answer from this reference: the id above is the one this turn dispatched on. The engines list is the record of switches in this session; a model named in an earlier reply is not evidence of the one running now.',
+    SEAT_EVIDENCE_SENTENCE,
   ].join('\n')
 }
 
