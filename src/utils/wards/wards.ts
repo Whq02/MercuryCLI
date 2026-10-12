@@ -251,7 +251,8 @@ export const AUTONOMOUS_WARDS: readonly WardRule[] = [
       'Autonomous sessions never recursively delete inside the user home (the ' +
       'deleted-workspace incident class). Do destructive cleanup inside ' +
       'your own worktree or tempdir (/tmp, $TMPDIR); if this delete is genuinely ' +
-      'required, surface it to the lead/operator in your report instead of running it.',
+      'required, say so in your reply and let the operator run it.',
+    refusal: true,
     scope: 'bash',
     patterns: [
       '\\brm\\b(?=[^\\n;|&]*\\s(?:-[a-zA-Z]*[rR][a-zA-Z]*\\b|--recursive\\b))[^\\n;|&]*\\s(?:~(?:\\/|\\s|$)|\\$\\{?HOME|\\/Users\\/)',
