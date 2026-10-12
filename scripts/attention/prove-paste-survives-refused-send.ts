@@ -42,10 +42,10 @@ section('§C the crash road: the chip carries its hash, the bytes are on disk fr
 {
   type Slot = { id: number; type: 'text' | 'image'; content: string; contentHash?: string }
   const promptSrc = readFileSync(join(ROOT, 'src/components/PromptInput/useComposerAttachments.ts'), 'utf8') + readFileSync(join(ROOT, 'src/components/PromptInput/useComposerSubmit.ts'), 'utf8')
-  const mintAt = promptSrc.indexOf('const numLines = getPastedTextRefNumLines(text)')
+  const mintAt = promptSrc.indexOf('const numLines = getPastedTextRefNumLines(exact)')
   const mint = mintAt === -1 ? '' : promptSrc.slice(mintAt, mintAt + 600)
-  check('C1 the mint stamps the chip with the hash of its bytes', mint.includes('const contentHash = hashPastedText(text)') && mint.includes('contentHash,'))
-  check('C2 …and stores the bytes at the mint, not at the send', mint.includes('void storePastedText(contentHash, text)'))
+  check('C1 the mint stamps the chip with the hash of its exact bytes (tabs kept)', mint.includes('const contentHash = hashPastedText(exact)') && mint.includes('contentHash,'))
+  check('C2 …and stores those bytes at the mint, not at the send', mint.includes('void storePastedText(contentHash, exact)'))
 
   const store = await import('../../src/utils/pasteStore.ts')
   const drafts = (await import('../../src/utils/promptDraft.ts')) as unknown as {
