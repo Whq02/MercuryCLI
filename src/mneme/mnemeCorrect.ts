@@ -1,9 +1,12 @@
 
 
 
-import { existsSync, readFileSync } from 'node:fs'
+import { appendFileSync, existsSync, readdirSync, readFileSync, unlinkSync } from 'node:fs'
 import { join } from 'node:path'
+import { durableAtomicPublishSync, renameWithWin32RetrySync } from '../substrate/durablePublish.js'
 import { mnemeEnabled, mnemeLibraryDir } from './mnemeGates.js'
+import { appendObservation, currentBufferPath, observationOverflow, pendingRows, type MnemeObservation } from './mnemeBuffer.js'
+import { memorySecretRefusal } from './mnemeSecretGuard.js'
 import {
   acquireConsolidateLock,
   listArchiveDocs,
@@ -37,13 +40,13 @@ export type MnemeCorrectResult =
   | { ok: true; action: 'corrected' | 'retired' | 'pointed'; seq: number; targetSeq: number; slug: string }
   | {
       ok: false
-      code: 'off' | 'unknown-target' | 'already-superseded' | 'busy' | 'invalid' | 'user-asked-rule' | 'error'
+      code: 'off' | 'unknown-target' | 'already-superseded' | 'busy' | 'invalid' | 'secret' | 'user-asked-rule' | 'error'
       message: string
       supersededBy?: number
     }
 
-export function userAskedRuleMessage(seq: number): string {
-  return `seq ${seq} is a rule the user asked Mercury to remember — only the user changes or unpins it, in /memory`
+export function userAskedRuleMessage(ref: number | string): string {
+  return `${typeof ref === 'number' ? `seq ${ref}` : ref} is a rule the user asked Mercury to remember — only the user changes or unpins it, in /memory`
 }
 
 function userAskedRule(targetSeq: number, dir: string, byUser: boolean | undefined): MnemeCorrectResult | null {
@@ -100,6 +103,8 @@ export function correctFact(input: {
   const text = oneLine(String(input.text ?? '')).trim()
   const source = sigSafe(String(input.source ?? '')).trim()
   if (!text || !source) return { ok: false, code: 'invalid', message: 'correction needs non-empty text and source' }
+  const secret = memorySecretRefusal(text)
+  if (secret !== null) return { ok: false, code: 'secret', message: `the correction ${secret}` }
   if (!Number.isInteger(input.targetSeq) || input.targetSeq < 1) {
     return { ok: false, code: 'invalid', message: `targetSeq must be a positive integer, got ${String(input.targetSeq)}` }
   }
@@ -326,4 +331,113 @@ function verifyPointed(dir: string, written: MnemeTopicDoc, holder: MnemeTopicDo
   } catch {
     return false
   }
+}
+
+export type PendingCorrectResult =
+  | { ok: true; struck: MnemeObservation; row: MnemeObservation | null }
+  | { ok: false; code: 'off' | 'unknown-target' | 'busy' | 'invalid' | 'secret' | 'user-asked-rule' | 'error'; message: string }
+
+function parseBufferRow(line: string): MnemeObservation | null {
+  try {
+    const row = JSON.parse(line) as MnemeObservation
+    return typeof row?.ts === 'string' && typeof row?.text === 'string' && typeof row?.source === 'string' ? row : null
+  } catch {
+    return null
+  }
+}
+
+function bufferFiles(dir: string): string[] {
+  let names: string[] = []
+  try {
+    names = readdirSync(dir)
+  } catch {
+    return []
+  }
+  return [...names.filter(n => /^consuming-.*\.jsonl$/.test(n)).sort().map(n => join(dir, n)), currentBufferPath(dir)]
+}
+
+function dropRowFrom(file: string, ts: string, dir: string): MnemeObservation | null {
+  if (!existsSync(file)) return null
+  const current = currentBufferPath(dir)
+  const isCurrent = file === current
+  const claim = isCurrent ? join(dir, `striking-${process.pid}-${Date.now().toString(36)}.jsonl`) : file
+  if (isCurrent) renameWithWin32RetrySync(current, claim)
+  let struck: MnemeObservation | null = null
+  const kept: string[] = []
+  for (const line of readFileSync(claim, 'utf8').split('\n')) {
+    if (!line.trim()) continue
+    const row = parseBufferRow(line)
+    if (row !== null && row.ts === ts) {
+      struck = struck ?? row
+      continue
+    }
+    kept.push(line)
+  }
+  if (isCurrent) {
+    if (kept.length > 0) appendFileSync(current, `${kept.join('\n')}\n`, 'utf8')
+    unlinkSync(claim)
+  } else if (kept.length > 0) {
+    durableAtomicPublishSync(file, `${kept.join('\n')}\n`)
+  } else {
+    unlinkSync(file)
+  }
+  return struck
+}
+
+export function strikePendingRow(input: { ts: string; dir?: string; byUser?: boolean }): PendingCorrectResult {
+  if (!mnemeEnabled()) return { ok: false, code: 'off', message: 'memory is off (memory.enabled is false in settings).' }
+  const dir = input.dir ?? mnemeLibraryDir()
+  const target = pendingRows(dir).find(row => row.ts === input.ts)
+  if (target === undefined) return { ok: false, code: 'unknown-target', message: `no pending row pending:${input.ts} — it was consolidated (recall again for its seq:<n>), struck, or never existed` }
+  if (target.asked === true && input.byUser !== true) return { ok: false, code: 'user-asked-rule', message: userAskedRuleMessage(`pending:${input.ts}`) }
+  if (!acquireConsolidateLock(dir)) {
+    return { ok: false, code: 'busy', message: 'a consolidation/correction is in progress — retry in a moment' }
+  }
+  try {
+    let struck: MnemeObservation | null = null
+    for (const file of bufferFiles(dir)) {
+      const dropped = dropRowFrom(file, input.ts, dir)
+      struck = struck ?? dropped
+    }
+    if (struck === null) return { ok: false, code: 'unknown-target', message: `no pending row pending:${input.ts} — it was consolidated or struck a moment ago` }
+    if (pendingRows(dir).some(row => row.ts === input.ts)) {
+      return { ok: false, code: 'error', message: 'post-write verification failed — the pending row is still on disk; retry' }
+    }
+    return { ok: true, struck, row: null }
+  } catch (e) {
+    return { ok: false, code: 'error', message: String(e).slice(0, 200) }
+  } finally {
+    releaseConsolidateLock(dir)
+  }
+}
+
+export function replacePendingRow(input: { ts: string; text: string; source: string; dir?: string; byUser?: boolean }): PendingCorrectResult {
+  if (!mnemeEnabled()) return { ok: false, code: 'off', message: 'memory is off (memory.enabled is false in settings).' }
+  const dir = input.dir ?? mnemeLibraryDir()
+  const text = oneLine(String(input.text ?? '')).trim()
+  const source = sigSafe(String(input.source ?? '')).trim()
+  if (!text || !source) return { ok: false, code: 'invalid', message: 'correction needs non-empty text and source' }
+  const overflow = observationOverflow(text)
+  if (overflow !== null) return { ok: false, code: 'invalid', message: `the correction is ${overflow}` }
+  const secret = memorySecretRefusal(text)
+  if (secret !== null) return { ok: false, code: 'secret', message: `the correction ${secret}` }
+  const struck = strikePendingRow({ ts: input.ts, dir, ...(input.byUser === undefined ? {} : { byUser: input.byUser }) })
+  if (!struck.ok) return struck
+  const before = pendingRows(dir).length
+  const written = appendObservation(
+    {
+      text,
+      source,
+      ...(struck.struck.topicHint ? { topicHint: struck.struck.topicHint } : {}),
+      ...(struck.struck.pin === true ? { pin: true } : {}),
+      ...(struck.struck.asked === true ? { asked: true } : {}),
+      ...(struck.struck.replaces !== undefined ? { replaces: struck.struck.replaces } : {}),
+    },
+    dir,
+  )
+  const after = pendingRows(dir)
+  if (!written || after.length <= before) {
+    return { ok: false, code: 'error', message: `the old draft was struck but the replacement did not land (a disk error) — retain the corrected fact again: ${text.slice(0, 120)}` }
+  }
+  return { ok: true, struck: struck.struck, row: after[after.length - 1]! }
 }

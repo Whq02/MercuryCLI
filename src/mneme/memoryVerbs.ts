@@ -5,7 +5,8 @@ import { mnemeEnabled, mnemeLibraryDir } from './mnemeGates.js'
 import { appendObservation, observationOverflow, pendingRows } from './mnemeBuffer.js'
 import { listArchiveDocs, listTopicDocs } from './mnemeLibrary.js'
 import { grepAll, readDocLines, catalogDocs, pageFileForSlug, PENDING_SLUG } from './mnemeRetrieval.js'
-import { correctFact, pointFact, retireFact, userAskedRuleMessage, type MnemeCorrectResult } from './mnemeCorrect.js'
+import { correctFact, pointFact, replacePendingRow, retireFact, strikePendingRow, userAskedRuleMessage, type MnemeCorrectResult, type PendingCorrectResult } from './mnemeCorrect.js'
+import { memorySecretRefusal } from './mnemeSecretGuard.js'
 import { ARCHIVE_PREFIX, isArchiveDoc, parseEntryLine, liveSeqs, serializeSignature, type MnemeTopicDoc } from './mnemeTopicDocs.js'
 import { bumpUsage, readPins, readUsage } from './mnemeUsage.js'
 import { candidates, rankCandidates } from './mnemeLookup.js'
@@ -65,6 +66,7 @@ const sessionRetained = new Map<string, string>()
 export function _resetMemoryVerbSessionStateForTesting(): void {
   sessionRetained.clear()
   seenFullRows.clear()
+  seenPendingRows.clear()
 }
 
 export function retainItems(
@@ -88,6 +90,11 @@ export function retainItems(
     const overflow = observationOverflow(text)
     if (overflow !== null) {
       outcomes.push({ index, status: 'refused', reason: context ? overflow.replace(' characters;', ' characters with its context;') : overflow })
+      return
+    }
+    const secret = memorySecretRefusal(text)
+    if (secret !== null) {
+      outcomes.push({ index, status: 'refused', reason: secret })
       return
     }
     const duplicateKey = text
@@ -251,6 +258,7 @@ export const RECALL_RESULT_CAP_CHARS = 40_000
 const DOC_RENDER_BUDGET_CHARS = RECALL_RESULT_CAP_CHARS - 2_000
 
 const seenFullRows = new Set<number>()
+const seenPendingRows = new Set<string>()
 
 export function hasSeenFullRow(seq: number): boolean {
   return seenFullRows.has(seq)
@@ -397,8 +405,9 @@ export function readMemoryRecord(
   if (id.startsWith('pending:')) {
     const ts = id.slice('pending:'.length)
     const row = pendingRows(dir).find(r => r.ts === ts)
-    if (!row) return { found: false, id, note: 'that pending row is gone (consolidated or never existed) — recall again' }
-    return { found: true, id, content: `${row.text} [unconsolidated, ${row.ts}, ${row.source}]` }
+    if (!row) return { found: false, id, note: 'that pending row is gone (consolidated, struck or never existed) — recall again' }
+    seenPendingRows.add(ts)
+    return { found: true, id, content: `${row.text} [unconsolidated, ${row.ts}, ${row.source}]`, note: 'full record read — amend is now unlocked for this pending row' }
   }
   return { found: false, id, note: 'unrecognized id — use seq:<n>, doc:<slug>, pending:<ts>, or ledger:<ordinal>' }
 }
@@ -408,7 +417,55 @@ export type CorrectOp = 'supersede' | 'amend' | 'retract'
 
 export type CorrectOutcome =
   | { ok: true; op: CorrectOp; newSeq: number; targetSeq: number; slug: string }
+  | { ok: true; op: CorrectOp; draft: true; targetId: string; newId: string | null; replacedBy?: number }
   | { ok: false; op: CorrectOp; code: string; message: string }
+
+function liveReplacementSeq(spec: string, dir: string): { ok: true; seq: number } | { ok: false; code: string; message: string } {
+  const match = /^seq:(\d+)$/.exec(spec)
+  if (!match) return { ok: false, code: 'invalid', message: `replacementId must be a seq:<n> id (got '${spec}')` }
+  const seq = Number(match[1])
+  if (!allDocs(dir).some(doc => liveSeqs(doc).has(seq))) return { ok: false, code: 'unknown-target', message: `replacement seq ${seq} is not live in this library` }
+  return { ok: true, seq }
+}
+
+function correctPending(
+  input: { op: CorrectOp; id: string; ts: string; content?: string; replacementId?: string; reason: string; source: string },
+  dir: string,
+): CorrectOutcome {
+  const { op, id, ts, reason, source } = input
+  const landed = (result: PendingCorrectResult, replacedBy?: number): CorrectOutcome => {
+    if (!result.ok) return { ok: false, op, code: result.code, message: result.message }
+    noteCorrected(id)
+    return { ok: true, op, draft: true, targetId: id, newId: result.row ? `pending:${result.row.ts}` : null, ...(replacedBy === undefined ? {} : { replacedBy }) }
+  }
+  switch (op) {
+    case 'retract':
+      return landed(strikePendingRow({ ts, dir }))
+    case 'supersede': {
+      if (input.replacementId) {
+        const replacement = liveReplacementSeq(input.replacementId, dir)
+        if (!replacement.ok) return { ok: false, op, code: replacement.code, message: replacement.message }
+        return landed(strikePendingRow({ ts, dir }), replacement.seq)
+      }
+      const content = (input.content ?? '').trim()
+      if (!content) return { ok: false, op, code: 'invalid', message: 'supersede needs content (the new truth) or a replacementId' }
+      return landed(replacePendingRow({ ts, text: `${content} (why: ${reason})`, source, dir }))
+    }
+    case 'amend': {
+      const content = (input.content ?? '').trim()
+      if (!content) return { ok: false, op, code: 'invalid', message: 'amend needs the corrected content' }
+      if (!seenPendingRows.has(ts)) {
+        return {
+          ok: false,
+          op,
+          code: 'unseen-evidence',
+          message: `amend refused: the full pending row ${id} has not been read this session — a clipped preview must never destroy an unseen tail. Read it first (Recall with read:"${id}").`,
+        }
+      }
+      return landed(replacePendingRow({ ts, text: `${content} (amended: ${reason})`, source, dir }))
+    }
+  }
+}
 
 export function correctMemory(
   input: {
@@ -422,20 +479,22 @@ export function correctMemory(
   dir: string = mnemeLibraryDir(),
 ): CorrectOutcome {
   const { op } = input
+  const source = `tool:Correct s:${input.session.slice(0, 8)}`
+  const reason = (input.reason ?? '').trim()
+  if (input.id.startsWith('pending:')) {
+    if (!reason) return { ok: false, op, code: 'invalid', message: 'a correction always carries its reason' }
+    return correctPending({ op, id: input.id, ts: input.id.slice('pending:'.length), ...(input.content !== undefined ? { content: input.content } : {}), ...(input.replacementId !== undefined ? { replacementId: input.replacementId } : {}), reason, source }, dir)
+  }
   const seqMatch = /^seq:(\d+)$/.exec(input.id)
   if (!seqMatch) {
     return {
       ok: false,
       op,
       code: 'not-editable',
-      message: input.id.startsWith('pending:')
-        ? 'pending rows are not correctable — they resolve at consolidation; correct the consolidated fact instead'
-        : `corrections address consolidated rows by seq:<n> id (got '${input.id}')`,
+      message: `corrections address a consolidated row by its seq:<n> id or a pending row by its pending:<ts> id (got '${input.id}')`,
     }
   }
   const targetSeq = Number(seqMatch[1])
-  const source = `tool:Correct s:${input.session.slice(0, 8)}`
-  const reason = (input.reason ?? '').trim()
   if (!reason) return { ok: false, op, code: 'invalid', message: 'a correction always carries its reason' }
 
   const finish = (result: MnemeCorrectResult): CorrectOutcome => {
@@ -451,16 +510,9 @@ export function correctMemory(
       return finish(retireFact({ targetSeq, reason, source, dir }))
     case 'supersede': {
       if (input.replacementId) {
-        const replacementMatch = /^seq:(\d+)$/.exec(input.replacementId)
-        if (!replacementMatch) {
-          return { ok: false, op, code: 'invalid', message: `replacementId must be a seq:<n> id (got '${input.replacementId}')` }
-        }
-        const replacementSeq = Number(replacementMatch[1])
-        const live = allDocs(dir).some(doc => liveSeqs(doc).has(replacementSeq))
-        if (!live) {
-          return { ok: false, op, code: 'unknown-target', message: `replacement seq ${replacementSeq} is not live in this library` }
-        }
-        return finish(pointFact({ targetSeq, replacementSeq, reason, source, dir }))
+        const replacement = liveReplacementSeq(input.replacementId, dir)
+        if (!replacement.ok) return { ok: false, op, code: replacement.code, message: replacement.message }
+        return finish(pointFact({ targetSeq, replacementSeq: replacement.seq, reason, source, dir }))
       }
       const content = (input.content ?? '').trim()
       if (!content) return { ok: false, op, code: 'invalid', message: 'supersede needs content (the new truth) or a replacementId' }
