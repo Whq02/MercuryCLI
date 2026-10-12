@@ -173,6 +173,14 @@ function writeErr(text: string): void {
   process.stderr.write(text.endsWith('\n') ? text : `${text}\n`)
 }
 
+function exitWithVersionLine(): never {
+  try {
+    writeSync(1, `Mercury ${MERCURY_VERSION}\n`)
+  } catch {
+  }
+  process.exit(0)
+}
+
 function wantsRowStream(): boolean {
   const args = inspectRunArgs(process.argv.slice(2))
   return args.command === 'run' && args.format === 'rows'
@@ -365,7 +373,7 @@ async function run(): Promise<void> {
     return values
   }
   program.hook('preAction', async (_thisCommand, actionCommand) => {
-    if (actionCommand === (program as unknown) || actionCommand.name() === 'run') return
+    if (actionCommand === (program as unknown) || actionCommand.name() === 'run' || PRINT_ONLY_VERBS.has(actionCommand.name())) return
     try {
       const names: string[] = []
       type CommandNode = { name(): string; parent: CommandNode | null }
@@ -485,15 +493,12 @@ async function run(): Promise<void> {
   program.addOption(new Option('-V', 'Print the version').hideHelp())
   program.on('option:V', () => {
     releaseLauncherAltHoldNow()
-    try {
-      writeSync(1, `Mercury ${MERCURY_VERSION}\n`)
-    } catch {
-    }
-    process.exit(0)
+    exitWithVersionLine()
   })
   profileCheckpoint('run_main_options_built')
 
   program.hook('preAction', async (_thisCommand, actionCommand) => {
+    if (PRINT_ONLY_VERBS.has(actionCommand.name())) return
     profileCheckpoint('preAction_start')
     const slowBootNote = setTimeout(() => {
       if (process.stderr.isTTY) process.stderr.write('checking the system keychain and managed settings…\n')
@@ -848,6 +853,25 @@ async function registerSubcommands(program: CommanderCommand): Promise<void> {
       process.exit(0)
     })
 
+  program
+    .command('version')
+    .description('Print the version (the same line as --version)')
+    .action(() => {
+      exitWithVersionLine()
+    })
+  program
+    .command('help [command...]')
+    .description('Show help: this page, or one command\'s page (help mcp serve reaches a sub-command)')
+    .action((words: string[]) => {
+      let target: CommanderCommand = program
+      for (const word of words) {
+        const next = target.commands.find(command => command.name() === word || command.aliases().includes(word))
+        if (next === undefined) failCli(`unknown command: ${words.join(' ')} — ${cliName} --help lists every command`)
+        target = next
+      }
+      target.outputHelp()
+      process.exit(0)
+    })
   program.command('health [topic]')
     .description('Check the installation health: configured MCP servers are validated WITHOUT starting them; `health processes` lists Mercury\'s own processes as JSON')
     .option('--json', 'The full health report as JSON (the certificate)')
@@ -1062,6 +1086,7 @@ type RootOptions = Record<string, unknown>
 
 const RUN_OUTPUT_OPTIONS: ReadonlySet<string> = new Set(['--format', '--input', '--partial'])
 const INTERACTIVE_BOOT_OPTIONS: ReadonlySet<string> = new Set(['--chat', '--concourse-off', '--concourse-on', '--multiplex', '--pr'])
+const PRINT_ONLY_VERBS: ReadonlySet<string> = new Set(['version', 'help'])
 
 async function defaultAction(inputPromptArg: string | undefined, opts: RootOptions): Promise<void> {
   if ((opts as { version?: boolean }).version) {
