@@ -44,10 +44,12 @@ export function conversationScope(conversationId: string, base = 'dispatch'): st
   return `conv:${conversationId}:${base}`
 }
 
+export function normalizePastedLines(raw: string): string {
+  return stripAnsi(raw).replace(/\r\n?/g, '\n')
+}
+
 export function normalizePastedInput(raw: string): string {
-  return stripAnsi(raw)
-    .replace(/\r\n?/g, '\n')
-    .replaceAll('\t', '    ')
+  return normalizePastedLines(raw).replaceAll('\t', '    ')
 }
 
 function fmtBytes(n: number): string {
