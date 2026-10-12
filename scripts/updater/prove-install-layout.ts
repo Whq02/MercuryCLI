@@ -689,6 +689,9 @@ console.log('── §15 seamark SM-I: activation renames + PATH identity + host
   const refusedHeal = reconcileManagedShims(bmRoots)
   check('BM-31: a foreign member refuses (never clobbered, set reports incomplete)',
     refusedHeal !== null && !refusedHeal.complete && readFileSync(join(bmBin, 'mercury'), 'utf8').includes('operator-owned'))
+  const quiet = readFileSync(join(import.meta.dir, '..', '..', 'src', 'services', 'privateChannel', 'quietUpdateNotice.ts'), 'utf8')
+  check('BM-31: the interactive boot heals the launcher set before its quiet update check, so a launcher an earlier release wrote is current from the first boot of the new one',
+    quiet.includes('reconcileManagedShims(resolveLayoutRoots())') && quiet.indexOf('reconcileManagedShims(resolveLayoutRoots())') < quiet.indexOf('void runQuietUpdateCheck({'))
   rmSync(bmScratch, { recursive: true, force: true })
 }
 
