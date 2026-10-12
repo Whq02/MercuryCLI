@@ -189,7 +189,9 @@ const presence = (
   }
 
   const thinking = config.thinkingRowApplicability as (model: string, reads?: { locked?: (id: string) => boolean; routeOf?: (id: string) => string | null }) => { applies: boolean; naText?: string; refuseNote?: string }
-  check('RED ON THE BASE: the Thinking row applies on the Anthropic road', thinking('claude-fable-5-1').applies === true)
+  check('RED ON THE BASE: the Thinking row applies on the Anthropic road where the model takes the control', thinking('claude-haiku-4-5-20251001').applies === true && thinking('claude-opus-4-7').applies === true)
+  const alwaysOn = thinking('claude-fable-5-1')
+  check('an Anthropic model whose thinking is always on says so in the row instead of an off that is not true', alwaysOn.applies === false && alwaysOn.naText === 'n/a — Fable 5.1 keeps thinking on' && alwaysOn.refuseNote!.includes('thinks on every request'), JSON.stringify(alwaysOn))
   check('RED ON THE BASE: it applies on a GLM id whose thinking the dial moves', thinking('glm-5.2').applies === true)
   check('RED ON THE BASE: it applies on a DeepSeek id (the compat chat road)', thinking('deepseek-chat').applies === true)
   check('RED ON THE BASE: it applies on a Kimi id', thinking('kimi-k2').applies === true)
