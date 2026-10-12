@@ -122,6 +122,7 @@ export {
   createScheduledTaskFireMessage,
   createSystemAPIErrorMessage,
   createSeatReceiptMessage,
+  createCloseUsageMessage,
   createStreamCutMessage,
   createThinkingDeadMessage,
   createThinkingNoteMessage,

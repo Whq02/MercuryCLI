@@ -12,6 +12,7 @@ import {
   stopWordOf,
   usageOf,
   type BlockStartRow,
+  type CloseRow,
   type CommandOutputRow,
   type CompactionRow,
   type Denial,
@@ -357,6 +358,23 @@ export function retryWaitRow(scope: RowScope, facts: { attempt?: number; of?: nu
 
 export function heartbeatRow(scope: RowScope): Unstamped<HeartbeatRow> {
   return scoped(scope, { type: 'heartbeat' as const })
+}
+
+export interface CloseFacts {
+  state: CloseRow['state']
+  noteChars?: number
+  usage?: NonNullableUsage
+  models?: Record<string, ModelUsageRow>
+}
+
+export function closeRow(scope: RowScope, facts: CloseFacts): Unstamped<CloseRow> {
+  return scoped(scope, {
+    type: 'close' as const,
+    state: facts.state,
+    ...(facts.noteChars !== undefined ? { note_chars: facts.noteChars } : {}),
+    ...(facts.usage !== undefined ? { usage: usageOf(facts.usage) } : {}),
+    ...(facts.models !== undefined ? { models: facts.models } : {}),
+  })
 }
 
 export function compactionRow(scope: RowScope, fold: FoldStatusV1 | null, trigger?: CompactionRow['trigger']): Unstamped<CompactionRow> {

@@ -71,6 +71,7 @@ import {
   itemRowsOf,
   modelUsageRows,
   noticeRow,
+  closeRow,
   outcomeRow,
   partialRowsOf,
   refusedCallRowsOf,
@@ -903,6 +904,15 @@ export class Conversation {
           }
           case 'system': {
             const systemMessage = message
+            if (systemMessage.subtype === 'close_usage') {
+              const close = systemMessage as import('../types/message.js').SystemCloseUsageMessage
+              yield closeRow(scope, {
+                state: close.closeState,
+                ...(close.noteChars !== undefined ? { noteChars: close.noteChars } : {}),
+                ...(close.usage !== undefined ? { usage: close.usage } : {}),
+              })
+              break
+            }
             if (systemMessage.subtype === 'api_error') {
               this.mutableMessages.push(systemMessage)
               turnMessages.push(systemMessage)
