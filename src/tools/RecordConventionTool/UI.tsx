@@ -19,6 +19,7 @@ export function renderRecordConventionResultMessage(
         <Text>
           {output.action === 'recorded' ? 'Recorded' : 'Merged'} into{' '}
           <Text bold>{output.path?.split(/[\\/]/).pop() ?? 'the estate'}</Text>
+          <Text dimColor> · /memory finds it by its words</Text>
         </Text>
       ) : (
         <Text dimColor>{output.detail}</Text>

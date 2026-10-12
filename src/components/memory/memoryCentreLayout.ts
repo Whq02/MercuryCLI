@@ -8,14 +8,18 @@ import type { MnemeMaintenanceReceipt } from '../../mneme/mnemeMaintenance.js'
 export const MEMORY_POPUP_WIDTH = 92
 export const MEMORY_POPUP_ROWS = 36
 export const MEMORY_POPUP_TITLE_VIEW = 'memory'
-export const MEMORY_SEARCH_PLACEHOLDER = 'type to search facts and rules'
+export const MEMORY_SEARCH_PLACEHOLDER = 'type to search facts, rules and instruction files'
+export const MEMORY_SEARCH_READS = 'the search reads topic pages, pinned rules, recent facts and the instruction files'
 export const MEMORY_CLOSE_HINT = 'esc or click outside closes'
 export const MEMORY_ROOMY_BUDGET = 12
 export const NO_DATE = '—'
 
-export function memoryBodySpacing(rowBudget: number): { roomy: boolean; fixedRows: number } {
+export const MEMORY_TWO_LINE_BUDGET = 16
+
+export function memoryBodySpacing(rowBudget: number): { roomy: boolean; fixedRows: number; detailLines: 1 | 2 } {
   const roomy = rowBudget >= MEMORY_ROOMY_BUDGET
-  return { roomy, fixedRows: roomy ? 4 : 2 }
+  const detailLines = rowBudget >= MEMORY_TWO_LINE_BUDGET ? 2 : 1
+  return { roomy, fixedRows: roomy ? 3 + detailLines : 2, detailLines }
 }
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
@@ -136,7 +140,7 @@ export function factsRow(facts: Pick<OverviewFacts, 'enabled' | 'entryCount' | '
     newest: humanStamp(facts.newestFact),
     state: 'on',
     detail: `facts live in topic pages; corrections keep history · ${facts.historyCount} in history${facts.recent > 0 ? ` · ${facts.recent} recent, consolidated at the next pass` : ''}`,
-    action: null,
+    action: facts.entryCount + facts.recent > 0 ? 'list the facts' : null,
   }
 }
 
@@ -332,7 +336,7 @@ export function journalHeading(count: number): string {
 }
 
 export const VIEW_LEGEND = {
-  pinned: 'a pinned rule loads word for word every session · u on a rule unpins it · /config raises the limit',
+  pinned: '↵ opens a rule: c corrects it, x retires it, u unpins it · /config raises the limit',
   topics: 'one page per topic · a page holds its facts and their history',
   lineage: 'every session of this work · a noted session left words for the next one',
   journal: 'kept in the Mercury home, never pushed or synced · /config turns it off',
@@ -414,14 +418,65 @@ export function pageWindow(total: number, offset: number, rows: number): { start
   return { start, end, above: start, below: Math.max(0, total - end) }
 }
 
+export interface ConventionHit {
+  path: string
+  file: string
+  line: number
+  text: string
+}
+
+export function searchWords(query: string): string[] {
+  return query.toLowerCase().split(/\s+/).map(w => w.trim()).filter(w => w.length >= 2)
+}
+
+export function conventionHits(query: string, files: readonly { path: string; text: string }[], max = 8): ConventionHit[] {
+  const words = searchWords(query)
+  if (words.length === 0) return []
+  const out: ConventionHit[] = []
+  for (const file of files) {
+    const lines = file.text.split('\n')
+    for (let i = 0; i < lines.length && out.length < max; i++) {
+      const line = lines[i]!.replace(/\s+$/, '')
+      const plain = line.toLowerCase()
+      if (line.trim() === '' || /^#{1,6}\s/.test(line) || !words.every(w => plain.includes(w))) continue
+      out.push({ path: file.path, file: basename(file.path), line: i + 1, text: line.trim().replace(/^([-*•]|\d+\.)\s+/, '') })
+    }
+    if (out.length >= max) break
+  }
+  return out
+}
+
+export function conventionRowLabel(hit: ConventionHit): string {
+  return `${hit.file}:${hit.line} · ${hit.text}`
+}
+
+export function filePageLines(text: string, width: number, markLine: number | null): PageLine[] {
+  const out: PageLine[] = []
+  const raw = text.split('\n')
+  for (let i = 0; i < raw.length; i++) {
+    const pieces = pageLines(raw[i]!, width)
+    if (pieces.length === 0) {
+      if (out.length > 0 && out[out.length - 1]!.kind !== 'blank') out.push({ kind: 'blank', text: '' })
+      continue
+    }
+    const marked = markLine !== null && i + 1 === markLine
+    for (const piece of pieces) out.push(marked ? { ...piece, marked: true } : piece)
+  }
+  while (out.length > 0 && out[out.length - 1]!.kind === 'blank') out.pop()
+  return out
+}
+
+export function searchPlaceholder(where: 'overview' | 'list' | 'open'): string {
+  if (where === 'overview') return MEMORY_SEARCH_PLACEHOLDER
+  if (where === 'list') return 'type to filter the list'
+  return 'esc back, then type to search'
+}
+
 export type MemoryFooterState =
   | { kind: 'overview'; action: string | null }
-  | { kind: 'search' }
-  | { kind: 'pinned' }
-  | { kind: 'topics' }
-  | { kind: 'lineage'; noted: boolean }
-  | { kind: 'journal' }
-  | { kind: 'page'; scrolls: boolean }
+  | { kind: 'search'; empty: boolean }
+  | { kind: 'list'; open: string | null; empty: boolean }
+  | { kind: 'page'; scrolls: boolean; editable: boolean }
   | { kind: 'fact'; verbs: string | null }
   | { kind: 'correcting' }
   | { kind: 'files'; direct: boolean }
@@ -431,17 +486,11 @@ export function memoryFooter(state: MemoryFooterState): string {
     case 'overview':
       return `↑↓ move${state.action ? ` · ↵ ${state.action}` : ''} · ${MEMORY_CLOSE_HINT}`
     case 'search':
-      return '↑↓ move · ↵ inspect · esc clears the search'
-    case 'pinned':
-      return '↑↓ move · ↵ inspect · u unpin · /config raises the limit · esc back'
-    case 'topics':
-      return '↑↓ move · ↵ open the page · esc back'
-    case 'lineage':
-      return state.noted ? '↑↓ move · ↵ read the note · esc back' : '↑↓ move · esc back'
-    case 'journal':
-      return '↑↓ move · ↵ read the entry · esc back'
+      return state.empty ? 'esc clears the search' : '↑↓ move · ↵ open · esc clears the search'
+    case 'list':
+      return state.empty ? 'esc back' : `↑↓ move${state.open ? ` · ↵ ${state.open}` : ''} · esc back`
     case 'page':
-      return state.scrolls ? '↑↓ scroll · esc back' : 'esc back'
+      return `${state.editable ? 'e open in editor · ' : ''}${state.scrolls ? '↑↓ scroll · ' : ''}esc back`
     case 'fact':
       return `${state.verbs ? `${state.verbs} · ` : ''}esc back`
     case 'correcting':
