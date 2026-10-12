@@ -803,7 +803,7 @@ export async function runHeadless(
   let hostAsks: HostAskLiveness | null = null
   asks.setOnControlRequestSent(() => hostAsks?.noteParked())
   asks.setOnControlRequestResolved(() => hostAsks?.noteSettled())
-  let deferredModelBreadcrumb: string | null = null
+  let deferredModelBreadcrumb: { to: string; from: string } | null = null
   let heldSeatModel: { requestId: number; model: string } | null = null
   let heldSeatEffort: { requestId: number; effort: string } | null = null
   let deferredSpawnSwitches: Array<{ kind: 'subagents' | 'workflows'; on: boolean; requestId: number }> = []
@@ -941,10 +941,18 @@ export async function runHeadless(
     return deduped
   }
 
-  const injectModelSwitchBreadcrumbs = async (toModel: string): Promise<void> => {
+  const savedDefaultModel = (): string | null => {
+    const stored = getSettingsWithSources().sources.find(source => source.source === 'userSettings')?.settings.engine?.model
+    return stored === undefined || stored === '' ? null : parseUserSpecifiedModel(stored)
+  }
+  const injectModelSwitchBreadcrumbs = async (toModel: string, fromModel: string): Promise<void> => {
     const { createModelSwitchBreadcrumbs } = await import('../utils/messages/factories.js')
-    const display = modelInfos.find(info => info.value === toModel)?.display_name ?? toModel
-    const breadcrumbs = createModelSwitchBreadcrumbs(toModel, display)
+    const displayOf = (model: string): string => modelInfos.find(info => info.value === model)?.display_name ?? model
+    const breadcrumbs = createModelSwitchBreadcrumbs(toModel, displayOf(toModel), {
+      previousModel: fromModel,
+      previousDisplay: displayOf(fromModel),
+      savedAsDefault: savedDefaultModel() === toModel,
+    })
     for (const breadcrumb of breadcrumbs) {
       messages.push(breadcrumb)
       const content = breadcrumb.message.content
@@ -975,7 +983,7 @@ export async function runHeadless(
     saveSessionModel(model)
     notifySessionStateChanged('idle')
     if (model !== previous) {
-      await injectModelSwitchBreadcrumbs(model)
+      await injectModelSwitchBreadcrumbs(model, previous)
       if (getSettingsWithSources().effective.memory?.tellEngineSwitch === true) await tellSeatEngineSwitch(model)
     }
   }
@@ -1171,9 +1179,9 @@ export async function runHeadless(
       }
       holdQueuedWordsForTurnEnd(false)
       if (deferredModelBreadcrumb !== null) {
-        const toModel = deferredModelBreadcrumb
+        const crumb = deferredModelBreadcrumb
         deferredModelBreadcrumb = null
-        await injectModelSwitchBreadcrumbs(toModel)
+        await injectModelSwitchBreadcrumbs(crumb.to, crumb.from)
       }
       if (deferredSpawnSwitches.length > 0) {
         const toggles = deferredSpawnSwitches
