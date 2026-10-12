@@ -1,15 +1,8 @@
 #!/usr/bin/env bun
 // gate-watch: src/components/mercury-ui/screens/anthropicLoginModel.ts src/components/ConsoleOAuthFlow.tsx src/components/BootLoginsScreen.tsx src/services/oauth/index.ts
-import { spawnSync } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
-import { tmpdir } from 'node:os'
-import { join, resolve } from 'node:path'
-import { resolveCaptureDriver, vshotBudgetMs } from '../lib/captureDriver.ts'
-import { seedFirstRun } from '../lib/firstRunSeed.ts'
-
-const ROOT = resolve(import.meta.dir, '..', '..')
-const DIST = join(ROOT, 'dist', 'mercury.mjs')
-const VSHOT = join(import.meta.dir, 'vshot.py')
+import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
+import { join } from 'node:path'
+import { DIST, firstOutputTs, firstPtyVisibility, grabScreens, runArtifactArena, type ArenaRun } from '../streaming/artifactArena.ts'
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -152,77 +145,56 @@ section('§3 the Boot face\'s sign-in pane speaks the same words with the URL ro
   check('an opener that said no reads "the browser did not open" at once', /The browser did not open/.test(failed[0] ?? ''), failed.join(' | '))
 }
 
-const driver = resolveCaptureDriver()
-if (driver.kind !== 'posix-pty' || !existsSync(DIST)) {
-  console.log(`prove-sign-in-no-code-wait: the in-chat card leg SKIPPED — ${driver.kind !== 'posix-pty' ? `no POSIX pty capture driver (${driver.kind})` : 'dist/mercury.mjs is not built'}`)
+if (!existsSync(DIST)) {
+  console.log('prove-sign-in-no-code-wait: the in-chat card leg SKIPPED — dist/mercury.mjs is not built')
 } else {
   section('§4 the in-chat /logins card on the fixture road (BROWSER=/usr/bin/true, no window ever opens): the words change at the wait')
-  const scratch = mkdtempSync(join(tmpdir(), 'sign-in-no-code-'))
+  const COLS = 120
+  const ROWS = 40
+  const COMPOSER_READY = 'Type a prompt'
+  const MENU_ROW = 'Claude subscription account'
+  const MENU_PAINTED = 'Usage-based'
+  const OPENED = 'press c to copy the URL'
+  const NO_CODE = 'No code arrived from the browser'
+  const squash = (s: string): string => s.replace(/\s+/g, '')
+  const painted = (run: ArenaRun, text: string, notBefore = 0): { ts: number; text: string } | undefined => firstPtyVisibility(run.ptyReads, squash(text), notBefore)
+  const steady = (row: string): string => row.replace(/flux-arena-cwd-[A-Za-z0-9]+/g, 'the-project').replace(/\b\d\d:\d\d:\d\d\b/g, 'hh:mm:ss').replace(/\s+$/, '')
+  const screenAfter = (run: ArenaRun, paint: { ts: number } | undefined, settleMs = 700): string[] | null => {
+    if (paint === undefined) return null
+    const [frame] = grabScreens(run, COLS, ROWS, [Math.max(0, paint.ts - firstOutputTs(run) + settleMs)])
+    return frame ? frame.rows : null
+  }
+  const run = await runArtifactArena({
+    turns: [],
+    sends: [`after:${COMPOSER_READY}:1500:/logins`, `after:${COMPOSER_READY}:2300:\\r`, `after:${MENU_PAINTED}:900:\\x1b[B`, `after:${MENU_PAINTED}:1500:\\r`],
+    seconds: Math.ceil(NO_CODE_DELAY_MS / 1000) + 45,
+    cols: COLS,
+    rows: ROWS,
+    keep: true,
+    anchor: null,
+    seedCwd: { 'README.md': '# a small folder\n' },
+    extraEnv: { BROWSER: '/usr/bin/true', MERCURY_UPDATE_NOTICE: '0', ANTHROPIC_API_KEY: '' },
+  })
   try {
-    const CWD = join(scratch, 'cwd')
-    mkdirSync(CWD, { recursive: true })
-    writeFileSync(join(CWD, 'README.md'), '# a small folder\n')
-    const HOME = join(scratch, 'home')
-    seedFirstRun(HOME, [CWD])
-    const env: NodeJS.ProcessEnv = {
-      ...process.env,
-      MERCURY_CONFIG_DIR: HOME,
-      MERCURY_CREDENTIAL_STORE: 'file',
-      MERCURY_OPERATOR: 'sam',
-      MERCURY_DAEMON_DIR: join(scratch, 'daemon'),
-      MERCURY_LOCAL_PROBE_TARGETS: 'none',
-      MERCURY_CRITTER_IDLE: '0',
-      MERCURY_CRITTER_GAZE: '0',
-      MERCURY_CRITTER_SLEEP: '0',
-      MERCURY_LIVE_CLOCK: '0',
-      MERCURY_LIVE_GLYPHS: '0',
-      MERCURY_TURN_RECEIPT: '0',
-      MERCURY_OASIS_BG: '0',
-      MERCURY_TERMINAL_TITLE: '0',
-      MERCURY_UPDATE_NOTICE: '0',
-      ANTHROPIC_BASE_URL: 'http://127.0.0.1:1',
-      BROWSER: '/usr/bin/true',
-    }
-    for (const key of ['ANTHROPIC_API_KEY', 'ANTHROPIC_AUTH_TOKEN', 'MERCURY_OAUTH_TOKEN', 'OPENAI_API_KEY', 'OPENROUTER_API_KEY', 'GOOGLE_API_KEY', 'GEMINI_API_KEY', 'HF_TOKEN', 'ZAI_API_KEY', 'MOONSHOT_API_KEY', 'DEEPSEEK_API_KEY', 'MERCURY_MODEL', 'MERCURY_CONCOURSE', 'MERCURY_CONCOURSE_FIXTURE', 'NODE_ENV', 'CI']) delete env[key]
-    const waitTicks = Math.ceil(NO_CODE_DELAY_MS / 200) + 25
-    const sends: unknown[] = [
-      { data: '', atTick: 999, awaitText: '↑↓ choose', requireAwait: true, minTick: 10, awaitStableTicks: 6, awaitSettleTicks: 4 },
-      { data: '\r', afterPrevTicks: 2 },
-      { data: '', atTick: 999, awaitText: '↵ sends', requireAwait: true, awaitSettleTicks: 10 },
-      { data: '/logins\r', afterPrevTicks: 5 },
-      { data: '', atTick: 999, awaitText: 'Claude subscription account', requireAwait: true, awaitSettleTicks: 6, mark: 'menu' },
-      { data: '\u001b[B', afterPrevTicks: 3 },
-      { data: '\r', afterPrevTicks: 3 },
-      { data: '', atTick: 999, awaitText: 'press c to copy the URL', requireAwait: true, awaitSettleTicks: 4, mark: 'opened' },
-      { data: '', atTick: 999, awaitText: 'No code arrived from the browser', requireAwait: true, minTick: 1, awaitSettleTicks: 4, mark: 'no-code' },
-    ]
-    const grid = join(scratch, 'grid.json')
-    const cfgPath = join(scratch, 'vshot.json')
-    const total = 200 + waitTicks + 100
-    writeFileSync(cfgPath, JSON.stringify({ argv: ['node', DIST, '--chat'], sends, total, cols: 120, rows: 40, out: grid, title: 'sign-in wait' }))
-    const r = spawnSync(driver.python, [VSHOT, cfgPath], { env, cwd: CWD, encoding: 'utf8', timeout: vshotBudgetMs(total * 200 * 2.5 + 60_000) })
-    type Grid = Array<Array<{ c?: string } | string>>
-    const gridText = (g: Grid): string => g.map(row => row.map(c => (typeof c === 'object' && c !== null ? (c.c ?? ' ') : String(c))).join('').trimEnd()).join('\n')
-    const marks: Record<string, string> = {}
-    let endReason = ''
-    let undelivered = 0
-    if (existsSync(grid)) {
-      const payload = JSON.parse(readFileSync(grid, 'utf8')) as { marks?: Array<{ label: string; grid: Grid }>; endReason?: string; undeliveredSends?: unknown[] }
-      for (const m of payload.marks ?? []) marks[m.label] = gridText(m.grid)
-      endReason = payload.endReason ?? ''
-      undelivered = Array.isArray(payload.undeliveredSends) ? payload.undeliveredSends.length : 0
-    }
-    if (frameDir) for (const [label, text] of Object.entries(marks)) writeFileSync(join(frameDir, `card-${label}.txt`), `${text}\n`)
-    const menu = marks.menu ?? ''
-    const opened = marks.opened ?? ''
-    const noCode = marks['no-code'] ?? ''
-    check('the /logins card opened on its family menu', menu.includes('Claude subscription account'), `${endReason} · vshot ${String(r.status)} · ${(r.stderr ?? '').slice(-300)}`)
-    check('the Claude row opened the browser road: the card says a browser window has been opened and offers the URL and c', opened.includes('A browser window has been opened') && opened.includes('press c to copy the URL') && opened.includes('Paste code here if prompted'), opened.split('\n').filter(l => /browser|copy|Paste/.test(l)).join(' | '))
-    check('after the wait with no code the card says so: "No code arrived from the browser yet"', noCode.includes('No code arrived from the browser yet'), `${endReason} · undelivered ${undelivered} · ` + noCode.split('\n').filter(l => /browser|code/i.test(l)).join(' | '))
-    check('…it no longer says a browser window has been opened', noCode !== '' && !noCode.includes('A browser window has been opened'), noCode.split('\n').filter(l => /browser/.test(l)).join(' | '))
-    check('…and the copy-the-URL road stands in the same card', noCode.includes('press c to copy') && noCode.includes('Paste code here if prompted'), noCode.split('\n').filter(l => /copy|Paste/.test(l)).join(' | '))
+    const unfired = `${run.outcome.reason ?? 'complete'} · unfired ${JSON.stringify(run.outcome.report?.unfired ?? [])}`
+    const chatPaint = painted(run, COMPOSER_READY)
+    const menuPaint = painted(run, MENU_ROW, chatPaint?.ts ?? 0)
+    const waitingPaint = painted(run, 'A browser window has been opened', menuPaint?.ts ?? 0)
+    const openedPaint = painted(run, OPENED, menuPaint?.ts ?? 0)
+    const noCodePaint = painted(run, NO_CODE, openedPaint?.ts ?? 0)
+    const menu = screenAfter(run, menuPaint)
+    const opened = screenAfter(run, openedPaint)
+    const noCode = screenAfter(run, noCodePaint)
+    if (frameDir) for (const [label, rows] of [['menu', menu], ['opened', opened], ['no-code', noCode]] as const) if (rows) writeFileSync(join(frameDir, `card-${label}.txt`), rows.map(steady).join('\n') + '\n')
+    const rowsWith = (rows: string[] | null, re: RegExp): string => (rows ?? []).filter(l => re.test(l)).join(' | ')
+    check('the /logins card opened on its family menu', menu !== null && menu.some(l => l.includes(MENU_ROW)), unfired)
+    check('the Claude row opened the browser road: the card says a browser window has been opened and offers the URL and c', opened !== null && opened.some(l => l.includes('A browser window has been opened')) && opened.some(l => l.includes(OPENED)) && opened.some(l => l.includes('Paste code here if prompted')), opened === null ? unfired : rowsWith(opened, /browser|copy|Paste/))
+    check('after the wait with no code the card says so: "No code arrived from the browser yet"', noCode !== null && noCode.some(l => l.includes('No code arrived from the browser yet')), noCode === null ? `the words never painted · ${unfired}` : rowsWith(noCode, /browser|code/i))
+    check('…it no longer says a browser window has been opened', noCode !== null && !noCode.some(l => l.includes('A browser window has been opened')), rowsWith(noCode, /browser/))
+    check('…and the copy-the-URL road stands in the same card', noCode !== null && noCode.some(l => l.includes('press c to copy')) && noCode.some(l => l.includes('Paste code here if prompted')), rowsWith(noCode, /copy|Paste/))
+    check('the no-code words came after the wait, not before it', waitingPaint !== undefined && noCodePaint !== undefined && noCodePaint.ts - waitingPaint.ts >= NO_CODE_DELAY_MS - 3000, `${waitingPaint && noCodePaint ? noCodePaint.ts - waitingPaint.ts : 'n/a'} ms between the waiting screen and the no-code words`)
   } finally {
-    rmSync(scratch, { recursive: true, force: true })
+    run.cleanup()
   }
 }
 
