@@ -9,6 +9,8 @@ export const THINKING_WORD = 'thinking'
 export const THINKING_LABEL = `${THINKING_GLYPH} ${THINKING_WORD}…`
 export const THINKING_COLOR: keyof Theme = 'subtle'
 
+export const WITHHELD_THINKING_WORDS = 'the provider returned no thinking text for this model'
+
 export function ThinkingLabel({
   children,
 }: {
