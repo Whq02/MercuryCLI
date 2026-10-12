@@ -31,12 +31,13 @@ export function createUserMessage(input: {
   summarizeMetadata?: { messagesSummarized: number; userContext?: string; direction?: PartialCompactDirection }
   origin?: MessageOrigin
   batchUuids?: string[]
+  queued?: true
 }): UserMessage {
   const identity = MESSAGE_STAMPER.mint(fields(input, ['uuid', 'timestamp']))
   const metadata = fields(input, [
     'isMeta', 'isVisibleInTranscriptOnly', 'isVirtual', 'isCompactSummary',
     'summarizeMetadata', 'toolUseResult', 'mcpMeta', 'imagePasteIds',
-    'sourceToolAssistantUUID', 'permissionMode', 'origin',
+    'sourceToolAssistantUUID', 'permissionMode', 'origin', 'queued',
   ])
   return {
     ...metadata,
