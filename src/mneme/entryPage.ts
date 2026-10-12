@@ -39,6 +39,21 @@ function enginesLine(previous: readonly LedgerEntry[]): string | null {
   return `Engines before this session: ${parts.join('; ')}.`
 }
 
+const JOURNAL_CLOSE_SLACK_MS = 5_000
+
+export function sessionOfJournalEntry(entries: readonly LedgerEntry[], at: string): LedgerEntry | null {
+  const when = Date.parse(at)
+  if (Number.isNaN(when)) return null
+  let found: LedgerEntry | null = null
+  for (const entry of entries) {
+    const started = Date.parse(entry.startedAt)
+    const ended = entry.endedAt === null ? Number.NaN : Date.parse(entry.endedAt)
+    if (Number.isNaN(started) || Number.isNaN(ended)) continue
+    if (when >= started && when <= ended + JOURNAL_CLOSE_SLACK_MS) found = entry
+  }
+  return found
+}
+
 function rulingsLine(): string {
   const dir = mnemeLibraryDir()
   const count = readPinnedStatus(dir)?.pinned ?? readPins(dir).length
@@ -68,15 +83,17 @@ export function composeEntryPage(projectKey: string, sessionId?: string, options
   }
   const last = previous[previous.length - 1]!
   const lastNoted = [...previous].reverse().find(entry => entry.handoff !== null) ?? null
+  const journal = options.journal?.() ?? null
+  const journalSession = journal !== null ? sessionOfJournalEntry(previous, journal.at) : null
   if (last.handoff === null) {
-    lines.push(`The last session (${last.ordinal}, ${last.endedAt === null ? 'never closed' : `ended ${stampLocal(last.endedAt)}`}) ${NO_NOTE_LEFT}.`)
+    const below = journalSession !== null && journalSession.ordinal === last.ordinal ? '; its journal entry is below' : ''
+    lines.push(`The last session (${last.ordinal}, ${last.endedAt === null ? 'never closed' : `ended ${stampLocal(last.endedAt)}`}) ${NO_NOTE_LEFT}${below}.`)
   }
   if (lastNoted !== null && lastNoted.handoff !== null) {
     lines.push('', `## The last note left (session ${lastNoted.ordinal}, ${stampLocal(lastNoted.handoff.at)})`, lastNoted.handoff.text)
   }
-  const journal = options.journal?.() ?? null
   if (journal !== null) {
-    lines.push('', `## The journal's last entry (${stampLocal(journal.at)})`, journal.text)
+    lines.push('', `## The journal's last entry (${stampLocal(journal.at)}${journalSession !== null ? `, session ${journalSession.ordinal}'s own account — not a note left for you` : " — the model's own account, not a note left for you"})`, journal.text)
   }
   return lines.join('\n')
 }
