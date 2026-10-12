@@ -120,7 +120,7 @@ t.section("§2 words typed at main while a crewmate runs are the session's own t
     sends: [
       '2000:\\r',
       '6000:spawn the probe\\r',
-      `after:poise pro… · running:800:${sgrClick(10, FIRST_CHILD_ROW)}`,
+      `after:probe · runni…:800:${sgrClick(10, FIRST_CHILD_ROW)}`,
       `after:x stop · p pause:1500:${sgrClick(10, LEAD_ROW)}`,
       'after:x stop · p pause:3500:steer the count gently',
       'after:x stop · p pause:5000:\\r',
@@ -235,7 +235,7 @@ t.section('§3 one composer, one draft: the draft rides the view swap into eithe
     { kind: 'text', text: 'Spare3.', whenBody: 'spawn both probes' },
   ]
 
-  const ALPHA_ROW = 'alpha pro… · running'
+  const ALPHA_ROW = 'alpha probe · runni…'
   const BETA_ROW = 'beta probe · running'
   const LEAD_ROW_TEXT = '✶ Mercury Lead'
   const run = await runPulseArena({
