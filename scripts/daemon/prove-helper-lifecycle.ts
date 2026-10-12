@@ -28,7 +28,8 @@ const check = (label: string, ok: boolean, detail: unknown = ''): void => {
   console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${ok ? '' : ` — ${JSON.stringify(detail)}`}`)
 }
 const wait = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms))
-const until = async (predicate: () => boolean | Promise<boolean>, ms = 30_000): Promise<boolean> => {
+const budgetScale = Math.max(1, Number(process.env.MERCURY_VSHOT_BUDGET_SCALE ?? '1') || 1)
+const until = async (predicate: () => boolean | Promise<boolean>, ms = 30_000 * budgetScale): Promise<boolean> => {
   const deadline = Date.now() + ms
   do {
     if (await predicate()) return true
@@ -70,10 +71,11 @@ const admit = async (): Promise<{ sid: string; pid: number }> => {
   const result = await rpc({ op: 'sessionAdmit', workspaceDir: work, birthKey: randomUUID(), isolation: 'shared', bornBlank: true })
   if (!result.ok || !('sessionId' in result)) throw new Error(JSON.stringify(result))
   const sid = String(result.sessionId)
-  await until(() => Object.values(readSessionWorkers()).some(r => r.sessionId === sid && r.pid !== undefined))
-  const record = Object.values(readSessionWorkers()).find(r => r.sessionId === sid)!
-  check('a chat has its own live runner', record.pid !== undefined && isProcessAlive(record.pid), record)
-  return { sid, pid: record.pid! }
+  const registered = await until(() => Object.values(readSessionWorkers()).some(r => r.sessionId === sid && r.pid !== undefined))
+  const record = Object.values(readSessionWorkers()).find(r => r.sessionId === sid)
+  check('a chat has its own live runner', registered && record?.pid !== undefined && isProcessAlive(record.pid), { registered, record, budgetMs: 30_000 * budgetScale })
+  if (record?.pid === undefined) throw new Error(`the admitted chat ${sid} has no runner record within ${30_000 * budgetScale} ms`)
+  return { sid, pid: record.pid }
 }
 const end = async (chat: { sid: string; pid: number }): Promise<void> => {
   const out = await rpc({ op: 'sessionControl', action: 'stop', sessionId: chat.sid, by: 'operator' })
