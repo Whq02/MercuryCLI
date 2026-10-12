@@ -361,7 +361,7 @@ export function applyPlan(
     try {
       const indexEnv = { ...subprocessEnv(), GIT_OPTIONAL_LOCKS: '0', GIT_INDEX_FILE: tmpIndex }
       const gitIndexed = (args: string[], input?: string): string =>
-        execFileSync('git', args, {
+        execFileSync('git', ['-c', 'core.quotepath=false', ...args], {
           windowsHide: true,
           cwd: plan.root,
           encoding: 'utf8',
