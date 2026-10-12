@@ -110,6 +110,7 @@ import {
   createUserInterruptionMessage,
   normalizeMessagesForAPI,
   createSystemMessage,
+  createCloseUsageMessage,
   createStreamCutMessage,
   createBusyRecoveryMessage,
   createThinkingNoteMessage,
@@ -1773,6 +1774,7 @@ export async function* runEventCore(
       }
 
       if (handoffAskDue({ agentId: toolUseContext.agentId, querySource })) {
+        let closeUsage: import('../services/api/emptyUsage.js').NonNullableUsage | undefined
         const note = await askForHandoff({
           cacheSafeParams: createCacheSafeParams({
             messages: [...messagesForQuery, ...assistantMessages],
@@ -1784,6 +1786,15 @@ export async function* runEventCore(
           }),
           signal: toolUseContext.abortController.signal,
           canUseTool,
+          onUsage: usage => { closeUsage = usage },
+        })
+        yield emit({
+          kind: 'notice',
+          message: createCloseUsageMessage({
+            closeState: note === null ? 'none' : note.stored ? 'stored' : 'skipped',
+            ...(note?.text !== undefined ? { noteChars: note.text.length } : {}),
+            ...(closeUsage !== undefined ? { usage: closeUsage } : {}),
+          }),
         })
         if (note?.stored === false) {
           yield emit({

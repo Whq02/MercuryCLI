@@ -1,4 +1,5 @@
 import { getLastCacheSafeParams } from '../utils/forkedAgent.js'
+import type { NonNullableUsage } from '../services/api/emptyUsage.js'
 import { askForHandoff, handoffAsked, handoffNotice, type AskRunner } from './handoffAsk.js'
 import { ledgerEntryOf } from './ledger.js'
 import { lineageKept, openLineageSession } from './lineageSession.js'
@@ -17,7 +18,7 @@ export function exitNoteDue(): boolean {
   return getLastCacheSafeParams() !== null
 }
 
-export async function leaveNoteBeforeExit(opts: { signal?: AbortSignal; budgetMs?: number; run?: AskRunner; onNotice?: (text: string) => void } = {}): Promise<ExitNoteOutcome> {
+export async function leaveNoteBeforeExit(opts: { signal?: AbortSignal; budgetMs?: number; run?: AskRunner; onNotice?: (text: string) => void; onUsage?: (usage: NonNullableUsage) => void } = {}): Promise<ExitNoteOutcome> {
   if (!exitNoteDue()) return 'skipped'
   const session = openLineageSession()!
   const params = getLastCacheSafeParams()!
@@ -27,6 +28,7 @@ export async function leaveNoteBeforeExit(opts: { signal?: AbortSignal; budgetMs
     signal: opts.signal,
     budgetMs: opts.budgetMs ?? HANDOFF_EXIT_BUDGET_MS,
     run: opts.run,
+    onUsage: opts.onUsage,
   })
   if (note === null) return 'none'
   if (!note.stored) {
