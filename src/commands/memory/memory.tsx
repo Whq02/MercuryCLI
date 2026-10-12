@@ -35,11 +35,8 @@ export const MEMORY_FILES_CLOSED = 'Closed memory files'
 
 export function profileStatusLine(): string {
   const { resolution } = getInstructionCompositionState()
-  const profile =
-    resolution.resolved === 'native'
-      ? 'instruction profile: native (MERCURY.md only)'
-      : 'instruction profile: auto (MERCURY.md, or AGENTS.md when there is none)'
-  return `${profile} · instruction files load every session · memory management lives in the centre`
+  const profile = resolution.resolved === 'native' ? 'profile native: MERCURY.md only' : 'profile auto: MERCURY.md, or AGENTS.md when there is none'
+  return `${profile} · every file here loads every session`
 }
 
 async function openMemoryFile(path: string, onDone: LocalJSXCommandOnDone): Promise<void> {

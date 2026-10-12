@@ -126,8 +126,8 @@ section('structural pins — owner consumption (rule 4)')
 
   const memSel = src('src/components/memory/MemoryFileSelector.tsx')
   check(
-    'the git-repo answer comes from the versions owner',
-    memSel.includes('projectIsInGitRepo') && !memSel.includes('findGitRoot'),
+    'the picker makes no git claim of its own: it never reads findGitRoot and never says a file is checked in',
+    !memSel.includes('findGitRoot') && !memSel.includes('checked in'),
   )
   check(
     'the picker suspends on the memoised discovery promise',
