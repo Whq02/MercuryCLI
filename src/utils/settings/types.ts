@@ -129,7 +129,7 @@ export const SettingsSchema = lazySchema(() => {
       model: z.string().optional(),
       roster: z.array(z.string()).optional(),
       pins: z.record(z.string(), z.string()).optional(),
-      effort: z.enum(EFFORT_LEVELS).optional().catch(undefined),
+      effort: z.enum(EFFORT_LEVELS).optional(),
       sessionDefaults: z.boolean().optional(),
       reasoning: z.boolean().optional(),
       usageNotice: z.boolean().optional().describe("Usage notice to the model — with it on, the model is told when the session's usage window or spending limit is near (80% and 90%); off, the model is told nothing and only you see the meters"),
