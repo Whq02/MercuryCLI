@@ -18,7 +18,7 @@ import { shouldUseSandbox } from '../../../tools/BashTool/shouldUseSandbox.js'
 import { getCompoundCommandPrefixesStatic } from '../../../utils/bash/prefix.js'
 import { shouldShowAlwaysAllowOptions } from '../../../utils/permissions/permissionsLoader.js'
 import { toTildePath } from '../../../utils/path.js'
-import { getFocusedSessionConnector } from '../../../services/engine-connector/focusedConnector.js'
+import { useFocusedWorkspaceCwd } from '../../../hooks/useFocusedWorkspaceCwd.js'
 import { SandboxManager } from '../../../utils/sandbox/sandbox-adapter.js'
 import type { Message } from '../../../types/message.js'
 import type { PermissionUpdate } from '../../../types/permissions.js'
@@ -69,6 +69,7 @@ function BashCommandPermissionRequest(
 ): React.ReactNode {
   const { toolUseConfirm, toolUseContext, onDone, onReject, workerBadge, command } = props
   const [debugVisible, setDebugVisible] = useState(false)
+  const runFolder = useFocusedWorkspaceCwd()
 
   usePermissionRequestLogging(toolUseConfirm)
 
@@ -232,7 +233,7 @@ function BashCommandPermissionRequest(
             {explainer.visible ? null : (
               <Text dimColor>{toolUseConfirm.description}</Text>
             )}
-            <Text dimColor>in {toTildePath(getFocusedSessionConnector().workspace().originalCwd)}</Text>
+            <Text dimColor>in {toTildePath(runFolder)}</Text>
           </Box>
           <PermissionExplainerContent visible={explainer.visible} promise={explainer.promise} fallback={<Text dimColor>{toolUseConfirm.description}</Text>} />
           {debugVisible ? (
