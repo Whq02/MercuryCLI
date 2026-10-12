@@ -43,6 +43,7 @@ const DOORS = [
   'resumeAgent',
   'backgroundShell',
   'pauseGate',
+  'leave',
   'setKit',
   'checkpointFacts',
   'subscribeCheckpoints',
