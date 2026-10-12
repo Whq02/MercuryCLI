@@ -202,9 +202,10 @@ section('§6 — True Black: the second appearance')
   )
 
   const picker = src('components', 'ThemePicker.tsx')
+  const labels = src('utils', 'theme.ts')
   check(
-    'the picker labels both appearances (True Black by name)',
-    picker.includes("'true-black': 'True Black'") && picker.includes("dark: 'Oasis dark'"),
+    'the picker labels both appearances (True Black by name) through the one label owner',
+    picker.includes('THEME_LABELS_BY_SETTING: Record<string, string> = THEME_LABELS') && labels.includes("'true-black': 'True Black'") && labels.includes("dark: 'Oasis dark'"),
   )
   check(
     'the picker previews on focus, saves on select, releases on cancel',
@@ -213,7 +214,7 @@ section('§6 — True Black: the second appearance')
       picker.includes('cancelPreview()'),
   )
   const config = src('components', 'Settings', 'Config.tsx')
-  check("the /config submenu labels true-black", config.includes("'true-black': 'True Black'"))
+  check("the /config submenu labels true-black through the one label owner", config.includes('...THEME_NAMES_BY_SETTING') && labels.includes("'true-black': 'True Black'"))
   const onboarding = src('components', 'Onboarding.tsx')
   check(
     'the first-run fitting offers both appearances',
