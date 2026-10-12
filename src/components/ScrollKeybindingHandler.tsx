@@ -366,11 +366,11 @@ export function ScrollKeybindingHandler({
     {
       'scroll:pageUp': () => {
           if (topOverlayOwnsPageKeys()) return false
-          runScroll(-pageStep())
+          if (!runScroll(-pageStep())) return false
         },
       'scroll:pageDown': () => {
           if (topOverlayOwnsPageKeys()) return false
-          runScroll(pageStep())
+          if (!runScroll(pageStep())) return false
         },
       'scroll:lineUp': () => {
           if (topOverlayOwnsPageKeys()) return false
