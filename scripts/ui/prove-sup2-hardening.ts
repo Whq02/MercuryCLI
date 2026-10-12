@@ -641,7 +641,7 @@ console.log("§46 /memory — the banner's r is a real key")
 {
   const mv = read('src/components/memory/MemoryCentreView.tsx')
   const r = mv.indexOf("if (loadError && input === 'r' && !key.ctrl && !key.meta)")
-  const q = mv.indexOf('setQuery(q => q + input)')
+  const q = mv.indexOf('setQuery(q => q + typed)')
   check('the loadError-gated r branch exists and calls the engine reload', r !== -1 && mv.slice(r, r + 200).includes('fl.reload()'))
   check('it precedes the type-to-search append', r < q)
 }
