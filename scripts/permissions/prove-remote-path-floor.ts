@@ -38,19 +38,25 @@ function context(mode: string, headless: boolean, rules: { allow?: string[] } = 
 }
 const operatorOnlyAsk = (decision: { behavior: string; decisionReason?: { type?: string; operatorOnly?: boolean }; message?: string }): boolean =>
   decision.behavior === 'ask' && decision.decisionReason?.type === 'safetyCheck' && decision.decisionReason.operatorOnly === true && String(decision.message).includes(SENTENCE)
+const sovereignAllowance = (decision: { behavior: string; decisionReason?: { type?: string; road?: string; reason?: { reason?: string } } }): boolean =>
+  decision.behavior === 'allow' && decision.decisionReason?.type === 'bypassedAsk' && decision.decisionReason.road === 'safetyCheckAsk' && String(decision.decisionReason.reason?.reason ?? '').includes(SENTENCE)
 const modes = PERMISSION_MODES.filter(mode => mode !== 'dontAsk')
 try {
   getPlatform.cache.set(undefined, 'windows')
-  console.log('§1 Windows: the remote-path guard is a floor in every permission mode until a rule names the host')
+  console.log('§1 Windows: the remote-path guard is a floor in every permission mode that asks until a rule names the host; under sovereign nothing asks and the share sentence rides the allowance')
   for (const mode of modes) {
+    const sovereign = mode === 'sovereign'
     for (const [form, path] of spellings) {
       const read = await decideToolPermissionWithModes(readTool, { file_path: path }, context(mode, false), assistant, `read-${mode}-${form}`)
-      check(`${mode}: a Read of the ${form} spelling is the operator's ask, never a mode's allow`, operatorOnlyAsk(read.decision as never), JSON.stringify(read.decision))
+      if (sovereign) check(`sovereign: a Read of the ${form} spelling is allowed by the posture, the share sentence in the allowance (no card of any kind)`, sovereignAllowance(read.decision as never), JSON.stringify(read.decision))
+      else check(`${mode}: a Read of the ${form} spelling is the operator's ask, never a mode's allow`, operatorOnlyAsk(read.decision as never), JSON.stringify(read.decision))
       const headless = await decideToolPermissionWithModes(readTool, { file_path: path }, context(mode, true), assistant, `read-headless-${mode}-${form}`)
-      check(`${mode} headless: the same Read is refused, not run`, headless.decision.behavior === 'deny', JSON.stringify(headless.decision))
+      if (sovereign) check(`sovereign headless: the same Read runs (the posture answers where no card could show)`, sovereignAllowance(headless.decision as never), JSON.stringify(headless.decision))
+      else check(`${mode} headless: the same Read is refused, not run`, headless.decision.behavior === 'deny', JSON.stringify(headless.decision))
     }
     const bash = await decideToolPermissionWithModes(bashTool, { command: String.raw`type \\server.invalid\share\x.txt` }, context(mode, false), assistant, `bash-${mode}`)
-    check(`${mode}: a shell command naming the host is the operator's ask, never a mode's allow`, operatorOnlyAsk(bash.decision as never), JSON.stringify(bash.decision))
+    if (sovereign) check('sovereign: a shell command naming the host is allowed by the posture, the share sentence in the allowance', sovereignAllowance(bash.decision as never), JSON.stringify(bash.decision))
+    else check(`${mode}: a shell command naming the host is the operator's ask, never a mode's allow`, operatorOnlyAsk(bash.decision as never), JSON.stringify(bash.decision))
   }
   const dontAsk = await decideToolPermissionWithModes(readTool, { file_path: spellings[0][1] }, context('dontAsk', false), assistant, 'read-dontask')
   check('dontAsk: the ask becomes a refusal, never an allow', dontAsk.decision.behavior === 'deny', JSON.stringify(dontAsk.decision))
@@ -59,7 +65,8 @@ try {
     const granted = await decideToolPermissionWithModes(readTool, { file_path: spellings[1][1] }, context(mode, false, { allow: [`Read(//${HOST}/**)`] }), assistant, `granted-${mode}`)
     check(`${mode}: Read(//${HOST}/**) permits the Read`, granted.decision.behavior === 'allow', JSON.stringify(granted.decision))
     const blanket = await decideToolPermissionWithModes(readTool, { file_path: spellings[1][1] }, context(mode, false, { allow: ['Read(**)'] }), assistant, `blanket-${mode}`)
-    check(`${mode}: Read(**) does not name the host, so the floor holds`, blanket.decision.behavior !== 'allow', JSON.stringify(blanket.decision))
+    if (mode === 'sovereign') check('sovereign: Read(**) does not name the host, and the posture allows anyway — the share sentence rides the allowance, not a rule', sovereignAllowance(blanket.decision as never), JSON.stringify(blanket.decision))
+    else check(`${mode}: Read(**) does not name the host, so the floor holds`, blanket.decision.behavior !== 'allow', JSON.stringify(blanket.decision))
   }
   console.log('§3 macOS and Linux: a path open authenticates to no host, so nothing changes there')
   for (const platform of ['macos', 'linux'] as const) {
