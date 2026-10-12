@@ -53,6 +53,16 @@ export function railRowBudgets(available: number, nameW: number, verbW: number, 
   return verb < 4 ? { name: Math.max(3, available), verb: 0 } : { name, verb }
 }
 
+export function fitRailVerb(verb: string, budget: number): string {
+  if (displayWidth(verb) <= budget) return verb
+  const words = verb.split(' ')
+  for (let keep = words.length - 1; keep >= 1; keep--) {
+    const head = words.slice(0, keep).join(' ')
+    if (displayWidth(head) <= budget) return head
+  }
+  return truncateToWidth(verb, budget)
+}
+
 function RailRow({
   width,
   glyph,
@@ -94,7 +104,7 @@ function RailRow({
   const dotW = 2
   const sep = ' · '
   const budgets = railRowBudgets(width - indentW - dotW, displayWidth(name), verb !== undefined && verb !== '' ? displayWidth(verb) : 0, displayWidth(sep))
-  const verbT = verb !== undefined && budgets.verb > 0 ? truncateToWidth(verb, budgets.verb) : ''
+  const verbT = verb !== undefined && budgets.verb > 0 ? fitRailVerb(verb, budgets.verb) : ''
   const nameT = truncateToWidth(name, budgets.name)
 
   const clickable = rowIndex != null
