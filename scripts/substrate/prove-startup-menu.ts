@@ -61,14 +61,14 @@ section('registry floor — rows ⊆ FLAG_REGISTRY, sane choices')
   check('both computer rows reach new sessions (no live class)', STARTUP_MENU[computerAt]!.applicationClass === undefined && access?.applicationClass === undefined)
   check('the access-type foot line says what each value does',
     access?.summary === 'asks: the first act in each application asks · permissive: the application in front when the turn began never asks, any other asks once · full: nothing asks', access?.summary)
-  check('its detail says the same in full and that the default follows Sovereign mode, a saved value winning',
-    /asks \(the default\)/.test(access?.detail?.controls ?? '') && /permissive:/.test(access?.detail?.controls ?? '') && /full: nothing asks/.test(access?.detail?.controls ?? '') && (access?.detail?.controls ?? '').includes('With Sovereign mode on the default is full; a saved value here wins'))
+  check('its detail says the same in full and that under Sovereign mode nothing asks whatever is saved',
+    /asks \(the default\)/.test(access?.detail?.controls ?? '') && /permissive:/.test(access?.detail?.controls ?? '') && /full: nothing asks/.test(access?.detail?.controls ?? '') && (access?.detail?.controls ?? '').includes('With Sovereign mode on nothing asks whatever is saved here; the saved value applies when Sovereign mode is off'))
   check("its unset default follows the Sovereign mode row's on value, with the resolver's own label",
     access?.defaultFollows?.env === 'MERCURY_SKIP_PERMISSIONS' && access?.defaultFollows?.value === '1' && access?.defaultFollows?.label === 'default (full · sovereign mode)', JSON.stringify(access?.defaultFollows))
   check('the resolver: unset follows the posture — asks with Sovereign mode off, full with it on',
     JSON.stringify(resolveComputerAccess(null, false)) === JSON.stringify({ value: 'asks', source: 'default' }) && JSON.stringify(resolveComputerAccess(undefined, true)) === JSON.stringify({ value: 'full', source: 'sovereign mode' }))
-  check('the resolver: a saved value wins in both postures',
-    ['asks', 'permissive', 'full'].every(v => [false, true].every(on => JSON.stringify(resolveComputerAccess(v, on)) === JSON.stringify({ value: v, source: 'saved' }))))
+  check('the resolver: a saved value stands with Sovereign mode off; with it on the access is full by sovereign mode whatever was saved (no card of any kind under the posture)',
+    ['asks', 'permissive', 'full'].every(v => JSON.stringify(resolveComputerAccess(v, false)) === JSON.stringify({ value: v, source: 'saved' }) && JSON.stringify(resolveComputerAccess(v, true)) === JSON.stringify({ value: 'full', source: 'sovereign mode' })))
   check("the resolver: the earlier value 'sovereign' is foreign and the default applies in each posture",
     JSON.stringify(resolveComputerAccess('sovereign', false)) === JSON.stringify({ value: 'asks', source: 'default' }) && JSON.stringify(resolveComputerAccess('sovereign', true)) === JSON.stringify({ value: 'full', source: 'sovereign mode' }))
   check('the default labels come from the resolver: default (asks) with the posture off, default (full · sovereign mode) with it on',
