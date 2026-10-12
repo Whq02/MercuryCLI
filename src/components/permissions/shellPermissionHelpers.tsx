@@ -158,14 +158,14 @@ export function generateShellSuggestionsLabel(
     if (allPaths.length === 1 && commands.length === 1) {
       return (
         <>
-          Yes, and allow access to {formatPathList(allPaths)} plus {commandsPhrase(commands)} in{' '}
+          Yes, and allow file edits in {formatPathList(allPaths)} plus {commandsPhrase(commands)} in{' '}
           {cwd}
         </>
       )
     }
     return (
       <>
-        Yes, and allow access to {formatPathList(allPaths)} and don&apos;t ask again for{' '}
+        Yes, and allow file edits in {formatPathList(allPaths)} and don&apos;t ask again for{' '}
         {commandsPhrase(commands)} in {cwd}
       </>
     )
@@ -176,5 +176,5 @@ export function generateShellSuggestionsLabel(
   }
 
   const combined = hasPaths ? [...directories, ...readPaths] : directories
-  return <>Yes, and allow access to {formatPathList(combined)} in this project</>
+  return <>Yes, and allow file edits in {formatPathList(combined)} in this project</>
 }

@@ -114,19 +114,19 @@ try {
   section('§2 the card rendered on a Mac keeps its words: the folder, then the trailing slash')
   {
     const text = await renderLabel(generateShellSuggestionsLabel([createEditRuleSuggestion(MAC_DIR, 'localSettings')!], 'Bash'))
-    check('the single-folder choice reads "Yes, and allow access to <folder>/ in this project"', text === `Yes, and allow access to ${MAC_DIR}/ in this project`, text)
+    check('the single-folder choice reads "Yes, and allow file edits in <folder>/ in this project" (SH-03: the words say what the rule grants)', text === `Yes, and allow file edits in ${MAC_DIR}/ in this project`, text)
     const two = await renderLabel(generateShellSuggestionsLabel([createEditRuleSuggestion(MAC_DIR, 'localSettings')!, createReadRuleSuggestion('/home/sam/orchard/docs')!], 'Bash'))
-    check('two folders read by their names with the trailing slash', two === 'Yes, and allow access to f5/ and docs/ in this project', two)
+    check('two folders read by their names with the trailing slash', two === 'Yes, and allow file edits in f5/ and docs/ in this project', two)
   }
 
   section("§3 the card rendered on the Windows box: the box's folder spelling, middle-truncated, no trailing separator (the box read …/scratchpad/f5\\)")
   {
     platform = 'windows'
     const text = await renderLabel(generateShellSuggestionsLabel([createEditRuleSuggestion(BOX_DIR, 'localSettings')!], 'Bash'))
-    check('the single-folder choice reads the Windows spelling, truncated in the middle, with no separator after f5', text === `Yes, and allow access to ${BOX_DISPLAY} in this project`, text)
+    check('the single-folder choice reads the Windows spelling, truncated in the middle, with no separator after f5', text === `Yes, and allow file edits in ${BOX_DISPLAY} in this project`, text)
     check('no Git Bash spelling (/C/Users) and no trailing backslash on the card', !text.includes('/C/Users') && !/f5\\ in this project/.test(text), text)
     const two = await renderLabel(generateShellSuggestionsLabel([createEditRuleSuggestion(BOX_DIR, 'localSettings')!, createReadRuleSuggestion('C:\\Users\\WHQ\\Desktop\\docs')!], 'Bash'))
-    check('two folders read by their names with no separator', two === 'Yes, and allow access to f5 and docs in this project', two)
+    check('two folders read by their names with no separator', two === 'Yes, and allow file edits in f5 and docs in this project', two)
     platform = 'macos'
   }
 } finally {
