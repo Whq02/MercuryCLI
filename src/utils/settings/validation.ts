@@ -18,7 +18,7 @@ export type ValidationError = {
   invalidValue?: unknown
   suggestion?: string
   docLink?: string
-  severity?: 'error' | 'warning'
+  severity?: 'error' | 'warning' | 'held'
   unknownKeys?: string[]
   mcpErrorMetadata?: {
     scope: ConfigScope
@@ -41,6 +41,20 @@ type IssueLike = {
   keys?: string[]
   minimum?: number | bigint
   received?: unknown
+  errors?: IssueLike[][]
+}
+
+function unionAlternatives(issue: IssueLike): { values: unknown[]; shapes: string[] } | null {
+  if (issue.code !== 'invalid_union' || !Array.isArray(issue.errors)) return null
+  const values: unknown[] = []
+  const shapes: string[] = []
+  for (const branch of issue.errors) {
+    const first = branch[0]
+    if (first === undefined || first.path.length > 0) continue
+    if (first.code === 'invalid_value' && Array.isArray(first.values)) values.push(...first.values)
+    else if (first.code === 'invalid_type' && typeof first.expected === 'string') shapes.push(first.expected)
+  }
+  return values.length === 0 && shapes.length === 0 ? null : { values, shapes }
 }
 
 function receivedTypeName(issue: IssueLike): string {
@@ -114,6 +128,18 @@ export function formatZodError(error: Pick<z.ZodError, 'issues'>, filePath: stri
         if (issue.received !== undefined) invalidValue = issue.received
         break
       }
+      case 'invalid_union': {
+        const alternatives = unionAlternatives(issue)
+        if (alternatives === null) {
+          message = issue.message
+          break
+        }
+        const quoted = alternatives.values.map(value => `"${String(value)}"`).join(', ')
+        const shapes = alternatives.shapes.map(shape => `an ${shape}`).join(' or ')
+        message = quoted !== '' ? `Invalid value; accepted values are: ${quoted}${shapes !== '' ? `, or ${shapes}` : ''}` : `Invalid value; expected ${shapes}`
+        expected = [quoted, shapes].filter(Boolean).join(' | ')
+        break
+      }
       default: {
         message = issue.message
       }
@@ -135,8 +161,14 @@ export function formatZodError(error: Pick<z.ZodError, 'issues'>, filePath: stri
 
 export function settingsFaultLine(error: ValidationError): string {
   const where = [error.file, error.path, error.message].filter(Boolean).join(' · ')
-  const effect = error.severity === 'warning' ? 'this value is skipped; the rest of the file applies' : 'the file is skipped'
+  const effect = settingsFaultEffect(error)
   return `settings: ${where} — ${effect}`
+}
+
+export function settingsFaultEffect(error: Pick<ValidationError, 'severity'>): string {
+  if (error.severity === 'warning') return 'this value is skipped; the rest of the file applies'
+  if (error.severity === 'held') return 'the file cannot be read; the last good settings stay in force'
+  return 'the file is skipped'
 }
 
 const EDIT_STRICT_GROUPS = [

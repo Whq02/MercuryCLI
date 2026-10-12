@@ -55,6 +55,7 @@ import {
 import { clearEphemeralProgress, publishEphemeralProgress } from '../../state/ephemeralProgressStore.js'
 import type { ProgressMessage } from '../../types/message.js'
 import type { EvalToolProgress, MCPProgress, ShellProgress } from '../../types/tools.js'
+import type { HookProgress } from '../../types/hooks.js'
 import { IDLE_LIVE, type LiveTurnFactsV1, type LostLineV1, type SeatLiveExtensionV1, type SeatStatusV1, type SessionLiveV1 } from './seatLive.js'
 import { interruptLatchRelease } from './interruptLatch.js'
 import { createNoticeRow, deliveredNoticeRow, isNoticeFact, isNoticeKey, noticeKeyOf, noticeRowLanded, placeDeliveredNotices, queueOrderedSends } from './queuedNotices.js'
@@ -150,8 +151,19 @@ export function lostWithRunnerLine(lines: readonly string[]): string {
 const PENDING_WITHDRAW_WAIT_MS = 10_000
 
 function reconstructedProgressMessage(parentToolUseID: string, entry: SessionProgressEntryV1): ProgressMessage {
-  let data: ShellProgress | MCPProgress | EvalToolProgress
-  if (entry.dataType === 'eval_progress') {
+  let data: ShellProgress | MCPProgress | EvalToolProgress | HookProgress
+  if (entry.dataType === 'hook_progress') {
+    data = {
+      type: 'hook_progress',
+      event: 'tool.before',
+      name: '',
+      state: 'waiting',
+      count: 1,
+      ...(entry.latestLine !== undefined ? { line: entry.latestLine } : {}),
+      ...(entry.elapsedTimeSeconds !== undefined ? { elapsedS: entry.elapsedTimeSeconds } : {}),
+      ...(entry.budgetMs !== undefined ? { timeoutS: entry.budgetMs / 1000 } : {}),
+    }
+  } else if (entry.dataType === 'eval_progress') {
     data = {
       type: 'eval_progress',
       kind: 'running',

@@ -18,6 +18,7 @@ import type { AssistantMessage, CompactMetadata, Message, MessageOrigin, Progres
 import type { ApiStreamEvent, ContentBlockParam } from '../types/wire.js'
 import type { BatchedPrompt, QueuedCommand } from '../types/textInputTypes.js'
 import type { EvalToolProgress, MCPProgress, ShellProgress } from '../types/tools.js'
+import type { HookProgress } from '../types/hooks.js'
 import { createAttachmentMessage } from '../utils/attachments/orchestrator.js'
 import { getQueuedCommandAttachments } from '../utils/attachments/queuedCommands.js'
 import { getGlobalConfig } from '../utils/config.js'
@@ -504,7 +505,8 @@ export class Conversation {
           return rowsOfMessage(inner, progress.parentToolUseID)
         }
         const evalRunning = data.type === 'eval_progress' && (data as { kind?: string }).kind === 'running' ? (data as Extract<EvalToolProgress, { kind: 'running' }>) : null
-        if (isEphemeralToolProgress(data.type) || evalRunning !== null) {
+        const hookWaiting = data.type === 'hook_progress' && (data as { state?: string }).state === 'waiting' ? (data as HookProgress) : null
+        if (isEphemeralToolProgress(data.type) || evalRunning !== null || hookWaiting !== null) {
           const callId = callScopes.has(progress.toolUseID) ? progress.toolUseID : progress.parentToolUseID
           const updateScope = callScopes.get(callId) ?? rowScope
           const key = JSON.stringify([scope.session_id, callId])
@@ -518,6 +520,19 @@ export class Conversation {
           }
           const tick = (state?.tick ?? 0) + 1
           toolUpdateState.set(key, { lastEmitMs: now, tick })
+          if (hookWaiting !== null) {
+            rows.push(
+              toolUpdateRow(updateScope, {
+                callId,
+                tick,
+                source: 'hook',
+                ...(hookWaiting.line !== undefined ? { line: hookWaiting.line } : {}),
+                ...(hookWaiting.elapsedS !== undefined ? { elapsedS: hookWaiting.elapsedS } : {}),
+                ...(hookWaiting.timeoutS !== undefined && hookWaiting.timeoutS > 0 ? { budgetMs: hookWaiting.timeoutS * 1000 } : {}),
+              }),
+            )
+            return rows
+          }
           if (evalRunning !== null) {
             rows.push(
               toolUpdateRow(updateScope, {

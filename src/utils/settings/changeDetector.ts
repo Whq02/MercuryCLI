@@ -40,6 +40,7 @@ const pendingDeletions = new Map<string, NodeJS.Timeout>()
 let knownSettingsFiles = new Map<string, SettingSource>()
 let dropInDir: string | null = null
 let watchedRoots = new Set<string>()
+let awaitedParents = new Set<string>()
 const changeSignal = createSignal<[SettingSource]>()
 
 
@@ -123,6 +124,7 @@ async function initialize(): Promise<void> {
 
   const files = new Map<string, SettingSource>()
   const directories = new Set<string>()
+  const awaited = new Set<string>()
   for (const source of SETTING_SOURCES) {
     if (source === 'flagSettings') continue
     const filePath = getSettingsFilePathForSource(source)
@@ -132,6 +134,14 @@ async function initialize(): Promise<void> {
     const parent = dirname(normalized)
     try {
       if (existsSync(parent)) directories.add(parent)
+      else {
+        let ancestor = dirname(parent)
+        while (ancestor !== dirname(ancestor) && !existsSync(ancestor)) ancestor = dirname(ancestor)
+        if (existsSync(ancestor)) {
+          awaited.add(normalizeEventPath(parent))
+          directories.add(ancestor)
+        }
+      }
     } catch {
     }
   }
@@ -145,6 +155,7 @@ async function initialize(): Promise<void> {
     dropInDir = null
   }
   knownSettingsFiles = files
+  awaitedParents = awaited
   watchedRoots = new Set([...directories].map(d => normalizeEventPath(resolve(d))))
 
   if (disposed) return
@@ -161,6 +172,7 @@ async function initialize(): Promise<void> {
       const normalized = normalizeEventPath(candidatePath)
       if (normalized.split(sep).includes('.git')) return true
       if (watchedRoots.has(normalized)) return false
+      if (awaitedParents.has(normalized)) return false
       if (dropInDir !== null && normalized === dropInDir) return false
       if (knownSettingsFiles.has(normalized)) return false
       if (dropInDir !== null && normalized.startsWith(dropInDir + sep) && normalized.endsWith('.json')) {
@@ -171,6 +183,20 @@ async function initialize(): Promise<void> {
   })
   watcher.on('change', path => handleChange(path))
   watcher.on('add', path => handleChange(path))
+  watcher.on('addDir', path => {
+    const normalized = normalizeEventPath(path)
+    if (!awaitedParents.has(normalized)) return
+    awaitedParents.delete(normalized)
+    watchedRoots.add(normalized)
+    watcher?.add(resolveWatchRoot(normalized))
+    const arrivedWith = [...knownSettingsFiles.keys()].filter(file => dirname(file) === normalized && existsSync(file))
+    if (arrivedWith.length === 0) return
+    const settleMs = stabilityThresholdMs + pollIntervalMs
+    const timer = setTimeout(() => {
+      for (const file of arrivedWith) handleChange(file)
+    }, settleMs)
+    timer.unref?.()
+  })
   watcher.on('unlink', path => handleUnlink(path))
   watcher.on('error', error => {
     logError(error)

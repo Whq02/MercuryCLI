@@ -56,9 +56,10 @@ import { FILE_READ_TOOL_NAME } from '../../tools/FileReadTool/prompt.js'
 import { FILE_WRITE_TOOL_NAME } from '../../tools/FileWriteTool/prompt.js'
 import { NOTEBOOK_EDIT_TOOL_NAME } from '../../tools/NotebookEditTool/constants.js'
 import { getAllBaseTools } from '../../tools.js'
-import type { HookPermissionOutcome } from './toolHooks.js'
+import type { HookAnnounce, HookPermissionOutcome } from './toolHooks.js'
 import { afterToolHooks, beforeToolHooks, deciderOf, hookPermissionOutcomeOf, permissionDecidedHooks, resolveHookPermissionDecision } from './toolHooks.js'
 import { hookProgressMessage, hookRowsOfResult } from '../../utils/hooks/rows.js'
+import { hookWaitWords } from '../../utils/hooks/wait.js'
 
 
 export type McpServerType =
@@ -559,6 +560,25 @@ async function runTransactionBody(args: {
 
   const permissionMode = toolUseContext.getAppState().toolPermissionContext.mode
   const preHooksStartedAt = Date.now()
+  let hookWaitTicker: ReturnType<typeof setInterval> | null = null
+  const settleHookWait = (): void => {
+    if (hookWaitTicker !== null) clearInterval(hookWaitTicker)
+    hookWaitTicker = null
+  }
+  const announceHooks = (event: 'tool.before' | 'tool.after'): HookAnnounce => prepared => {
+    settleHookWait()
+    const sinceMs = Date.now()
+    const timeoutS = Math.max(0, ...prepared.timeoutsS)
+    const wait = { event, names: prepared.names, sinceMs, timeoutS }
+    prepared.names.forEach((name, index) => push({ message: hookProgressMessage(event, name, 'running', toolUseID, prepared.names.length, { timeoutS: prepared.timeoutsS[index] }) }))
+    const tick = (): void => {
+      const now = Date.now()
+      push({ message: hookProgressMessage(event, prepared.names[0] ?? '', 'waiting', toolUseID, prepared.names.length, { timeoutS, elapsedS: Math.floor((now - sinceMs) / 1000), line: hookWaitWords(wait, now) }) })
+    }
+    tick()
+    hookWaitTicker = setInterval(tick, 1000)
+    hookWaitTicker.unref?.()
+  }
   let hookPermissionResult: HookPermissionOutcome | undefined
   let hookUpdatedInput: AnyObject | undefined
   let stopReason: string | undefined
@@ -577,7 +597,8 @@ async function runTransactionBody(args: {
       decisionReason: { type: 'guard', guard: judgement.guard, reason: judgement.reason },
     }
   } else {
-    const before = await beforeToolHooks(tool, toolUseID, observableInput, toolUseContext, signal)
+    const before = await beforeToolHooks(tool, toolUseID, observableInput, toolUseContext, signal, announceHooks('tool.before'))
+    settleHookWait()
     for (const outcome of before.outcomes) push({ message: hookProgressMessage('tool.before', outcome.name, 'ran', toolUseID, before.outcomes.length) })
     for (const row of hookRowsOfResult(before, { callId: toolUseID })) push({ message: createAttachmentMessage(row) })
     hookPermissionResult = hookPermissionOutcomeOf(before, tool.name)
@@ -838,7 +859,9 @@ async function runTransactionBody(args: {
       { ok: !returnedError && !cut, output: result.data, ...(error !== undefined ? { error } : {}), cut },
       toolUseContext,
       signal,
+      announceHooks('tool.after'),
     )
+    settleHookWait()
     const postDuration = Date.now() - postStartedAt
     if (postDuration > SLOW_PHASE_THRESHOLD_MS) {
       logForDebugging(`post-tool hooks for ${tool.name} took ${postDuration}ms`)
@@ -862,6 +885,7 @@ async function runTransactionBody(args: {
       push({ message })
     }
   } catch (error) {
+    settleHookWait()
     durationMs = Date.now() - executionStartedAt
     success = false
     try {
@@ -899,7 +923,9 @@ async function runTransactionBody(args: {
       { ok: false, error: message, cut: signal.aborted },
       toolUseContext,
       signal,
+      announceHooks('tool.after'),
     )
+    settleHookWait()
     const failureHookMessages: Message[] = [
       ...afterFailure.outcomes.map(outcome => hookProgressMessage('tool.after', outcome.name, 'ran', toolUseID, afterFailure.outcomes.length)),
       ...hookRowsOfResult(afterFailure, { callId: toolUseID }).map(row => createAttachmentMessage(row)),

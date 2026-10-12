@@ -46,6 +46,10 @@ and may carry:
 
 - `name` — the words every line about the hook uses, and the status row
   while it runs; without it, the first line of the command or question.
+  While a `tool.before` or `tool.after` hook holds a call, the working strip
+  and the call's own row read `waiting on hook <name> · 12 s of 30` — the
+  seconds so far against the hook's timeout — until the hook answers or is
+  ended.
 - `match` — names (`Bash`, `Read|Edit`) or a regular expression, matched
   against the event's match field in the table below. Absent, or `*`, matches
   everything. An entry whose match is not a valid regular expression is a
@@ -78,9 +82,13 @@ and may carry:
 - `watch` — `file.changed` only: the files to watch, relative to the project.
 
 An entry with a fault — an unknown field, a wrong type, a field that belongs
-to another kind, a match on an event without one — is named in the session's
-settings notes and dropped whole; the rest of the file applies. An unknown
-event name is a fault like any other.
+to another kind, a match on an event without one — is named where settings
+faults are reported ([SETTINGS.md](SETTINGS.md): the health check's Settings
+row, once in the chat, the headless run's stderr) and dropped whole; the rest
+of the file applies. Every faulty entry is named, each with its path and its
+fault. An unknown event name is a fault like any other. A settings file that
+stops parsing while a session is open keeps its last good hooks in force and
+the chat says so once.
 
 ### Layers
 
@@ -92,7 +100,9 @@ managed layer runs only the managed layer's hooks. `extensions.exclusive`
 naming `hooks` runs only managed and extension hooks. An untrusted workspace
 runs no checkout hook: a headless run loads the user, `--config` and
 managed layers only, and the cockpit runs nothing until the workspace is
-trusted ([TRUST.md](TRUST.md)).
+trusted ([TRUST.md](TRUST.md)); a headless run in an untrusted folder says
+on stderr, once at the start, how many project and local hooks it left
+unloaded and how to trust the folder.
 
 ### Skills, agents and extensions
 
@@ -197,7 +207,7 @@ every block are joined in order; every `context` is added in order; for
 wins and the operator reads a notice naming both.
 
 What each outcome shows: a hook that ran with nothing to say shows nothing
-(transcript mode counts them); `context` reaches the model and the
+(`/hooks` lists what is wired); `context` reaches the model and the
 transcript; a `block` is a red line, `hook <name> blocked <event>: <words>`,
 and the model reads the words; a `stop` ends the turn with its words; a
 `notice` is one line; a failure is one line. Every line is saved with the

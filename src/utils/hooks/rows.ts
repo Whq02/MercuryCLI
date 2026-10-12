@@ -55,7 +55,9 @@ export function hookRowsOfResult(result: HookFireResult, options: { callId?: str
   return rows
 }
 
-export function hookProgressMessage(event: HookEvent, name: string, state: HookProgress['state'], toolUseID: string, count = 1): ProgressMessage {
-  const data: HookProgress = { type: 'hook_progress', event, name, state, count }
+export type HookProgressFacts = Pick<HookProgress, 'timeoutS' | 'elapsedS' | 'line'>
+
+export function hookProgressMessage(event: HookEvent, name: string, state: HookProgress['state'], toolUseID: string, count = 1, facts: HookProgressFacts = {}): ProgressMessage {
+  const data: HookProgress = { type: 'hook_progress', event, name, state, count, ...(facts.timeoutS !== undefined ? { timeoutS: facts.timeoutS } : {}), ...(facts.elapsedS !== undefined ? { elapsedS: facts.elapsedS } : {}), ...(facts.line !== undefined ? { line: facts.line } : {}) }
   return { type: 'progress', data, parentToolUseID: toolUseID, toolUseID, timestamp: new Date().toISOString(), uuid: randomUUID() } as ProgressMessage
 }
