@@ -220,6 +220,13 @@ export type Output = {
   inlineMediaType?: string
 }
 
+export function openSchemeRefusal(url: string | undefined): string {
+  const scheme = /^([a-zA-Z][a-zA-Z0-9+.-]*):/.exec(url ?? '')?.[1]?.toLowerCase()
+  if (scheme === undefined) return `open requires an http(s) url — "${url ?? ''}" has no scheme`
+  if (scheme === 'file') return 'open requires an http(s) url — serve the folder first (the Service tool or a loopback server); file:// is not supported'
+  return `open requires an http(s) url — ${scheme}: is not a web scheme this tool opens (${scheme}:// is not supported; the browser's own pages and non-web protocols stay closed)`
+}
+
 const NO_SESSION = 'no open session — use op:"open" first'
 const BROWSER_GONE = 'the browser is gone (its process exited) — op:"open" starts a new one'
 
@@ -239,6 +246,16 @@ export function driverFailureWords(op: string, message: string): string | null {
 
 export function browserGoneMidOpWords(op: string): string {
   return `${op}: the browser is gone (its process exited mid-op) — op:"open" starts a new one`
+}
+
+export function isDriverTimeout(err: unknown): boolean {
+  const e = err as { name?: unknown; message?: unknown } | null
+  if (!e || typeof e !== 'object') return false
+  if (e.name === 'TimeoutError') return true
+  const message = typeof e.message === 'string' ? e.message : ''
+  return /Timed out after waiting \d+ms|Waiting failed: \d+ms exceeded|Navigation timeout of \d+ ?ms exceeded|Waiting for (?:selector|function|target) .* failed/.test(
+    message,
+  )
 }
 
 export function errorChainText(err: unknown): string {
@@ -284,6 +301,12 @@ function openOpLife(s: LiveSession, outer: AbortSignal | undefined): OpLife {
   }
 }
 
+export function localClock(at: number): string {
+  const d = new Date(at)
+  const two = (n: number): string => String(n).padStart(2, '0')
+  return `${two(d.getHours())}:${two(d.getMinutes())}:${two(d.getSeconds())}.${String(d.getMilliseconds()).padStart(3, '0')}`
+}
+
 function preview(text: string, cap = 40): string {
   return text.length > cap ? `${text.slice(0, cap)}…` : text
 }
@@ -313,7 +336,7 @@ function statusReport(owner: OwnerKey): string {
     managed.length
       ? `managed cache: ${managed
           .map(m => `Chrome for Testing ${m.buildId} (${(m.sizeBytes / 1024 / 1024).toFixed(0)} MB)`)
-          .join(' · ')} — remove with /browser remove <buildId>`
+          .join(' · ')} — remove one with /browser remove ${managed[0]!.buildId}`
       : 'managed cache: empty — /browser install is the explicit consented download path',
   )
   const live = activeSession(owner)
@@ -357,22 +380,45 @@ const ACTIONABLE_ROLES: ReadonlySet<string> = new Set([
 function serializeAxTree(node: SerializedAXNode | null): string {
   if (!node) return '(empty accessibility tree)'
   const lines: string[] = []
-  const walk = (n: SerializedAXNode, depth: number): void => {
+  const walk = (n: SerializedAXNode, depth: number, framed: boolean): void => {
     const head = [n.role, n.name ? JSON.stringify(n.name) : ''].filter(Boolean).join(' ')
     const state: string[] = []
     if (n.value !== undefined && n.value !== '') state.push(`value=${JSON.stringify(String(n.value))}`)
     if (n.checked !== undefined) state.push(`checked=${String(n.checked)}`)
     if (n.disabled === true) state.push('disabled')
     if (n.focused === true) state.push('focused')
+    const isFrame = n.role === 'Iframe'
     const token =
-      n.name && ACTIONABLE_ROLES.has(n.role) && /^[^"[\]]+$/.test(n.name)
+      !framed && n.name && ACTIONABLE_ROLES.has(n.role) && /^[^"[\]]+$/.test(n.name)
         ? `  → aria/${n.name}[role="${n.role}"]`
-        : ''
+        : isFrame
+          ? '  (frame content below: selectors do not reach into it — screenshot and click by x/y, or open its URL)'
+          : ''
     lines.push(`${'  '.repeat(depth)}${head}${state.length > 0 ? ` [${state.join(' ')}]` : ''}${token}`)
-    for (const child of n.children ?? []) walk(child, depth + 1)
+    for (const child of n.children ?? []) walk(child, depth + 1, framed || isFrame)
   }
-  walk(node, 0)
+  walk(node, 0, false)
   return lines.join('\n')
+}
+
+function deepTextOf(root: Element): string {
+  const own = (root as HTMLElement).innerText ?? ''
+  const parts: string[] = []
+  const walk = (scope: Element | ShadowRoot): void => {
+    for (const el of Array.from(scope.querySelectorAll('*'))) {
+      const shadow = (el as Element).shadowRoot
+      if (!shadow) continue
+      const text = Array.from(shadow.children)
+        .map(c => (c as HTMLElement).innerText ?? '')
+        .join('\n')
+        .trim()
+      const tag = `${el.tagName.toLowerCase()}${el.id ? `#${el.id}` : ''}`
+      if (text !== '') parts.push(`[shadow root of ${tag}]\n${text}`)
+      walk(shadow)
+    }
+  }
+  walk(root)
+  return parts.length === 0 ? own : `${own.trim()}\n${parts.join('\n')}`
 }
 
 function capExtract(header: string, body: string, offset = 0): string {
@@ -499,12 +545,32 @@ function actDeadline(input: Input): number {
   return Math.min(Math.max(input.timeoutMs ?? WAIT_DEFAULT_MS, 250), WAIT_CAP_MS)
 }
 
+async function framedOnly(s: LiveSession, selector: string): Promise<string | null> {
+  try {
+    const children = s.page.frames().filter(f => f.parentFrame() !== null)
+    if (children.length === 0) return null
+    if ((await s.page.$(selector)) !== null) return null
+    for (const frame of children) {
+      if ((await frame.$(selector).catch(() => null)) !== null) return frame.url().split('?')[0] ?? frame.url()
+    }
+    return null
+  } catch {
+    return null
+  }
+}
+
+function framedTargetWords(selector: string, frameUrl: string): string {
+  return `${selector} lives inside a child frame (${frameUrl}) — selectors act on the main frame and do not reach into frames; op:"screenshot" then click by x/y, or op:"open" the frame's URL to drive it directly`
+}
+
 async function resolveActTarget(
   s: LiveSession,
   selector: string,
   deadline: number,
   signal?: AbortSignal,
 ): Promise<ElementHandle<Element>> {
+  const framed = await framedOnly(s, selector)
+  if (framed !== null) throw new Error(framedTargetWords(selector, framed))
   try {
     return (await s.page
       .locator(selector)
@@ -512,12 +578,15 @@ async function resolveActTarget(
       .setVisibility('visible')
       .waitHandle({ signal })) as ElementHandle<Element>
   } catch (err) {
-    if ((err as Error).name === 'TimeoutError') {
+    if (isDriverTimeout(err)) {
       const attached = await s.page.$(selector).catch(() => null)
+      const framedLate = attached ? null : await framedOnly(s, selector)
       throw new Error(
         attached
           ? `${selector} is present but never became visible within the ${deadline}ms deadline (hidden or zero-sized — acts need a visible target; waitFor state:"attached" can read its arrival)`
-          : `no element for selector ${selector} within the ${deadline}ms deadline (the act auto-waits; the element never appeared)${framesDiagnosis(s)}`,
+          : framedLate !== null
+            ? framedTargetWords(selector, framedLate)
+            : `no element for selector ${selector} within the ${deadline}ms deadline (the act auto-waits; the element never appeared)${framesDiagnosis(s)}`,
       )
     }
     throw err
@@ -535,7 +604,7 @@ async function resolveReadTarget(
     if (!handle) throw new Error(`no element for selector ${selector} within the ${deadline}ms deadline`)
     return handle as ElementHandle<Element>
   } catch (err) {
-    if ((err as Error).name === 'TimeoutError') {
+    if (isDriverTimeout(err)) {
       throw new Error(`no element for selector ${selector} within the ${deadline}ms deadline${framesDiagnosis(s)}`)
     }
     throw err
@@ -554,6 +623,12 @@ async function settleBoundingBox(handle: ElementHandle<Element>, deadline: numbe
     })
     if (stable || Date.now() - t0 > cap) return
   }
+}
+
+async function isDisabledTarget(handle: ElementHandle<Element>): Promise<boolean> {
+  return handle.evaluate(
+    el => (el as HTMLInputElement).disabled === true || el.getAttribute('aria-disabled') === 'true' || el.closest('fieldset:disabled') !== null,
+  )
 }
 
 async function clickGate(s: LiveSession, handle: ElementHandle<Element>): Promise<string | null> {
@@ -862,7 +937,7 @@ Downloads are never implicit: the driven session denies page-initiated downloads
       return { result: false as const, message: 'the Browser tool is disabled (MERCURY_BROWSER=0)', errorCode: 1 }
     }
     if (input.op === 'open' && (!input.url || !/^https?:\/\//.test(input.url))) {
-      return { result: false as const, message: 'open requires an http(s) url — serve the folder first (the Service tool or a loopback server); file:// is not supported', errorCode: 1 }
+      return { result: false as const, message: openSchemeRefusal(input.url), errorCode: 1 }
     }
     if (input.op === 'click' && !input.selector && !(typeof input.x === 'number' && typeof input.y === 'number')) {
       return { result: false as const, message: 'click requires selector, or both x and y', errorCode: 1 }
@@ -983,7 +1058,8 @@ Downloads are never implicit: the driven session denies page-initiated downloads
           const statusBit =
             status === null ? '' : status >= 400 ? ` — HTTP ${status} ${response!.statusText()}` : ` [${status}]`
           const textLen = await s.page
-            .evaluate(() => (document.body?.innerText ?? '').trim().length)
+            .$eval('body', deepTextOf)
+            .then(text => text.trim().length)
             .catch(() => null)
           const errs = s.consoleRing.slice(ringMark).filter(e => e.kind === 'pageerror').length
           const census =
@@ -1030,6 +1106,12 @@ Downloads are never implicit: the driven session denies page-initiated downloads
             await handle.click()
             target = input.selector
           } else {
+            const vp = s.page.viewport()
+            if (vp && (input.x! < 0 || input.y! < 0 || input.x! >= vp.width || input.y! >= vp.height)) {
+              result = `click (${input.x}, ${input.y}) refused: the point is outside the ${vp.width}x${vp.height} viewport — nothing clicked (op:"scroll" brings a target into view; op:"viewport" resizes)`
+              outcome = 'failed'
+              break
+            }
             await s.page.mouse.click(input.x!, input.y!)
             target = `(${input.x}, ${input.y})`
           }
@@ -1066,6 +1148,11 @@ Downloads are never implicit: the driven session denies page-initiated downloads
             }
             secretInPlay = { value: resolved.value, ref: input.secretRef }
             const requested = await resolveActTarget(s, input.selector!, actDeadline(input), signalFor(s))
+            if (await isDisabledTarget(requested)) {
+              result = `type refused: ${input.selector} is disabled — nothing filled`
+              outcome = 'failed'
+              break
+            }
             await requested.focus()
             const probe = await probeEditableTarget(s, requested)
             if (!probe || !probe.held) {
@@ -1119,6 +1206,11 @@ Downloads are never implicit: the driven session denies page-initiated downloads
           let requested: ElementHandle<Element> | null = null
           if (input.selector) {
             requested = await resolveActTarget(s, input.selector, actDeadline(input), signalFor(s))
+            if (await isDisabledTarget(requested)) {
+              result = `type refused: ${input.selector} is disabled — nothing typed`
+              outcome = 'failed'
+              break
+            }
             await requested.focus()
           }
           const probe = await probeEditableTarget(s, requested)
@@ -1291,7 +1383,7 @@ Downloads are never implicit: the driven session denies page-initiated downloads
               result = `waitFor navigation: landed ${s.page.url()} after ${Date.now() - t0}ms`
             }
           } catch (err) {
-            if ((err as Error).name === 'TimeoutError') {
+            if (isDriverTimeout(err)) {
               result = `waitFor ${waited}: deadline ${deadline}ms exceeded (the event never arrived) at ${pageWhere(s)}`
               outcome = 'failed'
               break
@@ -1527,8 +1619,8 @@ Downloads are never implicit: the driven session denies page-initiated downloads
           const root = input.selector ? await resolveReadTarget(s, input.selector, actDeadline(input), signalFor(s)) : null
           if ((input.mode ?? 'text') === 'text') {
             const text = root
-              ? await root.evaluate(el => (el as HTMLElement).innerText)
-              : await s.page.$eval('body', el => (el as HTMLElement).innerText)
+              ? await root.evaluate(deepTextOf)
+              : await s.page.$eval('body', deepTextOf)
             result = capExtract(`extract text (${scope}) at ${pageWhere(s)}`, text, input.offset ?? 0)
           } else {
             const snapshot = await s.page.accessibility.snapshot({ includeIframes: true, ...(root ? { root } : {}) })
@@ -1551,7 +1643,7 @@ Downloads are never implicit: the driven session denies page-initiated downloads
               ? `console: empty (the ring keeps the last ${CONSOLE_RING_CAP} console/net/dialog entries)`
               : [
                   `console: last ${slice.length} of ${ring.length} entries (console+net+dialog ring, cap ${CONSOLE_RING_CAP})`,
-                  ...slice.map(e => `${new Date(e.at).toISOString().slice(11, 23)} ${e.kind}: ${e.text}`),
+                  ...slice.map(e => `${localClock(e.at)} ${e.kind}: ${e.text}`),
                 ].join('\n')
           break
         }
