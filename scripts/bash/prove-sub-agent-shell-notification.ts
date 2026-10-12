@@ -26,7 +26,7 @@ const leadTexts: string[] = []
 let subLaunch: SeenResult | undefined
 let followUpSent = false
 const idOf = (t: string | undefined): string | null => /\(ID: (b[0-9a-z]+)\)/.exec(t ?? '')?.[1] ?? null
-const textsOf = (req: ScriptedRequest): string[] => [req.ask, ...req.results.map(r => r.text)]
+const textsOf = (req: ScriptedRequest): string[] => req.allTexts
 
 const fixture = await startScriptedFixture(req => {
   const last = req.results[req.results.length - 1]
