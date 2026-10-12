@@ -52,6 +52,8 @@ export function stripUnderlineAnsi(content: string): string {
 const DISPLAY_LINE_CAP = 10
 const VIRTUAL_LIST_LINE_CAP = 25
 
+const TRUNCATION_MARKER = /\[(\d+) bytes truncated from the middle — the head and the tail of the output are shown; the complete output is saved at ([^\]]+)\]/
+
 function truncateForDisplay(
   content: string,
   inVirtualList: boolean,
@@ -60,6 +62,23 @@ function truncateForDisplay(
   const lines = content.split('\n')
   if (lines.length <= cap) return { text: content, hidden: 0 }
   return { text: lines.slice(0, cap).join('\n'), hidden: lines.length - cap }
+}
+
+function foldKeepingMarker(
+  content: string,
+  inVirtualList: boolean,
+): { text: string; hidden: number } {
+  const marker = TRUNCATION_MARKER.exec(content)
+  if (marker === null) return truncateForDisplay(content, inVirtualList)
+  const markerLine = marker[0]
+  const withoutMarker = content.replace(markerLine, '')
+  const shown = truncateForDisplay(withoutMarker, inVirtualList)
+  const shownText = shown.text.replace(/\s+$/, '')
+  const markerShown = shownText.includes(markerLine)
+  return {
+    text: markerShown ? shownText : `${shownText}\n${markerLine}`,
+    hidden: Math.max(0, shown.hidden - (markerShown ? 0 : 1)),
+  }
 }
 
 export function OutputLine({
@@ -83,7 +102,7 @@ export function OutputLine({
   if (linkifyUrls) text = linkifyUrlsInText(text)
   let hidden = 0
   if (!verbose && !expanded) {
-    const truncated = truncateForDisplay(text, inVirtualList)
+    const truncated = foldKeepingMarker(text, inVirtualList)
     text = truncated.text
     hidden = truncated.hidden
   }

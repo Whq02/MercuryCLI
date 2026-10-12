@@ -247,6 +247,14 @@ const parseTurnTime = (timestamp: string): number | null => {
   return Number.isNaN(parsed) ? null : parsed
 }
 
+const SHELL_ECHO_MARK = '<bash-input>'
+
+const isLocalShellEcho = (content: UserMessage['message']['content']): boolean => {
+  if (typeof content === 'string') return content.startsWith(SHELL_ECHO_MARK)
+  const first = content[0]
+  return first !== undefined && first.type === 'text' && typeof first.text === 'string' && first.text.trimStart().startsWith(SHELL_ECHO_MARK)
+}
+
 function accumulateTurn(acc: TurnAccumulator, message: Message): void {
   if (message.type === 'user') {
     accumulateOpenToolUses(acc.tools, message)
@@ -257,10 +265,10 @@ function accumulateTurn(acc: TurnAccumulator, message: Message): void {
         const record = block as { type?: string; tool_use_id?: string }
         if (record.type === 'tool_result' && record.tool_use_id) carriedToolResult = true
       }
-      if (!carriedToolResult && !message.isMeta) {
+      if (!carriedToolResult && !message.isMeta && !isLocalShellEcho(content)) {
         acc.lastPromptMs = parseTurnTime(message.timestamp) ?? acc.lastPromptMs
       }
-    } else if (!message.isMeta) {
+    } else if (!message.isMeta && !isLocalShellEcho(content)) {
       acc.lastPromptMs = parseTurnTime(message.timestamp) ?? acc.lastPromptMs
     }
   } else if (message.type === 'assistant') {
