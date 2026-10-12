@@ -25,6 +25,8 @@ const sgrClick = (col: number, row: number): string =>
   `${ESC}[<0;${col};${row}M${ESC}[<0;${col};${row}m`
 const LEAD_ROW = 3
 const FIRST_CHILD_ROW = 4
+const CHILD_RAIL_ROW = 'poise probe · runni…'
+const CARD_KEYS = 'x x stop · p pause'
 type Frame = { atMs: number; rows: string[] }
 const frameIn = (screens: Frame[], atMs: number): Frame => {
   const f = screens.find(s => s.atMs === atMs)
@@ -120,10 +122,10 @@ t.section("§2 words typed at main while a crewmate runs are the session's own t
     sends: [
       '2000:\\r',
       '6000:spawn the probe\\r',
-      `after:probe · runni…:800:${sgrClick(10, FIRST_CHILD_ROW)}`,
-      `after:x stop · p pause:1500:${sgrClick(10, LEAD_ROW)}`,
-      'after:x stop · p pause:3500:steer the count gently',
-      'after:x stop · p pause:5000:\\r',
+      `after:${CHILD_RAIL_ROW}:800:${sgrClick(10, FIRST_CHILD_ROW)}`,
+      `after:${CARD_KEYS}:1500:${sgrClick(10, LEAD_ROW)}`,
+      `after:${CARD_KEYS}:3500:steer the count gently`,
+      `after:${CARD_KEYS}:5000:\\r`,
     ],
     seconds: 24,
     cols: 120,
@@ -144,7 +146,7 @@ t.section("§2 words typed at main while a crewmate runs are the session's own t
     const { screens } = JSON.parse(grab.stdout) as { screens: Frame[] }
     keepFrames('steer-120x40', screens)
     const timed = screens.filter(f => f.atMs !== -1)
-    const childRunning = (f: Frame): boolean => f.rows.some(r => r.includes('poise pro') && r.includes('running'))
+    const childRunning = (f: Frame): boolean => f.rows.some(r => r.includes(CHILD_RAIL_ROW))
     const iView = timed.findIndex(f => viewOf(f) === 'poise probe' && has(f, 'sends to poise probe'))
     t.check(
       "one click on the running crewmate's CREW row opens it in the view (the composer addresses it, ↵ sends to it)",
@@ -153,7 +155,7 @@ t.section("§2 words typed at main while a crewmate runs are the session's own t
     )
     const iBack = timed.findIndex((f, i) => i > iView && viewOf(f) === undefined && leadOwnsView(f) && childRunning(f))
     t.check(
-      'Mercury Lead in the rail goes back: the lead owns the view again and the crewmate keeps running (return ≠ stop)',
+      `Mercury Lead in the rail goes back: the lead owns the view again and the crewmate keeps running (return ≠ stop) — its rail row reads "${CHILD_RAIL_ROW}", the .34 rail keeping the name whole and cutting the verb (137a2c1214)`,
       iView >= 0 && iBack > iView,
       iBack >= 0 ? `frame @${timed[iBack]!.atMs}` : 'no main frame with the crewmate running after the view frame',
     )
