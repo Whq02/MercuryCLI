@@ -143,7 +143,7 @@ section('C. an edit outside a read window lands in one call and its result carri
   check('C7 a later edit anywhere lands without a carry: the whole file is read', later.ok && contentOf(file).includes('const v30 = 3000') && !later.text.includes('did not count as read'), textOf(later))
 }
 
-section('H. a hunks edit outside its range anchor retries with the carried anchor')
+section('H. a hunks edit outside its range anchor is refused with the lines to read, never the lines themselves')
 {
   _resetSeenLinesForTesting()
   const file = join(fixtures, 'hunks.ts')
@@ -153,13 +153,14 @@ section('H. a hunks edit outside its range anchor retries with the carried ancho
   const windowAnchor = mintRangeAnchor(contentOf(file).split('\n').slice(0, 5).join('\n'), 1, 5)
   const refused = await validate({ file_path: file, expected_anchor: windowAnchor, hunks: [{ lines: '30', replace: 'const v30 = 3000' }] }, ctx)
   const text = refused.ok ? '' : refused.message
-  check('H1 the hunks edit outside its range anchor is refused with the carry, leading with the anchor', !refused.ok && text.startsWith('expected_anchor covers lines 1-5 only, not every line the edit touches; the lines the edit touches are below with their current anchor and count as read: edit again with a carried anchor, without a Read.') && text.includes('the edit touches line 30 — lines 27-33 are below and count as read: edit again with a carried anchor, without a Read.'), text.slice(0, 400))
-  const carriedAnchor = anchorsIn(text)[0]
-  const retried = await edit({ file_path: file, expected_anchor: carriedAnchor ?? windowAnchor, hunks: [{ lines: '30', replace: 'const v30 = 3000' }] }, ctx)
-  check('H2 the retry with the carried anchor lands', retried.ok && contentOf(file).includes('const v30 = 3000'), messageOf(retried))
+  check('H1 the hunks edit outside its range anchor is refused leading with the anchor, naming the line it touches and the Read that covers it, carrying no line (RED on the base: lines 27-33 were shown and recorded)', !refused.ok && text.startsWith('expected_anchor covers lines 1-5 only, not every line the edit touches — Read the lines outside it, then edit again.') && text.includes('the edit touches line 30 — Read(offset: 30, limit: 1) covers the gap.') && numberedLines(text).length === 0 && anchorsIn(text).length === 0, text.slice(0, 400))
+  const retried = await edit({ file_path: file, expected_anchor: windowAnchor, hunks: [{ lines: '30', replace: 'const v30 = 3000' }] }, ctx)
+  check('H2 the same call again is refused again: the refusal recorded nothing', !retried.ok && !contentOf(file).includes('const v30 = 3000'), messageOf(retried))
+  const ledger = seenLinesOf(owner, file)
+  check('H3 the ledger holds nothing beyond the Read window', ledger === undefined || ledger.ranges.every(r => r.end <= 5), JSON.stringify(ledger))
 }
 
-section('B. the carry is bounded like a Read window and never carries the whole of a large file')
+section('B. a refusal of an unread file carries nothing, however tall the file; the one-call carry after a read stays bounded like a Read window')
 {
   _resetSeenLinesForTesting()
   const tall = join(fixtures, 'tall.ts')
@@ -168,10 +169,10 @@ section('B. the carry is bounded like a Read window and never carries the whole 
   const refused = await validate({ file_path: tall, old_string: span, new_string: 'x' }, makeContext())
   const text = refused.ok ? '' : refused.message
   const carried = numberedLines(text)
-  check('B1 a gap taller than the line budget carries the budget and no more', carried.length === MAX_LINES_TO_READ && carried[0] === 1 && carried[carried.length - 1] === MAX_LINES_TO_READ, `carried ${carried.length}`)
-  check('B2 …and the words name the Read that covers the rest of the gap', text.includes(`lines 1-${MAX_LINES_TO_READ} are below and count as read; Read(offset: ${MAX_LINES_TO_READ + 1}, limit: 500) covers the rest, then edit again.`), text.slice(0, 200))
+  check('B1 a gap taller than the line budget in a file never read carries nothing (RED on the base: the first 2000 lines)', !refused.ok && carried.length === 0 && text.startsWith('Read the file before editing it'), `carried ${carried.length}`)
+  check('B2 …and the words send the model to a Read of the file', text.endsWith(`No lines of ${tall} were read this session — a Read of the file shows what stands.`), text.slice(-200))
   const ledger = seenLinesOf(owner, tall)
-  check('B3 the ledger records only what was carried', ledger !== undefined && ledger.ranges.every(r => r.end <= MAX_LINES_TO_READ), JSON.stringify(ledger))
+  check('B3 the ledger records nothing from a refusal', ledger === undefined || ledger.ranges.length === 0, JSON.stringify(ledger))
 
   const fat = join(fixtures, 'fat.ts')
   writeFileSync(fat, lines(300, 1000))
@@ -179,34 +180,34 @@ section('B. the carry is bounded like a Read window and never carries the whole 
   const fatRefused = await validate({ file_path: fat, old_string: fatSpan, new_string: 'x' }, makeContext())
   const fatText = fatRefused.ok ? '' : fatRefused.message
   const fatCarried = numberedLines(fatText)
-  const fatRaw = rawCarried(fatText)
-  const nextLine = contentOf(fat).split('\n')[fatCarried.length] ?? ''
-  check('B4 a gap heavier than the token cap carries up to the cap and no more', fatCarried.length > 0 && fatCarried.length < 150 && Math.round(fatRaw.length / 4) <= DEFAULT_MAX_OUTPUT_TOKENS && Math.round((fatRaw.length + 1 + nextLine.length) / 4) > DEFAULT_MAX_OUTPUT_TOKENS, `carried ${fatCarried.length}, raw ${fatRaw.length}`)
-  check('B5 …naming the Read that covers the rest', fatText.includes(`Read(offset: ${fatCarried.length + 1}, limit: ${150 - fatCarried.length}) covers the rest, then edit again.`), fatText.slice(0, 200))
+  check('B4 a gap heavier than the token cap in a file never read carries nothing either', !fatRefused.ok && fatCarried.length === 0 && rawCarried(fatText) === '', `carried ${fatCarried.length}`)
+  check('B5 …and the words send the model to a Read of the file', fatText.endsWith(`No lines of ${fat} were read this session — a Read of the file shows what stands.`), fatText.slice(-200))
 
-  const one = await editResult({ file_path: tall, old_string: 'const v4000 = 4000', new_string: 'x' }, makeContext())
+  const tallCtx = makeContext()
+  primeRead(tallCtx, tall, { offset: 1, limit: 5 })
+  const one = await editResult({ file_path: tall, old_string: 'const v4000 = 4000', new_string: 'x' }, tallCtx)
   const oneText = textOf(one)
-  check('B6 a one-line edit in a tall file beside a carried window lands in one call carrying seven lines, never the file', one.ok && JSON.stringify(numberedLines(oneText)) === JSON.stringify([3997, 3998, 3999, 4000, 4001, 4002, 4003]), `numbered ${numberedLines(oneText).length}`)
+  check('B6 a one-line edit in a tall file read in part lands in one call carrying seven lines, never the file', one.ok && JSON.stringify(numberedLines(oneText)) === JSON.stringify([3997, 3998, 3999, 4000, 4001, 4002, 4003]), `numbered ${numberedLines(oneText).length}`)
   const plan = planReadThrough(contentOf(tall), [{ start: 1, end: 5000 }], tall)
   check('B7 the planner itself never exceeds the Read window', plan.lineCount === MAX_LINES_TO_READ && plan.cut && plan.windows.length === 1 && plan.windows[0]!.end === MAX_LINES_TO_READ)
 }
 
-section('G. a file that changed on disk after the carry refuses again')
+section('G. a file never read refuses, changes on disk, and refuses again: no refusal ever carries or records a line')
 {
   _resetSeenLinesForTesting()
   const file = join(fixtures, 'moving.ts')
   writeFileSync(file, lines(30))
   const input = { file_path: file, old_string: 'const v20 = 20', new_string: 'const v20 = 2000' }
   const first = await validate(input, makeContext())
-  check('G1 the first edit is refused with the carry', !first.ok && first.message.includes('lines 17-23 are below and count as read'), messageOf(first))
+  check('G1 the first edit is refused with no line of the file (RED on the base: lines 17-23 were shown and recorded)', !first.ok && first.message.startsWith('Read the file before editing it — it exists and was not read in this session') && numberedLines(first.message).length === 0, messageOf(first))
   writeFileSync(file, lines(30) + 'const v31 = 31\n')
   const later = new Date(Date.now() + 120_000)
   utimesSync(file, later, later)
   const again = await validate(input, makeContext())
-  check('G2 after the file changed, the same edit is refused again, not admitted on the old carry, leading with the change', !again.ok && again.message.startsWith(`The file ${file} changed after the lines you read`) && again.message.includes('were of the file before it last changed'), messageOf(again))
-  check('G3 …and carries the lines of the new state', !again.ok && again.message.includes('lines 17-23 are below and count as read'), messageOf(again))
+  check('G2 after the file changed, the same edit is refused again as an unread file (nothing of the first refusal counts as a read)', !again.ok && again.message.startsWith('Read the file before editing it — it exists and was not read in this session'), messageOf(again))
+  check('G3 …and carries no line of the new state', !again.ok && numberedLines(again.message).length === 0 && !again.message.includes('const v31 = 31'), messageOf(again))
   const landed = await edit(input, makeContext())
-  check('G4 the retry after the fresh carry lands', landed.ok && contentOf(file).includes('const v20 = 2000'), messageOf(landed))
+  check('G4 a retry without a Read is refused too and writes nothing', !landed.ok && !contentOf(file).includes('const v20 = 2000'), messageOf(landed))
 }
 
 section('P. the probes that re-check knowledge after admission never carry')

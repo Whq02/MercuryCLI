@@ -29,6 +29,7 @@ import {
 import { fileHistoryEnabled, maybeExpandFilePath } from '../../utils/fileHistory.js'
 import {
   applyPlan,
+  findPlan,
   preparePlan,
   resolveConflict,
   restoreStaged,
@@ -497,6 +498,11 @@ function needsRepository(input: Input): boolean {
   return true
 }
 
+export type GitApplyPreview = {
+  groups: Array<{ files: string[]; message: string; hunks?: Record<string, string[]> }>
+  exclusions: string[]
+}
+
 export const GitTool = buildTool({
   name: 'Git',
   searchHint: repoHostDiscoveryEnabled()
@@ -594,6 +600,15 @@ Host observation (read-only, never publishes/pushes; MERCURY_REPO_HOST):
   },
   getPath(input: Input) {
     return namedFolder(input)
+  },
+  backfillObservableInput(input: Input): void {
+    if (input.op !== 'apply' || typeof input.planId !== 'string') return
+    const plan = findPlan(input.planId)
+    if (!plan) return
+    ;(input as Input & { preview?: GitApplyPreview }).preview = {
+      groups: plan.groups.map(group => ({ files: [...group.files], message: group.message, ...(group.hunks ? { hunks: group.hunks } : {}) })),
+      exclusions: [...plan.exclusions],
+    }
   },
   async checkPermissions(input: Input, context: ToolUseContext): Promise<ReturnType<typeof checkReadPermissionForTool>> {
     if (!MUTATING_OPS.has(input.op)) {

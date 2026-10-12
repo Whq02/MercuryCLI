@@ -146,58 +146,55 @@ export function appendRuleToContent(raw: string, rule: string): string {
   return `${trimmedEnd}${separator}- ${rule}\n`
 }
 
-export function captureProjectInstruction(options: {
+export type CapturePlan =
+  | { write: true; result: Extract<CaptureResult, { action: 'recorded' | 'updated' }>; path: string; before: string; after: string }
+  | { write: false; result: Exclude<CaptureResult, { action: 'recorded' | 'updated' }> }
+
+export function planProjectInstruction(options: {
   cwd: string
   rule: string
   replaces?: string
-}): CaptureResult {
+}): CapturePlan {
   const rule = ruleAsLine(options.rule)
-  if (rule === '') return { action: 'invalid', reason: 'an empty rule records nothing' }
+  if (rule === '') return { write: false, result: { action: 'invalid', reason: 'an empty rule records nothing' } }
 
   const root = projectInstructionRoot(options.cwd)
   const entry = resolveProjectInstructionEntry(options.cwd)
 
   if (!entry.exists) {
     if (options.replaces !== undefined) {
-      return {
-        action: 'replace-miss',
-        path: entry.path,
-        searched: [],
-      }
+      return { write: false, result: { action: 'replace-miss', path: entry.path, searched: [] } }
     }
-    mkdirSync(dirname(entry.path), { recursive: true })
-    writeFileSync(entry.path, `${FRESH_ENTRY_HEADER}\n- ${rule}\n`, 'utf8')
-    clearInstructionFileCaches()
-    return { action: 'recorded', path: entry.path, created: true }
+    return {
+      write: true,
+      result: { action: 'recorded', path: entry.path, created: true },
+      path: entry.path,
+      before: '',
+      after: `${FRESH_ENTRY_HEADER}\n- ${rule}\n`,
+    }
   }
 
   const closure = estateClosure(entry.path, root)
 
   if (options.replaces !== undefined) {
     const needle = options.replaces.trim()
-    if (needle === '') return { action: 'invalid', reason: 'an empty replaces matches nothing' }
+    if (needle === '') return { write: false, result: { action: 'invalid', reason: 'an empty replaces matches nothing' } }
     for (const file of closure) {
       const lines = file.raw.split('\n')
       const index = lines.findIndex(l => l.includes(needle))
       if (index === -1) continue
       const marker = /^(\s*[-*]\s+)/.exec(lines[index]!)
       lines[index] = marker ? `${marker[1]}${rule}` : rule
-      writeFileSync(file.path, lines.join('\n'), 'utf8')
-      clearInstructionFileCaches()
-      return { action: 'updated', path: file.path }
+      return { write: true, result: { action: 'updated', path: file.path }, path: file.path, before: file.raw, after: lines.join('\n') }
     }
-    return {
-      action: 'replace-miss',
-      path: entry.path,
-      searched: closure.map(f => f.path),
-    }
+    return { write: false, result: { action: 'replace-miss', path: entry.path, searched: closure.map(f => f.path) } }
   }
 
   const normalized = normalizeRuleLine(rule)
   for (const file of closure) {
     for (const line of file.content.split('\n')) {
       if (normalizeRuleLine(line) === normalized && normalized !== '') {
-        return { action: 'already-recorded', path: file.path }
+        return { write: false, result: { action: 'already-recorded', path: file.path } }
       }
     }
   }
@@ -205,9 +202,26 @@ export function captureProjectInstruction(options: {
   const { targetPath } = followPointerLaw(entry.path, root)
   const target = readEstateFile(targetPath)
   const currentRaw = target?.raw ?? ''
-  writeFileSync(targetPath, appendRuleToContent(currentRaw, rule), 'utf8')
+  return {
+    write: true,
+    result: { action: 'recorded', path: targetPath, created: false },
+    path: targetPath,
+    before: currentRaw,
+    after: appendRuleToContent(currentRaw, rule),
+  }
+}
+
+export function captureProjectInstruction(options: {
+  cwd: string
+  rule: string
+  replaces?: string
+}): CaptureResult {
+  const plan = planProjectInstruction(options)
+  if (!plan.write) return plan.result
+  mkdirSync(dirname(plan.path), { recursive: true })
+  writeFileSync(plan.path, plan.after, 'utf8')
   clearInstructionFileCaches()
-  return { action: 'recorded', path: targetPath, created: false }
+  return plan.result
 }
 
 export function describeCaptureResult(result: CaptureResult): string {

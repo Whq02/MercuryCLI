@@ -41,7 +41,8 @@ export function sectionHeadings(content: string): { line: number; level: number;
 export function planAppend(content: string, text: string): string {
   const terminated = text.endsWith('\n') ? text : text + '\n'
   if (content === '') return terminated
-  return content.endsWith('\n') ? content + terminated : content + '\n' + terminated
+  if (content.endsWith('\n')) return content + terminated
+  return content + '\n' + terminated.slice(0, -1)
 }
 
 export function sectionHeadingOf(heading: string): string {
