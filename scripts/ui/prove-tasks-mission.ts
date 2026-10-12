@@ -87,7 +87,7 @@ console.log('\n── source ratchet ──────────────�
   check('windowing reuses computeSessionWindow (the proven slider)', src.includes('computeSessionWindow(') && src.includes("from '../mercury-ui/screens/SessionManagerView.js'"))
   check('honest overflow counts frame the process area', src.includes('↑ {winStart} more') && src.includes('more</Text>'))
   check('every section renders only its windowed rows', (src.match(/\.filter\(inWin\)\.map\(/g) ?? []).length >= 5)
-  check('the age column derives from the real startTime', src.includes('item.task?.startTime ?? item.work?.startTime') && src.includes('formatDuration(Math.max(0, now - started))'))
+  check('the age column derives from the real startTime and stops at the real endTime', src.includes('item.task?.startTime ?? item.work?.startTime') && src.includes('const ended = item.task?.endTime ?? item.work?.endTime') && src.includes('const elapsed = boardRowElapsedMs(item, now)'))
 }
 
 console.log()

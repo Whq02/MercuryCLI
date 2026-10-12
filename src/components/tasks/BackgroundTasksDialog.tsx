@@ -50,6 +50,7 @@ import { sampleStateWord } from '../../services/samples/contracts.js'
 import { openSampleUrl } from '../../services/samples/open.js'
 import {
   crewAgentFactsOf,
+  type CrewAgentFacts,
   crewCostLabel,
   crewModelLabel,
   CREW_ASK_WAIT_WORDS,
@@ -60,6 +61,7 @@ import {
   crewTokensBreakdown,
   crewTokensLabel,
   crewToolUsesLabel,
+  workRowOfCrewFacts,
 } from '../../services/engine-connector/crewFacts.js'
 import { getFocusedSessionConnector } from '../../services/engine-connector/focusedConnector.js'
 import { workRowRuns } from '../../services/engine-connector/workCounts.js'
@@ -70,6 +72,7 @@ import {
   useFocusedWorkRoster,
 } from './useFocusedWork.js'
 import { AsyncAgentDetailDialog } from './AsyncAgentDetailDialog.js'
+import { useSessionCrew } from './useCrewLedger.js'
 import { BackgroundTask as BackgroundTaskComponent } from './BackgroundTask.js'
 import { ShellDetailDialog, shellCardFactsOfRow, shellCardFactsOfTask } from './ShellDetailDialog.js'
 import { WorkflowDetailDialog } from './WorkflowDetailDialog.js'
@@ -118,14 +121,21 @@ function kindOf(task: TaskState): RowKind {
   )
 }
 
-function AgeCell({ item, now }: { item: BoardItem; now: number }): React.ReactNode {
+export function boardRowElapsedMs(item: { task?: { startTime: number; endTime?: number }; work?: { startTime: number; endTime?: number } }, now: number): number | null {
   const started = item.task?.startTime ?? item.work?.startTime
-  if (started === undefined || !Number.isFinite(started) || started === 0) {
+  if (started === undefined || !Number.isFinite(started) || started === 0) return null
+  const ended = item.task?.endTime ?? item.work?.endTime
+  return Math.max(0, (ended !== undefined && Number.isFinite(ended) && ended > 0 ? ended : now) - started)
+}
+
+function AgeCell({ item, now }: { item: BoardItem; now: number }): React.ReactNode {
+  const elapsed = boardRowElapsedMs(item, now)
+  if (elapsed === null) {
     return <Box width={9} flexShrink={0} />
   }
   return (
     <Box width={9} flexShrink={0} justifyContent="flex-end">
-      <Text dimColor>{formatDuration(Math.max(0, now - started))}</Text>
+      <Text dimColor>{formatDuration(elapsed)}</Text>
     </Box>
   )
 }
@@ -143,6 +153,18 @@ export function rosterRowsOf(
       if (aRunning !== bRunning) return aRunning - bRunning
       return b.startTime - a.startTime
     })
+}
+
+export function boardAgentRowsOf(
+  rows: readonly WorkRowV1[],
+  crew: readonly CrewAgentFacts[],
+  excludeIds?: ReadonlySet<string>,
+): WorkRowV1[] {
+  const shown = new Set(crew.map(facts => facts.id))
+  const listed = new Set(rows.map(w => w.id))
+  const hidden = new Set([...(excludeIds ?? []), ...rows.filter(w => w.kind === 'agent' && !shown.has(w.id)).map(w => w.id)])
+  const unlisted = crew.filter(facts => !listed.has(facts.id) && !(excludeIds?.has(facts.id) ?? false)).map(workRowOfCrewFacts)
+  return rosterRowsOf([...rows, ...unlisted], 'agent', hidden)
 }
 
 function WorkRowLine({ work }: { work: WorkRowV1 }): React.ReactNode {
@@ -279,6 +301,7 @@ export function BackgroundTasksDialog({
   const pastOpen = useOpenEventGate()
   const ownsInputNow = (): boolean => !summaryEntry || (compactControls?.read() === 'detail' && overlayToken !== null && isTopOverlayNow(overlayToken))
   const roster = useFocusedWorkRoster()
+  const sessionCrew = useSessionCrew()
   const presence = React.useMemo(() => focusedRunnerPresence(), [roster])
   const viewingAgentTaskId = useAppState(
     (state: AppState) => state.viewingAgentTaskId,
@@ -319,13 +342,16 @@ export function BackgroundTasksDialog({
     rosterRowsOf(roster.rows, kind, screenIds).map(
       (w): BoardItem => ({ id: w.id, kind, work: w }),
     )
+  const crewAgentItems: BoardItem[] = boardAgentRowsOf(roster.rows, sessionCrew.map(row => row.facts), screenIds).map(
+    (w): BoardItem => ({ id: w.id, kind: 'agent', work: w }),
+  )
   const flat: BoardItem[] = [
     ...shellTasks.map((task): BoardItem => ({ id: task.id, kind: 'shell', task })),
     ...rosterOf('shell'),
     ...monitorTasks.map((task): BoardItem => ({ id: task.id, kind: 'monitor', task })),
     ...rosterOf('monitor'),
     ...agentTasks.map((task): BoardItem => ({ id: task.id, kind: 'agent', task })),
-    ...rosterOf('agent'),
+    ...crewAgentItems,
     ...workflowTasks.map((task): BoardItem => ({ id: task.id, kind: 'workflow', task })),
     ...rosterOf('workflow'),
     ...(roster.samples ?? []).map((sample): BoardItem => ({ id: `sample:${sample.id}`, kind: 'sample', sample })),
