@@ -273,7 +273,7 @@ section('§5b /memory lists the topics — one row per index line, as the model 
   save('memory-topics-120x40.txt', m.lines())
   m.push(KEY.enter)
   const opened = await waitFor(() => m.lines().some(l => l.includes('memory › topics › ')), 6000)
-  check('↵ on a topic opens its page', opened)
+  check('↵ on a topic opens its page', opened, m.lines().filter(l => l.includes('›') || l.includes('esc back')).join(' | '))
   await settle(100)
   check("the page names its facts and shows the page's lines as items under their heading", m.lines().some(l => /\d+ facts? · \d+ in history · updated/.test(l)) && m.lines().some(l => /•\s+About \w+:/.test(l)), m.lines().filter(l => l.includes('facts ·')).join(' | '))
   save('memory-topic-page-120x40.txt', m.lines())

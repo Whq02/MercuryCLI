@@ -703,7 +703,7 @@ export function MemoryCentreView({
     const live = liveEntryIndex(listTopicDocs()).get(correcting.seq)
     return wrapText(live?.entry.text ?? detail?.summary ?? '', Math.max(8, textWidth - 5))
   }, [correcting, detail, textWidth])
-  const pageRows = Math.max(1, rowBudget - (roomy ? 2 : 1) - 4 - (fl.note ? 2 : 0))
+  const pageRows = Math.max(1, rowBudget - (roomy ? 2 : 1) - 6 - (fl.note ? 2 : 0))
   const openLines = page ? page.lines : detail ? detailLines : []
   const pageWin = pageWindow(openLines.length, pageOffset, pageRows)
   const { visible, above, below, clampedSel, note, loadError, list } = fl
