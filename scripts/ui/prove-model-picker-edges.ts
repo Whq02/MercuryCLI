@@ -260,7 +260,7 @@ const floorCase = async (columns: number, rows: number, slotRows: number | undef
   const box = boxLines(lines)
   const slot = slotRows ?? rows
   const hint = box.find(line => /esc (?:or click outside )?closes/.test(line)) ?? ''
-  const effort = box.some(line => line.includes('e cycles'))
+  const effort = box.some(line => line.includes('e changes it'))
   const markers = box.filter(line => /[↑↓] \d+ more/.test(line)).length
   const aboveAt = box.findIndex(line => /↑ \d+ more/.test(line))
   const pinned = aboveAt >= 0 && /[▾▸] [A-Z]/.test(box[aboveAt + 1] ?? '')

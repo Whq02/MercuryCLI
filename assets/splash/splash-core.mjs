@@ -608,7 +608,7 @@ function composeStrip(chips, w) {
   }
   const row1 = [
     mk('Model', red, chips.model),
-    mk('Theme', chips.critterHue ? hexFg(chips.critterHue, ACC.t256) : accentFg(), chips.critter),
+    mk('Critter', chips.critterHue ? hexFg(chips.critterHue, ACC.t256) : accentFg(), chips.critter),
     mk('Dir', ivory, dirShown),
   ]
   const row2 = [
@@ -854,7 +854,7 @@ function composeBootMenuWide(cols, rowsAvail, m, withHead = false) {
         : ''
   const eRows = [
     kv('Mercury', m.environment.model),
-    kv('Theme', m.environment.critter, m.environment.critterHue ? hexFg(m.environment.critterHue, ACC.t256) : accentFg()),
+    kv('Critter', m.environment.critter, m.environment.critterHue ? hexFg(m.environment.critterHue, ACC.t256) : accentFg()),
     kv('Dir', '', undefined) + ivory + dirBase + R + faint + dirTail + R,
   ]
   const envPanel = panelLines('ENVIRONMENT', eRows, RIGHT_W)

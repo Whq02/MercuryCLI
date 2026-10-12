@@ -111,12 +111,12 @@ export function inventoryLines(
     {
       label: 'Windows Terminal',
       state: inv.windowsTerminal,
-      note: 'the gate — the full profile renders here',
+      note: 'where Mercury looks right — open it and run mercury there',
     },
     {
       label: 'PowerShell 7',
       state: inv.pwsh7,
-      note: 'preferred shell (quality-of-life, not the gate)',
+      note: 'the preferred shell (a comfort, not a requirement)',
     },
   ]
 }

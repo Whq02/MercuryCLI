@@ -86,6 +86,16 @@ export type ThemeSetting = (typeof THEME_SETTINGS)[number] | (string & {})
 
 export const REACHABLE_THEME_SETTINGS = ['dark', 'true-black', 'mono'] as const
 
+export const THEME_LABELS: Record<string, string> = {
+  dark: 'Oasis dark',
+  'true-black': 'True Black',
+  mono: 'Black and white',
+}
+
+export function themeLabel(setting: string): string {
+  return THEME_LABELS[setting] ?? setting
+}
+
 export const MONO_THEME_NAME = 'mono'
 
 export function isMonochromeTheme(themeName: ThemeName): boolean {

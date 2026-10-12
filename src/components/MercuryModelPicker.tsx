@@ -666,12 +666,12 @@ export function MercuryModelPicker({ models: listed, current = 'opus-4-8', ctxPc
           <Text wrap="truncate-end">
             <Text color={FAINT}>effort  </Text>
             <Text bold color={TERRA}>[{effort}]</Text>
-            <Text color={FAINT}> e cycles</Text>
+            <Text color={FAINT}> · e changes it</Text>
           </Text>
         ) : (
           <Text wrap="truncate-end">
             <EffortStrip levels={efforts!} current={effort} accent={TERRA} faint={FAINT} />
-            <Text color={FAINT}>· e cycles</Text>
+            <Text color={FAINT}>· e changes it</Text>
           </Text>
         )
       ) : null}

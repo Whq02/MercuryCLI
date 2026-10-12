@@ -16,6 +16,8 @@ const arg = (name: string): string | undefined => {
   return index < 0 ? undefined : process.argv[index + 1]
 }
 const PIN = process.argv.includes('--pin')
+const pinDir = arg('--pin-dir')
+if (pinDir !== undefined) mkdirSync(pinDir, { recursive: true })
 const frameDir = arg('--frames')
 if (frameDir !== undefined) mkdirSync(frameDir, { recursive: true })
 const SIZES = (arg('--sizes') ?? '80x24,120x40').split(',').map(s => s.split('x').map(Number) as [number, number])
@@ -162,8 +164,9 @@ for (const [cols, rows] of SIZES) {
     const stored = storedPath(cols, rows)
     const current = { chat: chat.map(mask), afterTurn: turn.map(mask) }
     if (PIN) {
-      writeFileSync(stored, JSON.stringify(current, null, 1) + '\n')
-      console.log(`  pinned ${stored}`)
+      const target = pinDir === undefined ? stored : join(pinDir, `session-start-frames-${cols}x${rows}.json`)
+      writeFileSync(target, JSON.stringify(current, null, 1) + '\n')
+      console.log(`  pinned ${target}`)
     } else {
       const previous = existsSync(stored) ? JSON.parse(readFileSync(stored, 'utf8')) as typeof current : null
       const firstMove = (a: string[], b: string[]): string => {

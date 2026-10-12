@@ -356,7 +356,7 @@ for (const [columns, rows] of SIZES) {
   const scene = await popupScene(columns, rows)
   save('popup-q4-floor', columns, rows, scene.lines())
   const window = scene.window()
-  check(`${columns}x${rows}: the box stays within the pop-up's budget (${Math.max(10, rows - 7)} rows) and sheds nothing — the effort row stands`, window !== null && window.height <= Math.max(10, rows - 7) && window.rows.some(r => r.includes('e cycles')), describe(window))
+  check(`${columns}x${rows}: the box stays within the pop-up's budget (${Math.max(10, rows - 7)} rows) and sheds nothing — the effort row stands`, window !== null && window.height <= Math.max(10, rows - 7) && window.rows.some(r => r.includes('e changes it')), describe(window))
   await scene.close()
 }
 
