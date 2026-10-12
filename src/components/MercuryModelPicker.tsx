@@ -129,11 +129,12 @@ type Props = {
   headings?: Record<string, ProviderHeading>
   topGroup?: string
   expandRows?: (group: string) => ModelChoice[]
+  initialFilter?: string
 }
 
 const cell = (text: string, width: number): string => (width <= 2 ? '' : `${padTo(text, width - 2)}  `)
 
-export function MercuryModelPicker({ models: listed, current = 'opus-4-8', ctxPct = 62, efforts, effort, onEffort, onSelect, onClose, notice, pendingNext, headings, topGroup, expandRows }: Props): React.ReactNode {
+export function MercuryModelPicker({ models: listed, current = 'opus-4-8', ctxPct = 62, efforts, effort, onEffort, onSelect, onClose, notice, pendingNext, headings, topGroup, expandRows, initialFilter }: Props): React.ReactNode {
   const surfaceRef = useElevatedSurface()
   React.useEffect(() => {
     markTransitionEnd('picker-open')
@@ -173,8 +174,8 @@ export function MercuryModelPicker({ models: listed, current = 'opus-4-8', ctxPc
     }
     return initial
   })
-  const [filter, setFilter] = useState('')
-  const [filterFocus, setFilterFocus] = useState(false)
+  const [filter, setFilter] = useState(initialFilter ?? '')
+  const [filterFocus, setFilterFocus] = useState((initialFilter ?? '') !== '')
   const filtering = filter.trim() !== ''
   const lines = React.useMemo(
     () => composePickerLines(groups, folds, filter, fullRowsOf),

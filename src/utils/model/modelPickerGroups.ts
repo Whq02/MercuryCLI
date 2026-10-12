@@ -1,5 +1,6 @@
 import { stringWidth } from '../../ink/stringWidth.js'
 import { truncateToWidth } from '../truncate.js'
+import { modelNameKey } from './modelNameMatcher.js'
 
 export type CatalogueDoorFacet = { group: string; family: string; total: number; open?: boolean }
 
@@ -79,7 +80,9 @@ export function hasAlias(row: PickerRow): boolean {
 export function matchesPickerFilter(row: PickerRow, filter: string): boolean {
   const needle = filter.trim().toLowerCase()
   if (needle === '') return true
-  return row.id.toLowerCase().includes(needle) || row.name.toLowerCase().includes(needle)
+  if (row.id.toLowerCase().includes(needle) || row.name.toLowerCase().includes(needle)) return true
+  const key = modelNameKey(needle)
+  return key !== '' && (modelNameKey(row.id).includes(key) || modelNameKey(row.name).includes(key))
 }
 
 export function groupPickerRows<T extends PickerRow>(rows: readonly T[]): PickerGroup<T>[] {

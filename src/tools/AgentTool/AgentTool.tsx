@@ -53,6 +53,7 @@ import {
   buildAgentLaunchPlan,
 } from '../../utils/crew/agentLaunchPlan.js'
 import { getAgentModel } from '../../utils/model/agent.js'
+import { matchReachableModelName, modelNameHeadlessRefusal } from '../../utils/model/modelNameRoad.js'
 import {
   resolveEngineDispatch,
   unrecognisedModelWordRefusal,
@@ -450,10 +451,16 @@ export const AgentTool = buildTool({
       throw new Error(authority.reason)
     }
 
-    const modelParam = input.model ? getAgentModel(undefined, options.engineModel, input.model) : input.model
+    const typedModel = input.model
+    const matchedModel = typedModel ? matchReachableModelName(typedModel) : null
+    if (matchedModel !== null && (matchedModel.kind === 'ambiguous' || matchedModel.kind === 'none')) {
+      throw new Error(modelNameHeadlessRefusal(matchedModel, 'model'))
+    }
+    const modelWord = matchedModel !== null && (matchedModel.kind === 'match' || matchedModel.kind === 'exact') ? matchedModel.id : typedModel
+    const modelParam = modelWord ? getAgentModel(undefined, options.engineModel, modelWord) : modelWord
     const engineDispatch = await resolveEngineDispatch(modelParam)
     if (engineDispatch === null) {
-      const unrecognised = unrecognisedModelWordRefusal(input.model)
+      const unrecognised = unrecognisedModelWordRefusal(modelWord)
       if (unrecognised !== null) throw new Error(unrecognised)
     }
 
@@ -468,7 +475,7 @@ export const AgentTool = buildTool({
       toolPermissionContext: context.getAppState().toolPermissionContext,
       defaultAgentType: DEFAULT_AGENT_TYPE,
       engineModel: options.engineModel,
-      modelParam: engineDispatch ? undefined : (input.model as never),
+      modelParam: engineDispatch ? undefined : (modelWord as never),
       resolvedModel: modelParam || undefined,
       permissionMode: context.getAppState().toolPermissionContext
         .mode as never,
@@ -605,7 +612,7 @@ export const AgentTool = buildTool({
 
     const rootSetAppState = context.setAppStateForTasks ?? context.setAppState
 
-    const model = input.model
+    const model = modelWord
     const modelForRunLoop = engineDispatch ? plan.model : model
 
     const metadataIsAsync =
