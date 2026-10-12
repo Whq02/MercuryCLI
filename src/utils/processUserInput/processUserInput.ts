@@ -32,6 +32,7 @@ import {
 import { maybeResizeAndDownsampleImageBlock } from '../imageResizer.js'
 import { isStoredImageRef, readStoredImageRef, storeImages } from '../imageStore.js'
 import { logError } from '../log.js'
+import { untoldSettingsFaultLines } from '../settings/faultNotices.js'
 
 export type ProcessUserInputContext = ToolUseContext &
   import('../../commands.js').LocalJSXCommandContext
@@ -149,12 +150,13 @@ export async function processUserInput(
   if (!base.shouldQuery) return base
 
   const promptText = typeof input === 'string' ? input : extractTextContent(input, '\n')
+  const settingsMessages: Message[] = context.agentId === undefined ? untoldSettingsFaultLines().map(line => createSystemMessage(line, 'warning')) : []
   const started = await fireHooks(
     'turn.start',
     { turn_id: readToolCallChain(context)?.key ?? '', prompt: promptText },
     { scope: { sessionId: String(getSessionId()), ...(context.agentId !== undefined ? { crewmateId: context.agentId } : {}) }, signal: context.abortController.signal, toolUseContext: context },
   )
-  const hookMessages: Message[] = hookRowsOfResult(started).map(row => createAttachmentMessage(row) as Message)
+  const hookMessages: Message[] = [...settingsMessages, ...hookRowsOfResult(started).map(row => createAttachmentMessage(row) as Message)]
   if (started.answer.block !== undefined) {
     return {
       messages: [

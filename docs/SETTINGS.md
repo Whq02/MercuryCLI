@@ -28,8 +28,13 @@ The schema at `<config home>/schema/settings.schema.json` belongs to the
 installed build and works offline. Use it for completion and validation.
 A value Mercury cannot read, and a key it does not know, is named where
 settings faults are reported: the health check's Settings row, the chat's
-settings notice, and one `settings:` line on stderr at the start of a
-headless run; the rest of the file still applies.
+settings notice, one line in the chat at the start of the next turn (said
+once, and again only if the fault goes away and comes back), and one
+`settings:` line on stderr at the start of a headless run; the rest of the
+file still applies. A file that does not parse at all is left out whole at
+launch; a file that stops parsing while a session is open keeps its last good
+settings in force — its hooks and rules keep working — and the line says so,
+until the file reads again.
 Settings that execute project commands still require workspace trust
 ([TRUST.md](TRUST.md)). Keep secrets in `/logins` or a credential helper,
 not in a shared project file.

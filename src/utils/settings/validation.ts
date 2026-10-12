@@ -18,7 +18,7 @@ export type ValidationError = {
   invalidValue?: unknown
   suggestion?: string
   docLink?: string
-  severity?: 'error' | 'warning'
+  severity?: 'error' | 'warning' | 'held'
   unknownKeys?: string[]
   mcpErrorMetadata?: {
     scope: ConfigScope
@@ -135,8 +135,14 @@ export function formatZodError(error: Pick<z.ZodError, 'issues'>, filePath: stri
 
 export function settingsFaultLine(error: ValidationError): string {
   const where = [error.file, error.path, error.message].filter(Boolean).join(' · ')
-  const effect = error.severity === 'warning' ? 'this value is skipped; the rest of the file applies' : 'the file is skipped'
+  const effect = settingsFaultEffect(error)
   return `settings: ${where} — ${effect}`
+}
+
+export function settingsFaultEffect(error: Pick<ValidationError, 'severity'>): string {
+  if (error.severity === 'warning') return 'this value is skipped; the rest of the file applies'
+  if (error.severity === 'held') return 'the file cannot be read; the last good settings stay in force'
+  return 'the file is skipped'
 }
 
 const EDIT_STRICT_GROUPS = [
