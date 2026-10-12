@@ -18,6 +18,7 @@ export interface MenuRow {
   defaultLabel: string
   applicationClass?: 'new-session' | 'live'
   defaultFollows?: { env: string; value: string; label: string }
+  warnWhenOn?: string
   summary: string
   detail?: {
     controls: string
@@ -101,6 +102,7 @@ export const STARTUP_MENU: readonly MenuRow[] = [
     kind: 'toggle',
     options: ['1'],
     defaultLabel: 'off',
+    warnWhenOn: 'nothing asks or stops you — every action runs as you',
     summary: 'no permission question is asked — not for files, commands, or computer use; you take the wheel',
     detail: {
       controls: "The one bypass: interactive boots start in sovereign mode, as if --sovereign was passed, and no permission question is asked — not for files, not for commands, not for computer use. Saving this row is the standing consent; the launch confirmation dialog still applies and root users receive a notice, a deny rule in a settings file still refuses, and the refusals that are the screen's own (the terminal running Mercury, an application that moved in front) still hold. Headless runs (run) and daemon workers NEVER inherit it — their stricter permission floor stands. The computer ask card's last answer turns this row on for the running session and saves it here.",
@@ -337,6 +339,11 @@ export function menuRowChoices(row: MenuRow): MenuChoice[] {
     label: row.kind === 'toggle' ? (v === '0' ? 'off' : 'on') : v,
   }))
   return [{ value: null, label: `default (${row.defaultLabel})` }, ...rest]
+}
+
+export function menuRowWarning(row: MenuRow, value: string | null): string | null {
+  if (row.warnWhenOn === undefined || value === null) return null
+  return menuRowChoices(row).some(c => c.value === value && c.label === 'on') ? row.warnWhenOn : null
 }
 
 export function menuRowValueLabel(row: MenuRow, saved: string | null, effectiveOf: (env: string) => string | null): string {
