@@ -72,9 +72,10 @@ type Grid = { grid: { c: string }[][] }
 const linesOf = (g: Grid): string[] => g.grid.map(r => r.map(c => c.c || ' ').join(''))
 interface Send {
   atTick?: number
-  afterPrevTicks?: number
+  requireAwait?: boolean
   data: string
   awaitText?: string
+  awaitPattern?: string
   minTick?: number
   awaitSettleTicks?: number
   mark?: string
@@ -128,12 +129,12 @@ function newScratch(tag: string, opts: { draft: boolean; heldRepo?: boolean }): 
 
 const markedFrames = new Map<string, string[]>()
 const markOf = (tag: string, label: string): string[] => markedFrames.get(`${tag}:${label}`) ?? []
-function capture(tag: string, scratch: string, cwd: string, sends: Send[], total: number): string[] {
+function capture(tag: string, scratch: string, cwd: string, sends: Send[], total: number, readyText: string): string[] {
   const cols = 120
   const rows = 40
   const out = join(OUT_DIR, `${tag}-${cols}x${rows}.json`)
   const cfgPath = join(scratch, `${tag}-cfg.json`)
-  writeFileSync(cfgPath, JSON.stringify({ argv: ['node', BIN], cwd, sends, total, cols, rows, out }))
+  writeFileSync(cfgPath, JSON.stringify({ argv: ['node', BIN], cwd, sends, total, readyText, cols, rows, out }))
   const env: Record<string, string> = {
     ...(process.env as Record<string, string>),
     MERCURY_CONFIG_DIR: scratch,
@@ -175,16 +176,18 @@ const operatorEntries = (scratch: string): number => {
   return (parsed.entries ?? []).filter(e => e.role === 'operator').length
 }
 const storedDraft = (scratch: string): string => (JSON.parse(readFileSync(join(scratch, 'concourse-draft.json'), 'utf8')) as { coordinatorDraft?: string }).coordinatorDraft ?? ''
-const settle = { atTick: 999, awaitText: 'Fix OAuth', minTick: 5, awaitSettleTicks: 3 }
+const onArrival = { requireAwait: true, atTick: 999, awaitText: '↵↵ enter session', awaitPattern: 'change the greeting', minTick: 5, awaitSettleTicks: 3 }
+const ARMED_LABEL = '↵ again sends'
 const scratches: string[] = []
 
 {
   const { scratch, cwd } = newScratch('enter', { draft: true })
   scratches.push(scratch)
+  const afterEnter = POISON_DIST === undefined ? 'enters (armed)' : 'coordinator is off —'
   capture('enter', scratch, cwd, [
-    { ...settle, data: '\r', mark: 'arrival' },
-    { afterPrevTicks: 10, data: '', mark: 'after-enter' },
-  ], 60)
+    { ...onArrival, data: '\r', mark: 'arrival' },
+    { requireAwait: true, awaitText: afterEnter, awaitSettleTicks: 3, data: '', mark: 'after-enter' },
+  ], 60, afterEnter)
   const arrival = markOf('enter', 'arrival')
   const after = markOf('enter', 'after-enter')
   check('arrival: the stored draft is restored into the coordinator composer', composerRow(arrival).includes('change the greeting') || composerRow(arrival).includes('Do both now.'), composerRow(arrival).trim().slice(0, 100))
@@ -208,15 +211,16 @@ console.log('§3 the drive — the restored draft in the focused composer: ↵ a
 {
   const { scratch, cwd } = newScratch('arm', { draft: true })
   scratches.push(scratch)
+  const LAUNCH_RECEIPT = 'applied — started in'
   capture('arm', scratch, cwd, [
-    { ...settle, data: '\t' },
-    { afterPrevTicks: 3, data: '\t', mark: 'before-focus' },
-    { afterPrevTicks: 3, data: '\r', mark: 'focused' },
-    { afterPrevTicks: 4, data: ESC, mark: 'armed' },
-    { afterPrevTicks: 4, data: '\r', mark: 'disarmed' },
-    { afterPrevTicks: 4, data: '\r', mark: 'armed-again' },
-    { afterPrevTicks: 12, data: '', mark: 'sent' },
-  ], 90)
+    { ...onArrival, data: '\t' },
+    { requireAwait: true, awaitText: 'tab panes', awaitSettleTicks: 3, data: '\t', mark: 'before-focus' },
+    { requireAwait: true, awaitText: '↵ send', awaitSettleTicks: 3, data: '\r', mark: 'focused' },
+    { requireAwait: true, awaitText: ARMED_LABEL, awaitSettleTicks: 3, data: ESC, mark: 'armed' },
+    { requireAwait: true, awaitText: 'restored draft — typed in another', awaitSettleTicks: 3, data: '\r', mark: 'disarmed' },
+    { requireAwait: true, awaitText: ARMED_LABEL, awaitSettleTicks: 3, data: '\r', mark: 'armed-again' },
+    { requireAwait: true, awaitText: LAUNCH_RECEIPT, awaitSettleTicks: 3, data: '', mark: 'sent' },
+  ], 90, LAUNCH_RECEIPT)
   const focused = markOf('arm', 'focused')
   const armed = markOf('arm', 'armed')
   const disarmed = markOf('arm', 'disarmed')
@@ -231,14 +235,16 @@ console.log('§4 the drive — the held checkout: the launch asks before it fork
 {
   const { scratch, cwd } = newScratch('fork', { draft: true, heldRepo: true })
   scratches.push(scratch)
+  const CARD_TITLE = 'A worktree for this session'
+  const DRAFT_TAIL = 'Do both now.'
   capture('fork', scratch, cwd, [
-    { ...settle, data: '\t' },
-    { afterPrevTicks: 3, data: '\t' },
-    { afterPrevTicks: 3, data: '\r' },
-    { afterPrevTicks: 4, data: '\r', mark: 'armed' },
-    { afterPrevTicks: 10, data: ESC, mark: 'card' },
-    { afterPrevTicks: 6, data: '', mark: 'declined' },
-  ], 90)
+    { ...onArrival, data: '\t' },
+    { requireAwait: true, awaitText: 'tab panes', awaitSettleTicks: 3, data: '\t' },
+    { requireAwait: true, awaitText: '↵ send', awaitSettleTicks: 3, data: '\r' },
+    { requireAwait: true, awaitText: ARMED_LABEL, awaitSettleTicks: 3, data: '\r', mark: 'armed' },
+    { requireAwait: true, awaitText: CARD_TITLE, awaitSettleTicks: 3, data: ESC, mark: 'card' },
+    { requireAwait: true, awaitText: DRAFT_TAIL, awaitPattern: `\\A(?![\\s\\S]*${CARD_TITLE})`, awaitSettleTicks: 3, data: '', mark: 'declined' },
+  ], 90, DRAFT_TAIL)
   const card = markOf('fork', 'card')
   const declined = markOf('fork', 'declined')
   check('the confirmed send meets the worktree card before anything starts — it names the folder and the holder', has(card, 'A worktree for this session') && has(card, 'held-repo') && has(card, 'Fix the parser') && !has(card, 'coordinator is off —') && operatorEntries(scratch) === 0, card.filter(l => l.includes('⦿') || l.includes('held by')).map(l => l.trim().slice(0, 100)).join(' | '))

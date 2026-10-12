@@ -70,6 +70,7 @@ const COLS = 178
 const ROWS = 51
 const READY_LINE = '↵ start  ·  ↑↓ choose'
 const COMPOSER = 'Type a prompt'
+const PROMPT = 'read the readme'
 const CLOSING = 'Read it.'
 const WAITING = `waiting on hook ${HOOK} · `
 const readme = join(WORK, 'README.md')
@@ -96,10 +97,10 @@ async function capture(): Promise<Capture> {
       rows: ROWS,
       liveSeat: true,
       sends: [
-        { atTick: 120, awaitText: READY_LINE, minTick: 3, awaitSettleTicks: 3, data: '', mark: 'face' },
-        { afterPrevTicks: 25, data: '\r', mark: 'enter' },
-        { atTick: 400, awaitText: COMPOSER, minTick: 3, awaitSettleTicks: 3, requireAwait: true, data: 'read the readme', mark: 'composer' },
-        { afterPrevTicks: 2, data: '\r', mark: 'sent' },
+        { atTick: 120, awaitText: READY_LINE, minTick: 3, awaitSettleTicks: 3, requireAwait: true, data: '', mark: 'face' },
+        { atTick: 160, awaitText: READY_LINE, minTick: 3, awaitSettleTicks: 2, requireAwait: true, data: '\r', mark: 'enter' },
+        { atTick: 400, awaitText: COMPOSER, minTick: 3, awaitSettleTicks: 3, requireAwait: true, data: PROMPT, mark: 'composer' },
+        { atTick: 420, awaitText: `❯ ${PROMPT}`, minTick: 3, awaitSettleTicks: 2, requireAwait: true, data: '\r', mark: 'sent' },
         { atTick: 500, awaitText: WAITING, minTick: 3, awaitSettleTicks: 6, requireAwait: true, data: '', mark: 'waiting' },
         { atTick: 600, awaitText: CLOSING, minTick: 3, awaitSettleTicks: 5, requireAwait: true, data: '', mark: 'done' },
       ],
