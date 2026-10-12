@@ -1259,7 +1259,7 @@ async function defaultAction(inputPromptArg: string | undefined, opts: RootOptio
   let userSpecifiedModel = typedString(opts.model)
   if (userSpecifiedModel !== undefined && userSpecifiedModel !== 'default') {
     const { matchReachableModelName, modelNameHeadlessRefusal } = await import('./utils/model/modelNameRoad.js')
-    const matched = matchReachableModelName(userSpecifiedModel)
+    const matched = matchReachableModelName(userSpecifiedModel, 'pass')
     if (matched?.kind === 'match') {
       addBootNote('info', `--model ${matched.said}`)
       userSpecifiedModel = matched.id

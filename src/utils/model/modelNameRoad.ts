@@ -11,11 +11,25 @@ export function reachableModelEntries(): ModelNameEntry[] {
     .map(option => ({ id: option.value, name: option.label }))
 }
 
-export function matchReachableModelName(typed: string): ModelNameMatch | null {
+const WINDOW_SUFFIX = /\[1m\]$/i
+const ID_SHAPED = /^[a-z0-9][a-z0-9._:/-]*$/i
+
+export function isIdShapedModelWord(typed: string): boolean {
+  const word = typed.trim().replace(WINDOW_SUFFIX, '')
+  return ID_SHAPED.test(word) && /[-./]/.test(word)
+}
+
+export function matchReachableModelName(typed: string, unlistedIds: 'ask' | 'pass' = 'ask'): ModelNameMatch | null {
   const lowered = typed.trim().toLowerCase()
   if (lowered === '' || isModelAlias(lowered) || isModelFamilyWord(lowered) || CLASS_WORDS.has(lowered)) return null
   if (/^(compat|huggingface|local|openrouter|nous|zen)\//.test(lowered)) return null
-  return matchModelName(typed, reachableModelEntries())
+  const window = WINDOW_SUFFIX.exec(typed.trim())?.[0] ?? ''
+  const bare = typed.trim().replace(WINDOW_SUFFIX, '')
+  const matched = matchModelName(bare, reachableModelEntries())
+  if (matched.kind === 'exact') return window === '' ? matched : { ...matched, id: `${matched.id}${window}` }
+  if (matched.kind === 'match') return window === '' ? matched : { ...matched, id: `${matched.id}${window}`, said: `${typed.trim()} → ${matched.id}${window}` }
+  if (matched.kind === 'none' && unlistedIds === 'pass' && isIdShapedModelWord(typed)) return null
+  return matched
 }
 
 export function modelNameAskWords(match: ModelNameMatch, labelOf: (id: string) => string = id => id): string {
