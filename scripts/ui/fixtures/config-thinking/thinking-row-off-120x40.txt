@@ -7,8 +7,8 @@ NEXT                    │ │ project · 65 settings · 0 set by you          
   · /health — health ce…│ │ / think                                                                                  │ │
   · /memory — memory    │ │                                                                                          │ │
   · /mission — set a mi…│ │ › Thinking                          off                                                  │ │
-                        │ │                                                                                          │ │
-FILES · project         │ │                                                                                          │ │
+                        │ │   the model reasons before it answers; on is the default · off asks the model not to —   │ │
+FILES · project         │ │ Sonnet 5.5 and Opus 5.5 keep thinking on regardless · engine.reasoning in settings       │ │
   ↵ or click · browse   │ │                                                                                          │ │
                         │ │                                                                                          │ │
 VITALS                  │ │                                                                                          │ │
