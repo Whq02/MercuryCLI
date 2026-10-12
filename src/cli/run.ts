@@ -256,7 +256,7 @@ import { stopAgentByOperator } from '../services/agents/operatorStop.js'
 import { openaiCatalogueFact, primeOpenaiCatalogue, readOpenaiAccountAgain } from '../services/providers/openai/openaiCatalogue.js'
 import { markSessionBootRules, markSessionNonInteractive, markSessionPermissionMode } from '../utils/cockpit/runtimePosture.js'
 import { windowsShellRoadNotice } from '../utils/shell/windowsShellRoad.js'
-import { drainRows, markTaskBookend, subscribeRows } from '../utils/sdkEventQueue.js'
+import { drainRows, subscribeRows } from '../utils/sdkEventQueue.js'
 import { projectWorkRoster } from '../utils/task/workRoster.js'
 import { listSessionMission, onTasksUpdated } from '../utils/tasks.js'
 import { operatorPauseGate } from '../run-core/pauseGate.js'
@@ -1291,12 +1291,10 @@ export async function runHeadless(
         const totalTokens = Number(pick('total-tokens') ?? pick('total_tokens'))
         const toolUses = Number(pick('tool-uses') ?? pick('tool_uses'))
         const callId = pick('tool-use-id')
-        const taskId = pick('task-id') ?? pick('task_id') ?? ''
-        if (normalized !== undefined && taskId !== '') markTaskBookend(taskId)
         enqueueRow(
           taskRow(liveScope(), {
             state: normalized !== undefined ? 'ended' : 'progress',
-            taskId,
+            taskId: pick('task-id') ?? pick('task_id') ?? '',
             ...(callId !== undefined ? { callId } : {}),
             outputFile: pick('output-file') ?? pick('output_file') ?? '',
             ...(normalized !== undefined ? { status: normalized as 'completed' | 'failed' | 'stopped' } : {}),

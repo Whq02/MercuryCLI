@@ -45,37 +45,10 @@ export function emitTaskStarted(facts: { taskId: string; callId?: string; taskTy
   )
 }
 
-export const SETTLE_GRACE_MS = 250
-const SETTLE_SHADOW_MS = 30_000
-const bookendAt = new Map<string, number>()
-
-export function markTaskBookend(taskId: string): void {
-  bookendAt.set(taskId, Date.now())
-}
-
 export function emitTaskEnded(
   taskId: string,
   status: NonNullable<TaskRow['status']>,
-  options: { toolUseId?: string; summary?: string; outputFile?: string; usage?: TaskUsage; settle?: boolean } = {},
-): void {
-  if (options.settle === true) {
-    const asked = Date.now()
-    const timer = setTimeout(() => {
-      const bookend = bookendAt.get(taskId)
-      if (bookend !== undefined && Math.abs(bookend - asked) < SETTLE_SHADOW_MS) return
-      enqueueTaskEnded(taskId, status, options)
-    }, SETTLE_GRACE_MS)
-    timer.unref?.()
-    return
-  }
-  markTaskBookend(taskId)
-  enqueueTaskEnded(taskId, status, options)
-}
-
-function enqueueTaskEnded(
-  taskId: string,
-  status: NonNullable<TaskRow['status']>,
-  options: { toolUseId?: string; summary?: string; outputFile?: string; usage?: TaskUsage },
+  options: { toolUseId?: string; summary?: string; outputFile?: string; usage?: TaskUsage } = {},
 ): void {
   enqueueRow(
     taskRow(

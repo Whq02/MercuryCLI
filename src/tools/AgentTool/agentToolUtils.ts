@@ -1080,8 +1080,9 @@ export async function runAsyncAgentLifecycle(args: {
     const overload = declined && windowPause === null ? overloadPauseOf(accumulated, metadata.resolvedAgentModel) : null
     const overloadEpisode = overload !== null ? overloadEpisodeOf(taskId) : null
     if (overloadEpisode !== null) noteOverloadDeath(overloadEpisode)
+    const noticeFollows = (overloadEpisode === null || overloadDeathNotifies(overloadEpisode)) && args.replyTarget !== 'operator'
     if (declined) {
-      failAgentTask(taskId, declined.error, rootSetAppState, args.abortController)
+      failAgentTask(taskId, declined.error, rootSetAppState, args.abortController, { settleFrame: !noticeFollows })
       if (overload !== null) {
         armOverloadProbe({
           taskId,
@@ -1113,7 +1114,10 @@ export async function runAsyncAgentLifecycle(args: {
         }
       }
     } else {
-      completeAgentTask(result as { agentId: string }, rootSetAppState, args.abortController)
+      completeAgentTask(result as { agentId: string }, rootSetAppState, args.abortController, {
+        usage: { tokens: getTokenCountFromTracker(tracker), toolUses: result.totalToolUseCount, durationMs: result.totalDurationMs },
+        settleFrame: !noticeFollows,
+      })
       closeOverloadEpisode(taskId)
       try {
         const stateReader =
@@ -1257,10 +1261,11 @@ export async function runAsyncAgentLifecycle(args: {
     }
     stopSummarization?.()
     const errMsg = errorMessage(error)
-    failAgentTask(taskId, errMsg, rootSetAppState, args.abortController)
     const overload = overloadBudgetCutOf(error, metadata.resolvedAgentModel)
     const overloadEpisode = overload !== null ? overloadEpisodeOf(taskId) : null
     if (overloadEpisode !== null) noteOverloadDeath(overloadEpisode)
+    const noticeFollows = (overloadEpisode === null || overloadDeathNotifies(overloadEpisode)) && args.replyTarget !== 'operator'
+    failAgentTask(taskId, errMsg, rootSetAppState, args.abortController, { settleFrame: !noticeFollows })
     const worktreeResult = await getWorktreeResult()
     await flushSessionStorage()
     const partialResult = extractPartialResult(accumulated)
