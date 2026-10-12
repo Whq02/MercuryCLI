@@ -1,5 +1,5 @@
 import type { Tools } from '../../Tool.js'
-import type { ContentBlockParam } from '../../types/wire.js'
+import type { ContentBlock, ContentBlockParam } from '../../types/wire.js'
 import type {
   AssistantMessage,
   AttachmentMessage,
@@ -203,6 +203,31 @@ export function stripImagesRefusedByStamp<M extends Message>(rows: M[]): M[] {
   })
 }
 
+const REFUSAL_STOP_MARK = 'stop_reason: refusal'
+
+function refusalClosureOf(row: Message): AssistantMessage | null {
+  if (!isSyntheticApiErrorMessage(row)) return null
+  const content = row.message.content
+  if (!Array.isArray(content)) return null
+  for (const block of content) {
+    if (block.type !== 'text' || typeof block.text !== 'string') continue
+    if (!block.text.includes(REFUSAL_STOP_MARK)) continue
+    return withRefusalClosure(row as AssistantMessage, block.text)
+  }
+  return null
+}
+
+function withRefusalClosure(row: AssistantMessage, words: string): AssistantMessage {
+  return {
+    ...row,
+    isApiErrorMessage: undefined,
+    message: {
+      ...row.message,
+      content: [{ type: 'text', text: `${words} This refusal is final: the request above was refused and is closed; never repeat, retry or re-issue it; answer only the newest instruction.` } as ContentBlock],
+    },
+  }
+}
+
 export function planApiConversation(
   messages: Message[],
   tools: Tools = [],
@@ -214,15 +239,14 @@ export function planApiConversation(
 
   const selected = foldBatchedRows(
     withoutOrphanCaveats(
-      reorderedMessages.filter((m): m is PlannedMessage => {
-        if (
-          m.type === 'progress' ||
-          (m.type === 'system' && !isSystemLocalCommandMessage(m)) ||
-          isSyntheticApiErrorMessage(m)
-        ) {
-          return false
+      reorderedMessages.flatMap((m): PlannedMessage[] => {
+        if (m.type === 'progress' || (m.type === 'system' && !isSystemLocalCommandMessage(m))) {
+          return []
         }
-        return true
+        const closure = refusalClosureOf(m)
+        if (closure !== null) return [closure]
+        if (isSyntheticApiErrorMessage(m)) return []
+        return [m as PlannedMessage]
       }),
     ),
   )
