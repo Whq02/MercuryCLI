@@ -1,10 +1,14 @@
 import React, { useEffect, useRef } from 'react'
 import { Box, Text, useInput } from '../ink.js'
-import { HANDOFF_EXIT_NOTICE, leaveNoteBeforeExit, type ExitNoteOutcome } from '../mneme/exitHandoff.js'
+import { exitNoteDue, HANDOFF_EXIT_NOTICE, leaveNoteBeforeExit, type ExitNoteOutcome } from '../mneme/exitHandoff.js'
 import { getFocusedSessionConnector, hasFocusedSession } from '../services/engine-connector/focusedConnector.js'
 import { FAINT } from './mercuryPalette.js'
 
 export const HANDOFF_SKIP_GRACE_MS = 1_500
+
+export function noteAskedAtExit(): boolean {
+  return hasFocusedSession() || exitNoteDue()
+}
 
 export async function leaveNoteAtExit(signal: AbortSignal): Promise<ExitNoteOutcome> {
   if (!hasFocusedSession()) return leaveNoteBeforeExit({ signal })
