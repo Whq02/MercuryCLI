@@ -1,13 +1,15 @@
 import { spawn, execFile, type ChildProcess } from 'node:child_process'
+import { createHash } from 'node:crypto'
 import { flagEnabled } from '../substrate/flagRegistry.js'
 import { registerCleanup } from './cleanupRegistry.js'
 import { subprocessEnv } from './subprocessEnv.js'
-import { existsSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { logForDebugging } from './debug.js'
+import { getMercuryHome } from './envUtils.js'
 import { execFileNoThrow } from './execFileNoThrow.js'
 import { findExecutable } from './findExecutable.js'
 import { isInBundledMode } from './bundledMode.js'
@@ -142,6 +144,10 @@ export function searchToolsAvailability(): {
 
 let codesignChecked = false
 
+export function preparedRipgrepPath(sourceSha256: string): string {
+  return join(getMercuryHome(), 'cache', 'ripgrep', sourceSha256.slice(0, 16), RG_NAME)
+}
+
 async function maybeRepairCodesign(): Promise<void> {
   if (codesignChecked) return
   codesignChecked = true
@@ -152,18 +158,41 @@ async function maybeRepairCodesign(): Promise<void> {
   const inspectionOutput = `${inspection.stdout}\n${inspection.stderr}`
   if (!inspectionOutput.split('\n').some(line => line.includes('linker-signed'))) return
   try {
-    const sign = await execFileNoThrow(
-      'codesign',
-      ['--sign', '-', '--force', '--preserve-metadata=entitlements,requirements,flags,runtime', config.rgPath],
-      { useCwd: false },
-    )
-    if (sign.code !== 0) logError(new Error(`codesign re-sign failed (${sign.code}): ${sign.stderr}`))
-    const xattr = await execFileNoThrow('xattr', ['-d', 'com.apple.quarantine', config.rgPath], { useCwd: false })
-    if (xattr.code !== 0 && xattr.stderr.trim() !== '') {
-      logError(new Error(`quarantine removal failed (${xattr.code}): ${xattr.stderr}`))
-    }
+    const prepared = await prepareSignedCopy(config.rgPath)
+    if (prepared !== null) resolvedConfig = { mode, config: { ...config, rgPath: prepared } }
   } catch (err) {
     logError(err)
+  }
+}
+
+export async function prepareSignedCopy(source: string): Promise<string | null> {
+  const bytes = readFileSync(source)
+  const target = preparedRipgrepPath(createHash('sha256').update(bytes).digest('hex'))
+  if (existsSync(target)) return target
+  const dir = dirname(target)
+  mkdirSync(dir, { recursive: true })
+  const staging = join(dir, `.${RG_NAME}.${process.pid}.tmp`)
+  try {
+    writeFileSync(staging, bytes, { mode: 0o755 })
+    const sign = await execFileNoThrow(
+      'codesign',
+      ['--sign', '-', '--force', '--preserve-metadata=entitlements,requirements,flags,runtime', staging],
+      { useCwd: false },
+    )
+    if (sign.code !== 0) {
+      logError(new Error(`codesign re-sign failed (${sign.code}): ${sign.stderr}`))
+      rmSync(staging, { force: true })
+      return null
+    }
+    const xattr = await execFileNoThrow('xattr', ['-d', 'com.apple.quarantine', staging], { useCwd: false })
+    if (xattr.code !== 0 && xattr.stderr.trim() !== '' && !xattr.stderr.includes('No such xattr')) {
+      logError(new Error(`quarantine removal failed (${xattr.code}): ${xattr.stderr}`))
+    }
+    renameSync(staging, target)
+    return target
+  } catch (err) {
+    rmSync(staging, { force: true })
+    throw err
   }
 }
 
