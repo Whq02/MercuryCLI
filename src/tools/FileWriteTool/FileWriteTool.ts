@@ -22,10 +22,11 @@ import { isENOENT } from '../../utils/errors.js'
 import {
   getFileModificationTime,
   needsPowerShellBom,
+  preserveUntouchedLineEndings,
   writeTextContent,
 } from '../../utils/file.js'
 import { fileHistoryEnabled, fileHistoryTrackEdit } from '../../utils/fileHistory.js'
-import { readFileSyncWithMetadata } from '../../utils/fileRead.js'
+import { readFileSyncWithMetadata, type LineEndingType } from '../../utils/fileRead.js'
 import { logError } from '../../utils/log.js'
 import { NUL_PATH_MESSAGE, expandPath, hasNulByte } from '../../utils/path.js'
 import { checkWritePermissionForTool, matchingRuleForInput } from '../../utils/permissions/filesystem.js'
@@ -90,6 +91,15 @@ function sha16(content: string): string {
 
 function isFullReadEntry(entry: FileState): boolean {
   return (entry.offset === undefined || entry.offset === 0) && entry.limit === undefined
+}
+
+function shapeToExistingFile(rawBody: string, content: string, majority: LineEndingType): string {
+  let body = content.replaceAll('\r\n', '\n')
+  if (body !== '') {
+    if (!rawBody.endsWith('\n') && body.endsWith('\n')) body = body.slice(0, -1)
+    else if (rawBody.endsWith('\n') && !body.endsWith('\n')) body = `${body}\n`
+  }
+  return preserveUntouchedLineEndings(rawBody, body, majority)
 }
 
 
@@ -192,22 +202,26 @@ export const FileWriteTool = buildTool({
     let rawContent = ''
     let normalizedContent = ''
     let encoding: BufferEncoding = 'utf8'
+    let lineEndings: LineEndingType = 'LF'
     try {
       const metadata = readFileSyncWithMetadata(expandedPath)
       rawContent = metadata.rawContent
       normalizedContent = metadata.content
       encoding = metadata.encoding
+      lineEndings = metadata.lineEndings
     } catch (err) {
       if (!isENOENT(err)) throw err
       fileExists = false
     }
 
     const hadBom = rawContent.charCodeAt(0) === 0xfeff
+    const rawBody = hadBom ? rawContent.slice(1) : rawContent
+    const shaped = fileExists && rawBody !== '' ? shapeToExistingFile(rawBody, input.content, lineEndings) : input.content
     const wantsBom = hadBom || (needsPowerShellBom(expandedPath) && encoding === 'utf8')
     const producedContent =
-      wantsBom && input.content.charCodeAt(0) !== 0xfeff
-        ? String.fromCharCode(0xfeff) + input.content
-        : input.content
+      wantsBom && shaped.charCodeAt(0) !== 0xfeff
+        ? String.fromCharCode(0xfeff) + shaped
+        : shaped
     const suppliedBytes = Buffer.byteLength(input.content, 'utf8')
     const producedBytes = Buffer.byteLength(producedContent, 'utf8')
 
@@ -258,8 +272,8 @@ export const FileWriteTool = buildTool({
       }
     }
 
-    writeTextContent(expandedPath, input.content, encoding, 'LF', { keepBom: hadBom })
-    const writtenContent = input.content.replaceAll('\r\n', '\n')
+    writeTextContent(expandedPath, shaped, encoding, 'LF', { keepBom: hadBom })
+    const writtenContent = shaped.replaceAll('\r\n', '\n')
     const writtenAt = getFileModificationTime(expandedPath)
     try {
       const writtenGeneration = generationOfWrittenBytes(expandedPath, Buffer.from(producedContent, encoding))
@@ -274,7 +288,7 @@ export const FileWriteTool = buildTool({
     if (lspManager) {
       try {
         clearDeliveredDiagnosticsForFile(`file://${expandedPath}`)
-        await lspManager.changeAndSaveFile(expandedPath, input.content)
+        await lspManager.changeAndSaveFile(expandedPath, writtenContent)
       } catch (err) {
         logError(err)
       }
@@ -289,10 +303,11 @@ export const FileWriteTool = buildTool({
 
     let gitDiff: Output['gitDiff']
     if (fileExists) {
+      const shownBefore = hadBom ? normalizedContent.slice(1) : normalizedContent
       const patch = getPatchForDisplay({
         filePath: expandedPath,
-        fileContents: normalizedContent,
-        edits: [{ old_string: normalizedContent, new_string: input.content }],
+        fileContents: shownBefore,
+        edits: [{ old_string: shownBefore, new_string: writtenContent }],
       })
       countLinesChanged(patch)
       const data: Output = {

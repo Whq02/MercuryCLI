@@ -328,7 +328,7 @@ function rederiveBytes(plan: ChangeSetPlan): { bytes: Map<string, ChangeSetTarge
       plannedBytes:
         t.fileOp === 'delete'
           ? Buffer.alloc(0)
-          : plannedDiskBytes(t.plannedContent, t.encoding, t.lineEndings),
+          : plannedDiskBytes(t.plannedContent, t.encoding, t.lineEndings, raw.toString(t.encoding)),
     })
   }
   if (stalePaths.length > 0) return { stalePaths }
