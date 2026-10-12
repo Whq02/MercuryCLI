@@ -285,7 +285,7 @@ export function describeBrowserReadiness(reads?: BrowserResolverReads): { ready:
     : 'installed apps are never driven'
   return {
     ready: false,
-    line: pinned ? resolution.note : `no managed browser — /browser install downloads Chrome for Testing (150-200 MB); ${apps}`,
+    line: pinned ? resolution.note : `no managed browser — /browser install downloads Chrome for Testing once (the consent step names the exact download size; the current stable is about 185 MB, twice that unpacked); ${apps}`,
     detail: [resolution.note, discovery, ...resolution.remedies].filter(Boolean).join('\n'),
     fix: pinned ? 'fix or unset MERCURY_BROWSER_PATH' : '/browser install',
   }

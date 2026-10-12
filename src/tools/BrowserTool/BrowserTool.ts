@@ -730,11 +730,13 @@ Downloads are never implicit: the driven session denies page-initiated downloads
   async checkPermissions(input: Input, context: ToolUseContext) {
     if (input.op === 'provision') {
       try {
-        const { planBrowserInstall } = await import('../../services/browser/browserInstall.js')
+        const { installPlanLines, planBrowserInstall } = await import('../../services/browser/browserInstall.js')
         const plan = await planBrowserInstall(input.buildId)
+        const lines = installPlanLines(plan)
         return {
           behavior: 'ask' as const,
           message: `Browser provision: download ${plan.consentLine}`,
+          decisionReason: { type: 'other' as const, reason: lines.join('\n') },
           updatedInput: { ...input, buildId: plan.buildId },
         }
       } catch (err) {
