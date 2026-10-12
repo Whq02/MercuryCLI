@@ -140,7 +140,7 @@ t.section('§3 journey: agent view routes commands locally, guidance to the agen
     sends: [
       'after:↑↓ choose:900:\\r',
       '7400:spawn the probe\\r',
-      `after:poise pro… · running:1000:${sgrClick(10, 4)}`,
+      `after:probe · runni…:1000:${sgrClick(10, 4)}`,
       `after:x stop · p pause:2000:${sgrClick(10, 3)}`,
       'after:x stop · p pause:4600:/frobnicate\\r',
       'after:/frobnicate:2400:/vim\\r',

@@ -161,7 +161,7 @@ t.section('§2 journey: header + CREW lead row + mouse return')
     sends: [
       '2000:\\r',
       '6000:spawn the probe\\r',
-      `after:poise pro… · running:1000:${sgrClick(10, CHILD_ROW)}`,
+      `after:probe · runni…:1000:${sgrClick(10, CHILD_ROW)}`,
       `after:x stop · p pause:2500:${sgrClick(10, ROOT_ROW)}`,
     ],
     seconds: 20,
