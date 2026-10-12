@@ -1,7 +1,9 @@
 import * as React from 'react'
 import { paintStatusRowReceipt } from '../../components/SwitchboardTagBar.js'
+import { LOCAL_COMMAND_STDOUT_TAG } from '../../constants/xml.js'
 import { getFocusedSessionConnector } from '../../services/engine-connector/focusedConnector.js'
 import type { AppState } from '../../state/AppState.js'
+import type { Message } from '../../types/message.js'
 import type {
   LocalJSXCommandContext,
   LocalJSXCommandOnDone,
@@ -22,6 +24,9 @@ import {
   type EffortLevel,
   type EffortValue,
 } from '../../utils/effort.js'
+import { createCommandInputMessage, createUserMessage } from '../../utils/messages.js'
+import { renderModelName } from '../../utils/model/model.js'
+import { formatCommandLoadingMetadata } from '../../utils/processUserInput/processSlashCommand.js'
 import { updateSettingsForSource } from '../../utils/settings/settings.js'
 import { EffortApplyContext, EffortSlider } from './EffortSlider.js'
 
@@ -230,7 +235,7 @@ async function settleEffortResult(result: EffortCommandResult, context: LocalJSX
     return { text: `Effort switch queued: ${level} applies when this session's turn settles — the running turn keeps its effort.${saved}`, seat: true }
   }
   if (!modelSupportsEffort(model)) {
-    return { text: `${model} takes no effort setting — ${level} was kept for this session's next effort-capable model.${saved}`, seat: true }
+    return { text: `${renderModelName(model)} takes no effort setting — ${level} is kept for the next model that takes one.${saved}`, seat: true }
   }
   return { text: `Effort set to ${level} for this session — its next request runs it.${saved}`, seat: true }
 }
@@ -239,8 +244,17 @@ function receiptOnStatusRow(receipt: EffortReceipt): boolean {
   return receipt.seat && paintStatusRowReceipt(receipt.text)
 }
 
-function deliverEffortReceipt(receipt: EffortReceipt, onDone: LocalJSXCommandOnDone): void {
-  if (receiptOnStatusRow(receipt)) {
+function receiptInChat(receipt: EffortReceipt, args: string): boolean {
+  if (!receipt.seat) return false
+  const chat = getFocusedSessionConnector() as { addDisplayRow?: (row: Message) => void }
+  if (typeof chat.addDisplayRow !== 'function') return false
+  chat.addDisplayRow(createUserMessage({ content: formatCommandLoadingMetadata('effort', args) }))
+  chat.addDisplayRow(createCommandInputMessage(`<${LOCAL_COMMAND_STDOUT_TAG}>${receipt.text}</${LOCAL_COMMAND_STDOUT_TAG}>`))
+  return true
+}
+
+function deliverEffortReceipt(receipt: EffortReceipt, onDone: LocalJSXCommandOnDone, args: string): void {
+  if (receiptOnStatusRow(receipt) || receiptInChat(receipt, args)) {
     onDone(undefined, { display: 'skip' })
     return
   }
@@ -260,7 +274,7 @@ function SessionSlider({
     <EffortApplyContext.Provider
       value={value => {
         const result = executeEffort(String(value), model)
-        return settleEffortResult(result, context).then(receipt => (receiptOnStatusRow(receipt) ? '' : receipt.text))
+        return settleEffortResult(result, context).then(receipt => (receiptOnStatusRow(receipt) || receiptInChat(receipt, String(value)) ? '' : receipt.text))
       }}
     >
       <EffortSlider onDone={message => (message === '' ? onDone(undefined, { display: 'skip' }) : onDone(message))} />
@@ -297,7 +311,7 @@ export async function call(
       return null
     }
     const result = executeEffort(trimmed, model)
-    deliverEffortReceipt(await settleEffortResult(result, context), onDone)
+    deliverEffortReceipt(await settleEffortResult(result, context), onDone, trimmed)
     return null
   }
 

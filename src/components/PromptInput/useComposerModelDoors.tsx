@@ -157,13 +157,15 @@ export function useComposerModelDoors({
       const label = value === null ? 'Default' : renderModelName(value)
       setOverlay(null)
       const effectiveBefore = focused.modelFacts().effective
+      const choice = persist ? persistModelChoice(value) : null
       void focused.setModel(value).then(receipt => {
         settleCapHandoffIntent(receipt.state === 'applied' || receipt.state === 'queued')
         if (receipt.state === 'refused') {
+          choice?.restore()
           addNotification({ key: 'model-switched', text: `The model switch was refused: ${receipt.detail}`, priority: 'high', timeoutMs: 5000 })
           return
         }
-        const saved = persist ? persistModelChoice(value).sentence : ''
+        const saved = choice?.sentence ?? ''
         if (receipt.state === 'no-op') {
           addNotification({ key: 'model-switched', text: saved === '' ? `Already on ${label} — nothing to change` : `Already on ${label}${saved}`, priority: 'high', timeoutMs: 3000 })
           return

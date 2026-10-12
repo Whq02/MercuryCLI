@@ -1050,13 +1050,15 @@ function MercuryModelWrapper({
     if (focused.carrier === 'daemon') {
       const label = labelOf(id)
       const factsBefore = focused.modelFacts()
+      const choice = persistModelChoice(value)
       void focused.setModel(value).then(receipt => {
         if (receipt.state === 'refused') {
+          choice.restore()
           onDone(`The model switch was refused: ${receipt.detail}`)
           return
         }
         const slotNote = flipDoorNote(pick)
-        const saved = persistModelChoice(value).sentence
+        const saved = choice.sentence
         if (receipt.state === 'no-op') {
           onDone(saved === '' && slotNote === '' ? `Already on ${label} — nothing to change` : `Already on ${label}${saved}${slotNote}`)
           return

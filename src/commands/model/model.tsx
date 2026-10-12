@@ -158,14 +158,16 @@ function ModelSet({
     const focused = getFocusedSessionConnector()
     if (focused.carrier === 'daemon') {
       const factsBefore = focused.modelFacts()
+      const choice = persistModelChoice(target)
       const receipt = await focused.setModel(target)
+      if (receipt.state === 'refused') choice.restore()
       const moved = receipt.state === 'applied' || receipt.state === 'queued'
       const doorCross =
         moved && providerFamilyOfSetting(factsBefore.effective) !== providerFamilyOfSetting(target)
           ? crossProviderNote(target)
           : ''
       const lossNote = plan && receipt.state !== 'no-op' && receipt.state !== 'refused' ? transitionPlanSummary(plan) : ''
-      const saved = receipt.state === 'refused' ? '' : persistModelChoice(target).sentence
+      const saved = receipt.state === 'refused' ? '' : choice.sentence
       onDone(`${focusedSwitchSentence(receipt, target, saved)}${doorCross}${lossNote}`)
       return
     }

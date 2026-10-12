@@ -14,6 +14,7 @@
 # gate-watch: src/components/CustomSelect/SelectMulti.tsx
 # gate-watch: src/components/CustomSelect/use-multi-select-state.ts src/components/PromptInput/PromptInput.tsx src/components/PromptInput/useComposerModelDoors.tsx src/components/PromptInput/useComposerKeybindings.ts
 # gate-watch: src/components/design-system/Dialog.tsx src/components/mercury-ui/FailoverMark.tsx
+# gate-watch: src/ink.ts src/ink/components/StdinContext.ts src/ink/components/TerminalSizeContext.tsx
 # gate-watch: src/components/messages/* src/hooks/useDisplayedSessionModel.ts src/ink/input/scanner.ts
 # gate-watch: src/interactiveHelpers.tsx src/keybindings/defaultBindings.ts src/query/deps.ts
 # gate-watch: src/query/scriptedStream.ts src/run-core/call-reference.ts src/run-core/turn-machine.ts

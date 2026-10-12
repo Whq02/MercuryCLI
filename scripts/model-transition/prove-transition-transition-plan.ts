@@ -186,15 +186,15 @@ section('§G the loss summary — plain words, nonzero classes only, plan-addres
   const lossy = buildTransitionPlan({ messages: HISTORY as never, from: null, to: 'glm-4.7' })
   const s = transitionPlanSummary(lossy)
   check(
-    'every nonzero class appears in plain words',
-    s.includes('1 thinking span(s) reset') &&
-      s.includes('2 continuation record(s) reset') &&
-      s.includes('1 image(s) degrade') &&
-      s.includes('1 unsupported block(s) degrade'),
+    'every nonzero class appears in plain words (the field read "span(s) reset", "continuation record(s)" and "degrade" as internal words)',
+    s.includes('1 thinking block stays behind') &&
+      s.includes('2 server-side threads cannot continue') &&
+      s.includes('1 image becomes the words "[image]"') &&
+      /1 block \S+ cannot read becomes a placeholder/.test(s),
     s,
   )
-  check('the summary is plan-addressed (digest prefix)', s.includes(lossy.planDigest.slice(0, 8)))
-  check('the exact-replay reassurance is stated', s.includes('text and tool results replay exactly'))
+  check('the summary carries no plan digest (an internal id on a user line)', !s.includes(lossy.planDigest.slice(0, 8)) && !s.includes('(plan '), s)
+  check('the carried-over reassurance is stated', s.includes('text and tool results carry over unchanged'))
   const lossless = buildTransitionPlan({
     messages: [user(1, 'q')] as never,
     from: null,
