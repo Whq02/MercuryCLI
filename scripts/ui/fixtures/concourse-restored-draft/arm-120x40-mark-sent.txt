@@ -1,0 +1,40 @@
+   ▄▄▄▄▄▄▄▄▄    MERCURY — SESSION CONCOURSE                    BOOT › CONCOURSE › FOCUSED CHAT                     sam  
+   ▄▄▄▄▄▄▄▄▄                                                                                                            
+   ▀▄▄▄▀▄▄▄▀                                                                                                            
+  ╭────────────────────────────────────────────╮ ╭───────────────────────────────────────────────────────────────────╮  
+  │ COORDINATOR                                │ │ SESSIONS                                            + new session │  
+  │                                            │ │ STATUS & TITLE              PROJECT   NOW                    AGE  │  
+  │                                            │ │   n starts a blank session in this project                        │  
+  │                                            │ │ ⊞ READY TO REVIEW · 1                                             │  
+  │                                            │ │ ▸ ● ready     Audit billing…Moodle                           12m  │  
+  │                                            │ │ ⊞ WORKING · 3                                                     │  
+  │                                            │ │   ◐           Fix OAuth cal…Moodle    editing src/auth/c…    07m  │  
+  │                                            │ │   ◐           Refactor pars…orchard-… Bash · bun test pa…    18m  │  
+  │                                            │ │   ◐           Update termin…orchard-…                        03m  │  
+  │                                            │ │ ⊞ QUEUED · 2                                                      │  
+  │                                            │ │   □           Trace reconne…orchard-… waits for a seat     waits  │  
+  │                                            │ │   □           Document laun…Moodle    waits for a seat     waits  │  
+  │                                            │ ╰───────────────────────────────────────────────────────────────────╯  
+  │                                            │ ╭───────────────────────────────────────────────────────────────────╮  
+  │                                            │ │ Audit billing receipts                            ↵ enter session │  
+  │                                            │ │                                                                   │  
+  │                                            │ │ no chat yet — ready for your first words · ↵ enters it            │  
+  │                                            │ │                                                                   │  
+  │                                            │ │                                                                   │  
+  │ 15:15:10 [sam] change the greeting text    │ │                                                                   │  
+  │ from "Hello, " to "Hi there, " and then    │ │                                                                   │  
+  │ run python3 hello.py. Do both now.         │ │                                                                   │  
+  │                                            │ │                                                                   │  
+  │ 15:15:10 [harness] coordinator is off —    │ │                                                                   │  
+  │ messages here start sessions directly ·    │ │                                                                   │  
+  │ turn it on in the boot menu                │ │                                                                   │  
+  │ coordinator off · ▸ turn on · ⌃a           │ │                                                                   │  
+  │ ╭────────────────────────────────────────╮ │ ╰───────────────────────────────────────────────────────────────────╯  
+  │ │ ❯ ▌describe a task — ↵ starts a sessi… │ │ ╭───────────────────────────────────────────────────────────────────╮  
+  │ │ ↵ send · ⇧↵ newline · ⇧tab manager · … │ │ │ ❯ message Audit billing receipts · queued for its next turn       │  
+  │ ╰────────────────────────────────────────╯ │ │ ● applied — started in agent-a82i3wd9                             │  
+  ╰────────────────────────────────────────────╯ ╰───────────────────────────────────────────────────────────────────╯  
+  ╭──────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮  
+  │ ▚▛▀▜▞ │ coordinator off ⌄ │ Moodle ⌄                                            2 live · 1 needs you · 2/5 seats │  
+  ╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯  
+  tab panes · ⌃g ground · ↵ send · ⇧↵/⌃j newline · ⌃s coordinator model · pgup/pgdn scroll · ? keys · esc boot face     

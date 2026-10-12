@@ -1,0 +1,40 @@
+   ▄▄▄▄▄▄▄▄▄    MERCURY — SESSION CONCOURSE                    BOOT › CONCOURSE › FOCUSED CHAT                     sam  
+   ▄▄▄▄▄▄▄▄▄                                                                                                            
+   ▀▄▄▄▀▄▄▄▀                                                                                                            
+  ╭────────────────────────────────────────────╮ ╭───────────────────────────────────────────────────────────────────╮  
+  │ COORDINATOR                                │ │ SESSIONS                                            + new session │  
+  │ it launches, watches, and reconciles your  │ │ STATUS & TITLE              PROJECT   NOW                    AGE  │  
+  │ sessions — ask in plain words              │ │   n starts a blank session in this project                        │  
+  │ ▸ launch two sessions on this project · ↵… │ │ ⊞ READY TO REVIEW · 1                                             │  
+  │   what needs me right now?                 │ │ ▸ ● ready     Audit billing…Moodle                           12m  │  
+  │   pause the parser session                 │ │ ⊞ WORKING · 3                                                     │  
+  │ coordinator off · ▸ turn on · ⌃a           │ │   ◐           Fix OAuth cal…Moodle    editing src/auth/c…    07m  │  
+  │ ╭────────────────────────────────────────╮ │ │   ◐           Refactor pars…orchard-… Bash · bun test pa…    18m  │  
+  │ │ ❯ ….py. Do both now.                   │ │ │   ◐           Update termin…orchard-…                        03m  │  
+  │ │ restored draft — ↵ again sends it · e… │ │ │ ⊞ QUEUED · 2                                                      │  
+  │ ╰────────────────────────────────────────╯ │ │   □           Trace reconne…orchard-… waits for a seat     waits  │  
+  │                                            │ │   □           Document laun…Moodle    waits for a seat     waits  │  
+  │                                            │ ╰───────────────────────────────────────────────────────────────────╯  
+  │                                            │ ╭───────────────────────────────────────────────────────────────────╮  
+  │                                            │ │ Audit billing receipts                            ↵ enter session │  
+  │                                            │ │                                                                   │  
+  │                                            │ │ no chat yet — ready for your first words · ↵ enters it            │  
+  │                                            │ │                                                                   │  
+  │                                            │ │                                                                   │  
+  │                                            │ │                                                                   │  
+  │                                            │ │                                                                   │  
+  │                                            │ │                                                                   │  
+  │                                            │ │                                                                   │  
+  │                                            │ │                                                                   │  
+  │                                            │ │                                                                   │  
+  │                                            │ │                                                                   │  
+  │                                            │ │                                                                   │  
+  │                                            │ ╰───────────────────────────────────────────────────────────────────╯  
+  │                                            │ ╭───────────────────────────────────────────────────────────────────╮  
+  │                                            │ │ ❯ message Audit billing receipts · queued for its next turn       │  
+  │                                            │ │ tab or click to type                                              │  
+  ╰────────────────────────────────────────────╯ ╰───────────────────────────────────────────────────────────────────╯  
+  ╭──────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮  
+  │ ▚▛▀▜▞ │ coordinator off ⌄ │ Moodle ⌄                                            2 live · 1 needs you · 2/5 seats │  
+  ╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯  
+  tab panes · ⌃g ground · ↵ send · ⇧↵/⌃j newline · ⌃s coordinator model · pgup/pgdn scroll · esc boot face              
