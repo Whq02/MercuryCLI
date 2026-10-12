@@ -112,7 +112,7 @@ export function renderUrlDelegation(url: string): RenderedTarget {
 export function readTargetPromptLines(): string {
   return [
     '- This tool also reads directories: pass a directory path to get a deterministic bounded listing (sorted, capped, omissions named). Prefer Glob for pattern-scoped discovery.',
-    '- This tool also reads mercury:// resource references (the same records Inspect serves), with explicit ok/absent/unavailable states.',
+    '- This tool also reads mercury:// resource references (the same records Inspect serves), with explicit ok/absent/unavailable states. mercury://seat is this seat\'s own reference: the model this turn runs on, the effort, the posture, and the engines this session has run on with the time of each switch; asked which model runs you, read it and answer from it — never from an earlier reply, an environment variable or the ledger file.',
     '- An http(s) URL target returns a typed delegation naming the exact WebFetch call — Read never fetches the network itself.',
   ].join('\n')
 }

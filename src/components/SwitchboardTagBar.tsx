@@ -68,8 +68,18 @@ function emitReceipt(): void {
   for (const listener of receiptListeners) listener()
 }
 
+export type StatusRowFit = { columns: number; head: string; samples: readonly SampleRowV1[]; folder: string; branch: string | null; backHint: string }
+
+let lastRowFit: StatusRowFit | null = null
+
+export function statusRowReceiptFits(text: string, fit: StatusRowFit | null = lastRowFit): boolean {
+  if (fit === null) return true
+  const plan = statusRowPlan({ ...fit, rest: text })
+  return plan.rest === text || plan.rest === withSampleWords(text, fit.samples)
+}
+
 export function paintStatusRowReceipt(text: string): boolean {
-  if (rowsPainting === 0 || text.trim() === '') return false
+  if (rowsPainting === 0 || text.trim() === '' || !statusRowReceiptFits(text)) return false
   if (receiptTimer !== null) clearTimeout(receiptTimer)
   receiptText = text
   receiptTimer = setTimeout(() => {
@@ -335,6 +345,7 @@ export function FocusedSessionStatusRow(): React.ReactNode {
   const shownModel = crewmate !== null && crewmateModel !== null ? (crewmateModel.model === null ? 'model unreported' : renderModelChip(crewmateModel.model)) : modelName
   const shownEffort = crewmate !== null && crewmateModel !== null ? crewmateModel.effort : effortLabel
   const modelWords = [modelStatusWords(shownModel, shownEffort), daemonBuild].filter(Boolean).join(' · ')
+  lastRowFit = { columns, head: [modelWords, motionWords].filter(Boolean).join(' · '), samples, folder, branch, backHint }
   const held = receipt !== '' && !statusRowWarns(live, status) ? receipt : null
   const resting = daemonBuild === '' && held === null && line === 'ready'
   const signedOut = resting && crewmate === null && signedOutWords !== null ? signedOutWords : null

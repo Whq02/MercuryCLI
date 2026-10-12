@@ -3,7 +3,7 @@ import { getSdkBetas } from '../../bootstrap/state.js'
 import type { Message } from '../../types/message.js'
 import { isConfigReadingAllowed } from '../../utils/config/globalConfig.js'
 import { resolveContextWindow } from '../../utils/model/capabilities.js'
-import { parseUserSpecifiedModel } from '../../utils/model/model.js'
+import { parseUserSpecifiedModel, renderModelName } from '../../utils/model/model.js'
 import {
   confirmTransitionPlan,
   MEANINGFUL_LOSS_CLASSES,
@@ -279,27 +279,40 @@ export function reconfirmTransitionPlan(
   }
 }
 
+export const TRANSITION_CARRIED_WORDS = 'text and tool results carry over unchanged'
+
+export type TransitionLossRow = { n: number; words: string }
+
+export function transitionLossRows(plan: TransitionPlan, toLabel: string = plan.to === null ? 'the new model' : renderModelName(plan.to)): TransitionLossRow[] {
+  const c = plan.counts
+  const rows: TransitionLossRow[] = []
+  const thinking = c['thinking-continuity-reset']
+  if (thinking > 0) {
+    rows.push({ n: thinking, words: `${thinking === 1 ? 'thinking block stays' : 'thinking blocks stay'} behind — ${toLabel} never receives the earlier reasoning and re-plans from the text` })
+  }
+  const threads = c['stateless-replay-reset']
+  if (threads > 0) {
+    rows.push({ n: threads, words: `server-side ${threads === 1 ? 'thread cannot' : 'threads cannot'} continue — the conversation is re-sent from the transcript` })
+  }
+  const images = c['image-degraded']
+  if (images > 0) {
+    rows.push({ n: images, words: `${images === 1 ? 'image becomes' : 'images become'} the words "[image]" — ${toLabel} does not take images` })
+  }
+  const unknown = c['unknown-block-degraded']
+  if (unknown > 0) {
+    rows.push({ n: unknown, words: `${unknown === 1 ? 'block' : 'blocks'} ${toLabel} cannot read ${unknown === 1 ? 'becomes a placeholder' : 'become placeholders'}` })
+  }
+  return rows
+}
+
 export function transitionPlanSummary(plan: TransitionPlan): string {
   if (!plan.needsChoice) return ''
-  const parts: string[] = []
-  const c = plan.counts
-  if (c['thinking-continuity-reset'] > 0) {
-    parts.push(`${c['thinking-continuity-reset']} thinking span(s) reset`)
-  }
-  if (c['stateless-replay-reset'] > 0) {
-    parts.push(`${c['stateless-replay-reset']} continuation record(s) reset`)
-  }
-  if (c['image-degraded'] > 0) {
-    parts.push(`${c['image-degraded']} image(s) degrade to placeholders`)
-  }
-  if (c['unknown-block-degraded'] > 0) {
-    parts.push(`${c['unknown-block-degraded']} unsupported block(s) degrade to placeholders`)
-  }
+  const parts = transitionLossRows(plan).map(row => `${row.n} ${row.words}`)
   if (plan.window !== undefined && !plan.window.fits) {
     const fmt = (n: number): string => n.toLocaleString('en-US')
     parts.push(
       `about ${fmt(plan.window.count)} tokens by Mercury's count against the ${fmt(plan.window.window)}-token window — the conversation folds before the first request`,
     )
   }
-  return ` · this switch: ${parts.join(' · ')} — text and tool results replay exactly (plan ${plan.planDigest.slice(0, 8)})`
+  return ` · this switch: ${parts.join(' · ')} — ${TRANSITION_CARRIED_WORDS}`
 }

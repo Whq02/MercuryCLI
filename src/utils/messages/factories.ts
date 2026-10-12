@@ -77,11 +77,19 @@ export function formatCommandInputTags(commandName: string, args: string): strin
   return parts.join('')
 }
 
-export function createModelSwitchBreadcrumbs(modelArg: string, resolvedDisplay: string): UserMessage[] {
+export type ModelSwitchFacts = { previousModel: string; previousDisplay: string; savedAsDefault: boolean }
+
+export function modelSwitchStdoutText(resolvedDisplay: string, facts?: ModelSwitchFacts): string {
+  if (facts === undefined) return `Model now: ${resolvedDisplay}`
+  const standing = facts.savedAsDefault ? 'saved as your default for new sessions' : 'for this chat only'
+  return `Model now: ${resolvedDisplay} · ${standing} — /model ${facts.previousModel} switches back to ${facts.previousDisplay}`
+}
+
+export function createModelSwitchBreadcrumbs(modelArg: string, resolvedDisplay: string, facts?: ModelSwitchFacts): UserMessage[] {
   const trail = [
     createSyntheticUserCaveatMessage(),
     createUserMessage({ content: formatCommandInputTags('model', modelArg) }),
-    createUserMessage({ content: tagged(LOCAL_COMMAND_STDOUT_TAG, `Model now: ${resolvedDisplay}`) }),
+    createUserMessage({ content: tagged(LOCAL_COMMAND_STDOUT_TAG, modelSwitchStdoutText(resolvedDisplay, facts)) }),
   ]
   return trail.map(row => ({ ...row, isVirtual: true }))
 }
