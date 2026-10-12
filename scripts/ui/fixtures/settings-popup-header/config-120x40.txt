@@ -21,7 +21,7 @@ VITALS                  │ │   Reduced motion                    off         
                         │ │   Patience with a quiet model       normal · idle 6m (quiet 15m) · fallback 15m · retry  │ │
                         │ │   OpenRouter routing policy         n/a — applies to OpenRouter models (Anthropic is     │ │
                         │ │   Shell engine sessions             8 · the conversation + 7 crewmates                   │ │
-                        │ │   Thinking                          off                                                  │ │
+                        │ │   Thinking                          on                                                   │ │
                         │ │   Usage notice to the model         off                                                  │ │
                         │ │   Tool output                       compact                                              │ │
                         │ │   Terminal progress bar             on                                                   │ │
