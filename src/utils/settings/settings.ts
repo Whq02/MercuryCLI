@@ -101,10 +101,10 @@ function readSettingsFileUncached(filePath: string): { settings: SettingsJson | 
   const warnings = filterInvalidPermissionRules(parsed, filePath)
   const result = SettingsSchema().safeParse(parsed)
   if (!result.success) {
-    const salvaged = salvageValidSettings(parsed, result.error)
+    const { settings: salvaged, issues } = salvageValidSettings(parsed, result.error)
     const zodErrors =
       salvaged !== null
-        ? formatZodError(result.error, filePath).map(record => ({ ...record, severity: 'warning' as const }))
+        ? formatZodError({ issues }, filePath).map(record => ({ ...record, severity: 'warning' as const }))
         : formatZodError(result.error, filePath)
     return { settings: salvaged, errors: [...zodErrors, ...warnings, ...(salvaged === null ? [] : unknownKeyWarnings(salvaged, filePath))] }
   }
@@ -113,25 +113,48 @@ function readSettingsFileUncached(filePath: string): { settings: SettingsJson | 
 
 const SALVAGE_REMOVED: unique symbol = Symbol('settings-salvage-removed')
 
-function pruneDeepestAlongPath(root: Record<string, unknown>, path: ReadonlyArray<PropertyKey>): boolean {
-  if (path.length === 0) return false
+function pruneDeepestAlongPath(root: Record<string, unknown>, path: ReadonlyArray<PropertyKey>): { path: PropertyKey[]; arrayElement: boolean } | null {
+  if (path.length === 0) return null
   const chain: Array<{ parent: Record<PropertyKey, unknown> | unknown[]; key: PropertyKey }> = []
   let node: unknown = root
   for (const key of path) {
     if (typeof node !== 'object' || node === null) break
     const container = node as Record<PropertyKey, unknown>
-    if (!(key in container) || container[key] === SALVAGE_REMOVED) break
+    if (container[key] === SALVAGE_REMOVED) return null
+    if (!(key in container)) break
     chain.push({ parent: container as Record<PropertyKey, unknown> | unknown[], key })
     node = container[key]
   }
-  if (chain.length === 0) return false
+  if (chain.length === 0) return null
   const { parent, key } = chain[chain.length - 1] as { parent: Record<PropertyKey, unknown> | unknown[]; key: PropertyKey }
   if (Array.isArray(parent)) {
     parent[key as number] = SALVAGE_REMOVED
   } else {
     delete parent[key]
   }
-  return true
+  return { path: chain.map(link => link.key), arrayElement: Array.isArray(parent) }
+}
+
+function originalSalvagePath(path: ReadonlyArray<PropertyKey>, removed: ReadonlyMap<string, ReadonlySet<number>>): PropertyKey[] {
+  const out: PropertyKey[] = []
+  for (const key of path) {
+    if (typeof key !== 'number') {
+      out.push(key)
+      continue
+    }
+    const gone = removed.get(JSON.stringify(out))
+    let index = key
+    if (gone !== undefined) {
+      let remaining = key
+      index = -1
+      do {
+        index++
+        if (!gone.has(index)) remaining--
+      } while (remaining >= 0)
+    }
+    out.push(index)
+  }
+  return out
 }
 
 function sweepSalvageTombstones(node: unknown): void {
@@ -146,23 +169,60 @@ function sweepSalvageTombstones(node: unknown): void {
   for (const value of Object.values(node)) sweepSalvageTombstones(value)
 }
 
-function salvageValidSettings(parsed: unknown, error: z.ZodError): SettingsJson | null {
-  if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) return null
+type SalvageOutcome = { settings: SettingsJson | null; issues: z.core.$ZodIssue[] }
+
+function salvageValidSettings(parsed: unknown, error: z.ZodError): SalvageOutcome {
+  const voided: SalvageOutcome = { settings: null, issues: error.issues }
+  if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) return voided
   const working = structuredClone(parsed) as Record<string, unknown>
+  const removed = new Map<string, Set<number>>()
+  const named = new Set<string>()
+  const reported: z.core.$ZodIssue[] = []
   let issues = error.issues
   for (let round = 0; round < 8; round++) {
+    for (const issue of issues) {
+      const path = originalSalvagePath(issue.path as ReadonlyArray<PropertyKey>, removed)
+      const key = `${path.join('.')}|${issue.message}`
+      if (named.has(key)) continue
+      named.add(key)
+      reported.push({ ...issue, path })
+    }
+    const removedThisRound: PropertyKey[][] = []
     let prunedAny = false
     for (const issue of issues) {
-      if (issue.path.length === 0) return null
-      if (pruneDeepestAlongPath(working, issue.path as ReadonlyArray<PropertyKey>)) prunedAny = true
+      if (issue.path.length === 0) return voided
+      const pruned = pruneDeepestAlongPath(working, issue.path as ReadonlyArray<PropertyKey>)
+      if (pruned === null) continue
+      prunedAny = true
+      if (pruned.arrayElement) removedThisRound.push(originalSalvagePath(pruned.path, removed))
     }
-    if (!prunedAny) return null
+    if (!prunedAny) return voided
+    for (const path of removedThisRound) {
+      const listKey = JSON.stringify(path.slice(0, -1))
+      let gone = removed.get(listKey)
+      if (gone === undefined) {
+        gone = new Set()
+        removed.set(listKey, gone)
+      }
+      gone.add(path[path.length - 1] as number)
+    }
     sweepSalvageTombstones(working)
     const reparsed = SettingsSchema().safeParse(working)
-    if (reparsed.success) return reparsed.data as SettingsJson
+    if (reparsed.success) return { settings: reparsed.data as SettingsJson, issues: reported.sort((a, b) => compareIssuePaths(a.path, b.path)) }
     issues = reparsed.error.issues
   }
-  return null
+  return voided
+}
+
+function compareIssuePaths(a: ReadonlyArray<PropertyKey>, b: ReadonlyArray<PropertyKey>): number {
+  for (let i = 0; i < Math.min(a.length, b.length); i++) {
+    const left = a[i] as PropertyKey
+    const right = b[i] as PropertyKey
+    if (left === right) continue
+    if (typeof left === 'number' && typeof right === 'number') return left - right
+    return String(left) < String(right) ? -1 : 1
+  }
+  return a.length - b.length
 }
 
 export function parseSettingsFile(filePath: string): { settings: SettingsJson | null; errors: ValidationError[] } {

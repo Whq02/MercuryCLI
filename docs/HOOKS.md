@@ -78,9 +78,13 @@ and may carry:
 - `watch` — `file.changed` only: the files to watch, relative to the project.
 
 An entry with a fault — an unknown field, a wrong type, a field that belongs
-to another kind, a match on an event without one — is named in the session's
-settings notes and dropped whole; the rest of the file applies. An unknown
-event name is a fault like any other.
+to another kind, a match on an event without one — is named where settings
+faults are reported ([SETTINGS.md](SETTINGS.md): the health check's Settings
+row, once in the chat, the headless run's stderr) and dropped whole; the rest
+of the file applies. Every faulty entry is named, each with its path and its
+fault. An unknown event name is a fault like any other. A settings file that
+stops parsing while a session is open keeps its last good hooks in force and
+the chat says so once.
 
 ### Layers
 
