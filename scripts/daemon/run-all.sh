@@ -49,6 +49,7 @@ __t=$SECONDS; __rc=0; "$bun" run "$here/prove-warm-claim-respawn-posture.ts" || 
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-newborn-grace.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-newborn-grace.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-kit-birth.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-kit-birth.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-birth-replay.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-birth-replay.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$bun" run "$here/prove-seat-wait.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-seat-wait.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-runner-quiescence.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-runner-quiescence.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-retire-drive.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-retire-drive.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-capability-census.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-capability-census.ts" "$__t" "$__rc"

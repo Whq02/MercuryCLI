@@ -171,6 +171,7 @@ export type DaemonRequest =
       kitPreset?: string
       bypassConsent?: true
       birthKey?: string
+      waitForSeatMs?: number
     }
   | { op: 'sessionList'; proto: number; auth?: string }
   | { op: 'concourseWithdraw'; proto: number; auth?: string; clientMessageId: string }

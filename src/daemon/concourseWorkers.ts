@@ -67,7 +67,21 @@ export type WorkspaceIsolation = 'exclusive' | 'shared' | 'worktree-isolated' | 
 export interface WorkspaceClaim {
   workspaceId: string
   isolation?: WorkspaceIsolation
+  title?: string
 }
+
+export function seatHoldersWords(live: readonly WorkspaceClaim[], ceiling: number): string {
+  const titles = live.map(claim => claim.title?.trim() ?? '').filter(title => title !== '')
+  const named = titles.slice(0, 3).map(title => `“${title.length > 32 ? `${title.slice(0, 31)}…` : title}”`)
+  const rest = live.length - named.length
+  const holders = named.length === 0 ? '' : ` (${named.join(', ')}${rest > 0 ? ` and ${rest} more` : ''})`
+  return `${live.length} live session${live.length === 1 ? '' : 's'} hold${live.length === 1 ? 's' : ''} the ${ceiling} seat${ceiling === 1 ? '' : 's'}${holders}`
+}
+
+export const SEAT_FREEING_MOVES: readonly ConcourseMoveV1[] = [
+  { verb: 'pause-holder', label: 'stop or park a live session on the Session Concourse to free a seat' },
+  { verb: 'retry', label: 'or raise the ceiling: /seats N in a chat, the Seats row of the Boot Menu or of /config' },
+]
 
 export interface ConcourseMoveV1 {
   verb: 'worktree' | 'read-only' | 'queue' | 'pause-holder' | 'revive' | 'retry' | 'init-git'
@@ -92,10 +106,10 @@ export function evaluateConcourseAdmission(
     return {
       admit: false,
       code: 'runtime-ceiling',
-      reason: `every seat is taken — ${describeSeatReading(ceiling)}`,
+      reason: `every seat is taken — ${seatHoldersWords(live, ceiling)} — ${describeSeatReading(ceiling)}`,
       moves: [
         { verb: 'queue', label: 'it queues and starts when a seat frees' },
-        { verb: 'pause-holder', label: 'or stop a running session to free one' },
+        ...SEAT_FREEING_MOVES,
       ],
     }
   }
@@ -856,7 +870,7 @@ export function makeConcourseAdmitHandler(
       if (standing !== undefined) {
         const others = liveWorkers
           .filter(r => r.runnerId !== standing.runnerId)
-          .map(r => ({ workspaceId: r.workspaceId, isolation: r.isolation }))
+          .map(r => ({ workspaceId: r.workspaceId, isolation: r.isolation, ...(r.title !== undefined ? { title: r.title } : {}) }))
         const reactivated = await reactivateConcourseSession(
           standing,
           {
@@ -880,7 +894,7 @@ export function makeConcourseAdmitHandler(
       r => req.vacatingSessionId === undefined || r.sessionId !== req.vacatingSessionId,
     )
     const resolution = resolveDefaultedAdmission(
-      admissionClaims.map(r => ({ workspaceId: r.workspaceId, isolation: r.isolation })),
+      admissionClaims.map(r => ({ workspaceId: r.workspaceId, isolation: r.isolation, ...(r.title !== undefined ? { title: r.title } : {}) })),
       { workspaceId, ...(req.isolation !== undefined ? { isolation: req.isolation } : {}) },
     )
     if (resolution.kind === 'git-offer') {

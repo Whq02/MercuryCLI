@@ -161,7 +161,9 @@ const sends = [
   after(13000, `${ESC}[1;2D`),
   after(14500, '\r'),
 ]
-const WALL_S = driveWallSeconds(sends, { tailMs: 4500 })
+const SEAT_WAIT_MS = 20_000
+const REFUSED_AT_MS = SEAT_WAIT_MS + 8_000
+const WALL_S = driveWallSeconds(sends, { tailMs: REFUSED_AT_MS })
 const drive = join(captureHome, 'drive.jsonl')
 const nodeBin = spawnSync('which', ['node'], { encoding: 'utf8' }).stdout.trim()
 const child = spawn(
@@ -219,7 +221,7 @@ const sendRecs = recs.filter(r => r.sent !== undefined)
 const at = (i: number): number => Math.round((sendRecs[i]?.sent ?? firstOut) - firstOut)
 check('every send fired (the face painted and took every ↵ and ⇧←)', sendRecs.length === sends.length, `${sendRecs.length}/${sends.length}${sendRecs.length < sends.length ? ` · ${unfiredDetail(driverOut)}` : ''}`)
 if (sendRecs.length === sends.length) {
-  const res = spawnSync(driver.python, [join(REPO, 'scripts', 'streaming', 'screengrab.py'), drive, '120', '40', String(at(0) + 9500), String(at(3) + 4500), '-1'], { encoding: 'utf8', timeout: vshotBudgetMs(120_000), maxBuffer: 256 * 1024 * 1024 })
+  const res = spawnSync(driver.python, [join(REPO, 'scripts', 'streaming', 'screengrab.py'), drive, '120', '40', String(at(0) + 9500), String(at(3) + REFUSED_AT_MS), '-1'], { encoding: 'utf8', timeout: vshotBudgetMs(120_000), maxBuffer: 256 * 1024 * 1024 })
   if (res.status !== 0) {
     console.error(`screengrab failed: ${res.stderr}`)
     process.exit(1)
@@ -228,7 +230,8 @@ if (sendRecs.length === sends.length) {
   const [chatFrame, refusedFrame, finalFrame] = screens
   const t = (g: { rows: string[] }): string => g.rows.join('\n')
   check('the keyless birth ENTERED the chat: the cockpit painted with the composer open (the keyless home rides the neutral default; no gate, no refusal naming a family)', /\? for shortcuts/.test(t(chatFrame)) && /Type a prompt/.test(t(chatFrame)) && !/no-credential:anthropic/.test(t(chatFrame)) && !/\/logins/.test(t(chatFrame)), chatFrame.rows.filter(r => r.trim().length > 0).slice(-6).map(r => r.trim().slice(0, 100)).join(' | '))
-  check('the second ↵ was refused after the flip and the face returned wearing the receipt (the cause named: the seat)', /the chat could not start/.test(t(refusedFrame)) && /seat/i.test(t(refusedFrame)) && /↑↓ choose|New Session/.test(t(refusedFrame)), refusedFrame.rows.filter(r => r.trim().length > 0).slice(-4).map(r => r.trim().slice(0, 110)).join(' | '))
+  check('the second ↵ waited for a seat and, none freeing, the face returned wearing the receipt (the cause named: the seat)', /the chat could not start/.test(t(refusedFrame)) && /seat/i.test(t(refusedFrame)) && /↑↓ choose|New Session/.test(t(refusedFrame)), refusedFrame.rows.filter(r => r.trim().length > 0).slice(-4).map(r => r.trim().slice(0, 110)).join(' | '))
+  check('…and the receipt says what frees a seat, levers first: stop or park a session on the Session Concourse, or /seats N', /stop or park a session on the Session Concourse/.test(t(refusedFrame)) && /\/seats N/.test(t(refusedFrame)), refusedFrame.rows[refusedFrame.rows.length - 1]?.trim().slice(0, 120) ?? '')
   check('the face keeps the receipt on its last row at the end', /the chat could not start/.test(t(finalFrame)), finalFrame.rows[finalFrame.rows.length - 1]?.trim().slice(0, 110) ?? '')
   const milestonesPath = join(configDir, 'launch-milestones.json')
   const rows = existsSync(milestonesPath)

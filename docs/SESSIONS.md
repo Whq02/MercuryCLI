@@ -66,6 +66,11 @@ repository's MCPs & Skills record — or the preset armed on the face — and
 the launch receipt names which ([KIT.md](KIT.md)). The board's own `+ new session · n`
 tab, at the right end of its SESSIONS title, is the same birth from the
 board: a blank session in the project the board shows, focused at once.
+When every seat is taken, the birth waits up to 20 seconds for one to free
+and starts by itself when it does; otherwise the face comes back with the
+reason — how many live sessions hold the seats, and what frees one: stop or
+park a session on the Session Concourse, or raise the ceiling with `/seats N`
+— and ↵ waits again.
 The board's door row — the empty board's entry, and the first row above the
 sessions once there are any — names the model and the effort the next
 session starts on; with that row under the cursor the bottom row offers `m
