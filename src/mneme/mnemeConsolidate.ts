@@ -166,6 +166,7 @@ function pidAlive(pid: number): boolean {
 export function acquireConsolidateLock(dir: string): boolean {
   const lock = join(dir, '.consolidate.lock')
   const take = (): boolean => {
+    mkdirSync(dir, { recursive: true })
     mkdirSync(lock)
     try {
       writeFileSync(join(lock, 'pid'), String(process.pid), 'utf8')

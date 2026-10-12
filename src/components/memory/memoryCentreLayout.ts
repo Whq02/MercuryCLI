@@ -249,7 +249,7 @@ export function maintenanceRow(m: OverviewFacts['maintenance']): OverviewRow {
     id: 'maintenance',
     section: 'maintenance',
     count: m.receipts.length === 0 ? 'none' : plural(m.receipts.length, 'run'),
-    newest: humanStamp(m.lastConsolidatedAt),
+    newest: humanStamp(last?.ts ?? m.lastConsolidatedAt),
     state,
     detail: `${m.due ? `due — ${m.dueReason ?? 'work is waiting'} · ` : ''}${lastWords}${degraded}`,
     action: 'run now',
