@@ -30,6 +30,7 @@ for proof in \
   prove-lineage-retention-zero.ts \
   prove-exit-handoff.ts \
   prove-ephemeral-leaves-nothing.ts \
+  prove-entry-page-journal-label.ts \
 ; do
   echo "── $proof"
   __t=$SECONDS; __rc=0; if ! { "$BUN" run "$here/$proof"; __rc=$?; [ "$__rc" -eq 0 ]; }; then
