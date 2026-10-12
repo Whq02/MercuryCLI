@@ -29,6 +29,7 @@ for proof in \
   prove-handoff-verbatim.ts \
   prove-lineage-retention-zero.ts \
   prove-exit-handoff.ts \
+  prove-ephemeral-leaves-nothing.ts \
 ; do
   echo "── $proof"
   __t=$SECONDS; __rc=0; if ! { "$BUN" run "$here/$proof"; __rc=$?; [ "$__rc" -eq 0 ]; }; then

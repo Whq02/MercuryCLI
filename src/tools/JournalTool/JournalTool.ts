@@ -3,7 +3,7 @@ import { buildTool, type ToolDef } from '../../Tool.js'
 import { getSessionId } from '../../bootstrap/state.js'
 import { JOURNAL_ENTRY_CAP, journalEnabled, stageJournalEntry, type JournalStageOutcome } from '../../mneme/journal.js'
 import { lazySchema } from '../../utils/lazySchema.js'
-import { JOURNAL_DESCRIPTION, JOURNAL_PROMPT, JOURNAL_TOOL_NAME } from './prompt.js'
+import { JOURNAL_DESCRIPTION, JOURNAL_ENTRY_SHAPE, JOURNAL_PROMPT, JOURNAL_TOOL_NAME } from './prompt.js'
 import { renderJournalResult, renderJournalToolUse } from './UI.js'
 
 const journalSchema = lazySchema(() =>
@@ -11,7 +11,7 @@ const journalSchema = lazySchema(() =>
     entry: z
       .string()
       .describe(
-        `A brief entry: where the project is, what the queued backlog is, and constraints set by the operator. Plain words, concise, no longer than a sentence (under ${JOURNAL_ENTRY_CAP} characters).`,
+        `A brief entry: ${JOURNAL_ENTRY_SHAPE} Under ${JOURNAL_ENTRY_CAP} characters.`,
       ),
   }),
 )
