@@ -30,6 +30,7 @@ import {
   installPayload,
   listInstalledVersions,
   pathEntryEquals,
+  PointerHeldError,
   readCurrentVersion,
   readCurrentVersionState,
   readPreviousVersion,
@@ -449,6 +450,9 @@ async function acquireAndActivate(
     try {
       previous = switchCurrent(roots, check.version).previous
     } catch (e) {
+      if (e instanceof PointerHeldError) {
+        return { state: 'refused', stage: 'pointer', reason: `pointer selection failed: ${e.message}`, remedy: `the active installation is unchanged; ${e.remedy}`, retryable: true }
+      }
       return {
         state: 'refused',
         stage: 'pointer',
