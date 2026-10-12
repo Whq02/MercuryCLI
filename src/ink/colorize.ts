@@ -95,21 +95,20 @@ export function monochromeThemeActive(): boolean {
 export function setMonochromeTheme(on: boolean): boolean {
   if (on === monochromeTheme) return false
   monochromeTheme = on
-  chalk.level = on ? 0 : DETECTED_CHALK_LEVEL
   instances.get(process.stdout)?.invalidatePrevFrame()
   return true
 }
 
 export function colorStripped(): boolean {
-  return chalk.level === 0
+  return monochromeTheme || chalk.level === 0
 }
 
 export function paletteCollapsed(): boolean {
-  return chalk.level <= 1
+  return monochromeTheme || chalk.level <= 1
 }
 
 export function truecolorActive(): boolean {
-  return chalk.level >= 3
+  return !monochromeTheme && chalk.level >= 3
 }
 
 export function colorDepthWhy(): string {
@@ -161,7 +160,7 @@ export function colorize(
   color: Color | string | undefined,
   type: ColorType,
 ): string {
-  if (MERCURY_HONORS_NO_COLOR) return str
+  if (MERCURY_HONORS_NO_COLOR || monochromeTheme) return str
   if (!color) return str
   if (color.startsWith('ansi:')) {
     const painter = NAMED_PAINTERS[color.slice('ansi:'.length)]
