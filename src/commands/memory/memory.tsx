@@ -105,6 +105,7 @@ export function MemoryPopupBody({
 }): React.ReactNode {
   const frame = useSettingsPopupFrame()
   const [route, setRoute] = useState<MemoryRoute>(initialRoute)
+  const [returnRow, setReturnRow] = useState<string | null>(null)
   useLayoutEffect(() => {
     frame.setOwnsEscape(true)
     return () => frame.setOwnsEscape(false)
@@ -121,7 +122,11 @@ export function MemoryPopupBody({
     return (
       <MemoryCentreView
         onClose={() => close()}
-        onOpenFiles={() => setRoute('files')}
+        onOpenFiles={() => {
+          setReturnRow('files')
+          setRoute('files')
+        }}
+        initialRow={returnRow}
         onOpenFile={path => {
           void openMemoryFile(path, (text, options) => close(text, options))
         }}

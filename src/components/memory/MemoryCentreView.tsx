@@ -398,6 +398,7 @@ export function MemoryCentreView({
   onClose,
   onOpenFiles,
   onOpenFile,
+  initialRow = null,
   width = MEMORY_DEFAULT_INNER,
   rowBudget = MEMORY_DEFAULT_ROWS,
   onHint,
@@ -405,6 +406,7 @@ export function MemoryCentreView({
   onClose: () => void
   onOpenFiles?: () => void
   onOpenFile?: (path: string) => void
+  initialRow?: string | null
   width?: number
   rowBudget?: number
   onHint?: (hint: string) => void
@@ -419,7 +421,7 @@ export function MemoryCentreView({
   const [pageOffset, setPageOffset] = React.useState(0)
   const [correcting, setCorrecting] = React.useState<{ seq: number; buffer: string } | null>(null)
   const [armed, setArmed] = React.useState<number | null>(null)
-  const cameFromRef = React.useRef<string | null>(null)
+  const cameFromRef = React.useRef<string | null>(initialRow)
   const inner = Math.max(20, width)
   const textWidth = Math.max(8, inner - 2)
   const detailLines = React.useMemo(() => (detail ? factPageLines(detail, textWidth) : []), [detail, textWidth])
