@@ -16,7 +16,7 @@ async function main(): Promise<void> {
 
   const args = process.argv.slice(2)
 
-  if (args.length === 1 && (args[0] === '--version' || args[0] === '-v' || args[0] === '-V')) {
+  if (args.length === 1 && (args[0] === '--version' || args[0] === '-v' || args[0] === '-V' || args[0] === 'version')) {
     console.log(`Mercury ${MACRO.VERSION}`)
     return
   }

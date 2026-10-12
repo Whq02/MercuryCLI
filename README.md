@@ -652,6 +652,9 @@ Available commands include:
 - **`mercury image <image>`**: display an image in the terminal.
 - **`mercury install`** and **`mercury update`** (alias `upgrade`): install or
   update release archives. See [Install](#install).
+- **`mercury version`** and **`mercury help [command]`**: print the version
+  line or a help page, the same as `--version` and `--help`; neither starts a
+  session.
 
 ## What is inside
 
