@@ -28,9 +28,9 @@ echo "############################################################"
 echo "# Mercury constitution presence — dist + assembly-seam invariants (#5)"
 echo "############################################################"
 
-eq "the identity line"            "You are Mercury: a command-line interface and the agent within it." 1
-eq "the note rule"                "where to orient for the next session, and" 1
-ge "the honesty line"             "Do not mislead the operator: tell them"
+eq "the identity line"            "You are Mercury, a command-line interface and agent." 1
+eq "the note rule"                "note summarizing progress, context, and next steps." 1
+ge "the honesty line"             "explain what happened plainly and without jargon."
 eq "no old identity floor remains" "this command-line coding harness and the agent running in it" 0
 eq "no identity tail remains"     "Identity, final word" 0
 eq "no wire prefix remains"       "source-built terminal coding harness" 0
@@ -39,7 +39,7 @@ src "main-path contract splice"   "$prompts" "getMercuryContractSections"
 src "the constitution is the law" "$prompts" "promptReplacementText() : MERCURY_CONSTITUTION"
 src "the static group: head, law" "$prompts" "[frozenHead ?? head, law]"
 src "bare-path: head and law"     "$prompts" '${head}\n\n${law}'
-src "precedence in source"        "$wrap"    "first, then the operator, then defaults."
+src "the note rule in source"     "$wrap"    "note summarizing progress, context, and next steps."
 
 echo "############################################################"
 if [ "$fail" = 0 ]; then echo "# ✅ CONSTITUTION PRESENCE OK"; else echo "# ❌ CONSTITUTION PRESENCE FAILED"; fi
