@@ -6,7 +6,7 @@ NEXT                    │ │ project · 65 settings · 0 set by you          
   · /workflows — agent …│ │                                                                                          │ │
   · /health — health ce…│ │ / theme                                                                                  │ │
   · /memory — memory    │ │                                                                                          │ │
-  · /mission — set a mi…│ │ › Theme                             Dark                                                 │ │
+  · /mission — set a mi…│ │ › Theme                             Oasis dark                                           │ │
                         │ │                                                                                          │ │
 FILES · project         │ │                                                                                          │ │
   ↵ or click · browse   │ │                                                                                          │ │

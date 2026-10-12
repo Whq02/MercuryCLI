@@ -18,6 +18,8 @@ const KEEP = process.argv.includes('--keep')
 const RECORD = process.argv.includes('--record')
 const FRAMES = join(import.meta.dir, 'fixtures', 'file-cards')
 if (RECORD) mkdirSync(FRAMES, { recursive: true })
+const frameDir = process.argv.includes('--frames') ? process.argv[process.argv.indexOf('--frames') + 1] : undefined
+if (frameDir) mkdirSync(frameDir, { recursive: true })
 
 let failures = 0
 let checks = 0
@@ -242,6 +244,7 @@ for (const scene of SCENES) {
     if (scene.noRowLike) check(`${scene.id}: no row of the card reads as a deleted line`, !body.some(r => scene.noRowLike!.test(r)), body.filter(r => scene.noRowLike!.test(r)).join(' | '))
     const stored = join(FRAMES, `${scene.id}-100x30.txt`)
     if (RECORD) writeFileSync(stored, trimRows(body))
+    if (frameDir) writeFileSync(join(frameDir, `${scene.id}-100x30.txt`), trimRows(body))
     check(`${scene.id}: the card rows equal the stored frame ${stored.replace(`${import.meta.dir}/`, '')}`, existsSync(stored) && readFileSync(stored, 'utf8') === trimRows(body), existsSync(stored) ? 'rows differ' : 'no stored frame — run with --record')
   }
   const [final] = grabScreens(run, 100, 30, [-1])
@@ -273,6 +276,7 @@ for (const scene of ROW_SCENES) {
   const pane = (r: string): string => r.replace(/\s*│\s*$/, '').replace(/^.*?│ ?/, '').replace(/^│ ?/, '').trimEnd()
   const rowsOfInterest = rows.filter((r, i) => r.includes('▲ ') || r.includes('▨ Update') || (i > 0 && rows[i - 1]!.includes('▲ ') && pane(r).trim() !== '')).map(pane)
   if (RECORD) writeFileSync(stored, rowsOfInterest.join('\n') + '\n')
+  if (frameDir) writeFileSync(join(frameDir, `${scene.id}-110x40.txt`), rowsOfInterest.join('\n') + '\n')
   check(`${scene.id}: the error rows equal the stored frame ${stored.replace(`${import.meta.dir}/`, '')}`, existsSync(stored) && readFileSync(stored, 'utf8') === rowsOfInterest.join('\n') + '\n', existsSync(stored) ? `rows differ: ${rowsOfInterest.join(' | ')}` : 'no stored frame — run with --record')
   if (!KEEP) run.cleanup()
 }
