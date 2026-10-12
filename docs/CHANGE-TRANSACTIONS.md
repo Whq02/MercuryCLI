@@ -143,6 +143,18 @@ extension, a dotfile, a suffix it does not know, a script whose first line
 names no language it knows) land byte for byte, a comment block inside a
 code file included.
 
+A write preserves what it did not change. Edit, Write and ChangeSet read
+the file's shape before writing it back: every untouched line keeps its
+own terminator, so a mixed file stays mixed and a CRLF file stays CRLF
+whatever spelling the model's text arrived in; a line the change adds takes
+the file's majority ending; a file that does not end with a newline keeps
+ending without one, an append included, and one that does keeps its final
+newline; a byte-order mark stays, a change on the first line included. A
+one-word change through any of the three is a one-line diff. Write on an
+existing file therefore takes its line endings from the file, never from
+the content: the same lines in another spelling settle as no change.
+Changing a file's line endings is a shell command's job.
+
 ## Change receipts
 
 Every mutation-shaped tool call lands exactly one receipt: the intent (what

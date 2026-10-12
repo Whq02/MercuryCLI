@@ -2,6 +2,7 @@
 import { createHash } from 'node:crypto'
 import { lstatSync, readFileSync, realpathSync } from 'node:fs'
 import { basename, dirname, join } from 'node:path'
+import { preserveUntouchedLineEndings } from '../../utils/file.js'
 import { detectLineEndingsForString } from '../../utils/fileRead.js'
 import { expandPath } from '../../utils/path.js'
 import {
@@ -57,7 +58,11 @@ export function plannedDiskBytes(
   plannedContent: string,
   encoding: BufferEncoding,
   lineEndings: 'CRLF' | 'LF',
+  rawText?: string,
 ): Buffer {
+  if (rawText !== undefined) {
+    return Buffer.from(preserveUntouchedLineEndings(rawText, plannedContent, lineEndings), encoding)
+  }
   let out = plannedContent
   if (lineEndings === 'CRLF') {
     out = plannedContent.replaceAll('\r\n', '\n').split('\n').join('\r\n')
@@ -306,6 +311,8 @@ export function planChangeSet(
     const rawText = raw.toString(encoding)
     const lineEndings = detectLineEndingsForString(rawText.slice(0, 4096))
     const content = rawText.replaceAll('\r\n', '\n')
+    const bom = content.charCodeAt(0) === 0xfeff ? content.charAt(0) : ''
+    const body = content.slice(bom.length)
 
     const anchorCheck = checkAnchor(member.expected_anchor, content, member.file_path)
     if (!anchorCheck.ok) {
@@ -327,13 +334,13 @@ export function planChangeSet(
     } else if (member.hunks.length === 0) {
       plannedContent = content
     } else {
-      const hunkPlan = planHunks(content, member.hunks, member.expected_anchor)
+      const hunkPlan = planHunks(body, member.hunks, member.expected_anchor)
       if (!hunkPlan.ok) {
         failures.push({ path: member.file_path, code: 'hunks', message: hunkPlan.message })
         continue
       }
       hunkSpans = hunkPlan.spans
-      plannedContent = applyHunks(content, hunkPlan)
+      plannedContent = bom + applyHunks(body, hunkPlan)
     }
     if (ctx.seenLinesCheck && hunkSpans.length > 0) {
       const seen = ctx.seenLinesCheck(
@@ -346,7 +353,7 @@ export function planChangeSet(
       }
     }
     const plannedBytes =
-      memberOp === 'delete' ? Buffer.alloc(0) : plannedDiskBytes(plannedContent, encoding, lineEndings)
+      memberOp === 'delete' ? Buffer.alloc(0) : plannedDiskBytes(plannedContent, encoding, lineEndings, rawText)
     stagedBytes += raw.length + plannedBytes.length
     if (stagedBytes > CHANGESET_BOUNDS.maxStagedBytes) {
       return refusal(

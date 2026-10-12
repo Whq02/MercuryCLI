@@ -70,11 +70,11 @@ const RECEIPT = '# Receipt\n\n## Scope\n\n- one\n\n## Checks\n\n- typecheck 0\n-
 
 section('P. the pure planner')
 check('P1 append after a final newline', planAppend('a\n', 'b\n') === 'a\nb\n')
-check('P2 append supplies the separator and final newline', planAppend('a', 'b') === 'a\nb\n')
+check('P2 append supplies the separator and keeps the file\'s trailing-newline state: a file with none ends bare', planAppend('a', 'b') === 'a\nb')
 for (const before of ['a\n', 'a', '']) {
   for (const text of ['b', 'b\n']) {
-    const expected = `${before === '' ? '' : 'a\n'}b\n`
-    check(`P2a append terminates exactly once: ${JSON.stringify({ before, text })}`, planAppend(before, text) === expected, JSON.stringify(planAppend(before, text)))
+    const expected = before === '' ? 'b\n' : before === 'a' ? 'a\nb' : 'a\nb\n'
+    check(`P2a append terminates as the file does: ${JSON.stringify({ before, text })}`, planAppend(before, text) === expected, JSON.stringify(planAppend(before, text)))
   }
 }
 check('P3 append to an empty file is the text', planAppend('', 'b\n') === 'b\n')
@@ -128,9 +128,9 @@ section('L. append and section through the tool')
       const target = join(fixtures, `append-ending-${index}-${ending}.txt`)
       writeFileSync(target, before)
       const result = await edit({ file_path: target, append: text }, makeContext())
-      const expected = `${before === '' ? '' : 'a\n'}b\n`
+      const expected = before === '' ? 'b\n' : before === 'a' ? 'a\nb' : 'a\nb\n'
       const actual = readFileSync(target, 'utf8')
-      check(`L0 append ends on exactly one newline: ${JSON.stringify({ before, text })}`, result.ok && actual === expected, result.ok ? JSON.stringify(actual) : result.error)
+      check(`L0 append ends as the file did (one newline, or none when the file had none): ${JSON.stringify({ before, text })}`, result.ok && actual === expected, result.ok ? JSON.stringify(actual) : result.error)
     }
   }
   const fresh = join(fixtures, 'new-receipt.md')
@@ -142,7 +142,7 @@ section('L. append and section through the tool')
   check('L3 …with the append mode named in the effect', extended.ok && String(extended.effect.evidence).startsWith('append mode'))
   writeFileSync(fresh, '# Receipt\n- first')
   const noNl = await edit({ file_path: fresh, append: '- second\n' }, makeContext())
-  check('L4 append after a file with no final newline starts its own line', noNl.ok && readFileSync(fresh, 'utf8') === '# Receipt\n- first\n- second\n')
+  check('L4 append after a file with no final newline starts its own line and keeps the file without one', noNl.ok && readFileSync(fresh, 'utf8') === '# Receipt\n- first\n- second')
 
   const receipt = join(fixtures, 'receipt.md')
   writeFileSync(receipt, RECEIPT)
