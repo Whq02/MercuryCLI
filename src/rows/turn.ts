@@ -34,7 +34,9 @@ import { registerRunStopGuard } from '../guards/runStop.js'
 import { lastAssistantText } from '../guards/runStopAdapter.js'
 import { registerWardsGuard } from '../guards/wardsGuard.js'
 import { parseBlockerDeclaration } from '../services/run/blockerDeclaration.js'
-import { getInMemoryErrors, logError } from '../utils/log.js'
+import { askNobodyAnswered, unansweredAsksBlocker } from '../services/run/unansweredAsk.js'
+import type { PermissionDecision } from '../types/permissions.js'
+import { getInMemoryErrors, logError, withoutStackFrames } from '../utils/log.js'
 import { normalizeMessages } from '../utils/messages.js'
 import { isNotEmptyMessage } from '../utils/messages/text.js'
 import { NO_CONTENT_MESSAGE } from '../constants/messages.js'
@@ -260,6 +262,7 @@ export class Conversation {
   private readonly loadedNestedMemoryPaths = new Set<string>()
   private readonly discoveredSkillNames = new Set<string>()
   private readonly denials: Denial[] = []
+  private readonly unansweredAsks = new Set<string>()
   private accumulatedUsage: NonNullableUsage = { ...EMPTY_USAGE }
   private readonly streamFoldedIds = new Set<string>()
   private readonly settledUsageById = new Map<string, NonNullableUsage>()
@@ -359,8 +362,11 @@ export class Conversation {
       toolUseID: string,
       forceDecision?: unknown,
     ) => {
-      const decision = await (config.canUseTool as (...args: unknown[]) => Promise<{ behavior?: string }>)(tool, input, toolUseContext, assistantMessage, toolUseID, forceDecision)
-      if (decision?.behavior !== 'allow') this.denials.push({ tool: tool.name, call_id: toolUseID, input })
+      const decision = await (config.canUseTool as (...args: unknown[]) => Promise<PermissionDecision>)(tool, input, toolUseContext, assistantMessage, toolUseID, forceDecision)
+      if (decision?.behavior !== 'allow') {
+        this.denials.push({ tool: tool.name, call_id: toolUseID, input })
+        if (askNobodyAnswered(decision)) this.unansweredAsks.add(toolUseID)
+      }
       return decision
     }) as CanUseTool
 
@@ -1044,12 +1050,17 @@ export class Conversation {
         yield* endTurn('blocked', { answer, error: { message: `Blocked on the operator: ${blocker.description}`, class: 'blocked', detail: [`resume when: ${blocker.resumeCondition}`] } })
         return
       }
+      const unanswered = this.denials.slice(denialsBefore).filter(denial => this.unansweredAsks.has(denial.call_id))
+      if (unanswered.length > 0) {
+        yield* endTurn('blocked', { answer, error: unansweredAsksBlocker([...new Set(unanswered.map(denial => denial.tool))]) })
+        return
+      }
       yield* endTurn('completed', { answer, ...(this.structuredOutput !== undefined ? { structured: this.structuredOutput } : {}) })
       return
     }
     const allErrors = getInMemoryErrors()
     const watermarkIndex = errorWatermark ? allErrors.indexOf(errorWatermark) : -1
-    const turnErrors = allErrors.slice(watermarkIndex + 1).map(entry => entry.error)
+    const turnErrors = allErrors.slice(watermarkIndex + 1).map(entry => withoutStackFrames(entry.error))
     const errorClass: ErrorClass = settled.errorClass ?? (settled.status === 'interrupted' ? 'interrupt' : 'internal')
     let message: string
     if (settled.status === 'interrupted') {

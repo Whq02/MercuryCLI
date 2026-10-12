@@ -5,11 +5,12 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { DIST, NODE, childEnv, makeTally } from '../daemon/dupline-world.ts'
 import { seedFirstRun } from '../lib/firstRunSeed.ts'
-import { answerOf, frameLines, isCompleted } from '../lib/rows.ts'
+import { frameLines, isOutcome, outcomeError } from '../lib/rows.ts'
 
 const tally = makeTally('prove-retired-cli-flags')
 const root = mkdtempSync(join(tmpdir(), 'retired-cli-flags-'))
 const nonsense = '--frobnicate'
+const UNKNOWN_SENTENCE = 'Unknown command: /nosuchcommandxyz · /help lists commands'
 const former = [['--t', 'eam-name'].join(''), ['--crew', '-name'].join(''), ['--agent', '-name'].join(''), ['--agent', '-id'].join(''), ['--seat', '-id'].join(''), '--seat', '--crew', ['--seat', '-color'].join(''), '--parent', '--role']
 let run = 0
 
@@ -22,9 +23,9 @@ function launch(flag: string, format: string | null, inline: boolean) {
   const result = spawnSync(NODE, [DIST, 'run', '/nosuchcommandxyz', ...(flag === '' ? [] : inline ? [`${flag}=y`] : [flag, 'y']), ...(format === null ? [] : ['--format', format])], {
     cwd, env, encoding: 'utf8', timeout: 45_000, stdio: ['ignore', 'pipe', 'pipe'],
   })
-  let words = (result.stdout ?? '').trim()
-  if (format !== null) words = answerOf(frameLines(words).find(isCompleted))
   const stderr = result.stderr ?? ''
+  let words = (result.stdout ?? '').trim()
+  if (format !== null) words = outcomeError(frameLines(words).find(isOutcome)) ?? ''
   return { code: result.status, words, stderr, firstLine: stderr.trim().split('\n')[0] ?? '', error: result.error?.message }
 }
 
@@ -32,7 +33,7 @@ try {
   for (const format of [null, 'json', 'rows']) {
     const label = format ?? 'text'
     const bare = launch('', format, false)
-    tally.check(`${label}: with no identity flag at all the run reaches the unknown skill`, bare.code === 0 && bare.words === 'Unknown skill: nosuchcommandxyz', JSON.stringify(bare))
+    tally.check(`${label}: with no identity flag at all the run reaches the unknown-command refusal (exit 1, the cockpit's sentence)`, bare.code === 1 && (format === null ? bare.words === '' && bare.firstLine === UNKNOWN_SENTENCE : bare.words === UNKNOWN_SENTENCE), JSON.stringify(bare))
     for (const inline of [false, true]) {
       const shape = inline ? 'equals' : 'separate'
       const control = launch(nonsense, format, inline)

@@ -74,6 +74,10 @@ export function getInMemoryErrors(): { error: string; timestamp: string }[] {
   return [...inMemoryErrors]
 }
 
+export function withoutStackFrames(text: string): string {
+  return text.split('\n').filter(line => !/^\s+at (?:async )?\S/.test(line)).join('\n')
+}
+
 export function logMCPError(serverName: string, error: unknown): void {
   try {
     queueOrDispatch({ kind: 'mcpError', serverName, error })

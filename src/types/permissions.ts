@@ -68,7 +68,7 @@ export type PermissionAskDecision<ToolInput = Record<string, unknown>> = Answere
   Reasoned & Steered & { message: string; updatedInput?: ToolInput; metadata?: PermissionMetadata; contentBlocks?: unknown[] }
 >
 
-export type PermissionDenyDecision = Answered<'deny', { message: string; decisionReason: PermissionDecisionReason; toolUseID?: string }>
+export type PermissionDenyDecision = Answered<'deny', { message: string; decisionReason: PermissionDecisionReason; toolUseID?: string; unanswered?: true }>
 
 export type PermissionDecision<ToolInput = Record<string, unknown>> =
   | PermissionAllowDecision<ToolInput>

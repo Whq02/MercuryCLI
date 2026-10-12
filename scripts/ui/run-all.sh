@@ -21,7 +21,7 @@
 # gate-watch: scripts/navigation/fixture1k.ts scripts/notifications/concourseReferenceSeed.ts
 # gate-watch: scripts/ops/launcher-mercury.sh
 # gate-watch: scripts/provider-compat/fixtures/huggingface-models-2026-08-22.json
-# gate-watch: scripts/release/launcherTemplates.mjs scripts/render-continuity/lib/attrgrab.py
+# gate-watch: scripts/release/launcherTemplates.mjs package.json scripts/render-continuity/lib/attrgrab.py
 # gate-watch: scripts/search/lib/bundle-for-node.ts scripts/streaming/artifactArena.ts
 # gate-watch: scripts/streaming/screengrab.py scripts/voice/fixtures/on-device-take.wav
 # gate-watch: scripts/voice/voice-transcriber-fixture-server.ts
