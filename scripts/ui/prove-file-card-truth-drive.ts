@@ -129,6 +129,22 @@ SCENES.push({
   disk: cwd => readFileSync(join(cwd, 'MERCURY.md'), 'utf8') === `# MERCURY.md\nStanding orders for the Mercury harness in this repository.\n\n- ${FIRST_RULE}\n- ${RULE}\n`,
 })
 
+type RowScene = { id: string; seed: Record<string, string>; turns: (cwd: string) => ScriptedTurn[]; mustShow: string[]; mustNotShow: string[] }
+const ROW_SCENES: RowScene[] = [
+  {
+    id: 'error-row',
+    seed: { 'calc.py': 'def add(a, b):\n    return a + b\n' },
+    turns: cwd => [
+      { kind: 'tool_use', preText: 'Editing without a read.\n', name: 'Edit', input: { file_path: join(cwd, 'calc.py'), old_string: 'return a + b', new_string: 'return a - b' } },
+      { kind: 'tool_use', preText: 'Reading it.\n', name: 'Read', input: { file_path: join(cwd, 'calc.py') } },
+      { kind: 'tool_use', preText: 'Editing a line that is not there.\n', name: 'Edit', input: { file_path: join(cwd, 'calc.py'), old_string: 'return a * b', new_string: 'return a - b' } },
+      { kind: 'text', text: 'Done.' },
+    ],
+    mustShow: ['▲ Read the file before editing it — it exists and was not read in this', "session, so it may be another session's work", '▲ The old_string was not found in the file.'],
+    mustNotShow: ['▲ Error editing file'],
+  },
+]
+
 const rowsHaving = (rows: string[], needle: string): boolean => rows.some(r => r.includes(needle))
 const cardRows = (rows: string[]): string[] => {
   const start = rows.findIndex(r => r.includes('⦿ '))
@@ -175,6 +191,33 @@ for (const scene of SCENES) {
   const [final] = grabScreens(run, 100, 30, [-1])
   check(`${scene.id}: the turn settled`, rowsHaving(final!.rows, 'Done.'), final!.rows.slice(-8).join(' | '))
   if (scene.disk) check(`${scene.id}: the disk holds what the card said`, scene.disk(run.paths.cwd))
+  if (!KEEP) run.cleanup()
+}
+
+for (const scene of ROW_SCENES) {
+  if (ONLY && !ONLY.has(scene.id)) continue
+  section(`${scene.id} — a refused edit's transcript row carries the reason in the tool's own words`)
+  const run = await runArtifactArena({
+    cols: 110,
+    rows: 40,
+    turns: scene.turns,
+    seedCwd: scene.seed,
+    sends: ['after:Type a prompt:300:hello', 'after:hello:400:\\r'],
+    seconds: 18,
+    keep: true,
+  })
+  const [final] = grabScreens(run, 110, 40, [-1])
+  const rows = final!.rows.map(r => r.replace(/\s+$/, ''))
+  printFrame(`${scene.id} final at 110x40`, rows)
+  const joined = rows.join('\n')
+  check(`${scene.id}: the turn settled`, rowsHaving(rows, 'Done.'), run.driverOut.slice(-300))
+  for (const needle of scene.mustShow) check(`${scene.id}: a row reads "${needle}"`, joined.includes(needle), joined.slice(-900))
+  for (const needle of scene.mustNotShow) check(`${scene.id}: no row reads "${needle}" (RED on the base: the bare line, no reason)`, !joined.includes(needle), joined.slice(-900))
+  const stored = join(FRAMES, `${scene.id}-110x40.txt`)
+  const pane = (r: string): string => r.replace(/\s*│\s*$/, '').replace(/^.*?│ ?/, '').replace(/^│ ?/, '').trimEnd()
+  const rowsOfInterest = rows.filter((r, i) => r.includes('▲ ') || r.includes('▨ Update') || (i > 0 && rows[i - 1]!.includes('▲ ') && pane(r).trim() !== '')).map(pane)
+  if (RECORD) writeFileSync(stored, rowsOfInterest.join('\n') + '\n')
+  check(`${scene.id}: the error rows equal the stored frame ${stored.replace(`${import.meta.dir}/`, '')}`, existsSync(stored) && readFileSync(stored, 'utf8') === rowsOfInterest.join('\n') + '\n', existsSync(stored) ? `rows differ: ${rowsOfInterest.join(' | ')}` : 'no stored frame — run with --record')
   if (!KEEP) run.cleanup()
 }
 
