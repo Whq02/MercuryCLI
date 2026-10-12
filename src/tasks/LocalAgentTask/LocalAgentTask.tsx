@@ -722,6 +722,7 @@ function emitSettleFrame(task: LocalAgentTaskState, status: 'completed' | 'faile
   emitTaskEnded(task.id, status, {
     ...(task.toolUseId !== undefined ? { toolUseId: task.toolUseId } : {}),
     summary: task.description,
+    settle: true,
   })
 }
 

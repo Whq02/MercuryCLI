@@ -170,7 +170,7 @@ section('§6 — seam ratchets: the consumers consume the plan')
   const agentTool = src('tools', 'AgentTool', 'AgentTool.tsx')
   check('AgentTool resolves through buildAgentLaunchPlan', agentTool.includes('buildAgentLaunchPlan({'))
   check('AgentTool keeps NO alias-map copy (decode has ONE home)', !agentTool.includes('LEGACY_SUBAGENT_ALIASES'))
-  check('AgentTool resolves the explicit model through the model owner before engine validation', agentTool.includes('getAgentModel(undefined, options.engineModel, input.model)') && agentTool.indexOf('getAgentModel(undefined, options.engineModel, input.model)') < agentTool.indexOf('resolveEngineDispatch(modelParam)'))
+  check('AgentTool resolves the explicit model through the model owner before engine validation (the typed word first matched to the reachable catalogue — modelWord — since .34)', agentTool.includes('getAgentModel(undefined, options.engineModel, modelWord)') && agentTool.indexOf('getAgentModel(undefined, options.engineModel, modelWord)') < agentTool.indexOf('resolveEngineDispatch(modelParam)'))
   const planSrc = src('utils', 'crew', 'agentLaunchPlan.ts')
   check('the plan builder reads the requested type as written — no decode seam, no alias table', planSrc.includes('(i.requestedType || undefined) ?? i.defaultAgentType') && !/decodeAgentType|Record<string, string>/.test(planSrc))
 
