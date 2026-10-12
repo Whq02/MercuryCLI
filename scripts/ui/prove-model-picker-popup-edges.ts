@@ -348,7 +348,7 @@ section('§5 the floor inside the pop-up: the pop-up never hands fewer than ten 
   check('80x17: the host bounds the aspirational ten-row floor to nine with a gutter', window !== null && window.height === 9, describe(window))
   if (window !== null) {
     const rows = window.rows.map(inner)
-    check('80x17: the smaller host preserves the title, filter, close hint, cursor and a named cut; optional effort yields', rows.some(r => r.includes(TITLE)) && rows.some(r => r.includes('/ tab to search by name or id')) && rows.some(r => /esc (?:or click outside )?closes/.test(r)) && rows.some(r => /[↑↓] \d+ more/.test(r)) && rows.some(r => r.includes('❯ ')), rows.join(' | '))
+    check('80x17: the smaller host preserves the title, filter, close hint, cursor and a named cut; optional effort yields', rows.some(r => r.includes(TITLE)) && rows.some(r => r.includes('/ type to search by name or id')) && rows.some(r => /esc (?:or click outside )?closes/.test(r)) && rows.some(r => /[↑↓] \d+ more/.test(r)) && rows.some(r => r.includes('❯ ')), rows.join(' | '))
   }
   await scene.close()
 }
