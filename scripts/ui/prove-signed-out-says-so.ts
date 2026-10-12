@@ -1,16 +1,18 @@
 #!/usr/bin/env bun
 // gate-watch: src/components/MercuryHome.tsx src/components/SwitchboardTagBar.tsx src/components/BootSplashScreen.tsx
 // gate-watch: src/utils/accounts/sessionSignIn.ts src/hooks/useSessionSignInGate.ts src/services/wallet/wallet.ts assets/splash/splash-core.mjs
-import { spawnSync } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
-import { tmpdir } from 'node:os'
-import { join, resolve } from 'node:path'
-import { resolveCaptureDriver, vshotBudgetMs } from '../lib/captureDriver.ts'
-import { FIXTURE_API_KEY, seedFirstRun } from '../lib/firstRunSeed.ts'
+import { mkdirSync, writeFileSync } from 'node:fs'
+import { join } from 'node:path'
+import { firstOutputTs, firstPtyVisibility, grabScreens, requireDist, runArtifactArena, type ArenaRun } from '../streaming/artifactArena.ts'
 
-const ROOT = resolve(import.meta.dir, '..', '..')
-const DIST = join(ROOT, 'dist', 'mercury.mjs')
-const VSHOT = join(import.meta.dir, 'vshot.py')
+requireDist()
+
+const COLS = 120
+const ROWS = 40
+const FACE_READY = '↑↓ choose'
+const COMPOSER_READY = 'Type a prompt'
+const PROMPT = 'hello there'
+const SIGNED_OUT_ANSWER = 'Not logged in'
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -22,105 +24,74 @@ const arg = (key: string): string | undefined => (process.argv.includes(key) ? p
 const frameDir = arg('--frames')
 if (frameDir) mkdirSync(frameDir, { recursive: true })
 
-const driver = resolveCaptureDriver()
-if (driver.kind !== 'posix-pty') {
-  console.log(`prove-signed-out-says-so: SKIPPED — no POSIX pty capture driver on this host (${driver.kind})`)
-  process.exit(0)
+const squash = (s: string): string => s.replace(/\s+/g, '')
+const painted = (run: ArenaRun, words: string, notBefore = 0): { ts: number; text: string } | undefined => firstPtyVisibility(run.ptyReads, squash(words), notBefore)
+const steady = (row: string): string => row.replace(/flux-arena-cwd-[A-Za-z0-9]+/g, 'the-project').replace(/\b\d\d:\d\d:\d\d\b/g, 'hh:mm:ss').replace(/\s+$/, '')
+const saveFrame = (name: string, rows: string[]): void => {
+  if (frameDir) writeFileSync(join(frameDir, `${name}.txt`), rows.map(steady).join('\n') + '\n')
 }
-if (!existsSync(DIST)) {
-  console.log('prove-signed-out-says-so: SKIPPED — dist/mercury.mjs is not built')
-  process.exit(0)
+const SETTLE_MS = 700
+function screenAfter(run: ArenaRun, paint: { ts: number } | undefined): string[] | null {
+  if (paint === undefined) return null
+  const [frame] = grabScreens(run, COLS, ROWS, [Math.max(0, paint.ts - firstOutputTs(run) + SETTLE_MS)])
+  return frame ? frame.rows : null
 }
+const rowsWith = (rows: string[] | null, needle: string): string[] => (rows ?? []).filter(l => l.includes(needle))
+const statusRow = (rows: string[] | null): string => (rows ?? []).find(l => l.includes('⇧← back')) ?? ''
+const unfired = (run: ArenaRun): string => `${run.outcome.reason ?? 'complete'} · unfired ${JSON.stringify(run.outcome.report?.unfired ?? [])}`
 
-const scratch = mkdtempSync(join(tmpdir(), 'signed-out-says-so-'))
-const CWD = join(scratch, 'cwd')
-mkdirSync(CWD, { recursive: true })
-writeFileSync(join(CWD, 'README.md'), '# a small folder\n')
-
-type Grid = Array<Array<{ c?: string } | string>>
-const gridText = (grid: Grid): string =>
-  grid.map(row => row.map(c => (typeof c === 'object' && c !== null ? (c.c ?? ' ') : String(c))).join('').trimEnd()).join('\n')
-const rowsWith = (text: string, needle: string): string[] => text.split('\n').filter(l => l.includes(needle))
-const statusRow = (text: string): string => text.split('\n').find(l => l.includes('⇧← back')) ?? ''
-
-function childEnv(home: string, signedIn: boolean): NodeJS.ProcessEnv {
-  const env: NodeJS.ProcessEnv = {
-    ...process.env,
-    MERCURY_CONFIG_DIR: home,
-    MERCURY_CREDENTIAL_STORE: 'file',
-    MERCURY_OPERATOR: 'sam',
-    MERCURY_DAEMON_DIR: join(scratch, 'daemon'),
-    MERCURY_LOCAL_PROBE_TARGETS: 'none',
-    MERCURY_CRITTER_IDLE: '0',
-    MERCURY_CRITTER_GAZE: '0',
-    MERCURY_CRITTER_SLEEP: '0',
-    MERCURY_LIVE_CLOCK: '0',
-    MERCURY_LIVE_GLYPHS: '0',
-    MERCURY_TURN_RECEIPT: '0',
-    MERCURY_OASIS_BG: '0',
-    MERCURY_TERMINAL_TITLE: '0',
-    MERCURY_UPDATE_NOTICE: '0',
-    ANTHROPIC_BASE_URL: 'http://127.0.0.1:1',
-    BROWSER: '/usr/bin/true',
+async function drive(tag: string, signedIn: boolean, sendPrompt: boolean): Promise<void> {
+  const sends = sendPrompt ? [`after:${COMPOSER_READY}:1500:${PROMPT}`, `after:${COMPOSER_READY}:2600:\\r`] : []
+  const run = await runArtifactArena({
+    turns: [],
+    sends,
+    seconds: sendPrompt ? 40 : 30,
+    cols: COLS,
+    rows: ROWS,
+    keep: true,
+    anchor: null,
+    seedCwd: { 'README.md': '# a small folder\n' },
+    extraEnv: {
+      BROWSER: '/usr/bin/true',
+      MERCURY_UPDATE_NOTICE: '0',
+      ...(signedIn ? {} : { ANTHROPIC_API_KEY: '' }),
+    },
+  })
+  try {
+    const home = screenAfter(run, painted(run, FACE_READY))
+    const chatPaint = painted(run, COMPOSER_READY)
+    const chat = screenAfter(run, chatPaint)
+    if (home) saveFrame(`${tag}-home`, home)
+    if (chat) saveFrame(`${tag}-chat`, chat)
+    check(`${tag}: the boot face painted its ready line`, home !== null && home.some(l => l.includes('New Session')), unfired(run))
+    check(`${tag}: the chat painted its composer`, chat !== null && chat.some(l => l.includes(COMPOSER_READY)), unfired(run))
+    if (!signedIn) {
+      check(`${tag}: the home menu's Logins row says not signed in`, rowsWith(home, 'Logins').some(l => l.includes('not signed in')), rowsWith(home, 'Logins').join(' | '))
+      check(`${tag}: the chat's hero row says not signed in and names /logins`, rowsWith(chat, 'not signed in').some(l => l.includes('○ not signed in · /logins connects')), rowsWith(chat, 'signed in').join(' | '))
+      check(`${tag}: …and never says ready`, chat !== null && !chat.some(l => l.includes('● ready')), rowsWith(chat, 'ready').join(' | '))
+      check(`${tag}: the status row reads "not signed in · /logins" before the model`, /^\s*not signed in · \/logins · /.test(statusRow(chat)), statusRow(chat))
+      if (sendPrompt) {
+        const answer = painted(run, SIGNED_OUT_ANSWER, chatPaint?.ts ?? 0)
+        const afterSend = screenAfter(run, answer)
+        if (afterSend) saveFrame(`${tag}-after-send`, afterSend)
+        check(`${tag}: a prompt sent while signed out answers with the way in (/logins), not a provider error`, afterSend !== null && afterSend.some(l => l.includes(PROMPT)) && rowsWith(afterSend, '/logins').length > 0 && !/401|authentication_error|invalid x-api-key|ECONNREFUSED/.test(afterSend.join('\n')), afterSend === null ? `the answer never painted · ${unfired(run)}` : rowsWith(afterSend, PROMPT).concat(rowsWith(afterSend, 'logins')).join(' | '))
+      }
+    } else {
+      check(`${tag}: the Logins row counts the sign-in and never says not signed in`, rowsWith(home, 'Logins').some(l => /\d+ of \d+ signed in/.test(l)) && !(home ?? []).some(l => l.includes('not signed in')), rowsWith(home, 'Logins').join(' | '))
+      check(`${tag}: the chat's hero row reads ready`, chat !== null && chat.some(l => l.includes('● ready · type a prompt, or / for commands')), rowsWith(chat, 'ready').join(' | '))
+      check(`${tag}: the status row reads ready before the model`, /^\s*ready · /.test(statusRow(chat)), statusRow(chat))
+      check(`${tag}: nothing on the signed-in chat says not signed in`, chat !== null && !chat.some(l => l.includes('not signed in')), rowsWith(chat, 'signed in').join(' | '))
+    }
+  } finally {
+    run.cleanup()
   }
-  for (const key of ['ANTHROPIC_API_KEY', 'ANTHROPIC_AUTH_TOKEN', 'MERCURY_OAUTH_TOKEN', 'OPENAI_API_KEY', 'OPENROUTER_API_KEY', 'GOOGLE_API_KEY', 'GEMINI_API_KEY', 'HF_TOKEN', 'ZAI_API_KEY', 'MOONSHOT_API_KEY', 'DEEPSEEK_API_KEY', 'MERCURY_MODEL', 'MERCURY_CONCOURSE', 'MERCURY_CONCOURSE_FIXTURE', 'NODE_ENV', 'CI']) delete env[key]
-  if (signedIn) env.ANTHROPIC_API_KEY = FIXTURE_API_KEY
-  return env
 }
 
-function drive(tag: string, signedIn: boolean, sendPrompt: boolean): { marks: Record<string, string>; endReason: string; stderr: string } {
-  const home = join(scratch, `${tag}-home`)
-  seedFirstRun(home, [CWD])
-  const sends: unknown[] = [
-    { data: '', atTick: 999, awaitText: '↑↓ choose', requireAwait: true, minTick: 10, awaitStableTicks: 6, awaitSettleTicks: 4, mark: 'home' },
-    { data: '\r', afterPrevTicks: 2 },
-    { data: '', atTick: 999, awaitText: '↵ sends', requireAwait: true, awaitSettleTicks: 10, mark: 'chat' },
-  ]
-  if (sendPrompt) {
-    sends.push({ data: 'hello there\r', afterPrevTicks: 5 })
-    sends.push({ data: '', atTick: 999, awaitText: '/logins', minTick: 1, awaitSettleTicks: 10, mark: 'after-send' })
-  }
-  const grid = join(scratch, `${tag}-grid.json`)
-  const cfgPath = join(scratch, `${tag}-vshot.json`)
-  writeFileSync(cfgPath, JSON.stringify({ argv: ['node', DIST, '--chat'], sends, total: 300, cols: 120, rows: 40, out: grid, title: tag }))
-  const r = spawnSync(driver.python, [VSHOT, cfgPath], { env: childEnv(home, signedIn), cwd: CWD, encoding: 'utf8', timeout: vshotBudgetMs(300 * 200 * 2.5 + 60_000) })
-  const marks: Record<string, string> = {}
-  let endReason = ''
-  if (existsSync(grid)) {
-    const payload = JSON.parse(readFileSync(grid, 'utf8')) as { marks?: Array<{ label: string; grid: Grid }>; endReason?: string }
-    for (const m of payload.marks ?? []) marks[m.label] = gridText(m.grid)
-    endReason = payload.endReason ?? ''
-  }
-  if (frameDir) for (const [label, text] of Object.entries(marks)) writeFileSync(join(frameDir, `${tag}-${label}.txt`), `${text}\n`)
-  return { marks, endReason, stderr: (r.stderr ?? '').trim() }
-}
+section('§1 a home with no sign-in anywhere: the home menu, the chat and the status row all say so, and a prompt answers with the way in')
+await drive('keyless', false, true)
 
-try {
-  section('§1 a home with no sign-in anywhere: the home menu, the chat and the status row all say so, and a prompt answers with the way in')
-  const keyless = drive('keyless', false, true)
-  const home = keyless.marks.home ?? ''
-  const chat = keyless.marks.chat ?? ''
-  const afterSend = keyless.marks['after-send'] ?? ''
-  check('the boot face painted', home.includes('New Session'), keyless.stderr.slice(-400))
-  check('the home menu\'s Logins row says not signed in', rowsWith(home, 'Logins').some(l => l.includes('not signed in')), rowsWith(home, 'Logins').join(' | '))
-  check('the chat painted', chat.includes('↵ sends'), keyless.stderr.slice(-400))
-  check('the chat\'s hero row says not signed in and names /logins', rowsWith(chat, 'not signed in').some(l => l.includes('○ not signed in · /logins connects')), rowsWith(chat, 'signed in').join(' | '))
-  check('…and never says ready', !chat.includes('● ready'), rowsWith(chat, 'ready').join(' | '))
-  check('the status row reads "not signed in · /logins" before the model', /^\s*not signed in · \/logins · /.test(statusRow(chat)), statusRow(chat))
-  check('a prompt sent while signed out answers with the way in (/logins), not a provider error', afterSend.includes('hello there') && rowsWith(afterSend, '/logins').length > 0 && !/401|authentication_error|invalid x-api-key|ECONNREFUSED/.test(afterSend), rowsWith(afterSend, 'hello there').concat(rowsWith(afterSend, 'logins')).join(' | '))
-
-  section('§2 a signed-in home keeps its words: Logins counts the sign-in, the hero row and the status row read ready')
-  const signedIn = drive('signed-in', true, false)
-  const homeIn = signedIn.marks.home ?? ''
-  const chatIn = signedIn.marks.chat ?? ''
-  check('the boot face painted', homeIn.includes('New Session'), signedIn.stderr.slice(-400))
-  check('the Logins row counts the sign-in and never says not signed in', rowsWith(homeIn, 'Logins').some(l => /\d+ of \d+ signed in/.test(l)) && !homeIn.includes('not signed in'), rowsWith(homeIn, 'Logins').join(' | '))
-  check('the chat\'s hero row reads ready', chatIn.includes('● ready · type a prompt, or / for commands'), rowsWith(chatIn, 'ready').join(' | '))
-  check('the status row reads ready before the model', /^\s*ready · /.test(statusRow(chatIn)), statusRow(chatIn))
-  check('nothing on the signed-in chat says not signed in', !chatIn.includes('not signed in'), rowsWith(chatIn, 'signed in').join(' | '))
-} finally {
-  rmSync(scratch, { recursive: true, force: true })
-}
+section('§2 a signed-in home keeps its words: Logins counts the sign-in, the hero row and the status row read ready')
+await drive('signed-in', true, false)
 
 console.log('\n' + '='.repeat(60))
 if (failures > 0) {
