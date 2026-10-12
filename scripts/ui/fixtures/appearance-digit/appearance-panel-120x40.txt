@@ -30,7 +30,7 @@
 │ MOTION                                                                                                               │
 │   full — m toggles · reduced keeps progress visible without decorative animation                                     │
 │                                                                                                                      │
-│ agent-a02hyxpf · esc close                                                                                           │
+│ project · esc close                                                                                                  │
 ╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
 
 

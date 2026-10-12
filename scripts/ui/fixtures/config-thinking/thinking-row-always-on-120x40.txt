@@ -2,13 +2,13 @@
 WORKBENCH               │                                                                                              │
   no prompts sent yet   │ ╭──────────────────────────────────────────────────────────────────────────────────────────╮ │
                         │ │ ▖▟▆▙▗ Mercury · config                                                                   │ │
-NEXT                    │ │ agent-a02hyxpf · 65 settings · 0 set by you                                              │ │
+NEXT                    │ │ project · 65 settings · 0 set by you                                                     │ │
   · /workflows — agent …│ │                                                                                          │ │
   · /health — health ce…│ │ / think                                                                                  │ │
   · /memory — memory    │ │                                                                                          │ │
   · /mission — set a mi…│ │ › Thinking                          n/a — Sonnet 5.5 keeps thinking on                   │ │
                         │ │   This model thinks on every request; the setting cannot turn it off — /effort is the    │ │
-FILES · agent-a02hyxpf  │ │ lever.                                                                                   │ │
+FILES · project         │ │ lever.                                                                                   │ │
   ↵ or click · browse   │ │                                                                                          │ │
                         │ │                                                                                          │ │
 VITALS                  │ │                                                                                          │ │

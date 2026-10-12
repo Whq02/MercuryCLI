@@ -8,7 +8,7 @@ NEXT                    │ │ Mercury · model · 3 of 22 match               
   · /memory — memory    │ │ ▾ ANTHROPIC · API key · …-key · 3 of 12                                                  │ │
   · /mission — set a mi…│ │ ╭──────────────────────────────────────────────────────────────────────────────────────╮ │ │
                         │ │ │ Sonnet 5.5          claude-sonnet-5-5                      1M ctx                    │ │ │
-FILES · agent-a02hyxpf  │ │ ╰──────────────────────────────────────────────────────────────────────────────────────╯ │ │
+FILES · project         │ │ ╰──────────────────────────────────────────────────────────────────────────────────────╯ │ │
   ↵ or click · browse   │ │   Sonnet 5            claude-sonnet-5                        1M ctx                      │ │
                         │ │   Sonnet 4.6          claude-sonnet-4-6                      1M ctx                      │ │
 VITALS                  │ │                                                                                          │ │

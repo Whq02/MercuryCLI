@@ -2,13 +2,13 @@
 WORKBENCH               │                                                                                              │
   no prompts sent yet   │ ╭──────────────────────────────────────────────────────────────────────────────────────────╮ │
                         │ │ ▖▟▆▙▗ Mercury · config                                                                   │ │
-NEXT                    │ │ agent-a02hyxpf · 65 settings · 0 set by you                                              │ │
+NEXT                    │ │ project · 65 settings · 0 set by you                                                     │ │
   · /workflows — agent …│ │                                                                                          │ │
   · /health — health ce…│ │ / theme                                                                                  │ │
   · /memory — memory    │ │                                                                                          │ │
   · /mission — set a mi…│ │ › Theme                             Dark                                                 │ │
                         │ │                                                                                          │ │
-FILES · agent-a02hyxpf  │ │                                                                                          │ │
+FILES · project         │ │                                                                                          │ │
   ↵ or click · browse   │ │                                                                                          │ │
                         │ │                                                                                          │ │
 VITALS                  │ │                                                                                          │ │
