@@ -28,7 +28,7 @@ const OLD_GLOSS_JOINED = J('sub', 'agent')
 const WORDS: Array<[string, RegExp]> = [
   ['the old tool name in quotes', new RegExp(`(["'\`])${OLD_TOOL}\\1`)],
   ['the old tool name before "tool"', new RegExp(`(?<![\\w$.\\-/])${OLD_TOOL}(?:\\s+tool|-tool)(?![\\w$-])`)],
-  ['the old tool name before "call" or "launch"', new RegExp(`(?<![\\w$.\\-/])${OLD_TOOL} (?:call|launch)(?![\\w$-])`)],
+  ['the old tool name before "call", "launch" or "launched"', new RegExp(`(?<![\\w$.\\-/])${OLD_TOOL} (?:call|launch|launched)(?![\\w$-])`)],
   ['the old tool name beside the Workflow tool', new RegExp(`(?<![\\w$.\\-/])${OLD_TOOL} (?:and|or) Workflow`)],
   ['the old tool name in a permission rule', new RegExp(`(?<!new )(?<![\\w$.\\-/])${OLD_TOOL}\\((?=[A-Za-z*_-])`)],
   ['the old resume verb', new RegExp(`(?<![\\w$.\\-/])${OLD_RESUME}(?![\\w$])`)],
