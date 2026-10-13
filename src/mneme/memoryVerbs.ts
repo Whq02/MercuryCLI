@@ -99,7 +99,7 @@ export function retainItems(
     }
     const duplicateKey = text
     const existing = sessionRetained.get(duplicateKey)
-    if (existing) {
+    if (existing && pendingRows(dir).some(row => `pending:${row.ts}` === existing && row.text === text)) {
       outcomes.push({ index, status: 'already-staged', id: existing })
       return
     }
