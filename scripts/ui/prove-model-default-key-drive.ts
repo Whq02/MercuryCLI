@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { resolveCaptureDriver, vshotBudgetMs } from '../lib/captureDriver.ts'
 import { seedFirstRun } from '../lib/firstRunSeed.ts'
+import { keyHintLabel } from '../../src/components/mercury-ui/keyHintLabel.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
 const argAfter = (flag: string): string | undefined => {
@@ -23,11 +24,13 @@ const RIGHT = `${ESC}[C`
 const SHIFT_RIGHT = `${ESC}[1;2C`
 const TAB = '\t'
 const PHRASE = 'm to select model-default'
+const SHIFT_ARROW = keyHintLabel('⇧→')
 const CHAT_HINT = '>_ ready  ·  ↵ start  ·  ↑↓ choose'
 const FULL_HINT = '>_ ready  ·  ↵ start  ·  m menu  ·  ↑↓ choose'
 const DOOR = '▸ n starts a blank session in this project'
-const FOOTER_AS_SHIPPED = '↑↓ browse · tab panes · ⌃g ground · n new session · / filter · s split · ? keys · esc boot face'
-const FOOTER_WITH_KEY = `↑↓ browse · tab panes · ⌃g ground · n new session · ${PHRASE} · / filter · s split · ? keys · esc boot face`
+const CTRL_E = '\x05'
+const FOOTER_AS_SHIPPED = keyHintLabel('↑↓ browse · tab panes · ⌃g ground · n new session · / filter · s split · ? keys · esc boot face')
+const FOOTER_WITH_KEY = keyHintLabel(`↑↓ browse · tab panes · ⌃g ground · n new session · ${PHRASE} · / filter · s split · ? keys · esc boot face`)
 const PICKER_LEFT = 39
 const PICKER_GUTTER = 1
 const FACE_PICKER_TOP = 3
@@ -213,7 +216,7 @@ section('§1 the concourse: the door row names the pair, the bottom row names m,
     { requireAwait: true, awaitText: 'Mercury · model', awaitStableTicks: 3, mark: 'picker', data: UP },
     { requireAwait: true, awaitText: '│ Sonnet 4.6 ', awaitStableTicks: 3, data: UP },
     { requireAwait: true, awaitText: '│ Sonnet 5 ', awaitStableTicks: 3, data: UP },
-    { requireAwait: true, awaitText: '│ Sonnet 5.5 ', awaitStableTicks: 3, data: 'e' },
+    { requireAwait: true, awaitText: '│ Sonnet 5.5 ', awaitStableTicks: 3, data: CTRL_E },
     { requireAwait: true, awaitText: '[xhigh]', awaitStableTicks: 3, data: '\r' },
     { requireAwait: true, awaitText: 'Sonnet 5.5 · ', awaitStableTicks: 3, mark: 'picked', data: TAB },
     { afterPrevTicks: 3, data: TAB },
@@ -254,7 +257,7 @@ section('§2 --chat: the hint row without m menu, the bottom row names m, m open
   const picker = c.marks.get('picker') ?? []
   const closed = c.marks.get('closed') ?? []
   check('the hint row reads ↵ start · ↑↓ choose, m menu gone', trimmedRow(face, '>_ ready') === CHAT_HINT, trimmedRow(face, '>_ ready'))
-  check('the bottom row names m beside the shift arrow', trimmedRow(face, '⇧→') === `⇧→ no chat open · ${PHRASE}`, trimmedRow(face, '⇧→'))
+  check('the bottom row names m beside the shift arrow', trimmedRow(face, SHIFT_ARROW) === `${SHIFT_ARROW} no chat open · ${PHRASE}`, trimmedRow(face, SHIFT_ARROW))
   check('m opens the picker over the face, centred inside its blank one-cell gutter (top row 3, its left border under its title, its bottom border inside the band)', rowWith(picker, 'Mercury · model') !== '' && pickerFrames(picker), `${pickerWords(picker)} · ${picker.slice(3, 8).join(' | ')}`)
   check('the Boot Menu did not open and no row reads frontier:', picker.length > 0 && !picker.some(l => l.includes('CONTROL PLANE')) && !picker.some(l => l.includes('frontier:')))
   check('the Anthropic heading reads the key door with its tail and the live count', anthropicKeyHeading(picker), headingOf(picker, ANTHROPIC_TITLE))
@@ -271,7 +274,7 @@ section('§3 the face outside --chat: the same door — m menu gone from the hin
   check('the drive delivered every send (exit 0)', c.status === 0, `exit ${c.status}`)
   const face = c.marks.get('face') ?? []
   check('the hint row reads ↵ start · ↑↓ choose, m menu gone', trimmedRow(face, '>_ ready') === CHAT_HINT, trimmedRow(face, '>_ ready'))
-  check('the bottom row names the concourse and m', trimmedRow(face, '⇧→') === `⇧→ concourse · ${PHRASE}`, trimmedRow(face, '⇧→'))
+  check('the bottom row names the concourse and m', trimmedRow(face, SHIFT_ARROW) === `${SHIFT_ARROW} concourse · ${PHRASE}`, trimmedRow(face, SHIFT_ARROW))
   check('m opens the picker over the face', (c.marks.get('picker') ?? []).some(l => l.includes('Mercury · model')))
 }
 
@@ -317,7 +320,7 @@ section('§5 the setting off (engine.sessionDefaults false in settings.json): ev
   check('the drive delivered every send (exit 0)', b.status === 0, `exit ${b.status}`)
   const face = b.marks.get('face') ?? []
   check('--chat: the hint row keeps m menu', trimmedRow(face, '>_ ready') === FULL_HINT, trimmedRow(face, '>_ ready'))
-  check('--chat: the bottom row reads ⇧→ no chat open alone', trimmedRow(face, '⇧→') === '⇧→ no chat open', trimmedRow(face, '⇧→'))
+  check('--chat: the bottom row reads ⇧→ no chat open alone', trimmedRow(face, SHIFT_ARROW) === `${SHIFT_ARROW} no chat open`, trimmedRow(face, SHIFT_ARROW))
   check('--chat: m opens the Boot Menu', (b.marks.get('menu') ?? []).some(l => l.includes('CONTROL PLANE')))
 }
 
@@ -336,13 +339,13 @@ section('§6 a fresh home with no sign-in: the bottom row stands at the height w
   const at49 = tight.marks.get('face') ?? []
   check('177×49: the strip reads no sign-in yet and not signed in', rowWith(at49, 'Model no sign-in yet') !== '' && rowWith(at49, 'Acct not signed in') !== '', at49.filter(l => l.includes('Model') || l.includes('Acct')).map(l => l.trim()).join(' | '))
   check('177×49: the card has nine rows (no Continue row on a fresh home)', cardRows(at49) === 9, `${cardRows(at49)} rows`)
-  check('177×49: the bottom row names the concourse and m', (at49[48] ?? '').trim() === `⇧→ concourse · ${PHRASE}`, JSON.stringify((at49[48] ?? '').trim()))
+  check('177×49: the bottom row names the concourse and m', (at49[48] ?? '').trim() === `${SHIFT_ARROW} concourse · ${PHRASE}`, JSON.stringify((at49[48] ?? '').trim()))
   check('177×49: the block ends above the bottom row', !(at49[48] ?? '').includes('╰') && at49.some((l, i) => i < 48 && l.trim().startsWith('╰')), (at49[48] ?? '').trim())
   check('177×49: the card gives up its dividers to make room for the row', dividers(at49) === 0, `${dividers(at49)} dividers`)
   const wide = capture('fresh-51', seededHome('fresh-51'), [], faceSends, { total: 200, ready: ['↑↓ choose'], env: noSignIn })
   check('178×51: the drive delivered every send (exit 0)', wide.status === 0, `exit ${wide.status}`)
   const at51 = wide.marks.get('face') ?? []
-  check('178×51: the bottom row names the concourse and m', (at51[50] ?? '').trim() === `⇧→ concourse · ${PHRASE}`, JSON.stringify((at51[50] ?? '').trim()))
+  check('178×51: the bottom row names the concourse and m', (at51[50] ?? '').trim() === `${SHIFT_ARROW} concourse · ${PHRASE}`, JSON.stringify((at51[50] ?? '').trim()))
   check('178×51: the block stands where it stood — two blank rows above the art, eight dividers on the card, the strip\'s bottom border on row 50', (at51[0] ?? '').trim() === '' && (at51[1] ?? '').trim() === '' && (at51[2] ?? '').includes('▀') && dividers(at51) === 8 && (at51[49] ?? '').trim().startsWith('╰'), `dividers ${dividers(at51)} · row 49 ${(at51[49] ?? '').trim().slice(0, 4)}`)
 }
 
@@ -421,7 +424,7 @@ section('§8 the board with sessions keeps the new-session line as its first row
     { afterPrevTicks: 4, data: '', mark: 'row' },
     { afterPrevTicks: 2, data: 'm' },
     { requireAwait: true, awaitText: 'Mercury · model', awaitStableTicks: 3, mark: 'session-picker', data: UP },
-    { afterPrevTicks: 3, data: 'e' },
+    { afterPrevTicks: 3, data: CTRL_E },
     { afterPrevTicks: 3, data: '\r' },
     { afterPrevTicks: 8, data: '', mark: 'session-picked' },
   ], { total: 900, ready: ['esc focused chat'] })
@@ -461,7 +464,7 @@ if (CASE === undefined || CASE === 'session-effort') {
       { requireAwait: true, awaitText: 'STATUS & TITLE', awaitSettleTicks: 4, data: 'e' },
       { requireAwait: true, awaitText: "sets this session's effort", awaitSettleTicks: 3, mark: 'effort-door', data: '\r' },
       { requireAwait: true, awaitText: 'effort → low', awaitSettleTicks: 4, mark: 'low-receipt', data: 'm' },
-      { requireAwait: true, awaitText: 'Mercury · model', awaitSettleTicks: 5, mark: 'opened', data: 'e' },
+      { requireAwait: true, awaitText: 'Mercury · model', awaitSettleTicks: 5, mark: 'opened', data: CTRL_E },
       { afterPrevTicks: 12, data: '', mark: 'after-arrow' },
     ], { cols, rows, total: 600, ready: ['Mercury · model'] })
     const opened = c.marks.get('opened') ?? []
