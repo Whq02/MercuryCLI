@@ -1,0 +1,50 @@
+  lanes                 ╭──────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+WORKBENCH               │╭────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮│
+  /crewmates off        ││  ▄▄▄▄▄▄▄▄▄                                                                                                     ││
+                        ││  ▄▄▄▄▄▄▄▄▄                                                                                                     ││
+NEXT                    ││  ▀▄▄▄▀▄▄▄▀                                                                                                     ││
+  · /workflows — crewma…│╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯│
+  · /health — health ce…│                                                                                                                  │
+  · /memory — memory    │                                                                                                                  │
+  · /mission — set a mi…│ 15:00:08 [sam] ❯ start                                                                                           │
+                        │                                                                                                                  │
+FILES · project         │ 15:00:08 [Mercury] Command rows ready.                                                                           │
+  ↵ or click · browse   │                                                                                                                  │
+                        │ ❯ /crewmates off                                                                                                 │
+VITALS                  │   └ crewmates off for this session                                                                               │
+  · spend $0.00         │     the Crewmate tool leaves the roster from the next turn; reasoning restarts on the next turn; a spawn already │
+  · ctx 0% · 1000k      │     running finishes                                                                                             │
+  · health — run /health│                                                                                                                  │
+                        │                                                                                                                  │
+                        │                                                                                                                  │
+▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔
+╭──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ ▖▟▆▙▗ Mercury — help                                                                                                                     │
+│  general   commands   custom-commands   shortcuts                                                                                        │
+│                                                                                                                                          │
+│                                                                                                                                          │
+│ Browse default commands                                                                                                                  │
+│                                                                                                                                          │
+│ ↑ /diff                                                                                                                                  │
+│     Review workspace over uncommitted + per-turn changes (sources · files · hunks)                                                       │
+│   /mission                                                                                                                               │
+│     Set a mission — keep working until the condition is met                                                                              │
+│   /run                                                                                                                                   │
+│     Live run inspector — objective, deliverables, effects, evidence, next action                                                         │
+│   /runs                                                                                                                                  │
+│     The runs board — running shells and crewmates, with detail cards                                                                     │
+│   /workbench                                                                                                                             │
+│     The prompts panel — the prompts you sent in this chat, the crew traffic, and your saved prompts                                      │
+│   ─ crew & delegation ─                                                                                                                  │
+│   /agents                                                                                                                                │
+│     Open the Agent Studio — build, edit, and tune your agents                                                                            │
+│   /crew                                                                                                                                  │
+│     The living-crew directory — members, presence, external seat attach/detach                                                           │
+│ ❯ /crewmates                                                                                                                             │
+│     Crew — the session's crewmates live; on or off flips whether this session may spawn them                                             │
+│                                                                                                                                          │
+│ ↵ stages the command in the composer — nothing runs until you send it                                                                    │
+│                                                                                                                                          │
+│                                                                                                                                          │
+│ project · esc close                                                                                                                      │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯

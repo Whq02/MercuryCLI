@@ -3,6 +3,7 @@ import { stampLocal } from '../../../mneme/entryPage.js'
 import { BARE_FAMILY_WORDS, bareFamilyWordOfRoute, type BareFamilyWordRow } from '../../../utils/model/bareFamilyWords.js'
 import { getModelOptions, isProviderActionRow, stripContext1m, type ModelOption } from '../../../utils/model/modelOptions.js'
 import { modelSupportsEffort } from '../../../utils/model/capabilities.js'
+import { liveCount } from '../../../utils/model/modelPickerGroups.js'
 import { selectableEffortLevels } from '../../../utils/effort.js'
 import { normalizeModelStringForAPI } from '../../../utils/model/model.js'
 import { declaredRouteOf, providerDisplayName } from '../../providers/routeLaw.js'
@@ -64,8 +65,8 @@ function windowWords(tokens: number): string {
   return `${Math.round(tokens / 1000)}k window`
 }
 
-function liveFactsWords(facts: LiveListFacts): string {
-  if (facts.kind === 'live') return `live list read ${facts.readAt} (${facts.count} ${facts.count === 1 ? 'model' : 'models'})`
+function liveFactsWords(facts: LiveListFacts, models: LiveModelRow[]): string {
+  if (facts.kind === 'live') return `live list read ${facts.readAt} (${liveCount(models.map(row => ({ id: row.id, name: row.displayName, group: '', tag: '', gated: row.unavailable !== undefined })))} live)`
   if (facts.kind === 'unread') return `the live list could not be read${facts.error !== undefined ? ` (${facts.error})` : ''}`
   return facts.words
 }
@@ -199,7 +200,7 @@ export function liveModelsReferenceText(reference: LiveModelsReference): string 
   ]
   if (reference.providers.length === 0) lines.push('  no provider is signed in — /logins connects one.')
   for (const provider of reference.providers) {
-    lines.push('', `${provider.providerName} — ${provider.account} · ${liveFactsWords(provider.list)}${provider.knownDefault !== undefined ? ` — the family word '${provider.knownDefault.familyWord}' runs ${provider.knownDefault.displayName} (${provider.knownDefault.id}), the default this build knows, until the list reads` : ''}`)
+    lines.push('', `${provider.providerName} — ${provider.account} · ${liveFactsWords(provider.list, provider.models)}${provider.knownDefault !== undefined ? ` — the family word '${provider.knownDefault.familyWord}' runs ${provider.knownDefault.displayName} (${provider.knownDefault.id}), the default this build knows, until the list reads` : ''}`)
     if (provider.models.length === 0) lines.push(`  no model row — ${provider.list.kind === 'unread' ? 'nothing is selectable until the list reads; mercury://models/known lists what this build knows' : 'the list serves no model this build can run'}`)
     for (const row of provider.models) {
       const facts = [

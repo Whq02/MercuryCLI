@@ -1,5 +1,6 @@
 import * as React from 'react'
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
+import { useInput } from '../../ink.js'
 import { type Command, formatDescriptionWithSource } from '../../commands.js'
 import { Box, Text } from '../../ink.js'
 import { truncate } from '../../utils/format.js'
@@ -26,7 +27,8 @@ export function Commands({
   onPick,
   emptyMessage,
 }: Props): React.ReactNode {
-  const { headerFocused, focusHeader } = useTabHeaderFocus()
+  const { headerFocused, focusHeader, blurHeader } = useTabHeaderFocus()
+  const [pageFocus, setPageFocus] = useState<string | undefined>()
   const maxWidth = Math.max(1, columns - 10)
   const visibleCount = Math.max(1, Math.floor((maxHeight - 12) / 2))
 
@@ -53,6 +55,14 @@ export function Commands({
   }, [commands, maxWidth])
 
   const firstCommand = options.find(o => !o.disabled)?.value
+  useInput((_input, key, event) => {
+    if (!key.pageDown && !key.pageUp) return
+    const start = key.pageDown ? Math.min(visibleCount, options.length - 1) : 0
+    const target = options.slice(start).find(option => !option.disabled) ?? options.find(option => !option.disabled)
+    setPageFocus(target?.value)
+    blurHeader()
+    event.stopImmediatePropagation()
+  }, { isActive: headerFocused })
 
   return (
     <Box flexDirection="column" paddingY={1}>
@@ -71,7 +81,7 @@ export function Commands({
               onChange={name => {
                 if (!name.startsWith('__domain:')) onPick(name)
               }}
-              defaultFocusValue={firstCommand}
+              defaultFocusValue={pageFocus ?? firstCommand}
               hideIndexes
               layout="compact-vertical"
               onUpFromFirstItem={focusHeader}

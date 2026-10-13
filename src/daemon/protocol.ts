@@ -343,6 +343,7 @@ export interface DaemonHelloFacts {
 }
 
 export interface WireRosterEntry {
+  warm?: boolean
   short: string
   sessionId: string
   prompt: string

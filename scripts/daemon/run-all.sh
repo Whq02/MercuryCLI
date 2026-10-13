@@ -13,6 +13,7 @@
 # gate-watch: src/rows/* src/runner/wire/*
 # gate-watch: scripts/lib/seatDoor.ts
 # gate-watch: src/services/engine-connector/daemonConnector.ts src/services/engine-connector/seatLive.ts src/components/Spinner/liveCounterWords.ts src/components/Spinner/spinnerHud.ts src/components/Spinner/SpinnerAnimationRow.tsx
+# gate-watch: src/tasks/LocalAgentTask/* src/input-core/* src/state/AppState*
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }
@@ -64,6 +65,8 @@ __t=$SECONDS; __rc=0; "$bun" run "$here/prove-protocol-shape.ts" || { __rc=$?; f
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-compact-state-word.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-compact-state-word.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-fold-exit-clears-word.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-fold-exit-clears-word.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-seat-tail-ignores-agent-frames.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-seat-tail-ignores-agent-frames.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$bun" run "$here/prove-warm-row-word.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-warm-row-word.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$bun" run "$here/prove-agent-notice-clock.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-agent-notice-clock.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-interrupt-agent-wait.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-interrupt-agent-wait.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-stop-acknowledged.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-stop-acknowledged.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-hard-stop-cut.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-hard-stop-cut.ts" "$__t" "$__rc"

@@ -38,7 +38,7 @@ import {
 } from '../anthropic/messageParams.js'
 import { toolToAPISchema } from '../../../utils/api.js'
 import { withToolReferenceTurnBoundary } from '../../../utils/messages/apiView.js'
-import { applyStripTargetsToMessages, errorDrivenStripTargets, stripImagesRefusedByStamp } from '../../../utils/messages/apiPlan.js'
+import { applyStripTargetsToMessages, errorDrivenStripTargets } from '../../../utils/messages/apiPlan.js'
 import { validateImagesForAPI } from '../../../utils/imageValidation.js'
 import { classifyImageRefusalFault, type MediaRefusal } from '../../api/mediaRefusal.js'
 import {
@@ -409,11 +409,11 @@ export function replayableItems(
   })
 }
 
-const FINISH_TO_STOP: Record<OpenaiFinishReason, 'end_turn' | 'tool_use' | 'max_tokens'> = {
+const FINISH_TO_STOP: Record<OpenaiFinishReason, 'end_turn' | 'tool_use' | 'max_tokens' | 'refusal'> = {
   completed: 'end_turn',
   tool_calls: 'tool_use',
   max_output_tokens: 'max_tokens',
-  content_filter: 'end_turn',
+  content_filter: 'refusal',
   'other-incomplete': 'end_turn',
 }
 
@@ -596,7 +596,7 @@ async function* openaiTurn(params: CallModelParams, deferralFormReissued?: strin
     fittedImages.firstEdited === -1
       ? fittedImages.messages
       : stripThinkingFromIndex(fittedImages.messages, fittedImages.firstEdited)
-  const walkable = stripImagesRefusedByStamp(healWalkableForWire(wireMessagesForBridge))
+  const walkable = healWalkableForWire(wireMessagesForBridge)
   const imagesRide = imagesSupportedForModel(candidate)
   if (imagesRide) validateImagesForAPI(walkable, modelId)
   const bridge = toBridgeMessages(walkable, modelId)
@@ -1016,6 +1016,7 @@ export async function* streamOneOpenaiAttempt(ctx: {
   const minted: AssistantMessage[] = []
   let usageSeen: OpenaiUsage | undefined
   let responseId: string | undefined
+  let refusalStreamed = false
   let finish:
     | {
         reason: OpenaiFinishReason
@@ -1160,6 +1161,7 @@ export async function* streamOneOpenaiAttempt(ctx: {
         yield* streamDelta('text', event.text)
         break
       case 'refusal-delta':
+        refusalStreamed = true
         yield* streamDelta('text', event.text)
         break
       case 'text-item-start':
@@ -1324,7 +1326,8 @@ export async function* streamOneOpenaiAttempt(ctx: {
     }
     yield* emitSettledBlock(resultBlock, [], resultBlock)
   }
-  if (finish?.reason === 'content_filter') {
+  if (finish?.refusalText && !refusalStreamed) yield* emitNoteBlock(finish.refusalText)
+  if (finish?.reason === 'content_filter' && !refusalStreamed && !finish.refusalText) {
     yield* emitNoteBlock(
       '[openai] the provider ended this response under its content filter — the turn is incomplete by provider policy.',
     )
@@ -1356,7 +1359,7 @@ export async function* streamOneOpenaiAttempt(ctx: {
     )
   }
 
-  const mappedFinish = FINISH_TO_STOP[finish?.reason ?? 'completed'] ?? 'end_turn'
+  const mappedFinish = refusalStreamed || finish?.refusalText ? 'refusal' : FINISH_TO_STOP[finish?.reason ?? 'completed'] ?? 'end_turn'
   const stopReason =
     accepted.length > 0 ? 'tool_use' : mappedFinish === 'tool_use' ? 'end_turn' : mappedFinish
   const finalUsage = mapOpenaiUsageToAnthropic(usageSeen, finish?.webSearchCalls.length ?? 0)

@@ -5,6 +5,7 @@ import { FOLDED_COUNT_TAG } from '../../utils/collapseBackgroundBashNotification
 import { useSessionAccent } from '../mercury-ui/sessionAccent.js'
 import { taskNoticeBlock } from '../../utils/messages/noticeRows.js'
 import { UserNoticeMessage } from './UserNoticeMessage.js'
+import { MessageMetaProvider, useMessageMeta } from './TranscriptNameplate.js'
 
 function statusColor(status: string | null, accent: string): string {
   switch (status) {
@@ -31,19 +32,28 @@ export function UserAgentNotificationMessage({
   addMargin,
   param,
   arrivedAt,
+  completedAt,
   expanded = false,
 }: {
   addMargin?: boolean
   param: TextBlockParam
   arrivedAt?: string | null
+  completedAt?: string
   expanded?: boolean
 }): React.ReactNode {
   const { accent } = useSessionAccent()
+  const meta = useMessageMeta()
   const block = taskNoticeBlock(param.text)
   if (block === null) return null
   const partial = partialResultOf(param.text)
   const lines = partial === null ? block.lines : [`partial result kept (${partial.length} chars) — send it a message to resume`, ...block.lines]
-  return <UserNoticeMessage addMargin={addMargin} blocks={[{ ...block, lines }]} arrivedAt={arrivedAt} expanded={expanded} fold dotColor={statusColor(extractTag(param.text, 'status'), accent)} />
+  const useCompletion = block.kind === 'task' && block.plate.startsWith('[Crewmate]') && completedAt !== undefined && Number.isFinite(Date.parse(completedAt))
+  const body = <UserNoticeMessage addMargin={addMargin} blocks={[{ ...block, lines }]} arrivedAt={useCompletion ? null : arrivedAt} expanded={expanded} fold dotColor={statusColor(extractTag(param.text, 'status'), accent)} />
+  return useCompletion ? (
+    <MessageMetaProvider message={{ type: 'user', timestamp: completedAt, ...(meta?.queued ? { queued: true, heldFor: meta.heldFor } : {}) }}>
+      {body}
+    </MessageMetaProvider>
+  ) : body
 }
 
 export default UserAgentNotificationMessage
