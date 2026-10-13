@@ -31,6 +31,7 @@ export const WHOLE_TREE: Record<string, string> = {
   'model-policy': 'prove-model-pin-census and prove-neutral-model-doors walk src (model pins and doors)',
   'node-runtime': 'prove-spawn-window-discipline walks src (every child-process spawn carries windowsHide)',
   orphans: 'prove-reachability-manifest walks src and scripts (the reachability graph)',
+  permissions: 'prove-sovereign-zero-cards walks src (every pusher of the permission card and every tool declaring an interaction-mandatory ask); a whole-tree ratchet owed by every fold',
   projectdirs: 'prove-no-literal-homes walks src (literal home paths)',
   provauth: 'prove-signin-roads-pinned walks scripts (sign-in road pins)',
   'run-recovery': 'prove-worktree-resume-keeps-record walks src and scripts (the retired resume road names nothing)',

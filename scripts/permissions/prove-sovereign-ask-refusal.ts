@@ -18,7 +18,7 @@ const WORDS = (tool: string, limit: string) =>
   'Work that does not depend on this action can continue. Do not try to reach the same effect by another route. ' +
   'If the task cannot continue without this action, stop and say plainly what was not run and why the task needs it, then wait for the operator.'
 const FLOOR = "ls //localhost/c$/ may reach the remote host localhost over SMB/WebDAV; a UNC path can leak this machine's login — Mercury does not open it without explicit permission."
-const FLOOR_REASON = { type: 'safetyCheck', reason: FLOOR, operatorOnly: true, floor: true }
+const FLOOR_REASON = { type: 'safetyCheck', reason: FLOOR, operatorOnly: true }
 
 const { handleInteractivePermission } = await import('../../src/hooks/toolPermission/handlers/interactiveHandler.ts')
 const { createRunnerAsks } = await import('../../src/cli/headless/runnerAsks.ts')

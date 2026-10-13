@@ -1,0 +1,23 @@
+
+  (>_) MERCURY · boot menu
+
+
+  trust combo
+    Content-rule wards              default (on)
+    Debug tool (real debugger)      default (on)
+    C/C++ IDE lane (clangd)         default (on)
+  ❯ Sovereign mode                  on
+    ▲ nothing asks or stops you — every action runs as you
+  computer use
+    Computer use                    default (on)
+    Access type                     default (full · sovereign mode)
+  samples
+    Samples                         default (off)
+  agents
+    Crewmates                       default (on)
+    Workflows                       default (on)
+  miscellaneous
+  ↓ 11 more
+
+  no permission question is asked — not for files, commands, or computer use;…
+  ↑↓ move · ↵ change (saved) · ⌫ default · a apply receipts · esc back
