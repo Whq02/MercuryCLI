@@ -60,6 +60,7 @@ function classification(file: string, table: string, owner: string, body: string
     return undefined
   }
   if (file === 'src/services/providers/openai/gptPins.ts' && owner === 'gptDisplayPin') return 'display/price metadata by id'
+  if (file === 'src/services/resources/adapters/models.ts' && owner === 'knownModelsReference' && body.includes('GPT_DISPLAY_PINS.map(pin => ({ id: pin.id, displayName: pin.displayName }))') && onlyReads(body, 'GPT_DISPLAY_PINS', ["const { GPT_DISPLAY_PINS } = await import('../../providers/openai/gptPins.js')", 'GPT_DISPLAY_PINS.map(pin => ({ id: pin.id, displayName: pin.displayName }))']) && source.includes('not what is reachable now') && !/resolveEngineDispatch|computedDefault|providerFrontierFact/.test(source)) return 'the known page rows (id and display name) this build ships, listed as known, never as reachable'
   if (file === 'src/utils/model/providerFrontier.ts' && ['providerFrontierFact', 'providerLightFact', 'providerSmallFastFact'].includes(owner)) return `existing OpenAI chooser obligation: ${openaiOwner}`
   if (file === 'src/utils/router/providers/openai.ts' && owner === 'staticPinCatalogue') return 'display projection; admission reads the live catalogue'
   if (file === 'src/utils/crew/engineDispatch.ts' && owner === 'resolveGptExactModel' && body.includes('await refreshOpenaiCatalogue') && body.includes('evaluateGptCandidate')) return 'exact-id fallback behind live admission'
