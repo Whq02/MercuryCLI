@@ -97,7 +97,7 @@ const BRAND_ALLOWLIST: ReadonlyArray<{ tool: string; pattern: RegExp; reason: st
   },
   {
     tool: 'ProviderSearch',
-    pattern: /\(Anthropic web search · OpenAI web search\)/g,
+    pattern: /\(Anthropic or OpenAI\)/g,
     reason:
       'provider-enumeration — the subject IS the native-search family set (NATIVE_SEARCH_FAMILIES: the tool exists only because those wires carry a construct, and the prompt names which; an exemption with teeth over a spelling-dodge)',
   },
@@ -356,7 +356,7 @@ check(
 const searchDoorSource = readFileSync(new URL('../../src/services/search/searchDoor.ts', import.meta.url), 'utf8')
 check(
   'WebSearch: the door walks typed failures and throws the one composed line when no door answers',
-  searchDoorSource.includes('throw new Error(walkFailureLine(failures, plan, { nativeFamily:') && searchDoorSource.includes('notes: [...failures.map(failureLine)'),
+  searchDoorSource.includes('throw new Error(walkFailureLine(failures, plan))') && searchDoorSource.includes('...failures.map(failureLine)') && searchDoorSource.includes('No source answered; try another wording or another source.'),
 )
 check(
   'WebSearch: the native door is the main model\'s OWN family by the routing law — never another family\'s credential',

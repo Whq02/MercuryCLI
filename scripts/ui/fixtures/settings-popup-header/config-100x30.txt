@@ -2,7 +2,7 @@
 WORKBENCH           │                                                                              │
   no prompts sent y…│ ╭──────────────────────────────────────────────────────────────────────────╮ │
                     │ │ ▖▟▆▙▗ Mercury · config                                                   │ │
-NEXT                │ │ orchard · 65 settings · 1 set by you                                     │ │
+NEXT                │ │ orchard · 66 settings · 1 set by you                                     │ │
   · /workflows — cr…│ │                                                                          │ │
                     │ │ / Search settings…                                                       │ │
 FILES · orchard     │ │                                                                          │ │
@@ -15,9 +15,9 @@ VITALS              │ │   Session concourse                 on              
                     │ │   Ping                              on                                   │ │
                     │ │   Account identity                  shown                                │ │
                     │ │   Motion                            auto · off                           │ │
+                    │ │   DuckDuckGo scraping               off                                  │ │
                     │ │   JEV                               off · official                       │ │
-                    │ │   Instruction profile               auto                                 │ │
-                    │ │ ↓ 54 more                                                                │ │
+                    │ │ ↓ 55 more                                                                │ │
                     │ │                                                                          │ │
                     │ │ ↑↓ select · ←/→ change · ↵ save · / search · esc or click outside closes │ │
                     │ ╰──────────────────────────────────────────────────────────────────────────╯ │

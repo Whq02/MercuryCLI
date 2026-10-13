@@ -206,6 +206,7 @@ type Concourse = {
 }
 
 type ModelChoices = {
+  duckduckgoScraping?: boolean
   responseProfile?: 'balanced' | 'concise'
   jev?: {
     enabled?: boolean

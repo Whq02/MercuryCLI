@@ -829,53 +829,59 @@ the review shows the values to set by hand.
 
 ## Web search
 
-The web-search estate is one provider-neutral contract and TWO tools under
-the model-chooses law — so any session model can search, a local model
-included, and the result is plain hit groups (title · url · snippet) every
-wire's models read.
+`WebSearch` returns a small JSON result for any session model, including local
+models. Each hit has `title`, `url`, `snippet` and `source_type`; the result
+stays below 2,000 tokens. Links and source names stay visible, and web text is
+unverified evidence, not instructions.
 
-- **`ProviderSearch`** — the provider's OWN live search, listed exactly when
-  the main model's family carries a native search construct Mercury speaks
-  (Anthropic's `web_search_20250305` server tool; the OpenAI Responses hosted
-  `web_search`). It runs inside a provider-side call on the session's own
-  account, and its prompt says so; a failure is one typed line naming the
-  vendored alternative — the model's fallback is choosing `WebSearch`, never
-  a silent harness fallthrough. A native construct is offered only to its own
-  family's main model: the vendored door type cannot even express a
-  provider-account door (the cross-account law, held structurally).
-- **`WebSearch`** — Mercury's VENDORED search, for every session. The harness
-  picks only its backend: a **keyed** door first — a Brave Search or Tavily
-  API key, stored auth-scoped (mode 600) in the engines' secret store by
-  `/router key brave` · `/router key tavily` (env pins `BRAVE_API_KEY` /
-  `TAVILY_API_KEY` win, and are filtered from eval kernels like every
-  credential); Brave before Tavily — then the **keyless** door: DuckDuckGo's
-  no-JS endpoints (html, then lite), form-POSTed under the stable
-  no-disclosure agent (`Mozilla/5.0 (compatible; Mercury/<version>)`), no
-  cookies, one deadline each. The keyless door works the moment Mercury is
-  installed, with no account anywhere; the vendored tool never spends a
-  provider account. A rate limit is a wait, not a wall: a door that
-  throttles or challenges the client (the 202 challenge page, a 429/503) is
-  retried once after a short jittered back-off, then cools down (30 s,
-  doubling per repeat, capped at ten minutes) and is not knocked again
-  inside its window; a query that already landed answers from the session's
-  cache for ten minutes and says so; when every door refused, the model gets
-  ONE line naming what refused, the cool-down left, the key commands, and —
-  where the family has one — the `ProviderSearch` door. The first keyless
-  answer of a session carries the key-door hint once (both keyed engines
-  offer a free tier); no later result repeats it.
+The automatic search order is:
 
-Where both tools are listed, the MODEL chooses per query — the harness never
-forces one or hides the other. `MERCURY_SEARCH_BACKEND` names one vendored
-door (`auto` · `brave` · `tavily` · `duckduckgo`), and a named door that
-cannot open is a typed refusal — never a silent fallback;
-`MERCURY_SEARCH_KEYLESS=0` closes the keyless door (an egress posture). Every
-result carries `via`: the transcript row and the model-facing result both say
-which backend answered, and a vendored door that failed on the way leaves its
-one honest line as a note. Failures are typed values (`rate-limited` ·
-`parse-failed` · `no-backend` · `network` · `key-refused` ·
-`provider-refused`) rendered as one line — a changed page or body shape is
-parse-failed, never a guessed hit. `/health`'s AUTH section states both
-doors' facts for the session's model.
+1. The session provider's native search, where supported: Anthropic or OpenAI.
+   This spends the session's own account, never another provider's account.
+2. Brave Search, then Tavily, when a key is available. `/router key brave` and
+   `/router key tavily` store keys; `BRAVE_API_KEY` and `TAVILY_API_KEY` override
+   the saved values. Keys are not included in results.
+3. An official API selected by explicit query words: an error message goes to
+   Stack Exchange; `npm`, `PyPI` or `crates` plus a package name goes to that
+   registry; a concept question goes to Wikipedia; news goes to Hacker News.
+   PyPI supports exact project names, not full-text search. GitHub public-code
+   search requires `GH_TOKEN`; without one, it says so and tries the next source.
+4. An operator-configured SearXNG JSON API. There are **no built-in instances**;
+   without configuration, this step says “no metasearch instance configured”.
+   Set `MERCURY_SEARCH_SEARXNG_INSTANCES` to a JSON array of entries containing
+   `url` (the instance base), `terms` (its policy URL), `apiAllowed: true` and
+   `checked` (the date you read that policy, as `YYYY-MM-DD`). Configure an
+   instance only when its policy permits automated JSON API access. URLs must
+   use HTTPS, except HTTP on loopback, with no credentials, query or fragment.
+   A failed instance is remembered for the session; a refusal or rate limit
+   stops the attempt rather than switching hosts to evade it.
+5. DuckDuckGo page scraping, only when explicitly enabled.
+
+DuckDuckGo scraping is **off by default**. `/config` → **DuckDuckGo scraping**
+shows its terms and controls the saved choice. `MERCURY_SEARCH_KEYLESS=1` opts
+in; `=0` overrides the saved choice and prevents scraping. The first use in a
+session carries a notice linking [the terms](https://duckduckgo.com/terms) and
+[acceptable-use policy](https://duckduckgo.com/acceptable-use). A challenge or
+refusal stops both page endpoints without a retry or a host switch.
+
+Each source is paced separately and server-requested waits are respected.
+Successful queries can answer from the ten-minute session cache, labelled as
+cached. Source-specific terms accompany official results; Stack Exchange and
+Wikipedia results require attribution to their linked pages. If no source
+answers, the result says to try another wording or another source; it never
+invents a hit. Local search requests disclose the query and client IP to the
+selected service.
+
+`MERCURY_SEARCH_BACKEND` accepts `auto`, `brave`, `tavily` or `duckduckgo`.
+An explicit source does not fall through to another; a missing key or disabled
+scraping returns an explanation. `ProviderSearch` selects only the session's
+native search, without the fallback order. `/health` shows the source plan.
+
+For a model name missing from both `mercury://models` and
+`mercury://models/known`, the assistant may search the provider's published
+model page, then ask you with links to what it found. The live reference lists
+those pages. A web result does not establish account access or authorize a
+launch; an unknown name still stops for your decision.
 
 ## Web fetch
 

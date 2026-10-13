@@ -138,7 +138,7 @@ export async function nativeSearch(
         sequence.push(note)
       } else {
         const hits = filterHitsByDomain(
-          block.content.map(hit => ({ title: hit.title, url: hit.url })),
+          block.content.map(hit => ({ title: hit.title, url: hit.url, snippet: '', source_type: 'provider' as const })),
           request.allowedDomains,
           request.blockedDomains,
         )

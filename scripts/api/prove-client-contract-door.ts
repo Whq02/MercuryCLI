@@ -71,7 +71,8 @@ const agents: Array<[string, string]> = [
 ]
 for (const [label, ua] of agents) {
   const webIdentity = ua === 'Mercury/1.0.0 (+https://mercury-cli.ai; https://github.com/Whq02/MercuryCLI/issues)'
-  check(`${label} is the product identity`, label.startsWith('web fetch') ? webIdentity : /^(mercury\/1\.0\.0|Mozilla\/5\.0 \(compatible; Mercury\/1\.0\.0\))/.test(ua) || (label.startsWith('search backends') && webIdentity), ua)
+  const sharesWebIdentity = label.startsWith('web fetch') || label === 'search backends (searchUserAgent)'
+  check(`${label} is the product identity`, sharesWebIdentity ? webIdentity : /^(mercury\/1\.0\.0|Mozilla\/5\.0 \(compatible; Mercury\/1\.0\.0\))/.test(ua), ua)
   check(`${label} carries no contract version or borrowed agent token`, !ua.includes(CONTRACT) && !/claude-cli/i.test(ua), ua)
 }
 {

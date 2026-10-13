@@ -61,7 +61,7 @@ section('§1 the census: each refusal thrown by the road')
     check(`engineDispatch.ts:${refusal.line} names the way out — ${refusal.text.slice(0, 90).replace(/\s+/g, ' ')}…`, named, refusal.text)
   }
   const unrecognised = source.slice(source.indexOf('export function unrecognisedModelWordRefusal'), source.indexOf('type EngineProvider ='))
-  check('the unrecognised-word refusal names mercury://models, the known page and the ask rung (RED on the base)', unrecognised.includes('mercury://models lists the providers the operator is signed into') && unrecognised.includes('mercury://models/known') && unrecognised.includes('ask the operator for the model id'), unrecognised.slice(-400))
+  check('the unrecognised-word refusal names mercury://models, the known page and the ask rung (RED on the base)', unrecognised.includes('mercury://models lists the providers the operator is signed into') && unrecognised.includes('${MODEL_LOOKUP_LADDER}'), unrecognised.slice(-400))
   check('no refusal still ends on "never dispatching an unverified id" or "cannot resolve a model." with nothing after it (RED on the base)', !source.includes('never dispatching an unverified id.`') && !source.includes("cannot resolve a model.')"), '')
   check('the provider-unavailable refusal names the sign-in door for a missing credential, the local and compat doors for those slots, and /health ROUTER otherwise', source.includes('export function providerUnavailableRefusal') && source.includes("${door} connects it") && source.includes('MERCURY_LOCAL_BASE_URL') && source.includes('MERCURY_COMPAT_BASE_URL') && source.includes('/health ROUTER names the fix'), '')
 }
@@ -73,7 +73,7 @@ section('§2 the words on the wire, in the owner\'s shape')
   const discovery = await import('../../src/utils/router/providerDiscovery.ts')
   const road = (word: string): Promise<string> => engine.resolveEngineDispatch(word).then(r => `resolved ${r?.model ?? 'null'}`, e => (e instanceof Error ? e.message : String(e)))
   const unrecognised = engine.unrecognisedModelWordRefusal('frobnicator-9000') ?? ''
-  check("'frobnicator-9000': names no model — the refusal points at mercury://models and the ask rung, never a provider", unrecognised.includes("model 'frobnicator-9000' names no model") && unrecognised.includes('mercury://models') && unrecognised.includes('ask the operator for the model id') && unrecognised.includes('never switch to another provider'), unrecognised)
+  check("'frobnicator-9000': names no model — the refusal points at mercury://models and the ask rung, never a provider", unrecognised.includes("model 'frobnicator-9000' names no model") && unrecognised.includes('mercury://models') && unrecognised.includes('ask the operator for the model id') && unrecognised.toLowerCase().includes('never switch to another provider'), unrecognised)
   discovery.__resetProviderDiscoveryForTest()
   const keyless = await road('grok')
   check("'grok' with no sign-in: the door is /logins xai (RED on the base: '/health ROUTER and /capabilities name the fix')", keyless.includes('/logins xai connects it') && keyless.includes('mercury://models'), keyless)
