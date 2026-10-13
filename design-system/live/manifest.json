@@ -3,7 +3,7 @@
   "generator": "scripts/ui/generate-visual-baseline.ts",
   "sourceSha": "f352fb220a379b622ff21c120bf6bf7963738cdc",
   "buildDigest": "546bd41cffae3abe7d15c6086df9518bbd06abd6",
-  "generatedAt": "2026-10-13T06:06:30.328Z",
+  "generatedAt": "2026-10-13T06:30:38.360Z",
   "descoped": [
     "mouse on/off: identical static grids — pointer semantics live in the interaction journeys (S4–S6)",
     "provider screens: covered by the agent-dispatch journey provers, not the static baseline",
@@ -55,8 +55,8 @@
     },
     {
       "id": "frame--100x30--dark--truecolor--full",
-      "sourceSha": "e0ff892dbf386f0bcbfb53db1b25a73d5a63314f",
-      "buildDigest": "0920a8b595c5afbef326218af5bf2231daf14115",
+      "sourceSha": "f352fb220a379b622ff21c120bf6bf7963738cdc",
+      "buildDigest": "546bd41cffae3abe7d15c6086df9518bbd06abd6",
       "scenario": "frame",
       "cols": 100,
       "rows": 30,
@@ -67,7 +67,7 @@
       "stateFixture": "frame",
       "terminalProfile": "pyte-xterm",
       "gridPath": "grids/frame--100x30--dark--truecolor--full.grid.json",
-      "gridDigest": "105f683d918f5d8c9cb5d77e89a56fab20d16f4a7d998359cbad98ed20ac4735",
+      "gridDigest": "ae9ebc34febea96085af74e4f410bb53a2fc1e756d7afc98a87295975db42742",
       "styleDigest": "ced032bf1e4c97f0b9632151d3f0465ccc16add16dd1ded7a454ab746a960667",
       "masks": [
         "\\b\\d{2}:\\d{2}:\\d{2}\\b",
@@ -84,17 +84,17 @@
         "row:^ ready · .+ {2,}(?:⇧|shift\\+)← back",
         "row: {2,}\\S+(?: ⌥ \\S+)? {2}(?:[^·]+ · )?(?:⇧|shift\\+)← back",
         " *(?:⇧|shift\\+)← concourse *",
-        "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
+        "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ crewmates? here {1,5}|S:\\d+ · M:\\d+ · C:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]",
         "│ {2,3}(?:idle|—) +(?=│)"
       ],
-      "generatedAt": "2026-10-09T01:18:02.100Z"
+      "generatedAt": "2026-10-13T06:30:38.353Z"
     },
     {
       "id": "frame--101x30--dark--truecolor--full",
-      "sourceSha": "e0ff892dbf386f0bcbfb53db1b25a73d5a63314f",
-      "buildDigest": "0920a8b595c5afbef326218af5bf2231daf14115",
+      "sourceSha": "f352fb220a379b622ff21c120bf6bf7963738cdc",
+      "buildDigest": "546bd41cffae3abe7d15c6086df9518bbd06abd6",
       "scenario": "frame",
       "cols": 101,
       "rows": 30,
@@ -105,7 +105,7 @@
       "stateFixture": "frame",
       "terminalProfile": "pyte-xterm",
       "gridPath": "grids/frame--101x30--dark--truecolor--full.grid.json",
-      "gridDigest": "71a7146589be35fadbf9f6b4aedce2c68b5937981ad1c72261e3084681b2d6c8",
+      "gridDigest": "3f1c52b1ced954fc70036b2b939eaa232cbda0649eda39bd16e768a856df5d9c",
       "styleDigest": "61b27aaea8eadf55aee98a4fae93926eef2aa5ed27732b74f5ef384ef8f249e9",
       "masks": [
         "\\b\\d{2}:\\d{2}:\\d{2}\\b",
@@ -122,12 +122,12 @@
         "row:^ ready · .+ {2,}(?:⇧|shift\\+)← back",
         "row: {2,}\\S+(?: ⌥ \\S+)? {2}(?:[^·]+ · )?(?:⇧|shift\\+)← back",
         " *(?:⇧|shift\\+)← concourse *",
-        "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
+        "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ crewmates? here {1,5}|S:\\d+ · M:\\d+ · C:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]",
         "│ {2,3}(?:idle|—) +(?=│)"
       ],
-      "generatedAt": "2026-10-09T01:18:02.102Z"
+      "generatedAt": "2026-10-13T06:30:38.354Z"
     },
     {
       "id": "frame--120x40--dark--256--full",
@@ -397,8 +397,8 @@
     },
     {
       "id": "frame--150x40--dark--truecolor--full",
-      "sourceSha": "aa2d8b7f76777f3ef92c0ace8a527b4e6b66e288",
-      "buildDigest": "52233d6832020d206bc597cc564853f5333d0642",
+      "sourceSha": "f352fb220a379b622ff21c120bf6bf7963738cdc",
+      "buildDigest": "546bd41cffae3abe7d15c6086df9518bbd06abd6",
       "scenario": "frame",
       "cols": 150,
       "rows": 40,
@@ -409,7 +409,7 @@
       "stateFixture": "frame",
       "terminalProfile": "pyte-xterm",
       "gridPath": "grids/frame--150x40--dark--truecolor--full.grid.json",
-      "gridDigest": "c9521623647ffec8cad47918e48b5c86c5fbcc123c0a69377efd6c50a441846b",
+      "gridDigest": "c278d80cc863e8a82036b3fff43ed08bab4aef7fb2ceca4fe7d772bd7e0e8fb3",
       "styleDigest": "0e3fd997c4617d282a67c53cd65e0c9c6b44c42b9b48c45acde76fff59f0f223",
       "masks": [
         "\\b\\d{2}:\\d{2}:\\d{2}\\b",
@@ -426,12 +426,12 @@
         "row:^ ready · .+ {2,}(?:⇧|shift\\+)← back",
         "row: {2,}\\S+(?: ⌥ \\S+)? {2}(?:[^·]+ · )?(?:⇧|shift\\+)← back",
         " *(?:⇧|shift\\+)← concourse *",
-        "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
+        "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ crewmates? here {1,5}|S:\\d+ · M:\\d+ · C:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]",
         "│ {2,3}(?:idle|—) +(?=│)"
       ],
-      "generatedAt": "2026-10-09T06:28:50.952Z"
+      "generatedAt": "2026-10-13T06:30:38.356Z"
     },
     {
       "id": "frame--151x40--dark--truecolor--full",
@@ -739,8 +739,8 @@
     },
     {
       "id": "resume-2turn--100x30--dark--truecolor--full",
-      "sourceSha": "e0ff892dbf386f0bcbfb53db1b25a73d5a63314f",
-      "buildDigest": "0920a8b595c5afbef326218af5bf2231daf14115",
+      "sourceSha": "f352fb220a379b622ff21c120bf6bf7963738cdc",
+      "buildDigest": "546bd41cffae3abe7d15c6086df9518bbd06abd6",
       "scenario": "resume-2turn",
       "cols": 100,
       "rows": 30,
@@ -751,7 +751,7 @@
       "stateFixture": "resume-2turn",
       "terminalProfile": "pyte-xterm",
       "gridPath": "grids/resume-2turn--100x30--dark--truecolor--full.grid.json",
-      "gridDigest": "105f683d918f5d8c9cb5d77e89a56fab20d16f4a7d998359cbad98ed20ac4735",
+      "gridDigest": "ae9ebc34febea96085af74e4f410bb53a2fc1e756d7afc98a87295975db42742",
       "styleDigest": "ced032bf1e4c97f0b9632151d3f0465ccc16add16dd1ded7a454ab746a960667",
       "masks": [
         "\\b\\d{2}:\\d{2}:\\d{2}\\b",
@@ -768,17 +768,17 @@
         "row:^ ready · .+ {2,}(?:⇧|shift\\+)← back",
         "row: {2,}\\S+(?: ⌥ \\S+)? {2}(?:[^·]+ · )?(?:⇧|shift\\+)← back",
         " *(?:⇧|shift\\+)← concourse *",
-        "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
+        "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ crewmates? here {1,5}|S:\\d+ · M:\\d+ · C:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]",
         "│ {2,3}(?:idle|—) +(?=│)"
       ],
-      "generatedAt": "2026-10-09T01:18:02.101Z"
+      "generatedAt": "2026-10-13T06:30:38.354Z"
     },
     {
       "id": "resume-2turn--101x30--dark--truecolor--full",
-      "sourceSha": "e0ff892dbf386f0bcbfb53db1b25a73d5a63314f",
-      "buildDigest": "0920a8b595c5afbef326218af5bf2231daf14115",
+      "sourceSha": "f352fb220a379b622ff21c120bf6bf7963738cdc",
+      "buildDigest": "546bd41cffae3abe7d15c6086df9518bbd06abd6",
       "scenario": "resume-2turn",
       "cols": 101,
       "rows": 30,
@@ -789,7 +789,7 @@
       "stateFixture": "resume-2turn",
       "terminalProfile": "pyte-xterm",
       "gridPath": "grids/resume-2turn--101x30--dark--truecolor--full.grid.json",
-      "gridDigest": "71a7146589be35fadbf9f6b4aedce2c68b5937981ad1c72261e3084681b2d6c8",
+      "gridDigest": "3f1c52b1ced954fc70036b2b939eaa232cbda0649eda39bd16e768a856df5d9c",
       "styleDigest": "61b27aaea8eadf55aee98a4fae93926eef2aa5ed27732b74f5ef384ef8f249e9",
       "masks": [
         "\\b\\d{2}:\\d{2}:\\d{2}\\b",
@@ -806,12 +806,12 @@
         "row:^ ready · .+ {2,}(?:⇧|shift\\+)← back",
         "row: {2,}\\S+(?: ⌥ \\S+)? {2}(?:[^·]+ · )?(?:⇧|shift\\+)← back",
         " *(?:⇧|shift\\+)← concourse *",
-        "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
+        "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ crewmates? here {1,5}|S:\\d+ · M:\\d+ · C:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]",
         "│ {2,3}(?:idle|—) +(?=│)"
       ],
-      "generatedAt": "2026-10-09T01:18:02.103Z"
+      "generatedAt": "2026-10-13T06:30:38.355Z"
     },
     {
       "id": "resume-2turn--120x40--dark--256--full",
@@ -1005,8 +1005,8 @@
     },
     {
       "id": "resume-2turn--150x40--dark--truecolor--full",
-      "sourceSha": "aa2d8b7f76777f3ef92c0ace8a527b4e6b66e288",
-      "buildDigest": "52233d6832020d206bc597cc564853f5333d0642",
+      "sourceSha": "f352fb220a379b622ff21c120bf6bf7963738cdc",
+      "buildDigest": "546bd41cffae3abe7d15c6086df9518bbd06abd6",
       "scenario": "resume-2turn",
       "cols": 150,
       "rows": 40,
@@ -1017,7 +1017,7 @@
       "stateFixture": "resume-2turn",
       "terminalProfile": "pyte-xterm",
       "gridPath": "grids/resume-2turn--150x40--dark--truecolor--full.grid.json",
-      "gridDigest": "c9521623647ffec8cad47918e48b5c86c5fbcc123c0a69377efd6c50a441846b",
+      "gridDigest": "c278d80cc863e8a82036b3fff43ed08bab4aef7fb2ceca4fe7d772bd7e0e8fb3",
       "styleDigest": "0e3fd997c4617d282a67c53cd65e0c9c6b44c42b9b48c45acde76fff59f0f223",
       "masks": [
         "\\b\\d{2}:\\d{2}:\\d{2}\\b",
@@ -1034,12 +1034,12 @@
         "row:^ ready · .+ {2,}(?:⇧|shift\\+)← back",
         "row: {2,}\\S+(?: ⌥ \\S+)? {2}(?:[^·]+ · )?(?:⇧|shift\\+)← back",
         " *(?:⇧|shift\\+)← concourse *",
-        "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
+        "row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ crewmates? here {1,5}|S:\\d+ · M:\\d+ · C:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$",
         "(?<= · effort [^·]+ · ctx \\S+ · )\\S.*",
         "row:gate [✓◓✕·]",
         "│ {2,3}(?:idle|—) +(?=│)"
       ],
-      "generatedAt": "2026-10-09T06:28:50.955Z"
+      "generatedAt": "2026-10-13T06:30:38.357Z"
     },
     {
       "id": "resume-2turn--151x40--dark--truecolor--full",
