@@ -517,7 +517,7 @@ function homePatterns(): HomePatterns {
       home === undefined
         ? []
         : [new RegExp(`${RECURSIVE_RM}${home}(?:\\/|\\s|$|["'])`), new RegExp(`\\bfind\\s+["']?${home}(?:\\/|\\s|["'])[^\\n;|&]*\\s-delete\\b`)],
-    operand: new RegExp(`(?:^|[\\s;"'=])((?:${prefixes.join('|')})${OPERAND_TAIL})`, 'g'),
+    operand: new RegExp(`(?:^|[\\s;=])"((?:${prefixes.join('|')})[^"\\n]*)"|(?:^|[\\s;=])'((?:${prefixes.join('|')})[^'\\n]*)'|(?:^|[\\s;"'=])((?:${prefixes.join('|')})${OPERAND_TAIL})`, 'g'),
   }
   return homePatternCache
 }
@@ -702,7 +702,7 @@ function lineResolvesInsideProject(
 ): boolean {
   let resolvedAny = false
   for (const m of line.matchAll(homePatterns().operand)) {
-    const operand = m[1]
+    const operand = m[1] ?? m[2] ?? m[3]
     if (operand === undefined || operand === '') continue
     if (work) countWardWork(work, 'steps')
     const expanded = operand.startsWith('~') ? expandTildeOf(operand) : operand
