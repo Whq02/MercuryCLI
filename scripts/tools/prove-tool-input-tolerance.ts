@@ -194,7 +194,8 @@ console.log('── 5. structural pins ──')
   t('no classifier call site widens raw input with a cast', widened.length === 0, widened.join(', '))
   t('every classifier consumer goes through the seam', direct.length === 0, direct.join(', '))
   const messages = readFileSync('src/components/Messages.tsx', 'utf8')
-  t('the transcript list wraps each row in the per-row boundary', /<RowErrorBoundary>\s*<MessageRow/.test(messages) && /\/>\s*<\/RowErrorBoundary>/.test(messages))
+  const boundary = /<RowErrorBoundary>([\s\S]*?)<\/RowErrorBoundary>/.exec(messages)?.[1] ?? ''
+  t('the transcript list wraps each row in the per-row boundary', /<MessageRow\b/.test(boundary) && !/<RowErrorBoundary>/.test(boundary) && /\/>\}?\s*$/.test(boundary.trimEnd()))
 }
 
 console.log('── 6. per-row boundary ──')

@@ -21,6 +21,7 @@ export interface FlagSpec {
 }
 
 export const FLAG_REGISTRY: readonly FlagSpec[] = [
+  { env: 'MERCURY_FETCH_READER', kind: 'default-on', tier: 'behavioral', summary: 'WebFetch may send a public page URL to r.jina.ai for browser rendering when its direct HTML is sparse; no cookies, credentials or conversation are sent', off: '=0 no hosted-reader request; return the sparse page words with a notice', consumer: 'src/tools/WebFetchTool/reader.ts', evidence: 'scripts/builtin-tools/prove-webfetch-reader.ts', retirement: 'permanent' },
   { env: 'MERCURY_AGENT_CAP', kind: 'value', summary: 'read by capabilityGate', off: 'see consumer', consumer: 'src/utils/permissions/capabilityGate.ts' },
   { env: 'MERCURY_AGENT_NEEDS_YOU', kind: 'default-on', tier: 'display', summary: 'heuristic agent-state classification feeding cockpit CREW rows', off: 'see consumer', consumer: 'src/utils/cockpit/agentStateSnapshot.ts' },
   { env: 'MERCURY_AGENT_NEEDS_YOU_LLM', kind: 'opt-in', tier: 'behavioral', summary: 'LLM-backed agent-state classification (costed calls)', off: 'see consumer', consumer: 'src/services/agentNeedsYou.ts' },
