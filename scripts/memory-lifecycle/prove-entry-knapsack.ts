@@ -100,7 +100,7 @@ try {
     retainAt(dir, T - 30 * DAY, 'the quartz rotation script lives in scripts/ops/rotate-quartz.sh', 'quartz')
     retainAt(dir, T - 20 * DAY, 'quartz certificates rotate on Tuesdays', 'quartz')
     retainAt(dir, T - 10 * DAY, 'the owner signs commits as Whq02 and never pushes from a lane', 'owner')
-    retainAt(dir, T - 9 * DAY, 'the quartz certificates must be rotated by the certificate holder, with the rotation logged in the rotation ledger that the certificates team keeps beside the quartz rotation script, and the rotation announced on the certificates channel the same day', 'quartz')
+    retainAt(dir, T - 9 * DAY, 'the quartz certificates must be rotated by the certificate holder, with the rotation logged in the rotation ledger that the certificate holders keep beside the quartz rotation script, and the rotation announced on the certificates channel the same day', 'quartz')
     retainAt(dir, T - 5 * DAY, 'the quartz lane runs on branch lane/quartz-rotation', 'quartz')
     frozen = T - 1 * DAY
     const landed = maybeConsolidate({ force: true, dir, now: new Date(frozen) })
