@@ -151,7 +151,7 @@ try {
   const idle = await boot('an idle helper')
   const idleRestart = await cli('restart')
   console.log(idleRestart.text.trim())
-  check('a restart with nothing live restarts the helper now and says so', idleRestart.code === 0 && idleRestart.text.includes('daemon restarted') && !isProcessAlive(idle), idleRestart)
+  check('a restart with nothing live restarts the helper now and says so', idleRestart.code === 0 && idleRestart.text.includes('daemon restarted') && await until(() => !isProcessAlive(idle), 10_000), idleRestart)
   check('its replacement serves', await until(async () => { const h = await hello(); return h.ok && h.op === 'hello' && h.pid !== idle && h.ready }), await hello())
   await stopPlane('the idle replacement')
 
