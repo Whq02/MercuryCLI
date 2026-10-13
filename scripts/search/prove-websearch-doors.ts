@@ -399,8 +399,8 @@ section('§9 THE WEBFETCH ROAD — no policy service is asked before a fetch, on
   check('an anthropic-routed fetch touches ZERO anthropic hosts too (no policy dial exists)', firstParty.anthropic === 0, j(fixture.hitsOn('anthropic').map(h => h.path)))
   const { getWebFetchUserAgent } = await import('../../src/utils/http.js')
   const webFetchUa = getWebFetchUserAgent()
-  check('the WebFetch agent presents Mercury/<version> and DISCLOSES nothing (no +url, no repo, no operator)',
-    /^Mozilla\/5\.0 \(compatible; Mercury\/[^)]+\)$/.test(webFetchUa) && !webFetchUa.includes('+') && !OPERATOR_NEEDLE.test(webFetchUa), webFetchUa)
+  check('the WebFetch agent names Mercury and the public contact without session identity',
+    webFetchUa === `Mercury/${MACRO.VERSION} (+https://mercury-cli.ai; https://github.com/Whq02/MercuryCLI/issues)`, webFetchUa)
   fixture.reset()
 }
 
