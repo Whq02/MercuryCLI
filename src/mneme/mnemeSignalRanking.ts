@@ -14,20 +14,22 @@ export function fuseSignalRanking(
   const pinned = new Set(scored.filter(hit => hit.features.pinned).map(hit => hit.id))
   const byId = new Map(scored.map(hit => [hit.id, hit]))
   const preference = new Map(learned.map((id, index) => [id, index]))
+  const tieKey = (id: string): string | null => {
+    const hit = byId.get(id)
+    return !hit || pinned.has(id) || !preference.has(id) ? null
+      : JSON.stringify([hit.score ?? hit.features.bm25 * hit.features.recency, hit.features.useCount ?? 0])
+  }
   const tied = rankings.map(ranking => {
-    const groups = new Map<string, number[]>()
-    ranking.forEach((id, index) => {
-      const hit = byId.get(id)
-      if (!hit || pinned.has(id) || !preference.has(id)) return
-      const key = JSON.stringify([hit.score ?? hit.features.bm25 * hit.features.recency, hit.features.useCount ?? 0])
-      const slots = groups.get(key) ?? []
-      slots.push(index)
-      groups.set(key, slots)
-    })
     const order = [...ranking]
-    for (const slots of groups.values()) {
-      const ids = slots.map(index => ranking[index]!).sort((a, b) => preference.get(a)! - preference.get(b)!)
-      slots.forEach((index, i) => { order[index] = ids[i]! })
+    for (let start = 0; start < order.length;) {
+      const key = tieKey(order[start]!)
+      let end = start + 1
+      if (key !== null) {
+        while (end < order.length && tieKey(order[end]!) === key) end++
+        const ids = order.slice(start, end).sort((a, b) => preference.get(a)! - preference.get(b)!)
+        order.splice(start, end - start, ...ids)
+      }
+      start = end
     }
     return order
   })
