@@ -24,5 +24,25 @@ const config = parse(readFileSync(join(root, '.github/ISSUE_TEMPLATE/config.yml'
 const first = config.contact_links[0]
 check('the first contact link opens the short form directly', first?.name === 'Tester report' && first?.url === 'https://github.com/Whq02/MercuryCLI/issues/new?template=tester_report.yml')
 check('blank reports stay disabled', config.blank_issues_enabled === false)
+const { ISSUE_FORMS, ISSUE_KINDS, composeIssueBody, promptedFields, issueFormUrl } = await import('../../src/commands/feedback/issueForms.ts')
+check('the form picker puts the tester report first', ISSUE_KINDS[0] === 'tester')
+const tester = ISSUE_FORMS.tester
+check('the command form carries the same four field ids', tester?.fields.map(field => field.id).join(',') === 'os,tried,broke,version')
+if (tester) {
+  check('the two short prompts are tried and broke, and both require words', promptedFields(tester).map(field => field.id).join(',') === 'tried,broke' && tester.fields.find(field => field.id === 'broke')?.required === true)
+  const values = { os: 'Linux', tried: 'Opened the picker', broke: 'Blank screen', version: 'Mercury test' }
+  const body = composeIssueBody(tester, { values, recentErrors: [{ error: 'not part of the short form', timestamp: 'now' }] })
+  check('the short body includes answers but no health or error dump', Object.values(values).every(value => body.includes(value)) && !body.includes('Recent errors') && !body.includes('health --json'))
+  const url = new URL(issueFormUrl(tester, { slug: 'Whq02/MercuryCLI', title: '[tester] Picker', values }))
+  check('the browser fallback selects the same template and OS option', url.searchParams.get('template') === 'tester_report.yml' && url.searchParams.get('os') === 'Linux')
+}
+const { call } = await import('../../src/commands/feedback/feedback.tsx')
+const context = { abortController: new AbortController(), messages: [] } as never
+const short = await call(() => {}, context, '--short My task', 'bug') as { props: { kind: string; initialDescription: string } }
+check('/bug --short selects the short form and preserves the attempted task', short.props.kind === 'tester' && short.props.initialDescription === 'My task')
+const ordinary = await call(() => {}, context, 'My task', 'bug') as { props: { kind: string } }
+check('/bug still selects the full bug form', ordinary.props.kind === 'bug')
+const { takeTesterDoor, TESTER_DOOR_LINE } = await import('../../src/commands/feedback/testerDoor.ts')
+check('one invitation per session, with a new session independent', takeTesterDoor('tester-proof-a') === TESTER_DOOR_LINE && takeTesterDoor('tester-proof-a') === null && takeTesterDoor('tester-proof-b') === TESTER_DOOR_LINE)
 console.log(`tester door: ${failures} failures`)
 process.exit(failures === 0 ? 0 : 1)

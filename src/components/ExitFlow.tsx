@@ -3,6 +3,7 @@ import React, { useEffect, useRef, useState } from 'react'
 import { ExitHandoff, noteAskedAtExit } from './ExitHandoff.js'
 import { WorktreeExitDialog } from './WorktreeExitDialog.js'
 import { gracefulShutdown } from '../utils/gracefulShutdown.js'
+import { farewellWithTesterDoor } from '../commands/feedback/testerDoor.js'
 
 const FAREWELLS = [
   'See you next time.',
@@ -19,7 +20,7 @@ function farewell(message?: string): string {
 
 function exitNow(message?: string): void {
   void gracefulShutdown(0, 'quit', {
-    finalMessage: farewell(message),
+    finalMessage: farewellWithTesterDoor(farewell(message)),
   })
 }
 

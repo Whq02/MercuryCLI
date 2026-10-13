@@ -1,5 +1,5 @@
 
-export type IssueKind = 'bug' | 'provider' | 'feature'
+export type IssueKind = 'tester' | 'bug' | 'provider' | 'feature'
 
 export type IssueFieldSource =
   | 'auto'
@@ -12,6 +12,7 @@ export interface IssueField {
   label: string
   source: IssueFieldSource
   prompt?: string
+  required?: boolean
 }
 
 export interface IssueForm {
@@ -23,7 +24,7 @@ export interface IssueForm {
   fields: readonly IssueField[]
 }
 
-export const ISSUE_KINDS: readonly IssueKind[] = ['bug', 'provider', 'feature']
+export const ISSUE_KINDS: readonly IssueKind[] = ['tester', 'bug', 'provider', 'feature']
 
 export const NOT_STATED = '(not stated)'
 
@@ -32,6 +33,19 @@ const PLATFORM_FIELD: IssueField = { id: 'platform', label: 'OS and terminal', s
 const HEALTH_FIELD: IssueField = { id: 'health', label: 'health --json', source: 'health' }
 
 export const ISSUE_FORMS: Readonly<Record<IssueKind, IssueForm>> = {
+  tester: {
+    kind: 'tester',
+    template: 'tester_report.yml',
+    name: 'Tester report',
+    description: 'A short report of what you tried and what broke.',
+    titlePrefix: '[tester] ',
+    fields: [
+      { id: 'os', label: 'Your OS', source: 'auto' },
+      { id: 'tried', label: 'What you tried', source: 'words', prompt: 'The task or command, in your own words. Add your OS version here if you know it.' },
+      { id: 'broke', label: 'What broke', source: 'ask', required: true, prompt: 'What happened instead, including any error text. Do not paste credentials or private files.' },
+      VERSION_FIELD,
+    ],
+  },
   bug: {
     kind: 'bug',
     template: 'bug_report.yml',
@@ -183,11 +197,13 @@ export function composeIssueBody(form: IssueForm, input: IssueBodyInput): string
   for (const field of form.fields) {
     parts.push(`${SECTION_HEADING}${field.label}\n${sectionText(field, input.values)}`)
   }
+  if (form.kind !== 'tester') {
+    parts.push(
+      `<details>\n<summary>Recent errors (redacted)</summary>\n\n${recentErrorsBlock(input.recentErrors)}\n\n</details>`,
+    )
+  }
   parts.push(
-    `<details>\n<summary>Recent errors (redacted)</summary>\n\n${recentErrorsBlock(input.recentErrors)}\n\n</details>`,
-  )
-  parts.push(
-    `_Filed from inside Mercury (\`/${form.kind === 'bug' ? 'bug' : 'feedback'}\`). The session transcript stays in the reporter's local draft and was not sent._`,
+    `_Filed from inside Mercury (\`/${form.kind === 'tester' ? 'bug --short' : form.kind === 'bug' ? 'bug' : 'feedback'}\`). The session transcript stays in the reporter's local draft and was not sent._`,
   )
   return `${parts.join('\n\n')}\n`
 }
