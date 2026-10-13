@@ -55,7 +55,7 @@ function grepText(slug: string, raw: string, pattern: string, maxHits: number, o
 
 export function grepLibrary(pattern: string, opts: { maxHits?: number; dir?: string } = {}): MnemeGrepHit[] {
   const dir = opts.dir ?? mnemeLibraryDir()
-  const maxHits = Math.min(Math.max(opts.maxHits ?? 20, 1), 100)
+  const maxHits = opts.maxHits === Infinity ? Infinity : Math.min(Math.max(opts.maxHits ?? 20, 1), 100)
   const out: MnemeGrepHit[] = []
   for (const doc of listTopicDocs(dir)) {
     const p = join(dir, docFileName(doc.slug))
@@ -76,7 +76,7 @@ export const PENDING_SLUG = '(recent)'
 
 export function grepPending(pattern: string, opts: { maxHits?: number; dir?: string } = {}): MnemeGrepHit[] {
   const dir = opts.dir ?? mnemeLibraryDir()
-  const maxHits = Math.min(Math.max(opts.maxHits ?? 20, 1), 100)
+  const maxHits = opts.maxHits === Infinity ? Infinity : Math.min(Math.max(opts.maxHits ?? 20, 1), 100)
   let re: RegExp
   try {
     re = new RegExp(pattern, 'i')
@@ -104,7 +104,7 @@ export function grepAll(pattern: string, opts: { maxHits?: number; dir?: string 
     const bare = h.text.replace(/ \[unconsolidated.*$/, '')
     return !docHits.some(d => d.text.includes(bare))
   })
-  const maxHits = Math.min(Math.max(opts.maxHits ?? 20, 1), 100)
+  const maxHits = opts.maxHits === Infinity ? Infinity : Math.min(Math.max(opts.maxHits ?? 20, 1), 100)
   return [...docHits, ...pending].slice(0, maxHits)
 }
 

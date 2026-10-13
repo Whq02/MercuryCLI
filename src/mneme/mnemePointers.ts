@@ -103,6 +103,8 @@ function factPointer(hit: RecallHit, row: LiveRow | undefined, pinned: ReadonlyS
     id: hit.id,
     title: `${row.slug} › ${row.heading} · ${day(entry.time)} · ${entry.source} · ${matchesLine(matchedWords(entry.text, ms))}`,
     kind: pinned.has(entry.seq) ? 'ruling' : 'fact',
+    status: hit.status,
+    confirmedAt: hit.confirmedAt,
     footnotes: footnotesOf(entry, ctx),
   }
 }
@@ -166,12 +168,12 @@ export function ledgerPointers(query: string, sessions: readonly LedgerEntry[], 
 
 export function searchPointers(
   query: string,
-  opts: { dir?: string; limit?: number; sessions?: readonly LedgerEntry[] } = {},
+  opts: { dir?: string; limit?: number; sessions?: readonly LedgerEntry[]; now?: Date } = {},
 ): PointerResult {
   const dir = opts.dir ?? mnemeLibraryDir()
   const limit = Math.min(Math.max(opts.limit ?? POINTER_DEFAULT_LIMIT, 1), POINTER_LIMIT)
   const sessions = opts.sessions ?? currentLedger()
-  const recall = recallQuery(query, { limit, dir })
+  const recall = recallQuery(query, { limit, dir, now: opts.now })
   const ctx: SearchContext = { ...footnoteContext(dir, sessions), dir }
   const rows = liveRows(dir)
   const pinned = new Set(readPins(dir).map(p => p.seq))
