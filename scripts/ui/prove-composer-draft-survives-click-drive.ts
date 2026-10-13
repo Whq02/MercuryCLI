@@ -176,7 +176,7 @@ const DOORS: Door[] = [
   header('workbench-header', 'WORKBENCH card header → /workbench', 'WORKBENCH', 'Mercury — prompts'),
   header('files-header', 'FILES card header → the files menu', 'FILES ·', 'Mercury · files'),
   row('files-row', 'FILES browse row (select, then activate) → the files menu', 'or click · browse', 'Mercury · files'),
-  row('next-row-click', 'NEXT /workflows row (select, then activate) → /workflows', '/workflows — agent', 'Mercury — workflows'),
+  row('next-row-click', 'NEXT /workflows row (select, then activate) → /workflows', '/workflows — crew', 'Mercury — workflows'),
   { name: 'ctrl-t', road: 'ctrl+t (the task panel toggle; nothing paints with no tasks)', open: [after(CTRL_T, 2)], needle: null, close: after(CTRL_T, 1) },
   { name: 'palette', road: 'ctrl+x p palette, usage, ↵ (an insert at the caret, never a submit)', open: [after(CTRL_X, 2), after('p', 3), after('usage', 3), after('\r', 3)], needle: 'brown/usage', close: null },
   row('health-row', 'HEALTH cert row (select, then activate) → /health', 'no cert · /health', 'Mercury — health'),

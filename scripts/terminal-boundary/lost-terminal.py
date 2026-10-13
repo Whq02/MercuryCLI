@@ -144,6 +144,12 @@ open(go, 'w').close()
 while mode == 'eio' and not any(n['k'] == 'terminal-taken' for n in notes()):
     drain(0.05)
 drain(0.3)
+notice_screen = None
+if mode == 'notice':
+    import pyte
+    screen = pyte.Screen(int(os.environ.get('LT_COLS', '120')), int(os.environ.get('LT_ROWS', '40')))
+    pyte.ByteStream(screen).feed(bytes(raw))
+    notice_screen = '\n'.join(screen.display)
 if mode == 'eio':
     os.write(fd, b'x')
     master_open = True
@@ -205,7 +211,7 @@ verdict = {
     'inflight': inflight,
     'crashes': crashes,
     'notes': [n['k'] for n in notes()],
-    'screen': text,
+    'screen': notice_screen if notice_screen is not None else text,
 }
 with open(out, 'w') as f:
     json.dump(verdict, f, indent=1)

@@ -150,7 +150,7 @@ function bandChecks(tag: string, cols: number, rows: number, grid: Grid, chip: '
 const idleSends = (cols: number, rows: number): unknown[] => [
   { atTick: 40, awaitText: FACE_READY, minTick: 3, awaitSettleTicks: 2, requireAwait: true, data: '\r', mark: 'boot' },
   { atTick: 100, awaitText: ADMITTED, minTick: 5, awaitSettleTicks: 2, requireAwait: true, data: '' },
-  { atTick: 999, awaitText: cols >= LAYOUT_BREAKPOINTS.cockpitMin && rows >= LAYOUT_BREAKPOINTS.cockpitMinRows ? ADMITTED : cols >= 62 ? '1 session on · 0 monitors here · 0 crewmates here' : 'S:1 · M:0 · C:0', minTick: 5, awaitSettleTicks: 4, awaitStableTicks: 3, requireAwait: true, data: '', mark: 'idle' },
+  { atTick: 999, awaitText: cols >= LAYOUT_BREAKPOINTS.cockpitMin && rows >= LAYOUT_BREAKPOINTS.cockpitMinRows ? STATUS_ROW : cols >= 62 ? '1 session on · 0 monitors here · 0 crewmates here' : 'S:1 · M:0 · C:0', minTick: 5, awaitSettleTicks: 4, awaitStableTicks: 3, requireAwait: true, data: '', mark: 'idle' },
 ]
 
 async function capture(tag: string, cols: number, rows: number, sends: unknown[], opts: { turns?: Parameters<typeof startLeg>[1]; argv?: string[]; resizes?: unknown[]; total?: number; settings?: Record<string, unknown>; world?: 'chat' | 'strip' }): Promise<{ marks: Map<string, Mark>; status: number | null; log: string; leg: Awaited<ReturnType<typeof startLeg>> }> {
@@ -160,7 +160,7 @@ async function capture(tag: string, cols: number, rows: number, sends: unknown[]
   const cfgPath = join(scratch, `${tag}-config.json`)
   const log = join(scratch, `${tag}-engine.log`)
   writeFileSync(cfgPath, JSON.stringify({ argv: [productNode(), dist, ...(opts.world === 'strip' ? [] : ['--chat']), ...(opts.argv ?? [])], cwd: ROOT, cols, rows, sends, resizes: opts.resizes ?? [], total: opts.total ?? 200, out }))
-  const child = spawn(driver.python, [captureEngineEntry(driver, ROOT), cfgPath], { cwd: ROOT, env: childEnv(leg, { MERCURY_DESKTOP_DRIVER: 'none' }), stdio: ['ignore', 'pipe', 'pipe'] })
+  const child = spawn(driver.python, [captureEngineEntry(driver, ROOT), cfgPath], { cwd: ROOT, env: childEnv(leg, { MERCURY_DESKTOP_DRIVER: 'none', FORCE_COLOR: '3' }), stdio: ['ignore', 'pipe', 'pipe'] })
   let output = ''
   child.stdout.on('data', chunk => { output += String(chunk) })
   child.stderr.on('data', chunk => { output += String(chunk) })

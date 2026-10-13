@@ -37,7 +37,7 @@ function screenAfter(run: ArenaRun, paint: { ts: number } | undefined): string[]
   return frame ? frame.rows : null
 }
 const rowsWith = (rows: string[] | null, needle: string): string[] => (rows ?? []).filter(l => l.includes(needle))
-const statusRow = (rows: string[] | null): string => (rows ?? []).find(l => l.includes('⇧← back')) ?? ''
+const statusRow = (rows: string[] | null): string => (rows ?? []).find(l => /(?:⇧←|shift\+←) back$/.test(l)) ?? ''
 const unfired = (run: ArenaRun): string => `${run.outcome.reason ?? 'complete'} · unfired ${JSON.stringify(run.outcome.report?.unfired ?? [])}`
 
 async function drive(tag: string, signedIn: boolean, sendPrompt: boolean): Promise<void> {
@@ -61,6 +61,7 @@ async function drive(tag: string, signedIn: boolean, sendPrompt: boolean): Promi
     const home = screenAfter(run, painted(run, FACE_READY))
     const chatPaint = painted(run, signedIn ? 'ready · Opus 5.5 ·' : 'not signed in · /logins ·')
     const chat = screenAfter(run, chatPaint)
+    const resting = signedIn ? chat : screenAfter(run, painted(run, 'not signed in · /logins ·')) ?? chat
     if (home) saveFrame(`${tag}-home`, home)
     if (chat) saveFrame(`${tag}-chat`, chat)
     check(`${tag}: the boot face painted its ready line`, home !== null && home.some(l => l.includes('New Session')), unfired(run))
@@ -69,7 +70,7 @@ async function drive(tag: string, signedIn: boolean, sendPrompt: boolean): Promi
       check(`${tag}: the home menu's Logins row says not signed in`, rowsWith(home, 'Logins').some(l => l.includes('not signed in')), rowsWith(home, 'Logins').join(' | '))
       check(`${tag}: the chat's hero row says not signed in and names /logins`, rowsWith(chat, 'not signed in').some(l => l.includes('○ not signed in · /logins connects')), rowsWith(chat, 'signed in').join(' | '))
       check(`${tag}: …and never says ready`, chat !== null && !chat.some(l => l.includes('● ready')), rowsWith(chat, 'ready').join(' | '))
-      check(`${tag}: the status row reads "not signed in · /logins" before the model`, /^\s*not signed in · \/logins · /.test(statusRow(chat)), statusRow(chat))
+      check(`${tag}: the status row reads "not signed in · /logins" before the model`, /^\s*not signed in · \/logins · /.test(statusRow(resting)), statusRow(resting))
       if (sendPrompt) {
         const answer = painted(run, SIGNED_OUT_ANSWER, chatPaint?.ts ?? 0)
         const afterSend = screenAfter(run, answer)

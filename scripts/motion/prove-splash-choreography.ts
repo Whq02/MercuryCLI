@@ -42,7 +42,7 @@ function cell(
   const framesDir = join(scratch, `${name}-frames`)
   const cap = spawnSync(
     PY,
-    [REEL, 'capture', '--cols', String(cols), '--rows', String(rows), '--out', reel, '--deadline', '25', ...extra],
+    [REEL, 'capture', '--cols', String(cols), '--rows', String(rows), '--out', reel, '--deadline', '25', '--env', 'COLORTERM=truecolor', ...extra],
     { encoding: 'utf8', timeout: 60_000 },
   )
   if (cap.status !== 0) throw new Error(`capture ${name} failed: ${cap.stderr}`)
@@ -143,7 +143,10 @@ console.log('── SPLASH choreography: the one-scene motion laws ──')
   const post = pf.filter(f => f.cols === 80)
   check('LAW 5: the run CONTINUES after the resize (≥20 more units)', post.length >= 20, `post=${post.length}`)
   check('LAW 5: the reel recorded the resize', resizeAt !== null, resizeAt === null ? 'no resize event in the reel' : `at ${resizeAt} ms`)
-  const marker = rawAfter((resizeAt ?? 0) + 60).toString('latin1')
+  const afterResize = rawAfter(resizeAt ?? 0).toString('latin1')
+  const reseatAt = afterResize.indexOf('\x1b[?2026h\x1b[2J\x1b[H')
+  check('LAW 5: the product painted its reseat after the resize', resizeAt !== null && reseatAt >= 0)
+  const marker = reseatAt >= 0 ? afterResize.slice(reseatAt) : afterResize
   let oob = 0
   for (const m of marker.matchAll(/\x1b\[(\d+);(\d+)H/g)) {
     if (Number(m[1]) > 24 || Number(m[2]) > 80) oob++

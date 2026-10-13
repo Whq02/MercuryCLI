@@ -95,6 +95,7 @@ function capture(): Cell[][] | null {
     timeout: vshotBudgetMs(120_000),
     env: {
       ...process.env,
+      FORCE_COLOR: '3',
       MERCURY_CONFIG_DIR: CONFIG_HOME,
     },
   })
