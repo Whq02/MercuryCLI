@@ -488,6 +488,7 @@ export const AgentTool = buildTool({
             engineDispatch: {
               backend: engineDispatch.backend,
               model: engineDispatch.model,
+              ...(engineDispatch.note !== undefined ? { note: engineDispatch.note } : {}),
             },
           }
         : {}),
