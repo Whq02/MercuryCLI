@@ -11,7 +11,7 @@
   │ coordinator off · ▸ turn on · ⌃a           │ │   ◐           Fix OAuth cal…Moodle    editing src/auth/c…    07m  │  
   │ ╭────────────────────────────────────────╮ │ │   ◐           Refactor pars…orchard-… Bash · bun test pa…    18m  │  
   │ │ ❯ ….py. Do both now.▌                  │ │ │   ◐           Update termin…orchard-…                        03m  │  
-  │ │ restored draft — ↵ again sends it · e… │ │ │ ⊞ QUEUED · 2                                                      │  
+  │ │ ↵ again sends it · esc keeps it        │ │ │ ⊞ QUEUED · 2                                                      │  
   │ ╰────────────────────────────────────────╯ │ │   □           Trace reconne…orchard-… waits for a seat     waits  │  
   │                                            │ │   □           Document laun…Moodle    waits for a seat     waits  │  
   │                                            │ ╰───────────────────────────────────────────────────────────────────╯  

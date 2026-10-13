@@ -109,20 +109,18 @@ interface ConcourseCapsuleV2 {
   managerMode?: boolean
 }
 let presentationCapsule: ConcourseCapsuleV2 | null = null
-let ownCoordinatorDraft: string | null = null
 export function _resetConcourseCapsuleForTesting(): void {
   presentationCapsule = null
-  ownCoordinatorDraft = null
 }
 
-export type CoordinatorDraftOrigin = 'own' | 'restored'
+export const RESTORED_DRAFT_LINE = keyHintLabel('restored draft · ↵↵ sends · ⌃c clears')
+export const RESTORED_DRAFT_ARMED_LINE = '↵ again sends it · esc keeps it'
+export const RESTORED_DRAFT_AWAY_LINE = 'restored draft · tab here first'
 
-export function coordinatorDraftOriginOf(storedText: string, ownText: string | null): CoordinatorDraftOrigin {
-  return storedText === ownText ? 'own' : 'restored'
+export function restoredDraftLine(composerFocused: boolean, armed: boolean): string {
+  if (!composerFocused) return RESTORED_DRAFT_AWAY_LINE
+  return armed ? RESTORED_DRAFT_ARMED_LINE : RESTORED_DRAFT_LINE
 }
-
-export const RESTORED_DRAFT_LINE = keyHintLabel('restored draft — typed in another window or an earlier visit · ↵↵ sends it · ⌃c clears it')
-export const RESTORED_DRAFT_ARMED_LINE = 'restored draft — ↵ again sends it · esc keeps it'
 
 export type SignInPickerV1 = { kind: 'default' } | { kind: 'session'; sessionId: string; title: string }
 let pendingSignInPicker: SignInPickerV1 | null = null
@@ -476,7 +474,6 @@ export function ConcourseScreen({
       if (cancelled || draftEditedRef.current || d.text.length === 0) return
       draftRef.current = { text: d.text, caret: d.caret }
       setDraft(draftRef.current)
-      if (coordinatorDraftOriginOf(d.text, ownCoordinatorDraft) === 'own') return
       draftRestoredRef.current = true
       setDraftRestored(true)
       if (regionRef.current === 'coordinator' && !compact && !reducedStage) setRegion('list')
@@ -491,10 +488,9 @@ export function ConcourseScreen({
       restoredArmedRef.current = false
       setRestoredArmed(false)
     }
-  }, [draft.text])
+  }, [draft.text, region])
   const pendingOwnWritesRef = useRef(0)
   const persistDraft = (text: string, caret: number): void => {
-    ownCoordinatorDraft = text
     pendingOwnWritesRef.current += 1
     void writeCoordinatorComposerDraft(text, caret).finally(() => {
       pendingOwnWritesRef.current = Math.max(0, pendingOwnWritesRef.current - 1)
@@ -2469,7 +2465,7 @@ export function ConcourseScreen({
                   }
                   contextLine={
                     draftRestored && draft.text.length > 0
-                      ? { tone: 'warning', text: restoredArmed ? RESTORED_DRAFT_ARMED_LINE : RESTORED_DRAFT_LINE }
+                      ? { tone: 'warning', text: restoredDraftLine(region === 'coordinator', restoredArmed) }
                       : null
                   }
                   onComposerClick={onCoordinatorComposerClick}
