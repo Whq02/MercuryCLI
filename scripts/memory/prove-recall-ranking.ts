@@ -42,5 +42,23 @@ check('token length normalises longer documents', lengthHits[0]?.id === 'seq:20'
 check('characters do not substitute for token length', rankCandidates('quartz', [candidate(23, 'quartz abc'), candidate(24, 'quartz abcdefghijklmnop'), candidate(25, 'amber short')]).every((hit, _, hits) => Math.abs(hit.score - hits[0]!.score) < 1e-12))
 check('identifier boundaries do not admit a prefix match', rankCandidates('src/deploy', [candidate(26, 'src/deploying')]).length === 0)
 check('candidate tokens are not truncated to the query budget', rankCandidates('quartz', [candidate(27, `${'filler '.repeat(20)}quartz`), candidate(28, 'amber')])[0]?.id === 'seq:27')
+const now = Date.parse('2026-10-13T00:00:00.000Z')
+const dated = [
+  { ...candidate(30, 'quartz certificates'), time: rows[0]!.time },
+  { ...candidate(31, 'quartz certificates'), time: rows[1]!.time },
+  { ...candidate(32, 'amber certificates'), time: rows[3]!.time },
+]
+const recent = rankCandidates('quartz', dated, { now })
+check('last week outranks three months ago despite the older sequence', recent[0]?.id === 'seq:30')
+check('the recency multiplier follows the ninety-day exponential', Math.abs(recent[0]!.score / recent[1]!.score - Math.exp(85 / 90)) < 1e-12)
+const yearOld = rankCandidates('quartzlantern', pool.map((c, i) => ({ ...c, time: rows[i]!.time })), { now })
+check('a decayed year-old exact match remains positive and findable', yearOld[0]?.id === 'seq:3' && yearOld[0]!.score > 0)
+const pinned = rankCandidates('quartz', dated.map(c => ({ ...c, pinned: c.seq === 31 })), { now })
+check('pins do not decay', pinned[0]?.id === 'seq:31')
+const pending = { ...dated[0]!, id: 'pending:2026-10-13T00:00:00.000Z', seq: undefined, pending: true, time: '2026-10-13T00:00:00.000Z' }
+check('pending observations rank beside facts using their own timestamp', rankCandidates('quartz', [...dated, pending], { now })[0]?.id === pending.id)
+const invalid = rankCandidates('quartz', [{ ...dated[0]!, time: 'unknown' }, { ...dated[1]!, time: '2026-10-14T00:00:00.000Z' }, dated[2]!], { now })
+check('unknown and future dates do not invent an age or a boost', invalid.length === 2 && invalid[0]!.score === invalid[1]!.score)
+check('numerical underflow never removes an otherwise matching old record', rankCandidates('quartz', [{ ...dated[0]!, time: '0001-01-01T00:00:00.000Z' }], { now })[0]?.id === 'seq:30')
 console.log(failures ? `FAIL: ${failures} recall ranking checks` : 'PASS: recall ranking checks')
 process.exitCode = failures ? 1 : 0
