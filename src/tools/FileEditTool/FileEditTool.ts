@@ -563,12 +563,12 @@ function readKnowledge(
     }
     if (planned !== null && planned.rest.length === 0 && admissible) return { verdict: 'carry', gaps, carry: planned }
   }
+  const unread = read.ranges.length === 0 && read.separate !== true
   const failed = [
-    ...(anchor !== null && !anchor.ok ? [`Anchor check failed: ${formatAnchorFailure(anchor, expectedAnchor!)}`] : []),
+    ...(anchor !== null && !anchor.ok ? [unread ? `Anchor check failed: expected_anchor is not from a Read of ${displayPath} as it stands.` : `Anchor check failed: ${formatAnchorFailure(anchor, expectedAnchor!)}`] : []),
     ...(generation === null ? ['File generation check failed: the current generation could not be read.'] : read.earlier ? ['File generation check failed: earlier read coverage belongs to the file before it changed.'] : []),
     'Read ownership/coverage check failed: neither a recorded Read nor the current owner\'s ledger covers all addressed lines.',
   ].join(' ')
-  const unread = read.ranges.length === 0 && read.separate !== true
   const neverRead = unread && !read.earlier
   const words = readKnowledgeWords(displayPath, read, unread ? null : addressed, named?.missing ?? 'the old_string was not found in the current content')
   const why = neverRead ? `${UNREAD_EXISTING_FILE_NOTE}; ` : read.earlier ? "it changed after the lines you read, which may be another session's work; " : ''

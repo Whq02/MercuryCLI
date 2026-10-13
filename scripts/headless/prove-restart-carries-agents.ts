@@ -110,7 +110,7 @@ const recorded = await waitUntil(() => {
   const file = sessionFileOf()
   if (file === undefined) return false
   const text = readText(file)
-  return text.includes(PARENT_DONE) && text.split('Agent launched in the background.').length >= 3
+  return text.includes(PARENT_DONE) && text.split('Crewmate launched in the background.').length >= 3
 }, bound(60_000))
 tally.check('the session transcript holds both launch receipts and the reply after them', recorded)
 const childTranscripts = (): string[] => transcriptFiles(join(crashHome, 'projects')).filter(p => /[\\/]subagents[\\/]/.test(p))

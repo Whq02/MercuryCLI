@@ -20,7 +20,7 @@ import { notifyTasksUpdated } from '../../utils/tasks.js'
 import { isRestartCarryText, RESTART_CARRY_ROW_PREFIX } from '../../input-core/command-queue.js'
 import { AGENT_STOP_BY_OPERATOR, agentStopReasonOf, enqueueAgentNotification, type LocalAgentTaskState } from './LocalAgentTask.js'
 
-export const BACKGROUND_LAUNCH_LINE = 'Agent launched in the background.'
+export const BACKGROUND_LAUNCH_LINE = 'Crewmate launched in the background.'
 
 export const RECORDED_DESCRIPTION_MAX = 200
 export const RECORDED_PROMPT_MAX = 20_000

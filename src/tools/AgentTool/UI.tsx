@@ -366,7 +366,7 @@ export function renderToolResultMessage(
     return (
       <Box flexDirection="column">
         <MessageResponse height={1}>
-          <Text>Agent launched in the background</Text>
+          <Text>Crewmate launched in the background</Text>
         </MessageResponse>
         {!isTranscriptMode ? (
           <Byline>

@@ -825,7 +825,7 @@ export const AgentTool = buildTool({
         siblingEnd?: { taskId: string; description: string; status: 'failed' | 'stopped'; error?: string }
       }
       const lines = [
-        'Agent launched in the background.',
+        'Crewmate launched in the background.',
         ...(async.backgroundReason ? [foregroundNotKeptLine(async.backgroundReason, async.siblingEnd)] : []),
         ...(async.modelNote ? [async.modelNote] : []),
         continuationHint(async.agentId, async.agentName),
