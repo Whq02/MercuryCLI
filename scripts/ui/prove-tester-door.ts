@@ -1,4 +1,4 @@
-import { spawn } from 'node:child_process'
+import { spawn, spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
@@ -34,7 +34,7 @@ async function drive(name: string, sends: Record<string, unknown>[], total: numb
   const out = join(scratch, `${name}.json`)
   const cfg = join(scratch, `${name}-cfg.json`)
   writeFileSync(cfg, JSON.stringify({ argv: ['node', join(root, 'dist/mercury.mjs')], cwd: project, cols: 120, rows: 44, sends, total, out }))
-  const env = { ...process.env, BROWSER: '/usr/bin/true', MERCURY_CONFIG_DIR: home, MERCURY_DAEMON_DIR: join(home, 'daemon'), MERCURY_HEALTH_STATE_DIR: join(home, 'health'), MERCURY_CREDENTIAL_STORE: 'file', MERCURY_CRITTER_IDLE: '0', MERCURY_CRITTER_GAZE: '0', MERCURY_CRITTER_SLEEP: '0', MERCURY_LIVE_CLOCK: '0', MERCURY_LIVE_GLYPHS: '0', MERCURY_SKIP_PROMPT_HISTORY: '1', ANTHROPIC_BASE_URL: 'http://127.0.0.1:1', ANTHROPIC_API_KEY: 'proof-key-ci-gate-not-a-real-key', ...extra }
+  const env = { ...process.env, VSHOT_TEE: join(scratch, `${name}.bin`), BROWSER: '/usr/bin/true', MERCURY_CONFIG_DIR: home, MERCURY_DAEMON_DIR: join(home, 'daemon'), MERCURY_HEALTH_STATE_DIR: join(home, 'health'), MERCURY_CREDENTIAL_STORE: 'file', MERCURY_CRITTER_IDLE: '0', MERCURY_CRITTER_GAZE: '0', MERCURY_CRITTER_SLEEP: '0', MERCURY_LIVE_CLOCK: '0', MERCURY_LIVE_GLYPHS: '0', MERCURY_SKIP_PROMPT_HISTORY: '1', ANTHROPIC_BASE_URL: 'http://127.0.0.1:1', ANTHROPIC_API_KEY: 'proof-key-ci-gate-not-a-real-key', ...extra }
   const child = spawn(python, [join(root, 'scripts/ui/vshot.py'), cfg], { env, stdio: ['ignore', 'pipe', 'pipe'] })
   let output = ''
   child.stdout.on('data', chunk => { output += chunk })
@@ -46,6 +46,33 @@ async function drive(name: string, sends: Record<string, unknown>[], total: numb
   writeFileSync(join(scratch, `${name}.log`), output)
   check(`${name}: capture completed`, rc === 0)
   const payload = JSON.parse(readFileSync(out, 'utf8')) as Payload
+  if (payload.endReason === 'eof') {
+    const tee = readFileSync(env.VSHOT_TEE)
+    const chunks: Buffer[] = []
+    let offset = 0
+    while (offset + 8 <= tee.length) {
+      const size = tee.readUInt32BE(offset + 4)
+      offset += 8
+      if (offset + size > tee.length) throw new Error('Incomplete PTY read')
+      chunks.push(tee.subarray(offset, offset + size))
+      offset += size
+    }
+    const raw = Buffer.concat(chunks)
+    const leave = Buffer.from('\x1b[?1049l')
+    const at = raw.lastIndexOf(leave)
+    check(`${name}: farewell belongs to the restored primary screen`, raw.indexOf('\x1b[?1049h') >= 0 && at > raw.indexOf('\x1b[?1049h'))
+    if (at >= 0) {
+      const primary = raw.subarray(at + leave.length)
+      const header = Buffer.alloc(8)
+      header.writeUInt32BE(primary.length, 4)
+      const primaryTee = join(scratch, `${name}-primary.bin`)
+      const primaryGrid = join(scratch, `${name}-primary.json`)
+      writeFileSync(primaryTee, Buffer.concat([header, primary]))
+      const replay = spawnSync(python, [join(root, 'scripts/ui/replay-tee-grid.py'), primaryTee, '120', '44', primaryGrid], { env, encoding: 'utf8', windowsHide: true })
+      check(`${name}: primary-screen PTY replay completed`, replay.status === 0)
+      if (replay.status === 0) payload.grid = (JSON.parse(readFileSync(primaryGrid, 'utf8')) as Payload).grid
+    }
+  }
   writeFileSync(join(scratch, `${name}-final.txt`), text(payload.grid))
   for (const mark of payload.marks ?? []) writeFileSync(join(scratch, `${name}-${mark.label}.txt`), text(mark.grid))
   if (rc !== 0) console.log(output.slice(-2500))
