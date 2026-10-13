@@ -1,9 +1,18 @@
+import type { EffortLevel } from '../../utils/effortLadder.js'
 import type { ModelSetting } from '../../utils/model/model.js'
 import { getInitialSettings, updateSettingsForSource } from '../../utils/settings/settings.js'
 
 export type ModelChoiceOutcome = 'saved' | 'overridden' | 'refused' | 'cleared' | 'unchanged'
 
 export type PersistedModelChoice = { outcome: ModelChoiceOutcome; sentence: string; restore: () => void }
+
+export type PersistedEffortChoice = { outcome: 'saved' | 'refused'; sentence: string }
+
+export function persistEffortChoice(level: EffortLevel): PersistedEffortChoice {
+  const { error } = updateSettingsForSource('userSettings', { engine: { effort: level } })
+  if (error) return { outcome: 'refused', sentence: ` · not saved as your default: ${error.message}` }
+  return { outcome: 'saved', sentence: ' · saved as your default for future sessions' }
+}
 
 export function persistModelChoice(setting: ModelSetting): PersistedModelChoice {
   const stored = getInitialSettings().engine?.model
