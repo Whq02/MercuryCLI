@@ -101,6 +101,8 @@ async function readLiveListsForBareId(modelParam: string | undefined): Promise<v
   await Promise.all(LIVE_LIST_FAMILIES.map(family => readCatalogueIfPending(family)))
 }
 
+import { MODEL_LOOKUP_LADDER } from '../model/modelLookup.js'
+
 const ENGINE_ID_SHAPES = 'gpt-*, glm-*, kimi-*, deepseek-*, grok-*, muse-spark-*, gemini-*, mistral-*, compat/*, huggingface/*, local/*, openrouter/*, nous/*'
 
 export function unrecognisedModelWordRefusal(model: string | undefined): string | null {
@@ -112,7 +114,7 @@ export function unrecognisedModelWordRefusal(model: string | undefined): string 
   if (isModelFamilyWord(lowered) || isModelAlias(lowered)) return null
   const parsed = parseUserSpecifiedModel(word)
   if (classifyModelRoute(parsed).kind === 'route') return null
-  return `model '${word}' names no model: no provider family declares it. Pass a family word (${modelFamilyWords().join(' · ')}), a first-party alias, an exact id of a listed row, or an engine id (${ENGINE_ID_SHAPES}). mercury://models lists the providers the operator is signed into and the models each reaches; a word on neither it nor mercury://models/known is not a model to guess at — ask the operator for the model id, and never switch to another provider on your own.`
+  return `model '${word}' names no model: no provider family declares it. Pass a family word (${modelFamilyWords().join(' · ')}), a first-party alias, an exact id of a listed row, or an engine id (${ENGINE_ID_SHAPES}). mercury://models lists the providers the operator is signed into and the models each reaches. ${MODEL_LOOKUP_LADDER}`
 }
 
 type EngineProvider =
