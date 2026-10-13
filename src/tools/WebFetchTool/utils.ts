@@ -11,6 +11,9 @@ import { asSystemPrompt } from '../../utils/systemPromptType.js'
 import { makeSecondaryModelPrompt, WEB_FETCH_TOOL_NAME } from './prompt.js'
 import { isPreapprovedHost } from './preapproved.js'
 import { extractMainHtml } from './extractHtml.js'
+import { readHostedPage, fetchReaderEnabled } from './reader.js'
+import { EgressBlockedError } from './fetchErrors.js'
+export { EgressBlockedError } from './fetchErrors.js'
 
 
 const MAX_URL_LENGTH = 2000
@@ -26,6 +29,7 @@ type FetchedContent = {
   contentType: string
   persistedPath?: string
   persistedSize?: number
+  notice?: string
 }
 
 export type RedirectResult = {
@@ -46,20 +50,6 @@ export function clearWebFetchCache(): void {
   urlCache.clear()
 }
 
-export class EgressBlockedError extends Error {
-  public readonly domain: string
-  constructor(domain: string) {
-    super(
-      JSON.stringify({
-        error_type: 'EGRESS_BLOCKED',
-        domain,
-        message: `Access to ${domain} is blocked by the network egress proxy.`,
-      }),
-    )
-    this.name = 'EgressBlockedError'
-    this.domain = domain
-  }
-}
 
 function validateURL(url: string): boolean {
   if (url.length > MAX_URL_LENGTH) return false
@@ -69,7 +59,7 @@ function validateURL(url: string): boolean {
   } catch {
     return false
   }
-  if (parsed.username || parsed.password) return false
+  if (!['https:', 'http:'].includes(parsed.protocol) || parsed.username || parsed.password) return false
   if (parsed.hostname.split('.').length < 2) return false
   return true
 }
@@ -101,7 +91,7 @@ function isPermittedRedirect(originalUrl: string, redirectUrl: string): boolean 
 
 const REDIRECT_STATUSES = new Set([301, 302, 307, 308])
 
-type RawResponse = { status: number; statusText: string; headers: Record<string, unknown>; data: ArrayBuffer }
+type RawResponse = { url: string; status: number; statusText: string; headers: Record<string, unknown>; data: ArrayBuffer }
 
 async function getWithPermittedRedirects(
   url: string,
@@ -151,6 +141,7 @@ async function getWithPermittedRedirects(
     throw new EgressBlockedError(new URL(url).hostname)
   }
   return {
+    url,
     status: response.status,
     statusText: response.statusText,
     headers: response.headers as Record<string, unknown>,
@@ -165,7 +156,7 @@ async function convertHtmlToMarkdown(html: string): Promise<string> {
     const { default: TurndownService } = await import('turndown')
     markdownConverter = new TurndownService({ headingStyle: 'atx', codeBlockStyle: 'fenced' })
   }
-  return markdownConverter.turndown(extractMainHtml(html).html)
+  return markdownConverter.turndown(html)
 }
 
 export async function getURLMarkdownContent(
@@ -175,7 +166,8 @@ export async function getURLMarkdownContent(
   if (!validateURL(url)) {
     throw new Error('Invalid URL')
   }
-  const cached = urlCache.get(url)
+  const cacheKey = `${fetchReaderEnabled() ? 1 : 0}:${url}`
+  const cached = urlCache.get(cacheKey)
   if (cached) return cached
 
   const parsedForUpgrade = new URL(url)
@@ -207,8 +199,17 @@ export async function getURLMarkdownContent(
   const decoded = buffer.toString('utf8')
   let content: string
   let cachedSize: number
+  let notice: string | undefined
+  let cacheable = true
   if (contentType.includes('text/html')) {
-    content = await convertHtmlToMarkdown(decoded)
+    const extracted = extractMainHtml(decoded)
+    content = await convertHtmlToMarkdown(extracted.html)
+    if (extracted.sparse) {
+      const rendered = await readHostedPage(isPreapprovedUrl(url) ? url : raw.url, abortController.signal)
+      notice = rendered.notice
+      cacheable = rendered.content !== undefined
+      if (rendered.content !== undefined) content = rendered.content
+    }
     cachedSize = Buffer.byteLength(content, 'utf8')
   } else {
     content = decoded
@@ -221,10 +222,11 @@ export async function getURLMarkdownContent(
     codeText: raw.statusText,
     content,
     contentType,
+    ...(notice ? { notice } : {}),
     ...(persistedPath !== undefined ? { persistedPath } : {}),
     ...(persistedSize !== undefined ? { persistedSize } : {}),
   }
-  urlCache.set(url, result, { size: Math.max(1, cachedSize) })
+  if (cacheable) urlCache.set(cacheKey, result, { size: Math.max(1, cachedSize) })
   return result
 }
 
