@@ -1,4 +1,3 @@
-
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { Box, Text } from '../ink.js'
 import type { CommandResultDisplay } from '../commands.js'

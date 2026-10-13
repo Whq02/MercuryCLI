@@ -1,4 +1,3 @@
-
 export type IssueKind = 'tester' | 'bug' | 'provider' | 'feature'
 
 export type IssueFieldSource =
