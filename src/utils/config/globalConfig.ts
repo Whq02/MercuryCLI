@@ -217,6 +217,7 @@ const OPTIONAL_GLOBAL_CONFIG_FIELD_SHAPES: Record<string, ConfigFieldShape> = {
   claudeAiMcpEverConnected: 'list',
   concourseEnabled: 'boolean',
   backgroundSessionsLaunchCrewmates: 'boolean',
+  duckduckgoScraping: 'boolean',
   localModelWindows: 'object',
   localModelBatch: 'object',
 }

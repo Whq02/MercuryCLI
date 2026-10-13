@@ -34,6 +34,7 @@ import {
   getInitialSettings,
 } from '../../utils/settings/settings.js'
 import type { SettingsJson } from '../../utils/settings/types.js'
+import { DUCKDUCKGO_SETTING_KEY, DUCKDUCKGO_SETTING_LABEL, DUCKDUCKGO_TERMS, duckduckgoScrapingEnabled, duckduckgoScrapingPinned } from '../../services/search/searchSetting.js'
 import { journalSettingOn } from '../../mneme/journalSetting.js'
 import { readPinnedStatus } from '../../mneme/mnemeFrontPage.js'
 import { runDueMaintenance } from '../../mneme/mnemeMaintenance.js'
@@ -639,6 +640,25 @@ export function Config({
         globalTouchedRef.current.add('motion')
         snapshots.dirty = true
         recordSet('motion', `set motion to ${next}`)
+        bump()
+      },
+    })
+  }
+  {
+    const enabled = duckduckgoScrapingEnabled()
+    const pinned = duckduckgoScrapingPinned()
+    items.push({
+      id: DUCKDUCKGO_SETTING_KEY,
+      label: DUCKDUCKGO_SETTING_LABEL,
+      searchText: 'web search keyless DuckDuckGo scraping terms opt-in',
+      kind: 'boolean',
+      setByYou: config.duckduckgoScraping !== undefined || pinned,
+      value: <Text>{enabled ? 'on' : 'off'}{pinned ? ' · env pin' : ''}</Text>,
+      warning: `${DUCKDUCKGO_TERMS} · off by default; native search, stored keys and official APIs stay available${pinned ? ' · MERCURY_SEARCH_KEYLESS decides this process; change that env pin to change the effective value' : ''}`,
+      change: () => {
+        if (pinned) return
+        writeGlobal(current => ({ ...current, [DUCKDUCKGO_SETTING_KEY]: !enabled }))
+        recordToggle(DUCKDUCKGO_SETTING_KEY, `set ${DUCKDUCKGO_SETTING_LABEL} ${enabled ? 'off' : 'on'}`)
         bump()
       },
     })
