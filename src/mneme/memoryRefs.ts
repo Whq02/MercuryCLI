@@ -14,7 +14,9 @@ export interface MemoryRef {
   kind: MemoryRefKind
   store: 'mneme'
   scope: 'project'
-  status: 'current' | 'unconsolidated' | 'needs-review'
+  status: 'current' | 'unconsolidated' | 'needs-review' | 'stale'
+  confirmedAt?: string
+  confidence?: number
   summary: string
   source?: string
   capturedAt?: string
@@ -138,9 +140,16 @@ export function collectMemoryRefs(query: string, opts: CollectOpts = {}): Memory
 }
 
 export function renderMemoryRefLine(r: MemoryRef): string {
-  const status =
-    r.status === 'current' ? '' : r.status === 'unconsolidated' ? ' [recent, unconsolidated]' : ' [needs review — cited path moved]'
+  const words = memoryStatusWords(r)
+  const status = r.status === 'current' ? '' : ` [${words}]`
   return `${r.refId}${status} — ${r.summary} (${r.why})`
+}
+
+export function memoryStatusWords(r: Pick<MemoryRef, 'status' | 'confirmedAt'>): string {
+  if (r.status === 'current') return 'current'
+  if (r.status === 'unconsolidated') return 'recent, unconsolidated'
+  if (r.status === 'needs-review') return 'needs review — cited path moved'
+  return `stale — not confirmed since ${r.confirmedAt?.slice(0, 10) ?? 'unknown'}`
 }
 
 export { PENDING_SLUG }
