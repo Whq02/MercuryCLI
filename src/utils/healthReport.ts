@@ -86,6 +86,8 @@ import {
 } from '../services/instructions/engine.js'
 import { readPromptProvenance } from './cockpit/promptProvenance.js'
 import { getSettingsWithAllErrors } from './settings/allErrors.js'
+import { currentHiddenCharacterFindings, hiddenCharacterDetailLines, hiddenCharacterScanCounts } from './text/hiddenCharacterFindings.js'
+import { summarizeHiddenCodePoints } from './text/hiddenCodePoints.js'
 import { getRipgrepStatus, warmRipgrepStatus } from './ripgrep.js'
 import {
   CHALK_CLAMPED_FOR_MERCURY,
@@ -2471,6 +2473,44 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
                 `last reload: ${loadReason}` +
                 (notes.length > 0 ? ` · ${notes.join(' · ')}` : ''),
               link: '/memory',
+            }
+          },
+        },
+        {
+          id: 'hidden-characters',
+          label: 'Hidden characters',
+          run: async () => {
+            await getInstructionBundle()
+            const skills = require('../skills/loadSkillsDir.js') as typeof import('../skills/loadSkillsDir.js')
+            await skills.getSkillDirCommands(getCwd()).catch(() => [])
+            getSettingsWithAllErrors()
+            const counts = hiddenCharacterScanCounts()
+            const scanned =
+              `${counts.instruction} instruction file(s) · ${counts.skill} skill(s) · ${counts.settings} settings file(s) read as written` +
+              ` · ${counts.mcp} MCP tool definition(s) stripped at discovery`
+            const found = currentHiddenCharacterFindings()
+            if (found.length === 0) {
+              return { status: 'ok' as const, evidence: `no hidden characters · ${scanned}` }
+            }
+            const cwd = getCwd()
+            const characters = found.reduce((n, record) => n + record.findings.length, 0)
+            const files = found.filter(record => record.source !== 'mcp')
+            const mcpRead = found.some(record => record.source === 'mcp' && !record.removed)
+            const named = found
+              .map(record =>
+                record.source === 'mcp'
+                  ? `MCP tool ${record.path} (${summarizeHiddenCodePoints(record.findings)}${record.removed ? ', removed before the model read it' : ''})`
+                  : `${relativeToCwd(cwd, record.path)} line ${record.findings[0]!.line} (${summarizeHiddenCodePoints(record.findings)})`,
+              )
+              .join(' · ')
+            return {
+              status: 'warn' as const,
+              evidence: `${characters} hidden character${characters === 1 ? '' : 's'} in ${found.length} place${found.length === 1 ? '' : 's'} — ${named} · ${scanned}`,
+              detail: found.flatMap(hiddenCharacterDetailLines).join('\n'),
+              fix:
+                files.length > 0
+                  ? 'Open each named line in an editor that shows invisible characters and delete what you did not write; a direction override or zero-width character in an instruction file is read by the model and seen by nobody. Mercury loaded the files as written and changed nothing.'
+                  : `The MCP server sent hidden characters in a tool definition; consider whether you trust that server. ${mcpRead ? 'Variation selectors survive the discovery strip, so the model reads them as sent.' : 'Mercury stripped them before the model read the definition.'}`,
             }
           },
         },

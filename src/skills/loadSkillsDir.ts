@@ -46,6 +46,7 @@ import { logForDebugging } from '../utils/debug.js'
 import { logError } from '../utils/log.js'
 import { parseUserSpecifiedModel } from '../utils/model/model.js'
 import { roughTokenCountEstimation } from '../services/tokenEstimation.js'
+import { forgetHiddenCharacters, recordHiddenCharacters } from '../utils/text/hiddenCharacterFindings.js'
 import { baseDirLine } from './baseDirLine.js'
 
 export type LoadedFrom =
@@ -378,6 +379,7 @@ async function loadSkillsFromDir(
           recordSkillRefusal(skillFile, `uninvocable name: ${nameProblem}`, sourceLabel)
           return null
         }
+        recordHiddenCharacters('skill', skillFile, markdown)
         const fields = parseSkillFrontmatterFields(
           parsed.frontmatter,
           parsed.content,
@@ -519,6 +521,7 @@ export function clearSkillCaches(): void {
   pendingConditional.clear()
   activatedSkillNames.clear()
   skillLoadRefusals.clear()
+  forgetHiddenCharacters('skill')
   pruneDynamicSkillsSync()
 }
 

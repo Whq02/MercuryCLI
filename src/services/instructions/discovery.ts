@@ -13,6 +13,7 @@ import type { FsOperations } from '../../utils/fsOperations.js'
 import { getFsImplementation, safeResolvePath } from '../../utils/fsOperations.js'
 import type { MemoryType } from '../../utils/memory/types.js'
 import { pathInWorkingPath } from '../../utils/permissions/filesystem.js'
+import { recordHiddenCharacters } from '../../utils/text/hiddenCharacterFindings.js'
 import type {
   InstructionConvention,
   InstructionDiagnostic,
@@ -189,6 +190,7 @@ export async function processInstructionFile(
   if (!memoryFile || !memoryFile.content.trim()) {
     return []
   }
+  recordHiddenCharacters('instruction', filePath, memoryFile.rawContent ?? memoryFile.content)
 
   const existingBareMentions: string[] = []
   for (const mention of bareMentionPaths) {
