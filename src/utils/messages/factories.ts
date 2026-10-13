@@ -97,7 +97,7 @@ export function createModelSwitchBreadcrumbs(modelArg: string, resolvedDisplay: 
 
 export function engineSwitchNoticeText(modelId: string, resolvedDisplay: string, at: string): string {
   const display = [modelId, ''].includes(resolvedDisplay) ? '' : ` (${resolvedDisplay})`
-  return `The engine running this seat changed at ${at}: it is now \`${modelId}\`${display}. The replies above this line were written by the engine before it.`
+  return `The engine running this seat changed at ${at}: it is now \`${modelId}\`${display}. The replies above this line were written by the engine before it. When repeating a switch time to the user, say the time with its zone as the seat page gives it.`
 }
 
 export function createEngineSwitchNotice(modelId: string, resolvedDisplay: string, at: string): UserMessage {

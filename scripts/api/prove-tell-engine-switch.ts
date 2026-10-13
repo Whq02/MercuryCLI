@@ -61,7 +61,7 @@ section('§1 the setting and the line')
   const factories = (await import('../../src/utils/messages/factories.ts')) as { createEngineSwitchNotice?: (modelId: string, display: string, at: string) => { isMeta?: true; isVirtual?: true; message: { content: unknown } }; engineSwitchNoticeText?: (modelId: string, display: string, at: string) => string }
   const at = '2026-10-11T02:40:00.000Z'
   const notice = factories.createEngineSwitchNotice?.(OPUS, 'Opus 5', at)
-  check('the line is one model-visible meta row naming the new engine, its name and the time it was given (RED on the base: no such row)', notice !== undefined && notice.isMeta === true && notice.isVirtual === undefined && notice.message.content === `${NOTICE_MARK}${at}: it is now \`${OPUS}\` (Opus 5). The replies above this line were written by the engine before it.`, j(notice?.message.content))
+  check('the line is one model-visible meta row naming the new engine, its name and the time it was given (RED on the base: no such row)', notice !== undefined && notice.isMeta === true && notice.isVirtual === undefined && notice.message.content === `${NOTICE_MARK}${at}: it is now \`${OPUS}\` (Opus 5). The replies above this line were written by the engine before it. When repeating a switch time to the user, say the time with its zone as the seat page gives it.`, j(notice?.message.content))
   const unnamed = factories.engineSwitchNoticeText?.('some-server/qwen3-32b', 'some-server/qwen3-32b', at) ?? ''
   check('an engine with no known name is named by its id alone', unnamed.includes('`some-server/qwen3-32b`') && !unnamed.includes('('), unnamed)
 }
