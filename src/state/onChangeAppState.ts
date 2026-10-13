@@ -1,5 +1,4 @@
 import { getGlobalConfig, saveGlobalConfig } from '../utils/config.js'
-import { updateSettingsForSource } from '../utils/settings/settings.js'
 import { notifyPermissionModeChanged } from '../utils/sessionState.js'
 import { auditModeChange } from '../utils/permissions/modeTransitions.js'
 import { noteRootSovereign } from '../utils/permissions/rootNotice.js'
@@ -25,13 +24,7 @@ export function onChangeAppState({
   }
 
   if (newState.engineModel !== oldState.engineModel) {
-    if (newState.engineModel === null) {
-      updateSettingsForSource('userSettings', { engine: { model: undefined } })
-      setEngineModelOverride(undefined)
-    } else {
-      updateSettingsForSource('userSettings', { engine: { model: newState.engineModel } })
-      setEngineModelOverride(newState.engineModel)
-    }
+    setEngineModelOverride(newState.engineModel ?? undefined)
   }
 
   if (newState.expandedView !== oldState.expandedView) {
