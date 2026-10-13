@@ -1,4 +1,5 @@
 import { recallQuery, type RecallHit } from './memoryVerbs.js'
+import { memoryStatusWords, type MemoryRef } from './memoryRefs.js'
 import { pendingRows } from './mnemeBuffer.js'
 import {
   footnoteContext,
@@ -24,6 +25,8 @@ export interface MemoryPointer {
   title: string
   kind: PointerKind
   footnotes: Footnotes
+  status?: MemoryRef['status']
+  confirmedAt?: string
 }
 
 export interface PointerResult {
@@ -189,5 +192,6 @@ export function searchPointers(
 
 export function renderPointerLine(p: MemoryPointer): string {
   const notes = renderFootnotes(p.footnotes)
-  return `- [${p.id}] ${p.kind} · ${p.title}${notes ? ` {${notes}}` : ''}`
+  const status = p.status && p.status !== 'current' ? ` [${memoryStatusWords({ status: p.status, confirmedAt: p.confirmedAt })}]` : ''
+  return `- [${p.id}]${status} ${p.kind} · ${p.title}${notes ? ` {${notes}}` : ''}`
 }

@@ -70,6 +70,7 @@ const STATUS_TONE: Record<MemoryRef['status'], { glyph: string; color: string; l
   current: { glyph: '●', color: TEAL, label: 'current' },
   unconsolidated: { glyph: '◌', color: SECOND, label: 'recent, unconsolidated' },
   'needs-review': { glyph: '▲', color: AMBER, label: 'needs review — cited path moved' },
+  stale: { glyph: '◌', color: SECOND, label: 'stale' },
 }
 
 const WARNING_STATES = new Set(['off', 'over', 'due', 'degraded', 'no note', 'unclosed'])
