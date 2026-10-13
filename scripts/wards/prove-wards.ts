@@ -550,7 +550,7 @@ async function main(): Promise<void> {
     check('a read-only recon command passes the hook', (await cb(...ctx('Bash', { command: 'git log --oneline -3' }))) === true)
     process.env.MERCURY_WARDS = 'warn'
     const { enableDebugLogging, getDebugLogPath, isDebugMode } = await import('../../src/utils/debug.js')
-    const { existsSync: logExists, readFileSync: readLog, mkdirSync: mkProject, writeFileSync: writeProject } = await import('node:fs')
+    const { existsSync: logExists, readFileSync: readLog, mkdirSync: mkProject, writeFileSync: writeProject, realpathSync: realLog } = await import('node:fs')
     const { runWithCwdOverride } = await import('../../src/utils/cwd.js')
     type Note = { type?: string; subtype?: string; level?: string; content?: string; toolUseID?: string; isMeta?: boolean }
     const noteOf = (r: unknown): Note | undefined => (r !== null && typeof r === 'object' && (r as { pass?: unknown }).pass === true ? (r as { note?: Note }).note : undefined)
@@ -584,7 +584,8 @@ async function main(): Promise<void> {
     check('warn under debug: the hit still proceeds as a pass with its note', noteOf(await cb(...curl)) !== undefined)
     const logPath = getDebugLogPath()
     check('…and the hit is recorded in the debug log under the session home', logExists(logPath) && readLog(logPath, 'utf8').includes("wards: warn — Ward 'curl-pipe-shell' blocked this Bash call"), logPath)
-    check('the record lives under the config home, never elsewhere', logPath.startsWith(process.env.MERCURY_CONFIG_DIR ?? '\0'), logPath)
+    const configHome = process.env.MERCURY_CONFIG_DIR
+    check('the record lives under the config home, never elsewhere', configHome !== undefined && logExists(logPath) && realLog(logPath).startsWith(realLog(configHome)), logPath)
     process.env.MERCURY_WARDS = '0'
     check('off: a refuse-list hit proceeds', (await cb(...curl)) === true)
     delete process.env.MERCURY_WARDS
