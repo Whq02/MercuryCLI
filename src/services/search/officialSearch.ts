@@ -34,6 +34,7 @@ export function decodeOfficialSearch(source: OfficialSearchSource, body: unknown
   const hits: SearchHit[] = []
   for (const raw of rows) {
     const r = source === 'npm' ? object(object(raw).package) : object(raw)
+    if (source === 'github' && object(r.repository).private !== false) continue
     const title = text(r.title) || text(r.name) || text(r.id)
     const url = source === 'stackexchange' ? text(r.link)
       : source === 'npm' ? text(object(r.links).npm)
@@ -122,6 +123,6 @@ export async function officialSearch(source: OfficialSearchSource, words: string
     const hits = normaliseHits(filterHitsByDomain(decoded, request.allowedDomains, request.blockedDomains), request.maxResults)
     if (delay === 0) noteAnswered(source)
     if (source !== 'github') rememberSearch(scoped, { via: source, tier: 'keyless', hits, queries: [words] }, clock.now())
-    return { ok: true, via: source, tier: 'keyless', hits, notes: [SEARCH_SOURCE_POLICIES[source].terms] }
+    return { ok: true, via: source, tier: source === 'github' ? 'keyed' : 'keyless', hits, notes: [SEARCH_SOURCE_POLICIES[source].terms] }
   })
 }

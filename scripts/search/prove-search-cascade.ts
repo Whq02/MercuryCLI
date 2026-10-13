@@ -16,7 +16,7 @@ const bodies = {
   npm: { objects: [{ package: { name: 'typescript', links: { npm: 'https://www.npmjs.com/package/typescript' }, description: 'Typed JS' } }] },
   pypi: { info: { name: 'requests', package_url: 'https://pypi.org/project/requests/', summary: 'HTTP client' } },
   crates: { crates: [{ id: 'serde', description: 'Serialization' }] },
-  github: { items: [{ name: 'read.ts', path: 'src/read.ts', html_url: 'https://github.com/example/repo/blob/main/src/read.ts' }] },
+  github: { items: [{ repository: { private: false }, name: 'read.ts', path: 'src/read.ts', html_url: 'https://github.com/example/repo/blob/main/src/read.ts' }] },
   hackernews: { hits: [{ title: 'New compiler', objectID: '42', url: 'https://example.com/compiler' }] },
   wikipedia: { query: { search: [{ title: 'Compiler', snippet: 'A <span>compiler</span> translates code' }] } },
 }
@@ -48,6 +48,7 @@ try {
     const io = { clock, fetchImpl, env }
     const run = await door.performWebSearch({ query: queries[source] }, { context: contexts(), reads: { keylessAllowed: false }, clock, backends: { official: (s: any, words: string, request: any) => officialSearch(s, words, request, io) } })
     assert.equal(run.via, source)
+    assert.equal(run.tier, source === 'github' ? 'keyed' : 'keyless')
     assert.equal(seen.length, 1)
     assert.match(seen[0]!.ua, /^Mercury\/proof \(\+https:\/\/mercury-cli.ai;/)
     assert.equal(seen[0]!.auth, source === 'github' ? 'Bearer fixture-only-token' : undefined)
@@ -73,6 +74,8 @@ try {
     assert.equal(filtered.ok, true)
     if (filtered.ok) assert.equal(filtered.hits.length, 0)
     if (source === 'github') {
+      assert.deepEqual(decodeOfficialSearch('github', { items: [{ ...bodies.github.items[0], repository: { private: true } }] }), [])
+      assert.deepEqual(decodeOfficialSearch('github', { items: [{ ...bodies.github.items[0], repository: {} }] }), [])
       pacing.resetSearchPacing(); status = 403; extraHeaders = { 'retry-after': '90' }
       const before = seen.length
       const refusal = await officialSearch(source, intent.words, { query: queries[source] }, io)

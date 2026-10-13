@@ -70,7 +70,9 @@ const agents: Array<[string, string]> = [
   ['search backends (searchUserAgent)', searchUserAgent()],
 ]
 for (const [label, ua] of agents) {
-  check(`${label} is the product identity`, /^(mercury\/1\.0\.0|Mozilla\/5\.0 \(compatible; Mercury\/1\.0\.0\))/.test(ua), ua)
+  check(`${label} is the product identity`, label === 'search backends (searchUserAgent)'
+    ? ua === 'Mercury/1.0.0 (+https://mercury-cli.ai; https://github.com/Whq02/MercuryCLI/issues)'
+    : /^(mercury\/1\.0\.0|Mozilla\/5\.0 \(compatible; Mercury\/1\.0\.0\))/.test(ua), ua)
   check(`${label} carries no contract version or borrowed agent token`, !ua.includes(CONTRACT) && !/claude-cli/i.test(ua), ua)
 }
 {

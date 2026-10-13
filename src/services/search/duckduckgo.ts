@@ -171,8 +171,7 @@ export async function keylessSearch(request: SearchRequest, io: KeylessSearchIo 
   if (request.signal?.aborted) return searchFailure('aborted', 'duckduckgo', 'cancelled')
   if (!(io.enabled ?? duckduckgoScrapingEnabled())) return searchFailure('no-backend', 'duckduckgo', 'DuckDuckGo scraping is off; /config offers the opt-in with its terms')
   const clock = io.clock ?? liveSearchClock
-  const notice = takeSearchNotice('duckduckgo-terms', DUCKDUCKGO_TERMS)
-  const notes = notice ? [notice] : []
+  const notes: string[] = []
   let outcome = await withSearchTurn('duckduckgo', DDG_RATE_POLICY, clock, request.signal, async waitMs => {
     if (request.signal?.aborted) return searchFailure('aborted', 'duckduckgo', 'cancelled')
     if (waitMs > 0) return searchFailure('rate-limited', 'duckduckgo', `cooling down ${secondsLeftLabel(waitMs)}; no request was made`)
@@ -186,6 +185,9 @@ export async function keylessSearch(request: SearchRequest, io: KeylessSearchIo 
       return attemptDoor('duckduckgo-lite', duckduckgoLiteUrl(), request, io, clock)
     })
   }
+  if (!outcome.ok && outcome.kind === 'aborted') return outcome
+  const notice = takeSearchNotice('duckduckgo-terms', DUCKDUCKGO_TERMS)
+  if (notice) notes.unshift(notice)
   if (outcome.ok) return { ...outcome, notes }
   return { ...outcome, message: [...notes, outcome.message].join(' ') }
 }
