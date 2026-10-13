@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 // gate-watch: src/mneme/mnemeContradiction.ts src/mneme/mnemeText.ts src/mneme/mnemeStemmer.ts src/mneme/memoryVerbs.ts src/mneme/mnemeHandover.ts
-// gate-watch: src/tools/MemoryTools/MemoryTools.ts src/mneme/mnemeCorrect.ts
+// gate-watch: src/tools/MemoryTools/MemoryTools.ts src/tools/MemoryTools/UI.tsx src/tools/MemoryTools/prompt.ts src/mneme/mnemeCorrect.ts
 ;(globalThis as Record<string, unknown>)['MACRO'] = { VERSION: '1.0.0', PACKAGE_URL: 'https://example.invalid/mercury' }
 import { existsSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -26,11 +26,14 @@ function section(t: string): void {
 const j = (v: unknown): string => JSON.stringify(v)
 
 writeFileSync(join(HOME, '.mercury.json'), JSON.stringify({ hasCompletedOnboarding: true, numStartups: 3 }))
+const { startJevStandin } = await import('../jev/lib/jevStandin.ts')
+const standin = await startJevStandin()
+process.env.MERCURY_JEV_BASE = standin.base
 
 const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
 enableConfigs()
 const guard = await import('../../src/mneme/mnemeContradiction.ts')
-const { retainItems, correctMemory, correctMemoryJudged, readMemoryRecord, _resetMemoryVerbSessionStateForTesting } = await import('../../src/mneme/memoryVerbs.ts')
+const { retainItems, retainItemsJudged, correctMemory, correctMemoryJudged, readMemoryRecord, _resetMemoryVerbSessionStateForTesting } = await import('../../src/mneme/memoryVerbs.ts')
 const { appendObservation, pendingRows } = await import('../../src/mneme/mnemeBuffer.ts')
 const { maybeConsolidate, listTopicDocs } = await import('../../src/mneme/mnemeConsolidate.ts')
 const { mnemeLibraryDir } = await import('../../src/mneme/mnemeGates.ts')
@@ -38,6 +41,11 @@ const { pinFact, readPins, pinsPath } = await import('../../src/mneme/mnemeUsage
 const { docFileName } = await import('../../src/mneme/mnemeTopicDocs.ts')
 const { USER_ASKED_RULE_ROAD } = await import('../../src/mneme/mnemeCorrect.ts')
 const { RetainTool, CorrectTool } = await import('../../src/tools/MemoryTools/MemoryTools.ts')
+const { conflictLines } = await import('../../src/tools/MemoryTools/UI.tsx')
+const { RETAIN_PROMPT } = await import('../../src/tools/MemoryTools/prompt.ts')
+const { setJevEnabled } = await import('../../src/services/jev/jevSetting.ts')
+const { storeJevApiKey } = await import('../../src/services/jev/jevKey.ts')
+const { jevLedgerSnapshot, resetJevLedger } = await import('../../src/services/jev/jevLedger.ts')
 
 const dir = mnemeLibraryDir()
 
@@ -136,18 +144,73 @@ check('the refused words are nowhere on disk', !readFileSync(rulesPath, 'utf8').
 const block = RetainTool.mapToolResultToToolResultBlockParam({ outcomes, stored: 2, refused: 3 }, 'tid')
 const content = String(block.content)
 check('the tool result carries each refusal with the fact NOT stored', content.startsWith('2 stored · 3 refused') && content.includes(`REFUSED — conflicts with rule ${bunSeq}:`) && content.includes('(the fact was NOT stored)'), content.slice(0, 300))
+const lines = conflictLines(outcomes)
+console.log(`  the user's lines:\n    ${lines.join('\n    ')}`)
+check('one line reaches the user per conflict, in plain words', lines.length === 3 && lines[0] === `not stored: it conflicts with rule ${bunSeq}, "always use bun for installs; the lockfile only…" — the rule stands` && lines[1] === `not stored: it conflicts with fact ${suitesSeq}, "run the suites in parallel and batch the…"`, j(lines))
+check('the user\'s lines carry no code, no id and no percentage', lines.every(line => !/seq:|pending:|%|\d\.\d/.test(line)), j(lines))
+check('the Retain prompt tells the model the refusal and the two roads', RETAIN_PROMPT.includes('refused whole, naming the record it conflicts with') && RETAIN_PROMPT.includes('Correct the old one with the evidence') && RETAIN_PROMPT.includes("a pinned rule is the user's to change"))
 
 section('§3 a pending row is on record too; an item that replaces a rule is judged against everything but that rule')
 _resetMemoryVerbSessionStateForTesting()
 const pendingPair = retainItems([{ content: 'the daemon restarts after an update' }, { content: 'the daemon never restarts after an update' }], { session: 'write-guard-proof' }, dir)
 check('the second item of a batch is refused against the first, now a pending fact', pendingPair[0]?.status === 'stored' && pendingPair[1]?.status === 'refused' && pendingPair[1].reason.startsWith('conflicts with a pending fact: "the daemon restarts after an update"'), j(pendingPair))
+check('the user\'s line for a pending fact', conflictLines(pendingPair)[0] === 'not stored: it conflicts with a pending fact, "the daemon restarts after an update"', j(conflictLines(pendingPair)))
 _resetMemoryVerbSessionStateForTesting()
 const replacing = retainItems([{ content: 'run the suites one at a time, never in parallel', replaces: `seq:${suitesSeq}` }], { session: 'write-guard-proof' }, dir)
 check('a replacement is not refused against the rule it replaces', replacing[0]?.status === 'stored', j(replacing))
 
-section('§6 Correct\'s amend goes through the same guard; the Memory Centre\'s own corrections and the hand-over import do not')
+section('§4 the Jev road: only the candidates are judged, one closed question each; under 0.6 the fact is stored, at or above it is refused; Jev off or unready means the lexical verdict')
+check('Jev off: the judge road is closed and the lexical filter decides', guard.jevJudgeOpen() === false)
+const asked: Array<{ existing: string; candidate: string }> = []
+const scripted: ContradictionJudgeScore = { 'the advisor is off by default': 0.3, 'never use bun for installs': 0.9 }
+type ContradictionJudgeScore = Record<string, number>
+const fixtureJudge = async (pairs: ReadonlyArray<{ existing: string; candidate: string }>) => {
+  asked.push(...pairs)
+  return pairs.map(pair => scripted[pair.candidate] ?? null)
+}
 appendObservation({ text: 'the advisor is on by default', source: 'operator', topicHint: 'rules' }, dir)
 check('the advisor fact consolidated', maybeConsolidate({ force: true, dir }).consolidated)
+_resetMemoryVerbSessionStateForTesting()
+const judged = await retainItemsJudged(
+  [{ content: 'the advisor is off by default' }, { content: 'never use bun for installs' }, { content: 'the memory page lists every topic' }],
+  { session: 'write-guard-proof' },
+  { dir, judge: fixtureJudge },
+)
+check('the judge saw only candidates, each paired with the record it meets (the bun fact meets the rule and the restated pending row)', asked.length === 3 && asked.every(p => p.candidate !== 'the memory page lists every topic') && asked.some(p => p.candidate === 'the advisor is off by default' && p.existing === 'the advisor is on by default') && asked.some(p => p.candidate === 'never use bun for installs' && p.existing.startsWith('always use bun')), j(asked))
+check('the candidate Jev read as unsure (0.3) is stored; the one at 0.9 is refused; the non-candidate never went to Jev', judged[0]?.status === 'stored' && judged[1]?.status === 'refused' && judged[2]?.status === 'stored', j(judged))
+check('contradictionHolds is the 0.6 floor', guard.contradictionHolds({ candidate: judged[1]!.status === 'refused' ? judged[1].conflict! : (null as never), judged: 0.6 }) && !guard.contradictionHolds({ candidate: judged[1]!.status === 'refused' ? judged[1].conflict! : (null as never), judged: 0.59 }))
+
+section('§5 the Jev wire: one noul question per candidate on the stand-in, counted in the ledger')
+setJevEnabled(true)
+storeJevApiKey('proof-key-jev-not-a-real-key-0035')
+resetJevLedger()
+standin.reset()
+check('Jev on with a key: the judge road is open', guard.jevJudgeOpen() === true)
+standin.answerWith((body: unknown) => {
+  const state = (body as { state?: { candidate?: string } }).state
+  return { model: 'jev-1.13.0', answers: { contradicts: { type: 'noul', noul: state?.candidate?.startsWith('never') ? 0.88 : 0.12 } }, usage: { input_tokens: 400, output_tokens: 10 } }
+})
+_resetMemoryVerbSessionStateForTesting()
+const wired = await retainItemsJudged(
+  [{ content: 'never run the suites in parallel' }, { content: 'the handoff ask budget is 90 seconds' }],
+  { session: 'write-guard-proof' },
+  { dir },
+)
+const request = standin.received[0]?.body as { model?: string; state?: Record<string, string>; questions?: Record<string, { type?: string; instructions?: string }> } | undefined
+check('two requests reached Jev, one per candidate', standin.received.length === 2, String(standin.received.length))
+check('each request carries the pair as its state and one noul question', request?.state?.candidate !== undefined && request?.state?.existing !== undefined && request?.questions?.contradicts?.type === 'noul' && (request.questions.contradicts.instructions ?? '').includes('both cannot be true'), j(request))
+check('the request rides the pinned model on the official road', request?.model === 'jev-1.13.0', j(request?.model))
+check('Jev at 0.88 refuses; Jev at 0.12 stores the fact the lexical filter had caught', wired[0]?.status === 'refused' && wired[1]?.status === 'stored', j(wired))
+check('both calls are counted in the Jev ledger', jevLedgerSnapshot().attempts === 2, j(jevLedgerSnapshot()))
+standin.answerWith(undefined)
+standin.next({ status: 500, body: { error: { message: 'fixture down' } } })
+_resetMemoryVerbSessionStateForTesting()
+const down = await retainItemsJudged([{ content: 'the advisor is off by default' }], { session: 'write-guard-proof' }, { dir })
+check('Jev down: the lexical verdict stands (refused), nothing stored beside its opposite', down[0]?.status === 'refused', j(down))
+setJevEnabled(false)
+storeJevApiKey(null)
+
+section('§6 Correct\'s amend goes through the same guard; the Memory Centre\'s own corrections and the hand-over import do not')
 readMemoryRecord(`seq:${budgetSeq}`, dir)
 const amendConflict = correctMemory({ op: 'amend', id: `seq:${budgetSeq}`, content: 'the advisor is off by default', reason: 'proof', session: 'write-guard-proof' }, dir)
 check('an amend whose new wording contradicts another record is refused with code conflict', !amendConflict.ok && amendConflict.code === 'conflict' && amendConflict.message.startsWith('amend refused: the new wording conflicts with fact'), j(amendConflict))
@@ -167,4 +230,5 @@ console.log('\n' + '═'.repeat(76))
 if (failures === 0) console.log(`✅ WRITE CONTRADICTION GREEN (${checks} checks)`)
 else console.log(`❌ WRITE CONTRADICTION RED (${failures} of ${checks} checks failed)`)
 console.log('═'.repeat(76))
+await standin.close()
 process.exit(failures === 0 ? 0 : 1)
