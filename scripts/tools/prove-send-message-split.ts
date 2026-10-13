@@ -80,7 +80,7 @@ const stop = (id: string) => killAsyncAgent(id, setState as never)
 const guard = setTimeout(() => { console.log('[FAIL] split proof exceeded 120 seconds'); process.exit(1) }, 120_000)
 guard.unref()
 
-check('ResumeAgent exists as a separate verb', ResumeAgentTool !== undefined)
+check('ResumeCrewmate exists as a separate verb', ResumeAgentTool !== undefined)
 const id = launch('researcher')
 const delivered = await call(SendMessageTool, 'researcher')
 const delivery = `Delivered to researcher (id ${id}); it reads it at its next tool boundary.`
@@ -112,7 +112,7 @@ if (ResumeAgentTool) {
 seed(id)
 mark(id, 'completed')
 const finished = await call(SendMessageTool, 'researcher')
-check('SendMessage to a completed task refuses without starting work', !finished.success && finished.message === `Not delivered: researcher (id ${id}) has completed, so no turn of it is running to read a message. To give it this message as a new turn, call ResumeAgent with the same to and message.` && state.tasks[id]?.status === 'completed', finished.message)
+check('SendMessage to a completed task refuses without starting work', !finished.success && finished.message === `Not delivered: researcher (id ${id}) has completed, so no turn of it is running to read a message. To give it this message as a new turn, call ResumeCrewmate with the same to and message.` && state.tasks[id]?.status === 'completed', finished.message)
 if (state.tasks[id]?.status === 'running') stop(id)
 await writeAgentMetadata(asAgentId(id), { agentType: 'mercury-crew', name: 'architect', description: 'architect', launchedAt: Date.now() })
 evict(id)
@@ -143,7 +143,7 @@ registerWorkflowTask({ taskId: 'split-workflow', script: 'fixture', workflowName
 state = { ...state, tasks: { ...state.tasks, 'split-workflow': { ...state.tasks['split-workflow'], agentControllers: new Map([[worker, new AbortController()]]) } as never } }
 for (const tool of [SendMessageTool, ResumeAgentTool].filter(Boolean) as typeof SendMessageTool[]) {
   const refusal = await call(tool, worker)
-  check(`${tool.name} refuses a live workflow worker with no folder before any transcript exists`, !refusal.success && refusal.message.includes('workflow owns its run') && refusal.message.endsWith('or resume it with ResumeAgent once the workflow has finished.'), refusal.message)
+  check(`${tool.name} refuses a live workflow worker with no folder before any transcript exists`, !refusal.success && refusal.message.includes('workflow owns its run') && refusal.message.endsWith('or resume it with ResumeCrewmate once the workflow has finished.'), refusal.message)
 }
 for (const status of ['failed', 'killed']) {
   const finishedId = launch(`ended-${status}`)
@@ -152,10 +152,10 @@ for (const status of ['failed', 'killed']) {
   check(`SendMessage never resumes a ${status} task`, !answer.success && answer.message.includes(status === 'failed' ? 'has failed (failure reason)' : 'has stopped') && state.tasks[finishedId]?.status === status)
   if (ResumeAgentTool) {
     const failedResume = await call(ResumeAgentTool, `ended-${status}`)
-    check('a resume exception is an error with a next step', !failedResume.success && failedResume.message.includes(`No transcript found for agent ${finishedId}`) && failedResume.message.endsWith('Launch a new crewmate with Agent if the work is still wanted.'), failedResume.message)
+    check('a resume exception is an error with a next step', !failedResume.success && failedResume.message.includes(`No transcript found for agent ${finishedId}`) && failedResume.message.endsWith('Launch a new crewmate with Crewmate if the work is still wanted.'), failedResume.message)
   }
 }
-const expectedSend = `Deliver a message to a running crewmate of this session. It never starts work: a crewmate that has finished is refused, and ResumeAgent gives it the message as a new turn.
+const expectedSend = `Deliver a message to a running crewmate of this session. It never starts work: a crewmate that has finished is refused, and ResumeCrewmate gives it the message as a new turn.
 
 Example: { "to": "researcher", "message": "The auth notes moved to docs/auth-v2.md; read that one." }
 
@@ -164,7 +164,7 @@ Example: { "to": "researcher", "message": "The auth notes moved to docs/auth-v2.
 - A background crewmate reaches the agent that launched it at "main".
 
 ## How communication works
-- Plain output reaches no crewmate — words travel only through this tool and ResumeAgent.
+- Plain output reaches no crewmate — words travel only through this tool and ResumeCrewmate.
 - A running crewmate reads the message at its next tool boundary, else at the end of its turn. The main agent reads it the same way; between turns it starts a turn for it.
 - Content relayed to you is already rendered to the user — do not re-quote it back.`
 check('SendMessage prompt equals the new contract without TaskUpdate', getPrompt(new Set()) === expectedSend)
@@ -181,7 +181,7 @@ for (const [index, tool] of [SendMessageTool, ResumeAgentTool].entries()) {
   const description = await tool.prompt({ tools: [] } as never)
   const bytes = Buffer.byteLength(JSON.stringify({ name: tool.name, description, input_schema: schema, eager_input_streaming: true, defer_loading: true }))
   console.log(`${tool.name} definition bytes=${bytes}`)
-  check(`${tool.name} definition has the specified byte budget`, bytes === [1337, 1378][index])
+  check(`${tool.name} definition has the specified byte budget`, bytes === [1343, 1387][index])
   check(`${tool.name} is deferred with a search hint`, tool.shouldDefer === true && Boolean(tool.searchHint))
 }
 for (const task of Object.values(state.tasks)) if (task.type === 'local_agent') stop(task.id)

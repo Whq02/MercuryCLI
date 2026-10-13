@@ -128,7 +128,7 @@ function routeOf(lane: Lane, body: unknown): { route: Route; who: string | null 
     }
     return { route: 'side', who: null }
   }
-  if (text.includes('astra-crew:') && toolNames(body).includes('Agent')) return { route: carriesToolResult(body) ? 'parent-ack' : 'parent', who: null }
+  if (text.includes('astra-crew:') && toolNames(body).includes('Crewmate')) return { route: carriesToolResult(body) ? 'parent-ack' : 'parent', who: null }
   return { route: 'side', who: null }
 }
 
@@ -258,8 +258,8 @@ async function startFixture(port: number): Promise<Fixture> {
               { type: 'text', text: 'launching the survey crew' },
               ...(Object.keys(SEATS) as SeatArm[]).map(arm => ({
                 type: 'tool_use' as const,
-                name: 'Agent',
-                input: { description: SEATS[arm].name, prompt: `astra-seat: survey the ${SEATS[arm].name}`, subagent_type: SEATS[arm].type, model: ID },
+                name: 'Crewmate',
+                input: { description: SEATS[arm].name, prompt: `astra-seat: survey the ${SEATS[arm].name}`, crewmate_type: SEATS[arm].type, model: ID },
               })),
               { type: 'tool_use', name: 'Workflow', input: { script: WF_SCRIPT } },
             ]
@@ -509,7 +509,7 @@ console.log(`  models list reads: ${hits.filter(h => h.lane === 'models').length
 check('the live models list was read (the row is present because the list serves it)', hits.some(h => h.lane === 'models'))
 const parents = hits.filter(h => h.route === 'parent' || h.route === 'parent-ack')
 check(`the main rode the Anthropic wire on ${MAIN_ID}`, parents.length >= 2 && parents.every(h => h.lane === 'messages' && h.model === MAIN_ID), parents.map(h => `${h.route}:${h.lane}:${h.model}`).join(','))
-check('the ask offered both the Agent tool and the Workflow tool', parents.some(h => h.tools.includes('Agent') && h.tools.includes('Workflow')), parents[0]?.tools.join(',') ?? '')
+check('the ask offered both the Crewmate tool and the Workflow tool', parents.some(h => h.tools.includes('Crewmate') && h.tools.includes('Workflow')), parents[0]?.tools.join(',') ?? '')
 
 const seatHits = hits.filter(h => h.route === 'seat').sort((a, b) => a.at - b.at)
 console.log(`  wire: ${seatHits.map(h => `${h.who}@${(h.at / 1000).toFixed(1)}s ${h.effort}`).join(' · ')}`)

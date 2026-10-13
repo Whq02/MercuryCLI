@@ -36,7 +36,7 @@ if (!existsSync(DIST)) {
   const beforeAgent = runner.frames.length
   void runner.prompt(AGENT_TURN_ASK, UT)
   const mainOpen = await waitWire(fx.wire, "the main thread's opening request", w => w.kind === 'request' && w.arm === 'agent' && w.step === 0, bound(30_000))
-  check("the session's model was asked and answered with the Agent tool", mainOpen !== null)
+  check("the session's model was asked and answered with the Crewmate tool", mainOpen !== null)
   const subOpen = await waitWire(fx.wire, "the sub-agent's first request", w => w.kind === 'request' && w.arm === 'subwork' && w.step === 0, bound(40_000))
   check('the sub-agent opened its own conversation (its tool runs for ten seconds)', subOpen !== null)
   const T1 = new Date().toISOString()
@@ -47,7 +47,7 @@ if (!existsSync(DIST)) {
   const subCarrying = carrying(requests.filter(w => w.arm === 'subwork'), LINE)
   const mainCarrying = carrying(requests.filter(w => w.arm === 'agent'), LINE)
   check("no request of the sub-agent's conversation carried the line", subCarrying.length === 0, j(subCarrying.map(w => [w.n, w.step])))
-  check("the session's own next request after the Agent tool carried the line, once", mainCarrying.length >= 1 && mainCarrying[0]!.step === 1 && mainCarrying[0]!.counts?.[LINE] === 1, describeRequests(requests, [LINE]))
+  check("the session's own next request after the Crewmate tool carried the line, once", mainCarrying.length >= 1 && mainCarrying[0]!.step === 1 && mainCarrying[0]!.counts?.[LINE] === 1, describeRequests(requests, [LINE]))
   const carriers = await settledCarriers(join(RUN_HOME, 'projects'), LINE, bound(10_000))
   const mainRows = carriers.filter(isDrainedMainRow)
   const agentRows = carriers.filter(c => !inMainFile(c))

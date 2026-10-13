@@ -40,14 +40,14 @@ async function leg(name: string, isolation: 'worktree' | undefined): Promise<voi
     if (isChild(req)) return [{ type: 'text', text: CHILD_DONE }]
     if (isNoticeAsk(req)) return [{ type: 'text', text: 'noted' }]
     if (isFollowUp(req)) return [{ type: 'text', text: 'still here' }]
-    if (req.step === 0) return [{ type: 'tool_use', name: 'Agent', input: { description: 'the idle probe child', prompt: CHILD_PROMPT, run_in_background: true, ...(isolation ? { isolation } : {}) } }]
+    if (req.step === 0) return [{ type: 'tool_use', name: 'Crewmate', input: { description: 'the idle probe child', prompt: CHILD_PROMPT, run_in_background: true, ...(isolation ? { isolation } : {}) } }]
     return [{ type: 'text', text: 'parent done' }]
   }
   const fixture = await startScriptedFixture(script, { answerDelayMs: req => (isChild(req) && req.step === 0 ? CHILD_DELAY_MS : 0) })
   const runner = bootRunner({ cwd, env: childEnv(runHome, Number(new URL(fixture.base).port)) })
   void runner.prompt('idle probe: launch the child in the background and stop', randomUUID())
 
-  const launch = await runner.waitFor("the parent's Agent call", f => f.type === 'tool_call' && f.tool === 'Agent' && f.parent_call_id === undefined, bound(60_000))
+  const launch = await runner.waitFor("the parent's Crewmate call", f => f.type === 'tool_call' && f.tool === 'Crewmate' && f.parent_call_id === undefined, bound(60_000))
   tally.check('the parent launched the child in the background', launch !== null)
   const notification = await runner.waitFor("the child's end", f => f.type === 'task' && f.state === 'ended', bound(CHILD_DELAY_MS + 60_000))
   tally.check("the child's end rides a task row", notification !== null, JSON.stringify(notification).slice(0, 160))

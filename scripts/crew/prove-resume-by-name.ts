@@ -92,7 +92,7 @@ const launchRow = (toolUseId: string, name: string | undefined, description: str
       id: `msg_${toolUseId}`,
       model: 'claude-fable-5-1',
       role: 'assistant',
-      content: [{ type: 'tool_use', id: toolUseId, name: 'Agent', input: { description, prompt: `work as ${description}`, subagent_type: 'mercury-crew', run_in_background: true, ...(name !== undefined ? { name } : {}) } }],
+      content: [{ type: 'tool_use', id: toolUseId, name: 'Crewmate', input: { description, prompt: `work as ${description}`, crewmate_type: 'mercury-crew', run_in_background: true, ...(name !== undefined ? { name } : {}) } }],
       usage: { input_tokens: 1, output_tokens: 1, cache_creation_input_tokens: 0, cache_read_input_tokens: 0 },
       stop_reason: 'tool_use',
     },
@@ -172,7 +172,7 @@ const launchReal = async (store: Store, transcript: Message[], name: string, des
   const toolUseId = `toolu_real_${++n}`
   const parent = { type: 'assistant', requestId: `req_real_${n}`, message: { id: `msg_real_${n}`, content: [] } } as never
   const answer = (await AgentTool.call(
-    { description, prompt: `work as ${description}`, subagent_type: 'mercury-crew', run_in_background: true, name } as never,
+    { description, prompt: `work as ${description}`, crewmate_type: 'mercury-crew', run_in_background: true, name } as never,
     makeLaunchCtx(store, transcript, toolUseId),
     (async () => ({ behavior: 'allow', updatedInput: {} })) as never,
     parent,
@@ -224,7 +224,7 @@ const harbour = launchNamed(store, transcript, 'harbour-count', 'count the harbo
 check('the launch name is not an agent id, so only a name road can reach it', toAgentId('harbour-count') === null)
 check('the registry routes the name to the launch while it runs', store.get().agentNameRegistry.get('harbour-count') === harbour)
 const receiptWords = textOf(transcript[1])
-check('the launch receipt the Agent tool minted promises both addresses: the id and the name', receiptWords.startsWith(lr.BACKGROUND_LAUNCH_LINE) && receiptWords.includes(`agentId: ${harbour}`) && receiptWords.includes('or to its name "harbour-count"'), receiptWords.slice(0, 300))
+check('the launch receipt the Crewmate tool minted promises both addresses: the id and the name', receiptWords.startsWith(lr.BACKGROUND_LAUNCH_LINE) && receiptWords.includes(`agentId: ${harbour}`) && receiptWords.includes('or to its name "harbour-count"'), receiptWords.slice(0, 300))
 finishAndEvict(store, harbour, 'count the harbour')
 check('once the settled row is evicted the registry no longer holds the name (the mechanism behind the defect)', store.get().tasks[harbour] === undefined && !store.get().agentNameRegistry.has('harbour-count'), JSON.stringify([...store.get().agentNameRegistry.entries()]))
 check('…while its transcript stays on disk, the record the id road resumes from', existsSync(getAgentTranscriptPath(asAgentId(harbour))))
@@ -320,7 +320,7 @@ section('§9 THE READER — the launch receipts by name, read-only, in transcrip
     check('the lookup by name returns the launches that carried it, oldest first, the newest last', byName(rows, 'harbour-count').map(r => r.agentId).join(' ') === 'a0harbour1 a0harbour2' && byName(rows, 'nobody').length === 0)
     check('the lookup matches the exact spelling first and falls back to a case-insensitive match', byName(rows, 'HARBOUR-COUNT').map(r => r.agentId).join(' ') === 'a0harbour1 a0harbour2')
     const agentTool = src('src/tools/AgentTool/AgentTool.tsx')
-    check('the continuation words the reader pairs on are the Agent tool\'s own', agentTool.includes('`agentId: ${agentId} (internal — do not mention it to the user).'))
+    check('the continuation words the reader pairs on are the Crewmate tool\'s own', agentTool.includes('`agentId: ${agentId} (internal — do not mention it to the user).'))
   }
 }
 
@@ -346,18 +346,18 @@ section('§11 THE SEAMS IN SOURCE')
   check('the read helper writes nothing: no state setter, no registry write (RED on the base: no helper)', helper.includes('export function launchesNamed') && !/setAppState|registerAgentName|writeFileSync/.test(helper))
 }
 
-section('§12 THE RECORD — a REAL named launch through the Agent tool writes the name and its launch clock into the sidecar beside the transcript (RED on the base: the sidecar carries no name)')
+section('§12 THE RECORD — a REAL named launch through the Crewmate tool writes the name and its launch clock into the sidecar beside the transcript (RED on the base: the sidecar carries no name)')
 const durable = makeStore()
 const durableTranscript: Message[] = []
 const before = Date.now()
 const beacon = await launchReal(durable, durableTranscript, 'harbour-count', 'count the harbour')
-check('the launch is a sub-agent launch whose receipt promises the name (the Agent tool\'s own words)', beacon.receipt.startsWith(lr.BACKGROUND_LAUNCH_LINE) && beacon.receipt.includes(`agentId: ${beacon.id}`) && beacon.receipt.includes('or to its name "harbour-count"'), beacon.receipt.slice(0, 300))
+check('the launch is a sub-agent launch whose receipt promises the name (the Crewmate tool\'s own words)', beacon.receipt.startsWith(lr.BACKGROUND_LAUNCH_LINE) && beacon.receipt.includes(`agentId: ${beacon.id}`) && beacon.receipt.includes('or to its name "harbour-count"'), beacon.receipt.slice(0, 300))
 check('…and the registry routes the name while the row lives', durable.get().agentNameRegistry.get('harbour-count') === beacon.id)
 const launched = await sidecarOf(beacon.id)
 console.log(`  the sidecar: ${JSON.stringify(launched)}`)
 check('the launch writes its sidecar beside the transcript (the run loop\'s own write, before its first model call)', launched !== null && existsSync(getAgentMetadataPath(asAgentId(beacon.id))), JSON.stringify(launched))
 check('the sidecar carries the launch name (RED on the base)', launched?.name === 'harbour-count', JSON.stringify(launched))
-check('…and the launch clock, the Agent tool\'s own start time (RED on the base)', typeof launched?.launchedAt === 'number' && launched.launchedAt >= before && launched.launchedAt <= Date.now(), JSON.stringify(launched))
+check('…and the launch clock, the Crewmate tool\'s own start time (RED on the base)', typeof launched?.launchedAt === 'number' && launched.launchedAt >= before && launched.launchedAt <= Date.now(), JSON.stringify(launched))
 check('…beside the launch facts it always carried: the kind, the description, the dispatched model', launched?.agentType === 'mercury-crew' && launched?.description === 'count the harbour' && typeof launched?.model === 'string', JSON.stringify(launched))
 const launchClock = launched?.launchedAt
 const launchWrite = existsSync(getAgentMetadataPath(asAgentId(beacon.id))) ? statSync(getAgentMetadataPath(asAgentId(beacon.id))).mtimeMs : 0

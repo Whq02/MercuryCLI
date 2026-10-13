@@ -316,7 +316,7 @@ The Boot Menu's Performance section includes a Motion setting:
 interface and is also available in `/config`.
 
 Under Agents, the Crewmates and Workflows switches determine whether new
-sessions receive the Agent and Workflow tools. Turning a switch off removes
+sessions receive the Crewmate and Workflow tools. Turning a switch off removes
 the corresponding tool; attempts to spawn that type of work return the same
 explanation. Within a session, `/subagents on|off` and `/workflows on|off`
 change the setting at the next turn boundary.
@@ -465,7 +465,7 @@ The output row types, by their `type` field:
   reports. A shell or PowerShell call ticks as its output arrives (a command
   that prints nothing never ticks), an MCP call when its server reports
   progress, an Eval call while its cell runs; no other tool ticks — a Browser
-  or Agent call is silent until its result.
+  or Crewmate call is silent until its result.
 - `step` — one model call of the main thread: `message_id`, `model`, `usage`,
   and `stop` when the model said why it stopped.
 - `outcome` — the turn's result, described below.

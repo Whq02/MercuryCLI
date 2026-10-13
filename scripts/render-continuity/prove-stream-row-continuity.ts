@@ -123,8 +123,8 @@ const scenes: Scene[] = [
         gapMs: 350,
         tools: [
           {
-            name: 'Agent',
-            input: { description: 'poise piece probe', prompt: 'Reply done.', subagent_type: 'mercury-crew', run_in_background: true },
+            name: 'Crewmate',
+            input: { description: 'poise piece probe', prompt: 'Reply done.', crewmate_type: 'mercury-crew', run_in_background: true },
           },
         ],
       },

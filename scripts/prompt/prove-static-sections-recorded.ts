@@ -60,7 +60,7 @@ const RUNS = '# Autonomous runs'
 const BULLET = 'For multi-deliverable work, create and update task items as you go'
 const ESTATE_TOOL_WORDS = `the ${RECORD_CONVENTION_TOOL_NAME} tool writes it there`
 const tool = (name: string): { name: string } => ({ name })
-const firstPool = ['Read', 'Edit', 'Write', 'Glob', 'Grep', 'Bash', 'Agent', 'Skill', 'AskUserQuestion', RECORD_CONVENTION_TOOL_NAME, RETAIN_TOOL_NAME].map(tool)
+const firstPool = ['Read', 'Edit', 'Write', 'Glob', 'Grep', 'Bash', 'Crewmate', 'Skill', 'AskUserQuestion', RECORD_CONVENTION_TOOL_NAME, RETAIN_TOOL_NAME].map(tool)
 const taskTools = [TASK_CREATE_TOOL_NAME, 'TaskGet', 'TaskList', 'TaskUpdate'].map(tool)
 const grownPool = [...firstPool, ...taskTools]
 const shrunkPool = firstPool.filter(t => t.name !== RECORD_CONVENTION_TOOL_NAME)

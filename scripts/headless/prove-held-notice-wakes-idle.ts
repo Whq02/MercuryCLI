@@ -40,7 +40,7 @@ const script: Script = req => {
   if (isChild(req)) return [{ type: 'text', text: CHILD_DONE }]
   if (req.ask.includes('<task-notification>') || req.ask.includes('runner restarted')) return [{ type: 'text', text: NOTED }]
   if (!req.ask.trim().startsWith(LAUNCH_ASK)) return [{ type: 'text', text: 'ok' }]
-  if (req.step === 0) return [{ type: 'tool_use', name: 'Agent', input: { description: 'the held notice probe child', prompt: CHILD_PROMPT, run_in_background: true } }]
+  if (req.step === 0) return [{ type: 'tool_use', name: 'Crewmate', input: { description: 'the held notice probe child', prompt: CHILD_PROMPT, run_in_background: true } }]
   return [{ type: 'text', text: LAUNCHED }]
 }
 let hangNextChild = false

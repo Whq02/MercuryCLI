@@ -120,7 +120,7 @@ export const TEXT_APPEND = `
 
 ${SUBAGENT_TEXT_PROMPT}`
 
-const SUBAGENT_DISALLOWED_TOOLS = ['Agent', 'Workflow']
+const SUBAGENT_DISALLOWED_TOOLS = ['Crewmate', 'Workflow']
 
 export function buildSubagentTextPrompt(): string {
   return SUBAGENT_TEXT_PROMPT

@@ -20,7 +20,7 @@ const brief = verifierPrompt(`Focus the verification on: ${focus}`)
 const expansion = (await command.getPromptForCommand(focus)).map(block => block.text).join('\n')
 const verdict = 'The parser boundary fixture was checked.\nVERDICT: PASS'
 const fixture = await startFixtureApi([
-  { kind: 'tool_use', name: 'Agent', input: { description: 'Check the parser boundary', prompt: brief, subagent_type: 'mercury-crew' }, whenBody: '## Verification brief for the crewmate' },
+  { kind: 'tool_use', name: 'Crewmate', input: { description: 'Check the parser boundary', prompt: brief, crewmate_type: 'mercury-crew' }, whenBody: '## Verification brief for the crewmate' },
   { kind: 'text', text: verdict, whenSaid: brief },
   { kind: 'text', text: `The independent check returned:\n${verdict}`, whenBody: 'The parser boundary fixture was checked.' },
 ])
@@ -60,7 +60,7 @@ try {
   check('the Agent road dispatches the complete brief as the crewmate user turn', crew !== undefined)
   check('the launched seat carries the crewmate doctrine', crew !== undefined && JSON.stringify(crew.system).includes('a crewmate, spawned for one assignment'))
   const tools = bodies.flatMap(blocks).filter(block => block.type === 'tool_use').map(block => block.name)
-  check('the command uses Agent, never a Skill invocation', tools.includes('Agent') && !tools.includes('Skill'), tools.join(' '))
+  check('the command uses Agent, never a Skill invocation', tools.includes('Crewmate') && !tools.includes('Skill'), tools.join(' '))
   check('the independent verdict returns to the main seat', run.exit === 0 && run.frames.filter(isOutcome).some(frame => answerOf(frame).includes(verdict)), `${run.exit}: ${run.stderr.slice(-500)}`)
 } finally {
   await fixture.close()

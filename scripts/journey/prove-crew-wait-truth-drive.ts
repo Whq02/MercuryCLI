@@ -97,10 +97,10 @@ function anthropicTail(stop: 'end_turn' | 'tool_use'): string {
   return `event: message_delta\n${sse({ type: 'message_delta', delta: { stop_reason: stop, stop_sequence: null }, usage: USAGE_END })}event: message_stop\n${sse({ type: 'message_stop' })}`
 }
 const agentLaunch = (seat: Seat, extra: Record<string, unknown>): string =>
-  anthropicToolBlock(seat === 'fable' ? 0 : 1, `toolu_wait_agent_${++toolSeq}`, 'Agent', {
+  anthropicToolBlock(seat === 'fable' ? 0 : 1, `toolu_wait_agent_${++toolSeq}`, 'Crewmate', {
     description: SEATS[seat],
     prompt: `${SEAT_MARK}${seat} read the notes file once, then report in one line`,
-    subagent_type: 'mercury-crew',
+    crewmate_type: 'mercury-crew',
     run_in_background: true,
     ...extra,
   })
@@ -220,7 +220,7 @@ async function startFixture(port: number, cwd: string): Promise<{ base: string; 
         const answered = answeredTool(items)
         let bodyOut: string
         if (lastUserText.includes('task-notification')) bodyOut = anthropicTextBlock(0, NOTED) + anthropicTail('end_turn')
-        else if (answered === 'Agent') bodyOut = anthropicTextBlock(0, LAUNCHED) + anthropicTail('end_turn')
+        else if (answered === 'Crewmate') bodyOut = anthropicTextBlock(0, LAUNCHED) + anthropicTail('end_turn')
         else if (lastUserText.includes('wait-drive: launch')) bodyOut = agentLaunch('fable', {}) + agentLaunch('gpt', { model: GPT_ID }) + anthropicTail('tool_use')
         else bodyOut = anthropicTextBlock(0, 'side') + anthropicTail('end_turn')
         res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-cache' })

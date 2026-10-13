@@ -42,7 +42,7 @@ ${languageLines}
 - \`tool.Bash({command})\` — a command that ran returns \`{code, stdout, stderr}\` whatever it exited: \`code\` is the exit code (null while it runs in the background), \`stdout\` is the one interleaved capture, \`stderr\` is always \`''\`. A non-zero exit is a value, never a raise.
 - \`tool.attempt.<Name>(...)\` (JS) / \`tool.attempt('<Name>', ...)\` (both) — the same call with its error as a value: \`{ok: true, value}\` or \`{ok: false, error}\`.
 - A cell that throws keeps what it bound before the throw; the result names the bindings that survived.
-- \`agent(prompt, ...)\` — run one subagent (options: agentType, label, schema, strict, worktree); returns its final text, or parsed and validated data when you pass a JSON schema.
+- \`agent(prompt, ...)\` — run one crewmate (options: agentType, label, schema, strict, worktree); returns its final text, or parsed and validated data when you pass a JSON schema.
 - \`parallel(thunks, width?)\` — bounded fan-out over no-argument functions; results keep input order; the lowest-index failure propagates. \`pipeline(items, ...stages)\` — staged waves with a barrier between stages.
 - \`completion(prompt, ...)\` — a stateless, tool-free model call (options: system, model, tier: 'main'|'fast', schema); a schema failure raises.
 - \`display(x)\` · \`display_markdown(md)\` · \`display_json(obj)\` · \`display_image(bytes)\` — rich output beside stdout; Matplotlib figures are captured after each Python cell.

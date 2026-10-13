@@ -107,7 +107,7 @@ export async function finishedTaskOnDisk(taskId: string): Promise<FinishedTaskOn
     const view = await readAgentTranscript(transcriptPath)
     return {
       kind: 'agent',
-      words: `No running task with id ${taskId} in this session's registry — its transcript on disk ends ${view?.end.words ?? 'unreadable'}; ResumeAgent to that id resumes it`,
+      words: `No running task with id ${taskId} in this session's registry — its transcript on disk ends ${view?.end.words ?? 'unreadable'}; ResumeCrewmate to that id resumes it`,
     }
   }
   const outcome = await findTaskOutcome(getSessionId(), taskId)

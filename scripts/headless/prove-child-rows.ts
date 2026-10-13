@@ -52,7 +52,7 @@ try {
     const command = 'for n in 1 2 3 4 5 6; do printf "row tick %s\\n" "$n"; sleep 1; done'
     const api = await startScriptedFixture(req => {
       if (nested && req.opening.trim() !== childPrompt) {
-        if (req.step === 0) return [{ type: 'tool_use', name: 'Agent', input: { description: 'prove child rows', prompt: childPrompt, ...(childModel === 'haiku' ? { model: 'haiku' } : {}) } }]
+        if (req.step === 0) return [{ type: 'tool_use', name: 'Crewmate', input: { description: 'prove child rows', prompt: childPrompt, ...(childModel === 'haiku' ? { model: 'haiku' } : {}) } }]
         return [{ type: 'text', text: 'PARENT-DONE' }]
       }
       if (req.step === 0) return [{ type: 'text', text: 'tool begins' }, { type: 'tool_use', name: 'Bash', input: { command } }]
@@ -68,7 +68,7 @@ try {
     clearTimeout(timer)
     await api.close()
     const output = stdout.split('\n').filter(Boolean).map(line => JSON.parse(line) as Row)
-    const agent = output.find(row => row.type === 'tool_call' && row.tool === 'Agent')
+    const agent = output.find(row => row.type === 'tool_call' && row.tool === 'Crewmate')
     const call = output.find(row => row.type === 'tool_call' && row.tool === 'Bash')
     const ticks = output.filter(row => row.type === 'tool_update')
     const steps = output.filter(row => row.type === 'step')

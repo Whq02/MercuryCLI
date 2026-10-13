@@ -140,7 +140,7 @@ if (process.env.TOOLGLYPH_RENDER_CHILD) {
     t.check('Bash is shell', toolFamilyFor('Bash') === 'shell', toolFamilyFor('Bash'))
     t.check('Grep is search', toolFamilyFor('Grep') === 'search', toolFamilyFor('Grep'))
     t.check('Edit is edit', toolFamilyFor('Edit') === 'edit', toolFamilyFor('Edit'))
-    t.check('Agent is delegation', toolFamilyFor('Agent') === 'agent', toolFamilyFor('Agent'))
+    t.check('Agent is delegation', toolFamilyFor('Crewmate') === 'agent', toolFamilyFor('Crewmate'))
     t.check(
       'and an MCP tool is external BY CONSTRUCTION — it is somebody else\'s integration',
       toolFamilyFor('mcp__chrome-devtools__click') === 'external',
@@ -166,7 +166,7 @@ if (process.env.TOOLGLYPH_RENDER_CHILD) {
       }
     }
     t.check('some tools own their own extraction', implementers.size > 0, `${implementers.size}`)
-    for (const name of ['Agent', 'Edit', 'PowerShell', 'AskUserQuestion', 'WebFetch', 'LspRead', 'LspRename', 'LspMoveSymbol', 'LspMoveFile', 'LspCodeAction', 'LspFormat', 'LspRequest', 'ChangeSet', 'Test', 'Git']) {
+    for (const name of ['Crewmate', 'Edit', 'PowerShell', 'AskUserQuestion', 'WebFetch', 'LspRead', 'LspRename', 'LspMoveSymbol', 'LspMoveFile', 'LspCodeAction', 'LspFormat', 'LspRequest', 'ChangeSet', 'Test', 'Git']) {
       t.check(`${name} owns its extraction — its painted result is findable`, implementers.has(name), 'extracts')
     }
 

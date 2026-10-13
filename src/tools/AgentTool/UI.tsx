@@ -64,7 +64,7 @@ type AgentProgressData = {
 type AgentUiInput = {
   description?: string
   prompt?: string
-  subagent_type?: string
+  crewmate_type?: string
   model?: string
   run_in_background?: boolean
   name?: string
@@ -165,7 +165,7 @@ function AgentResponseDisplay({
 }
 
 export function userFacingName(input?: AgentUiInput): string {
-  const type = input?.subagent_type
+  const type = input?.crewmate_type
   if (!type || type === 'mercury-crew' || type === 'worker') {
     return GENERIC_AGENT_LABEL
   }
@@ -175,7 +175,7 @@ export function userFacingName(input?: AgentUiInput): string {
 export function userFacingNameBackgroundColor(
   input?: AgentUiInput,
 ): string | undefined {
-  const type = input?.subagent_type
+  const type = input?.crewmate_type
   if (!type) return undefined
   return getAgentColor(type)
 }
@@ -662,7 +662,7 @@ function CrewAgentRows({ entries, animate }: { entries: GroupedEntry[]; animate:
             key={entry.toolUseID ?? index}
             agentType={userFacingName(entry.input)}
             {...(entry.input.description !== undefined ? { description: entry.input.description } : {})}
-            {...(entry.input.subagent_type ? { color: getAgentColor(entry.input.subagent_type) } : {})}
+            {...(entry.input.crewmate_type ? { color: getAgentColor(entry.input.crewmate_type) } : {})}
             {...(facts !== null ? { model: crewModelLabel(facts) } : {})}
             {...(statusLine !== null ? { statusLine } : {})}
             {...(statusLine === null && entry.lastTool !== null ? { lastToolInfo: entry.lastTool } : {})}

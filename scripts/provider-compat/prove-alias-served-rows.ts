@@ -277,7 +277,7 @@ check(`the picker labels are the bare aliases`, labelOf(ALIAS) === 'Kimi For Cod
 const plainBefore = await refusalOf(SERVED)
 console.log(`  [record] refusal before any observation: ${plainBefore}`)
 check('the admission refuses with the plain sentence (no invented mapping)', plainBefore === PLAIN_REFUSAL, plainBefore)
-check('the Agent tool road throws the same plain sentence', (await dispatchRefusalOf(SERVED)) === PLAIN_REFUSAL)
+check('the Crewmate tool road throws the same plain sentence', (await dispatchRefusalOf(SERVED)) === PLAIN_REFUSAL)
 check('the typed /model road answers the same plain sentence', (await typedRefusalOf(SERVED)) === PLAIN_REFUSAL)
 const unobservedLines = await captureFrame('kimi-unobserved')
 check('[kimi-unobserved] both rows paint the bare alias', rowLine(unobservedLines, 'Kimi For Coding') >= 0 && rowLine(unobservedLines, 'Kimi For Coding Highspeed') >= 0 && !unobservedLines.some(l => l.includes('Kimi For Coding · ')))
@@ -301,13 +301,13 @@ section(`§2 an observed reply: the served-model field of a settled turn on ${AL
   console.log(`  [record] refusal after the observation: ${observed}`)
   check(`the admission names the alias: '${SERVED} is served here as ${ALIAS}' and still lists the offered ids`, observed === OBSERVED_REFUSAL, observed)
   const dispatch = await dispatchRefusalOf(SERVED)
-  check('the Agent tool road throws the sentence with the served fact', dispatch === OBSERVED_REFUSAL, dispatch)
+  check('the Crewmate tool road throws the sentence with the served fact', dispatch === OBSERVED_REFUSAL, dispatch)
   check('the typed /model road answers the sentence with the served fact', (await typedRefusalOf(SERVED)) === OBSERVED_REFUSAL)
   if (frameDir !== undefined) {
     writeFileSync(join(frameDir, `refusal-${SERVED}.txt`), [
       `[before any observed reply] ${plainBefore}`,
       `[after a reply on ${ALIAS} carried model=${SERVED}] ${observed}`,
-      `[Agent tool, model: '${SERVED}'] Error: ${dispatch}`,
+      `[Crewmate tool, model: '${SERVED}'] Error: ${dispatch}`,
       '',
     ].join('\n'))
   }

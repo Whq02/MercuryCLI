@@ -160,7 +160,7 @@ section('§1 a crew lane: mercury-crew carries the full tool set and writes the 
 {
   const word = 'crew'
   const { run, fixture, world } = await leg(word, w => [
-    { kind: 'tool_use', name: 'Agent', input: { description: `${word}-seat`, prompt: BRIEF(word), subagent_type: 'mercury-crew' }, whenBody: ASK(word) },
+    { kind: 'tool_use', name: 'Crewmate', input: { description: `${word}-seat`, prompt: BRIEF(word), crewmate_type: 'mercury-crew' }, whenBody: ASK(word) },
     { kind: 'tool_use', name: 'Write', input: { file_path: join(w.cwd, `${word}-wrote.txt`), content: `${word} wrote this\n` }, whenSaid: BRIEF(word) },
     { kind: 'text', text: `${word}-seat: wrote the probe file`, whenSaid: BRIEF(word) },
     { kind: 'text', text: `roster-drive ${word}: the seat reported — ${word}-seat: wrote the probe file`, whenBody: `${word}-seat: wrote the probe file` },
@@ -170,7 +170,7 @@ section('§1 a crew lane: mercury-crew carries the full tool set and writes the 
   check('the crew seat was dispatched (its brief reached the model as a user turn)', seats.length >= 2, `${seats.length} seat request(s); exit=${run.exit}; ${run.stderr.slice(-300)}`)
   const seatTools = toolNamesOf(seats[0] ?? {})
   check('the crew seat carries the writers and the shell', ['Write', 'Edit', 'Bash', 'Read'].every(t => seatTools.includes(t)), seatTools.join(','))
-  check('the crew seat never carries the Agent tool', !seatTools.includes('Agent'))
+  check('the crew seat never carries the Crewmate tool', !seatTools.includes('Crewmate'))
   check("the crew seat's system prompt is the doctrine and the environment, with no scout text", systemTextOf(seats[0] ?? {}).includes("Mercury's agents, a crewmate, spawned for one assignment") && !systemTextOf(seats[0] ?? {}).includes("You are Mercury's repository scout"))
   check('the probe file stands written by the crew seat', existsSync(probe) && readFileSync(probe, 'utf8') === `${word} wrote this\n`, existsSync(probe) ? readFileSync(probe, 'utf8') : 'absent')
   check("the lead relayed the seat's report", resultText(run).includes(`${word}-seat: wrote the probe file`), resultText(run))
@@ -181,7 +181,7 @@ section('§2 a scout run: mercury-scout has no writer; its write attempt is refu
 {
   const word = 'scout'
   const { run, fixture, world } = await leg(word, w => [
-    { kind: 'tool_use', name: 'Agent', input: { description: `${word}-seat`, prompt: BRIEF(word), subagent_type: 'mercury-scout' }, whenBody: ASK(word) },
+    { kind: 'tool_use', name: 'Crewmate', input: { description: `${word}-seat`, prompt: BRIEF(word), crewmate_type: 'mercury-scout' }, whenBody: ASK(word) },
     { kind: 'tool_use', name: 'Write', input: { file_path: join(w.cwd, `${word}-wrote.txt`), content: `${word} wrote this\n` }, whenSaid: BRIEF(word) },
     { kind: 'text', text: `${word}-seat: the write was refused`, whenSaid: BRIEF(word) },
     { kind: 'text', text: `roster-drive ${word}: the seat reported — ${word}-seat: the write was refused`, whenBody: `${word}-seat: the write was refused` },
@@ -190,7 +190,7 @@ section('§2 a scout run: mercury-scout has no writer; its write attempt is refu
   const probe = join(world.cwd, `${word}-wrote.txt`)
   check('the scout seat was dispatched', seats.length >= 2, `${seats.length} seat request(s); exit=${run.exit}; ${run.stderr.slice(-300)}`)
   const seatTools = toolNamesOf(seats[0] ?? {})
-  check('the scout seat carries no Write, Edit, NotebookEdit or Agent tool', !['Write', 'Edit', 'NotebookEdit', 'Agent'].some(t => seatTools.includes(t)), seatTools.join(','))
+  check('the scout seat carries no Write, Edit, NotebookEdit or Crewmate tool', !['Write', 'Edit', 'NotebookEdit', 'Crewmate'].some(t => seatTools.includes(t)), seatTools.join(','))
   check('the scout seat keeps Read, Grep and Glob', ['Read', 'Grep', 'Glob'].every(t => seatTools.includes(t)), seatTools.join(','))
   check('the scout seat carries no worktree door, no schedule writer and no memory writer', !['EnterWorktree', 'ExitWorktree', 'CronCreate', 'CronDelete', 'ScheduleWakeup', 'Retain', 'Correct', 'RecordConvention'].some(t => seatTools.includes(t)), seatTools.join(','))
   const { getAllBaseTools } = await import('../../src/tools.ts')
@@ -205,7 +205,7 @@ section('§2 a scout run: mercury-scout has no writer; its write attempt is refu
   check('the Write attempt came back to the scout as a refusal naming the missing tool', refusal.includes('No such tool available: Write'), toolResultsOf(seats[1] ?? {}).join(' | ').slice(0, 300))
   check('nothing was written', !existsSync(probe))
   check("the lead relayed the seat's report", resultText(run).includes(`${word}-seat: the write was refused`), resultText(run))
-  const agentTool = (bodies(fixture)[0]?.tools as Array<{ name: string; description?: string }> | undefined)?.find(t => t.name === 'Agent')
+  const agentTool = (bodies(fixture)[0]?.tools as Array<{ name: string; description?: string }> | undefined)?.find(t => t.name === 'Crewmate')
   const scoutLine = (agentTool?.description ?? '').split('\n').find(line => line.startsWith('- mercury-scout: ')) ?? ''
   check("the lead's roster line describes the scout's tools as read-only", scoutLine.includes('(Tools: read-only') && !scoutLine.includes('All tools'), scoutLine.slice(-160))
   drop(world)
@@ -217,7 +217,7 @@ section('§2c a scout run: a memory write (Retain) is refused and nothing lands 
   const brief = `${word}-seat: remember the reef fact, then report in one line`
   const fact = 'the reef probe fact: a scout tried to store this'
   const { run, fixture, world } = await leg(word, () => [
-    { kind: 'tool_use', name: 'Agent', input: { description: `${word}-seat`, prompt: brief, subagent_type: 'mercury-scout' }, whenBody: ASK(word) },
+    { kind: 'tool_use', name: 'Crewmate', input: { description: `${word}-seat`, prompt: brief, crewmate_type: 'mercury-scout' }, whenBody: ASK(word) },
     { kind: 'tool_use', name: 'Retain', input: { items: [{ content: fact, topic: 'scout-probe' }] }, whenSaid: brief },
     { kind: 'text', text: `${word}-seat: the memory write was refused`, whenSaid: brief },
     { kind: 'text', text: `roster-drive ${word}: the seat reported — ${word}-seat: the memory write was refused`, whenBody: `${word}-seat: the memory write was refused` },
@@ -238,7 +238,7 @@ section('§2d a scout run: an input-dependent tool is offered, its writing form 
   const word = 'astedit'
   const brief = `${word}-seat: rewrite Dover to Calais in harbours.txt, then report in one line`
   const { run, fixture, world } = await leg(word, w => [
-    { kind: 'tool_use', name: 'Agent', input: { description: `${word}-seat`, prompt: brief, subagent_type: 'mercury-scout' }, whenBody: ASK(word) },
+    { kind: 'tool_use', name: 'Crewmate', input: { description: `${word}-seat`, prompt: brief, crewmate_type: 'mercury-scout' }, whenBody: ASK(word) },
     { kind: 'tool_use', name: 'AstEdit', input: { pattern: 'Dover', rewrite: 'Calais', path: join(w.cwd, 'harbours.txt'), apply: true, plan: 'ae-probe' }, whenSaid: brief },
     { kind: 'text', text: `${word}-seat: the rewrite was refused`, whenSaid: brief },
     { kind: 'text', text: `roster-drive ${word}: the seat reported — ${word}-seat: the rewrite was refused`, whenBody: `${word}-seat: the rewrite was refused` },
@@ -263,9 +263,9 @@ section("§2e the scout's tool gate itself: the pool is the read-only pool, the 
     tool('Read', () => true),
     tool('Retain', () => false),
     tool('AstEdit', input => input.apply !== true),
-    tool('Agent', () => true),
+    tool('Crewmate', () => true),
     tool('SendMessage', () => true),
-    tool('ResumeAgent', () => true),
+    tool('ResumeCrewmate', () => true),
     tool('EnterWorktree', () => true),
     tool('ExitWorktree', () => true),
     tool('Throws', () => { throw new Error('no input') }),
@@ -274,7 +274,7 @@ section("§2e the scout's tool gate itself: the pool is the read-only pool, the 
   const names = gated.map(t => t.name)
   check('the pool keeps the shell, the skill door, the readers and the input-dependent tools', ['Bash', 'Skill', 'Read', 'AstEdit'].every(n => names.includes(n)), names.join(','))
   check('the pool drops an unconditional writer', !names.includes('Retain'), names.join(','))
-  check('the pool drops the Agent tool, the message tool and both worktree doors even when they claim to read', !['Agent', 'SendMessage', 'ResumeAgent', 'EnterWorktree', 'ExitWorktree'].some(n => names.includes(n)), names.join(','))
+  check('the pool drops the Crewmate tool, the message tool and both worktree doors even when they claim to read', !['Crewmate', 'SendMessage', 'ResumeCrewmate', 'EnterWorktree', 'ExitWorktree'].some(n => names.includes(n)), names.join(','))
   check('a tool whose classification throws is not offered', !names.includes('Throws'), names.join(','))
   const astEdit = gated.find(t => t.name === 'AstEdit')
   const bash = gated.find(t => t.name === 'Bash')
@@ -312,7 +312,7 @@ section("§2f the agents screen says the scout's tools are the read-only pool, a
   }
   const scoutLine = lineFor(MERCURY_SCOUT_AGENT)
   const crewLine = lineFor(MERCURY_CREW_AGENT)
-  check("the scout's detail says the read-only pool — the same words the Agent tool's roster line uses", scoutLine === `tools: ${SCOUT_TOOLS_DESCRIPTION}` && scoutLine.includes('read-only'), scoutLine)
+  check("the scout's detail says the read-only pool — the same words the Crewmate tool's roster line uses", scoutLine === `tools: ${SCOUT_TOOLS_DESCRIPTION}` && scoutLine.includes('read-only'), scoutLine)
   check("the scout's detail never says all", !/\ball\b/.test(scoutLine), scoutLine)
   check("the crew agent's detail still says all", crewLine.startsWith('tools: all'), crewLine)
   const scoutEff = resolveEffectiveAgentRuntime(MERCURY_SCOUT_AGENT as never, { parentModel: 'claude-fable-5', sessionEffort: undefined, tools })
@@ -325,7 +325,7 @@ section('§2b the scout\'s shell: a read-only command runs, a writing command is
   const word = 'shell'
   const brief = `${word}-seat: run two shell commands and report both outcomes`
   const { run, fixture, world } = await leg(word, w => [
-    { kind: 'tool_use', name: 'Agent', input: { description: `${word}-seat`, prompt: brief, subagent_type: 'mercury-scout' }, whenBody: ASK(word) },
+    { kind: 'tool_use', name: 'Crewmate', input: { description: `${word}-seat`, prompt: brief, crewmate_type: 'mercury-scout' }, whenBody: ASK(word) },
     { kind: 'tool_use', name: 'Bash', input: { command: 'cat harbours.txt', description: 'read the harbours' }, whenSaid: brief },
     { kind: 'tool_use', name: 'Bash', input: { command: `printf shell > ${join(w.cwd, `${word}-wrote.txt`)}`, description: 'write a probe file' }, whenSaid: brief },
     { kind: 'text', text: `${word}-seat: the read ran, the write was refused`, whenSaid: brief },
@@ -347,7 +347,7 @@ section("§3 a custom agent the owner's shape defines works, with its own prompt
   const word = 'custom'
   const brief = `${word}-seat: count the harbours in harbours.txt`
   const { run, fixture, world } = await leg(word, w => [
-    { kind: 'tool_use', name: 'Agent', input: { description: `${word}-seat`, prompt: brief, subagent_type: CUSTOM_AGENT }, whenBody: ASK(word) },
+    { kind: 'tool_use', name: 'Crewmate', input: { description: `${word}-seat`, prompt: brief, crewmate_type: CUSTOM_AGENT }, whenBody: ASK(word) },
     { kind: 'tool_use', name: 'Read', input: { file_path: join(w.cwd, 'harbours.txt') }, whenSaid: brief },
     { kind: 'text', text: `${word}-seat: three harbours`, whenSaid: brief },
     { kind: 'text', text: `roster-drive ${word}: the seat reported — ${word}-seat: three harbours`, whenBody: `${word}-seat: three harbours` },
@@ -360,8 +360,8 @@ section("§3 a custom agent the owner's shape defines works, with its own prompt
   check('its Read reached the file and the result came back', toolResultsOf(seats[1] ?? {}).some(text => text.includes('Dover')), toolResultsOf(seats[1] ?? {}).join(' | ').slice(0, 200))
   check("the lead relayed the seat's report", resultText(run).includes(`${word}-seat: three harbours`), resultText(run))
   const roster = toolNamesOf(bodies(fixture)[0] ?? {})
-  const agentTool = (bodies(fixture)[0]?.tools as Array<{ name: string; description?: string }> | undefined)?.find(t => t.name === 'Agent')
-  check("the lead's Agent tool lists the two built-ins then the owner's agent", roster.includes('Agent') && /- mercury-crew: .*\n- mercury-scout: .*\n- harbour-counter: /s.test(agentTool?.description ?? ''), (agentTool?.description ?? '').split('\n').filter(l => l.startsWith('- ')).join(' | ').slice(0, 300))
+  const agentTool = (bodies(fixture)[0]?.tools as Array<{ name: string; description?: string }> | undefined)?.find(t => t.name === 'Crewmate')
+  check("the lead's Crewmate tool lists the two built-ins then the owner's agent", roster.includes('Crewmate') && /- mercury-crew: .*\n- mercury-scout: .*\n- harbour-counter: /s.test(agentTool?.description ?? ''), (agentTool?.description ?? '').split('\n').filter(l => l.startsWith('- ')).join(' | ').slice(0, 300))
   drop(world)
 }
 
@@ -370,8 +370,8 @@ section('§4 an old type name is unknown exactly as a made-up one')
   const word = 'unknown'
   const oldName = 'mercury-' + 'general'
   const { run, fixture, world } = await leg(word, () => [
-    { kind: 'tool_use', name: 'Agent', input: { description: 'old-seat', prompt: 'old-seat: nothing', subagent_type: oldName }, whenBody: ASK(word) },
-    { kind: 'tool_use', name: 'Agent', input: { description: 'made-up-seat', prompt: 'made-up-seat: nothing', subagent_type: 'mercury-frobnicate' }, whenBody: `No agent type named '${oldName}'` },
+    { kind: 'tool_use', name: 'Crewmate', input: { description: 'old-seat', prompt: 'old-seat: nothing', crewmate_type: oldName }, whenBody: ASK(word) },
+    { kind: 'tool_use', name: 'Crewmate', input: { description: 'made-up-seat', prompt: 'made-up-seat: nothing', crewmate_type: 'mercury-frobnicate' }, whenBody: `No agent type named '${oldName}'` },
     { kind: 'text', text: `roster-drive ${word}: both refused`, whenBody: "No agent type named 'mercury-frobnicate'" },
   ], ASK(word))
   const results = bodies(fixture).flatMap(toolResultsOf)

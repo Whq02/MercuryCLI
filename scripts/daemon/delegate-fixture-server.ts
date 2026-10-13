@@ -99,7 +99,7 @@ function answerHeldText(res: ServerResponse, model: string, text: string, holdMs
 }
 function answerAgentLaunch(res: ServerResponse, model: string): void {
   openMessage(res, model)
-  res.write(named('content_block_start', { type: 'content_block_start', index: 0, content_block: { type: 'tool_use', id: `toolu_dlg_${Date.now()}`, name: 'Agent', input: {} } }))
+  res.write(named('content_block_start', { type: 'content_block_start', index: 0, content_block: { type: 'tool_use', id: `toolu_dlg_${Date.now()}`, name: 'Crewmate', input: {} } }))
   res.write(named('content_block_delta', { type: 'content_block_delta', index: 0, delta: { type: 'input_json_delta', partial_json: JSON.stringify({ description: 'the errand', prompt: SUBAGENT_ASK, run_in_background: true }) } }))
   res.end(closeMessage('tool_use'))
 }
@@ -134,7 +134,7 @@ function responsesAgentCall(input: Record<string, unknown>): string {
   const rid = `resp_dlg_${Date.now()}`
   return [
     sse({ type: 'response.created', response: { id: rid } }),
-    sse({ type: 'response.output_item.done', item: { type: 'function_call', name: 'Agent', call_id: `call_dlg_${Date.now() % 100000}`, arguments: JSON.stringify(input) } }),
+    sse({ type: 'response.output_item.done', item: { type: 'function_call', name: 'Crewmate', call_id: `call_dlg_${Date.now() % 100000}`, arguments: JSON.stringify(input) } }),
     sse({ type: 'response.completed', response: { id: rid, usage: { input_tokens: 12, output_tokens: 9, input_tokens_details: { cached_tokens: 0 } } } }),
   ].join('')
 }

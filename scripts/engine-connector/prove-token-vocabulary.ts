@@ -233,7 +233,7 @@ console.log('— §5 the surfaces —')
   check('§5 the Crew view paints the context with its word', !view.startsWith('RENDER FAILED') && view.includes('2.6k context') && !BARE.test(view), view.replace(/\s+/g, ' ').slice(0, 300))
   const grouped = await paint(
     ui.renderGroupedAgentToolUse(
-      [{ toolUseID: 'tu-ag1', input: { description: 'tide-gauges', prompt: 'p', subagent_type: 'mercury-crew' }, progressMessages: [] }] as never,
+      [{ toolUseID: 'tu-ag1', input: { description: 'tide-gauges', prompt: 'p', crewmate_type: 'mercury-crew' }, progressMessages: [] }] as never,
       { shouldAnimate: false, tools: [] as never },
     ),
     110,
@@ -271,7 +271,7 @@ console.log('— §5 the surfaces —')
   _resetFocusedSessionConnectorForTesting()
 }
 
-console.log("— §6 the Agent tool's result —")
+console.log("— §6 the Crewmate tool's result —")
 {
   const messages = [
     user('do the work'),

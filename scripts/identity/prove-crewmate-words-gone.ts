@@ -48,7 +48,7 @@ const EXCLUDED_AREAS: Array<[string, string]> = [
 
 const PINS: Array<[string, string]> = [
   ['scripts/identity/prove-crewmate-words-gone.ts', 'this census composes the words it hunts'],
-  ['scripts/agents/prove-agent-one-kind.ts', 'pins that the Agent tool prompt reads no crewmate identity'],
+  ['scripts/agents/prove-agent-one-kind.ts', 'pins that the Crewmate tool prompt reads no crewmate identity'],
   ['scripts/sessionStorage/prove-old-transcript-kinds-parse.ts', 'pins that the crew home reader, the roster modules and the preview chord are gone'],
 ]
 

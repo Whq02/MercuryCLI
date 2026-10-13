@@ -44,7 +44,7 @@ const ALLOW: Row[] = [
   ].map(([path, fragment]) => ({ path: path!, fragment: fragment!, why: "xAI's billing account, not a Mercury crew" })),
   { path: 'src/tools/', fragment: null, why: "a tool's prompt.ts is its instructions to the model, not a screen" },
   { path: 'src/tools/SendMessageTool/', fragment: null, why: 'SendMessage keeps working exactly as it does now: its schema, words and results are frozen' },
-  { path: 'src/tools/AgentTool/AgentTool.tsx', fragment: null, why: "the Agent tool's schema words, launch refusals and receipts are the model's; the one start road rewrites them" },
+  { path: 'src/tools/AgentTool/AgentTool.tsx', fragment: null, why: "the Crewmate tool's schema words, launch refusals and receipts are the model's; the one start road rewrites them" },
   { path: 'src/tools/AgentTool/agentMemory.ts', fragment: null, why: "the memory file's own header speaks of the people's team, not the crew" },
   { path: 'src/tools/InspectTool/InspectTool.ts', fragment: null, why: 'the ref kinds it lists (mercury://team/…) are the wire' },
   { path: 'src/tools/TeamCreateTool/', fragment: null, why: 'the create step leaves with the team system' },

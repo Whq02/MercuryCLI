@@ -166,9 +166,9 @@ if (!existsSync(BIN)) {
           if (userTextsOf(body).some(t => t.includes('agent-mode-probe:'))) {
             route = results.length === 0 ? 'agent' : 'agent-done'
             blocks = results.length === 0 ? [{ type: 'tool_use', name: 'Bash', input: { command: COMMAND, description: 'the mark and its sha' } }] : [{ type: 'text', text: `agent-mode-done: ${results[results.length - 1]!.trim().split('\n')[0]!.trim().slice(0, 80)}` }]
-          } else if (tools.includes('Agent')) {
+          } else if (tools.includes('Crewmate')) {
             route = results.length === 0 ? 'parent' : 'parent-ack'
-            blocks = results.length === 0 ? [{ type: 'tool_use', name: 'Agent', input: { description: 'the probe', prompt: BRIEF, subagent_type: 'probe' } }] : [{ type: 'text', text: `agent-mode-parent-done: ${results[results.length - 1]!.replace(/\s+/g, ' ').slice(0, 160)}` }]
+            blocks = results.length === 0 ? [{ type: 'tool_use', name: 'Crewmate', input: { description: 'the probe', prompt: BRIEF, crewmate_type: 'probe' } }] : [{ type: 'text', text: `agent-mode-parent-done: ${results[results.length - 1]!.replace(/\s+/g, ' ').slice(0, 160)}` }]
           }
           hits.push({ n, route, results })
           res.writeHead(200, { 'content-type': streaming ? 'text/event-stream' : 'application/json', 'cache-control': 'no-cache' })
@@ -282,7 +282,7 @@ if (!existsSync(BIN)) {
           check(`${leg.name}: the agent's shell did NOT run — one commit, no sha (the definition's word is not the consent)`, !isSha(shellResult) && commits === '1', `shell=${j(shellResult.slice(0, 160))} commits=${commits}`)
         }
       } else {
-        check(`${leg.name}: the definition is refused — no probe agent exists and the Agent tool says so`, !routes.includes('agent') && /No agent type named 'probe'/.test(agentToolResult) && commits === '1', `routes=${routes.join(' → ')} agent tool=${j(agentToolResult.slice(0, 160))} commits=${commits}`)
+        check(`${leg.name}: the definition is refused — no probe agent exists and the Crewmate tool says so`, !routes.includes('agent') && /No agent type named 'probe'/.test(agentToolResult) && commits === '1', `routes=${routes.join(' → ')} agent tool=${j(agentToolResult.slice(0, 160))} commits=${commits}`)
       }
     }
   }

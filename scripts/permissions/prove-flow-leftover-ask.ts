@@ -110,7 +110,7 @@ function routeOf(body: unknown): { route: Route; tools: string[]; results: strin
   if (userTextsOf(body).some(text => text.includes('flow-leftover-agent:'))) {
     return { route: results.length === 0 ? 'seat-1' : 'seat-done', tools, results }
   }
-  if (tools.includes('Agent')) return { route: results.length === 0 ? 'parent' : 'parent-ack', tools, results }
+  if (tools.includes('Crewmate')) return { route: results.length === 0 ? 'parent' : 'parent-ack', tools, results }
   return { route: 'side', tools, results }
 }
 
@@ -200,7 +200,7 @@ async function startFixture(opts: { agent: boolean }): Promise<Fixture> {
           blocks = opts.agent
             ? [
                 { type: 'text', text: 'flow-leftover: delegating the shell probe' },
-                { type: 'tool_use', name: 'Agent', input: { description: 'flow-leftover-agent', prompt: SEAT_BRIEF, subagent_type: 'mercury-crew', run_in_background: true } },
+                { type: 'tool_use', name: 'Crewmate', input: { description: 'flow-leftover-agent', prompt: SEAT_BRIEF, crewmate_type: 'mercury-crew', run_in_background: true } },
               ]
             : [{ type: 'tool_use', name: 'Bash', input: { command: WRITING_COMMAND, description: 'the probe commit and its sha' } }]
           break

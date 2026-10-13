@@ -227,7 +227,7 @@ section('§2 a mixed turn: group, read, edit, agent rows align; the notice row k
     toolRowNode('Read', 'done', 'toolu_lead_read'),
     toolRowNode('Edit', 'done', 'toolu_lead_edit'),
     notice,
-    toolRowNode('Agent', 'running', 'toolu_lead_agent'),
+    toolRowNode('Crewmate', 'running', 'toolu_lead_agent'),
   )
   const { text } = await renderRows(turn)
   const rows = text.filter(row => row.trim() !== '')
@@ -235,15 +235,15 @@ section('§2 a mixed turn: group, read, edit, agent rows align; the notice row k
   const groupRow = rows.find(row => row.includes('Searched for')) ?? ''
   const readRow = rows.find(row => /\bRead\b/.test(row) && !row.includes('Searched')) ?? ''
   const editRow = rows.find(row => /\bEdit\b/.test(row)) ?? ''
-  const agentRow = rows.find(row => /\bAgent\b/.test(row) && !row.includes('completed')) ?? ''
+  const agentRow = rows.find(row => /\bCrewmate\b/.test(row) && !row.includes('completed')) ?? ''
   const noticeRow = rows.find(row => row.includes('completed')) ?? ''
   const bodyOf = (row: string): string => row.replace(PLATE_RE, '')
   check('the group row leads with the mark of its first fragment (search) in column one', bodyOf(groupRow).startsWith(`${TOOL_FAMILY_MARKS.search.glyph} Searched for`), JSON.stringify(groupRow))
   check('the read row leads with the read mark', bodyOf(readRow).startsWith(`${TOOL_FAMILY_MARKS.read.glyph} Read`), JSON.stringify(readRow))
   check('the edit row leads with the edit mark', bodyOf(editRow).startsWith(`${TOOL_FAMILY_MARKS.edit.glyph} Edit`), JSON.stringify(editRow))
-  check('the running agent row leads with the delegation mark', bodyOf(agentRow).startsWith(`${TOOL_FAMILY_MARKS.agent.glyph} Agent`), JSON.stringify(agentRow))
+  check('the running agent row leads with the delegation mark', bodyOf(agentRow).startsWith(`${TOOL_FAMILY_MARKS.agent.glyph} Crewmate`), JSON.stringify(agentRow))
   const columns = new Set([groupRow, readRow, editRow, agentRow].map(row => (PLATE_RE.exec(row)?.[0] ?? '').length + 2))
-  const wordColumns = new Set([groupRow.indexOf('Searched'), readRow.indexOf('Read'), editRow.indexOf('Edit'), agentRow.indexOf('Agent')])
+  const wordColumns = new Set([groupRow.indexOf('Searched'), readRow.indexOf('Read'), editRow.indexOf('Edit'), agentRow.indexOf('Crewmate')])
   check('the words of every tool row start at one column (the alignment law)', columns.size === 1 && wordColumns.size === 1 && [...wordColumns][0] === [...columns][0], `${[...wordColumns].join(',')} want ${[...columns].join(',')}`)
   check('no tool row of the turn carries a state dot or ring', [groupRow, readRow, editRow, agentRow].every(row => !STATE_GLYPHS.some(glyph => row.includes(glyph))), JSON.stringify([groupRow, readRow, editRow, agentRow]))
   check('the notice row keeps its dot', /^\d\d:\d\d:\d\d ● \[Crewmate\] the errand · completed · 1 line ›/.test(noticeRow), JSON.stringify(noticeRow))

@@ -38,7 +38,7 @@ const fixture = await startScriptedFixture(req => {
   if (req.ask.trim() !== ASK) return [{ type: 'text', text: 'ok' }]
   switch (req.step) {
     case 0:
-      return [{ type: 'tool_use', name: 'Agent', input: { description: 'background agent', prompt: AGENT_PROMPT, run_in_background: true } }]
+      return [{ type: 'tool_use', name: 'Crewmate', input: { description: 'background agent', prompt: AGENT_PROMPT, run_in_background: true } }]
     case 1:
       if (last) seen.agentLaunch = last
       agentId = /\b(a[0-9a-z]{8})\b/.exec(last?.text ?? '')?.[1] ?? null

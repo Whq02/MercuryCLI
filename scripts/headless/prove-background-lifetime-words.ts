@@ -113,7 +113,7 @@ tally.section("S6 — inside a crewmate: the start result says the command is st
       return [{ type: 'text', text: 'CHILD-DONE' }]
     }
     if (req.ask.trim() !== ASK) return [{ type: 'text', text: 'ok' }]
-    if (req.step === 0) return [{ type: 'tool_use', name: 'Agent', input: { description: 'the builder', prompt: CHILD_ASK } }]
+    if (req.step === 0) return [{ type: 'tool_use', name: 'Crewmate', input: { description: 'the builder', prompt: CHILD_ASK } }]
     return [{ type: 'text', text: 'PARENT-DONE' }]
   })
   const port = Number(new URL(fixture.base).port)

@@ -111,7 +111,7 @@ const RESULT_SIZE_CAP = 100_000
 export type AgentToolInput = {
   description: string
   prompt: string
-  subagent_type?: string
+  crewmate_type?: string
   model?: string
   effort?: EffortLevel
   run_in_background?: boolean
@@ -179,7 +179,7 @@ export const inputSchema = lazySchema(() => {
       .string()
       .describe('A short (3-5 word) summary of the task'),
     prompt: z.string().describe('The task briefing handed to the agent'),
-    subagent_type: z
+    crewmate_type: z
       .string()
       .optional()
       .describe(`Which agent type to run. Omitted ⇒ the ${DEFAULT_AGENT_TYPE} agent.`),
@@ -203,10 +203,10 @@ export const inputSchema = lazySchema(() => {
       .optional()
       .refine(value => value === undefined || (!value.includes('@') && value !== '*'), {
         message:
-          'An agent name must be addressable by SendMessage and ResumeAgent: it cannot contain "@" or be "*".',
+          'An agent name must be addressable by SendMessage and ResumeCrewmate: it cannot contain "@" or be "*".',
       })
       .describe(
-        'Name for a crewmate you will message again: a named crewmate takes more work through ResumeAgent({to: name}), running or finished, and notes through SendMessage({to: name}) while it runs. Omit it for a crewmate that works its prompt once and returns its report.',
+        'Name for a crewmate you will message again: a named crewmate takes more work through ResumeCrewmate({to: name}), running or finished, and notes through SendMessage({to: name}) while it runs. Omit it for a crewmate that works its prompt once and returns its report.',
       ),
     isolation: z
       .literal('worktree')
@@ -361,7 +361,7 @@ const CREWMATE_SEAT: MercuryAgentSeat = 'a crewmate'
 export const AgentTool = buildTool({
   name: AGENT_TOOL_NAME,
   maxResultSizeChars: RESULT_SIZE_CAP,
-  searchHint: 'delegate a task to a crewmate (a sub-agent) that works on its own',
+  searchHint: 'delegate a task to a crewmate that works on its own',
   get inputSchema(): ZodType<AgentToolInput, AgentToolInput> {
     return inputSchema() as unknown as ZodType<AgentToolInput, AgentToolInput>
   },
@@ -369,7 +369,7 @@ export const AgentTool = buildTool({
     return outputSchema() as unknown as ZodType
   },
   async description() {
-    return 'Delegate a task to a crewmate (a sub-agent): a new agent that handles complex, multi-step work on its own'
+    return 'Delegate a task to a crewmate: a new agent that handles complex, multi-step work on its own'
   },
   async prompt(options: {
     getToolPermissionContext: () => Promise<
@@ -469,7 +469,7 @@ export const AgentTool = buildTool({
     const activeAgents = options.agentDefinitions?.activeAgents ?? []
     const allowedAgentTypes = options.agentDefinitions?.allowedAgentTypes
     const plan = buildAgentLaunchPlan({
-      requestedType: input.subagent_type,
+      requestedType: input.crewmate_type,
       activeAgents,
       allowedAgentTypes,
       toolPermissionContext: context.getAppState().toolPermissionContext,

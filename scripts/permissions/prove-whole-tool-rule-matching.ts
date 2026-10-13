@@ -32,8 +32,8 @@ check('a rule naming the tool matches it', allowed(['Read'], { name: 'Read' }) =
 check('a rule naming another tool does not', allowed(['Read'], { name: 'Edit' }) === null)
 check('a rule with content never matches the whole tool', allowed(['Bash(ls *)'], { name: 'Bash' }) === null && denied(['Bash(ls *)'], { name: 'Bash' }) === null)
 check('the first matching rule in table order answers', denied(['Edit', 'Read', 'Read'], { name: 'Read' }) === 'Read')
-check('an inherited name matches through the inherits table', denied(['SendMessage'], { name: 'ResumeAgent' }) === 'SendMessage')
-check('inheritance runs one way only', denied(['ResumeAgent'], { name: 'SendMessage' }) === null)
+check('an inherited name matches through the inherits table', denied(['SendMessage'], { name: 'ResumeCrewmate' }) === 'SendMessage')
+check('inheritance runs one way only', denied(['ResumeCrewmate'], { name: 'SendMessage' }) === null)
 check('the LSP family selector matches an LSP tool', asked(['LSP'], { name: 'LspRead' }) === 'LSP')
 check('the LSP family selector matches no other tool', asked(['LSP'], { name: 'Read' }) === null)
 

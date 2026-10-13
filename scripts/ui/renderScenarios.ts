@@ -293,8 +293,8 @@ const TOOL_RESULT_READ = {
 }
 const AGENT_REPORT_LINE = 'REPORT-LINE the manifest pins bun 1.2 and the build is green.'
 const TOOL_USE_AGENT = {
-  type: 'tool_use', id: 'toolu_agent1', name: 'Agent',
-  input: { description: 'Scout the manifest', prompt: 'Read package.json and report.', subagent_type: 'Explore' },
+  type: 'tool_use', id: 'toolu_agent1', name: 'Crewmate',
+  input: { description: 'Scout the manifest', prompt: 'Read package.json and report.', crewmate_type: 'Explore' },
 }
 const TOOL_RESULT_AGENT = {
   content: [{ type: 'tool_result', tool_use_id: 'toolu_agent1', content: [{ type: 'text', text: AGENT_REPORT_LINE }] }],

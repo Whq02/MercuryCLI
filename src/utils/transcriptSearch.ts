@@ -170,7 +170,7 @@ export const NON_INDEXING_TOOLS: ReadonlySet<string> = new Set([
   'Rewind',
   'ScheduleWakeup',
   'SendMessage',
-  'ResumeAgent',
+  'ResumeCrewmate',
   'Skill',
   'Sleep',
   'StructuredOutput',

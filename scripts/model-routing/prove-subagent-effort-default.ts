@@ -73,16 +73,16 @@ const doctrine = await import('../../src/constants/subagentDoctrine.js')
 }
 
 {
-  console.log('\n— §3 · the Agent tool carries the field; the pin reaches the run —')
+  console.log('\n— §3 · the Crewmate tool carries the field; the pin reaches the run —')
   const tool = src('src/tools/AgentTool/AgentTool.tsx')
   check('the input type carries an optional ladder word', /effort\?: EffortLevel/.test(tool))
   check('the schema enumerates the ladder from its one owner', /effort: z\s*\.enum\(EFFORT_LEVELS\)\s*\.optional\(\)/.test(tool))
   check("the field's text says a spawn without it rides the configured default, never the session's level", /Omitted, the configured crewmate default applies \(high unless the operator changed it in \/config\) — never your own level/.test(tool))
   check("the call's word is the run's pin", /\.\.\.\(input\.effort !== undefined \? \{ effortOverride: input\.effort \} : \{\}\)/.test(tool))
-  check('the Agent tool\'s description leaves the effort field to the field\'s own text (said once)', !src('src/tools/AgentTool/prompt.ts').includes("parameter sets the agent's reasoning effort") && !src('src/tools/AgentTool/prompt.ts').includes('never at your own level'))
+  check('the Crewmate tool\'s description leaves the effort field to the field\'s own text (said once)', !src('src/tools/AgentTool/prompt.ts').includes("parameter sets the agent's reasoning effort") && !src('src/tools/AgentTool/prompt.ts').includes('never at your own level'))
   const hooks = src('src/tools/WorkflowTool/agentHooks.ts')
   check('a workflow\'s agent({effort}) validates against the ladder and rides as the pin', hooks.includes('!(EFFORT_LEVELS as readonly string[]).includes(opts.effort)') && hooks.includes("effortOverride: args.effort as RunAgentOpts['effortOverride']"))
-  check('the workflow prompt says an omitted effort rides the configured default, never the session\'s', src('src/tools/WorkflowTool/workflowPrompt.ts').includes('Omitted, the configured sub-agent default applies (high unless the operator changed it in /config) — never the session\'s own level'))
+  check('the workflow prompt says an omitted effort rides the configured default, never the session\'s', src('src/tools/WorkflowTool/workflowPrompt.ts').includes('Omitted, the configured crewmate default applies (high unless the operator changed it in /config) — never the session\'s own level'))
 }
 
 {
@@ -181,7 +181,7 @@ const doctrine = await import('../../src/constants/subagentDoctrine.js')
   delete process.env.MERCURY_AGENT_FANOUT_CAP
   check('the knob unset ⇒ the live fold answers the setting or the convention', defaults.subagentConcurrencyCap(doctrine.agentFanoutCap()).source !== 'env')
   const tool = src('src/tools/AgentTool/AgentTool.tsx')
-  check('the Agent tool refuses past the folded cap and names the door', /const fanout = subagentConcurrencyCap\(agentFanoutCap\(\)\)/.test(tool) && /if \(runningAgents >= fanout\.cap\)/.test(tool) && tool.includes("fanout.source === 'env' ? 'MERCURY_AGENT_FANOUT_CAP' : 'Crewmates at once in /config'"))
+  check('the Crewmate tool refuses past the folded cap and names the door', /const fanout = subagentConcurrencyCap\(agentFanoutCap\(\)\)/.test(tool) && /if \(runningAgents >= fanout\.cap\)/.test(tool) && tool.includes("fanout.source === 'env' ? 'MERCURY_AGENT_FANOUT_CAP' : 'Crewmates at once in /config'"))
   const configScreen = src('src/components/Settings/Config.tsx')
   check('/config carries the three rows over the one record', /id: 'agentsDefaultEffort'/.test(configScreen) && /id: 'agentsDefaultModel'/.test(configScreen) && /id: 'agentsMaxConcurrent'/.test(configScreen) && /agents: \{ \.\.\.c\.agents, \.\.\.patch \}/.test(configScreen))
   check('the agent-model resolver takes the configured default model for a definition that names none, and an explicit inherit keeps the parent', /if \(agentModel === undefined\) \{\s*const configured = subagentDefaultModel\(\)/.test(src('src/utils/model/agent.ts')))

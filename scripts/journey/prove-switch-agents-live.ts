@@ -88,7 +88,7 @@ function routeOf(body: unknown): { route: Route; seat: string | null; resultText
   const answered = answeredTool(items)
   const notices = noticeCount(items)
   if (answered) {
-    if (answered.name === 'Agent') return { route: 'launch-ack', seat: null, resultText: answered.resultText, notices }
+    if (answered.name === 'Crewmate') return { route: 'launch-ack', seat: null, resultText: answered.resultText, notices }
     if (answered.name === 'Inspect') return { route: 'inspect-ack', seat: null, resultText: answered.resultText, notices }
     if (answered.name === 'Bash') {
       const text = items.map(i => (i.role === 'user' ? textOf(i.content) : '')).join('\n')
@@ -99,7 +99,7 @@ function routeOf(body: unknown): { route: Route; seat: string | null; resultText
   const text = last ? textOf(last.content) : ''
   if (text.includes('switch-seat:') && offersTool(body, 'Bash')) return { route: 'seat', seat: text.includes(SEAT_ONE) ? SEAT_ONE : SEAT_TWO, resultText: '', notices }
   if (text.includes('switch-drive:') && text.includes('continue') && offersTool(body, 'Inspect')) return { route: 'continue', seat: null, resultText: '', notices }
-  if (text.includes('switch-drive:') && !text.includes('continue') && offersTool(body, 'Agent')) return { route: 'launch', seat: null, resultText: '', notices }
+  if (text.includes('switch-drive:') && !text.includes('continue') && offersTool(body, 'Crewmate')) return { route: 'launch', seat: null, resultText: '', notices }
   return { route: 'side', seat: null, resultText: '', notices }
 }
 
@@ -180,8 +180,8 @@ async function startFixture(port: number, home: string, opts: { killAfterLaunchM
         case 'launch':
           blocks = [
             { type: 'text', text: 'launching two in the background' },
-            { type: 'tool_use', name: 'Agent', input: { description: SEAT_ONE, prompt: `switch-seat: count the ${SEAT_ONE}`, subagent_type: 'mercury-crew', run_in_background: true } },
-            { type: 'tool_use', name: 'Agent', input: { description: SEAT_TWO, prompt: `switch-seat: index the ${SEAT_TWO}`, subagent_type: 'mercury-crew', run_in_background: true } },
+            { type: 'tool_use', name: 'Crewmate', input: { description: SEAT_ONE, prompt: `switch-seat: count the ${SEAT_ONE}`, crewmate_type: 'mercury-crew', run_in_background: true } },
+            { type: 'tool_use', name: 'Crewmate', input: { description: SEAT_TWO, prompt: `switch-seat: index the ${SEAT_TWO}`, crewmate_type: 'mercury-crew', run_in_background: true } },
           ]
           usage = { input: 1200, output: 90 }
           break

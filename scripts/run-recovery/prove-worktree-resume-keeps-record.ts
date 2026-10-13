@@ -64,7 +64,7 @@ const U_RECORD = '00000000-0000-4000-8000-000000000003'
 const BULLET = 'For multi-deliverable work, create and update task items'
 const STALE = 'STALE SECTION FROM ANOTHER CONVERSATION'
 const tool = (name: string): { name: string } => ({ name })
-const firstPool = ['Read', 'Edit', 'Write', 'Glob', 'Grep', 'Bash', 'Agent', 'Skill', 'AskUserQuestion', RECORD_CONVENTION_TOOL_NAME].map(tool)
+const firstPool = ['Read', 'Edit', 'Write', 'Glob', 'Grep', 'Bash', 'Crewmate', 'Skill', 'AskUserQuestion', RECORD_CONVENTION_TOOL_NAME].map(tool)
 const grownPool = [...firstPool, ...[TASK_CREATE_TOOL_NAME, 'TaskGet', 'TaskList', 'TaskUpdate'].map(tool)]
 const owner = 'worktree-resume'
 const firstRow = { type: 'user', uuid: U_FIRST, message: { role: 'user', content: 'first' } }

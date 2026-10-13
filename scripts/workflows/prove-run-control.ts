@@ -395,7 +395,7 @@ if (launched) {
   const { ResumeAgentTool } = await import('../../src/tools/ResumeAgentTool/ResumeAgentTool.js')
   const resumeWord = `${word}-resume`
   const resumedWorker = (await runWithCwdOverride(cwd, () => ResumeAgentTool.call({ to: alphaBefore, message: resumeWord }, sendCtx, undefined as never, { requestId: 'req_wf_resume' } as never))) as { data: { success: boolean; message: string } }
-  check('ResumeAgent to the running worker uses the same control words and no second run', resumedWorker.data.success && /Message queued for worker/.test(resumedWorker.data.message) && /journal/.test(resumedWorker.data.message) && idOf('alpha') === alphaBefore, resumedWorker.data.message)
+  check('ResumeCrewmate to the running worker uses the same control words and no second run', resumedWorker.data.success && /Message queued for worker/.test(resumedWorker.data.message) && /journal/.test(resumedWorker.data.message) && idOf('alpha') === alphaBefore, resumedWorker.data.message)
   check('the worker receives the resume-verb guidance through the same channel', await until(() => requests.some(r => r.agent === 'alpha' && r.raw.includes(resumeWord)), 20_000))
 
   const betaId = idOf('beta')!

@@ -95,7 +95,7 @@ function routeOf(body: unknown): { route: Route; seat: string | null } {
     const seat = SEATS.find(s => text.includes(s)) ?? 'seat'
     return { route: 'seat', seat }
   }
-  if (text.includes('crew-seats:') && offersTool(body, 'Agent')) return { route: carriesToolResult(body) ? 'parent-ack' : 'parent', seat: null }
+  if (text.includes('crew-seats:') && offersTool(body, 'Crewmate')) return { route: carriesToolResult(body) ? 'parent-ack' : 'parent', seat: null }
   return { route: 'side', seat: null }
 }
 
@@ -212,7 +212,7 @@ async function startSeatsFixture(port: number, mainDialect: Dialect): Promise<Fi
         case 'parent':
           blocks = [
             { type: 'text', text: 'launching four sub-agents' },
-            ...SEATS.map(name => ({ type: 'tool_use' as const, name: 'Agent', input: { description: name, prompt: `crew-seat: survey the ${name}`, subagent_type: 'mercury-crew', model: seatModel } })),
+            ...SEATS.map(name => ({ type: 'tool_use' as const, name: 'Crewmate', input: { description: name, prompt: `crew-seat: survey the ${name}`, crewmate_type: 'mercury-crew', model: seatModel } })),
           ]
           usage = { input: 1200, output: 120 }
           break

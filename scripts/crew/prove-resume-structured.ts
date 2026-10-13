@@ -4,7 +4,7 @@ import { makeWorld, bootLead, LEAD_MODEL, toolResultOf, userTextsOf } from './cr
 
 const legacy = process.argv.includes('--legacy-base')
 const background = !process.argv.includes('--foreground')
-const verb = legacy ? 'SendMessage' : 'ResumeAgent'
+const verb = legacy ? 'SendMessage' : 'ResumeCrewmate'
 const schema = { type: 'object', properties: { function_name: { type: 'string' } }, required: ['function_name'] }
 const payload = { function_name: 'compute_201' }
 let failures = 0
@@ -31,7 +31,7 @@ for (const structured of [true, false]) {
       ]
   const world = await makeWorld(`resume-${label}`, [
     ...childTurns,
-    { kind: 'tool_use', name: 'Agent', id: `p2-${label}-launch`, input: { name: `${label}-child`, description: `${label} child`, prompt: opening, subagent_type: 'mercury-crew', run_in_background: background, ...(structured ? { output_schema: schema } : {}) }, whenSaid: parent, model: LEAD_MODEL },
+    { kind: 'tool_use', name: 'Crewmate', id: `p2-${label}-launch`, input: { name: `${label}-child`, description: `${label} child`, prompt: opening, crewmate_type: 'mercury-crew', run_in_background: background, ...(structured ? { output_schema: schema } : {}) }, whenSaid: parent, model: LEAD_MODEL },
     { kind: 'text', text: 'PARENT-FIRST-DONE', whenSaid: parent, model: LEAD_MODEL },
     { kind: 'tool_use', name: verb, id: `p2-${label}-resume`, input: { to: `${label}-child`, message: 'submit it again' }, whenSaid: followup, model: LEAD_MODEL },
     { kind: 'text', text: 'PARENT-RESUME-DONE', whenSaid: followup, model: LEAD_MODEL },
@@ -41,7 +41,7 @@ for (const structured of [true, false]) {
   let first: ReturnType<typeof bootLead> | undefined
   let second: ReturnType<typeof bootLead> | undefined
   try {
-    first = bootLead(world, ['--sovereign', '--session-id', sid], ['Agent', 'SendMessage', 'ResumeAgent'])
+    first = bootLead(world, ['--sovereign', '--session-id', sid], ['Crewmate', 'SendMessage', 'ResumeCrewmate'])
     first.submit(parent)
     await first.waitFor('the launch turn settled', () => first!.frames.some(row => row.type === 'outcome'))
     if (background) await first.waitFor('the first child completion reached the main model', () => userTextsOf(world).some(text => text.includes('<status>completed</status>') && text.includes('FIRST-CHILD-DONE')))
@@ -55,7 +55,7 @@ for (const structured of [true, false]) {
     check(`${label}: process one exits cleanly, evicting every task row`, await first.end() === 0)
     first = undefined
     const beforeResume = world.fixture.messageRequests().length
-    second = bootLead(world, ['--sovereign', '--resume', sid], ['Agent', 'SendMessage', 'ResumeAgent'])
+    second = bootLead(world, ['--sovereign', '--resume', sid], ['Crewmate', 'SendMessage', 'ResumeCrewmate'])
     second.submit(followup)
     await second.waitFor('the parent resume turn settled', () => second!.frames.some(row => row.type === 'outcome'))
     const resume = toolResultOf(world, `p2-${label}-resume`)

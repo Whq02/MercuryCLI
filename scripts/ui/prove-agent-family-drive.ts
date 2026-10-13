@@ -43,11 +43,11 @@ try {
         const result = items.some((item: { type?: string; content?: Array<{ type?: string }> }) => item.type === 'function_call_output' || (Array.isArray(item.content) && item.content.some(block => block.type === 'tool_result')))
         const tool = !child && !result
         wire.push({ model: body.model, child, tool, url })
-        const input = { description: 'inheritance fixture', prompt: childAsk, model: word, subagent_type: 'mercury-crew' }
+        const input = { description: 'inheritance fixture', prompt: childAsk, model: word, crewmate_type: 'mercury-crew' }
         res.writeHead(200, { 'content-type': 'text/event-stream' })
         if (url.includes('/responses')) {
           res.write(sse({ type: 'response.created', response: { id: 'resp_fixture' } }))
-          if (tool) res.write(sse({ type: 'response.output_item.done', item: { type: 'function_call', name: 'Agent', call_id: 'call_fixture', arguments: JSON.stringify(input) } }))
+          if (tool) res.write(sse({ type: 'response.output_item.done', item: { type: 'function_call', name: 'Crewmate', call_id: 'call_fixture', arguments: JSON.stringify(input) } }))
           else {
             res.write(sse({ type: 'response.output_text.delta', delta: 'four' }))
             res.write(sse({ type: 'response.output_item.done', item: { type: 'message', role: 'assistant', content: [{ type: 'output_text', text: 'four' }] } }))
@@ -56,7 +56,7 @@ try {
         } else {
           const usage = { input_tokens: 8, output_tokens: 5, cache_creation_input_tokens: 0, cache_read_input_tokens: 0 }
           res.write(event('message_start', { type: 'message_start', message: { id: 'msg_fixture', type: 'message', role: 'assistant', model: body.model, content: [], stop_reason: null, stop_sequence: null, usage } }))
-          res.write(event('content_block_start', { type: 'content_block_start', index: 0, content_block: tool ? { type: 'tool_use', id: 'toolu_fixture', name: 'Agent', input: {} } : { type: 'text', text: '' } }))
+          res.write(event('content_block_start', { type: 'content_block_start', index: 0, content_block: tool ? { type: 'tool_use', id: 'toolu_fixture', name: 'Crewmate', input: {} } : { type: 'text', text: '' } }))
           res.write(event('content_block_delta', { type: 'content_block_delta', index: 0, delta: tool ? { type: 'input_json_delta', partial_json: JSON.stringify(input) } : { type: 'text_delta', text: 'four' } }))
           res.write(event('content_block_stop', { type: 'content_block_stop', index: 0 }))
           res.write(event('message_delta', { type: 'message_delta', delta: { stop_reason: tool ? 'tool_use' : 'end_turn', stop_sequence: null }, usage }))

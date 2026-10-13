@@ -52,9 +52,9 @@ export async function getPrompt(
 
   const listing = effectiveAgents.map(formatAgentLine).join('\n')
 
-  const typeSelection = `Specify \`subagent_type\` to select an agent; omitting it gives ${MERCURY_CREW_AGENT_TYPE}.`
+  const typeSelection = `Specify \`crewmate_type\` to select an agent; omitting it gives ${MERCURY_CREW_AGENT_TYPE}.`
 
-  const core = `Launch a crewmate (a sub-agent) to work through a complicated, multi-step job on its own. The available agents are specialised — each has its own capabilities and tool access:
+  const core = `Launch a crewmate to work through a complicated, multi-step job on its own. The available agents are specialised — each has its own capabilities and tool access:
 
 ${listing}
 

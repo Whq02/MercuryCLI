@@ -11,11 +11,11 @@ const SCREENGRAB = join(HERE, '..', 'streaming', 'screengrab.py')
 const turns: ScriptedTurn[] = [
   {
     kind: 'tool_use',
-    name: 'Agent',
+    name: 'Crewmate',
     input: {
       description: 'poise probe',
       prompt: 'Count to three slowly.',
-      subagent_type: 'mercury-crew',
+      crewmate_type: 'mercury-crew',
       run_in_background: true,
     },
     preText: 'Spawning the probe agent.',

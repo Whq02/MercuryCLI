@@ -128,7 +128,7 @@ section('§C the Windows incident wave (intake F): evidence preserved, boundarie
   check('the bounded continuation is VISIBLE (law 12)', tmSrc.includes('asked the model to continue from where it stopped'))
 
   const wtSrc = readFileSync(join(ROOT, 'src/utils/worktree.ts'), 'utf8')
-  check('the unavailability error is agent-actionable', wtSrc.includes('Retry the same Agent call WITHOUT the isolation parameter'))
+  check('the unavailability error is agent-actionable', wtSrc.includes('Retry the same Crewmate call WITHOUT the isolation parameter'))
   const agentPrompt = readFileSync(join(ROOT, 'src/tools/AgentTool/prompt.ts'), 'utf8')
 check('the isolation capability names its precondition', /requires a git repository/i.test(agentPrompt))
 

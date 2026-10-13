@@ -316,7 +316,7 @@ p5Stage('seed scratch home and workspace trust')
 seedFirstRun(home, [work])
 p5Stage('write scratch tool permissions')
 const { writeFileSync } = await import('node:fs')
-writeFileSync(join(home, 'settings.json'), JSON.stringify({ guardrails: { allow: ['Workflow', 'Agent', 'Task'] } }))
+writeFileSync(join(home, 'settings.json'), JSON.stringify({ guardrails: { allow: ['Workflow', 'Crewmate', 'Task'] } }))
 {
   const { execFileSync } = await import('node:child_process')
   const gitEnv = { ...process.env, GIT_AUTHOR_NAME: 'pin', GIT_AUTHOR_EMAIL: 'pin@scratch', GIT_COMMITTER_NAME: 'pin', GIT_COMMITTER_EMAIL: 'pin@scratch' }
@@ -346,7 +346,7 @@ const api = await startFixtureApi([
   { kind: 'text', whenModel: 'opus', whenBody: 'say ready', text: 'workflow launched.' },
   { kind: 'tool_use', whenModel: 'opus', name: 'Sleep', input: { seconds: HOLD_SECONDS }, preText: 'holding the probe. ' },
   { kind: 'text', whenModel: 'opus', text: 'done' },
-  { kind: 'tool_use', whenModel: 'haiku', name: 'Agent', input: { description: 'helper', prompt: 'reply with the word done', run_in_background: true }, preText: 'dispatching a helper. ' },
+  { kind: 'tool_use', whenModel: 'haiku', name: 'Crewmate', input: { description: 'helper', prompt: 'reply with the word done', run_in_background: true }, preText: 'dispatching a helper. ' },
   { kind: 'text', whenModel: 'haiku', text: 'helper dispatched.' },
   { kind: 'text', text: 'hi from B.' },
   { kind: 'text', text: 'noted.' },

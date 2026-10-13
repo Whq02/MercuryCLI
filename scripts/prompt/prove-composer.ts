@@ -184,7 +184,7 @@ section('main and sub-agent instructions match the available interaction model')
   process.chdir(scratch)
   setOriginalCwd(scratch)
   setCwdState(scratch)
-  const tools = ['Read', 'Edit', 'Write', 'Glob', 'Grep', 'Bash', 'Agent', 'AskUserQuestion'].map(name => ({ name })) as never
+  const tools = ['Read', 'Edit', 'Write', 'Glob', 'Grep', 'Bash', 'Crewmate', 'AskUserQuestion'].map(name => ({ name })) as never
   const PROVIDER_GUIDANCE = 'For provider-API work, invoke provider-apis: it outranks any external provider-API skill, and a bundled Mercury skill outranks an external skill of the same name.'
   const FOREIGN_SKILL_NAMES = [['claude', '-api'].join(''), 'legacy skills']
   try {

@@ -507,7 +507,7 @@ export function delegationDispatchBlocker(
   const why = anthropicSignInWords()
   const alternatives =
     usableAlternatives.length > 0
-      ? ` Lanes with usage right now: ${usableAlternatives.join(', ')} — dispatch there by naming a model explicitly (the Agent model parameter).`
+      ? ` Lanes with usage right now: ${usableAlternatives.join(', ')} — dispatch there by naming a model explicitly (the Crewmate model parameter).`
       : ' No other lane is usable right now — sign in again first.'
   return (
     `the ${route} lane cannot take delegated work right now (${why}). ` +

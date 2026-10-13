@@ -27,7 +27,7 @@ console.log('============================================================')
 const prompts = await import('../../src/constants/prompts.ts')
 const contractMod = await import('../../src/prompt/behaviourContract.ts')
 
-const toolNames = ['Bash', 'Glob', 'Grep', 'Read', 'Edit', 'Write', 'Agent', 'Skill', 'TaskCreate', 'AskUserQuestion']
+const toolNames = ['Bash', 'Glob', 'Grep', 'Read', 'Edit', 'Write', 'Crewmate', 'Skill', 'TaskCreate', 'AskUserQuestion']
 const tools = toolNames.map(name => ({ name })) as never
 const segments = await prompts.getSystemPrompt(tools, 'claude-fable-5', [])
 const contract = contractMod.resolveBehaviourContract(segments)

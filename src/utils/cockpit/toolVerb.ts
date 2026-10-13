@@ -60,7 +60,7 @@ export function toolVerbFor(
     case 'WebSearch':
     case 'ProviderSearch':
       return 'Searching the web'
-    case 'Agent':
+    case 'Crewmate':
       return 'Delegating'
     default:
       return undefined

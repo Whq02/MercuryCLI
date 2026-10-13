@@ -138,8 +138,8 @@ for (const kind of kinds) {
     const description = schema.description ?? ''
     descriptions.set(tool.name, description)
     const resumedChildContract = 'One launched with output_schema keeps its StructuredOutput tool for the resumed turn.'
-    if (tool.name === 'ResumeAgent') check(`${kind.label}: the resumed-child tool promise is stated exactly`, description.endsWith(resumedChildContract))
-    const callerDescription = tool.name === 'ResumeAgent' ? description.replace(resumedChildContract, '') : description
+    if (tool.name === 'ResumeCrewmate') check(`${kind.label}: the resumed-child tool promise is stated exactly`, description.endsWith(resumedChildContract))
+    const callerDescription = tool.name === 'ResumeCrewmate' ? description.replace(resumedChildContract, '') : description
     for (const name of mentionedToolNames(callerDescription)) {
       if (!offered.has(name) && !withheld.has(name)) pairs.push(`${tool.name} → ${name}`)
     }

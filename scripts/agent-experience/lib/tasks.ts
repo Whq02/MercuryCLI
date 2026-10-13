@@ -225,12 +225,12 @@ export const TASKS: TaskDef[] = [
     id: 'delegate-agent',
     title: 'delegate a subtask to an agent',
     ask: 'Delegate to a subagent: have it read test/stats.test.js and report which functions the tests cover. Then relay its report to me.',
-    allowedTools: ['Agent', 'Read', 'Grep', 'Glob'],
+    allowedTools: ['Crewmate', 'Read', 'Grep', 'Glob'],
     maxTurns: 8,
     prompt: ctx => withMarker(ctx, 'delegate-agent', TASKS_ASK('delegate-agent')),
     probeTools: [],
     script: ctx => [
-      call('Agent', { description: 'Summarize test coverage', prompt: `[ax-seat:summary] Read ${join(ctx.projectDir, 'test', 'stats.test.js')} and report which functions the tests cover.`, subagent_type: 'mercury-crew' }),
+      call('Crewmate', { description: 'Summarize test coverage', prompt: `[ax-seat:summary] Read ${join(ctx.projectDir, 'test', 'stats.test.js')} and report which functions the tests cover.`, crewmate_type: 'mercury-crew' }),
       final('The subagent reports the tests cover two functions: mean (one case) and median (two cases, odd- and even-length).'),
     ],
     seats: ctx => ({
@@ -240,7 +240,7 @@ export const TASKS: TaskDef[] = [
       ],
     }),
     oracle: (ctx, { run, hits }) => {
-      const results = toolResultsOf(run, 'Agent')
+      const results = toolResultsOf(run, 'Crewmate')
       const reported = results.some(r => !r.isError && /median/i.test(r.text))
       const relayed = /mean/i.test(run.finalText) && /median/i.test(run.finalText)
       const seatRan = ctx.mechanical ? hits.some(h => h.kind === 'seat' && h.seatId === 'summary') && run.subagentToolUses.some(u => u.name === 'Read') : true
@@ -317,15 +317,15 @@ export const TASKS: TaskDef[] = [
     id: 'two-seats',
     title: 'coordinate two seats',
     ask: 'Coordinate two seats in parallel — seat A: count the test cases in test/stats.test.js; seat B: list the functions src/stats.js exports. Launch both at once, then merge their reports into one summary.',
-    allowedTools: ['Agent', 'Read', 'Grep', 'Glob'],
+    allowedTools: ['Crewmate', 'Read', 'Grep', 'Glob'],
     maxTurns: 8,
     prompt: ctx => withMarker(ctx, 'two-seats', TASKS_ASK('two-seats')),
     probeTools: [],
     script: ctx => [
       {
         calls: [
-          { name: 'Agent', input: { description: 'Seat A: count tests', prompt: `[ax-seat:count] Count the test cases in ${join(ctx.projectDir, 'test', 'stats.test.js')}.`, subagent_type: 'mercury-crew' } },
-          { name: 'Agent', input: { description: 'Seat B: list exports', prompt: `[ax-seat:exports] List the functions ${join(ctx.projectDir, 'src', 'stats.js')} exports.`, subagent_type: 'mercury-crew' } },
+          { name: 'Crewmate', input: { description: 'Seat A: count tests', prompt: `[ax-seat:count] Count the test cases in ${join(ctx.projectDir, 'test', 'stats.test.js')}.`, crewmate_type: 'mercury-crew' } },
+          { name: 'Crewmate', input: { description: 'Seat B: list exports', prompt: `[ax-seat:exports] List the functions ${join(ctx.projectDir, 'src', 'stats.js')} exports.`, crewmate_type: 'mercury-crew' } },
         ],
       },
       final(`Seat A: test/stats.test.js holds ${ctx.facts.testCount} test cases. Seat B: src/stats.js exports ${ctx.facts.exports.join(', ')}.`),
@@ -335,11 +335,11 @@ export const TASKS: TaskDef[] = [
       exports: [call('Read', { file_path: join(ctx.projectDir, 'src', 'stats.js') }), final(`src/stats.js exports ${ctx.facts.exports.join(', ')}.`)],
     }),
     oracle: (ctx, { run }) => {
-      const agentUses = run.toolUses.filter(u => u.name === 'Agent')
+      const agentUses = run.toolUses.filter(u => u.name === 'Crewmate')
       const perMessage = new Map<string, number>()
       for (const u of agentUses) perMessage.set(u.messageId, (perMessage.get(u.messageId) ?? 0) + 1)
       const parallel = [...perMessage.values()].some(n => n >= 2)
-      const results = toolResultsOf(run, 'Agent')
+      const results = toolResultsOf(run, 'Crewmate')
       const countRe = new RegExp(`(^|[^0-9])${ctx.facts.testCount}([^0-9]|$)`)
       const seatA = results.some(r => !r.isError && countRe.test(r.text))
       const seatB = results.some(r => !r.isError && /median/i.test(r.text))

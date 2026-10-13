@@ -260,7 +260,7 @@ for (const row of ROWS) {
 
 section('§3 the roster — the shell rides every definition that carries it, foreground and background')
 {
-  const POOL_NAMES = ['Agent', 'AskUserQuestion', 'Bash', 'Edit', 'Glob', 'Grep', 'NotebookEdit', 'Read', 'SendMessage', 'ResumeAgent', 'Skill', 'Sleep', 'TaskStop', 'ToolSearch', 'WebFetch', 'WebSearch', 'Workflow', 'Write']
+  const POOL_NAMES = ['Crewmate', 'AskUserQuestion', 'Bash', 'Edit', 'Glob', 'Grep', 'NotebookEdit', 'Read', 'SendMessage', 'ResumeCrewmate', 'Skill', 'Sleep', 'TaskStop', 'ToolSearch', 'WebFetch', 'WebSearch', 'Workflow', 'Write']
   const pool = POOL_NAMES.map(name => ({ name })) as never
   const definitions = [MERCURY_CREW_AGENT, MERCURY_SCOUT_AGENT]
   for (const definition of definitions) {
@@ -268,7 +268,7 @@ section('§3 the roster — the shell rides every definition that carries it, fo
       const resolved = resolveAgentTools(definition as never, pool, isAsync, false)
       const names = resolved.resolvedTools.map(t => (t as { name: string }).name)
       check(`${definition.agentType} keeps Bash when ${isAsync ? 'background' : 'foreground'}`, names.includes('Bash'), names.join(','))
-      check(`${definition.agentType} never carries the Agent tool itself (${isAsync ? 'background' : 'foreground'})`, !names.includes('Agent'))
+      check(`${definition.agentType} never carries the Crewmate tool itself (${isAsync ? 'background' : 'foreground'})`, !names.includes('Crewmate'))
     }
   }
   const asyncKept = filterToolsForAgent({ tools: pool, isBuiltIn: true, isAsync: true }).map(t => (t as { name: string }).name)

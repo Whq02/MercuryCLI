@@ -46,7 +46,7 @@ const api = await startFixtureApi([
   { kind: 'tool_use', whenModel: 'opus', name: 'Workflow', input: { script: WORKFLOW_SCRIPT }, preText: 'launching the probe. ' },
   { kind: 'text', whenModel: 'opus', text: 'workflow launched.' },
   { kind: 'paced', whenModel: 'sonnet', deltas: Array.from({ length: 120 }, () => 'working. '), gapMs: 500, settleDelayMs: 500 },
-  { kind: 'tool_use', whenModel: 'haiku', name: 'Agent', input: { description: 'helper', prompt: 'reply with the word done', run_in_background: true }, preText: 'dispatching a helper. ' },
+  { kind: 'tool_use', whenModel: 'haiku', name: 'Crewmate', input: { description: 'helper', prompt: 'reply with the word done', run_in_background: true }, preText: 'dispatching a helper. ' },
   { kind: 'text', whenModel: 'haiku', text: 'helper dispatched.' },
   { kind: 'paced', whenModel: 'haiku', deltas: Array.from({ length: 120 }, () => 'helping. '), gapMs: 500, settleDelayMs: 500 },
   { kind: 'text', text: 'hi from B.' },
@@ -106,7 +106,7 @@ try {
     keep: true,
     seedHome: async (configDir, cwd) => {
       seedFirstRun(configDir, [cwd, work, workB])
-      writeFileSync(join(configDir, 'settings.json'), JSON.stringify({ guardrails: { allow: ['Workflow', 'Agent', 'Task'] } }))
+      writeFileSync(join(configDir, 'settings.json'), JSON.stringify({ guardrails: { allow: ['Workflow', 'Crewmate', 'Task'] } }))
       spawnDaemonWithHome(configDir)
       check('the daemon serves', await untilAsync(async () => (await daemonControlRpc({ op: 'ping' })).ok, 60_000))
       const a = (await daemonControlRpc({

@@ -97,7 +97,7 @@ function answerText(res: ServerResponse, model: string, text: string): void {
 }
 function answerAgent(res: ServerResponse, model: string, prompt: string): void {
   openMessage(res, model)
-  res.write(named('content_block_start', { type: 'content_block_start', index: 0, content_block: { type: 'tool_use', id: `toolu_lane_${Date.now()}`, name: 'Agent', input: {} } }))
+  res.write(named('content_block_start', { type: 'content_block_start', index: 0, content_block: { type: 'tool_use', id: `toolu_lane_${Date.now()}`, name: 'Crewmate', input: {} } }))
   res.write(named('content_block_delta', { type: 'content_block_delta', index: 0, delta: { type: 'input_json_delta', partial_json: JSON.stringify({ description: 'the gpt errand', prompt, model: GPT_ID }) } }))
   res.end(closeMessage('tool_use'))
 }

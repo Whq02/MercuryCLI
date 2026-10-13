@@ -174,7 +174,7 @@ const answerTool = (res: ServerResponse, n: number, model: string, id: string, n
 const answerSleep = (res: ServerResponse, n: number, model: string, id: string, seconds: number, u: Usage = usage): void =>
   answerTool(res, n, model, id, 'Bash', { command: `sleep ${seconds}`, description: `a ${seconds}s sleep` }, u)
 const answerAgent = (res: ServerResponse, n: number, model: string, id: string, prompt: string, extra: Record<string, unknown> = {}): void =>
-  answerTool(res, n, model, id, 'Agent', { description: AGENT_DESCRIPTION, prompt, ...extra })
+  answerTool(res, n, model, id, 'Crewmate', { description: AGENT_DESCRIPTION, prompt, ...extra })
 const FOLD_DELTAS = [
   '<analysis>the walk</analysis>',
   '<summary>1. Operator Intent: ',
@@ -283,7 +283,7 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
       const at = text.indexOf(w)
       if (at >= 0) firstAt[w] = at
     }
-    record({ kind: fold ? 'fold' : 'request', n, arm, step, folded, ask: ask.slice(0, 80), askShape: askIndex === -1 ? 'none' : typeof items[askIndex]!.content === 'string' ? 'string' : 'blocks', askItem: askIndex === -1 ? '' : j(items[askIndex]!.content).slice(0, 600), askSha: askIndex === -1 ? '' : sha(j(items[askIndex]!.content)), opening: opening.slice(0, 40), tools, hasAgentTool: toolNames.includes('Agent'), hasWorkflowTool: toolNames.includes('Workflow'), hasSleepTool: toolNames.includes('Sleep'), lastToolResult: lastToolResultOf(items), at: Date.now(), system: sha(j(body.system)), counts, firstAt })
+    record({ kind: fold ? 'fold' : 'request', n, arm, step, folded, ask: ask.slice(0, 80), askShape: askIndex === -1 ? 'none' : typeof items[askIndex]!.content === 'string' ? 'string' : 'blocks', askItem: askIndex === -1 ? '' : j(items[askIndex]!.content).slice(0, 600), askSha: askIndex === -1 ? '' : sha(j(items[askIndex]!.content)), opening: opening.slice(0, 40), tools, hasAgentTool: toolNames.includes('Crewmate'), hasWorkflowTool: toolNames.includes('Workflow'), hasSleepTool: toolNames.includes('Sleep'), lastToolResult: lastToolResultOf(items), at: Date.now(), system: sha(j(body.system)), counts, firstAt })
     if (fold) return answerFold(res, n, model)
     switch (arm) {
       case 'agent':
@@ -295,8 +295,8 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
       case 'crew':
         if (step === 0)
           return answerTools(res, n, model, [
-            { id: `toolu_quick_c${n}`, name: 'Agent', input: { description: QUICK_DESCRIPTION, prompt: QUICK_PROMPT, run_in_background: true } },
-            { id: `toolu_agent_c${n}`, name: 'Agent', input: { description: AGENT_DESCRIPTION, prompt: AGENT_PROMPT } },
+            { id: `toolu_quick_c${n}`, name: 'Crewmate', input: { description: QUICK_DESCRIPTION, prompt: QUICK_PROMPT, run_in_background: true } },
+            { id: `toolu_agent_c${n}`, name: 'Crewmate', input: { description: AGENT_DESCRIPTION, prompt: AGENT_PROMPT } },
           ])
         return answerText(res, n, model, doneText(CREW_TURN_ASK))
       case 'agentfold':
@@ -306,7 +306,7 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
         if (step === 0) return answerAgent(res, n, model, `toolu_agent_c${n}`, NESTED_PROMPT)
         return answerText(res, n, model, doneText(NESTED_TURN_ASK))
       case 'agentfork':
-        if (step === 0) return answerAgent(res, n, model, `toolu_fork_c${n}`, FORK_PROMPT, { subagent_type: 'fork' })
+        if (step === 0) return answerAgent(res, n, model, `toolu_fork_c${n}`, FORK_PROMPT, { crewmate_type: 'fork' })
         if (step === 1) return answerAgent(res, n, model, `toolu_agent_c${n}`, AGENT_PROMPT)
         return answerText(res, n, model, doneText(FORK_TURN_ASK))
       case 'agentworkflow':
@@ -331,7 +331,7 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
         return answerText(res, n, model, 'agent done: the folded sub agent finished')
       case 'subnested':
         if (step === 0) return answerSleep(res, n, model, `toolu_subnest_c${n}`, AGENT_SLEEP_SECONDS)
-        if (step === 1) return answerTool(res, n, model, `toolu_deeper_c${n}`, 'Agent', { description: 'deeper work', prompt: DEEPER_PROMPT })
+        if (step === 1) return answerTool(res, n, model, `toolu_deeper_c${n}`, 'Crewmate', { description: 'deeper work', prompt: DEEPER_PROMPT })
         return answerText(res, n, model, 'agent done: the nesting sub agent finished')
       case 'deeper':
         return answerText(res, n, model, DEEPER_DONE)

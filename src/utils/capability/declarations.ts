@@ -2,8 +2,8 @@
 import type { ToolCapability } from './contract.js'
 
 export const TOOL_CAPABILITY_DECLARATIONS: Record<string, ToolCapability> = {
-  Agent: {
-    intents: ['delegate a task to a crewmate (a sub-agent)', 'run parallel research or implementation', 'fan out independent work'],
+  Crewmate: {
+    intents: ['delegate a task to a crewmate', 'run parallel research or implementation', 'fan out independent work'],
     units: ['task-coordination'],
     class: 'coordination',
     execution: { kind: 'agent', representation: 'external-projection' },
@@ -322,7 +322,7 @@ export const TOOL_CAPABILITY_DECLARATIONS: Record<string, ToolCapability> = {
     latency: 'fast',
     proof: 'scripts/crew/run-all.sh',
   },
-  ResumeAgent: {
+  ResumeCrewmate: {
     intents: ['give a crewmate a new turn by its id or name', 'resume a finished crewmate from its transcript'],
     units: ['task-coordination'],
     class: 'coordination',
@@ -473,7 +473,7 @@ export const TOOL_CAPABILITY_DECLARATIONS: Record<string, ToolCapability> = {
     proof: 'scripts/search/run-all.sh',
   },
   Workflow: {
-    intents: ['orchestrate many subagents deterministically', 'fan out and verify at scale'],
+    intents: ['orchestrate many crewmates deterministically', 'fan out and verify at scale'],
     units: ['task-coordination'],
     class: 'coordination',
     execution: { kind: 'workflow-worker', representation: 'child-execution' },

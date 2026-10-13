@@ -73,12 +73,12 @@ const { buildTool } = await import('../../src/Tool.js')
 
 const agentCalls: Array<{ prompt: string }> = []
 const AgentDouble = buildTool({
-  name: 'Agent',
+  name: 'Crewmate',
   maxResultSizeChars: 20_000,
   inputSchema: z.object({
     description: z.string(),
     prompt: z.string(),
-    subagent_type: z.string().optional(),
+    crewmate_type: z.string().optional(),
     isolation: z.string().optional(),
   }),
   async description() {

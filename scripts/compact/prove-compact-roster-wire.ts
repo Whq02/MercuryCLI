@@ -180,7 +180,7 @@ async function startFixture(port: number, cwd: string): Promise<{ base: string; 
       else if (lastUserText.includes('Reply with prose only')) route = 'summary'
       else if (lastUserText.includes('task-notification')) route = 'note'
       else if (firstUserText.includes('The context window turned over')) route = 'post'
-      else if (answered.includes('Workflow') || answered.includes('Agent')) route = 'launched'
+      else if (answered.includes('Workflow') || answered.includes('Crewmate')) route = 'launched'
       else if (lastUserText.includes(ASK) && offersTool(body, 'Workflow')) route = 'launch'
       else route = 'side'
       const priorReads = readsOf(items)
@@ -197,8 +197,8 @@ async function startFixture(port: number, cwd: string): Promise<{ base: string; 
             {
               type: 'tool_use',
               id: `toolu_roster_agent_${++toolSeq}`,
-              name: 'Agent',
-              input: { description: PLAIN_DESCRIPTION, prompt: `${SEAT_MARK}${PLAIN_SEAT} read the notes file once, then report in one line`, subagent_type: 'mercury-crew', run_in_background: true },
+              name: 'Crewmate',
+              input: { description: PLAIN_DESCRIPTION, prompt: `${SEAT_MARK}${PLAIN_SEAT} read the notes file once, then report in one line`, crewmate_type: 'mercury-crew', run_in_background: true },
             },
             { type: 'tool_use', id: `toolu_roster_shell_${++toolSeq}`, name: 'Bash', input: { command: `sleep ${SHELL_SECONDS}`, description: SHELL_DESCRIPTION, run_in_background: true } },
           ]
@@ -356,7 +356,7 @@ if (!existsSync(DIST)) {
     check(`…the shell by its command, asked "${SHELL_DESCRIPTION}"`, roster.includes(`local_bash "sleep ${SHELL_SECONDS}"`) && roster.includes(`asked: ${SHELL_DESCRIPTION}`))
     const agentRow = roster.split('\n').find(line => line.startsWith(`- local_agent "${PLAIN_DESCRIPTION}"`)) ?? ''
     const running = /\]: running(?: ·|$)/.test(agentRow)
-    check('every row names what is owed and the correct state-specific message door', /owed:/.test(roster) && (running ? /reach it: SendMessage to "a[0-9a-z]+"/.test(agentRow) : /resume it: ResumeAgent to "a[0-9a-z]+"/.test(agentRow)) && roster.includes('reach it: TaskStop by its id'))
+    check('every row names what is owed and the correct state-specific message door', /owed:/.test(roster) && (running ? /reach it: SendMessage to "a[0-9a-z]+"/.test(agentRow) : /resume it: ResumeCrewmate to "a[0-9a-z]+"/.test(agentRow)) && roster.includes('reach it: TaskStop by its id'))
     check('the sub-agent row carries its output path', new RegExp(`\\[a[0-9a-z]+\\][^\\n]*output: [^\\n]*\\.output`).test(roster))
     check('the roster says a running agent is never re-spawned and an owed result is collected', roster.includes('A running agent is never re-spawned') && roster.includes('never re-derived'))
     check('no second announcer names the plain sub-agent (the old per-task line is gone)', !postAll.includes('is still running. Do NOT spawn a duplicate'))

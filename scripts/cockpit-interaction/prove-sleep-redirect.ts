@@ -278,7 +278,7 @@ t.section('§6 — REAL BINARY, REAL AGENT: the same-block dispatch-then-wait pa
         gapMs: 50,
         tools: [
           {
-            name: 'Agent',
+            name: 'Crewmate',
             input: {
               description: 'slow probe',
               prompt: 'Reply with the single word done. Do not use any tools.',
@@ -336,7 +336,7 @@ t.section('§6 — REAL BINARY, REAL AGENT: the same-block dispatch-then-wait pa
     const sleepResults: string[] = []
     let agentDispatched = false
     for (const row of frameLines(out).filter(isMainThread)) {
-      if (isToolCall(row) && row.tool === 'Agent') agentDispatched = true
+      if (isToolCall(row) && row.tool === 'Crewmate') agentDispatched = true
       if (!isToolResult(row)) continue
       const text = String(row.output ?? '')
       if (/[Ss]lept|tracked work|Sleep interrupted/.test(text)) sleepResults.push(text)

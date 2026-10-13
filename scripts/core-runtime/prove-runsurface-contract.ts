@@ -707,7 +707,7 @@ section('E12 END-TURN WITHOUT CONTENT — a content-free completed terminal is a
   check('steps 0', res.steps === 0, String(res.steps))
 }
 
-section('E13 DENIALS — recorded via the wrap; the Agent tool under its own name; allow silent')
+section('E13 DENIALS — recorded via the wrap; the Crewmate tool under its own name; allow silent')
 {
   const denyAll = async (): Promise<PermissionDecision> => ({
     behavior: 'deny',
@@ -736,8 +736,8 @@ section('E13 DENIALS — recorded via the wrap; the Agent tool under its own nam
   const denials = (outcomeOf(r.yields)!.denials ?? []) as AnyMsg[]
   check('two denials recorded', denials.length === 2, JSON.stringify(denials))
   check(
-    'the Agent tool reports under its own name',
-    denials[0]?.tool === 'Agent',
+    'the Crewmate tool reports under its own name',
+    denials[0]?.tool === 'Crewmate',
     String(denials[0]?.tool),
   )
   check(

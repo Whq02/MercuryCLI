@@ -47,7 +47,7 @@ export const ResumeAgentTool = buildTool({
     }
     const workflow = await messageWorkflowWorker(address, input.message)
     if (workflow !== undefined) return { data: workflow }
-    if (address.task === undefined && address.transcriptPath === null) return { data: { success: false, message: `Cannot resume ${address.who}: no running task by that id in this session and no transcript on disk to resume from — the agent may belong to another process, or its record was cleaned up. Launch a new crewmate with Agent if the work is still wanted.` } }
+    if (address.task === undefined && address.transcriptPath === null) return { data: { success: false, message: `Cannot resume ${address.who}: no running task by that id in this session and no transcript on disk to resume from — the agent may belong to another process, or its record was cleaned up. Launch a new crewmate with Crewmate if the work is still wanted.` } }
     const ended = await endedWords(address)
     try {
       const notice = messageNoticeFor(address.agentId, input.message, context)
@@ -62,7 +62,7 @@ export const ResumeAgentTool = buildTool({
     } catch (error) {
       const words = errorMessage(error)
       const owner = liveAgentOwner(address.agentId, context.getAppState().tasks)
-      const next = owner?.words === words ? '' : ' Launch a new crewmate with Agent if the work is still wanted.'
+      const next = owner?.words === words ? '' : ' Launch a new crewmate with Crewmate if the work is still wanted.'
       return { data: { success: false, message: `Agent ${address.who} had ${ended} and could not be resumed: ${words}${next}` } }
     }
   },

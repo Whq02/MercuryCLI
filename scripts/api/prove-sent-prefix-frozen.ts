@@ -1025,7 +1025,7 @@ if (!existsSync(DIST)) {
       const toolsOf = (q: { body: unknown }): Array<{ name?: string; defer_loading?: boolean }> => (Array.isArray((q.body as Body).tools) ? ((q.body as Body).tools as Array<{ name?: string; defer_loading?: boolean }>) : [])
       const first = toolsOf(reqs[0]!)
       check('§7 WebFetch and Browser rode the FIRST request deferred (defer_loading) — nothing to add on admission', first.some(t => t.name === 'WebFetch' && t.defer_loading === true) && first.some(t => t.name === 'Browser' && t.defer_loading === true), j(first.filter(t => t.name === 'WebFetch' || t.name === 'Browser')))
-      check('§7 the Agent tool rode the first request (the focused seat admits launches) and stays in the tools array with sub-agents off — the toggled request and the summariser alike (the valve refuses; the array never moves)', toolsOf(reqs[0]!).some(t => t.name === 'Agent') && toolsOf(reqs[6]!).some(t => t.name === 'Agent') && toolsOf(reqs[8]!).some(t => t.name === 'Agent'), `first=${toolsOf(reqs[0]!).some(t => t.name === 'Agent')} toggled=${toolsOf(reqs[6]!).some(t => t.name === 'Agent')} summariser=${toolsOf(reqs[8]!).some(t => t.name === 'Agent')}`)
+      check('§7 the Crewmate tool rode the first request (the focused seat admits launches) and stays in the tools array with sub-agents off — the toggled request and the summariser alike (the valve refuses; the array never moves)', toolsOf(reqs[0]!).some(t => t.name === 'Crewmate') && toolsOf(reqs[6]!).some(t => t.name === 'Crewmate') && toolsOf(reqs[8]!).some(t => t.name === 'Crewmate'), `first=${toolsOf(reqs[0]!).some(t => t.name === 'Crewmate')} toggled=${toolsOf(reqs[6]!).some(t => t.name === 'Crewmate')} summariser=${toolsOf(reqs[8]!).some(t => t.name === 'Crewmate')}`)
       const admissionRows = beforeFold.filter(q => q.raw.includes('"type":"tool_reference"')).length
       check('§7 the lookups admitted through tool_reference records inside their own result rows', admissionRows >= 2, String(admissionRows))
       const rows = (() => {
@@ -1045,7 +1045,7 @@ if (!existsSync(DIST)) {
         if (moved.length > 0 || a.length !== b.length) console.log(`      marks moved ${i}→${i + 1}: ${moved.slice(0, 6).join(' ')}${a.length !== b.length ? ` (${a.length} → ${b.length} tools)` : ''}`)
         check(`§7 pair ${i}→${i + 1}: every defer_loading mark is byte-identical (${a.length} tools)`, a.join(' ') === b.join(' '), moved.slice(0, 4).join(' '))
       }
-      const crewMarks = (q: { body: unknown }): string => marksOf(q).split(' ').filter(m => /^Agent[+-]$/.test(m)).join(' ')
+      const crewMarks = (q: { body: unknown }): string => marksOf(q).split(' ').filter(m => /^Crewmate[+-]$/.test(m)).join(' ')
       check('§7 the toggle landed in the transcript (a roster_transition notice row) — the mark pins are not vacuous', rows.includes('"noticeKind":"roster_transition"'))
       check('§7 after the toggle the crew tool (Agent) is still listed with its mark byte-identical to the first request (the mark travels with the definition)', crewMarks(reqs[6]!) !== '' && crewMarks(reqs[6]!) === crewMarks(reqs[0]!), `${crewMarks(reqs[0]!)} → ${crewMarks(reqs[6]!)}`)
       const summariser = reqs[8]!
@@ -1126,7 +1126,7 @@ if (!existsSync(DIST)) {
       const SEAT_DESCRIPTION = 'prefix-seat'
       const summary = 'S9 SUMMARY needle: the main launched the seat and folded.'
       const turns: ScriptedTurn[] = [
-        { kind: 'tool_use', name: 'Agent', input: { description: SEAT_DESCRIPTION, prompt: 'prefix-seat: run three short shells, one per turn, then report in one line', subagent_type: 'mercury-crew', run_in_background: true, model: SEAT_ALIAS }, thinking: 's9 launch', usage: { input_tokens: 97_000 }, model: FABLE, whenModel: 'fable' },
+        { kind: 'tool_use', name: 'Crewmate', input: { description: SEAT_DESCRIPTION, prompt: 'prefix-seat: run three short shells, one per turn, then report in one line', crewmate_type: 'mercury-crew', run_in_background: true, model: SEAT_ALIAS }, thinking: 's9 launch', usage: { input_tokens: 97_000 }, model: FABLE, whenModel: 'fable' },
         { kind: 'paced', deltas: [summary], gapMs: 0, startDelayMs: 7000, whenModel: 'fable' },
         { kind: 'text', text: 'S9-POST', thinking: 's9 after the fold', model: FABLE, whenModel: 'fable' },
         { kind: 'text', text: 'S9-NOTED', thinking: 's9 noted', model: FABLE, whenModel: 'fable' },
@@ -1189,8 +1189,8 @@ if (!existsSync(DIST)) {
       const SEAT = 'claude-sonnet-5'
       const tag = background ? 'background' : 'foreground'
       const seatCall = (n: number): { name: string; input: Record<string, unknown> } => ({
-        name: 'Agent',
-        input: { description: `prefix-wave-${n}`, prompt: `prefix-wave: report one line and stop (${n})`, subagent_type: 'mercury-crew', run_in_background: background, model: SEAT_ALIAS },
+        name: 'Crewmate',
+        input: { description: `prefix-wave-${n}`, prompt: `prefix-wave: report one line and stop (${n})`, crewmate_type: 'mercury-crew', run_in_background: background, model: SEAT_ALIAS },
       })
       const turns: ScriptedTurn[] = [
         { kind: 'paced_tool_use', preDeltas: ['Dispatching the first wave of three agents.'], gapMs: 0, tools: [seatCall(1), seatCall(2), seatCall(3)], whenModel: 'opus' },
@@ -1228,7 +1228,7 @@ if (!existsSync(DIST)) {
         for (let i = 0; i < messages.length; i++) {
           const m = messages[i]!
           if (m.role !== 'assistant' || !Array.isArray(m.content)) continue
-          const tools = m.content.filter(b => (b as { type?: string }).type === 'tool_use' && (b as { name?: string }).name === 'Agent')
+          const tools = m.content.filter(b => (b as { type?: string }).type === 'tool_use' && (b as { name?: string }).name === 'Crewmate')
           if (tools.length === 3) return { index: i, row: m }
         }
         return null

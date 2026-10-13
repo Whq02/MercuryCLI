@@ -119,7 +119,7 @@ async function world(name: World): Promise<void> {
     }
     if (req.ask.includes('<task-notification>')) return [{ type: 'text', text: 'noted' }]
     if (req.ask.trim() !== MAIN_ASK) return [{ type: 'text', text: 'ok' }]
-    if (req.step === 0) return [{ type: 'tool_use', name: 'Agent', input: { description: 'the probe sub-agent', prompt: AGENT_PROMPT, run_in_background: true } }]
+    if (req.step === 0) return [{ type: 'tool_use', name: 'Crewmate', input: { description: 'the probe sub-agent', prompt: AGENT_PROMPT, run_in_background: true } }]
     if (req.step === 1) agentId = idOf(last?.text)
     switch (name) {
       case 'sub-to-main-midturn':
@@ -129,12 +129,12 @@ async function world(name: World): Promise<void> {
         return [{ type: 'text', text: MAIN_DONE }]
       case 'main-to-sub-midturn':
         if (req.step === 1) return [{ type: 'tool_use', name: 'Bash', input: { command: 'sleep 2', description: 'let the sub-agent start its command' } }]
-        if (req.step === 2) return [{ type: 'tool_use', name: 'ResumeAgent', input: { to: agentId ?? 'nobody', message: TO_SUB, summary: 'the boats' } }]
+        if (req.step === 2) return [{ type: 'tool_use', name: 'ResumeCrewmate', input: { to: agentId ?? 'nobody', message: TO_SUB, summary: 'the boats' } }]
         if (req.step === 3) return [{ type: 'tool_use', name: 'Bash', input: { command: 'sleep 6', description: 'the main agent holds its turn' } }]
         return [{ type: 'text', text: MAIN_DONE }]
       case 'main-to-sub-ended':
         if (req.step === 1) return [{ type: 'tool_use', name: 'Bash', input: { command: 'sleep 3', description: 'let the sub-agent finish' } }]
-        if (req.step === 2) return [{ type: 'tool_use', name: 'ResumeAgent', input: { to: agentId ?? 'nobody', message: TO_SUB, summary: 'the boats' } }]
+        if (req.step === 2) return [{ type: 'tool_use', name: 'ResumeCrewmate', input: { to: agentId ?? 'nobody', message: TO_SUB, summary: 'the boats' } }]
         if (req.step === 3) return [{ type: 'tool_use', name: 'Bash', input: { command: 'sleep 6', description: 'the main agent holds its turn' } }]
         return [{ type: 'text', text: MAIN_DONE }]
     }
@@ -151,7 +151,7 @@ async function world(name: World): Promise<void> {
   const seen: Seen[] = fixture.requests.map(r => ({ n: r.n, who: r.opening.trim() === AGENT_PROMPT ? 'sub' : 'main', step: r.step, atMs: r.atMs, ask: r.ask, results: r.results.map(x => x.text), allTexts: r.allTexts }))
   const messageText = name.startsWith('sub-to-main') ? TO_MAIN : TO_SUB
   const receiver = name.startsWith('sub-to-main') ? 'main' : 'sub'
-  const sends = seen.flatMap(r => r.results.filter(x => x.startsWith('Delivered to ') || x.includes('nothing was resumed: the message was delivered') || x.includes('resumed in the background') || x.includes('No such tool available: SendMessage') || x.includes('No such tool available: ResumeAgent') || x.includes('Cannot deliver') || x.includes('Cannot resume')))
+  const sends = seen.flatMap(r => r.results.filter(x => x.startsWith('Delivered to ') || x.includes('nothing was resumed: the message was delivered') || x.includes('resumed in the background') || x.includes('No such tool available: SendMessage') || x.includes('No such tool available: ResumeCrewmate') || x.includes('Cannot deliver') || x.includes('Cannot resume')))
   const carrying = seen.filter(r => r.who === receiver && r.allTexts.some(t => t.includes(messageText)))
   const carriedTexts = (r: Seen): string[] => r.allTexts.filter(t => t.includes(messageText))
   const first = carrying[0]

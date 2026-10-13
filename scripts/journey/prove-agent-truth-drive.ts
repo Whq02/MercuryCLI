@@ -101,7 +101,7 @@ function receiptIdFor(items: Item[], description: string): string | null {
   for (const item of items) {
     if (item.role !== 'assistant') continue
     for (const b of blocksOf(item.content)) {
-      if (b.type === 'tool_use' && b.name === 'Agent' && String(b.input?.description ?? '') === description && typeof b.id === 'string') ids.add(b.id)
+      if (b.type === 'tool_use' && b.name === 'Crewmate' && String(b.input?.description ?? '') === description && typeof b.id === 'string') ids.add(b.id)
     }
   }
   for (const item of items) {
@@ -171,11 +171,11 @@ function answer(model: string, blocks: Answer[]): string {
 const agentLaunch = (id: string, seat: Seat, extra: Record<string, unknown>): Answer => ({
   type: 'tool_use',
   id,
-  name: 'Agent',
+  name: 'Crewmate',
   input: {
     description: SEATS[seat],
     prompt: `${SEAT_MARK}${seat} read the notes file, one read per turn, then report in one line`,
-    subagent_type: 'mercury-crew',
+    crewmate_type: 'mercury-crew',
     ...extra,
   },
 })
@@ -284,10 +284,10 @@ async function startFixture(port: number, cwd: string): Promise<{ base: string; 
           if (at >= 0 && (newest === null || at > newest.at || (at === newest.at && word.length > (asks.find(a => a[1] === newest!.route)?.[0].length ?? 0)))) newest = { at, route: askRoute }
         }
         let route: Route
-        if (!offersTool(body, 'Agent')) route = 'side'
+        if (!offersTool(body, 'Crewmate')) route = 'side'
         else if (newest !== null) route = newest.route
         else if (lastUserText.includes('task-notification')) route = 'note'
-        else if (answered === 'Agent' || answered === 'SendMessage' || answered === 'ResumeAgent' || answered === 'Workflow') route = 'ack'
+        else if (answered === 'Crewmate' || answered === 'SendMessage' || answered === 'ResumeCrewmate' || answered === 'Workflow') route = 'ack'
         else route = 'side'
         hits.push({ route, seat: null, call: 0, atMs: Date.now(), lastUserText, raw, results })
         let blocks: Answer[]
@@ -305,7 +305,7 @@ async function startFixture(port: number, cwd: string): Promise<{ base: string; 
             blocks = [{ type: 'tool_use', id: `toolu_truth_send_${++toolSeq}`, name: 'SendMessage', input: { to: 'lantern', summary: 'a word by name', message: LANTERN_WORD_2 } }]
             break
           case 'message-dead':
-            blocks = [{ type: 'tool_use', id: `toolu_truth_send_${++toolSeq}`, name: 'ResumeAgent', input: { to: receiptIdFor(items, 'foliage') ?? 'foliage-id-unknown', summary: 'a word for the dead', message: DEAD_WORD } }]
+            blocks = [{ type: 'tool_use', id: `toolu_truth_send_${++toolSeq}`, name: 'ResumeCrewmate', input: { to: receiptIdFor(items, 'foliage') ?? 'foliage-id-unknown', summary: 'a word for the dead', message: DEAD_WORD } }]
             break
           case 'walker-launch':
             blocks = [agentLaunch(`toolu_truth_agent_${++toolSeq}`, 'walker', {})]
@@ -588,7 +588,7 @@ if (cap !== null) {
   console.log('\n— A the receipt\'s id routes, the name routes —')
   const lanternWait = rowsWith(m['lantern-waiting'], 'waiting on 1 agent')
   check('A0 the launch turn held open by its background agent paints the wait words, never the thinking dress', lanternWait.length > 0, rowsWith(m['lantern-waiting'], /waiting on|thinking|thought for/).map(flat).join(' | ').slice(0, 300))
-  const sendResults = acks.flatMap(h => h.results.filter(r => r.name === 'SendMessage' || r.name === 'ResumeAgent').map(r => r.text))
+  const sendResults = acks.flatMap(h => h.results.filter(r => r.name === 'SendMessage' || r.name === 'ResumeCrewmate').map(r => r.text))
   for (const r of sendResults) console.log(`  send result: ${flat(r).slice(0, 240)}`)
   check(`A1 SendMessage to the receipt's id (${lanternId ?? 'none'}) delivered the message to the running agent`, lanternId !== null && sendResults.some(r => r.startsWith(`Delivered to lantern (id ${lanternId})`) && r.includes('it reads it at its next tool boundary.')))
   check("A2 SendMessage to the launch's name delivered the message too", sendResults.some(r => r.startsWith('Delivered to lantern (id ') && r.includes('it reads it at its next tool boundary.')))
@@ -606,7 +606,7 @@ if (cap !== null) {
   check(`D1 the resumed life settled once, completed, under the message's own tool-use id (${resumedNotes.length})`, resumedNotes.length === 1 && resumedNotes[0]!.includes('<status>completed</status>'))
 
   console.log('\n— W the foreground ask handed to the background says why —')
-  const walkerReceipts = fixture.hits.flatMap(h => h.results.filter(r => r.name === 'Agent' && r.description === SEATS.walker).map(r => r.text))
+  const walkerReceipts = fixture.hits.flatMap(h => h.results.filter(r => r.name === 'Crewmate' && r.description === SEATS.walker).map(r => r.text))
   for (const r of walkerReceipts) console.log(`  walker receipt: ${flat(r).slice(0, 300)}`)
   check('W1 the walker\'s receipt reads as a background launch (the hand-over)', walkerReceipts.some(r => r.startsWith('Agent launched in the background.')), walkerReceipts.map(flat).join(' | ').slice(0, 300))
   check('W1 …and says why the foreground request was not honoured: the turn was interrupted', walkerReceipts.some(r => /interrupted/.test(r) && /foreground/.test(r)), walkerReceipts.map(flat).join(' | ').slice(0, 400))

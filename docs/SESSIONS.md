@@ -201,7 +201,7 @@ on "Crewmates while backgrounded" (a `/config` row, the same row in the boot
 menu's Agents section; off by default). With it on, every session you have
 left in the background launches crewmates and workflows as a focused one
 does, under its own permission mode and its own Crewmates and Workflows
-switches, and a session born while it is on carries the Agent and Workflow
+switches, and a session born while it is on carries the Crewmate and Workflow
 tools from its first request; the one workflows-allowed grant stays what it
 is. With it off, a background session's launch refusal names the three roads.
 A hop flips the focus answers at once. `/runs`,
@@ -570,7 +570,7 @@ A crewmate keeps the same kind of record on its own transcript: one brought
 back after its run ended (a message sent to it, the crew view's resume) sends
 the tool list it first sent, whatever the session's tools are by then.
 
-On a cloud model a conversation starts with Agent, Bash, Glob, Grep, Read,
+On a cloud model a conversation starts with Crewmate, Bash, Glob, Grep, Read,
 Edit, Write, Skill, Eval, ScheduleWakeup and ToolSearch in full when their
 gates admit them and, loaded in full beside them, ChangeSet, AstSearch and
 LSP (whenever a language server is reachable). Routes that support deferral
@@ -762,9 +762,9 @@ turns run as one turn, each its own row under its own identity, in the
 order sent; esc interrupts the turn and anything still queued runs as the
 next turn.
 The line always reaches the session's own model. A crewmate the model is
-running (an Agent tool call) has tool boundaries of its own; those read only
+running (a Crewmate tool call) has tool boundaries of its own; those read only
 the notes addressed to that agent, never the operator's lines, so a line sent
-while a crewmate works waits for the session's next boundary, the Agent
+while a crewmate works waits for the session's next boundary, the Crewmate
 tool's return included, and lands in the session's transcript, not the
 crewmate's.
 

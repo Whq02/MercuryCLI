@@ -43,7 +43,7 @@ async function main(): Promise<void> {
 
   const toolNames = [
     'Bash', 'Glob', 'Grep', 'Read', 'Edit', 'Write', 'NotebookEdit',
-    'WebFetch', 'WebSearch', 'Agent', 'Skill', 'TaskCreate', 'TaskUpdate',
+    'WebFetch', 'WebSearch', 'Crewmate', 'Skill', 'TaskCreate', 'TaskUpdate',
     'TaskList', 'TaskGet', 'AskUserQuestion', 'ToolSearch',
   ]
   const tools = toolNames.map(name => ({ name })) as never

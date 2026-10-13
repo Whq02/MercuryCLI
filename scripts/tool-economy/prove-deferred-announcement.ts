@@ -83,7 +83,7 @@ const SPEC_BODY = [
   'Transaction — see what changed and was checked; finish the work only after a passing check',
   'WebFetch — fetches and extracts content from a URL',
   'WebSearch — searches the web for current information',
-  'Workflow — orchestrate subagents with deterministic JavaScript workflow',
+  'Workflow — orchestrate crewmates with deterministic JavaScript workflow',
   'mcp__mercury__lease_list',
   'mcp__mercury__lease_release',
   'mcp__mercury__lease_take',
@@ -165,7 +165,7 @@ section('§1 the head and the line rule over a fixture pool')
 
 section('§2 over the bench roster the body is the specification\'s text byte for byte')
 {
-  const NAMES = ['Agent', 'Bash', 'Glob', 'Grep', 'Read', 'Edit', 'Write', 'Skill', 'Eval', 'AstSearch', 'ChangeSet', 'LspRead', 'LspRename', 'LspMoveSymbol', 'LspMoveFile', 'LspCodeAction', 'LspFormat', 'LspRequest', 'ToolSearch', 'JevEval', 'Debug', 'Git', 'AstEdit', 'Test', 'Monitor', 'Checkpoint', 'Rewind', 'ApolloReview', 'AskUserQuestion', 'Browser', 'Computer', 'ContextLeft', 'Correct', 'EnterWorktree', 'ExitWorktree', 'Inspect', 'Journey', 'Launch', 'NotebookEdit', 'ProviderSearch', 'Recall', 'RecordConvention', 'Reflect', 'Retain', 'SendMessage', 'Service', 'Sleep', 'Structure', 'TaskStop', 'Transaction', 'WebFetch', 'WebSearch', 'Workflow']
+  const NAMES = ['Crewmate', 'Bash', 'Glob', 'Grep', 'Read', 'Edit', 'Write', 'Skill', 'Eval', 'AstSearch', 'ChangeSet', 'LspRead', 'LspRename', 'LspMoveSymbol', 'LspMoveFile', 'LspCodeAction', 'LspFormat', 'LspRequest', 'ToolSearch', 'JevEval', 'Debug', 'Git', 'AstEdit', 'Test', 'Monitor', 'Checkpoint', 'Rewind', 'ApolloReview', 'AskUserQuestion', 'Browser', 'Computer', 'ContextLeft', 'Correct', 'EnterWorktree', 'ExitWorktree', 'Inspect', 'Journey', 'Launch', 'NotebookEdit', 'ProviderSearch', 'Recall', 'RecordConvention', 'Reflect', 'Retain', 'SendMessage', 'Service', 'Sleep', 'Structure', 'TaskStop', 'Transaction', 'WebFetch', 'WebSearch', 'Workflow']
   const permissionContext = getEmptyToolPermissionContext()
   const pool: Tool[] = [...assembleToolPool(permissionContext, [])]
   const catalogue = getAllBaseTools()
@@ -189,7 +189,7 @@ section('§2 over the bench roster the body is the specification\'s text byte fo
       check(`${name} has its line`, row.body.split('\n').some(line => line.startsWith(`${name} — `)))
     }
     check('the four MCP tools are their names alone', ['mcp__mercury__lease_list', 'mcp__mercury__lease_release', 'mcp__mercury__lease_take', 'mcp__mercury__render_tui'].every(name => row.body.split('\n').includes(name)))
-    check('no loaded tool has a line', ['Agent', 'Bash', 'Glob', 'Grep', 'Read', 'Edit', 'Write', 'Skill', 'Eval', 'AstSearch', 'ChangeSet', 'LspRead', 'ToolSearch'].every(name => !row.addedNames.includes(name)))
+    check('no loaded tool has a line', ['Crewmate', 'Bash', 'Glob', 'Grep', 'Read', 'Edit', 'Write', 'Skill', 'Eval', 'AstSearch', 'ChangeSet', 'LspRead', 'ToolSearch'].every(name => !row.addedNames.includes(name)))
   }
 }
 

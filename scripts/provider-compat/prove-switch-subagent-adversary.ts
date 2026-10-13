@@ -41,12 +41,12 @@ function anthropicAgentCall(prompt: string, background: boolean): string {
   const input = {
     description: 'switch probe',
     prompt,
-    subagent_type: 'mercury-crew',
+    crewmate_type: 'mercury-crew',
     ...(background ? { run_in_background: true } : {}),
   }
   return [
     `event: message_start\n${sse({ type: 'message_start', message: { id: 'msg_fx', type: 'message', role: 'assistant', model: 'fixture', content: [], stop_reason: null, stop_sequence: null, usage: { input_tokens: 6, cache_creation_input_tokens: 0, cache_read_input_tokens: 0, output_tokens: 1 } } })}`,
-    `event: content_block_start\n${sse({ type: 'content_block_start', index: 0, content_block: { type: 'tool_use', id, name: 'Agent', input: {} } })}`,
+    `event: content_block_start\n${sse({ type: 'content_block_start', index: 0, content_block: { type: 'tool_use', id, name: 'Crewmate', input: {} } })}`,
     `event: content_block_delta\n${sse({ type: 'content_block_delta', index: 0, delta: { type: 'input_json_delta', partial_json: JSON.stringify(input) } })}`,
     `event: content_block_stop\n${sse({ type: 'content_block_stop', index: 0 })}`,
     `event: message_delta\n${sse({ type: 'message_delta', delta: { stop_reason: 'tool_use', stop_sequence: null }, usage: { input_tokens: 6, cache_creation_input_tokens: 0, cache_read_input_tokens: 0, output_tokens: 5 } })}`,
@@ -78,7 +78,7 @@ function responsesAgentCall(prompt: string): string {
   const id = `call_sub_${++toolSeq}`
   return [
     sse({ type: 'response.created', response: { id: 'resp_fx' } }),
-    sse({ type: 'response.output_item.done', item: { type: 'function_call', name: 'Agent', call_id: id, arguments: JSON.stringify({ description: 'switch probe', prompt, subagent_type: 'mercury-crew' }) } }),
+    sse({ type: 'response.output_item.done', item: { type: 'function_call', name: 'Crewmate', call_id: id, arguments: JSON.stringify({ description: 'switch probe', prompt, crewmate_type: 'mercury-crew' }) } }),
     sse({ type: 'response.completed', response: { id: 'resp_fx', usage: { input_tokens: 6, output_tokens: 5, input_tokens_details: { cached_tokens: 0 } } } }),
   ].join('')
 }
@@ -262,7 +262,7 @@ async function driveTurn(
       userContext: {},
       systemContext: {},
       canUseTool: (async (tool: { name?: string }, input: Record<string, unknown>) => {
-        if (tool?.name === 'Agent') onAgentPermission?.()
+        if (tool?.name === 'Crewmate') onAgentPermission?.()
         return { behavior: 'allow', updatedInput: input, decisionReason: { type: 'other', reason: 'rig' } }
       }) as never,
       toolUseContext: makeCtx(model) as never,

@@ -85,21 +85,21 @@ const whereFixture = await startScriptedFixture(req => {
   const last = req.results[req.results.length - 1]
   switch (req.step) {
     case 0:
-      return [{ type: 'tool_use', name: 'Agent', input: { description: 'where', prompt: WHERE_PROMPT, cwd: lane } }]
+      return [{ type: 'tool_use', name: 'Crewmate', input: { description: 'where', prompt: WHERE_PROMPT, cwd: lane } }]
     case 1: {
       seen.launch = last
       const id = /agentId: (\S+)/.exec(last?.text ?? '')?.[1] ?? 'unknown'
-      return [{ type: 'tool_use', name: 'ResumeAgent', input: { to: id, message: CONTINUE_PROMPT, summary: 'continue' } }]
+      return [{ type: 'tool_use', name: 'ResumeCrewmate', input: { to: id, message: CONTINUE_PROMPT, summary: 'continue' } }]
     }
     case 2:
       seen.continued = last
       return [{ type: 'tool_use', name: 'Bash', input: { command: `for i in $(seq 1 ${pollRounds(TURN_MS / 2)}); do [ -f "${flag}" ] && break; sleep 0.2; done; cat "${flag}" 2>/dev/null || echo no-flag`, description: 'wait for the continuation' } }]
     case 3:
       seen.waited = last
-      return [{ type: 'tool_use', name: 'Agent', input: { description: 'nowhere', prompt: WHERE_PROMPT, cwd: missing } }]
+      return [{ type: 'tool_use', name: 'Crewmate', input: { description: 'nowhere', prompt: WHERE_PROMPT, cwd: missing } }]
     case 4:
       seen.missing = last
-      return [{ type: 'tool_use', name: 'Agent', input: { description: 'outside', prompt: WHERE_PROMPT, cwd: elsewhere } }]
+      return [{ type: 'tool_use', name: 'Crewmate', input: { description: 'outside', prompt: WHERE_PROMPT, cwd: elsewhere } }]
     default:
       if (req.step === 5) seen.outside = last
       return [{ type: 'text', text: 'done' }]
@@ -144,10 +144,10 @@ const askFixture = await startScriptedFixture(req => {
   }
   if (req.ask.trim() !== ASK) return [{ type: 'text', text: 'ok' }]
   const last = req.results[req.results.length - 1]
-  if (req.step === 0) return [{ type: 'tool_use', name: 'Agent', input: { description: 'where', prompt: WHERE_PROMPT, cwd: lane } }]
+  if (req.step === 0) return [{ type: 'tool_use', name: 'Crewmate', input: { description: 'where', prompt: WHERE_PROMPT, cwd: lane } }]
   if (req.step === 1) {
     seen.askedLane = last
-    return [{ type: 'tool_use', name: 'Agent', input: { description: 'outside', prompt: WHERE_PROMPT, cwd: another } }]
+    return [{ type: 'tool_use', name: 'Crewmate', input: { description: 'outside', prompt: WHERE_PROMPT, cwd: another } }]
   }
   if (req.step === 2) seen.askedOutside = last
   return [{ type: 'text', text: 'done' }]
@@ -197,7 +197,7 @@ const buildFixture = await startScriptedFixture(req => {
     return [{ type: 'text', text: 'agent done' }]
   }
   if (req.ask.trim() !== ASK) return [{ type: 'text', text: 'ok' }]
-  if (req.step === 0) return [{ type: 'tool_use', name: 'Agent', input: { description: 'build', prompt: BUILD_PROMPT, isolation: 'worktree' } }]
+  if (req.step === 0) return [{ type: 'tool_use', name: 'Crewmate', input: { description: 'build', prompt: BUILD_PROMPT, isolation: 'worktree' } }]
   if (req.step === 1) seen.isolated = req.results[req.results.length - 1]
   return [{ type: 'text', text: 'done' }]
 })
@@ -278,7 +278,7 @@ const sidecarFor = (runHome: string, description: string): Record<string, unknow
     if (req.opening.trim().startsWith(WORKER_PROMPT)) {
       if (req.step === 0) {
         workerRosters.push(req.toolNames)
-        return [{ type: 'tool_use', name: 'Agent', input: { description: HELPER_DESCRIPTION, name: HELPER_NAME, prompt: HELPER_PROMPT, run_in_background: true } }]
+        return [{ type: 'tool_use', name: 'Crewmate', input: { description: HELPER_DESCRIPTION, name: HELPER_NAME, prompt: HELPER_PROMPT, run_in_background: true } }]
       }
       if (req.step === 1) seen.workerLaunch = last
       return [{ type: 'text', text: 'worker done' }]
@@ -300,11 +300,11 @@ const sidecarFor = (runHome: string, description: string): Record<string, unknow
       case 1:
         seen.workerWorkflow = last
         helperRanUnderWorker = existsSync(firstFlag)
-        return [{ type: 'tool_use', name: 'Agent', input: { description: HELPER_DESCRIPTION, name: HELPER_NAME, prompt: HELPER_PROMPT, isolation: 'worktree' } }]
+        return [{ type: 'tool_use', name: 'Crewmate', input: { description: HELPER_DESCRIPTION, name: HELPER_NAME, prompt: HELPER_PROMPT, isolation: 'worktree' } }]
       case 2:
         seen.helperLaunch = last
         helperId = /agentId: (\S+)/.exec(last?.text ?? '')?.[1] ?? ''
-        return [{ type: 'tool_use', name: 'ResumeAgent', input: { to: helperId || HELPER_NAME, message: CONTINUE_HELPER, summary: 'continue' } }]
+        return [{ type: 'tool_use', name: 'ResumeCrewmate', input: { to: helperId || HELPER_NAME, message: CONTINUE_HELPER, summary: 'continue' } }]
       case 3:
         seen.workerContinued = last
         return [{ type: 'tool_use', name: 'Bash', input: { command: waitForFile(join(firstPwd, 'continued.flag')), description: 'wait for the continuation' } }]
@@ -327,10 +327,10 @@ const sidecarFor = (runHome: string, description: string): Record<string, unknow
   console.log(`\nthe worker's roster on the wire: ${JSON.stringify(workerRosters[0] ?? [])}`)
   const sidecar = sidecarFor(workerHome, HELPER_DESCRIPTION)
   const workerRoster = workerRosters[0] ?? []
-  tally.section("a workflow worker carries a background crewmate's tool box, and that box has no Agent tool")
+  tally.section("a workflow worker carries a background crewmate's tool box, and that box has no Crewmate tool")
   tally.check('the workflow launched without error (staging)', seen.workerWorkflow !== undefined && !seen.workerWorkflow.isError, seen.workerWorkflow?.text.slice(0, 300) ?? workerTurn.stderr.slice(-300))
-  tally.check("the worker's roster on the wire carries no Agent and no Workflow, and does carry the crewmate box (Bash, SendMessage, Read)", workerRosters.length > 0 && !workerRoster.includes('Agent') && !workerRoster.includes('Workflow') && ['Bash', 'SendMessage', 'Read'].every(name => workerRoster.includes(name)), JSON.stringify(workerRoster))
-  tally.check("the worker's ask for a helper is refused by name, never spawned", seen.workerLaunch !== undefined && seen.workerLaunch.isError && /No such tool available: Agent/.test(seen.workerLaunch.text), seen.workerLaunch?.text.slice(0, 300))
+  tally.check("the worker's roster on the wire carries no Agent and no Workflow, and does carry the crewmate box (Bash, SendMessage, Read)", workerRosters.length > 0 && !workerRoster.includes('Crewmate') && !workerRoster.includes('Workflow') && ['Bash', 'SendMessage', 'Read'].every(name => workerRoster.includes(name)), JSON.stringify(workerRoster))
+  tally.check("the worker's ask for a helper is refused by name, never spawned", seen.workerLaunch !== undefined && seen.workerLaunch.isError && /No such tool available: Crewmate/.test(seen.workerLaunch.text), seen.workerLaunch?.text.slice(0, 300))
   tally.check('no helper ran under the worker: the first flag was absent when the workflow returned', helperRanUnderWorker === false, `flag present=${String(helperRanUnderWorker)}`)
   tally.section('a helper launched by the main thread into its own worktree keeps that worktree on continuation')
   tally.check('the main thread launched the helper and its receipt named the id (staging)', seen.helperLaunch !== undefined && !seen.helperLaunch.isError && helperId !== '', seen.helperLaunch?.text.slice(0, 300))
@@ -371,14 +371,14 @@ const sidecarFor = (runHome: string, description: string): Record<string, unknow
     if (req.ask.trim() !== EFFORT_ASK) return [{ type: 'text', text: 'ok' }]
     switch (req.step) {
       case 0:
-        return [{ type: 'tool_use', name: 'Agent', input: { description: EFFORT_DESCRIPTION, prompt: EFFORT_PROMPT, isolation: 'worktree', effort: 'max' } }]
+        return [{ type: 'tool_use', name: 'Crewmate', input: { description: EFFORT_DESCRIPTION, prompt: EFFORT_PROMPT, isolation: 'worktree', effort: 'max' } }]
       case 1:
         seen.effortLaunch = last
         effortId = /agentId: (\S+)/.exec(last?.text ?? '')?.[1] ?? ''
         return [{ type: 'tool_use', name: 'Bash', input: { command: readSettledRecord, description: 'wait for the settled record' } }]
       case 2:
         seen.effortSettled = last
-        return [{ type: 'tool_use', name: 'ResumeAgent', input: { to: effortId || 'unknown', message: CONTINUE_EFFORT, summary: 'continue' } }]
+        return [{ type: 'tool_use', name: 'ResumeCrewmate', input: { to: effortId || 'unknown', message: CONTINUE_EFFORT, summary: 'continue' } }]
       case 3:
         seen.effortContinued = last
         return [{ type: 'tool_use', name: 'Bash', input: { command: `${waitForFile(effortContinuedFlag)}; ${findRecord}; cat "$f" 2>/dev/null || echo no-record`, description: 'wait for the continuation, then read the record again' } }]

@@ -55,7 +55,7 @@ type Message = import('../../src/types/message.ts').Message
 const FULL_NAMES = ['ChangeSet', 'AstSearch', 'LspRead']
 const EIGHT_NAMES = ['JevEval', 'Debug', 'Git', 'AstEdit', 'Test', 'Monitor', 'Checkpoint', 'Rewind']
 const MARKED_NAMES = [...FULL_NAMES, ...EIGHT_NAMES]
-const LOCAL_SET = ['Agent', 'Bash', 'Edit', 'Eval', 'Glob', 'Grep', 'Journal', 'Read', 'ScheduleWakeup', 'Skill', 'ToolSearch', 'Write']
+const LOCAL_SET = ['Crewmate', 'Bash', 'Edit', 'Eval', 'Glob', 'Grep', 'Journal', 'Read', 'ScheduleWakeup', 'Skill', 'ToolSearch', 'Write']
 
 const permissionContext = getEmptyToolPermissionContext()
 const pool: Tool[] = [...assembleToolPool(permissionContext, buildFixtureMcpTools<Tool>(MCPTool))]

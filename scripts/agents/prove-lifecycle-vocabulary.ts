@@ -53,7 +53,7 @@ section('§C the revival honesty (structural pins)')
   const send = readFileSync(join(ROOT, 'src/tools/ResumeAgentTool/ResumeAgentTool.ts'), 'utf8')
   const note = readFileSync(join(ROOT, 'src/tools/AgentTool/continuationNote.ts'), 'utf8')
   const fallbackClauses = send.split("resumed.note ?? ''").length - 1
-  check('the unified ResumeAgent arm surfaces the fallback from its one owner', fallbackClauses === 1 && note.split('its worktree is gone').length - 1 === 1, `clauses=${fallbackClauses}`)
+  check('the unified ResumeCrewmate arm surfaces the fallback from its one owner', fallbackClauses === 1 && note.split('its worktree is gone').length - 1 === 1, `clauses=${fallbackClauses}`)
   check('the surfaced words say WHERE edits land now', note.includes('anything it edits lands in the real tree') && note.includes('anything it edits lands there'))
 }
 

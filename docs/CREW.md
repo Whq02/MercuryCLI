@@ -1,7 +1,7 @@
 # The crew
 
 Every Mercury session has a crew from the moment it starts: the crewmates
-(sub-agents) it delegates to through the Agent tool. There is no create step
+(sub-agents) it delegates to through the Crewmate tool. There is no create step
 and no delete step — the crew is born with the session and its crewmates are
 tracked live, not through files that must be set up first. Boards show them
 all; a message to a crewmate reaches it by its id or its name.
@@ -21,7 +21,7 @@ view never stops its work.
 
 Every session carries two switches, Crewmates and Workflows, set in the boot
 menu's Agents section for the sessions born after the choice and sticky for
-each session. With crewmates off, the Agent tool is absent from that
+each session. With crewmates off, the Crewmate tool is absent from that
 session's roster — the model never sees it — and every road that would spawn
 one from inside the session (the tool, a skill that forks, a workflow's agent
 hooks, the fleet tools) answers one receipt:
@@ -52,19 +52,19 @@ waits for your visit or the one workflows-allowed grant, and its launch
 refusal names this row as the third road. On, it launches as a focused session
 does — under its own Crewmates and Workflows switches, which still rule first,
 and its own permission mode — and a session born while the setting is on
-carries the Agent and Workflow tools from its first request. The
+carries the Crewmate and Workflow tools from its first request. The
 workflows-allowed grant is untouched. [SESSIONS.md](SESSIONS.md) has the
 focus law the setting sits beside.
 
 ## Starting a crewmate
 
-A crewmate starts through the Agent tool, with a name or without one. A named
-crewmate takes more work through ResumeAgent addressed to its name, running
+A crewmate starts through the Crewmate tool, with a name or without one. A named
+crewmate takes more work through ResumeCrewmate addressed to its name, running
 or finished, and notes through SendMessage while it runs; an unnamed one works
 its prompt once and returns its report, and is reached afterwards by the id
 its launch receipt names. The model is the one the launch names, or the
 configured crewmate default from `/config`; no crewmate's model is chosen for
-it or changed in a resume. When an Agent call names the parent's own model
+it or changed in a resume. When a Crewmate call names the parent's own model
 family, its crewmate keeps the parent's exact model. A different family keeps
 that family's preferred model; an exact model id keeps its explicit choice.
 
@@ -82,7 +82,7 @@ is refused with the way out named — ask the operator for the model id. Only a
 provider with no sign-in refuses a launch outright, naming `/logins`; no
 launch ever moves to another provider on its own.
 
-An Agent call may name the directory its crewmate works in with `cwd`: an
+A Crewmate call may name the directory its crewmate works in with `cwd`: an
 absolute directory that exists. Starting outside the session's starting
 folder asks for ordinary permission: yes launches the crewmate there, no
 leaves it unlaunched. Sovereign mode does not ask. The crewmate's shell,
@@ -129,7 +129,7 @@ Stop and resume work the same for every crewmate. A stopped crewmate keeps
 its history: its row reads `stopped` with the reason and its transcript
 stands on disk; `r` on its row continues it from where it was, the work
 before the stop in its context, and the row may be pressed after it has left
-the list. ResumeAgent to a stopped or finished crewmate takes the same road:
+the list. ResumeCrewmate to a stopped or finished crewmate takes the same road:
 addressed by its name or id, it resumes from its transcript with the message
 as its next turn, and the answer names the new row and how it had ended. Every stop, resume and failure reaches the main agent as a
 notification of its own kind, never silently, a stop or resume from the crew
@@ -156,9 +156,9 @@ receipt names or by the name its launch gave it, and from a background
 crewmate to `main`, the agent that launched it. A running receiver reads it
 at its next tool boundary, else at the end of its turn; the main agent
 between turns starts a turn for it. SendMessage never starts a finished
-crewmate: its refusal names ResumeAgent with the same `to` and `message`.
+crewmate: its refusal names ResumeCrewmate with the same `to` and `message`.
 
-ResumeAgent gives a crewmate more work by the same id or name. A completed,
+ResumeCrewmate gives a crewmate more work by the same id or name. A completed,
 failed or stopped crewmate resumes from its transcript in the background;
 a running one receives the message without starting a second run. The
 completion notice reaches the main agent. A crewmate launched with an output
@@ -190,18 +190,18 @@ call that would write or change state is refused — so it cannot write.
 Everything else is your own: an
 agent definition file adds a kind of agent with its own prompt, tools and
 model, and `/agents` opens the Agent Studio for building and tuning those
-definitions. The Agent tool's roster and `mercury roster` list the two
+definitions. The Crewmate tool's roster and `mercury roster` list the two
 built-ins first, then your own agents.
 
 A crewmate's kind is an agent definition — built-in, custom, or from an
-extension — resolved by the Agent tool's `subagent_type`, so a given kind is
+extension — resolved by the Crewmate tool's `crewmate_type`, so a given kind is
 the same agent however it was launched. A saved crewmate record whose type
 Mercury does not know resumes as `mercury-crew`.
 
 Three briefs ride as commands, skills and launch options rather than as agent kinds:
 `/verify` hands the session's work and an adversarial brief directly to a
-crewmate through the Agent tool, ending with a `VERDICT: PASS`, `FAIL` or `PARTIAL`
-line; an Agent launch with `isolation: "worktree"`, `worktree_at` and
+crewmate through the Crewmate tool, ending with a `VERDICT: PASS`, `FAIL` or `PARTIAL`
+line; a Crewmate launch with `isolation: "worktree"`, `worktree_at` and
 `review_receipt` is a review of a committed change on a frozen worktree whose
 one permitted write is the receipt's `## Review` section, ending with
 `REVIEW: CLEAN` or `REVIEW: FINDINGS <count>`; and the `mercury-docs` skill

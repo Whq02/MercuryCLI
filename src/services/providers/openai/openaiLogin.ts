@@ -54,7 +54,7 @@ export async function finishOpenaiSubscriptionConnect(
       : ''
   return {
     ok: true,
-    receipt: `OpenAI connected: ${ref.label}${ref.accountId ? ` · account ${ref.accountId.slice(0, 8)}…` : ''}${catalogueNote}. Qualified GPT models now join /model and the Agent 'gpt' grammar; /router engines shows readiness; /accounts signs out.`,
+    receipt: `OpenAI connected: ${ref.label}${ref.accountId ? ` · account ${ref.accountId.slice(0, 8)}…` : ''}${catalogueNote}. Qualified GPT models now join /model and the Crewmate 'gpt' grammar; /router engines shows readiness; /accounts signs out.`,
   }
 }
 

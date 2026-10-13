@@ -84,7 +84,7 @@ section('§2 — CREW TRAFFIC rows')
   const records = [
     user('build the panel'),
     assistant([
-      { type: 'tool_use', id: 'toolu_a1', name: 'Agent', input: { name: 'PANEL', description: 'Prompts panel implementer lane', prompt: 'You are lane PANEL.\nRead the sheet whole first.' } },
+      { type: 'tool_use', id: 'toolu_a1', name: 'Crewmate', input: { name: 'PANEL', description: 'Prompts panel implementer lane', prompt: 'You are lane PANEL.\nRead the sheet whole first.' } },
     ]),
     user([{ type: 'tool_result', tool_use_id: 'toolu_a1', content: 'launched' }]),
     assistant([

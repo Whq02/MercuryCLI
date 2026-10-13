@@ -123,7 +123,7 @@ try {
     const fullOnWire = loadedInFull.filter(name => eager.some(tool => tool.name === name))
     const fullBytes = eager.filter(tool => loadedInFull.includes(tool.name)).reduce((total, tool) => total + bytes(tool), 0)
     console.log(`  [INFO] ${route}: loaded in full beside the daily set: ${eager.filter(tool => loadedInFull.includes(tool.name)).map(tool => `${tool.name}(${bytes(tool)})`).join(' ')} · ${fullBytes} bytes (${tokens(fullBytes)})`)
-    check(`${route}: daily file and execution tools remain loaded`, ['Read', 'Edit', 'Write', 'Bash', 'Grep', 'Glob', 'Agent', 'ToolSearch'].every(name => eager.some(tool => tool.name === name)))
+    check(`${route}: daily file and execution tools remain loaded`, ['Read', 'Edit', 'Write', 'Bash', 'Grep', 'Glob', 'Crewmate', 'ToolSearch'].every(name => eager.some(tool => tool.name === name)))
     check(`${route}: the tools loaded in full beside the daily set ride eager from the first request`, fullOnWire.length === loadedInFull.length, `missing ${loadedInFull.filter(name => !fullOnWire.includes(name)).join(', ')}`)
     check(`${route}: none of them is named in the deferred-tools row`, loadedInFull.every(name => !reminderTexts.some((text: string) => announces(text, name))))
     const deferredOnWire = deferredNow.filter(name => deferred.some(tool => tool.name === name))

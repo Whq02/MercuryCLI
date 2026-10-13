@@ -60,7 +60,7 @@ const assistant = (content: unknown[]): Msg => ({ type: 'assistant', uuid: rando
 const user = (content: unknown): Msg => ({ type: 'user', uuid: randomUUID(), timestamp: stamp(), message: { role: 'user', content } })
 const text = (value: string): { type: 'text'; text: string } => ({ type: 'text', text: value })
 const launchesOf = (launches: Launch[]): Msg =>
-  assistant([text('launching the helpers'), ...launches.map(l => ({ type: 'tool_use', id: l.toolUseId, name: 'Agent', input: { description: l.description, prompt: `${l.description}: go`, subagent_type: 'mercury-crew', run_in_background: true } }))])
+  assistant([text('launching the helpers'), ...launches.map(l => ({ type: 'tool_use', id: l.toolUseId, name: 'Crewmate', input: { description: l.description, prompt: `${l.description}: go`, crewmate_type: 'mercury-crew', run_in_background: true } }))])
 const receiptsOf = (launches: Launch[]): Msg =>
   user(launches.map(l => ({ type: 'tool_result', tool_use_id: l.toolUseId, content: [text(`${lr.BACKGROUND_LAUNCH_LINE}\nagentId: ${l.agentId} (internal — do not mention it to the user). To continue this agent, use SendMessage addressed to that id.\nThe agent is working in the background — you will be notified automatically when it completes.`)] })))
 const drained = (prompt: string | unknown[]): Msg => ({

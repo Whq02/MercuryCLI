@@ -29,7 +29,7 @@ const j = (v: unknown): string => JSON.stringify(v)
 const TOOL_NAMES = [
   'Read', 'Grep', 'Glob', 'LspRead', 'ToolSearch', 'ListMcpResources', 'ReadMcpResource', 'TaskCreate', 'TaskGet', 'TaskUpdate', 'TaskList', 'TaskStop', 'AskUserQuestion', 'SendMessage', 'Workflow', 'Sleep',
   'LspRename', 'LspMoveSymbol', 'LspMoveFile', 'LspCodeAction', 'LspFormat', 'LspRequest',
-  'Bash', 'PowerShell', 'Edit', 'Write', 'NotebookEdit', 'Agent', 'WebFetch', 'WebSearch', 'Browser', 'Computer', 'Git', 'Launch', 'Monitor', 'Eval', 'Debug', 'Test', 'Service', 'ChangeSet', 'Checkpoint', 'Rewind', 'Transaction', 'Skill', 'Schedule', 'ContextLeft', 'Retain', 'Recall', 'Reflect', 'Correct',
+  'Bash', 'PowerShell', 'Edit', 'Write', 'NotebookEdit', 'Crewmate', 'WebFetch', 'WebSearch', 'Browser', 'Computer', 'Git', 'Launch', 'Monitor', 'Eval', 'Debug', 'Test', 'Service', 'ChangeSet', 'Checkpoint', 'Rewind', 'Transaction', 'Skill', 'Schedule', 'ContextLeft', 'Retain', 'Recall', 'Reflect', 'Correct',
   'mcp__fixture__read_file', 'mcp__fixture__write_file', 'mcp__fixture__TaskGet', 'read', 'grep', 'frobnicate', '',
 ]
 

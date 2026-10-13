@@ -162,8 +162,8 @@ section('the delegated spend (a delegating turn\'s cost, visible in the transcri
 withEnv('1', () => {
   const rows = inject([
     prompt('delegate the sweep', 'p1'),
-    toolUse('Agent', { description: 'reader one', prompt: 'read' }, 'a1'),
-    toolUse('Agent', { description: 'reader two', prompt: 'read' }, 'a2'),
+    toolUse('Crewmate', { description: 'reader one', prompt: 'read' }, 'a1'),
+    toolUse('Crewmate', { description: 'reader two', prompt: 'read' }, 'a2'),
     agentResult(60_000, 0.61, 'r1'),
     agentResult(24_200, 0.3, 'r2', 'failed'),
   ])
@@ -174,7 +174,7 @@ withEnv('1', () => {
   check('the line reads `2 crewmates · 84.2k tokens · $0.91`', delegatedSpendLine(c as never) === '2 crewmates · 84.2k tokens · $0.91', String(delegatedSpendLine(c as never)))
   const unpriced = inject([
     prompt('one agent, no price', 'p1'),
-    toolUse('Agent', { description: 'no price', prompt: 'x' }, 'a1'),
+    toolUse('Crewmate', { description: 'no price', prompt: 'x' }, 'a1'),
     agentResult(900, undefined, 'r1'),
   ])
   const lc = receipts(unpriced)[0]!.counts
@@ -182,21 +182,21 @@ withEnv('1', () => {
   check('the line says so: `1 crewmate · 900 tokens (1 unpriced)`', delegatedSpendLine(lc as never) === '1 crewmate · 900 tokens (1 unpriced)', String(delegatedSpendLine(lc as never)))
   const solo = inject([prompt('no delegation', 'p1'), toolUse('Bash', { command: 'ls' }, 'a1')])
   check('a turn that delegated nothing carries no spend line (null) and its counts stay zero', delegatedSpendLine(receipts(solo)[0]!.counts as never) === null && receipts(solo)[0]!.counts['agents'] === 0)
-  check('an Agent launch alone is activity (a receipt exists even with no other tool)', receipts(inject([prompt('just launch', 'p1'), toolUse('Agent', {}, 'a1')])).length === 1)
+  check('a Crewmate launch alone is activity (a receipt exists even with no other tool)', receipts(inject([prompt('just launch', 'p1'), toolUse('Crewmate', {}, 'a1')])).length === 1)
   check('the token words: 84200 → 84.2k · 1500000 → 1.5M · 900 → 900', formatDelegatedTokens(84_200) === '84.2k' && formatDelegatedTokens(1_500_000) === '1.5M' && formatDelegatedTokens(900) === '900')
   check('the cost words: 0.91 → $0.91 · 0.004 → <$0.01 · 12 → $12.00', formatDelegatedCost(0.91) === '$0.91' && formatDelegatedCost(0.004) === '<$0.01' && formatDelegatedCost(12) === '$12.00')
   const grouped = inject([
     prompt('grouped delegation', 'p1'),
-    { type: 'grouped_tool_use', uuid: 'g1', messages: [toolUse('Agent', {}, 'a1')], results: [agentResult(1_000, 0.02, 'r1')] } as never,
+    { type: 'grouped_tool_use', uuid: 'g1', messages: [toolUse('Crewmate', {}, 'a1')], results: [agentResult(1_000, 0.02, 'r1')] } as never,
   ])
   const gc = receipts(grouped)[0]!.counts
   check('grouped rows contribute their launches and settled results', gc['agents'] === 1 && gc['delegatedTokens'] === 1_000)
-  const older = inject([prompt('an old row', 'p1'), toolUse('Agent', {}, 'a1'), olderAgentResult(500, 'r1')])
+  const older = inject([prompt('an old row', 'p1'), toolUse('Crewmate', {}, 'a1'), olderAgentResult(500, 'r1')])
   const oc = receipts(older)[0]!.counts
   check('a row persisted before the outcome and the price existed still counts: its tokens fold, unpriced', oc['agents'] === 1 && oc['delegatedTokens'] === 500 && oc['delegatedUnpriced'] === 1)
   const background = inject([
     prompt('background launch', 'p1'),
-    toolUse('Agent', { run_in_background: true }, 'a1'),
+    toolUse('Crewmate', { run_in_background: true }, 'a1'),
     launchResult({ isAsync: true, status: 'async_launched', agentId: 'agent-bg', description: 'later', prompt: 'x', outputFile: '/x', canReadOutputFile: true }, 'r1'),
   ])
   const bc = receipts(background)[0]!.counts
@@ -208,7 +208,7 @@ withEnv('1', () => {
   ])
   check('a workflow launch is not a crewmate and carries no spend at launch: no line', receipts(workflow).length === 0 || delegatedSpendLine(receipts(workflow)[0]!.counts as never) === null)
   const agentResultSrc = src('tools', 'AgentTool', 'agentToolUtils.ts')
-  check('the Agent tool\'s result carries the ledger\'s list price beside its token total (the row the receipt reads)', /costUSD: ledger\.costUSD,\s*unpricedTurns: ledger\.unpricedTurns,/.test(agentResultSrc) && /costUSD: z\.number\(\)\.optional\(\)/.test(agentResultSrc))
+  check('the Crewmate tool\'s result carries the ledger\'s list price beside its token total (the row the receipt reads)', /costUSD: ledger\.costUSD,\s*unpricedTurns: ledger\.unpricedTurns,/.test(agentResultSrc) && /costUSD: z\.number\(\)\.optional\(\)/.test(agentResultSrc))
   check('the receipt reads the record by the fields the schema declares (agentId beside totalTokens), never a status the record does not carry at its top', /agentId: z\.string\(\)/.test(agentResultSrc) && /totalTokens: z\.number\(\)/.test(agentResultSrc) && /typeof r\.agentId !== 'string' \|\| typeof r\.totalTokens !== 'number'/.test(src('utils', 'cockpit', 'turnReceipt.ts')))
   check('the row prints the derive owner\'s words', /delegatedSpendLine\(c\)/.test(src('components', 'messages', 'TurnReceiptRow.tsx')))
 })

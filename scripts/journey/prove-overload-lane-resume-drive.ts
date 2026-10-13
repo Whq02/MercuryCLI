@@ -244,21 +244,21 @@ async function startFixture(port: number, laneCwd?: string): Promise<{ base: str
       const lastUserText = lastUser ? textOf(lastUser.content) : ''
       const answered = answeredTool(items)
       let out: string
-      if (answered === 'Agent') out = textBlock(0, LAUNCHED) + tail('end_turn')
-      else if (answered === 'ResumeAgent') out = textBlock(0, RESUMED) + tail('end_turn')
+      if (answered === 'Crewmate') out = textBlock(0, LAUNCHED) + tail('end_turn')
+      else if (answered === 'ResumeCrewmate') out = textBlock(0, RESUMED) + tail('end_turn')
       else if (lastUserText.includes('<task-notification>')) {
         const status = pickTag(lastUserText, 'status')
         const taskId = pickTag(lastUserText, 'task-id')
         if (status === 'failed' && lastUserText.includes(OLD_DOOR) && taskId !== null && state.handResumes < HAND_RESUMES_MAX) {
           state.handResumes++
-          out = toolBlock(0, `toolu_overload_resume_${++toolSeq}`, 'ResumeAgent', { to: taskId, message: 'carry on with the notes report', summary: 'carry on with the notes report' }) + tail('tool_use')
+          out = toolBlock(0, `toolu_overload_resume_${++toolSeq}`, 'ResumeCrewmate', { to: taskId, message: 'carry on with the notes report', summary: 'carry on with the notes report' }) + tail('tool_use')
         } else out = textBlock(0, NOTED) + tail('end_turn')
       } else if (lastUserText.includes('overload-drive: launch')) {
         out =
-          toolBlock(0, `toolu_overload_agent_${++toolSeq}`, 'Agent', {
+          toolBlock(0, `toolu_overload_agent_${++toolSeq}`, 'Crewmate', {
             description: LANE_NAME,
             prompt: `${SEAT_MARK} read the notes file once, then report in one line`,
-            subagent_type: 'mercury-crew',
+            crewmate_type: 'mercury-crew',
             ...(INLINE ? {} : { run_in_background: true }),
             ...(laneCwd !== undefined ? { cwd: laneCwd } : {}),
             ...(FAMILY_MODEL !== undefined ? { model: FAMILY_MODEL } : {}),
@@ -488,7 +488,7 @@ if (cap !== null) {
   const outputs = lane === null ? [] : laneOutputs(lane)
   const deaths = outputs.filter(o => o.model === '<synthetic>' && (FAMILY !== undefined ? /stayed busy through \d+ retr/.test(o.text) : /^API Error: 529\b|API overload errors \(529\)/.test(o.text)))
   const done = outputs.some(o => o.text.includes(LANE_DONE))
-  const sendMessages = parentToolUses(parentRecords, 'ResumeAgent')
+  const sendMessages = parentToolUses(parentRecords, 'ResumeCrewmate')
   const laneHits = fixture.hits.filter(h => h.lane === 'lane')
   const probeHits = fixture.hits.filter(h => h.lane === 'probe')
   const refused = laneHits.filter(h => h.answer === 'down' || h.answer === 'mid-stream')
@@ -544,7 +544,7 @@ if (cap !== null) {
 
   if (HANDOVER) {
     console.log('\n— §H an inline helper handed to the background by Esc takes the same pause-and-probe road —')
-    const results = parentToolResults(parentRecords, 'Agent')
+    const results = parentToolResults(parentRecords, 'Crewmate')
     const handed = results.some(r => r.includes('Agent launched in the background.') && r.includes('the turn it ran in was interrupted'))
     check(handed ? 'H0 the Esc landed while the helper ran: the launch receipt says the turn was interrupted and the agent handed to the background' : 'H0 [staging] the Esc did not hand the helper over (retune ESC_TICKS: the receipt must say the turn was interrupted)', handed, results.map(r => flat(r).slice(0, 160)).join(' | ').slice(0, 400))
     check("H1 the handed-over helper's first notice is the calm paused line, never the failed line with the resume door", first !== undefined && first.status === 'paused' && !(first.summary ?? '').includes(OLD_DOOR), first === undefined ? '(no notice)' : `[${first.status}] ${flat(first.summary ?? '').slice(0, 200)}`)
@@ -554,7 +554,7 @@ if (cap !== null) {
 
   if (INLINE && !HANDOVER) {
     console.log('\n— §D an inline helper takes the same pause-and-probe road —')
-    const results = parentToolResults(parentRecords, 'Agent')
+    const results = parentToolResults(parentRecords, 'Crewmate')
     check("D1 the helper's tool result leads with the pause — 'paused — provider overloaded', the probing named — never a bare 'Agent execution failed: API Error: 529'", results.length >= 1 && results.some(r => /Agent execution failed: paused — provider overloaded/.test(r) && /Mercury probes it for up to/.test(r)) && !results.some(r => /Agent execution failed: API Error: 529/.test(r)), results.map(r => flat(r).slice(0, 160)).join(' | ').slice(0, 400))
     check('D2 Mercury probed the provider while the helper was paused, and a probe was answered before it resumed', probeHits.length >= 1 && probeHits.some(h => h.answer === 'up'), `${probeHits.length} probes`)
     check(`D3 the helper finished by itself once the provider answered: ${LANE_DONE} in its transcript with no message from the parent`, done && sendMessages === 0, `${LANE_DONE}=${done} SendMessage=${sendMessages}`)
