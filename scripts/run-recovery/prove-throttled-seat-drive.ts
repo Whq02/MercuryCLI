@@ -156,7 +156,7 @@ const receiptOf = (sid: string): string | null => {
     try {
       const out: string[] = []
       toolResultTexts(JSON.parse(line) as unknown, out)
-      const hit = out.find(s => /Agent execution failed|refused|throttled|overload|recovered after busy|slow but alive|paused/i.test(s))
+      const hit = out.find(s => /Crewmate execution failed|refused|throttled|overload|recovered after busy|slow but alive|paused/i.test(s))
       if (hit !== undefined) return hit
     } catch {
     }
