@@ -42,14 +42,14 @@ export async function afterToolHooks(
   tool: Tool,
   toolUseID: string,
   input: AnyObject,
-  ended: { ok: boolean; output?: unknown; error?: string; cut: boolean },
+  ended: { ok: boolean; output?: unknown; error?: string; cut: boolean; wallMs: number },
   toolUseContext: ToolUseContext,
   signal: AbortSignal | undefined,
   announce?: HookAnnounce,
 ): Promise<HookFireResult> {
   const prepared = await prepareHooks(
     'tool.after',
-    { tool: tool.name, input, output: ended.output, call_id: toolUseID, ok: ended.ok, ...(ended.error !== undefined ? { error: ended.error } : {}), cut: ended.cut },
+    { tool: tool.name, input, output: ended.output, call_id: toolUseID, ok: ended.ok, ...(ended.error !== undefined ? { error: ended.error } : {}), cut: ended.cut, wall_ms: Math.max(0, Math.round(ended.wallMs)) },
     { scope: hookScopeOf(toolUseContext), toolUseContext, ...(ended.cut ? { budgetMs: HOOK_CUT_BUDGET_MS } : { signal }) },
   )
   if (prepared.names.length > 0) announce?.(prepared)
