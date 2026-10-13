@@ -1,6 +1,7 @@
 prove-action-honesty.ts
 prove-alt-atomic-swaps.ts
 prove-aurora-roles.ts
+prove-bang-rows.ts
 prove-bash-exit-row-frames.ts
 prove-boot-gate-esc.ts
 prove-caret-blink.ts
@@ -9,6 +10,7 @@ prove-command-domains.ts
 prove-command-palette.ts
 prove-composer-draft-survives-dispatch.ts
 prove-composer-persist-roads.ts
+prove-paste-keeps-tabs.ts
 prove-lanes-rows-painted.ts
 prove-trace-readers-session-own.ts
 prove-frame-thinking-pulse.ts
