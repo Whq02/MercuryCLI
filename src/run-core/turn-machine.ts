@@ -167,7 +167,8 @@ import { streamEndReceiptLine } from '../services/providers/streamIdleBudget.js'
 import { interruptedToolsLine, turnCutOf, turnCutResultText } from '../utils/messages/rejectionText.js'
 import { ownerFromToolUseContext, rosterOwnerFromToolUseContext } from '../services/run/resolveOwner.js'
 import { createCacheSafeParams, recordSentRequest } from '../utils/forkedAgent.js'
-import { askForHandoff, handoffAskDue, handoffNotice } from '../mneme/handoffAsk.js'
+import { askForHandoff, assistantText, handoffAskDue, handoffNotice } from '../mneme/handoffAsk.js'
+import { finishMemorySignal, memorySignalScope } from '../mneme/mnemeSignal.js'
 import { emptyReplyKindOf, emptyReplyNoticeLine } from '../services/providers/emptyReply.js'
 import { buildQueryConfig, type QueryConfig } from '../query/config.js'
 import { productionDeps, type QueryDeps } from '../query/deps.js'
@@ -826,6 +827,13 @@ async function* streamModel(
 
 
 export async function* runEventCore(
+  params: QueryParams,
+  consumedCommandUuids: string[],
+): AsyncGenerator<RunEvent, Terminal> {
+  return yield* memorySignalScope(runEventMachine(params, consumedCommandUuids))
+}
+
+async function* runEventMachine(
   params: QueryParams,
   consumedCommandUuids: string[],
 ): AsyncGenerator<RunEvent, Terminal> {
@@ -1773,6 +1781,7 @@ export async function* runEventCore(
         }
       }
 
+      await finishMemorySignal(assistantText(assistantMessages))
       if (handoffAskDue({ agentId: toolUseContext.agentId, querySource })) {
         let closeUsage: import('../services/api/emptyUsage.js').NonNullableUsage | undefined
         const note = await askForHandoff({

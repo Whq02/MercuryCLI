@@ -15,6 +15,7 @@ import { listArchiveDocs, listTopicDocs } from './mnemeLibrary.js'
 import { escapeRegExp, lookupTokens } from './mnemeLookup.js'
 import { ARCHIVE_PREFIX, isArchiveDoc, type MnemeEntry } from './mnemeTopicDocs.js'
 import { readPins } from './mnemeUsage.js'
+import { noteMemoryOffered } from './mnemeSignal.js'
 import type { LedgerEntry } from './types.js'
 
 export type PointerKind = 'fact' | 'ruling' | 'handoff' | 'session'
@@ -184,7 +185,9 @@ export function searchPointers(
     seen.add(pointer.id)
     pointers.push(pointer)
   }
-  return { pointers: pointers.slice(0, limit), elidable: pointers.length === 0, catalog: recall.catalog }
+  const offered = pointers.slice(0, limit)
+  noteMemoryOffered(query, offered, dir)
+  return { pointers: offered, elidable: pointers.length === 0, catalog: recall.catalog }
 }
 
 export function renderPointerLine(p: MemoryPointer): string {
