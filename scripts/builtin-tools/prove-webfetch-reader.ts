@@ -61,6 +61,9 @@ try {
   const ac = new AbortController(); ac.abort()
   await assert.rejects(() => pace.run(3000, ac.signal, async () => { throw new Error('request must not run') }), /aborted|abort/i)
   check('an aborted queued request is not sent', true)
+  const description = await WebFetchTool.prompt({} as never)
+  check('the tool describes direct egress, hosted rendering and its off switch', description.includes("leave the user's machine") && description.includes('hosted reader r.jina.ai') && description.includes('MERCURY_FETCH_READER=0'))
+  check('the tool distinguishes page text from readings and names continuation', description.includes('Omit prompt') && description.includes('labelled reading') && description.includes('38,000') && description.includes('from offset'))
 } finally {
   if (priorFlag === undefined) delete process.env.MERCURY_FETCH_READER
   else process.env.MERCURY_FETCH_READER = priorFlag
