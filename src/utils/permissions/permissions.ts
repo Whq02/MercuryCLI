@@ -1,67 +1,79 @@
-import { logForDebugging } from '../debug.js'
 import type { Tool, ToolPermissionContext, ToolUseContext } from '../../Tool.js'
 import type { AssistantMessage } from '../../types/message.js'
 import type {
-  PermissionAskDecision,
-  PermissionBehavior,
-  PermissionDecision,
-  PermissionDenyDecision,
-  PermissionRule,
-  PermissionRuleSource,
-  PermissionUpdate,
+  PermissionAskDecision, PermissionDenyDecision, PermissionDecision,
+  PermissionRule, PermissionRuleSource, PermissionUpdate,
 } from '../../types/permissions.js'
+import { logForDebugging } from '../debug.js'
+import { applyPermissionUpdate, applyPermissionUpdates } from './PermissionUpdate.js'
 import { decideRuleBasedPermissions } from './decision/engine.js'
 import { decideToolPermissionWithModes } from './decision/wrapper.js'
 import {
-  deletePermissionRuleFromSettings,
-  shouldAllowManagedPermissionRulesOnly,
+  deletePermissionRuleFromSettings, shouldAllowManagedPermissionRulesOnly,
   type PermissionRuleFromEditableSettings,
 } from './permissionsLoader.js'
-import { applyPermissionUpdate, applyPermissionUpdates } from './PermissionUpdate.js'
 
-export { guardHookUpdatedInput } from './decision/wrapper.js'
-export { createPermissionRequestMessage } from './decision/requestMessage.js'
-export { addPermissionRulesToSettings } from './permissionsLoader.js'
-export {
-  filterDeniedAgents,
-  getAllowRules,
-  getAskRuleForTool,
-  getAskRules,
-  getDenyRuleForAgent,
-  getDenyRuleForTool,
-  getDenyRules,
-  getRuleByContentsForTool,
-  getRuleByContentsForToolName,
-  permissionRuleSourceDisplayString,
-  toolAlwaysAllowedRule,
-} from './decision/rules.js'
+const diskRuleSources = ['userSettings', 'projectSettings', 'localSettings'] as const
+const deletionPolicy: Partial<Record<PermissionRuleSource, 'disk' | 'locked'>> = {
+  userSettings: 'disk',
+  projectSettings: 'disk',
+  localSettings: 'disk',
+  policySettings: 'locked',
+  flagSettings: 'locked',
+  command: 'locked',
+}
 
-const BEHAVIORS: readonly PermissionBehavior[] = ['allow', 'deny', 'ask']
-const DISK_SOURCES: readonly PermissionRuleSource[] = ['userSettings', 'projectSettings', 'localSettings']
-const SESSION_SOURCES: readonly PermissionRuleSource[] = [...DISK_SOURCES, 'cliArg', 'session']
-const READ_ONLY_SOURCES: ReadonlySet<PermissionRuleSource> = new Set(['policySettings', 'flagSettings', 'command'])
+type RuleChange = Extract<PermissionUpdate, { rules: unknown }>
 
-type RuleListUpdate = Extract<PermissionUpdate, { rules: unknown }>
+function collectRuleChanges(rules: PermissionRule[], type: RuleChange['type']): PermissionUpdate[] {
+  const batches = Map.groupBy(rules, rule => `${rule.source}:${rule.ruleBehavior}`)
+  return Array.from(batches.values(), group => ({
+    type,
+    rules: group.map(rule => rule.ruleValue),
+    behavior: group[0]!.ruleBehavior,
+    destination: group[0]!.source,
+  } as PermissionUpdate))
+}
 
-const ruleListUpdate = (
-  type: RuleListUpdate['type'],
-  source: PermissionRuleSource,
-  behavior: PermissionBehavior,
-  rules: PermissionRule['ruleValue'][],
-): PermissionUpdate => ({ type, rules, behavior, destination: source }) as never
-
-const clearingOf = (sources: readonly PermissionRuleSource[]): PermissionUpdate[] =>
-  sources.flatMap(source => BEHAVIORS.map(behavior => ruleListUpdate('replaceRules', source, behavior, [])))
-
-function groupedBySourceAndBehavior(rules: PermissionRule[], type: RuleListUpdate['type']): PermissionUpdate[] {
-  const groups = new Map<string, RuleListUpdate>()
-  for (const rule of rules) {
-    const key = `${rule.source}:${rule.ruleBehavior}`
-    const group = groups.get(key) ?? (ruleListUpdate(type, rule.source, rule.ruleBehavior, []) as RuleListUpdate)
-    group.rules.push(rule.ruleValue)
-    groups.set(key, group)
+function* emptyRuleSources(sources: readonly PermissionRuleSource[]): Generator<PermissionUpdate> {
+  for (const destination of sources) {
+    for (const behavior of ['allow', 'deny', 'ask'] as const) {
+      yield { type: 'replaceRules', rules: [], behavior, destination } as PermissionUpdate
+    }
   }
-  return [...groups.values()]
+}
+
+export function applyPermissionRulesToPermissionContext(context: ToolPermissionContext, rules: PermissionRule[]): ToolPermissionContext {
+  const changes = collectRuleChanges(rules, 'addRules')
+  return applyPermissionUpdates(context, changes)
+}
+
+export function syncPermissionRulesFromDisk(context: ToolPermissionContext, rules: PermissionRule[]): ToolPermissionContext {
+  const resets = shouldAllowManagedPermissionRulesOnly()
+    ? [...diskRuleSources, 'cliArg', 'session', ...diskRuleSources] as const
+    : diskRuleSources
+  const changes = [...emptyRuleSources(resets), ...collectRuleChanges(rules, 'replaceRules')]
+  return applyPermissionUpdates(context, changes)
+}
+
+export async function deletePermissionRule({ rule, initialContext, setToolPermissionContext }: {
+  rule: PermissionRule
+  initialContext: ToolPermissionContext
+  setToolPermissionContext: (context: ToolPermissionContext) => void
+}): Promise<void> {
+  const policy = deletionPolicy[rule.source]
+  if (policy === 'locked') throw new Error('Rules from read-only settings cannot be deleted.')
+  const context = applyPermissionUpdate(initialContext, {
+    type: 'removeRules', rules: [rule.ruleValue], behavior: rule.ruleBehavior, destination: rule.source,
+  } as PermissionUpdate)
+  if (policy === 'disk') deletePermissionRuleFromSettings(rule as PermissionRuleFromEditableSettings)
+  setToolPermissionContext(context)
+}
+
+function reportedDecision(tool: Tool, result: Awaited<ReturnType<typeof decideToolPermissionWithModes>>): PermissionDecision {
+  const trace = { engine: result.engineTrace, wrapper: result.wrapper }
+  logForDebugging(`permission decision for ${tool.name}: ${result.decision.behavior} — ${JSON.stringify(trace)}`)
+  return result.decision
 }
 
 export async function hasPermissionsToUseTool(
@@ -71,9 +83,8 @@ export async function hasPermissionsToUseTool(
   assistantMessage: AssistantMessage,
   toolUseID: string,
 ): Promise<PermissionDecision> {
-  const { decision, engineTrace, wrapper } = await decideToolPermissionWithModes(tool, input, context, assistantMessage, toolUseID)
-  logForDebugging(`permission decision for ${tool.name}: ${decision.behavior} — ${JSON.stringify({ engine: engineTrace, wrapper })}`)
-  return decision
+  const result = await decideToolPermissionWithModes(tool, input, context, assistantMessage, toolUseID)
+  return reportedDecision(tool, result)
 }
 
 export async function checkRuleBasedPermissions(
@@ -81,30 +92,16 @@ export async function checkRuleBasedPermissions(
   input: Record<string, unknown>,
   context: ToolUseContext,
 ): Promise<PermissionAskDecision | PermissionDenyDecision | null> {
-  return (await decideRuleBasedPermissions(tool, input, context)).decision
+  const result = await decideRuleBasedPermissions(tool, input, context)
+  return result.decision
 }
 
-export async function deletePermissionRule({
-  rule,
-  initialContext,
-  setToolPermissionContext,
-}: {
-  rule: PermissionRule
-  initialContext: ToolPermissionContext
-  setToolPermissionContext: (context: ToolPermissionContext) => void
-}): Promise<void> {
-  if (READ_ONLY_SOURCES.has(rule.source)) throw new Error('Rules from read-only settings cannot be deleted.')
-  const removal = ruleListUpdate('removeRules', rule.source, rule.ruleBehavior, [rule.ruleValue])
-  const updated = applyPermissionUpdate(initialContext, removal)
-  if (DISK_SOURCES.includes(rule.source)) deletePermissionRuleFromSettings(rule as PermissionRuleFromEditableSettings)
-  setToolPermissionContext(updated)
-}
-
-export function applyPermissionRulesToPermissionContext(context: ToolPermissionContext, rules: PermissionRule[]): ToolPermissionContext {
-  return applyPermissionUpdates(context, groupedBySourceAndBehavior(rules, 'addRules'))
-}
-
-export function syncPermissionRulesFromDisk(context: ToolPermissionContext, rules: PermissionRule[]): ToolPermissionContext {
-  const cleared = [...(shouldAllowManagedPermissionRulesOnly() ? clearingOf(SESSION_SOURCES) : []), ...clearingOf(DISK_SOURCES)]
-  return applyPermissionUpdates(context, [...cleared, ...groupedBySourceAndBehavior(rules, 'replaceRules')])
-}
+export { addPermissionRulesToSettings } from './permissionsLoader.js'
+export { createPermissionRequestMessage } from './decision/requestMessage.js'
+export { guardHookUpdatedInput } from './decision/wrapper.js'
+export {
+  getAllowRules, getAskRules, getDenyRules,
+  getAskRuleForTool, getDenyRuleForTool, toolAlwaysAllowedRule,
+  filterDeniedAgents, getDenyRuleForAgent,
+  getRuleByContentsForTool, getRuleByContentsForToolName, permissionRuleSourceDisplayString,
+} from './decision/rules.js'

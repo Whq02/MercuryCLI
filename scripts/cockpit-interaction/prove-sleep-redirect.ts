@@ -47,8 +47,11 @@ async function runSleep(
 t.section('§1 — what counts as harness-tracked, TOTAL over the TaskType union')
 {
   const taskSrc = readFileSync('src/Task.ts', 'utf8')
-  const unionMatch = taskSrc.match(/export type TaskType =\n((?:\s*\|\s*'[a-z_]+'\n)+)/)
-  const union = [...(unionMatch?.[1] ?? '').matchAll(/'([a-z_]+)'/g)].map(m => m[1]!)
+  const literalUnion = taskSrc.match(/export type TaskType =\n((?:\s*\|\s*'[a-z_]+'\n)+)/)
+  const kindTable = taskSrc.match(/const taskKinds = \[([\s\S]*?)\] as const/)
+  const union = literalUnion
+    ? [...literalUnion[1]!.matchAll(/'([a-z_]+)'/g)].map(m => m[1]!)
+    : [...kindTable?.[1]!.matchAll(/\['([a-z_]+)', '[a-z]'\]/g) ?? []].map(m => m[1]!)
   t.check('the TaskType union was read from src/Task.ts', union.length >= 5, union.join(','))
   t.check(
     'every union member is TRACKED or a DOCUMENTED exclusion — no silent misses',
