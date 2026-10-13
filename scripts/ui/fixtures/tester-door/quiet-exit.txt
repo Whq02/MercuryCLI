@@ -1,0 +1,2 @@
+Session saved. Reopen it any time with /sessions.
+Something broke? https://mercury-cli.ai/report

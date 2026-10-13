@@ -1,0 +1,37 @@
+name: Tester report
+description: A short report of what you tried and what broke.
+title: "[tester] "
+labels: ["bug"]
+body:
+  - type: dropdown
+    id: os
+    attributes:
+      label: Your OS
+      description: Choose your operating system; you can add its version below.
+      options:
+        - macOS
+        - Windows
+        - Linux
+    validations:
+      required: true
+  - type: textarea
+    id: tried
+    attributes:
+      label: What you tried
+      description: The task or command, in your own words. Add your OS version here if you know it.
+    validations:
+      required: true
+  - type: textarea
+    id: broke
+    attributes:
+      label: What broke
+      description: What happened instead, including any error text. Do not paste credentials or private files.
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Optional, the line printed by `mercury --version`.
+    validations:
+      required: false

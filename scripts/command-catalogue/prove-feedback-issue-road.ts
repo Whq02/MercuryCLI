@@ -91,7 +91,8 @@ for (const kind of forms.ISSUE_KINDS) {
   if (blank) {
     check(`${kind}: a blank section reads ${forms.NOT_STATED}`, body.includes(`${forms.SECTION_HEADING}${blank.label}\n${forms.NOT_STATED}`))
   }
-  check(`${kind}: the recent errors ride collapsed`, body.includes('<details>') && body.includes('Recent errors (redacted)') && body.includes('Error: seeded'))
+  if (kind === 'tester') check('tester: no recent errors ride the short report', !body.includes('<details>') && !body.includes('Error: seeded'))
+  else check(`${kind}: the recent errors ride collapsed`, body.includes('<details>') && body.includes('Recent errors (redacted)') && body.includes('Error: seeded'))
   check(`${kind}: no transcript rides the body`, !body.includes('raw_transcript') && !body.includes('subagent_transcripts') && body.includes('was not sent'))
 }
 {

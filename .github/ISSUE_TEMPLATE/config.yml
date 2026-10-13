@@ -1,5 +1,8 @@
 blank_issues_enabled: false
 contact_links:
+  - name: Tester report
+    url: https://github.com/Whq02/MercuryCLI/issues/new?template=tester_report.yml
+    about: Your OS, what you tried, and what broke. No health dump needed.
   - name: Documentation index
     url: https://github.com/Whq02/MercuryCLI/blob/main/docs/README.md
     about: The guides, by task, and the reference pages.
