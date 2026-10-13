@@ -1,5 +1,5 @@
 import type { Tools } from '../../Tool.js'
-import type { ContentBlock, ContentBlockParam } from '../../types/wire.js'
+import type { ContentBlockParam } from '../../types/wire.js'
 import type {
   AssistantMessage,
   AttachmentMessage,
@@ -203,6 +203,21 @@ export function stripImagesRefusedByStamp<M extends Message>(rows: M[]): M[] {
   })
 }
 
+function refusedTurnIdsOf(rows: Message[]): Set<string> {
+  const refused = new Set<string>()
+  for (const row of rows) {
+    if (row.type !== 'assistant' || isSyntheticApiErrorMessage(row)) continue
+    if (row.message.stop_reason === 'refusal') refused.add(row.message.id)
+  }
+  if (refused.size === 0) return refused
+  for (const row of rows) {
+    if (row.type !== 'assistant' || !refused.has(row.message.id)) continue
+    const content = row.message.content
+    if (Array.isArray(content) && content.some(block => block.type === 'tool_use')) refused.delete(row.message.id)
+  }
+  return refused
+}
+
 export function planApiConversation(
   messages: Message[],
   tools: Tools = [],
@@ -211,6 +226,7 @@ export function planApiConversation(
 
   const reorderedMessages = modelRelevantOrder(messages)
   const stripTargets = stripTargetsOf(reorderedMessages)
+  const refusedTurns = refusedTurnIdsOf(reorderedMessages)
 
   const selected = foldBatchedRows(
     withoutOrphanCaveats(
@@ -219,6 +235,7 @@ export function planApiConversation(
           return []
         }
         if (isSyntheticApiErrorMessage(m)) return []
+        if (m.type === 'assistant' && refusedTurns.has(m.message.id)) return []
         return [m as PlannedMessage]
       }),
     ),
