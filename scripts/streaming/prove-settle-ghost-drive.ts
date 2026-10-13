@@ -112,6 +112,7 @@ async function driveScene(route: 'openai' | 'anthropic', arm: 'plain' | 'note'):
 
   const childEnv: NodeJS.ProcessEnv = {
     ...process.env,
+    FORCE_COLOR: '3',
     MERCURY_CONFIG_DIR: RUN_HOME,
     ANTHROPIC_API_KEY: PROBE_KEY,
     ANTHROPIC_BASE_URL: base,
