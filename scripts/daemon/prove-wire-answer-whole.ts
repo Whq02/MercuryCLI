@@ -202,9 +202,9 @@ console.log('B the owners spell the law')
 {
   const serverSrc = read('src/daemon/controlServer.ts')
   const protocolSrc = read('src/daemon/protocol.ts')
-  check('the key lists exist, one per relayed result', ['ADMIT_WIRE_KEYS', 'DISPATCH_WIRE_KEYS', 'DISPATCH_REFUSAL_WIRE_KEYS', 'CONTROL_WIRE_KEYS', 'WARM_WIRE_KEYS', 'RELEASE_WIRE_KEYS', 'RECONFIGURE_WIRE_KEYS', 'WORKER_DISPATCH_WIRE_KEYS'].every(k => serverSrc.includes(`const ${k} = [`)))
+  check('the key lists exist, one per relayed result', ['ADMIT_WIRE_KEYS', 'ADMIT_REFUSAL_WIRE_KEYS', 'DISPATCH_WIRE_KEYS', 'DISPATCH_REFUSAL_WIRE_KEYS', 'CONTROL_WIRE_KEYS', 'WARM_WIRE_KEYS', 'RELEASE_WIRE_KEYS', 'RECONFIGURE_WIRE_KEYS', 'WORKER_DISPATCH_WIRE_KEYS'].every(k => serverSrc.includes(`const ${k} = [`)))
   check('every key list satisfies the result it picks from (a typo is a red line)', (serverSrc.match(/\] as const satisfies readonly \(keyof \w+\)\[\]/g) ?? []).length >= 8)
-  check('a Whole law stands for every relayed result (a forgotten key names itself at typecheck)', (serverSrc.match(/const \w+Whole: Whole</g) ?? []).length === 7)
+  check('a Whole law stands for every relayed result, the admit refusal included (a forgotten key names itself at typecheck)', (serverSrc.match(/const \w+Whole: Whole</g) ?? []).length === 8)
   const relayed = [
     "...pickDefined(r, ADMIT_WIRE_KEYS)",
     "...pickDefined(r, DISPATCH_WIRE_KEYS)",
