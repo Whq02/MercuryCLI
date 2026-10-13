@@ -204,7 +204,7 @@ try {
     const alphaFrames = boardFrames.filter(g => selTitle(g) === 'alpha')
     const alphaChip = alphaFrames.filter(g => isChip(chipUnderSel(g)))
     check('C1 the selected row A carries the chip line under it', alphaChip.length > 0, `alpha frames: ${alphaFrames.map(g => `${g.atMs}:${chipUnderSel(g).trim().slice(0, 40)}`).join(' | ') || 'none'}`)
-    check('C1 …naming BOTH kinds from the same facts (multi-work)', alphaChip.some(g => /1 workflow · 1 agent running/.test(chipUnderSel(g))), alphaChip.map(g => chipUnderSel(g).trim()).join(' | '))
+    check('C1 …naming BOTH kinds from the same facts (multi-work)', alphaChip.some(g => /1 workflow · 1 crewmate running/.test(chipUnderSel(g))), alphaChip.map(g => chipUnderSel(g).trim()).join(' | '))
     const betaFrames = boardFrames.filter(g => selTitle(g) === 'beta')
     check('C2 selecting B (zero work) paints NO chip line', betaFrames.length > 0 && betaFrames.every(g => !isChip(chipUnderSel(g))), `beta frames: ${betaFrames.map(g => `${g.atMs}:${chipUnderSel(g).trim().slice(0, 40)}`).join(' | ') || 'none'}`)
     check('C3 B\'s own row never carries A\'s work', boardFrames.every(g => !(g.rows.find(r => r.includes('Beta idle')) ?? '').includes('workflow')))

@@ -473,7 +473,7 @@ try {
         after(10, 'crew-done'),
         after(12, 'crew-done+'),
         ask('hdr: launch2'),
-        { data: '', awaitText: 'waiting on 2 agents', requireAwait: true, minTick: 2, awaitSettleTicks: 5, mark: 'waiting' },
+        { data: '', awaitText: 'waiting on 2 crewmates', requireAwait: true, minTick: 2, awaitSettleTicks: 5, mark: 'waiting' },
         after(2, 'esc2', '\x1b'),
         after(14, 'after-esc-2'),
         after(12, 'after-esc-2+'),
@@ -559,9 +559,9 @@ if (cap !== null) {
   check('H2 after the last stop the crew clock is gone from the row (both frames)', crewClock(m['crew-done']) === '' && crewClock(m['crew-done+']) === '', `${crewClock(m['crew-done'])} → ${crewClock(m['crew-done+'])}`)
   check('H3 after the last stop the row reads "ready" — no settled clock, no phase word', /\bready\b/.test(doneRow) && !CREW_CLOCK.test(doneRow) && !PHASE_WORDS.test(doneRow), flat(doneRow))
 
-  console.log('\n— waiting on agents —')
+  console.log('\n— waiting on crewmates —')
   const waitingRow = statusRow(m['waiting'])
-  check('the wait words stand ("waiting on 2 agents")', /waiting on 2 agents/.test(waitingRow), flat(waitingRow))
+  check('the wait words stand ("waiting on 2 crewmates")', /waiting on 2 crewmates/.test(waitingRow), flat(waitingRow))
   check('the wait words carry no phase word', !PHASE_WORDS.test(waitingRow), flat(waitingRow))
   const esc2Row = statusRow(m['after-esc-2'])
   check('H3 after esc the bottom row carries the crew\'s clock', CREW_CLOCK.test(esc2Row), flat(esc2Row))

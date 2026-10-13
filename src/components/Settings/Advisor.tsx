@@ -60,7 +60,7 @@ export function advisorConfigItems(args: {
       searchText: ADVISOR_SEARCH,
       kind: 'boolean',
       value: <Text color={settings.enabled ? tokens.success : tokens.textSecondary}>{advisorValueWords(settings)}</Text>,
-      warning: `the settings for every chat: a second model reads a chat ${advisorIntervalWords(settings.minutes)} and writes the agent one note, addressed to the agent, never to you · each chat turns its own advisor on with /advise (a new chat starts off); off here stops every chat at once · never crewmates or workflow agents · ${modelWords} · off by default`,
+      warning: `the settings for every chat: a second model reads a chat ${advisorIntervalWords(settings.minutes)} and writes the agent one note, addressed to the agent, never to you · each chat turns its own advisor on with /advise (a new chat starts off); off here stops every chat at once · never crewmates or workflow crewmates · ${modelWords} · off by default`,
       setByYou: settings.enabled,
       change: () => {
         const next = !settings.enabled

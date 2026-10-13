@@ -198,7 +198,7 @@ const GENERAL_TIPS: Tip[] = [
     id: 'workflows-board',
     cooldownSessions: 20,
     async content() {
-      return 'Workflows are scripted multi-step agent runs — /workflows boards the active and the past.'
+      return 'Workflows are scripted multi-step crewmate runs — /workflows boards the active and the past.'
     },
     async isRelevant() {
       return !chatOnlyBoot()

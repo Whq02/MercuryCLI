@@ -511,7 +511,7 @@ export function delegationDispatchBlocker(
       : ' No other lane is usable right now — sign in again first.'
   return (
     `the ${route} lane cannot take delegated work right now (${why}). ` +
-    `Delegated agents are never silently rerouted across providers.` +
+    `Delegated crewmates are never silently rerouted across providers.` +
     alternatives
   )
 }

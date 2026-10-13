@@ -170,8 +170,8 @@ console.log('\n=== item 4: one Inspect of mercury://workflow/<runId> (runs live 
   if (run.state === 'ok') {
     const text = run.resource.text ?? ''
     check('…status + liveness present', /status: running \(live\)/.test(text), text.split('\n')[0])
-    check('…PHASES present with per-phase agent state', text.includes('phases (2):') && /Scan — 1 agent\(s\): 1 done/.test(text), text)
-    check('…second phase shows its progress agent', /Verify — 1 agent\(s\): 1 progress/.test(text))
+    check('…PHASES present with per-phase agent state', text.includes('phases (2):') && /Scan — 1 crewmate\(s\): 1 done/.test(text), text)
+    check('…second phase shows its progress agent', /Verify — 1 crewmate\(s\): 1 progress/.test(text))
     check('…agents listed with state + phase', /a2 — progress · verify:left · phase Verify/.test(text))
     const s = run.resource.structured as { liveness?: string; phases?: unknown[]; agentStates?: Record<string, string> }
     check('…structured carries liveness/phases/agentStates', s.liveness === 'live' && Array.isArray(s.phases) && s.agentStates?.a2 === 'progress')

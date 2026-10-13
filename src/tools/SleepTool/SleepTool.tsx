@@ -30,12 +30,12 @@ export const TRACKED_AGENT_TASK_TYPES: ReadonlySet<string> = new Set([
 ])
 
 export const UNTRACKED_TASK_TYPES: ReadonlyMap<string, string> = new Map([
-  ['local_bash', 'the follow-up scopes the redirect to SUBAGENT work; shell waits are a different contract'],
+  ['local_bash', 'the follow-up scopes the redirect to CREWMATE work; shell waits are a different contract'],
   ['monitor_mcp', 'gated off by the MONITOR_TOOL feature macro in Mercury — no producer'],
 ])
 
 export const SUBAGENT_TRACKED_TASK_TYPES: ReadonlyMap<string, string> = new Map([
-  ['local_bash', "a sub-agent's wait ends when the background shells it launched settle; a shell task carries the spawning agent's id, so only the sub-agent's own shells count"],
+  ['local_bash', "a crewmate's wait ends when the background shells it launched settle; a shell task carries the spawning crewmate's id, so only the crewmate's own shells count"],
 ])
 
 export const TERMINAL_TASK_STATUSES: ReadonlySet<string> = new Set([
@@ -205,7 +205,7 @@ export const SleepTool = buildTool({
             : `Sleep interrupted after ${sleptSeconds}s`
           : settledEarly
             ? `Returned after ${sleptSeconds}s — the tracked work you were waiting on finished. ` +
-              'Mercury tracks agent tasks for you; their completion arrives on its own, so a wait ' +
+              'Mercury tracks crewmate tasks for you; their completion arrives on its own, so a wait ' +
               'never needs to run its full duration to poll one.'
             : `Slept for ${sleptSeconds}s`,
         slept_seconds: sleptSeconds,

@@ -43,11 +43,11 @@ export const ResumeAgentTool = buildTool({
     if (resolvedSelf !== null) return { data: { success: false, message: resolvedSelf } }
     if (address.task?.status === 'running') {
       queuePendingMessage(address.agentId, messageNoticeFor(address.agentId, input.message, context), context.setAppStateForTasks ?? context.setAppState)
-      return { data: { success: true, message: `Agent ${address.who} is still running, so nothing was resumed: the message was delivered and it reads it at its next tool boundary.` } }
+      return { data: { success: true, message: `Crewmate ${address.who} is still running, so nothing was resumed: the message was delivered and it reads it at its next tool boundary.` } }
     }
     const workflow = await messageWorkflowWorker(address, input.message)
     if (workflow !== undefined) return { data: workflow }
-    if (address.task === undefined && address.transcriptPath === null) return { data: { success: false, message: `Cannot resume ${address.who}: no running task by that id in this session and no transcript on disk to resume from — the agent may belong to another process, or its record was cleaned up. Launch a new crewmate with Crewmate if the work is still wanted.` } }
+    if (address.task === undefined && address.transcriptPath === null) return { data: { success: false, message: `Cannot resume ${address.who}: no running task by that id in this session and no transcript on disk to resume from — the crewmate may belong to another process, or its record was cleaned up. Launch a new crewmate with Crewmate if the work is still wanted.` } }
     const ended = await endedWords(address)
     try {
       const notice = messageNoticeFor(address.agentId, input.message, context)
@@ -58,12 +58,12 @@ export const ResumeAgentTool = buildTool({
       const completion = senderAgentTask(context) === undefined
         ? ', and its completion notice will come to you.'
         : '. Its completion notice goes to the main agent, not to you.'
-      return { data: { success: true, message: `Agent ${address.who} had ${ended}; it was resumed in the background with your message${completion} Output file: ${resumed.outputFile}${resumed.note ?? ''}` } }
+      return { data: { success: true, message: `Crewmate ${address.who} had ${ended}; it was resumed in the background with your message${completion} Output file: ${resumed.outputFile}${resumed.note ?? ''}` } }
     } catch (error) {
       const words = errorMessage(error)
       const owner = liveAgentOwner(address.agentId, context.getAppState().tasks)
       const next = owner?.words === words ? '' : ' Launch a new crewmate with Crewmate if the work is still wanted.'
-      return { data: { success: false, message: `Agent ${address.who} had ${ended} and could not be resumed: ${words}${next}` } }
+      return { data: { success: false, message: `Crewmate ${address.who} had ${ended} and could not be resumed: ${words}${next}` } }
     }
   },
   mapToolResultToToolResultBlockParam: mapMessageResult,

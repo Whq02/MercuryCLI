@@ -830,7 +830,7 @@ async function daemonRun(args: string[]): Promise<void> {
                 ? { outcome: 'noop' as const, detail: out.reason }
                 : out.acknowledged
                   ? { outcome: 'applied' as const, detail: `stopped ${out.runnerId}` }
-                  : { outcome: 'applied' as const, detail: `stop sent — ${out.runnerId} ends its turn and its agents; the row reads stopped once it is gone` }
+                  : { outcome: 'applied' as const, detail: `stop sent — ${out.runnerId} ends its turn and its crewmates; the row reads stopped once it is gone` }
           }
           if (action === 'attach') {
             const out = attachYieldConcourseSession(sessionId, by, roster ?? undefined)

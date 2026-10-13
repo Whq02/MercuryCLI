@@ -416,7 +416,7 @@ if (cap !== null) {
   console.log('\n— W4 the board and the run view —')
   const boardRow = rowsWith(m['board'], WF_NAME)
   check('W4 the board lists the run under Active', rowsWith(m['board'], 'Active').length > 0 && boardRow.length > 0, boardRow.map(flat).join(' | ').slice(0, 300))
-  check('W4 the board\'s header rollup counts the run and its agents (1 running · 0/2 agents)', rowsWith(m['board'], /1 running · 0\/2 agents/).length > 0, rowsWith(m['board'], /running/).map(flat).join(' | ').slice(0, 300))
+  check('W4 the board\'s header rollup counts the run and its agents (1 running · 0/2 crewmates)', rowsWith(m['board'], /1 running · 0\/2 crewmates/).length > 0, rowsWith(m['board'], /running/).map(flat).join(' | ').slice(0, 300))
   const laneWords = /running|queued|starting|Read|thinking|request sent|first byte|reasoning|streaming/
   const runOne = rowsWith(m['run'], `${SEAT_MARK}one`)
   const runTwo = rowsWith(m['run'], `${SEAT_MARK}two`)
@@ -428,7 +428,7 @@ if (cap !== null) {
     const words = panel.map(flat).filter(Boolean).join(' | ')
     check(`W1 [${label}] the panel does not read idle while the run lives`, panel.length > 0 && !panel.some(r => /\bidle\b/.test(r)), words.slice(0, 300))
     check(`W1 [${label}] the panel names the run`, panel.some(r => r.includes(WF_NAME)), words.slice(0, 300))
-    check(`W1 [${label}] the panel carries the agent fraction and the phase (0/2 agents · ${PHASE})`, panel.some(r => /0\/2 agents/.test(r)) && panel.some(r => r.includes(PHASE)), words.slice(0, 300))
+    check(`W1 [${label}] the panel carries the agent fraction and the phase (0/2 crewmates · ${PHASE})`, panel.some(r => /0\/2 crewmates/.test(r)) && panel.some(r => r.includes(PHASE)), words.slice(0, 300))
     check(`W1 [${label}] the panel's count agrees with the board (1 run)`, panelCount(m[label], 'WORKFLOW') === 1, `count ${panelCount(m[label], 'WORKFLOW')}`)
   }
 
@@ -457,7 +457,7 @@ if (cap !== null) {
     const early = pick.frame
     const header = rowsWith(early, /⦿ running|◆ 0\/1/)
     check(`W8 the run view was photographed past three seconds of the run's clock (frames at ${candidates.map(c => `${c.clock}s`).join(', ')}; judged ${pick.label} at ${pick.clock}s)`, pick.clock >= 3 && header.length > 0, flat(early).slice(0, 200))
-    check('W8 run.json already carried both agents (the header counts 2 agents)', header.some(r => /2 agents/.test(r)) && !header.some(r => /\b0 agents\b/.test(r)), header.map(flat).join(' | ').slice(0, 300))
+    check('W8 run.json already carried both agents (the header counts 2 crewmates)', header.some(r => /2 crewmates/.test(r)) && !header.some(r => /\b0 agents\b/.test(r)), header.map(flat).join(' | ').slice(0, 300))
     check('W8 …and both lanes are on the run view', rowsWith(early, `${SEAT_MARK}one`).length > 0 && rowsWith(early, `${SEAT_MARK}two`).length > 0, rowsWith(early, SEAT_MARK).map(flat).join(' | ').slice(0, 300))
   }
 
@@ -478,13 +478,13 @@ if (cap !== null) {
   console.log('\n— W6 the wait words —')
   for (const label of ['cockpit-busy', 'cockpit-again'] as const) {
     const waits = rowsWith(m[label], /waiting on/)
-    check(`W6 [${label}] the strip says the turn waits on 1 workflow — never on "1 agent"`, waits.length > 0 && waits.every(r => r.includes('waiting on 1 workflow')) && !waits.some(r => /waiting on 1 agent/.test(r)), waits.map(flat).join(' | ').slice(0, 300))
+    check(`W6 [${label}] the strip says the turn waits on 1 workflow — never on "1 crewmate"`, waits.length > 0 && waits.every(r => r.includes('waiting on 1 workflow')) && !waits.some(r => /waiting on 1 crewmate/.test(r)), waits.map(flat).join(' | ').slice(0, 300))
   }
 
   console.log('\n— W5 the settle —')
   const settledPanel = panelRows(m['settled'], 'WORKFLOW', 'HEALTH')
   check('W5 once the run settled the panel reads idle', settledPanel.some(r => /\bidle\b/.test(r)) && !settledPanel.some(r => r.includes(WF_NAME)), settledPanel.map(flat).filter(Boolean).join(' | ').slice(0, 200))
-  check('W5 the launch line reads Completed with the agent count', rowsWith(m['settled'], /Completed/).some(r => /2 agents/.test(r)), rowsWith(m['settled'], /Completed|Running/).map(flat).join(' | ').slice(0, 300))
+  check('W5 the launch line reads Completed with the agent count', rowsWith(m['settled'], /Completed/).some(r => /2 crewmates/.test(r)), rowsWith(m['settled'], /Completed|Running/).map(flat).join(' | ').slice(0, 300))
   check('W5 the board counts the settled run under Recent and none under Active', rowsWith(m['board-settled'], /Active \(0\)/).length > 0 && rowsWith(m['board-settled'], /Recent \(1\)/).length > 0, rowsWith(m['board-settled'], /Active|Recent/).map(flat).join(' | ').slice(0, 300))
   check('W5 the settle carried the output file (no missing-file warning in the notice)', !Object.values(m).some(f => /output file could not be written/.test(f)) && fixture.hits.some(h => h.route === 'note' && !h.lastUserText.includes('could not be written')))
   check('W5 the completion notice reached the main agent', fixture.hits.some(h => h.route === 'note' && h.lastUserText.includes('<status>completed</status>')))

@@ -160,10 +160,10 @@ section('P3 controls: what is NOT an overload keeps its road')
 
 section('P4 the words: the stamped status rides the calm line; the first-party line is byte-identical')
 {
-  check('the first-party pause words are unchanged', overload.overloadPauseWords('Fable 5.1', 1) === 'Fable 5.1 is overloaded (HTTP 529) — Mercury probes it for up to 1h and resumes the agent when it answers')
-  check('the first-party notice line is unchanged', overload.overloadNoticeWords('lane', 'Fable 5.1', 1) === 'Agent "lane" paused — Fable 5.1 is overloaded (HTTP 529); its work so far is kept and rides below; Mercury probes the provider for up to 1h and resumes the agent by itself when it answers — a message resumes it sooner; the crew view stops it')
+  check('the first-party pause words are unchanged', overload.overloadPauseWords('Fable 5.1', 1) === 'Fable 5.1 is overloaded (HTTP 529) — Mercury probes it for up to 1h and resumes the crewmate when it answers')
+  check('the first-party notice line is unchanged', overload.overloadNoticeWords('lane', 'Fable 5.1', 1) === 'Crewmate "lane" paused — Fable 5.1 is overloaded (HTTP 529); its work so far is kept and rides below; Mercury probes the provider for up to 1h and resumes the crewmate by itself when it answers — a message resumes it sooner; the crew view stops it')
   check('a stamped 503 names 503', overload.overloadPauseWords('Gemini 3.5 Flash', 1, 503).startsWith('Gemini 3.5 Flash is overloaded (HTTP 503) — ') && overload.overloadNoticeWords('lane', 'Gemini 3.5 Flash', 1, 503).includes('is overloaded (HTTP 503);'))
-  check('a stamp without a status names none', overload.overloadPauseWords('Kimi', 1, null) === 'Kimi is overloaded — Mercury probes it for up to 1h and resumes the agent when it answers' && overload.overloadNoticeWords('lane', 'Kimi', 1, null).includes('Kimi is overloaded; its work'))
+  check('a stamp without a status names none', overload.overloadPauseWords('Kimi', 1, null) === 'Kimi is overloaded — Mercury probes it for up to 1h and resumes the crewmate when it answers' && overload.overloadNoticeWords('lane', 'Kimi', 1, null).includes('Kimi is overloaded; its work'))
   const zai = spent.get('zai')
   const zaiPause = zai !== undefined ? lane.overloadPauseOf([zai as Message], 'glm-5.2') : null
   check("Z.AI's line names the status the wire sent (429), never 529", zaiPause !== null && zaiPause.status === 429 && zaiPause.pause.words.includes('(HTTP 429)') && !zaiPause.pause.words.includes('529'), zaiPause?.pause.words)

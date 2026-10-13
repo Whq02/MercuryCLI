@@ -36,7 +36,7 @@ function agentOutputTaskId(filePath: string | undefined): string | null {
 }
 
 export function userFacingName(input?: Partial<Input>): string {
-  if (agentOutputTaskId(input?.file_path) !== null) return 'Read agent output'
+  if (agentOutputTaskId(input?.file_path) !== null) return 'Read crewmate output'
   return FILE_READ_TOOL_NAME
 }
 

@@ -271,7 +271,7 @@ function Harness({ scrollRef }: { scrollRef: React.RefObject<ScrollBoxHandle | n
       newMessageCount: 0,
       onPillClick: () => unseen.jumpToNew(scrollRef.current),
       scrollable: h(TranscriptSwap, { lead: h(LeadTranscript), tools: [], commands: [], screen: 'prompt', scrollRef, agentDefinitions: { activeAgents: [], allAgents: [] }, trackStickyPrompt: true }),
-      statusBand: h(Text, null, 'waiting on 3 agents'),
+      statusBand: h(Text, null, 'waiting on 3 crewmates'),
       statusBandActive: true,
       modal: modal === null ? undefined : h(Box, { width: '100%', flexDirection: 'column' }, modal),
       modalScrollRef,

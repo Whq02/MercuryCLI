@@ -36,7 +36,7 @@ function versionLines(v: ReviewArtifactVersion, status: string, cwd: string): st
   const lines: string[] = [
     `${v.title} — ${v.kind} v${v.version} · ${status}${staleNote(v, cwd)}`,
     `produced by session ${v.producer.sessionId}` +
-      (v.producer.agentId ? ` · agent ${v.producer.agentId}` : '') +
+      (v.producer.agentId ? ` · crewmate ${v.producer.agentId}` : '') +
       (v.producer.laneId ? ` · lane ${v.producer.laneId}` : '') +
       (v.producer.turn !== undefined ? ` · turn ${v.producer.turn}` : ''),
     `workspace ${v.workspace.roots.join(', ')}` +

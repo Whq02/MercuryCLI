@@ -278,7 +278,7 @@ try {
       argv: ['node', DIST],
       sends: [
         ...bootSends(ASK),
-        { data: '/crewmates', atTick: 999, awaitText: 'agents finished', requireAwait: true, minTick: 2, awaitSettleTicks: 6, mark: 'landed' },
+        { data: '/crewmates', atTick: 999, awaitText: 'crewmates finished', requireAwait: true, minTick: 2, awaitSettleTicks: 6, mark: 'landed' },
         { data: '\r', afterPrevTicks: 4 },
         { data: '\x1b', atTick: 999, awaitText: 'Crewmates', requireAwait: true, minTick: 2, awaitSettleTicks: 3, mark: 'crew-landed' },
         { data: '/clear', afterPrevTicks: 4 },
@@ -306,11 +306,11 @@ if (process.env.FIELD_KEEP === '1') for (const [label, frame] of Object.entries(
 check('every send became due (the frames the sends waited on all painted)', cap.receipts === cap.sends, `${cap.receipts}/${cap.sends} · end ${cap.endReason}`)
 check('the crew ran and landed on the wire (parent → two seats → the ack)', fixture.hits.filter(h => h === 'seat').length >= 2 && fixture.hits.includes('parent-ack'), fixture.hits.join(','))
 const landed = marks['landed'] ?? ''
-check('the previous session\'s crew was on every surface: the card names both seats and the usage line attributes the crew', namesSeat(landed) && landed.includes('agents finished') && attributesCrew(landed))
+check('the previous session\'s crew was on every surface: the card names both seats and the usage line attributes the crew', namesSeat(landed) && landed.includes('crewmates finished') && attributesCrew(landed))
 const crewLanded = marks['crew-landed'] ?? ''
 check('the previous session\'s Crew view listed both, landed', namesSeat(crewLanded) && crewLanded.includes('0 running') && crewLanded.includes('Crewmates (2)'))
 const fresh = marks['fresh'] ?? ''
-check('the born session is a fresh chat (its splash is up, no card)', fresh.includes(SPLASH_READY) && !fresh.includes('agents finished'))
+check('the born session is a fresh chat (its splash is up, no card)', fresh.includes(SPLASH_READY) && !fresh.includes('crewmates finished'))
 check('the born session names no seat of the previous session (the CREW lane, the transcript)', !namesSeat(fresh), fresh.split('\n').filter(l => namesSeat(l)).join(' | '))
 check('the born session attributes no sub-agents in its usage line', !attributesCrew(fresh), flat(fresh).match(/sub-agents[^·]*/)?.[0] ?? '')
 const freshCrew = marks['fresh-crew'] ?? ''

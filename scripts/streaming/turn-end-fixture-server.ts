@@ -184,7 +184,7 @@ function carriesWords(body: Record<string, unknown>, words: string[]): string[] 
   return words.filter(w => raw.includes(w))
 }
 export const QUEUED_WORDS_WATCH = ['first queued words', 'second queued words']
-export const NOTICE_WATCH = 'A background agent completed a task:'
+export const NOTICE_WATCH = 'A background crewmate completed a task:'
 
 function orderOfWords(body: Record<string, unknown>, words: string[]): string[] {
   const raw = JSON.stringify(body)

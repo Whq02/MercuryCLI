@@ -77,7 +77,7 @@ section("§3 the exit card counts the runner's own work beside the local tasks (
   setFocusedSessionConnector(hosted(async () => ({ note: 'skipped' }), [row('agent', 'running', 'crewmate-1'), row('agent', 'completed', 'crewmate-2'), row('shell', 'running', 'sh-1'), row('workflow', 'paused', 'wf-1'), row('monitor', 'pending', 'mon-1')]))
   const counts = liveWorkAtExit(undefined)
   check('one running agent, two running shells (the monitor counts as a shell), no paused workflow, nothing finished', j(counts) === j({ total: 3, shells: 2, agents: 1, workflows: 0, other: 0 }), j(counts))
-  check('the card words name them by kind', liveWorkWords(counts) === '2 shell commands and 1 agent', liveWorkWords(counts))
+  check('the card words name them by kind', liveWorkWords(counts) === '2 shell commands and 1 crewmate', liveWorkWords(counts))
   releaseFocusedSessionConnector()
   check('with the slot released the count is local again', liveWorkAtExit(undefined).total === 0)
 }

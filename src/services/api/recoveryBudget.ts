@@ -191,7 +191,7 @@ export function outageSpentLine(facts: { cause: string; reconnects: number; capM
   const n = facts.reconnects
   const over = road === 'turn' && facts.elapsedMs !== undefined ? ` over ${retrySeconds(facts.elapsedMs)}` : ''
   const head = `the network was unreachable through ${n} reconnect${n === 1 ? '' : 's'}${over} (${detail}) — the ${reconnectBudgetWords(facts.capMs)} is spent`
-  if (road === 'seat') return `${head} and the agent stopped; its work is kept — a message to it resumes it, or ${RECONNECT_KNOB_WORDS}`
+  if (road === 'seat') return `${head} and the crewmate stopped; its work is kept — a message to it resumes it, or ${RECONNECT_KNOB_WORDS}`
   return `${head} and the turn was ended; check the connection and send again, or ${RECONNECT_KNOB_WORDS}`
 }
 
@@ -283,7 +283,7 @@ function shortAnswer(budget: RecoveryBudget): string {
   return 'no status'
 }
 
-const RESUME_WORDS = 'the agent stopped; its work is kept — a message to it resumes it, or raise MERCURY_RECOVERY_BUDGET_MINUTES'
+const RESUME_WORDS = 'the crewmate stopped; its work is kept — a message to it resumes it, or raise MERCURY_RECOVERY_BUDGET_MINUTES'
 
 export function recoveryBudgetSpentLine(budget: RecoveryBudget): string {
   if (budget.outage?.spent === true) {

@@ -129,7 +129,7 @@ export function liveWorkWords(counts: LiveWorkCounts): string {
     if (n > 0) parts.push(`${n} ${n === 1 ? one : many}`)
   }
   say(counts.shells, 'shell command', 'shell commands')
-  say(counts.agents, 'agent', 'agents')
+  say(counts.agents, 'crewmate', 'crewmates')
   say(counts.workflows, 'workflow', 'workflows')
   say(counts.other, 'background task', 'background tasks')
   if (parts.length === 0) return 'nothing'

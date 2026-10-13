@@ -470,7 +470,7 @@ try {
       argv: ['node', DIST, '--model', MAIN_ID],
       sends: [
         ...bootSends(ASK),
-        { data: '/crewmates', atTick: 999, awaitText: 'Running 3 agents', requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'running' },
+        { data: '/crewmates', atTick: 999, awaitText: 'Running 3 crewmates', requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'running' },
         { data: '\r', afterPrevTicks: 3 },
         { data: '\x1b', atTick: 999, awaitText: 'Crewmates', requireAwait: true, minTick: 2, awaitSettleTicks: 3, mark: 'crew-mid' },
         { data: '/crewmates', afterPrevTicks: 3 },

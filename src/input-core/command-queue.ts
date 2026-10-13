@@ -279,7 +279,7 @@ export function dequeueAllMatching(
     logOperation('dequeue')
   }
   rememberTaken(matched)
-  retireNotices(queuedNoticeKeys(matched), 'discarded when its agent was stopped')
+  retireNotices(queuedNoticeKeys(matched), 'discarded when its crewmate was stopped')
   emitConsumption('dequeued', matched)
   return matched
 }

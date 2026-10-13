@@ -187,7 +187,7 @@ const noticeCases = [
   taskNotice('Agent "the errand" was stopped').replace('<status>completed</status>', '<status>killed</status>'),
   monitorBlock('watch', 'the build watch', 'the build finished'),
   'the saved work is ready',
-  'runner restarted after a crash: 1 background agents relaunched, 1 delivered from their receipts, 0 stopped',
+  'runner restarted after a crash: 1 background crewmates relaunched, 1 delivered from their receipts, 0 stopped',
 ]
 for (const prompt of noticeCases) {
   const body = (deliveredAt?: string, sentAt: string = STAMP) => h(AttachmentMessage as never, { attachment: { type: 'queued_command', prompt, commandMode: 'task-notification', sentAt, ...(deliveredAt === undefined ? {} : { deliveredAt }) }, addMargin: false, verbose: false })

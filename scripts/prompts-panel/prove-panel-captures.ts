@@ -235,12 +235,12 @@ for (const [cols, rows] of SIZES) {
     check(`[${size}] L3 the lead's messages TO an agent and the reply back`, /to PANEL/.test(g) && /PANEL replied/.test(g) && /to CLAM/.test(g))
     check(`[${size}] L3 the launch brief is marked`, /brief ·/.test(g))
     check(`[${size}] L3 thread counts are honest (PANEL 3 messages · CLAM 2 messages)`, /3 messages/.test(g) && /2 messages/.test(g))
-    check(`[${size}] L3 the header counts the agents`, /2 agents/.test(g))
+    check(`[${size}] L3 the header counts the agents`, /2 crewmates/.test(g))
   }
 
   {
-    const g = text(capture('L3-crew-empty', cols, rows, { transcript: NO_CREW, sends: [...OPEN_PANEL, then('SAVED PROMPTS', '2')], readyText: 'no agent traffic this session' }))
-    check(`[${size}] L3e no agents ⇒ the honest empty line`, /no agent traffic this session/.test(g))
+    const g = text(capture('L3-crew-empty', cols, rows, { transcript: NO_CREW, sends: [...OPEN_PANEL, then('SAVED PROMPTS', '2')], readyText: 'no crewmate traffic this session' }))
+    check(`[${size}] L3e no agents ⇒ the honest empty line`, /no crewmate traffic this session/.test(g))
   }
 
   {

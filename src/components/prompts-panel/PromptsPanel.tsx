@@ -115,7 +115,7 @@ export function PromptsPanel({
         label: 'CREW TRAFFIC',
         count: crew.filter(r => r.kind === 'crew').length,
         rows: crew,
-        emptyHint: 'no agent traffic this session',
+        emptyHint: 'no crewmate traffic this session',
       },
       {
         id: 'saved',
@@ -442,8 +442,8 @@ export function PromptsPanel({
         ? limitsLine(limits, prompts.length - queuedCount, clockOf, queuedCount)
         : section === 'crew'
           ? crew.length === 0
-            ? 'no agent traffic this session · the threads fill as the lead delegates'
-            : `${crew.filter(r => r.kind === 'crew-thread').length} agent${crew.filter(r => r.kind === 'crew-thread').length === 1 ? '' : 's'} · read from this chat's own records`
+            ? 'no crewmate traffic this session · the threads fill as the lead delegates'
+            : `${crew.filter(r => r.kind === 'crew-thread').length} crewmate${crew.filter(r => r.kind === 'crew-thread').length === 1 ? '' : 's'} · read from this chat's own records`
           : problem !== null
             ? `${GLYPH.warn} saved prompts unreadable · a write starts fresh and keeps the damaged copy beside the file`
             : drafts === null

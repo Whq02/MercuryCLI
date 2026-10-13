@@ -120,10 +120,10 @@ let fail = 0
 
   const hintMac = 'shift + ↵ for a new line · ⇧← concourse'.padEnd(120)
   const hintLinux = 'shift + ↵ for a new line · shift+← concourse'.padEnd(120)
-  const countsMac = '1 session on · 0 monitors here · 0 agents here' + ' '.repeat(23) + '⇧← concourse'
-  const countsLinux = '1 session on · 0 monitors here · 0 agents here' + ' '.repeat(18) + 'shift+← concourse'
+  const countsMac = '1 session on · 0 monitors here · 0 crewmates here' + ' '.repeat(20) + '⇧← concourse'
+  const countsLinux = '1 session on · 0 monitors here · 0 crewmates here' + ' '.repeat(15) + 'shift+← concourse'
   const concourseSame = rowOf(hintMac, DEFAULT_MASKS) === rowOf(hintLinux, DEFAULT_MASKS) && rowOf(countsMac, DEFAULT_MASKS) === rowOf(countsLinux, DEFAULT_MASKS)
-  const concourseKeepsWords = rowOf(hintLinux, DEFAULT_MASKS).startsWith('shift + ↵ for a new line ·') && rowOf(countsLinux, DEFAULT_MASKS).startsWith('1 session on · 0 monitors here · 0 agents here')
+  const concourseKeepsWords = rowOf(hintLinux, DEFAULT_MASKS).startsWith('shift + ↵ for a new line ·') && rowOf(countsLinux, DEFAULT_MASKS).startsWith('1 session on · 0 monitors here · 0 crewmates here')
   console.log(`  [${concourseSame && concourseKeepsWords ? 'PASS' : 'FAIL'}] the composer hint row and the compact count row canonicalize across the concourse hint's host spellings (⇧← · shift+←) and keep their words — ${JSON.stringify(rowOf(hintLinux, DEFAULT_MASKS))} · ${JSON.stringify(rowOf(countsLinux, DEFAULT_MASKS))}`)
   if (!(concourseSame && concourseKeepsWords)) fail = 1
   const withoutConcourseMask = DEFAULT_MASKS.filter(m => !m.includes('← concourse'))
@@ -161,19 +161,21 @@ let fail = 0
   const linux60 = countRow(60, 'shift+← concourse')
   const mac80 = countRow(80, '⇧← concourse')
   const linux80 = countRow(80, 'shift+← concourse')
-  const squeezed = mac60.startsWith('1 session on · 0 monitors here · 0 agents here') && linux60.startsWith('S:1 · M:0 · A:0')
-  console.log(`  [${squeezed ? 'PASS' : 'FAIL'}] at 60 columns the count row keeps its words under the glyph and drops to its short form under the spelled hint (the product's own budget) — ${JSON.stringify([mac60.trim(), linux60.trim()])}`)
+  const mac62 = countRow(62, '⇧← concourse')
+  const squeezed = mac62.startsWith('1 session on · 0 monitors here · 0 crewmates here') && mac60.startsWith('S:1 · M:0 · C:0') && linux60.startsWith('S:1 · M:0 · C:0')
+  console.log(`  [${squeezed ? 'PASS' : 'FAIL'}] at 62 columns the count row keeps its words under the glyph; at 60 it drops to its short form under either hint (the product's own budget: the words take 49 cells beside the glyph hint's 13) — ${JSON.stringify([mac62.trim(), mac60.trim(), linux60.trim()])}`)
   if (!squeezed) fail = 1
   const rowMasked = canon(mac60, DEFAULT_MASKS) === canon(linux60, DEFAULT_MASKS) && canon(mac60, DEFAULT_MASKS) === '⟪row⟫'
   console.log(`  [${rowMasked ? 'PASS' : 'FAIL'}] the squeezed count row canonicalizes across the hosts as one row`)
   if (!rowMasked) fail = 1
   const wide = canon(mac80, DEFAULT_MASKS)
-  const wideKept = wide === canon(linux80, DEFAULT_MASKS) && wide.includes('1 session on · 0 monitors here · 0 agents here') && !wide.includes('concourse')
+  const wideKept = wide === canon(linux80, DEFAULT_MASKS) && wide.includes('1 session on · 0 monitors here · 0 crewmates here') && !wide.includes('concourse')
   console.log(`  [${wideKept ? 'PASS' : 'FAIL'}] at 80 columns the count row keeps its words on both hosts and only the hint is masked — ${wide.trim()}`)
   if (!wideKept) fail = 1
   const withoutRowMask = DEFAULT_MASKS.filter(m => !m.includes('sessions? on'))
-  const diverged = canon(mac60, withoutRowMask) !== canon(linux60, withoutRowMask)
-  console.log(`  [${diverged ? 'PASS' : 'FAIL'}] without the count row's mask the two hosts diverge at 60 columns (the hint's span mask cannot restore the words the spelling squeezed) — the reason the old vocabulary was false`)
+  const linux62 = countRow(62, 'shift+← concourse')
+  const diverged = canon(mac62, withoutRowMask) !== canon(linux62, withoutRowMask)
+  console.log(`  [${diverged ? 'PASS' : 'FAIL'}] without the count row's mask the two hosts diverge at 62 columns (the hint's span mask cannot restore the words the spelling squeezed) — the reason the old vocabulary was false`)
   if (!diverged) fail = 1
 }
 

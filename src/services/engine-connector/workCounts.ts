@@ -38,7 +38,7 @@ export function workCounts(rows: readonly WorkRowV1[]): WorkCountsV1 {
 export function workChipLine(counts: WorkCountsV1): string | null {
   const parts: string[] = []
   if (counts.workflows > 0) parts.push(`${counts.workflows} workflow${counts.workflows === 1 ? '' : 's'}`)
-  if (counts.agents > 0) parts.push(`${counts.agents} agent${counts.agents === 1 ? '' : 's'}`)
+  if (counts.agents > 0) parts.push(`${counts.agents} crewmate${counts.agents === 1 ? '' : 's'}`)
   if (counts.shells > 0) parts.push(`${counts.shells} shell${counts.shells === 1 ? '' : 's'}`)
   if (parts.length === 0) return null
   const line = parts.join(' · ')

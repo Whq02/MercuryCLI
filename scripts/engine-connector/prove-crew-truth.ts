@@ -310,7 +310,7 @@ console.log('— T5 the usage attribution —')
   const counted = agents.filter(a => a.tokens !== null)
   check(
     'T5 the line sums the crew\'s tokens over the agents that settled any, live ones counted',
-    line !== null && line.startsWith(`crewmates ${formatTokens(crew.crewTokenSum(counted))} spent · 3 agents · 2 live`),
+    line !== null && line.startsWith(`crewmates ${formatTokens(crew.crewTokenSum(counted))} spent · 3 crewmates · 2 live`),
     String(line),
   )
   check('T5 no settled response ⇒ no line (never a zero that reads as fact)', crew.crewUsageLine([agents.find(a => a.id === 'ag3')!]) === null)
@@ -391,7 +391,7 @@ console.log('— T7 the status vocabulary and the transcript card —')
       crew.crewStateOf({ status: 'killed', stopReason: crew.CREW_INTERRUPTED_BY_OPERATOR_WORDS }) === 'interrupted' &&
       crew.crewStateOf({ status: 'killed', stopReason: 'stopped from the crew view' }) === 'stopped',
   )
-  check('T7 the waiting line counts the running crew', crew.crewWaitingLine(agents) === 'waiting on 3 agents' && crew.crewWaitingLine([]) === null)
+  check('T7 the waiting line counts the running crew', crew.crewWaitingLine(agents) === 'waiting on 3 crewmates' && crew.crewWaitingLine([]) === null)
   const ag1 = agents.find(a => a.id === 'ag1')!
   check(
     "T7 the wire carries the launch's tool-use id, its tool-use count and its activity",
@@ -457,7 +457,7 @@ console.log('— T7 the status vocabulary and the transcript card —')
     single.slice(0, 160),
   )
   const unknown = await paint(ui.renderToolUseProgressMessage([], { tools: [] as never, verbose: false, toolUseID: 'tu-none' }), 100)
-  check('T7 an unjoined single card keeps the honest initialising line', unknown.includes('Initializing agent'))
+  check('T7 an unjoined single card keeps the honest initialising line', unknown.includes('Initializing crewmate'))
   const stoppedRows: WorkRowV1[] = rows.map(r => (r.id === 'ag1' ? { ...r, status: 'killed', endTime: r.startTime + 5000 } : r))
   setFocusedSessionConnector(fake({ rows: stoppedRows, mission: [] }))
   const view = await paint(React.createElement(CrewView, { onClose: () => {} }), 110)

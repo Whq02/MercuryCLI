@@ -54,7 +54,7 @@ console.log('============================================================')
 check(
   'rollup grammar: agents · ◈ tokens · elapsed (the clock last)',
   workflowRollupLine({ agentsDone: 0, agentCount: 3, elapsedMs: 61_000, tokens: 287_300 }) ===
-    '0/3 agents · ◈ 287.3k · 1m 1s',
+    '0/3 crewmates · ◈ 287.3k · 1m 1s',
   workflowRollupLine({ agentsDone: 0, agentCount: 3, elapsedMs: 61_000, tokens: 287_300 }),
 )
 check(

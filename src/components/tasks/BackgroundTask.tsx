@@ -67,7 +67,7 @@ function WorkflowLine({
       {truncateToWidth(name, width)}{' '}
       {running ? (
         <Text dimColor>
-          ({workflow.agentCount} {plural(workflow.agentCount, 'agent')})
+          ({workflow.agentCount} {plural(workflow.agentCount, 'crewmate')})
         </Text>
       ) : (
         <TaskStatusText

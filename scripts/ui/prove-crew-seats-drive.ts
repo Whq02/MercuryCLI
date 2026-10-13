@@ -390,10 +390,10 @@ async function leg(mainDialect: Dialect): Promise<void> {
         argv: ['node', DIST, '--model', mainModel],
         sends: [
           ...bootSends(ASK),
-          { data: '/crewmates', atTick: 999, awaitText: 'Running 4 agents', requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'running' },
+          { data: '/crewmates', atTick: 999, awaitText: 'Running 4 crewmates', requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'running' },
           { data: '\r', afterPrevTicks: 3 },
           { data: '\x1b', atTick: 999, awaitText: 'Crewmates', requireAwait: true, minTick: 2, awaitSettleTicks: 3, mark: 'crew-mid' },
-          { data: '/crewmates', atTick: 999, awaitText: 'agents finished', requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'landed' },
+          { data: '/crewmates', atTick: 999, awaitText: 'crewmates finished', requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'landed' },
           { data: '\r', afterPrevTicks: 3 },
           { data: '\x1b', atTick: 999, awaitText: 'Crewmates', requireAwait: true, minTick: 2, awaitSettleTicks: 3, mark: 'crew-landed' },
           { data: '', afterPrevTicks: 3 },

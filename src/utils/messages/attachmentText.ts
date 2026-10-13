@@ -148,7 +148,7 @@ function rosterLine(row: Of<'agent_roster'>['rows'][number]): string {
     `${row.taskType} "${row.name}" [${row.taskId}]: ${row.status}`,
     row.wait,
     row.phase ? `phase: ${row.phase}` : '',
-    row.agents?.length ? `agents: ${row.agents.map(agent => `${agent.label} — ${agent.state}`).join(', ')}` : '',
+    row.agents?.length ? `crewmates: ${row.agents.map(agent => `${agent.label} — ${agent.state}`).join(', ')}` : '',
     row.description && row.description !== row.name ? `asked: ${row.description}` : '',
     row.error ? `error: ${row.error}` : '',
     row.owed ? `owed: ${row.owed}` : '',

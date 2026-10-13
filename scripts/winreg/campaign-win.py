@@ -185,7 +185,7 @@ SCENARIOS = [
                      {"atTick": 999, "awaitText": "tab/1-9 section",
                       "minTick": 5, "awaitSettleTicks": 3, "data": "2"},
                  ],
-                 "readyText": "no agent traffic this session", "readySettleTicks": 3,
+                 "readyText": "no crewmate traffic this session", "readySettleTicks": 3,
                  "hostProfile": "wt", "cwd": REPO},
     },
     {

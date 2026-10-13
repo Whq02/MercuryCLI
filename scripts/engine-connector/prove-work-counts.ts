@@ -85,7 +85,7 @@ console.log('— C2/C3 one fixture, three surfaces, zero diffs —')
   check('C2 the parked ask rides the counts', counts.asks === 1, `asks=${counts.asks}`)
   check(
     'C2 the chip line speaks the board vocabulary',
-    chip === '1 workflow · 2 agents · 1 shell · 1 ask',
+    chip === '1 workflow · 2 crewmates · 1 shell · 1 ask',
     chip ?? 'null',
   )
   check('C3 the settled agent is LISTED by the board but never counted', rosterRowsOf(rows, 'agent').length === 3 && boardAgentsRunning === 2)
@@ -120,9 +120,9 @@ console.log('\nC7 the held turn\'s wait words name the KINDS over the same count
 {
   const counts = (over: Partial<ReturnType<typeof workCounts>>): ReturnType<typeof workCounts> => ({ workflows: 0, agents: 0, shells: 0, asks: 0, ...over })
   check('C7 a workflow is a workflow, never an agent', workWaitingWords(counts({ workflows: 1 })) === 'waiting on 1 workflow')
-  check('C7 a workflow beside two agents', workWaitingWords(counts({ workflows: 1, agents: 2 })) === 'waiting on 1 workflow · 2 agents')
+  check('C7 a workflow beside two agents', workWaitingWords(counts({ workflows: 1, agents: 2 })) === 'waiting on 1 workflow · 2 crewmates')
   check('C7 a background shell is a shell', workWaitingWords(counts({ shells: 1 })) === 'waiting on 1 shell')
-  check('C7 a parked ask rides the words', workWaitingWords(counts({ agents: 1, asks: 1 })) === 'waiting on 1 agent · 1 ask')
+  check('C7 a parked ask rides the words', workWaitingWords(counts({ agents: 1, asks: 1 })) === 'waiting on 1 crewmate · 1 ask')
   check('C7 nothing running answers null (the count\'s own words stand)', workWaitingWords(counts({})) === null)
   const read = (rel: string): string => readFileSync(rel, 'utf8')
   const connector = read('src/services/engine-connector/daemonConnector.ts')
@@ -169,11 +169,11 @@ console.log('C8 compact counts use current identities and honest availability')
   const legacyRows: WorkRowV1[] = [{ id: 'old', kind: 'workflow', name: 'old', status: 'running', startTime: t0, phases: [{ title: 'old', planned: false, agents: [{ index: 0, label: 'old', state: 'progress' }] }] }]
   check('C8 an old child projection without pause truth is unknown', compactWorkCounts({ ...input, roster: { ...roster, rows: legacyRows } }).agentsHere === null)
   const full = compactWorkSummaryText(counts, 120)
-  check('C8 full words retain scope and count truth', full === '1 session on · 1 monitor here · 2 agents here', full)
+  check('C8 full words retain scope and count truth', full === '1 session on · 1 monitor here · 2 crewmates here', full)
   check('C8 no partial integer can turn twelve into one', !compactWorkSummaryText({ sessionsOn: 12, agentsHere: 12, monitorsHere: 12 }, 3).includes('1'))
   check('C8 unavailable counts are explicitly unavailable, never question marks or invented zero', compactWorkSummaryText({ sessionsOn: null, agentsHere: null, monitorsHere: null }, 120) === 'counts unavailable')
   check('C8 known numeric counts remain visible beside unavailable data', compactWorkSummaryText({ sessionsOn: 1, agentsHere: null, monitorsHere: null }, 120) === '1 session on · counts unavailable')
-  check('C8 an observed empty focused roster renders actual zeros', compactWorkSummaryText(compactWorkCounts({ ...input, roster: { rows: [], mission: [], reported: true } }), 80) === '1 session on · 0 monitors here · 0 agents here')
+  check('C8 an observed empty focused roster renders actual zeros', compactWorkSummaryText(compactWorkCounts({ ...input, roster: { rows: [], mission: [], reported: true } }), 80) === '1 session on · 0 monitors here · 0 crewmates here')
 }
 
 console.log(failures === 0 ? '\nprove-work-counts: ALL LAWS HOLD' : `\nprove-work-counts: ${failures} FAILURE(S)`)

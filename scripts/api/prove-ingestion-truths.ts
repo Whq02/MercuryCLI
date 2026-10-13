@@ -119,7 +119,7 @@ section('§3 N-05 · TERMINAL STATUS DERIVES FROM AGENT FAILURES')
   const zeroOfSeven = deriveWorkflowTerminalStatus({ error: undefined, failures: Array(7).fill('agent died'), agentCount: 7 })
   check(
     'the 0/7-agents fixture settles FAILED with a derived error',
-    zeroOfSeven.status === 'failed' && (zeroOfSeven.derivedError ?? '').includes('all 7 agent(s) failed'),
+    zeroOfSeven.status === 'failed' && (zeroOfSeven.derivedError ?? '').includes('all 7 crewmate(s) failed'),
   )
   const partial = deriveWorkflowTerminalStatus({ error: undefined, failures: ['one died'], agentCount: 7 })
   check('partial failures settle completed_with_failures', partial.status === 'completed_with_failures')

@@ -66,7 +66,7 @@ export function restartBecause(reason?: RunnerRestartReason): string {
 
 export function restartStopSummary(description: string, reason?: RunnerRestartReason): string {
   const because = restartBecause(reason)
-  return `Agent "${recordedDescription(description)}" was stopped — the session's runner restarted${because} before it finished, so nothing it started will be delivered; relaunch it if the result is still wanted`
+  return `Crewmate "${recordedDescription(description)}" was stopped — the session's runner restarted${because} before it finished, so nothing it started will be delivered; relaunch it if the result is still wanted`
 }
 
 export type BackgroundHandoverReason = 'turn-interrupted' | 'backgrounded' | 'agent-type' | 'sibling-ended'
@@ -76,13 +76,13 @@ export type SiblingEndFacts = { taskId: string; description: string; status: 'fa
 export function foregroundNotKeptLine(reason: BackgroundHandoverReason, sibling?: SiblingEndFacts): string {
   switch (reason) {
     case 'turn-interrupted':
-      return 'The foreground request was not kept: the turn it ran in was interrupted, so the agent was handed to the background to finish on its own.'
+      return 'The foreground request was not kept: the turn it ran in was interrupted, so the crewmate was handed to the background to finish on its own.'
     case 'backgrounded':
-      return 'The foreground request was not kept: the agent was moved to the background (ctrl+b, or it ran past the foreground threshold).'
+      return 'The foreground request was not kept: the crewmate was moved to the background (ctrl+b, or it ran past the foreground threshold).'
     case 'agent-type':
-      return 'The foreground request was not kept: this agent type always runs in the background.'
+      return 'The foreground request was not kept: this crewmate type always runs in the background.'
     case 'sibling-ended':
-      return `The foreground request was not kept: a wait on a group returns the moment any member fails or stops — agent "${sibling?.description ?? 'a sibling'}"${sibling ? ` [${sibling.taskId}]` : ''} ${sibling?.status ?? 'ended'}${sibling?.error ? ` (${sibling.error})` : ''}; read its result now, and this agent runs on in the background (its own notice follows).`
+      return `The foreground request was not kept: a wait on a group returns the moment any member fails or stops — crewmate "${sibling?.description ?? 'a sibling'}"${sibling ? ` [${sibling.taskId}]` : ''} ${sibling?.status ?? 'ended'}${sibling?.error ? ` (${sibling.error})` : ''}; read its result now, and this crewmate runs on in the background (its own notice follows).`
   }
 }
 
@@ -116,7 +116,7 @@ export function backgroundLaunchReceipts(messages: readonly Message[]): Backgrou
         if (block.type !== 'tool_use' || block.name !== AGENT_TOOL_NAME || typeof block.id !== 'string') continue
         const input = (block.input ?? {}) as { description?: unknown; prompt?: unknown; crewmate_type?: unknown }
         launches.set(block.id, {
-          description: recordedDescription(input.description) || 'agent',
+          description: recordedDescription(input.description) || 'crewmate',
           prompt: recordedPrompt(input.prompt),
           agentType: typeof input.crewmate_type === 'string' ? input.crewmate_type : 'mercury-crew',
           launchedAt: Number.isFinite(stamp) ? stamp : Date.now(),
@@ -169,7 +169,7 @@ export function namedLaunchReceipts(messages: readonly Message[]): NamedLaunchRe
         if (typeof input.name !== 'string' || input.name.trim() === '') continue
         launches.set(block.id, {
           name: input.name.trim(),
-          description: recordedDescription(input.description) || 'agent',
+          description: recordedDescription(input.description) || 'crewmate',
           launchedAt: Number.isFinite(stamp) ? stamp : Date.now(),
         })
       }
@@ -207,7 +207,7 @@ export async function recordedNamedLaunches(): Promise<NamedLaunch[]> {
     launches.push({
       agentId,
       name: metadata.name.trim(),
-      description: recordedDescription(metadata.description) || 'agent',
+      description: recordedDescription(metadata.description) || 'crewmate',
       launchedAt: typeof metadata.launchedAt === 'number' && Number.isFinite(metadata.launchedAt) ? metadata.launchedAt : 0,
     })
   }
@@ -304,7 +304,7 @@ export { RESTART_CARRY_ROW_PREFIX }
 
 export function restartCarryRow(reason: RunnerRestartReason | undefined, counts: RestartCarryCounts): string {
   const because = reason === 'stop' ? 'after a stop' : 'after a crash'
-  return `${RESTART_CARRY_ROW_PREFIX}${because}: ${counts.relaunched} background agents relaunched, ${counts.delivered} delivered from their receipts, ${counts.stopped} stopped`
+  return `${RESTART_CARRY_ROW_PREFIX}${because}: ${counts.relaunched} background crewmates relaunched, ${counts.delivered} delivered from their receipts, ${counts.stopped} stopped`
 }
 
 export function isRestartCarryRow(text: string): boolean {

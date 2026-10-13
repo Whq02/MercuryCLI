@@ -42,7 +42,7 @@ check(`${MODEL} serves max and xhigh (the ladder the proof walks)`, effort.model
 
   effort.noteAgentEffortWord('agent-own', 'max')
   const own = effort.resolveEffortTruth(MODEL, 'max', { agentId: 'agent-own' })
-  check("an agent's own word ranks above the stamp on its request (asked max → max, source agent)", own.requested === 'max' && own.requestedSource === 'agent' && own.applied === 'max' && own.wire === 'max', JSON.stringify(own))
+  check("a crewmate's own word ranks above the stamp on its request (asked max → max, source agent)", own.requested === 'max' && own.requestedSource === 'agent' && own.applied === 'max' && own.wire === 'max', JSON.stringify(own))
   check('the projections the lanes read carry the same word', effort.resolveWireRequestedEffort(MODEL, 'max', { agentId: 'agent-own' }) === 'max' && effort.resolveAppliedEffort(MODEL, 'max', { agentId: 'agent-own' }) === 'max')
   check("the same value WITHOUT the agent's id is the session's request (the stamp)", effort.resolveWireRequestedEffort(MODEL, 'max') === 'high' && effort.resolveAppliedEffort(MODEL, 'max') === 'high')
   check("the agent's own word stands even when the scoped value is absent", effort.resolveEffortTruth(MODEL, undefined, { agentId: 'agent-own' }).requested === 'max')
@@ -52,7 +52,7 @@ check(`${MODEL} serves max and xhigh (the ladder the proof walks)`, effort.model
 
   process.env.MERCURY_EFFORT_LEVEL = 'unset'
   const deferred = effort.resolveEffortTruth(MODEL, 'max', { agentId: 'agent-own' })
-  check("a stamp of unset still yields to an agent's own word", deferred.requested === 'max' && deferred.requestedSource === 'agent', JSON.stringify(deferred))
+  check("a stamp of unset still yields to a crewmate's own word", deferred.requested === 'max' && deferred.requestedSource === 'agent', JSON.stringify(deferred))
   check('…while the session itself defers to the model default', effort.resolveEffortTruth(MODEL, 'max').requestedSource === 'env-suppressed')
   process.env.MERCURY_EFFORT_LEVEL = 'high'
 

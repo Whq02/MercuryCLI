@@ -177,7 +177,7 @@ section('§6 interrupting wins over every other sentence')
   check('a settled crew paints no receipt — idle reads "ready" again', statusLine(idle, young, crewClockOf([{ id: 'a1', name: 'a1', kind: 'agent', status: 'completed', startTime: Date.now() - 60_000, endTime: Date.now() - 32_000 } as never], Date.now())) === 'ready')
   check('the interrupt outranks the crew\'s clock', statusLine(live, { ...young, interrupting: true }, crew) === 'interrupting — the request is torn down')
   check('the stuck verdict outranks the crew\'s clock', statusLine(live, { ...stuck, interrupting: false }, crew).startsWith('no stream events for '))
-  check('a wait on agents outranks the crew\'s clock', statusLine({ ...live, phase: 'waiting', agentsWaiting: 2 }, young, crew) === 'waiting on 2 agents')
+  check('a wait on agents outranks the crew\'s clock', statusLine({ ...live, phase: 'waiting', agentsWaiting: 2 }, young, crew) === 'waiting on 2 crewmates')
   check('no crew line ⇒ the plain words', statusLine(idle, young, { active: false, line: null }) === 'ready' && statusLine(live, young, { active: false, line: null }) === '')
 }
 

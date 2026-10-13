@@ -837,7 +837,7 @@ section('L7b ABORT under a typed reason — the row names the reason, never the 
   check('an inactivity deadline (the agent idle limit): the row names the timeout and its seam', noOperatorRow(deadlineRows) && deadlineRows.some(t => /no-progress timeout/.test(t) && /sub-agent scout/.test(t)), deadlineRows.join(' | '))
   const parent = record(await run(mk('workflow-abort')))
   const parentRows = userTextMessages(parent.yields)
-  check("'workflow-abort': the row names the workflow's stop", noOperatorRow(parentRows) && parentRows.some(t => /^\[Request cut off: the workflow that ran this agent stopped\]$/.test(t)), parentRows.join(' | '))
+  check("'workflow-abort': the row names the workflow's stop", noOperatorRow(parentRows) && parentRows.some(t => /^\[Request cut off: the workflow that ran this crewmate stopped\]$/.test(t)), parentRows.join(' | '))
   const budget = record(await run(mk(new Error('the retry budget is spent: three declared waits'))))
   const budgetRows = userTextMessages(budget.yields)
   check('an Error reason (the retry budget): the row carries its words', noOperatorRow(budgetRows) && budgetRows.some(t => /^\[Request cut off: the retry budget is spent: three declared waits\]$/.test(t)), budgetRows.join(' | '))

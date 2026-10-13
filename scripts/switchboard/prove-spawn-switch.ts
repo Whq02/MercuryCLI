@@ -69,7 +69,7 @@ section('§1 the rows — live-class toggles over registered flags, through the 
   const env: NodeJS.ProcessEnv = {}
   const applied = menu.applyBootMenuEnv(path, env)
   check('the applier lands the row on a clean env', applied !== null && applied.applied.some(a => a.env === SUB && a.value === '0') && applied.refused.length === 0, j(applied))
-  check('born with sub-agents off, attributed to the boot menu', j(sw.bornSpawnSwitch('subagents', env)) === j({ on: false, source: 'boot-menu' }), j(sw.bornSpawnSwitch('subagents', env)))
+  check('born with crewmates off, attributed to the boot menu', j(sw.bornSpawnSwitch('subagents', env)) === j({ on: false, source: 'boot-menu' }), j(sw.bornSpawnSwitch('subagents', env)))
   check('workflows born on by default', j(sw.bornSpawnSwitch('workflows', env)) === j({ on: true, source: 'default' }))
   const pinned: NodeJS.ProcessEnv = { [WF]: '0' }
   check('a value the real environment holds is the environment\'s pin', j(sw.bornSpawnSwitch('workflows', pinned)) === j({ on: false, source: 'env' }))

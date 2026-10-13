@@ -31,7 +31,7 @@ export type LiveTileTail = Pick<SessionTailV1, 'atMs' | 'text'> & Partial<Pick<S
 export function liveTilePhase(tail: LiveTileTail | null): string | null {
   if (tail === null) return null
   if (tail.stateWord === 'compacting') return 'compacting'
-  if (tail.stateWord === 'waiting-on-agents') return `waiting on ${tail.waitingOnAgents ?? 1} ${(tail.waitingOnAgents ?? 1) === 1 ? 'agent' : 'agents'}`
+  if (tail.stateWord === 'waiting-on-agents') return `waiting on ${tail.waitingOnAgents ?? 1} ${(tail.waitingOnAgents ?? 1) === 1 ? 'crewmate' : 'crewmates'}`
   if (tail.wait?.kind === 'first-byte') return tail.wait.phase === 'loading' ? LOADING_PHASE_WORD : READING_PHASE_WORD
   if (tail.wait?.kind === 'retry') return RETRY_PHASE_WORD
   if (tail.streamBlock === 'thinking') return 'thinking'

@@ -90,13 +90,13 @@ function reportText(view: AgentTranscriptView, running: boolean): string {
       lines.push('', `[report truncated at cap — full stream behind this ref without ?child=report]`)
     }
     if (running) {
-      lines.push('', `[agent still RUNNING — this is the latest text, not a final report]`)
+      lines.push('', `[crewmate still RUNNING — this is the latest text, not a final report]`)
     }
   } else {
     lines.push(
       running
-        ? '(no report yet — the agent is still running; latest activity below)'
-        : '(the agent produced no final text — activity summary below)',
+        ? '(no report yet — the crewmate is still running; latest activity below)'
+        : '(the crewmate produced no final text — activity summary below)',
     )
     const recent = view.toolCalls.slice(-5)
     for (const c of recent) {
@@ -112,7 +112,7 @@ function reportText(view: AgentTranscriptView, running: boolean): string {
 export const agentAdapter: ResourceAdapter = {
   kind: 'agent',
   describe:
-    'session agents/processes + their output (mercury://agent/<taskId>; final report via ?child=report)',
+    'session crewmates/processes + their output (mercury://agent/<taskId>; final report via ?child=report)',
   async resolve(ref: ParsedRef, ctx: ResourceContext): Promise<ResourceResult> {
     const tasks = tasksFrom(ctx)
     if (tasks === null) {
@@ -127,7 +127,7 @@ export const agentAdapter: ResourceAdapter = {
         resource: {
           ref: 'mercury://agent',
           kind: 'agent',
-          title: 'session agents + processes',
+          title: 'session crewmates + processes',
           summary: `${tasks.length} task(s) · ${tasks.filter(t => t.status === 'running').length} running`,
           mutable: false,
           children: tasks.slice(0, 50).map(t => ({
@@ -146,8 +146,8 @@ export const agentAdapter: ResourceAdapter = {
         return {
           state: 'absent',
           note: task
-            ? `agent '${ref.id}' (${task.status}) has produced no output/transcript yet`
-            : `no agent/process '${ref.id}' in this session and no transcript on disk`,
+            ? `crewmate '${ref.id}' (${task.status}) has produced no output/transcript yet`
+            : `no crewmate/process '${ref.id}' in this session and no transcript on disk`,
         }
       }
       const view = await readAgentTranscript(contentPath)
@@ -183,7 +183,7 @@ export const agentAdapter: ResourceAdapter = {
     if (!task && !contentPath) {
       return {
         state: 'absent',
-        note: `no agent/process '${ref.id}' in this session and no record on disk`,
+        note: `no crewmate/process '${ref.id}' in this session and no record on disk`,
       }
     }
     let outputTail = '(no output file)'
@@ -229,7 +229,7 @@ export const agentAdapter: ResourceAdapter = {
           {
             ref: `${ref.canonical}?child=report`,
             title: 'final report',
-            summary: 'the agent\'s final text via the canonical transcript projection',
+            summary: 'the crewmate\'s final text via the canonical transcript projection',
           },
         ],
         structured: {
