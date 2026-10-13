@@ -181,7 +181,7 @@ section('§5 one owner: the verb ages, /health\'s sentence, the connector\'s rec
   const connector = readFileSync(join(ROOT, 'src', 'services', 'engine-connector', 'daemonConnector.ts'), 'utf8')
   check("the connector's rewind receipt carries the door's sentence whole (no second spelling)", connector.includes("reply.refusal === 'daemon-older'") && !connector.includes('the daemon predates the rewind verb'))
   check("the connector's crew verbs carry the door's sentence whole (no second spelling)", !connector.includes('the daemon predates the crew stop and resume verbs'))
-  check('the /subagents receipt spells the detail it was handed', spawnSwitchToggleReceipt('subagents', false, 'refused', 'the daemon is an older build — x').endsWith('the daemon is an older build — x'))
+  check('the /crewmates receipt spells the detail it was handed', spawnSwitchToggleReceipt('subagents', false, 'refused', 'the daemon is an older build — x').endsWith('the daemon is an older build — x'))
 }
 
 rmSync(home, { recursive: true, force: true })

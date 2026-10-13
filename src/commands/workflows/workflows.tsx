@@ -1,7 +1,7 @@
 import * as React from 'react'
 import { WorkflowsBoard } from '../../components/tasks/WorkflowsBoard.js'
 import { parseSpawnSwitchArg } from '../../services/switchboard/spawnSwitches.js'
-import { runSpawnSwitchCommand } from '../subagents/subagents.js'
+import { runSpawnSwitchCommand } from '../crewmates/spawnSwitch.js'
 import type { LocalJSXCommandCall } from '../../types/command.js'
 
 export const call: LocalJSXCommandCall = async (onDone, _context, args) => {

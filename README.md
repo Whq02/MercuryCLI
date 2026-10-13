@@ -318,7 +318,7 @@ interface and is also available in `/config`.
 Under Agents, the Crewmates and Workflows switches determine whether new
 sessions receive the Crewmate and Workflow tools. Turning a switch off removes
 the corresponding tool; attempts to spawn that type of work return the same
-explanation. Within a session, `/subagents on|off` and `/workflows on|off`
+explanation. Within a session, `/crewmates on|off` and `/workflows on|off`
 change the setting at the next turn boundary.
 
 ## The daily loop
@@ -753,7 +753,7 @@ the live list can also include skills and extension commands.
 | Domain | Commands |
 | --- | --- |
 | current work | `/run` `/runs` `/workbench` `/diff` `/mission` |
-| crew & delegation | `/agents` `/subagents` `/crewmates` `/crew` `/workflows` `/router` `/daemon` `/saturn` `/seats` `/kill` `/unkill` |
+| crew & delegation | `/agents` `/crewmates` `/crew` `/workflows` `/router` `/daemon` `/saturn` `/seats` `/kill` `/unkill` |
 | session & context | `/clear` `/compact` `/context` `/rewind` `/sessions` `/concourse` `/rename` `/title` `/contract` `/export` `/copy` `/usage` `/realms` |
 | memory & goals | `/memory` `/console` |
 | model & effort | `/model` `/effort` `/submodels` `/advise` `/caching` |

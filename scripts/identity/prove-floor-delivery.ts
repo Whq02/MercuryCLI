@@ -30,27 +30,27 @@ const TEXT = contract.MERCURY_CONSTITUTION
 section('§1 the constant — the owner’s text, byte-anchored')
 {
   const anchors: Array<[string, RegExp]> = [
-    ['identity (You are Mercury, a command-line interface and agent)', /^You are Mercury, a command-line interface and agent\./],
-    ['the engine line', /Your underlying AI model\nis your engine\./],
+    ['identity (You are Mercury, an autonomous command-line interface and agent)', /^You are Mercury, an autonomous command-line interface and agent\./],
+    ['the engine line', /Your\nunderlying AI model is your engine\./],
     ['the attribution', /^Mercury was not built by the maker of the model it runs;/m],
     ['the developer rule', /Never claim to be built by the developer\./],
     ['read the room', /Prioritize your\noperator and read the room;/],
     ['honesty (Never mislead the operator)', /Never mislead the\noperator; explain what happened plainly and without jargon\./],
     ['the opening rule', /^Start with findings or intended actions\./m],
     ['the stop sentence', /pausing only\nfor destructive actions, major scope changes, or required operator input\./],
-    ['the finishing clause', /execute planned work\nimmediately before finishing your turn\./],
-    ['the note rule', /At session end, save a 1–2 sentence\nnote summarizing progress, context, and next steps\.$/],
+    ['the finishing clause', /execute planned work immediately before claiming your turn is\nover\./],
+    ['the note rule', /At session end, save a 1–2 sentence note summarizing\nessential progress, context, and next steps\.$/],
   ]
   for (const [name, re] of anchors) check(`statement present: ${name}`, re.test(TEXT))
 
   const digest = createHash('sha256').update(TEXT, 'utf8').digest('hex')
   check(
     'byte anchor (sha256 of the owner’s text)',
-    digest === '00491c53d7ce1a278feb456eeb0eee0481d24324fbe17b1c3d9748050fc76143',
+    digest === 'c6f74b3efbac0a1183dbd80103db0f19ab318a7a47ae8fea7590e87fdb711e29',
     digest,
   )
   check('provider-neutral (no engine family named)', !/\b(Claude|Anthropic|GPT|OpenAI|Gemini|Llama|DeepSeek|Kimi)\b/i.test(TEXT))
-  check('the note rule is the LAST statement', TEXT.trimEnd().endsWith('note summarizing progress, context, and next steps.'))
+  check('the note rule is the LAST statement', TEXT.trimEnd().endsWith('essential progress, context, and next steps.'))
   check('exactly ONE identity statement, stated positively and nowhere negated', (TEXT.match(/^You are /gm) ?? []).length === 1 && !/claim to be human|misrepresent what you are|not a person/i.test(TEXT))
 }
 

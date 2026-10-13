@@ -125,7 +125,7 @@ ends", and lands exactly there: at that turn's end, before any line waiting
 for the next turn. A line sent after that pick, while the same turn still
 runs, waits for the turn's end as well and runs as the next turn, on the
 model and effort the pick named, so the order you gave is the order that
-runs; its row keeps the plate `queued` until then. `/subagents` and
+runs; its row keeps the plate `queued` until then. `/crewmates on|off` and
 `/workflows` flipped while a turn runs hold a later line the same way: it
 waits for the turn's end and runs with the switched roster. A line sent
 before the pick keeps its place: it may still join the running turn at a
@@ -756,7 +756,7 @@ the arrival when it is absent or invalid. A host sends the same prompt row
 through the runner's `queue/add` method. A line sent
 after the turn's last tool round waits for the turn's end, as does a slash
 command sent at any point of the turn, and so does a line sent after a
-`/model`, `/effort`, `/subagents` or `/workflows` made while the turn runs
+`/model`, `/effort`, `/crewmates on|off` or `/workflows on|off` made while the turn runs
 (the pick lands first, and the line runs on it); lines that arrive between
 turns run as one turn, each its own row under its own identity, in the
 order sent; esc interrupts the turn and anything still queued runs as the

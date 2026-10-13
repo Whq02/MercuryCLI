@@ -18,6 +18,7 @@ const RETIRED: Array<{ spelling: RegExp; was: string; now: string }> = [
   { spelling: new RegExp(J('reduced — decorative', ' animation off')), was: 'the motion note repeated its own state word ("reduced — reduced — …")', now: 'the state word is printed once' },
   { spelling: new RegExp(J('fixed in every', ' theme')), was: 'the critter picker promised status colours in every theme', now: 'it names the two colour themes and says Black and white paints none' },
   { spelling: new RegExp(J('\\$\\{verdict\\.statement\\.channel\\}/\\$\\{verdict\\.statement', '\\.target\\}')), was: 'the signed receipt line printed the channel name before the target ("private/macos-arm64")', now: 'it prints the version for the target' },
+  { spelling: new RegExp(J('/sub', 'agents\\b')), was: 'the spawn switch had a command of its own, /subagents, beside /crewmates', now: 'one word for one thing: /crewmates on|off flips the switch and /crewmates alone opens the crew view; the old command ceased, with no alias and no refusal line (the changelog and the on-disk subagents/ folder are history, not the screen)' },
   { spelling: new RegExp(J('engine\\?\\.reasoning === ', 'true\\b')), was: '/config read an unset thinking key as off while the model thought', now: 'unset reads on, as the wire treats it; only an explicit off reads off' },
 ]
 
@@ -32,7 +33,7 @@ const check = (label: string, ok: boolean, detail = ''): void => {
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
 }
 
-console.log('prove-screen-words-plain — the retired screen spellings of the .34 words pass stay gone from the product\'s source and assets')
+console.log('prove-screen-words-plain — the retired screen spellings of the .34 words pass stay gone from the product\'s source and assets (the changelog is history and is not read)')
 for (const row of RETIRED) {
   const hits: string[] = []
   for (const path of tracked) {
@@ -41,6 +42,7 @@ for (const row of RETIRED) {
     const lines = text.split('\n')
     lines.forEach((line, index) => {
       if (/^\s*(\/\/|\*|\/\*)/.test(line)) return
+      if (path === 'src/constants/changelog.ts') return
       if (row.spelling.test(line)) hits.push(`${path}:${index + 1}`)
     })
   }

@@ -44,7 +44,7 @@ const { evaluateLaunchAuthority } = await import('../../src/services/switchboard
 
 const SUB = 'MERCURY_SESSION_SUBAGENTS'
 const WF = 'MERCURY_SESSION_WORKFLOWS'
-const OFF_SUB = "crewmates are off for this session — /subagents on, or the boot menu's Agents section"
+const OFF_SUB = "crewmates are off for this session — /crewmates on, or the boot menu's Agents section"
 const OFF_WF = "workflows are off for this session — /workflows on, or the boot menu's Agents section"
 
 section('§1 the rows — live-class toggles over registered flags, through the boot-env road')
@@ -519,26 +519,26 @@ if (!existsSync(DIST)) {
   }
 }
 
-section('§10 the commands — /subagents and /workflows on|off, the grammar, the no-chat sentence')
+section('§10 the commands — /crewmates and /workflows on|off, the grammar, the no-chat sentence')
 {
-  const { default: subagents } = await import('../../src/commands/subagents/index.ts')
+  const { default: crewmates } = await import('../../src/commands/crewmates/index.ts')
   const { default: workflows } = await import('../../src/commands/workflows/index.ts')
   const { COMMAND_DOMAINS } = await import('../../src/components/HelpV2/commandDomains.ts')
-  const { runSpawnSwitchCommand } = await import('../../src/commands/subagents/subagents.ts')
-  const { commandSeat, builtinCommands } = await import('../../src/commands.ts')
-  check('/subagents is a screen-seat local command with the on|off hint', subagents.type === 'local' && subagents.name === 'subagents' && subagents.seat === 'screen' && subagents.argumentHint === '[on|off]' && commandSeat(subagents as never) === 'screen')
-  check('/subagents is registered in the command table', builtinCommands().some(c => c.name === 'subagents'))
+  const { runSpawnSwitchCommand } = await import('../../src/commands/crewmates/spawnSwitch.ts')
+  const { builtinCommands } = await import('../../src/commands.ts')
+  check('/crewmates carries the on|off hint and stays the crew view (one word for one thing: /subagents ceased in .34 — no alias, no refusal line)', crewmates.type === 'local-jsx' && crewmates.name === 'crewmates' && crewmates.argumentHint === '[on|off]' && String(crewmates.description).includes('on or off') && !builtinCommands().some(c => c.name === 'subagents'))
+  check('/crewmates is registered in the command table', builtinCommands().some(c => c.name === 'crewmates'))
   check('/workflows carries the on|off hint and stays the board', workflows.type === 'local-jsx' && workflows.argumentHint === '[on|off]' && String(workflows.description).includes('on|off'))
-  check('/subagents sits in the crew & delegation domain beside /workflows', COMMAND_DOMAINS.find(d => d.key === 'crew')?.names.includes('subagents') === true && COMMAND_DOMAINS.find(d => d.key === 'crew')?.names.includes('workflows') === true)
-  check('the README roster names /subagents in crew & delegation', /\| crew & delegation \|[^\n]*`\/subagents`/.test(src('README.md')))
+  check('/crewmates sits in the crew & delegation domain beside /workflows, and the retired word is gone from it', COMMAND_DOMAINS.find(d => d.key === 'crew')?.names.includes('crewmates') === true && COMMAND_DOMAINS.find(d => d.key === 'crew')?.names.includes('workflows') === true && COMMAND_DOMAINS.find(d => d.key === 'crew')?.names.includes('subagents') !== true)
+  check('the README roster names /crewmates in crew & delegation and no longer the retired word', /\| crew & delegation \|[^\n]*`\/crewmates`/.test(src('README.md')) && !src('README.md').includes('/subagents'))
   check('the grammar: on · off · empty · junk', j(sw.parseSpawnSwitchArg(' ON ')) === j({ op: 'on' }) && j(sw.parseSpawnSwitchArg('off')) === j({ op: 'off' }) && j(sw.parseSpawnSwitchArg('')) === j({ op: 'show' }) && j(sw.parseSpawnSwitchArg('maybe')) === j({ op: 'unknown', word: 'maybe' }))
   const usage = await runSpawnSwitchCommand('workflows', 'maybe')
   check('junk answers the usage line naming the command', usage.startsWith('usage: /workflows on|off'), usage)
   const noChat = await runSpawnSwitchCommand('subagents', 'off')
   check('no chat open ⇒ the one sentence naming the focused session and the menu', noChat.includes('no chat is open') && noChat.includes("the boot menu's Agents section"), noChat)
-  check('the workflows board branches on the argument through the same body', src('src/commands/workflows/workflows.tsx').includes("runSpawnSwitchCommand('workflows'") && src('src/commands/workflows/workflows.tsx').includes('parseSpawnSwitchArg(args'))
+  check('the workflows board and the crew view branch on the argument through the same body', src('src/commands/workflows/workflows.tsx').includes("runSpawnSwitchCommand('workflows'") && src('src/commands/workflows/workflows.tsx').includes('parseSpawnSwitchArg(args') && src('src/commands/crewmates/crewmates.tsx').includes("runSpawnSwitchCommand('subagents'") && src('src/commands/crewmates/crewmates.tsx').includes('parseSpawnSwitchArg(args'))
   check('the toggle receipts read the daemon\'s vocabulary', sw.spawnSwitchToggleReceipt('workflows', false, 'refused', 'no live channel') === 'workflows off refused — no live channel' && sw.spawnSwitchToggleReceipt('workflows', true, 'applied').includes('the Workflow tool rejoins the roster from the next turn'))
-  check("the changelog and the agents page carry the switches", src('src/constants/changelog.ts').includes('/subagents on|off') && src('docs/CREW.md').includes('## The two spawn switches'))
+  check("the agents page carries the switches under their .34 words", src('docs/CREW.md').includes('## The two spawn switches') && src('docs/CREW.md').includes('`/crewmates on|off` and `/workflows on|off`'))
 }
 
 console.log(`\n${failures === 0 ? '✅' : '❌'} prove-spawn-switch — ${checks - failures}/${checks} checks passed`)
