@@ -9,7 +9,7 @@ import { correctFact, pointFact, replacePendingRow, retireFact, strikePendingRow
 import { memorySecretRefusal } from './mnemeSecretGuard.js'
 import { ARCHIVE_PREFIX, isArchiveDoc, parseEntryLine, liveSeqs, serializeSignature, type MnemeTopicDoc } from './mnemeTopicDocs.js'
 import { bumpUsage, readPins, readUsage } from './mnemeUsage.js'
-import { candidates, rankCandidates } from './mnemeLookup.js'
+import { candidates, fuseRankings, rankAllCandidates } from './mnemeLookup.js'
 import { noteCorrected, noteRetained } from './lineageSession.js'
 import { currentLedger, footnoteContext, footnotesOf, renderLedgerEntry, type Footnotes } from './mnemeFootnotes.js'
 import type { LedgerEntry } from './types.js'
@@ -226,25 +226,28 @@ export function recallQuery(
       signature: `doc=${hit.slug} line=${hit.line}`,
     })
   }
-  if (hits.length === 0) {
+  if (hits.length === 0 || /^[a-z0-9_\s-]+$/i.test(query)) {
     const pool = candidates(dir)
+    const pins = new Set(readPins(dir).map(pin => pin.seq))
     for (const doc of listArchiveDocs(dir)) {
-      const pagePath = join(dir, pageFileForSlug(doc.slug))
+      const slug = recallSlug(doc)
+      const pagePath = join(dir, pageFileForSlug(slug))
       for (const section of doc.sections) {
         for (const entry of section.entries) {
-          pool.push({ id: `seq:${entry.seq}`, text: entry.text, signature: serializeSignature(entry), slug: doc.slug, pagePath, seq: entry.seq, pending: false })
+          pool.push({ id: `seq:${entry.seq}`, text: entry.text, signature: serializeSignature(entry), slug, pagePath, seq: entry.seq, pending: false, time: entry.time, pinned: pins.has(entry.seq) })
         }
       }
     }
-    for (const hit of rankCandidates(query, pool, { limit, usage: readUsage(dir) })) {
-      hits.push({
-        id: hit.id,
-        label: hit.pending ? 'pending' : hit.slug.startsWith(ARCHIVE_PREFIX) ? 'archived' : 'consolidated',
-        slug: hit.pending ? PENDING_SLUG : hit.slug,
-        preview: clip(hit.text),
-        signature: hit.pending ? hit.signature.replace(/^\[unconsolidated, ([^,]+), ([^\]]+)\]$/, 'time=$1, source=$2') : hit.signature.replace(/^<|>$/g, ''),
-      })
-    }
+    const ranked: RecallHit[] = rankAllCandidates(query, pool, { usage: readUsage(dir), now: opts.now?.getTime() }).map(hit => ({
+      id: hit.id,
+      label: hit.pending ? 'pending' : hit.slug.startsWith(ARCHIVE_PREFIX) ? 'archived' : 'consolidated',
+      slug: hit.pending ? PENDING_SLUG : hit.slug,
+      preview: clip(hit.text),
+      signature: hit.pending ? hit.signature.replace(/^\[unconsolidated, ([^,]+), ([^\]]+)\]$/, 'time=$1, source=$2') : hit.signature.replace(/^<|>$/g, ''),
+    }))
+    const order = fuseRankings([hits.map(hit => hit.id), ranked.map(hit => hit.id)])
+    const byId = new Map([...ranked, ...hits].map(hit => [hit.id, hit]))
+    hits.splice(0, hits.length, ...order.map(id => byId.get(id)!))
   }
   const catalogRows = catalogDocs(dir)
     .filter(row => row.slug.includes(query.toLowerCase()) || row.summary.toLowerCase().includes(query.toLowerCase()))
