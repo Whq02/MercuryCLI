@@ -3,7 +3,7 @@ WORKBENCH               │╭────────────────�
   no prompts sent yet   │                                                                                              │
                         │ ╭──────────────────────────────────────────────────────────────────────────────────────────╮ │
 NEXT                    │ │ Mercury · model · 3 of 22 match                                                          │ │
-  · /workflows — agent …│ │ / sonnet                                                                                 │ │
+  · /workflows — crewma…│ │ / sonnet                                                                                 │ │
   · /health — health ce…│ │                                                                                          │ │
   · /memory — memory    │ │ ▾ ANTHROPIC · API key · …-key · 3 of 12                                                  │ │
   · /mission — set a mi…│ │ ╭──────────────────────────────────────────────────────────────────────────────────────╮ │ │
