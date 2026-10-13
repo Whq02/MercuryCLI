@@ -20,6 +20,9 @@ doc.sections = [{ heading: 'notes', entries: [
 ] }]
 writeDoc(doc, home)
 try {
+  const caller = recallQuery.toString()
+  assert.equal((caller.match(/fuseRecallRankings\(/g) ?? []).length, 1)
+  assert(!/rankAllCandidates\(|fuseRankings\(/.test(caller))
   const bytes = readFileSync(join(home, docFileName(doc.slug)), 'utf8')
   const result = recallQuery('quartz certificates', { dir: home, now, limit: 2 })
   assert.equal(result.hits[0]?.id, 'seq:106')
