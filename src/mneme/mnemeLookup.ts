@@ -3,7 +3,8 @@ import { currentBufferPath, pendingRows } from './mnemeBuffer.js'
 import { readPinnedStatus } from './mnemeFrontPage.js'
 import { mnemeEnabled, mnemeLibraryDir } from './mnemeGates.js'
 import { listTopicDocs } from './mnemeLibrary.js'
-import { docFileName, serializeSignature, type MnemeEntry } from './mnemeTopicDocs.js'
+import { docFileName, serializeSignature } from './mnemeTopicDocs.js'
+import { stemLookupToken } from './mnemeStemmer.js'
 import { bumpUsage, readUsage, usageOf } from './mnemeUsage.js'
 
 export const LOOKUP_LIMIT = 5
@@ -20,15 +21,19 @@ const STOPWORDS = new Set([
   'going', 'doing', 'done', 'okay', 'yes', 'why', 'say', 'said', 'run', 'file', 'files', 'code', 'work', 'working',
 ])
 
-export function lookupTokens(raw: string): string[] {
+export function lookupTerms(raw: string): string[] {
   const out: string[] = []
   for (const token of raw.toLowerCase().split(/[^a-z0-9_.\-/]+/)) {
     const t = token.replace(/^[._\-/]+|[._\-/]+$/g, '')
     if (t.length < 3 || STOPWORDS.has(t) || /^\d+$/.test(t)) continue
-    if (!out.includes(t)) out.push(t)
-    if (out.length >= MAX_QUERY_TOKENS) break
+    const stem = stemLookupToken(t)
+    if (stem.length >= 3 && !STOPWORDS.has(stem)) out.push(stem)
   }
   return out
+}
+
+export function lookupTokens(raw: string): string[] {
+  return [...new Set(lookupTerms(raw))].slice(0, MAX_QUERY_TOKENS)
 }
 
 export function escapeRegExp(s: string): string {
@@ -78,7 +83,7 @@ export function rankCandidates(
   const exclude = opts.exclude ?? new Set<string>()
   const usage = opts.usage ?? {}
   const matchers = tokens.map(t => ({ token: t, re: new RegExp(`(^|[^a-z0-9])${escapeRegExp(t)}`) }))
-  const lowered = pool.map(c => c.text.toLowerCase())
+  const lowered = pool.map(c => lookupTerms(c.text).join(' '))
   const df = new Map<string, number>()
   for (const m of matchers) {
     let n = 0
