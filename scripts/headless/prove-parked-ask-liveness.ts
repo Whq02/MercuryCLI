@@ -232,7 +232,7 @@ tally.section(`L1 — an ask parked with a silent host: at the unattended limit 
     const second = fixture.requests[1]
     tally.check('L1: nothing the seat wrote blames the provider (no cut, no no-progress words)', !seat.frames.slice(mark).some(e => cutWordsOf(e.frame) !== null), j(seat.frames.slice(mark).map(e => cutWordsOf(e.frame)).filter(Boolean)).slice(0, 300))
     tally.check('L1: the NEXT provider request was issued and consumed, carrying the denial (the fixture saw request 2)', fixture.requests.length === 2 && second !== undefined && second.results.some(r => r.isError && r.text.includes(CLIENT_AWAY_WORDS)), `${fixture.requests.length} request(s) · request 2 results ${j(second?.results ?? null).slice(0, 300)}`)
-    tally.check("L1: the turn ended with the model's own text, never the timer's words", result !== null && result.status === 'completed' && result.answer === DONE, result === null ? 'no outcome' : `${String(result.status)} ${j(String(result.answer ?? '')).slice(0, 200)} ${errorsOf(result).slice(0, 200)}`)
+    tally.check("L1: the turn ended blocked on the unanswered ask (the .34 ruling) with the model's own text as its answer, never the timer's words", result !== null && result.status === 'blocked' && result.answer === DONE, result === null ? 'no outcome' : `${String(result.status)} ${j(String(result.answer ?? '')).slice(0, 200)} ${errorsOf(result).slice(0, 200)}`)
     tally.check('L1: the ask was withdrawn from the host on the wire ($/cancel_request for its id)', seat.withdrawn().includes(ask.id), j(seat.withdrawn()))
     const again = seat.frames.length
     seat.prompt(AGAIN)
@@ -325,7 +325,7 @@ tally.section('L3 — the host leaves while the ask is parked: the ask settles a
     tally.check('L3: the NEXT provider request was issued and consumed, carrying that error', fixture.requests.length === 2 && second !== undefined && second.results.some(r => r.isError), `${fixture.requests.length} request(s) · request 2 results ${j(second?.results ?? null).slice(0, 300)}`)
     tally.check(`L3: the turn ended with the model's own text within seconds (${settledMs} ms)`, result !== null && result.answer === DONE && settledMs < bound(15_000), result === null ? 'no outcome' : `${String(result.status)} ${j(String(result.answer ?? '')).slice(0, 200)}`)
     const code = await seat.stop(bound(10_000))
-    tally.check('L3: the seat exits 0 once the turn is over', code === 0, `exit ${code} stderr ${j(seat.stderr().slice(-300))}`)
+    tally.check('L3: the seat exits 1 once the turn is over — its last outcome is blocked on the ask nobody answered (the .34 ruling)', code === 1, `exit ${code} stderr ${j(seat.stderr().slice(-300))}`)
     evidence(fixture, seat, t0, toolUseId)
   } else {
     await seat.stop(bound(5_000))
