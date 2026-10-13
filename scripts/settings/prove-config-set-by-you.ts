@@ -30,7 +30,7 @@ const SET: Array<[string, Record<string, unknown>]> = [
   ['Usage notice to the model', { engine: { usageNotice: true } }],
   ['Default permission mode', { guardrails: { mode: 'implement' } }],
   ['Pinned memory limit', { memory: { pinnedLimit: 2000 } }],
-  ['Memory at start', { memory: { startLimit: 3000 } }],
+  ['Memory at start, beyond the pins', { memory: { startLimit: 3000 } }],
   ['Session journal', { memory: { journal: false } }],
   ['Journal on the entry page', { memory: { journalOnEntryPage: true } }],
   ['Respect .gitignore in file picker', { files: { honourGitignore: false } }],

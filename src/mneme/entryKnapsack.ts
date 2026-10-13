@@ -33,7 +33,6 @@ export interface StartChoice {
   limit: number
   pinnedChars: number
   used: number
-  pinsFill: boolean
 }
 
 export interface MemoryAtStartStatus {
@@ -41,7 +40,6 @@ export interface MemoryAtStartStatus {
   pinnedCount: number
   pinnedChars: number
   used: number
-  pinsFill: boolean
   facts: number
   rodeFacts: number
   notes: number
@@ -155,19 +153,18 @@ export function chooseAtStart(input: { candidates: readonly StartCandidate[]; ch
     return { ...candidate, score, density: candidate.chars > 0 ? score / candidate.chars : 0 }
   })
   const order = [...scored].sort((a, b) => Number(a.stale === true) - Number(b.stale === true) || b.density - a.density || b.score - a.score || a.id.localeCompare(b.id))
-  const room = input.limit - input.pinnedChars
   const rode: StartScored[] = []
   const left: StartScored[] = []
   let used = 0
   for (const candidate of order) {
-    if (candidate.score > 0 && used + candidate.chars <= room) {
+    if (candidate.score > 0 && used + candidate.chars <= input.limit) {
       rode.push(candidate)
       used += candidate.chars
     } else left.push(candidate)
   }
   rode.sort(byScore)
   left.sort(byScore)
-  return { rode, left, limit: input.limit, pinnedChars: input.pinnedChars, used, pinsFill: input.pinnedChars > input.limit }
+  return { rode, left, limit: input.limit, pinnedChars: input.pinnedChars, used }
 }
 
 export function withThousands(n: number): string {
@@ -185,7 +182,6 @@ export function memoryAtStartLine(input: { choice: StartChoice; pinnedCount: num
   const { choice, pinnedCount, facts, notes, state } = input
   const pins = pinnedCount === 0 ? 'no pinned rule' : `${plural(pinnedCount, 'pinned rule')} (${withThousands(choice.pinnedChars)} characters)`
   const pool = joinWords([facts > 0 ? plural(facts, 'fact') : null, notes > 0 ? plural(notes, 'earlier note') : null].filter((part): part is string => part !== null))
-  if (choice.pinsFill) return `Memory at start: ${pins} fill the ${withThousands(choice.limit)}-character start limit; none of the ${pool} rides; Recall finds them (the limit moves in /config).`
   const target = [state.branch !== null ? `branch ${state.branch}` : null, state.files.length > 0 ? 'the files touched lately' : null, state.note !== null ? 'the last note' : null].filter((part): part is string => part !== null)
   if (target.length === 0) return `Memory at start: ${pins}; the ${pool} wait for a branch, touched files or a note to match against; Recall finds them.`
   const rodeFacts = choice.rode.filter(c => c.kind === 'fact').length
@@ -222,7 +218,6 @@ export function composeStartPage(input: { dir: string; projectKey: string; state
     pinnedCount: pinned.count,
     pinnedChars: pinned.chars,
     used: choice.used,
-    pinsFill: choice.pinsFill,
     facts: facts.length,
     rodeFacts: choice.rode.filter(c => c.kind === 'fact').length,
     notes: notes.length,

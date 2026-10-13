@@ -21,10 +21,10 @@ Four things are in front of the model without anyone asking:
   rewords, merges or drops such a rule on its own. You pin and unpin from the
   memory centre.
 - **The facts that matter now**, chosen once at the start of the session:
-  within a fixed budget, the facts and earlier notes most relevant to the
-  branch you are on, the files touched lately and the last note left, each
-  word for word. One line above them says how much rode and that Recall
-  finds the rest.
+  within their own allowance beside the pinned shelf, the facts and earlier
+  notes most relevant to the branch you are on, the files touched lately and
+  the last note left, each word for word. One line above them says how much
+  rode and that Recall finds the rest.
 - **The automatic lookup** on every message: up to five facts that match what
   you just said are attached before the model answers, each pointing at the
   page it lives on.
@@ -84,8 +84,9 @@ that merely share words are not a conflict — both stay.
 
 ## What rides at the start of a session
 
-The pinned shelf rides first and whole. Then, within one budget, Mercury
-chooses what else a session should see at its start — no model is asked.
+The pinned shelf rides first and whole, whatever its size. Then, within an
+allowance of its own that the shelf never eats into, Mercury chooses what
+else a session should see at its start — no model is asked.
 The project's state is the question: the name of the branch and its words,
 the files changed in the working tree and the files the last sessions
 touched, the words of the last note left. Every unpinned fact (archived ones
@@ -100,12 +101,11 @@ one line: how many rules are pinned and how much they weigh, how many of the
 facts and earlier notes rode and what they were matched against, and that
 Recall finds the rest. Leaving a fact off the page is not forgetting it.
 
-The budget is `memory.startLimit` in settings (characters; the default is
-7000), and the **Memory at start** row in `/config` moves it by a thousand.
-When the pinned rules alone exceed it, every rule still loads and the line
-says the rules fill the limit and nothing else rides. The page is composed
-once at the start of a session and never moves while the session runs; a
-fact saved or a file touched mid-session reaches the next session's page.
+The allowance is `memory.startLimit` in settings (characters; the default is
+4000), and the **Memory at start, beyond the pins** row in `/config` moves it
+by a thousand. The page is composed once at the start of a session and never
+moves while the session runs; a fact saved or a file touched mid-session
+reaches the next session's page.
 
 ## The journal
 
