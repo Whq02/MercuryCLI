@@ -69,7 +69,7 @@ const DAY = 86_400_000
 const SESSION_NOW = Date.UTC(2026, 9, 13, 9, 0, 0, 0)
 
 const knapsack = await import('../../src/mneme/entryKnapsack.ts')
-const { retainItems } = await import('../../src/mneme/memoryVerbs.ts')
+const { retainItems, _resetMemoryVerbSessionStateForTesting } = await import('../../src/mneme/memoryVerbs.ts')
 const { maybeConsolidate } = await import('../../src/mneme/mnemeConsolidate.ts')
 const { listArchiveDocs, listTopicDocs } = await import('../../src/mneme/mnemeLibrary.ts')
 const { pinFact, readPins } = await import('../../src/mneme/mnemeUsage.ts')
@@ -84,7 +84,9 @@ const seqOf = (dir: string, text: string): number => {
 }
 const retainAt = (dir: string, at: number, content: string, topic: string): void => {
   frozen = at
-  retainItems([{ content, topic }], { session: 'knapsack-proof' }, dir)
+  _resetMemoryVerbSessionStateForTesting()
+  const [outcome] = retainItems([{ content, topic }], { session: 'knapsack-proof' }, dir)
+  if (outcome?.status !== 'stored') throw new Error(`retain refused: ${j(outcome)} for ${content}`)
 }
 
 try {
@@ -252,6 +254,70 @@ try {
     clearSystemPromptSections()
     const next = (await getSystemPrompt(tools, 'claude-fable-5-1', [])).join('\n\n')
     check('at a lawful prefix boundary the block recomposes from the state as it stands then', next !== first && next.includes('opal export writes to the garnet ledger'), next.slice(next.indexOf(knapsack.MEMORY_AT_START_HEADING), next.indexOf('# Lineage')))
+  }
+
+  section('§5 twelve recorded session states (synthetic, from the fixture) replayed: what rides and what is left out, pinned as a table')
+  {
+    interface FixtureFact { topic: string; daysAgo: number; text: string; pin?: boolean; asked?: boolean }
+    interface FixtureNote { daysAgo: number; text: string }
+    interface FixtureState { id: number; name: string; branch: string | null; files: string[]; limit: number; stale?: string[]; facts: FixtureFact[]; notes: FixtureNote[]; expect: { rides: string[]; left: string[] } }
+    interface Fixture { synthetic: boolean; now: string; states: FixtureState[] }
+    const fixturePath = join(ROOT, 'scripts/memory-lifecycle/fixtures/entry-knapsack/states.json')
+    const fixture = JSON.parse(readFileSync(fixturePath, 'utf8')) as Fixture
+    const T = Date.parse(fixture.now)
+    check('the fixture is twelve states and says it is synthetic', fixture.synthetic === true && fixture.states.length === 12 && Number.isFinite(T))
+    const { lastNoteOf } = await import('../../src/mneme/entryState.ts')
+    const dirOf = (s: FixtureState): string => join(HOME, 'states', String(s.id))
+    const retains: Array<{ at: number; state: FixtureState; fact: FixtureFact }> = []
+    for (const s of fixture.states) {
+      mkdirSync(dirOf(s), { recursive: true })
+      for (const fact of s.facts) retains.push({ at: T - fact.daysAgo * DAY, state: s, fact })
+    }
+    retains.sort((a, b) => a.at - b.at || a.state.id - b.state.id)
+    for (const row of retains) retainAt(dirOf(row.state), row.at, row.fact.text, row.fact.topic)
+    const record = process.env.ENTRY_KNAPSACK_RECORD === '1'
+    const expectations: Record<string, { rides: string[]; left: string[] }> = {}
+    const table: string[] = ['| # | state | branch | pinned | limit | rode (characters) | left for Recall |', '| --- | --- | --- | --- | ---: | --- | --- |']
+    for (const s of fixture.states) {
+      const dir = dirOf(s)
+      frozen = T - 3_600_000
+      const landed = s.facts.length > 0 ? maybeConsolidate({ force: true, dir, now: new Date(frozen) }) : null
+      check(`state ${s.id}: the library landed ${s.facts.length} facts through the real road`, s.facts.length === 0 || (landed !== null && landed.consolidated && landed.entries === s.facts.length), landed?.reason ?? '')
+      for (const fact of s.facts) if (fact.pin) pinFact(seqOf(dir, fact.text), dir, new Date(frozen), { asked: fact.asked === true })
+      if (s.facts.some(f => f.pin)) maybeConsolidate({ force: true, dir, now: new Date(frozen) })
+      const PK = `knapsack-state-${s.id}`
+      s.notes.forEach((note, i) => {
+        frozen = T - note.daysAgo * DAY
+        ledger.openEntry(PK, { sessionId: `${PK}-${i + 1}`, model: 'claude-fable-5-1' })
+        frozen += 60_000
+        ledger.closeEntry(PK, `${PK}-${i + 1}`, { outcome: 'closed', handoff: note.text })
+      })
+      frozen = T
+      const previous = ledger.readLedger(PK)
+      const state: ProjectState = { branch: s.branch, files: s.files, note: lastNoteOf(previous), at: fixture.now }
+      const stale = s.stale !== undefined ? (c: StartCandidate): boolean => s.stale!.includes(c.text) : undefined
+      const compose = (): ReturnType<typeof knapsack.composeStartPage> => knapsack.composeStartPage({ dir, projectKey: PK, state, previous, limit: s.limit, now: T, root: '/proj', stale })
+      const page = compose()
+      const again = compose()
+      const pins = readPinnedStatus(dir)
+      const pinnedChars = pins?.used ?? 0
+      const rides = page.choice.rode.map(c => c.id)
+      const left = page.choice.left.map(c => c.id)
+      console.log(`\n  state ${s.id} — ${s.name}`)
+      console.log((page.text ?? '(no block)').split('\n').map(l => `    │ ${l}`).join('\n'))
+      check(`state ${s.id}: the pinned rules ride whole whatever the limit — the status counts every pin's characters as the Pinned section does`, page.status.pinnedCount === s.facts.filter(f => f.pin).length && page.status.pinnedChars === pinnedChars, j(page.status))
+      check(`state ${s.id}: the budget is respected to the character`, (page.choice.pinsFill ? page.choice.used === 0 : pinnedChars + page.choice.used <= s.limit) && page.choice.used === page.choice.rode.reduce((n, c) => n + c.chars, 0), `${pinnedChars} + ${page.choice.used} vs ${s.limit}`)
+      check(`state ${s.id}: nothing rides without a word in common with the state`, page.choice.rode.every(c => c.score > 0))
+      check(`state ${s.id}: twice the same`, again.text === page.text && j(again.choice.rode.map(c => c.id)) === j(rides))
+      if (page.text !== null) {
+        check(`state ${s.id}: the line says what rode`, page.text.split('\n')[1]!.startsWith('Memory at start: ') && (page.choice.pinsFill ? page.text.includes('fill the') && rides.length === 0 : true))
+      }
+      expectations[String(s.id)] = { rides, left }
+      if (!record) check(`state ${s.id}: what rides and what is left out are the pinned table's`, j(rides) === j(s.expect.rides) && j(left) === j(s.expect.left), `rides ${j(rides)} left ${j(left)}`)
+      table.push(`| ${s.id} | ${s.name} | ${s.branch ?? '—'} | ${page.status.pinnedCount} (${pinnedChars}) | ${s.limit} | ${rides.length === 0 ? '—' : `${rides.join(', ')} (${page.choice.used})`} | ${left.length === 0 ? '—' : left.join(', ')} |`)
+    }
+    console.log('\n' + table.join('\n'))
+    if (record) console.log('\nENTRY_KNAPSACK_RECORD expectations:\n' + JSON.stringify(expectations, null, 1))
   }
 } finally {
   Date.now = realNow
