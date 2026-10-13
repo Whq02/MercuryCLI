@@ -5,6 +5,7 @@ import { join } from 'node:path'
 import { captureEngineEntry, resolveCaptureDriver, vshotBudgetMs } from '../lib/captureDriver.ts'
 import { seedFirstRun } from '../lib/firstRunSeed.ts'
 import { MODEL_PICKER_TITLE } from '../../src/utils/model/modelPickerGroups.ts'
+import { keyHintLabel } from '../../src/components/mercury-ui/keyHintLabel.ts'
 
 const root = join(import.meta.dir, '..', '..')
 const arg = (flag: string): string | undefined => {
@@ -59,7 +60,7 @@ try {
       const config = join(world, 'capture-config.json')
       const title = panel === 'crewmates' ? 'Mercury — crew' : panel === 'model' ? MODEL_PICKER_TITLE : `Mercury — ${panel}`
       const needle = panel === 'crewmates' ? 'Crewmates' : title
-      const ready = { requireAwait: true, awaitText: 'ready ·', targetText: '⇧← back', awaitSettleTicks: 6 }
+      const ready = { requireAwait: true, awaitText: 'ready ·', targetText: keyHintLabel('⇧← back'), awaitSettleTicks: 6 }
       const panelReady = { requireAwait: true, awaitText: needle, awaitSettleTicks: 8 }
       writeFileSync(config, JSON.stringify({ argv: [node, dist], cwd, cols, rows, out, total: 400, stableTicks: 4, sends: [
         { requireAwait: true, awaitText: '↑↓ choose', minTick: 35, awaitSettleTicks: 4, data: '\r' },

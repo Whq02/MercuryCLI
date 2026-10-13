@@ -99,7 +99,7 @@ type CrashRow = { file: string; origin?: string; message?: string; sessionId?: s
 
 function boot(h: Home, extraEnv: Record<string, string> = {}): { screen: string; crashes: CrashRow[]; exit: unknown; log: string } {
   const out = join(h.home, '..', `verdict-${Date.now()}.json`)
-  const res = spawnSync('python3', [HARNESS, 'notice', BIN, h.home, h.cwd, out], {
+  const res = spawnSync('/usr/bin/python3', [HARNESS, 'notice', BIN, h.home, h.cwd, out], {
     cwd: SCRATCH,
     encoding: 'utf8',
     timeout: 240_000,

@@ -71,6 +71,7 @@ function capture(
     timeout: vshotBudgetMs(150_000),
     env: {
       ...process.env,
+      FORCE_COLOR: '3',
       MERCURY_CONFIG_DIR: CONFIG_HOME,
     },
   })
