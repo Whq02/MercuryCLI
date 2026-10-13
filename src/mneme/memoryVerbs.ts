@@ -10,7 +10,8 @@ import { conflictReason, contradictionCandidates, firstConflict, judgeContradict
 import { memorySecretRefusal } from './mnemeSecretGuard.js'
 import { ARCHIVE_PREFIX, isArchiveDoc, parseEntryLine, liveSeqs, serializeSignature, type MnemeTopicDoc } from './mnemeTopicDocs.js'
 import { bumpUsage, readPins, readUsage } from './mnemeUsage.js'
-import { candidates, fuseRankings, rankAllCandidates } from './mnemeLookup.js'
+import { candidates } from './mnemeLookup.js'
+import { fuseRecallRankings } from './mnemeRecallRanking.js'
 import { noteCorrected, noteRetained } from './lineageSession.js'
 import { currentLedger, footnoteContext, footnotesOf, renderLedgerEntry, type Footnotes } from './mnemeFootnotes.js'
 import type { LedgerEntry } from './types.js'
@@ -286,15 +287,15 @@ export function recallQuery(
         }
       }
     }
-    const ranked: RecallHit[] = rankAllCandidates(query, pool, { usage: readUsage(dir), now: opts.now?.getTime() }).map(hit => ({
+    const byId = new Map<string, RecallHit>(pool.map(hit => [hit.id, {
       id: hit.id,
       label: hit.pending ? 'pending' : hit.slug.startsWith(ARCHIVE_PREFIX) ? 'archived' : 'consolidated',
       slug: hit.pending ? PENDING_SLUG : hit.slug,
       preview: clip(hit.text),
       signature: hit.pending ? hit.signature.replace(/^\[unconsolidated, ([^,]+), ([^\]]+)\]$/, 'time=$1, source=$2') : hit.signature.replace(/^<|>$/g, ''),
-    }))
-    const order = fuseRankings([hits.map(hit => hit.id), ranked.map(hit => hit.id)])
-    const byId = new Map([...ranked, ...hits].map(hit => [hit.id, hit]))
+    }]))
+    for (const hit of hits) byId.set(hit.id, hit)
+    const order = fuseRecallRankings(query, pool, hits.map(hit => hit.id), { dir, usage: readUsage(dir), now: opts.now?.getTime() })
     hits.splice(0, hits.length, ...order.map(id => byId.get(id)!))
   }
   const catalogRows = catalogDocs(dir)
