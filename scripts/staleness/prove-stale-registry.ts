@@ -330,6 +330,7 @@ src/utils/verification/projectGates.ts :: cache :: ttl-bounded
 src/utils/verification/verificationState.ts :: digestCache :: invalidator=markMutation
 src/utils/verification/verificationState.ts :: verifiableCache :: ttl-bounded
 src/utils/wards/wards.ts :: homePatternCache :: keyed-by-truth
+src/utils/wards/wards.ts :: pipelineRemovalCache :: keyed-by-truth
 src/utils/windowsPaths.ts :: locateGitBash :: static-for-process
 src/utils/zodToJsonSchema.ts :: conversionCache :: keyed-by-truth
 `.trim()
