@@ -469,6 +469,9 @@ The output row types, by their `type` field:
 - `step` — one model call of the main thread: `message_id`, `model`, `usage`,
   and `stop` when the model said why it stopped.
 - `outcome` — the turn's result, described below.
+- `close` — the note left for the next session at close: `state` (`stored`,
+  `skipped` or `none`), `note_chars`, and the `usage` of the model calls that
+  wrote it, so a reader summing every row's usage reaches the outcome's.
 - `wait` — a wait on the model: `state` (`first_byte`, `retry`, `silence`,
   `loading` or `done`) with the figures that state carries, such as
   `since_ms`, `attempt` and `of`, `delay_ms`, `reason` and `http_status`.
