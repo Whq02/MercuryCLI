@@ -111,7 +111,7 @@ section('§2 the built product: a rule written mid-session into a project that h
     check('the project has no .mercury folder when the session starts', !existsSync(join(cwd, '.mercury')))
     child.stdin.write(`${JSON.stringify({ type: 'prompt', content: 'which git version' })}\n`)
     const first = await waitForOutcomes(1, 60_000)
-    check('turn 1 completes', first && outcomes()[0]?.status === 'completed', `${JSON.stringify(outcomes()[0])} ${stderr.slice(0, 300)}`)
+    check('turn 1 ends blocked: the first call asked and headless cannot answer (headless-process RUN-03 — the outcome tells the truth)', first && outcomes()[0]?.status === 'blocked', `${JSON.stringify(outcomes()[0])} ${stderr.slice(0, 300)}`)
     check('the first Bash call is refused: nothing allows it and headless cannot ask', results()[0]?.status === 'error' && /needs approval/.test(String(results()[0]?.output ?? '')), JSON.stringify(results()[0]).slice(0, 300))
     mkdirSync(join(cwd, '.mercury'), { recursive: true })
     writeFileSync(join(cwd, '.mercury', 'settings.local.json'), JSON.stringify({ guardrails: { allow: ['Bash(git --version)'] } }))
