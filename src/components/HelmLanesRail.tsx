@@ -53,12 +53,15 @@ export function railRowBudgets(available: number, nameW: number, verbW: number, 
   return verb < 4 ? { name: Math.max(3, available), verb: 0 } : { name, verb }
 }
 
+const RAIL_AGE_WORD = /^\d+(?:\.\d+)?[smhd]$/
+
 export function fitRailVerb(verb: string, budget: number): string {
   if (displayWidth(verb) <= budget) return verb
   const words = verb.split(' ')
+  const ageLast = words.length > 1 && RAIL_AGE_WORD.test(words[words.length - 1]!)
   for (let keep = words.length - 1; keep >= 1; keep--) {
-    const head = words.slice(0, keep).join(' ')
-    if (displayWidth(head) <= budget) return head
+    const kept = (ageLast ? words.slice(words.length - keep) : words.slice(0, keep)).join(' ')
+    if (displayWidth(kept) <= budget) return kept
   }
   return truncateToWidth(verb, budget)
 }

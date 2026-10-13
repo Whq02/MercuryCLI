@@ -106,6 +106,7 @@ console.log('— CRW-16 the CREW lane keeps the letters that tell helpers apart 
   const { fitRailVerb } = await import('../../src/components/HelmLanesRail.tsx')
   check('a token verb that no longer fits sheds its word and keeps its figure — "9.3k context" reads "9.3k" in nine columns, never "9.3k con…"', fitRailVerb('9.3k context', 9) === '9.3k' && fitRailVerb('940 context', 7) === '940' && fitRailVerb('9.3k context', 12) === '9.3k context')
   check('a one-word verb that does not fit is cut with the ellipsis as before', fitRailVerb('landed', 4) === truncateToWidth('landed', 4))
+  check('a run verb that no longer fits keeps its AGE, the live reading, and sheds the kind the glyph already tells — "shell 3s" reads "3s" in five columns, "workflow 12m" reads "12m" in seven, "monitor 1.5h" reads "1.5h"; with room the kind returns', fitRailVerb('shell 3s', 5) === '3s' && fitRailVerb('workflow 12m', 7) === '12m' && fitRailVerb('monitor 1.5h', 6) === '1.5h' && fitRailVerb('shell 3s', 8) === 'shell 3s')
   const drive = railRowBudgets(21, 'reef-survey'.length, '940 context'.length, 3)
   check('the crew drive’s rail (21 columns, reef-survey · 940 context) keeps the whole name and the figure', drive.name === 11 && fitRailVerb('940 context', drive.verb) === '940', JSON.stringify(drive))
   const roomy = railRowBudgets(40, 'Helper A sleep 171'.length, '9.3k context'.length, 3)
