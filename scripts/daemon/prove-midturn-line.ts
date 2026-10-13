@@ -297,7 +297,7 @@ if (!existsSync(DIST)) {
   const last2 = r2?.last ?? []
   const rem2 = remindersIn(last2)
   check("round two's request folds the two lines into the tool-result message, as two system-reminders, first before second", last2[0]?.type === 'tool_result' && rem2.length === 2 && rem2[0]!.includes(LINE1) && rem2[1]!.includes(LINE2), j(last2.map(b => [b.type, (b.text ?? '').slice(0, 60)])))
-  check("the reminders ride inside the tool_result's content, after the tool's own text (the wire shape stands as it is)", remindersIn(last2, ['tool_result/text']).length === 2 && remindersIn(last2, ['text']).length === 0, j(last2.map(b => b.type)))
+  check("the reminders ride beside the tool_result as the message's own text blocks, after the tool's result and never inside its text — the operator's words read as the operator's, not as tool output (wards-and-refusals SH-05, c0a23850e6)", remindersIn(last2, ['text']).length === 2 && remindersIn(last2, ['tool_result/text']).length === 0, j(last2.map(b => b.type)))
   check('the first line rides under the new words, exactly', rem2[0] === wordsFor(LINE1), j(rem2[0]?.slice(0, 200)))
   check('the second line rides under the new words, exactly', rem2[1] === wordsFor(LINE2), j(rem2[1]?.slice(0, 200)))
   check('round one carried neither line; round two carries each once; round three still carries each once (the history keeps them, nothing doubles)', (r1?.counts?.[LINE1] ?? -1) === 0 && (r1?.counts?.[LINE2] ?? -1) === 0 && r2?.counts?.[LINE1] === 1 && r2?.counts?.[LINE2] === 1 && r3?.counts?.[LINE1] === 1 && r3?.counts?.[LINE2] === 1 && r4?.counts?.[LINE1] === 1, j([r1?.counts, r2?.counts, r3?.counts, r4?.counts]))
