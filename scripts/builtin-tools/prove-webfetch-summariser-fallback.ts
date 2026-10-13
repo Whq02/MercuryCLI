@@ -21,17 +21,18 @@ const thrower = (msg: string) => async () => {
 }
 const sig = new AbortController().signal
 
+const reading = (text: string) => `[Model reading of the extracted page, not the page’s own words.]\n\n${text}`
 console.log('============================================================')
 console.log(' WebFetch summariser — the session family tier, then the session model, then an honest road')
 console.log('============================================================')
 
 section('§1 the small-fast tier answers: its summary comes back with no note')
 const r1 = await applyPromptToMarkdown('q', 'PAGE', sig, true, false, { small: async () => fakeMsg('SUMMARY') as never, withModel: thrower('should not run') as never, smallModelId: () => 'haiku', mainModelId: () => 'opus' })
-check('the primary summary is returned as is', r1 === 'SUMMARY', r1)
+check('the primary answer is labelled as a reading', r1 === reading('SUMMARY'), r1)
 
 section("§2 the small-fast tier has no credential: the session's own model is the second road")
 const r2 = await applyPromptToMarkdown('q', 'PAGE', sig, true, false, { small: thrower('the small tier credential was refused') as never, withModel: async () => fakeMsg('FALLBACK') as never, smallModelId: () => 'haiku', mainModelId: () => 'opus' })
-check('the fallback summary is returned, and it is a summary not a note', r2 === 'FALLBACK')
+check('the fallback answer is labelled as a reading', r2 === reading('FALLBACK'))
 
 section('§3 both roads fail: the page content comes back with a note that names the road')
 const r3 = await applyPromptToMarkdown('q', 'PAGE CONTENT', sig, true, false, { small: thrower('small refused') as never, withModel: thrower('opus refused') as never, smallModelId: () => 'haiku', mainModelId: () => 'opus' })
@@ -63,7 +64,7 @@ section('§8 the first leg answers an API error message, not a throw: a failed l
 const errMsg = (text: string) => ({ isApiErrorMessage: true, message: { content: [{ type: 'text', text }] } })
 const REFUSAL = "API Error: model 'gpt-5.4-mini' is not offered by the ChatGPT pro subscription live catalogue. The catalogue offers: gpt-6-astra, gpt-5.6-sol."
 const r8 = await applyPromptToMarkdown('q', 'PAGE', sig, true, false, { small: async () => errMsg(REFUSAL) as never, withModel: async () => fakeMsg('FALLBACK') as never, smallModelId: () => 'gpt-5.4-mini', mainModelId: () => 'gpt-5.6-sol' })
-check('the refusal is never returned as the summary; the fallback summary is', r8 === 'FALLBACK', r8)
+check('the refusal is never returned as the reading; the fallback answer is', r8 === reading('FALLBACK'), r8)
 
 section('§9 both legs answer API error messages: the page with the note naming both roads and both reasons')
 const r9 = await applyPromptToMarkdown('q', 'PAGE CONTENT', sig, true, false, { small: async () => errMsg('API Error: small refused') as never, withModel: async () => errMsg('API Error: session refused') as never, smallModelId: () => 'haiku', mainModelId: () => 'opus' })
@@ -77,7 +78,7 @@ check('the thrown reason and the error-message reason sit on their own roads', r
 section('§11 the marker decides, never the words: a true answer that quotes an error line is the summary')
 const QUOTING = 'API Error: the page quotes this line as an example, and it is the summary'
 const r11 = await applyPromptToMarkdown('q', 'PAGE', sig, true, false, { small: async () => fakeMsg(QUOTING) as never, withModel: thrower('should not run') as never, smallModelId: () => 'haiku', mainModelId: () => 'opus' })
-check('an unmarked reply is returned as is, whatever its words', r11 === QUOTING, r11)
+check('an unmarked reply is a labelled reading, whatever its words', r11 === reading(QUOTING), r11)
 
 section('§12 every API-error text Mercury mints carries the marker, so an unmarked refusal cannot reach the tool')
 const { readdirSync, statSync } = await import('node:fs')
@@ -112,7 +113,7 @@ const utils = readFileSync(join(ROOT, 'src/tools/WebFetchTool/utils.ts'), 'utf8'
 check('it reaches for the session small-fast tier and the session model', utils.includes('sessionSmallFastModel') && utils.includes('getEngineModel') && utils.includes('queryWithModel'))
 check('the fallback runs the session model through queryWithModel with that model', utils.includes('await withModel(') && utils.includes('model: fallbackModel'))
 const tool = readFileSync(join(ROOT, 'src/tools/WebFetchTool/WebFetchTool.ts'), 'utf8')
-check('the tool still calls applyPromptToMarkdown', tool.includes('applyPromptToMarkdown('))
+check('only the explicit prompt road calls a model', tool.includes('if (input.prompt === undefined)') && tool.includes('applyPromptToMarkdown('))
 
 console.log('\n' + '─'.repeat(76))
 console.log(failures === 0 ? '  ALL PASS' : `  ${failures} FAILURE(S)`)

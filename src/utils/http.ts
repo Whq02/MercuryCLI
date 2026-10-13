@@ -27,9 +27,7 @@ export function getMCPUserAgent(): string {
   return productIdentity(hostSegments())
 }
 
-export function getWebFetchUserAgent(): string {
-  return `Mozilla/5.0 (compatible; Mercury/${MACRO.VERSION})`
-}
+export { webUserAgent as getWebFetchUserAgent } from './webUserAgent.js'
 
 type AuthHeaders = {
   headers: Record<string, string>

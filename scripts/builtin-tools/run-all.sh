@@ -17,6 +17,7 @@
 # gate-watch: scripts/project-services/fixtures/inventory.json scripts/provider-compat/prove-tool-call-gate.ts
 # gate-watch: scripts/ide/render-transaction-replay.tsx
 # gate-watch: src/guards/**
+# gate-watch: src/services/search/htmlText.ts src/services/search/searchPacing.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }
