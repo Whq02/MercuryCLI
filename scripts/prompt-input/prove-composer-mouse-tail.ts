@@ -12,6 +12,7 @@ import {
   parseMultipleKeypresses,
 } from '../../src/ink/input/input-decoder.ts'
 import { InputEvent } from '../../src/ink/events/input-event.ts'
+import { keyHintLabel } from '../../src/components/mercury-ui/keyHintLabel.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
 process.chdir(ROOT)
@@ -147,7 +148,7 @@ if (driver.kind !== 'posix-pty') {
     { atTick: 160, awaitText: 'Type a prompt', minTick: 5, awaitStableTicks: 2, requireAwait: true, data: '' },
   ]
   const CHAT = 'shift + ← boot face'
-  const FACE = '⇧→ chat'
+  const FACE = keyHintLabel('⇧→ chat')
   const on = (needle: string, data: string, extra: Record<string, unknown> = {}): Record<string, unknown> => ({
     atTick: 199,
     awaitText: needle,

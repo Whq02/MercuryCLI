@@ -7,6 +7,7 @@ import { FIXTURE_API_KEY, seedFirstRun } from '../lib/firstRunSeed.ts'
 import { vshotBudgetMs, resolveCaptureDriver } from '../lib/captureDriver.ts'
 import { childEnv, startFixture } from '../daemon/dupline-world.ts'
 import { AGENT_COLORS, AGENT_COLOR_TO_THEME_COLOR } from '../../src/tools/AgentTool/agentColorManager.ts'
+import { keyHintLabel } from '../../src/components/mercury-ui/keyHintLabel.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
 const argAfter = (flag: string): string | undefined => {
@@ -60,7 +61,7 @@ async function capture(cols: number, rows: number): Promise<Record<string, Grid>
     argv: [NODE, BIN, '--chat'], cwd, cols, rows, total: 400,
     sends: [
       { data: '\r', awaitText: '↑↓ choose', requireAwait: true, minTick: 20, awaitSettleTicks: 5 },
-      { data: '/rename roomie\r', awaitText: 'ready ·', targetText: '⇧← back', requireAwait: true, awaitSettleTicks: 8, mark: 'idle' },
+      { data: '/rename roomie\r', awaitText: 'ready ·', targetText: keyHintLabel('⇧← back'), requireAwait: true, awaitSettleTicks: 8, mark: 'idle' },
       { data: 'hello fixture\r', awaitText: 'Renamed this session to roomie', requireAwait: true, awaitSettleTicks: 8, mark: 'renamed' },
       { data: '', awaitText: 'heard: hello fixture', requireAwait: true, awaitSettleTicks: 6 },
       { data: '/rename a-longer-session-title\r', awaitText: 'ready ·', requireAwait: true, awaitSettleTicks: 6, mark: 'after-turn' },
