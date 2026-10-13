@@ -100,6 +100,12 @@
           "minimum": 1000,
           "maximum": 9007199254740991
         },
+        "startLimit": {
+          "description": "How much memory text (characters) rides at the start of a session: the pinned rules first and whole, then the facts and earlier notes most relevant to the branch, the files touched lately and the last note, until the limit is reached (default 7000); what is left out is a Recall away",
+          "type": "integer",
+          "minimum": 1000,
+          "maximum": 9007199254740991
+        },
         "tellEngineSwitch": {
           "description": "Tell the model when its engine is switched: with it on, one line reaches the model at the switch naming the new engine and the time; off (the default), a switch is invisible to the model — the /model rows stay your record, and the model learns its engine by reading mercury://seat",
           "type": "boolean"

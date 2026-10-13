@@ -15,6 +15,16 @@ export function pinnedTextLimit(): number {
   return PINNED_TEXT_LIMIT_DEFAULT
 }
 
+export const START_TEXT_LIMIT_DEFAULT = 7000
+export const START_TEXT_LIMIT_MIN = 1000
+export const START_TEXT_LIMIT_STEP = 1000
+
+export function startTextLimit(): number {
+  const raw: unknown = getInitialSettings().memory?.startLimit
+  if (typeof raw === 'number' && Number.isFinite(raw) && raw >= START_TEXT_LIMIT_MIN) return Math.floor(raw)
+  return START_TEXT_LIMIT_DEFAULT
+}
+
 export function formatTextSize(chars: number): string {
   if (chars < 1000) return `${chars}`
   const k = chars / 1000
