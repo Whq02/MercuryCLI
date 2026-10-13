@@ -9,7 +9,7 @@
 # gate-watch: src/utils/statusNoticeDefinitions.tsx src/substrate/flagRegistry.ts src/substrate/startupMenu.ts
 # gate-watch: src/utils/capability/declarations.ts src/query/stopHooks.ts
 # gate-watch: src/commands.ts src/utils/memory/types.ts src/tools/AgentTool/agentMemory.ts
-# gate-watch: src/utils/config/globalConfig.ts scripts/lib/settingsPopupHarness.ts
+# gate-watch: src/utils/config/globalConfig.ts scripts/lib/settingsPopupHarness.ts src/run-core/turn-machine.ts
 # gate-watch: src/components/mercury-ui/useFlatList.ts src/services/engine-connector/focusedConnector.ts src/services/engine-connector/noSessionConnector.ts
 # gate-watch: scripts/lib/captureDriver.ts scripts/lib/firstRunSeed.ts scripts/lib/fixtureApi.ts scripts/lib/rows.ts
 # gate-watch: scripts/hooks/lib/runDoor.ts src/services/projectIntel/capsule.ts
