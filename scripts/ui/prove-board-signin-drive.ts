@@ -6,6 +6,7 @@ import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { captureEngineEntry, resolveCaptureDriver, vshotBudgetMs } from '../lib/captureDriver.ts'
 import { FIXTURE_API_KEY, seedFirstRun } from '../lib/firstRunSeed.ts'
+import { keyHintLabel } from '../../src/components/mercury-ui/keyHintLabel.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
 const arg = (name: string): string | undefined => {
@@ -188,7 +189,7 @@ try {
         check(`${id}: the completed sign-in returned to the picker that opened it, on the board`, returned.includes('Mercury · model') && returned.includes('SESSION CONCOURSE'), excerpt(returned))
         check(`${id}: the returned picker lists the new family's live rows`, returned.includes(FIXTURE_MODEL), returned.split('\n').filter(l => l.includes('GEMINI') || l.includes('Gemini')).join('\n'))
       } else {
-        const beneath = kind === 'face' ? '⇧→ concourse' : 'SESSION CONCOURSE'
+        const beneath = kind === 'face' ? keyHintLabel('⇧→ concourse') : 'SESSION CONCOURSE'
         check(`${id}: escape returned to the picker that opened it, ${kind === 'face' ? 'on the face' : 'on the board'}`, returned.includes('Mercury · model') && returned.includes(beneath), excerpt(returned))
       }
       keepFrames()
