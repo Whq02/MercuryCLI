@@ -515,7 +515,7 @@ if (!existsSync(DIST)) {
     const clean = health({})
     check('a clean process: both on, the defaults, ok', clean !== null && clean.status === 'ok' && String(clean.evidence).includes('crewmates on (default)') && String(clean.evidence).includes('workflows on (default)') && String(clean.evidence).includes('the next session is born with these'), j(clean))
     const off = health({ [SUB]: '0' })
-    check("sub-agents off in the environment: the row says so with its source, info, and names the commands and the menu", off !== null && off.status === 'info' && String(off.evidence).includes('crewmates off (environment)') && String(off.evidence).includes('workflows on (default)') && String(off.detail ?? '').includes('/subagents on|off') && String(off.detail ?? '').includes("boot menu's Agents section") && off.label === 'Crewmates & workflows', j(off))
+    check("sub-agents off in the environment: the row says so with its source, info, and names the commands and the menu", off !== null && off.status === 'info' && String(off.evidence).includes('crewmates off (environment)') && String(off.evidence).includes('workflows on (default)') && String(off.detail ?? '').includes('/crewmates on|off') && String(off.detail ?? '').includes("boot menu's Agents section") && off.label === 'Crewmates & workflows', j(off))
   }
 }
 
