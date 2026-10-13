@@ -275,9 +275,9 @@ binary per platform at `dist/vendor/brush/<platform>/` and verified against
 `vendor/brush.lock.json` (on Windows, where upstream publishes no binary,
 built from the published crate at the same version). With it on, one
 long-lived brush process serves the whole conversation and one more serves
-each crewmate (sub-agent): variables, functions, aliases and options persist between
-calls for their owner — state set by one agent is never seen by another or
-by the main conversation, and an agent's session ends with the agent — and
+each crewmate: variables, functions, aliases and options persist between
+calls for their owner — state set by one crewmate is never seen by another or
+by the main conversation, and a crewmate's session ends with the crewmate — and
 the same shell runs on every OS with no Git-for-Windows dependency. Two
 things the engine cannot do on Windows at this version (the Bash tool's own
 description says so there): run a `.cmd` shim such as `npm` or `npx`
@@ -285,11 +285,11 @@ directly (`cmd /c npm …` works, or `node` on the script), and find a
 program named by a relative path after a `cd` (use its absolute path).
 
 The sessions have a ceiling: the `shell.sessions` setting (a whole
-number, 8 by default — the conversation plus seven agents), the
+number, 8 by default — the conversation plus seven crewmates), the
 `MERCURY_SHELL_ENGINE_SESSIONS` env pin over it, and the `/config` row
 **Shell engine sessions** beside **Shell engine**. The main conversation
-never waits for a session; a crewmate that needs one while the agents'
-share is full waits for a release (an agent ending releases its own), the
+never waits for a session; a crewmate that needs one while the crewmates'
+share is full waits for a release (a crewmate ending releases its own), the
 wait shown on its row and bounded by the call's timeout, and never shares
 another's. A ceiling of 1 leaves no session for crewmates: their engine
 calls are refused at once with the reason, and a `run_in_background` call
