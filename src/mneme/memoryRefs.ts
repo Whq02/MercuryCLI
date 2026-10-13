@@ -123,12 +123,14 @@ export function collectMemoryRefs(query: string, opts: CollectOpts = {}): Memory
       const sig = h.text.match(/<seq=(\d+), time=([^,>]+), source=([^,>]*?)[,>]/)
       const seq = h.entry?.seq ?? (sig ? Number(sig[1]) : null)
       const words = h.entry?.text ?? h.text.replace(/<seq=.*$/, '').replace(/^\s*-\s+/, '').trim()
+      const state = h.entry ? factMemoryState(h.entry, { pins, usage, now, projectRoot }) : { status: pathFreshness(words, projectRoot), confirmedAt: undefined }
       push({
         refId: seq !== null ? `mneme:${seq}` : `mneme-line:${h.slug}:${h.line}`,
         kind: 'mneme-fact',
         store: 'mneme',
         scope: 'project',
-        ...(h.entry ? factMemoryState(h.entry, { pins, usage, now, projectRoot }) : { status: pathFreshness(words, projectRoot) }),
+        status: state.status,
+        confirmedAt: state.confirmedAt,
         summary: cap(words),
         capturedAt: h.entry?.time ?? sig?.[2]?.trim(),
         source: h.entry?.source ?? sig?.[3]?.trim(),
