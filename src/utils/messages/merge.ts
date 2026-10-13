@@ -19,6 +19,10 @@ export function mergeUserMessages(left: UserMessage, right: UserMessage): UserMe
 }
 
 export function mergeUserMessagesAndToolResults(left: UserMessage, right: UserMessage): UserMessage {
+  if (right.queued === true) {
+    const content = [...normalizeUserTextContent(left.message.content), ...normalizeUserTextContent(right.message.content)]
+    return { ...left, message: { ...left.message, content: hoistToolResults(content) } }
+  }
   return composeUser(left, right, mergeUserContentBlocks)
 }
 

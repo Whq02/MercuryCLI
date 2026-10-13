@@ -180,7 +180,7 @@ export function PowerShellPermissionRequest({
               <Text dimColor>{toolUseConfirm.description}</Text>
             )}
           </Box>
-          <PermissionExplainerContent visible={explainer.visible} promise={explainer.promise} />
+          <PermissionExplainerContent visible={explainer.visible} promise={explainer.promise} fallback={<Text dimColor>{toolUseConfirm.description}</Text>} />
           {debugVisible ? (
             <PermissionDecisionDebugInfo
               permissionResult={toolUseConfirm.permissionResult}

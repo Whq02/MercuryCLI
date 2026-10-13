@@ -70,7 +70,7 @@ console.log('\n── B. runs only, empty ledger (80 cols) ───────
   try {
     const [snap] = grabScreens(run, 80, 40, [S(14500)])
     const all = snap!.rows.join('\n')
-    check('the typed bang delivers (the echo row paints in the session)', all.includes('❯ sleep 300'), all.split('\n').filter(r => /sleep/.test(r)).join(' | ').slice(0, 200))
+    check('the typed bang delivers (the echo row paints in the session as a shell row, "! sleep 300", never the prompt caret — F33A-B-SH-06)', all.includes('! sleep 300') && !all.includes('❯ sleep 300'), all.split('\n').filter(r => /sleep/.test(r)).join(' | ').slice(0, 200))
     check('no Mission header on an empty ledger (restraint)', !all.includes('Mission ('))
     check('EXPECTED-DEFECT: the running bang shell paints no background hint yet — its return re-pins the full journey', !all.includes('run in background'), all.split('\n').filter(r => /background/.test(r)).join(' | ').slice(0, 200))
   } finally {
