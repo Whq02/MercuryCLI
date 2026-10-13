@@ -24,6 +24,8 @@ function check(label: string, ok: boolean, detail = ''): void {
 }
 
 const home = homedir()
+mkdirSync(join(home, 'Developer'), { recursive: true })
+const realHome = realpathSync(home)
 const project = realpathSync(mkdtempSync(join(home, 'Developer', '.delete-ward-quoted-proof-')))
 const plainProject = realpathSync(mkdtempSync(join(tmpdir(), 'delete-ward-quoted-plain-')))
 for (const root of [project, plainProject]) {
@@ -76,7 +78,7 @@ const inProject: Array<[string, string, string]> = [
   ['absolute, quoted', project, `rm -rf "${project}/build"`],
   ['absolute, quoted, the folder has a space', project, `rm -rf "${project}/build dir"`],
   ['absolute, single-quoted, the folder has a space', project, `rm -rf '${project}/build dir'`],
-  ['via ~, quoted', project, `rm -rf "~/${project.slice(home.length + 1)}/build"`],
+  ['via ~, quoted', project, `rm -rf "~/${project.slice(realHome.length + 1)}/build"`],
   ['relative', project, 'rm -rf ./build'],
   ['relative with a space, quoted', project, 'rm -rf "./build dir"'],
   ['a $TMPDIR path, quoted', plainProject, 'rm -rf "$TMPDIR/x"'],
