@@ -136,9 +136,9 @@ export async function readModifiedFiles(root: string): Promise<string[]> {
   }
 }
 
-export async function readProjectState(input: { projectKey: string; sessionId?: string; root: string; now?: Date }): Promise<ProjectState> {
+export async function readProjectState(input: { projectKey: string; sessionId?: string; root: string; now?: Date; ledger?: readonly LedgerEntry[] }): Promise<ProjectState> {
   const now = input.now ?? new Date()
-  const previous = readLedger(input.projectKey).filter(entry => entry.sessionId !== input.sessionId)
+  const previous = (input.ledger ?? readLedger(input.projectKey)).filter(entry => entry.sessionId !== input.sessionId)
   const [branch, modified] = await Promise.all([readBranch(input.root), readModifiedFiles(input.root)])
   return {
     branch,

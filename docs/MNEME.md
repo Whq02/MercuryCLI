@@ -9,7 +9,7 @@ to correct, pin or unpin a record.
 
 ## What the model gets
 
-Three things are in front of the model without anyone asking:
+Four things are in front of the model without anyone asking:
 
 - **The front page**, loaded at the start of every chat. It is the index of
   the library — each topic on one line with its fact count — built by Mercury,
@@ -20,6 +20,11 @@ Three things are in front of the model without anyone asking:
   pinned as you said it and marked as asked for by you; Mercury never
   rewords, merges or drops such a rule on its own. You pin and unpin from the
   memory centre.
+- **The facts that matter now**, chosen once at the start of the session:
+  within a fixed budget, the facts and earlier notes most relevant to the
+  branch you are on, the files touched lately and the last note left, each
+  word for word. One line above them says how much rode and that Recall
+  finds the rest.
 - **The automatic lookup** on every message: up to five facts that match what
   you just said are attached before the model answers, each pointing at the
   page it lives on.
@@ -76,6 +81,31 @@ rule it is a plain fact again: restate the rule in the chat and the model
 replaces it, so one rule stays current. For another pinned rule, a
 replacement names that rule's id and keeps the earlier text as history. Rules
 that merely share words are not a conflict — both stay.
+
+## What rides at the start of a session
+
+The pinned shelf rides first and whole. Then, within one budget, Mercury
+chooses what else a session should see at its start — no model is asked.
+The project's state is the question: the name of the branch and its words,
+the files changed in the working tree and the files the last sessions
+touched, the words of the last note left. Every unpinned fact (archived ones
+included) and every earlier note is scored against that state the way Recall
+scores a search — the words in common, a fresh fact ahead of an old one on
+the same words — and divided by its length, so a short fact that matches
+well rides before a long one that matches as well. Facts are taken in that
+order until the budget is full; a fact with nothing in common with the state
+never rides; the same inputs always compose the same page. The block has its
+own heading between the pinned shelf and the lineage page, and opens with
+one line: how many rules are pinned and how much they weigh, how many of the
+facts and earlier notes rode and what they were matched against, and that
+Recall finds the rest. Leaving a fact off the page is not forgetting it.
+
+The budget is `memory.startLimit` in settings (characters; the default is
+7000), and the **Memory at start** row in `/config` moves it by a thousand.
+When the pinned rules alone exceed it, every rule still loads and the line
+says the rules fill the limit and nothing else rides. The page is composed
+once at the start of a session and never moves while the session runs; a
+fact saved or a file touched mid-session reaches the next session's page.
 
 ## The journal
 
