@@ -184,13 +184,13 @@ function joinWords(parts: readonly string[]): string {
 export function memoryAtStartLine(input: { choice: StartChoice; pinnedCount: number; facts: number; notes: number; state: Pick<ProjectState, 'branch' | 'files' | 'note'> }): string {
   const { choice, pinnedCount, facts, notes, state } = input
   const pins = pinnedCount === 0 ? 'no pinned rule' : `${plural(pinnedCount, 'pinned rule')} (${withThousands(choice.pinnedChars)} characters)`
-  const pool = `${plural(facts, 'fact')}${notes > 0 ? ` and ${plural(notes, 'earlier note')}` : ''}`
+  const pool = joinWords([facts > 0 ? plural(facts, 'fact') : null, notes > 0 ? plural(notes, 'earlier note') : null].filter((part): part is string => part !== null))
   if (choice.pinsFill) return `Memory at start: ${pins} fill the ${withThousands(choice.limit)}-character start limit; none of the ${pool} rides; Recall finds them (the limit moves in /config).`
   const target = [state.branch !== null ? `branch ${state.branch}` : null, state.files.length > 0 ? 'the files touched lately' : null, state.note !== null ? 'the last note' : null].filter((part): part is string => part !== null)
   if (target.length === 0) return `Memory at start: ${pins}; the ${pool} wait for a branch, touched files or a note to match against; Recall finds them.`
   const rodeFacts = choice.rode.filter(c => c.kind === 'fact').length
   const rodeNotes = choice.rode.filter(c => c.kind === 'handoff').length
-  const rode = `${rodeFacts} of ${plural(facts, 'fact')}${notes > 0 ? ` and ${rodeNotes} of ${plural(notes, 'earlier note')}` : ''}`
+  const rode = joinWords([facts > 0 ? `${rodeFacts} of ${plural(facts, 'fact')}` : null, notes > 0 ? `${rodeNotes} of ${plural(notes, 'earlier note')}` : null].filter((part): part is string => part !== null))
   return `Memory at start: ${pins} and ${rode} most relevant to ${joinWords(target)}; Recall finds the rest.`
 }
 
