@@ -64,7 +64,6 @@ switchboard-3	2400
 # a number no measurement of the new suites supports.
 # The drive halves of the split suites inherit their parent's grant: the
 # real-terminal captures are the part of the wall the grant was measured on.
-switchboard-drives	1200
 switchboard-2-drives	1200
 switchboard-3-drives	2400
 switchboard-4-drives	1200
@@ -73,4 +72,19 @@ switchboard-6-drives	1200
 daemon	2400
 headless	1800
 transcript-rows-drives	3000
-ui-drives	4800
+# The three drive suites the hosted 2-core runner tree-killed in .34
+# (api-drives at the 900 s default with 3 of 5 done at 755 s,
+# switchboard-drives at 1200 s, ui-drives at 5470 s with 25 of 34 done),
+# measured whole on 2026-10-13 on the Mac through scripts/gate/run-suite.sh
+# and in the Linux container at the same start-load scale, member for member
+# the same seconds: a drive is a fixed-schedule capture, so its wall is its
+# authored ticks × the scale, not the host's speed. Authored walls
+# (measured ÷ scale): api-drives 488 s, switchboard-drives 1039 s,
+# ui-drives 3896 s. The hosted runner's pace measured 2.0× (api-drives)
+# and 2.3× (ui-drives) the authored seconds on the members it completed;
+# each row is the head's ~3× stretch over the authored wall, rounded up
+# to the next 300 s — slack over the measured hosted envelope, never a
+# number raised to pass.
+api-drives	1500
+switchboard-drives	3300
+ui-drives	11700
