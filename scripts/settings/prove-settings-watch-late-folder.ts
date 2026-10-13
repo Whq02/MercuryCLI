@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { spawn } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, watch, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -23,8 +23,26 @@ const check = (label: string, ok: boolean, detail = ''): void => {
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
 const waitMs = (ms: number): Promise<void> => new Promise(r => setTimeout(r, ms))
 
+const runtimeReportsDotNamedFolders = async (): Promise<boolean> => {
+  const probe = join(ROOT, 'fs-watch-probe')
+  mkdirSync(probe, { recursive: true })
+  let reported = false
+  const watcher = watch(probe, { persistent: true }, (_event, name) => {
+    if (name === '.child') reported = true
+  })
+  await waitMs(150)
+  mkdirSync(join(probe, '.child'))
+  const t0 = Date.now()
+  while (Date.now() - t0 < 1500 && !reported) await waitMs(40)
+  watcher.close()
+  return reported
+}
+
 section('§1 the watcher: a project with no .mercury folder at boot still sees the local file written later')
-{
+if (!(await runtimeReportsDotNamedFolders())) {
+  const runtime = typeof Bun === 'undefined' ? `node ${process.version}` : `bun ${Bun.version}`
+  console.log(`[SKIP] ${runtime} on ${process.platform}: fs.watch never reports a dot-named entry here (bun 1.3.11 on Linux drops them; node 24 on Linux and bun on macOS report them), so no in-process watcher can see a .mercury folder arrive; §1 skipped — §2 drives the built product on its own runtime and is the evidence on this box`)
+} else {
   const state = await import('../../src/bootstrap/state.ts')
   state.setOriginalCwd(PROJ)
   state.setAllowedSettingSources(['userSettings', 'projectSettings', 'localSettings'])
