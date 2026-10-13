@@ -5,12 +5,19 @@ import { mnemeEnabled, mnemeLibraryDir } from './mnemeGates.js'
 import { listTopicDocs } from './mnemeLibrary.js'
 import { docFileName, serializeSignature } from './mnemeTopicDocs.js'
 import { stemLookupToken } from './mnemeStemmer.js'
-import { bumpUsage, readUsage, usageOf } from './mnemeUsage.js'
+import { bumpUsage, readPins, readUsage, usageOf } from './mnemeUsage.js'
 
 export const LOOKUP_LIMIT = 5
 const MAX_QUERY_TOKENS = 16
 export const BM25_K1 = 1.2
 export const BM25_B = 0.75
+export const RECENCY_TAU_MS = 90 * 24 * 60 * 60 * 1000
+
+function recencyOf(candidate: LookupCandidate, now: number): number {
+  const observed = Date.parse(candidate.time ?? '')
+  if (candidate.pinned || !Number.isFinite(observed) || !Number.isFinite(now)) return 1
+  return Math.exp(-Math.max(0, now - observed) / RECENCY_TAU_MS)
+}
 
 const STOPWORDS = new Set([
   'the', 'and', 'for', 'are', 'but', 'not', 'you', 'all', 'any', 'can', 'had', 'her', 'was', 'one', 'our', 'out', 'has', 'his',
@@ -50,6 +57,8 @@ export interface LookupCandidate {
   pagePath: string
   seq?: number
   pending: boolean
+  time?: string
+  pinned?: boolean
 }
 
 export interface LookupHit extends LookupCandidate {
@@ -59,17 +68,18 @@ export interface LookupHit extends LookupCandidate {
 
 export function candidates(dir: string): LookupCandidate[] {
   const out: LookupCandidate[] = []
+  const pins = new Set(readPins(dir).map(pin => pin.seq))
   for (const doc of listTopicDocs(dir)) {
     const pagePath = join(dir, docFileName(doc.slug))
     for (const section of doc.sections) {
       for (const entry of section.entries) {
-        out.push({ id: `seq:${entry.seq}`, text: entry.text, signature: serializeSignature(entry), slug: doc.slug, pagePath, seq: entry.seq, pending: false })
+        out.push({ id: `seq:${entry.seq}`, text: entry.text, signature: serializeSignature(entry), slug: doc.slug, pagePath, seq: entry.seq, pending: false, time: entry.time, pinned: pins.has(entry.seq) })
       }
     }
   }
   const bufferPath = currentBufferPath(dir)
   for (const row of pendingRows(dir)) {
-    out.push({ id: `pending:${row.ts}`, text: row.text, signature: `[unconsolidated, ${row.ts}, ${row.source}]`, slug: row.topicHint ?? 'general', pagePath: bufferPath, pending: true })
+    out.push({ id: `pending:${row.ts}`, text: row.text, signature: `[unconsolidated, ${row.ts}, ${row.source}]`, slug: row.topicHint ?? 'general', pagePath: bufferPath, pending: true, time: row.ts })
   }
   return out
 }
@@ -77,13 +87,14 @@ export function candidates(dir: string): LookupCandidate[] {
 export function rankCandidates(
   query: string,
   pool: readonly LookupCandidate[],
-  opts: { exclude?: ReadonlySet<string>; limit?: number; usage?: Record<string, { last: string; count: number }> } = {},
+  opts: { exclude?: ReadonlySet<string>; limit?: number; usage?: Record<string, { last: string; count: number }>; now?: number } = {},
 ): LookupHit[] {
   const tokens = lookupTokens(query)
   if (tokens.length === 0 || pool.length === 0) return []
   const limit = Math.min(Math.max(opts.limit ?? LOOKUP_LIMIT, 1), 20)
   const exclude = opts.exclude ?? new Set<string>()
   const usage = opts.usage ?? {}
+  const now = opts.now ?? Date.now()
   const documents = pool.map(candidate => {
     const terms = lookupTerms(candidate.text)
     const frequencies = new Map<string, number>()
@@ -110,7 +121,9 @@ export function rankCandidates(
       if (n < total || total === 1) discriminating = true
     }
     if (matched.length === 0 || !discriminating) return
-    hits.push({ ...candidate, score, matched })
+    score *= recencyOf(candidate, now)
+    const { time, pinned, ...hit } = candidate
+    hits.push({ ...hit, score, matched })
   })
   hits.sort((a, b) => {
     if (b.score !== a.score) return b.score - a.score
