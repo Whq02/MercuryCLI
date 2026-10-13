@@ -442,8 +442,8 @@ if (cap !== null) {
 
   console.log('\n— W3 the heartbeat —')
   for (const label of ['cockpit-busy', 'cockpit-again'] as const) {
-    const beat = rowsWith(m[label], /◐ .*· workflow \d+[smh]/)
-    check(`W3 [${label}] the RUNS panel's live row stands while the run lives, naming the run, its kind and its age`, beat.some(r => r.includes(WF_NAME.slice(0, 5))), beat.map(flat).join(' | ').slice(0, 200))
+    const beat = rowsWith(m[label], /◐ .*· (?:workflow )?\d+[smhd]\b/)
+    check(`W3 [${label}] the RUNS panel's live row stands while the run lives, naming the run and its age (its kind where the row has room)`, beat.some(r => r.includes(WF_NAME.slice(0, 5))), beat.map(flat).join(' | ').slice(0, 200))
   }
 
   console.log('\n— W8 the first frames on disk —')

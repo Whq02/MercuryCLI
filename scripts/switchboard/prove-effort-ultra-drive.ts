@@ -168,10 +168,18 @@ try {
   check('U2 the refusal names the ladder up to max and no further', anyFrame(`Valid options: ${LADDER.join('|')}|auto`), distinct.map(f => flat(f.text)).filter(t => t.includes('Valid options')).map(t => t.slice(t.indexOf('Valid options'), t.indexOf('Valid options') + 80)).join(' | ').slice(0, 300))
   check(`U2 no frame ever says the seat was set to the list's word`, !anyFrame(`Effort set to ${LIST_WORD}`))
 
-  const statusRows = (text: string): string[] => text.split('\n').filter(r => r.includes('⇧← back')).map(r => r.replace(/\s+/g, ' ').trim())
-  const receiptRows = distinct.flatMap(f => statusRows(f.text)).filter(r => r.includes('Effort set to'))
-  const RECEIPT = new RegExp(`${SEAT_MODEL_LABEL} · (?:${SEAT_EFFORT}|${TOP}) · Effort set to ${TOP}(?: for this session|…) — its next request runs it\\. Saved as your default for future sessions\\.`)
-  check(`U3 the /effort ${TOP} receipt is the seat's on the status row ("Effort set to ${TOP} for this session — its next request runs it. Saved as your default for future sessions."), whole or cut in the middle with its tail clause intact, beside the model`, receiptRows.length > 0 && receiptRows.every(r => RECEIPT.test(r)), receiptRows.slice(0, 3).join(' | ').slice(0, 400))
+  const statusRows = (text: string): string[] => text.split('\n').filter(r => /(?:⇧|shift\+)← back/.test(r)).map(r => r.replace(/\s+/g, ' ').trim())
+  const receiptText = (text: string): string => {
+    const rows = text.split('\n')
+    const at = rows.findIndex(r => r.includes(`Effort set to ${TOP}`))
+    if (at < 0) return ''
+    const start = rows[at]!.indexOf('Effort set to')
+    const end = rows[at]!.indexOf('│', start)
+    const span = (r: string | undefined): string => (r ?? '').slice(start, end < 0 ? undefined : end).trim()
+    return `${span(rows[at])} ${span(rows[at + 1])}`.replace(/\s+/g, ' ').trim()
+  }
+  const receiptFrames = distinct.filter(f => f.text.includes(`Effort set to ${TOP}`))
+  check(`U3 the /effort ${TOP} receipt is the seat's, whole, in the chat under the echoed command ("Effort set to ${TOP} for this session — its next request runs it. Saved as your default for future sessions.") — at 120 columns the status row would cut it, so no status row carries it`, receiptFrames.length > 0 && receiptFrames.some(f => receiptText(f.text).includes(`Effort set to ${TOP} for this session — its next request runs it. Saved as your default for future sessions.`)) && distinct.every(f => !statusRows(f.text).some(r => r.includes('Effort set to'))), receiptFrames.map(f => receiptText(f.text)).slice(0, 2).join(' | ').slice(0, 400))
   const seatHits = fixture.captured.filter(h => h.lane === 'openai-seat')
   const lastHit = seatHits[seatHits.length - 1]
   const lastEffort = (lastHit?.body as { reasoning?: { effort?: string } } | undefined)?.reasoning?.effort

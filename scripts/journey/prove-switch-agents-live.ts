@@ -411,7 +411,7 @@ async function switchLeg(): Promise<void> {
   check(`${tag}: the Inspect answer landed within ${INSPECT_BOUND_MS} ms at ${COLS}×${ROWS}`, acks.every(h => (h.inspectMs ?? Infinity) < INSPECT_BOUND_MS), acks.map(h => `${h.inspectMs}ms`).join(' '))
   for (const label of ['launched', 'after-opus', 'after-fable']) {
     const frame = marks[label] ?? ''
-    check(`${tag}: the rail's crew rows read both agents running with tokens at '${label}'`, (flat(frame).match(/◐ [a-z-…]+ · \d[\d.,]*k? context/g) ?? []).length >= 2, flat(frame).slice(0, 200))
+    check(`${tag}: the rail's crew rows read both agents running with their token figure at '${label}' (the word context returns where the 28-column row has room)`, (flat(frame).match(/◐ [a-z-…]+ · \d[\d.,]*k?(?: context)?(?= |$|│)/g) ?? []).length >= 2, flat(frame).slice(0, 200))
   }
   for (const label of ['crew-launched', 'crew-opus', 'crew-fable']) {
     const frame = marks[label] ?? ''

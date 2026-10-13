@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os'
 import { createServer } from 'node:http'
 import { join, resolve } from 'node:path'
 import { seedFirstRun } from '../lib/firstRunSeed.ts'
+import { keyHintLabel } from '../../src/components/mercury-ui/keyHintLabel.ts'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
 import { compactGrid, DEFAULT_MASKS, firstDivergence, type StoredGrid } from '../ui/visualBaseline.ts'
 
@@ -66,7 +67,8 @@ function homeFor(name: string, verb = name.startsWith('busy-') ? WRAP_VERB : und
 }
 
 const faceEnter: Send = { requireAwait: true, awaitText: '↑↓ choose', minTick: 35, awaitSettleTicks: 4, data: '\r' }
-const onReady = (data: string, mark: string): Send => ({ requireAwait: true, awaitText: 'ready ·', targetText: '⇧← back', awaitSettleTicks: 6, data, mark })
+const WAY_BACK = keyHintLabel('⇧← back')
+const onReady = (data: string, mark: string): Send => ({ requireAwait: true, awaitText: 'ready ·', targetText: WAY_BACK, awaitSettleTicks: 6, data, mark })
 const WORK_REPORTED = '⤳ WORKFLOW[^\\n]*\\n[^\\n]*\\bidle\\b'
 const onReported = (data: string, mark: string): Send => ({ ...onReady(data, mark), awaitPattern: WORK_REPORTED })
 
@@ -74,7 +76,7 @@ type Resize = { atTick?: number; afterMark?: string; afterMs?: number; cols: num
 async function capture(tag: string, world: { configHome: string; cwd: string }, cols: number, rows: number, sends: Send[], readyText: string, resizes: Resize[] = [], live = false, envPatch: Record<string, string> = {}): Promise<Capture> {
   const out = join(scratch, `${tag}.json`)
   const cfgPath = join(scratch, `${tag}-cfg.json`)
-  writeFileSync(cfgPath, JSON.stringify({ argv: [NODE, DIST], cwd: world.cwd, sends: [faceEnter, ...sends], readyText: readyText === 'ready ·' ? [readyText, '⇧← back'] : [readyText], readySettleTicks: 8, stableTicks: live ? 0 : 4, total: 400, cols, rows, out, resizes }))
+  writeFileSync(cfgPath, JSON.stringify({ argv: [NODE, DIST], cwd: world.cwd, sends: [faceEnter, ...sends], readyText: readyText === 'ready ·' ? [readyText, WAY_BACK] : [readyText], readySettleTicks: 8, stableTicks: live ? 0 : 4, total: 400, cols, rows, out, resizes }))
   const env: NodeJS.ProcessEnv = {
     ...process.env,
     USER: 'sam',
@@ -281,7 +283,7 @@ try {
   console.log('§3 the landing form sits under the box')
   check('the wordmark starts three rows under the box', text(boot)[bx.bottom + 3]!.includes('█▄▄▄█'))
   check('● ready six rows under the box', text(boot)[bx.bottom + 6]!.includes('● ready · type a prompt, or / for commands'))
-  check('model · theme · dir eight, nine and ten rows under the box', text(boot)[bx.bottom + 8]!.includes('model') && text(boot)[bx.bottom + 9]!.includes('theme') && text(boot)[bx.bottom + 10]!.includes('dir'))
+  check('model · critter · dir eight, nine and ten rows under the box', text(boot)[bx.bottom + 8]!.includes('model') && text(boot)[bx.bottom + 9]!.includes('critter') && text(boot)[bx.bottom + 10]!.includes('dir'))
   check('the ↵ sends row twelve rows under the box', text(boot)[bx.bottom + 12]!.includes('❯ ↵ sends'))
 
   console.log('§4 /view is an unknown command like any other')
@@ -359,7 +361,7 @@ try {
   }
   console.log('§12 /critter opens the picker with the small sprite on every card, at 178 and at 60 columns')
   const pickerWide = await capture('picker-178x51', homeFor('picker-178'), 178, 51, [onReady('/critter\r', 'landing')], 'Session theme')
-  const pickerNarrow = await capture('picker-60x40', homeFor('picker-60'), 60, 40, [{ requireAwait: true, awaitText: '1 session on', awaitSettleTicks: 6, data: '/critter\r', mark: 'landing' }], 'Session theme')
+  const pickerNarrow = await capture('picker-60x40', homeFor('picker-60'), 60, 40, [{ requireAwait: true, awaitText: keyHintLabel('⇧← concourse'), awaitSettleTicks: 6, data: '/critter\r', mark: 'landing' }], 'Session theme')
   for (const [cols, shot, rowsExpected] of [[178, pickerWide, 1], [60, pickerNarrow, 2]] as const) {
     const cards = ['[1] crab', '[2] octopus', '[3] jellyfish', '[4] clam'].map(name => cardOf(shot.grid, name))
     check(`${cols} columns: the four cards paint with their names`, cards.every(c => c.top >= 0 && c.bottom > c.top), cards.map(c => `${c.top}..${c.bottom}`).join(' '))
@@ -384,7 +386,7 @@ try {
     const right = flourish.lastIndexOf('──')
     check(`${cols}×29: the inline sprite is centred between its flourishes`, left >= 0 && right > left && x === Math.round((left + right + 1 - 8) / 2), `sprite ${x}, flourishes ${left}..${right}`)
   }
-  const deck = await capture('deck-99x29', homeFor('deck'), 120, 40, [{ requireAwait: true, awaitText: '⇧← back', awaitSettleTicks: 8, data: '', mark: 'wide-deck' }], 'ready ·', [{ afterMark: 'wide-deck', afterMs: 400, cols: 99, rows: 29 }], false, { MERCURY_HELM_HOME: '0', MERCURY_DECK_PANE: '1' })
+  const deck = await capture('deck-99x29', homeFor('deck'), 120, 40, [{ requireAwait: true, awaitText: WAY_BACK, awaitSettleTicks: 8, data: '', mark: 'wide-deck' }], 'ready ·', [{ afterMark: 'wide-deck', afterMs: 400, cols: 99, rows: 29 }], false, { MERCURY_HELM_HOME: '0', MERCURY_DECK_PANE: '1' })
   const deckLines = text(deck.grid)
   const deckRow = deckLines.findIndex(row => /[▀▄]{9}/.test(row))
   const deckX = deckRow < 0 ? -1 : deckLines[deckRow]!.search(/[▀▄]{9}/)

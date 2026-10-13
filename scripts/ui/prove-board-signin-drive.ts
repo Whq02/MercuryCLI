@@ -6,6 +6,7 @@ import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { captureEngineEntry, resolveCaptureDriver, vshotBudgetMs } from '../lib/captureDriver.ts'
 import { FIXTURE_API_KEY, seedFirstRun } from '../lib/firstRunSeed.ts'
+import { keyHintLabel } from '../../src/components/mercury-ui/keyHintLabel.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
 const arg = (name: string): string | undefined => {
@@ -173,7 +174,8 @@ try {
         check(`${id}: the pasted key was proved on the live catalogue with the key itself`, hits.some(h => h.startsWith('GET /v1beta/models') && h.includes(`key=${FIXTURE_KEY}`)) && receipt.includes('Gemini API key stored'), hits.join(' | ') || excerpt(receipt))
         check(`${id}: the receipt pane's way out reads the roster when no picker opened the door`, receipt.includes('↵ done — the roster refreshes') && !receipt.includes('back to the picker'), receipt.split('\n').filter(l => l.includes('↵ done')).join('\n'))
         check(`${id}: the status bar says the roster when no picker opened the door`, receipt.includes('connected — ↵ returns to the roster') && !receipt.includes('returns to the picker'), receipt.split('\n').filter(l => l.includes('returns to')).join('\n'))
-        check(`${id}: the completed sign-in stays on the roster, the family signed in`, returned.includes('LOGINS') && returned.includes('Families') && returned.includes('Signed in  2 of 10') && !returned.includes('Mercury · model'), excerpt(returned))
+        const families = /Families\s+(\d+)/.exec(returned)?.[1]
+        check(`${id}: the completed sign-in stays on the roster, the family signed in (2 of the roster's own family count)`, returned.includes('LOGINS') && families !== undefined && returned.includes(`Signed in  2 of ${families}`) && !returned.includes('Mercury · model'), excerpt(returned))
         keepFrames()
         continue
       }
@@ -188,7 +190,7 @@ try {
         check(`${id}: the completed sign-in returned to the picker that opened it, on the board`, returned.includes('Mercury · model') && returned.includes('SESSION CONCOURSE'), excerpt(returned))
         check(`${id}: the returned picker lists the new family's live rows`, returned.includes(FIXTURE_MODEL), returned.split('\n').filter(l => l.includes('GEMINI') || l.includes('Gemini')).join('\n'))
       } else {
-        const beneath = kind === 'face' ? '⇧→ concourse' : 'SESSION CONCOURSE'
+        const beneath = kind === 'face' ? keyHintLabel('⇧→ concourse') : 'SESSION CONCOURSE'
         check(`${id}: escape returned to the picker that opened it, ${kind === 'face' ? 'on the face' : 'on the board'}`, returned.includes('Mercury · model') && returned.includes(beneath), excerpt(returned))
       }
       keepFrames()

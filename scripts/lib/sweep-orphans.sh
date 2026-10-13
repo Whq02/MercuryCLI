@@ -28,13 +28,24 @@ if [ "$(uname -s)" = Darwin ]; then
 fi
 
 terminal_gone() {
-  local slave minor
-  [ "$(uname -s)" = Darwin ] || return 1
-  slave=$(lsof -a -n -p "$1" -d 0,1,2 2>/dev/null | awk 'NR>1 && $5=="CHR" && $6 ~ /^16,/ {print $6; exit}')
-  [ -n "$slave" ] || return 1
-  minor=${slave#16,}
-  case "$master_minors" in (*" 15,$minor "*) return 1 ;; esac
-  return 0
+  local slave minor fd link
+  case "$(uname -s)" in
+    (Darwin)
+      slave=$(lsof -a -n -p "$1" -d 0,1,2 2>/dev/null | awk 'NR>1 && $5=="CHR" && $6 ~ /^16,/ {print $6; exit}')
+      [ -n "$slave" ] || return 1
+      minor=${slave#16,}
+      case "$master_minors" in (*" 15,$minor "*) return 1 ;; esac
+      return 0 ;;
+    (Linux)
+      for fd in 0 1 2; do
+        link=$(readlink "/proc/$1/fd/$fd" 2>/dev/null) || continue
+        case "$link" in
+          (/dev/pts/*) [ -e "${link% (deleted)}" ] && return 1; return 0 ;;
+        esac
+      done
+      return 1 ;;
+    (*) return 1 ;;
+  esac
 }
 
 cwd_of() {
