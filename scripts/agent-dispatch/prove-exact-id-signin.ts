@@ -66,6 +66,7 @@ console.log('============================================================')
 
 ;(await import('../../src/utils/config.ts')).enableConfigs()
 const engine = await import('../../src/utils/crew/engineDispatch.ts')
+const { MODEL_LOOKUP_LADDER } = await import('../../src/utils/model/modelLookup.ts')
 const roadModule = await import('../../src/utils/model/modelNameRoad.ts')
 const discovery = await import('../../src/utils/router/providerDiscovery.ts')
 const xai = await import('../../src/services/providers/xai/xaiCatalogue.ts')
@@ -119,7 +120,7 @@ section("§2 the ladder for 'grok-4.7' with a signed-in xAI and an empty catalog
   const windowed = await road('grok-4.7[1m]')
   check("a typed window is dressing for an xAI id: 'grok-4.7[1m]' looks up grok-4.7 and runs it", windowed.backend === 'xai' && windowed.model === 'grok-4.7', show(windowed))
   const unknown = await road('grok-9-fixture')
-  check("an id on neither page refuses, naming both pages, the ids this build knows and the ask rung (RED on the base: 'listed: ' with nothing)", unknown.threw !== undefined && unknown.threw.includes("xAI model 'grok-9-fixture' is on neither mercury://models") && unknown.threw.includes('mercury://models/known') && unknown.threw.includes('grok-4.7') && unknown.threw.includes('ask the operator for the model id') && unknown.threw.includes('never switch to another provider'), show(unknown))
+  check("an id on neither page refuses, naming both pages, the ids this build knows and the ask rung (RED on the base: 'listed: ' with nothing)", unknown.threw !== undefined && unknown.threw.includes("xAI model 'grok-9-fixture' is on neither mercury://models") && unknown.threw.includes('mercury://models/known') && unknown.threw.includes('grok-4.7') && unknown.threw.includes('ask the operator for the model id') && unknown.threw.includes(MODEL_LOOKUP_LADDER), show(unknown))
 
   modes.xai = 'ok'
   resetAll()
