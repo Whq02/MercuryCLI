@@ -71,7 +71,7 @@ function section(title: string): void {
   console.log(`\n${title}`)
 }
 
-const OFF_GRAMMAR = { moonshot: 'k3', deepseek: 'v4-flash', openai: 'sol-6', gemini: 'nano-banana-pro' } as const
+const OFF_GRAMMAR = { moonshot: 'k3', deepseek: 'v4-flash', openai: 'sol-6', gemini: 'argon-pro' } as const
 const SHARED = 'shared-list-id'
 type Family = keyof typeof OFF_GRAMMAR
 const lists: Record<Family, string[]> = { moonshot: [], deepseek: [], openai: [], gemini: [] }
