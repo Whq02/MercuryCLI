@@ -112,7 +112,7 @@ export function unrecognisedModelWordRefusal(model: string | undefined): string 
   if (isModelFamilyWord(lowered) || isModelAlias(lowered)) return null
   const parsed = parseUserSpecifiedModel(word)
   if (classifyModelRoute(parsed).kind === 'route') return null
-  return `model '${word}' names no model: no provider family declares it. Pass a family word (${modelFamilyWords().join(' · ')}), a first-party alias, an exact id of a listed row, or an engine id (${ENGINE_ID_SHAPES}).`
+  return `model '${word}' names no model: no provider family declares it. Pass a family word (${modelFamilyWords().join(' · ')}), a first-party alias, an exact id of a listed row, or an engine id (${ENGINE_ID_SHAPES}). mercury://models lists the providers the operator is signed into and the models each reaches; a word on neither it nor mercury://models/known is not a model to guess at — ask the operator for the model id, and never switch to another provider on your own.`
 }
 
 type EngineProvider =
@@ -185,8 +185,8 @@ async function resolveGptClassDispatch(): Promise<EngineDispatch> {
   if (!head) {
     throw new Error(
       snapshot?.lastError
-        ? `The 'gpt' class cannot resolve — the live model catalogue is unavailable (${snapshot.lastError}). Name an exact id (e.g. gpt-5.6-sol) or retry when catalogue reachability recovers.`
-        : `The 'gpt' class cannot resolve — the ${account.label} catalogue offers no usable GPT model.`,
+        ? `The 'gpt' class cannot resolve — the live model catalogue is unavailable (${snapshot.lastError}). Name an exact id this build knows from mercury://models/known (e.g. gpt-5.6-sol), or retry when the list reads; never switch to another provider on your own.`
+        : `The 'gpt' class cannot resolve — the ${account.label} catalogue offers no usable GPT model. mercury://models shows what the account does reach; ask the operator for the model id, and never switch to another provider on your own.`,
     )
   }
   return {
@@ -199,7 +199,7 @@ async function resolveGptClassDispatch(): Promise<EngineDispatch> {
 async function resolveGptExactModel(id: string): Promise<EngineDispatch> {
   if (DEPRECATED_GPT_IDS.includes(id)) {
     throw new Error(
-      `GPT model '${id}' is DEPRECATED/retired in the current catalogue — refusing to dispatch a dead id. Current ids: ${GPT_DISPLAY_PINS.map(p => p.id).join(', ')} (or 'gpt' for the catalogue's default).`,
+      `GPT model '${id}' is DEPRECATED/retired in the current catalogue — refusing to dispatch a dead id. Current ids: ${GPT_DISPLAY_PINS.map(p => p.id).join(', ')} (or 'gpt' for the catalogue's default; mercury://models lists what the account reaches). Never switch to another provider on your own.`,
     )
   }
   const account = resolveOpenaiAccount()
@@ -221,7 +221,7 @@ async function resolveGptExactModel(id: string): Promise<EngineDispatch> {
     const pinned = GPT_DISPLAY_PINS.find(pin => pin.id === id.trim().toLowerCase())
     if (!pinned) {
       throw new Error(
-        `GPT model '${id}' is not a catalogue-verified id (live catalogue unreachable; dispatchable pins: ${GPT_DISPLAY_PINS.map(p => p.id).join(', ')}).`,
+        `GPT model '${id}' is not a catalogue-verified id — the live list could not be read and this build knows only ${GPT_DISPLAY_PINS.map(p => p.id).join(', ')} (mercury://models/known). Name one of them, or ask the operator for the model id; never switch to another provider on your own.`,
       )
     }
     return {
@@ -234,7 +234,7 @@ async function resolveGptExactModel(id: string): Promise<EngineDispatch> {
     .map(c => c.identity.canonicalId)
     .join(', ')
   throw new Error(
-    `GPT model '${id}' is not accepted by the live catalogue (${evaluated.why.reason}). ${offered ? `The catalogue offers: ${offered}.` : 'The catalogue currently offers no usable ids.'}`,
+    `GPT model '${id}' is not accepted by the live catalogue (${evaluated.why.reason}). ${offered ? `The catalogue offers: ${offered} — name one of them (mercury://models lists them)` : 'The catalogue currently offers no usable ids'}, or ask the operator for the model id; never switch to another provider on your own.`,
   )
 }
 
@@ -245,7 +245,7 @@ async function resolveHuggingfaceClassDispatch(): Promise<EngineDispatch> {
   }
   await refreshHuggingfaceCatalogue().catch(() => null)
   const head = huggingfaceLiveCatalogue()?.entries[0] ?? HUGGINGFACE_STATIC_CATALOGUE[0]
-  if (!head) throw new Error('Engine provider huggingface has no catalogue entry — cannot resolve a model.')
+  if (!head) throw new Error("The 'huggingface' class cannot resolve — the router's model list could not be read and this build pins no Hugging Face row. Name an exact huggingface/<org>/<model> id from mercury://models/known, or ask the operator for the model id; never switch to another provider on your own.")
   return { backend: 'huggingface', model: head.id, displayLabel: head.displayLabel }
 }
 
@@ -256,7 +256,7 @@ async function resolveHuggingfaceExactModel(id: string): Promise<EngineDispatch>
     const live = huggingfaceLiveModel(slug)
     if (!live) {
       throw new Error(
-        `Hugging Face model '${id}' is not listed by the router catalogue (${snapshot.models.length} live models) — name a listed huggingface/<org>/<model> id, or 'huggingface' for the flagship.`,
+        `Hugging Face model '${id}' is not listed by the router catalogue (${snapshot.models.length} live models) — name a listed huggingface/<org>/<model> id (mercury://models lists them), or 'huggingface' for the flagship, or ask the operator for the model id; never switch to another provider on your own.`,
       )
     }
     return { backend: 'huggingface', model: `${HUGGINGFACE_MODEL_PREFIX}${live.id}${slug.includes(':') ? slug.slice(slug.lastIndexOf(':')) : ''}`, displayLabel: live.id }
@@ -272,7 +272,7 @@ async function resolveLocalClassDispatch(): Promise<EngineDispatch> {
     return { backend: 'local', model: main, displayLabel: localWireId(main) }
   }
   const first = localLiveCatalogue()[0]
-  if (!first) throw new Error("The 'local' class cannot resolve — no local server lists a model (start Ollama/LM Studio/vLLM/llama.cpp-server, or set MERCURY_LOCAL_BASE_URL).")
+  if (!first) throw new Error("The 'local' class cannot resolve — no local server lists a model (start Ollama/LM Studio/vLLM/llama.cpp-server, or set MERCURY_LOCAL_BASE_URL). mercury://models lists what is reachable; never switch to another provider on your own.")
   return { backend: 'local', model: first.id, displayLabel: first.displayLabel }
 }
 
@@ -292,8 +292,8 @@ async function resolveGeminiClassDispatch(): Promise<EngineDispatch> {
   if (!head) {
     throw new Error(
       snapshot?.lastError
-        ? `The 'gemini' class cannot resolve — the live model catalogue is unavailable (${snapshot.lastError}). Name an exact gemini-* id, or retry when catalogue reachability recovers.`
-        : "The 'gemini' class cannot resolve — the live catalogue lists no generateContent model. Name an exact gemini-* id.",
+        ? `The 'gemini' class cannot resolve — the live model catalogue is unavailable (${snapshot.lastError}). Name an exact gemini-* id this build knows from mercury://models/known, or retry when the list reads; never switch to another provider on your own.`
+        : "The 'gemini' class cannot resolve — the live catalogue lists no generateContent model. Name an exact gemini-* id from mercury://models, or ask the operator for the model id; never switch to another provider on your own.",
     )
   }
   return { backend: 'gemini', model: head.id, displayLabel: head.displayName ?? head.id }
@@ -312,7 +312,7 @@ async function resolveGeminiExactModel(id: string): Promise<EngineDispatch> {
     const match = live.find(m => m.id === id)
     if (!match) {
       throw new Error(
-        `Gemini model '${id}' is not listed by the live catalogue (${live.length} generateContent models) — name a listed gemini-* id, or 'gemini' for the catalogue head.`,
+        `Gemini model '${id}' is not listed by the live catalogue (${live.length} generateContent models) — name a listed gemini-* id (mercury://models lists them), or 'gemini' for the catalogue head, or ask the operator for the model id; never switch to another provider on your own.`,
       )
     }
     return { backend: 'gemini', model: match.id, displayLabel: match.displayName ?? match.id }
@@ -328,7 +328,7 @@ async function resolveZenClassDispatch(): Promise<EngineDispatch> {
   if (!zenCatalogueEntries().length) await readCatalogueIfPending('zen')
   const head = zenCatalogueEntries()[0]
   if (!head) {
-    throw new Error("The 'zen' class cannot resolve — the OpenCode Zen gateway's model list has not been read or lists no row this road carries. Name an exact zen/<id> instead, or retry when the list lands.")
+    throw new Error("The 'zen' class cannot resolve — the OpenCode Zen gateway's model list has not been read or lists no row this road carries. Name an exact zen/<id> this build knows from mercury://models/known, or retry when the list lands; never switch to another provider on your own.")
   }
   return { backend: 'zen', model: head.id, displayLabel: head.displayLabel }
 }
@@ -358,7 +358,7 @@ async function resolveOpenrouterExactModel(id: string): Promise<EngineDispatch> 
     const match = snapshot.models.find(m => m.id.toLowerCase() === slug.toLowerCase())
     if (!match) {
       throw new Error(
-        `OpenRouter model '${id}' is not listed by the live catalogue (${snapshot.models.length} models) — name a listed openrouter/<vendor>/<model> id, or 'openrouter' for the auto router.`,
+        `OpenRouter model '${id}' is not listed by the live catalogue (${snapshot.models.length} models) — name a listed openrouter/<vendor>/<model> id (mercury://models lists them), or 'openrouter' for the auto router, or ask the operator for the model id; never switch to another provider on your own.`,
       )
     }
     return { backend: 'openrouter', model: `${OPENROUTER_MODEL_PREFIX}${match.id}`, displayLabel: match.name ?? match.id }
@@ -377,7 +377,7 @@ async function resolveNousClassDispatch(): Promise<EngineDispatch> {
   await refreshNousCatalogue().catch(() => null)
   const head = getNousModelOptions().find(option => option.value.startsWith(NOUS_ENGINE_MODEL_PREFIX) && option.unavailable === undefined)
   if (!head) {
-    throw new Error("The 'nous' class cannot resolve — the Nous Portal catalogue serves no selectable row yet (the key's live list has not been read, or listed none). Name an exact nous/<vendor>/<model> id.")
+    throw new Error("The 'nous' class cannot resolve — the Nous Portal catalogue serves no selectable row yet (the key's live list has not been read, or listed none). Name an exact nous/<vendor>/<model> id from mercury://models, or ask the operator for the model id; never switch to another provider on your own.")
   }
   return { backend: 'nous', model: head.value, displayLabel: head.label }
 }
@@ -393,7 +393,7 @@ async function resolveNousExactModel(id: string): Promise<EngineDispatch> {
   if (snapshot && snapshot.models.length > 0) {
     const match = snapshot.models.find(m => m.id.toLowerCase() === slug.toLowerCase())
     if (!match) {
-      throw new Error(`Nous Portal model '${id}' is not listed by the live catalogue (${snapshot.models.length} models) — name a listed nous/<vendor>/<model> id.`)
+      throw new Error(`Nous Portal model '${id}' is not listed by the live catalogue (${snapshot.models.length} models) — name a listed nous/<vendor>/<model> id (mercury://models lists them), or ask the operator for the model id; never switch to another provider on your own.`)
     }
     return { backend: 'nous', model: `${NOUS_ENGINE_MODEL_PREFIX}${match.id}`, displayLabel: match.name ?? match.id }
   }
@@ -408,7 +408,7 @@ async function resolveLocalExactModel(id: string): Promise<EngineDispatch> {
   if (!record) {
     const listed = localLiveCatalogue().map(e => e.id)
     throw new Error(
-      `No local server lists '${id}'${listed.length > 0 ? ` (discovered: ${listed.join(', ')})` : ' (no local server answered)'} — never dispatching an undiscovered id.`,
+      `No local server lists '${id}'${listed.length > 0 ? ` (discovered: ${listed.join(', ')})` : ' (no local server answered)'} — never dispatching an undiscovered id. mercury://models lists the discovered models; name one of them, or ask the operator for the model id; never switch to another provider on your own.`,
     )
   }
   return { backend: 'local', model: `${LOCAL_MODEL_PREFIX}${record.id}`, displayLabel: record.displayName ?? record.id }
@@ -470,7 +470,7 @@ export async function resolveEngineDispatch(
     const first = compatSlotModelIds()[0]
     if (!first) {
       throw new Error(
-        "The 'compat' class cannot resolve — the endpoint slot names no models (MERCURY_COMPAT_MODELS or the compatProvider config block). Name an exact compat/<id> instead.",
+        "The 'compat' class cannot resolve — the endpoint slot names no models (MERCURY_COMPAT_MODELS or the compatProvider config block). Name an exact compat/<id> instead, or ask the operator for the model id; never switch to another provider on your own.",
       )
     }
     return { backend: 'openai-compat', model: first, displayLabel: first }
@@ -534,7 +534,7 @@ export async function resolveEngineDispatch(
       const pin = zenCatalogueEntry(id)
       if (!pin) {
         throw new Error(
-          `OpenCode Zen model '${id}' is not a catalogue-verified id (listed: ${zenCatalogueEntries().map(c => c.id).join(', ')}) — never dispatching an unverified id.`,
+          `OpenCode Zen model '${id}' is not on the gateway's list (listed: ${zenCatalogueEntries().map(c => c.id).join(', ')}) — name one of them from mercury://models, or ask the operator for the model id; never switch to another provider on your own.`,
         )
       }
       return { backend: 'zen', model: pin.id, displayLabel: pin.displayLabel }
@@ -544,7 +544,7 @@ export async function resolveEngineDispatch(
       const named = compatSlotModelIds()
       if (named.length > 0 && !named.includes(id.toLowerCase())) {
         throw new Error(
-          `compat model '${id}' is not in the slot's named list (${named.join(', ')}) — extend MERCURY_COMPAT_MODELS or the compatProvider config block.`,
+          `compat model '${id}' is not in the slot's named list (${named.join(', ')}) — name one of them (mercury://models lists them), or the operator extends MERCURY_COMPAT_MODELS or the compatProvider config block; never switch to another provider on your own.`,
         )
       }
       const label = resolveCompatSlotConfig()?.label ?? 'Custom endpoint'
