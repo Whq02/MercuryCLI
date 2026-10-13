@@ -66,7 +66,19 @@ export function tavilyRequestBodyFor(request: SearchRequest): Record<string, unk
   }
 }
 
+import { liveSearchClock, noteRateLimited, secondsLeftLabel, serverSearchWaitMs, withSearchTurn } from './searchPacing.js'
+
+const TAVILY_PACING = { intervalMs: 600, windowMs: 60_000, maxRequests: 100, why: 'https://docs.tavily.com/documentation/rate-limits — development keys 100/minute, production 1,000/minute; use the lower rate and honour Retry-After, never infer a wait from message wording.' }
+
 export async function tavilySearch(request: SearchRequest, io: KeyedSearchIo = {}): Promise<SearchOutcome> {
+  return withSearchTurn('tavily', TAVILY_PACING, io.clock ?? liveSearchClock, request.signal, async wait => {
+    if (request.signal?.aborted) return searchFailure('aborted', 'tavily', 'cancelled')
+    if (wait > 0) return searchFailure('rate-limited', 'tavily', `wait ${secondsLeftLabel(wait)}; no request made`)
+    return requestTavilySearch(request, io)
+  })
+}
+
+async function requestTavilySearch(request: SearchRequest, io: KeyedSearchIo): Promise<SearchOutcome> {
   const key = resolveTavilyApiKey(io.env ?? process.env)
   if (!key) return searchFailure('no-backend', 'tavily', 'no Tavily key (TAVILY_API_KEY or /router key tavily)')
   const fetchImpl = io.fetchImpl ?? getApiFetch()
@@ -89,6 +101,9 @@ export async function tavilySearch(request: SearchRequest, io: KeyedSearchIo = {
     if (request.signal?.aborted) return searchFailure('aborted', 'tavily', 'cancelled')
     return searchFailure('network', 'tavily', error instanceof Error ? error.message : String(error))
   }
+  const clock = io.clock ?? liveSearchClock
+  const wait = serverSearchWaitMs(response.headers, clock.now())
+  if (wait > 0 || [429, 432, 433].includes(response.status)) noteRateLimited('tavily', clock, wait)
   if (response.status === 401 || response.status === 403) {
     return searchFailure('key-refused', 'tavily', `HTTP ${response.status} — check the key at app.tavily.com, then /router key tavily again`)
   }

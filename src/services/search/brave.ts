@@ -3,6 +3,7 @@ import { getApiFetch, getProxyFetchOptions } from '../../utils/proxy.js'
 import { readStoredBraveSearchApiKey } from '../../utils/router/providerSecrets.js'
 import { fetchWithProviderDeadline } from '../providers/fetchDeadline.js'
 import { htmlToText } from './htmlText.js'
+import { liveSearchClock, noteRateLimited, secondsLeftLabel, serverSearchWaitMs, withSearchTurn, type SearchClock } from './searchPacing.js'
 import {
   DEFAULT_MAX_RESULTS,
   filterHitsByDomain,
@@ -72,9 +73,20 @@ export function braveQueryFor(request: SearchRequest): string {
 export interface KeyedSearchIo {
   fetchImpl?: typeof fetch
   env?: Record<string, string | undefined>
+  clock?: SearchClock
 }
 
+const BRAVE_PACING = { intervalMs: 1000, why: 'https://api-dashboard.search.brave.com/documentation/guides/rate-limiting — plan-specific one-second sliding windows and parallel quota headers. Client courtesy: one request/second; exhausted-window resets are seconds, not timestamps.' }
+
 export async function braveSearch(request: SearchRequest, io: KeyedSearchIo = {}): Promise<SearchOutcome> {
+  return withSearchTurn('brave', BRAVE_PACING, io.clock ?? liveSearchClock, request.signal, async wait => {
+    if (request.signal?.aborted) return searchFailure('aborted', 'brave', 'cancelled')
+    if (wait > 0) return searchFailure('rate-limited', 'brave', `wait ${secondsLeftLabel(wait)}; no request made`)
+    return requestBraveSearch(request, io)
+  })
+}
+
+async function requestBraveSearch(request: SearchRequest, io: KeyedSearchIo): Promise<SearchOutcome> {
   const key = resolveBraveSearchApiKey(io.env ?? process.env)
   if (!key) return searchFailure('no-backend', 'brave', 'no Brave Search key (BRAVE_API_KEY or /router key brave)')
   const fetchImpl = io.fetchImpl ?? getApiFetch()
@@ -101,6 +113,12 @@ export async function braveSearch(request: SearchRequest, io: KeyedSearchIo = {}
     if (request.signal?.aborted) return searchFailure('aborted', 'brave', 'cancelled')
     return searchFailure('network', 'brave', error instanceof Error ? error.message : String(error))
   }
+  const clock = io.clock ?? liveSearchClock
+  const remaining = (response.headers.get('x-ratelimit-remaining') ?? '').split(',').map(s => s.trim())
+  const resets = (response.headers.get('x-ratelimit-reset') ?? '').split(',').map(Number)
+  const resetWait = Math.max(0, ...remaining.map((left, i) => left === '0' && Number.isFinite(resets[i]) ? Math.max(0, resets[i]! * 1000) : 0))
+  const wait = Math.max(resetWait, serverSearchWaitMs(new Headers({ 'retry-after': response.headers.get('retry-after') ?? '0' }), clock.now()))
+  if (wait > 0 || response.status === 429) noteRateLimited('brave', clock, wait)
   if (response.status === 401 || response.status === 403) {
     return searchFailure('key-refused', 'brave', `HTTP ${response.status} — check the key at api-dashboard.search.brave.com, then /router key brave again`)
   }
