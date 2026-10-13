@@ -179,7 +179,7 @@ section('6 · the picker row states only the ACTIVE source (structural)')
   )
   check(
     'both toggle states advertise the toggle (never a dead-end claim)',
-    picker.includes(' · c toggles'),
+    picker.includes(' · ${MODEL_PICKER_CONTEXT_CHORD} toggles'),
   )
   check(
     'the ONE-window case keeps the source-truth notice (nothing to toggle)',
