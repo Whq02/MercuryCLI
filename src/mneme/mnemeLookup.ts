@@ -84,14 +84,23 @@ export function candidates(dir: string): LookupCandidate[] {
   return out
 }
 
-export function rankCandidates(
+export function fuseRankings(rankings: Array<Array<string>>, k = 60): string[] {
+  if (!Number.isFinite(k) || k < 0) throw new RangeError('rank fusion k must be finite and nonnegative')
+  const scores = new Map<string, number>()
+  for (const ranking of rankings) {
+    const unique = [...new Set(ranking)]
+    unique.forEach((id, index) => scores.set(id, (scores.get(id) ?? 0) + 1 / (k + index + 1)))
+  }
+  return [...scores.keys()].sort((a, b) => scores.get(b)! - scores.get(a)!)
+}
+
+export function rankAllCandidates(
   query: string,
   pool: readonly LookupCandidate[],
-  opts: { exclude?: ReadonlySet<string>; limit?: number; usage?: Record<string, { last: string; count: number }>; now?: number } = {},
+  opts: { exclude?: ReadonlySet<string>; usage?: Record<string, { last: string; count: number }>; now?: number } = {},
 ): LookupHit[] {
   const tokens = lookupTokens(query)
   if (tokens.length === 0 || pool.length === 0) return []
-  const limit = Math.min(Math.max(opts.limit ?? LOOKUP_LIMIT, 1), 20)
   const exclude = opts.exclude ?? new Set<string>()
   const usage = opts.usage ?? {}
   const now = opts.now ?? Date.now()
@@ -125,14 +134,23 @@ export function rankCandidates(
     const { time, pinned, ...hit } = candidate
     hits.push({ ...hit, score, matched })
   })
-  hits.sort((a, b) => {
-    if (b.score !== a.score) return b.score - a.score
+  hits.sort((a, b) => b.score - a.score || (b.seq ?? Number.MAX_SAFE_INTEGER) - (a.seq ?? Number.MAX_SAFE_INTEGER))
+  const byUse = [...hits].sort((a, b) => {
     const ua = a.seq !== undefined ? usageOf(a.seq, usage).count : 0
     const ub = b.seq !== undefined ? usageOf(b.seq, usage).count : 0
-    if (ub !== ua) return ub - ua
-    return (b.seq ?? Number.MAX_SAFE_INTEGER) - (a.seq ?? Number.MAX_SAFE_INTEGER)
+    return ub - ua
   })
-  return hits.slice(0, limit)
+  const byId = new Map(hits.map(hit => [hit.id, hit]))
+  return fuseRankings([hits.map(hit => hit.id), byUse.map(hit => hit.id)]).map(id => byId.get(id)!)
+}
+
+export function rankCandidates(
+  query: string,
+  pool: readonly LookupCandidate[],
+  opts: { exclude?: ReadonlySet<string>; limit?: number; usage?: Record<string, { last: string; count: number }>; now?: number } = {},
+): LookupHit[] {
+  const limit = Math.min(Math.max(opts.limit ?? LOOKUP_LIMIT, 1), 20)
+  return rankAllCandidates(query, pool, opts).slice(0, limit)
 }
 
 export function lookupFacts(

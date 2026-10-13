@@ -62,7 +62,7 @@ export function getRelevantMemoryAttachments(
   if (!input || !/\s/.test(input.trim())) return []
   try {
     const surfaced = collectSurfacedMemories(messages ?? [])
-    return groupByPage(lookupFacts(input, { exclude: surfaced.ids }))
+    return groupByPage(lookupFacts(input, { exclude: surfaced.ids, markUsed: false }))
   } catch (error) {
     logForDebugging(`memory lookup failed: ${String(error)}`)
     return []
