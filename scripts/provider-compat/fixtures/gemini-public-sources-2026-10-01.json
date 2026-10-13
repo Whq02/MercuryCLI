@@ -56,7 +56,10 @@
       { "name": "models/gemini-fixture-defaults", "supportedGenerationMethods": ["generateContent"] },
       { "name": "models/antigravity-preview-latest", "supportedGenerationMethods": ["generateContent"] },
       { "name": "models/deep-research-pro-preview", "supportedGenerationMethods": ["generateContent"] },
-      { "name": "models/gemini-fixture-embedding", "supportedGenerationMethods": ["embedContent"] }
+      { "name": "models/gemini-fixture-embedding", "supportedGenerationMethods": ["embedContent"] },
+      { "name": "models/gemini-2.5-flash-image", "displayName": "Nano Banana", "inputTokenLimit": 32768, "supportedGenerationMethods": ["generateContent"] },
+      { "name": "models/nano-banana-pro-preview", "displayName": "Nano Banana Pro", "inputTokenLimit": 131072, "supportedGenerationMethods": ["generateContent"] },
+      { "name": "models/gemini-2.5-flash-preview-tts", "displayName": "Gemini 2.5 Flash Preview TTS", "supportedGenerationMethods": ["generateContent"] }
     ]
   }
 }

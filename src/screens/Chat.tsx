@@ -31,6 +31,7 @@ import {
 import { MessageSelector } from '../components/MessageSelector.js';
 import { Messages } from '../components/Messages.js';
 import { PermissionQueueContext, permissionQueueStatus } from '../components/permissions/PermissionQueueContext.js';
+import { CardQueuedWords } from '../components/permissions/CardQueuedWords.js';
 import { PermissionRequest, type ToolUseConfirm } from '../components/permissions/PermissionRequest.js';
 import PromptInput from '../components/PromptInput/PromptInput.js';
 import { isVimModeEnabled } from '../components/PromptInput/utils.js';
@@ -181,7 +182,7 @@ import { getTipToShowOnSpinner, recordShownTip } from '../services/tips/tipSched
 import { startPreventSleep, stopPreventSleep } from '../services/preventSleep.js';
 import { getCurrentSessionTitle } from '../utils/sessionStorage/logs.js';
 import { getCurrentWorktreeSession } from '../utils/worktree.js';
-import { registerComposerSeeder } from '../utils/cockpit/composerSeed.js';
+import { registerComposerSeeder, registerComposerSeedTrimmer } from '../utils/cockpit/composerSeed.js';
 import { registerPermissionFocusNotifier } from '../utils/permissions/permissionFocus.js';
 import { recordModeTransition } from '../utils/permissions/modeTransitions.js';
 import { publishCockpitActivity, type ActivityState } from '../utils/cockpit/cockpitActivity.js';
@@ -741,6 +742,14 @@ export function Chat({
   }, [fullscreen, repinToBottom]);
 
   useEffect(() => registerComposerSeeder(seed => pendingInput.append(seed)), []);
+  useEffect(
+    () =>
+      registerComposerSeedTrimmer(() => {
+        const words = pendingInput.text();
+        if (words !== '') pendingInput.edit(words.slice(0, -1));
+      }),
+    [],
+  );
 
   useEffect(
     () =>
@@ -2091,18 +2100,21 @@ export function Chat({
   const permissionOverlay =
     focusedInputDialog === 'tool-permission' && toolUseConfirmQueue[0] && !chatSurfaceCovered ? (
       <PermissionQueueContext.Provider value={permissionQueueStatus(resolvedConsentCount, toolUseConfirmQueue.length)}>
-        <PermissionRequest
-          key={toolUseConfirmQueue[0].toolUseID}
-          toolUseConfirm={toolUseConfirmQueue[0]}
-          toolUseContext={toolUseConfirmQueue[0].toolUseContext}
-          onDone={resolveHeadPermission}
-          onReject={() => {
-            resolveHeadPermission();
-          }}
-          verbose={verbose}
-          workerBadge={toolUseConfirmQueue[0].workerBadge}
-          setStickyFooter={setPermissionStickyFooter}
-        />
+        <Box flexDirection="column">
+          <PermissionRequest
+            key={toolUseConfirmQueue[0].toolUseID}
+            toolUseConfirm={toolUseConfirmQueue[0]}
+            toolUseContext={toolUseConfirmQueue[0].toolUseContext}
+            onDone={resolveHeadPermission}
+            onReject={() => {
+              resolveHeadPermission();
+            }}
+            verbose={verbose}
+            workerBadge={toolUseConfirmQueue[0].workerBadge}
+            setStickyFooter={setPermissionStickyFooter}
+          />
+          <CardQueuedWords />
+        </Box>
       </PermissionQueueContext.Provider>
     ) : null;
 

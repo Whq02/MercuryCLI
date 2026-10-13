@@ -14,7 +14,7 @@ import { LISTED_WORDS, formRuleFor, walkFlags, walkedRuleFor } from '../../utils
 import { PATH_EXTRACTORS, COMMAND_OPERATION_TYPE, type PathCommand } from './pathValidation.js'
 import { isCurrentDirectoryBareGitRepo } from '../../utils/git.js'
 import { SandboxManager } from '../../utils/sandbox/sandbox-adapter.js'
-import { getCwd } from '../../utils/cwd.js'
+import { getShellCwd } from '../../utils/Shell.js'
 import { getOriginalCwd } from '../../bootstrap/state.js'
 import { getPlatform } from '../../utils/platform.js'
 import { uncPathRisk, uncPathMessage } from '../../utils/permissions/uncPath.js'
@@ -44,7 +44,7 @@ export async function prepareBashReadOnly(input: { command: string }): Promise<v
   const command = input.command
   const parsed = await parseForSecurity(command)
   const root = preparedCommandRoot(command)
-  const snapshot = { root, cwd: getCwd(), originalCwd: getOriginalCwd(), platform: getPlatform(), bare: isCurrentDirectoryBareGitRepo(), sandboxed: SandboxManager.isSandboxingEnabled() }
+  const snapshot = { root, cwd: getShellCwd(), originalCwd: getOriginalCwd(), platform: getPlatform(), bare: isCurrentDirectoryBareGitRepo(getShellCwd()), sandboxed: SandboxManager.isSandboxingEnabled() }
   const remember = (text: string, verdict: ReadOnlyVerdict, children: PreparedRead[] = []): PreparedRead => {
     const prepared = { ...snapshot, command: text, verdict, children }
     const reference = new WeakRef(prepared)
@@ -58,7 +58,7 @@ export async function prepareBashReadOnly(input: { command: string }): Promise<v
 
 export function preparedBashReadsOnly(input: { command: string }): boolean {
   const prepared = inputReads.get(input) ?? preparedReads.get(input.command)?.deref()
-  return prepared !== undefined && prepared.command === input.command && prepared.cwd === getCwd() && prepared.originalCwd === getOriginalCwd() && prepared.platform === getPlatform() && prepared.bare === isCurrentDirectoryBareGitRepo() && prepared.sandboxed === SandboxManager.isSandboxingEnabled() && prepared.verdict.behavior === 'allow'
+  return prepared !== undefined && prepared.command === input.command && prepared.cwd === getShellCwd() && prepared.originalCwd === getOriginalCwd() && prepared.platform === getPlatform() && prepared.bare === isCurrentDirectoryBareGitRepo(getShellCwd()) && prepared.sandboxed === SandboxManager.isSandboxingEnabled() && prepared.verdict.behavior === 'allow'
 }
 
 export function cutPart(text: string): string {
@@ -104,9 +104,9 @@ function writesToGitInternalPath(commands: SimpleCommand[]): boolean {
 function gitGuard(commands: SimpleCommand[], compoundHasCd: boolean): string | null {
   if (!commands.some(command => command.argv[0] === 'git')) return null
   if (compoundHasCd) return 'A cd combined with git is not auto-allowed.'
-  if (isCurrentDirectoryBareGitRepo()) return 'This directory has bare-repository structure, so git commands here go through the permission gate'
+  if (isCurrentDirectoryBareGitRepo(getShellCwd())) return 'This directory has bare-repository structure, so git commands here go through the permission gate'
   if (writesToGitInternalPath(commands)) return 'A git command combined with a git-internal write is not auto-allowed.'
-  if (SandboxManager.isSandboxingEnabled() && getCwd() !== getOriginalCwd()) return 'A sandboxed git command outside the original directory is not auto-allowed.'
+  if (SandboxManager.isSandboxingEnabled() && getShellCwd() !== getOriginalCwd()) return 'A sandboxed git command outside the original directory is not auto-allowed.'
   return null
 }
 

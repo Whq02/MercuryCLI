@@ -17,12 +17,14 @@ const check = (name: string, ok: boolean, detail = ''): void => {
   }
 }
 
-console.log('§1 the origin of a restored coordinator draft, and the launch preview over the daemon records')
+console.log('§1 the restored draft\'s label follows the focus, and the launch preview over the daemon records')
 {
-  const { coordinatorDraftOriginOf, RESTORED_DRAFT_LINE, RESTORED_DRAFT_ARMED_LINE } = await import('../../src/components/concourse/ConcourseScreen.tsx')
-  check('a stored draft this cockpit persisted is its own', coordinatorDraftOriginOf('fix the parser', 'fix the parser') === 'own')
-  check('a stored draft this cockpit never persisted is restored (another window, or an earlier visit)', coordinatorDraftOriginOf('fix the parser', null) === 'restored' && coordinatorDraftOriginOf('fix the parser', 'fix the lexer') === 'restored')
-  check('the restored label says where the words came from and that one ↵ does not send', RESTORED_DRAFT_LINE.includes('restored draft') && RESTORED_DRAFT_LINE.includes('another window') && RESTORED_DRAFT_LINE.includes('↵↵') && RESTORED_DRAFT_ARMED_LINE.includes('↵ again'))
+  const { restoredDraftLine, RESTORED_DRAFT_LINE, RESTORED_DRAFT_ARMED_LINE, RESTORED_DRAFT_AWAY_LINE } = await import('../../src/components/concourse/ConcourseScreen.tsx')
+  const PANE_120 = 38
+  check('with the composer focused the label says the draft is restored, that ↵↵ sends and ⌃c clears — the keys the focused composer answers to', restoredDraftLine(true, false) === RESTORED_DRAFT_LINE && RESTORED_DRAFT_LINE.includes('restored draft') && RESTORED_DRAFT_LINE.includes('↵↵ sends') && /(?:⌃|ctrl\+)c clears/.test(RESTORED_DRAFT_LINE))
+  check('armed, the label says ↵ again sends and esc keeps', restoredDraftLine(true, true) === RESTORED_DRAFT_ARMED_LINE && RESTORED_DRAFT_ARMED_LINE.includes('↵ again sends') && RESTORED_DRAFT_ARMED_LINE.includes('esc keeps'))
+  check('with the focus elsewhere the label promises no composer key — it says to tab to the composer first', restoredDraftLine(false, false) === RESTORED_DRAFT_AWAY_LINE && restoredDraftLine(false, true) === RESTORED_DRAFT_AWAY_LINE && RESTORED_DRAFT_AWAY_LINE.includes('restored draft') && RESTORED_DRAFT_AWAY_LINE.includes('tab') && !RESTORED_DRAFT_AWAY_LINE.includes('↵') && !/⌃|ctrl\+/.test(RESTORED_DRAFT_AWAY_LINE))
+  check(`every label fits the coordinator pane's hint row at 120×40 whole (${PANE_120} cells)`, [RESTORED_DRAFT_LINE, RESTORED_DRAFT_ARMED_LINE, RESTORED_DRAFT_AWAY_LINE].every(line => [...line].length <= PANE_120), [RESTORED_DRAFT_LINE, RESTORED_DRAFT_ARMED_LINE, RESTORED_DRAFT_AWAY_LINE].map(line => `${[...line].length}: ${line}`).join(' | '))
   const { boardModalOwner } = await import('../../src/components/concourse/boardModalOwner.ts')
   const none = { capacityAsk: false, trustAsk: false, settingsOpen: false, groundPickerOpen: false, rowPick: false, seatAsk: false, gitOffer: false, contractAsk: false, managerSeatAsk: false, managerCardArmed: false, coordinatorFocused: false }
   check('the worktree card owns the keys while it stands, below the seat card and above the git offer', boardModalOwner({ ...none, forkAsk: true }) === 'fork-ask' && boardModalOwner({ ...none, forkAsk: true, seatAsk: true }) === 'seat-ask' && boardModalOwner({ ...none, forkAsk: true, gitOffer: true }) === 'fork-ask')
@@ -217,7 +219,7 @@ console.log('§3 the drive — the restored draft in the focused composer: ↵ a
     { requireAwait: true, awaitText: 'tab panes', awaitSettleTicks: 3, data: '\t', mark: 'before-focus' },
     { requireAwait: true, awaitText: '↵ send', awaitSettleTicks: 3, data: '\r', mark: 'focused' },
     { requireAwait: true, awaitText: ARMED_LABEL, awaitSettleTicks: 3, data: ESC, mark: 'armed' },
-    { requireAwait: true, awaitText: 'restored draft — typed in another', awaitSettleTicks: 3, data: '\r', mark: 'disarmed' },
+    { requireAwait: true, awaitText: 'restored draft · ↵↵ sends', awaitSettleTicks: 3, data: '\r', mark: 'disarmed' },
     { requireAwait: true, awaitText: ARMED_LABEL, awaitSettleTicks: 3, data: '\r', mark: 'armed-again' },
     { requireAwait: true, awaitText: LAUNCH_RECEIPT, awaitSettleTicks: 3, data: '', mark: 'sent' },
   ], 90, LAUNCH_RECEIPT)
@@ -249,7 +251,51 @@ console.log('§4 the drive — the held checkout: the launch asks before it fork
   const declined = markOf('fork', 'declined')
   check('the confirmed send meets the worktree card before anything starts — it names the folder and the holder', has(card, 'A worktree for this session') && has(card, 'held-repo') && has(card, 'Fix the parser') && !has(card, 'coordinator is off —') && operatorEntries(scratch) === 0, card.filter(l => l.includes('⦿') || l.includes('held by')).map(l => l.trim().slice(0, 100)).join(' | '))
   check('the card offers the fork or nothing', has(card, 'Yes — start it on a worktree') && has(card, 'No, start nothing'), card.filter(l => l.includes('1.') || l.includes('2.')).map(l => l.trim().slice(0, 80)).join(' | '))
-  check('esc on the card starts nothing — the card is gone, the draft and its label stay, nothing journaled', !has(declined, 'A worktree for this session') && composerRow(declined).includes('Do both now.') && has(declined, 'restored draft') && !has(declined, 'coordinator is off —') && storedDraft(scratch) === FOREIGN && operatorEntries(scratch) === 0, paneText(declined).slice(0, 240))
+  check('esc on the card starts nothing — the card is gone, the draft and its armed label stay, nothing journaled', !has(declined, 'A worktree for this session') && composerRow(declined).includes('Do both now.') && has(declined, ARMED_LABEL) && !has(declined, 'coordinator is off —') && storedDraft(scratch) === FOREIGN && operatorEntries(scratch) === 0, paneText(declined).slice(0, 240))
+}
+
+console.log('§5 the drive — the same window: a draft typed here, the screen left and re-entered, comes back labelled and armed; ⌃c clears it where the label says so')
+{
+  const { scratch, cwd } = newScratch('same', { draft: false })
+  scratches.push(scratch)
+  const TYPED = 'draft test line, do not send'
+  const SHIFT_RIGHT = `${ESC}[1;2C`
+  const SHIFT_TAB = `${ESC}[Z`
+  const CTRL_C = '\x03'
+  const AWAY_LABEL = 'tab here first'
+  const EMPTY_COMPOSER = 'describe a task'
+  try {
+    capture('same', scratch, cwd, [
+      { requireAwait: true, atTick: 999, awaitText: 'coordinator model', minTick: 5, awaitSettleTicks: 3, data: TYPED },
+      { requireAwait: true, awaitText: 'do not send', awaitSettleTicks: 3, data: ESC, mark: 'typed' },
+      { requireAwait: true, awaitText: '↑↓ choose', awaitSettleTicks: 3, data: SHIFT_RIGHT, mark: 'away' },
+      { requireAwait: true, awaitText: 'do not send', awaitSettleTicks: 3, data: '\r', mark: 'returned' },
+      { requireAwait: true, awaitText: 'enters (armed)', awaitSettleTicks: 3, data: SHIFT_TAB, mark: 'after-enter' },
+      { requireAwait: true, awaitText: 'restored draft · ↵↵ sends', awaitSettleTicks: 3, data: '\r', mark: 'focused' },
+      { requireAwait: true, awaitText: ARMED_LABEL, awaitSettleTicks: 3, data: '\t', mark: 'armed' },
+      { requireAwait: true, awaitText: AWAY_LABEL, awaitSettleTicks: 3, data: SHIFT_TAB, mark: 'tabbed-away' },
+      { requireAwait: true, awaitText: 'restored draft · ↵↵ sends', awaitSettleTicks: 3, data: CTRL_C, mark: 'back' },
+      { requireAwait: true, awaitText: EMPTY_COMPOSER, awaitSettleTicks: 3, data: '', mark: 'cleared' },
+    ], 150, EMPTY_COMPOSER)
+  } catch (error) {
+    check('the same-window drive reached its end (every send fired on its needle; the composer emptied)', false, String(error).slice(-400))
+  }
+  const typed = markOf('same', 'typed')
+  const away = markOf('same', 'away')
+  const returned = markOf('same', 'returned')
+  const afterEnter = markOf('same', 'after-enter')
+  const focused = markOf('same', 'focused')
+  const armed = markOf('same', 'armed')
+  const tabbedAway = markOf('same', 'tabbed-away')
+  const cleared = markOf('same', 'cleared')
+  check('the words typed in this window sit in the focused composer with no restored label (they were just typed)', composerRow(typed).includes('do not send') && !has(typed, 'restored draft') && legendOf(typed).includes('↵ send'), `${composerRow(typed).trim().slice(0, 80)} / ${legendOf(typed).trim().slice(0, 80)}`)
+  check('esc leaves the screen (the boot face stands) with the words off it', has(away, '↑↓ choose') && !has(away, 'do not send'), legendOf(away).trim().slice(0, 80))
+  check('back in the same window the draft is restored from the store WITH the label and the focus on the rows — the label names tab, not ↵ or ⌃c', composerRow(returned).includes('do not send') && has(returned, AWAY_LABEL) && !has(returned, '↵↵ sends') && legendOf(returned).includes('↵↵ enter session') && !legendOf(returned).includes('↵ send'), `${composerRow(returned).trim().slice(0, 80)} / ${returned.filter(l => l.includes('restored')).map(l => l.trim().slice(0, 60)).join(' | ')} / ${legendOf(returned).trim().slice(0, 100)}`)
+  check('one ↵ sends nothing: no harness line, no operator entry, the words still in the composer; the rows armed as they advertise', !has(afterEnter, 'coordinator is off —') && operatorEntries(scratch) === 0 && composerRow(afterEnter).includes('do not send') && has(afterEnter, 'enters (armed)'), paneText(afterEnter).slice(0, 200))
+  check('⇧tab onto the composer: the label now names the composer keys (↵↵ sends · ⌃c clears)', has(focused, 'restored draft · ↵↵ sends') && legendOf(focused).includes('↵ send'), focused.filter(l => l.includes('restored')).map(l => l.trim().slice(0, 60)).join(' | '))
+  check('the first ↵ in the composer arms (↵ again sends), nothing launched', has(armed, '↵ again sends') && !has(armed, 'coordinator is off —') && operatorEntries(scratch) === 0, paneText(armed).slice(0, 200))
+  check('tab away from the armed composer disarms it — the label falls back to the away words, so no ↵ elsewhere can send', has(tabbedAway, AWAY_LABEL) && !has(tabbedAway, '↵ again sends') && composerRow(tabbedAway).includes('do not send'), tabbedAway.filter(l => l.includes('restored')).map(l => l.trim().slice(0, 60)).join(' | '))
+  check('⌃c in the focused composer clears the draft, as the label said: the composer is empty, the label gone, the store empty, nothing sent', has(cleared, EMPTY_COMPOSER) && !has(cleared, 'do not send') && !has(cleared, 'restored draft') && storedDraft(scratch) === '' && operatorEntries(scratch) === 0, `${composerRow(cleared).trim().slice(0, 80)} / stored ${JSON.stringify(storedDraft(scratch))}`)
 }
 
 for (const s of scratches) rmSync(s, { recursive: true, force: true })

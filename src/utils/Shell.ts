@@ -3,7 +3,7 @@ import { closeSync, constants as fsConstants, mkdirSync, openSync, readFileSync 
 import { access } from 'node:fs/promises'
 import { isAbsolute, join, posix as posixPath, resolve as resolvePath } from 'node:path'
 import { memoize } from 'lodash-es'
-import { getOriginalCwd, setCwdState } from '../bootstrap/state.js'
+import { getOriginalCwd, setCwdState, subscribeCwdState } from '../bootstrap/state.js'
 import { generateTaskId } from '../Task.js'
 import { getCwd } from './cwd.js'
 import { logForDebugging } from './debug.js'
@@ -130,6 +130,26 @@ export function setCwd(path: string, base?: string): void {
   setCwdState(physical)
 }
 
+let shellCwd: string | null = null
+subscribeCwdState(() => {
+  shellCwd = null
+})
+
+export function getShellCwd(): string {
+  if (shellCwd !== null && directoryResolves(shellCwd)) return shellCwd
+  shellCwd = null
+  return getCwd()
+}
+
+function recordShellCwd(path: string, base: string): void {
+  const resolved = isAbsolute(path) ? path : resolvePath(base, path)
+  shellCwd = getFsImplementation().realpathSync(resolved).normalize('NFC')
+}
+
+export function __resetShellCwdForTest(): void {
+  shellCwd = null
+}
+
 function directoryResolves(path: string): boolean {
   try {
     getFsImplementation().realpathSync(path)
@@ -193,16 +213,17 @@ export async function exec(
         onProgress: options.onProgress,
         owner: options.owner,
         sessionCeiling: resolveEngineSessionCeiling(getInitialSettings().shell?.sessions),
+        cwd: getShellCwd(),
         onCwd: reported => {
           if (options.preventCwdChanges) return
           try {
-            const before = getCwd()
+            const before = getShellCwd()
             if (reported.normalize('NFC') !== before.normalize('NFC')) {
-              setCwd(reported, before)
+              recordShellCwd(reported, before)
               invalidateSessionEnvCache()
             }
           } catch (error) {
-            logForDebugging(`engine cwd tracking: the session directory stays put — ${errorMessage(error)}`)
+            logForDebugging(`engine cwd tracking: the shell directory stays put — ${errorMessage(error)}`)
           }
         },
       })
@@ -222,11 +243,12 @@ export async function exec(
       : { id: invocationId, useSandbox },
   )
 
-  let cwd = getCwd()
+  let cwd = getShellCwd()
   if (!directoryResolves(cwd)) {
     const bootDirectory = getOriginalCwd()
     if (directoryResolves(bootDirectory)) {
       setCwdState(bootDirectory)
+      shellCwd = null
       logForDebugging(
         `working directory ${cwd} no longer exists; recovered to the original directory ${bootDirectory}`,
       )
@@ -365,14 +387,14 @@ export async function exec(
         const recorded =
           getPlatform() === 'windows' ? nativeCwdFromShellRecord(record) : { path: record.trim() }
         if ('refused' in recorded) {
-          logForDebugging(`bash cwd tracking: the session directory stays put — ${recorded.refused}`)
+          logForDebugging(`bash cwd tracking: the shell directory stays put — ${recorded.refused}`)
         } else if (recorded.path.normalize('NFC') !== cwdBefore.normalize('NFC')) {
-          setCwd(recorded.path, cwdBefore)
+          recordShellCwd(recorded.path, cwdBefore)
           invalidateSessionEnvCache()
         }
       }
     } catch (error) {
-      logForDebugging(`bash cwd tracking: the session directory stays put — ${errorMessage(error)}`)
+      logForDebugging(`bash cwd tracking: the shell directory stays put — ${errorMessage(error)}`)
     }
 
     void getFsImplementation()

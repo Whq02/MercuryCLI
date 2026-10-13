@@ -57,6 +57,7 @@ export type ToolUseConfirm<Input = Record<string, unknown>> = {
   toolUseID: string
   permissionResult: PermissionDecision
   permissionPromptStartTimeMs: number
+  cwd?: string
   workerBadge?: WorkerBadgeProps
   onUserInteraction: () => void
   onAbort: () => void

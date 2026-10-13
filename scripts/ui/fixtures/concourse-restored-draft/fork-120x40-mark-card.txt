@@ -11,7 +11,7 @@
   │ coordinator off · ▸ turn on · ⌃a           │ │   ◐           Fix OAuth cal…Moodle    editing src/auth/c…    07m  │  
   │ ╭────────────────────────────────────────╮ │ │   ◐           Refactor pars…orchard-… Bash · bun test pa…    18m  │  
   │ │ ❯ ….py. Do both n                                                                                         03m  │  
-  │ │ restored draft —  ╭──────────────────────────────────────────────────────────────────────╮                     │  
+  │ │ ↵ again sends it  ╭──────────────────────────────────────────────────────────────────────╮                     │  
   │ ╰────────────────── │  ⦿ A worktree for this session                                       │ r a seat     waits  │  
   │                     │  a new session in held-repo would fork a worktree                    │ r a seat     waits  │  
   │                     │  held-repo is already held by “Fix the parser” — this session would  │ ────────────────────╯  

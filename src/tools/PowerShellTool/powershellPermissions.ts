@@ -36,6 +36,7 @@ import { checkPathConstraints, isDangerousRemovalRawPath, dangerousRemovalDeny }
 import { checkPermissionMode, isSymlinkCreatingCommand } from './modeValidation.js'
 import { isGitInternalPathPS, isDotGitPathPS } from './gitSafety.js'
 import { isCurrentDirectoryBareGitRepo } from '../../utils/git.js'
+import { getShellCwd } from '../../utils/Shell.js'
 
 const TOOL_NAME = 'PowerShell'
 
@@ -193,7 +194,7 @@ export async function powershellToolHasPermission(
   for (const command_ of subcommands) push(subcommandRuleVerdict(command_, toolPermissionContext))
   if (totalCommands > 1 && hasCd && hasGit) push({ behavior: 'ask', message: 'A compound that mixes a directory change with a git invocation needs approval, because the pairing is the shape of a bare-repository attack.' })
   if (hasGit) {
-    if (isCurrentDirectoryBareGitRepo()) push({ behavior: 'ask', message: 'The current directory carries bare-repository indicators (HEAD, objects/, refs/) with no valid .git/HEAD; git may treat it as the repository and run hooks from it.' })
+    if (isCurrentDirectoryBareGitRepo(getShellCwd())) push({ behavior: 'ask', message: 'The current directory carries bare-repository indicators (HEAD, objects/, refs/) with no valid .git/HEAD; git may treat it as the repository and run hooks from it.' })
     if (gitInternalWrite(parsed, subcommands)) push({ behavior: 'ask', message: 'The command writes into a git-internal location (HEAD, objects/, refs/, hooks/, .git/) and then runs git — a hook could be planted and executed.' })
     if (subcommands.some(c => ARCHIVE_EXTRACTORS.has(c.name.toLowerCase())) ) push({ behavior: 'ask', message: 'The compound unpacks an archive before running git; an archive can carry the files that make a directory look like a repository root.' })
   }
