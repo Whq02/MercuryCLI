@@ -15,7 +15,7 @@ import { applyPromptToMarkdown, getURLMarkdownContent, isPreapprovedUrl, MAX_MAR
 
 const inputSchema = z.strictObject({
   url: z.string().url().describe('The URL to fetch content from'),
-  prompt: z.string().describe('The prompt to run on the fetched content'),
+  prompt: z.string().optional().describe('Ask a model for a reading of the page; omit to receive the page’s own words'),
 })
 
 type Input = z.infer<typeof inputSchema>
@@ -108,7 +108,7 @@ To complete the request, call ${WEB_FETCH_TOOL_NAME} again with url: "${fetched.
 
   const preapproved = isPreapprovedUrl(input.url)
   let result: string
-  if (preapproved && fetched.contentType.includes('text/markdown') && fetched.content.length < MAX_MARKDOWN_LENGTH) {
+  if (input.prompt === undefined) {
     result = fetched.content
   } else {
     result = await applyPromptToMarkdown(
