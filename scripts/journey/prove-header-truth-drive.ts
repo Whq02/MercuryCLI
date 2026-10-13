@@ -414,7 +414,7 @@ const CREW_CLOCK = /\b(crewmates?|workflows?) thought for \d+[sm]\b/
 const titleRowIndex = (frame: string | undefined): number => rows(frame).findIndex(r => r.includes('✶ VIEW'))
 const statusIndex = (frame: string | undefined): number => rows(frame).findIndex(r => r.includes(BACK_HINT))
 const statusRow = (frame: string | undefined): string => rows(frame)[statusIndex(frame)] ?? ''
-const crewClock = (frame: string | undefined): string => (/\b(?:agents?|workflows?) thought for (\d+[sm])\b/.exec(statusRow(frame)) ?? ['', ''])[1]!
+const crewClock = (frame: string | undefined): string => (/\b(?:crewmates?|workflows?) thought for (\d+[sm])\b/.exec(statusRow(frame)) ?? ['', ''])[1]!
 const crewClockAdvances = (a: string | undefined, b: string | undefined): boolean => crewClock(a) !== '' && crewClock(b) !== '' && crewClock(a) !== crewClock(b)
 const crewClockStands = (a: string | undefined, b: string | undefined): boolean => crewClock(a) !== '' && crewClock(a) === crewClock(b)
 const noGlyph = (frame: string | undefined): boolean => statusGlyph(frame) === ''
@@ -533,7 +533,7 @@ if (cap !== null) {
   const thinkingRow = statusRow(m['thinking'])
   check('the main agent is thinking (the card under the critter narrates it)', /thinking|…/.test(berth(m['thinking'])), flat(berth(m['thinking'])).slice(0, 160))
   check('H3 the bottom row carries no main-agent phase word', !PHASE_WORDS.test(thinkingRow), flat(thinkingRow))
-  check('H3 the bottom row carries the crew\'s clock, past tense ("crewmates thought for …")', CREW_CLOCK.test(thinkingRow) && /\bagents thought for\b/.test(thinkingRow), flat(thinkingRow))
+  check('H3 the bottom row carries the crew\'s clock, past tense ("crewmates thought for …")', CREW_CLOCK.test(thinkingRow) && /\bcrewmates thought for\b/.test(thinkingRow), flat(thinkingRow))
   const thinkingWordRows = rows(m['thinking']).filter(r => /\bthinking\b/.test(r))
   console.log(`  rows carrying the word "thinking": ${thinkingWordRows.length} — ${thinkingWordRows.map(flat).join(' | ').slice(0, 300)}`)
   check('H2 the crew clock advances while the agents run (no glyph on the row)', crewClockAdvances(m['thinking'], m['thinking+']) && noGlyph(m['thinking']), `${crewClock(m['thinking'])} → ${crewClock(m['thinking+'])}`)

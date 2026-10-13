@@ -187,7 +187,7 @@ const transcriptLines = (sid: string): string[] => {
 }
 const rowsSince = (sid: string, n: number): string => transcriptLines(sid).slice(n).join('\n')
 const unescaped = (raw: string): string => raw.replace(/\\u2014/g, '—').replace(/\\n/g, '\n').replace(/\\"/g, '"')
-const refusalOf = (rows: string): string => unescaped(rows).match(/Agent dispatch refused[^"\\]{0,400}/)?.[0] ?? '(no refusal words)'
+const refusalOf = (rows: string): string => unescaped(rows).match(/Crewmate dispatch refused[^"\\]{0,400}/)?.[0] ?? '(no refusal words)'
 
 const modelsFailFlag = join(SCRATCH, MODELS_FAIL_FLAG)
 const fixture = spawn('node', [join(REPO, 'scripts', 'daemon', 'openai-lane-fixture-server.ts'), captureFile, modelsFailFlag], { stdio: ['ignore', 'pipe', 'pipe'] })
