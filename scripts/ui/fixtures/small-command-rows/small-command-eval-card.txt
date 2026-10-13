@@ -1,0 +1,50 @@
+  lanes                 ╭──────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+WORKBENCH               │╭────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮│
+  run the cell          ││  ▄▄▄▄▄▄▄▄▄                                                                                                     ││
+                        ││  ▄▄▄▄▄▄▄▄▄                                                                                                     ││
+NEXT                    ││  ▀▄▄▄▀▄▄▄▀                                                                                                     ││
+  · /workflows — crewma…│╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯│
+                        │                                                                                                                  │
+FILES · project         │                                                                                                                  │
+  ↵ or click · browse   │ 15:00:08 [sam] ❯ start                                                                                           │
+                        │                                                                                                                  │
+VITALS                  │ 15:00:08 [Mercury] Command rows ready.                                                                           │
+  · spend $0.00         │                                                                                                                  │
+  · ctx 0% · 1000k      │ ❯ /crewmates off                                                                                                 │
+  · health — run /health│   └ crewmates off for this session                                                                               │
+                        │     the Crewmate tool leaves the roster from the next turn; reasoning restarts on the next turn; a spawn already │
+                        │     running finishes                                                                                             │
+                        │ the operator toggled crewmates off — landed: the Crewmate tool has left the roster; reasoning restarts on the    │
+                        │ next turn                                                                                                        │
+                        │                                                                                                                  │
+                        │ 15:00:25 [sam] ❯ run the cell                                                                                    │
+                        │ │                                                                                                                │
+                        │ │ 15:00:25 [Mercury] ▰ Eval         js · Calculate the value                                                     │
+                        │ │   └ Starting kernel…                                                                                           │
+                        │                                                                                                                  │
+                        │                                                                                                                  │
+                        │                                                                                                                  │
+                        │                                                                                                                  │
+                        │                                                                                                                  │
+                        │                                                                                                                  │
+                        │                                                                                                                  │
+                        │                                                                                                                  │
+                        │                                                                                                                  │
+                        │                                                                                                                  │
+                        │                                                                                                                  │
+                        ╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+
+╭──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│  ⦿ Tool use                                                                                                                              │
+│  Eval(js · Calculate the value                                                                                                           │
+│  console.log("CELL-CODE-UNDER-APPROVAL"))                                                                                                │
+│  Run one code cell in a retained Python or JavaScript runtime: state persists across cells, and code can call session tools, spawn       │
+│  crewmates, and make model completions from inside the cell.                                                                             │
+│  Do you want to proceed?                                                                                                                 │
+│  ❯ 1. Yes                                                                                                                                │
+│    2. Yes, and don't ask again for Eval in this project                                                                                  │
+│    3. No, and tell Mercury what to do differently (esc)                                                                                  │
+│                                                                                                                                          │
+│  ↑↓ choose · ↵ confirm · esc cancel · tab amend                                                                                          │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+ Opus 5.5 · high                                                                                          project  esc interrupts · ⇧← back
