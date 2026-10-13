@@ -94,6 +94,7 @@ const home = join(ROOT, 'home')
 seedFirstRun(home, [CWD])
 writeFileSync(join(home, 'settings.json'), JSON.stringify({ view: { reducedMotion: true }, activity: { tips: { enabled: false } } }))
 if (driver.kind !== 'posix-pty') throw new Error(`no POSIX pty capture driver on this host (${driver.kind})`)
+const CTRL_W = '\x17'
 const sends: Send[] = [
   { atTick: 999, requireAwait: true, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 3, data: '\r' },
   { atTick: 999, requireAwait: true, awaitText: 'ready · ', minTick: 5, awaitSettleTicks: 3, data: '/model' },
@@ -102,8 +103,8 @@ const sends: Send[] = [
   { afterPrevTicks: 2, data: DOWN },
   { afterPrevTicks: 2, data: DOWN },
   { afterPrevTicks: 2, data: DOWN },
-  { afterPrevTicks: 5, mark: 'focus', data: 'c' },
-  { afterPrevTicks: 6, mark: 'toggled', data: 'c' },
+  { afterPrevTicks: 5, mark: 'focus', data: CTRL_W },
+  { afterPrevTicks: 6, mark: 'toggled', data: CTRL_W },
   { afterPrevTicks: 6, mark: 'toggled-back', data: HOME },
   { afterPrevTicks: 6, mark: 'group-top', data: ESC },
 ]
@@ -169,8 +170,8 @@ check('the Anthropic group lists no "(1M context)" row', group.length > 0 && nam
 check('no display name repeats in the Anthropic group', names.length > 0 && new Set(names).size === names.length, names.join(' · '))
 check('the previous generations with a suffix window (Opus 4.8, 4.7, 4.6) are one row each', ['Opus 4.8', 'Opus 4.7', 'Opus 4.6'].every(n => names.filter(x => x === n).length === 1), names.join(' · '))
 check('four ↓ from the current row focus the Opus 4.6 row, its window 1M', nameOf(focusLine(focus)) === 'Opus 4.6' && windowOf(focusLine(focus)) === '1M', focusLine(focus))
-check('c keeps the cursor on the row and drops its window to 200k', nameOf(focusLine(toggled)) === 'Opus 4.6' && windowOf(focusLine(toggled)) === '200k', focusLine(toggled))
-check('c again brings the window back to 1M on the same row', nameOf(focusLine(back)) === 'Opus 4.6' && windowOf(focusLine(back)) === '1M', focusLine(back))
+check('ctrl+w keeps the cursor on the row and drops its window to 200k', nameOf(focusLine(toggled)) === 'Opus 4.6' && windowOf(focusLine(toggled)) === '200k', focusLine(toggled))
+check('ctrl+w again brings the window back to 1M on the same row', nameOf(focusLine(back)) === 'Opus 4.6' && windowOf(focusLine(back)) === '1M', focusLine(back))
 
 if (KEEP) console.log(`  [keep] ${ROOT}`)
 else rmSync(ROOT, { recursive: true, force: true })
