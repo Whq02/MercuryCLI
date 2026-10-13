@@ -614,7 +614,9 @@ console.log('§44 exit heals — ?2026l first; the splash cancel disarms ?1007')
   check('the splash cancel disarms alternate scroll before leaving the alt buffer', cancel.includes("out.write('\\x1b[?1007l')") && cancel.includes("?1007l") && cancel.indexOf("?1007l") < cancel.indexOf("?1049l"))
   const tpl = read('scripts/release/launcherTemplates.mjs')
   const healSrc = tpl.split('\n').filter(l => l.includes('process.stdout.write(') && l.includes('?1049l'))
-  check('all six launcher heal strings open with ?2026l (sh/cmd/ps1 × splash-death/abnormal-child)', healSrc.length === 6 && healSrc.every(l => l.includes('\\\\x1b[?2026l\\\\x1b[0m')))
+  check('all five launcher heal strings open with ?2026l (sh splash-death; cmd and ps1 × splash-death/abnormal-child — the sh launcher execs the runtime, so no parent remains to heal an abnormal child)', healSrc.length === 5 && healSrc.every(l => l.includes('\\\\x1b[?2026l\\\\x1b[0m')))
+  check('the sh launcher hands the terminal to the runtime by exec (one process; no post-child heal line remains)', /\nexec "\$node_bin" "\$dir\/mercury\.mjs" "\$@"\n/.test(tpl) && !tpl.includes('if [ -t 1 ] && [ "$rt" != "0" ]'))
+  check('the cmd and ps1 launchers keep both heals (they cannot exec)', healSrc.filter(l => l.includes('%NODEBIN%')).length === 2 && healSrc.filter(l => l.includes('$nodeBin')).length === 2)
   check('poison gone: no heal string still opens on the SGR reset alone', !healSrc.some(l => /process\.stdout\.write\(["']\\\\x1b\[0m/.test(l)))
 }
 
