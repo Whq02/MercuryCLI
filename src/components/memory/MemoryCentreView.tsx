@@ -7,7 +7,7 @@ import { MenuFilterLine } from '../mercury-ui/menuFold.js'
 import { useSessionAccent } from '../mercury-ui/sessionAccent.js'
 import { useMercuryTokens } from '../mercury-ui/useMercuryTokens.js'
 import { useFlatList } from '../mercury-ui/useFlatList.js'
-import { collectMemoryRefs, type MemoryRef } from '../../mneme/memoryRefs.js'
+import { collectMemoryRefs, factMemoryState, memoryStatusWords, type MemoryRef } from '../../mneme/memoryRefs.js'
 import { pendingRows } from '../../mneme/mnemeBuffer.js'
 import { correctFact, pinPendingRow, replacePendingRow, retireFact, strikePendingRow } from '../../mneme/mnemeCorrect.js'
 import { mnemeEnabled } from '../../mneme/mnemeGates.js'
@@ -18,7 +18,7 @@ import { handoverDue, handoverIfDue, readHandoverReceipt, renderHandoverReceipt 
 import { journalEnabled, journalPath, readJournal, type JournalEntry } from '../../mneme/journal.js'
 import { listArchiveDocs, listTopicDocs } from '../../mneme/mnemeLibrary.js'
 import type { MnemeEntry, MnemeTopicDoc } from '../../mneme/mnemeTopicDocs.js'
-import { formatTextSize, pinFact, pinnedTextLimit, readPins, unpinFact, type PinRecord } from '../../mneme/mnemeUsage.js'
+import { bumpUsage, formatTextSize, pinFact, pinnedTextLimit, readPins, readUsage, unpinFact, type PinRecord } from '../../mneme/mnemeUsage.js'
 import { getMnemeHome, mnemeProjectKey } from '../../mneme/paths.js'
 import { readLedger } from '../../mneme/ledger.js'
 import { conversationIdHere } from '../../services/engine-connector/focusedConnector.js'
@@ -66,11 +66,11 @@ const NOTE_COLOR: Record<'ok' | 'warn' | 'fail' | 'pending', string> = {
   pending: FAINT,
 }
 
-const STATUS_TONE: Record<MemoryRef['status'], { glyph: string; color: string; label: string }> = {
-  current: { glyph: '●', color: TEAL, label: 'current' },
-  unconsolidated: { glyph: '◌', color: SECOND, label: 'recent, unconsolidated' },
-  'needs-review': { glyph: '▲', color: AMBER, label: 'needs review — cited path moved' },
-  stale: { glyph: '◌', color: SECOND, label: 'stale' },
+const STATUS_TONE: Record<MemoryRef['status'], { glyph: string; color: string }> = {
+  current: { glyph: '●', color: TEAL },
+  unconsolidated: { glyph: '◌', color: SECOND },
+  'needs-review': { glyph: '▲', color: AMBER },
+  stale: { glyph: '◌', color: SECOND },
 }
 
 const WARNING_STATES = new Set(['off', 'over', 'due', 'degraded', 'no note', 'unclosed'])
@@ -284,13 +284,13 @@ export function topicRef(row: IndexLine): MemoryRef {
   }
 }
 
-export function factRef(entry: MnemeEntry, slug: string): MemoryRef {
+export function factRef(entry: MnemeEntry, slug: string, opts: Parameters<typeof factMemoryState>[1] = {}): MemoryRef {
   return {
     refId: `mneme:${entry.seq}`,
     kind: 'mneme-fact',
     store: 'mneme',
     scope: 'project',
-    status: 'current',
+    ...factMemoryState(entry, opts),
     summary: entry.text.length > 140 ? `${entry.text.slice(0, 139)}…` : entry.text,
     source: entry.source,
     capturedAt: entry.time,
@@ -305,7 +305,7 @@ export function pinnedRuleRow(row: { pin: PinRecord; entry: MnemeEntry; slug: st
   return {
     label: `${formatTextSize(size)} chars · ${row.pin.asked ? 'asked for by you' : 'pinned by Mercury'} · ${row.entry.text}`,
     ref: {
-      ...factRef(row.entry, row.slug),
+      ...factRef(row.entry, row.slug, { pins: [row.pin] }),
       why: `pinned ${humanStamp(row.pin.at)}${row.pin.asked ? ' · asked for by you' : ' · by Mercury'}`,
       tier: 1,
     },
@@ -316,11 +316,15 @@ export function factListRows(docs: readonly MnemeTopicDoc[], pins: ReadonlySet<n
   const live: { entry: MnemeEntry; slug: string }[] = []
   for (const doc of docs) for (const section of doc.sections) for (const entry of section.entries) live.push({ entry, slug: doc.slug })
   live.sort((a, b) => (a.entry.time === b.entry.time ? b.entry.seq - a.entry.seq : a.entry.time > b.entry.time ? -1 : 1))
-  return live.map(({ entry, slug }) => ({
-    id: `fact-${entry.seq}`,
-    label: `${humanStamp(entry.time)}  ${pins.has(entry.seq) ? 'pinned · ' : ''}${entry.text}`,
-    ref: factRef(entry, slug),
-  }))
+  const state = { pins: [...pins].map(seq => ({ seq, at: '' })), usage: readUsage(), now: new Date() }
+  return live.map(({ entry, slug }) => {
+    const ref = factRef(entry, slug, state)
+    return {
+      id: `fact-${entry.seq}`,
+      label: `${humanStamp(entry.time)}  ${pins.has(entry.seq) ? 'pinned · ' : ref.status === 'stale' ? 'stale · ' : ''}${entry.text}`,
+      ref,
+    }
+  })
 }
 
 export function pendingRef(row: { text: string; ts: string; source: string }, index: number): MemoryRef {
@@ -435,7 +439,7 @@ export function MemoryCentreView({
       const refs = collectMemoryRefs(query, { maxRefs: 12 })
       const rows: CentreRow[] = refs.map(r => {
         const seq = seqOf(r)
-        return { id: r.refId, kind: 'ref' as const, label: `${seq !== null && pins.has(seq) ? 'pinned · ' : ''}${r.summary}`, ref: r }
+        return { id: r.refId, kind: 'ref' as const, label: `${seq !== null && pins.has(seq) ? 'pinned · ' : r.status === 'stale' ? 'stale · ' : ''}${r.summary}`, ref: r }
       })
       for (const hit of conventionHits(query, await instructionTexts())) {
         rows.push({ id: `convention-${hit.path}:${hit.line}`, kind: 'convention', label: conventionRowLabel(hit), convention: hit })
@@ -548,8 +552,11 @@ export function MemoryCentreView({
     onPrimary: row => {
       if (row.kind === 'ref' || row.kind === 'pin') {
         if (row.ref) {
+          const seq = seqOf(row.ref)
+          const live = seq === null ? undefined : liveEntryIndex([...listTopicDocs(), ...listArchiveDocs()]).get(seq)
+          if (live) bumpUsage([live.entry.seq])
           setPageOffset(0)
-          setDetail(row.ref)
+          setDetail(live ? { ...row.ref, ...factMemoryState(live.entry) } : row.ref)
         }
         return
       }
@@ -748,6 +755,15 @@ export function MemoryCentreView({
   const pageRows = Math.max(1, rowBudget - (roomy ? 2 : 1) - 6 - (fl.note ? 2 : 0))
   const openLines = page ? page.lines : detail ? detailLines : []
   const pageWin = pageWindow(openLines.length, pageOffset, pageRows)
+  const openedPage = React.useRef<{ page: Page | null; seqs: Set<number> }>({ page: null, seqs: new Set() })
+  React.useEffect(() => {
+    if (openedPage.current.page !== page) openedPage.current = { page, seqs: new Set() }
+    if (page?.kind !== 'topic') return
+    const live = liveEntryIndex([...listTopicDocs(), ...listArchiveDocs()])
+    const seqs = [...new Set(page.lines.slice(pageWin.start, pageWin.end).flatMap(line => line.seq !== undefined && live.has(line.seq) && !openedPage.current.seqs.has(line.seq) ? [line.seq] : []))]
+    bumpUsage(seqs)
+    for (const seq of seqs) openedPage.current.seqs.add(seq)
+  }, [page, pageWin.start, pageWin.end])
   const { visible, above, below, clampedSel, note, loadError, list } = fl
 
   useInput(
@@ -771,6 +787,7 @@ export function MemoryCentreView({
           }
           if (page) setPage(null)
           else setDetail(null)
+          fl.reload()
           setPageOffset(0)
           return
         }
@@ -937,7 +954,7 @@ export function MemoryCentreView({
     const row = fl.selected
     if (!row) return MEMORY_SEARCH_READS
     if (row.kind === 'convention' && row.convention) return `instruction file · line ${row.convention.line} · loads every session · ↵ opens it there · ${fileWords(row.convention.path)}`
-    if (row.ref) return `${refWhyLine(row.ref, pins)} · ${STATUS_TONE[row.ref.status].label}`
+    if (row.ref) return `${refWhyLine(row.ref, pins)} · ${memoryStatusWords(row.ref)}`
     return MEMORY_SEARCH_READS
   }
 
@@ -957,7 +974,7 @@ export function MemoryCentreView({
       ) : detail ? (
         <Box flexDirection="column">
           <Box>
-            <StateBadge state={detail.status === 'current' ? 'live' : 'gated'} label={STATUS_TONE[detail.status].label} />
+            <StateBadge state={detail.status === 'current' ? 'live' : 'gated'} label={memoryStatusWords(detail)} />
             <Text color={tok.textMuted}>{`  ${refHeader(detail, detailPinned, detailPin?.asked === true)}`}</Text>
           </Box>
           <Text color={tok.textInstruction} wrap="truncate-end">{truncateToWidth(refWhyLine(detail, pins), inner)}</Text>
