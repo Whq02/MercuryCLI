@@ -210,6 +210,7 @@ reg(
     'src/screens/Chat.tsx',
     'src/screens/ResumeConversation.tsx',
     'src/components/Settings/Config.tsx',
+    'src/components/HelpV2/Commands.tsx',
     'src/components/Settings/Jev.tsx',
     'src/components/Settings/LocalServer.tsx',
     'src/components/LocalSetupDialog.tsx',
