@@ -1,0 +1,50 @@
+  lanes                 ╭──────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+WORKBENCH               │                                                                                                                  │
+  private reasoning     │                                                                                                                  │
+                        │ 13:15:28 [sam] ❯ private reasoning                                                                               │
+NEXT                    │                                                                                                                  │
+  · /workflows — crewma…│ ✻ thinking… — the provider returned no thinking text for this model                                              │
+  · /health — health ce…│                                                                                                                  │
+  · /memory — memory    │                                                                                    13:15 claude-opus-4-8         │
+  · /mission — set a mi…│                                                                                                                  │
+                        │ Private reasoning answer.                                                                                        │
+FILES · project         │                                                                                                                  │
+  ↵ or click · browse   │                                                                                                                  │
+                        │                                                                                                                  │
+VITALS                  │                                                                                                                  │
+  · spend $0.00         │                                                                                                                  │
+  · ctx 0% · 1000k      │                                                                                                                  │
+  · health — run /health│                                                                                                                  │
+                        │                                                                                                                  │
+                        │                                                                                                                  │
+                        │                                                                                                                  │
+                        │                                                                                                                  │
+                        │                                                                                                                  │
+                        │                                                                                                                  │
+                        │                                                                                                                  │
+                        │                                                                                                                  │
+                        │                                                                                                                  │
+                        │                                                                                                                  │
+                        │                                                                                                                  │
+                        │                                                                                                                  │
+                        │                                                                                                                  │
+                        │                                                                                                                  │
+                        │                                                                                                                  │
+                        │                                                                                                                  │
+                        │                                                                                                                  │
+                        │                                                                                                                  │
+                        │                                                                                                                  │
+                        │                                                                                                                  │
+                        │                                                                                                                  │
+                        │                                                                                                                  │
+                        │                                                                                                                  │
+                        │                                                                                                                  │
+                        │                                                                                                                  │
+                        │                                                                                                                  │
+                        │                                                                                                                  │
+                        │                                                                                                                  │
+                        │                                                                                                                  │
+                        ╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+ ready · Opus 5.5 · high                                                                                                   project  ⇧← back
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ detailed transcript · ctrl+o to toggle · q quits · / search · g/G jump · arrows scroll · drag selects and copies

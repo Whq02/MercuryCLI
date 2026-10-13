@@ -3,12 +3,22 @@ import { currentBufferPath, pendingRows } from './mnemeBuffer.js'
 import { readPinnedStatus } from './mnemeFrontPage.js'
 import { mnemeEnabled, mnemeLibraryDir } from './mnemeGates.js'
 import { listTopicDocs } from './mnemeLibrary.js'
-import { docFileName, serializeSignature, type MnemeEntry } from './mnemeTopicDocs.js'
-import { bumpUsage, readUsage, usageOf } from './mnemeUsage.js'
+import { docFileName, serializeSignature } from './mnemeTopicDocs.js'
+import { stemLookupToken } from './mnemeStemmer.js'
+import { readPins, readUsage, usageOf, type UsageRecord } from './mnemeUsage.js'
 import { noteMemoryOffered } from './mnemeSignal.js'
 
 export const LOOKUP_LIMIT = 5
 const MAX_QUERY_TOKENS = 16
+export const BM25_K1 = 1.2
+export const BM25_B = 0.75
+export const RECENCY_TAU_MS = 90 * 24 * 60 * 60 * 1000
+
+function recencyOf(candidate: LookupCandidate, now: number): number {
+  const observed = Date.parse(candidate.time ?? '')
+  if (candidate.pinned || candidate.kind === 'ruling' || !Number.isFinite(observed) || !Number.isFinite(now)) return 1
+  return Math.exp(-Math.max(0, now - observed) / RECENCY_TAU_MS)
+}
 
 const STOPWORDS = new Set([
   'the', 'and', 'for', 'are', 'but', 'not', 'you', 'all', 'any', 'can', 'had', 'her', 'was', 'one', 'our', 'out', 'has', 'his',
@@ -21,20 +31,26 @@ const STOPWORDS = new Set([
   'going', 'doing', 'done', 'okay', 'yes', 'why', 'say', 'said', 'run', 'file', 'files', 'code', 'work', 'working',
 ])
 
-export function lookupTokens(raw: string): string[] {
+export function lookupTerms(raw: string): string[] {
   const out: string[] = []
   for (const token of raw.toLowerCase().split(/[^a-z0-9_.\-/]+/)) {
     const t = token.replace(/^[._\-/]+|[._\-/]+$/g, '')
     if (t.length < 3 || STOPWORDS.has(t) || /^\d+$/.test(t)) continue
-    if (!out.includes(t)) out.push(t)
-    if (out.length >= MAX_QUERY_TOKENS) break
+    const stem = stemLookupToken(t)
+    if (stem.length >= 3 && !STOPWORDS.has(stem)) out.push(stem)
   }
   return out
+}
+
+export function lookupTokens(raw: string): string[] {
+  return [...new Set(lookupTerms(raw))].slice(0, MAX_QUERY_TOKENS)
 }
 
 export function escapeRegExp(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
+
+export type LookupKind = 'fact' | 'ruling' | 'pending' | 'handoff' | 'session'
 
 export interface LookupCandidate {
   id: string
@@ -44,90 +60,127 @@ export interface LookupCandidate {
   pagePath: string
   seq?: number
   pending: boolean
+  time?: string
+  pinned?: boolean
+  kind?: LookupKind
+  useCount?: number
 }
 
-export interface LookupHit extends LookupCandidate {
+export interface LookupHit extends Omit<LookupCandidate, 'time' | 'pinned' | 'kind' | 'useCount'> {
   score: number
   matched: string[]
 }
 
+export interface CandidateFeatures {
+  bm25: number
+  recency: number
+  pinned: boolean
+  kind: LookupKind
+  useCount: number
+  discriminating: boolean
+}
+
+export interface ScoredCandidate extends LookupCandidate {
+  score: number
+  matched: string[]
+  features: CandidateFeatures
+}
+
+export interface RankingOptions {
+  exclude?: ReadonlySet<string>
+  usage?: Record<string, UsageRecord>
+  now?: number
+}
+
 export function candidates(dir: string): LookupCandidate[] {
   const out: LookupCandidate[] = []
+  const pins = new Set(readPins(dir).map(pin => pin.seq))
+  const usage = readUsage(dir)
   for (const doc of listTopicDocs(dir)) {
     const pagePath = join(dir, docFileName(doc.slug))
     for (const section of doc.sections) {
       for (const entry of section.entries) {
-        out.push({ id: `seq:${entry.seq}`, text: entry.text, signature: serializeSignature(entry), slug: doc.slug, pagePath, seq: entry.seq, pending: false })
+        out.push({ id: `seq:${entry.seq}`, text: entry.text, signature: serializeSignature(entry), slug: doc.slug, pagePath, seq: entry.seq, pending: false, time: entry.time, pinned: pins.has(entry.seq), kind: pins.has(entry.seq) ? 'ruling' : 'fact', useCount: usageOf(entry.seq, usage).count })
       }
     }
   }
   const bufferPath = currentBufferPath(dir)
   for (const row of pendingRows(dir)) {
-    out.push({ id: `pending:${row.ts}`, text: row.text, signature: `[unconsolidated, ${row.ts}, ${row.source}]`, slug: row.topicHint ?? 'general', pagePath: bufferPath, pending: true })
+    out.push({ id: `pending:${row.ts}`, text: row.text, signature: `[unconsolidated, ${row.ts}, ${row.source}]`, slug: row.topicHint ?? 'general', pagePath: bufferPath, pending: true, time: row.ts, pinned: false, kind: 'pending', useCount: 0 })
   }
   return out
 }
 
-export function rankCandidates(
-  query: string,
-  pool: readonly LookupCandidate[],
-  opts: { exclude?: ReadonlySet<string>; limit?: number; usage?: Record<string, { last: string; count: number }> } = {},
-): LookupHit[] {
-  const tokens = lookupTokens(query)
-  if (tokens.length === 0 || pool.length === 0) return []
-  const limit = Math.min(Math.max(opts.limit ?? LOOKUP_LIMIT, 1), 20)
-  const exclude = opts.exclude ?? new Set<string>()
-  const usage = opts.usage ?? {}
-  const matchers = tokens.map(t => ({ token: t, re: new RegExp(`(^|[^a-z0-9])${escapeRegExp(t)}`) }))
-  const lowered = pool.map(c => c.text.toLowerCase())
-  const df = new Map<string, number>()
-  for (const m of matchers) {
-    let n = 0
-    for (const text of lowered) if (m.re.test(text)) n++
-    df.set(m.token, n)
+export function fuseRankings(rankings: Array<Array<string>>, k = 60): string[] {
+  if (!Number.isFinite(k) || k < 0) throw new RangeError('rank fusion k must be finite and nonnegative')
+  const scores = new Map<string, number>()
+  for (const ranking of rankings) {
+    const unique = [...new Set(ranking)]
+    unique.forEach((id, index) => scores.set(id, (scores.get(id) ?? 0) + 1 / (k + index + 1)))
   }
+  return [...scores.keys()].sort((a, b) => scores.get(b)! - scores.get(a)!)
+}
+
+export function scoreCandidates(query: string, pool: readonly LookupCandidate[], now: number = Date.now()): ScoredCandidate[] {
+  const tokens = lookupTokens(query)
+  const documents = pool.map(candidate => {
+    const terms = lookupTerms(candidate.text)
+    const frequencies = new Map<string, number>()
+    for (const term of terms) frequencies.set(term, (frequencies.get(term) ?? 0) + 1)
+    return { length: terms.length, frequencies }
+  })
+  const df = new Map(tokens.map(token => [token, documents.filter(doc => doc.frequencies.has(token)).length]))
   const total = pool.length
-  const averageLength = lowered.reduce((n, t) => n + t.length, 0) / total || 1
-  const hits: LookupHit[] = []
-  pool.forEach((candidate, i) => {
-    if (exclude.has(candidate.id)) return
-    let score = 0
+  const averageLength = documents.reduce((n, doc) => n + doc.length, 0) / total || 1
+  return pool.map((candidate, i) => {
+    const doc = documents[i]!
+    let bm25 = 0
     const matched: string[] = []
     let discriminating = false
-    for (const m of matchers) {
-      if (!m.re.test(lowered[i]!)) continue
-      const n = df.get(m.token) ?? 0
-      if (n === 0) continue
-      matched.push(m.token)
-      score += 1 + Math.log((total + 1) / n)
+    for (const token of tokens) {
+      const frequency = doc.frequencies.get(token) ?? 0
+      if (frequency === 0) continue
+      const n = df.get(token)!
+      matched.push(token)
+      const idf = Math.log(1 + (total - n + 0.5) / (n + 0.5))
+      bm25 += idf * frequency * (BM25_K1 + 1) / (frequency + BM25_K1 * (1 - BM25_B + BM25_B * doc.length / averageLength))
       if (n < total || total === 1) discriminating = true
     }
-    if (matched.length === 0 || !discriminating) return
-    score /= 0.5 + 0.5 * (lowered[i]!.length / averageLength)
-    hits.push({ ...candidate, score, matched })
+    const pinned = candidate.pinned === true || candidate.kind === 'ruling'
+    const recency = recencyOf(candidate, now)
+    const kind = candidate.kind ?? (pinned ? 'ruling' : candidate.pending ? 'pending' : 'fact')
+    const useCount = Number.isFinite(candidate.useCount) ? Math.max(0, candidate.useCount!) : 0
+    return { ...candidate, score: discriminating ? bm25 * recency : 0, matched, features: { bm25, recency, pinned, kind, useCount, discriminating } }
   })
-  hits.sort((a, b) => {
-    if (b.score !== a.score) return b.score - a.score
-    const ua = a.seq !== undefined ? usageOf(a.seq, usage).count : 0
-    const ub = b.seq !== undefined ? usageOf(b.seq, usage).count : 0
-    if (ub !== ua) return ub - ua
-    return (b.seq ?? Number.MAX_SAFE_INTEGER) - (a.seq ?? Number.MAX_SAFE_INTEGER)
+}
+
+export function rankAllCandidates(query: string, pool: readonly LookupCandidate[], opts: RankingOptions = {}): LookupHit[] {
+  const exclude = opts.exclude ?? new Set<string>()
+  const scoredPool = opts.usage ? pool.map(candidate => ({ ...candidate, useCount: candidate.seq !== undefined ? usageOf(candidate.seq, opts.usage!).count : candidate.useCount })) : pool
+  const hits = scoreCandidates(query, scoredPool, opts.now).filter(hit => hit.features.discriminating && !exclude.has(hit.id))
+  hits.sort((a, b) => b.score - a.score || (b.seq ?? Number.MAX_SAFE_INTEGER) - (a.seq ?? Number.MAX_SAFE_INTEGER))
+  const byUse = [...hits].sort((a, b) => b.features.useCount - a.features.useCount)
+  const byId = new Map(hits.map(hit => [hit.id, hit]))
+  return fuseRankings([hits.map(hit => hit.id), byUse.map(hit => hit.id)]).map(id => {
+    const { time, pinned, kind, useCount, features, ...hit } = byId.get(id)!
+    return hit
   })
-  return hits.slice(0, limit)
+}
+
+export function rankCandidates(query: string, pool: readonly LookupCandidate[], opts: RankingOptions & { limit?: number } = {}): LookupHit[] {
+  const limit = Math.min(Math.max(opts.limit ?? LOOKUP_LIMIT, 1), 20)
+  return rankAllCandidates(query, pool, opts).slice(0, limit)
 }
 
 export function lookupFacts(
   query: string,
-  opts: { dir?: string; exclude?: ReadonlySet<string>; limit?: number; markUsed?: boolean } = {},
+  opts: { dir?: string; exclude?: ReadonlySet<string>; limit?: number } = {},
 ): LookupHit[] {
   if (!mnemeEnabled()) return []
   const dir = opts.dir ?? mnemeLibraryDir()
   const loadedPins = new Set((readPinnedStatus(dir)?.loaded ?? []).map(seq => `seq:${seq}`))
   const exclude = new Set<string>([...(opts.exclude ?? []), ...loadedPins])
-  const hits = rankCandidates(query, candidates(dir), { exclude, limit: opts.limit, usage: readUsage(dir) })
-  if (opts.markUsed !== false) {
-    bumpUsage(hits.map(h => h.seq).filter((s): s is number => s !== undefined), dir)
-    noteMemoryOffered(query, hits, dir)
-  }
+  const hits = rankCandidates(query, candidates(dir), { exclude, limit: opts.limit })
+  noteMemoryOffered(query, hits, dir)
   return hits
 }
