@@ -415,6 +415,32 @@ export function strikePendingRow(input: { ts: string; dir?: string; byUser?: boo
   }
 }
 
+export function pinPendingRow(input: { ts: string; dir?: string; byUser?: boolean }): PendingCorrectResult {
+  if (!mnemeEnabled()) return { ok: false, code: 'off', message: 'memory is off (memory.enabled is false in settings).' }
+  const dir = input.dir ?? mnemeLibraryDir()
+  const target = pendingRows(dir).find(row => row.ts === input.ts)
+  if (target !== undefined && target.pin === true && target.asked === true) return { ok: true, struck: target, row: target }
+  const struck = strikePendingRow({ ts: input.ts, dir, ...(input.byUser === undefined ? {} : { byUser: input.byUser }) })
+  if (!struck.ok) return struck
+  const before = pendingRows(dir).length
+  const written = appendObservation(
+    {
+      text: struck.struck.text,
+      source: struck.struck.source,
+      ...(struck.struck.topicHint ? { topicHint: struck.struck.topicHint } : {}),
+      ...(struck.struck.replaces !== undefined ? { replaces: struck.struck.replaces } : {}),
+      pin: true,
+      asked: true,
+    },
+    dir,
+  )
+  const after = pendingRows(dir)
+  if (!written || after.length <= before) {
+    return { ok: false, code: 'error', message: `the row was struck but its pinned copy did not land (a disk error) — retain the fact again, pinned: ${struck.struck.text.slice(0, 120)}` }
+  }
+  return { ok: true, struck: struck.struck, row: after[after.length - 1]! }
+}
+
 export function replacePendingRow(input: { ts: string; text: string; source: string; dir?: string; byUser?: boolean }): PendingCorrectResult {
   if (!mnemeEnabled()) return { ok: false, code: 'off', message: 'memory is off (memory.enabled is false in settings).' }
   const dir = input.dir ?? mnemeLibraryDir()

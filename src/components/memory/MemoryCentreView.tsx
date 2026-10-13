@@ -9,7 +9,7 @@ import { useMercuryTokens } from '../mercury-ui/useMercuryTokens.js'
 import { useFlatList } from '../mercury-ui/useFlatList.js'
 import { collectMemoryRefs, type MemoryRef } from '../../mneme/memoryRefs.js'
 import { pendingRows } from '../../mneme/mnemeBuffer.js'
-import { correctFact, retireFact } from '../../mneme/mnemeCorrect.js'
+import { correctFact, pinPendingRow, replacePendingRow, retireFact, strikePendingRow } from '../../mneme/mnemeCorrect.js'
 import { mnemeEnabled } from '../../mneme/mnemeGates.js'
 import { mnemeStatus, readMaintenanceReceipts, runDueMaintenance } from '../../mneme/mnemeMaintenance.js'
 import { readDocLines } from '../../mneme/mnemeRetrieval.js'
@@ -385,7 +385,9 @@ export function factPageLines(ref: OpenRef, width: number, docs: MnemeTopicDoc[]
   if (ref.missing) return [{ kind: 'meta', text: 'pinned, but no topic page holds this fact any more · u unpins it' }]
   const slug = slugOf(ref)
   if (slug === null) {
-    return [{ kind: 'text', text: ref.summary }, { kind: 'meta', text: '(unconsolidated — consolidates at the next maintenance pass)' }]
+    const row = ref.kind === 'mneme-pending' && ref.capturedAt !== undefined ? pendingRows().find(r => r.ts === ref.capturedAt) : undefined
+    const body = wrapText(row?.text ?? ref.summary, Math.max(8, width - 4)).map(text => ({ kind: 'text' as const, text }))
+    return [...body, { kind: 'meta', text: `(unconsolidated — consolidates at the next maintenance pass${row?.pin === true ? ' · pinned from then on' : ''})` }]
   }
   const page = topicPage(slug, width, docs)
   if (page.lines.length === 0) return [{ kind: 'meta', text: '(topic page unavailable)' }]
@@ -419,8 +421,8 @@ export function MemoryCentreView({
   const [detail, setDetail] = React.useState<OpenRef | null>(null)
   const [page, setPage] = React.useState<Page | null>(null)
   const [pageOffset, setPageOffset] = React.useState(0)
-  const [correcting, setCorrecting] = React.useState<{ seq: number; buffer: string } | null>(null)
-  const [armed, setArmed] = React.useState<number | null>(null)
+  const [correcting, setCorrecting] = React.useState<{ seq: number | null; ts: string | null; buffer: string } | null>(null)
+  const [armed, setArmed] = React.useState<number | string | null>(null)
   const cameFromRef = React.useRef<string | null>(initialRow)
   const inner = Math.max(20, width)
   const textWidth = Math.max(8, inner - 2)
@@ -672,6 +674,18 @@ export function MemoryCentreView({
       setCorrecting(null)
       return
     }
+    if (correcting.seq === null) {
+      const r = correcting.ts === null ? null : replacePendingRow({ ts: correcting.ts, text, source: 'operator', byUser: true })
+      if (r !== null && r.ok) {
+        fl.setNote({ text: `${GLYPH.check} corrected the pending fact — the old wording is struck, the new one consolidates in its place · ${NEXT_SESSION_WORDS}`, kind: 'ok' })
+        setDetail(null)
+      } else {
+        fl.setNote({ text: `${GLYPH.fail} correction ${r?.code ?? 'invalid'}: ${truncateToWidth(r?.message ?? 'no pending row to correct', 48)}`, kind: 'fail' })
+      }
+      setCorrecting(null)
+      fl.reload()
+      return
+    }
     const r = correctFact({ targetSeq: correcting.seq, text, source: 'operator', byUser: true })
     if (r.ok) {
       fl.setNote({ text: `${GLYPH.check} corrected seq ${r.targetSeq} → ${r.seq} (old kept as history) · ${NEXT_SESSION_WORDS}`, kind: 'ok' })
@@ -680,6 +694,28 @@ export function MemoryCentreView({
       fl.setNote({ text: `${GLYPH.fail} correction ${r.code}: ${truncateToWidth(r.message, 48)}`, kind: 'fail' })
     }
     setCorrecting(null)
+    fl.reload()
+  }
+
+  function retirePending(ts: string): void {
+    const r = strikePendingRow({ ts, byUser: true })
+    fl.setNote(
+      r.ok
+        ? { text: `${GLYPH.check} retired the pending fact — struck before it consolidated · ${NEXT_SESSION_WORDS}`, kind: 'ok' }
+        : { text: `${GLYPH.fail} retire ${r.code}: ${truncateToWidth(r.message, 52)}`, kind: 'fail' },
+    )
+    if (r.ok) setDetail(null)
+    fl.reload()
+  }
+
+  function pinPending(ts: string): void {
+    const r = pinPendingRow({ ts, byUser: true })
+    fl.setNote(
+      r.ok
+        ? { text: `${GLYPH.check} pinned word for word, asked for by you — it lands pinned when it consolidates · ${NEXT_SESSION_WORDS}`, kind: 'ok' }
+        : { text: `${GLYPH.fail} pin ${r.code}: ${truncateToWidth(r.message, 52)}`, kind: 'fail' },
+    )
+    if (r.ok) setDetail(null)
     fl.reload()
   }
 
@@ -699,11 +735,14 @@ export function MemoryCentreView({
   const detailPin = detailSeq === null ? undefined : pins.find(p => p.seq === detailSeq)
   const detailPinned = detailPin !== undefined
   const detailLive = detailSeq !== null && liveEntryIndex(listTopicDocs()).has(detailSeq)
-  const detailActs = detailSeq !== null && mnemeEnabled() && (detailLive || detailPinned)
+  const detailPendingTs = detail !== null && detail.kind === 'mneme-pending' && detail.capturedAt !== undefined && pendingRows().some(r => r.ts === detail.capturedAt) ? detail.capturedAt : null
+  const detailPendingPinned = detailPendingTs !== null && pendingRows().some(r => r.ts === detailPendingTs && r.pin === true)
+  const detailActs = mnemeEnabled() && ((detailSeq !== null && (detailLive || detailPinned)) || detailPendingTs !== null)
   const correctingLines = React.useMemo(() => {
     if (!correcting) return []
-    const live = liveEntryIndex(listTopicDocs()).get(correcting.seq)
-    return wrapText(live?.entry.text ?? detail?.summary ?? '', Math.max(8, textWidth - 5))
+    const live = correcting.seq === null ? undefined : liveEntryIndex(listTopicDocs()).get(correcting.seq)
+    const pending = correcting.ts === null ? undefined : pendingRows().find(r => r.ts === correcting.ts)
+    return wrapText(live?.entry.text ?? pending?.text ?? detail?.summary ?? '', Math.max(8, textWidth - 5))
   }, [correcting, detail, textWidth])
   const pageRows = Math.max(1, rowBudget - (roomy ? 2 : 1) - 6 - (fl.note ? 2 : 0))
   const openLines = page ? page.lines : detail ? detailLines : []
@@ -745,7 +784,26 @@ export function MemoryCentreView({
           if (input === 'e' && !key.ctrl && !key.meta && page.kind === 'file' && page.path && onOpenFile) onOpenFile(page.path)
           return
         }
-        if (key.ctrl || key.meta || !detailActs || detailSeq === null) return
+        if (key.ctrl || key.meta || !detailActs) return
+        if (detailSeq === null) {
+          if (detailPendingTs === null) return
+          if (armed !== null) {
+            if (input === 'x' && armed === detailPendingTs) {
+              setArmed(null)
+              retirePending(detailPendingTs)
+            } else if (input) {
+              setArmed(null)
+              fl.setNote({ text: 'kept the pending fact — nothing changed', kind: 'warn' })
+            }
+            return
+          }
+          if (input === 'c') setCorrecting({ seq: null, ts: detailPendingTs, buffer: '' })
+          else if (input === 'x') {
+            setArmed(detailPendingTs)
+            fl.setNote({ text: 'retire this pending fact? x again strikes it before it consolidates · any other key keeps it', kind: 'warn' })
+          } else if (input === 'p' && !detailPendingPinned) pinPending(detailPendingTs)
+          return
+        }
         if (armed !== null) {
           if (input === 'x' && armed === detailSeq) {
             setArmed(null)
@@ -756,7 +814,7 @@ export function MemoryCentreView({
           }
           return
         }
-        if (input === 'c' && !key.ctrl && !key.meta && detailLive) setCorrecting({ seq: detailSeq, buffer: '' })
+        if (input === 'c' && !key.ctrl && !key.meta && detailLive) setCorrecting({ seq: detailSeq, ts: null, buffer: '' })
         else if (input === 'x' && detailLive) {
           setArmed(detailSeq)
           fl.setNote({ text: `retire seq ${detailSeq}? x again retires it (kept in history) · any other key keeps it`, kind: 'warn' })
@@ -785,7 +843,11 @@ export function MemoryCentreView({
   )
 
   const selectedOverview = fl.selected?.kind === 'overview' ? fl.selected.overview ?? null : null
-  const verbs = detail && detailActs ? [detailLive ? 'c correct' : '', detailLive ? 'x retire' : '', detailPinned ? 'u unpin' : detailLive ? 'p pin' : ''].filter(Boolean).join(' · ') : null
+  const verbs = detail && detailActs
+    ? detailPendingTs !== null
+      ? ['c correct', 'x retire', detailPendingPinned ? '' : 'p pin'].filter(Boolean).join(' · ')
+      : [detailLive ? 'c correct' : '', detailLive ? 'x retire' : '', detailPinned ? 'u unpin' : detailLive ? 'p pin' : ''].filter(Boolean).join(' · ')
+    : null
   const footerState: MemoryFooterState = correcting
     ? { kind: 'correcting' }
     : detail
@@ -884,7 +946,7 @@ export function MemoryCentreView({
       {roomy ? <Box height={1} /> : null}
       {correcting && detail ? (
         <Box flexDirection="column">
-          <Text color={AMBER} wrap="truncate-end">{`correcting seq ${correcting.seq} — retype it; the wording below goes to history:`}</Text>
+          <Text color={AMBER} wrap="truncate-end">{correcting.seq === null ? 'correcting the pending fact — retype it; the wording below is struck:' : `correcting seq ${correcting.seq} — retype it; the wording below goes to history:`}</Text>
           {detailPinned ? <Text color={AMBER} wrap="truncate-end">the pin and its asked-for mark follow the new wording</Text> : null}
           {correctingLines.map((line, i) => (
             <Text key={i} color={tok.textSecondary} wrap="truncate-end">{`${i === 0 ? 'now: ' : '     '}${line}`}</Text>
