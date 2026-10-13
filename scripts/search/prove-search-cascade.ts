@@ -3,7 +3,7 @@ import { createServer } from 'node:http'
 import { pathToFileURL } from 'node:url'
 ;(globalThis as any).MACRO = { VERSION: 'proof', PACKAGE_URL: 'https://example.invalid' }
 const door = process.argv[2] ? await import(pathToFileURL(process.argv[2]).href) : await import('../../src/services/search/searchDoor.js')
-assert.deepEqual(door.resolveSearchDoorPlan({ keylessAllowed: false, mainModel: 'gpt-6-astra', braveKey: 'env', tavilyKey: 'stored' }, 'npm typescript').doors.map((d: any) => d.kind), ['native', 'keyed', 'keyed', 'official'])
+assert.deepEqual(door.resolveSearchDoorPlan({ keylessAllowed: false, mainModel: 'gpt-6-astra', braveKey: 'env', tavilyKey: 'stored' }, 'npm typescript').doors.map((d: any) => d.kind), ['native', 'keyed', 'keyed', 'official', 'metasearch'])
 const { officialSearch, officialSearchUrl, decodeOfficialSearch } = await import('../../src/services/search/officialSearch.js')
 const { OFFICIAL_SEARCH_SOURCES, officialSearchIntent } = await import('../../src/services/search/searchSources.js')
 const pacing = await import('../../src/services/search/searchPacing.js')

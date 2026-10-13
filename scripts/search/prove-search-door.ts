@@ -26,7 +26,7 @@ const { searchFailure } = await import('../../src/services/search/searchContract
 const { declaredRouteOf } = await import('../../src/services/providers/routeLaw.js')
 
 type Reads = Parameters<typeof resolveSearchDoorPlan>[0]
-const doorsOf = (reads: Reads): string[] => resolveSearchDoorPlan(reads).doors.map(d => (d.kind === 'keyed' ? `keyed:${d.backend}` : 'keyless'))
+const doorsOf = (reads: Reads): string[] => resolveSearchDoorPlan(reads).doors.map(d => (d.kind === 'keyed' ? `keyed:${d.backend}` : d.kind))
 
 const FAMILY_IDS: Record<string, string> = {
   anthropic: 'claude-opus-4-8',
@@ -57,13 +57,13 @@ section('§1 the model-chooses registration law — the ProviderSearch gate per 
 
 section('§2 the explicit-key plan remains deterministic when no session model or query is supplied')
 {
-  check('no keys · keyless on ⇒ keyless alone', j(doorsOf({ keylessAllowed: true })) === j(['keyless']))
+  check('no keys · keyless on ⇒ metasearch then scraping', j(doorsOf({ keylessAllowed: true })) === j(['metasearch', 'keyless']))
   check('both keys · keyless on ⇒ Brave → Tavily → keyless (Brave before Tavily)',
-    j(doorsOf({ braveKey: 'stored', tavilyKey: 'env', keylessAllowed: true })) === j(['keyed:brave', 'keyed:tavily', 'keyless']))
-  check('tavily only · keyless off ⇒ Tavily alone', j(doorsOf({ tavilyKey: 'stored', keylessAllowed: false })) === j(['keyed:tavily']))
+    j(doorsOf({ braveKey: 'stored', tavilyKey: 'env', keylessAllowed: true })) === j(['keyed:brave', 'keyed:tavily', 'metasearch', 'keyless']))
+  check('tavily only · keyless off ⇒ Tavily then metasearch', j(doorsOf({ tavilyKey: 'stored', keylessAllowed: false })) === j(['keyed:tavily', 'metasearch']))
   const closedAll = resolveSearchDoorPlan({ keylessAllowed: false })
-  check('no keys and the keyless door off ⇒ NO door, every absence named',
-    closedAll.doors.length === 0 && closedAll.closed.length === 2 && closedAll.closed.some(c => c.includes('MERCURY_SEARCH_KEYLESS=0')) && closedAll.closed.some(c => c.includes('/router key brave')),
+  check('no keys and the keyless door off ⇒ metasearch; every closed source named',
+    closedAll.doors.length === 1 && closedAll.doors[0]?.kind === 'metasearch' && closedAll.closed.length === 2 && closedAll.closed.some(c => c.includes('MERCURY_SEARCH_KEYLESS=0')) && closedAll.closed.some(c => c.includes('/router key brave')),
     j(closedAll.closed))
   let nonVendored = 0
   for (const braveKey of [undefined, 'stored'] as const) {
@@ -72,7 +72,7 @@ section('§2 the explicit-key plan remains deterministic when no session model o
         for (const backendOverride of [undefined, 'auto', 'brave', 'tavily', 'duckduckgo', 'native', 'bing']) {
           const plan = resolveSearchDoorPlan({ ...(braveKey ? { braveKey } : {}), ...(tavilyKey ? { tavilyKey } : {}), keylessAllowed, ...(backendOverride !== undefined ? { backendOverride } : {}) })
           for (const door of plan.doors) {
-            if (door.kind !== 'keyed' && door.kind !== 'keyless') nonVendored++
+            if (door.kind !== 'keyed' && door.kind !== 'keyless' && door.kind !== 'metasearch') nonVendored++
           }
         }
       }
@@ -97,7 +97,7 @@ section("§3 the override names ONE vendored door — 'native' is not a backend 
   const tavilyForced = resolveSearchDoorPlan({ braveKey: 'env', tavilyKey: 'stored', keylessAllowed: true, backendOverride: 'tavily' })
   check('backend=tavily with both keys ⇒ exactly the Tavily door', j(doorsOfPlan(tavilyForced)) === j(['keyed:tavily']), j(tavilyForced.doors))
   function doorsOfPlan(plan: ReturnType<typeof resolveSearchDoorPlan>): string[] {
-    return plan.doors.map(d => (d.kind === 'keyed' ? `keyed:${d.backend}` : 'keyless'))
+    return plan.doors.map(d => (d.kind === 'keyed' ? `keyed:${d.backend}` : d.kind))
   }
 }
 
@@ -118,7 +118,7 @@ section('§4 the composed lines')
   const emptyNative = walkFailureLine([], resolveSearchDoorPlan({ keylessAllowed: false }), { nativeFamily: 'anthropic' })
   check('…the native-family failure carries the same actionable sentence', emptyNative.includes('No source answered') && !emptyNative.includes('ProviderSearch'), emptyNative)
   const described = describeSearchDoorPlan(resolveSearchDoorPlan({ tavilyKey: 'stored', keylessAllowed: true }))
-  check('describeSearchDoorPlan reads as the walk', described.startsWith('Tavily (keyed, stored key) → DuckDuckGo (keyless)'), described)
+  check('describeSearchDoorPlan reads as the walk', described.startsWith('Tavily (keyed, stored key) → SearXNG (public JSON API) → DuckDuckGo (keyless)'), described)
 }
 
 section('§5 native provider attribution')
