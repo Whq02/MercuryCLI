@@ -6,6 +6,27 @@ import { escapeRegExp, lookupTokens } from './mnemeLookup.js'
 import { ledgerPointers, type MemoryPointer } from './mnemePointers.js'
 import { catalogDocs, grepLibrary, grepPending, PENDING_SLUG } from './mnemeRetrieval.js'
 import type { LedgerEntry } from './types.js'
+import type { MnemeEntry } from './mnemeTopicDocs.js'
+import { lastUsedMs, readPins, readUsage, type PinRecord, type UsageRecord } from './mnemeUsage.js'
+
+export const FACT_HALF_LIFE_DAYS = 30
+export const FACT_DECAY_LAMBDA = Math.LN2 / FACT_HALF_LIFE_DAYS
+export const FACT_STALE_FLOOR = 0.25
+
+export function factMemoryState(
+  entry: Pick<MnemeEntry, 'seq' | 'time' | 'text'>,
+  opts: { pins?: readonly PinRecord[]; usage?: Record<string, UsageRecord>; now?: Date; libraryDir?: string; projectRoot?: string | null } = {},
+): { status: MemoryRef['status']; confidence: number; confirmedAt: string } {
+  const pins = opts.pins ?? readPins(opts.libraryDir)
+  const last = lastUsedMs(entry.seq, entry.time, opts.usage ?? readUsage(opts.libraryDir))
+  const ageDays = Math.max(0, (opts.now?.getTime() ?? Date.now()) - last) / 86400000
+  const confidence = pins.some(p => p.seq === entry.seq) ? 1 : Math.exp(-FACT_DECAY_LAMBDA * ageDays)
+  return {
+    status: confidence < FACT_STALE_FLOOR ? 'stale' : pathFreshness(entry.text, opts.projectRoot ?? null),
+    confidence,
+    confirmedAt: new Date(last).toISOString(),
+  }
+}
 
 export type MemoryRefKind = 'mneme-fact' | 'mneme-topic' | 'mneme-pending' | 'mneme-session'
 
@@ -14,7 +35,9 @@ export interface MemoryRef {
   kind: MemoryRefKind
   store: 'mneme'
   scope: 'project'
-  status: 'current' | 'unconsolidated' | 'needs-review'
+  status: 'current' | 'unconsolidated' | 'needs-review' | 'stale'
+  confirmedAt?: string
+  confidence?: number
   summary: string
   source?: string
   capturedAt?: string
@@ -39,6 +62,7 @@ export interface CollectOpts {
   libraryDir?: string
   projectRoot?: string | null
   sessions?: readonly LedgerEntry[]
+  now?: Date
 }
 
 export function sessionRef(pointer: MemoryPointer): MemoryRef {
@@ -70,6 +94,9 @@ export function collectMemoryRefs(query: string, opts: CollectOpts = {}): Memory
   }
 
   const dir = opts.libraryDir ?? mnemeLibraryDir()
+  const pins = readPins(dir)
+  const usage = readUsage(dir)
+  const now = opts.now ?? new Date()
   const matchers = tokens.map(t => ({ token: t, pattern: wordStart(t), re: new RegExp(wordStart(t)) }))
   for (const pointer of ledgerPointers(query, opts.sessions ?? [])) push(sessionRef(pointer))
   for (const d of catalogDocs(dir)) {
@@ -92,16 +119,18 @@ export function collectMemoryRefs(query: string, opts: CollectOpts = {}): Memory
     }
   }
   for (const { token: t, pattern } of matchers) {
-    for (const h of grepLibrary(pattern, { dir, maxHits: 3 })) {
+    for (const h of grepLibrary(pattern, { dir, maxHits: Infinity })) {
       const sig = h.text.match(/<seq=(\d+), time=([^,>]+), source=([^,>]*?)[,>]/)
       const seq = h.entry?.seq ?? (sig ? Number(sig[1]) : null)
       const words = h.entry?.text ?? h.text.replace(/<seq=.*$/, '').replace(/^\s*-\s+/, '').trim()
+      const state = h.entry ? factMemoryState(h.entry, { pins, usage, now, projectRoot }) : { status: pathFreshness(words, projectRoot), confirmedAt: undefined }
       push({
         refId: seq !== null ? `mneme:${seq}` : `mneme-line:${h.slug}:${h.line}`,
         kind: 'mneme-fact',
         store: 'mneme',
         scope: 'project',
-        status: pathFreshness(words, projectRoot),
+        status: state.status,
+        confirmedAt: state.confirmedAt,
         summary: cap(words),
         capturedAt: h.entry?.time ?? sig?.[2]?.trim(),
         source: h.entry?.source ?? sig?.[3]?.trim(),
@@ -128,6 +157,8 @@ export function collectMemoryRefs(query: string, opts: CollectOpts = {}): Memory
   }
 
   out.sort((a, b) => {
+    const stale = Number(a.status === 'stale') - Number(b.status === 'stale')
+    if (stale !== 0) return stale
     if (a.tier !== b.tier) return a.tier - b.tier
     const ar = a.status === 'needs-review' ? 1 : 0
     const br = b.status === 'needs-review' ? 1 : 0
@@ -138,9 +169,16 @@ export function collectMemoryRefs(query: string, opts: CollectOpts = {}): Memory
 }
 
 export function renderMemoryRefLine(r: MemoryRef): string {
-  const status =
-    r.status === 'current' ? '' : r.status === 'unconsolidated' ? ' [recent, unconsolidated]' : ' [needs review — cited path moved]'
+  const words = memoryStatusWords(r)
+  const status = r.status === 'current' ? '' : ` [${words}]`
   return `${r.refId}${status} — ${r.summary} (${r.why})`
+}
+
+export function memoryStatusWords(r: Pick<MemoryRef, 'status' | 'confirmedAt'>): string {
+  if (r.status === 'current') return 'current'
+  if (r.status === 'unconsolidated') return 'recent, unconsolidated'
+  if (r.status === 'needs-review') return 'needs review — cited path moved'
+  return `stale — not confirmed since ${r.confirmedAt?.slice(0, 10) ?? 'unknown'}`
 }
 
 export { PENDING_SLUG }

@@ -133,7 +133,7 @@ export function readUsage(dir: string = mnemeLibraryDir()): Record<string, Usage
   }
 }
 
-export function bumpUsage(seqs: readonly number[], dir: string = mnemeLibraryDir(), now: Date = new Date()): void {
+export function bumpUsage(seqs: readonly number[], dir: string = mnemeLibraryDir(), now: Date = new Date(), opened = true): void {
   const distinct = [...new Set(seqs.filter(s => Number.isInteger(s) && s > 0))]
   if (distinct.length === 0) return
   try {
@@ -141,7 +141,7 @@ export function bumpUsage(seqs: readonly number[], dir: string = mnemeLibraryDir
     const stamp = now.toISOString()
     for (const seq of distinct) {
       const prior = rows[String(seq)]
-      rows[String(seq)] = { last: stamp, count: (prior?.count ?? 0) + 1 }
+      rows[String(seq)] = { last: prior?.last && prior.last > stamp ? prior.last : stamp, count: (prior?.count ?? 0) + (opened ? 1 : 0) }
     }
     const file: UsageFile = { version: 1, rows }
     publishLibraryFile(usagePath(dir), JSON.stringify(file))

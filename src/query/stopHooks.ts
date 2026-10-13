@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto'
+import { confirmCitedFacts } from '../mneme/mnemeFootnotes.js'
 import type { Message, UserMessage } from '../types/message.js'
 import type { AssistantMessage } from '../types/message.js'
 import { readToolCallChain, type ToolUseContext } from '../Tool.js'
@@ -78,6 +79,7 @@ export async function* handleStopHooks(
     const signal = toolUseContext.abortController.signal
     const lastAssistant = getLastAssistantMessage(history)
     const answer = lastAssistant ? extractTextContent(lastAssistant.message.content, '\n').trim() || undefined : undefined
+    if (!isBareMode() && answer && !signal.aborted && assistantMessages.length > 0) confirmCitedFacts(answer)
     const turnId = readToolCallChain(toolUseContext)?.key ?? ''
     const toolUseID = randomUUID()
     const prepared = await prepareHooks(

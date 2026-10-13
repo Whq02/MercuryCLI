@@ -4,7 +4,7 @@ import { readFileSync, statSync } from 'node:fs'
 import { dirname, join, normalize } from 'node:path'
 import { getProjectSnapshot } from './snapshot.js'
 import { projectIntelEnabled, type SnapshotGeneration, type SnapshotRead } from './contracts.js'
-import { collectMemoryRefs } from '../../mneme/memoryRefs.js'
+import { collectMemoryRefs, memoryStatusWords, type MemoryRef } from '../../mneme/memoryRefs.js'
 import { lookupTokens } from '../../mneme/mnemeLookup.js'
 import { isMnemeEnabled } from '../../mneme/paths.js'
 
@@ -29,7 +29,8 @@ export interface CapsuleItem {
 
 export interface CapsuleMemoryRef {
   refId: string
-  status: 'current' | 'candidate' | 'unconsolidated' | 'needs-review'
+  status: MemoryRef['status']
+  confirmedAt?: string
   summary: string
   why: string
 }
@@ -261,7 +262,7 @@ export function assembleContextCapsule(input: CapsuleInput): ContextCapsule | nu
         projectRoot: input.workspace,
       })
       if (collected.length > 0) {
-        memoryRefs = collected.map(r => ({ refId: r.refId, status: r.status, summary: r.summary, why: r.why }))
+        memoryRefs = collected.map(r => ({ refId: r.refId, status: r.status, confirmedAt: r.confirmedAt, summary: r.summary, why: r.why }))
       }
     }
   } catch {
@@ -328,14 +329,7 @@ export function renderCapsule(capsule: ContextCapsule): string {
   if (capsule.memoryRefs && capsule.memoryRefs.length > 0) {
     lines.push('Memory (task-scoped refs — dereference before relying; bodies stay in their stores):')
     for (const r of capsule.memoryRefs) {
-      const status =
-        r.status === 'current'
-          ? ''
-          : r.status === 'candidate'
-            ? ' [CANDIDATE — unverified]'
-            : r.status === 'unconsolidated'
-              ? ' [recent, unconsolidated]'
-              : ' [needs review — cited path moved]'
+      const status = r.status === 'current' ? '' : ` [${memoryStatusWords(r)}]`
       lines.push(`- ${r.refId}${status} — ${r.summary} (${r.why})`)
     }
   }

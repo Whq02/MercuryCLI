@@ -14,6 +14,7 @@ import { candidates, fuseRecallRankings } from './mnemeLookup.js'
 import { noteCorrected, noteRetained } from './lineageSession.js'
 import { currentLedger, footnoteContext, footnotesOf, renderLedgerEntry, type Footnotes } from './mnemeFootnotes.js'
 import type { LedgerEntry } from './types.js'
+import { factMemoryState, type MemoryRef } from './memoryRefs.js'
 import { noteMemoryOpened } from './mnemeSignal.js'
 
 function allDocs(dir: string): MnemeTopicDoc[] {
@@ -118,7 +119,7 @@ export function retainItems(
     }
     const duplicateKey = text
     const existing = sessionRetained.get(duplicateKey)
-    if (existing) {
+    if (existing && pendingRows(dir).some(row => `pending:${row.ts}` === existing && row.text === text)) {
       outcomes.push({ index, status: 'already-staged', id: existing })
       return
     }
@@ -201,6 +202,8 @@ export interface RecallHit {
   slug: string
   preview: string
   signature: string
+  status?: MemoryRef['status']
+  confirmedAt?: string
 }
 
 export interface RecallResult {
@@ -231,13 +234,13 @@ function historyStartLine(slug: string, dir: string, cache: Map<string, number>)
 
 export function recallQuery(
   query: string,
-  opts: { limit?: number; dir?: string } = {},
+  opts: { limit?: number; dir?: string; now?: Date } = {},
 ): RecallResult {
   const dir = opts.dir ?? mnemeLibraryDir()
   const limit = Math.min(Math.max(opts.limit ?? 12, 1), 50)
   const hits: RecallHit[] = []
   const historyStarts = new Map<string, number>()
-  for (const hit of grepAll(query, { maxHits: 100, dir })) {
+  for (const hit of grepAll(query, { maxHits: Infinity, dir })) {
     if (hit.slug !== PENDING_SLUG && hit.line >= historyStartLine(hit.slug, dir, historyStarts)) {
       continue
     }
@@ -272,7 +275,7 @@ export function recallQuery(
       signature: `doc=${hit.slug} line=${hit.line}`,
     })
   }
-  if (/^[a-z0-9_\s-]+$/i.test(query)) {
+  if (hits.length === 0 || /^[a-z0-9_\s-]+$/i.test(query)) {
     const pool = candidates(dir)
     const pins = new Set(readPins(dir).map(pin => pin.seq))
     for (const doc of listArchiveDocs(dir)) {
@@ -292,13 +295,21 @@ export function recallQuery(
       signature: hit.pending ? hit.signature.replace(/^\[unconsolidated, ([^,]+), ([^\]]+)\]$/, 'time=$1, source=$2') : hit.signature.replace(/^<|>$/g, ''),
     }]))
     for (const hit of hits) byId.set(hit.id, hit)
-    const order = fuseRecallRankings(query, pool, hits.map(hit => hit.id), { dir, usage: readUsage(dir) })
+    const order = fuseRecallRankings(query, pool, hits.map(hit => hit.id), { dir, usage: readUsage(dir), now: opts.now?.getTime() })
     hits.splice(0, hits.length, ...order.map(id => byId.get(id)!))
   }
   const catalogRows = catalogDocs(dir)
     .filter(row => row.slug.includes(query.toLowerCase()) || row.summary.toLowerCase().includes(query.toLowerCase()))
     .slice(0, 6)
     .map(row => ({ slug: row.slug, summary: row.summary }))
+  const pins = readPins(dir)
+  const usage = readUsage(dir)
+  const entries = new Map(allDocs(dir).flatMap(doc => doc.sections.flatMap(section => section.entries.map(entry => [String(`seq:${entry.seq}`), entry] as const))))
+  for (const hit of hits) {
+    const entry = entries.get(hit.id)
+    if (entry) Object.assign(hit, factMemoryState(entry, { pins, usage, now: opts.now }))
+  }
+  hits.sort((a, b) => Number(a.status === 'stale') - Number(b.status === 'stale'))
   return { hits: hits.slice(0, limit), elidable: hits.length === 0, catalog: catalogRows }
 }
 
