@@ -545,7 +545,7 @@ if (cap !== null) {
   if (HANDOVER) {
     console.log('\n— §H an inline helper handed to the background by Esc takes the same pause-and-probe road —')
     const results = parentToolResults(parentRecords, 'Crewmate')
-    const handed = results.some(r => r.includes('Agent launched in the background.') && r.includes('the turn it ran in was interrupted'))
+    const handed = results.some(r => r.includes('Crewmate launched in the background.') && r.includes('the turn it ran in was interrupted'))
     check(handed ? 'H0 the Esc landed while the helper ran: the launch receipt says the turn was interrupted and the agent handed to the background' : 'H0 [staging] the Esc did not hand the helper over (retune ESC_TICKS: the receipt must say the turn was interrupted)', handed, results.map(r => flat(r).slice(0, 160)).join(' | ').slice(0, 400))
     check("H1 the handed-over helper's first notice is the calm paused line, never the failed line with the resume door", first !== undefined && first.status === 'paused' && !(first.summary ?? '').includes(OLD_DOOR), first === undefined ? '(no notice)' : `[${first.status}] ${flat(first.summary ?? '').slice(0, 200)}`)
     check('H2 no failed notice rode the episode and the completion followed as its own line', !notices.some(n => n.status === 'failed') && notices.some(n => n.status === 'completed'), notices.map(n => n.status).join(','))
