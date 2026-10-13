@@ -38,7 +38,8 @@ import { DUCKDUCKGO_SETTING_KEY, DUCKDUCKGO_SETTING_LABEL, DUCKDUCKGO_TERMS, duc
 import { journalSettingOn } from '../../mneme/journalSetting.js'
 import { readPinnedStatus } from '../../mneme/mnemeFrontPage.js'
 import { runDueMaintenance } from '../../mneme/mnemeMaintenance.js'
-import { formatTextSize, PINNED_TEXT_LIMIT_MIN, PINNED_TEXT_LIMIT_STEP, pinnedTextLimit } from '../../mneme/mnemeUsage.js'
+import { memoryAtStartStatus } from '../../mneme/entryKnapsack.js'
+import { formatTextSize, PINNED_TEXT_LIMIT_MIN, PINNED_TEXT_LIMIT_STEP, pinnedTextLimit, START_TEXT_LIMIT_MIN, START_TEXT_LIMIT_STEP, startTextLimit } from '../../mneme/mnemeUsage.js'
 import { formatTokens } from '../../utils/format.js'
 import {
   clearInstructionFileCaches,
@@ -380,7 +381,7 @@ export function Config({
       global: JSON.parse(JSON.stringify(getGlobalConfig())) as GlobalConfig,
       theme: themeSetting,
       local: { activity: { tips: { enabled: local.activity?.tips?.enabled } }, view: { reducedMotion: local.view?.reducedMotion }, briefs: { profile: local.briefs?.profile }, shell: { engine: local.shell?.engine, sessions: local.shell?.sessions } },
-      user: { engine: { reasoning: user.engine?.reasoning, usageNotice: user.engine?.usageNotice }, input: { suggestions: user.input?.suggestions }, voice: { language: user.voice?.language }, view: { syntaxOff: user.view?.syntaxOff, ping: user.view?.ping, accountIdentity: user.view?.accountIdentity }, guardrails: user.guardrails, files: { honourGitignore: user.files?.honourGitignore }, memory: { pinnedLimit: user.memory?.pinnedLimit }, patience: user.patience, routing: { openrouter: user.routing?.openrouter }, local: { server: localServerSettingsOf(user) } },
+      user: { engine: { reasoning: user.engine?.reasoning, usageNotice: user.engine?.usageNotice }, input: { suggestions: user.input?.suggestions }, voice: { language: user.voice?.language }, view: { syntaxOff: user.view?.syntaxOff, ping: user.view?.ping, accountIdentity: user.view?.accountIdentity }, guardrails: user.guardrails, files: { honourGitignore: user.files?.honourGitignore }, memory: { pinnedLimit: user.memory?.pinnedLimit, startLimit: user.memory?.startLimit }, patience: user.patience, routing: { openrouter: user.routing?.openrouter }, local: { server: localServerSettingsOf(user) } },
       appVerbose: appState.verbose === true,
       dirty: false,
     }
@@ -969,6 +970,25 @@ export function Config({
         }
       },
     })
+    const startLimit = startTextLimit()
+    const atStart = memoryAtStartStatus()
+    const rodeWords = atStart === null ? '' : ` · this session: ${atStart.rodeFacts} of ${atStart.facts} fact${atStart.facts === 1 ? '' : 's'}${atStart.notes > 0 ? ` and ${atStart.rodeNotes} of ${atStart.notes} earlier note${atStart.notes === 1 ? '' : 's'}` : ''} rode beside the ${atStart.pinnedCount} pinned rule${atStart.pinnedCount === 1 ? '' : 's'}`
+    items.push({
+      id: 'memory.startLimit',
+      label: 'Memory at start, beyond the pins',
+      searchText: 'memory at start beyond the pins allowance relevant facts branch files text size',
+      kind: 'enum',
+      value: <Text>{`${formatTextSize(atStart?.used ?? 0)} of ${formatTextSize(startLimit)}`}</Text>,
+      setByYou: merged.memory?.startLimit !== undefined,
+      warning: `how much memory text rides at the start of a session beyond the pinned rules, which always ride whole: the facts and earlier notes most relevant to the branch, the files touched lately and the last note${rodeWords} · what is left out is a Recall away · ←/→ move the allowance by ${formatTextSize(START_TEXT_LIMIT_STEP)} · the next session reads it`,
+      change: direction => {
+        const next = Math.max(START_TEXT_LIMIT_MIN, startLimit + direction * START_TEXT_LIMIT_STEP)
+        if (writeSource('userSettings', { memory: { startLimit: next } })) {
+          recordSet('memory.startLimit', `set the memory-at-start limit to ${formatTextSize(next)}`)
+          bump()
+        }
+      },
+    })
   }
   {
     const journalOn = journalSettingOn(merged)
@@ -1411,7 +1431,7 @@ export function Config({
         allowFallbacks: undefined,
         zeroDataRetention: undefined,
         ...snapshots.user.routing?.openrouter,
-      } }, guardrails: { mode: snapshots.user.guardrails?.mode }, files: { honourGitignore: snapshots.user.files?.honourGitignore }, memory: { pinnedLimit: snapshots.user.memory?.pinnedLimit } })
+      } }, guardrails: { mode: snapshots.user.guardrails?.mode }, files: { honourGitignore: snapshots.user.files?.honourGitignore }, memory: { pinnedLimit: snapshots.user.memory?.pinnedLimit, startLimit: snapshots.user.memory?.startLimit } })
     writeSource('userSettings', localServerRevertPartial(snapshots.user.local?.server))
     setAppState(prev => ({ ...prev, verbose: snapshots.appVerbose }))
     const restoredProfile = snapshots.local.briefs?.profile

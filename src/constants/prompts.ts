@@ -1,5 +1,5 @@
 import { platform, release, type as osType, version as osVersion } from 'node:os'
-import { canAnswerAsks, getOriginalCwd, getSessionId } from '../bootstrap/state.js'
+import { canAnswerAsks, getOriginalCwd, getProjectRoot, getSessionId } from '../bootstrap/state.js'
 import { getCwd } from '../utils/cwd.js'
 import { composeSystemPrompt } from '../prompt/composer.js'
 import { recordedComposition, recordCurrentStaticComposition } from '../prompt/recordedComposition.js'
@@ -21,6 +21,7 @@ import { getCurrentWorktreeSession } from '../utils/worktree.js'
 import { ensureScratchpadDir, scratchpadPromptLine } from '../utils/scratchpad.js'
 import { loadMemoryPrompt } from '../mneme/mnemeFrontPage.js'
 import { composeEntryPage } from '../mneme/entryPage.js'
+import { composeMemoryAtStart } from '../mneme/entryKnapsack.js'
 import { journalOnEntryPage, lastJournalEntry } from '../mneme/journal.js'
 import { noteSessionEngine } from '../mneme/lineageSession.js'
 import { mnemeEnabled } from '../mneme/mnemeGates.js'
@@ -191,6 +192,7 @@ export async function getSystemPrompt(
   const dynamicSpecs = [
     systemPromptSection('project_estate', () => projectEstateSection(toolNames)),
     systemPromptSection('memory', () => loadMemoryPrompt()),
+    systemPromptSection('memory_at_start', () => composeMemoryAtStart({ projectKey: mnemeProjectKey(), sessionId: String(getSessionId()), root: getProjectRoot() })),
     keyedSystemPromptSection(
       'entry_page',
       () => (mnemeEnabled() ? 'page' : 'off'),
