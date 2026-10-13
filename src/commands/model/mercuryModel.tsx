@@ -142,7 +142,7 @@ import {
 import { updateSettingsForSource } from '../../utils/settings/settings.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { useCatalogueEpoch } from '../../hooks/useCatalogueEpoch.js'
-import { persistModelChoice } from './persistModelChoice.js'
+import { persistEffortChoice, persistModelChoice } from './persistModelChoice.js'
 import { matchReachableModelName, modelNameAskWords, reachableModelEntries } from '../../utils/model/modelNameRoad.js'
 import { COMMON_HELP_ARGS, COMMON_INFO_ARGS } from '../../constants/xml.js'
 
@@ -754,8 +754,8 @@ function MercuryModelWrapper({
     unpinAllLaunchEffort()
     const persistable = toPersistableEffort(mode as EffortValue)
     if (persistable !== undefined) {
-      updateSettingsForSource('userSettings', { engine: { effort: persistable } })
-      if (settleOnSeat(persistable, () => setAppState(prev => ({ ...prev, effortValue: persistable })))) return
+      const kept = persistEffortChoice(persistable)
+      if (settleOnSeat(persistable, kept.sentence, () => setAppState(prev => ({ ...prev, effortValue: persistable })))) return
     }
     setAppState(prev => ({
       ...prev,
@@ -763,7 +763,7 @@ function MercuryModelWrapper({
     }))
   }
 
-  function settleOnSeat(level: EffortLevel, mirror: () => void): boolean {
+  function settleOnSeat(level: EffortLevel, standing: string, mirror: () => void): boolean {
     const focused = getFocusedSessionConnector()
     if (focused.carrier !== 'daemon') return false
     void focused.setEffort(level).then(receipt => {
@@ -778,7 +778,7 @@ function MercuryModelWrapper({
           ? `Effort switch queued: ${level} applies when this session's turn settles`
           : receipt.state === 'no-op'
             ? `Already on ${level}`
-            : `Effort set to ${level} — this session's next request runs it · saved as your default for future sessions`,
+            : `Effort set to ${level} — this session's next request runs it${standing}`,
       )
     })
     return true
