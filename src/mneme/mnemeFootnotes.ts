@@ -1,9 +1,20 @@
 import { listArchiveDocs, listTopicDocs } from './mnemeLibrary.js'
 import { expandSeqRange, type MnemeEntry, type MnemeTopicDoc } from './mnemeTopicDocs.js'
-import { readPins } from './mnemeUsage.js'
+import { bumpUsage, readPins } from './mnemeUsage.js'
+import { mnemeEnabled, mnemeLibraryDir } from './mnemeGates.js'
 import { readLedger } from './ledger.js'
 import { mnemeProjectKey } from './paths.js'
 import type { LedgerEntry } from './types.js'
+
+export function confirmCitedFacts(text: string, dir: string = mnemeLibraryDir(), now: Date = new Date()): number[] {
+  if (!mnemeEnabled()) return []
+  const cited = new Set([...text.matchAll(/\[seq[ :]+(\d+)\]/g)].map(m => Number(m[1])))
+  if (cited.size === 0) return []
+  const live = [...listTopicDocs(dir), ...listArchiveDocs(dir)].flatMap(doc => doc.sections.flatMap(section => section.entries.map(entry => entry.seq)))
+  const confirmed = [...new Set(live.filter(seq => cited.has(seq)))]
+  bumpUsage(confirmed, dir, now, false)
+  return confirmed
+}
 
 export interface Footnotes {
   session?: number
