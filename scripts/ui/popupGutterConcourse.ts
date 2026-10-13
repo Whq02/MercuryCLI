@@ -20,6 +20,7 @@ export async function concoursePopupFrames({ sizes, wrap, mount, settle, waitFor
   const { resetOverlayStackForTests } = await import('../../src/context/overlayStack.ts')
   const { saveGlobalConfig } = await import('../../src/utils/config.ts')
   const { getCwd } = await import('../../src/utils/cwd.ts')
+  const { writeCoordinatorComposerDraft } = await import('../../src/services/concourse/concourseSnapshot.ts')
   const workers = await import('../../src/daemon/concourseWorkers.ts')
   mock.module('../../src/daemon/concourseWorkers.ts', () => ({ ...workers, effectiveSeatCeiling: () => 1 }))
   const capacity = await import('../../src/services/switchboard/capacityCheck.ts')
@@ -50,6 +51,7 @@ export async function concoursePopupFrames({ sizes, wrap, mount, settle, waitFor
       if (columns < 100 && ['coordinator', 'seat', 'manager'].includes(surface.door)) continue
       manager = surface.door === 'manager'
       _resetConcourseCapsuleForTesting()
+      await writeCoordinatorComposerDraft('', 0)
       resetChromeModeLatchForTests()
       resetOverlayStackForTests()
       ask = surface.door === 'capacity'
