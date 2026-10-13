@@ -28,6 +28,7 @@ import { listArchiveDocs, listTopicDocs, readLibraryMeta, writeDoc, writeLibrary
 import { tidyLibrary, type TidyResult } from './mnemeArchive.js'
 import { publishFrontPage } from './mnemeFrontPage.js'
 import { movePin, pinFact, readPins, readUsage, type PinRecord } from './mnemeUsage.js'
+import { mergeSimilar } from './mnemeSimilarity.js'
 
 export { libraryMetaPath, listArchiveDocs, listTopicDocs, readLibraryMeta, writeDoc, writeLibraryMeta } from './mnemeLibrary.js'
 
@@ -93,7 +94,7 @@ export function validateDraft(
   const seen = new Set<number>()
   const supersededBatch = new Map<number, number>()
   const supersededLib = new Set<number>()
-  const userAsked = input.userAskedSeqs ?? new Set<number>()
+  const userAsked = new Set([...(input.userAskedSeqs ?? []), ...input.rows.filter(r => r.pin || r.asked).map(r => r.seq)])
   for (const block of draft.blocks) {
     if (typeof block.topicSlug !== 'string' || slugify(block.topicSlug) !== block.topicSlug || !block.topicSlug) {
       return { ok: false, reason: `block slug not slug-safe: '${String(block.topicSlug)}'` }
@@ -372,6 +373,29 @@ export function replacementAllowed(target: number, pins: readonly PinRecord[], l
   return pin?.asked !== true && libraryLive.has(target)
 }
 
+function mergeRestatements(draft: MnemeDraft, rows: readonly AssignedRow[], docs: readonly MnemeTopicDoc[], pins: readonly PinRecord[]): void {
+  const protectedSeqs = new Set([...pins.map(p => p.seq), ...rows.filter(r => r.pin || r.asked || r.replaces !== undefined).map(r => r.seq)])
+  const entries = draft.blocks.flatMap(b => b.entries)
+  const claimed = new Set(entries.flatMap(e => e.supersedes ? expandSeqRange(e.supersedes) : []))
+  const candidates = [...entries, ...docs.flatMap(d => d.sections.flatMap(s => s.entries))]
+  for (const newer of [...entries].sort((a, b) => b.time.localeCompare(a.time) || b.seq - a.seq)) {
+    if (claimed.has(newer.seq) || newer.supersedes) continue
+    const targets: number[] = []
+    for (const older of candidates) {
+      if (older.seq === newer.seq || protectedSeqs.has(older.seq) || claimed.has(older.seq) || (older.supersedes && entries.includes(older))) continue
+      const oldTime = Date.parse(older.time)
+      const newTime = Date.parse(newer.time)
+      if (!Number.isFinite(oldTime) || !Number.isFinite(newTime) || oldTime > newTime || (oldTime === newTime && older.seq > newer.seq)) continue
+      if (!mergeSimilar(older.text, newer.text)) continue
+      targets.push(older.seq)
+      claimed.add(older.seq)
+    }
+    if (targets.length) newer.supersedes = targets.sort((a, b) => a - b).join(',')
+  }
+  for (const block of draft.blocks) block.entries = block.entries.filter(e => !claimed.has(e.seq))
+  draft.blocks = draft.blocks.filter(b => b.entries.length > 0)
+}
+
 function applyNamedReplacements(draft: MnemeDraft, rows: readonly AssignedRow[], pins: readonly PinRecord[], libraryLive: ReadonlySet<number>): void {
   const named = new Set<number>()
   for (const block of draft.blocks) {
@@ -492,6 +516,7 @@ export function maybeConsolidate(
     const rewriter = opts.rewriter ?? deterministicRewriter
     const draft = rewriter({ rows: assigned, catalog })
     applyNamedReplacements(draft, assigned, pinsBefore, libraryLive)
+    if (rewriter === deterministicRewriter) mergeRestatements(draft, assigned, docs, pinsBefore)
     const verdict = validateDraft(draft, { rows: assigned, libraryLiveSeqs: libraryLive, userAskedSeqs })
     if (!verdict.ok) {
       restoreConsumed(dir, consumed.files)
