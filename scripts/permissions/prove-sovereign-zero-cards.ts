@@ -162,10 +162,10 @@ section('§2 the Windows share road (A2): a UNC path asks on Windows and never o
   }
   const shareSpellings: Array<[string, string]> = [
     ['forward-slash UNC', '//fileserver/projects/notes.txt'],
-    ['WSL share', String.raw`\\wsl.localhost\Ubuntu\home\whq\proj\notes.txt`],
-    ['WSL share, forward slashes', '//wsl.localhost/Ubuntu/home/whq/proj/notes.txt'],
-    ['legacy WSL share', String.raw`\\wsl$\Ubuntu\home\whq\proj\notes.txt`],
-    ['administrative share on this box', String.raw`\\localhost\C$\Users\WHQ\m34-play\share\notes.txt`],
+    ['WSL share', String.raw`\\wsl.localhost\Ubuntu\home\alice\proj\notes.txt`],
+    ['WSL share, forward slashes', '//wsl.localhost/Ubuntu/home/alice/proj/notes.txt'],
+    ['legacy WSL share', String.raw`\\wsl$\Ubuntu\home\alice\proj\notes.txt`],
+    ['administrative share on this box', String.raw`\\localhost\C$\Users\Alice\m34-play\share\notes.txt`],
     ['extended-length UNC', String.raw`\\?\UNC\fileserver\projects\notes.txt`],
   ]
   for (const [label, spelling] of shareSpellings) {
@@ -176,7 +176,7 @@ section('§2 the Windows share road (A2): a UNC path asks on Windows and never o
     const shell = await decide(PowerShellTool, { command: `Get-Content ${spelling}` }, contextOf('sovereign'))
     check(`PowerShell Get-Content ${label}: no card under sovereign`, shell.decision.behavior === 'allow', JSON.stringify(shell.decision))
   }
-  for (const [label, spelling] of [['a mapped drive, forward slashes', 'Z:/proj/notes.txt'], ['a local path with forward slashes', 'C:/Users/WHQ/proj/notes.txt']] as const) {
+  for (const [label, spelling] of [['a mapped drive, forward slashes', 'Z:/proj/notes.txt'], ['a local path with forward slashes', 'C:/Users/Alice/proj/notes.txt']] as const) {
     const read = await decide(FileReadTool, { file_path: spelling }, contextOf('sovereign'))
     check(`Read ${label} ${spelling}: a drive letter carries no host, so no share question and no card under sovereign (the backslash spelling Z:\\proj needs a win32 path.resolve — the Windows box's check)`, read.decision.behavior === 'allow' && read.decision.decisionReason?.type !== 'bypassedAsk', JSON.stringify(read.decision))
   }

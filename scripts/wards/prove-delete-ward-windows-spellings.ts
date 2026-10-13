@@ -22,28 +22,28 @@ const HOME_DELETES = [
   'Remove-Item -Recurse -Force ${env:USERPROFILE}',
   'Remove-Item -Recurse -Force $HOME',
   'Remove-Item -Recurse -Force ~',
-  'Remove-Item -Recurse -Force C:\\Users\\WHQ',
-  'Remove-Item -Recurse -Force c:/users/whq',
-  "Remove-Item -Recurse -Force 'C:\\Users\\WHQ\\'",
-  'Remove-Item -Recurse -Force C:\\Users\\WHQ\\*',
+  'Remove-Item -Recurse -Force C:\\Users\\Alice',
+  'Remove-Item -Recurse -Force c:/users/alice',
+  "Remove-Item -Recurse -Force 'C:\\Users\\Alice\\'",
+  'Remove-Item -Recurse -Force C:\\Users\\Alice\\*',
   'Remove-Item -r $env:USERPROFILE',
   'Remove-Item -Rec -Fo $env:USERPROFILE',
   'ri -Recurse -Force $env:USERPROFILE',
   'rm -r -fo $env:USERPROFILE',
   'rm -rf $env:USERPROFILE',
-  'rm -rf C:\\Users\\WHQ',
-  'rm -rf C:/Users/WHQ',
-  'rm -rf /c/Users/WHQ',
+  'rm -rf C:\\Users\\Alice',
+  'rm -rf C:/Users/Alice',
+  'rm -rf /c/Users/Alice',
   'rm -rf ~',
   'rm -rf $HOME',
   'rm -rf %USERPROFILE%',
-  'rd /s /q C:\\Users\\WHQ',
+  'rd /s /q C:\\Users\\Alice',
   'rd /s /q %USERPROFILE%',
-  'rmdir /s /q C:\\Users\\WHQ',
-  'del /s /q C:\\Users\\WHQ\\*',
+  'rmdir /s /q C:\\Users\\Alice',
+  'del /s /q C:\\Users\\Alice\\*',
   'del /s /q %USERPROFILE%',
   'del /s /q %HOMEDRIVE%%HOMEPATH%',
-  'cmd /c rd /s /q C:\\Users\\WHQ',
+  'cmd /c rd /s /q C:\\Users\\Alice',
   'cmd /c "rd /s /q %USERPROFILE%"',
   'Remove-Item -Recurse -Force $env:HOMEDRIVE$env:HOMEPATH',
 ]
@@ -63,19 +63,19 @@ const LEFT_TO_THE_PERMISSION_CHECK = [
   'Remove-Item -Recurse -Force \\\\server\\share',
 ]
 const ORDINARY_DELETES = [
-  'Remove-Item -Recurse -Force C:\\Users\\WHQ\\proj\\scratch',
-  'Remove-Item -Recurse -Force c:/users/whq/proj/dist',
+  'Remove-Item -Recurse -Force C:\\Users\\Alice\\proj\\scratch',
+  'Remove-Item -Recurse -Force c:/users/alice/proj/dist',
   'Remove-Item -Recurse -Force .\\dist',
   'Remove-Item -Recurse -Force dist, build',
   'Remove-Item -Recurse -Force $env:TEMP\\mercury-x',
   'Remove-Item -Recurse -Force \\\\server\\share\\proj\\build',
-  'Remove-Item C:\\Users\\WHQ\\notes.txt',
+  'Remove-Item C:\\Users\\Alice\\notes.txt',
   'Remove-Item -Force $env:USERPROFILE\\notes.txt',
   'rm -rf node_modules',
-  'rm -rf C:\\Users\\WHQ\\proj\\node_modules',
+  'rm -rf C:\\Users\\Alice\\proj\\node_modules',
   'rd /s /q build',
-  'del /s /q C:\\Users\\WHQ\\proj\\*.log',
-  'Get-ChildItem -Recurse C:\\Users\\WHQ\\proj | Measure-Object',
+  'del /s /q C:\\Users\\Alice\\proj\\*.log',
+  'Get-ChildItem -Recurse C:\\Users\\Alice\\proj | Measure-Object',
 ]
 
 async function main(): Promise<void> {
@@ -97,7 +97,7 @@ async function main(): Promise<void> {
 
   section('§1 win32 — every home-delete spelling is refused by no-root-recursive-delete')
   pinPlatform('win32')
-  process.env.USERPROFILE = 'C:\\Users\\WHQ'
+  process.env.USERPROFILE = 'C:\\Users\\Alice'
   delete process.env.HOME
   try {
     for (const command of HOME_DELETES) check(`refused: ${command}`, refused(command), ruleOf(command))
@@ -109,23 +109,23 @@ async function main(): Promise<void> {
     for (const command of ORDINARY_DELETES) check(`allowed: ${command}`, !refused(command), ruleOf(command))
     section('§4 win32 — the Bash tool on Windows (git-bash) reads the same patterns')
     check('refused through the Bash tool: rm -rf $USERPROFILE', !wards.evaluateWards(wards.REFUSAL_WARDS, pending('rm -rf $USERPROFILE', 'Bash')).allow)
-    check('refused through the Bash tool: rm -rf /c/Users/WHQ', !wards.evaluateWards(wards.REFUSAL_WARDS, pending('rm -rf /c/Users/WHQ', 'Bash')).allow)
-    check('allowed through the Bash tool: rm -rf /c/Users/WHQ/proj/dist', wards.evaluateWards(wards.REFUSAL_WARDS, pending('rm -rf /c/Users/WHQ/proj/dist', 'Bash')).allow)
+    check('refused through the Bash tool: rm -rf /c/Users/Alice', !wards.evaluateWards(wards.REFUSAL_WARDS, pending('rm -rf /c/Users/Alice', 'Bash')).allow)
+    check('allowed through the Bash tool: rm -rf /c/Users/Alice/proj/dist', wards.evaluateWards(wards.REFUSAL_WARDS, pending('rm -rf /c/Users/Alice/proj/dist', 'Bash')).allow)
 
     section('§5 win32 — the PowerShell tool\'s own hard deny (the parsed operand) reads the home from USERPROFILE first')
     const deny = (path: string): boolean => psPaths.isDangerousRemovalRawPath(path)
-    for (const path of ['~', 'C:\\Users\\WHQ', 'c:/users/whq', 'C:\\Users\\WHQ\\*', 'C:\\Users', 'C:\\Windows', 'C:\\', 'Z:/', '\\\\?\\C:\\Users\\WHQ']) check(`hard deny (the permission check\'s own refusal): ${path}`, deny(path))
-    for (const path of ['C:\\Users\\WHQ\\proj\\scratch', '.\\dist', 'C:\\Users\\WHQ\\Documents']) check(`no hard deny (an ordinary ask or allow): ${path}`, !deny(path))
-    process.env.HOME = '/c/Users/WHQ'
-    check('hard deny of the literal home survives a git-bash HOME=/c/Users/WHQ in the environment', deny('C:\\Users\\WHQ') && deny('c:/users/whq'))
-    process.env.HOME = 'C:\\Users\\WHQ'
-    check('hard deny of the literal home with HOME spelled like USERPROFILE', deny('C:\\Users\\WHQ'))
+    for (const path of ['~', 'C:\\Users\\Alice', 'c:/users/alice', 'C:\\Users\\Alice\\*', 'C:\\Users', 'C:\\Windows', 'C:\\', 'Z:/', '\\\\?\\C:\\Users\\Alice']) check(`hard deny (the permission check\'s own refusal): ${path}`, deny(path))
+    for (const path of ['C:\\Users\\Alice\\proj\\scratch', '.\\dist', 'C:\\Users\\Alice\\Documents']) check(`no hard deny (an ordinary ask or allow): ${path}`, !deny(path))
+    process.env.HOME = '/c/Users/Alice'
+    check('hard deny of the literal home survives a git-bash HOME=/c/Users/Alice in the environment', deny('C:\\Users\\Alice') && deny('c:/users/alice'))
+    process.env.HOME = 'C:\\Users\\Alice'
+    check('hard deny of the literal home with HOME spelled like USERPROFILE', deny('C:\\Users\\Alice'))
     delete process.env.HOME
     const live = wards.windowsRemovalPatterns()
     check('the Windows pattern set is built once per home and reused', live === wards.windowsRemovalPatterns())
     process.env.USERPROFILE = 'D:\\Profiles\\Jo'
     check('a different USERPROFILE rebuilds the set and the new home is refused', live !== wards.windowsRemovalPatterns() && refused('Remove-Item -Recurse -Force D:\\Profiles\\Jo') && refused('rm -rf /d/Profiles/Jo'))
-    check('the old home is then an ordinary operand (the pinned law: another user\'s home is the permission check\'s)', !refused('Remove-Item -Recurse -Force C:\\Users\\WHQ') && !refused('Remove-Item -Recurse -Force C:\\Users\\WHQ\\proj'))
+    check('the old home is then an ordinary operand (the pinned law: another user\'s home is the permission check\'s)', !refused('Remove-Item -Recurse -Force C:\\Users\\Alice') && !refused('Remove-Item -Recurse -Force C:\\Users\\Alice\\proj'))
   } finally {
     restorePlatform()
     if (savedHome === undefined) delete process.env.HOME
