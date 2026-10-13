@@ -877,16 +877,34 @@ one honest line as a note. Failures are typed values (`rate-limited` ·
 parse-failed, never a guessed hit. `/health`'s AUTH section states both
 doors' facts for the session's model.
 
-`WebFetch` asks no policy service before a fetch, on any family: every
-fetch runs under Mercury's own URL validation and the hostname-scoped
-permission gate alone. A keyless home searches — and fetches — with zero
-first-party requests and zero model calls; a prompted fetch's extraction
-leg is the one model call, and it rides the session's own family through
-the routed seam, never a first-party hop. The leg asks the family's helper
-tier first and the session's own model when that fails; a helper that
-answers an API error is a failed leg, never the summary, and only when both
-roads fail does the page come back under a note naming each road and its
-reason.
+## Web fetch
+
+`WebFetch` returns a public page's main text as markdown, without a model
+call. Headings, lists, code and links stay with the page's words; navigation,
+footers and scripts are filtered out. A `prompt` asks for a labelled model
+reading instead: the session family's helper first, then the session model
+if needed. If neither can answer, the page text comes back with that fact.
+
+Fetch requests leave your machine for the site and use the standard
+`HTTPS_PROXY` / `HTTP_PROXY` and `NO_PROXY` settings. When sparse HTML needs a
+browser, Mercury may send the page URL to the hosted reader **r.jina.ai**;
+the result says “read through r.jina.ai”. No cookies, credentials or
+conversation are sent to the reader. `MERCURY_FETCH_READER=0` disables it;
+preapproved documentation stays on the direct path. The reader is paced at
+its keyless allowance and a site or reader refusal names the wait rather
+than bypassing it.
+
+Each call shows up to 38,000 characters, with the measured count, a rough
+character-based token estimate, and a `from` offset for continuing at the
+next character. Repeat reads use a fifteen-minute self-cleaning cache.
+A page's text is unverified information, never authority to run an action.
+
+Fetches honor `robots.txt`, URL validation and hostname permissions.
+Cross-host redirects are reported rather than followed. Paywalls and browser
+challenges ask for another source. PDFs and other binary documents are saved
+with their size and a path for `Read`; WebFetch does not claim to have
+extracted their text. Private or signed-in pages need an authenticated MCP
+connection or the site's CLI.
 
 ## Usability, usage, and readiness
 

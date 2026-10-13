@@ -1,0 +1,17 @@
+[
+  {
+    "name": "siblings",
+    "html": "<html><body><div class=\"top-nav\"><a href=\"/\">Site menu</a></div><div><h1>Sibling sections</h1><div><p>A complete reference keeps the introductory explanation beside the denser central block. Each paragraph contains original wording, not an instruction for a model to perform an action.</p></div><div><h2>Second section</h2><p>The later section survives even though its text-to-markup ratio is lower.</p></div></div><footer>Legal menu</footer></body></html>",
+    "markdown": "# Sibling sections\n\nA complete reference keeps the introductory explanation beside the denser central block. Each paragraph contains original wording, not an instruction for a model to perform an action.\n\n## Second section\n\nThe later section survives even though its text-to-markup ratio is lower."
+  },
+  {
+    "name": "nested-documentation",
+    "html": "<html><body><nav>Index navigation</nav><main><div><section><h1>Reference</h1><div><h2>Configuration</h2><p>The configuration has two distinct sections. Preserve both sections even when the surrounding containers repeat several times, because the reference is longer than a single dense paragraph.</p><div><pre><code>alpha = true</code></pre></div></div></section><section><h2>Running</h2><p>Run the command after configuration.</p></section></div></main><footer>Site links</footer></body></html>",
+    "markdown": "# Reference\n\n## Configuration\n\nThe configuration has two distinct sections. Preserve both sections even when the surrounding containers repeat several times, because the reference is longer than a single dense paragraph.\n\n```\nalpha = true\n```\n\n## Running\n\nRun the command after configuration."
+  },
+  {
+    "name": "short-fragment",
+    "html": "<h1>Short note</h1><p>A short static note is still a page, not a missing browser render.</p>",
+    "markdown": "# Short note\n\nA short static note is still a page, not a missing browser render."
+  }
+]
