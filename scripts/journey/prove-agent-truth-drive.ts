@@ -608,7 +608,7 @@ if (cap !== null) {
   console.log('\n— W the foreground ask handed to the background says why —')
   const walkerReceipts = fixture.hits.flatMap(h => h.results.filter(r => r.name === 'Crewmate' && r.description === SEATS.walker).map(r => r.text))
   for (const r of walkerReceipts) console.log(`  walker receipt: ${flat(r).slice(0, 300)}`)
-  check('W1 the walker\'s receipt reads as a background launch (the hand-over)', walkerReceipts.some(r => r.startsWith('Agent launched in the background.')), walkerReceipts.map(flat).join(' | ').slice(0, 300))
+  check('W1 the walker\'s receipt reads as a background launch (the hand-over)', walkerReceipts.some(r => r.startsWith('Crewmate launched in the background.')), walkerReceipts.map(flat).join(' | ').slice(0, 300))
   check('W1 …and says why the foreground request was not honoured: the turn was interrupted', walkerReceipts.some(r => /interrupted/.test(r) && /foreground/.test(r)), walkerReceipts.map(flat).join(' | ').slice(0, 400))
   const walkerRunning = rowsWith(m['after-walker-esc'], /sub-agents? still running|walker/)
   check('W1 after esc the walker runs on (the receipt row or the running word)', walkerRunning.length > 0, walkerRunning.map(flat).join(' | ').slice(0, 300))

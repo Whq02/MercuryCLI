@@ -62,7 +62,7 @@ const messages = [
     timestamp: '2026-06-19T12:00:02.000Z',
     message: {
       role: 'user',
-      content: [{ type: 'tool_result', tool_use_id: 'toolu_launch_1', content: 'Agent launched in the background.\nagentId: a1b2c3d4e\nThe output file is /tmp/a1b2c3d4e.out' }],
+      content: [{ type: 'tool_result', tool_use_id: 'toolu_launch_1', content: 'Crewmate launched in the background.\nagentId: a1b2c3d4e\nThe output file is /tmp/a1b2c3d4e.out' }],
     },
   },
 ] as unknown as Message[]
