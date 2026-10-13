@@ -127,7 +127,7 @@ import {
 import { recordSpawnExit } from '../utils/spawnLedger.js'
 import { armDaemonHomeWatch, daemonHomeStands } from './daemonHome.js'
 import { deployedRuntime, forwardFrame, handoverRoadOf, handoverState, parseHandoverFrom, predecessorSockPath, readHandoverHosts, renameSocketForPredecessor, type HandoverStateV1 } from './handover.js'
-import { REOPEN_WORDS } from './handshake.js'
+import { OTHER_BUILD_WAY_OUT, REOPEN_WORDS } from './handshake.js'
 import { holdBuild, nodeForBuild, resolveScriptPath, selfScriptPath } from './daemonBuild.js'
 import { decidePlaneBoot, sameBuildTree, type PlaneBootDecisionV1, type PlaneBootFactsV1 } from './planeBoot.js'
 import { lockHeldByLivePidSync, readPlaneOwnerSync, supersededByLivePlaneOwnerSync, type PlaneOwnerV1 } from './planeRecords.js'
@@ -523,6 +523,7 @@ async function daemonRun(args: string[]): Promise<void> {
           controlSock: controlSockPath(),
           proto: MERCURY_DAEMON_PROTO,
           buildTree: bootBuildTree,
+          script: selfScriptPath(),
           ownerPid: owner,
           foreground,
           startToken: bootStartToken,
@@ -1621,7 +1622,10 @@ function installedWords(runtime: NonNullable<ReturnType<typeof deployedRuntime>>
 }
 
 export function reopenDetail(installed: NonNullable<ReturnType<typeof deployedRuntime>>): string {
-  return `${REOPEN_WORDS} — a newer Mercury (${installedWords(installed)}) is installed and this daemon already runs it`
+  if (installed.version !== null && installed.version !== currentVersion()) {
+    return `${REOPEN_WORDS} — a newer Mercury (${installedWords(installed)}) is installed and this daemon already runs it`
+  }
+  return `this daemon runs the installed build (${installedWords(installed)}) and cannot become another build of the same version — ${OTHER_BUILD_WAY_OUT}`
 }
 
 export function otherBuildInstalledDetail(other: NonNullable<ReturnType<typeof deployedRuntime>>, live: number): string {
