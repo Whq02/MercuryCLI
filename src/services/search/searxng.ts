@@ -3,7 +3,7 @@ import { fetchWithProviderDeadline } from '../providers/fetchDeadline.js'
 import { htmlToText } from './htmlText.js'
 import { filterHitsByDomain, normaliseHits, searchFailure, searchUserAgent, type SearchHit, type SearchOutcome, type SearchRequest } from './searchContract.js'
 import { coolDownRemainingMs, liveSearchClock, noteRateLimited, secondsLeftLabel, serverSearchWaitMs, withSearchTurn, type SearchClock } from './searchPacing.js'
-import { SEARXNG_INSTANCES, SEARXNG_RATE_POLICY, type SearxngInstance } from './searxngInstances.js'
+import { configuredSearxngInstances, SEARXNG_RATE_POLICY, type SearxngInstance } from './searxngInstances.js'
 
 const failed = new Map<string, string>()
 let cursor = 0
@@ -21,8 +21,11 @@ export function decodeSearxng(body: unknown): SearchHit[] | undefined {
 }
 export async function searxngSearch(request: SearchRequest, io: { fetchImpl?: typeof fetch; clock?: SearchClock; instances?: readonly SearxngInstance[] } = {}): Promise<SearchOutcome> {
   const clock = io.clock ?? liveSearchClock
-  const instances = io.instances ?? SEARXNG_INSTANCES
+  const configured = io.instances ? { instances: io.instances } : configuredSearxngInstances()
+  const instances = configured.instances
   if (request.signal?.aborted) return searchFailure('aborted', 'searxng', 'cancelled')
+  if (configured.error) return searchFailure('no-backend', 'searxng', configured.error)
+  if (!instances.length) return searchFailure('no-backend', 'searxng', 'no metasearch instance configured; MERCURY_SEARCH_SEARXNG_INSTANCES adds instances whose API-use policy you verified')
   const wait = coolDownRemainingMs('searxng', clock.now())
   if (wait > 0) return searchFailure('rate-limited', 'searxng', `wait ${secondsLeftLabel(wait)}; no instance was contacted`)
   const start = cursor++ % Math.max(1, instances.length)
@@ -74,5 +77,5 @@ export async function searxngSearch(request: SearchRequest, io: { fetchImpl?: ty
     if (!outcome.ok && (outcome.kind === 'rate-limited' || outcome.kind === 'aborted')) return outcome
     notes.push(outcome.ok ? `${instance.url}: no matching results` : outcome.message)
   }
-  return searchFailure('no-backend', 'searxng', notes.join('; ') || 'no public instance is configured')
+  return searchFailure('no-backend', 'searxng', notes.join('; ') || 'no metasearch instance configured')
 }
