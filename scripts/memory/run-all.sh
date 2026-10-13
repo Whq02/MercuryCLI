@@ -13,6 +13,7 @@
 # gate-watch: src/components/mercury-ui/useFlatList.ts src/services/engine-connector/focusedConnector.ts src/services/engine-connector/noSessionConnector.ts
 # gate-watch: scripts/lib/captureDriver.ts scripts/lib/firstRunSeed.ts scripts/lib/fixtureApi.ts scripts/lib/rows.ts
 # gate-watch: scripts/hooks/lib/runDoor.ts src/services/projectIntel/capsule.ts
+# gate-watch: scripts/ui/**
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }
