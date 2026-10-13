@@ -393,10 +393,15 @@ $dir = $PSScriptRoot
 # the finally below on EVERY outcome (ready, cancel, refusal, child error).
 # Console encodings stay deliberately unrestored (the
 # rule: the runtime seam restores only what IT changes).
-$mercuryOwnedEnv = @('MERCURY_SPLASH_HANDOFF','MERCURY_ALT_HELD','MERCURY_LAUNCH_ID','MERCURY_WIN32_UTF8_PRESET','NODE_COMPILE_CACHE')
+$mercuryOwnedEnv = @('MERCURY_SPLASH_HANDOFF','MERCURY_ALT_HELD','MERCURY_LAUNCH_ID','MERCURY_WIN32_UTF8_PRESET','MERCURY_LAUNCHER','NODE_COMPILE_CACHE')
 $mercuryEnvSnapshot = @{}
 foreach ($k in $mercuryOwnedEnv) { $mercuryEnvSnapshot[$k] = [Environment]::GetEnvironmentVariable($k) }
 try {
+# The launcher marker: argv reached this script through PowerShell's own
+# parameter binder, which drops the first -- (the end-of-parameters token)
+# before any script sees it, so the runtime's option-boundary hint can say
+# the true PowerShell form. Restored with the other owned keys below.
+$env:MERCURY_LAUNCHER = 'ps1'
 # Console UTF-8: raw UTF-8 frame bytes decode under the console codepage —
 # set BOTH encodings (SetConsoleCP + SetConsoleOutputCP equivalent). Never
 # restored here; the runtime seam restores only what IT changes. The PRESET

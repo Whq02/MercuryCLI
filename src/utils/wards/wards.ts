@@ -457,17 +457,37 @@ function compile(rule: WardRule): RegExp[] {
   return out
 }
 
-let windowsRootPattern: { home: string; pattern: RegExp } | undefined
+let windowsRootPatterns: { home: string; patterns: RegExp[] } | undefined
 
-function windowsRemovalPattern(): RegExp {
+const WINDOWS_MSYS_DRIVE_ROOT = '/[a-z]/?'
+
+const WINDOWS_REMOVAL_TARGETS_FIXED = [
+  '[a-z]:[/\\\\]*',
+  '~',
+  '\\$\\{?HOME\\}?',
+  '\\$\\{?USERPROFILE\\}?',
+  '\\$\\{?env:USERPROFILE\\}?',
+  '(?:\\$\\{?env:HOMEDRIVE\\}?)?\\$\\{?env:HOMEPATH\\}?',
+  '%USERPROFILE%',
+  '(?:%HOMEDRIVE%)?%HOMEPATH%',
+]
+
+export function windowsRemovalPatterns(): RegExp[] {
   const home = (process.env.USERPROFILE || process.env.HOME || '').replace(/\\/g, '/').replace(/\/+$/, '')
-  if (windowsRootPattern?.home === home) return windowsRootPattern.pattern
+  if (windowsRootPatterns?.home === home) return windowsRootPatterns.patterns
   const escape = (path: string): string => path.split(/[\\/]/).map(part => part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('[/\\\\]')
   const homes = /^[a-z]:\//i.test(home) ? [escape(home), escape(`/${home[0]}${home.slice(2)}`)] : []
-  const targets = ['[a-z]:[/\\\\]+', '/[a-z]/?', '\\$USERPROFILE', '\\$\\{USERPROFILE\\}', '%USERPROFILE%', ...homes]
-  const pattern = new RegExp('\\brm\\b(?=[^\\n;|&]*\\s(?:-[a-zA-Z]*[rR][a-zA-Z]*\\b|--recursive\\b))[^\\n;|&]*\\s["\\\']?(?:' + targets.join('|') + ')[/\\\\]*\\*?(?=["\\\']?(?:\\s|$|[;|&]))', 'i')
-  windowsRootPattern = { home, pattern }
-  return pattern
+  const targetOf = (alternatives: readonly string[]): string => '\\s["\\\']?(?:' + alternatives.join('|') + ')[/\\\\]*\\*?(?=["\\\']?(?:\\s|$|[;|&]))'
+  const dashTarget = targetOf([...WINDOWS_REMOVAL_TARGETS_FIXED, WINDOWS_MSYS_DRIVE_ROOT, ...homes])
+  const slashTarget = targetOf([...WINDOWS_REMOVAL_TARGETS_FIXED, ...homes])
+  const segment = '[^\\n;|&]*'
+  const patterns = [
+    new RegExp('\\brm\\b(?=' + segment + '\\s(?:-[a-zA-Z]*[rR][a-zA-Z]*\\b|--recursive\\b))' + segment + dashTarget, 'i'),
+    new RegExp('\\b(?:ri|rd|rmdir|del|erase|Remove-Item)\\b(?=' + segment + '\\s-(?:rf|fr|rfo|r(?:e(?:c(?:u(?:r(?:s(?:e)?)?)?)?)?)?)\\b)' + segment + dashTarget, 'i'),
+    new RegExp('\\b(?:rd|rmdir|del|erase)\\b(?=' + segment + '\\s/s\\b)' + segment + slashTarget, 'i'),
+  ]
+  windowsRootPatterns = { home, patterns }
+  return patterns
 }
 
 export type HomeSpellings = () => readonly string[]
@@ -525,7 +545,7 @@ function homePatterns(): HomePatterns {
 function patternsFor(rule: WardRule): RegExp[] {
   const compiled = compile(rule)
   const home = rule.homePath === undefined ? [] : homePatterns()[rule.homePath]
-  const windows = rule.windowsRoots === true && process.platform === 'win32' ? [windowsRemovalPattern()] : []
+  const windows = rule.windowsRoots === true && process.platform === 'win32' ? windowsRemovalPatterns() : []
   return home.length === 0 && windows.length === 0 ? compiled : [...compiled, ...home, ...windows]
 }
 
