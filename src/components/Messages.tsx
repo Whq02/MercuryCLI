@@ -75,6 +75,7 @@ import { InVirtualListContext } from './messageActions.js'
 import { setMessageCursor, useMessageCursor } from './messageCursorStore.js'
 import { NameplateContinuationContext } from './messages/TranscriptNameplate.js'
 import { AssistantThinkingMessage } from './messages/AssistantThinkingMessage.js'
+import { withheldThinkingDisclosure } from './messages/withheldThinkingDisclosure.js'
 import { LiveStreamingTail } from './LiveStreamingTail.js'
 import { FoldStatusRow, type FoldLandingRowFacts } from './FoldStatusRow.js'
 import { MercuryBrandRow, MercuryHero, MercuryHome } from './MercuryHome.js'
@@ -457,6 +458,10 @@ function MessagesInner({
   const collapsed = useMemo(() => reuseSettledRows(settledRowsRef.current.before, derived.collapsed), [derived])
   const afterRows = useMemo(() => reuseSettledRows(settledRowsRef.current.after, derivedAfter.collapsed), [derivedAfter])
   settledRowsRef.current = { before: collapsed, after: afterRows }
+  const withheldDisclosure = useMemo(
+    () => withheldThinkingDisclosure([...collapsed, ...afterRows]),
+    [collapsed, afterRows],
+  )
 
   const engineForLedger = cockpitEngine()
   useEffect(() => {
@@ -591,6 +596,7 @@ function MessagesInner({
 
   const isItemClickable = useCallback(
     (message: RenderableMessage): boolean => {
+      if (!verbose && withheldDisclosure.byRow.has(message.uuid)) return true
       if (!verbose && hasNoticeFold(message)) return true
       if (message.type === 'collapsed_read_search') return true
       const live = lookupsRef.current
@@ -648,7 +654,7 @@ function MessagesInner({
         return verdict
       }
       return false
-  }, [tools, verbose, isAgentToolName, agentFoldHidden]);
+  }, [tools, verbose, isAgentToolName, agentFoldHidden, withheldDisclosure]);
 
   const canAnimate =
     !(
@@ -798,6 +804,9 @@ function MessagesInner({
   const renderRowIn = useCallback(
     (rows: RenderableMessage[], msg_8: RenderableMessage, index: number): React.ReactNode => {
       const key = expansionKeyOf(msg_8)
+      const withheld = withheldDisclosure.byRow.get(msg_8.uuid)
+      const hidden = withheldDisclosure.hidden.has(msg_8.uuid)
+      if (hidden && !withheld) return null
       return (
         <NameplateContinuationContext.Provider
           value={isAssistantContinuationRow(rows, index)}
@@ -805,7 +814,15 @@ function MessagesInner({
           {
 }
           <RowErrorBoundary>
-          <MessageRow
+          {withheld && (
+            <AssistantThinkingMessage
+              param={withheld}
+              addMargin
+              verbose={verbose || isItemExpanded(msg_8)}
+              isTranscriptMode={isTranscriptMode}
+            />
+          )}
+          {!hidden && <MessageRow
             message={msg_8}
             isUserContinuation={
               msg_8.type === 'user' && rows[index - 1]?.type === 'user'
@@ -839,7 +856,7 @@ function MessagesInner({
                 (cursor as { expanded?: boolean } | null)?.expanded,
             )}
             clickExpanded={expandedKeys.has(key)}
-          />
+          />}
           </RowErrorBoundary>
         </NameplateContinuationContext.Provider>
       )
@@ -860,6 +877,8 @@ function MessagesInner({
       expandedKeys,
       expansionKeyOf,
       isItemExpanded,
+      withheldDisclosure,
+      isTranscriptMode,
       streamingTail,
       streamingTextSuppressed,
     ],
