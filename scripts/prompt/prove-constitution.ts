@@ -161,7 +161,7 @@ try {
     check(`${mode}: the fact sections follow the constitution, each once`, text.indexOf(TEXT) !== -1 && facts.every(f => countOf(text, f) === 1 && text.indexOf(f) > text.indexOf(TEXT)), facts.filter(f => countOf(text, f) !== 1).join(' · '))
     const leaked = DROPPED_PHRASES.filter(phrase => text.includes(phrase))
     check(`${mode}: none of the dropped sections' phrases survive`, leaked.length === 0, leaked.join(' · '))
-    check(`${mode}: the estate facts ride once — MERCURY.md, .mercury/, the convention tool, pinned memory, hooks`, ['MERCURY.md is the project\'s standing instruction file', 'lives in `.mercury/`', 'the RecordConvention tool writes it there', 'pinned memory instead (Retain with pin)', 'Hooks are shell commands the user set up in settings'].every(f => countOf(text, f) === 1))
+    check(`${mode}: the estate facts ride once — MERCURY.md, .mercury/, the convention tool, pinned memory, hooks`, ['MERCURY.md is the project\'s standing instruction file', 'live in `.mercury/`', 'the RecordConvention tool writes it there', 'pinned memory instead (Retain with pin)', 'Hooks are shell commands the user set up in settings'].every(f => countOf(text, f) === 1))
     check(`${mode}: the facts carry no instruction to record or to say so`, !/and say you did|No magic word|Merge, never duplicate/.test(text))
     if (mode === 'interactive') {
       check('interactive: the `!` form is a harness-map fact', text.includes('# Mercury harness map') && countOf(text, 'a prompt the user starts with `!` runs that command inside this very session') === 1)

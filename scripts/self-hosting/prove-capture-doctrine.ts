@@ -63,7 +63,7 @@ check(
   'the instruction file fact: MERCURY.md, loaded every session with its @imports',
 )
 check(
-  prompt.includes('Durable project-local working state that is not instructions — handoff notes, plans, working specs — lives in `.mercury/`.'),
+  prompt.includes('Durable project-local plans and working specs that the user requests live in `.mercury/`. Mercury keeps the handoff note it asks for at close in its own home; never write your own handoff file into the project.'),
   'the .mercury working-state fact',
 )
 check(
@@ -102,7 +102,7 @@ check(
   'the two doors stand on a bare roster without a tool spelling',
 )
 check(
-  bareEstate.includes("MERCURY.md is the project's standing instruction file") && bareEstate.includes('lives in `.mercury/`') && bareEstate.includes('Hooks are shell commands'),
+  bareEstate.includes("MERCURY.md is the project's standing instruction file") && bareEstate.includes('live in `.mercury/`') && bareEstate.includes('Hooks are shell commands'),
   'the instruction-file, working-state and hooks facts read the same on a bare roster',
 )
 
