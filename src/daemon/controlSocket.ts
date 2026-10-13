@@ -69,6 +69,7 @@ export interface DaemonState {
   controlSock: string
   proto?: number
   buildTree?: string | null
+  script?: string
   ownerPid?: number | null
   foreground?: boolean
   startToken?: string | null

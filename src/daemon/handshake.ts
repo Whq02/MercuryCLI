@@ -261,10 +261,12 @@ function rebuiltWho(v: DaemonHandshakeVerdict): string {
   return `daemon v${d?.version ?? '?'} is another build of this Mercury v${v.client.version}`
 }
 
+export const OTHER_BUILD_WAY_OUT = 'to run on the installed build, close this window and open Mercury again; to run this build, `mercury daemon stop`, then open this Mercury again and it starts its own daemon'
+
 export function reopenLine(v: DaemonHandshakeVerdict): string {
   const d = v.daemon
   if (d !== null && d.version === v.client.version) {
-    return `${REOPEN_WORDS} — the daemon runs the installed build (tree ${d.buildTree ?? '?'}); this Mercury (tree ${v.client.buildTree ?? '?'}) is another build`
+    return `this chat runs on the installed build's engine (tree ${d.buildTree ?? '?'}), not this Mercury's (tree ${v.client.buildTree ?? '?'}) — ${OTHER_BUILD_WAY_OUT}`
   }
   return `${REOPEN_WORDS} — a newer Mercury (v${d?.version ?? '?'}) is installed and the daemon runs it; this Mercury (v${v.client.version}) is the older build`
 }
