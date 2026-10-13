@@ -6,3 +6,9 @@ export class EgressBlockedError extends Error {
     this.domain = domain
   }
 }
+export class FetchRefusedError extends Error {
+  constructor(readonly code: number, message: string) {
+    super(message)
+    this.name = 'FetchRefusedError'
+  }
+}

@@ -9,6 +9,7 @@ const expected = (await Bun.file(new URL('./fixtures/webfetch/article.md', impor
 const requests: string[] = []
 const server = Bun.serve({ hostname: '127.0.0.1', port: 0, fetch(request) {
   requests.push(new URL(request.url).pathname)
+  if (new URL(request.url).pathname === '/robots.txt') return new Response('User-agent: *\nAllow: /')
   if (new URL(request.url).pathname === '/large') return new Response('0123456789'.repeat(11_200), { headers: { 'Content-Type': 'text/markdown' } })
   return new Response(html, { headers: { 'Content-Type': 'text/html' } })
 } })

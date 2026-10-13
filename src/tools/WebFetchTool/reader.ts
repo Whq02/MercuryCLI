@@ -6,6 +6,8 @@ import { webUserAgent } from '../../utils/webUserAgent.js'
 import { EgressBlockedError } from './fetchErrors.js'
 import { FetchPacing } from './fetchPacing.js'
 import { isPreapprovedHost } from './preapproved.js'
+import { permittedFetchRedirect } from './fetchTransport.js'
+import { PAYWALL_MESSAGE } from './pageAccess.js'
 
 export const READER_KEYLESS_RPM = 20
 export const READER_LIMIT_SOURCE = 'https://jina.ai/reader/'
@@ -39,8 +41,10 @@ export async function readHostedPage(url: string, signal: AbortSignal, pace = pa
         headers: { Accept: 'application/json', 'X-Engine': 'browser', 'X-Robots-Txt': 'Mercury', 'User-Agent': webUserAgent() },
       })
       if (signal.aborted) throw new AbortError()
-      const body = JSON.parse(Buffer.from(response.data).toString('utf8')) as { data?: { content?: unknown; url?: unknown } }
-      if (typeof body.data?.url !== 'string' || new URL(body.data.url).hostname !== parsed.hostname) {
+      const body = JSON.parse(Buffer.from(response.data).toString('utf8')) as { code?: unknown; data?: { content?: unknown; url?: unknown } }
+      if (body.code === 402) return { notice: PAYWALL_MESSAGE }
+      if (body.code !== undefined && body.code !== 200) return { notice: 'The hosted reader could not serve this page; search for another source — do not retry this URL.' }
+      if (typeof body.data?.url !== 'string' || !permittedFetchRedirect(parsed.toString(), body.data.url)) {
         return { notice: 'The hosted reader did not confirm this page’s host; its response was not used. These are the page’s sparse words.' }
       }
       if (typeof body.data.content !== 'string' || !body.data.content.trim()) return { notice: 'r.jina.ai returned no page text; these are the page’s sparse words. Search for another source.' }
@@ -50,6 +54,7 @@ export async function readHostedPage(url: string, signal: AbortSignal, pace = pa
       if (signal.aborted) throw new AbortError()
       if (axios.isAxiosError(error)) {
         const status = error.response?.status
+        if (status === 402) return { notice: PAYWALL_MESSAGE }
         if (status === 403 && error.response?.headers['x-proxy-error'] === 'blocked-by-allowlist') throw new EgressBlockedError('r.jina.ai')
         if (status === 403 || status === 429 || status === 503) {
           const waitMs = pace.refuse(error.response?.headers['retry-after'])
