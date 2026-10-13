@@ -72,7 +72,7 @@ const EXPLICIT: Array<{ from: string; to: string } & Why> = [
 
 const PHRASES: Array<{ re: RegExp; to: string } & Why> = [
   { re: /(?<![\w$.\-/])([Aa])n Agent(?=[ -](?:call|launch|tool)(?![\w$-])|\((?=[A-Za-z*_{-]))/g, to: '$1 Crewmate', why: 'a call, launch, rule or mention of the tool with its article, which the new name changes' },
-  { re: /(?<![\w$.\-/])Agent (call|launch)(?![\w$-])/g, to: 'Crewmate $1', why: 'a call or launch of the tool' },
+  { re: /(?<![\w$.\-/])Agent (call|launch|launched)(?![\w$-])/g, to: 'Crewmate $1', why: 'a call or launch of the tool, and the launch receipt\'s first line "Agent launched in the background."' },
   { re: /(?<![\w$.\-/])Agent(\s+)tool(?![\w$-])/g, to: 'Crewmate$1tool', why: 'the tool named by its name' },
   { re: /(?<![\w$.\-/])Agent-tool(?![\w$])/g, to: 'Crewmate-tool', why: 'the tool named by its name, hyphenated' },
   { re: /(?<![\w$.\-/])Agent (and|or) Workflow(?=\s+tool)/g, to: 'Crewmate $1 Workflow', why: 'the two spawn tools named together' },
@@ -82,7 +82,7 @@ const PHRASES: Array<{ re: RegExp; to: string } & Why> = [
   { re: /(?<![\w$])subagent_type(?![\w$])/g, to: NEW_FIELD, why: 'the launch parameter the model writes' },
 ]
 
-const COMMENT_SKIP_RE = /(?<![\w$.\-/])Agent(?:\s+tool|-tool| call| launch|\s+(?:and|or) Workflow|\()|(["'`])Agent\1|(?<![\w$.\-/])ResumeAgent(?![\w$])/
+const COMMENT_SKIP_RE = /(?<![\w$.\-/])Agent(?:\s+tool|-tool| call| launch| launched|\s+(?:and|or) Workflow|\()|(["'`])Agent\1|(?<![\w$.\-/])ResumeAgent(?![\w$])/
 
 const GENERATORS: Generator[] = [
   { command: ['scripts/builtin-tools/census-gen.ts'], touches: ['scripts/builtin-tools/fixtures/tool-census.json', 'scripts/builtin-tools/fixtures/tool-census.md'], why: 'the tool census lists every tool by name' },
