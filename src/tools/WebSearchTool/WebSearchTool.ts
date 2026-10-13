@@ -13,7 +13,6 @@ import { getToolUseSummary, renderToolResultMessage, renderToolUseMessage, rende
 
 export type { WebSearchProgress }
 
-
 const inputSchema = z.strictObject({
   query: z.string().min(2).describe('The search query to use'),
   allowed_domains: z.array(z.string()).optional().describe('Only include search results from these domains'),
