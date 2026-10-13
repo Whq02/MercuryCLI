@@ -2,7 +2,8 @@ import { z } from 'zod'
 
 import { buildTool, type ToolUseContext } from '../../Tool.js'
 import { performWebSearch } from '../../services/search/searchDoor.js'
-import { viaLine, type SearchTier } from '../../services/search/searchContract.js'
+import { mapSearchResult, outputSchema, type Output } from './searchOutput.js'
+export type { Output, SearchResult } from './searchOutput.js'
 import { TOOL_SUMMARY_MAX_LENGTH } from '../../constants/toolLimits.js'
 import type { WebSearchProgress } from '../../types/tools.js'
 import { suggestionForExactCommand } from '../../utils/permissions/shellRuleMatching.js'
@@ -12,7 +13,6 @@ import { getToolUseSummary, renderToolResultMessage, renderToolUseMessage, rende
 
 export type { WebSearchProgress }
 
-
 const inputSchema = z.strictObject({
   query: z.string().min(2).describe('The search query to use'),
   allowed_domains: z.array(z.string()).optional().describe('Only include search results from these domains'),
@@ -20,40 +20,6 @@ const inputSchema = z.strictObject({
 })
 
 type Input = z.infer<typeof inputSchema>
-
-const searchHitSchema = z.object({
-  title: z.string().describe('Title of the search hit'),
-  url: z.string().describe('URL of the search hit'),
-  snippet: z.string().optional().describe("The backend's excerpt for the hit, when it carries one"),
-})
-
-const searchResultSchema = z.object({
-  tool_use_id: z.string().describe('Id of the search this hit group belongs to'),
-  content: z.array(searchHitSchema).describe('Search hits as title, url and optional snippet'),
-})
-
-export type SearchResult = z.infer<typeof searchResultSchema>
-
-const outputSchema = z.object({
-  query: z.string().describe('The query that was searched'),
-  results: z
-    .array(z.union([searchResultSchema, z.string()]))
-    .describe('Search hit groups (string commentary entries appear only in older native-door results)'),
-  durationSeconds: z.number().describe('Elapsed search time in seconds'),
-  via: z
-    .string()
-    .optional()
-    .describe('The backend that answered: brave · tavily · duckduckgo · duckduckgo-lite (older persisted results may carry a native id)'),
-  tier: z.enum(['native', 'keyed', 'keyless']).optional().describe('The door tier the answer came through'),
-  notes: z
-    .array(z.string())
-    .optional()
-    .describe('Doors tried before the one that answered, one honest line each'),
-  hint: z.string().optional().describe("The once-per-session key-door hint (the session's first keyless answer only)"),
-  cached: z.boolean().optional().describe("Answered from the session's search cache — no door was knocked"),
-})
-
-export type Output = z.infer<typeof outputSchema>
 
 async function runSearch(
   input: Input,
@@ -131,26 +97,7 @@ export const WebSearchTool = buildTool({
   async call(input: Input, context: ToolUseContext, _canUseTool?: unknown, _parentMessage?: unknown, onProgress?: (progress: { toolUseID: string; data: WebSearchProgress }) => void) {
     return { data: await runSearch(input, context, onProgress) }
   },
-  mapToolResultToToolResultBlockParam(output: Output, toolUseID: string) {
-    const lines: string[] = [`Web search results for query: "${output.query}"`]
-    if (output.via && output.tier) lines.push(`Searched ${viaLine(output.via as never, output.tier as SearchTier)}.`)
-    for (const note of output.notes ?? []) lines.push(`Note: ${note}`)
-    if (output.hint) lines.push(`Hint (tell the user once): ${output.hint}.`)
-    lines.push('')
-    for (const entry of output.results) {
-      if (entry === null || entry === undefined) continue
-      if (typeof entry === 'string') {
-        lines.push(entry)
-      } else if (entry.content.length > 0) {
-        lines.push(`Links: ${JSON.stringify(entry.content)}`)
-      } else {
-        lines.push('No links found.')
-      }
-      lines.push('')
-    }
-    lines.push('REMINDER: You MUST include the sources above in your response to the user as markdown hyperlinks.')
-    return { tool_use_id: toolUseID, type: 'tool_result' as const, content: lines.join('\n').trim() }
-  },
+  mapToolResultToToolResultBlockParam: mapSearchResult,
   extractSearchText(): string {
     return ''
   },
