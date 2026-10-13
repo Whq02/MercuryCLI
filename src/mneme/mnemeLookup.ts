@@ -6,7 +6,8 @@ import { listTopicDocs } from './mnemeLibrary.js'
 import { docFileName, serializeSignature } from './mnemeTopicDocs.js'
 import { stemLookupToken } from './mnemeStemmer.js'
 import { readPins, readUsage, usageOf, type UsageRecord } from './mnemeUsage.js'
-import { noteMemoryOffered } from './mnemeSignal.js'
+import { noteMemoryOffered, noteMemoryScores } from './mnemeSignal.js'
+import { fuseSignalRanking } from './mnemeSignalRanking.js'
 
 export const LOOKUP_LIMIT = 5
 const MAX_QUERY_TOKENS = 16
@@ -87,6 +88,7 @@ export interface ScoredCandidate extends LookupCandidate {
 }
 
 export interface RankingOptions {
+  dir?: string
   exclude?: ReadonlySet<string>
   usage?: Record<string, UsageRecord>
   now?: number
@@ -154,14 +156,28 @@ export function scoreCandidates(query: string, pool: readonly LookupCandidate[],
   })
 }
 
-export function rankAllCandidates(query: string, pool: readonly LookupCandidate[], opts: RankingOptions = {}): LookupHit[] {
-  const exclude = opts.exclude ?? new Set<string>()
+function scoredForRanking(query: string, pool: readonly LookupCandidate[], opts: RankingOptions): ScoredCandidate[] {
   const scoredPool = opts.usage ? pool.map(candidate => ({ ...candidate, useCount: candidate.seq !== undefined ? usageOf(candidate.seq, opts.usage!).count : candidate.useCount })) : pool
-  const hits = scoreCandidates(query, scoredPool, opts.now).filter(hit => hit.features.discriminating && !exclude.has(hit.id))
+  const scored = scoreCandidates(query, scoredPool, opts.now).filter(hit => !opts.exclude?.has(hit.id))
+  noteMemoryScores(query, scored, opts.dir)
+  return scored
+}
+
+export function fuseRecallRankings(query: string, pool: readonly LookupCandidate[], grepIds: readonly string[], opts: RankingOptions = {}): string[] {
+  const scored = scoredForRanking(query, pool, opts)
+  const lexical = scored.filter(hit => hit.features.discriminating)
+    .sort((a, b) => b.score - a.score || b.features.useCount - a.features.useCount || (b.seq ?? Number.MAX_SAFE_INTEGER) - (a.seq ?? Number.MAX_SAFE_INTEGER))
+  const grep = [...new Set(grepIds)].filter(id => !opts.exclude?.has(id))
+  return fuseSignalRanking([grep, lexical.map(hit => hit.id)], scored, opts.dir ?? mnemeLibraryDir(), fuseRankings)
+}
+
+export function rankAllCandidates(query: string, pool: readonly LookupCandidate[], opts: RankingOptions = {}): LookupHit[] {
+  const hits = scoredForRanking(query, pool, opts).filter(hit => hit.features.discriminating)
+  const dir = opts.dir ?? mnemeLibraryDir()
   hits.sort((a, b) => b.score - a.score || (b.seq ?? Number.MAX_SAFE_INTEGER) - (a.seq ?? Number.MAX_SAFE_INTEGER))
   const byUse = [...hits].sort((a, b) => b.features.useCount - a.features.useCount)
   const byId = new Map(hits.map(hit => [hit.id, hit]))
-  return fuseRankings([hits.map(hit => hit.id), byUse.map(hit => hit.id)]).map(id => {
+  return fuseSignalRanking([hits.map(hit => hit.id), byUse.map(hit => hit.id)], hits, dir, fuseRankings).map(id => {
     const { time, pinned, kind, useCount, features, ...hit } = byId.get(id)!
     return hit
   })
@@ -180,7 +196,7 @@ export function lookupFacts(
   const dir = opts.dir ?? mnemeLibraryDir()
   const loadedPins = new Set((readPinnedStatus(dir)?.loaded ?? []).map(seq => `seq:${seq}`))
   const exclude = new Set<string>([...(opts.exclude ?? []), ...loadedPins])
-  const hits = rankCandidates(query, candidates(dir), { exclude, limit: opts.limit })
+  const hits = rankCandidates(query, candidates(dir), { dir, exclude, limit: opts.limit })
   noteMemoryOffered(query, hits, dir)
   return hits
 }
