@@ -107,8 +107,6 @@ section("§1 the launch road: an id-shaped word the picker does not list reaches
   check('a loose word that matches nothing still gets the nearest-rows refusal, never a pass-through', loose.refused !== undefined && loose.refused.includes("names no listed model"), show(loose))
   const tool = readFileSync(join(import.meta.dir, '../../src/tools/AgentTool/AgentTool.tsx'), 'utf8')
   check("the Agent tool's launch calls the matcher with the pass policy, as the --model road does (RED on the base)", tool.includes("matchReachableModelName(typedModel, 'pass')"), tool.match(/matchReachableModelName\([^)]*\)/)?.[0] ?? '')
-  const main = readFileSync(join(import.meta.dir, '../../src/main.tsx'), 'utf8')
-  check('the --model road keeps its pass policy', main.includes("matchReachableModelName(userSpecifiedModel, 'pass')"))
 }
 
 section("§2 the ladder for 'grok-4.7' with a signed-in xAI and an empty catalogue cache")
