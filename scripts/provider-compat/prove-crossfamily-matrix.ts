@@ -498,7 +498,7 @@ const RING: Array<{ parent: Family; worker: Family }> = [
   { parent: 'zen', worker: 'anthropic' },
 ]
 
-const IDENTITY_ANCHOR = 'You are Mercury, a command-line interface and agent.'
+const IDENTITY_ANCHOR = 'You are Mercury, an autonomous command-line interface and agent.'
 
 function assertWorkerLeg(tag: string, workerFamily: Family, o: DriveOutcome, expectedWireId: string, expectedResolved: string): void {
   const workerHits = o.wire.filter(h => h.family === workerFamily)
