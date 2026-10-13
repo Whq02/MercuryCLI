@@ -38,6 +38,7 @@ __t=$SECONDS; __rc=0; "$bun" run "$here/prove-transaction-inputs-gone.ts" || { _
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-sendmessage-resume-words-gone.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-sendmessage-resume-words-gone.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-view-words-gone.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-view-words-gone.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-crewmate-words-gone.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-crewmate-words-gone.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$bun" run "$here/prove-crewmate-tool-name.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-crewmate-tool-name.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-crew-docs-words.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-crew-docs-words.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-tree-hygiene.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-tree-hygiene.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-instruction-file-private.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-instruction-file-private.ts" "$__t" "$__rc"
