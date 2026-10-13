@@ -47,7 +47,7 @@ type ReasonPayloads = {
   asyncAgent: { reason: string }
   sandboxOverride: { reason: 'excludedCommand' | 'sandboxDisabled' }
   workingDir: { reason: string }
-  safetyCheck: { reason: string; operatorOnly: boolean; floor?: true }
+  safetyCheck: { reason: string; operatorOnly: boolean }
   other: { reason: string }
   bypassedAsk: { mode: PermissionMode; road: BypassedAskRoad; reason: PermissionDecisionReason }
 }

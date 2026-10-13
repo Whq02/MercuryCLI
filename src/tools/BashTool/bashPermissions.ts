@@ -639,7 +639,7 @@ async function decideBashPermission(
     if (denied) return denied
     if (!matchRules(command.trim(), context, 'allow', 'exact', false)) {
       const message = uncPathMessage(command, remote)
-      return { behavior: 'ask', message, decisionReason: { type: 'safetyCheck', reason: message, operatorOnly: true, floor: true } }
+      return { behavior: 'ask', message, decisionReason: { type: 'safetyCheck', reason: message, operatorOnly: true } }
     }
   }
   let compoundHasCd = false

@@ -29,6 +29,7 @@ prove-home-hero-noise.ts
 prove-ink-feel.ts
 prove-interrupt-arity.ts
 prove-kit-menu.ts
+prove-sovereign-menu-warning.ts
 prove-list-door-single-swing.ts
 prove-markdown-layout.ts
 prove-model-chip.ts

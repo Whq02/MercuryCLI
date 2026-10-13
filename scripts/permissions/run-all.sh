@@ -41,6 +41,8 @@
 # gate-watch: src/components/agents/studio/StudioEditor.tsx src/components/agents/studio/AgentStudio.tsx src/components/BootAgentsScreen.tsx
 # gate-watch: src/rows/* src/runner/wire/*
 # gate-watch: scripts/lib/seatDoor.ts scripts/lib/hermetic.ts
+# gate-watch: scripts/computer/computerToolKit.ts scripts/computer/computerProofKit.ts src/services/desktop/desktopSession.ts src/services/desktop/resolveDriver.ts
+# gate-watch: src/services/tools/toolHooks.ts src/substrate/startupMenu.ts src/tools/ComputerTool/ComputerTool.ts
 # gate-watch: scripts/bash/floor-proof-helpers.ts
 # gate-watch: src/utils/wards/wards.ts src/utils/windowsPaths.ts
 # gate-watch: src/guards/**

@@ -117,7 +117,7 @@ const file = (path: string, dir: string): Buffer => readFileSync(join(dir, basen
 for (const [id, path] of [
   ['face-doors', 'scripts/ui/fixtures/face-doors/'], ['face-logins', 'scripts/ui/fixtures/face-logins/'],
   ['kit-menu', 'scripts/ui/fixtures/kit-menu/'], ['motion-menu', 'scripts/ui/fixtures/motion-menu/'],
-  ['saturn-screen', 'scripts/ui/fixtures/saturn-screen/'],
+  ['saturn-screen', 'scripts/ui/fixtures/saturn-screen/'], ['sovereign-menu', 'scripts/ui/fixtures/sovereign-menu/'],
 ]) {
   families.push({ id: id!, paths: currentFrames.filter(name => name.startsWith(path!)), script: 'scripts/engine-pass/render-stills.ts', args: [id!, '$OUT'], output: file })
 }

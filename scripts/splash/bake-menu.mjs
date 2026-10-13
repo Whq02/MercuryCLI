@@ -61,6 +61,7 @@ function menuBlock() {
       summary: row.summary,
       detail: row.detail ?? null,
       defaultFollows: row.defaultFollows ?? null,
+      warnWhenOn: row.warnWhenOn ?? null,
       choices: menuRowChoices(row).map(c => ({ v: c.value, l: c.label })),
     }) +
     ',',

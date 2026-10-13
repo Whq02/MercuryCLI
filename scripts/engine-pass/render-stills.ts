@@ -11,6 +11,7 @@ const files: Record<string, string> = {
   'kit-menu': '../ui/kit-menu-stills.ts',
   'motion-menu': '../ui/motion-menu-stills.ts',
   'saturn-screen': '../ui/saturn-screen-stills.ts',
+  'sovereign-menu': '../ui/sovereign-menu-stills.ts',
 }
 mkdirSync(out, { recursive: true })
 const file = files[family]

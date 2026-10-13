@@ -246,7 +246,7 @@ function probeVector(clusterName: string, cluster: string[], vec: string[]): voi
     const savedAccess = val('MERCURY_COMPUTER_ACCESS')
     const sovereign = flagEnabled('MERCURY_SKIP_PERMISSIONS')
     const got = resolveComputerAccess(flagEnv('MERCURY_COMPUTER_ACCESS'), sovereign)
-    const want = savedAccess !== '' ? { value: savedAccess, source: 'saved' } : sovereign ? { value: 'full', source: 'sovereign mode' } : { value: 'asks', source: 'default' }
+    const want = sovereign ? { value: 'full', source: 'sovereign mode' } : savedAccess !== '' ? { value: savedAccess, source: 'saved' } : { value: 'asks', source: 'default' }
     if (JSON.stringify(got) !== JSON.stringify(want)) {
       assertionFailures++
       console.log(`     resolveComputerAccess = ${JSON.stringify(got)} ≠ ${JSON.stringify(want)} under ${JSON.stringify(vec)}`)
