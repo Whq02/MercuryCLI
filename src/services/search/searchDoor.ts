@@ -8,6 +8,7 @@ import { keylessSearch } from './duckduckgo.js'
 import { nativeBackendIdFor, nativeSearch, type SearchProgressSink } from './nativeSearch.js'
 import { isNativeSearchFamily, type NativeSearchFamily } from './nativeSearchRequest.js'
 import { officialSearch } from './officialSearch.js'
+import { searxngSearch } from './searxng.js'
 import { officialSearchIntent, type OfficialSearchSource } from './searchSources.js'
 import { cachedAnswerNote, coolDownRemainingMs, liveSearchClock, nextSearchGroupId, noteAnswered, noteRateLimited, rememberSearch, secondsLeftLabel, takeCachedSearch, takeKeyedDoorHint, type SearchClock } from './searchPacing.js'
 import { failureLine, KEYED_DOOR_COMMANDS, KEYED_DOOR_FREE_TIER, normaliseHits, searchBackendLabel, searchFailure, type SearchBackendId, type SearchFailure, type SearchHit, type SearchOutcome, type SearchRequest, type SearchTier } from './searchContract.js'
@@ -17,6 +18,7 @@ export type SearchDoor =
   | { kind: 'native'; family: NativeSearchFamily }
   | { kind: 'keyed'; backend: 'brave' | 'tavily'; keySource: SearchKeySource }
   | { kind: 'official'; backend: OfficialSearchSource; words: string }
+  | { kind: 'metasearch' }
   | { kind: 'keyless' }
 export const SEARCH_BACKEND_OVERRIDES = ['auto', 'brave', 'tavily', 'duckduckgo'] as const
 export type SearchBackendOverride = (typeof SEARCH_BACKEND_OVERRIDES)[number]
@@ -57,6 +59,7 @@ export function resolveSearchDoorPlan(reads: SearchDoorReads, query = ''): Searc
   doors.push(...keyed)
   const intent = officialSearchIntent(query)
   if (intent) doors.push({ kind: 'official', backend: intent.source, words: intent.words })
+  doors.push({ kind: 'metasearch' })
   if (reads.keylessAllowed) doors.push({ kind: 'keyless' })
   const closed = []
   if (!keyed.length) closed.push(`no Brave or Tavily key stored (${KEYED_DOOR_COMMANDS} — ${KEYED_DOOR_FREE_TIER})`)
@@ -76,6 +79,7 @@ export function searchDoorLabel(door: SearchDoor): string {
     case 'native': return `${searchBackendLabel(nativeBackendIdFor(door.family))} (native, session account)`
     case 'keyed': return `${searchBackendLabel(door.backend)} (keyed, ${door.keySource === 'env' ? 'env key' : 'stored key'})`
     case 'official': return `${searchBackendLabel(door.backend)} (official API)`
+    case 'metasearch': return 'SearXNG (public JSON API)'
     case 'keyless': return 'DuckDuckGo (keyless)'
   }
 }
@@ -99,6 +103,7 @@ export interface WebSearchRunIo {
     brave?: (request: SearchRequest) => Promise<SearchOutcome>
     tavily?: (request: SearchRequest) => Promise<SearchOutcome>
     official?: (source: OfficialSearchSource, words: string, request: SearchRequest) => Promise<SearchOutcome>
+    metasearch?: (request: SearchRequest) => Promise<SearchOutcome>
     keyless?: (request: SearchRequest) => Promise<SearchOutcome>
   }
   clock?: SearchClock
@@ -108,6 +113,7 @@ async function openDoor(door: SearchDoor, request: SearchRequest, io: WebSearchR
     case 'native': return io.backends?.native ? io.backends.native(door.family, request) : nativeSearch(door.family, request, io)
     case 'keyed': return door.backend === 'brave' ? (io.backends?.brave ?? braveSearch)(request) : (io.backends?.tavily ?? tavilySearch)(request)
     case 'official': return io.backends?.official ? io.backends.official(door.backend, door.words, request) : officialSearch(door.backend, door.words, request, { clock })
+    case 'metasearch': return io.backends?.metasearch ? io.backends.metasearch(request) : searxngSearch(request, { clock })
     case 'keyless': return io.backends?.keyless ? io.backends.keyless(request) : keylessSearch(request, { clock })
   }
 }
@@ -144,7 +150,7 @@ export async function performWebSearch(input: SearchRequest, io: WebSearchRunIo)
     let outcome: SearchOutcome
     try { outcome = await openDoor(door, request, io, clock) } catch {
       if (signal.aborted) throw new AbortError()
-      failures.push(searchFailure('network', door.kind === 'native' ? nativeBackendIdFor(door.family) : door.kind === 'keyless' ? 'duckduckgo' : door.backend, 'this source did not complete the search'))
+      failures.push(searchFailure('network', door.kind === 'native' ? nativeBackendIdFor(door.family) : door.kind === 'keyless' ? 'duckduckgo' : door.kind === 'metasearch' ? 'searxng' : door.backend, 'this source did not complete the search'))
       continue
     }
     if (signal.aborted || (!outcome.ok && outcome.kind === 'aborted')) throw new AbortError()
