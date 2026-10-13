@@ -59,7 +59,7 @@ async function drive(tag: string, signedIn: boolean, sendPrompt: boolean): Promi
   })
   try {
     const home = screenAfter(run, painted(run, FACE_READY))
-    const chatPaint = painted(run, COMPOSER_READY)
+    const chatPaint = painted(run, signedIn ? 'ready · Opus 5.5 ·' : 'not signed in · /logins ·')
     const chat = screenAfter(run, chatPaint)
     if (home) saveFrame(`${tag}-home`, home)
     if (chat) saveFrame(`${tag}-chat`, chat)
