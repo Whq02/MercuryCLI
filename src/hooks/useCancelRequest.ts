@@ -63,8 +63,8 @@ function killRunningAgents(
   if (running.length === 0) return false
   const summary =
     running.length === 1
-      ? `the background agent "${running[0]!.description}" was stopped`
-      : `${running.length} background agents were stopped: ${running
+      ? `the background crewmate "${running[0]!.description}" was stopped`
+      : `${running.length} background crewmates were stopped: ${running
           .map(task => `"${task.description}"`)
           .join(', ')}`
   enqueuePendingNotification({
@@ -221,7 +221,7 @@ export function CancelRequestHandler({
         if (running.length === 0) {
           addNotification({
             key: 'kill-agents-none',
-            text: 'no background agents are running',
+            text: 'no background crewmates are running',
             priority: 'immediate',
             timeoutMs: NONE_RUNNING_TIMEOUT_MS,
           })
@@ -238,7 +238,7 @@ export function CancelRequestHandler({
         killPressAtRef.current = now
         addNotification({
           key: 'kill-agents-confirm',
-          text: `press ${killChord} again to stop the background agents`,
+          text: `press ${killChord} again to stop the background crewmates`,
           priority: 'immediate',
           timeoutMs: KILL_CONFIRM_WINDOW_MS,
         })

@@ -60,7 +60,7 @@ section('W the words the model reads (the source)')
   check('the four cases stand in order, then the objective sentence', BULLETS.every(b => human.includes(b)) && BULLETS.map(b => human.indexOf(b)).every((at, i, all) => i === 0 || at > all[i - 1]!) && human.includes(OBJECTIVE) && human.indexOf(OBJECTIVE) > human.indexOf(BULLETS[3]!))
   check('the arm ends with the accounting sentence', human.endsWith(ACCOUNTING))
   check('the explicit human origin reads the same', text.wrapCommandText(LINE1, { kind: 'human' }) === human)
-  check('the other arms are unchanged', (text.wrapCommandText('X', { kind: 'task-notification' }) as string).startsWith('A background agent completed a task:') && (text.wrapCommandText('X', { kind: 'coordinator' }) as string).startsWith('The coordinator sent a message while you were working:') && (text.wrapCommandText('X', { kind: 'channel', server: 'slack' }) as string).startsWith('A message arrived from slack while you were working:'))
+  check('the other arms are unchanged', (text.wrapCommandText('X', { kind: 'task-notification' }) as string).startsWith('A background crewmate completed a task:') && (text.wrapCommandText('X', { kind: 'coordinator' }) as string).startsWith('The coordinator sent a message while you were working:') && (text.wrapCommandText('X', { kind: 'channel', server: 'slack' }) as string).startsWith('A message arrived from slack while you were working:'))
   check('no reader of the old sentences remains in the source', !(human.includes('The user sent a new message') || human.includes("you MUST address the user's message above")))
 }
 

@@ -174,7 +174,7 @@ async function world(name: World): Promise<void> {
   tally.check(`${name} L2 the receiver read the message as a task notification whose status is message, naming the sender`, first !== undefined && carriedTexts(first).some(t => t.includes(MESSAGE_STATUS) && t.includes(receiver === 'main' ? FROM_SUB : FROM_MAIN)), first === undefined ? 'no request of the receiver carries the words' : JSON.stringify(carriedTexts(first)[0]?.slice(0, 300)))
   switch (name) {
     case 'sub-to-main-midturn':
-      tally.check(`${name} L3 the main agent read it inside its running turn, at the boundary after the held command — the request of the launch turn right after the command's result`, first !== undefined && first.ask.trim() === MAIN_ASK && first.step === 2 && carriedTexts(first).some(t => t.includes('A background agent sent a message:')), `carrying ask ${JSON.stringify(first?.ask.slice(0, 40))} step ${first?.step}`)
+      tally.check(`${name} L3 the main agent read it inside its running turn, at the boundary after the held command — the request of the launch turn right after the command's result`, first !== undefined && first.ask.trim() === MAIN_ASK && first.step === 2 && carriedTexts(first).some(t => t.includes('A background crewmate sent a message:')), `carrying ask ${JSON.stringify(first?.ask.slice(0, 40))} step ${first?.step}`)
       tally.check(`${name} L4 one turn: the message rode the live turn, no turn of its own`, turnsStarted === 1 && results === 1, `turn_started ${turnsStarted} · results ${results}`)
       break
     case 'sub-to-main-idle': {

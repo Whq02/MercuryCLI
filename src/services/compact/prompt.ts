@@ -2,7 +2,7 @@ const NO_TOOLS_PREAMBLE = `Reply with prose only — no tool calls of any kind. 
 
 const NO_TOOLS_TRAILER = `Remember: prose only, no tool calls. Produce the summary now.`
 
-const AGENTS_IN_FLIGHT_SECTION = `10. Agents in flight: every agent still running or owed a result at the turnover — crewmates, workflow runs and their agents, background shells — with the name or id a message reaches it by (the SendMessage address), what it was asked, and what is owed back (a result not yet retrieved, a notification pending). A running agent is never re-spawned; a pending result is collected, not re-derived. Write "none" when nothing runs.`
+const AGENTS_IN_FLIGHT_SECTION = `10. Agents in flight: every agent still running or owed a result at the turnover — crewmates, workflow runs and their crewmates, background shells — with the name or id a message reaches it by (the SendMessage address), what it was asked, and what is owed back (a result not yet retrieved, a notification pending). A running agent is never re-spawned; a pending result is collected, not re-derived. Write "none" when nothing runs.`
 
 const SUMMARY_SECTIONS = `Your summary must contain these ten numbered sections:
 1. Operator Intent: every explicit request, in detail.

@@ -49,7 +49,7 @@ try {
   const summaryLine = notification.split('\n').find(line => /Dynamic workflow/.test(line)) ?? ''
   record('workflow-summary-line.txt', summaryLine + '\n')
   tally.check('the notification reached the lead', notification !== '')
-  tally.check('the run completed with failures, not silently', /completed WITH 1 agent failure/.test(summaryLine), summaryLine.slice(0, 240))
+  tally.check('the run completed with failures, not silently', /completed WITH 1 crewmate failure/.test(summaryLine), summaryLine.slice(0, 240))
 
   tally.section('the line the lead reads names the first failing agent and its cause')
   tally.check('the summary line names the failing agent', /capture-review/.test(summaryLine), summaryLine.slice(0, 240))

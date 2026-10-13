@@ -70,7 +70,7 @@ export const DEFAULT_MASKS = [
   'row:^ ready · .+ {2,}(?:⇧|shift\\+)← back',
   'row: {2,}\\S+(?: ⌥ \\S+)? {2}(?:[^·]+ · )?(?:⇧|shift\\+)← back',
   ' *(?:⇧|shift\\+)← concourse *',
-  'row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ agents? here {1,5}|S:\\d+ · M:\\d+ · A:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$',
+  'row:^(?:\\d+ sessions? on · \\d+ monitors? here · \\d+ crewmates? here {1,5}|S:\\d+ · M:\\d+ · C:\\d+(?: …)? *)(?:⇧|shift\\+)← concourse *$',
   '(?<= · effort [^·]+ · ctx \\S+ · )\\S.*',
   'row:gate [✓◓✕·]',
   IDLE_MEASURE_MASK,

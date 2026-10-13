@@ -29,8 +29,8 @@ const ROW_TODAY = /^ ready · [^·]+(?: · [^·]+)?\s{2,}/
 const ROW_WITH_SAMPLE = /^ ready · [^·]+(?: · [^·]+)? · 1 sample\s{2,}/
 const { keyHintLabel } = await import('../../src/components/mercury-ui/keyHintLabel.ts')
 const BOOT_FACE_HINT = keyHintLabel('⇧← boot face').replace(/\+/g, '\\+')
-const LINE_TODAY = new RegExp(`^\\d+ sessions? on · 0 monitors here · 0 agents here\\s+${BOOT_FACE_HINT}$`)
-const LINE_WITH_SAMPLE = new RegExp(`^\\d+ sessions? on · 0 monitors here · 0 agents here · 1 sample\\s+${BOOT_FACE_HINT}$`)
+const LINE_TODAY = new RegExp(`^\\d+ sessions? on · 0 monitors here · 0 crewmates here\\s+${BOOT_FACE_HINT}$`)
+const LINE_WITH_SAMPLE = new RegExp(`^\\d+ sessions? on · 0 monitors here · 0 crewmates here · 1 sample\\s+${BOOT_FACE_HINT}$`)
 const LIST_ROW = /❯ ⧉ pricing table          v1 · changes needed · \d+[smh] ago/
 const ESC = String.fromCharCode(27)
 
@@ -96,8 +96,8 @@ async function drive(cols: number, rows: number): Promise<void> {
   const sends = [
     { atTick: 40, awaitText: FACE_READY, minTick: 3, awaitSettleTicks: 2, requireAwait: true, data: '\r', mark: 'boot' },
     { atTick: 100, awaitText: ADMITTED, minTick: 5, awaitSettleTicks: 2, requireAwait: true, data: '' },
-    { atTick: 999, awaitText: full ? '? for shortcuts' : '0 agents here', minTick: 5, awaitSettleTicks: 4, requireAwait: true, data: '', mark: 'design' },
-    { atTick: 999, awaitText: full ? 'ready · ' : '0 agents here', minTick: 5, awaitSettleTicks: 4, requireAwait: true, data: '', mark: 'idle' },
+    { atTick: 999, awaitText: full ? '? for shortcuts' : '0 crewmates here', minTick: 5, awaitSettleTicks: 4, requireAwait: true, data: '', mark: 'design' },
+    { atTick: 999, awaitText: full ? 'ready · ' : '0 crewmates here', minTick: 5, awaitSettleTicks: 4, requireAwait: true, data: '', mark: 'idle' },
     { afterPrevTicks: 3, data: 'show me a pricing table\r' },
     { atTick: 999, awaitText: 'Here it is.', minTick: 5, awaitSettleTicks: 3, requireAwait: true, data: '' },
     { atTick: 999, awaitText: '1 sample', minTick: 5, awaitSettleTicks: 4, requireAwait: true, data: '', mark: 'sample' },

@@ -20,7 +20,7 @@ export function getPillLabel(tasks: BackgroundTaskState[]): string {
       return parts.join(', ')
     }
     case 'local_agent':
-      return `${tasks.length} local ${plural(tasks.length, 'agent')}`
+      return `${tasks.length} local ${plural(tasks.length, 'crewmate')}`
     case 'remote_agent':
       return `${DIAMOND_OPEN} ${tasks.length} cloud ${plural(tasks.length, 'session')}`
     case 'local_workflow':

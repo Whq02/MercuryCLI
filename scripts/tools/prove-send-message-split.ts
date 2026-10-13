@@ -107,7 +107,7 @@ if (ResumeAgentTool) {
   check('main is never resumed', !(await call(ResumeAgentTool, 'main', 'hello', sender)).success)
   const before = pending(id).length
   const running = await call(ResumeAgentTool, 'researcher')
-  check('a running receiver is delivered to, never registered twice', running.message === `Agent researcher (id ${id}) is still running, so nothing was resumed: the message was delivered and it reads it at its next tool boundary.` && pending(id).length === before + 1)
+  check('a running receiver is delivered to, never registered twice', running.message === `Crewmate researcher (id ${id}) is still running, so nothing was resumed: the message was delivered and it reads it at its next tool boundary.` && pending(id).length === before + 1)
 }
 seed(id)
 mark(id, 'completed')
@@ -120,7 +120,7 @@ const disk = await call(SendMessageTool, 'architect')
 check('an evicted id-shaped name resolves and delivery never resumes it', !disk.success && disk.message.includes(`architect (id ${id}) has completed`) && state.tasks[id] === undefined, disk.message)
 if (ResumeAgentTool) {
   const resumed = await call(ResumeAgentTool, 'architect')
-  check('the id-shaped name resumes the sidecar id from disk', resumed.success && resumed.message.startsWith(`Agent architect (id ${id}) had completed; it was resumed in the background with your message, and its completion notice will come to you. Output file: `) && state.tasks[id]?.status === 'running', resumed.message)
+  check('the id-shaped name resumes the sidecar id from disk', resumed.success && resumed.message.startsWith(`Crewmate architect (id ${id}) had completed; it was resumed in the background with your message, and its completion notice will come to you. Output file: `) && state.tasks[id]?.status === 'running', resumed.message)
   stop(id)
   seed(id)
   registerAgentName('researcher', id, setState as never)
@@ -152,7 +152,7 @@ for (const status of ['failed', 'killed']) {
   check(`SendMessage never resumes a ${status} task`, !answer.success && answer.message.includes(status === 'failed' ? 'has failed (failure reason)' : 'has stopped') && state.tasks[finishedId]?.status === status)
   if (ResumeAgentTool) {
     const failedResume = await call(ResumeAgentTool, `ended-${status}`)
-    check('a resume exception is an error with a next step', !failedResume.success && failedResume.message.includes(`No transcript found for agent ${finishedId}`) && failedResume.message.endsWith('Launch a new crewmate with Crewmate if the work is still wanted.'), failedResume.message)
+    check('a resume exception is an error with a next step', !failedResume.success && failedResume.message.includes(`No transcript found for crewmate ${finishedId}`) && failedResume.message.endsWith('Launch a new crewmate with Crewmate if the work is still wanted.'), failedResume.message)
   }
 }
 const expectedSend = `Deliver a message to a running crewmate of this session. It never starts work: a crewmate that has finished is refused, and ResumeCrewmate gives it the message as a new turn.
@@ -160,7 +160,7 @@ const expectedSend = `Deliver a message to a running crewmate of this session. I
 Example: { "to": "researcher", "message": "The auth notes moved to docs/auth-v2.md; read that one." }
 
 ## Addressing
-- to: the id a crewmate's launch receipt names, or the name its launch gave it — both reach the same agent (a name two launches carried reaches the newest).
+- to: the id a crewmate's launch receipt names, or the name its launch gave it — both reach the same crewmate (a name two launches carried reaches the newest).
 - A background crewmate reaches the agent that launched it at "main".
 
 ## How communication works
@@ -181,7 +181,7 @@ for (const [index, tool] of [SendMessageTool, ResumeAgentTool].entries()) {
   const description = await tool.prompt({ tools: [] } as never)
   const bytes = Buffer.byteLength(JSON.stringify({ name: tool.name, description, input_schema: schema, eager_input_streaming: true, defer_loading: true }))
   console.log(`${tool.name} definition bytes=${bytes}`)
-  check(`${tool.name} definition has the specified byte budget`, bytes === [1343, 1387][index])
+  check(`${tool.name} definition has the specified byte budget`, bytes === [1346, 1393][index])
   check(`${tool.name} is deferred with a search hint`, tool.shouldDefer === true && Boolean(tool.searchHint))
 }
 for (const task of Object.values(state.tasks)) if (task.type === 'local_agent') stop(task.id)

@@ -192,7 +192,7 @@ session a terminal is looking at, and a hop moves that mark from the chat
 you leave to the one you land on, so exactly one session per terminal is
 focused at any moment.
 
-Focus carries your seat. The focused chat launches workflows and agents on
+Focus carries your seat. The focused chat launches workflows and crewmates on
 your own authority, under its own permission mode. A background session
 keeps working single-handed and waits — until you visit it, until it
 holds the workflows-allowed grant (asked of the coordinator, chosen as
@@ -278,9 +278,9 @@ The status row above the composer keeps the session's model and the
 effort word its chip paints in every state: it rests on
 `ready · <model> · <effort>` while the session is idle and no crewmate is
 running, and otherwise reads `<model> · <effort>` followed by what the
-session is doing — the wait on agents, a request wait, a held receipt, a
-warning, or the CREW's clock while a crewmate (sub-agent) or workflow agent
-the session's runner hosts is still running — by kind: "agent thought for
+session is doing — the wait on crewmates, a request wait, a held receipt, a
+warning, or the CREW's clock while a crewmate or workflow crewmate
+the session's runner hosts is still running — by kind: "crewmate thought for
 28m", "workflow thought for 12m", both when both run (the larger first).
 The clock counts the crew that is running now; when the last of them lands
 or is stopped the row reads `ready` again on the next beat, and the landed
@@ -324,7 +324,7 @@ settings.json turns the key and both hints off, and esc keeps its meaning
 either way. The row's warnings stay its own: a request wait names what the
 runner waits on and the budget that fires ("waiting for the first byte from
 Opus 5.5 — within 6m"); a held turn names what it waits on ("waiting on 1
-workflow · 2 agents"); an interrupt says the request is torn down. The row
+workflow · 2 crewmates"); an interrupt says the request is torn down. The row
 says the session may be stuck only when the runner's stream has carried no
 event of any kind — the provider's heartbeats included — for longer than its
 own watchdog's warning point: never sooner than five minutes of silence, and
@@ -532,14 +532,14 @@ respawns nothing.
 
 A runner that died mid-work — a crash, or a stop you asked for and then
 resumed — comes back carrying what it held. The session's own record keeps
-what the runner had queued and what its background agents had reported:
+what the runner had queued and what its background crewmates had reported:
 each line you typed that the dead runner never read is queued again under
-its own identity and runs as the next turn; an agent that had finished is
-delivered from the notice it left, byte for byte; an agent still working is
+its own identity and runs as the next turn; a crewmate that had finished is
+delivered from the notice it left, byte for byte; a crewmate still working is
 relaunched from its own transcript, told that its files hold the edits it
 made and to read them again before it edits; and only a launch the record
 knows nothing about is reported stopped. One row says what the restart
-carried — `runner restarted after a crash: 2 background agents relaunched, 1
+carried — `runner restarted after a crash: 2 background crewmates relaunched, 1
 delivered from their receipts, 0 stopped`, or `runner restarted after a
 stop: …` when you had stopped it. The seat comes back on your next words — a
 resume, a line typed — as before.
@@ -809,7 +809,7 @@ The runner's `session/facts` answer carries the ledger (`notices`: each
 entry names its agent, its kind, the notice in a line, the clock it arrived
 at and what became of it), and every crewmate's work row carries the count
 of its own unread notices;
-the Crew view (`/crewmates`) paints that count on the agent's row — "2
+the Crew view (`/crewmates`) paints that count on the crewmate's row — "2
 unread" — and nothing when there is none.
 
 A monitor's ticks that land while the session's provider has refused its

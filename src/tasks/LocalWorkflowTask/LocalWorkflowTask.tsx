@@ -134,7 +134,7 @@ export function workflowOwningAgent(
 export function workflowOwnedAgentWords(workflow: LocalWorkflowTaskState, agentId: string): string {
   const name = workflow.workflowName ?? workflow.description
   return (
-    `Agent ${agentId} is a worker of the running workflow "${name}" (${workflow.workflowRunId}) — the workflow owns its run, ` +
+    `Crewmate ${agentId} is a worker of the running workflow "${name}" (${workflow.workflowRunId}) — the workflow owns its run, ` +
     `so it takes no direct message and is never started a second time beside the original. ` +
     `Inspect mercury://workflow/${workflow.workflowRunId}?child=${agentId} for its progress, skip or retry it from the crew view, ` +
     `or resume it with ResumeCrewmate once the workflow has finished.`
@@ -446,7 +446,7 @@ export function buildResumePrompt(task: {
 }): string {
   const argsPart =
     task.args === undefined ? '' : `, args: ${JSON.stringify(task.args)}`
-  return `Resume the paused workflow by calling: Workflow({scriptPath: '${task.scriptPath}', resumeFromRunId: '${task.workflowRunId}'${argsPart}}) — completed agents return cached results.`
+  return `Resume the paused workflow by calling: Workflow({scriptPath: '${task.scriptPath}', resumeFromRunId: '${task.workflowRunId}'${argsPart}}) — completed crewmates return cached results.`
 }
 
 export const LocalWorkflowTask: Task = {
@@ -512,7 +512,7 @@ export function enqueueWorkflowNotification(args: WorkflowNotificationArgs): voi
       case 'completed':
         return `Dynamic workflow "${name}" completed`
       case 'completed_with_failures':
-        return `Dynamic workflow "${name}" completed WITH ${args.failures?.length ?? 0} agent failure(s) — first: ${firstFailureWords(args.failures)} — the result is partial; read <failures> before trusting it`
+        return `Dynamic workflow "${name}" completed WITH ${args.failures?.length ?? 0} crewmate failure(s) — first: ${firstFailureWords(args.failures)} — the result is partial; read <failures> before trusting it`
       case 'failed':
         return `Dynamic workflow "${name}" failed: ${args.error || 'Unknown error'}`
       case 'killed':
@@ -534,7 +534,7 @@ export function enqueueWorkflowNotification(args: WorkflowNotificationArgs): voi
         `To resume after editing the script, call: Workflow({scriptPath: '${args.scriptPath}', resumeFromRunId: '${args.workflowRunId}'${argsPart}})`,
       )
     }
-    if (args.transcriptDir) lines.push(`Agent transcripts: ${args.transcriptDir}`)
+    if (args.transcriptDir) lines.push(`Crewmate transcripts: ${args.transcriptDir}`)
     if (args.runDir) lines.push(`Run state: ${args.runDir}`)
     if (lines.length > 0) {
       recoverySection = `\n<recovery>${lines.join('\n')}</recovery>`

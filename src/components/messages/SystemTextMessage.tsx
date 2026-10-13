@@ -200,7 +200,7 @@ export function SystemTextMessage({
       return (
         <Text>
           <Text color="error">● </Text>
-          <Text dimColor>All background agents stopped.</Text>
+          <Text dimColor>All background crewmates stopped.</Text>
         </Text>
       )
 

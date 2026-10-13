@@ -35,7 +35,7 @@ export const KEYBINDING_CONTEXT_DESCRIPTIONS: Record<(typeof KEYBINDING_CONTEXTS
   Help: 'The help overlay is open',
   Transcript: 'The transcript is being viewed',
   HistorySearch: 'Command-history search is active',
-  Task: 'A task or agent is running in the foreground',
+  Task: 'A task or crewmate is running in the foreground',
   ThemePicker: 'The theme picker is open',
   Settings: 'The settings menu is open',
   Tabs: 'Tab navigation is active',

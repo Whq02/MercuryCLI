@@ -96,11 +96,11 @@ section('F4 the compact line counts samples the way it counts the rest')
 const active = { sessionId: 'focused', live: true, paused: false, parked: false, stopped: false }
 const base = { sessions: { state: 'known' as const, rows: [active] }, focusedSessionId: 'focused', carrier: 'daemon' as const, roster: { rows: [], mission: [], reported: true } }
 const none = compactWorkCounts(base as never)
-check('F4a no samples: the line is the line of today', compactWorkSummaryText(none, 120) === '1 session on · 0 monitors here · 0 agents here' && none.samples === 0, compactWorkSummaryText(none, 120))
+check('F4a no samples: the line is the line of today', compactWorkSummaryText(none, 120) === '1 session on · 0 monitors here · 0 crewmates here' && none.samples === 0, compactWorkSummaryText(none, 120))
 const one = compactWorkCounts({ ...base, roster: { ...base.roster, samples: after.slice(0, 1) } } as never)
-check('F4b one sample appends · 1 sample', compactWorkSummaryText(one, 120) === '1 session on · 0 monitors here · 0 agents here · 1 sample', compactWorkSummaryText(one, 120))
+check('F4b one sample appends · 1 sample', compactWorkSummaryText(one, 120) === '1 session on · 0 monitors here · 0 crewmates here · 1 sample', compactWorkSummaryText(one, 120))
 const three = compactWorkCounts({ ...base, roster: { ...base.roster, samples: after } } as never)
-check('F4c three samples pluralise', compactWorkSummaryText(three, 120) === '1 session on · 0 monitors here · 0 agents here · 3 samples', compactWorkSummaryText(three, 120))
+check('F4c three samples pluralise', compactWorkSummaryText(three, 120) === '1 session on · 0 monitors here · 0 crewmates here · 3 samples', compactWorkSummaryText(three, 120))
 check('F4d the short ladder is unchanged by samples', compactWorkSummaryText(three, 20) === compactWorkSummaryText(none, 20) && !compactWorkSummaryText(three, 20).includes('sample'), compactWorkSummaryText(three, 20))
 check('F4e the blank chat counts none', compactWorkCounts({ ...base, focusedSessionId: null } as never).samples === 0)
 

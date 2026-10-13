@@ -2082,7 +2082,7 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
             return {
               status: narrowed !== null || warning !== null ? 'info' : 'ok',
               evidence: `${seatCeilingValueWords(facts)} · ${facts.readingSentence} · ${lanes}${narrowed !== null ? ` — ${narrowed}` : ' (the seats)'}`,
-              detail: `Sessions, crewmates and workflow agents all run under this one number; a seat is held only while a model call is in flight, and a call past the ceiling waits with its row saying so.${warning !== null ? ` ${warning}.` : ''} Setting: ${facts.lever}.`,
+              detail: `Sessions, crewmates and workflow crewmates all run under this one number; a seat is held only while a model call is in flight, and a call past the ceiling waits with its row saying so.${warning !== null ? ` ${warning}.` : ''} Setting: ${facts.lever}.`,
             }
           },
         },
@@ -2389,7 +2389,7 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
               status: 'info',
               evidence: `session model ${session} · settings pin ${pin}${pinResolved !== pin ? ` (resolves to ${pinResolved})` : ''} — the live session overrides the pin`,
               detail:
-                'The settings pin is not the live session model — agents and workflows inherit the session. Pass model: explicitly where drift matters.',
+                'The settings pin is not the live session model — crewmates and workflows inherit the session. Pass model: explicitly where drift matters.',
             }
           },
         },
@@ -4327,7 +4327,7 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
           },
           {
             id: 'agent-envelope',
-            label: 'Agent envelopes',
+            label: 'Crewmate envelopes',
             depth: 'deep',
             probe: 'functional',
             timeoutMs: 15_000,

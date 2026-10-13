@@ -8,7 +8,7 @@ import { ROOT, argument, git, scratch } from './support.ts'
 
 type Verdict = { same: boolean; environment: boolean; detail: string }
 type Family = { id: string; paths: string[]; script: string; args: string[]; output: (path: string, dir: string) => Buffer; judge?: (path: string, actual: Buffer, expected: Buffer) => Verdict }
-const COUNTS_ROW = /^\d+ sessions? on · (?:\d+ monitors? here · \d+ agents? here|counts unavailable)/
+const COUNTS_ROW = /^(?:\d+ sessions? on · (?:\d+ monitors? here · \d+ crewmates? here|counts unavailable)|S:\d+ · M:\d+ · C:\d+)/
 function liveGridVerdict(path: string, actual: Buffer, expected: Buffer): Verdict {
   if (actual.equals(expected)) return { same: true, environment: false, detail: '' }
   const manifest = JSON.parse(readFileSync(join(ROOT, 'design-system/live/manifest.json'), 'utf8')) as { entries: Array<{ gridPath: string; masks: string[] }> }

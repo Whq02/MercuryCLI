@@ -778,7 +778,7 @@ const WorkflowToolDef = {
           stoppedBy = request.by
           const receipt = killWorkflowTask(taskId, setAppState)
           return receipt === 'applied'
-            ? { outcome: 'applied', detail: `${stopWords(request.by)} — every live agent ends; transcripts, journal and records stay` }
+            ? { outcome: 'applied', detail: `${stopWords(request.by)} — every live crewmate ends; transcripts, journal and records stay` }
             : { outcome: 'refused', reason: 'already settled — nothing to stop' }
         }
         case 'pause':
@@ -795,24 +795,24 @@ const WorkflowToolDef = {
         case 'kill-agent': {
           const receipt = killWorkflowAgent(taskId, agentId, setAppState)
           return receipt === 'applied'
-            ? { outcome: 'applied', detail: `killed by ${request.by} — the agent ends; the script sees an agent failure` }
-            : { outcome: 'refused', reason: 'the agent already settled — nothing to kill' }
+            ? { outcome: 'applied', detail: `killed by ${request.by} — the crewmate ends; the script sees a crewmate failure` }
+            : { outcome: 'refused', reason: 'the crewmate already settled — nothing to kill' }
         }
         case 'skip-agent': {
           const receipt = skipWorkflowAgent(taskId, agentId, setAppState)
           return receipt === 'applied'
             ? { outcome: 'applied', detail: `skipped by ${request.by} — its agent() call resolves null` }
-            : { outcome: 'refused', reason: 'the agent already settled — nothing to skip' }
+            : { outcome: 'refused', reason: 'the crewmate already settled — nothing to skip' }
         }
         case 'retry-agent': {
           const receipt = retryWorkflowAgent(taskId, agentId, setAppState)
           return receipt === 'applied'
             ? { outcome: 'applied', detail: `retry by ${request.by} — a fresh attempt starts now` }
-            : { outcome: 'refused', reason: 'the agent already settled — nothing to retry' }
+            : { outcome: 'refused', reason: 'the crewmate already settled — nothing to retry' }
         }
         case 'message-agent': {
           const controller = live.agentControllers?.get(agentId)
-          if (controller === undefined || controller.signal.aborted) return { outcome: 'refused', reason: 'the agent is not in flight — nothing to message' }
+          if (controller === undefined || controller.signal.aborted) return { outcome: 'refused', reason: 'the crewmate is not in flight — nothing to message' }
           enqueuePendingNotification({
             value: request.message ?? '',
             mode: 'task-notification',
@@ -821,7 +821,7 @@ const WorkflowToolDef = {
             origin: { kind: 'coordinator' },
             isMeta: true,
           })
-          return { outcome: 'applied', detail: `message queued for the agent by ${request.by} — it reads it at its next step` }
+          return { outcome: 'applied', detail: `message queued for the crewmate by ${request.by} — it reads it at its next step` }
         }
       }
     }
@@ -1092,10 +1092,10 @@ const WorkflowToolDef = {
       content += `\nScript file: ${data.scriptPath}\n(Edit this file with Write/Edit and re-invoke Workflow with {scriptPath: "${data.scriptPath}"} to iterate without resending the script.)`
     }
     if (data.scriptPath && data.runId) {
-      content += `\nRun ID: ${data.runId}\nTo resume after editing the script: Workflow({scriptPath: "${data.scriptPath}", resumeFromRunId: "${data.runId}"}) — completed agents return cached results.`
+      content += `\nRun ID: ${data.runId}\nTo resume after editing the script: Workflow({scriptPath: "${data.scriptPath}", resumeFromRunId: "${data.runId}"}) — completed crewmates return cached results.`
     }
     if (data.runId) {
-      content += `\nLive status: Inspect mercury://workflow/${data.runId} (run/phase/liveness/agent state; per-agent detail via ?child=<agentId>).`
+      content += `\nLive status: Inspect mercury://workflow/${data.runId} (run/phase/liveness/crewmate state; per-crewmate detail via ?child=<agentId>).`
     }
     content +=
       '\n\nYou will be notified when it completes. Use /workflows to watch live progress.'

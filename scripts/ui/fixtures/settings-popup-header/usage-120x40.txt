@@ -3,7 +3,7 @@ WORKBENCH               │ transcript row 48 · · · · · · · · · · · �
   no prompts sent yet   │ transcript row 49 · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · ·… │
                         │                                                                                              │
 NEXT                    │ ╭──────────────────────────────────────────────────────────────────────────────────────────╮ │
-  · /workflows — agent …│ │ ▖▟▆▙▗ Mercury · usage                                                                    │ │
+  · /workflows — crewma…│ │ ▖▟▆▙▗ Mercury · usage                                                                    │ │
   · /health — health ce…│ │ API usage session on · 0 subscriptions signed in                                         │ │
   · /memory — memory    │ │                                                                                          │ │
   · /mission — set a mi…│ │ Anthropic usage                                                                          │ │

@@ -3,7 +3,7 @@
 
 export const CODE_REVIEW_WORKFLOW_SCRIPT = `export const meta = {
   name: "code-review",
-  description: "Multi-lens code review — a finder agent per review lens, an independent verifier on every candidate, then one ranked and capped report.",
+  description: "Multi-lens code review — a finder crewmate per review lens, an independent verifier on every candidate, then one ranked and capped report.",
   whenToUse: "The /code-review skill launches this at effort high, xhigh, or max whenever workflows are enabled. String args: \\"<level> [target]\\" — level: high, xhigh, or max; target (optional): a PR number, a branch, a ref range, a path, or free-form instructions (\\"only review src/net/\\", \\"focus on concurrency\\"). Object args also work: {level?, target?, model?, verifierModel?} — the model knobs accept any id or alias the session model catalog resolves, and verifierModel routes only the verification lane (one provider can find while another checks).",
   phases: [{"title":"Scope","detail":"Settle the diff command, the file list, and the conventions"},{"title":"Find","detail":"A finder per lens (correctness + quality); results stream straight into verification"},{"title":"Verify","detail":"Every candidate faces its own verifier — CONFIRMED / PLAUSIBLE / REFUTED"},{"title":"Sweep","detail":"A gap hunt by one clean-context finder (xhigh/max)"},{"title":"Synthesize","detail":"Fold duplicates, rank by severity, cap the report"}],
 }

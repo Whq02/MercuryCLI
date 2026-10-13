@@ -480,7 +480,7 @@ async function restartLeg(): Promise<void> {
   check(`${tag}: the registry's own rows read running, never the store's word`, /\(running · harbour/.test(flat(marks['after-restart'] ?? '')) && /\(running · lantern/.test(flat(marks['after-restart'] ?? '')) && !(marks['after-restart'] ?? '').includes('killed'), flat(marks['after-restart'] ?? '').slice(0, 300))
   const afterRestart = flat((marks['after-restart'] ?? '').replace(/^│ ?/gm, ''))
   check(`${tag}: the transcript carries the registry's words and the notice count`, afterRestart.includes('check 1: registry says 2 task(s) · 2 running') && afterRestart.includes('notices 0'), afterRestart.slice(0, 300))
-  const carryRow = 'runner restarted after a crash: 2 background agents relaunched, 0 delivered from their receipts, 0 stopped'
+  const carryRow = 'runner restarted after a crash: 2 background crewmates relaunched, 0 delivered from their receipts, 0 stopped'
   const sessionText = sessionFiles(join(home, 'projects')).map(f => readFileSync(f, 'utf8')).join('\n')
   check(`${tag}: the session file holds the one row that says what the restart carried: ${carryRow}`, sessionText.includes(carryRow), sessionText.split('\n').filter(l => l.includes('runner restarted')).map(l => l.slice(0, 200)).join(' | ') || 'no restart row')
   if (failures > before && !KEEP) for (const [label, frame] of Object.entries(marks)) dump(`${tag} · ${label}`, frame, COLS)

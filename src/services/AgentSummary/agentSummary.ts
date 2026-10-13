@@ -14,7 +14,7 @@ type SetAppState = Parameters<typeof updateAgentSummary>[2]
 
 function summaryInstruction(previousSummary: string | null): string {
   const lines = [
-    "Describe this agent's most recent action in 3 to 5 words.",
+    "Describe this crewmate's most recent action in 3 to 5 words.",
     'Use the present progressive tense.',
     'Name the file or function being worked on, never the branch.',
     'Do not use any tools.',

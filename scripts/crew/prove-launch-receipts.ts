@@ -52,7 +52,7 @@ const assistantLaunch = (): Message =>
     },
   }) as unknown as Message
 const receiptText = (agentId: string): string =>
-  `${lr.BACKGROUND_LAUNCH_LINE}\nagentId: ${agentId} (internal — do not mention it to the user). To continue this agent, use SendMessage addressed to that id.\nThe agent is working in the background — you will be notified automatically when it completes.`
+  `${lr.BACKGROUND_LAUNCH_LINE}\nagentId: ${agentId} (internal — do not mention it to the user). To continue this crewmate, use SendMessage addressed to that id.\nThe crewmate is working in the background — you will be notified automatically when it completes.`
 const userReceipts = (): Message =>
   ({
     type: 'user',
@@ -150,7 +150,7 @@ const afterNotice = lr.reconcileBackgroundLaunchesOnResume(withNotice, () => fre
 check('a later resume that finds the notice in the transcript settles nothing (the notice is the pairing)', afterNotice.length === 0 && queue.getCommandQueue().length === 0 && Object.keys(fresh.tasks).length === 0)
 
 section('R5b · the restart reason names why the runner restarted (item 3)')
-check('a summary with no reason keeps the plain wording (no visible change on the fallback road)', lr.restartStopSummary('harbour-count') === 'Agent "harbour-count" was stopped — the session\'s runner restarted before it finished, so nothing it started will be delivered; relaunch it if the result is still wanted')
+check('a summary with no reason keeps the plain wording (no visible change on the fallback road)', lr.restartStopSummary('harbour-count') === 'Crewmate "harbour-count" was stopped — the session\'s runner restarted before it finished, so nothing it started will be delivered; relaunch it if the result is still wanted')
 check('a crash reason names it: "restarted after a crash"', lr.restartStopSummary('harbour-count', 'crash').includes('the session\'s runner restarted after a crash before it finished'))
 check('a settings reason names it: "restarted after a settings change"', lr.restartStopSummary('harbour-count', 'settings').includes('the session\'s runner restarted after a settings change before it finished'))
 check('a relaunch reason names it: "restarted after a relaunch"', lr.restartStopSummary('harbour-count', 'relaunch').includes('the session\'s runner restarted after a relaunch before it finished'))
@@ -234,11 +234,11 @@ function makeCtx(store: ReturnType<typeof makeStore>): never {
   check("SendMessage to the launch's name routes to the same task", byName.data.success === true && /^Delivered to /.test(byName.data.message) && pending().some(p => p.includes('a second word')), byName.data.message)
   const ghost = generateTaskId('local_agent')
   const toGhost = (await SendMessageTool.call({ to: ghost, message: 'anyone there' } as never, ctx, undefined as never, { requestId: 'req_3' } as never)) as SendAnswer
-  check('an unrecognised id follows the unknown-address road and names the live alternatives', toGhost.data.success === false && toGhost.data.message.includes(`no agent named ${ghost} in this session`) && toGhost.data.message.includes('running agents are: harbour'), toGhost.data.message)
+  check('an unrecognised id follows the unknown-address road and names the live alternatives', toGhost.data.success === false && toGhost.data.message.includes(`no crewmate named ${ghost} in this session`) && toGhost.data.message.includes('running crewmates are: harbour'), toGhost.data.message)
   const agentTool = src('src/tools/AgentTool/AgentTool.tsx')
   check("the receipt's address line names the id and, for a named launch, the name — the two addresses the resolver reads", /continuationHint\(async\.agentId, async\.agentName\)/.test(agentTool) && agentTool.includes('or to its name "${name}"') && agentTool.includes("input.name ? { agentName: input.name } : {}"))
   const prompt = src('src/tools/SendMessageTool/prompt.ts')
-  check("the tool's prompt tells the model both addresses reach a launched crewmate", prompt.includes("the id a crewmate's launch receipt names, or the name its launch gave it — both reach the same agent"))
+  check("the tool's prompt tells the model both addresses reach a launched crewmate", prompt.includes("the id a crewmate's launch receipt names, or the name its launch gave it — both reach the same crewmate"))
   const ids = src('src/types/ids.ts')
   const task = src('src/Task.ts')
   check('the id grammar has one owner: the minter reads the alphabet the validator reads', ids.includes('export const TASK_ID_ALPHABET') && task.includes("import { TASK_ID_ALPHABET, TASK_ID_SUFFIX_LENGTH } from './types/ids.js'") && !/const TASK_ID_ALPHABET = /.test(task))
@@ -459,7 +459,7 @@ section('R8e · every non-terminal row has a live owner; the exit card counts wh
   wf.pauseWorkflowTask('wf-paused', store.set)
   check('a live agent and a paused workflow have nothing to settle', fw.settleOwnerlessTasks(store.set as never).length === 0 && (store.get().tasks[liveAgent] as { status?: string } | undefined)?.status === 'running' && (store.get().tasks['wf-paused'] as { status?: string } | undefined)?.status === 'paused')
   counts = fw.liveBackgroundCounts(store.get().tasks)
-  check('the words name the kinds in order', fw.liveWorkWords(counts) === '1 shell command and 1 agent' && fw.liveWorkWords({ total: 4, shells: 2, agents: 1, workflows: 1, other: 0 }) === '2 shell commands, 1 agent and 1 workflow' && fw.liveWorkWords({ total: 0, shells: 0, agents: 0, workflows: 0, other: 0 }) === 'nothing', fw.liveWorkWords(counts))
+  check('the words name the kinds in order', fw.liveWorkWords(counts) === '1 shell command and 1 crewmate' && fw.liveWorkWords({ total: 4, shells: 2, agents: 1, workflows: 1, other: 0 }) === '2 shell commands, 1 crewmate and 1 workflow' && fw.liveWorkWords({ total: 0, shells: 0, agents: 0, workflows: 0, other: 0 }) === 'nothing', fw.liveWorkWords(counts))
   check('…and the crew view agrees on the agent', crewAgents() === 1)
   const child = generateTaskId('local_agent')
   wf.registerWorkflowTask({ taskId: 'wf-gone', script: '', workflowRunId: 'wf_gone_run', workflowName: 'gone-flow', setAppState: store.set })
@@ -665,7 +665,7 @@ section('R11 · the hand-back — every exit that is not a clean finish carries 
   const { AbortError, DeadlineExceededError } = await import('../../src/utils/errors.ts')
   type Exit = { name: string; thrown: () => Error; cause: RegExp; status: 'failed' | 'killed' }
   const exits: Exit[] = [
-    { name: 'budget-cut', thrown: () => Object.assign(new Error('the provider refused 3 times in a row (HTTP 429, busy) — the 5m retry budget is spent and the agent stopped; its work is kept — a message to it resumes it, or raise MERCURY_RECOVERY_BUDGET_MINUTES'), { recoveryBudgetSpent: true, resumeAfterMs: 0 }), cause: /the provider refused/, status: 'failed' },
+    { name: 'budget-cut', thrown: () => Object.assign(new Error('the provider refused 3 times in a row (HTTP 429, busy) — the 5m retry budget is spent and the crewmate stopped; its work is kept — a message to it resumes it, or raise MERCURY_RECOVERY_BUDGET_MINUTES'), { recoveryBudgetSpent: true, resumeAfterMs: 0 }), cause: /the provider refused/, status: 'failed' },
     { name: 'stall', thrown: () => new DeadlineExceededError('no progress for 900000ms'), cause: /no progress/, status: 'failed' },
     { name: 'provider-fault', thrown: () => new Error('the provider closed the stream mid-turn'), cause: /closed the stream/, status: 'failed' },
     { name: 'kill', thrown: () => new AbortError(), cause: /stopped/, status: 'killed' },
@@ -777,7 +777,7 @@ section('R13 · a seat cut by the recovery budget resumes ONCE by itself, with a
     automaticResumePending?: (taskId: string) => boolean
   }
   const { AbortError } = await import('../../src/utils/errors.ts')
-  const budgetCut = () => Object.assign(new Error('the provider refused 3 times in a row (HTTP 429, busy) — the 5m retry budget is spent and the agent stopped; its work is kept — a message to it resumes it, or raise MERCURY_RECOVERY_BUDGET_MINUTES'), { recoveryBudgetSpent: true, resumeAfterMs: 0 })
+  const budgetCut = () => Object.assign(new Error('the provider refused 3 times in a row (HTTP 429, busy) — the 5m retry budget is spent and the crewmate stopped; its work is kept — a message to it resumes it, or raise MERCURY_RECOVERY_BUDGET_MINUTES'), { recoveryBudgetSpent: true, resumeAfterMs: 0 })
   check('the lifecycle reads a budget cut from the runner\'s own words', typeof lifecycle.recoveryBudgetCutOf === 'function' && lifecycle.recoveryBudgetCutOf?.(budgetCut()) !== null && lifecycle.recoveryBudgetCutOf?.(new Error('the provider closed the stream')) === null && lifecycle.recoveryBudgetCutOf?.(new AbortError()) === null)
   check('the arm and its pending read are the lifecycle\'s own exports', typeof lifecycle.armBudgetCutResume === 'function' && typeof lifecycle.automaticResumePending === 'function')
   if (typeof lifecycle.armBudgetCutResume === 'function' && typeof lifecycle.automaticResumePending === 'function') {

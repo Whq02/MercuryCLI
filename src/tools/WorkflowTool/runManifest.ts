@@ -217,7 +217,7 @@ export function groupAgentsByPhase<
         a.phaseTitle != null
           ? addLive(a.phaseIndex ?? nextIndex, a.phaseTitle)
           : (byIndex.get(UNPHASED_INDEX) ??
-            add({ index: UNPHASED_INDEX, title: 'Agents', planned: false, agents: [] }))
+            add({ index: UNPHASED_INDEX, title: 'Crewmates', planned: false, agents: [] }))
     }
     if (b.planned) b.planned = false
     b.agents.push(a)

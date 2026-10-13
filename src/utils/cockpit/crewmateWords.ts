@@ -43,7 +43,7 @@ export function crewmateEscBackWords(name: string, state: string): string {
 export type CrewmateViewedState = { name: string; live?: boolean } | null
 
 export function crewmateStatusWords(viewed: CrewmateViewedState, target: CrewmateWordsState, running: number): string {
-  const tail = ` · ${running} agent${running === 1 ? '' : 's'} running`
+  const tail = ` · ${running} crewmate${running === 1 ? '' : 's'} running`
   if (viewed === null || viewed.name === target.name) {
     return target.pinned
       ? `${MAIN_CHAT_WORD}: ${target.name} · ${LEAD_ROW_NAME} waits in the rail${tail}`

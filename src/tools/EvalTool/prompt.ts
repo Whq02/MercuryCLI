@@ -13,7 +13,7 @@ import { EVAL_TOOL_NAME } from './constants.js'
 export { EVAL_TOOL_NAME }
 
 export const EVAL_DESCRIPTION =
-  'Run one code cell in a retained Python or JavaScript runtime: state persists across cells, and code can call session tools, spawn agents, and make model completions from inside the cell.'
+  'Run one code cell in a retained Python or JavaScript runtime: state persists across cells, and code can call session tools, spawn crewmates, and make model completions from inside the cell.'
 
 export async function buildEvalPrompt(tools: Tools = []): Promise<string> {
   const availability = await primeEvalAvailability(getCwd())

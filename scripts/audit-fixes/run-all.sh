@@ -38,7 +38,7 @@ has src/daemon/ownedDaemon.ts 'renameWithWin32RetrySync(logPath, `${logPath}.1`)
 has src/utils/cockpit/critterVariant.ts 'assigned.size > 256' 'critter variant map FIFO-capped'
 has src/utils/cockpit/daemonSnapshot.ts "daemonControlRpc({ op: 'ping' }" 'daemonSnapshot folds a TTL-cached authoritative ping'
 has src/utils/cockpit/daemonSnapshot.ts 'control socket unresponsive' 'wedged-daemon downgrade (pid alive ≠ live)'
-has src/components/tasks/RunDetailPane.tsx "agents.length > 0 ? '↑↓ agent · ↵ inspect · ' : ''" 'run-detail ↵ hint conditional on rows'
+has src/components/tasks/RunDetailPane.tsx "agents.length > 0 ? '↑↓ crewmate · ↵ inspect · ' : ''" 'run-detail ↵ hint conditional on rows'
 if grep -rqF 'ctrl+t+c' "$root/src/components" "$root/src/commands"; then no 'dead ctrl+t+c chord still advertised somewhere'; else ok 'dead ctrl+t+c chord fully removed'; fi
 
 echo "############################################################"

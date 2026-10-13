@@ -37,7 +37,7 @@ export function runsCwd(): string {
 
 export const workflowAdapter: ResourceAdapter = {
   kind: 'workflow',
-  describe: 'workflow runs, phases, agents (mercury://workflow/<runId>?child=<agentId>)',
+  describe: 'workflow runs, phases, crewmates (mercury://workflow/<runId>?child=<agentId>)',
   async resolve(ref: ParsedRef, ctx: ResourceContext): Promise<ResourceResult> {
     if (ref.id === '') {
       const { rows: runs, unreadable } = await listWorkflowRunsDetailed(runsCwd(), { limit: 50 })
@@ -54,7 +54,7 @@ export const workflowAdapter: ResourceAdapter = {
           children: runs.map(r => ({
             ref: formatRef('workflow', r.runId),
             title: `${r.workflowName ?? r.title ?? r.runId}`,
-            summary: `${runLiveness(r, r.mtimeMs, Date.now(), pidAlive)} · ${r.agentCount} agent(s)`,
+            summary: `${runLiveness(r, r.mtimeMs, Date.now(), pidAlive)} · ${r.agentCount} crewmate(s)`,
           })),
         },
       }
@@ -71,7 +71,7 @@ export const workflowAdapter: ResourceAdapter = {
       if (!agent) {
         return {
           state: 'absent',
-          note: `run '${ref.id}' has no agent '${ref.selectors.child}' — agents: ${manifest.agents
+          note: `run '${ref.id}' has no crewmate '${ref.selectors.child}' — crewmates: ${manifest.agents
             .map(a => (a as { agentId?: string }).agentId)
             .join(', ')}`,
         }
@@ -112,7 +112,7 @@ export const workflowAdapter: ResourceAdapter = {
           )
           if (view.finalText) {
             parts.push(
-              running ? 'LATEST TEXT (agent still running — not final):' : 'OUTCOME:',
+              running ? 'LATEST TEXT (crewmate still running — not final):' : 'OUTCOME:',
               view.finalText,
             )
             if (view.finalTextTruncated) {
@@ -123,7 +123,7 @@ export const workflowAdapter: ResourceAdapter = {
               )
             }
           } else {
-            parts.push(running ? '(no outcome yet — agent running)' : '(agent produced no final text)')
+            parts.push(running ? '(no outcome yet — crewmate running)' : '(crewmate produced no final text)')
           }
           if (view.truncatedRead) parts.push('[transcript over the full-read ceiling — head+tail read]')
           text = parts.join('\n')
@@ -142,7 +142,7 @@ export const workflowAdapter: ResourceAdapter = {
         resource: {
           ref: `${ref.canonical}?child=${ref.selectors.child}`,
           kind: 'workflow',
-          title: `agent ${ref.selectors.child} in ${manifest.workflowName ?? ref.id}`,
+          title: `crewmate ${ref.selectors.child} in ${manifest.workflowName ?? ref.id}`,
           summary: `${ag.state ?? '?'} · ${ag.label ?? ''}`,
           mutable: false,
           text,
@@ -171,7 +171,7 @@ export const workflowAdapter: ResourceAdapter = {
         ref: ref.canonical,
         kind: 'workflow',
         title: manifest.workflowName ?? manifest.title ?? manifest.runId,
-        summary: `${liveness} · ${manifest.agentCount} agent(s) · ${manifest.totalTokens} tokens spent`,
+        summary: `${liveness} · ${manifest.agentCount} crewmate(s) · ${manifest.totalTokens} tokens spent`,
         version: `${manifest.status}-${manifest.agents.length}`,
         mutable: false,
         text: [
@@ -183,11 +183,11 @@ export const workflowAdapter: ResourceAdapter = {
           ...phases.map(p => {
             const label = p.index >= 0 ? `${p.index + 1}. ${p.title}` : p.title
             const body = p.planned
-              ? 'planned (no agents yet)'
-              : `${p.agents.length} agent(s): ${stateCounts(p.agents)}`
+              ? 'planned (no crewmates yet)'
+              : `${p.agents.length} crewmate(s): ${stateCounts(p.agents)}`
             return `  ${label} — ${body}`
           }),
-          `agents (${manifest.agents.length}):`,
+          `crewmates (${manifest.agents.length}):`,
           ...manifest.agents.slice(0, 50).map(a => {
             const ag = a as {
               agentId?: string
@@ -212,7 +212,7 @@ export const workflowAdapter: ResourceAdapter = {
           const ag = a as { agentId?: string; label?: string; state?: string }
           return {
             ref: `${ref.canonical}?child=${ag.agentId}`,
-            title: `agent ${ag.agentId}`,
+            title: `crewmate ${ag.agentId}`,
             summary: `${ag.state ?? '?'}${ag.label ? ` · ${ag.label}` : ''}`,
           }
         }),

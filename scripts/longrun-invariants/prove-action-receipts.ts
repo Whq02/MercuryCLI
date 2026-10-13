@@ -132,9 +132,9 @@ section('§B the panes read the receipt (note wiring pins)')
   check('the owner forks every action on the store receipt',
     (tool.match(/receipt === 'applied'/g) ?? []).length >= 4 &&
       tool.includes("'already settled — nothing to stop'") &&
-      tool.includes("'the agent already settled — nothing to kill'") &&
-      tool.includes("'the agent already settled — nothing to skip'") &&
-      tool.includes("'the agent already settled — nothing to retry'"))
+      tool.includes("'the crewmate already settled — nothing to kill'") &&
+      tool.includes("'the crewmate already settled — nothing to skip'") &&
+      tool.includes("'the crewmate already settled — nothing to retry'"))
 }
 
 rmSync(process.env.MERCURY_CONFIG_DIR!, { recursive: true, force: true })

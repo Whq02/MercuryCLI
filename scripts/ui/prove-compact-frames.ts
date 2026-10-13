@@ -27,7 +27,7 @@ for (const [cols, rows] of sizes) {
   if (!Number.isInteger(cols) || !Number.isInteger(rows) || cols! < 1 || rows! < 1) throw new Error('size must be positive columns x rows')
   const tag = `compact-frame-${cols}-${rows}`
   const summaryWords = compactWorkSummaryText({ sessionsOn: 1, monitorsHere: 0, agentsHere: 0 }, cols! - (stringWidth(keyHintLabel('⇧← boot face')) + 1))
-  const summaryNeedle = summaryWords.includes('agents here') ? 'agents here' : 'A:'
+  const summaryNeedle = summaryWords.includes('crewmates here') ? 'crewmates here' : 'C:'
   const leg = await startLeg(tag, [], null)
   try {
     const result = await drive(driver, leg, { cols: cols!, rows: rows! }, [
@@ -44,7 +44,7 @@ for (const [cols, rows] of sizes) {
     check(`${cols}x${rows}: no size refusal replaced the chat`, !/resize to continue|terminal too small|too small for|needs \d+(?: columns|[×x]\d+)/.test(joined(frame)))
     const modelRows = frame.map((line, index) => line.includes('Opus 5') ? index : -1).filter(index => index >= 0)
     check(`${cols}x${rows}: the model appears on one chrome row`, modelRows.length === 1, JSON.stringify(modelRows))
-    const summaryRows = frame.map((line, index) => /^(?:\d+ sessions? on · \d+ monitors? here · \d+ agents? here|S:\d+ · M:\d+ · A:\d+)(?:\s+(?:⇧← |shift\+← )(?:boot face|concourse))?$/.test(line.trim()) ? index : -1).filter(index => index >= 0)
+    const summaryRows = frame.map((line, index) => /^(?:\d+ sessions? on · \d+ monitors? here · \d+ crewmates? here|S:\d+ · M:\d+ · C:\d+)(?:\s+(?:⇧← |shift\+← )(?:boot face|concourse))?$/.test(line.trim()) ? index : -1).filter(index => index >= 0)
     check(`${cols}x${rows}: exactly one scoped summary`, summaryRows.length === 1, JSON.stringify(summaryRows))
     check(`${cols}x${rows}: summary never invents a question-mark count`, summaryRows.length === 1 && !frame[summaryRows[0]!]!.includes('?'))
     const editor = frame.findIndex(line => line.includes('compact-draft'))

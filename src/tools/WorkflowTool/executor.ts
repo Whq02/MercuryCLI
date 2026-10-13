@@ -370,7 +370,7 @@ export function deriveWorkflowTerminalStatus(input: {
     const firstWords = first.length > 240 ? `${first.slice(0, 240)}…` : first
     return {
       status: 'failed',
-      derivedError: `all ${input.agentCount} agent(s) failed (${input.failures.length} failure(s) recorded) — the script returned, but no agent work succeeded; first: ${firstWords || 'no cause recorded'}`,
+      derivedError: `all ${input.agentCount} crewmate(s) failed (${input.failures.length} failure(s) recorded) — the script returned, but no crewmate work succeeded; first: ${firstWords || 'no cause recorded'}`,
     }
   }
   return { status: 'completed_with_failures' }
@@ -590,7 +590,7 @@ export function makeSubWorkflowCallable(deps: SubWorkflowDeps) {
         Promise.reject(
           new Error(
             'workflow() cannot be called from within a child workflow — nesting is limited to one level. ' +
-              'Inline the inner script or call its agents directly.',
+              'Inline the inner script or call its crewmates directly.',
           ),
         ),
     }

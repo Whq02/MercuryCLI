@@ -13,4 +13,4 @@ export const RESET_SHORT_SECONDS = 25
 export const MODELS_FAIL_FLAG = 'models-fail.flag'
 export const WINDOW_WORDS = 'usage window is reached'
 export const CATALOGUE_WORDS = 'live catalogue'
-export const REFUSAL_HEAD = 'Agent dispatch refused'
+export const REFUSAL_HEAD = 'Crewmate dispatch refused'

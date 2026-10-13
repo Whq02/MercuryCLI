@@ -62,11 +62,11 @@ function overloadStatusWords(status: number | null): string {
 }
 
 export function overloadPauseWords(who: string, scale: number = overloadProbeScale(), status: number | null = 529): string {
-  return `${who} is overloaded${overloadStatusWords(status)} — Mercury probes it for up to ${overloadProbeWindowWords(scale)} and resumes the agent when it answers`
+  return `${who} is overloaded${overloadStatusWords(status)} — Mercury probes it for up to ${overloadProbeWindowWords(scale)} and resumes the crewmate when it answers`
 }
 
 export function overloadNoticeWords(description: string, who: string, scale: number = overloadProbeScale(), status: number | null = 529): string {
-  return `Agent "${description}" paused — ${who} is overloaded${overloadStatusWords(status)}; its work so far is kept and rides below; Mercury probes the provider for up to ${overloadProbeWindowWords(scale)} and resumes the agent by itself when it answers — a message resumes it sooner; the crew view stops it`
+  return `Crewmate "${description}" paused — ${who} is overloaded${overloadStatusWords(status)}; its work so far is kept and rides below; Mercury probes the provider for up to ${overloadProbeWindowWords(scale)} and resumes the crewmate by itself when it answers — a message resumes it sooner; the crew view stops it`
 }
 
 export const AGENT_OVERLOAD_RESUME_NOTE =

@@ -3,7 +3,7 @@ WORKBENCH               │                                                     
   no prompts sent yet   │ ╭──────────────────────────────────────────────────────────────────────────────────────────╮ │
                         │ │ ▖▟▆▙▗ Mercury · config                                                                   │ │
 NEXT                    │ │ project · 65 settings · 2 set by you                                                     │ │
-  · /workflows — agent …│ │                                                                                          │ │
+  · /workflows — crewma…│ │                                                                                          │ │
   · /health — health ce…│ │ / think                                                                                  │ │
   · /memory — memory    │ │                                                                                          │ │
   · /mission — set a mi…│ │ › Thinking                          n/a — Sonnet 5.5 keeps thinking on                   │ │

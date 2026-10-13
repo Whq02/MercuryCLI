@@ -99,7 +99,7 @@ export class WorkflowAgentCapError extends Error {
 export class WorkflowBudgetExceededError extends Error {
   constructor(spent: number, total: number) {
     super(
-      `Workflow token budget exceeded (${spent.toLocaleString()} / ${total.toLocaleString()} output tokens). Stopping further agent() calls. In-flight agents will complete; their results are preserved.`,
+      `Workflow token budget exceeded (${spent.toLocaleString()} / ${total.toLocaleString()} output tokens). Stopping further agent() calls. In-flight crewmates will complete; their results are preserved.`,
     )
     this.name = 'WorkflowBudgetExceededError'
   }
@@ -131,7 +131,7 @@ export function buildSubagentSchemaPrompt(): string {
 
 export const WORKFLOW_SUBAGENT_DEF = {
   agentType: 'workflow-subagent',
-  whenToUse: 'Internal subagent for workflow script orchestration.',
+  whenToUse: 'Internal crewmate for workflow script orchestration.',
   source: 'built-in',
   baseDir: 'built-in',
   tools: ['*'],
@@ -513,7 +513,7 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
     const found = registry.find(a => a.agentType === type)
     if (!found) {
       throw new Error(
-        `No agent type named '${type}'; this session offers: ${registry.map(a => a.agentType).join(', ')}`,
+        `No crewmate type named '${type}'; this session offers: ${registry.map(a => a.agentType).join(', ')}`,
       )
     }
     const ownPrompt =
@@ -1128,7 +1128,7 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
               : left <= 0
                 ? 'resuming now'
                 : `retries by itself at ${clockOf(resetsAtMs as number)} (in ${formatQuietAge(left)})`
-          return `paused — ${words}; ${when}; /model switches this agent, /workflows stops it`
+          return `paused — ${words}; ${when}; /model switches this crewmate, /workflows stops it`
         }
         const pausedFrame = (): void => emitFrame('progress', { waiting: 'usage-window', waitWords: pausedWords(), ...settledTotals(elapsed) })
         pausedFrame()
@@ -1501,7 +1501,7 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
             ? ` — ${report.schemaCallCount} ${STRUCTURED_OUTPUT_TOOL_NAME} validation ${plural(report.schemaCallCount, 'failure')} (last input: ${clip(JSON.stringify(report.lastSchemaCallInput), 300)})`
             : ''
         log(
-          `[stall] agent "${label}" ${why} after ${Math.round(report.durationMs / 1000)}s${schemaNote} — retrying (${a}/${MAX_STALL_RETRIES})`,
+          `[stall] crewmate "${label}" ${why} after ${Math.round(report.durationMs / 1000)}s${schemaNote} — retrying (${a}/${MAX_STALL_RETRIES})`,
         )
         foldIn(report)
         const resumable = cutKind === 'stalled' ? balancedTranscriptPrefix(report.transcript) : null
@@ -1524,10 +1524,10 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
         const allStalled = cutTrail.every(r => r === 'stalled')
         throw new Error(
           allUserRetry
-            ? `agent abandoned: user requested retry on all ${n} attempts`
+            ? `crewmate abandoned: user requested retry on all ${n} attempts`
             : allStalled
-              ? `agent stalled on all ${n} attempts (no progress for ${stallMs}ms each)`
-              : `agent abandoned after ${n} attempts (${cutTrail.join(' → ')})`,
+              ? `crewmate stalled on all ${n} attempts (no progress for ${stallMs}ms each)`
+              : `crewmate abandoned after ${n} attempts (${cutTrail.join(' → ')})`,
         )
       }
       if (report.apiError) {
@@ -1541,7 +1541,7 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
         while (report.structured === undefined && nudges < MAX_STRUCTURED_OUTPUT_NUDGES) {
           nudges++
           log(
-            `[${label}] subagent stopped without calling ${STRUCTURED_OUTPUT_TOOL_NAME} — corrective re-prompt ${nudges}/${MAX_STRUCTURED_OUTPUT_NUDGES} (same conversation)`,
+            `[${label}] crewmate stopped without calling ${STRUCTURED_OUTPUT_TOOL_NAME} — corrective re-prompt ${nudges}/${MAX_STRUCTURED_OUTPUT_NUDGES} (same conversation)`,
           )
           foldIn(report)
           report = await attempt(
@@ -1556,7 +1556,7 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
           if (report.skipped) return null
           if (report.stallCut) {
             throw new Error(
-              `agent({schema}): corrective re-prompt ${nudges} stalled (no progress for ${stallMs}ms) after the subagent stopped without calling ${STRUCTURED_OUTPUT_TOOL_NAME}`,
+              `agent({schema}): corrective re-prompt ${nudges} stalled (no progress for ${stallMs}ms) after the crewmate stopped without calling ${STRUCTURED_OUTPUT_TOOL_NAME}`,
             )
           }
           if (report.apiError) {
@@ -1568,7 +1568,7 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
         }
         if (report.structured === undefined) {
           throw new Error(
-            `agent({schema}): subagent completed without calling ${STRUCTURED_OUTPUT_TOOL_NAME} (after ${nudges} in-conversation corrective re-prompt${nudges === 1 ? '' : 's'})`,
+            `agent({schema}): crewmate completed without calling ${STRUCTURED_OUTPUT_TOOL_NAME} (after ${nudges} in-conversation corrective re-prompt${nudges === 1 ? '' : 's'})`,
           )
         }
         return clone(report.structured)

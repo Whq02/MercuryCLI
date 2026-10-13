@@ -53,7 +53,7 @@ const receipt: Message = {
   timestamp: stamp(),
   message: {
     role: 'user',
-    content: [{ type: 'tool_result', tool_use_id: 'toolu_sleep', content: [{ type: 'text', text: `${lr.BACKGROUND_LAUNCH_LINE}\nagentId: agent-sleep (internal — do not mention it to the user). To continue this agent, use SendMessage addressed to that id.\nThe agent is working in the background — you will be notified automatically when it completes.` }] }],
+    content: [{ type: 'tool_result', tool_use_id: 'toolu_sleep', content: [{ type: 'text', text: `${lr.BACKGROUND_LAUNCH_LINE}\nagentId: agent-sleep (internal — do not mention it to the user). To continue this crewmate, use SendMessage addressed to that id.\nThe crewmate is working in the background — you will be notified automatically when it completes.` }] }],
   },
 } as unknown as Message
 const userRow = (text: string): Message => ({ type: 'user', uuid: `u-${++n}`, timestamp: stamp(), message: { role: 'user', content: text } }) as unknown as Message
@@ -76,7 +76,7 @@ section("§1 the restart row the carry queues (RELEASE-29-AIR R29A-05c: it paint
 const queued = queue.getCommandQueue().filter(command => command.mode === 'task-notification')
 const text = queued.map(command => (typeof command.value === 'string' ? command.value : '')).find(value => lr.isRestartCarryRow(value)) ?? ''
 check('the carry queued one restart row for the orphaned launch', outcome.row !== null && outcome.stopped === 1 && text !== '', JSON.stringify({ outcome, queued: queued.map(c => c.value) }))
-check('the words are the ruled words, unchanged', outcome.row === 'runner restarted after a crash: 0 background agents relaunched, 0 delivered from their receipts, 1 stopped' && text.includes(outcome.row ?? '!'), text)
+check('the words are the ruled words, unchanged', outcome.row === 'runner restarted after a crash: 0 background crewmates relaunched, 0 delivered from their receipts, 1 stopped' && text.includes(outcome.row ?? '!'), text)
 check('the row carries the system marker the siblings carry (a hook block, a monitor notice): a system-reminder envelope', text.startsWith('<system-reminder>\n') && text.endsWith('\n</system-reminder>'), text)
 const folded = noticeOfText(text, false)
 check('the message the idle turn builds from it folds as a notice OFF the notification lane (the painter draws no operator plate)', folded !== null && folded[0]!.kind === 'notice' && folded[0]!.lines[0] === outcome.row, JSON.stringify(folded))

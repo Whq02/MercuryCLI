@@ -191,7 +191,7 @@ function WorkRowLine({ work }: { work: WorkRowV1 }): React.ReactNode {
         </Text>
       ) : null}
       {work.kind === 'workflow' && (work.agentCount ?? 0) > 0 ? (
-        <Text color={tokens.textMuted}> · {work.agentCount} agents</Text>
+        <Text color={tokens.textMuted}> · {work.agentCount} crewmates</Text>
       ) : null}
       {(work.pendingAsks ?? 0) > 0 ? (
         <Text color={tokens.warning}> · {CREW_ASK_WAIT_WORDS}{(work.pendingAsks ?? 0) > 1 ? ` (${work.pendingAsks} asks)` : ''}</Text>
@@ -249,7 +249,7 @@ export function RosterWorkDetail({
     if (work.model !== undefined) rows.push({ k: 'model', v: work.model, tone: tokens.textPrimary })
     if ((work.totalTokens ?? 0) > 0) rows.push({ k: 'tokens', v: `${GLYPH.tokens} ${formatTokens(work.totalTokens ?? 0)} spent`, tone: tokens.textPrimary })
   }
-  if (work.kind === 'workflow' && (work.agentCount ?? 0) > 0) rows.push({ k: 'agents', v: String(work.agentCount), tone: tokens.textPrimary })
+  if (work.kind === 'workflow' && (work.agentCount ?? 0) > 0) rows.push({ k: 'crewmates', v: String(work.agentCount), tone: tokens.textPrimary })
   return (
     <Box flexDirection="column">
       {work.description !== undefined ? (
@@ -535,7 +535,7 @@ export function BackgroundTasksDialog({
       const agent = detailTask as LocalAgentTaskState
       return (
         <CommandCenter elevated
-          view={`agent › ${agent.description !== '' ? agent.description : agent.agentType}`}
+          view={`crewmate › ${agent.description !== '' ? agent.description : agent.agentType}`}
           onClose={onDone}
           captureInput={false}
         >
@@ -761,7 +761,7 @@ export function BackgroundTasksDialog({
             ) : null}
             {agentItems.length > 0 ? (
               <Box flexDirection="column">
-                <SectionHeader count={agentItems.length}>Agents</SectionHeader>
+                <SectionHeader count={agentItems.length}>Crewmates</SectionHeader>
                 {agentItems.filter(inWin).map(rowFor)}
               </Box>
             ) : null}
@@ -856,7 +856,7 @@ function CompactSessionOverview(): React.ReactNode {
     <SectionHeader>Activity</SectionHeader>
     <Text>{active}</Text>
     <Text>{compactWorkSummaryText(counts, Number.POSITIVE_INFINITY)}</Text>
-    <Text dimColor>Sessions are live, unpaused conversations; agents and monitors belong to the focused chat.</Text>
+    <Text dimColor>Sessions are live, unpaused conversations; crewmates and monitors belong to the focused chat.</Text>
     <Text dimColor>{snapshot.state === 'known' ? `Session snapshot: ${snapshot.rows.length} retained records, ${refreshedAt ? new Date(refreshedAt).toLocaleTimeString() : 'not sampled'}` : 'Session snapshot unavailable'}</Text>
   </Box>
 }

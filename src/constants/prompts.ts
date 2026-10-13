@@ -86,7 +86,7 @@ export async function computeEnvInfo(
   const scratchpad =
     agentId === undefined
       ? scratchpadPromptLine(ensureScratchpadDir())
-      : scratchpadPromptLine(ensureScratchpadDir(agentId), 'agent')
+      : scratchpadPromptLine(ensureScratchpadDir(agentId), 'crewmate')
   const cutoff = knowledgeCutoffSentence(modelId)
   const currency = `\n\n${MODEL_CURRENCY_NOTE} ${PROVIDER_SKILL_PRECEDENCE}`
   return `The environment this session runs in:
@@ -148,7 +148,7 @@ export async function enhanceSystemPromptWithEnvDetails(
     'Notes:',
     ...prependBullets([
       BATCHING_INSTRUCTION,
-      `In an agent thread the ${BASH_TOOL_NAME} tool's working directory does not survive between calls: pass absolute paths.`,
+      `In a crewmate thread the ${BASH_TOOL_NAME} tool's working directory does not survive between calls: pass absolute paths.`,
       'In your final response, name the file paths that matter, always absolute. Quote code only where the literal characters carry the point — a defect you located, a signature the caller asked to see — never as a retelling of code you simply read.',
       'Do not use emoji.',
       'Do not write a colon before a tool call: "Let me read the file:" followed by a read becomes "Let me read the file." with a period.',

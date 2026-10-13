@@ -283,7 +283,7 @@ export function compatTerminalFaultText(
     case 'rate_limit': {
       const asked =
         fault.retryAfterMs !== undefined
-          ? ` — the provider asks for a ${patienceSeconds(fault.retryAfterMs)} wait${providerWaitIsWindow(fault.retryAfterMs) ? ', past the retry budget: a dispatched agent pauses until then' : ''}`
+          ? ` — the provider asks for a ${patienceSeconds(fault.retryAfterMs)} wait${providerWaitIsWindow(fault.retryAfterMs) ? ', past the retry budget: a dispatched crewmate pauses until then' : ''}`
           : ''
       return `${API_ERROR_MESSAGE_PREFIX}: ${profile.providerLabel} is rate-limiting this account (${detail})${asked} — retry in a moment, or /model picks another model meanwhile.`
     }

@@ -50,7 +50,7 @@ const publish = (work: typeof running | [], atMs = Date.now()): void =>
 
 console.log('— K1 the derive —')
 {
-  check('K1 the chip text speaks the board vocabulary', tiles.workChipTextOf({ work: running as never }) === '1 workflow · 2 agents · 1 ask running', tiles.workChipTextOf({ work: running as never }) ?? 'null')
+  check('K1 the chip text speaks the board vocabulary', tiles.workChipTextOf({ work: running as never }) === '1 workflow · 2 crewmates · 1 ask running', tiles.workChipTextOf({ work: running as never }) ?? 'null')
   check('K1 a session running nothing has NO chip', tiles.workChipTextOf({ work: [] }) === null && tiles.workChipTextOf(null) === null)
   check('K1 a facts answer with NO work (the skeleton before the runner\'s first answer) paints the unknown mark, never silence read as idle', tiles.workChipTextOf({}) === '—')
   check('K1 a settled-only roster has NO chip', tiles.workChipTextOf({ work: [running[3]!] as never }) === null)
@@ -68,7 +68,7 @@ console.log('— K2/K3 the feed —')
   await wait(400)
   store._drainForTesting()
   const first = store.readTile(SID)
-  check('K2 a publish with work paints the chip', first.kind !== 'still' && (first as { line: string }).line === '1 workflow · 2 agents · 1 ask running', JSON.stringify(first))
+  check('K2 a publish with work paints the chip', first.kind !== 'still' && (first as { line: string }).line === '1 workflow · 2 crewmates · 1 ask running', JSON.stringify(first))
   check('K2 …and the listener heard it once', pings === 1, `pings=${pings}`)
 
   publish(running, now + 500)

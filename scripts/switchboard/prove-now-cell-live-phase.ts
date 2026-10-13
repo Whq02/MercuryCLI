@@ -116,7 +116,7 @@ section('§2 THE LIVE TILE — the NOW cell reads the seat\'s phase facts (the s
   publish({ stateWord: 'compacting' })
   check('the fold\'s word outranks everything', (store.readTile('s-air') as { line?: string }).line === 'compacting', j(store.readTile('s-air')))
   publish({ stateWord: 'waiting-on-agents', waitingOnAgents: 2 })
-  check('the agent wait names the count', (store.readTile('s-air') as { line?: string }).line === 'waiting on 2 agents', j(store.readTile('s-air')))
+  check('the agent wait names the count', (store.readTile('s-air') as { line?: string }).line === 'waiting on 2 crewmates', j(store.readTile('s-air')))
   publish({ streamBlock: 'tool_use', blockSinceMs: clock })
   check('a tool call being written reads writing', (store.readTile('s-air') as { line?: string }).line === 'writing', j(store.readTile('s-air')))
   publish({ streamBlock: 'text', blockSinceMs: clock, text: 'The folder is empty, so I will create' })

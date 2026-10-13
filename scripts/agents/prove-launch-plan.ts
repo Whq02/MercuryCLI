@@ -87,7 +87,7 @@ section('§2 — lookup, restriction, and the denial band')
   }
   check(
     'unknown type → the not-found error lists the available roster',
-    err?.message === `No agent type named 'no-such-agent'; this session offers: mercury-scout, mercury-crew, legacy-haiku-role, bg-role`,
+    err?.message === `No crewmate type named 'no-such-agent'; this session offers: mercury-scout, mercury-crew, legacy-haiku-role, bg-role`,
     err?.message,
   )
   const realRoster = getBuiltInAgents() as never[]
@@ -101,7 +101,7 @@ section('§2 — lookup, restriction, and the denial band')
   }
   const madeUp = refusalFor('mercury-frobnicate')
   check('the real built-in roster is mercury-crew and mercury-scout', realRoster.map(a => (a as { agentType: string }).agentType).join(',') === 'mercury-crew,mercury-scout')
-  check('a made-up type is refused as not found, naming the two built-ins', madeUp === `No agent type named 'mercury-frobnicate'; this session offers: mercury-crew, mercury-scout`, madeUp)
+  check('a made-up type is refused as not found, naming the two built-ins', madeUp === `No crewmate type named 'mercury-frobnicate'; this session offers: mercury-crew, mercury-scout`, madeUp)
   for (const spelling of ['mercury-' + 'general', 'general-' + 'purpose', 'mercury-' + 'background', 'mercury-' + 'architect', 'mercury-' + 'guide', 'mercury-' + 'reviewer', 'mercury-' + 'verifier', 'verification']) {
     check(`'${spelling}' is unknown exactly as mercury-frobnicate is`, refusalFor(spelling) === madeUp.replace('mercury-frobnicate', spelling), refusalFor(spelling))
   }
@@ -118,7 +118,7 @@ section('§2 — lookup, restriction, and the denial band')
   }
   check(
     'denied type → the denial error names the rule and its source',
-    err?.message === 'The mercury-scout agent is denied by the rule Crewmate(mercury-scout) in your user settings.',
+    err?.message === 'The mercury-scout crewmate is denied by the rule Crewmate(mercury-scout) in your user settings.',
     err?.message,
   )
 
@@ -130,7 +130,7 @@ section('§2 — lookup, restriction, and the denial band')
   }
   check(
     'a Crewmate(x,y) tool-spec restriction excludes unlisted types (the denied-by-rule sentence)',
-    err?.message === 'The mercury-scout agent is denied by the rule Crewmate(mercury-scout).',
+    err?.message === 'The mercury-scout crewmate is denied by the rule Crewmate(mercury-scout).',
     err?.message,
   )
 

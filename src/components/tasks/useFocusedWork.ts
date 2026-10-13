@@ -162,7 +162,7 @@ export function compactWorkSummaryText(counts: CompactWorkCounts, columns: numbe
   const parts = [
     { value: counts.sessionsOn, noun: 'session', scope: 'on', short: 'S' },
     { value: counts.monitorsHere, noun: 'monitor', scope: 'here', short: 'M' },
-    { value: counts.agentsHere, noun: 'agent', scope: 'here', short: 'A' },
+    { value: counts.agentsHere, noun: 'crewmate', scope: 'here', short: 'C' },
   ]
   const available = parts.filter(part => part.value !== null)
   const unavailable = available.length !== parts.length

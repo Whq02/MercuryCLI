@@ -103,7 +103,7 @@ export function AsyncAgentDetailDialog({
   return (
     <Box flexDirection="column" tabIndex={-1}>
       <Text bold>
-        {agent.agentType !== '' ? agent.agentType : 'agent'}
+        {agent.agentType !== '' ? agent.agentType : 'crewmate'}
         <Text dimColor>
           {' · '}
           {agent.description !== '' ? agent.description : 'background task'}
