@@ -13,6 +13,7 @@ import { candidates, rankCandidates } from './mnemeLookup.js'
 import { noteCorrected, noteRetained } from './lineageSession.js'
 import { currentLedger, footnoteContext, footnotesOf, renderLedgerEntry, type Footnotes } from './mnemeFootnotes.js'
 import type { LedgerEntry } from './types.js'
+import { factMemoryState, type MemoryRef } from './memoryRefs.js'
 
 function allDocs(dir: string): MnemeTopicDoc[] {
   return [...listTopicDocs(dir), ...listArchiveDocs(dir)]
@@ -152,6 +153,8 @@ export interface RecallHit {
   slug: string
   preview: string
   signature: string
+  status?: MemoryRef['status']
+  confirmedAt?: string
 }
 
 export interface RecallResult {
@@ -182,13 +185,13 @@ function historyStartLine(slug: string, dir: string, cache: Map<string, number>)
 
 export function recallQuery(
   query: string,
-  opts: { limit?: number; dir?: string } = {},
+  opts: { limit?: number; dir?: string; now?: Date } = {},
 ): RecallResult {
   const dir = opts.dir ?? mnemeLibraryDir()
   const limit = Math.min(Math.max(opts.limit ?? 12, 1), 50)
   const hits: RecallHit[] = []
   const historyStarts = new Map<string, number>()
-  for (const hit of grepAll(query, { maxHits: limit, dir })) {
+  for (const hit of grepAll(query, { maxHits: Infinity, dir })) {
     if (hit.slug !== PENDING_SLUG && hit.line >= historyStartLine(hit.slug, dir, historyStarts)) {
       continue
     }
@@ -247,8 +250,15 @@ export function recallQuery(
     .filter(row => row.slug.includes(query.toLowerCase()) || row.summary.toLowerCase().includes(query.toLowerCase()))
     .slice(0, 6)
     .map(row => ({ slug: row.slug, summary: row.summary }))
-  bumpUsage(hits.map(h => /^seq:(\d+)$/.exec(h.id)).filter((m): m is RegExpExecArray => m !== null).map(m => Number(m[1])), dir)
-  return { hits, elidable: hits.length === 0, catalog: catalogRows }
+  const pins = readPins(dir)
+  const usage = readUsage(dir)
+  const entries = new Map(allDocs(dir).flatMap(doc => doc.sections.flatMap(section => section.entries.map(entry => [`seq:${entry.seq}`, entry] as const))))
+  for (const hit of hits) {
+    const entry = entries.get(hit.id)
+    if (entry) Object.assign(hit, factMemoryState(entry, { pins, usage, now: opts.now }))
+  }
+  hits.sort((a, b) => Number(a.status === 'stale') - Number(b.status === 'stale'))
+  return { hits: hits.slice(0, limit), elidable: hits.length === 0, catalog: catalogRows }
 }
 
 
