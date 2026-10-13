@@ -7,6 +7,14 @@ export function cliError(msg?: string): never {
   return undefined as never
 }
 
+export function cliJsonError(msg?: string): never {
+  if (msg !== undefined) {
+    process.stdout.write(`${msg}\n`)
+  }
+  process.exit(1)
+  return undefined as never
+}
+
 export function cliOk(msg?: string): never {
   if (msg !== undefined) {
     process.stdout.write(`${msg}\n`)

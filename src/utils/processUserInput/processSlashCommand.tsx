@@ -478,7 +478,7 @@ export async function processSlashCommand(
       }
     }
     if (looksLikeCommand(commandName) && !isExistingPath(`/${commandName}`)) {
-      const unknownLine = `${UNKNOWN_COMMAND_PREFIX}: ${commandName}`
+      const unknownLine = unknownCommandLine(commandName, commands)
       const messages: Message[] = [
         caveat,
         ...attachmentMessages,
@@ -492,7 +492,7 @@ export async function processSlashCommand(
           ),
         )
       }
-      return { messages, shouldQuery: false, resultText: unknownLine }
+      return { messages, shouldQuery: false, resultText: unknownLine, commandRefused: true }
     }
     const promptMessage = createUserMessage({
       content: inputString,

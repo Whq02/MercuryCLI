@@ -69,7 +69,7 @@ const sameAnswer = (control: Run, probe: Run, controlWord: string, probeWord: st
 section('§1 the command roster: an unregistered planning word answers as any unknown name')
 {
   const control = await run(['run', '/frobnicate'])
-  check('control: the headless door answers an unregistered name with its unknown-name sentence', control.code === 0 && /frobnicate/.test(control.out + control.err), JSON.stringify(control))
+  check('control: the headless door refuses an unregistered name with its unknown-command sentence (exit 1, the .34 ruling)', control.code === 1 && control.out === '' && /Unknown command: \/frobnicate/.test(control.err), JSON.stringify(control))
   for (const word of ['strategy', 'plan']) {
     const probe = await run(['run', `/${word}`])
     check(`/${word} answers exactly as /frobnicate does (same words, same exit code)`, sameAnswer(control, probe, 'frobnicate', word), JSON.stringify({ control, probe }))

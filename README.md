@@ -428,9 +428,10 @@ mercury run "Summarise this repository." --format rows
   `text`, `reasoning`, `tool_call`, `tool_result` and `step` rows, ending in
   `outcome`. Waits, tool progress, background tasks and notices have their
   own rows. Every row carries `seq`, `timestamp` and `session_id`; rows
-  within a turn also carry its `turn` number. `seq` and `turn` count from 1
-  in every run: a run that continues a stored conversation (`-c`, `-r`)
-  starts them again, and its `session` row names the conversation it
+  within a turn also carry its `turn` number. `seq` numbers this run's
+  stream from 1; `turn` counts the session's turns, so a run that continues
+  a stored conversation (`-c`, `-r`, `--fork`) numbers its turn after the
+  turns already in it, and its `session` row names the conversation it
   continues in `resume_of`.
 
 The output row types, by their `type` field:
@@ -468,6 +469,9 @@ The output row types, by their `type` field:
 - `step` — one model call of the main thread: `message_id`, `model`, `usage`,
   and `stop` when the model said why it stopped.
 - `outcome` — the turn's result, described below.
+- `close` — the note left for the next session at close: `state` (`stored`,
+  `skipped` or `none`), `note_chars`, and the `usage` of the model calls that
+  wrote it, so a reader summing every row's usage reaches the outcome's.
 - `wait` — a wait on the model: `state` (`first_byte`, `retry`, `silence`,
   `loading` or `done`) with the figures that state carries, such as
   `since_ms`, `attempt` and `of`, `delay_ms`, `reason` and `http_status`.
@@ -507,7 +511,9 @@ can exceed `wall_ms` when requests overlapped. `cost_usd` is the USD of the turn
 requests, whatever the status: a request Mercury cannot price (no rate on
 file, no cost stated on the wire) adds nothing to it and leaves its model
 listed in `models` without a `cost_usd` of its own; the field is absent only
-when nothing in the turn was priced. Usage names `input_tokens` (cached tokens included),
+when nothing in the turn was priced. On a Claude subscription sign-in the
+Anthropic requests have no dollar price, so neither they nor the row carry a
+`cost_usd` — the usage stays. Usage names `input_tokens` (cached tokens included),
 `cached_input_tokens`, `cache_write_input_tokens`, `output_tokens` and,
 when reported, `reasoning_output_tokens`, summed over the main thread and
 the crewmates. `models` gives the per-model figures; `steps` counts the main
@@ -519,10 +525,17 @@ The status is `completed`, `blocked`, `refused`, `failed`, `interrupted`,
 `turn_limit`, `budget_limit`, `schema_unmet` or `loop_stopped`. A completed
 run exits 0, other outcomes exit 1, and a usage error exits 2. SIGINT and
 SIGTERM exit 130 and 143 after the interrupted turn's outcome is flushed. A
-refused tool call is listed in `denials`; it does not make a completed turn a
-failure. A run whose final answer ends with the two lines `BLOCKED ON
-OPERATOR: …` and `RESUME WHEN: …` is `blocked`: the answer is kept, `error`
-carries the blocker and the resume condition, and the run exits 1.
+refused tool call is listed in `denials`. When the refusal was an ask nobody
+could answer — a run with no host in a mode that asks, `--mode dontAsk`, or a
+host's ask that expired — the run is `blocked`: the answer is kept, `error`
+names the tool and how to resume (`--allowed-tools`, another `--mode`, or a
+host that answers asks), and the run exits 1. A refusal the operator did
+answer — a deny rule, a hook, a host that said no — leaves a completed turn
+completed. A run whose final answer ends with the two lines `BLOCKED ON
+OPERATOR: …` and `RESUME WHEN: …` is `blocked` the same way: `error` carries
+the blocker and the resume condition, and the run exits 1. An unknown slash
+command is `refused` with the same sentence the cockpit gives (`Unknown
+command: /name · /help lists commands`) and exits 1.
 
 `--input rows` requires `--format rows` and reads one input object per line:
 
@@ -538,8 +551,10 @@ produces a `notice` with code `input_refused`; malformed JSON ends the run.
 These are input rows, not permission answers.
 
 Use `mercury run -` or pipe text into `mercury run` to read the whole prompt
-from stdin. Beside a prompt argument, piped text is collected for up to one
-second and appended as delimited context. With no prompt and a terminal on
+from stdin. Beside a prompt argument, piped text is appended as delimited
+context: the pipe is read until it closes or has been silent for one second,
+so a stream that keeps delivering is read to its end and a pipe that stays
+open and silent does not hold the run. With no prompt and a terminal on
 stdin, `run` prints its usage and exits 2.
 
 `--mode <mode>` selects the permission posture. `--sovereign` runs without
@@ -651,7 +666,11 @@ Available commands include:
   [docs/VULCAN-GODOT-TOOLS.md](docs/VULCAN-GODOT-TOOLS.md).
 - **`mercury image <image>`**: display an image in the terminal.
 - **`mercury install`** and **`mercury update`** (alias `upgrade`): install or
-  update release archives. See [Install](#install).
+  update release archives; with `--json` the document is on stdout whatever
+  the verdict, and the exit code says whether it failed. See [Install](#install).
+- **`mercury version`** and **`mercury help [command]`**: print the version
+  line or a help page, the same as `--version` and `--help`; neither starts a
+  session.
 
 ## What is inside
 

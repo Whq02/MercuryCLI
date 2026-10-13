@@ -112,10 +112,10 @@ function drive(prompt: string): { result: string; ok: boolean; refused: boolean;
 }
 
 {
-  const { result } = drive('/zz-not-a-command-zz')
+  const { result, refused } = drive('/zz-not-a-command-zz')
   check(
-    'control: an unregistered name still answers the unknown-skill line',
-    result.startsWith('Unknown skill: zz-not-a-command-zz'),
+    'control: an unregistered name is refused (exit 1) with the unknown-command line',
+    refused && result.startsWith('Unknown command: /zz-not-a-command-zz'),
     result.slice(0, 160),
   )
 }

@@ -122,12 +122,12 @@ seedInstalled(V_NEW)
   const a = run(kegBundle, ['update', '--allow-unsigned'], env(pathOf()))
   check('--allow-unsigned changes nothing about it', a.code === 1 && a.stderr.includes(consentQuestion('Homebrew', BREW_COMMAND)) && requests() === 0, a.stderr.slice(0, 200))
   const j = run(kegBundle, ['update', '--json'], env(pathOf()))
-  const record = parse(j.stderr)
+  const record = parse(j.stdout)
   const jp = record?.provenance as { kind?: string; updateCommand?: string } | undefined
   check(
     '--json without --yes: refused at stage consent naming --yes, carrying the provenance record',
     j.code === 1 && record?.state === 'refused' && record?.stage === 'consent' && String(record?.remedy).includes('mercury update --yes') && jp?.kind === 'homebrew' && jp?.updateCommand === BREW_COMMAND,
-    j.stderr.slice(0, 300),
+    j.stdout.slice(0, 300),
   )
   const rb = run(kegBundle, ['update', '--rollback'], env(pathOf()))
   check(

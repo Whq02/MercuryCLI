@@ -62,9 +62,10 @@ try {
 
   console.log('§2 the command table')
   const unknown = await run(['run', '/frobnicate'])
-  check('an unknown slash command through run answers the runner\'s own sentence', unknown.code === 0 && unknown.out.trim() === 'Unknown skill: frobnicate', JSON.stringify(unknown))
+  check('an unknown slash command through run is refused with the cockpit\'s sentence on stderr and exit 1', unknown.code === 1 && unknown.out === '' && unknown.err.trim() === 'Unknown command: /frobnicate · /help lists commands', JSON.stringify(unknown))
   const ide = await run(['run', '/ide'])
-  check('/ide answers exactly as any unknown command does', ide.code === unknown.code && ide.out === unknown.out.replaceAll('frobnicate', 'ide') && ide.err === unknown.err, JSON.stringify(ide))
+  const sansPointer = (text: string): string => text.replace(/ — closest: \/[\w:-]+/, '')
+  check('/ide answers exactly as any unknown command does', ide.code === unknown.code && ide.out === unknown.out && sansPointer(ide.err) === unknown.err.replaceAll('frobnicate', 'ide'), JSON.stringify(ide))
 
   console.log('§3 the door that stands')
   const status = await run(['bridge', 'status'], { PATH: '/usr/bin:/bin' })

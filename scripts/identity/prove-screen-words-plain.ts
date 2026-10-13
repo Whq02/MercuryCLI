@@ -54,7 +54,7 @@ check('the appearance receipt reads the owner', appearance.includes('Theme set t
 const home = readFileSync(join(ROOT, 'src/components/MercuryHome.tsx'), 'utf8')
 check('the welcome card labels the critter row critter and tells a stranger what the model row is', home.includes("'  critter '") && home.includes("'   the model this session runs on · /model changes it'"))
 const seats = readFileSync(join(ROOT, 'src/daemon/concourseWorkers.ts'), 'utf8')
-check('the seat-ceiling refusal says what to do about it', seats.includes('close a session you are done with (/concourse lists the live ones) or raise Seats in /config'))
+check('the seat-ceiling refusal says what to do about it: it names the sessions holding the seats and its moves say what frees one, levers first (headless-process folded over screens-and-words\u2019 sentence)', seats.includes('${seatHoldersWords(live, ceiling)}') && seats.includes("label: 'stop or park a live session on the Session Concourse to free a seat'") && seats.includes("label: 'or raise the ceiling: /seats N in a chat, the Seats row of the Boot Menu or of /config'"))
 const cron = readFileSync(join(ROOT, 'src/utils/cron.ts'), 'utf8')
 check('a one-shot wake reads as a time on a date, never as a cron string', cron.includes('on ${dom} ${MONTH_NAMES[month - 1]}'))
 

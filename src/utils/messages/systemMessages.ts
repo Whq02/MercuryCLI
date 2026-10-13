@@ -176,6 +176,10 @@ export function createSystemMessage(content: string, level: Rows.SystemMessageLe
   return systemRow('informational', { level, toolUseID, content, ...(preventContinuation ? { preventContinuation } : {}) })
 }
 
+export function createCloseUsageMessage(input: { closeState: Rows.SystemCloseUsageMessage['closeState']; noteChars?: number; usage?: import('../../services/api/emptyUsage.js').NonNullableUsage }): Rows.SystemCloseUsageMessage {
+  return systemRow('close_usage', { closeState: input.closeState, ...(input.noteChars !== undefined ? { noteChars: input.noteChars } : {}), ...(input.usage !== undefined ? { usage: input.usage } : {}) })
+}
+
 export function createCommandInputMessage(content: string): Rows.SystemLocalCommandMessage {
   return systemRow('local_command', { level: 'info', content })
 }

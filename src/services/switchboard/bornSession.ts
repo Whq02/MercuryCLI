@@ -28,6 +28,25 @@ export function bornSession(req: BirthRequest): Promise<BirthOutcome> {
   return withLanding(birth(req))
 }
 
+export const SEAT_WAIT_MS = 20_000
+export const SEAT_LEVERS = 'stop or park a session on the Session Concourse, or /seats N raises the ceiling'
+
+function seatReasonParts(reply: Record<string, unknown>): { head: string; tail: string } {
+  const reason = String(reply.error ?? 'every seat is taken')
+  const cut = reason.indexOf(' — ')
+  return cut < 0 ? { head: reason, tail: '' } : { head: reason.slice(0, cut), tail: reason.slice(cut + 3) }
+}
+
+export function seatRefusalWords(reply: Record<string, unknown>): string {
+  const { head, tail } = seatReasonParts(reply)
+  return `${head} — ${SEAT_LEVERS}${tail === '' ? '' : ` — ${tail}`} · ↵ waits for a seat again`
+}
+
+export function seatWaitWords(reply: Record<string, unknown>): string {
+  const { head, tail } = seatReasonParts(reply)
+  return `${head} — waiting up to ${Math.round(SEAT_WAIT_MS / 1000)} s for one to free — ${SEAT_LEVERS}${tail === '' ? '' : ` — ${tail}`}`
+}
+
 export function operatorFacingBirthReason(reason: string): string {
   return reason
     .replace(/\bask the operator to /g, '')
@@ -139,11 +158,12 @@ async function admitAndEnter(
     const { daemonControlRpc } = await import('../../daemon/controlSocket.js')
     const { ensureOwnedDaemon } = await import('./ensureDaemon.js')
     const birthKey = randomUUID()
-    const admit = (): Promise<Record<string, unknown>> => daemonControlRpc(
+    const admit = (waitForSeatMs = 0): Promise<Record<string, unknown>> => daemonControlRpc(
       {
         op: 'sessionAdmit',
         workspaceDir: req.workspaceDir,
         birthKey,
+        ...(waitForSeatMs > 0 ? { waitForSeatMs } : {}),
         isolation: 'shared',
         ...(model !== undefined ? { model } : {}),
         bornBlank: true,
@@ -157,12 +177,17 @@ async function admitAndEnter(
       } as never,
       { timeoutMs: 60_000 },
     ) as Promise<Record<string, unknown>>
-    reply = await admitWithDaemonRecheck(admit, ensureOwnedDaemon)
+    reply = await admitWithDaemonRecheck(() => admit(), ensureOwnedDaemon)
+    if (reply.ok !== true && reply.refusal === 'runtime-ceiling') {
+      mintImmediateReceipt(`▲ ${seatWaitWords(reply)}`, 'warning')
+      reply = await admit(SEAT_WAIT_MS)
+    }
   } catch (e) {
     return { ok: false, reason: `the daemon was unreachable — ${e instanceof Error ? e.message : String(e)}` }
   }
   const sessionId = typeof reply.sessionId === 'string' ? reply.sessionId : undefined
   if (reply.ok !== true || sessionId === undefined) {
+    if (reply.refusal === 'runtime-ceiling') return { ok: false, reason: seatRefusalWords(reply) }
     return { ok: false, reason: operatorFacingBirthReason(String(reply.error ?? 'the session could not start')) }
   }
   if (typeof reply.note === 'string' && reply.note !== '') mintImmediateReceipt(`▲ ${reply.note}`, 'warning')

@@ -444,6 +444,17 @@ export type SystemApiMetricsMessage = {
   isMeta?: boolean
 }
 
+export type SystemCloseUsageMessage = {
+  type: 'system'
+  subtype: 'close_usage'
+  closeState: 'stored' | 'skipped' | 'none'
+  noteChars?: number
+  usage?: import('../services/api/emptyUsage.js').NonNullableUsage
+  uuid: UUID
+  timestamp: string
+  isMeta?: boolean
+}
+
 export type SystemLocalCommandMessage = {
   type: 'system'
   subtype: 'local_command'
@@ -552,6 +563,7 @@ export type SystemMessage =
   | SystemMemorySavedMessage
   | SystemAgentsKilledMessage
   | SystemApiMetricsMessage
+  | SystemCloseUsageMessage
   | SystemLocalCommandMessage
   | SystemCompactBoundaryMessage
   | SystemMicrocompactBoundaryMessage

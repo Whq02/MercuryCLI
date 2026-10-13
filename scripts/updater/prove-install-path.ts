@@ -568,7 +568,8 @@ if (IS_WIN) {
       check('POSIX: the decision is computed once (one assignment, one verb case)', count(posix, 'MERCURY_TAKEOVER=1') === 1 && count(posix, '-*) MERCURY_TAKEOVER=0 ;;') === 1)
       check('cmd: the bare-boot decision precedes and gates the verify', cmd.indexOf('set "MERCURY_TAKEOVER=1"') >= 0 && cmd.indexOf('set "MERCURY_TAKEOVER=1"') < cmd.indexOf('verify-artifact.mjs" --launcher') && cmd.includes('if "%MERCURY_TAKEOVER%"=="1" if exist "%DIR%verify-artifact.mjs"') && count(cmd, 'set "MERCURY_TAKEOVER=1"') === 1)
       check('PS1: the takeover verdict gates the verify', ps1.indexOf('$takeover = $true') >= 0 && ps1.indexOf('$takeover = $true') < ps1.indexOf("'verify-artifact.mjs') --launcher") && ps1.includes("if ($takeover -and $interactive -and (Test-Path (Join-Path $dir 'verify-artifact.mjs')))"))
-      check('the boot line forwards the terminal untouched (no redirection on the runtime line)', posix.includes('"$node_bin" "$dir/mercury.mjs" "$@"\n') && cmd.includes('"%NODEBIN%" "%DIR%mercury.mjs" %*\r\n') && ps1.includes("& $nodeBin (Join-Path $dir 'mercury.mjs') @args\n"))
+      check('the boot line forwards the terminal untouched (no redirection on the runtime line)', posix.includes('exec "$node_bin" "$dir/mercury.mjs" "$@"\n') && cmd.includes('"%NODEBIN%" "%DIR%mercury.mjs" %*\r\n') && ps1.includes("& $nodeBin (Join-Path $dir 'mercury.mjs') @args\n"))
+      check('POSIX execs the runtime (one process: a signal to the launcher pid reaches the run, ctrl+z hands the terminal back)', posix.includes('exec "$node_bin" "$dir/mercury.mjs" "$@"\n') && !posix.includes('"$node_bin" "$dir/mercury.mjs" "$@"\nrt=$?'))
     }
   }
 }

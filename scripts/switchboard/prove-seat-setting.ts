@@ -88,7 +88,7 @@ cap._setHeldMachineSeatReadingForTesting(6, SAMPLE)
   check("T3 the daemon's effective ceiling is the operator's number", sup.effectiveSeatCeiling() === 4, String(sup.effectiveSeatCeiling()))
   const live = Array.from({ length: 4 }, (_, i) => ({ workspaceId: `/scratch/ws-${i}` }))
   const refused = sup.evaluateConcourseAdmission(live, { workspaceId: '/scratch/ws-x' })
-  check('T3 the refusal names the ceiling the operator set', refused.admit === false && refused.code === 'runtime-ceiling' && (refused.reason ?? '').includes('every seat is taken — the ceiling you set: 4 seats'), JSON.stringify(refused))
+  check('T3 the refusal names the ceiling the operator set', refused.admit === false && refused.code === 'runtime-ceiling' && (refused.reason ?? '').includes('every seat is taken — 4 live sessions hold the 4 seats — the ceiling you set: 4 seats'), JSON.stringify(refused))
   check('T3 three live sessions are admitted under four', sup.evaluateConcourseAdmission(live.slice(0, 3), { workspaceId: '/scratch/ws-x' }).admit === true)
   cap.setOperatorSeats(null)
 }

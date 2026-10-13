@@ -5,6 +5,7 @@ import type { Message } from '../types/message.js'
 import type { PermissionDecision } from '../types/permissions.js'
 import { logForDebugging } from '../utils/debug.js'
 import { runForkedAgent, type CacheSafeParams, type ForkedAgentParams } from '../utils/forkedAgent.js'
+import { EMPTY_USAGE, type NonNullableUsage } from '../services/api/emptyUsage.js'
 import { createUserMessage } from '../utils/messages/factories.js'
 import { ledgerEntryOf, recordHandoff } from './ledger.js'
 import { lineageJoined } from './lineageSession.js'
@@ -65,7 +66,7 @@ export function handoffNotice(note: { text: string; stored: boolean } | null): s
   return `the note for the next session is in the ledger (${note.text.length} characters)`
 }
 
-export type AskRunner = (params: ForkedAgentParams) => Promise<{ messages: Message[]; terminal?: { reason: string } }>
+export type AskRunner = (params: ForkedAgentParams) => Promise<{ messages: Message[]; terminal?: { reason: string }; totalUsage?: NonNullableUsage }>
 
 export async function askForHandoff(input: {
   cacheSafeParams: CacheSafeParams
@@ -74,6 +75,7 @@ export async function askForHandoff(input: {
   budgetMs?: number
   canUseTool?: CanUseToolFn
   run?: AskRunner
+  onUsage?: (usage: NonNullableUsage) => void
 }): Promise<{ text: string; stored: boolean } | null> {
   const sessionId = input.sessionId ?? String(getSessionId())
   if (!lineageJoined() || asked.has(sessionId)) return null
@@ -106,6 +108,7 @@ export async function askForHandoff(input: {
       skipTranscript: true,
       skipCacheWrite: true,
     } as ForkedAgentParams)
+    input.onUsage?.(result.totalUsage ?? EMPTY_USAGE)
     if (result.terminal?.reason !== 'completed' || abortController.signal.aborted) return null
     const text = assistantText(result.messages)
     if (text.trim() === '' || !lineageJoined()) return null

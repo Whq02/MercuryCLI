@@ -172,7 +172,7 @@ const kegBundle = join(libexec, 'mercury.mjs')
   check('--yes --json: one machine record on stdout, the installer lines on stderr', j.code === 0 && record?.state === 'installer-ran' && record?.installer === 'Homebrew' && record?.from === RUNNING && record?.to === V_NEW && record?.exitCode === 0 && j.stderr.includes('==> Upgrading'), j.all.slice(0, 500))
   reset()
   const jq = run(kegBundle, ['update', '--json'], env(pathOf(stubs)))
-  const refused = parse(jq.stderr)
+  const refused = parse(jq.stdout)
   check('--json without --yes: refused at the consent stage, naming --yes, nothing run', jq.code === 1 && refused?.state === 'refused' && refused?.stage === 'consent' && String(refused?.remedy).includes('mercury update --yes') && calls().length === 0, jq.all.slice(0, 400))
 
   reset()

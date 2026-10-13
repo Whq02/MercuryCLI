@@ -192,8 +192,8 @@ console.log('── §3 rate limited: the reset in minutes and the sign-in remed
   check('…and the remedy: sign in the GitHub CLI to raise the limit', c.all.includes('sign in the GitHub CLI to raise the limit'))
   check('…never a generic network error', !c.all.includes('could not be reached'))
   const cj = runCli(['update', '--check', '--json'], { base: server.url, gh: 'absent' })
-  const access = ((parseJson(cj.stderr) ?? {}).access ?? {}) as Record<string, unknown>
-  check('--json names the state and the minutes', cj.code === 1 && access.state === 'rate-limited' && access.resetMinutes === 25, cj.stderr.slice(0, 300))
+  const access = ((parseJson(cj.stdout) ?? {}).access ?? {}) as Record<string, unknown>
+  check('--json names the state and the minutes', cj.code === 1 && access.state === 'rate-limited' && access.resetMinutes === 25, cj.stdout.slice(0, 300))
   const u = runCli(['update', '--allow-unsigned'], { base: server.url, gh: 'absent' })
   check('update says the same and changes nothing', u.code === 1 && u.all.includes('resets in 25 minutes') && pointer('current') === V_OLD, u.all.slice(0, 300))
   await server.close()
@@ -217,8 +217,8 @@ console.log('── §5 an unreachable channel is named, not guessed ──')
   const c = runCli(['update', '--check'], { base: DEAD_BASE, gh: 'absent' })
   check('--check exits 1 with the socket\'s reason', c.code === 1 && c.all.includes('could not be reached') && c.all.includes('ECONNREFUSED'), c.all.slice(0, 300))
   const cj = runCli(['update', '--check', '--json'], { base: DEAD_BASE, gh: 'absent' })
-  const access = ((parseJson(cj.stderr) ?? {}).access ?? {}) as Record<string, unknown>
-  check('--json names the state', cj.code === 1 && access.state === 'unreachable' && access.road === 'anonymous', cj.stderr.slice(0, 300))
+  const access = ((parseJson(cj.stdout) ?? {}).access ?? {}) as Record<string, unknown>
+  check('--json names the state', cj.code === 1 && access.state === 'unreachable' && access.road === 'anonymous', cj.stdout.slice(0, 300))
   check('nothing changed', pointer('current') === V_OLD)
 }
 

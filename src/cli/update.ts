@@ -25,7 +25,7 @@ import {
 import { describeChannelRoad } from 'src/services/privateChannel/channelTransport.js'
 import { formatBootResidueWarning, readBootAttemptResidue } from 'src/substrate/bootBeacon.js'
 import { jsonStringify } from 'src/utils/slowOperations.js'
-import { cliError, cliOk } from './exit.js'
+import { cliError, cliJsonError, cliOk } from './exit.js'
 
 export interface UpdateCliOptions {
   check?: boolean
@@ -41,7 +41,7 @@ const progressToStderr: Progress = (state, detail) => {
 }
 
 const emitJson = (value: unknown): never => cliOk(jsonStringify(value, null, 1) ?? '{}')
-const failJson = (value: unknown): never => cliError(jsonStringify(value, null, 1) ?? '{}')
+const failJson = (value: unknown): never => cliJsonError(jsonStringify(value, null, 1) ?? '{}')
 
 async function moveDaemonAfterUpdate(): Promise<{ state: string; line: string } | null> {
   try {
