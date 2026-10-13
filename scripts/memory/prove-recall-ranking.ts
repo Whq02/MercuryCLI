@@ -31,5 +31,16 @@ check('a universal term remains nondiscriminating', rankCandidates('service', po
 check('one exact hit from a year ago is still returned', rankCandidates('quartzlantern', pool)[0]?.id === 'seq:3')
 check('one row alone can match', rankCandidates('deploying', pool.slice(0, 1))[0]?.id === 'seq:1')
 check('lookup output keeps its existing fields', JSON.stringify(Object.keys(rankCandidates('quartzlantern', pool)[0] ?? {}).sort()) === JSON.stringify(['id', 'matched', 'pagePath', 'pending', 'score', 'seq', 'signature', 'slug', 'text']))
+const candidate = (id: number, text: string): LookupCandidate => ({ ...pool[0]!, id: `seq:${id}`, seq: id, text })
+const frequencyPool = [candidate(10, 'quartz filler filler filler'), candidate(11, 'quartz quartz filler filler'), candidate(12, 'quartz quartz quartz filler'), candidate(13, 'amber filler filler filler')]
+const frequencyHits = rankCandidates('quartz', frequencyPool)
+const scores = frequencyPool.slice(0, 3).map(c => frequencyHits.find(hit => hit.id === c.id)!.score)
+check('term frequency saturates instead of multiplying without bound', scores[1]! > scores[0]! && scores[2]! > scores[1]! && scores[2]! - scores[1]! < scores[1]! - scores[0]!, scores)
+check('BM25 uses the expected IDF and saturation', Math.abs(scores[1]! - Math.log(1 + 1.5 / 3.5) * 2 * 2.2 / 3.2) < 1e-12, scores[1])
+const lengthHits = rankCandidates('quartz', [candidate(20, 'quartz short'), candidate(21, 'quartz short filler filler filler filler'), candidate(22, 'amber short')])
+check('token length normalises longer documents', lengthHits[0]?.id === 'seq:20')
+check('characters do not substitute for token length', rankCandidates('quartz', [candidate(23, 'quartz abc'), candidate(24, 'quartz abcdefghijklmnop'), candidate(25, 'amber short')]).every((hit, _, hits) => Math.abs(hit.score - hits[0]!.score) < 1e-12))
+check('identifier boundaries do not admit a prefix match', rankCandidates('src/deploy', [candidate(26, 'src/deploying')]).length === 0)
+check('candidate tokens are not truncated to the query budget', rankCandidates('quartz', [candidate(27, `${'filler '.repeat(20)}quartz`), candidate(28, 'amber')])[0]?.id === 'seq:27')
 console.log(failures ? `FAIL: ${failures} recall ranking checks` : 'PASS: recall ranking checks')
 process.exitCode = failures ? 1 : 0

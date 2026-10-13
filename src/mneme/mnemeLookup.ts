@@ -9,6 +9,8 @@ import { bumpUsage, readUsage, usageOf } from './mnemeUsage.js'
 
 export const LOOKUP_LIMIT = 5
 const MAX_QUERY_TOKENS = 16
+export const BM25_K1 = 1.2
+export const BM25_B = 0.75
 
 const STOPWORDS = new Set([
   'the', 'and', 'for', 'are', 'but', 'not', 'you', 'all', 'any', 'can', 'had', 'her', 'was', 'one', 'our', 'out', 'has', 'his',
@@ -82,32 +84,32 @@ export function rankCandidates(
   const limit = Math.min(Math.max(opts.limit ?? LOOKUP_LIMIT, 1), 20)
   const exclude = opts.exclude ?? new Set<string>()
   const usage = opts.usage ?? {}
-  const matchers = tokens.map(t => ({ token: t, re: new RegExp(`(^|[^a-z0-9])${escapeRegExp(t)}`) }))
-  const lowered = pool.map(c => lookupTerms(c.text).join(' '))
-  const df = new Map<string, number>()
-  for (const m of matchers) {
-    let n = 0
-    for (const text of lowered) if (m.re.test(text)) n++
-    df.set(m.token, n)
-  }
+  const documents = pool.map(candidate => {
+    const terms = lookupTerms(candidate.text)
+    const frequencies = new Map<string, number>()
+    for (const term of terms) frequencies.set(term, (frequencies.get(term) ?? 0) + 1)
+    return { length: terms.length, frequencies }
+  })
+  const df = new Map(tokens.map(token => [token, documents.filter(doc => doc.frequencies.has(token)).length]))
   const total = pool.length
-  const averageLength = lowered.reduce((n, t) => n + t.length, 0) / total || 1
+  const averageLength = documents.reduce((n, doc) => n + doc.length, 0) / total || 1
   const hits: LookupHit[] = []
   pool.forEach((candidate, i) => {
     if (exclude.has(candidate.id)) return
+    const doc = documents[i]!
     let score = 0
     const matched: string[] = []
     let discriminating = false
-    for (const m of matchers) {
-      if (!m.re.test(lowered[i]!)) continue
-      const n = df.get(m.token) ?? 0
-      if (n === 0) continue
-      matched.push(m.token)
-      score += 1 + Math.log((total + 1) / n)
+    for (const token of tokens) {
+      const frequency = doc.frequencies.get(token) ?? 0
+      if (frequency === 0) continue
+      const n = df.get(token)!
+      matched.push(token)
+      const idf = Math.log(1 + (total - n + 0.5) / (n + 0.5))
+      score += idf * frequency * (BM25_K1 + 1) / (frequency + BM25_K1 * (1 - BM25_B + BM25_B * doc.length / averageLength))
       if (n < total || total === 1) discriminating = true
     }
     if (matched.length === 0 || !discriminating) return
-    score /= 0.5 + 0.5 * (lowered[i]!.length / averageLength)
     hits.push({ ...candidate, score, matched })
   })
   hits.sort((a, b) => {
