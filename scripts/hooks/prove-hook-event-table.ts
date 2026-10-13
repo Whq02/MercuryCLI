@@ -37,7 +37,7 @@ const fields: Record<(typeof EVENTS)[number], Record<string, unknown>> = {
   'turn.answer': { turn_id: 't1', answer: 'done', again: false },
   'turn.end': { turn_id: 't1', status: 'interrupted', cut: { reason: 'operator', tools: ['Bash'] }, steps: 2, wall_ms: 10, usage },
   'tool.before': { tool: 'Bash', input: { command: 'ls' }, call_id: 'c1' },
-  'tool.after': { tool: 'Bash', input: {}, output: 'ok', call_id: 'c1', ok: true, cut: false },
+  'tool.after': { tool: 'Bash', input: {}, output: 'ok', call_id: 'c1', ok: true, cut: false, wall_ms: 12 },
   'permission.ask': { tool: 'Bash', input: {}, call_id: 'c1' },
   'permission.decided': { tool: 'Bash', input: {}, call_id: 'c1', decision: 'denied', by: 'rule' },
   'crewmate.start': { prompt: 'do it', model: 'm', directory: '/w' },

@@ -244,6 +244,7 @@ import {
 import { generateSessionTitle } from '../utils/sessionTitle.js'
 import { getSettingsWithSources } from '../utils/settings/settings.js'
 import { currentSettingsFaults, untoldSettingsFaults } from '../utils/settings/faultNotices.js'
+import { currentHiddenCharacterLines, untoldHiddenCharacterLines } from '../utils/text/hiddenCharacterFindings.js'
 import { hooksSkippedForTrustLine } from '../utils/hooks/hooksConfigSnapshot.js'
 import { settingsFaultLine } from '../utils/settings/validation.js'
 import { settingsChangeDetector } from '../utils/settings/changeDetector.js'
@@ -397,6 +398,9 @@ export async function runHeadless(
   if (shellRoadNotice !== null) process.stderr.write(`${shellRoadNotice}\n`)
   for (const fault of options.door === 'wire' ? currentSettingsFaults() : untoldSettingsFaults()) {
     process.stderr.write(`${GLYPH.warn} ${settingsFaultLine(fault)}\n`)
+  }
+  for (const line of options.door === 'wire' ? currentHiddenCharacterLines() : untoldHiddenCharacterLines()) {
+    process.stderr.write(`${GLYPH.warn} ${line}\n`)
   }
   const skippedHooks = hooksSkippedForTrustLine()
   if (skippedHooks !== null && options.door !== 'wire') process.stderr.write(`${GLYPH.warn} ${skippedHooks}\n`)

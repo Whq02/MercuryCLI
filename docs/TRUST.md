@@ -59,6 +59,24 @@ Until trust is granted in an interactive session:
 - **Workspace reads wait.** The instruction-file scan warm-up and the
   system-context prefetch are deferred until the verdict.
 
+## Hidden characters in what the model reads
+
+Instruction files (MERCURY.md and what it `@imports`, the rules folders,
+AGENTS.md where it stands in), skills' SKILL.md files and the settings files
+are read as written — Mercury never edits or refuses them. Each one is scanned
+as it loads for characters a reader cannot see but a model reads: zero-width
+spaces and joiners, direction overrides and marks, soft hyphens, tag
+characters, variation selectors with nothing to vary, a byte-order mark inside
+the text. Emoji sequences, keycaps, subdivision flags and the joiners inside
+Arabic and Indic words are not findings. `/health` carries the row **Hidden
+characters**: ok when nothing was found, otherwise a warning naming each file,
+line, column and class in plain words ("an invisible character", "a direction
+override"), with the files left exactly as they were. The chat gets one warning
+line at the start of the next turn after such a file loads, said once until the
+finding changes; a headless run prints the same line to stderr. MCP tool
+definitions are stripped of these characters when a server lists them; the row
+says when a server sent them, and that variation selectors survive the strip.
+
 ## Starting folder and file permissions
 
 The starting folder is the directory in which the session begins. A shell
