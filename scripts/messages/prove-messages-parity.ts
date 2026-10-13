@@ -445,6 +445,28 @@ add('createSystemAPIErrorMessage', 'basic', () =>
 add('createToolUseSummaryMessage', 'basic', () =>
   snapSafe(() => M.createToolUseSummaryMessage('summary', ['toolu_0001', 'toolu_0002'])),
 );
+const CLOSE_USAGE = {
+  input_tokens: 1200,
+  cache_creation_input_tokens: 0,
+  cache_read_input_tokens: 900,
+  output_tokens: 80,
+  server_tool_use: { web_fetch_requests: 0, web_search_requests: 0 },
+  service_tier: 'standard' as const,
+  cache_creation: { ephemeral_1h_input_tokens: 0, ephemeral_5m_input_tokens: 0 },
+  inference_geo: null,
+  iterations: null,
+  speed: null,
+  output_tokens_details: null,
+};
+add('createCloseUsageMessage', 'stored', () =>
+  snapSafe(() => M.createCloseUsageMessage({ closeState: 'stored', noteChars: 142, usage: CLOSE_USAGE })),
+);
+add('createCloseUsageMessage', 'skipped', () =>
+  snapSafe(() => M.createCloseUsageMessage({ closeState: 'skipped', noteChars: 9 })),
+);
+add('createCloseUsageMessage', 'none', () =>
+  snapSafe(() => M.createCloseUsageMessage({ closeState: 'none' })),
+);
 
 const SKIPPED: Record<string, string> = {
   createThinkingDeadMessage: 'a system row constructor for the dead-thinking mark — its identity rides the response id and block index; pinned by scripts/api/prove-prefix-ledger.ts',
@@ -526,6 +548,13 @@ if (unaccounted.length) {
   shape('an api-metrics message keeps every metric it was given', metrics.subtype === 'api_metrics' && metrics.ttftMs === 320 && metrics.otps === 41.5 && metrics.turnDurationMs === 2200 && metrics.toolCount === 3, JSON.stringify(metrics));
   const summaryRow = produced('createToolUseSummaryMessage/basic');
   shape('a tool-use summary carries the summary text and BOTH preceding ids', summaryRow.type === 'tool_use_summary' && summaryRow.summary === 'summary' && JSON.stringify(summaryRow.precedingToolUseIds) === '["toolu_0001","toolu_0002"]', JSON.stringify(summaryRow));
+  const closeStored = produced('createCloseUsageMessage/stored');
+  const closeUsage = (closeStored.usage ?? {}) as Norm;
+  shape('a close-usage row carries its close state, the note length and the usage the close call billed, under its own subtype', closeStored.type === 'system' && closeStored.subtype === 'close_usage' && closeStored.closeState === 'stored' && closeStored.noteChars === 142 && closeUsage.input_tokens === 1200 && closeUsage.cache_read_input_tokens === 900 && closeUsage.output_tokens === 80, JSON.stringify(closeStored));
+  const closeSkipped = produced('createCloseUsageMessage/skipped');
+  shape('a close that wrote no note keeps the skipped state and the note length, and carries no usage key when the call billed nothing', closeSkipped.closeState === 'skipped' && closeSkipped.noteChars === 9 && !('usage' in closeSkipped), JSON.stringify(closeSkipped));
+  const closeNone = produced('createCloseUsageMessage/none');
+  shape('a close with nothing to store is the state alone: no noteChars key, no usage key', closeNone.subtype === 'close_usage' && closeNone.closeState === 'none' && !('noteChars' in closeNone) && !('usage' in closeNone), JSON.stringify(closeNone));
   const threw = Object.keys(results).filter(key => JSON.stringify(results[key]).includes('\u00abthrows\u00bb'));
   shape('no generator case records a throw in place of a value (a wrong-argument call is refused, never enshrined)', threw.length === 0, threw.join(', '));
 }
