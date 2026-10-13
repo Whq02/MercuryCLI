@@ -272,7 +272,8 @@ if (!existsSync(BIN)) {
       const commits = commitCount(world.cwd)
       const resultRows = run.frames.filter(f => f.type === 'outcome')
       console.log(`  evidence · routes ${routes.join(' → ')} · commits ${commits} · exit ${run.exit} · shell ${j(shellResult.replace(/\s+/g, ' ').slice(0, 160))} · agent tool ${j(agentToolResult.replace(/\s+/g, ' ').slice(0, 160))}`)
-      check(`${leg.name}: the run settled with an outcome row`, resultRows.length === 1 && run.exit === 0, `results=${resultRows.length} exit=${run.exit} stderr=${j(run.stderr.slice(-300))}`)
+      const refusedAsk = leg.expectAgent && !leg.expectRan
+      check(`${leg.name}: the run settled with an outcome row${refusedAsk ? ' and exit 1 (the agent\'s shell met an ask nobody could answer: blocked, the .34 ruling)' : ' and exit 0'}`, resultRows.length === 1 && run.exit === (refusedAsk ? 1 : 0), `results=${resultRows.length} exit=${run.exit} stderr=${j(run.stderr.slice(-300))}`)
       if (leg.expectAgent) {
         check(`${leg.name}: the probe agent ran (its brief reached the model)`, routes.includes('agent'), routes.join(' → '))
         if (leg.expectRan) {
