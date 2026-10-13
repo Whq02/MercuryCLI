@@ -41,6 +41,7 @@ function awaitCockpitDeparture(tag: string): void {
 }
 
 function drive(tag: string, keyed: boolean): string[] | null {
+  const restingRow = keyed ? 'ready · ' : 'not signed in · /logins · '
   const cfg = scenario('resume-2turn', 120, 40)
   writeSyntheticSession('thinking', SID)
   const out = join(home, `${tag}.json`)
@@ -51,7 +52,7 @@ function drive(tag: string, keyed: boolean): string[] | null {
       argv: cfg.argv,
       cwd: cfg.cwd,
       sends: [
-        { atTick: 999, awaitText: 'ready · ', minTick: 10, awaitSettleTicks: 4, data: '/clear' },
+        { atTick: 999, awaitText: restingRow, minTick: 10, awaitSettleTicks: 4, data: '/clear' },
         { afterPrevTicks: 4, data: '\r' },
       ],
       total: 220,
@@ -100,8 +101,8 @@ try {
       const has = (s: string): boolean => rows.some(r => r.includes(s))
       console.log(`  [frame] keyless after /clear: ${rows.filter(r => r.trim() !== '').slice(-10).map(r => r.trim().slice(0, 100)).join(' | ')}`)
       t('keyless: the cleared USER prompt is off the glass (the old conversation parked, never kept on the glass)', !paneHas('why does the manifest pin zod?'))
-      t('keyless: the fresh-session welcome returned (ready line)', paneHas('ready · type a prompt'))
-      t('keyless: the BORN chat is the focused one (its ready model status row)', rows.some(r => /^\s*ready · .+← back/.test(r)))
+      t('keyless: the fresh-session welcome returned (the hero row says not signed in and names /logins)', paneHas('○ not signed in · /logins connects, or / for commands'))
+      t('keyless: the BORN chat is the focused one (its signed-out model status row)', rows.some(r => /^\s*not signed in · \/logins · .+← back/.test(r)))
       t('keyless: POISON — the Boot face never took the frame', !has('New Session in '))
     }
     cleanupScenario('resume-2turn')
