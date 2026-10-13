@@ -131,7 +131,7 @@ export function keylessQueryFor(request: SearchRequest): string {
 
 export interface KeylessSearchIo { fetchImpl?: typeof fetch; clock?: SearchClock; enabled?: boolean }
 type KeylessDoor = 'duckduckgo' | 'duckduckgo-lite'
-const DDG_RATE_POLICY = { intervalMs: 3000, why: 'https://duckduckgo.com/terms and https://duckduckgo.com/acceptable-use — no published API rate for these pages. Client courtesy: serial requests three seconds apart; refusal stops both hosts, Retry-After and exponential backoff are respected.' }
+const DDG_RATE_POLICY = { intervalMs: 3000, why: 'Read 2026-10-13: https://duckduckgo.com/terms and https://duckduckgo.com/acceptable-use — no blanket automation ban and no published API rate for these pages; explicit opt-in is Mercury policy. Client courtesy: serial requests three seconds apart; refusal stops both hosts, Retry-After and exponential backoff are respected.' }
 
 async function attemptDoor(door: KeylessDoor, url: string, request: SearchRequest, io: KeylessSearchIo, clock: SearchClock): Promise<SearchOutcome> {
   const form = new URLSearchParams({ q: keylessQueryFor(request), kl: 'us-en' })

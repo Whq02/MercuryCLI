@@ -846,9 +846,15 @@ The automatic search order is:
    registry; a concept question goes to Wikipedia; news goes to Hacker News.
    PyPI supports exact project names, not full-text search. GitHub public-code
    search requires `GH_TOKEN`; without one, it says so and tries the next source.
-4. A public SearXNG JSON API whose usage policy is verified. Unverified entries
-   are skipped. A failed instance is remembered for the session; a refusal or
-   rate limit stops the metasearch attempt rather than switching hosts to evade it.
+4. An operator-configured SearXNG JSON API. There are **no built-in instances**;
+   without configuration, this step says “no metasearch instance configured”.
+   Set `MERCURY_SEARCH_SEARXNG_INSTANCES` to a JSON array of entries containing
+   `url` (the instance base), `terms` (its policy URL), `apiAllowed: true` and
+   `checked` (the date you read that policy, as `YYYY-MM-DD`). Configure an
+   instance only when its policy permits automated JSON API access. URLs must
+   use HTTPS, except HTTP on loopback, with no credentials, query or fragment.
+   A failed instance is remembered for the session; a refusal or rate limit
+   stops the attempt rather than switching hosts to evade it.
 5. DuckDuckGo page scraping, only when explicitly enabled.
 
 DuckDuckGo scraping is **off by default**. `/config` → **DuckDuckGo scraping**

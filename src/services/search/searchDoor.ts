@@ -9,6 +9,7 @@ import { nativeBackendIdFor, nativeSearch, type SearchProgressSink } from './nat
 import { isNativeSearchFamily, type NativeSearchFamily } from './nativeSearchRequest.js'
 import { officialSearch } from './officialSearch.js'
 import { searxngSearch } from './searxng.js'
+import { configuredSearxngInstances } from './searxngInstances.js'
 import { DUCKDUCKGO_TERMS, duckduckgoScrapingEnabled } from './searchSetting.js'
 import { officialSearchIntent, type OfficialSearchSource } from './searchSources.js'
 import { cachedAnswerNote, coolDownRemainingMs, liveSearchClock, nextSearchGroupId, noteAnswered, noteRateLimited, rememberSearch, secondsLeftLabel, takeCachedSearch, takeKeyedDoorHint, type SearchClock } from './searchPacing.js'
@@ -88,7 +89,9 @@ export function describeSearchDoorPlan(plan: SearchDoorPlan): string {
   return `${plan.doors.length ? plan.doors.map(searchDoorLabel).join(' → ') : 'no source selected for this query'}${plan.override === 'auto' ? '' : ` [MERCURY_SEARCH_BACKEND=${plan.override}]`}${plan.closed.length ? ` · not in the walk: ${plan.closed.join('; ')}` : ''}`
 }
 export function searchDoorFact(mainModel: string, env: Record<string, string | undefined> = process.env): string {
-  return `WebSearch: ${describeSearchDoorPlan(resolveSearchDoorPlan({ ...liveSearchDoorReads(env), mainModel }))} · official APIs selected by query shape`
+  const configured = configuredSearxngInstances(env.MERCURY_SEARCH_SEARXNG_INSTANCES ?? '')
+  const metasearch = configured.error ?? (configured.instances.length ? `${configured.instances.length} metasearch instance(s) configured` : 'no metasearch instance configured; MERCURY_SEARCH_SEARXNG_INSTANCES adds permitted JSON APIs')
+  return `WebSearch: ${describeSearchDoorPlan(resolveSearchDoorPlan({ ...liveSearchDoorReads(env), mainModel }))} · official APIs selected by query shape · ${metasearch}`
 }
 export interface WebSearchRun {
   via: SearchBackendId; tier: SearchTier; hits: SearchHit[]
@@ -133,7 +136,7 @@ export async function performWebSearch(input: SearchRequest, io: WebSearchRunIo)
   const mainModel = (io.context.options.engineModel as string | undefined) || getEngineModel()
   const plan = resolveSearchDoorPlan({ ...(io.reads ?? liveSearchDoorReads()), mainModel }, input.query)
   const signal = input.signal ? AbortSignal.any([input.signal, io.context.abortController.signal]) : io.context.abortController.signal
-  const request = { ...input, signal, cacheScope: `${mainModel}:${JSON.stringify(plan)}` }
+  const request = { ...input, signal, cacheScope: JSON.stringify([mainModel, plan, configuredSearxngInstances().instances]) }
   if (signal.aborted) throw new AbortError()
   const report = (id: string, count: number): void => io.onProgress?.({ toolUseID: id, data: { type: 'search_results_received', resultCount: count, query: request.query } })
   const cached = takeCachedSearch(request, clock.now())
