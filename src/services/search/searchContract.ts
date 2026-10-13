@@ -8,6 +8,14 @@ export type SearchBackendId =
   | 'tavily'
   | 'duckduckgo'
   | 'duckduckgo-lite'
+  | 'stackexchange'
+  | 'npm'
+  | 'pypi'
+  | 'crates'
+  | 'github'
+  | 'hackernews'
+  | 'wikipedia'
+  | 'searxng'
 
 export const SEARCH_BACKEND_LABELS: Record<SearchBackendId, string> = {
   'anthropic-native': 'Anthropic web search',
@@ -16,6 +24,14 @@ export const SEARCH_BACKEND_LABELS: Record<SearchBackendId, string> = {
   tavily: 'Tavily',
   duckduckgo: 'DuckDuckGo',
   'duckduckgo-lite': 'DuckDuckGo (lite)',
+  stackexchange: 'Stack Exchange',
+  npm: 'npm',
+  pypi: 'PyPI',
+  crates: 'crates.io',
+  github: 'GitHub code search',
+  hackernews: 'Hacker News (Algolia)',
+  wikipedia: 'Wikipedia',
+  searxng: 'SearXNG',
 }
 
 export function searchBackendLabel(id: SearchBackendId): string {
@@ -38,6 +54,7 @@ export interface SearchRequest {
   blockedDomains?: string[]
   maxResults?: number
   signal?: AbortSignal
+  cacheScope?: string
 }
 
 export const DEFAULT_MAX_RESULTS = 10
