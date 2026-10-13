@@ -11,6 +11,7 @@ import type { LocalJSXCommandOnDone } from '../../types/command.js'
 import { liveBackgroundCounts, liveWorkWords, settleOwnerlessTasks, type LiveWorkCounts } from '../../utils/task/framework.js'
 import { gracefulShutdown } from '../../utils/gracefulShutdown.js'
 import { getCurrentWorktreeSession } from '../../utils/worktree.js'
+import { farewellWithTesterDoor } from '../feedback/testerDoor.js'
 
 const FAREWELL = 'Session saved. Reopen it any time with /sessions.'
 
@@ -31,7 +32,7 @@ function ExitWithNote({ liveWords, onDone }: { liveWords: string | null; onDone:
   const [phase, setPhase] = React.useState<'confirm' | 'note'>(liveWords === null ? 'note' : 'confirm')
   const quit = (): void => {
     onDone(FAREWELL)
-    void gracefulShutdown(0, 'quit')
+    void gracefulShutdown(0, 'quit', { finalMessage: farewellWithTesterDoor(FAREWELL) })
   }
   if (phase === 'confirm' && liveWords !== null) {
     return <MercuryExitConfirm liveWords={liveWords} onStay={() => onDone()} onQuit={() => (noteAskedAtExit() ? setPhase('note') : quit())} />
@@ -56,6 +57,6 @@ export async function call(
   if (noteAskedAtExit()) return <ExitWithNote liveWords={null} onDone={onDone} />
 
   onDone(FAREWELL)
-  await gracefulShutdown(0, 'quit')
+  await gracefulShutdown(0, 'quit', { finalMessage: farewellWithTesterDoor(FAREWELL) })
   return null
 }

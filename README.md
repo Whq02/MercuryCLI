@@ -35,6 +35,10 @@ npm install -g mercury-tech-cli                    # npm; `bun install -g mercur
 mise use -g npm:mercury-tech-cli                   # mise, through the npm package
 ```
 
+The install addresses keep approximate script-request counts by source and UTC
+day, not completed installs; the counter stores no IP address, user-agent string
+or cookie.
+
 After installation, open a new terminal and run `mercury --version` to check
 it. Then run `mercury` from a repository to start the [first run](#the-first-run).
 To use Mercury in the terminal you installed from, follow the PATH instruction
@@ -774,6 +778,10 @@ in typeahead and Enter leaves `/name ` ready for you to add the argument.
 `/loop` has no required argument and runs immediately.
 
 ## Reporting a problem
+
+For a short report, use [the tester form](https://mercury-cli.ai/report) or
+`/bug --short <what you tried>` inside Mercury. It asks for your OS, what you
+tried and what broke; no health dump is needed.
 
 Run `/bug <what happened>` inside Mercury to preview a report before filing
 it through your signed-in GitHub CLI (`gh`). Without `gh`, Mercury saves a

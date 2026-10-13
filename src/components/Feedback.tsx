@@ -1,4 +1,3 @@
-
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { Box, Text } from '../ink.js'
 import type { CommandResultDisplay } from '../commands.js'
@@ -372,6 +371,8 @@ type Step =
 function surfaceTitle(form: IssueForm | null): string {
   if (form === null) return 'Feedback — which kind?'
   switch (form.kind) {
+    case 'tester':
+      return 'Tester report'
     case 'bug':
       return 'Report a bug'
     case 'provider':
@@ -461,14 +462,15 @@ export function Feedback({
     try {
       const [gathered, generated, health, reach] = await Promise.all([
         gatherReport(description, messages, backgroundTasks),
-        generateTitle(form, description, abortSignal),
-        gatherHealthSection({ signal: abortSignal }),
+        form.kind === 'tester' ? fallbackTitle(description, form.name) : generateTitle(form, description, abortSignal),
+        form.fields.some(field => field.source === 'health') ? gatherHealthSection({ signal: abortSignal }) : '',
         checkIssueAccess(slug),
       ])
       const facts = modelFacts()
       const values: Record<string, string> = {
         ...words,
         version: `Mercury ${productVersion()}`,
+        os: process.platform === 'darwin' ? 'macOS' : process.platform === 'win32' ? 'Windows' : process.platform === 'linux' ? 'Linux' : process.platform,
         platform: platformLine(),
         install: installLine(),
         family: facts.family,
@@ -554,7 +556,7 @@ export function Feedback({
     (value: string) => {
       if (field === null || form === null) return
       const text = value.trim()
-      if (field.source === 'words' && text === '') return
+      if ((field.source === 'words' || field.required) && text === '') return
       answersRef.current[field.id] = text
       if (askIndex + 1 < prompted.length) {
         setAskIndex(askIndex + 1)
@@ -655,7 +657,7 @@ export function Feedback({
         <Box flexDirection="column" gap={1}>
           <Text>
             {field.label}
-            {field.source === 'ask' ? <Text dimColor> (optional — enter to skip)</Text> : null}:
+            {field.source === 'ask' && !field.required ? <Text dimColor> (optional — enter to skip)</Text> : null}:
           </Text>
           {field.prompt !== undefined ? <Text dimColor>{field.prompt}</Text> : null}
           <TextInput
@@ -717,7 +719,9 @@ export function Feedback({
           {formUrl !== null ? (
             <Box flexDirection="column">
               <Text>
-                Or open the repository's issue form prefilled from this report; the health --json block and the transcript stay in the local draft (paste the health block by hand):
+                {form?.kind === 'tester'
+                  ? "Or open the short issue form prefilled from this report; the transcript stays in the local draft:"
+                  : "Or open the repository's issue form prefilled from this report; the health --json block and the transcript stay in the local draft (paste the health block by hand):"}
               </Text>
               <Text dimColor>{formUrl}</Text>
             </Box>

@@ -3,6 +3,7 @@ import { Box, Text, useInput } from '../ink.js'
 import { SessionMark } from './mercury-ui/assets.js'
 import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js'
 import { useOpenEventGate } from './mercury-ui/useOpenEventGate.js'
+import { takeTesterDoor } from '../commands/feedback/testerDoor.js'
 
 export function MercuryExitConfirm({
   liveWords,
@@ -14,6 +15,7 @@ export function MercuryExitConfirm({
   onStay: () => void
 }): React.ReactNode {
   const t = useMercuryTokens()
+  const [testerDoor] = React.useState(() => takeTesterDoor())
   const pastBuffer = useOpenEventGate()
   useInput((input, key) => {
     if (key.escape || input === 'n' || input === 'N') {
@@ -39,6 +41,7 @@ export function MercuryExitConfirm({
         </Text>
       </Text>
       <Text color={t.textMuted}>quitting stops them · see them with /runs · the session itself stays resumable</Text>
+      {testerDoor !== null ? <Text color={t.textMuted}>{testerDoor}</Text> : null}
       <Text>
         {
 }
