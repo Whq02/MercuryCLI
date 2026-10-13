@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # gate-class: cpu
+# gate-watch: src/utils/model/modelLookup.ts src/utils/crew/engineDispatch.ts src/tools/AgentTool/AgentTool.tsx src/tools/WorkflowTool/workflowPrompt.ts src/services/resources/adapters/models.ts
 # gate-watch: src/services/search/** src/tools/WebSearchTool/** src/substrate/flagRegistry.ts src/utils/config/**
 # gate-watch: src/services/providers/openai/openaiWire* src/services/providers/openai/responsesBridge*
 # gate-watch: src/tools/WebFetchTool/utils* src/utils/http*

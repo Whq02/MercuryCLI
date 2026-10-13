@@ -191,6 +191,8 @@ export async function liveModelsReference(ctx: Pick<ResourceContext, 'engineMode
   return { readAt: stampLocal(new Date().toISOString()), providers, notSignedIn }
 }
 
+import { MODEL_LOOKUP_LADDER, PROVIDER_MODEL_PAGES } from '../../../utils/model/modelLookup.js'
+
 export function liveModelsReferenceText(reference: LiveModelsReference): string {
   const lines: string[] = [
     `providers the operator is signed into and the models each reaches, read live ${reference.readAt} — the same rows /model and /logins show:`,
@@ -215,7 +217,10 @@ export function liveModelsReferenceText(reference: LiveModelsReference): string 
   if (reference.notSignedIn.length > 0) lines.push('', `not signed in: ${reference.notSignedIn.join(', ')} — /logins connects one; a model of these runs only after the operator signs in.`)
   lines.push(
     '',
-    "Name a model by its id above. A family word (grok, glm, kimi, deepseek, muse, mistral) runs that family's current default. When a provider's list could not be read, mercury://models/known lists what this build knows and the default that runs. A word on neither page is not a model to guess at: ask the operator for the model id; never switch to another provider on your own.",
+    "Name a model by its id above. A family word (grok, glm, kimi, deepseek, muse, mistral) runs that family's current default. When a provider's list could not be read, mercury://models/known lists what this build knows and the default that runs. " + MODEL_LOOKUP_LADDER,
+    '',
+    'Published model pages (web text, not account reachability):',
+    ...Object.entries(PROVIDER_MODEL_PAGES).map(([provider, url]) => `  ${providerDisplayName(provider)}: ${url}`),
   )
   return lines.join('\n')
 }
