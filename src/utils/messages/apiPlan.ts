@@ -203,7 +203,7 @@ export function stripImagesRefusedByStamp<M extends Message>(rows: M[]): M[] {
   })
 }
 
-function refusedTurnIdsOf(rows: Message[]): Set<string> {
+function refusedTurnIdsOf(rows: readonly Message[]): Set<string> {
   const refused = new Set<string>()
   for (const row of rows) {
     if (row.type !== 'assistant' || isSyntheticApiErrorMessage(row)) continue
@@ -274,12 +274,15 @@ export function requestConversationPlan(
   tools: Tools = [],
   geometry: 'anthropic' | 'family' = 'anthropic',
 ): RequestConversationPlan {
+  const refusedTurns = geometry === 'family' ? refusedTurnIdsOf(messages) : new Set<string>()
   const selection = geometry === 'anthropic'
     ? planApiConversation(messages as Message[], tools)
     : {
       selected: withoutOrphanCaveats(messages.filter((message): message is PlannedMessage =>
-        ((message.type === 'user' || message.type === 'assistant') && !message.isVirtual) ||
-        message.type === 'attachment' || isSystemLocalCommandMessage(message))),
+        !isSyntheticApiErrorMessage(message) &&
+        !(message.type === 'assistant' && refusedTurns.has(message.message.id)) &&
+        (((message.type === 'user' || message.type === 'assistant') && !message.isVirtual) ||
+        message.type === 'attachment' || isSystemLocalCommandMessage(message)))),
       stripTargets: new Map<string, Set<string>>(),
       availableToolNames: new Set(tools.map(tool => tool.name)),
     }
