@@ -2,7 +2,7 @@
 WORKBENCH               │                                                                                              │
   no prompts sent yet   │ ╭──────────────────────────────────────────────────────────────────────────────────────────╮ │
                         │ │ ▖▟▆▙▗ Mercury · config                                                                   │ │
-NEXT                    │ │ orchard · 65 settings · 1 set by you                                                     │ │
+NEXT                    │ │ orchard · 66 settings · 1 set by you                                                     │ │
   · /workflows — crewma…│ │                                                                                          │ │
   · /health — health ce…│ │ / Search settings…                                                                       │ │
   · /memory — memory    │ │                                                                                          │ │
@@ -15,6 +15,7 @@ VITALS                  │ │   Reduced motion                    off         
   · spend —             │ │   Ping                              on                                                   │ │
   · ctx — · —           │ │   Account identity                  shown                                                │ │
   · health — run /health│ │   Motion                            auto · off                                           │ │
+                        │ │   DuckDuckGo scraping               off                                                  │ │
                         │ │   JEV                               off · official                                       │ │
                         │ │   Instruction profile               auto                                                 │ │
                         │ │   Shell engine                      system                                               │ │
@@ -26,8 +27,7 @@ VITALS                  │ │   Reduced motion                    off         
                         │ │   Tool output                       compact                                              │ │
                         │ │   Terminal progress bar             on                                                   │ │
                         │ │   Turn duration                     on                                                   │ │
-                        │ │   Default permission mode           Default                                              │ │
-                        │ │ ↓ 44 more                                                                                │ │
+                        │ │ ↓ 45 more                                                                                │ │
                         │ │                                                                                          │ │
                         │ │ ↑↓ select · ←/→ change · ↵ save · / search · esc or click outside closes                 │ │
                         │ ╰──────────────────────────────────────────────────────────────────────────────────────────╯ │
