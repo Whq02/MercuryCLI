@@ -78,16 +78,16 @@ export function resolveTerminalProfile(probe: ProfileProbe = {}): TerminalProfil
     remediation: 'Use a VT-capable terminal (TERM=dumb has no cursor addressing).',
   })
 
+  const release = platform !== 'win32' ? '' : probe.osRelease ?? (() => {
+    try {
+      return (require('node:os') as typeof import('node:os')).release()
+    } catch {
+      return ''
+    }
+  })()
+  const conptyEra = platform === 'win32' && isConptyEraBuild(release)
   if (platform === 'win32') {
     const modern = probe.modernWindowsHost ?? isModernWindowsTerminal()
-    const release = probe.osRelease ?? (() => {
-      try {
-        return (require('node:os') as typeof import('node:os')).release()
-      } catch {
-        return ''
-      }
-    })()
-    const conptyEra = isConptyEraBuild(release)
     const fingerprints = `WT_SESSION=${env.WT_SESSION ? 'set' : 'unset'} TERM_PROGRAM=${env.TERM_PROGRAM ?? '(unset)'}${env.MSYSTEM ? ` MSYSTEM=${env.MSYSTEM}` : ''}`
     checks.push({
       id: 'win32-conpty-host',
@@ -122,8 +122,8 @@ export function resolveTerminalProfile(probe: ProfileProbe = {}): TerminalProfil
     id: 'truecolor',
     label: '24-bit color',
     requirement: 'recommended',
-    ok: fingerprint !== null,
-    evidence: fingerprint ?? `COLORTERM=${colorterm ?? '(unset)'} · no known truecolor terminal named`,
+    ok: fingerprint !== null || conptyEra,
+    evidence: fingerprint ?? (conptyEra ? `Windows console build ${release} — every console since build 14931 renders 24-bit color, whatever the host names itself (COLORTERM=${colorterm ?? '(unset)'})` : `COLORTERM=${colorterm ?? '(unset)'} · no known truecolor terminal named`),
     remediation:
       'This terminal advertises no 24-bit color, so Mercury paints in 256 colors unless MERCURY_TRUECOLOR=1 forces the full depth. The exact palette needs a terminal with 24-bit color: iTerm2, Ghostty, WezTerm, Kitty or Windows Terminal.',
   })
