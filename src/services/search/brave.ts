@@ -52,7 +52,8 @@ export function decodeBraveWebSearch(body: unknown): BraveDecode {
     hits.push({
       title: htmlToText(r.title),
       url: r.url,
-      ...(typeof r.description === 'string' && r.description.trim() !== '' ? { snippet: htmlToText(r.description) } : {}),
+      snippet: typeof r.description === 'string' ? htmlToText(r.description) : '',
+      source_type: 'brave',
     })
   }
   return { kind: 'results', hits }

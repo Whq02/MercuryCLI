@@ -22,10 +22,14 @@ export function searchBackendLabel(id: SearchBackendId): string {
   return SEARCH_BACKEND_LABELS[id]
 }
 
+export const SEARCH_SOURCE_TYPES = ['provider', 'brave', 'tavily', 'stackexchange', 'npm', 'pypi', 'crates', 'github', 'hackernews', 'wikipedia', 'searxng', 'duckduckgo'] as const
+export type SearchSourceType = (typeof SEARCH_SOURCE_TYPES)[number]
+
 export interface SearchHit {
   title: string
   url: string
-  snippet?: string
+  snippet: string
+  source_type: SearchSourceType
 }
 
 export interface SearchRequest {
@@ -82,9 +86,7 @@ export function searchFailure(
   return { ok: false, kind, via, message }
 }
 
-export function searchUserAgent(): string {
-  return `Mozilla/5.0 (compatible; Mercury/${MACRO.VERSION})`
-}
+export { webUserAgent as searchUserAgent } from '../../utils/webUserAgent.js'
 
 
 export function hitHost(url: string): string | undefined {
@@ -123,20 +125,21 @@ export function filterHitsByDomain(
 export function normaliseHits(hits: readonly SearchHit[], maxResults = DEFAULT_MAX_RESULTS): SearchHit[] {
   const seen = new Set<string>()
   const out: SearchHit[] = []
+  const count = Math.min(DEFAULT_MAX_RESULTS, Math.max(0, Math.floor(maxResults)))
+  if (!count) return out
   for (const hit of hits) {
     const url = hit.url.trim()
     const title = hit.title.trim()
-    if (url === '' || seen.has(url)) continue
+    if (!/^https?:\/\//i.test(url) || !hitHost(url) || seen.has(url)) continue
     seen.add(url)
-    const snippet = hit.snippet?.trim()
+    const snippet = hit.snippet?.trim() ?? ''
     out.push({
-      title: title === '' ? url : title,
+      title: (title || url).slice(0, 160),
       url,
-      ...(snippet
-        ? { snippet: snippet.length > MAX_SNIPPET_CHARS ? `${snippet.slice(0, MAX_SNIPPET_CHARS - 1)}…` : snippet }
-        : {}),
+      snippet: snippet.length > MAX_SNIPPET_CHARS ? `${snippet.slice(0, MAX_SNIPPET_CHARS - 1)}…` : snippet,
+      source_type: hit.source_type,
     })
-    if (out.length >= maxResults) break
+    if (out.length >= count) break
   }
   return out
 }

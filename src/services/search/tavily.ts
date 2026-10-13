@@ -45,7 +45,8 @@ export function decodeTavilySearch(body: unknown): TavilyDecode {
     hits.push({
       title: r.title,
       url: r.url,
-      ...(typeof r.content === 'string' && r.content.trim() !== '' ? { snippet: r.content } : {}),
+      snippet: typeof r.content === 'string' ? r.content : '',
+      source_type: 'tavily',
     })
   }
   return { kind: 'results', hits }
