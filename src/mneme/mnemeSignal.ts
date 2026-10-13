@@ -1,12 +1,11 @@
 import { AsyncLocalStorage } from 'node:async_hooks'
 import { createHash } from 'node:crypto'
-import { mkdirSync, readFileSync } from 'node:fs'
+import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { defineStore } from '../substrate/fileStore.js'
 import { logForDebugging } from '../utils/debug.js'
-import { lock } from '../utils/lockfile.js'
 import { pointerCitations } from './memoryCitations.js'
 import { mnemeEnabled, mnemeLibraryDir } from './mnemeGates.js'
-import { publishLibraryFile } from './mnemeLibrary.js'
 
 export const SIGNAL_TURN_LIMIT = 512
 
@@ -35,7 +34,7 @@ export interface SignalCounts {
   cited: number
 }
 
-type Draft = { queries: SignalQuery[]; opened: Set<string> }
+type Draft = { queries: SignalQuery[]; opened: Set<string>; scores: Map<string, Record<string, SignalFeatures>> }
 const scope = new AsyncLocalStorage<Map<string, Draft>>()
 const validId = /^(?:seq:[1-9]\d*|ledger:[1-9]\d*|doc:(?:archive\/)?[a-z0-9-]+|pending:\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d+)?Z)$/
 
@@ -57,19 +56,31 @@ function cleanFeatures(value: unknown): Record<string, SignalFeatures> {
   return out
 }
 
+type SignalFile = { version: 1; turns: SignalTurn[] }
+
+function decodeSignalLog(raw: unknown): SignalFile | null {
+  const file = raw as Partial<SignalFile> | null
+  if (file?.version !== 1 || !Array.isArray(file.turns)) return null
+  const turns = file.turns.slice(-SIGNAL_TURN_LIMIT).flatMap(row => {
+    if (!row || !Array.isArray(row.queries)) return []
+    const opened = cleanIds(row.opened)
+    return [{
+      queries: row.queries.filter(q => q && typeof q.query === 'string' && /^[a-f0-9]{64}$/.test(q.query)).map(q => ({ query: q.query, offered: cleanIds(q.offered), features: cleanFeatures(q.features) })),
+      opened,
+      cited: cleanIds(row.cited).filter(id => opened.includes(id)),
+    }]
+  })
+  return { version: 1, turns }
+}
+
+const signalStore = defineStore<SignalFile, [string]>({
+  name: 'memory signals', path: signalLogPath, schemaVersion: 1,
+  decode: decodeSignalLog, empty: () => ({ version: 1, turns: [] }), onReadFailure: 'throw',
+})
+
 export function readSignalLog(dir: string = mnemeLibraryDir()): SignalTurn[] {
   try {
-    const file = JSON.parse(readFileSync(signalLogPath(dir), 'utf8'))
-    if (file?.version !== 1 || !Array.isArray(file.turns)) return []
-    return file.turns.slice(-SIGNAL_TURN_LIMIT).flatMap((row: SignalTurn) => {
-      if (!row || !Array.isArray(row.queries)) return []
-      const opened = cleanIds(row.opened)
-      return [{
-        queries: row.queries.filter(q => q && typeof q.query === 'string' && /^[a-f0-9]{64}$/.test(q.query)).map(q => ({ query: q.query, offered: cleanIds(q.offered), features: cleanFeatures(q.features) })),
-        opened,
-        cited: cleanIds(row.cited).filter(id => opened.includes(id)),
-      }]
-    })
+    return decodeSignalLog(JSON.parse(readFileSync(signalLogPath(dir), 'utf8')))?.turns ?? []
   } catch {
     return []
   }
@@ -93,10 +104,19 @@ function draftFor(dir: string): Draft | undefined {
   if (!current || !mnemeEnabled()) return undefined
   let draft = current.get(dir)
   if (!draft) {
-    draft = { queries: [], opened: new Set() }
+    draft = { queries: [], opened: new Set(), scores: new Map() }
     current.set(dir, draft)
   }
   return draft
+}
+
+function queryId(query: string): string {
+  return createHash('sha256').update(query).digest('hex')
+}
+
+export function noteMemoryScores(query: string, hits: readonly { id: string; features: SignalFeatures }[], dir: string = mnemeLibraryDir()): void {
+  const draft = draftFor(dir)
+  if (draft) draft.scores.set(queryId(query), cleanFeatures(Object.fromEntries(hits.map(hit => [hit.id, hit.features]))))
 }
 
 export function noteMemoryOffered(query: string, hits: readonly { id: string; features?: SignalFeatures }[], dir: string = mnemeLibraryDir()): void {
@@ -104,8 +124,10 @@ export function noteMemoryOffered(query: string, hits: readonly { id: string; fe
   const draft = draftFor(dir)
   if (!draft) return
   const offered = cleanIds(hits.map(hit => hit.id))
-  const features = cleanFeatures(Object.fromEntries(hits.filter(hit => hit.features).map(hit => [hit.id, hit.features])))
-  draft.queries.push({ query: createHash('sha256').update(query).digest('hex'), offered, features })
+  const id = queryId(query)
+  const scored = draft.scores.get(id) ?? {}
+  const features = cleanFeatures(Object.fromEntries(hits.map(hit => [hit.id, hit.features ?? scored[hit.id]])))
+  draft.queries.push({ query: id, offered, features })
 }
 
 export function noteMemoryOpened(ids: readonly string[], dir: string = mnemeLibraryDir()): void {
@@ -121,17 +143,11 @@ export async function finishMemorySignal(answer: string): Promise<void> {
   current.clear()
   for (const [dir, draft] of drafts) {
     if (draft.queries.length === 0 && draft.opened.size === 0) continue
-    let release: (() => Promise<void>) | undefined
     try {
-      mkdirSync(dir, { recursive: true })
-      release = await lock(signalLogPath(dir), { realpath: false, retries: { retries: 8, minTimeout: 10, maxTimeout: 100 } })
       const turn: SignalTurn = { queries: draft.queries, opened: [...draft.opened], cited: [...draft.opened].filter(id => citations.has(id)) }
-      const turns = [...readSignalLog(dir), turn].slice(-SIGNAL_TURN_LIMIT)
-      publishLibraryFile(signalLogPath(dir), JSON.stringify({ version: 1, turns }))
+      await signalStore(dir).mutate(file => ({ version: 1, turns: [...file.turns, turn].slice(-SIGNAL_TURN_LIMIT) }))
     } catch (error) {
       logForDebugging(`memory signal write failed: ${String(error)}`)
-    } finally {
-      await release?.().catch(error => logForDebugging(`memory signal unlock failed: ${String(error)}`))
     }
   }
 }
