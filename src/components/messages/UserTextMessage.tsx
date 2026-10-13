@@ -122,7 +122,7 @@ export function UserTextMessage({
   }
 
   if (head.startsWith(`<${TASK_NOTIFICATION_TAG}`)) {
-    return <UserAgentNotificationMessage addMargin={addMargin} param={param} arrivedAt={arrivedAt} expanded={expanded} />
+    return <UserAgentNotificationMessage addMargin={addMargin} param={param} arrivedAt={arrivedAt} completedAt={noticeSentAt} expanded={expanded} />
   }
 
   if (

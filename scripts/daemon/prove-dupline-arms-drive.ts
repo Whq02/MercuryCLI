@@ -40,7 +40,7 @@ if (!existsSync(DIST)) {
   const cfg = { argv: [resolveCaptureArgv0(NODE, driver), DIST, '--model', MODEL], cwd: PTY_CWD, sends, total: 1200, readyText: doneText(CREW_TURN_ASK), readySettleTicks: 3, cols: 120, rows: 40, out, ...hostProfile }
   const cfgPath = join(PTY_HOME, 'cfg.json')
   writeFileSync(cfgPath, JSON.stringify(cfg))
-  const env = { ...childEnv(PTY_HOME, pfx.port), VSHOT_SLOTS: process.env.VSHOT_SLOTS ?? '3', ...('hostProfile' in hostProfile ? { TERM: 'xterm-256color', COLORTERM: 'truecolor' } : {}) }
+  const env = { ...childEnv(PTY_HOME, pfx.port), MERCURY_DAEMON_DIR: '../daemon', TMPDIR: '.', MERCURY_HOME: undefined, VSHOT_SLOTS: process.env.VSHOT_SLOTS ?? '3', ...('hostProfile' in hostProfile ? { TERM: 'xterm-256color', COLORTERM: 'truecolor' } : {}) }
   const stderr: string[] = []
   const status = await new Promise<number | null>(resolve => {
     const child = spawn(driver.python, [captureEngineEntry(driver, REPO), cfgPath], { cwd: PTY_CWD, env, stdio: ['ignore', 'ignore', 'pipe'] })
@@ -154,7 +154,7 @@ if (existsSync(DIST) && driver.kind !== 'unavailable' && preflight !== null && p
   const cfg = { argv: [resolveCaptureArgv0(NODE, driver), DIST, '--model', MODEL], cwd: D_CWD, sends, total: 1500, readyText: `heard: ${AFTER_RETURN_LINE}`, readySettleTicks: 3, cols: 120, rows: 40, out, ...hostProfile }
   const cfgPath = join(D_HOME, 'cfg.json')
   writeFileSync(cfgPath, JSON.stringify(cfg))
-  const env = { ...childEnv(D_HOME, dfx.port), VSHOT_SLOTS: process.env.VSHOT_SLOTS ?? '3', ...('hostProfile' in hostProfile ? { TERM: 'xterm-256color', COLORTERM: 'truecolor' } : {}) }
+  const env = { ...childEnv(D_HOME, dfx.port), MERCURY_DAEMON_DIR: '../daemon', TMPDIR: '.', MERCURY_HOME: undefined, VSHOT_SLOTS: process.env.VSHOT_SLOTS ?? '3', ...('hostProfile' in hostProfile ? { TERM: 'xterm-256color', COLORTERM: 'truecolor' } : {}) }
   const stderr: string[] = []
   const capture = new Promise<number | null>(resolve => {
     const child = spawn(driver.python, [captureEngineEntry(driver, REPO), cfgPath], { cwd: D_CWD, env, stdio: ['ignore', 'ignore', 'pipe'] })
