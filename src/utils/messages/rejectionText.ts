@@ -63,6 +63,7 @@ export function isDenialResultText(raw: string): boolean {
     text === SUBAGENT_REJECT_MESSAGE ||
     text.startsWith(SUBAGENT_REJECT_MESSAGE_WITH_REASON_PREFIX) ||
     DENIAL_SENTENCES_ON_DISK.some(sentence => text.startsWith(sentence)) ||
+    /^Ward '[^']+' blocked this /.test(text) ||
     (text.includes(' has been denied') && text.includes(DENIAL_WORKAROUND_GUIDANCE))
   )
 }

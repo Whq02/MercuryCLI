@@ -38,7 +38,7 @@ function singlePathDisplay(path: string): string {
   return `${head}…${tail}`
 }
 
-function formatPathList(rulePaths: string[]): React.ReactNode {
+function formatPathList(rulePaths: string[], namesOnly = false): React.ReactNode {
   const spelling = folderSpelling()
   const paths = rulePaths.map(path => displayFolderOfRule(path, spelling))
   const names = paths.map(pathDisplayName)
@@ -46,7 +46,7 @@ function formatPathList(rulePaths: string[]): React.ReactNode {
   if (names.length === 1) {
     return (
       <Text bold>
-        {singlePathDisplay(paths[0] as string)}
+        {namesOnly ? names[0] : singlePathDisplay(paths[0] as string)}
         {sep}
       </Text>
     )
@@ -147,7 +147,6 @@ export function generateShellSuggestionsLabel(
 
   if (hasCommands) {
     const cwd = <Text bold>{getFocusedSessionConnector().workspace().originalCwd}</Text>
-    const allPaths = [...directories, ...readPaths]
     if (!hasPaths && !hasDirs) {
       return (
         <>
@@ -155,26 +154,33 @@ export function generateShellSuggestionsLabel(
         </>
       )
     }
-    if (allPaths.length === 1 && commands.length === 1) {
+    if (directories.length + readPaths.length === 1 && commands.length === 1) {
       return (
         <>
-          Yes, and allow access to {formatPathList(allPaths)} plus {commandsPhrase(commands)} in{' '}
+          Yes, and allow {grantPhrase(directories, readPaths)} plus {commandsPhrase(commands)} in{' '}
           {cwd}
         </>
       )
     }
     return (
       <>
-        Yes, and allow access to {formatPathList(allPaths)} and don&apos;t ask again for{' '}
+        Yes, and allow {grantPhrase(directories, readPaths)} and don&apos;t ask again for{' '}
         {commandsPhrase(commands)} in {cwd}
       </>
     )
   }
 
-  if (hasPaths && !hasDirs) {
-    return <>Yes, and allow reading from {formatPathList(readPaths)} in this project</>
-  }
+  return <>Yes, and allow {grantPhrase(directories, readPaths)} in this project</>
+}
 
-  const combined = hasPaths ? [...directories, ...readPaths] : directories
-  return <>Yes, and allow access to {formatPathList(combined)} in this project</>
+function grantPhrase(directories: string[], readPaths: string[]): React.ReactNode {
+  if (directories.length > 0 && readPaths.length > 0) {
+    return (
+      <>
+        file edits in {formatPathList(directories, true)} and reading from {formatPathList(readPaths, true)}
+      </>
+    )
+  }
+  if (readPaths.length > 0) return <>reading from {formatPathList(readPaths)}</>
+  return <>file edits in {formatPathList(directories)}</>
 }
