@@ -161,11 +161,11 @@ export const STARTUP_MENU: readonly MenuRow[] = [
     options: ['0'],
     defaultLabel: 'on',
     applicationClass: 'live',
-    summary: 'whether a session may spawn crewmates (sub-agents) — off removes the Agent tool from its roster and closes every spawn road; the concourse itself keeps launching sessions',
+    summary: 'whether a session may spawn crewmates (sub-agents) — off removes the Crewmate tool from its roster and closes every spawn road; the concourse itself keeps launching sessions',
     detail: {
-      controls: "The crewmates switch of the sessions born after this choice. On (the default): the Agent tool is in the roster and the model delegates as it does today. Off: the Agent tool is absent from the roster — the model never sees it — and every road that would spawn a crewmate from inside the session (the tool, a skill fork, a workflow's agent hooks, the fleet tools) answers one receipt naming /subagents and this menu. Per session: the concourse coordinator's own launches are untouched. Inside a session, /subagents on|off (or this row, opened there) flips it at the next turn boundary — the tool leaves or rejoins the roster, reasoning restarts on the next turn, and a spawn already running finishes.",
-      on: ['the Agent tool is in the roster; skills, workflows and the fleet tools may spawn', 'a running session flips it any time with /subagents off'],
-      off: ['no Agent tool in the roster; every spawn road answers "crewmates are off for this session"', 'the concourse still launches sessions and crew seats', 'flip it back inside a session with /subagents on'],
+      controls: "The crewmates switch of the sessions born after this choice. On (the default): the Crewmate tool is in the roster and the model delegates as it does today. Off: the Crewmate tool is absent from the roster — the model never sees it — and every road that would spawn a crewmate from inside the session (the tool, a skill fork, a workflow's agent hooks, the fleet tools) answers one receipt naming /subagents and this menu. Per session: the concourse coordinator's own launches are untouched. Inside a session, /subagents on|off (or this row, opened there) flips it at the next turn boundary — the tool leaves or rejoins the roster, reasoning restarts on the next turn, and a spawn already running finishes.",
+      on: ['the Crewmate tool is in the roster; skills, workflows and the fleet tools may spawn', 'a running session flips it any time with /subagents off'],
+      off: ['no Crewmate tool in the roster; every spawn road answers "crewmates are off for this session"', 'the concourse still launches sessions and crew seats', 'flip it back inside a session with /subagents on'],
     },
   },
   {

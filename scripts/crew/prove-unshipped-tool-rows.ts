@@ -18,7 +18,7 @@ const { toolFamilyFor } = await import('../../src/components/mercury-ui/toolGlyp
 tally.check('the transcript renderer paints a recorded row of a tool no build ships as it paints any unknown tool', toolFamilyFor(UNSHIPPED) === toolFamilyFor('AnotherUnknownTool'))
 const { getAllBaseTools } = await import('../../src/tools.ts')
 const listed = getAllBaseTools().map(tool => tool.name)
-tally.check('the tool list of a booted session names the crew tools (SendMessage · Agent) and no unshipped name', listed.includes('SendMessage') && listed.includes('Agent') && !listed.includes(UNSHIPPED), listed.join(', '))
+tally.check('the tool list of a booted session names the crew tools (SendMessage · Agent) and no unshipped name', listed.includes('SendMessage') && listed.includes('Crewmate') && !listed.includes(UNSHIPPED), listed.join(', '))
 const { findToolForRender } = await import('../../src/tools/MCPTool/absentToolShim.ts')
 const tools = getAllBaseTools()
 const shim = findToolForRender(tools, UNSHIPPED)
@@ -37,13 +37,13 @@ const world = await makeWorld('unshipped-tool-rows', [lead({ kind: 'text', text:
 type Request = { body: { tools?: Array<{ name: string }>; messages?: Array<{ role: string; content: unknown }> } }
 const requests = (): Request[] => world.fixture.messageRequests() as Request[]
 const toolNamesOf = (request: Request | undefined): string[] => (request?.body.tools ?? []).map(tool => tool.name)
-const fresh = bootLead(world, [], ['Agent', 'SendMessage'])
+const fresh = bootLead(world, [], ['Crewmate', 'SendMessage'])
 try {
   fresh.submit('FRESH: say the word.')
   await fresh.waitFor('the fresh session never answered', () => fresh.stdout().includes('FRESH-DONE'), TURN_MS)
   const first = toolNamesOf(requests()[0])
   record('fresh-first-request-tools.txt', first.join('\n') + '\n')
-  tally.check('the first request names SendMessage and Agent', first.includes('SendMessage') && first.includes('Agent'), `(${first.length} tools)`)
+  tally.check('the first request names SendMessage and Agent', first.includes('SendMessage') && first.includes('Crewmate'), `(${first.length} tools)`)
 } catch (error) {
   tally.check('the fresh session ran', false, error instanceof Error ? error.message : String(error))
 } finally {
@@ -96,7 +96,7 @@ const transcriptPath = join(projectDir, `${sessionId}.jsonl`)
 writeFileSync(transcriptPath, rows.map(row => JSON.stringify(row)).join('\n') + '\n')
 record('old-transcript.jsonl', readFileSync(transcriptPath, 'utf8'))
 const before = requests().length
-const old = bootLead(world, ['--resume', sessionId], ['Agent', 'SendMessage'])
+const old = bootLead(world, ['--resume', sessionId], ['Crewmate', 'SendMessage'])
 try {
   old.submit('OLD: read the old row and say the word.')
   await old.waitFor('the resumed old session never answered', () => old.stdout().includes('OLD-RESUMED'), TURN_MS)

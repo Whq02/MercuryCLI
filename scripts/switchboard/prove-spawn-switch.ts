@@ -139,16 +139,16 @@ const rosterNames = (): string[] => getTools({ ...getEmptyToolPermissionContext(
 {
   sw._resetSpawnSwitchesForTesting()
   const today = rosterNames()
-  check("both on (the default) ⇒ the Agent tool and the Workflow tool are in the roster — today's behaviour", today.includes(AgentTool.name) && today.includes(WorkflowTool.name), today.join(','))
+  check("both on (the default) ⇒ the Crewmate tool and the Workflow tool are in the roster — today's behaviour", today.includes(AgentTool.name) && today.includes(WorkflowTool.name), today.join(','))
   sw.setSpawnSwitch('subagents', false)
   const noAgents = rosterNames()
-  check('sub-agents off ⇒ the Agent tool is absent', !noAgents.includes(AgentTool.name), noAgents.join(','))
+  check('sub-agents off ⇒ the Crewmate tool is absent', !noAgents.includes(AgentTool.name), noAgents.join(','))
   check('…the Workflow tool stays (its own switch is on)', noAgents.includes(WorkflowTool.name))
   check('…nothing else moved', j(today.filter(n => n !== AgentTool.name)) === j(noAgents))
   sw.setSpawnSwitch('subagents', true)
   sw.setSpawnSwitch('workflows', false)
   const noWorkflows = rosterNames()
-  check('workflows off ⇒ the Workflow tool is absent and the Agent tool stays', !noWorkflows.includes(WorkflowTool.name) && noWorkflows.includes(AgentTool.name), noWorkflows.join(','))
+  check('workflows off ⇒ the Workflow tool is absent and the Crewmate tool stays', !noWorkflows.includes(WorkflowTool.name) && noWorkflows.includes(AgentTool.name), noWorkflows.join(','))
   sw.setSpawnSwitch('workflows', true)
   check('both back on ⇒ the roster is today\'s again', j(rosterNames()) === j(today))
 }
@@ -162,7 +162,7 @@ section('§4 the spawn roads — every road answers the receipt, and nothing out
   } catch (e) {
     agentError = e instanceof Error ? e.message : String(e)
   }
-  check("the Agent tool's call answers the receipt (a stale roster's call never spawns)", agentError === OFF_SUB, agentError)
+  check("the Crewmate tool's call answers the receipt (a stale roster's call never spawns)", agentError === OFF_SUB, agentError)
   sw.setSpawnSwitch('subagents', true)
   sw.setSpawnSwitch('workflows', false)
   const validate = (WorkflowTool as unknown as { validateInput?: (input: unknown, ctx: unknown) => Promise<{ result: boolean; message?: string; errorCode?: number }> }).validateInput
@@ -178,7 +178,7 @@ section('§4 the spawn roads — every road answers the receipt, and nothing out
   const valve = src('src/services/switchboard/launchAuthority.ts')
   check('the valve reads the switch owner first (before the role env)', valve.indexOf('spawnSwitch(kind)') !== -1 && valve.indexOf('spawnSwitch(kind)') < valve.indexOf("flagEnv('MERCURY_CONCOURSE_WORKER')") && valve.includes("cause: 'session-switch'"))
   const agentTool = src('src/tools/AgentTool/AgentTool.tsx')
-  check('the Agent tool asks the valve at isEnabled and at call time', agentTool.includes("return evaluateLaunchAuthority('subagents').allowed") && agentTool.includes("const authority = evaluateLaunchAuthority('subagents')"))
+  check('the Crewmate tool asks the valve at isEnabled and at call time', agentTool.includes("return evaluateLaunchAuthority('subagents').allowed") && agentTool.includes("const authority = evaluateLaunchAuthority('subagents')"))
   const workflowTool = src('src/tools/WorkflowTool/WorkflowTool.tsx')
   check('the Workflow tool asks the valve at isEnabled and at validate', workflowTool.includes("evaluateLaunchAuthority('workflows').allowed") && workflowTool.includes("const launchAuthority = evaluateLaunchAuthority('workflows')"))
   const skill = src('src/tools/SkillTool/SkillTool.ts')
@@ -188,7 +188,7 @@ section('§4 the spawn roads — every road answers the receipt, and nothing out
   const adapterAt = hooks.indexOf('async function* adapterSpawnStream(')
   check("the workflow's agent hooks ask the valve before runAgent", adapterAt !== -1 && hooks.indexOf("evaluateLaunchAuthority('subagents')", adapterAt) !== -1 && hooks.indexOf("evaluateLaunchAuthority('subagents')", adapterAt) < hooks.indexOf('runAgent({', adapterAt))
   const crew = src('src/components/mercury-ui/screens/CrewView.tsx')
-  check('the Crew view has no spawn key of its own (launches come through the Agent tool, which asks the valve)', !crew.includes('spawnSwitches()') && !crew.includes("input === 'n'"))
+  check('the Crew view has no spawn key of its own (launches come through the Crewmate tool, which asks the valve)', !crew.includes('spawnSwitches()') && !crew.includes("input === 'n'"))
   const boot = src('src/components/BootSettingsScreen.tsx')
   check("the boot menu opened in-session flips a live row through the connector's one verb", boot.includes("row.applicationClass === 'live'") && boot.includes('.setSpawnSwitch(kind, spawnSwitchOnFromValue(value))') && boot.includes("action: 'set-spawn-switch'"))
   check('the concourse coordinator never reads the switch (its launches are the estate\'s, not a session\'s)', !src('src/services/concourse/coordinatorTools.ts').includes('spawnSwitch') && !src('src/services/concourse/coordinatorTools.ts').includes('launchAuthority'))
@@ -259,7 +259,7 @@ section("§6 the seat verb — idle applies, busy parks and forwards, the runner
   const appliedCall = seat.setSessionSpawnSwitch(sid, { kind: 'subagents', on: false }, 'operator', roster, recDir)
   await runnerAnswers('now')
   const applied = await appliedCall
-  check("idle: the toggle applies with the receipt (the Agent tool leaves the roster; reasoning restarts; a running spawn finishes)", applied.outcome === 'applied' && applied.detail === sw.spawnSwitchToggleReceipt('subagents', false, 'applied') && (applied.detail ?? '').includes('the Agent tool leaves the roster from the next turn') && (applied.detail ?? '').includes('reasoning restarts on the next turn') && (applied.detail ?? '').includes('a spawn already running finishes'), j(applied))
+  check("idle: the toggle applies with the receipt (the Crewmate tool leaves the roster; reasoning restarts; a running spawn finishes)", applied.outcome === 'applied' && applied.detail === sw.spawnSwitchToggleReceipt('subagents', false, 'applied') && (applied.detail ?? '').includes('the Crewmate tool leaves the roster from the next turn') && (applied.detail ?? '').includes('reasoning restarts on the next turn') && (applied.detail ?? '').includes('a spawn already running finishes'), j(applied))
   check('…the record carries the toggle (the durable truth)', rec()?.spawnSwitches?.subagents === 'off', j(rec()?.spawnSwitches))
   check('…one session/set_spawn_switch request reached the child, and the runner said where it landed (now)', toggles().length === 1 && toggles()[0]?.switch === 'subagents' && toggles()[0]?.on === false, j(toggles()))
   await settled()
@@ -428,7 +428,7 @@ if (!existsSync(DIST)) {
     const reqs = fixture.messageRequests().filter(q => !isHandoffRequest(q))
     check('one marked closing ask follows the first turn', j(fixture.messageRequests().map(isHandoffRequest)) === j([false, true]), j(fixture.messageRequests().map(isHandoffRequest)))
     const names = reqs.length > 0 ? toolNames(reqs[0]!.body as Body) : []
-    check('the first request carries no Agent tool and no Workflow tool', reqs.length >= 1 && !names.includes(AgentTool.name) && !names.includes(WorkflowTool.name) && names.includes('Read'), names.join(','))
+    check('the first request carries no Crewmate tool and no Workflow tool', reqs.length >= 1 && !names.includes(AgentTool.name) && !names.includes(WorkflowTool.name) && names.includes('Read'), names.join(','))
     await fixture.close()
   }
 
@@ -457,8 +457,8 @@ if (!existsSync(DIST)) {
       const b1 = reqs[0]!.body as Body
       const b2 = reqs[1]!.body as Body
       const b3 = reqs[2]!.body as Body
-      check('request 1 carries the Agent tool', toolNames(b1).includes(AgentTool.name), toolNames(b1).join(','))
-      check('request 2 (the next request after the toggle) STILL carries the Agent tool — the roster is frozen; the valve refuses at launch', toolNames(b2).includes(AgentTool.name), toolNames(b2).join(','))
+      check('request 1 carries the Crewmate tool', toolNames(b1).includes(AgentTool.name), toolNames(b1).join(','))
+      check('request 2 (the next request after the toggle) STILL carries the Crewmate tool — the roster is frozen; the valve refuses at launch', toolNames(b2).includes(AgentTool.name), toolNames(b2).join(','))
       check('…and the tools array is byte-identical to request 1 (nothing left, nothing moved)', j(toolNames(b1)) === j(toolNames(b2)))
       const pm = (b1.messages ?? []) as unknown[]
       const cm = (b2.messages ?? []) as unknown[]

@@ -179,7 +179,7 @@ const TOOL_KINDS: Readonly<Record<string, AcpToolKind>> = {
   Launch: 'execute',
   Test: 'execute',
   Eval: 'execute',
-  Agent: 'think',
+  Crewmate: 'think',
   Task: 'think',
   TaskCreate: 'think',
   TaskUpdate: 'think',

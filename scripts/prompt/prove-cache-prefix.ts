@@ -30,7 +30,7 @@ const sections = await import('../../src/constants/systemPromptSections.ts')
 const { setOriginalCwd } = await import('../../src/bootstrap/state.ts')
 const { MERCURY_CONSTITUTION } = await import('../../src/prompt/mercuryContract.ts')
 
-const toolNames = ['Bash', 'Glob', 'Grep', 'Read', 'Edit', 'Write', 'Agent', 'Skill', 'TaskCreate', 'AskUserQuestion']
+const toolNames = ['Bash', 'Glob', 'Grep', 'Read', 'Edit', 'Write', 'Crewmate', 'Skill', 'TaskCreate', 'AskUserQuestion']
 const tools = toolNames.map(name => ({ name })) as never
 
 const FAMILY_MODELS: ReadonlyArray<[bc.ContractRenderFamily, string]> = [

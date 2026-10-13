@@ -82,7 +82,7 @@ function askOf(items: Item[]): string | null {
   return null
 }
 const turnAskOf = (items: Item[]): string | null => askOf(items.slice(items.map(i => i.role).lastIndexOf('assistant') + 1))
-const askRoutes = (body: unknown, ask: string | null): boolean => ask !== null && (ask !== 'launch' && ask !== 'launch2' && ask !== 'fore' || offersTool(body, 'Agent'))
+const askRoutes = (body: unknown, ask: string | null): boolean => ask !== null && (ask !== 'launch' && ask !== 'launch2' && ask !== 'fore' || offersTool(body, 'Crewmate'))
 function seatOf(items: Item[]): Seat | null {
   const userText = items
     .filter(i => i.role === 'user' && !hasToolResult(i.content))
@@ -119,10 +119,10 @@ const thinkingBlock = (index: number, thinking: string): string =>
   `event: content_block_delta\n${sse({ type: 'content_block_delta', index, delta: { type: 'signature_delta', signature: 'fixture-signature' } })}` +
   `event: content_block_stop\n${sse({ type: 'content_block_stop', index })}`
 const agentLaunch = (index: number, seat: Seat, background: boolean): string =>
-  toolBlock(index, `toolu_hdr_agent_${++toolSeq}`, 'Agent', {
+  toolBlock(index, `toolu_hdr_agent_${++toolSeq}`, 'Crewmate', {
     description: SEATS[seat],
     prompt: `${SEAT_MARK}${seat} read the ${SEAT_READS[seat]} note files, one read per turn, then report in one line`,
-    subagent_type: 'mercury-crew',
+    crewmate_type: 'mercury-crew',
     run_in_background: background,
   })
 const sleep = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms))
@@ -224,7 +224,7 @@ async function startFixture(port: number, cwd: string): Promise<{ base: string; 
         if (seat !== null) route = `seat:${seat}`
         else if (askRoutes(body, turnAsk)) route = turnAsk!
         else if (lastUserText.includes('task-notification')) route = 'note'
-        else if (answered === 'Agent') route = `launched:${ask ?? '?'}`
+        else if (answered === 'Crewmate') route = `launched:${ask ?? '?'}`
         else if (answered === 'Bash') route = 'tool-done'
         else if (askRoutes(body, ask)) route = ask!
         else route = 'side'

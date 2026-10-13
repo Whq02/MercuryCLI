@@ -87,7 +87,7 @@ const MEMORY_WORDS = 'What Mercury remembers about this project lives in topic p
 const ENV_LINE = `Primary working directory: ${scratch}`
 const LINE = `Files you create go in the working directory: ${scratch}. The memory folder named above is not it.`
 const tool = (name: string): { name: string } => ({ name })
-const pool = ['Read', 'Edit', 'Write', 'Glob', 'Grep', 'Bash', 'Agent', 'Skill', 'AskUserQuestion'].map(tool)
+const pool = ['Read', 'Edit', 'Write', 'Glob', 'Grep', 'Bash', 'Crewmate', 'Skill', 'AskUserQuestion'].map(tool)
 const build = async (model: string): Promise<string> => (await getSystemPrompt(pool as never, model)).join('\n\n')
 const envBlock = (prompt: string): string => {
   const start = prompt.indexOf(ENV_HEADING)

@@ -187,13 +187,13 @@ section('§3 the floor is gone: no substitution anywhere, no telemetry of one, n
   check('docs/ENGINES.md names no frontier-only refusal', !/frontier-only/.test(engines) && !/economy-tier rows refuse/.test(engines))
 }
 
-section('§4 the Agent tool: haiku is a dispatch word like any other, and the words name no provider as the exact case')
+section('§4 the Crewmate tool: haiku is a dispatch word like any other, and the words name no provider as the exact case')
 {
   const aliases = await import('../../src/utils/model/aliases.ts')
   check("AGENT_DISPATCH_MODELS carries 'haiku'", (aliases.AGENT_DISPATCH_MODELS as readonly string[]).includes('haiku'))
   const { AgentTool } = await import('../../src/tools/AgentTool/AgentTool.tsx')
   const schema = AgentTool.inputSchema as { safeParse: (v: unknown) => { success: boolean }; shape: { model: { description?: string } } }
-  check("the Agent tool schema accepts model 'haiku'", schema.safeParse({ description: 'test', prompt: 'test', model: 'haiku' }).success === true)
+  check("the Crewmate tool schema accepts model 'haiku'", schema.safeParse({ description: 'test', prompt: 'test', model: 'haiku' }).success === true)
   const description = schema.shape.model.description ?? ''
   check('the model description names no provider as the exact-id case', description.length > 0 && !/Anthropic/.test(description), description.slice(0, 200))
   check("the model description says an exact id names its model exactly", /an exact id names its model exactly/.test(description), description.slice(0, 200))

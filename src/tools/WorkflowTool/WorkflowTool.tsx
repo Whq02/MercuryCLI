@@ -287,7 +287,7 @@ export const outputSchema = lazySchema(() =>
       .string()
       .optional()
       .describe(
-        'Directory where subagent transcripts are written during execution',
+        'Directory where crewmate transcripts are written during execution',
       ),
     scriptPath: z
       .string()
@@ -367,7 +367,7 @@ function createProgressBatcher(opts: {
 const WorkflowToolDef = {
   name: WORKFLOW_TOOL_NAME,
   aliases: ['RunWorkflow'],
-  searchHint: 'orchestrate subagents with deterministic JavaScript workflow',
+  searchHint: 'orchestrate crewmates with deterministic JavaScript workflow',
   shouldDefer: true,
   maxResultSizeChars: 1e5,
   isEnabled: () => dynamicWorkflowsEnabled() && evaluateLaunchAuthority('workflows').allowed,

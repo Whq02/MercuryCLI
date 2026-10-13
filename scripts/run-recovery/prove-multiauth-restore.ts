@@ -220,11 +220,11 @@ const f2 = chainRows(SID2, [
   ),
   toolResult('f2r3a', 'pb', 'hi', { stdout: 'hi', stderr: '', interrupted: false, isImage: false, noOutputExpected: false }),
   toolResult('f2r3b', 'pg', 'no matches', { mode: 'content', numFiles: 0, filenames: [], numLines: 0 }),
-  asst('f2a4', 'gpt-5.6-sol', [use('w1', 'Agent', { description: 'verify estate', prompt: 'verify the estate' })]),
+  asst('f2a4', 'gpt-5.6-sol', [use('w1', 'Crewmate', { description: 'verify estate', prompt: 'verify the estate' })]),
   toolResult('f2r4', 'w1', 'agent done', AGENT_RECORD_USAGE),
   user('f2cont', 'Continue from where you left off.', { isMeta: true }),
   asst('f2sent', SYNTHETIC_MODEL, [{ type: 'text', text: 'No response requested.' }]),
-  asst('f2a5', 'gpt-5.6-sol', [use('w2', 'Agent', { description: 'sweep estate', prompt: 'sweep the estate' })]),
+  asst('f2a5', 'gpt-5.6-sol', [use('w2', 'Crewmate', { description: 'sweep estate', prompt: 'sweep the estate' })]),
   toolResult('f2r5', 'w2', 'agent done', AGENT_RECORD_NO_USAGE),
   asst('f2a6', 'gpt-5.6-sol', [{ type: 'text', text: 'Survey complete.' }]),
 ])
@@ -365,7 +365,7 @@ console.log("\n§5 · today's shape: whole, clean tail, recap right")
   const NOW = F2_LAST_TS + 45 * 60_000
   const recap = buildAwayRecap(loaded2.messages, NOW, null)
   check('turns: 2 operator turns (the prior-resume continuation is meta)', recap?.turns === 2, String(recap?.turns))
-  check('top tools count the workflow rounds', recap?.topTools === 'Agent×2 Bash×1 Grep×1', recap?.topTools)
+  check('top tools count the workflow rounds', recap?.topTools === 'Crewmate×2 Bash×1 Grep×1', recap?.topTools)
   check('no failures, no error end', recap?.toolFailures === 0 && recap?.endedOnError === false)
   check(
     'the last-active clock reads the real tail',
@@ -400,7 +400,7 @@ console.log('\n§6 · tool-result summaries are truthful per dialect')
   )
   check(
     'the seam never invents an Agent one-liner (usage stays off the inline seam)',
-    summarizeToolResult('Agent', AGENT_RECORD_USAGE) === null && summarizeToolResult('Agent', AGENT_RECORD_NO_USAGE) === null,
+    summarizeToolResult('Crewmate', AGENT_RECORD_USAGE) === null && summarizeToolResult('Crewmate', AGENT_RECORD_NO_USAGE) === null,
   )
   check(
     'total over corrupt shapes: a string result and a wire {} placeholder decline',

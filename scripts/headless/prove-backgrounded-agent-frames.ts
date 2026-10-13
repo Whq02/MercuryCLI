@@ -25,7 +25,7 @@ const isChild = (req: ScriptedRequest): boolean => req.opening.trim() === CHILD_
 const script: Script = req => {
   if (isChild(req)) return [{ type: 'text', text: CHILD_DONE }]
   if (req.ask.includes('<task-notification>')) return [{ type: 'text', text: 'noted' }]
-  if (req.step === 0) return [{ type: 'tool_use', name: 'Agent', input: { description: 'the handover probe child', prompt: CHILD_PROMPT } }]
+  if (req.step === 0) return [{ type: 'tool_use', name: 'Crewmate', input: { description: 'the handover probe child', prompt: CHILD_PROMPT } }]
   return [{ type: 'text', text: 'parent done' }]
 }
 const fixture = await startScriptedFixture(script, { answerDelayMs: req => (isChild(req) && req.step === 0 ? CHILD_DELAY_MS : 0) })
@@ -34,10 +34,10 @@ const runner = bootRunner({ cwd, env: childEnv(runHome, port) })
 const t0 = Date.now()
 void runner.prompt(MAIN_ASK, randomUUID())
 
-tally.section("the parent calls the Agent tool in the foreground; the child's first request hangs at the wire")
-const launch = await runner.waitFor("the parent's Agent call", f => f.type === 'tool_call' && f.tool === 'Agent' && f.parent_call_id === undefined, bound(60_000))
+tally.section("the parent calls the Crewmate tool in the foreground; the child's first request hangs at the wire")
+const launch = await runner.waitFor("the parent's Crewmate call", f => f.type === 'tool_call' && f.tool === 'Crewmate' && f.parent_call_id === undefined, bound(60_000))
 const agentToolUseId = launch === null ? null : String(launch.call_id ?? '')
-tally.check('the parent called the Agent tool', agentToolUseId !== null, JSON.stringify(launch).slice(0, 160))
+tally.check('the parent called the Crewmate tool', agentToolUseId !== null, JSON.stringify(launch).slice(0, 160))
 const childArrived = Date.now() + bound(30_000)
 while (Date.now() < childArrived && !fixture.requests.some(isChild)) await sleep(100)
 tally.check("the child's request reached the wire", fixture.requests.some(isChild), `${fixture.requests.length} requests`)
@@ -50,10 +50,10 @@ const interrupted = await runner.waitFor("the interrupted turn's outcome", isOut
 tally.check('the interrupted turn settled with an outcome', interrupted !== null, String(interrupted?.status))
 const receiptFrame = runner.frames.find(f => f.type === 'tool_result' && f.call_id === agentToolUseId)
 const receiptText = receiptFrame === undefined ? '' : String(receiptFrame.output ?? '')
-tally.check('the Agent call returned the background receipt (the child runs on)', receiptText.includes('launched in the background'), receiptText.slice(0, 160))
+tally.check('the Crewmate call returned the background receipt (the child runs on)', receiptText.includes('launched in the background'), receiptText.slice(0, 160))
 const childId = /agentId: (\S+)/.exec(receiptText)?.[1] ?? null
 
-tally.section("the child's remaining rows reach the stream tagged with the Agent call's id, and its end still rides the task row")
+tally.section("the child's remaining rows reach the stream tagged with the Crewmate call's id, and its end still rides the task row")
 const childFrame = await runner.waitFor("the child's post-handover reply on the stream", f => f.type === 'text' && f.parent_call_id === agentToolUseId && String(f.text ?? '').includes(CHILD_DONE), bound(CHILD_DELAY_MS + 30_000), before)
 tally.check("the child's reply after the handover reaches the stream as a text row carrying parent_call_id", childFrame !== null, `text rows after the interrupt: ${runner.frames.slice(before).filter(f => f.type === 'text').map(f => `${String(f.parent_call_id)}:${String(f.text ?? '').slice(0, 40)}`).join(' | ') || 'none'}`)
 const isChildNotice = (f: Frame): boolean => f.type === 'task' && f.state === 'ended' && (f.call_id === agentToolUseId || (childId !== null && f.task_id === childId)) && String(f.output_file ?? '').length > 0

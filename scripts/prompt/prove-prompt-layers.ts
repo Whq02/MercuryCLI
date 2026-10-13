@@ -40,7 +40,7 @@ setOriginalCwd(scratch)
 setCwdState(scratch)
 
 const MODEL = 'claude-fable-5-1'
-const tools = ['Read', 'Edit', 'Write', 'Glob', 'Grep', 'Bash', 'Agent'].map(name => ({ name })) as never
+const tools = ['Read', 'Edit', 'Write', 'Glob', 'Grep', 'Bash', 'Crewmate'].map(name => ({ name })) as never
 const NAMELESS_HEAD = `Working directory: ${scratch}\nSession date: ${getSessionStartDate()}`
 const HEAD = `Mercury — a private terminal software-development harness.\n${NAMELESS_HEAD}`
 const FACTS = ['# The project estate', '# Memory', '# Environment', 'Model currency:', 'Write down important information from tool results', '# Runtime posture', '# Autonomous runs']

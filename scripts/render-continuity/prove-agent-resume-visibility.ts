@@ -99,11 +99,11 @@ t.section("§2 words typed at main while a crewmate runs are the session's own t
   const turns: ScriptedTurn[] = [
     {
       kind: 'tool_use',
-      name: 'Agent',
+      name: 'Crewmate',
       input: {
         description: 'poise probe',
         prompt: 'Count to three slowly.',
-        subagent_type: 'mercury-crew',
+        crewmate_type: 'mercury-crew',
         run_in_background: true,
       },
       preText: 'Spawning the probe agent.',
@@ -210,7 +210,7 @@ t.section('§3 one composer, one draft: the draft rides the view swap into eithe
   const agentInput = (name: string): Record<string, unknown> => ({
     description: name,
     prompt: 'Work quietly.',
-    subagent_type: 'mercury-crew',
+    crewmate_type: 'mercury-crew',
     run_in_background: true,
   })
   const agentPaced: ScriptedTurn = {
@@ -225,8 +225,8 @@ t.section('§3 one composer, one draft: the draft rides the view swap into eithe
       preDeltas: ['Spawning both probes. '],
       gapMs: 200,
       tools: [
-        { name: 'Agent', input: agentInput('alpha probe') },
-        { name: 'Agent', input: agentInput('beta probe') },
+        { name: 'Crewmate', input: agentInput('alpha probe') },
+        { name: 'Crewmate', input: agentInput('beta probe') },
       ],
     },
     agentPaced,

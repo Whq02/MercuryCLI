@@ -30,7 +30,7 @@ export const SPAWN_SWITCH_COMMAND: Record<SpawnSwitchKind, string> = {
 }
 
 const SPAWN_SWITCH_TOOL: Record<SpawnSwitchKind, string> = {
-  subagents: 'the Agent tool',
+  subagents: 'the Crewmate tool',
   workflows: 'the Workflow tool',
 }
 

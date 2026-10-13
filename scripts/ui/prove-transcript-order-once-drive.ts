@@ -94,7 +94,7 @@ function factsOf(body: unknown, journey: Journey): Facts {
   const toolNames = Array.isArray(b?.tools) ? b.tools.map(t => String((t as { name?: string })?.name ?? '')) : []
   const userTexts: string[] = []
   for (const item of items) if (item.role === 'user') userTexts.push(unreminded(textOf(item.content)))
-  const seat = !toolNames.includes('Agent') && userTexts.some(t => t.includes(SEAT_MARK))
+  const seat = !toolNames.includes('Crewmate') && userTexts.some(t => t.includes(SEAT_MARK))
   let askAt = -1
   for (let i = items.length - 1; i >= 0; i--) {
     const item = items[i]!
@@ -233,7 +233,7 @@ const JOURNEYS: Journey[] = [
     ask: 'order-once: run the three tools',
     total: 260,
     parent: f => {
-      if (f.step === 0) return { kind: 'tools', tools: [bash('sleep 2; echo bg-finished', 'the background command', true), { name: 'Agent', input: { description: 'the order-once seat', prompt: `${SEAT_MARK} greet main and finish`, run_in_background: true } }] }
+      if (f.step === 0) return { kind: 'tools', tools: [bash('sleep 2; echo bg-finished', 'the background command', true), { name: 'Crewmate', input: { description: 'the order-once seat', prompt: `${SEAT_MARK} greet main and finish`, run_in_background: true } }] }
       if (f.step === 1) return { kind: 'tools', pre: { deltas: words('The first tool of three runs now while the background work settles behind it.'), gapMs: 250 }, tools: [bash('echo tool-one', 'the first tool')] }
       if (f.step === 2) return { kind: 'tools', tools: [bash('sleep 1; echo tool-two', 'the second tool')] }
       if (f.step === 3) return { kind: 'tools', tools: [bash('sleep 1; echo tool-three', 'the third tool')] }

@@ -17,7 +17,7 @@ const sgrClick = (col: number, row: number): string =>
 const agentInput = (name: string): Record<string, unknown> => ({
   description: name,
   prompt: 'Work quietly.',
-  subagent_type: 'mercury-crew',
+  crewmate_type: 'mercury-crew',
   run_in_background: true,
 })
 
@@ -33,8 +33,8 @@ const turns: ScriptedTurn[] = [
     preDeltas: ['Spawning both probes. '],
     gapMs: 200,
     tools: [
-      { name: 'Agent', input: agentInput('alpha probe') },
-      { name: 'Agent', input: agentInput('beta probe') },
+      { name: 'Crewmate', input: agentInput('alpha probe') },
+      { name: 'Crewmate', input: agentInput('beta probe') },
     ],
   },
   agentPaced,

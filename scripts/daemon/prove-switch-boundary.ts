@@ -350,7 +350,7 @@ if (ONLY === undefined || ONLY === 'D') {
     { kind: 'tool_use', name: 'Sleep', input: { seconds: HOLD_SECONDS }, id: 'tu-a', whenBody: 'hold the line', preText: 'holding. ' },
     stream(resultOf('tu-a'), 'held'),
     { kind: 'text', text: 'the first words.', whenBody: 'now say more' },
-    { kind: 'tool_use', name: 'Agent', input: { description: 'a probe', prompt: 'hold the probe', run_in_background: true }, id: 'tu-agent', whenBody: 'workflows-allowed', preText: 'dispatching. ' },
+    { kind: 'tool_use', name: 'Crewmate', input: { description: 'a probe', prompt: 'hold the probe', run_in_background: true }, id: 'tu-agent', whenBody: 'workflows-allowed', preText: 'dispatching. ' },
     { kind: 'text', text: 'dispatched.', whenBody: resultOf('tu-agent') },
     { kind: 'tool_use', name: 'Sleep', input: { seconds: PROBE_SECONDS }, id: 'tu-probe', whenBody: 'hold the probe', preText: 'probing. ' },
     { kind: 'text', text: 'probe done.', whenBody: resultOf('tu-probe') },
@@ -365,7 +365,7 @@ if (ONLY === undefined || ONLY === 'D') {
     { kind: 'text', text: 'dialed through.', whenBody: resultOf('tu-e') },
     { kind: 'tool_use', name: 'Sleep', input: { seconds: HOLD_SECONDS + 1 }, id: 'tu-f', whenBody: 'hold then flip', preText: 'holding then flipping. ' },
     stream(resultOf('tu-f'), 'flipping'),
-    { kind: 'tool_use', name: 'Agent', input: { description: 'a second probe', prompt: 'hold the probe two', run_in_background: true }, id: 'tu-agent-2', whenBody: 'spawn a probe now', preText: 'spawning. ' },
+    { kind: 'tool_use', name: 'Crewmate', input: { description: 'a second probe', prompt: 'hold the probe two', run_in_background: true }, id: 'tu-agent-2', whenBody: 'spawn a probe now', preText: 'spawning. ' },
     { kind: 'text', text: 'the probe leg done.', whenBody: resultOf('tu-agent-2') },
     { kind: 'tool_use', name: 'Sleep', input: { seconds: HOLD_SECONDS + 1 }, id: 'tu-g', whenBody: 'hold then toggle workflows', preText: 'holding then toggling. ' },
     { kind: 'text', text: 'toggled through.', whenBody: resultOf('tu-g') },
@@ -554,8 +554,8 @@ if (ONLY === undefined || ONLY === 'D') {
     tally.check("DH7 the words run as the next turn and its launch settles", await untilAsync(() => transcript().includes('the probe leg done.'), bound(90_000)), describeRequests(api))
     const launchH = firstRequestWith(api, resultOf('tu-agent-2'))
     const launchBodyH = launchH === undefined ? '' : JSON.stringify(launchH.body)
-    const launchMetTheSwitch = launchBodyH.includes('sub-agents are off for this session') || launchBodyH.includes('No such tool available: Agent')
-    tally.check('DH8 THE SYMPTOM: the switch landed before the next turn, so its launch met the switch — the Agent tool gone from the roster, or the valve\'s receipt — instead of starting a probe', launchH !== undefined && launchMetTheSwitch, launchH === undefined ? describeRequests(api) : launchBodyH.slice(launchBodyH.indexOf('tu-agent-2'), launchBodyH.indexOf('tu-agent-2') + 260))
+    const launchMetTheSwitch = launchBodyH.includes('sub-agents are off for this session') || launchBodyH.includes('No such tool available: Crewmate')
+    tally.check('DH8 THE SYMPTOM: the switch landed before the next turn, so its launch met the switch — the Crewmate tool gone from the roster, or the valve\'s receipt — instead of starting a probe', launchH !== undefined && launchMetTheSwitch, launchH === undefined ? describeRequests(api) : launchBodyH.slice(launchBodyH.indexOf('tu-agent-2'), launchBodyH.indexOf('tu-agent-2') + 260))
     tally.check("DH9 the record reads the switch off with nothing parked", await untilAsync(() => record()?.spawnSwitches?.subagents === 'off' && (record()?.pendingSpawnSwitches ?? []).length === 0, bound(15_000), 50), JSON.stringify({ parked: record()?.pendingSpawnSwitches, switches: record()?.spawnSwitches }))
     tally.check('DH10 the facts read the switch off, in-session, with no parked toggle', await untilAsync(() => facts()?.spawnSwitches?.subagents.on === false && facts()?.spawnSwitches?.subagents.source === 'in-session' && facts()?.pendingSpawnSwitches === undefined, bound(15_000), 50), JSON.stringify(facts()?.spawnSwitches))
 

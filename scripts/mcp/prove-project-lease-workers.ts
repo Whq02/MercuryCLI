@@ -62,7 +62,7 @@ const fixture = await startScriptedFixture(req => {
   if (manifest()?.status === 'running') return nap()
   if (!genericLaunched) {
     genericLaunched = true
-    return [{ type: 'tool_use', name: 'Agent', input: { description: 'Check a lease owner', prompt: 'lease-worker-generic', run_in_background: false } }]
+    return [{ type: 'tool_use', name: 'Crewmate', input: { description: 'Check a lease owner', prompt: 'lease-worker-generic', run_in_background: false } }]
   }
   if (!seen.has('genericReceipt') && last) seen.set('genericReceipt', last)
   return seen.has('generic') ? done() : nap()

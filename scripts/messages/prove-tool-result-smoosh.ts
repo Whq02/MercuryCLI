@@ -15,7 +15,7 @@ const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b)
 const untouched = result('out')
 check('no incoming blocks returns the same block', smooshIntoToolResult(untouched, []) === untouched)
 
-const referenced = result([text('x'), { type: 'tool_reference', tool_name: 'Agent' }])
+const referenced = result([text('x'), { type: 'tool_reference', tool_name: 'Crewmate' }])
 check('a result already carrying a tool_reference refuses the merge', smooshIntoToolResult(referenced, [text('y')]) === null)
 
 const errored = result('failed', { is_error: true })

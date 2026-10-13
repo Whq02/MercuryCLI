@@ -195,7 +195,7 @@ export function makeEvalBridgeServer(deps: EvalBridgeDeps): BridgeServer {
           const input: Record<string, unknown> = {
             description: (p.label ?? p.prompt.slice(0, 40)).slice(0, 60),
             prompt,
-            ...(p.agentType ? { subagent_type: p.agentType } : {}),
+            ...(p.agentType ? { crewmate_type: p.agentType } : {}),
             ...(p.worktree ? { isolation: 'worktree' } : {}),
           }
           const answer = await reenterTool(AGENT_TOOL_NAME, input, budget)

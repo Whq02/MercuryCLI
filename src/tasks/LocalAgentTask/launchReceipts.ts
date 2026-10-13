@@ -114,11 +114,11 @@ export function backgroundLaunchReceipts(messages: readonly Message[]): Backgrou
       const stamp = Date.parse(message.timestamp)
       for (const block of blocksOf(message.message.content)) {
         if (block.type !== 'tool_use' || block.name !== AGENT_TOOL_NAME || typeof block.id !== 'string') continue
-        const input = (block.input ?? {}) as { description?: unknown; prompt?: unknown; subagent_type?: unknown }
+        const input = (block.input ?? {}) as { description?: unknown; prompt?: unknown; crewmate_type?: unknown }
         launches.set(block.id, {
           description: recordedDescription(input.description) || 'agent',
           prompt: recordedPrompt(input.prompt),
-          agentType: typeof input.subagent_type === 'string' ? input.subagent_type : 'mercury-crew',
+          agentType: typeof input.crewmate_type === 'string' ? input.crewmate_type : 'mercury-crew',
           launchedAt: Number.isFinite(stamp) ? stamp : Date.now(),
         })
       }

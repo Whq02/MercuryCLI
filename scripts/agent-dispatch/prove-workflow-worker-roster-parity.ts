@@ -138,7 +138,7 @@ section("§2 A CUSTOM agentType WITH tools: ['Read','Grep'] FOLLOWS ITS DEFINITI
       show(wire.filter(n => !isMcp(n))),
     )
     check(
-      "the roster equals the Agent tool's derivation for the same definition and pool (MCP included exactly as that law admits it)",
+      "the roster equals the Crewmate tool's derivation for the same definition and pool (MCP included exactly as that law admits it)",
       same(wire, law),
       `workflow ${show(wire)} | agent-tool ${show(law)}`,
     )
@@ -162,7 +162,7 @@ section('§3 THE DISPATCH SEAM')
 section('§4 THE DOC WORDS')
 {
   const prompt = readFileSync(join(import.meta.dir, '../../src/tools/WorkflowTool/workflowPrompt.ts'), 'utf8')
-  check('the Workflow tool prompt says a workflow agent carries a background sub-agent\'s tool box', /same tool box as a background sub-agent/.test(prompt))
+  check('the Workflow tool prompt says a workflow agent carries a background sub-agent\'s tool box', /same tool box as a background crewmate/.test(prompt))
 }
 
 if (failures > 0) {

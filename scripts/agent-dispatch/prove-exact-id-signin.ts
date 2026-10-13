@@ -98,7 +98,7 @@ section("§1 the launch road: an id-shaped word the picker does not list reaches
   resetAll()
   check('the picker lists no xAI row while the list is unread', !roadModule.reachableModelEntries().some(entry => entry.id.startsWith('grok-')), show(roadModule.reachableModelEntries().filter(entry => entry.id.startsWith('grok-'))))
   const asked = roadModule.matchReachableModelName('grok-4.7')
-  check("the asking matcher (the base's Agent-tool road) refuses the id: 'names no listed model'", asked !== null && asked.kind === 'none' && roadModule.modelNameHeadlessRefusal(asked, 'model').includes("model 'grok-4.7' names no listed model"), show(asked))
+  check("the asking matcher (the base's Crewmate-tool road) refuses the id: 'names no listed model'", asked !== null && asked.kind === 'none' && roadModule.modelNameHeadlessRefusal(asked, 'model').includes("model 'grok-4.7' names no listed model"), show(asked))
   const passed = launchRoad('grok-4.7')
   check("the launch road passes 'grok-4.7' through to the provider road unchanged", passed.passedTo === 'grok-4.7' && passed.refused === undefined, show(passed))
   const windowed = launchRoad('grok-4.7[1m]')
@@ -106,7 +106,7 @@ section("§1 the launch road: an id-shaped word the picker does not list reaches
   const loose = launchRoad('grok four point seven')
   check('a loose word that matches nothing still gets the nearest-rows refusal, never a pass-through', loose.refused !== undefined && loose.refused.includes("names no listed model"), show(loose))
   const tool = readFileSync(join(import.meta.dir, '../../src/tools/AgentTool/AgentTool.tsx'), 'utf8')
-  check("the Agent tool's launch calls the matcher with the pass policy, as the --model road does (RED on the base)", tool.includes("matchReachableModelName(typedModel, 'pass')"), tool.match(/matchReachableModelName\([^)]*\)/)?.[0] ?? '')
+  check("the Crewmate tool's launch calls the matcher with the pass policy, as the --model road does (RED on the base)", tool.includes("matchReachableModelName(typedModel, 'pass')"), tool.match(/matchReachableModelName\([^)]*\)/)?.[0] ?? '')
 }
 
 section("§2 the ladder for 'grok-4.7' with a signed-in xAI and an empty catalogue cache")

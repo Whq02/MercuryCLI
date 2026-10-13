@@ -85,7 +85,7 @@ function answeredTool(items: Item[]): { name: string; resultText: string } | nul
 function routeOf(body: unknown): Route {
   const items = itemsOf(body)
   const allUserText = items.map(i => (i.role === 'user' ? textOf(i.content) : '')).join('\n')
-  const seat = allUserText.includes(SEAT_MARK) && !offersTool(body, 'Agent')
+  const seat = allUserText.includes(SEAT_MARK) && !offersTool(body, 'Crewmate')
   const answered = answeredTool(items)
   if (seat) {
     const reads = items.filter(i => i.role === 'assistant' && blocksOf(i.content).some(b => b.type === 'tool_use' && b.name === 'Read')).length
@@ -93,13 +93,13 @@ function routeOf(body: unknown): Route {
     return 'seat-one'
   }
   if (answered) {
-    if (answered.name === 'Agent') return 'scout-back'
+    if (answered.name === 'Crewmate') return 'scout-back'
     if (answered.name === 'Bash') return 'shell-refused'
   }
   const last = [...items].reverse().find(i => i.role === 'user')
   const text = last ? textOf(last.content) : ''
   if (text.includes('ring-drive: alpha') && offersTool(body, 'Bash')) return 'alpha'
-  if (text.includes('ring-drive: scout') && offersTool(body, 'Agent')) return 'scout'
+  if (text.includes('ring-drive: scout') && offersTool(body, 'Crewmate')) return 'scout'
   if (text.includes('ring-drive: shell') && offersTool(body, 'Bash')) return 'shell'
   if (text.includes('ring-drive: sleep') && offersTool(body, 'Bash')) return 'sleep'
   return 'side'
@@ -179,7 +179,7 @@ async function startFixture(port: number, cwd: string): Promise<{ base: string; 
           usage = USAGE.alpha
           break
         case 'scout':
-          blocks = [{ type: 'tool_use', id: `toolu_ring_agent_${++toolSeq}`, name: 'Agent', input: { description: 'ring-scout', prompt: `${SEAT_MARK} read both seat files and report`, subagent_type: 'mercury-crew' } }]
+          blocks = [{ type: 'tool_use', id: `toolu_ring_agent_${++toolSeq}`, name: 'Crewmate', input: { description: 'ring-scout', prompt: `${SEAT_MARK} read both seat files and report`, crewmate_type: 'mercury-crew' } }]
           usage = USAGE.scout
           break
         case 'seat-one':

@@ -11,7 +11,7 @@ const peerModel = 'claude-opus-4-6'
 const lead = (turn: Record<string, unknown>): ScriptedTurn => ({ ...turn, model: LEAD_MODEL, whenModel: LEAD_GATE }) as ScriptedTurn
 const peer = (turn: Record<string, unknown>): ScriptedTurn => ({ ...turn, model: peerModel, whenModel: 'opus-4-6' }) as ScriptedTurn
 const script: ScriptedTurn[] = [
-  lead({ kind: 'tool_use', name: 'Agent', input: { name: 'worker', run_in_background: true, model: peerModel, subagent_type: 'mercury-crew', description: 'Retain the conversation', prompt: 'Run pwd and retain HISTORY-WITNESS in your reasoning.' } }),
+  lead({ kind: 'tool_use', name: 'Crewmate', input: { name: 'worker', run_in_background: true, model: peerModel, crewmate_type: 'mercury-crew', description: 'Retain the conversation', prompt: 'Run pwd and retain HISTORY-WITNESS in your reasoning.' } }),
   lead({ kind: 'text', text: 'LEAD-PARKED' }),
   ...Array.from({ length: 12 }, () => lead({ kind: 'text', text: 'LEAD-ACK' })),
   peer({ kind: 'tool_use', name: 'Bash', input: { command: 'printf HISTORY-WITNESS', description: 'Record the history witness' } }),
@@ -27,7 +27,7 @@ const refusals: string[] = []
 const host = hostRunner({
   node: NODE,
   dist: DIST,
-  argv: ['--model', LEAD_MODEL, '--allowed-tools', 'Agent', 'Bash', '--mode', 'sovereign'],
+  argv: ['--model', LEAD_MODEL, '--allowed-tools', 'Crewmate', 'Bash', '--mode', 'sovereign'],
   cwd: world.project,
   env: world.env as Record<string, string | undefined>,
   home: world.env.MERCURY_CONFIG_DIR ?? world.project,

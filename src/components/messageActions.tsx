@@ -73,7 +73,7 @@ const PRIMARY_INPUT_TABLE: Record<string, { label: string; field: string }> = {
   WebSearch: { label: 'query', field: 'query' },
   ProviderSearch: { label: 'query', field: 'query' },
   Task: { label: 'prompt', field: 'prompt' },
-  Agent: { label: 'prompt', field: 'prompt' },
+  Crewmate: { label: 'prompt', field: 'prompt' },
   Tmux: { label: 'command', field: 'args' },
 }
 

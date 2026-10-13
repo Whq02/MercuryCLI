@@ -29,7 +29,7 @@ const { buildLargeToolResultMessage } = await import('../../src/utils/toolResult
 const { createUserMessage, createAssistantMessage } = await import('../../src/utils/messages.ts')
 type Message = import('../../src/types/message.ts').Message
 
-const CLASS = ['Read', 'Bash', 'Grep', 'Agent', 'Eval', 'Inspect', 'Zzz']
+const CLASS = ['Read', 'Bash', 'Grep', 'Crewmate', 'Eval', 'Inspect', 'Zzz']
 const NEVER = ['AskUserQuestion', 'ToolSearch']
 const PROTECTED = ['Skill']
 const PERSISTED_PATH = join(home, 'tool-results', 'agent-1.txt')
@@ -61,7 +61,7 @@ const named = (): Use[] => [
   ...CLASS.map(name => ({ id: `use_${name}`, name, content: chars(4_000), input: name === 'Read' ? { file_path: '/repo/src/index.ts' } : {} })),
   ...NEVER.map(name => ({ id: `use_${name}`, name, content: chars(4_000) })),
   ...PROTECTED.map(name => ({ id: `use_${name}`, name, content: chars(4_000) })),
-  { id: 'use_agent_persisted', name: 'Agent', content: PERSISTED_AGENT },
+  { id: 'use_agent_persisted', name: 'Crewmate', content: PERSISTED_AGENT },
 ]
 const history = (): Message[] => transcript([...named(), ...fillers(9_000)])
 
@@ -105,11 +105,11 @@ section('§B the budget arithmetic: the newest 40k tokens of tool output stay, a
 section("§C a pruned Agent result reads the same line every pruned result reads")
 {
   const digested = projectTimeBasedMicrocompact(history(), 'main_thread')
-  const agent = digested === null ? '' : resultOf(digested.messages, 'use_Agent')
+  const agent = digested === null ? '' : resultOf(digested.messages, 'use_Crewmate')
   check('with the digest on, the Agent result wears the digest label', agent.startsWith(MC_DIGEST_PREFIX), agent.slice(0, 80))
   process.env.MERCURY_MC_DIGEST = '0'
   const bare = projectTimeBasedMicrocompact(history(), 'main_thread')
-  const agentBare = bare === null ? '' : resultOf(bare.messages, 'use_Agent')
+  const agentBare = bare === null ? '' : resultOf(bare.messages, 'use_Crewmate')
   const bashBare = bare === null ? '' : resultOf(bare.messages, 'use_Bash')
   check(`with the digest off, the Agent result is the placeholder line '${TIME_BASED_MC_CLEARED_MESSAGE}', the same as a Bash result's`, agentBare === TIME_BASED_MC_CLEARED_MESSAGE && bashBare === TIME_BASED_MC_CLEARED_MESSAGE, `${agentBare.slice(0, 60)} | ${bashBare.slice(0, 60)}`)
   delete process.env.MERCURY_MC_DIGEST

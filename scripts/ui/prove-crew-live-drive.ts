@@ -90,7 +90,7 @@ function routeOf(body: unknown): { route: Route; seat: string | null } {
     const seat = text.includes(SEAT_ONE) ? SEAT_ONE : text.includes(SEAT_TWO) ? SEAT_TWO : 'seat'
     return { route: ack ? 'seat-ack' : 'seat', seat }
   }
-  if (text.includes('crew-drive:') && offersTool(body, 'Agent')) return { route: ack ? 'parent-ack' : 'parent', seat: null }
+  if (text.includes('crew-drive:') && offersTool(body, 'Crewmate')) return { route: ack ? 'parent-ack' : 'parent', seat: null }
   return { route: 'side', seat: null }
 }
 
@@ -203,8 +203,8 @@ async function startCrewFixture(port: number, seatSleepSeconds: number): Promise
         case 'parent':
           blocks = [
             { type: 'text', text: 'launching two sub-agents' },
-            { type: 'tool_use', name: 'Agent', input: { description: SEAT_ONE, prompt: `crew-seat: survey the ${SEAT_ONE}`, subagent_type: 'mercury-crew' } },
-            { type: 'tool_use', name: 'Agent', input: { description: SEAT_TWO, prompt: `crew-seat: map the ${SEAT_TWO}`, subagent_type: 'mercury-crew' } },
+            { type: 'tool_use', name: 'Crewmate', input: { description: SEAT_ONE, prompt: `crew-seat: survey the ${SEAT_ONE}`, crewmate_type: 'mercury-crew' } },
+            { type: 'tool_use', name: 'Crewmate', input: { description: SEAT_TWO, prompt: `crew-seat: map the ${SEAT_TWO}`, crewmate_type: 'mercury-crew' } },
           ]
           usage = { input: 1200, output: 80 }
           break

@@ -32,7 +32,7 @@ t.section('§1 toolKindOf — the verb kinds')
     ['WebFetch', 'fetch'],
     ['Bash', 'execute'],
     ['Debug', 'execute'],
-    ['Agent', 'think'],
+    ['Crewmate', 'think'],
     ['TaskCreate', 'think'],
     ['mcp__notes__getDiagnostics', 'other'],
     ['SomethingNew', 'other'],

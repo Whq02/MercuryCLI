@@ -44,7 +44,7 @@ for (const [index, stored] of OLD_TYPES.entries()) {
 }
 const constants = readFileSync(join(ROOT, 'src/tools/AgentTool/constants.ts'), 'utf8')
 const pathsSource = readFileSync(join(ROOT, 'src/utils/sessionStorage/paths.ts'), 'utf8')
-check('the Agent tool constants carry no stored-type translation table', !/Record<string, string>/.test(constants))
+check('the Crewmate tool constants carry no stored-type translation table', !/Record<string, string>/.test(constants))
 check('the sidecar reader rewrites no agent type', !/agentType: current/.test(pathsSource) && !/RETIRED_AGENT_TYPES/.test(pathsSource))
 
 section('§2 the resume road: a known type is itself; any type Mercury does not know opens as mercury-crew')
@@ -71,7 +71,7 @@ const launch = (id: string, type: string, description: string): Message => ({
     id: `msg-${id}`,
     model: 'claude-fable-5-1',
     role: 'assistant',
-    content: [{ type: 'tool_use', id, name: 'Agent', input: { description, prompt: `work as ${description}`, subagent_type: type, run_in_background: true } }],
+    content: [{ type: 'tool_use', id, name: 'Crewmate', input: { description, prompt: `work as ${description}`, crewmate_type: type, run_in_background: true } }],
     stop_reason: 'tool_use',
     stop_sequence: null,
     usage: { input_tokens: 1, output_tokens: 1 },

@@ -108,10 +108,10 @@ section('§3 the crew wire: a crewmate spawns in the ordinary posture and no mes
 {
   const request = api.messageRequests().at(-1) as { body?: { tools?: Array<{ name: string; input_schema?: { properties?: Record<string, unknown> } }> } } | undefined
   const tools = request?.body?.tools ?? []
-  const agent = tools.find(t => t.name === 'Agent')
-  check('the Agent tool rides the wire', agent !== undefined, tools.map(t => t.name).join(','))
+  const agent = tools.find(t => t.name === 'Crewmate')
+  check('the Crewmate tool rides the wire', agent !== undefined, tools.map(t => t.name).join(','))
   const agentProps = Object.keys(agent?.input_schema?.properties ?? {})
-  check('the Agent tool offers no permission posture for a spawned crewmate', !agentProps.includes('mode') && !agentProps.includes('plan_mode_required'), agentProps.join(','))
+  check('the Crewmate tool offers no permission posture for a spawned crewmate', !agentProps.includes('mode') && !agentProps.includes('plan_mode_required'), agentProps.join(','))
   const sendMessage = tools.find(t => t.name === 'SendMessage')
   check('the SendMessage tool rides the wire', sendMessage !== undefined)
   check('no SendMessage variant approves or rejects a plan', !JSON.stringify(sendMessage?.input_schema ?? {}).includes('plan_approval'))

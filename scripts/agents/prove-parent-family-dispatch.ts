@@ -18,11 +18,11 @@ await refreshProviderDiscovery('openai', { force: true })
 await refreshOpenaiCatalogue('api-key', { force: true, fetchImpl: (async () => new Response(JSON.stringify({ models: ['gpt-5.6-sol', 'gpt-5.6-terra'].map((id, i) => ({ slug: id, display_name: id, priority: i + 1, supported_reasoning_levels: ['high'], supported_in_api: true, visibility: 'public' })) }), { headers: { 'content-type': 'application/json' } })) as typeof fetch })
 const source = readFileSync(join(import.meta.dir, '../../src/tools/AgentTool/AgentTool.tsx'), 'utf8')
 const step = source.slice(source.indexOf('    const typedModel = input.model'), source.indexOf('    const cwdParam = '))
-if (!step.includes('const engineDispatch = await resolveEngineDispatch(modelParam)')) throw new Error('the Agent tool dispatch step was not found')
+if (!step.includes('const engineDispatch = await resolveEngineDispatch(modelParam)')) throw new Error('the Crewmate tool dispatch step was not found')
 const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor
 const resolve = new AsyncFunction('input', 'options', 'getAgentModel', 'resolveEngineDispatch', 'unrecognisedModelWordRefusal', 'matchReachableModelName', 'modelNameHeadlessRefusal', `${step}\nreturn { engineDispatch, modelParam: typeof modelParam === 'undefined' ? input.model : modelParam, modelWord: typeof modelWord === 'undefined' ? input.model : modelWord }`) as (...args: unknown[]) => Promise<{ engineDispatch: { backend: string; model: string } | null; modelParam?: string }>
 const parameter = /modelParam:([^\n]*)/.exec(source)?.[1].replace(/,\s*$/, '').replace(' as never', '')
-if (!parameter) throw new Error('the Agent tool model handoff was not found')
+if (!parameter) throw new Error('the Crewmate tool model handoff was not found')
 const planParameter = new Function('engineDispatch', 'input', 'modelParam', 'modelWord', `return ${parameter}`)
 const resolvedParameter = /resolvedModel:([^\n]*)/.exec(source)?.[1].replace(/,\s*$/, '')
 const planResolved = new Function('modelParam', `return ${resolvedParameter ?? 'undefined'}`)

@@ -36,7 +36,7 @@ function seedWorld(): { home: string; cwd: string } {
   const home = realpathSync(mkdtempSync(join(tmpdir(), 'shell-board-home-')))
   const cwd = realpathSync(mkdtempSync(join(tmpdir(), 'shell-board-cwd-')))
   seedFirstRun(home, [cwd])
-  writeFileSync(join(home, 'settings.json'), JSON.stringify({ guardrails: { allow: ['Bash', 'Agent'], sovereignConsentSeen: true } }, null, 2))
+  writeFileSync(join(home, 'settings.json'), JSON.stringify({ guardrails: { allow: ['Bash', 'Crewmate'], sovereignConsentSeen: true } }, null, 2))
   return { home, cwd }
 }
 
@@ -110,7 +110,7 @@ function scriptedFixture(): Promise<ScriptedFixture> {
       }
     }
     if (req.ask.trim() !== ASK) return [{ type: 'text', text: 'ok' }]
-    if (req.step === 0) return [{ type: 'tool_use', name: 'Agent', input: { description: AGENT_DESCRIPTION, prompt: AGENT_PROMPT, run_in_background: true } }]
+    if (req.step === 0) return [{ type: 'tool_use', name: 'Crewmate', input: { description: AGENT_DESCRIPTION, prompt: AGENT_PROMPT, run_in_background: true } }]
     return [{ type: 'text', text: LANDED }]
   })
 }

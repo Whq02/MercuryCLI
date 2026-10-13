@@ -42,7 +42,7 @@ const launch: Message = {
     id: 'msg_launch',
     model: 'claude-fable-5-1',
     role: 'assistant',
-    content: [{ type: 'tool_use', id: 'toolu_sleep', name: 'Agent', input: { description: 'Run sleep command', prompt: 'sleep 300', subagent_type: 'mercury-crew', run_in_background: true } }],
+    content: [{ type: 'tool_use', id: 'toolu_sleep', name: 'Crewmate', input: { description: 'Run sleep command', prompt: 'sleep 300', crewmate_type: 'mercury-crew', run_in_background: true } }],
     usage: { input_tokens: 10, output_tokens: 5, cache_creation_input_tokens: 0, cache_read_input_tokens: 0 },
     stop_reason: 'tool_use',
   },

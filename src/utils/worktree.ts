@@ -692,7 +692,7 @@ export async function createAgentWorktree(
   if (!gitRoot) {
     throw new Error(
       'Worktree isolation is unavailable here: this is not a git repository. ' +
-        'Retry the same Agent call WITHOUT the isolation parameter; the agent will run in the current directory.',
+        'Retry the same Crewmate call WITHOUT the isolation parameter; the agent will run in the current directory.',
     )
   }
   const created = await createOrResumeWorktree(gitRoot, slug, {

@@ -134,7 +134,7 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
     const { marker, arm, toolResult } = readAsk(body)
     const route = marker === 'seat' ? 'seat' : marker === 'run' ? (toolResult ? 'parent-ack' : 'parent') : 'side'
     const nth = bump(`${route}:${arm}:${toolResult ? 'after-tool' : 'first'}:${streaming ? 'stream' : 'json'}`)
-    record({ kind: 'request', route, arm, streaming, toolResult, nth, model, agentToolListed: offersTool(body, 'Agent') })
+    record({ kind: 'request', route, arm, streaming, toolResult, nth, model, agentToolListed: offersTool(body, 'Crewmate') })
     req.socket.on('close', () => {
       if (!res.writableEnded) {
         dropped = true
@@ -153,7 +153,7 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
     }
 
     if (route === 'parent') {
-      answer([{ type: 'tool_use', name: 'Agent', input: { description: `throttle seat ${arm}`, prompt: `throttle-seat: ${arm}`, subagent_type: 'mercury-crew' } }])
+      answer([{ type: 'tool_use', name: 'Crewmate', input: { description: `throttle seat ${arm}`, prompt: `throttle-seat: ${arm}`, crewmate_type: 'mercury-crew' } }])
       return
     }
     if (route === 'parent-ack') {

@@ -10,7 +10,7 @@ Census version 1 — 69 built-in production tools · 180 operations · 69 with a
 
 ## Summary
 
-- support (at generation time): 40 available · 17 conditional · 0 degraded · 12 unavailable (gated out of this environment's catalog — still rowed, never silently dropped)
+- support (at generation time): 41 available · 17 conditional · 0 degraded · 11 unavailable (gated out of this environment's catalog — still rowed, never silently dropped)
 - class: 22 observation · 27 mutation · 10 execution · 10 coordination · 0 unclassified
 - integrations: 13 declare transactions · 12 declare executions · 32 declare mercury:// outputs · 47 name a focused proof
 - capability units covered: application-verification · browser-drive · capability-discovery · code-intelligence · debugging · desktop-drive · game-engine · git-inspection · git-transactions · memory · operator-io · persistent-evaluation · pixel-art · process-execution · resource-inspection · scheduling · service-management · source-reading · structural-mutation · task-coordination · text-mutation · web-access
@@ -20,7 +20,6 @@ Census version 1 — 69 built-in production tools · 180 operations · 69 with a
 
 | Tool | class | units | ops | cancel | deferred | transactions | execution | resources | proof |
 |---|---|---|---|---|---|---|---|---|---|
-| Agent | coordination | task-coordination | — | block | no | — | agent (external-projection) | mercury://agent | scripts/tools/prove-tool-contracts.ts |
 | ApolloReview | coordination | operator-io | — | block | yes | — | — | — | NAMED GAP |
 | Aseprite | mutation | pixel-art | 5 | block | yes | — | — | — | scripts/aseprite/run-all.sh |
 | AskAdvisor | observation | resource-inspection | — | cancel | yes | — | — | — | scripts/advisor/run-all.sh |
@@ -34,6 +33,7 @@ Census version 1 — 69 built-in production tools · 180 operations · 69 with a
 | Computer | execution | desktop-drive | 14 | cancel | yes | — | desktop-session (child-execution) | — | scripts/computer/prove-computer-asks.ts |
 | ContextLeft | observation | resource-inspection | — | block | yes | — | — | — | scripts/tools/prove-context-left-tool.ts |
 | Correct | mutation | memory | 3 | block | yes | — | — | — | scripts/memory/prove-verbs-lifecycle.ts |
+| Crewmate | coordination | task-coordination | — | block | no | — | agent (external-projection) | mercury://agent | scripts/tools/prove-tool-contracts.ts |
 | CronCreate | mutation | scheduling | — | block | yes | — | — | — | scripts/daemon/prove-cron-create-answer.ts |
 | CronDelete | mutation | scheduling | — | block | yes | — | — | — | NAMED GAP |
 | CronList | observation | scheduling | — | block | yes | — | — | — | NAMED GAP |
@@ -68,7 +68,7 @@ Census version 1 — 69 built-in production tools · 180 operations · 69 with a
 | Recall | observation | memory | — | block | yes | — | — | — | scripts/memory/prove-verbs-lifecycle.ts |
 | RecordConvention | mutation | text-mutation | — | block | yes | file +receipts | — | — | NAMED GAP |
 | Reflect | observation | memory | — | block | yes | — | — | — | scripts/memory/prove-reflect-grounding.ts |
-| ResumeAgent | coordination | task-coordination | — | block | yes | — | — | mercury://agent | scripts/crew/run-all.sh |
+| ResumeCrewmate | coordination | task-coordination | — | block | yes | — | — | mercury://agent | scripts/crew/run-all.sh |
 | Retain | mutation | memory | — | block | yes | — | — | — | scripts/memory/prove-retain-honesty.ts |
 | Rewind | mutation | task-coordination | — | block | yes | — | — | — | scripts/run-recovery/run-all.sh |
 | ScheduleWakeup | coordination | scheduling | — | block | yes | — | — | — | NAMED GAP |

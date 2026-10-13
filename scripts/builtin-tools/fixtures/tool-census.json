@@ -2,38 +2,6 @@
   "version": 1,
   "rows": [
     {
-      "name": "Agent",
-      "category": "coord",
-      "risk": "low",
-      "cancellation": "block",
-      "deferred": false,
-      "operations": null,
-      "units": [
-        "task-coordination"
-      ],
-      "proof": "scripts/tools/prove-tool-contracts.ts",
-      "declared": {
-        "intents": [
-          "delegate a task to a crewmate (a sub-agent)",
-          "run parallel research or implementation",
-          "fan out independent work"
-        ],
-        "units": [
-          "task-coordination"
-        ],
-        "class": "coordination",
-        "execution": {
-          "kind": "agent",
-          "representation": "external-projection"
-        },
-        "resources": [
-          "agent"
-        ],
-        "cancellation": "cooperative",
-        "latency": "long-running"
-      }
-    },
-    {
       "name": "ApolloReview",
       "category": "other",
       "risk": "medium",
@@ -558,6 +526,38 @@
         "cancellation": "not-applicable",
         "latency": "fast",
         "proof": "scripts/memory/prove-verbs-lifecycle.ts"
+      }
+    },
+    {
+      "name": "Crewmate",
+      "category": "coord",
+      "risk": "low",
+      "cancellation": "block",
+      "deferred": false,
+      "operations": null,
+      "units": [
+        "task-coordination"
+      ],
+      "proof": "scripts/tools/prove-tool-contracts.ts",
+      "declared": {
+        "intents": [
+          "delegate a task to a crewmate",
+          "run parallel research or implementation",
+          "fan out independent work"
+        ],
+        "units": [
+          "task-coordination"
+        ],
+        "class": "coordination",
+        "execution": {
+          "kind": "agent",
+          "representation": "external-projection"
+        },
+        "resources": [
+          "agent"
+        ],
+        "cancellation": "cooperative",
+        "latency": "long-running"
       }
     },
     {
@@ -1731,7 +1731,7 @@
       }
     },
     {
-      "name": "ResumeAgent",
+      "name": "ResumeCrewmate",
       "category": "coord",
       "risk": "low",
       "cancellation": "block",
@@ -2327,7 +2327,7 @@
       "proof": "scripts/workflows/run-all.sh",
       "declared": {
         "intents": [
-          "orchestrate many subagents deterministically",
+          "orchestrate many crewmates deterministically",
           "fan out and verify at scale"
         ],
         "units": [

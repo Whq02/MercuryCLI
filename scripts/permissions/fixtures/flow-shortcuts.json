@@ -27,7 +27,7 @@
     "Edit": false,
     "Write": false,
     "NotebookEdit": false,
-    "Agent": false,
+    "Crewmate": false,
     "WebFetch": false,
     "WebSearch": false,
     "Browser": false,

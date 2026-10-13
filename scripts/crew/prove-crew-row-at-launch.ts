@@ -22,8 +22,8 @@ const script: ScriptedTurn[] = [
   lead({
     kind: 'tool_use',
     id: LAUNCH_ID,
-    name: 'Agent',
-    input: { description: 'count the harbour', prompt: `${AGENT_WORK}: count the boats and reply once.`, subagent_type: 'mercury-crew' },
+    name: 'Crewmate',
+    input: { description: 'count the harbour', prompt: `${AGENT_WORK}: count the boats and reply once.`, crewmate_type: 'mercury-crew' },
   }),
   { kind: 'stream', blocks: [{ type: 'text', deltas: [AGENT_REPLY] }], gapMs: 0, headerDelayMs: HOLD_MS, whenBody: AGENT_WORK },
   lead({ kind: 'text', text: 'LEAD-DONE' }),
@@ -38,7 +38,7 @@ const agentRequestSeen = (world: Awaited<ReturnType<typeof makeWorld>>): boolean
 
 tally.section('L1 — the drive: the agent is on the wire while its first reply is still held')
 const world = await makeWorld('crew-row-at-launch', script)
-const session = bootLead(world, [], ['Agent'])
+const session = bootLead(world, [], ['Crewmate'])
 let startedWhileHeld: Row | undefined
 let rowsAtLaunch = 0
 try {

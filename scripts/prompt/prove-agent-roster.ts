@@ -49,10 +49,10 @@ function promptTextOf(a: { agentType: string; getSystemPrompt?: (ctx?: unknown) 
 {
   const agentTool = readFileSync(join(ROOT, 'src/tools/AgentTool/AgentTool.tsx'), 'utf8')
   const launchPlan = readFileSync(join(ROOT, 'src/utils/crew/agentLaunchPlan.ts'), 'utf8')
-  check('§3 the Agent tool resolves through the ONE launch-plan builder', agentTool.includes('buildAgentLaunchPlan({'))
+  check('§3 the Crewmate tool resolves through the ONE launch-plan builder', agentTool.includes('buildAgentLaunchPlan({'))
   check('§3 the plan builder reads the requested type as written — no decode seam', launchPlan.includes('(i.requestedType || undefined) ?? i.defaultAgentType') && !launchPlan.includes('decodeAgentType'))
   const constants = readFileSync(join(ROOT, 'src/tools/AgentTool/constants.ts'), 'utf8')
-  check('§3 the Agent tool constants carry no type translation table', !/Record<string, string>/.test(constants) && constants.includes('new Set([MERCURY_SCOUT_AGENT_TYPE])'))
+  check('§3 the Crewmate tool constants carry no type translation table', !/Record<string, string>/.test(constants) && constants.includes('new Set([MERCURY_SCOUT_AGENT_TYPE])'))
 }
 
 {
@@ -73,7 +73,7 @@ function promptTextOf(a: { agentType: string; getSystemPrompt?: (ctx?: unknown) 
   const edits = ['Edit', 'Write', 'NotebookEdit']
   const readOnly = (list?: string[]) => Array.isArray(list) && edits.every(t => list.some(d => d.includes(t)))
   check('§5 scout disallows the mutation tools', readOnly(scout?.disallowedTools as string[]))
-  check('§5 scout cannot spawn agents', Array.isArray(scout?.disallowedTools) && scout.disallowedTools.includes('Agent'))
+  check('§5 scout cannot spawn agents', Array.isArray(scout?.disallowedTools) && scout.disallowedTools.includes('Crewmate'))
   const { getAllBaseTools } = await import('../../src/tools.js')
   const { restrictScoutTools, scoutRefusal } = await import('../../src/tools/AgentTool/scoutPolicy.js')
   type Classified = { name: string; isReadOnly: (input: Record<string, unknown>) => boolean }
@@ -89,7 +89,7 @@ function promptTextOf(a: { agentType: string; getSystemPrompt?: (ctx?: unknown) 
   const writers = offered.filter(t => t.name !== 'Bash' && t.name !== 'Skill' && !atRest(t)).map(t => t.name)
   check("§5 every tool the scout is offered is read-only by the tool's own classification (the shell and the skill door apart)", offered.length > 0 && writers.length === 0, writers.join(',') || `${offered.length} offered`)
   check('§5 the scout keeps the readers and the shell', ['Read', 'Glob', 'Grep', 'Bash'].every(n => offered.some(t => t.name === n)), offered.map(t => t.name).join(','))
-  check('§5 the scout is offered no editor, no agent spawn, no worktree door and no memory writer', !['Edit', 'Write', 'NotebookEdit', 'Agent', 'EnterWorktree', 'ExitWorktree', 'Retain', 'Correct', 'SendMessage', 'ResumeAgent', 'CronCreate', 'ScheduleWakeup'].some(n => offered.some(t => t.name === n)), offered.map(t => t.name).join(','))
+  check('§5 the scout is offered no editor, no agent spawn, no worktree door and no memory writer', !['Edit', 'Write', 'NotebookEdit', 'Crewmate', 'EnterWorktree', 'ExitWorktree', 'Retain', 'Correct', 'SendMessage', 'ResumeCrewmate', 'CronCreate', 'ScheduleWakeup'].some(n => offered.some(t => t.name === n)), offered.map(t => t.name).join(','))
   const writerAtRest = base.filter(t => t.name !== 'Bash' && !atRest(t))
   check('§5 the ask road denies every writer the pool knows and passes every reader', writerAtRest.length > 0 && (await Promise.all(writerAtRest.filter(t => t.name !== 'Skill').map(t => scoutRefusal(t as never, {})))).every(result => result !== null) && (await Promise.all(offered.filter(t => t.name !== 'Bash').map(t => scoutRefusal(t as never, {})))).every(result => result === null), writerAtRest.map(t => t.name).join(','))
 }
@@ -98,7 +98,7 @@ function promptTextOf(a: { agentType: string; getSystemPrompt?: (ctx?: unknown) 
   const prompts = readFileSync(join(ROOT, 'src/constants/prompts.ts'), 'utf8')
   check('§6 the prompt names no docs line of its own: the docs skill\'s roster description carries the law once', !prompts.includes(MERCURY_DOCS_SKILL_NAME) && MERCURY_DOCS_SKILL_NAME === 'mercury-docs')
   check('§6 the skill description answers from the documentation that ships with the install, never from memory', readFileSync(join(ROOT, 'src/skills/bundled/mercuryDocs.ts'), 'utf8').includes('answered from the documentation that ships with this install, never from memory'))
-  check('§6 no agent type is advertised for questions about Mercury', !/subagent_type \\`\$\{MERCURY_/.test(prompts))
+  check('§6 no agent type is advertised for questions about Mercury', !/crewmate_type \\`\$\{MERCURY_/.test(prompts))
   const prevKill = process.env.MERCURY_HOST_DISABLE_BUILTIN_AGENTS
   const prevInteractive = getIsInteractive()
   delete process.env.MERCURY_HOST_DISABLE_BUILTIN_AGENTS

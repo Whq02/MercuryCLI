@@ -3,7 +3,6 @@
   "startSha": "36c28e910407b9c9b89e7af45abd89266af1f374",
   "frozenAtSlice0": {
     "baseToolNames": [
-      "Agent",
       "ApolloReview",
       "Aseprite",
       "AskAdvisor",
@@ -17,6 +16,7 @@
       "Computer",
       "ContextLeft",
       "Correct",
+      "Crewmate",
       "CronCreate",
       "CronDelete",
       "CronList",
@@ -31,6 +31,7 @@
       "Grep",
       "Inspect",
       "JevEval",
+      "Journal",
       "Journey",
       "Launch",
       "ListMcpResources",
@@ -50,7 +51,7 @@
       "Recall",
       "RecordConvention",
       "Reflect",
-      "ResumeAgent",
+      "ResumeCrewmate",
       "Retain",
       "Rewind",
       "ScheduleWakeup",

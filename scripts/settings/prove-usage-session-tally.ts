@@ -293,7 +293,7 @@ section("§5 THE RUNNER (the Air's shape on the built bundle): a turn answered b
     const SCOUT_ASK = 'SCOUT-ASK count the notes files'
     const fx = await startFixtureApi([
       { kind: 'text', text: 'TALLY-TURN-ONE.', model: SONNET, usage: { input_tokens: 123, output_tokens: 45 }, whenSaid: 'say the tally word' },
-      { kind: 'tool_use', name: 'Agent', input: { description: 'scout the notes', prompt: SCOUT_ASK, subagent_type: 'mercury-crew' }, model: OPUS, usage: { input_tokens: 200, output_tokens: 20 }, whenSaid: 'send a scout for the notes' },
+      { kind: 'tool_use', name: 'Crewmate', input: { description: 'scout the notes', prompt: SCOUT_ASK, crewmate_type: 'mercury-crew' }, model: OPUS, usage: { input_tokens: 200, output_tokens: 20 }, whenSaid: 'send a scout for the notes' },
       { kind: 'text', text: 'SCOUT-DONE: three notes files.', model: SONNET, usage: { input_tokens: 70, output_tokens: 9 }, whenBody: SCOUT_ASK },
       { kind: 'text', text: 'TALLY-TURN-TWO: the scout found three.', model: OPUS, usage: { input_tokens: 300, output_tokens: 30 } },
     ])

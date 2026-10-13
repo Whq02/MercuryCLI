@@ -76,7 +76,7 @@ export function routeOf(body: unknown): { route: Route; ask: string; step: numbe
   const ask = askOf(body)
   const ack = lastIsToolResult(body)
   const step = stepOf(body)
-  const offersAgent = toolNamesOf(body).includes('Agent')
+  const offersAgent = toolNamesOf(body).includes('Crewmate')
   if (ask.includes('crew-seat:')) return { route: ack ? 'seat-ack' : 'seat', ask, step }
   if (offersAgent && ask.includes('crew-stop:')) {
     return { route: ack ? 'lead-ack' : 'lead', ask, step }
@@ -118,7 +118,7 @@ export function blocksFor(route: Route, ask: string, seatTool: SeatTool, step = 
       return {
         blocks: [
           { type: 'text', text: 'launching the sleeper' },
-          { type: 'tool_use', name: 'Agent', input: { description: SEAT_NAME, prompt: SEAT_PROMPT, subagent_type: 'mercury-crew', ...(background ? { run_in_background: true } : {}) } },
+          { type: 'tool_use', name: 'Crewmate', input: { description: SEAT_NAME, prompt: SEAT_PROMPT, crewmate_type: 'mercury-crew', ...(background ? { run_in_background: true } : {}) } },
         ],
         usage: { input: 1200, output: 80 },
       }

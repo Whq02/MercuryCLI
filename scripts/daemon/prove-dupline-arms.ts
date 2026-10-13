@@ -37,7 +37,7 @@ section('S the doors a sub-agent could nest or fork through are shut at their ow
   const { ALL_AGENT_DISALLOWED_TOOLS, CUSTOM_AGENT_DISALLOWED_TOOLS } = await import('../../src/constants/tools.ts')
   const { AGENT_TOOL_NAME } = await import('../../src/tools/AgentTool/constants.ts')
   const { WORKFLOW_TOOL_NAME } = await import('../../src/tools/WorkflowTool/constants.ts')
-  check('every sub-agent loses the Agent tool and the Workflow tool (the one deny set)', ALL_AGENT_DISALLOWED_TOOLS.has(AGENT_TOOL_NAME) && ALL_AGENT_DISALLOWED_TOOLS.has(WORKFLOW_TOOL_NAME) && CUSTOM_AGENT_DISALLOWED_TOOLS === ALL_AGENT_DISALLOWED_TOOLS)
+  check('every sub-agent loses the Crewmate tool and the Workflow tool (the one deny set)', ALL_AGENT_DISALLOWED_TOOLS.has(AGENT_TOOL_NAME) && ALL_AGENT_DISALLOWED_TOOLS.has(WORKFLOW_TOOL_NAME) && CUSTOM_AGENT_DISALLOWED_TOOLS === ALL_AGENT_DISALLOWED_TOOLS)
   check('a launch that names no type takes the default type', src('utils/crew/agentLaunchPlan.ts').includes("(i.requestedType || undefined) ?? i.defaultAgentType"))
   const hooks = src('tools/WorkflowTool/agentHooks.ts')
   check("a workflow's agent queries under its own source label and its own agent id", hooks.includes('querySource: getQuerySourceForAgent(') && hooks.includes('agentId: args.agentId,'))
@@ -159,7 +159,7 @@ if (!existsSync(DIST)) {
   }
 
   if (runs('A3')) {
-  section("A3 a crew notice raised while a sub-agent runs reaches the session's own model once, at the Agent tool's return")
+  section("A3 a crew notice raised while a sub-agent runs reaches the session's own model once, at the Crewmate tool's return")
     const w = await openWorld('crew-notice', 10)
     const before = w.runner.frames.length
     void w.runner.prompt(CREW_TURN_ASK, UT)
@@ -175,7 +175,7 @@ if (!existsSync(DIST)) {
     const requests = requestsOf(w.fx.wire)
     check('no request of either agent carried the notice', carrying(requests.filter(r => r.arm === 'subwork' || r.arm === 'quick'), CREW_NOTICE).length === 0, describeRequests(requests, [CREW_NOTICE]))
     const noticeRequest = carrying(requests.filter(r => r.arm === 'crew'), CREW_NOTICE)[0]
-    check("the session's own request after the Agent tool carried the notice, once", noticeRequest !== undefined && noticeRequest.step === 1 && noticeRequest.counts?.[CREW_NOTICE] === 1, describeRequests(requests, [CREW_NOTICE]))
+    check("the session's own request after the Crewmate tool carried the notice, once", noticeRequest !== undefined && noticeRequest.step === 1 && noticeRequest.counts?.[CREW_NOTICE] === 1, describeRequests(requests, [CREW_NOTICE]))
     const noticeRows = carriers.filter(c => c.word === CREW_NOTICE)
     const noticeMain = noticeRows.filter(isDrainedMainRow)
     const lastSub = requests.filter(r => r.arm === 'subwork').map(r => r.at).sort((a, b) => b - a)[0] ?? 0
@@ -206,19 +206,19 @@ if (!existsSync(DIST)) {
   }
 
   if (runs('A5')) {
-  section('A5 a sub-agent cannot nest: its Agent call is refused, and the line sent during its run still waits')
+  section('A5 a sub-agent cannot nest: its Crewmate call is refused, and the line sent during its run still waits')
     const w = await openWorld('nested', 5)
     const before = w.runner.frames.length
     void w.runner.prompt(NESTED_TURN_ASK, UT)
     const opened = await waitWire(w.fx.wire, "the sub-agent's first request", wireOf(w, 'subnested', 0), bound(60_000))
-    check("the sub-agent's pool carries neither the Agent tool nor the Workflow tool", opened !== null && opened.hasAgentTool === false && opened.hasWorkflowTool === false, j(opened))
+    check("the sub-agent's pool carries neither the Crewmate tool nor the Workflow tool", opened !== null && opened.hasAgentTool === false && opened.hasWorkflowTool === false, j(opened))
     await sleep(1000)
     const line = send(w, LINE, 1)
     const result = await w.runner.waitFor("the nested turn's result", isOutcome, bound(90_000), before)
     check("the turn ended with the session's own final text", result !== null && String(result.answer ?? '').startsWith(doneText(NESTED_TURN_ASK)), j(result?.answer))
     const requests = requestsOf(w.fx.wire)
     const refused = requests.find(wireOf(w, 'subnested', 2))
-    check("the sub-agent's Agent call came back as an error, not a launch", refused !== undefined && refused.lastToolResult?.isError === true, j(refused?.lastToolResult))
+    check("the sub-agent's Crewmate call came back as an error, not a launch", refused !== undefined && refused.lastToolResult?.isError === true, j(refused?.lastToolResult))
     check('no deeper agent ever queried', requests.every(r => r.arm !== 'deeper') && carrying(requests, DEEPER_DONE).length === 0, j(requests.map(r => r.arm)))
     const carriers = await settled(w, [LINE], bound(10_000), drainedOnce([LINE]))
     lineLaw(w, line, ['subnested', 'deeper'], 'agentnested', 1, carriers)
@@ -226,7 +226,7 @@ if (!existsSync(DIST)) {
   }
 
   if (runs('A6')) {
-  section('A6 a fork is refused at the Agent tool, and the line sent during the sub-agent that follows still waits')
+  section('A6 a fork is refused at the Crewmate tool, and the line sent during the sub-agent that follows still waits')
     const w = await openWorld('fork', 5)
     const before = w.runner.frames.length
     void w.runner.prompt(FORK_TURN_ASK, UT)
@@ -272,13 +272,13 @@ if (!existsSync(DIST)) {
   }
 
   if (runs('A8')) {
-  section("A8 two lines sent after the Agent tool's return, while the session's final request is held on the wire, each keep their own row and identity")
+  section("A8 two lines sent after the Crewmate tool's return, while the session's final request is held on the wire, each keep their own row and identity")
     const w = await openWorld('return', 4, 0, { hold: true })
     const before = w.runner.frames.length
     void w.runner.prompt(AGENT_TURN_ASK, UT)
-    const mainNext = await waitWire(w.fx.wire, "the session's request after the Agent tool", wireOf(w, 'agent', 1), bound(60_000))
+    const mainNext = await waitWire(w.fx.wire, "the session's request after the Crewmate tool", wireOf(w, 'agent', 1), bound(60_000))
     const held = await waitWire(w.fx.wire, 'the fixture holding the final answer', x => x.kind === 'held', bound(10_000))
-    check("the Agent tool had returned and the session's own final request was on the wire, held by the fixture, before either line was sent", mainNext !== null && held !== null, j(w.fx.wire().map(x => [x.kind, x.arm, x.step])))
+    check("the Crewmate tool had returned and the session's own final request was on the wire, held by the fixture, before either line was sent", mainNext !== null && held !== null, j(w.fx.wire().map(x => [x.kind, x.arm, x.step])))
     const atReturn = send(w, RETURN_LINE, 1)
     const afterReturn = send(w, AFTER_RETURN_LINE, 2)
     const queued = await queuedBoth(w, [RETURN_LINE, AFTER_RETURN_LINE], bound(20_000))

@@ -152,14 +152,14 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
       return answerText(res, n, model, AGENT_DONE)
     }
     if (ask.trim() === RESUME_ASK) {
-      if (step === 0) return answerTools(res, n, model, [{ id: `toolu_hold_resume_${n}`, name: 'ResumeAgent', input: { to: AGENT_NAME, message: RESUME_PROMPT } }])
+      if (step === 0) return answerTools(res, n, model, [{ id: `toolu_hold_resume_${n}`, name: 'ResumeCrewmate', input: { to: AGENT_NAME, message: RESUME_PROMPT } }])
       return answerText(res, n, model, RESUMED)
     }
     if (ask.trim() === ARM_ASK) {
       if (step === 0) {
         return answerTools(res, n, model, [
           { id: `toolu_hold_shell_${n}`, name: 'Bash', input: { command: `sleep ${SHELL_SECONDS}; echo the slow shell is done`, description: SHELL_DESCRIPTION, run_in_background: true } },
-          { id: `toolu_hold_agent_${n}`, name: 'Agent', input: { name: AGENT_NAME, description: AGENT_DESCRIPTION, prompt: AGENT_PROMPT, run_in_background: true } },
+          { id: `toolu_hold_agent_${n}`, name: 'Crewmate', input: { name: AGENT_NAME, description: AGENT_DESCRIPTION, prompt: AGENT_PROMPT, run_in_background: true } },
           { id: `toolu_hold_wake_${n}`, name: 'ScheduleWakeup', input: { delaySeconds: WAKE_SECONDS, prompt: WAKE_PROMPT } },
         ])
       }
@@ -243,7 +243,7 @@ if (!existsSync(DIST)) {
   check('refusal outcomes carry the provider rate_limit class and words, never a stored-note admission refusal', refusedOutcomes.length > 0 && refusedOutcomes.every(frame => rateLimited(frame) && JSON.stringify(frame).includes('Rate limit exceeded')) && mainWalled.every(w => w.refusal !== undefined && w.refusedAt !== undefined), j({ walled: mainWalled.map(w => w.n), outcomes: refusedOutcomes }))
   const retryGap = agentRefused.length === 2 ? agentRefused[1]!.at - agentRefused[0]!.at : -1
   check('the refused agent retries exactly once at the provider Retry-After, not the usage-window reset', agentRefused.length === 2 && retryGap >= RETRY_AFTER_SECONDS * 1000 && retryGap <= RETRY_AFTER_SECONDS * 1000 + 1_000 + bound(DELIVERY_BOUND_MS) && agentRefused[1]!.at < wallUntilMs && resumedTurns.length === 1 && resumedTurns[0]!.kind === 'walled', j({ retryGap, agentRefused, resumed: resumedTurns.map(w => w.n) }))
-  check('the second refusal preserves the provider words and the hand-resume door', secondPause !== null && triggerSummary(secondPause).includes(`${AGENT_REFUSAL} 2`) && triggerSummary(secondPause).includes('ResumeAgent to its id') && !wire.some(w => triggerSummary(w).startsWith(`${AGENT_NOTICE} completed`)), secondPause?.ask ?? brief())
+  check('the second refusal preserves the provider words and the hand-resume door', secondPause !== null && triggerSummary(secondPause).includes(`${AGENT_REFUSAL} 2`) && triggerSummary(secondPause).includes('ResumeCrewmate to its id') && !wire.some(w => triggerSummary(w).startsWith(`${AGENT_NOTICE} completed`)), secondPause?.ask ?? brief())
   const armAt = wire.find(w => !w.agent && w.ask.trim() === ARM_ASK && w.step === 0)?.at
   check('the self-paced wake starts exactly one request on its own due clock while the provider still refuses', woke !== null && armAt !== undefined && wakes.length === 1 && woke.kind === 'walled' && woke.at >= armAt + WAKE_SECONDS * 1000 && woke.at <= (armed?.at ?? 0) + WAKE_SECONDS * 1000 + bound(DELIVERY_BOUND_MS) && woke.at < wallUntilMs, j({ armAt, armedAt: armed?.at, wakeAt: woke?.at, wallUntilMs }))
   check('the wake is the new prompt of its own turn, not a replay of the earlier notices', woke !== null && woke.ask.includes(WAKE_PROMPT) && !woke.ask.includes('<task-notification>') && shell !== null && firstPause !== null && woke.n !== shell.n && woke.n !== firstPause.n, woke?.ask ?? brief())
@@ -260,7 +260,7 @@ if (!existsSync(DIST)) {
   void runner.prompt(RESUME_ASK, 'u-resume')
   const hand = await waitWire('the hand resume tool result', w => !w.agent && w.ask.trim() === RESUME_ASK && w.step >= 1, bound(30_000))
   const completed = await waitWire('the completion after hand resume', w => triggerSummary(w).startsWith(`${AGENT_NOTICE} completed`), bound(30_000))
-  check('the paused agent resumes only through the operator-requested ResumeAgent and completes', hand !== null && hand.results.some(text => text.includes('was resumed in the background')) && wire.some(w => w.agent && w.kind === 'agent' && w.at >= handAt && w.ask.includes(RESUME_PROMPT)) && completed !== null && completed.at >= handAt && completed.ask.includes(AGENT_DONE), brief())
+  check('the paused agent resumes only through the operator-requested ResumeCrewmate and completes', hand !== null && hand.results.some(text => text.includes('was resumed in the background')) && wire.some(w => w.agent && w.kind === 'agent' && w.at >= handAt && w.ask.includes(RESUME_PROMPT)) && completed !== null && completed.at >= handAt && completed.ask.includes(AGENT_DONE), brief())
   check('the hand-resumed completion starts its own request once and no further automatic resume occurred', wire.filter(w => triggerSummary(w).startsWith(`${AGENT_NOTICE} completed`)).length === 1 && wire.filter(w => triggerSummary(w).startsWith(`${AGENT_NOTICE} resumed by itself`)).length === 1, brief())
   await runner.stop(bound(8_000))
   server.close()

@@ -367,8 +367,8 @@ export function AgentStudio({ tools, initialMode, onExit }: Props): React.ReactN
       const revision = (agent as { revision?: string }).revision ?? 'in-memory'
       const nextInput =
         `Test-drive the agent "${agent.agentType}" (definition revision ${revision}; ` +
-        `effective model ${eff.model}, effort ${eff.effort.label}): spawn it with the Agent tool ` +
-        `(subagent_type: "${agent.agentType}", isolation: "worktree" so it works in a disposable copy) ` +
+        `effective model ${eff.model}, effort ${eff.effort.label}): spawn it with the Crewmate tool ` +
+        `(crewmate_type: "${agent.agentType}", isolation: "worktree" so it works in a disposable copy) ` +
         `on this prompt, then report its result and whether it matched the definition's intent:\n\n${prompt}`
       onExit(undefined, { display: 'skip', nextInput })
     },

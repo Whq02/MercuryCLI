@@ -67,7 +67,7 @@ function base(over: Record<string, unknown> = {}): never {
 }
 
 console.log('============================================================')
-console.log(' Agent launch plan — one typed resolution for every dispatch')
+console.log(' Crewmate launch plan — one typed resolution for every dispatch')
 console.log('============================================================')
 
 section('§1 — canonical decode: ONE truth')
@@ -108,7 +108,7 @@ section('§2 — lookup, restriction, and the denial band')
 
   const denyCtx = {
     ...getEmptyToolPermissionContext(),
-    alwaysDenyRules: { userSettings: ['Agent(mercury-scout)'] },
+    alwaysDenyRules: { userSettings: ['Crewmate(mercury-scout)'] },
   }
   err = undefined
   try {
@@ -118,7 +118,7 @@ section('§2 — lookup, restriction, and the denial band')
   }
   check(
     'denied type → the denial error names the rule and its source',
-    err?.message === 'The mercury-scout agent is denied by the rule Agent(mercury-scout) in your user settings.',
+    err?.message === 'The mercury-scout agent is denied by the rule Crewmate(mercury-scout) in your user settings.',
     err?.message,
   )
 
@@ -129,8 +129,8 @@ section('§2 — lookup, restriction, and the denial band')
     err = e as Error
   }
   check(
-    'an Agent(x,y) tool-spec restriction excludes unlisted types (the denied-by-rule sentence)',
-    err?.message === 'The mercury-scout agent is denied by the rule Agent(mercury-scout).',
+    'a Crewmate(x,y) tool-spec restriction excludes unlisted types (the denied-by-rule sentence)',
+    err?.message === 'The mercury-scout agent is denied by the rule Crewmate(mercury-scout).',
     err?.message,
   )
 

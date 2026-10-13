@@ -37,10 +37,10 @@ const script: Script = req => {
   }
   if (isMissChild(req)) return [{ type: 'text', text: MISS_PROSE }]
   if (req.ask.includes(MISS_ASK)) {
-    if (req.step === 0) return [{ type: 'tool_use', name: 'Agent', input: { description: 'the miss probe child', prompt: MISS_CHILD, subagent_type: 'mercury-scout', output_schema: SCHEMA } }]
+    if (req.step === 0) return [{ type: 'tool_use', name: 'Crewmate', input: { description: 'the miss probe child', prompt: MISS_CHILD, crewmate_type: 'mercury-scout', output_schema: SCHEMA } }]
     return [{ type: 'text', text: 'parent done after the miss' }]
   }
-  if (req.step === 0) return [{ type: 'tool_use', name: 'Agent', input: { description: 'the hit probe child', prompt: HIT_CHILD, subagent_type: 'mercury-scout', output_schema: SCHEMA } }]
+  if (req.step === 0) return [{ type: 'tool_use', name: 'Crewmate', input: { description: 'the hit probe child', prompt: HIT_CHILD, crewmate_type: 'mercury-scout', output_schema: SCHEMA } }]
   return [{ type: 'text', text: 'parent done after the hit' }]
 }
 const fixture = await startScriptedFixture(script)
@@ -52,13 +52,13 @@ tally.section('a child that submits through the bound StructuredOutput tool: the
 void runner.prompt(HIT_ASK, randomUUID())
 const hitOutcome = await runner.waitFor('the hit turn\'s outcome', isOutcome, bound(90_000))
 tally.check('the hit turn settled', hitOutcome !== null, String(hitOutcome?.status))
-const hitCall = runner.frames.find(f => f.type === 'tool_call' && f.tool === 'Agent' && f.parent_call_id === undefined)
+const hitCall = runner.frames.find(f => f.type === 'tool_call' && f.tool === 'Crewmate' && f.parent_call_id === undefined)
 const hitCallId = hitCall === undefined ? null : String(hitCall.call_id ?? '')
-tally.check('the parent called the Agent tool with the schema', hitCallId !== null && JSON.stringify((hitCall?.input as { output_schema?: unknown })?.output_schema) === JSON.stringify(SCHEMA), JSON.stringify(hitCall).slice(0, 200))
+tally.check('the parent called the Crewmate tool with the schema', hitCallId !== null && JSON.stringify((hitCall?.input as { output_schema?: unknown })?.output_schema) === JSON.stringify(SCHEMA), JSON.stringify(hitCall).slice(0, 200))
 const childRequest = fixture.requests.find(isHitChild)
 tally.check('the child\'s request carried the StructuredOutput tool', childRequest !== undefined && childRequest.toolNames.includes('StructuredOutput'), childRequest?.toolNames.join(',') ?? 'no child request')
 const childYield = runner.frames.find(f => f.type === 'tool_call' && f.tool === 'StructuredOutput' && f.parent_call_id === hitCallId)
-tally.check('the child\'s StructuredOutput call rides the stream as a tool_call row tied to the Agent call, its input the payload', childYield !== undefined && JSON.stringify(childYield.input) === JSON.stringify(PAYLOAD), JSON.stringify(childYield).slice(0, 200))
+tally.check('the child\'s StructuredOutput call rides the stream as a tool_call row tied to the Crewmate call, its input the payload', childYield !== undefined && JSON.stringify(childYield.input) === JSON.stringify(PAYLOAD), JSON.stringify(childYield).slice(0, 200))
 const childYieldResult = childYield === undefined ? undefined : runner.frames.find(f => f.type === 'tool_result' && f.call_id === childYield.call_id)
 tally.check('the bound tool accepted the payload', childYieldResult !== undefined && childYieldResult.status === 'ok' && String(childYieldResult.output ?? '').includes('Structured output provided successfully'), JSON.stringify(childYieldResult).slice(0, 200))
 const hitRow = runner.frames.find(f => f.type === 'tool_result' && f.call_id === hitCallId)
@@ -76,7 +76,7 @@ const beforeMiss = runner.frames.length
 void runner.prompt(MISS_ASK, randomUUID())
 const missOutcome = await runner.waitFor('the miss turn\'s outcome', isOutcome, bound(90_000), beforeMiss)
 tally.check('the miss turn settled', missOutcome !== null, String(missOutcome?.status))
-const missCall = runner.frames.slice(beforeMiss).find(f => f.type === 'tool_call' && f.tool === 'Agent' && f.parent_call_id === undefined)
+const missCall = runner.frames.slice(beforeMiss).find(f => f.type === 'tool_call' && f.tool === 'Crewmate' && f.parent_call_id === undefined)
 const missCallId = missCall === undefined ? null : String(missCall.call_id ?? '')
 const missRow = runner.frames.slice(beforeMiss).find(f => f.type === 'tool_result' && f.call_id === missCallId)
 const missOutput = missRow === undefined ? '' : String(missRow.output ?? '')

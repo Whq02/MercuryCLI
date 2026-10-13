@@ -123,7 +123,7 @@ function routeOf(body: unknown, dialect: Dialect): { route: Route; tools: string
   const tools = toolNamesOf(body)
   const results = resultTextsOf(body, dialect)
   if (tools.includes('classify_result')) return { route: 'classifier', tools, results }
-  if (tools.includes('Agent')) return { route: results.length === 0 ? 'parent' : 'parent-ack', tools, results }
+  if (tools.includes('Crewmate')) return { route: results.length === 0 ? 'parent' : 'parent-ack', tools, results }
   if (userTextsOf(body, dialect).some(text => text.includes('agent-bash-seat:'))) {
     const route: Route = results.length === 0 ? 'seat-1' : results.length === 1 ? 'seat-2' : 'seat-done'
     return { route, tools, results }
@@ -290,7 +290,7 @@ async function startFixture(port: number, opts: { background: boolean; classifie
         case 'parent':
           blocks = [
             { type: 'text', text: 'agent-bash: launching the shell probe' },
-            { type: 'tool_use', name: 'Agent', input: { description: 'agent-bash-seat', prompt: SEAT_BRIEF, subagent_type: 'mercury-crew', ...(opts.background ? { run_in_background: true } : {}) } },
+            { type: 'tool_use', name: 'Crewmate', input: { description: 'agent-bash-seat', prompt: SEAT_BRIEF, crewmate_type: 'mercury-crew', ...(opts.background ? { run_in_background: true } : {}) } },
           ]
           usage = { input: 1200, output: 60 }
           break
@@ -397,7 +397,7 @@ const DENIAL_WORDS = ['has been denied', 'is denied by the rule', 'auto-denied',
 const isDenial = (text: string): boolean => DENIAL_WORDS.some(word => text.includes(word))
 
 function evidence(fixture: Fixture, world: World): void {
-  console.log(`  evidence · sha ${world.sha} · hits: ${fixture.hits.map(h => `${h.n}:${h.route}/${h.dialect}${h.streaming ? '' : '/json'}/${h.model}${h.tools.length ? `[${h.tools.includes('Bash') ? 'Bash' : 'no-Bash'}${h.tools.includes('Agent') ? '+Agent' : ''}]` : ''}`).join(' ')}`)
+  console.log(`  evidence · sha ${world.sha} · hits: ${fixture.hits.map(h => `${h.n}:${h.route}/${h.dialect}${h.streaming ? '' : '/json'}/${h.model}${h.tools.length ? `[${h.tools.includes('Bash') ? 'Bash' : 'no-Bash'}${h.tools.includes('Crewmate') ? '+Agent' : ''}]` : ''}`).join(' ')}`)
   for (const hit of fixture.hits) {
     if (hit.results.length === 0) continue
     console.log(`  evidence · request ${hit.n} (${hit.route}) results: ${hit.results.map(r => JSON.stringify(r.replace(/\s+/g, ' ').slice(0, 140))).join(' · ')}`)
@@ -417,7 +417,7 @@ function checkWire(label: string, fixture: Fixture, world: World): void {
   const seatDone = fixture.hits.find(h => h.route === 'seat-done')
   const parentAcks = fixture.hits.filter(h => h.route === 'parent-ack')
   const parentAck = parentAcks[parentAcks.length - 1]
-  check(`${label}: the seat's request offers Bash and never the Agent tool`, seat1 !== undefined && seat1.tools.includes('Bash') && !seat1.tools.includes('Agent'), seat1 ? seat1.tools.join(',') : 'no seat request')
+  check(`${label}: the seat's request offers Bash and never the Crewmate tool`, seat1 !== undefined && seat1.tools.includes('Bash') && !seat1.tools.includes('Crewmate'), seat1 ? seat1.tools.join(',') : 'no seat request')
   check(`${label}: the read-only command ran with no ask — its result is the sha`, seat2 !== undefined && firstLine(seat2.results[0]) === world.sha, seat2 ? JSON.stringify(seat2.results[0]) : 'no second seat request')
   const after = headSha(world.cwd)
   check(`${label}: the writing command ran — the probe commit landed and its sha came back, no refusal`, seatDone !== undefined && after !== world.sha && commitCount(world.cwd) === '2' && firstLine(seatDone.results[1]) === after && !isDenial(seatDone.results[1] ?? ''), seatDone ? `${JSON.stringify(seatDone.results[1])} · head ${after} · commits ${commitCount(world.cwd)}` : 'no seat-done request')

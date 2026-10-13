@@ -70,10 +70,10 @@ if (reminder !== null) {
   tally.check('the leftover list names every agent lane of the repository with its state', all.length === 3 && all.map(l => l.state).sort().join(',') === 'clean,uncommitted,unreachable', JSON.stringify(all.map(l => `${l.path}:${l.state}`)))
 }
 
-tally.section("§2 a crewmate's end keeps its worktree and reminds: the Agent tool's cleanup no longer settles (removes) a clean lane")
+tally.section("§2 a crewmate's end keeps its worktree and reminds: the Crewmate tool's cleanup no longer settles (removes) a clean lane")
 {
   const tool = readFileSync(join(ROOT, 'src/tools/AgentTool/AgentTool.tsx'), 'utf8')
-  tally.check('the Agent tool no longer calls the removing settle', !tool.includes('settleAgentWorktree('), 'AgentTool.tsx still calls settleAgentWorktree')
+  tally.check('the Crewmate tool no longer calls the removing settle', !tool.includes('settleAgentWorktree('), 'AgentTool.tsx still calls settleAgentWorktree')
   tally.check("the completed receipt's worktree line is the reminder owner's row", tool.includes('crewWorktreeReminderTail('), 'the receipt does not use the reminder words')
 }
 const driveRepo = join(scratch, 'drive-repo')
@@ -85,7 +85,7 @@ const fixture = await startScriptedFixture(req => {
   if (req.opening.trim() === HELPER_PROMPT) return [{ type: 'text', text: 'hello from the lane' }]
   if (req.ask.trim() !== ASK) return [{ type: 'text', text: 'ok' }]
   const last = req.results[req.results.length - 1]
-  if (req.step === 0) return [{ type: 'tool_use', name: 'Agent', input: { description: 'isolated helper', prompt: HELPER_PROMPT, isolation: 'worktree' } }]
+  if (req.step === 0) return [{ type: 'tool_use', name: 'Crewmate', input: { description: 'isolated helper', prompt: HELPER_PROMPT, isolation: 'worktree' } }]
   if (req.step === 1) seen.isolated = last
   return [{ type: 'text', text: 'done' }]
 })

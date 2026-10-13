@@ -80,7 +80,7 @@ const POPULATED = chain([
   userRow('audit the retry ladder and report file:line', at(1)),
   assistant([{ type: 'text', text: 'Reading the ladder now.' }], at(1, 30), 'p1'),
   userRow('refactor the switchboard focus path\n- keep the reap law\n- one pool per boundary', at(3, 10)),
-  assistant([{ type: 'tool_use', id: 'toolu_agent_panel', name: 'Agent', input: { name: 'PANEL', description: 'Prompts panel implementer lane', prompt: 'You are lane PANEL, the prompts-panel implementer. Read the sheet whole first.' } }], at(4), 'p2'),
+  assistant([{ type: 'tool_use', id: 'toolu_agent_panel', name: 'Crewmate', input: { name: 'PANEL', description: 'Prompts panel implementer lane', prompt: 'You are lane PANEL, the prompts-panel implementer. Read the sheet whole first.' } }], at(4), 'p2'),
   userRow([{ type: 'tool_result', tool_use_id: 'toolu_agent_panel', content: 'PANEL launched' }], at(4, 5), { toolUseResult: { status: 'launched' } }),
   userRow('<bash-input>git status --short</bash-input>', at(5)),
   userRow('<bash-stdout> M src/commands/workbench/index.ts</bash-stdout>', at(5, 2)),

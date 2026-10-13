@@ -63,6 +63,6 @@ export const BACKGROUND_LAUNCH_MENU_ROW = {
 
 export function backgroundWorkerDelegationSentence(on: boolean = backgroundSessionsLaunchCrewmates()): string {
   return on
-    ? `Delegation (subagents/workflows) is available: the operator turned on ${BACKGROUND_LAUNCH_LABEL}, so this session launches crewmates and workflows as a focused one does — when those tools are absent, plan and work single-handed; never wait for them.`
-    : `Delegation (subagents/workflows) is available only while this session holds the workflows-allowed tag, the operator is present, or the operator has turned on ${BACKGROUND_LAUNCH_LABEL} — when those tools are absent, plan and work single-handed; never wait for them.`
+    ? `Delegation (crewmates/workflows) is available: the operator turned on ${BACKGROUND_LAUNCH_LABEL}, so this session launches crewmates and workflows as a focused one does — when those tools are absent, plan and work single-handed; never wait for them.`
+    : `Delegation (crewmates/workflows) is available only while this session holds the workflows-allowed tag, the operator is present, or the operator has turned on ${BACKGROUND_LAUNCH_LABEL} — when those tools are absent, plan and work single-handed; never wait for them.`
 }

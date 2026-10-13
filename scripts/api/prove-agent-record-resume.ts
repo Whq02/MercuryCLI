@@ -116,7 +116,7 @@ const arena = makeArena()
 
 section('§1 process 1 — the main launches a background seat; the seat leaves a transcript with a first-exchange record of its own')
 const turns1: ScriptedTurn[] = [
-  { kind: 'tool_use', name: 'Agent', input: { description: SEAT_DESCRIPTION, prompt: 'record-seat: reply in one line and finish', subagent_type: 'mercury-crew', run_in_background: true, model: 'opus' }, thinking: 'launch the seat', model: MAIN, whenModel: 'fable' },
+  { kind: 'tool_use', name: 'Crewmate', input: { description: SEAT_DESCRIPTION, prompt: 'record-seat: reply in one line and finish', crewmate_type: 'mercury-crew', run_in_background: true, model: 'opus' }, thinking: 'launch the seat', model: MAIN, whenModel: 'fable' },
   { kind: 'text', text: 'MAIN-DISPATCHED', thinking: 'dispatched', model: MAIN, whenModel: 'fable' },
   { kind: 'text', text: 'MAIN-NOTED-1', thinking: 'noted one', model: MAIN, whenModel: 'fable' },
   { kind: 'text', text: 'MAIN-NOTED-2', thinking: 'noted two', model: MAIN, whenModel: 'fable' },
@@ -151,7 +151,7 @@ let initTools2: string[] = []
 const mainReqs1 = reqs1.filter(q => modelOf(q) === MAIN)
 if (agentId !== null) {
   const turns2: ScriptedTurn[] = [
-    { kind: 'tool_use', name: 'ResumeAgent', input: { to: agentId, message: 'carry on: reply in one line and finish', summary: 'carry on' }, thinking: 'resume the seat', model: MAIN, whenModel: 'fable' },
+    { kind: 'tool_use', name: 'ResumeCrewmate', input: { to: agentId, message: 'carry on: reply in one line and finish', summary: 'carry on' }, thinking: 'resume the seat', model: MAIN, whenModel: 'fable' },
     { kind: 'text', text: 'MAIN-RESUMED', thinking: 'resumed', model: MAIN, whenModel: 'fable' },
     { kind: 'text', text: 'MAIN-NOTED-4', thinking: 'noted four', model: MAIN, whenModel: 'fable' },
     { kind: 'text', text: 'MAIN-NOTED-5', thinking: 'noted five', model: MAIN, whenModel: 'fable' },

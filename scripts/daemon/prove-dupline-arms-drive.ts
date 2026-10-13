@@ -97,7 +97,7 @@ if (!existsSync(DIST)) {
   const requests = requestsOf(pfx.wire)
   const returned = requests.find(r => r.arm === 'crew' && r.step === 1)
   const quickDone = requests.find(r => r.arm === 'quick')
-  check("the session's own request after the Agent tool carried both lines and the notice, once each", returned !== undefined && returned.counts?.[FIRST_LINE] === 1 && returned.counts?.[SECOND_LINE] === 1 && returned.counts?.[CREW_NOTICE] === 1, j(returned?.counts))
+  check("the session's own request after the Crewmate tool carried both lines and the notice, once each", returned !== undefined && returned.counts?.[FIRST_LINE] === 1 && returned.counts?.[SECOND_LINE] === 1 && returned.counts?.[CREW_NOTICE] === 1, j(returned?.counts))
   check('no request of either agent carried a line or the notice', requests.filter(r => r.arm === 'subwork' || r.arm === 'quick').every(r => (r.counts?.[FIRST_LINE] ?? 0) === 0 && (r.counts?.[SECOND_LINE] ?? 0) === 0 && (r.counts?.[CREW_NOTICE] ?? 0) === 0), j(requests.map(r => [r.n, r.arm, r.step, r.counts?.[FIRST_LINE], r.counts?.[SECOND_LINE], r.counts?.[CREW_NOTICE]])))
   const queuedFirst = rowsWith(marks.queued, FIRST_LINE)
   const queuedSecond = rowsWith(marks.queued, SECOND_LINE)
@@ -108,7 +108,7 @@ if (!existsSync(DIST)) {
     check(`at ${label}: the first line paints once, stamped with the clock it was sent at (${firstSentMs === null ? '-' : clockText(firstSentMs)})`, first.length === 1 && near(first[0]!, '[sam]', firstSentMs), j(first))
     check(`at ${label}: the second line paints once, stamped with the clock it was sent at (${secondSentMs === null ? '-' : clockText(secondSentMs)})`, second.length === 1 && near(second[0]!, '[sam]', secondSentMs), j(second))
     const notice = rowsWith(marks[label], `[Crewmate] ${QUICK_DESCRIPTION} · completed`, '●')
-    check(`at ${label}: the crew notice paints once, stamped at its completion — the quick agent's answer (${quickDone === undefined ? '-' : clockText(quickDone.at)}), never the Agent tool's return (${returned === undefined ? '-' : clockText(returned.at)})`, notice.length === 1 && near(notice[0]!, '●', quickDone?.at ?? null), j(notice))
+    check(`at ${label}: the crew notice paints once, stamped at its completion — the quick agent's answer (${quickDone === undefined ? '-' : clockText(quickDone.at)}), never the Crewmate tool's return (${returned === undefined ? '-' : clockText(returned.at)})`, notice.length === 1 && near(notice[0]!, '●', quickDone?.at ?? null), j(notice))
   }
   const viewFirst = rowsWith(marks['end+12s-view'], FIRST_LINE)
   const viewSecond = rowsWith(marks['end+12s-view'], SECOND_LINE)
@@ -119,7 +119,7 @@ if (!existsSync(DIST)) {
   const secondCarriers = carriersOf(projects, SECOND_LINE)
   const noticeCarriers = carriersOf(projects, CREW_NOTICE)
   check("the session's transcript holds each line once as the drained row stamped at its send, and no sub-agent's transcript holds either", firstCarriers.filter(isDrainedMainRow).length === 1 && firstCarriers.every(inMainFile) && secondCarriers.filter(isDrainedMainRow).length === 1 && secondCarriers.every(inMainFile) && firstSentMs !== null && secondSentMs !== null && Math.abs(Date.parse(firstCarriers.find(isDrainedMainRow)!.occurredAt) - firstSentMs) <= CLOCK_TOLERANCE_MS && Math.abs(Date.parse(secondCarriers.find(isDrainedMainRow)!.occurredAt) - secondSentMs) <= CLOCK_TOLERANCE_MS, briefly([...firstCarriers, ...secondCarriers]))
-  check("the session's transcript holds the notice once, delivered at the Agent tool's return (its delivery clock, beside a stamp that is the completion), and no sub-agent's transcript holds it", noticeCarriers.filter(isDrainedMainRow).length === 1 && noticeCarriers.every(inMainFile) && returned !== undefined && quickDone !== undefined && Math.abs(deliveryClockOf(noticeCarriers.find(isDrainedMainRow)!) - returned.at) <= CLOCK_TOLERANCE_MS && Math.abs(Date.parse(noticeCarriers.find(isDrainedMainRow)!.occurredAt) - quickDone.at) <= CLOCK_TOLERANCE_MS && Date.parse(noticeCarriers.find(isDrainedMainRow)!.occurredAt) <= deliveryClockOf(noticeCarriers.find(isDrainedMainRow)!), briefly(noticeCarriers))
+  check("the session's transcript holds the notice once, delivered at the Crewmate tool's return (its delivery clock, beside a stamp that is the completion), and no sub-agent's transcript holds it", noticeCarriers.filter(isDrainedMainRow).length === 1 && noticeCarriers.every(inMainFile) && returned !== undefined && quickDone !== undefined && Math.abs(deliveryClockOf(noticeCarriers.find(isDrainedMainRow)!) - returned.at) <= CLOCK_TOLERANCE_MS && Math.abs(Date.parse(noticeCarriers.find(isDrainedMainRow)!.occurredAt) - quickDone.at) <= CLOCK_TOLERANCE_MS && Date.parse(noticeCarriers.find(isDrainedMainRow)!.occurredAt) <= deliveryClockOf(noticeCarriers.find(isDrainedMainRow)!), briefly(noticeCarriers))
   exportWorld('terminal-arms', PTY_HOME, { ...Object.fromEntries(Object.entries(marks).map(([label, text]) => [`${label}.txt`, `${text}\n`])), 'capture-stderr.txt': stderr.join('') })
   if (failed() === 0) await removeWorld(PTY_HOME)
   else {
@@ -132,7 +132,7 @@ if (!existsSync(DIST)) {
 }
 
 if (existsSync(DIST) && driver.kind !== 'unavailable' && preflight !== null && preflight.ok) {
-  section("D the whole product in a terminal: two lines typed after the Agent tool's return, while the session's final answer is held, paint as two rows and land as two rows")
+  section("D the whole product in a terminal: two lines typed after the Crewmate tool's return, while the session's final answer is held, paint as two rows and land as two rows")
   const failedAtOpen = failed()
   const D_HOME = join(SCRATCH_ROOT, `mercury-dupline-arms-return-${process.pid}`)
   const D_CWD = join(D_HOME, 'fixture-repo')

@@ -285,8 +285,8 @@ export function buildCompass1k(cwd: string, chapters: number = CHAPTERS_DEFAULT)
     const report = `chapter ${c} scouted: warmup bounded, generation fences hold. REPORT-${c}`
     toolPair(
       'agent',
-      'Agent',
-      { description: `Scout chapter ${c}`, prompt: `Read chapter ${c} and report.`, subagent_type: 'Explore' },
+      'Crewmate',
+      { description: `Scout chapter ${c}`, prompt: `Read chapter ${c} and report.`, crewmate_type: 'Explore' },
       [{ type: 'text', text: report }],
       {
         status: 'completed',

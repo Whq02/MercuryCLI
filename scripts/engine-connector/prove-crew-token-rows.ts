@@ -99,7 +99,7 @@ for (const width of [178, 120, 100, 80, 60]) {
   } finally { Date.now = clock; setRows(rows) }
 }
 for (const width of [178, 100, 80, 60]) {
-  const grouped = await paint(ui.renderGroupedAgentToolUse([{ toolUseID: 'launch-scout', input: { name: 'scout', description: 'scout', prompt: 'p', subagent_type: 'mercury-crew' }, progressMessages: [] }] as never, { shouldAnimate: false, tools: [] as never }), width)
+  const grouped = await paint(ui.renderGroupedAgentToolUse([{ toolUseID: 'launch-scout', input: { name: 'scout', description: 'scout', prompt: 'p', crewmate_type: 'mercury-crew' }, progressMessages: [] }] as never, { shouldAnimate: false, tools: [] as never }), width)
   check(`${width} columns: inline AgentProgressLine names context, in, out and cached together`, grouped.includes(expected), grouped)
   check(`${width} columns: inline rows fit`, grouped.split('\n').every(line => stringWidth(line) <= width), grouped)
   save(`crew-tokens-inline-${width}.txt`, grouped)

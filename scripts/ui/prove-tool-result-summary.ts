@@ -48,9 +48,9 @@ t('error-string result (never a summary)', summarizeToolResult('Bash', 'Error: b
 t('null result → null', summarizeToolResult('Bash', null) === null)
 
 t('agent record → null (usage stays off the inline seam)',
-  summarizeToolResult('Agent', { status: 'completed', totalTokens: 45230, totalToolUseCount: 12, totalDurationMs: 60000, content: [] }) === null)
+  summarizeToolResult('Crewmate', { status: 'completed', totalTokens: 45230, totalToolUseCount: 12, totalDurationMs: 60000, content: [] }) === null)
 t('agent record with unreported usage → null (never a fabricated 0)',
-  summarizeToolResult('Agent', { status: 'completed', totalTokens: 0, totalToolUseCount: 7, totalDurationMs: 42000, content: [] }) === null)
+  summarizeToolResult('Crewmate', { status: 'completed', totalTokens: 0, totalToolUseCount: 7, totalDurationMs: 42000, content: [] }) === null)
 t('wire {} placeholder → null', summarizeToolResult('Read', {}) === null)
 
 console.log(fail ? '❌ TOOL-RESULT-SUMMARY RED' : '✅ TOOL-RESULT-SUMMARY GREEN')

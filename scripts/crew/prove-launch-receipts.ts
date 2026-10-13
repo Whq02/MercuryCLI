@@ -44,8 +44,8 @@ const assistantLaunch = (): Message =>
       role: 'assistant',
       content: [
         { type: 'text', text: 'launching two' },
-        { type: 'tool_use', id: 'toolu_one', name: 'Agent', input: { description: 'harbour-count', prompt: 'switch-seat: count the harbour', subagent_type: 'mercury-crew', run_in_background: true } },
-        { type: 'tool_use', id: 'toolu_two', name: 'Agent', input: { description: 'lantern-index', prompt: 'switch-seat: index the lanterns', subagent_type: 'mercury-crew', run_in_background: true } },
+        { type: 'tool_use', id: 'toolu_one', name: 'Crewmate', input: { description: 'harbour-count', prompt: 'switch-seat: count the harbour', crewmate_type: 'mercury-crew', run_in_background: true } },
+        { type: 'tool_use', id: 'toolu_two', name: 'Crewmate', input: { description: 'lantern-index', prompt: 'switch-seat: index the lanterns', crewmate_type: 'mercury-crew', run_in_background: true } },
       ],
       usage: { input_tokens: 10, output_tokens: 5, cache_creation_input_tokens: 0, cache_read_input_tokens: 0 },
       stop_reason: 'tool_use',
@@ -82,7 +82,7 @@ const foregroundPair = (): Message[] => [
     uuid: `a-${++n}`,
     timestamp: stamp(),
     requestId: undefined,
-    message: { id: 'msg_fg', model: 'claude-fable-5-1', role: 'assistant', content: [{ type: 'tool_use', id: 'toolu_fg', name: 'Agent', input: { description: 'foreground-walk', prompt: 'walk', subagent_type: 'mercury-crew' } }], usage: { input_tokens: 1, output_tokens: 1, cache_creation_input_tokens: 0, cache_read_input_tokens: 0 }, stop_reason: 'tool_use' },
+    message: { id: 'msg_fg', model: 'claude-fable-5-1', role: 'assistant', content: [{ type: 'tool_use', id: 'toolu_fg', name: 'Crewmate', input: { description: 'foreground-walk', prompt: 'walk', crewmate_type: 'mercury-crew' } }], usage: { input_tokens: 1, output_tokens: 1, cache_creation_input_tokens: 0, cache_read_input_tokens: 0 }, stop_reason: 'tool_use' },
   } as unknown as Message,
   {
     type: 'user',
@@ -182,7 +182,7 @@ const print = src('src/cli/run.ts')
 check('the runner reconciles inside the one resume closure both roads share, carrying the restart reason', /const \{ reconcileBackgroundLaunchesOnResume, coerceRestartReason \} = await import\('\.\.\/tasks\/LocalAgentTask\/launchReceipts\.js'\)/.test(print) && /reconcileBackgroundLaunchesOnResume\(messages, getAppState, setAppState, Date\.now\(\), coerceRestartReason\(runnerRestartReason\)\)/.test(print))
 check('…the cold road (--continue/--resume) and the warm claim (resume: true) both run it', /if \(options\.continue \|\| options\.resume\) await hydrateResumedRun\(\)/.test(print) && /if \(params\.resume === true\) await hydrateResumedRun\(\)/.test(print))
 const agentTool = src('src/tools/AgentTool/AgentTool.tsx')
-check('the receipt line is the Agent tool\'s own first line', agentTool.includes(`'${lr.BACKGROUND_LAUNCH_LINE}',`))
+check('the receipt line is the Crewmate tool\'s own first line', agentTool.includes(`'${lr.BACKGROUND_LAUNCH_LINE}',`))
 const adapter = src('src/services/resources/adapters/agent.ts')
 check('the detail view reads through the bounded tail window, never the whole file', /const window = readTailWindow\(contentPath\)/.test(adapter) && !/readFileSync\(contentPath/.test(adapter))
 const footer = src('src/components/PromptInput/Notifications.tsx')
@@ -598,7 +598,7 @@ const EXPECTED: Record<keyof typeof transcripts, RegExp> = {
   const evicted = generateTaskId('local_agent')
   writeTranscript(evicted, [...transcripts.stopped])
   const words = await taskNotFoundWords(evicted)
-  check("TaskStop on an evicted agent names the transcript's end and the resume door", /No running task with id/.test(words) && /ends stopped/.test(words) && /ResumeAgent/.test(words), words)
+  check("TaskStop on an evicted agent names the transcript's end and the resume door", /No running task with id/.test(words) && /ends stopped/.test(words) && /ResumeCrewmate/.test(words), words)
   check('TaskStop on an id with nothing behind it keeps the plain miss', (await taskNotFoundWords(generateTaskId('local_agent'))).startsWith('No task found with id'))
 }
 

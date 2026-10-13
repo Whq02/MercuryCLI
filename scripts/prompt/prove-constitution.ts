@@ -50,7 +50,7 @@ setOriginalCwd(scratch)
 setCwdState(scratch)
 
 const MODEL = 'claude-fable-5-1'
-const tools = ['Read', 'Edit', 'Write', 'Glob', 'Grep', 'Bash', 'Agent', 'AskUserQuestion', 'Skill', 'TaskCreate', 'RecordConvention', 'Retain'].map(name => ({ name })) as never
+const tools = ['Read', 'Edit', 'Write', 'Glob', 'Grep', 'Bash', 'Crewmate', 'AskUserQuestion', 'Skill', 'TaskCreate', 'RecordConvention', 'Retain'].map(name => ({ name })) as never
 const HEAD = `Mercury — a private terminal software-development harness.\nWorking directory: ${scratch}\nSession date: ${getSessionStartDate()}`
 
 const DROPPED_PHRASES = [

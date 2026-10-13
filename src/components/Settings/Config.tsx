@@ -1281,7 +1281,7 @@ export function Config({
         ) : null}
       </Text>
     ),
-    warning: 'how many Agent-tool crewmates may run at once; a spawn past the cap is refused with the live count (workflows keep their own ceiling) · ←/→ move it by one',
+    warning: 'how many crewmates the Crewmate tool may run at once; a spawn past the cap is refused with the live count (workflows keep their own ceiling) · ←/→ move it by one',
     change: direction => {
       const next = Math.max(1, agentDefaults.maxConcurrent + direction)
       writeAgents({ maxConcurrent: next })

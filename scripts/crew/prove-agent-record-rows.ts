@@ -12,9 +12,9 @@ const TOOL_ID = 'toolu_record_pwd'
 const lead = (turn: Record<string, unknown>): ScriptedTurn => ({ ...turn, model: LEAD_MODEL, whenModel: LEAD_GATE }) as ScriptedTurn
 const peer = (turn: Record<string, unknown>): ScriptedTurn => ({ ...turn, model: PEER_MODEL, whenModel: 'opus-4-6' }) as ScriptedTurn
 const script: ScriptedTurn[] = [
-  lead({ kind: 'tool_use', id: 'toolu_record_launch', name: 'Agent', input: { name: 'scribe', model: PEER_MODEL, subagent_type: 'mercury-crew', run_in_background: false, description: 'Record each turn once', prompt: 'Run pwd once and report the record witness.' } }),
+  lead({ kind: 'tool_use', id: 'toolu_record_launch', name: 'Crewmate', input: { name: 'scribe', model: PEER_MODEL, crewmate_type: 'mercury-crew', run_in_background: false, description: 'Record each turn once', prompt: 'Run pwd once and report the record witness.' } }),
   lead({ kind: 'text', text: 'LAUNCH-FINISHED' }),
-  lead({ kind: 'tool_use', id: 'toolu_record_resume', name: 'ResumeAgent', input: { to: 'scribe', message: CONTINUE } }),
+  lead({ kind: 'tool_use', id: 'toolu_record_resume', name: 'ResumeCrewmate', input: { to: 'scribe', message: CONTINUE } }),
   lead({ kind: 'text', text: 'RESUME-SENT' }),
   ...Array.from({ length: 8 }, () => lead({ kind: 'text', text: 'LEAD-ACK' })),
   peer({ kind: 'tool_use', id: TOOL_ID, name: 'Bash', input: { command: 'pwd', description: 'Read the working directory' } }),
@@ -23,7 +23,7 @@ const script: ScriptedTurn[] = [
 ]
 const tally = makeTally('prove-agent-record-rows')
 const world = await makeWorld('agent-record-rows', script)
-const session = bootLead(world, ['--mode', 'sovereign'], ['Agent', 'Bash', 'SendMessage', 'ResumeAgent'])
+const session = bootLead(world, ['--mode', 'sovereign'], ['Crewmate', 'Bash', 'SendMessage', 'ResumeCrewmate'])
 type Entry = { type?: string; uuid?: string; message?: { content?: unknown; usage?: { input_tokens?: number; output_tokens?: number } } }
 type Block = { type?: string; text?: string; id?: string; tool_use_id?: string }
 type Item = { role?: string; content?: unknown }

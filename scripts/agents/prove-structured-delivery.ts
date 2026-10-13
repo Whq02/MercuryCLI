@@ -50,7 +50,7 @@ const OUTPUT_SCHEMA_WORDS = 'JSON Schema for the final answer, submitted through
 const SCHEMA_MODE_WORDS = 'With output_schema: \'strict\' fails the call when none passed; \'permissive\' (default) returns the prose under status "missing" or "invalid".'
 const USAGE_NOTE = 'Treat the agent\'s prose as a claim to verify, not a fact: spot-check load-bearing results with a diff, a render, or a test before relying on them. A status="valid" payload passed your schema: use it without re-reading what the agent read, and require evidence as a field when a value needs it.'
 const AGENT_ID = 'acq4kdds9'
-const TRAILER_CURRENT = `agentId: ${AGENT_ID} (internal — do not mention it to the user). To continue this agent, use ResumeAgent addressed to that id.\n<usage>total_tokens: 867\ntool_uses: 4\nduration_ms: 8928</usage>`
+const TRAILER_CURRENT = `agentId: ${AGENT_ID} (internal — do not mention it to the user). To continue this agent, use ResumeCrewmate addressed to that id.\n<usage>total_tokens: 867\ntool_uses: 4\nduration_ms: 8928</usage>`
 
 const settled = (over: Record<string, unknown>): Record<string, unknown> => ({
   status: 'completed',

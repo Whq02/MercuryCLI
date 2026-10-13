@@ -179,7 +179,7 @@ async function startFixture(port: number, cwd: string): Promise<{ base: string; 
       else if (lastUserText.includes('Reply with prose only')) route = 'summary'
       else if (lastUserText.includes('task-notification')) route = 'note'
       else if (firstUserText.includes('The context window turned over')) route = 'post'
-      else if (answered.includes('Workflow') || answered.includes('Agent')) route = 'launched'
+      else if (answered.includes('Workflow') || answered.includes('Crewmate')) route = 'launched'
       else if (lastUserText.includes(ASK) && offersTool(body, 'Workflow')) route = 'launch'
       else route = 'side'
       const priorReads = readsOf(items)
@@ -195,8 +195,8 @@ async function startFixture(port: number, cwd: string): Promise<{ base: string; 
             {
               type: 'tool_use',
               id: `toolu_rosterd_agent_${++toolSeq}`,
-              name: 'Agent',
-              input: { description: PLAIN_DESCRIPTION, prompt: `${SEAT_MARK}${PLAIN_SEAT} read the notes file six times, one read per turn, then report in one line`, subagent_type: 'mercury-crew', run_in_background: true },
+              name: 'Crewmate',
+              input: { description: PLAIN_DESCRIPTION, prompt: `${SEAT_MARK}${PLAIN_SEAT} read the notes file six times, one read per turn, then report in one line`, crewmate_type: 'mercury-crew', run_in_background: true },
             },
           ]
           break

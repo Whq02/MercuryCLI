@@ -114,11 +114,11 @@ function answer(model: string, blocks: Answer[]): string {
 const agentLaunch = (id: string, seat: Seat): Answer => ({
   type: 'tool_use',
   id,
-  name: 'Agent',
+  name: 'Crewmate',
   input: {
     description: SEATS[seat],
     prompt: `${SEAT_MARK}${seat} read the notes file ten times, one read per turn, then report in one line`,
-    subagent_type: 'mercury-crew',
+    crewmate_type: 'mercury-crew',
     run_in_background: true,
   },
 })
@@ -150,10 +150,10 @@ async function startFixture(port: number, cwd: string): Promise<{ base: string; 
       const answered = answeredTool(items)
       let route: Route
       if (seat !== null) route = 'seat'
-      else if (lastUserText.includes('crew-drive: fail') && offersTool(body, 'Agent')) route = 'fail-launch'
+      else if (lastUserText.includes('crew-drive: fail') && offersTool(body, 'Crewmate')) route = 'fail-launch'
       else if (lastUserText.includes('task-notification')) route = 'note'
-      else if (answered === 'Agent') route = 'launched'
-      else if (lastUserText.includes('crew-drive: launch') && offersTool(body, 'Agent')) route = 'launch'
+      else if (answered === 'Crewmate') route = 'launched'
+      else if (lastUserText.includes('crew-drive: launch') && offersTool(body, 'Crewmate')) route = 'launch'
       else route = 'side'
       const priorReads = readsOf(items)
       const userHeads = items.map(i => `${i.role === 'user' ? 'U' : 'A'}:${textOf(i.content).replace(/\s+/g, ' ').slice(0, 36)}${blocksOf(i.content).some(b => b.type === 'tool_result') ? '[tool_result]' : ''}${blocksOf(i.content).some(b => b.type === 'tool_use') ? '[tool_use]' : ''}`)

@@ -22,7 +22,7 @@ check('the command stays built-in, visible and optionally focused', command.name
 for (const focus of ['', 'the parser boundary']) {
   const text = (await command.getPromptForCommand(focus)).map(block => block.text).join('\n')
   check('the command gathers the change and original intent before delegation', text.includes('git status --short') && text.includes('git diff') && text.includes('Reconstruct the original intent'))
-  check('the launch instruction names the Agent tool and the crew type directly', text.includes(`Launch a crewmate through the ${AGENT_TOOL_NAME} tool with subagent_type \`${MERCURY_CREW_AGENT_TYPE}\``))
+  check('the launch instruction names the Crewmate tool and the crew type directly', text.includes(`Launch a crewmate through the ${AGENT_TOOL_NAME} tool with crewmate_type \`${MERCURY_CREW_AGENT_TYPE}\``))
   const brief = text.split('## Verification brief for the crewmate\n')[1]
   const work = focus ? `Focus the verification on: ${focus}` : ''
   check('the launch instruction carries the complete brief and the requested work', brief === verifierPrompt(work))

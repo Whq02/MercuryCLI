@@ -36,7 +36,7 @@ const HANG_MS = 600_000
 
 type Launch = { toolUseId: string; agentId: string }
 const launchOf = (frames: Frame[], description: string): Launch | null => {
-  const use = frames.find(f => f.type === 'tool_call' && f.tool === 'Agent' && (f.input as { description?: unknown } | undefined)?.description === description)
+  const use = frames.find(f => f.type === 'tool_call' && f.tool === 'Crewmate' && (f.input as { description?: unknown } | undefined)?.description === description)
   if (use === undefined || typeof use.call_id !== 'string') return null
   const result = frames.find(f => f.type === 'tool_result' && f.call_id === use.call_id)
   const agentId = result === undefined ? undefined : /agentId: (\S+)/.exec(String(result.output ?? ''))?.[1]
@@ -85,8 +85,8 @@ const script: Script = req => {
   if (req.ask.includes(FIRST_ASK)) {
     if (req.step > 0) return [{ type: 'text', text: PARENT_DONE }]
     return [
-      { type: 'tool_use', name: 'Agent', input: { description: DONE_DESCRIPTION, prompt: DONE_PROMPT, subagent_type: 'mercury-crew', run_in_background: true } },
-      { type: 'tool_use', name: 'Agent', input: { description: LIVE_DESCRIPTION, prompt: LIVE_PROMPT, subagent_type: 'mercury-crew', run_in_background: true } },
+      { type: 'tool_use', name: 'Crewmate', input: { description: DONE_DESCRIPTION, prompt: DONE_PROMPT, crewmate_type: 'mercury-crew', run_in_background: true } },
+      { type: 'tool_use', name: 'Crewmate', input: { description: LIVE_DESCRIPTION, prompt: LIVE_PROMPT, crewmate_type: 'mercury-crew', run_in_background: true } },
     ]
   }
   return [{ type: 'text', text: 'noted' }]
@@ -147,7 +147,7 @@ const heldLiveStop = [
   `<tool-use-id>${live!.toolUseId}</tool-use-id>`,
   `<output-file>${join(root, 'tasks', `${live!.agentId}.output`)}</output-file>`,
   '<status>killed</status>',
-  `<summary>Agent "${LIVE_DESCRIPTION}" was stopped — 2 file writes landed: ${join(cwd, 'a.ts')}, ${join(cwd, 'b.ts')} — its work is kept; resume it from the crew view (r on its row) or by ResumeAgent to its id</summary>`,
+  `<summary>Agent "${LIVE_DESCRIPTION}" was stopped — 2 file writes landed: ${join(cwd, 'a.ts')}, ${join(cwd, 'b.ts')} — its work is kept; resume it from the crew view (r on its row) or by ResumeCrewmate to its id</summary>`,
   '</task-notification>',
 ].join('\n')
 const ordinals = readText(sessionFile!)

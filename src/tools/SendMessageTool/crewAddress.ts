@@ -156,7 +156,7 @@ export async function unknownAgentRefusal(to: string, context: ToolUseContext, v
   const own = known.find(agent => agent.name === to || agent.agentId === to) ?? known.find(agent => agent.name.toLowerCase() === to.toLowerCase())
   if (own !== undefined) {
     return `Cannot ${verb} "${to}": that is a crewmate of this session (id ${own.agentId}; ${own.status}). Address it by its name or by its id ${own.agentId}` +
-      (verb === 'resume' ? '.' : own.status === 'running' ? ' — it is read at its next tool boundary.' : ' — it has finished; ResumeAgent gives it a new turn.')
+      (verb === 'resume' ? '.' : own.status === 'running' ? ' — it is read at its next tool boundary.' : ' — it has finished; ResumeCrewmate gives it a new turn.')
   }
   if (known.length === 0) {
     return `Cannot ${verb} "${to}": no crewmate by that name or id exists in this session. Address a crewmate by the id its launch receipt names or by the name the launch gave it.`

@@ -53,7 +53,7 @@ if (!existsSync(DIST)) {
     const opened = await waitWire(w.fx.wire, "the background sub-agent's first request", wireOf('subbgsleep', 0), bound(60_000))
     check('the background sub-agent opened its own conversation', opened !== null, j(opened))
     check('its pool carries the Sleep tool', opened !== null && opened.hasSleepTool === true, j(opened?.toolNames ?? opened))
-    check('its pool carries neither the Agent tool nor the Workflow tool', opened !== null && opened.hasAgentTool === false && opened.hasWorkflowTool === false, j(opened))
+    check('its pool carries neither the Crewmate tool nor the Workflow tool', opened !== null && opened.hasAgentTool === false && opened.hasWorkflowTool === false, j(opened))
     const result = await w.runner.waitFor("the turn's result", isOutcome, bound(150_000), before)
     check("the turn ended with the session's own final text", result !== null && String(result.answer ?? '').startsWith(doneText(BG_SLEEP_TURN_ASK)), j(result?.answer))
     const requests = requestsOf(w.fx.wire)

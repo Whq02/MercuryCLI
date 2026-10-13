@@ -49,13 +49,13 @@ const fixture = await startScriptedFixture(req => {
   leadTexts.push(...textsOf(req))
   switch (req.step) {
     case 0:
-      return [{ type: 'tool_use', name: 'Agent', input: { description: 'background agent', prompt: AGENT_PROMPT, run_in_background: true } }]
+      return [{ type: 'tool_use', name: 'Crewmate', input: { description: 'background agent', prompt: AGENT_PROMPT, run_in_background: true } }]
     case 1:
       agentId = /\b(a[0-9a-z]{8})\b/.exec(last?.text ?? '')?.[1] ?? null
       return [{ type: 'tool_use', name: 'Bash', input: { command: 'sleep 6', description: 'a pause while the agent’s run finishes' } }]
     case 2:
       followUpSent = true
-      return [{ type: 'tool_use', name: 'ResumeAgent', input: { to: agentId ?? 'nobody', message: FOLLOW_UP, summary: 'the follow-up' } }]
+      return [{ type: 'tool_use', name: 'ResumeCrewmate', input: { to: agentId ?? 'nobody', message: FOLLOW_UP, summary: 'the follow-up' } }]
     case 3:
       return [{ type: 'tool_use', name: 'Bash', input: { command: 'sleep 8', description: 'a pause for the agent’s next turn' } }]
     default:
