@@ -161,13 +161,13 @@ export function controlRefusal(
 function pendingWords(action: WorkflowControlAction, label: string): string {
   switch (action) {
     case 'stop':
-      return 'stopping the run — every live agent ends the same way'
+      return 'stopping the run — every live crewmate ends the same way'
     case 'pause':
-      return 'pausing the run — the agents park before their next model call'
+      return 'pausing the run — the crewmates park before their next model call'
     case 'resume':
       return 'resuming the run'
     case 'kill-agent':
-      return `killing ${label} — the agent ends`
+      return `killing ${label} — the crewmate ends`
     case 'pause-agent':
       return `pausing ${label} — it parks before its next model call`
     case 'resume-agent':
@@ -218,7 +218,7 @@ function PhaseSeparator({
   const status = group.planned
     ? 'planned'
     : total === 0
-      ? 'no agents yet'
+      ? 'no crewmates yet'
       : `${done}/${total} done`
   const errText = errs > 0 ? ` · ${errs} ${plural(errs, 'error')}` : ''
   const plain = `── ${glyph} ${num} · ${group.title} ─ ${status}${errText} `
@@ -619,10 +619,10 @@ export function RunDetailPane({
 
   const metrics: string[] = []
   metrics.push(`${GLYPH.mission} ${settledCount(groups)}/${groups.length}`)
-  metrics.push(`${agentCount} ${plural(agentCount, 'agent')}`)
+  metrics.push(`${agentCount} ${plural(agentCount, 'crewmate')}`)
   if (runUsage && (usageSpeaks(runUsage) || runUsage.agentsUnreported > 0)) {
     const unreported =
-      runUsage.agentsUnreported > 0 ? ` · ${runUsage.agentsUnreported} ${plural(runUsage.agentsUnreported, 'agent')} unmeasured` : ''
+      runUsage.agentsUnreported > 0 ? ` · ${runUsage.agentsUnreported} ${plural(runUsage.agentsUnreported, 'crewmate')} unmeasured` : ''
     metrics.push(`${GLYPH.tokens} ${workflowSpendWords(runUsage, formatTokens)}${unreported}`)
   } else if (totalTokens > 0) metrics.push(`${GLYPH.tokens} ${formatTokens(totalTokens)} context`)
   if (totalToolCalls > 0) metrics.push(`${totalToolCalls} ${plural(totalToolCalls, 'tool')}`)
@@ -631,7 +631,7 @@ export function RunDetailPane({
   const act = (action: WorkflowControlAction): void => {
     if (runDir === undefined || actingRef.current) return
     const agentId = selected?.agentId
-    const label = selected?.label ?? 'the agent'
+    const label = selected?.label ?? 'the crewmate'
     actingRef.current = true
     setNote(pendingWords(action, label))
     void requestWorkflowControl(runDir, {
@@ -694,7 +694,7 @@ export function RunDetailPane({
       if ((input === 's' || input === 'r' || input === 'x' || input === 'p') && !selectedInFlight) {
         setNote(
           selected === undefined
-            ? `no agent selected — ${input === 'x' ? 'X stops the run' : input === 'p' ? 'P pauses the run' : 'nothing to act on'}`
+            ? `no crewmate selected — ${input === 'x' ? 'X stops the run' : input === 'p' ? 'P pauses the run' : 'nothing to act on'}`
             : `${selected.label} already settled — nothing to ${verbWord(input)}`,
         )
         return
@@ -789,7 +789,7 @@ export function RunDetailPane({
   ]
     .filter(Boolean)
     .join(' · ')
-  const navHints = agents.length > 0 ? '↑↓ agent · ↵ inspect · ' : ''
+  const navHints = agents.length > 0 ? '↑↓ crewmate · ↵ inspect · ' : ''
   const hints =
     displayWidth(navHints + controlHints) <= Math.max(10, columns - 4) ? navHints + controlHints : controlHints
 
@@ -835,7 +835,7 @@ export function RunDetailPane({
           {groups.length === 0 ? (
             <EmptyState
               title={isRunning ? 'Starting…' : 'No phases reported'}
-              hint={isRunning ? 'agents appear here as the workflow fans out' : undefined}
+              hint={isRunning ? 'crewmates appear here as the workflow fans out' : undefined}
               glyph={GLYPH.pending}
               tone={isRunning ? 'gated' : 'idle'}
             />

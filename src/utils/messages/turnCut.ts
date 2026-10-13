@@ -39,7 +39,7 @@ export function abortWithCut(controller: Pick<AbortController, 'abort'>, reason:
 
 const OPERATOR_CUT_REASONS = new Set(['interrupt', 'crew-stop', 'operator-interrupt', 'user-skip', 'user-retry', 'user-kill'])
 const IDLE_TIMEOUT_WORDS = 'a no-progress timeout (the provider went quiet)'
-const PARENT_STOP_WORDS = 'the workflow that ran this agent stopped'
+const PARENT_STOP_WORDS = 'the workflow that ran this crewmate stopped'
 
 export function turnCutOf(reason: unknown): TurnCut {
   if (reason === undefined || reason === null) return { kind: 'operator' }

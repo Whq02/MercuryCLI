@@ -63,12 +63,12 @@ Long-running work is fenced by registered ceilings — the in-code registry
 (`src/substrate/flagRegistry.ts`; rendered on demand to an untracked path) is
 the complete index; the load-bearing ones:
 
-- **Crewmate (sub-agent) inactivity** (`MERCURY_AGENT_IDLE_MINUTES`, default 15 minutes,
-  `0` disables): a dispatched agent that produces no event at all — no stream
+- **Crewmate inactivity** (`MERCURY_AGENT_IDLE_MINUTES`, default 15 minutes,
+  `0` disables): a dispatched crewmate that produces no event at all — no stream
   delta, no tool use, no provider recovery notice — is stopped and settles as
   a typed stall naming its tool-use count, instead of a forever spinner.
   Declared provider recovery waits are honored. A stream that is alive on
-  the wire counts as progress for this deadline and for a workflow agent's
+  the wire counts as progress for this deadline and for a workflow crewmate's
   no-progress clock alike: the provider's heartbeat pings and the model's
   thinking are life even when nothing is painted, so only silence on the
   wire is a stall.

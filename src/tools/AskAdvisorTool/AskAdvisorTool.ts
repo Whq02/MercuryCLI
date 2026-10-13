@@ -51,7 +51,7 @@ export const AskAdvisorTool = buildTool({
     class: 'observation',
     cancellation: 'cooperative',
     latency: 'interactive',
-    conditions: ['Advisor on in /config with a model pinned in /submodels; the main chat alone, never crewmates or workflow agents; the advisor keeps its own memory beside the transcript'],
+    conditions: ['Advisor on in /config with a model pinned in /submodels; the main chat alone, never crewmates or workflow crewmates; the advisor keeps its own memory beside the transcript'],
     proof: 'scripts/advisor/run-all.sh',
   },
   get inputSchema(): InputSchema {

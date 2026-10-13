@@ -84,7 +84,7 @@ section('§2 DELIVERY — a plain string to a running crewmate of this session i
   const selfById = await call({ to: id, message: 'to myself' }, makeContext(id), 'req_self_id')
   check('…and its own id the same', selfById.data.success === false && /own address/.test(selfById.data.message), selfById.data.message)
   const unknown = await call({ to: 'nobody-here', message: 'hello' }, makeContext(), 'req_unknown')
-  check('an unknown name is refused naming the agents this session has', unknown.data.success === false && /no agent named nobody-here/.test(unknown.data.message) && unknown.data.message.includes('researcher'), unknown.data.message)
+  check('an unknown name is refused naming the agents this session has', unknown.data.success === false && /no crewmate named nobody-here/.test(unknown.data.message) && unknown.data.message.includes('researcher'), unknown.data.message)
   const toMain = await call({ to: 'main', message: 'done' }, makeContext(), 'req_main')
   check('"main" from the main agent itself is refused with the reason', toMain.data.success === false && /only a background crewmate reaches its main agent/.test(toMain.data.message), toMain.data.message)
 }

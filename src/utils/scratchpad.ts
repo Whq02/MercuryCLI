@@ -18,7 +18,7 @@ export function ensureScratchpadDir(agentId?: string): string {
   return dir
 }
 
-export function scratchpadPromptLine(dir: string, owner: 'session' | 'agent' = 'session'): string {
+export function scratchpadPromptLine(dir: string, owner: 'session' | 'crewmate' = 'session'): string {
   return `Scratchpad directory: ${dir} — this ${owner}'s own place for temporary files (helper scripts, intermediate results, captures); use it instead of a system temp directory or the project tree. It lies outside the project, so nothing in it reaches git status, and it is swept when the session ends.`
 }
 

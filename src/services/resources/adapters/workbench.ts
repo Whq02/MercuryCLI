@@ -103,7 +103,7 @@ function currentResource(snap: WorkbenchSnapshot, ref: ParsedRef): Resource {
 
 export const workbenchAdapter = {
   kind: 'workbench',
-  describe: 'the unified agent/worktree workbench projection (current · work · thread/<id> · lane/<id>)',
+  describe: 'the unified crewmate/worktree workbench projection (current · work · thread/<id> · lane/<id>)',
   async resolve(ref: ParsedRef, ctx: ResourceContext): Promise<ResourceResult> {
     if (!workbenchEnabled()) {
       return { state: 'unavailable', note: 'the workbench is disabled (MERCURY_WORKBENCH=0)' }

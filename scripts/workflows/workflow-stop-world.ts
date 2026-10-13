@@ -82,7 +82,7 @@ export async function workflowStopWorld() {
     })
     const advertised = [
       ...receipt.matchAll(/^Transcript dir: (.+)$/gm),
-      ...notification.matchAll(/Agent transcripts: ([^\n<]+)/g),
+      ...notification.matchAll(/Crewmate transcripts: ([^\n<]+)/g),
       ...notification.matchAll(/\ntranscripts: ([^\n<]+)/g),
     ].map(match => match[1]!)
     return {

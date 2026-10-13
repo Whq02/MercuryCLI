@@ -13,9 +13,9 @@ export const CREW_PAUSE_BLANK_REFUSAL = 'no chat is focused — nothing runs her
 
 export const CREW_PAUSE_UNANSWERED = "the session's runner gave no reason"
 
-export const CREW_PAUSED_NOTE = 'paused — every agent and the chat parks at its next safe point (a stream or a tool in flight finishes first); p resumes them'
+export const CREW_PAUSED_NOTE = 'paused — every crewmate and the chat parks at its next safe point (a stream or a tool in flight finishes first); p resumes them'
 
-export const CREW_RESUMED_NOTE = 'resumed — every parked agent continues from where it stopped'
+export const CREW_RESUMED_NOTE = 'resumed — every parked crewmate continues from where it stopped'
 
 function pausedOfDetail(detail: string | undefined): boolean | null {
   if (detail === undefined) return null

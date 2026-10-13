@@ -19,7 +19,7 @@ seedScratchHome(runHome, cwd)
 const SCHEMA = { type: 'object', properties: { function_name: { type: 'string' }, def_line: { type: 'integer' } }, required: ['function_name', 'def_line'], additionalProperties: false }
 const PAYLOAD = { function_name: 'compute_201', def_line: 1205 }
 const VALID_BLOCK = '<structured status="valid">\n{"function_name":"compute_201","def_line":1205}\n</structured>'
-const MISSING_BLOCK = '<structured status="missing">\nThe agent never called StructuredOutput, so nothing below was checked against your schema. Check any value you take from its prose before relying on it, or launch the agent again and require the answer through StructuredOutput.\n</structured>'
+const MISSING_BLOCK = '<structured status="missing">\nThe crewmate never called StructuredOutput, so nothing below was checked against your schema. Check any value you take from its prose before relying on it, or launch the crewmate again and require the answer through StructuredOutput.\n</structured>'
 const HIT_ASK = 'structured row probe: find the def after the threshold'
 const MISS_ASK = 'structured row probe: find it again in prose alone'
 const HIT_CHILD = 'the child that submits through StructuredOutput'

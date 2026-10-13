@@ -30,8 +30,8 @@ const LIVE_DESCRIPTION = 'working at the crash'
 const DONE_REPLY = 'the finished child left its receipt'
 const RELAUNCH_REPLY = 'the relaunched child finished its work'
 const PARENT_DONE = 'both helpers are launched'
-const CRASH_ROW = 'runner restarted after a crash: 1 background agents relaunched, 1 delivered from their receipts, 0 stopped'
-const STOP_ROW = 'runner restarted after a stop: 1 background agents relaunched, 1 delivered from their receipts, 0 stopped'
+const CRASH_ROW = 'runner restarted after a crash: 1 background crewmates relaunched, 1 delivered from their receipts, 0 stopped'
+const STOP_ROW = 'runner restarted after a stop: 1 background crewmates relaunched, 1 delivered from their receipts, 0 stopped'
 const HANG_MS = 600_000
 
 type Launch = { toolUseId: string; agentId: string }

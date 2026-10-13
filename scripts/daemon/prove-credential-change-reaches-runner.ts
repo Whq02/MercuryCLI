@@ -299,7 +299,7 @@ try {
   const replyRows = unescaped(rowsSince(sid, rows2b))
   const requestsA = sinceHits(before2b).filter(h => h.kind === 'anthropic' && (h.ask ?? '').includes(SUBAGENT_ASK))
   const refusalA = sinceHits(before2).find(h => h.kind === 'anthropic' && h.status === 429)
-  check('the dispatch reaches its provider and settles with the delegate reply, not a local window refusal', served && !replyRows.includes('Agent dispatch refused') && !replyRows.includes('usage window is reached'), replyRows.slice(-600))
+  check('the dispatch reaches its provider and settles with the delegate reply, not a local window refusal', served && !replyRows.includes('Crewmate dispatch refused') && !replyRows.includes('usage window is reached'), replyRows.slice(-600))
   check('exactly one requested Anthropic delegate call is served on the chosen model', requestsA.length === 1 && requestsA[0]!.status === 200 && requestsA[0]!.model === DELEGATE_MODEL, JSON.stringify(requestsA))
   check('the runner still names account A when the provider serves the next dispatch', readFacts(sid)?.identity?.accountEmail === ACCOUNTS.a.email, JSON.stringify(readFacts(sid)?.identity))
   check('the provider refusal was observed first and its reset is still ahead when the next request is served', refusalA !== undefined && requestsA.length === 1 && requestsA[0]!.at > refusalA.at && requestsA[0]!.at < refusalA.at + RESET_IN_SECONDS * 1000 && rowsSince(sid, rows2).includes("This request would exceed your account's rate limit."), JSON.stringify({ refusalA, request: requestsA[0] }))
@@ -337,7 +337,7 @@ try {
   const replyB = unescaped(rowsSince(sid, rows5))
   const requestsB = sinceHits(before5b).filter(h => h.kind === 'anthropic' && (h.ask ?? '').includes(SUBAGENT_ASK))
   const refusalB = sinceHits(before5).find(h => h.kind === 'anthropic' && h.status === 429)
-  check("B's own window observation also permits one provider-decided request before reset, with B still named", errandB.ok === true && servedB && !replyB.includes('Agent dispatch refused') && requestsB.length === 1 && requestsB[0]!.status === 200 && requestsB[0]!.model === DELEGATE_MODEL && readFacts(sid)?.identity?.accountEmail === ACCOUNTS.b.email && refusalB !== undefined && requestsB[0]!.at > refusalB.at && requestsB[0]!.at < refusalB.at + RESET_IN_SECONDS * 1000, JSON.stringify({ hits: requestsB, refusalB, identity: readFacts(sid)?.identity }))
+  check("B's own window observation also permits one provider-decided request before reset, with B still named", errandB.ok === true && servedB && !replyB.includes('Crewmate dispatch refused') && requestsB.length === 1 && requestsB[0]!.status === 200 && requestsB[0]!.model === DELEGATE_MODEL && readFacts(sid)?.identity?.accountEmail === ACCOUNTS.b.email && refusalB !== undefined && requestsB[0]!.at > refusalB.at && requestsB[0]!.at < refusalB.at + RESET_IN_SECONDS * 1000, JSON.stringify({ hits: requestsB, refusalB, identity: readFacts(sid)?.identity }))
 
   section('§6 a sign-out clears it the same way; a later sign-in is read by the runner')
   const pokesBefore6 = pokeRequests.length

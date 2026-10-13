@@ -252,9 +252,9 @@ const lantern = launchNamed(store, transcript, 'lantern-index', 'index the lante
 const nobody = await deliver(ctx, 'nobody-here', 'anyone there', 'req_nobody')
 console.log(`  the answer: ${JSON.stringify(nobody.data)}`)
 check('the send is refused', nobody.data.success === false)
-check('the refusal says no agent by that name is in this session', /no agent named nobody-here in this session/.test(nobody.data.message), nobody.data.message)
-check('…names the finished agent by name', /finished agents are: [^;—]*harbour-count/.test(nobody.data.message), nobody.data.message)
-check('…names the running agent by name', /running agents are: [^;—]*lantern-index/.test(nobody.data.message), nobody.data.message)
+check('the refusal says no agent by that name is in this session', /no crewmate named nobody-here in this session/.test(nobody.data.message), nobody.data.message)
+check('…names the finished agent by name', /finished crewmates are: [^;—]*harbour-count/.test(nobody.data.message), nobody.data.message)
+check('…names the running agent by name', /running crewmates are: [^;—]*lantern-index/.test(nobody.data.message), nobody.data.message)
 check('…and points at an id or one of those names, never at a crew', /send to an id or one of those names/.test(nobody.data.message) && !/spawn a crew/i.test(nobody.data.message), nobody.data.message)
 check('the running launch is still reached by its name, as today (the live road is untouched)', (await deliver(ctx, 'lantern-index', 'keep going', 'req_live')).data.message.startsWith('Delivered to lantern-index (id '))
 

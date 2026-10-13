@@ -85,7 +85,7 @@ export function seatWaitFacts(lane: PermitLane): SeatWaitFacts {
 
 function holderLabel(req: PermitRequest): string {
   if (req.holder !== undefined && req.holder !== '') return req.holder
-  return req.lane === 'foreground' ? CHAT_HOLDER : req.lane === 'background-session' ? 'an agent' : req.lane
+  return req.lane === 'foreground' ? CHAT_HOLDER : req.lane === 'background-session' ? 'a crewmate' : req.lane
 }
 
 export function heldPermits(): readonly PermitGrant[] {

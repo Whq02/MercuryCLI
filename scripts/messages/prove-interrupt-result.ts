@@ -64,7 +64,7 @@ section('B every other kind keeps its own words; a non-tool interrupt keeps INTE
   const cut = turnCutResultText(turnCutOf('throttled'))
   const bare = turnCutResultText(turnCutOf(new Error('the run was aborted')))
   check('idle-timeout keeps its words', idle === 'Cut off by a no-progress timeout (the provider went quiet)', idle)
-  check('parent-stop keeps its words', parent === 'Cut off: the workflow that ran this agent stopped', parent)
+  check('parent-stop keeps its words', parent === 'Cut off: the workflow that ran this crewmate stopped', parent)
   check('a typed cut keeps its words', cut === 'Cut off: the retry budget was spent', cut)
   check('an Error reason keeps its words', bare === 'Cut off: the run was aborted', bare)
   check('no other kind gains the two facts', [idle, parent, cut, bare].every(t => !PARTIAL.test(t) && !BACKGROUND.test(t)))
@@ -93,7 +93,7 @@ section('C the census: every reader that recognised an interrupt result still do
   check('unwrapToolUseError leaves the result itself alone', unwrapToolUseError(result) === result)
 
   check('turnCutOfText: the two interruption rows still read as the operator\'s', turnCutOfText(INTERRUPT_MESSAGE)?.kind === 'operator' && turnCutOfText(INTERRUPT_MESSAGE_FOR_TOOL_USE)?.kind === 'operator')
-  check('turnCutOfText: the typed rows still read back', turnCutOfText('[Request cut off by a no-progress timeout (the provider went quiet)]')?.kind === 'idle-timeout' && turnCutOfText('[Request cut off: the workflow that ran this agent stopped]')?.kind === 'parent-stop')
+  check('turnCutOfText: the typed rows still read back', turnCutOfText('[Request cut off by a no-progress timeout (the provider went quiet)]')?.kind === 'idle-timeout' && turnCutOfText('[Request cut off: the workflow that ran this crewmate stopped]')?.kind === 'parent-stop')
   check('turnCutOfText: a tool result is never a cut row', turnCutOfText(result) === null && turnCutOfText(named) === null && !isTurnCutText(result))
   check('isTurnCutText: the rows are still markers', isTurnCutText(INTERRUPT_MESSAGE) && isTurnCutText(INTERRUPT_MESSAGE_FOR_TOOL_USE) && !isTurnCutText('plain words'))
   check('isNotEmptyMessage: the tool-use interruption row still counts as empty', !isNotEmptyMessage(createUserMessage({ content: [{ type: 'text', text: INTERRUPT_MESSAGE_FOR_TOOL_USE }] as never })))

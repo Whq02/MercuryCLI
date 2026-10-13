@@ -156,7 +156,7 @@ const map = (AgentTool as unknown as { mapToolResultToToolResultBlockParam: Mapp
   )
   check('failed result is an ERROR tool_result', failed.is_error === true)
   const text = failed.content.map(c => c.text).join('\n')
-  check('failed result carries the failure text', /Agent execution failed: API Error: 529/.test(text))
+  check('failed result carries the failure text', /Crewmate execution failed: API Error: 529/.test(text))
   check('failed result carries the partial report', /the real partial report/.test(text))
   check('failed result labels the partial as not-final', /partial work, not a final answer/.test(text))
 }

@@ -102,7 +102,7 @@ t.section('S4 — the retry budget: one budget across attempts, words that speak
   const three = budget.honourRecoveryWait(b, refusal(30_000, 5))
   t.check('a spent budget honours nothing more', three.honoredMs === 0 && three.spent === true, JSON.stringify(three))
   const line = budget.recoveryBudgetSpentLine(b)
-  t.check('the spent line is typed: the refusals, the answer, the budget, the way back, the knob', line === 'the provider refused 3 times in a row (HTTP 429, busy) — the 5m retry budget is spent and the agent stopped; its work is kept — a message to it resumes it, or raise MERCURY_RECOVERY_BUDGET_MINUTES', line)
+  t.check('the spent line is typed: the refusals, the answer, the budget, the way back, the knob', line === 'the provider refused 3 times in a row (HTTP 429, busy) — the 5m retry budget is spent and the crewmate stopped; its work is kept — a message to it resumes it, or raise MERCURY_RECOVERY_BUDGET_MINUTES', line)
   const fault = budget.recoveryNoticeFacts({ type: 'system', subtype: 'api_error', errorDetail: { status: 503 }, retryInMs: 30_000, retryAttempt: 1, maxRetries: 10 })
   const slept = budget.makeRecoveryBudget(5 * 60_000)
   const faulted = fault === null ? null : budget.honourRecoveryWait(slept, fault)

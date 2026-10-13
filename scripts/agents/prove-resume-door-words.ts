@@ -6,7 +6,7 @@ let failures = 0
 let checks = 0
 const check = (label: string, yes: boolean) => { checks++; if (!yes) failures++; console.log(`[${yes ? 'PASS' : 'FAIL'}] ${label}`) }
 const expectations: Array<[string, string[]]> = [
-  ['src/tools/AgentTool/AgentTool.tsx', ['To continue this agent, use ${RESUME_AGENT_TOOL_NAME} addressed to that id', 'An agent name must be addressable by SendMessage and ResumeCrewmate:', 'takes more work through ResumeCrewmate({to: name}), running or finished, and notes through SendMessage({to: name}) while it runs.']],
+  ['src/tools/AgentTool/AgentTool.tsx', ['To continue this crewmate, use ${RESUME_AGENT_TOOL_NAME} addressed to that id', 'A crewmate name must be addressable by SendMessage and ResumeCrewmate:', 'takes more work through ResumeCrewmate({to: name}), running or finished, and notes through SendMessage({to: name}) while it runs.']],
   ['src/tasks/LocalAgentTask/LocalAgentTask.tsx', ['resume it from the crew view (r on its row) or by ResumeCrewmate to its id']],
   ['src/services/agentResults/lifecycle.ts', ['ResumeCrewmate revives it from its transcript with your message', 'ResumeCrewmate revives it warm (the prompt cache still holds its prefix)', 'ResumeCrewmate revives it (cold replay)']],
   ['src/tasks/stopTask.ts', ['; ResumeCrewmate to that id resumes it']],
@@ -23,7 +23,7 @@ const { namedLaunchReceipts } = await import('../../src/tasks/LocalAgentTask/lau
 for (const verb of ['SendMessage', 'ResumeCrewmate']) {
   const rows = [
     { type: 'assistant', uuid: 'launch', timestamp: new Date().toISOString(), message: { content: [{ type: 'tool_use', id: 'launch', name: 'Crewmate', input: { name: 'reader', description: 'read', prompt: 'read', crewmate_type: 'mercury-crew' } }] } },
-    { type: 'user', uuid: 'receipt', message: { content: [{ type: 'tool_result', tool_use_id: 'launch', content: `done\nagentId: a12345678 (internal — do not mention it to the user). To continue this agent, use ${verb} addressed to that id.` }] } },
+    { type: 'user', uuid: 'receipt', message: { content: [{ type: 'tool_result', tool_use_id: 'launch', content: `done\nagentId: a12345678 (internal — do not mention it to the user). To continue this crewmate, use ${verb} addressed to that id.` }] } },
   ]
   check(`${verb} transcript trailer still pairs its launch name with its id`, namedLaunchReceipts(rows as never)[0]?.agentId === 'a12345678')
 }

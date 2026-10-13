@@ -167,7 +167,7 @@ export function formatEnvelopeBlock(envelope: AgentResultEnvelope): string {
     lines.push(`next: ${envelope.recommendedNextAction}`)
   }
   if (envelope.malformedDeclarationRef) {
-    lines.push(`(the agent's structured declaration was malformed — raw preserved at ${envelope.malformedDeclarationRef})`)
+    lines.push(`(the crewmate's structured declaration was malformed — raw preserved at ${envelope.malformedDeclarationRef})`)
   }
   lines.push(
     `full output: ${envelope.fullOutputRef} · final report: Inspect ${envelope.fullOutputRef}?child=report`,

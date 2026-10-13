@@ -586,7 +586,7 @@ if (cap !== null) {
   check('F1 the crew view lists the child failed', crewFoliage.some(r => /failed/.test(r)), crewFoliage.map(flat).join(' | ').slice(0, 300))
 
   console.log('\n— A the receipt\'s id routes, the name routes —')
-  const lanternWait = rowsWith(m['lantern-waiting'], 'waiting on 1 agent')
+  const lanternWait = rowsWith(m['lantern-waiting'], 'waiting on 1 crewmate')
   check('A0 the launch turn held open by its background agent paints the wait words, never the thinking dress', lanternWait.length > 0, rowsWith(m['lantern-waiting'], /waiting on|thinking|thought for/).map(flat).join(' | ').slice(0, 300))
   const sendResults = acks.flatMap(h => h.results.filter(r => r.name === 'SendMessage' || r.name === 'ResumeCrewmate').map(r => r.text))
   for (const r of sendResults) console.log(`  send result: ${flat(r).slice(0, 240)}`)

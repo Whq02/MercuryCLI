@@ -34,25 +34,25 @@ section('§1 the crew\'s clock')
 {
   check('no rows ⇒ no line, nothing active', bar.crewClockOf([], NOW).line === null && bar.crewClockOf([], NOW).active === false)
   const one = [row({ id: 'a1', kind: 'agent', status: 'running', startTime: NOW - 5_000 })]
-  check('one running agent: "agent thought for 5s", active', bar.crewClockOf(one, NOW).line === 'agent thought for 5s' && bar.crewClockOf(one, NOW).active, bar.crewClockOf(one, NOW).line ?? 'null')
+  check('one running agent: "crewmate thought for 5s", active', bar.crewClockOf(one, NOW).line === 'crewmate thought for 5s' && bar.crewClockOf(one, NOW).active, bar.crewClockOf(one, NOW).line ?? 'null')
   const two = [row({ id: 'a1', kind: 'agent', status: 'running', startTime: NOW - 28 * M }), row({ id: 'a2', kind: 'agent', status: 'running', startTime: NOW - 20 * M })]
-  check('two running agents: the clock counts from the earliest start — "agents thought for 28m"', bar.crewClockOf(two, NOW).line === 'agents thought for 28m', bar.crewClockOf(two, NOW).line ?? 'null')
+  check('two running agents: the clock counts from the earliest start — "crewmates thought for 28m"', bar.crewClockOf(two, NOW).line === 'crewmates thought for 28m', bar.crewClockOf(two, NOW).line ?? 'null')
   const pending = [row({ id: 'a1', kind: 'agent', status: 'pending', startTime: NOW - 2_000 })]
-  check('a pending agent runs (the counting law)', bar.crewActiveIn(pending) && bar.crewClockOf(pending, NOW).line === 'agent thought for 2s')
+  check('a pending agent runs (the counting law)', bar.crewActiveIn(pending) && bar.crewClockOf(pending, NOW).line === 'crewmate thought for 2s')
   const wf = [row({ id: 'w1', kind: 'workflow', status: 'running', startTime: NOW - 12 * M })]
   check('one running workflow: "workflow thought for 12m"', bar.crewClockOf(wf, NOW).line === 'workflow thought for 12m' && bar.crewActiveIn(wf))
   const wfs = [row({ id: 'w1', kind: 'workflow', status: 'running', startTime: NOW - 12 * M }), row({ id: 'w2', kind: 'workflow', status: 'pending', startTime: NOW - 2 * M })]
   check('two workflows: the plural', bar.crewClockOf(wfs, NOW).line === 'workflows thought for 12m')
   const both = [...two, ...wf]
-  check('both kinds: both sentences, the larger first', bar.crewClockOf(both, NOW).line === 'agents thought for 28m · workflow thought for 12m', bar.crewClockOf(both, NOW).line ?? 'null')
+  check('both kinds: both sentences, the larger first', bar.crewClockOf(both, NOW).line === 'crewmates thought for 28m · workflow thought for 12m', bar.crewClockOf(both, NOW).line ?? 'null')
   const bothWfFirst = [...one, ...wf]
-  check('both kinds, the workflow larger: the workflow first', bar.crewClockOf(bothWfFirst, NOW).line === 'workflow thought for 12m · agent thought for 5s')
+  check('both kinds, the workflow larger: the workflow first', bar.crewClockOf(bothWfFirst, NOW).line === 'workflow thought for 12m · crewmate thought for 5s')
   const settled = [row({ id: 'a1', kind: 'agent', status: 'completed', startTime: NOW - 60_000, endTime: NOW - 32_000 }), row({ id: 'a2', kind: 'agent', status: 'killed', startTime: NOW - 55_000, endTime: NOW - 40_000 })]
   const s = bar.crewClockOf(settled, NOW)
   check('settled agents: no line and nothing active — the row rests on ready once the crew lands', s.line === null && s.active === false, s.line ?? 'null')
   check('a settled crew never ticks or stands as a receipt, however long ago it landed', bar.crewClockOf(settled, NOW + 10 * M).line === null)
   const mixed = [row({ id: 'a1', kind: 'agent', status: 'completed', startTime: NOW - 60 * M, endTime: NOW - 50 * M }), row({ id: 'a2', kind: 'agent', status: 'running', startTime: NOW - 4 * M })]
-  check('a running agent beside a settled one: the running clock alone (the settled row waits for its eviction)', bar.crewClockOf(mixed, NOW).line === 'agent thought for 4m' && bar.crewActiveIn(mixed))
+  check('a running agent beside a settled one: the running clock alone (the settled row waits for its eviction)', bar.crewClockOf(mixed, NOW).line === 'crewmate thought for 4m' && bar.crewActiveIn(mixed))
   const paused = [row({ id: 'w1', kind: 'workflow', status: 'paused', startTime: NOW - 9 * M })]
   check('a paused workflow runs nothing (the glyph is still) and paints no clock', bar.crewActiveIn(paused) === false && bar.crewClockOf(paused, NOW).line === null)
   const shells = [row({ id: 's1', kind: 'shell', status: 'running', startTime: NOW - 5 * M }), row({ id: 'm1', kind: 'monitor', status: 'running', startTime: NOW - M })]
@@ -68,28 +68,28 @@ section('§2 the row\'s words per state, with and without a crew, at three width
     ({ ...IDLE_LIVE, inFlight, phase, agentsWaiting, turnStartedAtMs: inFlight ? NOW - 5_000 : null }) as SessionLiveV1
   const status = (over: Partial<SeatStatusV1> = {}): SeatStatusV1 =>
     ({ title: 'a chat', projectLabel: 'proj', interrupting: false, hardStopping: false, wait: null, quietMs: null, watchdogMs: 120_000, phaseMs: 28 * M, toolBudgetMs: 600_000, stuck: false, ...over }) as SeatStatusV1
-  const crew = { active: true, line: 'agents thought for 28m' }
+  const crew = { active: true, line: 'crewmates thought for 28m' }
   const receipt = bar.crewClockOf([row({ id: 'a1', kind: 'agent', status: 'completed', startTime: NOW - 60_000, endTime: NOW - 32_000 })], NOW)
   const none = { active: false, line: null }
   const mains: Array<[string, SessionLiveV1]> = [['thinking', live('thinking')], ['a tool', live('tool')], ['replying', live('responding')], ['compacting', live('compacting')]]
   for (const [name, l] of mains) {
     check(`${name}, no crew: the row paints nothing`, bar.statusLine(l, status(), none) === '' && bar.statusLine(l, status()) === '', bar.statusLine(l, status()))
-    check(`${name}, a crew running: the crew's clock`, bar.statusLine(l, status(), crew) === 'agents thought for 28m')
+    check(`${name}, a crew running: the crew's clock`, bar.statusLine(l, status(), crew) === 'crewmates thought for 28m')
     check(`${name}, a settled crew: the row paints nothing (no receipt stands)`, bar.statusLine(l, status(), receipt) === '')
     for (const c of [none, crew, receipt]) check(`${name}: no phase word on the row (crew ${c.line === null ? 'none' : c.active ? 'running' : 'settled'})`, !PHASE_WORDS.test(bar.statusLine(l, status(), c)))
   }
   check('idle, no crew: "ready"', bar.statusLine(live('idle', false), status(), none) === 'ready')
-  check('idle, the crew running on (esc left them): the crew\'s clock, never "ready"', bar.statusLine(live('idle', false), status(), crew) === 'agents thought for 28m')
+  check('idle, the crew running on (esc left them): the crew\'s clock, never "ready"', bar.statusLine(live('idle', false), status(), crew) === 'crewmates thought for 28m')
   check('idle, the crew settled: "ready" (the landed rows keep their time in the CREW box)', bar.statusLine(live('idle', false), status(), receipt) === 'ready')
   const wait: SeatStatusV1['wait'] = { kind: 'first-byte', cold: false, promptTokens: 900, model: 'Opus 5', budgetMs: 120_000, sinceMs: NOW - 3_000, attempt: 1 }
   check('the first-byte wait outranks the crew\'s clock, and speaks its budget in minutes', bar.statusLine(live('thinking'), status({ wait }), crew) === 'waiting for the first byte from Opus 5 — within 2m', bar.statusLine(live('thinking'), status({ wait }), crew))
-  check('the wait on agents outranks the crew\'s clock (the runner\'s own count words)', bar.statusLine(live('waiting', true, 2), status(), crew) === 'waiting on 2 agents')
-  check('the wait on agents by kind outranks the crew\'s clock', bar.statusLine({ ...live('waiting', true, 3), waitingOn: { workflows: 1, agents: 2, shells: 0, asks: 0 } }, status(), crew) === 'waiting on 1 workflow · 2 agents')
+  check('the wait on agents outranks the crew\'s clock (the runner\'s own count words)', bar.statusLine(live('waiting', true, 2), status(), crew) === 'waiting on 2 crewmates')
+  check('the wait on agents by kind outranks the crew\'s clock', bar.statusLine({ ...live('waiting', true, 3), waitingOn: { workflows: 1, agents: 2, shells: 0, asks: 0 } }, status(), crew) === 'waiting on 1 workflow · 2 crewmates')
   check('the stuck verdict outranks the crew\'s clock', bar.statusLine(live('thinking'), status({ stuck: true, quietMs: 120_000 }), crew) === 'no stream events for 2m — the session may be stuck (the watchdog aborts at 2m)', bar.statusLine(live('thinking'), status({ stuck: true, quietMs: 120_000 }), crew))
   check('the interrupt outranks the crew\'s clock', bar.statusLine(live('thinking'), status({ interrupting: true }), crew) === 'interrupting — the request is torn down')
   check('the second press outranks everything', bar.statusLine(live('thinking'), status({ interrupting: true, hardStopping: true }), crew) === 'interrupting again — the request is torn down once more; x on its row stops the runner')
   const fixed = 2 + stringWidth('a chat') + stringWidth(' · proj') + 3 + 2 + stringWidth('esc interrupts · ⇧← back')
-  const both = 'agents thought for 28m · workflow thought for 12m'
+  const both = 'crewmates thought for 28m · workflow thought for 12m'
   for (const cols of [100, 110, 120]) {
     const fitted = bar.fitStatusLine(both, cols, fixed)
     check(`${cols} columns: the crew's clock is left whole for the row's own end cut`, fitted === both, fitted)

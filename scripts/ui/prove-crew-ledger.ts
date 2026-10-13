@@ -279,7 +279,7 @@ function Harness(): React.ReactNode {
     h(FullscreenLayout, {
       scrollRef,
       scrollable: h(TranscriptSwap, { lead: h(Transcript), tools: [], commands: [], screen: 'prompt', scrollRef, agentDefinitions: { activeAgents: [], allAgents: [] }, trackStickyPrompt: true }),
-      statusBand: h(Text, null, 'waiting on 3 agents'),
+      statusBand: h(Text, null, 'waiting on 3 crewmates'),
       statusBandActive: true,
       modalScrollRef,
       bottom: h(Box, { flexDirection: 'column' },
@@ -439,7 +439,7 @@ async function run(cols: number, rows: number): Promise<void> {
     check('the CREW box stands and Mercury Lead is its first row', b !== null && (b.rows[0] ?? '').includes(LEAD_ROW), describeBox())
     check('the three running crewmates are listed', b !== null && ['atlas', 'birch', 'cedar'].every(name => b.rows.some(row => NAMES.test(row) && row.includes(name))), describeBox())
     check('the crewmate that already landed (delta) is listed with its state word: landed', b !== null && b.rows.some(row => row.includes('delta') && row.includes('landed')), describeBox())
-    check('the box counts every crewmate the session has had (4 agents)', b !== null && b.header.includes('4 agents'), describeBox())
+    check('the box counts every crewmate the session has had (4 agents)', b !== null && b.header.includes('4 crewmates'), describeBox())
   }
 
   section(`§1b ${tag('esc on a landed crewmate the runner still lists goes back to Mercury Lead')}`)

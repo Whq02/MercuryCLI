@@ -201,7 +201,7 @@ export function crewActiveIn(rows: readonly WorkRowV1[]): boolean {
 
 export function crewClockOf(rows: readonly WorkRowV1[], nowMs: number): CrewClockV1 {
   const spans = crewSpansOf(rows)
-  const kinds = [kindClockOf(spans.agents, ['agent', 'agents'], nowMs), kindClockOf(spans.workflows, ['workflow', 'workflows'], nowMs)].filter(
+  const kinds = [kindClockOf(spans.agents, ['crewmate', 'crewmates'], nowMs), kindClockOf(spans.workflows, ['workflow', 'workflows'], nowMs)].filter(
     (k): k is KindClock => k !== null,
   )
   kinds.sort((a, b) => b.ms - a.ms)
@@ -212,7 +212,7 @@ export function crewClockOf(rows: readonly WorkRowV1[], nowMs: number): CrewCloc
 }
 
 export function waitingStatusWords(live: SessionLiveV1): string {
-  return (live.waitingOn !== undefined ? workWaitingWords(live.waitingOn) : null) ?? crewWaitingWords(live.agentsWaiting) ?? 'waiting on agents'
+  return (live.waitingOn !== undefined ? workWaitingWords(live.waitingOn) : null) ?? crewWaitingWords(live.agentsWaiting) ?? 'waiting on crewmates'
 }
 
 export function statusLine(live: SessionLiveV1, s: SeatStatusV1, crew: CrewClockV1 | null = null, compact = false): string {

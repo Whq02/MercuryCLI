@@ -175,7 +175,7 @@ async function admitAgentSession(
     return 'admitted'
   }
   const rowNote = (): string =>
-    `waiting for a free shell engine session: ${liveAgentSessions()} of ${share} crewmate sessions are in use (the ceiling is ${ceiling}; a session frees when an agent ends)`
+    `waiting for a free shell engine session: ${liveAgentSessions()} of ${share} crewmate sessions are in use (the ceiling is ${ceiling}; a session frees when a crewmate ends)`
   waitingOwners.add(owned.owner)
   taskOutput.setLiveNotice(rowNote())
   taskOutput.emitLiveView()

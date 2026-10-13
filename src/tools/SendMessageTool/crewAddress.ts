@@ -163,9 +163,9 @@ export async function unknownAgentRefusal(to: string, context: ToolUseContext, v
   }
   const running = known.filter(agent => agent.status === 'running').map(agent => agent.name)
   const finished = known.filter(agent => agent.status !== 'running').map(agent => agent.name)
-  return `Cannot ${verb} "${to}": no agent named ${to} in this session` +
-    (running.length > 0 ? `; the running agents are: ${running.join(', ')}` : '') +
-    (finished.length > 0 ? `; the finished agents are: ${finished.join(', ')}` : '') +
+  return `Cannot ${verb} "${to}": no crewmate named ${to} in this session` +
+    (running.length > 0 ? `; the running crewmates are: ${running.join(', ')}` : '') +
+    (finished.length > 0 ? `; the finished crewmates are: ${finished.join(', ')}` : '') +
     ' — send to an id or one of those names.'
 }
 

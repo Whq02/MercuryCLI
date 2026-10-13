@@ -477,11 +477,11 @@ section('§8 THE BESPOKE TOOL SENTENCES — a Bash operand, a redirection, a str
     }
   }
   const agentPlain = launch(ctxWith({ deny: ['Crewmate(scout-role)'] }, undefined, 'userSettings'))
-  check('control: a Crewmate(type) deny without a reason speaks the rule sentence', agentPlain === 'The scout-role agent is denied by the rule Crewmate(scout-role) in your user settings.', agentPlain)
+  check('control: a Crewmate(type) deny without a reason speaks the rule sentence', agentPlain === 'The scout-role crewmate is denied by the rule Crewmate(scout-role) in your user settings.', agentPlain)
   const agentSaid = launch(ctxWith({ deny: ['Crewmate(scout-role)'] }, { 'Crewmate(scout-role)': R_SCOUT }, 'userSettings'))
-  check('5 a Crewmate(type) deny says the words', agentSaid === `The scout-role agent is denied by the rule Crewmate(scout-role) in your user settings: ${R_SCOUT}.`, agentSaid)
+  check('5 a Crewmate(type) deny says the words', agentSaid === `The scout-role crewmate is denied by the rule Crewmate(scout-role) in your user settings: ${R_SCOUT}.`, agentSaid)
   const agentOther = launch(ctxWith({ deny: ['Crewmate(scout-role)'] }, { 'Crewmate(other-role)': R_SCOUT }, 'userSettings'))
-  check('control: words for another agent rule change nothing', agentOther === 'The scout-role agent is denied by the rule Crewmate(scout-role) in your user settings.', agentOther)
+  check('control: words for another agent rule change nothing', agentOther === 'The scout-role crewmate is denied by the rule Crewmate(scout-role) in your user settings.', agentOther)
 }
 
 process.chdir(launchDir)

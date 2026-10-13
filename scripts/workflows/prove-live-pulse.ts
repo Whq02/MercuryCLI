@@ -22,7 +22,7 @@ const p0 = workflowPulse([], T0, T0 + 5_000)
 t('lastEventAt floors at startTime', p0.lastEventAt === T0)
 t('quietMs from startTime', p0.quietMs === 5_000)
 t('fresh run is moving', p0.moving === true)
-t('no agents yet', p0.running === 0 && p0.settled === 0 && p0.maxAttempt === 0)
+t('no crewmates yet', p0.running === 0 && p0.settled === 0 && p0.maxAttempt === 0)
 
 console.log('— recency comes from event stamps, not array order —')
 const events: WorkflowProgressEvent[] = [

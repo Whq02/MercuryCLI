@@ -3,7 +3,7 @@ WORKBENCH               │ transcript row 48 · · · · · · · · · · · �
   no prompts sent yet   │ transcript row 49 · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · ·… │
                         │                                                                                              │
 NEXT                    │ ╭──────────────────────────────────────────────────────────────────────────────────────────╮ │
-  · /workflows — agent …│ │ ▖▟▆▙▗ Mercury · logins                                                                   │ │
+  · /workflows — crewma…│ │ ▖▟▆▙▗ Mercury · logins                                                                   │ │
   · /health — health ce…│ │ esc back · from the menu, esc closes /logins                                             │ │
   · /memory — memory    │ │                                                                                          │ │
   · /mission — set a mi…│ │ Sign in                                                                                  │ │

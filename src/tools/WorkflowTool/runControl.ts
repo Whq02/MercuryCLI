@@ -441,9 +441,9 @@ export class WorkflowExecutionPause {
   change(paused: boolean, by: string, agentId?: string): WorkflowControlOutcome {
     if (agentId !== undefined) {
       const entry = this.agents.get(agentId)
-      if (entry === undefined) return { outcome: 'refused', reason: 'the agent is not in flight — nothing to pause or resume' }
+      if (entry === undefined) return { outcome: 'refused', reason: 'the crewmate is not in flight — nothing to pause or resume' }
       if (paused && entry.by !== undefined) return { outcome: 'refused', reason: `already paused by ${entry.by}` }
-      if (!paused && entry.by === undefined && this.runPausedBy === undefined) return { outcome: 'refused', reason: 'the agent is not paused — nothing to resume' }
+      if (!paused && entry.by === undefined && this.runPausedBy === undefined) return { outcome: 'refused', reason: 'the crewmate is not paused — nothing to resume' }
       if (!paused && this.runPausedBy !== undefined) {
         for (const [otherId, other] of this.agents) {
           if (otherId !== agentId && other.by === undefined) other.by = this.runPausedBy
@@ -472,9 +472,9 @@ export class WorkflowExecutionPause {
       outcome: 'applied',
       detail: paused
         ? agentId === undefined
-          ? `paused by ${by} — the run parks before its next agent call and its agents at their next safe point (a model call or a tool block); work in flight finishes first`
-          : `paused by ${by} — the agent parks before the next model call; work in flight finishes first`
-        : `resumed by ${by} — the same ${agentId === undefined ? 'run continues from where it stopped' : 'agent continues'}`,
+          ? `paused by ${by} — the run parks before its next agent() call and its crewmates at their next safe point (a model call or a tool block); work in flight finishes first`
+          : `paused by ${by} — the crewmate parks before the next model call; work in flight finishes first`
+        : `resumed by ${by} — the same ${agentId === undefined ? 'run continues from where it stopped' : 'crewmate continues'}`,
     }
   }
 

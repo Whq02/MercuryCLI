@@ -36,9 +36,9 @@ console.log('============================================================')
 section('C1 the ruled row: one row, the crash words and the stop words')
 {
   const crash = lr.restartCarryRow('crash', { relaunched: 2, delivered: 1, stopped: 0 })
-  check('a crash restart names the crash in the ruled shape', crash === 'runner restarted after a crash: 2 background agents relaunched, 1 delivered from their receipts, 0 stopped', crash)
+  check('a crash restart names the crash in the ruled shape', crash === 'runner restarted after a crash: 2 background crewmates relaunched, 1 delivered from their receipts, 0 stopped', crash)
   const stop = lr.restartCarryRow('stop', { relaunched: 3, delivered: 0, stopped: 0 })
-  check("a stop restart says the stop, never a crash: 'after a stop'", stop === 'runner restarted after a stop: 3 background agents relaunched, 0 delivered from their receipts, 0 stopped' && !stop.includes('crash'), stop)
+  check("a stop restart says the stop, never a crash: 'after a stop'", stop === 'runner restarted after a stop: 3 background crewmates relaunched, 0 delivered from their receipts, 0 stopped' && !stop.includes('crash'), stop)
   check('the row is recognisable by its prefix (the wake reads it)', lr.isRestartCarryRow(crash) && lr.isRestartCarryRow(stop) && !lr.isRestartCarryRow('<task-notification>'))
   check('the relaunch note is shaped like the resume note and tells the agent to read its diff before it edits', lr.AGENT_RELAUNCH_NOTE.includes('Continue from where your transcript ends') && AGENT_RESUME_NOTE.includes('Continue from where your transcript ends') && /git diff/.test(lr.AGENT_RELAUNCH_NOTE) && /read a file again before you edit it/.test(lr.AGENT_RELAUNCH_NOTE), lr.AGENT_RELAUNCH_NOTE)
 }

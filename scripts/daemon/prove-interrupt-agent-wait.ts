@@ -142,8 +142,8 @@ console.log('\nA3 the words the status row speaks')
   const waiting = { ...IDLE_LIVE, inFlight: true, phase: 'waiting' as const, agentsWaiting: 3 }
   const one = { ...waiting, agentsWaiting: 1 }
   const thinking = { ...IDLE_LIVE, inFlight: true, phase: 'thinking' as const }
-  check("waiting on three: 'waiting on 3 agents'", statusLine(waiting, base) === 'waiting on 3 agents', statusLine(waiting, base))
-  check("waiting on one: 'waiting on 1 agent'", statusLine(one, base) === 'waiting on 1 agent', statusLine(one, base))
+  check("waiting on three: 'waiting on 3 crewmates'", statusLine(waiting, base) === 'waiting on 3 crewmates', statusLine(waiting, base))
+  check("waiting on one: 'waiting on 1 crewmate'", statusLine(one, base) === 'waiting on 1 crewmate', statusLine(one, base))
   const interrupting = statusLine(thinking, { ...base, interrupting: true })
   check("the interrupt claims what the road does — the request torn down (the esc rung's hint rides the ladder owner)", interrupting === 'interrupting — the request is torn down', interrupting)
   const hard = statusLine(thinking, { ...base, interrupting: true, hardStopping: true })
@@ -212,8 +212,8 @@ console.log('\nA5 the wiring — runner to glass (structural)')
   check('the control server forwards the hard flag', /\.\.\.\(raw\.hard === true \? \{ hard: true \} : \{\}\)/.test(server))
   const repl = read('src/screens/Chat.tsx')
   const tagBar = read('src/components/SwitchboardTagBar.tsx')
-  check("the Chat speaks the wait in the seat's own words first, then the crew owner's (the way out rides the esc ladder owner), and never maps the waiting phase onto the thinking mode", /seatLive\.phase === 'waiting' \? waitingStatusWords\(seatLive\) : null/.test(repl) && /return \(live\.waitingOn !== undefined \? workWaitingWords\(live\.waitingOn\) : null\) \?\? crewWaitingWords\(live\.agentsWaiting\) \?\? 'waiting on agents'/.test(tagBar) && !/'waiting'\s*\?\s*'thinking'/.test(repl))
-  check("the status row spells the wait through the crew owner too (one spelling)", /crewWaitingWords\(live\.agentsWaiting\) \?\? 'waiting on agents'/.test(tagBar) && /const rung = escRungOf\(/.test(tagBar) && /escRungHint\(rung\)/.test(tagBar))
+  check("the Chat speaks the wait in the seat's own words first, then the crew owner's (the way out rides the esc ladder owner), and never maps the waiting phase onto the thinking mode", /seatLive\.phase === 'waiting' \? waitingStatusWords\(seatLive\) : null/.test(repl) && /return \(live\.waitingOn !== undefined \? workWaitingWords\(live\.waitingOn\) : null\) \?\? crewWaitingWords\(live\.agentsWaiting\) \?\? 'waiting on crewmates'/.test(tagBar) && !/'waiting'\s*\?\s*'thinking'/.test(repl))
+  check("the status row spells the wait through the crew owner too (one spelling)", /crewWaitingWords\(live\.agentsWaiting\) \?\? 'waiting on crewmates'/.test(tagBar) && /const rung = escRungOf\(/.test(tagBar) && /escRungHint\(rung\)/.test(tagBar))
   const seatLive = read('src/services/engine-connector/seatLive.ts')
   check("the live-phase vocabulary carries 'waiting' with its count", /'waiting' \| 'idle'/.test(seatLive) && /agentsWaiting: number/.test(seatLive))
 }

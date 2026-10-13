@@ -3,7 +3,7 @@ WORKBENCH               │╭────────────────�
   say something settled ││  ▄▄▄▄▄▄▄▄▄                                                                                 ││
                         ││  ▄▄▄▄▄▄▄▄▄                                                                                 ││
 NEXT                    ││  ▀▀▄▀▀▀▄▀▀                                                                                 ││
-  · /workflows — agent …│╰────────────────────────────────────────────────────────────────────────────────────────────╯│
+  · /workflows — crewma…│╰────────────────────────────────────────────────────────────────────────────────────────────╯│
   · /health — health ce…│                                                                                              │
   · /memory — memory    │                                                                                              │
   · /mission — set a mi…│ hh:mm:ss [sam] ❯ say something settled                                                       │

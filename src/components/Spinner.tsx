@@ -165,7 +165,7 @@ export function SpinnerWithVerb({
   const effectiveTip = still
     ? null
     : elapsedMs > LONG_TURN_TIP_MS && !spinnerTipsDisabled && !pendingNext
-      ? 'This turn has been running a while — esc interrupts it, not its agents.'
+      ? 'This turn has been running a while — esc interrupts it, not its crewmates.'
       : (spinnerTip ?? null)
 
   const ledgerExpanded = expandedView === 'tasks'

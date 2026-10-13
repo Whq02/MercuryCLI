@@ -15,7 +15,7 @@ type Leg = Awaited<ReturnType<typeof startLeg>>
 
 const driver = requireCaptureDriver('compact-notice-way-back')
 const WAY_BACK = keyHintLabel('⇧← concourse')
-const IDLE_COUNTS = '1 session on · 0 monitors here · 0 agents here'
+const IDLE_COUNTS = '1 session on · 0 monitors here · 0 crewmates here'
 const NOTICE_HEAD = 'Set model to'
 const textRows = (grid: Grid): string[] => grid.map(row => row.map(c => c.c).join(''))
 const trimmed = (rows: string[]): string[] => rows.map(r => r.replace(/\s+$/, ''))
@@ -35,7 +35,7 @@ async function capture(tag: string, cols: number, rows: number, wayBack: boolean
     { atTick: 999, awaitText: MODEL_PICKER_EXIT_WORDS, minTick: 5, awaitSettleTicks: 3, requireAwait: true, data: '\u001b[A' },
     { afterPrevTicks: 3, data: '\r' },
     { atTick: 999, awaitText: NOTICE_HEAD, minTick: 3, awaitSettleTicks: 1, requireAwait: true, data: '', mark: 'notice' },
-    { atTick: 999, awaitText: '0 agents here', minTick: 3, awaitSettleTicks: 2, requireAwait: true, data: '', mark: 'later' },
+    { atTick: 999, awaitText: '0 crewmates here', minTick: 3, awaitSettleTicks: 2, requireAwait: true, data: '', mark: 'later' },
   ]
   writeFileSync(cfgPath, JSON.stringify({ argv: [productNode(), DIST], cwd: leg.cwd, cols, rows, sends, resizes: [], total: 320, out }))
   const child = spawn(driver.python, [captureEngineEntry(driver, ROOT), cfgPath], { cwd: leg.cwd, env: childEnv(leg, { TMPDIR: '.', MERCURY_DESKTOP_DRIVER: 'none', MERCURY_CRITTER: 'clam' }), stdio: ['ignore', 'pipe', 'pipe'] })

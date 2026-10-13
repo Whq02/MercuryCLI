@@ -252,7 +252,7 @@ function MercuryHomeBody(): React.ReactNode {
             ) : (
               <Text color={tok.textMuted}>○ </Text>
             )}
-            <Text color={tok.textSecondary}>{agents > 0 ? `${agents} agents` : 'no fleet'}</Text>
+            <Text color={tok.textSecondary}>{agents > 0 ? `${agents} crewmates` : 'no fleet'}</Text>
             <Text color={tok.textMuted}> · trace </Text>
             <Text color={tok.textSecondary}>{traceCount}</Text>
             <Text color={tok.textMuted}> · substrate </Text>

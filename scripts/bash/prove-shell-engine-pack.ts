@@ -135,7 +135,7 @@ section('§3 the flag registry row and the settings key')
   const { ENGINE_SESSION_CEILING_DEFAULT, resolveEngineSessionCeiling } = await import(join(ROOT, 'src/utils/shell/engineSession.ts'))
   const savedPin = process.env.MERCURY_SHELL_ENGINE_SESSIONS
   delete process.env.MERCURY_SHELL_ENGINE_SESSIONS
-  check('the ceiling defaults to 8 — the conversation plus seven agents', ENGINE_SESSION_CEILING_DEFAULT === 8 && resolveEngineSessionCeiling() === 8)
+  check('the ceiling defaults to 8 — the conversation plus seven crewmates', ENGINE_SESSION_CEILING_DEFAULT === 8 && resolveEngineSessionCeiling() === 8)
   check('the setting decides when no pin is set; a setting below 1 is ignored', resolveEngineSessionCeiling(3) === 3 && resolveEngineSessionCeiling(0) === 8)
   process.env.MERCURY_SHELL_ENGINE_SESSIONS = '12'
   check('the env pin outranks the setting', resolveEngineSessionCeiling(3) === 12)

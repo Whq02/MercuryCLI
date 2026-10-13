@@ -294,7 +294,7 @@ export function crewToolUsesLabel(facts: CrewAgentFacts): string | null {
 
 export function crewWaitingWords(running: number): string | null {
   if (!(running > 0)) return null
-  return `waiting on ${running} agent${running === 1 ? '' : 's'}`
+  return `waiting on ${running} crewmate${running === 1 ? '' : 's'}`
 }
 
 export function crewWaitingLine(agents: readonly CrewAgentFacts[]): string | null {
@@ -369,7 +369,7 @@ export function crewUsageLine(agents: readonly CrewAgentFacts[]): string | null 
   const n = counted.length
   const spend = crewSpendOf(counted)
   const spendPart = spend.costUSD > 0 || spend.unpricedTurns > 0 ? ` · ${formatSessionCost(spend.costUSD, spend.unpricedTurns)}` : ''
-  return `crewmates ${formatTokens(crewTokenSum(counted))} spent · ${n} agent${n === 1 ? '' : 's'}${running > 0 ? ` · ${running} live` : ''}${spendPart}`
+  return `crewmates ${formatTokens(crewTokenSum(counted))} spent · ${n} crewmate${n === 1 ? '' : 's'}${running > 0 ? ` · ${running} live` : ''}${spendPart}`
 }
 
 export function crewRowLine(facts: CrewAgentFacts, nowMs: number): string {

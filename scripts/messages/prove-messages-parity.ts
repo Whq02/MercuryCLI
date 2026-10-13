@@ -326,7 +326,7 @@ const CUT_ROWS = [
   M.INTERRUPT_MESSAGE_FOR_TOOL_USE,
   '[Request cut off by a no-progress timeout (the provider went quiet)]',
   '[Request cut off during tool use by a no-progress timeout (the provider went quiet): sub-agent scout (a1): no progress for 15m]',
-  '[Request cut off: the workflow that ran this agent stopped]',
+  '[Request cut off: the workflow that ran this crewmate stopped]',
   '[Request cut off during tool use: the retry budget is spent]',
   'plain words',
   '[Request interrupted by user] and more',

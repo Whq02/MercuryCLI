@@ -410,11 +410,11 @@ const rows = (frame: string | undefined): string[] => (frame ?? '').split('\n')
 const flat = (s: string): string => s.replace(/\s+/g, ' ').trim()
 const GLYPHS = /[◐◓◑◒]/
 const PHASE_WORDS = /\b(thinking|running a tool|replying|compacting)\b/
-const CREW_CLOCK = /\b(agents?|workflows?) thought for \d+[sm]\b/
+const CREW_CLOCK = /\b(crewmates?|workflows?) thought for \d+[sm]\b/
 const titleRowIndex = (frame: string | undefined): number => rows(frame).findIndex(r => r.includes('✶ VIEW'))
 const statusIndex = (frame: string | undefined): number => rows(frame).findIndex(r => r.includes(BACK_HINT))
 const statusRow = (frame: string | undefined): string => rows(frame)[statusIndex(frame)] ?? ''
-const crewClock = (frame: string | undefined): string => (/\b(?:agents?|workflows?) thought for (\d+[sm])\b/.exec(statusRow(frame)) ?? ['', ''])[1]!
+const crewClock = (frame: string | undefined): string => (/\b(?:crewmates?|workflows?) thought for (\d+[sm])\b/.exec(statusRow(frame)) ?? ['', ''])[1]!
 const crewClockAdvances = (a: string | undefined, b: string | undefined): boolean => crewClock(a) !== '' && crewClock(b) !== '' && crewClock(a) !== crewClock(b)
 const crewClockStands = (a: string | undefined, b: string | undefined): boolean => crewClock(a) !== '' && crewClock(a) === crewClock(b)
 const noGlyph = (frame: string | undefined): boolean => statusGlyph(frame) === ''
@@ -473,7 +473,7 @@ try {
         after(10, 'crew-done'),
         after(12, 'crew-done+'),
         ask('hdr: launch2'),
-        { data: '', awaitText: 'waiting on 2 agents', requireAwait: true, minTick: 2, awaitSettleTicks: 5, mark: 'waiting' },
+        { data: '', awaitText: 'waiting on 2 crewmates', requireAwait: true, minTick: 2, awaitSettleTicks: 5, mark: 'waiting' },
         after(2, 'esc2', '\x1b'),
         after(14, 'after-esc-2'),
         after(12, 'after-esc-2+'),
@@ -533,7 +533,7 @@ if (cap !== null) {
   const thinkingRow = statusRow(m['thinking'])
   check('the main agent is thinking (the card under the critter narrates it)', /thinking|…/.test(berth(m['thinking'])), flat(berth(m['thinking'])).slice(0, 160))
   check('H3 the bottom row carries no main-agent phase word', !PHASE_WORDS.test(thinkingRow), flat(thinkingRow))
-  check('H3 the bottom row carries the crew\'s clock, past tense ("agents thought for …")', CREW_CLOCK.test(thinkingRow) && /\bagents thought for\b/.test(thinkingRow), flat(thinkingRow))
+  check('H3 the bottom row carries the crew\'s clock, past tense ("crewmates thought for …")', CREW_CLOCK.test(thinkingRow) && /\bcrewmates thought for\b/.test(thinkingRow), flat(thinkingRow))
   const thinkingWordRows = rows(m['thinking']).filter(r => /\bthinking\b/.test(r))
   console.log(`  rows carrying the word "thinking": ${thinkingWordRows.length} — ${thinkingWordRows.map(flat).join(' | ').slice(0, 300)}`)
   check('H2 the crew clock advances while the agents run (no glyph on the row)', crewClockAdvances(m['thinking'], m['thinking+']) && noGlyph(m['thinking']), `${crewClock(m['thinking'])} → ${crewClock(m['thinking+'])}`)
@@ -559,9 +559,9 @@ if (cap !== null) {
   check('H2 after the last stop the crew clock is gone from the row (both frames)', crewClock(m['crew-done']) === '' && crewClock(m['crew-done+']) === '', `${crewClock(m['crew-done'])} → ${crewClock(m['crew-done+'])}`)
   check('H3 after the last stop the row reads "ready" — no settled clock, no phase word', /\bready\b/.test(doneRow) && !CREW_CLOCK.test(doneRow) && !PHASE_WORDS.test(doneRow), flat(doneRow))
 
-  console.log('\n— waiting on agents —')
+  console.log('\n— waiting on crewmates —')
   const waitingRow = statusRow(m['waiting'])
-  check('the wait words stand ("waiting on 2 agents")', /waiting on 2 agents/.test(waitingRow), flat(waitingRow))
+  check('the wait words stand ("waiting on 2 crewmates")', /waiting on 2 crewmates/.test(waitingRow), flat(waitingRow))
   check('the wait words carry no phase word', !PHASE_WORDS.test(waitingRow), flat(waitingRow))
   const esc2Row = statusRow(m['after-esc-2'])
   check('H3 after esc the bottom row carries the crew\'s clock', CREW_CLOCK.test(esc2Row), flat(esc2Row))
@@ -590,7 +590,7 @@ if (cap !== null) {
 
   console.log('\n— the foreground agent —')
   const foreRow = statusRow(m['fore'])
-  check('H3 one running agent: "agent thought for …" (singular), no tool word', /\bagent thought for \d+[sm]\b/.test(foreRow) && !PHASE_WORDS.test(foreRow), flat(foreRow))
+  check('H3 one running agent: "crewmate thought for …" (singular), no tool word', /\bcrewmate thought for \d+[sm]\b/.test(foreRow) && !PHASE_WORDS.test(foreRow), flat(foreRow))
   check('H2 the crew clock advances for the foreground agent', crewClockAdvances(m['fore'], m['fore+']), `${crewClock(m['fore'])} → ${crewClock(m['fore+'])}`)
 
   console.log('\n— the silent stream —')

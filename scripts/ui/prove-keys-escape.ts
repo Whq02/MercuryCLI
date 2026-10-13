@@ -52,7 +52,7 @@ for (const cols of [80, 120]) {
     !/input atlas/.test(final),
     'the final frame still shows the atlas — Escape is dead in browse mode',
   )
-  check(`@${cols}: the session view is back`, cols >= HELM_HOME_MIN_COLS ? /for commands/.test(final) : /Type a prompt/.test(final) && /agents here/.test(final))
+  check(`@${cols}: the session view is back`, cols >= HELM_HOME_MIN_COLS ? /for commands/.test(final) : /Type a prompt/.test(final) && /crewmates here/.test(final))
 }
 
 console.log(failures === 0 ? '\nALL GREEN' : `\n${failures} FAILURE(S)`)

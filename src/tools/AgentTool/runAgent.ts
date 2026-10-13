@@ -519,7 +519,7 @@ export function agentStalledError(args: { agentType: string; agentId: string; li
     args.limitMs,
     args.elapsedMs,
     args.events,
-    `${args.toolUses === 0 ? 'it never used a tool' : `${args.toolUses} tool use${args.toolUses === 1 ? '' : 's'} before the silence`}; the agent was stopped — re-dispatch with a narrower task, or tune MERCURY_AGENT_IDLE_MINUTES (0 disables)`,
+    `${args.toolUses === 0 ? 'it never used a tool' : `${args.toolUses} tool use${args.toolUses === 1 ? '' : 's'} before the silence`}; the crewmate was stopped — re-dispatch with a narrower task, or tune MERCURY_AGENT_IDLE_MINUTES (0 disables)`,
   )
 }
 
@@ -624,7 +624,7 @@ export async function* runAgent(
   const dispatchBlocker =
     agentRouteVerdict.kind === 'route' ? delegationDispatchBlocker(agentRouteVerdict.route, undefined, resolvedAgentModel) : null
   if (dispatchBlocker) {
-    throw new Error(`Agent dispatch refused: ${dispatchBlocker}`)
+    throw new Error(`Crewmate dispatch refused: ${dispatchBlocker}`)
   }
 
   const agentId = (override?.agentId ?? generateTaskId('local_agent')) as AgentId

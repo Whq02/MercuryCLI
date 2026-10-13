@@ -293,7 +293,7 @@ have session history:
 - **New Session in \<folder\>** starts a new session in the current folder.
 - **Continue Last Session** returns to your most recent chat.
 - **Boot Menu** configures future sessions, including motion, crewmates
-  (sub-agents) and workflows.
+  and workflows.
 - **MCPs & Skills** chooses what the next session loads. See
   [docs/KIT.md](docs/KIT.md).
 - **Agents** creates and edits agents.
@@ -344,7 +344,7 @@ Use `/model` and `/effort` to adjust the session. `/permissions` controls what
 can run without approval and what must ask first.
 
 Review changes with `/diff`, by source, file and hunk. `/runs` shows running
-shells and agents (`/tasks` still opens the same board). When no turn is
+shells and crewmates (`/tasks` still opens the same board). When no turn is
 running, `/clear` saves the current chat for later and opens a fresh session;
 `/title` names the chat, and `/help` lists the available commands.
 

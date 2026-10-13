@@ -197,7 +197,7 @@ export function crewTrafficMessages(records: readonly Message[]): CrewRow[] {
               ? input.name.trim()
               : typeof input.description === 'string' && input.description.trim()
                 ? input.description.trim()
-                : 'agent'
+                : 'crewmate'
           rows.push({
             kind: 'crew',
             key: `crew:${block.id}`,
@@ -225,7 +225,7 @@ export function crewTrafficMessages(records: readonly Message[]): CrewRow[] {
       while ((match = CREWMATE_OPEN.exec(text)) !== null) {
         const attrs = match[1] ?? ''
         const body = unescapeAttr((match[2] ?? '').trim())
-        const agent = attr(attrs, 'crewmate_id') ?? 'agent'
+        const agent = attr(attrs, 'crewmate_id') ?? 'crewmate'
         const summary = attr(attrs, 'summary')
         rows.push({
           kind: 'crew',

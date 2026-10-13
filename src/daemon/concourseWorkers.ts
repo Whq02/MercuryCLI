@@ -229,7 +229,7 @@ export function sessionActivityOf(
   return {
     state,
     subagents: count,
-    description: waiting ? `waiting on ${count} sub-agent${count === 1 ? '' : 's'}` : state,
+    description: waiting ? `waiting on ${count} crewmate${count === 1 ? '' : 's'}` : state,
     lastTurnAt,
   }
 }
