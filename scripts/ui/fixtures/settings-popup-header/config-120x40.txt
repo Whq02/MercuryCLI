@@ -3,7 +3,7 @@ WORKBENCH               │                                                     
   no prompts sent yet   │ ╭──────────────────────────────────────────────────────────────────────────────────────────╮ │
                         │ │ ▖▟▆▙▗ Mercury · config                                                                   │ │
 NEXT                    │ │ orchard · 65 settings · 1 set by you                                                     │ │
-  · /workflows — agent …│ │                                                                                          │ │
+  · /workflows — crewma…│ │                                                                                          │ │
   · /health — health ce…│ │ / Search settings…                                                                       │ │
   · /memory — memory    │ │                                                                                          │ │
   · /mission — set a mi…│ │ › Auto-compact                      on                                                   │ │

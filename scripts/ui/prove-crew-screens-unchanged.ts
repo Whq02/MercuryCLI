@@ -42,7 +42,7 @@ const FOCUSED_NARROW_PATTERN = '● ready · [\\s\\S]*\\d+ sessions? on · '
 const LOADING_WORDS = 'opening the conversation|no chat is focused|has not reported its work|counts unavailable|Initializing agent'
 const settledPattern = (pattern?: string): string => `\\A(?![\\s\\S]*(?:${LOADING_WORDS}))${pattern === undefined ? '' : `[\\s\\S]*(?:${pattern})`}`
 const BOARD_PATTERN = 'STATUS & TITLE|─sessions · \\d+ ─'
-const COUNTS_PATTERN = '\\d+ agents? here|A:\\d+'
+const COUNTS_PATTERN = '\\d+ crewmates? here|C:\\d+'
 const CREW_EMPTY_NEEDLE = 'ask the chat to delegate'
 const SESSIONS_NEEDLE = 'No other sessions in this project'
 const SESSIONS_PATTERN = 'this session ● active'
