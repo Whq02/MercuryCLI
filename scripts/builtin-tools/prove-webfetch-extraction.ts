@@ -6,12 +6,14 @@ const { WebFetchTool } = await import('../../src/tools/WebFetchTool/WebFetchTool
 const { getURLMarkdownContent, clearWebFetchCache } = await import('../../src/tools/WebFetchTool/utils.js')
 const html = await Bun.file(new URL('./fixtures/webfetch/article.html', import.meta.url)).text()
 const expected = (await Bun.file(new URL('./fixtures/webfetch/article.md', import.meta.url)).text()).trim()
+const cases = await Bun.file(new URL('./fixtures/webfetch/cases.json', import.meta.url)).json() as { name: string; html: string; markdown: string }[]
 const requests: string[] = []
 const server = Bun.serve({ hostname: '127.0.0.1', port: 0, fetch(request) {
   requests.push(new URL(request.url).pathname)
   if (new URL(request.url).pathname === '/robots.txt') return new Response('User-agent: *\nAllow: /')
   if (new URL(request.url).pathname === '/large') return new Response('0123456789'.repeat(11_200), { headers: { 'Content-Type': 'text/markdown' } })
-  return new Response(html, { headers: { 'Content-Type': 'text/html' } })
+  const fixture = cases.find(row => new URL(request.url).pathname === `/${row.name}`)
+  return new Response(fixture?.html ?? html, { headers: { 'Content-Type': 'text/html' } })
 } })
 const get = axios.get.bind(axios)
 axios.get = ((url: string, options: object) => {
@@ -48,6 +50,10 @@ try {
     }
   }
   for (const from of [-1, 1.5, Number.POSITIVE_INFINITY]) check(`invalid continuation ${from} is refused`, !WebFetchTool.inputSchema.safeParse({ url: 'https://fixture.example/large', from }).success)
+  for (const fixture of cases) {
+    const page = await getURLMarkdownContent(`https://fixture.example/${fixture.name}`, new AbortController())
+    check(`stored extraction expectation: ${fixture.name}`, !('type' in page) && page.content === fixture.markdown, JSON.stringify(page))
+  }
   const { pageSlice, MAX_FETCH_PAGE_CHARS } = await import('../../src/tools/WebFetchTool/pageBudget.js')
   for (const text of ['0123456789'.repeat(11_200), 'A'.repeat(MAX_FETCH_PAGE_CHARS - 1) + '🌍' + 'B'.repeat(50_000), ('paragraph words\n\n').repeat(4000)]) {
     let from = 0
