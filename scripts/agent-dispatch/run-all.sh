@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # gate-class: pure
 # gate-watch: README.md docs/ENGINES.md src/commands/model/mercuryModel.tsx
-# gate-watch: src/utils/model/agent.ts src/utils/model/bareFamilyWords.ts src/utils/model/model.ts
+# gate-watch: src/utils/model/agent.ts src/utils/model/bareFamilyWords.ts src/utils/model/model.ts src/utils/model/modelLookup.ts
 # gate-watch: src/utils/model/modelOptions.ts src/utils/model/validateModel.ts src/utils/model/modelNameRoad.ts
 # gate-watch: src/utils/router/** src/utils/crew/agentLaunchPlan*
 # gate-watch: src/services/providers/**
