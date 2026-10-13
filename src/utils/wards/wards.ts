@@ -25,6 +25,7 @@ export type WardRule = {
   generatedPaths?: GeneratedPath[]
   leadingMarker?: string
   windowsRoots?: boolean
+  homePath?: 'itself' | 'within'
 }
 
 export type WardVerdict =
@@ -248,6 +249,9 @@ export const BUILTIN_WARDS: readonly WardRule[] = [
   },
 ]
 
+const RECURSIVE_RM = '\\brm\\b(?=[^\\n;|&]*\\s(?:-[a-zA-Z]*[rR][a-zA-Z]*\\b|--recursive\\b))[^\\n;|&]*\\s["\']?'
+const HOME_SHAPED = '(?:~(?:\\/|\\s|$)|\\$\\{?HOME|\\/(?:Users|home)\\/)'
+
 export const AUTONOMOUS_WARDS: readonly WardRule[] = [
   {
     name: 'no-home-recursive-delete',
@@ -259,11 +263,12 @@ export const AUTONOMOUS_WARDS: readonly WardRule[] = [
     refusal: true,
     scope: 'bash',
     patterns: [
-      '\\brm\\b(?=[^\\n;|&]*\\s(?:-[a-zA-Z]*[rR][a-zA-Z]*\\b|--recursive\\b))[^\\n;|&]*\\s(?:~(?:\\/|\\s|$)|\\$\\{?HOME|\\/Users\\/)',
-      '\\bfind\\s+(?:~(?:\\/|\\s)|\\$\\{?HOME|\\/Users\\/)[^\\n;|&]*\\s-delete\\b',
+      RECURSIVE_RM + HOME_SHAPED,
+      '\\bfind\\s+["\']?' + HOME_SHAPED + '[^\\n;|&]*\\s-delete\\b',
     ],
     skipCommentLines: false,
     outsideProjectOnly: true,
+    homePath: 'within',
   },
 ]
 
@@ -296,7 +301,7 @@ export const REFUSAL_WARDS: readonly WardRule[] = [
   { name: 'no-disk-format', scope: 'bash', teach: 'Formatting or repartitioning a disk (mkfs, fdisk, parted, diskutil erase, format) destroys everything on it.', refusal: true, skipCommentLines: false, outsideQuotes: true, patterns: [CMD_START + '(?:mkfs(?:\\.[a-z0-9]+)?' + WORD_END + '|(?:mke2fs|mkswap|wipefs|cfdisk|sgdisk)' + WORD_END + '|(?:fdisk|sfdisk|gdisk)(?!\\s+-l\\b)' + WORD_END + '|parted(?!\\s+(?:-l|--list|print)\\b)' + WORD_END + '|diskutil\\s+(?:erase\\w*|partitionDisk|zeroDisk|randomDisk|secureErase|reformat|apfs\\s+(?:deleteContainer|eraseVolume|deleteVolume))\\b|format(?:\\.com)?\\s+[A-Za-z]:|(?:Format-Volume|Clear-Disk|Initialize-Disk)\\b)'] },
   { name: 'no-system-halt', scope: 'bash', teach: 'Shutting down, rebooting or halting the machine ends every session on it, the operator\'s included.', refusal: true, skipCommentLines: false, outsideQuotes: true, patterns: [CMD_START + '(?:(?:shutdown|reboot|halt|poweroff)' + WORD_END + '|(?:init|telinit)\\s+[06]\\b|systemctl\\s+(?:poweroff|reboot|halt|kexec)\\b|(?:Stop-Computer|Restart-Computer)\\b)'] },
   { name: 'no-fork-bomb', scope: 'bash', teach: 'A process that forks itself without bound takes the machine down.', refusal: true, skipCommentLines: false, patterns: ['(:|\\w+)\\s*\\(\\s*\\)\\s*\\{\\s*\\1\\s*\\|\\s*\\1\\s*&', 'function\\s+(\\w+)\\s*\\{\\s*\\1\\s*\\|\\s*\\1\\s*&', '\\bfork\\s+while\\s+fork\\b'] },
-  { name: 'no-root-recursive-delete', scope: 'bash', windowsRoots: true, teach: 'A recursive delete of the filesystem root, the home directory or a system directory destroys the machine or the operator\'s files; delete inside the project, a worktree or a scratch directory instead.', refusal: true, skipCommentLines: false, patterns: [
+  { name: 'no-root-recursive-delete', scope: 'bash', windowsRoots: true, homePath: 'itself', teach: 'A recursive delete of the filesystem root, the home directory or a system directory destroys the machine or the operator\'s files; delete inside the project, a worktree or a scratch directory instead.', refusal: true, skipCommentLines: false, patterns: [
     '\\brm\\b(?=[^\\n;|&]*\\s(?:-[a-zA-Z]*[rR][a-zA-Z]*\\b|--recursive\\b))[^\\n;|&]*\\s["\']?(?:\\/(?:\\*|\\s|$|["\'])|~(?:\\/\\*?)?(?:\\s|$|["\'])|\\$\\{?HOME\\}?(?:\\/\\*?)?(?:\\s|$|["\'])|\\/(?:Users|home)(?:\\/[^\\/\\s"\']+)?\\/?\\*?(?:\\s|$|["\'])|\\/root\\/?\\*?(?:\\s|$|["\'])|\\/(?:etc|usr|bin|sbin|lib|lib64|opt|boot|dev|proc|sys|System|Library|Applications|cores)(?:\\/[^\\s"\']*)?(?:\\s|$|["\'])|\\/var(?!\\/(?:tmp|folders)\\/)(?:\\/[^\\s"\']*)?(?:\\s|$|["\'])|\\/private(?!\\/(?:tmp|var\\/(?:tmp|folders))\\/)(?:\\/[^\\s"\']*)?(?:\\s|$|["\'])|\\/Volumes(?:\\/[^\\/\\s"\']+)?\\/?\\*?(?:\\s|$|["\']))',
     '\\b(?:rd|rmdir)\\s+\\/s\\b[^\\n;|&]*\\s["\']?[A-Za-z]:\\\\?["\']?(?:\\s|$)',
     '\\bRemove-Item\\b[^\\n;|&]*-Recurse[^\\n;|&]*\\s["\']?[A-Za-z]:\\\\?["\']?(?:\\s|$)',
@@ -465,6 +470,65 @@ function windowsRemovalPattern(): RegExp {
   return pattern
 }
 
+export type HomeSpellings = () => readonly string[]
+
+let homeSpellingsDoor: HomeSpellings | undefined
+
+export function setHomeSpellings(door: HomeSpellings | undefined): void {
+  homeSpellingsDoor = door
+}
+
+function envHomeSpellings(): readonly string[] {
+  const home = process.platform === 'win32' ? process.env.USERPROFILE || process.env.HOME : process.env.HOME || process.env.USERPROFILE
+  return home === undefined || home === '' ? [] : [home]
+}
+
+function homeSpellings(): string[] {
+  const out: string[] = []
+  for (const spelling of homeSpellingsDoor === undefined ? envHomeSpellings() : homeSpellingsDoor()) {
+    const trimmed = spelling.replace(/\/+$/, '')
+    if (trimmed.startsWith('/') && !out.includes(trimmed)) out.push(trimmed)
+  }
+  return out
+}
+
+type HomePatterns = { key: string; itself: RegExp[]; within: RegExp[]; operand: RegExp }
+
+const OPERAND_PREFIXES = ['\\/(?:Users|home|private|var|Volumes|root|etc|opt|tmp)\\/', '~\\/']
+const OPERAND_TAIL = '[^\\s"\'`;&|)]*'
+
+let homePatternCache: HomePatterns | undefined
+
+function escapeRegex(text: string): string {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+function homePatterns(): HomePatterns {
+  const spellings = homeSpellings()
+  const key = spellings.join('\n')
+  if (homePatternCache?.key === key) return homePatternCache
+  const escaped = spellings.map(escapeRegex)
+  const home = escaped.length === 0 ? undefined : `(?:${escaped.join('|')})`
+  const prefixes = [...OPERAND_PREFIXES, ...escaped.map(spelling => `${spelling}(?=[\\/\\s"'\`;&|)]|$)`)]
+  homePatternCache = {
+    key,
+    itself: home === undefined ? [] : [new RegExp(`${RECURSIVE_RM}${home}\\/?\\*?(?:\\s|$|["'])`)],
+    within:
+      home === undefined
+        ? []
+        : [new RegExp(`${RECURSIVE_RM}${home}(?:\\/|\\s|$|["'])`), new RegExp(`\\bfind\\s+["']?${home}(?:\\/|\\s|["'])[^\\n;|&]*\\s-delete\\b`)],
+    operand: new RegExp(`(?:^|[\\s;"'=])((?:${prefixes.join('|')})${OPERAND_TAIL})`, 'g'),
+  }
+  return homePatternCache
+}
+
+function patternsFor(rule: WardRule): RegExp[] {
+  const compiled = compile(rule)
+  const home = rule.homePath === undefined ? [] : homePatterns()[rule.homePath]
+  const windows = rule.windowsRoots === true && process.platform === 'win32' ? [windowsRemovalPattern()] : []
+  return home.length === 0 && windows.length === 0 ? compiled : [...compiled, ...home, ...windows]
+}
+
 function isCommentLine(line: string): boolean {
   const t = line.trimStart()
   return t.startsWith('//') || t.startsWith('*') || t.startsWith('/*')
@@ -631,16 +695,13 @@ export function evaluateWards(
   return { allow: true }
 }
 
-const ABSOLUTE_OPERAND = /(?:^|[\s;"'=])((?:\/(?:Users|home|private|var|Volumes|root|etc|opt|tmp)\/|~\/)[^\s"'`;&|)]*)/g
-
 function lineResolvesInsideProject(
   line: string,
   resolvePath: (path: string) => ResolvedPath,
   work?: WardWork,
 ): boolean {
   let resolvedAny = false
-  ABSOLUTE_OPERAND.lastIndex = 0
-  for (const m of line.matchAll(ABSOLUTE_OPERAND)) {
+  for (const m of line.matchAll(homePatterns().operand)) {
     const operand = m[1]
     if (operand === undefined || operand === '') continue
     if (work) countWardWork(work, 'steps')
@@ -662,8 +723,9 @@ function lineResolvesInsideProject(
 }
 
 function expandTildeOf(operand: string): string | undefined {
-  if (operand === '~') return process.env.HOME
-  if (operand.startsWith('~/')) return process.env.HOME === undefined ? undefined : `${process.env.HOME}/${operand.slice(2)}`
+  const home = homeSpellings()[0]
+  if (operand === '~') return home
+  if (operand.startsWith('~/')) return home === undefined ? undefined : `${home}/${operand.slice(2)}`
   return undefined
 }
 
@@ -725,7 +787,7 @@ function evaluateTarget(rules: readonly WardRule[], pending: PendingToolCall, ta
       }
     }
     if (!target.text) continue
-    const regexes = rule.windowsRoots && process.platform === 'win32' ? [...compile(rule), windowsRemovalPattern()] : compile(rule)
+    const regexes = patternsFor(rule)
     if (regexes.length === 0) continue
 
     const skipComments = rule.skipCommentLines !== false
