@@ -4,6 +4,7 @@
 # gate-watch: src/substrate/startupMenu* src/utils/**
 # gate-watch: assets/splash/launcher-action-block.sh
 # gate-watch: scripts/lib/firstRunSeed.ts scripts/ops/launcher-mercury.sh scripts/splash/deploy.sh
+# gate-watch: scripts/lib/scriptedTurn.ts scripts/hooks/lib/runDoor.ts src/utils/text/hiddenCodePoints.ts src/utils/text/hiddenCharacterFindings.ts
 # gate-watch: scripts/ui/fixtures/sandbox-paths/platform.cjs scripts/ui/renderScenarios.ts
 # gate-watch: src/bootstrap/state.ts src/cli/handlers/auth.ts src/cli/handlers/util.tsx src/cli/healthPresentation.ts src/cli/update.ts
 # gate-watch: src/commands/health/HealthCertificate.tsx src/commands/health/health.tsx src/daemon/*
