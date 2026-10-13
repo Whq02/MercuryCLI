@@ -2,6 +2,7 @@
 import * as React from 'react'
 import { Box, Text } from '../../ink.js'
 import { MessageResponse } from '../../components/MessageResponse.js'
+import { conflictNotice } from '../../mneme/mnemeContradiction.js'
 import type { CorrectToolOutput, RecallOutput, ReflectOutput, RetainOutput } from './MemoryTools.js'
 
 export function renderMemoryToolUse(
@@ -23,20 +24,36 @@ export function renderMemoryToolUse(
   }
 }
 
+export function conflictLines(outcomes: readonly RetainOutput['outcomes'][number][]): string[] {
+  const lines: string[] = []
+  for (const outcome of outcomes) {
+    if (outcome.status === 'refused' && outcome.conflict !== undefined) lines.push(conflictNotice(outcome.conflict))
+  }
+  return lines
+}
+
 export function renderRetainResult(output?: RetainOutput): React.ReactNode {
   if (!output) return null
+  const conflicts = conflictLines(output.outcomes)
   return (
     <MessageResponse>
-      <Text>
-        {output.refused > 0 ? (
-          <Text color="warning">
-            {output.stored} stored · {output.refused} REFUSED
+      <Box flexDirection="column">
+        <Text>
+          {output.refused > 0 ? (
+            <Text color="warning">
+              {output.stored} stored · {output.refused} REFUSED
+            </Text>
+          ) : (
+            <Text color="success">{output.stored} stored</Text>
+          )}
+          <Text dimColor>{output.shelf ? (output.shelf.landed ? ' (pinned rule on the shelf)' : ' (pinned rule waits for the next maintenance pass)') : ' (pending until consolidation)'}</Text>
+        </Text>
+        {conflicts.map((line, index) => (
+          <Text key={index} color="warning" wrap="truncate-end">
+            {line}
           </Text>
-        ) : (
-          <Text color="success">{output.stored} stored</Text>
-        )}
-        <Text dimColor>{output.shelf ? (output.shelf.landed ? ' (pinned rule on the shelf)' : ' (pinned rule waits for the next maintenance pass)') : ' (pending until consolidation)'}</Text>
-      </Text>
+        ))}
+      </Box>
     </MessageResponse>
   )
 }
@@ -105,9 +122,16 @@ export function renderCorrectResult(output?: CorrectToolOutput): React.ReactNode
           </Text>
         </Text>
       ) : (
-        <Text color="warning">
-          {output.op} refused ({output.code})
-        </Text>
+        <Box flexDirection="column">
+          <Text color="warning">
+            {output.op} refused ({output.code})
+          </Text>
+          {output.conflict !== undefined ? (
+            <Text color="warning" wrap="truncate-end">
+              {conflictNotice(output.conflict)}
+            </Text>
+          ) : null}
+        </Box>
       )}
     </MessageResponse>
   )
