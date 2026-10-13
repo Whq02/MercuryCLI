@@ -35,8 +35,9 @@ check('honest receipt: /bug never claims "submitted"', !feedback.includes('bug r
 {
   const http = readFileSync(join(ROOT, 'src/utils/http.ts'), 'utf8')
   check('OP-4: MCP UA is mercury/*', http.includes('return `mercury/${MACRO.VERSION}${suffix}`'))
-  check('OP-4: WebFetch UA presents Mercury/<version> and DISCLOSES nothing (no +url, no PACKAGE_URL)',
-    http.includes('return `Mozilla/5.0 (compatible; Mercury/${MACRO.VERSION})`') && !http.includes('PACKAGE_URL'))
+  const webAgent = readFileSync(join(ROOT, 'src/utils/webUserAgent.ts'), 'utf8')
+  check('WebFetch uses the shared Mercury version and public contact, never a configured repository or session identity',
+    http.includes("export { webUserAgent as getWebFetchUserAgent } from './webUserAgent.js'") && webAgent.includes('return `Mercury/${MACRO.VERSION} (+https://mercury-cli.ai; https://github.com/Whq02/MercuryCLI/issues)`') && !webAgent.includes('process.env') && !webAgent.includes('PACKAGE_URL'))
   const ua = readFileSync(join(ROOT, 'src/utils/userAgent.ts'), 'utf8')
   check('OP-4: the Anthropic-leaf UA presents the product identity at its owner', ua.includes('getAnthropicClientUserAgent') && ua.includes('return `mercury/${MACRO.VERSION}`'))
   const mcpClient = readFileSync(join(ROOT, 'src/services/mcp/client.ts'), 'utf8')

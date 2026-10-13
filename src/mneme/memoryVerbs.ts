@@ -6,6 +6,7 @@ import { appendObservation, observationOverflow, pendingRows } from './mnemeBuff
 import { listArchiveDocs, listTopicDocs } from './mnemeLibrary.js'
 import { grepAll, readDocLines, catalogDocs, pageFileForSlug, PENDING_SLUG } from './mnemeRetrieval.js'
 import { correctFact, pointFact, replacePendingRow, retireFact, strikePendingRow, userAskedRuleMessage, type MnemeCorrectResult, type PendingCorrectResult } from './mnemeCorrect.js'
+import { conflictReason, contradictionCandidates, firstConflict, judgeContradictions, type ContradictionCandidate, type ContradictionJudge, type ContradictionVerdict } from './mnemeContradiction.js'
 import { memorySecretRefusal } from './mnemeSecretGuard.js'
 import { ARCHIVE_PREFIX, isArchiveDoc, parseEntryLine, liveSeqs, serializeSignature, type MnemeTopicDoc } from './mnemeTopicDocs.js'
 import { bumpUsage, readPins, readUsage } from './mnemeUsage.js'
@@ -59,7 +60,24 @@ export function replacementTarget(
 export type RetainItemOutcome =
   | { index: number; status: 'stored'; id: string }
   | { index: number; status: 'already-staged'; id: string }
-  | { index: number; status: 'refused'; reason: string }
+  | { index: number; status: 'refused'; reason: string; conflict?: ContradictionCandidate }
+
+export interface RetainGuard {
+  verdicts?: ReadonlyMap<number, readonly ContradictionVerdict[]>
+  guard?: 'on' | 'off'
+}
+
+function replacedId(item: RetainItemInput): ReadonlySet<string> {
+  const match = /^seq:(\d+)$/.exec((item.replaces ?? '').trim())
+  return new Set(match ? [`seq:${Number(match[1])}`] : [])
+}
+
+function conflictOf(index: number, item: RetainItemInput, content: string, dir: string, guard: RetainGuard): ContradictionCandidate | null {
+  if (guard.guard === 'off') return null
+  const judged = guard.verdicts?.get(index)
+  if (judged !== undefined) return firstConflict(judged)?.candidate ?? null
+  return contradictionCandidates(content, dir, { exclude: replacedId(item) })[0] ?? null
+}
 
 const sessionRetained = new Map<string, string>()
 
@@ -73,6 +91,7 @@ export function retainItems(
   items: RetainItemInput[],
   provenance: { session: string; agent?: string; source?: string; pin?: boolean; asked?: boolean },
   dir: string = mnemeLibraryDir(),
+  guard: RetainGuard = {},
 ): RetainItemOutcome[] {
   const outcomes: RetainItemOutcome[] = []
   const sourceBase = provenance.source ?? `tool:Retain s:${provenance.session.slice(0, 8)}${provenance.agent ? ` a:${provenance.agent.slice(0, 12)}` : ''}`
@@ -106,6 +125,11 @@ export function retainItems(
     const replacement = replaces ? replacementTarget(replaces, dir) : null
     if (replacement && !replacement.ok) {
       outcomes.push({ index, status: 'refused', reason: replacement.reason })
+      return
+    }
+    const conflict = conflictOf(index, item, content, dir, guard)
+    if (conflict !== null) {
+      outcomes.push({ index, status: 'refused', reason: conflictReason(conflict), conflict })
       return
     }
     const pin = provenance.pin || item.pin || replacement !== null
@@ -144,6 +168,30 @@ export function retainItems(
     noteRetained(id, pin === true)
   })
   return outcomes
+}
+
+export async function retainItemsJudged(
+  items: RetainItemInput[],
+  provenance: { session: string; agent?: string; source?: string; pin?: boolean; asked?: boolean },
+  io: { dir?: string; judge?: ContradictionJudge | null; signal?: AbortSignal } = {},
+): Promise<RetainItemOutcome[]> {
+  const dir = io.dir ?? mnemeLibraryDir()
+  const verdicts = new Map<number, ContradictionVerdict[]>()
+  const groups = new Map<string, number[]>()
+  items.forEach((item, index) => {
+    const key = [...replacedId(item)].join(',')
+    groups.set(key, [...(groups.get(key) ?? []), index])
+  })
+  for (const [key, indexes] of groups) {
+    const texts = items.map((item, index) => (indexes.includes(index) ? (item.content ?? '').trim() || null : null))
+    const judged = await judgeContradictions(texts, dir, {
+      ...(io.judge === undefined ? {} : { judge: io.judge }),
+      ...(io.signal === undefined ? {} : { signal: io.signal }),
+      ...(key === '' ? {} : { exclude: new Set(key.split(',')) }),
+    })
+    for (const [index, list] of judged) verdicts.set(index, list)
+  }
+  return retainItems(items, provenance, dir, { verdicts })
 }
 
 
@@ -430,7 +478,7 @@ export type CorrectOp = 'supersede' | 'amend' | 'retract'
 export type CorrectOutcome =
   | { ok: true; op: CorrectOp; newSeq: number; targetSeq: number; slug: string }
   | { ok: true; op: CorrectOp; draft: true; targetId: string; newId: string | null; replacedBy?: number }
-  | { ok: false; op: CorrectOp; code: string; message: string }
+  | { ok: false; op: CorrectOp; code: string; message: string; conflict?: ContradictionCandidate }
 
 function liveReplacementSeq(spec: string, dir: string): { ok: true; seq: number } | { ok: false; code: string; message: string } {
   const match = /^seq:(\d+)$/.exec(spec)
@@ -440,9 +488,17 @@ function liveReplacementSeq(spec: string, dir: string): { ok: true; seq: number 
   return { ok: true, seq }
 }
 
+function amendConflict(id: string, content: string, dir: string, guard: RetainGuard): ContradictionCandidate | null {
+  if (guard.guard === 'off') return null
+  const judged = guard.verdicts?.get(0)
+  if (judged !== undefined) return firstConflict(judged)?.candidate ?? null
+  return contradictionCandidates(content, dir, { exclude: new Set([id]) })[0] ?? null
+}
+
 function correctPending(
   input: { op: CorrectOp; id: string; ts: string; content?: string; replacementId?: string; reason: string; source: string },
   dir: string,
+  guard: RetainGuard,
 ): CorrectOutcome {
   const { op, id, ts, reason, source } = input
   const landed = (result: PendingCorrectResult, replacedBy?: number): CorrectOutcome => {
@@ -474,6 +530,8 @@ function correctPending(
           message: `amend refused: the full pending row ${id} has not been read this session — a clipped preview must never destroy an unseen tail. Read it first (Recall with read:"${id}").`,
         }
       }
+      const conflict = amendConflict(id, content, dir, guard)
+      if (conflict !== null) return { ok: false, op, code: 'conflict', message: `amend refused: the new wording ${conflictReason(conflict)}`, conflict }
       return landed(replacePendingRow({ ts, text: `${content} (amended: ${reason})`, source, dir }))
     }
   }
@@ -489,13 +547,14 @@ export function correctMemory(
     session: string
   },
   dir: string = mnemeLibraryDir(),
+  guard: RetainGuard = {},
 ): CorrectOutcome {
   const { op } = input
   const source = `tool:Correct s:${input.session.slice(0, 8)}`
   const reason = (input.reason ?? '').trim()
   if (input.id.startsWith('pending:')) {
     if (!reason) return { ok: false, op, code: 'invalid', message: 'a correction always carries its reason' }
-    return correctPending({ op, id: input.id, ts: input.id.slice('pending:'.length), ...(input.content !== undefined ? { content: input.content } : {}), ...(input.replacementId !== undefined ? { replacementId: input.replacementId } : {}), reason, source }, dir)
+    return correctPending({ op, id: input.id, ts: input.id.slice('pending:'.length), ...(input.content !== undefined ? { content: input.content } : {}), ...(input.replacementId !== undefined ? { replacementId: input.replacementId } : {}), reason, source }, dir, guard)
   }
   const seqMatch = /^seq:(\d+)$/.exec(input.id)
   if (!seqMatch) {
@@ -541,7 +600,24 @@ export function correctMemory(
           message: `amend refused: the CURRENT full row for seq ${targetSeq} has not been read this session — a clipped preview must never destroy an unseen tail. Read it first (Recall with read:"seq:${targetSeq}").`,
         }
       }
+      const conflict = amendConflict(input.id, content, dir, guard)
+      if (conflict !== null) return { ok: false, op, code: 'conflict', message: `amend refused: the new wording ${conflictReason(conflict)}`, conflict }
       return finish(correctFact({ targetSeq, text: `${content} (amended: ${reason})`, source, dir }))
     }
   }
+}
+
+export async function correctMemoryJudged(
+  input: Parameters<typeof correctMemory>[0],
+  io: { dir?: string; judge?: ContradictionJudge | null; signal?: AbortSignal } = {},
+): Promise<CorrectOutcome> {
+  const dir = io.dir ?? mnemeLibraryDir()
+  const content = (input.content ?? '').trim()
+  if (input.op !== 'amend' || content === '') return correctMemory(input, dir)
+  const verdicts = await judgeContradictions([content], dir, {
+    ...(io.judge === undefined ? {} : { judge: io.judge }),
+    ...(io.signal === undefined ? {} : { signal: io.signal }),
+    exclude: new Set([input.id]),
+  })
+  return correctMemory(input, dir, { verdicts })
 }

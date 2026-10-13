@@ -179,6 +179,7 @@ export function handoverMemoryDir(memoryDir: string, now: Date = new Date()): Ha
       chunks.map(content => ({ content, topic: route.topic })),
       { session: 'handover', source: `handover:${basename(file, '.md').slice(0, 48)}`, pin: route.pin },
       dir,
+      { guard: 'off' },
     )
     const stored = outcomes.filter(o => o.status === 'stored' || o.status === 'already-staged').length
     if (stored === 0) {

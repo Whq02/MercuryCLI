@@ -1,22 +1,22 @@
-import axios, { type AxiosResponse } from 'axios'
 import { LRUCache } from 'lru-cache'
 
 import { querySmallFast, queryWithModel } from '../../services/providers/anthropic/index.js'
 import { getEngineModel } from '../../utils/model/model.js'
 import { sessionSmallFastModel } from '../../utils/model/providerFrontier.js'
 import { AbortError } from '../../utils/errors.js'
-import { getWebFetchUserAgent } from '../../utils/http.js'
 import { isBinaryContentType, persistBinaryContent } from '../../utils/mcpOutputStorage.js'
 import { asSystemPrompt } from '../../utils/systemPromptType.js'
 import { makeSecondaryModelPrompt, WEB_FETCH_TOOL_NAME } from './prompt.js'
 import { isPreapprovedHost } from './preapproved.js'
-
+import { extractMainHtml } from './extractHtml.js'
+import { readHostedPage, fetchReaderEnabled } from './reader.js'
+import { FetchRefusedError } from './fetchErrors.js'
+import { fetchPage, type RawResponse, type RedirectResult } from './fetchTransport.js'
+import { pageAccessNotice } from './pageAccess.js'
+export type { RedirectResult } from './fetchTransport.js'
+export { EgressBlockedError } from './fetchErrors.js'
 
 const MAX_URL_LENGTH = 2000
-const MAX_RESPONSE_BYTES = 10 * 1024 * 1024
-const FETCH_TIMEOUT_MS = 60_000
-const MAX_REDIRECT_HOPS = 10
-export const MAX_MARKDOWN_LENGTH = 100_000
 
 type FetchedContent = {
   bytes: number
@@ -26,13 +26,7 @@ type FetchedContent = {
   contentType: string
   persistedPath?: string
   persistedSize?: number
-}
-
-export type RedirectResult = {
-  type: 'redirect'
-  originalUrl: string
-  redirectUrl: string
-  statusCode: number
+  notice?: string
 }
 
 const urlCache = new LRUCache<string, FetchedContent>({
@@ -46,20 +40,6 @@ export function clearWebFetchCache(): void {
   urlCache.clear()
 }
 
-export class EgressBlockedError extends Error {
-  public readonly domain: string
-  constructor(domain: string) {
-    super(
-      JSON.stringify({
-        error_type: 'EGRESS_BLOCKED',
-        domain,
-        message: `Access to ${domain} is blocked by the network egress proxy.`,
-      }),
-    )
-    this.name = 'EgressBlockedError'
-    this.domain = domain
-  }
-}
 
 function validateURL(url: string): boolean {
   if (url.length > MAX_URL_LENGTH) return false
@@ -69,7 +49,7 @@ function validateURL(url: string): boolean {
   } catch {
     return false
   }
-  if (parsed.username || parsed.password) return false
+  if (!['https:', 'http:'].includes(parsed.protocol) || parsed.username || parsed.password) return false
   if (parsed.hostname.split('.').length < 2) return false
   return true
 }
@@ -83,87 +63,12 @@ export function isPreapprovedUrl(url: string): boolean {
   }
 }
 
-function isPermittedRedirect(originalUrl: string, redirectUrl: string): boolean {
-  let original: URL
-  let redirect: URL
-  try {
-    original = new URL(originalUrl)
-    redirect = new URL(redirectUrl)
-  } catch {
-    return false
-  }
-  if (original.protocol !== redirect.protocol) return false
-  if (original.port !== redirect.port) return false
-  if (redirect.username || redirect.password) return false
-  const strip = (host: string): string => host.replace(/^www\./, '')
-  return strip(original.hostname) === strip(redirect.hostname)
-}
-
-const REDIRECT_STATUSES = new Set([301, 302, 307, 308])
-
-type RawResponse = { status: number; statusText: string; headers: Record<string, unknown>; data: ArrayBuffer }
-
-async function getWithPermittedRedirects(
-  url: string,
-  signal: AbortSignal | undefined,
-  redirectChecker: (from: string, to: string) => boolean,
-  depth = 0,
-): Promise<RawResponse | RedirectResult> {
-  if (depth > MAX_REDIRECT_HOPS) {
-    throw new Error(`Too many redirects (limit ${MAX_REDIRECT_HOPS})`)
-  }
-  let response: AxiosResponse<ArrayBuffer>
-  try {
-    response = await axios.get<ArrayBuffer>(url, {
-      signal,
-      timeout: FETCH_TIMEOUT_MS,
-      maxRedirects: 0,
-      responseType: 'arraybuffer',
-      maxContentLength: MAX_RESPONSE_BYTES,
-      headers: {
-        Accept: 'text/markdown, text/html, */*',
-        'User-Agent': getWebFetchUserAgent(),
-      },
-    })
-  } catch (error) {
-    if (axios.isAxiosError(error) && error.response) {
-      const status = error.response.status
-      const proxyHeader = error.response.headers?.['x-proxy-error']
-      if (status === 403 && proxyHeader === 'blocked-by-allowlist') {
-        throw new EgressBlockedError(new URL(url).hostname)
-      }
-      if (REDIRECT_STATUSES.has(status)) {
-        const location = error.response.headers?.location
-        if (typeof location !== 'string' || location.length === 0) {
-          throw new Error(`Redirect response ${status} carried no location header`)
-        }
-        const target = new URL(location, url).toString()
-        if (!redirectChecker(url, target)) {
-          return { type: 'redirect', originalUrl: url, redirectUrl: target, statusCode: status }
-        }
-        return getWithPermittedRedirects(target, signal, redirectChecker, depth + 1)
-      }
-    }
-    throw error
-  }
-  const proxyHeader = (response.headers as Record<string, unknown>)?.['x-proxy-error']
-  if (response.status === 403 && proxyHeader === 'blocked-by-allowlist') {
-    throw new EgressBlockedError(new URL(url).hostname)
-  }
-  return {
-    status: response.status,
-    statusText: response.statusText,
-    headers: response.headers as Record<string, unknown>,
-    data: response.data,
-  }
-}
-
 let markdownConverter: { turndown: (html: string) => string } | null = null
 
 async function convertHtmlToMarkdown(html: string): Promise<string> {
   if (!markdownConverter) {
     const { default: TurndownService } = await import('turndown')
-    markdownConverter = new TurndownService()
+    markdownConverter = new TurndownService({ headingStyle: 'atx', codeBlockStyle: 'fenced' })
   }
   return markdownConverter.turndown(html)
 }
@@ -175,14 +80,15 @@ export async function getURLMarkdownContent(
   if (!validateURL(url)) {
     throw new Error('Invalid URL')
   }
-  const cached = urlCache.get(url)
+  const cacheKey = `${fetchReaderEnabled() ? 1 : 0}:${url}`
+  const cached = urlCache.get(cacheKey)
   if (cached) return cached
 
   const parsedForUpgrade = new URL(url)
   if (parsedForUpgrade.protocol === 'http:') parsedForUpgrade.protocol = 'https:'
   const upgraded = parsedForUpgrade.toString()
 
-  const response = await getWithPermittedRedirects(upgraded, abortController.signal, isPermittedRedirect)
+  const response = await fetchPage(upgraded, abortController.signal)
   if ('type' in response && response.type === 'redirect') {
     return response
   }
@@ -191,24 +97,37 @@ export async function getURLMarkdownContent(
   const buffer = Buffer.from(raw.data)
   raw.data = new ArrayBuffer(0)
 
-  const contentType = String(raw.headers?.['content-type'] ?? '')
+  const contentType = buffer.subarray(0, 5).toString('ascii') === '%PDF-' ? 'application/pdf' : String(raw.headers?.['content-type'] ?? '').toLowerCase()
 
   let persistedPath: string | undefined
   let persistedSize: number | undefined
   if (isBinaryContentType(contentType)) {
     const identifier = ['webfetch', Date.now(), Math.random().toString(36).slice(2, 8)].join('-')
     const persisted = await persistBinaryContent(buffer, contentType, identifier)
-    if ('filepath' in persisted) {
-      persistedPath = persisted.filepath
-      persistedSize = persisted.size
-    }
+    if ('error' in persisted) throw new FetchRefusedError(0, 'The binary document was received but could not be saved; no extracted text is available.')
+    persistedPath = persisted.filepath
+    persistedSize = persisted.size
   }
 
   const decoded = buffer.toString('utf8')
   let content: string
   let cachedSize: number
-  if (contentType.includes('text/html')) {
-    content = await convertHtmlToMarkdown(decoded)
+  let notice: string | undefined
+  let cacheable = true
+  if (persistedPath) {
+    content = ''
+    cachedSize = 1
+  } else if (contentType.includes('text/html')) {
+    const refusal = pageAccessNotice(decoded)
+    if (refusal) throw new FetchRefusedError(403, refusal)
+    const extracted = extractMainHtml(decoded)
+    content = await convertHtmlToMarkdown(extracted.html)
+    if (extracted.sparse) {
+      const rendered = await readHostedPage(isPreapprovedUrl(url) ? url : raw.url, abortController.signal)
+      notice = rendered.notice
+      cacheable = rendered.content !== undefined
+      if (rendered.content !== undefined) content = rendered.content
+    }
     cachedSize = Buffer.byteLength(content, 'utf8')
   } else {
     content = decoded
@@ -221,10 +140,11 @@ export async function getURLMarkdownContent(
     codeText: raw.statusText,
     content,
     contentType,
+    ...(notice ? { notice } : {}),
     ...(persistedPath !== undefined ? { persistedPath } : {}),
     ...(persistedSize !== undefined ? { persistedSize } : {}),
   }
-  urlCache.set(url, result, { size: Math.max(1, cachedSize) })
+  if (cacheable) urlCache.set(cacheKey, result, { size: Math.max(1, cachedSize) })
   return result
 }
 
@@ -243,10 +163,7 @@ export async function applyPromptToMarkdown(
   isPreapprovedDomain: boolean,
   reads?: FetchSummariseReads,
 ): Promise<string> {
-  let bounded = markdown
-  if (bounded.length > MAX_MARKDOWN_LENGTH) {
-    bounded = `${bounded.slice(0, MAX_MARKDOWN_LENGTH)}\n\n[Content truncated due to length...]`
-  }
+  const bounded = markdown
   const small = reads?.small ?? querySmallFast
   const withModel = reads?.withModel ?? queryWithModel
   const smallModelId = reads?.smallModelId ?? sessionSmallFastModel
@@ -280,7 +197,9 @@ export async function applyPromptToMarkdown(
     const response = await small({ systemPrompt: asSystemPrompt([]), userPrompt, signal, options: baseOptions })
     if (signal.aborted) throw new AbortError()
     const refusal = refusalOf(response)
-    if (refusal === null) return textOf(response) ?? 'No response from model'
+    const text = refusal === null ? textOf(response) : null
+    if (text !== null) return `[Model reading of the extracted page, not the page’s own words.]\n\n${text}`
+    if (refusal === null) throw new Error('the reply carried no text')
     primaryReason = refusal
   } catch (error) {
     if (signal.aborted || error instanceof AbortError) throw new AbortError()
@@ -295,7 +214,7 @@ export async function applyPromptToMarkdown(
       if (signal.aborted) throw new AbortError()
       const refusal = refusalOf(response)
       const text = refusal === null ? textOf(response) : null
-      if (text !== null) return text
+      if (text !== null) return `[Model reading of the extracted page, not the page’s own words.]\n\n${text}`
       fallbackReason = refusal ?? 'the reply carried no text'
     } catch (error) {
       if (signal.aborted || error instanceof AbortError) throw new AbortError()
