@@ -7,6 +7,8 @@ prove-model-picker-door-flip.ts
 prove-model-picker-reader-census.ts
 prove-model-picker-edges.ts
 prove-model-picker-popup-edges.ts
+prove-model-picker-typed-letters.ts
+prove-model-name-matcher.ts
 prove-clipboard-encoding.ts
 prove-consent-queue-marker.ts
 prove-contract-card-fit.ts
@@ -50,6 +52,7 @@ prove-search-single-flight.ts
 prove-selection-band.ts
 prove-session-flip-chord.ts
 prove-settings-popup-host-fit.ts
+prove-config-thinking-row.ts
 prove-shell-background-hint.ts
 prove-size-honesty.ts
 prove-specimen-padto.ts

@@ -4,6 +4,7 @@ prove-account-identity-frames.ts
 prove-agent-face.ts
 prove-agent-fold-click.ts
 prove-appearance-system.ts
+prove-appearance-digit-and-config-theme.ts
 prove-atomic-session-switch.ts
 prove-chrome-hysteresis.ts
 prove-cockpit-continuity.ts
@@ -68,6 +69,7 @@ prove-surface-claim.ts
 prove-text-emission-paints-once.ts
 prove-thinking-disclosure.ts
 prove-thinking-shimmer-quiet.ts
+prove-thinking-withheld-row.ts
 prove-trust-telemetry.ts
 prove-uncaused-claims.ts
 prove-usage-family-meters.ts
