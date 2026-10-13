@@ -51,6 +51,7 @@ import type { MCPToolResult } from '../../utils/mcpValidation.js'
 import { getWebSocketTLSOptions } from '../../utils/mtls.js'
 import { getApiFetch, getProxyFetchOptions, getProxyUrl, getWebSocketProxyAgent, getWebSocketProxyUrl } from '../../utils/proxy.js'
 import { recursivelySanitizeUnicode } from '../../utils/sanitization.js'
+import { forgetHiddenCharacters, recordHiddenCharacters } from '../../utils/text/hiddenCharacterFindings.js'
 import { subprocessEnv } from '../../utils/subprocessEnv.js'
 import { persistToolResult } from '../../utils/toolResultStorage.js'
 import { hasMcpDiscoveryButNoToken, MercuryMcpAuthProvider, wrapFetchWithStepUpDetection } from './auth.js'
@@ -790,6 +791,7 @@ const connectImpl = async (name: string, serverRef: ScopedMcpServerConfig, serve
     fetchToolsForClient.cache.delete(name)
     fetchResourcesForClient.cache.delete(name)
     fetchCommandsForClient.cache.delete(name)
+    forgetHiddenCharacters('mcp', { group: name })
     originalOnClose?.()
   }
 
@@ -837,6 +839,7 @@ export async function clearServerCache(name: string, serverRef: ScopedMcpServerC
   fetchToolsForClient.cache.delete(name)
   fetchResourcesForClient.cache.delete(name)
   fetchCommandsForClient.cache.delete(name)
+  forgetHiddenCharacters('mcp', { group: name })
 }
 
 export async function ensureConnectedClient(client: MCPServerConnection): Promise<ConnectedMCPServer> {
@@ -982,6 +985,8 @@ const fetchToolsForClientMemo = memoize(
     try {
       const raw = await listAllTools(client)
       const sanitized = recursivelySanitizeUnicode(raw)
+      forgetHiddenCharacters('mcp', { group: client.name })
+      for (const sdkTool of raw) recordHiddenCharacters('mcp', `${client.name} · ${sdkTool.name}`, JSON.stringify(sdkTool), { group: client.name })
       const tools = sanitized.map(sdkTool => buildMcpTool(client, sdkTool))
       toolDiscoveryFailures.delete(client.name)
       return tools.filter(tool => {

@@ -40,6 +40,7 @@ import type { SettingsJson } from './types.js'
 import { SettingsSchema } from './types.js'
 import type { ValidationError, SettingsWithErrors } from './validation.js'
 import { filterInvalidPermissionRules, formatZodError, unknownKeyWarnings } from './validation.js'
+import { forgetHiddenCharacters, recordHiddenCharacters } from '../text/hiddenCharacterFindings.js'
 
 
 export function settingsMergeCustomizer(objValue: unknown, srcValue: unknown): unknown {
@@ -79,6 +80,7 @@ function readSettingsFileUncached(filePath: string): { settings: SettingsJson | 
     if (isENOENT(error)) {
       logForDebugging(`settings file absent: ${filePath}`)
       forgetLastGoodParsedFile(filePath)
+      forgetHiddenCharacters('settings', { path: filePath })
       return { settings: null, errors: [] }
     }
     logError(error)
@@ -93,6 +95,7 @@ function readSettingsFileUncached(filePath: string): { settings: SettingsJson | 
       ],
     }
   }
+  recordHiddenCharacters('settings', filePath, raw)
   if (raw.trim() === '') {
     return { settings: {} as SettingsJson, errors: [] }
   }

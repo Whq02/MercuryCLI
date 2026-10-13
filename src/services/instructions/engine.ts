@@ -23,6 +23,7 @@ import type { MemoryType } from '../../utils/memory/types.js'
 import { getEngineModel } from '../../utils/model/model.js'
 import { pathInWorkingPath } from '../../utils/permissions/filesystem.js'
 import { isSettingSourceEnabled } from '../../utils/settings/constants.js'
+import { forgetHiddenCharacters } from '../../utils/text/hiddenCharacterFindings.js'
 import { adapterForProfile, hasPrimaryProjectFile } from './adapters/index.js'
 import { conventionsForProfile } from './compositionOrder.js'
 import type {
@@ -409,6 +410,7 @@ export function onInstructionCacheInvalidated(listener: () => void): () => void 
 
 export function clearInstructionFileCaches(): void {
   getInstructionFiles.cache?.clear?.()
+  forgetHiddenCharacters('instruction')
   clearExcludeResolutionMemo()
   for (const listener of cacheInvalidationListeners) {
     try {
