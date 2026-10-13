@@ -17,6 +17,7 @@ import {
   countWardWork,
   evaluateWards,
   parseProjectWardsWithReport,
+  setHomeSpellings,
   type PendingToolCall,
   type ResolvedPath,
   type WardRule,
@@ -102,6 +103,24 @@ export function realTargetPath(path: string): string {
   const { real, tail } = deepestExisting(path)
   return tail.length === 0 ? real : join(real, ...tail)
 }
+
+let homeSpellingsCache: { home: string; spellings: string[] } | undefined
+
+export function homeSpellings(): string[] {
+  let home: string
+  try {
+    home = expandPath('~')
+  } catch {
+    return []
+  }
+  if (homeSpellingsCache?.home === home) return homeSpellingsCache.spellings
+  const real = realTargetPath(home)
+  const spellings = real === home ? [home] : [home, real]
+  homeSpellingsCache = { home, spellings }
+  return spellings
+}
+
+setHomeSpellings(homeSpellings)
 
 export function makeTargetResolver(fallbackRoot: string, work?: WardWork): (path: string) => ResolvedPath {
   const fallback = realTargetPath(fallbackRoot)
