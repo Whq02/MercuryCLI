@@ -40,14 +40,15 @@ const grammar = (await import('../../src/components/messages/thinkingGrammar.tsx
 const paint = async (param: { type: string; thinking: string; signature?: string }, props: Record<string, unknown> = {}): Promise<string> =>
   stripAnsi(await renderToAnsiString(mounted(React.createElement(AssistantThinkingMessage, { param, ...props } as never)), 100)).trim()
 
-section('THK-05 — a thinking block the provider returned signed but without text paints a row that says so (nine of twelve Claude models)')
+section('Private thinking is silent by default and disclosed on demand')
 {
   const SIGNATURE = 'CAQSQEJBQlaYmNjb5ebn6Onq6+zt7u/w8fLz9PX29/j5+vv8/f7/AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8gISIjJCUmJygpKissLS4vMDEyMzQ1Njc4OTo7PD0+P0A='
   check('the grammar owns the withheld words, plainly (RED on the base: absent)', grammar.WITHHELD_THINKING_WORDS === 'the provider returned no thinking text for this model', j(grammar.WITHHELD_THINKING_WORDS))
   check('the withheld test: empty text with a signature is withheld; empty text with no signature (still streaming) is not; text is not', thinkingModule.thinkingTextWithheld !== undefined && thinkingModule.thinkingTextWithheld({ thinking: '', signature: SIGNATURE }) === true && thinkingModule.thinkingTextWithheld({ thinking: '', signature: '' }) === false && thinkingModule.thinkingTextWithheld({ thinking: 'words', signature: SIGNATURE }) === false)
   const withheld = await paint({ type: 'thinking', thinking: '', signature: SIGNATURE })
-  check('the settled empty block paints the thinking label and the fact, on one row (RED on the base: nothing at all)', withheld.startsWith(grammar.THINKING_LABEL) && withheld.includes('the provider returned no thinking text for this model') && withheld.split('\n').length === 1, j(withheld))
-  check('…with no disclosure cue (there is nothing to open)', !/to expand|⌄/.test(withheld), j(withheld))
+  check('the settled empty block paints no row by default', withheld === '', j(withheld))
+  const clicked = await paint({ type: 'thinking', thinking: '', signature: SIGNATURE }, { verbose: true })
+  check('click expansion shows the fact once without a disclosure cue', clicked.startsWith(grammar.THINKING_LABEL) && clicked.includes(grammar.WITHHELD_THINKING_WORDS!) && clicked.split('\n').length === 1 && !/to expand|⌄/.test(clicked), j(clicked))
   const transcript = await paint({ type: 'thinking', thinking: '', signature: SIGNATURE }, { isTranscriptMode: true })
   check('the transcript view (ctrl+o) paints the same fact row', transcript.includes('the provider returned no thinking text for this model'), j(transcript))
   const streaming = await paint({ type: 'thinking', thinking: '', signature: '' })
@@ -56,7 +57,7 @@ section('THK-05 — a thinking block the provider returned signed but without te
   check('a transcript row hidden behind the last reasoning block stays hidden', hidden === '', j(hidden))
   const withText = await paint({ type: 'thinking', thinking: 'the reasoning body', signature: SIGNATURE })
   check('a block with text keeps its fold cue and shows no fact (unchanged)', withText.startsWith(grammar.THINKING_LABEL) && /to expand|⌄/.test(withText) && !withText.includes('returned no thinking text'), j(withText))
-  const withheldAnsi = await renderToAnsiString(mounted(React.createElement(AssistantThinkingMessage, { param: { type: 'thinking', thinking: '', signature: SIGNATURE } } as never)), 100)
+  const withheldAnsi = await renderToAnsiString(mounted(React.createElement(AssistantThinkingMessage, { param: { type: 'thinking', thinking: '', signature: SIGNATURE }, isTranscriptMode: true } as never)), 100)
   check('the fact row paints in the thinking grammar (italic, one run)', withheldAnsi.includes('\x1b[3m'), j(withheldAnsi.slice(0, 80)))
 }
 
