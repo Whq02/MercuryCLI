@@ -17,7 +17,6 @@ const MAX_URL_LENGTH = 2000
 const MAX_RESPONSE_BYTES = 10 * 1024 * 1024
 const FETCH_TIMEOUT_MS = 60_000
 const MAX_REDIRECT_HOPS = 10
-export const MAX_MARKDOWN_LENGTH = 100_000
 
 type FetchedContent = {
   bytes: number
@@ -244,10 +243,7 @@ export async function applyPromptToMarkdown(
   isPreapprovedDomain: boolean,
   reads?: FetchSummariseReads,
 ): Promise<string> {
-  let bounded = markdown
-  if (bounded.length > MAX_MARKDOWN_LENGTH) {
-    bounded = `${bounded.slice(0, MAX_MARKDOWN_LENGTH)}\n\n[Content truncated due to length...]`
-  }
+  const bounded = markdown
   const small = reads?.small ?? querySmallFast
   const withModel = reads?.withModel ?? queryWithModel
   const smallModelId = reads?.smallModelId ?? sessionSmallFastModel

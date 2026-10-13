@@ -9,6 +9,7 @@ const expected = (await Bun.file(new URL('./fixtures/webfetch/article.md', impor
 const requests: string[] = []
 const server = Bun.serve({ hostname: '127.0.0.1', port: 0, fetch(request) {
   requests.push(new URL(request.url).pathname)
+  if (new URL(request.url).pathname === '/large') return new Response('0123456789'.repeat(11_200), { headers: { 'Content-Type': 'text/markdown' } })
   return new Response(html, { headers: { 'Content-Type': 'text/html' } })
 } })
 const get = axios.get.bind(axios)
@@ -33,6 +34,31 @@ try {
     check('the default tool returns the page itself', 'data' in answer && answer.data.result.includes(expected))
   }
   check('the second fetch uses the page cache', requests.filter(x => x === '/article').length === 1)
+  const context = { abortController: new AbortController(), options: { isNonInteractiveSession: true } } as never
+  const large = await WebFetchTool.call({ url: 'https://fixture.example/large' } as never, context)
+  if ('data' in large) {
+    check('a large page has an honest size budget and token estimate', large.data.result.length < 40_000 && large.data.result.includes('38000 of 112000') && large.data.result.includes('9500 tokens'))
+    const from = Number(/from: (\d+)/.exec(large.data.result)?.[1])
+    const nextInput = WebFetchTool.inputSchema.safeParse({ url: 'https://fixture.example/large', from })
+    check('the cut gives a valid continuation input', nextInput.success && from === 38_000)
+    if (nextInput.success) {
+      const next = await WebFetchTool.call(nextInput.data, context)
+      check('the continuation starts at the exact next character without a new request', 'data' in next && next.data.result.includes('characters 38000–76000') && requests.filter(x => x === '/large').length === 1)
+    }
+  }
+  for (const from of [-1, 1.5, Number.POSITIVE_INFINITY]) check(`invalid continuation ${from} is refused`, !WebFetchTool.inputSchema.safeParse({ url: 'https://fixture.example/large', from }).success)
+  const { pageSlice, MAX_FETCH_PAGE_CHARS } = await import('../../src/tools/WebFetchTool/pageBudget.js')
+  for (const text of ['0123456789'.repeat(11_200), 'A'.repeat(MAX_FETCH_PAGE_CHARS - 1) + '🌍' + 'B'.repeat(50_000), ('paragraph words\n\n').repeat(4000)]) {
+    let from = 0
+    let rebuilt = ''
+    do {
+      const page = pageSlice(text, from)
+      check('every slice advances within the ceiling and leaves the page text unchanged', page.end > from && page.text.length <= MAX_FETCH_PAGE_CHARS && page.text === text.slice(from, page.end))
+      rebuilt += page.text
+      from = page.end
+    } while (from < text.length)
+    check('all continuations reconstruct the complete page without loss or duplication', rebuilt === text)
+  }
 } finally {
   axios.get = get
   server.stop(true)
