@@ -203,7 +203,7 @@ section('§2 NATIVE-OPENAI + THE REGISTRATION CENSUS — the anthropic spy sees 
   check("the prompts are DISTINGUISHABLE and honest: ProviderSearch says the provider's own + spends this session's account",
     providerPrompt.includes("provider's own live web search") && providerPrompt.includes("spends this session's own provider account"), providerPrompt.slice(0, 160))
   check('…and WebSearch says vendored + never spends the provider account + names the other door',
-    vendoredPrompt.includes('vendored web search') && vendoredPrompt.includes('never spends your provider account') && vendoredPrompt.includes('ProviderSearch'), vendoredPrompt.slice(0, 160))
+    vendoredPrompt.includes('session provider') && vendoredPrompt.includes('official APIs') && vendoredPrompt.includes('off unless') && vendoredPrompt.includes('no source answered'), vendoredPrompt.slice(0, 160))
   delete process.env.OPENAI_API_KEY
   fixture.reset()
 }

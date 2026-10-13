@@ -1,4 +1,3 @@
-
 export type SearchTier = 'native' | 'keyed' | 'keyless'
 
 export type SearchBackendId =
