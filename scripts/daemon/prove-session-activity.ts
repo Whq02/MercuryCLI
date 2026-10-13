@@ -64,7 +64,7 @@ try {
   now = 3000
   facts([agent('first'), agent('nested')])
   feed({ type: 'turn', seq: 2, timestamp: 't', session_id: 'activity-fixture', turn: 1, state: 'waiting', turn_id: 't-act', agents: 2 })
-  check('an explicit child wait records its count and readable wording', disk().activity?.state === 'waiting' && disk().activity?.description === 'waiting on 2 sub-agents')
+  check('an explicit child wait records its count and readable wording', disk().activity?.state === 'waiting' && disk().activity?.description === 'waiting on 2 crewmates')
   check('facts and wait messages do not advance the model-turn clock', disk().activity?.lastTurnAt === 2000)
   now = 4000
   active = false
@@ -75,7 +75,7 @@ try {
   check('the completed turn updates the clock', disk().activity?.lastTurnAt === 4000)
   now = 5000
   facts([agent('first', 'completed'), agent('nested')])
-  check('a background completion reduces the count without a parent turn', disk().activity?.description === 'waiting on 1 sub-agent' && disk().activity?.lastTurnAt === 4000)
+  check('a background completion reduces the count without a parent turn', disk().activity?.description === 'waiting on 1 crewmate' && disk().activity?.lastTurnAt === 4000)
   facts([agent('first', 'completed'), agent('nested', 'failed')])
   check('only settled work is idle and retains the last-turn time', disk().activity?.state === 'idle' && disk().activity?.subagents === 0 && disk().activity?.lastTurnAt === 4000)
   facts([{ id: 'workflow', kind: 'workflow', name: 'workflow', status: 'running', startTime: 100, agentCount: 8, pulse: { running: 3, settled: 5, maxAttempt: 1, lastEventAt: now } }])
@@ -88,7 +88,7 @@ try {
   feed({ type: 'heartbeat', seq: 4, timestamp: 't', session_id: 'activity-fixture', turn: 1 })
   assert.deepEqual(disk().activity, previous)
   check('a row with nothing for the activity (a heartbeat) does not invent another turn', disk().activity?.lastTurnAt === 4000)
-  check('an older runner can report an explicit count without a work roster', workers.sessionActivityOf(true, undefined, 4, 700).description === 'waiting on 4 sub-agents')
+  check('an older runner can report an explicit count without a work roster', workers.sessionActivityOf(true, undefined, 4, 700).description === 'waiting on 4 crewmates')
   facts([agent('remaining')])
   workers.updateConcourseWorkers(workers => { workers[short]!.crash = { at: now, reason: 'process ended', respawning: false } }, dir)
   check('a dead process cannot retain running activity', disk().activity?.state === 'idle' && disk().crash?.reason === 'process ended')

@@ -797,7 +797,7 @@ export function MemoryCentreView({
             }
             return
           }
-          if (input === 'c') setCorrecting({ seq: null, ts: detailPendingTs, buffer: '' })
+          if (input === 'c' && !key.ctrl && !key.meta) setCorrecting({ seq: null, ts: detailPendingTs, buffer: '' })
           else if (input === 'x') {
             setArmed(detailPendingTs)
             fl.setNote({ text: 'retire this pending fact? x again strikes it before it consolidates · any other key keeps it', kind: 'warn' })

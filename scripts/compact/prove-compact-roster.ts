@@ -158,7 +158,7 @@ const text = typeof projected[0]?.message.content === 'string' ? projected[0].me
 console.log(text.split('\n').map(l => `  │ ${l.slice(0, 160)}`).join('\n'))
 check('…inside a system reminder, headed Agents in flight', text.startsWith('<system-reminder>') && text.includes('Agents in flight at the context turnover'))
 check('…one line per row (10 lines)', text.split('\n').filter(l => l.startsWith('- ')).length === 10)
-check('…the workflow line carries its phase and its agents with their pulse words', text.includes('local_workflow "roster-survey" [local_workflow_run1]: running · phase: Survey · agents: wf-one — Read(notes.txt), wf-two — ' + SEAT_SENTENCE))
+check('…the workflow line carries its phase and its agents with their pulse words', text.includes('local_workflow "roster-survey" [local_workflow_run1]: running · phase: Survey · crewmates: wf-one — Read(notes.txt), wf-two — ' + SEAT_SENTENCE))
 check('…the sub-agent line names the SendMessage address and the output path', text.includes('reach it: SendMessage to "aplain001"') && text.includes(`output: ${getTaskOutputPath('aplain001')}`))
 check('…the waiting row carries the seat sentence beside the word waiting', text.includes(`[awaitseat]: waiting · ${SEAT_SENTENCE}`))
 check('…the shell line names TaskStop as its door', text.includes('local_bash "sleep 20" [bshell001]: running · asked: roster-shell sleeps') && text.includes('reach it: TaskStop by its id'))
