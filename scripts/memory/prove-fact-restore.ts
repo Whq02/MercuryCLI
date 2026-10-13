@@ -59,6 +59,12 @@ try {
     assert.equal(live[0]!.supersedes, '1')
     assert.equal(factMemoryState(live[0]!, { libraryDir: retainedDir }).status, 'current')
     assert(docs.flatMap(d => d.history).some(e => e.seq === 1 && e.text === text))
+    assert.equal(retainItems([{ content: text, topic: 'backup' }], { session: 'confirmation' }, retainedDir)[0]?.status, 'stored')
+    assert.equal(retainItems([{ content: text, topic: 'backup' }], { session: 'confirmation' }, retainedDir)[0]?.status, 'already-staged')
+    assert(maybeConsolidate({ dir: retainedDir, force: true }).consolidated)
+    const repeated = [...listTopicDocs(retainedDir), ...listArchiveDocs(retainedDir)]
+    assert.equal(repeated.flatMap(d => d.sections.flatMap(s => s.entries)).length, 1)
+    assert.equal(repeated.flatMap(d => d.history).length, 2)
   }
   console.log('PASS citation, fact open, page open and repeat retain restore confidence without changing text or counting citations as opens')
 } finally {
