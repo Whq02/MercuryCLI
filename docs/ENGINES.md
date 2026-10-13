@@ -321,7 +321,7 @@ of those two; a model the plan does not include is refused with Z.AI's own
 reason after the status, as every chat refusal is.
 
 A retired DeepSeek id resolves to its current one wherever a model id is
-read — a saved setting, `MERCURY_MODEL`, `/model`, a crewmate's (sub-agent's) model —
+read — a saved setting, `MERCURY_MODEL`, `/model`, a crewmate's model —
 and paints as the current id: `deepseek-v4-flash` is `deepseek-flash`, and
 the wire is sent the current id.
 
@@ -408,12 +408,12 @@ failed: it pauses, its row says why — `paused — provider overloaded ·
 resumes by itself when the provider answers` — its work so far is kept, and
 Mercury probes the provider with one small request at a slow, bounded
 cadence — 30 s after the pause, then every minute for ten minutes, then
-every five minutes, for up to one hour — and resumes the agent by itself
-when a probe is answered; the agent continues from where its transcript
-ends. The parent's chat carries one calm line per agent per outage — the
+every five minutes, for up to one hour — and resumes the crewmate by itself
+when a probe is answered; the crewmate continues from where its transcript
+ends. The parent's chat carries one calm line per crewmate per outage — the
 first pause names the provider and the probing; a later death and the
-resume itself add no line, the agent's row on the crew view carries them —
-and the agent's completion follows as its own line; a message to the agent
+resume itself add no line, the crewmate's row on the crew view carries them —
+and the crewmate's completion follows as its own line; a message to the crewmate
 resumes it sooner, and the crew view stops it. The line names the status
 the provider answered with — 529 on the Anthropic wire, 503 elsewhere, none
 when the refusal carried none. A helper the parent waited
@@ -463,7 +463,7 @@ window outranks that formula) fits the memory usable for models — the
 server's own gpu-memory line when it states one, the same rule
 `/localsetup`'s step 5 uses — at the
 model's first send and holds it for the session on every dispatch — the main
-thread, crewmates and workflow agents alike, so a crewmate never reloads the
+thread, crewmates and workflow crewmates alike, so a crewmate never reloads the
 runner (when the machine's memory cannot be read — the server states no
 geometry, or the read fails — the window comes out bigger, not smaller: the
 trained maximum when the model states one, else the served window, else twice
@@ -496,10 +496,10 @@ multi-round tool loops, and against a live llama.cpp (2026-09-27, Qwen3.5 9B
 served as `qwen3.5:9b`, server build b11146) for the same three legs —
 discovery with the served window read from `/props`, a streamed reply with
 its reasoning block, and a tool loop that also dispatched a crewmate and a
-workflow agent on the model; and against a live LM Studio (2026-09-27, Qwen3.5
+workflow crewmate on the model; and against a live LM Studio (2026-09-27, Qwen3.5
 9B served as `qwen3.5-9b`) for the same legs — discovery from `/api/v1/models`
 with the loaded instance's window, a streamed reply with its reasoning block,
-a direct tool loop, a crewmate and a workflow agent — where the product
+a direct tool loop, a crewmate and a workflow crewmate — where the product
 reloads the instance at its chosen window on the first send (the documented
 load road) unless the window setting is `server default`. vLLM is unverified
 — it needs a Linux box with an NVIDIA card. The search-door and SATURN-fire legs remain operator-deferred
@@ -628,9 +628,9 @@ come from its owning account resolvers:
   retry either way. Escape ends a wait at once. A wait Google itself asks for
   (Retry-After) is honoured in place of the ladder's own when it fits the
   retry budget, as on every road. On a chat without a screen (`mercury run`
-  or a dispatched agent) the same ladder runs, and its `wait` rows with
+  or a dispatched crewmate) the same ladder runs, and its `wait` rows with
   `state: "retry"` reach the caller only past the quiet window; a dispatched
-  agent's retry budget counts every wait of the ladder, the quiet ones
+  crewmate's retry budget counts every wait of the ladder, the quiet ones
   included, so a six-second budget
   ends the ladder six seconds in whether or not a retry line has painted.
   The API-key resolver takes `GOOGLE_API_KEY` before `GEMINI_API_KEY`, then the
@@ -988,13 +988,13 @@ cadence.
 
 A sign-in or a removal also reaches the engines behind the open chats. The
 daemon tells every runner it hosts to read the account again, so a delegated
-agent is never refused with a departed account's usage window; a runner that
+crewmate is never refused with a departed account's usage window; a runner that
 missed the word is covered anyway — a limit verdict is trusted only for the
 account that observed it, and reads as unknown once the signed-in account is
 another, so the refusal for a reached window names the account it belongs to,
 when it was seen, and the reset it knows. That verdict lapses at the reset the
 reply named — or after a bounded span when the reply named none — so a
-delegated agent is not refused after the window has reset, and the next reply
+delegated crewmate is not refused after the window has reset, and the next reply
 that says allowed clears it at once. A reply speaks for the moment its request
 began, so a reply that started before the refusal cannot clear it, however late
 it ends; only a reply that began after the refusal does. An expired sign-in is reported as an
@@ -1007,7 +1007,7 @@ The OpenAI lane keeps the same law in its own shape. A reached OpenAI window
 is observed on a reply's own reset fact and belongs to the sign-in or key that
 observed it: it lapses at the reset the reply named, and it reads clear the
 moment the credential behind that source is another one (a sign-in again, a
-switch, a sign-out), so a delegated agent on a GPT row is never refused with a
+switch, a sign-out), so a delegated crewmate on a GPT row is never refused with a
 departed sign-in's window. The runner's copy of the OpenAI model list follows
 the same credential: told to read the account again, it drops the departed
 sign-in's rows and reads the signed-in account's list once, bounded, and a

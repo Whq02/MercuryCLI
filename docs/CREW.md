@@ -1,7 +1,7 @@
 # The crew
 
 Every Mercury session has a crew from the moment it starts: the crewmates
-(sub-agents) it delegates to through the Crewmate tool. There is no create step
+it delegates to through the Crewmate tool. There is no create step
 and no delete step — the crew is born with the session and its crewmates are
 tracked live, not through files that must be set up first. Boards show them
 all; a message to a crewmate reaches it by its id or its name.
@@ -122,7 +122,7 @@ killed. The receipt is the runner's own word: applied once the row has left
 `running`, or refused with the reason — an id the registry no longer holds, a
 row that had already settled, a loop that did not end within the runner's
 settle budget — and a refusal is painted under the rows. `p` parks every
-agent and the chat at its next safe point (a stream or a tool in flight
+crewmate and the chat at its next safe point (a stream or a tool in flight
 finishes first) and resumes them.
 
 Stop and resume work the same for every crewmate. A stopped crewmate keeps
@@ -144,10 +144,10 @@ that hits a usage limit pauses instead of being marked failed: its row reads pau
 reset time the provider stated, and it starts again by itself at that time,
 or as soon as the operator logs in on another account — with the same model.
 
-A workflow that ends with agent failures says so in the first line of its
-notification: the count, then the first failing agent and its cause — an
+A workflow that ends with crewmate failures says so in the first line of its
+notification: the count, then the first failing crewmate and its cause — an
 error's words, a refusal's stop reason — and its run record carries the
-same failure lines beside the per-agent rows.
+same failure lines beside the per-crewmate rows.
 
 ## Messages
 
@@ -195,7 +195,7 @@ built-ins first, then your own agents.
 
 A crewmate's kind is an agent definition — built-in, custom, or from an
 extension — resolved by the Crewmate tool's `crewmate_type`, so a given kind is
-the same agent however it was launched. A saved crewmate record whose type
+the same crewmate however it was launched. A saved crewmate record whose type
 Mercury does not know resumes as `mercury-crew`.
 
 Three briefs ride as commands, skills and launch options rather than as agent kinds:
@@ -235,7 +235,7 @@ settle, so the notice is read at that boundary and never after a full timer.
 ## Saved conversations
 
 A saved conversation reopens with its recorded crewmate rows and work. An
-unknown stored agent type resumes as `mercury-crew`; the two built-in types
+unknown stored crewmate type resumes as `mercury-crew`; the two built-in types
 and your custom definitions are the choices for a fresh launch.
 
 ## The concourse

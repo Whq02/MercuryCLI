@@ -410,7 +410,7 @@ const rows = (frame: string | undefined): string[] => (frame ?? '').split('\n')
 const flat = (s: string): string => s.replace(/\s+/g, ' ').trim()
 const GLYPHS = /[◐◓◑◒]/
 const PHASE_WORDS = /\b(thinking|running a tool|replying|compacting)\b/
-const CREW_CLOCK = /\b(agents?|workflows?) thought for \d+[sm]\b/
+const CREW_CLOCK = /\b(crewmates?|workflows?) thought for \d+[sm]\b/
 const titleRowIndex = (frame: string | undefined): number => rows(frame).findIndex(r => r.includes('✶ VIEW'))
 const statusIndex = (frame: string | undefined): number => rows(frame).findIndex(r => r.includes(BACK_HINT))
 const statusRow = (frame: string | undefined): string => rows(frame)[statusIndex(frame)] ?? ''
@@ -533,7 +533,7 @@ if (cap !== null) {
   const thinkingRow = statusRow(m['thinking'])
   check('the main agent is thinking (the card under the critter narrates it)', /thinking|…/.test(berth(m['thinking'])), flat(berth(m['thinking'])).slice(0, 160))
   check('H3 the bottom row carries no main-agent phase word', !PHASE_WORDS.test(thinkingRow), flat(thinkingRow))
-  check('H3 the bottom row carries the crew\'s clock, past tense ("agents thought for …")', CREW_CLOCK.test(thinkingRow) && /\bagents thought for\b/.test(thinkingRow), flat(thinkingRow))
+  check('H3 the bottom row carries the crew\'s clock, past tense ("crewmates thought for …")', CREW_CLOCK.test(thinkingRow) && /\bagents thought for\b/.test(thinkingRow), flat(thinkingRow))
   const thinkingWordRows = rows(m['thinking']).filter(r => /\bthinking\b/.test(r))
   console.log(`  rows carrying the word "thinking": ${thinkingWordRows.length} — ${thinkingWordRows.map(flat).join(' | ').slice(0, 300)}`)
   check('H2 the crew clock advances while the agents run (no glyph on the row)', crewClockAdvances(m['thinking'], m['thinking+']) && noGlyph(m['thinking']), `${crewClock(m['thinking'])} → ${crewClock(m['thinking+'])}`)
@@ -590,7 +590,7 @@ if (cap !== null) {
 
   console.log('\n— the foreground agent —')
   const foreRow = statusRow(m['fore'])
-  check('H3 one running agent: "agent thought for …" (singular), no tool word', /\bagent thought for \d+[sm]\b/.test(foreRow) && !PHASE_WORDS.test(foreRow), flat(foreRow))
+  check('H3 one running agent: "crewmate thought for …" (singular), no tool word', /\bcrewmate thought for \d+[sm]\b/.test(foreRow) && !PHASE_WORDS.test(foreRow), flat(foreRow))
   check('H2 the crew clock advances for the foreground agent', crewClockAdvances(m['fore'], m['fore+']), `${crewClock(m['fore'])} → ${crewClock(m['fore+'])}`)
 
   console.log('\n— the silent stream —')

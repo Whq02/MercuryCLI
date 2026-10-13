@@ -10,7 +10,7 @@ export function getPrompt(offered: ReadonlySet<string> = new Set([TASK_UPDATE_TO
 Example: { "to": "researcher", "message": "The auth notes moved to docs/auth-v2.md; read that one." }
 
 ## Addressing
-- to: the id a crewmate's launch receipt names, or the name its launch gave it — both reach the same agent (a name two launches carried reaches the newest).
+- to: the id a crewmate's launch receipt names, or the name its launch gave it — both reach the same crewmate (a name two launches carried reaches the newest).
 - A background crewmate reaches the agent that launched it at "main".
 
 ## How communication works

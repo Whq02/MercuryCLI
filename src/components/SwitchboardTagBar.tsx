@@ -201,7 +201,7 @@ export function crewActiveIn(rows: readonly WorkRowV1[]): boolean {
 
 export function crewClockOf(rows: readonly WorkRowV1[], nowMs: number): CrewClockV1 {
   const spans = crewSpansOf(rows)
-  const kinds = [kindClockOf(spans.agents, ['agent', 'agents'], nowMs), kindClockOf(spans.workflows, ['workflow', 'workflows'], nowMs)].filter(
+  const kinds = [kindClockOf(spans.agents, ['crewmate', 'crewmates'], nowMs), kindClockOf(spans.workflows, ['workflow', 'workflows'], nowMs)].filter(
     (k): k is KindClock => k !== null,
   )
   kinds.sort((a, b) => b.ms - a.ms)
