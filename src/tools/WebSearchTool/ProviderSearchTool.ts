@@ -3,7 +3,7 @@ import { z } from 'zod'
 import { buildTool, type ToolUseContext } from '../../Tool.js'
 import { nativeSearch } from '../../services/search/nativeSearch.js'
 import { nativeSearchFamilyOf } from '../../services/search/searchDoor.js'
-import { failureLine, viaLine } from '../../services/search/searchContract.js'
+import { failureLine } from '../../services/search/searchContract.js'
 import { TOOL_SUMMARY_MAX_LENGTH } from '../../constants/toolLimits.js'
 import type { WebSearchProgress } from '../../types/tools.js'
 import { AbortError } from '../../utils/errors.js'
@@ -11,7 +11,7 @@ import { getEngineModel } from '../../utils/model/model.js'
 import { suggestionForExactCommand } from '../../utils/permissions/shellRuleMatching.js'
 import { truncate } from '../../utils/format.js'
 import { getProviderSearchPrompt, PROVIDER_SEARCH_TOOL_NAME } from './prompt.js'
-import type { Output } from './WebSearchTool.js'
+import { mapSearchResult, outputSchema, type Output } from './searchOutput.js'
 import { getToolUseSummary, renderToolResultMessage, renderToolUseMessage, renderToolUseProgressMessage } from './UI.js'
 
 
@@ -23,30 +23,7 @@ const inputSchema = z.strictObject({
 
 type Input = z.infer<typeof inputSchema>
 
-export const providerSearchOutputSchema = z.object({
-  query: z.string().describe('The query that was searched'),
-  results: z
-    .array(
-      z.union([
-        z.object({
-          tool_use_id: z.string().describe('Id of the search this hit group belongs to'),
-          content: z.array(
-            z.object({
-              title: z.string().describe('Title of the search hit'),
-              url: z.string().describe('URL of the search hit'),
-              snippet: z.string().optional().describe("The backend's excerpt for the hit, when it carries one"),
-            }),
-          ),
-        }),
-        z.string(),
-      ]),
-    )
-    .describe("Search hit groups interleaved with the provider model's commentary"),
-  durationSeconds: z.number().describe('Elapsed search time in seconds'),
-  via: z.string().optional().describe('The native backend that answered: anthropic-native · openai-native'),
-  tier: z.enum(['native', 'keyed', 'keyless']).optional().describe("Always 'native' for this tool"),
-  notes: z.array(z.string()).optional(),
-})
+export const providerSearchOutputSchema = outputSchema
 
 async function runProviderSearch(
   input: Input,
@@ -133,22 +110,7 @@ export const ProviderSearchTool = buildTool({
     return { data: await runProviderSearch(input, context, onProgress) }
   },
   mapToolResultToToolResultBlockParam(output: Output, toolUseID: string) {
-    const lines: string[] = [`Web search results for query: "${output.query}"`]
-    if (output.via && output.tier) lines.push(`Searched ${viaLine(output.via as never, output.tier as never)}.`)
-    lines.push('')
-    for (const entry of output.results) {
-      if (entry === null || entry === undefined) continue
-      if (typeof entry === 'string') {
-        lines.push(entry)
-      } else if (entry.content.length > 0) {
-        lines.push(`Links: ${JSON.stringify(entry.content)}`)
-      } else {
-        lines.push('No links found.')
-      }
-      lines.push('')
-    }
-    lines.push('REMINDER: You MUST include the sources above in your response to the user as markdown hyperlinks.')
-    return { tool_use_id: toolUseID, type: 'tool_result' as const, content: lines.join('\n').trim() }
+    return mapSearchResult(output, toolUseID)
   },
   extractSearchText(): string {
     return ''

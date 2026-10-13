@@ -88,7 +88,8 @@ export function parseDuckDuckGoHtml(html: string): DuckDuckGoPage {
     hits.push({
       title: htmlToText(title[2] ?? ''),
       url,
-      ...(snippet ? { snippet: htmlToText(snippet[2] ?? '') } : {}),
+      snippet: snippet ? htmlToText(snippet[2] ?? '') : '',
+      source_type: 'duckduckgo',
     })
   })
   return { kind: 'results', hits }
@@ -104,10 +105,10 @@ export function parseDuckDuckGoLite(html: string): DuckDuckGoPage {
       sawLink = true
       const url = resolveDuckDuckGoHref(readAttribute(match[1], 'href'))
       if (!url) continue
-      hits.push({ title: htmlToText(match[2] ?? ''), url })
+      hits.push({ title: htmlToText(match[2] ?? ''), url, snippet: '', source_type: 'duckduckgo' })
     } else {
       const last = hits.at(-1)
-      if (last && last.snippet === undefined) last.snippet = htmlToText(match[3] ?? '')
+      if (last && last.snippet === '') last.snippet = htmlToText(match[3] ?? '')
     }
   }
   if (!sawLink) {
