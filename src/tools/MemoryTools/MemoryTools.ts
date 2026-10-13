@@ -4,12 +4,12 @@ import { buildTool, type ToolDef, type ToolUseContext } from '../../Tool.js'
 import { lazySchema } from '../../utils/lazySchema.js'
 import { getSessionId } from '../../bootstrap/state.js'
 import {
-  correctMemory,
+  correctMemoryJudged,
   memoryVerbsEnabled,
   readMemoryRecord,
   RECALL_RESULT_CAP_CHARS,
   recallQuery,
-  retainItems,
+  retainItemsJudged,
   type CorrectOutcome,
   type MemoryReadResult,
   type RecallResult,
@@ -46,6 +46,11 @@ function safeSession(): string {
   } catch {
     return 'boot'
   }
+}
+
+function abortOf(context: Partial<ToolUseContext>): { signal?: AbortSignal } {
+  const signal = context.abortController?.signal
+  return signal === undefined ? {} : { signal }
 }
 
 
@@ -105,10 +110,14 @@ export const RetainTool = buildTool({
     return RETAIN_PROMPT
   },
   async call(input: z.infer<RetainSchema>, context: ToolUseContext) {
-    const outcomes = retainItems(input.items, {
-      session: safeSession(),
-      ...(context.agentId ? { agent: String(context.agentId) } : {}),
-    })
+    const outcomes = await retainItemsJudged(
+      input.items,
+      {
+        session: safeSession(),
+        ...(context.agentId ? { agent: String(context.agentId) } : {}),
+      },
+      abortOf(context),
+    )
     const stored = outcomes.filter(o => o.status === 'stored').length
     const refused = outcomes.filter(o => o.status === 'refused').length
     if (!pinnedItemStored(input.items, outcomes)) return { data: { outcomes, stored, refused } }
@@ -386,15 +395,18 @@ export const CorrectTool = buildTool({
   async prompt() {
     return CORRECT_PROMPT
   },
-  async call(input: z.infer<CorrectSchema>) {
-    const outcome = correctMemory({
-      op: input.op,
-      id: input.id,
-      ...(input.content !== undefined ? { content: input.content } : {}),
-      ...(input.replacementId !== undefined ? { replacementId: input.replacementId } : {}),
-      reason: input.reason,
-      session: safeSession(),
-    })
+  async call(input: z.infer<CorrectSchema>, context: ToolUseContext) {
+    const outcome = await correctMemoryJudged(
+      {
+        op: input.op,
+        id: input.id,
+        ...(input.content !== undefined ? { content: input.content } : {}),
+        ...(input.replacementId !== undefined ? { replacementId: input.replacementId } : {}),
+        reason: input.reason,
+        session: safeSession(),
+      },
+      abortOf(context),
+    )
     return { data: outcome }
   },
   mapToolResultToToolResultBlockParam(output: CorrectToolOutput, toolUseID) {
