@@ -160,6 +160,26 @@ section('§2 the Windows share road (A2): a UNC path asks on Windows and never o
     const under = await decide(tool, input, contextOf('sovereign'))
     check(`${name} ${SHARE}: ALLOWED under sovereign — the share sentence rides the allowance, no card`, under.decision.behavior === 'allow' && under.decision.decisionReason?.type === 'bypassedAsk' && under.decision.decisionReason.road === 'safetyCheckAsk', JSON.stringify({ decidedBy: under.trace.decidedBy, decision: under.decision }))
   }
+  const shareSpellings: Array<[string, string]> = [
+    ['forward-slash UNC', '//fileserver/projects/notes.txt'],
+    ['WSL share', String.raw`\\wsl.localhost\Ubuntu\home\whq\proj\notes.txt`],
+    ['WSL share, forward slashes', '//wsl.localhost/Ubuntu/home/whq/proj/notes.txt'],
+    ['legacy WSL share', String.raw`\\wsl$\Ubuntu\home\whq\proj\notes.txt`],
+    ['administrative share on this box', String.raw`\\localhost\C$\Users\WHQ\m34-play\share\notes.txt`],
+    ['extended-length UNC', String.raw`\\?\UNC\fileserver\projects\notes.txt`],
+  ]
+  for (const [label, spelling] of shareSpellings) {
+    const outside = await decide(FileReadTool, { file_path: spelling }, contextOf('default'))
+    check(`Read ${label} ${spelling}: asks in default mode on Windows with the share sentence`, outside.decision.behavior === 'ask' && (outside.decision.message ?? '').includes('SMB/WebDAV'), JSON.stringify(outside.decision))
+    const under = await decide(FileReadTool, { file_path: spelling }, contextOf('sovereign'))
+    check(`Read ${label}: ALLOWED under sovereign, the share sentence on the allowance`, under.decision.behavior === 'allow' && under.decision.decisionReason?.type === 'bypassedAsk' && under.decision.decisionReason.road === 'safetyCheckAsk', JSON.stringify(under.decision))
+    const shell = await decide(PowerShellTool, { command: `Get-Content ${spelling}` }, contextOf('sovereign'))
+    check(`PowerShell Get-Content ${label}: no card under sovereign`, shell.decision.behavior === 'allow', JSON.stringify(shell.decision))
+  }
+  for (const [label, spelling] of [['a mapped drive, forward slashes', 'Z:/proj/notes.txt'], ['a local path with forward slashes', 'C:/Users/WHQ/proj/notes.txt']] as const) {
+    const read = await decide(FileReadTool, { file_path: spelling }, contextOf('sovereign'))
+    check(`Read ${label} ${spelling}: a drive letter carries no host, so no share question and no card under sovereign (the backslash spelling Z:\\proj needs a win32 path.resolve — the Windows box's check)`, read.decision.behavior === 'allow' && read.decision.decisionReason?.type !== 'bypassedAsk', JSON.stringify(read.decision))
+  }
   getPlatform.cache.set(undefined, 'macos')
   const mac = await decide(FileEditTool, { file_path: SHARE, old_string: 'old', new_string: 'new' }, contextOf('sovereign'))
   check('on the Mac the same spelling never raised the share question; under sovereign it is allowed too (whatever does not ask on the Mac must not ask on Windows)', mac.decision.behavior === 'allow', JSON.stringify(mac.decision))
