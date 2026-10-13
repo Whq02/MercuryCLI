@@ -111,6 +111,7 @@ export function collectMemoryRefs(query: string, opts: CollectOpts = {}): Memory
       })
     }
     for (const h of grepPending(pattern, { dir, maxHits: 2 })) {
+      const stamp = / \[unconsolidated, ([^,\]]+), ([^\]]*)\]$/.exec(h.text)
       push({
         refId: `mneme-pending:${h.line}`,
         kind: 'mneme-pending',
@@ -118,6 +119,7 @@ export function collectMemoryRefs(query: string, opts: CollectOpts = {}): Memory
         scope: 'project',
         status: 'unconsolidated',
         summary: cap(h.text.replace(/ \[unconsolidated.*$/, '')),
+        ...(stamp !== null ? { capturedAt: stamp[1], source: stamp[2] } : {}),
         why: `recent unconsolidated matches '${t}'`,
         deref: `Recall query:"${t}"`,
         tier: 2,
