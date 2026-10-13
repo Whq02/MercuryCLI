@@ -166,7 +166,7 @@ tally.check('a trusted directory launches with no question', seen.askedLane !== 
 tally.check('the outside launch is an ordinary question the headless seat cannot answer', seen.askedOutside !== undefined && seen.askedOutside.isError && /outside this session's starting folder/.test(seen.askedOutside.text) && /cannot ask for approval/.test(seen.askedOutside.text), seen.askedOutside?.text.slice(0, 300))
 tally.check('the refusal is the hostless posture, never the denial of an ask a host left unanswered', seen.askedOutside !== undefined && !/was not there to answer/.test(seen.askedOutside.text), seen.askedOutside?.text.slice(0, 300))
 tally.check('the refused launch ran no helper', pwdsAsked.length === 1, JSON.stringify(pwdsAsked))
-tally.check('the run settled its turn at once and exited 0: nothing waited for a host', askTurn.result !== null && askTurn.exitCode === 0, `exit ${askTurn.exitCode ?? '?'}: ${askTurn.stderr.slice(-300)}`)
+tally.check('the run settled its turn at once and exited 1: nothing waited for a host, and an ask nobody could answer ends the run blocked (headless-process RUN-03 — exit codes tell the truth)', askTurn.result !== null && askTurn.exitCode === 1, `exit ${askTurn.exitCode ?? '?'}: ${askTurn.stderr.slice(-300)}`)
 
 const repo = join(scratch, 'repo')
 mkdirSync(repo)

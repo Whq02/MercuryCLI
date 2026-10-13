@@ -125,7 +125,7 @@ function walk(root: string): string[] {
     check('P3 the two sends carry ONE birth key (the re-send is the same birth, so a daemon that admitted the first answers it again)', back.keys.length === 2 && back.keys[0] === back.keys[1], JSON.stringify(back.keys))
     const doorAt = body.indexOf('async function admitAndEnter(')
     const mintAt = body.indexOf('const birthKey = randomUUID()', doorAt)
-    const closureAt = body.indexOf('const admit = (): Promise<Record<string, unknown>> => daemonControlRpc(', doorAt)
+    const closureAt = body.indexOf('const admit = (waitForSeatMs = 0): Promise<Record<string, unknown>> => daemonControlRpc(', doorAt)
     check('P3 the door mints the birth key ONCE per birth, before the admit closure, and the admit literal carries it', mintAt !== -1 && closureAt !== -1 && mintAt < closureAt && body.slice(closureAt, body.indexOf('{ timeoutMs: 60_000 }', closureAt)).includes('birthKey,'))
     const still = await drive([gone, landed], false)
     check('P3 a daemon check that fails leaves the first refusal standing after one send', still.answer === gone && still.sends === 1 && still.rechecks === 1, JSON.stringify(still))
@@ -137,7 +137,7 @@ function walk(root: string): string[] {
     check('P3 an admitted birth sends once and re-runs no check', first.answer === landed && first.sends === 1 && first.rechecks === 0, JSON.stringify(first))
   }
   const admitDoorAt = body.indexOf('async function admitAndEnter(')
-  check('P3 the admit is sent through the re-check with the one daemon heal as the check', admitDoorAt !== -1 && body.indexOf('admitWithDaemonRecheck(admit, ensureOwnedDaemon)') > admitDoorAt && body.indexOf("const { ensureOwnedDaemon } = await import('./ensureDaemon.js')", admitDoorAt) !== -1)
+  check('P3 the admit is sent through the re-check with the one daemon heal as the check', admitDoorAt !== -1 && body.indexOf('admitWithDaemonRecheck(() => admit(), ensureOwnedDaemon)') > admitDoorAt && body.indexOf("const { ensureOwnedDaemon } = await import('./ensureDaemon.js')", admitDoorAt) !== -1)
 }
 
 {
