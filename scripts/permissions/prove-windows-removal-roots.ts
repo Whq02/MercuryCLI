@@ -33,7 +33,8 @@ try {
   }
   process.env.HOME = process.env.USERPROFILE = 'C:\\Users\\Proof'
   for (const operand of ['C:\\Users\\Proof', 'C:/Users/Proof', '/c/Users/Proof', '$USERPROFILE', '%USERPROFILE%']) check(`Windows refuses unquoted own home ${operand}`, refused(operand))
-  for (const operand of ['C:/Users/Proof2', 'C:/Users/Other', 'C:/Users/Proof/project', '/c/Users/Proof/project', '/c/Users/Other', 'C:/Windows', 'C:\\Windows', 'C:/Users', 'C:\\Users', '/c/Windows', '/c/Users']) check(`Windows leaves non-root operand to permission check ${operand}`, !refused(operand))
+  for (const operand of ['C:/Users/Proof2', 'C:/Users/Other', '/c/Users/Other', 'C:/Windows', 'C:\\Windows', 'C:/Users', 'C:\\Users', '/c/Windows', '/c/Users', '\\\\server\\share', '//server/share']) check(`Windows refuses what the Mac refuses (another user's home, the Users folder, a system folder, a share root) ${operand}`, refused(operand))
+  for (const operand of ['C:/Users/Proof/project', '/c/Users/Proof/project', 'C:/Users/Other/project', '\\\\server\\share\\project']) check(`Windows leaves a folder inside a home or a share to the permission check ${operand}`, !refused(operand))
   check('Windows home comparison is case-insensitive', isDangerousRemovalPath('c:/uSeRs/pRoOf'))
   const checker = createPathChecker('rm')
   for (const path of ['C:\\Windows', 'C:/Windows', '/c/Windows', 'C:\\Users', 'C:/Users', '/c/Users', 'c:/users/proof']) {

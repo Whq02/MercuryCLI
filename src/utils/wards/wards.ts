@@ -461,6 +461,10 @@ let windowsRootPatterns: { home: string; patterns: RegExp[] } | undefined
 
 const WINDOWS_MSYS_DRIVE_ROOT = '/[a-z]/?'
 
+const WINDOWS_DRIVE = '(?:[a-z]:|%SystemDrive%|%HOMEDRIVE%|\\$\\{?env:(?:SystemDrive|HOMEDRIVE)\\}?)'
+const WINDOWS_SYSTEM_FOLDER = '(?:Windows|Program Files(?: \\(x86\\))?|ProgramData)'
+const WINDOWS_SYSTEM_FOLDER_ENV = '(?:%(?:SystemRoot|windir|ProgramFiles(?:\\(x86\\))?|ProgramW6432|ProgramData)%|\\$\\{?env:(?:SystemRoot|windir|ProgramFiles(?:\\(x86\\))?|ProgramW6432|ProgramData)\\}?)'
+
 const WINDOWS_REMOVAL_TARGETS_FIXED = [
   '[a-z]:[/\\\\]*',
   '~',
@@ -470,6 +474,16 @@ const WINDOWS_REMOVAL_TARGETS_FIXED = [
   '(?:\\$\\{?env:HOMEDRIVE\\}?)?\\$\\{?env:HOMEPATH\\}?',
   '%USERPROFILE%',
   '(?:%HOMEDRIVE%)?%HOMEPATH%',
+  WINDOWS_DRIVE + '[/\\\\]+Users(?:[/\\\\]+[^/\\\\\\s"\']+)?',
+  WINDOWS_DRIVE + '[/\\\\]+' + WINDOWS_SYSTEM_FOLDER + '(?:[/\\\\][^\\s"\']*)?',
+  WINDOWS_SYSTEM_FOLDER_ENV + '(?:[/\\\\][^\\s"\']*)?',
+  '(?:\\\\\\\\|//)[^\\\\/\\s"\']+[\\\\/]+[^\\\\/\\s"\']+',
+]
+
+const WINDOWS_MSYS_TARGETS = [
+  WINDOWS_MSYS_DRIVE_ROOT,
+  '/[a-z]/Users(?:/[^/\\s"\']+)?',
+  '/[a-z]/' + WINDOWS_SYSTEM_FOLDER + '(?:/[^\\s"\']*)?',
 ]
 
 export function windowsRemovalPatterns(): RegExp[] {
@@ -478,7 +492,7 @@ export function windowsRemovalPatterns(): RegExp[] {
   const escape = (path: string): string => path.split(/[\\/]/).map(part => part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('[/\\\\]')
   const homes = /^[a-z]:\//i.test(home) ? [escape(home), escape(`/${home[0]}${home.slice(2)}`)] : []
   const targetOf = (alternatives: readonly string[]): string => '\\s["\\\']?(?:' + alternatives.join('|') + ')[/\\\\]*\\*?(?=["\\\']?(?:\\s|$|[;|&]))'
-  const dashTarget = targetOf([...WINDOWS_REMOVAL_TARGETS_FIXED, WINDOWS_MSYS_DRIVE_ROOT, ...homes])
+  const dashTarget = targetOf([...WINDOWS_REMOVAL_TARGETS_FIXED, ...WINDOWS_MSYS_TARGETS, ...homes])
   const slashTarget = targetOf([...WINDOWS_REMOVAL_TARGETS_FIXED, ...homes])
   const segment = '[^\\n;|&]*'
   const patterns = [
