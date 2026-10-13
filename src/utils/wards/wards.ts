@@ -542,10 +542,25 @@ function homePatterns(): HomePatterns {
   return homePatternCache
 }
 
+let pipelineRemovalCache: { key: string; pattern: RegExp } | undefined
+
+function pipelineRemovalPattern(): RegExp {
+  const spellings = [...homeSpellings(), process.env.USERPROFILE ?? ''].filter(Boolean)
+  const key = JSON.stringify(spellings)
+  if (pipelineRemovalCache?.key === key) return pipelineRemovalCache.pattern
+  const escaped = spellings.map(path => path.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+  const roots = [...WINDOWS_REMOVAL_TARGETS_FIXED, '\\/(?:Users|home)(?:\\/[^\\/\\s"\']+)?', '\\/root', ...escaped]
+  const segment = '[^\\n;|&]*'
+  const target = '\\s["\']?(?:' + roots.join('|') + ')[/\\\\]*\\*?["\']?(?=\\s|$|[|])'
+  const pattern = new RegExp('\\b(?:Get-ChildItem|gci|dir|ls)\\b' + segment + target + segment + '\\|(?:[^\\n;|&]*\\|)*\\s*(?:Remove-Item|ri|rm|rd|del|erase|rmdir)\\b(?!' + segment + '\\s-WhatIf(?=\\s|$|:\\$true\\b))(?=' + segment + '\\s-(?:rf|fr|rfo|r(?:e(?:c(?:u(?:r(?:s(?:e)?)?)?)?)?)?)\\b)' + segment, 'i')
+  pipelineRemovalCache = { key, pattern }
+  return pattern
+}
+
 function patternsFor(rule: WardRule): RegExp[] {
   const compiled = compile(rule)
   const home = rule.homePath === undefined ? [] : homePatterns()[rule.homePath]
-  const windows = rule.windowsRoots === true && process.platform === 'win32' ? windowsRemovalPatterns() : []
+  const windows = rule.windowsRoots === true ? [...(process.platform === 'win32' ? windowsRemovalPatterns() : []), pipelineRemovalPattern()] : []
   return home.length === 0 && windows.length === 0 ? compiled : [...compiled, ...home, ...windows]
 }
 
