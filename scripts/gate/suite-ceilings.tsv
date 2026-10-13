@@ -76,10 +76,13 @@ transcript-rows-drives	3000
 # (api-drives at the 900 s default with 3 of 5 done at 755 s,
 # switchboard-drives at 1200 s, ui-drives at 5470 s with 25 of 34 done),
 # measured whole on 2026-10-13 on the Mac through scripts/gate/run-suite.sh
-# and in the Linux container at the same start-load scale, member for member
-# the same seconds: a drive is a fixed-schedule capture, so its wall is its
-# authored ticks × the scale, not the host's speed. Authored walls
-# (measured ÷ scale): api-drives 488 s, switchboard-drives 1039 s,
+# and in the Linux container at the same start-load scale: api-drives and
+# switchboard-drives member for member the same seconds on both hosts (a
+# drive is a fixed-schedule capture, so its wall is its authored ticks ×
+# the scale, not the host's speed); ui-drives 3927 s on the Mac at scale
+# 1.2 with two members red against 5455 s in the container at 1.4 with
+# eleven red, each burning its whole budget. Authored walls (the largest
+# reading ÷ its scale): api-drives 488 s, switchboard-drives 1039 s,
 # ui-drives 3896 s. The hosted runner's pace measured 2.0× (api-drives)
 # and 2.3× (ui-drives) the authored seconds on the members it completed;
 # each row is the head's ~3× stretch over the authored wall, rounded up
