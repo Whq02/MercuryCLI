@@ -172,7 +172,7 @@ try {
 
   delete process.env.ANTHROPIC_API_KEY
   const { saveApiKey } = await import('../../src/utils/auth.ts')
-  const { slotSeatView } = await import('../../src/services/providers/slotSwitch.ts')
+  const { slotSeatView, switchActiveSlot } = await import('../../src/services/providers/slotSwitch.ts')
   await saveApiKey('proof-managed-slot-key')
   const anthropic = await mount('claude-fable-5-1')
   const background = catalogue.refreshOpenaiCatalogue('api-key', { force: true })
@@ -182,9 +182,9 @@ try {
   const seatBefore = slotSeatView('anthropic').active
   check('the fixture has an Anthropic pair and its row is focused', slotSeatView('anthropic').other !== undefined && anthropic.seen().includes('fable'))
   const beforeSlot = requests
-  anthropic.send('s')
+  switchActiveSlot('anthropic')
   await flush()
-  check('the Anthropic slot key actually switches that family', slotSeatView('anthropic').active !== seatBefore)
+  check('the Anthropic slot flip through the one owner switches that family while the picker stands (the bare s went with the typed-letter ruling)', slotSeatView('anthropic').active !== seatBefore)
   check('switching an Anthropic slot does not refresh OpenAI', requests === beforeSlot, `requests ${beforeSlot} -> ${requests}`)
   if (requests !== beforeSlot) {
     const extra = catalogue.refreshOpenaiCatalogue('api-key', { force: true })
@@ -200,19 +200,21 @@ try {
   await initialSlot
   await flush()
   const beforeOpenaiSlot = requests
-  openai.clear()
-  openai.send('s')
+  openai.unmount()
+  switchActiveSlot('openai')
+  const coldSlot = await mount()
+  coldSlot.clear()
   await flush()
-  check('switching to a cold OpenAI slot starts one request', slotSeatView('openai').active === 'subscription' && requests === beforeOpenaiSlot + 1)
+  check('the next open on a cold OpenAI slot starts one request (the slot flips on the Logins screen; the picker has no slot key)', slotSeatView('openai').active === 'subscription' && requests === beforeOpenaiSlot + 1, `active ${slotSeatView('openai').active} · requests ${beforeOpenaiSlot} -> ${requests}`)
   const newSlot = catalogue.refreshOpenaiCatalogue('chatgpt-subscription', { force: true })
   await flush()
   answer!(response(newPage))
   await newSlot
   await flush()
-  openai.send('\x1b[B')
+  coldSlot.send('\x1b[B')
   await flush()
-  check('a cold slot arrival stays silent about catalogue changes', !openai.seen().includes('GPT — the live list changed'))
-  openai.unmount()
+  check('a cold slot arrival stays silent about catalogue changes', !coldSlot.seen().includes('GPT — the live list changed'))
+  coldSlot.unmount()
 } finally {
   globalThis.fetch = realFetch
 }
