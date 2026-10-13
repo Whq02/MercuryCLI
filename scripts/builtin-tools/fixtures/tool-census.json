@@ -103,7 +103,7 @@
         "cancellation": "cooperative",
         "latency": "interactive",
         "conditions": [
-          "Advisor on in /config with a model pinned in /submodels; the main chat alone, never crewmates or workflow agents; the advisor keeps its own memory beside the transcript"
+          "Advisor on in /config with a model pinned in /submodels; the main chat alone, never crewmates or workflow crewmates; the advisor keeps its own memory beside the transcript"
         ],
         "proof": "scripts/advisor/run-all.sh"
       }
@@ -770,7 +770,7 @@
       "declared": {
         "intents": [
           "run python or javascript with persistent state",
-          "orchestrate tools and agents from inside code",
+          "orchestrate tools and crewmates from inside code",
           "script tools and resources programmatically",
           "data work over a retained kernel",
           "bulk transforms the shell is too stateless for"
@@ -2117,7 +2117,7 @@
       "proof": null,
       "declared": {
         "intents": [
-          "stop a background task or agent"
+          "stop a background task or crewmate"
         ],
         "units": [
           "task-coordination"

@@ -212,7 +212,7 @@ export function crewClockOf(rows: readonly WorkRowV1[], nowMs: number): CrewCloc
 }
 
 export function waitingStatusWords(live: SessionLiveV1): string {
-  return (live.waitingOn !== undefined ? workWaitingWords(live.waitingOn) : null) ?? crewWaitingWords(live.agentsWaiting) ?? 'waiting on agents'
+  return (live.waitingOn !== undefined ? workWaitingWords(live.waitingOn) : null) ?? crewWaitingWords(live.agentsWaiting) ?? 'waiting on crewmates'
 }
 
 export function statusLine(live: SessionLiveV1, s: SeatStatusV1, crew: CrewClockV1 | null = null, compact = false): string {

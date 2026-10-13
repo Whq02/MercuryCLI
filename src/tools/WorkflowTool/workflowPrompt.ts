@@ -3,12 +3,12 @@ import { EFFORT_LEVELS } from '../../utils/effortLadder.js'
 
 export const WORKFLOW_TOOL_PROMPT: string = `Run a JavaScript orchestration script that coordinates a fleet of crewmates with deterministic control flow. The launch detaches immediately: this tool answers with a task ID while the run continues in the background, a <task-notification> arrives at completion, and /workflows shows live progress.
 
-Launching a workflow is the user's choice, never your own judgement that one would help: orchestration can fan out into dozens of billed agents, so the scale must be something the user chose. You have that choice only when one of these holds:
-- They asked for it in their own words ("run a workflow", "orchestrate this", "fan out crewmates", "use multi-agent"). The words must be theirs; the mere fact that agents would speed a task up does not qualify.
+Launching a workflow is the user's choice, never your own judgement that one would help: orchestration can fan out into dozens of billed crewmates, so the scale must be something the user chose. You have that choice only when one of these holds:
+- They asked for it in their own words ("run a workflow", "orchestrate this", "fan out crewmates", "use multi-agent"). The words must be theirs; the mere fact that crewmates would speed a task up does not qualify.
 - The instructions of a skill or slash command you are executing direct you to invoke Workflow.
 - They asked to run a particular saved or built-in workflow by name.
 
-In every other case, keep the tool unused: handle single delegations with one crewmate launch, or describe the workflow you would build, estimate its rough agent count and cost, and ask. Mention that the words "use a workflow" next time will grant the opt-in directly.
+In every other case, keep the tool unused: handle single delegations with one crewmate launch, or describe the workflow you would build, estimate its rough crewmate count and cost, and ask. Mention that the words "use a workflow" next time will grant the opt-in directly.
 
 Every script opens with \`export const meta = {...}\` as its first statement:
   export const meta = {
@@ -16,7 +16,7 @@ Every script opens with \`export const meta = {...}\` as its first statement:
     description: 'Find docs that contradict the code they describe',  // one line; the permission dialog shows it
     phases: [                                                         // mirrors your phase() calls
       { title: 'Inventory', detail: 'pair each doc with its subject module' },
-      { title: 'Check', detail: 'one agent per pair, quote-level comparison' },
+      { title: 'Check', detail: 'one crewmate per pair, quote-level comparison' },
     ],
   }
   // body follows — agent()/parallel()/pipeline()/phase()/log()
@@ -26,17 +26,17 @@ Every script opens with \`export const meta = {...}\` as its first statement:
 The script body's hooks:
 
 - agent(prompt, opts?) → Promise<any> — dispatch one crewmate.
-  - Return value: the agent's closing text as a string; given \`schema\` (any JSON Schema object) the validated object instead — failed validation makes the agent correct itself.
-  - Resolves to null in two cases: the user skipped this agent mid-run, or it died on an unrecoverable API error after the built-in retries. Fan-out code should \`.filter(Boolean)\`.
+  - Return value: the crewmate's closing text as a string; given \`schema\` (any JSON Schema object) the validated object instead — failed validation makes the crewmate correct itself.
+  - Resolves to null in two cases: the user skipped this crewmate mid-run, or it died on an unrecoverable API error after the built-in retries. Fan-out code should \`.filter(Boolean)\`.
   - opts.label — the display name in progress surfaces (defaults to a prompt prefix).
   - opts.phase — pin this call to a named progress group. Inside pipeline()/parallel() stages always pin explicitly; the ambient phase() pointer is global state and concurrent stages race it. Same string, same group.
-  - opts.model — the model for this call, as the operator directs per dispatch: an explicit catalog alias or a declared tier. Accepts anything the session's model catalog resolves: a canonical id, a registered family alias, or — when the operator has a second provider connected — that provider's engine ids. To see the providers the operator is signed into and the models each reaches, read mercury://models and name one of them by its id; a family word runs that family's current default, and when a signed-in provider's live list cannot be read mercury://models/known decides (the family's default this build knows, or an exact id the known page lists). Never invent an id and never switch to another provider on your own: a word on neither page fails the dispatch, naming the way out — ask the operator for the model id. Omitted, the agent runs on the session's resolved model.
+  - opts.model — the model for this call, as the operator directs per dispatch: an explicit catalog alias or a declared tier. Accepts anything the session's model catalog resolves: a canonical id, a registered family alias, or — when the operator has a second provider connected — that provider's engine ids. To see the providers the operator is signed into and the models each reaches, read mercury://models and name one of them by its id; a family word runs that family's current default, and when a signed-in provider's live list cannot be read mercury://models/known decides (the family's default this build knows, or an exact id the known page lists). Never invent an id and never switch to another provider on your own: a word on neither page fails the dispatch, naming the way out — ask the operator for the model id. Omitted, the crewmate runs on the session's resolved model.
   - opts.effort — reasoning effort for this call: ${EFFORT_LEVELS.map(level => `'${level}'`).join(' | ')}. Omitted, the configured crewmate default applies (high unless the operator changed it in /config) — never the session's own level. Spend 'low' on mechanical stages; reserve the top tiers for the hardest judge/verify stages (a tier the model's ladder lacks runs the nearest served tier). Setting it also turns on extended reasoning where the model supports it.
   - opts.tier — 'orchestrator' | 'executor': declare the call's role instead of naming a model. A junk tier throws; routing only acts when the operator armed MERCURY_WORKFLOW_ROUTING=1: an 'executor' call with no explicit model then rides the harness's pinned execution-tier model, while 'orchestrator' keeps the session model. A call that names opts.model outranks its tier.
-  - opts.isolation: 'worktree' — run in a freshly created git worktree. Costly (worktree setup plus disk per agent); use it only when concurrent agents would otherwise write the same files. An untouched worktree is removed automatically; a modified one is kept for review.
+  - opts.isolation: 'worktree' — run in a freshly created git worktree. Costly (worktree setup plus disk per crewmate); use it only when concurrent crewmates would otherwise write the same files. An untouched worktree is removed automatically; a modified one is kept for review.
   - opts.agentType — dispatch a custom crewmate type (say, 'code-reviewer') rather than the built-in workflow worker; its definition's tools: list is followed exactly, as the Crewmate tool would; composable with \`schema\`.
 - pipeline(items, stage1, stage2, ...) → Promise<any[]> — push each item through the stage chain independently, with no synchronization between stages: item three can be in its last stage while item seven is still in its first. This is the default engine for multi-stage work — total wall-clock tracks the slowest single item, not the slowest stage times the stage count. Each stage receives (previousResult, originalItem, index). A stage that throws turns that item into null and its remaining stages are skipped.
-- parallel(thunks) → Promise<any[]> — run an array of zero-argument functions concurrently and wait for all of them (a barrier). The promise always fulfills: rejected thunks (agent deaths included) become null slots in the returned array, so \`.filter(Boolean)\` before use. Reserve it for a stage that needs the whole previous stage at once — deduplicating across every candidate, an aggregate early exit, prompts that reference sibling results.
+- parallel(thunks) → Promise<any[]> — run an array of zero-argument functions concurrently and wait for all of them (a barrier). The promise always fulfills: rejected thunks (crewmate deaths included) become null slots in the returned array, so \`.filter(Boolean)\` before use. Reserve it for a stage that needs the whole previous stage at once — deduplicating across every candidate, an aggregate early exit, prompts that reference sibling results.
 - log(message) — one line of narration shown to the user above the run's progress display.
 - phase(title) — open a progress group; agent() calls that follow (without opts.phase) attach to it.
 - args — the value the Workflow call passed as \`args\`, verbatim; undefined when absent. Pass real JSON values, never a stringified JSON blob: \`args: {targets: ['api', 'cli']}\` reaches the script as an object, while a quoted blob arrives as one string and every \`args.targets.map\`-style access dies.
@@ -76,7 +76,7 @@ const AUTHORING_DOCTRINE_SECTION = `
 ## Mercury workflow authorship doctrine
 
 - Model choice belongs to the operator: name an explicit catalog alias, or a declared tier, for each dispatch — the operator directs models per dispatch. Do not lean on the inherited session model (project-level settings sometimes pin a tier the live session is not using), and never pick an agentType whose definition pins a small-tier model — when you need read-only scoping, put it in the prompt, not in a downgraded engine.
-- A verify stage belongs to the workflow's shape itself, never bolted on after: any workflow that performs real implementation (edits, fixes, migrations) carries one — an independent refutation of each claim, or one dedicated checker per changed unit — before it returns success. A fixer agent asserting its own success is an assertion, not evidence.`
+- A verify stage belongs to the workflow's shape itself, never bolted on after: any workflow that performs real implementation (edits, fixes, migrations) carries one — an independent refutation of each claim, or one dedicated checker per changed unit — before it returns success. A fixer crewmate asserting its own success is an assertion, not evidence.`
 
 export function getWorkflowToolPrompt(): string {
   return WORKFLOW_TOOL_PROMPT + AUTHORING_DOCTRINE_SECTION

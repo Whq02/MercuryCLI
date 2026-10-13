@@ -280,7 +280,7 @@ export function deriveAgentTerminalOutcome(
 }
 
 export const PROMOTED_NARRATION_NOTE =
-  '[The agent stopped part-way through a turn — what follows is its most recent narration, not a final report.]'
+  '[The crewmate stopped part-way through a turn — what follows is its most recent narration, not a final report.]'
 
 
 export const agentToolResultSchema = lazySchema(() =>
@@ -393,7 +393,7 @@ export function finalizeAgentTool(
 
   const lastAssistant = getLastAssistantMessage(messages as Message[])
   if (!lastAssistant && terminalFailure === undefined) {
-    throw new Error('No assistant message found in agent result')
+    throw new Error('No assistant message found in crewmate result')
   }
   const outcome = terminalFailure ?? deriveAgentTerminalOutcome(messages)
   const lastReal = getLastRealAssistantMessage(messages)
@@ -493,7 +493,7 @@ function structuredOutputToolName(): string {
   return 'StructuredOutput'
 }
 
-export const NO_STRUCTURED_YIELD = `no structured yield: the agent never called ${structuredOutputToolName()} with a conforming payload`
+export const NO_STRUCTURED_YIELD = `no structured yield: the crewmate never called ${structuredOutputToolName()} with a conforming payload`
 export const FAILED_STRUCTURED_YIELD = `the last ${structuredOutputToolName()} call failed schema validation`
 
 const SCHEMA_ISSUE_WORDS_CAP = 300
@@ -548,15 +548,15 @@ function structuredMissWords(status: 'missing' | 'invalid', error: string, mode:
   const tool = structuredOutputToolName()
   if (status === 'missing') {
     return mode === 'strict'
-      ? `The agent never called ${tool}, and schema_mode "strict" fails the call without a payload. Launch the agent again and require the answer through ${tool}, or omit schema_mode to accept its prose.`
-      : `The agent never called ${tool}, so nothing below was checked against your schema. Check any value you take from its prose before relying on it, or launch the agent again and require the answer through ${tool}.`
+      ? `The crewmate never called ${tool}, and schema_mode "strict" fails the call without a payload. Launch the crewmate again and require the answer through ${tool}, or omit schema_mode to accept its prose.`
+      : `The crewmate never called ${tool}, so nothing below was checked against your schema. Check any value you take from its prose before relying on it, or launch the crewmate again and require the answer through ${tool}.`
   }
   const issues = error.slice(FAILED_STRUCTURED_YIELD.length).replace(/^: /, '')
-  const failed = issues === '' ? `The agent's last ${tool} call failed your schema` : `The agent's last ${tool} call failed your schema (${issues})`
+  const failed = issues === '' ? `The crewmate's last ${tool} call failed your schema` : `The crewmate's last ${tool} call failed your schema (${issues})`
   const rule = issues === '' ? "with your schema's rules stated in its prompt" : 'with that rule stated in its prompt'
   return mode === 'strict'
-    ? `${failed}, and schema_mode "strict" fails the call without a valid payload. Launch the agent again ${rule}, or omit schema_mode to accept its prose.`
-    : `${failed}, so nothing below was checked against it. Check any value you take from its prose before relying on it, or launch the agent again ${rule}.`
+    ? `${failed}, and schema_mode "strict" fails the call without a valid payload. Launch the crewmate again ${rule}, or omit schema_mode to accept its prose.`
+    : `${failed}, so nothing below was checked against it. Check any value you take from its prose before relying on it, or launch the crewmate again ${rule}.`
 }
 
 export function structuredResultBlock(structured: { data?: unknown; error?: string; mode: 'permissive' | 'strict' }): string {
@@ -760,9 +760,9 @@ export function armBudgetCutResume(args: {
       taskId: args.taskId,
       description: args.description,
       summary: (accountChanged
-        ? crewAccountResumeSummary(`Agent "${args.description}"`)
+        ? crewAccountResumeSummary(`Crewmate "${args.description}"`)
         : args.summary ??
-          `Agent "${args.description}" resumed by itself — the recovery budget's allowance is back after it was spent waiting on the provider; its partial work carried forward`) + (resumed?.note ?? ''),
+          `Crewmate "${args.description}" resumed by itself — the recovery budget's allowance is back after it was spent waiting on the provider; its partial work carried forward`) + (resumed?.note ?? ''),
     })
   }
   const timer = setTimeout(() => {
@@ -1107,7 +1107,7 @@ export async function runAsyncAgentLifecycle(args: {
             delayMs: Math.max(RESUME_AFTER_CUT_FLOOR_MS, windowPause.resumesAtMs - Date.now() + RESUME_AFTER_CUT_FLOOR_MS),
             pause: windowPause,
             prompt: AGENT_WINDOW_RESUME_NOTE,
-            summary: `Agent "${description}" resumed by itself — the usage window reset; its partial work carried forward`,
+            summary: `Crewmate "${description}" resumed by itself — the usage window reset; its partial work carried forward`,
           })
         } else {
           pauseAgentTask(taskId, windowPause, rootSetAppState, args.abortController)
@@ -1195,7 +1195,7 @@ export async function runAsyncAgentLifecycle(args: {
       ...(declined ? { error: declined.error, landedWrites: landedWritesOf(accumulated) } : {}),
       ...(windowPause !== null
         ? {
-            summary: `Agent "${description}" paused — ${windowPause.words}; ${pauseResumeWords(windowPause, Date.now())} — its work so far is kept and rides below; ${AGENT_RESUME_DOOR}`,
+            summary: `Crewmate "${description}" paused — ${windowPause.words}; ${pauseResumeWords(windowPause, Date.now())} — its work so far is kept and rides below; ${AGENT_RESUME_DOOR}`,
           }
         : {}),
       ...(overload !== null

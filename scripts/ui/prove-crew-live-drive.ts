@@ -383,10 +383,10 @@ async function landLeg(dialect: Dialect): Promise<void> {
         argv: argvFor(dialect),
         sends: [
           ...bootSends(ASK),
-          { data: '/crewmates', atTick: 999, awaitText: 'Running 2 agents', requireAwait: true, minTick: 2, awaitSettleTicks: 10, mark: 'running' },
+          { data: '/crewmates', atTick: 999, awaitText: 'Running 2 crewmates', requireAwait: true, minTick: 2, awaitSettleTicks: 10, mark: 'running' },
           { data: '\r', afterPrevTicks: 4 },
           { data: '\x1b', atTick: 999, awaitText: 'Crewmates', requireAwait: true, minTick: 2, awaitSettleTicks: 3, mark: 'crew-running' },
-          { data: '/crewmates', atTick: 999, awaitText: 'agents finished', requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'landed' },
+          { data: '/crewmates', atTick: 999, awaitText: 'crewmates finished', requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'landed' },
           { data: '\r', afterPrevTicks: 4 },
           { data: '\r', atTick: 999, awaitText: 'Crewmates', requireAwait: true, minTick: 2, awaitSettleTicks: 3, mark: 'crew-landed' },
           { data: '\x1b', atTick: 999, awaitText: '· viewing ', requireAwait: true, minTick: 2, awaitSettleTicks: 3, mark: 'card' },
@@ -429,7 +429,7 @@ async function landLeg(dialect: Dialect): Promise<void> {
     agentRow(crewRunning, SEAT_ONE, servedModel, /◐/, /Sleeping for \d+s|\brunning\b/) && agentRow(crewRunning, SEAT_TWO, servedModel, /◐/, /Sleeping for \d+s|\brunning\b/) && rowTokens(crewRunning, SEAT_ONE) && rowTokens(crewRunning, SEAT_TWO) && crewRunning.includes('crew · 2 running') && crewRunning.includes('Crewmates (2)'),
   )
   const landed = marks['landed'] ?? ''
-  check(`${tag}: the card landed both (its landed header) and no seat is still running`, landed.includes('agents finished') && !/\bstopped\b/.test(landed))
+  check(`${tag}: the card landed both (its landed header) and no seat is still running`, landed.includes('crewmates finished') && !/\bstopped\b/.test(landed))
   const crewLanded = crewPopup(marks['crew-landed'] ?? '')
   check(
     `${tag}: the Crew view after landing — landed twice, the tokens kept, never the runner's word`,
@@ -463,7 +463,7 @@ async function stopLeg(dialect: Dialect): Promise<void> {
         argv: argvFor(dialect),
         sends: [
           ...bootSends(ASK),
-          { data: '\x1b', atTick: 999, awaitText: 'Running 2 agents', requireAwait: true, minTick: 2, awaitSettleTicks: 10, mark: 'running' },
+          { data: '\x1b', atTick: 999, awaitText: 'Running 2 crewmates', requireAwait: true, minTick: 2, awaitSettleTicks: 10, mark: 'running' },
           { data: '/crewmates', atTick: 999, awaitText: 'still running', requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'interrupted' },
           { data: '\r', afterPrevTicks: 4 },
           { data: 'x', atTick: 999, awaitText: 'Crewmates', requireAwait: true, minTick: 2, awaitSettleTicks: 3, mark: 'crew-running' },

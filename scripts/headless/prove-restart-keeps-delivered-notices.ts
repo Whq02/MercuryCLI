@@ -32,8 +32,8 @@ const COMBINED: Launch = { toolUseId: 'toolu_combined', agentId: 'a7m3k2p9d', de
 const ATTACHED: Launch = { toolUseId: 'toolu_attached', agentId: 'aj5n8c4rt', description: 'Echo agent' }
 const HELD: Launch = { toolUseId: 'toolu_held', agentId: 'ah2v6x9fq', description: 'Count the lanterns' }
 const GHOST: Launch = { toolUseId: 'toolu_ghost', agentId: 'ag8t1y3zw', description: 'Chart the harbour' }
-const CRASH_ROW = 'runner restarted after a crash: 0 background agents relaunched, 1 delivered from their receipts, 1 stopped'
-const STOP_ROW = 'runner restarted after a stop: 0 background agents relaunched, 1 delivered from their receipts, 1 stopped'
+const CRASH_ROW = 'runner restarted after a crash: 0 background crewmates relaunched, 1 delivered from their receipts, 1 stopped'
+const STOP_ROW = 'runner restarted after a stop: 0 background crewmates relaunched, 1 delivered from their receipts, 1 stopped'
 const PLAIN_WORDS = "the session's runner restarted before it finished, so nothing it started will be delivered"
 const CRASH_WORDS = "the session's runner restarted after a crash before it finished, so nothing it started will be delivered"
 
@@ -62,7 +62,7 @@ const text = (value: string): { type: 'text'; text: string } => ({ type: 'text',
 const launchesOf = (launches: Launch[]): Msg =>
   assistant([text('launching the helpers'), ...launches.map(l => ({ type: 'tool_use', id: l.toolUseId, name: 'Crewmate', input: { description: l.description, prompt: `${l.description}: go`, crewmate_type: 'mercury-crew', run_in_background: true } }))])
 const receiptsOf = (launches: Launch[]): Msg =>
-  user(launches.map(l => ({ type: 'tool_result', tool_use_id: l.toolUseId, content: [text(`${lr.BACKGROUND_LAUNCH_LINE}\nagentId: ${l.agentId} (internal — do not mention it to the user). To continue this agent, use SendMessage addressed to that id.\nThe agent is working in the background — you will be notified automatically when it completes.`)] })))
+  user(launches.map(l => ({ type: 'tool_result', tool_use_id: l.toolUseId, content: [text(`${lr.BACKGROUND_LAUNCH_LINE}\nagentId: ${l.agentId} (internal — do not mention it to the user). To continue this crewmate, use SendMessage addressed to that id.\nThe crewmate is working in the background — you will be notified automatically when it completes.`)] })))
 const drained = (prompt: string | unknown[]): Msg => ({
   type: 'attachment',
   uuid: randomUUID(),

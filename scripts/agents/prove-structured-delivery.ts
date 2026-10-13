@@ -37,20 +37,20 @@ const show = (value: unknown): string => JSON.stringify(value ?? null).slice(0, 
 const PROSE =
   'The structured answer is submitted: `compute_201` at line 1205.\n\n`LEGACY_THRESHOLD = 4096` is assigned at line 1201 of `b_big.py`. It was the only match for that name in the file. The first `def` below it is `def compute_201(x):` at line 1205, confirmed from the numbered Read output.\n\nLine 1201 sits inside the body of `compute_200`, between its `y = ...` line and `return math.floor(y)`. It is not indented, so that function would not parse as written. I didn\'t change anything, and the answer is unaffected.'
 const PAYLOAD = { function_name: 'compute_201', def_line: 1205 }
-const NO_STRUCTURED_YIELD = (utils as { NO_STRUCTURED_YIELD?: string }).NO_STRUCTURED_YIELD ?? 'no structured yield: the agent never called StructuredOutput with a conforming payload'
+const NO_STRUCTURED_YIELD = (utils as { NO_STRUCTURED_YIELD?: string }).NO_STRUCTURED_YIELD ?? 'no structured yield: the crewmate never called StructuredOutput with a conforming payload'
 const FAILED_STRUCTURED_YIELD = (utils as { FAILED_STRUCTURED_YIELD?: string }).FAILED_STRUCTURED_YIELD ?? 'the last StructuredOutput call failed schema validation'
 const ISSUE = '/def_line: must be integer'
 const VALID_BLOCK = '<structured status="valid">\n{"function_name":"compute_201","def_line":1205}\n</structured>'
-const E3 = '<structured status="missing">\nThe agent never called StructuredOutput, so nothing below was checked against your schema. Check any value you take from its prose before relying on it, or launch the agent again and require the answer through StructuredOutput.\n</structured>'
-const E4 = '<structured status="invalid">\nThe agent\'s last StructuredOutput call failed your schema (/def_line: must be integer), so nothing below was checked against it. Check any value you take from its prose before relying on it, or launch the agent again with that rule stated in its prompt.\n</structured>'
-const E4_BARE = '<structured status="invalid">\nThe agent\'s last StructuredOutput call failed your schema, so nothing below was checked against it. Check any value you take from its prose before relying on it, or launch the agent again with your schema\'s rules stated in its prompt.\n</structured>'
-const E5 = '<structured status="missing">\nThe agent never called StructuredOutput, and schema_mode "strict" fails the call without a payload. Launch the agent again and require the answer through StructuredOutput, or omit schema_mode to accept its prose.\n</structured>'
-const E6 = '<structured status="invalid">\nThe agent\'s last StructuredOutput call failed your schema (/def_line: must be integer), and schema_mode "strict" fails the call without a valid payload. Launch the agent again with that rule stated in its prompt, or omit schema_mode to accept its prose.\n</structured>'
+const E3 = '<structured status="missing">\nThe crewmate never called StructuredOutput, so nothing below was checked against your schema. Check any value you take from its prose before relying on it, or launch the crewmate again and require the answer through StructuredOutput.\n</structured>'
+const E4 = '<structured status="invalid">\nThe crewmate\'s last StructuredOutput call failed your schema (/def_line: must be integer), so nothing below was checked against it. Check any value you take from its prose before relying on it, or launch the crewmate again with that rule stated in its prompt.\n</structured>'
+const E4_BARE = '<structured status="invalid">\nThe crewmate\'s last StructuredOutput call failed your schema, so nothing below was checked against it. Check any value you take from its prose before relying on it, or launch the crewmate again with your schema\'s rules stated in its prompt.\n</structured>'
+const E5 = '<structured status="missing">\nThe crewmate never called StructuredOutput, and schema_mode "strict" fails the call without a payload. Launch the crewmate again and require the answer through StructuredOutput, or omit schema_mode to accept its prose.\n</structured>'
+const E6 = '<structured status="invalid">\nThe crewmate\'s last StructuredOutput call failed your schema (/def_line: must be integer), and schema_mode "strict" fails the call without a valid payload. Launch the crewmate again with that rule stated in its prompt, or omit schema_mode to accept its prose.\n</structured>'
 const OUTPUT_SCHEMA_WORDS = 'JSON Schema for the final answer, submitted through a StructuredOutput tool that checks it. The result opens with <structured status="valid"> and the checked JSON; "missing" or "invalid" means none passed.'
 const SCHEMA_MODE_WORDS = 'With output_schema: \'strict\' fails the call when none passed; \'permissive\' (default) returns the prose under status "missing" or "invalid".'
-const USAGE_NOTE = 'Treat the agent\'s prose as a claim to verify, not a fact: spot-check load-bearing results with a diff, a render, or a test before relying on them. A status="valid" payload passed your schema: use it without re-reading what the agent read, and require evidence as a field when a value needs it.'
+const USAGE_NOTE = 'Treat the crewmate\'s prose as a claim to verify, not a fact: spot-check load-bearing results with a diff, a render, or a test before relying on them. A status="valid" payload passed your schema: use it without re-reading what the crewmate read, and require evidence as a field when a value needs it.'
 const AGENT_ID = 'acq4kdds9'
-const TRAILER_CURRENT = `agentId: ${AGENT_ID} (internal — do not mention it to the user). To continue this agent, use ResumeCrewmate addressed to that id.\n<usage>total_tokens: 867\ntool_uses: 4\nduration_ms: 8928</usage>`
+const TRAILER_CURRENT = `agentId: ${AGENT_ID} (internal — do not mention it to the user). To continue this crewmate, use ResumeCrewmate addressed to that id.\n<usage>total_tokens: 867\ntool_uses: 4\nduration_ms: 8928</usage>`
 
 const settled = (over: Record<string, unknown>): Record<string, unknown> => ({
   status: 'completed',
@@ -128,12 +128,12 @@ section('4. misses are named — E3 to E6, is_error as today')
   const e5 = map(miss(NO_STRUCTURED_YIELD, 'strict'), 't4d')
   const e5last = e5.content[e5.content.length - 1]?.text ?? ''
   check('strict, no call: the first block is E5', e5.content[0]?.text === E5, show(e5.content[0]?.text))
-  check('strict, no call: is_error is true and the last block opens with the failure', e5.is_error === true && e5last.startsWith(`Agent execution failed: ${NO_STRUCTURED_YIELD}`), e5last.slice(0, 200))
+  check('strict, no call: is_error is true and the last block opens with the failure', e5.is_error === true && e5last.startsWith(`Crewmate execution failed: ${NO_STRUCTURED_YIELD}`), e5last.slice(0, 200))
   check('strict, no call: the prose sits between the block and the trailer', e5.content[1]?.text === PROSE)
   const e6 = map(miss(`${FAILED_STRUCTURED_YIELD}: ${ISSUE}`, 'strict'), 't4e')
   const e6last = e6.content[e6.content.length - 1]?.text ?? ''
   check('strict, invalid: the first block is E6', e6.content[0]?.text === E6, show(e6.content[0]?.text))
-  check('strict, invalid: is_error is true and the trailer\'s first line carries the issue words', e6.is_error === true && e6last.startsWith(`Agent execution failed: ${FAILED_STRUCTURED_YIELD}: ${ISSUE}\n`), e6last.slice(0, 200))
+  check('strict, invalid: is_error is true and the trailer\'s first line carries the issue words', e6.is_error === true && e6last.startsWith(`Crewmate execution failed: ${FAILED_STRUCTURED_YIELD}: ${ISSUE}\n`), e6last.slice(0, 200))
   const empty = map(miss(NO_STRUCTURED_YIELD, 'strict', { content: [] }), 't4f')
   check('strict, no call, no output: the block, then the placeholder, then the trailer', empty.content.length === 3 && empty.content[0]?.text === E5 && empty.content[1]?.text === 'The crewmate failed before returning any output.', JSON.stringify(texts(empty)).slice(0, 300))
 }
@@ -175,7 +175,7 @@ section('6. nothing invented — without structured, the mapped block is the cur
   const crew = map(settled({ agentType: 'mercury-crew' }), 't6b')
   check('a crewmate result without structured is the current unstructured block (the prose, the trailer)', JSON.stringify(crew) === JSON.stringify({ type: 'tool_result', tool_use_id: 't6b', content: [{ type: 'text', text: PROSE }, { type: 'text', text: TRAILER_CURRENT }] }), JSON.stringify(crew).slice(0, 400))
   const failed = map(settled({ status: 'failed', error: 'API Error: 529', outcome: { status: 'failed', reason: 'provider-declined', error: 'API Error: 529' } }), 't6c')
-  check('a failed result without structured is the current unstructured block (the prose, the failure trailer)', failed.is_error === true && texts(failed).length === 2 && texts(failed)[0] === PROSE && texts(failed)[1]?.startsWith('Agent execution failed: API Error: 529\nAnything above is partial work') === true, JSON.stringify(texts(failed)).slice(0, 300))
+  check('a failed result without structured is the current unstructured block (the prose, the failure trailer)', failed.is_error === true && texts(failed).length === 2 && texts(failed)[0] === PROSE && texts(failed)[1]?.startsWith('Crewmate execution failed: API Error: 529\nAnything above is partial work') === true, JSON.stringify(texts(failed)).slice(0, 300))
   check('no text in any of them contains <structured', [scout, crew, failed].every(m => texts(m).every(t => !t.includes('<structured'))))
 }
 

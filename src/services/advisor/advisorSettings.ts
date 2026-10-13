@@ -27,7 +27,7 @@ export const ADVISOR_DEFAULT_SETTINGS: Readonly<AdvisorSettings> = Object.freeze
   minutes: ADVISOR_DEFAULT_MINUTES,
 })
 
-export const ADVISOR_WORKFLOW_REFUSAL = 'the advisor is not available to workflow agents'
+export const ADVISOR_WORKFLOW_REFUSAL = 'the advisor is not available to workflow crewmates'
 export const ADVISOR_CREWMATE_REFUSAL = 'the advisor is not available to crewmates'
 export const ADVISOR_SETTINGS_OFF_REFUSAL = 'the advisor is off in the settings — /config → Advisor turns it on'
 export const ADVISOR_CHAT_OFF_REFUSAL = 'the advisor is off for this chat — /advise on turns it on'

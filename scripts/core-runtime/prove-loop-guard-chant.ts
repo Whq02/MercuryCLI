@@ -240,7 +240,7 @@ section('P5 — KEY ON: a sub-agent ended for chanting settles to its parent as 
   check('the finalized content carries none of the chant', (finalized.content ?? []).length === 0, JSON.stringify(finalized.content).slice(0, 200))
   const block = AgentTool.mapToolResultToToolResultBlockParam({ status: 'failed', prompt: 'write', error: (finalized.outcome as { error?: string }).error, ...finalized } as never, 'tu_parent') as { is_error?: boolean; content?: Array<{ text?: string }> }
   const parentText = (block.content ?? []).map(b => b.text ?? '').join('\n')
-  check('the parent receives is_error, the failure names the loop guard, and the chant sentence appears nowhere in it', block.is_error === true && /Agent execution failed: The loop guard ended the turn/.test(parentText) && !parentText.includes(SENTENCE.trim()), parentText.slice(0, 400))
+  check('the parent receives is_error, the failure names the loop guard, and the chant sentence appears nowhere in it', block.is_error === true && /Crewmate execution failed: The loop guard ended the turn/.test(parentText) && !parentText.includes(SENTENCE.trim()), parentText.slice(0, 400))
   setStopKey(null)
 }
 

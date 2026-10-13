@@ -239,7 +239,7 @@ export function PhaseBlock({
         <Text color={FAINT}>{`     ${group.detail}`}</Text>
       ) : null}
       {group.agents.length === 0 && !group.planned ? (
-        <Text color={FAINT}>{'  └─ waiting for agents…'}</Text>
+        <Text color={FAINT}>{'  └─ waiting for crewmates…'}</Text>
       ) : null}
       {shown.map((a, i) => (
         <AgentLine
@@ -250,7 +250,7 @@ export function PhaseBlock({
       ))}
       {hidden > 0 ? (
         <Text>
-          <Text color={FAINT}>{`  └─ (+${hidden} more ${plural(hidden, 'agent')}`}</Text>
+          <Text color={FAINT}>{`  └─ (+${hidden} more ${plural(hidden, 'crewmate')}`}</Text>
           {hiddenDone > 0 ? <Text color={FAINT}>{` · ${hiddenDone} done`}</Text> : null}
           {hiddenErrs.length > 0 ? (
             <Text color={CRIMSON}>{` · ${GLYPH.fail} ${hiddenErrs.map(a => `#${a.index}`).join(' ')} ${plural(hiddenErrs.length, 'error')}`}</Text>
@@ -319,7 +319,7 @@ export function WorkflowDetailDialog({
 
   const metrics: string[] = []
   metrics.push(`${tree.length} ${plural(tree.length, 'phase')}`)
-  metrics.push(`${workflow.agentCount} ${plural(workflow.agentCount, 'agent')}`)
+  metrics.push(`${workflow.agentCount} ${plural(workflow.agentCount, 'crewmate')}`)
   if (workflow.totalTokens > 0)
     metrics.push(`${workflow.totalTokens.toLocaleString()} tok`)
   if (workflow.totalToolCalls > 0)
@@ -369,7 +369,7 @@ export function WorkflowDetailDialog({
                       <>
                         <Text color={TEAL}>{GLYPH.inProgress} moving</Text>
                         <Text color={FAINT}>
-                          {' '}— last agent signal {formatQuietAge(pulse.quietMs)} ago
+                          {' '}— last crewmate signal {formatQuietAge(pulse.quietMs)} ago
                         </Text>
                       </>
                     ) : (
@@ -378,7 +378,7 @@ export function WorkflowDetailDialog({
                           {GLYPH.inProgress} quiet {formatQuietAge(pulse.quietMs)}
                         </Text>
                         <Text color={FAINT}>
-                          {' '}— no agent signal; long turns are normal, x stops it
+                          {' '}— no crewmate signal; long turns are normal, x stops it
                         </Text>
                       </>
                     )}
@@ -400,7 +400,7 @@ export function WorkflowDetailDialog({
                 }
                 hint={
                   isRunning
-                    ? 'agents will appear here as the workflow fans out'
+                    ? 'crewmates will appear here as the workflow fans out'
                     : undefined
                 }
                 glyph={GLYPH.pending}

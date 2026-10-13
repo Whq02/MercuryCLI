@@ -173,7 +173,7 @@ section('S2 — an outage longer than the reconnect budget ends typed with the n
   check('the typed line names the network, the reconnects, the budget and the way back', /^the network was unreachable through 5 reconnects over \d+ s \(connection refused\) — the 1s reconnect budget is spent and the turn was ended; check the connection and send again, or raise MERCURY_RECONNECT_BUDGET_MINUTES$/.test(typed?.message ?? ''), typed?.message ?? '')
   check('the API recovery budget is whole: nothing charged through the whole outage', d.seat.spentMs === 0 && d.seat.waits === 0, `spentMs=${d.seat.spentMs} waits=${d.seat.waits}`)
   const seatLine = budget.recoveryBudgetSpentLine(d.seat)
-  check('the dispatched-agent road: the seat\'s spent line names the network and the way back, never the provider', seatLine === 'the network was unreachable through 5 reconnects (connection refused) — the 1s reconnect budget is spent and the agent stopped; its work is kept — a message to it resumes it, or raise MERCURY_RECONNECT_BUDGET_MINUTES', seatLine)
+  check('the dispatched-agent road: the seat\'s spent line names the network and the way back, never the provider', seatLine === 'the network was unreachable through 5 reconnects (connection refused) — the 1s reconnect budget is spent and the crewmate stopped; its work is kept — a message to it resumes it, or raise MERCURY_RECONNECT_BUDGET_MINUTES', seatLine)
   check('the workflow rescue recognises it as a spent budget (no re-run against a dead network)', budget.isRecoveryBudgetSpentLine(seatLine), seatLine)
   const cut = new budget.RecoveryBudgetSpentError(d.seat, { declaredMs: d.notices[4]?.retryInMs ?? 0, honoredMs: d.honoured[4]?.honoredMs ?? 0 })
   const cutFacts = budget.recoveryBudgetSpentFactsOf(cut)
@@ -287,7 +287,7 @@ if (ladder === null) {
   check('the constants are named', ladder.RECONNECT_FIRST_WAIT_MS === 5_000 && ladder.RECONNECT_WAIT_CEILING_MS === 60_000 && ladder.RECONNECT_BUDGET_DEFAULT_MINUTES === 10)
   const turnLine = new ladder.ReconnectBudgetSpentError(l, 10 * 60_000 + 12_000, refusedNode()).message
   check('the turn\'s typed end at scale 1', turnLine === 'the network was unreachable through 6 reconnects over 10m 12s (connection refused) — the 10m reconnect budget is spent and the turn was ended; check the connection and send again, or raise MERCURY_RECONNECT_BUDGET_MINUTES', turnLine)
-  check('the seat\'s typed end at scale 1', budget.outageSpentLine({ cause: 'network unreachable (host not found)', reconnects: 13, capMs: 10 * 60_000 }, 'seat') === 'the network was unreachable through 13 reconnects (host not found) — the 10m reconnect budget is spent and the agent stopped; its work is kept — a message to it resumes it, or raise MERCURY_RECONNECT_BUDGET_MINUTES')
+  check('the seat\'s typed end at scale 1', budget.outageSpentLine({ cause: 'network unreachable (host not found)', reconnects: 13, capMs: 10 * 60_000 }, 'seat') === 'the network was unreachable through 13 reconnects (host not found) — the 10m reconnect budget is spent and the crewmate stopped; its work is kept — a message to it resumes it, or raise MERCURY_RECONNECT_BUDGET_MINUTES')
   check('one reconnect spells singular', /through 1 reconnect \(/.test(budget.outageSpentLine({ cause: 'network unreachable (connection refused)', reconnects: 1, capMs: 5_000 }, 'seat')))
   const notice = { type: 'system', subtype: 'api_error', error: new ladder.NetworkOutageError(steps[2]!, refusedNode()), errorDetail: { name: 'NetworkOutageError', message: budget.outageWaitWords(steps[2]!) }, retryInMs: 20_000, retryAttempt: 3, maxRetries: 13 }
   const live = budget.recoveryNoticeFacts(notice)
@@ -305,7 +305,7 @@ if (ladder === null) {
   check('an outage wait on a budget already carrying a refusal charges nothing and clears the refusal as the newest answer', afterOutage.honoredMs === 20_000 && !afterOutage.spent && b.spentMs === 2_000 && b.waits === 1 && b.lastStatus === undefined && b.outage?.reconnect === 3, JSON.stringify(b))
   budget.honourRecoveryWait(b, budget.recoveryNoticeFacts({ type: 'system', subtype: 'api_error', error: answered(503), errorDetail: { name: 'Error', message: '503', status: 503 }, retryInMs: 1_000, retryAttempt: 2, maxRetries: 10 })!)
   check('the next provider answer clears the outage off the budget', b.outage === undefined && b.lastStatus === 503 && b.spentMs === 3_000, JSON.stringify(b))
-  check('the existing spent lines and their predicate are unchanged', budget.isRecoveryBudgetSpentLine('the provider refused 3 times in a row (HTTP 429, busy) — the 6s retry budget is spent and the agent stopped; its work is kept — a message to it resumes it, or raise MERCURY_RECOVERY_BUDGET_MINUTES') && !budget.isRecoveryBudgetSpentLine('API Error: the network was unreachable through 5 reconnects (connection refused)'))
+  check('the existing spent lines and their predicate are unchanged', budget.isRecoveryBudgetSpentLine('the provider refused 3 times in a row (HTTP 429, busy) — the 6s retry budget is spent and the crewmate stopped; its work is kept — a message to it resumes it, or raise MERCURY_RECOVERY_BUDGET_MINUTES') && !budget.isRecoveryBudgetSpentLine('API Error: the network was unreachable through 5 reconnects (connection refused)'))
 }
 
 const NODE_SHAPE_SCRIPT = `
@@ -437,7 +437,7 @@ section('S7 — a dispatched agent keeps its typed stop when the reconnect budge
   const seatLine = budget.recoveryBudgetSpentLine(seat)
   const cut = new budget.RecoveryBudgetSpentError(seat, { declaredMs: 0, honoredMs: 0 })
   const facts = budget.recoveryBudgetSpentFactsOf(cut)
-  check('the typed cut runAgent throws carries the seat\'s network line and the reconnect count', cut.message === seatLine && /^the network was unreachable through \d+ reconnects? \(connection refused\) — the 0s reconnect budget is spent and the agent stopped; its work is kept — a message to it resumes it, or raise MERCURY_RECONNECT_BUDGET_MINUTES$/.test(seatLine) && cut.waits === seat.outage?.reconnect, seatLine)
+  check('the typed cut runAgent throws carries the seat\'s network line and the reconnect count', cut.message === seatLine && /^the network was unreachable through \d+ reconnects? \(connection refused\) — the 0s reconnect budget is spent and the crewmate stopped; its work is kept — a message to it resumes it, or raise MERCURY_RECONNECT_BUDGET_MINUTES$/.test(seatLine) && cut.waits === seat.outage?.reconnect, seatLine)
   check('recoveryBudgetSpentFactsOf(the cut) is read, so the one automatic resume arms; it waits the next rung', facts !== null && facts.words === seatLine && facts.resumeAfterMs === (seat.outage?.rungMs ?? -1), JSON.stringify(facts))
   check('the API budget is whole', seat.spentMs === 0 && seat.waits === 0, JSON.stringify(seat))
   check('the row text the turn carries is recognised as the spent budget even with its prefix (the workflow rescue never re-runs it)', budget.isRecoveryBudgetSpentLine(`API Error: ${typed?.message ?? ''}`) && budget.isRecoveryBudgetSpentLine(seatLine), `API Error: ${typed?.message ?? ''}`)

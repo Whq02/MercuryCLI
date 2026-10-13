@@ -69,7 +69,7 @@ async function main(): Promise<void> {
     ['stuck', thinking, statusWith({ stuck: true, quietMs: 45_000, watchdogMs: 60_000 })],
     ['interrupting', thinking, statusWith({ interrupting: true })],
     ['interrupting again', thinking, statusWith({ interrupting: true, hardStopping: true })],
-    ['waiting on agents', waiting, resting],
+    ['waiting on crewmates', waiting, resting],
   ]
 
   section('S1 the words of every notice, pure: the ingest sentence is whole, and the fit rule keeps its tail clause')

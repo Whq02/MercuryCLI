@@ -182,7 +182,7 @@ check('the clipboard service owns the receipt words per road (copyReceipt)', has
   }
   check(
     'the idle 82-column count row keeps its whole count line beside the way back on both platforms (nothing of it changes while no notice stands)',
-    compactSummary(82, 'macos') === '1 session on · 0 monitors here · 0 agents here' && compactSummary(82, 'linux') === '1 session on · 0 monitors here · 0 agents here',
+    compactSummary(82, 'macos') === '1 session on · 0 monitors here · 0 crewmates here' && compactSummary(82, 'linux') === '1 session on · 0 monitors here · 0 crewmates here',
     `macOS ${JSON.stringify(compactSummary(82, 'macos'))} · Linux ${JSON.stringify(compactSummary(82, 'linux'))}`,
   )
   for (const cols of [80, 82]) {

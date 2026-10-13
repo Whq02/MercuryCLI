@@ -65,7 +65,7 @@ export const InspectTool = buildTool({
 Known kinds:
 ${kindsLine()}
 
-Selectors (append as ?key=value&…): lines=A-B (text range) · q=substring (filter lines) · cursor=N + limit=N (pagination) · child=name (a named sub-resource, e.g. a workflow agent).
+Selectors (append as ?key=value&…): lines=A-B (text range) · q=substring (filter lines) · cursor=N + limit=N (pagination) · child=name (a named sub-resource, e.g. a workflow crewmate).
 
 mercury://<kind> with no id lists that kind's objects. Answers are honest: absent (never existed) / expired (retention dropped it) / unavailable (subsystem off) are distinct — an empty listing means genuinely empty. Full payloads stay behind refs: results are bounded pages; follow the cursor rather than raising the limit.
 

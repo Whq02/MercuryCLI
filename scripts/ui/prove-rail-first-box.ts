@@ -165,7 +165,7 @@ async function renderAt(columns: number, rows: number): Promise<string[]> {
       h(GlobalKeybindingHandlers, { screen, setScreen, showAllInTranscript: false, setShowAllInTranscript: () => {}, messageCount: 0, compactWork: controls } as never),
       h(FullscreenLayout, {
         scrollable: h(Transcript),
-        statusBand: h(Text, null, 'waiting on 2 agents'),
+        statusBand: h(Text, null, 'waiting on 2 crewmates'),
         statusBandActive: true,
         bottom: h(PromptInput, {
           compactWork: controls, compactFocus: focus,

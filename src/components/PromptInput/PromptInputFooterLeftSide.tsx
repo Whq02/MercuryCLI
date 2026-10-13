@@ -224,7 +224,7 @@ export function PromptInputFooterLeftSide({
       }
     } else if (runningAgents.length > 0 && !killConfirmShowing) {
       parts.push(
-        <KeyboardShortcutHint key="stop-agents" shortcut={killChord} action="stop agents" />,
+        <KeyboardShortcutHint key="stop-agents" shortcut={killChord} action="stop crewmates" />,
       )
     }
   }

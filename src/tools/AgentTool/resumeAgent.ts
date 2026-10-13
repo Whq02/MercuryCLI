@@ -59,7 +59,7 @@ type ResumeAgentResult = {
   note?: string
 }
 
-const RESUMED_AGENT_DESCRIPTION = 'Resumed agent'
+const RESUMED_AGENT_DESCRIPTION = 'Resumed crewmate'
 
 export function definitionForStoredType(
   storedType: string | undefined,
@@ -81,7 +81,7 @@ export function liveAgentOwner(
     return {
       kind: 'agent',
       words:
-        `Agent ${agentId} is running in this session — guidance for a running agent is queued by SendMessage ` +
+        `Crewmate ${agentId} is running in this session — guidance for a running crewmate is queued by SendMessage ` +
         `and delivered at its next tool round; a second run is never started beside it.`,
     }
   }
@@ -106,7 +106,7 @@ export async function resumeAgentBackground(args: {
     readAgentMetadata(agentId as AgentId),
   ])
   if (!transcript || transcript.messages.length === 0) {
-    throw new Error(`No transcript found for agent ${agentId}`)
+    throw new Error(`No transcript found for crewmate ${agentId}`)
   }
   const restoredKey = restoreBoundPrefixFromMessages(transcript.messages, { rosterOnly: true })
   const restoredRoster = pendingToolRosterRestore()
@@ -331,5 +331,5 @@ export async function resumeAgentBackground(args: {
 }
 
 export function operatorResumeWords(description: string): string {
-  return `Agent "${description}" resumed from the crew view · it runs on under the same id`
+  return `Crewmate "${description}" resumed from the crew view · it runs on under the same id`
 }

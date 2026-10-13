@@ -116,7 +116,7 @@ export const TOOL_CAPABILITY_DECLARATIONS: Record<string, ToolCapability> = {
   Eval: {
     intents: [
       'run python or javascript with persistent state',
-      'orchestrate tools and agents from inside code',
+      'orchestrate tools and crewmates from inside code',
       'script tools and resources programmatically',
       'data work over a retained kernel',
       'bulk transforms the shell is too stateless for',
@@ -394,7 +394,7 @@ export const TOOL_CAPABILITY_DECLARATIONS: Record<string, ToolCapability> = {
     conditions: ['an interactive session (a headless run needs MERCURY_TASKS=1)'],
   },
   TaskStop: {
-    intents: ['stop a background task or agent'],
+    intents: ['stop a background task or crewmate'],
     units: ['task-coordination'],
     class: 'coordination',
     resources: ['task'],

@@ -126,7 +126,7 @@ export type AgentToolInput = {
 }
 
 const CWD_PARAM_DESCRIPTION =
-  "The absolute directory the agent starts in: its shell, file tools and environment section start there instead of this session's directory. It must exist. Starting outside this session's starting folder asks for ordinary permission; Sovereign mode does not ask. The child has one starting folder of its own. With isolation 'worktree' the worktree is cut from that directory's repository and becomes the child's starting folder."
+  "The absolute directory the crewmate starts in: its shell, file tools and environment section start there instead of this session's directory. It must exist. Starting outside this session's starting folder asks for ordinary permission; Sovereign mode does not ask. The child has one starting folder of its own. With isolation 'worktree' the worktree is cut from that directory's repository and becomes the child's starting folder."
 
 function agentDirectoryOf(spelling: string): string {
   if (!isAbsolute(spelling)) {
@@ -161,16 +161,16 @@ export function agentCwdQuestion(spelling: string, permissionContext: ToolPermis
   if (pathInAllowedWorkingPath(dir, permissionContext) || modeBypassesPermissions(permissionContext.mode)) return null
   return {
     behavior: 'ask',
-    message: `Allow the agent to start in ${dir}, outside this session's starting folder?`,
+    message: `Allow the crewmate to start in ${dir}, outside this session's starting folder?`,
     decisionReason: { type: 'workingDir', reason: `The crewmate would start in ${dir}` },
   }
 }
 
 const MODEL_PARAM_DESCRIPTION =
-  "Model override for this launch. A family word selects that family (the [1m] forms select the 1M-context variant; a word naming the parent's own family keeps the parent's exact model) and an exact id names its model exactly; an explicit model here wins over the agent definition's own model; omitted, the agent inherits the parent's model. Engine backends all run in-process with this harness's own tools. Class aliases: 'gpt' (qualified OpenAI default) · 'glm' (Z.AI's newest GLM row) · 'kimi' (Moonshot's newest Kimi row) · 'deepseek' (DeepSeek's newest row) · 'grok' (xAI's newest Grok row) · 'muse' (Meta's newest served Standard Muse Spark row) · 'compat' (the operator-named OpenAI-compatible endpoint's first model) · 'huggingface' (the session's own Hugging Face model, else the router flagship) · 'local' (the session's own local model, else the first discovered one) · 'gemini' (the session's own Gemini model, else the newest Gemini row the account lists) · 'openrouter' (the session's own OpenRouter model, else the auto router) · 'mistral' (Mistral's newest row) · 'nous' (the session's own Nous Portal model, else the Portal's first recommended live row) · 'zen' (the session's own OpenCode Zen model, else the gateway's first listed row). To see the providers the operator is signed into and the models each reaches, read mercury://models and name one of them by its id; a family word runs that family's current default. The ladder is live, then known, then ask: when a signed-in provider's live list cannot be read, mercury://models/known decides — a family word runs the default this build knows and the launch receipt says so; an exact id the known page lists runs. A word on neither page is not a model to guess at: in an interactive session ask the operator for the model id with AskUserQuestion, naming the providers that are signed in and the live or known rows nearest the word; in a headless run say why in one line and stop. Never switch to another provider on your own — if the one you were asked for cannot run, say why and stop."
+  "Model override for this launch. A family word selects that family (the [1m] forms select the 1M-context variant; a word naming the parent's own family keeps the parent's exact model) and an exact id names its model exactly; an explicit model here wins over the agent definition's own model; omitted, the crewmate inherits the parent's model. Engine backends all run in-process with this harness's own tools. Class aliases: 'gpt' (qualified OpenAI default) · 'glm' (Z.AI's newest GLM row) · 'kimi' (Moonshot's newest Kimi row) · 'deepseek' (DeepSeek's newest row) · 'grok' (xAI's newest Grok row) · 'muse' (Meta's newest served Standard Muse Spark row) · 'compat' (the operator-named OpenAI-compatible endpoint's first model) · 'huggingface' (the session's own Hugging Face model, else the router flagship) · 'local' (the session's own local model, else the first discovered one) · 'gemini' (the session's own Gemini model, else the newest Gemini row the account lists) · 'openrouter' (the session's own OpenRouter model, else the auto router) · 'mistral' (Mistral's newest row) · 'nous' (the session's own Nous Portal model, else the Portal's first recommended live row) · 'zen' (the session's own OpenCode Zen model, else the gateway's first listed row). To see the providers the operator is signed into and the models each reaches, read mercury://models and name one of them by its id; a family word runs that family's current default. The ladder is live, then known, then ask: when a signed-in provider's live list cannot be read, mercury://models/known decides — a family word runs the default this build knows and the launch receipt says so; an exact id the known page lists runs. A word on neither page is not a model to guess at: in an interactive session ask the operator for the model id with AskUserQuestion, naming the providers that are signed in and the live or known rows nearest the word; in a headless run say why in one line and stop. Never switch to another provider on your own — if the one you were asked for cannot run, say why and stop."
 
 function effortParamDescription(): string {
-  return `Reasoning effort for this agent: ${EFFORT_LEVELS.join(' | ')}. Omitted, the configured crewmate default applies (high unless the operator changed it in /config) — never your own level. A level the agent's model does not serve runs the nearest level it does; a model with no effort control runs without one. Setting it also turns on extended reasoning where the model supports it. Spend the top tiers on the hardest judge and verify work.`
+  return `Reasoning effort for this crewmate: ${EFFORT_LEVELS.join(' | ')}. Omitted, the configured crewmate default applies (high unless the operator changed it in /config) — never your own level. A level the crewmate's model does not serve runs the nearest level it does; a model with no effort control runs without one. Setting it also turns on extended reasoning where the model supports it. Spend the top tiers on the hardest judge and verify work.`
 }
 
 export const inputSchema = lazySchema(() => {
@@ -178,11 +178,11 @@ export const inputSchema = lazySchema(() => {
     description: z
       .string()
       .describe('A short (3-5 word) summary of the task'),
-    prompt: z.string().describe('The task briefing handed to the agent'),
+    prompt: z.string().describe('The task briefing handed to the crewmate'),
     crewmate_type: z
       .string()
       .optional()
-      .describe(`Which agent type to run. Omitted ⇒ the ${DEFAULT_AGENT_TYPE} agent.`),
+      .describe(`Which crewmate type to run. Omitted ⇒ the ${DEFAULT_AGENT_TYPE} crewmate.`),
     model: z
       .string()
       .optional()
@@ -203,7 +203,7 @@ export const inputSchema = lazySchema(() => {
       .optional()
       .refine(value => value === undefined || (!value.includes('@') && value !== '*'), {
         message:
-          'An agent name must be addressable by SendMessage and ResumeCrewmate: it cannot contain "@" or be "*".',
+          'A crewmate name must be addressable by SendMessage and ResumeCrewmate: it cannot contain "@" or be "*".',
       })
       .describe(
         'Name for a crewmate you will message again: a named crewmate takes more work through ResumeCrewmate({to: name}), running or finished, and notes through SendMessage({to: name}) while it runs. Omit it for a crewmate that works its prompt once and returns its report.',
@@ -211,18 +211,18 @@ export const inputSchema = lazySchema(() => {
     isolation: z
       .literal('worktree')
       .optional()
-      .describe('Run the agent in a temporary git worktree.'),
+      .describe('Run the crewmate in a temporary git worktree.'),
     worktree_at: z
       .string()
       .optional()
       .describe(
-        "With isolation 'worktree': pin the worktree to this commit, detached — the agent reads a frozen tree no later commit or edit can move (a reviewer reads exactly the reviewed commit). The spelling must resolve to a commit in the repository.",
+        "With isolation 'worktree': pin the worktree to this commit, detached — the crewmate reads a frozen tree no later commit or edit can move (a reviewer reads exactly the reviewed commit). The spelling must resolve to a commit in the repository.",
       ),
     cwd: z
       .string()
       .optional()
       .describe(CWD_PARAM_DESCRIPTION),
-    review_receipt: z.string().optional().describe("Launch a review of a committed change: with isolation 'worktree' and worktree_at naming the reviewed commit, the absolute path of an existing Markdown report outside that worktree whose \"## Review\" section is the agent's one permitted write. The agent reads the frozen commit, runs confined bun/bash verification under scripts (and bun run typecheck) with sources read-only, writes its findings into that section and ends with REVIEW: CLEAN or REVIEW: FINDINGS <count>. Name the job and any rules document in the prompt."),
+    review_receipt: z.string().optional().describe("Launch a review of a committed change: with isolation 'worktree' and worktree_at naming the reviewed commit, the absolute path of an existing Markdown report outside that worktree whose \"## Review\" section is the crewmate's one permitted write. The crewmate reads the frozen commit, runs confined bun/bash verification under scripts (and bun run typecheck) with sources read-only, writes its findings into that section and ends with REVIEW: CLEAN or REVIEW: FINDINGS <count>. Name the job and any rules document in the prompt."),
     output_schema: z
       .record(z.string(), z.unknown())
       .optional()
@@ -258,9 +258,9 @@ export const outputSchema = lazySchema(() => {
     }),
     z.object({
       status: z.literal('async_launched'),
-      agentId: z.string().describe('The launched agent\'s id'),
+      agentId: z.string().describe('The launched crewmate\'s id'),
       description: z.string().describe('The task description'),
-      prompt: z.string().describe('The prompt handed to the agent'),
+      prompt: z.string().describe('The prompt handed to the crewmate'),
       outputFile: z
         .string()
         .describe('Output-file path for progress checks'),
@@ -269,11 +269,11 @@ export const outputSchema = lazySchema(() => {
         .optional()
         .describe('Whether the caller can read the output file'),
       modelNote: z.string().optional().describe('The engine note'),
-      agentName: z.string().optional().describe('The name the launch gave the agent — an address beside the id'),
+      agentName: z.string().optional().describe('The name the launch gave the crewmate — an address beside the id'),
       backgroundReason: z
         .enum(['turn-interrupted', 'backgrounded', 'agent-type', 'sibling-ended'])
         .optional()
-        .describe('Why a foreground ask ran in the background: the turn was interrupted, the agent was moved, the type always does, or a sibling agent failed or stopped and the group wait returned'),
+        .describe('Why a foreground ask ran in the background: the turn was interrupted, the crewmate was moved, the type always does, or a sibling crewmate failed or stopped and the group wait returned'),
       siblingEnd: z
         .object({ taskId: z.string(), description: z.string(), status: z.enum(['failed', 'stopped']), error: z.string().optional() })
         .optional()
@@ -331,7 +331,7 @@ async function waitForRequiredMcpServers(
   )
   if (missing.length > 0) {
     throw new Error(
-      `Agent type '${definition.agentType}' requires MCP server(s) matching: ${missing.join(', ')}. ` +
+      `Crewmate type '${definition.agentType}' requires MCP server(s) matching: ${missing.join(', ')}. ` +
         `Servers currently exposing tools: ${serversWithTools.length > 0 ? [...new Set(serversWithTools)].join(', ') : 'none'}. ` +
         'Configure the required server with the /mcp command.',
     )
@@ -352,7 +352,7 @@ function usageBlock(data: {
 }
 
 function continuationHint(agentId: string, name?: string): string {
-  return `agentId: ${agentId} (internal — do not mention it to the user). To continue this agent, use ${RESUME_AGENT_TOOL_NAME} addressed to that id${name ? ` or to its name "${name}"` : ''}.`
+  return `agentId: ${agentId} (internal — do not mention it to the user). To continue this crewmate, use ${RESUME_AGENT_TOOL_NAME} addressed to that id${name ? ` or to its name "${name}"` : ''}.`
 }
 
 
@@ -369,7 +369,7 @@ export const AgentTool = buildTool({
     return outputSchema() as unknown as ZodType
   },
   async description() {
-    return 'Delegate a task to a crewmate: a new agent that handles complex, multi-step work on its own'
+    return 'Delegate a task to a crewmate: a new crewmate that handles complex, multi-step work on its own'
   },
   async prompt(options: {
     getToolPermissionContext: () => Promise<
@@ -500,7 +500,7 @@ export const AgentTool = buildTool({
     if (runningAgents >= fanout.cap) {
       const door = fanout.source === 'env' ? 'MERCURY_AGENT_FANOUT_CAP' : 'Crewmates at once in /config'
       throw new Error(
-        `Agent dispatch refused: ${runningAgents} agent${runningAgents === 1 ? ' is' : 's are'} already running and the cap is ${fanout.cap} (${door}). Wait for one to finish, stop one, or continue the work directly.`,
+        `Crewmate dispatch refused: ${runningAgents} crewmate${runningAgents === 1 ? ' is' : 's are'} already running and the cap is ${fanout.cap} (${door}). Wait for one to finish, stop one, or continue the work directly.`,
       )
     }
 
@@ -532,7 +532,7 @@ export const AgentTool = buildTool({
       const capability = preflightWorktreeCapability(cwdParam)
       if (!capability.available) {
         throw new Error(
-          `Worktree preflight (agent dispatch): ${capability.detail}`,
+          `Worktree preflight (crewmate dispatch): ${capability.detail}`,
         )
       }
     }
@@ -829,11 +829,11 @@ export const AgentTool = buildTool({
         ...(async.backgroundReason ? [foregroundNotKeptLine(async.backgroundReason, async.siblingEnd)] : []),
         ...(async.modelNote ? [async.modelNote] : []),
         continuationHint(async.agentId, async.agentName),
-        'The agent is working in the background — you will be notified automatically when it completes.',
+        'The crewmate is working in the background — you will be notified automatically when it completes.',
       ]
       if (async.canReadOutputFile) {
         lines.push(
-          'Do not repeat the launched agent\'s work: keep off the same files and subject matter — either pick up something disjoint or give the user a one-line note about the launch and stop.',
+          'Do not repeat the launched crewmate\'s work: keep off the same files and subject matter — either pick up something disjoint or give the user a one-line note about the launch and stop.',
           `Output file: ${async.outputFile} (progress may be inspected with the read tool or a shell tail ONLY when the user asks).`,
         )
       } else {
@@ -863,7 +863,7 @@ export const AgentTool = buildTool({
             ]),
       ]
       const failedTrailer = [
-        `Agent execution failed: ${data.error ?? 'unknown error'}`,
+        `Crewmate execution failed: ${data.error ?? 'unknown error'}`,
         'Anything above is partial work, not a final answer — it was captured before the failure and must not be read as a conclusion; its work is kept on its transcript.',
         continuationHint(String(data.agentId ?? '')),
         usageBlock(data),
@@ -929,7 +929,7 @@ export const AgentTool = buildTool({
       }
     }
 
-    throw new Error(`Unexpected agent tool result status: ${String(status)}`)
+    throw new Error(`Unexpected crewmate tool result status: ${String(status)}`)
   },
 } satisfies ToolDef<
   ZodType<AgentToolInput, AgentToolInput>,

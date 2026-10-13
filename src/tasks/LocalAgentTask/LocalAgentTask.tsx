@@ -444,7 +444,7 @@ export function enqueueAgentReceiptRow(args: { taskId: string; description: stri
 }
 
 export function agentMessageSummary(sender: { taskId: string; description?: string } | null): string {
-  return sender === null ? MAIN_AGENT_MESSAGE_SUMMARY : `Agent "${sender.description ?? sender.taskId}" sent a message`
+  return sender === null ? MAIN_AGENT_MESSAGE_SUMMARY : `Crewmate "${sender.description ?? sender.taskId}" sent a message`
 }
 
 export function agentMessageNotice(args: { taskId: string; summary: string; text: string }): string {
@@ -1035,12 +1035,12 @@ export function enqueueAgentNotification(args: {
   const summary =
     args.summary ??
     (args.status === 'completed'
-      ? `Agent "${args.description}" completed`
+      ? `Crewmate "${args.description}" completed`
       : args.status === 'failed'
-        ? `Agent "${args.description}" failed: ${args.error || 'unknown error'}${landed} — its work is kept; ${AGENT_RESUME_DOOR}`
+        ? `Crewmate "${args.description}" failed: ${args.error || 'unknown error'}${landed} — its work is kept; ${AGENT_RESUME_DOOR}`
         : args.statusWord === AGENT_INTERRUPTED_STATUS_WORD
-          ? `Agent "${args.description}" was ${args.stopReason ?? AGENT_INTERRUPTED_WORDS} — ${AGENT_INTERRUPTED_NOTE}${landed}; its work is kept; ${AGENT_RESUME_DOOR}`
-          : `Agent "${args.description}" was ${args.stopReason ?? 'stopped'}${landed} — its work is kept; ${AGENT_RESUME_DOOR}`)
+          ? `Crewmate "${args.description}" was ${args.stopReason ?? AGENT_INTERRUPTED_WORDS} — ${AGENT_INTERRUPTED_NOTE}${landed}; its work is kept; ${AGENT_RESUME_DOOR}`
+          : `Crewmate "${args.description}" was ${args.stopReason ?? 'stopped'}${landed} — its work is kept; ${AGENT_RESUME_DOOR}`)
 
   const toolUseIdLine = args.toolUseId
     ? `\n<${TOOL_USE_ID_TAG}>${args.toolUseId}</${TOOL_USE_ID_TAG}>`

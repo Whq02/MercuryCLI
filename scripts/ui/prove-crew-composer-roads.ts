@@ -265,7 +265,7 @@ function Harness(): React.ReactNode {
     h(FullscreenLayout, {
       scrollRef,
       scrollable: h(TranscriptSwap, { lead: h(Transcript, { messages: shellMessages }), tools: [], commands: [], screen: 'prompt', scrollRef, agentDefinitions: { activeAgents: [], allAgents: [] }, trackStickyPrompt: true }),
-      statusBand: h(Text, null, 'waiting on 2 agents'),
+      statusBand: h(Text, null, 'waiting on 2 crewmates'),
       statusBandActive: true,
       modalScrollRef,
       bottom: h(Box, { flexDirection: 'column' },

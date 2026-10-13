@@ -77,7 +77,7 @@ export function WorkflowResultLive({ taskId }: { taskId: string }): React.ReactN
     return (
       <Text>
         <Text color={AMBER}>{GLYPH.fisheye} </Text>
-        <Text>Paused · finished agents stay cached · </Text>
+        <Text>Paused · finished crewmates stay cached · </Text>
         <Text color={TEAL}>/workflows</Text>
         <Text color={FAINT}> → R resumes it</Text>
       </Text>
@@ -91,7 +91,7 @@ export function WorkflowResultLive({ taskId }: { taskId: string }): React.ReactN
     const clauses: string[] = []
     if (pulse?.phaseTitle) clauses.push(pulse.phaseTitle)
     if (pulse !== null && pulse.running > 0) clauses.push(`${pulse.running} running`)
-    else if (agentCount > 0) clauses.push(`${agentCount} ${plural(agentCount, 'agent')}`)
+    else if (agentCount > 0) clauses.push(`${agentCount} ${plural(agentCount, 'crewmate')}`)
     if (pulse !== null && pulse.maxAttempt > 1) clauses.push(`attempt ${pulse.maxAttempt}`)
     if (totalTokens > 0) clauses.push(`${GLYPH.tokens} ${formatTokens(totalTokens)}`)
     return (
@@ -139,7 +139,7 @@ export function WorkflowResultLive({ taskId }: { taskId: string }): React.ReactN
   const settledTokens = task.totalTokens ?? 0
   const clauses: string[] = []
   if (elapsed) clauses.push(`in ${elapsed}`)
-  if (settledAgents > 0) clauses.push(`${settledAgents} ${plural(settledAgents, 'agent')}`)
+  if (settledAgents > 0) clauses.push(`${settledAgents} ${plural(settledAgents, 'crewmate')}`)
   if (settledTokens > 0) clauses.push(`${formatTokens(settledTokens)} tokens`)
   const tail = clauses.length > 0 ? ` · ${clauses.join(' · ')}` : ''
 

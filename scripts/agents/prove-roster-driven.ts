@@ -371,12 +371,12 @@ section('§4 an old type name is unknown exactly as a made-up one')
   const oldName = 'mercury-' + 'general'
   const { run, fixture, world } = await leg(word, () => [
     { kind: 'tool_use', name: 'Crewmate', input: { description: 'old-seat', prompt: 'old-seat: nothing', crewmate_type: oldName }, whenBody: ASK(word) },
-    { kind: 'tool_use', name: 'Crewmate', input: { description: 'made-up-seat', prompt: 'made-up-seat: nothing', crewmate_type: 'mercury-frobnicate' }, whenBody: `No agent type named '${oldName}'` },
-    { kind: 'text', text: `roster-drive ${word}: both refused`, whenBody: "No agent type named 'mercury-frobnicate'" },
+    { kind: 'tool_use', name: 'Crewmate', input: { description: 'made-up-seat', prompt: 'made-up-seat: nothing', crewmate_type: 'mercury-frobnicate' }, whenBody: `No crewmate type named '${oldName}'` },
+    { kind: 'text', text: `roster-drive ${word}: both refused`, whenBody: "No crewmate type named 'mercury-frobnicate'" },
   ], ASK(word))
   const results = bodies(fixture).flatMap(toolResultsOf)
-  const oldRefusal = results.find(t => t.includes(`No agent type named '${oldName}'`)) ?? ''
-  const madeUpRefusal = results.find(t => t.includes("No agent type named 'mercury-frobnicate'")) ?? ''
+  const oldRefusal = results.find(t => t.includes(`No crewmate type named '${oldName}'`)) ?? ''
+  const madeUpRefusal = results.find(t => t.includes("No crewmate type named 'mercury-frobnicate'")) ?? ''
   check('the old name is refused as not found', oldRefusal !== '', results.join(' | ').slice(0, 400))
   check('the made-up name is refused with the same words', madeUpRefusal !== '' && madeUpRefusal.replace('mercury-frobnicate', oldName) === oldRefusal, `${oldRefusal} ⇄ ${madeUpRefusal}`)
   check('the refusal names the available roster: the two built-ins and the owner\'s agent', oldRefusal.includes('this session offers: mercury-crew, mercury-scout, harbour-counter'), oldRefusal)

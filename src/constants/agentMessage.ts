@@ -11,5 +11,5 @@ export function isAgentMessageNotice(text: string): boolean {
 export function agentMessageLine(text: string): string {
   return text.includes(`<summary>${MAIN_AGENT_MESSAGE_SUMMARY}</summary>`)
     ? `${MAIN_AGENT_MESSAGE_SUMMARY}:`
-    : 'A background agent sent a message:'
+    : 'A background crewmate sent a message:'
 }

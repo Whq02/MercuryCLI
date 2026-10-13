@@ -70,14 +70,14 @@ export function buildAgentLaunchPlan(i: AgentLaunchPlanInput): AgentLaunchPlan {
       throw new Error(
         refusalWithReason(
           denyRule
-            ? ruleSentence(`The ${effectiveType} agent`, 'deny', denyRule)
-            : `The ${effectiveType} agent is denied by the rule ${AGENT_TOOL_NAME}(${effectiveType}).`,
+            ? ruleSentence(`The ${effectiveType} crewmate`, 'deny', denyRule)
+            : `The ${effectiveType} crewmate is denied by the rule ${AGENT_TOOL_NAME}(${effectiveType}).`,
           denyRule ? reasonForRule(i.toolPermissionContext, denyRule) : undefined,
         ),
       )
     }
     throw new Error(
-      `No agent type named '${effectiveType}'; this session offers: ${agents.map(a => a.agentType).join(', ')}`,
+      `No crewmate type named '${effectiveType}'; this session offers: ${agents.map(a => a.agentType).join(', ')}`,
     )
   }
   const definition: AgentDefinition = found

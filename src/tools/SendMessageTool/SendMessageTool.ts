@@ -48,7 +48,7 @@ export const SendMessageTool = buildTool({
     }
     const workflow = await messageWorkflowWorker(address, input.message)
     if (workflow !== undefined) return { data: workflow }
-    if (address.task === undefined && address.transcriptPath === null) return { data: { success: false, message: `Agent ${address.who}: no running task by that id in this session and no transcript on disk — the agent may belong to another process, or its record was cleaned up. Address a live crewmate by the id its launch receipt names, or by the name its launch gave it.` } }
+    if (address.task === undefined && address.transcriptPath === null) return { data: { success: false, message: `Crewmate ${address.who}: no running task by that id in this session and no transcript on disk — the crewmate may belong to another process, or its record was cleaned up. Address a live crewmate by the id its launch receipt names, or by the name its launch gave it.` } }
     return { data: { success: false, message: `Not delivered: ${address.who} has ${await endedWords(address)}, so no turn of it is running to read a message. To give it this message as a new turn, call ResumeCrewmate with the same to and message.` } }
   },
   mapToolResultToToolResultBlockParam: mapMessageResult,

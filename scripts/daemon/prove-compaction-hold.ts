@@ -142,7 +142,7 @@ section('F3 the count never over-reaches')
   const kept = randomUUID()
   seed(kept, 'a withdraw on its way', 'queued')
   g.sends = g.sends.map(s => (s.clientMessageId === kept ? { ...s, withdrawing: true as const } : s))
-  const noticeText = 'A background agent completed a task'
+  const noticeText = 'A background crewmate completed a task'
   g.reconcileQueuedSends({ queue: [{ uuid: randomUUID(), value: noticeText, mode: 'task-notification', priority: 'next' }], atMs: Date.now(), busy: true, runnerGeneration: 2 })
   const notice = g.sends.find(s => s.text === noticeText)?.clientMessageId ?? ''
   const queuedRow = g.echoRows.get(notice)

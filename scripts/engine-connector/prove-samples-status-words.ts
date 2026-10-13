@@ -62,8 +62,8 @@ async function main(): Promise<void> {
   const thinking: SessionLiveV1 = { ...waiting, phase: 'thinking', agentsWaiting: 0, waitingOn: undefined }
   const status: SeatStatusV1 = { title: 'a chat', projectLabel: 'mercury', interrupting: false, hardStopping: false, wait: null, quietMs: 2_000, watchdogMs: 90_000, phaseMs: null, toolBudgetMs: null, stuck: false }
   const statusWith = (over: Partial<SeatStatusV1>): SeatStatusV1 => ({ ...status, ...over })
-  const OWNER = 'waiting on 4 agents · 1 shell · 1 sample'
-  const TODAY = 'waiting on 4 agents · 1 shell'
+  const OWNER = 'waiting on 4 crewmates · 1 shell · 1 sample'
+  const TODAY = 'waiting on 4 crewmates · 1 shell'
   const composer = typeof bar.waitingStatusWords === 'function'
   const spelling = typeof counts.withSampleWords === 'function'
   const reader = typeof work.useFocusedSamples === 'function'
@@ -79,8 +79,8 @@ async function main(): Promise<void> {
     check("statusLine speaks the phase words alone (the tail is the surface's, so waiting can never count twice)", bar.statusLine(waiting, status) === TODAY && !bar.statusLine(waiting, status).includes('sample'), bar.statusLine(waiting, status))
     check("waiting, one sample: the owner's exact string", rowWords(waiting, 1) === OWNER, rowWords(waiting, 1))
     check('waiting, zero samples: the line of today, no sample word', rowWords(waiting, 0) === TODAY && !rowWords(waiting, 0).includes('sample'), rowWords(waiting, 0))
-    check('waiting, three samples pluralise', rowWords(waiting, 3) === 'waiting on 4 agents · 1 shell · 3 samples', rowWords(waiting, 3))
-    check('waiting, two samples pluralise', rowWords(waiting, 2) === 'waiting on 4 agents · 1 shell · 2 samples', rowWords(waiting, 2))
+    check('waiting, three samples pluralise', rowWords(waiting, 3) === 'waiting on 4 crewmates · 1 shell · 3 samples', rowWords(waiting, 3))
+    check('waiting, two samples pluralise', rowWords(waiting, 2) === 'waiting on 4 crewmates · 1 shell · 2 samples', rowWords(waiting, 2))
     check('idle keeps the count: ready · 1 sample', tail(bar.restingStatusWords('', null), 1) === 'ready · 1 sample' && tail(bar.restingStatusWords('Opus 5', 'high'), 1) === 'ready · Opus 5 · high · 1 sample', tail(bar.restingStatusWords('', null), 1))
     check('thinking keeps the count beside the project, inventing no state word', rowWords(thinking, 1) === '1 sample' && bar.statusLine(thinking, status) === '', rowWords(thinking, 1))
     check('nothing plus nothing is nothing', tail('', 0) === '' && rowWords(thinking, 0) === '')
@@ -91,8 +91,8 @@ async function main(): Promise<void> {
     check('the tag bar exports the shared wait composer', composer)
     check("the spinner's waiting words are the row's phase words; the row alone adds the tail", composer && bar.waitingStatusWords(waiting) === TODAY && !bar.waitingStatusWords(waiting).includes('sample') && tail(bar.waitingStatusWords(waiting), 1) === rowWords(waiting, 1), composer ? bar.waitingStatusWords(waiting) : 'no composer')
     check('the sample word has one spelling', spelling && counts.withSampleWords('waiting on 1 shell', samples(1)) === 'waiting on 1 shell · 1 sample' && counts.withSampleWords('waiting on 1 shell', []) === 'waiting on 1 shell' && counts.withSampleWords('x', samples(2)) === 'x · 2 samples' && counts.withSampleWords('', samples(1)) === '1 sample', spelling ? 'spelled otherwise' : 'no spelling')
-    check('the bare-count road carries the samples too', composer && tail(bar.waitingStatusWords({ ...waiting, waitingOn: undefined, agentsWaiting: 2 }), 1) === 'waiting on 2 agents · 1 sample' && tail(bar.waitingStatusWords({ ...waiting, waitingOn: undefined, agentsWaiting: 0 }), 1) === 'waiting on agents · 1 sample')
-    check('a parked ask keeps its place; the artifact word is the tail', composer && tail(bar.waitingStatusWords({ ...waiting, waitingOn: { ...counts.workCounts(rows), asks: 1 } }), 1) === 'waiting on 4 agents · 1 shell · 1 ask · 1 sample')
+    check('the bare-count road carries the samples too', composer && tail(bar.waitingStatusWords({ ...waiting, waitingOn: undefined, agentsWaiting: 2 }), 1) === 'waiting on 2 crewmates · 1 sample' && tail(bar.waitingStatusWords({ ...waiting, waitingOn: undefined, agentsWaiting: 0 }), 1) === 'waiting on crewmates · 1 sample')
+    check('a parked ask keeps its place; the artifact word is the tail', composer && tail(bar.waitingStatusWords({ ...waiting, waitingOn: { ...counts.workCounts(rows), asks: 1 } }), 1) === 'waiting on 4 crewmates · 1 shell · 1 ask · 1 sample')
     const tagBar = read('src/components/SwitchboardTagBar.tsx')
     const repl = read('src/screens/Chat.tsx')
     const planAt = tagBar.indexOf('const plan = statusRowPlan({ columns, head, rest, samples, folder, branch, backHint })')
@@ -105,7 +105,7 @@ async function main(): Promise<void> {
   section('S3 samples are artifacts: never running work, never a busy session, never lost on a phase change')
   {
     const counted = counts.workCounts(rows)
-    check('the counting law never counts a sample', !('samples' in counted) && counts.workChipLine(counted) === '4 agents · 1 shell' && counts.workWaitingWords(counted) === TODAY)
+    check('the counting law never counts a sample', !('samples' in counted) && counts.workChipLine(counted) === '4 crewmates · 1 shell' && counts.workWaitingWords(counted) === TODAY)
     check('the live view and the counts carry no sample field', !read('src/services/engine-connector/seatLive.ts').includes('samples') && !read('src/services/engine-connector/workCounts.ts').includes('samples: number'))
     check('an idle seat stays idle: no esc clause, the plain way back, ready', !/\besc\b/.test(bar.escBackHint(IDLE_LIVE, status)) && bar.statusLine(IDLE_LIVE, status) === 'ready')
     check('the narrow compact arm keeps its concise work vocabulary', bar.statusLine(waiting, status, null, true) === 'waiting on background work')
@@ -258,7 +258,7 @@ async function main(): Promise<void> {
     check('waiting, zero samples: the row of today', leads(zero, TODAY) && !zero.includes('sample') && zero.trimEnd().endsWith(waitingHint), zero)
     check('the sample word is the only difference; the way back keeps its column', squeeze(one.replace(' · 1 sample', '')) === squeeze(zero) && one.indexOf(waitingHint) === zero.indexOf(waitingHint), `${one.indexOf(waitingHint)} vs ${zero.indexOf(waitingHint)}`)
     check('a sample arriving repaints the mounted row through the roster feed', zero !== one)
-    check('waiting → idle (the agents finished, their rows evicted): ready · … · 1 sample', idleLine('1 sample').test(idle), idle)
+    check('waiting → idle (the crewmates finished, their rows evicted): ready · … · 1 sample', idleLine('1 sample').test(idle), idle)
     check('idle → thinking: the count stands beside the model, no invented state word', leads(think, '1 sample') && !/thinking|waiting|ready/.test(think) && think.trimEnd().endsWith(waitingHint), think)
     check("thinking → waiting: the owner's line again, the count once", again === one && again.split('sample').length === 2, again)
     check('a hop to a session with no samples drops the tail', leads(hopZero, TODAY) && !hopZero.includes('sample'), hopZero)

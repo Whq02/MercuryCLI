@@ -52,7 +52,7 @@ function ExpandHint({ parens }: { parens?: boolean }): React.ReactNode {
   )
 }
 
-const GENERIC_AGENT_LABEL = 'agent'
+const GENERIC_AGENT_LABEL = 'crewmate'
 
 type AgentProgressData = {
   type?: string
@@ -280,7 +280,7 @@ export function renderToolUseProgressMessage(
   if (visible.length === 0) {
     return (
       <MessageResponse height={1}>
-        <Text dimColor>Initializing agent…</Text>
+        <Text dimColor>Initializing crewmate…</Text>
       </MessageResponse>
     )
   }
@@ -689,7 +689,7 @@ function AgentFactsOrInitialising({ toolUseID }: { toolUseID?: string }): React.
   if (facts === null) {
     return (
       <MessageResponse height={1}>
-        <Text dimColor>Initializing agent…</Text>
+        <Text dimColor>Initializing crewmate…</Text>
       </MessageResponse>
     )
   }
@@ -765,15 +765,15 @@ export function renderGroupedAgentToolUse(
 
   let header: string
   if (allResolved && allBackground) {
-    header = `${entries.length} background agents launched `
+    header = `${entries.length} background crewmates launched `
   } else if (allResolved) {
     header = commonType
-      ? `${entries.length} ${commonType} agents finished`
-      : `${entries.length} agents finished`
+      ? `${entries.length} ${commonType} crewmates finished`
+      : `${entries.length} crewmates finished`
   } else {
     header = commonType
-      ? `Running ${entries.length} ${commonType} agents…`
-      : `Running ${entries.length} agents…`
+      ? `Running ${entries.length} ${commonType} crewmates…`
+      : `Running ${entries.length} crewmates…`
   }
 
   const showExpandHint = !allBackground

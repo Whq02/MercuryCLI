@@ -368,7 +368,7 @@ function RunInfoPane({ row, now }: { row: RunRow; now: number }): React.ReactNod
   const kv: KVRow[] = [
     { k: 'run', v: truncateToWidth(row.runId, 25), tone: tokens.textPrimary },
     {
-      k: 'agents',
+      k: 'crewmates',
       v: f.agentCount > 0 ? `${f.agentsDone}/${f.agentCount} done` : '—',
       tone: f.agentCount > 0 ? tokens.textPrimary : tokens.textMuted,
     },
@@ -704,7 +704,7 @@ export function WorkflowsBoard({ onClose }: { onClose: () => void }): React.Reac
     },
     {
       key: 'agents',
-      header: 'Ag',
+      header: 'Crew',
       width: 6,
       align: 'right',
       cell: r =>
@@ -826,9 +826,9 @@ export function WorkflowsBoard({ onClose }: { onClose: () => void }): React.Reac
     actingRuns.current.add(r.runId)
     setActionNote(
       action === 'stop'
-        ? `stopping ${r.facts.name} — every live agent ends the same way`
+        ? `stopping ${r.facts.name} — every live crewmate ends the same way`
         : action === 'pause'
-          ? `pausing ${r.facts.name} — it parks before its next agent call; agents in flight park before their next model call`
+          ? `pausing ${r.facts.name} — it parks before its next agent() call; crewmates in flight park before their next model call`
           : `resuming ${r.facts.name} — it continues from where it stopped`,
     )
     void requestWorkflowControl(runDir, { action, by: workflowControlBy(getSessionId(), process.pid) }).then(

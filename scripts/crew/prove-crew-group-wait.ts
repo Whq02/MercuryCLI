@@ -80,8 +80,8 @@ section('G2 — a child\'s terminal notice rides the band the turn machine drain
 section('G3 — the hand-over receipt names the sibling and its end')
 {
   const line = receipts.foregroundNotKeptLine('sibling-ended', { taskId: 'seat-a', description: 'reads the tree', status: 'failed', error: 'the provider refused' })
-  check('the sibling line', line === 'The foreground request was not kept: a wait on a group returns the moment any member fails or stops — agent "reads the tree" [seat-a] failed (the provider refused); read its result now, and this agent runs on in the background (its own notice follows).', line)
-  check('a stop without words', receipts.foregroundNotKeptLine('sibling-ended', { taskId: 'seat-d', description: 'fourth', status: 'stopped' }).includes('agent "fourth" [seat-d] stopped; read its result now'))
+  check('the sibling line', line === 'The foreground request was not kept: a wait on a group returns the moment any member fails or stops — crewmate "reads the tree" [seat-a] failed (the provider refused); read its result now, and this crewmate runs on in the background (its own notice follows).', line)
+  check('a stop without words', receipts.foregroundNotKeptLine('sibling-ended', { taskId: 'seat-d', description: 'fourth', status: 'stopped' }).includes('crewmate "fourth" [seat-d] stopped; read its result now'))
   check('the other reasons keep their lines', receipts.foregroundNotKeptLine('turn-interrupted').startsWith('The foreground request was not kept: the turn it ran in was interrupted'))
 }
 

@@ -190,7 +190,7 @@ const BACKGROUND_COMMAND_SUMMARY = 'Background command '
 function taskNoticeHead(raw: string): string {
   if (isAgentMessageNotice(raw)) return agentMessageLine(raw)
   const commandFinished = extractTag(raw, 'summary')?.startsWith(BACKGROUND_COMMAND_SUMMARY) === true
-  return commandFinished ? 'A background command finished; its command line and output file follow:' : 'A background agent completed a task:'
+  return commandFinished ? 'A background command finished; its command line and output file follow:' : 'A background crewmate completed a task:'
 }
 
 const coordinatorHead = (raw: string): string =>

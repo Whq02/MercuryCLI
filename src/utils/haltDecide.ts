@@ -27,8 +27,8 @@ export function summarizeHalt(r: HaltResult): string {
   const parts: string[] = []
   parts.push(
     r.tasksStopped.length > 0
-      ? `stopped ${r.tasksStopped.length} in-process agent(s)`
-      : 'no in-process agents running',
+      ? `stopped ${r.tasksStopped.length} in-process crewmate(s)`
+      : 'no in-process crewmates running',
   )
   if (r.tasksFailed.length > 0) parts.push(`${r.tasksFailed.length} would not stop`)
   if (r.daemon.ok) {

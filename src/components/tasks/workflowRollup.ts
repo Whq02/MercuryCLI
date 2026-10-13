@@ -12,7 +12,7 @@ export type WorkflowRollupFacts = {
 
 export function workflowRollupLine(f: WorkflowRollupFacts): string {
   const parts: string[] = []
-  if (f.agentCount > 0) parts.push(`${f.agentsDone}/${f.agentCount} agents`)
+  if (f.agentCount > 0) parts.push(`${f.agentsDone}/${f.agentCount} crewmates`)
   if (f.tokens > 0) parts.push(`${GLYPH.tokens} ${formatTokens(f.tokens)}`)
   parts.push(formatDuration(Math.max(0, f.elapsedMs)))
   return parts.join(' · ')
@@ -40,7 +40,7 @@ export function workflowRowFacts(row: WorkRowV1): {
 export function workflowRowDetail(row: WorkRowV1): string | null {
   const f = workflowRowFacts(row)
   if (f.agentCount > 0) {
-    return `${f.agentsDone}/${f.agentCount} agent${f.agentCount === 1 ? '' : 's'}${f.phaseTitle ? ` · ${f.phaseTitle}` : ''}`
+    return `${f.agentsDone}/${f.agentCount} crewmate${f.agentCount === 1 ? '' : 's'}${f.phaseTitle ? ` · ${f.phaseTitle}` : ''}`
   }
   return f.phaseTitle ?? null
 }

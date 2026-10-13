@@ -110,7 +110,7 @@ function buildToolsParagraph(embedded: boolean): string {
 function brushShellParagraphs(): string[] {
   const paragraphs: string[] = []
   paragraphs.push(
-    'One shell session serves the whole conversation: the working directory and every other piece of shell state — variables, functions, aliases, options — persist from call to call. Each crewmate has a shell session of its own: state set by one agent is not seen by another or by the main conversation, and an agent\'s session ends with the agent. A command that hangs and is timed out, or that ends the shell (a bare `exit`, a `set -u` failure), resets the session; you are told when earlier state was lost. A stop from the operator while a command runs ends that command and resets the session; the result says so. A call with `run_in_background` runs in its own shell: it does not see the session\'s state, and its own does not persist.',
+    'One shell session serves the whole conversation: the working directory and every other piece of shell state — variables, functions, aliases, options — persist from call to call. Each crewmate has a shell session of its own: state set by one crewmate is not seen by another or by the main conversation, and a crewmate\'s session ends with the crewmate. A command that hangs and is timed out, or that ends the shell (a bare `exit`, a `set -u` failure), resets the session; you are told when earlier state was lost. A stop from the operator while a command runs ends that command and resets the session; the result says so. A call with `run_in_background` runs in its own shell: it does not see the session\'s state, and its own does not persist.',
   )
   const ceiling = resolveEngineSessionCeiling(getInitialSettings().shell?.sessions)
   paragraphs.push(

@@ -44,7 +44,7 @@ export function noticeRecipientTask(tasks: Record<string, TaskState> | undefined
 
 export function agentRecipientState(tasks: Record<string, TaskState> | undefined, agentId: string): NoticeRecipientState {
   const task = noticeRecipientTask(tasks, agentId)
-  if (task === undefined) return { state: 'gone', why: 'no agent by that id in this session' }
+  if (task === undefined) return { state: 'gone', why: 'no crewmate by that id in this session' }
   if (task.status === 'running') {
     const gone = taskOwnerGone(task)
     return gone === null ? { state: 'busy' } : { state: 'gone', why: gone }

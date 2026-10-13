@@ -348,7 +348,7 @@ try {
         { data: '\r', awaitText: '↑↓ choose', requireAwait: true, minTick: 10, awaitStableTicks: 6, awaitSettleTicks: 4 },
         { data: 'crew-drive: launch\r', awaitText: 'ype a prompt', requireAwait: true, minTick: 2, awaitSettleTicks: 3, mark: 'boot' },
         { data: '', afterPrevTicks: 8, mark: 'launched' },
-        { data: '\x1b', awaitText: 'waiting on 2 agents', requireAwait: true, minTick: 2, awaitSettleTicks: 10, mark: 'waiting' },
+        { data: '\x1b', awaitText: 'waiting on 2 crewmates', requireAwait: true, minTick: 2, awaitSettleTicks: 10, mark: 'waiting' },
         { data: '', afterPrevTicks: 15, mark: 'after-esc' },
         { data: '/crewmates\r', afterPrevTicks: 2 },
         { data: 'x', awaitText: SEATS.one, requireAwait: true, minTick: 2, awaitSettleTicks: 5, mark: 'crew' },
@@ -386,7 +386,7 @@ if (cap !== null) {
   const after = (seat: Seat, sinceMs: number): Hit[] => fixture.hits.filter(h => h.seat === seat && h.atMs > sinceMs + 300)
 
   console.log('\n— K1 esc is the chat\'s —')
-  check('the turn was waiting on both agents when esc landed', rowsWith(m['waiting'], 'waiting on 2 agents').length > 0, rowsWith(m['waiting'], /waiting/).map(flat).join(' | ').slice(0, 200))
+  check('the turn was waiting on both agents when esc landed', rowsWith(m['waiting'], 'waiting on 2 crewmates').length > 0, rowsWith(m['waiting'], /waiting/).map(flat).join(' | ').slice(0, 200))
   check('K1 after esc the composer is back (the turn ended)', rowsWith(m['after-esc'], 'ype a prompt').length > 0)
   const oneAfter = after('one', escAt).length
   const twoAfter = after('two', escAt).length

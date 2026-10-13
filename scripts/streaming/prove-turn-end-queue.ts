@@ -277,7 +277,7 @@ async function driveWire(route: 'openai' | 'anthropic', scene: 'hold' | 'tool' |
     check(`${label}: no queued or held row survives the drain`, !/(queued|held)\s+(since \d\d:\d\d:\d\d )?(●|\[sam\])/.test(drained), tail(drained))
     check(`${label}: the reply landed and the turn is over (no esc clause on the strip)`, drained.includes(REPLY) && !/esc interrupts/.test(drained), tail(drained))
     const folded = calls.find(c => c.arm === 'launch-and-sleep' && (c as { step?: number }).step === 2)
-    check(`${label}: the request after the sleep carries the notification BEFORE the words`, folded !== undefined && JSON.stringify(folded.order) === JSON.stringify(['A background agent completed a task:', 'first queued words']), JSON.stringify(calls.map(c => [c.n, c.arm, (c as { step?: number }).step, c.order])))
+    check(`${label}: the request after the sleep carries the notification BEFORE the words`, folded !== undefined && JSON.stringify(folded.order) === JSON.stringify(['A background crewmate completed a task:', 'first queued words']), JSON.stringify(calls.map(c => [c.n, c.arm, (c as { step?: number }).step, c.order])))
     const files = readdirSync(path.join(RUN_HOME, 'projects'), { recursive: true }) as string[]
     const rows = files.filter(f => f.endsWith('.jsonl')).flatMap(f => readFileSync(path.join(RUN_HOME, 'projects', f), 'utf8').split('\n').filter(l => l.trim() !== ''))
     const noticeAt = rows.findIndex(l => l.includes('"queued_command"') && l.includes('task-notification') && l.includes('a quick errand'))

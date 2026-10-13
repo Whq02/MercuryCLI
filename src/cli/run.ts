@@ -2069,7 +2069,7 @@ export async function runHeadless(
       const target = getAppState().tasks[params.agent_id]
       if (target !== undefined && target.status === 'running') {
         const note = params.note !== undefined ? params.note.trim() : ''
-        if (note === '' || !isLocalAgentTask(target)) throw refused('the agent is running — nothing to resume', 'agent')
+        if (note === '' || !isLocalAgentTask(target)) throw refused('the crewmate is running — nothing to resume', 'agent')
         queueOperatorMessage(params.agent_id, note, setAppState)
         return { queued: true, agent_id: params.agent_id }
       }

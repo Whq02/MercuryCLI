@@ -436,7 +436,7 @@ export function buildLanesModel(input: LanesInput): LanesModel {
       })
     }
     if (crewMore > 0) rows.push({ kind: 'more', key: 'crew:more', n: crewMore, row: { kind: 'command', command: '/crewmates', label: 'crew:more' } })
-    const crewWord = crewEntries.length === 1 ? 'agent' : 'agents'
+    const crewWord = crewEntries.length === 1 ? 'crewmate' : 'crewmates'
     return { key: 'crew', glyph: GLYPH.fisheye, label: 'CREW', count: `${crewEntries.length} ${crewWord}`, open: '/crewmates', rows }
   }
 
@@ -526,7 +526,7 @@ export function buildLanesModel(input: LanesInput): LanesModel {
   const nextSection = (): LanesSectionSpec | null => {
     if (!solo) return null
     const hints: Array<{ command: string; label: string }> = [
-      { command: '/workflows', label: '/workflows — agent runs' },
+      { command: '/workflows', label: '/workflows — crewmate runs' },
       { command: '/health', label: '/health — health cert' },
       { command: '/memory', label: '/memory — memory' },
     ]

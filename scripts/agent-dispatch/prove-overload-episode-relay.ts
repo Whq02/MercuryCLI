@@ -65,7 +65,7 @@ section("§3 the overload answer, read off the lane's last row")
   check('a 429 row, a plain fault and a request id that happens to hold 529 are not', !overload.isOverloadAnswerText('API Error: 429 {"type":"error","error":{"type":"rate_limit_error"}}') && !overload.isOverloadAnswerText('API Error: connection lost') && !overload.isOverloadAnswerText('API Error: 500 {"request_id":"req_529abc"}'))
   const dead: Message[] = [createAssistantAPIErrorMessage({ content: OVERLOADED_ROW, error: 'unknown' }) as Message]
   const read = lane.overloadPauseOf(dead, 'claude-fable-5-1')
-  check("a lane whose last row is the 529 answer pauses as 'provider overloaded' with the model named and no reset", read !== null && read.pause.why === 'provider overloaded' && read.pause.resumesAtMs === undefined && read.pause.words.startsWith(`${read.who} is overloaded (HTTP 529) — Mercury probes it for up to 1h and resumes the agent when it answers`), JSON.stringify(read))
+  check("a lane whose last row is the 529 answer pauses as 'provider overloaded' with the model named and no reset", read !== null && read.pause.why === 'provider overloaded' && read.pause.resumesAtMs === undefined && read.pause.words.startsWith(`${read.who} is overloaded (HTTP 529) — Mercury probes it for up to 1h and resumes the crewmate when it answers`), JSON.stringify(read))
   const asked = { ...(createAssistantAPIErrorMessage({ content: OVERLOADED_ROW, error: 'unknown' }) as Message), providerWaitEndsAtMs: Date.now() + 60_000 } as Message
   check('a 529 that states its wait keeps the stated-wait road (no overload pause)', lane.overloadPauseOf([asked], 'claude-fable-5-1') === null)
   const limited: Message[] = [createAssistantAPIErrorMessage({ content: 'API Error: 429 the window is spent', error: 'rate_limit' }) as Message]
@@ -79,7 +79,7 @@ section('§4 the words: calm, one spelling')
   const row: import('../../src/tasks/LocalAgentTask/agentPause.ts').AgentPauseV1 = { why: 'provider overloaded', words }
   check("the row's status cell", pause.pauseStatusWords(row, 0) === 'paused — provider overloaded · resumes by itself when the provider answers', pause.pauseStatusWords(row, 0))
   check('the pause decodes off the wire with its new reason', pause.decodeAgentPause({ why: 'provider overloaded', words }) !== null && pause.decodeAgentPause({ why: 'provider jammed', words }) === null)
-  check("the parent's line names the pause, the provider, the kept work and the probing, and shouts no error", line === 'Agent "lane" paused — Fable 5.1 is overloaded (HTTP 529); its work so far is kept and rides below; Mercury probes the provider for up to 1h and resumes the agent by itself when it answers — a message resumes it sooner; the crew view stops it' && !/error|failed/i.test(line.replace('HTTP 529', '')), line)
+  check("the parent's line names the pause, the provider, the kept work and the probing, and shouts no error", line === 'Crewmate "lane" paused — Fable 5.1 is overloaded (HTTP 529); its work so far is kept and rides below; Mercury probes the provider for up to 1h and resumes the crewmate by itself when it answers — a message resumes it sooner; the crew view stops it' && !/error|failed/i.test(line.replace('HTTP 529', '')), line)
   check('the resume note tells the agent why it is back and what stands', overload.AGENT_OVERLOAD_RESUME_NOTE.includes('resumed by yourself after it was overloaded') && overload.AGENT_OVERLOAD_RESUME_NOTE.includes('do not redo it'))
 }
 

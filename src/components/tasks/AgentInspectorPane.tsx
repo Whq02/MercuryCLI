@@ -135,9 +135,9 @@ export function AgentInspectorPane({
             <Crab />
             <Text> </Text>
             <Wordmark />
-            <Text color={FAINT}> — agent</Text>
+            <Text color={FAINT}> — crewmate</Text>
           </Box>
-          <Text color={FAINT}>agent #{agentIndex} has not reported in this run yet</Text>
+          <Text color={FAINT}>crewmate #{agentIndex} has not reported in this run yet</Text>
           <Box marginTop={1}>
             <Text color={FAINT}>esc / ← back</Text>
           </Box>
@@ -248,7 +248,7 @@ export function AgentInspectorPane({
           <Crab />
           <Text> </Text>
           <Wordmark />
-          <Text color={FAINT}> — agent</Text>
+          <Text color={FAINT}> — crewmate</Text>
         </Box>
 
         {

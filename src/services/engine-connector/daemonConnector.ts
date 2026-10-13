@@ -2127,7 +2127,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
   }
 
   private async agentVerb(action: 'stop-agent' | 'resume-agent', agentId: string, note?: string): Promise<AgentControlReceiptV1> {
-    if (agentId === '') return { outcome: 'refused', detail: `${action} needs an agent` }
+    if (agentId === '') return { outcome: 'refused', detail: `${action} needs a crewmate` }
     try {
       const reply = await this.chainRpc({
         op: 'sessionControl',

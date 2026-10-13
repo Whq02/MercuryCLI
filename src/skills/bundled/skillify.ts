@@ -76,7 +76,7 @@ ${memory ?? 'No session memory summary is available — derive the process from 
 ${userMessages || '(no user messages found after the last compaction)'}
 </user_messages>
 
-FIRST, before asking anything, analyse the session: the repeatable process; its inputs and parameters; the ordered steps; the artefact proving each step succeeded; where the user corrected or steered you; the tools and permissions used; any agents used.
+FIRST, before asking anything, analyse the session: the repeatable process; its inputs and parameters; the ordered steps; the artefact proving each step succeeded; where the user corrected or steered you; the tools and permissions used; any crewmates used.
 
 THEN interview the user ENTIRELY through the ${ASK_USER_QUESTION_TOOL_NAME} tool — never ask via plain text — across up to four rounds:
 1. Confirm the skill name and description, the high-level goal, and the success criteria.

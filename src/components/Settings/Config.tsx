@@ -154,7 +154,7 @@ type SubMenu =
   | 'language'
   | typeof LOCAL_SERVER_APPLY_MENU
 
-const AGENT_INHERIT_ROW: ModelChoice = { id: 'inherit', name: 'Inherit', tag: "the parent's model", ctx: '', group: 'Crewmate', choice: "a choice, not a model — the spawned agent runs its parent's model" }
+const AGENT_INHERIT_ROW: ModelChoice = { id: 'inherit', name: 'Inherit', tag: "the parent's model", ctx: '', group: 'Crewmate', choice: "a choice, not a model — the spawned crewmate runs its parent's model" }
 
 type ItemKind = 'boolean' | 'enum' | 'managed-enum' | 'info'
 
@@ -542,7 +542,7 @@ export function Config({
   items.push({
     id: 'seats',
     label: 'Seats',
-    searchText: 'seats seat ceiling capacity concurrency sessions crewmates sub-agents workflow agents in flight',
+    searchText: 'seats seat ceiling capacity concurrency sessions crewmates workflow crewmates in flight',
     kind: 'enum',
     value: <Text>{seatFacts === null ? 'reading capacity…' : seatCeilingValueWords(seatFacts)}</Text>,
     setByYou: seatFacts !== null && seatFacts.source === 'operator',
@@ -648,7 +648,7 @@ export function Config({
     items.push({
       id: 'jev',
       label: 'JEV',
-      searchText: 'jev typesafe official openrouter road second opinion jeveval eval tool key allowance pace ceiling crewmates sub-agents',
+      searchText: 'jev typesafe official openrouter road second opinion jeveval eval tool key allowance pace ceiling crewmates',
       kind: 'boolean',
       setByYou: jevSettings.enabled,
       value: <Text color={jevSettings.enabled ? tokens.success : tokens.textSecondary}>{jevValueWords(jevSettings)}</Text>,
@@ -1235,7 +1235,7 @@ export function Config({
   items.push({
     id: 'agentsDefaultEffort',
     label: 'Crewmate default effort',
-    searchText: 'crewmate sub-agent subagent agent default effort delegate workflow',
+    searchText: 'crewmate default effort delegate workflow',
     kind: 'enum',
     setByYou: agentDefaults.effortSource === 'setting',
     value: (
@@ -1244,7 +1244,7 @@ export function Config({
         {agentDefaults.effortSource === 'convention' ? <Text color={tokens.textSecondary}> (default)</Text> : null}
       </Text>
     ),
-    warning: 'the effort a spawned agent runs at when the call names none — never the session\'s own level, so a session at max pins it on the lead alone · ←/→ walk the ladder',
+    warning: 'the effort a spawned crewmate runs at when the call names none — never the session\'s own level, so a session at max pins it on the lead alone · ←/→ walk the ladder',
     change: direction => {
       const next = cycleIn(EFFORT_LEVELS, agentDefaults.effort, direction)
       writeAgents({ defaultEffort: next })
@@ -1254,7 +1254,7 @@ export function Config({
   items.push({
     id: 'agentsDefaultModel',
     label: 'Crewmate default model',
-    searchText: 'crewmate sub-agent subagent agent default model inherit parent',
+    searchText: 'crewmate default model inherit parent',
     kind: 'managed-enum',
     setByYou: agentDefaults.model !== undefined,
     value: (
@@ -1262,14 +1262,14 @@ export function Config({
         {agentDefaults.model === undefined || agentDefaults.model === AGENT_INHERIT_ROW.id ? AGENT_INHERIT_ROW.name : modelChoiceLabel(agentDefaults.model)}
       </Text>
     ),
-    warning: 'the model a spawned agent runs on when neither the call nor its definition names one · ←/→ opens the picker, every family live; Inherit follows the parent',
+    warning: 'the model a spawned crewmate runs on when neither the call nor its definition names one · ←/→ opens the picker, every family live; Inherit follows the parent',
     open: 'agent-model',
   })
   const envFanoutCap = agentFanoutCap()
   items.push({
     id: 'agentsMaxConcurrent',
     label: 'Crewmates at once',
-    searchText: 'crewmate sub-agent subagent agents at once concurrent cap fan-out maximum',
+    searchText: 'crewmate crewmates at once concurrent cap fan-out maximum',
     kind: 'enum',
     setByYou: agentDefaults.maxConcurrentSource === 'setting',
     value: (
@@ -1292,7 +1292,7 @@ export function Config({
   items.push({
     id: BACKGROUND_LAUNCH_KEY,
     label: BACKGROUND_LAUNCH_LABEL,
-    searchText: 'crewmate sub-agent subagent workflow backgrounded background session launch delegate workflows-allowed tag visit',
+    searchText: 'crewmate workflow backgrounded background session launch delegate workflows-allowed tag visit',
     kind: 'boolean',
     setByYou: backgroundLaunchOn,
     value: <Text color={backgroundLaunchOn ? tokens.success : tokens.textSecondary}>{backgroundLaunchValueWords(backgroundLaunchOn)}</Text>,

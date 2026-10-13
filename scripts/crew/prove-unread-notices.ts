@@ -82,7 +82,7 @@ if (ledger === null) {
   task.enqueueAgentNotification({ taskId: 'ag-1', description: 'reads the tree', status: 'completed', setAppState: store.set as never })
   const open = L.openNotices()
   check('N1 the completion notice is one unread row for the main thread', open.length === 1 && open[0]!.agentId === L.MAIN_THREAD_AGENT && open[0]!.kind === 'completion' && open[0]!.state === 'unread', JSON.stringify(open))
-  check('N1 the row carries the notice in a line and its delivery clock', open[0]?.words === 'Agent "reads the tree" completed' && open[0]?.deliveredAtMs === 1_000, JSON.stringify(open[0]))
+  check('N1 the row carries the notice in a line and its delivery clock', open[0]?.words === 'Crewmate "reads the tree" completed' && open[0]?.deliveredAtMs === 1_000, JSON.stringify(open[0]))
   check('N1 the main thread counts one unread', L.unreadNoticeCount(L.MAIN_THREAD_AGENT) === 1)
   clockMs = 1_400
   const taken = queue.dequeue()
@@ -95,7 +95,7 @@ if (ledger === null) {
   check('N1 an addressed notice is unread for its agent, not the main thread', L.unreadNoticeCount('ag-2') === 1 && L.unreadNoticeCount(L.MAIN_THREAD_AGENT) === 0)
   queue.dequeueAllMatching(c => c.agentId === 'ag-2')
   const discarded = L.noticeRows().find(r => r.agentId === 'ag-2')
-  check('N1 a notice discarded with its agent retires, and says so', discarded?.state === 'retired' && discarded.retiredWhy === 'discarded when its agent was stopped', JSON.stringify(discarded))
+  check('N1 a notice discarded with its agent retires, and says so', discarded?.state === 'retired' && discarded.retiredWhy === 'discarded when its crewmate was stopped', JSON.stringify(discarded))
   const uuid = '4f6c1b2e-0000-4000-8000-000000000001'
   queue.enqueue({ value: NOTE('t4', 'Agent "sorts the list" completed'), mode: 'task-notification', priority: 'next', agentId: 'ag-2', uuid: uuid as never })
   const pop = queue.popById(uuid)
@@ -172,7 +172,7 @@ if (ledger === null || nudge === null) {
     clearTimer: () => {},
   })
   check('N3 nothing open, nothing armed', timers.length === 0)
-  queue.enqueuePendingNotification({ value: NOTE('t5', 'Agent "reads the tree" completed'), mode: 'task-notification', priority: 'next' })
+  queue.enqueuePendingNotification({ value: NOTE('t5', 'Crewmate "reads the tree" completed'), mode: 'task-notification', priority: 'next' })
   check('N3 a delivered notice arms the sweep at the deadline, from its own delivery clock', timers.length === 1 && timers[0]!.ms === 1_500, JSON.stringify(timers.map(t => t.ms)))
   clockMs = 1_499
   let receipt = nudger.sweep()
@@ -243,7 +243,7 @@ if (ledger === null || nudge === null) {
   check('N4 a completed agent is gone — its run ended', JSON.stringify(N.agentRecipientState(tasks(), 'ag-4')) === JSON.stringify({ state: 'gone', why: 'its run ended' }), JSON.stringify(N.agentRecipientState(tasks(), 'ag-4')))
   check('N4 a running agent is busy — its own round reads its notices', N.agentRecipientState(tasks(), 'ag-5').state === 'busy')
   check('N4 a stopped agent is gone — it was stopped', JSON.stringify(N.agentRecipientState(tasks(), 'ag-6')) === JSON.stringify({ state: 'gone', why: 'it was stopped' }))
-  check('N4 an id this session never held is gone', JSON.stringify(N.agentRecipientState(tasks(), 'ag-none')) === JSON.stringify({ state: 'gone', why: 'no agent by that id in this session' }))
+  check('N4 an id this session never held is gone', JSON.stringify(N.agentRecipientState(tasks(), 'ag-none')) === JSON.stringify({ state: 'gone', why: 'no crewmate by that id in this session' }))
   queue.enqueue({ value: NOTE('t9', 'Agent "its helper" completed'), mode: 'task-notification', priority: 'next', agentId: 'ag-4' })
   queue.enqueue({ value: NOTE('t10', 'Agent "its other helper" completed'), mode: 'task-notification', priority: 'next', agentId: 'ag-5' })
   const wakes: string[] = []
