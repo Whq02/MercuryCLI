@@ -279,7 +279,6 @@ export function requestConversationPlan(
     ? planApiConversation(messages as Message[], tools)
     : {
       selected: withoutOrphanCaveats(messages.filter((message): message is PlannedMessage =>
-        !isSyntheticApiErrorMessage(message) &&
         !(message.type === 'assistant' && refusedTurns.has(message.message.id)) &&
         (((message.type === 'user' || message.type === 'assistant') && !message.isVirtual) ||
         message.type === 'attachment' || isSystemLocalCommandMessage(message)))),
@@ -287,8 +286,10 @@ export function requestConversationPlan(
       availableToolNames: new Set(tools.map(tool => tool.name)),
     }
   const projected = projectConversationSelection(selection, tools, geometry)
-  const prepared = geometry === 'family' ? pairConversationMessages(projected, 'split') : finishApiContent(projected)
-  return { ...selection, messages: prepared }
+  const prepared = geometry === 'family'
+    ? pairConversationMessages(stripImagesRefusedByStamp(projected).filter(message => !isSyntheticApiErrorMessage(message)), 'split')
+    : finishApiContent(projected)
+  return { ...selection, selected: selection.selected.filter(message => !isSyntheticApiErrorMessage(message)), messages: prepared }
 }
 
 function projectConversationSelection(
