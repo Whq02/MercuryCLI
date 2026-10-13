@@ -152,9 +152,9 @@ section('§5 the list cannot be read while the sign-in is live: the known defaul
   check('…with a note that says the list could not be read, names the HTTP failure and the default that runs', grok.note !== undefined && grok.note.includes('the xAI model list could not be read') && grok.note.includes('HTTP 500') && grok.note.includes('Grok 4.7 (grok-4.7)'), show(grok))
   check('…and the note points at the two pages', grok.note?.includes('mercury://models') === true && grok.note.includes('mercury://models/known'), show(grok))
   const plan = buildAgentLaunchPlan({
-    activeAgents: [{ agentType: 'general-purpose', whenToUse: 'x', tools: ['*'], source: 'built-in', baseDir: 'built-in', getSystemPrompt: () => '' } as never],
+    activeAgents: [{ agentType: 'fixture-worker', whenToUse: 'x', tools: ['*'], source: 'built-in', baseDir: 'built-in', getSystemPrompt: () => '' } as never],
     toolPermissionContext: getEmptyToolPermissionContext(),
-    defaultAgentType: 'general-purpose',
+    defaultAgentType: 'fixture-worker',
     engineModel: 'claude-opus-5',
     backgroundTasksDisabled: false,
     forceAsync: false,

@@ -275,7 +275,7 @@ section('6 · the shape: where the kick lives, and where it never does')
   check('the catalogue door names the DeepSeek family and its credential owner', gate.includes("'deepseek'") && gate.includes('resolveDeepseekApiKey'))
   const dispatch = readFileSync(join(ROOT, 'src/utils/crew/engineDispatch.ts'), 'utf8')
   const table = readFileSync(join(ROOT, 'src/utils/model/bareFamilyWords.ts'), 'utf8')
-  check('sub-agent dispatch reads the DeepSeek class through the shared family-word table, whose resolver reads the catalogue rows, and an exact id through the folding entry lookup', /bareFamilyWordOf\(modelParam\)/.test(dispatch) && /deepseekCatalogueRows\(\)\.rows\[0\]/.test(table) && /deepseekCatalogueEntry\(id\)/.test(dispatch) && !/DEEPSEEK_STATIC_CATALOGUE\.find\(/.test(dispatch))
+  check('sub-agent dispatch reads the DeepSeek class through the shared family-word table, whose resolver reads the catalogue rows, and an exact id through the folding entry lookup', /bareFamilyWordOf\(modelParam\)/.test(dispatch) && /deepseekCatalogueRows\(\)\.rows\[0\]/.test(table) && dispatch.includes("resolveKeyLaneExactModel('deepseek', id, deepseekCatalogueEntry, deepseekCatalogueEntries)") && !/DEEPSEEK_STATIC_CATALOGUE\.find\(/.test(dispatch))
 }
 
 console.log(failures === 0 ? '\n ✅ DEEPSEEK CATALOGUE — GREEN' : `\n ❌ ${failures} FAILED`)
