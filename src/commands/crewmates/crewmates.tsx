@@ -6,7 +6,8 @@ import { runSpawnSwitchCommand } from './spawnSwitch.js'
 export const call: LocalJSXCommandCall = async (onDone, _context, args) => {
   const parsed = parseSpawnSwitchArg(args ?? '')
   if (parsed.op === 'on' || parsed.op === 'off' || parsed.op === 'unknown') {
-    onDone(await runSpawnSwitchCommand('subagents', args ?? ''))
+    const receipt = await runSpawnSwitchCommand('subagents', args ?? '')
+    onDone(parsed.op === 'unknown' ? receipt : receipt.replace(' — ', '\n'))
     return null
   }
   openCrewView()

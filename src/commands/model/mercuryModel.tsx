@@ -1348,7 +1348,7 @@ export const call: LocalJSXCommandCall = async (onDone, context, args) => {
     }
     if (matched.kind === 'match') {
       const base = await import('./model.js')
-      return base.call((result, options) => onDone(result === undefined ? undefined : `${matched.said} · ${result}`, options), context, matched.id)
+      return base.call((result, options) => onDone(result === undefined ? undefined : `${matched.said}\n${result}`, options), context, matched.id)
     }
     const options = getModelOptions()
     const filter = reachableModelEntries().some(entry => matchesPickerFilter({ id: entry.id, name: entry.name ?? '', tag: '', group: '' }, typed)) ? typed : ''
