@@ -48,6 +48,16 @@ try {
   assert.equal(requests, before + 1); assert.deepEqual(paths, ['/html/'])
   now += 90_000; status = 200
   assert.equal((await keylessSearch({ query: 'after wait' }, { fetchImpl, clock })).ok, true)
+  resetSearchPacing()
+  await assert.rejects(performWebSearch({ query: 'empty', allowedDomains: ['no-match.invalid'] }, io), error => error instanceof Error && error.message.includes(setting.DUCKDUCKGO_TERMS))
+  resetSearchPacing()
+  const controller = new AbortController()
+  const aborted = await keylessSearch({ query: 'cancel', signal: controller.signal }, { clock, fetchImpl: (async () => { controller.abort(); throw new Error('fixture cancel') }) as typeof fetch })
+  assert.equal(aborted.ok, false)
+  if (!aborted.ok) assert.equal(aborted.kind, 'aborted')
+  const afterCancel = await keylessSearch({ query: 'after cancel' }, { clock, fetchImpl })
+  assert.equal(afterCancel.ok, true)
+  if (afterCancel.ok) assert.ok(afterCancel.notes?.includes(setting.DUCKDUCKGO_TERMS))
   setting.setDuckduckgoScraping(false)
   assert.equal(setting.duckduckgoScrapingEnabled(), false)
   const finalCount = requests

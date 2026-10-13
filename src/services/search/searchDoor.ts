@@ -121,8 +121,9 @@ async function openDoor(door: SearchDoor, request: SearchRequest, io: WebSearchR
 export interface WalkFailureContext { nativeFamily?: NativeSearchFamily }
 export function walkFailureLine(failures: readonly SearchFailure[], plan: SearchDoorPlan, _walk: WalkFailureContext = {}): string {
   let line = 'No source answered; try another wording or another source.'
+  if (failures.some(failure => failure.message.includes(DUCKDUCKGO_TERMS))) line += ` ${DUCKDUCKGO_TERMS}`
   for (const fact of [...failures.map(failureLine), ...plan.closed]) {
-    const next = `${line} ${fact.replace(/\s+/g, ' ').trim()}`
+    const next = `${line} ${fact.replace(DUCKDUCKGO_TERMS, '').replace(/\s+/g, ' ').trim()}`
     if (Buffer.byteLength(next, 'utf8') < 2000) line = next
   }
   return line
@@ -158,7 +159,7 @@ export async function performWebSearch(input: SearchRequest, io: WebSearchRunIo)
     if (outcome.ok) {
       const hits = normaliseHits(outcome.hits, request.maxResults)
       if (door.kind === 'keyed' && coolDownRemainingMs(door.backend, clock.now()) === 0) noteAnswered(door.backend)
-      if (!hits.length) { failures.push(searchFailure('no-backend', outcome.via, `${searchBackendLabel(outcome.via)} found no matching links`)); continue }
+      if (!hits.length) { failures.push(searchFailure('no-backend', outcome.via, `${(outcome.notes ?? []).join(' ')} ${searchBackendLabel(outcome.via)} found no matching links`.trim())); continue }
       const queries = outcome.queries ?? [request.query]
       if (outcome.via !== 'github') rememberSearch(request, { via: outcome.via, tier: outcome.tier, hits, queries, notes: outcome.notes?.filter(note => note !== DUCKDUCKGO_TERMS) }, clock.now())
       const id = nextSearchGroupId(outcome.via)
