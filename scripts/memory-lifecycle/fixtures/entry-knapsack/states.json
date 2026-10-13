@@ -1,0 +1,819 @@
+{
+  "synthetic": true,
+  "about": "Twelve synthetic session states written for prove-entry-knapsack.ts: every branch, file, fact, rule and note here is invented for the proof; no real session, project or note is recorded. Facts are retained through the real road at now minus daysAgo and consolidated; seq numbers follow retain order within a state. A note's session number follows its position in the ledger; the newest note rides on the lineage page, so only earlier notes are candidates. The limit is the allowance for what rides beyond the pinned rules, which always ride whole and are never counted against it.",
+  "now": "2026-10-13T09:00:00.000Z",
+  "states": [
+    {
+      "id": 1,
+      "name": "a lane with a telling branch name",
+      "branch": "lane/quartz-rotation",
+      "files": [
+        "src/quartz/rotate.ts",
+        "src/quartz/schedule.ts"
+      ],
+      "limit": 4000,
+      "facts": [
+        {
+          "topic": "quartz",
+          "daysAgo": 20,
+          "text": "quartz certificates rotate on Tuesdays"
+        },
+        {
+          "topic": "quartz",
+          "daysAgo": 15,
+          "text": "the quartz rotation script lives in scripts/ops/rotate-quartz.sh"
+        },
+        {
+          "topic": "quartz",
+          "daysAgo": 5,
+          "text": "the quartz lane runs on branch lane/quartz-rotation"
+        },
+        {
+          "topic": "amber",
+          "daysAgo": 12,
+          "text": "the amber archive is kept offline and never synced"
+        },
+        {
+          "topic": "amber",
+          "daysAgo": 8,
+          "text": "the amber mirror refreshes every night at two"
+        },
+        {
+          "topic": "owner",
+          "daysAgo": 10,
+          "text": "the owner signs commits as the project account and never pushes from a lane",
+          "pin": true
+        }
+      ],
+      "notes": [
+        {
+          "daysAgo": 30,
+          "text": "The work: the quartz rotation.\nDecided: rotate on Tuesdays.\nStill to do: the schedule."
+        },
+        {
+          "daysAgo": 2,
+          "text": "The work: the quartz schedule in src/quartz/schedule.ts.\nStill to do: the rotation script."
+        }
+      ],
+      "expect": {
+        "rides": [
+          "seq:6",
+          "seq:2",
+          "note:1",
+          "seq:1"
+        ],
+        "left": [
+          "seq:3",
+          "seq:5"
+        ]
+      }
+    },
+    {
+      "id": 2,
+      "name": "the fold branch, many files touched",
+      "branch": "working-35",
+      "files": [
+        "src/mneme/entryPage.ts",
+        "src/mneme/mnemeLookup.ts",
+        "scripts/memory/run-all.sh",
+        "docs/releases/1.0.0-beta.35.md",
+        "package.json"
+      ],
+      "limit": 4000,
+      "facts": [
+        {
+          "topic": "release",
+          "daysAgo": 3,
+          "text": "the fold target for the update is working-35 and the lead folds every lane there"
+        },
+        {
+          "topic": "release",
+          "daysAgo": 2,
+          "text": "the release notes page is docs/releases/1.0.0-beta.35.md and keeps Added, Changed and Fixed only"
+        },
+        {
+          "topic": "memory",
+          "daysAgo": 4,
+          "text": "the entry page is composed in src/mneme/entryPage.ts and the search in src/mneme/mnemeLookup.ts"
+        },
+        {
+          "topic": "memory",
+          "daysAgo": 6,
+          "text": "the memory suite is scripts/memory/run-all.sh and globs every proof"
+        },
+        {
+          "topic": "voice",
+          "daysAgo": 9,
+          "text": "the voice pack is vendored under vendor/voice for the desktop build"
+        },
+        {
+          "topic": "rules",
+          "daysAgo": 1,
+          "text": "package.json stays at the released version until the release commit",
+          "pin": true
+        },
+        {
+          "topic": "rules",
+          "daysAgo": 1,
+          "text": "never push to working without the owner's word",
+          "pin": true
+        }
+      ],
+      "notes": [
+        {
+          "daysAgo": 1,
+          "text": "The work: folding the memory lanes onto working-35.\nStill to do: the release notes page."
+        }
+      ],
+      "expect": {
+        "rides": [
+          "seq:3",
+          "seq:5",
+          "seq:4",
+          "seq:2"
+        ],
+        "left": [
+          "seq:1"
+        ]
+      }
+    },
+    {
+      "id": 3,
+      "name": "an owner-shaped shelf (twenty rules, 8,381 characters) at the default allowance: the pins ride whole and the rest fills its own 4,000",
+      "branch": "working-35",
+      "files": [
+        "src/mneme/entryPage.ts"
+      ],
+      "limit": 4000,
+      "facts": [
+        {
+          "topic": "memory",
+          "daysAgo": 4,
+          "text": "the entry page is composed in src/mneme/entryPage.ts"
+        },
+        {
+          "topic": "memory",
+          "daysAgo": 3,
+          "text": "the fold target for the update is working-35"
+        },
+        {
+          "topic": "rules",
+          "daysAgo": 30,
+          "pin": true,
+          "text": "Prefix every build, deploy and proof command with a change into the working checkout; never rely on the shell's working directory; verify the directory's head before building or deploying; after deploying verify that the runtime link matches the working tree and check the printed version; a deploy that cannot be verified is reported as not verified with what would verify it named."
+        },
+        {
+          "topic": "rules",
+          "daysAgo": 29,
+          "pin": true,
+          "text": "The owner directs lanes in waves; the lead folds waves, holds the checks and catches slips (the author line, walls, stale scripts) and must ask the owner before pushing after all wave checks read green; the gates of an update are the chain, the hosted gate and the lead's one live check of the real product; the drive suites run once per update as a guide only and never block a release."
+        },
+        {
+          "topic": "rules",
+          "daysAgo": 28,
+          "pin": true,
+          "text": "Never remove, cap or remap capabilities, thinking budgets or effort levels as a fix: max stays max, thinking stays on, no clocks or guards; give models room to finish by setting the output ceiling to the stated maximum and preserving effort and signed thinking on continuations; fix the underlying harness cause instead, keep full tool sets for local models and show active requests in the status row."
+        },
+        {
+          "topic": "rules",
+          "daysAgo": 27,
+          "pin": true,
+          "text": "The nearest suites for a late fold are the lane suites, the identity suite with its vocabulary and old-spelling censuses across the whole tree and fixtures, the component proofs found by searching the scripts tree for the component's name, and the formal-model and substrate provers for flag changes; before declaring a fold green run the suites the gate-watch lines name for the touched files, the identity suite when text or fixtures changed, and the component proofs."
+        },
+        {
+          "topic": "rules",
+          "daysAgo": 26,
+          "pin": true,
+          "text": "Resolve source conflicts by editing the conflict markers in place to preserve both sides beside the automatic merge; never take one side wholesale, which discards the non-conflicting changes; audit the other parent's diff for the file and check the added lines against the tip; take one side only for regenerated schema, inventory or manifest files when regenerating them immediately afterwards."
+        },
+        {
+          "topic": "rules",
+          "daysAgo": 25,
+          "pin": true,
+          "text": "Record only what the owner stated; keep information gaps as general descriptions or ask; never write a plausible guess as fact; check the transcripts before recording who, where and when; do not take agreement across records as confirmation when they derive from a single source; a record that cannot be verified says so and names what would verify it."
+        },
+        {
+          "topic": "rules",
+          "daysAgo": 24,
+          "pin": true,
+          "text": "Never stop background shells through the task-stop road, which kills the whole process group; prefer letting a job finish or make it a no-op through a hold flag; otherwise locate the job by its process id and end that one process, never the group; after any kill list the remaining jobs, relaunch what was killed and inspect the session outputs for empty files; never edit a running script, write the replacement to a new file and relaunch from it."
+        },
+        {
+          "topic": "rules",
+          "daysAgo": 23,
+          "pin": true,
+          "text": "Never modify settings in the owner's home: no toggling, restoring or hand migration; if a check needs a disabled option use the last valid reading, a scratch home where the check supports one, or ask; treat deviations from the records as intentional owner choices and skip with the reason stated or cite the last valid reading; a sanity or pairing check against the owner's home runs with the settings as found."
+        },
+        {
+          "topic": "rules",
+          "daysAgo": 22,
+          "pin": true,
+          "text": "Run suites in parallel and batch the ready fold lanes together; a load-sensitive proof failure is a test defect, not a scheduling problem; on a red proof record the load and rerun the single failing proof alone once as the diagnosis, never the whole suite; if it is green alone fix the proof's timing (scale the budget to the hardware, use product marks instead of timed sampling) and keep the loaded failure as evidence."
+        },
+        {
+          "topic": "rules",
+          "daysAgo": 21,
+          "pin": true,
+          "text": "Launch worktree lanes one at a time with the worktree pinned at the fold landing commit, the tip of main; verify the worktree list shows the target before work begins; if a stale remote ref exists treat worktrees at its commit as invalid and relaunch them; the lead reads each lane's records, never its transcript, and folds in the order the lanes land."
+        },
+        {
+          "topic": "rules",
+          "daysAgo": 20,
+          "pin": true,
+          "text": "Report in plain words without internal test names, codenames or ticket ids unless asked: what happened, the impact on the release and the owner's required actions, in that order; keep exact names, paths and ids in the records for verification; end with the decision or action required or say none is needed; never forecast an unresolved check; never say the same tree without comparing tree ids, say not verified and name what would verify it."
+        },
+        {
+          "topic": "rules",
+          "daysAgo": 19,
+          "pin": true,
+          "text": "Publishing stops on any new top-level folder for the owner's review; read lane-written prose line by line before publishing; keep descriptions of the owner's machine, environment, process or product limits in the local handbook, never in the repository tree; at a dry run inspect the added files outside the source, scripts and docs folders and stop for the owner; grep new docs for environment words; non-product folders and adapters stay outside the tree or in the strip lists until the owner authorises shipping them."
+        },
+        {
+          "topic": "rules",
+          "daysAgo": 18,
+          "pin": true,
+          "text": "A retired spelling (an option, a key, an environment name, a word, a verb, a path) ceases to exist and is treated as an unknown input: no refusal line, no alias, no lookup table, no custom exit code, no one-time migration script; a retired term may survive only in a proof's forbidden-word list; if user-visible disk data must move, ask the owner once and default to no migration."
+        },
+        {
+          "topic": "rules",
+          "daysAgo": 17,
+          "pin": true,
+          "text": "Never remove a worktree without checking what the main clone's dependency link resolves to, since a forced removal deletes the ignored files it points at; when filtering the worktree listing remember each row is a path and a branch; the safe removal sequence is to list the removal set, check it against the main clone and the standing worktrees, verify the links resolve afterwards, recreate the working worktree, install the dependencies inside it and prove it with a build."
+        },
+        {
+          "topic": "rules",
+          "daysAgo": 16,
+          "pin": true,
+          "text": "Bring each lane to the owner as a short proposal (its name, what it fixes in plain words, its size, the evidence) and launch nothing until he says go or gives feedback; the lead makes the triage decisions and brings him only money and accounts, anything public, deletions beyond what he authorised, scope changes or design forks, and lanes blocked on him.",
+          "asked": true
+        },
+        {
+          "topic": "rules",
+          "daysAgo": 15,
+          "pin": true,
+          "text": "Every proof that boots the product runs under a scratch config home with the real temporary path, never the alias, because the trust walk and the project store key on the real path; the alias is for the socket homes only; a proof that writes under the owner's home is a defect of the proof and is fixed before anything else is read from its run."
+        },
+        {
+          "topic": "rules",
+          "daysAgo": 14,
+          "pin": true,
+          "text": "A screen suite takes one of the box-wide slots only while the one-minute load is under the ceiling, records which slot it took with braces so a failed take never frees another lane's slot, yields for three seconds after every free so single-proof waiters can enter at a suite boundary, and never removes a slot it did not take; a slot that looks stale is the lead's to clear."
+        },
+        {
+          "topic": "rules",
+          "daysAgo": 13,
+          "pin": true,
+          "text": "A fold lane commits one step at a time with its own proof, stages named files only, never amends after a failed hook, writes the reason in the commit message rather than a comment, keeps the package version at the released one, and reports what it changed, what it proved red on the base and green on its tip, what it did not reach, and the one decision the owner must take or that none is needed."
+        },
+        {
+          "topic": "rules",
+          "daysAgo": 12,
+          "pin": true,
+          "text": "Generated files move only through their generators: the settings schema, the contract inventory, the censuses, the command catalogue and the stored stills are regenerated, never hand-edited, and a fold that touches a generator's source regenerates the asset in the same commit and runs the generated-assets check before declaring the fold green; a hand edit to a generated file is reverted and the generator run instead."
+        },
+        {
+          "topic": "rules",
+          "daysAgo": 11,
+          "pin": true,
+          "text": "Long runs go through the background road of the shell tool with a timeout longer than the wait, never through detaching or disowning a process, and a background job is ended by its own process id alone; the session's record of every background job is read before the turn ends so that no job is left running unreported and no output file is left at zero bytes without a reason written beside it."
+        }
+      ],
+      "notes": [
+        {
+          "daysAgo": 1,
+          "text": "The work: folding the memory lanes onto working-35.\nStill to do: the release notes page."
+        }
+      ],
+      "expect": {
+        "rides": [
+          "seq:21",
+          "seq:22"
+        ],
+        "left": []
+      }
+    },
+    {
+      "id": 4,
+      "name": "no state at all: a first session in a plain folder",
+      "branch": null,
+      "files": [],
+      "limit": 4000,
+      "facts": [
+        {
+          "topic": "quartz",
+          "daysAgo": 20,
+          "text": "quartz certificates rotate on Tuesdays"
+        },
+        {
+          "topic": "amber",
+          "daysAgo": 12,
+          "text": "the amber archive is kept offline and never synced"
+        },
+        {
+          "topic": "rules",
+          "daysAgo": 10,
+          "pin": true,
+          "text": "never push to working without the owner's word"
+        }
+      ],
+      "notes": [],
+      "expect": {
+        "rides": [],
+        "left": [
+          "seq:1",
+          "seq:2"
+        ]
+      }
+    },
+    {
+      "id": 5,
+      "name": "a detached head: the files and the note carry the state",
+      "branch": null,
+      "files": [
+        "src/amber/mirror.ts",
+        "docs/amber.md"
+      ],
+      "limit": 4000,
+      "facts": [
+        {
+          "topic": "quartz",
+          "daysAgo": 20,
+          "text": "quartz certificates rotate on Tuesdays"
+        },
+        {
+          "topic": "amber",
+          "daysAgo": 12,
+          "text": "the amber archive is kept offline and never synced"
+        },
+        {
+          "topic": "amber",
+          "daysAgo": 8,
+          "text": "the amber mirror refreshes every night at two and is driven by src/amber/mirror.ts"
+        },
+        {
+          "topic": "docs",
+          "daysAgo": 6,
+          "text": "docs/amber.md describes the mirror for operators"
+        }
+      ],
+      "notes": [
+        {
+          "daysAgo": 9,
+          "text": "The work: the quartz rotation."
+        },
+        {
+          "daysAgo": 1,
+          "text": "The work: the amber mirror.\nStill to do: the operators' page."
+        }
+      ],
+      "expect": {
+        "rides": [
+          "seq:4",
+          "seq:3",
+          "seq:2"
+        ],
+        "left": [
+          "note:1",
+          "seq:1"
+        ]
+      }
+    },
+    {
+      "id": 6,
+      "name": "only a note: no repository, nothing touched yet",
+      "branch": null,
+      "files": [],
+      "limit": 4000,
+      "facts": [
+        {
+          "topic": "garnet",
+          "daysAgo": 14,
+          "text": "the garnet ledger view renders the balances by month"
+        },
+        {
+          "topic": "garnet",
+          "daysAgo": 7,
+          "text": "garnet balances are reconciled against the opal export"
+        },
+        {
+          "topic": "opal",
+          "daysAgo": 3,
+          "text": "the opal export runs nightly"
+        },
+        {
+          "topic": "topaz",
+          "daysAgo": 2,
+          "text": "the topaz importer is parked until the schema settles"
+        }
+      ],
+      "notes": [
+        {
+          "daysAgo": 1,
+          "text": "The work: reconciling the garnet balances against the opal export.\nStill to do: the month view."
+        }
+      ],
+      "expect": {
+        "rides": [
+          "seq:2",
+          "seq:1",
+          "seq:3"
+        ],
+        "left": [
+          "seq:4"
+        ]
+      }
+    },
+    {
+      "id": 7,
+      "name": "a tight budget: room for the short facts only",
+      "branch": "lane/garnet-ledger",
+      "files": [
+        "src/garnet/ledgerView.ts"
+      ],
+      "limit": 340,
+      "facts": [
+        {
+          "topic": "garnet",
+          "daysAgo": 14,
+          "text": "the garnet ledger view renders the balances by month"
+        },
+        {
+          "topic": "garnet",
+          "daysAgo": 7,
+          "text": "the garnet ledger view in src/garnet/ledgerView.ts must keep the running balance column aligned to the right, print the month header once per month, carry the opening balance from the previous month and never round a balance before the last line of the month"
+        },
+        {
+          "topic": "garnet",
+          "daysAgo": 5,
+          "text": "garnet is the ledger lane"
+        },
+        {
+          "topic": "rules",
+          "daysAgo": 10,
+          "pin": true,
+          "text": "never push to working without the owner's word"
+        }
+      ],
+      "notes": [
+        {
+          "daysAgo": 1,
+          "text": "The work: the garnet ledger view."
+        }
+      ],
+      "expect": {
+        "rides": [
+          "seq:4",
+          "seq:1"
+        ],
+        "left": [
+          "seq:3"
+        ]
+      }
+    },
+    {
+      "id": 8,
+      "name": "a stale fact ranks below the fresh ones (the consolidate lane's status, simulated): with room for one, the fresh fact rides",
+      "branch": "lane/garnet-ledger",
+      "files": [
+        "src/garnet/ledgerView.ts"
+      ],
+      "limit": 120,
+      "stale": [
+        "the garnet ledger view in src/garnet/ledgerView.ts renders the balances by month"
+      ],
+      "facts": [
+        {
+          "topic": "garnet",
+          "daysAgo": 14,
+          "text": "the garnet ledger view in src/garnet/ledgerView.ts renders the balances by month"
+        },
+        {
+          "topic": "garnet",
+          "daysAgo": 7,
+          "text": "the garnet ledger lane is cut from the fold tip"
+        },
+        {
+          "topic": "garnet",
+          "daysAgo": 5,
+          "text": "garnet balances are reconciled against the opal export"
+        },
+        {
+          "topic": "rules",
+          "daysAgo": 10,
+          "pin": true,
+          "text": "never push to working without the owner's word"
+        }
+      ],
+      "notes": [
+        {
+          "daysAgo": 1,
+          "text": "The work: the garnet ledger view."
+        }
+      ],
+      "expect": {
+        "rides": [
+          "seq:3"
+        ],
+        "left": [
+          "seq:1",
+          "seq:4"
+        ]
+      }
+    },
+    {
+      "id": 9,
+      "name": "archived facts still ride when the branch names them",
+      "branch": "lane/topaz-importer",
+      "files": [
+        "src/topaz/importer.ts"
+      ],
+      "limit": 4000,
+      "facts": [
+        {
+          "topic": "topaz",
+          "daysAgo": 200,
+          "text": "the topaz importer reads the schema from src/topaz/importer.ts"
+        },
+        {
+          "topic": "topaz",
+          "daysAgo": 150,
+          "text": "topaz rows are keyed by the importer's batch id"
+        },
+        {
+          "topic": "garnet",
+          "daysAgo": 7,
+          "text": "garnet balances are reconciled against the opal export"
+        },
+        {
+          "topic": "opal",
+          "daysAgo": 3,
+          "text": "the opal export runs nightly"
+        }
+      ],
+      "notes": [
+        {
+          "daysAgo": 1,
+          "text": "The work: the opal export."
+        }
+      ],
+      "expect": {
+        "rides": [
+          "seq:1",
+          "seq:4",
+          "seq:2",
+          "seq:3"
+        ],
+        "left": []
+      }
+    },
+    {
+      "id": 10,
+      "name": "earlier notes: the newest rides on the lineage page, the others compete by relevance per character",
+      "branch": "lane/opal-export",
+      "files": [
+        "src/opal/export.ts"
+      ],
+      "limit": 4000,
+      "facts": [
+        {
+          "topic": "opal",
+          "daysAgo": 3,
+          "text": "the opal export runs nightly"
+        },
+        {
+          "topic": "garnet",
+          "daysAgo": 7,
+          "text": "garnet balances are reconciled against the opal export"
+        }
+      ],
+      "notes": [
+        {
+          "daysAgo": 40,
+          "text": "The work: the opal export's first cut in src/opal/export.ts.\nDecided: one file per night.\nStill to do: the retry."
+        },
+        {
+          "daysAgo": 30,
+          "text": "The work: the garnet month view.\nStill to do: the headers."
+        },
+        {
+          "daysAgo": 20,
+          "text": "The work: the opal export retry.\nDecided: three attempts, then a notice.\nWrong: the first cut dropped the last row of the night, fixed in src/opal/export.ts.\nStill to do: the notice's words."
+        },
+        {
+          "daysAgo": 1,
+          "text": "The work: the opal export notice.\nStill to do: the words."
+        }
+      ],
+      "expect": {
+        "rides": [
+          "note:3",
+          "note:1",
+          "seq:2",
+          "seq:1"
+        ],
+        "left": [
+          "note:2"
+        ]
+      }
+    },
+    {
+      "id": 11,
+      "name": "an empty library: only earlier notes to choose from",
+      "branch": "lane/opal-export",
+      "files": [],
+      "limit": 4000,
+      "facts": [],
+      "notes": [
+        {
+          "daysAgo": 20,
+          "text": "The work: the opal export retry."
+        },
+        {
+          "daysAgo": 10,
+          "text": "The work: the garnet month view."
+        },
+        {
+          "daysAgo": 1,
+          "text": "The work: the opal export notice."
+        }
+      ],
+      "expect": {
+        "rides": [
+          "note:1"
+        ],
+        "left": [
+          "note:2"
+        ]
+      }
+    },
+    {
+      "id": 12,
+      "name": "the same owner-shaped shelf with the allowance at its floor of 1,000: the pins ride whole beside it",
+      "branch": "working-35",
+      "files": [
+        "src/mneme/entryPage.ts",
+        "src/mneme/entryKnapsack.ts"
+      ],
+      "limit": 1000,
+      "facts": [
+        {
+          "topic": "memory",
+          "daysAgo": 4,
+          "text": "the entry page is composed in src/mneme/entryPage.ts"
+        },
+        {
+          "topic": "memory",
+          "daysAgo": 3,
+          "text": "the fold target for the update is working-35"
+        },
+        {
+          "topic": "memory",
+          "daysAgo": 2,
+          "text": "the knapsack composer lives in src/mneme/entryKnapsack.ts and is proven by the lifecycle suite"
+        },
+        {
+          "topic": "voice",
+          "daysAgo": 9,
+          "text": "the voice pack is vendored under vendor/voice for the desktop build"
+        },
+        {
+          "topic": "rules",
+          "daysAgo": 30,
+          "pin": true,
+          "text": "Prefix every build, deploy and proof command with a change into the working checkout; never rely on the shell's working directory; verify the directory's head before building or deploying; after deploying verify that the runtime link matches the working tree and check the printed version; a deploy that cannot be verified is reported as not verified with what would verify it named."
+        },
+        {
+          "topic": "rules",
+          "daysAgo": 29,
+          "pin": true,
+          "text": "The owner directs lanes in waves; the lead folds waves, holds the checks and catches slips (the author line, walls, stale scripts) and must ask the owner before pushing after all wave checks read green; the gates of an update are the chain, the hosted gate and the lead's one live check of the real product; the drive suites run once per update as a guide only and never block a release."
+        },
+        {
+          "topic": "rules",
+          "daysAgo": 28,
+          "pin": true,
+          "text": "Never remove, cap or remap capabilities, thinking budgets or effort levels as a fix: max stays max, thinking stays on, no clocks or guards; give models room to finish by setting the output ceiling to the stated maximum and preserving effort and signed thinking on continuations; fix the underlying harness cause instead, keep full tool sets for local models and show active requests in the status row."
+        },
+        {
+          "topic": "rules",
+          "daysAgo": 27,
+          "pin": true,
+          "text": "The nearest suites for a late fold are the lane suites, the identity suite with its vocabulary and old-spelling censuses across the whole tree and fixtures, the component proofs found by searching the scripts tree for the component's name, and the formal-model and substrate provers for flag changes; before declaring a fold green run the suites the gate-watch lines name for the touched files, the identity suite when text or fixtures changed, and the component proofs."
+        },
+        {
+          "topic": "rules",
+          "daysAgo": 26,
+          "pin": true,
+          "text": "Resolve source conflicts by editing the conflict markers in place to preserve both sides beside the automatic merge; never take one side wholesale, which discards the non-conflicting changes; audit the other parent's diff for the file and check the added lines against the tip; take one side only for regenerated schema, inventory or manifest files when regenerating them immediately afterwards."
+        },
+        {
+          "topic": "rules",
+          "daysAgo": 25,
+          "pin": true,
+          "text": "Record only what the owner stated; keep information gaps as general descriptions or ask; never write a plausible guess as fact; check the transcripts before recording who, where and when; do not take agreement across records as confirmation when they derive from a single source; a record that cannot be verified says so and names what would verify it."
+        },
+        {
+          "topic": "rules",
+          "daysAgo": 24,
+          "pin": true,
+          "text": "Never stop background shells through the task-stop road, which kills the whole process group; prefer letting a job finish or make it a no-op through a hold flag; otherwise locate the job by its process id and end that one process, never the group; after any kill list the remaining jobs, relaunch what was killed and inspect the session outputs for empty files; never edit a running script, write the replacement to a new file and relaunch from it."
+        },
+        {
+          "topic": "rules",
+          "daysAgo": 23,
+          "pin": true,
+          "text": "Never modify settings in the owner's home: no toggling, restoring or hand migration; if a check needs a disabled option use the last valid reading, a scratch home where the check supports one, or ask; treat deviations from the records as intentional owner choices and skip with the reason stated or cite the last valid reading; a sanity or pairing check against the owner's home runs with the settings as found."
+        },
+        {
+          "topic": "rules",
+          "daysAgo": 22,
+          "pin": true,
+          "text": "Run suites in parallel and batch the ready fold lanes together; a load-sensitive proof failure is a test defect, not a scheduling problem; on a red proof record the load and rerun the single failing proof alone once as the diagnosis, never the whole suite; if it is green alone fix the proof's timing (scale the budget to the hardware, use product marks instead of timed sampling) and keep the loaded failure as evidence."
+        },
+        {
+          "topic": "rules",
+          "daysAgo": 21,
+          "pin": true,
+          "text": "Launch worktree lanes one at a time with the worktree pinned at the fold landing commit, the tip of main; verify the worktree list shows the target before work begins; if a stale remote ref exists treat worktrees at its commit as invalid and relaunch them; the lead reads each lane's records, never its transcript, and folds in the order the lanes land."
+        },
+        {
+          "topic": "rules",
+          "daysAgo": 20,
+          "pin": true,
+          "text": "Report in plain words without internal test names, codenames or ticket ids unless asked: what happened, the impact on the release and the owner's required actions, in that order; keep exact names, paths and ids in the records for verification; end with the decision or action required or say none is needed; never forecast an unresolved check; never say the same tree without comparing tree ids, say not verified and name what would verify it."
+        },
+        {
+          "topic": "rules",
+          "daysAgo": 19,
+          "pin": true,
+          "text": "Publishing stops on any new top-level folder for the owner's review; read lane-written prose line by line before publishing; keep descriptions of the owner's machine, environment, process or product limits in the local handbook, never in the repository tree; at a dry run inspect the added files outside the source, scripts and docs folders and stop for the owner; grep new docs for environment words; non-product folders and adapters stay outside the tree or in the strip lists until the owner authorises shipping them."
+        },
+        {
+          "topic": "rules",
+          "daysAgo": 18,
+          "pin": true,
+          "text": "A retired spelling (an option, a key, an environment name, a word, a verb, a path) ceases to exist and is treated as an unknown input: no refusal line, no alias, no lookup table, no custom exit code, no one-time migration script; a retired term may survive only in a proof's forbidden-word list; if user-visible disk data must move, ask the owner once and default to no migration."
+        },
+        {
+          "topic": "rules",
+          "daysAgo": 17,
+          "pin": true,
+          "text": "Never remove a worktree without checking what the main clone's dependency link resolves to, since a forced removal deletes the ignored files it points at; when filtering the worktree listing remember each row is a path and a branch; the safe removal sequence is to list the removal set, check it against the main clone and the standing worktrees, verify the links resolve afterwards, recreate the working worktree, install the dependencies inside it and prove it with a build."
+        },
+        {
+          "topic": "rules",
+          "daysAgo": 16,
+          "pin": true,
+          "text": "Bring each lane to the owner as a short proposal (its name, what it fixes in plain words, its size, the evidence) and launch nothing until he says go or gives feedback; the lead makes the triage decisions and brings him only money and accounts, anything public, deletions beyond what he authorised, scope changes or design forks, and lanes blocked on him.",
+          "asked": true
+        },
+        {
+          "topic": "rules",
+          "daysAgo": 15,
+          "pin": true,
+          "text": "Every proof that boots the product runs under a scratch config home with the real temporary path, never the alias, because the trust walk and the project store key on the real path; the alias is for the socket homes only; a proof that writes under the owner's home is a defect of the proof and is fixed before anything else is read from its run."
+        },
+        {
+          "topic": "rules",
+          "daysAgo": 14,
+          "pin": true,
+          "text": "A screen suite takes one of the box-wide slots only while the one-minute load is under the ceiling, records which slot it took with braces so a failed take never frees another lane's slot, yields for three seconds after every free so single-proof waiters can enter at a suite boundary, and never removes a slot it did not take; a slot that looks stale is the lead's to clear."
+        },
+        {
+          "topic": "rules",
+          "daysAgo": 13,
+          "pin": true,
+          "text": "A fold lane commits one step at a time with its own proof, stages named files only, never amends after a failed hook, writes the reason in the commit message rather than a comment, keeps the package version at the released one, and reports what it changed, what it proved red on the base and green on its tip, what it did not reach, and the one decision the owner must take or that none is needed."
+        },
+        {
+          "topic": "rules",
+          "daysAgo": 12,
+          "pin": true,
+          "text": "Generated files move only through their generators: the settings schema, the contract inventory, the censuses, the command catalogue and the stored stills are regenerated, never hand-edited, and a fold that touches a generator's source regenerates the asset in the same commit and runs the generated-assets check before declaring the fold green; a hand edit to a generated file is reverted and the generator run instead."
+        },
+        {
+          "topic": "rules",
+          "daysAgo": 11,
+          "pin": true,
+          "text": "Long runs go through the background road of the shell tool with a timeout longer than the wait, never through detaching or disowning a process, and a background job is ended by its own process id alone; the session's record of every background job is read before the turn ends so that no job is left running unreported and no output file is left at zero bytes without a reason written beside it."
+        }
+      ],
+      "notes": [
+        {
+          "daysAgo": 1,
+          "text": "The work: folding the memory lanes onto working-35; the knapsack lane landed its composer.\nStill to do: the release notes page."
+        }
+      ],
+      "expect": {
+        "rides": [
+          "seq:22",
+          "seq:24",
+          "seq:23"
+        ],
+        "left": [
+          "seq:21"
+        ]
+      }
+    }
+  ]
+}

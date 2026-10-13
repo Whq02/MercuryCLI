@@ -30,6 +30,7 @@ const SET: Array<[string, Record<string, unknown>]> = [
   ['Usage notice to the model', { engine: { usageNotice: true } }],
   ['Default permission mode', { guardrails: { mode: 'implement' } }],
   ['Pinned memory limit', { memory: { pinnedLimit: 2000 } }],
+  ['Memory at start, beyond the pins', { memory: { startLimit: 3000 } }],
   ['Session journal', { memory: { journal: false } }],
   ['Journal on the entry page', { memory: { journalOnEntryPage: true } }],
   ['Respect .gitignore in file picker', { files: { honourGitignore: false } }],
@@ -98,7 +99,7 @@ async function openConfig(): Promise<{ m: Mounted; header: string; rows: string[
 const labelOf = (row: string): string => row.slice(2, 36).trim()
 const valueOf = (row: string): string => row.slice(36).replace(/\s+$/, '').trim()
 
-section('§1 sixteen keys set in the settings file: the header counts every row they move')
+section('§1 seventeen keys set in the settings file: the header counts every row they move')
 {
   const { m, header, rows } = await openConfig()
   const setByYou = Number(/(\d+) set by you/.exec(header)?.[1] ?? -1)

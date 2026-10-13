@@ -35,6 +35,8 @@ for proof in \
   prove-exit-hosted-road.ts \
   prove-ephemeral-leaves-nothing.ts \
   prove-entry-page-journal-label.ts \
+  prove-entry-state.ts \
+  prove-entry-knapsack.ts \
 ; do
   echo "── $proof"
   __t=$SECONDS; __rc=0; if ! { "$BUN" run "$here/$proof"; __rc=$?; [ "$__rc" -eq 0 ]; }; then
