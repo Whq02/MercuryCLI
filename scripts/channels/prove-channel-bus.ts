@@ -184,9 +184,10 @@ if (!existsSync(distPath)) {
       },
     )
     const out = `${r.stdout ?? ''}${r.stderr ?? ''}`
+    const sentence = (r.stderr ?? '').trim()
     check(
-      'a /say turn answers as any unknown command does: the one unknown-skill sentence, no error envelope',
-      /^Unknown skill: say\b/m.test(out) && !/"status":"failed"/.test(out),
+      'a /say turn answers as any mistyped headless command does: the one unknown-command sentence on stderr, exit 1, nothing on stdout, no error envelope',
+      r.status === 1 && (r.stdout ?? '') === '' && sentence.startsWith('Unknown command: /say') && sentence.endsWith('/help lists commands') && !sentence.includes('\n') && !/"status":"failed"/.test(out),
       `status=${r.status} ${out.slice(0, 160)}`,
     )
     check(
