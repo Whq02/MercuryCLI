@@ -134,9 +134,9 @@ for (const { cols, rows } of sizes) {
   try {
     const open: Array<Record<string, unknown>> = rail
       ? [
-          { data: '\x1b[I', atTick: 999, awaitText: '· shell', requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'runs' },
-          { data: CLICK, afterPrevTicks: 3, targetText: '· shell', targetDx: -4 },
-          { data: CLICK, afterPrevTicks: 5, targetText: '· shell', targetDx: -4, mark: 'selected' },
+          { data: '\x1b[I', atTick: 999, awaitText: 'for i in', awaitPattern: 'for i in[^\\n]*· (?:shell )?\\d+[smhd]\\b', requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'runs' },
+          { data: CLICK, afterPrevTicks: 3, targetText: 'for i in' },
+          { data: CLICK, afterPrevTicks: 5, targetText: 'for i in', mark: 'selected' },
         ]
       : [
           { data: '/tasks', atTick: 999, awaitText: 'ype a prompt', requireAwait: true, minTick: 2, awaitSettleTicks: 4 },
@@ -178,7 +178,7 @@ for (const { cols, rows } of sizes) {
   tally.section(`${label}: a background shell's row, opened from ${rail ? 'the cockpit RUNS lane by click' : 'the tasks board'}`)
   tally.check(`${label} A1 every send became due (the frames the sends waited on all painted)`, cap.receipts === cap.sends, `${cap.receipts}/${cap.sends} · end ${cap.endReason} ${cap.stderr.slice(-200)}`)
   tally.check(`${label} A2 the turn ended with the command running in the background`, (cap.marks.landed ?? '').includes(LANDED) && launched)
-  if (rail) tally.check(`${label} A3 the RUNS row carries the command and the shell verb`, /for i in.*· shell \d+[sm]/.test((cap.marks.runs ?? '').replace(/\s+/g, ' ')), (cap.marks.runs ?? '').replace(/\s+/g, ' ').slice(0, 300))
+  if (rail) tally.check(`${label} A3 the RUNS row carries the command and the run's age (the kind word returns where the 28-column row has room)`, /for i in.*· (?:shell )?\d+[smhd]\b/.test((cap.marks.runs ?? '').replace(/\s+/g, ' ')), (cap.marks.runs ?? '').replace(/\s+/g, ' ').slice(0, 300))
   tally.check(`${label} A4 the shell card opened (Mercury — shell)`, card !== undefined && card.includes('Mercury — shell'))
   tally.check(`${label} F1 the card carries the whole command, wrapped`, card !== undefined && joined(card).replace(/\s+/g, '').includes(COMMAND.replace(/\s+/g, '')), card === undefined ? '' : flat(card).slice(0, 400))
   tally.check(`${label} F2 the card names the working directory on its own cwd line`, card !== undefined && cardRows(card).some(r => /^\s*│?\s*cwd\s+\S/.test(r) && r.includes(basename(cwd))), card === undefined ? '' : flat(card).slice(0, 400))
