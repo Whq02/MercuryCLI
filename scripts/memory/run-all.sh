@@ -12,6 +12,7 @@
 # gate-watch: src/utils/config/globalConfig.ts scripts/lib/settingsPopupHarness.ts
 # gate-watch: src/components/mercury-ui/useFlatList.ts src/services/engine-connector/focusedConnector.ts src/services/engine-connector/noSessionConnector.ts
 # gate-watch: scripts/lib/captureDriver.ts scripts/lib/firstRunSeed.ts scripts/lib/fixtureApi.ts scripts/lib/rows.ts
+# gate-watch: scripts/jev/lib/jevStandin.ts src/services/jev/jevClient.ts src/services/jev/jevSetting.ts src/services/jev/jevKey.ts src/services/jev/jevLedger.ts src/tools/MemoryTools/UI.tsx src/tools/MemoryTools/prompt.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }
