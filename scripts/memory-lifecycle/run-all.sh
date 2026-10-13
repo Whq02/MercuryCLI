@@ -38,6 +38,7 @@ for proof in \
   prove-entry-page-journal-label.ts \
   prove-entry-state.ts \
   prove-entry-knapsack.ts \
+  prove-entry-stale-wiring.ts \
 ; do
   echo "── $proof"
   __t=$SECONDS; __rc=0; if ! { "$BUN" run "$here/$proof"; __rc=$?; [ "$__rc" -eq 0 ]; }; then
