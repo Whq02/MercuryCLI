@@ -101,7 +101,7 @@
           "maximum": 9007199254740991
         },
         "startLimit": {
-          "description": "How much memory text (characters) rides at the start of a session: the pinned rules first and whole, then the facts and earlier notes most relevant to the branch, the files touched lately and the last note, until the limit is reached (default 7000); what is left out is a Recall away",
+          "description": "How much memory text (characters) rides at the start of a session beyond the pinned rules, which always ride whole: the facts and earlier notes most relevant to the branch, the files touched lately and the last note, until the allowance is used (default 4000); what is left out is a Recall away",
           "type": "integer",
           "minimum": 1000,
           "maximum": 9007199254740991

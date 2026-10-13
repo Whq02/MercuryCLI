@@ -15,7 +15,7 @@ export function pinnedTextLimit(): number {
   return PINNED_TEXT_LIMIT_DEFAULT
 }
 
-export const START_TEXT_LIMIT_DEFAULT = 7000
+export const START_TEXT_LIMIT_DEFAULT = 4000
 export const START_TEXT_LIMIT_MIN = 1000
 export const START_TEXT_LIMIT_STEP = 1000
 

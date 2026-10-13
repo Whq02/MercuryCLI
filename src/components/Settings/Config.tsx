@@ -952,18 +952,15 @@ export function Config({
     })
     const startLimit = startTextLimit()
     const atStart = memoryAtStartStatus()
-    const pinnedChars = atStart?.pinnedChars ?? pinned?.used ?? 0
-    const startFill = pinnedChars + (atStart?.used ?? 0)
-    const pinsFill = pinnedChars > startLimit
-    const rodeWords = atStart === null ? '' : ` · this session: ${atStart.rodeFacts} of ${atStart.facts} fact${atStart.facts === 1 ? '' : 's'}${atStart.notes > 0 ? ` and ${atStart.rodeNotes} of ${atStart.notes} earlier note${atStart.notes === 1 ? '' : 's'}` : ''} rode beside the pinned rules`
+    const rodeWords = atStart === null ? '' : ` · this session: ${atStart.rodeFacts} of ${atStart.facts} fact${atStart.facts === 1 ? '' : 's'}${atStart.notes > 0 ? ` and ${atStart.rodeNotes} of ${atStart.notes} earlier note${atStart.notes === 1 ? '' : 's'}` : ''} rode beside the ${atStart.pinnedCount} pinned rule${atStart.pinnedCount === 1 ? '' : 's'}`
     items.push({
       id: 'memory.startLimit',
-      label: 'Memory at start',
-      searchText: 'memory at start limit relevant facts branch files budget text size',
+      label: 'Memory at start, beyond the pins',
+      searchText: 'memory at start beyond the pins allowance relevant facts branch files text size',
       kind: 'enum',
-      value: <Text color={pinsFill ? tokens.warning : undefined}>{`${formatTextSize(startFill)} of ${formatTextSize(startLimit)}${pinsFill ? ' · the pinned rules fill it' : ''}`}</Text>,
+      value: <Text>{`${formatTextSize(atStart?.used ?? 0)} of ${formatTextSize(startLimit)}`}</Text>,
       setByYou: merged.memory?.startLimit !== undefined,
-      warning: `how much memory text rides at the start of a session: the pinned rules first and whole, then the facts and earlier notes most relevant to the branch, the files touched lately and the last note${rodeWords} · what is left out is a Recall away · ←/→ move the limit by ${formatTextSize(START_TEXT_LIMIT_STEP)} · the next session reads the new limit`,
+      warning: `how much memory text rides at the start of a session beyond the pinned rules, which always ride whole: the facts and earlier notes most relevant to the branch, the files touched lately and the last note${rodeWords} · what is left out is a Recall away · ←/→ move the allowance by ${formatTextSize(START_TEXT_LIMIT_STEP)} · the next session reads it`,
       change: direction => {
         const next = Math.max(START_TEXT_LIMIT_MIN, startLimit + direction * START_TEXT_LIMIT_STEP)
         if (writeSource('userSettings', { memory: { startLimit: next } })) {

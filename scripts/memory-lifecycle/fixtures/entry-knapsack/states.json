@@ -1,6 +1,6 @@
 {
   "synthetic": true,
-  "about": "Twelve synthetic session states written for prove-entry-knapsack.ts: every branch, file, fact, rule and note here is invented for the proof; no real session, project or note is recorded. Facts are retained through the real road at now minus daysAgo and consolidated; seq numbers follow retain order within a state. A note's session number follows its position in the ledger; the newest note rides on the lineage page, so only earlier notes are candidates.",
+  "about": "Twelve synthetic session states written for prove-entry-knapsack.ts: every branch, file, fact, rule and note here is invented for the proof; no real session, project or note is recorded. Facts are retained through the real road at now minus daysAgo and consolidated; seq numbers follow retain order within a state. A note's session number follows its position in the ledger; the newest note rides on the lineage page, so only earlier notes are candidates. The limit is the allowance for what rides beyond the pinned rules, which always ride whole and are never counted against it.",
   "now": "2026-10-13T09:00:00.000Z",
   "states": [
     {
@@ -11,7 +11,7 @@
         "src/quartz/rotate.ts",
         "src/quartz/schedule.ts"
       ],
-      "limit": 7000,
+      "limit": 4000,
       "facts": [
         {
           "topic": "quartz",
@@ -79,7 +79,7 @@
         "docs/releases/1.0.0-beta.35.md",
         "package.json"
       ],
-      "limit": 7000,
+      "limit": 4000,
       "facts": [
         {
           "topic": "release",
@@ -139,12 +139,12 @@
     },
     {
       "id": 3,
-      "name": "an owner-shaped shelf (twenty rules, 8,381 characters) at the default limit: the pinned rules fill it",
+      "name": "an owner-shaped shelf (twenty rules, 8,381 characters) at the default allowance: the pins ride whole and the rest fills its own 4,000",
       "branch": "working-35",
       "files": [
         "src/mneme/entryPage.ts"
       ],
-      "limit": 7000,
+      "limit": 4000,
       "facts": [
         {
           "topic": "memory",
@@ -285,11 +285,11 @@
         }
       ],
       "expect": {
-        "rides": [],
-        "left": [
+        "rides": [
           "seq:21",
           "seq:22"
-        ]
+        ],
+        "left": []
       }
     },
     {
@@ -297,7 +297,7 @@
       "name": "no state at all: a first session in a plain folder",
       "branch": null,
       "files": [],
-      "limit": 7000,
+      "limit": 4000,
       "facts": [
         {
           "topic": "quartz",
@@ -333,7 +333,7 @@
         "src/amber/mirror.ts",
         "docs/amber.md"
       ],
-      "limit": 7000,
+      "limit": 4000,
       "facts": [
         {
           "topic": "quartz",
@@ -383,7 +383,7 @@
       "name": "only a note: no repository, nothing touched yet",
       "branch": null,
       "files": [],
-      "limit": 7000,
+      "limit": 4000,
       "facts": [
         {
           "topic": "garnet",
@@ -430,7 +430,7 @@
       "files": [
         "src/garnet/ledgerView.ts"
       ],
-      "limit": 400,
+      "limit": 340,
       "facts": [
         {
           "topic": "garnet",
@@ -477,7 +477,7 @@
       "files": [
         "src/garnet/ledgerView.ts"
       ],
-      "limit": 180,
+      "limit": 120,
       "stale": [
         "the garnet ledger view in src/garnet/ledgerView.ts renders the balances by month"
       ],
@@ -527,7 +527,7 @@
       "files": [
         "src/topaz/importer.ts"
       ],
-      "limit": 7000,
+      "limit": 4000,
       "facts": [
         {
           "topic": "topaz",
@@ -573,7 +573,7 @@
       "files": [
         "src/opal/export.ts"
       ],
-      "limit": 7000,
+      "limit": 4000,
       "facts": [
         {
           "topic": "opal",
@@ -621,7 +621,7 @@
       "name": "an empty library: only earlier notes to choose from",
       "branch": "lane/opal-export",
       "files": [],
-      "limit": 7000,
+      "limit": 4000,
       "facts": [],
       "notes": [
         {
@@ -648,13 +648,13 @@
     },
     {
       "id": 12,
-      "name": "the same owner-shaped shelf with the limit raised to 12,000: the rest rides beside the pins",
+      "name": "the same owner-shaped shelf with the allowance at its floor of 1,000: the pins ride whole beside it",
       "branch": "working-35",
       "files": [
         "src/mneme/entryPage.ts",
         "src/mneme/entryKnapsack.ts"
       ],
-      "limit": 12000,
+      "limit": 1000,
       "facts": [
         {
           "topic": "memory",

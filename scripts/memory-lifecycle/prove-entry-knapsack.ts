@@ -33,9 +33,9 @@ const usage = await import('../../src/mneme/mnemeUsage.ts')
 const settings = await import('../../src/utils/settings/settings.ts')
 const { resetSettingsCache } = await import('../../src/utils/settings/settingsCache.ts')
 
-section('§1 one budget for what memory sends at start: a named constant under the .33 prompt size, a setting beside the pinned limit')
+section('§1 the allowance for what rides at start beyond the pinned rules: a named constant under the .33 prompt size, a setting beside the pinned limit')
 {
-  check(`the default start limit is ${usage.START_TEXT_LIMIT_DEFAULT} characters, under the ${PROMPT_SIZE_B33} the .33 prompt sent before the first message`, usage.START_TEXT_LIMIT_DEFAULT === 7000 && usage.START_TEXT_LIMIT_DEFAULT <= PROMPT_SIZE_B33)
+  check(`the default allowance is ${usage.START_TEXT_LIMIT_DEFAULT} characters (the owner's ruling), under the ${PROMPT_SIZE_B33} the .33 prompt sent before the first message`, usage.START_TEXT_LIMIT_DEFAULT === 4000 && usage.START_TEXT_LIMIT_DEFAULT <= PROMPT_SIZE_B33)
   check('the limit moves by a thousand and never below a thousand', usage.START_TEXT_LIMIT_MIN === 1000 && usage.START_TEXT_LIMIT_STEP === 1000)
   check('with nothing set the limit is the default', usage.startTextLimit() === usage.START_TEXT_LIMIT_DEFAULT)
   mkdirSync(HOME, { recursive: true })
@@ -57,9 +57,9 @@ section('§1 one budget for what memory sends at start: a named constant under t
   resetSettingsCache()
   const schema = JSON.parse(readFileSync(join(ROOT, 'scripts/settings/settings-schema.json'), 'utf8')) as { properties?: { memory?: { properties?: Record<string, { type?: string; minimum?: number; description?: string }> } } }
   const row = schema.properties?.memory?.properties?.startLimit
-  check('the generated settings schema carries memory.startLimit as an integer of at least 1000 with the default named', row?.type === 'integer' && row.minimum === 1000 && /default 7000/.test(row.description ?? ''), j(row))
+  check('the generated settings schema carries memory.startLimit as an integer of at least 1000 with the default named and the pins outside it', row?.type === 'integer' && row.minimum === 1000 && /default 4000/.test(row.description ?? '') && /beyond the pinned rules, which always ride whole/.test(row.description ?? ''), j(row))
   const config = readFileSync(join(ROOT, 'src/components/Settings/Config.tsx'), 'utf8')
-  check('the /config row sits in the pinned limit\'s family and writes the user setting', config.includes("id: 'memory.startLimit'") && config.includes("label: 'Memory at start'") && config.includes("writeSource('userSettings', { memory: { startLimit: next } })"))
+  check('the /config row sits in the pinned limit\'s family, says it is beyond the pins and writes the user setting', config.includes("id: 'memory.startLimit'") && config.includes("label: 'Memory at start, beyond the pins'") && config.includes("writeSource('userSettings', { memory: { startLimit: next } })"))
 }
 
 const realNow = Date.now
@@ -90,7 +90,7 @@ const retainAt = (dir: string, at: number, content: string, topic: string): void
 }
 
 try {
-  section('§2 the greedy composer: pins whole first, then the rest by relevance per character, to the character, deterministic')
+  section('§2 the greedy composer: the pins whole whatever their size, the rest within its own allowance by relevance per character, to the character, deterministic')
   {
     const dir = join(HOME, 'lib-composer')
     mkdirSync(dir, { recursive: true })
@@ -126,7 +126,7 @@ try {
     const previous = ledger.readLedger(PK)
     const state: ProjectState = { branch: 'lane/quartz-rotation', files: ['src/quartz/rotate.ts', '/proj/src/quartz/rotate.ts'], note: { text: previous[2]!.handoff!.text, session: 3, at: previous[2]!.handoff!.at }, at: new Date(T).toISOString() }
     const compose = (limit: number, extra: Partial<Parameters<typeof knapsack.composeStartPage>[0]> = {}): ReturnType<typeof knapsack.composeStartPage> => knapsack.composeStartPage({ dir, projectKey: PK, state, previous, limit, now: T, root: '/proj', ...extra })
-    const roomy = compose(7000)
+    const roomy = compose(4000)
     const text = roomy.text ?? ''
     console.log(text.split('\n').map(l => `    │ ${l}`).join('\n'))
     check('the block opens with its heading and one line that says what rode and what Recall still holds', text.startsWith(`${knapsack.MEMORY_AT_START_HEADING}\nMemory at start: 1 pinned rule (${knapsack.withThousands(pinned!.used)} characters) and `) && / of 6 facts and \d of 2 earlier notes most relevant to branch lane\/quartz-rotation, the files touched lately and the last note; Recall finds the rest\.$/m.test(text), text.split('\n')[1])
@@ -139,34 +139,34 @@ try {
     check('a fresh fact outscores an old one on the same words (the ninety-day recency of the search lane)', fresh.score > old.score, `${fresh.score.toFixed(3)} vs ${old.score.toFixed(3)}`)
     const noteRode = roomy.choice.rode.filter(c => c.kind === 'handoff')
     check('the earlier note that overlaps rides verbatim under its own heading with its session and time; the last note never does (it rides on the lineage page as today)', noteRode.length === 1 && noteRode[0]!.session === 1 && text.includes(`${knapsack.EARLIER_NOTE_HEADING} (session 1, `) && text.includes('The work: the quartz rotation.\nDecided: rotate on Tuesdays.\nStill to do: the amber mirror.') && !text.includes('The work: the quartz lane.'), j(noteRode.map(c => c.session)))
-    check('the budget is respected to the character: the pinned characters plus every block that rode never exceed the limit', pinned!.used + roomy.choice.used <= 7000 && roomy.choice.used === roomy.choice.rode.reduce((n, c) => n + c.chars, 0), `${pinned!.used} + ${roomy.choice.used}`)
+    check('the allowance is respected to the character: every block that rode fits in it, and the pinned characters are not counted against it', roomy.choice.used <= 4000 && roomy.choice.used === roomy.choice.rode.reduce((n, c) => n + c.chars, 0) && roomy.choice.pinnedChars === pinned!.used, `${pinned!.used} beside ${roomy.choice.used}`)
     const byDensity = [...roomy.choice.rode].sort((a, b) => b.density - a.density)
     const first = byDensity[0]!
-    const exact = compose(pinned!.used + first.chars)
-    const short = compose(pinned!.used + first.chars - 1)
-    check('at the character: a limit that fits the densest block exactly takes it; one character less leaves it out and a smaller block that fits rides instead', exact.choice.rode.length === 1 && exact.choice.rode[0]!.id === first.id && !short.choice.rode.some(c => c.id === first.id) && short.choice.rode.every(c => c.chars < first.chars) && short.choice.used <= first.chars - 1, j([exact.choice.rode.map(c => c.id), short.choice.rode.map(c => c.id)]))
+    const exact = compose(first.chars)
+    const short = compose(first.chars - 1)
+    check('at the character: an allowance that fits the densest block exactly takes it; one character less leaves it out and a smaller block that fits rides instead', exact.choice.rode.length === 1 && exact.choice.rode[0]!.id === first.id && !short.choice.rode.some(c => c.id === first.id) && short.choice.rode.every(c => c.chars < first.chars) && short.choice.used <= first.chars - 1, j([exact.choice.rode.map(c => c.id), short.choice.rode.map(c => c.id)]))
     const long = roomy.choice.rode.find(c => c.text.startsWith('the quartz certificates must be rotated by the certificate holder'))!
     check('relevance per character: the long fact scores high but its density is below the short facts, so it is chosen after them', long.score >= fresh.score * 0.5 && long.density < fresh.density, `${long.density.toFixed(4)} vs ${fresh.density.toFixed(4)}`)
-    const tight = compose(pinned!.used + fresh.chars + 2)
+    const tight = compose(fresh.chars + 2)
     check('with room for one short block, a smaller block rides and the long one is left for Recall', tight.choice.rode.length >= 1 && tight.choice.rode.every(c => c.chars <= fresh.chars + 2) && tight.choice.left.some(c => c.id === long.id), j(tight.choice.rode.map(c => [c.id, c.chars])))
     const under = compose(pinned!.used - 1)
-    check('pins whole whatever the budget: a limit under the pinned characters rides no fact, says the pins fill the limit and where the limit moves', under.choice.pinsFill && under.choice.rode.length === 0 && (under.text ?? '').split('\n')[1] === `Memory at start: 1 pinned rule (${knapsack.withThousands(pinned!.used)} characters) fill the ${knapsack.withThousands(pinned!.used - 1)}-character start limit; none of the 6 facts and 2 earlier notes rides; Recall finds them (the limit moves in /config).`, (under.text ?? '').split('\n')[1])
+    check('the pins never starve the rest: an allowance smaller than the pinned characters still carries what fits in it, and the pins ride whole beside it', under.choice.rode.length >= 1 && under.choice.used <= pinned!.used - 1 && under.choice.pinnedChars === pinned!.used && (under.text ?? '').split('\n')[1]!.startsWith(`Memory at start: 1 pinned rule (${knapsack.withThousands(pinned!.used)} characters) and `), (under.text ?? '').split('\n')[1])
     const top = roomy.choice.rode[0]!
-    const staleTop = compose(pinned!.used + top.chars + 1, { stale: (c: StartCandidate) => c.id === top.id })
+    const staleTop = compose(top.chars + 1, { stale: (c: StartCandidate) => c.id === top.id })
     check('a stale fact ranks below every fresh one: marked stale, the best-scoring fact yields its room to a fresh fact', staleTop.choice.rode.length >= 1 && !staleTop.choice.rode.some(c => c.id === top.id) && staleTop.choice.left.some(c => c.id === top.id && c.score > 0), j(staleTop.choice.rode.map(c => c.id)))
-    const staleAll = compose(7000, { stale: () => true })
+    const staleAll = compose(4000, { stale: () => true })
     check('stale facts still ride when nothing fresh wants the room (stale is an order, not a ban)', staleAll.choice.rode.length === roomy.choice.rode.length, j(staleAll.choice.rode.map(c => c.id)))
-    check('the same inputs compose the same page twice', compose(7000).text === text && j(compose(7000).choice.rode.map(c => c.id)) === j(rodeIds))
-    const blank = compose(7000, { state: { branch: null, files: [], note: null, at: state.at } })
+    check('the same inputs compose the same page twice', compose(4000).text === text && j(compose(4000).choice.rode.map(c => c.id)) === j(rodeIds))
+    const blank = compose(4000, { state: { branch: null, files: [], note: null, at: state.at } })
     check('with no branch, no touched file and no note, nothing rides and the line says what the facts wait for', blank.choice.rode.length === 0 && (blank.text ?? '').split('\n')[1] === `Memory at start: 1 pinned rule (${knapsack.withThousands(pinned!.used)} characters); the 6 facts and 2 earlier notes wait for a branch, touched files or a note to match against; Recall finds them.`, (blank.text ?? '').split('\n')[1])
-    const branchOnly = compose(7000, { state: { branch: 'lane/quartz-rotation', files: [], note: null, at: state.at } })
+    const branchOnly = compose(4000, { state: { branch: 'lane/quartz-rotation', files: [], note: null, at: state.at } })
     check('the line names only the parts of the state that exist', /most relevant to branch lane\/quartz-rotation; Recall finds the rest\.$/m.test(branchOnly.text ?? ''), (branchOnly.text ?? '').split('\n')[1])
     const emptyDir = join(HOME, 'lib-empty')
     mkdirSync(emptyDir, { recursive: true })
-    const nothing = knapsack.composeStartPage({ dir: emptyDir, projectKey: 'never', state, previous: [], limit: 7000, now: T, root: '/proj' })
+    const nothing = knapsack.composeStartPage({ dir: emptyDir, projectKey: 'never', state, previous: [], limit: 4000, now: T, root: '/proj' })
     check('an empty library with no earlier note composes no block at all', nothing.text === null && nothing.status.facts === 0 && nothing.status.notes === 0)
     const status = roomy.status
-    check('the status the /config row reads carries the limit, the pinned characters, what rode and the pool', status.limit === 7000 && status.pinnedChars === pinned!.used && status.rodeFacts === 5 && status.facts === 6 && status.rodeNotes === 1 && status.notes === 2 && status.used === roomy.choice.used, j(status))
+    check('the status the /config row reads carries the allowance, the pinned characters, what rode and the pool', status.limit === 4000 && status.pinnedChars === pinned!.used && status.rodeFacts === 5 && status.facts === 6 && status.rodeNotes === 1 && status.notes === 2 && status.used === roomy.choice.used, j(status))
   }
 
   section('§3 the wiring: one plain memoized section between the memory page and the lineage page, composed once per conversation')
@@ -306,11 +306,11 @@ try {
       console.log(`\n  state ${s.id} — ${s.name}`)
       console.log((page.text ?? '(no block)').split('\n').map(l => `    │ ${l}`).join('\n'))
       check(`state ${s.id}: the pinned rules ride whole whatever the limit — the status counts every pin's characters as the Pinned section does`, page.status.pinnedCount === s.facts.filter(f => f.pin).length && page.status.pinnedChars === pinnedChars, j(page.status))
-      check(`state ${s.id}: the budget is respected to the character`, (page.choice.pinsFill ? page.choice.used === 0 : pinnedChars + page.choice.used <= s.limit) && page.choice.used === page.choice.rode.reduce((n, c) => n + c.chars, 0), `${pinnedChars} + ${page.choice.used} vs ${s.limit}`)
+      check(`state ${s.id}: the allowance is respected to the character and the pins are not counted against it`, page.choice.used <= s.limit && page.choice.used === page.choice.rode.reduce((n, c) => n + c.chars, 0), `${page.choice.used} vs ${s.limit} (pins ${pinnedChars} beside)`)
       check(`state ${s.id}: nothing rides without a word in common with the state`, page.choice.rode.every(c => c.score > 0))
       check(`state ${s.id}: twice the same`, again.text === page.text && j(again.choice.rode.map(c => c.id)) === j(rides))
       if (page.text !== null) {
-        check(`state ${s.id}: the line says what rode`, page.text.split('\n')[1]!.startsWith('Memory at start: ') && (page.choice.pinsFill ? page.text.includes('fill the') && rides.length === 0 : true))
+        check(`state ${s.id}: the line says what rode`, page.text.split('\n')[1]!.startsWith('Memory at start: ') && !page.text.includes('fill the'))
       }
       expectations[String(s.id)] = { rides, left }
       if (!record) check(`state ${s.id}: what rides and what is left out are the pinned table's`, j(rides) === j(s.expect.rides) && j(left) === j(s.expect.left), `rides ${j(rides)} left ${j(left)}`)
