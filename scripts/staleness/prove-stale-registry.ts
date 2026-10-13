@@ -115,6 +115,7 @@ src/extensions/load/commands.ts :: skillsMemo :: invalidator=clearExtensionComma
 src/extensions/load/language.ts :: memo :: invalidator=clearExtensionLspServerCache
 src/extensions/load/servers.ts :: memo :: invalidator=clearExtensionMcpServerCache
 src/extensions/roster.ts :: activeSnapshot :: invalidator=setActiveSnapshot
+src/guards/wardsGuard.ts :: homeSpellingsCache :: keyed-by-truth
 src/hooks/fileSuggestions.ts :: ignoreCache :: keyed-by-truth
 src/ink/line-width-cache.ts :: cache :: keyed-by-truth
 src/ink/node-cache.ts :: nodeCache :: keyed-by-truth
@@ -328,6 +329,7 @@ src/utils/user.ts :: getGitEmail :: static-for-process
 src/utils/verification/projectGates.ts :: cache :: ttl-bounded
 src/utils/verification/verificationState.ts :: digestCache :: invalidator=markMutation
 src/utils/verification/verificationState.ts :: verifiableCache :: ttl-bounded
+src/utils/wards/wards.ts :: homePatternCache :: keyed-by-truth
 src/utils/windowsPaths.ts :: locateGitBash :: static-for-process
 src/utils/zodToJsonSchema.ts :: conversionCache :: keyed-by-truth
 `.trim()
