@@ -30,6 +30,8 @@ try {
     assert.equal(surfaced.memories[0]!.content, '- The service deployed after a smoke check. <seq=1, time=2026-10-12T00:00:00.000Z, source=proof>')
     assert.deepEqual(Object.keys(surfaced.memories[0]!).sort(), ['content', 'header', 'ids', 'mtimeMs', 'path'])
   }
+  const { lookupFacts } = await import('../../src/mneme/mnemeLookup.js')
+  assert.equal(lookupFacts('deploying service', { dir })[0]?.id, 'seq:1')
   assert.equal(readFileSync(usagePath(dir), 'utf8'), usage)
   assert.equal(readFileSync(page, 'utf8'), text)
   console.log('PASS: surfacing preserves its block and never counts a listing as an open')
