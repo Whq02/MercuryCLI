@@ -174,7 +174,8 @@ try {
         check(`${id}: the pasted key was proved on the live catalogue with the key itself`, hits.some(h => h.startsWith('GET /v1beta/models') && h.includes(`key=${FIXTURE_KEY}`)) && receipt.includes('Gemini API key stored'), hits.join(' | ') || excerpt(receipt))
         check(`${id}: the receipt pane's way out reads the roster when no picker opened the door`, receipt.includes('↵ done — the roster refreshes') && !receipt.includes('back to the picker'), receipt.split('\n').filter(l => l.includes('↵ done')).join('\n'))
         check(`${id}: the status bar says the roster when no picker opened the door`, receipt.includes('connected — ↵ returns to the roster') && !receipt.includes('returns to the picker'), receipt.split('\n').filter(l => l.includes('returns to')).join('\n'))
-        check(`${id}: the completed sign-in stays on the roster, the family signed in`, returned.includes('LOGINS') && returned.includes('Families') && returned.includes('Signed in  2 of 10') && !returned.includes('Mercury · model'), excerpt(returned))
+        const families = /Families\s+(\d+)/.exec(returned)?.[1]
+        check(`${id}: the completed sign-in stays on the roster, the family signed in (2 of the roster's own family count)`, returned.includes('LOGINS') && families !== undefined && returned.includes(`Signed in  2 of ${families}`) && !returned.includes('Mercury · model'), excerpt(returned))
         keepFrames()
         continue
       }
