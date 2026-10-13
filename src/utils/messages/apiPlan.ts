@@ -1,5 +1,5 @@
 import type { Tools } from '../../Tool.js'
-import type { ContentBlock, ContentBlockParam } from '../../types/wire.js'
+import type { ContentBlockParam } from '../../types/wire.js'
 import type {
   AssistantMessage,
   AttachmentMessage,
@@ -203,36 +203,19 @@ export function stripImagesRefusedByStamp<M extends Message>(rows: M[]): M[] {
   })
 }
 
-const REFUSAL_STOP_MARK = 'stop_reason: refusal'
-
-function refusalClosureOf(row: Message): AssistantMessage | null {
-  if (!isSyntheticApiErrorMessage(row)) return null
-  const content = row.message.content
-  if (!Array.isArray(content)) return null
-  for (const block of content) {
-    if (block.type !== 'text' || typeof block.text !== 'string') continue
-    if (!block.text.includes(REFUSAL_STOP_MARK)) continue
-    return withRefusalClosure(row as AssistantMessage, block.text)
+function refusedTurnIdsOf(rows: Message[]): Set<string> {
+  const refused = new Set<string>()
+  for (const row of rows) {
+    if (row.type !== 'assistant' || isSyntheticApiErrorMessage(row)) continue
+    if (row.message.stop_reason === 'refusal') refused.add(row.message.id)
   }
-  return null
-}
-
-function refusalFactOf(words: string): string {
-  const mark = words.indexOf(REFUSAL_STOP_MARK)
-  if (mark < 0) return words
-  const end = words.indexOf('.', mark)
-  return end < 0 ? words : words.slice(0, end + 1)
-}
-
-function withRefusalClosure(row: AssistantMessage, words: string): AssistantMessage {
-  return {
-    ...row,
-    isApiErrorMessage: undefined,
-    message: {
-      ...row.message,
-      content: [{ type: 'text', text: `${refusalFactOf(words)} This refusal is final: the request above was refused and is closed; never repeat, retry or re-issue it, rephrased or not; answer only the newest instruction.` } as ContentBlock],
-    },
+  if (refused.size === 0) return refused
+  for (const row of rows) {
+    if (row.type !== 'assistant' || !refused.has(row.message.id)) continue
+    const content = row.message.content
+    if (Array.isArray(content) && content.some(block => block.type === 'tool_use')) refused.delete(row.message.id)
   }
+  return refused
 }
 
 export function planApiConversation(
@@ -243,6 +226,7 @@ export function planApiConversation(
 
   const reorderedMessages = modelRelevantOrder(messages)
   const stripTargets = stripTargetsOf(reorderedMessages)
+  const refusedTurns = refusedTurnIdsOf(reorderedMessages)
 
   const selected = foldBatchedRows(
     withoutOrphanCaveats(
@@ -250,9 +234,8 @@ export function planApiConversation(
         if (m.type === 'progress' || (m.type === 'system' && !isSystemLocalCommandMessage(m))) {
           return []
         }
-        const closure = refusalClosureOf(m)
-        if (closure !== null) return [closure]
         if (isSyntheticApiErrorMessage(m)) return []
+        if (m.type === 'assistant' && refusedTurns.has(m.message.id)) return []
         return [m as PlannedMessage]
       }),
     ),
