@@ -1,6 +1,6 @@
 
 import { randomUUID } from 'crypto'
-import { existsSync, readFileSync, watch as watchDir, type FSWatcher } from 'node:fs'
+import { existsSync, readFileSync, watch as watchDir, writeSync, type FSWatcher } from 'node:fs'
 import { mkdir, readFile, unlink, writeFile } from 'fs/promises'
 import { homedir } from 'os'
 import { basename, dirname, join, resolve } from 'path'
@@ -127,7 +127,7 @@ import {
 import { recordSpawnExit } from '../utils/spawnLedger.js'
 import { armDaemonHomeWatch, daemonHomeStands } from './daemonHome.js'
 import { deployedRuntime, forwardFrame, handoverRoadOf, handoverState, parseHandoverFrom, predecessorSockPath, readHandoverHosts, renameSocketForPredecessor, type HandoverStateV1 } from './handover.js'
-import { REOPEN_WORDS } from './handshake.js'
+import { OTHER_BUILD_WAY_OUT, REOPEN_WORDS } from './handshake.js'
 import { holdBuild, nodeForBuild, resolveScriptPath, selfScriptPath } from './daemonBuild.js'
 import { decidePlaneBoot, sameBuildTree, type PlaneBootDecisionV1, type PlaneBootFactsV1 } from './planeBoot.js'
 import { lockHeldByLivePidSync, readPlaneOwnerSync, supersededByLivePlaneOwnerSync, type PlaneOwnerV1 } from './planeRecords.js'
@@ -360,7 +360,7 @@ async function daemonRun(args: string[]): Promise<void> {
     const stamps = { selfBuildTree: bootBuildTree, successorOf, handoverFrom }
     const refuse = (why: string): void => {
       // eslint-disable-next-line no-console
-      console.error(`[daemon] ${stamp}: ${why} (${daemonDir()}) — refusing to start so the live one is not clobbered`)
+      console.error(`[daemon] ${stamp}: ${why} (${daemonDir()}) — refusing to start so the live one is not clobbered · ${FREE_THE_PLANE_WORDS}`)
     }
     let decision = decidePlaneBoot(await planeBootFacts(stamps))
     if (decision.road === 'wait-lock') {
@@ -523,6 +523,7 @@ async function daemonRun(args: string[]): Promise<void> {
           controlSock: controlSockPath(),
           proto: MERCURY_DAEMON_PROTO,
           buildTree: bootBuildTree,
+          script: selfScriptPath(),
           ownerPid: owner,
           foreground,
           startToken: bootStartToken,
@@ -1380,12 +1381,21 @@ async function daemonRun(args: string[]): Promise<void> {
       }
     } catch (e) {
       // eslint-disable-next-line no-console
-      console.error(
-        `[daemon] ${GLYPH.warn} control layer FAILED to start — continuing as pure cron daemon (no roster): ${e}`,
-      )
-      logForDebugging(`[daemon] control layer failed to start (continuing as pure cron daemon): ${e}`)
+      console.error(`[daemon] ${GLYPH.warn} control layer FAILED to start: ${e}`)
+      logForDebugging(`[daemon] control layer failed to start — giving the home back and exiting: ${e}`)
       controlServer = null
       roster = null
+      const holder = await planeAnswer(bootBuildTree).catch(() => null)
+      try {
+        writeSync(2, `[daemon] ${planeHeldLine(holder)}\n`)
+      } catch {}
+      await unlink(controlKeyPath()).catch(() => {})
+      await clearDaemonState()
+      if (process.platform !== 'win32') await unlink(predecessorSockPath(process.pid)).catch(() => {})
+      await daemonLock?.release().catch(() => {})
+      daemonLock = null
+      teardownComplete = true
+      process.exit(1)
     }
   }
 
@@ -1565,6 +1575,16 @@ const PREDECESSOR_SHUTDOWN_WAIT_MS = 6_000
 const IDLE_PREDECESSOR_READS = 3
 const FIRST_IDLE_SWEEP_MS = 1_000
 
+export const FREE_THE_PLANE_WORDS = '`mercury daemon stop` asks the daemon that holds this home to leave (it answers over the control pipe from any Mercury build); if it does not answer, end its pid by hand, then start again'
+
+export function planeHeldLine(holder: { pid: number; buildTree: string | null } | null, plane: string = controlSockPath(), stateFile: string = daemonStatePath()): string {
+  const door = process.platform === 'win32' ? 'control pipe' : 'control socket'
+  if (holder !== null) {
+    return `this daemon gives the home back and exits: pid ${holder.pid} (build ${holder.buildTree ?? 'unstamped'}) holds the ${door} ${plane} — ${FREE_THE_PLANE_WORDS}`
+  }
+  return `this daemon gives the home back and exits: the ${door} ${plane} is held by a process that does not answer — end it by hand (the pid in ${stateFile}, when it names one), then start again`
+}
+
 async function planeAnswer(bootBuildTree: string | null): Promise<{ pid: number; buildTree: string | null } | null> {
   const reply = await daemonControlRpc(
     { op: 'hello', proto: MERCURY_DAEMON_PROTO, clientVersion: currentVersion(), clientBuildTree: bootBuildTree },
@@ -1602,7 +1622,10 @@ function installedWords(runtime: NonNullable<ReturnType<typeof deployedRuntime>>
 }
 
 export function reopenDetail(installed: NonNullable<ReturnType<typeof deployedRuntime>>): string {
-  return `${REOPEN_WORDS} — a newer Mercury (${installedWords(installed)}) is installed and this daemon already runs it`
+  if (installed.version !== null && installed.version !== currentVersion()) {
+    return `${REOPEN_WORDS} — a newer Mercury (${installedWords(installed)}) is installed and this daemon already runs it`
+  }
+  return `this daemon runs the installed build (${installedWords(installed)}) and cannot become another build of the same version — ${OTHER_BUILD_WAY_OUT}`
 }
 
 export function otherBuildInstalledDetail(other: NonNullable<ReturnType<typeof deployedRuntime>>, live: number): string {

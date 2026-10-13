@@ -22,7 +22,7 @@ import { readdirSync } from 'node:fs'
 import { dirname } from 'node:path'
 
 export interface MercuryDaemonStatus {
-  daemon: { pid: number; version: string; uptimeSec: number; dir: string } | null
+  daemon: { pid: number; version: string; uptimeSec: number; dir: string; buildTree?: string | null; script?: string } | null
   controlSock: string
   controlReachable: boolean
   controlError?: string
@@ -53,6 +53,8 @@ export async function getMercuryDaemonStatus(): Promise<MercuryDaemonStatus> {
           version: record.version,
           uptimeSec: Math.floor((Date.now() - record.startedAt) / 1000),
           dir: record.dir,
+          ...(record.buildTree !== undefined ? { buildTree: record.buildTree } : {}),
+          ...(record.script !== undefined ? { script: record.script } : {}),
         }
       : null,
     controlSock: sockPathOrPlaceholder(),
@@ -193,6 +195,7 @@ export function formatMercuryDaemonStatus(status: MercuryDaemonStatus): string {
         : `  daemon:       record present, not answering · pid ${s.pid} · v${s.version} · recorded up ${s.uptimeSec}s`,
     )
     lines.push(`  dir:          ${s.dir}`)
+    if (s.buildTree !== undefined || s.script !== undefined) lines.push(`  build:        ${s.buildTree ?? 'unstamped'}${s.script !== undefined ? ` at ${s.script}` : ''}`)
   } else {
     lines.push('  daemon:       not running')
   }
