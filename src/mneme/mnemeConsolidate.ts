@@ -507,16 +507,18 @@ export function maybeConsolidate(
     const meta = readLibraryMeta(dir)
     const assigned: AssignedRow[] = rows.map((r, i) => ({ ...r, seq: meta.seqCounter + 1 + i }))
     const docs = listTopicDocs(dir)
+    const archives = new Map(listArchiveDocs(dir).map(doc => [doc.id, doc]))
+    const libraryDocs = [...docs, ...archives.values()]
     const catalog = docs.map(d => ({ id: d.id, slug: d.slug, summary: d.summary }))
     const libraryLive = new Set<number>()
-    for (const d of docs) for (const s of liveSeqs(d)) libraryLive.add(s)
+    for (const d of libraryDocs) for (const s of liveSeqs(d)) libraryLive.add(s)
     const pinsBefore = readPins(dir)
     const userAskedSeqs = new Set<number>([...pinsBefore.filter(p => p.asked).map(p => p.seq), ...assigned.filter(r => r.asked === true).map(r => r.seq)])
 
     const rewriter = opts.rewriter ?? deterministicRewriter
     const draft = rewriter({ rows: assigned, catalog })
     applyNamedReplacements(draft, assigned, pinsBefore, libraryLive)
-    if (rewriter === deterministicRewriter) mergeRestatements(draft, assigned, docs, pinsBefore)
+    if (rewriter === deterministicRewriter) mergeRestatements(draft, assigned, libraryDocs, pinsBefore)
     const verdict = validateDraft(draft, { rows: assigned, libraryLiveSeqs: libraryLive, userAskedSeqs })
     if (!verdict.ok) {
       restoreConsumed(dir, consumed.files)
@@ -543,6 +545,7 @@ export function maybeConsolidate(
     }
     const supersededInBatch = new Set(supersededBatchSeqs)
     const touched = new Set<string>()
+    const touchedArchives = new Set<string>()
     const pinnedSeqs = new Set(readPins(dir).map(p => p.seq))
     const pinMoves: Array<[number, number]> = []
     let entries = 0
@@ -570,7 +573,7 @@ export function maybeConsolidate(
             continue
           }
           if (bySeq.has(t) || handled.has(t)) continue
-          for (const [otherSlug, other] of byId) {
+          for (const [otherSlug, other] of [...byId, ...archives]) {
             if (other === doc || !liveSeqs(other).has(t)) continue
             for (const s of other.sections) {
               const at = s.entries.findIndex(x => x.seq === t)
@@ -582,7 +585,8 @@ export function maybeConsolidate(
             }
             other.updated = nowIso
             other.updateLog.push(`${nowIso} seq ${t} superseded by ${e.seq} (in topic-${doc.slug})`)
-            touched.add(otherSlug)
+            if (archives.get(otherSlug) === other) touchedArchives.add(otherSlug)
+            else touched.add(otherSlug)
             break
           }
         }
@@ -619,6 +623,7 @@ export function maybeConsolidate(
       }
     }
 
+    for (const id of touchedArchives) writeDoc(archives.get(id)!, dir)
     for (const slug of touched) {
       const doc = byId.get(slug)
       if (doc) writeDoc(doc, dir)
