@@ -97,7 +97,7 @@ export interface ControlServerDeps {
         presetName?: string
         presetNote?: string
       }
-    | { ok: false; error: string; code: string }
+    | { ok: false; error: string; code: string; moves?: ReadonlyArray<{ verb: string; label: string }> }
   >
   concourseDispatch?: (req: {
     clientMessageId: string
@@ -249,6 +249,9 @@ const ADMIT_WIRE_KEYS = [
   'kitSource', 'liveHop', 'presetName', 'presetNote',
 ] as const satisfies readonly (keyof AdmitOk)[]
 const admitWhole: Whole<Omit<AdmitOk, 'ok'>, (typeof ADMIT_WIRE_KEYS)[number]> = true
+type AdmitRefused = Extract<Awaited<ReturnType<NonNullable<ControlServerDeps['concourseAdmit']>>>, { ok: false }>
+const ADMIT_REFUSAL_WIRE_KEYS = ['moves'] as const satisfies readonly (keyof AdmitRefused)[]
+const admitRefusalWhole: Whole<Omit<AdmitRefused, 'ok' | 'error' | 'code'>, (typeof ADMIT_REFUSAL_WIRE_KEYS)[number]> = true
 
 type DispatchResult = Awaited<ReturnType<NonNullable<ControlServerDeps['concourseDispatch']>>>
 const DISPATCH_WIRE_KEYS = [
@@ -282,7 +285,7 @@ type WorkerDispatchResult = Awaited<ReturnType<TaskRoster['dispatch']>>
 const WORKER_DISPATCH_WIRE_KEYS = ['short', 'pid', 'via'] as const satisfies readonly (keyof WorkerDispatchResult)[]
 const workerDispatchWhole: Whole<Omit<WorkerDispatchResult, 'ok' | 'code' | 'error'>, (typeof WORKER_DISPATCH_WIRE_KEYS)[number]> = true
 
-void [admitWhole, dispatchWhole, controlWhole, warmWhole, releaseWhole, reconfigureWhole, workerDispatchWhole]
+void [admitWhole, admitRefusalWhole, dispatchWhole, controlWhole, warmWhole, releaseWhole, reconfigureWhole, workerDispatchWhole]
 
 function peerUidRejection(_sock: net.Socket): string | null {
   return null
@@ -748,7 +751,8 @@ async function routeControlRequest(
       if (raw.birthKey !== undefined && !isBirthKey(raw.birthKey)) {
         return answer(sock, { ok: false, code: 'EUNKNOWN', error: 'birthKey refused — a birth names itself with one key of 8 to 64 letters, digits or dashes; nothing was admitted' })
       }
-      const r = await deps.concourseAdmit({
+      const waitForSeatMs = typeof raw.waitForSeatMs === 'number' && Number.isFinite(raw.waitForSeatMs) ? Math.max(0, Math.min(raw.waitForSeatMs, 120_000)) : 0
+      const admitRequest: Parameters<NonNullable<ControlServerDeps['concourseAdmit']>>[0] = {
         workspaceDir,
         ...(typeof raw.birthKey === 'string' ? { birthKey: raw.birthKey } : {}),
         ...(isolation !== undefined ? { isolation } : {}),
@@ -765,9 +769,17 @@ async function routeControlRequest(
         ...(kit !== undefined ? { kit } : {}),
         ...(typeof raw.kitPreset === 'string' && raw.kitPreset !== '' ? { kitPreset: raw.kitPreset } : {}),
         ...(typeof raw.vacatingSessionId === 'string' && raw.vacatingSessionId !== '' ? { vacatingSessionId: raw.vacatingSessionId } : {}),
-      })
+      }
+      let r = await deps.concourseAdmit(admitRequest)
+      const seatDeadline = Date.now() + waitForSeatMs
+      while (!r.ok && r.code === 'runtime-ceiling' && waitForSeatMs > 0 && Date.now() < seatDeadline && !sock.destroyed) {
+        await new Promise(resolveWait => setTimeout(resolveWait, Math.min(1000, Math.max(50, seatDeadline - Date.now()))))
+        r = await deps.concourseAdmit(admitRequest)
+      }
       if (!r.ok) {
-        return answer(sock, { ok: false, code: 'EUNKNOWN', error: r.error, refusal: r.code })
+        const waited = waitForSeatMs > 0 && r.code === 'runtime-ceiling' ? ` — no seat freed in ${Math.round(waitForSeatMs / 1000)} s` : ''
+        const refusal = pickDefined(r, ADMIT_REFUSAL_WIRE_KEYS)
+        return answer(sock, { ok: false, code: 'EUNKNOWN', error: `${r.error}${waited}`, refusal: r.code, ...(refusal.moves !== undefined ? { moves: [...refusal.moves] } : {}) })
       }
       return answer(sock, {
         ok: true,

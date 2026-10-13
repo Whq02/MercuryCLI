@@ -17,6 +17,7 @@ export const ROW_TYPES = [
   'tool_update',
   'step',
   'outcome',
+  'close',
   'wait',
   'heartbeat',
   'compaction',
@@ -284,6 +285,18 @@ export const OutcomeRowSchema = lazySchema(() =>
 )
 export type OutcomeRow = z.infer<ReturnType<typeof OutcomeRowSchema>>
 
+export const CloseRowSchema = lazySchema(() =>
+  z.object({
+    type: z.literal('close'),
+    ...envelopeFields,
+    state: z.enum(['stored', 'skipped', 'none']),
+    note_chars: z.number().int().min(0).optional(),
+    usage: UsageSchema().optional(),
+    models: z.record(z.string(), ModelUsageRowSchema()).optional(),
+  }),
+)
+export type CloseRow = z.infer<ReturnType<typeof CloseRowSchema>>
+
 export const WaitRowSchema = lazySchema(() =>
   z.object({
     type: z.literal('wait'),
@@ -431,6 +444,7 @@ export const RowSchema = lazySchema(() =>
     ToolUpdateRowSchema(),
     StepRowSchema(),
     OutcomeRowSchema(),
+    CloseRowSchema(),
     WaitRowSchema(),
     HeartbeatRowSchema(),
     CompactionRowSchema(),

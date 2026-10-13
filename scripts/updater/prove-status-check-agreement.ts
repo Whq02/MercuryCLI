@@ -62,14 +62,14 @@ section('§1 DAMAGED POINTER — STATUS SPEAKS THE VERDICT')
   check('--status --json exits 1 too', j.code === 1, `code=${j.code}`)
   let parsed: unknown = null
   try {
-    parsed = JSON.parse(j.stderr)
+    parsed = JSON.parse(j.stdout)
   } catch {
     parsed = null
   }
   check(
     'the JSON is parseable and carries the pointer state',
     parsed !== null && (parsed as { installedPointer?: string }).installedPointer === 'unreadable',
-    j.stderr.slice(0, 120),
+    j.stdout.slice(0, 120),
   )
 }
 

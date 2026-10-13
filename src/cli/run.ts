@@ -46,6 +46,8 @@ import { SPAWN_SWITCH_LABEL, setSpawnSwitch, spawnSwitchFacts, spawnSwitchTransi
 import { boxReading, refreshBoxReading } from '../utils/boxLock.js'
 import { declareLawfulPrefixChangeForEveryOwner } from '../services/providers/lawfulPrefixChange.js'
 import { createRosterTransitionMessage } from '../utils/messages/systemMessages.js'
+import { isToolResultMessage } from '../utils/messages/merge.js'
+import { isLocalCommandCaveat } from '../utils/messages/apiPlan.js'
 import { dropCredentialMemos, is1PApiCustomer } from '../utils/auth.js'
 import { noteCrewAccountChange } from '../utils/crew/crewAccountChange.js'
 import { hasClaudeAiBillingAccess, hasConsoleBillingAccess } from '../utils/billing.js'
@@ -69,7 +71,7 @@ import { jevLedgerSnapshot } from '../services/jev/jevLedger.js'
 import { jevFactsOf } from '../services/jev/jevSessionFacts.js'
 import { jevStatus } from '../services/jev/jevStatus.js'
 import { ask, sessionFactsOf } from '../rows/turn.js'
-import { commandOutputRow, compactionClearedRow, compactionRow, heartbeatRow, missionUpdatedRow, modeRow, noticeRow, outcomeRow, rateLimitRow, samplesUpdatedRow, sessionRow, taskRow, turnStartedRow, turnWaitingRow, waitRow, type RowDraft, type RowScope, type Unstamped } from '../rows/project.js'
+import { closeRow, commandOutputRow, compactionClearedRow, compactionRow, heartbeatRow, missionUpdatedRow, modeRow, noticeRow, outcomeRow, rateLimitRow, samplesUpdatedRow, sessionRow, taskRow, turnStartedRow, turnWaitingRow, waitRow, type RowDraft, type RowScope, type Unstamped } from '../rows/project.js'
 import { exitCodeOf, OUTCOME_SENTENCES, type CompactionRow, type InputRow, type OutcomeRow, type Row } from '../rows/vocabulary.js'
 import { isOutcome, turnOpened } from '../rows/read.js'
 import type { FoldStatusV1 } from '../services/compact/foldStatus.js'
@@ -182,7 +184,7 @@ import { clearSystemPromptSections } from '../constants/systemPromptSections.js'
 
 const DEFAULT_HEADLESS_IDLE_MINUTES = 20
 const SIGNAL_SETTLE_MS = 5_000
-import { getInMemoryErrors, logError } from '../utils/log.js'
+import { getInMemoryErrors, logError, withoutStackFrames } from '../utils/log.js'
 import { processMainOwner } from '../services/run/resolveOwner.js'
 import { editOutcomeRows } from '../services/changeTransaction/editOutcomeLedger.js'
 import { getRunSnapshot, reconcileOnResume } from '../services/run/runCoordinator.js'
@@ -374,6 +376,10 @@ function normalizeInputPrompt(
   }
 }
 
+
+function priorTurnCount(messages: readonly Message[]): number {
+  return messages.filter(message => message.type === 'user' && (message as { isMeta?: boolean }).isMeta !== true && !isToolResultMessage(message) && !isLocalCommandCaveat(message)).length
+}
 
 export async function runHeadless(
   inputPrompt: string | AsyncIterable<string>,
@@ -580,6 +586,7 @@ export async function runHeadless(
   })
   const messages: Message[] = loaded.messages
   resumeOf = loaded.resumedSessionId
+  turnsRun = priorTurnCount(messages)
   let contentReplacementState = {
     ...reconstructContentReplacementState(messages, loaded.contentReplacements ?? []),
     budgetChars: Infinity,
@@ -1379,7 +1386,15 @@ export async function runHeadless(
     settleIdle,
     wakeSettle: () => {},
     beforeCloseOutput: async () => {
-      await leaveNoteBeforeExit({ budgetMs: HANDOFF_ASK_BUDGET_MS, onNotice: text => io.outbound.enqueue(noticeRow(liveScope(), 'warning', text)) })
+      const { exitNoteDue } = await import('../mneme/exitHandoff.js')
+      const ranHere = exitNoteDue()
+      let closeUsage: import('../services/api/emptyUsage.js').NonNullableUsage | undefined
+      const outcome = await leaveNoteBeforeExit({
+        budgetMs: HANDOFF_ASK_BUDGET_MS,
+        onNotice: text => io.outbound.enqueue(noticeRow(liveScope(), 'warning', text)),
+        onUsage: usage => { closeUsage = usage },
+      })
+      if (ranHere) io.outbound.enqueue(closeRow(liveScope(), { state: outcome, ...(closeUsage !== undefined ? { usage: closeUsage } : {}) }))
     },
     closeOutput: async () => {
       const { endBackgroundHooks } = await import('../utils/hooks/background.js')
@@ -1408,7 +1423,7 @@ export async function runHeadless(
           usage: EMPTY_USAGE,
           models: {},
           denials: [],
-          error: { message: errorMessage(error), class: 'internal', detail: getInMemoryErrors().map(entry => entry.error) },
+          error: { message: errorMessage(error), class: 'internal', detail: getInMemoryErrors().map(entry => withoutStackFrames(entry.error)) },
         },
       ),
     shutdown: code => void gracefulShutdown(code),
@@ -1732,6 +1747,7 @@ export async function runHeadless(
         await restoreSessionStateFromLog(resumed, setAppState)
         restoreSessionMetadata(resumed)
         messages.splice(0, messages.length, ...resumed.messages)
+        turnsRun = priorTurnCount(messages)
         contentReplacementState = {
           ...reconstructContentReplacementState(messages, resumed.contentReplacements ?? []),
           budgetChars: Infinity,

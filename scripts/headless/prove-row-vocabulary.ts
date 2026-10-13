@@ -54,6 +54,7 @@ const projected: Record<string, unknown[]> = {
   tool_update: [project.toolUpdateRow(scope, { callId: 'toolu_1', tick: 1, source: 'shell', line: 'x', elapsedS: 1.5 })],
   step: [project.stepRow(scope, { messageId: 'm-1', model: 'm', stopReason: 'end_turn', usage })],
   outcome: [project.outcomeRow(scope, { turnId: 't-1', status: 'completed', stopReason: 'end_turn', answer: 'done', steps: 1, wallMs: 10, apiMs: 5, costUsd: 0.01, usage, models: project.modelUsageRows({ m: { inputTokens: 1, outputTokens: 1, cacheReadInputTokens: 0, cacheCreationInputTokens: 0, webSearchRequests: 0, costUSD: 0.01 } }), denials: [] })],
+  close: [project.closeRow(scope, { state: 'stored', noteChars: 9, usage })],
   wait: [project.waitRow(scope, null), project.retryWaitRow(scope, { attempt: 1, of: 3, reason: 'overloaded', delayMs: 100, httpStatus: 529, sinceMs: 0 })],
   heartbeat: [project.heartbeatRow(scope)],
   compaction: [project.compactionRow(scope, null, 'manual'), project.compactionEndedRow(scope, { trigger: 'auto', tokensBefore: 1000 }), project.compactionClearedRow(scope, 'auto')],

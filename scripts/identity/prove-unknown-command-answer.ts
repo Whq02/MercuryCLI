@@ -114,8 +114,8 @@ if (existsSync(dist)) {
     for (const name of NAMES) {
       if (existsSync(`/${name}`)) continue
       const typed = door(name)
-      check(`typed at the headless door, /${name} gets the runner's own unknown-skill line and exit 0`, typed.code === 0 && typed.out.trim() === `Unknown skill: ${name}`, JSON.stringify(typed))
-      check('…byte for byte the answer a never-registered name gets, with the name swapped', typed.code === never.code && typed.out === never.out.replaceAll(NEVER_HAD, name) && typed.err === never.err, JSON.stringify(never))
+      check(`typed at the headless door, /${name} gets the cockpit's unknown-command sentence on stderr and exit 1 (nothing on stdout)`, typed.code === 1 && typed.out === '' && typed.err.trim().startsWith(`Unknown command: /${name}`) && typed.err.trim().endsWith('/help lists commands'), JSON.stringify(typed))
+      check('…the same shape a never-registered name gets (exit, stdout and the sentence with the name swapped; a nearest-name pointer may differ)', typed.code === never.code && typed.out === never.out && shape(typed.err, name) === shape(never.err, NEVER_HAD), JSON.stringify(never))
     }
   } finally {
     rmSync(root, { recursive: true, force: true })

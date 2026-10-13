@@ -3,7 +3,7 @@ import { formatUninstallReport, resolveLayoutRoots, uninstallLayout } from 'src/
 import { describePathTarget, type PathEntryOutcome } from 'src/services/privateChannel/installPath.js'
 import { describeInstall, performInstall, type Progress } from 'src/services/privateChannel/updateService.js'
 import { jsonStringify } from 'src/utils/slowOperations.js'
-import { cliError, cliOk } from './exit.js'
+import { cliError, cliJsonError, cliOk } from './exit.js'
 
 export interface InstallCliOptions {
   dryRun?: boolean
@@ -18,7 +18,7 @@ const progressToStderr: Progress = (state, detail) => {
 }
 
 const emitJson = (value: unknown): never => cliOk(jsonStringify(value, null, 1) ?? '{}')
-const failJson = (value: unknown): never => cliError(jsonStringify(value, null, 1) ?? '{}')
+const failJson = (value: unknown): never => cliJsonError(jsonStringify(value, null, 1) ?? '{}')
 
 export function describePathOutcome(path: PathEntryOutcome, isWindows: boolean, home: string = homedir(), repeat = false): string {
   const targets = (list: string[]): string => list.map(t => describePathTarget(t, home)).join(' and ')

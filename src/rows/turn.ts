@@ -35,7 +35,11 @@ import { registerRunStopGuard } from '../guards/runStop.js'
 import { lastAssistantText } from '../guards/runStopAdapter.js'
 import { registerWardsGuard } from '../guards/wardsGuard.js'
 import { parseBlockerDeclaration } from '../services/run/blockerDeclaration.js'
-import { getInMemoryErrors, logError } from '../utils/log.js'
+import { askNobodyAnswered, unansweredAsksBlocker } from '../services/run/unansweredAsk.js'
+import type { PermissionDecision } from '../types/permissions.js'
+import { getInMemoryErrors, logError, withoutStackFrames } from '../utils/log.js'
+import { isClaudeAISubscriber } from '../utils/auth.js'
+import { declaredRouteOf } from '../services/providers/routeLaw.js'
 import { normalizeMessages } from '../utils/messages.js'
 import { isNotEmptyMessage } from '../utils/messages/text.js'
 import { NO_CONTENT_MESSAGE } from '../constants/messages.js'
@@ -72,6 +76,7 @@ import {
   itemRowsOf,
   modelUsageRows,
   noticeRow,
+  closeRow,
   outcomeRow,
   partialRowsOf,
   refusedCallRowsOf,
@@ -260,6 +265,7 @@ export class Conversation {
   private readonly loadedNestedMemoryPaths = new Set<string>()
   private readonly discoveredSkillNames = new Set<string>()
   private readonly denials: Denial[] = []
+  private readonly unansweredAsks = new Set<string>()
   private accumulatedUsage: NonNullableUsage = { ...EMPTY_USAGE }
   private readonly streamFoldedIds = new Set<string>()
   private readonly settledUsageById = new Map<string, NonNullableUsage>()
@@ -359,8 +365,11 @@ export class Conversation {
       toolUseID: string,
       forceDecision?: unknown,
     ) => {
-      const decision = await (config.canUseTool as (...args: unknown[]) => Promise<{ behavior?: string }>)(tool, input, toolUseContext, assistantMessage, toolUseID, forceDecision)
-      if (decision?.behavior !== 'allow') this.denials.push({ tool: tool.name, call_id: toolUseID, input })
+      const decision = await (config.canUseTool as (...args: unknown[]) => Promise<PermissionDecision>)(tool, input, toolUseContext, assistantMessage, toolUseID, forceDecision)
+      if (decision?.behavior !== 'allow') {
+        this.denials.push({ tool: tool.name, call_id: toolUseID, input })
+        if (askNobodyAnswered(decision)) this.unansweredAsks.add(toolUseID)
+      }
       return decision
     }) as CanUseTool
 
@@ -635,8 +644,12 @@ export class Conversation {
       const unpricedNow = getUnpricedTurns()
       const unpricedModels = new Set(Object.keys(unpricedNow).filter(model => (unpricedNow[model] ?? 0) > (unpricedAtStart[model] ?? 0)))
       const apiMs = Math.max(0, getTotalAPIDuration() - apiDurationAtStart)
-      const costUsd = Math.max(0, getTotalCostUSD() - costAtStart)
       const billed = usageSince(getModelUsage(), modelUsageAtStart)
+      const subscriber = isClaudeAISubscriber()
+      const hasUnknownCost = (model: string): boolean => unpricedModels.has(model) || (subscriber && declaredRouteOf(model) === 'anthropic')
+      const pricedModels = Object.keys(billed).filter(model => !hasUnknownCost(model))
+      const costUsd = subscriber ? pricedModels.reduce((sum, model) => sum + Math.max(0, billed[model]?.costUSD ?? 0), 0) : Math.max(0, getTotalCostUSD() - costAtStart)
+      const costKnown = subscriber ? pricedModels.length > 0 : unpricedModels.size === 0 || costUsd > 0
       const usage = Object.values(billed).reduce((sum, row) => ({
         ...sum,
         input_tokens: sum.input_tokens + row.inputTokens,
@@ -651,9 +664,9 @@ export class Conversation {
         steps: steps.count,
         wallMs: Date.now() - turnStartedAt,
         ...(apiMs > 0 ? { apiMs } : {}),
-        ...(unpricedModels.size === 0 || costUsd > 0 ? { costUsd } : {}),
+        ...(costKnown ? { costUsd } : {}),
         usage,
-        models: modelUsageRows(billed, model => unpricedModels.has(model)),
+        models: modelUsageRows(billed, hasUnknownCost),
         denials: this.denials.slice(denialsBefore),
         ...(notices.length > 0 ? { notices: [...notices] } : {}),
         ...extra,
@@ -918,6 +931,15 @@ export class Conversation {
           }
           case 'system': {
             const systemMessage = message
+            if (systemMessage.subtype === 'close_usage') {
+              const close = systemMessage as import('../types/message.js').SystemCloseUsageMessage
+              yield closeRow(scope, {
+                state: close.closeState,
+                ...(close.noteChars !== undefined ? { noteChars: close.noteChars } : {}),
+                ...(close.usage !== undefined ? { usage: close.usage } : {}),
+              })
+              break
+            }
             if (systemMessage.subtype === 'api_error') {
               this.mutableMessages.push(systemMessage)
               turnMessages.push(systemMessage)
@@ -1049,12 +1071,17 @@ export class Conversation {
         yield* endTurn('blocked', { answer, error: { message: `Blocked on the operator: ${blocker.description}`, class: 'blocked', detail: [`resume when: ${blocker.resumeCondition}`] } })
         return
       }
+      const unanswered = this.denials.slice(denialsBefore).filter(denial => this.unansweredAsks.has(denial.call_id))
+      if (unanswered.length > 0) {
+        yield* endTurn('blocked', { answer, error: unansweredAsksBlocker([...new Set(unanswered.map(denial => denial.tool))]) })
+        return
+      }
       yield* endTurn('completed', { answer, ...(this.structuredOutput !== undefined ? { structured: this.structuredOutput } : {}) })
       return
     }
     const allErrors = getInMemoryErrors()
     const watermarkIndex = errorWatermark ? allErrors.indexOf(errorWatermark) : -1
-    const turnErrors = allErrors.slice(watermarkIndex + 1).map(entry => entry.error)
+    const turnErrors = allErrors.slice(watermarkIndex + 1).map(entry => withoutStackFrames(entry.error))
     const errorClass: ErrorClass = settled.errorClass ?? (settled.status === 'interrupted' ? 'interrupt' : 'internal')
     let message: string
     if (settled.status === 'interrupted') {

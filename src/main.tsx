@@ -173,6 +173,14 @@ function writeErr(text: string): void {
   process.stderr.write(text.endsWith('\n') ? text : `${text}\n`)
 }
 
+function exitWithVersionLine(): never {
+  try {
+    writeSync(1, `Mercury ${MERCURY_VERSION}\n`)
+  } catch {
+  }
+  process.exit(0)
+}
+
 function wantsRowStream(): boolean {
   const args = inspectRunArgs(process.argv.slice(2))
   return args.command === 'run' && args.format === 'rows'
@@ -188,7 +196,17 @@ const USAGE_ERROR_CODES = new Set([
   'commander.excessArguments',
   'commander.conflictingOption',
 ])
-function exitForCommanderError(error: { code?: string; exitCode?: number }): void {
+function promptMistakenForOptionHint(message: string | undefined, cliName = binaryName()): string | null {
+  const quoted = /unknown option '([^']*)'/.exec(message ?? '')?.[1]
+  if (quoted === undefined || !/\s/.test(quoted.trim())) return null
+  return `that looks like a prompt that begins with "-", so the parser read it as an option — put it after the option boundary: ${cliName} run -- ${JSON.stringify(quoted)}`
+}
+
+function exitForCommanderError(error: { code?: string; exitCode?: number; message?: string }): void {
+  if (error.code === 'commander.unknownOption') {
+    const hint = promptMistakenForOptionHint(error.message)
+    if (hint !== null) writeErr(hint)
+  }
   if (error.code !== undefined && USAGE_ERROR_CODES.has(error.code)) process.exit(2)
 }
 
@@ -365,7 +383,7 @@ async function run(): Promise<void> {
     return values
   }
   program.hook('preAction', async (_thisCommand, actionCommand) => {
-    if (actionCommand === (program as unknown) || actionCommand.name() === 'run') return
+    if (actionCommand === (program as unknown) || actionCommand.name() === 'run' || PRINT_ONLY_VERBS.has(actionCommand.name())) return
     try {
       const names: string[] = []
       type CommandNode = { name(): string; parent: CommandNode | null }
@@ -441,7 +459,7 @@ async function run(): Promise<void> {
     .addOption(new Option('--brief-file <file>', 'Read the session system brief from a file').hideHelp())
     .option('--brief-add <prompt>', 'Append to the session system brief')
     .addOption(new Option('--brief-add-file <file>', 'Append to the session system brief from a file').hideHelp())
-    .addOption(new Option('--mode <mode>', `Permission mode — ${PERMISSION_MODES.map(mode => `${mode}: ${MODE_GLOSS[mode]}`).join('; ')}`).choices(PERMISSION_MODES))
+    .addOption(new Option('--mode <mode>', `Permission mode — ${PERMISSION_MODES.map(mode => `${mode}: ${MODE_GLOSS[mode]}`).join('; ')} (apollo needs someone to answer its asks: the cockpit, or a host serving the session over mercury runner — mercury run alone refuses it)`).choices(PERMISSION_MODES))
     .option('-c, --continue', 'Continue the most recent conversation')
     .option('-r, --resume [value]', 'Resume a conversation (session id, title, or picker)')
     .option('--fork', 'Fork to a new session id on resume')
@@ -485,15 +503,12 @@ async function run(): Promise<void> {
   program.addOption(new Option('-V', 'Print the version').hideHelp())
   program.on('option:V', () => {
     releaseLauncherAltHoldNow()
-    try {
-      writeSync(1, `Mercury ${MERCURY_VERSION}\n`)
-    } catch {
-    }
-    process.exit(0)
+    exitWithVersionLine()
   })
   profileCheckpoint('run_main_options_built')
 
   program.hook('preAction', async (_thisCommand, actionCommand) => {
+    if (PRINT_ONLY_VERBS.has(actionCommand.name())) return
     profileCheckpoint('preAction_start')
     const slowBootNote = setTimeout(() => {
       if (process.stderr.isTTY) process.stderr.write('checking the system keychain and managed settings…\n')
@@ -541,7 +556,7 @@ async function run(): Promise<void> {
   })
   const runCommand = program.command('run')
     .description('Run a prompt without a terminal UI; use only in directories you trust')
-    .argument('[prompt]', 'The prompt; - or no prompt reads it from stdin to the end; with a prompt, anything piped in within 1 s is added as context')
+    .argument('[prompt]', 'The prompt; - or no prompt reads it from stdin to the end; with a prompt, anything piped in is added as context — the pipe is read until it closes or has been silent for 1 s')
     .configureHelp({ sortOptions: true })
     .action(async (prompt: string | undefined) => {
       await defaultAction(prompt, { ...sessionOptions(runCommand), runMode: true })
@@ -848,6 +863,25 @@ async function registerSubcommands(program: CommanderCommand): Promise<void> {
       process.exit(0)
     })
 
+  program
+    .command('version')
+    .description('Print the version (the same line as --version)')
+    .action(() => {
+      exitWithVersionLine()
+    })
+  program
+    .command('help [command...]')
+    .description('Show help: this page, or one command\'s page (help mcp serve reaches a sub-command)')
+    .action((words: string[]) => {
+      let target: CommanderCommand = program
+      for (const word of words) {
+        const next = target.commands.find(command => command.name() === word || command.aliases().includes(word))
+        if (next === undefined) failCli(`unknown command: ${words.join(' ')} — ${cliName} --help lists every command`)
+        target = next
+      }
+      target.outputHelp()
+      process.exit(0)
+    })
   program.command('health [topic]')
     .description('Check the installation health: configured MCP servers are validated WITHOUT starting them; `health processes` lists Mercury\'s own processes as JSON')
     .option('--json', 'The full health report as JSON (the certificate)')
@@ -1062,6 +1096,7 @@ type RootOptions = Record<string, unknown>
 
 const RUN_OUTPUT_OPTIONS: ReadonlySet<string> = new Set(['--format', '--input', '--partial'])
 const INTERACTIVE_BOOT_OPTIONS: ReadonlySet<string> = new Set(['--chat', '--concourse-off', '--concourse-on', '--multiplex', '--pr'])
+const PRINT_ONLY_VERBS: ReadonlySet<string> = new Set(['version', 'help'])
 
 async function defaultAction(inputPromptArg: string | undefined, opts: RootOptions): Promise<void> {
   if ((opts as { version?: boolean }).version) {
@@ -1106,7 +1141,7 @@ async function defaultAction(inputPromptArg: string | undefined, opts: RootOptio
     if (await sessionIdExists(sessionIdOpt)) failCli(`Session id already exists: ${sessionIdOpt}`, 1)
   }
   if (runMode && opts.mode === 'apollo' && !runnerDoor) {
-    failCli('mercury run: apollo needs a host that answers its asks (mercury runner)')
+    failCli('mercury run: apollo needs a host that answers its asks — serve the session to one over mercury runner (mercury runner --help), or run apollo in the cockpit')
   }
   if (opts.backupModel && opts.backupModel === opts.model) {
     failCli('--backup-model cannot equal --model')
@@ -1358,7 +1393,10 @@ async function defaultAction(inputPromptArg: string | undefined, opts: RootOptio
   }
 
   if (runMode && inputFormat === 'text' && (prompt === undefined || (typeof prompt === 'string' && !prompt.trim())) && !opts.resume && !opts.continue && !opts.pr) {
-    const usage = 'Usage: mercury run "<prompt>" or pipe a prompt to mercury run -'
+    const debugFilter = typeof opts.debug === 'string' && /\s/.test(opts.debug.trim()) ? opts.debug : null
+    const usage = debugFilter !== null
+      ? `No prompt reached run: --debug took ${JSON.stringify(debugFilter)} as its category filter. Put the prompt before --debug, or use -d: mercury run ${JSON.stringify(debugFilter)} --debug`
+      : 'Usage: mercury run "<prompt>" or pipe a prompt to mercury run -'
     if (process.stdin.isTTY) {
       writeSync(2, `${usage}\n`)
       process.exit(2)
@@ -1534,9 +1572,18 @@ async function* noStdinChunks(): AsyncIterable<string> {}
 function readStdinWithPeek(timeoutMs: number): Promise<string | null> {
   return new Promise(resolvePeek => {
     const chunks: string[] = []
-    const onData = (chunk: string): void => { chunks.push(chunk) }
+    let timer: ReturnType<typeof setTimeout> | undefined
+    const armSilence = (): void => {
+      if (timeoutMs < 0) return
+      if (timer !== undefined) clearTimeout(timer)
+      timer = setTimeout(() => finish(null), timeoutMs)
+    }
+    const onData = (chunk: string): void => {
+      chunks.push(chunk)
+      armSilence()
+    }
     const finish = (empty: string | null): void => {
-      clearTimeout(timer)
+      if (timer !== undefined) clearTimeout(timer)
       process.stdin.pause()
       process.stdin.off('data', onData)
       process.stdin.off('end', onEnd)
@@ -1545,7 +1592,7 @@ function readStdinWithPeek(timeoutMs: number): Promise<string | null> {
     }
     const onEnd = (): void => finish('')
     const onError = (): void => finish(null)
-    const timer = timeoutMs < 0 ? undefined : setTimeout(() => finish(null), timeoutMs)
+    armSilence()
     process.stdin.setEncoding('utf8')
     process.stdin.on('data', onData)
     process.stdin.once('end', onEnd)

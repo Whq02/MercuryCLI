@@ -48,7 +48,7 @@ try {
   tally.check('the continued run keeps the conversation\'s session id', secondSession?.session_id === firstId && firstId !== '', JSON.stringify({ first: firstId, second: secondSession?.session_id }))
   tally.check('its session row carries resume_of naming the first run\'s session', secondSession?.resume_of === firstId, JSON.stringify({ resume_of: secondSession?.resume_of, firstId }))
   tally.check('its sequence starts again at 1 (the lineage field, not a continued sequence, joins the two streams)', secondSession?.seq === 1, JSON.stringify(secondSession?.seq))
-  tally.check('its turn numbering starts again at 1', secondOutcome?.turn === 1, JSON.stringify(secondOutcome?.turn))
+  tally.check('its turn is numbered after the conversation\'s earlier turn (turn 2 — the .34 ruling: turn counts the session\'s turns, seq this stream\'s rows)', secondOutcome?.turn === 2, JSON.stringify(secondOutcome?.turn))
 } finally {
   await fixture.close()
   rmSync(root, { recursive: true, force: true })

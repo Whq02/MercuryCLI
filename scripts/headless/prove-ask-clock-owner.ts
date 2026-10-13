@@ -99,7 +99,7 @@ await guarded(async () => {
   check("the denial names the reason: nobody answered within the turn's no-progress limit", String(result.output).includes('nobody answered within') && String(result.output).includes("no-progress limit"), String(result.output).slice(0, 300))
   check('the host\'s card is withdrawn ($/cancel_request for the ask)', host.withdrawn.has(ask.id), j([...host.withdrawn]))
   const outcome = await host.waitFor('the outcome', row => row.type === 'outcome', 60_000)
-  check('the turn goes on and completes, the denial listed', outcome.status === 'completed' && Array.isArray(outcome.denials) && (outcome.denials as Array<{ tool?: string }>).some(d => d.tool === 'Write'), j(outcome))
+  check('the turn ends blocked with the refusal named, the denial listed (the .34 ruling: a refused tool never reports completed)', outcome.status === 'blocked' && Array.isArray(outcome.denials) && (outcome.denials as Array<{ tool?: string }>).some(d => d.tool === 'Write'), j(outcome))
   check('nothing was written', !existsSync(join(scratch.cwd, 'late.txt')))
   await host.stop()
   await api.close()

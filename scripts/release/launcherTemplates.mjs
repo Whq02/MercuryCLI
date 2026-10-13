@@ -205,16 +205,17 @@ if [ "$MERCURY_TAKEOVER" = "1" ] && [ -t 0 ] && [ -t 1 ] \\
     printf '\\n  \\033[1;38;2;221;68;68m\\342\\234\\246 MERCURY\\033[0m \\033[38;2;140;133;118m\\302\\267 %s\\033[0m\\n\\n' "$PWD"
   fi
 fi
-"$node_bin" "$dir/mercury.mjs" "$@"
-rt=$?
-# post-child heal: TTY-gated, abnormal-exit only, code preserved. Focus
-# tracking (?1004l) is re-reset AFTER ?1049l: on win32 a reset written before
-# the alt-screen exit lands on the alt buffer, so 1004 stays armed on the main
-# buffer and focus flips spew ^[[I/^[[O at the dead prompt (field TASK-005 L4).
-if [ -t 1 ] && [ "$rt" != "0" ]; then
-  "$node_bin" -e "process.stdout.write('\\x1b[?2026l\\x1b[0m\\x1b[?1000l\\x1b[?1002l\\x1b[?1003l\\x1b[?1006l\\x1b[?1004l\\x1b[?2004l\\x1b[?1007l\\x1b[?1049l\\x1b[?1004l\\x1b[?25h\\x1b]111\\x07')" 2>/dev/null || true
-fi
-exit $rt
+# ONE PROCESS: exec replaces this shell with the runtime, so the pid a
+# script that started it holds IS the runtime's. A child instead meant
+# TERM/KILL/INT to this pid died with the shell and orphaned the run (it
+# finished the turn, billed the calls, wrote its rows after the caller had
+# moved on), and ctrl+z stopped only the child while the shell kept the
+# foreground group — the terminal was dead until an outside kill -CONT.
+# The runtime's own exit paths (its signal handlers, its crash exits, its
+# failsafe timer) restore the terminal modes; the shell's post-child heal
+# covered only a SIGKILL, where no process remains to write restore bytes
+# in either shape.
+exec "$node_bin" "$dir/mercury.mjs" "$@"
 `
 }
 
