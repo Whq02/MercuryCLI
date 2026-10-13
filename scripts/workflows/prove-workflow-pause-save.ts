@@ -212,7 +212,7 @@ const fixture = createServer((req, res) => {
       res.end('{}')
       return
     }
-    const agent = raw.includes('first:') ? 'first' : raw.includes('second:') ? 'second' : raw.includes('third:') ? 'third' : 'other'
+    const agent = raw.includes('first: answer with your word') ? 'first' : raw.includes('second: answer with your word') ? 'second' : raw.includes('third: answer with your word') ? 'third' : 'other'
     requests.push({ agent, at: Date.now() })
     const reply = (): void => {
       res.writeHead(200, { 'content-type': 'text/event-stream' })
