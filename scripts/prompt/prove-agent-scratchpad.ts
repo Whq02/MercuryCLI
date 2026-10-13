@@ -53,7 +53,7 @@ check('the second agent is told its own folder under the root', dirB === join(ro
 check('the two agents are told two different folders', dirA !== '' && dirA !== dirB, `both told ${dirA}`)
 check("each agent's line is inside its own <env> block", /<env>[\s\S]*Scratchpad directory: [\s\S]*<\/env>/.test(envA) && /<env>[\s\S]*Scratchpad directory: [\s\S]*<\/env>/.test(envB))
 check('composing the prompt creates each folder, so the first write there lands', existsSync(join(root, first)) && existsSync(join(root, second)))
-check("the agent's line says whose place it is and what it is for", scratchpadLine(envA) === `Scratchpad directory: ${join(root, first)} — this agent's own place ${purpose}`, scratchpadLine(envA))
+check("the agent's line says whose place it is and what it is for", scratchpadLine(envA) === `Scratchpad directory: ${join(root, first)} — this crewmate's own place ${purpose}`, scratchpadLine(envA))
 check('the parent session keeps the root, before and after the launches', announced(await prompts.computeSimpleEnvInfo(MODEL)) === root && (await prompts.computeSimpleEnvInfo(MODEL)) === main)
 writeFileSync(join(dirA, 'helper.mjs'), 'export const lane = 1\n')
 writeFileSync(join(dirB, 'helper.mjs'), 'export const lane = 2\n')

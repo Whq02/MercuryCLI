@@ -61,11 +61,11 @@ const liveIds = (catalogue as { cachedLiveIds?: LiveIds }).cachedLiveIds
 const ids = (): string[] => (liveIds ? [...liveIds()].sort() : ['<cachedLiveIds absent>'])
 
 const PRO = 'gemini-3-pro'
-const OFF = 'nano-banana-pro'
+const OFF = 'learnlm-2.0-flash-experimental'
 const PAGE = {
   models: [
     { name: `models/${PRO}`, displayName: 'Gemini 3 Pro', inputTokenLimit: 1_048_576, outputTokenLimit: 65_536, supportedGenerationMethods: ['generateContent', 'countTokens'], thinking: true },
-    { name: `models/${OFF}`, displayName: 'Nano Banana Pro', inputTokenLimit: 32_768, outputTokenLimit: 8_192, supportedGenerationMethods: ['generateContent'] },
+    { name: `models/${OFF}`, displayName: 'LearnLM 2.0 Flash Experimental', inputTokenLimit: 32_768, outputTokenLimit: 8_192, supportedGenerationMethods: ['generateContent'] },
     { name: 'models/embedding-fixture', displayName: 'Embedding Fixture', supportedGenerationMethods: ['embedContent'] },
   ],
 }
@@ -100,14 +100,14 @@ section('3 · the picker row: painted with the live name; selectable exactly whe
   console.log(`  (the routing law in this tree ${routed ? 'routes' : 'does not route'} '${OFF}' — the row's selectability follows it)`)
   const rows = getGeminiModelOptions()
   const offRow = rows.find(r => r.value === OFF)
-  check("the off-grammar row is present, under the Gemini group, wearing its live name and its stated window", offRow !== undefined && offRow.group === GEMINI_MODEL_GROUP && offRow.label === 'Nano Banana Pro' && offRow.statedContextWindow === 32_768 && offRow.description === '', JSON.stringify(offRow))
-  check("its model-facing description names the live list", (offRow?.descriptionForModel ?? '').startsWith(`Nano Banana Pro (${OFF}) — live-listed generateContent model`), String(offRow?.descriptionForModel))
+  check("the off-grammar row is present, under the Gemini group, wearing its live name and its stated window", offRow !== undefined && offRow.group === GEMINI_MODEL_GROUP && offRow.label === 'LearnLM 2.0 Flash Experimental' && offRow.statedContextWindow === 32_768 && offRow.description === '', JSON.stringify(offRow))
+  check("its model-facing description names the live list", (offRow?.descriptionForModel ?? '').startsWith(`LearnLM 2.0 Flash Experimental (${OFF}) — live-listed generateContent model`), String(offRow?.descriptionForModel))
   check('its selectability follows declaredRouteOf and nothing else', offRow !== undefined && (offRow.unavailable === undefined) === routed && (routed || (offRow.unavailable ?? '').includes('outside the routable')), JSON.stringify({ routed, unavailable: offRow?.unavailable }))
   const proRow = rows.find(r => r.value === PRO)
   check('the grammar row stands beside it, selectable', proRow !== undefined && proRow.unavailable === undefined && proRow.label === 'Gemini 3 Pro', JSON.stringify(proRow))
   check('the embedding row never reaches the picker', !rows.some(r => r.value === 'embedding-fixture'))
   const composed = getModelOptions().filter(o => o.group === GEMINI_MODEL_GROUP)
-  check("the composed picker's Gemini section carries the same rows in the same order", composed.map(o => o.value).join(',') === `${PRO},${OFF}` && composed.find(o => o.value === OFF)?.label === 'Nano Banana Pro', composed.map(o => o.value).join(','))
+  check("the composed picker's Gemini section carries the same rows in the same order", composed.map(o => o.value).join(',') === `${PRO},${OFF}` && composed.find(o => o.value === OFF)?.label === 'LearnLM 2.0 Flash Experimental', composed.map(o => o.value).join(','))
   const listed = geminiListedModel(OFF)
   check('the listed-row reader follows the same law (the row when routed, silence when not)', (listed !== undefined) === routed && (!routed || listed?.inputTokenLimit === 32_768), JSON.stringify(listed))
   check('the context-window reader agrees', (geminiContextWindowFor(OFF) !== undefined) === routed)

@@ -1,3 +1,5 @@
+import { NOUS_CLIENT_CONTRACT_RELEASE } from '../../../src/services/providers/nous/nousClientContract.ts'
+
 export const NOUS_FIXTURE_API_KEY = 'sk-nous-fixture-not-a-real-key-0123456789'
 export const NOUS_FIXTURE_NOW = Date.UTC(2026, 9, 9, 7, 30, 0)
 export const NOUS_FIXTURE_FILLER_ROWS = 28
@@ -7,7 +9,7 @@ export const NOUS_FIXTURE_RETIRED_MESSAGE = 'This model has been retired. Please
 export const NOUS_FIXTURE_KEY_NOT_ACCOUNT = 'API key is not associated with a user account'
 export const NOUS_FIXTURE_CLIENT_ID = 'hermes-cli'
 export const NOUS_FIXTURE_SCOPE = 'inference:invoke'
-export const NOUS_FIXTURE_RELEASE_TAG = 'v0.21.6'
+export const NOUS_FIXTURE_RELEASE_TAG = `v${NOUS_CLIENT_CONTRACT_RELEASE}`
 export const NOUS_FIXTURE_USER_CODE = 'FIXT-CODE'
 export const NOUS_FIXTURE_DEVICE_CODE = 'device-fixture-0123456789'
 
