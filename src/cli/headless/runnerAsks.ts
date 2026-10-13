@@ -18,6 +18,9 @@ import { flowUserAllowUpdates } from '../../utils/permissions/flowPolicy.js'
 import { askExpiredCause, askLimitMs, unansweredAskRefusal } from '../../utils/permissions/askClock.js'
 import { notifySessionStateChanged, type RequiresActionDetails } from '../../utils/sessionState.js'
 import { SANDBOX_NETWORK_ACCESS_TOOL_NAME } from '../../daemon/runnerFrames.js'
+import { BASH_TOOL_NAME } from '../../tools/BashTool/toolName.js'
+import { POWERSHELL_TOOL_NAME } from '../../tools/PowerShellTool/toolName.js'
+import { getShellCwd } from '../../utils/Shell.js'
 
 export { SANDBOX_NETWORK_ACCESS_TOOL_NAME }
 
@@ -165,6 +168,7 @@ export function createHostCanUseTool(channel: AskChannel, onPermissionPrompt?: (
         input,
         ...(askResult.suggestions !== undefined && askResult.suggestions.length > 0 ? { suggestions: askResult.suggestions } : {}),
         ...(askResult.blockedPath !== undefined ? { blocked_path: askResult.blockedPath } : {}),
+        ...(tool.name === BASH_TOOL_NAME || tool.name === POWERSHELL_TOOL_NAME ? { cwd: getShellCwd() } : {}),
         ...(reason !== undefined ? { reason } : {}),
         ...(reasonDetail !== undefined ? { reason_detail: reasonDetail } : {}),
         ...(toolUseContext.agentId !== undefined ? { agent_id: toolUseContext.agentId } : {}),

@@ -23,7 +23,7 @@ import { expandTilde, isDangerousRemovalPath, isPathInSandboxWriteAllowlist } fr
 import { createEditRuleSuggestion, createReadRuleSuggestion } from '../../utils/permissions/PermissionUpdate.js'
 import { getDirectoryForPath } from '../../utils/path.js'
 import { getFsImplementation, safeResolvePath } from '../../utils/fsOperations.js'
-import { getCwd } from '../../utils/cwd.js'
+import { getShellCwd } from '../../utils/Shell.js'
 import { getPlatform } from '../../utils/platform.js'
 import { containsWindowsDevicePath, WINDOWS_DEVICE_PATH_MESSAGE } from '../../utils/permissions/windowsPath.js'
 import { resolveToCanonical } from './readOnlyValidation.js'
@@ -298,7 +298,7 @@ export function checkPathConstraints(
   compoundCommandHasCd = false,
 ): PermissionResult {
   if (!parsed.valid) return { behavior: 'passthrough', message: 'Paths cannot be validated on an unparseable command.' }
-  const cwd = getCwd()
+  const cwd = getShellCwd()
   let firstAsk: PermissionResult | null = null
   const seedAsk = (result: PermissionResult): void => {
     if (result.behavior === 'ask' && firstAsk === null) firstAsk = result

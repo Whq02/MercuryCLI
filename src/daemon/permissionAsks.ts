@@ -102,6 +102,7 @@ interface PendingAsk {
   agentId?: string
   suggestions?: PermissionUpdate[]
   blockedPath?: string
+  cwd?: string
   decisionReason?: string
   decisionReasonDetail?: DecisionReasonWireV1
   description?: string
@@ -173,6 +174,7 @@ function publishAsksFor(sessionId: string, dir?: string): void {
       input: a.input,
       ...(a.suggestions !== undefined ? { suggestions: a.suggestions } : {}),
       ...(a.blockedPath !== undefined ? { blockedPath: a.blockedPath } : {}),
+      ...(a.cwd !== undefined ? { cwd: a.cwd } : {}),
       ...(a.decisionReason !== undefined ? { decisionReason: a.decisionReason } : {}),
       ...(a.decisionReasonDetail !== undefined ? { decisionReasonDetail: a.decisionReasonDetail } : {}),
       ...(a.description !== undefined ? { description: a.description } : {}),
@@ -280,6 +282,7 @@ export function holdWorkerAsk(
     ...(params.kind === 'tool' && params.agent_id !== undefined && params.agent_id !== '' ? { agentId: params.agent_id } : {}),
     ...(suggestions !== undefined && suggestions.length > 0 ? { suggestions } : {}),
     ...(params.kind === 'tool' && params.blocked_path !== undefined ? { blockedPath: params.blocked_path } : {}),
+    ...(params.kind === 'tool' && params.cwd !== undefined ? { cwd: params.cwd } : {}),
     ...(params.kind === 'tool' && params.reason !== undefined ? { decisionReason: params.reason } : {}),
     ...(params.kind === 'tool' && decodeDecisionReasonFromWire(params.reason_detail) !== undefined
       ? { decisionReasonDetail: params.reason_detail as DecisionReasonWireV1 }
