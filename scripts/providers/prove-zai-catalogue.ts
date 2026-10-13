@@ -131,7 +131,7 @@ try {
   check('the picker kick reads the list once in the background', kicked && ids(cat.zaiCatalogueRows().rows) === LIVE_IDS_NEWEST_FIRST && !cat.kickZaiCatalogue())
 
   const dispatch = readFileSync(join(ROOT, 'src/utils/crew/engineDispatch.ts'), 'utf8')
-  check('the exact-id dispatch reads the live entries, with one bounded read when the id is not yet known', dispatch.includes("if (!zaiCatalogueEntry(id)) await readCatalogueIfPending('zai')") && !dispatch.includes('GLM_STATIC_CATALOGUE'))
+  check('the exact-id dispatch reads the live entries through the shared key-lane ladder, with one bounded read when the id is not yet known', dispatch.includes("resolveKeyLaneExactModel('zai', id, zaiCatalogueEntry, zaiCatalogueEntries)") && dispatch.includes('if (!liveEntry(bare)) await readCatalogueIfPending(route)') && !dispatch.includes('GLM_STATIC_CATALOGUE'))
   const wire = readFileSync(join(ROOT, 'src/services/providers/zai/zaiCallModel.ts'), 'utf8')
   check('the wire still sends the dial and the lock from the one pins table', wire.includes('glmEffortsFor(modelId)') && wire.includes('glmThinkingLocked(modelId) ? true'))
   const docs = readFileSync(join(ROOT, 'docs/ENGINES.md'), 'utf8')
