@@ -1851,6 +1851,13 @@
       "why": "POSIX-only proof invoking the POSIX capture engine (vshot/screengrab). Interactive entrypoints resolve their capture engine for the current platform."
     },
     {
+      "file": "scripts/terminal-boundary/prove-crash-reentry-offer.ts",
+      "mechanism": "hardcoded-interpreter",
+      "excerpt": "const res = spawnSync('/usr/bin/python3', [HARNESS, 'notice', BIN, h.home, h.cwd, out], {",
+      "cls": "platform-owner",
+      "why": "POSIX-only proof invoking the POSIX capture engine (vshot/screengrab). Interactive entrypoints resolve their capture engine for the current platform."
+    },
+    {
       "file": "scripts/terminal-boundary/prove-terminal-restoration.ts",
       "mechanism": "hardcoded-interpreter",
       "excerpt": "'/usr/bin/python3',",

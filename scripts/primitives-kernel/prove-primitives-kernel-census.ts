@@ -32,8 +32,12 @@ function unionMembers(path: string, typeName: string): string[] {
   const m = src.match(
     new RegExp(`export type ${typeName}\\s*=([\\s\\S]*?)(\\n\\n|\\nexport |\\n(?:const|interface|function) )`),
   )
-  if (!m) return []
-  return [...m[1]!.matchAll(/'([^']+)'/g)].map(x => x[1]!)
+  const literal = m ? [...m[1]!.matchAll(/'([^']+)'/g)].map(x => x[1]!) : []
+  if (literal.length > 0) return literal
+  const table = src.match(new RegExp(`export type ${typeName} = \\(typeof (\\w+)\\)\\[number\\]\\[0\\]`))
+  if (!table) return []
+  const rows = src.match(new RegExp(`const ${table[1]} = \\[([\\s\\S]*?)\\] as const`))
+  return rows ? [...rows[1]!.matchAll(/\['([^']+)'/g)].map(x => x[1]!) : []
 }
 
 console.log('census completeness (the unclassified-domain gate)')
