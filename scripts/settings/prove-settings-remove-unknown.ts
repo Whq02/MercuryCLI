@@ -92,7 +92,18 @@ const open = async (errors: ReturnType<typeof loadErrors>, cols: number, rows: n
   const m = await mounted
   check(`the dialog paints its title (${title})`, await waitFor(() => m.screen().includes(title), 4000), m.screen().slice(0, 400))
   await settle(450)
+  await stableFrame(m)
   return { m, outcome: Promise.race([continued, exited]), exits: () => exits }
+}
+const stableFrame = async (m: Mounted): Promise<void> => {
+  let last = m.screen()
+  const t0 = Date.now()
+  while (Date.now() - t0 < 4000) {
+    await settle(150)
+    const now = m.screen()
+    if (now === last) return
+    last = now
+  }
 }
 const body = (line: string): string => line.replace(/^\s*│\s?/, '').replace(/\s?│\s*$/, '').trimEnd()
 const optionRows = (m: Mounted): string[] => m.lines().map(body).filter(line => /^\s*(?:[❯›>]\s*)?\d\.\s/.test(line.trim()) || /\d\.\s(Remove|Continue|Exit|Fix)/.test(line))
