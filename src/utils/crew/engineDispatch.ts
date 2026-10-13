@@ -595,6 +595,6 @@ async function resolveKeyLaneExactModel(
   }
   const knownIds = family?.knownRows().map(row => row.id) ?? []
   throw new Error(
-    `${providerName} model '${id}' is on neither mercury://models (${listWords}) nor mercury://models/known${knownIds.length > 0 ? ` (this build knows: ${knownIds.join(', ')})` : ''} — ask the operator for the model id, or name a listed one; never switch to another provider on your own.`,
+    `${providerName} model '${id}' is on neither mercury://models (${listWords}) nor mercury://models/known${knownIds.length > 0 ? ` (this build knows: ${knownIds.join(', ')})` : ''}. ${MODEL_LOOKUP_LADDER}`,
   )
 }
