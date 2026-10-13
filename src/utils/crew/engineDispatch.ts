@@ -9,8 +9,7 @@ import { buildRouterModelSnapshot } from '../router/modelRegistry.js'
 import { refreshProviderDiscovery } from '../router/providerDiscovery.js'
 import { DEPRECATED_GPT_IDS } from '../router/providers/openai.js'
 import { zaiCatalogueEntries, zaiCatalogueEntry } from '../router/providers/zai.js'
-import { moonshotCatalogueRows, qualifyMoonshotModel, refreshMoonshotCatalogue } from '../../services/providers/moonshot/moonshotCatalogue.js'
-import { resolveMoonshotAccount } from '../../services/providers/moonshot/moonshotAccounts.js'
+import { qualifyMoonshotModel } from '../../services/providers/moonshot/moonshotCatalogue.js'
 import { kimiDisplayName } from '../../services/providers/moonshot/kimiPins.js'
 import { deepseekCatalogueEntries, deepseekCatalogueEntry } from '../router/providers/deepseek.js'
 import { xaiCatalogueEntries, xaiCatalogueEntry } from '../router/providers/xai.js'
@@ -33,10 +32,10 @@ import { huggingfaceLiveModel, refreshHuggingfaceCatalogue } from '../../service
 import { isLocalModelId, localRecordFor, localWireId, LOCAL_MODEL_PREFIX } from '../../services/providers/local/localCatalogue.js'
 import { refreshLocalDiscovery } from '../../services/providers/local/localDiscovery.js'
 import { getEngineModel, parseUserSpecifiedModel, parseUserSpecifiedModelRaw } from '../model/model.js'
-import { bareFamilyWordOf } from '../model/bareFamilyWords.js'
+import { bareFamilyListWords, bareFamilyWordOf } from '../model/bareFamilyWords.js'
 import { isModelAlias } from '../model/aliases.js'
 import { isModelFamilyWord, modelFamilyWords } from '../model/modelFamilies.js'
-import { canonicalWireModelId, classifyModelRoute, declaredRouteOf } from '../../services/providers/routeLaw.js'
+import { canonicalWireModelId, classifyModelRoute, declaredRouteOf, providerDisplayName } from '../../services/providers/routeLaw.js'
 import { LIVE_LIST_FAMILIES, liveListedRouteOf, qualifiedIdSpaceOf } from '../../services/providers/idSpaces.js'
 import { readCatalogueIfPending } from '../../services/providers/catalogueOnDemand.js'
 import { resolveGeminiAccount } from '../../services/providers/gemini/geminiAccounts.js'
@@ -136,6 +135,33 @@ export interface EngineDispatch {
   backend: EngineProvider
   model: string
   displayLabel: string
+  note?: string
+}
+
+const SIGN_IN_DOORS: Partial<Record<EngineProvider, string>> = {
+  openai: '/logins openai',
+  zai: '/logins zai',
+  moonshot: '/logins moonshot',
+  deepseek: '/logins deepseek',
+  xai: '/logins xai',
+  meta: '/logins meta',
+  huggingface: '/logins huggingface',
+  gemini: '/logins gemini',
+  openrouter: '/logins openrouter',
+  mistral: '/logins mistral',
+  nous: '/logins nous',
+  zen: '/logins zen',
+}
+
+export function providerUnavailableRefusal(provider: EngineProvider, reason: string | undefined): string {
+  const door = SIGN_IN_DOORS[provider]
+  const why = reason ?? 'unknown'
+  if (door !== undefined && /^no-(api-key|credential|account):/.test(why)) {
+    return `Engine provider ${provider} is unavailable (${why}) — the operator is not signed in to ${providerDisplayName(provider)}; ${door} connects it. mercury://models lists the providers that are signed in; never switch to another provider on your own.`
+  }
+  if (provider === 'local') return `Engine provider local is unavailable (${why}) — no local server lists a model; start Ollama, LM Studio, vLLM or llama.cpp-server, or set MERCURY_LOCAL_BASE_URL. mercury://models lists what is reachable.`
+  if (provider === 'openai-compat') return `Engine provider openai-compat is unavailable (${why}) — MERCURY_COMPAT_BASE_URL (or the compatProvider config block) configures the endpoint slot. mercury://models lists what is reachable.`
+  return `Engine provider ${provider} is unavailable (${why}). /health ROUTER names the fix; mercury://models lists the providers that are signed in.`
 }
 
 async function requireProviderAvailable(provider: EngineProvider): Promise<void> {
@@ -143,9 +169,7 @@ async function requireProviderAvailable(provider: EngineProvider): Promise<void>
   const snapshot = buildRouterModelSnapshot()
   const entry = snapshot.providers.find(p => p.id === provider)
   if (!entry?.available) {
-    throw new Error(
-      `Engine provider ${provider} is unavailable (${entry?.reason ?? 'unknown'}). /health ROUTER and /capabilities name the fix.`,
-    )
+    throw new Error(providerUnavailableRefusal(provider, entry?.reason))
   }
 }
 
@@ -401,18 +425,22 @@ export async function resolveEngineDispatch(
     const familyWord = bareFamilyWordOf(modelParam)
     if (familyWord !== undefined) {
       await requireProviderAvailable(familyWord.route)
-      if (familyWord.route === 'moonshot') await refreshMoonshotCatalogue()
+      await readCatalogueIfPending(familyWord.route)
       const head = familyWord.headRow()
-      if (!head) {
-        const { source } = familyWord.route === 'moonshot' ? moonshotCatalogueRows() : { source: undefined }
-        if (source?.kind === 'unread') {
-          throw new Error(
-            `The '${familyWord.word}' class cannot resolve — the ${resolveMoonshotAccount()?.label ?? 'Moonshot account'}'s model list has not been read${source.error !== undefined ? ` (${source.error})` : ''}. Name an exact kimi-… id the account serves, or retry when the list lands.`,
-          )
-        }
-        throw new Error(`Engine provider ${familyWord.route} has no catalogue entry — cannot resolve a model.`)
+      if (head) return { backend: familyWord.route, model: head.id, displayLabel: head.displayName }
+      const providerName = providerDisplayName(familyWord.route)
+      const pinned = familyWord.pinnedDefault()
+      if (!pinned) {
+        throw new Error(
+          `The '${familyWord.word}' class cannot resolve — ${bareFamilyListWords(familyWord, providerName)} and this build pins no ${providerName} default. Name an exact id from mercury://models or mercury://models/known, or ask the operator for the model id.`,
+        )
       }
-      return { backend: familyWord.route, model: head.id, displayLabel: head.displayName }
+      return {
+        backend: familyWord.route,
+        model: pinned.id,
+        displayLabel: pinned.displayName,
+        note: `${bareFamilyListWords(familyWord, providerName)} — ${pinned.displayName} (${pinned.id}), the family's default this build knows, runs; the provider's own answer decides. mercury://models shows the live list, mercury://models/known what this build knows.`,
+      }
     }
     if (modelParam === 'huggingface') {
       await requireProviderAvailable('huggingface')

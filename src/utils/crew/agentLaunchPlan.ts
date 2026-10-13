@@ -30,6 +30,7 @@ export type AgentLaunchPlanInput = {
   engineDispatch?: {
     backend: EngineDispatch['backend']
     model: string
+    note?: string
   }
 }
 
@@ -88,7 +89,7 @@ export function buildAgentLaunchPlan(i: AgentLaunchPlanInput): AgentLaunchPlan {
       agentType: definition.agentType,
       definition,
       model: engineModel,
-      modelNote: `engine: ${providerDisplayName(backend)} (${engineModel}) via the native in-process transport`,
+      modelNote: `engine: ${providerDisplayName(backend)} (${engineModel}) via the native in-process transport${i.engineDispatch.note !== undefined ? ` — ${i.engineDispatch.note}` : ''}`,
       isolation: i.isolationParam ?? definition.isolation,
       shouldRunAsync:
         (i.runInBackground === true ||
