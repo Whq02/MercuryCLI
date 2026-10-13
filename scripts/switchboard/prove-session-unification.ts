@@ -545,7 +545,7 @@ for (const [cols, rows] of [
 function processCensus(home: string, rigPid = 0): { screens: number[]; daemons: number[]; runners: Array<{ pid: number; sessionId: string }> } {
   const out = { screens: [] as number[], daemons: [] as number[], runners: [] as Array<{ pid: number; sessionId: string }> }
   try {
-    const ps = execFileSync('ps', ['eww', '-axo', 'pid=,ppid=,command='], { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 })
+    const ps = execFileSync('ps', ['ewwax', '-o', 'pid=,ppid=,command='], { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 })
     for (const line of ps.split('\n')) {
       const m = /^\s*(\d+)\s+(\d+)\s+(.*)$/.exec(line)
       if (!m) continue

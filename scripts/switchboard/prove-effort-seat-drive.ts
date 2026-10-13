@@ -159,16 +159,25 @@ try {
   const windowStrip = frames.filter(f => f.atMs >= S(6000) && f.atMs <= S(8500)).flatMap(f => rowsWith(f.text, `${SEAT_MODEL_LABEL} ·`).filter(r => /^\s*ready · /.test(r)))
   check(`W1 in the window the status row paints the runner's word (${SERVED}) or "${ASKED} (asked)" — never the asked word bare, never "default"`, windowStrip.length > 0 && windowStrip.every(r => new RegExp(`\\b${SERVED}\\b`).test(r) || r.includes(`${ASKED} (asked)`)) && !windowStrip.some(r => /\bdefault\b/.test(r) || /◉ max(?! \(asked\))/.test(r)), windowStrip.slice(0, 3).join(' | ').slice(0, 300))
 
-  const appliedReceipt = (level: string): boolean => distinct.some(f => f.text.split('\n').some(row => row.includes(`Effort set to ${level}`) && row.includes('— its next request runs it. Saved as your default for future sessions.')))
-  check(`E1 the /effort ${SERVED} receipt names the seat's next request and the saved default`, appliedReceipt(SERVED), allRows('Effort set to ').join(' | ').slice(0, 600))
+  const receiptText = (text: string, level: string): string => {
+    const rows = text.split('\n')
+    const at = rows.findIndex(r => r.includes(`Effort set to ${level}`))
+    if (at < 0) return ''
+    const start = rows[at]!.indexOf('Effort set to')
+    const end = rows[at]!.indexOf('│', start)
+    const span = (r: string | undefined): string => (r ?? '').slice(start, end < 0 ? undefined : end).trim()
+    return `${span(rows[at])} ${span(rows[at + 1])}`.replace(/\s+/g, ' ').trim()
+  }
+  const appliedReceipt = (level: string): boolean => distinct.some(f => receiptText(f.text, level).includes(`Effort set to ${level} for this session — its next request runs it. Saved as your default for future sessions.`))
+  check(`E1 the /effort ${SERVED} receipt names the seat's next request and the saved default (whole, in the chat under the echoed command: at 120 columns the status row would cut it)`, appliedReceipt(SERVED), allRows('Effort set to ').join(' | ').slice(0, 600))
   check(`E1 the screen never claims the old road's sentence ("Effort set to ${SERVED} — saved as your default")`, !anyFrame(`Effort set to ${SERVED} — saved`))
   const wayBack = /(?:⇧|shift\+)← back/
   const receiptRows = distinct.flatMap(f => f.text.split('\n').filter(r => r.includes('Effort set to ')))
-  check('E1 the receipt rides the status row above the composer: every row that carries it carries the way back at its right, in one grey row, and no chat row repeats it', receiptRows.length > 0 && receiptRows.every(r => wayBack.test(r)), receiptRows.map(r => r.trim().slice(0, 140)).join(' | ').slice(0, 500))
+  check('E1 the status row never carries the receipt it would cut: every row that carries it is a chat row (no way back at its right), and the chat echoes the command it answers', receiptRows.length > 0 && receiptRows.every(r => !wayBack.test(r)) && distinct.some(f => f.text.includes('Effort set to ') && /\/effort (?:xhigh|max)/.test(f.text)), receiptRows.map(r => r.trim().slice(0, 140)).join(' | ').slice(0, 500))
   const receiptFrames = distinct.filter(f => f.text.includes('Effort set to '))
   check('E1 every receipt stands above the composer, never in the hints below it', receiptFrames.length > 0 && receiptFrames.every(f => {
     const rows = f.text.split('\n')
-    const composer = rows.findIndex(row => /│\s*❯/.test(row))
+    const composer = rows.map((row, i) => (/│\s*❯/.test(row) ? i : -1)).filter(i => i >= 0).pop() ?? -1
     return composer >= 0 && rows.every((row, i) => !row.includes('Effort set to ') || i < composer)
   }))
   const restingRows = distinct.filter(f => f.atMs >= S(24000)).flatMap(f => f.text.split('\n').filter(r => wayBack.test(r) && / ready · /.test(r)))
