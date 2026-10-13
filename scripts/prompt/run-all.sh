@@ -18,7 +18,7 @@
 # gate-watch: src/services/providers/anthropic/boundPrefixRecord.ts src/services/providers/toolEconomy.ts
 # gate-watch: src/utils/attachments/orchestrator.ts src/utils/cleanupRegistry.ts
 # gate-watch: src/utils/cockpit/runtimePosture.ts src/utils/cockpit/turnReceipt.ts
-# gate-watch: src/utils/messages/attachmentText.ts src/utils/permissions/filesystem.ts src/utils/scratchpad.ts
+# gate-watch: src/utils/messages/attachmentText.ts src/utils/messages/factories.ts src/utils/permissions/filesystem.ts src/utils/scratchpad.ts
 # gate-watch: src/constants/system.ts src/utils/api.ts src/utils/messages.ts
 # gate-watch: src/main.tsx src/services/providers/anthropic/streamCore.ts src/services/lsp/**
 # gate-watch: scripts/lsp/fixtures/fake-lsp-server.mjs src/utils/config/globalConfig.ts
