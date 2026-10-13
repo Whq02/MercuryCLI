@@ -15,7 +15,7 @@ export const COMMAND_DOMAINS: readonly CommandDomain[] = [
     key: 'crew',
     label: 'crew & delegation',
     names: [
-      'workflows', 'agents', 'subagents',
+      'workflows', 'agents',
       'crewmates', 'crew',
       'daemon', 'saturn', 'seats', 'kill', 'unkill',
       'router',

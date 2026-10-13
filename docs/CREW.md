@@ -25,12 +25,12 @@ each session. With crewmates off, the Crewmate tool is absent from that
 session's roster — the model never sees it — and every road that would spawn
 one from inside the session (the tool, a skill that forks, a workflow's agent
 hooks, the fleet tools) answers one receipt:
-"crewmates are off for this session — /subagents on, or the boot menu's
+"crewmates are off for this session — /crewmates on, or the boot menu's
 Agents section". Workflows off does the same for the Workflow tool and the
 workflow launch roads; the run board stays readable. The concourse itself
 keeps launching sessions — the switches are per focused session.
 
-Inside a session, `/subagents on|off` and `/workflows on|off` (or the boot
+Inside a session, `/crewmates on|off` and `/workflows on|off` (or the boot
 menu opened there) flip a switch at the session's next turn boundary: the tool
 leaves or rejoins the roster, a receipt says so, reasoning restarts on the
 next turn, and a spawn already running finishes. Flipped while no turn runs,
@@ -40,8 +40,8 @@ turn's end, before any line waiting for the next turn, so the next turn's
 launches already read it; the session's record follows the runner's own word
 that the switch moved, never a clock. A line sent after the flip, while the
 same turn still runs, waits for the turn's end too and runs with the switched
-roster. Plain `/subagents` reads both switches with their sources; the health
-check's "Crewmates & workflows" row does the same.
+roster. `/crewmates` alone opens the crew view and `/workflows` alone the board; the health
+check's "Crewmates & workflows" row reads both switches with their sources.
 
 Beside the two switches sits one global setting, "Crewmates while
 backgrounded", off by default: the same row in the boot menu's Agents section

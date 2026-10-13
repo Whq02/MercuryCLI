@@ -638,7 +638,7 @@ async function drive(): Promise<void> {
     { atTick: 520, minTick: 10, awaitText: '? for shortcuts', awaitSettleTicks: 3, data: 'wire-prefix turn 1: find a deferred tool\r', mark: 'chat' },
     { atTick: 700, minTick: 10, awaitText: 'TURN-1-DONE', awaitSettleTicks: 4, data: 'wire-prefix turn 2: run the echo\r', mark: 't1' },
     { atTick: 820, minTick: 10, awaitText: 'TURN-2-DONE', awaitSettleTicks: 4, data: 'wire-prefix turn 3: find another deferred tool\r', mark: 't2' },
-    { atTick: 940, minTick: 10, awaitText: 'TURN-3-DONE', awaitSettleTicks: 4, data: '/subagents off\r', mark: 't3' },
+    { atTick: 940, minTick: 10, awaitText: 'TURN-3-DONE', awaitSettleTicks: 4, data: '/crewmates off\r', mark: 't3' },
     { atTick: 1000, minTick: 5, awaitText: 'sub-agents off', awaitSettleTicks: 3, data: '\x1b[Z', mark: 'toggle' },
     { atTick: 1060, minTick: 5, awaitText: 'flow on', awaitSettleTicks: 3, data: 'wire-prefix turn 4: plain\r', mark: 'flow' },
     { atTick: 1180, minTick: 10, awaitText: 'TURN-4-DONE', awaitSettleTicks: 4, data: '/compact\r', mark: 't4' },

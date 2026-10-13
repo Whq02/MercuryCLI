@@ -58,7 +58,6 @@ import loginFactory from './commands/login/index.js'
 import tasks from './commands/tasks/index.js'
 import appearance from './commands/appearance/index.js'
 import workflows from './commands/workflows/index.js'
-import subagents from './commands/subagents/index.js'
 import mouse from './commands/mouse/index.js'
 import showcase from './commands/showcase/index.js'
 import capabilities from './commands/capabilities/index.js'
@@ -186,7 +185,6 @@ const COMMANDS = memoize((): Command[] => [
   tasks,
   appearance,
   workflows,
-  subagents,
   mouse,
   showcase,
   capabilities,

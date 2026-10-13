@@ -2101,7 +2101,7 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
             return {
               status: anyOff ? 'info' : 'ok',
               evidence: `${spawnSwitchLine('subagents', facts.subagents)} · ${spawnSwitchLine('workflows', facts.workflows)} — ${scope}${backgrounded}`,
-              detail: 'Flip a running session with /subagents on|off and /workflows on|off (at its next turn boundary); the boot menu\'s Agents section sets the next session\'s default. Off: the Crewmate or Workflow tool is absent from the roster and every spawn road answers one receipt.',
+              detail: 'Flip a running session with /crewmates on|off and /workflows on|off (at its next turn boundary); the boot menu\'s Agents section sets the next session\'s default. Off: the Crewmate or Workflow tool is absent from the roster and every spawn road answers one receipt.',
               link: '/bootmenu',
             }
           },
