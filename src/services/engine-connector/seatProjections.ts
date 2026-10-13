@@ -124,6 +124,7 @@ export interface SessionAskProjectionV1 {
   input: Record<string, unknown>
   suggestions?: PermissionUpdate[]
   blockedPath?: string
+  cwd?: string
   decisionReason?: string
   decisionReasonDetail?: DecisionReasonWireV1
   description?: string

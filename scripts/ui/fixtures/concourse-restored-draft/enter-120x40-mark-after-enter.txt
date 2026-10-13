@@ -11,7 +11,7 @@
   │ coordinator off · ▸ turn on · ⌃a           │ │ ⊞ WORKING · 3                                                     │  
   │ ╭────────────────────────────────────────╮ │ │   ◐           Fix OAuth cal…Moodle    editing src/auth/c…    07m  │  
   │ │ ❯ change the greeting text from "Hell… │ │ │   ◐           Refactor pars…orchard-… Bash · bun test pa…    18m  │  
-  │ │ restored draft — typed in another win… │ │ │   ◐           Update termin…orchard-…                        03m  │  
+  │ │ restored draft · tab here first        │ │ │   ◐           Update termin…orchard-…                        03m  │  
   │ ╰────────────────────────────────────────╯ │ │ ⊞ QUEUED · 2                                                      │  
   │                                            │ │   □           Trace reconne…orchard-… waits for a seat     waits  │  
   │                                            │ │   □           Document laun…Moodle    waits for a seat     waits  │  

@@ -350,9 +350,9 @@ function getSnapshot(binaryPath: string): Promise<string | undefined> {
   return snapshotPromise
 }
 
-function cwdThatResolves(): string {
+function cwdThatResolves(preferred?: string): string {
   const fs = getFsImplementation()
-  const cwd = getCwd()
+  const cwd = preferred ?? getCwd()
   try {
     fs.realpathSync(cwd)
     return cwd
@@ -386,6 +386,7 @@ export type EngineExecOptions = {
   signal: AbortSignal
   sandbox?: EngineSandboxPolicy
   onCwd?: (cwd: string) => void
+  cwd?: string
   onProgress?: (recentLines: string, allLines: string, lineCount: number, byteCount: number, isIncomplete: boolean) => void
   owner?: string
   sessionCeiling?: number
@@ -468,7 +469,7 @@ export function runEngineCommand(binaryPath: string, command: string, options: E
     }
     scrubbedSessionEnv = live.scrubbedSessionEnv
 
-    const payload = `cd -- ${quote([cwdThatResolves()])} || :\n${command}`
+    const payload = `cd -- ${quote([cwdThatResolves(options.cwd)])} || :\n${command}`
 
     const marker = Buffer.from(SOH + live.nonce + ' ', 'utf8')
     const etx = ETX.charCodeAt(0)

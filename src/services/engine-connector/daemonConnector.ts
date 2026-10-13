@@ -1652,6 +1652,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
       toolUseID: row.toolUseId,
       permissionResult: permissionResult as ToolUseConfirm['permissionResult'],
       permissionPromptStartTimeMs: row.askedAt,
+      ...(row.cwd !== undefined ? { cwd: row.cwd } : {}),
       onUserInteraction: () => {},
       onAbort: () => {
         void this.answerThroughDaemon(row.requestId, { kind: 'abort' })

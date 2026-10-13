@@ -5,10 +5,9 @@ import { BASH_TOOL_NAME } from './toolName.js'
 import { semanticBoolean } from '../../utils/semanticBoolean.js'
 import { semanticNumber } from '../../utils/semanticNumber.js'
 import { lazySchema } from '../../utils/lazySchema.js'
-import { getCwd } from '../../utils/cwd.js'
 import { getOriginalCwd, isRunInputClosed } from '../../bootstrap/state.js'
 import { TASK_STOP_TOOL_NAME } from '../TaskStopTool/prompt.js'
-import { exec } from '../../utils/Shell.js'
+import { exec, getShellCwd } from '../../utils/Shell.js'
 import { HARD_CAP_MULTIPLIER } from '../../utils/ShellCommand.js'
 import type { ExecResult } from '../../utils/ShellCommand.js'
 import { TaskOutput } from '../../utils/task/TaskOutput.js'
@@ -348,7 +347,7 @@ function expandToAbsolute(path: string): string {
     const home = process.env.HOME || process.env.USERPROFILE || ''
     return home + path.slice(1)
   }
-  return isAbsolute(path) ? path : join(getCwd(), path)
+  return isAbsolute(path) ? path : join(getShellCwd(), path)
 }
 
 
@@ -414,7 +413,7 @@ async function* runBash(
     command: input.command,
     description: input.description ?? input.command,
     agentId,
-    cwd: getCwd(),
+    cwd: getShellCwd(),
     startTime: launchedAt,
     toolUseId: context.toolUseId,
   })
@@ -665,7 +664,7 @@ async function* runBash(
     if (result.stderr.trim() !== '') accumulator.append(result.stderr.trimEnd() + '\n')
     if (!shouldAutoBackground && result.stderr.includes('Command timed out after')) accumulator.append(SLEEP_TIMEOUT_WHY + '\n')
     if (commandNamesBoxLock(input.command)) await refreshBoxReading()
-    const boxLine = boxLockLineForCommand(input.command, `${result.stdout}\n${result.stderr}`, { cwd: getCwd() })
+    const boxLine = boxLockLineForCommand(input.command, `${result.stdout}\n${result.stderr}`, { cwd: getShellCwd() })
     if (boxLine !== null) accumulator.append(boxLine + '\n')
     const interpretation = interpretCommandResult(input.command, result.code, result.stdout, '')
     const returnCodeInterpretation = interpretation.message

@@ -763,8 +763,7 @@ function classifyGitEntry(directory: string, canonicalCwd: string): GitEntryClas
   return 'none'
 }
 
-export function isCurrentDirectoryBareGitRepo(): BareRepoVerdict {
-  const cwd = getCwd()
+export function isCurrentDirectoryBareGitRepo(cwd: string = getCwd()): BareRepoVerdict {
   const canonicalCwd = canonicalizeForGate(cwd)
   const emit = (verdict: BareRepoVerdict): BareRepoVerdict => {
     logForDiagnosticsNoPII('debug', 'bare_repo_gate', { verdict: verdict === false ? 'safe' : verdict })

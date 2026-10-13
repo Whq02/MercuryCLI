@@ -26,9 +26,9 @@ console.log('— CRW-08 the crewmate card names where its stop and pause keys fi
   const live = words.crewmateCardKeys(false)
   const pinned = words.crewmateCardKeys(true)
   check('the card no longer promises a bare x stop · p pause (those keys type into its composer)', !/· x stop · p pause(?! in)/.test(live) && !/· x stop · p pause(?! in)/.test(pinned), `${live} | ${pinned}`)
-  check('it names the board where x x stops and p pauses', live.includes(`x x stop · p pause in ${words.CREW_VIEW_DOOR}`) && pinned.includes(`x x stop · p pause in ${words.CREW_VIEW_DOOR}`), live)
+  check('it names the board where m, x x and p fire — m included, so the card never reads as a bare m while the composer has focus (F34A-20)', live.includes(`in ${words.CREW_VIEW_DOOR}: ${words.CREW_MAIN_CHAT_KEY} · x x stop · p pause`) && pinned.includes(`x x stop · p pause in ${words.CREW_VIEW_DOOR}`) && !/· m main chat ·/.test(live) && !/· m main chat ·/.test(words.crewmateCardKeys(false, false)), live)
   check('esc interrupts and the way back stand as before', live.startsWith('esc interrupts') && live.endsWith(words.BACK_HINT) && pinned.startsWith('esc interrupts'), live)
-  check('a landed crewmate’s card keeps its own keys (esc back, the clear door)', words.crewmateCardKeys(false, false).includes(words.CREW_CLEAR_DOOR) && !words.crewmateCardKeys(false, false).includes('x x stop'))
+  check('a landed crewmate’s card keeps its own keys (esc back, the clear key placed on the board)', words.crewmateCardKeys(false, false).includes(`in ${words.CREW_VIEW_DOOR}: ${words.CREW_MAIN_CHAT_KEY} · ${words.CREW_CLEAR_KEY}`) && !words.crewmateCardKeys(false, false).includes('x x stop'))
 }
 
 console.log('— CRW-11 the ⌃x ⌃x ladder says a second chord is needed within the window —')
