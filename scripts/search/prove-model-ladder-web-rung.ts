@@ -45,7 +45,7 @@ try {
   context.messages = [{ type: 'user', message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: 'search-fixture', content: JSON.stringify(answer.data) }] } }]
   let ask = ''
   try {
-    await AgentTool.call({ prompt: 'fixture task', description: 'fixture', crewmate_type: 'general-purpose', model: word }, context, (() => { launches++; throw new Error('unexpected launch permission') }) as never, {} as never)
+    await AgentTool.call({ prompt: 'fixture task', description: 'fixture', crewmate_type: 'mercury-crew', model: word }, context, (() => { launches++; throw new Error('unexpected launch permission') }) as never, {} as never)
     assert.fail('web findings must never turn an unknown word into a model')
   } catch (error) { ask = error instanceof Error ? error.message : String(error) }
   assert.match(ask, /ask the operator for the model id/)
