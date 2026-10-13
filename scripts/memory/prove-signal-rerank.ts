@@ -82,6 +82,19 @@ try {
   assert.deepEqual(passedLists.slice(0, 2), [lexical, byUse], 'unequal-score pairs keep their baseline list order')
   assert.deepEqual(passedLists[2], signalRanking(different, dir), 'the learned ranking is the third fusion list')
   assert.deepEqual(unequal.filter(id => id !== 'seq:4'), rawThree.filter(id => id !== 'seq:4'), 'unequal baseline scores fuse without a learned tie override')
+  const separated = [...scored, { ...scored[0]!, id: 'seq:9', score: scored[0]!.score + 1 }]
+  const interleaved = ['seq:2', 'seq:9', 'seq:1']
+  fuseSignalRanking([interleaved, interleaved], separated, dir, rankings => {
+    passedLists = rankings.map(ranking => [...ranking])
+    return fuseRankings(rankings)
+  })
+  assert.deepEqual(passedLists.slice(0, 2), [interleaved, interleaved], 'equal-score rows never jump over an unequal-score row while breaking ties')
+  const pinBetween = ['seq:2', 'seq:4', 'seq:1']
+  fuseSignalRanking([pinBetween, pinBetween], scored, dir, rankings => {
+    passedLists = rankings.map(ranking => [...ranking])
+    return fuseRankings(rankings)
+  })
+  assert.deepEqual(passedLists.slice(0, 2), [pinBetween, pinBetween], 'a pin separates pre-fusion tie groups')
   unlinkSync(signalWeightsPath(dir))
   assert.deepEqual(signalRanking(scored, dir), learned)
   assert.deepEqual(readOrFitSignalWeights(dir), fit, 'deleting weights rebuilds the same deterministic model')
