@@ -3,11 +3,19 @@ import type { Key } from '../../ink.js'
 
 let armed = 0
 let seeder: ((seed: string) => void) | null = null
+let trimmer: (() => void) | null = null
 
 export function registerComposerSeeder(fn: (seed: string) => void): () => void {
   seeder = fn
   return () => {
     if (seeder === fn) seeder = null
+  }
+}
+
+export function registerComposerSeedTrimmer(fn: () => void): () => void {
+  trimmer = fn
+  return () => {
+    if (trimmer === fn) trimmer = null
   }
 }
 
@@ -42,6 +50,10 @@ export function seedComposerDirect(text: string): boolean {
 
 export function trySeedComposer(input: string, key: Key): boolean {
   if (armed <= 0 || !seeder) return false
+  if ((key.backspace || key.delete) && !key.ctrl && !key.meta && trimmer) {
+    trimmer()
+    return true
+  }
   if (!isSeedableInput(input, key)) return false
   seeder(input)
   return true
@@ -50,4 +62,5 @@ export function trySeedComposer(input: string, key: Key): boolean {
 export function __composerSeedResetForTest(): void {
   armed = 0
   seeder = null
+  trimmer = null
 }
