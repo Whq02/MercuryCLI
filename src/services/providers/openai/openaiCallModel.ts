@@ -38,7 +38,7 @@ import {
 } from '../anthropic/messageParams.js'
 import { toolToAPISchema } from '../../../utils/api.js'
 import { withToolReferenceTurnBoundary } from '../../../utils/messages/apiView.js'
-import { applyStripTargetsToMessages, errorDrivenStripTargets, stripImagesRefusedByStamp } from '../../../utils/messages/apiPlan.js'
+import { applyStripTargetsToMessages, errorDrivenStripTargets } from '../../../utils/messages/apiPlan.js'
 import { validateImagesForAPI } from '../../../utils/imageValidation.js'
 import { classifyImageRefusalFault, type MediaRefusal } from '../../api/mediaRefusal.js'
 import {
@@ -596,7 +596,7 @@ async function* openaiTurn(params: CallModelParams, deferralFormReissued?: strin
     fittedImages.firstEdited === -1
       ? fittedImages.messages
       : stripThinkingFromIndex(fittedImages.messages, fittedImages.firstEdited)
-  const walkable = stripImagesRefusedByStamp(healWalkableForWire(wireMessagesForBridge))
+  const walkable = healWalkableForWire(wireMessagesForBridge)
   const imagesRide = imagesSupportedForModel(candidate)
   if (imagesRide) validateImagesForAPI(walkable, modelId)
   const bridge = toBridgeMessages(walkable, modelId)
