@@ -12,6 +12,7 @@ const driver = resolveCaptureDriver()
 if (driver.kind !== 'posix-pty') throw new Error(`tester door requires a PTY: ${driver.kind}`)
 const python = driver.python
 const door = 'https://mercury-cli.ai/report'
+process.env.ANTHROPIC_API_KEY = 'proof-key-ci-gate-not-a-real-key'
 let failures = 0
 function check(name: string, ok: boolean): void {
   if (!ok) failures++
