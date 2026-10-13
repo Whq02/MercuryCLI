@@ -58,6 +58,14 @@ try {
   assert.deepEqual(new Set(turns[0]!.queries.flatMap(q => q.offered)), new Set(['seq:1', 'seq:2', 'seq:3']))
   assert.deepEqual(turns[0]!.opened, ['seq:1', 'seq:2'])
   assert.deepEqual(turns[0]!.cited, ['seq:1'])
+  const offeredFeatures = turns[0]!.queries[0]!.features
+  assert.equal(Object.keys(offeredFeatures).length, 3, 'actual Recall offerings carry scored features')
+  assert(Object.values(offeredFeatures).every(features => features.bm25 > 0 && features.kind === 'fact'))
+  const { readUsage } = await import('../../src/mneme/mnemeUsage.js')
+  const usage = readUsage(dir)
+  assert.equal(usage['1']?.count, 1, 'a query does not increment the open count')
+  assert.equal(usage['2']?.count, 1)
+  assert.equal(usage['3']?.count ?? 0, 0, 'an offered but unopened fact has no uses')
   assert.deepEqual(signalCounts(turns), {
     'seq:1': { offered: 1, opened: 1, cited: 1 }, 'seq:2': { offered: 1, opened: 1, cited: 0 }, 'seq:3': { offered: 1, opened: 0, cited: 0 },
   })
