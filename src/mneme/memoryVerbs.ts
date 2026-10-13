@@ -10,10 +10,11 @@ import { conflictReason, contradictionCandidates, firstConflict, judgeContradict
 import { memorySecretRefusal } from './mnemeSecretGuard.js'
 import { ARCHIVE_PREFIX, isArchiveDoc, parseEntryLine, liveSeqs, serializeSignature, type MnemeTopicDoc } from './mnemeTopicDocs.js'
 import { bumpUsage, readPins, readUsage } from './mnemeUsage.js'
-import { candidates, rankCandidates } from './mnemeLookup.js'
+import { candidates, fuseRecallRankings } from './mnemeLookup.js'
 import { noteCorrected, noteRetained } from './lineageSession.js'
 import { currentLedger, footnoteContext, footnotesOf, renderLedgerEntry, type Footnotes } from './mnemeFootnotes.js'
 import type { LedgerEntry } from './types.js'
+import { noteMemoryOpened } from './mnemeSignal.js'
 
 function allDocs(dir: string): MnemeTopicDoc[] {
   return [...listTopicDocs(dir), ...listArchiveDocs(dir)]
@@ -236,7 +237,7 @@ export function recallQuery(
   const limit = Math.min(Math.max(opts.limit ?? 12, 1), 50)
   const hits: RecallHit[] = []
   const historyStarts = new Map<string, number>()
-  for (const hit of grepAll(query, { maxHits: limit, dir })) {
+  for (const hit of grepAll(query, { maxHits: 100, dir })) {
     if (hit.slug !== PENDING_SLUG && hit.line >= historyStartLine(hit.slug, dir, historyStarts)) {
       continue
     }
@@ -271,32 +272,34 @@ export function recallQuery(
       signature: `doc=${hit.slug} line=${hit.line}`,
     })
   }
-  if (hits.length === 0) {
+  if (/^[a-z0-9_\s-]+$/i.test(query)) {
     const pool = candidates(dir)
+    const pins = new Set(readPins(dir).map(pin => pin.seq))
     for (const doc of listArchiveDocs(dir)) {
-      const pagePath = join(dir, pageFileForSlug(doc.slug))
+      const slug = recallSlug(doc)
+      const pagePath = join(dir, pageFileForSlug(slug))
       for (const section of doc.sections) {
         for (const entry of section.entries) {
-          pool.push({ id: `seq:${entry.seq}`, text: entry.text, signature: serializeSignature(entry), slug: doc.slug, pagePath, seq: entry.seq, pending: false })
+          pool.push({ id: `seq:${entry.seq}`, text: entry.text, signature: serializeSignature(entry), slug, pagePath, seq: entry.seq, pending: false, time: entry.time, pinned: pins.has(entry.seq) })
         }
       }
     }
-    for (const hit of rankCandidates(query, pool, { limit, usage: readUsage(dir) })) {
-      hits.push({
-        id: hit.id,
-        label: hit.pending ? 'pending' : hit.slug.startsWith(ARCHIVE_PREFIX) ? 'archived' : 'consolidated',
-        slug: hit.pending ? PENDING_SLUG : hit.slug,
-        preview: clip(hit.text),
-        signature: hit.pending ? hit.signature.replace(/^\[unconsolidated, ([^,]+), ([^\]]+)\]$/, 'time=$1, source=$2') : hit.signature.replace(/^<|>$/g, ''),
-      })
-    }
+    const byId = new Map<string, RecallHit>(pool.map(hit => [hit.id, {
+      id: hit.id,
+      label: hit.pending ? 'pending' : hit.slug.startsWith(ARCHIVE_PREFIX) ? 'archived' : 'consolidated',
+      slug: hit.pending ? PENDING_SLUG : hit.slug,
+      preview: clip(hit.text),
+      signature: hit.pending ? hit.signature.replace(/^\[unconsolidated, ([^,]+), ([^\]]+)\]$/, 'time=$1, source=$2') : hit.signature.replace(/^<|>$/g, ''),
+    }]))
+    for (const hit of hits) byId.set(hit.id, hit)
+    const order = fuseRecallRankings(query, pool, hits.map(hit => hit.id), { dir, usage: readUsage(dir) })
+    hits.splice(0, hits.length, ...order.map(id => byId.get(id)!))
   }
   const catalogRows = catalogDocs(dir)
     .filter(row => row.slug.includes(query.toLowerCase()) || row.summary.toLowerCase().includes(query.toLowerCase()))
     .slice(0, 6)
     .map(row => ({ slug: row.slug, summary: row.summary }))
-  bumpUsage(hits.map(h => /^seq:(\d+)$/.exec(h.id)).filter((m): m is RegExpExecArray => m !== null).map(m => Number(m[1])), dir)
-  return { hits, elidable: hits.length === 0, catalog: catalogRows }
+  return { hits: hits.slice(0, limit), elidable: hits.length === 0, catalog: catalogRows }
 }
 
 
@@ -397,6 +400,7 @@ export function readMemoryRecord(
           }
         }
         seenFullRows.add(seq)
+        noteMemoryOpened([id], dir)
         return {
           found: true,
           id,
@@ -407,6 +411,7 @@ export function readMemoryRecord(
         }
       }
       seenFullRows.add(seq)
+      noteMemoryOpened([id], dir)
       return {
         found: true,
         id,
@@ -425,6 +430,7 @@ export function readMemoryRecord(
     if (!session) {
       return { found: false, id, note: sessions.length === 0 ? 'the ledger has no session yet' : `no session ${ordinal} in the ledger (${sessions.length} so far)` }
     }
+    noteMemoryOpened([id], dir)
     return { found: true, id, content: renderLedgerEntry(session, sessions.length) }
   }
   const docMatch = /^doc:([a-z0-9-]+)/.exec(id)
@@ -437,7 +443,11 @@ export function readMemoryRecord(
     const render = clipDocRender(result.content, live, DOC_RENDER_BUDGET_CHARS)
     for (const seq of render.renderedSeqs) seenFullRows.add(seq)
     bumpUsage([...render.renderedSeqs], dir)
-    if (!render.clipped) return { found: true, id, slug, content: render.content }
+    noteMemoryOpened([...render.renderedSeqs].map(seq => `seq:${seq}`), dir)
+    if (!render.clipped) {
+      noteMemoryOpened([`doc:${slug}`], dir)
+      return { found: true, id, slug, content: render.content }
+    }
     return {
       found: true,
       id,
@@ -454,6 +464,7 @@ export function readMemoryRecord(
     const row = pendingRows(dir).find(r => r.ts === ts)
     if (!row) return { found: false, id, note: 'that pending row is gone (consolidated, struck or never existed) — recall again' }
     seenPendingRows.add(ts)
+    noteMemoryOpened([id], dir)
     return { found: true, id, content: `${row.text} [unconsolidated, ${row.ts}, ${row.source}]`, note: 'full record read — amend is now unlocked for this pending row' }
   }
   return { found: false, id, note: 'unrecognized id — use seq:<n>, doc:<slug>, pending:<ts>, or ledger:<ordinal>' }
