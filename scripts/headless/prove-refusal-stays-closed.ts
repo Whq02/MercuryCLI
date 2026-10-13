@@ -32,15 +32,16 @@ const CLOSING = 'Do not rephrase the command to evade this rule — surface the 
 const COUNT_WORDS = '1\n2\n3'
 const PRINT5 = '5'
 const FINAL_WORDS = 'Both tasks are done.'
+const REFUSED_WORDS = 'I cannot run that command.'
 
 const canaryRoot = realpathSync(mkdtempSync(join(tmpdir(), 'refusal-closed-')))
 const canary = join(canaryRoot, 'CANARY')
 writeFileSync(canary, 'alive')
 
 const turns = (): ScriptedTurn[] => [
-  { kind: 'text', text: 'I cannot run that command.', stopReason: 'refusal' },
-  { kind: 'text', text: 'I cannot run that command.', stopReason: 'refusal' },
-  { kind: 'text', text: 'I cannot run that command.', stopReason: 'refusal' },
+  { kind: 'text', text: REFUSED_WORDS, stopReason: 'refusal' },
+  { kind: 'text', text: REFUSED_WORDS, stopReason: 'refusal' },
+  { kind: 'text', text: REFUSED_WORDS, stopReason: 'refusal' },
   {
     kind: 'tool_use',
     name: 'Bash',
@@ -186,7 +187,7 @@ async function runSeat(tag: string, script: () => ScriptedTurn[], prompts: strin
   }
 }
 
-section('§0 the closure row carries the refusal fact and the closing — never the operator remedy, never a retry invitation')
+section('§0 the plan: a provider refusal (stop_reason: refusal) is shown to the user in the transcript and never fed back to the model — the row leaves the wire view, the turns around it stay lawful')
 {
   ;(globalThis as Record<string, unknown>).MACRO ??= { VERSION: '1.0.0' }
   const planHome = realpathSync(mkdtempSync(join(tmpdir(), 'refusal-closed-plan-')))
@@ -201,7 +202,9 @@ section('§0 the closure row carries the refusal fact and the closing — never 
     const refused = createUserMessage({ content: `Use the Bash tool to run exactly this command and nothing else: ${ROOT_DELETE}` })
     const refusal = createAssistantAPIErrorMessage({ content: words, error: 'invalid_request', errorDetails: 'stop_reason: refusal · model: fixture · request_id: unknown' })
     const next = createUserMessage({ content: 'Count slowly from 1 to 3, one number per line, and nothing else.' })
-    const plan = requestConversationPlan([refused, refusal, next], [])
+    const transcript = [refused, refusal, next]
+    const before = JSON.stringify(transcript)
+    const plan = requestConversationPlan(transcript, [])
     const texts: string[] = []
     for (const message of plan.messages) {
       const content = message.message.content
@@ -209,20 +212,20 @@ section('§0 the closure row carries the refusal fact and the closing — never 
       if (!Array.isArray(content)) continue
       for (const block of content as Array<{ type?: string; text?: string }>) if (block.type === 'text' && typeof block.text === 'string') texts.push(block.text)
     }
-    const closure = texts.find(text => text.includes('refusal is final')) ?? ''
-    check(`${road}: the closure row reaches the plan as an assistant row`, closure !== '' && plan.messages.some(m => m.type === 'assistant' && JSON.stringify(m.message.content).includes('refusal is final')), JSON.stringify(texts).slice(0, 200))
-    check(`${road}: the closure keeps the refusal fact`, closure.startsWith('The model ended the response early (stop_reason: refusal).'), closure)
-    check(`${road}: the closure carries no retry invitation`, !/Try rephrasing|different approach|try again/i.test(closure), closure)
-    check(`${road}: the closure carries no operator remedy (/rewind, shift+up, a new session, /model)`, !/\/rewind|shift\+up|new session|\/model/.test(closure), closure)
-    check(`${road}: the closure says the refusal is final and never to re-issue, rephrased or not`, closure.includes('never repeat, retry or re-issue it, rephrased or not') && closure.includes('answer only the newest instruction'), closure)
-    const refusedIndex = plan.messages.findIndex(m => m.type === 'user' && JSON.stringify(m.message.content).includes(ROOT_DELETE))
-    const nextIndex = plan.messages.findIndex(m => m.type === 'user' && JSON.stringify(m.message.content).includes('Count slowly'))
-    check(`${road}: the refused prompt and the next prompt stay separate rows with the closure between them`, refusedIndex >= 0 && nextIndex > refusedIndex + 1, JSON.stringify({ refusedIndex, nextIndex, rows: plan.messages.map(m => m.type) }))
+    const wire = texts.join('\n')
+    check(`${road}: no row of the plan carries the refusal (RED before the owner's ruling: an assistant closure row "This refusal is final…" rode every later request)`, !wire.includes('stop_reason: refusal') && !wire.includes('refusal is final') && !plan.messages.some(m => m.type === 'assistant' && JSON.stringify(m.message.content).includes('refusal')), JSON.stringify(texts).slice(0, 300))
+    check(`${road}: the refusal carries no retry invitation or operator remedy to the model either (nothing of it reaches the wire)`, !/Try rephrasing|different approach|\/rewind|shift\+up|\/model/.test(wire), wire.slice(0, 200))
+    check(`${road}: the transcript is untouched — the user still sees the refusal row`, JSON.stringify(transcript) === before && transcript[1] === refusal && JSON.stringify(refusal.message.content).includes('stop_reason: refusal'))
+    const roles = plan.messages.map(m => m.type)
+    const lawful = roles.every((role, i) => i === 0 || role !== roles[i - 1])
+    check(`${road}: the turns stay lawful without the row — no two rows of one role in a row (${roles.join(' → ')})`, lawful && roles[0] === 'user', roles.join(','))
+    const bothPrompts = plan.messages.some(m => m.type === 'user' && JSON.stringify(m.message.content).includes(ROOT_DELETE) && JSON.stringify(m.message.content).includes('Count slowly'))
+    check(`${road}: the refused prompt and the next prompt reach the model as one user turn (the orphaned turn merges, as every other omitted assistant row's does)`, bothPrompts, JSON.stringify(plan.messages.map(m => [m.type, JSON.stringify(m.message.content).slice(0, 80)])))
   }
   rmSync(planHome, { recursive: true, force: true })
 }
 
-section('§1 the model view: a refused turn is a closed matter on the next request')
+section('§1 the model view: the provider refusal never reaches the next request (the ward refusals of §2 still do, as closed tool results)')
 {
   const prompts = [
     `Use the Bash tool to run exactly this command and nothing else: ${ROOT_DELETE}`,
@@ -231,25 +234,18 @@ section('§1 the model view: a refused turn is a closed matter on the next reque
   ]
   const seat = await runSeat('model-view', turns, prompts, { MERCURY_SPAWNED_BY: 'proof:refusal-closed#1' })
   try {
-    const lastWire = seat.wire.at(-1) ?? ''
     const wireJoined = seat.wire.join('\n')
     check('the requests carried the three prompts', seat.wire.some(t => t.includes('Count slowly')), JSON.stringify(seat.wire.length))
     check(
-      'the refusal closure reaches the model (the refused request is named closed)',
-      seat.wire.some(text => text.includes('stop_reason: refusal') && text.includes('refusal is final')),
+      'no request carries the provider refusal or a closure of it (RED before the ruling: "stop_reason: refusal … This refusal is final" rode the later requests)',
+      !wireJoined.includes('stop_reason: refusal') && !wireJoined.includes('refusal is final') && !wireJoined.includes('never repeat, retry or re-issue'),
       JSON.stringify(seat.wire.filter(t => t.includes('refusal')).slice(0, 1)).slice(0, 200),
     )
     check(
-      'the closure says never re-issue',
-      wireJoined.includes('never repeat, retry or re-issue'),
+      'no request carries the model\'s own partial words of the refused turn either (RED on aef216c8d5: "I cannot run that command." rode the later requests as an assistant row)',
+      seat.wire.length >= 3 && !wireJoined.includes(REFUSED_WORDS),
+      JSON.stringify(seat.wire.filter(t => t.includes(REFUSED_WORDS)).slice(0, 1)).slice(0, 200),
     )
-    const closures = seat.wire.filter(text => text.includes('refusal is final'))
-    check(
-      'the closure on the wire carries no retry invitation and no operator remedy (the runner road words "Try rephrasing" never reach the model)',
-      closures.length > 0 && closures.every(text => !/Try rephrasing|different approach|\/rewind|shift\+up|\/model/i.test(text)),
-      JSON.stringify(closures.slice(0, 1)).slice(0, 300),
-    )
-    void lastWire
   } finally {
     seat.close()
   }
