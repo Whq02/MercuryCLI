@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# gate-class: pure
+# gate-class: pty
 # gate-watch: src/mneme/** src/tools/JournalTool/** src/constants/tools.ts src/utils/settings/types.ts src/components/Settings/Config.tsx
 # gate-watch: docs/MNEME.md src/utils/detectSecrets.ts
 # gate-watch: src/components/memory/MemoryCentreView.tsx src/components/memory/memoryCentreLayout.ts src/commands/memory/memory.tsx src/services/compact/compact.ts
