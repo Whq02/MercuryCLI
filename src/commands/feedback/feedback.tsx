@@ -37,12 +37,13 @@ export async function call(
   args: string,
   invokedAs?: string,
 ): Promise<React.ReactNode> {
+  const short = /^--short(?:\s|$)/.test(args.trimStart())
   return renderFeedbackComponent(
     onDone,
     context.abortController.signal,
     context.messages,
-    args || '',
+    short ? args.trimStart().replace(/^--short(?:\s+|$)/, '') : args || '',
     {},
-    invokedAs?.toLowerCase() === 'bug' ? 'bug' : undefined,
+    short ? 'tester' : invokedAs?.toLowerCase() === 'bug' ? 'bug' : undefined,
   )
 }
