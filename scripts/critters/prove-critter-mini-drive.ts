@@ -361,7 +361,7 @@ try {
   }
   console.log('§12 /critter opens the picker with the small sprite on every card, at 178 and at 60 columns')
   const pickerWide = await capture('picker-178x51', homeFor('picker-178'), 178, 51, [onReady('/critter\r', 'landing')], 'Session theme')
-  const pickerNarrow = await capture('picker-60x40', homeFor('picker-60'), 60, 40, [{ requireAwait: true, awaitText: '1 session on', awaitSettleTicks: 6, data: '/critter\r', mark: 'landing' }], 'Session theme')
+  const pickerNarrow = await capture('picker-60x40', homeFor('picker-60'), 60, 40, [{ requireAwait: true, awaitText: keyHintLabel('⇧← concourse'), awaitSettleTicks: 6, data: '/critter\r', mark: 'landing' }], 'Session theme')
   for (const [cols, shot, rowsExpected] of [[178, pickerWide, 1], [60, pickerNarrow, 2]] as const) {
     const cards = ['[1] crab', '[2] octopus', '[3] jellyfish', '[4] clam'].map(name => cardOf(shot.grid, name))
     check(`${cols} columns: the four cards paint with their names`, cards.every(c => c.top >= 0 && c.bottom > c.top), cards.map(c => `${c.top}..${c.bottom}`).join(' '))
