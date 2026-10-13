@@ -10,7 +10,8 @@ import { useFlatList } from '../mercury-ui/useFlatList.js'
 import { collectMemoryRefs, type MemoryRef } from '../../mneme/memoryRefs.js'
 import { pendingRows } from '../../mneme/mnemeBuffer.js'
 import { correctFact, pinPendingRow, replacePendingRow, retireFact, strikePendingRow } from '../../mneme/mnemeCorrect.js'
-import { mnemeEnabled } from '../../mneme/mnemeGates.js'
+import { mnemeEnabled, mnemeLibraryDir } from '../../mneme/mnemeGates.js'
+import { readSignalLog, signalCounts, SIGNAL_TURN_LIMIT } from '../../mneme/mnemeSignal.js'
 import { mnemeStatus, readMaintenanceReceipts, runDueMaintenance } from '../../mneme/mnemeMaintenance.js'
 import { readDocLines } from '../../mneme/mnemeRetrieval.js'
 import { indexLines, liveEntryIndex, pinnedLine, pinnedView, readPinnedStatus, type IndexLine } from '../../mneme/mnemeFrontPage.js'
@@ -381,19 +382,29 @@ async function instructionTexts(): Promise<{ path: string; text: string }[]> {
   }
 }
 
+export function factSignalLine(ref: OpenRef, dir: string = mnemeLibraryDir()): string | null {
+  const seq = seqOf(ref)
+  const id = seq !== null ? `seq:${seq}` : ref.kind === 'mneme-pending' && ref.capturedAt !== undefined ? `pending:${ref.capturedAt}` : null
+  if (id === null) return null
+  const counts = signalCounts(readSignalLog(dir))[id] ?? { offered: 0, opened: 0, cited: 0 }
+  return `offered ${counts.offered} · opened ${counts.opened} · cited ${counts.cited} (last ${SIGNAL_TURN_LIMIT} turns)`
+}
+
 export function factPageLines(ref: OpenRef, width: number, docs: MnemeTopicDoc[] = topicPageDocs()): PageLine[] {
   if (ref.missing) return [{ kind: 'meta', text: 'pinned, but no topic page holds this fact any more · u unpins it' }]
   const slug = slugOf(ref)
+  const signal = factSignalLine(ref)
+  const signalLines: PageLine[] = signal === null ? [] : wrapText(signal, width).map(text => ({ kind: 'meta', text }))
   if (slug === null) {
     const row = ref.kind === 'mneme-pending' && ref.capturedAt !== undefined ? pendingRows().find(r => r.ts === ref.capturedAt) : undefined
     const body = wrapText(row?.text ?? ref.summary, Math.max(8, width - 4)).map(text => ({ kind: 'text' as const, text }))
-    return [...body, { kind: 'meta', text: `(unconsolidated — consolidates at the next maintenance pass${row?.pin === true ? ' · pinned from then on' : ''})` }]
+    return [...signalLines, ...body, { kind: 'meta', text: `(unconsolidated — consolidates at the next maintenance pass${row?.pin === true ? ' · pinned from then on' : ''})` }]
   }
   const page = topicPage(slug, width, docs)
   if (page.lines.length === 0) return [{ kind: 'meta', text: '(topic page unavailable)' }]
   const seq = seqOf(ref)
   const lines = page.lines.map(line => (seq !== null && line.seq === seq ? { ...line, marked: true } : line))
-  return [{ kind: 'heading', text: page.title }, { kind: 'meta', text: page.meta }, { kind: 'blank', text: '' }, ...lines]
+  return [{ kind: 'heading', text: page.title }, { kind: 'meta', text: page.meta }, ...signalLines, { kind: 'blank', text: '' }, ...lines]
 }
 
 export function MemoryCentreView({
