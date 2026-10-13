@@ -3,6 +3,7 @@ import { existsSync, mkdirSync, realpathSync, writeFileSync } from 'node:fs'
 import { basename, dirname, join } from 'node:path'
 
 export const FIXTURE_API_KEY = 'fixture-key-000'
+export const GATE_API_KEY = 'proof-key-ci-gate-not-a-real-key'
 
 if (import.meta.main) {
   const [home, ...cwds] = process.argv.slice(2)
@@ -42,7 +43,7 @@ export function seedFirstRun(configHome: string, trustedCwds: string[]): void {
     }
   }
   const envKey = process.env.ANTHROPIC_API_KEY
-  const approved = [...new Set([...(envKey ? [envKey.slice(-20)] : []), FIXTURE_API_KEY.slice(-20)])]
+  const approved = [...new Set([...(envKey ? [envKey.slice(-20)] : []), FIXTURE_API_KEY.slice(-20), GATE_API_KEY.slice(-20)])]
   const customApiKeyResponses = { customApiKeyResponses: { approved, rejected: [] } }
   writeFileSync(
     cfg,

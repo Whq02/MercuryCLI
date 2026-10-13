@@ -8,7 +8,7 @@ const check = (label: string, cond: boolean, detail = ''): void => {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
 }
-const { seedFirstRun, FIXTURE_API_KEY } = await import('../lib/firstRunSeed.ts')
+const { seedFirstRun, FIXTURE_API_KEY, GATE_API_KEY } = await import('../lib/firstRunSeed.ts')
 type Cfg = { customApiKeyResponses?: { approved?: string[]; rejected?: string[] }; hasCompletedOnboarding?: boolean }
 const readCfg = (home: string): Cfg => JSON.parse(readFileSync(join(home, '.mercury.json'), 'utf8')) as Cfg
 
@@ -38,7 +38,7 @@ console.log("§2 the seeder's own key is approved beside it, once")
   const home2 = mkdtempSync(join(tmpdir(), 'first-run-seed-'))
   seedFirstRun(home2, [home2])
   const approved2 = readCfg(home2).customApiKeyResponses?.approved ?? []
-  check('the same key on both sides is approved ONCE (no duplicate row)', approved2.length === 1 && approved2[0] === FIXTURE_API_KEY.slice(-20), JSON.stringify(approved2))
+  check('the same key on both sides is approved ONCE (no duplicate row), beside the gate key the seed always approves', approved2.length === 2 && approved2[0] === FIXTURE_API_KEY.slice(-20) && approved2[1] === GATE_API_KEY.slice(-20), JSON.stringify(approved2))
   if (saved === undefined) delete process.env.ANTHROPIC_API_KEY
   else process.env.ANTHROPIC_API_KEY = saved
   rmSync(home, { recursive: true, force: true })
