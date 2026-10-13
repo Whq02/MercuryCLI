@@ -202,7 +202,7 @@ async function closeScene(m: Mounted): Promise<void> {
   const scene = await typedModel('Sonnet 5.5')
   const said = await waitFor(() => scene.done.length === 1, 20000)
   const words = String(scene.done[0]?.[0] ?? '')
-  check('/model Sonnet 5.5 is matched and said back before the switch road speaks', said && words.startsWith('Sonnet 5.5 → claude-sonnet-5-5 · '), words)
+  check('/model Sonnet 5.5 is matched and said back on its own line before the switch road speaks', said && words.startsWith('Sonnet 5.5 → claude-sonnet-5-5\n'), words)
   check('the switch road received the id, not the typed words: the probe asked the endpoint for claude-sonnet-5-5', hits.some(hit => hit.endsWith('model=claude-sonnet-5-5')) && !/is not a model id any provider family declares/.test(words), `${JSON.stringify(hits)} · ${words}`)
   check('the endpoint’s 404 is a refusal and nothing is saved', /Model not found/.test(words) && engineOf().model === undefined, `${words} · ${JSON.stringify(engineOf())}`)
   await closeScene(scene.m)

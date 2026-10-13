@@ -66,3 +66,6 @@ prove-usage-slot-grammar.ts
 prove-viewport-follows-console.ts
 prove-wheel-accel.ts
 prove-win32-size-reconcile.ts
+prove-crew-completion-stamp.ts
+prove-model-page-count.ts
+prove-thinking-withheld-turns.ts
