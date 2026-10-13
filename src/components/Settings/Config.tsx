@@ -37,6 +37,7 @@ import type { SettingsJson } from '../../utils/settings/types.js'
 import { journalSettingOn } from '../../mneme/journalSetting.js'
 import { readPinnedStatus } from '../../mneme/mnemeFrontPage.js'
 import { runDueMaintenance } from '../../mneme/mnemeMaintenance.js'
+import { memoryAtStartStatus } from '../../mneme/entryKnapsack.js'
 import { formatTextSize, PINNED_TEXT_LIMIT_MIN, PINNED_TEXT_LIMIT_STEP, pinnedTextLimit, START_TEXT_LIMIT_MIN, START_TEXT_LIMIT_STEP, startTextLimit } from '../../mneme/mnemeUsage.js'
 import { formatTokens } from '../../utils/format.js'
 import {
@@ -950,16 +951,19 @@ export function Config({
       },
     })
     const startLimit = startTextLimit()
-    const pinnedChars = pinned?.used ?? 0
+    const atStart = memoryAtStartStatus()
+    const pinnedChars = atStart?.pinnedChars ?? pinned?.used ?? 0
+    const startFill = pinnedChars + (atStart?.used ?? 0)
     const pinsFill = pinnedChars > startLimit
+    const rodeWords = atStart === null ? '' : ` · this session: ${atStart.rodeFacts} of ${atStart.facts} fact${atStart.facts === 1 ? '' : 's'}${atStart.notes > 0 ? ` and ${atStart.rodeNotes} of ${atStart.notes} earlier note${atStart.notes === 1 ? '' : 's'}` : ''} rode beside the pinned rules`
     items.push({
       id: 'memory.startLimit',
       label: 'Memory at start',
       searchText: 'memory at start limit relevant facts branch files budget text size',
       kind: 'enum',
-      value: <Text color={pinsFill ? tokens.warning : undefined}>{`${formatTextSize(pinnedChars)} of ${formatTextSize(startLimit)}${pinsFill ? ' · the pinned rules fill it' : ''}`}</Text>,
+      value: <Text color={pinsFill ? tokens.warning : undefined}>{`${formatTextSize(startFill)} of ${formatTextSize(startLimit)}${pinsFill ? ' · the pinned rules fill it' : ''}`}</Text>,
       setByYou: merged.memory?.startLimit !== undefined,
-      warning: `how much memory text rides at the start of a session: the pinned rules first and whole, then the facts and earlier notes most relevant to the branch, the files touched lately and the last note · what is left out is a Recall away · ←/→ move the limit by ${formatTextSize(START_TEXT_LIMIT_STEP)} · the next session reads the new limit`,
+      warning: `how much memory text rides at the start of a session: the pinned rules first and whole, then the facts and earlier notes most relevant to the branch, the files touched lately and the last note${rodeWords} · what is left out is a Recall away · ←/→ move the limit by ${formatTextSize(START_TEXT_LIMIT_STEP)} · the next session reads the new limit`,
       change: direction => {
         const next = Math.max(START_TEXT_LIMIT_MIN, startLimit + direction * START_TEXT_LIMIT_STEP)
         if (writeSource('userSettings', { memory: { startLimit: next } })) {
