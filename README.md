@@ -428,9 +428,10 @@ mercury run "Summarise this repository." --format rows
   `text`, `reasoning`, `tool_call`, `tool_result` and `step` rows, ending in
   `outcome`. Waits, tool progress, background tasks and notices have their
   own rows. Every row carries `seq`, `timestamp` and `session_id`; rows
-  within a turn also carry its `turn` number. `seq` and `turn` count from 1
-  in every run: a run that continues a stored conversation (`-c`, `-r`)
-  starts them again, and its `session` row names the conversation it
+  within a turn also carry its `turn` number. `seq` numbers this run's
+  stream from 1; `turn` counts the session's turns, so a run that continues
+  a stored conversation (`-c`, `-r`, `--fork`) numbers its turn after the
+  turns already in it, and its `session` row names the conversation it
   continues in `resume_of`.
 
 The output row types, by their `type` field:

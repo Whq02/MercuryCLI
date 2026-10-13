@@ -196,7 +196,17 @@ const USAGE_ERROR_CODES = new Set([
   'commander.excessArguments',
   'commander.conflictingOption',
 ])
-function exitForCommanderError(error: { code?: string; exitCode?: number }): void {
+function promptMistakenForOptionHint(message: string | undefined, cliName = binaryName()): string | null {
+  const quoted = /unknown option '([^']*)'/.exec(message ?? '')?.[1]
+  if (quoted === undefined || !/\s/.test(quoted.trim())) return null
+  return `that looks like a prompt that begins with "-", so the parser read it as an option — put it after the option boundary: ${cliName} run -- ${JSON.stringify(quoted)}`
+}
+
+function exitForCommanderError(error: { code?: string; exitCode?: number; message?: string }): void {
+  if (error.code === 'commander.unknownOption') {
+    const hint = promptMistakenForOptionHint(error.message)
+    if (hint !== null) writeErr(hint)
+  }
   if (error.code !== undefined && USAGE_ERROR_CODES.has(error.code)) process.exit(2)
 }
 
@@ -449,7 +459,7 @@ async function run(): Promise<void> {
     .addOption(new Option('--brief-file <file>', 'Read the session system brief from a file').hideHelp())
     .option('--brief-add <prompt>', 'Append to the session system brief')
     .addOption(new Option('--brief-add-file <file>', 'Append to the session system brief from a file').hideHelp())
-    .addOption(new Option('--mode <mode>', `Permission mode — ${PERMISSION_MODES.map(mode => `${mode}: ${MODE_GLOSS[mode]}`).join('; ')}`).choices(PERMISSION_MODES))
+    .addOption(new Option('--mode <mode>', `Permission mode — ${PERMISSION_MODES.map(mode => `${mode}: ${MODE_GLOSS[mode]}`).join('; ')} (apollo needs someone to answer its asks: the cockpit, or a host serving the session over mercury runner — mercury run alone refuses it)`).choices(PERMISSION_MODES))
     .option('-c, --continue', 'Continue the most recent conversation')
     .option('-r, --resume [value]', 'Resume a conversation (session id, title, or picker)')
     .option('--fork', 'Fork to a new session id on resume')
@@ -1131,7 +1141,7 @@ async function defaultAction(inputPromptArg: string | undefined, opts: RootOptio
     if (await sessionIdExists(sessionIdOpt)) failCli(`Session id already exists: ${sessionIdOpt}`, 1)
   }
   if (runMode && opts.mode === 'apollo' && !runnerDoor) {
-    failCli('mercury run: apollo needs a host that answers its asks (mercury runner)')
+    failCli('mercury run: apollo needs a host that answers its asks — serve the session to one over mercury runner (mercury runner --help), or run apollo in the cockpit')
   }
   if (opts.backupModel && opts.backupModel === opts.model) {
     failCli('--backup-model cannot equal --model')
@@ -1369,7 +1379,10 @@ async function defaultAction(inputPromptArg: string | undefined, opts: RootOptio
   }
 
   if (runMode && inputFormat === 'text' && (prompt === undefined || (typeof prompt === 'string' && !prompt.trim())) && !opts.resume && !opts.continue && !opts.pr) {
-    const usage = 'Usage: mercury run "<prompt>" or pipe a prompt to mercury run -'
+    const debugFilter = typeof opts.debug === 'string' && /\s/.test(opts.debug.trim()) ? opts.debug : null
+    const usage = debugFilter !== null
+      ? `No prompt reached run: --debug took ${JSON.stringify(debugFilter)} as its category filter. Put the prompt before --debug, or use -d: mercury run ${JSON.stringify(debugFilter)} --debug`
+      : 'Usage: mercury run "<prompt>" or pipe a prompt to mercury run -'
     if (process.stdin.isTTY) {
       writeSync(2, `${usage}\n`)
       process.exit(2)

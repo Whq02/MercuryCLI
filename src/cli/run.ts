@@ -46,6 +46,8 @@ import { SPAWN_SWITCH_LABEL, setSpawnSwitch, spawnSwitchFacts, spawnSwitchTransi
 import { boxReading, refreshBoxReading } from '../utils/boxLock.js'
 import { declareLawfulPrefixChangeForEveryOwner } from '../services/providers/lawfulPrefixChange.js'
 import { createRosterTransitionMessage } from '../utils/messages/systemMessages.js'
+import { isToolResultMessage } from '../utils/messages/merge.js'
+import { isLocalCommandCaveat } from '../utils/messages/apiPlan.js'
 import { dropCredentialMemos, is1PApiCustomer } from '../utils/auth.js'
 import { noteCrewAccountChange } from '../utils/crew/crewAccountChange.js'
 import { hasClaudeAiBillingAccess, hasConsoleBillingAccess } from '../utils/billing.js'
@@ -373,6 +375,10 @@ function normalizeInputPrompt(
 }
 
 
+function priorTurnCount(messages: readonly Message[]): number {
+  return messages.filter(message => message.type === 'user' && (message as { isMeta?: boolean }).isMeta !== true && !isToolResultMessage(message) && !isLocalCommandCaveat(message)).length
+}
+
 export async function runHeadless(
   inputPrompt: string | AsyncIterable<string>,
   getAppState: GetAppState,
@@ -576,6 +582,7 @@ export async function runHeadless(
   })
   const messages: Message[] = loaded.messages
   resumeOf = loaded.resumedSessionId
+  turnsRun = priorTurnCount(messages)
   let contentReplacementState = {
     ...reconstructContentReplacementState(messages, loaded.contentReplacements ?? []),
     budgetChars: Infinity,
@@ -1725,6 +1732,7 @@ export async function runHeadless(
         await restoreSessionStateFromLog(resumed, setAppState)
         restoreSessionMetadata(resumed)
         messages.splice(0, messages.length, ...resumed.messages)
+        turnsRun = priorTurnCount(messages)
         contentReplacementState = {
           ...reconstructContentReplacementState(messages, resumed.contentReplacements ?? []),
           budgetChars: Infinity,
