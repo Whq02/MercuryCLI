@@ -10,6 +10,7 @@ import { isBinaryContentType, persistBinaryContent } from '../../utils/mcpOutput
 import { asSystemPrompt } from '../../utils/systemPromptType.js'
 import { makeSecondaryModelPrompt, WEB_FETCH_TOOL_NAME } from './prompt.js'
 import { isPreapprovedHost } from './preapproved.js'
+import { extractMainHtml } from './extractHtml.js'
 
 
 const MAX_URL_LENGTH = 2000
@@ -163,9 +164,9 @@ let markdownConverter: { turndown: (html: string) => string } | null = null
 async function convertHtmlToMarkdown(html: string): Promise<string> {
   if (!markdownConverter) {
     const { default: TurndownService } = await import('turndown')
-    markdownConverter = new TurndownService()
+    markdownConverter = new TurndownService({ headingStyle: 'atx', codeBlockStyle: 'fenced' })
   }
-  return markdownConverter.turndown(html)
+  return markdownConverter.turndown(extractMainHtml(html).html)
 }
 
 export async function getURLMarkdownContent(
@@ -280,7 +281,9 @@ export async function applyPromptToMarkdown(
     const response = await small({ systemPrompt: asSystemPrompt([]), userPrompt, signal, options: baseOptions })
     if (signal.aborted) throw new AbortError()
     const refusal = refusalOf(response)
-    if (refusal === null) return textOf(response) ?? 'No response from model'
+    const text = refusal === null ? textOf(response) : null
+    if (text !== null) return `[Model reading of the extracted page, not the page’s own words.]\n\n${text}`
+    if (refusal === null) throw new Error('the reply carried no text')
     primaryReason = refusal
   } catch (error) {
     if (signal.aborted || error instanceof AbortError) throw new AbortError()
@@ -295,7 +298,7 @@ export async function applyPromptToMarkdown(
       if (signal.aborted) throw new AbortError()
       const refusal = refusalOf(response)
       const text = refusal === null ? textOf(response) : null
-      if (text !== null) return text
+      if (text !== null) return `[Model reading of the extracted page, not the page’s own words.]\n\n${text}`
       fallbackReason = refusal ?? 'the reply carried no text'
     } catch (error) {
       if (signal.aborted || error instanceof AbortError) throw new AbortError()
