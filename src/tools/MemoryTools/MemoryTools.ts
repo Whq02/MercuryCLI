@@ -239,7 +239,7 @@ export interface ReflectOutput {
   recall: RecallResult
 }
 
-const CITATION_RE = /\[(seq \d+|pending \d+)\]/g
+import { synthesisCitations } from '../../mneme/memoryCitations.js'
 
 export const ReflectTool = buildTool({
   name: REFLECT_TOOL_NAME,
@@ -304,7 +304,7 @@ export const ReflectTool = buildTool({
         prompt: `Question: ${input.query}${input.context ? `\nFraming: ${input.context}` : ''}\n\nMemory records:\n${sheet}`,
         signal: context.abortController.signal,
       })
-      const cited = [...new Set([...answer.matchAll(CITATION_RE)].map(match => match[1]!))]
+      const cited = synthesisCitations(answer)
       const invented = cited.filter(id => !citable.has(id))
       if (cited.length === 0 || invented.length > 0) {
         return {

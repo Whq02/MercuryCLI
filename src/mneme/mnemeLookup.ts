@@ -5,6 +5,7 @@ import { mnemeEnabled, mnemeLibraryDir } from './mnemeGates.js'
 import { listTopicDocs } from './mnemeLibrary.js'
 import { docFileName, serializeSignature, type MnemeEntry } from './mnemeTopicDocs.js'
 import { bumpUsage, readUsage, usageOf } from './mnemeUsage.js'
+import { noteMemoryOffered } from './mnemeSignal.js'
 
 export const LOOKUP_LIMIT = 5
 const MAX_QUERY_TOKENS = 16
@@ -124,6 +125,9 @@ export function lookupFacts(
   const loadedPins = new Set((readPinnedStatus(dir)?.loaded ?? []).map(seq => `seq:${seq}`))
   const exclude = new Set<string>([...(opts.exclude ?? []), ...loadedPins])
   const hits = rankCandidates(query, candidates(dir), { exclude, limit: opts.limit, usage: readUsage(dir) })
-  if (opts.markUsed !== false) bumpUsage(hits.map(h => h.seq).filter((s): s is number => s !== undefined), dir)
+  if (opts.markUsed !== false) {
+    bumpUsage(hits.map(h => h.seq).filter((s): s is number => s !== undefined), dir)
+    noteMemoryOffered(query, hits, dir)
+  }
   return hits
 }
