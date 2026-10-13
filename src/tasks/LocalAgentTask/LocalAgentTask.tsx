@@ -679,17 +679,22 @@ function heldByAnotherRegistration(
   )
 }
 
+const registrationEndTimes = new WeakMap<AbortController, number>()
+
 function terminalPatch(
   task: LocalAgentTaskState,
   status: TaskStatus,
   patch: Partial<LocalAgentTaskState>,
 ): LocalAgentTaskState {
   task.cleanup?.()
+  const endTime = Date.now()
+  const registration = task.registration ?? task.abortController
+  if (registration !== undefined) registrationEndTimes.set(registration, endTime)
   return {
     ...task,
     ...patch,
     status,
-    endTime: Date.now(),
+    endTime,
     ...(task.retain ? {} : { evictAfter: Date.now() + PANEL_GRACE_MS }),
     abortController: undefined,
     cleanup: undefined,
@@ -1016,6 +1021,7 @@ export function enqueueAgentNotification(args: {
   replyTarget?: 'parent' | 'operator'
 }): void {
   let shouldEnqueue = false
+  let completedAt = args.controller !== undefined ? registrationEndTimes.get(args.controller) : undefined
   let replyTarget = (args.controller !== undefined ? registrationReplyTargets.get(args.controller) : undefined) ?? args.replyTarget
   updateTaskState<LocalAgentTaskState>(args.taskId, args.setAppState, task => {
     if (heldByAnotherRegistration(task, args.controller)) {
@@ -1023,6 +1029,7 @@ export function enqueueAgentNotification(args: {
       return task
     }
     replyTarget ??= task.replyTarget
+    if (task.status !== 'running') completedAt ??= task.endTime
     if (task.notified) return task
     shouldEnqueue = true
     return { ...task, notified: true }
@@ -1070,6 +1077,7 @@ export function enqueueAgentNotification(args: {
     value: message,
     mode: 'task-notification',
     priority: 'next',
+    ...(completedAt !== undefined ? { sentAt: new Date(completedAt).toISOString() } : {}),
   })
 }
 
