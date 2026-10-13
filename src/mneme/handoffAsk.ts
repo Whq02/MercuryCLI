@@ -6,7 +6,9 @@ import type { PermissionDecision } from '../types/permissions.js'
 import { logForDebugging } from '../utils/debug.js'
 import { runForkedAgent, type CacheSafeParams, type ForkedAgentParams } from '../utils/forkedAgent.js'
 import { EMPTY_USAGE, type NonNullableUsage } from '../services/api/emptyUsage.js'
+import { accumulateUsage } from '../services/providers/anthropic/cacheAndUsage.js'
 import { createUserMessage } from '../utils/messages/factories.js'
+import { handoffReask, measureNovelty, noveltyRecord } from './handoffNovelty.js'
 import { ledgerEntryOf, recordHandoff } from './ledger.js'
 import { lineageJoined } from './lineageSession.js'
 import { mnemeProjectKey } from './paths.js'
@@ -53,6 +55,11 @@ export function assistantText(messages: readonly Message[]): string {
   return textOf(message)
 }
 
+function finalAssistant(messages: readonly Message[]): Message | null {
+  const message = messages.findLast(row => row.type === 'assistant' || row.type === 'user')
+  return message?.type === 'assistant' ? message : null
+}
+
 export function handoffAskText(sessionId: string): { text: string; tools: Set<string> } {
   const extra = sessionCloseAsks(sessionId)
   const tools = new Set<string>()
@@ -76,7 +83,7 @@ export async function askForHandoff(input: {
   canUseTool?: CanUseToolFn
   run?: AskRunner
   onUsage?: (usage: NonNullableUsage) => void
-}): Promise<{ text: string; stored: boolean } | null> {
+}): Promise<{ text: string; stored: boolean; reasked: boolean } | null> {
   const sessionId = input.sessionId ?? String(getSessionId())
   if (!lineageJoined() || asked.has(sessionId)) return null
   asked.add(sessionId)
@@ -97,23 +104,48 @@ export async function askForHandoff(input: {
   }
   try {
     const run: AskRunner = input.run ?? runForkedAgent
-    const result = await run({
-      promptMessages: [createUserMessage({ content: ask.text, isMeta: true })],
-      cacheSafeParams: input.cacheSafeParams,
-      canUseTool,
-      querySource: 'side_question',
-      forkLabel: 'handoff',
-      overrides: { abortController, alwaysCallCanUseTool: true },
-      maxTurns: ask.tools.size > 0 ? 4 : 2,
-      skipTranscript: true,
-      skipCacheWrite: true,
-    } as ForkedAgentParams)
-    input.onUsage?.(result.totalUsage ?? EMPTY_USAGE)
-    if (result.terminal?.reason !== 'completed' || abortController.signal.aborted) return null
-    const text = assistantText(result.messages)
-    if (text.trim() === '' || !lineageJoined()) return null
+    const askMessage = createUserMessage({ content: ask.text, isMeta: true })
+    const params = (promptMessages: Message[]): ForkedAgentParams =>
+      ({
+        promptMessages,
+        cacheSafeParams: input.cacheSafeParams,
+        canUseTool,
+        querySource: 'side_question',
+        forkLabel: 'handoff',
+        overrides: { abortController, alwaysCallCanUseTool: true },
+        maxTurns: ask.tools.size > 0 ? 4 : 2,
+        skipTranscript: true,
+        skipCacheWrite: true,
+      }) as ForkedAgentParams
+    const result = await run(params([askMessage]))
+    let usage = result.totalUsage ?? EMPTY_USAGE
+    if (result.terminal?.reason !== 'completed' || abortController.signal.aborted) {
+      input.onUsage?.(usage)
+      return null
+    }
+    const first = assistantText(result.messages)
+    if (first.trim() === '' || !lineageJoined()) {
+      input.onUsage?.(usage)
+      return null
+    }
+    let text = first
+    let reasked = false
+    const measure = measureNovelty(first, noveltyRecord(mnemeProjectKey(), sessionId))
+    const answer = finalAssistant(result.messages)
+    if (measure.reask && answer !== null) {
+      reasked = true
+      try {
+        const again = await run(params([askMessage, answer, createUserMessage({ content: handoffReask(measure), isMeta: true })]))
+        usage = accumulateUsage(usage, again.totalUsage ?? EMPTY_USAGE)
+        const second = again.terminal?.reason === 'completed' && !abortController.signal.aborted ? assistantText(again.messages) : ''
+        if (second.trim() !== '') text = second
+      } catch (error) {
+        logForDebugging(`handoff re-ask failed for ${sessionId}; the first note stands: ${error instanceof Error ? error.message : String(error)}`)
+      }
+    }
+    input.onUsage?.(usage)
     const entry = recordHandoff(mnemeProjectKey(), sessionId, text)
-    return { text, stored: entry?.handoff?.text === text || (entry?.handoff !== null && entry?.handoff !== undefined && text.startsWith(entry.handoff.text)) }
+    return { text, stored: entry?.handoff?.text === text || (entry?.handoff !== null && entry?.handoff !== undefined && text.startsWith(entry.handoff.text)), reasked }
   } catch (error) {
     logForDebugging(`handoff ask failed for ${sessionId}: ${error instanceof Error ? error.message : String(error)}`)
     return null
