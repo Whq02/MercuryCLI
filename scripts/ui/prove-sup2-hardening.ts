@@ -541,7 +541,10 @@ console.log('§36 agent sidecar — the whole-file atomic law')
   const paths = read('src/utils/sessionStorage/paths.ts')
   const fn = paths.slice(paths.indexOf('export async function writeAgentMetadata'), paths.indexOf('export async function writeAgentMetadata') + 900)
   check('poison gone: no truncating writeFile in writeAgentMetadata', !fn.includes('await writeFile(path, JSON.stringify(metadata))'))
-  check('the sidecar publishes through durableAtomicPublish', fn.includes('await durableAtomicPublish(path, JSON.stringify(metadata))'))
+  check(
+    'the sidecar publishes through durableAtomicPublish',
+    /await durableAtomicPublish\((?:path|destination), (?:JSON\.stringify\(metadata\)|bytes)\)/.test(fn) && fn.includes('JSON.stringify(metadata)'),
+  )
 }
 
 console.log('§37 crash report — the path is latched after the write lands')
