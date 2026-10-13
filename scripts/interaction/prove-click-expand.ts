@@ -2,6 +2,7 @@
 import { spawnSync } from 'node:child_process'
 import { readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { tmpdir } from 'node:os'
 import { DUNE_FAINT } from '../../src/components/mercuryPalette.ts'
 import { CONFIG_HOME, cleanupScenario, scenario } from '../ui/renderScenarios.ts'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
@@ -45,8 +46,8 @@ function capture(
   cfg['sends'] = sends
   cfg['total'] = total
   Object.assign(cfg, extra)
-  const gridPath = `/tmp/click-expand-${tag}-${process.pid}.json`
-  const cfgPath = `/tmp/click-expand-${tag}-cfg-${process.pid}.json`
+  const gridPath = `${tmpdir()}/click-expand-${tag}-${process.pid}.json`
+  const cfgPath = `${tmpdir()}/click-expand-${tag}-cfg-${process.pid}.json`
   writeFileSync(cfgPath, JSON.stringify({ ...cfg, out: gridPath }))
   const res = spawnSync('/usr/bin/python3', [join(import.meta.dir, '../ui/vshot.py'), cfgPath], {
     encoding: 'utf8',
@@ -106,7 +107,7 @@ if (base) {
   const rowOf = (needle: string): number => base.lines.findIndex(l => l.includes(needle))
   agentY = rowOf('Done (3 tool uses')
   globY = rowOf('Searched for 1 pattern')
-  errY = rowOf('The target file could not be read')
+  errY = rowOf('Error: ENOENT: no such file or directory')
   check('baseline: agent Done row present', agentY >= 0)
   if (agentY < 0) dumpFrame('baseline frame — the agent Done row is absent', base.lines)
   check('baseline: agent report HIDDEN', rowOf('REPORT-LINE') === -1)
@@ -116,8 +117,8 @@ if (base) {
   )
   check('baseline: glob group collapsed', globY >= 0 && rowOf('GlobTool/prompt.ts') === -1)
   check(
-    'baseline: error card folded (stack frames hidden)',
-    errY >= 0 && rowOf('+3 stack frames') >= 0 && rowOf('at Object.openSync') === -1,
+    'baseline: Edit says its first error clause with stack frames hidden',
+    errY >= 0 && rowOf('+3 stack frames') === -1 && rowOf('at Object.openSync') === -1 && rowOf('The target file could not be read') === -1,
   )
 }
 
@@ -150,7 +151,7 @@ if (base && globY >= 0 && errY >= 0) {
     'grow',
     [
       clickOn('Searched for 1 pattern', 110),
-      { ...clickOn('The target file could not be read', 150), awaitText: 'GlobTool/prompt.ts' },
+      { ...clickOn('Error: ENOENT: no such file or directory', 150), awaitText: 'GlobTool/prompt.ts' },
     ],
     170,
     { stableTicks: 4 },
@@ -175,8 +176,8 @@ cleanupScenario('click-expand')
 
 {
   const cfg = scenario('tool-lifecycle', 120, 50)
-  const gridPath = `/tmp/tool-lifecycle-${process.pid}.json`
-  const cfgPath = `/tmp/tool-lifecycle-cfg-${process.pid}.json`
+  const gridPath = `${tmpdir()}/tool-lifecycle-${process.pid}.json`
+  const cfgPath = `${tmpdir()}/tool-lifecycle-cfg-${process.pid}.json`
   writeFileSync(cfgPath, JSON.stringify({ ...cfg, out: gridPath }))
   const res = spawnSync('/usr/bin/python3', [join(import.meta.dir, '../ui/vshot.py'), cfgPath], {
     encoding: 'utf8',
@@ -241,8 +242,8 @@ cleanupScenario('click-expand')
     const cfg = { ...scenario('two-bash-click', 80, 40) } as Record<string, unknown>
     cfg['sends'] = sends
     cfg['total'] = total
-    const gridPath = `/tmp/click-expand-twobash-${tag}-${process.pid}.json`
-    const cfgPath = `/tmp/click-expand-twobash-${tag}-cfg-${process.pid}.json`
+    const gridPath = `${tmpdir()}/click-expand-twobash-${tag}-${process.pid}.json`
+    const cfgPath = `${tmpdir()}/click-expand-twobash-${tag}-cfg-${process.pid}.json`
     writeFileSync(cfgPath, JSON.stringify({ ...cfg, out: gridPath }))
     const res = spawnSync('/usr/bin/python3', [join(import.meta.dir, '../ui/vshot.py'), cfgPath], {
       encoding: 'utf8',
