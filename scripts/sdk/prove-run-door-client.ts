@@ -109,6 +109,7 @@ section('C2 every declared row type has a parser: the product\'s own writers pro
     tool_update: [project.toolUpdateRow(scope, { callId: 'toolu_1', tick: 1, source: 'shell', line: 'x', elapsedS: 1.5 })],
     step: [project.stepRow(scope, { messageId: 'm-1', model: 'm', stopReason: 'end_turn', usage })],
     outcome: [project.outcomeRow(scope, { turnId: 't-1', status: 'completed', stopReason: 'end_turn', answer: 'done', steps: 1, wallMs: 10, apiMs: 5, costUsd: 0.01, usage, models: project.modelUsageRows({ m: { inputTokens: 1, outputTokens: 1, cacheReadInputTokens: 0, cacheCreationInputTokens: 0, webSearchRequests: 0, costUSD: 0.01 } }), denials: [] })],
+    close: [project.closeRow(scope, { state: 'stored', noteChars: 142, usage }), project.closeRow(scope, { state: 'skipped', noteChars: 9 }), project.closeRow(scope, { state: 'none' })],
     wait: [project.waitRow(scope, null), project.retryWaitRow(scope, { attempt: 1, of: 3, reason: 'overloaded', delayMs: 100, httpStatus: 529, sinceMs: 0 })],
     heartbeat: [project.heartbeatRow(scope)],
     compaction: [project.compactionRow(scope, null, 'manual'), project.compactionEndedRow(scope, { trigger: 'auto', tokensBefore: 1000 }), project.compactionClearedRow(scope, 'auto')],
@@ -137,6 +138,11 @@ section('C2 every declared row type has a parser: the product\'s own writers pro
       check(`${type} row round-trips through parseRow`, line.ok && JSON.stringify(line.row) === JSON.stringify(stamped))
     }
   }
+  const closeStored = sdk.rowOf(stamper.stamp(projected.close![0] as never))
+  const closeNone = sdk.rowOf(stamper.stamp(projected.close![2] as never))
+  check('the close row lands typed with the state, the note length and the folded usage the writer spelled; a close with nothing stored carries the state alone', closeStored.ok && closeStored.row.type === 'close' && closeStored.row.state === 'stored' && closeStored.row.note_chars === 142 && closeStored.row.usage?.input_tokens === 18 && closeStored.row.usage.cached_input_tokens === 5 && closeStored.row.usage.cache_write_input_tokens === 3 && closeStored.row.usage.output_tokens === 7 && closeStored.row.usage.reasoning_output_tokens === 2 && closeNone.ok && closeNone.row.type === 'close' && closeNone.row.state === 'none' && !('note_chars' in closeNone.row) && !('usage' in closeNone.row), j({ closeStored, closeNone }))
+  const closeBroken = sdk.rowOf({ ...stamper.stamp(projected.close![2] as never), state: 'lost' })
+  check('a close row whose state is outside the three the product writes is refused on that path', !closeBroken.ok && closeBroken.reason === 'invalid' && closeBroken.issues.some(issue => issue.path === 'state'), j(closeBroken))
   const session = stamper.stamp(projected.session![0] as never) as Record<string, unknown>
   const mismatch = sdk.rowOf({ ...session, schema: 2 })
   check('a session row of another schema number is refused as schema_mismatch (never mis-read)', !mismatch.ok && mismatch.reason === 'schema_mismatch' && mismatch.schema === 2)
