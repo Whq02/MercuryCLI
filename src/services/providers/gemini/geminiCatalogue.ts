@@ -297,9 +297,16 @@ export type GeminiAvailability =
     }
 
 
+const GEMINI_NO_CHAT_ID = /(?:^|-)(?:image|imagen|veo|tts)(?:-|$)|nano-banana/i
+const GEMINI_NO_CHAT_NAME = /\bimage\b|\bimagen\b|\bveo\b|\btts\b|\bnano banana\b/i
+
+export function geminiMakesNoChat(model: Pick<GeminiLiveModel, 'id' | 'displayName'>): boolean {
+  return GEMINI_NO_CHAT_ID.test(model.id) || GEMINI_NO_CHAT_NAME.test(model.displayName ?? '')
+}
+
 export function geminiGenerateModels(snapshot: GeminiCatalogueSnapshot | null): GeminiLiveModel[] {
   if (!snapshot) return []
-  return snapshot.models.filter(m => m.supportedGenerationMethods?.includes('generateContent') && !/^(?:antigravity|deep-research)(?:-|$)/i.test(m.id))
+  return snapshot.models.filter(m => m.supportedGenerationMethods?.includes('generateContent') && !/^(?:antigravity|deep-research)(?:-|$)/i.test(m.id) && !geminiMakesNoChat(m))
 }
 
 const EMPTY_LIVE_IDS: ReadonlySet<string> = new Set<string>()
