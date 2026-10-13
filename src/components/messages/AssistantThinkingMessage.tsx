@@ -25,7 +25,7 @@ export function AssistantThinkingMessage({
   const thinking = param.thinking ?? ''
   if (hideInTranscript) return null
   if (thinking === '') {
-    if (!thinkingTextWithheld(param)) return null
+    if (!thinkingTextWithheld(param) || (!verbose && !isTranscriptMode)) return null
     return (
       <Box marginTop={addMargin ? 1 : 0}>
         <ThinkingLabel>{` — ${WITHHELD_THINKING_WORDS}`}</ThinkingLabel>
