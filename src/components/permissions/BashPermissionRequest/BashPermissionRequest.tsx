@@ -69,7 +69,8 @@ function BashCommandPermissionRequest(
 ): React.ReactNode {
   const { toolUseConfirm, toolUseContext, onDone, onReject, workerBadge, command } = props
   const [debugVisible, setDebugVisible] = useState(false)
-  const runFolder = useFocusedWorkspaceCwd()
+  const workspaceFolder = useFocusedWorkspaceCwd()
+  const runFolder = toolUseConfirm.cwd ?? workspaceFolder
 
   usePermissionRequestLogging(toolUseConfirm)
 

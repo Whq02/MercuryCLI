@@ -48,7 +48,7 @@ const SANDBOX_SETTINGS = {
 }
 writeFileSync(join(HOME, 'settings.json'), JSON.stringify(SANDBOX_SETTINGS, null, 2))
 
-const { exec, setCwd } = await import('../../src/utils/Shell.ts')
+const { exec, setCwd, getShellCwd } = await import('../../src/utils/Shell.ts')
 const { getCwd } = await import('../../src/utils/cwd.ts')
 const { setOriginalCwd } = await import('../../src/bootstrap/state.ts')
 const { SandboxManager } = await import('../../src/utils/sandbox/sandbox-adapter.ts')
@@ -78,7 +78,7 @@ async function run(command: string, sandboxed: boolean): Promise<Outcome> {
     shouldAutoBackground: false,
   })
   const result = await handle.result
-  return { code: result.code, out: result.stdout, stderr: result.stderr, cwd: getCwd() }
+  return { code: result.code, out: result.stdout, stderr: result.stderr, cwd: getCwd(), shellCwd: getShellCwd() }
 }
 
 {
@@ -120,7 +120,7 @@ if (!ready) {
   const echo = await run('echo sandboxed-ok', true)
   check('a sandboxed command runs and keeps its own status (the cwd record landed inside the boundary)', echo.code === 0 && /^sandboxed-ok\s*$/.test(echo.out), `code ${echo.code} ${JSON.stringify(echo.out.slice(0, 160))}`)
   const moved = await run(`cd "${PROJECT}/sub" && echo moved`, true)
-  check('a cd inside a sandboxed command propagates to the session', moved.code === 0 && moved.cwd === join(PROJECT, 'sub'), `code ${moved.code} cwd ${moved.cwd} ${JSON.stringify(moved.out.slice(0, 120))}`)
+  check('a cd inside a sandboxed command moves the shell and leaves the session where it was', moved.code === 0 && moved.shellCwd === join(PROJECT, 'sub') && moved.cwd === PROJECT, `code ${moved.code} shell ${moved.shellCwd} session ${moved.cwd} ${JSON.stringify(moved.out.slice(0, 120))}`)
   await run(`cd "${PROJECT}"`, true)
   const inside = await run(`echo in > "${PROJECT}/in.txt"`, true)
   check('a write inside the session directory lands with status 0', inside.code === 0 && existsSync(join(PROJECT, 'in.txt')), `code ${inside.code} ${JSON.stringify(inside.out.slice(0, 120))}`)
@@ -164,7 +164,7 @@ async function plain(command: string, opts: { timeout?: number } = {}): Promise<
     shouldAutoBackground: false,
   })
   const result = await handle.result
-  return { code: result.code, out: result.stdout, stderr: result.stderr, interrupted: result.interrupted, ms: Date.now() - started, cwd: getCwd() }
+  return { code: result.code, out: result.stdout, stderr: result.stderr, interrupted: result.interrupted, ms: Date.now() - started, cwd: getCwd(), shellCwd: getShellCwd() }
 }
 const trimmed = (p: Plain): string => p.out.trimEnd()
 
@@ -301,13 +301,13 @@ section("§4 the cwd record never replaces the command's status")
 {
   const gone = await plain(`mkdir -p "${SCRATCH}/gone" && cd "${SCRATCH}/gone" && rm -rf "${SCRATCH}/gone"; echo done`)
   check('a command that deletes its own directory keeps its status and prints its text', gone.code === 0 && trimmed(gone) === 'done', `code ${gone.code} ${JSON.stringify(gone.out.slice(0, 120))}`)
-  check('…and the session stays in an existing directory', existsSync(gone.cwd) && gone.cwd === PROJECT, gone.cwd)
+  check('…and the session stays in an existing directory, the shell recovering to it', existsSync(gone.cwd) && gone.cwd === PROJECT && gone.shellCwd === PROJECT, `session ${gone.cwd} shell ${gone.shellCwd}`)
   const failing = await plain('echo before; exit 3')
   check('a failing command keeps its own status', failing.code === 3 && trimmed(failing) === 'before', `code ${failing.code}`)
   const moved = await plain(`cd "${PROJECT}/sub" && echo moved`)
-  check('a successful cd is still recorded', moved.code === 0 && moved.cwd === join(PROJECT, 'sub'), moved.cwd)
+  check('a successful cd is still recorded — for the shell, not the session', moved.code === 0 && moved.shellCwd === join(PROJECT, 'sub') && moved.cwd === PROJECT, `shell ${moved.shellCwd} session ${moved.cwd}`)
   const back = await plain(`cd "${PROJECT}"`)
-  check('…and back', back.cwd === PROJECT, back.cwd)
+  check('…and back', back.shellCwd === PROJECT && back.cwd === PROJECT, `shell ${back.shellCwd} session ${back.cwd}`)
   const provider = readFileSync(join(ROOT, 'src', 'utils', 'shell', 'bashProvider.ts'), 'utf8')
   check('the record step is grouped with || true on the POSIX leg', /\{ pwd -P >\| \$\{quote\(\[cwdFileInShell\]\)\} 2>\/dev\/null \|\| true; \}/.test(provider))
 }

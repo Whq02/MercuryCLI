@@ -4,7 +4,7 @@ import type {
   PermissionDecisionReason,
 } from '../../utils/permissions/PermissionResult.js'
 import type { PermissionRule } from '../../types/permissions.js'
-import { getCwd } from '../../utils/cwd.js'
+import { getShellCwd } from '../../utils/Shell.js'
 import { refusalWithReason, ruleSentence, withRuleReason } from '../../utils/permissions/ruleReason.js'
 import { getPlatform } from '../../utils/platform.js'
 import { uncPathRisk, uncPathMessage } from '../../utils/permissions/uncPath.js'
@@ -507,7 +507,7 @@ export function bashToolCheckPermission(
   }
   const path = checkPathConstraints(
     input,
-    getCwd(),
+    getShellCwd(),
     context,
     compoundHasCd,
     astCommand?.redirects,
@@ -591,7 +591,7 @@ type PrefixFn = (
 >
 
 function asWrittenSingle(command: string, fallback: string): string {
-  const cwd = getCwd()
+  const cwd = getShellCwd()
   const posixCwd = getPlatform() === 'windows' ? windowsPathToPosixPath(cwd) : cwd
   const written = splitListSegments(command).filter(segment => segment !== `cd ${cwd}` && segment !== `cd ${posixCwd}`)
   return written.length === 1 ? (written[0] as string) : fallback
@@ -601,7 +601,7 @@ function filterCwdSubcommands(
   subcommands: string[],
   parsed: (SimpleCommand | undefined)[],
 ): { subcommands: string[]; parsed: (SimpleCommand | undefined)[] } {
-  const cwd = getCwd()
+  const cwd = getShellCwd()
   const posixCwd = getPlatform() === 'windows' ? windowsPathToPosixPath(cwd) : cwd
   const outSub: string[] = []
   const outParsed: (SimpleCommand | undefined)[] = []
@@ -689,7 +689,7 @@ async function decideBashPermission(
   )
   if (operator.behavior !== 'passthrough') {
     if (operator.behavior === 'deny') return operator
-    const path = checkPathConstraints(input, getCwd(), context, compoundHasCd, astCommands.flatMap(simple => simple.redirects), astCommands)
+    const path = checkPathConstraints(input, getShellCwd(), context, compoundHasCd, astCommands.flatMap(simple => simple.redirects), astCommands)
     if (path.behavior === 'deny') return path
     if (exact.behavior === 'ask') return exact
     if (operator.behavior === 'allow') return path.behavior !== 'passthrough' ? path : operator
@@ -724,7 +724,7 @@ async function decideBashPermission(
 
   const originalPath = checkPathConstraints(
     input,
-    getCwd(),
+    getShellCwd(),
     context,
     compoundHasCd,
     astCommands ? astCommands.flatMap(c => c.redirects) : undefined,

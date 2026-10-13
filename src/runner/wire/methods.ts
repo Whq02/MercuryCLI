@@ -73,6 +73,7 @@ export const PermissionRequestParamsSchema = lazySchema(() =>
       description: z.string().optional(),
       suggestions: z.array(permissionUpdateSchema()).optional(),
       blocked_path: z.string().optional(),
+      cwd: z.string().optional(),
       reason: z.string().optional(),
       reason_detail: z.unknown().optional(),
       agent_id: z.string().optional(),

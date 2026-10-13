@@ -37,7 +37,7 @@ console.log('============================================================')
 console.log(`  engine under test: ${engine} (pin ${ENGINE_ENV}=${process.env[ENGINE_ENV] ?? 'unset'}; lane ${lane.state}: ${lane.reason})`)
 console.log(`  SHELL for the system lane: ${process.env.SHELL}`)
 
-const { exec, setCwd } = await import('../../src/utils/Shell.ts')
+const { exec, setCwd, getShellCwd } = await import('../../src/utils/Shell.ts')
 const { getCwd } = await import('../../src/utils/cwd.ts')
 const { getMaxOutputLength } = await import('../../src/utils/shell/outputLimits.ts')
 
@@ -76,7 +76,7 @@ async function run(command: string, opts: RunOptions = {}): Promise<Outcome> {
     stderr: result.stderr,
     interrupted: result.interrupted,
     ms: Date.now() - started,
-    cwd: getCwd(),
+    cwd: getShellCwd(),
     fileSize: result.outputFileSize,
   }
 }
@@ -211,29 +211,31 @@ section('§4 exit codes and stream order')
   })
 }
 
-section('§5 the cwd record')
+section('§5 the cwd record — the shell directory, which the cd moves; the session directory never follows')
 {
-  await row('cd moves the session directory', `cd "${SUB}"`, { code: 0, out: '', cwd: SUB })
+  await row('cd moves the shell directory', `cd "${SUB}"`, { code: 0, out: '', cwd: SUB })
+  check('…and the session directory stayed where the session is', getCwd() === SCRATCH, `session ${getCwd()}`)
   await row('pwd reads the moved directory', 'pwd', { code: 0, out: SUB, cwd: SUB })
-  await row('a relative cd resolves against the session directory', 'cd deep && pwd', { code: 0, out: DEEP, cwd: DEEP })
+  await row('a relative cd resolves against the shell directory', 'cd deep && pwd', { code: 0, out: DEEP, cwd: DEEP })
   await row('cd ../.. climbs', 'cd ../..', { code: 0, cwd: SCRATCH })
-  await row('a subshell cd never moves the session', `(cd "${SUB}"; pwd); pwd`, { code: 0, out: `${SUB}\n${SCRATCH}`, cwd: SCRATCH })
-  await row('a failed cd leaves the session where it was', `cd "${SCRATCH}/nope" 2>/dev/null; echo "rc=$?"`, { code: 0, out: 'rc=1', cwd: SCRATCH })
+  await row('a subshell cd never moves the shell', `(cd "${SUB}"; pwd); pwd`, { code: 0, out: `${SUB}\n${SCRATCH}`, cwd: SCRATCH })
+  await row('a failed cd leaves the shell where it was', `cd "${SCRATCH}/nope" 2>/dev/null; echo "rc=$?"`, { code: 0, out: 'rc=1', cwd: SCRATCH })
   const deleted = await row(
-    'a command that deletes its own directory leaves the session in an existing one',
+    'a command that deletes its own directory leaves the shell in an existing one',
     `mkdir -p "${SCRATCH}/gone" && cd "${SCRATCH}/gone" && rm -rf "${SCRATCH}/gone"; echo done`,
     { outMatch: /^done/m },
   )
   note(`deleted-directory row: code ${deleted.code} out ${JSON.stringify(deleted.out.trim().slice(0, 120))}`)
   check('…and that directory exists on disk', existsSync(deleted.cwd), deleted.cwd)
   const after = await run('pwd')
-  check('…and the next command runs there', after.code === 0 && after.out.trim() === getCwd(), `pwd ${JSON.stringify(after.out.trim())} vs session ${getCwd()}`)
+  check('…and the next command runs there', after.code === 0 && after.out.trim() === getShellCwd(), `pwd ${JSON.stringify(after.out.trim())} vs shell ${getShellCwd()}`)
   await row('cd -P resolves a symlinked directory to its physical path', 'cd -P /tmp && pwd -P', { code: 0, out: realpathSync('/tmp'), cwd: realpathSync('/tmp') })
   const home = realpathSync(homedir())
   await row('a tilde cd lands in the home directory', 'cd ~', { code: 0, cwd: home })
   const odd = join(SCRATCH, 'sp ace', 'ünï')
   await row('a directory with spaces and non-ASCII letters is recorded NFC-normalized', `mkdir -p "${odd}" && cd "${odd}"`, { code: 0, cwd: odd.normalize('NFC') })
   await row('back to the scratch root', `cd "${SCRATCH}"`, { code: 0, cwd: SCRATCH })
+  check('through every cd of this section the session directory never moved', getCwd() === SCRATCH, `session ${getCwd()}`)
 }
 
 section('§6 the environment the seam sets')

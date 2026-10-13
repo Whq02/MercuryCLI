@@ -39,7 +39,7 @@ const gitBash = process.platform === 'win32' ? locateGitBash() : null
 if (gitBash !== null && 'path' in gitBash) process.env.SHELL = gitBash.path
 else if (!(process.env.SHELL ?? '').includes('bash') && existsSync('/bin/bash')) process.env.SHELL = '/bin/bash'
 
-const { exec, setCwd, getShellConfig } = await import('../../src/utils/Shell.ts')
+const { exec, setCwd, getShellCwd, getShellConfig } = await import('../../src/utils/Shell.ts')
 const { getCwd } = await import('../../src/utils/cwd.ts')
 const { getPlatform } = await import('../../src/utils/platform.ts')
 const { createBashShellProvider } = await import('../../src/utils/shell/bashProvider.ts')
@@ -189,7 +189,7 @@ const run = async (command: string): Promise<{ code: number; out: string }> => {
   check('a sed program that names a backslash by a pair finds it', sed.out === String.raw`a-\b` + '\n', show(sed.out))
   const moved = await run(String.raw`mkdir -p sub && cd sub && printf '%s\n' 'p\\q'`)
   check('a command with a pair that changes directory prints it', moved.code === 0 && moved.out === String.raw`p\\q` + '\n', `code ${moved.code} ${show(moved.out)}`)
-  check('…and the session directory followed it (the cwd record is intact)', getCwd() === realpathSync(join(SCRATCH, 'sub')), getCwd())
+  check('…and the shell directory followed it (the cwd record is intact) while the session directory stayed', getShellCwd() === realpathSync(join(SCRATCH, 'sub')) && getCwd() === realpathSync(SCRATCH), `shell ${getShellCwd()} · session ${getCwd()}`)
   setCwd(SCRATCH)
   const exit = await run(String.raw`printf '%s' 'a\\b'; exit 7`)
   check('its own exit status survives', exit.code === 7 && exit.out === String.raw`a\\b`, `code ${exit.code} ${show(exit.out)}`)

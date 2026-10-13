@@ -1,4 +1,4 @@
-import { getCwd } from '../../utils/cwd.js'
+import { getShellCwd } from '../../utils/Shell.js'
 import { basename, posix as posixPath } from 'node:path'
 
 const PS_DASH = /[-–—―]/
@@ -48,7 +48,7 @@ function posixNormalise(path: string): string {
 }
 
 function resolveCurrentDirectoryReentry(normalised: string): string {
-  const cwdBase = basename(getCwd()).toLowerCase()
+  const cwdBase = basename(getShellCwd()).toLowerCase()
   let value = normalised
   if (value.startsWith('../')) {
     let prev: string
@@ -63,7 +63,7 @@ function resolveCurrentDirectoryReentry(normalised: string): string {
 
 function resolveEscapingPath(normalised: string): string | null {
   if (!(normalised.startsWith('../') || normalised.startsWith('/') || /^[a-z]:/.test(normalised))) return null
-  const cwd = getCwd().toLowerCase().replace(/\\/g, '/')
+  const cwd = getShellCwd().toLowerCase().replace(/\\/g, '/')
   const resolved = posixNormalise(cwd + '/' + normalised)
   if (resolved === cwd) return '.'
   if (resolved.startsWith(cwd + '/')) return resolved.slice(cwd.length + 1)
