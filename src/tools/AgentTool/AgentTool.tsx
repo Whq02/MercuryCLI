@@ -167,7 +167,7 @@ export function agentCwdQuestion(spelling: string, permissionContext: ToolPermis
 }
 
 const MODEL_PARAM_DESCRIPTION =
-  "Model override for this launch. A family word selects that family (the [1m] forms select the 1M-context variant; a word naming the parent's own family keeps the parent's exact model) and an exact id names its model exactly; an explicit model here wins over the agent definition's own model; omitted, the agent inherits the parent's model. Engine backends all run in-process with this harness's own tools. Class aliases: 'gpt' (qualified OpenAI default) · 'glm' (Z.AI's newest GLM row) · 'kimi' (Moonshot's newest Kimi row) · 'deepseek' (DeepSeek's newest row) · 'grok' (xAI's newest Grok row) · 'muse' (Meta's newest served Standard Muse Spark row) · 'compat' (the operator-named OpenAI-compatible endpoint's first model) · 'huggingface' (the session's own Hugging Face model, else the router flagship) · 'local' (the session's own local model, else the first discovered one) · 'gemini' (the session's own Gemini model, else the live catalogue head) · 'openrouter' (the session's own OpenRouter model, else the auto router) · 'nous' (the session's own Nous Portal model, else the Portal's first recommended live row) · 'zen' (the session's own OpenCode Zen model, else the gateway's first listed row). An exact engine id (gpt-*, glm-*, kimi-*, deepseek-*, grok-*, gemini-*, compat/*, huggingface/*, local/*, openrouter/*, nous/*, zen/*) must be in its live catalogue."
+  "Model override for this launch. A family word selects that family (the [1m] forms select the 1M-context variant; a word naming the parent's own family keeps the parent's exact model) and an exact id names its model exactly; an explicit model here wins over the agent definition's own model; omitted, the agent inherits the parent's model. Engine backends all run in-process with this harness's own tools. Class aliases: 'gpt' (qualified OpenAI default) · 'glm' (Z.AI's newest GLM row) · 'kimi' (Moonshot's newest Kimi row) · 'deepseek' (DeepSeek's newest row) · 'grok' (xAI's newest Grok row) · 'muse' (Meta's newest served Standard Muse Spark row) · 'compat' (the operator-named OpenAI-compatible endpoint's first model) · 'huggingface' (the session's own Hugging Face model, else the router flagship) · 'local' (the session's own local model, else the first discovered one) · 'gemini' (the session's own Gemini model, else the newest Gemini row the account lists) · 'openrouter' (the session's own OpenRouter model, else the auto router) · 'mistral' (Mistral's newest row) · 'nous' (the session's own Nous Portal model, else the Portal's first recommended live row) · 'zen' (the session's own OpenCode Zen model, else the gateway's first listed row). To see the providers the operator is signed into and the models each reaches, read mercury://models and name one of them by its id; a family word runs that family's current default. The ladder is live, then known, then ask: when a signed-in provider's live list cannot be read, mercury://models/known decides — a family word runs the default this build knows and the launch receipt says so; an exact id the known page lists runs. A word on neither page is not a model to guess at: in an interactive session ask the operator for the model id with AskUserQuestion, naming the providers that are signed in and the live or known rows nearest the word; in a headless run say why in one line and stop. Never switch to another provider on your own — if the one you were asked for cannot run, say why and stop."
 
 function effortParamDescription(): string {
   return `Reasoning effort for this agent: ${EFFORT_LEVELS.join(' | ')}. Omitted, the configured crewmate default applies (high unless the operator changed it in /config) — never your own level. A level the agent's model does not serve runs the nearest level it does; a model with no effort control runs without one. Setting it also turns on extended reasoning where the model supports it. Spend the top tiers on the hardest judge and verify work.`
@@ -452,7 +452,7 @@ export const AgentTool = buildTool({
     }
 
     const typedModel = input.model
-    const matchedModel = typedModel ? matchReachableModelName(typedModel) : null
+    const matchedModel = typedModel ? matchReachableModelName(typedModel, 'pass') : null
     if (matchedModel !== null && (matchedModel.kind === 'ambiguous' || matchedModel.kind === 'none')) {
       throw new Error(modelNameHeadlessRefusal(matchedModel, 'model'))
     }
@@ -488,6 +488,7 @@ export const AgentTool = buildTool({
             engineDispatch: {
               backend: engineDispatch.backend,
               model: engineDispatch.model,
+              ...(engineDispatch.note !== undefined ? { note: engineDispatch.note } : {}),
             },
           }
         : {}),

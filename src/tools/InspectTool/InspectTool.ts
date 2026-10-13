@@ -71,7 +71,7 @@ mercury://<kind> with no id lists that kind's objects. Answers are honest: absen
 
 Use Inspect when a tool result or crewmate hands you a mercury:// ref, or to check run/receipt/workflow/service state without replaying transcripts. For plain file content, Read remains the primary tool (Inspect's file kind exists for uniformity and directory listings).
 
-mercury://seat is this seat's own reference: the model this turn runs on (the id the dispatch stamps), the effort, the posture, and the engines this session has run on with the time of each switch. Asked which model runs you, read it and answer from it; a model named in an earlier reply is not evidence of the one running now.`
+mercury://seat is this seat's own reference: the model this turn runs on (the id the dispatch stamps), the effort, the posture, and the engines this session has run on with the time of each switch. Asked which model runs you, read it and answer from it; a model named in an earlier reply is not evidence of the one running now. mercury://models is what the operator sees in /model and /logins: the providers signed in and the models each reaches, read live; mercury://models/known is what this build knows from its pin tables, not what is reachable now. Before naming a model for a launch, read mercury://models and name one of its rows; never switch to another provider on your own.`
   },
   userFacingName() {
     return 'Inspect'

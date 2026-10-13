@@ -98,10 +98,10 @@ const picker = await import('../../src/commands/model/mercuryModel.tsx')
 const { createUserMessage } = await import('../../src/utils/messages.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 
-type Road = { model?: string; backend?: string; displayLabel?: string; threw?: string }
+type Road = { model?: string; backend?: string; displayLabel?: string; note?: string; threw?: string }
 const agentRoad = (word: string): Promise<Road> =>
   engine.resolveEngineDispatch(word).then(
-    r => ({ ...(r ? { model: r.model, backend: r.backend, displayLabel: r.displayLabel } : {}) }),
+    r => ({ ...(r ? { model: r.model, backend: r.backend, displayLabel: r.displayLabel, ...(r.note !== undefined ? { note: r.note } : {}) } : {}) }),
     e => ({ threw: e instanceof Error ? e.message : String(e) }),
   )
 const show = (v: unknown): string => JSON.stringify(v) ?? String(v)
@@ -193,7 +193,7 @@ section('§3 the two roads agree row for row, credentialed, over fixture lists')
   check("'grok' ⇒ the newest live Grok row on both roads", grok.backend === 'xai' && grok.model === 'grok-fixture-new' && model.parseUserSpecifiedModel('grok') === 'grok-fixture-new', show(grok))
   await xai.refreshXaiCatalogue({ force: true, fetchImpl: page([]) })
   grok = await agentRoad('grok')
-  check("a live empty list: the session road keeps the word 'grok' and the agent road refuses, no row invented", model.parseUserSpecifiedModel('grok') === 'grok' && grok.threw?.includes('no catalogue entry') === true, show(grok))
+  check("a live empty list: the session road keeps the word 'grok'; the agent road runs the family's pinned default grok-4.7 and its note says the list serves no chat model — the sign-in is the stronger fact, no refusal, no other provider", model.parseUserSpecifiedModel('grok') === 'grok' && grok.backend === 'xai' && grok.model === 'grok-4.7' && grok.note?.includes('serves no chat model') === true, show(grok))
 
   process.env.MOONSHOT_API_KEY = 'moonshot-fixture-key'
   discovery.__resetProviderDiscoveryForTest()
@@ -233,7 +233,7 @@ section('§3 the two roads agree row for row, credentialed, over fixture lists')
   moonshot.__resetMoonshotCatalogueForTest()
   await moonshot.refreshMoonshotCatalogue({ force: true, fetchImpl: page([], 503) })
   kimi = await agentRoad('kimi')
-  check("an unread list: the session road keeps the word 'kimi' and the agent road names the account and the reason", model.parseUserSpecifiedModel('kimi') === 'kimi' && kimi.threw === "The 'kimi' class cannot resolve — the MOONSHOT_API_KEY (env)'s model list has not been read (Moonshot models endpoint returned HTTP 503). Name an exact kimi-… id the account serves, or retry when the list lands.", show(kimi))
+  check("an unread list: the session road keeps the word 'kimi'; the agent road runs the family's pinned default kimi-k3 and its note names the read failure — the sign-in is the stronger fact", model.parseUserSpecifiedModel('kimi') === 'kimi' && kimi.backend === 'moonshot' && kimi.model === KIMI_DISPLAY_PINS[0]!.id && kimi.note?.includes('the Moonshot model list could not be read (Moonshot models endpoint returned HTTP 503)') === true, show(kimi))
   const unread = await moonshot.qualifyMoonshotModel('kimi')
   check('the qualifier refuses the bare word typed while the list serves no row, naming the account and the error', unread.kind === 'refused' && unread.message.includes("Moonshot cannot resolve 'kimi'") && unread.message.includes('MOONSHOT_API_KEY (env)') && unread.message.includes('HTTP 503'), show(unread))
   const kimiRefused = await validateModel('kimi')

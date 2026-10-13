@@ -673,11 +673,12 @@ section('§C the workflow driver — scripted fan-out across every family')
       }
     `,
   )
-  check('a non-catalogue engine id fails the dispatch with the catalogue refusal (no wire call)',
+  check('a non-catalogue engine id fails the dispatch with the refusal naming both model pages and the ask rung (no wire call)',
     String(junkRun.result).startsWith('refused:') &&
-      String(junkRun.result).includes('not a catalogue-verified id') &&
+      String(junkRun.result).includes("Z.AI model 'glm-9999-nonexistent' is on neither mercury://models") &&
+      String(junkRun.result).includes('ask the operator for the model id') &&
       junkRun.wire.filter(h => h.family === 'zai').length === 0,
-    String(junkRun.result).slice(0, 200))
+    String(junkRun.result).slice(0, 300))
 }
 
 section('§D the coordinator seat — every family takes a coordinator turn')

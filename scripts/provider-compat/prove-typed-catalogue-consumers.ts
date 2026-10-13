@@ -37,12 +37,20 @@ function fileSource(file: string): string {
     return ''
   }
 }
+function knownRungBehindLiveList(dispatchSource: string = fileSource('src/utils/crew/engineDispatch.ts')): boolean {
+  const list = dispatchSource.indexOf('await readCatalogueIfPending(familyWord.route)')
+  const head = dispatchSource.indexOf('const head = familyWord.headRow()')
+  const pin = dispatchSource.indexOf('const pinned = familyWord.pinnedDefault()')
+  return list >= 0 && head > list && pin > head
+}
 function classification(file: string, table: string, owner: string, body: string, source: string = fileSource(file)): string | undefined {
   if (table === 'KIMI_DISPLAY_PINS') {
     if (file === 'src/services/providers/moonshot/kimiPins.ts' && owner === 'kimiDisplayPin' && /KIMI_DISPLAY_PINS\.find\(/.test(body)) return 'display/price metadata by id'
     if (file === 'src/commands/caching/caching.tsx' && owner === 'familyRows' && body.includes('pinnedCacheHitLines(KIMI_DISPLAY_PINS)')) return 'price display'
     if (file === 'src/services/providers/moonshot/moonshotCatalogue.ts' && owner === 'moonshotCatalogueRows' && body.includes('resolveMoonshotAccount(env) === undefined') && body.includes('getCachedMoonshotCatalogue(env)') && body.includes('snapshot.fetchedAtMs === 0')) return 'dated preview for a signed-out home; a signed-in account reads its live list alone'
     if (file === 'src/services/providers/typedModelIds.ts' && owner === 'typed' && body.includes('KIMI_DISPLAY_PINS.map(pin => pin.id)') && onlyReads(body, 'KIMI_DISPLAY_PINS', ['KIMI_DISPLAY_PINS.map(pin => pin.id)']) && source.includes('export function judgeTypedIds(') && source.includes('typed: typed()') && source.includes('list: cachedListSource(getCachedMoonshotCatalogue(env))') && !/keyLaneRow|computedDefault|resolveEngineDispatch|getModelOptions|providerSmallFastFact|providerLightFact|providerFrontierFact/.test(source)) return 'judged reader: typed ids compared with the cached live list; chooses nothing'
+    if (file === 'src/utils/model/bareFamilyWords.ts' && owner === 'kimiPinnedDefault' && body.includes('const pin = KIMI_DISPLAY_PINS[0]') && onlyReads(body, 'KIMI_DISPLAY_PINS', ["const { KIMI_DISPLAY_PINS } = require('../../services/providers/moonshot/kimiPins.js') as typeof import('../../services/providers/moonshot/kimiPins.js')", 'KIMI_DISPLAY_PINS[0]']) && source.includes('return moonshotCatalogueRows().rows[0]') && knownRungBehindLiveList()) return 'the known default behind the live list: the dispatch road reads the list, then the head row, and reaches this pin only when the list cannot be read'
+    if (file === 'src/utils/model/bareFamilyWords.ts' && owner === 'kimiKnownRows' && body.includes('KIMI_DISPLAY_PINS.map(pin => ({ id: pin.id, displayName: pin.displayName }))') && onlyReads(body, 'KIMI_DISPLAY_PINS', ["const { KIMI_DISPLAY_PINS } = require('../../services/providers/moonshot/kimiPins.js') as typeof import('../../services/providers/moonshot/kimiPins.js')", 'KIMI_DISPLAY_PINS.map(pin => ({ id: pin.id, displayName: pin.displayName }))']) && knownRungBehindLiveList()) return 'the known page rows (id and display name) this build ships, listed as known, never as reachable'
     return undefined
   }
   if (table === 'GLM_STATIC_CATALOGUE') {
@@ -52,6 +60,7 @@ function classification(file: string, table: string, owner: string, body: string
     return undefined
   }
   if (file === 'src/services/providers/openai/gptPins.ts' && owner === 'gptDisplayPin') return 'display/price metadata by id'
+  if (file === 'src/services/resources/adapters/models.ts' && owner === 'knownModelsReference' && body.includes('GPT_DISPLAY_PINS.map(pin => ({ id: pin.id, displayName: pin.displayName }))') && onlyReads(body, 'GPT_DISPLAY_PINS', ["const { GPT_DISPLAY_PINS } = await import('../../providers/openai/gptPins.js')", 'GPT_DISPLAY_PINS.map(pin => ({ id: pin.id, displayName: pin.displayName }))']) && source.includes('not what is reachable now') && !/resolveEngineDispatch|computedDefault|providerFrontierFact/.test(source)) return 'the known page rows (id and display name) this build ships, listed as known, never as reachable'
   if (file === 'src/utils/model/providerFrontier.ts' && ['providerFrontierFact', 'providerLightFact', 'providerSmallFastFact'].includes(owner)) return `existing OpenAI chooser obligation: ${openaiOwner}`
   if (file === 'src/utils/router/providers/openai.ts' && owner === 'staticPinCatalogue') return 'display projection; admission reads the live catalogue'
   if (file === 'src/utils/crew/engineDispatch.ts' && owner === 'resolveGptExactModel' && body.includes('await refreshOpenaiCatalogue') && body.includes('evaluateGptCandidate')) return 'exact-id fallback behind live admission'
@@ -119,10 +128,11 @@ const dispatch = readFileSync(join(SRC, 'utils/crew/engineDispatch.ts'), 'utf8')
 const adapter = readFileSync(join(SRC, 'utils/router/providers/moonshot.ts'), 'utf8')
 const familyWords = readFileSync(join(SRC, 'utils/model/bareFamilyWords.ts'), 'utf8')
 check('Moonshot picker reads the live-backed row owner', options.includes('moonshotCatalogueRows().rows') && !options.includes('KIMI_DISPLAY_PINS'))
-check('Moonshot specialist choice and exact admission read the catalogue, never a parallel static projection', dispatch.includes('bareFamilyWordOf(modelParam)') && familyWords.includes('moonshotCatalogueRows().rows[0]') && !familyWords.includes('KIMI_DISPLAY_PINS') && dispatch.includes('qualifyMoonshotModel(') && !dispatch.includes('KIMI_STATIC_CATALOGUE'))
+check('Moonshot specialist choice and exact admission read the catalogue first; the pin table is reached only as the known rung behind the live list, never a parallel static projection', dispatch.includes('bareFamilyWordOf(modelParam)') && familyWords.includes('moonshotCatalogueRows().rows[0]') && knownRungBehindLiveList(dispatch) && !dispatch.includes('KIMI_DISPLAY_PINS') && dispatch.includes('qualifyMoonshotModel(') && !dispatch.includes('KIMI_STATIC_CATALOGUE'))
+check('the known rung is refused when the dispatch road reads the pin before the list or the head', !knownRungBehindLiveList('const pinned = familyWord.pinnedDefault()\nawait readCatalogueIfPending(familyWord.route)\nconst head = familyWord.headRow()') && !knownRungBehindLiveList('const head = familyWord.headRow()\nconst pinned = familyWord.pinnedDefault()'))
 check('the Moonshot adapter does not rebuild a chooser from typed pins', adapter.includes('moonshotCatalogueRows()') && !adapter.includes('KIMI_DISPLAY_PINS'))
 const capabilities = readFileSync(join(SRC, 'utils/model/capabilities.ts'), 'utf8')
-check('the GLM picker, family word, exact admission and window read the live-backed row owner, never the static table', options.includes('zaiCatalogueRows().rows') && familyWords.includes('zaiCatalogueRows().rows[0]') && dispatch.includes('zaiCatalogueEntry(id)') && capabilities.includes('glmDisplayPin(id)?.contextWindow') && ![options, familyWords, dispatch, capabilities].some(source => source.includes('GLM_STATIC_CATALOGUE')))
+check('the GLM picker, family word, exact admission and window read the live-backed row owner, never the static table', options.includes('zaiCatalogueRows().rows') && familyWords.includes('zaiCatalogueRows().rows[0]') && dispatch.includes("resolveKeyLaneExactModel('zai', id, zaiCatalogueEntry, zaiCatalogueEntries)") && capabilities.includes('glmDisplayPin(id)?.contextWindow') && ![options, familyWords, dispatch, capabilities].some(source => source.includes('GLM_STATIC_CATALOGUE')))
 check('the census actually found consumers', consumers > 0)
 console.log(`${consumers} consumers, ${failures} failures`)
 process.exit(failures === 0 ? 0 : 1)

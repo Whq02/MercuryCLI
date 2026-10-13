@@ -150,7 +150,7 @@ const moonshotVerdict = () => {
   const decision = computedDefault()
   return { decision, considered: decision.considered.find(entry => entry.family === 'moonshot') }
 }
-const kimiWord = (): Promise<string> => resolveEngineDispatch('kimi').then(resolved => `resolved ${resolved?.model ?? 'null'}`, error => `threw ${error instanceof Error ? error.message : String(error)}`)
+const kimiWord = (): Promise<string> => resolveEngineDispatch('kimi').then(resolved => `resolved ${resolved?.model ?? 'null'}${resolved?.note !== undefined ? ` · ${resolved.note}` : ''}`, error => `threw ${error instanceof Error ? error.message : String(error)}`)
 const flush = (): Promise<void> => new Promise(resolve => setTimeout(resolve, 50))
 const TOKENS = { accessToken: 'fixture-access-plan', refreshToken: 'fixture-refresh-plan', accessTokenExpiresAtMs: Date.now() + 86400000 }
 
@@ -237,7 +237,7 @@ section('§4 a failed read: the unavailable row names the error, no ids, the def
   check('the default is unusable, naming the unread list and its error', considered?.verdict.usable === false && considered.verdict.why === `the account's model list has not been read (${error})` && decision.provider !== 'moonshot', JSON.stringify({ provider: decision.provider, why: considered?.verdict.why }))
   check('the frontier fact is silent', providerFrontierFact('moonshot') === undefined)
   const word = await kimiWord()
-  check("the 'kimi' family word throws a plain message naming the account and the reason", word === `threw The 'kimi' class cannot resolve — the ${KIMI_LABEL}'s model list has not been read (${error}). Name an exact kimi-… id the account serves, or retry when the list lands.`, word)
+  check("the 'kimi' family word runs the family's pinned default with a note naming the reason — the sign-in is the stronger fact than the unread list", word.startsWith('resolved kimi-k3 · the Moonshot model list could not be read (' + error + ')') && word.includes('Kimi K3 (kimi-k3)'), word)
   const admission = await catalogue.qualifyMoonshotModel(ALIAS)
   check('an exact id still dispatches on the degraded road (the provider validates it) — the section, not the dispatch, is what changed', admission.kind === 'degraded' && admission.note.includes(error), JSON.stringify(admission))
 }
@@ -291,7 +291,7 @@ section('§7 the seams, source-shaped: one three-state owner, every reader follo
   check('the picker row source reads the list state beside the pins and paints the status row from it', options.includes("listState: keyLaneListState('moonshot')") && options.includes("args.listState?.kind === 'unread'") && options.includes('kickMoonshotCatalogue()'))
   const defaults = src('utils/model/computedDefault.ts')
   check('the default reads the list state and says the list has not been read', defaults.includes('keyLaneListState(family)') && defaults.includes("the account's model list has not been read"))
-  check("the 'kimi' family word names the account and the unread list", src('utils/crew/engineDispatch.ts').includes("model list has not been read"))
+  check("the 'kimi' family word reads the list first, then the head, then the family's pinned default with its list words", src('utils/crew/engineDispatch.ts').includes('await readCatalogueIfPending(familyWord.route)') && src('utils/crew/engineDispatch.ts').includes('familyWord.pinnedDefault()') && src('utils/crew/engineDispatch.ts').includes('bareFamilyListWords(familyWord, providerName)'))
   const picker = src('commands/model/mercuryModel.tsx')
   check('↵ on the Moonshot status row re-reads the list in place for a signed-in account; a signed-out row still runs /logins', picker.includes("refreshMoonshotCatalogue({ force: true })") && picker.includes("nextInput: '/logins moonshot --return=/model'") && picker.includes('useCatalogueEpoch()'))
   const onDemand = src('services/providers/catalogueOnDemand.ts')
