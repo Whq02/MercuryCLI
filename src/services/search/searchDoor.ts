@@ -1,5 +1,5 @@
 import type { ToolUseContext } from '../../Tool.js'
-import { flagEnabled, flagEnv } from '../../substrate/flagRegistry.js'
+import { flagEnv } from '../../substrate/flagRegistry.js'
 import { AbortError } from '../../utils/errors.js'
 import { getEngineModel } from '../../utils/model/model.js'
 import { declaredRouteOf } from '../providers/routeLaw.js'
@@ -9,6 +9,7 @@ import { nativeBackendIdFor, nativeSearch, type SearchProgressSink } from './nat
 import { isNativeSearchFamily, type NativeSearchFamily } from './nativeSearchRequest.js'
 import { officialSearch } from './officialSearch.js'
 import { searxngSearch } from './searxng.js'
+import { DUCKDUCKGO_TERMS, duckduckgoScrapingEnabled } from './searchSetting.js'
 import { officialSearchIntent, type OfficialSearchSource } from './searchSources.js'
 import { cachedAnswerNote, coolDownRemainingMs, liveSearchClock, nextSearchGroupId, noteAnswered, noteRateLimited, rememberSearch, secondsLeftLabel, takeCachedSearch, takeKeyedDoorHint, type SearchClock } from './searchPacing.js'
 import { failureLine, KEYED_DOOR_COMMANDS, KEYED_DOOR_FREE_TIER, normaliseHits, searchBackendLabel, searchFailure, type SearchBackendId, type SearchFailure, type SearchHit, type SearchOutcome, type SearchRequest, type SearchTier } from './searchContract.js'
@@ -71,7 +72,7 @@ export function liveSearchDoorReads(env: Record<string, string | undefined> = pr
   return {
     ...(brave ? { braveKey: brave.source } : {}), ...(tavily ? { tavilyKey: tavily.source } : {}),
     ...(flagEnv('MERCURY_SEARCH_BACKEND') !== undefined ? { backendOverride: flagEnv('MERCURY_SEARCH_BACKEND') } : {}),
-    keylessAllowed: flagEnabled('MERCURY_SEARCH_KEYLESS'),
+    keylessAllowed: duckduckgoScrapingEnabled(),
   }
 }
 export function searchDoorLabel(door: SearchDoor): string {
@@ -159,7 +160,7 @@ export async function performWebSearch(input: SearchRequest, io: WebSearchRunIo)
       if (door.kind === 'keyed') noteAnswered(door.backend)
       if (!hits.length) { failures.push(searchFailure('no-backend', outcome.via, `${searchBackendLabel(outcome.via)} found no matching links`)); continue }
       const queries = outcome.queries ?? [request.query]
-      if (outcome.via !== 'github') rememberSearch(request, { via: outcome.via, tier: outcome.tier, hits, queries, notes: outcome.notes }, clock.now())
+      if (outcome.via !== 'github') rememberSearch(request, { via: outcome.via, tier: outcome.tier, hits, queries, notes: outcome.notes?.filter(note => note !== DUCKDUCKGO_TERMS) }, clock.now())
       const id = nextSearchGroupId(outcome.via)
       report(id, hits.length)
       const hint = outcome.tier === 'keyless' && !plan.doors.some(d => d.kind === 'keyed') ? takeKeyedDoorHint() : undefined

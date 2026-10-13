@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # gate-class: cpu
-# gate-watch: src/services/search/** src/tools/WebSearchTool/**
+# gate-watch: src/services/search/** src/tools/WebSearchTool/** src/substrate/flagRegistry.ts src/utils/config/**
 # gate-watch: src/services/providers/openai/openaiWire* src/services/providers/openai/responsesBridge*
 # gate-watch: src/tools/WebFetchTool/utils* src/utils/http*
 # gate-watch: scripts/daemon/dupline-world.ts scripts/lib/scriptedTurn.ts src/Tool.ts

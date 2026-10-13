@@ -846,7 +846,7 @@ function webSearchDoorCheck(): CheckSpec {
         return {
           status: 'info' as const,
           evidence: `no door opens for ${model} — ${plan.closed.join('; ')}`,
-          fix: '/router key brave (or tavily) stores a search key; unset MERCURY_SEARCH_KEYLESS to allow keyless search.',
+          fix: '/router key brave (or tavily) stores a search key; /config offers DuckDuckGo scraping as a separate opt-in.',
         }
       }
       return { status: 'ok' as const, evidence: `${model}: ${searchDoorFact(model)}` }

@@ -1,4 +1,3 @@
-#!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0', PACKAGE_URL: 'https://example.invalid/mercury' }
 
 import { spawn } from 'node:child_process'
@@ -69,6 +68,7 @@ guard.unref?.()
 const { startSearchFixture } = await import('./lib/searchFixture.ts')
 const fixture = await startSearchFixture(PORT)
 Object.assign(process.env, fixture.env)
+process.env.MERCURY_SEARCH_KEYLESS = '1'
 
 const { enableConfigs } = await import('../../src/utils/config.js')
 enableConfigs()
@@ -160,11 +160,11 @@ section("§1 NATIVE-ANTHROPIC — ProviderSearch on the session's own wire; the 
   const groups = (run.output?.results ?? []).filter((e): e is Exclude<ToolOutput['results'][number], string> => typeof e !== 'string')
   check('the fixture hit folded into a group (example.org admitted by the filter)', groups.length === 1 && groups[0]?.content[0]?.url === 'https://example.org/anthropic-hit', j(groups))
   check('the model commentary folded as a string entry', (run.output?.results ?? []).some(e => typeof e === 'string' && e.includes('fixture-native-commentary')), j(run.output?.results))
-  check('the model-facing text names the door and keeps the REMINDER', run.output !== undefined && modelText(run.output, ProviderSearchTool).includes('via Anthropic web search (native)') && modelText(run.output, ProviderSearchTool).includes('REMINDER'), run.output ? modelText(run.output, ProviderSearchTool).slice(0, 200) : '')
+  check('the model-facing text names the door and keeps the REMINDER', run.output !== undefined && modelText(run.output, ProviderSearchTool).includes('via Anthropic web search (native)') && modelText(run.output, ProviderSearchTool).includes('cite relevant URLs'), run.output ? modelText(run.output, ProviderSearchTool).slice(0, 200) : '')
   fixture.reset()
   const vendored = await runTool('claude-opus-4-8', { query: QUERY })
-  check('the vendored WebSearch on an anthropic home answers KEYLESS with ZERO anthropic hits',
-    vendored.output?.via === 'duckduckgo' && (vendored.perLane['anthropic'] ?? 0) === 0 && (vendored.perLane['ddg-html'] ?? 0) === 1, j({ via: vendored.output?.via, lanes: vendored.perLane }))
+  check('WebSearch on an anthropic home answers from its own native account first',
+    vendored.output?.via === 'anthropic-native' && (vendored.perLane['anthropic'] ?? 0) === 1 && (vendored.perLane['ddg-html'] ?? 0) === 0, j({ via: vendored.output?.via, lanes: vendored.perLane }))
   delete process.env.ANTHROPIC_API_KEY
   fixture.reset()
 }
@@ -216,17 +216,17 @@ section('§3 THE SOVEREIGN HOME — the cross-account poison: keyless nemotron:f
     j(run.perLane) === j({ 'ddg-html': 1 }), j(run.perLane))
   const ddgHit = fixture.hitsOn('ddg-html').at(-1)
   check('…as a form POST carrying the query, under the stable Mercury agent, cookie-free',
-    ddgHit?.method === 'POST' && (ddgHit?.body ?? '').includes(encodeURIComponent('terminal harness').replace(/%20/g, '+')) && /^Mozilla\/5\.0 \(compatible; Mercury\/[^)]+\)$/.test(ddgHit?.headers['user-agent'] ?? '') && ddgHit?.headers['cookie'] === undefined,
+    ddgHit?.method === 'POST' && (ddgHit?.body ?? '').includes(encodeURIComponent('terminal harness').replace(/%20/g, '+')) && (ddgHit?.headers['user-agent'] ?? '').startsWith('Mercury/') && ddgHit?.headers['cookie'] === undefined,
     j({ method: ddgHit?.method, body: (ddgHit?.body ?? '').slice(0, 80), ua: ddgHit?.headers['user-agent'] }))
-  check('…and the agent DISCLOSES nothing beyond Mercury/<version> — no +url, no repo, no host (the ruled spelling)',
-    !(ddgHit?.headers['user-agent'] ?? '').includes('+') && !OPERATOR_NEEDLE.test(ddgHit?.headers['user-agent'] ?? ''), ddgHit?.headers['user-agent'])
+  check('…the descriptive agent names Mercury and its public contact, never a browser build',
+    (ddgHit?.headers['user-agent'] ?? '').includes('https://mercury-cli.ai; https://github.com/Whq02/MercuryCLI/issues'), ddgHit?.headers['user-agent'])
   check('via names the keyless door', run.output?.via === 'duckduckgo' && run.output?.tier === 'keyless', j([run.output?.via, run.output?.tier]))
   const groups = (run.output?.results ?? []).filter((e): e is Exclude<ToolOutput['results'][number], string> => typeof e !== 'string')
   check('the captured page\'s hits came back as ONE plain group (harness.io first, snippet carried)',
     groups.length === 1 && groups[0]?.content[0]?.url === 'https://www.harness.io/' && (groups[0]?.content[0]?.snippet ?? '').includes('software delivery platform'), j(groups[0]?.content[0]))
   check('no commentary strings from a keyless door', (run.output?.results ?? []).every(e => typeof e !== 'string'), j(run.output?.results))
   check('the model-facing text is plain JSON links + the plain keyless via line + the once-per-session key hint (a fresh process\'s first keyless answer)',
-    run.output !== undefined && modelText(run.output).includes('Links: [') && modelText(run.output).includes('Searched via DuckDuckGo (keyless).') && modelText(run.output).includes(`Hint (tell the user once): ${KEYED_DOOR_REMEDY}.`), run.output ? modelText(run.output).slice(0, 400) : '')
+    run.output !== undefined && modelText(run.output).includes('"hits":[') && modelText(run.output).includes('via DuckDuckGo (keyless)') && modelText(run.output).includes(KEYED_DOOR_REMEDY), run.output ? modelText(run.output).slice(0, 400) : '')
   fixture.reset()
 }
 
@@ -281,7 +281,7 @@ section('§5 TYPED FAILURES — the challenge, the poison, the fallthroughs, the
   fixture.modes.ddgLite = 'anomaly'
   let run = await runTool(NEMOTRON, { query: QUERY })
   check('the captured 202 challenge on both doors throws ONE rate-limited line naming the challenge and the html door\'s fact',
-    run.output === undefined && /rate-limited this client/.test(run.error?.message ?? '') && /bot challenge page/.test(run.error?.message ?? '') && /the html door/.test(run.error?.message ?? ''), run.error?.message)
+    run.output === undefined && /rate-limited this client/.test(run.error?.message ?? '') && /refused automated access/.test(run.error?.message ?? '') && /no retry or host swap/.test(run.error?.message ?? ''), run.error?.message)
   fixture.modes.ddgHtml = 'poison'
   fixture.modes.ddgLite = 'poison'
   run = await runTool(NEMOTRON, { query: QUERY })
@@ -301,7 +301,7 @@ section('§5 TYPED FAILURES — the challenge, the poison, the fallthroughs, the
   run = await runTool(NEMOTRON, { query: QUERY })
   check('a keyed 401 FALLS THROUGH to keyless with its note on the result',
     run.output?.via === 'duckduckgo' && (run.output?.notes ?? []).some(n => /Brave Search refused the stored key/.test(n) && /HTTP 401/.test(n)), j(run.output?.notes))
-  check('…and the model-facing text carries the note', run.output !== undefined && modelText(run.output).includes('Note: Brave Search refused'), '')
+  check('…and the model-facing text carries the note', run.output !== undefined && modelText(run.output).includes('Brave Search refused'), '')
   fixture.modes.brave = 'results'
   delete process.env.BRAVE_API_KEY
 
@@ -316,7 +316,7 @@ section('§5 TYPED FAILURES — the challenge, the poison, the fallthroughs, the
   fixture.reset()
   run = await runTool('gpt-5.5', { query: QUERY })
   check("…while the model's own fallback — choosing WebSearch — answers keyless on the same home",
-    run.output?.via === 'duckduckgo' && (run.perLane['openai'] ?? 0) === 0 && (run.perLane['anthropic'] ?? 0) === 0, j({ via: run.output?.via, lanes: run.perLane }))
+    run.output?.via === 'duckduckgo' && (run.perLane['openai'] ?? 0) > 0 && (run.perLane['anthropic'] ?? 0) === 0, j({ via: run.output?.via, lanes: run.perLane }))
   fixture.modes.openai = 'results'
   delete process.env.OPENAI_API_KEY
 
@@ -324,9 +324,9 @@ section('§5 TYPED FAILURES — the challenge, the poison, the fallthroughs, the
   fixture.reset()
   run = await runTool(NEMOTRON, { query: QUERY })
   check('keyless off + no keys + no native ⇒ the typed no-backend line naming the key door and the flag',
-    run.output === undefined && /no open door/.test(run.error?.message ?? '') && /\/router key brave/.test(run.error?.message ?? '') && /MERCURY_SEARCH_KEYLESS=0/.test(run.error?.message ?? ''), run.error?.message)
+    run.output === undefined && /No source answered/.test(run.error?.message ?? '') && /\/router key brave/.test(run.error?.message ?? '') && /MERCURY_SEARCH_KEYLESS=0/.test(run.error?.message ?? ''), run.error?.message)
   check('…and NOTHING was dialled', j(run.perLane) === j({}), j(run.perLane))
-  delete process.env.MERCURY_SEARCH_KEYLESS
+  process.env.MERCURY_SEARCH_KEYLESS = '1'
   fixture.reset()
 }
 
@@ -352,8 +352,8 @@ section('§7 SCHEMA — the tool\'s own zod parses it; JSON round-trips; a pre-d
   check('the output keys are exactly the declared ones', j(Object.keys(run.output ?? {}).sort()) === j(['durationSeconds', 'query', 'results', 'tier', 'via'].sort()), j(Object.keys(run.output ?? {})))
   const legacy: ToolOutput = { query: 'old', results: [{ tool_use_id: 'srvtoolu_old', content: [{ title: 'T', url: 'https://x.org/' }] }, 'old commentary'], durationSeconds: 1.2 }
   const legacyParsed = (WebSearchTool as { outputSchema: { safeParse: (v: unknown) => { success: boolean } } }).outputSchema.safeParse(legacy)
-  check('a pre-door persisted output (no via/tier) still satisfies the schema', legacyParsed.success === true)
-  check('…and still renders for the model without a via line', modelText(legacy).includes('Links: [') && !modelText(legacy).includes('Searched via'), modelText(legacy).slice(0, 120))
+  check('a persisted output without source fields does not satisfy the new strict schema', legacyParsed.success === false)
+  check('…and still renders for the model without a via line', modelText(legacy).includes('"hits":[') && !modelText(legacy).includes('via undefined'), modelText(legacy).slice(0, 120))
   fixture.reset()
 }
 
@@ -404,98 +404,49 @@ section('§9 THE WEBFETCH ROAD — no policy service is asked before a fetch, on
   fixture.reset()
 }
 
-section('§10 PACING — a rate limit is a WAIT: one retry, a cool-down, the ONE line with the way out, no knock inside the window')
+section('§10 PACING — a refusal stops both endpoints without a retry or a host swap')
 {
-  const ddgKnocks = (): Array<{ lane: string; at: number }> => fixture.hits.filter(h => h.lane === 'ddg-html' || h.lane === 'ddg-lite').map(h => ({ lane: h.lane, at: h.at }))
   fixture.modes.ddgHtml = 'anomaly'
-  fixture.modes.ddgLite = 'anomaly'
-  fixture.reset()
-  const started = Date.now()
-  let run = await runTool(NEMOTRON, { query: QUERY })
-  const elapsedMs = Date.now() - started
-  let line = run.error?.message ?? ''
-  check('both doors challenged ⇒ ONE rate-limited line naming the challenge, the html door, the retry and the cool-down opened',
-    run.output === undefined && /rate-limited this client/.test(line) && /bot challenge page/.test(line) && /the html door: rate-limited/.test(line) && /the same on one retry after \d\.\ds/.test(line) && /cooling down \d+s before the next knock/.test(line) && !line.includes('\n'), line)
-  check('…naming the two key commands and the free tiers (no key stored)', line.includes('/router key brave · /router key tavily') && line.includes('free tier'), line)
-  check('…and on a nemotron home NO ProviderSearch clause (the family has no native door)', !line.includes('ProviderSearch'), line)
-  check('the census is html 2 (one retry) + lite 1', j(run.perLane) === j({ 'ddg-html': 2, 'ddg-lite': 1 }), j(run.perLane))
-  const knocks = ddgKnocks()
-  const retryGapMs = knocks.length === 3 ? knocks[2]!.at - knocks[1]!.at : -1
-  check('the retry waited the jittered back-off (1.5–3 s after the lite knock) — read off the wire', retryGapMs >= 1_400 && retryGapMs <= 3_600, `${retryGapMs}ms (walk ${elapsedMs}ms)`)
-  fixture.reset()
-  run = await runTool(NEMOTRON, { query: QUERY }, { keepPacing: true })
-  line = run.error?.message ?? ''
-  check('a second call inside the window knocks NOTHING', j(run.perLane) === j({}), j(run.perLane))
-  check('…and its ONE line names the seconds left on both doors, that no request was made, and the key commands',
-    run.output === undefined && /rate-limited this client: cooling down after a rate limit — \d+s left before the next knock \(both doors\); no request was made/.test(line) && line.includes('/router key brave'), line)
-  fixture.reset()
-  run = await runTool(NEMOTRON, { query: 'a different question' }, { keepPacing: true })
-  check("a different query inside the window knocks nothing either — the cool-down is the door's, not the query's", j(run.perLane) === j({}), j(run.perLane))
-  check('the ledger holds one window per door, and an untouched door is open',
-    pacing.coolDownRemainingMs('duckduckgo', Date.now()) > 0 && pacing.coolDownRemainingMs('duckduckgo-lite', Date.now()) > 0 && pacing.coolDownRemainingMs('brave', Date.now()) === 0)
-
-  fixture.reset()
-  run = await runTool('gpt-5.5', { query: QUERY })
-  line = run.error?.message ?? ''
-  check("on a gpt home the ONE line ends by naming ProviderSearch (the provider's own search) as the other door",
-    run.output === undefined && /ProviderSearch \(OpenAI web search, the provider's own search\) is listed for this session — the other door\.$/.test(line) && !line.includes('\n'), line)
-  check('…after the key commands, with the census html 2 + lite 1 and ZERO model lanes', line.includes('/router key brave') && line.indexOf('/router key brave') < line.indexOf('ProviderSearch (') && j(run.perLane) === j({ 'ddg-html': 2, 'ddg-lite': 1 }), j(run.perLane))
-
-  fixture.reset()
-  fixture.modes.ddgHtml = 'anomaly'
-  fixture.modes.ddgLite = 'poison'
-  run = await runTool(NEMOTRON, { query: QUERY })
-  line = run.error?.message ?? ''
-  check('html 202 + lite poison: the line leads with the lite parse fact and carries the html rate limit, its retry and its cool-down',
-    run.output === undefined && /shape Mercury does not recognise/.test(line) && /the html door: rate-limited/.test(line) && /one retry after/.test(line) && /cooling down \d+s/.test(line), line)
-  fixture.reset()
   fixture.modes.ddgLite = 'results'
+  fixture.reset()
+  let run = await runTool(NEMOTRON, { query: QUERY })
+  let line = run.error?.message ?? ''
+  check('the refusal explains the wait and forbids host evasion', run.output === undefined && /rate-limited this client/.test(line) && /no retry or host swap/.test(line) && /cooling down/.test(line), line)
+  check('one html request only, even though lite would answer', j(run.perLane) === j({ 'ddg-html': 1 }), j(run.perLane))
+  check('the first use carries its actual terms', line.includes('https://duckduckgo.com/terms'), line)
+  fixture.reset()
   run = await runTool(NEMOTRON, { query: QUERY }, { keepPacing: true })
-  check('inside the html cool-down the lite door answers WITHOUT an html knock — census exactly {ddg-lite:1}',
-    run.output?.via === 'duckduckgo-lite' && j(run.perLane) === j({ 'ddg-lite': 1 }), j({ via: run.output?.via, lanes: run.perLane, error: run.error?.message }))
-  check("…and the result carries the html door's cool-down as a note, in the model text too",
-    (run.output?.notes ?? []).some(n => /DuckDuckGo rate-limited this client: cooling down after a rate limit — \d+s left; not knocked/.test(n)) && run.output !== undefined && modelText(run.output).includes('Note: DuckDuckGo rate-limited this client: cooling down'), j(run.output?.notes))
+  line = run.error?.message ?? ''
+  check('the next call inside the wait makes no request', j(run.perLane) === j({}) && /no request was made/.test(line), line)
+  check('terms are once per session, not repeated in the failure', !line.includes('https://duckduckgo.com/terms'))
+  fixture.reset()
+  run = await runTool(NEMOTRON, { query: 'different words' }, { keepPacing: true })
+  check('a different query cannot dodge the wait either', j(run.perLane) === j({}), j(run.perLane))
+  fixture.modes.ddgHtml = 'poison'
+  fixture.modes.ddgLite = 'results'
+  run = await runTool(NEMOTRON, { query: QUERY })
+  check('a changed page, unlike a refusal, may try the second representation', run.output?.via === 'duckduckgo-lite' && j(run.perLane) === j({ 'ddg-html': 1, 'ddg-lite': 1 }), j(run.perLane))
+  pacing.resetSearchPacing()
+  const controller = new AbortController()
+  let sleepStarted!: () => void
+  const sleeping = new Promise<void>(resolve => { sleepStarted = resolve })
+  let steps = 0
+  const cancelledRun = keylessSearch({ query: QUERY, signal: controller.signal }, {
+    enabled: true,
+    fetchImpl: (async () => { steps++; return new Response('<html>unknown</html>') }) as typeof fetch,
+    clock: { now: () => 0, random: () => 0.5, sleep: async (ms: number, signal?: AbortSignal) => {
+      if (!ms) return
+      sleepStarted()
+      await new Promise<void>(resolve => { if (signal?.aborted) resolve(); else signal?.addEventListener('abort', () => resolve(), { once: true }) })
+    } },
+  })
+  await sleeping
+  controller.abort()
+  const cancelled = await cancelledRun
+  check('cancel interrupts the paced second request before it reaches the wire', !cancelled.ok && cancelled.kind === 'aborted' && steps === 1, j(cancelled))
   fixture.modes.ddgHtml = 'results'
   fixture.modes.ddgLite = 'results'
-
-  {
-    pacing.resetSearchPacing()
-    const anomalyHtml = readFileSync(join(repoRoot(), 'scripts/search/fixtures/ddg-html-anomaly-202.html'), 'utf8')
-    const anomalyLite = readFileSync(join(repoRoot(), 'scripts/search/fixtures/ddg-lite-anomaly-202.html'), 'utf8')
-    const resultsHtml = readFileSync(join(repoRoot(), 'scripts/search/fixtures/ddg-html-results.html'), 'utf8')
-    let knocked = 0
-    const refuseTwice = (async (url: string | URL) => {
-      knocked++
-      const html = String(url).includes('/ddg/html')
-      if (html && knocked >= 3) return new Response(resultsHtml, { status: 200, headers: { 'content-type': 'text/html' } })
-      return new Response(html ? anomalyHtml : anomalyLite, { status: 202, headers: { 'content-type': 'text/html' } })
-    }) as unknown as typeof fetch
-    const sleeps: number[] = []
-    const frozen = { now: () => 0, random: () => 0.5, sleep: async (ms: number) => { sleeps.push(ms) } }
-    const landed = await keylessSearch({ query: QUERY }, { fetchImpl: refuseTwice, clock: frozen })
-    check('the retry that LANDS answers via the html door after exactly one back-off, with both refusals as notes',
-      landed.ok && landed.via === 'duckduckgo' && knocked === 3 && j(sleeps) === j([2_250]) && (landed.notes ?? []).length === 2 && /answered on one retry after 2\.[23]s/.test(landed.notes?.[0] ?? '') && /DuckDuckGo \(lite\) rate-limited/.test(landed.notes?.[1] ?? ''),
-      j({ ok: landed.ok, knocked, sleeps, tail: landed.ok ? landed.notes : landed }))
-    check("…and an answer clears the door's streak (no cool-down after a landed retry)", pacing.coolDownRemainingMs('duckduckgo', 0) === 0 && pacing.coolDownRemainingMs('duckduckgo-lite', 0) === 0)
-    knocked = 0
-    const poisonBoth = (async () => {
-      knocked++
-      return new Response('<html><body><div class="totally-new-shape"></div></body></html>', { status: 200, headers: { 'content-type': 'text/html' } })
-    }) as unknown as typeof fetch
-    const poisoned = await keylessSearch({ query: QUERY }, { fetchImpl: poisonBoth, clock: frozen })
-    check('a changed page shape on both doors is NOT retried (two knocks, no second sleep) and opens no cool-down',
-      !poisoned.ok && poisoned.kind === 'parse-failed' && knocked === 2 && sleeps.length === 1 && pacing.coolDownRemainingMs('duckduckgo', 0) === 0, j({ knocked, sleeps, kind: poisoned.ok ? 'ok' : poisoned.kind }))
-    pacing.resetSearchPacing()
-    const controller = new AbortController()
-    const alwaysChallenged = (async (url: string | URL) => new Response(String(url).includes('/ddg/html') ? anomalyHtml : anomalyLite, { status: 202, headers: { 'content-type': 'text/html' } })) as unknown as typeof fetch
-    const cancelStarted = Date.now()
-    setTimeout(() => controller.abort(), 120)
-    const cancelled = await keylessSearch({ query: QUERY, signal: controller.signal }, { fetchImpl: alwaysChallenged })
-    const cancelMs = Date.now() - cancelStarted
-    check("the operator's cancel during the back-off settles ABORTED at once — never a wait to the end of the back-off, never relabelled",
-      !cancelled.ok && cancelled.kind === 'aborted' && cancelMs < 1_200, j({ kind: cancelled.ok ? 'ok' : cancelled.kind, cancelMs }))
-    pacing.resetSearchPacing()
-  }
+  pacing.resetSearchPacing()
   fixture.reset()
 }
 
@@ -523,7 +474,7 @@ section("§11 THE SESSION CACHE — the same query answers with ZERO knocks and 
     j({ cached: second?.cached, via: second?.via, notes: second?.notes, error: run.error?.message }))
   check('…the same hits, under a FRESH group id', hitsOf(second) !== '' && hitsOf(second) === hitsOf(first) && groupOf(second) !== groupOf(first) && /^duckduckgo-\d+$/.test(groupOf(second)), j([groupOf(first), groupOf(second)]))
   check('…and NO hint the second time (once per process): the model text names the cache and carries no Hint line',
-    second?.hint === undefined && second !== undefined && modelText(second).includes("Note: answered from this session's search cache") && !modelText(second).includes('Hint ('), second ? modelText(second).slice(0, 300) : '')
+    second?.hint === undefined && second !== undefined && modelText(second).includes("answered from this session's search cache") && !modelText(second).includes('Hint ('), second ? modelText(second).slice(0, 300) : '')
   check("the cached output still parses under the tool's schema and round-trips",
     (WebSearchTool as { outputSchema: { safeParse: (v: unknown) => { success: boolean } } }).outputSchema.safeParse(second).success === true && j(JSON.parse(j(second))) === j(second))
   fixture.reset()
@@ -588,7 +539,7 @@ section("§12 KEYED PACING — a Brave 429 falls through with its note and opens
   fixture.reset()
   run = await runTool(NEMOTRON, { query: 'a second question' }, { keepPacing: true })
   check("the next call inside Brave's cool-down skips Brave WITHOUT a knock — census exactly {ddg-html:1}, the note naming the seconds left",
-    j(run.perLane) === j({ 'ddg-html': 1 }) && (run.output?.notes ?? []).some(n => /Brave Search rate-limited this client: cooling down after a rate limit — \d+s left; not knocked/.test(n)), j({ lanes: run.perLane, notes: run.output?.notes }))
+    j(run.perLane) === j({ 'ddg-html': 1 }) && (run.output?.notes ?? []).some(n => /Brave Search rate-limited this client: wait \d+s; no request made/.test(n)), j({ lanes: run.perLane, notes: run.output?.notes }))
   fixture.modes.brave = 'results'
   fixture.reset()
   run = await runTool(NEMOTRON, { query: 'a third question' })
@@ -633,6 +584,8 @@ section("§13 THE BUILT BUNDLE — a headless gpt session on dist/mercury.mjs: t
         MERCURY_DAEMON_DIR: join(homeDir, 'daemon'),
         MERCURY_LOCAL_PROBE_TARGETS: 'none',
         MERCURY_TOOL_SEARCH: '0',
+        MERCURY_SEARCH_KEYLESS: '1',
+        MERCURY_SEARCH_BACKEND: 'duckduckgo',
         OPENAI_API_KEY: 'fixture-openai-key',
         ...fixture.env,
       }
@@ -660,9 +613,9 @@ section("§13 THE BUILT BUNDLE — a headless gpt session on dist/mercury.mjs: t
     let results = toolResults()
     check('…two WebSearch results reached the wire', results.length === 2, j(results.map(t => t.slice(0, 120))))
     check('…the first answers keyless with the plain via line and the key hint ONCE',
-      (results[0] ?? '').includes('Searched via DuckDuckGo (keyless).') && (results[0] ?? '').includes(`Hint (tell the user once): ${KEYED_DOOR_REMEDY}.`) && (results[0] ?? '').includes('Links: ['), (results[0] ?? '').slice(0, 300))
+      (results[0] ?? '').includes('via DuckDuckGo (keyless)') && (results[0] ?? '').includes(KEYED_DOOR_REMEDY) && (results[0] ?? '').includes('"hits":['), (results[0] ?? '').slice(0, 300))
     check('…the second is the cache: the note, the links, NO hint',
-      (results[1] ?? '').includes("Note: answered from this session's search cache") && (results[1] ?? '').includes('Links: [') && !(results[1] ?? '').includes('Hint ('), (results[1] ?? '').slice(0, 300))
+      (results[1] ?? '').includes("answered from this session's search cache") && (results[1] ?? '').includes('"hits":[') && !(results[1] ?? '').includes('Hint ('), (results[1] ?? '').slice(0, 300))
     let census = censusNow()
     check('…the census: ONE ddg-html knock for two searches, three model turns, zero on the spy and the keyed doors',
       census['ddg-html'] === 1 && census['ddg-lite'] === undefined && census['openai'] === 3 && census['anthropic'] === undefined && census['brave'] === undefined && census['tavily'] === undefined, j(census))
@@ -677,16 +630,10 @@ section("§13 THE BUILT BUNDLE — a headless gpt session on dist/mercury.mjs: t
     check('…two distinct tool results', results.length === 2, j(results))
     const firstLine = results[0] ?? ''
     const secondLine = results[1] ?? ''
-    check('…the first is the ONE line: the challenge on both doors, one retry, the cool-down opened, the key commands, the ProviderSearch door',
-      /rate-limited this client/.test(firstLine) && /bot challenge page/.test(firstLine) && /the same on one retry after \d\.\ds/.test(firstLine) && /cooling down \d+s before the next knock/.test(firstLine) && firstLine.includes('/router key brave · /router key tavily') && /ProviderSearch \(OpenAI web search, the provider's own search\) is listed for this session — the other door\./.test(firstLine) && !firstLine.replace(/\[tool error\] |<\/?tool_use_error>/g, '').trim().includes('\n'),
-      firstLine)
-    check('…the second, inside the window, names the seconds left, that no request was made, and the ProviderSearch door',
-      /cooling down after a rate limit — \d+s left before the next knock \(both doors\); no request was made/.test(secondLine) && secondLine.includes('ProviderSearch ('), secondLine)
+    check('the first refusal names the wait and terms without retrying', /rate-limited this client/.test(firstLine) && /no retry or host swap/.test(firstLine) && firstLine.includes('https://duckduckgo.com/terms'), firstLine)
+    check('the second call names the wait with no request made', /cooling down/.test(secondLine) && /no request was made/.test(secondLine) && !secondLine.includes('https://duckduckgo.com/terms'), secondLine)
     census = censusNow()
-    check('…the wire: html 2 (one retry) + lite 1 for TWO searches — the second knocked nothing', census['ddg-html'] === 2 && census['ddg-lite'] === 1 && census['openai'] === 3, j(census))
-    const k = ddgKnocks()
-    const gap = k.length === 3 ? k[2]!.at - k[1]!.at : -1
-    check('…and the retry waited the back-off on the wire (1.5–3 s)', gap >= 1_400 && gap <= 3_600, `${gap}ms`)
+    check('the wire has one html request and no lite request for two searches', census['ddg-html'] === 1 && census['ddg-lite'] === undefined && census['openai'] === 3, j(census))
     fixture.script = null
     fixture.modes.ddgHtml = 'results'
     fixture.modes.ddgLite = 'results'

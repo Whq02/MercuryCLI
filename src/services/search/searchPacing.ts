@@ -159,6 +159,7 @@ export function resetSearchPacing(): void {
   attempts.clear()
   cache.clear()
   keyedDoorHintSpent = false
+  searchNotices.clear()
   groupSeq = 0
 }
 
@@ -231,4 +232,11 @@ export function reserveSearchAttempt(door: PacedDoor, words: string, now: number
   attempts.set(key, now)
   while (attempts.size > 128) attempts.delete(attempts.keys().next().value!)
   return 0
+}
+
+const searchNotices = new Set<string>()
+export function takeSearchNotice(key: string, text: string): string | undefined {
+  if (searchNotices.has(key)) return undefined
+  searchNotices.add(key)
+  return text
 }

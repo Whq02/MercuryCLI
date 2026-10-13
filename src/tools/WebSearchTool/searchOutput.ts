@@ -26,7 +26,7 @@ export const outputSchema = z.object({
 export type Output = z.infer<typeof outputSchema>
 
 export function mapSearchResult(output: Output, toolUseID: string) {
-  const hits = output.results.flatMap(entry => entry && typeof entry !== 'string' ? entry.content : [])
+  const hits = output.results.flatMap(entry => entry && typeof entry !== 'string' ? entry.content : []).filter(hit => searchHitSchema.safeParse(hit).success)
   const notes = [
     ...(output.notes ?? []),
     ...(output.hint ? [output.hint] : []),
