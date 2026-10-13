@@ -288,7 +288,8 @@ console.log('── 5. the seams are guarded (structural) ──')
   const collapsed = read('src/components/messages/CollapsedReadSearchContent.tsx')
   t('the collapsed read/search row wraps the render in a catch', /try \{[^}]*tool\.renderToolUseMessage\?\.\(entry\.input/.test(collapsed))
   const messages = read('src/components/Messages.tsx')
-  t('every transcript row still sits in the per-row boundary', /<RowErrorBoundary>\s*<MessageRow/.test(messages))
+  const boundary = /<RowErrorBoundary>([\s\S]*?)<\/RowErrorBoundary>/.exec(messages)?.[1] ?? ''
+  t('every transcript row still sits in the per-row boundary', /<MessageRow\b/.test(boundary) && !/<RowErrorBoundary>/.test(boundary))
   const display = read('src/utils/file.ts')
   t('getDisplayPath is total over non-string and NUL-bearing paths', /if \(typeof filePath !== 'string'\)/.test(display) && /try \{\s*relativePath = getAbsoluteAndRelativePaths\(filePath\)\.relativePath/.test(display))
 }
