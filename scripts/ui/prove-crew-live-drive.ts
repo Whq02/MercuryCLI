@@ -487,10 +487,14 @@ async function stopLeg(dialect: Dialect): Promise<void> {
   check(`${tag}: the esc is the turn's alone — the receipt counts the crew still running and names the crew view door`, /2 crewmates still running — open the crew view \(\/crewmates\)/.test(flat(interrupted)) && !interrupted.includes('killed'))
   const crewRunning = crewPopup(marks['crew-running'] ?? '')
   check(`${tag}: the Crew view after the esc — both seats run on with their tokens kept`, agentRow(crewRunning, SEAT_ONE, /◐/) && agentRow(crewRunning, SEAT_TWO, /◐/) && rowTokens(crewRunning, SEAT_ONE) && rowTokens(crewRunning, SEAT_TWO) && crewRunning.includes('crew · 2 running') && crewRunning.includes('Crewmates (2)'))
+  const selected = crewRunning.match(new RegExp(`▸\\s+\\S\\s+(${SEAT_ONE}|${SEAT_TWO})\\b`))?.[1]
+  check(`${tag}: the Crew view's selected row names one seat — the one x twice will stop`, selected === SEAT_ONE || selected === SEAT_TWO, flat(crewRunning).slice(0, 240))
+  const stopped = selected ?? SEAT_TWO
+  const other = stopped === SEAT_ONE ? SEAT_TWO : SEAT_ONE
   const crewStopped = marks['crew-stopped'] ?? ''
-  check(`${tag}: x twice on the selected row stops that one seat through the runner — the receipt names the stop, never killed`, flat(crewStopped).includes(`[Crewmate] ${SEAT_TWO} · stopped ·`) && !crewStopped.includes('killed'))
-  check(`${tag}: the other seat is never stopped — it runs on, or lands by its own door once its tracked sibling ends (the Sleep redirect), never stopped, never killed`, (agentRow(crewStopped, SEAT_ONE, /◐|\blanded\b/) || flat(crewStopped).includes(`[Crewmate] ${SEAT_ONE} · completed ·`)) && !flat(crewStopped).includes(`[Crewmate] ${SEAT_ONE} · stopped ·`) && !new RegExp(`"${SEAT_ONE}" was stopped`).test(flat(crewStopped)))
-  check(`${tag}: the stopped seat never settled its turn (its Sleep was interrupted — no seat-ack of its own on the wire)`, fixture.hits.every(h => !(h.route === 'seat-ack' && h.seat === SEAT_TWO)))
+  check(`${tag}: x twice on the selected row stops that one seat (${stopped}) through the runner — the receipt names the stop, never killed`, flat(crewStopped).includes(`[Crewmate] ${stopped} · stopped ·`) && !crewStopped.includes('killed'))
+  check(`${tag}: the other seat (${other}) is never stopped — it runs on, or lands by its own door once its tracked sibling ends (the Sleep redirect), never stopped, never killed`, (agentRow(crewStopped, other, /◐|\blanded\b/) || flat(crewStopped).includes(`[Crewmate] ${other} · completed ·`)) && !flat(crewStopped).includes(`[Crewmate] ${other} · stopped ·`) && !new RegExp(`"${other}" was stopped`).test(flat(crewStopped)))
+  check(`${tag}: the stopped seat (${stopped}) never settled its turn (its Sleep was interrupted — no seat-ack of its own on the wire)`, fixture.hits.every(h => !(h.route === 'seat-ack' && h.seat === stopped)))
   const wantLane = dialect === 'anthropic' ? 'messages' : 'responses'
   check(`${tag}: every crew turn rode the family's own wire`, fixture.hits.filter(h => h.route !== 'side').every(h => h.lane === wantLane && (dialect === 'anthropic' || h.model === GPT_ID)), fixture.hits.map(h => `${h.route}:${h.lane}:${h.model}`).join(','))
   if (failures > before && process.env.CREW_KEEP !== '1') for (const [label, frame] of Object.entries(marks)) dump(`${tag} · ${label}`, frame)
