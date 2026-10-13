@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # gate-class: pty
 # gate-env: MERCURY_UI_BILLED MERCURY_LOGINS_COPY_KEEP MERCURY_LOGINS_COPY_FRAMES MERCURY_RENDER_CWD MERCURY_CARD_FIT_CAPTURE_DIR MERCURY_MODE_BAND_DRIVE_CAPTURE_DIR
-# gate-watch: scripts/ui/render-tui.ts scripts/ui/vshot.py src/bootstrap/state*
+# gate-watch: scripts/ui/render-tui.ts scripts/ui/vshot.py scripts/command-catalogue/fake-gh.mjs src/bootstrap/state*
 # gate-watch: src/commands/appearance/index* src/commands/health/HealthCertificate*
 # gate-watch: src/commands/run/runInspectorModel* src/commands/feedback/** src/commands/exit/exit.tsx
 # gate-watch: src/commands/crew/index* src/components/** src/context/overlayContext*
