@@ -157,7 +157,7 @@ export async function performWebSearch(input: SearchRequest, io: WebSearchRunIo)
     if (signal.aborted || (!outcome.ok && outcome.kind === 'aborted')) throw new AbortError()
     if (outcome.ok) {
       const hits = normaliseHits(outcome.hits, request.maxResults)
-      if (door.kind === 'keyed') noteAnswered(door.backend)
+      if (door.kind === 'keyed' && coolDownRemainingMs(door.backend, clock.now()) === 0) noteAnswered(door.backend)
       if (!hits.length) { failures.push(searchFailure('no-backend', outcome.via, `${searchBackendLabel(outcome.via)} found no matching links`)); continue }
       const queries = outcome.queries ?? [request.query]
       if (outcome.via !== 'github') rememberSearch(request, { via: outcome.via, tier: outcome.tier, hits, queries, notes: outcome.notes?.filter(note => note !== DUCKDUCKGO_TERMS) }, clock.now())
@@ -166,7 +166,7 @@ export async function performWebSearch(input: SearchRequest, io: WebSearchRunIo)
       const hint = outcome.tier === 'keyless' && !plan.doors.some(d => d.kind === 'keyed') ? takeKeyedDoorHint() : undefined
       return { via: outcome.via, tier: outcome.tier, hits, sequence: [{ toolUseId: id, hits }], queries, notes: [...(outcome.notes ?? []), ...failures.map(failureLine)], ...(hint ? { hint } : {}) }
     }
-    if (door.kind === 'keyed' && outcome.kind === 'rate-limited') noteRateLimited(door.backend, clock)
+    if (door.kind === 'keyed' && outcome.kind === 'rate-limited' && coolDownRemainingMs(door.backend, clock.now()) === 0) noteRateLimited(door.backend, clock)
     failures.push(outcome)
   }
   throw new Error(walkFailureLine(failures, plan))
