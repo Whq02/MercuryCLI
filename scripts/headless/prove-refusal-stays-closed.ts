@@ -32,15 +32,16 @@ const CLOSING = 'Do not rephrase the command to evade this rule — surface the 
 const COUNT_WORDS = '1\n2\n3'
 const PRINT5 = '5'
 const FINAL_WORDS = 'Both tasks are done.'
+const REFUSED_WORDS = 'I cannot run that command.'
 
 const canaryRoot = realpathSync(mkdtempSync(join(tmpdir(), 'refusal-closed-')))
 const canary = join(canaryRoot, 'CANARY')
 writeFileSync(canary, 'alive')
 
 const turns = (): ScriptedTurn[] => [
-  { kind: 'text', text: 'I cannot run that command.', stopReason: 'refusal' },
-  { kind: 'text', text: 'I cannot run that command.', stopReason: 'refusal' },
-  { kind: 'text', text: 'I cannot run that command.', stopReason: 'refusal' },
+  { kind: 'text', text: REFUSED_WORDS, stopReason: 'refusal' },
+  { kind: 'text', text: REFUSED_WORDS, stopReason: 'refusal' },
+  { kind: 'text', text: REFUSED_WORDS, stopReason: 'refusal' },
   {
     kind: 'tool_use',
     name: 'Bash',
@@ -239,6 +240,11 @@ section('§1 the model view: the provider refusal never reaches the next request
       'no request carries the provider refusal or a closure of it (RED before the ruling: "stop_reason: refusal … This refusal is final" rode the later requests)',
       !wireJoined.includes('stop_reason: refusal') && !wireJoined.includes('refusal is final') && !wireJoined.includes('never repeat, retry or re-issue'),
       JSON.stringify(seat.wire.filter(t => t.includes('refusal')).slice(0, 1)).slice(0, 200),
+    )
+    check(
+      'no request carries the model\'s own partial words of the refused turn either (RED on aef216c8d5: "I cannot run that command." rode the later requests as an assistant row)',
+      seat.wire.length >= 3 && !wireJoined.includes(REFUSED_WORDS),
+      JSON.stringify(seat.wire.filter(t => t.includes(REFUSED_WORDS)).slice(0, 1)).slice(0, 200),
     )
   } finally {
     seat.close()
