@@ -1,5 +1,5 @@
 import { recallQuery, type RecallHit } from './memoryVerbs.js'
-import { memoryStatusWords, type MemoryRef } from './memoryRefs.js'
+import { memoryStatusWords } from './memoryRefs.js'
 import { pendingRows } from './mnemeBuffer.js'
 import {
   footnoteContext,
@@ -25,8 +25,6 @@ export interface MemoryPointer {
   title: string
   kind: PointerKind
   footnotes: Footnotes
-  status?: MemoryRef['status']
-  confirmedAt?: string
 }
 
 export interface PointerResult {
@@ -99,12 +97,11 @@ function factPointer(hit: RecallHit, row: LiveRow | undefined, pinned: ReadonlyS
   }
   if (!row) return null
   const { entry } = row
+  const status = hit.status && hit.status !== 'current' ? ` [${memoryStatusWords({ status: hit.status, confirmedAt: hit.confirmedAt })}]` : ''
   return {
     id: hit.id,
-    title: `${row.slug} › ${row.heading} · ${day(entry.time)} · ${entry.source} · ${matchesLine(matchedWords(entry.text, ms))}`,
+    title: `${row.slug} › ${row.heading}${status} · ${day(entry.time)} · ${entry.source} · ${matchesLine(matchedWords(entry.text, ms))}`,
     kind: pinned.has(entry.seq) ? 'ruling' : 'fact',
-    status: hit.status,
-    confirmedAt: hit.confirmedAt,
     footnotes: footnotesOf(entry, ctx),
   }
 }
@@ -194,6 +191,5 @@ export function searchPointers(
 
 export function renderPointerLine(p: MemoryPointer): string {
   const notes = renderFootnotes(p.footnotes)
-  const status = p.status && p.status !== 'current' ? ` [${memoryStatusWords({ status: p.status, confirmedAt: p.confirmedAt })}]` : ''
-  return `- [${p.id}]${status} ${p.kind} · ${p.title}${notes ? ` {${notes}}` : ''}`
+  return `- [${p.id}] ${p.kind} · ${p.title}${notes ? ` {${notes}}` : ''}`
 }
