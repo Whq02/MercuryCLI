@@ -15,7 +15,7 @@ import {
   type RecallResult,
   type RetainItemOutcome,
 } from '../../mneme/memoryVerbs.js'
-import { renderFootnotes } from '../../mneme/mnemeFootnotes.js'
+import { confirmCitedFacts, renderFootnotes } from '../../mneme/mnemeFootnotes.js'
 import { POINTER_DEFAULT_LIMIT, POINTER_LIMIT, renderPointerLine, searchPointers, type PointerResult } from '../../mneme/mnemePointers.js'
 import { runDueMaintenance } from '../../mneme/mnemeMaintenance.js'
 import {
@@ -318,6 +318,7 @@ export const ReflectTool = buildTool({
           },
         }
       }
+      confirmCitedFacts(answer)
       return { data: { mode: 'synthesis' as const, answer, citedIds: cited, recall } }
     } catch (error) {
       return {

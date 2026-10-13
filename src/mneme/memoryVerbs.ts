@@ -252,7 +252,7 @@ export function recallQuery(
     .map(row => ({ slug: row.slug, summary: row.summary }))
   const pins = readPins(dir)
   const usage = readUsage(dir)
-  const entries = new Map(allDocs(dir).flatMap(doc => doc.sections.flatMap(section => section.entries.map(entry => [`seq:${entry.seq}`, entry] as const))))
+  const entries = new Map(allDocs(dir).flatMap(doc => doc.sections.flatMap(section => section.entries.map(entry => [String(`seq:${entry.seq}`), entry] as const))))
   for (const hit of hits) {
     const entry = entries.get(hit.id)
     if (entry) Object.assign(hit, factMemoryState(entry, { pins, usage, now: opts.now }))
