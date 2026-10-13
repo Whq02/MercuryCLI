@@ -140,6 +140,7 @@ const hookEventTableRows = {
         ok: z.boolean().describe('False when the call returned an error or threw'),
         error: z.string().optional().describe('The failure text when ok is false'),
         cut: z.boolean().describe('True when a cut caused the failure'),
+        wall_ms: z.number().int().min(0).describe('The wall time of the call, in milliseconds'),
       }),
     ),
     match: 'tool',

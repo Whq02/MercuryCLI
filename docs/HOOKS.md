@@ -127,7 +127,9 @@ worktree, and the worktree is used anyway.
 
 Every input carries `event`, `session_id`, `transcript_path`, `cwd`,
 `permission_mode` (when a turn is running), and `crewmate_id` and
-`crewmate_type` when the moment happened inside a crewmate. `turn_id` is one
+`crewmate_type` when the moment happened inside a crewmate — so a monitor
+tells a crewmate's tool call from the lead's by the presence of `crewmate_id`,
+and a stalled call by `wall_ms` on `tool.after`. `turn_id` is one
 id wherever it appears: the turn row's id on the main thread, the crewmate's
 own run key inside a crewmate. The event adds its own fields:
 
@@ -137,7 +139,7 @@ own run key inside a crewmate. The event adds its own fields:
 | `turn.answer` | the model has answered and would end its turn (inside a crewmate too) | `turn_id`, `answer`, `again` (true when this fire follows the hook's own send-back) | none | `block` (the model is sent back with the words and keeps working), `stop`, `context` |
 | `turn.end` | a turn is over, however it ended; a cut turn carries its cut and that fire runs under a 1.5 s budget | `turn_id`, `status` (`completed`, `blocked`, `refused`, `interrupted`, `turn_limit`, `budget_limit`, `schema_unmet`, `loop_stopped`, `failed`), `stop`, `error` (`{message, class}`), `cut` (`{reason, detail, tools}`: `operator`, `idle-timeout`, `parent-stop` or `cut`, its words, the calls it ended), `steps`, `wall_ms`, `cost_usd`, `usage`, `answer` | `status` | nothing |
 | `tool.before` | a tool call is about to run, after its input was validated and before the permission decision | `tool`, `input`, `call_id` | `tool` | `block`, `permission` (`allow` or `ask`), `input`, `context`, `stop` |
-| `tool.after` | a tool call ended: it returned, returned an error, or threw; a call a cut ended fires under a 1.5 s budget | `tool`, `input`, `output`, `call_id`, `ok` (false when it returned an error or threw), `error`, `cut` (true when a cut caused the failure) | `tool` | `block` (the model reads the words beside the result), `output`, `context`, `stop` |
+| `tool.after` | a tool call ended: it returned, returned an error, or threw; a call a cut ended fires under a 1.5 s budget | `tool`, `input`, `output`, `call_id`, `ok` (false when it returned an error or threw), `error`, `cut` (true when a cut caused the failure), `wall_ms` (the call's wall time in milliseconds) | `tool` | `block` (the model reads the words beside the result), `output`, `context`, `stop` |
 | `permission.ask` | a permission ask is about to reach the operator, or a crewmate that cannot ask would be denied | `tool`, `input`, `call_id`, `suggestions` | `tool` | `permission: "allow"` (with `input` and `rules`), `block` (a deny), `stop`; silence lets the ask go on |
 | `permission.decided` | a tool call's permission was decided without the hook's own answer | `tool`, `input`, `call_id`, `decision` (`allowed`, `denied`), `by` (`rule`, `mode`, `hook`, `operator`, `safety`, `other`), `reason` | `tool` | nothing |
 | `crewmate.start` | a crewmate is launched; the crewmate fields name it | `name`, `prompt`, `model`, `directory` | `crewmate_type` | `context` (words the crewmate reads before its first turn) |
