@@ -155,10 +155,20 @@ function isTaskBodyName(name: string): boolean {
 async function listTaskIdsOnDisk(taskListId: string): Promise<string[]> {
   try {
     const names = await fs.promises.readdir(getTasksDir(taskListId))
-    return names.filter(name => name.endsWith('.json')).map(name => name.slice(0, -'.json'.length))
+    return names
+      .filter(name => name.endsWith('.json'))
+      .map(name => name.slice(0, -'.json'.length))
+      .sort(byCreationOrder)
   } catch {
     return []
   }
+}
+
+function byCreationOrder(a: string, b: string): number {
+  const na = Number(a)
+  const nb = Number(b)
+  if (Number.isFinite(na) && Number.isFinite(nb) && na !== nb) return na - nb
+  return a < b ? -1 : a > b ? 1 : 0
 }
 
 async function highestNumericIdOnDisk(taskListId: string): Promise<number> {
