@@ -9,6 +9,7 @@ import { mnemeEnabled, mnemeLibraryDir } from './mnemeGates.js'
 import { scoreCandidates, type LookupCandidate } from './mnemeLookup.js'
 import { docFileName, serializeSignature, type MnemeEntry, type MnemeTopicDoc } from './mnemeTopicDocs.js'
 import { readPins, readUsage, startTextLimit, usageOf, type UsageRecord } from './mnemeUsage.js'
+import { factMemoryState } from './memoryRefs.js'
 import { lineagePath } from './paths.js'
 import type { LedgerEntry } from './types.js'
 
@@ -233,7 +234,9 @@ export async function composeMemoryAtStart(input: { projectKey: string; sessionI
     const now = input.now ?? new Date()
     const previous = readLedger(input.projectKey).filter(entry => entry.sessionId !== input.sessionId)
     const state = await readProjectState({ projectKey: input.projectKey, sessionId: input.sessionId, root: input.root, now, ledger: previous })
-    const page = composeStartPage({ dir, projectKey: input.projectKey, state, previous, limit: startTextLimit(), now: now.getTime(), root: input.root })
+    const pins = readPins(dir)
+    const usage = readUsage(dir)
+    const page = composeStartPage({ dir, projectKey: input.projectKey, state, previous, limit: startTextLimit(), now: now.getTime(), root: input.root, stale: candidate => candidate.seq !== undefined && factMemoryState({ seq: candidate.seq, time: candidate.time ?? '', text: candidate.text }, { pins, usage, now, libraryDir: dir, projectRoot: input.root }).status === 'stale' })
     lastStatus = page.status
     return page.text
   } catch (error) {
