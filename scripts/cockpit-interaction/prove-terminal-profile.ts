@@ -80,8 +80,9 @@ t.section('the default-terminal handoff (the friend-path class)')
     defterm.verdict,
   )
   t.check(
-    'the first-class row names the live witness in its evidence',
-    defterm.checks.find(c => c.id === 'win32-first-class-host')!.evidence.includes('DEC 2026'),
+    'the first-class row names the live witness in plain words (the window draws frames atomically, as Windows Terminal does as the default terminal) and never the DEC number',
+    defterm.checks.find(c => c.id === 'win32-first-class-host')!.evidence.includes('draws frames atomically, as Windows Terminal does when it is the default terminal') &&
+      !defterm.checks.find(c => c.id === 'win32-first-class-host')!.evidence.includes('DEC 2026'),
     defterm.checks.find(c => c.id === 'win32-first-class-host')!.evidence,
   )
 
@@ -111,6 +112,40 @@ t.section('the default-terminal handoff (the friend-path class)')
       !preConpty.checks.find(c => c.id === 'win32-conpty-host')!.ok,
     preConpty.checks.find(c => c.id === 'win32-conpty-host')!.evidence,
   )
+}
+
+t.section('the 24-bit colour row on Windows (every console since build 14931 renders 24-bit colour; chalk paints it on the OS build, whatever the host names itself)')
+{
+  const defterm = resolveTerminalProfile({
+    env: {}, platform: 'win32', isTTY: true, modernWindowsHost: false,
+    osRelease: '10.0.19045', ...ALL_RECS,
+  })
+  const defRow = defterm.checks.find(c => c.id === 'truecolor')!
+  t.check('WT-as-default (no WT_SESSION, no COLORTERM): the row is met on the OS build', defRow.ok, defRow.evidence)
+  t.check('…and its evidence names the build and the 14931 fact', defRow.evidence.includes('10.0.19045') && defRow.evidence.includes('14931') && defRow.evidence.includes('COLORTERM=(unset)'), defRow.evidence)
+  t.check('…so WT-as-default resolves full, not capable, when every other recommended row holds', defterm.verdict === 'full', defterm.verdict)
+  const conhost = resolveTerminalProfile({
+    env: {}, platform: 'win32', isTTY: true, modernWindowsHost: false,
+    osRelease: '10.0.19045', ...ALL_RECS, syncOutput: false,
+  })
+  const conhostRow = conhost.checks.find(c => c.id === 'truecolor')!
+  t.check('bare conhost: the colour row is met too (the console paints 24-bit colour) while the first-class gate still fails', conhostRow.ok && conhost.verdict === 'unsupported', `${conhostRow.ok} ${conhost.verdict}`)
+  const wt = resolveTerminalProfile({
+    env: { WT_SESSION: 'x' }, platform: 'win32', isTTY: true, modernWindowsHost: true,
+    osRelease: '10.0.22631', ...ALL_RECS,
+  })
+  t.check('Windows Terminal with its fingerprint keeps the fingerprint as the evidence', wt.checks.find(c => c.id === 'truecolor')!.evidence === 'WT_SESSION (Windows Terminal)', wt.checks.find(c => c.id === 'truecolor')!.evidence)
+  const preConpty = resolveTerminalProfile({
+    env: {}, platform: 'win32', isTTY: true, modernWindowsHost: false,
+    osRelease: '6.3.9600', ...ALL_RECS, syncOutput: false,
+  })
+  const oldRow = preConpty.checks.find(c => c.id === 'truecolor')!
+  t.check('a pre-ConPTY console (Windows 8.1) is not credited with 24-bit colour', !oldRow.ok && oldRow.evidence.includes('no known truecolor terminal'), oldRow.evidence)
+  const apple = resolveTerminalProfile({
+    env: { TERM: 'xterm-256color', TERM_PROGRAM: 'Apple_Terminal' }, platform: 'darwin', isTTY: true, ...ALL_RECS,
+  })
+  const appleRow = apple.checks.find(c => c.id === 'truecolor')!
+  t.check('the Mac road is unchanged: Apple Terminal without COLORTERM is still not met, with the same words', !appleRow.ok && appleRow.evidence === 'COLORTERM=(unset) · no known truecolor terminal named', appleRow.evidence)
 }
 
 t.section('nothing here locks out a working host')
@@ -201,9 +236,10 @@ t.section('the dependency inventory (windowsHostSetup — friend-path QoL)')
 
   const lines = inventoryLines({ windowsTerminal: 'present', pwsh7: 'missing', winget: 'present' })
   t.check(
-    'the inventory names PowerShell 7 as preferred shell, never the gate',
-    lines.some(l => l.label === 'PowerShell 7' && l.note.includes('not the gate')) &&
-      lines.some(l => l.label === 'Windows Terminal' && l.note.includes('gate')),
+    'the inventory names PowerShell 7 as the preferred shell and not a requirement, and Windows Terminal as where Mercury looks right — no "gate" word anywhere',
+    lines.some(l => l.label === 'PowerShell 7' && l.note.includes('not a requirement')) &&
+      lines.some(l => l.label === 'Windows Terminal' && l.note.includes('looks right')) &&
+      lines.every(l => !/\bgate\b/.test(l.note)),
     lines.map(l => `${l.label}:${l.note}`).join(' | '),
   )
 }
