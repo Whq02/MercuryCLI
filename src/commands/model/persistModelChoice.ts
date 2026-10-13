@@ -1,6 +1,7 @@
 import type { EffortLevel } from '../../utils/effortLadder.js'
 import type { ModelSetting } from '../../utils/model/model.js'
-import { getInitialSettings, updateSettingsForSource } from '../../utils/settings/settings.js'
+import { displayConfigHome, getMercuryHome } from '../../utils/envUtils.js'
+import { getInitialSettings, getSettingsWriteFilePathForSource, updateSettingsForSource } from '../../utils/settings/settings.js'
 
 export type ModelChoiceOutcome = 'saved' | 'overridden' | 'refused' | 'cleared' | 'unchanged'
 
@@ -8,9 +9,24 @@ export type PersistedModelChoice = { outcome: ModelChoiceOutcome; sentence: stri
 
 export type PersistedEffortChoice = { outcome: 'saved' | 'refused'; sentence: string }
 
+function refusedSentence(error: Error): string {
+  const path = getSettingsWriteFilePathForSource('userSettings')
+  const home = getMercuryHome()
+  const file = path === undefined ? 'settings.json' : path.startsWith(home) ? `${displayConfigHome()}${path.slice(home.length)}` : path
+  let root: unknown = error
+  while (root instanceof Error && root.cause instanceof Error) root = root.cause
+  const { code, syscall } = root as { code?: unknown; syscall?: unknown }
+  let reason = root instanceof Error ? root.message : String(root)
+  if (typeof code === 'string' && reason.startsWith(`${code}: `)) reason = reason.slice(code.length + 2)
+  const cut = typeof syscall === 'string' ? reason.indexOf(`, ${syscall} '`) : -1
+  if (cut > 0) reason = reason.slice(0, cut)
+  if (path !== undefined) reason = reason.replaceAll(path, file)
+  return ` · not saved as your default: ${reason.includes(file) ? reason : `${file} — ${reason}`}`
+}
+
 export function persistEffortChoice(level: EffortLevel): PersistedEffortChoice {
   const { error } = updateSettingsForSource('userSettings', { engine: { effort: level } })
-  if (error) return { outcome: 'refused', sentence: ` · not saved as your default: ${error.message}` }
+  if (error) return { outcome: 'refused', sentence: refusedSentence(error) }
   return { outcome: 'saved', sentence: ' · saved as your default for future sessions' }
 }
 
@@ -20,7 +36,7 @@ export function persistModelChoice(setting: ModelSetting): PersistedModelChoice 
   const unchanged = (): void => {}
   if (saved !== setting) {
     const { error } = updateSettingsForSource('userSettings', { engine: { model: setting ?? undefined } })
-    if (error) return { outcome: 'refused', sentence: ` · not saved as your default: ${error.message}`, restore: unchanged }
+    if (error) return { outcome: 'refused', sentence: refusedSentence(error), restore: unchanged }
   }
   const restore = saved === setting ? unchanged : (): void => void updateSettingsForSource('userSettings', { engine: { model: saved ?? undefined } })
   if (setting === null) {

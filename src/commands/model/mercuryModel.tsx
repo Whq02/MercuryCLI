@@ -756,6 +756,7 @@ function MercuryModelWrapper({
     if (persistable !== undefined) {
       const kept = persistEffortChoice(persistable)
       if (settleOnSeat(persistable, kept.sentence, () => setAppState(prev => ({ ...prev, effortValue: persistable })))) return
+      setNotice(`Effort set to ${persistable}${kept.sentence}`)
     }
     setAppState(prev => ({
       ...prev,
