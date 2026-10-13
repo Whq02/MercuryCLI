@@ -65,9 +65,22 @@ its prompt once and returns its report, and is reached afterwards by the id
 its launch receipt names. The model is the one the launch names, or the
 configured crewmate default from `/config`; no crewmate's model is chosen for
 it or changed in a resume. When an Agent call names the parent's own model
-family, its crewmate keeps the parent's exact model. Engine models still pass
-their provider's dispatch checks. A different family keeps that family's
-preferred model; an exact model id keeps its explicit choice.
+family, its crewmate keeps the parent's exact model. A different family keeps
+that family's preferred model; an exact model id keeps its explicit choice.
+
+The model that launches a crewmate reads what the operator can see: the page
+`mercury://models` lists the providers the operator is signed into and the
+models each reaches, read live — the rows `/model` and `/logins` show — and
+`mercury://models/known` lists the models this build knows from its pin
+tables, marked as known rather than reachable. A family word (`grok`, `glm`,
+`kimi`, `deepseek`, `muse`, `mistral`) runs that family's newest live row;
+when the provider is signed in but its model list cannot be read, the word
+runs the family's pinned default (xAI: Grok 4.7) and the launch receipt says
+so. An exact id of a signed-in family runs when the live list names it, or,
+when the list cannot be read, when this build knows it; an id on neither page
+is refused with the way out named — ask the operator for the model id. Only a
+provider with no sign-in refuses a launch outright, naming `/logins`; no
+launch ever moves to another provider on its own.
 
 An Agent call may name the directory its crewmate works in with `cwd`: an
 absolute directory that exists. Starting outside the session's starting
