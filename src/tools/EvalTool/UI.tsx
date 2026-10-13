@@ -25,6 +25,7 @@ function evalProgressOf(progressMessages: readonly ProgressMessage[]): EvalToolP
 
 export function renderEvalToolUseMessage(
   input?: Partial<{ language: string; title: string; code: string; reset: boolean }>,
+  options?: { verbose?: boolean },
 ): string {
   if (!input) return ''
   const parts: string[] = []
@@ -35,7 +36,8 @@ export function renderEvalToolUseMessage(
     parts.push(firstLine.trim().slice(0, 60))
   }
   if (input.reset) parts.push('(reset)')
-  return parts.join(' · ')
+  const heading = parts.join(' · ')
+  return options?.verbose && input.code ? `${heading}\n${input.code}` : heading
 }
 
 export function renderEvalProgressMessage(

@@ -1552,23 +1552,13 @@ export function Config({
         !key.meta &&
         input >= ' ' &&
         input !== ' ' &&
-        input.charCodeAt(0) !== 0x7f &&
-        !['j', 'k'].includes(input)
+        input.charCodeAt(0) !== 0x7f
       ) {
         event.stopImmediatePropagation()
         if (!pastOpenEvent()) return
         setSearchMode(true)
         setQuery(input)
         return
-      }
-      if (input === 'j') {
-        event.stopImmediatePropagation()
-        moveTo(selected + 1)
-        return
-      }
-      if (input === 'k') {
-        event.stopImmediatePropagation()
-        if (selected > 0) moveTo(selected - 1)
       }
     },
     { isActive: subMenu === null },

@@ -25,13 +25,13 @@ function localBudget(suite: string, seconds = '', override = '', file = grants):
   return { budget: Number(budget), note }
 }
 
-assert.equal(localBudget('ui-drives', '700').budget, 4800)
+assert.equal(localBudget('ui-drives', '700').budget, 11700)
 assert.equal(localBudget('transcript-rows-drives', '350').budget, 3000)
 assert.equal(localBudget('unlisted', '20').budget, 600)
 assert.equal(localBudget('unlisted', '1000').budget, 2000)
-assert.equal(localBudget('ui-drives', '3000').budget, 6000)
+assert.equal(localBudget('ui-drives', '6000').budget, 12000)
 assert.equal(localBudget('ui-drives', '700', '45').budget, 45)
-assert.match(localBudget('ui-drives', '700').note, /4800 s suite grant from scripts\/gate\/suite-ceilings\.tsv/)
+assert.match(localBudget('ui-drives', '700').note, /11700 s suite grant from scripts\/gate\/suite-ceilings\.tsv/)
 assert.ok(pool.includes('. scripts/gate/suite-grants.sh') && ci.includes('. scripts/gate/suite-grants.sh'))
 assert.ok(pool.includes('CEILING_FILE=scripts/gate/suite-ceilings.tsv') && ci.includes('CEILING_FILE="${MERCURY_CI_SHARD_CEILING_FILE:-scripts/gate/suite-ceilings.tsv}"'))
 console.log('[PASS] local budgets honor the measured suite grants, retain the unlisted default, and preserve the operator override')

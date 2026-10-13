@@ -56,7 +56,7 @@ const ROOT_DELETES = [
   'rd /s /q Z:\\',
   'rm -rf /c',
 ]
-const LEFT_TO_THE_PERMISSION_CHECK = [
+const PARITY_WITH_THE_MAC_WARD = [
   'Remove-Item -Recurse -Force C:\\Users\\Other',
   'Remove-Item -Recurse -Force C:\\Users',
   'Remove-Item -Recurse -Force C:\\Windows',
@@ -103,8 +103,8 @@ async function main(): Promise<void> {
     for (const command of HOME_DELETES) check(`refused: ${command}`, refused(command), ruleOf(command))
     section('§2 win32 — drive roots in both slash spellings are refused')
     for (const command of ROOT_DELETES) check(`refused: ${command}`, refused(command), ruleOf(command))
-    section('§2b win32 — the pinned law stands: another user\'s home, the Users folder, a system folder and a share root are the permission check\'s (prove-windows-removal-roots)')
-    for (const command of LEFT_TO_THE_PERMISSION_CHECK) check(`not warded (the permission check judges it): ${command}`, !refused(command), ruleOf(command))
+    section('§2b win32 — parity with the Mac ward (ruling AT): another user\'s home, the Users folder, a system folder and a share root are refused (prove-windows-removal-roots, prove-delete-ward-windows-parity)')
+    for (const command of PARITY_WITH_THE_MAC_WARD) check(`refused: ${command}`, refused(command), ruleOf(command))
     section('§3 win32 — an ordinary delete inside a project, a scratch folder or a share subfolder is not warded')
     for (const command of ORDINARY_DELETES) check(`allowed: ${command}`, !refused(command), ruleOf(command))
     section('§4 win32 — the Bash tool on Windows (git-bash) reads the same patterns')
@@ -125,7 +125,7 @@ async function main(): Promise<void> {
     check('the Windows pattern set is built once per home and reused', live === wards.windowsRemovalPatterns())
     process.env.USERPROFILE = 'D:\\Profiles\\Jo'
     check('a different USERPROFILE rebuilds the set and the new home is refused', live !== wards.windowsRemovalPatterns() && refused('Remove-Item -Recurse -Force D:\\Profiles\\Jo') && refused('rm -rf /d/Profiles/Jo'))
-    check('the old home is then an ordinary operand (the pinned law: another user\'s home is the permission check\'s)', !refused('Remove-Item -Recurse -Force C:\\Users\\Alice') && !refused('Remove-Item -Recurse -Force C:\\Users\\Alice\\proj'))
+    check('the old home is then another user\'s home and stays refused (parity); a folder inside it is the permission check\'s', refused('Remove-Item -Recurse -Force C:\\Users\\Alice') && !refused('Remove-Item -Recurse -Force C:\\Users\\Alice\\proj'))
   } finally {
     restorePlatform()
     if (savedHome === undefined) delete process.env.HOME

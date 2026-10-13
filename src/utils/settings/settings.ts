@@ -692,7 +692,7 @@ export function updateSettingsForSource(
     return { error: null }
   } catch (error) {
     logError(error)
-    return { error: new Error(`Failed to update settings file ${writePath}: ${errorMessage(error)}`) }
+    return { error: new Error(`Failed to update settings file ${writePath}: ${errorMessage(error)}`, { cause: error }) }
   } finally {
     unlock?.()
   }

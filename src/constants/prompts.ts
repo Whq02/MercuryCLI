@@ -129,7 +129,7 @@ function projectEstateSection(toolNames: ReadonlySet<string>): string {
     : ''
   const pin = toolNames.has(RETAIN_TOOL_NAME) ? ` (${RETAIN_TOOL_NAME} with pin)` : ''
   const items: Array<string | string[]> = [
-    'MERCURY.md is the project\'s standing instruction file: Mercury loads it every session, together with whatever it explicitly @imports. Durable project-local working state that is not instructions — handoff notes, plans, working specs — lives in `.mercury/`.',
+    'MERCURY.md is the project\'s standing instruction file: Mercury loads it every session, together with whatever it explicitly @imports. Durable project-local plans and working specs that the user requests live in `.mercury/`. Mercury keeps the handoff note it asks for at close in its own home; never write your own handoff file into the project.',
     `A project convention the user states — how this project is built, run or tested, what not to touch — belongs to the instruction estate${record}. A rule the user asks you to remember about working with them is pinned memory instead${pin}: kept in their words, loaded into every session, never written into the instruction file.`,
     'Hooks are shell commands the user set up in settings to run on events such as tool calls; what a hook prints, the prompt-submit hook\'s included, is the user\'s own feedback, and a hook that blocks an action says why there.',
   ]

@@ -181,7 +181,9 @@ export function workerRowWords(row: WireRosterEntry): string {
   const pid = row.pid !== undefined ? `pid ${row.pid}` : 'pid not yet recorded'
   const session = row.sessionId.length > 8 ? row.sessionId.slice(0, 8) : row.sessionId
   const model = row.model !== undefined ? ` · ${row.model}${row.effort !== undefined ? `@${row.effort}` : ''}` : ''
-  return `${row.short}: ${pid} · session ${session} · ${row.state}${model}`
+  return row.warm === true
+    ? `${row.short}: ${pid} · warm runner · pre-booted, unclaimed${model}`
+    : `${row.short}: ${pid} · session ${session} · ${row.state}${model}`
 }
 
 export function formatMercuryDaemonStatus(status: MercuryDaemonStatus): string {

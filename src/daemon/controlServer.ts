@@ -591,9 +591,12 @@ async function routeControlRequest(
   }
 
   switch (op) {
-    case 'list':
+    case 'list': {
       if (!verifyControlAuth(auth, deps.controlKey)) return refuseAuth(sock, op)
-      return answer(sock, { ok: true, op: 'list', jobs: deps.roster.list() })
+      const { warmRunnerShorts } = await import('./warmRunner.js')
+      const warm = new Set(warmRunnerShorts())
+      return answer(sock, { ok: true, op: 'list', jobs: deps.roster.list().map(row => warm.has(row.short) ? { ...row, warm: true } : row) })
+    }
 
     case 'has': {
       if (!verifyControlAuth(auth, deps.controlKey)) return refuseAuth(sock, op)
