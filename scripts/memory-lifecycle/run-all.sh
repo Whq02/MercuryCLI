@@ -29,6 +29,7 @@ for proof in \
   prove-handoff-write-receipt.ts \
   prove-handoff-final-reply.ts \
   prove-handoff-verbatim.ts \
+  prove-handoff-novelty.ts \
   prove-lineage-retention-zero.ts \
   prove-exit-handoff.ts \
   prove-exit-hosted-road.ts \
