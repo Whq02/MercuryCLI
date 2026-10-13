@@ -32,7 +32,7 @@ import { huggingfaceLiveModel, refreshHuggingfaceCatalogue } from '../../service
 import { isLocalModelId, localRecordFor, localWireId, LOCAL_MODEL_PREFIX } from '../../services/providers/local/localCatalogue.js'
 import { refreshLocalDiscovery } from '../../services/providers/local/localDiscovery.js'
 import { getEngineModel, parseUserSpecifiedModel, parseUserSpecifiedModelRaw } from '../model/model.js'
-import { bareFamilyListWords, bareFamilyWordOf } from '../model/bareFamilyWords.js'
+import { bareFamilyListWords, bareFamilyWordOf, bareFamilyWordOfRoute, bareModelIdOf } from '../model/bareFamilyWords.js'
 import { isModelAlias } from '../model/aliases.js'
 import { isModelFamilyWord, modelFamilyWords } from '../model/modelFamilies.js'
 import { canonicalWireModelId, classifyModelRoute, declaredRouteOf, providerDisplayName } from '../../services/providers/routeLaw.js'
@@ -494,35 +494,19 @@ export async function resolveEngineDispatch(
     }
     if (family === 'meta') {
       await requireProviderAvailable('meta')
-      const pin = metaCatalogueEntry(id)
-      if (!pin) throw new Error(`Meta model '${id}' is not listed by the account (listed: ${metaCatalogueEntries().map(row => row.id).join(', ')}) — never dispatching an unverified id.`)
-      return { backend: 'meta', model: pin.id, displayLabel: pin.displayLabel }
+      return resolveKeyLaneExactModel('meta', id, metaCatalogueEntry, metaCatalogueEntries)
     }
     if (family === 'mistral') {
       await requireProviderAvailable('mistral')
-      const pin = mistralCatalogueEntry(id)
-      if (!pin) throw new Error(`Mistral model '${id}' is not listed by the account (listed: ${mistralCatalogueEntries().map(row => row.id).join(', ')}) — never dispatching an unverified id.`)
-      return { backend: 'mistral', model: pin.id, displayLabel: pin.displayLabel }
+      return resolveKeyLaneExactModel('mistral', id, mistralCatalogueEntry, mistralCatalogueEntries)
     }
     if (family === 'deepseek') {
       await requireProviderAvailable('deepseek')
-      const pin = deepseekCatalogueEntry(id)
-      if (!pin) {
-        throw new Error(
-          `DeepSeek model '${id}' is not a catalogue-verified id (listed: ${deepseekCatalogueEntries().map(c => c.id).join(', ')}) — never dispatching an unverified id.`,
-        )
-      }
-      return { backend: 'deepseek', model: pin.id, displayLabel: pin.displayLabel }
+      return resolveKeyLaneExactModel('deepseek', id, deepseekCatalogueEntry, deepseekCatalogueEntries)
     }
     if (family === 'xai') {
       await requireProviderAvailable('xai')
-      const pin = xaiCatalogueEntry(id)
-      if (!pin) {
-        throw new Error(
-          `xAI model '${id}' is not a catalogue-verified id (listed: ${xaiCatalogueEntries().map(c => c.id).join(', ')}) — never dispatching an unverified id.`,
-        )
-      }
-      return { backend: 'xai', model: pin.id, displayLabel: pin.displayLabel }
+      return resolveKeyLaneExactModel('xai', id, xaiCatalogueEntry, xaiCatalogueEntries)
     }
     if (family === 'gemini') {
       await requireProviderAvailable('gemini')
@@ -571,14 +555,44 @@ export async function resolveEngineDispatch(
       }
     }
     await requireProviderAvailable('zai')
-    if (!zaiCatalogueEntry(id)) await readCatalogueIfPending('zai')
-    const pin = zaiCatalogueEntry(id)
-    if (!pin) {
-      throw new Error(
-        `GLM model '${id}' is not a catalogue-verified id (listed: ${zaiCatalogueEntries().map(c => c.id).join(', ')}) — never dispatching an unverified id.`,
-      )
-    }
-    return { backend: 'zai', model: pin.id, displayLabel: pin.displayLabel }
+    return resolveKeyLaneExactModel('zai', id, zaiCatalogueEntry, zaiCatalogueEntries)
   }
   return null
+}
+
+type KeyLaneRoute = 'xai' | 'meta' | 'mistral' | 'deepseek' | 'zai'
+
+async function resolveKeyLaneExactModel(
+  route: KeyLaneRoute,
+  id: string,
+  liveEntry: (id: string) => { id: string; displayLabel: string } | undefined,
+  liveEntries: () => ReadonlyArray<{ id: string; displayLabel: string }>,
+): Promise<EngineDispatch> {
+  const family = bareFamilyWordOfRoute(route)
+  const providerName = providerDisplayName(route)
+  const bare = bareModelIdOf(id)
+  if (!liveEntry(bare)) await readCatalogueIfPending(route)
+  const live = liveEntry(bare)
+  if (live) return { backend: route, model: live.id, displayLabel: live.displayLabel }
+  const state = family?.listState()
+  if (state?.kind === 'live') {
+    const listed = liveEntries().map(entry => entry.id)
+    throw new Error(
+      `${providerName} model '${id}' is not on the account's live model list${listed.length > 0 ? ` (listed: ${listed.join(', ')})` : ' (the list serves no chat model)'} — name one of the listed ids from mercury://models, or ask the operator for the model id; never switch to another provider on your own.`,
+    )
+  }
+  const known = family?.knownRow(bare)
+  const listWords = family === undefined ? `the ${providerName} model list could not be read` : bareFamilyListWords(family, providerName)
+  if (known) {
+    return {
+      backend: route,
+      model: known.id,
+      displayLabel: known.displayName,
+      note: `${listWords} — ${known.displayName} (${known.id}) runs as this build knows it; the provider's own answer decides. mercury://models shows the live list, mercury://models/known what this build knows.`,
+    }
+  }
+  const knownIds = family?.knownRows().map(row => row.id) ?? []
+  throw new Error(
+    `${providerName} model '${id}' is on neither mercury://models (${listWords}) nor mercury://models/known${knownIds.length > 0 ? ` (this build knows: ${knownIds.join(', ')})` : ''} — ask the operator for the model id, or name a listed one; never switch to another provider on your own.`,
+  )
 }

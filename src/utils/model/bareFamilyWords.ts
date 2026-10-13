@@ -16,6 +16,14 @@ export interface BareFamilyWord {
   headRow: () => BareFamilyWordRow | undefined
   pinnedDefault: () => BareFamilyWordRow | undefined
   listState: () => BareFamilyListState
+  knownRows: () => BareFamilyWordRow[]
+  knownRow: (id: string) => BareFamilyWordRow | undefined
+}
+
+const ANNOTATION_RE = /\[(?:[0-9]+m|served)\]/gi
+
+export function bareModelIdOf(id: string): string {
+  return id.trim().toLowerCase().replace(ANNOTATION_RE, '')
 }
 
 function gateError(family: 'zai' | 'moonshot' | 'deepseek' | 'xai' | 'meta' | 'mistral'): string | undefined {
@@ -140,14 +148,84 @@ function mistralListState(): BareFamilyListState {
   return { kind: 'unread', ...(error !== undefined ? { error } : {}) }
 }
 
+function glmKnownRows(): BareFamilyWordRow[] {
+  const { GLM_DISPLAY_PINS } = require('../../services/providers/zai/glmPins.js') as typeof import('../../services/providers/zai/glmPins.js')
+  return GLM_DISPLAY_PINS.map(pin => ({ id: pin.id, displayName: pin.displayName }))
+}
+
+function glmKnownRow(id: string): BareFamilyWordRow | undefined {
+  const { glmDisplayPin } = require('../../services/providers/zai/glmPins.js') as typeof import('../../services/providers/zai/glmPins.js')
+  const pin = glmDisplayPin(bareModelIdOf(id))
+  return pin === undefined ? undefined : { id: pin.id, displayName: pin.displayName }
+}
+
+function kimiKnownRows(): BareFamilyWordRow[] {
+  const { KIMI_DISPLAY_PINS } = require('../../services/providers/moonshot/kimiPins.js') as typeof import('../../services/providers/moonshot/kimiPins.js')
+  return KIMI_DISPLAY_PINS.map(pin => ({ id: pin.id, displayName: pin.displayName }))
+}
+
+function kimiKnownRow(id: string): BareFamilyWordRow | undefined {
+  const { kimiDisplayPin } = require('../../services/providers/moonshot/kimiPins.js') as typeof import('../../services/providers/moonshot/kimiPins.js')
+  const pin = kimiDisplayPin(bareModelIdOf(id))
+  return pin === undefined ? undefined : { id: pin.id, displayName: pin.displayName }
+}
+
+function deepseekKnownRows(): BareFamilyWordRow[] {
+  const { DEEPSEEK_DISPLAY_PINS } = require('../../services/providers/deepseek/deepseekPins.js') as typeof import('../../services/providers/deepseek/deepseekPins.js')
+  return DEEPSEEK_DISPLAY_PINS.map(pin => ({ id: pin.id, displayName: pin.displayName }))
+}
+
+function deepseekKnownRow(id: string): BareFamilyWordRow | undefined {
+  const { deepseekDisplayPin } = require('../../services/providers/deepseek/deepseekPins.js') as typeof import('../../services/providers/deepseek/deepseekPins.js')
+  const pin = deepseekDisplayPin(bareModelIdOf(id))
+  return pin === undefined ? undefined : { id: pin.id, displayName: pin.displayName }
+}
+
+function grokKnownRows(): BareFamilyWordRow[] {
+  const { XAI_DISPLAY_PINS } = require('../../services/providers/xai/xaiPins.js') as typeof import('../../services/providers/xai/xaiPins.js')
+  return XAI_DISPLAY_PINS.map(pin => ({ id: pin.id, displayName: pin.displayName }))
+}
+
+function grokKnownRow(id: string): BareFamilyWordRow | undefined {
+  const { xaiDisplayPin } = require('../../services/providers/xai/xaiPins.js') as typeof import('../../services/providers/xai/xaiPins.js')
+  const pin = xaiDisplayPin(bareModelIdOf(id))
+  return pin === undefined ? undefined : { id: pin.id, displayName: pin.displayName }
+}
+
+function museKnownRows(): BareFamilyWordRow[] {
+  const { META_DISPLAY_PINS } = require('../../services/providers/meta/metaPins.js') as typeof import('../../services/providers/meta/metaPins.js')
+  return META_DISPLAY_PINS.map(pin => ({ id: pin.id, displayName: pin.displayName }))
+}
+
+function museKnownRow(id: string): BareFamilyWordRow | undefined {
+  const { metaDisplayPin } = require('../../services/providers/meta/metaPins.js') as typeof import('../../services/providers/meta/metaPins.js')
+  const pin = metaDisplayPin(bareModelIdOf(id))
+  return pin === undefined ? undefined : { id: pin.id, displayName: pin.displayName }
+}
+
+function mistralKnownRows(): BareFamilyWordRow[] {
+  const { MISTRAL_DISPLAY_PINS } = require('../../services/providers/mistral/mistralPins.js') as typeof import('../../services/providers/mistral/mistralPins.js')
+  return MISTRAL_DISPLAY_PINS.map(pin => ({ id: pin.id, displayName: pin.displayName }))
+}
+
+function mistralKnownRow(id: string): BareFamilyWordRow | undefined {
+  const { mistralDisplayPin } = require('../../services/providers/mistral/mistralPins.js') as typeof import('../../services/providers/mistral/mistralPins.js')
+  const pin = mistralDisplayPin(bareModelIdOf(id))
+  return pin === undefined ? undefined : { id: pin.id, displayName: pin.displayName }
+}
+
 export const BARE_FAMILY_WORDS: readonly BareFamilyWord[] = [
-  { word: 'glm', route: 'zai', headRow: glmHeadRow, pinnedDefault: glmPinnedDefault, listState: glmListState },
-  { word: 'kimi', route: 'moonshot', headRow: kimiHeadRow, pinnedDefault: kimiPinnedDefault, listState: kimiListState },
-  { word: 'deepseek', route: 'deepseek', headRow: deepseekHeadRow, pinnedDefault: deepseekPinnedDefault, listState: deepseekListState },
-  { word: 'grok', route: 'xai', headRow: grokHeadRow, pinnedDefault: grokPinnedDefault, listState: grokListState },
-  { word: 'muse', route: 'meta', headRow: museHeadRow, pinnedDefault: musePinnedDefault, listState: museListState },
-  { word: 'mistral', route: 'mistral', headRow: mistralHeadRow, pinnedDefault: mistralPinnedDefault, listState: mistralListState },
+  { word: 'glm', route: 'zai', headRow: glmHeadRow, pinnedDefault: glmPinnedDefault, listState: glmListState, knownRows: glmKnownRows, knownRow: glmKnownRow },
+  { word: 'kimi', route: 'moonshot', headRow: kimiHeadRow, pinnedDefault: kimiPinnedDefault, listState: kimiListState, knownRows: kimiKnownRows, knownRow: kimiKnownRow },
+  { word: 'deepseek', route: 'deepseek', headRow: deepseekHeadRow, pinnedDefault: deepseekPinnedDefault, listState: deepseekListState, knownRows: deepseekKnownRows, knownRow: deepseekKnownRow },
+  { word: 'grok', route: 'xai', headRow: grokHeadRow, pinnedDefault: grokPinnedDefault, listState: grokListState, knownRows: grokKnownRows, knownRow: grokKnownRow },
+  { word: 'muse', route: 'meta', headRow: museHeadRow, pinnedDefault: musePinnedDefault, listState: museListState, knownRows: museKnownRows, knownRow: museKnownRow },
+  { word: 'mistral', route: 'mistral', headRow: mistralHeadRow, pinnedDefault: mistralPinnedDefault, listState: mistralListState, knownRows: mistralKnownRows, knownRow: mistralKnownRow },
 ]
+
+export function bareFamilyWordOfRoute(route: string): BareFamilyWord | undefined {
+  return BARE_FAMILY_WORDS.find(entry => entry.route === route)
+}
 
 export function bareFamilyListWords(word: BareFamilyWord, providerName: string): string {
   const state = word.listState()

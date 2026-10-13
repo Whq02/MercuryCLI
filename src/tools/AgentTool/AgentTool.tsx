@@ -452,7 +452,7 @@ export const AgentTool = buildTool({
     }
 
     const typedModel = input.model
-    const matchedModel = typedModel ? matchReachableModelName(typedModel) : null
+    const matchedModel = typedModel ? matchReachableModelName(typedModel, 'pass') : null
     if (matchedModel !== null && (matchedModel.kind === 'ambiguous' || matchedModel.kind === 'none')) {
       throw new Error(modelNameHeadlessRefusal(matchedModel, 'model'))
     }

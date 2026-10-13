@@ -198,10 +198,16 @@ section('5 · exact glm ids + gate refusals')
     glm?.backend === 'zai' && glm.model === 'glm-5.2',
     JSON.stringify(glm),
   )
-  const unverified = await refusal(() => resolveEngineDispatch('glm-4.6'))
+  const known = await resolveEngineDispatch('glm-4.6')
   check(
-    "'glm-4.6' refuses (not catalogue-verified)",
-    unverified.includes('catalogue-verified') && unverified.includes('glm-5.2'),
+    "'glm-4.6' (a pinned row the unread list cannot confirm) runs on zai as this build knows it, with the note naming the read failure — the known rung behind the live list",
+    known?.backend === 'zai' && known.model === 'glm-4.6' && known.note?.includes('the Z.AI model list could not be read') === true && known.note.includes('GLM-4.6 (glm-4.6)'),
+    JSON.stringify(known),
+  )
+  const unverified = await refusal(() => resolveEngineDispatch('glm-9999-nonexistent'))
+  check(
+    "'glm-9999-nonexistent' refuses: an id on neither the live list nor this build's pins names the ids it does know (glm-5.2 among them), mercury://models/known and the ask rung",
+    unverified.includes("Z.AI model 'glm-9999-nonexistent' is on neither mercury://models") && unverified.includes('glm-5.2') && unverified.includes('mercury://models/known') && unverified.includes('ask the operator'),
     unverified,
   )
   delete process.env.OPENAI_API_KEY
