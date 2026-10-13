@@ -33,6 +33,7 @@ import { maybeResizeAndDownsampleImageBlock } from '../imageResizer.js'
 import { isStoredImageRef, readStoredImageRef, storeImages } from '../imageStore.js'
 import { logError } from '../log.js'
 import { untoldSettingsFaultLines } from '../settings/faultNotices.js'
+import { untoldHiddenCharacterLines } from '../text/hiddenCharacterFindings.js'
 
 export type ProcessUserInputContext = ToolUseContext &
   import('../../commands.js').LocalJSXCommandContext
@@ -150,7 +151,7 @@ export async function processUserInput(
   if (!base.shouldQuery) return base
 
   const promptText = typeof input === 'string' ? input : extractTextContent(input, '\n')
-  const settingsMessages: Message[] = context.agentId === undefined ? untoldSettingsFaultLines().map(line => createSystemMessage(line, 'warning')) : []
+  const settingsMessages: Message[] = context.agentId === undefined ? [...untoldSettingsFaultLines(), ...untoldHiddenCharacterLines()].map(line => createSystemMessage(line, 'warning')) : []
   const started = await fireHooks(
     'turn.start',
     { turn_id: readToolCallChain(context)?.key ?? '', prompt: promptText },
