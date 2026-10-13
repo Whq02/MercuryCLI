@@ -23515,5 +23515,50 @@
   "timestamp": "«ts»",
   "type": "tool_use_summary",
   "uuid": "«u1»"
+ },
+ "createCloseUsageMessage/stored": {
+  "closeState": "stored",
+  "isMeta": false,
+  "noteChars": 142,
+  "subtype": "close_usage",
+  "timestamp": "«ts»",
+  "type": "system",
+  "usage": {
+   "cache_creation": {
+    "ephemeral_1h_input_tokens": 0,
+    "ephemeral_5m_input_tokens": 0
+   },
+   "cache_creation_input_tokens": 0,
+   "cache_read_input_tokens": 900,
+   "inference_geo": null,
+   "input_tokens": 1200,
+   "iterations": null,
+   "output_tokens": 80,
+   "output_tokens_details": null,
+   "server_tool_use": {
+    "web_fetch_requests": 0,
+    "web_search_requests": 0
+   },
+   "service_tier": "standard",
+   "speed": null
+  },
+  "uuid": "«u1»"
+ },
+ "createCloseUsageMessage/skipped": {
+  "closeState": "skipped",
+  "isMeta": false,
+  "noteChars": 9,
+  "subtype": "close_usage",
+  "timestamp": "«ts»",
+  "type": "system",
+  "uuid": "«u1»"
+ },
+ "createCloseUsageMessage/none": {
+  "closeState": "none",
+  "isMeta": false,
+  "subtype": "close_usage",
+  "timestamp": "«ts»",
+  "type": "system",
+  "uuid": "«u1»"
  }
 }

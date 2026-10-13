@@ -161,7 +161,15 @@ for (const run of drainRuns) {
   cleanups.push(run.home, run.fix)
   const denied = run.script === 'tool-bash-write' && !run.allowed.includes('Bash')
   const tag = `[${run.script}${denied ? ' DENIED' : ''}]`
-  check(`${tag} the run exits 0 with the settled text (the run itself is unchanged)`, run.rc === 0 && run.stdout.includes(ONE_TOOL_SETTLED_TEXT), `rc=${run.rc} signal=${run.signal} stderr=${run.stderr.slice(-300)}`)
+  if (denied) {
+    check(
+      `${tag} the run ends blocked: exit 1, the settled text on stdout, the one blocked line on stderr naming the tool nobody could answer for`,
+      run.rc === 1 && run.stdout.includes(ONE_TOOL_SETTLED_TEXT) && run.stderr.trim().startsWith('Blocked on the operator: Bash asked for an answer nobody could give') && !run.stderr.trim().includes('\n'),
+      `rc=${run.rc} signal=${run.signal} stdout=${run.stdout.slice(-120)} stderr=${run.stderr.slice(-300)}`,
+    )
+  } else {
+    check(`${tag} the run exits 0 with the settled text (the run itself is unchanged)`, run.rc === 0 && run.stdout.includes(ONE_TOOL_SETTLED_TEXT), `rc=${run.rc} signal=${run.signal} stderr=${run.stderr.slice(-300)}`)
+  }
   check(`${tag} the census was taken at the reallyExit cliff`, run.census?.where === 'reallyExit', j(run.census?.where))
   check(`${tag} the BEFORE dump was taken the moment the drain owner was about to run (the channel spoke)`, run.beforeDrain?.where === 'before-drain' && run.beforeDrain.drainSkipped === false, j(run.beforeDrain?.where))
   if (!run.census) continue
