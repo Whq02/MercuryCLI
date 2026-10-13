@@ -238,7 +238,7 @@ function makeCtx(store: ReturnType<typeof makeStore>): never {
   const agentTool = src('src/tools/AgentTool/AgentTool.tsx')
   check("the receipt's address line names the id and, for a named launch, the name — the two addresses the resolver reads", /continuationHint\(async\.agentId, async\.agentName\)/.test(agentTool) && agentTool.includes('or to its name "${name}"') && agentTool.includes("input.name ? { agentName: input.name } : {}"))
   const prompt = src('src/tools/SendMessageTool/prompt.ts')
-  check("the tool's prompt tells the model both addresses reach a launched crewmate", prompt.includes("the id a crewmate's launch receipt names, or the name its launch gave it — both reach the same agent"))
+  check("the tool's prompt tells the model both addresses reach a launched crewmate", prompt.includes("the id a crewmate's launch receipt names, or the name its launch gave it — both reach the same crewmate"))
   const ids = src('src/types/ids.ts')
   const task = src('src/Task.ts')
   check('the id grammar has one owner: the minter reads the alphabet the validator reads', ids.includes('export const TASK_ID_ALPHABET') && task.includes("import { TASK_ID_ALPHABET, TASK_ID_SUFFIX_LENGTH } from './types/ids.js'") && !/const TASK_ID_ALPHABET = /.test(task))
