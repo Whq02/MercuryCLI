@@ -1,0 +1,29 @@
+FAIL src/calc.jest.test.cjs
+  calc
+    ✕ adds two numbers (2 ms)
+    ✓ keeps zero (1 ms)
+    ○ skipped divides later
+
+  ● calc › adds two numbers
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: 5
+    Received: -1
+
+      4 |   it('adds two numbers', () => {
+      5 |     const result = add(2, 3)
+    > 6 |     expect(result).toBe(5)
+        |                    ^
+      7 |   })
+      8 |   it('keeps zero', () => {
+      9 |     expect(add(0, 0)).toBe(0)
+
+      at Object.<anonymous> (src/calc.jest.test.cjs:6:20)
+
+Test Suites: 1 failed, 1 total
+Tests:       1 failed, 1 skipped, 1 passed, 3 total
+Snapshots:   0 total
+Time:        0.085 s
+Ran all test suites.
+Test results written to: jest-report.json

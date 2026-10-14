@@ -182,6 +182,76 @@ section('D. the live leg — a real vitest when MERCURY_PROOF_RUNNER_MODULES nam
   }
 }
 
+section('E. the recorded jest reporter through the same parser (jest 29.7.0, recorded)')
+{
+  const read = reporters.parseJsonReporter(fixture('jest-report.json'), FIXTURE_ROOT)
+  check('E1 counts: 1 passed · 1 failed · 1 skipped (jest spells a skipped test "pending") · 0 errored', read !== null && JSON.stringify(read.counts) === JSON.stringify({ passed: 1, failed: 1, skipped: 1, errored: 0 }), JSON.stringify(read?.counts))
+  const failing = read?.cases.find(c => c.outcome === 'failed')
+  check('E2 the failing case: full name · src/calc.jest.test.cjs:6 · the expect message', failing?.id === 'calc adds two numbers' && failing.file === 'src/calc.jest.test.cjs' && failing.line === 6 && (failing.message ?? '').includes('expect(received).toBe(expected)') && (failing.message ?? '').includes('Received: -1'), JSON.stringify(failing))
+  check('E3 failures[] is the -t selection by full name', JSON.stringify(read?.failures) === JSON.stringify(['calc adds two numbers']), JSON.stringify(read?.failures))
+  const broken = reporters.parseJsonReporter(fixture('jest-broken-file.json'), FIXTURE_ROOT)
+  check('E4 a suite that failed to run (numRuntimeErrorTestSuites) is ERRORED with its message', broken !== null && JSON.stringify(broken.counts) === JSON.stringify({ passed: 0, failed: 0, skipped: 0, errored: 1 }) && broken.cases[0]?.outcome === 'errored' && broken.cases[0]?.id === 'src/broken.jest.test.cjs' && (broken.cases[0]?.message ?? '').includes('Cannot find module'), JSON.stringify(broken))
+}
+
+section('F. jest: the argv, the run road and the rerun')
+{
+  const { root, argvFile, writtenFile } = standInProject('jest', { exitCode: 1, report: fixture('jest-report.json'), stdout: fixture('jest-prose.txt') })
+  const profile = runners.discoverRunnerProfiles(root).profiles.find(p => p.runner === 'jest' && p.kind === 'test')
+  check('F1 the jest profile runs jest --json', JSON.stringify(profile?.command.slice(1)) === JSON.stringify(['--json']), JSON.stringify(profile?.command))
+  const fileFlag = (runners as { reporterFileFlag?: (runner: string) => string | null }).reporterFileFlag ?? (() => 'absent on this tree')
+  check('F2 the per-run output file rides --outputFile=', fileFlag('jest') === '--outputFile=', String(fileFlag('jest')))
+  const run = profile ? await runners.runRunnerProfile(profile, { from: root }) : null
+  check('F3 counts are the reporter\'s and no "counts not parsed" note', run?.state === 'ok' && JSON.stringify(run.record.counts) === JSON.stringify({ passed: 1, failed: 1, skipped: 1, errored: 0 }) && !(run.record.verdictNote ?? '').includes('counts not parsed'), JSON.stringify(run?.state === 'ok' ? { counts: run.record.counts, note: run.record.verdictNote } : run))
+  const failing = run?.state === 'ok' ? run.record.cases.find(c => c.outcome === 'failed') : undefined
+  check('F4 the failing case is typed: full name · src/calc.jest.test.cjs:6', failing?.id === 'calc adds two numbers' && failing.file === 'src/calc.jest.test.cjs' && failing.line === 6, JSON.stringify(failing))
+  const argv = existsSync(argvFile) ? (JSON.parse(readFileSync(argvFile, 'utf8')) as string[]) : []
+  check('F5 jest received --json and --outputFile=<a scratch path>', argv.includes('--json') && argv.some(a => a.startsWith('--outputFile=')), JSON.stringify(argv))
+  const written = existsSync(writtenFile) ? readFileSync(writtenFile, 'utf8') : ''
+  check('F6 the report file is removed after the read', written.length > 0 && !existsSync(written), written)
+  if (run?.state === 'ok') {
+    const rerun = await runners.rerunRunnerFailures(run.record, { from: root })
+    const rerunArgv = JSON.parse(readFileSync(argvFile, 'utf8')) as string[]
+    check('F7 rerunFailed selects by full name with --json still present', rerun.state === 'ok' && rerunArgv.includes('-t') && rerunArgv[rerunArgv.indexOf('-t') + 1] === 'calc adds two numbers' && rerunArgv.includes('--json'), JSON.stringify(rerunArgv))
+  }
+  rmSync(root, { recursive: true, force: true })
+}
+
+section('G. the live leg — a real jest when MERCURY_PROOF_RUNNER_MODULES carries it')
+{
+  const modules = process.env.MERCURY_PROOF_RUNNER_MODULES
+  const jestBin = modules ? path.join(modules, '.bin', 'jest') : ''
+  if (!modules || !existsSync(jestBin)) {
+    console.log(`  [SKIP — LOUD] no jest on this machine (${modules ? `${jestBin} absent` : 'MERCURY_PROOF_RUNNER_MODULES unset'}) — the recorded reporter above is the evidence`)
+  } else {
+    const root = scratch('live-jest')
+    writeFileSync(path.join(root, 'package.json'), JSON.stringify({ name: 'live', private: true, devDependencies: { jest: '*' }, jest: { testEnvironment: 'node' } }) + '\n')
+    writeFileSync(path.join(root, 'bun.lock'), '{}\n')
+    symlinkSync(modules, path.join(root, 'node_modules'))
+    mkdirSync(path.join(root, 'src'))
+    writeFileSync(
+      path.join(root, 'src', 'calc.test.js'),
+      [
+        'function add(a, b) { return a - b }',
+        "describe('calc', () => {",
+        "  it('adds two numbers', () => { expect(add(2, 3)).toBe(5) })",
+        "  it('keeps zero', () => { expect(add(0, 0)).toBe(0) })",
+        "  it.skip('divides later', () => {})",
+        '})',
+        '',
+      ].join('\n'),
+    )
+    const profile = runners.discoverRunnerProfiles(root).profiles.find(p => p.runner === 'jest' && p.kind === 'test')!
+    const live = await runners.runRunnerProfile(profile, { from: root, env: { CI: '1' } })
+    check('G1 live jest: 1 passed · 1 failed · 1 skipped from its own reporter', live.state === 'ok' && JSON.stringify(live.record.counts) === JSON.stringify({ passed: 1, failed: 1, skipped: 1, errored: 0 }), JSON.stringify(live.state === 'ok' ? live.record.counts : live))
+    check('G2 live jest: the failing case is typed with its file and line', live.state === 'ok' && live.record.cases.some(c => c.id === 'calc adds two numbers' && c.file === 'src/calc.test.js' && c.line === 3), JSON.stringify(live.state === 'ok' ? live.record.cases : []))
+    if (live.state === 'ok') {
+      const rerun = await runners.rerunRunnerFailures(live.record, { from: root })
+      check('G3 live rerunFailed runs exactly the failure', rerun.state === 'ok' && rerun.record.counts.failed === 1 && rerun.record.counts.passed === 0 && rerun.record.counts.skipped === 2, JSON.stringify(rerun.state === 'ok' ? rerun.record.counts : rerun))
+    }
+    rmSync(root, { recursive: true, force: true })
+  }
+}
+
 console.log('')
 if (failures > 0) {
   console.error(`prove-runner-counts: ${failures} RED`)

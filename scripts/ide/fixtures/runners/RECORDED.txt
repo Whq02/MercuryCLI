@@ -2,3 +2,6 @@ vitest-report.json, vitest-broken-file.json, vitest-prose.txt
   recorded 2026-10-14 from vitest 3.2.7 on node 24: `vitest run --reporter=default --reporter=json --outputFile=<file>`
   over a three-test file (one failure, one pass, one it.skip); the broken-file run imports a missing module.
   The recording machine's project root is replaced by /work/project; the JSON is pretty-printed; nothing else changed.
+jest-report.json, jest-broken-file.json, jest-prose.txt
+  recorded 2026-10-14 from jest 29.7.0 on node 24: `jest --json --outputFile=<file>` over the same three tests.
+  The same root replacement and pretty-print.
