@@ -7,7 +7,7 @@ import { expandVsCodeVar, stripJsonc } from './launchProfiles.js'
 import { detectPackageManager } from './projectRunners.js'
 
 export type PreLaunchTask =
-  | { label: string; type: 'shell' | 'process' | 'npm'; argv: string[]; cwd: string; env?: Record<string, string> }
+  | { label: string; type: 'shell' | 'process' | 'npm'; argv: string[]; cwd: string; env?: Record<string, string>; matcherIgnored?: true }
   | { label: string; refused: string }
 
 interface TasksJsonTask {
@@ -52,9 +52,7 @@ export function resolvePreLaunchTask(label: string, root: string): PreLaunchTask
     return { label, refused: `task '${label}' has dependsOn — Mercury runs one plain task, not a chain` }
   }
   const matcher = task.problemMatcher
-  if (matcher !== undefined && !(Array.isArray(matcher) && matcher.length === 0)) {
-    return { label, refused: `task '${label}' carries a problem matcher — Mercury runs the command but does not run matchers` }
-  }
+  const ignored: { matcherIgnored?: true } = matcher !== undefined && !(Array.isArray(matcher) && matcher.length === 0) ? { matcherIgnored: true } : {}
   const type = task.type ?? 'process'
   const expand = (value: string, what: string): string | { refused: string } => {
     const out = expandVsCodeVar(value, root)
@@ -84,7 +82,7 @@ export function resolvePreLaunchTask(label: string, root: string): PreLaunchTask
     if (typeof task.script !== 'string' || task.script === '') return { label, refused: `task '${label}' is an npm task without a script` }
     const pm = detectPackageManager(root)
     if ('missing' in pm) return { label, refused: `task '${label}' is an npm task but ${pm.missing}` }
-    return { label, type: 'npm', argv: [pm.bin, 'run', task.script], cwd, ...(env ? { env } : {}) }
+    return { label, type: 'npm', argv: [pm.bin, 'run', task.script], cwd, ...(env ? { env } : {}), ...ignored }
   }
   if (type !== 'shell' && type !== 'process') {
     return { label, refused: `task type '${type}' is not one Mercury runs (shell, process, npm)` }
@@ -104,10 +102,10 @@ export function resolvePreLaunchTask(label: string, root: string): PreLaunchTask
   if (type === 'shell' && SHELL_OPERATORS.test(argv[0]!)) {
     return { label, refused: `task '${label}' is a shell command line (${argv[0]!.slice(0, 60)}) — Mercury runs tasks argv-only; spell it as command + args` }
   }
-  return { label, type, argv, cwd, ...(env ? { env } : {}) }
+  return { label, type, argv, cwd, ...(env ? { env } : {}), ...ignored }
 }
 
-export type PreLaunchTaskOutcome = { ran: true; label: string; argv: string[] } | { ran: false; label: string; reason: string }
+export type PreLaunchTaskOutcome = { ran: true; label: string; argv: string[]; matcherIgnored: boolean } | { ran: false; label: string; reason: string }
 
 export async function runPreLaunchTask(task: PreLaunchTask, signal?: AbortSignal): Promise<PreLaunchTaskOutcome> {
   if ('refused' in task) {
@@ -133,5 +131,5 @@ export async function runPreLaunchTask(task: PreLaunchTask, signal?: AbortSignal
   if (settlement.code !== 0) {
     return { ran: false, label: task.label, reason: `preLaunchTask '${task.label}' failed (exit ${settlement.code ?? 'null'}${settlement.signal ? `, ${settlement.signal}` : ''}) — the launch did not start${tail ? `\n${tail}` : ''}` }
   }
-  return { ran: true, label: task.label, argv: task.argv }
+  return { ran: true, label: task.label, argv: task.argv, matcherIgnored: task.matcherIgnored === true }
 }
