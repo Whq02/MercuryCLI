@@ -82,12 +82,26 @@ export function loadStudyCorpus(path: string): StudyCorpus {
   return raw
 }
 
+export const SEMANTIC_POOL = 16
+export const SEMANTIC_MIN_SIM = 0.45
+export const SEMANTIC_TIE_WIDTH = 0.02
+export const SEMANTIC_ADMIT_CAP = 9
+
 export function selectDiscriminatingSemantic(sims: readonly StudySimEntry[]): string[] {
-  if (sims.length === 0) return []
-  const mean = sims.reduce((s, x) => s + x.sim, 0) / sims.length
-  const std = Math.sqrt(sims.reduce((s, x) => s + (x.sim - mean) ** 2, 0) / sims.length) || 1
+  const hits = [...sims].sort((a, b) => b.sim - a.sim || a.id.localeCompare(b.id)).slice(0, SEMANTIC_POOL)
+  if (hits.length === 0) return []
+  const mean = hits.reduce((s, x) => s + x.sim, 0) / hits.length
+  const std = Math.sqrt(hits.reduce((s, x) => s + (x.sim - mean) ** 2, 0) / hits.length) || 1
   const floor = mean + 0.5 * std
-  return sims.filter((x, i) => i < 8 && x.sim >= floor).map(x => x.id)
+  const top = hits[0]!.sim
+  if (top < SEMANTIC_MIN_SIM) return []
+  const out: string[] = []
+  for (const hit of hits) {
+    if (hit.sim < floor && hit.sim < top - SEMANTIC_TIE_WIDTH) break
+    if (out.length >= SEMANTIC_ADMIT_CAP) break
+    out.push(hit.id)
+  }
+  return out
 }
 
 export function fuseByRank(semantic: readonly string[], lexical: readonly string[], k = 60): string[] {
