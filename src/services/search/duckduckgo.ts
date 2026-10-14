@@ -1,7 +1,7 @@
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { getApiFetch, getProxyFetchOptions } from '../../utils/proxy.js'
 import { fetchWithProviderDeadline } from '../providers/fetchDeadline.js'
-import { DUCKDUCKGO_TERMS, duckduckgoScrapingEnabled } from './searchSetting.js'
+import { DUCKDUCKGO_OFF_DOORS, DUCKDUCKGO_TERMS, duckduckgoScrapingEnabled } from './searchSetting.js'
 import { htmlToText, readAttribute } from './htmlText.js'
 import {
   liveSearchClock,
@@ -131,7 +131,7 @@ export function keylessQueryFor(request: SearchRequest): string {
 
 export interface KeylessSearchIo { fetchImpl?: typeof fetch; clock?: SearchClock; enabled?: boolean }
 type KeylessDoor = 'duckduckgo' | 'duckduckgo-lite'
-const DDG_RATE_POLICY = { intervalMs: 3000, why: 'Read 2026-10-13: https://duckduckgo.com/terms and https://duckduckgo.com/acceptable-use — no blanket automation ban and no published API rate for these pages; explicit opt-in is Mercury policy. Client courtesy: serial requests three seconds apart; refusal stops both hosts, Retry-After and exponential backoff are respected.' }
+const DDG_RATE_POLICY = { intervalMs: 3000, why: 'Read 2026-10-13: https://duckduckgo.com/terms and https://duckduckgo.com/acceptable-use — no blanket automation ban and no published API rate for these pages; on by default and off by the user\'s choice is Mercury policy (the owner\'s ruling 2026-10-14). Client courtesy: serial requests three seconds apart; refusal stops both hosts, Retry-After and exponential backoff are respected.' }
 
 async function attemptDoor(door: KeylessDoor, url: string, request: SearchRequest, io: KeylessSearchIo, clock: SearchClock): Promise<SearchOutcome> {
   const form = new URLSearchParams({ q: keylessQueryFor(request), kl: 'us-en' })
@@ -169,7 +169,7 @@ async function attemptDoor(door: KeylessDoor, url: string, request: SearchReques
 }
 export async function keylessSearch(request: SearchRequest, io: KeylessSearchIo = {}): Promise<SearchOutcome> {
   if (request.signal?.aborted) return searchFailure('aborted', 'duckduckgo', 'cancelled')
-  if (!(io.enabled ?? duckduckgoScrapingEnabled())) return searchFailure('no-backend', 'duckduckgo', 'DuckDuckGo scraping is off; /config offers the opt-in with its terms')
+  if (!(io.enabled ?? duckduckgoScrapingEnabled())) return searchFailure('no-backend', 'duckduckgo', `DuckDuckGo page scraping is off (${DUCKDUCKGO_OFF_DOORS})`)
   const clock = io.clock ?? liveSearchClock
   const notes: string[] = []
   let outcome = await withSearchTurn('duckduckgo', DDG_RATE_POLICY, clock, request.signal, async waitMs => {
