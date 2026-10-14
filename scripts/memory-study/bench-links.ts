@@ -119,6 +119,8 @@ if (import.meta.main) {
     doc.sections.push({ heading: 'facts', entries: list.map(c => ({ text: c.text, seq: c.seq!, time: c.time ?? corpus.recordedAt, source: 'study' })) })
     writeFileSync(join(dir, docs.docFileName(slug)), docs.serializeTopicDoc(doc))
   }
+  const staged = corpus.candidates.filter(c => c.pending && c.id.startsWith('pending:'))
+  if (staged.length > 0) writeFileSync(join(dir, 'current.jsonl'), staged.map(c => JSON.stringify({ ts: c.id.slice('pending:'.length), source: 'study', text: c.text, topicHint: c.slug })).join('\n') + '\n')
   const pool = (flowed: boolean) => corpus.candidates.map(c => ({ id: c.id, seq: c.seq, slug: c.slug, pagePath: c.slug, pending: c.pending, pinned: c.pinned, kind: c.kind, time: c.time, useCount: flowed ? c.flowedUseCount : c.directUseCount, signature: '', text: c.text }))
   const usageOf = (flowed: boolean) => Object.fromEntries(corpus.candidates.filter(c => c.seq !== undefined).map(c => [String(c.seq), { last: '', count: flowed ? c.flowedUseCount : c.directUseCount }]))
   const byId = new Map(corpus.candidates.map(c => [c.id, c]))
