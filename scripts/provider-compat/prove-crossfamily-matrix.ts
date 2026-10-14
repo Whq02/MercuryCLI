@@ -116,6 +116,18 @@ function chatSse(kind: 'tool' | 'final', family: Family): string {
   ].join('')
 }
 
+function geminiSse(kind: 'tool' | 'final', family: Family): string {
+  if (kind === 'tool') {
+    return [
+      sse({ candidates: [{ content: { role: 'model', parts: [{ functionCall: { id: 'call_fx_1', name: 'EchoTool', args: { text: `ping-${family}` } }, thoughtSignature: 'fixture-signature-1' }] }, finishReason: 'STOP' }], usageMetadata: { promptTokenCount: 8, candidatesTokenCount: 5 } }),
+    ].join('')
+  }
+  return [
+    sse({ candidates: [{ content: { role: 'model', parts: [{ text: `matrix-final-${family}` }] } }] }),
+    sse({ candidates: [{ content: { role: 'model', parts: [{ text: '' }] }, finishReason: 'STOP' }], usageMetadata: { promptTokenCount: 8, candidatesTokenCount: 2 } }),
+  ].join('')
+}
+
 function sawToolResult(family: Family, body: Body): boolean {
   if (family === 'anthropic') {
     const messages = (body.messages as Array<{ content?: unknown }> | undefined) ?? []
@@ -126,6 +138,10 @@ function sawToolResult(family: Family, body: Body): boolean {
   if (family === 'openai' || (family === 'openrouter' && Array.isArray(body.input))) {
     const input = (body.input as Array<{ type?: string }> | undefined) ?? []
     return input.some(i => i?.type === 'function_call_output')
+  }
+  if (family === 'gemini' && Array.isArray(body.contents)) {
+    const contents = body.contents as Array<{ parts?: Array<{ functionResponse?: unknown }> }>
+    return contents.some(c => (c.parts ?? []).some(p => p?.functionResponse !== undefined))
   }
   const messages = (body.messages as Array<{ role?: string }> | undefined) ?? []
   return messages.some(m => m?.role === 'tool')
@@ -245,12 +261,14 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
       const isAnthropic = family === 'anthropic' && path.endsWith('/v1/messages')
       const isResponses = (family === 'openai' || family === 'openrouter') && path.endsWith('/responses')
       const isChat = path.endsWith('/chat/completions')
-      if (isAnthropic || isResponses || isChat) {
-        captured.push({ family, path, body })
+      const isGeminiNative = family === 'gemini' && path.endsWith(':streamGenerateContent')
+      if (isAnthropic || isResponses || isChat || isGeminiNative) {
+        const nativeModel = isGeminiNative ? decodeURIComponent(/\/models\/([^/]+):streamGenerateContent$/.exec(path)?.[1] ?? '') : undefined
+        captured.push({ family, path, body: nativeModel === undefined ? body : { ...body, model: nativeModel } })
         const kind: 'tool' | 'final' =
           sawToolResult(family, body) || text(body).includes('matrix-notool') ? 'final' : 'tool'
         res.writeHead(200, { 'content-type': 'text/event-stream' })
-        res.end(isAnthropic ? anthropicSse(kind, family) : isResponses ? responsesSse(kind, family) : chatSse(kind, family))
+        res.end(isAnthropic ? anthropicSse(kind, family) : isResponses ? responsesSse(kind, family) : isGeminiNative ? geminiSse(kind, family) : chatSse(kind, family))
         return
       }
     }
