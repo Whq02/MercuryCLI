@@ -210,6 +210,7 @@ export interface RecallResult {
   hits: RecallHit[]
   elidable: boolean
   catalog: Array<{ slug: string; summary: string }>
+  cut: { hits: number; stale: number }
 }
 
 const PREVIEW_CHARS = 200
@@ -310,7 +311,8 @@ export function recallQuery(
     if (entry) Object.assign(hit, factMemoryState(entry, { pins, usage, now: opts.now }))
   }
   hits.sort((a, b) => Number(a.status === 'stale') - Number(b.status === 'stale'))
-  return { hits: hits.slice(0, limit), elidable: hits.length === 0, catalog: catalogRows }
+  const beyond = hits.slice(limit).filter(hit => !hit.id.startsWith('doc:'))
+  return { hits: hits.slice(0, limit), elidable: hits.length === 0, catalog: catalogRows, cut: { hits: beyond.length, stale: beyond.filter(hit => hit.status === 'stale').length } }
 }
 
 

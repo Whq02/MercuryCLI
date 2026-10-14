@@ -134,7 +134,7 @@ const [againstRule, againstFact, againstNumber, restated, unrelated] = outcomes
 check('the fact against the pinned rule is refused', againstRule?.status === 'refused', j(againstRule))
 const ruleReason = againstRule?.status === 'refused' ? againstRule.reason : ''
 check(`the reason names the rule by number and its first words and sends the model to the user's road`, ruleReason.startsWith(`conflicts with rule ${bunSeq}: "always use bun for installs; the lockfile only…"`) && ruleReason.includes(USER_ASKED_RULE_ROAD), ruleReason)
-check('the fact against a plain fact is refused with the Correct road', againstFact?.status === 'refused' && againstFact.reason.startsWith(`conflicts with fact ${suitesSeq}: "run the suites in parallel and batch the…"`) && againstFact.reason.includes(`Correct seq:${suitesSeq} (supersede, with the evidence as the reason)`), j(againstFact))
+check('the fact against a plain fact is refused with the Correct road, and the advice never says supersede', againstFact?.status === 'refused' && againstFact.reason.startsWith(`conflicts with fact ${suitesSeq}: "run the suites in parallel and batch the…"`) && againstFact.reason.includes(`if the record is wrong, Correct seq:${suitesSeq} with the evidence as the reason; if both are true, retain it again with the difference stated (when, where, which)`) && !againstFact.reason.includes('supersede'), j(againstFact))
 check('the differing number is refused', againstNumber?.status === 'refused' && againstNumber.reason.startsWith(`conflicts with fact ${budgetSeq}:`), j(againstNumber))
 check('the restated rule is stored (overlap alone is never a conflict)', restated?.status === 'stored', j(restated))
 check('an unrelated fact sharing words is stored', unrelated?.status === 'stored', j(unrelated))

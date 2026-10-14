@@ -51,6 +51,29 @@ export function wordsOf(text: string): string[] {
   return lowered.split(/[^a-z0-9]+/).filter(word => word.length >= 2)
 }
 
+const CLAUSE_JOINERS = new Set(['and', 'but', 'or'])
+
+export function clausesOf(text: string): string[][] {
+  const out: string[][] = []
+  for (const piece of text.split(/[,;.!?\r\n]+/)) {
+    let clause: string[] = []
+    for (const word of wordsOf(piece)) {
+      if (CLAUSE_JOINERS.has(word)) {
+        if (clause.length > 0) out.push(clause)
+        clause = []
+        continue
+      }
+      clause.push(word)
+    }
+    if (clause.length > 0) out.push(clause)
+  }
+  return out
+}
+
+export function normalisedText(text: string): string {
+  return wordsOf(text).join(' ')
+}
+
 export const isNumberWord = (word: string): boolean => /^\d+$/.test(word)
 
 export function contentStems(words: readonly string[], skip: ReadonlySet<string> = new Set()): string[] {
@@ -62,10 +85,23 @@ export function contentStems(words: readonly string[], skip: ReadonlySet<string>
   return out
 }
 
+const ABBREVIATION_END = /\b(?:e\.g|i\.e|vs|cf)\.$/i
+const TITLE_END = /\b(?:Dr|Mr|Mrs|Ms|Prof|St)\.$/
+
+function endsWithAbbreviation(piece: string): boolean {
+  return ABBREVIATION_END.test(piece) || TITLE_END.test(piece)
+}
+
 export function sentencesOf(text: string): string[] {
   const out: string[] = []
   for (const line of text.split(/\r?\n/)) {
+    const pieces: string[] = []
     for (const piece of line.split(/(?<=[.!?])\s+(?=[^\s])/)) {
+      const previous = pieces.length > 0 ? pieces[pieces.length - 1]! : null
+      if (previous !== null && endsWithAbbreviation(previous)) pieces[pieces.length - 1] = `${previous} ${piece}`
+      else pieces.push(piece)
+    }
+    for (const piece of pieces) {
       const cleaned = piece.replace(/^\s*(?:[-*•]|\d+[.)])\s+/, '').trim()
       if (cleaned !== '' && /[a-z]/i.test(cleaned)) out.push(cleaned)
     }

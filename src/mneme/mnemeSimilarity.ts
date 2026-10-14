@@ -1,6 +1,8 @@
+import { POLARITY_WORDS, polarityFlipBetween } from './mnemePolarity.js'
 import { stemLookupToken } from './mnemeStemmer.js'
 
 export const CONSOLIDATE_SIMILARITY_THRESHOLD = 0.8
+const PROTECTED_WINDOW = 4
 
 export function shingleTokens(text: string): string[] {
   return (text.toLowerCase().replace(/[’]/g, "'").match(/[\p{L}\p{N}]+(?:['./_-][\p{L}\p{N}]+)*/gu) ?? []).map(stemLookupToken)
@@ -23,15 +25,49 @@ export function shingleSimilarity(left: string, right: string): number {
   return shared / (a.size + b.size - shared)
 }
 
-function protectedWords(text: string): string {
+export function properNames(text: string): string[] {
+  const names: string[] = []
+  for (const sentence of text.split(/(?<=[.!?])\s+|\r?\n/)) {
+    const words = sentence.replace(/^\s*(?:[-*•]|\d+[.)])\s+/, '').trim().split(/\s+/)
+    for (const word of words.slice(1)) {
+      const core = word.replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, '')
+      if (core.length > 1 && /^\p{Lu}[\p{L}\p{N}'’-]*$/u.test(core)) names.push(core.toLowerCase())
+    }
+  }
+  return names
+}
+
+export function protectedWords(text: string): string[] {
   const tokens = shingleTokens(text)
   const words = tokens.flatMap((word, at) => {
-    if (/^(no|not|never|without|cannot|neither|nor)$/.test(word) || /n't$/.test(word)) return [tokens.slice(at, at + 4).join(' ')]
-    return /[0-9/_.]/.test(word) ? [word] : []
+    if (/^(no|not|never|without|cannot|neither|nor)$/.test(word) || /n't$/.test(word)) return [tokens.slice(at, at + PROTECTED_WINDOW).join(' ')]
+    return /[0-9/_.-]/.test(word) ? [word] : []
   })
-  return words.sort().join('\u0000')
+  return [...words, ...properNames(text)].sort()
+}
+
+function polarityWindows(text: string): Map<string, string> {
+  const tokens = shingleTokens(text)
+  const windows = new Map<string, string[]>()
+  tokens.forEach((word, at) => {
+    if (!POLARITY_WORDS.has(word)) return
+    windows.set(word, [...(windows.get(word) ?? []), tokens.slice(at, at + PROTECTED_WINDOW).join(' ')])
+  })
+  return new Map([...windows].map(([word, list]) => [word, list.sort().join('\u0000')]))
+}
+
+export function polarityKeepsApart(left: string, right: string): boolean {
+  if (polarityFlipBetween(left, right) !== null) return true
+  const theirs = polarityWindows(right)
+  for (const [word, mine] of polarityWindows(left)) {
+    const other = theirs.get(word)
+    if (other !== undefined && other !== mine) return true
+  }
+  return false
 }
 
 export function mergeSimilar(left: string, right: string): boolean {
-  return protectedWords(left) === protectedWords(right) && shingleSimilarity(left, right) >= CONSOLIDATE_SIMILARITY_THRESHOLD
+  if (protectedWords(left).join('\u0000') !== protectedWords(right).join('\u0000')) return false
+  if (polarityKeepsApart(left, right)) return false
+  return shingleSimilarity(left, right) >= CONSOLIDATE_SIMILARITY_THRESHOLD
 }

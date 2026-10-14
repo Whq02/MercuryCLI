@@ -16,7 +16,7 @@ import {
   type RetainItemOutcome,
 } from '../../mneme/memoryVerbs.js'
 import { confirmCitedFacts, renderFootnotes } from '../../mneme/mnemeFootnotes.js'
-import { POINTER_DEFAULT_LIMIT, POINTER_LIMIT, renderPointerLine, searchPointers, type PointerResult } from '../../mneme/mnemePointers.js'
+import { POINTER_DEFAULT_LIMIT, POINTER_LIMIT, limitCutLine, renderPointerLine, searchPointers, type PointerResult } from '../../mneme/mnemePointers.js'
 import { runDueMaintenance } from '../../mneme/mnemeMaintenance.js'
 import {
   CORRECT_DESCRIPTION,
@@ -222,10 +222,11 @@ export const RecallTool = buildTool({
       output.catalog.length > 0
         ? `\nTopics: ${output.catalog.map(row => `${row.slug} (${row.summary.slice(0, 60)})`).join(' · ')}`
         : ''
+    const cut = limitCutLine(output)
     return {
       tool_use_id: toolUseID,
       type: 'tool_result',
-      content: `${output.pointers.length} pointer(s) — a pointer carries no content: open one with read:"<id>" before you rely on it\n${output.pointers.map(renderPointerLine).join('\n')}${catalog}`,
+      content: `${output.pointers.length} pointer(s) — a pointer carries no content: open one with read:"<id>" before you rely on it\n${cut === null ? '' : `${cut}\n`}${output.pointers.map(renderPointerLine).join('\n')}${catalog}`,
     }
   },
   renderToolUseMessage: input => renderMemoryToolUse('recall', input),

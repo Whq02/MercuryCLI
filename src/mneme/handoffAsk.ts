@@ -9,13 +9,15 @@ import { EMPTY_USAGE, type NonNullableUsage } from '../services/api/emptyUsage.j
 import { accumulateUsage } from '../services/providers/anthropic/cacheAndUsage.js'
 import { createUserMessage } from '../utils/messages/factories.js'
 import { handoffReask, measureNovelty, noveltyRecord } from './handoffNovelty.js'
-import { ledgerEntryOf, recordHandoff } from './ledger.js'
+import { HANDOFF_TEXT_CAP, ledgerEntryOf, recordHandoff } from './ledger.js'
 import { lineageJoined } from './lineageSession.js'
 import { mnemeProjectKey } from './paths.js'
 import { sessionCloseAsks } from './sessionClose.js'
 
+const inThousands = (n: number): string => n.toLocaleString('en-US')
+
 export const HANDOFF_ASK =
-  'The session is ending. Leave one note for the next session to orient itself just enough for the next session to know the repo\'s workings, nothing else. Keep prose concise, effective, and short. Reply with the note alone; it is stored exactly as written.'
+  `The session is ending. Leave one note for the next session to orient itself just enough for the next session to know the repo\'s workings, nothing else. Keep prose concise, effective, and short. Reply with the note alone; it is stored exactly as written, up to ${inThousands(HANDOFF_TEXT_CAP)} characters.`
 
 export const HANDOFF_ASK_BUDGET_MS = 120_000
 
@@ -67,8 +69,9 @@ export function handoffAskText(sessionId: string): { text: string; tools: Set<st
   return { text: [HANDOFF_ASK, ...extra.map(ask => ask.line.trim())].join('\n'), tools }
 }
 
-export function handoffNotice(note: { text: string; stored: boolean } | null): string {
+export function handoffNotice(note: { text: string; stored: boolean; overCap?: boolean } | null): string {
   if (note === null) return 'the session ends with no note left for the next one'
+  if (note.overCap === true) return `the note was not stored: ${inThousands(note.text.length)} characters, and a note is stored exactly as written only up to ${inThousands(HANDOFF_TEXT_CAP)}; the session ends with no note left for the next one`
   if (!note.stored) return 'the note could not be stored; the session ends with no note left for the next one'
   return `the note for the next session is in the ledger (${note.text.length} characters)`
 }
@@ -83,7 +86,7 @@ export async function askForHandoff(input: {
   canUseTool?: CanUseToolFn
   run?: AskRunner
   onUsage?: (usage: NonNullableUsage) => void
-}): Promise<{ text: string; stored: boolean; reasked: boolean } | null> {
+}): Promise<{ text: string; stored: boolean; reasked: boolean; overCap?: boolean } | null> {
   const sessionId = input.sessionId ?? String(getSessionId())
   if (!lineageJoined() || asked.has(sessionId)) return null
   asked.add(sessionId)
@@ -144,8 +147,12 @@ export async function askForHandoff(input: {
       }
     }
     input.onUsage?.(usage)
+    if (text.length > HANDOFF_TEXT_CAP) {
+      logForDebugging(`handoff note for ${sessionId} not stored: ${text.length} characters over the ${HANDOFF_TEXT_CAP} cap`)
+      return { text, stored: false, reasked, overCap: true }
+    }
     const entry = recordHandoff(mnemeProjectKey(), sessionId, text)
-    return { text, stored: entry?.handoff?.text === text || (entry?.handoff !== null && entry?.handoff !== undefined && text.startsWith(entry.handoff.text)), reasked }
+    return { text, stored: entry?.handoff?.text === text, reasked }
   } catch (error) {
     logForDebugging(`handoff ask failed for ${sessionId}: ${error instanceof Error ? error.message : String(error)}`)
     return null
