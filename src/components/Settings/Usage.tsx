@@ -19,6 +19,7 @@ import {
   anthropicPoolWindowViews,
   anthropicWindowViews,
   openaiObservedWindowViews,
+  metaMuseCodeUsage,
   providerFamilyPresences,
   providerSessionSpend,
   providerUsageView,
@@ -922,23 +923,22 @@ function MetaUsageSection({ width }: { width?: number }): React.ReactNode {
   const subscription = account?.kind === 'muse-code'
   const spend = providerSessionSpend('meta')
   const usage = useOwnerUsage('meta', account !== undefined)
-  const windows = usage.windows
+  const planUsage = metaMuseCodeUsage(spend)
+  const windows = planUsage?.windows ?? []
   const facts = liveMetaConnectFacts()
   const storedNote = metaStoredSourcesNote(facts)
-  const tierWithAge = metaMuseCodeTierWordsWithAge({
-    ...(usage.tier ?? account?.tierName ? { museCodeTier: usage.tier ?? account?.tierName } : {}),
-    ...(account?.observedAtMs ? { museCodeReadAtMs: account.observedAtMs } : {}),
-  })
+  const tierWithAge = metaMuseCodeTierWordsWithAge(facts)
   return (
     <Box flexDirection="column">
       <Text bold>Meta usage</Text>
       <IdentityLine family="meta" />
       <Box flexDirection="column" marginTop={1}>
         <SlotHeading text="Muse Code subscription" />
-        {subscription ? (
+        {planUsage !== undefined ? (
           <Box flexDirection="column">
-            <Text dimColor>{[account.email ? shownIdentityWords('meta', account.email) : undefined, tierWithAge].filter((part): part is string => part !== undefined && part !== '').join(' · ')}</Text>
-            <SlotSpend active route="meta" spend={spend} withCost={false} />
+            <Text dimColor>{[facts.museCodeEmail ? shownIdentityWords('meta', facts.museCodeEmail) : undefined, tierWithAge].filter((part): part is string => part !== undefined && part !== '').join(' · ')}</Text>
+            {!subscription ? <Text dimColor>not active — ↵ on its /logins row makes it active</Text> : null}
+            <SlotSpend active={subscription} route="meta" spend={spend} withCost={false} />
             {windows.length > 0 ? (
               windows.map(window => (
                 <ObservedWindowMeter
@@ -948,10 +948,10 @@ function MetaUsageSection({ width }: { width?: number }): React.ReactNode {
                 />
               ))
             ) : (
-              <Text dimColor>{usage.readerNote ?? 'Plan windows: not yet observed — the key endpoint is asked on this tab.'}</Text>
+              <Text dimColor>{planUsage.readerNote ?? (subscription ? 'Plan windows: not yet observed — the key endpoint is asked on this tab.' : planUsage.absence)}</Text>
             )}
-            {windows.length > 0 && usage.readerNote !== undefined ? <Text dimColor>{usage.readerNote}</Text> : null}
-            <FullWindowLine usage={usage} />
+            {windows.length > 0 && planUsage.readerNote !== undefined ? <Text dimColor>{planUsage.readerNote}</Text> : null}
+            <FullWindowLine usage={planUsage} />
           </Box>
         ) : (
           <Text dimColor>{absentSlotLine('/logins meta signs in with a device code')}</Text>
