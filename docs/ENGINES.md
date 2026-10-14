@@ -631,7 +631,14 @@ come from its owning account resolvers:
   minutes (a bounded wait, the chat proceeds on the cached roster after two
   seconds), and a bare id's 404 forces one re-read — a row that appeared
   meanwhile is taken and the chat retried once, else the 404 words carry the
-  kin; never a loop. A Claude row on
+  kin; never a loop. A refusal that arrives in flight — the request
+  accepted, then INVALID_ARGUMENT in the stream while the model answers —
+  is retried once with plain function calling (AUTO in place of VALIDATED);
+  a second one ends the turn with the words that say where the refusal
+  came from and that the same history answered before. A long history rides
+  as recorded: every model turn with its own signature, a synthetic refusal
+  row never on the wire, every call paired with its result, a resume
+  message beside the result it follows. A Claude row on
   this road takes the request shape Google's own client sends it: thinking
   as a token budget (low 1024, medium 8192, high 24576, thoughts included),
   function calling VALIDATED even with no tools, an output ceiling of at

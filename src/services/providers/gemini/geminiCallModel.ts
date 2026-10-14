@@ -64,6 +64,10 @@ export const GEMINI_PLAN_AUTH_REMEDY =
 export const GEMINI_PLAN_BILLING_REMEDY =
   "the plan's quota is Google's and cannot be changed from here · /usage shows the tier Google reports and the wait Google asks for; /logins adds a Gemini API key on a project of your own; /model picks another model meanwhile."
 
+export function geminiPlanInFlightRefusalWords(model: string, wireSaid: string | undefined): string {
+  return `${API_ERROR_MESSAGE_PREFIX}: Google refused the answer in flight on '${model}' (INVALID_ARGUMENT, no detail) twice — the request was accepted and the refusal came while the model answered; the same history answered before, so the model's own output is what Google refused. Send again, or /model picks another roster row meanwhile.${wireSaid === undefined ? '' : ` The wire said: ${wireSaid}`}`
+}
+
 export function geminiPlanModelMissingWords(model: string, status: number | undefined, wireSaid: string | undefined, kin: GeminiPlanRosterKin = geminiPlanRosterKin(model)): string {
   return `${API_ERROR_MESSAGE_PREFIX}: Google serves no model '${model}' to this Google sign-in${status === undefined ? '' : ` (HTTP ${status})`}${geminiPlanRosterKinWords(kin)} · /model lists the roster Google serves it; /logins → Sign in with Google reads the roster again if the plan changed.${wireSaid === undefined ? '' : ` The wire said: ${wireSaid}`}`
 }
@@ -141,6 +145,7 @@ async function* geminiPlanCallModel(params: CallModelParams): CallModelStream {
       const project = projectId ?? ''
       const plan: GeminiPlanWire = {
         ...nextGeminiPlanEnvelope(project, options.request.model),
+        ...(plainTools ? { toolMode: 'AUTO' as const } : {}),
         bases,
         userAgent,
         onServedBy: base => planLastGoodBase.set(project, base),
@@ -169,12 +174,28 @@ async function* geminiPlanCallModel(params: CallModelParams): CallModelStream {
       }
     },
   }
+  let plainTools = false
+  const lastWire = (): { said: string | undefined; seen: number | undefined } => ({ said: wireSaid, seen: status })
   await rosterReadBounded(false, GEMINI_PLAN_ROSTER_WAIT_MS)
   for (let attempt = 0; attempt < 2; attempt++) {
     status = undefined
     wireSaid = undefined
     let rerun = false
     for await (const item of compatChatCallModel(profile, params)) {
+      const { said, seen } = lastWire()
+      if (item.type === 'assistant' && item.isApiErrorMessage && seen !== undefined && seen >= 200 && seen < 300 && said !== undefined && said.startsWith('api-INVALID_ARGUMENT')) {
+        if (attempt === 0) {
+          plainTools = true
+          rerun = true
+          break
+        }
+        yield createAssistantAPIErrorMessage({
+          content: geminiPlanInFlightRefusalWords(model, wireSaid),
+          error: item.error,
+          errorDetails: item.errorDetails,
+        })
+        continue
+      }
       if (item.type === 'assistant' && item.isApiErrorMessage && item.error === 'authentication_failed') {
         const refreshed = recovery === 'retried'
           ? ' The stored token was refreshed and the call retried once before this refusal.'

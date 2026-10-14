@@ -399,7 +399,7 @@ export function geminiPlanEffortSuffix(effort: string | undefined): GeminiEffort
 
 export function geminiPlanEffortRow(model: string, effort: string | undefined, env: NodeJS.ProcessEnv = process.env): GeminiLiveModel | undefined {
   const bare = model.trim().replace(/\[[^\]]*\]/g, '').toLowerCase()
-  if (bare === '' || !/^gemini-/.test(bare) || /-(?:low|medium|high)$/.test(bare)) return undefined
+  if (bare === '' || declaredRouteOf(bare) !== 'gemini' || /-(?:low|medium|high)$/.test(bare)) return undefined
   const rows = geminiGenerateModels(getCachedGeminiCatalogue('plan', env))
   if (rows.length === 0 || rows.some(row => row.id.toLowerCase() === bare)) return undefined
   const want = geminiPlanEffortSuffix(effort)

@@ -53,6 +53,8 @@ const assist = {
   imageModelIds: ['gemini-3.1-flash-image'],
   lateRows: {} as Record<string, Record<string, unknown>>,
   rosterReads: 0,
+  inFlightRefusals: 0,
+  chatBodies: [] as Array<Record<string, unknown>>,
 }
 const sse = (value: unknown): string => `data: ${JSON.stringify(value)}\n\n`
 const SCHEMA_PROTO_FIELDS: Record<string, string> = { type: 'type', format: 'format', title: 'title', description: 'description', nullable: 'nullable', enum: 'enum', items: 'items', maxItems: 'max_items', minItems: 'min_items', properties: 'properties', required: 'required', minProperties: 'min_properties', maxProperties: 'max_properties', minimum: 'minimum', maximum: 'maximum', minLength: 'min_length', maxLength: 'max_length', pattern: 'pattern', example: 'example', anyOf: 'any_of', propertyOrdering: 'property_ordering', default: 'default', additionalProperties: 'additional_properties', oneOf: 'one_of' }
@@ -202,6 +204,11 @@ const assistServer = Bun.serve({
       }
       if (assist.generateStatus !== 200) return Response.json({ error: { code: assist.generateStatus, message: assist.generateStatus === 429 ? 'Resource has been exhausted (e.g. check quota). Please retry after the reset.' : 'fixture refusal', status: assist.generateStatus === 429 ? 'RESOURCE_EXHAUSTED' : 'PERMISSION_DENIED' } }, { status: assist.generateStatus })
       if (assist.generateError) return new Response(sse({ error: assist.generateError }), { headers: { 'content-type': 'text/event-stream' } })
+      assist.chatBodies.push(entry.body ?? {})
+      if (assist.inFlightRefusals > 0) {
+        assist.inFlightRefusals -= 1
+        return new Response([sse({ response: { candidates: [{ index: 0, content: { role: 'model', parts: [{ text: 'thinking ' }] } }] } }), sse({ error: { code: 400, message: 'Request contains an invalid argument.', status: 'INVALID_ARGUMENT' } })].join(''), { headers: { 'content-type': 'text/event-stream' } })
+      }
       const chunks = [
         sse({ response: { candidates: [{ index: 0, content: { role: 'model', parts: [{ text: 'OK from the ' }] } }], modelVersion: model, responseId: 'resp-1' } }),
         sse({ response: { candidates: [{ index: 0, content: { role: 'model', parts: [{ text: 'plan fixture' }] }, finishReason: 'STOP' }], usageMetadata: { promptTokenCount: 7, candidatesTokenCount: 4, totalTokenCount: 11 } }, traceId: 'trace-1' }),
@@ -361,6 +368,50 @@ try {
   check('a bare id no roster read brings: one chat, one re-read, then the 404 words — no retry', noneChats === 1 && assist.rosterReads === readsBeforeNone + 1 && JSON.stringify(noneReplies.find(m => (m as { isApiErrorMessage?: boolean }).isApiErrorMessage)?.message ?? '').includes("Google serves no model 'gemini-9-nope' to this Google sign-in (HTTP 404)"), JSON.stringify({ chats: noneChats, reads: assist.rosterReads - readsBeforeNone }))
   assist.lateRows = {}
   await catalogue.refreshGeminiCatalogue('plan', { force: true })
+
+  console.log('── a long history survives: thirty signed tool rounds, a refusal row, a resume message and more rounds ride as recorded — no placeholder, no synthetic row, every call paired; a refusal in flight is retried once with plain function calling, then said ──')
+  const longHistory: unknown[] = [{ type: 'user', uuid: randomUUID(), timestamp: new Date().toISOString(), message: { role: 'user', content: 'Work the lane.' } }]
+  const recordedTurn = (index: number, name: string, input: Record<string, unknown>): unknown => {
+    const content = [{ type: 'tool_use', id: `call_${index}`, name, input }]
+    const { mapMessagesToZai } = require('../../src/services/providers/zai/zaiCodec.ts') as typeof import('../../src/services/providers/zai/zaiCodec.ts')
+    const projection = JSON.stringify(mapMessagesToZai(undefined, [{ role: 'assistant', content }] as never)[0])
+    return { type: 'assistant', uuid: randomUUID(), timestamp: new Date().toISOString(), message: { role: 'assistant', content, model: 'gemini-4-neon-high' }, geminiProviderTurn: { model: 'gemini-4-neon-high', parts: [{ functionCall: { id: `call_${index}`, name, args: input }, thoughtSignature: `sig-${index}` }], calls: [{ id: `call_${index}`, name, nativeId: `call_${index}` }], projection } }
+  }
+  const resultRow = (index: number, body: string): unknown => ({ type: 'user', uuid: randomUUID(), timestamp: new Date().toISOString(), message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: `call_${index}`, content: body }] } })
+  for (let i = 1; i <= 29; i++) {
+    longHistory.push(recordedTurn(i, i % 3 === 0 ? 'Bash' : 'Read', i % 3 === 0 ? { command: `echo ${i}` } : { file_path: `/tmp/file-${i}.ts` }))
+    longHistory.push(resultRow(i, i % 3 === 0 ? `${i}` : `1\tconst value${i} = '—'\n2\texport {}`))
+  }
+  longHistory.push({ type: 'assistant', uuid: randomUUID(), timestamp: new Date().toISOString(), message: { role: 'assistant', content: [{ type: 'text', text: 'API Error: Gemini stream failed (api-INVALID_ARGUMENT) — Request contains an invalid argument.' }], model: '<synthetic>' }, isApiErrorMessage: true })
+  longHistory.push({ type: 'user', uuid: randomUUID(), timestamp: new Date().toISOString(), message: { role: 'user', content: '<task-notification>resumed — carry on</task-notification>' } })
+  longHistory.push(recordedTurn(30, 'Grep', { pattern: 'needle', path: '/tmp' }))
+  longHistory.push(resultRow(30, 'Found 4 files'))
+  const longTools = [bashTool, { name: 'Read', prompt: async () => 'Reads.', inputSchema: z.object({ file_path: z.string() }), inputJSONSchema: { type: 'object', properties: { file_path: { type: 'string' } }, required: ['file_path'] } }, { name: 'Grep', prompt: async () => 'Greps.', inputSchema: z.object({ pattern: z.string(), path: z.string().optional() }), inputJSONSchema: { type: 'object', properties: { pattern: { type: 'string' }, path: { type: 'string' } }, required: ['pattern'] } }]
+  const driveHistory = async (model: string, history: unknown[]): Promise<Array<Record<string, unknown>>> => {
+    const out: Array<Record<string, unknown>> = []
+    const params = { messages: history, systemPrompt: asSystemPrompt(['be brief']), thinkingConfig: { type: 'enabled', budget_tokens: 8192 }, tools: longTools, signal: new AbortController().signal, options: { model, effortValue: 'high', querySource: 'main_thread', isNonInteractiveSession: true, getToolPermissionContext: async () => getEmptyToolPermissionContext(), agents: [], hasAppendSystemPrompt: false, mcpTools: [] } }
+    for await (const item of callModel.geminiCallModel(params as never)) out.push(item as Record<string, unknown>)
+    return out
+  }
+  assist.chatBodies = []
+  const longReplies = await driveHistory('gemini-4-neon-high', longHistory)
+  const longBody = assist.chatBodies.at(-1)
+  const longContents = ((longBody?.request as Record<string, unknown>)?.contents ?? []) as Array<{ role: string; parts: Array<Record<string, unknown>> }>
+  const modelContents = longContents.filter(c => c.role === 'model')
+  const callIds = modelContents.flatMap(c => c.parts.filter(p => p.functionCall !== undefined).map(p => (p.functionCall as Record<string, unknown>).id))
+  const responseIds = longContents.flatMap(c => c.parts.filter(p => p.functionResponse !== undefined).map(p => (p.functionResponse as Record<string, unknown>).id))
+  check('the thirty-round history rides as recorded: thirty model contents each with its own signature, no placeholder, the synthetic refusal row absent, every call answered once in order, the resume text beside its tool result; the answer lands', modelContents.length === 30 && modelContents.every(c => c.parts.length === 1 && typeof c.parts[0]!.thoughtSignature === 'string' && String(c.parts[0]!.thoughtSignature).startsWith('sig-')) && !JSON.stringify(longContents).includes('API Error') && !JSON.stringify(longContents).includes('skip_thought_signature_validator') && JSON.stringify(callIds) === JSON.stringify(responseIds) && callIds.length === 30 && longContents.some(c => c.role === 'user' && c.parts.some(p => p.functionResponse !== undefined) && c.parts.some(p => typeof p.text === 'string' && String(p.text).includes('task-notification'))) && longReplies.some(m => m.type === 'assistant' && !(m as { isApiErrorMessage?: boolean }).isApiErrorMessage) && !longReplies.some(m => (m as { isApiErrorMessage?: boolean }).isApiErrorMessage), JSON.stringify({ modelContents: modelContents.length, placeholders: (JSON.stringify(longContents).match(/skip_thought_signature_validator/g) ?? []).length, callIds: callIds.length, responseIds: responseIds.length, error: longReplies.find(m => (m as { isApiErrorMessage?: boolean }).isApiErrorMessage)?.message }))
+  assist.inFlightRefusals = 1
+  assist.chatBodies = []
+  const inFlightOnce = await driveHistory('gemini-4-neon-high', longHistory)
+  const modes = assist.chatBodies.map(b => ((b.request as Record<string, unknown>)?.toolConfig as Record<string, Record<string, string>> | undefined)?.functionCallingConfig?.mode)
+  check('a refusal in flight (the stream opened, then INVALID_ARGUMENT in band) is retried once with plain function calling (AUTO after VALIDATED); the answer lands', JSON.stringify(modes) === JSON.stringify(['VALIDATED', 'AUTO']) && inFlightOnce.some(m => m.type === 'assistant' && !(m as { isApiErrorMessage?: boolean }).isApiErrorMessage) && !inFlightOnce.some(m => (m as { isApiErrorMessage?: boolean }).isApiErrorMessage), JSON.stringify({ modes, error: inFlightOnce.find(m => (m as { isApiErrorMessage?: boolean }).isApiErrorMessage)?.message }))
+  assist.inFlightRefusals = 2
+  assist.chatBodies = []
+  const inFlightTwice = await driveHistory('gemini-4-neon-high', longHistory)
+  const twiceWords = JSON.stringify(inFlightTwice.find(m => (m as { isApiErrorMessage?: boolean }).isApiErrorMessage)?.message ?? '')
+  check('a second refusal in flight ends the turn with the words: two attempts, never a third, the refusal placed in flight and the roster named', assist.chatBodies.length === 2 && twiceWords.includes("Google refused the answer in flight on 'gemini-4-neon-high' (INVALID_ARGUMENT, no detail) twice") && twiceWords.includes('/model picks another roster row'), twiceWords.slice(0, 300))
+  assist.inFlightRefusals = 0
   const heliumReplies = await driveRoad('gemini-4-helium', false)
   const heliumWords = JSON.stringify(heliumReplies.find(m => m.type === 'assistant' && (m as { isApiErrorMessage?: boolean }).isApiErrorMessage)?.message ?? '')
   const disabledOnTheWire = await driveRoad('gemini-4-helium-disabled', false)
