@@ -7,7 +7,7 @@ import {
 import { buildGeminiExtras } from '../openaicompat/compatWire.js'
 import { randomUUID } from 'node:crypto'
 import { geminiApiBase, resolveGeminiAccount, resolveGeminiRequestAuth } from './geminiAccounts.js'
-import { geminiEffortVocabularyFor, geminiOutputTokenLimitFor, geminiPlanRosterKin, geminiPlanRosterKinWords, type GeminiPlanRosterKin } from './geminiCatalogue.js'
+import { geminiEffortVocabularyFor, geminiOutputTokenLimitFor, geminiPlanRosterKin, geminiPlanRosterKinWords, geminiPlanWireModel, refreshGeminiCatalogue, type GeminiPlanRosterKin } from './geminiCatalogue.js'
 import { clearGeminiUsageLimit, recordGeminiRateHeaders } from './geminiUsageState.js'
 import type { CompatStreamEvent } from '../openaicompat/compatChatClient.js'
 import { geminiPlanStreamUrl, streamGeminiContent, type GeminiPlanWire } from './geminiClient.js'
@@ -64,6 +64,10 @@ export const GEMINI_PLAN_AUTH_REMEDY =
 export const GEMINI_PLAN_BILLING_REMEDY =
   "the plan's quota is Google's and cannot be changed from here · /usage shows the tier Google reports and the wait Google asks for; /logins adds a Gemini API key on a project of your own; /model picks another model meanwhile."
 
+export function geminiPlanInFlightRefusalWords(model: string, wireSaid: string | undefined): string {
+  return `${API_ERROR_MESSAGE_PREFIX}: Google refused the answer in flight on '${model}' (INVALID_ARGUMENT, no detail) twice — the request was accepted and the refusal came while the model answered; the same history answered before, so the model's own output is what Google refused. Send again, or /model picks another roster row meanwhile.${wireSaid === undefined ? '' : ` The wire said: ${wireSaid}`}`
+}
+
 export function geminiPlanModelMissingWords(model: string, status: number | undefined, wireSaid: string | undefined, kin: GeminiPlanRosterKin = geminiPlanRosterKin(model)): string {
   return `${API_ERROR_MESSAGE_PREFIX}: Google serves no model '${model}' to this Google sign-in${status === undefined ? '' : ` (HTTP ${status})`}${geminiPlanRosterKinWords(kin)} · /model lists the roster Google serves it; /logins → Sign in with Google reads the roster again if the plan changed.${wireSaid === undefined ? '' : ` The wire said: ${wireSaid}`}`
 }
@@ -95,6 +99,8 @@ export function __resetGeminiPlanWireForTest(): void {
 
 async function* geminiPlanCallModel(params: CallModelParams): CallModelStream {
   const model = compatDispatchModelId(params.options.model)
+  const effort = params.options.effortValue
+  const wireOf = (id: string): string => geminiPlanWireModel(qualifiedWireId(id), typeof effort === 'string' ? effort : undefined)
   let bearer: string | undefined
   let status: number | undefined
   let recovery: 'retried' | 'no-new-credential' | undefined
@@ -116,8 +122,8 @@ async function* geminiPlanCallModel(params: CallModelParams): CallModelStream {
     credentialHint: 'no Google sign-in for Gemini — /logins → Sign in with Google.',
     authRemedy: GEMINI_PLAN_AUTH_REMEDY,
     billingRemedy: GEMINI_PLAN_BILLING_REMEDY,
-    wireModelId: modelId => qualifiedWireId(modelId),
-    buildExtras: args => buildGeminiExtras({ ...args, acceptsEffort: geminiEffortVocabularyFor(model).length > 0 }),
+    wireModelId: modelId => wireOf(modelId),
+    buildExtras: args => buildGeminiExtras({ ...args, acceptsEffort: geminiEffortVocabularyFor(model).length > 0 || geminiEffortVocabularyFor(args.wireModel).length > 0 }),
     resolveCredential: async () => {
       const credential = await credentialOf(false)
       bearer = credential?.apiKey
@@ -139,11 +145,12 @@ async function* geminiPlanCallModel(params: CallModelParams): CallModelStream {
       const project = projectId ?? ''
       const plan: GeminiPlanWire = {
         ...nextGeminiPlanEnvelope(project, options.request.model),
+        ...(plainTools ? { toolMode: 'AUTO' as const } : {}),
         bases,
         userAgent,
         onServedBy: base => planLastGoodBase.set(project, base),
       }
-      const ceiling = geminiOutputTokenLimitFor(model)
+      const ceiling = geminiOutputTokenLimitFor(options.request.model) ?? geminiOutputTokenLimitFor(model)
       const requested = options.request.extra?.max_tokens
       const capped = ceiling === undefined ? requested : Math.min(typeof requested === 'number' ? requested : ceiling, ceiling)
       const request = capped === undefined ? options.request : { ...options.request, extra: { ...options.request.extra, max_tokens: capped } }
@@ -167,24 +174,63 @@ async function* geminiPlanCallModel(params: CallModelParams): CallModelStream {
       }
     },
   }
-  for await (const item of compatChatCallModel(profile, params)) {
-    if (item.type === 'assistant' && item.isApiErrorMessage && item.error === 'authentication_failed') {
-      const refreshed = recovery === 'retried'
-        ? ' The stored token was refreshed and the call retried once before this refusal.'
-        : recovery === 'no-new-credential' ? ' A token refresh was attempted first and produced no new credential.' : ''
-      yield createAssistantAPIErrorMessage({
-        content: `${API_ERROR_MESSAGE_PREFIX}: the Google sign-in's token was refused${status === undefined ? '' : ` (HTTP ${status})`} · /logins → Sign in with Google signs in again; /model picks another model meanwhile.${refreshed}${wireSaid === undefined ? '' : ` The wire said: ${wireSaid}`}`,
-        error: item.error,
-        errorDetails: item.errorDetails,
-      })
-    } else if (item.type === 'assistant' && item.isApiErrorMessage && status === 404) {
-      yield createAssistantAPIErrorMessage({
-        content: geminiPlanModelMissingWords(model, status, wireSaid),
-        error: item.error,
-        errorDetails: item.errorDetails,
-      })
-    } else yield item
+  let plainTools = false
+  const lastWire = (): { said: string | undefined; seen: number | undefined } => ({ said: wireSaid, seen: status })
+  await rosterReadBounded(false, GEMINI_PLAN_ROSTER_WAIT_MS)
+  for (let attempt = 0; attempt < 2; attempt++) {
+    status = undefined
+    wireSaid = undefined
+    let rerun = false
+    for await (const item of compatChatCallModel(profile, params)) {
+      const { said, seen } = lastWire()
+      if (item.type === 'assistant' && item.isApiErrorMessage && seen !== undefined && seen >= 200 && seen < 300 && said !== undefined && said.startsWith('api-INVALID_ARGUMENT')) {
+        if (attempt === 0) {
+          plainTools = true
+          rerun = true
+          break
+        }
+        yield createAssistantAPIErrorMessage({
+          content: geminiPlanInFlightRefusalWords(model, wireSaid),
+          error: item.error,
+          errorDetails: item.errorDetails,
+        })
+        continue
+      }
+      if (item.type === 'assistant' && item.isApiErrorMessage && item.error === 'authentication_failed') {
+        const refreshed = recovery === 'retried'
+          ? ' The stored token was refreshed and the call retried once before this refusal.'
+          : recovery === 'no-new-credential' ? ' A token refresh was attempted first and produced no new credential.' : ''
+        yield createAssistantAPIErrorMessage({
+          content: `${API_ERROR_MESSAGE_PREFIX}: the Google sign-in's token was refused${status === undefined ? '' : ` (HTTP ${status})`} · /logins → Sign in with Google signs in again; /model picks another model meanwhile.${refreshed}${wireSaid === undefined ? '' : ` The wire said: ${wireSaid}`}`,
+          error: item.error,
+          errorDetails: item.errorDetails,
+        })
+      } else if (item.type === 'assistant' && item.isApiErrorMessage && status === 404) {
+        if (attempt === 0) {
+          const before = wireOf(model)
+          await rosterReadBounded(true, GEMINI_PLAN_ROSTER_REREAD_MS)
+          if (wireOf(model) !== before) {
+            rerun = true
+            break
+          }
+        }
+        yield createAssistantAPIErrorMessage({
+          content: geminiPlanModelMissingWords(model, status, wireSaid),
+          error: item.error,
+          errorDetails: item.errorDetails,
+        })
+      } else yield item
+    }
+    if (!rerun) return
   }
+}
+
+const GEMINI_PLAN_ROSTER_WAIT_MS = 2_000
+const GEMINI_PLAN_ROSTER_REREAD_MS = 5_000
+
+async function rosterReadBounded(force: boolean, waitMs: number): Promise<void> {
+  const read = refreshGeminiCatalogue('plan', force ? { force: true } : undefined).then(() => undefined, () => undefined)
+  await Promise.race([read, new Promise<void>(resolve => setTimeout(resolve, waitMs).unref?.())])
 }
 
 export async function* geminiCallModel(params: CallModelParams): CallModelStream {

@@ -6,6 +6,8 @@ import {
   subscribeThroughFocused,
 } from '../services/engine-connector/focusedConnector.js'
 import { renderModelChip } from '../utils/model/model.js'
+import { geminiPlanRideWords } from '../services/providers/gemini/geminiCatalogue.js'
+import { declaredRouteOf } from '../services/providers/routeLaw.js'
 
 
 export type DisplayedSessionModel = {
@@ -17,6 +19,7 @@ export type DisplayedSessionModel = {
 export function resolveDisplayedSessionModel(
   mainModel: string,
   pendingSwitch?: { setting: string | null } | null,
+  ride?: string | null,
 ): DisplayedSessionModel {
   const pendingNext =
     pendingSwitch === undefined || pendingSwitch === null
@@ -24,7 +27,8 @@ export function resolveDisplayedSessionModel(
       : pendingSwitch.setting === null
         ? 'Default'
         : renderModelChip(pendingSwitch.setting)
-  const name = renderModelChip(mainModel)
+  const base = renderModelChip(mainModel)
+  const name = ride === undefined || ride === null || ride === '' ? base : `${base} ▸ ${ride}`
   return {
     label: pendingNext === null ? name : `${name} → ${pendingNext} (queued)`,
     compact: pendingNext === null ? name : `${name} → ${pendingNext}`,
@@ -80,5 +84,7 @@ export function useDisplayedSessionModel(): DisplayedSessionModel {
     () => (pendingParked ? { setting: pendingSetting } : null),
     [pendingParked, pendingSetting],
   )
-  return resolveDisplayedSessionModel(mainModel, pendingSwitch)
+  const effort = useSyncExternalStore(subscribeFocusedModel, getFocusedServedEffort, getFocusedServedEffort)
+  const ride = useMemo(() => (declaredRouteOf(mainModel) === 'gemini' ? geminiPlanRideWords(mainModel, effort === '' ? undefined : effort) ?? null : null), [mainModel, effort])
+  return resolveDisplayedSessionModel(mainModel, pendingSwitch, ride)
 }

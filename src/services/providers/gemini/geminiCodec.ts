@@ -175,7 +175,7 @@ export const GEMINI_SCHEMA_GRAMMAR: ReadonlySet<string> = new Set([
 ])
 
 export const CODE_ASSIST_SUBSET_GRAMMAR: ReadonlySet<string> = new Set([
-  'type', 'title', 'description', 'enum', 'items', 'properties', 'required', 'anyOf', 'oneOf', 'default',
+  'type', 'title', 'description', 'enum', 'items', 'properties', 'required', 'oneOf', 'default',
 ])
 
 export function codeAssistGrammarFor(wireModel: string): ReadonlySet<string> {
@@ -264,6 +264,10 @@ export function codeAssistSchema(value: unknown, grammar: ReadonlySet<string> = 
       allOfMerged = Array.isArray(entry) ? mergeAllOf(entry) : undefined
       continue
     }
+    if (key === 'anyOf' && !grammar.has('anyOf') && grammar.has('oneOf') && Array.isArray(entry)) {
+      out.oneOf = [...(Array.isArray(out.oneOf) ? (out.oneOf as unknown[]) : []), ...entry.map(reduce)]
+      continue
+    }
     if (!grammar.has(key)) {
       const said = boundWords(key, entry)
       if (said !== undefined) words.push(said)
@@ -279,7 +283,9 @@ export function codeAssistSchema(value: unknown, grammar: ReadonlySet<string> = 
       continue
     }
     if (GEMINI_SCHEMA_SUBSCHEMA_LIST_KEYS.has(key)) {
-      out[key] = Array.isArray(entry) ? entry.map(reduce) : entry
+      const variants = Array.isArray(entry) ? entry.map(reduce) : entry
+      if (key === 'oneOf' && Array.isArray(out.oneOf) && Array.isArray(variants)) out.oneOf = [...(out.oneOf as unknown[]), ...variants]
+      else out[key] = variants
       continue
     }
     if (key === 'enum') {
@@ -322,6 +328,7 @@ export interface GeminiPlanEnvelope {
   requestId: string
   sessionId: string
   labels: Record<string, string>
+  toolMode?: 'VALIDATED' | 'AUTO'
 }
 
 export function buildGeminiPlanRequest(request: GeminiRequest, model: string, envelope: GeminiPlanEnvelope): Record<string, unknown> {
@@ -337,10 +344,10 @@ export function buildGeminiPlanRequest(request: GeminiRequest, model: string, en
               parameters: codeAssistSchema(declaration.parametersJsonSchema, codeAssistGrammarFor(model)),
             })),
           })),
-          toolConfig: { functionCallingConfig: { mode: request.toolConfig && request.toolConfig.functionCallingConfig.mode !== 'AUTO' ? request.toolConfig.functionCallingConfig.mode : 'VALIDATED' } },
+          toolConfig: { functionCallingConfig: { mode: request.toolConfig && request.toolConfig.functionCallingConfig.mode !== 'AUTO' ? request.toolConfig.functionCallingConfig.mode : envelope.toolMode ?? 'VALIDATED' } },
         }
       : geminiPlanServesClaude(model)
-        ? { toolConfig: { functionCallingConfig: { mode: 'VALIDATED' } } }
+        ? { toolConfig: { functionCallingConfig: { mode: envelope.toolMode ?? 'VALIDATED' } } }
         : {}),
     ...(request.generationConfig ? { generationConfig: request.generationConfig } : {}),
     sessionId: envelope.sessionId,
