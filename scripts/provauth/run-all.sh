@@ -7,6 +7,7 @@
 # gate-watch: src/bootstrap/state.ts src/cli/run.ts src/commands/effectiveCatalogue.ts
 # gate-watch: src/commands/logout/logout.tsx src/commands/router/router.tsx src/components/*
 # gate-watch: src/components/Settings/Config.tsx src/components/Settings/Usage.tsx src/daemon/saturnAccount.ts
+# gate-watch: src/components/Settings/usageLine.ts src/hooks/useDisplayedSessionModel.ts src/services/providers/zai/zaiCodec.ts
 # gate-watch: src/daemon/saturnTicker.ts src/extensions/sources.ts src/ink.ts src/services/api/*
 # gate-watch: src/services/oauth/client.ts src/services/providers/*
 # gate-watch: src/services/providers/deepseek/deepseekUsageState.ts src/services/providers/huggingface/*
