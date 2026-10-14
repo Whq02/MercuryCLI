@@ -9,6 +9,7 @@ export type ModelUsage = {
   costUSD: number
   contextWindow?: number
   maxOutputTokens?: number
+  lastUsedAtMs?: number
 }
 
 export type WorkloadUsage = { [workload: string]: { [modelName: string]: ModelUsage } }

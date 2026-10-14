@@ -1202,11 +1202,17 @@ left visible. No management key is not an error.
 
 A Sign in with Google on the Gemini lane shows, under its own slot, the tier
 Google reports for the account (free, the paid plan's own name such as Google
-AI Pro, or a Code Assist licence) with the read's age, and the quota left per
-model that Google's roster states for it (with its reset time, read with the
-model list); Google states no spend or credit figure for it, and the absence
-line says so and names the plan's own page. The same tier and age ride the
-`/logins` row. A Google account signed in with your own OAuth client shows its
+AI Pro, or a Code Assist licence) with the read's age, then the quota left
+that Google's roster states (with its reset time, read with the model list)
+in one order: the session's own model first, resolved to its effort row
+(`gemini-4-argon ▸ gemini-4-argon-high`), then every model this session used
+on the lane in order of last use, then one folded line — "24 other roster
+models — ↵ lists them" — that ↵ opens and folds again; Google states no
+spend or credit figure for it, and the absence line says so and names the
+plan's own page. The compact view's one figures line keeps the same order
+with the rest counted, and the popup's header line and the `/logins` row
+carry the session model's own figure (`gemini-4-argon-high 42% left`) beside
+the tier and the read's age. A Google account signed in with your own OAuth client shows its
 credits line and an absence line naming the view (the Cloud console Quotas
 page for the Generative Language API, or Google AI Studio), because Google
 states no usage, quota or credit figure to it: the Gemini API has no usage

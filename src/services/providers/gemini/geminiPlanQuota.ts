@@ -1,0 +1,56 @@
+import { getModelUsage } from '../../../bootstrap/state.js'
+import { declaredRouteOf } from '../routeLaw.js'
+import type { UsageFigureView } from '../providerUsage.js'
+import { geminiPlanEffortSuffix, type GeminiEffortSuffix } from './geminiCatalogue.js'
+
+export interface GeminiPlanQuotaView {
+  active?: UsageFigureView
+  activeRow?: string
+  used: UsageFigureView[]
+  others: UsageFigureView[]
+}
+
+export function geminiPlanQuotaView(
+  figures: readonly UsageFigureView[],
+  session: { model?: string; effort?: string; usedModels: readonly string[] },
+  env: NodeJS.ProcessEnv = process.env,
+): GeminiPlanQuotaView {
+  void env
+  const quotas = figures.filter(figure => figure.key.startsWith('plan-quota:'))
+  const rows = new Set(quotas.map(figure => figure.key.slice('plan-quota:'.length).toLowerCase()))
+  const rowOf = (model: string | undefined): string | undefined => {
+    if (model === undefined || model.trim() === '') return undefined
+    const bare = model.trim().replace(/\[[^\]]*\]/g, '').toLowerCase()
+    if (rows.has(bare)) return bare
+    const want = geminiPlanEffortSuffix(session.effort)
+    const order: GeminiEffortSuffix[] = want === 'low' ? ['low', 'medium', 'high'] : want === 'medium' ? ['medium', 'high', 'low'] : ['high', 'medium', 'low']
+    for (const suffix of order) if (rows.has(`${bare}-${suffix}`)) return `${bare}-${suffix}`
+    return undefined
+  }
+  const figureOf = (row: string | undefined): UsageFigureView | undefined => (row === undefined ? undefined : quotas.find(figure => figure.key.slice('plan-quota:'.length).toLowerCase() === row))
+  const activeRow = rowOf(session.model)
+  const active = figureOf(activeRow)
+  const taken = new Set<string>(active ? [active.key] : [])
+  const used: UsageFigureView[] = []
+  for (const model of session.usedModels) {
+    const figure = figureOf(rowOf(model))
+    if (figure === undefined || taken.has(figure.key)) continue
+    taken.add(figure.key)
+    used.push(figure)
+  }
+  const others = quotas.filter(figure => !taken.has(figure.key))
+  return { ...(active ? { active } : {}), ...(activeRow !== undefined && active ? { activeRow } : {}), used, others }
+}
+
+export function geminiLaneModelsByLastUse(usage: Readonly<Record<string, { lastUsedAtMs?: number }>> = getModelUsage()): string[] {
+  return Object.entries(usage)
+    .filter(([model]) => declaredRouteOf(model) === 'gemini')
+    .map(([model, record], index) => ({ model, at: record.lastUsedAtMs ?? 0, index }))
+    .sort((a, b) => b.at - a.at || a.index - b.index)
+    .map(entry => entry.model)
+}
+
+export function geminiPlanQuotaFoldWords(count: number, expanded: boolean): string {
+  return `${count} other roster model${count === 1 ? '' : 's'} — ↵ ${expanded ? 'folds them' : 'lists them'}`
+}
+
