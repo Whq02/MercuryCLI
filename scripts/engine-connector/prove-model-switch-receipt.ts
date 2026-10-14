@@ -97,8 +97,8 @@ section('L8 the resting slot\'s refusal is awaited the same way')
 section('L9 the consumers wait for the receipt (source pins)')
 {
   const read = (rel: string): string => readFileSync(join(SRC, rel), 'utf8')
-  check('the interface declares the door asynchronous', /setModel\(setting: ModelSetting\): Promise<ModelSwitchReceiptV1>/.test(read('services/engine-connector/types.ts')))
-  check('/model awaits the door', read('commands/model/model.tsx').includes('await focused.setModel(target)'))
+  check('the interface declares the door asynchronous', /setModel\(setting: ModelSetting, words\?: string\): Promise<ModelSwitchReceiptV1>/.test(read('services/engine-connector/types.ts')))
+  check('/model awaits the door', read('commands/model/model.tsx').includes('await focused.setModel(target, '))
   check('the inline picker waits for the door', read('components/PromptInput/useComposerModelDoors.tsx').includes('focused.setModel(value).then('))
   check('the model surface waits for the door', read('commands/model/mercuryModel.tsx').includes('focused.setModel(value).then('))
 }
