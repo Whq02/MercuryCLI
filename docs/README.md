@@ -7,7 +7,7 @@ the guides by task; each page describes the installed product.
 
 - [The README](../README.md): installation, daily work, providers, headless rows and the runner session protocol.
 - [AGENTS.md](../AGENTS.md): build, run and check a source checkout.
-- [INSTALL-WINDOWS-FROM-SOURCE.md](INSTALL-WINDOWS-FROM-SOURCE.md): build and run Mercury from a source checkout on Windows 10 or 11 using PowerShell 7, Git, Node 24 LTS and bun 1.3, with a verification check after each step.
+- [INSTALL-WINDOWS-FROM-SOURCE.md](INSTALL-WINDOWS-FROM-SOURCE.md): the release route on Windows is one line in PowerShell 7 (`irm … | iex` in the README's Install section) and needs Git and nothing else; this guide builds Mercury from source on Windows with a check after each step.
 - [WINDOWS-GLYPH-FIELD-CHECK.md](WINDOWS-GLYPH-FIELD-CHECK.md): what to look at on Windows after updating, and what to report if a mark looks wrong.
 - [SESSIONS.md](SESSIONS.md): a session owns its conversation, model, permission mode, workspace and running work, hosted by the background daemon across the Boot face, chat and Session Concourse.
 - [SETTINGS.md](SETTINGS.md): Mercury stores settings in JSON files, edited in `/config` or through `/model`, `/effort`, `/permissions`, `/memory` and the MCPs & Skills menu.
@@ -46,11 +46,11 @@ map and `/keybindings` opens your keybindings file.
 
 ## Health and the runtime
 
-- [HEALTH-CERTIFICATE.md](HEALTH-CERTIFICATE.md): `/health` (and headless `mercury health`) checks the installation, runtime, settings and release channel live and rolls them into one verdict (`certified`, `caution` or `fault`).
+- [HEALTH-CERTIFICATE.md](HEALTH-CERTIFICATE.md): `/health` certifies the install: runtime, settings, and channel checked live, rolled into one verdict, and runs headless as `mercury health`.
 - [DURABILITY.md](DURABILITY.md): atomic publication, operation journals, recovery, watchdogs and loop-stop outcomes.
-- [TERMINAL-RUNTIME.md](TERMINAL-RUNTIME.md): how the built product boots, where deployed and release copies live, how `mercury update` and the background daemon work, and how the shell engine runs.
+- [TERMINAL-RUNTIME.md](TERMINAL-RUNTIME.md): how the built product boots, where deployed copies live, how updates land, and how a broken boot recovers.
 - [TERMINAL-PROFILE.md](TERMINAL-PROFILE.md): terminal requirements, capability detection, input decoding, ping and motion controls.
-- [COMPATIBILITY.md](COMPATIBILITY.md): Mercury stores configuration in `.mercury` directories, reads `MERCURY_*` environment switches from `src/substrate/flagRegistry.ts`, and ships four platform archives.
+- [COMPATIBILITY.md](COMPATIBILITY.md): Mercury keeps configuration in its `.mercury` homes, reads `MERCURY_*` switches from `src/substrate/flagRegistry.ts`, and ships four platform archives.
 
 ## Creative tools
 
