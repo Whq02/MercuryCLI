@@ -174,6 +174,24 @@ console.log('§4 — the source: the Anthropic-only machinery is gone; one class
   check('the revoked-token constant and its getter are gone; the revoked phrase has no copy in the presenter (the classifier is its one home)', !errors.includes(J('TOKEN_REVOKED_', 'ERROR_MESSAGE')) && !errors.includes(J('getTokenRevoked', 'ErrorMessage')) && !/has been revoked/.test(errorsCode))
   check('no Mercury sentence about an account\'s access remains anywhere in the presenter or the painter', !/does not have access/i.test(errorsCode) && !/does not have access/i.test(noComments(painter)))
   check('the painter compares no retired constant (a wall line is an error-row prefix line like every other family\'s)', !painter.includes(J('TOKEN_REVOKED_', 'ERROR_MESSAGE')) && !painter.includes(J('ORG_DISABLED_', 'ERROR_MESSAGE')))
+  check('the disabled-organisation constants and their 400 branch are gone', !errors.includes(J('ORG_DISABLED_', 'ERROR_MESSAGE')) && !errorsCode.includes(J('organization has been ', 'disabled')) && !errorsCode.includes(J('organization associated with ', 'ANTHROPIC_API_KEY')))
+  check('the presenter decides from status and the credential, never from a sentence about organisations (no such word in its code)', !/organi[sz]ation/i.test(errorsCode))
+}
+
+console.log('§5 — a 400 Anthropic calls a disabled organisation is no longer detected by name: it paints what every family\'s unrecognised 400 paints — the generic row with the provider\'s own sentence inside it, no Mercury sentence of its own')
+{
+  const { APIError } = await import('@anthropic-ai/sdk')
+  const { getAssistantMessageFromError, API_ERROR_MESSAGE_PREFIX } = await import('../../src/services/api/errors.ts')
+  const { decodeApiErrorBlobMessage } = await import('../../src/services/api/errorUtils.ts')
+  const SENTENCE = 'This organization has been disabled.'
+  process.env.ANTHROPIC_API_KEY = 'sk-ant-fixture-env-key-not-real'
+  const row = getAssistantMessageFromError(new APIError(400, { type: 'error', error: { type: 'invalid_request_error', message: SENTENCE } }, undefined, undefined as never), 'claude-opus-5')
+  delete process.env.ANTHROPIC_API_KEY
+  const text = (row.message.content as Array<{ type?: string; text?: string }>).map(b => (b.type === 'text' ? (b.text ?? '') : '')).join('')
+  console.log(`        env key, 400: ${text}`)
+  check('the row is the generic error row under the prefix, not an authentication kind (no login flow opens)', text.startsWith(`${API_ERROR_MESSAGE_PREFIX}: 400 `) && (row as { error?: string }).error !== 'authentication_failed', text)
+  check("Anthropic's own sentence is what the error card decodes and shows", decodeApiErrorBlobMessage(text.slice(text.indexOf('{'))) === SENTENCE, text)
+  check('Mercury speaks no sentence of its own about the organisation or the variable', !/organi[sz]ation associated|Update or unset|use your subscription instead/i.test(text), text)
 }
 
 rmSync(SCRATCH, { recursive: true, force: true })
