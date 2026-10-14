@@ -1,6 +1,6 @@
 export const WEB_FETCH_TOOL_NAME = 'WebFetch'
 
-const AUTHENTICATED_URL_WARNING = `An authenticated or private URL (internal documents, wikis, issue trackers, code hosts) fails here; an MCP tool with authenticated access is the road to those, and a connected MCP web-fetch tool usually carries fewer restrictions than this one.`
+const AUTHENTICATED_URL_WARNING = `An authenticated URL (internal documents, wikis, issue trackers, code hosts) is fetched without credentials, so its protected content is out of reach here, and a private address (a single-label name, an IP, or a name under localhost, .local, .internal, .lan, .home, .corp, .home.arpa and the like) is never sent to the hosted reader; an MCP tool with authenticated access is the road to those, and a connected MCP web-fetch tool usually carries fewer restrictions than this one.`
 
 export const DESCRIPTION = `Reads a public page as markdown in the page’s own words. Omit prompt for page text; supply prompt only to ask a model for a labelled reading.
 
