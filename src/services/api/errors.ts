@@ -397,8 +397,8 @@ function signInWallAccount(model: string): string | undefined {
   }
 }
 
-function anthropicWireCredential(model: string): WireCredentialKind | undefined {
-  if (!['anthropic', 'gateway'].includes(routeOfModel(model))) return undefined
+function anthropicWireCredential(model: string, status: number | undefined): WireCredentialKind | undefined {
+  if ((status !== 401 && status !== 403) || !['anthropic', 'gateway'].includes(routeOfModel(model))) return undefined
   if (isClaudeAISubscriber()) return 'sign-in'
   return wireCredentialSource().kind === 'none' ? undefined : 'key'
 }
@@ -643,7 +643,7 @@ function composeAssistantMessageFromError(
     })
   }
 
-  const wall = classifyCredentialWall(status, message, anthropicWireCredential(model))
+  const wall = classifyCredentialWall(status, message, anthropicWireCredential(model, status))
   if (wall !== undefined) {
     logForDebugging(`[api] credential wall (${wall}) on ${model} — the wire said: ${message}`)
     const account = wall === 'sign-in' ? signInWallAccount(model) : undefined

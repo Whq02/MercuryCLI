@@ -167,7 +167,7 @@ console.log('§4 — the source: the Anthropic-only machinery is gone; one class
   const painter = read('src/components/messages/AssistantTextMessage.tsx')
   const noComments = (s: string): string => s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '')
   const errorsCode = noComments(errors)
-  check('the presenter hands the classifier the credential the wire carried', errorsCode.includes('classifyCredentialWall(status, message, anthropicWireCredential(model))'))
+  check('the presenter hands the classifier the credential the wire carried', errorsCode.includes('classifyCredentialWall(status, message, anthropicWireCredential(model, status))'))
   check('the organisation phrase and its branch are gone (no constant, no class string)', !errors.includes(J('OAUTH_ORG_NOT_', 'ALLOWED')) && !errors.includes(J('oauth_org_', 'not_allowed')) && !errorsCode.includes(J('not allowed for this ', 'organization')))
   check("no Mercury sentence about an organisation's access remains in the presenter", !/organi[sz]ation does not have access/i.test(errorsCode))
   check('the painter still owns the error styling of the key-refusal words it keeps', painter.includes(J('isInvalid', 'CredentialWords(text)')))
