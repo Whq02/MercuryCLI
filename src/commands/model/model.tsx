@@ -116,11 +116,13 @@ function ModelReadout({ onDone }: { onDone: LocalJSXCommandOnDone }): React.Reac
 function ModelSet({
   target,
   raw,
+  words,
   messages,
   onDone,
 }: {
   target: ModelSetting
   raw: string
+  words?: string
   messages: Message[]
   onDone: LocalJSXCommandOnDone
 }): React.ReactNode {
@@ -159,7 +161,7 @@ function ModelSet({
     if (focused.carrier === 'daemon') {
       const factsBefore = focused.modelFacts()
       const choice = persistModelChoice(target)
-      const receipt = await focused.setModel(target)
+      const receipt = await focused.setModel(target, words !== undefined && words !== target ? words : undefined)
       if (receipt.state === 'refused') choice.restore()
       const moved = receipt.state === 'applied' || receipt.state === 'queued'
       const doorCross =
@@ -327,6 +329,7 @@ export async function call(
   onDone: LocalJSXCommandOnDone,
   context: LocalJSXCommandContext,
   args?: string,
+  typed?: string,
 ): Promise<React.ReactNode | undefined> {
   const trimmed = (args ?? '').trim()
   if (!trimmed) return undefined
@@ -345,6 +348,7 @@ export async function call(
     <ModelSet
       target={trimmed === 'default' ? null : trimmed}
       raw={trimmed}
+      {...(typed !== undefined && typed.trim() !== '' ? { words: typed.trim() } : {})}
       messages={context.messages ?? []}
       onDone={onDone}
     />

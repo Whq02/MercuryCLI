@@ -120,11 +120,11 @@ function Harness({ columns, element }: { columns: number; element: React.ReactNo
 }
 const wrap = (node: React.ReactNode): React.ReactNode => h(App, { initialState: getDefaultAppState(), getFpsMetrics: () => undefined } as never, h(KeybindingSetup, null, node))
 
-async function openPicker(columns: number, rows: number): Promise<Scene> {
+async function openPicker(columns: number, rows: number, typed = ''): Promise<Scene> {
   initializeSurfaceRoute(ROOT_CHAT_ROUTE)
   resetChromeModeLatchForTests()
   const done: unknown[][] = []
-  const element = await modelCommand.call((...call: unknown[]) => { done.push(call) }, { messages: [], options: {} } as never, '')
+  const element = await modelCommand.call((...call: unknown[]) => { done.push(call) }, { messages: [], options: {} } as never, typed)
   check(`${columns}x${rows}: /model hands the session a picker to mount`, element !== null && element !== undefined)
   const m = await mountOffscreen(wrap(h(Harness, { columns, element })), columns, rows)
   const painted = await waitFor(() => m.screen().includes(TITLE) && m.screen().includes('↑↓ select'), 10000)
@@ -231,6 +231,37 @@ section('§3 the compact picker at 80x24: the same letters search')
   check('typing opus searches at 80x24', searched, `${boxText(scene.m)} · ${rowOf(scene.m, TITLE).trim()}`)
   check('nothing saved, nothing launched', JSON.stringify(engineOf()) === before && !scene.m.screen().includes('localsetup') && scene.done.length === 0)
   save('typed-opus-80x24', scene.m.lines())
+  await closeScene(scene)
+}
+
+section('§4 /model with words that name no listed model: the words become the picker\'s search, nothing is saved')
+{
+  const scene = await openPicker(120, 40, 'gpt 6 luna')
+  const before = JSON.stringify(engineOf())
+  const carried = await waitFor(() => boxText(scene.m) === '/ gpt 6 luna', 6000)
+  check('the typed words are the search box\'s text when the picker opens', carried, boxText(scene.m))
+  check('the title counts the matches for those words (none in a home with no GPT rows)', /Mercury · model · 0 of \d+ match/.test(scene.m.screen()), rowOf(scene.m, TITLE).trim())
+  check('the notice says the words name no listed model', popupLines(scene.m).some(l => l.includes("'gpt 6 luna' names no listed model")), popupLines(scene.m).filter(l => l.includes('listed')).join(' | '))
+  check('nothing was saved and nothing launched', JSON.stringify(engineOf()) === before && scene.done.length === 0 && !scene.m.screen().includes('localsetup'), JSON.stringify(engineOf()))
+  save('typed-words-gpt-6-luna-120x40', scene.m.lines())
+  scene.m.push(KEY.esc)
+  const cleared = await waitFor(() => boxText(scene.m) === '/ search by name or id' && scene.m.screen().includes(TITLE), 6000)
+  check('esc clears the carried words and keeps the picker open with every row', cleared && !/ of \d+ match/.test(scene.m.screen()), boxText(scene.m))
+  scene.m.push(KEY.esc)
+  await waitFor(() => kept(scene.done), 6000)
+  await closeScene(scene)
+}
+{
+  const scene = await openPicker(120, 40, 'claude 5')
+  const carried = await waitFor(() => boxText(scene.m) === '/ claude 5' && /Mercury · model · \d+ of \d+ match/.test(scene.m.screen()), 6000)
+  check('words that match rows open the picker filtered to them, the title counting the matches', carried, `${boxText(scene.m)} · ${rowOf(scene.m, TITLE).trim()}`)
+  const matched = Number(/Mercury · model · (\d+) of \d+ match/.exec(scene.m.screen())?.[1] ?? '0')
+  check('a row of the filtered list is the focused one (boxed)', matched > 0 && popupLines(scene.m).some(l => /│ │ │ .*claude-/.test(l)), popupLines(scene.m).filter(l => l.includes('claude-')).join(' | '))
+  save('typed-words-claude-5-120x40', scene.m.lines())
+  scene.m.push(KEY.esc)
+  await waitFor(() => !/ of \d+ match/.test(scene.m.screen()), 4000)
+  scene.m.push(KEY.esc)
+  await waitFor(() => kept(scene.done), 4000)
   await closeScene(scene)
 }
 

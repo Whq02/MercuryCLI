@@ -64,7 +64,7 @@ const cardRows = (rows: string[]): string[] => {
 
 for (const scene of [
   { id: 'yes', key: '1', row: 'retract seq 1 →', said: 'The user said yes on the card' },
-  { id: 'no', key: '2', row: 'retract refused (user-kept-rule)', said: 'the user kept the rule' },
+  { id: 'no', key: '2', row: 'rule kept you kept the rule; nothing changed', said: 'the user kept the rule' },
 ]) {
   section(`§ the real cockpit: the model pins a rule the user asked for, then asks to drop it — the card paints with the rule's words verbatim and ${scene.id === 'yes' ? 'Yes drops it' : 'No keeps it'}`)
   const run = await runArtifactArena({
@@ -91,7 +91,8 @@ for (const scene of [
   const rows = final!.rows.map(r => r.replace(/\s+$/, ''))
   if (frameDir) writeFileSync(join(frameDir, `rule-card-drive-${scene.id}-final.txt`), `${rows.join('\n')}\n`)
   check(`${scene.id}: the turn went on to its end (the answer never interrupted it)`, rows.some(r => r.includes('Done.')), rows.slice(-14).join('\n'))
-  check(`${scene.id}: the transcript row reads "${scene.row}"`, rows.some(r => r.includes(scene.row)), rows.filter(r => r.includes('retract')).join(' | ') || rows.slice(-14).join('\n'))
+  check(`${scene.id}: the transcript row reads "${scene.row}"`, rows.some(r => r.includes(scene.row)), rows.filter(r => r.includes('retract') || r.includes('kept')).join(' | ') || rows.slice(-14).join('\n'))
+  if (scene.id === 'no') check('no: the kept answer is never drawn as an error row', !rows.some(r => r.includes('▲ Error') && r.includes('kept')), rows.filter(r => r.includes('▲')).join(' | '))
   check(`${scene.id}: the model was told: ${scene.said}`, toolResults(run).some(r => r.includes(scene.said)), toolResults(run).join(' | ').slice(0, 900))
   const lib = libraryOf(run.paths.home)
   const pinned = lib === null ? [] : pinsOf(lib)

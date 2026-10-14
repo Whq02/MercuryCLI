@@ -41,6 +41,9 @@ const SONNET = 'claude-sonnet-5-5'
 const SID = 'c0ffee00-0000-4000-8000-00000000a1e7'
 const SAVED_ROW = `Model now: Sonnet 5.5 · saved as your default for new sessions — /model ${FABLE} switches back to Fable 5.1`
 const CHAT_ONLY_ROW = `Model now: Opus 5 · for this chat only — /model ${SONNET} switches back to Sonnet 5.5`
+const CLOCK = String.raw`\d{2}:\d{2} \S+`
+const SAVED_ROW_STAMPED = new RegExp(`Model now: Sonnet 5\\.5 · ${CLOCK} · saved as your default for new sessions — /model ${FABLE} switches back to Fable 5\\.1`)
+const CHAT_ONLY_ROW_STAMPED = new RegExp(`Model now: Opus 5 · ${CLOCK} · for this chat only — /model ${SONNET} switches back to Sonnet 5\\.5`)
 const ROOT = join(import.meta.dir, '..', '..')
 const SRC = (path: string): string => readFileSync(join(ROOT, path), 'utf8')
 
@@ -54,6 +57,10 @@ section('§1 the row\'s words, the restore of a refused save, and the cockpit wr
   check('not saved: the row says this chat only and still names the way back', words?.('Opus 5', { previousModel: SONNET, previousDisplay: 'Sonnet 5.5', savedAsDefault: false }) === CHAT_ONLY_ROW, words?.('Opus 5', { previousModel: SONNET, previousDisplay: 'Sonnet 5.5', savedAsDefault: false }))
   const trail = (factories.createModelSwitchBreadcrumbs as (a: string, b: string, c?: unknown) => Array<{ isVirtual?: boolean; message: { content: unknown } }>)(SONNET, 'Sonnet 5.5', { previousModel: FABLE, previousDisplay: 'Fable 5.1', savedAsDefault: true })
   check('the breadcrumb trail\'s stdout row carries the words and stays a display-only row the model never reads', trail.length === 3 && trail[2]!.isVirtual === true && String(trail[2]!.message.content).includes(SAVED_ROW), j(trail[2]?.message.content))
+  const stamped = words?.('Sonnet 5.5', { previousModel: FABLE, previousDisplay: 'Fable 5.1', savedAsDefault: true, model: SONNET, words: 'sonnet 5.5', at: '10:39 BST' })
+  check('with the typed words and the switch time the row echoes the words, the match and the time with its zone', stamped === `sonnet 5.5 → ${SONNET} · 10:39 BST · saved as your default for new sessions — /model ${FABLE} switches back to Fable 5.1`, stamped)
+  check('typed as the id itself, the row keeps Model now and gains the time', words?.('Sonnet 5.5', { previousModel: FABLE, previousDisplay: 'Fable 5.1', savedAsDefault: false, model: SONNET, words: SONNET, at: '10:39 BST' }) === `Model now: Sonnet 5.5 · 10:39 BST · for this chat only — /model ${FABLE} switches back to Fable 5.1`)
+  check('the switch clock reads hours, minutes and a zone name', /^\d{2}:\d{2} \S+$/.test(factories.switchClockWords(new Date('2026-10-14T09:39:00Z'))) && factories.switchClockWords(new Date('2026-10-14T09:39:00Z'), 'en-GB').endsWith(' BST') === (new Date('2026-10-14T09:39:00Z').getTimezoneOffset() === -60), factories.switchClockWords(new Date('2026-10-14T09:39:00Z')))
   const plain = (factories.createModelSwitchBreadcrumbs as (a: string, b: string) => Array<{ message: { content: unknown } }>)(SONNET, 'Sonnet 5.5')
   check('the two-argument trail is byte-identical to the shipped one', String(plain[2]!.message.content) === '<local-command-stdout>Model now: Sonnet 5.5</local-command-stdout>', j(plain[2]?.message.content))
 
@@ -141,8 +148,8 @@ if (!existsSync(DIST)) {
     }
     check('the three turns settled across two switches', error === '', error || host.stderr().slice(-600))
     const outputs = host.rows.filter((row: Frame) => row.type === 'command_output').map((row: Frame) => String(row.text ?? ''))
-    check('the first switch, saved as the default by the cockpit before the door, paints a row that says so and names the way back (RED on the base: "Model now: Sonnet 5.5" alone)', outputs.some(text => text.includes(SAVED_ROW)), j(outputs))
-    check('the second switch, not saved, paints a row that says this chat only and names the way back', outputs.some(text => text.includes(CHAT_ONLY_ROW)), j(outputs))
+    check('the first switch, saved as the default by the cockpit before the door, paints a row that says so, stamps the time with its zone and names the way back (RED on the base: "Model now: Sonnet 5.5" alone)', outputs.some(text => SAVED_ROW_STAMPED.test(text)), j(outputs))
+    check('the second switch, not saved, paints a row that says this chat only, stamped, and names the way back', outputs.some(text => CHAT_ONLY_ROW_STAMPED.test(text)), j(outputs))
     check('no row still carries the bare shipped shape', !outputs.some(text => /Model now: [^·]+<\/local-command-stdout>/.test(text) || /Model now: [^·\n]+$/.test(text)), j(outputs))
     const walk = (dir: string): string[] => {
       const out: string[] = []
@@ -155,7 +162,7 @@ if (!existsSync(DIST)) {
       return out
     }
     const recorded = walk(join(home, '.mercury', 'projects')).flatMap(file => readFileSync(file, 'utf8').split('\n'))
-    check('the session file keeps both rows, so a resumed chat still shows them', recorded.some(line => line.includes(SAVED_ROW)) && recorded.some(line => line.includes(CHAT_ONLY_ROW)), j(recorded.filter(line => line.includes('Model now')).map(line => line.slice(0, 200))))
+    check('the session file keeps both rows, so a resumed chat still shows them', recorded.some(line => SAVED_ROW_STAMPED.test(line)) && recorded.some(line => CHAT_ONLY_ROW_STAMPED.test(line)), j(recorded.filter(line => line.includes('Model now')).map(line => line.slice(0, 200))))
     const requests = fixture.messageRequests().map(r => r.body as { messages?: Array<{ content?: unknown }> })
     const wire = JSON.stringify(requests.slice(1))
     check('the rows never reach the model (the switch stays invisible to it)', !wire.includes('Model now:'), wire.slice(0, 200))

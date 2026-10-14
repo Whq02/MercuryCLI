@@ -123,7 +123,7 @@ import { providerDisplayName } from '../../services/providers/routeLaw.js'
 import { catalogueEpoch } from '../../services/providers/catalogueEpoch.js'
 import { signInLedgerEpoch } from '../../utils/accounts/signInLedger.js'
 import { getSubscriptionType } from '../../utils/auth.js'
-import { matchesPickerFilter, orderPickerRows, type ProviderHeading } from '../../utils/model/modelPickerGroups.js'
+import { orderPickerRows, type ProviderHeading } from '../../utils/model/modelPickerGroups.js'
 import { readModelUseLedger, recordModelUse } from '../../utils/model/modelUseLedger.js'
 import { has1mContext } from '../../utils/context.js'
 import {
@@ -143,7 +143,7 @@ import { updateSettingsForSource } from '../../utils/settings/settings.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { useCatalogueEpoch } from '../../hooks/useCatalogueEpoch.js'
 import { persistEffortChoice, persistModelChoice } from './persistModelChoice.js'
-import { matchReachableModelName, modelNameAskWords, reachableModelEntries } from '../../utils/model/modelNameRoad.js'
+import { matchReachableModelName, modelNameAskWords } from '../../utils/model/modelNameRoad.js'
 import { COMMON_HELP_ARGS, COMMON_INFO_ARGS } from '../../constants/xml.js'
 
 const CATALOGUE_DOORS: Record<string, () => ModelOption[]> = {
@@ -1345,15 +1345,14 @@ export const call: LocalJSXCommandCall = async (onDone, context, args) => {
     const matched = COMMON_INFO_ARGS.includes(lowered) || COMMON_HELP_ARGS.includes(lowered) ? null : matchReachableModelName(typed)
     if (matched === null || matched.kind === 'exact') {
       const base = await import('./model.js')
-      return base.call(onDone, context, matched === null ? typed : matched.id)
+      return base.call(onDone, context, matched === null ? typed : matched.id, typed)
     }
     if (matched.kind === 'match') {
       const base = await import('./model.js')
-      return base.call((result, options) => onDone(result === undefined ? undefined : `${matched.said}\n${result}`, options), context, matched.id)
+      return base.call((result, options) => onDone(result === undefined ? undefined : `${matched.said}\n${result}`, options), context, matched.id, typed)
     }
     const options = getModelOptions()
-    const filter = reachableModelEntries().some(entry => matchesPickerFilter({ id: entry.id, name: entry.name ?? '', tag: '', group: '' }, typed)) ? typed : ''
-    ask = { notice: modelNameAskWords(matched, id => pickLabelOf(options, id)), filter }
+    ask = { notice: modelNameAskWords(matched, id => pickLabelOf(options, id)), filter: typed }
   }
   claimModelPickerPopup()
   return (

@@ -164,7 +164,7 @@ import { SandboxManager } from '../utils/sandbox/sandbox-adapter.js'
 import { GLYPH } from '../components/mercury-ui/glyphs.js'
 import { isBuiltInAgent } from '../tools/AgentTool/loadAgentsDir.js'
 import { gracefulShutdown, gracefulShutdownSync, isShuttingDown, markRunModeSignalsOwned } from '../utils/gracefulShutdown.js'
-import { leaveNoteBeforeExit } from '../mneme/exitHandoff.js'
+import { exitNoteCharsKept, leaveNoteBeforeExit } from '../mneme/exitHandoff.js'
 import { HANDOFF_ASK_BUDGET_MS } from '../mneme/handoffAsk.js'
 import { closeLineageSession, lineageKept } from '../mneme/lineageSession.js'
 import { saveCurrentSessionCosts } from '../cost-tracker.js'
@@ -820,7 +820,7 @@ export async function runHeadless(
   asks.setOnControlRequestSent(() => hostAsks?.noteParked())
   asks.setOnControlRequestResolved(() => hostAsks?.noteSettled())
   let deferredModelBreadcrumb: { to: string; from: string } | null = null
-  let heldSeatModel: { requestId: number; model: string } | null = null
+  let heldSeatModel: { requestId: number; model: string; words?: string } | null = null
   let heldSeatEffort: { requestId: number; effort: string } | null = null
   let deferredSpawnSwitches: Array<{ kind: 'subagents' | 'workflows'; on: boolean; requestId: number }> = []
   let deferredAdvisorQuiet: AdvisorQuiet[] = []
@@ -961,13 +961,16 @@ export async function runHeadless(
     const stored = getSettingsWithSources().sources.find(source => source.source === 'userSettings')?.settings.engine?.model
     return stored === undefined || stored === '' ? null : parseUserSpecifiedModel(stored)
   }
-  const injectModelSwitchBreadcrumbs = async (toModel: string, fromModel: string): Promise<void> => {
-    const { createModelSwitchBreadcrumbs } = await import('../utils/messages/factories.js')
+  const injectModelSwitchBreadcrumbs = async (toModel: string, fromModel: string, words?: string): Promise<void> => {
+    const { createModelSwitchBreadcrumbs, switchClockWords } = await import('../utils/messages/factories.js')
     const displayOf = (model: string): string => modelInfos.find(info => info.value === model)?.display_name ?? model
-    const breadcrumbs = createModelSwitchBreadcrumbs(toModel, displayOf(toModel), {
+    const breadcrumbs = createModelSwitchBreadcrumbs(words ?? toModel, displayOf(toModel), {
       previousModel: fromModel,
       previousDisplay: displayOf(fromModel),
       savedAsDefault: savedDefaultModel() === toModel,
+      model: toModel,
+      ...(words === undefined ? {} : { words }),
+      at: switchClockWords(new Date()),
     })
     for (const breadcrumb of breadcrumbs) {
       messages.push(breadcrumb)
@@ -991,7 +994,7 @@ export async function runHeadless(
     })
   }
 
-  const applySeatModel = async (model: string): Promise<void> => {
+  const applySeatModel = async (model: string, words?: string): Promise<void> => {
     const previous = activeModel ?? getEngineModel()
     activeModel = model
     setEngineModelOverride(model)
@@ -999,7 +1002,7 @@ export async function runHeadless(
     saveSessionModel(model)
     notifySessionStateChanged('idle')
     if (model !== previous) {
-      await injectModelSwitchBreadcrumbs(model, previous)
+      await injectModelSwitchBreadcrumbs(model, previous, words)
       if (getSettingsWithSources().effective.memory?.tellEngineSwitch === true) await tellSeatEngineSwitch(model)
     }
   }
@@ -1184,7 +1187,7 @@ export async function runHeadless(
       if (heldSeatModel !== null) {
         const held = heldSeatModel
         heldSeatModel = null
-        await applySeatModel(held.model)
+        await applySeatModel(held.model, held.words)
         io.outbound.enqueue({ method: 'session/applied', params: { request_id: held.requestId, verb: 'set_model', model: held.model } })
       }
       if (heldSeatEffort !== null) {
@@ -1698,12 +1701,13 @@ export async function runHeadless(
         requested === undefined || requested === 'default'
           ? (getDefaultEngineModelSetting() ?? getEngineModel())
           : parseUserSpecifiedModel(requested)
+      const words = typeof params.words === 'string' && params.words.trim() !== '' ? params.words.trim() : undefined
       if (inFlightAbort !== null) {
-        heldSeatModel = { requestId: ref.id, model: String(resolved) }
+        heldSeatModel = { requestId: ref.id, model: String(resolved), ...(words === undefined ? {} : { words }) }
         holdQueuedWordsForTurnEnd(true)
         return { model: String(resolved), at: SEAT_VERB_AT(true) }
       }
-      await applySeatModel(String(resolved))
+      await applySeatModel(String(resolved), words)
       return { model: String(resolved), at: SEAT_VERB_AT(false) }
     },
     'session/claim': async params => {
@@ -2057,7 +2061,8 @@ export async function runHeadless(
       try {
         const note = await leaveNoteBeforeExit({ budgetMs: HANDOFF_ASK_BUDGET_MS, signal: controller.signal, onNotice: text => io.outbound.enqueue(noticeRow(liveScope(), 'warning', text)) })
         const closed = await closeLineageSession('quit')
-        return { note, ledger: closed !== null && lineageKept() ? 'closed' : 'absent' }
+        const kept = note === 'stored' ? exitNoteCharsKept() : null
+        return { note, ledger: closed !== null && lineageKept() ? 'closed' : 'absent', ...(kept === null ? {} : { noteChars: kept }) }
       } finally {
         signal.removeEventListener('abort', onCancel)
         if (leaveAbort === controller) leaveAbort = null

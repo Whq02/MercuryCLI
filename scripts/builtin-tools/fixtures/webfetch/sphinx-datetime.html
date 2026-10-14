@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="../">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta property="og:title" content="datetime — Basic date and time types" />
+    <title>datetime — Basic date and time types &#8212; Python 3.14.0 documentation</title><meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
+    <link rel="stylesheet" type="text/css" href="../_static/pydoctheme.css?v=5ff95d4c" />
+    <script src="../_static/documentation_options.js?v=5d8a8fb9"></script>
+    <script src="../_static/doctools.js?v=9bcbadda"></script>
+    <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script defer data-domain="docs.python.org" src="https://plausible.io/js/script.js"></script>
+    <link rel="canonical" href="https://docs.python.org/3/library/datetime.html" />
+  </head>
+<body>
+<div class="mobile-nav">
+    <input type="checkbox" id="menuToggler" class="toggler__input" aria-controls="navigation"
+           aria-pressed="false" aria-expanded="false" role="button" aria-label="Menu" />
+    <nav class="nav-content" role="navigation">
+        <label for="menuToggler" class="toggler__label">
+            <span></span>
+        </label>
+        <span class="nav-items-wrapper">
+            <a href="https://www.python.org/" class="nav-logo">
+                <img src="../_static/py.svg" alt="Python logo"/>
+            </a>
+            <span class="version_switcher_placeholder"></span>
+            <form role="search" class="search" action="../search.html" method="get">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" class="search-icon">
+                    <path fill-rule="nonzero" fill="currentColor" d="M15.5 14h-.79l-.28-.27a6.5 6.5 0 1 0-.7.7l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"></path>
+                </svg>
+                <input placeholder="Quick search" aria-label="Quick search" type="search" name="q" />
+                <input type="submit" value="Go"/>
+            </form>
+        </span>
+    </nav>
+    <div class="menu-wrapper">
+        <nav class="menu" role="navigation" aria-label="main navigation">
+            <div class="language_switcher_placeholder"></div>
+        </nav>
+    </div>
+</div>
+
+    <div class="related" role="navigation" aria-label="Related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="functions.html" title="Built-in Functions"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="intro.html" title="1. Introduction"
+             accesskey="P">previous</a> |</li>
+
+          <li><img src="../_static/py.svg" alt="Python logo" style="vertical-align: middle; margin-top: -1px"/></li>
+          <li><a href="https://www.python.org/">Python</a> &#187;</li>
+          <li class="switchers">
+            <div class="language_switcher_placeholder"></div>
+            <div class="version_switcher_placeholder"></div>
+          </li>
+          <li>
+              <a href="../index.html">3.14.0 Documentation</a> &#187;
+          </li>
+
+          <li class="nav-item nav-item-1"><a href="index.html" >The Python Standard Library</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">datetime — Basic date and time types</a></li>
+                <li class="right">
+
+
+    <div class="inline-search" role="search">
+        <form class="inline-search" action="../search.html" method="get">
+          <input placeholder="Quick search" aria-label="Quick search" type="search" name="q" id="search-box" />
+          <input type="submit" value="Go" />
+        </form>
+    </div>
+                     |
+                </li>
+            <li class="right">
+<label class="theme-selector-label">
+    Theme
+    <select class="theme-selector" oninput="activateTheme(this.value)">
+        <option value="auto" selected>Auto</option>
+        <option value="light">Light</option>
+        <option value="dark">Dark</option>
+    </select>
+</label> |</li>
+
+      </ul>
+    </div>
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+
+<section id="module-datetime">
+<span id="datetime-basic-date-and-time-types"></span><h1><a class="reference internal" href="#module-datetime" title="datetime: Basic date and time types."><code class="xref py py-mod docutils literal notranslate"><span class="pre">datetime</span></code></a> — Basic date and time types<a class="headerlink" href="#module-datetime" title="Link to this heading">¶</a></h1>
+<p><strong>Source code:</strong> <a class="extlink-source reference external" href="https://github.com/python/cpython/tree/3.14/Lib/datetime.py">Lib/datetime.py</a></p>
+<hr class="docutils" />
+<p>The <a class="reference internal" href="#module-datetime" title="datetime: Basic date and time types."><code class="xref py py-mod docutils literal notranslate"><span class="pre">datetime</span></code></a> module supplies classes for manipulating dates and times.</p>
+<p>While date and time arithmetic is supported, the focus of the implementation is
+on efficient attribute extraction for output formatting and manipulation.</p>
+<div class="admonition tip">
+<p class="admonition-title">Tip</p>
+<p>Skip to <a class="reference internal" href="#format-codes"><span class="std std-ref">the format codes</span></a>.</p>
+</div>
+<section id="aware-and-naive-objects">
+<h2>Aware and Naive Objects<a class="headerlink" href="#aware-and-naive-objects" title="Link to this heading">¶</a></h2>
+<p>Date and time objects may be categorized as “aware” or “naive” depending on
+whether or not they include time zone information.</p>
+<p>With sufficient knowledge of applicable algorithmic and political time
+adjustments, such as time zone and daylight saving time information,
+an <strong>aware</strong> object can locate itself relative to other aware objects.
+An aware object represents a specific moment in time that is not open to
+interpretation.</p>
+<p>A <strong>naive</strong> object does not contain enough information to unambiguously locate
+itself relative to other date/time objects. Whether a naive object represents
+Coordinated Universal Time (UTC), local time, or time in some other time zone is
+purely up to the program, just like it is up to the program whether a
+particular number represents metres, miles, or mass. Naive objects are easy to
+understand and to work with, at the cost of ignoring some aspects of reality.</p>
+<p>For applications requiring aware objects, <a class="reference internal" href="#datetime.datetime" title="datetime.datetime"><code class="xref py py-class docutils literal notranslate"><span class="pre">datetime</span></code></a> and <a class="reference internal" href="#datetime.time" title="datetime.time"><code class="xref py py-class docutils literal notranslate"><span class="pre">time</span></code></a>
+objects have an optional time zone information attribute, <code class="xref py py-attr docutils literal notranslate"><span class="pre">tzinfo</span></code>, that
+can be set to an instance of a subclass of the abstract <a class="reference internal" href="#datetime.tzinfo" title="datetime.tzinfo"><code class="xref py py-class docutils literal notranslate"><span class="pre">tzinfo</span></code></a> class.
+These <a class="reference internal" href="#datetime.tzinfo" title="datetime.tzinfo"><code class="xref py py-class docutils literal notranslate"><span class="pre">tzinfo</span></code></a> objects capture information about the offset from UTC
+time, the time zone name, and whether daylight saving time is in effect.</p>
+</section>
+<section id="timedelta-objects">
+<h2><a class="reference internal" href="#datetime.timedelta" title="datetime.timedelta"><code class="xref py py-class docutils literal notranslate"><span class="pre">timedelta</span></code></a> Objects<a class="headerlink" href="#timedelta-objects" title="Link to this heading">¶</a></h2>
+<p>A <a class="reference internal" href="#datetime.timedelta" title="datetime.timedelta"><code class="xref py py-class docutils literal notranslate"><span class="pre">timedelta</span></code></a> object represents a duration, the difference between two
+<a class="reference internal" href="#datetime.datetime" title="datetime.datetime"><code class="xref py py-class docutils literal notranslate"><span class="pre">datetime</span></code></a> or <a class="reference internal" href="#datetime.date" title="datetime.date"><code class="xref py py-class docutils literal notranslate"><span class="pre">date</span></code></a> instances.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="datetime.timedelta">
+<span class="sig-prename descclassname"><span class="pre">class datetime.</span></span><span class="sig-name descname"><span class="pre">timedelta</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">days</span></span></em>=0, <em class="sig-param"><span class="n"><span class="pre">seconds</span></span></em>=0, <em class="sig-param"><span class="n"><span class="pre">microseconds</span></span></em>=0, <em class="sig-param"><span class="n"><span class="pre">milliseconds</span></span></em>=0, <em class="sig-param"><span class="n"><span class="pre">minutes</span></span></em>=0, <em class="sig-param"><span class="n"><span class="pre">hours</span></span></em>=0, <em class="sig-param"><span class="n"><span class="pre">weeks</span></span></em>=0<span class="sig-paren">)</span><a class="headerlink" href="#datetime.timedelta" title="Link to this definition">¶</a></dt>
+<dd><p>All arguments are optional and default to 0. Arguments may be integers or floats, and may be positive or negative. Only days, seconds and microseconds are stored internally. Arguments are converted to those units: a millisecond is converted to 1000 microseconds, a minute is converted to 60 seconds, an hour is converted to 3600 seconds, a week is converted to 7 days.</p>
+</dd></dl>
+<p>Example of normalization:</p>
+<div class="highlight-python3 notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">datetime</span><span class="w"> </span><span class="kn">import</span> <span class="n">timedelta</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">delta</span> <span class="o">=</span> <span class="n">timedelta</span><span class="p">(</span>
+<span class="gp">... </span>    <span class="n">days</span><span class="o">=</span><span class="mi">50</span><span class="p">,</span>
+<span class="gp">... </span>    <span class="n">seconds</span><span class="o">=</span><span class="mi">27</span><span class="p">,</span>
+<span class="gp">... </span>    <span class="n">microseconds</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span>
+<span class="gp">... </span>    <span class="n">milliseconds</span><span class="o">=</span><span class="mi">29000</span><span class="p">,</span>
+<span class="gp">... </span>    <span class="n">minutes</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span>
+<span class="gp">... </span>    <span class="n">hours</span><span class="o">=</span><span class="mi">8</span><span class="p">,</span>
+<span class="gp">... </span>    <span class="n">weeks</span><span class="o">=</span><span class="mi">2</span>
+<span class="gp">... </span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c1"># Only days, seconds, and microseconds remain</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">delta</span>
+<span class="go">datetime.timedelta(days=64, seconds=29156, microseconds=10)</span>
+</pre></div>
+</div>
+<p>Class attributes:</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="datetime.timedelta.min">
+<span class="sig-prename descclassname"><span class="pre">timedelta.</span></span><span class="sig-name descname"><span class="pre">min</span></span><a class="headerlink" href="#datetime.timedelta.min" title="Link to this definition">¶</a></dt>
+<dd><p>The most negative <a class="reference internal" href="#datetime.timedelta" title="datetime.timedelta"><code class="xref py py-class docutils literal notranslate"><span class="pre">timedelta</span></code></a> object, <code class="docutils literal notranslate"><span class="pre">timedelta(-999999999)</span></code>.</p>
+</dd></dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="datetime.timedelta.max">
+<span class="sig-prename descclassname"><span class="pre">timedelta.</span></span><span class="sig-name descname"><span class="pre">max</span></span><a class="headerlink" href="#datetime.timedelta.max" title="Link to this definition">¶</a></dt>
+<dd><p>The most positive <a class="reference internal" href="#datetime.timedelta" title="datetime.timedelta"><code class="xref py py-class docutils literal notranslate"><span class="pre">timedelta</span></code></a> object, <code class="docutils literal notranslate"><span class="pre">timedelta(days=999999999,</span>
+<span class="pre">hours=23,</span> <span class="pre">minutes=59,</span> <span class="pre">seconds=59,</span> <span class="pre">microseconds=999999)</span></code>.</p>
+</dd></dl>
+</section>
+<section id="strftime-and-strptime-behavior">
+<h2><a class="reference internal" href="#datetime.datetime.strftime" title="datetime.datetime.strftime"><code class="xref py py-meth docutils literal notranslate"><span class="pre">strftime()</span></code></a> and <a class="reference internal" href="#datetime.datetime.strptime" title="datetime.datetime.strptime"><code class="xref py py-meth docutils literal notranslate"><span class="pre">strptime()</span></code></a> Behavior<a class="headerlink" href="#strftime-and-strptime-behavior" title="Link to this heading">¶</a></h2>
+<p><a class="reference internal" href="#datetime.date" title="datetime.date"><code class="xref py py-class docutils literal notranslate"><span class="pre">date</span></code></a>, <a class="reference internal" href="#datetime.datetime" title="datetime.datetime"><code class="xref py py-class docutils literal notranslate"><span class="pre">datetime</span></code></a>, and <a class="reference internal" href="#datetime.time" title="datetime.time"><code class="xref py py-class docutils literal notranslate"><span class="pre">time</span></code></a> objects all support a
+<code class="docutils literal notranslate"><span class="pre">strftime(format)</span></code> method, to create a string representing the time under the
+control of an explicit format string.</p>
+<p>Conversely, the <a class="reference internal" href="#datetime.datetime.strptime" title="datetime.datetime.strptime"><code class="xref py py-meth docutils literal notranslate"><span class="pre">datetime.strptime()</span></code></a> class method creates a
+<a class="reference internal" href="#datetime.datetime" title="datetime.datetime"><code class="xref py py-class docutils literal notranslate"><span class="pre">datetime</span></code></a> object from a string representing a date and time and a
+corresponding format string.</p>
+<p>The table below provides a high-level comparison of <code class="xref py py-meth docutils literal notranslate"><span class="pre">strftime()</span></code>
+versus <code class="xref py py-meth docutils literal notranslate"><span class="pre">strptime()</span></code>:</p>
+<section id="format-codes">
+<h3>Format Codes<a class="headerlink" href="#format-codes" title="Link to this heading">¶</a></h3>
+<p>The following is a list of all the format codes that the 1989 C standard
+requires, and these work on all platforms with a standard C implementation.</p>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Directive</p></th>
+<th class="head"><p>Meaning</p></th>
+<th class="head"><p>Example</p></th>
+<th class="head"><p>Notes</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">%a</span></code></p></td>
+<td><p>Weekday as locale’s abbreviated name.</p></td>
+<td><p>Sun, Mon, …, Sat (en_US); So, Mo, …, Sa (de_DE)</p></td>
+<td><p>(1)</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">%A</span></code></p></td>
+<td><p>Weekday as locale’s full name.</p></td>
+<td><p>Sunday, Monday, …, Saturday (en_US); Sonntag, Montag, …, Samstag (de_DE)</p></td>
+<td><p>(1)</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">%w</span></code></p></td>
+<td><p>Weekday as a decimal number, where 0 is Sunday and 6 is Saturday.</p></td>
+<td><p>0, 1, …, 6</p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">%d</span></code></p></td>
+<td><p>Day of the month as a zero-padded decimal number.</p></td>
+<td><p>01, 02, …, 31</p></td>
+<td><p>(9)</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">%b</span></code></p></td>
+<td><p>Month as locale’s abbreviated name.</p></td>
+<td><p>Jan, Feb, …, Dec (en_US); Jan, Feb, …, Dez (de_DE)</p></td>
+<td><p>(1)</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">%B</span></code></p></td>
+<td><p>Month as locale’s full name.</p></td>
+<td><p>January, February, …, December (en_US); Januar, Februar, …, Dezember (de_DE)</p></td>
+<td><p>(1)</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">%m</span></code></p></td>
+<td><p>Month as a zero-padded decimal number.</p></td>
+<td><p>01, 02, …, 12</p></td>
+<td><p>(9)</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">%y</span></code></p></td>
+<td><p>Year without century as a zero-padded decimal number.</p></td>
+<td><p>00, 01, …, 99</p></td>
+<td><p>(9)</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">%Y</span></code></p></td>
+<td><p>Year with century as a decimal number.</p></td>
+<td><p>0001, 0002, …, 2013, 2014, …, 9998, 9999</p></td>
+<td><p>(2)</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">%H</span></code></p></td>
+<td><p>Hour (24-hour clock) as a zero-padded decimal number.</p></td>
+<td><p>00, 01, …, 23</p></td>
+<td><p>(9)</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">%I</span></code></p></td>
+<td><p>Hour (12-hour clock) as a zero-padded decimal number.</p></td>
+<td><p>01, 02, …, 12</p></td>
+<td><p>(9)</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">%p</span></code></p></td>
+<td><p>Locale’s equivalent of either AM or PM.</p></td>
+<td><p>AM, PM (en_US); am, pm (de_DE)</p></td>
+<td><p>(1), (3)</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">%M</span></code></p></td>
+<td><p>Minute as a zero-padded decimal number.</p></td>
+<td><p>00, 01, …, 59</p></td>
+<td><p>(9)</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">%S</span></code></p></td>
+<td><p>Second as a zero-padded decimal number.</p></td>
+<td><p>00, 01, …, 59</p></td>
+<td><p>(4), (9)</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">%f</span></code></p></td>
+<td><p>Microsecond as a decimal number, zero-padded to 6 digits.</p></td>
+<td><p>000000, 000001, …, 999999</p></td>
+<td><p>(5)</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">%z</span></code></p></td>
+<td><p>UTC offset in the form <code class="docutils literal notranslate"><span class="pre">±HHMM[SS[.ffffff]]</span></code> (empty string if the object is naive).</p></td>
+<td><p>(empty), +0000, -0400, +1030, +063415, -030712.345216</p></td>
+<td><p>(6)</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">%Z</span></code></p></td>
+<td><p>Time zone name (empty string if the object is naive).</p></td>
+<td><p>(empty), UTC, GMT</p></td>
+<td><p>(6)</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">%j</span></code></p></td>
+<td><p>Day of the year as a zero-padded decimal number.</p></td>
+<td><p>001, 002, …, 366</p></td>
+<td><p>(9)</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">%U</span></code></p></td>
+<td><p>Week number of the year (Sunday as the first day of the week) as a zero-padded decimal number. All days in a new year preceding the first Sunday are considered to be in week 0.</p></td>
+<td><p>00, 01, …, 53</p></td>
+<td><p>(7), (9)</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">%W</span></code></p></td>
+<td><p>Week number of the year (Monday as the first day of the week) as a zero-padded decimal number. All days in a new year preceding the first Monday are considered to be in week 0.</p></td>
+<td><p>00, 01, …, 53</p></td>
+<td><p>(7), (9)</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">%c</span></code></p></td>
+<td><p>Locale’s appropriate date and time representation.</p></td>
+<td><p>Tue Aug 16 21:30:00 1988 (en_US); Di 16 Aug 21:30:00 1988 (de_DE)</p></td>
+<td><p>(1)</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">%x</span></code></p></td>
+<td><p>Locale’s appropriate date representation.</p></td>
+<td><p>08/16/88 (None); 08/16/1988 (en_US); 16.08.1988 (de_DE)</p></td>
+<td><p>(1)</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">%X</span></code></p></td>
+<td><p>Locale’s appropriate time representation.</p></td>
+<td><p>21:30:00 (en_US); 21:30:00 (de_DE)</p></td>
+<td><p>(1)</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">%%</span></code></p></td>
+<td><p>A literal <code class="docutils literal notranslate"><span class="pre">'%'</span></code> character.</p></td>
+<td><p>%</p></td>
+<td><p></p></td>
+</tr>
+</tbody>
+</table>
+<p>Several additional directives not required by the C89 standard are included for
+convenience. These parameters all correspond to ISO 8601 date values.</p>
+<p>Notes:</p>
+<ol class="arabic">
+<li><p>Because the format depends on the current locale, care should be taken when
+making assumptions about the output value. Field orderings will vary (for
+example, “month/day/year” versus “day/month/year”), and the output may
+contain non-ASCII characters.</p>
+</li>
+<li><p>The <code class="xref py py-meth docutils literal notranslate"><span class="pre">strptime()</span></code> method can parse years in the full [1, 9999] range, but
+years &lt; 1000 must be zero-filled to 4-digit width.</p>
+</li>
+<li><p>When used with the <code class="xref py py-meth docutils literal notranslate"><span class="pre">strptime()</span></code> method, the <code class="docutils literal notranslate"><span class="pre">%p</span></code> directive only affects
+the output hour field if the <code class="docutils literal notranslate"><span class="pre">%I</span></code> directive is used to parse the hour.</p>
+</li>
+</ol>
+</section>
+</section>
+</section>
+
+            <div class="clearer"></div>
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="Main">
+        <div class="sphinxsidebarwrapper">
+  <div>
+    <h3>Table of Contents</h3>
+    <ul>
+<li><a class="reference internal" href="#aware-and-naive-objects">Aware and Naive Objects</a></li>
+<li><a class="reference internal" href="#timedelta-objects">timedelta Objects</a></li>
+<li><a class="reference internal" href="#strftime-and-strptime-behavior">strftime() and strptime() Behavior</a></li>
+    </ul>
+  </div>
+  <div>
+    <h4>Previous topic</h4>
+    <p class="topless"><a href="intro.html"
+                          title="previous chapter"><span class="section-number">1. </span>Introduction</a></p>
+  </div>
+  <div>
+    <h4>Next topic</h4>
+    <p class="topless"><a href="functions.html"
+                          title="next chapter">Built-in Functions</a></p>
+  </div>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="../bugs.html">Report a Bug</a></li>
+      <li>
+        <a href="https://github.com/python/cpython/blob/main/Doc/library/datetime.rst"
+            rel="nofollow">Show Source
+        </a>
+      </li>
+    </ul>
+  </div>
+        </div>
+<div id="sidebarbutton" title="Collapse sidebar">
+<span>«</span>
+</div>
+
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="Related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-this"><a href="">datetime — Basic date and time types</a></li>
+      </ul>
+    </div>
+    <div class="footer">
+    &copy;
+      <a href="../copyright.html">
+          Copyright
+      </a>
+       2001-2026, Python Software Foundation.
+    <br />
+    This page is licensed under the <a href="https://docs.python.org/license.html">Python Software Foundation License Version 2</a>.
+    <br />
+    Examples, recipes, and other code in the documentation are additionally licensed under the <a href="https://docs.python.org/license.html">Zero Clause BSD License</a>.
+    <br />
+    See <a href="https://www.python.org/psf/donations/">Donate to the Python Software Foundation</a>.
+    <br />
+    <br />
+      Last updated on Oct 14, 2026 (10:21 UTC).
+    <a href="../bugs.html">Found a bug</a>?
+    <br />
+      Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 8.2.3.
+    </div>
+
+  </body>
+</html>
