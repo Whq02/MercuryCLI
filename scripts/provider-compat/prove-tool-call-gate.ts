@@ -86,6 +86,24 @@ function chatCompletionsSse(s: Script): string {
   return out.join('')
 }
 
+function geminiSse(s: Script): string {
+  const nativeArgs = (raw: string): unknown => {
+    if (raw === '') return undefined
+    try {
+      return JSON.parse(raw) as unknown
+    } catch {
+      return raw
+    }
+  }
+  const parts = s.calls.length > 0
+    ? s.calls.map((call, index) => {
+        const args = nativeArgs(call.args)
+        return { functionCall: { ...(call.id !== undefined ? { id: call.id } : {}), ...(call.name !== undefined ? { name: call.name } : {}), ...(args !== undefined ? { args } : {}) }, ...(index === 0 ? { thoughtSignature: 'fixture-signature' } : {}) }
+      })
+    : [{ text: 'no call' }]
+  return sseLine({ candidates: [{ content: { role: 'model', parts }, finishReason: 'STOP' }], usageMetadata: { promptTokenCount: 20, candidatesTokenCount: 8 } })
+}
+
 function anthropicSse(s: Script): string {
   const evt = (name: string, obj: unknown): string => `event: ${name}\n${sseLine(obj)}`
   const usage = { input_tokens: 8, cache_creation_input_tokens: 0, cache_read_input_tokens: 0, output_tokens: 3 }
@@ -186,6 +204,11 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
     if (req.method === 'POST' && path.endsWith('/chat/completions')) {
       res.writeHead(200, { 'content-type': 'text/event-stream' })
       res.end(chatCompletionsSse(script))
+      return
+    }
+    if (req.method === 'POST' && path.endsWith(':streamGenerateContent')) {
+      res.writeHead(200, { 'content-type': 'text/event-stream' })
+      res.end(geminiSse(script))
       return
     }
     if (req.method === 'POST' && path.endsWith('/responses')) {
@@ -294,14 +317,14 @@ const EMPTY = ContextLeftTool.name
 const PERMISSIVE = PermissiveFixtureTool.name
 const REQUIRED = RequiredFixtureTool.name
 
-const LANES: Array<{ lane: string; model: string; dialect: 'responses' | 'chat' }> = [
+const LANES: Array<{ lane: string; model: string; dialect: 'responses' | 'chat' | 'gemini' }> = [
   { lane: 'openai', model: 'gpt-5.6-sol', dialect: 'responses' },
   { lane: 'zai', model: 'glm-5.2', dialect: 'chat' },
   { lane: 'moonshot', model: 'kimi-k3', dialect: 'chat' },
   { lane: 'deepseek', model: 'deepseek-v4-pro', dialect: 'chat' },
   { lane: 'openai-compat', model: 'compat/fixture-model', dialect: 'chat' },
   { lane: 'openrouter', model: 'openrouter/fixture/model', dialect: 'chat' },
-  { lane: 'gemini', model: 'gemini-3-pro', dialect: 'chat' },
+  { lane: 'gemini', model: 'gemini-3-pro', dialect: 'gemini' },
   { lane: 'huggingface', model: 'huggingface/fixture-org/fixture-model', dialect: 'chat' },
   { lane: 'local', model: 'local/fixture-local', dialect: 'chat' },
 ]
@@ -491,22 +514,30 @@ function mintedInputsValid(toolUses: Outcome['toolUses']): boolean {
 }
 
 let mintedAcrossEverything = 0
+const NATIVE_GEMINI_EXPECT: Record<string, { expect: Expect; note: string }> = {
+  'malformed JSON': { expect: { accepted: 0, refused: ['not-an-object'], stop: 'end_turn' }, note: 'the native wire carries arguments already parsed, so unparsable bytes arrive as a non-object' },
+  'no call id': { expect: { accepted: 1, refused: [], stop: 'tool_use' }, note: 'Gemini names no call id of its own; Mercury names the call' },
+}
+
 for (const { lane, model, dialect } of LANES) {
   section(`${lane} · ${dialect} dialect · ${model}`)
   for (const c of CASES) {
     const o = await drive(model, c.script)
     const codes = o.refusals.map(r => r.code)
+    const native = dialect === 'gemini' ? NATIVE_GEMINI_EXPECT[c.label] : undefined
+    const expect = native?.expect ?? c.expect
+    const reasonIncludes = native === undefined ? c.reasonIncludes : undefined
     const detail = `threw=${o.threw ? String(o.threw) : 'no'} apiError=${o.apiError ?? 'none'} mints=${o.toolUses.length} refusals=${JSON.stringify(codes)} notes=${o.notes.length} stop=${String(o.stopReason)}`
     const ok =
       o.threw === undefined &&
       o.apiError === undefined &&
-      o.toolUses.length === c.expect.accepted &&
-      JSON.stringify(codes) === JSON.stringify(c.expect.refused) &&
-      o.notes.length === c.expect.refused.length &&
-      o.stopReason === c.expect.stop &&
+      o.toolUses.length === expect.accepted &&
+      JSON.stringify(codes) === JSON.stringify(expect.refused) &&
+      o.notes.length === expect.refused.length &&
+      o.stopReason === expect.stop &&
       mintedInputsValid(o.toolUses) &&
-      (c.reasonIncludes === undefined || o.refusals.some(r => r.reason.includes(c.reasonIncludes!)))
-    check(`${c.label}`, ok, detail + (c.reasonIncludes && !ok ? ` reasons=${JSON.stringify(o.refusals.map(r => r.reason))}` : ''))
+      (reasonIncludes === undefined || o.refusals.some(r => r.reason.includes(reasonIncludes)))
+    check(`${c.label}${native ? ` — on the native wire: ${native.note}` : ''}`, ok, detail + (reasonIncludes && !ok ? ` reasons=${JSON.stringify(o.refusals.map(r => r.reason))}` : ''))
     mintedAcrossEverything += o.toolUses.length
   }
 }
