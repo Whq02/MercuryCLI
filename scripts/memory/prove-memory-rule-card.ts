@@ -3,6 +3,7 @@
 // gate-watch: src/components/permissions/MemoryRulePermissionRequest/MemoryRulePermissionRequest.tsx src/components/permissions/PermissionRequest.tsx
 // gate-watch: src/hooks/toolPermission/handlers/interactiveHandler.ts src/hooks/toolPermission/PermissionContext.ts src/cli/headless/runnerAsks.ts
 // gate-watch: src/utils/permissions/decision/engine.ts src/utils/permissions/decision/wrapper.ts src/utils/permissions/permissions.ts
+// gate-watch: src/tools/MemoryTools/prompt.ts docs/MNEME.md
 import { mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { PassThrough } from 'node:stream'
@@ -318,6 +319,21 @@ section("§9 the cockpit's re-check after a mode change re-asks the card, never 
   }
   await CorrectTool.call(input as never, contextOf('default'), probe as never, assistant)
   check('the same card context under another asking mode still reads ask', recheck.behavior === 'ask', j(recheck))
+}
+
+section('§10 the words: the Correct and Retain descriptions, prompts and field say the road (the card; sovereign); the manual says it; no word still says the model is refused outright')
+{
+  const { CORRECT_DESCRIPTION, CORRECT_PROMPT, RETAIN_DESCRIPTION, RETAIN_PROMPT } = await import('../../src/tools/MemoryTools/prompt.ts')
+  const { z } = await import('zod/v4')
+  const retainSchema = JSON.stringify(z.toJSONSchema(RetainTool.inputSchema as never))
+  const manual = readFileSync(join(REPO, 'docs/MNEME.md'), 'utf8')
+  check('the Correct description: a rule the user asked for changes only on their yes to a card; under sovereign no card', CORRECT_DESCRIPTION.includes('A rule the user asked Mercury to remember changes only on their yes to a card (under sovereign, no card).'), CORRECT_DESCRIPTION)
+  check('the Retain description: replacing a rule the user asked for puts a yes/no card first; under sovereign no card', RETAIN_DESCRIPTION.includes('Replacing a rule the user asked for puts a yes/no card to them first (under sovereign, no card).'), RETAIN_DESCRIPTION)
+  check('the Correct prompt says the card, its two answers, sovereign, and the /memory road when no one can answer', CORRECT_PROMPT.includes("the tool puts one card to them with the rule's words as stored and what will happen") && CORRECT_PROMPT.includes('No returns "the user kept the rule" and nothing changes') && CORRECT_PROMPT.includes('Under the sovereign permission mode the op runs without the card') && CORRECT_PROMPT.includes('A session with no one to answer the card refuses') && /↵ opens the rule and c corrects it/.test(CORRECT_PROMPT), CORRECT_PROMPT)
+  check('the Retain prompt says the card, sovereign, and the /memory road when no one can answer', RETAIN_PROMPT.includes('puts one yes/no card to the user') && RETAIN_PROMPT.includes('Under the sovereign permission mode it is replaced without the card') && RETAIN_PROMPT.includes('A session with no one to answer the card refuses') && /↵ opens the rule and c corrects it/.test(RETAIN_PROMPT), RETAIN_PROMPT)
+  check('the replaces field says the card and sovereign', retainSchema.includes('the user answers a yes/no card first (under sovereign, no card)'), retainSchema.slice(retainSchema.indexOf('replaces'), retainSchema.indexOf('replaces') + 500))
+  check('the manual says the card, its answers, sovereign and its mark in /memory, and the /memory road', manual.includes('it puts one\ncard to you first') && manual.includes('No\nkeeps the rule as it is') && manual.includes('Under the sovereign permission mode the change runs') && manual.includes('made from the chat under\nsovereign') && manual.includes('`↵` opens the rule and `c` corrects it'), manual.slice(manual.indexOf('A rule you asked for'), manual.indexOf('A rule you asked for') + 900))
+  check('no word still says the model is refused outright on a rule the user asked for', !CORRECT_PROMPT.includes('every op on it is refused') && !RETAIN_PROMPT.includes('is never replaced by you') && !retainSchema.includes('Refused for a rule marked asked for by the user') && !manual.includes('the model cannot correct, replace or'))
 }
 
 console.log(`\nmemory rule card: ${checks} checks, ${failures} failed`)
