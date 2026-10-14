@@ -110,6 +110,7 @@ import {
   loginFamilyFocusFor,
   loginFamilyRows,
   loginFamilyInitialFocus,
+  META_LOGIN_FAMILY_LABEL,
   openaiArmPickRows,
   type LoginFamilyRow,
 } from './loginFamilyRows.js';
@@ -904,7 +905,7 @@ export function loginsFlowStatusOf(pane: LoginsFlowPaneV1): string {
         case 'nous':
           return 'Nous Portal — account sign-in or API key';
         case 'meta':
-          return 'Meta — Muse Code sign-in or API key';
+          return META_LOGIN_FAMILY_LABEL;
         case 'openai':
           return 'OpenAI — subscription or key';
         case 'zai':
