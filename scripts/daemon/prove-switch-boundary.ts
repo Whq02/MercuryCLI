@@ -24,6 +24,7 @@ const STREAM_GAP_MS = 200
 const NEW_MODEL = 'claude-sonnet-5'
 const OLD_SEAT_MODEL = 'claude-opus-5'
 const NOTIFICATION = '<task-notification>'
+const SETTLE_WINDOW_MS = bound(1000)
 
 const SCRATCH = realpathSync(mkdtempSync(join(tmpdir(), 'switch-boundary-')))
 const guardPids = new Set<number>()
@@ -392,6 +393,7 @@ if (ONLY === undefined || ONLY === 'D') {
       MERCURY_CACHE_CLOCK: '0',
       MERCURY_PARTY: '0',
       MERCURY_TOOL_SEARCH: '0',
+      MERCURY_SETTLE_WINDOW_MS: String(SETTLE_WINDOW_MS),
       BROWSER: '/usr/bin/true',
     },
     stdio: ['ignore', logFd, logFd],
@@ -497,7 +499,7 @@ if (ONLY === undefined || ONLY === 'D') {
     const switchedBack = await seatVerb('set-model', { model: OLD_SEAT_MODEL })
     const switchAnsweredAt = Date.now()
     const sentB = await send('say more again', 'sb-words-b')
-    console.log(`  · the hold's mark published at ${hold?.tail.atMs ?? 'never'}: seen ${hold === null ? '-' : hold.seenAt - hold.tail.atMs} ms after it, the switch answered ${hold === null ? '-' : switchAnsweredAt - hold.tail.atMs} ms after it`)
+    console.log(`  · the hold's mark published at ${hold?.tail.atMs ?? 'never'}: seen ${hold === null ? '-' : hold.seenAt - hold.tail.atMs} ms after it, the switch answered ${hold === null ? '-' : switchAnsweredAt - hold.tail.atMs} ms after it, inside a ${SETTLE_WINDOW_MS} ms hold`)
     tally.check('DB4 the agent wait ends into the completion hold (the state word clears while the turn is still held open)', hold !== null && hold.busy === true, JSON.stringify({ hold, tail: tail(), busy: facts()?.busy }))
     tally.check("DB5 a switch sent inside the hold is applied at once — the receipt is 'applied', not 'queued'", switchedBack.ok === true && switchedBack.outcome === 'applied', JSON.stringify(switchedBack))
     tally.check('DB6 the words are sent inside the hold', sentB)
