@@ -1,115 +1,81 @@
 # Compatibility
 
-Mercury keeps configuration in its `.mercury` homes. Product switches use
-registered `MERCURY_*` environment names; providers and platforms also have
-their own variables, such as `ANTHROPIC_API_KEY` and `PATH`. The registry is
-`src/substrate/flagRegistry.ts`. [SETTINGS.md](SETTINGS.md) covers the settings
-files and their grouped keys.
+Mercury stores configuration in `.mercury` directories, reads `MERCURY_*`
+environment switches from `src/substrate/flagRegistry.ts`, and ships four
+platform archives. See [SETTINGS.md](SETTINGS.md) for settings files and keys.
 
 ## Project instructions
 
 With `briefs.profile` set to `auto` (the default), Mercury loads `MERCURY.md`
-from the project's instruction chain. When that chain contains no
-`MERCURY.md`, it loads the project's `AGENTS.md`. With both guides present,
-`MERCURY.md` decides; it can import `AGENTS.md` explicitly with `@AGENTS.md`.
-A `MERCURY.local.md` is a personal layer, loaded after the guide, so it does
-not prevent `AGENTS.md` from loading. Nested guides attach when their files
-are touched under the same guide choice. The `native` profile uses Mercury
-instruction files only. `briefs.exclude` skips named paths or patterns, but
-cannot exclude managed instructions.
+from the project's instruction chain, or `AGENTS.md` when no `MERCURY.md` is
+present (`MERCURY.md` can import `@AGENTS.md`). `MERCURY.local.md` loads after
+the guide as a personal layer without displacing `AGENTS.md`. Nested guides
+attach when files under their directories are read or edited. The `native`
+profile loads Mercury instruction files only, and `briefs.exclude` skips named
+non-managed paths or globs.
 
-## The Claude sign-in
+## The Claude sign-in and connectors
 
-The Claude sign-in works with your subscription and presents what the
-provider's servers require. The health check's `Client contract` row and
-the override that raises the presented version are on the
-[health page](HEALTH-CERTIFICATE.md#client-contract).
+The Claude subscription sign-in presents the client-contract version tracked in
+[HEALTH-CERTIFICATE.md](HEALTH-CERTIFICATE.md#client-contract). Organization
+connector configs from the Claude account API are opt-in via
+`MERCURY_ANTHROPIC_CONNECTORS` (off when unset) and require a sign-in with the
+`user:mcp_servers` scope.
 
 ## Child-environment contract
 
-Mercury stamps only its own spellings into processes it spawns: an MCP
-`headersHelper` receives `MERCURY_MCP_SERVER_NAME` and
-`MERCURY_MCP_SERVER_URL` (`src/services/mcp/headersHelper.ts`); a hosting
-application that spawns Mercury passes the `MERCURY_HOST_*` handshake. Credential-bearing variables (the session OAuth
-token among them) are stripped from ordinary subprocess environments.
+Mercury sets only `MERCURY_*` variables on child processes: MCP `headersHelper`
+commands receive `MERCURY_MCP_SERVER_NAME` and `MERCURY_MCP_SERVER_URL`
+(`src/services/mcp/headersHelper.ts`), and hosting applications pass
+`MERCURY_HOST_*`. Session OAuth tokens and provider credentials are stripped
+from subprocess environments.
 
 ## Settings schema
 
-Settings files point at Mercury's own JSON schema. The runtime generates it
-from the live validator and refreshes it at
-`<config-home>/schema/settings.schema.json`
-(`src/utils/settings/localSchema.ts`); every user-settings write stamps
-`$schema` with that path (`src/utils/settings/settings.ts`), so an editor
-validates real Mercury settings offline, versioned with the installed build.
-`$schema` is an editor pointer, not configuration: a file carrying any other
-pointer keeps validating (`src/utils/settings/types.ts`), and no foreign
-schema URL is ever written.
-The committed review snapshot is `scripts/settings/settings-schema.json`,
-held equal to the generator.
+The runtime generates `<config-home>/schema/settings.schema.json` from the live
+validator (`src/utils/settings/localSchema.ts`) and stamps `$schema` on user
+settings writes (`src/utils/settings/settings.ts`) for offline editor
+validation. Files with any other `$schema` value still validate
+(`src/utils/settings/types.ts`). The committed snapshot is
+`scripts/settings/settings-schema.json`.
 
-## MCP
+## MCP, extensions and skills
 
-Mercury is a Model Context Protocol client. Server configs merge across
-scopes — the project `.mercury/mcp.json` walk, the user scope, the local scope, a
-managed `managed-mcp.json`, and extension-provided servers
-(`src/services/mcp/config.ts`) — with per-repository server selection in the
-boot menu's MCPs & Skills record, session-scoped toggles in `/mcp`
-([KIT.md](KIT.md)), project-scope server approval prompts, and a risk
-ceiling (`MERCURY_MCP_MAX_RISK`). An extension declares its MCP servers in
-its own manifest ([EXTENSIONS.md](EXTENSIONS.md)). A server entry that does
-not match the configuration schema is dropped and named once as a warning in
-`/mcp`'s diagnostics; the entries beside it load as configured.
+Mercury is a Model Context Protocol client merging `.mercury/mcp.json`, user,
+local, `managed-mcp.json` and approved extension server definitions
+(`src/services/mcp/config.ts`), controlled through the MCPs & Skills menu and
+`/mcp` ([KIT.md](KIT.md)) under `MERCURY_MCP_MAX_RISK`. Invalid server entries
+are skipped with a warning in `/mcp`. Mercury queries no external MCP registry.
 
-Mercury consults no vendor registry of "official" MCP servers: every MCP
-server is the operator's own configuration, no boot makes a request on its
-behalf, and no server is tagged by anyone's registry.
-
-## Claude account connectors
-
-Org-managed connector configs can be fetched from the Claude account API —
-strictly opt-in: the registered `MERCURY_ANTHROPIC_CONNECTORS` flag alone
-decides, unset is off, and the fetch additionally requires a Claude sign-in
-carrying the `user:mcp_servers` scope. Ever-connected connectors are recorded
-in the global config.
-
-## Extensions
-
-Mercury ships with no source of extensions and adds none on its own: every
-source is an operator act (`docs/EXTENSIONS.md`).
-
-## Skills
-
-Skills load from Mercury's homes alone — `.mercury/skills` under the starting
-project's instruction chain, `~/.mercury/skills`, the managed policy tree,
-and approved extensions (`src/skills/loadSkillsDir.ts`,
-`src/extensions/load/commands.ts`). A skill body's template tokens expand in
-Mercury's spelling alone, `${MERCURY_SKILL_DIR}` and `${MERCURY_SESSION_ID}`.
+Extensions ([EXTENSIONS.md](EXTENSIONS.md)) and skills load only from Mercury's
+configured homes (`.mercury/skills`, `~/.mercury/skills`, managed policy and
+approved extensions; `src/skills/loadSkillsDir.ts`,
+`src/extensions/load/commands.ts`). Skill templates expand
+`${MERCURY_SKILL_DIR}` and `${MERCURY_SESSION_ID}`.
 
 ## Credentials on macOS
 
-Keychain writes use Mercury's own service name, keyed to the resolved auth
-config home (every home's name carries a hash of its path). Reads also try
-one bounded fallback entry
-(`src/utils/secureStorage/macOsKeychainHelpers.ts`): a credential stored
-under the raw spelling of a non-canonical config-home pin is moved to the
-canonical name on the first successful read.
+macOS Keychain entries use Mercury's service name hashed by the resolved auth
+config home (`src/utils/secureStorage/macOsKeychainHelpers.ts`), migrating a
+legacy unhashed config-home entry on first read.
 
 ## Platforms
 
-One release archive per target. The target owner is
-`src/services/privateChannel/releaseTarget.ts`: the packager's and the build's
-`--target` vocabulary, the archive a machine asks for (`mercury update`), and
-the installers' `uname` map. Every archive carries its own Node runtime, search
-binary and image processor for that platform, and the voice capture and
-on-device transcriber addons where they were built (the speech model is a
-one-time download into the config home, never in the archive).
+`src/services/privateChannel/releaseTarget.ts` defines the four release archive
+targets (`mercury update` and the installers map the host OS and architecture
+to these targets):
 
 | target | archive | machines | built |
 | --- | --- | --- | --- |
-| `linux-x64` | `mercury-v<version>-linux-x64.tar.gz` | Linux on x86_64 | natively, on its own runner |
-| `macos-arm64` | `mercury-v<version>-macos-arm64.tar.gz` | macOS on Apple silicon | natively, on its own runner |
-| `macos-x64` | `mercury-v<version>-macos-x64.tar.gz` | macOS on Intel | cross-packaged on the Apple silicon runner with the Intel packs; booted under Rosetta 2 before it publishes |
-| `windows-x64` | `mercury-v<version>-windows-x64.zip` | Windows on x86_64 | natively, on its own runner |
+| `linux-x64` | `mercury-v<version>-linux-x64.tar.gz` | Linux on x86_64 | natively on its runner |
+| `macos-arm64` | `mercury-v<version>-macos-arm64.tar.gz` | macOS on Apple silicon | natively on its runner |
+| `macos-x64` | `mercury-v<version>-macos-x64.tar.gz` | macOS on Intel | cross-packaged on Apple silicon with Intel packs and tested under Rosetta 2 |
+| `windows-x64` | `mercury-v<version>-windows-x64.zip` | Windows on x86_64 | natively on its runner |
 
-Any other machine (Linux or Windows on arm64) builds from source (README.md);
-`mercury update` says so rather than guessing an archive.
+Every archive bundles Node 24 LTS, `rg`, the image processor, and platform
+native addons (`macos-arm64` also includes the `vendor/embed` addon and 118 MB
+`bge-base-en-v1.5` embedding model; `windows-x64` includes the `brush` shell
+engine and enforces Windows parity in the recursive-delete ward across drive
+roots, `Users`, system folders, share roots and PowerShell pipelines, as
+documented in [TRUST.md](TRUST.md)). Linux arm64 and Windows arm64 use source
+builds or x64 emulation ([README.md](../README.md)).
