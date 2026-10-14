@@ -186,6 +186,7 @@ export interface ControlServerDeps {
     allow?: boolean
     answer?: { updatedInput?: Record<string, unknown>; permissionUpdates?: unknown[]; feedback?: string; interrupt?: boolean }
     model?: string
+    words?: string
     effort?: string
     mode?: string
     title?: string
@@ -1029,6 +1030,7 @@ async function routeControlRequest(
         ...(typeof raw.allow === 'boolean' ? { allow: raw.allow } : {}),
         ...(answerPayload !== undefined ? { answer: answerPayload } : {}),
         ...(typeof raw.model === 'string' && raw.model ? { model: raw.model.slice(0, 128) } : {}),
+        ...(typeof raw.words === 'string' && raw.words ? { words: raw.words.slice(0, 200) } : {}),
         ...(typeof raw.effort === 'string' && raw.effort ? { effort: raw.effort.slice(0, 32) } : {}),
         ...(typeof raw.mode === 'string' && raw.mode ? { mode: raw.mode.slice(0, 64) } : {}),
         ...(typeof raw.title === 'string' && raw.title ? { title: raw.title.slice(0, 200) } : {}),

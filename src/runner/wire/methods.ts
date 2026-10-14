@@ -180,7 +180,7 @@ export const METHODS = {
     name: 'session/set_model',
     from: 'host',
     kind: 'request',
-    params: lazySchema(() => z.object({ model: z.string().optional() })),
+    params: lazySchema(() => z.object({ model: z.string().optional(), words: z.string().optional() })),
     result: lazySchema(() => z.object({ model: z.string(), at: applied() })),
     scope: 'session',
     deadlineMs: 5_000,
