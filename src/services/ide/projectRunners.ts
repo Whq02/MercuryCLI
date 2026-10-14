@@ -177,7 +177,7 @@ function jsProfiles(root: string): RunnerProfile[] {
       title: 'jest (declared)',
       source: 'package.json',
       root,
-      command: [bin],
+      command: [bin, '--json'],
       selection: 'file',
       availability: existsSync(bin)
         ? { state: 'ok' }
@@ -333,6 +333,7 @@ function parseCargoTest(out: string): {
 export function reporterFileFlag(runner: RunnerFramework): string | null {
   switch (runner) {
     case 'vitest':
+    case 'jest':
       return '--outputFile='
     default:
       return null

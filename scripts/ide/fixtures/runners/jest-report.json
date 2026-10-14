@@ -1,0 +1,101 @@
+{
+  "numFailedTestSuites": 1,
+  "numFailedTests": 1,
+  "numPassedTestSuites": 0,
+  "numPassedTests": 1,
+  "numPendingTestSuites": 0,
+  "numPendingTests": 1,
+  "numRuntimeErrorTestSuites": 0,
+  "numTodoTests": 0,
+  "numTotalTestSuites": 1,
+  "numTotalTests": 3,
+  "openHandles": [],
+  "snapshot": {
+    "added": 0,
+    "didUpdate": false,
+    "failure": false,
+    "filesAdded": 0,
+    "filesRemoved": 0,
+    "filesRemovedList": [],
+    "filesUnmatched": 0,
+    "filesUpdated": 0,
+    "matched": 0,
+    "total": 0,
+    "unchecked": 0,
+    "uncheckedKeysByFile": [],
+    "unmatched": 0,
+    "updated": 0
+  },
+  "startTime": 1792010766235,
+  "success": false,
+  "testResults": [
+    {
+      "assertionResults": [
+        {
+          "ancestorTitles": [
+            "calc"
+          ],
+          "duration": 2,
+          "failureDetails": [
+            {
+              "matcherResult": {
+                "actual": -1,
+                "expected": 5,
+                "message": "expect(received).toBe(expected) // Object.is equality\n\nExpected: 5\nReceived: -1",
+                "name": "toBe",
+                "pass": false
+              }
+            }
+          ],
+          "failureMessages": [
+            "Error: expect(received).toBe(expected) // Object.is equality\n\nExpected: 5\nReceived: -1\n    at Object.<anonymous> (/work/project/src/calc.jest.test.cjs:6:20)\n    at Promise.then.completed (/work/project/node_modules/jest-circus/build/utils.js:298:28)\n    at new Promise (<anonymous>)\n    at callAsyncCircusFn (/work/project/node_modules/jest-circus/build/utils.js:231:10)\n    at _callCircusTest (/work/project/node_modules/jest-circus/build/run.js:316:40)\n    at processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at _runTest (/work/project/node_modules/jest-circus/build/run.js:252:3)\n    at _runTestsForDescribeBlock (/work/project/node_modules/jest-circus/build/run.js:126:9)\n    at _runTestsForDescribeBlock (/work/project/node_modules/jest-circus/build/run.js:121:9)\n    at run (/work/project/node_modules/jest-circus/build/run.js:71:3)\n    at runAndTransformResultsToJestFormat (/work/project/node_modules/jest-circus/build/legacy-code-todo-rewrite/jestAdapterInit.js:122:21)\n    at jestAdapter (/work/project/node_modules/jest-circus/build/legacy-code-todo-rewrite/jestAdapter.js:79:19)\n    at runTestInternal (/work/project/node_modules/jest-runner/build/runTest.js:367:16)\n    at runTest (/work/project/node_modules/jest-runner/build/runTest.js:444:34)"
+          ],
+          "fullName": "calc adds two numbers",
+          "invocations": 1,
+          "location": null,
+          "numPassingAsserts": 0,
+          "retryReasons": [],
+          "status": "failed",
+          "title": "adds two numbers"
+        },
+        {
+          "ancestorTitles": [
+            "calc"
+          ],
+          "duration": 1,
+          "failureDetails": [],
+          "failureMessages": [],
+          "fullName": "calc keeps zero",
+          "invocations": 1,
+          "location": null,
+          "numPassingAsserts": 1,
+          "retryReasons": [],
+          "status": "passed",
+          "title": "keeps zero"
+        },
+        {
+          "ancestorTitles": [
+            "calc"
+          ],
+          "duration": null,
+          "failureDetails": [],
+          "failureMessages": [],
+          "fullName": "calc divides later",
+          "invocations": 1,
+          "location": null,
+          "numPassingAsserts": 0,
+          "retryReasons": [],
+          "status": "pending",
+          "title": "divides later"
+        }
+      ],
+      "endTime": 1792010766319,
+      "message": "  ● calc › adds two numbers\n\n    expect(received).toBe(expected) // Object.is equality\n\n    Expected: 5\n    Received: -1\n\n      4 |   it('adds two numbers', () => {\n      5 |     const result = add(2, 3)\n    > 6 |     expect(result).toBe(5)\n        |                    ^\n      7 |   })\n      8 |   it('keeps zero', () => {\n      9 |     expect(add(0, 0)).toBe(0)\n\n      at Object.<anonymous> (src/calc.jest.test.cjs:6:20)\n",
+      "name": "/work/project/src/calc.jest.test.cjs",
+      "startTime": 1792010766256,
+      "status": "failed",
+      "summary": ""
+    }
+  ],
+  "wasInterrupted": false
+}
