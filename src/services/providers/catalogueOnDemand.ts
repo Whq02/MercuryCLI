@@ -48,7 +48,7 @@ export async function readCatalogueIfPending(family: string, opts?: { boundMs?: 
           await Promise.all([import('./gemini/geminiCatalogue.js'), import('./gemini/geminiAccounts.js')])
         const account = resolveGeminiAccount(process.env)
         if (!account || !catalogueTrafficVerdict('gemini').allowed) return false
-        const sourceKind = account.kind === 'oauth' ? 'oauth' : 'api-key'
+        const sourceKind = account.kind
         if (!nothingUsable(getCachedGeminiCatalogue(sourceKind))) return false
         await bounded(refreshGeminiCatalogue(sourceKind, { force }), boundMs)
         return true

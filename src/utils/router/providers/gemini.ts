@@ -18,14 +18,14 @@ export function describeGeminiProvider(): ProviderDescription {
   const record = discovery?.provider === 'gemini' ? discovery : undefined
   const account = record?.account
   const snapshot = account
-    ? getCachedGeminiCatalogue(account.kind === 'oauth' ? 'oauth' : 'api-key')
+    ? getCachedGeminiCatalogue(account.kind)
     : null
   return {
     transport: 'gemini-generate-content',
     capabilities: ['usage-accounting'],
     roles: [],
     account: account
-      ? account.kind === 'oauth'
+      ? account.kind === 'oauth' || account.kind === 'plan'
         ? { kind: 'provider-oauth', label: account.label }
         : { kind: 'api-key', label: account.label }
       : { kind: 'none', label: 'no Gemini credential detected' },

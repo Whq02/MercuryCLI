@@ -30,7 +30,7 @@ export async function contextWindowSourceReady(model: string): Promise<boolean> 
       const { getCachedGeminiCatalogue } = await import('../../services/providers/gemini/geminiCatalogue.js')
       const account = resolveGeminiAccount()
       if (!account) return true
-      return (getCachedGeminiCatalogue(account.kind === 'oauth' ? 'oauth' : 'api-key')?.models.length ?? 0) > 0
+      return (getCachedGeminiCatalogue(account.kind)?.models.length ?? 0) > 0
     }
     case 'huggingface': {
       const { resolveHuggingfaceApiKey } = await import('../../services/providers/huggingface/huggingfaceAccounts.js')
@@ -75,7 +75,7 @@ export async function awaitContextWindowSource(model: string, timeoutMs = SOURCE
         const { resolveGeminiAccount } = await import('../../services/providers/gemini/geminiAccounts.js')
         const { refreshGeminiCatalogue } = await import('../../services/providers/gemini/geminiCatalogue.js')
         const account = resolveGeminiAccount()
-        if (account) await withTimeout(refreshGeminiCatalogue(account.kind === 'oauth' ? 'oauth' : 'api-key'), timeoutMs)
+        if (account) await withTimeout(refreshGeminiCatalogue(account.kind), timeoutMs)
         return
       }
       case 'huggingface': {

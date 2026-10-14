@@ -14,6 +14,8 @@ import {
 } from '../providers/openrouter/openrouterAccounts.js'
 import {
   geminiOauthConnected,
+  geminiPlanFacts,
+  geminiPlanLabel,
   resolveGeminiAccount,
   resolveGeminiApiKey,
 } from '../providers/gemini/geminiAccounts.js'
@@ -229,6 +231,19 @@ function composeWalletEntries(): WalletEntry[] {
     }
   }
 
+  {
+    const plan = geminiPlanFacts()
+    if (plan) {
+      entries.push({
+        id: 'gemini:plan',
+        provider: 'gemini',
+        kind: 'subscription-oauth',
+        label: geminiPlanLabel(plan),
+        ...(plan.email ? { identity: { email: plan.email, source: 'profile' } } : {}),
+        custodian: 'gemini-accounts',
+      })
+    }
+  }
   if (geminiOauthConnected()) {
     entries.push({
       id: 'gemini:oauth',
@@ -369,7 +384,7 @@ function composeActiveWalletEntry(provider: WalletProvider): WalletEntry | undef
     return entries.find(
       e =>
         e.provider === 'gemini' &&
-        (active.kind === 'oauth' ? e.kind === 'oauth' : e.kind === 'api-key'),
+        (active.kind === 'oauth' ? e.kind === 'oauth' : active.kind === 'plan' ? e.kind === 'subscription-oauth' : e.kind === 'api-key'),
     )
   }
   if (provider === 'openai') {

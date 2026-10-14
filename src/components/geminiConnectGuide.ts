@@ -1,4 +1,5 @@
-import { geminiOauthClientConfig, geminiOauthConnected, resolveGeminiAccount, resolveGeminiApiKey } from '../services/providers/gemini/geminiAccounts.js'
+import { geminiOauthClientConfig, geminiOauthConnected, geminiPlanFacts, resolveGeminiAccount, resolveGeminiApiKey } from '../services/providers/gemini/geminiAccounts.js'
+import { geminiPlanTierWords } from '../services/providers/gemini/geminiPlanAccess.js'
 import { KEY_PAGES } from './loginFamilyRows.js'
 
 export interface GeminiGuidePage {
@@ -89,25 +90,42 @@ export interface GeminiConnectFacts {
   keySource?: 'env-google' | 'env-gemini' | 'stored'
   clientSource?: 'env' | 'stored'
   oauthConnected: boolean
-  active?: 'oauth' | 'api-key'
+  planConnected?: boolean
+  planTier?: string
+  active?: 'oauth' | 'api-key' | 'plan'
 }
 
 export type GeminiConnectRowAction = 'activate' | 'enter'
 
+export type GeminiConnectRowValue = 'plan' | 'key' | 'google' | 'client'
+
+function storedSourceCount(facts: GeminiConnectFacts): number {
+  return (facts.planConnected ? 1 : 0) + (facts.oauthConnected ? 1 : 0) + (facts.keySource !== undefined ? 1 : 0)
+}
+
 export function geminiConnectRowAction(facts: GeminiConnectFacts, value: GeminiConnectRowValue): GeminiConnectRowAction {
-  if (value === 'key') return facts.keySource !== undefined && facts.oauthConnected && facts.active !== 'api-key' ? 'activate' : 'enter'
-  if (value === 'google') return facts.oauthConnected && facts.keySource !== undefined && facts.active !== 'oauth' ? 'activate' : 'enter'
+  if (storedSourceCount(facts) < 2) return 'enter'
+  if (value === 'plan') return facts.planConnected && facts.active !== 'plan' ? 'activate' : 'enter'
+  if (value === 'key') return facts.keySource !== undefined && facts.active !== 'api-key' ? 'activate' : 'enter'
+  if (value === 'google') return facts.oauthConnected && facts.active !== 'oauth' ? 'activate' : 'enter'
   return 'enter'
 }
 
-export type GeminiConnectRowValue = 'key' | 'google' | 'client'
-
 export const GEMINI_CONNECT_TITLE = 'Connect Google Gemini'
 export const GEMINI_CONNECT_INTRO =
-  "Google ended consumer Login with Google on June 18, 2026 (Gemini CLI too); AI Pro/Ultra plans don't apply. Sign-in needs your own OAuth client."
-export const GEMINI_CONNECT_COMPACT_INTRO = "AI Pro/Ultra plans don't apply; OAuth needs your client."
+  "Sign in with Google runs Gemini on your plan's quota through Google's own Antigravity client (free, AI Pro or AI Ultra). An API key or your own OAuth client bills a Cloud project instead."
+export const GEMINI_CONNECT_COMPACT_INTRO = "Google sign-in: your plan's quota; a key: a Cloud project."
 export const GEMINI_KEY_BILLING_NOTE = 'Cloud project: free Flash ~20/day, Pro 0; pay for more.'
 export const GEMINI_KEY_ROW = 'API key — the easiest: create one in AI Studio, paste it here'
+export const GEMINI_PLAN_ROW = "Sign in with Google — your plan's quota: AI Pro, AI Ultra or a free account"
+
+export function geminiPlanRowLabel(facts: GeminiConnectFacts): string {
+  if (!facts.planConnected) return GEMINI_PLAN_ROW
+  const tier = facts.planTier ?? 'tier unknown'
+  return geminiConnectRowAction(facts, 'plan') === 'activate'
+    ? `Sign in with Google — connected (${tier}), not active · ↵ makes it active`
+    : `Sign in with Google — connected (${tier}) · ↵ signs in again`
+}
 
 export function geminiConnectRows(facts: GeminiConnectFacts): Array<{ label: string; value: GeminiConnectRowValue }> {
   const keyRow =
@@ -130,6 +148,7 @@ export function geminiConnectRows(facts: GeminiConnectFacts): Array<{ label: str
         ? 'Google account — the client id is stored · ↵ signs in (step 6)'
         : 'Google account — six steps, each opens its Console page'
   const rows: Array<{ label: string; value: GeminiConnectRowValue }> = [
+    { label: geminiPlanRowLabel(facts), value: 'plan' },
     { label: keyRow, value: 'key' },
     { label: googleRow, value: 'google' },
   ]
@@ -221,14 +240,27 @@ export function geminiKeyLegLines(opened: GeminiGuideOpenState | undefined): Gem
   return lines
 }
 
+export const GEMINI_PLAN_LEG_TITLE = 'Sign in with Google'
+export const GEMINI_PLAN_LEG_DETAIL =
+  "Google's sign-in page opens in your browser: pick the account that holds your plan and allow the access. Mercury presents Google's own Antigravity client — no Cloud project, no client of your own — and Gemini then runs on that plan's quota."
+
+export function geminiPlanLegLines(opened: GeminiGuideOpenState | undefined): GeminiGuideLine[] {
+  const lines: GeminiGuideLine[] = [{ text: GEMINI_PLAN_LEG_TITLE, tone: 'title' }, { text: GEMINI_PLAN_LEG_DETAIL, tone: 'detail' }]
+  if (opened) lines.push({ text: geminiGuideOpenWords(opened), tone: opened === 'failed' ? 'note' : 'status' })
+  return lines
+}
+
 export function liveGeminiConnectFacts(): GeminiConnectFacts {
   const key = resolveGeminiApiKey()
   const client = geminiOauthClientConfig()
+  const plan = geminiPlanFacts()
   const active = resolveGeminiAccount()?.kind
   return {
     ...(key ? { keySource: key.source } : {}),
     ...(client ? { clientSource: client.source } : {}),
     oauthConnected: geminiOauthConnected(),
-    ...(active === 'oauth' || active === 'api-key' ? { active } : {}),
+    planConnected: plan !== undefined,
+    ...(plan ? { planTier: geminiPlanTierWords(plan.tier) } : {}),
+    ...(active !== undefined ? { active } : {}),
   }
 }
