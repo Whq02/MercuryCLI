@@ -16,7 +16,7 @@ import { storeDeepseekApiKeyLogin } from '../services/providers/deepseek/deepsee
 import { storeXaiApiKeyLogin, storeXaiManagementKeyLogin, runXaiDeviceLogin, XAI_CONNECT_ROWS } from '../services/providers/xai/xaiLogin.js';
 import { resolveXaiApiKey } from '../services/providers/xai/xaiAccounts.js';
 import { XAI_MANAGEMENT_KEY_PAGE } from '../services/providers/xai/xaiUsageState.js';
-import { storeMetaApiKeyLogin } from '../services/providers/meta/metaLogin.js';
+import { storeMetaApiKeyLogin, runMetaDeviceLogin, META_CONNECT_ROWS } from '../services/providers/meta/metaLogin.js';
 import { storeMistralApiKeyLogin, storeMistralAdminKeyLogin } from '../services/providers/mistral/mistralLogin.js';
 import { MISTRAL_ADMIN_KEY_PAGE } from '../services/providers/mistral/mistralUsageState.js';
 import { storeNousApiKeyLogin, runNousDeviceLogin, NOUS_CONNECT_ROWS } from '../services/providers/nous/nousLogin.js';
@@ -436,7 +436,7 @@ export function anthropicFlowStatusOf(snap: AnthropicLoginSnapshot, backToPicker
 }
 
 
-export type LoginsPickId = 'openai' | 'zai' | 'moonshot' | 'huggingface' | 'kimi-region' | 'openrouter' | 'gemini' | 'xai' | 'nous';
+export type LoginsPickId = 'openai' | 'zai' | 'moonshot' | 'huggingface' | 'kimi-region' | 'openrouter' | 'gemini' | 'xai' | 'nous' | 'meta';
 export type FaceKeyLegId =
   | 'openai-key'
   | 'zai-general'
@@ -467,6 +467,8 @@ export function loginsPickOptions(
       return XAI_CONNECT_ROWS;
     case 'nous':
       return NOUS_CONNECT_ROWS;
+    case 'meta':
+      return [...META_CONNECT_ROWS];
     case 'openrouter':
       return [
         { label: 'Sign in with the browser — OAuth mints a scoped key', value: 'browser' },
@@ -507,6 +509,8 @@ export function loginsPickPaneLines(pick: LoginsPickId, pickSel = 0): string[] {
         return 'Sign in with your Grok account (SuperGrok / X Premium) or paste an API key. xAI decides subscription eligibility; consent may say Grok Build.';
       case 'nous':
         return 'Sign in with your Nous Portal account in the browser, or paste an API key. Either one bills the Portal credits or subscription behind it.';
+      case 'meta':
+        return 'Sign in with Meta for a Muse Code subscription (device code in your browser), or paste a pay-as-you-go Model API key.';
       case 'openai':
         return 'One OpenAI family, two credentials: the ChatGPT subscription signs in with the browser (d on the wait switches to a device code); an API key bills usage-based.';
       case 'zai':
@@ -676,7 +680,7 @@ export function signedInStatusWayOut(backToPicker: boolean): string {
 }
 
 
-export type FaceDeviceFamily = 'moonshot' | 'huggingface' | 'xai' | 'nous';
+export type FaceDeviceFamily = 'moonshot' | 'huggingface' | 'xai' | 'nous' | 'meta';
 
 export interface DeviceWaitStateV1 {
   family: FaceDeviceFamily;
@@ -693,6 +697,7 @@ export interface DeviceWaitStateV1 {
 export function deviceFamilyWords(family: FaceDeviceFamily, regionWords?: string): string {
   if (family === 'xai') return 'Grok (device code)';
   if (family === 'nous') return 'Nous Portal (browser approval)';
+  if (family === 'meta') return 'Meta (device code)';
   return family === 'moonshot'
     ? `Kimi (device code${regionWords !== undefined ? ` · ${regionWords}` : ''})`
     : 'Hugging Face (device code)';
@@ -714,8 +719,8 @@ export function deviceWaitPaneLines(d: DeviceWaitStateV1, nowMs: number): string
       '',
       d.family === 'moonshot'
         ? 'Authorized — storing the sign-in and'
-        : d.family === 'xai' ? 'Authorized — storing your Grok sign-in' : d.family === 'nous' ? 'Approved — storing the sign-in' : 'Authorized — reading your Hub identity',
-      d.family === 'moonshot' ? 'reading your usage…' : d.family === 'nous' ? 'and reading your account…' : 'and the live catalogue…',
+        : d.family === 'xai' ? 'Authorized — storing your Grok sign-in' : d.family === 'nous' ? 'Approved — storing the sign-in' : d.family === 'meta' ? 'Authorized — minting the Muse Code key' : 'Authorized — reading your Hub identity',
+      d.family === 'moonshot' ? 'reading your usage…' : d.family === 'nous' ? 'and reading your account…' : d.family === 'meta' ? 'and reading your plan…' : 'and the live catalogue…',
     ];
   }
   const lines: string[] = ['On the sign-in page, enter this code:'];
@@ -885,6 +890,8 @@ export function loginsFlowStatusOf(pane: LoginsFlowPaneV1): string {
           return 'xAI — Grok subscription or API key';
         case 'nous':
           return 'Nous Portal — account sign-in or API key';
+        case 'meta':
+          return 'Meta — Muse Code sign-in or API key';
         case 'openai':
           return 'OpenAI — subscription or key';
         case 'zai':
@@ -906,7 +913,7 @@ export function loginsFlowStatusOf(pane: LoginsFlowPaneV1): string {
     case 'device':
       return pane.device.phase === 'finishing'
         ? 'authorized — settling the sign-in'
-        : `waiting on the ${pane.device.family === 'moonshot' ? 'Kimi' : pane.device.family === 'xai' ? 'Grok' : pane.device.family === 'nous' ? 'Nous Portal' : 'Hub'} device code`;
+        : `waiting on the ${pane.device.family === 'moonshot' ? 'Kimi' : pane.device.family === 'xai' ? 'Grok' : pane.device.family === 'nous' ? 'Nous Portal' : pane.device.family === 'meta' ? 'Meta' : 'Hub'} device code`;
     case 'handles':
       return pane.handles.phase === 'exchanging'
         ? 'exchanging the authorization code'
@@ -992,7 +999,7 @@ export function loginsMenuModelOf(
                         ? 'OpenRouter'
                         : pick.pick === 'gemini'
                           ? 'Google Gemini'
-                          : pick.pick === 'xai' ? 'xAI (Grok)' : pick.pick === 'nous' ? 'Nous Portal' : 'which deployment?',
+                          : pick.pick === 'xai' ? 'xAI (Grok)' : pick.pick === 'nous' ? 'Nous Portal' : pick.pick === 'meta' ? 'Meta (Muse)' : 'which deployment?',
             summary: '',
             valueLabel: '',
             valueIsDefault: true,
@@ -1177,6 +1184,8 @@ export function BootLoginsScreen({ onClose, onSignedIn, family, fullScene, facts
       void runXaiDeviceLogin({ cancelled: () => !live(), onEvent }).then(landOrDisclose);
     } else if (family === 'nous') {
       void runNousDeviceLogin({ cancelled: () => !live(), onEvent }).then(landOrDisclose);
+    } else if (family === 'meta') {
+      void runMetaDeviceLogin({ cancelled: () => !live(), onEvent }).then(landOrDisclose);
     } else {
       void runHuggingfaceDeviceLogin({ cancelled: () => !live(), onEvent }).then(landOrDisclose);
     }
@@ -1306,7 +1315,7 @@ export function BootLoginsScreen({ onClose, onSignedIn, family, fullScene, facts
         openPick('zai');
         return;
       case 'meta':
-        setFlow({ kind: 'key', leg: 'meta', note: null, storing: false });
+        openPick('meta');
         return;
       case 'mistral':
         mistralApiReceipt.current = 'Mistral API key kept.';
@@ -1353,6 +1362,10 @@ export function BootLoginsScreen({ onClose, onSignedIn, family, fullScene, facts
       case 'nous':
         if (value === 'key') setFlow({ kind: 'key', leg: 'nous', note: null, storing: false });
         else startDeviceRun('nous');
+        return;
+      case 'meta':
+        if (value === 'key') setFlow({ kind: 'key', leg: 'meta', note: null, storing: false });
+        else startDeviceRun('meta');
         return;
       case 'openai':
         if (value === 'key') {
@@ -1473,6 +1486,7 @@ export function BootLoginsScreen({ onClose, onSignedIn, family, fullScene, facts
     else if (leg === 'hf-token') openPick('huggingface');
     else if (leg === 'openrouter-key') openPick('openrouter');
     else if (leg === 'gemini-key') openPick('gemini');
+    else if (leg === 'meta') openPick('meta');
     else closeFlow();
   };
 

@@ -127,6 +127,7 @@ export type SlotRemoval =
   | { route: 'xai-oauth' }
   | { route: 'xai-stored-key' }
   | { route: 'xai-management-key' }
+  | { route: 'meta-muse-code' }
   | { route: 'meta-stored-key' }
   | { route: 'zen-stored-key' }
   | { route: 'compat-stored-key' }
@@ -201,6 +202,8 @@ export interface AccountSlotReads {
   xaiManagementStoredKey?: () => string | undefined
   metaEnvKey?: () => string | undefined
   metaStoredKey?: () => string | undefined
+  metaMuseCode?: () => import('./meta/metaAccounts.js').MetaMuseCodeFacts | undefined
+  metaActiveAccount?: () => import('./meta/metaAccounts.js').MetaAccountRef | undefined
   mistralEnvKey?: () => string | undefined
   mistralStoredKey?: () => string | undefined
   mistralAdminEnvKey?: () => string | undefined
@@ -947,11 +950,37 @@ function moonshotSlots(reads: AccountSlotReads): AccountSlot[] {
 }
 
 function metaSlots(reads: AccountSlotReads): AccountSlot[] {
-  const { metaEnvKey } = require('./meta/metaAccounts.js') as typeof import('./meta/metaAccounts.js')
+  const { metaEnvKey, metaMuseCodeFacts, resolveMetaAccount } = require('./meta/metaAccounts.js') as typeof import('./meta/metaAccounts.js')
   const ambient = reads.metaEnvKey ? undefined : metaEnvKey()
   const envKey = reads.metaEnvKey ? reads.metaEnvKey() : ambient?.key
   const storedKey = (reads.metaStoredKey ?? readStoredMetaApiKey)()
-  return keyLaneSlots({ family: 'meta', envVar: ambient?.name ?? 'MODEL_API_KEY', envKey, storedKey, storedRemoval: { route: 'meta-stored-key' } })
+  const slots = keyLaneSlots({ family: 'meta', envVar: ambient?.name ?? 'MODEL_API_KEY', envKey, storedKey, storedRemoval: { route: 'meta-stored-key' } })
+  const museCode = (reads.metaMuseCode ?? metaMuseCodeFacts)()
+  if (museCode) {
+    const active = (reads.metaActiveAccount ?? resolveMetaAccount)()?.kind === 'muse-code'
+    if (active) {
+      for (const slot of slots) {
+        slot.active = false
+        slot.stateNote = 'Muse Code sign-in selected'
+      }
+    }
+    const tier = museCode.tierName ?? museCode.tierId ?? 'Muse Code'
+    slots.unshift({
+      family: 'meta',
+      id: 'meta:muse-code',
+      name: 'muse-code',
+      kind: 'subscription',
+      kindLabel: 'Muse Code sign-in',
+      identity: label([tier, museCode.email]),
+      ...(museCode.email ? { signInEmail: museCode.email } : {}),
+      active,
+      envPinned: false,
+      signedIn: true,
+      ...(active ? {} : { stateNote: 'API key selected' }),
+      removal: { route: 'meta-muse-code' },
+    })
+  }
+  return slots
 }
 
 function mistralSlots(reads: AccountSlotReads): AccountSlot[] {
@@ -1009,6 +1038,7 @@ function deepseekSlots(reads: AccountSlotReads): AccountSlot[] {
   })
 }
 
+import { disconnectMetaMuseCode } from './meta/metaAccounts.js'
 import { xaiStoredTokens, clearStoredXaiSubscription, readPreferredXaiSource } from './xai/xaiOauth.js'
 import { NOUS_SIGNIN_EXPIRED_LINE, clearStoredNousSignin, nousSigninRefusal, nousStoredTokens, readPreferredNousSource } from './nous/nousOauth.js'
 
@@ -1250,6 +1280,7 @@ export interface SlotRemovalOwners {
   clearXaiSubscription?: () => void
   clearStoredXaiKey?: () => void
   clearStoredXaiManagementKey?: () => void
+  disconnectMetaMuseCode?: () => void
   clearStoredMetaKey?: () => void
   clearStoredMistralKey?: () => void
   clearStoredMistralAdminKey?: () => void
@@ -1455,6 +1486,9 @@ function routeSlotRemoval(
         note: 'Kimi sign-in disconnected — tokens dropped (the region choice stays remembered for the next /logins moonshot).',
         mutated: true,
       }
+    case 'meta-muse-code':
+      ;(owners.disconnectMetaMuseCode ?? disconnectMetaMuseCode)()
+      return { note: 'Muse Code sign-in dropped — the minted key and account token are cleared locally', mutated: true }
     case 'meta-stored-key':
       ;(owners.clearStoredMetaKey ?? (() => writeStoredMetaApiKey(null)))()
       return { note: 'stored Meta API key cleared from the auth-scoped store', mutated: true }
@@ -1520,6 +1554,7 @@ export function signOutEveryEngineCredential(owners: SlotRemovalOwners = {}): vo
     ['xai-oauth', owners.clearXaiSubscription ?? clearStoredXaiSubscription],
     ['xai-stored-key', owners.clearStoredXaiKey ?? (() => writeStoredXaiApiKey(null))],
     ['xai-management-key', owners.clearStoredXaiManagementKey ?? (() => writeStoredXaiManagementApiKey(null))],
+    ['meta-muse-code', owners.disconnectMetaMuseCode ?? disconnectMetaMuseCode],
     ['meta-stored-key', owners.clearStoredMetaKey ?? (() => writeStoredMetaApiKey(null))],
     ['zen-stored-key', owners.clearStoredZenKey ?? (() => writeStoredZenApiKey(null))],
     ['compat-stored-key', owners.clearStoredCompatKey ?? (() => writeStoredCompatApiKey(null))],

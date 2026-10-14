@@ -54,7 +54,7 @@ export async function fetchMetaLiveModels(opts: { baseUrl: string; key: string; 
 }
 
 export interface MetaCatalogueSnapshot {
-  keySource: 'env' | 'stored'
+  keySource: 'env' | 'stored' | 'muse-code'
   models: MetaLiveModel[]
   fetchedAtMs: number
   lastAttemptAtMs?: number
