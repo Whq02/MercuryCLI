@@ -155,7 +155,7 @@ export function MetaConnect({ onResult, onBack }: {
     <Box flexDirection="column" gap={compact ? 0 : 1} paddingX={compact ? 0 : 1}>
       <KeyCardTitle family="meta" short="Meta key">Connect Meta — API key</KeyCardTitle>
       {compact ? null : <Text>{keyPageLine('meta')}</Text>}
-      {compact ? null : <Text>Use a pay-as-you-go Model API key. Muse Code browser sign-in and subscriptions are for Muse Code only.</Text>}
+      {compact ? null : <Text>Use a pay-as-you-go Model API key. For a Muse Code subscription, press esc and choose Sign in with Meta.</Text>}
       {compact ? null : <Text>Stored auth-scoped (mode 600), never logged. MODEL_API_KEY, then META_API_KEY, wins over the store.</Text>}
       <Box>
         <Text>Key: </Text>
