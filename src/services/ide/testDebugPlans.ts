@@ -1,10 +1,102 @@
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import * as path from 'node:path'
 import { getCwd } from '../../utils/cwd.js'
 import { latestRun } from './pythonTests.js'
-import { discoverRunnerProfiles, findRunnerRoot } from './projectRunners.js'
+import { discoverRunnerProfiles, findRunnerRoot, resolveRunnerBinary } from './projectRunners.js'
 
 export type DebugPlanRefusal = { state: 'unavailable'; reason: string; remedy: string }
+
+export const DLV_INSTALL_REMEDY = 'install delve: go install github.com/go-delve/delve/cmd/dlv@latest'
+
+export interface GoTestDebugPlan {
+  framework: 'go'
+  program: string
+  args: string[]
+  cwd: string
+  launchExtras: { mode: 'test' }
+  stop: TestStop
+  note: string
+}
+
+const GO_WALK_CAP = 400
+const GO_SKIP_DIRS = new Set(['vendor', 'node_modules', 'testdata', '.git'])
+
+function goTestFiles(dir: string, depth: number, out: string[]): void {
+  if (out.length >= GO_WALK_CAP) return
+  let entries: import('node:fs').Dirent[]
+  try {
+    entries = readdirSync(dir, { withFileTypes: true })
+  } catch {
+    return
+  }
+  for (const entry of entries) {
+    if (out.length >= GO_WALK_CAP) return
+    if (entry.isFile() && entry.name.endsWith('_test.go')) out.push(path.join(dir, entry.name))
+    else if (entry.isDirectory() && depth > 0 && !entry.name.startsWith('.') && !GO_SKIP_DIRS.has(entry.name)) goTestFiles(path.join(dir, entry.name), depth - 1, out)
+  }
+}
+
+export function locateGoTest(root: string, dir: string | null, topLevel: string): Array<{ file: string; line: number }> {
+  const files: string[] = []
+  goTestFiles(dir === null ? root : path.resolve(root, dir), dir === null ? 4 : 0, files)
+  const decl = new RegExp(`^func ${escapeRegExp(topLevel)}\\s*\\(`)
+  const hits: Array<{ file: string; line: number }> = []
+  for (const file of files) {
+    let text: string
+    try {
+      text = readFileSync(file, 'utf8')
+    } catch {
+      continue
+    }
+    const index = text.split('\n').findIndex(line => decl.test(line))
+    if (index !== -1) hits.push({ file, line: index + 1 })
+  }
+  return hits
+}
+
+export function buildGoTestDebugPlan(nodeId: string, opts?: { from?: string }): GoTestDebugPlan | DebugPlanRefusal {
+  const from = opts?.from ?? getCwd()
+  const root = findRunnerRoot(from) ?? path.resolve(from)
+  if (resolveRunnerBinary('go') === null) {
+    return { state: 'unavailable', reason: "'go' not on PATH — Go tests build and run through the Go toolchain", remedy: `install the Go toolchain, then ${DLV_INSTALL_REMEDY}` }
+  }
+  if (resolveRunnerBinary('dlv') === null) {
+    return { state: 'unavailable', reason: "'dlv' not on PATH — Go tests debug through delve's DAP server", remedy: DLV_INSTALL_REMEDY }
+  }
+  const { file: dir, name } = splitNode(nodeId)
+  const segments = name.split('/').filter(Boolean)
+  const topLevel = segments[0] ?? ''
+  if (!/^Test\w*$/.test(topLevel)) {
+    return { state: 'unavailable', reason: `node '${nodeId}' is not a Go test name`, remedy: 'spell the node as TestName, TestName/subtest, or dir::TestName (a go test -json run lists them)' }
+  }
+  const hits = locateGoTest(root, dir, topLevel)
+  if (hits.length === 0) {
+    return {
+      state: 'unavailable',
+      reason: `no func ${topLevel} in any *_test.go under ${dir === null ? root : path.resolve(root, dir)}`,
+      remedy: 'spell the node as dir::TestName with the package directory, or op:"run" first to list the tests',
+    }
+  }
+  if (hits.length > 1) {
+    return {
+      state: 'unavailable',
+      reason: `func ${topLevel} is declared in ${hits.length} packages: ${hits.map(h => path.relative(root, path.dirname(h.file)) || '.').join(', ')}`,
+      remedy: 'spell the node as dir::TestName to pick the package',
+    }
+  }
+  const hit = hits[0]!
+  const pkgDir = path.dirname(hit.file)
+  const pattern = segments.map(s => `^${escapeRegExp(s)}$`).join('/')
+  return {
+    framework: 'go',
+    program: pkgDir,
+    args: ['-test.run', pattern, '-test.v'],
+    cwd: root,
+    launchExtras: { mode: 'test' },
+    stop: { file: hit.file, line: hit.line },
+    note: `dlv builds the test binary for ${path.relative(root, pkgDir) || '.'} and stops on the first line of ${name} (${path.relative(root, hit.file)}:${hit.line})`,
+  }
+}
 
 export interface TestStop {
   file: string
