@@ -185,8 +185,8 @@ export interface SemanticHit {
 }
 
 export function semanticHits(query: string, pool: readonly LookupCandidate[], dir: string): SemanticHit[] {
-  const bySeq = new Map<number, string>()
-  for (const candidate of pool) if (candidate.seq !== undefined) bySeq.set(candidate.seq, candidate.id)
+  const byKey = new Map<string, string>()
+  for (const candidate of pool) byKey.set(candidate.seq !== undefined ? `seq:${candidate.seq}` : candidate.id, candidate.id)
   const index = readEmbedIndex(dir)
   if (index === null) return []
   const hits = searchEmbedIndex(query, index, embedIndexEngineStatus(), SEMANTIC_POOL)
@@ -200,7 +200,7 @@ export function semanticHits(query: string, pool: readonly LookupCandidate[], di
   for (const hit of hits) {
     if (hit.sim < floor && hit.sim < top - SEMANTIC_TIE_WIDTH) break
     if (out.length >= LOOKUP_LIMIT + 4) break
-    const id = bySeq.get(hit.seq)
+    const id = byKey.get(hit.key)
     if (id !== undefined) out.push({ id, sim: hit.sim })
   }
   return out

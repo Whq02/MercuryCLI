@@ -204,10 +204,11 @@ export interface EmbedAddon {
   modelInfo(handle: number): EmbedModelInfo
   embed(handle: number, text: string, isQuery?: boolean): number[]
   embedBatch(handle: number, texts: string[], isQuery?: boolean): number[][]
+  embedBatchAsync(handle: number, texts: string[], isQuery?: boolean): Promise<number[][]>
   unloadModel(handle: number): void
 }
 
-export const EMBED_ADDON_EXPORTS = ['packVersion', 'engineVersion', 'systemInfo', 'cpuFloor', 'loadModel', 'modelInfo', 'embed', 'embedBatch', 'unloadModel'] as const
+export const EMBED_ADDON_EXPORTS = ['packVersion', 'engineVersion', 'systemInfo', 'cpuFloor', 'loadModel', 'modelInfo', 'embed', 'embedBatch', 'embedBatchAsync', 'unloadModel'] as const
 
 export type EmbedAddonLoad =
   | { state: 'ok'; addon: EmbedAddon; dir: string; manifest: EmbedPackManifest; source: 'override' | 'vendored' | 'workspace' }
