@@ -231,11 +231,11 @@ that pack is skipped and the build and affected tools report the missing
 component. Running `bun install` alone produces a build without those packs.
 
 To build voice support, run `setup` with Rust installed. That builds
-`native/voice`. Add cmake to build `native/whisper` as well. With Rust and
-cmake installed, `bun run scripts/vendor/build-embed.ts` and
-`bun run scripts/vendor/fetch-embed-models.ts` also build the local embedding
-addon (`native/embed`) and fetch the 118 MB BGE model; without them, Mneme
-memory lookup runs word match only. Release archives include the embedding
+`native/voice`. Add cmake to build `native/whisper` as well. With Rust
+installed, `bun run scripts/vendor/build-embed.ts` builds the local embedding
+addon (`native/embed`) and `bun run scripts/vendor/fetch-embed-models.ts`
+fetches the 118 MB BGE model; without them, Mneme memory lookup runs word
+match only. The macOS Apple silicon release archive includes the embedding
 pack. If a native build lacks its tools, setup skips it and the health check
 reports the missing addon. The Windows shell engine is compiled on your
 machine too because upstream has no Windows binary.
@@ -697,8 +697,8 @@ Available commands include:
 - **Mneme hybrid RAG project memory.** Mneme is on by default, keeping each
   project's facts in plain markdown topic pages (`Retain`, `Recall`, `Reflect`,
   `Correct`). Recall fuses an on-device 118 MB BGE semantic embedding model
-  (`bge-base-en-v1.5` `q8_0`, MIT, bundled in release archives; source builds
-  without the native embed pack run word match only) with stemmed BM25 word
+  (`bge-base-en-v1.5` `q8_0`, MIT, bundled in the macOS Apple silicon release
+  archive; a build without the native embed pack runs word match only) with stemmed BM25 word
   ranking, recency weighting and citation tracking via reciprocal rank fusion
   (`k = 60`). Pinned rules (`pin: true`) load verbatim on the pinned shelf and
   change only on your word. At session start, Mercury scores unpinned facts and
@@ -735,9 +735,9 @@ Available commands include:
   (on by default; turn it off in `/config` or with `MERCURY_SEARCH_KEYLESS=0`).
   Every answer stays under 2,000 tokens and names the source that answered.
   `WebFetch` reads public pages as markdown in the page's own words within a
-  38,000-character call budget (using `r.jina.ai` when sparse HTML needs a
-  browser and `MERCURY_FETCH_READER` is enabled; private network addresses are
-  never sent to the hosted reader). See [docs/ENGINES.md](docs/ENGINES.md).
+  38,000-character call budget (a page that needs a browser is read through
+  the hosted reader `r.jina.ai` unless `MERCURY_FETCH_READER=0`, and a private
+  network address is never sent to it). See [docs/ENGINES.md](docs/ENGINES.md).
 - **Agents, cross-provider crewmates (`Crewmate`), worktrees and file leases.**
   Two built-in agents (`mercury-crew` for delegated work of every kind and
   `mercury-scout` for read-only reconnaissance) sit beside the agent
@@ -819,7 +819,7 @@ the live list can also include skills and extension commands.
 | git & review | `/review` `/audit` |
 | health & introspection | `/health` `/verify` `/trace` `/capabilities` |
 | config & setup | `/config` `/jev` `/localsetup` `/permissions` `/hooks` `/mcp` `/extensions` `/skills` `/sandbox` `/browser` `/orient` `/keybindings` `/keys` `/vim` `/mouse` `/keysetup` `/bootmenu` `/voice` |
-| appearance & interface | `/appearance` `/critter` `/palette` |
+| appearance & cockpit | `/appearance` `/critter` `/palette` |
 | account & app | `/logins` `/logout` `/accounts` `/defaultprovider` `/update-notes` `/feedback` `/help` `/exit` |
 
 `/mouse off` returns the pointer to the terminal for native text selection
