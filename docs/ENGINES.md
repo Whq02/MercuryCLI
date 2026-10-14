@@ -888,8 +888,10 @@ launch; an unknown name still stops for your decision.
 ## Web fetch
 
 `WebFetch` returns a public page's main text as markdown, without a model
-call. Headings, lists, code and links stay with the page's words; navigation,
-footers and scripts are filtered out. A `prompt` asks for a labelled model
+call. Headings, lists, code and links stay with the page's words; a table
+keeps its rows and columns (a markdown table, or one line per row with the
+cells separated by `·` when cells span or nest); navigation, footers and
+scripts are filtered out. A `prompt` asks for a labelled model
 reading instead: the session family's helper first, then the session model
 if needed. If neither can answer, the page text comes back with that fact.
 
