@@ -60,9 +60,7 @@ decides what to find first.
 
 `/config`'s **Memory recall ranking** row names which model serves and offers
 the models this install carries. On an install stripped of the model, memory
-runs word match only and the front page says so in one line. A setting of
-`ollama:<model>` is accepted but has no embedding road in this build: the row
-and the front page say word match only and why.
+runs word match only and the front page says so in one line.
 
 ## The four verbs
 

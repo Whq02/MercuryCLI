@@ -96,7 +96,7 @@ export function embedIndexOffNote(): string {
   const addon = loadEmbedAddon()
   if (addon.state !== 'ok') return addon.note
   const check = checkEmbedModel(resolveEmbedModelPin())
-  return check.state === 'present' ? 'the model is present but the engine refused it' : check.state === 'ollama' ? 'ollama models serve through their own road, not the derived index' : check.note
+  return check.state === 'present' ? 'the model is present but the engine refused it' : check.note
 }
 
 function loadEmbedIndexEngine(): LoadedEngine | null {
@@ -227,7 +227,6 @@ export function indexModelName(): string {
   const pin = resolveEmbedModelPin()
   if (pin.kind === 'catalogue') return pin.row.name
   if (pin.kind === 'path') return pin.name
-  if (pin.kind === 'ollama') return `ollama:${pin.model}`
   return embedDefaultModel().name
 }
 

@@ -109,7 +109,6 @@ export function embedModelsDir(home: string = getMercuryHome()): string {
 export type EmbedModelPin =
   | { kind: 'catalogue'; row: EmbedModelRow; pinned: boolean }
   | { kind: 'path'; path: string; name: string }
-  | { kind: 'ollama'; model: string }
   | { kind: 'broken'; note: string }
 
 let seededModelSpec: string | null = null
@@ -129,11 +128,6 @@ function configuredModelSpec(): string {
 export function resolveEmbedModelPin(specOverride?: string): EmbedModelPin {
   const raw = (specOverride ?? configuredModelSpec()).trim()
   if (raw === '' || raw === 'default') return { kind: 'catalogue', row: embedDefaultModel(), pinned: false }
-  if (raw.startsWith('ollama:')) {
-    const model = raw.slice('ollama:'.length).trim()
-    if (model !== '') return { kind: 'ollama', model }
-    return { kind: 'broken', note: 'ollama: embedding model name is empty' }
-  }
   const row = embedModelByName(raw)
   if (row !== null) return { kind: 'catalogue', row, pinned: true }
   const looksLikePath = isAbsolute(raw) || raw.includes('/') || raw.includes('\\') || raw.endsWith('.gguf')
@@ -147,7 +141,7 @@ export function resolveEmbedModelPin(specOverride?: string): EmbedModelPin {
   }
   return {
     kind: 'broken',
-    note: `embedding model ${raw} is not a catalogue name (${EMBED_MODELS.map(r => r.name).join(' · ')}), an ollama:<model> spec, or the path of a gguf model file — the pin names itself, no silent fallback`,
+    note: `embedding model ${raw} is not a catalogue name (${EMBED_MODELS.map(r => r.name).join(' · ')}) or the path of a gguf model file — the pin names itself, no silent fallback`,
   }
 }
 
@@ -176,7 +170,6 @@ function findVendoredModelFile(file: string): string | null {
 
 export type EmbedModelCheck =
   | { state: 'present'; path: string; name: string; bytes: number; dimension: number; license: string; pinned: boolean }
-  | { state: 'ollama'; model: string }
   | { state: 'absent'; path: string; row: EmbedModelRow; note: string }
   | { state: 'mismatch'; path: string; note: string }
   | { state: 'broken'; note: string }
@@ -186,7 +179,6 @@ export function checkEmbedModel(
   opts: { home?: string; dir?: string; digest?: boolean; homeOnly?: boolean } = {},
 ): EmbedModelCheck {
   if (pin.kind === 'broken') return { state: 'broken', note: pin.note }
-  if (pin.kind === 'ollama') return { state: 'ollama', model: pin.model }
   if (pin.kind === 'path') {
     let size = 0
     try {
@@ -222,49 +214,8 @@ export type SemanticReadiness =
   | { state: 'ok'; road: 'local'; model: string; path: string; dimension: number }
   | { state: 'word-only'; words: typeof WORD_MATCH_ONLY_WORDS; note: string }
 
-export const OLLAMA_PROBE_FRESH_MS = 60_000
-
-let ollamaProbe: { at: number; models: string[] } | null = null
-let ollamaProbeInFlight: Promise<string[]> | null = null
-
-export function seedOllamaProbeForTest(models: string[] | null): void {
-  ollamaProbe = models === null ? null : { at: Date.now(), models }
-  ollamaProbeInFlight = null
-}
-
-export function refreshOllamaEmbeddingModels(baseUrl?: string, fetchImpl?: typeof fetch): Promise<string[]> {
-  if (ollamaProbeInFlight !== null) return ollamaProbeInFlight
-  ollamaProbeInFlight = probeOllamaEmbeddingModels(baseUrl, fetchImpl)
-    .then(models => {
-      ollamaProbe = { at: Date.now(), models }
-      return models
-    })
-    .finally(() => {
-      ollamaProbeInFlight = null
-    })
-  return ollamaProbeInFlight
-}
-
-export function ollamaModelsLastProbed(): { fresh: boolean; models: string[] } {
-  if (ollamaProbe === null) return { fresh: false, models: [] }
-  return { fresh: Date.now() - ollamaProbe.at <= OLLAMA_PROBE_FRESH_MS, models: ollamaProbe.models }
-}
-
-export function ollamaPinWords(model: string): string {
-  const probed = ollamaModelsLastProbed()
-  if (!probed.fresh) {
-    void refreshOllamaEmbeddingModels()
-    return `ollama:${model} is not probed yet — ${WORD_MATCH_ONLY_WORDS} until the local server answers`
-  }
-  if (!probed.models.includes(model)) return `the local Ollama server does not list ${model} — ${WORD_MATCH_ONLY_WORDS}`
-  return `the local Ollama server lists ${model}, but no embedding road serves an Ollama model in this build — ${WORD_MATCH_ONLY_WORDS}`
-}
-
 export function describeSemanticReadiness(opts: { home?: string; homeOnly?: boolean } = {}): SemanticReadiness {
   const pin = resolveEmbedModelPin()
-  if (pin.kind === 'ollama') {
-    return { state: 'word-only', words: WORD_MATCH_ONLY_WORDS, note: ollamaPinWords(pin.model) }
-  }
   const addon = loadEmbedAddon()
   if (addon.state === 'unavailable') {
     return { state: 'word-only', words: WORD_MATCH_ONLY_WORDS, note: addon.note }
@@ -272,9 +223,6 @@ export function describeSemanticReadiness(opts: { home?: string; homeOnly?: bool
   const modelCheck = checkEmbedModel(pin, opts)
   if (modelCheck.state === 'present') {
     return { state: 'ok', road: 'local', model: modelCheck.name, path: modelCheck.path, dimension: modelCheck.dimension }
-  }
-  if (modelCheck.state === 'ollama') {
-    return { state: 'word-only', words: WORD_MATCH_ONLY_WORDS, note: ollamaPinWords(modelCheck.model) }
   }
   return { state: 'word-only', words: WORD_MATCH_ONLY_WORDS, note: modelCheck.note }
 }
@@ -298,28 +246,6 @@ export function memoryRecallModeLine(dir: string): string {
   return `Recall ranks by ${memoryRecallModeWords()}.`
 }
 
-export async function probeOllamaEmbeddingModels(
-  baseUrl = 'http://127.0.0.1:11434',
-  fetchImpl: typeof fetch = fetch,
-): Promise<string[]> {
-  const controller = new AbortController()
-  const timer = setTimeout(() => controller.abort(), 1500)
-  timer.unref?.()
-  try {
-    const res = await fetchImpl(`${baseUrl.replace(/\/+$/, '')}/api/tags`, { signal: controller.signal })
-    if (!res.ok) return []
-    const body = (await res.json()) as { models?: Array<{ name?: unknown }> }
-    if (!Array.isArray(body.models)) return []
-    const names = body.models
-      .map(m => (typeof m.name === 'string' ? m.name.trim() : ''))
-      .filter(name => name !== '' && /embed|bge|gte|minilm|nomic|e5|arctic/i.test(name))
-    return [...new Set(names)]
-  } catch {
-    return []
-  } finally {
-    clearTimeout(timer)
-  }
-}
 
 export const EMBED_MODEL_DOWNLOAD_DEADLINE_MS = 15 * 60_000
 
