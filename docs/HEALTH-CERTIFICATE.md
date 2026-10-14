@@ -2,8 +2,9 @@
 
 `/health` certifies the install: runtime, settings, and channel checked
 live, rolled into one verdict. The same certificate runs headless as
-`mercury health`. Configured MCP servers are validated without being
-started.
+`mercury health`.
+
+Configured MCP servers are validated without being started.
 
 The certificate holds three properties:
 
@@ -86,7 +87,7 @@ shared by the runner, picker and the health check through the current credential
 too; it never makes a provider request to discover one.
 
 INTERFACE's `Browser` row names the executable the Browser tool resolves:
-Chrome for Testing with its build id and managed cache path, or the operator's
+Chrome for Testing with its build id and managed cache path, or your
 explicit executable pin. Installed Chrome, Edge, Chromium and Brave apps are
 discovered for information only; the tool never selects them automatically.
 With no managed browser, the row reads `info` and names `/browser install`,
@@ -137,7 +138,7 @@ names the Debug tool as withheld for a probe still in flight.
 
 SETTINGS & FLAGS carries the `Env overrides` check: the registered flags
 set in the environment, with Mercury's own stamps and the boot's saved
-defaults named apart from the operator's overrides. Each override names the
+defaults named apart from your overrides. Each override names the
 registered switch, its value and its kind; unset switches use their defaults.
 
 AUTH carries the `Model lists` row: for every provider family Mercury
@@ -167,6 +168,19 @@ read, which is nothing, and never rolls the certificate to caution for a list
 nobody asked for; the release-day check
 (`bun scripts/ops/check-typed-model-ids.ts`) fetches every list live and
 uses the same comparison.
+
+AUTH also carries the `Web search` row (`web-search-door`): it reports the
+search cascade available to the session's model, including native provider
+search (`Anthropic web search (native, session account)` or `OpenAI web search
+(native, session account)`), stored Brave or Tavily keys, the official APIs,
+configured SearXNG instances (joined only when
+`MERCURY_SEARCH_SEARXNG_INSTANCES` configures at least one permitted instance;
+otherwise noted as `no metasearch instance configured`), and keyless DuckDuckGo
+page scraping (on by default). When no search door opens for the model (no
+native search, no Brave/Tavily key, no SearXNG instance, and DuckDuckGo page
+scraping turned off in `/config` or with `MERCURY_SEARCH_KEYLESS=0`), the row
+reads `info` (`no door opens for <model>`) and names `/router key brave` (or
+`tavily`) and `/config` to turn DuckDuckGo page scraping back on.
 
 CREW & DAEMONS carries the `Store isolation` check, which reads the config
 home's harness records by Mercury's own fingerprint: a daemon-plane record carrying no Mercury
@@ -219,8 +233,8 @@ at a time; the Windows guide describes the read and the stop.
 Checks can carry an executable remedy — `{plan, apply, verify}` — and a remedy
 is offered only for statuses that assert something is wrong (`fail`, `warn`,
 `stale`); `ok`, `info`, `off`, and `unknown` rows never expose apply. The fix engine
-applies a remedy and then re-probes with `verify()` — the outcome the operator
-sees is the verification, never apply's self-report. Every applied fix writes an
+applies a remedy and then re-probes with `verify()`: the outcome you
+see is the verification, never apply's self-report. Every applied fix writes an
 evolution-ledger row, so the improvement history is auditable.
 
 Consent: in the interactive panel a fix goes through a consent card, and

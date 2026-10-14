@@ -1,12 +1,15 @@
 # Sessions
 
-The session is the unit; every screen is a view. A session owns its
-conversation, model, posture, workspace and running work, and it survives
+A session owns its conversation, model, permission mode, workspace and
+running work, hosted by the background daemon across the Boot face, chat and
+Session Concourse.
+
+The session is the unit; every screen is a view. It survives
 whatever screen is looking at it — the chat, the Session Concourse board, a
 live tile and the Boot face render sessions and never store their truth.
 This page is how sessions are born, focused, closed and brought back, how
 the folder you start in becomes a project, and the two boot switches that
-shape the journey. Every session is hosted by the background daemon.
+shape the journey.
 On Windows, each frame reads the window size from the console so the cockpit follows it even when no resize event arrives.
 
 ## A fresh boot has no chat
@@ -119,7 +122,17 @@ back on the launch's model and effort, its record is re-stamped, and the
 resume card names which won when the launch's word and the session's saved
 word differ. `/model default` clears the saved choice. In the chat the
 picker opens centred, as it does over the board; `view.modelPicker.centred: false`
-in settings.json puts it back at the left edge.
+in settings.json puts it back at the left edge. `/model <words>` echoes the
+words you typed on the first line (with the resolved model id) and the switch
+receipt on the second line (`Model now: <display> · saved as your default for
+new sessions …`). When `memory.tellEngineSwitch` is `true` in settings, the
+meta line sent to the model includes the switch timestamp with its UTC offset
+and instructs the model to include the time zone when repeating the switch
+time. Selecting an effort level in `/effort` or via `ctrl+e` inside `/model`
+saves it to `<config home>/settings.json` (`Effort set to <level> · saved as
+your default for future sessions`); if writing `settings.json` fails, both
+`/model` and the effort picker name the file and the OS reason (`not saved as
+your default: ~/.mercury/settings.json …`).
 `/model` or `/effort` sent while a turn runs answers "applies when this turn
 ends", and lands exactly there: at that turn's end, before any line waiting
 for the next turn. A line sent after that pick, while the same turn still
@@ -212,7 +225,19 @@ has run, its exit code once it has ended, and the last lines of its output,
 read from the output file the session's runner writes on this machine, under a
 count of the lines shown against the lines it has written. On a short window
 the command yields rows to the output, so at least one line of it always
-shows.
+shows. In `/help`, pressing `PageDown` or `PageUp` from the tab header enters
+the command list and pages immediately.
+
+When a model returns its reasoning text, a folded `✻ thinking…` block appears
+above the reply and expands on click or in the transcript view (`ctrl+o`). When
+a provider returns a signed thinking block without text (private thinking), the
+chat draws no thinking row by default; clicking the turn's answer or work row
+(or opening `ctrl+o`) reveals `✻ thinking…` with `the provider returned no
+thinking text for this model` once for that turn. While a permission or
+question card is waiting over the composer, words you type remain visible
+beneath the card, and a draft restored to the composer after a card or
+interrupt is labelled and armed so a second `Enter` sends it with focus on the
+rows.
 
 A block of pasted text longer than a couple of lines becomes a
 `[Pasted text #N +L lines]` chip in the composer, and its words reach the
@@ -502,7 +527,12 @@ back, its transcript kept — and a fresh session opens in the same folder on
 the same model, blank and on the board at birth; the cleared chat is never
 lost. With no chat open there is nothing to clear, and a session mid-turn is
 never dropped under you: the refusal names the one action that unblocks it
-(esc to interrupt, then `/clear`).
+(esc to interrupt, then `/clear`). When leaving Mercury (`/exit` or
+`ctrl+c`/`ctrl+d`), once per session the exit confirmation card (if live work
+is running) or the farewell line prints `Something broke?
+https://mercury-cli.ai/report`; inside a session, `/bug --short <what you
+tried>` files the same short tester report (OS, what you tried, what broke, no
+health dump).
 
 ## Bringing a chat back
 
@@ -638,7 +668,7 @@ plain live view of your sessions there.
 `--concourse-off` turns the Session Concourse off for this and every later
 boot — a saved setting (`concourseEnabled` in the global config; absent
 reads as on), written only by this switch and the `/config` row "Session
-concourse", never repainted by anything else.
+concourse", never overwritten by visiting `/concourse` or repainted by anything else.
 `--concourse-on` or that `/config` row turns it back on; off is never a
 one-way door, and with both switches on one line the later one wins.
 
@@ -875,7 +905,11 @@ is handed over it takes its place in the transcript, above any line you type
 later.
 The words a reply writes before it calls a tool stand as their own row from
 the moment that call begins, and the settled row takes their place; a
-question asked mid-turn stays on screen.
+question asked mid-turn stays on screen. A crewmate completion notice uses the
+crewmate's finish timestamp (`completedAt`) as its row clock and appends
+`· delivered HH:MM:SS` when delivered to the parent turn a minute or more after
+completion; other notice kinds show their delivery position clock first and
+`· arrived HH:MM:SS` when delayed.
 
 Completions that land while the session waits between turns fold into one
 turn. The runner holds the first for the task poll's second and carries every

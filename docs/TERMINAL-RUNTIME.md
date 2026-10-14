@@ -1,8 +1,10 @@
 # Terminal runtime
 
 How the built product boots, where deployed copies live, how updates land,
-and how a broken boot recovers. The build that produces the artifact is
-`BUILD-NOTES.md`; this page is the running side.
+and how a broken boot recovers.
+
+The build that produces the artifact is `BUILD-NOTES.md`; this page is the
+running side.
 
 ## One bundle, several routes
 
@@ -41,7 +43,7 @@ hot-swap a running product:
   and rescans it on every helper it launches — and it is removed only by a
   later deploy that finds nothing running from it. A daemon keeps serving
   the build it was started from until its last session has exited; a
-  session born after the deploy runs on the new build's daemon. Manual
+  session started after the deploy runs on the new build's daemon. Manual
   rollback: point `runtime/current` (and `runtime/dist`) at an older
   `builds/` folder — `cd <config-home>/runtime && ln -sfn builds/<older>
   current && ln -sfn builds/<older> dist`; nothing boots an older build on
@@ -109,6 +111,7 @@ developer tools:
 ```
 
 plus one stable `mercury` shim in a conventional user-local bin directory
+(`~/.local/bin`, or `%LOCALAPPDATA%\Mercury\bin` on Windows)
 that resolves `current.txt` at every run. Updates and rollbacks switch the
 pointer file by atomic rename, never the shim; manual recovery is editing
 `current.txt`. Configuration and sessions live in the config home outside
@@ -137,7 +140,7 @@ command is refused, not clobbered. `--json` on every verb.
 
 ## `mercury update`
 
-`mercury update` reads the configured repository's GitHub Releases over one
+`mercury update` (alias `upgrade`) reads the configured repository's GitHub Releases over one
 of two roads: anonymously over HTTPS — no account, no sign-in, no token, the
 same lookup the install one-liner performs — or through the user's own
 signed-in GitHub CLI, consulted only when the anonymous road is refused (a
@@ -202,7 +205,9 @@ two facts as `daemon: { state, line }` (state one of `moved`, `moving`,
 `when-idle`, `current`, `absent`, `stop`, `unknown`) and `openWindows`.
 `mercury daemon restart` makes the same move by hand: the running daemon
 re-executes itself on the installed build now if it is idle, or once its live
-sessions finish.
+sessions finish. In `mercury daemon status`, pre-booted runners in the warm
+pool are listed as `warm runner · pre-booted, unclaimed` (and summarized on the
+`warm:` line) and are never counted as live sessions.
 
 The activation law:
 
@@ -268,6 +273,9 @@ on Windows), a fresh child per command: the working directory carries from
 call to call, everything else resets. One exception: a Windows box where no
 `bash.exe` is found arms the bundled **brush** engine by itself, with
 nothing to set — a release archive always carries it.
+In both modes, the Bash tool tracks its own shell working directory across
+calls: a `cd` inside a Bash command moves where subsequent shell commands run
+without changing the session's starting folder.
 
 An optional **brush** engine is a vendored payload — brush, a
 bash-compatible shell written in Rust (MIT), shipped as one upstream release
@@ -298,7 +306,7 @@ still runs, in its own system shell.
 The engine is a child process, so the OS sandbox still wraps it and
 everything it spawns. A command that hangs is killed by the tool's timeout
 and the session respawns with the working directory restored, the model
-told the earlier state was lost; a stop from the operator while a command
+told the earlier state was lost; a stop from you while a command
 runs ends that command and resets the session, and the result says so; a
 message typed while a command runs is queued and delivered when the command
 ends.
@@ -320,11 +328,12 @@ rules judge the command text identically on either engine.
 
 A command's exit code decides how its result reads. A non-zero exit is a
 failure named by its code, except for the lookups and comparisons whose
-exit of 1 is an answer: `grep`, `rg`, `pgrep`, `diff`, `cmp`, `test` and
-`[`, judged by the last stage of a pipeline after any leading variable
-assignments or `env`. Their result is not an error; it carries the answer
-and the code — `no process matched (exit code 1)`, `files differ (exit
-code 1)`, `condition is false (exit code 1)` — and an exit of 2 or more
+exit of 1 is an answer: `grep`, `rg`, `find`, `pgrep`, `diff`, `cmp`, `test`,
+`[`, `which` and `command -v`, judged by the last stage of a pipeline after any
+leading variable assignments or `env`. Their result is not an error; it carries the answer
+and the code (`no matches found (exit code 1)`,
+`no process matched (exit code 1)`, `files differ (exit
+code 1)`, `condition is false (exit code 1)`), and an exit of 2 or more
 stays a failure.
 
 ## Diagnostics
