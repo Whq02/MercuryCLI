@@ -9,8 +9,11 @@ import { logForDebugging } from '../utils/debug.js'
 import { pendingRows } from './mnemeBuffer.js'
 import { USER_ASKED_RULE_ROAD } from './mnemeCorrect.js'
 import { listTopicDocs } from './mnemeLibrary.js'
+import { POLARITY_PAIRS, POLARITY_WORDS, flippedPolarity, polaritySides, type PolaritySides } from './mnemePolarity.js'
 import { clausesOf, containment, contentStems, firstWords, isNumberWord, jaccard, normalisedText, sentencesOf, wordsOf } from './mnemeText.js'
 import { readPins } from './mnemeUsage.js'
+
+export { POLARITY_PAIRS } from './mnemePolarity.js'
 
 export const CONTRADICTION_OVERLAP_SHARE = 0.75
 export const CONTRADICTION_CONFIDENCE = 0.6
@@ -20,23 +23,13 @@ export const NEGATION_FLIP = 'a negation'
 
 export const NEGATION_WORDS: readonly string[] = ['not', 'never', 'no', 'none', 'nothing', 'neither', 'nor', 'without']
 
-export const POLARITY_PAIRS: ReadonlyArray<{ name: string; left: readonly string[]; right: readonly string[] }> = [
-  { name: 'always/never', left: ['always'], right: ['never'] },
-  { name: 'on/off', left: ['on'], right: ['off'] },
-  { name: 'enabled/disabled', left: ['enable', 'enables', 'enabled', 'enabling'], right: ['disable', 'disables', 'disabled', 'disabling'] },
-  { name: 'allowed/forbidden', left: ['allow', 'allows', 'allowed', 'allowing'], right: ['forbid', 'forbids', 'forbade', 'forbidden', 'forbidding', 'deny', 'denies', 'denied', 'denying'] },
-  { name: 'included/excluded', left: ['include', 'includes', 'included', 'including'], right: ['exclude', 'excludes', 'excluded', 'excluding'] },
-  { name: 'before/after', left: ['before'], right: ['after'] },
-  { name: 'true/false', left: ['true'], right: ['false'] },
-]
-
 export const SCOPE_WORDS: readonly string[] = ['except', 'excepting', 'exception', 'exceptions', 'unless', 'when', 'whenever', 'if', 'while', 'until', 'during']
 
 export const SCOPE_PHRASES: readonly string[] = ['only for', 'only when', 'only if', 'only in', 'only on', 'only with', 'only after', 'only before', 'only by', 'only under', 'only during', 'only once', 'only where', 'only while', 'apart from', 'aside from', 'other than', 'save for', 'in case', 'but not', 'but only']
 
 export const IDENTIFIER_MARKERS: readonly string[] = ['rule', 'rules', 'seq', 'fact', 'facts', 'session', 'sessions', 'line', 'lines', 'page', 'pages', 'row', 'rows', 'issue', 'pr', 'step', 'steps', 'item', 'items', 'id', 'number', 'no', 'ordinal']
 
-const SKIP = new Set<string>([...NEGATION_WORDS, ...SCOPE_WORDS, 'only', 'but', ...POLARITY_PAIRS.flatMap(pair => [...pair.left, ...pair.right])])
+const SKIP = new Set<string>([...NEGATION_WORDS, ...SCOPE_WORDS, 'only', 'but', ...POLARITY_WORDS])
 
 export interface RecordEntry {
   id: string
@@ -61,7 +54,7 @@ interface Analysed {
   stems: Set<string>
   negatedClauses: string[][]
   negated: Set<string>
-  sides: Map<string, { left: boolean; right: boolean }>
+  sides: PolaritySides
   quantities: Set<string>
   scoped: boolean
 }
@@ -86,10 +79,7 @@ function isScoped(words: readonly string[]): boolean {
 
 function analyse(text: string): Analysed {
   const words = wordsOf(text)
-  const sides = new Map<string, { left: boolean; right: boolean }>()
-  for (const pair of POLARITY_PAIRS) {
-    sides.set(pair.name, { left: words.some(word => pair.left.includes(word)), right: words.some(word => pair.right.includes(word)) })
-  }
+  const sides = polaritySides(words)
   const quantities = new Set<string>()
   words.forEach((word, index) => {
     if (!isNumberWord(word)) return
@@ -118,11 +108,8 @@ function negationFlip(a: Analysed, b: Analysed): boolean {
 
 function flipOf(a: Analysed, b: Analysed): string | null {
   if (negationFlip(a, b) || negationFlip(b, a)) return NEGATION_FLIP
-  for (const pair of POLARITY_PAIRS) {
-    const left = a.sides.get(pair.name)!
-    const right = b.sides.get(pair.name)!
-    if ((left.left && !left.right && right.right && !right.left) || (left.right && !left.left && right.left && !right.right)) return pair.name
-  }
+  const polarity = flippedPolarity(a.sides, b.sides)
+  if (polarity !== null) return polarity
   if (a.quantities.size > 0 && b.quantities.size > 0) {
     const onlyA = [...a.quantities].some(n => !b.quantities.has(n))
     const onlyB = [...b.quantities].some(n => !a.quantities.has(n))
