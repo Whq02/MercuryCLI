@@ -51,6 +51,29 @@ export function wordsOf(text: string): string[] {
   return lowered.split(/[^a-z0-9]+/).filter(word => word.length >= 2)
 }
 
+const CLAUSE_JOINERS = new Set(['and', 'but', 'or'])
+
+export function clausesOf(text: string): string[][] {
+  const out: string[][] = []
+  for (const piece of text.split(/[,;.!?\r\n]+/)) {
+    let clause: string[] = []
+    for (const word of wordsOf(piece)) {
+      if (CLAUSE_JOINERS.has(word)) {
+        if (clause.length > 0) out.push(clause)
+        clause = []
+        continue
+      }
+      clause.push(word)
+    }
+    if (clause.length > 0) out.push(clause)
+  }
+  return out
+}
+
+export function normalisedText(text: string): string {
+  return wordsOf(text).join(' ')
+}
+
 export const isNumberWord = (word: string): boolean => /^\d+$/.test(word)
 
 export function contentStems(words: readonly string[], skip: ReadonlySet<string> = new Set()): string[] {
