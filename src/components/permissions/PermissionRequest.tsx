@@ -25,7 +25,9 @@ import { AskUserQuestionTool } from '../../tools/AskUserQuestionTool/AskUserQues
 import { WorkflowTool } from '../../tools/WorkflowTool/WorkflowTool.js'
 import { RecordConventionTool } from '../../tools/RecordConventionTool/RecordConventionTool.js'
 import { GitTool } from '../../tools/GitTool/GitTool.js'
+import { CorrectTool, RetainTool } from '../../tools/MemoryTools/MemoryTools.js'
 import { ApolloReviewPermissionRequest } from './ApolloReviewPermissionRequest/ApolloReviewPermissionRequest.js'
+import { isMemoryRuleCard, MemoryRulePermissionRequest } from './MemoryRulePermissionRequest/MemoryRulePermissionRequest.js'
 import { AskUserQuestionPermissionRequest } from './AskUserQuestionPermissionRequest/AskUserQuestionPermissionRequest.js'
 import { ChangeSetPermissionRequest } from './ChangeSetPermissionRequest/ChangeSetPermissionRequest.js'
 import { BashPermissionRequest } from './BashPermissionRequest/BashPermissionRequest.js'
@@ -126,6 +128,7 @@ export function PermissionRequest(props: PermissionRequestProps): React.ReactNod
   if (tool.name === COMPUTER_TOOL_NAME) return <ComputerPermissionRequest key={key} {...props} />
   if (tool === NotebookEditTool) return <NotebookEditPermissionRequest key={key} {...props} />
   if (tool === RecordConventionTool) return <RecordConventionPermissionRequest key={key} {...props} />
+  if ((tool === CorrectTool || tool === RetainTool) && isMemoryRuleCard(toolUseConfirm)) return <MemoryRulePermissionRequest key={key} {...props} />
   if (tool === GitTool) return <GitPermissionRequest key={key} {...props} />
   if (tool === ApolloReviewTool) return <ApolloReviewPermissionRequest key={key} {...props} />
   if (tool === SkillTool) return <SkillPermissionRequest key={key} {...props} />
