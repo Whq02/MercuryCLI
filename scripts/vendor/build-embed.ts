@@ -1,0 +1,260 @@
+#!/usr/bin/env bun
+import { createHash } from 'node:crypto'
+import { spawnSync } from 'node:child_process'
+import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { dirname, join, resolve } from 'node:path'
+import { voiceCargoTriple, voicePackPlatform } from '../../src/services/voice/voicePack.ts'
+import {
+  EMBED_ADDON_FILE,
+  EMBED_ENGINE_NAME,
+  EMBED_NATIVE_PATH,
+  EMBED_PACK_MANIFEST_FILE,
+  EMBED_PACK_NAME,
+  EMBED_PACK_PATH,
+  checkEmbedPackDir,
+  embedCpuFloorWords,
+  embedGpuFor,
+  embedPackDirFor,
+  embedPackTreeDigest,
+  embedSourceTreeDigest,
+  readEmbedPackManifest,
+  type EmbedPackCrate,
+  type EmbedPackManifest,
+} from '../../src/mneme/embedPack.ts'
+import { RELEASE_TARGETS, buildPlatformOf, isReleaseTarget } from '../../src/services/privateChannel/releaseTarget.ts'
+
+const ROOT = resolve(import.meta.dir, '..', '..')
+const NATIVE_DIR = join(ROOT, 'native', 'embed')
+const MANIFEST_PATH = join(NATIVE_DIR, 'Cargo.toml')
+const TARGET_DIR = join(NATIVE_DIR, 'target')
+
+const argv = process.argv.slice(2)
+const checkOnly = argv.includes('--check')
+const force = argv.includes('--force')
+
+function fail(msg: string): never {
+  console.error(`build-embed: ${msg}`)
+  process.exit(1)
+}
+
+const targetAt = argv.indexOf('--target')
+const TARGET_ARG = targetAt === -1 ? null : (argv[targetAt + 1] ?? '')
+if (TARGET_ARG !== null && !isReleaseTarget(TARGET_ARG)) fail(`--target wants one of ${RELEASE_TARGETS.join(', ')} (got ${TARGET_ARG || 'nothing'})`)
+const SHIP = TARGET_ARG === null ? { platform: process.platform, arch: process.arch } : buildPlatformOf(TARGET_ARG)
+const PLATFORM = voicePackPlatform(SHIP.platform, SHIP.arch)
+const CROSS = PLATFORM !== voicePackPlatform()
+const TRIPLE = voiceCargoTriple(PLATFORM)
+const OUT_DIR = embedPackDirFor(ROOT, PLATFORM)
+const DEGRADED = 'degraded: semantic-embedder'
+
+const sha256 = (b: Buffer | string): string => createHash('sha256').update(b).digest('hex')
+
+function cargoArtifactName(): string {
+  if (SHIP.platform === 'win32') return 'mercury_embed.dll'
+  if (SHIP.platform === 'darwin') return 'libmercury_embed.dylib'
+  return 'libmercury_embed.so'
+}
+
+function run(cmd: string, args: string[], opts: { capture?: boolean; env?: Record<string, string> } = {}): { status: number | null; stdout: string; stderr: string; error?: Error } {
+  const res = spawnSync(cmd, args, {
+    cwd: NATIVE_DIR,
+    env: { ...process.env, CARGO_TERM_COLOR: 'never', ...(opts.env ?? {}) },
+    encoding: 'utf8',
+    stdio: opts.capture ? ['ignore', 'pipe', 'pipe'] : ['ignore', 'inherit', 'inherit'],
+    maxBuffer: 64 * 1024 * 1024,
+  })
+  return { status: res.status, stdout: res.stdout ?? '', stderr: res.stderr ?? '', ...(res.error ? { error: res.error } : {}) }
+}
+
+function toolVersion(cmd: string, args: string[] = ['--version']): string | null {
+  const res = run(cmd, args, { capture: true })
+  if (res.error || res.status !== 0) return null
+  return res.stdout.trim().split('\n')[0] ?? ''
+}
+
+function packInvalidReason(): string | null {
+  const check = checkEmbedPackDir(OUT_DIR, { digest: true, platform: PLATFORM })
+  if (check.state !== 'ok') return check.note
+  const manifest = check.manifest
+  if (!existsSync(NATIVE_DIR)) return `${EMBED_NATIVE_PATH} is absent — nothing to compare the pack against`
+  const sourceDigest = embedSourceTreeDigest(NATIVE_DIR)
+  if (manifest.sourceTreeDigest !== sourceDigest) return `the pack was built from another source tree (${manifest.sourceTreeDigest.slice(0, 12)}…, sources now ${sourceDigest.slice(0, 12)}…)`
+  const tree = embedPackTreeDigest(OUT_DIR)
+  if (tree.fileCount !== manifest.fileCount) return `file count drifted: ${tree.fileCount} on disk vs ${manifest.fileCount} in the manifest`
+  if (tree.treeDigest !== manifest.treeDigest) return 'treeDigest mismatch (pack content drifted)'
+  if (!existsSync(join(OUT_DIR, 'NOTICES.json'))) return 'NOTICES.json missing'
+  for (const crate of manifest.crates) {
+    if (crate.name === EMBED_PACK_NAME.replace('-', '_')) continue
+    const stem = join(OUT_DIR, 'licenses', `${crate.name}-${crate.version}`)
+    if (!existsSync(stem) && !existsSync(`${stem}.txt`)) return `licence record missing for ${crate.name} ${crate.version}`
+  }
+  return null
+}
+
+interface CargoPackage {
+  id: string
+  name: string
+  version: string
+  license: string | null
+  license_file: string | null
+  manifest_path: string
+  repository: string | null
+}
+
+function graphCrates(): CargoPackage[] {
+  const host = run('rustc', ['-vV'], { capture: true })
+  const triple = CROSS ? (TRIPLE ?? undefined) : /host:\s*(\S+)/.exec(host.stdout)?.[1]
+  const args = ['metadata', '--format-version', '1', '--manifest-path', MANIFEST_PATH, ...(triple ? ['--filter-platform', triple] : [])]
+  const res = run('cargo', args, { capture: true })
+  if (res.status !== 0) fail(`cargo metadata failed: ${res.stderr.trim().slice(-400)}`)
+  const meta = JSON.parse(res.stdout) as { packages: CargoPackage[]; resolve: { nodes: Array<{ id: string }> } | null }
+  const resolved = new Set((meta.resolve?.nodes ?? []).map(n => n.id))
+  const byId = new Map(meta.packages.map(p => [p.id, p]))
+  const out: CargoPackage[] = []
+  for (const id of resolved) {
+    const pkg = byId.get(id)
+    if (pkg) out.push(pkg)
+  }
+  return out.sort((a, b) => a.name.localeCompare(b.name) || a.version.localeCompare(b.version))
+}
+
+const LICENSE_FILE = /^(LICENSE|LICENCE|COPYING|NOTICE)([-._].*)?$/i
+
+function stripCargoLockComments(): void {
+  const lockPath = join(NATIVE_DIR, 'Cargo.lock')
+  if (!existsSync(lockPath)) return
+  const raw = readFileSync(lockPath, 'utf8')
+  const cleaned = raw
+    .split('\n')
+    .filter(line => !line.trimStart().startsWith('#'))
+    .join('\n')
+    .replace(/^\n+/, '')
+  if (cleaned !== raw) writeFileSync(lockPath, cleaned)
+}
+
+function installPack(cargo: string): void {
+  stripCargoLockComments()
+  const artifact = join(TARGET_DIR, ...(CROSS && TRIPLE ? [TRIPLE] : []), 'release', cargoArtifactName())
+  if (!existsSync(artifact)) fail(`cargo reported success but ${artifact} is absent`)
+  const tmp = `${OUT_DIR}.tmp-${process.pid}`
+  rmSync(tmp, { recursive: true, force: true })
+  mkdirSync(join(tmp, 'licenses'), { recursive: true })
+  copyFileSync(artifact, join(tmp, EMBED_ADDON_FILE))
+  const graph = graphCrates()
+  const crates: EmbedPackCrate[] = []
+  const notices: Array<{ name: string; version: string; license: string; repository: string | null; licenseFiles: string[] }> = []
+  for (const pkg of graph) {
+    const own = pkg.name === 'mercury_embed'
+    const license = own ? 'Mercury (see LICENSE.md at the repository root)' : (pkg.license ?? (pkg.license_file ? `see ${pkg.license_file}` : 'UNKNOWN'))
+    crates.push({ name: pkg.name, version: pkg.version, license })
+    const files: string[] = []
+    if (!own) {
+      const crateDir = dirname(pkg.manifest_path)
+      const dest = join(tmp, 'licenses', `${pkg.name}-${pkg.version}`)
+      mkdirSync(dest, { recursive: true })
+      for (const name of readdirSync(crateDir)) {
+        if (!LICENSE_FILE.test(name)) continue
+        const full = join(crateDir, name)
+        if (!statSync(full).isFile()) continue
+        copyFileSync(full, join(dest, name))
+        files.push(name)
+      }
+      if (files.length === 0) {
+        rmSync(dest, { recursive: true, force: true })
+        writeFileSync(join(tmp, 'licenses', `${pkg.name}-${pkg.version}.txt`), `${pkg.name} ${pkg.version}: ${license} (no licence file in the crate; see ${pkg.repository ?? 'the crate registry'})\n`)
+      }
+    }
+    notices.push({ name: pkg.name, version: pkg.version, license, repository: pkg.repository, licenseFiles: files })
+  }
+  const engineRecord = { name: EMBED_ENGINE_NAME, version: '1.0.0', license: 'Mercury (in-tree GGUF BERT/Nomic-BERT encoder)' }
+  writeFileSync(join(tmp, 'NOTICES.json'), JSON.stringify({ pack: EMBED_PACK_NAME, platform: PLATFORM, engine: engineRecord, cpuFloor: embedCpuFloorWords(SHIP.arch), gpu: embedGpuFor(SHIP.platform, SHIP.arch), crates: notices }, null, 2) + '\n')
+  const crateVersion = /^version\s*=\s*"([^"]+)"/m.exec(readFileSync(MANIFEST_PATH, 'utf8'))?.[1] ?? '0.1.0'
+  const tree = embedPackTreeDigest(tmp)
+  const manifest: EmbedPackManifest = {
+    name: EMBED_PACK_NAME,
+    version: crateVersion,
+    platform: PLATFORM,
+    addon: EMBED_ADDON_FILE,
+    addonSha256: sha256(readFileSync(join(tmp, EMBED_ADDON_FILE))),
+    sourceTreeDigest: embedSourceTreeDigest(NATIVE_DIR),
+    cargo,
+    engine: { name: EMBED_ENGINE_NAME, version: '1.0.0' },
+    cpuFloor: embedCpuFloorWords(SHIP.arch),
+    gpu: embedGpuFor(SHIP.platform, SHIP.arch),
+    crates,
+    fileCount: tree.fileCount,
+    treeDigest: tree.treeDigest,
+  }
+  writeFileSync(join(tmp, EMBED_PACK_MANIFEST_FILE), JSON.stringify(manifest, null, 2) + '\n')
+  rmSync(OUT_DIR, { recursive: true, force: true })
+  mkdirSync(dirname(OUT_DIR), { recursive: true })
+  renameSync(tmp, OUT_DIR)
+  console.log(`build-embed: installed ${EMBED_ADDON_FILE} + ${crates.length} crate licences → ${EMBED_PACK_PATH}/${PLATFORM} (treeDigest ${manifest.treeDigest.slice(0, 12)}…)`)
+}
+
+function main(): void {
+  if (checkOnly) {
+    const invalid = packInvalidReason()
+    if (invalid === null) {
+      const manifest = readEmbedPackManifest(OUT_DIR)
+      console.log(`build-embed --check: OK — ${EMBED_PACK_NAME} ${manifest?.version ?? '?'} ${PLATFORM} pack valid against ${EMBED_NATIVE_PATH} (${EMBED_ENGINE_NAME} ${manifest?.engine.version ?? '?'})`)
+      process.exit(0)
+    }
+    console.error(`build-embed --check: STALE — ${PLATFORM}: ${invalid}`)
+    console.error('  remedy: bun run scripts/vendor/build-embed.ts (cargo build --release, then the pack install)')
+    process.exit(2)
+  }
+  if (!existsSync(MANIFEST_PATH)) fail(`${EMBED_NATIVE_PATH}/Cargo.toml is absent — nothing to build`)
+  stripCargoLockComments()
+  const invalid = packInvalidReason()
+  if (invalid === null && !force) {
+    console.log(`build-embed: pack already valid for ${PLATFORM} — nothing to do (--force rebuilds)`)
+    process.exit(0)
+  }
+  const dropStale = (): void => {
+    if (invalid !== null && existsSync(OUT_DIR)) {
+      rmSync(OUT_DIR, { recursive: true, force: true })
+      console.log(`build-embed: removed the stale pack at ${EMBED_PACK_PATH}/${PLATFORM} (${invalid}) — it cannot be rebuilt here`)
+    }
+  }
+  const cargo = toolVersion('cargo')
+  if (cargo === null) {
+    dropStale()
+    console.log(
+      `build-embed: SKIPPED — no cargo on PATH, so the on-device embedding pack is not built for ${PLATFORM}. ` +
+        `The build ships without it (${DEGRADED}) and memory runs word match only; install a Rust toolchain (https://rustup.rs) and re-run bun run scripts/vendor/build-embed.ts.`,
+    )
+    process.exit(0)
+  }
+  if (CROSS) {
+    if (TRIPLE === null) {
+      dropStale()
+      console.log(`build-embed: SKIPPED — no cargo target triple is known for ${PLATFORM}; the build ships without the on-device embedding pack (${DEGRADED}).`)
+      process.exit(0)
+    }
+    const installed = run('rustup', ['target', 'list', '--installed'], { capture: true })
+    const present = installed.status === 0 && installed.stdout.split('\n').map(l => l.trim()).includes(TRIPLE)
+    if (!present) {
+      dropStale()
+      console.log(
+        `build-embed: SKIPPED — the rustup target ${TRIPLE} is not installed on this machine, so the on-device embedding pack is not cross-compiled for ${PLATFORM}. ` +
+          `The build ships without it (${DEGRADED}); install it (rustup target add ${TRIPLE}) and re-run bun run scripts/vendor/build-embed.ts --target ${TARGET_ARG}.`,
+      )
+      process.exit(0)
+    }
+  }
+  if (invalid !== null && existsSync(OUT_DIR)) console.log(`build-embed: rebuilding — ${invalid}`)
+  console.log(`build-embed: ${cargo} — cargo build --release (${EMBED_NATIVE_PATH}, ${PLATFORM}${CROSS ? `, --target ${TRIPLE}` : ''})`)
+  const build = run('cargo', ['build', '--release', '--manifest-path', MANIFEST_PATH, '--target-dir', TARGET_DIR, ...(CROSS && TRIPLE ? ['--target', TRIPLE] : [])])
+  if (build.error) fail(`cargo could not be started: ${build.error.message}`)
+  if (build.status !== 0) {
+    fail(`cargo build failed (exit ${String(build.status)}) — the on-device embedding pack is not installed; the build ships without it (${DEGRADED}). Fix the reported error and re-run bun run scripts/vendor/build-embed.ts`)
+  }
+  installPack(cargo)
+  const post = packInvalidReason()
+  if (post !== null) fail(`post-install validation failed for ${PLATFORM}: ${post}`)
+  const size = statSync(join(OUT_DIR, EMBED_ADDON_FILE)).size
+  console.log(`build-embed: DONE — ${EMBED_PACK_NAME} ${PLATFORM} ready for the build (${size} bytes; bun run build.ts)`)
+}
+
+main()

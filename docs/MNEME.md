@@ -33,6 +33,21 @@ Mercury publishes the front page when the library or its pinned rules change.
 Between those changes the same page loads into each chat, preserving the
 provider's prompt cache.
 
+## Ranking by meaning
+
+Beside the word match, Recall ranks by meaning: a small embedding model runs
+in-process on this machine, so "the laptop's clock" finds "the notebook's time
+zone" with no word in common. The shipped model is a 118 MB BGE base encoder
+(MIT licence) that arrives with the install; nothing leaves the machine and no
+account or paid model call is involved. If your local Ollama server lists an
+embedding model, `/config`'s **Memory recall ranking** row picks it instead;
+the row also names which model serves. On an install stripped of the model,
+memory runs word match only and the front page says so in one line. A
+superseded fact's weight flows to its replacement, and a fact's history — what
+it superseded, the ruling it fell under, the session that made it — counts in
+the ranking. No model ever rewrites what you said: ranking only decides what
+to find first, and the pages stay the one truth.
+
 ## The four verbs
 
 The model works its memory through four tools:
