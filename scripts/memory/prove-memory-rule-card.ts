@@ -336,6 +336,18 @@ section('§10 the words: the Correct and Retain descriptions, prompts and field 
   check('no word still says the model is refused outright on a rule the user asked for', !CORRECT_PROMPT.includes('every op on it is refused') && !RETAIN_PROMPT.includes('is never replaced by you') && !retainSchema.includes('Refused for a rule marked asked for by the user') && !manual.includes('the model cannot correct, replace or'))
 }
 
+section('§11 the daemon-hosted cockpit gets the same card: the reason survives the wire and routes to the memory card with the words verbatim')
+{
+  const { encodeDecisionReasonForWire, decodeDecisionReasonFromWire } = await import('../../src/utils/permissions/decisionReasonWire.ts')
+  const { isMemoryRuleCard, memoryRuleCardText } = await import('../../src/components/permissions/MemoryRulePermissionRequest/MemoryRulePermissionRequest.tsx')
+  const card = `Correct asks to change a rule you asked Mercury to remember.\nseq 9: "${RULE_B}"\nIt will be unpinned and struck; its wording is kept in history.`
+  const decoded = decodeDecisionReasonFromWire(JSON.parse(JSON.stringify(encodeDecisionReasonForWire({ type: 'safetyCheck', reason: card, operatorOnly: true }))))
+  const relayed = { permissionResult: { behavior: 'ask', message: 'Correct asks to run', ...(decoded === undefined ? {} : { decisionReason: decoded }) }, description: 'Correct asks to run' }
+  check('the wire-encoded card reason decodes to the same operator-only reason', decoded?.type === 'safetyCheck' && decoded.reason === card && decoded.operatorOnly === true, j(decoded))
+  check('the relayed card routes to the memory card and paints the words verbatim', isMemoryRuleCard(relayed as never) && memoryRuleCardText(relayed as never) === card)
+  check('any other ask of Correct or Retain keeps the general card', !isMemoryRuleCard({ permissionResult: { behavior: 'ask', message: 'Using Correct requires approval', decisionReason: { type: 'other', reason: 'an ask rule' } } } as never))
+}
+
 console.log(`\nmemory rule card: ${checks} checks, ${failures} failed`)
 await releaseScratchHome(HOME)
 process.exit(failures === 0 ? 0 : 1)
