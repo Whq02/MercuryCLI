@@ -16,7 +16,15 @@ import { storeDeepseekApiKeyLogin } from '../services/providers/deepseek/deepsee
 import { storeXaiApiKeyLogin, storeXaiManagementKeyLogin, runXaiDeviceLogin, XAI_CONNECT_ROWS } from '../services/providers/xai/xaiLogin.js';
 import { resolveXaiApiKey } from '../services/providers/xai/xaiAccounts.js';
 import { XAI_MANAGEMENT_KEY_PAGE } from '../services/providers/xai/xaiUsageState.js';
-import { storeMetaApiKeyLogin, runMetaDeviceLogin, META_CONNECT_ROWS } from '../services/providers/meta/metaLogin.js';
+import {
+  activateMetaSource,
+  liveMetaConnectFacts,
+  metaConnectRowAction,
+  metaConnectRows,
+  runMetaDeviceLogin,
+  storeMetaApiKeyLogin,
+  type MetaConnectFacts,
+} from '../services/providers/meta/metaLogin.js';
 import { storeMistralApiKeyLogin, storeMistralAdminKeyLogin } from '../services/providers/mistral/mistralLogin.js';
 import { MISTRAL_ADMIN_KEY_PAGE } from '../services/providers/mistral/mistralUsageState.js';
 import { storeNousApiKeyLogin, runNousDeviceLogin, NOUS_CONNECT_ROWS } from '../services/providers/nous/nousLogin.js';
@@ -458,9 +466,14 @@ export function geminiPickOptions(facts: GeminiConnectFacts): Array<{ label: str
   return geminiConnectRows(facts);
 }
 
+export function metaPickOptions(facts: MetaConnectFacts): Array<{ label: string; value: string }> {
+  return metaConnectRows(facts);
+}
+
 export function loginsPickOptions(
   pick: LoginsPickId,
   geminiFacts?: GeminiConnectFacts,
+  metaFacts?: MetaConnectFacts,
 ): Array<{ label: string; value: string }> {
   switch (pick) {
     case 'xai':
@@ -468,7 +481,7 @@ export function loginsPickOptions(
     case 'nous':
       return NOUS_CONNECT_ROWS;
     case 'meta':
-      return [...META_CONNECT_ROWS];
+      return metaPickOptions(metaFacts ?? liveMetaConnectFacts());
     case 'openrouter':
       return [
         { label: 'Sign in with the browser — OAuth mints a scoped key', value: 'browser' },
@@ -1364,6 +1377,10 @@ export function BootLoginsScreen({ onClose, onSignedIn, family, fullScene, facts
         else startDeviceRun('nous');
         return;
       case 'meta':
+        if ((value === 'key' || value === 'device') && metaConnectRowAction(liveMetaConnectFacts(), value) === 'activate') {
+          setFlow({ kind: 'receipt', ...activateMetaSource(value === 'key' ? 'api-key' : 'muse-code') });
+          return;
+        }
         if (value === 'key') setFlow({ kind: 'key', leg: 'meta', note: null, storing: false });
         else startDeviceRun('meta');
         return;

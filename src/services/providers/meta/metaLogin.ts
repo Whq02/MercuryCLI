@@ -1,17 +1,22 @@
 import { errorMessageWithCause } from '../../../utils/errors.js'
+import { formatAge } from '../../../utils/healthCertCore.js'
 import { recordSignIn } from '../../../utils/accounts/signInLedger.js'
 import { writeStoredMetaApiKey } from '../../../utils/router/providerSecrets.js'
 import {
   metaApiBase,
   metaEnvKey,
+  metaMuseCodeFacts,
   pollMetaDeviceToken,
   requestMuseCodeKey,
+  resolveMetaAccount,
+  resolveMetaRawApiKey,
   startMetaDeviceAuth,
   writeMetaMuseCodeGrant,
   writePreferredMetaSource,
   type MetaDeviceAuthStart,
   type MetaMuseCodeGrant,
   type MetaOauthIo,
+  type MetaSourceKind,
   type MetaSubsUsageRecord,
 } from './metaAccounts.js'
 import { fetchMetaLiveModels, MetaCatalogueHttpError } from './metaCatalogue.js'
@@ -19,10 +24,131 @@ import { fetchMetaLiveModels, MetaCatalogueHttpError } from './metaCatalogue.js'
 export const META_MUSE_CODE_ROW = 'Sign in with Meta — a Muse Code subscription, a device code in your browser'
 export const META_KEY_ROW = 'API key — pay-as-you-go Model API key (stored locally, mode 600)'
 
-export const META_CONNECT_ROWS = [
-  { label: META_MUSE_CODE_ROW, value: 'device' as const },
-  { label: META_KEY_ROW, value: 'key' as const },
+export const META_KEY_RIDES = 'requests ride api.meta.ai/v1 under pay-as-you-go billing'
+export const META_MUSE_CODE_RIDES = "requests ride api.meta.ai/v1 with your Muse Code subscription's minted key"
+
+export type MetaConnectRowValue = 'device' | 'key'
+export type MetaConnectRowAction = 'activate' | 'enter'
+
+export interface MetaConnectFacts {
+  keySource?: 'env' | 'stored'
+  keyEnvName?: 'MODEL_API_KEY' | 'META_API_KEY'
+  museCodeConnected: boolean
+  museCodeTier?: string
+  museCodeEmail?: string
+  museCodeReadAtMs?: number
+  active?: MetaSourceKind
+}
+
+export const META_CONNECT_ROWS: Array<{ label: string; value: MetaConnectRowValue }> = [
+  { label: META_MUSE_CODE_ROW, value: 'device' },
+  { label: META_KEY_ROW, value: 'key' },
 ]
+
+function storedSourceCount(facts: MetaConnectFacts): number {
+  return (facts.museCodeConnected ? 1 : 0) + (facts.keySource !== undefined ? 1 : 0)
+}
+
+export function metaConnectRowAction(facts: MetaConnectFacts, value: MetaConnectRowValue): MetaConnectRowAction {
+  if (storedSourceCount(facts) < 2) return 'enter'
+  if (value === 'device') return facts.museCodeConnected && facts.active !== 'muse-code' ? 'activate' : 'enter'
+  return facts.keySource !== undefined && facts.active !== 'api-key' ? 'activate' : 'enter'
+}
+
+export function metaMuseCodeTierWordsWithAge(
+  facts: Pick<MetaConnectFacts, 'museCodeTier' | 'museCodeReadAtMs'>,
+  now: number = Date.now(),
+): string {
+  const tier = facts.museCodeTier ?? 'Muse Code'
+  return facts.museCodeReadAtMs !== undefined && facts.museCodeReadAtMs > 0
+    ? `${tier}, read ${formatAge(now - facts.museCodeReadAtMs)}`
+    : tier
+}
+
+export function metaMuseCodeRowLabel(facts: MetaConnectFacts, now: number = Date.now()): string {
+  if (!facts.museCodeConnected) return META_MUSE_CODE_ROW
+  const tier = metaMuseCodeTierWordsWithAge(facts, now)
+  return metaConnectRowAction(facts, 'device') === 'activate'
+    ? `Sign in with Meta — connected (${tier}), not active · ↵ makes it active`
+    : `Sign in with Meta — connected (${tier}) · ↵ signs in again`
+}
+
+export function metaConnectRows(
+  facts: MetaConnectFacts,
+  now: number = Date.now(),
+): Array<{ label: string; value: MetaConnectRowValue }> {
+  const envName = facts.keyEnvName ?? 'MODEL_API_KEY'
+  const keyRow =
+    facts.keySource === undefined
+      ? META_KEY_ROW
+      : metaConnectRowAction(facts, 'key') === 'activate'
+        ? facts.keySource === 'stored'
+          ? 'API key — stored, not active · ↵ makes it active'
+          : `API key — ${envName} in the environment, not active · ↵ makes it active`
+        : facts.keySource === 'stored'
+          ? 'API key — connected (stored locally) · ↵ pastes a replacement'
+          : `API key — connected (${envName} in the environment) · ↵ pastes a stored one`
+  return [
+    { label: metaMuseCodeRowLabel(facts, now), value: 'device' },
+    { label: keyRow, value: 'key' },
+  ]
+}
+
+export function liveMetaConnectFacts(env: NodeJS.ProcessEnv = process.env): MetaConnectFacts {
+  const rawKey = resolveMetaRawApiKey(env)
+  const muse = metaMuseCodeFacts()
+  const active = resolveMetaAccount(env)?.kind
+  const tier = muse?.tierName ?? muse?.tierId
+  return {
+    ...(rawKey ? { keySource: rawKey.source } : {}),
+    ...(rawKey?.envName ? { keyEnvName: rawKey.envName } : {}),
+    museCodeConnected: muse !== undefined,
+    ...(tier ? { museCodeTier: tier } : {}),
+    ...(muse?.email ? { museCodeEmail: muse.email } : {}),
+    ...(muse?.observedAtMs ? { museCodeReadAtMs: muse.observedAtMs } : {}),
+    ...(active !== undefined ? { active } : {}),
+  }
+}
+
+export function metaStoredSourcesNote(facts: MetaConnectFacts): string | undefined {
+  if (facts.active === undefined || !facts.museCodeConnected || facts.keySource === undefined) return undefined
+  const envName = facts.keyEnvName ?? 'MODEL_API_KEY'
+  const activeWords =
+    facts.active === 'muse-code'
+      ? 'the Muse Code sign-in'
+      : facts.keySource === 'env'
+        ? `the API key (${envName})`
+        : 'the API key'
+  const otherWords = facts.active === 'muse-code' ? 'an API key' : 'the Muse Code sign-in'
+  return `Active source: ${activeWords} · ${otherWords} is also stored — ↵ on its /logins meta row makes it active`
+}
+
+export function metaSourceRides(kind: MetaSourceKind): string {
+  return kind === 'api-key' ? META_KEY_RIDES : META_MUSE_CODE_RIDES
+}
+
+function otherSourceTail(active: MetaSourceKind, env: NodeJS.ProcessEnv = process.env): string {
+  const facts = liveMetaConnectFacts(env)
+  if (active === 'api-key' && facts.museCodeConnected) {
+    return ' The Muse Code sign-in stays stored — ↵ on its /logins row makes it active.'
+  }
+  if (active === 'muse-code' && facts.keySource !== undefined) {
+    return ' An API key is also stored — ↵ on its /logins row makes it active.'
+  }
+  return ''
+}
+
+export function activateMetaSource(
+  kind: MetaSourceKind,
+  env: NodeJS.ProcessEnv = process.env,
+): { ok: true; receipt: string } {
+  writePreferredMetaSource(kind)
+  const named = kind === 'api-key' ? 'the API key' : 'the Muse Code sign-in'
+  return {
+    ok: true,
+    receipt: `Meta: ${named} is now the active source — ${metaSourceRides(kind)}.${otherSourceTail(kind, env)}`,
+  }
+}
 
 export const META_CONNECT_STOPPED_RECEIPT =
   'Meta sign-in cancelled — if the approval was already in flight it still lands; /accounts shows and removes it.'
@@ -79,6 +205,7 @@ export async function runMetaDeviceLogin(args: MetaDeviceLoginArgs = {}): Promis
   const { io, onEvent } = args
   const sleep = args.sleep ?? defaultSleep
   const cancelled = args.cancelled ?? (() => false)
+  const env = io?.env ?? process.env
   const now = (): number => io?.now?.() ?? Date.now()
   onEvent?.({ phase: 'starting' })
   let start: MetaDeviceAuthStart
@@ -222,7 +349,7 @@ export async function runMetaDeviceLogin(args: MetaDeviceLoginArgs = {}): Promis
     return {
       ok: true,
       grant,
-      receipt: `Meta connected: Muse Code sign-in${who} (${tierWords}) · stored auth-scoped (mode 600)${usageClause}. Requests ride api.meta.ai/v1 with the minted key; the Muse Spark rows join /model; /usage shows the plan windows; /accounts manages the sign-in.`,
+      receipt: `Meta connected: Muse Code sign-in${who} (${tierWords}) — the active source, ${META_MUSE_CODE_RIDES} · stored auth-scoped (mode 600)${usageClause}. The Muse Spark rows join /model; /usage shows the plan windows; /accounts manages the sign-in.${otherSourceTail('muse-code', env)}`,
     }
   }
 }
@@ -256,5 +383,5 @@ export async function storeMetaApiKeyLogin(key: string, io?: { fetchImpl?: typeo
   }
   const ambient = metaEnvKey(env)
   const shadow = ambient ? ` NOTE: ${ambient.name} is set and wins over this stored key.` : ''
-  return { ok: true, stored: true, receipt: `Meta API key stored (auth-scoped, mode 600) · ${note}. Requests use pay-as-you-go billing; Muse Code subscriptions are for Muse Code only.${shadow}` }
+  return { ok: true, stored: true, receipt: `Meta API key stored (auth-scoped, mode 600) — the active source, ${META_KEY_RIDES} · ${note}. Requests use pay-as-you-go billing.${otherSourceTail('api-key', env)}${shadow}` }
 }
