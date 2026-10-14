@@ -66,6 +66,11 @@ function schemaGrammarViolations(schema: unknown, path: string, out: string[]): 
   }
 }
 const draft2020 = new Ajv2020({ strict: true, allErrors: true, validateFormats: false })
+function carriesAnyOf(schema: unknown): boolean {
+  if (Array.isArray(schema)) return schema.some(carriesAnyOf)
+  if (typeof schema !== 'object' || schema === null) return false
+  return Object.entries(schema as Record<string, unknown>).some(([key, value]) => key === 'anyOf' || (key === 'properties' && typeof value === 'object' && value !== null ? Object.values(value as Record<string, unknown>).some(carriesAnyOf) : carriesAnyOf(value)))
+}
 function anthropicSchemaRefusal(body: Record<string, unknown> | undefined): string | undefined {
   const tools = (body?.request as Record<string, unknown> | undefined)?.tools
   if (!Array.isArray(tools)) return undefined
@@ -74,11 +79,16 @@ function anthropicSchemaRefusal(body: Record<string, unknown> | undefined): stri
     const declarations = (tool as Record<string, unknown>).functionDeclarations
     if (!Array.isArray(declarations)) continue
     for (const declaration of declarations) {
-      try {
-        draft2020.compile(((declaration as Record<string, unknown>).parameters ?? {}) as object)
-      } catch {
-        return JSON.stringify({ type: 'error', error: { type: 'invalid_request_error', message: `tools.${index}.custom.input_schema: JSON schema is invalid. It must match JSON Schema draft 2020-12 (https://json-schema.org/draft/2020-12). Learn more about tool use at https://platform.claude.com/docs/en/agents-and-tools/tool-use/overview.` }, request_id: 'req_vrtx_fixture' })
+      const parameters = ((declaration as Record<string, unknown>).parameters ?? {}) as object
+      let invalid = carriesAnyOf(parameters)
+      if (!invalid) {
+        try {
+          draft2020.compile(parameters)
+        } catch {
+          invalid = true
+        }
       }
+      if (invalid) return JSON.stringify({ type: 'error', error: { type: 'invalid_request_error', message: `tools.${index}.custom.input_schema: JSON schema is invalid. It must match JSON Schema draft 2020-12 (https://json-schema.org/draft/2020-12). Learn more about tool use at https://platform.claude.com/docs/en/agents-and-tools/tool-use/overview.` }, request_id: 'req_vrtx_fixture' })
       index += 1
     }
   }
@@ -402,7 +412,11 @@ try {
 
   console.log('── the schema law per row: a Claude or GPT-OSS row on Code Assist takes the subset Google\'s own client sends for it, validated as draft 2020-12 behind Code Assist ──')
   const { CODE_ASSIST_SUBSET_GRAMMAR, codeAssistGrammarFor } = await import('../../src/services/providers/gemini/geminiCodec.ts')
-  check('the grammar is chosen by the wire id: a gemini-* id takes Google\'s Schema grammar, any other vendor\'s id the Code Assist subset (type, title, description, enum, items, properties, required, anyOf, oneOf, default)', codeAssistGrammarFor('gemini-4-argon') === GEMINI_SCHEMA_GRAMMAR && codeAssistGrammarFor('claude-opus-4-6-thinking') === CODE_ASSIST_SUBSET_GRAMMAR && codeAssistGrammarFor('gpt-oss-120b-medium') === CODE_ASSIST_SUBSET_GRAMMAR && [...CODE_ASSIST_SUBSET_GRAMMAR].join(',') === 'type,title,description,enum,items,properties,required,anyOf,oneOf,default')
+  check('the grammar is chosen by the wire id: a gemini-* id takes Google\'s Schema grammar, any other vendor\'s id the Code Assist subset (type, title, description, enum, items, properties, required, oneOf, default — anyOf is spelled oneOf, the shape the Anthropic side behind Code Assist accepts)', codeAssistGrammarFor('gemini-4-argon') === GEMINI_SCHEMA_GRAMMAR && codeAssistGrammarFor('claude-opus-4-6-thinking') === CODE_ASSIST_SUBSET_GRAMMAR && codeAssistGrammarFor('gpt-oss-120b-medium') === CODE_ASSIST_SUBSET_GRAMMAR && [...CODE_ASSIST_SUBSET_GRAMMAR].join(',') === 'type,title,description,enum,items,properties,required,oneOf,default')
+  const captured = { type: 'object', properties: { readiness: { type: 'array', items: { anyOf: [{ type: 'object', properties: { kind: { type: 'string', enum: ['log'] }, regex: { type: 'string' } }, required: ['kind', 'regex'] }, { type: 'object', properties: { kind: { type: 'string', enum: ['tcp'] }, port: { type: 'integer' } }, required: ['kind', 'port'] }] } } } }
+  const capturedRefusal = anthropicSchemaRefusal({ request: { tools: [{ functionDeclarations: [{ name: 'Probe', parameters: captured }] }] } })
+  const spelled = codeAssistSchema(captured, CODE_ASSIST_SUBSET_GRAMMAR) as { properties: { readiness: { items: Record<string, unknown> } } }
+  check('the captured shape (Service\'s readiness.items.anyOf, refused live on 2026-10-14 as tools.22 — req_vrtx_011Cg1TSS1U4jLBEkGqRYfMF, and alone as tools.0 with and without a type — req_vrtx_011Cg1TZn2SWD3bLPo…, …TZoXy1Fx9Woa…) is refused by the fixture as Anthropic refused it, and the reducer spells it oneOf — the shape accepted live (items.oneOf and the merged object both HTTP 200)', capturedRefusal !== undefined && capturedRefusal.includes('tools.0.custom.input_schema') && spelled.properties.readiness.items.anyOf === undefined && Array.isArray(spelled.properties.readiness.items.oneOf) && (spelled.properties.readiness.items.oneOf as unknown[]).length === 2 && anthropicSchemaRefusal({ request: { tools: [{ functionDeclarations: [{ name: 'Probe', parameters: spelled }] }] } }) === undefined, JSON.stringify({ capturedRefusal: capturedRefusal?.slice(0, 80), spelled }))
   const corpusToolsForRoad = corpus.definitions.map(d => ({ name: d.name, prompt: async () => d.description, inputSchema: undefined, inputJSONSchema: d.input_schema }))
   const claudeCorpusReplies = await driveRoad('google/claude-opus-4-6-thinking', corpusToolsForRoad)
   const claudeCorpusHit = requests.filter(r => r.host === 'assist' && r.path === '/v1internal:streamGenerateContent?alt=sse').at(-1)
@@ -419,7 +433,7 @@ try {
   }
   claudeDeclarations.forEach(d => collectKeys(d.parameters))
   check(`the real definitions ride to a Claude row (${claudeDeclarations.length} of 59 — the road's own assembly keeps ToolSearch for itself) and both gates accept them — the proto grammar and the draft-2020-12 validation behind Code Assist; the answer lands`, claudeCorpusHit?.body?.model === 'claude-opus-4-6-thinking' && claudeDeclarations.length >= 58 && corpus.definitions.filter(d => !claudeDeclarations.some(sent => sent.name === d.name)).every(d => d.name === 'ToolSearch') && anthropicSchemaRefusal(claudeCorpusHit.body) === undefined && claudeCorpusReplies.some(m => m.type === 'assistant' && !(m as { isApiErrorMessage?: boolean }).isApiErrorMessage) && !claudeCorpusReplies.some(m => (m as { isApiErrorMessage?: boolean }).isApiErrorMessage), JSON.stringify({ model: claudeCorpusHit?.body?.model, declarations: claudeDeclarations.length, missing: corpus.definitions.filter(d => !claudeDeclarations.some(sent => sent.name === d.name)).map(d => d.name), refusal: anthropicSchemaRefusal(claudeCorpusHit?.body)?.slice(0, 200), replies: claudeCorpusReplies.map(m => [m.type, (m as { isApiErrorMessage?: boolean }).isApiErrorMessage, String(JSON.stringify((m as { message?: unknown }).message ?? m)).slice(0, 160)]) }))
-  check('on the Claude row every declaration stays inside the subset: no minimum/maximum/minItems/maxItems/minLength/maxLength/pattern/format/additionalProperties/nullable/example on the wire', [...claudeKeys].every(key => CODE_ASSIST_SUBSET_GRAMMAR.has(key)), [...claudeKeys].filter(key => !CODE_ASSIST_SUBSET_GRAMMAR.has(key)).join(','))
+  check('on the Claude row every declaration stays inside the subset: no anyOf, no minimum/maximum/minItems/maxItems/minLength/maxLength/pattern/format/additionalProperties/nullable/example on the wire; Service\'s readiness rides as items.oneOf', [...claudeKeys].every(key => CODE_ASSIST_SUBSET_GRAMMAR.has(key)) && !claudeKeys.has('anyOf') && Array.isArray((((claudeDeclarations.find(d => d.name === 'Service')?.parameters as Record<string, unknown>)?.properties as Record<string, Record<string, Record<string, unknown>>>)?.readiness?.items as Record<string, unknown>)?.oneOf), [...claudeKeys].filter(key => !CODE_ASSIST_SUBSET_GRAMMAR.has(key)).join(','))
   const askSent = claudeDeclarations.find(d => d.name === 'AskUserQuestion')
   const askRaw = corpus.definitions.find(d => d.name === 'AskUserQuestion')!.input_schema as { properties: { questions: { minItems: number; maxItems: number; description?: string } } }
   const askQuestions = ((askSent?.parameters as Record<string, unknown>)?.properties as Record<string, Record<string, unknown>>)?.questions
