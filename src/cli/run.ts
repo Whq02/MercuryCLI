@@ -164,7 +164,7 @@ import { SandboxManager } from '../utils/sandbox/sandbox-adapter.js'
 import { GLYPH } from '../components/mercury-ui/glyphs.js'
 import { isBuiltInAgent } from '../tools/AgentTool/loadAgentsDir.js'
 import { gracefulShutdown, gracefulShutdownSync, isShuttingDown, markRunModeSignalsOwned } from '../utils/gracefulShutdown.js'
-import { leaveNoteBeforeExit } from '../mneme/exitHandoff.js'
+import { exitNoteCharsKept, leaveNoteBeforeExit } from '../mneme/exitHandoff.js'
 import { HANDOFF_ASK_BUDGET_MS } from '../mneme/handoffAsk.js'
 import { closeLineageSession, lineageKept } from '../mneme/lineageSession.js'
 import { saveCurrentSessionCosts } from '../cost-tracker.js'
@@ -2057,7 +2057,8 @@ export async function runHeadless(
       try {
         const note = await leaveNoteBeforeExit({ budgetMs: HANDOFF_ASK_BUDGET_MS, signal: controller.signal, onNotice: text => io.outbound.enqueue(noticeRow(liveScope(), 'warning', text)) })
         const closed = await closeLineageSession('quit')
-        return { note, ledger: closed !== null && lineageKept() ? 'closed' : 'absent' }
+        const kept = note === 'stored' ? exitNoteCharsKept() : null
+        return { note, ledger: closed !== null && lineageKept() ? 'closed' : 'absent', ...(kept === null ? {} : { noteChars: kept }) }
       } finally {
         signal.removeEventListener('abort', onCancel)
         if (leaveAbort === controller) leaveAbort = null

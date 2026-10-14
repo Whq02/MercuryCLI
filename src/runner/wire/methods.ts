@@ -266,7 +266,7 @@ export const METHODS = {
     from: 'host',
     kind: 'request',
     params: empty,
-    result: lazySchema(() => z.object({ note: z.enum(['stored', 'skipped', 'none']), ledger: z.enum(['closed', 'absent']) })),
+    result: lazySchema(() => z.object({ note: z.enum(['stored', 'skipped', 'none']), ledger: z.enum(['closed', 'absent']), noteChars: z.number().int().min(0).optional() })),
     scope: 'none',
     deadlineMs: null,
   }),
