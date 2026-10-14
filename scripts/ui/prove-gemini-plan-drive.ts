@@ -194,7 +194,7 @@ try {
     const landed = marks.get('landed') ?? ''
     check(`${id}: the sign-in layer opened on the Gemini family`, landed.includes('LOGINS') && landed.includes(`❯ ${GEMINI_ROW}`), excerpt(landed))
     const card = marks.get('card') ?? ''
-    check(`${id}: the Gemini card offers Sign in with Google first, the key second, the own client third`, card.includes(PLAN_ROW.slice(0, 40)) && card.indexOf('Sign in with Google') < card.indexOf('API key — the easiest') && card.includes('Google account — six steps'), excerpt(card))
+    check(`${id}: the Gemini card offers Sign in with Google first, the key second, the own client third`, card.includes(PLAN_ROW.slice(0, 40)) && card.indexOf('Sign in with Google') >= 0 && card.indexOf('Sign in with Google') < card.indexOf('API key — the easiest') && card.includes('Google account — six steps'), excerpt(card))
     const wait = rightPane(marks.get('wait') ?? '')
     check(`${id}: the browser wait says what Sign in with Google is and where the page opened`, wait.includes("Sign in with Google: Google's sign-in page opens in your browser") && wait.includes("Google's own Antigravity client") && wait.includes('If nothing opened, visit:'), excerpt(marks.get('wait') ?? ''))
     const exchange = hits.find(h => h.url === '/token')

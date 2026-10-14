@@ -223,7 +223,7 @@ for (const s of sizes) {
     if (family === 'gemini') {
       const words = board.m.lines().map(line => line.split('│').slice(1, -1).join(' ')).join(' ').replace(/\s+/g, ' ')
       const note = compact ? "Google sign-in: your plan's quota; a key: a Cloud project." : "Sign in with Google runs Gemini on your plan's quota through Google's own Antigravity client (free, AI Pro or AI Ultra). An API key or your own OAuth client bills a Cloud project instead."
-      check(`Gemini ${s.columns}x${s.rows}: the title, the three choices in the card's order and the per-screen note are on screen together`, words.includes('Connect Google Gemini') && words.indexOf('Sign in with Google — your plan') < words.indexOf('API key — the easiest') && words.indexOf('API key — the easiest') < words.indexOf('Google account — six steps') && words.includes(note), board.m.screen())
+      check(`Gemini ${s.columns}x${s.rows}: the title, the three choices in the card's order and the per-screen note are on screen together`, words.includes('Connect Google Gemini') && words.indexOf('Sign in with Google — your plan') >= 0 && words.indexOf('Sign in with Google — your plan') < words.indexOf('API key — the easiest') && words.indexOf('API key — the easiest') >= 0 && words.indexOf('API key — the easiest') < words.indexOf('Google account — six steps') && words.includes(note), board.m.screen())
       if (compact) check('Gemini compact: exactly the title, one note and the three single-line choices', rowsVisible(board.m, s) === 5 && bodyRows(board.m, s).filter(line => line.includes('a key: a Cloud project.')).length === 1, bodyRows(board.m, s).join(' | '))
     }
     if (arm) await key(board.m, arm)
