@@ -604,12 +604,39 @@ come from its owning account resolvers:
   keeps its bare spelling; a model of another vendor on the roster (Claude,
   GPT-OSS, …) is offered as `google/<id>` — Google's own id behind the
   prefix — so it rides this Google sign-in and never shadows that vendor's
-  own lane (`/model claude-…` stays the Anthropic lane). A Claude row on
+  own lane (`/model claude-…` stays the Anthropic lane). A roster row whose
+  id ends in `-disabled` is a model Antigravity withholds from the plan:
+  Google's own plan table (antigravity.google/docs/models, read
+  2026-10-14) lists Gemini 4 Argon as not available on Free, Google AI Plus
+  and Google AI Pro and available on Google AI Ultra and Enterprise, a
+  Google AI Pro roster served `gemini-4-argon-disabled` ("Gemini 4 Argon",
+  no quota) and no other Argon row, and that id sent verbatim under the
+  current client version (2.23.0, the newest the update manifest publishes)
+  answered 404 "Requested entity was not found." — the gate is the plan,
+  not the client's version or metadata, and the public Antigravity client
+  carries no unlock. Such a row is listed under the Google sign-in with its
+  state — "withheld from Google AI Pro today — Google's roster names it …
+  and answers 404 to the id; antigravity.google/docs/models says which plans
+  include it; not offered as runnable" — and is not selectable; a bare id
+  with no served row answers Google's 404, and the refusal names the
+  roster's kin: the `-disabled` row with that state, or the effort siblings
+  Google serves instead (`…-low`, `…-medium`, `…-high` — `/model` picks
+  one). A Claude row on
   this road takes the request shape Google's own client sends it: thinking
   as a token budget (low 1024, medium 8192, high 24576, thoughts included),
   function calling VALIDATED even with no tools, an output ceiling of at
   most 64000 tokens, Google's signed parts replayed as sent and no
-  signature placeholder (that placeholder is Gemini 3's own contract). A
+  signature placeholder (that placeholder is Gemini 3's own contract). The
+  tool schemas are reduced per row to what the endpoint accepts: a Gemini
+  row gets Google's Schema grammar (`const` becomes a one-member enum, an
+  exclusive bound becomes words in the description, keywords outside the
+  grammar drop); a row of another vendor (Claude, GPT-OSS) gets the smaller
+  subset Google's own client sends for it — type, title, description, enum,
+  items, properties, required, anyOf, oneOf, default — with every bound
+  (minimum, maximum, item and length counts, pattern, format) carried as
+  words in the description, because the Anthropic side behind Code Assist
+  validates the schema as JSON Schema draft 2020-12 after Google's own
+  conversion and refused the fuller grammar live. A
   model the roster names but Google does not serve answers 404 in Google's
   words. A chat goes to that endpoint's `streamGenerateContent` under
   Antigravity's own User-Agent (`antigravity/hub/<version> …`), whose version

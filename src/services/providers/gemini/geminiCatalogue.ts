@@ -9,6 +9,7 @@ import { catalogueTrafficVerdict, connectToBrowseReason } from '../catalogueGate
 import { declaredRouteOf } from '../routeLaw.js'
 import { logForDebugging } from '../../../utils/debug.js'
 import {
+  geminiPlanFacts,
   geminiSourceIdentity,
   maskGeminiSecrets,
   resolveGeminiAccount,
@@ -16,7 +17,7 @@ import {
   type GeminiAccountRef,
   type GeminiSourceKind,
 } from './geminiAccounts.js'
-import { fetchGeminiPlanRoster, GeminiPlanHttpError, type GeminiPlanRoster } from './geminiPlanAccess.js'
+import { fetchGeminiPlanRoster, GeminiPlanHttpError, geminiPlanTierWords, type GeminiPlanRoster } from './geminiPlanAccess.js'
 
 const CATALOGUE_FETCH_TIMEOUT_MS = 15_000
 
@@ -33,7 +34,21 @@ export interface GeminiLiveModel {
   supportedGenerationMethods?: readonly string[]
   thinking?: boolean
   images?: boolean
+  disabled?: true
   quota?: { remainingFraction?: number; resetTime?: string }
+}
+
+export const GEMINI_PLAN_DISABLED_SUFFIX = '-disabled'
+export const ANTIGRAVITY_PLAN_TABLE = 'antigravity.google/docs/models'
+
+export function geminiPlanTierInView(): string {
+  const tier = geminiPlanFacts()?.tier
+  const words = geminiPlanTierWords(tier)
+  return words === 'free' ? 'the free plan' : words
+}
+
+export function geminiPlanDisabledWords(model: Pick<GeminiLiveModel, 'id' | 'displayName'>, tier: string = geminiPlanTierInView()): string {
+  return `withheld from ${tier} today — Google's roster names it ${model.id}${model.displayName ? ` (${model.displayName})` : ''} and answers 404 to the id; ${ANTIGRAVITY_PLAN_TABLE} says which plans include it; not offered as runnable`
 }
 
 export const GEMINI_PLAN_ROSTER_PREFIX = 'google/'
@@ -52,6 +67,7 @@ export function geminiPlanRosterModels(roster: Pick<GeminiPlanRoster, 'models' |
     supportedGenerationMethods: images.has(model.id) ? ['generateImages'] : ['generateContent'],
     ...(model.supportsThinking !== undefined ? { thinking: model.supportsThinking } : {}),
     images: model.supportsImages === true,
+    ...(model.id.endsWith(GEMINI_PLAN_DISABLED_SUFFIX) ? { disabled: true as const } : {}),
     ...(model.quota !== undefined ? { quota: model.quota } : {}),
   }))
 }
@@ -344,7 +360,34 @@ export function geminiMakesNoChat(model: Pick<GeminiLiveModel, 'id' | 'displayNa
 
 export function geminiGenerateModels(snapshot: GeminiCatalogueSnapshot | null): GeminiLiveModel[] {
   if (!snapshot) return []
-  return snapshot.models.filter(m => m.supportedGenerationMethods?.includes('generateContent') && !/^(?:antigravity|deep-research)(?:-|$)/i.test(m.id) && !geminiMakesNoChat(m))
+  return snapshot.models.filter(m => m.supportedGenerationMethods?.includes('generateContent') && m.disabled !== true && !/^(?:antigravity|deep-research)(?:-|$)/i.test(m.id) && !geminiMakesNoChat(m))
+}
+
+export function geminiDisabledRosterModels(snapshot: GeminiCatalogueSnapshot | null): GeminiLiveModel[] {
+  if (!snapshot) return []
+  return snapshot.models.filter(m => m.disabled === true && m.supportedGenerationMethods?.includes('generateContent'))
+}
+
+export interface GeminiPlanRosterKin {
+  disabled: GeminiLiveModel[]
+  siblings: GeminiLiveModel[]
+}
+
+export function geminiPlanRosterKin(model: string, env: NodeJS.ProcessEnv = process.env): GeminiPlanRosterKin {
+  const snapshot = getCachedGeminiCatalogue('plan', env)
+  const wanted = model.trim().replace(/\[[^\]]*\]/g, '').toLowerCase()
+  const bare = wanted.startsWith(GEMINI_PLAN_ROSTER_PREFIX) ? wanted.slice(GEMINI_PLAN_ROSTER_PREFIX.length) : wanted
+  return {
+    disabled: geminiDisabledRosterModels(snapshot).filter(m => m.id.toLowerCase() === `${bare}${GEMINI_PLAN_DISABLED_SUFFIX}` || m.id.toLowerCase() === wanted),
+    siblings: geminiGenerateModels(snapshot).filter(m => m.id.toLowerCase().startsWith(`${bare}-`) || m.id.toLowerCase().startsWith(`${GEMINI_PLAN_ROSTER_PREFIX}${bare}-`)),
+  }
+}
+
+export function geminiPlanRosterKinWords(kin: GeminiPlanRosterKin, tier: string = geminiPlanTierInView()): string {
+  const parts: string[] = []
+  for (const row of kin.disabled) parts.push(`the roster names ${row.id}${row.displayName ? ` (${row.displayName})` : ''}: withheld from ${tier} today, ${ANTIGRAVITY_PLAN_TABLE} says which plans include it`)
+  if (kin.siblings.length > 0) parts.push(`the roster names ${kin.siblings.map(m => m.id).join(', ')} — /model picks one`)
+  return parts.length === 0 ? '' : ` · ${parts.join(' · ')}`
 }
 
 const EMPTY_LIVE_IDS: ReadonlySet<string> = new Set<string>()
@@ -489,7 +532,16 @@ export function getGeminiModelOptions(env: NodeJS.ProcessEnv = process.env): Mod
   const wireReady = geminiDispatchReady()
   const pendingReason = 'dispatch wire pending — the provider-wire fold routes Gemini turns'
   const snapshot = getCachedGeminiCatalogue(availability.sourceKind, env)
-  return geminiGenerateModels(snapshot).map(model => {
+  const disabledRows: ModelOption[] = geminiDisabledRosterModels(snapshot).map(model => ({
+    value: model.id,
+    label: model.displayName ?? model.id,
+    description: '',
+    descriptionForModel: `${model.displayName ?? model.id} (${model.id}) — ${geminiPlanDisabledWords(model)}.`,
+    group: GEMINI_MODEL_GROUP,
+    unavailable: geminiPlanDisabledWords(model),
+    ...(model.inputTokenLimit !== undefined ? { statedContextWindow: model.inputTokenLimit } : {}),
+  }))
+  return [...geminiGenerateModels(snapshot).map(model => {
     const routed = declaredRouteOf(model.id) === 'gemini'
     const unroutableReason = `outside the routable gemini-* id space — selecting it would misroute; not selectable`
     return {
@@ -501,7 +553,7 @@ export function getGeminiModelOptions(env: NodeJS.ProcessEnv = process.env): Mod
       ...(wireReady && routed ? {} : { unavailable: routed ? pendingReason : unroutableReason }),
       ...(model.inputTokenLimit !== undefined ? { statedContextWindow: model.inputTokenLimit } : {}),
     }
-  })
+  }), ...disabledRows]
 }
 
 export function __resetGeminiCatalogueForTest(): void {
