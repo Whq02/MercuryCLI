@@ -8,7 +8,7 @@ import { getAgentContext } from '../utils/agentContext.js'
 import { logForDebugging } from '../utils/debug.js'
 import { pendingRows } from './mnemeBuffer.js'
 import { USER_ASKED_RULE_ROAD } from './mnemeCorrect.js'
-import { listTopicDocs } from './mnemeLibrary.js'
+import { listArchiveDocs, listTopicDocs } from './mnemeLibrary.js'
 import { POLARITY_PAIRS, POLARITY_WORDS, flippedPolarity, polaritySides, type PolaritySides } from './mnemePolarity.js'
 import { clausesOf, containment, contentStems, firstWords, isNumberWord, jaccard, normalisedText, sentencesOf, wordsOf } from './mnemeText.js'
 import { readPins } from './mnemeUsage.js'
@@ -173,7 +173,7 @@ export function contradictionBetween(candidate: string, existing: string): { ove
 export function recordEntries(dir: string): RecordEntry[] {
   const pins = new Map(readPins(dir).map(pin => [pin.seq, pin]))
   const out: RecordEntry[] = []
-  for (const doc of listTopicDocs(dir)) {
+  for (const doc of [...listTopicDocs(dir), ...listArchiveDocs(dir)]) {
     for (const section of doc.sections) {
       for (const entry of section.entries) {
         const pin = pins.get(entry.seq)
