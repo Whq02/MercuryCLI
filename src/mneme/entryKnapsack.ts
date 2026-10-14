@@ -9,7 +9,7 @@ import { mnemeEnabled, mnemeLibraryDir } from './mnemeGates.js'
 import { scoreCandidates, type LookupCandidate } from './mnemeLookup.js'
 import { docFileName, serializeSignature, type MnemeEntry, type MnemeTopicDoc } from './mnemeTopicDocs.js'
 import { readPins, readUsage, startTextLimit, usageOf, type UsageRecord } from './mnemeUsage.js'
-import { factMemoryState } from './memoryRefs.js'
+import { factMemoryState, memoryStatusWords } from './memoryRefs.js'
 import { lineagePath } from './paths.js'
 import type { LedgerEntry } from './types.js'
 
@@ -206,13 +206,22 @@ export interface StartPage {
   state: ProjectState
 }
 
-export function composeStartPage(input: { dir: string; projectKey: string; state: ProjectState; previous: readonly LedgerEntry[]; limit: number; now: number; root: string | null; stale?: (candidate: StartCandidate) => boolean }): StartPage {
+export function staleMark(confirmedAt: string | undefined): string {
+  return ` [${memoryStatusWords({ status: 'stale', confirmedAt })}]`
+}
+
+export function markStale(candidate: StartCandidate, confirmedAt: string | undefined): StartCandidate {
+  const mark = staleMark(confirmedAt)
+  return { ...candidate, stale: true, block: `${candidate.block}${mark}`, chars: candidate.chars + mark.length }
+}
+
+export function composeStartPage(input: { dir: string; projectKey: string; state: ProjectState; previous: readonly LedgerEntry[]; limit: number; now: number; root: string | null; stale?: (candidate: StartCandidate) => boolean; confirmedAt?: (candidate: StartCandidate) => string | undefined }): StartPage {
   const topics = listTopicDocs(input.dir)
   const archives = listArchiveDocs(input.dir)
   const pinned = pinnedNow(input.dir, topics)
   const facts = libraryCandidates(input.dir, pinned.excluded, { topics, archives })
   const notes = earlierNotes(input.previous, input.projectKey)
-  const candidates = [...facts, ...notes].map(candidate => (input.stale?.(candidate) ? { ...candidate, stale: true } : candidate))
+  const candidates = [...facts, ...notes].map(candidate => (input.stale?.(candidate) ? markStale(candidate, input.confirmedAt?.(candidate)) : candidate))
   const choice = chooseAtStart({ candidates, chunks: stateQuery(input.state, input.root), limit: input.limit, pinnedChars: pinned.chars, now: input.now })
   const status: MemoryAtStartStatus = {
     limit: input.limit,
@@ -236,7 +245,16 @@ export async function composeMemoryAtStart(input: { projectKey: string; sessionI
     const state = await readProjectState({ projectKey: input.projectKey, sessionId: input.sessionId, root: input.root, now, ledger: previous })
     const pins = readPins(dir)
     const usage = readUsage(dir)
-    const page = composeStartPage({ dir, projectKey: input.projectKey, state, previous, limit: startTextLimit(), now: now.getTime(), root: input.root, stale: candidate => candidate.seq !== undefined && factMemoryState({ seq: candidate.seq, time: candidate.time ?? '', text: candidate.text }, { pins, usage, now, libraryDir: dir, projectRoot: input.root }).status === 'stale' })
+    const states = new Map<string, ReturnType<typeof factMemoryState>>()
+    const stateOf = (candidate: StartCandidate): ReturnType<typeof factMemoryState> | null => {
+      if (candidate.seq === undefined) return null
+      const known = states.get(candidate.id)
+      if (known !== undefined) return known
+      const state = factMemoryState({ seq: candidate.seq, time: candidate.time ?? '', text: candidate.text }, { pins, usage, now, libraryDir: dir, projectRoot: input.root })
+      states.set(candidate.id, state)
+      return state
+    }
+    const page = composeStartPage({ dir, projectKey: input.projectKey, state, previous, limit: startTextLimit(), now: now.getTime(), root: input.root, stale: candidate => stateOf(candidate)?.status === 'stale', confirmedAt: candidate => stateOf(candidate)?.confirmedAt })
     lastStatus = page.status
     return page.text
   } catch (error) {
