@@ -46,6 +46,12 @@ export interface RetainItemInput {
 
 export type RuleAuthority = 'card' | 'sovereign'
 
+export const SOVEREIGN_SOURCE_MARK = ' sovereign'
+
+export function authoritySource(source: string, authority: RuleAuthority | undefined): string {
+  return authority === 'sovereign' ? `${source}${SOVEREIGN_SOURCE_MARK}` : source
+}
+
 export function replacementTarget(
   spec: string,
   dir: string,
@@ -137,7 +143,7 @@ export function retainItems(
       return
     }
     if (replacement?.asked === true && provenance.authority !== undefined) {
-      const corrected = correctFact({ targetSeq: replacement.seq, text, source: sourceBase, dir, byUser: true })
+      const corrected = correctFact({ targetSeq: replacement.seq, text, source: authoritySource(sourceBase, provenance.authority), dir, byUser: true })
       if (!corrected.ok) {
         outcomes.push({ index, status: 'refused', reason: corrected.message })
         return
@@ -601,7 +607,7 @@ export function correctMemory(
   guard: RetainGuard = {},
 ): CorrectOutcome {
   const { op, authority } = input
-  const source = `tool:Correct s:${input.session.slice(0, 8)}`
+  const source = authoritySource(`tool:Correct s:${input.session.slice(0, 8)}`, authority)
   const reason = (input.reason ?? '').trim()
   if (input.id.startsWith('pending:')) {
     if (!reason) return { ok: false, op, code: 'invalid', message: 'a correction always carries its reason' }

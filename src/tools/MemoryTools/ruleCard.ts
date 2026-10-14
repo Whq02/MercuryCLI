@@ -2,6 +2,7 @@ import type { CanUseToolFn } from '../../hooks/useCanUseTool.js'
 import type { Tool, ToolUseContext } from '../../Tool.js'
 import type { AssistantMessage } from '../../types/message.js'
 import type { PermissionResult } from '../../types/permissions.js'
+import { modeBypassesPermissions } from '../../utils/permissions/PermissionMode.js'
 import type { CorrectOp, RetainItemInput, RuleAuthority } from '../../mneme/memoryVerbs.js'
 import { observationOverflow, pendingRows } from '../../mneme/mnemeBuffer.js'
 import { USER_ASKED_RULE_ROAD } from '../../mneme/mnemeCorrect.js'
@@ -91,6 +92,14 @@ export function ruleCardText(toolName: string, changes: readonly RuleChange[], r
 
 const cards = new WeakMap<object, string>()
 
+export function underSovereign(context: Pick<ToolUseContext, 'getAppState'>): boolean {
+  try {
+    return modeBypassesPermissions(context.getAppState().toolPermissionContext.mode)
+  } catch {
+    return false
+  }
+}
+
 export function ruleCardAsk(context: unknown): PermissionResult | null {
   const card = typeof context === 'object' && context !== null ? cards.get(context) : undefined
   return card === undefined ? null : { behavior: 'ask', message: card, decisionReason: { type: 'safetyCheck', reason: card, operatorOnly: true } }
@@ -113,6 +122,7 @@ export async function askRuleCard(input: {
     message: `${names} ${plural ? 'are rules' : 'is a rule'} the user asked Mercury to remember and ${why}, so nothing changed — the user changes ${plural ? 'them' : 'it'} ${USER_ASKED_RULE_ROAD}`,
   })
   const kept: RuleVerdict = { ok: false, code: 'user-kept-rule', message: `the user kept the ${plural ? 'rules' : 'rule'} — ${names} ${plural ? 'stay' : 'stays'} as ${plural ? 'they are' : 'it is'}, word for word; nothing changed` }
+  if (underSovereign(input.context)) return { ok: true, via: 'sovereign' }
   if (typeof input.canUseTool !== 'function' || input.parentMessage === undefined) return noOne('this session has no one to answer the card that changes it')
   const cardContext: ToolUseContext = { ...input.context }
   cards.set(cardContext, input.card)
