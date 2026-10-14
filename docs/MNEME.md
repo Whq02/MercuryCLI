@@ -39,14 +39,30 @@ Beside the word match, Recall ranks by meaning: a small embedding model runs
 in-process on this machine, so "the laptop's clock" finds "the notebook's time
 zone" with no word in common. The shipped model is a 118 MB BGE base encoder
 (MIT licence) that arrives with the install; nothing leaves the machine and no
-account or paid model call is involved. If your local Ollama server lists an
-embedding model, `/config`'s **Memory recall ranking** row picks it instead;
-the row also names which model serves. On an install stripped of the model,
-memory runs word match only and the front page says so in one line. A
-superseded fact's weight flows to its replacement, and a fact's history — what
-it superseded, the ruling it fell under, the session that made it — counts in
-the ranking. No model ever rewrites what you said: ranking only decides what
-to find first, and the pages stay the one truth.
+account or paid model call is involved. The model loads when memory needs it
+(a build, a Retain or a query; about half a gigabyte while loaded) and leaves
+memory after five idle minutes.
+
+The vectors live in a derived file beside the library
+(`memory/library/.index/embeddings.json`): one row per fact, no fact text,
+stamped with the model that made it, rebuilt from the pages whenever it is
+missing, stale or made by another model — the pages stay the one truth. A
+Retain embeds its fact at once, off the cockpit's thread, so a fresh fact is
+found by meaning before it is consolidated; a whole-library build runs the same
+way and Recall says `word match only (index building…)` meanwhile.
+
+The meaning ranking joins the recall fusion as one more ordering beside the
+exact-text hits, the word ranking and the usage signal (reciprocal rank fusion
+with k = 60); pinned rules keep their own order, and facts that mean the same
+hand their order to the usage signal. The start-of-session pick scores through
+the same meaning ranking. No model ever rewrites what you said: ranking only
+decides what to find first.
+
+`/config`'s **Memory recall ranking** row names which model serves and offers
+the models this install carries. On an install stripped of the model, memory
+runs word match only and the front page says so in one line. A setting of
+`ollama:<model>` is accepted but has no embedding road in this build: the row
+and the front page say word match only and why.
 
 ## The four verbs
 
