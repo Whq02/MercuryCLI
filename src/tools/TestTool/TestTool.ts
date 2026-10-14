@@ -28,6 +28,7 @@ import {
   resolveTestLane,
   runRunnerProfile,
 } from '../../services/ide/projectRunners.js'
+import { buildNodeRunnerDebugShim } from '../../services/ide/testDebugPlans.js'
 import type { ToolCallProgress } from '../../Tool.js'
 import {
   renderToolResultMessage,
@@ -343,6 +344,46 @@ async function runOp(
       }
       if (debugLane.lane === 'runner-missing') {
         return { result: `no ${debugLane.runner} test profile in this project's manifests`, outcome: 'failed' }
+      }
+      if (debugLane.lane === 'runner' && (debugLane.profile.runner === 'vitest' || debugLane.profile.runner === 'jest')) {
+        const runner = debugLane.profile.runner
+        const shim = buildNodeRunnerDebugShim(runner, input.node, {})
+        if ('state' in shim) {
+          return { result: `debug unavailable: ${shim.reason}\nremedy: ${shim.remedy}`, outcome: 'failed' }
+        }
+        const owner = ownerFromToolUseContext(context)
+        const sessionId = input.session ?? 'test'
+        const breakpoints = new Map<string, number[]>()
+        if (input.file && input.lines?.length) breakpoints.set(expandPath(input.file), input.lines)
+        else if (shim.stop) breakpoints.set(shim.stop.file, [shim.stop.line])
+        let session
+        try {
+          session = await createDapSession({
+            owner,
+            id: sessionId,
+            adapterKey: 'js',
+            program: shim.program,
+            args: shim.args,
+            cwd: shim.cwd,
+            breakpoints: breakpoints.size ? breakpoints : undefined,
+            stopOnEntry: breakpoints.size === 0,
+          })
+        } catch (err) {
+          return { result: `debug unavailable: ${err instanceof Error ? err.message : String(err)}`, outcome: 'failed' }
+        }
+        const stop = await session.waitForStopOutcome(20_000)
+        const state =
+          stop.state === 'stopped'
+            ? `stopped in '${stop.session.label}' — reason ${stop.info.reason}${stop.info.threadId !== undefined ? `, threadId ${stop.info.threadId}` : ''}`
+            : stop.state === 'terminated'
+              ? `debuggee terminated before any stop (${session.exitDetail || 'clean exit'}) — the test may have run to completion`
+              : 'still running (no stop within 20s) — inspect with the Debug tool'
+        return {
+          result:
+            `debugging ${input.node} (${runner}) in Debug session '${sessionId}': ${state}\n${shim.note}\n` +
+            `continue with the Debug tool (op:"stack"/"scopes"/"variables"/"continue"; finish with op:"disconnect", session "${sessionId}")`,
+          outcome: 'succeeded',
+        }
       }
       if (debugLane.lane === 'runner' && debugLane.profile.runner !== 'node-test') {
         return {
