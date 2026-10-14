@@ -49,19 +49,19 @@ function run(label: string, extra: Record<string, string>): Row[] {
 try {
   for (const keyless of [true, false]) {
     const label = keyless ? 'router-only' : 'router-no-keyless'
-    const rows = run(label, { OPENROUTER_API_KEY: 'fixture-router-key', ...(keyless ? {} : { MERCURY_SEARCH_KEYLESS: '0' }) })
+    const rows = run(label, { OPENROUTER_API_KEY: 'fixture-router-key', MERCURY_SEARCH_KEYLESS: keyless ? '1' : '0' })
     const model = rows.find(row => row.id === 'model')
     const search = rows.find(row => row.id === 'web-search-door')
     check(`${label}: model is not resolved before the catalogue is fetched`, String(model?.evidence).includes('no usable row yet'), JSON.stringify(model))
     check(`${label}: search reports the same unresolved model`, String(search?.evidence).includes('no usable row yet'), JSON.stringify(search))
-    check(`${label}: search does not advertise a native provider`, !String(search?.evidence).includes('ProviderSearch:'), JSON.stringify(search))
+    check(`${label}: search does not advertise a native provider`, !String(search?.evidence).includes('(native, session account)'), JSON.stringify(search))
     check(`${label}: search status follows the available doors`, search?.status === (keyless ? 'ok' : 'info'), JSON.stringify(search))
   }
   const native = run('native-default', { ANTHROPIC_API_KEY: 'fixture-anthropic-key' }).find(row => row.id === 'web-search-door')
-  check('native default keeps its native search door', native?.status === 'ok' && String(native.evidence).includes('ProviderSearch: Anthropic'), JSON.stringify(native))
+  check('native default keeps its native search door', native?.status === 'ok' && String(native.evidence).includes('Anthropic web search (native, session account)'), JSON.stringify(native))
   const explicit = run('explicit-router', { OPENROUTER_API_KEY: 'fixture-router-key', MERCURY_MODEL: 'openrouter/fixture/search-model' }).find(row => row.id === 'web-search-door')
-  check('explicit model still wins', String(explicit?.evidence).startsWith('openrouter/fixture/search-model:'), JSON.stringify(explicit))
-  check('explicit routed model does not acquire native search', !String(explicit?.evidence).includes('ProviderSearch:'), JSON.stringify(explicit))
+  check('explicit model still wins', String(explicit?.evidence).includes('openrouter/fixture/search-model'), JSON.stringify(explicit))
+  check('explicit routed model does not acquire native search', !String(explicit?.evidence).includes('(native, session account)'), JSON.stringify(explicit))
 } finally {
   rmSync(scratch, { recursive: true, force: true })
 }

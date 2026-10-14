@@ -13,9 +13,15 @@ export const READER_KEYLESS_RPM = 20
 export const READER_LIMIT_SOURCE = 'https://jina.ai/reader/'
 export const READER_LIMIT_CHECKED = '2026-10-13'
 const pacing = new FetchPacing()
+const PRIVATE_NAME_SUFFIXES = /(?:^|\.)(?:localhost|local|internal|intranet|private|corp|home|lan|test|example|invalid|onion|arpa|localdomain)$/
 
 export function fetchReaderEnabled(): boolean {
   return flagEnabled('MERCURY_FETCH_READER')
+}
+
+export function isPrivateReaderHost(hostname: string): boolean {
+  const host = hostname.toLowerCase().replace(/^\[|\]$/g, '').replace(/\.$/, '')
+  return host === '' || !host.includes('.') || isIP(host) !== 0 || PRIVATE_NAME_SUFFIXES.test(host)
 }
 
 type ReaderResult = { content?: string; notice: string }
@@ -24,7 +30,7 @@ export async function readHostedPage(url: string, signal: AbortSignal, pace = pa
   const parsed = new URL(url)
   if (!fetchReaderEnabled()) return { notice: 'The page has little text before scripts run; the hosted reader is off (MERCURY_FETCH_READER=0). These are its sparse words.' }
   if (isPreapprovedHost(parsed.hostname, parsed.pathname)) return { notice: 'The page has little text before scripts run; preapproved documentation is never sent to the hosted reader. These are its sparse words.' }
-  if (parsed.protocol !== 'https:' || parsed.username || parsed.password || isIP(parsed.hostname) || /(?:^|\.)(?:localhost|local|internal)$/.test(parsed.hostname)) {
+  if (parsed.protocol !== 'https:' || parsed.username || parsed.password || isPrivateReaderHost(parsed.hostname)) {
     return { notice: 'The page has little text before scripts run; this address is not sent to a hosted reader. These are its sparse words.' }
   }
   parsed.hash = ''
