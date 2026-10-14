@@ -283,6 +283,14 @@ const otherTexts = lines.slice(beforeTwo).filter(f => f.type === 'text' && f !==
 check('no other text row of the turn carries the mark', otherTexts.every(f => rowMarksOf(f).length === 0), j(otherTexts.map(f => [String(f.text).slice(0, 30), f.in_reply_to])))
 const doneRow = lines.slice(beforeTwo).find(f => f.type === 'text' && String(f.text).startsWith('done: '))
 check("the turn's closing text (after the answer) is unmarked — the mark is the answer's alone", doneRow !== undefined && rowMarksOf(doneRow).length === 0, j(doneRow?.in_reply_to))
+{
+  const { jsonlConciseRows } = await import(join(SRC, 'services/resources/adapters/transcript.ts'))
+  const { formatClock, REPLY_ADDRESS_LEAD } = await import(join(SRC, 'utils/messages/replyAddress.ts'))
+  const concise = jsonlConciseRows(findTranscript(join(RUN_HOME, 'projects'), sessionId) ?? '') as string[]
+  const answerLine = concise.find(row => row.startsWith(`assistant: ${HEARD_LEAD}`))
+  check(`THE MARK ON THE mercury://transcript READER: the answer row ends "· ${REPLY_ADDRESS_LEAD} ${formatClock(TA)} message"`, answerLine !== undefined && answerLine.endsWith(` · ${REPLY_ADDRESS_LEAD} ${formatClock(TA)} message`), j(answerLine))
+  check('no other assistant row of the reader carries the address', concise.filter(row => row.startsWith('assistant:') && row.includes(REPLY_ADDRESS_LEAD)).length === 1, j(concise.filter(row => row.includes(REPLY_ADDRESS_LEAD))))
+}
 
 section('R3 esc after the answer is composed: the reply stays on the transcript, the cut row follows it')
 const beforeLong = lines.length
