@@ -9,6 +9,7 @@ import { catalogueTrafficVerdict, connectToBrowseReason } from '../catalogueGate
 import { declaredRouteOf } from '../routeLaw.js'
 import { logForDebugging } from '../../../utils/debug.js'
 import {
+  geminiPlanFacts,
   geminiSourceIdentity,
   maskGeminiSecrets,
   resolveGeminiAccount,
@@ -16,7 +17,7 @@ import {
   type GeminiAccountRef,
   type GeminiSourceKind,
 } from './geminiAccounts.js'
-import { fetchGeminiPlanRoster, GeminiPlanHttpError, type GeminiPlanRoster } from './geminiPlanAccess.js'
+import { fetchGeminiPlanRoster, GeminiPlanHttpError, geminiPlanTierWords, type GeminiPlanRoster } from './geminiPlanAccess.js'
 
 const CATALOGUE_FETCH_TIMEOUT_MS = 15_000
 
@@ -38,9 +39,16 @@ export interface GeminiLiveModel {
 }
 
 export const GEMINI_PLAN_DISABLED_SUFFIX = '-disabled'
+export const ANTIGRAVITY_PLAN_TABLE = 'antigravity.google/docs/models'
 
-export function geminiPlanDisabledWords(model: Pick<GeminiLiveModel, 'id' | 'displayName'>): string {
-  return `disabled on this plan today — Google's roster names it ${model.id}${model.displayName ? ` (${model.displayName})` : ''}; not offered as runnable`
+export function geminiPlanTierInView(): string {
+  const tier = geminiPlanFacts()?.tier
+  const words = geminiPlanTierWords(tier)
+  return words === 'free' ? 'the free plan' : words
+}
+
+export function geminiPlanDisabledWords(model: Pick<GeminiLiveModel, 'id' | 'displayName'>, tier: string = geminiPlanTierInView()): string {
+  return `withheld from ${tier} today — Google's roster names it ${model.id}${model.displayName ? ` (${model.displayName})` : ''} and answers 404 to the id; ${ANTIGRAVITY_PLAN_TABLE} says which plans include it; not offered as runnable`
 }
 
 export const GEMINI_PLAN_ROSTER_PREFIX = 'google/'
@@ -375,9 +383,9 @@ export function geminiPlanRosterKin(model: string, env: NodeJS.ProcessEnv = proc
   }
 }
 
-export function geminiPlanRosterKinWords(kin: GeminiPlanRosterKin): string {
+export function geminiPlanRosterKinWords(kin: GeminiPlanRosterKin, tier: string = geminiPlanTierInView()): string {
   const parts: string[] = []
-  for (const row of kin.disabled) parts.push(`the roster names ${row.id}${row.displayName ? ` (${row.displayName})` : ''}: disabled on this plan today`)
+  for (const row of kin.disabled) parts.push(`the roster names ${row.id}${row.displayName ? ` (${row.displayName})` : ''}: withheld from ${tier} today, ${ANTIGRAVITY_PLAN_TABLE} says which plans include it`)
   if (kin.siblings.length > 0) parts.push(`the roster names ${kin.siblings.map(m => m.id).join(', ')} — /model picks one`)
   return parts.length === 0 ? '' : ` · ${parts.join(' · ')}`
 }
