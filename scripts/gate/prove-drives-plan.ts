@@ -238,5 +238,71 @@ console.log('\n§3 the journey split')
   check('the complement is not empty (the parent still runs a proof)', complement.length > 0)
 }
 
+console.log('\n§4 the class filters: the local pool plans the exclusive class apart from its pooled shards')
+{
+  const filtered = (idx: string, total: number, extra: string[], env: NodeJS.ProcessEnv): string[] => {
+    const res = runPlanner([idx, String(total), '--class', 'release', ...extra, '--plan-only'], env)
+    if (res.status !== 0) throw new Error(`planner exited ${String(res.status)} for shard ${idx}/${total} ${extra.join(' ')}: ${res.stderr.slice(0, 300)}`)
+    return res.stdout.split('\n').filter(l => l.trim() !== '')
+  }
+  const work = mkdtempSync(join(tmpdir(), 'class-filter-plan-'))
+  const suite = (name: string, cls: string): void => {
+    mkdirSync(join(work, 'suites', name), { recursive: true })
+    writeFileSync(join(work, 'suites', name, 'run-all.sh'), `#!/usr/bin/env bash\n# gate-class: ${cls}\nexit 0\n`)
+  }
+  suite('floor', 'exclusive')
+  suite('long', 'cpu')
+  suite('mid', 'pure')
+  suite('short', 'pure')
+  suite('screen', 'pty')
+  writeFileSync(join(work, 'seed.tsv'), 'floor\t1\nlong\t90\nmid\t50\nshort\t10\nscreen\t40\n')
+  const seams = plannerEnv({ MERCURY_CI_SHARD_SUITES_DIR: join(work, 'suites'), MERCURY_CI_SHARD_SEED_FILE: join(work, 'seed.tsv'), MERCURY_CI_SHARD_OUT: join(work, 'out') })
+  try {
+    const whole = ['0', '1'].flatMap(k => filtered(k, 2, [], seams))
+    const pooled = ['0', '1'].flatMap(k => filtered(k, 2, ['--without-class', 'exclusive'], seams))
+    const apart = filtered('0', 1, ['--only-class', 'exclusive'], seams)
+    check('the unfiltered release plan still holds the exclusive suite (the hosted plan is unchanged)', whole.includes('floor'), whole.join(' '))
+    check('--without-class exclusive plans every other release suite once and the exclusive one nowhere', [...pooled].sort().join(',') === 'long,mid,short', pooled.join(' '))
+    check('--only-class exclusive in one bucket holds the exclusive suite alone', apart.join(',') === 'floor', apart.join(' '))
+    check('the two halves together are the release plan, each suite once', [...pooled, ...apart].sort().join(',') === [...whole].sort().join(','), `${pooled.join(' ')} | ${apart.join(' ')} vs ${whole.join(' ')}`)
+    check('neither half reaches outside the planned class (the pty suite stays out)', ![...pooled, ...apart].includes('screen'))
+    const outside = runPlanner(['0', '1', '--class', 'release', '--without-class', 'release', '--plan-only'], seams)
+    check('a filter that is not a suite class is refused (exit 2)', outside.status === 2, `${String(outside.status)} ${outside.stderr.slice(0, 200)}`)
+    const both = runPlanner(['0', '1', '--class', 'release', '--without-class', 'exclusive', '--only-class', 'exclusive', '--plan-only'], seams)
+    check('both filters at once are refused (exit 2)', both.status === 2, `${String(both.status)} ${both.stderr.slice(0, 200)}`)
+    check('a filtered plan writes no output directory (a plan is never a run)', !existsSync(join(work, 'out')))
+  } catch (error) {
+    check('the planner answered with its class filters on the synthetic estate', false, String(error).slice(0, 400))
+  } finally {
+    rmSync(work, { recursive: true, force: true })
+  }
+  const gate = readFileSync(join(ROOT, '.github', 'workflows', 'gate.yml'), 'utf8')
+  const total = Number(/ci-shard\.sh "\$\{\{ matrix\.shard \}\}" (\d+) --class release/.exec(gate)?.[1] ?? Number.NaN)
+  const release: string[] = []
+  const exclusive: string[] = []
+  for (const d of readdirSync(SCRIPTS).sort()) {
+    const runner = join(SCRIPTS, d, 'run-all.sh')
+    if (!existsSync(runner)) continue
+    const cls = classOf(readFileSync(runner, 'utf8'))
+    if (cls === 'pure' || cls === 'cpu' || cls === 'exclusive') release.push(d)
+    if (cls === 'exclusive') exclusive.push(d)
+  }
+  try {
+    const env = plannerEnv()
+    const pooled: string[] = []
+    for (let k = 0; k < total; k++) pooled.push(...filtered(String(k), total, ['--without-class', 'exclusive'], env))
+    pooled.push(...filtered('darwin', total, ['--without-class', 'exclusive'], env))
+    const apart = filtered('0', 1, ['--only-class', 'exclusive'], env)
+    const counts = new Map<string, number>()
+    for (const s of [...pooled, ...apart]) counts.set(s, (counts.get(s) ?? 0) + 1)
+    const missing = release.filter(s => !counts.has(s))
+    const twice = [...counts].filter(([, n]) => n > 1).map(([s, n]) => `${s}×${n}`)
+    check(`the real estate: the exclusive step plans exactly the exclusive suites (${exclusive.join(' ') || 'none'})`, [...apart].sort().join(',') === exclusive.join(','), apart.join(' '))
+    check(`the real estate: ${total} pooled shards and the darwin lane without them, plus the exclusive step, plan every release suite once (${release.length} suites)`, Number.isFinite(total) && missing.length === 0 && twice.length === 0, `missing: ${missing.join(' ') || 'none'}; twice: ${twice.join(' ') || 'none'}`)
+  } catch (error) {
+    check('the planner answered with its class filters on the real estate', false, String(error).slice(0, 400))
+  }
+}
+
 console.log(`\n${failures === 0 ? '✅' : '❌'} prove-drives-plan — ${failures === 0 ? 'all checks pass' : `${failures} check(s) failed`}`)
 process.exit(failures === 0 ? 0 : 1)

@@ -6,18 +6,31 @@ IDX=${1:?shard index or 'darwin'}
 TOTAL=${2:?shard total}
 shift 2
 CLASS=all
+WITHOUT_CLASS=
+ONLY_CLASS=
 PLAN_ONLY=0
 PLAN_TABLE=0
 while [ $# -gt 0 ]; do
   case "$1" in
     (--class) CLASS=${2:?--class wants release|drives|all}; shift 2 ;;
     (--class=*) CLASS=${1#--class=}; shift ;;
+    (--without-class) WITHOUT_CLASS=${2:?--without-class wants pure|cpu|pty|exclusive}; shift 2 ;;
+    (--without-class=*) WITHOUT_CLASS=${1#--without-class=}; shift ;;
+    (--only-class) ONLY_CLASS=${2:?--only-class wants pure|cpu|pty|exclusive}; shift 2 ;;
+    (--only-class=*) ONLY_CLASS=${1#--only-class=}; shift ;;
     (--plan-only) PLAN_ONLY=1; shift ;;
     (--plan-table) PLAN_ONLY=1; PLAN_TABLE=1; shift ;;
-    (*) echo "ci-shard: unknown argument '$1' (usage: ci-shard.sh <idx|darwin> <total> [--class release|drives|all] [--plan-only|--plan-table])" >&2; exit 2 ;;
+    (*) echo "ci-shard: unknown argument '$1' (usage: ci-shard.sh <idx|darwin> <total> [--class release|drives|all] [--without-class <suite class>|--only-class <suite class>] [--plan-only|--plan-table])" >&2; exit 2 ;;
   esac
 done
 case "$CLASS" in (release | drives | all) ;; (*) echo "ci-shard: --class wants release|drives|all (got '$CLASS')" >&2; exit 2 ;; esac
+for _filter in "$WITHOUT_CLASS" "$ONLY_CLASS"; do
+  case "$_filter" in ('' | pure | cpu | pty | exclusive) ;; (*) echo "ci-shard: --without-class and --only-class want pure|cpu|pty|exclusive (got '$_filter')" >&2; exit 2 ;; esac
+done
+if [ -n "$WITHOUT_CLASS" ] && [ -n "$ONLY_CLASS" ]; then
+  echo "ci-shard: --without-class and --only-class split one plan into two halves; give one of them" >&2
+  exit 2
+fi
 OUT="${MERCURY_CI_SHARD_OUT:-ci-gate-out}"
 SUITES_DIR="${MERCURY_CI_SHARD_SUITES_DIR:-scripts}"
 SEED_FILE="${MERCURY_CI_SHARD_SEED_FILE:-scripts/gate/duration-seed.tsv}"
@@ -80,11 +93,12 @@ budget_note_of() { # $1=dom — names the ceiling when it is the binding bound, 
   fi
 }
 
-PLAN_OUT=$(/usr/bin/python3 - "$IDX" "$TOTAL" "$SUITES_DIR" "$SEED_FILE" "$CLASS" <<'PYEOF'
+PLAN_OUT=$(/usr/bin/python3 - "$IDX" "$TOTAL" "$SUITES_DIR" "$SEED_FILE" "$CLASS" "$WITHOUT_CLASS" "$ONLY_CLASS" <<'PYEOF'
 import glob, os, re, sys
 
 idx, total = sys.argv[1], int(sys.argv[2])
 suites_dir, seed_file, wanted = sys.argv[3], sys.argv[4], sys.argv[5]
+without, only = sys.argv[6], sys.argv[7]
 
 CLASSES = {
     "release": {"pure", "cpu", "exclusive"},
@@ -115,7 +129,7 @@ if wanted != "all":
     for d in suites:
         if classes[d] == "undeclared":
             print(f"ci-shard: UNCLASSED suite {d} falls outside every plan — declare '# gate-class: pure|cpu|pty|exclusive' in {runners[d]}", file=sys.stderr)
-planned = [d for d in suites if classes[d] in CLASSES]
+planned = [d for d in suites if classes[d] in CLASSES and classes[d] != without and (only == "" or classes[d] == only)]
 
 if idx == "darwin":
     for dom in planned:
