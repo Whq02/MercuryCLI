@@ -137,7 +137,7 @@ try {
       const row = kind === 'signin' ? 'Gemini — sign in' : 'GPT — sign in'
       const geminiRow = 'Google Gemini — Google sign-in, API key'
       const family = kind === 'signin' ? `❯ ${geminiRow}` : '❯ OpenAI — ChatGPT subscription or API key'
-      const keyLeg = [gate('the easiest: create one', '\r', 'pick'), gate('↵ store key', FIXTURE_KEY, 'key'), after(3, '\r'), gate('Gemini API key stored', '', 'receipt'), after(2, '\r'), after(12, '', 'returned')]
+      const keyLeg = [gate('the easiest: create one', `${ESC}[B`, 'pick'), after(2, '\r'), gate('↵ store key', FIXTURE_KEY, 'key'), after(3, '\r'), gate('Gemini API key stored', '', 'receipt'), after(2, '\r'), after(12, '', 'returned')]
       const sends: Send[] = kind === 'face' || kind === 'roster' ? [] : [gate('↑↓ choose', SHIFT_RIGHT), gate('coordinator model', '\t'), gate('n new session', kind === 'session' ? 'n' : 'm')]
       if (kind === 'session') sends.push(gate('contract?', ESC), gate('← back', SHIFT_LEFT), gate('STATUS & TITLE', 'm'))
       if (kind === 'roster') {
