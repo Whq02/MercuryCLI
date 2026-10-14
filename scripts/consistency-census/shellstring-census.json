@@ -654,6 +654,13 @@
       "why": "IDE-lane provers pin the macOS system interpreter DELIBERATELY (the pyexpat healthy-fallback class); POSIX maintainer host is their declared profile"
     },
     {
+      "file": "scripts/ide/prove-launch-env-tasks.ts",
+      "mechanism": "hardcoded-interpreter",
+      "excerpt": "const SYS_PY = '/usr/bin/python3'",
+      "cls": "platform-owner",
+      "why": "IDE-lane provers pin the macOS system interpreter DELIBERATELY (the pyexpat healthy-fallback class); POSIX maintainer host is their declared profile"
+    },
+    {
       "file": "scripts/ide/prove-launch-profiles.ts",
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const SYS_PY = '/usr/bin/python3'",

@@ -225,6 +225,6 @@ export function parseGoTestJson(text: string, _root: string): ReporterRead | nul
 }
 
 export function goRunPattern(failures: string[]): string {
-  const tops = [...new Set(failures.map(f => f.split('/')[0]!).filter(Boolean))]
+  const tops = [...new Set(failures.map(f => /^[^/]+/.exec(f)?.[0] ?? '').filter(Boolean))]
   return `^(${tops.map(t => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})$`
 }
