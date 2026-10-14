@@ -118,7 +118,7 @@ stored key). Sign in with Meta requests a device code from
 `x-api-version: 1.0.0` under Muse Code’s public client id (`1031625952748946`),
 then sends the resulting account token once to
 `POST https://api.meta.ai/muse-code/key` (`Authorization: Bearer <account token>`,
-`x-api-version: 1.0.0`, `{ “onboard”: true }`), which mints the subscription’s
+`x-api-version: 1.0.0`, `{ "onboard": true }`), which mints the subscription’s
 API key (`api_key`) and states `user_email`, `subs_tier_name` and `subs_usage`
 (`window` and `weekly` used percent and reset timestamps). The grant is stored
 auth-scoped at mode 600 in `.meta-auth.json` beside the API key. Model requests
