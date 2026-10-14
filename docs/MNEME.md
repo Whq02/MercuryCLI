@@ -42,13 +42,17 @@ provider's prompt cache.
 Beside the word match, Recall ranks by meaning: a small embedding model runs
 in-process on your machine, so "the laptop's clock" finds "the notebook's time
 zone" with no word in common. The shipped model is a 118 MB BGE base encoder
-(`bge-base-en-v1.5` `q8_0`, MIT licence, 768 dimensions) that arrives with the
-macOS Apple silicon release archive (in a source checkout with Rust installed,
-`bun run scripts/vendor/build-embed.ts` builds `native/embed` and
-`bun run scripts/vendor/fetch-embed-models.ts` fetches the model); nothing
-leaves the machine and no account or paid model call is involved. The model
-loads when memory needs it (a build, a Retain or a query; about half a gigabyte
-while loaded) and leaves memory after five idle minutes.
+(`bge-base-en-v1.5` `q8_0`, MIT licence, 768 dimensions) that arrives with
+every release archive: macOS Apple silicon and Intel, Linux x86-64 and Windows
+x86-64 (in a source checkout with Rust installed, `bun run setup` builds
+`native/embed` through `bun run scripts/vendor/build-embed.ts` and fetches the
+model through `bun run scripts/vendor/fetch-embed-models.ts --default`);
+nothing leaves the machine and no account or paid model call is involved. On
+Linux and Windows this release runs the plain maths loop, so a Recall by
+meaning takes about a second and a half instead of a few hundredths, and a
+faster kernel follows. The model loads when memory needs it (a build, a Retain
+or a query; about half a gigabyte while loaded) and leaves memory after five
+idle minutes.
 
 The vectors live in a derived file beside the library
 (`memory/library/.index/embeddings.json`): one row per fact, no fact text,

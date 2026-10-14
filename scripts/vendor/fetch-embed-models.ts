@@ -7,6 +7,7 @@ import {
   EMBED_MODELS_VENDOR_PATH,
   checkEmbedModel,
   downloadEmbedModel,
+  embedDefaultModel,
   embedModelByName,
   mbWords,
   type EmbedModelRow,
@@ -19,6 +20,7 @@ const argv = process.argv.slice(2)
 const checkOnly = argv.includes('--check')
 const force = argv.includes('--force')
 const all = argv.includes('--all')
+const defaultOnly = argv.includes('--default')
 
 function fail(msg: string): never {
   console.error(`fetch-embed-models: ${msg}`)
@@ -34,6 +36,7 @@ function proverPair(): EmbedModelRow[] {
 
 function selectRows(): EmbedModelRow[] {
   if (all) return [...EMBED_MODELS]
+  if (defaultOnly) return [embedDefaultModel()]
   const named: EmbedModelRow[] = []
   for (let i = 0; i < argv.length; i++) {
     if (argv[i] !== '--model') continue
