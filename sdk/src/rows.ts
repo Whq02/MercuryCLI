@@ -95,6 +95,10 @@ export interface TurnRow {
   model?: string
   agents?: number
 }
+export interface ReplyMarkRow {
+  id: string
+  at: string
+}
 export interface TextRow {
   type: 'text'
   seq: number
@@ -106,6 +110,7 @@ export interface TextRow {
   block: number
   text: string
   phase?: 'commentary' | 'final_answer'
+  in_reply_to?: ReplyMarkRow[]
 }
 export interface ReasoningRow {
   type: 'reasoning'
@@ -689,6 +694,24 @@ export const ROW_SCHEMAS: Readonly<Record<RowType | PartialRowType, JsonSchema>>
           "commentary",
           "final_answer"
         ]
+      },
+      "in_reply_to": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "at": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "id",
+            "at"
+          ]
+        }
       }
     },
     "required": [

@@ -84,6 +84,7 @@ import type {
   AssistantMessage,
   AttachmentMessage,
   Message,
+  ReplyMark,
   ToolUseSummaryMessage,
   UserMessage,
 } from '../types/message.js'
@@ -181,7 +182,9 @@ import {
 } from './model-lane.js'
 import {
   consumeDrainedCommands,
+  replyMarkOf,
   selectDrainableCommands,
+  stampReply,
 } from './attachment-drain.js'
 import { buildModelCallReference } from './call-reference.js'
 import { createEventMint, type RunEvent } from './events.js'
@@ -287,6 +290,7 @@ type IterationState = {
   toolUseBlocks: ToolUseBlock[]
   needsFollowUp: boolean
   callOrdinal: number
+  replyTo: ReplyMark[]
 }
 
 
@@ -625,6 +629,7 @@ async function* streamModel(
           if (streamingFallbackOccured) {
             streamingFallbackOccured = false
             for (const msg of iter.assistantMessages) {
+              if (msg.inReplyTo !== undefined) iter.replyTo.unshift(...msg.inReplyTo)
               yield emit({ kind: 'assistant_retracted', message: msg })
             }
 
@@ -650,6 +655,8 @@ async function* streamModel(
                 }),
               })
             }
+            stampReply(message, iter.replyTo)
+            if (yieldMessage !== message && message.inReplyTo !== undefined) (yieldMessage as AssistantMessage).inReplyTo = message.inReplyTo
             yield emit({
               kind: 'assistant_settled',
               callId,
@@ -890,6 +897,7 @@ async function* runEventMachine(
   let iterationOrdinal = 0
 
   let checkpointSettleWarned = false
+  const awaitingReply: ReplyMark[] = []
 
   // eslint-disable-next-line no-constant-condition
   while (true) {
@@ -1258,6 +1266,7 @@ async function* runEventMachine(
       toolUseBlocks: [],
       needsFollowUp: false,
       callOrdinal: 0,
+      replyTo: awaitingReply,
     }
 
     const streamOutcome = yield* streamModel(run, iter, emit)
@@ -2021,6 +2030,8 @@ async function* runEventMachine(
         }
         yield emit({ kind: 'attachment', message: attachment })
         toolResults.push(attachment)
+        const mark = replyMarkOf(attachment)
+        if (mark !== null) awaitingReply.push(mark)
       }
       drainProduced = true
     } finally {

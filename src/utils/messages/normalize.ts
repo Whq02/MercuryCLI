@@ -44,6 +44,7 @@ function assistantRows(parent: AssistantMessage, blocks: (ContentBlock | Content
         uuid: uuidOfRow(parent, latched, index),
         error: parent.error,
         isApiErrorMessage: parent.isApiErrorMessage,
+        ...(parent.inReplyTo !== undefined && block.type === 'text' ? { inReplyTo: parent.inReplyTo } : {}),
       }) as NormalizedAssistantMessage,
   )
 }
