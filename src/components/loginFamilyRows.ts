@@ -33,7 +33,7 @@ export function loginFamilyRows({ engineLegs }: { engineLegs: boolean }): LoginF
             label: 'OpenRouter — one credential, the whole catalogue (OAuth or key)',
             value: 'openrouter' as const,
           },
-          { label: 'Google Gemini — API key or Google OAuth', value: 'gemini' as const },
+          { label: 'Google Gemini — Google sign-in, API key', value: 'gemini' as const },
           {
             label: 'Hugging Face — device-code sign-in or a Hub token (open models)',
             value: 'huggingface' as const,

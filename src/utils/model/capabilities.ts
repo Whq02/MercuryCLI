@@ -1020,6 +1020,11 @@ function catalogueDeclaresImages(model: string, route: CallModelRoute): boolean 
         require('../../services/providers/nous/nousCatalogue.js') as typeof import('../../services/providers/nous/nousCatalogue.js')
       return modalitiesAdmitImages(nousListedModel(model)?.inputModalities)
     }
+    case 'gemini': {
+      const { geminiListedModel } =
+        require('../../services/providers/gemini/geminiCatalogue.js') as typeof import('../../services/providers/gemini/geminiCatalogue.js')
+      return geminiListedModel(model)?.images ?? true
+    }
     default:
       return true
   }

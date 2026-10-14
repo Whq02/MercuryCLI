@@ -65,6 +65,10 @@ function isNousModelId(v: string): boolean {
   return v.trim().toLowerCase().startsWith(NOUS_ENGINE_MODEL_PREFIX)
 }
 
+function isGoogleRosterModelId(v: string): boolean {
+  return qualifiedIdSpaceOf(v)?.route === 'gemini'
+}
+
 export function isExactEngineModelId(v: unknown): v is string {
   if (typeof v !== 'string') return false
   return (
@@ -75,7 +79,8 @@ export function isExactEngineModelId(v: unknown): v is string {
     isLocalModelId(v) ||
     isOpenrouterModelId(v) ||
     isNousModelId(v) ||
-    isZenModelId(v)
+    isZenModelId(v) ||
+    isGoogleRosterModelId(v)
   )
 }
 
@@ -87,7 +92,7 @@ function exactEngineFamilyOf(id: string): 'openai' | 'moonshot' | 'deepseek' | '
   if (/^deepseek-/i.test(id)) return 'deepseek'
   if (/^grok-/i.test(id)) return 'xai'
   if (/^muse-/i.test(id)) return 'meta'
-  if (/^gemini-/i.test(id)) return 'gemini'
+  if (/^gemini-/i.test(id) || isGoogleRosterModelId(id)) return 'gemini'
   if (/^(mistral|ministral|codestral)-/i.test(id)) return 'mistral'
   return undefined
 }
@@ -103,7 +108,7 @@ async function readLiveListsForBareId(modelParam: string | undefined): Promise<v
 
 import { MODEL_LOOKUP_LADDER } from '../model/modelLookup.js'
 
-const ENGINE_ID_SHAPES = 'gpt-*, glm-*, kimi-*, deepseek-*, grok-*, muse-spark-*, gemini-*, mistral-*, compat/*, huggingface/*, local/*, openrouter/*, nous/*'
+const ENGINE_ID_SHAPES = 'gpt-*, glm-*, kimi-*, deepseek-*, grok-*, muse-spark-*, gemini-*, google/*, mistral-*, compat/*, huggingface/*, local/*, openrouter/*, nous/*'
 
 export function unrecognisedModelWordRefusal(model: string | undefined): string | null {
   if (model === undefined) return null
