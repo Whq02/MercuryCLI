@@ -7,10 +7,14 @@ import { Box, Text, useInput } from '../ink.js'
 import TextInput from './TextInput.js'
 import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js'
 import {
-  META_CONNECT_ROWS,
+  activateMetaSource,
+  liveMetaConnectFacts,
   META_CONNECT_STOPPED_RECEIPT,
+  metaConnectRowAction,
+  metaConnectRows,
   runMetaDeviceLogin,
   storeMetaApiKeyLogin,
+  type MetaConnectRowValue,
   type MetaDeviceLoginEvent,
 } from '../services/providers/meta/metaLogin.js'
 import { keyPasteGuardNote } from './mercury-ui/screens/keyPasteGuards.js'
@@ -102,8 +106,15 @@ export function MetaConnect({ onResult, onBack }: {
           </Text>
         )}
         <Select
-          options={META_CONNECT_ROWS}
-          onChange={choice => setStep(choice === 'device' ? 'device' : 'key')}
+          options={metaConnectRows(liveMetaConnectFacts())}
+          onChange={choice => {
+            const picked = choice as MetaConnectRowValue
+            if (metaConnectRowAction(liveMetaConnectFacts(), picked) === 'activate') {
+              finish(activateMetaSource(picked === 'key' ? 'api-key' : 'muse-code'))
+              return
+            }
+            setStep(picked === 'device' ? 'device' : 'key')
+          }}
           onCancel={onBack}
         />
       </Box>
