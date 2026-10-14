@@ -18,11 +18,10 @@ import { buildGeminiPlanRequest, buildGeminiRequest, type GeminiPart, type Gemin
 import { maskGeminiSecrets } from './geminiAccounts.js'
 import { appendFileSync } from 'node:fs'
 import { flagEnv } from '../../../substrate/flagRegistry.js'
-import { isProofShapeRun } from '../../../utils/privacyLevel.js'
 
 function dumpGeminiWire(url: string, model: string, body: string): void {
   const path = flagEnv('MERCURY_GEMINI_WIRE_DUMP')?.trim()
-  if (!path || !isProofShapeRun()) return
+  if (!path) return
   try {
     appendFileSync(path, `${JSON.stringify({ at: new Date().toISOString(), url, model, body: JSON.parse(body) as unknown })}\n`)
   } catch {
