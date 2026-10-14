@@ -3,6 +3,8 @@ import '../lib/hermetic.ts'
 import { proofHome } from '../lib/hermetic.ts'
 import { readFileSync, rmSync, statSync } from 'node:fs'
 import { join } from 'node:path'
+import React from 'react'
+import { mountOffscreen, waitFor } from '../lib/settingsPopupHarness.ts'
 import type { CompatCallModelParams } from '../../src/services/providers/openaicompat/compatChatCallModel.ts'
 import type { AssistantMessage } from '../../src/types/message.ts'
 
@@ -417,6 +419,35 @@ try {
       keyUsage.absence === usageState.META_USAGE_ABSENCE,
     JSON.stringify(keyUsage),
   )
+
+  const { Usage } = await import('../../src/components/Settings/Usage.tsx')
+  const { AppStateProvider } = await import('../../src/state/AppState.tsx')
+  requests.length = 0
+  const inactiveView = await mountOffscreen(React.createElement(AppStateProvider, { children: React.createElement(Usage, { width: 116, rowBudget: 66 }) }), 120, 70)
+  try {
+    await waitFor(() => inactiveView.screen().includes('Active source: the API key'), 8000)
+    const frame = inactiveView.screen().replace(/\s+/g, ' ')
+    const planSlot = frame.split('Muse Code subscription')[1]?.split('API key')[0] ?? ''
+    check(
+      'the stored inactive Muse Code slot keeps its tier and both last-read windows, names the activation road, and never says absent',
+      planSlot.includes('Muse Code Max, read ') && planSlot.includes('62%') && planSlot.includes('58%') &&
+        planSlot.includes('Window (5h)') && planSlot.includes('Current week') && (planSlot.match(/resets /g) ?? []).length === 2 &&
+        planSlot.includes('not active — ↵ on its /logins row makes it active') &&
+        !planSlot.includes('none —') && !planSlot.includes('This session:') &&
+        !frame.includes(ACCOUNT_TOKEN) && !frame.includes(MINTED_KEY) && !frame.includes(STORED_API_KEY),
+      frame,
+    )
+    check('reading the inactive subscription slot never refreshes or activates it', requests.length === 0 && accounts.resolveMetaAccount()?.kind === 'api-key' && accounts.readMetaMuseCodeGrant()?.observedAtMs === refreshedAtMs, JSON.stringify(requests))
+    const storedPlan = providerUsage.metaMuseCodeUsage()
+    check('the inactive slot reads the subscription owner, not the active API-key usage', storedPlan?.tier === 'Muse Code Max' && storedPlan.windows.length === 2 && storedPlan.windows[0]?.usedPct === 62 && storedPlan.windows[1]?.usedPct === 58 && storedPlan.windows.every(window => window.observedAtMs === refreshedAtMs) && keyUsage.windows.length === 0)
+    const storedGrant = accounts.readMetaMuseCodeGrant()!
+    const { usage: _windows, ...grantWithoutWindows } = storedGrant
+    accounts.writeMetaMuseCodeGrant(grantWithoutWindows)
+    check('a stored subscription without stated windows gets its absence words from the usage owner', providerUsage.metaMuseCodeUsage()?.absence === 'Plan windows: not stated on the last read.' && providerUsage.metaMuseCodeUsage()?.windows.length === 0)
+    accounts.writeMetaMuseCodeGrant(storedGrant)
+  } finally {
+    inactiveView.unmount()
+  }
 
   console.log('── 5. Row 3: The wire unchanged & refused minted key never falls through ──')
   login.activateMetaSource('muse-code')
