@@ -8,27 +8,20 @@ import { getAgentContext } from '../utils/agentContext.js'
 import { logForDebugging } from '../utils/debug.js'
 import { pendingRows } from './mnemeBuffer.js'
 import { USER_ASKED_RULE_ROAD } from './mnemeCorrect.js'
-import { listTopicDocs } from './mnemeLibrary.js'
-import { containment, contentStems, firstWords, isNumberWord, jaccard, sentencesOf, wordsOf } from './mnemeText.js'
+import { listArchiveDocs, listTopicDocs } from './mnemeLibrary.js'
+import { POLARITY_PAIRS, POLARITY_WORDS, flippedPolarity, polaritySides, type PolaritySides } from './mnemePolarity.js'
+import { clausesOf, containment, contentStems, firstWords, isNumberWord, jaccard, normalisedText, sentencesOf, wordsOf } from './mnemeText.js'
 import { readPins } from './mnemeUsage.js'
+
+export { POLARITY_PAIRS } from './mnemePolarity.js'
 
 export const CONTRADICTION_OVERLAP_SHARE = 0.75
 export const CONTRADICTION_CONFIDENCE = 0.6
+export const COMPARABLE_LENGTH_RATIO = 0.4
 export const NUMBER_FLIP = 'a number that differs'
 export const NEGATION_FLIP = 'a negation'
-const NEGATION_REACH = 3
 
 export const NEGATION_WORDS: readonly string[] = ['not', 'never', 'no', 'none', 'nothing', 'neither', 'nor', 'without']
-
-export const POLARITY_PAIRS: ReadonlyArray<{ name: string; left: readonly string[]; right: readonly string[] }> = [
-  { name: 'always/never', left: ['always'], right: ['never'] },
-  { name: 'on/off', left: ['on'], right: ['off'] },
-  { name: 'enabled/disabled', left: ['enable', 'enables', 'enabled', 'enabling'], right: ['disable', 'disables', 'disabled', 'disabling'] },
-  { name: 'allowed/forbidden', left: ['allow', 'allows', 'allowed', 'allowing'], right: ['forbid', 'forbids', 'forbade', 'forbidden', 'forbidding', 'deny', 'denies', 'denied', 'denying'] },
-  { name: 'included/excluded', left: ['include', 'includes', 'included', 'including'], right: ['exclude', 'excludes', 'excluded', 'excluding'] },
-  { name: 'before/after', left: ['before'], right: ['after'] },
-  { name: 'true/false', left: ['true'], right: ['false'] },
-]
 
 export const SCOPE_WORDS: readonly string[] = ['except', 'excepting', 'exception', 'exceptions', 'unless', 'when', 'whenever', 'if', 'while', 'until', 'during']
 
@@ -36,7 +29,7 @@ export const SCOPE_PHRASES: readonly string[] = ['only for', 'only when', 'only 
 
 export const IDENTIFIER_MARKERS: readonly string[] = ['rule', 'rules', 'seq', 'fact', 'facts', 'session', 'sessions', 'line', 'lines', 'page', 'pages', 'row', 'rows', 'issue', 'pr', 'step', 'steps', 'item', 'items', 'id', 'number', 'no', 'ordinal']
 
-const SKIP = new Set<string>([...NEGATION_WORDS, ...SCOPE_WORDS, 'only', 'but', ...POLARITY_PAIRS.flatMap(pair => [...pair.left, ...pair.right])])
+const SKIP = new Set<string>([...NEGATION_WORDS, ...SCOPE_WORDS, 'only', 'but', ...POLARITY_WORDS])
 
 export interface RecordEntry {
   id: string
@@ -59,33 +52,22 @@ export interface ContradictionVerdict {
 
 interface Analysed {
   stems: Set<string>
+  negatedClauses: string[][]
   negated: Set<string>
-  sides: Map<string, { left: boolean; right: boolean }>
+  sides: PolaritySides
   quantities: Set<string>
   scoped: boolean
 }
 
-function isContent(word: string): boolean {
-  return contentStems([word], SKIP).length === 1
-}
-
-function negatedStems(words: readonly string[]): Set<string> {
-  const out = new Set<string>()
-  words.forEach((word, index) => {
-    if (!NEGATION_WORDS.includes(word)) return
-    for (let ahead = index + 1; ahead <= index + NEGATION_REACH && ahead < words.length; ahead++) {
-      if (isContent(words[ahead]!)) {
-        out.add(contentStems([words[ahead]!], SKIP)[0]!)
-        return
-      }
-    }
-    for (let back = index - 1; back >= 0 && back >= index - NEGATION_REACH; back--) {
-      if (isContent(words[back]!)) {
-        out.add(contentStems([words[back]!], SKIP)[0]!)
-        return
-      }
-    }
-  })
+function negatedClausesOf(text: string): string[][] {
+  const out: string[][] = []
+  for (const clause of clausesOf(text)) {
+    clause.forEach((word, index) => {
+      if (!NEGATION_WORDS.includes(word)) return
+      const governed = [...new Set(contentStems(clause.slice(index + 1), SKIP))]
+      if (governed.length > 0) out.push(governed)
+    })
+  }
   return out
 }
 
@@ -97,10 +79,7 @@ function isScoped(words: readonly string[]): boolean {
 
 function analyse(text: string): Analysed {
   const words = wordsOf(text)
-  const sides = new Map<string, { left: boolean; right: boolean }>()
-  for (const pair of POLARITY_PAIRS) {
-    sides.set(pair.name, { left: words.some(word => pair.left.includes(word)), right: words.some(word => pair.right.includes(word)) })
-  }
+  const sides = polaritySides(words)
   const quantities = new Set<string>()
   words.forEach((word, index) => {
     if (!isNumberWord(word)) return
@@ -108,9 +87,11 @@ function analyse(text: string): Analysed {
     if (IDENTIFIER_MARKERS.includes(previous)) return
     quantities.add(String(Number(word)))
   })
+  const negatedClauses = negatedClausesOf(text)
   return {
     stems: new Set(contentStems(words, SKIP)),
-    negated: negatedStems(words),
+    negatedClauses,
+    negated: new Set(negatedClauses.flat()),
     sides,
     quantities,
     scoped: isScoped(words),
@@ -121,15 +102,14 @@ export function polarityFlip(a: string, b: string): string | null {
   return flipOf(analyse(a), analyse(b))
 }
 
+function negationFlip(a: Analysed, b: Analysed): boolean {
+  return a.negatedClauses.some(clause => clause.every(stem => b.stems.has(stem)) && clause.some(stem => !b.negated.has(stem)))
+}
+
 function flipOf(a: Analysed, b: Analysed): string | null {
-  for (const stem of a.stems) {
-    if (b.stems.has(stem) && a.negated.has(stem) !== b.negated.has(stem)) return NEGATION_FLIP
-  }
-  for (const pair of POLARITY_PAIRS) {
-    const left = a.sides.get(pair.name)!
-    const right = b.sides.get(pair.name)!
-    if ((left.left && !left.right && right.right && !right.left) || (left.right && !left.left && right.left && !right.right)) return pair.name
-  }
+  if (negationFlip(a, b) || negationFlip(b, a)) return NEGATION_FLIP
+  const polarity = flippedPolarity(a.sides, b.sides)
+  if (polarity !== null) return polarity
   if (a.quantities.size > 0 && b.quantities.size > 0) {
     const onlyA = [...a.quantities].some(n => !b.quantities.has(n))
     const onlyB = [...b.quantities].some(n => !a.quantities.has(n))
@@ -138,29 +118,54 @@ function flipOf(a: Analysed, b: Analysed): string | null {
   return null
 }
 
-function unitsOf(text: string): string[] {
-  const sentences = sentencesOf(text)
-  return sentences.length > 1 ? [text, ...sentences] : [text]
-}
-
 function shareOfShorter(a: ReadonlySet<string>, b: ReadonlySet<string>): number {
   if (a.size < 2 || b.size < 2) return 0
   return a.size <= b.size ? containment(a, b) : containment(b, a)
 }
 
+export function comparableLength(a: ReadonlySet<string>, b: ReadonlySet<string>): boolean {
+  const shorter = Math.min(a.size, b.size)
+  const longer = Math.max(a.size, b.size)
+  return shorter >= 2 && shorter / longer >= COMPARABLE_LENGTH_RATIO
+}
+
+function shareOf(a: ReadonlySet<string>, b: ReadonlySet<string>): number {
+  return comparableLength(a, b) ? shareOfShorter(a, b) : jaccard(a, b)
+}
+
+export function restates(candidate: string, existing: string): boolean {
+  const fresh = sentencesOf(candidate).map(normalisedText).filter(sentence => sentence !== '')
+  const old = sentencesOf(existing).map(normalisedText).filter(sentence => sentence !== '')
+  if (fresh.length === 0 || old.length === 0) return false
+  const [part, whole] = fresh.length <= old.length ? [fresh, new Set(old)] : [old, new Set(fresh)]
+  return part.every(sentence => whole.has(sentence))
+}
+
 export function contradictionBetween(candidate: string, existing: string): { overlap: number; flip: string } | null {
-  let best: { overlap: number; flip: string } | null = null
-  const candidates = unitsOf(candidate).map(analyse)
-  for (const unit of unitsOf(existing)) {
-    const old = analyse(unit)
-    for (const fresh of candidates) {
-      if (fresh.scoped || old.scoped) continue
-      const flip = flipOf(fresh, old)
-      if (flip === null) continue
-      const overlap = flip === NUMBER_FLIP ? jaccard(fresh.stems, old.stems) : shareOfShorter(fresh.stems, old.stems)
-      if (overlap < CONTRADICTION_OVERLAP_SHARE) continue
-      if (best === null || overlap > best.overlap) best = { overlap, flip }
+  if (restates(candidate, existing)) return null
+  const fresh = analyse(candidate)
+  const old = analyse(existing)
+  const wholeShare = shareOf(fresh.stems, old.stems)
+  const pairs: Array<{ fresh: Analysed; old: Analysed; share: number }> = [{ fresh, old, share: wholeShare }]
+  const freshSentences = sentencesOf(candidate)
+  const oldSentences = sentencesOf(existing)
+  if (freshSentences.length > 1 || oldSentences.length > 1) {
+    const freshUnits = freshSentences.map(analyse)
+    for (const sentence of oldSentences) {
+      const oldUnit = analyse(sentence)
+      for (const freshUnit of freshUnits) {
+        pairs.push({ fresh: freshUnit, old: oldUnit, share: comparableLength(freshUnit.stems, oldUnit.stems) ? shareOfShorter(freshUnit.stems, oldUnit.stems) : wholeShare })
+      }
     }
+  }
+  let best: { overlap: number; flip: string } | null = null
+  for (const pair of pairs) {
+    if (pair.fresh.scoped || pair.old.scoped) continue
+    const flip = flipOf(pair.fresh, pair.old)
+    if (flip === null) continue
+    const overlap = flip === NUMBER_FLIP ? jaccard(pair.fresh.stems, pair.old.stems) : pair.share
+    if (overlap < CONTRADICTION_OVERLAP_SHARE) continue
+    if (best === null || overlap > best.overlap) best = { overlap, flip }
   }
   return best
 }
@@ -168,7 +173,7 @@ export function contradictionBetween(candidate: string, existing: string): { ove
 export function recordEntries(dir: string): RecordEntry[] {
   const pins = new Map(readPins(dir).map(pin => [pin.seq, pin]))
   const out: RecordEntry[] = []
-  for (const doc of listTopicDocs(dir)) {
+  for (const doc of [...listTopicDocs(dir), ...listArchiveDocs(dir)]) {
     for (const section of doc.sections) {
       for (const entry of section.entries) {
         const pin = pins.get(entry.seq)
@@ -202,8 +207,8 @@ export function entryName(entry: RecordEntry): string {
 export function conflictReason(candidate: ContradictionCandidate): string {
   const entry = candidate.entry
   const head = `conflicts with ${entryName(entry)}: "${firstWords(entry.text)}"`
-  if (entry.kind === 'rule') return `${head} — a pinned rule stands until the user changes it: ${USER_ASKED_RULE_ROAD}`
-  return `${head} — if the new fact is right, Correct ${entry.id} (supersede, with the evidence as the reason); if it is not, leave the record as it is`
+  if (entry.kind === 'rule') return `${head} — a pinned rule stands until the user changes it: ${USER_ASKED_RULE_ROAD}; if both are true, retain it again with the difference stated (when, where, which)`
+  return `${head} — if the record is wrong, Correct ${entry.id} with the evidence as the reason; if both are true, retain it again with the difference stated (when, where, which)`
 }
 
 export function conflictNotice(candidate: ContradictionCandidate): string {
