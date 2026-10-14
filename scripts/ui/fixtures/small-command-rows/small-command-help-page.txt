@@ -6,9 +6,9 @@ NEXT                    ││  ▀▄▄▄▀▄▄▄▀                     
   · /workflows — crewma…│╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯│
   · /health — health ce…│                                                                                                                  │
   · /memory — memory    │                                                                                                                  │
-  · /mission — set a mi…│ 12:30:52 [sam] ❯ start                                                                                           │
+  · /mission — set a mi…│ 13:09:20 [sam] ❯ start                                                                                           │
                         │                                                                                                                  │
-FILES · project         │ 12:30:52 [Mercury] Command rows ready.                                                                           │
+FILES · project         │ 13:09:20 [Mercury] Command rows ready.                                                                           │
   ↵ or click · browse   │                                                                                                                  │
                         │ ❯ /crewmates off                                                                                                 │
 VITALS                  │   └ crewmates off for this session                                                                               │
