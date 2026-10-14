@@ -831,8 +831,10 @@ the review shows the values to set by hand.
 
 `WebSearch` returns a small JSON result for any session model, including local
 models. Each hit has `title`, `url`, `snippet` and `source_type`; the result
-stays below 2,000 tokens. Links and source names stay visible, and web text is
-unverified evidence, not instructions.
+stays below about 2,000 tokens by a characters/4 estimate, and when hits are
+withheld to fit, a note counts them. The notes always name the source that
+answered and say the text is unverified. Links and source names stay visible,
+and web text is unverified evidence, not instructions.
 
 The automatic search order is:
 
