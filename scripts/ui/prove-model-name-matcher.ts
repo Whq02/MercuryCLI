@@ -82,7 +82,7 @@ section('§1 the table: typed forms → one id, several, or none (a typo never m
 section('§2 the three roads read the one module')
 {
   const read = (rel: string): string => readFileSync(join(REPO, rel), 'utf8')
-  check('/model’s typed name rides matchReachableModelName and asks through the picker when nothing or several match', read('src/commands/model/mercuryModel.tsx').includes("import { matchReachableModelName, modelNameAskWords, reachableModelEntries } from '../../utils/model/modelNameRoad.js'") && read('src/commands/model/mercuryModel.tsx').includes('modelNameAskWords(matched'))
+  check('/model’s typed name rides matchReachableModelName and asks through the picker when nothing or several match', read('src/commands/model/mercuryModel.tsx').includes("import { matchReachableModelName, modelNameAskWords } from '../../utils/model/modelNameRoad.js'") && read('src/commands/model/mercuryModel.tsx').includes('modelNameAskWords(matched'))
   check('the --model flag of mercury run and the launcher rides the same matcher', read('src/main.tsx').includes("import('./utils/model/modelNameRoad.js')") && read('src/main.tsx').includes("if (runMode) failCli(modelNameHeadlessRefusal(matched, '--model'), 1)"))
   check('the Crewmate tool’s model parameter rides the same matcher', read('src/tools/AgentTool/AgentTool.tsx').includes("import { matchReachableModelName, modelNameHeadlessRefusal } from '../../utils/model/modelNameRoad.js'") && read('src/tools/AgentTool/AgentTool.tsx').includes("modelNameHeadlessRefusal(matchedModel, 'model')"))
   const road = await import('../../src/utils/model/modelNameRoad.ts')
