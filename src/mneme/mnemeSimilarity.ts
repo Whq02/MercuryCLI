@@ -1,5 +1,6 @@
 import { POLARITY_WORDS, polarityFlipBetween } from './mnemePolarity.js'
 import { stemLookupToken } from './mnemeStemmer.js'
+import { sentencesOf } from './mnemeText.js'
 
 export const CONSOLIDATE_SIMILARITY_THRESHOLD = 0.8
 const PROTECTED_WINDOW = 4
@@ -27,8 +28,8 @@ export function shingleSimilarity(left: string, right: string): number {
 
 export function properNames(text: string): string[] {
   const names: string[] = []
-  for (const sentence of text.split(/(?<=[.!?])\s+|\r?\n/)) {
-    const words = sentence.replace(/^\s*(?:[-*•]|\d+[.)])\s+/, '').trim().split(/\s+/)
+  for (const sentence of sentencesOf(text)) {
+    const words = sentence.split(/\s+/)
     for (const word of words.slice(1)) {
       const core = word.replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, '')
       if (core.length > 1 && /^\p{Lu}[\p{L}\p{N}'’-]*$/u.test(core)) names.push(core.toLowerCase())

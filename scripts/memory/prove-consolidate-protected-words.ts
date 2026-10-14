@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/mneme/mnemeSimilarity.ts src/mneme/mnemePolarity.ts src/mneme/mnemeConsolidate.ts src/mneme/mnemeContradiction.ts
+// gate-watch: src/mneme/mnemeSimilarity.ts src/mneme/mnemePolarity.ts src/mneme/mnemeConsolidate.ts src/mneme/mnemeContradiction.ts src/mneme/mnemeText.ts
 import { appendFileSync, mkdirSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -76,6 +76,9 @@ try {
   const YARD = 'The fold of every wave lands each morning after the gate at the Yard.'
   check('a proper name is read from the raw text: capitalised mid-sentence, never the sentence\'s first word', JSON.stringify(properNames(HALL)) === '["hall"]' && JSON.stringify(properNames('Never remove it. The Mini and the laptop both build.')) === '["mini"]')
   check('Hall against Yard does not merge', shingleSimilarity(HALL, YARD) >= CONSOLIDATE_SIMILARITY_THRESHOLD && !mergeSimilar(HALL, YARD), similar(HALL, YARD))
+  const OWEN = 'The fold of every wave lands each morning after the gate with Dr. Owen.'
+  const EVANS = 'The fold of every wave lands each morning after the gate with Dr. Evans.'
+  check('a proper name after a title or abbreviation ("Dr.", "e.g.") is protected through sentencesOf', JSON.stringify(properNames('Run the suite (e.g. Hall) with Dr. Owen.')) === '["hall","dr","owen"]' && shingleSimilarity(OWEN, EVANS) >= CONSOLIDATE_SIMILARITY_THRESHOLD && !mergeSimilar(OWEN, EVANS), JSON.stringify(properNames(OWEN)))
   check('a dashed identifier is protected: working-35 against working-34', protectedWords('the fold target of this wave is the working-35 tree').includes('working-35') && !mergeSimilar('the fold target of this wave is the working-35 tree', 'the fold target of this wave is the working-34 tree'))
   const COMMON = 'the release build for the tag day runs beside the ledger of the mini'
   const COMMON_OTHER = 'the release build for the tag day runs beside the ledger of the laptop'
