@@ -6,7 +6,7 @@ import { readLedger } from './ledger.js'
 import { listArchiveDocs, listTopicDocs } from './mnemeLibrary.js'
 import { liveEntryIndex, pinnedLine, pinnedView, readPinnedStatus } from './mnemeFrontPage.js'
 import { mnemeEnabled, mnemeLibraryDir } from './mnemeGates.js'
-import { scoreCandidates, type LookupCandidate } from './mnemeLookup.js'
+import { scoreCandidates, semanticRanking, type LookupCandidate } from './mnemeLookup.js'
 import { docFileName, serializeSignature, type MnemeEntry, type MnemeTopicDoc } from './mnemeTopicDocs.js'
 import { readPins, readUsage, startTextLimit, usageOf, type UsageRecord } from './mnemeUsage.js'
 import { factMemoryState, memoryStatusWords } from './memoryRefs.js'
@@ -15,6 +15,7 @@ import type { LedgerEntry } from './types.js'
 
 export const MEMORY_AT_START_HEADING = '# Memory at start'
 export const EARLIER_NOTE_HEADING = '## An earlier note left'
+const FUSE_K = 60
 
 export interface StartCandidate extends LookupCandidate {
   block: string
@@ -144,10 +145,16 @@ export function earlierNotes(previous: readonly LedgerEntry[], projectKey: strin
 
 const byScore = (a: StartScored, b: StartScored): number => b.score - a.score || a.id.localeCompare(b.id)
 
-export function chooseAtStart(input: { candidates: readonly StartCandidate[]; chunks: readonly string[]; limit: number; pinnedChars: number; now: number }): StartChoice {
+export function chooseAtStart(input: { candidates: readonly StartCandidate[]; chunks: readonly string[]; limit: number; pinnedChars: number; now: number; dir?: string }): StartChoice {
   const totals = new Map<string, number>()
   for (const chunk of input.chunks) {
     for (const hit of scoreCandidates(chunk, input.candidates, input.now)) totals.set(hit.id, (totals.get(hit.id) ?? 0) + hit.score)
+    const semantic = semanticRanking(chunk, input.candidates, input.dir ?? mnemeLibraryDir())
+    semantic.forEach((id, rank) => {
+      const prior = totals.get(id) ?? 0
+      const fused = prior + 1 / (FUSE_K + rank + 1)
+      totals.set(id, fused)
+    })
   }
   const scored: StartScored[] = input.candidates.map(candidate => {
     const score = totals.get(candidate.id) ?? 0
@@ -222,7 +229,7 @@ export function composeStartPage(input: { dir: string; projectKey: string; state
   const facts = libraryCandidates(input.dir, pinned.excluded, { topics, archives })
   const notes = earlierNotes(input.previous, input.projectKey)
   const candidates = [...facts, ...notes].map(candidate => (input.stale?.(candidate) ? markStale(candidate, input.confirmedAt?.(candidate)) : candidate))
-  const choice = chooseAtStart({ candidates, chunks: stateQuery(input.state, input.root), limit: input.limit, pinnedChars: pinned.chars, now: input.now })
+  const choice = chooseAtStart({ candidates, chunks: stateQuery(input.state, input.root), limit: input.limit, pinnedChars: pinned.chars, now: input.now, dir: input.dir })
   const status: MemoryAtStartStatus = {
     limit: input.limit,
     pinnedCount: pinned.count,
