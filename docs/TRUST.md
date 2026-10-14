@@ -203,7 +203,7 @@ A hosted session — a switchboard seat, an editor session or another
 applies. In either case the runner refuses an ask nobody answers within its
 clock — ten minutes in Flow, three in Sovereign; a crewmate's ask ten minutes
 in every other mode; a session's own ask in Default, Implement or Apollo
-waits for you — and withdraws it with `$/cancel_request` naming the
+waits for you; it withdraws the ask with `$/cancel_request` naming the
 expiry. `MERCURY_PERMISSION_ASK_EXPIRY_MINUTES` replaces every clock that
 exists (0 disables them). The daemon declines an ask when no user is
 connected; the absence of a user never grants permission.

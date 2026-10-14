@@ -257,7 +257,7 @@ bun run scripts/vendor/fetch-grammars.ts
 bun run scripts/vendor/fetch-node.ts
 ```
 
-Four more packs are built rather than fetched, each with a Rust toolchain
+Four more packs are built from source, each with a Rust toolchain
 installed (https://rustup.rs, the MSVC toolchain): the voice capture addon
 (`bun run scripts/vendor/build-voice.ts`), the on-device transcriber addon
 (`bun run scripts/vendor/build-whisper.ts`, which also needs cmake beside

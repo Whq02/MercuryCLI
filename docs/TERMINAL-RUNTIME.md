@@ -272,10 +272,10 @@ The Bash tool runs commands through a shell engine. The default is the
 on Windows), a fresh child per command: the working directory carries from
 call to call, everything else resets. One exception: a Windows box where no
 `bash.exe` is found arms the bundled **brush** engine by itself, with
-nothing to set — a release archive always carries it. In both modes, the Bash
-tool tracks its own shell working directory across calls: a `cd` inside a Bash
-command moves where subsequent shell commands run without changing the
-session's starting folder.
+nothing to set — a release archive always carries it.
+In both modes, the Bash tool tracks its own shell working directory across
+calls: a `cd` inside a Bash command moves where subsequent shell commands run
+without changing the session's starting folder.
 
 An optional **brush** engine is a vendored payload — brush, a
 bash-compatible shell written in Rust (MIT), shipped as one upstream release
@@ -331,8 +331,9 @@ failure named by its code, except for the lookups and comparisons whose
 exit of 1 is an answer: `grep`, `rg`, `find`, `pgrep`, `diff`, `cmp`, `test`,
 `[`, `which` and `command -v`, judged by the last stage of a pipeline after any
 leading variable assignments or `env`. Their result is not an error; it carries the answer
-and the code — `no matches found (exit code 1)`, `no process matched (exit code 1)`, `files differ (exit
-code 1)`, `condition is false (exit code 1)` — and an exit of 2 or more
+and the code (`no matches found (exit code 1)`,
+`no process matched (exit code 1)`, `files differ (exit
+code 1)`, `condition is false (exit code 1)`), and an exit of 2 or more
 stays a failure.
 
 ## Diagnostics
