@@ -37,10 +37,10 @@ console.log('T2 the roster row carries the raw fact (source pin)')
 console.log('T3 the runner defers the breadcrumbs to the turn boundary (source pins)')
 {
   const runner = readFileSync(join(SRC, 'cli/run.ts'), 'utf8')
-  check('set_model holds while a turn is in flight and answers where the verb lands', runner.includes('heldSeatModel = { requestId: ref.id, model: String(resolved) }') && runner.includes("return { model: String(resolved), at: SEAT_VERB_AT(true) }") )
+  check('set_model holds while a turn is in flight and answers where the verb lands', runner.includes('heldSeatModel = { requestId: ref.id, model: String(resolved), ...(words === undefined ? {} : { words }) }') && runner.includes("return { model: String(resolved), at: SEAT_VERB_AT(true) }") )
   const boundaryAt = runner.indexOf('      if (heldSeatModel !== null) {')
   const boundary = boundaryAt === -1 ? '' : runner.slice(boundaryAt, boundaryAt + 1200)
-  check('the turn boundary applies the held verb before the deferred rows flush', boundary.includes('await applySeatModel(held.model)') && boundary.indexOf('await injectModelSwitchBreadcrumbs(crumb.to, crumb.from)') !== -1 && boundary.indexOf('await applySeatModel(held.model)') < boundary.indexOf('await injectModelSwitchBreadcrumbs(crumb.to, crumb.from)'))
+  check('the turn boundary applies the held verb before the deferred rows flush', boundary.includes('await applySeatModel(held.model, held.words)') && boundary.indexOf('await injectModelSwitchBreadcrumbs(crumb.to, crumb.from)') !== -1 && boundary.indexOf('await applySeatModel(held.model, held.words)') < boundary.indexOf('await injectModelSwitchBreadcrumbs(crumb.to, crumb.from)'))
 }
 
 console.log(failures === 0 ? '\nprove-model-verb-turn-open: ALL PASS' : `\nprove-model-verb-turn-open: ${failures} FAIL`)
