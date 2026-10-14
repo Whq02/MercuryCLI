@@ -164,7 +164,16 @@ try {
     const emptyDir = join(HOME, 'lib-empty')
     mkdirSync(emptyDir, { recursive: true })
     const nothing = knapsack.composeStartPage({ dir: emptyDir, projectKey: 'never', state, previous: [], limit: 4000, now: T, root: '/proj' })
-    check('an empty library with no earlier note composes no block at all', nothing.text === null && nothing.status.facts === 0 && nothing.status.notes === 0)
+    check('an empty library with no earlier note composes no block at all', nothing.text === null && nothing.status.facts === 0 && nothing.status.notes === 0 && nothing.status.pending === 0)
+    check('the home row on an empty library says there is nothing on record yet', knapsack.memoryAtStartRowWords(nothing.status) === 'nothing on record yet', knapsack.memoryAtStartRowWords(nothing.status))
+    const pendingDir = join(HOME, 'lib-pending')
+    mkdirSync(pendingDir, { recursive: true })
+    retainItems([{ content: 'this project tests with pytest', topic: 'testing' }, { content: 'the deploy goes to a Raspberry Pi every Friday', topic: 'deployment' }], { session: 'knapsack-proof' }, pendingDir)
+    const pendingOnly = knapsack.composeStartPage({ dir: pendingDir, projectKey: 'never', state, previous: [], limit: 4000, now: T, root: '/proj' })
+    check('two facts still pending: the line paints even though nothing rode, and names them', pendingOnly.text === `${knapsack.MEMORY_AT_START_HEADING}\nMemory at start: no pinned rule; nothing rode (2 facts pending); Recall finds them.` && pendingOnly.status.pending === 2, pendingOnly.text ?? 'null')
+    check('the home row says the same in its own words', knapsack.memoryAtStartRowWords(pendingOnly.status) === 'nothing rode at start (2 facts pending); Recall finds them', knapsack.memoryAtStartRowWords(pendingOnly.status))
+    check('the home row with pins and facts that rode says what rode and that Recall finds the rest', knapsack.memoryAtStartRowWords(roomy.status) === '1 pinned rule and 5 of 6 facts and 1 of 2 earlier notes rode at start; Recall finds the rest', knapsack.memoryAtStartRowWords(roomy.status))
+    check('the home row with pins and nothing else on record says nothing else rode', knapsack.memoryAtStartRowWords({ ...nothing.status, pinnedCount: 2, pending: 1 }) === '2 pinned rules; nothing else rode at start (1 fact pending); Recall finds them')
     const status = roomy.status
     check('the status the /config row reads carries the allowance, the pinned characters, what rode and the pool', status.limit === 4000 && status.pinnedChars === pinned!.used && status.rodeFacts === 5 && status.facts === 6 && status.rodeNotes === 1 && status.notes === 2 && status.used === roomy.choice.used, j(status))
   }

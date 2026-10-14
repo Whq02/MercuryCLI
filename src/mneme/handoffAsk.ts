@@ -14,7 +14,7 @@ import { lineageJoined } from './lineageSession.js'
 import { mnemeProjectKey } from './paths.js'
 import { sessionCloseAsks } from './sessionClose.js'
 
-const inThousands = (n: number): string => n.toLocaleString('en-US')
+export const inThousands = (n: number): string => n.toLocaleString('en-US')
 
 export const HANDOFF_ASK =
   `The session is ending. Leave one note for the next session to orient itself just enough for the next session to know the repo\'s workings, nothing else. Keep prose concise, effective, and short. Reply with the note alone; it is stored exactly as written, up to ${inThousands(HANDOFF_TEXT_CAP)} characters.`

@@ -71,6 +71,7 @@ export type AgentControlReceiptV1 = {
 export type LeaveReceiptV1 = {
   note: 'stored' | 'skipped' | 'none'
   detail?: string
+  noteChars?: number
 }
 
 export type PauseGateFactsV1 = {

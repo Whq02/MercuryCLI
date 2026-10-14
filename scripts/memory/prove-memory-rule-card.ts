@@ -193,7 +193,8 @@ section('§2 no keeps the rule: the answer comes back as the tool\'s own result 
   check('the refusal says the rule stays word for word and nothing changed', (data.message ?? '').includes(`seq ${seqB} stays as it is, word for word; nothing changed`), data.message ?? '')
   check('nothing on disk changed', libraryBytes() === before)
   check('the rule is still live, pinned and asked for by the user', askedPin(seqB) && liveEntries().some(e => e.seq === seqB && e.text === RULE_B))
-  check('the tool answer reads as a refusal the model can say back', resultText(CorrectTool, data).includes('refused (user-kept-rule): the user kept the rule'), resultText(CorrectTool, data))
+  const keptBlock = CorrectTool.mapToolResultToToolResultBlockParam(data as never, 'toolu_rule_card') as { content?: unknown; is_error?: boolean }
+  check('the tool answer is a plain result the model can say back, never an error', String(keptBlock.content ?? '').startsWith('the user kept the rule') && !String(keptBlock.content ?? '').includes('refused') && keptBlock.is_error !== true, JSON.stringify(keptBlock))
 }
 
 section('§3 yes on a correction stores the new words exactly as the card showed them; the old wording goes to history; the pin and its mark follow')

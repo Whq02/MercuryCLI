@@ -1,6 +1,6 @@
 import { getLastCacheSafeParams } from '../utils/forkedAgent.js'
 import type { NonNullableUsage } from '../services/api/emptyUsage.js'
-import { askForHandoff, handoffAsked, handoffNotice, type AskRunner } from './handoffAsk.js'
+import { askForHandoff, handoffAsked, handoffNotice, inThousands, type AskRunner } from './handoffAsk.js'
 import { ledgerEntryOf } from './ledger.js'
 import { lineageJoined, openLineageSession } from './lineageSession.js'
 
@@ -8,6 +8,18 @@ export const HANDOFF_EXIT_BUDGET_MS = 20_000
 export const HANDOFF_EXIT_NOTICE = 'writing the handoff for the next session… (ctrl-c skips)'
 
 export type ExitNoteOutcome = 'stored' | 'skipped' | 'none'
+
+let keptChars: number | null = null
+
+export function exitNoteCharsKept(): number | null {
+  return keptChars
+}
+
+export function exitFarewell(farewell: string, note: ExitNoteOutcome, chars: number | null | undefined): string {
+  if (note !== 'stored' || chars === null || chars === undefined) return farewell
+  const [first, ...rest] = farewell.split('. ')
+  return `${first}, note kept (${inThousands(chars)} characters).${rest.length > 0 ? ` ${rest.join('. ')}` : ''}`
+}
 
 export function exitNoteDue(): boolean {
   if (!lineageJoined()) return false
@@ -37,5 +49,6 @@ export async function leaveNoteBeforeExit(opts: { signal?: AbortSignal; budgetMs
     else process.stderr.write(`${notice}\n`)
     return 'none'
   }
+  keptChars = note.text.length
   return 'stored'
 }
