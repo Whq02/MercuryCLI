@@ -2,7 +2,9 @@
 
 A sample is a versioned HTML page the model draws in an Eval cell when you ask
 to see a design, report or comparison, served locally to your browser for
-pinned comments. Samples are off by default: turn on the Boot Menu's `Samples`
+pinned comments.
+
+Samples are off by default: turn on the Boot Menu's `Samples`
 row or set `MERCURY_SAMPLES=1` for new sessions ([the switch](#the-switch)).
 
 ## Where a sample comes from

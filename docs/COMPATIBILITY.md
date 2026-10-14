@@ -2,7 +2,9 @@
 
 Mercury stores configuration in `.mercury` directories, reads `MERCURY_*`
 environment switches from `src/substrate/flagRegistry.ts`, and ships four
-platform archives. See [SETTINGS.md](SETTINGS.md) for settings files and keys.
+platform archives.
+
+See [SETTINGS.md](SETTINGS.md) for settings files and keys.
 
 ## Project instructions
 
