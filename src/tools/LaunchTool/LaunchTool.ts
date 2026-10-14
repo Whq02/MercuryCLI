@@ -58,7 +58,7 @@ export type Output = {
 
 type OwnerTool = 'Debug' | 'Test'
 type Route =
-  | { tool: 'Debug'; input: DebugInput; owners: OwnerTool[]; cwd?: string; env?: Record<string, string> }
+  | { tool: 'Debug'; input: DebugInput; owners: OwnerTool[]; cwd?: string; env?: Record<string, string>; module?: string }
   | { tool: 'Test'; input: TestInput; owners: OwnerTool[] }
 type OpResult = Pick<Output, 'result' | 'outcome' | 'route'> & { details?: Record<string, unknown> }
 type Resolution = { refuse: OpResult } | { own: 'run' | 'build' } | { route: Route }
@@ -89,6 +89,7 @@ function resolveRequest(p: LaunchProfile, input: Input): Resolution {
           owners: ['Debug'],
           ...(p.debug.cwd !== undefined ? { cwd: p.debug.cwd } : {}),
           ...(p.debug.env !== undefined ? { env: p.debug.env } : {}),
+          ...(p.debug.module !== undefined ? { module: p.debug.module } : {}),
         } }
       }
       if (p.source === 'python-tests' && p.test?.selectionLabel === 'rerun-failed' && p.test.selection.length) {
@@ -247,7 +248,7 @@ async function runRoute(p: LaunchProfile, route: Route, context: ToolUseContext,
   let op: DebugResult & { record?: Awaited<ReturnType<typeof runTestOperation>>['record'] }
   try {
     op = route.tool === 'Debug'
-      ? await runDebugLaunch(route.input, owner, { cwd: route.cwd, ...(route.env !== undefined ? { env: route.env } : {}) })
+      ? await runDebugLaunch(route.input, owner, { cwd: route.cwd, ...(route.env !== undefined ? { env: route.env } : {}), ...(route.module !== undefined ? { module: route.module } : {}) })
       : await runTestOperation(route.input, context, onProgress)
   } catch (err) {
     op = { result: `${route.input.op} failed: ${(err as Error).message}`, outcome: 'failed' }
@@ -328,6 +329,7 @@ async function runOp(input: Input, context: ToolUseContext, onProgress?: ToolCal
       args: p.debug!.args,
       cwd: p.debug!.cwd ?? process.cwd(),
       ...(p.debug!.env !== undefined ? { env: p.debug!.env } : {}),
+      ...(p.debug!.module !== undefined ? { module: p.debug!.module } : {}),
       breakpoints: undefined,
       stopOnEntry: false,
       noDebug: true,
