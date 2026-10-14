@@ -26,15 +26,21 @@ const enter = [
   { atTick: 100, awaitText: '↑↓ choose', minTick: 10, awaitSettleTicks: 3, requireAwait: true, data: '\r' },
   { atTick: 180, awaitText: 'Type a prompt', minTick: 5, awaitSettleTicks: 3, requireAwait: true, data: '' },
 ]
-const command = (data: string) => [{ afterPrevTicks: 3, data }, { afterPrevTicks: 3, data: '\r' }]
-async function drive(name: string, sends: Record<string, unknown>[], total: number, extra: Record<string, string> = {}): Promise<Payload> {
+const composer = 'Type a prompt'
+const farewell = 'Session saved'
+const gone = (words: string): string => `\\A(?![\\s\\S]*${words.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`
+const command = (data: string) => [
+  { requireAwait: true, awaitText: composer, awaitSettleTicks: 2, data },
+  { requireAwait: true, awaitText: data, awaitSettleTicks: 2, data: '\r' },
+]
+async function drive(name: string, sends: Record<string, unknown>[], total: number, readyText: string, extra: Record<string, string> = {}): Promise<Payload> {
   const home = join(scratch, name, 'home')
   const project = join(scratch, name, 'project')
   mkdirSync(project, { recursive: true })
   seedFirstRun(home, [project])
   const out = join(scratch, `${name}.json`)
   const cfg = join(scratch, `${name}-cfg.json`)
-  writeFileSync(cfg, JSON.stringify({ argv: ['node', join(root, 'dist/mercury.mjs')], cwd: project, cols: 120, rows: 44, sends, total, out }))
+  writeFileSync(cfg, JSON.stringify({ argv: ['node', join(root, 'dist/mercury.mjs')], cwd: project, cols: 120, rows: 44, sends, total, readyText, out }))
   const env = { ...process.env, VSHOT_TEE: join(scratch, `${name}.bin`), BROWSER: '/usr/bin/true', MERCURY_CONFIG_DIR: home, MERCURY_DAEMON_DIR: join(home, 'daemon'), MERCURY_HEALTH_STATE_DIR: join(home, 'health'), MERCURY_CREDENTIAL_STORE: 'file', MERCURY_CRITTER_IDLE: '0', MERCURY_CRITTER_GAZE: '0', MERCURY_CRITTER_SLEEP: '0', MERCURY_LIVE_CLOCK: '0', MERCURY_LIVE_GLYPHS: '0', MERCURY_SKIP_PROMPT_HISTORY: '1', ANTHROPIC_BASE_URL: 'http://127.0.0.1:1', ANTHROPIC_API_KEY: 'proof-key-ci-gate-not-a-real-key', ...extra }
   const child = spawn(python, [join(root, 'scripts/ui/vshot.py'), cfg], { env, stdio: ['ignore', 'pipe', 'pipe'] })
   let output = ''
@@ -90,26 +96,26 @@ function frame(name: string, lines: string[]): void {
     catch { check(`${name}: the stored frame exists`, false) }
   }
 }
-const quiet = await drive('quiet-exit', [...enter, ...command('/exit')], 280)
+const quiet = await drive('quiet-exit', [...enter, ...command('/exit')], 280, farewell)
 const quietText = text(quiet.grid)
 check('ordinary exit closes and shows the door exactly once', quiet.endReason === 'eof' && count(quietText) === 1)
 frame('quiet-exit', quietText.split('\n').filter(line => /Session saved|Something broke/.test(line)).map(line => line.trim()))
-const control = await drive('control-exit', [...enter, { afterPrevTicks: 3, data: '\x03' }, { atTick: 230, awaitText: 'twice to close Mercury', requireAwait: true, data: '\x03' }], 300)
+const control = await drive('control-exit', [...enter, { requireAwait: true, awaitText: composer, awaitSettleTicks: 2, data: '\x03' }, { atTick: 230, awaitText: 'twice to close Mercury', requireAwait: true, data: '\x03' }], 300, 'Something broke?')
 const controlText = text(control.grid)
 check('composer exit closes and shows the door exactly once', control.endReason === 'eof' && count(controlText) === 1)
 frame('control-exit', controlText.split('\n').filter(line => line.includes('Something broke')).map(line => line.trim()))
 const live = await drive('live-exit', [
   ...enter,
-  { afterPrevTicks: 3, data: '!' },
+  { requireAwait: true, awaitText: composer, awaitSettleTicks: 2, data: '!' },
   { atTick: 210, awaitText: '! Type a prompt', requireAwait: true, data: 'sleep 300' },
-  { afterPrevTicks: 3, data: '\r' },
+  { requireAwait: true, awaitText: 'sleep 300', awaitSettleTicks: 2, data: '\r' },
   { atTick: 280, awaitText: 'RUNS · 1 live', requireAwait: true, awaitSettleTicks: 3, data: '' },
   ...command('/exit'),
   { atTick: 380, awaitText: 'Leave Mercury?', requireAwait: true, awaitSettleTicks: 3, mark: 'first-card', data: 'n' },
-  { afterPrevTicks: 6, data: '' },
+  { requireAwait: true, awaitText: composer, awaitPattern: gone('Leave Mercury?'), awaitSettleTicks: 3, data: '' },
   ...command('/exit'),
   { atTick: 440, awaitText: 'Leave Mercury?', requireAwait: true, awaitSettleTicks: 3, mark: 'second-card', data: 'y' },
-], 520)
+], 520, farewell)
 const first = text(live.marks?.find(mark => mark.label === 'first-card')?.grid ?? [])
 const second = text(live.marks?.find(mark => mark.label === 'second-card')?.grid ?? [])
 check('the first confirm card carries one door', first.includes('Leave Mercury?') && count(first) === 1)
@@ -123,10 +129,10 @@ try {
     ...enter, ...command('/bug --short I tried the model picker'),
     { atTick: 240, awaitText: 'What you tried', requireAwait: true, awaitSettleTicks: 3, mark: 'tried', data: '\r' },
     { atTick: 280, awaitText: 'What broke', requireAwait: true, data: 'The picker went blank' },
-    { afterPrevTicks: 3, data: '\r' },
+    { requireAwait: true, awaitText: 'The picker went blank', awaitSettleTicks: 2, data: '\r' },
     { atTick: 430, awaitText: 'enter to file it', requireAwait: true, awaitSettleTicks: 3, mark: 'review', data: '\x1b' },
-    { afterPrevTicks: 4, data: '' }, ...command('/exit'),
-  ], 520, { ANTHROPIC_BASE_URL: api.url, MERCURY_GH_CMD: JSON.stringify(['node', join(root, 'scripts/command-catalogue/fake-gh.mjs')]), GH_SHIM_LOG: join(scratch, 'short-gh.log') })
+    { requireAwait: true, awaitText: composer, awaitPattern: gone('enter to file it'), awaitSettleTicks: 2, data: '' }, ...command('/exit'),
+  ], 520, farewell, { ANTHROPIC_BASE_URL: api.url, MERCURY_GH_CMD: JSON.stringify(['node', join(root, 'scripts/command-catalogue/fake-gh.mjs')]), GH_SHIM_LOG: join(scratch, 'short-gh.log') })
   const review = text(report.marks?.find(mark => mark.label === 'review')?.grid ?? [])
   check('short report reviews the three fields without a health dump', ['Your OS', 'What you tried', 'What broke'].every(label => review.includes(label)) && !review.includes('health --json'))
   const calls = existsSync(join(scratch, 'short-gh.log')) ? readFileSync(join(scratch, 'short-gh.log'), 'utf8') : ''
