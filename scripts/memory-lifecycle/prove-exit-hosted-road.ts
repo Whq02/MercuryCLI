@@ -55,7 +55,7 @@ section('§1 with no session in the slot the old road stands: nothing due, the l
   const counts = liveWorkAtExit(undefined)
   check('the live-work count is the local count alone', j(counts) === j({ total: 0, shells: 0, agents: 0, workflows: 0, other: 0 }), j(counts))
   const receipt = await leaveNoteAtExit(new AbortController().signal)
-  check('the local leave is skipped (nothing to hand off in this process)', receipt === 'skipped', receipt)
+  check('the local leave is skipped (nothing to hand off in this process)', receipt.note === 'skipped' && receipt.noteChars === undefined, JSON.stringify(receipt))
 }
 
 section('§2 a hosted session in the slot: the note is asked of the SESSION, whatever this process knows')
@@ -67,7 +67,7 @@ section('§2 a hosted session in the slot: the note is asked of the SESSION, wha
   }))
   check('this process still has no turn of its own, yet the exit asks', exitNoteDue() === false && noteAskedAtExit() === true)
   const receipt = await leaveNoteAtExit(new AbortController().signal)
-  check("the leave rides the connector and answers with the session's word", receipt === 'stored' && calls.length === 1, `${receipt} · ${calls.length} calls`)
+  check("the leave rides the connector and answers with the session's word", receipt.note === 'stored' && calls.length === 1, `${JSON.stringify(receipt)} · ${calls.length} calls`)
   check('the connector was handed the abort signal', calls[0] instanceof AbortSignal)
   releaseFocusedSessionConnector()
 }
@@ -86,8 +86,8 @@ section('§4 the exit screen on the hosted road: the line while the session writ
 {
   let answer: ((receipt: LeaveReceipt) => void) | null = null
   setFocusedSessionConnector(hosted(() => new Promise<LeaveReceipt>(resolve => (answer = resolve))))
-  let settledWith: string | null = null
-  const element = React.createElement(ThemeProvider as never, {}, React.createElement(Box, { flexDirection: 'column', width: 80, height: 6 }, React.createElement(ExitHandoff as never, { onSettled: (o: string) => (settledWith = o) })))
+  let settledWith: { note: string } | null = null
+  const element = React.createElement(ThemeProvider as never, {}, React.createElement(Box, { flexDirection: 'column', width: 80, height: 6 }, React.createElement(ExitHandoff as never, { onSettled: (o: { note: string }) => (settledWith = o) })))
   const m = await mountOffscreen(element, 80, 6)
   const shown = await waitFor(() => m.lines().some(l => l.includes(HANDOFF_EXIT_NOTICE)), 4000)
   check('the one-line notice is on screen while the session writes', shown, m.lines().filter(l => l.trim()).join(' | '))
@@ -95,7 +95,7 @@ section('§4 the exit screen on the hosted road: the line while the session writ
   check('nothing settles before the session answers', settledWith === null, String(settledWith))
   answer!({ note: 'stored' })
   const done = await waitFor(() => settledWith !== null, 4000)
-  check("the session's answer settles the exit with its word", done && settledWith === 'stored', String(settledWith))
+  check("the session's answer settles the exit with its word", done && settledWith?.note === 'stored', JSON.stringify(settledWith))
   m.unmount()
   releaseFocusedSessionConnector()
 }
@@ -109,22 +109,22 @@ section('§5 ctrl-c skips: the signal reaches the session, and a session that ne
       resolve({ note: 'none' })
     }, { once: true })
   })))
-  let settledWith: string | null = null
-  const element = React.createElement(ThemeProvider as never, {}, React.createElement(Box, { flexDirection: 'column', width: 80, height: 6 }, React.createElement(ExitHandoff as never, { onSettled: (o: string) => (settledWith = o) })))
+  let settledWith: { note: string } | null = null
+  const element = React.createElement(ThemeProvider as never, {}, React.createElement(Box, { flexDirection: 'column', width: 80, height: 6 }, React.createElement(ExitHandoff as never, { onSettled: (o: { note: string }) => (settledWith = o) })))
   const m = await mountOffscreen(element, 80, 6)
   await waitFor(() => m.lines().some(l => l.includes(HANDOFF_EXIT_NOTICE)), 4000)
   await settle(60)
   const pressedAt = Date.now()
   m.push('\x03')
   const cut = await waitFor(() => settledWith !== null, 4000)
-  check('ctrl-c aborts the leave and the exit settles without a note', cut && settledWith === 'none' && aborted === 'the handoff was skipped by ctrl-c', `${settledWith} · ${aborted}`)
+  check('ctrl-c aborts the leave and the exit settles without a note', cut && settledWith?.note === 'none' && aborted === 'the handoff was skipped by ctrl-c', `${JSON.stringify(settledWith)} · ${aborted}`)
   check('the skip settles at once, not after the grace', Date.now() - pressedAt < HANDOFF_SKIP_GRACE_MS, `${Date.now() - pressedAt} ms`)
   m.unmount()
   releaseFocusedSessionConnector()
 
   setFocusedSessionConnector(hosted(() => new Promise<LeaveReceipt>(() => {})))
-  let deaf: string | null = null
-  const deafElement = React.createElement(ThemeProvider as never, {}, React.createElement(Box, { flexDirection: 'column', width: 80, height: 6 }, React.createElement(ExitHandoff as never, { onSettled: (o: string) => (deaf = o) })))
+  let deaf: { note: string } | null = null
+  const deafElement = React.createElement(ThemeProvider as never, {}, React.createElement(Box, { flexDirection: 'column', width: 80, height: 6 }, React.createElement(ExitHandoff as never, { onSettled: (o: { note: string }) => (deaf = o) })))
   const d = await mountOffscreen(deafElement, 80, 6)
   await waitFor(() => d.lines().some(l => l.includes(HANDOFF_EXIT_NOTICE)), 4000)
   await settle(60)
@@ -133,7 +133,7 @@ section('§5 ctrl-c skips: the signal reaches the session, and a session that ne
   await settle(HANDOFF_SKIP_GRACE_MS / 2)
   check('a session that ignores the skip has not settled the exit before the grace', deaf === null, String(deaf))
   const left = await waitFor(() => deaf !== null, HANDOFF_SKIP_GRACE_MS + 2000)
-  check('after the grace the exit leaves without a note', left && deaf === 'none' && Date.now() - t0 >= HANDOFF_SKIP_GRACE_MS, `${deaf} after ${Date.now() - t0} ms`)
+  check('after the grace the exit leaves without a note', left && deaf?.note === 'none' && Date.now() - t0 >= HANDOFF_SKIP_GRACE_MS, `${JSON.stringify(deaf)} after ${Date.now() - t0} ms`)
   d.unmount()
   releaseFocusedSessionConnector()
   check('the slot rests again', getFocusedSessionConnector().sessionId() === '' && hasFocusedSession() === false)
