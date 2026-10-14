@@ -50,9 +50,24 @@ default), so a runaway adapter cannot fork forever.
 
 The `Test` tool's `debug` op takes a failing test straight into the
 debugger — no launch configuration written, no runner arguments
-reconstructed by hand. The debug lanes are python (pytest and unittest)
-and node-test (via js-debug); `run`/`rerunFailed` cover the remaining
-runners, and asking `debug` of one answers with exactly that.
+reconstructed by hand — and stops on the first line of the one test you
+named, with its locals readable. Python tests (pytest and unittest) run
+under debugpy; node-test, vitest and jest tests under js-debug (vitest in
+one worker with its timeout off, jest in-band); Go tests under delve's DAP
+server, built in test mode for their package; cargo tests under lldb-dap
+or gdb, from the test binary cargo itself builds, run with `--exact`. The
+test is spelled as its runner names it: `file::name` or a bare name from
+the latest run for the Node runners, `TestName`, `TestName/subtest` or
+`dir::TestName` for Go, `module::path::test_name` for cargo. A debugger
+that is not installed answers `unavailable` with its install line (delve:
+`go install github.com/go-delve/delve/cmd/dlv@latest`; lldb-dap or gdb
+from the toolchain).
+
+`run` on a vitest, jest or Go project answers passed, failed and skipped
+counts and the failing cases from the runner's own machine reporter
+(vitest's and jest's JSON report, `go test -json`), as node-test and cargo
+already do from their summaries; `rerunFailed` selects exactly those
+failures by the names the reporter recorded.
 
 ## Gates
 

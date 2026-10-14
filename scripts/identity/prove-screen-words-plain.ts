@@ -35,6 +35,7 @@ const RETIRED: Array<{ spelling: RegExp; was: string; now: string }> = [
   { spelling: new RegExp(J('— agent', ' runs')), was: 'the rail\'s NEXT hint read "/workflows — agent runs"', now: 'it reads "/workflows — crewmate runs"' },
   { spelling: new RegExp(J('"stop ', 'agents"')), was: 'the composer footer\'s kill hint read "stop agents"', now: 'it reads "stop crewmates"' },
   { spelling: new RegExp(J('No agent type', ' named')), was: 'a launch naming an unknown type was refused as "No agent type named"', now: 'the type parameter is crewmate_type, so the refusal says "No crewmate type named"' },
+  { spelling: new RegExp(J('debug is not ', 'grown for')), was: 'the Test tool\'s debug refused vitest, jest, cargo and go by naming the two debuggers it had', now: 'every runner rides its own debugger (js-debug, delve, lldb-dap or gdb) and a debugger that is not installed answers unavailable with its install line' },
 ]
 
 const tracked = execFileSync('git', ['ls-files', 'src', 'assets'], { cwd: ROOT, encoding: 'utf8' })

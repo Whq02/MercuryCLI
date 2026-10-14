@@ -54,7 +54,7 @@ const inputSchema = lazySchema(() =>
     node: z
       .string()
       .optional()
-      .describe('run: one test node id (pytest: file::test_name · unittest: module.Class.test). debug: required — the node to debug (node-test: file::name, or a bare name the latest run\'s case rows place)'),
+      .describe('run: one test node id (pytest: file::test_name · unittest: module.Class.test). debug: required — the test to debug (node-test, vitest, jest: file::name, or a bare name the latest run\'s case rows place · go: TestName, TestName/subtest or dir::TestName · cargo: module::path::test_name)'),
     changed: z
       .boolean()
       .optional()
@@ -412,12 +412,6 @@ async function runOp(
         }
         return launchRunnerDebug({ runner: 'cargo', adapterKey: plan.adapterKey, program: plan.program, args: plan.args, cwd: plan.cwd, stop: plan.stop, note: plan.note })
       }
-      if (debugLane.lane === 'runner' && debugLane.profile.runner !== 'node-test') {
-        return {
-          result: `debug is not grown for ${debugLane.profile.runner} yet — the debug lanes are python (pytest/unittest) and node-test (js-debug); run/rerunFailed cover ${debugLane.profile.runner}`,
-          outcome: 'failed',
-        }
-      }
       if (debugLane.lane === 'runner') {
         const jsShim = buildNodeTestDebugShim(input.node, {})
         if ('state' in jsShim) {
@@ -534,7 +528,7 @@ Operations:
 1. op:"discover" — list test node ids (pytest: file::test · unittest: module.Class.test) or the manifest-declared runner profiles (rp-…). Collect errors are reported, never hidden.
 2. op:"run" — the whole suite, one file (path), one node (node), the changed-file focus (changed:true — the runner's own related-test machinery: vitest related · jest --findRelatedTests · changed test files for node-test/pytest · changed packages for go; cargo declines honestly), or an exact profile (profile:"rp-…" — the explicit runner override). The permission ask shows the exact resolved argv before anything executes; long runs stream a bounded live status line. Returns the ran argv + counts + typed failure locations (file:line + test name) + available LSP diagnostics + a durable record (mercury://test/run/<id>; mercury://test/latest and /failures always point at the newest truth). Full output spills to an artifact ref.
 3. op:"rerunFailed" — re-run exactly the failures recorded by the latest run.
-4. op:"debug" — debug one test (node required) under the real debugger for its lane (python: debugpy · node-test: js-debug, node spelled file::name or a bare name from the latest run; other runners refuse naming the lane): pass file+lines for breakpoints inside the test/code under test; the call reports the first stop and leaves Debug session "test" open — continue with the Debug tool (stack/scopes/variables/continue, then disconnect).
+4. op:"debug" — debug one test (node required) under its own debugger, stopping on the test's first line: python under debugpy · node-test, vitest and jest under js-debug (node spelled file::name, or a bare name from the latest run) · go under delve (TestName, TestName/subtest or dir::TestName) · cargo under lldb-dap or gdb (module::path::test_name); a debugger that is not installed answers unavailable with its install line. Pass file+lines for breakpoints of your own; the call reports the first stop and leaves Debug session "test" open — continue with the Debug tool (stack/scopes/variables/continue, then disconnect).
 5. op:"report" — the latest (or runId) durable record.
 
 A run whose exit code disagrees with its structured records says so (verdictNote) — trust the records. Prefer run→fix→rerunFailed loops over re-running the whole suite.`
