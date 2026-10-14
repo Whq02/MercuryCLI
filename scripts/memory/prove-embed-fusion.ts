@@ -49,7 +49,7 @@ doc.sections.push({ heading: 'notes', entries: [
 ] })
 writeFileSync(join(dir, 'topic-times.md'), docs.serializeTopicDoc(doc))
 usage.writePins([{ seq: 2, at: '2026-10-13T10:31:00.000Z' }], dir)
-idx.rebuildEmbedIndex(dir)
+await idx.rebuildEmbedIndex(dir)
 
 console.log('\n[F] the semantic ranking joins the fusion')
 {
