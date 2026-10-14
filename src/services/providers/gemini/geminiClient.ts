@@ -16,6 +16,18 @@ import {
 } from '../openaicompat/compatChatClient.js'
 import { buildGeminiPlanRequest, buildGeminiRequest, type GeminiPart, type GeminiPlanEnvelope, type GeminiRequest, type GeminiTurnItem } from './geminiCodec.js'
 import { maskGeminiSecrets } from './geminiAccounts.js'
+import { appendFileSync } from 'node:fs'
+import { flagEnv } from '../../../substrate/flagRegistry.js'
+import { isProofShapeRun } from '../../../utils/privacyLevel.js'
+
+function dumpGeminiWire(url: string, model: string, body: string): void {
+  const path = flagEnv('MERCURY_GEMINI_WIRE_DUMP')?.trim()
+  if (!path || !isProofShapeRun()) return
+  try {
+    appendFileSync(path, `${JSON.stringify({ at: new Date().toISOString(), url, model, body: JSON.parse(body) as unknown })}\n`)
+  } catch {
+  }
+}
 
 export interface GeminiPlanWire extends GeminiPlanEnvelope {
   bases: readonly string[]
@@ -161,6 +173,7 @@ export async function* streamGeminiContent(options: GeminiStreamOptions): AsyncG
     const plan = options.plan
     const urls = plan ? plan.bases.map(base => geminiPlanStreamUrl(base, stream)) : [options.url.replace(/:streamGenerateContent(?:\?alt=sse)?$/, stream ? ':streamGenerateContent?alt=sse' : ':generateContent')]
     const body = JSON.stringify(plan ? buildGeminiPlanRequest(request, options.request.model, plan) : request)
+    dumpGeminiWire(urls[0]!, options.request.model, body)
     options.firstByte?.onWait?.(wait)
     firstTimer = setTimeout(() => { firstByteFired = true; controller.abort() }, budgetMs)
     firstTimer.unref?.()
