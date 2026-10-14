@@ -79,13 +79,13 @@ const LEGS: JourneyLeg[] = [
     needles: ['adding to one conversation shelf never touches the other'],
   },
   {
-    journey: 'Artifact conversation (comment → revise → route → scope accept)',
+    journey: 'Artifact conversation (comment → reply → scope accept → explicit decision)',
     prover: 'scripts/session-graph/prove-interactive-folios.ts',
-    needles: ['request-revision carries the revision-request routing receipt', 'a file-scope accept records'],
+    needles: ['the reply folds back threaded (parentCommentId intact)', 'a file-scope accept records', 'the artifact-level status is the EXPLICIT decision (revision-requested), not the fold suggestion (accepted)'],
   },
   {
     journey: 'Outdated anchor (relocate-or-outdated, never guessed)',
-    prover: 'scripts/attention/prove-folio-actions.ts',
+    prover: 'scripts/attention/prove-review-anchor-honesty.ts',
     needles: [
       'the surviving-content comment RELOCATED (version moved, state open)',
       'the vanished-content comment reads OUTDATED — never a silent wrong anchor',
