@@ -7,6 +7,7 @@ import {
 } from '../services/engine-connector/focusedConnector.js'
 import { renderModelChip } from '../utils/model/model.js'
 import { geminiPlanRideWords } from '../services/providers/gemini/geminiCatalogue.js'
+import { declaredRouteOf } from '../services/providers/routeLaw.js'
 
 
 export type DisplayedSessionModel = {
@@ -84,6 +85,6 @@ export function useDisplayedSessionModel(): DisplayedSessionModel {
     [pendingParked, pendingSetting],
   )
   const effort = useSyncExternalStore(subscribeFocusedModel, getFocusedServedEffort, getFocusedServedEffort)
-  const ride = useMemo(() => (/^gemini-/i.test(mainModel) ? geminiPlanRideWords(mainModel, effort === '' ? undefined : effort) ?? null : null), [mainModel, effort])
+  const ride = useMemo(() => (declaredRouteOf(mainModel) === 'gemini' ? geminiPlanRideWords(mainModel, effort === '' ? undefined : effort) ?? null : null), [mainModel, effort])
   return resolveDisplayedSessionModel(mainModel, pendingSwitch, ride)
 }

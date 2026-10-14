@@ -328,6 +328,7 @@ export interface GeminiPlanEnvelope {
   requestId: string
   sessionId: string
   labels: Record<string, string>
+  toolMode?: 'VALIDATED' | 'AUTO'
 }
 
 export function buildGeminiPlanRequest(request: GeminiRequest, model: string, envelope: GeminiPlanEnvelope): Record<string, unknown> {
@@ -343,10 +344,10 @@ export function buildGeminiPlanRequest(request: GeminiRequest, model: string, en
               parameters: codeAssistSchema(declaration.parametersJsonSchema, codeAssistGrammarFor(model)),
             })),
           })),
-          toolConfig: { functionCallingConfig: { mode: request.toolConfig && request.toolConfig.functionCallingConfig.mode !== 'AUTO' ? request.toolConfig.functionCallingConfig.mode : 'VALIDATED' } },
+          toolConfig: { functionCallingConfig: { mode: request.toolConfig && request.toolConfig.functionCallingConfig.mode !== 'AUTO' ? request.toolConfig.functionCallingConfig.mode : envelope.toolMode ?? 'VALIDATED' } },
         }
       : geminiPlanServesClaude(model)
-        ? { toolConfig: { functionCallingConfig: { mode: 'VALIDATED' } } }
+        ? { toolConfig: { functionCallingConfig: { mode: envelope.toolMode ?? 'VALIDATED' } } }
         : {}),
     ...(request.generationConfig ? { generationConfig: request.generationConfig } : {}),
     sessionId: envelope.sessionId,
