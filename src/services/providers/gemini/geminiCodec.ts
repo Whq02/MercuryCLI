@@ -19,7 +19,7 @@ export type GeminiRequest = {
   systemInstruction?: { parts: Array<{ text: string }> }
   tools?: Array<{ functionDeclarations: Array<{ name: string; description?: string; parametersJsonSchema: unknown }> }>
   toolConfig?: { functionCallingConfig: { mode: 'AUTO' | 'NONE' | 'ANY' } }
-  generationConfig?: { maxOutputTokens?: number; thinkingConfig?: { thinkingLevel?: string; thinkingBudget?: number } }
+  generationConfig?: { maxOutputTokens?: number; thinkingConfig?: { thinkingLevel?: string; thinkingBudget?: number; includeThoughts?: boolean } }
 }
 
 export type GeminiTurnItem = {
@@ -68,7 +68,20 @@ function contentParts(content: CompatMessage['content']): GeminiPart[] {
 export const GEMINI_SKIP_SIGNATURE_VALIDATION = 'skip_thought_signature_validator'
 
 export function geminiValidatesSignatures(model: string): boolean {
-  return !/^gemini-[12]\./.test(model)
+  return /^gemini-/.test(model) && !/^gemini-[12]\./.test(model)
+}
+
+export const GEMINI_PLAN_CLAUDE_OUTPUT_CAP = 64_000
+
+export function geminiPlanServesClaude(wireModel: string): boolean {
+  return /^claude-/.test(wireModel)
+}
+
+export function geminiThinkingConfig(model: string, effort: string | undefined): { thinkingBudget: number; includeThoughts?: boolean } | { thinkingLevel: string } | undefined {
+  const budget = typeof effort === 'string' ? ({ low: 1024, medium: 8192, high: 24576 } as Record<string, number>)[effort] : undefined
+  if (budget === undefined) return undefined
+  if (geminiPlanServesClaude(model)) return { includeThoughts: true, thinkingBudget: budget }
+  return model.startsWith('gemini-2.5') ? { thinkingBudget: budget } : { thinkingLevel: String(effort).toUpperCase() }
 }
 
 export function buildGeminiRequest(request: CompatChatRequest, messages: readonly Message[]): GeminiRequest {
@@ -131,11 +144,11 @@ export function buildGeminiRequest(request: CompatChatRequest, messages: readonl
     content.parts = [...responses, ...content.parts.filter(part => !responseOrdinals.has(part))]
   }
   const effort = request.extra?.reasoning_effort
-  const maxOutput = request.extra?.max_tokens
-  const budget = typeof effort === 'string' ? ({ low: 1024, medium: 8192, high: 24576 } as Record<string, number>)[effort] : undefined
-  const thinkingConfig = budget === undefined ? undefined : request.model.startsWith('gemini-2.5')
-    ? { thinkingBudget: budget }
-    : { thinkingLevel: String(effort).toUpperCase() }
+  const requestedOutput = request.extra?.max_tokens
+  const maxOutput = geminiPlanServesClaude(request.model)
+    ? Math.min(typeof requestedOutput === 'number' ? requestedOutput : GEMINI_PLAN_CLAUDE_OUTPUT_CAP, GEMINI_PLAN_CLAUDE_OUTPUT_CAP)
+    : requestedOutput
+  const thinkingConfig = geminiThinkingConfig(request.model, typeof effort === 'string' ? effort : undefined)
   const generationConfig = {
     ...(typeof maxOutput === 'number' ? { maxOutputTokens: maxOutput } : {}),
     ...(thinkingConfig ? { thinkingConfig } : {}),
@@ -204,7 +217,9 @@ export function buildGeminiPlanRequest(request: GeminiRequest, model: string, en
           })),
           toolConfig: { functionCallingConfig: { mode: request.toolConfig && request.toolConfig.functionCallingConfig.mode !== 'AUTO' ? request.toolConfig.functionCallingConfig.mode : 'VALIDATED' } },
         }
-      : {}),
+      : geminiPlanServesClaude(model)
+        ? { toolConfig: { functionCallingConfig: { mode: 'VALIDATED' } } }
+        : {}),
     ...(request.generationConfig ? { generationConfig: request.generationConfig } : {}),
     sessionId: envelope.sessionId,
     labels: envelope.labels,
