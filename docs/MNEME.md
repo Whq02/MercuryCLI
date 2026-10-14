@@ -195,6 +195,14 @@ files` opens the instruction files picker straight away, in the same popup.
 `/health` carries a memory row with the front page's size and the shelf's
 fill.
 
+`/memory page` draws the library as a page in your browser: every fact is a
+node with its first words, pinned rules and stale facts are marked, each
+node says how often it was offered, opened and cited, and the links are
+edges — what a fact supersedes, the ruling it was made under, the session
+that made it. A node opens its record, word for word. The page reads the
+library and writes nothing back. It is kept as a sample, a new version each
+time you open it, so Samples must be on ([SAMPLES.md](SAMPLES.md)).
+
 ## On disk
 
 The journal is `<config home>/projects/<project>/journal/journal.md`. The

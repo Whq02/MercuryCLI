@@ -19,6 +19,9 @@ version and never makes a second sample. The cell's result names each
 sample it kept — its title, its version, its address — and the words of
 yours it answered.
 
+`/memory page` keeps one sample of its own: the memory library drawn as a
+page ([MNEME.md](MNEME.md)). Each `/memory page` keeps its next version.
+
 ## Where it lives
 
 Under the session in the config home, never in your project:

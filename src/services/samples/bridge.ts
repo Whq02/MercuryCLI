@@ -2,7 +2,7 @@ import { parseOwnerKey, type OwnerKey } from '../run/ownerKey.js'
 import { SAMPLE_HTML_CAP_BYTES, samplesEnabled, type SampleItem } from './contracts.js'
 import { createOrAppendSample, sampleUrl, writeFallbackPage } from './store.js'
 
-interface SampleSpec {
+export interface SampleSpec {
   name: string
   title?: string
   html: string
@@ -13,6 +13,10 @@ export async function handleSampleCall(owner: OwnerKey, payload: unknown): Promi
   if (!samplesEnabled()) throw new Error('samples are off in this session (MERCURY_SAMPLES=0)')
   const spec = specOf(payload)
   const { sessionId } = parseOwnerKey(owner)
+  return keepSample(sessionId, spec)
+}
+
+export async function keepSample(sessionId: string, spec: SampleSpec): Promise<SampleItem> {
   const { record, version } = createOrAppendSample({
     sessionId,
     name: spec.name,
