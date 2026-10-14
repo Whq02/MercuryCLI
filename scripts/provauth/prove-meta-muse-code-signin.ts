@@ -145,6 +145,7 @@ const secrets = await import('../../src/utils/router/providerSecrets.ts')
 const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
 const { createUserMessage } = await import('../../src/utils/messages.ts')
 const { routedCallModel } = await import('../../src/services/providers/callModelRouter.ts')
+const { validateModel } = await import('../../src/utils/model/validateModel.ts')
 const repoRoot = join(import.meta.dir, '..', '..')
 
 async function runChat(model = 'muse-spark-1.3'): Promise<AssistantMessage[]> {
@@ -452,6 +453,13 @@ try {
         JSON.stringify(m).includes('the Muse Code key was refused — /logins signs in with Meta again'),
     ) && requests.length === 0,
     JSON.stringify(refusedModels),
+  )
+  const refusedValidate = await validateModel('muse-spark-1.3')
+  check(
+    'validateModel on a refused Muse Code key says "the Muse Code key was refused — /logins signs in with Meta again"',
+    !refusedValidate.valid &&
+      refusedValidate.error?.includes('the Muse Code key was refused — /logins signs in with Meta again') === true,
+    JSON.stringify(refusedValidate),
   )
   modelsStatus = 200
   catalogue.__resetMetaCatalogueForTest()
