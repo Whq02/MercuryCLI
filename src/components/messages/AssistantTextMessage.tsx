@@ -11,10 +11,7 @@ import {
   CREDIT_BALANCE_TOO_LOW_ERROR_MESSAGE,
   CUSTOM_OFF_SWITCH_MESSAGE,
   INVALID_API_KEY_ERROR_MESSAGE,
-  ORG_DISABLED_ERROR_MESSAGE_ENV_KEY,
-  ORG_DISABLED_ERROR_MESSAGE_ENV_KEY_WITH_OAUTH,
   PROMPT_TOO_LONG_ERROR_MESSAGE,
-  TOKEN_REVOKED_ERROR_MESSAGE,
   isContinuableStreamFaultText,
   isInvalidCredentialWords,
   startsWithApiErrorPrefix,
@@ -230,13 +227,7 @@ export function AssistantTextMessage({
       </Box>
     )
   }
-  if (
-    isInvalidCredentialWords(text) ||
-    text === ORG_DISABLED_ERROR_MESSAGE_ENV_KEY ||
-    text === ORG_DISABLED_ERROR_MESSAGE_ENV_KEY_WITH_OAUTH ||
-    text === TOKEN_REVOKED_ERROR_MESSAGE ||
-    text === 'Your account does not have access to Mercury. Please log in again, or contact your administrator.'
-  ) {
+  if (isInvalidCredentialWords(text)) {
     return <Text color="error">{text}</Text>
   }
   if (text === API_TIMEOUT_ERROR_MESSAGE) {

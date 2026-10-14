@@ -130,9 +130,6 @@ export const ORG_DISABLED_ERROR_MESSAGE_ENV_KEY =
 export const ORG_DISABLED_ERROR_MESSAGE_ENV_KEY_WITH_OAUTH =
   'The organization associated with ANTHROPIC_API_KEY has been disabled. Unset the ANTHROPIC_API_KEY environment variable to use your subscription instead.'
 
-export const TOKEN_REVOKED_ERROR_MESSAGE =
-  'Your account does not have access to Mercury. Log in again, or contact your administrator.'
-
 export const REPEATED_529_ERROR_MESSAGE =
   'Repeated API overload errors (529). The provider is under sustained load; try again shortly.'
 
@@ -253,11 +250,6 @@ export function isClientContractGateText(text: string): boolean {
 export function clientContractGateLine(wireText: string, model: string): string {
   const refusal = modelRefusalFromError({ status: 400, message: wireText }, model)
   return `${API_ERROR_MESSAGE_PREFIX} (400): ${refusal?.words ?? `${model} was refused — pick another model with /model.`}`
-}
-
-export function getTokenRevokedErrorMessage(): string {
-  if (getIsNonInteractiveSession()) return TOKEN_REVOKED_ERROR_MESSAGE
-  return 'Your OAuth token has been revoked — run /logins.'
 }
 
 

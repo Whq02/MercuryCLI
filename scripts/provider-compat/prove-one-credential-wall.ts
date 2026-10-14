@@ -171,6 +171,9 @@ console.log('§4 — the source: the Anthropic-only machinery is gone; one class
   check('the organisation phrase and its branch are gone (no constant, no class string)', !errors.includes(J('OAUTH_ORG_NOT_', 'ALLOWED')) && !errors.includes(J('oauth_org_', 'not_allowed')) && !errorsCode.includes(J('not allowed for this ', 'organization')))
   check("no Mercury sentence about an organisation's access remains in the presenter", !/organi[sz]ation does not have access/i.test(errorsCode))
   check('the painter still owns the error styling of the key-refusal words it keeps', painter.includes(J('isInvalid', 'CredentialWords(text)')))
+  check('the revoked-token constant and its getter are gone; the revoked phrase has no copy in the presenter (the classifier is its one home)', !errors.includes(J('TOKEN_REVOKED_', 'ERROR_MESSAGE')) && !errors.includes(J('getTokenRevoked', 'ErrorMessage')) && !/has been revoked/.test(errorsCode))
+  check('no Mercury sentence about an account\'s access remains anywhere in the presenter or the painter', !/does not have access/i.test(errorsCode) && !/does not have access/i.test(noComments(painter)))
+  check('the painter compares no retired constant (a wall line is an error-row prefix line like every other family\'s)', !painter.includes(J('TOKEN_REVOKED_', 'ERROR_MESSAGE')) && !painter.includes(J('ORG_DISABLED_', 'ERROR_MESSAGE')))
 }
 
 rmSync(SCRATCH, { recursive: true, force: true })
