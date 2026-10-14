@@ -251,6 +251,10 @@ export const BUILTIN_WARDS: readonly WardRule[] = [
 
 const RECURSIVE_RM = '\\brm\\b(?=[^\\n;|&]*\\s(?:-[a-zA-Z]*[rR][a-zA-Z]*\\b|--recursive\\b))[^\\n;|&]*\\s["\']?'
 const HOME_SHAPED = '(?:~(?:\\/|\\s|$)|\\$\\{?HOME|\\/(?:Users|home)\\/)'
+const HOME_SHAPED_WINDOWS = '(?:(?:[a-zA-Z]:[\\/\\\\]+|\\/[a-zA-Z]\\/)[Uu]sers[\\/\\\\]+|%(?:USERPROFILE|HOMEPATH)%|\\$\\{?env:(?:USERPROFILE|HOMEPATH)\\}?|~\\\\)'
+const HOME_SHAPED_ANY = '(?:' + HOME_SHAPED + '|' + HOME_SHAPED_WINDOWS + ')'
+const RECURSIVE_REMOVE_ITEM = '\\b(?:ri|rd|rmdir|del|erase|[Rr]emove-[Ii]tem)\\b(?=[^\\n;|&]*\\s-(?:[rR][fF]|[fF][rR]|[rR][fF][oO]|[Rr](?:[eE](?:[cC](?:[uU](?:[rR](?:[sS](?:[eE])?)?)?)?)?)?)\\b)[^\\n;|&]*\\s["\']?'
+const RECURSIVE_RD_SLASH = '\\b(?:rd|rmdir|del|erase)\\b(?=[^\\n;|&]*\\s/[sS]\\b)[^\\n;|&]*\\s["\']?'
 
 export const AUTONOMOUS_WARDS: readonly WardRule[] = [
   {
@@ -263,8 +267,10 @@ export const AUTONOMOUS_WARDS: readonly WardRule[] = [
     refusal: true,
     scope: 'bash',
     patterns: [
-      RECURSIVE_RM + HOME_SHAPED,
-      '\\bfind\\s+["\']?' + HOME_SHAPED + '[^\\n;|&]*\\s-delete\\b',
+      RECURSIVE_RM + HOME_SHAPED_ANY,
+      RECURSIVE_REMOVE_ITEM + HOME_SHAPED_ANY,
+      RECURSIVE_RD_SLASH + HOME_SHAPED_WINDOWS,
+      '\\bfind\\s+["\']?' + HOME_SHAPED_ANY + '[^\\n;|&]*\\s-delete\\b',
     ],
     skipCommentLines: false,
     outsideProjectOnly: true,
@@ -528,7 +534,7 @@ function homeSpellings(): string[] {
 
 type HomePatterns = { key: string; itself: RegExp[]; within: RegExp[]; operand: RegExp }
 
-const OPERAND_PREFIXES = ['\\/(?:Users|home|private|var|Volumes|root|etc|opt|tmp)\\/', '~\\/']
+const OPERAND_PREFIXES = ['\\/(?:Users|home|private|var|Volumes|root|etc|opt|tmp)\\/', '~\\/', '[a-zA-Z]:[\\/\\\\]+[Uu]sers[\\/\\\\]+', '\\/[a-zA-Z]\\/[Uu]sers\\/']
 const OPERAND_TAIL = '[^\\s"\'`;&|)]*'
 
 let homePatternCache: HomePatterns | undefined
@@ -762,11 +768,11 @@ function lineResolvesInsideProject(
     } catch {
       continue
     }
-    const root = resolved.root
+    const root = resolved.root?.replace(/\\/g, '/')
     if (root === undefined || root === '') continue
     resolvedAny = true
     const base = root.endsWith('/') ? root : `${root}/`
-    if (!resolved.path.startsWith(base)) return false
+    if (!resolved.path.replace(/\\/g, '/').startsWith(base)) return false
   }
   return resolvedAny
 }
