@@ -604,7 +604,15 @@ come from its owning account resolvers:
   keeps its bare spelling; a model of another vendor on the roster (Claude,
   GPT-OSS, …) is offered as `google/<id>` — Google's own id behind the
   prefix — so it rides this Google sign-in and never shadows that vendor's
-  own lane (`/model claude-…` stays the Anthropic lane). A Claude row on
+  own lane (`/model claude-…` stays the Anthropic lane). A roster row whose
+  id ends in `-disabled` (Google served `gemini-4-argon-disabled`, named
+  "Gemini 4 Argon", on a Google AI Pro account on 2026-10-14) is listed
+  under the Google sign-in with its state — "disabled on this plan today —
+  Google's roster names it …; not offered as runnable" — and is not
+  selectable; a bare id with no such row answers Google's 404, and the
+  refusal names the roster's kin: the `-disabled` row with its state, or
+  the effort siblings Google serves instead (`…-low`, `…-medium`, `…-high`
+  — `/model` picks one). A Claude row on
   this road takes the request shape Google's own client sends it: thinking
   as a token budget (low 1024, medium 8192, high 24576, thoughts included),
   function calling VALIDATED even with no tools, an output ceiling of at

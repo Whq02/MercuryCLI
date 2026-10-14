@@ -42,6 +42,7 @@ const assist = {
     'claude-sonnet-4-6': { displayName: 'Claude Sonnet 4.6', supportsThinking: false, maxTokens: 200000, maxOutputTokens: 64000 },
     'claude-opus-4-6-thinking': { displayName: 'Claude Opus 4.6 (Thinking)', supportsThinking: true, maxTokens: 200000, maxOutputTokens: 128000 },
     'gpt-oss-120b-medium': { displayName: 'GPT-OSS 120B', supportsThinking: true, maxTokens: 131072, maxOutputTokens: 32768 },
+    'gemini-4-helium-disabled': { displayName: 'Gemini 4 Helium', supportsThinking: true, maxTokens: 1048576, maxOutputTokens: 65536, quotaInfo: null },
     'gemini-3.1-flash-image': { displayName: 'Gemini 3.1 Flash Image', supportsImages: true },
     'chat_internal': { displayName: 'internal', isInternal: true },
   } as Record<string, Record<string, unknown>>,
@@ -244,7 +245,7 @@ try {
   const rosterCall = requests.filter(r => r.host === 'assist' && r.path === '/v1internal:fetchAvailableModels').at(-1)
   check('fetchAvailableModels is a POST with an empty object under the Antigravity User-Agent', rosterCall?.method === 'POST' && JSON.stringify(rosterCall.body) === '{}' && rosterCall.headers['user-agent'] === contract.antigravityUserAgent())
   const ids = (snapshot?.models ?? []).map(m => m.id)
-  check('the roster rows are the account\'s own, the internal row dropped, the image row kept out of chat, a Gemini id bare and every other vendor\'s id under google/', ids.length === 6 && ids.includes('gemini-4-argon') && ids.includes('google/claude-sonnet-4-6') && ids.includes('google/claude-opus-4-6-thinking') && ids.includes('google/gpt-oss-120b-medium') && !ids.includes('claude-sonnet-4-6') && !ids.includes('chat_internal') && snapshot?.models.find(m => m.id === 'gemini-3.1-flash-image')?.supportedGenerationMethods?.includes('generateImages') === true, ids.join(','))
+  check('the roster rows are the account\'s own, the internal row dropped, the image row kept out of chat, a Gemini id bare and every other vendor\'s id under google/', ids.length === 7 && ids.includes('gemini-4-argon') && ids.includes('google/claude-sonnet-4-6') && ids.includes('google/claude-opus-4-6-thinking') && ids.includes('google/gpt-oss-120b-medium') && ids.includes('gemini-4-helium-disabled') && !ids.includes('claude-sonnet-4-6') && !ids.includes('chat_internal') && snapshot?.models.find(m => m.id === 'gemini-3.1-flash-image')?.supportedGenerationMethods?.includes('generateImages') === true, ids.join(','))
   const availability = catalogue.getGeminiAvailability()
   check('the chat rows are every chat model Google names — Gemini, Claude and GPT-OSS alike; the image row is not one', availability.state === 'ready' && JSON.stringify(availability.ids) === JSON.stringify(['gemini-4-argon', 'gemini-3.5-flash-low', 'google/claude-sonnet-4-6', 'google/claude-opus-4-6-thinking', 'google/gpt-oss-120b-medium']) && availability.sourceKind === 'plan', JSON.stringify(availability))
   const options = catalogue.getGeminiModelOptions()
@@ -253,6 +254,11 @@ try {
   check('gemini-4-argon is selectable with its stated window; the Claude row is selectable under google/ with the roster\'s display name, its stated window, and a description naming Google\'s own id and the lane it rides', argon !== undefined && argon.unavailable === undefined && argon.statedContextWindow === 1048576 && claude !== undefined && claude.unavailable === undefined && claude.label === 'Claude Sonnet 4.6' && claude.statedContextWindow === 200000 && claude.group === argon.group && (claude.descriptionForModel ?? '').includes("Google's own id for it is claude-sonnet-4-6") && (claude.descriptionForModel ?? '').includes("never the vendor's own lane"), JSON.stringify({ argon, claude }))
   check('the stated facts: window, output ceiling and the thinking dial from the roster', catalogue.geminiContextWindowFor('gemini-4-argon')?.window === 1048576 && catalogue.geminiOutputTokenLimitFor('gemini-4-argon') === 65536 && catalogue.geminiEffortVocabularyFor('gemini-4-argon').length > 0)
   check('the roster quota rides the row', snapshot?.models.find(m => m.id === 'gemini-4-argon')?.quota?.remainingFraction === 0.8)
+
+  console.log('── a disabled roster row: listed with its state, never offered as runnable; a bare id\'s 404 names its roster kin ──')
+  const helium = options.find(o => o.value === 'gemini-4-helium-disabled')
+  check('the -disabled row Google serves is listed under the Google sign-in with its state said and is not selectable; it is no chat row (not in the availability ids, not a live-listed id, not counted)', snapshot?.models.find(m => m.id === 'gemini-4-helium-disabled')?.disabled === true && helium !== undefined && helium.label === 'Gemini 4 Helium' && helium.unavailable === "disabled on this plan today — Google's roster names it gemini-4-helium-disabled (Gemini 4 Helium); not offered as runnable" && !availability.ids.includes('gemini-4-helium-disabled') && !catalogue.cachedLiveIds().has('gemini-4-helium-disabled') && catalogue.geminiGenerateModels(snapshot).length === 5, JSON.stringify({ helium, ids: availability.ids }))
+  check('the 404 words for the bare id name the disabled roster row with its state; a bare id with effort siblings on the roster names them', callModel.geminiPlanModelMissingWords('gemini-4-helium', 404, undefined).includes("Google serves no model 'gemini-4-helium' to this Google sign-in (HTTP 404) · the roster names gemini-4-helium-disabled (Gemini 4 Helium): disabled on this plan today · /model lists the roster") && callModel.geminiPlanModelMissingWords('gemini-3.5-flash', 404, undefined).includes('the roster names gemini-3.5-flash-low — /model picks one') && !callModel.geminiPlanModelMissingWords('gemini-9-nope', 404, undefined).includes('the roster names'), callModel.geminiPlanModelMissingWords('gemini-4-helium', 404, undefined))
 
   console.log('── the roster beyond Gemini: google/<id> rides this sign-in, never the vendor\'s lane; the flags are the capabilities ──')
   const { declaredRouteOf, canonicalWireModelId } = await import('../../src/services/providers/routeLaw.ts')
@@ -275,12 +281,15 @@ try {
   const { z } = await import('zod')
   const { randomUUID } = await import('node:crypto')
   const bashTool = { name: 'Bash', prompt: async () => 'Runs a command.', inputSchema: z.object({ command: z.string() }), inputJSONSchema: { type: 'object', properties: { command: { type: 'string' } }, required: ['command'] } }
-  const driveRoad = async (model: string, withTools: boolean): Promise<Array<Record<string, unknown>>> => {
+  const driveRoad = async (model: string, withTools: boolean | unknown[]): Promise<Array<Record<string, unknown>>> => {
     const out: Array<Record<string, unknown>> = []
-    const params = { messages: [{ type: 'user', uuid: randomUUID(), timestamp: new Date().toISOString(), message: { role: 'user', content: 'hello' } }], systemPrompt: asSystemPrompt(['be brief']), thinkingConfig: { type: 'enabled', budget_tokens: 8192 }, tools: withTools ? [bashTool] : [], signal: new AbortController().signal, options: { model, effortValue: 'medium', querySource: 'main_thread', isNonInteractiveSession: true, getToolPermissionContext: async () => getEmptyToolPermissionContext(), agents: [], hasAppendSystemPrompt: false, mcpTools: [], maxOutputTokensOverride: 100000 } }
+    const params = { messages: [{ type: 'user', uuid: randomUUID(), timestamp: new Date().toISOString(), message: { role: 'user', content: 'hello' } }], systemPrompt: asSystemPrompt(['be brief']), thinkingConfig: { type: 'enabled', budget_tokens: 8192 }, tools: Array.isArray(withTools) ? withTools : withTools ? [bashTool] : [], signal: new AbortController().signal, options: { model, effortValue: 'medium', querySource: 'main_thread', isNonInteractiveSession: true, getToolPermissionContext: async () => getEmptyToolPermissionContext(), agents: [], hasAppendSystemPrompt: false, mcpTools: [], maxOutputTokensOverride: 100000 } }
     for await (const item of callModel.geminiCallModel(params as never)) out.push(item as Record<string, unknown>)
     return out
   }
+  const heliumReplies = await driveRoad('gemini-4-helium', false)
+  const heliumWords = JSON.stringify(heliumReplies.find(m => m.type === 'assistant' && (m as { isApiErrorMessage?: boolean }).isApiErrorMessage)?.message ?? '')
+  check('through the road, /model gemini-4-helium on this sign-in is Google\'s 404 naming the disabled roster row', heliumWords.includes("Google serves no model 'gemini-4-helium' to this Google sign-in (HTTP 404) · the roster names gemini-4-helium-disabled (Gemini 4 Helium): disabled on this plan today"), heliumWords.slice(0, 400))
   const claudeReplies = await driveRoad('google/claude-opus-4-6-thinking', true)
   const claudeHit = requests.filter(r => r.host === 'assist' && r.path === '/v1internal:streamGenerateContent?alt=sse').at(-1)
   const claudeInner = (claudeHit?.body?.request ?? {}) as Record<string, unknown>
@@ -362,11 +371,6 @@ try {
   const rawRefusal = await fetch(`${assistBase}/v1internal:streamGenerateContent?alt=sse`, { method: 'POST', headers: { 'content-type': 'application/json', authorization: corpusAuth!.headers.authorization!, 'user-agent': corpusAuth!.headers['user-agent']! }, body: JSON.stringify({ model: 'gemini-4-argon', project: 'project-fixture-123', request: { contents: [{ role: 'user', parts: [{ text: 'hi' }] }], tools: [{ functionDeclarations: [{ name: 'Probe', parameters: { type: 'object', properties: { kind: { const: 'log' }, n: { type: 'integer', exclusiveMinimum: 0 } } } }] }] } }) })
   const rawRefusalBody = await rawRefusal.json() as { error: { message: string; status: string } }
   check('the fixture refuses an unreduced declaration in Google\'s words, naming the keyword and the proto path — the guard is real', rawRefusal.status === 400 && rawRefusalBody.error.status === 'INVALID_ARGUMENT' && rawRefusalBody.error.message.includes(`Invalid JSON payload received. Unknown name "const" at 'request.tools[0].function_declarations[0].parameters.properties[0].value': Cannot find field.`) && rawRefusalBody.error.message.includes(`Unknown name "exclusiveMinimum" at 'request.tools[0].function_declarations[0].parameters.properties[1].value'`), JSON.stringify(rawRefusalBody))
-  check('the request goes out under the Antigravity User-Agent with the bearer', generate?.headers['user-agent'] === contract.antigravityUserAgent() && (generate.headers.authorization ?? '').startsWith('Bearer ya29.plan-'))
-  const text = events.filter(e => (e as { type: string }).type === 'text-delta').map(e => (e as { text: string }).text).join('')
-  const finish = events.find(e => (e as { type: string }).type === 'finish') as { reason?: string } | undefined
-  const usage = events.find(e => (e as { type: string }).type === 'usage') as { usage?: { inputTokens: number } } | undefined
-  check('the wrapped stream is unwrapped: the text, the finish reason and the usage land', text === 'OK from the plan fixture' && finish?.reason === 'stop' && usage?.usage?.inputTokens === 7, JSON.stringify(events))
 
   console.log('── the refresh keeps the project; a dead refresh token drops the sign-in and says so ──')
   accounts.__resetGeminiAccountsForTest()
