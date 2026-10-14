@@ -252,6 +252,109 @@ section('G. the live leg — a real jest when MERCURY_PROOF_RUNNER_MODULES carri
   }
 }
 
+section('H. the go test -json stream through the real parser (written from the test2json format; no Go on the recording machine)')
+{
+  const parseGo = (reporters as { parseGoTestJson?: (text: string, root: string) => { counts: unknown; failures: string[]; cases: Array<{ id: string; outcome: string; file?: string; line?: number; message?: string }> } | null }).parseGoTestJson
+  const read = parseGo ? parseGo(fixture('go-test.jsonl'), FIXTURE_ROOT) : null
+  check('H1 counts per test event: 2 passed (TestZero, TestTable/one) · 3 failed (TestAdd, TestTable/two, TestTable) · 1 skipped · 0 errored', read !== null && JSON.stringify(read.counts) === JSON.stringify({ passed: 2, failed: 3, skipped: 1, errored: 0 }), JSON.stringify(read?.counts))
+  const add = read?.cases.find(c => c.id === 'TestAdd')
+  check('H2 the failing test carries file, line and message from its own output lines', add?.outcome === 'failed' && add.file === 'calc_test.go' && add.line === 12 && add.message === 'add(2, 3) = -1, want 5', JSON.stringify(add))
+  const sub = read?.cases.find(c => c.id === 'TestTable/two')
+  check('H3 a failing subtest is its own case with its own location', sub?.file === 'calc_test.go' && sub.line === 31 && (sub.message ?? '').includes('case two'), JSON.stringify(sub))
+  check('H4 failures[] lists the failing test names in run order (a parent before its subtests, as go test -v prints them)', JSON.stringify(read?.failures) === JSON.stringify(['TestAdd', 'TestTable', 'TestTable/two']), JSON.stringify(read?.failures))
+  const pattern = (reporters as { goRunPattern?: (failures: string[]) => string }).goRunPattern
+  check('H5 the rerun pattern anchors the TOP-LEVEL names (go -run splits on / per level; a bare alternation would drop a sibling test)', pattern !== undefined && pattern(['TestAdd', 'TestTable/two', 'TestTable']) === '^(TestAdd|TestTable)$', pattern?.(['TestAdd', 'TestTable/two', 'TestTable']))
+  const broken = parseGo ? parseGo(fixture('go-test-build-fail.jsonl'), FIXTURE_ROOT) : null
+  check('H6 a package that failed to build is ERRORED with the compiler line, never a green run', broken !== null && JSON.stringify(broken.counts) === JSON.stringify({ passed: 0, failed: 0, skipped: 0, errored: 1 }) && broken.cases[0]?.outcome === 'errored' && broken.cases[0]?.id === 'example.com/broken' && broken.cases[0]?.file === './broken_test.go' && broken.cases[0]?.line === 5 && (broken.cases[0]?.message ?? '').includes('undefined: nope'), JSON.stringify(broken))
+  check('H7 prose output (no JSON events) is null, never invented counts', parseGo !== undefined && parseGo('--- FAIL: TestAdd (0.00s)\nFAIL\n', FIXTURE_ROOT) === null)
+}
+
+section('I. go: the argv, the run road through a stand-in go on a scratch PATH, and the rerun pattern')
+{
+  const root = scratch('go')
+  writeFileSync(path.join(root, 'go.mod'), 'module example.com/calc\n\ngo 1.22\n')
+  const binDir = path.join(root, 'bin')
+  mkdirSync(binDir)
+  const argvFile = path.join(root, 'argv.json')
+  const standIn = path.join(binDir, 'go')
+  writeFileSync(
+    standIn,
+    [
+      '#!/usr/bin/env node',
+      `require('fs').writeFileSync(${JSON.stringify(argvFile)}, JSON.stringify(process.argv.slice(2)))`,
+      `process.stdout.write(${JSON.stringify(fixture('go-test.jsonl'))})`,
+      'process.exit(1)',
+      '',
+    ].join('\n'),
+  )
+  chmodSync(standIn, 0o755)
+  const savedPath = process.env.PATH
+  process.env.PATH = `${binDir}${path.delimiter}${savedPath ?? ''}`
+  try {
+    const profile = runners.discoverRunnerProfiles(root).profiles.find(p => p.runner === 'go' && p.kind === 'test')
+    check('I1 the go test profile runs go test -json ./...', JSON.stringify(profile?.command) === JSON.stringify(['go', 'test', '-json', './...']) && profile?.availability.state === 'ok', JSON.stringify(profile?.command))
+    const run = profile ? await runners.runRunnerProfile(profile, { from: root }) : null
+    check('I2 counts come from the stream and no "counts not parsed" note', run?.state === 'ok' && JSON.stringify(run.record.counts) === JSON.stringify({ passed: 2, failed: 3, skipped: 1, errored: 0 }) && !(run.record.verdictNote ?? '').includes('counts not parsed'), JSON.stringify(run?.state === 'ok' ? { counts: run.record.counts, note: run.record.verdictNote } : run))
+    check('I3 the failing cases are typed (TestAdd at calc_test.go:12)', run?.state === 'ok' && run.record.cases.some(c => c.id === 'TestAdd' && c.file === 'calc_test.go' && c.line === 12), JSON.stringify(run?.state === 'ok' ? run.record.cases : []))
+    if (run?.state === 'ok') {
+      const rerun = await runners.rerunRunnerFailures(run.record, { from: root })
+      const rerunArgv = JSON.parse(readFileSync(argvFile, 'utf8')) as string[]
+      check('I4 rerunFailed runs go test -json -run ^(TestAdd|TestTable)$ ./...', rerun.state === 'ok' && JSON.stringify(rerunArgv) === JSON.stringify(['test', '-json', '-run', '^(TestAdd|TestTable)$', './...']), JSON.stringify(rerunArgv))
+    }
+    const changed = runners.changedRunnerSelection({ ...profile!, root })
+    check('I5 the changed-file focus keeps -json (or declines honestly on a tree without git)', changed.state === 'unavailable' || (changed.argv[0] === 'go' && changed.argv[1] === 'test' && changed.argv[2] === '-json'), JSON.stringify(changed))
+  } finally {
+    process.env.PATH = savedPath
+    rmSync(root, { recursive: true, force: true })
+  }
+}
+
+section('J. the live leg — a real go toolchain on PATH')
+{
+  const goBin = (process.env.PATH ?? '').split(path.delimiter).map(d => path.join(d, 'go')).find(p => existsSync(p))
+  if (!goBin) {
+    console.log('  [SKIP — LOUD] no go on PATH — the stream fixture above is written from the test2json format, not recorded from a live go; install the Go toolchain to run this leg')
+  } else {
+    const root = scratch('live-go')
+    writeFileSync(path.join(root, 'go.mod'), 'module example.com/calc\n\ngo 1.21\n')
+    writeFileSync(path.join(root, 'calc.go'), 'package calc\n\nfunc Add(a, b int) int { return a - b }\n')
+    writeFileSync(
+      path.join(root, 'calc_test.go'),
+      [
+        'package calc',
+        '',
+        'import "testing"',
+        '',
+        'func TestAdd(t *testing.T) {',
+        '\tif got := Add(2, 3); got != 5 {',
+        '\t\tt.Errorf("add(2, 3) = %d, want 5", got)',
+        '\t}',
+        '}',
+        '',
+        'func TestZero(t *testing.T) {',
+        '\tif Add(0, 0) != 0 {',
+        '\t\tt.Fatal("zero")',
+        '\t}',
+        '}',
+        '',
+        'func TestDivide(t *testing.T) {',
+        '\tt.Skip("not yet")',
+        '}',
+        '',
+      ].join('\n'),
+    )
+    const profile = runners.discoverRunnerProfiles(root).profiles.find(p => p.runner === 'go' && p.kind === 'test')!
+    const live = await runners.runRunnerProfile(profile, { from: root })
+    check('J1 live go: 1 passed · 1 failed · 1 skipped from go test -json', live.state === 'ok' && JSON.stringify(live.record.counts) === JSON.stringify({ passed: 1, failed: 1, skipped: 1, errored: 0 }), JSON.stringify(live.state === 'ok' ? { counts: live.record.counts, note: live.record.verdictNote, tail: live.record.outputTail.slice(-3) } : live))
+    check('J2 live go: the failing case is typed with calc_test.go:7', live.state === 'ok' && live.record.cases.some(c => c.id === 'TestAdd' && c.file === 'calc_test.go' && c.line === 7), JSON.stringify(live.state === 'ok' ? live.record.cases : []))
+    if (live.state === 'ok') {
+      const rerun = await runners.rerunRunnerFailures(live.record, { from: root })
+      check('J3 live rerunFailed runs exactly TestAdd', rerun.state === 'ok' && rerun.record.counts.failed === 1 && rerun.record.counts.passed === 0 && rerun.record.counts.skipped === 0, JSON.stringify(rerun.state === 'ok' ? rerun.record.counts : rerun))
+    }
+    rmSync(root, { recursive: true, force: true })
+  }
+}
+
 console.log('')
 if (failures > 0) {
   console.error(`prove-runner-counts: ${failures} RED`)
