@@ -1,10 +1,145 @@
+import { spawn } from 'node:child_process'
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import * as path from 'node:path'
+import { settleChildRun } from '../../utils/childSettle.js'
 import { getCwd } from '../../utils/cwd.js'
+import { subprocessEnv } from '../../utils/subprocessEnv.js'
+import { lldbDapInstallHint, probeGdbDap, resolveLldbDap } from '../dap/dapClient.js'
 import { latestRun } from './pythonTests.js'
 import { discoverRunnerProfiles, findRunnerRoot, resolveRunnerBinary } from './projectRunners.js'
 
 export type DebugPlanRefusal = { state: 'unavailable'; reason: string; remedy: string }
+
+export interface CargoTestDebugPlan {
+  framework: 'cargo'
+  adapterKey: 'lldb' | 'gdb'
+  program: string
+  args: string[]
+  cwd: string
+  stop: TestStop | null
+  note: string
+}
+
+const CARGO_BUILD_TIMEOUT_MS = 300_000
+const CARGO_LIST_TIMEOUT_MS = 30_000
+const RUST_WALK_CAP = 400
+const RUST_SKIP_DIRS = new Set(['target', 'node_modules', '.git'])
+
+async function capture(bin: string, args: string[], cwd: string, timeoutMs: number, signal?: AbortSignal): Promise<{ code: number | null; stdout: string; stderr: string; ended: string | null }> {
+  const child = spawn(bin, args, { windowsHide: true, cwd, stdio: ['ignore', 'pipe', 'pipe'], env: { ...subprocessEnv(), NO_COLOR: '1' } })
+  const out: Buffer[] = []
+  const err: Buffer[] = []
+  child.stdout?.on('data', (chunk: Buffer) => out.push(chunk))
+  child.stderr?.on('data', (chunk: Buffer) => err.push(chunk))
+  const settlement = await settleChildRun(child, { timeoutMs, ...(signal ? { signal } : {}) })
+  const ended = settlement.spawnError ? settlement.spawnError : settlement.timedOut ? `timed out after ${Math.round(timeoutMs / 1000)}s` : settlement.aborted ? 'interrupted' : null
+  return { code: settlement.code, stdout: Buffer.concat(out).toString('utf8'), stderr: Buffer.concat(err).toString('utf8'), ended }
+}
+
+function rustSourceFiles(dir: string, depth: number, out: string[]): void {
+  if (out.length >= RUST_WALK_CAP) return
+  let entries: import('node:fs').Dirent[]
+  try {
+    entries = readdirSync(dir, { withFileTypes: true })
+  } catch {
+    return
+  }
+  for (const entry of entries) {
+    if (out.length >= RUST_WALK_CAP) return
+    if (entry.isFile() && entry.name.endsWith('.rs')) out.push(path.join(dir, entry.name))
+    else if (entry.isDirectory() && depth > 0 && !entry.name.startsWith('.') && !RUST_SKIP_DIRS.has(entry.name)) rustSourceFiles(path.join(dir, entry.name), depth - 1, out)
+  }
+}
+
+export function locateRustTest(root: string, testPath: string): Array<{ file: string; line: number }> {
+  const fnName = testPath.split('::').pop() ?? testPath
+  const decl = new RegExp(`^\\s*(?:pub(?:\\([^)]*\\))?\\s+)?(?:async\\s+)?fn ${escapeRegExp(fnName)}\\s*[(<]`)
+  const files: string[] = []
+  rustSourceFiles(root, 6, files)
+  const hits: Array<{ file: string; line: number }> = []
+  for (const file of files) {
+    let lines: string[]
+    try {
+      lines = readFileSync(file, 'utf8').split('\n')
+    } catch {
+      continue
+    }
+    for (let i = 0; i < lines.length; i++) {
+      if (!decl.test(lines[i]!)) continue
+      const above = lines.slice(Math.max(0, i - 4), i).join('\n')
+      if (/#\[[\w:]*test[^\]]*\]/.test(above)) hits.push({ file, line: i + 1 })
+    }
+  }
+  return hits
+}
+
+export async function buildCargoTestDebugPlan(nodeId: string, opts?: { from?: string; signal?: AbortSignal }): Promise<CargoTestDebugPlan | DebugPlanRefusal> {
+  const from = opts?.from ?? getCwd()
+  const root = findRunnerRoot(from) ?? path.resolve(from)
+  const cargo = resolveRunnerBinary('cargo')
+  if (cargo === null) {
+    return { state: 'unavailable', reason: "'cargo' not on PATH — Rust tests build through cargo", remedy: 'install the Rust toolchain (rustup)' }
+  }
+  const lldb = resolveLldbDap()
+  const adapterKey: 'lldb' | 'gdb' | null = lldb !== null ? 'lldb' : probeGdbDap().viable ? 'gdb' : null
+  if (adapterKey === null) {
+    return { state: 'unavailable', reason: 'no native debug adapter — neither lldb-dap nor gdb 14+ is reachable', remedy: lldbDapInstallHint() }
+  }
+  const name = nodeId.trim()
+  if (name.length === 0 || /\s/.test(name)) {
+    return { state: 'unavailable', reason: `node '${nodeId}' is not a cargo test path`, remedy: 'spell the node as cargo lists it (module::path::test_name) — op:"run" records the failing names' }
+  }
+  const build = await capture(cargo, ['test', '--no-run', '--message-format=json'], root, CARGO_BUILD_TIMEOUT_MS, opts?.signal)
+  if (build.ended !== null || build.code !== 0) {
+    const tail = build.stderr.trim().split('\n').slice(-6).join('\n')
+    return { state: 'unavailable', reason: `cargo test --no-run ${build.ended ?? `exited ${build.code ?? 'null'}`}${tail ? `:\n${tail}` : ''}`, remedy: 'fix the build (cargo test --no-run), then debug again' }
+  }
+  const binaries: Array<{ executable: string; target: string }> = []
+  for (const line of build.stdout.split('\n')) {
+    if (!line.startsWith('{')) continue
+    try {
+      const row = JSON.parse(line) as { reason?: string; executable?: string | null; profile?: { test?: boolean }; target?: { name?: string } }
+      if (row.reason === 'compiler-artifact' && row.profile?.test === true && typeof row.executable === 'string' && row.executable.length > 0) {
+        binaries.push({ executable: row.executable, target: row.target?.name ?? path.basename(row.executable) })
+      }
+    } catch {
+      continue
+    }
+  }
+  if (binaries.length === 0) {
+    return { state: 'unavailable', reason: 'cargo test --no-run built no test binary', remedy: 'add a #[test] to the crate, or check the cargo output' }
+  }
+  let selected: { executable: string; target: string } | null = null
+  for (const binary of binaries) {
+    const listing = await capture(binary.executable, ['--list', '--format', 'terse'], root, CARGO_LIST_TIMEOUT_MS, opts?.signal)
+    if (listing.stdout.split('\n').some(l => l.trim() === `${name}: test`)) {
+      selected = binary
+      break
+    }
+  }
+  if (selected === null) {
+    return {
+      state: 'unavailable',
+      reason: `no test named '${name}' in the ${binaries.length} test binar${binaries.length === 1 ? 'y' : 'ies'} cargo built (${binaries.map(b => b.target).join(', ')})`,
+      remedy: 'spell the node as cargo lists it (module::path::test_name) — op:"run" records the failing names',
+    }
+  }
+  const hits = locateRustTest(root, name)
+  const stop = hits[0] ?? null
+  const relative = (p: string): string => path.relative(root, p)
+  return {
+    framework: 'cargo',
+    adapterKey,
+    program: selected.executable,
+    args: ['--exact', name, '--nocapture', '--test-threads=1'],
+    cwd: root,
+    stop,
+    note:
+      stop === null
+        ? `the fn of '${name}' was not found under ${root} — the session stops at the test binary's entry; set a breakpoint with the Debug tool, then continue`
+        : `${adapterKey === 'lldb' ? 'lldb-dap' : 'gdb'} runs the ${selected.target} test binary for '${name}' alone and stops on its first line (${relative(stop.file)}:${stop.line})${hits.length > 1 ? ` — ${hits.length} declarations carry that name; the first is used` : ''}`,
+  }
+}
 
 export const DLV_INSTALL_REMEDY = 'install delve: go install github.com/go-delve/delve/cmd/dlv@latest'
 

@@ -311,6 +311,90 @@ section('H. the live go leg — a real go and dlv on PATH')
   }
 }
 
+
+section('I. the cargo plan — the test binary cargo built, the one that lists the test, the #[test] fn line, lldb-dap (or gdb)')
+{
+  const cargoBin = (process.env.PATH ?? '').split(path.delimiter).map(d => path.join(d, 'cargo')).find(p => p && existsSync(p))
+  const toolSrc = readFileSync(path.join(ROOT, 'src/tools/TestTool/TestTool.ts'), 'utf8')
+  check('I0 the Test tool routes cargo through the plan with the adapter the plan resolved', toolSrc.includes('buildCargoTestDebugPlan(input.node') && toolSrc.includes("runner: 'cargo', adapterKey: plan.adapterKey"))
+  if (!cargoBin) {
+    console.log('  [SKIP — LOUD] no cargo on PATH — the tool route above is the evidence; install the Rust toolchain (rustup) to run this leg')
+  } else {
+    const root = scratch('cargo')
+    mkdirSync(path.join(root, 'src'))
+    writeFileSync(path.join(root, 'Cargo.toml'), '[package]\nname = "calc"\nversion = "0.1.0"\nedition = "2021"\n\n[dependencies]\n')
+    writeFileSync(
+      path.join(root, 'src', 'lib.rs'),
+      [
+        'pub fn two() -> i32 {',
+        '    3',
+        '}',
+        '',
+        '#[cfg(test)]',
+        'mod tests {',
+        '    #[test]',
+        '    fn is_two() {',
+        '        let got = super::two();',
+        '        assert_eq!(got, 2);',
+        '    }',
+        '',
+        '    #[test]',
+        '    fn trivially() {',
+        '        assert!(true);',
+        '    }',
+        '}',
+        '',
+      ].join('\n'),
+    )
+    const savedTarget = process.env.CARGO_TARGET_DIR
+    process.env.CARGO_TARGET_DIR = path.join(root, 'target')
+    const dap = await import('../../src/services/dap/dapClient.ts')
+    const plan = await plans.buildCargoTestDebugPlan('tests::is_two', { from: root })
+    const native = dap.resolveLldbDap() !== null ? 'lldb' : dap.probeGdbDap().viable ? 'gdb' : null
+    if (native === null) {
+      check('I1 with no native adapter the plan is an honest unavailable naming the install', 'state' in plan && plan.reason.includes('no native debug adapter'), JSON.stringify(plan))
+    } else {
+      check('I1 the plan names the test binary cargo built under the scratch target dir', !('state' in plan) && plan.program.startsWith(path.join(root, 'target')) && existsSync(plan.program), JSON.stringify(plan))
+      check('I2 args: --exact tests::is_two --nocapture --test-threads=1; cwd the crate root; the adapter is the resolved native one', !('state' in plan) && JSON.stringify(plan.args) === JSON.stringify(['--exact', 'tests::is_two', '--nocapture', '--test-threads=1']) && plan.cwd === root && plan.adapterKey === native, 'state' in plan ? plan.reason : JSON.stringify({ args: plan.args, adapter: plan.adapterKey }))
+      check('I3 the stop is the #[test] fn line (8) in src/lib.rs', !('state' in plan) && plan.stop?.file === path.join(root, 'src', 'lib.rs') && plan.stop.line === 8, 'state' in plan ? plan.reason : JSON.stringify(plan.stop))
+      if (!('state' in plan)) {
+        const { spawnSync } = await import('node:child_process')
+        const listed = spawnSync(plan.program, ['--list', '--format', 'terse'], { encoding: 'utf8' }).stdout
+        check('I4 the selected binary lists the test itself', listed.split('\n').some(l => l.trim() === 'tests::is_two: test'), listed.slice(0, 120))
+      }
+      const unknown = await plans.buildCargoTestDebugPlan('tests::nowhere', { from: root })
+      check('I5 a test cargo does not list refuses naming the binaries', 'state' in unknown && unknown.reason.includes("no test named 'tests::nowhere'") && unknown.reason.includes('calc'), JSON.stringify(unknown))
+      const { TestTool } = await import('../../src/tools/TestTool/TestTool.ts')
+      const { ownerFromToolUseContext } = await import('../../src/services/run/resolveOwner.ts')
+      const { disposeOwner } = await import('../../src/services/run/ownerLifecycle.ts')
+      const hint = native === 'lldb' ? dap.darwinDebuggerAuthorisationHint() : null
+      const out = (await runWithCwdOverride(root, () => TestTool.call({ op: 'debug', node: 'tests::is_two' } as never, ctx))) as { data: { result: string; outcome: string } }
+      if (hint !== null) {
+        console.log(`  [SKIP — LOUD] the stop leg needs macOS debugger authorisation — ${hint}`)
+        check('I6 with authorisation off the user gets the honest silence line naming the one durable fix', out.data.outcome === 'failed' && out.data.result.includes('DevToolsSecurity -enable'), out.data.result.split('\n').slice(0, 2).join(' | '))
+      } else {
+        check('I6 the tool reports a stop at a breakpoint under the native debugger', out.data.outcome === 'succeeded' && /reason breakpoint/.test(out.data.result), out.data.result.split('\n').slice(0, 3).join(' | '))
+        const owner = ownerFromToolUseContext(ctx)
+        const session = dap.getDapSession(owner, 'test')
+        const stopped = session?.treeStopped() ?? null
+        if (stopped && stopped.lastStopped) {
+          const threadId = stopped.lastStopped.threadId ?? 1
+          const stack = await stopped.request('stackTrace', { threadId, startFrame: 0, levels: 1 })
+          const frame = (stack.stackFrames as Array<{ id: number; name?: string; line?: number; source?: { path?: string } }>)[0]
+          check('I7 the top frame is the test fn in src/lib.rs on its first line (8 or 9)', (frame?.source?.path ?? '').endsWith('src/lib.rs') && (frame?.line === 8 || frame?.line === 9), JSON.stringify(frame))
+          const scopes = await stopped.request('scopes', { frameId: frame!.id })
+          check('I8 scopes are readable', Array.isArray(scopes.scopes) && (scopes.scopes as unknown[]).length > 0)
+        }
+        await disposeOwner(owner)
+        check('I9 disconnect is clean', dap._dapSessionCountForTesting() === 0)
+      }
+    }
+    if (savedTarget === undefined) delete process.env.CARGO_TARGET_DIR
+    else process.env.CARGO_TARGET_DIR = savedTarget
+    rmSync(root, { recursive: true, force: true })
+  }
+}
+
 console.log('')
 if (failures > 0) {
   console.error(`prove-runner-debug: ${failures} RED`)

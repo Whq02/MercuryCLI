@@ -28,7 +28,7 @@ import {
   resolveTestLane,
   runRunnerProfile,
 } from '../../services/ide/projectRunners.js'
-import { buildGoTestDebugPlan, buildNodeRunnerDebugShim } from '../../services/ide/testDebugPlans.js'
+import { buildCargoTestDebugPlan, buildGoTestDebugPlan, buildNodeRunnerDebugShim } from '../../services/ide/testDebugPlans.js'
 import type { ToolCallProgress } from '../../Tool.js'
 import {
   renderToolResultMessage,
@@ -404,6 +404,13 @@ async function runOp(
           return { result: `debug unavailable: ${plan.reason}\nremedy: ${plan.remedy}`, outcome: 'failed' }
         }
         return launchRunnerDebug({ runner: 'go', adapterKey: 'go', program: plan.program, args: plan.args, cwd: plan.cwd, stop: plan.stop, note: plan.note, launchExtras: plan.launchExtras })
+      }
+      if (debugLane.lane === 'runner' && debugLane.profile.runner === 'cargo') {
+        const plan = await buildCargoTestDebugPlan(input.node, { ...(signal ? { signal } : {}) })
+        if ('state' in plan) {
+          return { result: `debug unavailable: ${plan.reason}\nremedy: ${plan.remedy}`, outcome: 'failed' }
+        }
+        return launchRunnerDebug({ runner: 'cargo', adapterKey: plan.adapterKey, program: plan.program, args: plan.args, cwd: plan.cwd, stop: plan.stop, note: plan.note })
       }
       if (debugLane.lane === 'runner' && debugLane.profile.runner !== 'node-test') {
         return {
