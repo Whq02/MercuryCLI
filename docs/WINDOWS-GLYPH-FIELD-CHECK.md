@@ -5,89 +5,56 @@ looks wrong. Ten minutes, no setup beyond a working install.
 
 ## Why this check exists
 
-Windows Terminal draws any character that Unicode lists as emoji-eligible
-with its colour emoji font, including the ones that are plain text symbols
-on every other host (a warning triangle, an asterisk, a check mark, an
-information sign, a small triangle). macOS draws those as text, so a screen
-that reads as plain text on a Mac can read as a row of colour pictures on
-Windows. Mercury paints its status marks as text: each is a
-geometric text glyph (`✻ ✓ ✕ ▲ ○ ◐ ● ⊛ › ⌄ ← → ⇄ ↳`). If you see a colour
-picture anywhere inside Mercury, that is a bug; report it with the steps
-below.
+Windows Terminal renders any Unicode character carrying the Emoji property with
+its colour emoji font. Mercury draws every status mark using geometric text
+glyphs (`✻ ✓ ✕ ▲ ○ ◐ ● ⊛ › ⌄ ← → ⇄ ↳`) that stay monochrome text across macOS,
+Linux and Windows. If any mark inside Mercury renders as a colour picture,
+blank box or question mark, report it using the steps below.
 
 ## Before you start
 
-1. Update to the current release (`mercury update` on a release install,
-   an npm install included, or pull and rebuild
-   from source as the Windows install guide describes).
-2. Confirm the version:
+1. Update to the current release (`mercury update` on a release or npm install,
+   or `git pull && bun run build.ts` on a source build).
+2. Confirm `mercury --version` in Windows Terminal (PowerShell 7 with the
+   default font), and optionally in a standalone PowerShell 7 console window.
 
-   ```powershell
-   mercury --version
-   ```
+## The rows to check
 
-3. Use Windows Terminal with its default font, then repeat the same rows in
-   PowerShell 7's own window if you have time. Note which one you used.
-
-## The rows to eyeball
-
-Each row names the screen, how to reach it, and what it must look like.
-
-1. **The Boot face.** Start `mercury` with no arguments. Every row of the
-   card leads with a text glyph: New Session `✶`, Continue Last Session
-   `↳`, Boot Menu `⊞`, MCPs & Skills `⊛`, Agents `◈`, Health
-   Check `✓`, Saturn Scheduler `◷`, Logins `⚿`, Sessions · Projects `↺`.
-   The Continue row's arrow is a plain hooked arrow, not a blue arrow tile.
-2. **The thinking row.** Open a session and ask something that makes the
-   model reason for a moment. While it thinks, the status row reads
-   `✻ thinking…` in grey italics; after the answer, the folded reasoning
-   block above the reply carries the same `✻ thinking…` header with a `⌄`
-   fold cue. No green star, no square tile.
-3. **The warning row.** A warning is a plain triangle `▲`, never a yellow
-   sign. Places that show one: `/sandbox` when a sandbox dependency is
-   missing, the notice when a retired model is selected, the account pane
-   (`/accounts`) when a family's usage window is capped, the "Not every
-   question is answered" line of the interview card (Apollo mode), and the
-   memory centre's degraded maintenance row.
-4. **The check marks.** Answered questions and the Submit tab of the
-   interview card, completed tasks in the task list, and selected rows in
-   pickers all carry a thin `✓`, never a heavy green check. Unanswered
-   interview questions carry the `▲` triangle.
-5. **The cloud / remote rows.** Anything that marks a remote or hosted
-   resource (the MCP resource suggestions under the composer, for one) uses
-   the circled asterisk `⊛`, never a cloud picture.
-6. **Pickers and trees.** The resume picker's session tree folds with `›`
-   and opens with `⌄`; task rows use `○` (pending), `◐` (in progress) and
-   `✓` (done); the effort slider (`/effort`) reads
+1. **The Boot face.** Start `mercury` with no arguments. Check each row's
+   leading text glyph: New Session `✶`, Continue Last Session `↳`, Boot Menu
+   `⊞`, MCPs & Skills `⊛`, Agents `◈`, Health Check `✓`, Saturn Scheduler `◷`,
+   Logins `⚿`, Sessions · Projects `↺`.
+2. **The thinking row.** Open a session and send a prompt that triggers
+   reasoning. While the model thinks, the status row reads `✻ thinking…` in
+   grey italics. When the provider returns reasoning text, the folded block
+   above the reply shows `✻ thinking…` with `⌄`; when the provider withholds
+   thinking text (private thinking), no thinking row draws by default, and
+   clicking the turn's answer or opening `ctrl+o` shows the withheld-thinking
+   line once for the turn.
+3. **The warning row.** Warnings use the plain triangle `▲` (in `/sandbox`
+   when a dependency is missing, `/accounts` when a usage window is capped,
+   unanswered Apollo interview questions, and `/memory`'s degraded maintenance
+   row).
+4. **Check marks.** Completed tasks, answered interview questions and selected
+   picker rows use the thin check `✓`.
+5. **Remote resource marks.** Remote MCP resource suggestions under the
+   composer use `⊛`.
+6. **Pickers and trees.** Session trees fold with `›` and open with `⌄`; task
+   rows use `○` (pending), `◐` (in progress) and `✓` (done); `/effort` shows
    `Faster ← effort → Smarter`.
-7. **The health check.** Run both forms and read every status mark as text
-   (`✓ ✕ ▲ ○`):
-
-   ```powershell
-   mercury health
-   ```
-
-   and `/health` inside a session.
-8. **The daemon.** If a background worker has been degraded, the status
-   line reads `daemon: ▲ DEGRADED …`:
-
-   ```powershell
-   mercury daemon status
-   ```
+7. **The health check.** Run `mercury health` and `/health` and confirm every
+   status mark (`✓ ✕ ▲ ○`) renders as monochrome text.
+8. **The daemon.** Run `mercury daemon status`; a degraded worker line uses
+   `daemon: ▲ DEGRADED …`.
 
 ## What to report
 
-Open an issue through the bug template with:
+For a quick report, run `/bug --short <what you tried>` inside Mercury or open
+[mercury-cli.ai/report](https://mercury-cli.ai/report) (asks for your OS, what
+you tried and what broke). For a full issue report, run `/bug` or open the bug
+template with:
 
-- the `mercury --version` line, the Windows version, the terminal
-  (Windows Terminal or PowerShell 7's window) and its font;
-- which row above you were on, and the exact text of the row (copy it out
-  of the terminal, and attach a screenshot as well; a picture shows the
-  colour glyph the copied text hides);
-- whether the mark drew as a colour picture, as a blank box, or as a
-  question mark (a blank box or question mark means the font lacks the
-  glyph, which is a different problem from the colour picture);
-- the output of `mercury health --json`.
-
-A row that reads as plain text everywhere in this list is the expected
-result; there is nothing to report for it.
+- `mercury --version`, your Windows version, terminal host and font;
+- which row above failed, the copied text, and a screenshot showing whether the
+  glyph drew as a colour picture, blank box or question mark;
+- `mercury health --json`.
