@@ -3,7 +3,7 @@
 # gate-watch: src/utils/model/modelLookup.ts src/utils/crew/engineDispatch.ts src/tools/AgentTool/AgentTool.tsx src/tools/WorkflowTool/workflowPrompt.ts src/services/resources/adapters/models.ts
 # gate-watch: src/services/search/** src/tools/WebSearchTool/** src/substrate/flagRegistry.ts src/utils/config/**
 # gate-watch: src/services/providers/openai/openaiWire* src/services/providers/openai/responsesBridge*
-# gate-watch: src/tools/WebFetchTool/utils* src/utils/http*
+# gate-watch: src/tools/WebFetchTool/utils* src/utils/http* src/services/tokenEstimation.ts
 # gate-watch: scripts/daemon/dupline-world.ts scripts/lib/scriptedTurn.ts src/Tool.ts
 # gate-watch: src/services/concourse/coordinatorTools.ts src/services/providers/routeLaw.ts
 # gate-watch: src/tools/GlobTool/GlobTool.ts src/tools/GrepTool/GrepTool.ts src/utils/*
