@@ -136,6 +136,9 @@ enableConfigs()
 const accounts = await import('../../src/services/providers/meta/metaAccounts.ts')
 const login = await import('../../src/services/providers/meta/metaLogin.ts')
 const catalogue = await import('../../src/services/providers/meta/metaCatalogue.ts')
+const usageState = await import('../../src/services/providers/meta/metaUsageState.ts')
+const providerUsage = await import('../../src/services/providers/providerUsage.ts')
+const freshness = await import('../../src/services/providers/usageFreshness.ts')
 const slots = await import('../../src/services/providers/accountSlots.ts')
 const screen = await import('../../src/components/BootLoginsScreen.tsx')
 const secrets = await import('../../src/utils/router/providerSecrets.ts')
@@ -319,9 +322,93 @@ try {
     JSON.stringify(metaSlots),
   )
 
-  console.log('── 4. Row 3: The wire unchanged & refused minted key never falls through ──')
+  console.log('── 4. Row 4: /usage shows tier and two windows with age; re-read bounded through /muse-code/key ──')
+  usageState.__resetMetaUsageForTest()
+  const initialUsage = providerUsage.usageForProvider('meta')
+  const stampWords = freshness.usageSourceWords(initialUsage.windows[0]!, nowMs + 180_000)
+  const tierWithAge = login.metaMuseCodeTierWordsWithAge(
+    { museCodeTier: initialUsage.tier, museCodeReadAtMs: nowMs },
+    nowMs + 180_000,
+  )
+  check(
+    '/usage shows the tier name and the two windows (used %, resets at) stated at the mint, with the read age',
+    initialUsage.sourceKind === 'subscription-oauth' &&
+      initialUsage.shape === 'subscription-windows' &&
+      initialUsage.tier === 'Muse Code Pro' &&
+      tierWithAge === 'Muse Code Pro, read 3m ago' &&
+      initialUsage.windows.length === 2 &&
+      initialUsage.windows[0]?.label === '5h' &&
+      initialUsage.windows[0]?.usedPct === 24 &&
+      initialUsage.windows[0]?.resetsAtMs === Date.parse('2026-10-14T10:00:00.000Z') &&
+      initialUsage.windows[1]?.label === 'wk' &&
+      initialUsage.windows[1]?.usedPct === 41 &&
+      initialUsage.windows[1]?.resetsAtMs === Date.parse('2026-10-20T00:00:00.000Z') &&
+      stampWords?.includes('endpoint-fed') &&
+      stampWords?.includes('3 min ago'),
+    JSON.stringify({ initialUsage, stampWords, tierWithAge }),
+  )
+  requests.length = 0
+  await providerUsage.refreshProviderUsage('meta', { now: () => nowMs + 5_000, reason: 'open' })
+  check(
+    'a /usage read inside the TTL floor makes no network request (bounded)',
+    requests.filter(r => r.path === '/muse-code/key').length === 0,
+    JSON.stringify(requests),
+  )
+  const savedKeyReplyForUsage = keyReply
+  keyReply = {
+    status: 200,
+    body: {
+      api_key: MINTED_KEY,
+      user_email: 'subscriber@example.com',
+      user_id: 'uid-meta-42',
+      is_subs_active: true,
+      subs_tier_id: 'max',
+      subs_tier_name: 'Muse Code Max',
+      subs_usage: {
+        window: {
+          used_percent: 62,
+          resets_at: '2026-10-14T12:00:00.000Z',
+          window_duration_mins: 300,
+        },
+        weekly: {
+          used_percent: 58,
+          resets_at: '2026-10-20T00:00:00.000Z',
+          window_duration_mins: 10080,
+        },
+      },
+    },
+  }
+  const refreshedAtMs = nowMs + freshness.USAGE_POLL_TTL_MS + 10_000
+  await providerUsage.refreshProviderUsage('meta', { now: () => refreshedAtMs, reason: 'open' })
+  const usageKeyReqs = requests.filter(r => r.path === '/muse-code/key')
+  const refreshedUsage = providerUsage.usageForProvider('meta')
+  check(
+    'past the TTL floor /usage re-reads once through POST /muse-code/key with body {} and updates the tier, windows, and read timestamp',
+    usageKeyReqs.length === 1 &&
+      usageKeyReqs[0]?.headers['authorization'] === `Bearer ${ACCOUNT_TOKEN}` &&
+      usageKeyReqs[0]?.headers['x-api-version'] === '1.0.0' &&
+      usageKeyReqs[0]?.body === '{}' &&
+      refreshedUsage.tier === 'Muse Code Max' &&
+      refreshedUsage.windows[0]?.usedPct === 62 &&
+      refreshedUsage.windows[1]?.usedPct === 58 &&
+      refreshedUsage.windows[0]?.observedAtMs === refreshedAtMs,
+    JSON.stringify({ usageKeyReqs, refreshedUsage }),
+  )
+  keyReply = savedKeyReplyForUsage
   secrets.writeStoredMetaApiKey(STORED_API_KEY)
-  accounts.writePreferredMetaSource('muse-code')
+  login.activateMetaSource('api-key')
+  const keyUsage = providerUsage.usageForProvider('meta')
+  check(
+    'when the API key is the active source, the absence line stays as today',
+    keyUsage.sourceKind === 'api-key' &&
+      keyUsage.shape === 'api-spend' &&
+      keyUsage.windows.length === 0 &&
+      keyUsage.absence === usageState.META_USAGE_ABSENCE,
+    JSON.stringify(keyUsage),
+  )
+
+  console.log('── 5. Row 3: The wire unchanged & refused minted key never falls through ──')
+  login.activateMetaSource('muse-code')
   catalogue.__resetMetaCatalogueForTest()
   requests.length = 0
   const okTurn = await runChat('muse-spark-1.3')
@@ -369,7 +456,7 @@ try {
   modelsStatus = 200
   catalogue.__resetMetaCatalogueForTest()
 
-  console.log('── 5. Row 3: require_payment and refused token at key mint store nothing as active ──')
+  console.log('── 6. Row 3: require_payment and refused token at key mint store nothing as active ──')
   accounts.disconnectMetaMuseCode()
   secrets.writeStoredMetaApiKey(null)
   const savedKeyReply = keyReply
@@ -434,7 +521,7 @@ try {
   secrets.writeStoredMetaApiKey(null)
   keyReply = savedKeyReply
 
-  console.log('── 6. Cancel, expired_token, access_denied, and clock expiry ──')
+  console.log('── 7. Cancel, expired_token, access_denied, and clock expiry ──')
   let cancelFlag = false
   pollQueue = [{ status: 400, body: { error: 'authorization_pending' } }]
   const cancelled = await login.runMetaDeviceLogin({

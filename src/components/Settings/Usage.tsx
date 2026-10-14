@@ -68,6 +68,8 @@ import { ProgressBar } from '../design-system/ProgressBar.js'
 import { GLYPH } from '../mercury-ui/glyphs.js'
 import { useMercuryTokens } from '../mercury-ui/useMercuryTokens.js'
 import { geminiStoredSourcesNote, liveGeminiStoredSourceFacts } from '../../services/providers/gemini/geminiLogin.js'
+import { resolveMetaAccount, resolveMetaRawApiKey } from '../../services/providers/meta/metaAccounts.js'
+import { liveMetaConnectFacts, metaMuseCodeTierWordsWithAge, metaStoredSourcesNote } from '../../services/providers/meta/metaLogin.js'
 
 const WARN_PCT = 70
 const ERROR_PCT = 90
@@ -351,8 +353,8 @@ const ENGINE_USAGE_PRESENTATION: Record<
   },
   meta: {
     title: 'Meta usage',
-    connect: '/logins meta adds a Meta Model API key (MODEL_API_KEY works too)',
-    limitsNote: 'API keys bill pay-as-you-go; dev.meta.ai shows account usage. Muse Code subscriptions are for Muse Code only.',
+    connect: '/logins meta signs in with Meta or adds a Model API key (MODEL_API_KEY)',
+    limitsNote: 'A Muse Code subscription meters its window and weekly allowance from the key endpoint; API keys bill pay-as-you-go at dev.meta.ai.',
   },
   deepseek: {
     title: 'DeepSeek usage',
@@ -747,6 +749,7 @@ function EngineUsageSection({ section, width }: { section: UsageSection; width?:
   if (section.id === 'moonshot') return <MoonshotUsageSection {...(width !== undefined ? { width } : {})} />
   if (section.id === 'zai') return <ZaiUsageSection {...(width !== undefined ? { width } : {})} {...(section.family.credentialLabel !== undefined ? { credentialLabel: section.family.credentialLabel } : {})} />
   if (section.id === 'xai') return <XaiUsageSection {...(width !== undefined ? { width } : {})} />
+  if (section.id === 'meta') return <MetaUsageSection {...(width !== undefined ? { width } : {})} />
   if (section.id === 'zen') return <ZenUsageSection {...(width !== undefined ? { width } : {})} {...(section.family.credentialLabel !== undefined ? { credentialLabel: section.family.credentialLabel } : {})} credentialed={section.family.credentialed} />
   if (section.id === 'local') return <LocalUsageSection />
   const spend = providerSessionSpend(section.id)
@@ -908,6 +911,65 @@ function XaiUsageSection({ width }: { width?: number }): React.ReactNode {
           : subscription
             ? ENGINE_USAGE_PRESENTATION.xai!.limitsNote
             : (usage.absence ?? ENGINE_USAGE_PRESENTATION.xai!.limitsNote)}
+      </Text>
+    </Box>
+  )
+}
+
+function MetaUsageSection({ width }: { width?: number }): React.ReactNode {
+  const account = resolveMetaAccount()
+  const key = resolveMetaRawApiKey()
+  const subscription = account?.kind === 'muse-code'
+  const spend = providerSessionSpend('meta')
+  const usage = useOwnerUsage('meta', account !== undefined)
+  const windows = usage.windows
+  const facts = liveMetaConnectFacts()
+  const storedNote = metaStoredSourcesNote(facts)
+  const tierWithAge = metaMuseCodeTierWordsWithAge({
+    ...(usage.tier ?? account?.tierName ? { museCodeTier: usage.tier ?? account?.tierName } : {}),
+    ...(account?.observedAtMs ? { museCodeReadAtMs: account.observedAtMs } : {}),
+  })
+  return (
+    <Box flexDirection="column">
+      <Text bold>Meta usage</Text>
+      <IdentityLine family="meta" />
+      <Box flexDirection="column" marginTop={1}>
+        <SlotHeading text="Muse Code subscription" />
+        {subscription ? (
+          <Box flexDirection="column">
+            <Text dimColor>{[account.email, tierWithAge].filter((part): part is string => part !== undefined && part !== '').join(' · ')}</Text>
+            <SlotSpend active route="meta" spend={spend} withCost={false} />
+            {windows.length > 0 ? (
+              windows.map(window => (
+                <ObservedWindowMeter
+                  key={window.key}
+                  window={window}
+                  {...(width !== undefined ? { maxWidth: width } : {})}
+                />
+              ))
+            ) : (
+              <Text dimColor>{usage.readerNote ?? 'Plan windows: not yet observed — the key endpoint is asked on this tab.'}</Text>
+            )}
+            {windows.length > 0 && usage.readerNote !== undefined ? <Text dimColor>{usage.readerNote}</Text> : null}
+            <FullWindowLine usage={usage} />
+          </Box>
+        ) : (
+          <Text dimColor>{absentSlotLine('/logins meta signs in with a device code')}</Text>
+        )}
+      </Box>
+      <ApiKeySlot
+        presentLabel={key ? (key.source === 'env' ? `${key.envName!} (env)` : 'Meta API key (stored, auth-scoped)') : undefined}
+        isActive={account?.kind === 'api-key'}
+        route="meta"
+        spend={spend}
+      />
+      {storedNote !== undefined ? <Text dimColor>{storedNote}</Text> : null}
+      <Text dimColor>
+        {account === undefined
+          ? `Not connected — ${ENGINE_USAGE_PRESENTATION.meta!.connect}.`
+          : subscription
+            ? ENGINE_USAGE_PRESENTATION.meta!.limitsNote
+            : (usage.absence ?? ENGINE_USAGE_PRESENTATION.meta!.limitsNote)}
       </Text>
     </Box>
   )
