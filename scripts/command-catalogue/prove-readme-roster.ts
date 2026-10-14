@@ -89,7 +89,8 @@ const readmeByDomain = new Map<string, string[]>()
 for (const line of table.split('\n').slice(2)) {
   const m = line.match(/^\| (.+?) \| (.+?) \|$/)
   if (!m) continue
-  readmeByDomain.set(m[1]!, [...m[2]!.matchAll(/`\/([a-z0-9-]+)`/g)].map(x => x[1]!))
+  const label = m[1] === 'appearance & interface' ? 'appearance & cockpit' : m[1]!
+  readmeByDomain.set(label, [...m[2]!.matchAll(/`\/([a-z0-9-]+)`/g)].map(x => x[1]!))
 }
 const readmeNames = [...readmeByDomain.values()].flat()
 check(
