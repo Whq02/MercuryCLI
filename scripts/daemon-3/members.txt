@@ -1,0 +1,27 @@
+# scripts/daemon-3/members.txt — this sub-suite's provers, one
+# basename per line (the files live in scripts/daemon/). The parent
+# suite runs every prover NOT named by a sibling list, so a NEW prover
+# lands there automatically; a name listed here but missing on disk is a
+# loud red in this runner.
+prove-daemon-lock.ts
+prove-bundle-answers-status.ts
+prove-session-activity.ts
+prove-warm-consent-boot.ts
+prove-seat-wait.ts
+prove-reactivate-door.ts
+prove-compact-state-word.ts
+prove-first-byte-drive.ts
+prove-reissue-rows-drive.ts
+prove-daemon-handshake.ts
+prove-saturn-adversarial.ts
+prove-saturn-fire-plain-frame.ts
+prove-live-turn-chars.ts
+prove-seat-live-counter.ts
+prove-worker-liveness-identity.ts
+prove-one-daemon-per-build.ts
+prove-sessionless-daemon-exits.ts
+prove-idle-daemon-launches-nothing.ts
+prove-seat-protocol-refusal.ts
+prove-runner-slow-initialize.ts
+prove-watch-park-drive.ts
+prove-lead-window-hold.ts
