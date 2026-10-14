@@ -591,7 +591,7 @@ export function keyLegStoreLine(leg: FaceKeyLegId): string {
     case 'zai-coding':
       return 'Stored auth-scoped (mode 600), never logged; ZAI_API_KEY wins over the store.';
     case 'meta':
-      return 'Stored auth-scoped (mode 600); MODEL_API_KEY, then META_API_KEY, wins. Pay-as-you-go; not a Muse Code plan.';
+      return 'Stored auth-scoped (mode 600); MODEL_API_KEY, then META_API_KEY, wins. Pay-as-you-go; Sign in with Meta connects a Muse Code plan.';
     case 'nous':
       return 'Stored auth-scoped (mode 600), never logged; NOUS_API_KEY wins over the store. Bills the Portal credits or subscription behind the key.';
     case 'deepseek':
