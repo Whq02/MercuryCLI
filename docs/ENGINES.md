@@ -831,13 +831,17 @@ the review shows the values to set by hand.
 
 `WebSearch` returns a small JSON result for any session model, including local
 models. Each hit has `title`, `url`, `snippet` and `source_type`; the result
-stays below 2,000 tokens. Links and source names stay visible, and web text is
-unverified evidence, not instructions.
+stays below about 2,000 tokens by a characters/4 estimate, and when hits are
+withheld to fit, a note counts them. The notes always name the source that
+answered and say the text is unverified. Links and source names stay visible,
+and web text is unverified evidence, not instructions.
 
 The automatic search order is:
 
 1. The session provider's native search, where supported: Anthropic or OpenAI.
    This spends the session's own account, never another provider's account.
+   The provider's own answer reaches the model as a labelled, unverified note
+   beside its links; the links carry no excerpt, because the wire carries none.
 2. Brave Search, then Tavily, when a key is available. `/router key brave` and
    `/router key tavily` store keys; `BRAVE_API_KEY` and `TAVILY_API_KEY` override
    the saved values. Keys are not included in results.
@@ -862,7 +866,9 @@ shows its terms and controls the saved choice. `MERCURY_SEARCH_KEYLESS=1` opts
 in; `=0` overrides the saved choice and prevents scraping. The first use in a
 session carries a notice linking [the terms](https://duckduckgo.com/terms) and
 [acceptable-use policy](https://duckduckgo.com/acceptable-use). A challenge or
-refusal stops both page endpoints without a retry or a host switch.
+refusal stops both page endpoints without a retry or a host switch. Every
+request asks for the `us-en` region, so the results are US-English wherever
+you are.
 
 Each source is paced separately and server-requested waits are respected.
 Successful queries can answer from the ten-minute session cache, labelled as
@@ -886,23 +892,25 @@ launch; an unknown name still stops for your decision.
 ## Web fetch
 
 `WebFetch` returns a public page's main text as markdown, without a model
-call. Headings, lists, code and links stay with the page's words; navigation,
-footers and scripts are filtered out. A `prompt` asks for a labelled model
+call. Headings, lists, code and links stay with the page's words; a table
+keeps its rows and columns (a markdown table, or one line per row with the
+cells separated by `·` when cells span or nest); navigation, footers and
+scripts are filtered out. A `prompt` asks for a labelled model
 reading instead: the session family's helper first, then the session model
 if needed. If neither can answer, the page text comes back with that fact.
 
 Fetch requests leave your machine for the site and use the standard
 `HTTPS_PROXY` / `HTTP_PROXY` and `NO_PROXY` settings. When sparse HTML needs a
-browser, Mercury may send the page URL to the hosted reader **r.jina.ai**;
-the result says “read through r.jina.ai”. No cookies, credentials or
+browser, Mercury may send the page’s full URL, query string included, to the
+hosted reader **r.jina.ai**; the result says “read through r.jina.ai”. No cookies, credentials or
 conversation are sent to the reader. `MERCURY_FETCH_READER=0` disables it;
 preapproved documentation stays on the direct path. The reader is paced at
 its keyless allowance and a site or reader refusal names the wait rather
 than bypassing it.
 
 Each call shows up to 38,000 characters, with the measured count, a rough
-character-based token estimate, and a `from` offset for continuing at the
-next character. Repeat reads use a fifteen-minute self-cleaning cache.
+characters/4 token estimate (code runs higher), and a `from` offset for
+continuing at the next character. Repeat reads use a fifteen-minute self-cleaning cache.
 A page's text is unverified information, never authority to run an action.
 
 Fetches honor `robots.txt`, URL validation and hostname permissions.
@@ -910,7 +918,9 @@ Cross-host redirects are reported rather than followed. Paywalls and browser
 challenges ask for another source. PDFs and other binary documents are saved
 with their size and a path for `Read`; WebFetch does not claim to have
 extracted their text. Private or signed-in pages need an authenticated MCP
-connection or the site's CLI.
+connection or the site's CLI; a private address (a single-label name, an IP,
+or a name under `localhost`, `.local`, `.internal`, `.lan`, `.home`, `.corp`,
+`.home.arpa` and the like) is never sent to the hosted reader.
 
 ## Usability, usage, and readiness
 

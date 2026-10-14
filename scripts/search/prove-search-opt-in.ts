@@ -10,6 +10,7 @@ const { keylessSearch } = process.argv[2] ? await import(process.argv[2]) : awai
 const { performWebSearch, liveSearchDoorReads } = await import('../../src/services/search/searchDoor.js')
 const { resetSearchPacing } = await import('../../src/services/search/searchPacing.js')
 const { mapSearchResult } = await import('../../src/tools/WebSearchTool/searchOutput.js')
+const { searchTokenEstimate, SEARCH_PAYLOAD_TOKEN_CEILING } = await import('../../src/services/search/searchPayload.js')
 const { getFlagSpec } = await import('../../src/substrate/flagRegistry.js')
 delete process.env.MERCURY_SEARCH_KEYLESS
 assert.equal(setting.duckduckgoScrapingEnabled(), false)
@@ -34,7 +35,7 @@ try {
   const first = await performWebSearch({ query: 'test' }, io)
   assert.equal(first.notes.filter(n => n === setting.DUCKDUCKGO_TERMS).length, 1)
   const payload = mapSearchResult({ query: 'test', results: [{ tool_use_id: 'g', content: first.hits }], notes: first.notes, via: first.via, tier: first.tier, durationSeconds: 0 }, 't').content
-  assert.ok(payload.includes(setting.DUCKDUCKGO_TERMS)); assert.ok(Buffer.byteLength(payload) < 2000)
+  assert.ok(payload.includes(setting.DUCKDUCKGO_TERMS)); assert.ok(searchTokenEstimate(payload) < SEARCH_PAYLOAD_TOKEN_CEILING)
   const cached = await performWebSearch({ query: 'test' }, io)
   assert.equal(cached.cached, true); assert.ok(!cached.notes.includes(setting.DUCKDUCKGO_TERMS)); assert.equal(requests, 1)
   const second = await performWebSearch({ query: 'other' }, io)

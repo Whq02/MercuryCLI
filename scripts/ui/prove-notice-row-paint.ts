@@ -191,22 +191,31 @@ const noticeCases = [
 ]
 for (const prompt of noticeCases) {
   const body = (deliveredAt?: string, sentAt: string = STAMP) => h(AttachmentMessage as never, { attachment: { type: 'queued_command', prompt, commandMode: 'task-notification', sentAt, ...(deliveredAt === undefined ? {} : { deliveredAt }) }, addMargin: false, verbose: false })
+  const crew = prompt.startsWith('<task-notification') && prompt.includes('Agent "')
   const before = await paint(body(), { type: 'attachment', timestamp: STAMP })
   const delayed = await paint(body(sixMinutesLater), { type: 'attachment', timestamp: STAMP })
-  check('a delayed notice names its arrival as the second clock', delayed.includes(`· arrived ${clockOf(STAMP)}`), delayed)
   const mark = prompt.startsWith('<monitor') ? '[Monitor]' : '●'
-  check('the row clock is its delivery position, never its arrival', delayed.includes(`${clockOf(sixMinutesLater)} ${mark}`) && !delayed.includes('held') && !delayed.includes('· delivered'), delayed)
   const nearbyAt = new Date(Date.parse(STAMP) + 2000).toISOString()
   const nearby = await paint(body(nearbyAt), { type: 'attachment', timestamp: STAMP })
-  check('a nearby delivery carries its delivery clock and no second clock', nearby.includes(`${clockOf(nearbyAt)} ${mark}`) && !nearby.includes('· arrived'), nearby)
   const boundary = await paint(body(new Date(Date.parse(STAMP) + 60_000).toISOString()), { type: 'attachment', timestamp: STAMP })
-  check('the second clock starts at exactly one minute', boundary.includes('· arrived'), boundary)
+  const legacy = await paint(body(undefined, sixMinutesEarlier), { type: 'attachment', timestamp: STAMP })
+  if (crew) {
+    check("a delayed crew notice keeps the crewmate's finish as its row clock and names its delivery as the second clock", delayed.includes(`${clockOf(STAMP)} ${mark}`) && delayed.includes(`· delivered ${clockOf(sixMinutesLater)}`) && !delayed.includes('· arrived') && !delayed.includes('held'), delayed)
+    check('the finish clock stands in the row, never the delivery position', !delayed.includes(`${clockOf(sixMinutesLater)} ${mark}`), delayed)
+    check('a nearby delivery of a crew notice carries the finish clock and no second clock', nearby.includes(`${clockOf(STAMP)} ${mark}`) && !nearby.includes('· delivered') && !nearby.includes('· arrived'), nearby)
+    check('the second clock starts at exactly one minute', boundary.includes(`· delivered ${clockOf(new Date(Date.parse(STAMP) + 60_000).toISOString())}`), boundary)
+    check('an older crew record without a delivery clock paints its finish stamp alone', legacy.includes(`${clockOf(sixMinutesEarlier)} ${mark}`) && !legacy.includes('· delivered') && !legacy.includes('· arrived'), legacy)
+  } else {
+    check('a delayed notice names its arrival as the second clock', delayed.includes(`· arrived ${clockOf(STAMP)}`), delayed)
+    check('the row clock is its delivery position, never its arrival', delayed.includes(`${clockOf(sixMinutesLater)} ${mark}`) && !delayed.includes('held') && !delayed.includes('· delivered'), delayed)
+    check('a nearby delivery carries its delivery clock and no second clock', nearby.includes(`${clockOf(nearbyAt)} ${mark}`) && !nearby.includes('· arrived'), nearby)
+    check('the second clock starts at exactly one minute', boundary.includes('· arrived'), boundary)
+    check('an older record without a delivery clock paints its own stamp alone (red on the base: a completed suffix)', legacy === before, legacy)
+  }
   for (const deliveredAt of ['not a clock', sixMinutesEarlier]) {
     const invalid = await paint(body(deliveredAt), { type: 'attachment', timestamp: STAMP })
     check('an invalid delivery clock, or one before the completion, never invents a suffix', invalid === before, invalid)
   }
-  const legacy = await paint(body(undefined, sixMinutesEarlier), { type: 'attachment', timestamp: STAMP })
-  check('an older record without a delivery clock paints its own stamp alone (red on the base: a completed suffix)', legacy === before, legacy)
   const held = await paint(body(sixMinutesLater), { type: 'attachment', timestamp: STAMP, queued: true })
   check('a waiting notice names its arrival only, never a delivery suffix', held.includes(`held since ${clockOf(STAMP)}`) && !held.includes('· delivered'), held)
 }
