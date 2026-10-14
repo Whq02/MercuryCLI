@@ -11,6 +11,7 @@ import { LAYOUT_BREAKPOINTS } from '../hooks/useLayoutTier.js'
 import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js'
 import {
   beginGeminiBrowserConnect,
+  beginGeminiPlanBrowserConnect,
   geminiOauthClientConfig,
   GEMINI_CLIENT_STORED_UNVERIFIED_NOTE,
   writeGeminiOauthClientConfig,
@@ -19,7 +20,9 @@ import {
 import {
   GEMINI_CONNECT_CANCELLED_RECEIPT,
   GEMINI_CONNECT_STOPPED_RECEIPT,
+  activateGeminiSource,
   finishGeminiOauthConnect,
+  finishGeminiPlanConnect,
   geminiConnectFailedReceipt,
   storeGeminiApiKeyLogin,
 } from '../services/providers/gemini/geminiLogin.js'
@@ -30,6 +33,7 @@ import {
   GEMINI_CONNECT_COMPACT_INTRO,
   GEMINI_CONNECT_TITLE,
   GEMINI_KEY_BILLING_NOTE,
+  geminiConnectRowAction,
   geminiConnectRows,
   geminiGuideHint,
   geminiGuideOpeningStep,
@@ -37,6 +41,7 @@ import {
   geminiGuideReturnStep,
   geminiGuideStep,
   geminiKeyLegLines,
+  geminiPlanLegLines,
   liveGeminiConnectFacts,
   type GeminiConnectFacts,
   type GeminiGuideLine,
@@ -121,7 +126,7 @@ export function GeminiConnect({
   const size = useTerminalSize()
   const compact = size.columns < LAYOUT_BREAKPOINTS.cockpitMin || size.rows < LAYOUT_BREAKPOINTS.cockpitMinRows
   const popupCompact = usePopupCompact().compact
-  const [leg, setLeg] = useState<'choice' | 'key' | 'guide'>('choice')
+  const [leg, setLeg] = useState<'choice' | 'key' | 'guide' | 'plan'>('choice')
   const [facts, setFacts] = useState<GeminiConnectFacts>(() => liveGeminiConnectFacts())
   const [step, setStep] = useState<GeminiGuideStepNumber>(1)
   const [opened, setOpened] = useState<GeminiGuideOpenState | undefined>(undefined)
@@ -190,27 +195,28 @@ export function GeminiConnect({
   }
 
   useEffect(() => {
-    if (leg !== 'guide') return
-    if (step <= 4) {
+    if (leg !== 'guide' && leg !== 'plan') return
+    if (leg === 'guide' && step <= 4) {
       openStepPage(step)
       return
     }
-    if (step !== 6) return
-    const handles = beginGeminiBrowserConnect({
-      onListenerIssue: message => setListenerNote(message),
-    })
+    if (leg === 'guide' && step !== 6) return
+    const plan = leg === 'plan'
+    const handles = plan
+      ? beginGeminiPlanBrowserConnect({ onListenerIssue: message => setListenerNote(message) })
+      : beginGeminiBrowserConnect({ onListenerIssue: message => setListenerNote(message) })
     handlesRef.current = handles
     setAuthorizeUrl(handles.authorizeUrl || undefined)
     setPhase('waiting')
     handles.result
       .then(async () => {
-        const outcome = await finishGeminiOauthConnect()
+        const outcome = plan ? await finishGeminiPlanConnect() : await finishGeminiOauthConnect()
         settle(outcome.receipt, outcome.ok)
       })
       .catch(error => {
         if (settledRef.current) return
         const failure = errorMessageWithCause(error)
-        const back = geminiGuideReturnStep(failure)
+        const back = plan ? undefined : geminiGuideReturnStep(failure)
         if (back === undefined) {
           settle(geminiConnectFailedReceipt(error))
           return
@@ -225,9 +231,9 @@ export function GeminiConnect({
   }, [leg, step])
 
   useInput((input, key, event) => {
-    if (leg !== 'guide' || step === 5) return
+    if ((leg !== 'guide' && leg !== 'plan') || (leg === 'guide' && step === 5)) return
     if (key.escape) {
-      if (step === 6) {
+      if (step === 6 || leg === 'plan') {
         handlesRef.current?.cancel('cancelled from the connect surface')
         settle(GEMINI_CONNECT_STOPPED_RECEIPT)
         return
@@ -239,7 +245,7 @@ export function GeminiConnect({
       enterStep((step - 1) as GeminiGuideStepNumber)
       return
     }
-    if (step <= 4) {
+    if (leg === 'guide' && step <= 4) {
       if (key.return) {
         if (step === 4) stepFiveBackRef.current = 'step4'
         enterStep((step + 1) as GeminiGuideStepNumber)
@@ -303,6 +309,20 @@ export function GeminiConnect({
         <Select
           options={geminiConnectRows(facts)}
           onChange={value => {
+            if (value !== 'client' && geminiConnectRowAction(facts, value) === 'activate') {
+              const outcome = activateGeminiSource(value === 'key' ? 'api-key' : value === 'plan' ? 'plan' : 'oauth')
+              settle(outcome.receipt, outcome.ok)
+              return
+            }
+            if (value === 'plan') {
+              setPhase('starting')
+              setAuthorizeUrl(undefined)
+              setListenerNote(undefined)
+              setPaste('')
+              setCursorOffset(0)
+              setLeg('plan')
+              return
+            }
             if (value === 'key') {
               setLeg('key')
               return
@@ -323,6 +343,41 @@ export function GeminiConnect({
 
   if (leg === 'key') {
     return <GeminiKeyLeg onResult={settle} onBack={backToChoice} />
+  }
+
+  if (leg === 'plan') {
+    return (
+      <Box flexDirection="column" paddingX={popupCompact ? 0 : 1}>
+        {popupCompact ? null : <GuideLines lines={geminiPlanLegLines(phase === 'waiting' ? 'opened' : undefined)} />}
+        {phase === 'exchanging' ? <Text color={tokens.textSecondary}>Exchanging the authorization code and reading your plan…</Text> : null}
+        {listenerNote ? <Text color={tokens.warning}>{listenerNote}</Text> : null}
+        {authorizeUrl && phase !== 'exchanging' ? (
+          <>
+            {popupCompact ? null : <Text color={tokens.textMuted}>If nothing opened, visit:</Text>}
+            <Text color={tokens.info} wrap={popupCompact ? 'truncate-end' : 'wrap'}>
+              {authorizeUrl}
+            </Text>
+            <Box>
+              <Text color={tokens.textMuted}>or paste the redirected URL: </Text>
+              <TextInput
+                value={paste}
+                onChange={setPaste}
+                onSubmit={submitPaste}
+                cursorOffset={cursorOffset}
+                onChangeCursorOffset={setCursorOffset}
+                columns={48}
+                onEscape={() => {
+                  handlesRef.current?.cancel('cancelled from the connect surface')
+                  settle(GEMINI_CONNECT_CANCELLED_RECEIPT)
+                }}
+              />
+            </Box>
+          </>
+        ) : null}
+        {copied ? <Text color={tokens.success}>Copied to clipboard</Text> : null}
+        <Text dimColor>{geminiGuideHint(6)}</Text>
+      </Box>
+    )
   }
 
   if (step <= 4) {

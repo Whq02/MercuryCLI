@@ -14,13 +14,29 @@ import {
   describeTransportFailure, mapCompatHttpFailure,
   type CompatCompletedToolCall, type CompatStreamEvent, type CompatStreamOptions,
 } from '../openaicompat/compatChatClient.js'
-import { buildGeminiRequest, type GeminiPart, type GeminiRequest, type GeminiTurnItem } from './geminiCodec.js'
+import { buildGeminiPlanRequest, buildGeminiRequest, type GeminiPart, type GeminiPlanEnvelope, type GeminiRequest, type GeminiTurnItem } from './geminiCodec.js'
 import { maskGeminiSecrets } from './geminiAccounts.js'
+
+export interface GeminiPlanWire extends GeminiPlanEnvelope {
+  bases: readonly string[]
+  userAgent: string
+  onServedBy?(base: string): void
+}
 
 export type GeminiStreamOptions = CompatStreamOptions & {
   messages: readonly Message[]
   stream?: boolean
+  plan?: GeminiPlanWire
+  apiKeyHeader?: boolean
   onTurn(item: GeminiTurnItem): void
+}
+
+export function geminiPlanStreamUrl(base: string, stream: boolean): string {
+  return `${base}/v1internal:${stream ? 'streamGenerateContent?alt=sse' : 'generateContent'}`
+}
+
+function failsOver(status: number): boolean {
+  return status === 408 || status === 429 || status >= 500
 }
 
 function record(value: unknown): Record<string, unknown> | undefined {
@@ -52,7 +68,9 @@ export async function* streamGeminiContent(options: GeminiStreamOptions): AsyncG
     const masked = maskGeminiSecrets(value)
     return options.apiKey ? masked.split(options.apiKey).join('«masked»') : masked
   }
-  function* decode(value: unknown): Generator<CompatStreamEvent> {
+  function* decode(raw: unknown): Generator<CompatStreamEvent> {
+    const outer = record(raw)
+    const value = options.plan && outer && outer.error === undefined && outer.response !== undefined ? outer.response : raw
     const body = record(value)
     if (!body) {
       providerFailed = true
@@ -140,15 +158,32 @@ export async function* streamGeminiContent(options: GeminiStreamOptions): AsyncG
       return
     }
     const stream = options.stream !== false
-    const url = options.url.replace(/:streamGenerateContent(?:\?alt=sse)?$/, stream ? ':streamGenerateContent?alt=sse' : ':generateContent')
+    const plan = options.plan
+    const urls = plan ? plan.bases.map(base => geminiPlanStreamUrl(base, stream)) : [options.url.replace(/:streamGenerateContent(?:\?alt=sse)?$/, stream ? ':streamGenerateContent?alt=sse' : ':generateContent')]
+    const body = JSON.stringify(plan ? buildGeminiPlanRequest(request, options.request.model, plan) : request)
     options.firstByte?.onWait?.(wait)
     firstTimer = setTimeout(() => { firstByteFired = true; controller.abort() }, budgetMs)
     firstTimer.unref?.()
-    const response = await (options.fetchImpl ?? getApiFetch())(url, {
-      method: 'POST', headers: { 'content-type': 'application/json', accept: stream ? 'text/event-stream' : 'application/json', authorization: `Bearer ${options.apiKey}`, 'user-agent': getUserAgent() },
-      body: JSON.stringify(request), signal: controller.signal,
-      ...(options.fetchImpl ? {} : getProxyFetchOptions()),
-    })
+    let response!: Response
+    for (let attempt = 0; attempt < urls.length; attempt++) {
+      const last = attempt === urls.length - 1
+      try {
+        response = await (options.fetchImpl ?? getApiFetch())(urls[attempt]!, {
+          method: 'POST', headers: { 'content-type': 'application/json', accept: stream ? 'text/event-stream' : 'application/json', ...(options.apiKeyHeader ? { 'x-goog-api-key': options.apiKey ?? '' } : { authorization: `Bearer ${options.apiKey}` }), 'user-agent': plan?.userAgent ?? getUserAgent() },
+          body, signal: controller.signal,
+          ...(options.fetchImpl ? {} : getProxyFetchOptions()),
+        })
+      } catch (error) {
+        if (!last && !controller.signal.aborted) continue
+        throw error
+      }
+      if (!last && failsOver(response.status)) {
+        await response.body?.cancel().catch(() => {})
+        continue
+      }
+      if (response.ok && plan) plan.onServedBy?.(plan.bases[attempt]!)
+      break
+    }
     headersReceived = true
     clearTimeout(firstTimer)
     options.firstByte?.onWait?.(null)

@@ -154,3 +154,67 @@ export function buildGeminiRequest(request: CompatChatRequest, messages: readonl
     ...(Object.keys(generationConfig).length ? { generationConfig } : {}),
   }
 }
+
+const CODE_ASSIST_UNSUPPORTED_SCHEMA_KEYS = new Set([
+  '$schema', '$id', '$anchor', '$ref', '$defs', 'definitions', '$dynamicRef', '$dynamicAnchor', '$comment',
+  'propertyNames', 'deprecated', 'readOnly', 'writeOnly', 'uniqueItems', 'contains', 'minContains', 'maxContains',
+  'additionalItems', 'contentEncoding', 'contentMediaType', 'contentSchema',
+])
+
+export function codeAssistSchema(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(codeAssistSchema)
+  const raw = record(value)
+  if (!raw) return value
+  const out: Record<string, unknown> = {}
+  for (const [key, entry] of Object.entries(raw)) {
+    if (CODE_ASSIST_UNSUPPORTED_SCHEMA_KEYS.has(key)) continue
+    if (key === 'properties' || key === 'patternProperties' || key === 'dependentSchemas') {
+      const table = record(entry)
+      out[key] = table ? Object.fromEntries(Object.entries(table).map(([name, schema]) => [name, codeAssistSchema(schema)])) : entry
+      continue
+    }
+    if (key === 'enum' || key === 'required' || key === 'type' || key === 'default' || key === 'const' || key === 'examples') {
+      out[key] = entry
+      continue
+    }
+    out[key] = codeAssistSchema(entry)
+  }
+  return out
+}
+
+export interface GeminiPlanEnvelope {
+  projectId: string
+  requestId: string
+  sessionId: string
+  labels: Record<string, string>
+}
+
+export function buildGeminiPlanRequest(request: GeminiRequest, model: string, envelope: GeminiPlanEnvelope): Record<string, unknown> {
+  const inner: Record<string, unknown> = {
+    contents: request.contents,
+    ...(request.systemInstruction ? { systemInstruction: { role: 'user', parts: request.systemInstruction.parts } } : {}),
+    ...(request.tools?.length
+      ? {
+          tools: request.tools.map(tool => ({
+            functionDeclarations: tool.functionDeclarations.map(declaration => ({
+              name: declaration.name,
+              ...(declaration.description ? { description: declaration.description } : {}),
+              parameters: codeAssistSchema(declaration.parametersJsonSchema),
+            })),
+          })),
+          toolConfig: { functionCallingConfig: { mode: request.toolConfig && request.toolConfig.functionCallingConfig.mode !== 'AUTO' ? request.toolConfig.functionCallingConfig.mode : 'VALIDATED' } },
+        }
+      : {}),
+    ...(request.generationConfig ? { generationConfig: request.generationConfig } : {}),
+    sessionId: envelope.sessionId,
+    labels: envelope.labels,
+  }
+  return {
+    model,
+    project: envelope.projectId,
+    requestId: envelope.requestId,
+    request: inner,
+    userAgent: 'antigravity',
+    requestType: 'agent',
+  }
+}

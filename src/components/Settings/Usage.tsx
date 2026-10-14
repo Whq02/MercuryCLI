@@ -67,6 +67,7 @@ import { ConfigurableShortcutHint } from '../ConfigurableShortcutHint.js'
 import { ProgressBar } from '../design-system/ProgressBar.js'
 import { GLYPH } from '../mercury-ui/glyphs.js'
 import { useMercuryTokens } from '../mercury-ui/useMercuryTokens.js'
+import { geminiStoredSourcesNote, liveGeminiStoredSourceFacts } from '../../services/providers/gemini/geminiLogin.js'
 
 const WARN_PCT = 70
 const ERROR_PCT = 90
@@ -575,12 +576,33 @@ function GeminiUsageSection({ width }: { width?: number }): React.ReactNode {
   const active = activeWalletEntry('gemini')
   const spend = providerSessionSpend('gemini')
   const oauth = entries.find(e => e.kind === 'oauth')
+  const plan = entries.find(e => e.kind === 'subscription-oauth')
   const key = entries.find(e => e.kind === 'api-key')
+  const geminiSourcesNote = geminiStoredSourcesNote(liveGeminiStoredSourceFacts())
   const usage = usageForProvider('gemini')
+  const planActive = active?.kind === 'subscription-oauth'
+  const tierFigure = planActive ? usage.figures?.find(f => f.key === 'plan-tier') : undefined
+  const quotaFigures = planActive ? (usage.figures ?? []).filter(f => f.key.startsWith('plan-quota:')) : []
+  const tierStamp = tierFigure !== undefined ? usageSourceWords(tierFigure) : undefined
   return (
     <Box flexDirection="column">
       <Text bold>Gemini usage</Text>
       <IdentityLine family="gemini" />
+      <Box flexDirection="column" marginTop={1}>
+        <SlotHeading text="Google sign-in" />
+        {plan === undefined ? (
+          <Text dimColor>{absentSlotLine('/logins gemini → Sign in with Google rides your plan\'s quota')}</Text>
+        ) : (
+          <Box flexDirection="column">
+            <Text dimColor>{plan.identity?.email !== undefined ? `${plan.label} · ${plan.identity.email}` : plan.label}</Text>
+            {tierFigure !== undefined ? <Text dimColor>{[`${tierFigure.label}: ${tierFigure.value}`, ...(tierStamp !== undefined ? [tierStamp] : [])].join(' · ')}</Text> : null}
+            {quotaFigures.map(figure => (
+              <Text key={figure.key} dimColor>{[`${figure.label}: ${figure.value}`, ...(figure.resetsAtMs !== undefined ? [`resets ${new Date(figure.resetsAtMs).toLocaleString()}`] : []), ...(usageSourceWords(figure) !== undefined ? [usageSourceWords(figure)!] : [])].join(' · ')}</Text>
+            ))}
+            <SlotSpend active={planActive} route="gemini" spend={spend} withCost={false} />
+          </Box>
+        )}
+      </Box>
       <Box flexDirection="column" marginTop={1}>
         <SlotHeading text="Google account" />
         {oauth === undefined ? (
@@ -598,6 +620,7 @@ function GeminiUsageSection({ width }: { width?: number }): React.ReactNode {
         route="gemini"
         spend={spend}
       />
+      {geminiSourcesNote !== undefined ? <Text dimColor>{geminiSourcesNote}</Text> : null}
       <Text dimColor>{usage.absence ?? ENGINE_USAGE_PRESENTATION.gemini!.limitsNote}</Text>
     </Box>
   )

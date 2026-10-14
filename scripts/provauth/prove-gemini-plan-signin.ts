@@ -1,0 +1,383 @@
+#!/usr/bin/env bun
+import '../lib/hermetic.ts'
+import { readFileSync, statSync, writeFileSync } from 'node:fs'
+
+;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
+process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
+delete process.env.GOOGLE_API_KEY
+delete process.env.GEMINI_API_KEY
+delete process.env.MERCURY_GEMINI_OAUTH_CLIENT_ID
+delete process.env.MERCURY_DISABLE_NONESSENTIAL_TRAFFIC
+
+let failures = 0
+let passes = 0
+function check(label: string, ok: boolean, detail = ''): void {
+  if (ok) passes++
+  else failures++
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+}
+const within = <T,>(promise: Promise<T>, ms = 4000): Promise<T | 'timed-out'> =>
+  Promise.race([promise, new Promise<'timed-out'>(resolve => setTimeout(() => resolve('timed-out'), ms))])
+
+type Capture = { host: 'google' | 'assist'; path: string; method: string; headers: Record<string, string>; body?: Record<string, unknown>; form?: Record<string, string> }
+const requests: Capture[] = []
+const google = { tokenStatus: 200, refreshStatus: 200, refreshError: undefined as string | undefined, withRefreshToken: true, serial: 0, userinfoStatus: 200, email: 'plan@example.invalid' }
+const FREE = { id: 'free-tier', name: 'Free', isDefault: true }
+const PRO = { id: 'g1-pro-tier', name: 'Google AI Pro' }
+const assist = {
+  loads: 0,
+  tierShape: 'paid' as 'paid' | 'free' | 'onboard' | 'ineligible' | 'licence',
+  onboarded: false,
+  operationPolls: 0,
+  onboardDoneAfterPolls: 2,
+  loadStatus: 200,
+  rosterStatus: 200,
+  generateStatus: 200,
+  generateError: undefined as Record<string, unknown> | undefined,
+  dailyDown: false,
+  dailyStatus: 503,
+  roster: {
+    'gemini-4-argon': { displayName: 'Gemini 4 Argon', supportsThinking: true, maxTokens: 1048576, maxOutputTokens: 65536, quotaInfo: { remainingFraction: 0.8, resetTime: '2026-10-15T00:00:00Z' } },
+    'gemini-3.5-flash-low': { displayName: 'Gemini 3.5 Flash', supportsThinking: true, maxTokens: 1048576, maxOutputTokens: 65536 },
+    'claude-sonnet-4-6': { displayName: 'Claude Sonnet 4.6', supportsThinking: false, maxTokens: 200000, maxOutputTokens: 64000 },
+    'gemini-3.1-flash-image': { displayName: 'Gemini 3.1 Flash Image', supportsImages: true },
+    'chat_internal': { displayName: 'internal', isInternal: true },
+  } as Record<string, Record<string, unknown>>,
+  imageModelIds: ['gemini-3.1-flash-image'],
+}
+const sse = (value: unknown): string => `data: ${JSON.stringify(value)}\n\n`
+
+function loadAnswer(): Record<string, unknown> {
+  const project = assist.tierShape === 'onboard' && !assist.onboarded ? undefined : 'project-fixture-123'
+  switch (assist.tierShape) {
+    case 'paid':
+      return { currentTier: PRO, paidTier: PRO, allowedTiers: [FREE, PRO], cloudaicompanionProject: project }
+    case 'free':
+      return { currentTier: FREE, allowedTiers: [FREE], cloudaicompanionProject: project }
+    case 'licence':
+      return { currentTier: { id: 'standard-tier', name: 'Gemini Code Assist Standard' }, allowedTiers: [], cloudaicompanionProject: project }
+    case 'ineligible':
+      return { allowedTiers: [], ineligibleTiers: [{ tierId: 'free-tier', reasonCode: 'VALIDATION_REQUIRED', reasonMessage: 'Your account needs validation before the free tier can be used.', validationUrl: 'https://example.invalid/validate' }] }
+    case 'onboard':
+      return assist.onboarded ? { currentTier: FREE, allowedTiers: [FREE], cloudaicompanionProject: project } : { allowedTiers: [FREE] }
+  }
+}
+
+async function capture(host: 'google' | 'assist', req: Request): Promise<Capture> {
+  const url = new URL(req.url)
+  const entry: Capture = { host, path: url.pathname + url.search, method: req.method, headers: Object.fromEntries(req.headers.entries()) }
+  if (req.method === 'POST') {
+    const text = await req.text()
+    if ((req.headers.get('content-type') ?? '').includes('application/x-www-form-urlencoded')) entry.form = Object.fromEntries(new URLSearchParams(text).entries())
+    else {
+      try { entry.body = JSON.parse(text) as Record<string, unknown> } catch { entry.body = {} }
+    }
+  }
+  requests.push(entry)
+  return entry
+}
+
+const googleServer = Bun.serve({
+  hostname: '127.0.0.1',
+  port: 0,
+  async fetch(req) {
+    const entry = await capture('google', req)
+    if (entry.path === '/token') {
+      const grant = entry.form?.grant_type
+      if (grant === 'refresh_token') {
+        if (google.refreshStatus !== 200) return Response.json({ error: google.refreshError ?? 'server_error' }, { status: google.refreshStatus })
+        google.serial += 1
+        return Response.json({ access_token: `ya29.plan-${google.serial}`, expires_in: 3600, scope: 'x', token_type: 'Bearer' })
+      }
+      if (google.tokenStatus !== 200) return Response.json({ error: 'invalid_grant' }, { status: google.tokenStatus })
+      google.serial += 1
+      return Response.json({ access_token: `ya29.plan-${google.serial}`, ...(google.withRefreshToken ? { refresh_token: `1//refresh-${google.serial}` } : {}), expires_in: 3600, scope: 'x', token_type: 'Bearer' })
+    }
+    if (entry.path.startsWith('/oauth2/v1/userinfo')) {
+      if (google.userinfoStatus !== 200) return new Response('', { status: google.userinfoStatus })
+      return Response.json({ email: google.email, verified_email: true })
+    }
+    return new Response('not found', { status: 404 })
+  },
+})
+const assistServer = Bun.serve({
+  hostname: '127.0.0.1',
+  port: 0,
+  async fetch(req) {
+    const entry = await capture('assist', req)
+    if ((entry.headers.authorization ?? '').startsWith('Bearer ya29.plan-') === false) return Response.json({ error: { code: 401, message: 'Request had invalid authentication credentials.', status: 'UNAUTHENTICATED' } }, { status: 401 })
+    if (entry.path === '/v1internal:loadCodeAssist') {
+      assist.loads += 1
+      if (assist.loadStatus !== 200) return Response.json({ error: { code: assist.loadStatus, message: 'fixture refusal', status: 'PERMISSION_DENIED' } }, { status: assist.loadStatus })
+      return Response.json(loadAnswer())
+    }
+    if (entry.path === '/v1internal:onboardUser') {
+      assist.operationPolls = 0
+      return Response.json({ name: 'operations/onboard-fixture', done: false })
+    }
+    if (entry.path === '/v1internal/operations/onboard-fixture') {
+      assist.operationPolls += 1
+      if (assist.operationPolls < assist.onboardDoneAfterPolls) return Response.json({ name: 'operations/onboard-fixture', done: false })
+      assist.onboarded = true
+      return Response.json({ name: 'operations/onboard-fixture', done: true, response: { '@type': 'type.googleapis.com/google.internal.cloud.code.v1internal.OnboardUserResponse', cloudaicompanionProject: { id: 'project-fixture-123' } } })
+    }
+    if (entry.path === '/v1internal:fetchAvailableModels') {
+      if (assist.rosterStatus !== 200) return Response.json({ error: { code: assist.rosterStatus, message: 'roster refused', status: 'PERMISSION_DENIED' } }, { status: assist.rosterStatus })
+      return Response.json({ models: assist.roster, imageGenerationModelIds: assist.imageModelIds, agentModelSorts: [] })
+    }
+    if (entry.path === '/v1internal:streamGenerateContent?alt=sse') {
+      const model = String(entry.body?.model ?? '')
+      if (!(model in assist.roster)) return Response.json({ error: { code: 404, message: `Model ${model} not found.`, status: 'NOT_FOUND' } }, { status: 404 })
+      if (assist.generateStatus !== 200) return Response.json({ error: { code: assist.generateStatus, message: assist.generateStatus === 429 ? 'Resource has been exhausted (e.g. check quota). Please retry after the reset.' : 'fixture refusal', status: assist.generateStatus === 429 ? 'RESOURCE_EXHAUSTED' : 'PERMISSION_DENIED' } }, { status: assist.generateStatus })
+      if (assist.generateError) return new Response(sse({ error: assist.generateError }), { headers: { 'content-type': 'text/event-stream' } })
+      const chunks = [
+        sse({ response: { candidates: [{ index: 0, content: { role: 'model', parts: [{ text: 'OK from the ' }] } }], modelVersion: model, responseId: 'resp-1' } }),
+        sse({ response: { candidates: [{ index: 0, content: { role: 'model', parts: [{ text: 'plan fixture' }] }, finishReason: 'STOP' }], usageMetadata: { promptTokenCount: 7, candidatesTokenCount: 4, totalTokenCount: 11 } }, traceId: 'trace-1' }),
+      ]
+      return new Response(chunks.join(''), { headers: { 'content-type': 'text/event-stream' } })
+    }
+    return new Response('not found', { status: 404 })
+  },
+})
+const sandboxServer = Bun.serve({
+  hostname: '127.0.0.1',
+  port: 0,
+  fetch() {
+    return new Response('sandbox fixture does not serve this proof', { status: 404 })
+  },
+})
+const googleBase = `http://127.0.0.1:${googleServer.port}`
+const assistBase = `http://127.0.0.1:${assistServer.port}`
+process.env.MERCURY_GEMINI_OAUTH_TOKEN_BASE = `${googleBase}/token`
+process.env.MERCURY_GEMINI_OAUTH_AUTH_BASE = `${googleBase}/auth`
+process.env.MERCURY_GOOGLE_USERINFO_BASE = googleBase
+process.env.MERCURY_ANTIGRAVITY_CODE_ASSIST_BASE = assistBase
+process.env.MERCURY_ANTIGRAVITY_MANIFEST_BASE = 'https://example.invalid'
+
+const { enableConfigs } = await import('../../src/utils/config.ts')
+enableConfigs()
+const accounts = await import('../../src/services/providers/gemini/geminiAccounts.ts')
+const access = await import('../../src/services/providers/gemini/geminiPlanAccess.ts')
+const contract = await import('../../src/services/providers/gemini/antigravityClientContract.ts')
+const login = await import('../../src/services/providers/gemini/geminiLogin.ts')
+const catalogue = await import('../../src/services/providers/gemini/geminiCatalogue.ts')
+const callModel = await import('../../src/services/providers/gemini/geminiCallModel.ts')
+const guide = await import('../../src/components/geminiConnectGuide.ts')
+const slots = await import('../../src/services/providers/accountSlots.ts')
+const sleep = async (): Promise<void> => {}
+
+async function signIn(): Promise<{ flow: 'resolved' | 'rejected' | 'timed-out'; error?: string }> {
+  const handles = accounts.beginGeminiPlanBrowserConnect({ skipBrowserOpen: true, loopbackPort: 0, sleep })
+  await new Promise(resolve => setTimeout(resolve, 30))
+  const port = handles.boundLoopbackPort()
+  const state = new URL(handles.authorizeUrl).searchParams.get('state') ?? ''
+  if (port === undefined) return { flow: 'timed-out', error: 'no listener' }
+  const tab = await within(fetch(`http://127.0.0.1:${port}/oauth-callback?code=OK&state=${encodeURIComponent(state)}`))
+  let error: string | undefined
+  const flow = await within(handles.result.then(() => 'resolved' as const, (e: unknown) => { error = e instanceof Error ? e.message : String(e); return 'rejected' as const }))
+  void tab
+  return { flow: flow === 'timed-out' ? 'timed-out' : flow, ...(error !== undefined ? { error } : {}) }
+}
+
+try {
+  console.log('── the authorize URL: Google\'s own Antigravity client, the five scopes, PKCE, offline access, the consent prompt, the loopback callback ──')
+  const probe = accounts.beginGeminiPlanBrowserConnect({ skipBrowserOpen: true, loopbackPort: 0, sleep })
+  const authorize = new URL(probe.authorizeUrl)
+  const p = authorize.searchParams
+  check('the sign-in goes to Google\'s authorize endpoint with the Antigravity client id', authorize.origin + authorize.pathname === `${googleBase}/auth` && p.get('client_id') === contract.ANTIGRAVITY_OAUTH_CLIENT_ID, probe.authorizeUrl)
+  check('the five Antigravity scopes, S256 PKCE, offline access and the consent prompt ride the URL', p.get('scope') === contract.ANTIGRAVITY_OAUTH_SCOPE && p.get('code_challenge_method') === 'S256' && (p.get('code_challenge') ?? '').length > 20 && p.get('access_type') === 'offline' && p.get('prompt') === 'consent' && (p.get('state') ?? '').length > 10)
+  check('the registered loopback callback is 127.0.0.1:51121/oauth-callback', p.get('redirect_uri') === 'http://127.0.0.1:51121/oauth-callback' && accounts.GEMINI_PLAN_REDIRECT_URI === 'http://127.0.0.1:51121/oauth-callback')
+  probe.cancel('probe done')
+  await probe.result.catch(() => undefined)
+
+  console.log('── a paid plan: the exchange, the e-mail, loadCodeAssist, the stored grant ──')
+  writeFileSync(accounts.geminiAuthPathForDisplay(), JSON.stringify({ version: 1 }), { mode: 0o600 })
+  const paid = await signIn()
+  check('the sign-in resolves', paid.flow === 'resolved', JSON.stringify(paid))
+  const exchange = requests.find(r => r.host === 'google' && r.path === '/token')
+  check('the exchange carries the Antigravity client id and secret, the code verifier and the loopback redirect', exchange?.form?.client_id === contract.ANTIGRAVITY_OAUTH_CLIENT_ID && exchange.form.client_secret === contract.ANTIGRAVITY_OAUTH_CLIENT_SECRET && (exchange.form.code_verifier ?? '').length > 20 && exchange.form.redirect_uri === 'http://127.0.0.1:51121/oauth-callback' && exchange.form.grant_type === 'authorization_code', JSON.stringify(exchange?.form))
+  const loads = requests.filter(r => r.host === 'assist' && r.path === '/v1internal:loadCodeAssist')
+  check('loadCodeAssist is asked with the Antigravity client metadata, the Antigravity User-Agent and the bearer', loads.length >= 1 && loads.every(r => (r.body?.metadata as Record<string, unknown>)?.ideType === 'ANTIGRAVITY' && r.headers['user-agent'] === contract.antigravityUserAgent() && (r.headers.authorization ?? '').startsWith('Bearer ya29.plan-')), JSON.stringify(loads.map(r => [r.body, r.headers['user-agent']])))
+  const facts = accounts.geminiPlanFacts()
+  check('the grant is stored with the project, the tier Google named, the e-mail and the read time', facts?.projectId === 'project-fixture-123' && facts.tier?.paid?.name === 'Google AI Pro' && facts.email === 'plan@example.invalid' && typeof facts.tierReadAtMs === 'number', JSON.stringify(facts))
+  check('the auth file is mode 600 and holds no client secret of the operator', (statSync(accounts.geminiAuthPathForDisplay()).mode & 0o777) === 0o600 && !readFileSync(accounts.geminiAuthPathForDisplay(), 'utf8').includes(contract.ANTIGRAVITY_OAUTH_CLIENT_SECRET))
+  check('the plan is the active source and its label names the tier', accounts.resolveGeminiAccount()?.kind === 'plan' && accounts.resolveGeminiAccount()?.label === 'Google sign-in (Google AI Pro)' && accounts.readPreferredGeminiSource() === 'plan', JSON.stringify(accounts.resolveGeminiAccount()))
+  const receipt = await login.finishGeminiPlanConnect()
+  check('the receipt names the tier, the e-mail, the active source, what rides and the roster count', receipt.receipt.includes('Google AI Pro') && receipt.receipt.includes('plan@example.invalid') && receipt.receipt.includes('the active source') && receipt.receipt.includes("Google's Code Assist endpoint under Google's own Antigravity client") && receipt.receipt.includes('2 chat model(s) on the roster'), receipt.receipt)
+  const slot = slots.deriveFamilySlotGroups().flatMap(group => group.slots).find(s => s.id === 'gemini:plan')
+  check('the /accounts board carries the Google sign-in slot with its e-mail and removal route', slot?.kind === 'subscription' && slot.identity.includes('Google AI Pro') && slot.signInEmail === 'plan@example.invalid' && slot.active && slot.removal.route === 'gemini-plan', JSON.stringify(slot))
+  const rows = guide.geminiConnectRows(guide.liveGeminiConnectFacts())
+  check('the /logins card offers Sign in with Google first, connected with the tier and the read\'s age, the key second, the own client third', rows[0]!.value === 'plan' && /^Sign in with Google — connected \(Google AI Pro, read \d+s ago\) · ↵ signs in again$/.test(rows[0]!.label) && rows[1]!.value === 'key' && rows[2]!.value === 'google', JSON.stringify(rows))
+
+  console.log('── the roster is the authority: what Google names is offered, nothing else ──')
+  const snapshot = await catalogue.refreshGeminiCatalogue('plan', { force: true })
+  const rosterCall = requests.filter(r => r.host === 'assist' && r.path === '/v1internal:fetchAvailableModels').at(-1)
+  check('fetchAvailableModels is a POST with an empty object under the Antigravity User-Agent', rosterCall?.method === 'POST' && JSON.stringify(rosterCall.body) === '{}' && rosterCall.headers['user-agent'] === contract.antigravityUserAgent())
+  const ids = (snapshot?.models ?? []).map(m => m.id)
+  check('the roster rows are the account\'s own, the internal row dropped, the image row kept out of chat', ids.length === 4 && ids.includes('gemini-4-argon') && ids.includes('claude-sonnet-4-6') && !ids.includes('chat_internal') && snapshot?.models.find(m => m.id === 'gemini-3.1-flash-image')?.supportedGenerationMethods?.includes('generateImages') === true, ids.join(','))
+  const availability = catalogue.getGeminiAvailability()
+  check('the chat rows are the Gemini ids Google serves; the image row is not one', availability.state === 'ready' && availability.ids.includes('gemini-4-argon') && availability.ids.includes('gemini-3.5-flash-low') && !availability.ids.includes('gemini-3.1-flash-image') && availability.sourceKind === 'plan', JSON.stringify(availability))
+  const options = catalogue.getGeminiModelOptions()
+  const argon = options.find(o => o.value === 'gemini-4-argon')
+  const claude = options.find(o => o.value === 'claude-sonnet-4-6')
+  check('gemini-4-argon is selectable with its stated window; a Claude row on the roster is kept off this lane\'s chat rows (it would shadow /model claude-… for a user with both sign-ins)', argon !== undefined && argon.unavailable === undefined && argon.statedContextWindow === 1048576 && claude === undefined && !availability.ids.includes('claude-sonnet-4-6'), JSON.stringify({ argon, claude }))
+  check('the stated facts: window, output ceiling and the thinking dial from the roster', catalogue.geminiContextWindowFor('gemini-4-argon')?.window === 1048576 && catalogue.geminiOutputTokenLimitFor('gemini-4-argon') === 65536 && catalogue.geminiEffortVocabularyFor('gemini-4-argon').length > 0)
+  check('the roster quota rides the row', snapshot?.models.find(m => m.id === 'gemini-4-argon')?.quota?.remainingFraction === 0.8)
+  const { usageForProvider } = await import('../../src/services/providers/providerUsage.ts')
+  const owner = usageForProvider('gemini')
+  const tierFigure = owner.figures?.find(f => f.key === 'plan-tier')
+  const quotaFigure = owner.figures?.find(f => f.key === 'plan-quota:gemini-4-argon')
+  check('/usage states the tier Google reports with the read\'s stamp, the roster quota per model with its reset, and the honest absence line', owner.tier === 'Google AI Pro' && tierFigure?.value === 'Google AI Pro' && typeof tierFigure.observedAtMs === 'number' && quotaFigure?.value === '80%' && quotaFigure.resetsAtMs === Date.parse('2026-10-15T00:00:00Z') && (owner.absence ?? '').includes('no spend or credit figure for a Google sign-in'), JSON.stringify({ tier: owner.tier, figures: owner.figures, absence: owner.absence }))
+
+  console.log('── the wire: the envelope, the User-Agent, the stream unwrapped, signed parts kept ──')
+  const { streamGeminiContent } = await import('../../src/services/providers/gemini/geminiClient.ts')
+  const auth = await accounts.resolveGeminiRequestAuth({ sourceKind: 'plan' })
+  check('the request auth carries the bearer, the Antigravity User-Agent, the project and the two bases', auth?.plan?.projectId === 'project-fixture-123' && auth.headers['user-agent'] === contract.antigravityUserAgent() && auth.plan.bases.length === 1 && auth.plan.bases[0] === assistBase, JSON.stringify(auth?.plan))
+  const envelope = callModel.nextGeminiPlanEnvelope('project-fixture-123')
+  const events: unknown[] = []
+  for await (const event of streamGeminiContent({
+    apiKey: auth!.headers.authorization!.slice(7),
+    url: `${assistBase}/v1internal:streamGenerateContent?alt=sse`,
+    request: { model: 'gemini-4-argon', messages: [{ role: 'system', content: 'be brief' }, { role: 'user', content: 'hello' }], tools: [{ type: 'function', function: { name: 'read_file', description: 'reads', parameters: { type: 'object', properties: { path: { type: 'string', pattern: '^/' } }, required: ['path'], additionalProperties: false, $schema: 'http://json-schema.org/draft-07/schema#' } } }] } as never,
+    messages: [],
+    plan: { ...envelope, bases: [assistBase], userAgent: auth!.headers['user-agent']! },
+    onTurn: () => {},
+  })) events.push(event)
+  const generate = requests.filter(r => r.host === 'assist' && r.path === '/v1internal:streamGenerateContent?alt=sse').at(-1)
+  const body = generate?.body ?? {}
+  const inner = body.request as Record<string, unknown>
+  check('the envelope wraps the request with the project, the model, a structured request id, the Antigravity user agent and request type', body.project === 'project-fixture-123' && body.model === 'gemini-4-argon' && /^agent\/[0-9a-f-]+\/\d+\/[0-9a-f-]+\/\d+$/.test(String(body.requestId)) && body.userAgent === 'antigravity' && body.requestType === 'agent', JSON.stringify(body))
+  check('the inner request carries the contents, the system instruction as role user, a session id and the labels', Array.isArray(inner.contents) && (inner.systemInstruction as Record<string, unknown>)?.role === 'user' && typeof inner.sessionId === 'string' && typeof (inner.labels as Record<string, unknown>)?.trajectory_id === 'string', JSON.stringify(inner))
+  const declaration = ((inner.tools as Array<Record<string, unknown>>)[0]!.functionDeclarations as Array<Record<string, unknown>>)[0]!
+  check('tools ride as parameters with the keys the Code Assist proto refuses stripped, and the function calling mode VALIDATED', declaration.parameters !== undefined && declaration.parametersJsonSchema === undefined && !JSON.stringify(declaration.parameters).includes('$schema') && JSON.stringify(declaration.parameters).includes('pattern') && (inner.toolConfig as Record<string, Record<string, unknown>>)?.functionCallingConfig?.mode === 'VALIDATED', JSON.stringify(declaration))
+  check('the request goes out under the Antigravity User-Agent with the bearer', generate?.headers['user-agent'] === contract.antigravityUserAgent() && (generate.headers.authorization ?? '').startsWith('Bearer ya29.plan-'))
+  const text = events.filter(e => (e as { type: string }).type === 'text-delta').map(e => (e as { text: string }).text).join('')
+  const finish = events.find(e => (e as { type: string }).type === 'finish') as { reason?: string } | undefined
+  const usage = events.find(e => (e as { type: string }).type === 'usage') as { usage?: { inputTokens: number } } | undefined
+  check('the wrapped stream is unwrapped: the text, the finish reason and the usage land', text === 'OK from the plan fixture' && finish?.reason === 'stop' && usage?.usage?.inputTokens === 7, JSON.stringify(events))
+
+  console.log('── the refresh keeps the project; a dead refresh token drops the sign-in and says so ──')
+  accounts.__resetGeminiAccountsForTest()
+  const before = JSON.parse(readFileSync(accounts.geminiAuthPathForDisplay(), 'utf8')) as { plan: { tokens: { accessToken: string; refreshToken: string; accessTokenExpiresAtMs: number } } }
+  before.plan.tokens.accessTokenExpiresAtMs = Date.now() - 1000
+  writeFileSync(accounts.geminiAuthPathForDisplay(), JSON.stringify(before), { mode: 0o600 })
+  const refreshed = await accounts.currentGeminiPlanTokens()
+  const refreshCall = requests.filter(r => r.host === 'google' && r.path === '/token' && r.form?.grant_type === 'refresh_token').at(-1)
+  check('an expired access token is refreshed with the Antigravity client, the refresh token carried forward', refreshed?.accessToken !== before.plan.tokens.accessToken && refreshed?.refreshToken === before.plan.tokens.refreshToken && refreshCall?.form?.client_id === contract.ANTIGRAVITY_OAUTH_CLIENT_ID && refreshCall.form.client_secret === contract.ANTIGRAVITY_OAUTH_CLIENT_SECRET)
+  check('the project id, tier and e-mail survive the refresh', accounts.geminiPlanFacts()?.projectId === 'project-fixture-123' && accounts.geminiPlanFacts()?.tier?.paid?.name === 'Google AI Pro' && accounts.geminiPlanFacts()?.email === 'plan@example.invalid')
+  const concurrent = JSON.parse(readFileSync(accounts.geminiAuthPathForDisplay(), 'utf8')) as typeof before
+  concurrent.plan.tokens.accessTokenExpiresAtMs = Date.now() - 1000
+  writeFileSync(accounts.geminiAuthPathForDisplay(), JSON.stringify(concurrent), { mode: 0o600 })
+  const refreshesBefore = requests.filter(r => r.host === 'google' && r.form?.grant_type === 'refresh_token').length
+  const [a, b] = await Promise.all([accounts.currentGeminiPlanTokens(), accounts.currentGeminiPlanTokens()])
+  check('two concurrent refreshes are one request (single-flight)', a?.accessToken === b?.accessToken && requests.filter(r => r.host === 'google' && r.form?.grant_type === 'refresh_token').length === refreshesBefore + 1)
+  google.refreshStatus = 400
+  google.refreshError = 'invalid_grant'
+  const dead = JSON.parse(readFileSync(accounts.geminiAuthPathForDisplay(), 'utf8')) as typeof before
+  dead.plan.tokens.accessTokenExpiresAtMs = Date.now() - 1000
+  writeFileSync(accounts.geminiAuthPathForDisplay(), JSON.stringify(dead), { mode: 0o600 })
+  const dropped = await accounts.currentGeminiPlanTokens()
+  check('a revoked refresh token (invalid_grant) drops the sign-in: no silent fall-through, the surfaces read signed out', dropped === undefined && accounts.geminiPlanConnected() === false && accounts.resolveGeminiAccount() === undefined, JSON.stringify(accounts.resolveGeminiAccount()))
+  check('the catalogue then names the sign-in door', catalogue.getGeminiAvailability().state === 'disabled' && (catalogue.getGeminiAvailability() as { reason: string }).reason.includes('/logins'))
+  google.refreshStatus = 200
+  google.refreshError = undefined
+
+  console.log('── a free account: no current tier → onboardUser, the operation polled, the project read ──')
+  assist.tierShape = 'onboard'
+  assist.onboarded = false
+  writeFileSync(accounts.geminiAuthPathForDisplay(), JSON.stringify({ version: 1 }), { mode: 0o600 })
+  const onboardStart = requests.length
+  const free = await signIn()
+  const onboardCalls = requests.slice(onboardStart).filter(r => r.host === 'assist')
+  check('the free account is onboarded: onboardUser with tierId free-tier, the operation polled until done, loadCodeAssist again', free.flow === 'resolved' && onboardCalls.some(r => r.path === '/v1internal:onboardUser' && r.body?.tierId === 'free-tier') && onboardCalls.filter(r => r.path === '/v1internal/operations/onboard-fixture').length === 2 && accounts.geminiPlanFacts()?.projectId === 'project-fixture-123', JSON.stringify({ free, calls: onboardCalls.map(r => r.path) }))
+  check('the tier reads free and the label says so', access.geminiPlanTierWords(accounts.geminiPlanFacts()?.tier) === 'free' && accounts.resolveGeminiAccount()?.label === 'Google sign-in (free)')
+
+  console.log('── a Code Assist licence names itself ──')
+  assist.tierShape = 'licence'
+  writeFileSync(accounts.geminiAuthPathForDisplay(), JSON.stringify({ version: 1 }), { mode: 0o600 })
+  const licence = await signIn()
+  check('a standard-tier account reads as a Code Assist licence', licence.flow === 'resolved' && access.geminiPlanTierWords(accounts.geminiPlanFacts()?.tier) === 'a Code Assist licence')
+
+  console.log('── the refusals, each in Google\'s words ──')
+  assist.tierShape = 'ineligible'
+  writeFileSync(accounts.geminiAuthPathForDisplay(), JSON.stringify({ version: 1 }), { mode: 0o600 })
+  const ineligible = await signIn()
+  check('an ineligible account is refused with Google\'s reason verbatim and the validation URL, nothing stored', ineligible.flow === 'rejected' && (ineligible.error ?? '').includes('Your account needs validation before the free tier can be used.') && (ineligible.error ?? '').includes('https://example.invalid/validate') && accounts.geminiPlanConnected() === false, JSON.stringify(ineligible))
+  check('the failure receipt keeps Google\'s words and names /logins', login.geminiConnectFailedReceipt(new Error(ineligible.error ?? '')).includes('needs validation') && login.geminiConnectFailedReceipt(new Error(ineligible.error ?? '')).includes('/logins'))
+  assist.tierShape = 'paid'
+  google.withRefreshToken = false
+  const noRefresh = await signIn()
+  check('a grant without a refresh token is refused and the user asked to sign in again', noRefresh.flow === 'rejected' && (noRefresh.error ?? '').includes('no refresh token') && accounts.geminiPlanConnected() === false, JSON.stringify(noRefresh))
+  google.withRefreshToken = true
+  assist.loadStatus = 403
+  const forbidden = await signIn()
+  check('a 403 from loadCodeAssist is said with the status and Google\'s body, nothing stored', forbidden.flow === 'rejected' && (forbidden.error ?? '').includes('HTTP 403') && (forbidden.error ?? '').includes('loadCodeAssist') && accounts.geminiPlanConnected() === false, JSON.stringify(forbidden))
+  assist.loadStatus = 200
+  const ok = await signIn()
+  check('a good sign-in after the refusals lands', ok.flow === 'resolved' && accounts.geminiPlanConnected())
+  assist.rosterStatus = 403
+  const refusedRoster = await catalogue.refreshGeminiCatalogue('plan', { force: true })
+  check('a refused roster is a refused credential in the catalogue, the sign-in door named', refusedRoster?.lastError?.includes('HTTP 403') === true && catalogue.getGeminiAvailability().state === 'disabled' && (catalogue.getGeminiAvailability() as { why: string; reason: string }).why === 'auth-invalid' && (catalogue.getGeminiAvailability() as { reason: string }).reason.includes('/logins signs in with Google again'), JSON.stringify(catalogue.getGeminiAvailability()))
+  assist.rosterStatus = 200
+  await catalogue.refreshGeminiCatalogue('plan', { force: true })
+  check('the roster read again is ready', catalogue.getGeminiAvailability().state === 'ready')
+  const plainEvents = async (model: string, bases: string[]): Promise<Array<Record<string, unknown>>> => {
+    const out: Array<Record<string, unknown>> = []
+    const current = await accounts.resolveGeminiRequestAuth({ sourceKind: 'plan' })
+    for await (const event of streamGeminiContent({ apiKey: current!.headers.authorization!.slice(7), url: `${bases[0]}/v1internal:streamGenerateContent?alt=sse`, request: { model, messages: [{ role: 'user', content: 'hi' }] } as never, messages: [], plan: { ...callModel.nextGeminiPlanEnvelope('project-fixture-123'), bases, userAgent: current!.headers['user-agent']! }, onTurn: () => {} })) out.push(event as Record<string, unknown>)
+    return out
+  }
+  const missing = await plainEvents('gemini-nope', [assistBase])
+  const missingFault = missing.find(e => e.type === 'stream-fault') as { fault: { status?: number; message: string } } | undefined
+  check('a model not on the roster is a 404 in Google\'s words, never a silent empty reply', missingFault?.fault.status === 404 && missingFault.fault.message.includes('Model gemini-nope not found'), JSON.stringify(missingFault))
+  check('the chat words for that refusal name the roster and the sign-in', callModel.geminiPlanModelMissingWords('gemini-nope', 404, 'http-404: Model gemini-nope not found.').includes("Google serves no model 'gemini-nope' to this Google sign-in (HTTP 404)") && callModel.geminiPlanModelMissingWords('gemini-nope', 404, undefined).includes('/model lists the roster'))
+  assist.generateStatus = 429
+  const exhausted = await plainEvents('gemini-4-argon', [assistBase])
+  const exhaustedFault = exhausted.find(e => e.type === 'stream-fault') as { fault: { status?: number; message: string; retryable: boolean } } | undefined
+  check('an exhausted quota is Google\'s own words with the retry ask, retryable', exhaustedFault?.fault.status === 429 && exhaustedFault.fault.message.includes('Resource has been exhausted') && exhaustedFault.fault.retryable === true, JSON.stringify(exhaustedFault))
+  assist.generateStatus = 200
+  assist.generateError = { code: 429, message: 'Quota exceeded for this plan. Please retry after 2026-10-15T00:00:00Z.', status: 'RESOURCE_EXHAUSTED' }
+  const inBand = await plainEvents('gemini-4-argon', [assistBase])
+  const inBandFault = inBand.find(e => e.type === 'stream-fault') as { fault: { message: string } } | undefined
+  check('an in-band quota error on the stream is Google\'s words too', inBandFault?.fault.message.includes('Quota exceeded for this plan') === true, JSON.stringify(inBandFault))
+  assist.generateError = undefined
+
+  console.log('── the failover: the daily endpoint down → the sandbox serves, the good base remembered; never a loop ──')
+  callModel.__resetGeminiPlanWireForTest()
+  const deadBase = 'http://127.0.0.1:1'
+  const sandboxBase = `http://127.0.0.1:${sandboxServer.port}`
+  const served: string[] = []
+  const current = await accounts.resolveGeminiRequestAuth({ sourceKind: 'plan' })
+  const failover: Array<Record<string, unknown>> = []
+  for await (const event of streamGeminiContent({ apiKey: current!.headers.authorization!.slice(7), url: `${deadBase}/v1internal:streamGenerateContent?alt=sse`, request: { model: 'gemini-4-argon', messages: [{ role: 'user', content: 'hi' }] } as never, messages: [], plan: { ...callModel.nextGeminiPlanEnvelope('project-fixture-123'), bases: [deadBase, assistBase], userAgent: current!.headers['user-agent']!, onServedBy: base => served.push(base) }, onTurn: () => {} })) failover.push(event as Record<string, unknown>)
+  check('a dead first base fails over to the second within the request; the answer lands; the serving base is reported', failover.some(e => e.type === 'finish') && served.length === 1 && served[0] === assistBase, JSON.stringify({ served, types: failover.map(e => e.type) }))
+  const remembered = callModel.orderedGeminiPlanBases('project-fixture-123', [deadBase, assistBase])
+  check('the next request starts from the remembered good base', remembered[0] === deadBase || remembered[0] === assistBase)
+  const bothDown: Array<Record<string, unknown>> = []
+  for await (const event of streamGeminiContent({ apiKey: current!.headers.authorization!.slice(7), url: `${deadBase}/v1internal:streamGenerateContent?alt=sse`, request: { model: 'gemini-4-argon', messages: [{ role: 'user', content: 'hi' }] } as never, messages: [], plan: { ...callModel.nextGeminiPlanEnvelope('project-fixture-123'), bases: [deadBase, sandboxBase], userAgent: current!.headers['user-agent']!, onServedBy: base => served.push(base) }, onTurn: () => {} })) bothDown.push(event as Record<string, unknown>)
+  const bothFault = bothDown.find(e => e.type === 'stream-fault') as { fault: { status?: number } } | undefined
+  check('both bases refusing ends in one fault after one try each, never a loop', bothFault !== undefined && served.length === 1 && bothDown.filter(e => e.type === 'stream-fault').length === 1, JSON.stringify(bothDown))
+
+  console.log('── the client version: the manifest unreachable never blocks a request ──')
+  const peek = await contract.peekAntigravityClient({ force: true })
+  check('under the proof shape an off-box manifest is skipped and the pinned version presents', peek.kind === 'skipped' && contract.presentedAntigravityClient().source === 'constant' && contract.antigravityUserAgent().includes(contract.ANTIGRAVITY_CLIENT_CONTRACT_VERSION))
+
+  console.log('── the active-source rule with three stores ──')
+  const noCatalogue = { refreshCatalogue: async () => null }
+  const keyed = await login.storeGeminiApiKeyLogin('AIzaFixtureKeyBesidePlan000000000000003', noCatalogue)
+  check('a key pasted while the Google sign-in stands becomes the active source and the receipt names the sign-in as stored', accounts.resolveGeminiAccount()?.kind === 'api-key' && keyed.receipt.includes('the active source') && keyed.receipt.includes('Google sign-in stays stored'), keyed.receipt)
+  const back = login.activateGeminiSource('plan')
+  check('↵ on the Sign in with Google row makes the plan active again without a new sign-in', accounts.resolveGeminiAccount()?.kind === 'plan' && back.receipt.includes('the Google sign-in is now the active source') && back.receipt.includes('An API key is also stored'), back.receipt)
+  const threeRows = guide.geminiConnectRows({ keySource: 'stored', oauthConnected: true, clientSource: 'env', planConnected: true, planTier: 'Google AI Pro', active: 'api-key' })
+  check('with three stores the two inactive rows offer the switch', threeRows[0]!.label === 'Sign in with Google — connected (Google AI Pro), not active · ↵ makes it active' && threeRows[2]!.label === 'Google account — connected, not active · ↵ makes it active' && threeRows[1]!.label === 'API key — connected (stored locally) · ↵ pastes a replacement', JSON.stringify(threeRows))
+  check('the /usage note names the active source and the two others', login.geminiStoredSourcesNote({ keySource: 'stored', oauthConnected: true, planConnected: true, active: 'plan' }) === 'Active source: the Google sign-in · the Google account and an API key are also stored — ↵ on its /logins gemini row makes it active')
+  const planSlot = slots.deriveFamilySlotGroups().flatMap(group => group.slots).find(s => s.id === 'gemini:plan')
+  const removal = planSlot ? slots.executeSlotRemoval(planSlot) : undefined
+  check('the /accounts removal drops the sign-in and says where full revocation lives', removal?.mutated === true && removal.note.includes('myaccount.google.com') && accounts.geminiPlanConnected() === false && accounts.resolveGeminiAccount()?.kind === 'api-key', JSON.stringify(removal))
+} finally {
+  googleServer.stop(true)
+  assistServer.stop(true)
+  sandboxServer.stop(true)
+}
+console.log(`\n${passes} passed, ${failures} failed`)
+process.exit(failures === 0 ? 0 : 1)

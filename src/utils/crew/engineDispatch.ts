@@ -289,7 +289,7 @@ async function resolveGeminiClassDispatch(): Promise<EngineDispatch> {
       'Engine provider gemini has no connected account source — /logins gemini signs in or attaches an API key.',
     )
   }
-  const snapshot = await refreshGeminiCatalogue(account.kind === 'oauth' ? 'oauth' : 'api-key').catch(() => null)
+  const snapshot = await refreshGeminiCatalogue(account.kind).catch(() => null)
   const head = geminiGenerateModels(snapshot)[0]
   if (!head) {
     throw new Error(
@@ -308,7 +308,7 @@ async function resolveGeminiExactModel(id: string): Promise<EngineDispatch> {
       'Engine provider gemini has no connected account source — /logins gemini signs in or attaches an API key.',
     )
   }
-  const snapshot = await refreshGeminiCatalogue(account.kind === 'oauth' ? 'oauth' : 'api-key').catch(() => null)
+  const snapshot = await refreshGeminiCatalogue(account.kind).catch(() => null)
   const live = geminiGenerateModels(snapshot)
   if (live.length > 0) {
     const match = live.find(m => m.id === id)
