@@ -598,8 +598,20 @@ come from its owning account resolvers:
   provisioned once with `onboardUser`, a bounded operation), and stores the
   grant auth-scoped (mode 600) beside the other sources. The models `/model`
   offers on that sign-in are the roster Google serves the account
-  (`fetchAvailableModels`) — nothing else; only Gemini ids are chat rows on
-  this lane. A chat goes to that endpoint's `streamGenerateContent` under
+  (`fetchAvailableModels`) — every chat model it names and nothing else,
+  with the roster's own display name, context window, output ceiling,
+  thinking and image flags; the image models stay out of chat. A Gemini id
+  keeps its bare spelling; a model of another vendor on the roster (Claude,
+  GPT-OSS, …) is offered as `google/<id>` — Google's own id behind the
+  prefix — so it rides this Google sign-in and never shadows that vendor's
+  own lane (`/model claude-…` stays the Anthropic lane). A Claude row on
+  this road takes the request shape Google's own client sends it: thinking
+  as a token budget (low 1024, medium 8192, high 24576, thoughts included),
+  function calling VALIDATED even with no tools, an output ceiling of at
+  most 64000 tokens, Google's signed parts replayed as sent and no
+  signature placeholder (that placeholder is Gemini 3's own contract). A
+  model the roster names but Google does not serve answers 404 in Google's
+  words. A chat goes to that endpoint's `streamGenerateContent` under
   Antigravity's own User-Agent (`antigravity/hub/<version> …`), whose version
   follows Antigravity's update manifest (one bounded read a day, the shipped
   2.23.0 as the fallback, skipped under traffic-off) because Google gates

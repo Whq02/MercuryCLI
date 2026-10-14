@@ -37,9 +37,11 @@ const assist = {
   dailyDown: false,
   dailyStatus: 503,
   roster: {
-    'gemini-4-argon': { displayName: 'Gemini 4 Argon', supportsThinking: true, maxTokens: 1048576, maxOutputTokens: 65536, quotaInfo: { remainingFraction: 0.8, resetTime: '2026-10-15T00:00:00Z' } },
+    'gemini-4-argon': { displayName: 'Gemini 4 Argon', supportsThinking: true, supportsImages: true, maxTokens: 1048576, maxOutputTokens: 65536, quotaInfo: { remainingFraction: 0.8, resetTime: '2026-10-15T00:00:00Z' } },
     'gemini-3.5-flash-low': { displayName: 'Gemini 3.5 Flash', supportsThinking: true, maxTokens: 1048576, maxOutputTokens: 65536 },
     'claude-sonnet-4-6': { displayName: 'Claude Sonnet 4.6', supportsThinking: false, maxTokens: 200000, maxOutputTokens: 64000 },
+    'claude-opus-4-6-thinking': { displayName: 'Claude Opus 4.6 (Thinking)', supportsThinking: true, maxTokens: 200000, maxOutputTokens: 128000 },
+    'gpt-oss-120b-medium': { displayName: 'GPT-OSS 120B', supportsThinking: true, maxTokens: 131072, maxOutputTokens: 32768 },
     'gemini-3.1-flash-image': { displayName: 'Gemini 3.1 Flash Image', supportsImages: true },
     'chat_internal': { displayName: 'internal', isInternal: true },
   } as Record<string, Record<string, unknown>>,
@@ -203,7 +205,7 @@ try {
   check('the auth file is mode 600 and holds no client secret of the operator', (statSync(accounts.geminiAuthPathForDisplay()).mode & 0o777) === 0o600 && !readFileSync(accounts.geminiAuthPathForDisplay(), 'utf8').includes(contract.ANTIGRAVITY_OAUTH_CLIENT_SECRET))
   check('the plan is the active source and its label names the tier', accounts.resolveGeminiAccount()?.kind === 'plan' && accounts.resolveGeminiAccount()?.label === 'Google sign-in (Google AI Pro)' && accounts.readPreferredGeminiSource() === 'plan', JSON.stringify(accounts.resolveGeminiAccount()))
   const receipt = await login.finishGeminiPlanConnect()
-  check('the receipt names the tier, the e-mail, the active source, what rides and the roster count', receipt.receipt.includes('Google AI Pro') && receipt.receipt.includes('plan@example.invalid') && receipt.receipt.includes('the active source') && receipt.receipt.includes("Google's Code Assist endpoint under Google's own Antigravity client") && receipt.receipt.includes('2 chat model(s) on the roster'), receipt.receipt)
+  check('the receipt names the tier, the e-mail, the active source, what rides and the roster count', receipt.receipt.includes('Google AI Pro') && receipt.receipt.includes('plan@example.invalid') && receipt.receipt.includes('the active source') && receipt.receipt.includes("Google's Code Assist endpoint under Google's own Antigravity client") && receipt.receipt.includes('5 chat model(s) on the roster'), receipt.receipt)
   const slot = slots.deriveFamilySlotGroups().flatMap(group => group.slots).find(s => s.id === 'gemini:plan')
   check('the /accounts board carries the Google sign-in slot with its e-mail and removal route', slot?.kind === 'subscription' && slot.identity.includes('Google AI Pro') && slot.signInEmail === 'plan@example.invalid' && slot.active && slot.removal.route === 'gemini-plan', JSON.stringify(slot))
   const rows = guide.geminiConnectRows(guide.liveGeminiConnectFacts())
@@ -214,15 +216,65 @@ try {
   const rosterCall = requests.filter(r => r.host === 'assist' && r.path === '/v1internal:fetchAvailableModels').at(-1)
   check('fetchAvailableModels is a POST with an empty object under the Antigravity User-Agent', rosterCall?.method === 'POST' && JSON.stringify(rosterCall.body) === '{}' && rosterCall.headers['user-agent'] === contract.antigravityUserAgent())
   const ids = (snapshot?.models ?? []).map(m => m.id)
-  check('the roster rows are the account\'s own, the internal row dropped, the image row kept out of chat', ids.length === 4 && ids.includes('gemini-4-argon') && ids.includes('claude-sonnet-4-6') && !ids.includes('chat_internal') && snapshot?.models.find(m => m.id === 'gemini-3.1-flash-image')?.supportedGenerationMethods?.includes('generateImages') === true, ids.join(','))
+  check('the roster rows are the account\'s own, the internal row dropped, the image row kept out of chat, a Gemini id bare and every other vendor\'s id under google/', ids.length === 6 && ids.includes('gemini-4-argon') && ids.includes('google/claude-sonnet-4-6') && ids.includes('google/claude-opus-4-6-thinking') && ids.includes('google/gpt-oss-120b-medium') && !ids.includes('claude-sonnet-4-6') && !ids.includes('chat_internal') && snapshot?.models.find(m => m.id === 'gemini-3.1-flash-image')?.supportedGenerationMethods?.includes('generateImages') === true, ids.join(','))
   const availability = catalogue.getGeminiAvailability()
-  check('the chat rows are the Gemini ids Google serves; the image row is not one', availability.state === 'ready' && availability.ids.includes('gemini-4-argon') && availability.ids.includes('gemini-3.5-flash-low') && !availability.ids.includes('gemini-3.1-flash-image') && availability.sourceKind === 'plan', JSON.stringify(availability))
+  check('the chat rows are every chat model Google names — Gemini, Claude and GPT-OSS alike; the image row is not one', availability.state === 'ready' && JSON.stringify(availability.ids) === JSON.stringify(['gemini-4-argon', 'gemini-3.5-flash-low', 'google/claude-sonnet-4-6', 'google/claude-opus-4-6-thinking', 'google/gpt-oss-120b-medium']) && availability.sourceKind === 'plan', JSON.stringify(availability))
   const options = catalogue.getGeminiModelOptions()
   const argon = options.find(o => o.value === 'gemini-4-argon')
-  const claude = options.find(o => o.value === 'claude-sonnet-4-6')
-  check('gemini-4-argon is selectable with its stated window; a Claude row on the roster is kept off this lane\'s chat rows (it would shadow /model claude-… for a user with both sign-ins)', argon !== undefined && argon.unavailable === undefined && argon.statedContextWindow === 1048576 && claude === undefined && !availability.ids.includes('claude-sonnet-4-6'), JSON.stringify({ argon, claude }))
+  const claude = options.find(o => o.value === 'google/claude-sonnet-4-6')
+  check('gemini-4-argon is selectable with its stated window; the Claude row is selectable under google/ with the roster\'s display name, its stated window, and a description naming Google\'s own id and the lane it rides', argon !== undefined && argon.unavailable === undefined && argon.statedContextWindow === 1048576 && claude !== undefined && claude.unavailable === undefined && claude.label === 'Claude Sonnet 4.6' && claude.statedContextWindow === 200000 && claude.group === argon.group && (claude.descriptionForModel ?? '').includes("Google's own id for it is claude-sonnet-4-6") && (claude.descriptionForModel ?? '').includes("never the vendor's own lane"), JSON.stringify({ argon, claude }))
   check('the stated facts: window, output ceiling and the thinking dial from the roster', catalogue.geminiContextWindowFor('gemini-4-argon')?.window === 1048576 && catalogue.geminiOutputTokenLimitFor('gemini-4-argon') === 65536 && catalogue.geminiEffortVocabularyFor('gemini-4-argon').length > 0)
   check('the roster quota rides the row', snapshot?.models.find(m => m.id === 'gemini-4-argon')?.quota?.remainingFraction === 0.8)
+
+  console.log('── the roster beyond Gemini: google/<id> rides this sign-in, never the vendor\'s lane; the flags are the capabilities ──')
+  const { declaredRouteOf, canonicalWireModelId } = await import('../../src/services/providers/routeLaw.ts')
+  const wire = canonicalWireModelId('google/claude-sonnet-4-6')
+  check('google/claude-sonnet-4-6 routes to the Gemini family and rides the wire as Google\'s own id; the bare claude-sonnet-4-6 stays the Anthropic lane while the roster is cached', declaredRouteOf('google/claude-sonnet-4-6') === 'gemini' && declaredRouteOf('claude-sonnet-4-6') === 'anthropic' && declaredRouteOf('gpt-oss-120b-medium') === 'openai' && declaredRouteOf('google/gpt-oss-120b-medium') === 'gemini' && wire.ok && wire.wireId === 'claude-sonnet-4-6', JSON.stringify({ wire, claude: declaredRouteOf('claude-sonnet-4-6') }))
+  const nested = canonicalWireModelId('google/google/claude-sonnet-4-6')
+  check('a re-prefixed id is refused before any wire', !nested.ok && nested.reason.includes('nests the google/ namespace'), JSON.stringify(nested))
+  check('the stated facts of a google/ row: the window, the output ceiling, the thinking dial only where the roster says so', catalogue.geminiContextWindowFor('google/claude-sonnet-4-6')?.window === 200000 && catalogue.geminiOutputTokenLimitFor('google/claude-sonnet-4-6') === 64000 && catalogue.geminiEffortVocabularyFor('google/claude-sonnet-4-6').length === 0 && catalogue.geminiEffortVocabularyFor('google/claude-opus-4-6-thinking').length > 0 && catalogue.geminiEffortVocabularyFor('google/gpt-oss-120b-medium').length > 0)
+  const { modelReceivesImageBlocks } = await import('../../src/utils/model/capabilities.ts')
+  check('images ride only where the roster flags them', modelReceivesImageBlocks('gemini-4-argon') === true && modelReceivesImageBlocks('gemini-3.5-flash-low') === false && modelReceivesImageBlocks('google/claude-sonnet-4-6') === false)
+  const engine = await import('../../src/utils/crew/engineDispatch.ts')
+  const dispatched = await engine.resolveEngineDispatch('google/claude-sonnet-4-6').catch((e: unknown) => ({ error: e instanceof Error ? e.message : String(e) }))
+  check('a crewmate named onto google/claude-sonnet-4-6 dispatches on the Gemini backend with the roster\'s display name', 'backend' in dispatched && dispatched.backend === 'gemini' && dispatched.model === 'google/claude-sonnet-4-6' && dispatched.displayLabel === 'Claude Sonnet 4.6', JSON.stringify(dispatched))
+  const { geminiValidatesSignatures, buildGeminiRequest, GEMINI_SKIP_SIGNATURE_VALIDATION } = await import('../../src/services/providers/gemini/geminiCodec.ts')
+  const lostRecord = buildGeminiRequest({ model: 'claude-sonnet-4-6', messages: [{ role: 'user', content: 'x' }, { role: 'assistant', content: '', tool_calls: [{ id: 'c1', type: 'function', function: { name: 'Bash', arguments: '{}' } }] }, { role: 'tool', tool_call_id: 'c1', content: 'ok' }] } as never, [])
+  const geminiLost = buildGeminiRequest({ model: 'gemini-4-argon', messages: [{ role: 'user', content: 'x' }, { role: 'assistant', content: '', tool_calls: [{ id: 'c1', type: 'function', function: { name: 'Bash', arguments: '{}' } }] }, { role: 'tool', tool_call_id: 'c1', content: 'ok' }] } as never, [])
+  check('the signed-parts law per model: the signature placeholder is Gemini 3\'s contract — a Claude history that lost its record sends none, a Gemini one sends it', geminiValidatesSignatures('claude-sonnet-4-6') === false && geminiValidatesSignatures('gemini-4-argon') === true && lostRecord.contents[1]?.parts[0]?.thoughtSignature === undefined && geminiLost.contents[1]?.parts[0]?.thoughtSignature === GEMINI_SKIP_SIGNATURE_VALIDATION)
+  const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
+  const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
+  const { z } = await import('zod')
+  const { randomUUID } = await import('node:crypto')
+  const bashTool = { name: 'Bash', prompt: async () => 'Runs a command.', inputSchema: z.object({ command: z.string() }), inputJSONSchema: { type: 'object', properties: { command: { type: 'string' } }, required: ['command'] } }
+  const driveRoad = async (model: string, withTools: boolean): Promise<Array<Record<string, unknown>>> => {
+    const out: Array<Record<string, unknown>> = []
+    const params = { messages: [{ type: 'user', uuid: randomUUID(), timestamp: new Date().toISOString(), message: { role: 'user', content: 'hello' } }], systemPrompt: asSystemPrompt(['be brief']), thinkingConfig: { type: 'enabled', budget_tokens: 8192 }, tools: withTools ? [bashTool] : [], signal: new AbortController().signal, options: { model, effortValue: 'medium', querySource: 'main_thread', isNonInteractiveSession: true, getToolPermissionContext: async () => getEmptyToolPermissionContext(), agents: [], hasAppendSystemPrompt: false, mcpTools: [], maxOutputTokensOverride: 100000 } }
+    for await (const item of callModel.geminiCallModel(params as never)) out.push(item as Record<string, unknown>)
+    return out
+  }
+  const claudeReplies = await driveRoad('google/claude-opus-4-6-thinking', true)
+  const claudeHit = requests.filter(r => r.host === 'assist' && r.path === '/v1internal:streamGenerateContent?alt=sse').at(-1)
+  const claudeInner = (claudeHit?.body?.request ?? {}) as Record<string, unknown>
+  const claudeGen = (claudeInner.generationConfig ?? {}) as Record<string, unknown>
+  check('a google/claude row rides the plan wire as Google\'s own id, labelled used_claude, with thinking as a token budget (thoughts included), function calling VALIDATED and the output ceiling capped at 64000', claudeHit?.body?.model === 'claude-opus-4-6-thinking' && (claudeHit.body.request as Record<string, unknown>) !== undefined && ((claudeHit.body.request as Record<string, Record<string, string>>).labels.used_claude === 'true') && JSON.stringify(claudeGen.thinkingConfig) === JSON.stringify({ includeThoughts: true, thinkingBudget: 8192 }) && claudeGen.maxOutputTokens === 64000 && (claudeInner.toolConfig as Record<string, Record<string, string>>)?.functionCallingConfig?.mode === 'VALIDATED' && claudeReplies.some(m => m.type === 'assistant' && JSON.stringify((m.message as Record<string, unknown>).content).includes('OK from the plan fixture')), JSON.stringify({ model: claudeHit?.body?.model, labels: (claudeHit?.body?.request as Record<string, unknown>)?.labels, gen: claudeGen, toolConfig: claudeInner.toolConfig }))
+  await driveRoad('google/claude-sonnet-4-6', false)
+  const bareClaudeHit = requests.filter(r => r.host === 'assist' && r.path === '/v1internal:streamGenerateContent?alt=sse').at(-1)
+  const bareInner = (bareClaudeHit?.body?.request ?? {}) as Record<string, unknown>
+  check('a Claude row with no tools still sends VALIDATED function calling and no thinking budget where the roster states no thinking', bareClaudeHit?.body?.model === 'claude-sonnet-4-6' && (bareInner.toolConfig as Record<string, Record<string, string>>)?.functionCallingConfig?.mode === 'VALIDATED' && (bareInner.generationConfig as Record<string, unknown> | undefined)?.thinkingConfig === undefined, JSON.stringify(bareInner))
+  await driveRoad('gemini-4-argon', true)
+  const argonHit = requests.filter(r => r.host === 'assist' && r.path === '/v1internal:streamGenerateContent?alt=sse').at(-1)
+  const argonGen = ((argonHit?.body?.request as Record<string, unknown>)?.generationConfig ?? {}) as Record<string, unknown>
+  check('a Gemini row on the same wire keeps its own shape: used_claude false, the thinking level, and the output ceiling is the roster\'s own (a caller\'s larger ask is clamped to it)', argonHit?.body?.model === 'gemini-4-argon' && (argonHit.body.request as Record<string, Record<string, string>>).labels.used_claude === 'false' && JSON.stringify(argonGen.thinkingConfig) === JSON.stringify({ thinkingLevel: 'MEDIUM' }) && argonGen.maxOutputTokens === 65536, JSON.stringify({ labels: (argonHit?.body?.request as Record<string, unknown>)?.labels, gen: argonGen }))
+  const { streamGeminiContent: streamPlain } = await import('../../src/services/providers/gemini/geminiClient.ts')
+  const planAuth = await accounts.resolveGeminiRequestAuth({ sourceKind: 'plan' })
+  for await (const _event of streamPlain({ apiKey: planAuth!.headers.authorization!.slice(7), url: `${assistBase}/v1internal:streamGenerateContent?alt=sse`, request: { model: 'gemini-3.5-flash-low', messages: [{ role: 'user', content: 'hi' }] } as never, messages: [], plan: { ...callModel.nextGeminiPlanEnvelope('project-fixture-123', 'gemini-3.5-flash-low'), bases: [assistBase], userAgent: planAuth!.headers['user-agent']! }, onTurn: () => {} })) void _event
+  const noAskHit = requests.filter(r => r.host === 'assist' && r.path === '/v1internal:streamGenerateContent?alt=sse').at(-1)
+  check('with no ceiling asked, the wire carries none — the generation config is Google\'s own default', ((noAskHit?.body?.request as Record<string, unknown>)?.generationConfig) === undefined, JSON.stringify((noAskHit?.body?.request as Record<string, unknown>)?.generationConfig))
+  await driveRoad('gemini-3.5-flash-low', false)
+  const roadHit = requests.filter(r => r.host === 'assist' && r.path === '/v1internal:streamGenerateContent?alt=sse').at(-1)
+  check('through the road a Gemini row gets the roster\'s own ceiling as its output ceiling — room to finish, never more than Google states', (((roadHit?.body?.request as Record<string, unknown>)?.generationConfig ?? {}) as Record<string, unknown>).maxOutputTokens === 65536, JSON.stringify((roadHit?.body?.request as Record<string, unknown>)?.generationConfig))
+  check('the 404 for a roster id Google does not serve names the id as the user spelled it', callModel.geminiPlanModelMissingWords('google/gpt-oss-120b-medium', 404, undefined).includes("Google serves no model 'google/gpt-oss-120b-medium' to this Google sign-in (HTTP 404)"))
   const { usageForProvider } = await import('../../src/services/providers/providerUsage.ts')
   const owner = usageForProvider('gemini')
   const tierFigure = owner.figures?.find(f => f.key === 'plan-tier')
