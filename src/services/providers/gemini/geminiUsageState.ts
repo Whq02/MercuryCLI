@@ -1,4 +1,7 @@
 
+export const GEMINI_PLAN_USAGE_ABSENCE_NOTE =
+  "Google states no spend or credit figure for a Google sign-in; the tier it reports and the quota left per model on its roster (read with the model list) are the only meters it gives — the plan's own page at one.google.com is the view."
+
 export const GEMINI_USAGE_ABSENCE_NOTE =
   'Usage is metered per model on the Google Cloud project behind this credential; the Gemini API states no usage, quota or credit figure to it (no usage endpoint, no quota headers on its replies) — the Cloud console Quotas page for the Generative Language API, or Google AI Studio, is the view.'
 

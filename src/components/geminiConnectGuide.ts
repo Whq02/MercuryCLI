@@ -1,5 +1,6 @@
 import { geminiOauthClientConfig, geminiOauthConnected, geminiPlanFacts, resolveGeminiAccount, resolveGeminiApiKey } from '../services/providers/gemini/geminiAccounts.js'
 import { geminiPlanTierWords } from '../services/providers/gemini/geminiPlanAccess.js'
+import { formatAge } from '../utils/healthCertCore.js'
 import { KEY_PAGES } from './loginFamilyRows.js'
 
 export interface GeminiGuidePage {
@@ -92,6 +93,7 @@ export interface GeminiConnectFacts {
   oauthConnected: boolean
   planConnected?: boolean
   planTier?: string
+  planTierReadAtMs?: number
   active?: 'oauth' | 'api-key' | 'plan'
 }
 
@@ -119,9 +121,14 @@ export const GEMINI_KEY_BILLING_NOTE = 'Cloud project: free Flash ~20/day, Pro 0
 export const GEMINI_KEY_ROW = 'API key — the easiest: create one in AI Studio, paste it here'
 export const GEMINI_PLAN_ROW = "Sign in with Google — your plan's quota: AI Pro, AI Ultra or a free account"
 
-export function geminiPlanRowLabel(facts: GeminiConnectFacts): string {
-  if (!facts.planConnected) return GEMINI_PLAN_ROW
+export function geminiPlanTierWordsWithAge(facts: Pick<GeminiConnectFacts, 'planTier' | 'planTierReadAtMs'>, now: number = Date.now()): string {
   const tier = facts.planTier ?? 'tier unknown'
+  return facts.planTierReadAtMs !== undefined ? `${tier}, read ${formatAge(now - facts.planTierReadAtMs)}` : tier
+}
+
+export function geminiPlanRowLabel(facts: GeminiConnectFacts, now: number = Date.now()): string {
+  if (!facts.planConnected) return GEMINI_PLAN_ROW
+  const tier = geminiPlanTierWordsWithAge(facts, now)
   return geminiConnectRowAction(facts, 'plan') === 'activate'
     ? `Sign in with Google — connected (${tier}), not active · ↵ makes it active`
     : `Sign in with Google — connected (${tier}) · ↵ signs in again`
@@ -261,6 +268,7 @@ export function liveGeminiConnectFacts(): GeminiConnectFacts {
     oauthConnected: geminiOauthConnected(),
     planConnected: plan !== undefined,
     ...(plan ? { planTier: geminiPlanTierWords(plan.tier) } : {}),
+    ...(plan?.tierReadAtMs !== undefined ? { planTierReadAtMs: plan.tierReadAtMs } : {}),
     ...(active !== undefined ? { active } : {}),
   }
 }

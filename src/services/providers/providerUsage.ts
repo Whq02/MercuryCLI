@@ -67,7 +67,10 @@ import {
   resolveGeminiAccount,
   type GeminiAccountRef,
 } from './gemini/geminiAccounts.js'
-import { GEMINI_USAGE_ABSENCE_NOTE, geminiLimitWindow, type GeminiLimitWindow } from './gemini/geminiUsageState.js'
+import { GEMINI_PLAN_USAGE_ABSENCE_NOTE, GEMINI_USAGE_ABSENCE_NOTE, geminiLimitWindow, type GeminiLimitWindow } from './gemini/geminiUsageState.js'
+import { geminiPlanFacts } from './gemini/geminiAccounts.js'
+import { geminiPlanTierWords } from './gemini/geminiPlanAccess.js'
+import { getCachedGeminiCatalogue } from './gemini/geminiCatalogue.js'
 import {
   resolveHuggingfaceAccount,
   type HuggingfaceAccountRef,
@@ -1449,6 +1452,29 @@ export function huggingfacePlanFigures(facts: HuggingfaceAccountFacts | null): U
   ]
 }
 
+export function geminiPlanUsageFigures(plan: NonNullable<ReturnType<typeof geminiPlanFacts>>, env: NodeJS.ProcessEnv = process.env): UsageFigureView[] {
+  const figures: UsageFigureView[] = [
+    { key: 'plan-tier', label: 'tier Google reports', value: geminiPlanTierWords(plan.tier), ...(plan.tierReadAtMs !== undefined ? { observedAtMs: plan.tierReadAtMs } : {}), source: 'endpoint', freshForMs: 24 * 60 * 60 * 1000 },
+  ]
+  const roster = getCachedGeminiCatalogue('plan', env)
+  if (roster && roster.fetchedAtMs > 0) {
+    for (const model of roster.models) {
+      if (!model.quota || model.quota.remainingFraction === undefined) continue
+      const resetsAtMs = model.quota.resetTime !== undefined ? Date.parse(model.quota.resetTime) : NaN
+      figures.push({
+        key: `plan-quota:${model.id}`,
+        label: `${model.displayName ?? model.id} quota left`,
+        value: `${Math.round(model.quota.remainingFraction * 100)}%`,
+        observedAtMs: roster.fetchedAtMs,
+        ...(Number.isFinite(resetsAtMs) ? { resetsAtMs } : {}),
+        source: 'endpoint',
+        freshForMs: 5 * 60 * 1000,
+      })
+    }
+  }
+  return figures
+}
+
 function huggingfaceTier(kind: 'oauth' | 'api-key', facts: HuggingfaceAccountFacts | null): string {
   if (kind !== 'oauth') return API_BILLING_TIER
   if (facts?.isPro === true) return 'Hugging Face PRO'
@@ -1558,6 +1584,8 @@ function deriveUsageForProvider(
       return { provider, sourceKind: 'none', label: 'Gemini usage', shape: 'none', windows: [], pools: [], spend, whyNot: 'not connected — /logins adds Gemini' }
     }
     const limitedWindow = (reads?.geminiLimited ?? geminiLimitWindow)()
+    const plan = account.kind === 'plan' ? geminiPlanFacts() : undefined
+    const planFigures = plan ? geminiPlanUsageFigures(plan) : []
     return {
       provider,
       sourceKind: account.kind === 'plan' ? 'oauth' : account.kind,
@@ -1567,8 +1595,9 @@ function deriveUsageForProvider(
       pools: [],
       credits: CREDITS_UNREPORTED,
       spend,
-      absence: GEMINI_USAGE_ABSENCE_NOTE,
-      tier: account.kind === 'plan' ? account.label : account.kind === 'oauth' ? 'Google sign-in' : API_BILLING_TIER,
+      absence: plan ? GEMINI_PLAN_USAGE_ABSENCE_NOTE : GEMINI_USAGE_ABSENCE_NOTE,
+      ...(planFigures.length > 0 ? { figures: planFigures } : {}),
+      tier: plan ? geminiPlanTierWords(plan.tier) : account.kind === 'oauth' ? 'Google sign-in' : API_BILLING_TIER,
       ...(limitedWindow.state === 'limited'
         ? { limited: { resetsAtMs: limitedWindow.resetsAtMs } }
         : {}),
