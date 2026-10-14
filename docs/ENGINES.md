@@ -610,8 +610,9 @@ come from its owning account resolvers:
   closes); a tool call the history carries without a signed record (a chat
   switched from another model) replays under Google's documented
   skip-validation signature. An image the model generates is refused as
-  content this chat cannot display. API-key chats keep the compatibility
-  endpoint. A native token refusal names the Google account and `/logins`,
+  content this chat cannot display. API-key chats ride the same native
+  endpoint under the key header (`x-goog-api-key`), so their signed parts
+  are kept the same way. A native token refusal names the Google account and `/logins`,
   with a receipt when a refresh was attempted and Google's own reason after
   it; a billing refusal on the Google sign-in says its quota and billing
   cannot be changed from here and points at a Gemini API key on a project of
