@@ -22,6 +22,7 @@ import {
   buildPythonProjectProfile,
 } from './pythonProject.js'
 import { latestRun, probePytest } from './pythonTests.js'
+import { resolvePreLaunchTask, type PreLaunchTask } from './launchTasks.js'
 
 export function launchProfilesEnabled(): boolean {
   return flagEnabled('MERCURY_LAUNCH')
@@ -60,6 +61,7 @@ export interface LaunchProfile {
     note: string
   }
   runnerRef?: { profileId: string; runner: string }
+  preLaunchTask?: PreLaunchTask
   provenance: string
   droppedFields?: string[]
 }
@@ -146,6 +148,7 @@ interface VsCodeConfig {
   cwd?: string
   env?: unknown
   envFile?: unknown
+  preLaunchTask?: unknown
   [key: string]: unknown
 }
 
@@ -228,7 +231,7 @@ const VSCODE_TYPE_FAMILIES: ReadonlyArray<{
   { types: new Set(['coreclr', 'dotnet']), adapter: 'dotnet', language: 'dotnet' },
   { types: new Set(['ruby', 'rdbg']), adapter: 'ruby', language: 'ruby' },
 ]
-const REPRESENTED_FIELDS = new Set(['name', 'type', 'request', 'program', 'module', 'args', 'cwd', 'env', 'envFile'])
+const REPRESENTED_FIELDS = new Set(['name', 'type', 'request', 'program', 'module', 'args', 'cwd', 'env', 'envFile', 'preLaunchTask'])
 
 function vscodeProfiles(root: string): {
   profiles: LaunchProfile[]
@@ -291,13 +294,20 @@ function vscodeProfiles(root: string): {
       cwd,
       ...(environment.env !== undefined ? { env: environment.env, envSource: environment.envSource } : {}),
     }
+    const preLaunchTask =
+      config.preLaunchTask === undefined
+        ? undefined
+        : typeof config.preLaunchTask === 'string' && config.preLaunchTask !== ''
+          ? resolvePreLaunchTask(config.preLaunchTask, root)
+          : { label: String(config.preLaunchTask), refused: 'preLaunchTask is not a task label' }
     profiles.push({
-      id: profileId('vscode', 'debug', payload),
+      id: profileId('vscode', 'debug', preLaunchTask ? { ...payload, preLaunchTask } : payload),
       source: 'vscode',
       kind: 'debug',
       label: name,
       language: family.language,
       debug: payload,
+      ...(preLaunchTask ? { preLaunchTask } : {}),
       provenance: `.vscode/launch.json → "${name}" (type ${type})`,
       ...(dropped.length ? { droppedFields: dropped } : {}),
     })
