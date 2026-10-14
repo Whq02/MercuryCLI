@@ -56,6 +56,13 @@ writeFileSync(
         { name: 'with foreign task', type: 'debugpy', request: 'launch', program: '${workspaceFolder}/hello.py', preLaunchTask: 'gulpy' },
         { name: 'module run', type: 'python', request: 'launch', module: 'hello_mod', args: ['--who', 'module-arg'], env: { MODE: 'module' } },
         { name: 'nothing to run', type: 'debugpy', request: 'launch' },
+        { name: 'attach py', type: 'debugpy', request: 'attach', connect: { host: 'localhost', port: 5678 }, justMyCode: false },
+        { name: 'attach node', type: 'node', request: 'attach', port: 9229, address: '10.0.0.5', restart: true },
+        { name: 'attach go', type: 'go', request: 'attach', mode: 'remote', host: '127.0.0.1', port: 2345 },
+        { name: 'attach pid', type: 'lldb', request: 'attach', pid: 4242 },
+        { name: 'attach listen', type: 'debugpy', request: 'attach', listen: { port: 5678 } },
+        { name: 'attach pick', type: 'node', request: 'attach', processId: '${command:PickProcess}' },
+        { name: 'attach nothing', type: 'debugpy', request: 'attach' },
       ],
     },
     null,
@@ -208,6 +215,35 @@ try {
     check('D6 the sessions are reaped', dap._dapSessionCountForTesting() === 0)
   } else {
     console.log('  [SKIP — LOUD] the module run legs need the vendored debugpy and the system python (see B).')
+  }
+
+  section('E. attach configurations are Debug attach profiles the Launch tool names and points at the Debug tool')
+  const d4 = await launch.discoverLaunchProfiles(proj)
+  const attachOf = (label: string) => d4.profiles.find(p => p.label === label)
+  check('E1 a debugpy connect attach: adapter python, port 5678, host localhost; justMyCode stays dropped', JSON.stringify(attachOf('attach py')?.attach) === JSON.stringify({ adapter: 'python', port: 5678, host: 'localhost' }) && JSON.stringify(attachOf('attach py')?.droppedFields) === JSON.stringify(['justMyCode']) && attachOf('attach py')?.kind === 'debug', JSON.stringify(attachOf('attach py')))
+  check('E2 a node attach: port with address as host; restart stays dropped', JSON.stringify(attachOf('attach node')?.attach) === JSON.stringify({ adapter: 'js', port: 9229, host: '10.0.0.5' }) && JSON.stringify(attachOf('attach node')?.droppedFields) === JSON.stringify(['restart']), JSON.stringify(attachOf('attach node')))
+  check('E3 a go remote attach: adapter go, host and port; mode is consumed', JSON.stringify(attachOf('attach go')?.attach) === JSON.stringify({ adapter: 'go', port: 2345, host: '127.0.0.1' }) && attachOf('attach go')?.droppedFields === undefined, JSON.stringify(attachOf('attach go')))
+  check('E4 a native pid attach: adapter lldb, pid 4242', JSON.stringify(attachOf('attach pid')?.attach) === JSON.stringify({ adapter: 'lldb', pid: 4242 }), JSON.stringify(attachOf('attach pid')))
+  check('E5 listen, a pick-process macro and an empty attach are skipped by name with their reasons', d4.skipped.some(s => s.name === 'attach listen' && s.reason.includes('listen')) && d4.skipped.some(s => s.name === 'attach pick' && s.reason.includes('processId carries a macro')) && d4.skipped.some(s => s.name === 'attach nothing' && s.reason.includes('attach needs a port')), JSON.stringify(d4.skipped.filter(s => s.name.startsWith('attach'))))
+  check('E6 the attach profile has no launch payload and its provenance says attach', attachOf('attach py')?.debug === undefined && (attachOf('attach py')?.provenance ?? '').includes('attach)'))
+  const py = attachOf('attach py')
+  if (py === undefined) {
+    check('E7 the attach profile exists for the tool legs', false, 'no attach profile on this tree')
+  } else {
+    const { LaunchTool } = await import('../../src/tools/LaunchTool/LaunchTool.js')
+    const ctx = { getAppState: () => ({}) } as never
+    const inspect = (await LaunchTool.call({ op: 'inspect', profile: py.id } as never, ctx)) as { data: { result: string } }
+    check('E7 inspect names the Debug attach call', inspect.data.result.includes('attach → python: port 5678 on localhost') && inspect.data.result.includes('Debug {"op":"attach","adapter":"python","port":5678,"host":"localhost"}'), inspect.data.result)
+    const dbg = (await LaunchTool.call({ op: 'debug', profile: py.id } as never, ctx)) as { data: { result: string; outcome: string } }
+    check('E8 op:"debug" names the Debug attach call and attaches nothing itself', dbg.data.outcome === 'no-change' && dbg.data.result.includes('attach with the Debug tool: Debug {"op":"attach","adapter":"python","port":5678,"host":"localhost"}'), dbg.data.result)
+    const run = (await LaunchTool.call({ op: 'run', profile: attachOf('attach pid')?.id ?? 'lp-000000000000' } as never, ctx)) as { data: { result: string; outcome: string } }
+    check('E9 op:"run" on an attach profile says there is nothing to run and names the call with the pid', run.data.outcome === 'no-change' && run.data.result.includes('nothing to run') && run.data.result.includes('"pid":4242'), run.data.result)
+    const perm = await LaunchTool.checkPermissions({ op: 'debug', profile: py.id } as never, { getAppState: () => ({}) } as never)
+    check('E10 the refusal rides free of a permission ask (nothing executes)', perm.behavior === 'allow', JSON.stringify(perm))
+    const dap = await import('../../src/services/dap/dapClient.js')
+    check('E11 no session was created', dap._dapSessionCountForTesting() === 0)
+    const list = (await LaunchTool.call({ op: 'list' } as never, ctx)) as { data: { result: string } }
+    check('E12 attach profiles appear in the list and the launch-json skips keep their reasons', list.data.result.includes('attach py') && list.data.result.includes('attach listen:'), list.data.result.split('\n').filter(l => l.includes('attach')).join(' | '))
   }
 } finally {
   process.chdir(ROOT)
