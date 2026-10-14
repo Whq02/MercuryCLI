@@ -114,6 +114,19 @@ withEnv('1', () => {
 })
 withEnv('1', () => {
   const rows = inject([
+    prompt('read three pages', 'p1'),
+    toolUse('WebFetch', { url: 'https://docs.python.org/3/library/stdtypes.html' }, 'a1'),
+    toolUse('WebFetch', { url: 'https://excalidraw.com/' }, 'a2'),
+    toolUse('WebFetch', { url: 'http://wiki.lan/page' }, 'a3'),
+    toolUse('WebSearch', { query: 'npm turndown' }, 'a4'),
+  ])
+  const c = receipts(rows)[0]!.counts
+  check('three WebFetch calls count as 3 fetches, never searches (F35A-20; RED on the base: 4 searches)', c['fetches'] === 3 && c['searches'] === 1)
+  const row = src('components', 'messages', 'TurnReceiptRow.tsx')
+  check('the row prints fetches beside searches, singular and plural', /plural\(c\.fetches, 'fetch', 'fetches'\)/.test(row))
+})
+withEnv('1', () => {
+  const rows = inject([
     prompt('drive the page', 'p1'),
     toolUse('Bash', { command: 'echo shell-tally-check' }, 'a1'),
     toolUse('Browser', { op: 'open', url: 'http://127.0.0.1:8765/slow.html' }, 'a2'),

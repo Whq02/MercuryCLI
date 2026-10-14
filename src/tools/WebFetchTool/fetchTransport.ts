@@ -5,6 +5,7 @@ import { webUserAgent } from '../../utils/webUserAgent.js'
 import { EgressBlockedError, FetchRefusedError } from './fetchErrors.js'
 import { FetchPacing } from './fetchPacing.js'
 import { PAYWALL_MESSAGE } from './pageAccess.js'
+import { isPrivateReaderHost, PRIVATE_ADDRESS_RULE } from './privateHost.js'
 import { robotsAllows } from './robots.js'
 
 export type RedirectResult = { type: 'redirect'; originalUrl: string; redirectUrl: string; statusCode: number }
@@ -63,7 +64,12 @@ export async function fetchPage(url: string, signal: AbortSignal, robots = false
     })
   } catch (error) {
     if (signal.aborted) throw new AbortError()
-    if (!axios.isAxiosError(error) || !error.response) throw new FetchRefusedError(0, `The ${robots ? 'robots rules' : 'page'} could not be fetched; no hosted-reader bypass was attempted. Search for another source.`)
+    if (!axios.isAxiosError(error) || !error.response) {
+      const what = robots ? 'robots rules' : 'page'
+      throw new FetchRefusedError(0, isPrivateReaderHost(new URL(url).hostname)
+        ? `${PRIVATE_ADDRESS_RULE}; the ${what} could not be fetched. Search for another source.`
+        : `The ${what} could not be fetched; no hosted-reader bypass was attempted. Search for another source.`)
+    }
     response = error.response as AxiosResponse<ArrayBuffer>
   }
   const status = response.status

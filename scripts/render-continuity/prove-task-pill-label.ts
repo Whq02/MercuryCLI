@@ -28,5 +28,7 @@ t.check('the label owner exports the label and nothing that decides a second aff
 t.section('§3 the footer pill paints the label alone')
 const footer = readFileSync(join(ROOT, 'src/components/tasks/BackgroundTaskStatus.tsx'), 'utf8')
 t.check('the pill body is the label, highlighted or dimmed, with no text beside it', footer.includes('const label = getPillLabel(manageable)') && !footer.includes('to view') && !/pillNeedsCta|callToAction/.test(footer))
+const composerFooter = readFileSync(join(ROOT, 'src/components/PromptInput/PromptInputFooterLeftSide.tsx'), 'utf8')
+t.check('the composer footer paints no "↓ manage" or "Enter view" hint beside the pill (RED on the base: both); ↓ still moves the focus to the pill', !/action="manage"|action="view"|key="manage"/.test(composerFooter) && composerFooter.includes('<BackgroundTaskStatus') && composerFooter.includes("footerSelection === 'tasks'"))
 
 t.finish('prove-task-pill-label')

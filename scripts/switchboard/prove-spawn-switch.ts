@@ -328,7 +328,7 @@ section('§7 the preserved-thinking seam — a roster transition is a lawful pre
   const mark0 = tb.prefixMarkOf(history as never, 'claude-fable-5-1')
   check('no roster transition ⇒ the mark carries none', mark0.rosterTransition === null && mark0.rosterChange === null)
   const row = createRosterTransitionMessage('subagents', false, sw.spawnSwitchTransitionLine('subagents', false))
-  check("the row's sentence names the operator's toggle as landed and the boundary, in words the command's receipt does not repeat", row.content.includes('the operator toggled crewmates off — landed') && row.content.includes('reasoning restarts on the next turn') && row.content !== sw.spawnSwitchToggleReceipt('subagents', false, 'applied') && row.subtype === 'roster_transition' && row.toggle === 'subagents' && row.on === false)
+  check("the row's sentence says you turned it off, that the tool has left (the landing) and the boundary, in words the command's receipt does not repeat", row.content.includes('you turned crewmates off: the Crewmate tool has left the roster') && row.content.includes('reasoning restarts on the next turn') && row.content !== sw.spawnSwitchToggleReceipt('subagents', false, 'applied') && row.subtype === 'roster_transition' && row.toggle === 'subagents' && row.on === false)
   const mark1 = tb.prefixMarkOf([...history, row] as never, 'claude-fable-5-1')
   check("the newest roster transition marks the prefix with the toggle's word", mark1.rosterTransition === row.uuid && mark1.rosterChange === 'crewmates off' && mark1.firstRow === mark0.firstRow && mark1.model === mark0.model)
   tb.resetThinkingDropStates()
@@ -337,7 +337,7 @@ section('§7 the preserved-thinking seam — a roster transition is a lawful pre
   const lawful = tb.classifyThinkingDrops('owner', [DROP], mark1)
   check("a drop after the toggle reads LAWFUL as a roster switch", lawful.kind === 'lawful' && lawful.lawful === 'roster-switch' && lawful.rosterChange === 'crewmates off' && lawful.consecutive === 1, j(lawful))
   const notice = tb.describeThinkingDrops([DROP], lawful) ?? ''
-  check('…the notice names the toggle, expected once — never a client-side edit, never a Mercury defect', notice.includes('after the operator toggled crewmates off') && notice.includes('the tool roster changed with it') && notice.includes('(expected once)') && !notice.includes('client-side') && !notice.includes('Mercury defect'), notice)
+  check('…the notice names your toggle, expected once — never a client-side edit, never a Mercury defect', notice.includes('after you turned crewmates off') && notice.includes('the tool roster changed with it') && notice.includes('(expected once)') && !notice.includes('client-side') && !notice.includes('Mercury defect'), notice)
   const after = tb.classifyThinkingDrops('owner', [DROP], mark1)
   check('a lawful drop never seeds a run: the next drop with the same marks is a first drop', after.kind === 'first' && after.consecutive === 1, j(after))
   const health = tb.preservedThinkingHealth({ last: { at: '2026-01-01T00:00:00.000Z', kind: 'lawful', lawful: 'roster-switch', reason: DROP.reason, path: DROP.path, count: 3, consecutive: 1, model: 'claude-fable-5-1' }, longestRun: 0 })
@@ -470,7 +470,7 @@ if (!existsSync(DIST)) {
     const notices = transcriptNotices(arena, SID)
     check('the scripted drop writes exactly one receipt (kept in the transcript, never painted)', notices.length === 1, `${notices.length} ${notices[0]?.slice(0, 200) ?? ''}`)
     const notice = notices[0] ?? ''
-    check("…the receipt names the operator's toggle, expected once — never a client-side edit, never Mercury", notice.includes('after the operator toggled crewmates off') && notice.includes('(expected once)') && !notice.includes('client-side') && !notice.includes('Mercury defect'), notice.slice(0, 300))
+    check("…the receipt names your toggle, expected once — never a client-side edit, never Mercury", notice.includes('after you turned crewmates off') && notice.includes('(expected once)') && !notice.includes('client-side') && !notice.includes('Mercury defect'), notice.slice(0, 300))
     await fixture.close()
   }
 

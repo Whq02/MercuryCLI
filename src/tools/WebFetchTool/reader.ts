@@ -1,5 +1,4 @@
 import axios from 'axios'
-import { isIP } from 'node:net'
 import { flagEnabled } from '../../substrate/flagRegistry.js'
 import { AbortError } from '../../utils/errors.js'
 import { webUserAgent } from '../../utils/webUserAgent.js'
@@ -8,20 +7,15 @@ import { FetchPacing } from './fetchPacing.js'
 import { isPreapprovedHost } from './preapproved.js'
 import { permittedFetchRedirect } from './fetchTransport.js'
 import { PAYWALL_MESSAGE } from './pageAccess.js'
+import { isPrivateReaderHost } from './privateHost.js'
 
 export const READER_KEYLESS_RPM = 20
 export const READER_LIMIT_SOURCE = 'https://jina.ai/reader/'
 export const READER_LIMIT_CHECKED = '2026-10-13'
 const pacing = new FetchPacing()
-const PRIVATE_NAME_SUFFIXES = /(?:^|\.)(?:localhost|local|internal|intranet|private|corp|home|lan|test|example|invalid|onion|arpa|localdomain)$/
 
 export function fetchReaderEnabled(): boolean {
   return flagEnabled('MERCURY_FETCH_READER')
-}
-
-export function isPrivateReaderHost(hostname: string): boolean {
-  const host = hostname.toLowerCase().replace(/^\[|\]$/g, '').replace(/\.$/, '')
-  return host === '' || !host.includes('.') || isIP(host) !== 0 || PRIVATE_NAME_SUFFIXES.test(host)
 }
 
 type ReaderResult = { content?: string; notice: string }

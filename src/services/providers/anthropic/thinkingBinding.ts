@@ -431,7 +431,7 @@ export function describeThinkingDrops(
         return `Preserved thinking: the API dropped ${count} ${noun} after the compaction — the history before ${path} was folded into the summary, so the model re-plans without that reasoning this turn (expected once).`
       }
       if (outcome.lawful === 'roster-switch') {
-        return `Preserved thinking: the API dropped ${count} ${noun} after the operator toggled ${outcome.rosterChange ?? 'a spawn switch'} — the tool roster changed with it, so the model re-plans without that reasoning this turn (expected once).`
+        return `Preserved thinking: the API dropped ${count} ${noun} after you turned ${outcome.rosterChange ?? 'a spawn switch on or off'} — the tool roster changed with it, so the model re-plans without that reasoning this turn (expected once).`
       }
       if (outcome.lawful === 'operator-setting') {
         return `Preserved thinking: the API dropped ${count} ${noun} after you changed ${outcome.detail ?? 'a setting'} — the system prompt and the tool roster moved with it, so the model re-plans without that reasoning this turn (expected once).`

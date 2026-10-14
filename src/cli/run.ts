@@ -842,7 +842,7 @@ export async function runHeadless(
     const landed = setSpawnSwitch(kind, on)
     if (!landed.changed) return
     messages.push(createRosterTransitionMessage(kind, on, spawnSwitchTransitionLine(kind, on)))
-    declareLawfulPrefixChangeForEveryOwner(`the operator toggled ${SPAWN_SWITCH_LABEL[kind]} ${on ? 'on' : 'off'}`)
+    declareLawfulPrefixChangeForEveryOwner(`you turned ${SPAWN_SWITCH_LABEL[kind]} ${on ? 'on' : 'off'}`)
   }
 
   let mcpChangeChain: Promise<unknown> = Promise.resolve()

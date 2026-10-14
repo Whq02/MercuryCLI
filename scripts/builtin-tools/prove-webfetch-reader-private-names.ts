@@ -31,6 +31,17 @@ try {
   const before = seen.length
   const open = await readHostedPage('https://news.example.org/story?id=1', new AbortController().signal, pace)
   check('a public host still reaches the reader', seen.length === before + 1 && open.content !== undefined)
+
+  const { fetchPage } = await import('../../src/tools/WebFetchTool/fetchTransport.js')
+  axios.get = (async (url: string) => { throw new axios.AxiosError(`getaddrinfo ENOTFOUND ${new URL(url).hostname}`, 'ENOTFOUND') }) as typeof axios.get
+  const refusal = async (url: string): Promise<string> => {
+    try { await fetchPage(url, new AbortController().signal) } catch (error) { return error instanceof Error ? error.message : String(error) }
+    return 'fetched'
+  }
+  const lan = await refusal('http://wiki.lan/page')
+  check('a private address that cannot be reached names the private-host rule first, the robots line second (RED on the base: the robots line alone)', lan === 'A private address is never sent to the hosted reader; the robots rules could not be fetched. Search for another source.' && seen.length === before + 1, lan)
+  const pub = await refusal('https://news.example.org/story?id=2')
+  check('a public address that cannot be reached keeps the robots line and the no-bypass promise', pub === 'The robots rules could not be fetched; no hosted-reader bypass was attempted. Search for another source.' && seen.length === before + 1, pub)
 } finally {
   axios.get = get
   if (priorFlag === undefined) delete process.env.MERCURY_FETCH_READER

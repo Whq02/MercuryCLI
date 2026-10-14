@@ -53,6 +53,13 @@ export function TurnReceiptRow({
       </Text>,
     )
   }
+  if (c.fetches > 0) {
+    push(
+      <Text key="fetches">
+        {c.fetches} {plural(c.fetches, 'fetch', 'fetches')}
+      </Text>,
+    )
+  }
   if (c.commands > 0) {
     push(
       <Text key="cmds">

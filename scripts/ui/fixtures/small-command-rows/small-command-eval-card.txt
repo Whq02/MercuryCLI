@@ -6,21 +6,21 @@ NEXT                    ││  ▀▄▄▄▀▄▄▄▀                     
   · /workflows — crewma…│╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯│
                         │                                                                                                                  │
 FILES · project         │                                                                                                                  │
-  ↵ or click · browse   │ 15:00:08 [sam] ❯ start                                                                                           │
+  ↵ or click · browse   │ 12:30:52 [sam] ❯ start                                                                                           │
                         │                                                                                                                  │
-VITALS                  │ 15:00:08 [Mercury] Command rows ready.                                                                           │
+VITALS                  │ 12:30:52 [Mercury] Command rows ready.                                                                           │
   · spend $0.00         │                                                                                                                  │
   · ctx 0% · 1000k      │ ❯ /crewmates off                                                                                                 │
   · health — run /health│   └ crewmates off for this session                                                                               │
                         │     the Crewmate tool leaves the roster from the next turn; reasoning restarts on the next turn; a spawn already │
                         │     running finishes                                                                                             │
-                        │ the operator toggled crewmates off — landed: the Crewmate tool has left the roster; reasoning restarts on the    │
-                        │ next turn                                                                                                        │
+                        │ you turned crewmates off: the Crewmate tool has left the roster; reasoning restarts on the next turn             │
                         │                                                                                                                  │
-                        │ 15:00:25 [sam] ❯ run the cell                                                                                    │
+                        │ 12:31:09 [sam] ❯ run the cell                                                                                    │
                         │ │                                                                                                                │
-                        │ │ 15:00:25 [Mercury] ▰ Eval         js · Calculate the value                                                     │
+                        │ │ 12:31:09 [Mercury] ▰ Eval         js · Calculate the value                                                     │
                         │ │   └ Starting kernel…                                                                                           │
+                        │                                                                                                                  │
                         │                                                                                                                  │
                         │                                                                                                                  │
                         │                                                                                                                  │
