@@ -49,7 +49,7 @@ t.section('§1 — the old id-less input parses and presents')
   t.check('display copy is untouched', adopted[0]?.text === OLD_INPUT.questions[0]!.question)
 }
 
-t.section('§2 — the old text-keyed answered payload keeps the legacy wire')
+t.section('§2 — the old text-keyed answered payload rides the one per-question wire')
 {
   const parsed = AskUserQuestionTool.inputSchema.safeParse(OLD_ANSWERED)
   t.check('the text-keyed payload parses', parsed.success)
@@ -61,11 +61,12 @@ t.section('§2 — the old text-keyed answered payload keeps the legacy wire')
     } as never,
     'toolu_old',
   )
-  const text = JSON.stringify(result)
-  t.check('the result is the legacy answered prose', text.includes('User has answered your questions'))
-  t.check('joined by question text, as the old clients expect', text.includes('"Which storage engine should the cache use?"') || text.includes('Which storage engine'))
-  t.check('the answer value crossed', text.includes('In-memory'))
-  t.check('the text-keyed annotation crossed', text.includes('keep it local'))
+  const text = typeof result.content === 'string' ? result.content : JSON.stringify(result.content)
+  t.check('the result is the answered prose', text.startsWith('User has answered your questions:'))
+  t.check('the id-less question is named by its position on the per-question line', text.includes('- [q1] "Which storage engine should the cache use?" ->'))
+  t.check('the text-keyed answer crossed, JSON-quoted', text.includes('-> "In-memory"'))
+  t.check('the text-keyed annotation crossed as the notes line', text.includes('notes: "keep it local"'))
+  t.check('no second wire shape: the old key=value spelling is gone', !text.includes('"="') && !text.includes('user notes:'))
 }
 
 t.section('§3 — a foreign event kind replays as a bounded no-op')

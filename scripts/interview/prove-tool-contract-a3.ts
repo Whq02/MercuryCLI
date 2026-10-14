@@ -39,9 +39,9 @@ t.section('§1 — identity survives input parsing')
   )
 }
 
-t.section('§2 — the pre-A3 client shape keeps the byte-identical wire')
+t.section('§2 — an id-less client shape rides the one wire, its question named by position')
 {
-  const legacy = {
+  const idless = {
     questions: [
       {
         question: 'Which engine?',
@@ -57,11 +57,12 @@ t.section('§2 — the pre-A3 client shape keeps the byte-identical wire')
     annotations: { 'Which engine?': { notes: 'ops runs redis' } },
   }
   t.check(
-    'the historical prose is byte-identical',
-    wire(legacy) ===
-      'User has answered your questions: "Which engine?"="Redis" user notes: ops runs redis. You can now continue with the user\'s answers in mind.',
-    wire(legacy).slice(0, 140),
+    'the id-less result is the per-question line shape, byte for byte, with q1 as the position id',
+    wire(idless) ===
+      'User has answered your questions:\n- [q1] "Which engine?" -> "Redis"\n  notes: "ops runs redis"\nYou can now continue with the user\'s answers in mind.',
+    wire(idless).slice(0, 140),
   )
+  t.check('no second wire shape remains: the id-less text never carries the old key=value spelling', !wire(idless).includes('"Which engine?"="Redis"') && !wire(idless).includes('user notes:'))
 }
 
 t.section('§3 — the identity shape joins on ids and quotes labels')
