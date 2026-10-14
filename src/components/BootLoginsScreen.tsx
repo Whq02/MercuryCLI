@@ -46,6 +46,7 @@ import {
 } from '../services/providers/openrouter/openrouterLogin.js';
 import { beginOpenrouterConnect } from '../services/providers/openrouter/openrouterAccounts.js';
 import {
+  activateGeminiSource,
   finishGeminiOauthConnect,
   geminiConnectFailedReceipt,
   storeGeminiApiKeyLogin,
@@ -69,6 +70,7 @@ import {
   liveGeminiConnectFacts,
   type GeminiConnectFacts,
   type GeminiGuideOpenState,
+  geminiConnectRowAction,
 } from './geminiConnectGuide.js';
 import { errorMessageWithCause } from '../utils/errors.js';
 import { useSetAppStateMaybe } from '../state/AppState.js';
@@ -1375,6 +1377,10 @@ export function BootLoginsScreen({ onClose, onSignedIn, family, fullScene, facts
         startHandlesRun(value === 'browser' ? 'openrouter-browser' : 'openrouter-headless');
         return;
       case 'gemini':
+        if ((value === 'key' || value === 'google') && geminiConnectRowAction(liveGeminiConnectFacts(), value) === 'activate') {
+          setFlow({ kind: 'receipt', ...activateGeminiSource(value === 'key' ? 'api-key' : 'oauth') });
+          return;
+        }
         if (value === 'key') {
           setFlow({ kind: 'key', leg: 'gemini-key', note: null, storing: false, opened: 'opening' });
           void openBrowser(GEMINI_API_KEY_PAGE.address).then(ok => {

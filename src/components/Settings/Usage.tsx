@@ -67,6 +67,7 @@ import { ConfigurableShortcutHint } from '../ConfigurableShortcutHint.js'
 import { ProgressBar } from '../design-system/ProgressBar.js'
 import { GLYPH } from '../mercury-ui/glyphs.js'
 import { useMercuryTokens } from '../mercury-ui/useMercuryTokens.js'
+import { geminiStoredSourcesNote, liveGeminiStoredSourceFacts } from '../../services/providers/gemini/geminiLogin.js'
 
 const WARN_PCT = 70
 const ERROR_PCT = 90
@@ -576,6 +577,7 @@ function GeminiUsageSection({ width }: { width?: number }): React.ReactNode {
   const spend = providerSessionSpend('gemini')
   const oauth = entries.find(e => e.kind === 'oauth')
   const key = entries.find(e => e.kind === 'api-key')
+  const geminiSourcesNote = geminiStoredSourcesNote(liveGeminiStoredSourceFacts())
   const usage = usageForProvider('gemini')
   return (
     <Box flexDirection="column">
@@ -598,6 +600,7 @@ function GeminiUsageSection({ width }: { width?: number }): React.ReactNode {
         route="gemini"
         spend={spend}
       />
+      {geminiSourcesNote !== undefined ? <Text dimColor>{geminiSourcesNote}</Text> : null}
       <Text dimColor>{usage.absence ?? ENGINE_USAGE_PRESENTATION.gemini!.limitsNote}</Text>
     </Box>
   )
