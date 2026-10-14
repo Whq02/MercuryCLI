@@ -44,10 +44,17 @@ const assist = {
     'claude-opus-4-6-thinking': { displayName: 'Claude Opus 4.6 (Thinking)', supportsThinking: true, maxTokens: 200000, maxOutputTokens: 128000 },
     'gpt-oss-120b-medium': { displayName: 'GPT-OSS 120B', supportsThinking: true, maxTokens: 131072, maxOutputTokens: 32768 },
     'gemini-4-helium-disabled': { displayName: 'Gemini 4 Helium', supportsThinking: true, maxTokens: 1048576, maxOutputTokens: 65536, quotaInfo: null },
+    'gemini-4-neon-low': { displayName: 'Gemini 4 Neon', supportsThinking: true, maxTokens: 1048576, maxOutputTokens: 65536 },
+    'gemini-4-neon-medium': { displayName: 'Gemini 4 Neon', supportsThinking: true, maxTokens: 1048576, maxOutputTokens: 65536 },
+    'gemini-4-neon-high': { displayName: 'Gemini 4 Neon', supportsThinking: true, maxTokens: 1048576, maxOutputTokens: 65536 },
     'gemini-3.1-flash-image': { displayName: 'Gemini 3.1 Flash Image', supportsImages: true },
     'chat_internal': { displayName: 'internal', isInternal: true },
   } as Record<string, Record<string, unknown>>,
   imageModelIds: ['gemini-3.1-flash-image'],
+  lateRows: {} as Record<string, Record<string, unknown>>,
+  rosterReads: 0,
+  inFlightRefusals: 0,
+  chatBodies: [] as Array<Record<string, unknown>>,
 }
 const sse = (value: unknown): string => `data: ${JSON.stringify(value)}\n\n`
 const SCHEMA_PROTO_FIELDS: Record<string, string> = { type: 'type', format: 'format', title: 'title', description: 'description', nullable: 'nullable', enum: 'enum', items: 'items', maxItems: 'max_items', minItems: 'min_items', properties: 'properties', required: 'required', minProperties: 'min_properties', maxProperties: 'max_properties', minimum: 'minimum', maximum: 'maximum', minLength: 'min_length', maxLength: 'max_length', pattern: 'pattern', example: 'example', anyOf: 'any_of', propertyOrdering: 'property_ordering', default: 'default', additionalProperties: 'additional_properties', oneOf: 'one_of' }
@@ -66,6 +73,11 @@ function schemaGrammarViolations(schema: unknown, path: string, out: string[]): 
   }
 }
 const draft2020 = new Ajv2020({ strict: true, allErrors: true, validateFormats: false })
+function carriesAnyOf(schema: unknown): boolean {
+  if (Array.isArray(schema)) return schema.some(carriesAnyOf)
+  if (typeof schema !== 'object' || schema === null) return false
+  return Object.entries(schema as Record<string, unknown>).some(([key, value]) => key === 'anyOf' || (key === 'properties' && typeof value === 'object' && value !== null ? Object.values(value as Record<string, unknown>).some(carriesAnyOf) : carriesAnyOf(value)))
+}
 function anthropicSchemaRefusal(body: Record<string, unknown> | undefined): string | undefined {
   const tools = (body?.request as Record<string, unknown> | undefined)?.tools
   if (!Array.isArray(tools)) return undefined
@@ -74,11 +86,16 @@ function anthropicSchemaRefusal(body: Record<string, unknown> | undefined): stri
     const declarations = (tool as Record<string, unknown>).functionDeclarations
     if (!Array.isArray(declarations)) continue
     for (const declaration of declarations) {
-      try {
-        draft2020.compile(((declaration as Record<string, unknown>).parameters ?? {}) as object)
-      } catch {
-        return JSON.stringify({ type: 'error', error: { type: 'invalid_request_error', message: `tools.${index}.custom.input_schema: JSON schema is invalid. It must match JSON Schema draft 2020-12 (https://json-schema.org/draft/2020-12). Learn more about tool use at https://platform.claude.com/docs/en/agents-and-tools/tool-use/overview.` }, request_id: 'req_vrtx_fixture' })
+      const parameters = ((declaration as Record<string, unknown>).parameters ?? {}) as object
+      let invalid = carriesAnyOf(parameters)
+      if (!invalid) {
+        try {
+          draft2020.compile(parameters)
+        } catch {
+          invalid = true
+        }
       }
+      if (invalid) return JSON.stringify({ type: 'error', error: { type: 'invalid_request_error', message: `tools.${index}.custom.input_schema: JSON schema is invalid. It must match JSON Schema draft 2020-12 (https://json-schema.org/draft/2020-12). Learn more about tool use at https://platform.claude.com/docs/en/agents-and-tools/tool-use/overview.` }, request_id: 'req_vrtx_fixture' })
       index += 1
     }
   }
@@ -171,13 +188,14 @@ const assistServer = Bun.serve({
       return Response.json({ name: 'operations/onboard-fixture', done: true, response: { '@type': 'type.googleapis.com/google.internal.cloud.code.v1internal.OnboardUserResponse', cloudaicompanionProject: { id: 'project-fixture-123' } } })
     }
     if (entry.path === '/v1internal:fetchAvailableModels') {
+      assist.rosterReads += 1
       if (assist.rosterStatus !== 200) return Response.json({ error: { code: assist.rosterStatus, message: 'roster refused', status: 'PERMISSION_DENIED' } }, { status: assist.rosterStatus })
-      return Response.json({ models: assist.roster, imageGenerationModelIds: assist.imageModelIds, agentModelSorts: [] })
+      return Response.json({ models: { ...assist.roster, ...assist.lateRows }, imageGenerationModelIds: assist.imageModelIds, agentModelSorts: [] })
     }
     if (entry.path === '/v1internal:streamGenerateContent?alt=sse') {
       const model = String(entry.body?.model ?? '')
       if (model.endsWith('-disabled')) return Response.json({ error: { code: 404, message: 'Requested entity was not found.', status: 'NOT_FOUND' } }, { status: 404 })
-      if (!(model in assist.roster)) return Response.json({ error: { code: 404, message: `Model ${model} not found.`, status: 'NOT_FOUND' } }, { status: 404 })
+      if (!(model in assist.roster) && !(model in assist.lateRows)) return Response.json({ error: { code: 404, message: `Model ${model} not found.`, status: 'NOT_FOUND' } }, { status: 404 })
       const violations = declarationViolations(entry.body)
       if (violations.length > 0) return Response.json({ error: { code: 400, message: violations.join('\n'), status: 'INVALID_ARGUMENT' } }, { status: 400 })
       if (!model.startsWith('gemini-')) {
@@ -186,6 +204,11 @@ const assistServer = Bun.serve({
       }
       if (assist.generateStatus !== 200) return Response.json({ error: { code: assist.generateStatus, message: assist.generateStatus === 429 ? 'Resource has been exhausted (e.g. check quota). Please retry after the reset.' : 'fixture refusal', status: assist.generateStatus === 429 ? 'RESOURCE_EXHAUSTED' : 'PERMISSION_DENIED' } }, { status: assist.generateStatus })
       if (assist.generateError) return new Response(sse({ error: assist.generateError }), { headers: { 'content-type': 'text/event-stream' } })
+      assist.chatBodies.push(entry.body ?? {})
+      if (assist.inFlightRefusals > 0) {
+        assist.inFlightRefusals -= 1
+        return new Response([sse({ response: { candidates: [{ index: 0, content: { role: 'model', parts: [{ text: 'thinking ' }] } }] } }), sse({ error: { code: 400, message: 'Request contains an invalid argument.', status: 'INVALID_ARGUMENT' } })].join(''), { headers: { 'content-type': 'text/event-stream' } })
+      }
       const chunks = [
         sse({ response: { candidates: [{ index: 0, content: { role: 'model', parts: [{ text: 'OK from the ' }] } }], modelVersion: model, responseId: 'resp-1' } }),
         sse({ response: { candidates: [{ index: 0, content: { role: 'model', parts: [{ text: 'plan fixture' }] }, finishReason: 'STOP' }], usageMetadata: { promptTokenCount: 7, candidatesTokenCount: 4, totalTokenCount: 11 } }, traceId: 'trace-1' }),
@@ -259,7 +282,7 @@ try {
   check('the auth file is mode 600 and holds no client secret of the operator', (statSync(accounts.geminiAuthPathForDisplay()).mode & 0o777) === 0o600 && !readFileSync(accounts.geminiAuthPathForDisplay(), 'utf8').includes(contract.ANTIGRAVITY_OAUTH_CLIENT_SECRET))
   check('the plan is the active source and its label names the tier', accounts.resolveGeminiAccount()?.kind === 'plan' && accounts.resolveGeminiAccount()?.label === 'Google sign-in (Google AI Pro)' && accounts.readPreferredGeminiSource() === 'plan', JSON.stringify(accounts.resolveGeminiAccount()))
   const receipt = await login.finishGeminiPlanConnect()
-  check('the receipt names the tier, the e-mail, the active source, what rides and the roster count', receipt.receipt.includes('Google AI Pro') && receipt.receipt.includes('plan@example.invalid') && receipt.receipt.includes('the active source') && receipt.receipt.includes("Google's Code Assist endpoint under Google's own Antigravity client") && receipt.receipt.includes('5 chat model(s) on the roster'), receipt.receipt)
+  check('the receipt names the tier, the e-mail, the active source, what rides and the roster count', receipt.receipt.includes('Google AI Pro') && receipt.receipt.includes('plan@example.invalid') && receipt.receipt.includes('the active source') && receipt.receipt.includes("Google's Code Assist endpoint under Google's own Antigravity client") && receipt.receipt.includes('8 chat model(s) on the roster'), receipt.receipt)
   const slot = slots.deriveFamilySlotGroups().flatMap(group => group.slots).find(s => s.id === 'gemini:plan')
   check('the /accounts board carries the Google sign-in slot with its e-mail and removal route', slot?.kind === 'subscription' && slot.identity.includes('Google AI Pro') && slot.signInEmail === 'plan@example.invalid' && slot.active && slot.removal.route === 'gemini-plan', JSON.stringify(slot))
   const rows = guide.geminiConnectRows(guide.liveGeminiConnectFacts())
@@ -270,9 +293,9 @@ try {
   const rosterCall = requests.filter(r => r.host === 'assist' && r.path === '/v1internal:fetchAvailableModels').at(-1)
   check('fetchAvailableModels is a POST with an empty object under the Antigravity User-Agent', rosterCall?.method === 'POST' && JSON.stringify(rosterCall.body) === '{}' && rosterCall.headers['user-agent'] === contract.antigravityUserAgent())
   const ids = (snapshot?.models ?? []).map(m => m.id)
-  check('the roster rows are the account\'s own, the internal row dropped, the image row kept out of chat, a Gemini id bare and every other vendor\'s id under google/', ids.length === 7 && ids.includes('gemini-4-argon') && ids.includes('google/claude-sonnet-4-6') && ids.includes('google/claude-opus-4-6-thinking') && ids.includes('google/gpt-oss-120b-medium') && ids.includes('gemini-4-helium-disabled') && !ids.includes('claude-sonnet-4-6') && !ids.includes('chat_internal') && snapshot?.models.find(m => m.id === 'gemini-3.1-flash-image')?.supportedGenerationMethods?.includes('generateImages') === true, ids.join(','))
+  check('the roster rows are the account\'s own, the internal row dropped, the image row kept out of chat, a Gemini id bare and every other vendor\'s id under google/', ids.length === 10 && ids.includes('gemini-4-argon') && ids.includes('google/claude-sonnet-4-6') && ids.includes('google/claude-opus-4-6-thinking') && ids.includes('google/gpt-oss-120b-medium') && ids.includes('gemini-4-helium-disabled') && !ids.includes('claude-sonnet-4-6') && !ids.includes('chat_internal') && snapshot?.models.find(m => m.id === 'gemini-3.1-flash-image')?.supportedGenerationMethods?.includes('generateImages') === true, ids.join(','))
   const availability = catalogue.getGeminiAvailability()
-  check('the chat rows are every chat model Google names — Gemini, Claude and GPT-OSS alike; the image row is not one', availability.state === 'ready' && JSON.stringify(availability.ids) === JSON.stringify(['gemini-4-argon', 'gemini-3.5-flash-low', 'google/claude-sonnet-4-6', 'google/claude-opus-4-6-thinking', 'google/gpt-oss-120b-medium']) && availability.sourceKind === 'plan', JSON.stringify(availability))
+  check('the chat rows are every chat model Google names — Gemini, Claude and GPT-OSS alike; the image row is not one', availability.state === 'ready' && JSON.stringify(availability.ids) === JSON.stringify(['gemini-4-argon', 'gemini-3.5-flash-low', 'google/claude-sonnet-4-6', 'google/claude-opus-4-6-thinking', 'google/gpt-oss-120b-medium', 'gemini-4-neon-low', 'gemini-4-neon-medium', 'gemini-4-neon-high']) && availability.sourceKind === 'plan', JSON.stringify(availability))
   const options = catalogue.getGeminiModelOptions()
   const argon = options.find(o => o.value === 'gemini-4-argon')
   const claude = options.find(o => o.value === 'google/claude-sonnet-4-6')
@@ -282,7 +305,11 @@ try {
 
   console.log('── a disabled roster row: listed with its state, never offered as runnable; a bare id\'s 404 names its roster kin ──')
   const helium = options.find(o => o.value === 'gemini-4-helium-disabled')
-  check('the -disabled row Google serves is listed under the Google sign-in with its state said and is not selectable; it is no chat row (not in the availability ids, not a live-listed id, not counted)', snapshot?.models.find(m => m.id === 'gemini-4-helium-disabled')?.disabled === true && helium !== undefined && helium.label === 'Gemini 4 Helium' && helium.unavailable === "withheld from Google AI Pro today — Google's roster names it gemini-4-helium-disabled (Gemini 4 Helium) and answers 404 to the id; antigravity.google/docs/models says which plans include it; not offered as runnable" && !availability.ids.includes('gemini-4-helium-disabled') && !catalogue.cachedLiveIds().has('gemini-4-helium-disabled') && catalogue.geminiGenerateModels(snapshot).length === 5, JSON.stringify({ helium, ids: availability.ids }))
+  check('the -disabled row Google serves is listed under the Google sign-in with its state said and is not selectable; it is no chat row (not in the availability ids, not a live-listed id, not counted)', snapshot?.models.find(m => m.id === 'gemini-4-helium-disabled')?.disabled === true && helium !== undefined && helium.label === 'Gemini 4 Helium' && helium.unavailable === "withheld from Google AI Pro today — Google's roster names it gemini-4-helium-disabled (Gemini 4 Helium) and answers 404 to the id; antigravity.google/docs/models says which plans include it; not offered as runnable" && !availability.ids.includes('gemini-4-helium-disabled') && !catalogue.cachedLiveIds().has('gemini-4-helium-disabled') && catalogue.geminiGenerateModels(snapshot).length === 8, JSON.stringify({ helium, ids: availability.ids }))
+  console.log('── a bare id whose roster names only effort rows rides the row of the session\'s effort (the public client\'s collapse table): low → -low, medium → -medium, high/max/xhigh/none → -high; the status row says the ride ──')
+  check('the effort row law: the bare id resolves per effort, an unknown or absent effort takes high, a missing tier falls to the nearest present, an exact row or a non-Gemini id never resolves', catalogue.geminiPlanWireModel('gemini-4-neon', 'low') === 'gemini-4-neon-low' && catalogue.geminiPlanWireModel('gemini-4-neon', 'medium') === 'gemini-4-neon-medium' && catalogue.geminiPlanWireModel('gemini-4-neon', 'high') === 'gemini-4-neon-high' && catalogue.geminiPlanWireModel('gemini-4-neon', 'max') === 'gemini-4-neon-high' && catalogue.geminiPlanWireModel('gemini-4-neon', 'xhigh') === 'gemini-4-neon-high' && catalogue.geminiPlanWireModel('gemini-4-neon', undefined) === 'gemini-4-neon-high' && catalogue.geminiPlanWireModel('gemini-4-neon', 'minimal') === 'gemini-4-neon-low' && catalogue.geminiPlanWireModel('gemini-3.5-flash', 'high') === 'gemini-3.5-flash-low' && catalogue.geminiPlanWireModel('gemini-4-argon', 'low') === 'gemini-4-argon' && catalogue.geminiPlanWireModel('gemini-4-neon-high', 'low') === 'gemini-4-neon-high' && catalogue.geminiPlanWireModel('claude-sonnet-4-6', 'low') === 'claude-sonnet-4-6' && catalogue.geminiPlanWireModel('gemini-4-helium', 'high') === 'gemini-4-helium')
+  const { resolveDisplayedSessionModel } = await import('../../src/hooks/useDisplayedSessionModel.ts')
+  check('the status row says the ride beside the chosen id, and keeps the queued-switch grammar', resolveDisplayedSessionModel('gemini-4-neon', null, catalogue.geminiPlanRideWords('gemini-4-neon', 'medium')).compact === 'gemini-4-neon ▸ gemini-4-neon-medium' && resolveDisplayedSessionModel('gemini-4-neon', { setting: 'gemini-3.5-flash-low' }, 'gemini-4-neon-high').label === 'gemini-4-neon ▸ gemini-4-neon-high → gemini-3.5-flash-low (queued)' && resolveDisplayedSessionModel('gemini-4-argon', null, catalogue.geminiPlanRideWords('gemini-4-argon', 'high')).compact === 'gemini-4-argon', JSON.stringify(resolveDisplayedSessionModel('gemini-4-neon', null, catalogue.geminiPlanRideWords('gemini-4-neon', 'medium'))))
   check('the 404 words for the bare id name the disabled roster row with its state; a bare id with effort siblings on the roster names them', callModel.geminiPlanModelMissingWords('gemini-4-helium', 404, undefined).includes("Google serves no model 'gemini-4-helium' to this Google sign-in (HTTP 404) · the roster names gemini-4-helium-disabled (Gemini 4 Helium): withheld from Google AI Pro today, antigravity.google/docs/models says which plans include it · /model lists the roster") && callModel.geminiPlanModelMissingWords('gemini-3.5-flash', 404, undefined).includes('the roster names gemini-3.5-flash-low — /model picks one') && !callModel.geminiPlanModelMissingWords('gemini-9-nope', 404, undefined).includes('the roster names'), callModel.geminiPlanModelMissingWords('gemini-4-helium', 404, undefined))
 
   console.log('── the roster beyond Gemini: google/<id> rides this sign-in, never the vendor\'s lane; the flags are the capabilities ──')
@@ -312,6 +339,79 @@ try {
     for await (const item of callModel.geminiCallModel(params as never)) out.push(item as Record<string, unknown>)
     return out
   }
+  const neonReplies = await driveRoad('gemini-4-neon', true)
+  const neonHit = requests.filter(r => r.host === 'assist' && r.path === '/v1internal:streamGenerateContent?alt=sse').at(-1)
+  const neonGen = ((neonHit?.body?.request as Record<string, unknown>)?.generationConfig ?? {}) as Record<string, unknown>
+  check('through the road at effort medium, /model gemini-4-neon rides gemini-4-neon-medium: the wire model is the effort row, the thinking level and the row\'s own ceiling ride, the answer lands', neonHit?.body?.model === 'gemini-4-neon-medium' && JSON.stringify(neonGen.thinkingConfig) === JSON.stringify({ thinkingLevel: 'MEDIUM' }) && neonGen.maxOutputTokens === 65536 && neonReplies.some(m => m.type === 'assistant' && !(m as { isApiErrorMessage?: boolean }).isApiErrorMessage), JSON.stringify({ model: neonHit?.body?.model, gen: neonGen }))
+  const engineNeon = await (await import('../../src/utils/crew/engineDispatch.ts')).resolveEngineDispatch('gemini-4-neon').catch((e: unknown) => ({ error: e instanceof Error ? e.message : String(e) }))
+  check('a crewmate named onto the bare id dispatches on the Gemini backend with the high row (no effort of its own)', 'backend' in engineNeon && engineNeon.backend === 'gemini' && engineNeon.model === 'gemini-4-neon-high', JSON.stringify(engineNeon))
+  console.log('── the roster is re-read: on the TTL before a chat (never only at sign-in), and once on a bare id\'s 404 — a row that appeared meanwhile is taken, else the kin words ──')
+  catalogue.__resetGeminiCatalogueForTest()
+  const readsBeforeCold = assist.rosterReads
+  const coldStart = requests.length
+  const coldReplies = await driveRoad('gemini-4-neon', true)
+  const coldOrder = requests.slice(coldStart).filter(r => r.host === 'assist').map(r => r.path)
+  check('with no roster cached, a chat reads the roster first (one read, bounded) and then rides the effort row', assist.rosterReads === readsBeforeCold + 1 && coldOrder[0] === '/v1internal:fetchAvailableModels' && coldOrder.includes('/v1internal:streamGenerateContent?alt=sse') && requests.slice(coldStart).filter(r => r.host === 'assist' && r.path === '/v1internal:streamGenerateContent?alt=sse').at(-1)?.body?.model === 'gemini-4-neon-medium' && coldReplies.some(m => m.type === 'assistant' && !(m as { isApiErrorMessage?: boolean }).isApiErrorMessage), JSON.stringify({ reads: assist.rosterReads - readsBeforeCold, order: coldOrder }))
+  const readsBeforeWarm = assist.rosterReads
+  await driveRoad('gemini-4-neon', false)
+  check('within the TTL the next chat reads no roster', assist.rosterReads === readsBeforeWarm)
+  assist.lateRows = { 'gemini-4-xenon-high': { displayName: 'Gemini 4 Xenon', supportsThinking: true, maxTokens: 1048576, maxOutputTokens: 65536 } }
+  const readsBeforeLate = assist.rosterReads
+  const lateStart = requests.length
+  const lateReplies = await driveRoad('gemini-4-xenon', false)
+  const lateChats = requests.slice(lateStart).filter(r => r.host === 'assist' && r.path === '/v1internal:streamGenerateContent?alt=sse').map(r => String(r.body?.model))
+  check('a bare id the cached roster lacks: Google\'s 404, one forced roster re-read, the row that appeared meanwhile taken and the chat retried once — the answer lands, never a loop', JSON.stringify(lateChats) === JSON.stringify(['gemini-4-xenon', 'gemini-4-xenon-high']) && assist.rosterReads === readsBeforeLate + 1 && lateReplies.some(m => m.type === 'assistant' && !(m as { isApiErrorMessage?: boolean }).isApiErrorMessage) && !lateReplies.some(m => (m as { isApiErrorMessage?: boolean }).isApiErrorMessage), JSON.stringify({ chats: lateChats, reads: assist.rosterReads - readsBeforeLate, error: lateReplies.find(m => (m as { isApiErrorMessage?: boolean }).isApiErrorMessage)?.message }))
+  const readsBeforeNone = assist.rosterReads
+  const noneStart = requests.length
+  const noneReplies = await driveRoad('gemini-9-nope', false)
+  const noneChats = requests.slice(noneStart).filter(r => r.host === 'assist' && r.path === '/v1internal:streamGenerateContent?alt=sse').length
+  check('a bare id no roster read brings: one chat, one re-read, then the 404 words — no retry', noneChats === 1 && assist.rosterReads === readsBeforeNone + 1 && JSON.stringify(noneReplies.find(m => (m as { isApiErrorMessage?: boolean }).isApiErrorMessage)?.message ?? '').includes("Google serves no model 'gemini-9-nope' to this Google sign-in (HTTP 404)"), JSON.stringify({ chats: noneChats, reads: assist.rosterReads - readsBeforeNone }))
+  assist.lateRows = {}
+  await catalogue.refreshGeminiCatalogue('plan', { force: true })
+
+  console.log('── a long history survives: thirty signed tool rounds, a refusal row, a resume message and more rounds ride as recorded — no placeholder, no synthetic row, every call paired; a refusal in flight is retried once with plain function calling, then said ──')
+  const longHistory: unknown[] = [{ type: 'user', uuid: randomUUID(), timestamp: new Date().toISOString(), message: { role: 'user', content: 'Work the lane.' } }]
+  const recordedTurn = (index: number, name: string, input: Record<string, unknown>): unknown => {
+    const content = [{ type: 'tool_use', id: `call_${index}`, name, input }]
+    const { mapMessagesToZai } = require('../../src/services/providers/zai/zaiCodec.ts') as typeof import('../../src/services/providers/zai/zaiCodec.ts')
+    const projection = JSON.stringify(mapMessagesToZai(undefined, [{ role: 'assistant', content }] as never)[0])
+    return { type: 'assistant', uuid: randomUUID(), timestamp: new Date().toISOString(), message: { role: 'assistant', content, model: 'gemini-4-neon-high' }, geminiProviderTurn: { model: 'gemini-4-neon-high', parts: [{ functionCall: { id: `call_${index}`, name, args: input }, thoughtSignature: `sig-${index}` }], calls: [{ id: `call_${index}`, name, nativeId: `call_${index}` }], projection } }
+  }
+  const resultRow = (index: number, body: string): unknown => ({ type: 'user', uuid: randomUUID(), timestamp: new Date().toISOString(), message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: `call_${index}`, content: body }] } })
+  for (let i = 1; i <= 29; i++) {
+    longHistory.push(recordedTurn(i, i % 3 === 0 ? 'Bash' : 'Read', i % 3 === 0 ? { command: `echo ${i}` } : { file_path: `/tmp/file-${i}.ts` }))
+    longHistory.push(resultRow(i, i % 3 === 0 ? `${i}` : `1\tconst value${i} = '—'\n2\texport {}`))
+  }
+  longHistory.push({ type: 'assistant', uuid: randomUUID(), timestamp: new Date().toISOString(), message: { role: 'assistant', content: [{ type: 'text', text: 'API Error: Gemini stream failed (api-INVALID_ARGUMENT) — Request contains an invalid argument.' }], model: '<synthetic>' }, isApiErrorMessage: true })
+  longHistory.push({ type: 'user', uuid: randomUUID(), timestamp: new Date().toISOString(), message: { role: 'user', content: '<task-notification>resumed — carry on</task-notification>' } })
+  longHistory.push(recordedTurn(30, 'Grep', { pattern: 'needle', path: '/tmp' }))
+  longHistory.push(resultRow(30, 'Found 4 files'))
+  const longTools = [bashTool, { name: 'Read', prompt: async () => 'Reads.', inputSchema: z.object({ file_path: z.string() }), inputJSONSchema: { type: 'object', properties: { file_path: { type: 'string' } }, required: ['file_path'] } }, { name: 'Grep', prompt: async () => 'Greps.', inputSchema: z.object({ pattern: z.string(), path: z.string().optional() }), inputJSONSchema: { type: 'object', properties: { pattern: { type: 'string' }, path: { type: 'string' } }, required: ['pattern'] } }]
+  const driveHistory = async (model: string, history: unknown[]): Promise<Array<Record<string, unknown>>> => {
+    const out: Array<Record<string, unknown>> = []
+    const params = { messages: history, systemPrompt: asSystemPrompt(['be brief']), thinkingConfig: { type: 'enabled', budget_tokens: 8192 }, tools: longTools, signal: new AbortController().signal, options: { model, effortValue: 'high', querySource: 'main_thread', isNonInteractiveSession: true, getToolPermissionContext: async () => getEmptyToolPermissionContext(), agents: [], hasAppendSystemPrompt: false, mcpTools: [] } }
+    for await (const item of callModel.geminiCallModel(params as never)) out.push(item as Record<string, unknown>)
+    return out
+  }
+  assist.chatBodies = []
+  const longReplies = await driveHistory('gemini-4-neon-high', longHistory)
+  const longBody = assist.chatBodies.at(-1)
+  const longContents = ((longBody?.request as Record<string, unknown>)?.contents ?? []) as Array<{ role: string; parts: Array<Record<string, unknown>> }>
+  const modelContents = longContents.filter(c => c.role === 'model')
+  const callIds = modelContents.flatMap(c => c.parts.filter(p => p.functionCall !== undefined).map(p => (p.functionCall as Record<string, unknown>).id))
+  const responseIds = longContents.flatMap(c => c.parts.filter(p => p.functionResponse !== undefined).map(p => (p.functionResponse as Record<string, unknown>).id))
+  check('the thirty-round history rides as recorded: thirty model contents each with its own signature, no placeholder, the synthetic refusal row absent, every call answered once in order, the resume text beside its tool result; the answer lands', modelContents.length === 30 && modelContents.every(c => c.parts.length === 1 && typeof c.parts[0]!.thoughtSignature === 'string' && String(c.parts[0]!.thoughtSignature).startsWith('sig-')) && !JSON.stringify(longContents).includes('API Error') && !JSON.stringify(longContents).includes('skip_thought_signature_validator') && JSON.stringify(callIds) === JSON.stringify(responseIds) && callIds.length === 30 && longContents.some(c => c.role === 'user' && c.parts.some(p => p.functionResponse !== undefined) && c.parts.some(p => typeof p.text === 'string' && String(p.text).includes('task-notification'))) && longReplies.some(m => m.type === 'assistant' && !(m as { isApiErrorMessage?: boolean }).isApiErrorMessage) && !longReplies.some(m => (m as { isApiErrorMessage?: boolean }).isApiErrorMessage), JSON.stringify({ modelContents: modelContents.length, placeholders: (JSON.stringify(longContents).match(/skip_thought_signature_validator/g) ?? []).length, callIds: callIds.length, responseIds: responseIds.length, error: longReplies.find(m => (m as { isApiErrorMessage?: boolean }).isApiErrorMessage)?.message }))
+  assist.inFlightRefusals = 1
+  assist.chatBodies = []
+  const inFlightOnce = await driveHistory('gemini-4-neon-high', longHistory)
+  const modes = assist.chatBodies.map(b => ((b.request as Record<string, unknown>)?.toolConfig as Record<string, Record<string, string>> | undefined)?.functionCallingConfig?.mode)
+  check('a refusal in flight (the stream opened, then INVALID_ARGUMENT in band) is retried once with plain function calling (AUTO after VALIDATED); the answer lands', JSON.stringify(modes) === JSON.stringify(['VALIDATED', 'AUTO']) && inFlightOnce.some(m => m.type === 'assistant' && !(m as { isApiErrorMessage?: boolean }).isApiErrorMessage) && !inFlightOnce.some(m => (m as { isApiErrorMessage?: boolean }).isApiErrorMessage), JSON.stringify({ modes, error: inFlightOnce.find(m => (m as { isApiErrorMessage?: boolean }).isApiErrorMessage)?.message }))
+  assist.inFlightRefusals = 2
+  assist.chatBodies = []
+  const inFlightTwice = await driveHistory('gemini-4-neon-high', longHistory)
+  const twiceWords = JSON.stringify(inFlightTwice.find(m => (m as { isApiErrorMessage?: boolean }).isApiErrorMessage)?.message ?? '')
+  check('a second refusal in flight ends the turn with the words: two attempts, never a third, the refusal placed in flight and the roster named', assist.chatBodies.length === 2 && twiceWords.includes("Google refused the answer in flight on 'gemini-4-neon-high' (INVALID_ARGUMENT, no detail) twice") && twiceWords.includes('/model picks another roster row'), twiceWords.slice(0, 300))
+  assist.inFlightRefusals = 0
   const heliumReplies = await driveRoad('gemini-4-helium', false)
   const heliumWords = JSON.stringify(heliumReplies.find(m => m.type === 'assistant' && (m as { isApiErrorMessage?: boolean }).isApiErrorMessage)?.message ?? '')
   const disabledOnTheWire = await driveRoad('gemini-4-helium-disabled', false)
@@ -402,7 +502,11 @@ try {
 
   console.log('── the schema law per row: a Claude or GPT-OSS row on Code Assist takes the subset Google\'s own client sends for it, validated as draft 2020-12 behind Code Assist ──')
   const { CODE_ASSIST_SUBSET_GRAMMAR, codeAssistGrammarFor } = await import('../../src/services/providers/gemini/geminiCodec.ts')
-  check('the grammar is chosen by the wire id: a gemini-* id takes Google\'s Schema grammar, any other vendor\'s id the Code Assist subset (type, title, description, enum, items, properties, required, anyOf, oneOf, default)', codeAssistGrammarFor('gemini-4-argon') === GEMINI_SCHEMA_GRAMMAR && codeAssistGrammarFor('claude-opus-4-6-thinking') === CODE_ASSIST_SUBSET_GRAMMAR && codeAssistGrammarFor('gpt-oss-120b-medium') === CODE_ASSIST_SUBSET_GRAMMAR && [...CODE_ASSIST_SUBSET_GRAMMAR].join(',') === 'type,title,description,enum,items,properties,required,anyOf,oneOf,default')
+  check('the grammar is chosen by the wire id: a gemini-* id takes Google\'s Schema grammar, any other vendor\'s id the Code Assist subset (type, title, description, enum, items, properties, required, oneOf, default — anyOf is spelled oneOf, the shape the Anthropic side behind Code Assist accepts)', codeAssistGrammarFor('gemini-4-argon') === GEMINI_SCHEMA_GRAMMAR && codeAssistGrammarFor('claude-opus-4-6-thinking') === CODE_ASSIST_SUBSET_GRAMMAR && codeAssistGrammarFor('gpt-oss-120b-medium') === CODE_ASSIST_SUBSET_GRAMMAR && [...CODE_ASSIST_SUBSET_GRAMMAR].join(',') === 'type,title,description,enum,items,properties,required,oneOf,default')
+  const captured = { type: 'object', properties: { readiness: { type: 'array', items: { anyOf: [{ type: 'object', properties: { kind: { type: 'string', enum: ['log'] }, regex: { type: 'string' } }, required: ['kind', 'regex'] }, { type: 'object', properties: { kind: { type: 'string', enum: ['tcp'] }, port: { type: 'integer' } }, required: ['kind', 'port'] }] } } } }
+  const capturedRefusal = anthropicSchemaRefusal({ request: { tools: [{ functionDeclarations: [{ name: 'Probe', parameters: captured }] }] } })
+  const spelled = codeAssistSchema(captured, CODE_ASSIST_SUBSET_GRAMMAR) as { properties: { readiness: { items: Record<string, unknown> } } }
+  check('the captured shape (Service\'s readiness.items.anyOf, refused live on 2026-10-14 as tools.22 — req_vrtx_011Cg1TSS1U4jLBEkGqRYfMF, and alone as tools.0 with and without a type — req_vrtx_011Cg1TZn2SWD3bLPo…, …TZoXy1Fx9Woa…) is refused by the fixture as Anthropic refused it, and the reducer spells it oneOf — the shape accepted live (items.oneOf and the merged object both HTTP 200)', capturedRefusal !== undefined && capturedRefusal.includes('tools.0.custom.input_schema') && spelled.properties.readiness.items.anyOf === undefined && Array.isArray(spelled.properties.readiness.items.oneOf) && (spelled.properties.readiness.items.oneOf as unknown[]).length === 2 && anthropicSchemaRefusal({ request: { tools: [{ functionDeclarations: [{ name: 'Probe', parameters: spelled }] }] } }) === undefined, JSON.stringify({ capturedRefusal: capturedRefusal?.slice(0, 80), spelled }))
   const corpusToolsForRoad = corpus.definitions.map(d => ({ name: d.name, prompt: async () => d.description, inputSchema: undefined, inputJSONSchema: d.input_schema }))
   const claudeCorpusReplies = await driveRoad('google/claude-opus-4-6-thinking', corpusToolsForRoad)
   const claudeCorpusHit = requests.filter(r => r.host === 'assist' && r.path === '/v1internal:streamGenerateContent?alt=sse').at(-1)
@@ -419,7 +523,7 @@ try {
   }
   claudeDeclarations.forEach(d => collectKeys(d.parameters))
   check(`the real definitions ride to a Claude row (${claudeDeclarations.length} of 59 — the road's own assembly keeps ToolSearch for itself) and both gates accept them — the proto grammar and the draft-2020-12 validation behind Code Assist; the answer lands`, claudeCorpusHit?.body?.model === 'claude-opus-4-6-thinking' && claudeDeclarations.length >= 58 && corpus.definitions.filter(d => !claudeDeclarations.some(sent => sent.name === d.name)).every(d => d.name === 'ToolSearch') && anthropicSchemaRefusal(claudeCorpusHit.body) === undefined && claudeCorpusReplies.some(m => m.type === 'assistant' && !(m as { isApiErrorMessage?: boolean }).isApiErrorMessage) && !claudeCorpusReplies.some(m => (m as { isApiErrorMessage?: boolean }).isApiErrorMessage), JSON.stringify({ model: claudeCorpusHit?.body?.model, declarations: claudeDeclarations.length, missing: corpus.definitions.filter(d => !claudeDeclarations.some(sent => sent.name === d.name)).map(d => d.name), refusal: anthropicSchemaRefusal(claudeCorpusHit?.body)?.slice(0, 200), replies: claudeCorpusReplies.map(m => [m.type, (m as { isApiErrorMessage?: boolean }).isApiErrorMessage, String(JSON.stringify((m as { message?: unknown }).message ?? m)).slice(0, 160)]) }))
-  check('on the Claude row every declaration stays inside the subset: no minimum/maximum/minItems/maxItems/minLength/maxLength/pattern/format/additionalProperties/nullable/example on the wire', [...claudeKeys].every(key => CODE_ASSIST_SUBSET_GRAMMAR.has(key)), [...claudeKeys].filter(key => !CODE_ASSIST_SUBSET_GRAMMAR.has(key)).join(','))
+  check('on the Claude row every declaration stays inside the subset: no anyOf, no minimum/maximum/minItems/maxItems/minLength/maxLength/pattern/format/additionalProperties/nullable/example on the wire; Service\'s readiness rides as items.oneOf', [...claudeKeys].every(key => CODE_ASSIST_SUBSET_GRAMMAR.has(key)) && !claudeKeys.has('anyOf') && Array.isArray((((claudeDeclarations.find(d => d.name === 'Service')?.parameters as Record<string, unknown>)?.properties as Record<string, Record<string, Record<string, unknown>>>)?.readiness?.items as Record<string, unknown>)?.oneOf), [...claudeKeys].filter(key => !CODE_ASSIST_SUBSET_GRAMMAR.has(key)).join(','))
   const askSent = claudeDeclarations.find(d => d.name === 'AskUserQuestion')
   const askRaw = corpus.definitions.find(d => d.name === 'AskUserQuestion')!.input_schema as { properties: { questions: { minItems: number; maxItems: number; description?: string } } }
   const askQuestions = ((askSent?.parameters as Record<string, unknown>)?.properties as Record<string, Record<string, unknown>>)?.questions

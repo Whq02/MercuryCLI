@@ -41,6 +41,7 @@ import { readCatalogueIfPending } from '../../services/providers/catalogueOnDema
 import { resolveGeminiAccount } from '../../services/providers/gemini/geminiAccounts.js'
 import {
   geminiGenerateModels,
+  geminiPlanEffortRow,
   refreshGeminiCatalogue,
 } from '../../services/providers/gemini/geminiCatalogue.js'
 import { resolveOpenrouterAccount } from '../../services/providers/openrouter/openrouterAccounts.js'
@@ -316,7 +317,7 @@ async function resolveGeminiExactModel(id: string): Promise<EngineDispatch> {
   const snapshot = await refreshGeminiCatalogue(account.kind).catch(() => null)
   const live = geminiGenerateModels(snapshot)
   if (live.length > 0) {
-    const match = live.find(m => m.id === id)
+    const match = live.find(m => m.id === id) ?? (account.kind === 'plan' ? geminiPlanEffortRow(id, undefined) : undefined)
     if (!match) {
       throw new Error(
         `Gemini model '${id}' is not listed by the live catalogue (${live.length} generateContent models) — name a listed gemini-* id (mercury://models lists them), or 'gemini' for the catalogue head, or ask the operator for the model id; never switch to another provider on your own.`,
