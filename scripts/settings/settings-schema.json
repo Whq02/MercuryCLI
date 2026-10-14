@@ -94,6 +94,10 @@
           "description": "Where memory is written (default under the Mercury config home); ignored when set by checked-in project settings",
           "type": "string"
         },
+        "embeddingModel": {
+          "description": "Which embedding model memory ranks recall by meaning with, beside the word match: a model name this install carries (the shipped default), or the path of a gguf file; a name or path that resolves nowhere leaves memory on word match only and the front page says so",
+          "type": "string"
+        },
         "pinnedLimit": {
           "description": "How much pinned memory text (characters) loads into every session before Mercury says the shelf is full; every pinned rule still loads past it (default 8000)",
           "type": "integer",

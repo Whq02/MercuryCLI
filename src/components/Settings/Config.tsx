@@ -1001,11 +1001,11 @@ export function Config({
     items.push({
       id: 'memory.embeddingModel',
       label: 'Memory recall ranking',
-      searchText: 'memory recall ranking embedding model semantic meaning word match ollama',
+      searchText: 'memory recall ranking embedding model semantic meaning word match',
       kind: 'enum',
       value: <Text color={embedReadiness.state === 'ok' ? undefined : tokens.textSecondary}>{embedValue}</Text>,
       setByYou: merged.memory?.embeddingModel !== undefined,
-      warning: `${embedReadiness.state === 'ok' ? `recall ranks by meaning and words through ${embedValue} — everything stays on this machine` : `recall runs word match only — ${embedReadiness.note}`} · ${choiceWords} · an Ollama embedding model has no road in this build yet`,
+      warning: `${embedReadiness.state === 'ok' ? `recall ranks by meaning and words through ${embedValue} — everything stays on this machine` : `recall runs word match only — ${embedReadiness.note}`} · ${choiceWords}`,
       change: direction => {
         const current = embedSpec === '' || embedSpec === 'default' ? '' : embedSpec
         const next = cycleIn(embedChoices, embedChoices.includes(current) ? current : '', direction)

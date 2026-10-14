@@ -52,12 +52,12 @@ const reset = (spec: string | null): void => {
   idx.resetEmbedIndexForTest()
 }
 
-console.log('\n[O] an Ollama pin with no server behind it')
+console.log('\n[O] a pin that names no model this install carries')
 {
-  reset('ollama:prove-no-such-embedding-model-7f3a')
+  reset('prove-no-such-embedding-model-7f3a')
   const engine = idx.embedIndexEngineStatus()
   const words = models.memoryRecallModeWords({ home: HOME })
-  check('the derived index does not serve an ollama pin', engine.state === 'off', JSON.stringify(engine))
+  check('the derived index does not serve a pin that resolves nowhere', engine.state === 'off', JSON.stringify(engine))
   check('…so the recall-mode words do not claim meaning when no road can answer', words === models.WORD_MATCH_ONLY_WORDS || !words.includes('semantic'), words)
 }
 

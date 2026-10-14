@@ -87,15 +87,12 @@ console.log('\n[M] the model road — the lock, the states, the pin, the downloa
   models.seedEmbedModelForTest('bge-small-en-v1.5-q8_0')
   let pin = models.resolveEmbedModelPin()
   check('the pin resolves a catalogue name', pin.kind === 'catalogue' && pin.row.name === 'bge-small-en-v1.5-q8_0' && pin.pinned)
-  models.seedEmbedModelForTest('ollama:bge-m3')
-  pin = models.resolveEmbedModelPin()
-  check('…or an ollama:<model> spec', pin.kind === 'ollama' && pin.model === 'bge-m3')
   models.seedEmbedModelForTest('/no/such/model.gguf')
   pin = models.resolveEmbedModelPin()
   check('a path that is absent names itself — no silent fallback', pin.kind === 'broken' && pin.note.includes('/no/such/model.gguf') && pin.note.includes('no silent fallback'))
   models.seedEmbedModelForTest('not-a-model')
   pin = models.resolveEmbedModelPin()
-  check('a spec that is neither name, ollama nor path names itself', pin.kind === 'broken' && pin.note.includes('not a catalogue name'))
+  check('a spec that is neither a catalogue name nor a path names itself', pin.kind === 'broken' && pin.note.includes('not a catalogue name'))
   models.seedEmbedModelForTest(null)
 
   const served: string[] = []
@@ -132,13 +129,6 @@ console.log('\n[M] the model road — the lock, the states, the pin, the downloa
     return null
   })
   check('a whole file already on disk is reused without a request', reuseError === '' && reuse !== null && reuse.reused === true, JSON.stringify(reuse ?? reuseError))
-
-  const ollamaHits = await models.probeOllamaEmbeddingModels('http://127.0.0.1:1', (async () => new Response(JSON.stringify({ models: [{ name: 'bge-m3:latest' }, { name: 'llama3:8b' }, { name: 'nomic-embed-text' }] }))) as unknown as typeof fetch)
-  check('the Ollama probe lists only embedding models, never a chat model', ollamaHits.length === 2 && ollamaHits.includes('bge-m3:latest') && ollamaHits.includes('nomic-embed-text'), JSON.stringify(ollamaHits))
-  const ollamaNone = await models.probeOllamaEmbeddingModels('http://127.0.0.1:1', (async () => {
-    throw new Error('connection refused')
-  }) as unknown as typeof fetch)
-  check('a refused server answers an empty list, never a throw', Array.isArray(ollamaNone) && ollamaNone.length === 0)
 
   const fetchCheck = spawnSync(BUN, ['run', 'scripts/vendor/fetch-embed-models.ts', '--check'], { cwd: ROOT, encoding: 'utf8', env: { ...process.env, BROWSER: '/usr/bin/true' } })
   check("the vendor fetch's --check runs offline (its verdict may be stale, its exit is honest)", fetchCheck.status === 0 || fetchCheck.status === 2, `rc=${String(fetchCheck.status)}`)
