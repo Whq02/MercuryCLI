@@ -71,6 +71,7 @@ import { GEMINI_PLAN_USAGE_ABSENCE_NOTE, GEMINI_USAGE_ABSENCE_NOTE, geminiLimitW
 import { geminiPlanFacts } from './gemini/geminiAccounts.js'
 import { geminiPlanTierWords } from './gemini/geminiPlanAccess.js'
 import { getCachedGeminiCatalogue } from './gemini/geminiCatalogue.js'
+import { geminiPlanQuotaReadNote } from './gemini/geminiPlanQuota.js'
 export { geminiLaneModelsByLastUse, geminiPlanQuotaFoldWords, geminiPlanQuotaView, type GeminiPlanQuotaView } from './gemini/geminiPlanQuota.js'
 import {
   resolveHuggingfaceAccount,
@@ -648,6 +649,11 @@ export async function refreshProviderUsage(provider: RouterProviderId, io?: Usag
       case 'zen': {
         const { refreshZenGoUsage } = require('./zen/zenUsageState.js') as typeof import('./zen/zenUsageState.js')
         await refreshZenGoUsage(io)
+        return
+      }
+      case 'gemini': {
+        const { refreshGeminiPlanQuota } = require('./gemini/geminiPlanQuota.js') as typeof import('./gemini/geminiPlanQuota.js')
+        await refreshGeminiPlanQuota(io)
         return
       }
       default:
@@ -1478,7 +1484,7 @@ export function geminiPlanUsageFigures(plan: NonNullable<ReturnType<typeof gemin
         observedAtMs: roster.fetchedAtMs,
         ...(Number.isFinite(resetsAtMs) ? { resetsAtMs } : {}),
         source: 'endpoint',
-        freshForMs: 5 * 60 * 1000,
+        freshForMs: usageStaleAfterMs(),
       })
     }
   }
@@ -1623,6 +1629,7 @@ function deriveUsageForProvider(
     const limitedWindow = (reads?.geminiLimited ?? geminiLimitWindow)()
     const plan = account.kind === 'plan' ? geminiPlanFacts() : undefined
     const planFigures = plan ? geminiPlanUsageFigures(plan) : []
+    const planNote = plan ? geminiPlanQuotaReadNote(getCachedGeminiCatalogue('plan')) : undefined
     return {
       provider,
       sourceKind: account.kind === 'plan' ? 'oauth' : account.kind,
@@ -1634,6 +1641,7 @@ function deriveUsageForProvider(
       spend,
       absence: plan ? GEMINI_PLAN_USAGE_ABSENCE_NOTE : GEMINI_USAGE_ABSENCE_NOTE,
       ...(planFigures.length > 0 ? { figures: planFigures } : {}),
+      ...(planNote !== undefined ? { readerNote: planNote, readerNoteCompact: planNote } : {}),
       tier: plan ? geminiPlanTierWords(plan.tier) : account.kind === 'oauth' ? 'Google sign-in' : API_BILLING_TIER,
       ...(limitedWindow.state === 'limited'
         ? { limited: { resetsAtMs: limitedWindow.resetsAtMs } }
