@@ -125,7 +125,7 @@ jobs:
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: vendor
-          key: vendor-${{ runner.os }}-${{ hashFiles('scripts/vendor/fetch-pyright.ts', 'scripts/vendor/fetch-debugpy.ts', 'scripts/vendor/fetch-grammars.ts', 'scripts/vendor/fetch-js-debug.ts', 'scripts/vendor/fetch-node.ts', 'scripts/vendor/fetch-platform-packages.ts', 'scripts/vendor/fetch-brush.ts', 'scripts/vendor/build-brush.ts', 'vendor/grammars.lock.json', 'vendor/js-debug.lock.json', 'vendor/node.lock.json', 'vendor/brush.lock.json', 'bun.lock') }}
+          key: vendor-${{ runner.os }}-${{ hashFiles('scripts/vendor/fetch-pyright.ts', 'scripts/vendor/fetch-debugpy.ts', 'scripts/vendor/fetch-grammars.ts', 'scripts/vendor/fetch-js-debug.ts', 'scripts/vendor/fetch-node.ts', 'scripts/vendor/fetch-platform-packages.ts', 'scripts/vendor/fetch-brush.ts', 'scripts/vendor/build-brush.ts', 'scripts/vendor/fetch-embed-models.ts', 'vendor/grammars.lock.json', 'vendor/js-debug.lock.json', 'vendor/node.lock.json', 'vendor/brush.lock.json', 'vendor/embed-models.lock.json', 'bun.lock') }}
       - name: Fetch pinned vendor artifacts (hash-verified)
         run: |
           bun run scripts/vendor/fetch-pyright.ts
@@ -174,6 +174,12 @@ jobs:
       - name: Build the desktop driver pack
         continue-on-error: true
         run: bun run scripts/vendor/build-desktop.ts --target ${{ matrix.target }}
+      - name: Build the semantic embedder pack
+        continue-on-error: true
+        run: bun run scripts/vendor/build-embed.ts --target ${{ matrix.target }}
+      - name: Fetch the shipped embedding model (hash-verified)
+        continue-on-error: true
+        run: bun run scripts/vendor/fetch-embed-models.ts --default
       - name: native build
         run: bun run build.ts --target ${{ matrix.target }}
       - name: signing key (the secret, or the unsigned decision)
