@@ -7,7 +7,7 @@ import { loadImpactManifest, selectImpact } from './impactManifest.ts'
 
 const ROOT = process.env.MERCURY_SLICE_ROOT ?? resolve(import.meta.dir, '..', '..')
 
-const ALWAYS = ['integrity', 'identity', 'consistency-census', 'gate', 'verify', 'render-engine']
+const ALWAYS = ['integrity', 'identity', 'consistency-census', 'gate', 'verify', 'render-engine', 'ui-census', 'interaction-pure', 'tree-ownership', 'primitives-kernel']
 
 const argv = process.argv.slice(2)
 const json = argv.includes('--json')
