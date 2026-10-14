@@ -57,7 +57,7 @@ export type Output = {
 
 type OwnerTool = 'Debug' | 'Test'
 type Route =
-  | { tool: 'Debug'; input: DebugInput; owners: OwnerTool[]; cwd?: string }
+  | { tool: 'Debug'; input: DebugInput; owners: OwnerTool[]; cwd?: string; env?: Record<string, string> }
   | { tool: 'Test'; input: TestInput; owners: OwnerTool[] }
 type OpResult = Pick<Output, 'result' | 'outcome' | 'route'> & { details?: Record<string, unknown> }
 type Resolution = { refuse: OpResult } | { own: 'run' | 'build' } | { route: Route }
@@ -87,6 +87,7 @@ function resolveRequest(p: LaunchProfile, input: Input): Resolution {
           },
           owners: ['Debug'],
           ...(p.debug.cwd !== undefined ? { cwd: p.debug.cwd } : {}),
+          ...(p.debug.env !== undefined ? { env: p.debug.env } : {}),
         } }
       }
       if (p.source === 'python-tests' && p.test?.selectionLabel === 'rerun-failed' && p.test.selection.length) {
@@ -173,6 +174,7 @@ function describeProfile(p: LaunchProfile): string {
     `${p.id} [${p.kind}/${p.language}] ${p.label}`,
     `  ${payload}`,
     `  from: ${p.provenance}`,
+    ...(p.debug?.env ? [`  env: ${Object.keys(p.debug.env).join(', ') || '(none)'} — ${p.debug.envSource ?? 'launch.json env'}; these win over the shell's`] : []),
     ...routes,
     ...(note ? [`  note: ${note}`] : []),
     ...(p.droppedFields?.length ? [`  dropped (unrepresentable): ${p.droppedFields.join(', ')}`] : []),
@@ -230,7 +232,7 @@ async function runRoute(p: LaunchProfile, route: Route, context: ToolUseContext,
   let op: DebugResult & { record?: Awaited<ReturnType<typeof runTestOperation>>['record'] }
   try {
     op = route.tool === 'Debug'
-      ? await runDebugLaunch(route.input, owner, { cwd: route.cwd })
+      ? await runDebugLaunch(route.input, owner, { cwd: route.cwd, ...(route.env !== undefined ? { env: route.env } : {}) })
       : await runTestOperation(route.input, context, onProgress)
   } catch (err) {
     op = { result: `${route.input.op} failed: ${(err as Error).message}`, outcome: 'failed' }
@@ -305,6 +307,7 @@ async function runOp(input: Input, context: ToolUseContext, onProgress?: ToolCal
       program: p.debug!.program,
       args: p.debug!.args,
       cwd: p.debug!.cwd ?? process.cwd(),
+      ...(p.debug!.env !== undefined ? { env: p.debug!.env } : {}),
       breakpoints: undefined,
       stopOnEntry: false,
       noDebug: true,

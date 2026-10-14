@@ -432,7 +432,7 @@ function verdictText(verdict: { verified: boolean; message?: string } | undefine
   return `${verdict?.verified ? 'verified' : 'UNVERIFIED'}${verdict?.message ? ` (${verdict.message})` : ''}`
 }
 
-export async function runDebugLaunch(input: Input, owner: OwnerKey, opts: { cwd?: string } = {}): Promise<OpResult> {
+export async function runDebugLaunch(input: Input, owner: OwnerKey, opts: { cwd?: string; env?: Record<string, string> } = {}): Promise<OpResult> {
   const sessionId = input.session ?? 'main'
   const attach = input.op === 'attach'
   const program = input.program
@@ -465,6 +465,7 @@ export async function runDebugLaunch(input: Input, owner: OwnerKey, opts: { cwd?
         : `port:${input.port}`,
     args: input.args,
     cwd: opts.cwd ?? getCwd(),
+    ...(opts.env !== undefined ? { env: opts.env } : {}),
     stopOnEntry: input.stopOnEntry,
     breakpoints: breakpoints.size ? breakpoints : undefined,
     ...(attach
