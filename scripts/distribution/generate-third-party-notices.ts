@@ -191,6 +191,14 @@ lines.push(
   )
 }
 {
+  lines.push(
+    `- **semantic embedder pack** (\`dist/vendor/embed/<platform>/mercury_embed.node\`) — Mercury's own Node-API addon, built from the repository's native/embed sources with cargo (never fetched). It reads GGUF embedding weights and runs the model on the CPU (Accelerate on macOS). Its Rust crates and their licence texts ship beside the addon in \`dist/vendor/embed/<platform>/NOTICES.json\` and \`licenses/\` (MIT, Apache-2.0, ISC and Unlicense crates, the napi bindings among them).`,
+  )
+  lines.push(
+    `- **embedding model** (\`dist/vendor/embed-models/bge-base-en-v1.5-q8_0.gguf\`, 118 MB) — BAAI BGE base en v1.5 weights (Copyright BAAI, MIT, https://huggingface.co/BAAI/bge-base-en-v1.5), 8-bit GGUF conversion from https://huggingface.co/CompendiumLabs/bge-base-en-v1.5-gguf, verified against the sha256 in vendor/embed-models.lock.json before it ships. The other models the lock names (GTE base, MIT; all-MiniLM-L6-v2, Apache-2.0; Nomic Embed Text v1.5, Apache-2.0) are fetched on demand into the config home and never ship in the archive.`,
+  )
+}
+{
   const sharpMeta = pkgMeta('sharp')
   lines.push(
     `- **image-processor pack** (\`dist/vendor/image-processor/<platform>/node_modules/@img/\`) — sharp's prebuilt binding (@img/sharp-<platform> ${sharpMeta.version}, ${sharpMeta.license}, https://github.com/lovell/sharp) and the libvips library it links (@img/sharp-libvips-<platform>, LGPL-3.0-or-later, https://github.com/lovell/sharp-libvips — its bundled dependencies and their licences are inventoried upstream at https://github.com/lovell/sharp-libvips/blob/main/THIRD-PARTY-NOTICES.md; on Windows the binding package carries the libraries itself). Redistributed unmodified from the pinned dependency; each package's LICENSE, README and versions.json ship inside the pack.`,
