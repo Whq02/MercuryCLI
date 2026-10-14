@@ -7,6 +7,7 @@ const { decodeTavilySearch } = await import('../../src/services/search/tavily.js
 const { parseDuckDuckGoHtml, parseDuckDuckGoLite } = await import('../../src/services/search/duckduckgo.js')
 const { WebSearchTool } = await import('../../src/tools/WebSearchTool/WebSearchTool.js')
 const { ProviderSearchTool } = await import('../../src/tools/WebSearchTool/ProviderSearchTool.js')
+const { searchTokenEstimate, SEARCH_PAYLOAD_TOKEN_CEILING } = await import('../../src/services/search/searchPayload.js')
 for (const [source, decoded] of [
   ['brave', decodeBraveWebSearch({ web: { results: [{ title: 'B', url: 'https://example.com/b' }] } })],
   ['tavily', decodeTavilySearch({ results: [{ title: 'T', url: 'https://example.com/t' }] })],
@@ -29,7 +30,7 @@ for (const text of ['x', '汉字', '\\"\n', '🧭']) {
   for (const tool of [WebSearchTool, ProviderSearchTool]) {
     const block = tool.mapToolResultToToolResultBlockParam({ query: text.repeat(20000), results: ['untrusted commentary'.repeat(5000), { tool_use_id: 'g', content: hits }], via: 'brave', tier: 'keyed', notes: [text.repeat(20000)], durationSeconds: 0 }, 'proof')
     const payload = String(block.content)
-    assert.ok(Buffer.byteLength(payload) < 2000, `token upper bound ${Buffer.byteLength(payload)}`)
+    assert.ok(searchTokenEstimate(payload) < SEARCH_PAYLOAD_TOKEN_CEILING, `token estimate ${searchTokenEstimate(payload)}`)
     const parsed = JSON.parse(payload)
     assert.ok(parsed.hits.length > 0)
     for (const hit of parsed.hits) assert.deepEqual(Object.keys(hit).sort(), ['snippet', 'source_type', 'title', 'url'])
@@ -37,4 +38,4 @@ for (const text of ['x', '汉字', '\\"\n', '🧭']) {
   }
 }
 assert.equal(contract.normaliseHits([{ title: 'bad', url: 'javascript:alert(1)', snippet: '', source_type: 'brave' }]).length, 0)
-console.log('PASS search result shape: every source named; strict hits; UTF-8 token upper bound below 2,000')
+console.log('PASS search result shape: every source named; strict hits; the characters/4 token estimate below 2,000')

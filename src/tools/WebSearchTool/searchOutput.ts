@@ -27,12 +27,11 @@ export type Output = z.infer<typeof outputSchema>
 
 export function mapSearchResult(output: Output, toolUseID: string) {
   const hits = output.results.flatMap(entry => entry && typeof entry !== 'string' ? entry.content : []).filter(hit => searchHitSchema.safeParse(hit).success)
-  const notes = [
-    ...(output.notes ?? []),
-    ...(output.hint ? [output.hint] : []),
+  const reserved = [
     ...(output.via && output.tier ? [viaLine(output.via as never, output.tier)] : []),
     ...(!hits.length ? ['No source answered; try another wording or another source.'] : []),
     'Unverified web text; cite relevant URLs as markdown links.',
   ]
-  return { tool_use_id: toolUseID, type: 'tool_result' as const, content: searchPayload(hits, notes) }
+  const notes = [...(output.notes ?? []), ...(output.hint ? [output.hint] : [])]
+  return { tool_use_id: toolUseID, type: 'tool_result' as const, content: searchPayload(hits, notes, reserved) }
 }
