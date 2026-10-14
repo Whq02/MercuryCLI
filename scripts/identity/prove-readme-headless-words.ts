@@ -28,7 +28,7 @@ console.log('§1 the README lists every output row type the product writes, once
   const start = readme.indexOf('The output row types, by their `type` field:')
   check('the catalogue has its heading', start >= 0)
   const body = start >= 0 ? readme.slice(start, readme.indexOf('\n\n`--partial`', start)) : ''
-  const listed = [...body.matchAll(/^- `([a-z_]+)` — /gm)].map(m => m[1])
+  const listed = [...body.matchAll(/^- `([a-z_]+)`: /gm)].map(m => m[1])
   check('the catalogue names exactly the vocabulary\'s row types, in order', JSON.stringify(listed) === JSON.stringify([...ROW_TYPES]), `listed ${listed.join(',')} · vocabulary ${ROW_TYPES.join(',')}`)
   for (const type of ROW_TYPES) check(`\`${type}\` has one line`, listed.filter(t => t === type).length === 1)
   check('the partial rows are the vocabulary\'s', PARTIAL_ROW_TYPES.every(t => new RegExp(`\`${t}\``).test(readme)), PARTIAL_ROW_TYPES.filter(t => !new RegExp(`\`${t}\``).test(readme)).join(','))
