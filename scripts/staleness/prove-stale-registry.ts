@@ -122,6 +122,7 @@ src/ink/node-cache.ts :: nodeCache :: keyed-by-truth
 src/ink/session/windowsHostSetup.ts :: presenceCache :: invalidator=evictHostPresence
 src/keybindings/loadUserBindings.ts :: cached :: keyed-by-truth
 src/keybindings/loadUserBindings.ts :: cachedCwd :: keyed-by-truth
+src/mneme/mnemeIndex.ts :: fileCache :: keyed-by-truth
 src/mneme/paths.ts :: getMnemeHome :: static-for-process
 src/projectOnboardingState.ts :: projectOnboardingHint :: invalidator=applyHarnessGround
 src/projectOnboardingState.ts :: shouldShowProjectOnboarding :: invalidator=applyHarnessGround
