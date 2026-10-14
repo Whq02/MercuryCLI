@@ -28,7 +28,7 @@ import {
   resolveTestLane,
   runRunnerProfile,
 } from '../../services/ide/projectRunners.js'
-import { buildNodeRunnerDebugShim } from '../../services/ide/testDebugPlans.js'
+import { buildGoTestDebugPlan, buildNodeRunnerDebugShim } from '../../services/ide/testDebugPlans.js'
 import type { ToolCallProgress } from '../../Tool.js'
 import {
   renderToolResultMessage,
@@ -345,28 +345,33 @@ async function runOp(
       if (debugLane.lane === 'runner-missing') {
         return { result: `no ${debugLane.runner} test profile in this project's manifests`, outcome: 'failed' }
       }
-      if (debugLane.lane === 'runner' && (debugLane.profile.runner === 'vitest' || debugLane.profile.runner === 'jest')) {
-        const runner = debugLane.profile.runner
-        const shim = buildNodeRunnerDebugShim(runner, input.node, {})
-        if ('state' in shim) {
-          return { result: `debug unavailable: ${shim.reason}\nremedy: ${shim.remedy}`, outcome: 'failed' }
-        }
+      const launchRunnerDebug = async (plan: {
+        runner: string
+        adapterKey: string
+        program: string
+        args: string[]
+        cwd: string
+        stop: { file: string; line: number } | null
+        note: string
+        launchExtras?: Record<string, unknown>
+      }): Promise<{ result: string; outcome: ToolEffectOutcome }> => {
         const owner = ownerFromToolUseContext(context)
         const sessionId = input.session ?? 'test'
         const breakpoints = new Map<string, number[]>()
         if (input.file && input.lines?.length) breakpoints.set(expandPath(input.file), input.lines)
-        else if (shim.stop) breakpoints.set(shim.stop.file, [shim.stop.line])
+        else if (plan.stop) breakpoints.set(plan.stop.file, [plan.stop.line])
         let session
         try {
           session = await createDapSession({
             owner,
             id: sessionId,
-            adapterKey: 'js',
-            program: shim.program,
-            args: shim.args,
-            cwd: shim.cwd,
+            adapterKey: plan.adapterKey,
+            program: plan.program,
+            args: plan.args,
+            cwd: plan.cwd,
             breakpoints: breakpoints.size ? breakpoints : undefined,
             stopOnEntry: breakpoints.size === 0,
+            ...(plan.launchExtras ? { launchExtras: plan.launchExtras } : {}),
           })
         } catch (err) {
           return { result: `debug unavailable: ${err instanceof Error ? err.message : String(err)}`, outcome: 'failed' }
@@ -380,10 +385,25 @@ async function runOp(
               : 'still running (no stop within 20s) — inspect with the Debug tool'
         return {
           result:
-            `debugging ${input.node} (${runner}) in Debug session '${sessionId}': ${state}\n${shim.note}\n` +
+            `debugging ${input.node} (${plan.runner}) in Debug session '${sessionId}': ${state}\n${plan.note}\n` +
             `continue with the Debug tool (op:"stack"/"scopes"/"variables"/"continue"; finish with op:"disconnect", session "${sessionId}")`,
           outcome: 'succeeded',
         }
+      }
+      if (debugLane.lane === 'runner' && (debugLane.profile.runner === 'vitest' || debugLane.profile.runner === 'jest')) {
+        const runner = debugLane.profile.runner
+        const shim = buildNodeRunnerDebugShim(runner, input.node, {})
+        if ('state' in shim) {
+          return { result: `debug unavailable: ${shim.reason}\nremedy: ${shim.remedy}`, outcome: 'failed' }
+        }
+        return launchRunnerDebug({ runner, adapterKey: 'js', program: shim.program, args: shim.args, cwd: shim.cwd, stop: shim.stop, note: shim.note })
+      }
+      if (debugLane.lane === 'runner' && debugLane.profile.runner === 'go') {
+        const plan = buildGoTestDebugPlan(input.node, {})
+        if ('state' in plan) {
+          return { result: `debug unavailable: ${plan.reason}\nremedy: ${plan.remedy}`, outcome: 'failed' }
+        }
+        return launchRunnerDebug({ runner: 'go', adapterKey: 'go', program: plan.program, args: plan.args, cwd: plan.cwd, stop: plan.stop, note: plan.note, launchExtras: plan.launchExtras })
       }
       if (debugLane.lane === 'runner' && debugLane.profile.runner !== 'node-test') {
         return {

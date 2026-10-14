@@ -1407,6 +1407,7 @@ export class DapSession {
     program: string
     args?: string[]
     runtimeArgs?: string[]
+    launchExtras?: Record<string, unknown>
     stopOnEntry?: boolean
     breakpoints?: Map<string, Array<number | DapBreakpointSpec>>
     mode?: 'launch' | 'attach'
@@ -1456,6 +1457,7 @@ export class DapSession {
         stopOnEntry: options.stopOnEntry,
       }) ?? {
         ...(this.#spec.launchDefaults ?? {}),
+        ...(options.launchExtras ?? {}),
         program: options.program,
         args: options.args ?? [],
         ...(options.runtimeArgs !== undefined ? { runtimeArgs: options.runtimeArgs } : {}),
@@ -1812,6 +1814,7 @@ export async function createDapSession(options: {
   program: string
   args?: string[]
   runtimeArgs?: string[]
+  launchExtras?: Record<string, unknown>
   cwd: string
   stopOnEntry?: boolean
   breakpoints?: Map<string, Array<number | DapBreakpointSpec>>
@@ -1883,6 +1886,7 @@ export async function createDapSession(options: {
       program: options.program,
       args: options.args,
       runtimeArgs: options.runtimeArgs,
+      launchExtras: options.launchExtras,
       stopOnEntry: options.stopOnEntry,
       breakpoints: options.breakpoints,
       mode: options.mode,

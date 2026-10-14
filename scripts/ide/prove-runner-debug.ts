@@ -122,7 +122,7 @@ section('D. the Test tool: vitest and jest debug ride js-debug; an absent runner
 {
   const { TestTool } = await import('../../src/tools/TestTool/TestTool.ts')
   const toolSrc = readFileSync(path.join(ROOT, 'src/tools/TestTool/TestTool.ts'), 'utf8')
-  check('D1 the debug op routes vitest and jest through the node-runner shim onto adapterKey js with the shim\'s program and args', toolSrc.includes("buildNodeRunnerDebugShim(runner, input.node") && toolSrc.includes("adapterKey: 'js'") && toolSrc.includes('args: shim.args') && toolSrc.includes('breakpoints.set(shim.stop.file, [shim.stop.line])'))
+  check('D1 the debug op routes vitest and jest through the node-runner shim onto adapterKey js with the shim\'s program and args', toolSrc.includes("buildNodeRunnerDebugShim(runner, input.node") && toolSrc.includes("launchRunnerDebug({ runner, adapterKey: 'js', program: shim.program, args: shim.args") && toolSrc.includes('breakpoints.set(plan.stop.file, [plan.stop.line])'))
   const root = nodeProject('vitest', false)
   const out = (await runWithCwdOverride(root, () => TestTool.call({ op: 'debug', node: 'src/calc.test.mjs::calc adds two numbers' } as never, ctx))) as { data: { result: string; outcome: string } }
   check('D2 vitest declared but not installed: "debug unavailable" with the install remedy, never a sentence about the debugger not being there', out.data.outcome === 'failed' && out.data.result.startsWith('debug unavailable: vitest is declared but node_modules/.bin/vitest is missing') && out.data.result.includes('remedy: install the project dependencies'), out.data.result)
@@ -192,6 +192,124 @@ async function liveNodeRunner(tag: string, runner: 'vitest' | 'jest', entry: str
 
 await liveNodeRunner('E', 'vitest', 'vitest.mjs', 'calc.test.mjs', VITEST_TEST, { type: 'module' })
 await liveNodeRunner('F', 'jest', 'bin/jest.js', 'calc.test.js', JEST_TEST, { jest: { testEnvironment: 'node' } })
+
+const GO_TEST = [
+  'package calc',
+  '',
+  'import "testing"',
+  '',
+  'func TestAdd(t *testing.T) {',
+  '\tif got := Add(2, 3); got != 5 {',
+  '\t\tt.Errorf("add(2, 3) = %d, want 5", got)',
+  '\t}',
+  '}',
+  '',
+  'func TestTable(t *testing.T) {',
+  '\tt.Run("one", func(t *testing.T) {})',
+  '\tt.Run("two", func(t *testing.T) { t.Fatal("case two") })',
+  '}',
+  '',
+  'func TestZero(t *testing.T) {}',
+  '',
+].join('\n')
+
+function goModule(): string {
+  const root = scratch('go')
+  writeFileSync(path.join(root, 'go.mod'), 'module example.com/calc\n\ngo 1.22\n')
+  writeFileSync(path.join(root, 'calc.go'), 'package calc\n\nfunc Add(a, b int) int { return a - b }\n')
+  writeFileSync(path.join(root, 'calc_test.go'), GO_TEST)
+  mkdirSync(path.join(root, 'other'))
+  writeFileSync(path.join(root, 'other', 'other_test.go'), 'package other\n\nimport "testing"\n\nfunc TestZero(t *testing.T) {}\n')
+  return root
+}
+
+function standInBinaries(root: string, names: string[]): string {
+  const binDir = path.join(root, `stand-in-bin-${names.join('-')}`)
+  mkdirSync(binDir, { recursive: true })
+  for (const name of names) {
+    writeFileSync(path.join(binDir, name), '#!/usr/bin/env node\nprocess.exit(0)\n')
+    chmodSync(path.join(binDir, name), 0o755)
+  }
+  return binDir
+}
+
+section('G. the go plan: dlv builds the package\'s test binary, one test by anchored -test.run, the stop on the func line')
+{
+  const root = goModule()
+  const savedPath = process.env.PATH
+  process.env.PATH = `${standInBinaries(root, ['go', 'dlv'])}${path.delimiter}${savedPath ?? ''}`
+  try {
+    const plan = plans.buildGoTestDebugPlan('TestAdd', { from: root })
+    check('G1 program is the package directory, args -test.run ^TestAdd$ -test.v, cwd the module root, launch extra mode: test', !('state' in plan) && plan.program === root && JSON.stringify(plan.args) === JSON.stringify(['-test.run', '^TestAdd$', '-test.v']) && plan.cwd === root && plan.launchExtras.mode === 'test', JSON.stringify(plan))
+    check('G2 the stop is the func TestAdd line (5) in calc_test.go', !('state' in plan) && plan.stop.file === path.join(root, 'calc_test.go') && plan.stop.line === 5, 'state' in plan ? plan.reason : JSON.stringify(plan.stop))
+    const sub = plans.buildGoTestDebugPlan('TestTable/two', { from: root })
+    check('G3 a subtest anchors each level (^TestTable$/^two$) and stops on the parent func line (11)', !('state' in sub) && sub.args[1] === '^TestTable$/^two$' && sub.stop.line === 11, 'state' in sub ? sub.reason : JSON.stringify({ args: sub.args, stop: sub.stop }))
+    const twice = plans.buildGoTestDebugPlan('TestZero', { from: root })
+    check('G4 a name declared in two packages refuses naming them and the dir::TestName remedy', 'state' in twice && twice.reason.includes('2 packages') && twice.reason.includes('other') && twice.remedy.includes('dir::TestName'), JSON.stringify(twice))
+    const picked = plans.buildGoTestDebugPlan('other::TestZero', { from: root })
+    check('G5 dir::TestName picks the package: program root/other, stop other/other_test.go:5', !('state' in picked) && picked.program === path.join(root, 'other') && picked.stop.file === path.join(root, 'other', 'other_test.go') && picked.stop.line === 5, JSON.stringify(picked))
+    const nowhere = plans.buildGoTestDebugPlan('TestNowhere', { from: root })
+    check('G6 an unknown test refuses typed', 'state' in nowhere && nowhere.reason.includes('no func TestNowhere'), JSON.stringify(nowhere))
+    const notATest = plans.buildGoTestDebugPlan('calc.go', { from: root })
+    check('G7 a node that is not a Go test name refuses with the three spellings', 'state' in notATest && notATest.remedy.includes('TestName/subtest'), JSON.stringify(notATest))
+  } finally {
+    process.env.PATH = savedPath
+  }
+  process.env.PATH = `${standInBinaries(root, ['go'])}${path.delimiter}${savedPath ?? ''}`
+  try {
+    const noDlv = plans.buildGoTestDebugPlan('TestAdd', { from: root })
+    check('G8 go present, dlv absent: unavailable with the delve install line', 'state' in noDlv && noDlv.reason.includes("'dlv' not on PATH") && noDlv.remedy === plans.DLV_INSTALL_REMEDY, JSON.stringify(noDlv))
+    const { TestTool } = await import('../../src/tools/TestTool/TestTool.ts')
+    const out = (await runWithCwdOverride(root, () => TestTool.call({ op: 'debug', node: 'TestAdd' } as never, ctx))) as { data: { result: string; outcome: string } }
+    check('G9 the Test tool answers the same unavailable + remedy for a Go project without dlv', out.data.outcome === 'failed' && out.data.result.startsWith("debug unavailable: 'dlv' not on PATH") && out.data.result.includes(plans.DLV_INSTALL_REMEDY), out.data.result)
+  } finally {
+    process.env.PATH = savedPath
+  }
+  const emptyBin = path.join(root, 'empty-bin')
+  mkdirSync(emptyBin)
+  process.env.PATH = emptyBin
+  try {
+    const noGo = plans.buildGoTestDebugPlan('TestAdd', { from: root })
+    check('G10 no go toolchain: unavailable naming the toolchain and the delve line', 'state' in noGo && noGo.reason.includes("'go' not on PATH") && noGo.remedy.includes('Go toolchain') && noGo.remedy.includes(plans.DLV_INSTALL_REMEDY), JSON.stringify(noGo))
+  } finally {
+    process.env.PATH = savedPath
+  }
+  const toolSrc = readFileSync(path.join(ROOT, 'src/tools/TestTool/TestTool.ts'), 'utf8')
+  check('G11 the Test tool routes go through the plan onto adapterKey go with mode: test as a launch extra', toolSrc.includes('buildGoTestDebugPlan(input.node') && toolSrc.includes("adapterKey: 'go'") && toolSrc.includes('launchExtras: plan.launchExtras'))
+  rmSync(root, { recursive: true, force: true })
+}
+
+section('H. the live go leg — a real go and dlv on PATH')
+{
+  const have = (name: string): boolean => (process.env.PATH ?? '').split(path.delimiter).some(d => d && existsSync(path.join(d, name)))
+  if (!have('go') || !have('dlv')) {
+    console.log(`  [SKIP — LOUD] ${!have('go') ? 'go' : 'dlv'} is not on PATH — the plan and the unavailable answers above are the evidence; install the Go toolchain and delve (${plans.DLV_INSTALL_REMEDY}) to run this leg`)
+  } else {
+    const root = goModule()
+    const { TestTool } = await import('../../src/tools/TestTool/TestTool.ts')
+    const dap = await import('../../src/services/dap/dapClient.ts')
+    const { ownerFromToolUseContext } = await import('../../src/services/run/resolveOwner.ts')
+    const { disposeOwner } = await import('../../src/services/run/ownerLifecycle.ts')
+    const out = (await runWithCwdOverride(root, () => TestTool.call({ op: 'debug', node: 'TestAdd' } as never, ctx))) as { data: { result: string; outcome: string } }
+    check('H1 the tool reports a stop at a breakpoint under dlv', out.data.outcome === 'succeeded' && /reason breakpoint/.test(out.data.result), out.data.result.split('\n').slice(0, 3).join(' | '))
+    const owner = ownerFromToolUseContext(ctx)
+    const session = dap.getDapSession(owner, 'test')
+    const stopped = session?.treeStopped() ?? null
+    if (stopped && stopped.lastStopped) {
+      const threadId = stopped.lastStopped.threadId ?? 1
+      const stack = await stopped.request('stackTrace', { threadId, startFrame: 0, levels: 1 })
+      const frame = (stack.stackFrames as Array<{ id: number; name?: string; line?: number; source?: { path?: string } }>)[0]
+      check('H2 the top frame is TestAdd in calc_test.go at its first line (5 or the first statement, 6)', (frame?.source?.path ?? '').endsWith('calc_test.go') && (frame?.line === 5 || frame?.line === 6) && (frame?.name ?? '').includes('TestAdd'), JSON.stringify(frame))
+      const scopes = await stopped.request('scopes', { frameId: frame!.id })
+      const rows = scopes.scopes as Array<{ name: string; variablesReference: number }>
+      const vars = rows.length ? await stopped.request('variables', { variablesReference: rows[0]!.variablesReference }) : { variables: [] }
+      check('H3 locals are readable (the testing.T argument t)', (vars.variables as Array<{ name: string }>).some(v => v.name === 't'), JSON.stringify((vars.variables as Array<{ name: string }>).map(v => v.name)))
+    }
+    await disposeOwner(owner)
+    check('H4 disconnect is clean', dap._dapSessionCountForTesting() === 0)
+    rmSync(root, { recursive: true, force: true })
+  }
+}
 
 console.log('')
 if (failures > 0) {
