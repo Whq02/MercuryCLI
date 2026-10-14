@@ -9,6 +9,7 @@
 # gate-watch: assets/splash/splash-core.mjs docs/COMPATIBILITY.md docs/INSTALL-WINDOWS-FROM-SOURCE.md docs/TERMINAL-RUNTIME.md docs/releases/1.0.0-beta.3.md scripts/distribution/generate-third-party-notices.ts
 # gate-watch: scripts/gate/gate-ledger.jsonl scripts/lib/proofHomePreload.ts scripts/ops/launcher-mercury.sh scripts/splash/run-all.sh scripts/vendor/build-desktop.ts scripts/vendor/build-voice.ts
 # gate-watch: scripts/vendor/build-whisper.ts scripts/vendor/fetch-node.ts scripts/vendor/fetch-platform-packages.ts scripts/vendor/platformPackages.ts scripts/vscode/build-vsix.sh src/services/voice/voicePack.ts
+# gate-watch: scripts/vendor/build-embed.ts scripts/vendor/fetch-embed-models.ts src/mneme/embedModels.ts
 # gate-watch: src/substrate/flagRegistry.ts src/tools/FileReadTool/imagePackArm.ts src/utils/auth.ts src/utils/envUtils.ts src/utils/healthReport.ts src/utils/runtime/nodePolicy.ts
 # gate-watch: src/utils/shell/brushPack.ts vendor/brush.lock.json vendor/node.lock.json src/ink/root/teardown.ts src/ink/termio/*
 set -uo pipefail
