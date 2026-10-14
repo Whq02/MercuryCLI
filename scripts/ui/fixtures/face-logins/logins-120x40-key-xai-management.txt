@@ -18,7 +18,7 @@
    │ available                                                      │  │ Stored auth-scoped (mode 600);             │
    │   Usage-based billing — Anthropic Console…       not signed in │  │ XAI_MANAGEMENT_API_KEY wins.               │
    │   OpenRouter — one credential, the whole …       not signed in │  │ key: ▌                                     │
-   │   Google Gemini — API key or Google OAuth        not signed in │  │ ↵ stores · empty/esc skips; API key stays  │
+   │   Google Gemini — Google sign-in, API key        not signed in │  │ ↵ stores · empty/esc skips; API key stays  │
    │   GLM (Z.AI) — API key (general or GLM Co…       not signed in │  │                                            │
    │   DeepSeek — API key                             not signed in │  │                                            │
    │ ❯ xAI — Grok subscription sign-in or API …       not signed in │  ╰────────────────────────────────────────────╯

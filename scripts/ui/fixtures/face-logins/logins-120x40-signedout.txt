@@ -14,7 +14,7 @@
    │   Claude subscription account                    not signed in │  │ OpenAI                                     │
    │   Usage-based billing — Anthropic Console…       not signed in │  │                                            │
    │   OpenRouter — one credential, the whole …       not signed in │  │ OpenAI — ChatGPT subscription or API       │
-   │   Google Gemini — API key or Google OAuth        not signed in │  │ key                                        │
+   │   Google Gemini — Google sign-in, API key        not signed in │  │ key                                        │
    │   Hugging Face — device-code sign-in or a…       not signed in │  │                                            │
    │   Kimi (Moonshot) — device-code sign-in o…       not signed in │  │ state: not signed in                       │
    │   GLM (Z.AI) — API key (general or GLM Co…       not signed in │  │ · no sign-in on this arm yet               │

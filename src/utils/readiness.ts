@@ -937,7 +937,7 @@ function backendRemedy(backendId: string): string | undefined {
   if (backendId === 'mistral-chat') return 'add a Mistral API key via /logins mistral (or set MISTRAL_API_KEY)'
   if (backendId === 'openai-compat-chat') return 'set MERCURY_COMPAT_BASE_URL (key optional — /router key compat)'
   if (backendId === 'openrouter-chat') return 'connect OpenRouter via /logins (OAuth mints a key) or set OPENROUTER_API_KEY'
-  if (backendId === 'gemini-generate') return 'connect Gemini via /logins (API key or Google OAuth) or set GOOGLE_API_KEY / GEMINI_API_KEY'
+  if (backendId === 'gemini-generate') return 'connect Gemini via /logins (Sign in with Google, an API key or your own OAuth client) or set GOOGLE_API_KEY / GEMINI_API_KEY'
   if (backendId === 'huggingface-chat') return 'connect Hugging Face via /logins (device-code sign-in or a token) or set HF_TOKEN'
   if (backendId === 'local-chat') return 'start Ollama / LM Studio / vLLM / llama.cpp-server, or point MERCURY_LOCAL_BASE_URL at your server'
   if (backendId === 'nous-chat') return 'add a Nous Portal API key via /logins nous (or set NOUS_API_KEY)'

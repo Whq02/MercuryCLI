@@ -16,7 +16,7 @@ VITALS              │ │ DeepSeek, xAI, Meta, Mistral, Nous Portal or OpenCod
                     │ │   Usage-based billing — Anthropic Console sign-in or API key             │ │
                     │ │     ANTHROPIC_API_KEY (env) ……                                           │ │
                     │ │   OpenRouter — one credential, the whole catalogue (OAuth or key)        │ │
-                    │ │   Google Gemini — API key or Google OAuth                                │ │
+                    │ │   Google Gemini — Google sign-in, API key                                │ │
                     │ │   Hugging Face — device-code sign-in or a Hub token (open models)        │ │
                     │ │                                                                          │ │
                     │ │ esc or click outside closes                                              │ │

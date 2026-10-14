@@ -18,7 +18,7 @@
    │ ❯ Claude subscription account         op@example.com · expired │  │ state: op@example.com · expired            │
    │   Usage-based billing — Anthropic Console…       not signed in │  │ · claude.ai sign-in — op@example.com ·     │
    │   OpenRouter — one credential, the whole …       not signed in │  │ active · not signed in                     │
-   │   Google Gemini — API key or Google OAuth        not signed in │  │                                            │
+   │   Google Gemini — Google sign-in, API key        not signed in │  │                                            │
    │   GLM (Z.AI) — API key (general or GLM Co…       not signed in │  │ · the claude.ai sign-in has expired —      │
    │   DeepSeek — API key                             not signed in │  │ /logins re-authenticates it                │
    │   xAI — Grok subscription sign-in or API …       not signed in │  ╰────────────────────────────────────────────╯

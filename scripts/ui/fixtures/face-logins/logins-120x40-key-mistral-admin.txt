@@ -18,7 +18,7 @@
    │ available                                                      │  │ meter and spend limit.                     │
    │   Usage-based billing — Anthropic Console…       not signed in │  │ Stored auth-scoped (mode 600);             │
    │   OpenRouter — one credential, the whole …       not signed in │  │ MISTRAL_ADMIN_API_KEY wins. Enterprise     │
-   │   Google Gemini — API key or Google OAuth        not signed in │  │ plans issue it at                          │
+   │   Google Gemini — Google sign-in, API key        not signed in │  │ plans issue it at                          │
    │   GLM (Z.AI) — API key (general or GLM Co…       not signed in │  │ backoffice.mistral.ai.                     │
    │   DeepSeek — API key                             not signed in │  │ … (the trail continues — a taller termina… │
    │   xAI — Grok subscription sign-in or API …       not signed in │  ╰────────────────────────────────────────────╯
