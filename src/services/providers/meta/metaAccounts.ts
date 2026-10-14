@@ -229,7 +229,7 @@ export function resolveMetaAccount(env: NodeJS.ProcessEnv = process.env): MetaAc
   const museRef: MetaAccountRef | undefined = grant
     ? {
         kind: 'muse-code',
-        label: `Muse Code (${tier ?? 'subscription'}${grant.email ? ` · ${grant.email}` : ''})`,
+        label: `Muse Code (${tier ?? 'subscription'})`,
         ...(grant.email ? { email: grant.email } : {}),
         ...(tier ? { tierName: tier } : {}),
         ...(grant.observedAtMs ? { observedAtMs: grant.observedAtMs } : {}),

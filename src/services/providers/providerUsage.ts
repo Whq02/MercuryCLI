@@ -153,6 +153,10 @@ function engineIdentityLive(id: RouterProviderId): string | undefined {
       const { resolveXaiAccount } = require('./xai/xaiAccounts.js') as typeof import('./xai/xaiAccounts.js')
       return resolveXaiAccount()?.email
     }
+    if (id === 'meta') {
+      const { resolveMetaAccount } = require('./meta/metaAccounts.js') as typeof import('./meta/metaAccounts.js')
+      return resolveMetaAccount()?.email
+    }
     if (id === 'huggingface') return resolveHuggingfaceAccount()?.username
     if (id === 'mistral') {
       const { mistralObservedIdentityWords } = require('./mistral/mistralUsageState.js') as typeof import('./mistral/mistralUsageState.js')
