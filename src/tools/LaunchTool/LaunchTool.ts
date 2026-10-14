@@ -199,14 +199,14 @@ function describeProfile(p: LaunchProfile): string {
 function describeTask(task: PreLaunchTask): string {
   return 'refused' in task
     ? `'${task.label}' — REFUSED, debug and run will not start: ${task.refused}`
-    : `'${task.label}' runs first as ${task.argv.join(' ')}${task.cwd ? ` (cwd ${task.cwd})` : ''}; a non-zero exit stops the launch`
+    : `'${task.label}' runs first as ${task.argv.join(' ')}${task.cwd ? ` (cwd ${task.cwd})` : ''}; a non-zero exit stops the launch${task.matcherIgnored ? '; its problem matcher is not run' : ''}`
 }
 
 async function taskGate(p: LaunchProfile, context: ToolUseContext): Promise<{ refuse: OpResult } | { ranLine: string }> {
   if (!p.preLaunchTask) return { ranLine: '' }
   const outcome = await runPreLaunchTask(p.preLaunchTask, context?.abortController?.signal)
   if (!outcome.ran) return { refuse: { result: outcome.reason, outcome: 'failed' } }
-  return { ranLine: `preLaunchTask '${outcome.label}' ran: ${outcome.argv.join(' ')} (exit 0)\n` }
+  return { ranLine: `preLaunchTask '${outcome.label}' ran: ${outcome.argv.join(' ')} (exit 0${outcome.matcherIgnored ? '; its problem matcher is not run' : ''})\n` }
 }
 
 export function operatorRunRefusal(p: LaunchProfile): { result: string; outcome: ToolEffectOutcome } | null {
