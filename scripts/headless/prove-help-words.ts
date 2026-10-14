@@ -144,6 +144,15 @@ for (const spelling of ['help', '-h']) {
   check(`mercury daemon ${spelling} prints the same page`, r.code === 0 && r.text === daemon, `exit ${r.code}: ${r.text.split('\n')[0] ?? ''}`)
 }
 
+console.log('§5 the version verb is listed beside help, and the help verb prints the same page as --help')
+const root = pages.get('mercury') ?? ''
+check('the Commands block lists version, with its words', /\n  version\s+Print the version \(the same line as --version\)/.test(root), root.split('Commands:')[1]?.slice(0, 200) ?? '')
+check('…and help, so both verbs are visible together', /\n  help \[command\.\.\.\]\s+Show help/.test(root))
+const helpVerb = mercury(['help'])
+check('mercury help (the verb) prints the same page as mercury --help, version row included', helpVerb.code === 0 && helpVerb.text === root, `exit ${helpVerb.code}: ${helpVerb.text.split('\n')[0] ?? ''}`)
+const versionVerb = mercury(['version'])
+check('mercury version prints the one version line and exits 0', versionVerb.code === 0 && /^Mercury \d+\.\d+\.\d+/.test(versionVerb.text.trim()), `exit ${versionVerb.code}: ${versionVerb.text.slice(0, 80)}`)
+
 rmSync(home, { recursive: true, force: true })
 console.log(`help words: ${failures === 0 ? 'all green' : `${failures} failure(s)`}`)
 process.exit(failures === 0 ? 0 : 1)
