@@ -7,7 +7,7 @@ import {
 import { buildGeminiExtras } from '../openaicompat/compatWire.js'
 import { randomUUID } from 'node:crypto'
 import { geminiApiBase, resolveGeminiAccount, resolveGeminiRequestAuth } from './geminiAccounts.js'
-import { geminiEffortVocabularyFor, geminiOutputTokenLimitFor, geminiPlanRosterKin, geminiPlanRosterKinWords, type GeminiPlanRosterKin } from './geminiCatalogue.js'
+import { geminiEffortVocabularyFor, geminiOutputTokenLimitFor, geminiPlanRosterKin, geminiPlanRosterKinWords, geminiPlanWireModel, type GeminiPlanRosterKin } from './geminiCatalogue.js'
 import { clearGeminiUsageLimit, recordGeminiRateHeaders } from './geminiUsageState.js'
 import type { CompatStreamEvent } from '../openaicompat/compatChatClient.js'
 import { geminiPlanStreamUrl, streamGeminiContent, type GeminiPlanWire } from './geminiClient.js'
@@ -95,6 +95,8 @@ export function __resetGeminiPlanWireForTest(): void {
 
 async function* geminiPlanCallModel(params: CallModelParams): CallModelStream {
   const model = compatDispatchModelId(params.options.model)
+  const effort = params.options.effortValue
+  const wireOf = (id: string): string => geminiPlanWireModel(qualifiedWireId(id), typeof effort === 'string' ? effort : undefined)
   let bearer: string | undefined
   let status: number | undefined
   let recovery: 'retried' | 'no-new-credential' | undefined
@@ -116,8 +118,8 @@ async function* geminiPlanCallModel(params: CallModelParams): CallModelStream {
     credentialHint: 'no Google sign-in for Gemini — /logins → Sign in with Google.',
     authRemedy: GEMINI_PLAN_AUTH_REMEDY,
     billingRemedy: GEMINI_PLAN_BILLING_REMEDY,
-    wireModelId: modelId => qualifiedWireId(modelId),
-    buildExtras: args => buildGeminiExtras({ ...args, acceptsEffort: geminiEffortVocabularyFor(model).length > 0 }),
+    wireModelId: modelId => wireOf(modelId),
+    buildExtras: args => buildGeminiExtras({ ...args, acceptsEffort: geminiEffortVocabularyFor(model).length > 0 || geminiEffortVocabularyFor(args.wireModel).length > 0 }),
     resolveCredential: async () => {
       const credential = await credentialOf(false)
       bearer = credential?.apiKey
@@ -143,7 +145,7 @@ async function* geminiPlanCallModel(params: CallModelParams): CallModelStream {
         userAgent,
         onServedBy: base => planLastGoodBase.set(project, base),
       }
-      const ceiling = geminiOutputTokenLimitFor(model)
+      const ceiling = geminiOutputTokenLimitFor(options.request.model) ?? geminiOutputTokenLimitFor(model)
       const requested = options.request.extra?.max_tokens
       const capped = ceiling === undefined ? requested : Math.min(typeof requested === 'number' ? requested : ceiling, ceiling)
       const request = capped === undefined ? options.request : { ...options.request, extra: { ...options.request.extra, max_tokens: capped } }

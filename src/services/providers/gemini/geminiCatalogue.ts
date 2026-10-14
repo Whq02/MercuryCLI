@@ -383,6 +383,44 @@ export function geminiPlanRosterKin(model: string, env: NodeJS.ProcessEnv = proc
   }
 }
 
+export type GeminiEffortSuffix = 'low' | 'medium' | 'high'
+
+export function geminiPlanEffortSuffix(effort: string | undefined): GeminiEffortSuffix {
+  switch ((effort ?? '').trim().toLowerCase()) {
+    case 'minimal':
+    case 'low':
+      return 'low'
+    case 'medium':
+      return 'medium'
+    default:
+      return 'high'
+  }
+}
+
+export function geminiPlanEffortRow(model: string, effort: string | undefined, env: NodeJS.ProcessEnv = process.env): GeminiLiveModel | undefined {
+  const bare = model.trim().replace(/\[[^\]]*\]/g, '').toLowerCase()
+  if (bare === '' || !/^gemini-/.test(bare) || /-(?:low|medium|high)$/.test(bare)) return undefined
+  const rows = geminiGenerateModels(getCachedGeminiCatalogue('plan', env))
+  if (rows.length === 0 || rows.some(row => row.id.toLowerCase() === bare)) return undefined
+  const want = geminiPlanEffortSuffix(effort)
+  const order: GeminiEffortSuffix[] = want === 'low' ? ['low', 'medium', 'high'] : want === 'medium' ? ['medium', 'high', 'low'] : ['high', 'medium', 'low']
+  for (const suffix of order) {
+    const row = rows.find(candidate => candidate.id.toLowerCase() === `${bare}-${suffix}`)
+    if (row) return row
+  }
+  return undefined
+}
+
+export function geminiPlanWireModel(model: string, effort: string | undefined, env: NodeJS.ProcessEnv = process.env): string {
+  return geminiPlanEffortRow(model, effort, env)?.id ?? model
+}
+
+export function geminiPlanRideWords(model: string, effort: string | undefined, env: NodeJS.ProcessEnv = process.env): string | undefined {
+  if (resolveGeminiAccount(env)?.kind !== 'plan') return undefined
+  const row = geminiPlanEffortRow(model, effort, env)
+  return row === undefined ? undefined : row.id
+}
+
 export function geminiPlanRosterKinWords(kin: GeminiPlanRosterKin, tier: string = geminiPlanTierInView()): string {
   const parts: string[] = []
   for (const row of kin.disabled) parts.push(`the roster names ${row.id}${row.displayName ? ` (${row.displayName})` : ''}: withheld from ${tier} today, ${ANTIGRAVITY_PLAN_TABLE} says which plans include it`)

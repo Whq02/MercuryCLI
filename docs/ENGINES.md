@@ -621,7 +621,12 @@ come from its owning account resolvers:
   with no served row answers Google's 404, and the refusal names the
   roster's kin: the `-disabled` row with that state, or the effort siblings
   Google serves instead (`…-low`, `…-medium`, `…-high` — `/model` picks
-  one). A Claude row on
+  one). When the roster names only effort rows for a model, the bare id
+  rides the row of the session's effort the way Google's own client's
+  collapse table routes it — low → `-low`, medium → `-medium`, high, max,
+  xhigh or no effort → `-high`, a missing tier taking the nearest present —
+  and the status row says the ride (`gemini-4-argon ▸ gemini-4-argon-high`);
+  a crewmate named onto the bare id takes the high row. A Claude row on
   this road takes the request shape Google's own client sends it: thinking
   as a token budget (low 1024, medium 8192, high 24576, thoughts included),
   function calling VALIDATED even with no tools, an output ceiling of at
