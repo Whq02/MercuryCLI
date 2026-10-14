@@ -79,9 +79,9 @@ runs the family's pinned default (xAI: Grok 4.7) and the launch receipt says
 so. An exact id of a signed-in family runs when the live list names it, or,
 when the list cannot be read, when this build knows it; when an id is on
 neither page, the agent may use `WebSearch` on the provider's published models
-page (listed in `mercury://models`) to inform its question and then ask the
-operator for the model id with `AskUserQuestion` (web text never launches a
-model). Only a
+page (listed in `mercury://models`) to inform its question and then
+ask the operator for the model id with `AskUserQuestion` (web text never
+launches a model). Only a
 provider with no sign-in refuses a launch outright, naming `/logins`; no
 launch ever moves to another provider on its own.
 
