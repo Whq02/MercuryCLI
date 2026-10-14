@@ -1,9 +1,9 @@
 #!/usr/bin/env bun
 import { spawn } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
-import { existsSync, mkdirSync, mkdtempSync, openSync, readdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, openSync, readdirSync, readFileSync, realpathSync, rmSync, watch, writeFileSync, type FSWatcher } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { basename, join } from 'node:path'
+import { basename, dirname, join } from 'node:path'
 import { DIST, MODEL, NODE, argAfter, bootRunner, bound, childEnv, makeTally, seedHome, sleep, type Frame } from './dupline-world.ts'
 import { startFixtureApi, type CapturedRequest, type FixtureApi, type ScriptedTurn } from '../lib/fixtureApi.ts'
 import type { HostVerb } from '../lib/runnerHost.ts'
@@ -24,6 +24,7 @@ const STREAM_GAP_MS = 200
 const NEW_MODEL = 'claude-sonnet-5'
 const OLD_SEAT_MODEL = 'claude-opus-5'
 const NOTIFICATION = '<task-notification>'
+const SETTLE_WINDOW_MS = bound(1000)
 
 const SCRATCH = realpathSync(mkdtempSync(join(tmpdir(), 'switch-boundary-')))
 const guardPids = new Set<number>()
@@ -392,6 +393,7 @@ if (ONLY === undefined || ONLY === 'D') {
       MERCURY_CACHE_CLOCK: '0',
       MERCURY_PARTY: '0',
       MERCURY_TOOL_SEARCH: '0',
+      MERCURY_SETTLE_WINDOW_MS: String(SETTLE_WINDOW_MS),
       BROWSER: '/usr/bin/true',
     },
     stdio: ['ignore', logFd, logFd],
@@ -437,6 +439,31 @@ if (ONLY === undefined || ONLY === 'D') {
     }
     const facts = () => proj.readSessionFacts(sessionId, daemonDir)
     const tail = () => proj.readSessionTail(sessionId, daemonDir)
+    type TailMark = { tail: NonNullable<ReturnType<typeof tail>>; busy: boolean | undefined; seenAt: number }
+    const tailMark = (pred: (t: NonNullable<ReturnType<typeof tail>>) => boolean, ms: number): Promise<TailMark | null> =>
+      new Promise(resolve => {
+        let watcher: FSWatcher | undefined
+        let settled = false
+        const end = (mark: TailMark | null): void => {
+          if (settled) return
+          settled = true
+          watcher?.close()
+          clearInterval(tick)
+          clearTimeout(limit)
+          resolve(mark)
+        }
+        const look = (): void => {
+          const t = tail()
+          if (t !== null && pred(t)) end({ tail: t, busy: facts()?.busy, seenAt: Date.now() })
+        }
+        try {
+          watcher = watch(dirname(proj.sessionTailPath(sessionId, daemonDir)), look)
+        } catch {
+        }
+        const tick = setInterval(look, 50)
+        const limit = setTimeout(() => end(null), ms)
+        look()
+      })
     const send = async (words: string, id: string): Promise<boolean> => {
       const reply = (await rpc({ op: 'sessionDispatch', clientMessageId: id, prompt: words, workspaceDir: '', targetSessionId: sessionId, by: 'operator', sentAt: new Date().toISOString() })) as { ok?: boolean }
       return reply.ok === true
@@ -468,10 +495,12 @@ if (ONLY === undefined || ONLY === 'D') {
     tally.check('DB1 the delegation grant lands (its notice turn launches the background probe)', grant.ok === true, JSON.stringify(grant))
     tally.check('DB2 the probe is launched and its Sleep runs', await untilAsync(() => firstRequestWith(api, 'hold the probe') !== undefined && firstRequestWith(api, resultOf('tu-agent')) !== undefined, bound(60_000), 50), describeRequests(api))
     tally.check('DB3 the seat reads the agent wait while the probe holds the turn open', await untilAsync(() => tail()?.stateWord === 'waiting-on-agents', bound(30_000), 20), JSON.stringify(tail()))
-    const holdSeen = await untilAsync(() => tail()?.stateWord !== 'waiting-on-agents', bound(60_000), 15)
+    const hold = await tailMark(t => t.stateWord !== 'waiting-on-agents', bound(60_000))
     const switchedBack = await seatVerb('set-model', { model: OLD_SEAT_MODEL })
+    const switchAnsweredAt = Date.now()
     const sentB = await send('say more again', 'sb-words-b')
-    tally.check('DB4 the agent wait ends into the completion hold (the state word clears while the turn is still held open)', holdSeen && facts()?.busy === true, JSON.stringify({ tail: tail(), busy: facts()?.busy }))
+    console.log(`  · the hold's mark published at ${hold?.tail.atMs ?? 'never'}: seen ${hold === null ? '-' : hold.seenAt - hold.tail.atMs} ms after it, the switch answered ${hold === null ? '-' : switchAnsweredAt - hold.tail.atMs} ms after it, inside a ${SETTLE_WINDOW_MS} ms hold`)
+    tally.check('DB4 the agent wait ends into the completion hold (the state word clears while the turn is still held open)', hold !== null && hold.busy === true, JSON.stringify({ hold, tail: tail(), busy: facts()?.busy }))
     tally.check("DB5 a switch sent inside the hold is applied at once — the receipt is 'applied', not 'queued'", switchedBack.ok === true && switchedBack.outcome === 'applied', JSON.stringify(switchedBack))
     tally.check('DB6 the words are sent inside the hold', sentB)
     tally.check('DB7 the completion turn and the words settle', await untilAsync(() => transcript().includes('the second words.'), bound(60_000)), describeRequests(api))
