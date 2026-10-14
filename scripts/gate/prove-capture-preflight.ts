@@ -72,7 +72,7 @@ const home = join(scratch, 'home')
 mkdirSync(home)
 const unitRun = (suite: string, env: Record<string, string | undefined>, budget = '30'): { rc: number; out: string; rcFile: string; secs: boolean; cpu: boolean } => {
   const outDir = mkdtempSync(join(scratch, `out-${suite}-`))
-  const res = spawnSync('bash', [unit, join(estate, suite, 'run-all.sh'), budget, outDir], { encoding: 'utf8', env: { ...baseEnv, MERCURY_CONFIG_DIR: home, ...env }, detached: true, timeout: 6000 })
+  const res = spawnSync('bash', [unit, join(estate, suite, 'run-all.sh'), budget, outDir], { encoding: 'utf8', env: { ...baseEnv, MERCURY_CONFIG_DIR: home, ...env }, detached: true, timeout: 60_000 })
   if (res.error) { try { process.kill(-res.pid, 'SIGKILL') } catch {} }
   const read = (name: string): string => (existsSync(join(outDir, name)) ? readFileSync(join(outDir, name), 'utf8') : '')
   return { rc: res.status ?? -1, out: read(`${suite}.out`), rcFile: read(`${suite}.rc`).trim(), secs: existsSync(join(outDir, `${suite}.secs`)), cpu: existsSync(join(outDir, `${suite}.cpu`)) }
