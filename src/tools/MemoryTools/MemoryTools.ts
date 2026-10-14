@@ -4,6 +4,7 @@ import { buildTool, type ToolDef, type ToolUseContext } from '../../Tool.js'
 import { lazySchema } from '../../utils/lazySchema.js'
 import { getSessionId } from '../../bootstrap/state.js'
 import {
+  correctionPreflight,
   correctMemoryJudged,
   memoryVerbsEnabled,
   readMemoryRecord,
@@ -14,7 +15,10 @@ import {
   type MemoryReadResult,
   type RecallResult,
   type RetainItemOutcome,
+  type RuleAuthority,
 } from '../../mneme/memoryVerbs.js'
+import { mnemeLibraryDir } from '../../mneme/mnemeGates.js'
+import { askedReplacements, askedRuleOf, askRuleCard, correctionChange, ruleCardAsk, ruleCardText } from './ruleCard.js'
 import { confirmCitedFacts, renderFootnotes } from '../../mneme/mnemeFootnotes.js'
 import { POINTER_DEFAULT_LIMIT, POINTER_LIMIT, limitCutLine, renderPointerLine, searchPointers, type PointerResult } from '../../mneme/mnemePointers.js'
 import { runDueMaintenance } from '../../mneme/mnemeMaintenance.js'
@@ -82,8 +86,12 @@ export interface RetainOutput {
 function pinnedItemStored(items: Array<{ pin?: boolean; replaces?: string }>, outcomes: RetainItemOutcome[]): boolean {
   return outcomes.some(outcome => {
     const item = items[outcome.index]
-    return outcome.status === 'stored' && (item?.pin === true || (item?.replaces ?? '').trim() !== '')
+    return outcome.status === 'stored' && outcome.replaced === undefined && (item?.pin === true || (item?.replaces ?? '').trim() !== '')
   })
+}
+
+function ruleAnswerWords(via: RuleAuthority | undefined, verb: string): string {
+  return via === 'card' ? ` The user said yes on the card: the rule they asked Mercury to remember was ${verb} from the chat.` : ''
 }
 
 export const RetainTool = buildTool({
@@ -109,15 +117,38 @@ export const RetainTool = buildTool({
   async prompt() {
     return RETAIN_PROMPT
   },
-  async call(input: z.infer<RetainSchema>, context: ToolUseContext) {
+  async checkPermissions(input: z.infer<RetainSchema>, context: ToolUseContext) {
+    return ruleCardAsk(context) ?? { behavior: 'allow' as const, updatedInput: input }
+  },
+  async call(input: z.infer<RetainSchema>, context: ToolUseContext, canUseTool, parentMessage) {
+    const asked = askedReplacements(input.items, mnemeLibraryDir())
+    const verdict =
+      asked.length === 0
+        ? null
+        : await askRuleCard({
+            tool: RetainTool,
+            toolInput: input,
+            card: ruleCardText(RETAIN_TOOL_NAME, asked.map(a => a.change)),
+            rules: asked.map(a => a.change.rule),
+            context,
+            canUseTool,
+            parentMessage,
+          })
     const outcomes = await retainItemsJudged(
       input.items,
       {
         session: safeSession(),
         ...(context.agentId ? { agent: String(context.agentId) } : {}),
+        ...(verdict?.ok === true ? { authority: verdict.via } : {}),
       },
       abortOf(context),
     )
+    if (verdict !== null && !verdict.ok) {
+      for (const { index } of asked) {
+        const outcome = outcomes[index]
+        if (outcome?.status === 'refused') outcome.reason = verdict.message
+      }
+    }
     const stored = outcomes.filter(o => o.status === 'stored').length
     const refused = outcomes.filter(o => o.status === 'refused').length
     if (!pinnedItemStored(input.items, outcomes)) return { data: { outcomes, stored, refused } }
@@ -128,7 +159,9 @@ export const RetainTool = buildTool({
     const lines = output.outcomes.map(outcome =>
       outcome.status === 'refused'
         ? `- item ${outcome.index}: REFUSED — ${outcome.reason} (the fact was NOT stored)`
-        : `- item ${outcome.index}: ${outcome.status} → ${outcome.id}`,
+        : outcome.status === 'stored' && outcome.replaced !== undefined
+          ? `- item ${outcome.index}: stored → ${outcome.id}, in place of seq ${outcome.replaced.seq}; the old wording is kept in history and the pin follows the new one.${ruleAnswerWords(outcome.replaced.via, 'replaced')}`
+          : `- item ${outcome.index}: ${outcome.status} → ${outcome.id}`,
     )
     if (output.shelf) {
       lines.push(
@@ -397,21 +430,37 @@ export const CorrectTool = buildTool({
   async prompt() {
     return CORRECT_PROMPT
   },
-  async call(input: z.infer<CorrectSchema>, context: ToolUseContext) {
-    const outcome = await correctMemoryJudged(
-      {
-        op: input.op,
-        id: input.id,
-        ...(input.content !== undefined ? { content: input.content } : {}),
-        ...(input.replacementId !== undefined ? { replacementId: input.replacementId } : {}),
-        reason: input.reason,
-        session: safeSession(),
-      },
-      abortOf(context),
-    )
-    return { data: outcome }
+  async checkPermissions(input: z.infer<CorrectSchema>, context: ToolUseContext) {
+    return ruleCardAsk(context) ?? { behavior: 'allow' as const, updatedInput: input }
+  },
+  async call(input: z.infer<CorrectSchema>, context: ToolUseContext, canUseTool, parentMessage) {
+    const correction = {
+      op: input.op,
+      id: input.id,
+      ...(input.content !== undefined ? { content: input.content } : {}),
+      ...(input.replacementId !== undefined ? { replacementId: input.replacementId } : {}),
+      reason: input.reason,
+      session: safeSession(),
+    }
+    const dir = mnemeLibraryDir()
+    const rule = askedRuleOf(input.id, dir)
+    if (rule === null) return { data: await correctMemoryJudged(correction, abortOf(context)) }
+    const early = correctionPreflight(correction, dir)
+    if (early !== null) return { data: early }
+    const verdict = await askRuleCard({
+      tool: CorrectTool,
+      toolInput: input,
+      card: ruleCardText(CORRECT_TOOL_NAME, [{ rule, change: correctionChange(input, dir) }], input.reason),
+      rules: [rule],
+      context,
+      canUseTool,
+      parentMessage,
+    })
+    if (!verdict.ok) return { data: { ok: false as const, op: input.op, code: verdict.code, message: verdict.message } }
+    return { data: await correctMemoryJudged({ ...correction, authority: verdict.via }, abortOf(context)) }
   },
   mapToolResultToToolResultBlockParam(output: CorrectToolOutput, toolUseID) {
+    const verb = output.op === 'retract' ? 'unpinned and struck' : 'corrected'
     if (output.ok && 'draft' in output) {
       const tail =
         output.newId !== null
@@ -422,14 +471,14 @@ export const CorrectTool = buildTool({
       return {
         tool_use_id: toolUseID,
         type: 'tool_result',
-        content: `${output.op} landed on the pending row ${output.targetId}: ${tail}. A pending row is a draft — it leaves no history and its bytes are gone from the buffer.`,
+        content: `${output.op} landed on the pending row ${output.targetId}: ${tail}. A pending row is a draft — it leaves no history and its bytes are gone from the buffer.${ruleAnswerWords(output.via, verb)}`,
       }
     }
     if (output.ok) {
       return {
         tool_use_id: toolUseID,
         type: 'tool_result',
-        content: `${output.op} landed: seq ${output.targetSeq} → ${output.newSeq} in topic-${output.slug}. The old record is retained under history.`,
+        content: `${output.op} landed: seq ${output.targetSeq} → ${output.newSeq} in topic-${output.slug}. The old record is retained under history.${ruleAnswerWords(output.via, verb)}`,
       }
     }
     return {
