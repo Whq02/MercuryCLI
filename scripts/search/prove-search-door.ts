@@ -14,6 +14,7 @@ const j = (v: unknown): string => JSON.stringify(v) ?? ''
 
 const {
   resolveSearchDoorPlan,
+  liveSearchDoorReads,
   nativeSearchFamilyOf,
   describeSearchDoorPlan,
   searchDoorFact,
@@ -65,8 +66,17 @@ section('§2 the explicit-key plan remains deterministic when no session model o
   check('tavily only · keyless off · no instance ⇒ Tavily alone', j(doorsOf({ tavilyKey: 'stored', keylessAllowed: false })) === j(['keyed:tavily']))
   const closedAll = resolveSearchDoorPlan({ keylessAllowed: false })
   check('no keys, no instance and the keyless door off ⇒ no door; every closed source named, the missing instance included',
-    closedAll.doors.length === 0 && closedAll.closed.length === 3 && closedAll.closed.some(c => c.includes('MERCURY_SEARCH_KEYLESS=0')) && closedAll.closed.some(c => c.includes('/router key brave')) && closedAll.closed.some(c => c.includes('no metasearch instance configured; MERCURY_SEARCH_SEARXNG_INSTANCES')),
+    closedAll.doors.length === 0 && closedAll.closed.length === 3 && closedAll.closed.some(c => c.includes('DuckDuckGo page scraping is off') && c.includes('/config') && c.includes('MERCURY_SEARCH_KEYLESS=0')) && closedAll.closed.some(c => c.includes('/router key brave')) && closedAll.closed.some(c => c.includes('no metasearch instance configured; MERCURY_SEARCH_SEARXNG_INSTANCES')),
     j(closedAll.closed))
+  delete process.env.MERCURY_SEARCH_KEYLESS
+  const fresh = resolveSearchDoorPlan(liveSearchDoorReads({}))
+  check('a fresh process with no pin and no saved choice walks the keyless door and names no DuckDuckGo absence (on by default)',
+    j(fresh.doors.map(d => d.kind)) === j(['keyless']) && !fresh.closed.some(c => c.includes('DuckDuckGo')), j(fresh))
+  process.env.MERCURY_SEARCH_KEYLESS = '0'
+  const pinnedOff = resolveSearchDoorPlan(liveSearchDoorReads({}))
+  delete process.env.MERCURY_SEARCH_KEYLESS
+  check('…and MERCURY_SEARCH_KEYLESS=0 removes the door and names the absence with both off doors',
+    pinnedOff.doors.length === 0 && pinnedOff.closed.some(c => c.includes('DuckDuckGo page scraping is off') && c.includes('MERCURY_SEARCH_KEYLESS=0')), j(pinnedOff))
   let nonVendored = 0
   for (const braveKey of [undefined, 'stored'] as const) {
     for (const tavilyKey of [undefined, 'env'] as const) {

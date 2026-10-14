@@ -15,7 +15,7 @@ VITALS              │ │   Session concourse                 on              
                     │ │   Ping                              on                                   │ │
                     │ │   Account identity                  shown                                │ │
                     │ │   Motion                            auto · off                           │ │
-                    │ │   DuckDuckGo scraping               off                                  │ │
+                    │ │   DuckDuckGo page scraping          on                                   │ │
                     │ │   JEV                               off · official                       │ │
                     │ │ ↓ 56 more                                                                │ │
                     │ │                                                                          │ │

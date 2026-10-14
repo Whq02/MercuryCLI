@@ -10,7 +10,7 @@ import { isNativeSearchFamily, type NativeSearchFamily } from './nativeSearchReq
 import { officialSearch } from './officialSearch.js'
 import { searxngSearch } from './searxng.js'
 import { configuredSearxngInstances } from './searxngInstances.js'
-import { DUCKDUCKGO_TERMS, duckduckgoScrapingEnabled } from './searchSetting.js'
+import { DUCKDUCKGO_OFF_DOORS, DUCKDUCKGO_TERMS, duckduckgoScrapingEnabled } from './searchSetting.js'
 import { officialSearchIntent, type OfficialSearchSource } from './searchSources.js'
 import { cachedAnswerNote, coolDownRemainingMs, liveSearchClock, nextSearchGroupId, noteAnswered, noteRateLimited, rememberSearch, secondsLeftLabel, takeCachedSearch, takeKeyedDoorHint, type SearchClock } from './searchPacing.js'
 import { failureLine, KEYED_DOOR_COMMANDS, KEYED_DOOR_FREE_TIER, normaliseHits, searchBackendLabel, searchFailure, type SearchBackendId, type SearchFailure, type SearchHit, type SearchOutcome, type SearchRequest, type SearchTier } from './searchContract.js'
@@ -56,7 +56,7 @@ export function resolveSearchDoorPlan(reads: SearchDoorReads, query = ''): Searc
   }
   if (parsed === 'duckduckgo') return reads.keylessAllowed
     ? { doors: [{ kind: 'keyless' }], closed: [], override: parsed }
-    : { doors: [], closed: ['MERCURY_SEARCH_BACKEND=duckduckgo, but the scraping door is off (MERCURY_SEARCH_KEYLESS=0)'], override: parsed }
+    : { doors: [], closed: [`MERCURY_SEARCH_BACKEND=duckduckgo, but DuckDuckGo page scraping is off (${DUCKDUCKGO_OFF_DOORS})`], override: parsed }
   const doors: SearchDoor[] = []
   const family = reads.mainModel ? nativeSearchFamilyOf(reads.mainModel) : undefined
   if (family) doors.push({ kind: 'native', family })
@@ -68,7 +68,7 @@ export function resolveSearchDoorPlan(reads: SearchDoorReads, query = ''): Searc
   const closed = []
   if (!keyed.length) closed.push(`no Brave or Tavily key stored (${KEYED_DOOR_COMMANDS} — ${KEYED_DOOR_FREE_TIER})`)
   if (!reads.metasearchInstances) closed.push(NO_METASEARCH_INSTANCE)
-  if (!reads.keylessAllowed) closed.push('DuckDuckGo scraping is off (MERCURY_SEARCH_KEYLESS=0)')
+  if (!reads.keylessAllowed) closed.push(`DuckDuckGo page scraping is off (${DUCKDUCKGO_OFF_DOORS})`)
   return { doors, closed, override: parsed }
 }
 export function liveSearchDoorReads(env: Record<string, string | undefined> = process.env): SearchDoorReads {

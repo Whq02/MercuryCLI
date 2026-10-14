@@ -49,7 +49,7 @@ function run(label: string, extra: Record<string, string>): Row[] {
 try {
   for (const keyless of [true, false]) {
     const label = keyless ? 'router-only' : 'router-no-keyless'
-    const rows = run(label, { OPENROUTER_API_KEY: 'fixture-router-key', MERCURY_SEARCH_KEYLESS: keyless ? '1' : '0' })
+    const rows = run(label, { OPENROUTER_API_KEY: 'fixture-router-key', ...(keyless ? {} : { MERCURY_SEARCH_KEYLESS: '0' }) })
     const model = rows.find(row => row.id === 'model')
     const search = rows.find(row => row.id === 'web-search-door')
     check(`${label}: model is not resolved before the catalogue is fetched`, String(model?.evidence).includes('no usable row yet'), JSON.stringify(model))
