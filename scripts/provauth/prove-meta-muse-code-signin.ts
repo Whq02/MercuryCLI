@@ -3,11 +3,13 @@ import '../lib/hermetic.ts'
 import { proofHome } from '../lib/hermetic.ts'
 import { readFileSync, rmSync, statSync } from 'node:fs'
 import { join } from 'node:path'
+import type { CompatCallModelParams } from '../../src/services/providers/openaicompat/compatChatCallModel.ts'
+import type { AssistantMessage } from '../../src/types/message.ts'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.BROWSER = '/usr/bin/true'
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
-for (const k of ['MODEL_API_KEY', 'META_API_KEY']) delete process.env[k]
+for (const k of ['MODEL_API_KEY', 'META_API_KEY', 'MERCURY_DISABLE_NONESSENTIAL_TRAFFIC']) delete process.env[k]
 
 let failures = 0
 let passes = 0
@@ -19,6 +21,7 @@ function check(label: string, ok: boolean, detail = ''): void {
 
 const ACCOUNT_TOKEN = 'meta-oidc-account-token-fixture-0001'
 const MINTED_KEY = 'LLM|987654321|muse-code-minted-key-fixture-abcdef'
+const STORED_API_KEY = 'LLM|123456789|stored-payg-api-key-fixture-999999'
 
 interface RecordedRequest {
   method: string
@@ -63,6 +66,10 @@ let keyReply: { status: number; body: unknown } = {
     },
   },
 }
+let modelsStatus = 200
+let chatStatus = 200
+
+const sse = (body: unknown): string => `data: ${JSON.stringify(body)}\n\n`
 
 const server = Bun.serve({
   hostname: '127.0.0.1',
@@ -88,6 +95,36 @@ const server = Bun.serve({
         ? new Response(keyReply.body, { status: keyReply.status })
         : Response.json(keyReply.body, { status: keyReply.status })
     }
+    if (url.pathname === '/v1/models') {
+      if (modelsStatus !== 200) {
+        return Response.json({ error: { message: 'invalid Muse Code key' } }, { status: modelsStatus })
+      }
+      return Response.json({ data: [{ id: 'muse-spark-1.3', created: 3, owned_by: 'meta' }] }, { status: 200 })
+    }
+    if (url.pathname === '/v1/chat/completions') {
+      if (chatStatus !== 200) {
+        return Response.json(
+          { error: { message: 'invalid API key' } },
+          { status: chatStatus, headers: { 'x-should-retry': 'false' } },
+        )
+      }
+      const parsed = JSON.parse(body) as { model: string }
+      const chunk = (delta: unknown, finish: string | null = null): string =>
+        sse({
+          id: 'meta-chat-fixture',
+          object: 'chat.completion.chunk',
+          created: 1,
+          model: parsed.model,
+          choices: [{ index: 0, delta, finish_reason: finish }],
+        })
+      const stream =
+        chunk({ role: 'assistant' }) +
+        chunk({ content: 'MUSE-CODE-WIRE-OK' }) +
+        chunk({}, 'stop') +
+        sse({ choices: [], usage: { prompt_tokens: 10, completion_tokens: 5, total_tokens: 15 } }) +
+        'data: [DONE]\n\n'
+      return new Response(stream, { headers: { 'content-type': 'text/event-stream' } })
+    }
     return new Response('not found', { status: 404 })
   },
 })
@@ -98,9 +135,38 @@ const { enableConfigs } = await import('../../src/utils/config.ts')
 enableConfigs()
 const accounts = await import('../../src/services/providers/meta/metaAccounts.ts')
 const login = await import('../../src/services/providers/meta/metaLogin.ts')
+const catalogue = await import('../../src/services/providers/meta/metaCatalogue.ts')
 const slots = await import('../../src/services/providers/accountSlots.ts')
 const screen = await import('../../src/components/BootLoginsScreen.tsx')
+const secrets = await import('../../src/utils/router/providerSecrets.ts')
+const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
+const { createUserMessage } = await import('../../src/utils/messages.ts')
+const { routedCallModel } = await import('../../src/services/providers/callModelRouter.ts')
 const repoRoot = join(import.meta.dir, '..', '..')
+
+async function runChat(model = 'muse-spark-1.3'): Promise<AssistantMessage[]> {
+  const params: CompatCallModelParams = {
+    messages: [createUserMessage({ content: 'hello muse' })],
+    tools: [],
+    systemPrompt: asSystemPrompt(['Fixture system']),
+    thinkingConfig: { type: 'disabled' },
+    signal: new AbortController().signal,
+    options: {
+      model,
+      querySource: 'main_thread',
+      isNonInteractiveSession: true,
+      getToolPermissionContext: async () => ({}),
+      agents: [],
+      hasAppendSystemPrompt: false,
+      mcpTools: [],
+    } as never,
+  }
+  const out: AssistantMessage[] = []
+  for await (const event of routedCallModel(params as never)) {
+    if (event.type === 'assistant') out.push(event as AssistantMessage)
+  }
+  return out
+}
 
 try {
   console.log('── 1. Card rows & one device-code engine across two skins ──')
@@ -253,9 +319,122 @@ try {
     JSON.stringify(metaSlots),
   )
 
-  console.log('── 4. Cancel and expiry ──')
+  console.log('── 4. Row 3: The wire unchanged & refused minted key never falls through ──')
+  secrets.writeStoredMetaApiKey(STORED_API_KEY)
+  accounts.writePreferredMetaSource('muse-code')
+  catalogue.__resetMetaCatalogueForTest()
+  requests.length = 0
+  const okTurn = await runChat('muse-spark-1.3')
+  const chatReq = requests.find(r => r.path === '/v1/chat/completions')
+  check(
+    'chat turn rides /v1/chat/completions with the minted Muse Code key, never the account token or stored API key',
+    okTurn.some(m => JSON.stringify(m).includes('MUSE-CODE-WIRE-OK')) &&
+      chatReq?.headers['authorization'] === `Bearer ${MINTED_KEY}` &&
+      !requests.some(r => r.headers['authorization'] === `Bearer ${ACCOUNT_TOKEN}`) &&
+      !requests.some(r => r.headers['authorization'] === `Bearer ${STORED_API_KEY}`),
+    JSON.stringify(chatReq?.headers),
+  )
+  for (const status of [401, 403] as const) {
+    chatStatus = status
+    requests.length = 0
+    const refusedChat = await runChat('muse-spark-1.3')
+    check(
+      `HTTP ${status} on /v1/chat/completions says "the Muse Code key was refused — /logins signs in with Meta again" and never falls through to the stored API key`,
+      refusedChat.some(
+        m =>
+          m.isApiErrorMessage &&
+          m.error === 'authentication_failed' &&
+          JSON.stringify(m).includes('the Muse Code key was refused — /logins signs in with Meta again'),
+      ) &&
+        !requests.some(r => r.headers['authorization'] === `Bearer ${STORED_API_KEY}`) &&
+        accounts.resolveMetaAccount()?.kind === 'muse-code',
+      JSON.stringify(refusedChat),
+    )
+  }
+  chatStatus = 200
+  modelsStatus = 401
+  await catalogue.refreshMetaCatalogue({ force: true })
+  requests.length = 0
+  const refusedModels = await runChat('muse-spark-1.3')
+  check(
+    'HTTP 401 on /v1/models says "the Muse Code key was refused — /logins signs in with Meta again" before inference and never falls through',
+    refusedModels.some(
+      m =>
+        m.isApiErrorMessage &&
+        m.error === 'authentication_failed' &&
+        JSON.stringify(m).includes('the Muse Code key was refused — /logins signs in with Meta again'),
+    ) && requests.length === 0,
+    JSON.stringify(refusedModels),
+  )
+  modelsStatus = 200
+  catalogue.__resetMetaCatalogueForTest()
+
+  console.log('── 5. Row 3: require_payment and refused token at key mint store nothing as active ──')
   accounts.disconnectMetaMuseCode()
-  check('disconnect clears the stored Muse Code grant', accounts.readMetaMuseCodeGrant() === undefined)
+  secrets.writeStoredMetaApiKey(null)
+  const savedKeyReply = keyReply
+  pollQueue = [{ status: 200, body: { access_token: ACCOUNT_TOKEN } }]
+  keyReply = {
+    status: 200,
+    body: {
+      require_payment: true,
+      is_subs_active: false,
+      action_url: 'https://www.meta.ai/muse-code/subscribe',
+      message: 'Active subscription required',
+    },
+  }
+  const paymentRequired = await login.runMetaDeviceLogin({ sleep: async () => {} })
+  check(
+    'require_payment at sign-in says so in Meta words with the page to visit and stores nothing as active',
+    !paymentRequired.ok &&
+      paymentRequired.code === 'require-payment' &&
+      paymentRequired.receipt.includes('require_payment') &&
+      paymentRequired.receipt.includes('Active subscription required') &&
+      paymentRequired.receipt.includes('https://www.meta.ai/muse-code/subscribe') &&
+      paymentRequired.receipt.includes('nothing stored as active') &&
+      accounts.readMetaMuseCodeGrant() === undefined &&
+      accounts.resolveMetaAccount() === undefined,
+    paymentRequired.receipt,
+  )
+  pollQueue = [{ status: 200, body: { access_token: ACCOUNT_TOKEN } }]
+  keyReply = {
+    status: 200,
+    body: {
+      require_payment: true,
+      require_payment_action_url: 'https://www.meta.ai/muse-code/billing',
+    },
+  }
+  const paymentAltUrl = await login.runMetaDeviceLogin({ sleep: async () => {} })
+  check(
+    'require_payment_action_url is also surfaced and stores nothing as active',
+    !paymentAltUrl.ok &&
+      paymentAltUrl.code === 'require-payment' &&
+      paymentAltUrl.receipt.includes('https://www.meta.ai/muse-code/billing') &&
+      accounts.readMetaMuseCodeGrant() === undefined,
+    paymentAltUrl.receipt,
+  )
+  await login.storeMetaApiKeyLogin(STORED_API_KEY)
+  pollQueue = [{ status: 200, body: { access_token: ACCOUNT_TOKEN } }]
+  keyReply = {
+    status: 403,
+    body: { error: { message: 'OAuth token rejected by Muse Code' } },
+  }
+  const refusedMint = await login.runMetaDeviceLogin({ sleep: async () => {} })
+  check(
+    'a refused token at /muse-code/key stores no Muse Code grant and leaves an existing active API key untouched',
+    !refusedMint.ok &&
+      refusedMint.code === 'refused' &&
+      refusedMint.receipt.includes('HTTP 403') &&
+      refusedMint.receipt.includes('OAuth token rejected by Muse Code') &&
+      !refusedMint.receipt.includes(ACCOUNT_TOKEN) &&
+      accounts.readMetaMuseCodeGrant() === undefined &&
+      accounts.resolveMetaAccount()?.kind === 'api-key',
+    refusedMint.receipt,
+  )
+  secrets.writeStoredMetaApiKey(null)
+  keyReply = savedKeyReply
+
+  console.log('── 6. Cancel, expired_token, access_denied, and clock expiry ──')
   let cancelFlag = false
   pollQueue = [{ status: 400, body: { error: 'authorization_pending' } }]
   const cancelled = await login.runMetaDeviceLogin({
@@ -268,6 +447,20 @@ try {
     'cancelling during the poll settles cancelled and stores nothing',
     !cancelled.ok && cancelled.code === 'cancelled' && accounts.readMetaMuseCodeGrant() === undefined,
     cancelled.receipt,
+  )
+  pollQueue = [{ status: 400, body: { error: 'expired_token' } }]
+  const expiredToken = await login.runMetaDeviceLogin({ sleep: async () => {} })
+  check(
+    'expired_token from the poll endpoint settles expired and stores nothing',
+    !expiredToken.ok && expiredToken.code === 'expired' && accounts.readMetaMuseCodeGrant() === undefined,
+    expiredToken.receipt,
+  )
+  pollQueue = [{ status: 400, body: { error: 'access_denied' } }]
+  const deniedToken = await login.runMetaDeviceLogin({ sleep: async () => {} })
+  check(
+    'access_denied from the poll endpoint settles denied and stores nothing',
+    !deniedToken.ok && deniedToken.code === 'denied' && accounts.readMetaMuseCodeGrant() === undefined,
+    deniedToken.receipt,
   )
   let clock = 1_000_000
   const expired = await login.runMetaDeviceLogin({
