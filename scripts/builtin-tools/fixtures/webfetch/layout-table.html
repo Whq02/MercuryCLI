@@ -1,0 +1,27 @@
+<html><head><title>Release notes archive</title></head><body bgcolor="#ffffff">
+<table width="100%" cellpadding="4" cellspacing="0" border="0">
+<tr>
+<td width="180" valign="top" bgcolor="#eeeeee">
+<a href="index.html">Home</a><br>
+<a href="download.html">Download</a><br>
+<a href="docs.html">Documentation</a><br>
+<a href="faq.html">FAQ</a><br>
+<a href="changes.html">Changes</a><br>
+<a href="contact.html">Contact</a><br>
+<a href="mirrors.html">Mirrors</a><br>
+<a href="license.html">Licence</a><br>
+</td>
+<td valign="top">
+<h1>Release notes for the 4.2 line</h1>
+<p>The 4.2 line is the last to run on the classic kernel. Every build in this line carries the long-term patches for the archive reader and the two format changes described below, so an upgrade from 4.1 needs the migration step described in the handbook before the first start.</p>
+<h2>4.2.3</h2>
+<p>The archive reader now rejects a truncated index instead of reading past the end of the file; the message names the byte at which the index ended. The configuration loader accepts a trailing comma in every list, matching the documented grammar, and the sample files ship with one so the parser is exercised on every install.</p>
+<h2>4.2.2</h2>
+<p>A regression from 4.2.1 made the scheduler skip the first job of a quiet hour when the clock crossed midnight; the fix keeps the job and adds a check that runs on every start. The log line for a skipped job now carries the reason in words rather than a numeric code.</p>
+<h2>4.2.1</h2>
+<p>The first maintenance release of the line: six fixes to the exporter, one to the importer's handling of empty fields, and the usual round of translation updates. Nothing in the file formats moved.</p>
+</td>
+</tr>
+</table>
+<div class="footer">Copyright 2004 the project authors. Hosted by the mirror network.</div>
+</body></html>

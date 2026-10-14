@@ -7,6 +7,7 @@ type Block = {
   parts: (Block | string)[]
   parent?: Block
   dropped: boolean
+  landmark: boolean
   text: number
   links: number
   markup: number
@@ -26,7 +27,7 @@ function unwanted(tag: string, attributes: string): boolean {
 
 export function extractMainHtml(source: string): { html: string; textLength: number; density: number; sparse: boolean } {
   const clean = source.replace(/<!--[\s\S]*?(?:-->|$)/g, '').replace(/<(script|style|noscript|template)\b[^>]*>[\s\S]*?<\/\1\s*>/gi, '')
-  const root: Block = { tag: 'body', open: '', close: '', parts: [], dropped: false, text: 0, links: 0, markup: 0 }
+  const root: Block = { tag: 'body', open: '', close: '', parts: [], dropped: false, landmark: false, text: 0, links: 0, markup: 0 }
   const nodes = [root]
   const stack = [root]
   for (const token of clean.matchAll(/<\/?[a-zA-Z][^>"']*(?:(?:"[^"]*"|'[^']*')[^>"']*)*>|[^<]+|</g)) {
@@ -48,7 +49,7 @@ export function extractMainHtml(source: string): { html: string; textLength: num
       continue
     }
     const tag = opening[1]!.toLowerCase()
-    const node: Block = { tag, open: raw, close: '', parts: [], parent: current, dropped: current.dropped || unwanted(tag, opening[2]!), text: 0, links: 0, markup: raw.length }
+    const node: Block = { tag, open: raw, close: '', parts: [], parent: current, dropped: current.dropped || unwanted(tag, opening[2]!), landmark: tag === 'main' || tag === 'article' || readAttribute(opening[2]!, 'role') === 'main', text: 0, links: 0, markup: raw.length }
     current.parts.push(node)
     nodes.push(node)
     if (!VOID.has(tag) && !raw.endsWith('/>')) stack.push(node)
@@ -68,17 +69,22 @@ export function extractMainHtml(source: string): { html: string; textLength: num
   }
   const body = nodes.find(node => node.tag === 'body' && node !== root) ?? root
   const density = (node: Block) => Math.max(0, node.text - node.links) / Math.max(1, node.text + node.markup)
-  const candidates = nodes.filter(node => !node.dropped && CONTAINERS.has(node.tag) && node.text >= 120 && node.links < node.text / 2)
+  const share = (node: Block) => node.text / Math.max(1, body.text)
+  const inCell = (node: Block): boolean => node.tag === 'td' || node.tag === 'th' || (node.parent !== undefined && inCell(node.parent))
+  const candidates = nodes.filter(node => !node.dropped && CONTAINERS.has(node.tag) && node.text >= 120 && node.links < node.text / 2 && share(node) >= 1 / 5 && (share(node) > 1 / 2 || !inCell(node)))
   let best = candidates.reduce((a, b) => density(b) > density(a) ? b : a, body)
   for (let parent = best; parent; parent = parent.parent!) {
-    if (parent.tag === 'article' || parent.tag === 'main') {
+    if (parent.landmark) {
       best = parent
       break
     }
   }
-  const selected = best.tag === 'main' || best.tag === 'article' || best === body
+  const whole = best.landmark || best === body
+  let scope = whole ? best : best.parent ?? body
+  while (!whole && scope !== body && share(scope) < 4 / 5 && scope.parent) scope = scope.parent
+  const selected = whole
     ? [best]
-    : (best.parent?.parts ?? [best]).filter(part => typeof part === 'string' || (!part.dropped && (part.links < Math.max(1, part.text / 2) || part === best)))
+    : scope.parts.filter(part => typeof part === 'string' || (!part.dropped && (part.links < Math.max(1, part.text / 2) || part === best)))
   const render = (part: Block | string): string => typeof part === 'string' ? part : part.dropped ? '' : part.open + part.parts.map(render).join('') + part.close
   const html = selected.map(render).join('')
   const textLength = body.text
