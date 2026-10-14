@@ -13,11 +13,13 @@
 # gate-watch: src/components/mercury-ui/useFlatList.ts src/services/engine-connector/focusedConnector.ts src/services/engine-connector/noSessionConnector.ts
 # gate-watch: scripts/lib/captureDriver.ts scripts/lib/firstRunSeed.ts scripts/lib/fixtureApi.ts scripts/lib/rows.ts scripts/lib/spawnCapture.ts
 # gate-watch: scripts/hooks/lib/runDoor.ts src/services/projectIntel/capsule.ts
-# gate-watch: scripts/ui/**
+# gate-watch: scripts/ui/** scripts/memory-study/**
 # gate-watch: scripts/jev/lib/jevStandin.ts src/services/jev/jevClient.ts src/services/jev/jevSetting.ts src/services/jev/jevKey.ts src/services/jev/jevLedger.ts src/tools/MemoryTools/UI.tsx src/tools/MemoryTools/prompt.ts
 # gate-watch: src/tools/MemoryTools/ruleCard.ts src/components/permissions/MemoryRulePermissionRequest/MemoryRulePermissionRequest.tsx src/components/permissions/PermissionRequest.tsx src/hooks/toolPermission/PermissionContext.ts src/hooks/toolPermission/handlers/interactiveHandler.ts
 # gate-watch: src/cli/headless/runnerAsks.ts src/utils/permissions/decision/engine.ts src/utils/permissions/decision/wrapper.ts src/utils/permissions/permissions.ts src/utils/permissions/PermissionMode.ts src/cli/run.ts
 # gate-watch: scripts/streaming/artifactArena.ts src/utils/permissions/decisionReasonWire.ts
+# gate-watch: docs/SAMPLES.md src/commands/memory/memoryPage.ts src/services/samples/**
+# gate-watch: .gitignore scripts/vendor/build-embed.ts scripts/vendor/fetch-embed-models.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }

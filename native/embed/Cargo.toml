@@ -1,0 +1,22 @@
+[package]
+name = "mercury_embed"
+version = "0.1.0"
+edition = "2021"
+description = "Mercury's on-device embedding engine, as a Node-API module: GGUF BERT and Nomic-BERT encoders running in-process with nothing leaving the machine"
+publish = false
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+napi = { version = "3", default-features = false, features = ["napi6"] }
+napi-derive = "3"
+
+[build-dependencies]
+napi-build = "2"
+
+[profile.release]
+lto = true
+codegen-units = 1
+opt-level = 3
+strip = "symbols"

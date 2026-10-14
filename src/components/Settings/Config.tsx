@@ -40,6 +40,7 @@ import { readPinnedStatus } from '../../mneme/mnemeFrontPage.js'
 import { runDueMaintenance } from '../../mneme/mnemeMaintenance.js'
 import { memoryAtStartStatus } from '../../mneme/entryKnapsack.js'
 import { formatTextSize, PINNED_TEXT_LIMIT_MIN, PINNED_TEXT_LIMIT_STEP, pinnedTextLimit, START_TEXT_LIMIT_MIN, START_TEXT_LIMIT_STEP, startTextLimit } from '../../mneme/mnemeUsage.js'
+import { describeSemanticReadiness, EMBED_DEFAULT_MODEL, servableEmbedModelNames, WORD_MATCH_ONLY_WORDS } from '../../mneme/embedModels.js'
 import { formatTokens } from '../../utils/format.js'
 import {
   clearInstructionFileCaches,
@@ -985,6 +986,31 @@ export function Config({
         const next = Math.max(START_TEXT_LIMIT_MIN, startLimit + direction * START_TEXT_LIMIT_STEP)
         if (writeSource('userSettings', { memory: { startLimit: next } })) {
           recordSet('memory.startLimit', `set the memory-at-start limit to ${formatTextSize(next)}`)
+          bump()
+        }
+      },
+    })
+  }
+  {
+    const embedSpec = typeof merged.memory?.embeddingModel === 'string' ? merged.memory.embeddingModel.trim() : ''
+    const embedReadiness = describeSemanticReadiness()
+    const embedValue = embedReadiness.state === 'ok' ? embedReadiness.model : WORD_MATCH_ONLY_WORDS
+    const servable = servableEmbedModelNames()
+    const embedChoices = ['', ...servable.filter(name => name !== EMBED_DEFAULT_MODEL)]
+    const choiceWords = servable.length > 1 ? `←/→ picks among the ${servable.length} models this install carries` : 'this install carries one model, the shipped default'
+    items.push({
+      id: 'memory.embeddingModel',
+      label: 'Memory recall ranking',
+      searchText: 'memory recall ranking embedding model semantic meaning word match',
+      kind: 'enum',
+      value: <Text color={embedReadiness.state === 'ok' ? undefined : tokens.textSecondary}>{embedValue}</Text>,
+      setByYou: merged.memory?.embeddingModel !== undefined,
+      warning: `${embedReadiness.state === 'ok' ? `recall ranks by meaning and words through ${embedValue} — everything stays on this machine` : `recall runs word match only — ${embedReadiness.note}`} · ${choiceWords}`,
+      change: direction => {
+        const current = embedSpec === '' || embedSpec === 'default' ? '' : embedSpec
+        const next = cycleIn(embedChoices, embedChoices.includes(current) ? current : '', direction)
+        if (writeSource('userSettings', { memory: { embeddingModel: next === '' ? undefined : next } })) {
+          recordSet('memory.embeddingModel', `set the memory recall ranking to ${next === '' ? 'the shipped default' : next}`)
           bump()
         }
       },

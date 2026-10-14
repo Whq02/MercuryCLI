@@ -1,6 +1,7 @@
 import { existsSync, readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { logForDebugging } from '../utils/debug.js'
+import { memoryRecallModeLine } from './embedModels.js'
 import { indexTopics, liveCount } from './mnemeArchive.js'
 import { listArchiveDocs, listTopicDocs, publishLibraryFile } from './mnemeLibrary.js'
 import { mnemeEnabled, mnemeLibraryDir } from './mnemeGates.js'
@@ -83,6 +84,8 @@ export function renderFrontPage(input: {
   const lines: string[] = [
     '# Memory',
     `What Mercury remembers about this project lives in topic pages under ${dir}. The index below names each topic; Recall searches the pages (query) or reads one whole (read:"doc:<slug>"). ${MEMORY_WRITE_VERBS_SENTENCE} Memory is a record of what was learned, not a second copy of the project: never save what the code, the git history or the instruction files already hold.`,
+    '',
+    memoryRecallModeLine(dir),
     '',
     '## Index',
   ]

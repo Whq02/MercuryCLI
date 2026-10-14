@@ -33,6 +33,35 @@ Mercury publishes the front page when the library or its pinned rules change.
 Between those changes the same page loads into each chat, preserving the
 provider's prompt cache.
 
+## Ranking by meaning
+
+Beside the word match, Recall ranks by meaning: a small embedding model runs
+in-process on this machine, so "the laptop's clock" finds "the notebook's time
+zone" with no word in common. The shipped model is a 118 MB BGE base encoder
+(MIT licence) that arrives with the install; nothing leaves the machine and no
+account or paid model call is involved. The model loads when memory needs it
+(a build, a Retain or a query; about half a gigabyte while loaded) and leaves
+memory after five idle minutes.
+
+The vectors live in a derived file beside the library
+(`memory/library/.index/embeddings.json`): one row per fact, no fact text,
+stamped with the model that made it, rebuilt from the pages whenever it is
+missing, stale or made by another model — the pages stay the one truth. A
+Retain embeds its fact at once, off the cockpit's thread, so a fresh fact is
+found by meaning before it is consolidated; a whole-library build runs the same
+way and Recall says `word match only (index building…)` meanwhile.
+
+The meaning ranking joins the recall fusion as one more ordering beside the
+exact-text hits, the word ranking and the usage signal (reciprocal rank fusion
+with k = 60); pinned rules keep their own order, and facts that mean the same
+hand their order to the usage signal. The start-of-session pick scores through
+the same meaning ranking. No model ever rewrites what you said: ranking only
+decides what to find first.
+
+`/config`'s **Memory recall ranking** row names which model serves and offers
+the models this install carries. On an install stripped of the model, memory
+runs word match only and the front page says so in one line.
+
 ## The four verbs
 
 The model works its memory through four tools:
@@ -185,6 +214,14 @@ files` opens the instruction files picker straight away, in the same popup.
 `/memory stats` prints the numbers; `/memory enqueue` runs maintenance now.
 `/health` carries a memory row with the front page's size and the shelf's
 fill.
+
+`/memory page` draws the library as a page in your browser: every fact is a
+node with its first words, pinned rules and stale facts are marked, each
+node says how often it was offered, opened and cited, and the links are
+edges — what a fact supersedes, the ruling it was made under, the session
+that made it. A node opens its record, word for word. The page reads the
+library and writes nothing back. It is kept as a sample, a new version each
+time you open it, so Samples must be on ([SAMPLES.md](SAMPLES.md)).
 
 ## On disk
 

@@ -2,7 +2,7 @@
 WORKBENCH           │                                                                              │
   no prompts sent y…│ ╭──────────────────────────────────────────────────────────────────────────╮ │
                     │ │ ▖▟▆▙▗ Mercury · config                                                   │ │
-NEXT                │ │ orchard · 67 settings · 1 set by you                                     │ │
+NEXT                │ │ orchard · 68 settings · 1 set by you                                     │ │
   · /workflows — cr…│ │                                                                          │ │
                     │ │ / Search settings…                                                       │ │
 FILES · orchard     │ │                                                                          │ │
@@ -17,7 +17,7 @@ VITALS              │ │   Session concourse                 on              
                     │ │   Motion                            auto · off                           │ │
                     │ │   DuckDuckGo scraping               off                                  │ │
                     │ │   JEV                               off · official                       │ │
-                    │ │ ↓ 56 more                                                                │ │
+                    │ │ ↓ 57 more                                                                │ │
                     │ │                                                                          │ │
                     │ │ ↑↓ select · ←/→ change · ↵ save · / search · esc or click outside closes │ │
                     │ ╰──────────────────────────────────────────────────────────────────────────╯ │
