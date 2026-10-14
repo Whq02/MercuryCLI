@@ -32,6 +32,8 @@ export interface PointerResult {
   pointers: MemoryPointer[]
   elidable: boolean
   catalog: Array<{ slug: string; summary: string }>
+  found: number
+  cutStale: number
 }
 
 export const POINTER_LIMIT = 20
@@ -178,18 +180,29 @@ export function searchPointers(
   const ms = matchers(query)
   const pointers: MemoryPointer[] = ledgerPointers(query, sessions)
   const seen = new Set(pointers.map(p => p.id))
+  let cut = recall.cut.hits
+  let cutStale = recall.cut.stale
   for (const hit of recall.hits) {
-    if (pointers.length >= limit) break
     if (seen.has(hit.id)) continue
     const seq = /^seq:(\d+)$/.exec(hit.id)
     const pointer = factPointer(hit, seq ? rows.get(Number(seq[1])) : undefined, pinned, ms, ctx)
     if (!pointer) continue
+    if (pointers.length >= limit) {
+      cut++
+      if (hit.status === 'stale') cutStale++
+      continue
+    }
     seen.add(pointer.id)
     pointers.push(pointer)
   }
   const offered = pointers.slice(0, limit)
   noteMemoryOffered(query, offered, dir)
-  return { pointers: offered, elidable: pointers.length === 0, catalog: recall.catalog }
+  return { pointers: offered, elidable: pointers.length === 0, catalog: recall.catalog, found: offered.length + cut, cutStale }
+}
+
+export function limitCutLine(result: Pick<PointerResult, 'pointers' | 'found' | 'cutStale'>): string | null {
+  if (result.found <= result.pointers.length) return null
+  return `${result.pointers.length} of ${result.found} hits shown; narrow the words or raise the limit${result.cutStale > 0 ? `, ${result.cutStale} of them stale` : ''}`
 }
 
 export function renderPointerLine(p: MemoryPointer): string {
