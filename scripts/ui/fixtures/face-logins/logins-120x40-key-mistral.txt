@@ -18,7 +18,7 @@
    │ available                                                      │  │ Proven on the model list first; stored     │
    │   Usage-based billing — Anthropic Console…       not signed in │  │ auth-scoped (mode 600);                    │
    │   OpenRouter — one credential, the whole …       not signed in │  │ MISTRAL_API_KEY wins. An optional          │
-   │   Google Gemini — API key or Google OAuth        not signed in │  │ Admin API key follows for /usage.          │
+   │   Google Gemini — Google sign-in, API key        not signed in │  │ Admin API key follows for /usage.          │
    │   GLM (Z.AI) — API key (general or GLM Co…       not signed in │  │ key: ▌                                     │
    │   DeepSeek — API key                             not signed in │  │ ↵ stores it · esc back                     │
    │   xAI — Grok subscription sign-in or API …       not signed in │  ╰────────────────────────────────────────────╯

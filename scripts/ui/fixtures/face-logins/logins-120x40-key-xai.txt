@@ -18,7 +18,7 @@
    │ available                                                      │  │ XAI_API_KEY wins. An optional              │
    │   Usage-based billing — Anthropic Console…       not signed in │  │ management key follows for /usage.         │
    │   OpenRouter — one credential, the whole …       not signed in │  │ key: ▌                                     │
-   │   Google Gemini — API key or Google OAuth        not signed in │  │ ↵ stores · empty keeps existing · esc back │
+   │   Google Gemini — Google sign-in, API key        not signed in │  │ ↵ stores · empty keeps existing · esc back │
    │   GLM (Z.AI) — API key (general or GLM Co…       not signed in │  │                                            │
    │   DeepSeek — API key                             not signed in │  │                                            │
    │ ❯ xAI — Grok subscription sign-in or API …       not signed in │  ╰────────────────────────────────────────────╯

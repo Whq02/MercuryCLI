@@ -32,18 +32,26 @@ export interface GeminiLiveModel {
   outputTokenLimit?: number
   supportedGenerationMethods?: readonly string[]
   thinking?: boolean
+  images?: boolean
   quota?: { remainingFraction?: number; resetTime?: string }
+}
+
+export const GEMINI_PLAN_ROSTER_PREFIX = 'google/'
+
+export function geminiPlanRosterId(rosterId: string): string {
+  return declaredRouteOf(rosterId) === 'gemini' ? rosterId : `${GEMINI_PLAN_ROSTER_PREFIX}${rosterId}`
 }
 
 export function geminiPlanRosterModels(roster: Pick<GeminiPlanRoster, 'models' | 'imageModelIds'>): GeminiLiveModel[] {
   const images = new Set(roster.imageModelIds)
   return roster.models.map(model => ({
-    id: model.id,
+    id: images.has(model.id) ? model.id : geminiPlanRosterId(model.id),
     ...(model.displayName !== undefined ? { displayName: model.displayName } : {}),
     ...(model.maxTokens !== undefined ? { inputTokenLimit: model.maxTokens } : {}),
     ...(model.maxOutputTokens !== undefined ? { outputTokenLimit: model.maxOutputTokens } : {}),
-    supportedGenerationMethods: images.has(model.id) ? ['generateImages'] : declaredRouteOf(model.id) === 'gemini' ? ['generateContent'] : [],
+    supportedGenerationMethods: images.has(model.id) ? ['generateImages'] : ['generateContent'],
     ...(model.supportsThinking !== undefined ? { thinking: model.supportsThinking } : {}),
+    images: model.supportsImages === true,
     ...(model.quota !== undefined ? { quota: model.quota } : {}),
   }))
 }
@@ -488,7 +496,7 @@ export function getGeminiModelOptions(env: NodeJS.ProcessEnv = process.env): Mod
       value: model.id,
       label: model.displayName ?? model.id,
       description: '',
-      descriptionForModel: availability.sourceKind === 'plan' ? `${model.displayName ?? model.id} (${model.id}) — on the roster Google serves the connected ${availability.source}.` : `${model.displayName ?? model.id} (${model.id}) — live-listed generateContent model on the connected ${availability.source}.`,
+      descriptionForModel: availability.sourceKind === 'plan' ? `${model.displayName ?? model.id} (${model.id}) — on the roster Google serves the connected ${availability.source}${model.id.startsWith(GEMINI_PLAN_ROSTER_PREFIX) ? `; Google's own id for it is ${model.id.slice(GEMINI_PLAN_ROSTER_PREFIX.length)}, served through the Google sign-in's Code Assist endpoint, never the vendor's own lane` : ''}.` : `${model.displayName ?? model.id} (${model.id}) — live-listed generateContent model on the connected ${availability.source}.`,
       group: GEMINI_MODEL_GROUP,
       ...(wireReady && routed ? {} : { unavailable: routed ? pendingReason : unroutableReason }),
       ...(model.inputTokenLimit !== undefined ? { statedContextWindow: model.inputTokenLimit } : {}),

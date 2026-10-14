@@ -18,7 +18,7 @@
    │ available                                                      │  │ /model; the first turn proves the key      │
    │ ❯ Usage-based billing — Anthropic Console…       not signed in │  │ (no key-check endpoint is wired for        │
    │   OpenRouter — one credential, the whole …       not signed in │  │ Z.AI).                                     │
-   │   Google Gemini — API key or Google OAuth        not signed in │  │ ↵ done — the roster refreshes              │
+   │   Google Gemini — Google sign-in, API key        not signed in │  │ ↵ done — the roster refreshes              │
    │   GLM (Z.AI) — API key (general or GLM Co…       not signed in │  │                                            │
    │   DeepSeek — API key                             not signed in │  │                                            │
    │   xAI — Grok subscription sign-in or API …       not signed in │  ╰────────────────────────────────────────────╯

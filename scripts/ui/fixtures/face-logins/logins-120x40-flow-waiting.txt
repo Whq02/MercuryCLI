@@ -18,7 +18,7 @@
    │ available                                                      │  │ ?code=elided                               │
    │   Usage-based billing — Anthropic Console…       not signed in │  │ c copies the URL                           │
    │   OpenRouter — one credential, the whole …       not signed in │  │ Paste code here if prompted:               │
-   │   Google Gemini — API key or Google OAuth        not signed in │  │ code: ••••••▌                              │
+   │   Google Gemini — Google sign-in, API key        not signed in │  │ code: ••••••▌                              │
    │   GLM (Z.AI) — API key (general or GLM Co…       not signed in │  │ esc cancels the wait                       │
    │   DeepSeek — API key                             not signed in │  │                                            │
    │   xAI — Grok subscription sign-in or API …       not signed in │  ╰────────────────────────────────────────────╯

@@ -385,7 +385,7 @@ during setup. `/accounts` manages connected provider slots afterwards.
 - **Claude:** subscription account.
 - **Anthropic usage-based billing:** Console sign-in or API key.
 - **OpenRouter:** catalogue access through OAuth or an API key; model requests deny data collection and require every parameter from the start. `/config → OpenRouter routing policy` offers fallback and zero-data-retention choices; choose open to relax the policy and leave routing to OpenRouter.
-- **Google Gemini:** API key or your own OAuth client; Cloud project billing, not AI Pro/Ultra. Consumer Google sign-in ended June 18, 2026 (Gemini CLI too).
+- **Google Gemini:** Sign in with Google, an API key, or your own OAuth client. Sign in with Google runs Gemini on the quota of the plan the Google account holds (a free account, Google AI Pro or Google AI Ultra) through Google's own Antigravity client: the prompt, the tool schemas and the tool results go to Google's Code Assist endpoint under that client and the signed-in account, and `/model` offers the roster Google serves the account. An API key or your own OAuth client bills a Cloud project instead.
 - **Hugging Face:** device-code sign-in or Hub token.
 - **Kimi (Moonshot):** device-code sign-in or API key.
 - **GLM (Z.AI):** API key.

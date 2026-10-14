@@ -214,17 +214,17 @@ for (const s of sizes) {
   check('menu esc closes the popup and reports no credential change', closed && receipts.at(-1)?.includes('no credential changed') === true, `open=${store.isSettingsPopupOpen()} receipt=${receipts.at(-1)}`)
   board.close()
   if (process.argv.includes('--menu-only')) { await releaseScratchHome(home); process.exit(failures ? 1 : 0) }
-  for (const [family, arm] of Object.entries({ openai: '2', openrouter: '3', gemini: '1', huggingface: '2', moonshot: '2', zai: '1', xai: '2', meta: '' })) {
+  for (const [family, arm] of Object.entries({ openai: '2', openrouter: '3', gemini: '2', huggingface: '2', moonshot: '2', zai: '1', xai: '2', meta: '' })) {
     board = await mount(s, family)
     await key(board.m, KEY.enter)
     save(board.m, s, `${family}-choice`)
     if (arm) check(`${family}: the short credential choice keeps its digit shortcuts`, board.m.screen().includes('❯ 1.'))
-    if (compact && arm) check(`${family} compact: the choice screen keeps its title and single-line rows with at most one Gemini note`, rowsVisible(board.m, s) <= 1 + (family === 'openrouter' ? 3 : 2) + (family === 'gemini' ? 1 : 0) && bodyRows(board.m, s).every(line => stringWidth(line) <= geometryOf(s).inner), bodyRows(board.m, s).join(' | '))
+    if (compact && arm) check(`${family} compact: the choice screen keeps its title and single-line rows with at most one Gemini note`, rowsVisible(board.m, s) <= 1 + (family === 'openrouter' || family === 'gemini' ? 3 : 2) + (family === 'gemini' ? 1 : 0) && bodyRows(board.m, s).every(line => stringWidth(line) <= geometryOf(s).inner), bodyRows(board.m, s).join(' | '))
     if (family === 'gemini') {
       const words = board.m.lines().map(line => line.split('│').slice(1, -1).join(' ')).join(' ').replace(/\s+/g, ' ')
-      const note = compact ? "AI Pro/Ultra plans don't apply; OAuth needs your client." : "Google ended consumer Login with Google on June 18, 2026 (Gemini CLI too); AI Pro/Ultra plans don't apply. Sign-in needs your own OAuth client."
-      check(`Gemini ${s.columns}x${s.rows}: the title, both choices and the per-screen note are on screen together`, words.includes('Connect Google Gemini') && words.includes('API key — the easiest') && words.includes('Google account — six steps') && words.includes(note), board.m.screen())
-      if (compact) check('Gemini compact: exactly the title, one note and both single-line choices', rowsVisible(board.m, s) === 4 && bodyRows(board.m, s).filter(line => line.includes('OAuth needs your client.')).length === 1, bodyRows(board.m, s).join(' | '))
+      const note = compact ? "Google sign-in: your plan's quota; a key: a Cloud project." : "Sign in with Google runs Gemini on your plan's quota through Google's own Antigravity client (free, AI Pro or AI Ultra). An API key or your own OAuth client bills a Cloud project instead."
+      check(`Gemini ${s.columns}x${s.rows}: the title, the three choices in the card's order and the per-screen note are on screen together`, words.includes('Connect Google Gemini') && words.indexOf('Sign in with Google — your plan') < words.indexOf('API key — the easiest') && words.indexOf('API key — the easiest') < words.indexOf('Google account — six steps') && words.includes(note), board.m.screen())
+      if (compact) check('Gemini compact: exactly the title, one note and the three single-line choices', rowsVisible(board.m, s) === 5 && bodyRows(board.m, s).filter(line => line.includes('a key: a Cloud project.')).length === 1, bodyRows(board.m, s).join(' | '))
     }
     if (arm) await key(board.m, arm)
     await key(board.m, 'fixture-draft-with-caret-0123456789')
@@ -250,7 +250,7 @@ for (const s of sizes) {
     else if (family !== 'huggingface') check(`${family}: popup unmount cancels the browser handles`, browserCancels === cancels + 1)
   }
   board = await mount(s, 'gemini')
-  await key(board.m, KEY.enter); await key(board.m, '2')
+  await key(board.m, KEY.enter); await key(board.m, '3')
   for (let step = 1; step <= 4; step++) {
     fits(board.m, s, `Gemini guide ${step}`); save(board.m, s, `gemini-guide-${step}`)
     await key(board.m, KEY.enter)

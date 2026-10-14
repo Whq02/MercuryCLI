@@ -18,7 +18,7 @@
    │ available                                                      │  │ https://auth.openai.example/authorize?     │
    │   Usage-based billing — Anthropic Console…       not signed in │  │ request=elided                             │
    │   OpenRouter — one credential, the whole …       not signed in │  │ paste: ▌                                   │
-   │   Google Gemini — API key or Google OAuth        not signed in │  │ c copy · d device · esc cancel             │
+   │   Google Gemini — Google sign-in, API key        not signed in │  │ c copy · d device · esc cancel             │
    │   GLM (Z.AI) — API key (general or GLM Co…       not signed in │  │                                            │
    │   DeepSeek — API key                             not signed in │  │                                            │
    │   xAI — Grok subscription sign-in or API …       not signed in │  ╰────────────────────────────────────────────╯

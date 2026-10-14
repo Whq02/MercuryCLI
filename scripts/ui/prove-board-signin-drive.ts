@@ -135,9 +135,9 @@ try {
       const env: NodeJS.ProcessEnv = { ...process.env, ANTHROPIC_API_KEY: FIXTURE_API_KEY, MERCURY_CONFIG_DIR: home, MERCURY_CREDENTIAL_STORE: 'file', BROWSER: '/usr/bin/true', MERCURY_DAEMON_DIR: join(home, 'daemon'), MERCURY_HOME: join(home, 'home'), MERCURY_HEALTH_STATE_DIR: join(home, 'health'), MERCURY_BOOT_PREFLIGHT: '0', MERCURY_LOCAL_PROBE_TARGETS: 'none', MERCURY_LIVE_GLYPHS: '0', MERCURY_LIVE_CLOCK: '0', MERCURY_CRITTER_GAZE: '0', MERCURY_CRITTER_IDLE: '0', MERCURY_CRITTER_SLEEP: '0', TERM_PROGRAM: 'vscode', MERCURY_GEMINI_API_BASE: kind === 'signin' || kind === 'roster' ? `http://127.0.0.1:${fixture.port}/v1beta` : 'http://127.0.0.1:1' }
       for (const k of ['ANTHROPIC_AUTH_TOKEN', 'OPENAI_API_KEY', 'ZAI_API_KEY', 'OPENROUTER_API_KEY', 'GOOGLE_API_KEY', 'GEMINI_API_KEY', 'MOONSHOT_API_KEY', 'DEEPSEEK_API_KEY', 'HF_TOKEN', 'MERCURY_OAUTH_TOKEN', 'MERCURY_MODEL', 'NODE_ENV']) delete env[k]
       const row = kind === 'signin' ? 'Gemini — sign in' : 'GPT — sign in'
-      const geminiRow = 'Google Gemini — API key or Google OAuth'
+      const geminiRow = 'Google Gemini — Google sign-in, API key'
       const family = kind === 'signin' ? `❯ ${geminiRow}` : '❯ OpenAI — ChatGPT subscription or API key'
-      const keyLeg = [gate('the easiest: create one', '\r', 'pick'), gate('↵ store key', FIXTURE_KEY, 'key'), after(3, '\r'), gate('Gemini API key stored', '', 'receipt'), after(2, '\r'), after(12, '', 'returned')]
+      const keyLeg = [gate('the easiest: create one', `${ESC}[B`, 'pick'), after(2, '\r'), gate('↵ store key', FIXTURE_KEY, 'key'), after(3, '\r'), gate('Gemini API key stored', '', 'receipt'), after(2, '\r'), after(12, '', 'returned')]
       const sends: Send[] = kind === 'face' || kind === 'roster' ? [] : [gate('↑↓ choose', SHIFT_RIGHT), gate('coordinator model', '\t'), gate('n new session', kind === 'session' ? 'n' : 'm')]
       if (kind === 'session') sends.push(gate('contract?', ESC), gate('← back', SHIFT_LEFT), gate('STATUS & TITLE', 'm'))
       if (kind === 'roster') {

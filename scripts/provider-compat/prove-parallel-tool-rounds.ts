@@ -33,7 +33,7 @@ process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 type ScriptedCall = { id: string; name: string; args: string }
 type Turn = { calls: ScriptedCall[] } | { text: string }
 type Body = Record<string, unknown>
-type Dialect = 'anthropic' | 'responses' | 'chat'
+type Dialect = 'anthropic' | 'responses' | 'chat' | 'gemini'
 
 let script: { turns: Turn[]; repeat?: boolean } = { turns: [{ text: 'idle' }] }
 let requestOrdinal = 0
@@ -96,6 +96,16 @@ function chatSse(turn: Turn): string {
   return out.join('')
 }
 
+function geminiSse(turn: Turn): string {
+  if ('calls' in turn) {
+    return sse({ candidates: [{ content: { role: 'model', parts: turn.calls.map((call, index) => ({ functionCall: { id: call.id, name: call.name, args: JSON.parse(call.args) as Record<string, unknown> }, ...(index === 0 ? { thoughtSignature: `fixture-signature-${requestOrdinal}` } : {}) })) }, finishReason: 'STOP' }], usageMetadata: { promptTokenCount: 8, candidatesTokenCount: 3 } })
+  }
+  return [
+    sse({ candidates: [{ content: { role: 'model', parts: [{ text: turn.text }] } }] }),
+    sse({ candidates: [{ content: { role: 'model', parts: [{ text: '' }] }, finishReason: 'STOP' }], usageMetadata: { promptTokenCount: 8, candidatesTokenCount: 3 } }),
+  ].join('')
+}
+
 const OPENAI_MODELS_BODY = {
   models: [
     {
@@ -128,12 +138,12 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
       res.end(path.startsWith('/openai/') ? JSON.stringify(OPENAI_MODELS_BODY) : path.startsWith('/moonshot/') ? JSON.stringify({ object: 'list', data: [{ id: 'kimi-k3', object: 'model', owned_by: 'moonshot' }] }) : JSON.stringify({ object: 'list', data: [{ id: 'fixture-local', object: 'model', owned_by: 'fixture' }] }))
       return
     }
-    const dialect: Dialect | undefined = path.endsWith('/v1/messages') ? 'anthropic' : path.endsWith('/responses') ? 'responses' : path.endsWith('/chat/completions') ? 'chat' : undefined
+    const dialect: Dialect | undefined = path.endsWith('/v1/messages') ? 'anthropic' : path.endsWith('/responses') ? 'responses' : path.endsWith('/chat/completions') ? 'chat' : path.endsWith(':streamGenerateContent') ? 'gemini' : undefined
     if (req.method === 'POST' && dialect !== undefined) {
       captured.push({ dialect, path, body })
       const turn = script.repeat ? script.turns[0]! : (script.turns[requestOrdinal] ?? { text: 'script exhausted' })
       res.writeHead(200, { 'content-type': 'text/event-stream' })
-      res.end(dialect === 'anthropic' ? anthropicSse(turn) : dialect === 'responses' ? responsesSse(turn) : chatSse(turn))
+      res.end(dialect === 'anthropic' ? anthropicSse(turn) : dialect === 'responses' ? responsesSse(turn) : dialect === 'gemini' ? geminiSse(turn) : chatSse(turn))
       requestOrdinal++
       return
     }
@@ -358,6 +368,25 @@ function readRound(dialect: Dialect, body: Body): RoundOnWire {
     }
     return { toolUseIds, answers, trailingText }
   }
+  if (dialect === 'gemini') {
+    const contents = (body.contents as Array<{ role: string; parts: AnyMsg[] }> | undefined) ?? []
+    let lastModel = -1
+    contents.forEach((c, i) => {
+      if (c.role === 'model' && c.parts.some(p => p.functionCall !== undefined)) lastModel = i
+    })
+    if (lastModel === -1) return { toolUseIds, answers, trailingText }
+    for (const p of contents[lastModel]!.parts) if (p.functionCall !== undefined) toolUseIds.push(String((p.functionCall as AnyMsg).id))
+    for (const c of contents.slice(lastModel + 1)) {
+      if (c.role !== 'user') continue
+      for (const p of c.parts) {
+        if (p.functionResponse !== undefined) {
+          const response = (p.functionResponse as AnyMsg).response as AnyMsg
+          answers.push({ id: String((p.functionResponse as AnyMsg).id), text: String(response.output ?? response.error ?? '') })
+        } else if (typeof p.text === 'string') trailingText.push(p.text)
+      }
+    }
+    return { toolUseIds, answers, trailingText }
+  }
   const messages = (body.messages as AnyMsg[] | undefined) ?? []
   let lastAssistant = -1
   messages.forEach((m, i) => {
@@ -427,7 +456,7 @@ const LANES: Array<{ lane: string; model: string; dialect: Dialect }> = [
   { lane: 'deepseek', model: 'deepseek-v4-pro', dialect: 'chat' },
   { lane: 'openai-compat', model: 'compat/fixture-model', dialect: 'chat' },
   { lane: 'openrouter', model: 'openrouter/fixture/model', dialect: 'chat' },
-  { lane: 'gemini', model: 'gemini-3-pro', dialect: 'chat' },
+  { lane: 'gemini', model: 'gemini-3-pro', dialect: 'gemini' },
   { lane: 'huggingface', model: 'huggingface/fixture-org/fixture-model', dialect: 'chat' },
   { lane: 'local', model: 'local/fixture-local', dialect: 'chat' },
 ]
@@ -449,8 +478,14 @@ for (const { lane, model, dialect } of LANES) {
     const second = r.wire[1]
     const round = second ? readRound(dialect, second.body) : { toolUseIds: [], answers: [], trailingText: [] }
     const executed = gated ? ['call_ok', 'call_throw'] : ['call_ok', 'call_throw', 'call_unknown', 'call_badargs']
-    check('P1 the replayed assistant carries exactly the executed calls, in the assistant\'s order', JSON.stringify(round.toolUseIds) === JSON.stringify(executed), JSON.stringify(round.toolUseIds))
-    check('P1 every executed call is answered exactly once, in that same order', JSON.stringify(round.answers.map(a => a.id)) === JSON.stringify(executed), JSON.stringify(round.answers.map(a => a.id)))
+    if (dialect === 'gemini') {
+      const replayed = ['call_ok', 'call_throw', 'call_unknown', 'call_badargs']
+      check('P1 the replayed model content carries every part Google sent, in Google\'s order (the signed-parts law), the refused calls included', JSON.stringify(round.toolUseIds) === JSON.stringify(replayed), JSON.stringify(round.toolUseIds))
+      check('P1 every call is answered exactly once in that order: the executed two with their results, the refused two with the refusal as the function response', JSON.stringify(round.answers.map(a => a.id)) === JSON.stringify(replayed) && round.answers.filter(a => a.id === 'call_unknown' || a.id === 'call_badargs').every(a => a.text !== ''), JSON.stringify(round.answers))
+    } else {
+      check('P1 the replayed assistant carries exactly the executed calls, in the assistant\'s order', JSON.stringify(round.toolUseIds) === JSON.stringify(executed), JSON.stringify(round.toolUseIds))
+      check('P1 every executed call is answered exactly once, in that same order', JSON.stringify(round.answers.map(a => a.id)) === JSON.stringify(executed), JSON.stringify(round.answers.map(a => a.id)))
+    }
     check("P1 the throwing tool's failure rode back as its own tool_result (the run did not end on it)", round.answers.some(a => a.id === 'call_throw' && a.text.includes('FailTool exploded')), JSON.stringify(round.answers.find(a => a.id === 'call_throw')))
     const yielded = toolResultsYielded(r.yields)
     check('P1 the failure was flagged is_error for the model', yielded.some(t => t.id === 'call_throw' && t.isError))
@@ -490,8 +525,14 @@ for (const { lane, model, dialect } of LANES) {
     check('P3 two calls with the same id never end the run', r.threw === undefined && r.terminal.reason === 'completed', `threw=${r.threw ?? 'no'} terminal=${JSON.stringify(r.terminal)}`)
     const second = r.wire[1]
     const round = second ? readRound(dialect, second.body) : { toolUseIds: [], answers: [], trailingText: [] }
-    check('P3 the duplicated id is answered exactly once on the wire', round.answers.filter(a => a.id === 'call_dup').length === 1, JSON.stringify(round.answers.map(a => a.id)))
-    check('P3 at most one tool_use was replayed for the duplicated id', round.toolUseIds.filter(id => id === 'call_dup').length <= 1, JSON.stringify(round.toolUseIds))
+    if (dialect === 'gemini') {
+      const fault = r.yields.find(m => m.type === 'assistant' && (m as { isApiErrorMessage?: boolean }).isApiErrorMessage === true)
+      const words = JSON.stringify((fault?.message as { content?: unknown } | undefined)?.content ?? '')
+      check('P3 on the native wire a repeated function-call id is a typed stream fault in words (Google never repeats one): one model call, nothing minted, nothing executed', r.wire.length === 1 && words.includes('duplicate-tool-call') && words.includes('Gemini repeated a function call id') && mintedToolUses(r.yields).length === 0 && toolResultsYielded(r.yields).length === 0, `calls=${r.wire.length} words=${words.slice(0, 200)}`)
+    } else {
+      check('P3 the duplicated id is answered exactly once on the wire', round.answers.filter(a => a.id === 'call_dup').length === 1, JSON.stringify(round.answers.map(a => a.id)))
+      check('P3 at most one tool_use was replayed for the duplicated id', round.toolUseIds.filter(id => id === 'call_dup').length <= 1, JSON.stringify(round.toolUseIds))
+    }
   }
 
   {

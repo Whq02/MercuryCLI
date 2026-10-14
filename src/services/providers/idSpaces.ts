@@ -36,7 +36,7 @@ export const PROVIDER_ID_SPACES: readonly ProviderIdSpace[] = [
   { route: 'deepseek', barePrefixes: ['deepseek-'], bareAliases: ['deepseek'] },
   { route: 'xai', barePrefixes: ['grok-'], bareAliases: ['grok'] },
   { route: 'meta', barePrefixes: ['muse-'], bareAliases: ['muse'] },
-  { route: 'gemini', barePrefixes: ['gemini-'], bareAliases: ['gemini'] },
+  { route: 'gemini', qualifiedPrefix: 'google/', innerGrammar: 'named', barePrefixes: ['gemini-'], bareAliases: ['gemini'] },
   { route: 'mistral', barePrefixes: ['mistral-', 'ministral-', 'codestral-'], bareAliases: ['mistral'] },
   { route: 'nous', qualifiedPrefix: 'nous/', innerGrammar: 'segments-2' },
   { route: 'zen', qualifiedPrefix: 'zen/', innerGrammar: 'named' },
@@ -188,9 +188,7 @@ export function classifyModelRoute(
 
 export function declaredIdSpacesLine(): string {
   const families = PROVIDER_ID_SPACES.map(space =>
-    space.qualifiedPrefix !== undefined
-      ? `${space.qualifiedPrefix}…`
-      : (space.barePrefixes ?? []).map(prefix => `${prefix}*`).join('/'),
+    [...(space.qualifiedPrefix !== undefined ? [`${space.qualifiedPrefix}…`] : []), ...(space.barePrefixes ?? []).map(prefix => `${prefix}*`)].join('/'),
   )
   return [`${FIRST_PARTY_ID_MARK}* (and the opus/sonnet/haiku/fable aliases)`, ...families].join(' · ')
 }
