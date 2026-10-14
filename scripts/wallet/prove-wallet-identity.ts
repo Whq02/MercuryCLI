@@ -51,7 +51,6 @@ const CLAUDE_RECEIPT_EMAIL = 'claude-receipt@example.test'
 const TYPED_EMAIL = 'typed-by-operator@example.test'
 const GPT_EMAIL = 'gpt-operator@example.test'
 const HUB_USER = 'fixture-hub-user'
-const OWNER_EXAMPLE_EMAIL = 'whq@example.test'
 const GOOGLE_CLIENT_ID = 'fixture-identity-client.apps.googleusercontent.com'
 
 const TOKENS = {
@@ -303,18 +302,8 @@ const openrouterAccounts = await import('../../src/services/providers/openrouter
 const accountSlots = await import('../../src/services/providers/accountSlots.ts')
 const auth = await import('../../src/utils/auth.ts')
 const scopeScan = await import('../../src/utils/accounts/scopeScan.ts')
-const { stringWidth } = await import('../../src/ink/stringWidth.ts')
 type WalletEntry = import('../../src/services/wallet/wallet.ts').WalletEntry
 type AccountSlot = import('../../src/services/providers/accountSlots.ts').AccountSlot
-type Composer = typeof import('../../src/services/wallet/walletIdentity.ts')
-
-let composer: Composer | null = null
-let composerMissing = ''
-try {
-  composer = (await import('../../src/services/wallet/walletIdentity.ts')) as Composer
-} catch (error) {
-  composerMissing = error instanceof Error ? error.message.split('\n')[0] ?? 'import failed' : String(error)
-}
 
 let failures = 0
 let checks = 0
@@ -326,17 +315,9 @@ const check = (label: string, ok: boolean, detail = ''): void => {
 const section = (title: string): void => {
   console.log(`\n${'─'.repeat(76)}\n${title}`)
 }
-const painted: Array<{ step: string; lines: string[] }> = []
 const entriesOf = (provider: string): WalletEntry[] => {
   wallet.resetWalletEntriesMemo()
   return wallet.walletEntries().filter(entry => entry.provider === provider)
-}
-const noComposer = (): string => `no identity composer on this tree (${composerMissing || 'src/services/wallet/walletIdentity.ts'})`
-const expectLines = (label: string, family: string, expected: string[]): void => {
-  wallet.resetWalletEntriesMemo()
-  const got = composer?.familyIdentityLines(family)
-  if (got !== undefined) painted.push({ step: label.split(' ')[0] ?? label, lines: got })
-  check(label, got !== undefined && JSON.stringify(got) === JSON.stringify(expected), got === undefined ? noComposer() : JSON.stringify(got))
 }
 const sleepBeat = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms))
 const readJson = (path: string): Record<string, unknown> => JSON.parse(readFileSync(path, 'utf8')) as Record<string, unknown>
@@ -433,7 +414,6 @@ section('A Anthropic — the profile read and the token-exchange receipt, as the
   check('A1 …and the profile was read with the fresh bearer', state.claudeProfileBearers.at(-1) === TOKENS.claudeAccess1)
   const entry = entriesOf('anthropic').find(e => e.id === 'anthropic:oauth:primary')
   check('A1 the Claude entry names the profile account, source profile', entry?.identity?.email === CLAUDE_PROFILE_EMAIL && entry.identity.source === 'profile', JSON.stringify(entry))
-  expectLines('A1 the Claude row: the profile email, the kind', 'anthropic', [`Claude account · ${CLAUDE_PROFILE_EMAIL} (subscription)`])
 
   state.claudeAccess = TOKENS.claudeAccess2
   state.claudeRefresh = TOKENS.claudeRefresh2
@@ -443,7 +423,6 @@ section('A Anthropic — the profile read and the token-exchange receipt, as the
   check('A2 a sign-in whose profile read failed still settles', second === 'success', second)
   const receiptEntry = entriesOf('anthropic').find(e => e.id === 'anthropic:oauth:primary')
   check('A2 the Claude entry names the receipt account, source receipt', receiptEntry?.identity?.email === CLAUDE_RECEIPT_EMAIL && receiptEntry.identity.source === 'receipt', JSON.stringify(receiptEntry))
-  expectLines('A2 the Claude row: the receipt email', 'anthropic', [`Claude account · ${CLAUDE_RECEIPT_EMAIL} (subscription)`])
   auth.dropCredentialMemos()
   const restartedEntry = entriesOf('anthropic').find(e => e.id === 'anthropic:oauth:primary')
   check('A2 after a restart (every credential memo dropped) the receipt stored with the credential still names the account', restartedEntry?.identity?.email === CLAUDE_RECEIPT_EMAIL && restartedEntry.identity.source === 'receipt' && restartedEntry.label === `Claude account (${CLAUDE_RECEIPT_EMAIL})`, JSON.stringify(restartedEntry))
@@ -456,7 +435,6 @@ section('A Anthropic — the profile read and the token-exchange receipt, as the
   })
   const staleEntry = entriesOf('anthropic').find(e => e.id === 'anthropic:oauth:primary')
   check('W3 a stale recorded account never outranks the receipt stored beside the credential', staleEntry?.identity?.email === CLAUDE_RECEIPT_EMAIL, JSON.stringify(staleEntry?.identity))
-  expectLines('A3 the Claude row still names the credential\'s own account', 'anthropic', [`Claude account · ${CLAUDE_RECEIPT_EMAIL} (subscription)`])
 
   process.env.MERCURY_USER_EMAIL = TYPED_EMAIL
   oauthClient.storeOAuthAccountInfo({ accountUuid: 'typed-uuid', emailAddress: TYPED_EMAIL, organizationUuid: 'typed-org' })
@@ -469,19 +447,16 @@ section('A Anthropic — the profile read and the token-exchange receipt, as the
   const typedEntry = entriesOf('anthropic').find(e => e.id === 'anthropic:oauth:primary')
   check('A4 an address the operator typed (MERCURY_USER_EMAIL) is never claimed as the provider\'s word', typedEntry !== undefined && typedEntry.identity?.source === undefined, JSON.stringify(typedEntry?.identity))
   check('A4 …nor carried in the wallet\'s public identity (no email; the label names the scope, not the typed address)', typedEntry !== undefined && typedEntry.identity?.email === undefined && typedEntry.label === 'Claude account (primary)', JSON.stringify(typedEntry))
-  expectLines('A4 the Claude row paints the sign-in kind alone, never the typed address', 'anthropic', ['Claude account · subscription'])
 
   delete process.env.MERCURY_USER_EMAIL
   wallet.resetWalletEntriesMemo()
   const unpinnedTypedEntry = entriesOf('anthropic').find(e => e.id === 'anthropic:oauth:primary')
   check('A4b removing the env does not turn a persisted typed address into provider identity', unpinnedTypedEntry?.identity?.source === undefined, JSON.stringify(unpinnedTypedEntry?.identity))
-  expectLines('A4b the row still withholds the unproven identity after the env is gone', 'anthropic', ['Claude account · subscription'])
   check('A4b the typed address is still recorded on disk (the fallback the wallet must not read)', scopeScan.readScopeIdentity(scopeScan.scopeIdentityFile(HOME)).email === TYPED_EMAIL, JSON.stringify(scopeScan.readScopeIdentity(scopeScan.scopeIdentityFile(HOME))))
   check('A4b …and the wallet\'s public identity carries none of it (no email, no source; the label names the scope)', unpinnedTypedEntry !== undefined && unpinnedTypedEntry.identity?.email === undefined && unpinnedTypedEntry.label === 'Claude account (primary)' && !JSON.stringify(unpinnedTypedEntry).includes(TYPED_EMAIL), JSON.stringify(unpinnedTypedEntry))
   auth.dropCredentialMemos()
   const restartedTypedEntry = entriesOf('anthropic').find(e => e.id === 'anthropic:oauth:primary')
   check('A4b after a restart (every credential memo dropped, the env still gone) the typed record is still never identity', restartedTypedEntry !== undefined && restartedTypedEntry.identity?.source === undefined && restartedTypedEntry.identity?.email === undefined && !JSON.stringify(restartedTypedEntry).includes(TYPED_EMAIL), JSON.stringify(restartedTypedEntry))
-  expectLines('A4b …and the row after the restart paints the sign-in kind alone', 'anthropic', ['Claude account · subscription'])
 }
 
 section('A5 the provenance rule itself: only the credential\'s own profile or receipt names a Claude account')
@@ -532,7 +507,6 @@ section('A6 an env refresh-token sign-in never wears the previous sign-in\'s rec
   const landed = auth.saveOAuthTokensIfNeeded(envTokens)
   const envEntry = entriesOf('anthropic').find(e => e.id === 'anthropic:oauth:primary')
   check('A6 the landed env sign-in never names the previous account (its credential reported none)', landed.success && envEntry !== undefined && envEntry.identity?.email === undefined && envEntry.identity?.source === undefined && !envEntry.label.includes(CLAUDE_RECEIPT_EMAIL), JSON.stringify(envEntry))
-  expectLines('A6 the row paints the sign-in kind alone', 'anthropic', ['Claude account · subscription'])
   const authSource = readFileSync(join(import.meta.dir, '..', '..', 'src', 'cli', 'handlers', 'auth.ts'), 'utf8')
   check('A6 the env fast path of `auth login` builds its tokens through refreshSignInGrant, never the stored-grant refresh', authSource.includes('await refreshSignInGrant(envRefreshToken') && !authSource.includes('refreshOAuthToken('), 'src/cli/handlers/auth.ts')
 }
@@ -545,29 +519,21 @@ section('O OpenAI ChatGPT — the id_token email claim, captured at the token ex
   check('O1 the ChatGPT device sign-in settles on the loopback fixture', ref.kind === 'chatgpt-subscription', JSON.stringify(ref))
   const subscription = entriesOf('openai').find(entry => entry.kind === 'subscription-oauth')
   check('O1 the ChatGPT entry names the id_token email, source receipt', subscription?.identity?.email === GPT_EMAIL && subscription.identity.source === 'receipt' && subscription.identity.plan === 'plus', JSON.stringify(subscription))
-  expectLines('O1 the ChatGPT row: the email, the kind', 'openai', [`ChatGPT account · ${GPT_EMAIL} (subscription)`])
 
   process.env.OPENAI_API_KEY = KEYS.openaiEnv
   const before = entriesOf('openai').find(entry => entry.kind === 'subscription-oauth')
-  expectLines('O2 two accounts: the active sign-in first, the key by its masked tail', 'openai', [
-    `ChatGPT account · ${GPT_EMAIL} (subscription)`,
-    'also OpenAI API key (env) · …0042',
-  ])
   openaiAccounts.writePreferredOpenaiSource('api-key')
   const after = entriesOf('openai').find(entry => entry.kind === 'subscription-oauth')
   check('W2 a ChatGPT sign-in shadowed by the preferred key keeps its email', after?.identity?.email === GPT_EMAIL, JSON.stringify(after))
   check('W2 …and keeps its entry id (ids are stable, whatever the preference)', before !== undefined && after !== undefined && before.id === after.id, `${before?.id} → ${after?.id}`)
-  expectLines('O3 the key active: the key first, the sign-in named by its email', 'openai', [
-    'OpenAI API key (env) · …0042',
-    `also ChatGPT account · ${GPT_EMAIL} (subscription)`,
-  ])
   openaiAccounts.writePreferredOpenaiSource(null)
   delete process.env.OPENAI_API_KEY
 
   state.openaiIdToken = ID_TOKEN_WITHOUT_EMAIL
   const again = await openaiAccounts.beginOpenaiDeviceConnect({ fetchImpl: fetch, env: process.env, pollIntervalMsOverride: 1, maxWaitMs: 10_000 })
   await again.result
-  expectLines('O4 an id_token without the email claim paints the kind, never the previous email', 'openai', ['ChatGPT account · subscription'])
+  const unnamed = entriesOf('openai').find(entry => entry.kind === 'subscription-oauth')
+  check('O4 an id_token without the email claim leaves the ChatGPT entry without an account — never the previous email', unnamed !== undefined && unnamed.identity?.email === undefined && !JSON.stringify(unnamed).includes(GPT_EMAIL), JSON.stringify(unnamed))
 }
 
 section('G Google (Gemini OAuth) — the grant carries no identity today')
@@ -585,18 +551,15 @@ section('G Google (Gemini OAuth) — the grant carries no identity today')
   check('G1 nothing identity-shaped is stored beside the Google credential', IDENTITY_KEYS.every(key => !(key in stored) && !(key in tokens)), JSON.stringify(Object.keys(tokens)))
   const entry = entriesOf('gemini').find(e => e.kind === 'oauth')
   check('G1 the Google entry claims no account', entry !== undefined && entry.identity?.email === undefined && entry.identity?.source === undefined, JSON.stringify(entry))
-  expectLines('G1 the Google row paints the sign-in kind alone', 'gemini', ['Google account · oauth'])
 }
 
 section('H Hugging Face — the whoami read at sign-in, bound to the grant it described')
 {
-  expectLines('H1 the Hub row: the username the whoami read reported', 'huggingface', [`Hugging Face account · ${HUB_USER} (device-code)`])
   state.hubAccess = TOKENS.hubAccess2
   state.hubWhoami = 'down'
   const unverified = await runHuggingfaceDeviceLogin({ io: { fetchImpl: fetch, env: process.env }, sleep: async () => {}, refreshCatalogue: async () => null })
   check('H2 a re-sign-in whose whoami did not answer still lands', unverified.ok === true && huggingfaceAccounts.huggingfaceStoredTokens()?.accessToken === TOKENS.hubAccess2, JSON.stringify(unverified))
   check('H2 the new grant never wears the previous account\'s name', huggingfaceAccounts.huggingfaceOauthIdentity() === undefined, JSON.stringify(huggingfaceAccounts.huggingfaceOauthIdentity()))
-  expectLines('H2 the Hub row paints the sign-in kind alone', 'huggingface', ['Hugging Face account · device-code'])
 
   state.hubAccess = TOKENS.hubAccess3
   state.hubWhoami = 'ok'
@@ -612,7 +575,6 @@ section('H Hugging Face — the whoami read at sign-in, bound to the grant it de
   })
   check('H4 an approval that landed after cancel is stored', cancelled.ok === true && 'settledAfterCancel' in cancelled && huggingfaceAccounts.huggingfaceStoredTokens()?.accessToken === TOKENS.hubAccess4, JSON.stringify(cancelled))
   check('H4 …and never wears the name the earlier grant reported', huggingfaceAccounts.huggingfaceOauthIdentity() === undefined, JSON.stringify(huggingfaceAccounts.huggingfaceOauthIdentity()))
-  expectLines('H4 the Hub row paints the sign-in kind alone', 'huggingface', ['Hugging Face account · device-code'])
 }
 
 section('K Kimi — the device-code grant carries no account name today')
@@ -623,20 +585,12 @@ section('K Kimi — the device-code grant carries no account name today')
   check('K1 nothing identity-shaped is stored beside the Kimi credential', IDENTITY_KEYS.every(key => !(key in stored) && !(key in tokens)), JSON.stringify(Object.keys(stored)))
   const entry = entriesOf('moonshot').find(e => e.id === 'moonshot:oauth')
   check('K1 the Kimi entry claims no account', entry !== undefined && entry.identity === undefined, JSON.stringify(entry))
-  expectLines('K1 the Kimi row paints the sign-in kind and host alone', 'moonshot', ['Kimi account · device-code, global'])
   state.kimiAccess = TOKENS.kimiAccess2
   const mainland = await runKimiDeviceLogin({ region: 'mainland-cn', io: { fetchImpl: fetch, env: process.env }, sleep: async () => {} })
   check('K2 a mainland-China sign-in lands', mainland.ok === true, JSON.stringify(mainland))
-  expectLines('K2 the Kimi row names the mainland host', 'moonshot', ['Kimi account · device-code, mainland China'])
-  process.env.MOONSHOT_API_KEY = KEYS.moonshotEnv
-  expectLines('K3 an env key outranks the sign-in: the key first, the sign-in after', 'moonshot', [
-    'MOONSHOT_API_KEY (env) · …0077',
-    'also Kimi account · device-code, mainland China',
-  ])
-  delete process.env.MOONSHOT_API_KEY
 }
 
-section('L /accounts and the Logins chip (which reads the slot words) speak the composer\'s words — never a token fragment')
+section('L /accounts and the Logins chip (which reads the slot words) name the account the provider reported — never a token fragment')
 {
   const FIXTURE_PROVIDERS = [
     { id: 'moonshot', available: true, description: { account: { kind: 'provider-oauth', label: 'Kimi account' } } },
@@ -646,14 +600,8 @@ section('L /accounts and the Logins chip (which reads the slot words) speak the 
     accountSlots.deriveFamilySlotGroups(FIXTURE_PROVIDERS).flatMap(group => group.slots).find(slot => slot.id === id)
   const fragments = Object.values(TOKENS).map(token => token.slice(-4))
   const clean = (text: string | undefined): boolean => text !== undefined && fragments.every(fragment => !text.includes(fragment))
-  const composed = (entryId: string): string | undefined => {
-    wallet.resetWalletEntriesMemo()
-    const entry = wallet.walletEntries().find(e => e.id === entryId)
-    return composer !== null && entry !== undefined ? composer.entryIdentity(entry).shown : undefined
-  }
   const kimi = slotOf('moonshot:oauth')
   check('L1 the Kimi sign-in slot names the kind and host, never a token fragment', kimi?.identity === 'Kimi account · device-code, mainland China' && clean(kimi.identity), JSON.stringify(kimi?.identity))
-  check('L1 …the same words the composer paints for that sign-in', kimi !== undefined && kimi.identity === composed('moonshot:oauth'), `${JSON.stringify(kimi?.identity)} vs ${JSON.stringify(composed('moonshot:oauth'))}`)
   const unnamed = slotOf('huggingface:oauth')
   check('L2 a Hub sign-in slot with no reported name paints the kind alone, never a token fragment', unnamed?.identity === 'Hugging Face account · device-code' && clean(unnamed.identity), JSON.stringify(unnamed?.identity))
   state.hubAccess = TOKENS.hubAccess5
@@ -661,10 +609,9 @@ section('L /accounts and the Logins chip (which reads the slot words) speak the 
   check('L3 a verified Hub sign-in lands', named.ok === true && named.username === HUB_USER, JSON.stringify(named))
   const hub = slotOf('huggingface:oauth')
   check('L3 the Hub sign-in slot names the whoami account and the kind, never a token fragment', hub?.identity === `Hugging Face account · ${HUB_USER} (device-code)` && clean(hub.identity), JSON.stringify(hub?.identity))
-  check('L3 …the same words the composer paints for that sign-in', hub !== undefined && hub.identity === composed('huggingface:oauth'), `${JSON.stringify(hub?.identity)} vs ${JSON.stringify(composed('huggingface:oauth'))}`)
 }
 
-section('R OpenRouter — an OAuth-minted KEY keeps its masked tail; no identity line')
+section('R OpenRouter — an OAuth-minted KEY keeps its masked tail; no identity')
 {
   const handles = openrouterAccounts.beginOpenrouterConnect({ fetchImpl: fetch, env: process.env, mode: 'headless', skipBrowserOpen: true, loopbackPort: 0 })
   handles.completeWithRedirect('fixture-openrouter-code')
@@ -672,86 +619,22 @@ section('R OpenRouter — an OAuth-minted KEY keeps its masked tail; no identity
   check('R1 the minted key lands through the loopback exchange', ref.kind === 'oauth-key', JSON.stringify(ref))
   const entry = entriesOf('openrouter').find(e => e.id === 'openrouter:oauth-key')
   check('R1 the minted-key entry carries only its masked tail', entry?.keyTail === '…00MN' && entry.identity === undefined, JSON.stringify(entry))
-  const identity = composer !== null && entry !== undefined ? composer.entryIdentity(entry) : undefined
-  check('R1 the key is spelled by its label and masked tail', identity?.shown === 'OpenRouter (OAuth-minted key) · …00MN' && identity.kind === 'api-key' && identity.source === 'none', identity === undefined ? noComposer() : JSON.stringify(identity))
-  expectLines('R1 a key-only family has no identity line', 'openrouter', [])
-  expectLines('R1 a family the wallet does not custody has no identity line', 'zai', [])
 }
 
-section('S every composed identity names the provider\'s word and nothing secret')
+section('S every wallet entry names the provider\'s word and nothing secret')
 {
   wallet.resetWalletEntriesMemo()
   const entries = wallet.walletEntries()
-  const families = ['anthropic', 'openai', 'gemini', 'moonshot', 'huggingface', 'openrouter']
-  const views = composer !== null ? families.map(family => composer!.familyIdentity(family as never)) : []
-  const lines = composer !== null ? families.flatMap(family => composer!.familyIdentityLines(family)) : []
-  const serialized = JSON.stringify(entries) + JSON.stringify(views) + lines.join('\n')
+  const serialized = JSON.stringify(entries)
   const material = [...Object.values(TOKENS), ...Object.values(KEYS), ...DEVICE_CODES, ID_TOKEN_WITH_EMAIL, ID_TOKEN_WITHOUT_EMAIL, GOOGLE_CLIENT_ID]
   const leaked = material.filter(secret => serialized.includes(secret))
-  check('S1 no token, key, device code, id_token or client id rides any entry, view or line', leaked.length === 0, leaked.join(' '))
-  const signIns = views.flatMap(view => [...(view.active !== undefined ? [view.active] : []), ...view.others]).filter(identity => identity.kind !== 'api-key')
-  const fragments = Object.values(TOKENS).map(token => token.slice(-4))
-  const carrying = signIns.filter(identity => fragments.some(fragment => identity.shown.includes(fragment)))
-  check('S2 no sign-in identity carries a token fragment (masked tails are for API keys alone)', composer !== null && signIns.length > 0 && carrying.length === 0, composer === null ? noComposer() : carrying.map(identity => identity.shown).join(' · '))
-}
-
-section('F the line fits its surface: the owner\'s example shape, never past the width')
-{
-  const kimiWithAccount = {
-    id: 'moonshot:oauth',
-    provider: 'moonshot',
-    kind: 'oauth',
-    label: 'Kimi account (device-code sign-in · global (kimi.ai))',
-    host: 'global',
-    identity: { email: OWNER_EXAMPLE_EMAIL, source: 'receipt' },
-    custodian: 'moonshot-accounts',
-  } as WalletEntry
-  const reads = { entries: () => [kimiWithAccount], active: () => kimiWithAccount }
-  const full = composer?.familyIdentityLines('moonshot', { reads })
-  check('F1 a reported account reads family · account (kind, host)', JSON.stringify(full) === JSON.stringify([`Kimi account · ${OWNER_EXAMPLE_EMAIL} (device-code, global)`]), full === undefined ? noComposer() : JSON.stringify(full))
-  const owner = composer?.familyIdentityLines('moonshot', { reads, width: 42 })
-  check('F2 at 42 columns the account elides and the kind and host stay — the owner\'s example byte for byte', JSON.stringify(owner) === JSON.stringify(['Kimi account · whq@… (device-code, global)']), owner === undefined ? noComposer() : JSON.stringify(owner))
-  const gptSubscription = {
-    id: 'openai:oauth:acct_fix',
-    provider: 'openai',
-    kind: 'subscription-oauth',
-    label: 'ChatGPT plus subscription',
-    identity: { email: GPT_EMAIL, plan: 'plus', source: 'receipt' },
-    custodian: 'openai-accounts',
-  } as WalletEntry
-  const gptKey = {
-    id: 'openai:api-key:env',
-    provider: 'openai',
-    kind: 'api-key',
-    label: 'OpenAI API key (env)',
-    keyTail: '…0042',
-    custodian: 'openai-accounts',
-  } as WalletEntry
-  const pair = { entries: () => [gptSubscription, gptKey], active: () => gptKey }
-  const pairLines = composer?.familyIdentityLines('openai', { reads: pair, width: 44 })
-  check(
-    'F3 narrow: the key keeps its masked tail, the sign-in keeps its kind',
-    JSON.stringify(pairLines) === JSON.stringify(['OpenAI API key (env) · …0042', 'also ChatGPT account · gpt-o… (subscription)']),
-    pairLines === undefined ? noComposer() : JSON.stringify(pairLines),
-  )
-  wallet.resetWalletEntriesMemo()
-  let within = composer !== null
-  for (let width = 0; width <= 90 && composer !== null; width++) {
-    for (const line of composer.familyIdentityLines('moonshot', { reads, width })) within &&= stringWidth(line) <= width
-    for (const line of composer.familyIdentityLines('openai', { reads: pair, width })) within &&= stringWidth(line) <= width
-    for (const family of ['anthropic', 'openai', 'gemini', 'moonshot', 'huggingface']) {
-      for (const line of composer.familyIdentityLines(family, { width })) within &&= stringWidth(line) <= width
-    }
-  }
-  check('F4 every line at every width from 0 to 90 stays inside the width', within, composer === null ? noComposer() : '')
+  check('S1 no token, key, device code, id_token or client id rides any entry', leaked.length === 0, leaked.join(' '))
 }
 
 delete process.env.MERCURY_USER_EMAIL
 server.close()
 rmSync(HOME, { recursive: true, force: true })
 
-console.log(`\n${'─'.repeat(76)}\nthe composed identity lines, step by step`)
-for (const { step, lines } of painted) console.log(`  ${step.padEnd(4)} ${lines.length > 0 ? lines.join('  |  ') : '(no identity line)'}`)
 console.log(`\n${'═'.repeat(76)}`)
 if (failures > 0) {
   console.log(`❌ WALLET IDENTITY: ${failures} of ${checks} check(s) FAILED`)

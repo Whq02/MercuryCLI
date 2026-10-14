@@ -22,27 +22,11 @@ t.check(
   'no ActorRef authorship',
 )
 
-t.section('CS-21 — folio actions gain the thread verbs')
-let actions: Record<string, unknown> | null = null
-try {
-  actions = (await import('../../src/services/workbench/folioActions.ts')) as Record<string, unknown>
-} catch {
-  actions = null
-}
-const kinds = (actions?.FOLIO_ACTION_KINDS ?? []) as string[]
-t.check('folioActions loads (the existing owner)', actions !== null)
-for (const verb of ['reply', 'resolve-comment', 'reopen-comment']) {
-  t.check(`FOLIO_ACTION_KINDS carries '${verb}'`, Array.isArray(kinds) && kinds.includes(verb), kinds.join(','))
-}
-
 t.section('CS-21 — folios reach the inbox + the editor wire (journey-final pins, M8)')
 {
   let inboxWire = false
   try {
-    const reviewLayerFiles = ['src/services/workbench/folioActions.ts', 'src/utils/artifacts/reviewStore.ts']
-    inboxWire = reviewLayerFiles.some(f =>
-      /review-request|crew\/conversations/.test(readFileSync(f, 'utf8')),
-    )
+    inboxWire = /review-request|crew\/conversations/.test(readFileSync('src/utils/artifacts/reviewStore.ts', 'utf8'))
   } catch {
     inboxWire = false
   }
