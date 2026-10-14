@@ -124,6 +124,18 @@ const classified = JSON.parse(watched.stdout)
 check('shared helper and completion paths are classified', watched.status === 0 && classified.unclassified.length === 0, watched.stdout)
 for (const path of sharedPaths) check('the actual owning suite watches the path, not only the whole-tree default', classified.perPath[path].includes(path.startsWith('scripts/lib/') ? 'gate' : 'project-services'), `${path}: ${classified.perPath[path]}`)
 
+section('§5 every fold owes the whole-tree ratchets, whatever the diff touches')
+const RATCHETS = ['consistency-census', 'gate', 'identity', 'integrity', 'interaction-pure', 'primitives-kernel', 'render-engine', 'tree-ownership', 'ui-census', 'verify']
+const ratchetEstate = realpathSync(mkdtempSync(join(tmpdir(), 'impact-ratchet-estate-')))
+for (const suite of ['a', ...RATCHETS]) {
+  mkdirSync(join(ratchetEstate, 'scripts', suite), { recursive: true })
+  writeFileSync(join(ratchetEstate, 'scripts', suite, 'run-all.sh'), `#!/usr/bin/env bash\n# gate-class: pure\n${suite === 'a' ? '# gate-watch: src/a/**\n' : ''}exit 0\n`)
+}
+const battery = spawnSync(bun, [join(ROOT, 'scripts/verify/impact.ts'), '--paths', 'src/a/x.ts'], { cwd: ROOT, env: { ...env, MERCURY_SLICE_ROOT: ratchetEstate }, encoding: 'utf8' })
+check('a diff one suite watches owes that suite and every whole-tree ratchet, nothing else', battery.status === 0 && battery.stdout.trim().split('\n').join(' ') === ['a', ...RATCHETS].sort().join(' '), battery.stdout + battery.stderr)
+check(`the reading counts the ${RATCHETS.length} ratchets the battery adds`, battery.stderr.includes(`+ ${RATCHETS.length} whole-tree ratchet(s)`), battery.stderr)
+rmSync(ratchetEstate, { recursive: true, force: true })
+
 rmSync(estate, { recursive: true, force: true })
 console.log('\n' + '─'.repeat(76))
 console.log(failures === 0 ? '  ALL PASS' : `  ${failures} FAILURE(S)`)
