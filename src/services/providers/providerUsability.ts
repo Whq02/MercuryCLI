@@ -46,6 +46,7 @@ export interface ProviderUsabilityReads {
   deepseekKeyPresent?: () => boolean
   xaiAccount?: () => { kind: 'grok-subscription' | 'api-key' } | undefined
   xaiKeyPresent?: () => boolean
+  metaAccount?: () => { kind: 'muse-code' | 'api-key' } | undefined
   metaKeyPresent?: () => boolean
   mistralKeyPresent?: () => boolean
   nousKeyPresent?: () => boolean
@@ -143,6 +144,10 @@ function liveProviderUsabilityReads(opts?: ProviderUsabilityReadOptions): Provid
     metaKeyPresent: () => {
       const { resolveMetaApiKey } = require('./meta/metaAccounts.js') as typeof import('./meta/metaAccounts.js')
       return resolveMetaApiKey() !== undefined
+    },
+    metaAccount: () => {
+      const { resolveMetaAccount } = require('./meta/metaAccounts.js') as typeof import('./meta/metaAccounts.js')
+      return resolveMetaAccount()
     },
     mistralKeyPresent: () => {
       const { resolveMistralApiKey } = require('./mistral/mistralAccounts.js') as typeof import('./mistral/mistralAccounts.js')
@@ -344,7 +349,8 @@ function resolveProviderUsabilityFrom(reads: ProviderUsabilityReads): Record<Pro
     'no Kimi sign-in or Moonshot API key — /logins moonshot (or MOONSHOT_API_KEY)',
     moonshotAccount?.kind === 'kimi-oauth' ? 'oauth' : 'api-key',
   )
-  const meta = keyLane('meta', reads.metaKeyPresent?.() ?? false, 'no Meta API key — /logins meta (or MODEL_API_KEY)')
+  const metaAccount = reads.metaAccount?.()
+  const meta = keyLane('meta', reads.metaKeyPresent?.() ?? metaAccount !== undefined, 'no Meta API key — /logins meta (or MODEL_API_KEY)', metaAccount?.kind === 'muse-code' ? 'oauth' : 'api-key')
   const mistral = keyLane('mistral', reads.mistralKeyPresent?.() ?? false, 'no Mistral API key — /logins mistral (or MISTRAL_API_KEY)')
   const nousAccount = reads.nousAccount?.()
   const nousPresent = keyLane('nous', reads.nousKeyPresent?.() ?? nousAccount !== undefined, 'no Nous Portal API key — /logins nous (or NOUS_API_KEY)', nousAccount?.kind === 'signin' ? 'oauth' : 'api-key')
