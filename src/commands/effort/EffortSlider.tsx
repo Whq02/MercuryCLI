@@ -10,10 +10,14 @@ import type { EffortLevel, EffortValue } from '../../utils/effort.js'
 import { useOpenEventGate } from '../../components/mercury-ui/useOpenEventGate.js'
 import {
   EFFORT_LEVELS,
+  convertEffortValueToLevel,
   effortFamiliesLabel,
   getDisplayedEffortLabel,
   getDisplayedEffortLevel,
+  isEffortLevel,
   modelSupportsXHighEffort,
+  parseEffortValue,
+  resolveStampedEffortTruth,
   selectableEffortLevels,
 } from '../../utils/effort.js'
 import {
@@ -113,16 +117,34 @@ function openingSlot(
   return preferred
 }
 
+export function focusedOpeningEffort(
+  model: string,
+  seatEffort: string | null,
+  sentEffort: string | null | undefined,
+  sessionEffortValue: EffortValue | undefined,
+): EffortLevel {
+  const sent = typeof sentEffort === 'string' ? parseEffortValue(sentEffort) : undefined
+  if (typeof sent === 'string' && isEffortLevel(sent)) return sent
+  const stamped = seatEffort !== null ? parseEffortValue(seatEffort) : undefined
+  if (stamped !== undefined) {
+    const applied = resolveStampedEffortTruth(model, stamped).appliedValue
+    return convertEffortValueToLevel(applied ?? stamped)
+  }
+  return getDisplayedEffortLevel(model, sessionEffortValue)
+}
+
 export function resolveOpeningStop(
   model: string,
   sessionEffortValue: EffortValue | undefined,
   initialEffortOverride?: EffortValue,
+  seatEffort: string | null = null,
+  sentEffort: string | null | undefined = undefined,
 ): number {
   const geo = getSliderGeometry(model)
   if (initialEffortOverride !== undefined) {
     return openingSlot(geo.levels, initialEffortOverride)
   }
-  return openingSlot(geo.levels, getDisplayedEffortLevel(model, sessionEffortValue))
+  return openingSlot(geo.levels, focusedOpeningEffort(model, seatEffort, sentEffort, sessionEffortValue))
 }
 
 
@@ -238,13 +260,15 @@ export function EffortSlider({
   const effortValue = initialEffortOverride ?? sessionEffortValue
   const seatEffort = useFocusedServedEffort()
   const sentEffort = useFocusedSentEffort()
-  const standingLabel =
-    modelOverride !== undefined || initialEffortOverride !== undefined
-      ? getDisplayedEffortLabel(model, effortValue)
-      : focusedEffortLabelOf(model, seatEffort, sentEffort, effortValue)
+  const targeted = modelOverride !== undefined || initialEffortOverride !== undefined
+  const standingLabel = targeted
+    ? getDisplayedEffortLabel(model, effortValue)
+    : focusedEffortLabelOf(model, seatEffort, sentEffort, effortValue)
 
   const [selected, setSelected] = React.useState(() =>
-    resolveOpeningStop(model, sessionEffortValue, initialEffortOverride),
+    targeted
+      ? resolveOpeningStop(model, sessionEffortValue, initialEffortOverride)
+      : resolveOpeningStop(model, sessionEffortValue, undefined, seatEffort, sentEffort),
   )
 
   const pastOpenEvent = useOpenEventGate()

@@ -110,5 +110,50 @@ console.log('— §4 override targets keep their own truths —')
   delete process.env.MERCURY_EFFORT_LEVEL
 }
 
+console.log('— §5 a hosted session: the seat\'s served word rules BOTH gauges, the app state only when no seat speaks —')
+{
+  const chip = await import('../../src/components/mercury-ui/EffortChip.js')
+  const hostedOpens = (model: string, seat: string | null, sent: string | null | undefined, stored: EffortValue | undefined): string => {
+    const geo = slider.getSliderGeometry(model)
+    return String(geo.levels[slider.resolveOpeningStop(model, stored, undefined, seat, sent)]?.value)
+  }
+  const model = 'claude-opus-5'
+  const chipMax = chip.focusedEffortLabelOf(model, 'max', 'max', 'high')
+  const openedMax = hostedOpens(model, 'max', 'max', 'high')
+  t('served max over app state high: the chip says max', chipMax === 'max', chipMax)
+  t('…and the slider OPENS on max, never on the app state\'s high', openedMax === 'max', `slider ${openedMax} vs chip ${chipMax}`)
+  const chipAsked = chip.focusedEffortLabelOf(model, 'max', undefined, 'high')
+  const openedAsked = hostedOpens(model, 'max', undefined, 'high')
+  t('served max still unresolved on the wire: the chip says max (asked) and the slider opens on max', chipAsked === 'max (asked)' && openedAsked === 'max', `chip ${chipAsked}, slider ${openedAsked}`)
+  const chipLow = chip.focusedEffortLabelOf(model, 'high', 'high', 'max')
+  const openedLow = hostedOpens(model, 'high', 'high', 'max')
+  t('served high over app state max: both gauges say high', chipLow === 'high' && openedLow === 'high', `chip ${chipLow}, slider ${openedLow}`)
+  const chipStepped = chip.focusedEffortLabelOf('claude-opus-4-6', 'xhigh', undefined, 'low')
+  const openedStepped = hostedOpens('claude-opus-4-6', 'xhigh', undefined, 'low')
+  t('a served tier above the seat model\'s ladder opens on the step-down the seat applies', openedStepped === 'high' && openedStepped === effort.resolveStampedEffortTruth('claude-opus-4-6', 'xhigh').label, `chip ${chipStepped}, slider ${openedStepped}`)
+  const STORED: Array<EffortValue | undefined> = [undefined, 'low', 'medium', 'high', 'xhigh', 'max']
+  let cases = 0
+  let agreements = 0
+  let firstMiss = ''
+  for (const seat of ['low', 'medium', 'high', 'xhigh', 'max']) {
+    for (const stored of STORED) {
+      for (const sent of [seat, undefined]) {
+        const label = chip.focusedEffortLabelOf(model, seat, sent, stored)
+        const opened = hostedOpens(model, seat, sent, stored)
+        cases += 1
+        if (label.replace(' (asked)', '') === opened) agreements += 1
+        else if (firstMiss === '') firstMiss = `seat=${seat} sent=${String(sent)} stored=${String(stored)}: chip ${label}, slider ${opened}`
+      }
+    }
+  }
+  t(`chip and slider agree on all ${cases} hosted cases, whatever the app state says`, agreements === cases, firstMiss)
+  const chipNoSeat = chip.focusedEffortLabelOf(model, null, undefined, 'xhigh')
+  const openedNoSeat = hostedOpens(model, null, undefined, 'xhigh')
+  t('no seat facts: both gauges fall to the app state (xhigh)', chipNoSeat === 'xhigh' && openedNoSeat === 'xhigh', `chip ${chipNoSeat}, slider ${openedNoSeat}`)
+  const geo = slider.getSliderGeometry(model)
+  const ovSlot = slider.resolveOpeningStop(model, 'low', 'xhigh', 'max', 'max')
+  t('an override target still opens on the override, the seat\'s word never leaking in', geo.levels[ovSlot]?.value === 'xhigh', String(geo.levels[ovSlot]?.value))
+}
+
 console.log(failures ? '\n❌ EFFORT-GAUGE-AGREEMENT RED' : '\n✅ EFFORT-GAUGE-AGREEMENT GREEN')
 process.exit(failures)
