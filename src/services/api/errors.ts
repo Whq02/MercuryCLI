@@ -12,7 +12,7 @@ import { createAssistantAPIErrorMessage, NO_RESPONSE_REQUESTED } from '../../uti
 import { jsonStringify } from '../../utils/slowOperations.js'
 import { anthropicCarryWords, anthropicRefusalFactsOf, classifyAnthropicRefusal } from '../providers/anthropicRefusal.js'
 import { clientContractGateText, modelRefusalFromError, noteModelRefusal, type ModelRefusalRequest } from '../providers/anthropic/modelRefusal.js'
-import { classifyCredentialWall, credentialWallLine, isRevokedSignInText } from '../providers/credentialWall.js'
+import { classifyCredentialWall, credentialWallLine, isRevokedSignInText, type WireCredentialKind } from '../providers/credentialWall.js'
 import { accountIdentityShown } from '../wallet/identityWords.js'
 import { classifyOverflowFault, type OverflowFamily } from './overflowSignal.js'
 import type { AnthropicLimits, OverageDisabledReason, QuotaStatus } from '../anthropicLimits.js'
@@ -151,8 +151,6 @@ const DUPLICATE_TOOL_USE_PHRASE = '`tool_use` ids must be unique'
 const PDF_PASSWORD_PHRASE = 'The PDF specified is password protected'
 const PDF_INVALID_PHRASE = 'The PDF specified was not valid'
 const CREDIT_BALANCE_PROVIDER_PHRASE = 'Your credit balance is too low'
-const OAUTH_ORG_NOT_ALLOWED_PHRASE =
-  'OAuth authentication is currently not allowed for this organization'
 const LONG_CONTEXT_EXTRA_USAGE_PHRASE = 'Extra usage is required for long context'
 const PDF_PAGES_PATTERN = /maximum of \d+ PDF pages/
 
@@ -413,6 +411,12 @@ function signInWallAccount(model: string): string | undefined {
   }
 }
 
+function anthropicWireCredential(model: string): WireCredentialKind | undefined {
+  if (!['anthropic', 'gateway'].includes(routeOfModel(model))) return undefined
+  if (isClaudeAISubscriber()) return 'sign-in'
+  return wireCredentialSource().kind === 'none' ? undefined : 'key'
+}
+
 function composeAssistantMessageFromError(
   error: unknown,
   model: string,
@@ -670,7 +674,7 @@ function composeAssistantMessageFromError(
     })
   }
 
-  const wall = classifyCredentialWall(status, message)
+  const wall = classifyCredentialWall(status, message, anthropicWireCredential(model))
   if (wall !== undefined) {
     logForDebugging(`[api] credential wall (${wall}) on ${model} — the wire said: ${message}`)
     const account = wall === 'sign-in' ? signInWallAccount(model) : undefined
@@ -680,16 +684,7 @@ function composeAssistantMessageFromError(
     })
   }
 
-  if ((status === 401 || status === 403) && message.includes(OAUTH_ORG_NOT_ALLOWED_PHRASE)) {
-    return createAssistantAPIErrorMessage({
-      content: nonInteractive
-        ? 'Your organization does not have access to Mercury. Log in again, or contact your administrator.'
-        : 'Your account does not have access to Mercury — run /logins.',
-      error: 'authentication_failed',
-    })
-  }
-
-  if ((status === 401 && isClaudeAISubscriber()) || classifyAnthropicRefusal({ status, wireText: message, signInExpired: isAnthropicOAuthSignInExpired() }) === 'sign-in') {
+  if (classifyAnthropicRefusal({ status, wireText: message, signInExpired: isAnthropicOAuthSignInExpired() }) === 'sign-in') {
     logForDebugging(`[api] credential wall (sign-in) on ${model} — the wire said: ${message}`)
     const account = signInWallAccount(model)
     return createAssistantAPIErrorMessage({
@@ -808,7 +803,6 @@ export function classifyAPIError(error: unknown): string {
   }
   if (lower.includes('x-api-key')) return 'invalid_api_key'
   if (isRevokedSignInText(message)) return 'token_revoked'
-  if (message.includes(OAUTH_ORG_NOT_ALLOWED_PHRASE)) return 'oauth_org_not_allowed'
   if (status === 401 || status === 403) return 'auth_error'
   if (error instanceof APIError && typeof status === 'number') {
     if (status >= 500) return 'server_error'

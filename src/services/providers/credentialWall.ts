@@ -1,6 +1,8 @@
 
 export type CredentialWallCause = 'sign-in' | 'key-limit'
 
+export type WireCredentialKind = 'sign-in' | 'key'
+
 
 const REVOKED_SIGN_IN = /\btoken\b[^.{}"]{0,40}?\brevoked\b|\brevoked\b[^.{}"]{0,20}?\btoken\b/i
 const KEY_LIMIT = /\bkey\b[^.{}"]{0,40}?\b(?:limit|cap|quota)\b[^.{}"]{0,30}?\b(?:exceeded|reached|hit)\b/i
@@ -18,10 +20,12 @@ export function isKeyLimitText(wireText: string): boolean {
 export function classifyCredentialWall(
   status: number | undefined,
   wireText: string,
+  credential?: WireCredentialKind,
 ): CredentialWallCause | undefined {
   if (status === undefined || !WALL_STATUSES.has(status)) return undefined
   if (REVOKED_SIGN_IN.test(wireText)) return 'sign-in'
   if (KEY_LIMIT.test(wireText)) return 'key-limit'
+  if (credential === 'sign-in' && status !== 402) return 'sign-in'
   return undefined
 }
 
