@@ -71,6 +71,7 @@ import { GEMINI_PLAN_USAGE_ABSENCE_NOTE, GEMINI_USAGE_ABSENCE_NOTE, geminiLimitW
 import { geminiPlanFacts } from './gemini/geminiAccounts.js'
 import { geminiPlanTierWords } from './gemini/geminiPlanAccess.js'
 import { getCachedGeminiCatalogue } from './gemini/geminiCatalogue.js'
+export { geminiLaneModelsByLastUse, geminiPlanQuotaFoldWords, geminiPlanQuotaView, type GeminiPlanQuotaView } from './gemini/geminiPlanQuota.js'
 import {
   resolveHuggingfaceAccount,
   type HuggingfaceAccountRef,
