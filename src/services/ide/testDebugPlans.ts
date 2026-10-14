@@ -199,7 +199,7 @@ export function buildGoTestDebugPlan(nodeId: string, opts?: { from?: string }): 
     return { state: 'unavailable', reason: "'dlv' not on PATH — Go tests debug through delve's DAP server", remedy: DLV_INSTALL_REMEDY }
   }
   const { file: dir, name } = splitNode(nodeId)
-  const segments = name.split('/').filter(Boolean)
+  const segments = name.match(/[^/]+/g) ?? []
   const topLevel = segments[0] ?? ''
   if (!/^Test\w*$/.test(topLevel)) {
     return { state: 'unavailable', reason: `node '${nodeId}' is not a Go test name`, remedy: 'spell the node as TestName, TestName/subtest, or dir::TestName (a go test -json run lists them)' }
