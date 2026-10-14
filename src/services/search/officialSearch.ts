@@ -1,3 +1,4 @@
+import { contentStems, wordsOf } from '../../mneme/mnemeText.js'
 import { getApiFetch, getProxyFetchOptions } from '../../utils/proxy.js'
 import { fetchWithProviderDeadline } from '../providers/fetchDeadline.js'
 import { htmlToText } from './htmlText.js'
@@ -14,7 +15,15 @@ export function wikipediaPhrase(words: string): string {
   return `"${words.replace(/"/g, ' ').replace(/\s+/g, ' ').trim()}"`
 }
 export function wikipediaLegNote(leg: WikipediaLeg, words: string): string {
-  return leg === 'phrase' ? `Wikipedia: pages carrying the exact phrase ${wikipediaPhrase(words)}` : `Wikipedia: no page carries the exact phrase ${wikipediaPhrase(words)}; these are the word-query matches`
+  return leg === 'phrase' ? `Wikipedia: pages carrying the exact phrase ${wikipediaPhrase(words)}` : `Wikipedia: no page carries the exact phrase ${wikipediaPhrase(words)}; these pages carry its words in their titles`
+}
+export function wikipediaNothingNote(words: string): string {
+  return `Wikipedia: no page carries the phrase ${wikipediaPhrase(words)}`
+}
+export function wikipediaTitleCarries(words: string, title: string): boolean {
+  const wanted = contentStems(wordsOf(words))
+  const carried = new Set(contentStems(wordsOf(title)))
+  return wanted.length > 0 && wanted.every(stem => carried.has(stem))
 }
 
 export function officialSearchUrl(source: OfficialSearchSource, words: string, count = DEFAULT_MAX_RESULTS, leg: WikipediaLeg = 'phrase'): URL {
@@ -196,11 +205,13 @@ export async function officialSearch(source: OfficialSearchSource, words: string
       }
       const decoded = decodeOfficialSearch(source, read.body)
       if (decoded === undefined) return searchFailure('parse-failed', source, 'the documented result list was absent; no result was guessed')
-      const hits = normaliseHits(filterHitsByDomain(decoded, request.allowedDomains, request.blockedDomains), request.maxResults)
+      const titled = leg === 'words' && source === 'wikipedia' ? decoded.filter(hit => wikipediaTitleCarries(words, hit.title)) : decoded
+      const hits = normaliseHits(filterHitsByDomain(titled, request.allowedDomains, request.blockedDomains), request.maxResults)
       if (read.delay === 0) noteAnswered(source)
       fellThrough = leg === 'phrase' && decoded.length === 0
       if (source !== 'github' && !fellThrough) rememberSearch(scoped, { via: source, tier: 'keyless', hits, queries: [words] }, clock.now())
-      return { ok: true, via: source, tier: source === 'github' ? 'keyed' : 'keyless', hits, notes: [SEARCH_SOURCE_POLICIES[source].terms, ...(source === 'wikipedia' ? [wikipediaLegNote(leg, words)] : [])] }
+      const note = source !== 'wikipedia' ? [] : [titled.length === 0 ? wikipediaNothingNote(words) : wikipediaLegNote(leg, words)]
+      return { ok: true, via: source, tier: source === 'github' ? 'keyed' : 'keyless', hits, notes: [SEARCH_SOURCE_POLICIES[source].terms, ...note] }
     })
     if (!fellThrough) break
   }

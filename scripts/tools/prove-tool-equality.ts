@@ -356,7 +356,7 @@ check(
 const searchDoorSource = readFileSync(new URL('../../src/services/search/searchDoor.ts', import.meta.url), 'utf8')
 check(
   'WebSearch: the door walks typed failures and throws the one composed line when no door answers',
-  searchDoorSource.includes('throw new Error(walkFailureLine(failures, plan))') && searchDoorSource.includes('...failures.map(failureLine)') && searchDoorSource.includes('No source answered; try another wording or another source.'),
+  searchDoorSource.includes('throw new Error(walkFailureLine(failures, plan, { emptyAnswers }))') && searchDoorSource.includes('emptyAnswers.has(failure) ? emptyAnswerLine(failure, true) : failureLine(failure)') && searchDoorSource.includes('No source answered; try another wording or another source.'),
 )
 check(
   'WebSearch: the native door is the main model\'s OWN family by the routing law — never another family\'s credential',
