@@ -488,8 +488,7 @@
                 "args": {
                   "file_path": "/proj/notes.txt"
                 }
-              },
-              "thoughtSignature": "skip_thought_signature_validator"
+              }
             },
             {
               "functionCall": {
