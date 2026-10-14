@@ -124,12 +124,6 @@ export function isInvalidCredentialWords(text: string): boolean {
   return text === INVALID_API_KEY_ERROR_MESSAGE_EXTERNAL || INVALID_CREDENTIAL_WORDS.test(text)
 }
 
-export const ORG_DISABLED_ERROR_MESSAGE_ENV_KEY =
-  'The organization associated with ANTHROPIC_API_KEY has been disabled. Update or unset the ANTHROPIC_API_KEY environment variable.'
-
-export const ORG_DISABLED_ERROR_MESSAGE_ENV_KEY_WITH_OAUTH =
-  'The organization associated with ANTHROPIC_API_KEY has been disabled. Unset the ANTHROPIC_API_KEY environment variable to use your subscription instead.'
-
 export const REPEATED_529_ERROR_MESSAGE =
   'Repeated API overload errors (529). The provider is under sustained load; try again shortly.'
 
@@ -630,23 +624,6 @@ function composeAssistantMessageFromError(
       error: 'billing_error',
       errorDetails: message,
     })
-  }
-
-  if (status === 400 && message.toLowerCase().includes('organization has been disabled')) {
-    const { source } = getAnthropicApiKeyWithSource()
-    if (
-      source === 'ANTHROPIC_API_KEY' &&
-      typeof process.env.ANTHROPIC_API_KEY === 'string' &&
-      process.env.ANTHROPIC_API_KEY !== '' &&
-      !isClaudeAISubscriber()
-    ) {
-      return createAssistantAPIErrorMessage({
-        content: hasStoredOAuthToken()
-          ? ORG_DISABLED_ERROR_MESSAGE_ENV_KEY_WITH_OAUTH
-          : ORG_DISABLED_ERROR_MESSAGE_ENV_KEY,
-        error: 'invalid_request',
-      })
-    }
   }
 
   if (status === 401 || message.toLowerCase().includes('x-api-key')) {
