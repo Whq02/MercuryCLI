@@ -1,0 +1,37 @@
+
+ RUN  v3.2.7 /work/project
+
+ ❯ src/calc.test.mjs (3 tests | 1 failed | 1 skipped) 3ms
+   × calc > adds two numbers 3ms
+     → expected -1 to be 5 // Object.is equality
+   ✓ calc > keeps zero 0ms
+   ↓ calc > divides later
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/calc.test.mjs > calc > adds two numbers
+AssertionError: expected -1 to be 5 // Object.is equality
+
+- Expected
++ Received
+
+- 5
++ -1
+
+ ❯ src/calc.test.mjs:8:20
+      6|   it('adds two numbers', () => {
+      7|     const result = add(2, 3)
+      8|     expect(result).toBe(5)
+       |                    ^
+      9|   })
+     10|   it('keeps zero', () => {
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 1 passed | 1 skipped (3)
+   Start at  21:45:48
+   Duration  142ms (transform 10ms, setup 0ms, collect 6ms, tests 3ms, environment 0ms, prepare 31ms)
+
+JSON report written to /work/project/vitest-report.json

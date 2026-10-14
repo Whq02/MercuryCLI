@@ -3,7 +3,8 @@ import { spawn } from 'node:child_process'
 import { settleChildRun } from '../../utils/childSettle.js'
 import { subprocessEnv } from '../../utils/subprocessEnv.js'
 import { createHash } from 'node:crypto'
-import { existsSync, readdirSync, readFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import * as path from 'node:path'
 import { getCwd } from '../../utils/cwd.js'
 import { storeArtifact } from '../../utils/artifacts/store.js'
@@ -15,6 +16,7 @@ import {
   type TestCaseResult,
   type TestRunRecord,
 } from './pythonTests.js'
+import { parseJsonReporter, type ReporterRead } from './runnerReporters.js'
 
 export type RunnerKind = 'test' | 'check' | 'build'
 
@@ -160,7 +162,7 @@ function jsProfiles(root: string): RunnerProfile[] {
       title: 'vitest (declared)',
       source: 'package.json',
       root,
-      command: [bin, 'run'],
+      command: [bin, 'run', '--reporter=default', '--reporter=json'],
       selection: 'file',
       availability: existsSync(bin)
         ? { state: 'ok' }
@@ -326,6 +328,29 @@ function parseCargoTest(out: string): {
   }
   if (!sawSummary) return { counts: null, failures }
   return { counts: { passed, failed, skipped: ignored, errored: 0 }, failures }
+}
+
+export function reporterFileFlag(runner: RunnerFramework): string | null {
+  switch (runner) {
+    case 'vitest':
+      return '--outputFile='
+    default:
+      return null
+  }
+}
+
+function readReporter(profile: RunnerProfile, reporterFile: string | null, _combined: string): ReporterRead | null {
+  if (profile.kind !== 'test') return null
+  if (reporterFile !== null) {
+    let text: string
+    try {
+      text = readFileSync(reporterFile, 'utf8')
+    } catch {
+      return null
+    }
+    return parseJsonReporter(text, profile.root)
+  }
+  return null
 }
 
 
@@ -601,6 +626,10 @@ export async function runRunnerProfile(
     selectionLabel = opts.selectionLabel ?? `nodes:${opts.selection}`
   }
 
+  const reporterDir = profile.kind === 'test' && reporterFileFlag(profile.runner) !== null ? mkdtempSync(path.join(tmpdir(), 'mercury-runner-report-')) : null
+  const reporterFile = reporterDir !== null ? path.join(reporterDir, 'report.json') : null
+  if (reporterFile !== null) argv.push(`${reporterFileFlag(profile.runner)}${reporterFile}`)
+
   const startedAt = Date.now()
   const id = `run-${startedAt}-rp${++runSeq}`
   const bin = argv[0]!
@@ -668,12 +697,15 @@ export async function runRunnerProfile(
   })()
 
   const combined = result.combined
-  const parsed =
-    profile.runner === 'node-test'
+  const reporter = readReporter(profile, reporterFile, combined)
+  if (reporterDir !== null) rmSync(reporterDir, { recursive: true, force: true })
+  const parsed: { counts: TestRunRecord['counts'] | null; failures: string[] } =
+    reporter ??
+    (profile.runner === 'node-test'
       ? parseNodeTestTap(combined)
       : profile.runner === 'cargo'
         ? parseCargoTest(combined)
-        : { counts: null, failures: [] as string[] }
+        : { counts: null, failures: [] as string[] })
 
   const exitOk = result.code === 0 && !result.errMsg
   const failedByCounts = parsed.counts !== null && parsed.counts.failed > 0
@@ -683,9 +715,12 @@ export async function runRunnerProfile(
   }
   if (result.errMsg) verdictNotes.push(`runner did not exit cleanly: ${result.errMsg}`)
   if (exitOk && failedByCounts) verdictNotes.push('exit code 0 disagreed with parsed failures — treated as FAILED')
+  if (reporter !== null && !exitOk && !result.errMsg && reporter.counts.failed === 0 && reporter.counts.errored === 0) {
+    verdictNotes.push(`${profile.runner} exited ${result.code ?? 'null'} with no failing case in its report — read the output`)
+  }
 
   const runFailed = result.code !== 0 || Boolean(result.errMsg)
-  const cases = runFailed ? parseRunnerCases(profile.runner, combined, profile.root) : []
+  const cases = reporter !== null ? reporter.cases : runFailed ? parseRunnerCases(profile.runner, combined, profile.root) : []
 
   const outputLines = combined.split('\n')
   let outputArtifactRef: string | undefined
@@ -722,6 +757,7 @@ export async function runRunnerProfile(
     durationMs: Date.now() - startedAt,
     counts: parsed.counts ?? { passed: 0, failed: exitOk ? 0 : 1, skipped: 0, errored: result.errMsg ? 1 : 0 },
     cases,
+    ...(reporter !== null && reporter.casesTruncated > 0 ? { casesTruncated: reporter.casesTruncated } : {}),
     failures: parsed.failures.length > 0 ? parsed.failures : runFailed ? cases.map(c => c.id) : [],
     ...(outputArtifactRef ? { outputArtifactRef } : {}),
     outputTail: outputLines.slice(-OUTPUT_TAIL_LINES),

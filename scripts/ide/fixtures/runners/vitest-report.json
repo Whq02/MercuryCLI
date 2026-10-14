@@ -1,0 +1,74 @@
+{
+  "numTotalTestSuites": 2,
+  "numPassedTestSuites": 0,
+  "numFailedTestSuites": 2,
+  "numPendingTestSuites": 0,
+  "numTotalTests": 3,
+  "numPassedTests": 1,
+  "numFailedTests": 1,
+  "numPendingTests": 1,
+  "numTodoTests": 0,
+  "snapshot": {
+    "added": 0,
+    "failure": false,
+    "filesAdded": 0,
+    "filesRemoved": 0,
+    "filesRemovedList": [],
+    "filesUnmatched": 0,
+    "filesUpdated": 0,
+    "matched": 0,
+    "total": 0,
+    "unchecked": 0,
+    "uncheckedKeysByFile": [],
+    "unmatched": 0,
+    "updated": 0,
+    "didUpdate": false
+  },
+  "startTime": 1792010748322,
+  "success": false,
+  "testResults": [
+    {
+      "assertionResults": [
+        {
+          "ancestorTitles": [
+            "calc"
+          ],
+          "fullName": "calc adds two numbers",
+          "status": "failed",
+          "title": "adds two numbers",
+          "duration": 2.884999999999991,
+          "failureMessages": [
+            "AssertionError: expected -1 to be 5 // Object.is equality\n    at /work/project/src/calc.test.mjs:8:20\n    at file:///work/project/node_modules/@vitest/runner/dist/chunk-hooks.js:155:11\n    at file:///work/project/node_modules/@vitest/runner/dist/chunk-hooks.js:752:26\n    at file:///work/project/node_modules/@vitest/runner/dist/chunk-hooks.js:1897:20\n    at new Promise (<anonymous>)\n    at runWithTimeout (file:///work/project/node_modules/@vitest/runner/dist/chunk-hooks.js:1863:10)\n    at runTest (file:///work/project/node_modules/@vitest/runner/dist/chunk-hooks.js:1574:12)\n    at processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at runSuite (file:///work/project/node_modules/@vitest/runner/dist/chunk-hooks.js:1729:8)\n    at runSuite (file:///work/project/node_modules/@vitest/runner/dist/chunk-hooks.js:1729:8)"
+          ],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "calc"
+          ],
+          "fullName": "calc keeps zero",
+          "status": "passed",
+          "title": "keeps zero",
+          "duration": 0.08058300000000429,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "calc"
+          ],
+          "fullName": "calc divides later",
+          "status": "skipped",
+          "title": "divides later",
+          "failureMessages": [],
+          "meta": {}
+        }
+      ],
+      "startTime": 1792010748453,
+      "endTime": 1792010748456.0806,
+      "status": "failed",
+      "message": "",
+      "name": "/work/project/src/calc.test.mjs"
+    }
+  ]
+}
