@@ -45,26 +45,29 @@ try {
   check('the daily peek holds within the day', (await contract.peekNousClient({ now })).kind === 'skipped' && fixture.requests.filter(r => r.path.startsWith('/repos/')).length === sourceReads)
   check('the record is mode 600 and carries the peek stamp', (statSync(contract.nousClientContractPath()).mode & 0o777) === 0o600 && contract.readNousClientRecord().lastPeekAtMs === clock)
 
+  const [major, minor] = contract.NOUS_CLIENT_CONTRACT_RELEASE.split('.').map(Number)
+  const NEWER = `${major}.${minor + 1}.0`
+  const OLDER = `${major}.${Math.max(0, minor - 1)}.0`
   console.log('── the source answers a NEWER release with moved facts: learned, stored, presented, sent ──')
-  fixture.source.tag = 'v0.22.0'
+  fixture.source.tag = `v${NEWER}`
   fixture.source.clientId = 'hermes-cli-next'
   fixture.source.scope = 'inference:invoke billing:read'
   fixture.oauth.clientIds.add('hermes-cli-next')
   clock += DAY
   const newer = await contract.peekNousClient({ now })
-  check('a newer release is learned', newer.kind === 'read' && newer.answer.ok && newer.learned && newer.answer.facts.clientId === 'hermes-cli-next' && newer.answer.facts.release === '0.22.0', JSON.stringify(newer))
+  check('a newer release is learned', newer.kind === 'read' && newer.answer.ok && newer.learned && newer.answer.facts.clientId === 'hermes-cli-next' && newer.answer.facts.release === NEWER, JSON.stringify(newer))
   const learned = contract.presentedNousClient()
-  check('the learned facts present over the constant, dated by their own learning', learned.source === 'learned' && learned.clientId === 'hermes-cli-next' && learned.scope === 'inference:invoke billing:read' && learned.release === '0.22.0' && learned.asOf === '2026-10-10', JSON.stringify(learned))
-  check('the constant is untouched while the learned facts present', contract.NOUS_PORTAL_CLIENT_ID === NOUS_FIXTURE_CLIENT_ID && contract.NOUS_CLIENT_CONTRACT_RELEASE !== '0.22.0')
+  check('the learned facts present over the constant, dated by their own learning', learned.source === 'learned' && learned.clientId === 'hermes-cli-next' && learned.scope === 'inference:invoke billing:read' && learned.release === NEWER && learned.asOf === '2026-10-10', JSON.stringify(learned))
+  check('the constant is untouched while the learned facts present', contract.NOUS_PORTAL_CLIENT_ID === NOUS_FIXTURE_CLIENT_ID && contract.NOUS_CLIENT_CONTRACT_RELEASE !== NEWER)
   const record = contract.readNousClientRecord()
-  check('the record carries the learned facts with their stamp and source', record.learned?.clientId === 'hermes-cli-next' && record.learned.learnedAtMs === clock && record.learned.from.includes('/contents/hermes_cli/auth_constants.py?ref=v0.22.0') && record.lastFailure === undefined, JSON.stringify(record))
+  check('the record carries the learned facts with their stamp and source', record.learned?.clientId === 'hermes-cli-next' && record.learned.learnedAtMs === clock && record.learned.from.includes(`/contents/hermes_cli/auth_constants.py?ref=v${NEWER}`) && record.lastFailure === undefined, JSON.stringify(record))
   const startBefore = fixture.requests.length
   const start = await oauth.startNousDeviceAuth({ now })
   const startReq = fixture.requests.slice(startBefore).find(r => r.path === '/api/oauth/device/code')
   check('the START request presents the learned client id and scope', startReq?.body?.client_id === 'hermes-cli-next' && startReq.body?.scope === 'inference:invoke billing:read' && start.clientId === 'hermes-cli-next', JSON.stringify(startReq?.body))
 
   console.log('── the source answers an OLDER release: the stored newest is kept ──')
-  fixture.source.tag = 'v0.21.0'
+  fixture.source.tag = `v${OLDER}`
   fixture.source.clientId = 'hermes-cli-old'
   clock += DAY
   const older = await contract.peekNousClient({ now })
