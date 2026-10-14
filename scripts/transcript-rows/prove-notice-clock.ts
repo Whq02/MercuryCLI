@@ -140,21 +140,21 @@ for (const columns of [178, 80]) {
   if (FRAMES !== undefined) writeFileSync(join(FRAMES, `strip-${columns}.txt`), lines.join('\n') + '\n')
   const stamps = stampsOf(lines)
   check(`${columns} columns: three stamped rows, one clock each`, stamps.length === 3, JSON.stringify(stamps))
-  check(`${columns} columns: the notice keeps its record position between the operator rows, with every shown clock unchanged`, JSON.stringify(stamps) === JSON.stringify([clockOf(OWNER_FIRST), clockOf(DELIVERED), clockOf(OWNER_SECOND)]), JSON.stringify(stamps))
+  check(`${columns} columns: the notice keeps its record position between the operator rows, with every shown clock unchanged — the crew row's own clock is the completion`, JSON.stringify(stamps) === JSON.stringify([clockOf(OWNER_FIRST), clockOf(COMPLETED), clockOf(OWNER_SECOND)]), JSON.stringify(stamps))
   const firstAt = lines.findIndex(line => line.includes(FIRST_LINE))
   const noticeAt = lines.findIndex(line => line.includes('● [Crewmate]'))
   const secondAt = lines.findIndex(line => line.includes(SECOND_LINE))
   check(`${columns} columns: displayed clocks never sort a delivered notice past the following record`, firstAt >= 0 && noticeAt > firstAt && secondAt > noticeAt, JSON.stringify({ firstAt, noticeAt, secondAt }))
   const noticeLine = lines.find(l => l.includes('● [Crewmate]')) ?? ''
-  check(`${columns} columns: the notice reads its delivery clock and arrival detail on one folded row`, noticeLine.startsWith(`${clockOf(DELIVERED)} ● [Crewmate]`) && noticeLine.includes(`· 1 line · arrived ${clockOf(COMPLETED)} ›`) && (columns < 178 || noticeLine.includes(LANE_PLATE)), noticeLine)
-  check(`${columns} columns: no misleading delivery suffix remains`, !oneLine(lines).includes('· delivered'), noticeLine)
+  check(`${columns} columns: the notice reads its completion clock and its delivery detail on one folded row`, noticeLine.startsWith(`${clockOf(COMPLETED)} ● [Crewmate]`) && noticeLine.includes(`· 1 line · delivered ${clockOf(DELIVERED)} ›`) && (columns < 178 || noticeLine.includes(LANE_PLATE)), noticeLine)
+  check(`${columns} columns: no misleading arrival suffix remains`, !oneLine(lines).includes('· arrived'), noticeLine)
   check(`${columns} columns: the owner's lines keep the handle and the caret at their send clocks`, oneLine(lines).includes(`${clockOf(OWNER_FIRST)} [sam] ❯ ${FIRST_LINE}`) && oneLine(lines).includes(`${clockOf(OWNER_SECOND)} [sam] ❯ ${SECOND_LINE}`), oneLine(lines))
   check(`${columns} columns: every line fits the width`, lines.every(l => [...l].length <= columns), String(Math.max(...lines.map(l => [...l].length))))
 }
 
 {
   const lines = await paintStrip([nearby], 178)
-  check('a delivery inside the minute paints the stamp alone (no suffix)', oneLine(lines).includes(`${clockOf(DELIVERED)} ● ${LANE_PLATE}`) && !oneLine(lines).includes('delivered'), oneLine(lines))
+  check('a delivery inside the minute paints the completion stamp alone (no suffix)', oneLine(lines).includes(`${clockOf(NEARBY)} ● ${LANE_PLATE}`) && !oneLine(lines).includes('delivered') && !oneLine(lines).includes('arrived'), oneLine(lines))
   const bare = await paintStrip([bareNotice], 178)
   check('a notice with no send clock paints the clock of its making alone', oneLine(bare).includes(`${clockOf(DELIVERED)} ● ${LANE_PLATE}`) && !oneLine(bare).includes('delivered'), oneLine(bare))
   const held = await paintStrip([{ ...completion, queued: true }], 178)
@@ -173,7 +173,7 @@ section("§3 the seat's delivery row: the take clock leads, arrival is preserved
     const { queued: _queued, ...taken } = takenRow
     void _queued
     const lines = await paintStrip([taken as Row], 178)
-    check('the taken row paints delivery first and arrival second', oneLine(lines).includes(`${clockOf(DELIVERED)} ● ${LANE_PLATE} · arrived ${clockOf(arrival)}`), oneLine(lines))
+    check('the taken row paints its arrival first and its delivery second', oneLine(lines).includes(`${clockOf(arrival)} ● ${LANE_PLATE} · delivered ${clockOf(DELIVERED)}`), oneLine(lines))
     const landedAt = local(20, 24, 0).getTime()
     check('RED ON THE BASE: the runner\'s drained row, stamped at the completion, still lands a send the seat saw later (the landing test reads the delivery)', notices.noticeRowLanded(completion as never, NOTE, landedAt))
     const stale = { ...completion, attachment: { ...completion.attachment, deliveredAt: iso(local(20, 20, 0)) } }
