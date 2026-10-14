@@ -37,8 +37,9 @@ arm.
 
 Display names have the same one-owner rule: every surface that names a
 family derives its label from it, and an unknown id shows itself. Persisted
-ids stay provider-qualified; the namespace detaches for the wire. Across every
-provider, `/model`, `/logins` and `mercury://models` report the same selectable
+ids stay provider-qualified; the namespace detaches for the wire.
+
+Across every provider, `/model`, `/logins` and `mercury://models` report the same selectable
 live model count (while `mercury://models` also lists unavailable rows with
 their reasons), and image, video, speech/TTS, audio and embedding models are
 excluded from chat pickers and refused for chat turns.
@@ -367,13 +368,13 @@ Three wire families serve the providers:
 
 - **The Anthropic home lane** — the first-party API, directly or through a
   base-URL proxy.
-- **Native wires** — Z.AI, OpenAI through its Responses API, and Gemini
+- **Native wires**: Z.AI, OpenAI through its Responses API, and Gemini
   through `streamGenerateContent` (used by Sign in with Google, your own OAuth
   client, and Gemini API keys under `x-goog-api-key`, preserving signed
   `thought_signature` parts across tool rounds on every Gemini credential).
-- **The OpenAI-compatible chat wire** — Moonshot/Kimi, DeepSeek, xAI's Grok
-  models, Meta, Mistral, Nous Portal, OpenCode Zen (chat-completions rows), the
-  operator-named compat slot, OpenRouter,
+- **The OpenAI-compatible chat wire**: Moonshot/Kimi, DeepSeek, xAI's Grok
+  models, Meta, Mistral, Nous Portal, OpenCode Zen (chat-completions rows),
+  custom `compat/` endpoints, OpenRouter,
   Hugging Face (the Hub router, Hub slugs with an optional backend suffix),
   and local servers.
 

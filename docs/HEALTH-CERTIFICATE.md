@@ -198,7 +198,7 @@ executable is node, bun or the launcher; on Linux the executable is read
 from the command line or the kernel's own link to the binary, because the
 process table's command name there is the main thread's name. A
 window is read by its own registration (`<config home>/processes/`, a pid, a
-birth token and a heartbeat the UI writes and clears at exit) and by
+birth token and a heartbeat the cockpit writes and clears at exit) and by
 whether a live shell still owns its terminal; a daemon by its own
 record, its owner, its live sessions, schedules and persistence; a runner by
 the daemon's roster and its session's seat. Any live fact keeps a process
@@ -233,7 +233,7 @@ at a time; the Windows guide describes the read and the stop.
 Checks can carry an executable remedy — `{plan, apply, verify}` — and a remedy
 is offered only for statuses that assert something is wrong (`fail`, `warn`,
 `stale`); `ok`, `info`, `off`, and `unknown` rows never expose apply. The fix engine
-applies a remedy and then re-probes with `verify()` — the outcome you
+applies a remedy and then re-probes with `verify()`: the outcome you
 see is the verification, never apply's self-report. Every applied fix writes an
 evolution-ledger row, so the improvement history is auditable.
 
