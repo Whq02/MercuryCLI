@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { fuseRankings, scoreCandidates, type LookupCandidate } from '../../src/mneme/mnemeLookup.js'
+import { liftLinked } from '../../src/mneme/mnemeLinks.js'
 
 export interface StudyFootnotes {
   session?: number
@@ -193,52 +194,19 @@ export function chooseModelByOwnerRuling(rows: readonly ComputedModelRow[], word
   )[0] ?? null
 }
 
-export function buildLinkRanking(
-  baseOrder: readonly string[],
-  lex: readonly string[],
-  sem: readonly string[],
-  byId: ReadonlyMap<string, StudyCandidate>,
-  opts: { supersedes: boolean; ruling?: string; session?: number },
-  k = 60,
-): string[] {
-  if (baseOrder.length === 0) return []
-  const baseRank = new Map(baseOrder.map((id, idx) => [id, idx]))
-  const lexRank = new Map(lex.map((id, idx) => [id, idx]))
-  const semRank = new Map(sem.map((id, idx) => [id, idx]))
-  const scoreOf = (id: string): number => {
-    let s = 0
-    const sr = semRank.get(id)
-    if (sr !== undefined) s += 1 / (k + sr + 1)
-    const lr = lexRank.get(id)
-    if (lr !== undefined) s += 1 / (k + lr + 1)
-    const c = byId.get(id)
-    if (!c) return s
-    if (opts.ruling && (c.footnotes.ruling === opts.ruling || c.id === opts.ruling)) {
-      s += 1 / (k + 1)
-    }
-    if (opts.session !== undefined && c.footnotes.session !== undefined) {
-      if (c.footnotes.session === opts.session) s += 0.00060
-      else if (c.footnotes.session < opts.session) s += 0.00020
-    }
-    if (opts.supersedes) {
-      const flowed = Math.max(0, c.flowedUseCount - c.directUseCount)
-      if (flowed > 0) s += Math.min(0.00120, 0.00080 * Math.log1p(flowed))
-    }
-    return s
-  }
-  return [...baseOrder].sort((aId, bId) => scoreOf(bId) - scoreOf(aId) || (baseRank.get(aId) ?? 999) - (baseRank.get(bId) ?? 999))
-}
-
 export function evaluateSignalAblation(corpus: StudyCorpus, modelName = defaultStudyModel(corpus)): SignalAblationRow[] {
   const simsMap = corpus.similaritiesByModel[modelName] ?? {}
   const byId = new Map(corpus.candidates.map(c => [c.id, c]))
-  const arms: Array<{ name: string; semantic: boolean; supersedes: boolean; ruling: boolean; session: boolean }> = [
-    { name: 'word-only', semantic: false, supersedes: false, ruling: false, session: false },
-    { name: 'word+semantic', semantic: true, supersedes: false, ruling: false, session: false },
-    { name: 'word+semantic+supersedes', semantic: true, supersedes: true, ruling: false, session: false },
-    { name: 'word+semantic+ruling', semantic: true, supersedes: false, ruling: true, session: false },
-    { name: 'word+semantic+session', semantic: true, supersedes: false, ruling: false, session: true },
-    { name: 'word+semantic+links-all', semantic: true, supersedes: true, ruling: true, session: true },
+  const newestRuling = [...corpus.candidates].filter(c => c.footnotes.ruling).sort((a, b) => (b.time ?? '').localeCompare(a.time ?? ''))[0]?.footnotes.ruling
+  const arms: Array<{ name: string; semantic: boolean; supersedes: boolean; ruling: 'none' | 'question' | 'newest'; session: boolean }> = [
+    { name: 'word-only', semantic: false, supersedes: false, ruling: 'none', session: false },
+    { name: 'word+semantic', semantic: true, supersedes: false, ruling: 'none', session: false },
+    { name: 'word+semantic+supersedes', semantic: true, supersedes: true, ruling: 'none', session: false },
+    { name: 'word+semantic+ruling', semantic: true, supersedes: false, ruling: 'question', session: false },
+    { name: 'word+semantic+session', semantic: true, supersedes: false, ruling: 'none', session: true },
+    { name: 'word+semantic+links-all', semantic: true, supersedes: true, ruling: 'question', session: true },
+    { name: 'word+semantic+shipped (usage flow + ruling lift)', semantic: true, supersedes: true, ruling: 'question', session: false },
+    { name: `word+semantic+shipped, every question under the newest ruling (${newestRuling ?? 'none'})`, semantic: true, supersedes: true, ruling: 'newest', session: false },
   ]
   return arms.map(arm => {
     let r1 = 0
@@ -249,14 +217,10 @@ export function evaluateSignalAblation(corpus: StudyCorpus, modelName = defaultS
       const lex = lexicalOrder(corpus, q.query, arm.supersedes)
       const sims = simsMap[q.id] ?? []
       const sem = arm.semantic && sims.length > 0 ? selectDiscriminatingSemantic(sims) : []
-      const baseOrder = fuseByRank(sem, lex)
-      const finalOrder = (arm.supersedes || arm.ruling || arm.session)
-        ? buildLinkRanking(baseOrder, lex, sem, byId, {
-            supersedes: arm.supersedes,
-            ...(arm.ruling && q.ruling ? { ruling: q.ruling } : {}),
-            ...(arm.session && q.session !== undefined ? { session: q.session } : {}),
-          })
-        : baseOrder
+      let finalOrder = fuseByRank(sem, lex)
+      const ruling = arm.ruling === 'question' ? q.ruling : arm.ruling === 'newest' ? newestRuling : undefined
+      if (ruling !== undefined) finalOrder = liftLinked(finalOrder, new Set(finalOrder.filter(id => byId.get(id)?.footnotes.ruling === ruling)))
+      if (arm.session && q.session !== undefined) finalOrder = liftLinked(finalOrder, new Set(finalOrder.filter(id => byId.get(id)?.footnotes.session === q.session)))
       const top5 = finalOrder.slice(0, 5)
       if (finalOrder[0] === q.target) r1++
       if (top5.includes(q.target)) r5++
