@@ -115,6 +115,7 @@ export interface CompatCompletedToolCall {
 export type CompatStreamEvent =
   | { type: 'served-model'; model: string }
   | { type: 'reasoning-delta'; text: string }
+  | { type: 'reasoning-withheld'; signature: string }
   | { type: 'text-delta'; text: string }
   | { type: 'tool-call-fragment'; index: number; id?: string; name?: string; argumentsFragment: string }
   | { type: 'usage'; usage: CompatUsage }
