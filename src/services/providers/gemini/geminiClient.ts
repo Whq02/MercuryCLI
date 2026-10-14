@@ -70,6 +70,14 @@ export async function* streamGeminiContent(options: GeminiStreamOptions): AsyncG
   const nativeCalls: GeminiTurnItem['calls'] = []
   let finish: string | undefined
   let providerFailed = false
+  let thoughtTextSeen = false
+  let firstSignature: string | undefined
+  let withheldSaid = false
+  function* sayWithheld(): Generator<CompatStreamEvent> {
+    if (withheldSaid || thoughtTextSeen || firstSignature === undefined) return
+    withheldSaid = true
+    yield { type: 'reasoning-withheld', signature: firstSignature }
+  }
   const budgetMs = firstByteBudgetMs({ cold: options.firstByte?.cold === true, promptTokens: options.firstByte?.promptTokens ?? 0, idleMs })
   const wait: Extract<RequestWaitV1, { kind: 'first-byte' }> = {
     kind: 'first-byte', cold: options.firstByte?.cold === true, promptTokens: options.firstByte?.promptTokens ?? 0,
@@ -114,6 +122,8 @@ export async function* streamGeminiContent(options: GeminiStreamOptions): AsyncG
       }
       const signature = typeof part.thoughtSignature === 'string' ? part.thoughtSignature : undefined
       const thought = part.thought === true
+      if (thought && typeof part.text === 'string' && part.text !== '') thoughtTextSeen = true
+      if (signature && firstSignature === undefined) firstSignature = signature
       const fn = record(part.functionCall)
       if (fn) {
         const name = typeof fn.name === 'string' ? fn.name : ''
@@ -140,6 +150,7 @@ export async function* streamGeminiContent(options: GeminiStreamOptions): AsyncG
         } else if (text !== '' || signature) {
           parts.push({ text, ...(thought ? { thought: true } : {}), ...(signature ? { thoughtSignature: signature } : {}) })
         }
+        if (text !== '' && !thought) yield* sayWithheld()
         if (text !== '') yield { type: thought ? 'reasoning-delta' : 'text-delta', text }
       } else if (Object.keys(part).length > 0) {
         providerFailed = true
@@ -249,6 +260,7 @@ export async function* streamGeminiContent(options: GeminiStreamOptions): AsyncG
       return
     }
     if (options.signal?.aborted) return
+    yield* sayWithheld()
     options.onTurn({ model: options.request.model, parts, calls: nativeCalls, projection: '' })
     const reason = finish === 'STOP' ? calls.length > 0 ? 'tool_calls' : 'stop' : finish === 'MAX_TOKENS' ? 'length' : /SAFETY|BLOCKLIST|PROHIBITED_CONTENT|RECITATION|IMAGE_SAFETY/.test(finish) ? 'content_filter' : 'other'
     if (reason !== 'stop' && reason !== 'tool_calls' && reason !== 'length') {
