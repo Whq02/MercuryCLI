@@ -14,11 +14,13 @@ import {
   resolveGeminiAccount,
   resolveGeminiRequestAuth,
   type GeminiAccountRef,
+  type GeminiSourceKind,
 } from './geminiAccounts.js'
+import { fetchGeminiPlanRoster, GeminiPlanHttpError, type GeminiPlanRoster } from './geminiPlanAccess.js'
 
 const CATALOGUE_FETCH_TIMEOUT_MS = 15_000
 
-export type GeminiSourceKind = 'oauth' | 'api-key'
+export type { GeminiSourceKind }
 
 
 export interface GeminiLiveModel {
@@ -30,6 +32,20 @@ export interface GeminiLiveModel {
   outputTokenLimit?: number
   supportedGenerationMethods?: readonly string[]
   thinking?: boolean
+  quota?: { remainingFraction?: number; resetTime?: string }
+}
+
+export function geminiPlanRosterModels(roster: Pick<GeminiPlanRoster, 'models' | 'imageModelIds'>): GeminiLiveModel[] {
+  const images = new Set(roster.imageModelIds)
+  return roster.models.map(model => ({
+    id: model.id,
+    ...(model.displayName !== undefined ? { displayName: model.displayName } : {}),
+    ...(model.maxTokens !== undefined ? { inputTokenLimit: model.maxTokens } : {}),
+    ...(model.maxOutputTokens !== undefined ? { outputTokenLimit: model.maxOutputTokens } : {}),
+    supportedGenerationMethods: images.has(model.id) ? ['generateImages'] : declaredRouteOf(model.id) === 'gemini' ? ['generateContent'] : [],
+    ...(model.supportsThinking !== undefined ? { thinking: model.supportsThinking } : {}),
+    ...(model.quota !== undefined ? { quota: model.quota } : {}),
+  }))
 }
 
 function str(v: unknown): string | undefined {
@@ -190,11 +206,19 @@ export function refreshGeminiCatalogue(
         storeSnapshot(identity, snapshot)
         return snapshot
       }
-      const result = await fetchGeminiLiveModels({
-        baseUrl: auth.baseUrl,
-        headers: auth.headers,
-        ...(opts?.fetchImpl ? { fetchImpl: opts.fetchImpl } : {}),
-      })
+      const result =
+        sourceKind === 'plan'
+          ? await fetchGeminiPlanRoster({
+              accessToken: auth.headers.authorization?.replace(/^Bearer /, '') ?? '',
+              ...(opts?.fetchImpl ? { fetchImpl: opts.fetchImpl } : {}),
+              ...(opts?.env ? { env: opts.env } : {}),
+              userAgent: auth.headers['user-agent'] ?? '',
+            }).then(roster => ({ models: geminiPlanRosterModels(roster), fetchedAtMs: roster.fetchedAtMs }))
+          : await fetchGeminiLiveModels({
+              baseUrl: auth.baseUrl,
+              headers: auth.headers,
+              ...(opts?.fetchImpl ? { fetchImpl: opts.fetchImpl } : {}),
+            })
       const snapshot: GeminiCatalogueSnapshot = {
         sourceKind,
         models: result.models,
@@ -203,7 +227,7 @@ export function refreshGeminiCatalogue(
       storeSnapshot(identity, snapshot)
       return snapshot
     } catch (error) {
-      const answer = error instanceof GeminiCatalogueHttpError ? error : undefined
+      const answer = error instanceof GeminiCatalogueHttpError ? error : error instanceof GeminiPlanHttpError ? new GeminiCatalogueHttpError(error.status, error.body) : undefined
       if (answer !== undefined) {
         const verb = answer.status === 401 || answer.status === 403 ? 'refused the credential' : 'read failed'
         logForDebugging(
@@ -214,12 +238,18 @@ export function refreshGeminiCatalogue(
           `[gemini] catalogue unreachable · source=${source ?? sourceKind} · ${maskGeminiSecrets(error instanceof Error ? error.message : String(error), opts?.env)}`,
         )
       }
+      const lastError =
+        error instanceof GeminiPlanHttpError
+          ? error.status === 401 || error.status === 403
+            ? `Google's Code Assist roster refused the credential (HTTP ${error.status})`
+            : `Google's Code Assist roster returned HTTP ${error.status}`
+          : error instanceof Error ? error.message : String(error)
       const snapshot: GeminiCatalogueSnapshot = {
         sourceKind,
         models: cached?.models ?? [],
         fetchedAtMs: cached?.fetchedAtMs ?? 0,
         lastAttemptAtMs: now(),
-        lastError: error instanceof Error ? error.message : String(error),
+        lastError,
         ...(answer !== undefined ? { lastStatus: answer.status } : {}),
       }
       storeSnapshot(identity, snapshot)
@@ -244,7 +274,7 @@ export function geminiListedModel(
   if (declaredRouteOf(model) !== 'gemini') return undefined
   const account = resolveGeminiAccount(env)
   if (!account) return undefined
-  const snapshot = getCachedGeminiCatalogue(account.kind === 'oauth' ? 'oauth' : 'api-key', env)
+  const snapshot = getCachedGeminiCatalogue(account.kind, env)
   if (!snapshot || snapshot.models.length === 0) return undefined
   const id = model.trim().replace(/\[[^\]]*\]/g, '').toLowerCase()
   return snapshot.models.find(m => m.id.toLowerCase() === id)
@@ -316,7 +346,7 @@ export function cachedLiveIds(env: NodeJS.ProcessEnv = process.env): ReadonlySet
   if (catalogueCache.size === 0) return EMPTY_LIVE_IDS
   const account = resolveGeminiAccount(env)
   if (!account) return EMPTY_LIVE_IDS
-  const snapshot = getCachedGeminiCatalogue(account.kind === 'oauth' ? 'oauth' : 'api-key', env)
+  const snapshot = getCachedGeminiCatalogue(account.kind, env)
   if (!snapshot || snapshot.fetchedAtMs === 0 || snapshot.models.length === 0) return EMPTY_LIVE_IDS
   let ids = liveIdSets.get(snapshot)
   if (ids === undefined) {
@@ -328,6 +358,7 @@ export function cachedLiveIds(env: NodeJS.ProcessEnv = process.env): ReadonlySet
 
 export function geminiCredentialRefusedReason(account: Pick<GeminiAccountRef, 'kind' | 'keySource'>, status: number | undefined): string {
   const http = status === undefined ? '' : ` (HTTP ${status})`
+  if (account.kind === 'plan') return `the Google sign-in was refused by Google's Code Assist endpoint${http} · /logins signs in with Google again`
   if (account.kind === 'oauth') return `the Google account's token was refused${http} · /logins re-connects`
   if (account.keySource === 'env-google') return `the Gemini API key from GOOGLE_API_KEY was refused${http} · update GOOGLE_API_KEY`
   if (account.keySource === 'env-gemini') return `the Gemini API key from GEMINI_API_KEY was refused${http} · update GEMINI_API_KEY`
@@ -336,7 +367,9 @@ export function geminiCredentialRefusedReason(account: Pick<GeminiAccountRef, 'k
 
 export function geminiCatalogueUnreachableReason(account: Pick<GeminiAccountRef, 'kind' | 'keySource'>, lastError: string): string {
   const source =
-    account.kind === 'oauth'
+    account.kind === 'plan'
+      ? 'the Google sign-in'
+      : account.kind === 'oauth'
       ? 'the Google account'
       : account.keySource === 'env-google'
         ? 'the Gemini API key from GOOGLE_API_KEY'
@@ -360,7 +393,7 @@ export function getGeminiAvailability(env: NodeJS.ProcessEnv = process.env): Gem
       reason: `${connectToBrowseReason('gemini')} — /logins connects`,
     }
   }
-  const sourceKind: GeminiSourceKind = account.kind === 'oauth' ? 'oauth' : 'api-key'
+  const sourceKind: GeminiSourceKind = account.kind
   const snapshot = getCachedGeminiCatalogue(sourceKind, env)
   const verdict = catalogueTrafficVerdict('gemini', env)
   if (!verdict.allowed && (!snapshot || snapshot.models.length === 0)) {
@@ -394,7 +427,7 @@ export function getGeminiAvailability(env: NodeJS.ProcessEnv = process.env): Gem
     return {
       state: 'disabled',
       why: 'no-generate-models',
-      reason: 'the live catalogue lists no generateContent-capable models for this source',
+      reason: account.kind === 'plan' ? "Google's roster names no chat model for this sign-in" : 'the live catalogue lists no generateContent-capable models for this source',
     }
   }
   return {
@@ -433,7 +466,7 @@ export function getGeminiModelOptions(env: NodeJS.ProcessEnv = process.env): Mod
                 ? 'Gemini — no chat models served'
                 : 'Gemini — connecting…',
         description: signIn
-          ? `${connectToBrowseReason('gemini')} (API key or Google OAuth) — ↵ runs /logins`
+          ? `${connectToBrowseReason('gemini')} (Sign in with Google, an API key, or your own OAuth client) — ↵ runs /logins`
           : availability.why === 'traffic-off'
             ? availability.reason
             : `rows appear when the live catalogue lands (${availability.reason})${availability.why === 'catalogue-pending' ? ' — ↵ retries now' : ''}`,
@@ -455,7 +488,7 @@ export function getGeminiModelOptions(env: NodeJS.ProcessEnv = process.env): Mod
       value: model.id,
       label: model.displayName ?? model.id,
       description: '',
-      descriptionForModel: `${model.displayName ?? model.id} (${model.id}) — live-listed generateContent model on the connected ${availability.source}.`,
+      descriptionForModel: availability.sourceKind === 'plan' ? `${model.displayName ?? model.id} (${model.id}) — on the roster Google serves the connected ${availability.source}.` : `${model.displayName ?? model.id} (${model.id}) — live-listed generateContent model on the connected ${availability.source}.`,
       group: GEMINI_MODEL_GROUP,
       ...(wireReady && routed ? {} : { unavailable: routed ? pendingReason : unroutableReason }),
       ...(model.inputTokenLimit !== undefined ? { statedContextWindow: model.inputTokenLimit } : {}),

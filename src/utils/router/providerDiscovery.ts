@@ -34,7 +34,7 @@ export interface OpenrouterDiscovery {
 export interface GeminiDiscovery {
   provider: 'gemini'
   probedAtMs: number
-  account?: { kind: 'oauth' | 'api-key'; label: string }
+  account?: { kind: 'oauth' | 'api-key' | 'plan'; label: string }
 }
 
 export interface MoonshotDiscovery {

@@ -5,11 +5,12 @@ import {
   type CompatLaneProfile,
 } from '../openaicompat/compatChatCallModel.js'
 import { buildGeminiExtras } from '../openaicompat/compatWire.js'
+import { randomUUID } from 'node:crypto'
 import { geminiApiBase, resolveGeminiAccount, resolveGeminiRequestAuth } from './geminiAccounts.js'
 import { geminiEffortVocabularyFor } from './geminiCatalogue.js'
 import { clearGeminiUsageLimit, recordGeminiRateHeaders } from './geminiUsageState.js'
 import type { CompatStreamEvent } from '../openaicompat/compatChatClient.js'
-import { streamGeminiContent } from './geminiClient.js'
+import { geminiPlanStreamUrl, streamGeminiContent, type GeminiPlanWire } from './geminiClient.js'
 import type { GeminiTurnItem } from './geminiCodec.js'
 import { mapMessagesToZai } from '../zai/zaiCodec.js'
 import { API_ERROR_MESSAGE_PREFIX } from '../../api/errors.js'
@@ -57,32 +58,72 @@ export function geminiLiveProofState(): { at: number; model: string } | null {
   return compatLaneLiveProofState('gemini')
 }
 
-export async function* geminiCallModel(params: CallModelParams): CallModelStream {
-  if (resolveGeminiAccount()?.kind !== 'oauth') {
-    yield* compatChatCallModel(geminiLaneProfile, params)
-    return
+export const GEMINI_PLAN_AUTH_REMEDY =
+  "the Google sign-in's token was refused · /logins → Sign in with Google signs in again; /model picks another model meanwhile."
+export const GEMINI_PLAN_BILLING_REMEDY =
+  "the plan's quota is Google's and cannot be changed from here · /usage shows the tier Google reports and the wait Google asks for; /logins adds a Gemini API key on a project of your own; /model picks another model meanwhile."
+
+export function geminiPlanModelMissingWords(model: string, status: number | undefined, wireSaid: string | undefined): string {
+  return `${API_ERROR_MESSAGE_PREFIX}: Google serves no model '${model}' to this Google sign-in${status === undefined ? '' : ` (HTTP ${status})`} · /model lists the roster Google serves it; /logins → Sign in with Google reads the roster again if the plan changed.${wireSaid === undefined ? '' : ` The wire said: ${wireSaid}`}`
+}
+
+const planSession = { agentId: randomUUID(), trajectoryId: randomUUID(), sessionId: `-${Date.now()}${Math.floor(Math.random() * 1e6)}`, step: 1 }
+const planLastGoodBase = new Map<string, string>()
+
+export function nextGeminiPlanEnvelope(projectId: string): Omit<GeminiPlanWire, 'bases' | 'userAgent' | 'onServedBy'> {
+  planSession.step += 1
+  const step = planSession.step
+  return {
+    projectId,
+    requestId: `agent/${planSession.agentId}/${Date.now()}/${planSession.trajectoryId}/${step}`,
+    sessionId: planSession.sessionId,
+    labels: { last_step_index: String(step - 1), trajectory_id: planSession.trajectoryId, used_claude: 'false', used_claude_conservative: 'false' },
   }
+}
+
+export function orderedGeminiPlanBases(projectId: string, bases: readonly string[]): string[] {
+  const lastGood = planLastGoodBase.get(projectId)
+  return lastGood !== undefined && bases.includes(lastGood) ? [lastGood, ...bases.filter(base => base !== lastGood)] : [...bases]
+}
+
+export function __resetGeminiPlanWireForTest(): void {
+  planLastGoodBase.clear()
+  planSession.step = 1
+}
+
+async function* geminiPlanCallModel(params: CallModelParams): CallModelStream {
   const model = compatDispatchModelId(params.options.model)
   let bearer: string | undefined
   let status: number | undefined
   let recovery: 'retried' | 'no-new-credential' | undefined
   let wireSaid: string | undefined
+  let projectId: string | undefined
+  let bases: string[] = []
+  let userAgent = ''
+  const credentialOf = async (forceRefresh: boolean) => {
+    const auth = await resolveGeminiRequestAuth({ sourceKind: 'plan', ...(forceRefresh ? { forceRefresh: true } : {}) })
+    if (!auth?.plan) return undefined
+    projectId = auth.plan.projectId
+    bases = orderedGeminiPlanBases(auth.plan.projectId, auth.plan.bases)
+    userAgent = auth.headers['user-agent'] ?? ''
+    const fresh = bearerFromAuthHeaders(auth.headers)
+    return fresh ? { apiKey: fresh, requestUrl: geminiPlanStreamUrl(bases[0]!, true) } : undefined
+  }
   const profile: CompatLaneProfile = {
     ...geminiLaneProfile,
-    billingRemedy: GEMINI_ACCOUNT_BILLING_REMEDY,
+    credentialHint: 'no Google sign-in for Gemini — /logins → Sign in with Google.',
+    authRemedy: GEMINI_PLAN_AUTH_REMEDY,
+    billingRemedy: GEMINI_PLAN_BILLING_REMEDY,
     resolveCredential: async () => {
-      const auth = await resolveGeminiRequestAuth({ sourceKind: 'oauth' })
-      if (!auth) return undefined
-      bearer = bearerFromAuthHeaders(auth.headers)
-      return bearer ? { apiKey: bearer, requestUrl: `${auth.baseUrl}/models/${encodeURIComponent(model)}:streamGenerateContent?alt=sse` } : undefined
+      const credential = await credentialOf(false)
+      bearer = credential?.apiKey
+      return credential
     },
     recoverCredential: async () => {
       recovery = 'no-new-credential'
-      const auth = await resolveGeminiRequestAuth({ sourceKind: 'oauth', forceRefresh: true })
-      if (!auth) return undefined
-      const fresh = bearerFromAuthHeaders(auth.headers)
-      if (fresh && fresh !== bearer) recovery = 'retried'
-      return fresh ? { apiKey: fresh, requestUrl: `${auth.baseUrl}/models/${encodeURIComponent(model)}:streamGenerateContent?alt=sse` } : undefined
+      const credential = await credentialOf(true)
+      if (credential && credential.apiKey !== bearer) recovery = 'retried'
+      return credential
     },
     onResponseHeaders: (headers, responseStatus) => {
       status = responseStatus
@@ -91,7 +132,14 @@ export async function* geminiCallModel(params: CallModelParams): CallModelStream
     },
     streamTransport: (options, messages) => {
       let turn: GeminiTurnItem | undefined
-      const upstream = streamGeminiContent({ ...options, messages, onTurn: item => { turn = item } })
+      const project = projectId ?? ''
+      const plan: GeminiPlanWire = {
+        ...nextGeminiPlanEnvelope(project),
+        bases,
+        userAgent,
+        onServedBy: base => planLastGoodBase.set(project, base),
+      }
+      const upstream = streamGeminiContent({ ...options, messages, plan, onTurn: item => { turn = item } })
       async function* observed(): AsyncGenerator<CompatStreamEvent> {
         for await (const event of upstream) {
           if (event.type === 'stream-fault') wireSaid = event.fault.message ? `${event.fault.code}: ${event.fault.message}` : event.fault.code
@@ -113,6 +161,90 @@ export async function* geminiCallModel(params: CallModelParams): CallModelStream
   }
   for await (const item of compatChatCallModel(profile, params)) {
     if (item.type === 'assistant' && item.isApiErrorMessage && item.error === 'authentication_failed') {
+      const refreshed = recovery === 'retried'
+        ? ' The stored token was refreshed and the call retried once before this refusal.'
+        : recovery === 'no-new-credential' ? ' A token refresh was attempted first and produced no new credential.' : ''
+      yield createAssistantAPIErrorMessage({
+        content: `${API_ERROR_MESSAGE_PREFIX}: the Google sign-in's token was refused${status === undefined ? '' : ` (HTTP ${status})`} · /logins → Sign in with Google signs in again; /model picks another model meanwhile.${refreshed}${wireSaid === undefined ? '' : ` The wire said: ${wireSaid}`}`,
+        error: item.error,
+        errorDetails: item.errorDetails,
+      })
+    } else if (item.type === 'assistant' && item.isApiErrorMessage && status === 404) {
+      yield createAssistantAPIErrorMessage({
+        content: geminiPlanModelMissingWords(model, status, wireSaid),
+        error: item.error,
+        errorDetails: item.errorDetails,
+      })
+    } else yield item
+  }
+}
+
+export async function* geminiCallModel(params: CallModelParams): CallModelStream {
+  const kind = resolveGeminiAccount()?.kind
+  if (kind === 'plan') {
+    yield* geminiPlanCallModel(params)
+    return
+  }
+  if (kind === undefined) {
+    yield* compatChatCallModel(geminiLaneProfile, params)
+    return
+  }
+  const model = compatDispatchModelId(params.options.model)
+  let bearer: string | undefined
+  let status: number | undefined
+  let recovery: 'retried' | 'no-new-credential' | undefined
+  let wireSaid: string | undefined
+  const nativeUrl = (base: string): string => `${base}/models/${encodeURIComponent(model)}:streamGenerateContent?alt=sse`
+  const profile: CompatLaneProfile = {
+    ...geminiLaneProfile,
+    ...(kind === 'oauth' ? { billingRemedy: GEMINI_ACCOUNT_BILLING_REMEDY } : {}),
+    resolveCredential: async () => {
+      const auth = await resolveGeminiRequestAuth({ sourceKind: kind })
+      if (!auth) return undefined
+      bearer = bearerFromAuthHeaders(auth.headers)
+      return bearer ? { apiKey: bearer, requestUrl: nativeUrl(auth.baseUrl) } : undefined
+    },
+    ...(kind === 'oauth'
+      ? {
+          recoverCredential: async () => {
+            recovery = 'no-new-credential'
+            const auth = await resolveGeminiRequestAuth({ sourceKind: 'oauth', forceRefresh: true })
+            if (!auth) return undefined
+            const fresh = bearerFromAuthHeaders(auth.headers)
+            if (fresh && fresh !== bearer) recovery = 'retried'
+            return fresh ? { apiKey: fresh, requestUrl: nativeUrl(auth.baseUrl) } : undefined
+          },
+        }
+      : {}),
+    onResponseHeaders: (headers, responseStatus) => {
+      status = responseStatus
+      recordGeminiRateHeaders(headers)
+      if (responseStatus !== undefined && responseStatus >= 200 && responseStatus < 300) clearGeminiUsageLimit()
+    },
+    streamTransport: (options, messages) => {
+      let turn: GeminiTurnItem | undefined
+      const upstream = streamGeminiContent({ ...options, messages, ...(kind === 'api-key' ? { apiKeyHeader: true } : {}), onTurn: item => { turn = item } })
+      async function* observed(): AsyncGenerator<CompatStreamEvent> {
+        for await (const event of upstream) {
+          if (event.type === 'stream-fault') wireSaid = event.fault.message ? `${event.fault.code}: ${event.fault.message}` : event.fault.code
+          yield event
+        }
+      }
+      return {
+        events: observed(),
+        settle: minted => {
+          const last = minted.at(-1)
+          if (!last || !turn) return
+          const content = minted.flatMap(message => message.message.content)
+          const projection = JSON.stringify(mapMessagesToZai(undefined, [{ role: 'assistant', content }])[0])
+          const refused = minted.flatMap(message => message.refusedToolCalls ?? []).map(call => ({ id: call.id, reason: call.reason }))
+          last.geminiProviderTurn = { ...turn, projection, ...(refused.length ? { refused } : {}) }
+        },
+      }
+    },
+  }
+  for await (const item of compatChatCallModel(profile, params)) {
+    if (kind === 'oauth' && item.type === 'assistant' && item.isApiErrorMessage && item.error === 'authentication_failed') {
       const refreshed = recovery === 'retried'
         ? ' The stored token was refreshed and the call retried once before this refusal.'
         : recovery === 'no-new-credential' ? ' A token refresh was attempted first and produced no new credential.' : ''

@@ -56,7 +56,7 @@ const text = (messages: AssistantMessage[]) => messages.flatMap(message => messa
 function sse(chunks: unknown[]): Response {
   return new Response(chunks.map(chunk => `data: ${JSON.stringify(chunk)}\n\n`).join(''), { headers: { 'content-type': 'text/event-stream' } })
 }
-type Hit = { url: string; auth: string | null; body: Record<string, any> }
+type Hit = { url: string; auth: string | null; key: string | null; body: Record<string, any> }
 const hits: Hit[] = []
 let scenario: 'text' | 'tools' | 'tool-result' | 'refused-tool' | 'refuse' | 'refresh' | 'overflow' | 'rate' | 'overload' | 'billing' = 'text'
 const overloadReason = 'This model is currently experiencing high demand. Spikes in demand are usually temporary. Please try again later.'
@@ -65,12 +65,13 @@ globalThis.fetch = (async (input: unknown, init?: RequestInit) => {
   const url = String(input)
   if (!url.startsWith('https://gemini.fixture.invalid/')) throw new Error('unpinned Gemini request')
   const auth = new Headers(init?.headers).get('authorization')
+  const keyHeader = new Headers(init?.headers).get('x-goog-api-key')
   if (url.endsWith('/token')) {
-    hits.push({ url, auth, body: {} })
+    hits.push({ url, auth, key: keyHeader, body: {} })
     return Response.json({ access_token: refreshed, expires_in: 3600 })
   }
   const body = JSON.parse(String(init?.body ?? '{}'))
-  hits.push({ url, auth, body })
+  hits.push({ url, auth, key: keyHeader, body })
   if (url.endsWith('/openai/chat/completions')) {
     if (auth === `Bearer ${key}`) return sse([{ choices: [{ delta: { content: 'key answer' }, finish_reason: 'stop' }], usage: { prompt_tokens: 10, completion_tokens: 2 } }])
     return Response.json([{ error: { code: 401, status: 'UNAUTHENTICATED', message: 'the compatibility fixture accepts API keys only' } }], { status: 401 })
@@ -170,7 +171,8 @@ try {
   scenario = 'text'
   hits.length = 0
   const keyAnswer = await drain(params([user('Say hello.')]))
-  check('API keys retain compatibility without a token refresh', text(keyAnswer) === 'key answer' && hits.length === 1 && hits[0]!.url.endsWith('/openai/chat/completions') && hits[0]!.auth === `Bearer ${key}`)
+  check('API keys ride the native wire under their own header, never the compatibility endpoint, without a token refresh', text(keyAnswer) === 'native answer' && hits.length === 1 && hits[0]!.url.endsWith(':streamGenerateContent?alt=sse') && hits[0]!.key === key && hits[0]!.auth === null)
+  check('the API-key road records the signed native turn the next request replays', Boolean((keyAnswer.at(-1) as any)?.geminiProviderTurn) && JSON.stringify((keyAnswer.at(-1) as any).geminiProviderTurn.parts) === JSON.stringify([{ text: 'native answer', thoughtSignature: 'fixture-text-signature' }]))
   delete process.env.GEMINI_API_KEY
   seed()
   scenario = 'refresh'

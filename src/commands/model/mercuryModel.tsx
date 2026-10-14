@@ -237,9 +237,9 @@ const OPENROUTER_ROAD: CatalogueRoad<OpenrouterCatalogueSnapshot> = {
   changed: (before, after) => !isDeepStrictEqual(before.models, after.models),
 }
 
-const geminiSourceKind = (): 'oauth' | 'api-key' | undefined => {
+const geminiSourceKind = (): 'oauth' | 'api-key' | 'plan' | undefined => {
   const account = resolveGeminiAccount()
-  return account ? (account.kind === 'oauth' ? 'oauth' : 'api-key') : undefined
+  return account?.kind
 }
 
 const GEMINI_ROAD: CatalogueRoad<GeminiCatalogueSnapshot> = {
@@ -554,7 +554,7 @@ function doorLabelOfSlot(family: string, slot: AccountSlot): string {
     return plan !== '' && plan !== slot.kindLabel ? `ChatGPT ${capitalise(plan)} login` : 'ChatGPT login'
   }
   if (family === 'openrouter') return slot.kindLabel === 'OAuth-minted key' ? 'OAuth key' : 'API key'
-  if (family === 'gemini') return slot.kind === 'oauth' ? 'Google account' : 'API key'
+  if (family === 'gemini') return slot.kind === 'oauth' ? 'Google account' : slot.kind === 'subscription' ? 'Google sign-in' : 'API key'
   if (family === 'moonshot') return slot.kind === 'oauth' ? 'Kimi login' : 'API key'
   if (family === 'huggingface') return 'token'
   return slot.kindLabel.replace(/ · (env|helper)$/, '')
@@ -959,7 +959,7 @@ function MercuryModelWrapper({
           )
           const account = resolveGeminiAccount()
           if (account) {
-            const sourceKind = account.kind === 'oauth' ? ('oauth' as const) : ('api-key' as const)
+            const sourceKind = account.kind
             setNotice('Gemini — refreshing the live catalogue…')
             const snapshot = await refreshGeminiCatalogue(sourceKind, { force: true }).catch(() => null)
             setNotice(

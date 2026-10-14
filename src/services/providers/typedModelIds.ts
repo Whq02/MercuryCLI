@@ -202,7 +202,7 @@ function geminiFact(name: string, env: NodeJS.ProcessEnv): ModelListFact {
     const { getCachedGeminiCatalogue } = require('./gemini/geminiCatalogue.js') as typeof import('./gemini/geminiCatalogue.js')
     const account = resolveGeminiAccount(env)
     if (!account) return { family: 'gemini', name, typed: typed(), list: { kind: 'no-credential' } }
-    const sourceKind = account.kind === 'oauth' ? 'oauth' : 'api-key'
+    const sourceKind = account.kind
     return { family: 'gemini', name, source: account.label, typed: typed(), list: cachedListSource(getCachedGeminiCatalogue(sourceKind, env)) }
   })
 }
