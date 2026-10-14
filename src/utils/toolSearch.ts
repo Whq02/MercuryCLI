@@ -29,8 +29,6 @@ export type DeferredToolsDeltaScanContext = {
   hasPendingMcpServers?: boolean
 }
 
-export { isDeferredToolsDeltaEnabled } from './toolSearchFlags.js'
-
 const DEFAULT_AUTO_PERCENT = 10
 
 function parseAutoPercentage(value: string): number {

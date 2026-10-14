@@ -8,7 +8,6 @@ import { clearConversationToolSchemas, getConversationToolSchemas } from '../../
 import { createUserMessage } from '../../utils/messages.js'
 import {
   extractDiscoveredToolNames,
-  isDeferredToolsDeltaEnabled,
   isToolReferenceBlock,
   isToolSearchEnabled,
 } from '../../utils/toolSearch.js'
@@ -284,8 +283,6 @@ export async function planToolPayload(input: ToolPayloadPlanInput): Promise<Tool
     admissionDeclarations = admissionDeclarationsOf(messages, available, deferredNames, new Set(roster.map(tool => tool.name)))
   }
 
-  const announcement = enabled && !serverSearch && !isDeferredToolsDeltaEnabled() ? deferredToolsAnnouncement(ordered, deferredNames) : null
-
   return {
     enabled,
     ...(latchKey !== null ? { conversationKey: latchKey } : {}),
@@ -294,7 +291,7 @@ export async function planToolPayload(input: ToolPayloadPlanInput): Promise<Tool
     roster,
     deferredNames,
     admittedNames,
-    announcement,
+    announcement: null,
     isDeferredUnadmitted: (name: string) => enabled && !serverSearch && deferredNames.has(name) && !admittedNames.has(name),
     restoredMissingTools,
     admissionDeclarations,

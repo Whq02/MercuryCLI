@@ -9,7 +9,6 @@ import {
   isSaturnExemptEnabled,
   SATURN_EXEMPT_TOOL,
 } from '../saturnExemptTools.js'
-import { isDeferredToolsDeltaEnabled } from '../../utils/toolSearchFlags.js'
 
 export { TOOL_SEARCH_TOOL_NAME }
 
@@ -82,9 +81,7 @@ export function getPrompt(wireForm: DeferralWireForm = 'block'): string {
   const head = `Load the full schemas of deferred tools so they become callable.
 
 `
-  const location = isDeferredToolsDeltaEnabled()
-    ? `Deferred tools are listed in <system-reminder> messages that begin "Deferred tools:", one per line: the name, then what the tool is for.`
-    : `Deferred tools are listed in <available-deferred-tools> messages, one per line: the name, then what the tool is for.`
+  const location = `Deferred tools are listed in <system-reminder> messages that begin "Deferred tools:", one per line: the name, then what the tool is for.`
   const hold = ` Before that fetch, the name and its line are all you hold — without a parameter schema the tool stays uncallable. Hand it a query; it matches against the deferred roster and `
   const direct = ` A tool already in your tool list needs no fetch: call it directly.`
   const miss = ` A select that names a tool this session does not have loads nothing; the result names the miss.`
