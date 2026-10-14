@@ -20,7 +20,7 @@ import { CompactBoundaryMessage } from './messages/CompactBoundaryMessage.js'
 import { CompactSummary } from './CompactSummary.js'
 import { ExpandShellOutputProvider } from './shell/ExpandShellOutputContext.js'
 import { GroupedToolUseContent } from './messages/GroupedToolUseContent.js'
-import { MessageMetaProvider } from './messages/TranscriptNameplate.js'
+import { MessageMetaProvider, ReplyAddress, replyAddressLine } from './messages/TranscriptNameplate.js'
 import { SystemTextMessage } from './messages/SystemTextMessage.js'
 import { TurnReceiptRow } from './messages/TurnReceiptRow.js'
 import { UserImageMessage } from './messages/UserImageMessage.js'
@@ -107,6 +107,8 @@ function MessageInner({
     (Boolean((display as { timestamp?: string }).timestamp) ||
       (Boolean(display.message.model) && display.message.model !== SYNTHETIC_MODEL))
 
+  const replyMarks = display?.type === 'assistant' && Array.isArray(display.message.content) && display.message.content.some(block => block.type === 'text') ? display.inReplyTo : undefined
+  const addressed = replyAddressLine(replyMarks) !== null
 
   const body = ((): React.ReactNode => {
     switch (message.type) {
@@ -208,7 +210,7 @@ function MessageInner({
                 <AssistantTextMessage
                   key={index}
                   param={block}
-                  addMargin={addMargin}
+                  addMargin={addMargin && !addressed}
                   shouldShowDot={shouldShowDot}
                   verbose={verbose}
                   streamFaultRecovered={
@@ -323,6 +325,13 @@ function MessageInner({
 
   if (body === null) return null
 
+  const row = addressed ? (
+    <Box flexDirection="column" marginTop={addMargin ? 1 : 0}>
+      <ReplyAddress marks={replyMarks} />
+      {body}
+    </Box>
+  ) : body
+
   const wrapped = (
     <MessageMetaProvider
       message={{
@@ -332,7 +341,7 @@ function MessageInner({
         ...((display as { heldFor?: 'compaction' } | null)?.heldFor === 'compaction' ? { heldFor: 'compaction' as const } : {}),
       }}
     >
-      {body}
+      {row}
     </MessageMetaProvider>
   )
 
