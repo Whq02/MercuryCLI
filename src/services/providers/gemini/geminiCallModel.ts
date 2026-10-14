@@ -64,8 +64,26 @@ export const GEMINI_PLAN_AUTH_REMEDY =
 export const GEMINI_PLAN_BILLING_REMEDY =
   "the plan's quota is Google's and cannot be changed from here · /usage shows the tier Google reports and the wait Google asks for; /logins adds a Gemini API key on a project of your own; /model picks another model meanwhile."
 
-export function geminiPlanInFlightRefusalWords(model: string, wireSaid: string | undefined): string {
-  return `${API_ERROR_MESSAGE_PREFIX}: Google refused the answer in flight on '${model}' (INVALID_ARGUMENT, no detail) twice — the request was accepted and the refusal came while the model answered; the same history answered before, so the model's own output is what Google refused. Send again, or /model picks another roster row meanwhile.${wireSaid === undefined ? '' : ` The wire said: ${wireSaid}`}`
+export const GEMINI_PLAN_BARE_INVALID_ARGUMENT = 'Request contains an invalid argument.'
+
+export interface GeminiPlanRefusalFacts {
+  model: string
+  status: number | undefined
+  elapsedMs: number
+  attempts: Array<'same' | 'plain'>
+  wireSaid: string | undefined
+}
+
+export function geminiPlanRefusalPlaceWords(facts: Pick<GeminiPlanRefusalFacts, 'status' | 'elapsedMs'>): string {
+  const seconds = `${Math.max(1, Math.round(facts.elapsedMs / 1000))} s`
+  return facts.status !== undefined && facts.status >= 200 && facts.status < 300
+    ? `in flight at ${seconds} — the request was accepted and the refusal came while the model answered`
+    : `HTTP ${facts.status ?? '?'} after ${seconds}, before any answer byte`
+}
+
+export function geminiPlanInvalidArgumentWords(facts: GeminiPlanRefusalFacts): string {
+  const attempts = facts.attempts.length === 1 ? 'not retried' : `retried ${facts.attempts.length === 2 ? 'once' : 'twice'} (${facts.attempts.slice(1).map(kind => (kind === 'plain' ? 'plain function calling' : 'the same shape')).join(', then ')})`
+  return `${API_ERROR_MESSAGE_PREFIX}: Google refused the request on '${facts.model}' — ${geminiPlanRefusalPlaceWords(facts)} (INVALID_ARGUMENT, no detail); ${attempts}. Send again, or /model picks another roster row meanwhile.${facts.wireSaid === undefined ? '' : ` The wire said: ${facts.wireSaid}`}`
 }
 
 export function geminiPlanModelMissingWords(model: string, status: number | undefined, wireSaid: string | undefined, kin: GeminiPlanRosterKin = geminiPlanRosterKin(model)): string {
@@ -142,6 +160,7 @@ async function* geminiPlanCallModel(params: CallModelParams): CallModelStream {
     },
     streamTransport: (options, messages) => {
       let turn: GeminiTurnItem | undefined
+      attemptStartedAt = Date.now()
       const project = projectId ?? ''
       const plan: GeminiPlanWire = {
         ...nextGeminiPlanEnvelope(project, options.request.model),
@@ -175,22 +194,29 @@ async function* geminiPlanCallModel(params: CallModelParams): CallModelStream {
     },
   }
   let plainTools = false
-  const lastWire = (): { said: string | undefined; seen: number | undefined } => ({ said: wireSaid, seen: status })
+  let attemptStartedAt = Date.now()
+  const attempts: Array<'same' | 'plain'> = []
+  const lastWire = (): { said: string | undefined; seen: number | undefined; elapsedMs: number } => ({ said: wireSaid, seen: status, elapsedMs: Date.now() - attemptStartedAt })
   await rosterReadBounded(false, GEMINI_PLAN_ROSTER_WAIT_MS)
-  for (let attempt = 0; attempt < 2; attempt++) {
+  for (let attempt = 0; attempt < 3; attempt++) {
     status = undefined
     wireSaid = undefined
+    attempts.push(plainTools ? 'plain' : 'same')
     let rerun = false
     for await (const item of compatChatCallModel(profile, params)) {
-      const { said, seen } = lastWire()
-      if (item.type === 'assistant' && item.isApiErrorMessage && seen !== undefined && seen >= 200 && seen < 300 && said !== undefined && said.startsWith('api-INVALID_ARGUMENT')) {
-        if (attempt === 0) {
-          plainTools = true
+      const { said, seen, elapsedMs } = lastWire()
+      if (item.type === 'assistant' && item.isApiErrorMessage && said !== undefined && said.startsWith('api-INVALID_ARGUMENT')) {
+        const inFlight = seen !== undefined && seen >= 200 && seen < 300
+        const bare = said.endsWith(GEMINI_PLAN_BARE_INVALID_ARGUMENT)
+        if ((inFlight || bare) && attempt < 2) {
+          plainTools = attempt === 1
           rerun = true
           break
         }
         yield createAssistantAPIErrorMessage({
-          content: geminiPlanInFlightRefusalWords(model, wireSaid),
+          content: inFlight || bare
+            ? geminiPlanInvalidArgumentWords({ model, status: seen, elapsedMs, attempts: [...attempts], wireSaid: said })
+            : `${API_ERROR_MESSAGE_PREFIX}: Google refused the request on '${model}' — ${geminiPlanRefusalPlaceWords({ status: seen, elapsedMs })} (INVALID_ARGUMENT, with detail; not retried). The wire said: ${said}`,
           error: item.error,
           errorDetails: item.errorDetails,
         })
