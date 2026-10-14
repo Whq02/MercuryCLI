@@ -214,6 +214,11 @@ export async function call(
     onDone(await enqueueReply(), { display: 'system' })
     return null
   }
+  if (trimmed === 'page') {
+    const { openMemoryPage } = await import('./memoryPage.js')
+    onDone((await openMemoryPage()).line, { display: 'system' })
+    return null
+  }
   clearInstructionFileCaches()
   await getInstructionFiles()
   const route: MemoryRoute = trimmed === 'files' ? 'files' : 'centre'
