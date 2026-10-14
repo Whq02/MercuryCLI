@@ -220,13 +220,50 @@ export function checkEmbedModel(
 
 export type SemanticReadiness =
   | { state: 'ok'; road: 'local'; model: string; path: string; dimension: number }
-  | { state: 'ok'; road: 'ollama'; model: string }
   | { state: 'word-only'; words: typeof WORD_MATCH_ONLY_WORDS; note: string }
+
+export const OLLAMA_PROBE_FRESH_MS = 60_000
+
+let ollamaProbe: { at: number; models: string[] } | null = null
+let ollamaProbeInFlight: Promise<string[]> | null = null
+
+export function seedOllamaProbeForTest(models: string[] | null): void {
+  ollamaProbe = models === null ? null : { at: Date.now(), models }
+  ollamaProbeInFlight = null
+}
+
+export function refreshOllamaEmbeddingModels(baseUrl?: string, fetchImpl?: typeof fetch): Promise<string[]> {
+  if (ollamaProbeInFlight !== null) return ollamaProbeInFlight
+  ollamaProbeInFlight = probeOllamaEmbeddingModels(baseUrl, fetchImpl)
+    .then(models => {
+      ollamaProbe = { at: Date.now(), models }
+      return models
+    })
+    .finally(() => {
+      ollamaProbeInFlight = null
+    })
+  return ollamaProbeInFlight
+}
+
+export function ollamaModelsLastProbed(): { fresh: boolean; models: string[] } {
+  if (ollamaProbe === null) return { fresh: false, models: [] }
+  return { fresh: Date.now() - ollamaProbe.at <= OLLAMA_PROBE_FRESH_MS, models: ollamaProbe.models }
+}
+
+export function ollamaPinWords(model: string): string {
+  const probed = ollamaModelsLastProbed()
+  if (!probed.fresh) {
+    void refreshOllamaEmbeddingModels()
+    return `ollama:${model} is not probed yet — ${WORD_MATCH_ONLY_WORDS} until the local server answers`
+  }
+  if (!probed.models.includes(model)) return `the local Ollama server does not list ${model} — ${WORD_MATCH_ONLY_WORDS}`
+  return `the local Ollama server lists ${model}, but no embedding road serves an Ollama model in this build — ${WORD_MATCH_ONLY_WORDS}`
+}
 
 export function describeSemanticReadiness(opts: { home?: string; homeOnly?: boolean } = {}): SemanticReadiness {
   const pin = resolveEmbedModelPin()
   if (pin.kind === 'ollama') {
-    return { state: 'ok', road: 'ollama', model: pin.model }
+    return { state: 'word-only', words: WORD_MATCH_ONLY_WORDS, note: ollamaPinWords(pin.model) }
   }
   const addon = loadEmbedAddon()
   if (addon.state === 'unavailable') {
@@ -237,15 +274,24 @@ export function describeSemanticReadiness(opts: { home?: string; homeOnly?: bool
     return { state: 'ok', road: 'local', model: modelCheck.name, path: modelCheck.path, dimension: modelCheck.dimension }
   }
   if (modelCheck.state === 'ollama') {
-    return { state: 'ok', road: 'ollama', model: modelCheck.model }
+    return { state: 'word-only', words: WORD_MATCH_ONLY_WORDS, note: ollamaPinWords(modelCheck.model) }
   }
   return { state: 'word-only', words: WORD_MATCH_ONLY_WORDS, note: modelCheck.note }
+}
+
+export function servableEmbedModelNames(opts: { home?: string; homeOnly?: boolean } = {}): string[] {
+  const out: string[] = []
+  for (const row of EMBED_MODELS) {
+    const check = checkEmbedModel({ kind: 'catalogue', row, pinned: true }, opts)
+    if (check.state === 'present') out.push(row.name)
+  }
+  return out
 }
 
 export function memoryRecallModeWords(opts: { home?: string; homeOnly?: boolean } = {}): string {
   const ready = describeSemanticReadiness(opts)
   if (ready.state === 'word-only') return WORD_MATCH_ONLY_WORDS
-  return ready.road === 'ollama' ? `semantic + word match (ollama:${ready.model})` : `semantic + word match (${ready.model})`
+  return `semantic + word match (${ready.model})`
 }
 
 export function memoryRecallModeLine(dir: string): string {

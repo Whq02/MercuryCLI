@@ -40,7 +40,7 @@ import { readPinnedStatus } from '../../mneme/mnemeFrontPage.js'
 import { runDueMaintenance } from '../../mneme/mnemeMaintenance.js'
 import { memoryAtStartStatus } from '../../mneme/entryKnapsack.js'
 import { formatTextSize, PINNED_TEXT_LIMIT_MIN, PINNED_TEXT_LIMIT_STEP, pinnedTextLimit, START_TEXT_LIMIT_MIN, START_TEXT_LIMIT_STEP, startTextLimit } from '../../mneme/mnemeUsage.js'
-import { describeSemanticReadiness, EMBED_MODELS, probeOllamaEmbeddingModels, resolveEmbedModelPin, WORD_MATCH_ONLY_WORDS } from '../../mneme/embedModels.js'
+import { describeSemanticReadiness, EMBED_DEFAULT_MODEL, servableEmbedModelNames, WORD_MATCH_ONLY_WORDS } from '../../mneme/embedModels.js'
 import { formatTokens } from '../../utils/format.js'
 import {
   clearInstructionFileCaches,
@@ -993,20 +993,11 @@ export function Config({
   }
   {
     const embedSpec = typeof merged.memory?.embeddingModel === 'string' ? merged.memory.embeddingModel.trim() : ''
-    const embedPick = resolveEmbedModelPin(embedSpec === '' ? 'default' : embedSpec)
     const embedReadiness = describeSemanticReadiness()
-    const embedValue = embedReadiness.state === 'ok'
-      ? (embedReadiness.road === 'ollama' ? `ollama:${embedReadiness.model}` : embedReadiness.model)
-      : WORD_MATCH_ONLY_WORDS
-    void embedPick
-    const embedChoices = async (): Promise<string[]> => {
-      const shipped = EMBED_MODELS.map(row => row.name)
-      const ollama = await probeOllamaEmbeddingModels().catch(() => [] as string[])
-      return ['', ...shipped, ...ollama.map(name => `ollama:${name}`)]
-    }
-    let embedChoicesNow: string[] | null = null
-    let embedChoicesReady = false
-    void embedChoices().then(rows => { embedChoicesNow = rows; embedChoicesReady = true })
+    const embedValue = embedReadiness.state === 'ok' ? embedReadiness.model : WORD_MATCH_ONLY_WORDS
+    const servable = servableEmbedModelNames()
+    const embedChoices = ['', ...servable.filter(name => name !== EMBED_DEFAULT_MODEL)]
+    const choiceWords = servable.length > 1 ? `←/→ picks among the ${servable.length} models this install carries` : 'this install carries one model, the shipped default'
     items.push({
       id: 'memory.embeddingModel',
       label: 'Memory recall ranking',
@@ -1014,15 +1005,12 @@ export function Config({
       kind: 'enum',
       value: <Text color={embedReadiness.state === 'ok' ? undefined : tokens.textSecondary}>{embedValue}</Text>,
       setByYou: merged.memory?.embeddingModel !== undefined,
-      warning: `${embedReadiness.state === 'ok' ? `recall ranks by meaning and words through ${embedValue} — everything stays on this machine` : `recall runs word match only — ${embedReadiness.note}`} · ←/→ picks another shipped model or one the local Ollama server lists · absent or unmet, memory says word match only`,
+      warning: `${embedReadiness.state === 'ok' ? `recall ranks by meaning and words through ${embedValue} — everything stays on this machine` : `recall runs word match only — ${embedReadiness.note}`} · ${choiceWords} · an Ollama embedding model has no road in this build yet`,
       change: direction => {
-        const rows = embedChoicesNow ?? ['', ...EMBED_MODELS.map(row => row.name)]
         const current = embedSpec === '' || embedSpec === 'default' ? '' : embedSpec
-        const next = cycleIn(rows, rows.includes(current) ? current : '', direction)
+        const next = cycleIn(embedChoices, embedChoices.includes(current) ? current : '', direction)
         if (writeSource('userSettings', { memory: { embeddingModel: next === '' ? undefined : next } })) {
           recordSet('memory.embeddingModel', `set the memory recall ranking to ${next === '' ? 'the shipped default' : next}`)
-          void embedChoices().then(() => bump())
-          if (!embedChoicesReady) void embedChoices().then(() => bump())
           bump()
         }
       },

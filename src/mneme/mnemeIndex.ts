@@ -328,7 +328,6 @@ export async function appendFactToEmbedIndex(dir: string, fact: IndexedFact): Pr
 export function recallRankingWords(dir: string = mnemeLibraryDir()): string {
   const ready = describeSemanticReadiness()
   if (ready.state === 'word-only') return WORD_MATCH_ONLY_WORDS
-  if (ready.road === 'ollama') return `semantic + word match (ollama:${ready.model})`
   if (embedIndexBuilding(dir)) return `${WORD_MATCH_ONLY_WORDS} (${INDEX_BUILDING_WORDS})`
   return `semantic + word match (${ready.model})`
 }

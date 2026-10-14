@@ -63,10 +63,18 @@ console.log('\n[O] an Ollama pin with no server behind it')
 
 console.log('\n[C] every model the /config row offers serves on the install the artifact makes (one model rides)')
 {
-  for (const row of models.EMBED_MODELS) {
+  reset(null)
+  const offered = models.servableEmbedModelNames({ home: HOME })
+  check('the row offers exactly the models this install carries', offered.length === 1 && offered[0] === models.EMBED_DEFAULT_MODEL, JSON.stringify(offered))
+  for (const name of offered) {
+    reset(name)
+    const ready = models.describeSemanticReadiness({ home: HOME })
+    check(`${name}: offered ⇒ ready on an artifact-shaped install`, ready.state === 'ok', ready.state === 'ok' ? '' : ready.note)
+  }
+  for (const row of models.EMBED_MODELS.filter(r => !offered.includes(r.name))) {
     reset(row.name)
     const ready = models.describeSemanticReadiness({ home: HOME })
-    check(`${row.name}: offered as a shipped choice ⇒ ready on an artifact-shaped install`, ready.state === 'ok', ready.state === 'ok' ? '' : ready.note)
+    check(`${row.name}: a pin the install cannot serve says word match only and names the file`, ready.state === 'word-only' && ready.note.includes(row.file) && ready.note.includes(models.WORD_MATCH_ONLY_WORDS), ready.state === 'ok' ? 'claims ok' : ready.note)
   }
 }
 
