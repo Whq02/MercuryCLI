@@ -846,7 +846,7 @@ function webSearchDoorCheck(): CheckSpec {
         return {
           status: 'info' as const,
           evidence: `no door opens for ${model} — ${plan.closed.join('; ')}`,
-          fix: '/router key brave (or tavily) stores a search key; /config offers DuckDuckGo scraping as a separate opt-in.',
+          fix: '/router key brave (or tavily) stores a search key; /config turns DuckDuckGo page scraping back on.',
         }
       }
       return { status: 'ok' as const, evidence: `${model}: ${searchDoorFact(model)}` }

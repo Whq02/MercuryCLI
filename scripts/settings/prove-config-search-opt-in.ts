@@ -22,23 +22,24 @@ const open = async () => {
   m.push('/'); await settle(80)
   for (const ch of 'DuckDuckGo') { m.push(ch); await settle(25) }
   m.push(KEY.down)
-  await waitFor(() => m.screen().includes('off by default'), 4000)
+  await waitFor(() => m.screen().includes('on by default'), 4000)
   return m
 }
 try {
-  assert.equal(duckduckgoScrapingEnabled(), false)
+  assert.equal(duckduckgoScrapingEnabled(), true)
   let m = await open()
-  assert.match(m.screen(), /DuckDuckGo scraping\s+off/)
+  assert.match(m.screen(), /DuckDuckGo page scraping\s+on/)
   assert.ok(m.screen().includes('terms'))
+  assert.ok(m.screen().includes('off keeps general queries to the official sources and your keys'))
   m.push(KEY.right)
-  await waitFor(() => duckduckgoScrapingEnabled(), 4000)
-  assert.match(m.screen(), /DuckDuckGo scraping\s+on/)
-  m.push(KEY.esc)
   await waitFor(() => !duckduckgoScrapingEnabled(), 4000)
+  assert.match(m.screen(), /DuckDuckGo page scraping\s+off/)
+  m.push(KEY.esc)
+  await waitFor(() => duckduckgoScrapingEnabled(), 4000)
   m.push(KEY.esc); await settle(120); m.unmount(); await settle(60)
   m = await open(); m.push(KEY.right)
-  await waitFor(() => duckduckgoScrapingEnabled(), 4000)
+  await waitFor(() => !duckduckgoScrapingEnabled(), 4000)
   m.push(KEY.enter); await settle(160)
-  assert.ok(duckduckgoScrapingEnabled()); m.unmount()
-  console.log('PASS actual config row: default off, terms displayed, toggle effective immediately, escape reverts, Enter saves')
+  assert.equal(duckduckgoScrapingEnabled(), false); m.unmount()
+  console.log('PASS actual config row: default on, terms and the off meaning displayed, toggle effective immediately, escape reverts, Enter saves the off')
 } finally { releaseScratchHome(HOME) }

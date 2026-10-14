@@ -50,7 +50,13 @@ try {
     const run = await door.performWebSearch({ query: queries[source] }, { context: contexts(), reads: { keylessAllowed: false }, clock, backends: { official: (s: any, words: string, request: any) => officialSearch(s, words, request, io) } })
     assert.equal(run.via, source)
     assert.equal(run.tier, source === 'github' ? 'keyed' : 'keyless')
-    assert.equal(seen.length, 1)
+    const perSearch = source === 'stackexchange' || source === 'hackernews' ? 2 : 1
+    assert.equal(seen.length, perSearch)
+    if (perSearch === 2) {
+      assert.match(seen[1]!.url, source === 'stackexchange' ? /^\/2\.3\/questions\/42\?.*filter=withbody/ : /^\/api\/v1\/search\?tags=comment%2C%28story_42%29/)
+      assert.ok(seen[1]!.at - seen[0]!.at >= 1000)
+      assert.ok(run.notes.includes('excerpts fetched for 0 hits'), JSON.stringify(run.notes))
+    }
     assert.match(seen[0]!.ua, /^Mercury\/proof \(\+https:\/\/mercury-cli.ai;/)
     assert.equal(seen[0]!.auth, source === 'github' ? 'Bearer fixture-only-token' : undefined)
     assert.deepEqual(Object.keys(run.hits[0]).sort(), ['snippet', 'source_type', 'title', 'url'])
@@ -61,11 +67,12 @@ try {
     assert.equal(decodeOfficialSearch(source, { wrong: [] }), undefined)
     if (source !== 'github') {
       const again = await officialSearch(source, intent.words, { query: queries[source] }, io)
-      assert.equal(again.ok, true); assert.equal(seen.length, 1)
+      assert.equal(again.ok, true); assert.equal(seen.length, perSearch)
     }
     const second = await officialSearch(source, `${intent.words}-other`, { query: `${queries[source]}-other` }, io)
     assert.equal(second.ok, true)
-    assert.ok(seen[1]!.at - seen[0]!.at >= (source === 'github' ? 6000 : 1000))
+    assert.equal(seen.length, perSearch * 2)
+    assert.ok(seen[perSearch]!.at - seen[perSearch - 1]!.at >= (source === 'github' ? 6000 : 1000))
     pacing.resetSearchPacing(); body = { unexpected: true }
     const malformed = await officialSearch(source, intent.words, { query: queries[source] }, io)
     assert.equal(malformed.ok, false)
@@ -86,7 +93,11 @@ try {
       assert.equal(seen.length, before + 1)
       const missing = await officialSearch(source, intent.words, { query: queries[source] }, { ...io, env: {} })
       assert.equal(missing.ok, false)
-      if (!missing.ok) assert.match(missing.message, /requires a token/)
+      if (!missing.ok) { assert.equal(missing.kind, 'no-backend'); assert.equal(missing.message, 'GitHub code search needs a token: `gh auth login` or GH_TOKEN') }
+      assert.equal(seen.length, before + 1)
+      pacing.resetSearchPacing()
+      const closedWalk = await door.performWebSearch({ query: queries[source] }, { context: contexts(), reads: { keylessAllowed: true }, clock, backends: { official: (s: any, w: string, request: any) => officialSearch(s, w, request, { ...io, env: {} }), keyless: async () => ({ ok: true as const, via: 'duckduckgo' as const, tier: 'keyless' as const, hits: [{ title: 'fallback', url: 'https://example.com/', snippet: '', source_type: 'duckduckgo' as const }] }) } })
+      assert.ok(closedWalk.notes.some(n => n === 'Web search has no open door for this session: GitHub code search needs a token: `gh auth login` or GH_TOKEN'), JSON.stringify(closedWalk.notes))
       assert.equal(seen.length, before + 1)
       now += 90_000; status = 200; extraHeaders = {}; body = bodies.github
       assert.equal((await officialSearch(source, intent.words, { query: queries[source] }, io)).ok, true)

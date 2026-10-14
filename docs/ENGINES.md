@@ -965,8 +965,14 @@ The automatic search order is:
 3. An official API selected by explicit query words: an error message goes to
    Stack Exchange; `npm`, `PyPI` or `crates` plus a package name goes to that
    registry; a concept question goes to Wikipedia; news goes to Hacker News.
-   PyPI supports exact project names, not full-text search. GitHub public-code
-   search requires `GH_TOKEN`; without one, it says so and tries the next source.
+   Wikipedia is asked for the exact phrase first and for the words only when
+   no page carries the phrase; the result says which answered. The top three
+   Stack Exchange and Hacker News hits carry a short plain-text excerpt (the
+   question body; the story's own text, or its top comment labelled as such),
+   fetched in one extra request per search; the result counts the excerpts it
+   fetched. PyPI supports exact project names, not full-text search. GitHub
+   public-code search requires `GH_TOKEN`; without one, it says so and tries
+   the next source.
 4. An operator-configured SearXNG JSON API. There are **no built-in instances**;
    without configuration, this step says “no metasearch instance configured”.
    Set `MERCURY_SEARCH_SEARXNG_INSTANCES` to a JSON array of entries containing
@@ -976,11 +982,12 @@ The automatic search order is:
    use HTTPS, except HTTP on loopback, with no credentials, query or fragment.
    A failed instance is remembered for the session; a refusal or rate limit
    stops the attempt rather than switching hosts to evade it.
-5. DuckDuckGo page scraping, only when explicitly enabled.
+5. DuckDuckGo page scraping, unless you turned it off.
 
-DuckDuckGo scraping is **off by default**. `/config` → **DuckDuckGo scraping**
-shows its terms and controls the saved choice. `MERCURY_SEARCH_KEYLESS=1` opts
-in; `=0` overrides the saved choice and prevents scraping. The first use in a
+DuckDuckGo page scraping is **on by default**; off keeps general queries to
+the official sources and your keys. `/config` → **DuckDuckGo page scraping**
+shows its terms and controls the saved choice. `MERCURY_SEARCH_KEYLESS=0`
+turns it off for the process; `=1` overrides a saved off. The first use in a
 session carries a notice linking [the terms](https://duckduckgo.com/terms) and
 [acceptable-use policy](https://duckduckgo.com/acceptable-use). A challenge or
 refusal stops both page endpoints without a retry or a host switch. Every

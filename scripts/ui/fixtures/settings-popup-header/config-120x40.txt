@@ -15,7 +15,7 @@ VITALS                  │ │   Reduced motion                    off         
   · spend —             │ │   Ping                              on                                                   │ │
   · ctx — · —           │ │   Account identity                  shown                                                │ │
   · health — run /health│ │   Motion                            auto · off                                           │ │
-                        │ │   DuckDuckGo scraping               off                                                  │ │
+                        │ │   DuckDuckGo page scraping          on                                                   │ │
                         │ │   JEV                               off · official                                       │ │
                         │ │   Instruction profile               auto                                                 │ │
                         │ │   Shell engine                      system                                               │ │
