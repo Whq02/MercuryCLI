@@ -840,6 +840,8 @@ The automatic search order is:
 
 1. The session provider's native search, where supported: Anthropic or OpenAI.
    This spends the session's own account, never another provider's account.
+   The provider's own answer reaches the model as a labelled, unverified note
+   beside its links; the links carry no excerpt, because the wire carries none.
 2. Brave Search, then Tavily, when a key is available. `/router key brave` and
    `/router key tavily` store keys; `BRAVE_API_KEY` and `TAVILY_API_KEY` override
    the saved values. Keys are not included in results.
