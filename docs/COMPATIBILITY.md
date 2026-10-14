@@ -1,9 +1,10 @@
 # Compatibility
 
-Mercury keeps configuration in its `.mercury` homes. Product switches use
-registered `MERCURY_*` environment names; providers and platforms also have
-their own variables, such as `ANTHROPIC_API_KEY` and `PATH`. The registry is
-`src/substrate/flagRegistry.ts`. [SETTINGS.md](SETTINGS.md) covers the settings
+Mercury keeps configuration in its `.mercury` homes, reads `MERCURY_*`
+switches from `src/substrate/flagRegistry.ts`, and ships four platform archives.
+
+Providers and platforms also have their own variables, such as
+`ANTHROPIC_API_KEY` and `PATH`. [SETTINGS.md](SETTINGS.md) covers the settings
 files and their grouped keys.
 
 ## Project instructions
@@ -61,7 +62,7 @@ not match the configuration schema is dropped and named once as a warning in
 `/mcp`'s diagnostics; the entries beside it load as configured.
 
 Mercury consults no vendor registry of "official" MCP servers: every MCP
-server is the operator's own configuration, no boot makes a request on its
+server is your own configuration, no boot makes a request on its
 behalf, and no server is tagged by anyone's registry.
 
 ## Claude account connectors
@@ -75,7 +76,7 @@ in the global config.
 ## Extensions
 
 Mercury ships with no source of extensions and adds none on its own: every
-source is an operator act (`docs/EXTENSIONS.md`).
+source is your act (`docs/EXTENSIONS.md`).
 
 ## Skills
 
@@ -102,7 +103,12 @@ One release archive per target. The target owner is
 the installers' `uname` map. Every archive carries its own Node runtime, search
 binary and image processor for that platform, and the voice capture and
 on-device transcriber addons where they were built (the speech model is a
-one-time download into the config home, never in the archive).
+one-time download into the config home, never in the archive). The
+`macos-arm64` archive also bundles the `vendor/embed` addon and 118 MB
+`bge-base-en-v1.5` embedding model ([MNEME.md](MNEME.md)); the `windows-x64`
+archive bundles the `brush` shell engine, and the Windows recursive-delete ward
+enforces parity across drive roots, `Users`, system folders, share roots and
+PowerShell pipelines ([TRUST.md](TRUST.md)).
 
 | target | archive | machines | built |
 | --- | --- | --- | --- |

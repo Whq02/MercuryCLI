@@ -1,13 +1,16 @@
 # The Eval tool: one code cell at a time in a retained runtime
 
-The Eval tool runs one code cell per call in a runtime that stays alive
-between calls: a Python kernel or a JavaScript kernel, one of each per agent
-and working directory. Variables, imports, functions and classes defined in
+The `Eval` tool runs one Python (`python3`) or JavaScript (Node ES module) code
+cell per call in a retained runtime per agent and working directory.
+
+Variables, imports, functions and classes defined in
 one cell are there for the next; `reset: true` recreates that language's
 runtime alone. It is the tool the model reaches for when work is stateful,
 iterative or data-shaped; plain shell commands stay on the Bash tool.
 For several steps, make several Eval calls; calls in one message run in
-order, each with its own result.
+order, each with its own result. When an `Eval` call asks for permission (or
+renders in verbose mode), the approval card displays the full code cell it will
+run beneath the language and title.
 
 ## What persists, and what a failed cell says
 
@@ -32,7 +35,7 @@ order, each with its own result.
 - **An idle kernel is reaped** after fifteen minutes. The next cell in that
   language starts a fresh runtime and its result says so; re-run the setup
   cell first.
-- **A cancelled cell.** A timeout or an operator stop interrupts the
+- **A cancelled cell.** A timeout or a stop from you interrupts the
   kernel; Python keeps its state, the JavaScript kernel is recreated, and
   the result says which and is marked as an error.
 

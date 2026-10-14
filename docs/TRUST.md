@@ -1,9 +1,11 @@
 # Workspace trust
 
-Workspace configuration can ask Mercury to run things — hooks, helper commands,
-server configs live in the folder being opened. Workspace trust is the gate in
-front of all of it: until the operator grants trust for the directory, nothing a
-workspace config file asked for gets to execute.
+Workspace trust gates project hooks, helpers and MCP servers until you grant
+trust for the directory, alongside permission modes and built-in command wards.
+
+Workspace configuration can ask Mercury to run things: hooks, helper commands,
+and server configs live in the folder being opened. Until you grant trust for
+the directory, nothing a workspace config file asked for gets to execute.
 
 ## What a grant is
 
@@ -46,8 +48,7 @@ Until trust is granted in an interactive session:
 
 - **No hook runs.** Every hook execution — tool events, session events, extension
   hooks — asks the trust gate first. The gate is blanket by design: the hooks
-  config is captured before the trust dialog resolves, so rather than reasoning
-  about which code paths could fire a hook pre-trust, every execution asks the
+  config is captured before the trust dialog resolves, so every execution asks the
   one question.
 - **The file-suggestion command does not run.** A configured `files.suggester`
   command is still a command from workspace config; pre-trust it is skipped and
@@ -89,9 +90,11 @@ starting folder.
   it proceed.
 - **Default mode** asks for writes and edits in either place unless a
   permission rule already allows them.
-- **Sovereign mode** asks nothing: not one permission card of any kind — not
-  for a file's location, a command, a remote path on Windows, a hook's ask or
-  the first act in an application. You accept every risk; Flow mode is where
+- **Sovereign mode** asks nothing: not one permission card of any kind,
+  including for a file's location, a command, a remote path on Windows, a
+  hook's ask, the first act in an application, or changing or removing a pinned
+  memory rule you asked for (which `/memory` records as changed under
+  sovereign). You accept every risk; Flow mode is where
   the guardrails live. Capability gates, explicit deny rules and wards still
   apply, and a refusal is not a card. The model's own questions to you
   (AskUserQuestion, the Apollo review) are not permission cards and still
@@ -154,10 +157,24 @@ from a git URL pinned to a commit, `curl … | bash`, a self-daemonizing
 git config, of `core.hooksPath` or into `.git/hooks` — and the shapes that
 destroy a machine — `sudo`, a raw write to a device, a disk format or
 repartition, a shutdown or reboot, a fork bomb, and a recursive delete of the
-filesystem root, the home directory or a system directory. On Windows the
-recursive-delete refusal covers drive roots and your own home, including
-Git Bash drive spellings and `$USERPROFILE` / `%USERPROFILE%`. Deleting
-`C:\Windows` or `C:\Users` instead requires the ordinary permission card.
+filesystem root, the home directory or a system directory. On macOS and Linux,
+the recursive-delete ward refuses `/`, `~`, `$HOME`, `/Users`, `/Users/<name>`,
+`/home`, `/home/<name>`, `/root`, `/System`, `/Library`, `/Applications`,
+`/Volumes/<name>` and system trees (`/etc`, `/usr`, `/bin`, `/sbin`, `/var`
+outside `/var/tmp` and `/var/folders`). On Windows, the same ward refuses drive
+roots (`C:\`), your own home, other users' homes and the `Users` root
+(`C:\Users`, `C:\Users\<anyone>`), system folders (`C:\Windows`, `C:\Program
+Files`, `C:\Program Files (x86)`, `C:\ProgramData` at any depth), and share
+roots (`\\server\share`, `//server/share`) across `rm -r`,
+`Remove-Item`/`ri`/`rd`/`rmdir`/`del`/`erase` with `-Recurse`, and
+`rd`/`rmdir`/`del`/`erase` with `/s`, in either slash direction and any case,
+including Git Bash `/c/Users` and `/c/Windows` paths and environment variables
+(`$USERPROFILE`, `%USERPROFILE%`, `%SystemDrive%`, `%HOMEDRIVE%`, `%HOMEPATH%`,
+`%SystemRoot%`, `%windir%`, `%ProgramFiles%`, `%ProgramFiles(x86)%`,
+`%ProgramW6432%`, `%ProgramData%` and their `$env:` forms). On both platforms,
+deleting a home or protected root through a PowerShell pipeline
+(`Get-ChildItem … | Remove-Item -Recurse`) is refused by the same ward
+(`-WhatIf` previews remain allowed).
 Reads stay clear
 (`git config --get`, `fdisk -l`, `diskutil list`), so does a recursive delete
 inside the project or a scratch directory, and so does a script that only
@@ -186,19 +203,19 @@ A hosted session — a switchboard seat, an editor session or another
 applies. In either case the runner refuses an ask nobody answers within its
 clock — ten minutes in Flow, three in Sovereign; a crewmate's ask ten minutes
 in every other mode; a session's own ask in Default, Implement or Apollo
-waits for the operator — and withdraws it with `$/cancel_request` naming the
+waits for you; it withdraws the ask with `$/cancel_request` naming the
 expiry. `MERCURY_PERMISSION_ASK_EXPIRY_MINUTES` replaces every clock that
-exists (0 disables them). The daemon declines an ask when no operator is
-connected; the absence of an operator never grants permission.
+exists (0 disables them). The daemon declines an ask when no user is
+connected; the absence of a user never grants permission.
 
 No push is ever allowed by default under flow. A call Flow's rules leave
-over goes to that host, `git push` among them. It needs a present operator unless a permission rule
+over goes to that host, `git push` among them. It needs a present user unless a permission rule
 pre-authorises it: `Bash(git push *)` in `guardrails.allow`, or
 `--allowed-tools "Bash(git push *)"` on a run, decides the push before any
 ask. A deny rule refuses it outright; an ask rule requires approval under
 that posture. A hostless `mercury run` has no one to answer, so an
 unapproved ask is denied. The seat's boot posture tells the model which
-calls need an operator and whether its rules pre-authorise a push.
+calls need a user and whether its rules pre-authorise a push.
 
 ## What managed policy changes
 
@@ -238,8 +255,8 @@ manifest carries a signature: an Ed25519 signature over the release record
 (the version, the platform target, the packaging time, the source tree, the
 SHA-256 of the runtime bundle and a digest of every other shipped byte). The
 signing key is the Mercury release key, id `627b54b734ca0e72`, whose public
-half is compiled into every build as its trust roster. The private key is held by the
-operator alone: it never enters the repository, and it reaches the hosted
+half is compiled into every build as its trust roster. The private key is held
+privately: it never enters the repository, and it reaches the hosted
 release workflow only as a repository secret for the packaging step.
 
 Signing is advisory at boot and in `/health` and the health check: those checks

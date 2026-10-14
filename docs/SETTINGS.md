@@ -1,10 +1,14 @@
 # Settings
 
-Mercury keeps settings in JSON files. `/config` opens the settings screen;
-`/model`, `/effort`, `/permissions`, `/memory` and the MCPs & Skills menu
-provide the focused controls. This page covers the grouped keys you can set
-in a file. The Boot Menu also keeps machine and session choices of its own;
-not every screen row is a key in `settings.json`. `/config`'s header counts
+Mercury stores settings in JSON files, edited in `/config` or through
+`/model`, `/effort`, `/permissions`, `/memory` and the MCPs & Skills menu.
+
+This page covers the grouped keys you can set in a file. The Boot Menu and
+`/config` also keep machine and session choices of their own (such as
+**DuckDuckGo page scraping**, on by default, and **Session concourse**); not
+every screen row is a key in `settings.json`. In `/config`, typing any
+printable character (including `j` and `k`) filters the rows immediately; arrow
+keys and `PageUp`/`PageDown` move the selection. `/config`'s header counts
 the rows you set: a settings file names the row's key, or a saved choice
 differs from Mercury's default.
 
@@ -65,13 +69,13 @@ For example:
 
 | Key | What it sets |
 | --- | --- |
-| `engine.model` | The model id or family word saved by `/model`. Choose from the live catalogue; `--model` and `MERCURY_MODEL` can override the saved default. |
-| `engine.effort` | `low`, `medium`, `high`, `xhigh` or `max`, also saved by `/effort`. Each model uses the levels its provider supports. |
+| `engine.model` | The model id or family word saved by `/model`. Choose from the live catalogue; `--model` and `MERCURY_MODEL` can override the saved default. When `<config home>/settings.json` cannot be written, `/model` names the file and the OS reason (`not saved as your default: ~/.mercury/settings.json …`). |
+| `engine.effort` | `low`, `medium`, `high`, `xhigh` or `max`, also saved by `/effort` or `ctrl+e` in `/model`. Each model uses the levels its provider supports; a failed write to `settings.json` names the file and the OS reason in the picker footer or receipt. |
 | `engine.reasoning` | Whether thinking is requested, on every provider that reads it (Anthropic, Z.AI — its thinking-locked models keep it on — and the OpenAI-compatible chat roads; GPT models take the effort dial instead). A model that always reasons keeps its own rule. |
 | `engine.agent` | The agent definition used for the session; `--agent` chooses one for a launch. |
 | `engine.roster` | A list limiting which models can be selected. |
 | `engine.pins` | An object mapping known canonical Anthropic model ids to the ids your endpoint serves. |
-| `engine.sessionDefaults` | Whether the Boot face and board offer the model-default key; on unless set to `false`. |
+| `engine.sessionDefaults` | Whether the Boot face and board show the model-default key; on unless set to `false`. |
 | `engine.usageNotice` | Usage notice to the model — with it on, the model is told when the session's usage window or spending limit is near (80% and 90%); off, the model is told nothing and only you see the meters. |
 
 A resumed chat keeps its model and effort unless the launch explicitly
@@ -139,11 +143,11 @@ relying on these boundaries.
 | `memory.enabled` | Mneme memory is on unless this is `false`. |
 | `memory.directory` | A custom memory directory. Checked-in project settings cannot choose it. |
 | `memory.pinnedLimit` | The pinned shelf's text limit in characters, at least 1000; 8000 by default. Every pinned rule still loads above the limit. |
-| `memory.startLimit` | How much memory text rides at the start of a session beyond the pinned rules, in characters, at least 1000; 4000 by default. The pinned rules always ride whole and never count against it; the allowance takes the facts and earlier notes most relevant to the branch, the files touched lately and the last note. What is left out is a Recall away. |
-| `memory.embeddingModel` | Which embedding model memory ranks recall by meaning with, beside the word match: a model name this install carries (the shipped default), or the path of a gguf file. A name or path that resolves nowhere leaves memory on word match only, and the front page says so. |
-| `memory.journal` | The session journal, off by default: when `true`, at session end the model writes a brief entry — where the project is, the queued backlog, the constraints you set — into a file in the Mercury home beside the project's memory, never under the project tree, never pushed, synced or shared by Mercury. |
-| `memory.journalOnEntryPage` | `true` hands the journal's last entry to the model at session start on its entry page; off by default. What the model reads at entry travels to the engine's provider with the request — "never uploaded" means Mercury itself never pushes, syncs or shares the journal, not that the session's own engine does not see it. |
-| `memory.tellEngineSwitch` | `true` tells the model when its engine is switched: one line reaches it at the switch naming the new engine and the time. Off by default: a switch is invisible to the model — the `/model` rows stay your record, and the model learns its engine by reading `mercury://seat`. |
+| `memory.startLimit` | How much memory text rides at the start of a session (`# Memory at start`) beyond the pinned rules, in characters, at least 1000; 4000 by default (`/config` row **Memory at start, beyond the pins**). The pinned rules always ride whole and never count against it; the allowance takes the facts and earlier notes most relevant to the branch, the files touched lately and the last note. What is left out is a Recall away. |
+| `memory.embeddingModel` | Which embedding model memory ranks recall by meaning with (`/config` row **Memory recall ranking`), beside the word match: a model name this install carries (`bge-base-en-v1.5`, the shipped default), or the path of a `.gguf` file. A name or path that resolves nowhere leaves memory on `word match only`, and the front page says so. |
+| `memory.journal` | The session journal, off by default: when `true`, at session end the model writes a brief entry (where the project is, the queued backlog, the constraints you set) into `<config home>/projects/<project>/journal/journal.md` in the Mercury home beside the project's memory, never under the project tree, never pushed, synced or shared by Mercury. |
+| `memory.journalOnEntryPage` | `true` hands the journal's last entry to the model at session start on its `# Lineage` entry page; off by default. What the model reads at entry travels to the engine's provider with the request ("never uploaded" means Mercury itself never pushes, syncs or shares the journal). |
+| `memory.tellEngineSwitch` | `true` tells the model when its engine is switched: one line reaches it at the switch naming the new engine, the time with its time zone, and instructing it to include the zone when repeating the time. Off by default: a switch is invisible to the model (the `/model` rows stay your record, and the model learns its engine by reading `mercury://seat`). |
 | `workspace.worktree.symlinkDirectories` | Additional directories linked into a managed worktree. |
 | `workspace.worktree.sparsePaths` | Paths included in a managed sparse worktree. |
 | `workspace.worktree.prepare` | A shell command run inside every new worktree after git makes it and before any seat uses it; a failure is named on the row. |
@@ -235,9 +239,9 @@ These are connection-silence and recovery limits, not a clock on thinking.
 
 ## The local server
 
-The values under `local.server` are the changes Mercury offers to make to
-Ollama's launch configuration. They do not alter a running server until you
-confirm the review and restart in `/config`.
+The values under `local.server` stage changes to Ollama's launch configuration.
+They do not alter a running server until you confirm the review and restart in
+`/config`.
 
 | Key | What it sets |
 | --- | --- |

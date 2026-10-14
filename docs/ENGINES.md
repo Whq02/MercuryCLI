@@ -1,6 +1,10 @@
 # Engines — the provider estate
 
-Mercury's main loop can run on models from its provider families. One pure law decides
+Mercury runs models across 13 sign-in provider families plus local servers
+and custom endpoints, with per-family credentials, model lists, usage meters
+and web tools.
+
+One pure law decides
 which family serves an id, one dispatch seam routes the call, and each family's runtime
 owns its own wire, credentials, and refusals. Nothing ever falls through from one
 provider to another.
@@ -22,7 +26,7 @@ arm.
 | `deepseek` | `deepseek-*`, alias `deepseek` | DeepSeek |
 | `xai` | `grok-*`, alias `grok` | xAI |
 | `meta` | `muse-spark-*`, alias `muse` (other `muse-*` endpoints refuse here) | Meta |
-| `gemini` | `gemini-*`, alias `gemini` | Gemini |
+| `gemini` | `gemini-*`, `google/<id>` (non-Gemini roster models on a Google sign-in), alias `gemini` | Gemini |
 | `openai-compat` | `compat/<vendor-id>` (qualified; stripped before the wire) | Custom endpoint |
 | `openrouter` | `openrouter/<vendor-slug>` (qualified; stripped — OpenRouter ids are themselves vendor/model slugs, so only a namespace disambiguates them) | OpenRouter |
 | `huggingface` | `huggingface/<org>/<model>[:provider\|:policy]` (qualified) | Hugging Face |
@@ -34,6 +38,11 @@ arm.
 Display names have the same one-owner rule: every surface that names a
 family derives its label from it, and an unknown id shows itself. Persisted
 ids stay provider-qualified; the namespace detaches for the wire.
+
+Across every provider, `/model`, `/logins` and `mercury://models` report the same selectable
+live model count (while `mercury://models` also lists unavailable rows with
+their reasons), and image, video, speech/TTS, audio and embedding models are
+excluded from chat pickers and refused for chat turns.
 
 Anthropic's rows are the built-in table — the names, prices, effort ladders
 and capability facts Mercury knows for each generation — joined by the live
@@ -359,10 +368,13 @@ Three wire families serve the providers:
 
 - **The Anthropic home lane** — the first-party API, directly or through a
   base-URL proxy.
-- **Native wires** — Z.AI, OpenAI through its Responses API, and Gemini
-  through generateContent when using a Google account.
-- **The OpenAI-compatible chat wire** — Moonshot/Kimi, DeepSeek, xAI's Grok
-  models, Meta, Mistral, the operator-named compat slot, OpenRouter, Gemini with an API key,
+- **Native wires**: Z.AI, OpenAI through its Responses API, and Gemini
+  through `streamGenerateContent` (used by Sign in with Google, your own OAuth
+  client, and Gemini API keys under `x-goog-api-key`, preserving signed
+  `thought_signature` parts across tool rounds on every Gemini credential).
+- **The OpenAI-compatible chat wire**: Moonshot/Kimi, DeepSeek, xAI's Grok
+  models, Meta, Mistral, Nous Portal, OpenCode Zen (chat-completions rows),
+  custom `compat/` endpoints, OpenRouter,
   Hugging Face (the Hub router, Hub slugs with an optional backend suffix),
   and local servers.
 
@@ -414,6 +426,11 @@ symbol names and file fields; the debugger's expressions) reads as its
 straight twin, since none of those ever wants one; a field that carries
 content or prose — a Write's content, an Edit's new text, an Eval cell —
 stays exactly as typed, and every other wire carries every byte as typed.
+When a GPT-family model returns a refusal (including an OpenAI content-filter
+finish) or a synthetic error row, the refusal is shown to you once in the chat
+and omitted from subsequent request histories (after applying any image-refusal
+resize stamps), while user prompts and executed tool-call/result pairs stay
+paired.
 
 A dispatched crewmate whose turn ends on the provider's overload — the busy
 refusal above on any road (the Anthropic wire's 529 or `overloaded_error`,

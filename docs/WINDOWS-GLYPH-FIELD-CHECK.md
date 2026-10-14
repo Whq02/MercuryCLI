@@ -40,9 +40,12 @@ Each row names the screen, how to reach it, and what it must look like.
    The Continue row's arrow is a plain hooked arrow, not a blue arrow tile.
 2. **The thinking row.** Open a session and ask something that makes the
    model reason for a moment. While it thinks, the status row reads
-   `✻ thinking…` in grey italics; after the answer, the folded reasoning
-   block above the reply carries the same `✻ thinking…` header with a `⌄`
-   fold cue. No green star, no square tile.
+   `✻ thinking…` in grey italics; after the answer, when the provider returns
+   reasoning text, the folded reasoning block above the reply carries the same
+   `✻ thinking…` header with a `⌄` fold cue; when the provider withholds
+   thinking text (private thinking), no thinking row draws by default, and
+   clicking the turn's answer or opening `ctrl+o` shows the withheld-thinking
+   line once for the turn. No green star, no square tile.
 3. **The warning row.** A warning is a plain triangle `▲`, never a yellow
    sign. Places that show one: `/sandbox` when a sandbox dependency is
    missing, the notice when a retired model is selected, the account pane
@@ -77,7 +80,10 @@ Each row names the screen, how to reach it, and what it must look like.
 
 ## What to report
 
-Open an issue through the bug template with:
+For a quick report, run `/bug --short <what you tried>` inside Mercury or open
+[mercury-cli.ai/report](https://mercury-cli.ai/report) (asks for your OS, what
+you tried and what broke). For a full issue report, run `/bug` or open an issue
+through the bug template with:
 
 - the `mercury --version` line, the Windows version, the terminal
   (Windows Terminal or PowerShell 7's window) and its font;

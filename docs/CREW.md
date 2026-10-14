@@ -1,18 +1,16 @@
 # The crew
 
-Every Mercury session has a crew from the moment it starts: the crewmates
-it delegates to through the Crewmate tool. There is no create step
-and no delete step — the crew is born with the session and its crewmates are
-tracked live, not through files that must be set up first. Boards show them
-all; a message to a crewmate reaches it by its id or its name.
+Every Mercury session can delegate work to crewmates through the `Crewmate`
+tool, tracked live in `/crewmates` and `/runs` and reachable by id or name.
 
 ## The crew view
 
-`/crewmates` opens the Crew view: the focused session's crewmates live —
-name, model, status, tokens, elapsed — one row each. There is no separate
-members dialog and no per-crewmate permission switch — crewmates follow the
+`/crewmates` opens the Crew view: the focused session's crewmates live,
+name, model, status, tokens, elapsed, one row each. Crewmates follow the
 session's permission mode. `↵` opens a crewmate's row in its own view, `m`
-makes a crewmate's chat the main one, `c` clears a settled row. Esc or a
+makes a crewmate's chat the main one, `c` clears a settled row, `r` resumes
+a stopped row, `x` twice stops a running row, and `p` parks or resumes the
+crew at the next safe point. Esc or a
 click on the chat outside the Crew view closes it; from an opened row, either
 returns to the list first. The same rule closes the `/runs` board. Closing a
 view never stops its work.
@@ -20,18 +18,19 @@ view never stops its work.
 ## The two spawn switches
 
 Every session carries two switches, Crewmates and Workflows, set in the boot
-menu's Agents section for the sessions born after the choice and sticky for
+menu's Agents section for the sessions started after the choice and sticky for
 each session. With crewmates off, the Crewmate tool is absent from that
-session's roster — the model never sees it — and every road that would spawn
+session's roster and every road that would spawn
 one from inside the session (the tool, a skill that forks, a workflow's agent
 hooks, the fleet tools) answers one receipt:
-"crewmates are off for this session — /crewmates on, or the boot menu's
+"crewmates are off for this session · /crewmates on, or the boot menu's
 Agents section". Workflows off does the same for the Workflow tool and the
 workflow launch roads; the run board stays readable. The concourse itself
-keeps launching sessions — the switches are per focused session.
+keeps launching sessions; the switches are per focused session.
 
-Inside a session, `/crewmates on|off` and `/workflows on|off` (or the boot
-menu opened there) flip a switch at the session's next turn boundary: the tool
+Inside a session, `/crewmates on|off` and `/workflows on|off` print their
+two-line receipt in the chat at once (or the boot
+menu opened there flips the switch) at the session's next turn boundary: the tool
 leaves or rejoins the roster, a receipt says so, reasoning restarts on the
 next turn, and a spawn already running finishes. Flipped while no turn runs,
 the switch moves at once. Flipped while a turn runs, the receipt says the
@@ -50,8 +49,8 @@ session you have left in the background may launch crewmates and workflows
 when its brief says so. Off, a backgrounded session works single-handed and
 waits for your visit or the one workflows-allowed grant, and its launch
 refusal names this row as the third road. On, it launches as a focused session
-does — under its own Crewmates and Workflows switches, which still rule first,
-and its own permission mode — and a session born while the setting is on
+does, under its own Crewmates and Workflows switches, which still rule first,
+and its own permission mode, and a session started while the setting is on
 carries the Crewmate and Workflow tools from its first request. The
 workflows-allowed grant is untouched. [SESSIONS.md](SESSIONS.md) has the
 focus law the setting sits beside.
@@ -68,17 +67,21 @@ it or changed in a resume. When a Crewmate call names the parent's own model
 family, its crewmate keeps the parent's exact model. A different family keeps
 that family's preferred model; an exact model id keeps its explicit choice.
 
-The model that launches a crewmate reads what the operator can see: the page
+The model that launches a crewmate reads what you can see: the page
 `mercury://models` lists the providers the operator is signed into and the
-models each reaches, read live — the rows `/model` and `/logins` show — and
+models each reaches, read live (reporting the same selectable model count as
+`/model` and `/logins` alongside any unavailable rows and their reasons), and
 `mercury://models/known` lists the models this build knows from its pin
-tables, marked as known rather than reachable. A family word (`grok`, `glm`,
+tables, marked as known instead of live. A family word (`grok`, `glm`,
 `kimi`, `deepseek`, `muse`, `mistral`) runs that family's newest live row;
 when the provider is signed in but its model list cannot be read, the word
 runs the family's pinned default (xAI: Grok 4.7) and the launch receipt says
 so. An exact id of a signed-in family runs when the live list names it, or,
-when the list cannot be read, when this build knows it; an id on neither page
-is refused with the way out named — ask the operator for the model id. Only a
+when the list cannot be read, when this build knows it; when an id is on
+neither page, the agent may use `WebSearch` on the provider's published models
+page (listed in `mercury://models`) to inform its question and then
+ask the operator for the model id with `AskUserQuestion` (web text never
+launches a model). Only a
 provider with no sign-in refuses a launch outright, naming `/logins`; no
 launch ever moves to another provider on its own.
 
@@ -90,8 +93,8 @@ file tools and environment section start there, and that directory is its
 own single starting folder. A missing directory is
 refused before anything is launched. With `isolation: "worktree"` the
 temporary worktree is cut from that directory's repository at the commit that
-directory's checkout is on — the branch the lead works in, never a remote's
-copy of it, with nothing fetched — or, with `worktree_at`, frozen at the named
+directory's checkout is on (the branch the lead works in, never a remote's
+copy of it, with nothing fetched) or, with `worktree_at`, frozen at the named
 commit; and the crewmate runs in the worktree. Several crewmates launched
 together each get their own worktree, cut one after another. A crewmate's
 worktree carries links to its parent
@@ -107,9 +110,15 @@ queued guidance, and the continued crewmate receives it in its own prompt.
 
 Nothing is deleted automatically. A crewmate's worktree and folder stay where
 they are after it ends, and the session gets a reminder naming each leftover
-worktree by its path; what to remove is the operator's decision.
+worktree by its path; what to remove is your decision.
 
 ## Stop, resume and usage limits
+
+When a crewmate finishes, its completion notice row in the chat carries the
+timestamp when the crewmate finished (`completedAt`) as its row clock. If the
+notice is delivered to the parent turn a minute or more after completion, the
+row appends `· delivered HH:MM:SS` as a second clock; deliveries within a
+minute show the finish clock alone.
 
 The crew own their stop. Esc in the chat interrupts the chat's own turn and
 nothing else: the crewmates and workflows the turn launched keep running on
@@ -142,7 +151,7 @@ carries on once on its own: the image goes to it as `[image]` with a line
 saying so, and a second refusal ends the turn as it would have. A crewmate
 that hits a usage limit pauses instead of being marked failed: its row reads paused with the
 reset time the provider stated, and it starts again by itself at that time,
-or as soon as the operator logs in on another account — with the same model.
+or as soon as you log in on another account, with the same model.
 
 A workflow that ends with crewmate failures says so in the first line of its
 notification: the count, then the first failing crewmate and its cause — an
@@ -247,10 +256,10 @@ how chats are born, focused, closed and brought back — is
 [SESSIONS.md](SESSIONS.md)'s page. This section is the coordinator behind
 the board.
 
-Behind the board sits the switchboard coordinator: one terminal, the
-operator, and their Mercury sessions running beside each other. The
+Behind the board sits the switchboard coordinator: one terminal, you,
+and your Mercury sessions running beside each other. The
 coordinator launches, watches, messages, pauses, resumes, queues and
 reconciles sessions and answers questions from the repository it sits on; it
 never does a session's work or reaches inside one, and every verb settles as
-a receipt row the operator sees. The coordinator surface is experimental and
+a receipt row you see. The coordinator surface is experimental and
 says so itself on the board: trust receipts, never assumed success.

@@ -1,13 +1,15 @@
 # Samples
 
-A sample is a page the model draws for you and keeps: a design at true
-size, a report to read, a comparison, a small interactive page. The model
-makes one only when you ask to see something — "show me", "mock this up",
-"draw the page", "give me a report I can look at" — never on its own, never
-as a hedge, never to decorate an answer. Each sample is kept per session,
-versioned, and opens again whenever you like. Samples are off by default:
-the Boot Menu's `Samples` row or `MERCURY_SAMPLES=1` turns them on for new
-sessions ([the switch](#the-switch)).
+A sample is a versioned HTML page the model draws in an Eval cell when you ask
+to see a design, report or comparison, served locally to your browser for
+pinned comments.
+
+The model makes one only when you ask to see something ("show me",
+"mock this up", "draw the page", "give me a report I can look at"),
+never on its own, never as a hedge, never to decorate an answer. Each sample is
+kept per session, versioned, and opens again whenever you like. Samples are off
+by default: the Boot Menu's `Samples` row or `MERCURY_SAMPLES=1` turns them on
+for new sessions ([the switch](#the-switch)).
 
 ## Where a sample comes from
 
@@ -51,7 +53,7 @@ or a new version shows up on its own: the session's runner relays its
 samples with the rest of its facts. The page shows the sample's versions
 with a switcher; while the tab is open it refreshes as the model redraws.
 
-The page is served to this machine only, in the website's own language:
+The page is served locally only, in the website's own language:
 a bar with the sample's name, its state and a version switcher (← and →
 move between versions), the page itself below in a frame that keeps it
 exactly as the model wrote it, and a foot for your note. Code shows the

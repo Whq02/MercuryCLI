@@ -1,8 +1,9 @@
 # Mercury on Windows — install from source
 
-The release route on Windows is one line in PowerShell 7 — the
-`irm … | iex` command in the README's Install section — and needs Git and
-nothing else. This page is the other route: building Mercury from source on
+The release route on Windows is one line in PowerShell 7 (`irm … | iex` in the
+README's Install section) and needs Git and nothing else.
+
+This page is the other route: building Mercury from source on
 a Windows machine, for an agent (or a person) with a terminal and no release
 archive. Follow it top to bottom. Every step has a check; do not move to the
 next step until the check passes. Nothing here needs admin rights unless the
@@ -59,7 +60,7 @@ meets the terminal-check card first). Run the check again.
 
 There is no minimum terminal size. Small windows use a compact layout and
 prioritize the input; enlarging the window restores the hidden detail. The
-full cockpit starts at 100 columns and 26 rows. Maximised is fine.
+full interface starts at 100 columns and 26 rows. Maximised is fine.
 
 One more thing: the console must use the UTF-8 code page, or the interface's
 box-drawing renders as garbage (`ΓöÇ`-style on code page 437; accented-letter
@@ -256,14 +257,17 @@ bun run scripts/vendor/fetch-grammars.ts
 bun run scripts/vendor/fetch-node.ts
 ```
 
-Three more packs are built rather than fetched, each with a Rust toolchain
+Four more packs are built from source, each with a Rust toolchain
 installed (https://rustup.rs, the MSVC toolchain): the voice capture addon
 (`bun run scripts/vendor/build-voice.ts`), the on-device transcriber addon
 (`bun run scripts/vendor/build-whisper.ts`, which also needs cmake beside
-cargo: `winget install Kitware.CMake`) and the shell engine
+cargo: `winget install Kitware.CMake`), the shell engine
 (`bun run scripts/vendor/build-brush.ts` — upstream publishes no Windows
 binary, so the engine is compiled from its published crate; the first build
-takes several minutes). Without cargo, or without cmake for the transcriber,
+takes several minutes), and the local semantic memory embedding addon and
+118 MB `bge-base-en-v1.5` model (`bun run scripts/vendor/build-embed.ts` and
+`bun run scripts/vendor/fetch-embed-models.ts`; without them, Mneme memory
+lookup runs word match only). Without cargo, or without cmake for the transcriber,
 each says so and skips: Mercury runs without voice input, voice takes go to a
 cloud transcriber, and the Bash tool keeps Git for Windows' bash (the health check
 names each remedy). A release archive always carries the engine; only a
@@ -329,6 +333,14 @@ not an interactive terminal, so the terminal-profile row reads as
 environmental and the verdict is unaffected. To run a single check, name it:
 `node dist\mercury.mjs health --only <check-id>` (the ids are the `id` fields
 in the JSON).
+
+On Windows, the built-in recursive-delete ward ([TRUST.md](TRUST.md)) refuses
+deletes of drive roots (`C:\`), your own or other users' homes (`C:\Users`,
+`C:\Users\<name>`, `%USERPROFILE%`), system folders (`C:\Windows`, `C:\Program
+Files`, `C:\Program Files (x86)`, `C:\ProgramData`), and share roots
+(`\\server\share`, `//server/share`) across `rm -r`, `Remove-Item -Recurse`,
+`rd /s` and PowerShell `Get-ChildItem | Remove-Item -Recurse` pipelines in
+every slash, Git Bash (`/c/…`) and environment-variable spelling.
 
 On Windows the process sweep reads every process through the system's own
 management interface (no third-party module): the real executable path, the
@@ -453,7 +465,10 @@ anything.
 
 ## When something goes wrong
 
-Collect these four things and send them:
+For a quick report (OS, what you tried, what broke, no health dump required),
+run `/bug --short <what you tried>` inside Mercury or open
+[mercury-cli.ai/report](https://mercury-cli.ai/report). For a full report,
+collect these four things and send them:
 
 1. `node dist\mercury.mjs health --json` output (or the error it prints),
 2. `node --version`, `bun --version`, `git --version`,
