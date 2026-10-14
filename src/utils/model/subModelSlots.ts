@@ -1,4 +1,5 @@
 import { flagEnv } from '../../substrate/flagRegistry.js'
+import { META_SIGN_IN_ROADS } from '../../components/loginFamilyRows.js'
 import { connectToBrowseReason, type CatalogueFamily } from '../../services/providers/catalogueGate.js'
 import { getGlobalConfig, isConfigReadingAllowed, saveGlobalConfig } from '../config.js'
 import {
@@ -145,7 +146,7 @@ export function subModelConnectHome(route: CallModelRoute | string): {
     case 'xai':
       return { command: '/logins xai', note: 'connect — /logins (API key)' }
     case 'meta':
-      return { command: '/logins meta', note: 'connect — /logins (API key)' }
+      return { command: '/logins meta', note: `connect — /logins meta (${META_SIGN_IN_ROADS})` }
     case 'mistral':
       return { command: '/logins mistral', note: 'connect — /logins (API key)' }
     case 'zen':
