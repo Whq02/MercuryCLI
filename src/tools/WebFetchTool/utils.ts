@@ -9,6 +9,7 @@ import { asSystemPrompt } from '../../utils/systemPromptType.js'
 import { makeSecondaryModelPrompt, WEB_FETCH_TOOL_NAME } from './prompt.js'
 import { isPreapprovedHost } from './preapproved.js'
 import { extractMainHtml } from './extractHtml.js'
+import { addTableRule } from './tableRule.js'
 import { readHostedPage, fetchReaderEnabled } from './reader.js'
 import { FetchRefusedError } from './fetchErrors.js'
 import { fetchPage, type RawResponse, type RedirectResult } from './fetchTransport.js'
@@ -68,7 +69,9 @@ let markdownConverter: { turndown: (html: string) => string } | null = null
 async function convertHtmlToMarkdown(html: string): Promise<string> {
   if (!markdownConverter) {
     const { default: TurndownService } = await import('turndown')
-    markdownConverter = new TurndownService({ headingStyle: 'atx', codeBlockStyle: 'fenced' })
+    const service = new TurndownService({ headingStyle: 'atx', codeBlockStyle: 'fenced' })
+    addTableRule(service)
+    markdownConverter = service
   }
   return markdownConverter.turndown(html)
 }
