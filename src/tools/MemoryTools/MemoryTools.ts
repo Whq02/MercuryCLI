@@ -228,7 +228,7 @@ export const RecallTool = buildTool({
     return {
       tool_use_id: toolUseID,
       type: 'tool_result',
-      content: `${output.pointers.length} pointer(s)${output.ranking ? ` ranked by ${output.ranking}` : ''} — a pointer carries no content: open one with read:"<id>" before you rely on it\n${cut === null ? '' : `${cut}\n`}${output.pointers.map(renderPointerLine).join('\n')}${catalog}`,
+      content: `${output.pointers.length} pointer(s) — a pointer carries no content: open one with read:"<id>" before you rely on it\n${output.ranking ? `ranked by ${output.ranking}\n` : ''}${cut === null ? '' : `${cut}\n`}${output.pointers.map(renderPointerLine).join('\n')}${catalog}`,
     }
   },
   renderToolUseMessage: input => renderMemoryToolUse('recall', input),
