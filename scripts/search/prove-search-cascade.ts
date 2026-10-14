@@ -93,7 +93,11 @@ try {
       assert.equal(seen.length, before + 1)
       const missing = await officialSearch(source, intent.words, { query: queries[source] }, { ...io, env: {} })
       assert.equal(missing.ok, false)
-      if (!missing.ok) assert.match(missing.message, /requires a token/)
+      if (!missing.ok) { assert.equal(missing.kind, 'no-backend'); assert.equal(missing.message, 'GitHub code search needs a token: `gh auth login` or GH_TOKEN') }
+      assert.equal(seen.length, before + 1)
+      pacing.resetSearchPacing()
+      const closedWalk = await door.performWebSearch({ query: queries[source] }, { context: contexts(), reads: { keylessAllowed: true }, clock, backends: { official: (s: any, w: string, request: any) => officialSearch(s, w, request, { ...io, env: {} }), keyless: async () => ({ ok: true as const, via: 'duckduckgo' as const, tier: 'keyless' as const, hits: [{ title: 'fallback', url: 'https://example.com/', snippet: '', source_type: 'duckduckgo' as const }] }) } })
+      assert.ok(closedWalk.notes.some(n => n === 'Web search has no open door for this session: GitHub code search needs a token: `gh auth login` or GH_TOKEN'), JSON.stringify(closedWalk.notes))
       assert.equal(seen.length, before + 1)
       now += 90_000; status = 200; extraHeaders = {}; body = bodies.github
       assert.equal((await officialSearch(source, intent.words, { query: queries[source] }, io)).ok, true)

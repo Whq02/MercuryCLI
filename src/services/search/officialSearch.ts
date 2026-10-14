@@ -8,6 +8,7 @@ import { SEARCH_SOURCE_POLICIES, type OfficialSearchSource } from './searchSourc
 const object = (value: unknown): Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value) ? value as Record<string, unknown> : {}
 const text = (value: unknown): string => typeof value === 'string' ? value : ''
 
+export const GITHUB_TOKEN_ROAD = 'GitHub code search needs a token: `gh auth login` or GH_TOKEN'
 export type WikipediaLeg = 'phrase' | 'words'
 export function wikipediaPhrase(words: string): string {
   return `"${words.replace(/"/g, ' ').replace(/\s+/g, ' ').trim()}"`
@@ -171,7 +172,7 @@ export async function officialSearch(source: OfficialSearchSource, words: string
   const clock = io.clock ?? liveSearchClock
   const token = source === 'github' ? (io.env ?? process.env).GH_TOKEN?.trim() : undefined
   if (request.signal?.aborted) return searchFailure('aborted', source, 'cancelled')
-  if (source === 'github' && !token) return searchFailure('no-backend', source, 'GitHub code search requires a token (GH_TOKEN); unauthenticated code search was not attempted')
+  if (source === 'github' && !token) return searchFailure('no-backend', source, GITHUB_TOKEN_ROAD)
   const scoped = { ...request, query: words, cacheScope: `official:${source}` }
   const cached = source !== 'github' ? takeCachedSearch(scoped, clock.now()) : undefined
   if (cached) return { ok: true, via: source, tier: 'keyless', hits: cached.hits, notes: [SEARCH_SOURCE_POLICIES[source].terms, cachedAnswerNote(searchBackendLabel(source))] }
