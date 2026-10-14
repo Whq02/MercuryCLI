@@ -1,19 +1,19 @@
 # Mercury
 
-Website: [mercury-cli.ai](https://mercury-cli.ai)
+Mercury CLI (mercury-cli.ai, npm package `mercury-tech-cli`) runs AI coding agents in your terminal, inside your own git repositories on macOS, Linux and Windows.
 
-Mercury runs AI coding agents in your terminal, inside your own repositories.
-An agent reads and edits files, runs commands, and checks the results. You
-choose the provider, the model, and what the agent is allowed to do.
+Website: [mercury-cli.ai](https://mercury-cli.ai) · Repository: [github.com/Whq02/MercuryCLI](https://github.com/Whq02/MercuryCLI) (`Whq02/MercuryCLI`) · npm: `mercury-tech-cli`
 
-Each session keeps its own conversation, model, permissions and workspace.
-Leave one running while you work in another, then return to it when you need
-to. You can switch providers and models within the same chat, use Mercury
-from your editor, run it headless in scripts, or schedule work for later.
+An agent reads and edits files, runs shell commands, steps through tests and debuggers, and checks the results. You choose the model provider, the model, and what the agent is allowed to do:
 
-I use Mercury to develop Mercury, working with several agents and models
-across long sessions. Keeping track of that work matters to me: what is still
-running, what changed, and what needs a decision.
+- **Multi-session Concourse and isolated worktrees:** run multiple sessions side by side on the Session Concourse (`/concourse`), and delegate parallel work to cross-provider crewmates (`Crewmate`) in isolated `git worktree` checkouts with project file leases so parallel agents do not overwrite each other.
+- **13 model providers and `/localsetup`:** keep all 13 providers signed in at once (OpenAI, Anthropic, Google Gemini, DeepSeek, Moonshot/Kimi, Z.AI/GLM, OpenRouter, Hugging Face, xAI/Grok, Meta/Muse, Mistral, Nous Portal, OpenCode Zen), switch providers and models mid-chat, or run `/localsetup` for one-command local model setup with Ollama alongside LM Studio, vLLM and llama.cpp.
+- **Mneme hybrid RAG project memory:** combines an on-device 118 MB BGE semantic embedding model (`bge-base-en-v1.5`) with BM25 word ranking and citation tracking, verbatim pinned rules, branch-aware startup context, write-time contradiction checks, session handoff notes, and the `/memory page` browser graph.
+- **Compiler, AST and DAP debugging tools:** wires in LSP code intelligence and previewed refactors (`LspRead`, `LspRename`, `LspMoveSymbol`, `LspMoveFile`, `LspCodeAction`, `LspFormat`), 23-language tree-sitter AST structural search and rewrites (`AstSearch`, `AstEdit`), a built-in Debug Adapter Protocol (`Debug`) debugger (`debugpy`, `js-debug`, `lldb`, `gdb`, `dlv`) that failing Python and Node tests step straight into, and persistent Python and JavaScript `Eval` cells.
+- **Keyless `WebSearch` and markdown `WebFetch`:** searches through provider-native search, Brave or Tavily keys, official APIs (Stack Exchange, npm, PyPI, crates.io, GitHub, Hacker News, Wikipedia), SearXNG and keyless DuckDuckGo, and fetches public documentation as clean markdown within a 38,000-character call budget.
+- **Desktop computer use, Whisper voice, Saturn scheduling and editor bridges:** drives desktop applications (`Computer`), transcribes push-to-talk voice dictation on-device with Whisper (`/voice`), schedules recurring or one-shot sessions with Saturn (`/saturn`), and connects to VS Code over the Agent Client Protocol (`mercury acp`) as well as Unity, Blender, Godot and Aseprite.
+
+I use Mercury to build Mercury, running multiple sessions and models across long tasks. Keeping track of that work is the hard part: what is still running, what changed, and what needs a decision. Each session writes its own handoff note when it finishes, and the next session reads that note once at startup alongside my pinned rules, stopping context poisoning between sessions.
 
 ![One prompt to the coordinator on the session board launches two sessions, each in its own worktree; one asks before editing, and both finish with their changes ready to review](docs/media/session-board.gif)
 
@@ -36,7 +36,7 @@ mise use -g npm:mercury-tech-cli                   # mise, through the npm packa
 ```
 
 The install addresses keep approximate script-request counts by source and UTC
-day, not completed installs; the counter stores no IP address, user-agent string
+day (completed installs are not counted); the counter stores no IP address, user-agent string
 or cookie.
 
 After installation, open a new terminal and run `mercury --version` to check
@@ -120,10 +120,10 @@ payload.
 
 From 1.0.0-beta.3, archives are signed during packaging and their signatures
 are verified before publication. A verified installation adds no signature
-notice at startup. `mercury health` shows `signed — key 627b54b734ca0e72`.
+notice at startup. `mercury health` reports the signing key `627b54b734ca0e72`.
 
-The 1.0.0-beta.2 archives are unsigned. These installations show
-`provenance — unsigned` once per install when you start Mercury interactively
+The 1.0.0-beta.2 archives are unsigned. These installations report
+unsigned provenance once per install when you start Mercury interactively
 without a command or flag. The health check continues to show that status. It means
 the archive manifest has no signature; the download is still checked against
 `SHA256SUMS.txt`.
@@ -227,14 +227,18 @@ advertise it, or `MERCURY_TRUECOLOR=0` to force 256 colours.
 
 `setup` fetches the bundled capability packs: pyright, debugpy, js-debug,
 extra grammars, the platform's Node runtime, and brush. If a download fails,
-that pack is skipped and the build and affected features report the missing
+that pack is skipped and the build and affected tools report the missing
 component. Running `bun install` alone produces a build without those packs.
 
 To build voice support, run `setup` with Rust installed. That builds
-`native/voice`. Add cmake to build `native/whisper` as well. If either
-build lacks its tools, setup skips it and the health check reports the missing
-addon. Both addons are compiled on your machine. The Windows shell engine
-is compiled there too because upstream has no Windows binary.
+`native/voice`. Add cmake to build `native/whisper` as well. With Rust and
+cmake installed, `bun run scripts/vendor/build-embed.ts` and
+`bun run scripts/vendor/fetch-embed-models.ts` also build the local embedding
+addon (`native/embed`) and fetch the 118 MB BGE model; without them, Mneme
+memory lookup runs word match only. Release archives include the embedding
+pack. If a native build lacks its tools, setup skips it and the health check
+reports the missing addon. The Windows shell engine is compiled on your
+machine too because upstream has no Windows binary.
 
 brush is a bash-compatible shell written in Rust. It is optional on macOS
 and Linux, where the system shell remains the default. Select it through
@@ -282,7 +286,7 @@ You can also choose "sign in later" to look around without connecting an
 account. When a provider key in your environment already signs a provider
 in, the sign-in step is not asked. In a terminal Mercury knows how to
 configure (Terminal.app, the VS Code family, Alacritty, Zed), a Terminal keys
-step offers to write one key binding into the terminal's own settings; it is
+step can write one key binding into the terminal's own settings; it is
 off unless you choose it, and a backup is kept.
 
 Next, Mercury asks whether you trust the folder you opened. Nothing requested
@@ -325,9 +329,9 @@ the corresponding tool; attempts to spawn that type of work return the same
 explanation. Within a session, `/crewmates on|off` and `/workflows on|off`
 change the setting at the next turn boundary.
 
-## The daily loop
+## The daily loop: Session Concourse, git worktrees and crewmates
 
-### Starting a session
+### Starting a session and isolating worktrees
 
 Press `Enter` on New Session to create a session in the current folder with
 the model shown on screen. Mercury opens its chat and adds it to the session
@@ -335,7 +339,13 @@ list at the same time. It keeps a process ready behind the menu to reduce
 startup work.
 
 Starting another session does not stop the previous one. You can leave a
-task running and work elsewhere.
+task running and work elsewhere. Launch with `--worktree [name]` (or ask for a
+`worktree` in chat to run `EnterWorktree`) to give a session its own branch and
+checkout under `.mercury/worktrees/`. When a session spawns parallel crewmates
+through the `Crewmate` tool with `isolation: "worktree"`, each crewmate gets
+its own worktree checkout and coordinates shared paths through the in-process
+file lease tools (`mcp__mercury__lease_take`, `mcp__mercury__lease_release`,
+`mcp__mercury__lease_list`).
 
 ### Working in chat
 
@@ -348,9 +358,10 @@ Use `/model` and `/effort` to adjust the session. `/permissions` controls what
 can run without approval and what must ask first.
 
 Review changes with `/diff`, by source, file and hunk. `/runs` shows running
-shells and crewmates (`/tasks` still opens the same board). When no turn is
-running, `/clear` saves the current chat for later and opens a fresh session;
-`/title` names the chat, and `/help` lists the available commands.
+shells and crewmates (`/tasks` still opens the same board), and `/crewmates`
+opens the live Crew view. When no turn is running, `/clear` saves the current
+chat for later and opens a fresh session; `/title` names the chat, and `/help`
+lists the available commands.
 
 ### Moving between screens
 
@@ -363,7 +374,7 @@ Closing every chat returns you to the home screen. Use `--chat` for just the
 home screen and chat, without the session list. `--concourse-off` saves that
 preference for future launches; `--concourse-on` or `/config` turns it back on.
 
-### Managing sessions
+### Managing sessions on the Session Concourse
 
 Open the session list with `/concourse` or `Shift+→` from the home screen.
 It shows the current project’s running sessions first, followed by saved
@@ -376,7 +387,7 @@ reason, until you release it.
 
 [docs/SESSIONS.md](docs/SESSIONS.md) covers the session lifecycle.
 
-## Providers and models
+## Providers and models: 13 provider sign-ins and `/localsetup`
 
 Use `/logins` to connect a provider. It opens the same sign-in catalogue used
 during setup. `/accounts` manages connected provider slots afterwards.
@@ -384,8 +395,8 @@ during setup. `/accounts` manages connected provider slots afterwards.
 - **OpenAI:** ChatGPT subscription or API key.
 - **Claude:** subscription account.
 - **Anthropic usage-based billing:** Console sign-in or API key.
-- **OpenRouter:** catalogue access through OAuth or an API key; model requests deny data collection and require every parameter from the start. `/config → OpenRouter routing policy` offers fallback and zero-data-retention choices; choose open to relax the policy and leave routing to OpenRouter.
-- **Google Gemini:** Sign in with Google, an API key, or your own OAuth client. Sign in with Google runs Gemini on the quota of the plan the Google account holds (a free account, Google AI Pro or Google AI Ultra) through Google's own Antigravity client: the prompt, the tool schemas and the tool results go to Google's Code Assist endpoint under that client and the signed-in account, and `/model` offers the roster Google serves the account. An API key or your own OAuth client bills a Cloud project instead.
+- **OpenRouter:** catalogue access through OAuth or an API key; model requests deny data collection and require every parameter from the start. `/config → OpenRouter routing policy` sets fallback and zero-data-retention choices; choose open to relax the policy and leave routing to OpenRouter.
+- **Google Gemini:** Sign in with Google, an API key, or your own OAuth client. Sign in with Google runs Gemini on the quota of the plan the Google account holds (a free account, Google AI Pro or Google AI Ultra) through Google's own Antigravity client: the prompt, the tool schemas and the tool results go to Google's Code Assist endpoint under that client and the signed-in account, and `/model` lists the roster Google serves the account. An API key or your own OAuth client bills a Cloud project instead.
 - **Hugging Face:** device-code sign-in or Hub token.
 - **Kimi (Moonshot):** device-code sign-in or API key.
 - **GLM (Z.AI):** API key.
@@ -393,8 +404,13 @@ during setup. `/accounts` manages connected provider slots afterwards.
 - **xAI (Grok):** sign in with your Grok subscription (SuperGrok / X Premium) or paste an API key through `/logins xai`.
 - **Meta (Muse):** Sign in with Meta (a Muse Code subscription, a device code in your browser) or a pay-as-you-go Model API key. Sign in with Meta exchanges the device code against Meta's OIDC endpoints (`https://auth.meta.com/oidc/device/authorization/` and `/oidc/device/token/`) under Muse Code's public client id, sends the resulting account token once to `https://api.meta.ai/muse-code/key` to mint the subscription's API key (and on bounded `/usage` reads for the plan's tier and usage windows), and sends only the minted key on every model request to `https://api.meta.ai/v1`. A pasted Model API key or `MODEL_API_KEY` / `META_API_KEY` bills pay-as-you-go.
 
-Local model servers and custom OpenAI-compatible endpoints are discovered or
-configured separately, without a provider sign-in. Each provider has its own
+Mistral, Nous Portal and OpenCode Zen connect through `/logins` as well, giving
+13 sign-in provider families in all. Local model servers (Ollama, LM Studio,
+vLLM and llama.cpp) and custom OpenAI-compatible endpoints are discovered or
+configured without a provider sign-in; run `/localsetup` to install or start
+Ollama, pull a model sized to your machine's memory, set its context window,
+or connect a running LM Studio, vLLM or llama.cpp server
+([docs/LOCAL-SETUP.md](docs/LOCAL-SETUP.md)). Each provider has its own
 protocol, credentials and error handling. A request does not fall back from
 one provider to another. See [docs/ENGINES.md](docs/ENGINES.md).
 
@@ -413,7 +429,7 @@ choice.
 Provider access remains subject to the provider's own terms and availability.
 Mercury's licence does not replace them.
 
-## The headless CLI
+## The headless CLI: `mercury run`, Docker and JSON-RPC runner
 
 The same build runs without the interactive interface.
 `node dist/mercury.mjs --help` lists every flag.
@@ -440,22 +456,22 @@ mercury run "Summarise this repository." --format rows
 
 The output row types, by their `type` field:
 
-- `session` — the opening row: `version`, `build` (the first twelve hex
+- `session`: the opening row: `version`, `build` (the first twelve hex
   characters of the tree the bundle was built from, as `mercury daemon
   status` prints it; absent when no manifest sits beside the bundle),
   `resume_of` (on a continued run, the session id of the conversation it
   continues; the same id as `session_id` unless the run was forked), `cwd`,
   `model`, `mode`, and the `tools`, `mcp_servers`, `commands`, `agents`,
   `skills` and `extensions` the session has.
-- `turn` — a turn `started` or `waiting`, with its `turn_id`; `model`,
+- `turn`: a turn `started` or `waiting`, with its `turn_id`; `model`,
   `message_ids` and the `agents` count when known.
-- `text` — a settled text block: `message_id`, `block`, `text`, and its
+- `text`: a settled text block: `message_id`, `block`, `text`, and its
   `phase` (`commentary` or `final_answer`).
-- `reasoning` — a settled reasoning block: `message_id`, `block`, `text`, or
+- `reasoning`: a settled reasoning block: `message_id`, `block`, `text`, or
   `redacted: true`.
-- `tool_call` — a tool call: `call_id`, `tool`, `input`, with its
+- `tool_call`: a tool call: `call_id`, `tool`, `input`, with its
   `message_id` and `block`.
-- `tool_result` — the call's result: `call_id`, `status` (`ok`, `error`,
+- `tool_result`: the call's result: `call_id`, `status` (`ok`, `error`,
   `aborted` or `refused`) and `output`. A call the model shaped so badly that
   it was refused before execution (an unknown tool, arguments that are not
   valid JSON or do not fit the tool's schema) still gets its pair: a
@@ -463,41 +479,41 @@ The output row types, by their `type` field:
   object) and a `tool_result` row with status `refused` whose `output` is the
   reason; the correction `notice` follows. Such a call never ran and is not a
   denial.
-- `tool_update` — progress from a running tool: `call_id`, `tick`, `source`
+- `tool_update`: progress from a running tool: `call_id`, `tick`, `source`
   (`shell`, `powershell`, `mcp` or `eval`), and whichever of `line`,
   `elapsed_s`, `lines`, `bytes`, `budget_ms`, `progress` and `total` the call
   reports. A shell or PowerShell call ticks as its output arrives (a command
   that prints nothing never ticks), an MCP call when its server reports
-  progress, an Eval call while its cell runs; no other tool ticks — a Browser
+  progress, an Eval call while its cell runs; no other tool ticks; a Browser
   or Crewmate call is silent until its result.
-- `step` — one model call of the main thread: `message_id`, `model`, `usage`,
+- `step`: one model call of the main thread: `message_id`, `model`, `usage`,
   and `stop` when the model said why it stopped.
-- `outcome` — the turn's result, described below.
-- `close` — the note left for the next session at close: `state` (`stored`,
+- `outcome`: the turn's result, described below.
+- `close`: the note left for the next session at close: `state` (`stored`,
   `skipped` or `none`), `note_chars`, and the `usage` of the model calls that
   wrote it, so a reader summing every row's usage reaches the outcome's.
-- `wait` — a wait on the model: `state` (`first_byte`, `retry`, `silence`,
+- `wait`: a wait on the model: `state` (`first_byte`, `retry`, `silence`,
   `loading` or `done`) with the figures that state carries, such as
   `since_ms`, `attempt` and `of`, `delay_ms`, `reason` and `http_status`.
-- `heartbeat` — the model stream showed life after at least a second without
+- `heartbeat`: the model stream showed life after at least a second without
   a parsed event: bytes arrived that produced no row. The row carries nothing
   else and comes at most once a second; how often depends on the provider's
   streaming shape, so a stream that never pauses between events emits none.
-- `compaction` — a compaction `started`, in `progress` or `ended`: `trigger`
+- `compaction`: a compaction `started`, in `progress` or `ended`: `trigger`
   (`manual`, `auto` or `overflow`), `stage`, `fill`, `summary_tokens` and, at
   the end, `exit` (`landed`, `cancelled` or `failed`).
-- `mode` — the permission mode changed: `mode`.
-- `rate_limit` — the provider's limit state: `status` (`allowed`, `warning` or
+- `mode`: the permission mode changed: `mode`.
+- `rate_limit`: the provider's limit state: `status` (`allowed`, `warning` or
   `rejected`), `window`, `resets_at`, `utilization` and the overage fields.
-- `task` — a background task `started`, in `progress` or `ended`: `task_id`,
+- `task`: a background task `started`, in `progress` or `ended`: `task_id`,
   `task_type`, `description`, `usage`, `summary`, `status` (`completed`,
   `failed` or `stopped`) and `output_file` as they become known.
-- `notice` — a `warning` or `error` for the reader: `text`, and a `code` such
+- `notice`: a `warning` or `error` for the reader: `text`, and a `code` such
   as `input_refused`.
-- `command_output` — the output of a slash command that never reached the
+- `command_output`: the output of a slash command that never reached the
   model: `command` and `text`.
-- `mission_updated` — the session's task ledger changed; read it again.
-- `samples_updated` — the session's samples changed; read them again.
+- `mission_updated`: the session's task ledger changed; read it again.
+- `samples_updated`: the session's samples changed; read them again.
 
 `--partial` with `--format rows` adds `block_start`, `text_delta`,
 `reasoning_delta`, `tool_input_delta` and `retracted` rows. Deltas belong to
@@ -509,19 +525,19 @@ The outcome carries `schema`, `turn_id`, `status`, `steps`, `wall_ms`,
 (`message`, `class`, optional `detail`) on failure. `stop`, `api_ms`,
 `cost_usd`, requested `structured` output and `notices` are included when
 available. `wall_ms` is the turn's elapsed time. `api_ms` is the sum of the
-durations of every model request the turn made — retries, and the
-crewmates' requests that ran alongside the main thread, included — so it
+durations of every model request the turn made (including retries and the
+crewmates' requests that ran alongside the main thread), so it
 can exceed `wall_ms` when requests overlapped. `cost_usd` is the USD of the turn's priced
 requests, whatever the status: a request Mercury cannot price (no rate on
-file, no cost stated on the wire) adds nothing to it and leaves its model
+file, no cost stated in the response) adds nothing to it and leaves its model
 listed in `models` without a `cost_usd` of its own; the field is absent only
 when nothing in the turn was priced. On a Claude subscription sign-in the
 Anthropic requests have no dollar price, so neither they nor the row carry a
-`cost_usd` — the usage stays. Usage names `input_tokens` (cached tokens included),
+`cost_usd`; the usage stays. Usage names `input_tokens` (cached tokens included),
 `cached_input_tokens`, `cache_write_input_tokens`, `output_tokens` and,
 when reported, `reasoning_output_tokens`, summed over the main thread and
 the crewmates. `models` gives the per-model figures; `steps` counts the main
-thread's model calls alone — one per `step` row without `parent_call_id`; a
+thread's model calls alone (one per `step` row without `parent_call_id`); a
 crewmate's calls are its own `step` rows under its `parent_call_id` and are
 not in the count.
 
@@ -530,15 +546,15 @@ The status is `completed`, `blocked`, `refused`, `failed`, `interrupted`,
 run exits 0, other outcomes exit 1, and a usage error exits 2. SIGINT and
 SIGTERM exit 130 and 143 after the interrupted turn's outcome is flushed. A
 refused tool call is listed in `denials`. When the refusal was an ask nobody
-could answer — a run with no host in a mode that asks, `--mode dontAsk`, or a
-host's ask that expired — the run is `blocked`: the answer is kept, `error`
+could answer (a run with no host in a mode that asks, `--mode dontAsk`, or a
+host's ask that expired), the run is `blocked`: the answer is kept, `error`
 names the tool and how to resume (`--allowed-tools`, another `--mode`, or a
-host that answers asks), and the run exits 1. A refusal the operator did
-answer — a deny rule, a hook, a host that said no — leaves a completed turn
+host that answers asks), and the run exits 1. A refusal you did
+answer (through a deny rule, a hook, or a host that said no) leaves a completed turn
 completed. A run whose final answer ends with the two lines `BLOCKED ON
 OPERATOR: …` and `RESUME WHEN: …` is `blocked` the same way: `error` carries
 the blocker and the resume condition, and the run exits 1. An unknown slash
-command is `refused` with the same sentence the cockpit gives (`Unknown
+command is `refused` with the same sentence the interactive screen gives (`Unknown
 command: /name · /help lists commands`) and exits 1.
 
 `--input rows` requires `--format rows` and reads one input object per line:
@@ -552,7 +568,7 @@ The input types are `prompt` with `content` (text or text/image blocks),
 Each accepts an optional `id`; prompt and shell rows also accept `priority`
 (`now`, `next` or `later`), `sent_at` and `origin`. A rejected input shape
 produces a `notice` with code `input_refused`; malformed JSON ends the run.
-These are input rows, not permission answers.
+These rows carry input only; permission answers use the runner protocol below.
 
 Use `mercury run -` or pipe text into `mercury run` to read the whole prompt
 from stdin. Beside a prompt argument, piped text is appended as delimited
@@ -676,29 +692,99 @@ Available commands include:
   line or a help page, the same as `--version` and `--help`; neither starts a
   session.
 
-## What is inside
+## What is inside: Mneme RAG memory, LSP, 23-language AST, DAP debugger, web search and bridges
 
-- **Code editing and debugging.** Anchored reads and atomic multi-file edits;
-  syntax-based search and rewriting across 23 grammars; persistent code
-  cells; and a debugger using the Debug Adapter Protocol. See
+- **Mneme hybrid RAG project memory.** Mneme is on by default, keeping each
+  project's facts in plain markdown topic pages (`Retain`, `Recall`, `Reflect`,
+  `Correct`). Recall fuses an on-device 118 MB BGE semantic embedding model
+  (`bge-base-en-v1.5` `q8_0`, MIT, bundled in release archives; source builds
+  without the native embed pack run word match only) with stemmed BM25 word
+  ranking, recency weighting and citation tracking via reciprocal rank fusion
+  (`k = 60`). Pinned rules (`pin: true`) load verbatim on the pinned shelf and
+  change only on your word. At session start, Mercury scores unpinned facts and
+  earlier notes against your current branch, recently touched files and the
+  last session's handoff note within a dedicated startup allowance
+  (`memory.startLimit`, default 4,000 characters). Write-time contradiction
+  checks catch polarity, negation and number flips before a conflicting fact is
+  saved. Each session writes a handoff note in its own words on exit for the
+  next session's entry page, plus an optional session journal entry. `/memory`
+  opens the memory centre, and `/memory page` draws the library in your browser
+  as a node-and-edge graph. See [docs/MNEME.md](docs/MNEME.md).
+- **LSP code intelligence, 23-language AST rewrites, DAP debugger and `Eval` cells.**
+  Anchored reads and atomic multi-file edits (`ChangeSet`); language-server
+  queries (`LspRead`) and preview-then-apply refactors (`LspRename`,
+  `LspMoveSymbol`, `LspMoveFile`, `LspCodeAction`, `LspFormat`); syntax-tree
+  search and rewriting (`AstSearch`, `AstEdit`) with `$NAME` and `$$$NAME`
+  meta-variables across 23 grammars in release archives (16 in every `bun install`
+  build plus 7 in the grammar pack); persistent Python (`python3`) and
+  JavaScript (Node ES module) code cells (`Eval`); and a Debug Adapter Protocol
+  debugger (`Debug`) driving `debugpy`, `js-debug`, `lldb`, `gdb`, `dlv`,
+  `netcoredbg`, `rdbg` and Godot. The `Test` tool's `debug` operation steps a
+  failing Python (`pytest`, `unittest`) or Node (`node-test`) test straight
+  into a `Debug` session. See
+  [docs/LANGUAGE-SERVICE.md](docs/LANGUAGE-SERVICE.md),
   [change transactions](docs/CHANGE-TRANSACTIONS.md),
   [structural patterns](docs/STRUCTURAL-PATTERNS.md),
   [code cells](docs/EVAL.md) and [the debugger](docs/DEBUGGER.md).
+- **Keyless `WebSearch` and markdown `WebFetch`.** `WebSearch` walks one
+  cascade: provider-native live search first when the session model supports it
+  (`ProviderSearch`), then stored Brave or Tavily keys, then official APIs
+  selected by query shape (Stack Exchange, npm, PyPI, crates.io, GitHub code
+  search, Hacker News Algolia, Wikipedia), then configured SearXNG JSON APIs
+  (`MERCURY_SEARCH_SEARXNG_INSTANCES`), and keyless DuckDuckGo page scraping
+  (on by default; turn it off in `/config` or with `MERCURY_SEARCH_KEYLESS=0`).
+  Every answer stays under 2,000 tokens and names the source that answered.
+  `WebFetch` reads public pages as markdown in the page's own words within a
+  38,000-character call budget (using `r.jina.ai` when sparse HTML needs a
+  browser and `MERCURY_FETCH_READER` is enabled; private network addresses are
+  never sent to the hosted reader). See [docs/ENGINES.md](docs/ENGINES.md).
+- **Agents, cross-provider crewmates (`Crewmate`), worktrees and file leases.**
+  Two built-in agents (`mercury-crew` for delegated work of every kind and
+  `mercury-scout` for read-only reconnaissance) sit beside the agent
+  definitions you create in `/agents`. Launch crewmates on any signed-in
+  provider, isolate parallel work in `git worktree` checkouts
+  (`isolation: "worktree"`), coordinate shared files with in-process project
+  file leases (`mcp__mercury__lease_take`, `mcp__mercury__lease_release`,
+  `mcp__mercury__lease_list`), and steer or resume crewmates by name or id with
+  `SendMessage` and `ResumeCrewmate`. Follow crewmates and workflow runs in
+  `/crewmates` and `/runs`. See [docs/CREW.md](docs/CREW.md).
+- **Desktop computer use.** Enabled by default when the native desktop driver
+  is available. The `Computer` tool captures screenshots and controls the mouse
+  and keyboard in the foreground application. Mercury checks the application by
+  name and identity before acting, asks for approval unless your permission
+  rules, session grant, access setting or permission mode already allow the
+  action, stops on `Esc`, lets only one session control the desktop at a time,
+  and keeps screenshots out of the saved conversation file. Set
+  `MERCURY_COMPUTER_USE=0` to remove the tool. See
+  [docs/COMPUTER-USE.md](docs/COMPUTER-USE.md).
+- **On-device Whisper voice input (`/voice`).** Run `/voice on`, then hold
+  space for 1 s to dictate into the composer and release it to stop.
+  Transcription runs on-device with `whisper.cpp` (using a 60 MB English
+  Whisper `base.en` model downloaded once with `/voice download`, with
+  `tiny.en-q5_1`, `small.en-q5_1` and multilingual `base-q5_1` also available)
+  or through a signed-in OpenAI or Gemini API key. With the on-device
+  transcriber, audio never leaves the machine; with a remote provider, audio is
+  sent only after you stop recording. See [docs/VOICE.md](docs/VOICE.md).
+- **Saturn cron and session scheduler (`/saturn`).** Schedule a prompt for an
+  existing session (`CronCreate`, `CronList`, `CronDelete`, `ScheduleWakeup`,
+  `/loop`) or schedule a new session to start at a set time. Schedules can run
+  once or recur. See [docs/SATURN.md](docs/SATURN.md).
+- **VS Code (ACP), Unity, Blender, Godot and Aseprite bridges.** `mercury acp`
+  connects to editors that support the Agent Client Protocol. The VS Code
+  extension (`mercury bridge install`) runs Mercury in the editor over that
+  protocol: chat, sessions, agents, artifacts and reviews, with the editor's
+  selection and diagnostics riding each prompt. Separate, opt-in integrations
+  connect to running Unity (`MERCURY_UNITY=1`), Blender (`MERCURY_BLENDER=1`)
+  and Godot (`MERCURY_GODOT_TOOLS=1`) editors, with batch access to Aseprite
+  (`MERCURY_ASEPRITE=1`). See [Unity](docs/UNITY-BRIDGE.md),
+  [Blender](docs/BLENDER-BRIDGE.md), [Godot](docs/VULCAN-GODOT-TOOLS.md) and
+  [Aseprite](docs/ASEPRITE-BRIDGE.md).
 - **Extensions.** Each extension has one manifest. Add sources from a git
   URL, local folder or archive, with approval tied to the contributions hash.
   See [docs/EXTENSIONS.md](docs/EXTENSIONS.md).
 - **MCPs & Skills.** Per-repository configuration for what sessions load,
   with named presets and controls you can change during a session. See
   [docs/KIT.md](docs/KIT.md).
-- **Agents and the crew.** Two built-in agents — `mercury-crew` for delegated
-  work of every kind and `mercury-scout` for read-only reconnaissance — plus
-  the agent definitions you create in the agent studio. A crewmate belongs
-  to the session that launched it; a named one takes further instructions by
-  its name. Follow crewmates, and workflow runs, in their status views. See
-  [docs/CREW.md](docs/CREW.md).
-- **Saturn.** Schedule a prompt for an existing session or start a new
-  session at a set time. Schedules can run once or recur. See
-  [docs/SATURN.md](docs/SATURN.md).
 - **Diagnostics.** The health check and `/health` produce a report backed by
   diagnostic evidence, with a `certified`, `caution` or `fault` verdict and
   verified fixes. See [docs/HEALTH-CERTIFICATE.md](docs/HEALTH-CERTIFICATE.md).
@@ -708,39 +794,8 @@ Available commands include:
 - **Apollo Mode**, the specification interview: answer the agent’s questions
   to complete the specification it will use to build a prototype. See
   [docs/APOLLO-MODE.md](docs/APOLLO-MODE.md).
-- **Editor integrations.** `mercury acp` connects to editors that support the
-  Agent Client Protocol. The VS Code extension (`mercury bridge install`)
-  runs Mercury in the editor over that protocol: chat, sessions, agents,
-  artifacts and reviews, with the editor's selection and diagnostics riding
-  each prompt. Separate, opt-in integrations connect to running Unity,
-  Blender and Godot editors, with batch access to Aseprite. See [Unity](docs/UNITY-BRIDGE.md),
-  [Blender](docs/BLENDER-BRIDGE.md) and [Aseprite](docs/ASEPRITE-BRIDGE.md).
-- **Memory.** Mneme is on by default. It keeps what each project's sessions
-  learn in topic pages, loads a front page and your pinned rules into every
-  chat, and looks facts
-  up on every message; `/memory` is the front door. See
-  [docs/MNEME.md](docs/MNEME.md).
-- **Voice input.** Run `/voice on`, then hold space for 1 s to dictate and
-  release it to stop. Transcription can run on-device or through your chosen cloud
-  provider. The on-device option uses a 60 MB English model, downloaded once
-  with `/voice download`. Audio leaves the machine only after you stop
-  recording, and only when using a cloud provider. See
-  [docs/VOICE.md](docs/VOICE.md).
-- **Computer use.** Enabled by default when the desktop driver is available.
-  The model can see your screen and control the mouse and keyboard in the
-  foreground application. Mercury checks the application by name before
-  acting. It asks for approval unless an applicable permission rule, session
-  grant, access setting or permission mode already allows the action; explicit
-  denies stay blocked. `Esc` stops it, only one session can control the desktop at a time,
-  and screenshots are not stored in the saved conversation. Set
-  `MERCURY_COMPUTER_USE=0` to remove the tool. See
-  [docs/COMPUTER-USE.md](docs/COMPUTER-USE.md).
 - **Recovery.** Atomic publication, journaled operations and startup
   reconciliation. See [docs/DURABILITY.md](docs/DURABILITY.md).
-- **Web search for every model.** Provider-native live search and Mercury's
-  bundled WebSearch, using a Brave or Tavily key or a keyless fallback.
-  Results identify which search service answered. See
-  [docs/ENGINES.md](docs/ENGINES.md).
 
 Runtime flags are defined in `src/substrate/flagRegistry.ts`, exposed as
 `MERCURY_*` settings and rendered on demand. Integration compatibility is
@@ -764,7 +819,7 @@ the live list can also include skills and extension commands.
 | git & review | `/review` `/audit` |
 | health & introspection | `/health` `/verify` `/trace` `/capabilities` |
 | config & setup | `/config` `/jev` `/localsetup` `/permissions` `/hooks` `/mcp` `/extensions` `/skills` `/sandbox` `/browser` `/orient` `/keybindings` `/keys` `/vim` `/mouse` `/keysetup` `/bootmenu` `/voice` |
-| appearance & cockpit | `/appearance` `/critter` `/palette` |
+| appearance & interface | `/appearance` `/critter` `/palette` |
 | account & app | `/logins` `/logout` `/accounts` `/defaultprovider` `/update-notes` `/feedback` `/help` `/exit` |
 
 `/mouse off` returns the pointer to the terminal for native text selection
