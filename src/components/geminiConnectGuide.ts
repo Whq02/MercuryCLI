@@ -1,4 +1,4 @@
-import { geminiOauthClientConfig, geminiOauthConnected, resolveGeminiApiKey } from '../services/providers/gemini/geminiAccounts.js'
+import { geminiOauthClientConfig, geminiOauthConnected, resolveGeminiAccount, resolveGeminiApiKey } from '../services/providers/gemini/geminiAccounts.js'
 import { KEY_PAGES } from './loginFamilyRows.js'
 
 export interface GeminiGuidePage {
@@ -89,6 +89,15 @@ export interface GeminiConnectFacts {
   keySource?: 'env-google' | 'env-gemini' | 'stored'
   clientSource?: 'env' | 'stored'
   oauthConnected: boolean
+  active?: 'oauth' | 'api-key'
+}
+
+export type GeminiConnectRowAction = 'activate' | 'enter'
+
+export function geminiConnectRowAction(facts: GeminiConnectFacts, value: GeminiConnectRowValue): GeminiConnectRowAction {
+  if (value === 'key') return facts.keySource !== undefined && facts.oauthConnected && facts.active !== 'api-key' ? 'activate' : 'enter'
+  if (value === 'google') return facts.oauthConnected && facts.keySource !== undefined && facts.active !== 'oauth' ? 'activate' : 'enter'
+  return 'enter'
 }
 
 export type GeminiConnectRowValue = 'key' | 'google' | 'client'
@@ -104,11 +113,17 @@ export function geminiConnectRows(facts: GeminiConnectFacts): Array<{ label: str
   const keyRow =
     facts.keySource === undefined
       ? GEMINI_KEY_ROW
-      : facts.keySource === 'stored'
-        ? 'API key — connected (stored locally) · ↵ pastes a replacement'
-        : `API key — connected (${facts.keySource === 'env-google' ? 'GOOGLE_API_KEY' : 'GEMINI_API_KEY'} in the environment) · ↵ pastes a stored one`
+      : geminiConnectRowAction(facts, 'key') === 'activate'
+        ? facts.keySource === 'stored'
+          ? 'API key — stored, not active · ↵ makes it active'
+          : `API key — ${facts.keySource === 'env-google' ? 'GOOGLE_API_KEY' : 'GEMINI_API_KEY'} in the environment, not active · ↵ makes it active`
+        : facts.keySource === 'stored'
+          ? 'API key — connected (stored locally) · ↵ pastes a replacement'
+          : `API key — connected (${facts.keySource === 'env-google' ? 'GOOGLE_API_KEY' : 'GEMINI_API_KEY'} in the environment) · ↵ pastes a stored one`
   const googleRow = facts.oauthConnected
-    ? 'Google account — connected · ↵ signs in again (step 6)'
+    ? geminiConnectRowAction(facts, 'google') === 'activate'
+      ? 'Google account — connected, not active · ↵ makes it active'
+      : 'Google account — connected · ↵ signs in again (step 6)'
     : facts.clientSource === 'env'
       ? 'Google account — the client id comes from MERCURY_GEMINI_OAUTH_CLIENT_ID · ↵ signs in (step 6)'
       : facts.clientSource === 'stored'
@@ -209,9 +224,11 @@ export function geminiKeyLegLines(opened: GeminiGuideOpenState | undefined): Gem
 export function liveGeminiConnectFacts(): GeminiConnectFacts {
   const key = resolveGeminiApiKey()
   const client = geminiOauthClientConfig()
+  const active = resolveGeminiAccount()?.kind
   return {
     ...(key ? { keySource: key.source } : {}),
     ...(client ? { clientSource: client.source } : {}),
     oauthConnected: geminiOauthConnected(),
+    ...(active === 'oauth' || active === 'api-key' ? { active } : {}),
   }
 }

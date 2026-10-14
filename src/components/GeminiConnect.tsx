@@ -19,6 +19,7 @@ import {
 import {
   GEMINI_CONNECT_CANCELLED_RECEIPT,
   GEMINI_CONNECT_STOPPED_RECEIPT,
+  activateGeminiSource,
   finishGeminiOauthConnect,
   geminiConnectFailedReceipt,
   storeGeminiApiKeyLogin,
@@ -30,6 +31,7 @@ import {
   GEMINI_CONNECT_COMPACT_INTRO,
   GEMINI_CONNECT_TITLE,
   GEMINI_KEY_BILLING_NOTE,
+  geminiConnectRowAction,
   geminiConnectRows,
   geminiGuideHint,
   geminiGuideOpeningStep,
@@ -303,6 +305,11 @@ export function GeminiConnect({
         <Select
           options={geminiConnectRows(facts)}
           onChange={value => {
+            if (value !== 'client' && geminiConnectRowAction(facts, value) === 'activate') {
+              const outcome = activateGeminiSource(value === 'key' ? 'api-key' : 'oauth')
+              settle(outcome.receipt, outcome.ok)
+              return
+            }
             if (value === 'key') {
               setLeg('key')
               return
