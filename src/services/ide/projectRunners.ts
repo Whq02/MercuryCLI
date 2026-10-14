@@ -93,7 +93,7 @@ export function findRunnerRoot(from: string = getCwd()): string | null {
   return null
 }
 
-function detectPackageManager(root: string): { bin: string } | { missing: string } {
+export function detectPackageManager(root: string): { bin: string } | { missing: string } {
   if (existsSync(path.join(root, 'bun.lock')) || existsSync(path.join(root, 'bun.lockb'))) return { bin: 'bun' }
   if (existsSync(path.join(root, 'pnpm-lock.yaml'))) return { bin: 'pnpm' }
   if (existsSync(path.join(root, 'yarn.lock'))) return { bin: 'yarn' }

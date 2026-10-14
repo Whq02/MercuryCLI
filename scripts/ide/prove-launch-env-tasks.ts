@@ -46,6 +46,36 @@ writeFileSync(
         { name: 'missing file', type: 'debugpy', request: 'launch', program: '${workspaceFolder}/hello.py', envFile: '${workspaceFolder}/absent.env' },
         { name: 'macro env', type: 'debugpy', request: 'launch', program: '${workspaceFolder}/hello.py', env: { X: '${command:pickProcess}' } },
         { name: 'plain', type: 'debugpy', request: 'launch', program: '${workspaceFolder}/hello.py' },
+        { name: 'with task', type: 'debugpy', request: 'launch', program: '${workspaceFolder}/hello.py', preLaunchTask: 'build-marker' },
+        { name: 'with failing task', type: 'debugpy', request: 'launch', program: '${workspaceFolder}/hello.py', preLaunchTask: 'failing' },
+        { name: 'with chain', type: 'debugpy', request: 'launch', program: '${workspaceFolder}/hello.py', preLaunchTask: 'chain' },
+        { name: 'with shell line', type: 'debugpy', request: 'launch', program: '${workspaceFolder}/hello.py', preLaunchTask: 'shelly' },
+        { name: 'with matcher', type: 'debugpy', request: 'launch', program: '${workspaceFolder}/hello.py', preLaunchTask: 'matched' },
+        { name: 'with unknown task', type: 'debugpy', request: 'launch', program: '${workspaceFolder}/hello.py', preLaunchTask: 'nowhere' },
+        { name: 'with npm task', type: 'debugpy', request: 'launch', program: '${workspaceFolder}/hello.py', preLaunchTask: 'npm-build' },
+        { name: 'with foreign task', type: 'debugpy', request: 'launch', program: '${workspaceFolder}/hello.py', preLaunchTask: 'gulpy' },
+      ],
+    },
+    null,
+    2,
+  ),
+)
+
+writeFileSync(path.join(proj, 'package.json'), JSON.stringify({ name: 'fixture', private: true, scripts: { build: 'node -e 0' } }) + '\n')
+writeFileSync(path.join(proj, 'bun.lock'), '{}\n')
+writeFileSync(
+  path.join(proj, '.vscode', 'tasks.json'),
+  JSON.stringify(
+    {
+      version: '2.0.0',
+      tasks: [
+        { label: 'build-marker', type: 'process', command: 'node', args: ['-e', "require('fs').writeFileSync(process.argv[1], 'built by the task')", '${workspaceFolder}/marker.txt'], problemMatcher: [] },
+        { label: 'failing', type: 'shell', command: 'node', args: ['-e', "console.error('the build broke'); process.exit(3)"] },
+        { label: 'chain', type: 'shell', command: 'node', args: ['-e', '0'], dependsOn: ['build-marker'] },
+        { label: 'shelly', type: 'shell', command: 'echo a && echo b' },
+        { label: 'matched', type: 'shell', command: 'node', args: ['-e', '0'], problemMatcher: '$tsc' },
+        { label: 'npm-build', type: 'npm', script: 'build' },
+        { label: 'gulpy', type: 'gulp', task: 'build' },
       ],
     },
     null,
@@ -112,6 +142,46 @@ try {
     }
     await disposeOwner(owner)
     check('B5 the sessions are reaped', dap._dapSessionCountForTesting() === 0)
+  }
+
+  section('C. preLaunchTask — a plain task runs first and gates the launch; a shape Mercury cannot run is refused by name')
+  const d2 = await launch.discoverLaunchProfiles(proj)
+  const byLabel = (label: string) => d2.profiles.find(p => p.label === label)
+  const refusedOf = (label: string): string => {
+    const task = byLabel(label)?.preLaunchTask
+    return task !== undefined && 'refused' in task ? task.refused : ''
+  }
+  const withTask = byLabel('with task')
+  check('C1 a process task resolves to argv with ${workspaceFolder} expanded, cwd the root; preLaunchTask leaves the dropped list', withTask?.preLaunchTask !== undefined && !('refused' in withTask.preLaunchTask) && withTask.preLaunchTask.argv[0] === 'node' && withTask.preLaunchTask.argv[3] === path.join(proj, 'marker.txt') && withTask.preLaunchTask.cwd === proj && withTask.droppedFields === undefined, JSON.stringify(withTask?.preLaunchTask))
+  check('C2 dependsOn is refused with the task\'s name and the reason', refusedOf('with chain').includes("task 'chain' has dependsOn"), JSON.stringify(byLabel('with chain')?.preLaunchTask))
+  check('C3 a shell command line with operators is refused — Mercury runs tasks argv-only', refusedOf('with shell line').includes('shell command line'), JSON.stringify(byLabel('with shell line')?.preLaunchTask))
+  check('C4 a problem matcher is refused by name', refusedOf('with matcher').includes("task 'matched' carries a problem matcher"), JSON.stringify(byLabel('with matcher')?.preLaunchTask))
+  check('C5 an unknown label is refused naming the label and the file', refusedOf('with unknown task') === "no task labelled 'nowhere' in .vscode/tasks.json", JSON.stringify(byLabel('with unknown task')?.preLaunchTask))
+  check('C6 a foreign task type is refused naming the three Mercury runs', refusedOf('with foreign task').includes("task type 'gulp' is not one Mercury runs (shell, process, npm)"), JSON.stringify(byLabel('with foreign task')?.preLaunchTask))
+  const npmTask = byLabel('with npm task')?.preLaunchTask
+  check('C7 an npm task runs the lockfile\'s package manager: bun run build', npmTask !== undefined && !('refused' in npmTask) && JSON.stringify(npmTask.argv) === JSON.stringify(['bun', 'run', 'build']), JSON.stringify(npmTask))
+  check('C8 the task changes the profile id (a different task is a different launch)', withTask !== undefined && byLabel('plain') !== undefined && withTask.id !== byLabel('plain')!.id)
+
+  if (existsSync(path.join(DIST_VENDOR, 'debugpy', 'adapter', '__main__.py')) && existsSync(SYS_PY)) {
+    const { LaunchTool } = await import('../../src/tools/LaunchTool/LaunchTool.js')
+    const ctx = { getAppState: () => ({}) } as never
+    const inspect = (await LaunchTool.call({ op: 'inspect', profile: withTask!.id } as never, ctx)) as { data: { result: string } }
+    check('C9 inspect names the task, its argv and the exit gate', inspect.data.result.includes("preLaunchTask: 'build-marker' runs first as node -e") && inspect.data.result.includes('a non-zero exit stops the launch'), inspect.data.result)
+    const refusedInspect = (await LaunchTool.call({ op: 'inspect', profile: byLabel('with matcher')!.id } as never, ctx)) as { data: { result: string } }
+    check('C10 inspect shows a refused task as REFUSED with its reason', refusedInspect.data.result.includes("preLaunchTask: 'matched' — REFUSED") && refusedInspect.data.result.includes('problem matcher'), refusedInspect.data.result)
+    const ask = await LaunchTool.checkPermissions({ op: 'run', profile: withTask!.id } as never, { getAppState: () => ({}) } as never)
+    check('C11 the permission ask names the task that will run first', ask.behavior === 'ask' && 'message' in ask && String(ask.message).includes("runs preLaunchTask 'build-marker' first: node -e"), JSON.stringify(ask))
+    const marker = path.join(proj, 'marker.txt')
+    const run = (await LaunchTool.call({ op: 'run', profile: withTask!.id } as never, ctx)) as { data: { result: string; outcome: string } }
+    check('C12 op:"run" runs the task first (the marker exists), says so, then runs the program', run.data.outcome === 'succeeded' && existsSync(marker) && run.data.result.startsWith("preLaunchTask 'build-marker' ran: node -e") && run.data.result.includes('MODE=None'), run.data.result.split('\n').slice(0, 3).join(' | '))
+    const failing = (await LaunchTool.call({ op: 'run', profile: byLabel('with failing task')!.id } as never, ctx)) as { data: { result: string; outcome: string } }
+    check('C13 a failing task stops the launch with its name, exit code and tail — the program never ran', failing.data.outcome === 'failed' && failing.data.result.startsWith("preLaunchTask 'failing' failed (exit 3)") && failing.data.result.includes('the build broke') && !failing.data.result.includes('MODE='), failing.data.result.split('\n').slice(0, 3).join(' | '))
+    const chain = (await LaunchTool.call({ op: 'debug', profile: byLabel('with chain')!.id } as never, ctx)) as { data: { result: string; outcome: string } }
+    check('C14 op:"debug" with a refused task is refused by name, never silently launched without it', chain.data.outcome === 'failed' && chain.data.result.startsWith("preLaunchTask 'chain' cannot be run by Mercury: task 'chain' has dependsOn") && chain.data.result.includes('run it yourself, then launch again'), chain.data.result)
+    const dap = await import('../../src/services/dap/dapClient.js')
+    check('C15 no session was left behind by the refused launches', dap._dapSessionCountForTesting() === 0)
+  } else {
+    console.log('  [SKIP — LOUD] the task run legs need the vendored debugpy and the system python (see B).')
   }
 } finally {
   process.chdir(ROOT)

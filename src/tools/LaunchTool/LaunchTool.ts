@@ -21,6 +21,7 @@ import {
   type LaunchProfile,
 } from '../../services/ide/launchProfiles.js'
 import { pythonTestsEnabled } from '../../services/ide/pythonTests.js'
+import { runPreLaunchTask, type PreLaunchTask } from '../../services/ide/launchTasks.js'
 import { DebugTool, runDebugLaunch, type Input as DebugInput, type OpResult as DebugResult } from '../DebugTool/DebugTool.js'
 import { TestTool, runTestOperation, type Input as TestInput } from '../TestTool/TestTool.js'
 import { renderToolUseProgressMessage } from '../TestTool/UI.js'
@@ -175,10 +176,24 @@ function describeProfile(p: LaunchProfile): string {
     `  ${payload}`,
     `  from: ${p.provenance}`,
     ...(p.debug?.env ? [`  env: ${Object.keys(p.debug.env).join(', ') || '(none)'} — ${p.debug.envSource ?? 'launch.json env'}; these win over the shell's`] : []),
+    ...(p.preLaunchTask ? [`  preLaunchTask: ${describeTask(p.preLaunchTask)}`] : []),
     ...routes,
     ...(note ? [`  note: ${note}`] : []),
     ...(p.droppedFields?.length ? [`  dropped (unrepresentable): ${p.droppedFields.join(', ')}`] : []),
   ].join('\n')
+}
+
+function describeTask(task: PreLaunchTask): string {
+  return 'refused' in task
+    ? `'${task.label}' — REFUSED, debug and run will not start: ${task.refused}`
+    : `'${task.label}' runs first as ${task.argv.join(' ')}${task.cwd ? ` (cwd ${task.cwd})` : ''}; a non-zero exit stops the launch`
+}
+
+async function taskGate(p: LaunchProfile, context: ToolUseContext): Promise<{ refuse: OpResult } | { ranLine: string }> {
+  if (!p.preLaunchTask) return { ranLine: '' }
+  const outcome = await runPreLaunchTask(p.preLaunchTask, context?.abortController?.signal)
+  if (!outcome.ran) return { refuse: { result: outcome.reason, outcome: 'failed' } }
+  return { ranLine: `preLaunchTask '${outcome.label}' ran: ${outcome.argv.join(' ')} (exit 0)\n` }
 }
 
 export function operatorRunRefusal(p: LaunchProfile): { result: string; outcome: ToolEffectOutcome } | null {
@@ -297,7 +312,12 @@ async function runOp(input: Input, context: ToolUseContext, onProgress?: ToolCal
   if ('refuse' in request) return request.refuse
   const absent = owners.find(name => !ownerAvailable(name, context))
   if (absent) return { result: ownerRefusal(input.op, absent, false), outcome: 'failed' }
-  if ('route' in request) return runRoute(p, request.route, context, onProgress)
+  const gate = 'route' in request || request.own === 'run' ? await taskGate(p, context) : { ranLine: '' }
+  if ('refuse' in gate) return gate.refuse
+  if ('route' in request) {
+    const routed = await runRoute(p, request.route, context, onProgress)
+    return gate.ranLine ? { ...routed, result: `${gate.ranLine}${routed.result}` } : routed
+  }
   if (request.own === 'run') {
     const sessionId = input.session ?? 'launch'
     const session = await createDapSession({
@@ -320,13 +340,13 @@ async function runOp(input: Input, context: ToolUseContext, onProgress?: ToolCal
       const { removeDapSession } = await import('../../services/dap/dapClient.js')
       await removeDapSession(owner, sessionId)
       return {
-        result: `ran ${p.label} — ${session.exitDetail || 'clean exit'}${tail ? `\noutput:\n${tail}` : ''}`,
+        result: `${gate.ranLine}ran ${p.label} — ${session.exitDetail || 'clean exit'}${tail ? `\noutput:\n${tail}` : ''}`,
         outcome: 'succeeded',
       }
     }
     note(`run ${p.id} (${p.label}) — still running (session '${sessionId}')`)
     return {
-      result: `${p.label} is RUNNING in Debug session '${sessionId}' — read its output with Debug ${JSON.stringify({ op: 'output', session: sessionId })}; stop it with Debug ${JSON.stringify({ op: 'disconnect', session: sessionId })}`,
+      result: `${gate.ranLine}${p.label} is RUNNING in Debug session '${sessionId}' — read its output with Debug ${JSON.stringify({ op: 'output', session: sessionId })}; stop it with Debug ${JSON.stringify({ op: 'disconnect', session: sessionId })}`,
       outcome: 'succeeded',
     }
   }
@@ -421,7 +441,11 @@ debug and test return that tool's own result plus the call they ran as. debug an
         ? await DebugTool.checkPermissions(route.input, context)
         : await TestTool.checkPermissions(route.input, context)
       if (ownerAsk.behavior === 'allow') return { behavior: 'allow' as const, updatedInput: input }
-      return { ...ownerAsk, message: `Launch ${input.op} ${p.id} (${p.label}) → ${ownerAsk.message}` }
+      const taskNote = p.preLaunchTask && !('refused' in p.preLaunchTask) ? ` — runs preLaunchTask '${p.preLaunchTask.label}' first: ${p.preLaunchTask.argv.join(' ')}` : ''
+      return { ...ownerAsk, message: `Launch ${input.op} ${p.id} (${p.label})${taskNote} → ${ownerAsk.message}` }
+    }
+    if (p.preLaunchTask && !('refused' in p.preLaunchTask)) {
+      return { ...ask, message: `${ask.message} — runs preLaunchTask '${p.preLaunchTask.label}' first: ${p.preLaunchTask.argv.join(' ')}` }
     }
     return ask
   },
