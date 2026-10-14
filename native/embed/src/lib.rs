@@ -4,6 +4,7 @@ use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::{Arc, Mutex, OnceLock};
 
 use napi::bindgen_prelude::*;
+use napi::{Env, Task};
 use napi_derive::napi;
 
 #[cfg(target_os = "macos")]
@@ -954,6 +955,43 @@ pub fn embed_batch(
     let m = get_model(handle)?;
     let q = is_query.unwrap_or(false);
     Ok(texts.iter().map(|t| m.forward(t, q)).collect())
+}
+
+pub struct EmbedJob {
+    model: Arc<EmbedModel>,
+    texts: Vec<String>,
+    is_query: bool,
+}
+
+impl Task for EmbedJob {
+    type Output = Vec<Vec<f64>>;
+    type JsValue = Vec<Vec<f64>>;
+
+    fn compute(&mut self) -> Result<Vec<Vec<f64>>> {
+        Ok(self
+            .texts
+            .iter()
+            .map(|t| self.model.forward(t, self.is_query))
+            .collect())
+    }
+
+    fn resolve(&mut self, _env: Env, output: Vec<Vec<f64>>) -> Result<Vec<Vec<f64>>> {
+        Ok(output)
+    }
+}
+
+#[napi(ts_return_type = "Promise<number[][]>")]
+pub fn embed_batch_async(
+    handle: u32,
+    texts: Vec<String>,
+    is_query: Option<bool>,
+) -> Result<AsyncTask<EmbedJob>> {
+    let model = get_model(handle)?;
+    Ok(AsyncTask::new(EmbedJob {
+        model,
+        texts,
+        is_query: is_query.unwrap_or(false),
+    }))
 }
 
 #[napi]

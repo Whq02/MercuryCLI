@@ -11,6 +11,7 @@ import { memorySecretRefusal } from './mnemeSecretGuard.js'
 import { ARCHIVE_PREFIX, isArchiveDoc, parseEntryLine, liveSeqs, serializeSignature, type MnemeTopicDoc } from './mnemeTopicDocs.js'
 import { bumpUsage, readPins, readUsage } from './mnemeUsage.js'
 import { candidates, fuseRecallRankings } from './mnemeLookup.js'
+import { appendFactToEmbedIndex } from './mnemeIndex.js'
 import { noteCorrected, noteRetained } from './lineageSession.js'
 import { currentLedger, footnoteContext, footnotesOf, renderLedgerEntry, type Footnotes } from './mnemeFootnotes.js'
 import type { LedgerEntry } from './types.js'
@@ -167,6 +168,7 @@ export function retainItems(
     sessionRetained.set(duplicateKey, id)
     outcomes.push({ index, status: 'stored', id })
     noteRetained(id, pin === true)
+    void appendFactToEmbedIndex(dir, { key: id, text: row.text }).catch(() => false)
   })
   return outcomes
 }

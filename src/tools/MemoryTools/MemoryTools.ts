@@ -18,6 +18,7 @@ import {
 import { confirmCitedFacts, renderFootnotes } from '../../mneme/mnemeFootnotes.js'
 import { POINTER_DEFAULT_LIMIT, POINTER_LIMIT, limitCutLine, renderPointerLine, searchPointers, type PointerResult } from '../../mneme/mnemePointers.js'
 import { runDueMaintenance } from '../../mneme/mnemeMaintenance.js'
+import { recallRankingWords } from '../../mneme/mnemeIndex.js'
 import {
   CORRECT_DESCRIPTION,
   CORRECT_PROMPT,
@@ -162,7 +163,7 @@ const recallSchema = lazySchema(() =>
 )
 type RecallSchema = ReturnType<typeof recallSchema>
 export type RecallOutput =
-  | ({ kind: 'pointers' } & PointerResult)
+  | ({ kind: 'pointers'; ranking?: string } & PointerResult)
   | ({ kind: 'record' } & MemoryReadResult)
 
 export const RecallTool = buildTool({
@@ -196,6 +197,7 @@ export const RecallTool = buildTool({
       data: {
         kind: 'pointers' as const,
         ...searchPointers(input.query ?? '', input.limit !== undefined ? { limit: input.limit } : {}),
+        ranking: recallRankingWords(),
       },
     }
   },
@@ -226,7 +228,7 @@ export const RecallTool = buildTool({
     return {
       tool_use_id: toolUseID,
       type: 'tool_result',
-      content: `${output.pointers.length} pointer(s) — a pointer carries no content: open one with read:"<id>" before you rely on it\n${cut === null ? '' : `${cut}\n`}${output.pointers.map(renderPointerLine).join('\n')}${catalog}`,
+      content: `${output.pointers.length} pointer(s)${output.ranking ? ` ranked by ${output.ranking}` : ''} — a pointer carries no content: open one with read:"<id>" before you rely on it\n${cut === null ? '' : `${cut}\n`}${output.pointers.map(renderPointerLine).join('\n')}${catalog}`,
     }
   },
   renderToolUseMessage: input => renderMemoryToolUse('recall', input),

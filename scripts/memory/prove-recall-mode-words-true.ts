@@ -27,7 +27,7 @@ const pack = await import('../../src/mneme/embedPack.js')
 const models = await import('../../src/mneme/embedModels.js')
 const idx = await import('../../src/mneme/mnemeIndex.js')
 const docs = await import('../../src/mneme/mnemeTopicDocs.js')
-const { recallQuery } = await import('../../src/mneme/memoryVerbs.js')
+const { recallQuery, retainItems } = await import('../../src/mneme/memoryVerbs.js')
 const { voicePackPlatform } = await import('../../src/services/voice/voicePack.js')
 
 const PACK_DIR = pack.embedPackDirFor(ROOT, voicePackPlatform())
@@ -81,13 +81,20 @@ console.log('\n[F] the front page sentence is what Recall does')
     { text: 'the build pipeline publishes a tarball every night', seq: 2, time: '2026-10-13T11:00:00.000Z', source: 's:a' },
   ] })
   writeFileSync(join(dir, 'topic-clock.md'), docs.serializeTopicDoc(a))
-  const index = idx.ensureEmbedIndex(dir)
+  const index = await idx.ensureEmbedIndex(dir)
   check('the derived index is built for the scratch library', index.built && index.rows === 2, JSON.stringify(index))
   const line = models.memoryRecallModeLine(dir)
   check('the front page says Recall ranks by meaning and words', line.includes('semantic + word match'), line)
   const hits = recallQuery('the laptop clock', { dir, now: new Date('2026-10-14T00:00:00.000Z') })
   const found = hits.hits.map(h => h.id)
   check('…and a query with no word in common finds the time-zone fact (the sentence is true)', found[0] === 'seq:1', JSON.stringify(found))
+  const retained = retainItems([{ content: 'the desk lamp flickers whenever the heater starts' }], { session: 'fixture' }, dir)
+  const id = retained[0]?.status === 'stored' ? retained[0].id : ''
+  const deadline = Date.now() + 10_000
+  while (Date.now() < deadline && !(idx.readEmbedIndex(dir)?.rows.some(r => r.key === id) ?? false)) await new Promise(r => setTimeout(r, 25))
+  check('a Retain embeds the new fact at once, under its pending id, off the thread', id.startsWith('pending:') && (idx.readEmbedIndex(dir)?.rows.some(r => r.key === id) ?? false), JSON.stringify({ id, keys: idx.readEmbedIndex(dir)?.rows.map(r => r.key) }))
+  const byMeaning = recallQuery('the lamp blinks', { dir, now: new Date('2026-10-14T00:00:00.000Z') }).hits.map(h => h.id)
+  check('…and Recall finds it by meaning before any consolidation', byMeaning[0] === id, JSON.stringify(byMeaning))
 }
 
 reset(null)
