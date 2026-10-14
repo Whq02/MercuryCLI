@@ -18,7 +18,7 @@
    │ available                                                      │  │ waiting (1 check) · expires in 5m          │
    │   Usage-based billing — Anthropic Console…       not signed in │  │ c copies the URL · esc cancels             │
    │   OpenRouter — one credential, the whole …       not signed in │  │                                            │
-   │   Google Gemini — API key or Google OAuth        not signed in │  │                                            │
+   │   Google Gemini — Google sign-in, API key        not signed in │  │                                            │
    │   GLM (Z.AI) — API key (general or GLM Co…       not signed in │  │                                            │
    │   DeepSeek — API key                             not signed in │  │                                            │
    │ ❯ xAI — Grok subscription sign-in or API …       not signed in │  ╰────────────────────────────────────────────╯

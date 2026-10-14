@@ -18,7 +18,7 @@
    │ available                                                      │  │ e=ABCD-1234                                │
    │   Usage-based billing — Anthropic Console…       not signed in │  │ waiting (3 checks) · expires in 5m         │
    │   OpenRouter — one credential, the whole …       not signed in │  │ the Kimi host did not answer (socket       │
-   │   Google Gemini — API key or Google OAuth        not signed in │  │ hangup) — still trying until the code…     │
+   │   Google Gemini — Google sign-in, API key        not signed in │  │ hangup) — still trying until the code…     │
    │   GLM (Z.AI) — API key (general or GLM Co…       not signed in │  │ c copies the URL · esc cancels             │
    │   DeepSeek — API key                             not signed in │  │                                            │
    │   xAI — Grok subscription sign-in or API …       not signed in │  ╰────────────────────────────────────────────╯

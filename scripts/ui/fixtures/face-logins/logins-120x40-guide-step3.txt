@@ -9,7 +9,7 @@
 
    ╭────────────────────────────────────────────────────────────────╮  ╭────────────────────────────────────────────╮
    │ CONTROL PLANE                                                  │  │ SETTING DETAIL                             │
-   │ signed in                                                      │  │ ❯ Google Gemini — API key or Google OAuth  │
+   │ signed in                                                      │  │ ❯ Google Gemini — Google sign-in, API key  │
    │   OpenAI — ChatGPT subscription or API key        ChatGPT Plus │  │                                            │
    │   Claude subscription account                   op@example.com │  │ Connect a Google account — step 3 of 6     │
    │   Hugging Face — device-code sign-in or a…      keyed-op …k9f2 │  │ › 3. Set up the consent screen for         │
@@ -18,7 +18,7 @@
    │ available                                                      │  │ auth/audience                              │
    │   Usage-based billing — Anthropic Console…       not signed in │  │ the overview page:                         │
    │   OpenRouter — one credential, the whole …       not signed in │  │ https://console.developers.google.com/     │
-   │ ❯ Google Gemini — API key or Google OAuth        not signed in │  │ auth/overview                              │
+   │ ❯ Google Gemini — Google sign-in, API key        not signed in │  │ auth/overview                              │
    │   GLM (Z.AI) — API key (general or GLM Co…       not signed in │  │ opened in your browser                     │
    │   DeepSeek — API key                             not signed in │  │ … (the trail continues — a taller termina… │
    │   xAI — Grok subscription sign-in or API …       not signed in │  ╰────────────────────────────────────────────╯

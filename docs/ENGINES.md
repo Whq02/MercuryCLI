@@ -584,12 +584,52 @@ come from its owning account resolvers:
 
 - **anthropic** — the account scope ring plus the API-key ladder, source-honest;
 - **openai** — the subscription store and the stored key, both shown when both exist;
-- **gemini** — API key or your own OAuth client; Cloud project billing: free Flash ~20 requests/day, Pro 0; billing enables paid limits. AI Pro/Ultra plans don't apply. Consumer Google sign-in ended June 18, 2026 (Gemini CLI too). The cockpit, daemon and session
-  runner read OAuth and locally stored keys from the same auth-scoped store.
-  The `/logins` card offers the API key first, as
+- **gemini** — Sign in with Google (your plan's quota), an API key, or your
+  own OAuth client. Sign in with Google runs Gemini on the plan of the Google
+  account you pick — a free account, Google AI Pro, Google AI Ultra, or a
+  Gemini Code Assist licence — the way Google's own Antigravity client does:
+  Mercury presents Google's Antigravity OAuth client (its public installed-app
+  client id and secret, the five scopes cloud-platform, userinfo.email,
+  userinfo.profile, cclog and experimentsandconfigs, offline access, the
+  consent prompt) on a loopback callback at 127.0.0.1:51121/oauth-callback with
+  PKCE; after the exchange it reads the account's e-mail, asks Google's Code
+  Assist endpoint (daily-cloudcode-pa.googleapis.com, its sandbox host as the
+  failover) for the tier and the project (`loadCodeAssist`; a free account is
+  provisioned once with `onboardUser`, a bounded operation), and stores the
+  grant auth-scoped (mode 600) beside the other sources. The models `/model`
+  offers on that sign-in are the roster Google serves the account
+  (`fetchAvailableModels`) — nothing else; only Gemini ids are chat rows on
+  this lane. A chat goes to that endpoint's `streamGenerateContent` under
+  Antigravity's own User-Agent (`antigravity/hub/<version> …`), whose version
+  follows Antigravity's update manifest (one bounded read a day, the shipped
+  2.23.0 as the fallback, skipped under traffic-off) because Google gates
+  newer models on it; the request wraps the Gemini request with the project
+  and a request id, the system instruction tagged as a user part, the tools'
+  schemas in the shape the endpoint accepts. What leaves the machine on this
+  road: the prompt, the tool schemas and the tool results, under Google's
+  Antigravity client id and the account you signed in — to Google alone. No
+  Cloud project, no client of your own, no API key. On June 18, 2026 Google
+  replaced the unpaid tier's Gemini CLI with Antigravity; a Google AI Pro or
+  Ultra plan rides this road, not an API key or your own client — those bill a
+  Cloud project (free Flash ~20 requests/day, Pro 0; billing enables paid
+  limits). The token is refreshed single-flight with the project kept; a
+  revoked refresh token drops the sign-in and every surface names `/logins`;
+  a refusal from the endpoint carries Google's words (an ineligible account
+  with its validation link, an exhausted quota with Google's retry words, a
+  model Google does not serve the account as a 404 naming the roster). The
+  cockpit, daemon and session runner read the three sources from the same
+  auth-scoped store; the latest sign-in action is the active source — a
+  pasted key makes the key active, a completed Google sign-in makes that
+  grant active — every receipt names the source requests ride, `/logins` and
+  `/usage` name a stored source that is not active, and ↵ on its row makes it
+  active without re-entering it.
+  The `/logins` card offers Sign in with Google first, as
+  `Sign in with Google — your plan's quota: AI Pro, AI Ultra or a free account`
+  (the browser opens Google's consent page for the Antigravity client; the
+  receipt names the tier, the e-mail and the roster count), the API key second, as
   `API key — the easiest: create one in AI Studio, paste it here`: choosing it
   opens https://aistudio.google.com/apikey in the browser, prints the address
-  for a box without one, and takes the key by one paste. The Google account is
+  for a box without one, and takes the key by one paste. The Google account (your own OAuth client) is third,
   six numbered steps, each opening its Console page: 1. Create a Google Cloud project;
   2. Enable the Gemini API on it (that page picks the project, or creates one);
   3. Set up the consent screen for testing (on the Audience page: the user type
