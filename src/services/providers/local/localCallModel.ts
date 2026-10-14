@@ -3,7 +3,7 @@ import { isDeferredTool, TOOL_SEARCH_TOOL_NAME } from '../../../tools/ToolSearch
 import type { Message } from '../../../types/message.js'
 import type { CallModelParams, CallModelStream } from '../callModelContract.js'
 import { toolToAPISchema } from '../../../utils/api.js'
-import { extractDiscoveredToolNames, isDeferredToolsDeltaEnabled, isToolSearchEnabledOptimistic } from '../../../utils/toolSearch.js'
+import { extractDiscoveredToolNames, isToolSearchEnabledOptimistic } from '../../../utils/toolSearch.js'
 import { getToolSchemaCache } from '../../../utils/toolSchemaCache.js'
 import { zodToJsonSchema } from '../../../utils/zodToJsonSchema.js'
 import { processOwnerForLane } from '../../run/resolveOwner.js'
@@ -16,7 +16,7 @@ import {
 } from '../openaicompat/compatChatCallModel.js'
 import { buildLocalExtras, localThinkingOff } from '../openaicompat/compatWire.js'
 import { EFFORT_STAMP_THINKING_OFF, EFFORT_STAMP_THINKING_ON, type EffortWireFact } from '../../../utils/effortStamp.js'
-import { deferredToolsAnnouncement, planToolPayload } from '../toolEconomy.js'
+import { planToolPayload } from '../toolEconomy.js'
 import { mapToolsToZai, type ApiShapedTool } from '../zai/zaiCodec.js'
 import { LOCAL_PULL_RECOMMENDATION, resolveLocalApiKey } from './localAccounts.js'
 import { LOCAL_SERVER_NAMES, localContextSourceWords, localFitRefusalSentence, localRecordFor, localWireId } from './localCatalogue.js'
@@ -83,8 +83,7 @@ export function localToolWireGuess(tools: Tools, messages: readonly Message[]): 
   for (const built of getToolSchemaCache().values()) rendered.set(built.name, { name: built.name, ...(built.description ? { description: built.description } : {}), input_schema: built.input_schema })
   const apiTools = roster.map(tool => rendered.get(tool.name) ?? unrenderedApiTool(tool))
   const named = deferring ? [...deferred].filter(name => !admitted.has(name)).length : 0
-  const nameRow = deferring && !isDeferredToolsDeltaEnabled() ? deferredToolsAnnouncement(tools, deferred) : null
-  return { schemas: apiTools.length, schemaBytes: wireBytesOf(apiTools), named, nameRowBytes: nameRow === null ? 0 : Buffer.byteLength(nameRow, 'utf8') }
+  return { schemas: apiTools.length, schemaBytes: wireBytesOf(apiTools), named, nameRowBytes: 0 }
 }
 
 export async function localToolWireOf(params: CompatCallModelParams): Promise<LocalToolWire> {
