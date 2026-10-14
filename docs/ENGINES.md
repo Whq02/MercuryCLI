@@ -910,7 +910,9 @@ Cross-host redirects are reported rather than followed. Paywalls and browser
 challenges ask for another source. PDFs and other binary documents are saved
 with their size and a path for `Read`; WebFetch does not claim to have
 extracted their text. Private or signed-in pages need an authenticated MCP
-connection or the site's CLI.
+connection or the site's CLI; a private address (a single-label name, an IP,
+or a name under `localhost`, `.local`, `.internal`, `.lan`, `.home`, `.corp`,
+`.home.arpa` and the like) is never sent to the hosted reader.
 
 ## Usability, usage, and readiness
 
