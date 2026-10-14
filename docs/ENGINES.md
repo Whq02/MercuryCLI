@@ -626,7 +626,12 @@ come from its owning account resolvers:
   collapse table routes it — low → `-low`, medium → `-medium`, high, max,
   xhigh or no effort → `-high`, a missing tier taking the nearest present —
   and the status row says the ride (`gemini-4-argon ▸ gemini-4-argon-high`);
-  a crewmate named onto the bare id takes the high row. A Claude row on
+  a crewmate named onto the bare id takes the high row. The roster is never
+  read only at sign-in: before a chat it is re-read when older than five
+  minutes (a bounded wait, the chat proceeds on the cached roster after two
+  seconds), and a bare id's 404 forces one re-read — a row that appeared
+  meanwhile is taken and the chat retried once, else the 404 words carry the
+  kin; never a loop. A Claude row on
   this road takes the request shape Google's own client sends it: thinking
   as a token budget (low 1024, medium 8192, high 24576, thoughts included),
   function calling VALIDATED even with no tools, an output ceiling of at

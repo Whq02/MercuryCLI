@@ -7,7 +7,7 @@ import {
 import { buildGeminiExtras } from '../openaicompat/compatWire.js'
 import { randomUUID } from 'node:crypto'
 import { geminiApiBase, resolveGeminiAccount, resolveGeminiRequestAuth } from './geminiAccounts.js'
-import { geminiEffortVocabularyFor, geminiOutputTokenLimitFor, geminiPlanRosterKin, geminiPlanRosterKinWords, geminiPlanWireModel, type GeminiPlanRosterKin } from './geminiCatalogue.js'
+import { geminiEffortVocabularyFor, geminiOutputTokenLimitFor, geminiPlanRosterKin, geminiPlanRosterKinWords, geminiPlanWireModel, refreshGeminiCatalogue, type GeminiPlanRosterKin } from './geminiCatalogue.js'
 import { clearGeminiUsageLimit, recordGeminiRateHeaders } from './geminiUsageState.js'
 import type { CompatStreamEvent } from '../openaicompat/compatChatClient.js'
 import { geminiPlanStreamUrl, streamGeminiContent, type GeminiPlanWire } from './geminiClient.js'
@@ -169,24 +169,47 @@ async function* geminiPlanCallModel(params: CallModelParams): CallModelStream {
       }
     },
   }
-  for await (const item of compatChatCallModel(profile, params)) {
-    if (item.type === 'assistant' && item.isApiErrorMessage && item.error === 'authentication_failed') {
-      const refreshed = recovery === 'retried'
-        ? ' The stored token was refreshed and the call retried once before this refusal.'
-        : recovery === 'no-new-credential' ? ' A token refresh was attempted first and produced no new credential.' : ''
-      yield createAssistantAPIErrorMessage({
-        content: `${API_ERROR_MESSAGE_PREFIX}: the Google sign-in's token was refused${status === undefined ? '' : ` (HTTP ${status})`} · /logins → Sign in with Google signs in again; /model picks another model meanwhile.${refreshed}${wireSaid === undefined ? '' : ` The wire said: ${wireSaid}`}`,
-        error: item.error,
-        errorDetails: item.errorDetails,
-      })
-    } else if (item.type === 'assistant' && item.isApiErrorMessage && status === 404) {
-      yield createAssistantAPIErrorMessage({
-        content: geminiPlanModelMissingWords(model, status, wireSaid),
-        error: item.error,
-        errorDetails: item.errorDetails,
-      })
-    } else yield item
+  await rosterReadBounded(false, GEMINI_PLAN_ROSTER_WAIT_MS)
+  for (let attempt = 0; attempt < 2; attempt++) {
+    status = undefined
+    wireSaid = undefined
+    let rerun = false
+    for await (const item of compatChatCallModel(profile, params)) {
+      if (item.type === 'assistant' && item.isApiErrorMessage && item.error === 'authentication_failed') {
+        const refreshed = recovery === 'retried'
+          ? ' The stored token was refreshed and the call retried once before this refusal.'
+          : recovery === 'no-new-credential' ? ' A token refresh was attempted first and produced no new credential.' : ''
+        yield createAssistantAPIErrorMessage({
+          content: `${API_ERROR_MESSAGE_PREFIX}: the Google sign-in's token was refused${status === undefined ? '' : ` (HTTP ${status})`} · /logins → Sign in with Google signs in again; /model picks another model meanwhile.${refreshed}${wireSaid === undefined ? '' : ` The wire said: ${wireSaid}`}`,
+          error: item.error,
+          errorDetails: item.errorDetails,
+        })
+      } else if (item.type === 'assistant' && item.isApiErrorMessage && status === 404) {
+        if (attempt === 0) {
+          const before = wireOf(model)
+          await rosterReadBounded(true, GEMINI_PLAN_ROSTER_REREAD_MS)
+          if (wireOf(model) !== before) {
+            rerun = true
+            break
+          }
+        }
+        yield createAssistantAPIErrorMessage({
+          content: geminiPlanModelMissingWords(model, status, wireSaid),
+          error: item.error,
+          errorDetails: item.errorDetails,
+        })
+      } else yield item
+    }
+    if (!rerun) return
   }
+}
+
+const GEMINI_PLAN_ROSTER_WAIT_MS = 2_000
+const GEMINI_PLAN_ROSTER_REREAD_MS = 5_000
+
+async function rosterReadBounded(force: boolean, waitMs: number): Promise<void> {
+  const read = refreshGeminiCatalogue('plan', force ? { force: true } : undefined).then(() => undefined, () => undefined)
+  await Promise.race([read, new Promise<void>(resolve => setTimeout(resolve, waitMs).unref?.())])
 }
 
 export async function* geminiCallModel(params: CallModelParams): CallModelStream {
