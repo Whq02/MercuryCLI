@@ -20,6 +20,9 @@ export interface LoginFamilyRow {
   value: LoginFamilyValue
 }
 
+export const META_SIGN_IN_ROADS = 'Muse Code sign-in or API key'
+export const META_LOGIN_FAMILY_LABEL = `Meta — ${META_SIGN_IN_ROADS}`
+
 export function loginFamilyRows({ engineLegs }: { engineLegs: boolean }): LoginFamilyRow[] {
   return [
     ...(engineLegs
@@ -42,7 +45,7 @@ export function loginFamilyRows({ engineLegs }: { engineLegs: boolean }): LoginF
           { label: 'GLM (Z.AI) — API key (general or GLM Coding Plan)', value: 'zai' as const },
           { label: 'DeepSeek — API key', value: 'deepseek' as const },
           { label: 'xAI — Grok subscription sign-in or API key', value: 'xai' as const },
-          { label: 'Meta — API key (Muse)', value: 'meta' as const },
+          { label: META_LOGIN_FAMILY_LABEL, value: 'meta' as const },
           { label: 'Mistral — API key (Mistral Large 4)', value: 'mistral' as const },
           { label: 'Nous Portal — account sign-in or API key (model gateway)', value: 'nous' as const },
           { label: 'OpenCode Zen — API key (one key, the gateway\'s model list)', value: 'zen' as const },

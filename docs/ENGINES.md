@@ -108,38 +108,52 @@ with their date.
 
 Meta's Muse Spark rows come only from the account's live `GET /v1/models`
 list, newest creation time first, with the id breaking ties. Connect through
-`/logins meta` (or `/logins muse`), `/router key meta`, or `MODEL_API_KEY`;
-`META_API_KEY`, the spelling Muse Code documents, is also accepted, after
-`MODEL_API_KEY` and before the stored key. These are pay-as-you-go Model API
-keys. `/accounts` manages the stored key. The family word `muse` selects the
-newest served Standard Muse Spark row. A successful empty list stays empty;
-no unfetched row becomes selectable. A named id can be sent with an honest
-notice when the list is unreachable, but an id missing from a fetched list
-is refused before chat.
+`/logins meta` (or `/logins muse`): the card’s first row is **Sign in with
+Meta — a Muse Code subscription, a device code in your browser**, and the
+second is a pay-as-you-go Model API key (`/router key meta`, `MODEL_API_KEY`,
+or `META_API_KEY`, which is accepted after `MODEL_API_KEY` and before the
+stored key). Sign in with Meta requests a device code from
+`https://auth.meta.com/oidc/device/authorization/` and polls
+`https://auth.meta.com/oidc/device/token/` with `Accept: application/json` and
+`x-api-version: 1.0.0` under Muse Code’s public client id (`1031625952748946`),
+then sends the resulting account token once to
+`POST https://api.meta.ai/muse-code/key` (`Authorization: Bearer <account token>`,
+`x-api-version: 1.0.0`, `{ "onboard": true }`), which mints the subscription’s
+API key (`api_key`) and states `user_email`, `subs_tier_name` and `subs_usage`
+(`window` and `weekly` used percent and reset timestamps). The grant is stored
+auth-scoped at mode 600 in `.meta-auth.json` beside the API key. Model requests
+send only the minted key to `https://api.meta.ai/v1` — never the account token.
+When an account has no active plan, Meta answers `require_payment` with the
+`action_url` / `require_payment_action_url` page to visit, and nothing is
+stored as active. The latest sign-in action is the active source; `/logins` and
+`/usage` name a stored source that is not active, and `↵` on its `/logins` row
+makes it active without re-entering. A refused minted key (401/403) reports
+`the Muse Code key was refused — /logins signs in with Meta again` and never
+falls through silently to another source. `/accounts` manages both slots. The
+family word `muse` selects the newest served Standard Muse Spark row. A
+successful empty list stays empty; no unfetched row becomes selectable. A named
+id can be sent with an honest notice when the list is unreachable, but an id
+missing from a fetched list is refused before chat.
 
 Contributor rows are labelled **training permitted** and must be selected
 explicitly: neither `muse` nor the computed default silently opts an account
-into training on its prompts and completions. Meta's documented Spark 1.3,
+into training on its prompts and completions. Meta’s documented Spark 1.3,
 1.2 and 1.1 rows have a 1,048,576-token context. Standard pricing is $1.25
 input, $0.15 cached input and $4.25 output per million tokens; the 1.3 and 1.2
 Contributor rows are $0.10, $0.002 and $0.20 respectively, with no long-context
 premium. Unrecorded served ids keep their raw names and unknown prices.
 
-Mercury uses Meta's OpenAI-compatible Chat Completions endpoint at
+Mercury uses Meta’s OpenAI-compatible Chat Completions endpoint at
 `https://api.meta.ai/v1/chat/completions`, with streaming, function tools,
-JSON-schema output and the model's documented reasoning effort. `none` is
+JSON-schema output and the model’s documented reasoning effort. `none` is
 not supported; `max` is documented only for Standard Muse Spark 1.3. No
 reasoning-off flag is sent. Meta also offers Responses and Messages APIs;
 its Chat Completions API does **not** preserve private reasoning across
-turns. Mercury's Meta road therefore replays the conversation and tool
+turns. Mercury’s Meta road therefore replays the conversation and tool
 results, not encrypted reasoning. Meta recommends Responses for reasoning
 continuity in agentic work; that is not claimed by this road.
 
-Meta's subscription page says: “This credential is for use with Muse Code
-only” and a subscription “works only through the Muse Code CLI”. Mercury
-does not reuse Muse Code's browser session, client identity or subscription
-credential. No public third-party OAuth client registration or device flow
-was documented in the sources read on **2026-09-30**: [quickstart](https://dev.meta.ai/docs/quickstart),
+Sources: [quickstart](https://dev.meta.ai/docs/quickstart),
 [models](https://dev.meta.ai/docs/models), [pricing](https://dev.meta.ai/docs/pricing-rate-limits),
 [reasoning](https://dev.meta.ai/docs/reasoning), [authentication](https://dev.meta.ai/docs/authentication),
 [Muse Code sign-in](https://dev.meta.ai/docs/muse-code/auth) and
@@ -763,7 +777,8 @@ come from its owning account resolvers:
   win independently. `/router key xai-management` adds the management key
   directly, and its `clear` road or its own `/accounts` row removes only that
   key — the inference key stays. A management key alone cannot run Grok;
-- **zai, deepseek, meta, zen, huggingface, local, compat, nous** — env pins and stored keys.
+- **meta** — a Muse Code subscription sign-in (`.meta-auth.json`, mode 600, holding the account token, the minted key, the e-mail, the tier and the usage windows) or an API key (`MODEL_API_KEY`, `META_API_KEY` or stored key), the latest sign-in action active;
+- **zai, deepseek, zen, huggingface, local, compat, nous** — env pins and stored keys.
 - **mistral** — an env pin or a stored key, with an optional Admin API key
   beside it (`MISTRAL_ADMIN_API_KEY`, `/router key mistral-admin`) that reads
   the organisation meter and never runs a turn; its own `/accounts` row
@@ -1167,9 +1182,10 @@ key's credit totals and cap, the DeepSeek and Moonshot balances, xAI's team
 balance and billing-cycle usage with a management key, Mistral's organisation
 usage against its monthly limit with an Admin API key, a Nous Portal key's
 plan and usable credits when the Portal account endpoint resolves the key,
-and an honest one-line
+a Meta Muse Code sign-in's tier and rolling/weekly windows (bounded re-read
+through `POST https://api.meta.ai/muse-code/key`), and an honest one-line
 absence for a lane whose provider publishes no usage Mercury can read
-(a general Z.AI key, Gemini, Hugging Face, Meta, a custom endpoint, an API key
+(a general Z.AI key, Gemini, Hugging Face, a Meta API key, a custom endpoint, an API key
 on a subscription lane, a local server).
 Every API-key slot carries a credits line: the provider-stated balance with
 its feed and age where the family exposes one (the DeepSeek and Moonshot

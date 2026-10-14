@@ -22,7 +22,7 @@
    │   GLM (Z.AI) — API key (general or GLM Co…       not signed in │  │                                            │
    │   DeepSeek — API key                             not signed in │  │                                            │
    │   xAI — Grok subscription sign-in or API …       not signed in │  ╰────────────────────────────────────────────╯
-   │   Meta — API key (Muse)                          not signed in │  ╭────────────────────────────────────────────╮
+   │   Meta — Muse Code sign-in or API key            not signed in │  ╭────────────────────────────────────────────╮
    │   Mistral — API key (Mistral Large 4)            not signed in │  │ LOGINS                                     │
    │   Nous Portal — account sign-in or API ke…       not signed in │  │ Families   13                              │
    │   OpenCode Zen — API key (one key, the ga…       not signed in │  │ Signed in  4 of 13                         │

@@ -153,6 +153,10 @@ function engineIdentityLive(id: RouterProviderId): string | undefined {
       const { resolveXaiAccount } = require('./xai/xaiAccounts.js') as typeof import('./xai/xaiAccounts.js')
       return resolveXaiAccount()?.email
     }
+    if (id === 'meta') {
+      const { resolveMetaAccount } = require('./meta/metaAccounts.js') as typeof import('./meta/metaAccounts.js')
+      return resolveMetaAccount()?.email
+    }
     if (id === 'huggingface') return resolveHuggingfaceAccount()?.username
     if (id === 'mistral') {
       const { mistralObservedIdentityWords } = require('./mistral/mistralUsageState.js') as typeof import('./mistral/mistralUsageState.js')
@@ -633,6 +637,11 @@ export async function refreshProviderUsage(provider: RouterProviderId, io?: Usag
       case 'mistral': {
         const { refreshMistralUsage } = require('./mistral/mistralUsageState.js') as typeof import('./mistral/mistralUsageState.js')
         await refreshMistralUsage(io)
+        return
+      }
+      case 'meta': {
+        const { refreshMetaMuseCodeUsage } = require('./meta/metaUsageState.js') as typeof import('./meta/metaUsageState.js')
+        await refreshMetaMuseCodeUsage(io)
         return
       }
       case 'zen': {
@@ -1503,6 +1512,33 @@ export function usageForProvider(
   return { ...view, carry: CARRY_UNSTATED }
 }
 
+export function metaMuseCodeUsage(spend: ProviderSessionSpend = providerSessionSpend('meta')): ActiveSourceUsage | undefined {
+  const state = require('./meta/metaUsageState.js') as typeof import('./meta/metaUsageState.js')
+  const observed = state.metaObservedMuseCodeUsage()
+  if (observed.usage === null) return undefined
+  const note = observed.failure ? state.metaMuseCodeFailureWords(observed.failure) : undefined
+  const windows = state.metaMuseCodeWindowViews(observed.usage)
+  return {
+    provider: 'meta',
+    sourceKind: 'subscription-oauth',
+    label: 'Muse Code subscription',
+    shape: 'subscription-windows',
+    windows,
+    ...(windows.length === 0 ? { absence: 'Plan windows: not stated on the last read.' } : {}),
+    pools: [],
+    spend,
+    tier: observed.usage.tierName ?? observed.usage.tierId ?? 'Muse Code',
+    credits: {
+      state: 'unreported',
+      reason: 'plan windows meter the subscription',
+      compact: 'plan windows',
+      ...(observed.usage.observedAtMs ? { observedAtMs: observed.usage.observedAtMs, source: 'endpoint' as const, freshForMs: usageStaleAfterMs() } : {}),
+    },
+    carry: CARRY_UNSTATED,
+    ...(note !== undefined ? { readerNote: note, readerNoteCompact: note } : {}),
+  }
+}
+
 function deriveUsageForProvider(
   provider: RouterProviderId | 'unrecognised',
   reads?: ActiveUsageReads,
@@ -1750,10 +1786,15 @@ function deriveUsageForProvider(
   }
   if (provider === 'meta') {
     const credentialed = reads?.laneCredentialed?.(provider) ?? laneCredentialedLive(provider)
-    const { META_USAGE_ABSENCE } = require('./meta/metaUsageState.js') as typeof import('./meta/metaUsageState.js')
-    return credentialed
-      ? { provider, sourceKind: 'api-key', label: 'API usage', shape: 'api-spend', windows: [], pools: [], credits: CREDITS_UNREPORTED, spend, tier: API_BILLING_TIER, absence: META_USAGE_ABSENCE }
-      : { provider, sourceKind: 'none', label: 'Meta usage', shape: 'none', windows: [], pools: [], spend, whyNot: 'not connected — /logins meta adds a key' }
+    if (!credentialed) return { provider, sourceKind: 'none', label: 'Meta usage', shape: 'none', windows: [], pools: [], spend, whyNot: 'not connected — /logins meta adds a key' }
+    const state = require('./meta/metaUsageState.js') as typeof import('./meta/metaUsageState.js')
+    const { resolveMetaAccount } = require('./meta/metaAccounts.js') as typeof import('./meta/metaAccounts.js')
+    const account = reads?.laneCredentialed ? undefined : resolveMetaAccount()
+    if (account?.kind === 'muse-code') {
+      const subscription = metaMuseCodeUsage(spend)
+      if (subscription !== undefined) return subscription
+    }
+    return { provider, sourceKind: 'api-key', label: 'API usage', shape: 'api-spend', windows: [], pools: [], credits: CREDITS_UNREPORTED, spend, tier: API_BILLING_TIER, absence: state.META_USAGE_ABSENCE }
   }
   if (provider === 'mistral') {
     const credentialed = reads?.laneCredentialed?.(provider) ?? laneCredentialedLive(provider)

@@ -33,7 +33,7 @@ try {
     check(`${status} refuses storage and names the key dashboard`, !rejected.ok && !rejected.stored && !readStoredMetaApiKey() && rejected.receipt.includes('dev.meta.ai'))
   }
   const saved = await storeMetaApiKeyLogin(key, { env, fetchImpl: reply(200) })
-  check('a listed key is stored with an explicit pay-as-you-go receipt, never its secret', saved.ok && saved.stored && saved.receipt.includes('1 Muse Spark model listed') && saved.receipt.includes('Muse Code only') && !saved.receipt.includes(key) && readStoredMetaApiKey() === key)
+  check('a listed key is stored with an explicit pay-as-you-go receipt, never its secret', saved.ok && saved.stored && saved.receipt.includes('1 Muse Spark model listed') && saved.receipt.includes('the active source') && saved.receipt.includes('pay-as-you-go') && !saved.receipt.includes(key) && readStoredMetaApiKey() === key)
   check('at-rest storage is auth-scoped and mode 600', providerSecretsPathForDisplay().startsWith(proofHome) && (statSync(providerSecretsPathForDisplay()).mode & 0o777) === 0o600)
   check('sign-in recency records the Meta key', readSignInLedger().meta?.kind === 'api-key')
   check('account labels contain presence, never the secret', resolveMetaApiKey({})?.source === 'stored' && !JSON.stringify(resolveMetaAccount({} as NodeJS.ProcessEnv)).includes(key))
