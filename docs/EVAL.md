@@ -1,114 +1,72 @@
 # The Eval tool: one code cell at a time in a retained runtime
 
-The Eval tool runs one code cell per call in a runtime that stays alive
-between calls: a Python kernel or a JavaScript kernel, one of each per agent
-and working directory. Variables, imports, functions and classes defined in
-one cell are there for the next; `reset: true` recreates that language's
-runtime alone. It is the tool the model reaches for when work is stateful,
-iterative or data-shaped; plain shell commands stay on the Bash tool.
-For several steps, make several Eval calls; calls in one message run in
-order, each with its own result.
+The `Eval` tool runs one Python (`python3`) or JavaScript (Node ES module) code
+cell per call in a retained runtime per agent and working directory.
+
+Variables, imports, functions and classes defined in one cell persist for the
+next; `reset: true` recreates that language's runtime alone. Use `Eval` for
+stateful, iterative or data-shaped work and `Bash` for plain shell commands.
+Multiple `Eval` calls in one message execute sequentially, each with its own
+result. When an `Eval` call asks for permission (or renders in verbose mode),
+the approval card displays the full code cell it will run beneath the language
+and title.
 
 ## What persists, and what a failed cell says
 
-- **JavaScript.** Top-level `import` statements and top-level `const`,
-  `let`, `var`, `class` and `function` declarations persist across cells
-  through a source transform. Quoted strings and template literals in an
-  initializer may contain text with commas and equals signs. A declaration
-  written directly after a block's closing brace on the same line
-  (`for (…) {…} var total = 0`) persists like any other; declarations inside
-  a block or a function do not. Leading and trailing comments preserve
-  declaration boundaries; regex literals in initializers may contain commas,
-  quotes and braces. The transform is lexical, not a full parser: when its
-  output would break a valid cell, the cell runs unchanged without promising
-  to retain its bindings. One declaration per statement reads best.
-- **Python.** The namespace keeps every assignment a cell made before it
-  ended, error or not.
-- **A cell that throws** keeps what it bound before the throw. Its result
-  carries a `[note]` line naming the bindings that survived and the ones
-  that never landed: a declaration whose initializer threw, `var`
-  included, never landed and is not written to the runtime, so a later
-  cell cannot mistake it for a value.
-- **An idle kernel is reaped** after fifteen minutes. The next cell in that
-  language starts a fresh runtime and its result says so; re-run the setup
-  cell first.
-- **A cancelled cell.** A timeout or an operator stop interrupts the
-  kernel; Python keeps its state, the JavaScript kernel is recreated, and
-  the result says which and is marked as an error.
+- **JavaScript**: top-level `import` statements and top-level `const`, `let`,
+  `var`, `class` and `function` declarations persist across cells through a
+  lexical source transform (including declarations after a block's closing
+  brace on the same line, quoted strings, template literals and regex literals
+  in initializers). Declarations inside a block or function stay local; if the
+  lexical transform would alter a valid cell's syntax, the cell runs unchanged
+  without retaining its top-level bindings.
+- **Python**: the namespace keeps every assignment a cell made before it ended.
+- **Throwing cells**: bindings completed before the throw survive; a `[note]`
+  line lists the bindings that survived and any declaration whose initializer
+  threw (including `var`), which is never written to the runtime.
+- **Idle reaping and cancellation**: an idle kernel is reaped after 15 minutes
+  (the next cell starts a fresh runtime and notes the reset). A timeout or user
+  interrupt stops the running cell, marks the result as an error, preserves
+  Python state, and recreates the JavaScript kernel.
 
-## The JavaScript kernel's environment
+## The JavaScript and Python kernels
 
-The JavaScript kernel is a child Node process running an ES module, on the
-Node that runs Mercury itself. The result of a cell that trips over the
-difference names the fact and the fix:
+The JavaScript kernel runs as an ES module on the same Node binary that runs
+Mercury:
 
-- `require()` resolves from the working directory. Local modules are
-  re-read before each cell; entries under `node_modules` stay cached.
-  `module`, `exports`, `__dirname` and `__filename` are not defined.
-  `import { readFileSync } from 'node:fs'` at the top level persists across
-  cells, and `const fs = await import('node:fs')` works anywhere.
-  `process.cwd()` is the working directory.
-- The global `crypto` is the Web Crypto API (`crypto.subtle`,
-  `crypto.randomUUID()`, `crypto.getRandomValues()`). Node's `createHash`,
-  `createHmac`, `randomBytes` and the rest are in the `node:crypto` module:
-  `import { createHash } from 'node:crypto'`, or
-  `const { createHash } = await import('node:crypto')`.
-- Node's own globals are there: `process`, `Buffer`, `fetch`, `URL`, the
-  timers. `import.meta` is unavailable in a cell. Top-level `await` works.
-- A relative import is re-read on every cell, so an edited local module
-  loads fresh; a package keeps its identity.
+- `require()` resolves from `process.cwd()` (the working directory), reloading
+  edited local modules before each cell while keeping `node_modules` cached;
+  top-level `import` and dynamic `await import(…)` also reload relative local
+  modules on each cell (`module`, `exports`, `__dirname`, `__filename` and
+  `import.meta` are undefined).
+- Global `crypto` is the Web Crypto API (`crypto.subtle`, `crypto.randomUUID()`,
+  `crypto.getRandomValues()`); import `node:crypto` for `createHash`,
+  `createHmac` and `randomBytes`. Standard Node globals (`process`, `Buffer`,
+  `fetch`, `URL`, timers) and top-level `await` are available.
 
-## The Python kernel
+The Python kernel runs on `MERCURY_EVAL_PYTHON`, the active virtualenv,
+`.venv` in the working directory, or `python3` on `PATH`, capturing the final
+expression's value and any figures after each cell.
 
-Python cells run on `python3`: the interpreter named by
-`MERCURY_EVAL_PYTHON`, else the active virtualenv, else `.venv` under the
-working directory, else the `python3` on the path. The last expression's
-value is the cell result, as in a notebook, and figures are captured after
-each cell.
+## Inside a cell, results and switches
 
-## Inside a cell
+Both kernels expose the same helpers: `tool.<Name>(…)` invokes any session tool
+under the session's permission mode (throwing on a refused tool call, while
+`tool.attempt` returns the refusal as a value; a `Bash` command returns
+`{ code, stdout, stderr }` with the merged capture in `stdout` and `stderr`
+empty regardless of exit code). `agent(…)`, `parallel(…)` and `pipeline(…)`
+delegate to crewmates; `completion(…)` runs a tool-free model call;
+`display(…)` renders rich text, markdown, JSON (up to 10,000 characters before
+marking a cut) or images; `read_file` and `write_file` call `Read` and `Write`;
+and `tool.Inspect({ ref })` (or `tool.Inspect(ref=ref)` in Python) reads a
+`mercury://` resource. Provider credentials are stripped from the kernel
+environment. With Samples enabled ([SAMPLES.md](SAMPLES.md)),
+`sample({ name, title?, html, ask? })` saves a versioned HTML sample when you
+asked to see one.
 
-Both kernels carry the same helpers: `tool.<Name>(…)` calls any session
-tool under the session's permission mode (a call raises into the cell only
-when the tool refused to run — an unknown tool, the kill switch, a
-permission, a ward; `tool.attempt` returns that error as a value instead).
-A Bash command that ran comes back as a value whatever it exited:
-`{code, stdout, stderr}`, where `code` is the exit code, `stdout` is the
-command's one interleaved capture — the same text the Bash tool returns —
-and `stderr` is always empty because the Bash tool keeps one stream; a
-non-zero exit never stops the cell, the cell's own code decides what it
-means. `agent(…)` runs
-one crewmate, `parallel(…)` and `pipeline(…)` fan work out, `completion(…)`
-makes a tool-free model call, `display(…)` and its markdown, JSON and image
-forms put rich output beside stdout, and `read_file` / `write_file` are the
-Read and Write tools. Provider credentials never reach a kernel's
-environment; a cell that needs a secret receives it through an approved
-tool call.
-
-`tool.Inspect({ref})` in JavaScript or `tool.Inspect(ref=ref)` in Python
-reads a `mercury://` reference through the normal tool permission path.
-With samples enabled, `sample({name, title?, html, ask?})` keeps a versioned
-page you asked to see. JavaScript awaits it; Python also accepts keyword
-arguments. The result lists the title, version and address, with your
-request when supplied as `ask`. Use it only when you asked to see something;
-see [Samples](SAMPLES.md).
-
-## Results and budgets
-
-The last expression's value appears after `⇒` in either language. In
-JavaScript, a final expression beginning with `(` or `[` is captured when
-it is the only statement or the preceding statement ends with `;`; a line
-that continues the previous statement is left alone.
-
-`timeoutSeconds` defaults to 30, is clamped to 600 with a note in the result,
-and accepts 0 to disable the runtime budget. Tool, agent and completion
-waits do not consume that budget; permission waits also pause the
-30-minute wall ceiling. A budget stop or cancellation is an error result.
-Output is bounded with a path to the full stream when it spills. A text,
-markdown or JSON display shows its first 10,000 characters and marks any cut.
-
-## Switches
-
-`MERCURY_EVAL=0` removes the tool; `MERCURY_EVAL_JS=0` and
-`MERCURY_EVAL_PY=0` remove one language each, and the tool's schema then
-advertises only the languages that would run.
+The final expression's value prints after `⇒`. `timeoutSeconds` defaults to
+`30`, clamps to `600` with a note, and accepts `0` for no cell timeout (tool,
+agent, completion and permission waits do not count against the cell timeout,
+and permission waits pause the 30-minute wall ceiling). `MERCURY_EVAL=0`
+removes the tool; `MERCURY_EVAL_JS=0` and `MERCURY_EVAL_PY=0` remove one
+language each from the tool schema.
