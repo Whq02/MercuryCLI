@@ -1,8 +1,10 @@
 import { getModelUsage } from '../../../bootstrap/state.js'
 import { getFocusedSessionConnector } from '../../engine-connector/focusedConnector.js'
 import { declaredRouteOf } from '../routeLaw.js'
-import type { UsageFigureView } from '../providerUsage.js'
-import { geminiPlanEffortSuffix, type GeminiEffortSuffix } from './geminiCatalogue.js'
+import type { UsageFigureView, UsageRefreshIo } from '../providerUsage.js'
+import { usagePollTtlMs } from '../usageFreshness.js'
+import { resolveGeminiAccount } from './geminiAccounts.js'
+import { geminiPlanEffortSuffix, getCachedGeminiCatalogue, refreshGeminiCatalogue, type GeminiCatalogueSnapshot, type GeminiEffortSuffix } from './geminiCatalogue.js'
 
 export interface GeminiPlanQuotaView {
   active?: UsageFigureView
@@ -66,5 +68,24 @@ export function geminiLaneModelsByLastUse(usage: Readonly<Record<string, { lastU
 
 export function geminiPlanQuotaFoldWords(count: number, expanded: boolean): string {
   return `${count} other roster model${count === 1 ? '' : 's'} — ↵ ${expanded ? 'folds them' : 'lists them'}`
+}
+
+export async function refreshGeminiPlanQuota(io?: UsageRefreshIo): Promise<void> {
+  const env = io?.env ?? process.env
+  const now = io?.now ?? Date.now
+  if (resolveGeminiAccount(env)?.kind !== 'plan') return
+  const reason = io?.reason ?? 'open'
+  if (reason === 'open' && io?.force !== true) {
+    const cached = getCachedGeminiCatalogue('plan', env)
+    const attemptedAtMs = cached?.lastAttemptAtMs ?? cached?.fetchedAtMs ?? 0
+    if (cached !== null && now() - attemptedAtMs < usagePollTtlMs()) return
+  }
+  await refreshGeminiCatalogue('plan', { force: true, env, now, ...(io?.fetchImpl !== undefined ? { fetchImpl: io.fetchImpl } : {}) })
+}
+
+export function geminiPlanQuotaReadNote(snapshot: Pick<GeminiCatalogueSnapshot, 'lastError'> | null): string | undefined {
+  if (snapshot === null || snapshot.lastError === undefined) return undefined
+  const why = snapshot.lastError === 'account-source-unavailable' ? 'the Google sign-in could not be used' : snapshot.lastError
+  return `no quota read (${why})`
 }
 
