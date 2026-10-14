@@ -1089,12 +1089,19 @@ key from the console's settings page to read usage — /logins xai". A refused
 management key is named plainly, with the last successful read and its age
 left visible. No management key is not an error.
 
-A Google sign-in on the Gemini lane shows its credits line and an absence line
-naming the view (the Cloud console Quotas page for the Generative Language
-API, or Google AI Studio), because Google states no usage, quota or credit
-figure to it: the Gemini API has no usage endpoint, its replies carry no quota
-headers, and the Code Assist, Cloud Quotas and Cloud Monitoring roads refuse a
-sign-in made with your own OAuth client.
+A Sign in with Google on the Gemini lane shows, under its own slot, the tier
+Google reports for the account (free, the paid plan's own name such as Google
+AI Pro, or a Code Assist licence) with the read's age, and the quota left per
+model that Google's roster states for it (with its reset time, read with the
+model list); Google states no spend or credit figure for it, and the absence
+line says so and names the plan's own page. The same tier and age ride the
+`/logins` row. A Google account signed in with your own OAuth client shows its
+credits line and an absence line naming the view (the Cloud console Quotas
+page for the Generative Language API, or Google AI Studio), because Google
+states no usage, quota or credit figure to it: the Gemini API has no usage
+endpoint, its replies carry no quota headers, and the Code Assist, Cloud
+Quotas and Cloud Monitoring roads refuse a sign-in made with your own OAuth
+client.
 A Hugging Face sign-in or token shows the plan the Hub states to it
 (`whoami-v2`: PRO or free, whether a payment method is on file, when the
 billing period ends) as its tier and a plan line with the read's age, sampled

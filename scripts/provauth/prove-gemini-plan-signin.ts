@@ -207,7 +207,7 @@ try {
   const slot = slots.deriveFamilySlotGroups().flatMap(group => group.slots).find(s => s.id === 'gemini:plan')
   check('the /accounts board carries the Google sign-in slot with its e-mail and removal route', slot?.kind === 'subscription' && slot.identity.includes('Google AI Pro') && slot.signInEmail === 'plan@example.invalid' && slot.active && slot.removal.route === 'gemini-plan', JSON.stringify(slot))
   const rows = guide.geminiConnectRows(guide.liveGeminiConnectFacts())
-  check('the /logins card offers Sign in with Google first, connected with the tier, the key second, the own client third', rows[0]!.value === 'plan' && rows[0]!.label === 'Sign in with Google — connected (Google AI Pro) · ↵ signs in again' && rows[1]!.value === 'key' && rows[2]!.value === 'google', JSON.stringify(rows))
+  check('the /logins card offers Sign in with Google first, connected with the tier and the read\'s age, the key second, the own client third', rows[0]!.value === 'plan' && /^Sign in with Google — connected \(Google AI Pro, read \d+s ago\) · ↵ signs in again$/.test(rows[0]!.label) && rows[1]!.value === 'key' && rows[2]!.value === 'google', JSON.stringify(rows))
 
   console.log('── the roster is the authority: what Google names is offered, nothing else ──')
   const snapshot = await catalogue.refreshGeminiCatalogue('plan', { force: true })
@@ -223,6 +223,11 @@ try {
   check('gemini-4-argon is selectable with its stated window; a Claude row on the roster is kept off this lane\'s chat rows (it would shadow /model claude-… for a user with both sign-ins)', argon !== undefined && argon.unavailable === undefined && argon.statedContextWindow === 1048576 && claude === undefined && !availability.ids.includes('claude-sonnet-4-6'), JSON.stringify({ argon, claude }))
   check('the stated facts: window, output ceiling and the thinking dial from the roster', catalogue.geminiContextWindowFor('gemini-4-argon')?.window === 1048576 && catalogue.geminiOutputTokenLimitFor('gemini-4-argon') === 65536 && catalogue.geminiEffortVocabularyFor('gemini-4-argon').length > 0)
   check('the roster quota rides the row', snapshot?.models.find(m => m.id === 'gemini-4-argon')?.quota?.remainingFraction === 0.8)
+  const { usageForProvider } = await import('../../src/services/providers/providerUsage.ts')
+  const owner = usageForProvider('gemini')
+  const tierFigure = owner.figures?.find(f => f.key === 'plan-tier')
+  const quotaFigure = owner.figures?.find(f => f.key === 'plan-quota:gemini-4-argon')
+  check('/usage states the tier Google reports with the read\'s stamp, the roster quota per model with its reset, and the honest absence line', owner.tier === 'Google AI Pro' && tierFigure?.value === 'Google AI Pro' && typeof tierFigure.observedAtMs === 'number' && quotaFigure?.value === '80%' && quotaFigure.resetsAtMs === Date.parse('2026-10-15T00:00:00Z') && (owner.absence ?? '').includes('no spend or credit figure for a Google sign-in'), JSON.stringify({ tier: owner.tier, figures: owner.figures, absence: owner.absence }))
 
   console.log('── the wire: the envelope, the User-Agent, the stream unwrapped, signed parts kept ──')
   const { streamGeminiContent } = await import('../../src/services/providers/gemini/geminiClient.ts')
