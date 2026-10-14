@@ -168,30 +168,118 @@ export function buildGeminiRequest(request: CompatChatRequest, messages: readonl
   }
 }
 
-const CODE_ASSIST_UNSUPPORTED_SCHEMA_KEYS = new Set([
-  '$schema', '$id', '$anchor', '$ref', '$defs', 'definitions', '$dynamicRef', '$dynamicAnchor', '$comment',
-  'propertyNames', 'deprecated', 'readOnly', 'writeOnly', 'uniqueItems', 'contains', 'minContains', 'maxContains',
-  'additionalItems', 'contentEncoding', 'contentMediaType', 'contentSchema',
+export const GEMINI_SCHEMA_GRAMMAR: ReadonlySet<string> = new Set([
+  'type', 'format', 'title', 'description', 'nullable', 'enum', 'items', 'maxItems', 'minItems', 'properties', 'required',
+  'minProperties', 'maxProperties', 'minimum', 'maximum', 'minLength', 'maxLength', 'pattern', 'example', 'anyOf', 'propertyOrdering', 'default',
+  'additionalProperties', 'oneOf',
 ])
 
-export function codeAssistSchema(value: unknown): unknown {
-  if (Array.isArray(value)) return value.map(codeAssistSchema)
-  const raw = record(value)
-  if (!raw) return value
-  const out: Record<string, unknown> = {}
-  for (const [key, entry] of Object.entries(raw)) {
-    if (CODE_ASSIST_UNSUPPORTED_SCHEMA_KEYS.has(key)) continue
-    if (key === 'properties' || key === 'patternProperties' || key === 'dependentSchemas') {
-      const table = record(entry)
-      out[key] = table ? Object.fromEntries(Object.entries(table).map(([name, schema]) => [name, codeAssistSchema(schema)])) : entry
-      continue
-    }
-    if (key === 'enum' || key === 'required' || key === 'type' || key === 'default' || key === 'const' || key === 'examples') {
-      out[key] = entry
-      continue
-    }
-    out[key] = codeAssistSchema(entry)
+const GEMINI_SCHEMA_SUBSCHEMA_KEYS = new Set(['items', 'additionalProperties'])
+const GEMINI_SCHEMA_SUBSCHEMA_LIST_KEYS = new Set(['anyOf', 'oneOf'])
+
+function boundWords(key: string, value: unknown): string | undefined {
+  if (typeof value !== 'number' && typeof value !== 'boolean') return undefined
+  switch (key) {
+    case 'exclusiveMinimum':
+      return typeof value === 'number' ? `greater than ${value}` : undefined
+    case 'exclusiveMaximum':
+      return typeof value === 'number' ? `less than ${value}` : undefined
+    case 'multipleOf':
+      return typeof value === 'number' ? `a multiple of ${value}` : undefined
+    case 'uniqueItems':
+      return value === true ? 'items are unique' : undefined
+    default:
+      return undefined
   }
+}
+
+function withWords(description: unknown, words: string[]): string | undefined {
+  const base = typeof description === 'string' ? description.trim() : ''
+  if (words.length === 0) return base === '' ? undefined : base
+  const tail = `(${words.join('; ')})`
+  return base === '' ? tail : `${base}${/[.!?]$/.test(base) ? '' : '.'} ${tail}`
+}
+
+function mergeAllOf(variants: unknown[]): Record<string, unknown> | undefined {
+  const objects = variants.map(record)
+  if (objects.length === 0 || objects.some(v => v === undefined || (v.type !== undefined && v.type !== 'object') || (v.type === undefined && v.properties === undefined))) return undefined
+  const properties: Record<string, unknown> = {}
+  const required = new Set<string>()
+  for (const variant of objects) {
+    const table = record(variant!.properties)
+    if (table) Object.assign(properties, table)
+    for (const name of Array.isArray(variant!.required) ? variant!.required : []) if (typeof name === 'string') required.add(name)
+  }
+  return { type: 'object', properties, ...(required.size ? { required: [...required] } : {}) }
+}
+
+export function codeAssistSchema(value: unknown): unknown {
+  const raw = record(value)
+  if (!raw) return typeof value === 'boolean' ? {} : value
+  const out: Record<string, unknown> = {}
+  const words: string[] = []
+  let constValue: unknown
+  let allOfMerged: Record<string, unknown> | undefined
+  for (const [key, entry] of Object.entries(raw)) {
+    if (key === 'const') {
+      constValue = entry
+      continue
+    }
+    if (key === 'examples') {
+      if (Array.isArray(entry) && entry.length > 0 && out.example === undefined) out.example = entry[0]
+      continue
+    }
+    if (key === 'allOf') {
+      allOfMerged = Array.isArray(entry) ? mergeAllOf(entry) : undefined
+      continue
+    }
+    if (!GEMINI_SCHEMA_GRAMMAR.has(key)) {
+      const said = boundWords(key, entry)
+      if (said !== undefined) words.push(said)
+      continue
+    }
+    if (key === 'properties') {
+      const table = record(entry)
+      out.properties = table ? Object.fromEntries(Object.entries(table).map(([name, schema]) => [name, codeAssistSchema(schema)])) : {}
+      continue
+    }
+    if (GEMINI_SCHEMA_SUBSCHEMA_KEYS.has(key)) {
+      out[key] = typeof entry === 'boolean' ? entry : codeAssistSchema(entry)
+      continue
+    }
+    if (GEMINI_SCHEMA_SUBSCHEMA_LIST_KEYS.has(key)) {
+      out[key] = Array.isArray(entry) ? entry.map(codeAssistSchema) : entry
+      continue
+    }
+    if (key === 'enum') {
+      out.enum = Array.isArray(entry) ? entry.map(member => (typeof member === 'string' ? member : JSON.stringify(member))) : entry
+      continue
+    }
+    if (key === 'type' && Array.isArray(entry)) {
+      const names = entry.filter((name): name is string => typeof name === 'string')
+      const first = names.find(name => name !== 'null')
+      if (first !== undefined) out.type = first
+      if (names.includes('null')) out.nullable = true
+      continue
+    }
+    out[key] = entry
+  }
+  if (constValue !== undefined) {
+    const spelled = typeof constValue === 'string' ? constValue : JSON.stringify(constValue)
+    const existing = Array.isArray(out.enum) ? (out.enum as unknown[]) : []
+    out.enum = existing.includes(spelled) ? existing : [...existing, spelled]
+    if (out.type === undefined && typeof constValue === 'string') out.type = 'string'
+  }
+  if (allOfMerged) {
+    const own = record(out.properties) ?? {}
+    out.type = 'object'
+    out.properties = { ...(record(allOfMerged.properties) ?? {}), ...own }
+    const required = new Set<string>([...(Array.isArray(allOfMerged.required) ? (allOfMerged.required as string[]) : []), ...(Array.isArray(out.required) ? (out.required as string[]) : [])])
+    if (required.size) out.required = [...required]
+  }
+  const description = withWords(out.description, words)
+  if (description !== undefined) out.description = description
+  else delete out.description
   return out
 }
 
