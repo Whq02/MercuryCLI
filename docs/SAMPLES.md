@@ -4,53 +4,73 @@ A sample is a versioned HTML page the model draws in an Eval cell when you ask
 to see a design, report or comparison, served locally to your browser for
 pinned comments.
 
-Samples are off by default: turn on the Boot Menu's `Samples`
-row or set `MERCURY_SAMPLES=1` for new sessions ([the switch](#the-switch)).
+The model makes one only when you ask to see something ("show me",
+"mock this up", "draw the page", "give me a report I can look at"),
+never on its own, never as a hedge, never to decorate an answer. Each sample is
+kept per session, versioned, and opens again whenever you like. Samples are off
+by default: the Boot Menu's `Samples` row or `MERCURY_SAMPLES=1` turns them on
+for new sessions ([the switch](#the-switch)).
 
 ## Where a sample comes from
 
-The model creates a sample only when you ask to see something ("show me",
-"mock this up", "draw the page", "give me a report I can look at") by calling
-`sample({ name, title?, html, ask? })` inside an Eval cell ([EVAL.md](EVAL.md)).
-Reusing `name` appends a new version (`v2`, `v3`) to the same sample so cell
-data stays in memory across edits. The cell result reports the sample's title,
-version, local URL and the request it answered.
+The model draws the page in an Eval cell and keeps it with
+`sample({ name, title?, html, ask? })` ([EVAL.md](EVAL.md)). The
+page's data stays in the cell, so a redraw is a small edit, and every
+redraw is the next version of the same sample: the same name appends a
+version and never makes a second sample. The cell's result names each
+sample it kept — its title, its version, its address — and the words of
+yours it answered.
 
-`/memory page` saves its own sample showing the project's memory library as an
-interactive graph ([MNEME.md](MNEME.md)), adding a new version on each run.
+`/memory page` keeps one sample of its own: the memory library drawn as a
+page ([MNEME.md](MNEME.md)). Each `/memory page` keeps its next version.
 
 ## Where it lives
 
-Samples live under the session in the config home, outside your repository:
+Under the session in the config home, never in your project:
 
     <config-home>/sessions/<session>/samples/<id>/
-      sample.json        record: name, title, state, versions
-      v1.html, v2.html   each version's HTML as written
-      marks-v2.json      pins and notes saved on that version
+      sample.json        the record: name, title, state, versions
+      v1.html, v2.html   each version, the model's HTML as written
+      marks-v2.json      the marks you left on that version
 
-While the session process runs, a loopback server on `127.0.0.1` serves the
-page on an ephemeral port using a per-process token kept in memory (requests
-without the token return 404). The page loads no remote scripts or fonts. When
-a loopback port cannot be bound, Mercury writes a self-contained
-`v<N>.page.html` file with all versions inlined and opens that file instead;
-its send action copies the formatted feedback to your clipboard ("Copy for
-Mercury").
+Nothing is hosted and nothing leaves the machine. The page is served to
+your browser by a listener on 127.0.0.1 that exists only while the
+session's process runs, on a port chosen fresh each time; every address
+carries a token made once per session process and never written to disk,
+and a request without it answers 404. The page loads no remote script or
+font.
 
-## Opening a sample and leaving marks
+## Opening a sample
 
-When samples exist, the status row (or the compact line under the composer)
-shows `· N sample(s)`. `/samples` lists the session's samples newest first with
-name, `v<N>`, state and last-modified time; `↵` opens the selected sample and
-`esc` returns. The browser bar provides a version switcher (`←` and `→`),
-read-only `Code`, `Copy`, `Download` (`<name>-v<N>.html`), and `?` for
-shortcuts; open tabs auto-refresh when the model writes a new version.
+In the full layout the status row under the view counts the session's
+samples (`· 1 sample`) after the model and its effort, and `/samples` is the
+road to them. In the compact layout the line under the
+composer counts the session's samples (`· 1 sample`), and the detail view
+that line opens lists them; Enter on one opens it. `/samples` lists the
+session's samples, newest first — the name, `v<N>`, the state and when it
+last changed — and Enter opens the one you pick, esc returns. A new sample
+or a new version shows up on its own: the session's runner relays its
+samples with the rest of its facts. The page shows the sample's versions
+with a switcher; while the tab is open it refreshes as the model redraws.
 
-Press `m` (**Edit with Mercury**) to place numbered comment pins anywhere on
-the page (`↵` saves a pin's comment, `Esc` removes it; pins can be dragged or
-reopened and record the target element's tag, id, class and opening words). Add
-an optional page note and verdict (**Approve** or **Changes needed**) at the
-foot, then press `s` (**Send marks to Mercury**) to queue one message into the
-session:
+The page is served locally only, in the website's own language:
+a bar with the sample's name, its state and a version switcher (← and →
+move between versions), the page itself below in a frame that keeps it
+exactly as the model wrote it, and a foot for your note. Code shows the
+version's HTML read-only, Copy puts it on the clipboard, Download saves it
+as `<name>-v<N>.html`. While the tab is open the page refreshes on its own
+as the model redraws: the new version joins the switcher and, if you were
+on the newest, the frame moves to it. `?` shows the keys.
+
+## Marks
+
+Edit with Mercury (the `m` key) turns marks on. Click a spot on the page:
+a numbered pin lands there and a small box takes your comment — Enter
+keeps it, Esc removes the pin. Pins can be dragged, reopened and removed;
+each remembers the element under it (its tag, id, class and first words).
+The note at the foot is for the whole page; Approve and Changes needed
+are optional. "Send marks to Mercury" (the `s` key) delivers everything
+into the session as one message, as if you had typed it:
 
     Marks on Landing page v2: 2 pins · 1 note · changes needed
     - at button#buy "Buy now": make it larger
@@ -58,9 +78,25 @@ session:
 
     Tighten the whole top half.
 
+The model answers it in its next turn; if a turn is running, the message
+waits the way any typed message does. The verdict moves the sample's
+state — approved, changes needed — and a new version opens it again.
+
+## When no port can be bound
+
+A session that cannot open a loopback port writes the page beside the
+version as a self-contained file (`v<N>.page.html`, every version inlined)
+and opens that instead. Its send button reads "Copy for Mercury" and puts
+the same message text on the clipboard for you to paste into the composer.
+
 ## The switch
 
-With Samples off, `sample()` in an Eval cell refuses, no loopback listener
-starts, and `/samples` reports that `/samples` is off and `MERCURY_SAMPLES=1`
-turns it on (or the Boot Menu's `Samples` row saves it for new sessions).
-`mercury health` and `/health` report the switch state on the `Samples` row.
+Samples are off by default. Turn the Boot Menu's `Samples` row on — the
+change reaches new sessions — or set `MERCURY_SAMPLES=1` in the environment
+before the session starts. Off, `sample()` in an Eval cell refuses, no
+listener starts and `/samples` is unavailable; the Eval tool's prompt has no
+line about samples, and nothing else changes. Typed while off, `/samples`
+answers one line — `/samples is off — MERCURY_SAMPLES=1 turns it on (the
+Boot Menu's Samples row saves it for new sessions)` — and starts nothing.
+`mercury health` and `/health` carry a `Samples` row that says which way
+the switch stands.
