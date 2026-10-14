@@ -23,7 +23,7 @@ VITALS                  │ │                                                 
                         │ │   GLM (Z.AI) — API key (general or GLM Coding Plan)                                      │ │
                         │ │   DeepSeek — API key                                                                     │ │
                         │ │   xAI — Grok subscription sign-in or API key                                             │ │
-                        │ │   Meta — API key (Muse)                                                                  │ │
+                        │ │   Meta — Muse Code sign-in or API key                                                    │ │
                         │ │   Mistral — API key (Mistral Large 4)                                                    │ │
                         │ │   Nous Portal — account sign-in or API key (model gateway)                               │ │
                         │ │   OpenCode Zen — API key (one key, the gateway's model list)                             │ │

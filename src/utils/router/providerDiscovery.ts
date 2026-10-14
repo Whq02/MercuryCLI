@@ -63,7 +63,7 @@ export interface MetaDiscovery {
   provider: 'meta'
   probedAtMs: number
   keyPresent: boolean
-  keySource?: 'env' | 'stored'
+  keySource?: 'env' | 'stored' | 'muse-code'
 }
 export interface MistralDiscovery {
   provider: 'mistral'

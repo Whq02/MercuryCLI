@@ -1,4 +1,5 @@
 import { flagEnv } from '../../substrate/flagRegistry.js'
+import { META_SIGN_IN_ROADS } from '../../components/loginFamilyRows.js'
 import { getInitialSettings } from '../settings/settings.js'
 import {
   evaluateGptCandidate,
@@ -784,7 +785,7 @@ export function keyLaneProviderRows(reads: KeyLaneReads = liveKeyLaneReads()): M
       descriptionForModel: 'The Meta account returned an empty Muse Spark list; no model is selectable.' })
   } else {
     out.push(...keyLaneGroupRows({ group: META_MODEL_GROUP, providerName: 'Meta', connectValue: keyConnectValue('meta'),
-      connectHint: 'opens /logins meta (a pay-as-you-go API key) — MODEL_API_KEY works too',
+      connectHint: `opens /logins meta (${META_SIGN_IN_ROADS}) — MODEL_API_KEY works too`,
       keyPresent: metaCredentialed, pins: metaRows, listState: metaState }))
   }
   const mistralRows = keyLanePins('mistral')

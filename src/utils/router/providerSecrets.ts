@@ -341,6 +341,28 @@ export function signInLedgerPath(fileName: string): string {
   return join(getAuthConfigHomeDir(), fileName)
 }
 
+export function publishAuthScopedJson(
+  fileName: string,
+  mutate: (file: Record<string, unknown>) => Record<string, unknown>,
+): void {
+  const dir = getAuthConfigHomeDir()
+  mkdirSync(dir, { recursive: true })
+  const path = join(dir, fileName)
+  let existing: Record<string, unknown> = { version: 1 }
+  try {
+    const parsed = JSON.parse(readFileSync(path, 'utf8')) as unknown
+    if (typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)) {
+      existing = parsed as Record<string, unknown>
+    }
+  } catch {}
+  const next = mutate({ ...existing, version: 1 })
+  durableAtomicPublishSync(path, JSON.stringify(next, null, 2) + '\n', { mode: 0o600 })
+  try {
+    chmodSync(path, 0o600)
+  } catch {}
+  noteCredentialChange()
+}
+
 export function credentialEnvNames(): readonly string[] {
   return [
     'ANTHROPIC_API_KEY',

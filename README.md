@@ -391,7 +391,7 @@ during setup. `/accounts` manages connected provider slots afterwards.
 - **GLM (Z.AI):** API key.
 - **DeepSeek:** API key.
 - **xAI (Grok):** sign in with your Grok subscription (SuperGrok / X Premium) or paste an API key through `/logins xai`.
-- **Meta (Muse):** pay-as-you-go Model API key; Muse Code subscriptions are for Muse Code only.
+- **Meta (Muse):** Sign in with Meta (a Muse Code subscription, a device code in your browser) or a pay-as-you-go Model API key. Sign in with Meta exchanges the device code against Meta's OIDC endpoints (`https://auth.meta.com/oidc/device/authorization/` and `/oidc/device/token/`) under Muse Code's public client id, sends the resulting account token once to `https://api.meta.ai/muse-code/key` to mint the subscription's API key (and on bounded `/usage` reads for the plan's tier and usage windows), and sends only the minted key on every model request to `https://api.meta.ai/v1`. A pasted Model API key or `MODEL_API_KEY` / `META_API_KEY` bills pay-as-you-go.
 
 Local model servers and custom OpenAI-compatible endpoints are discovered or
 configured separately, without a provider sign-in. Each provider has its own
