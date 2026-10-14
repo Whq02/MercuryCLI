@@ -7,7 +7,7 @@ import {
 import { buildGeminiExtras } from '../openaicompat/compatWire.js'
 import { randomUUID } from 'node:crypto'
 import { geminiApiBase, resolveGeminiAccount, resolveGeminiRequestAuth } from './geminiAccounts.js'
-import { geminiEffortVocabularyFor, geminiOutputTokenLimitFor } from './geminiCatalogue.js'
+import { geminiEffortVocabularyFor, geminiOutputTokenLimitFor, geminiPlanRosterKin, geminiPlanRosterKinWords, type GeminiPlanRosterKin } from './geminiCatalogue.js'
 import { clearGeminiUsageLimit, recordGeminiRateHeaders } from './geminiUsageState.js'
 import type { CompatStreamEvent } from '../openaicompat/compatChatClient.js'
 import { geminiPlanStreamUrl, streamGeminiContent, type GeminiPlanWire } from './geminiClient.js'
@@ -64,8 +64,8 @@ export const GEMINI_PLAN_AUTH_REMEDY =
 export const GEMINI_PLAN_BILLING_REMEDY =
   "the plan's quota is Google's and cannot be changed from here · /usage shows the tier Google reports and the wait Google asks for; /logins adds a Gemini API key on a project of your own; /model picks another model meanwhile."
 
-export function geminiPlanModelMissingWords(model: string, status: number | undefined, wireSaid: string | undefined): string {
-  return `${API_ERROR_MESSAGE_PREFIX}: Google serves no model '${model}' to this Google sign-in${status === undefined ? '' : ` (HTTP ${status})`} · /model lists the roster Google serves it; /logins → Sign in with Google reads the roster again if the plan changed.${wireSaid === undefined ? '' : ` The wire said: ${wireSaid}`}`
+export function geminiPlanModelMissingWords(model: string, status: number | undefined, wireSaid: string | undefined, kin: GeminiPlanRosterKin = geminiPlanRosterKin(model)): string {
+  return `${API_ERROR_MESSAGE_PREFIX}: Google serves no model '${model}' to this Google sign-in${status === undefined ? '' : ` (HTTP ${status})`}${geminiPlanRosterKinWords(kin)} · /model lists the roster Google serves it; /logins → Sign in with Google reads the roster again if the plan changed.${wireSaid === undefined ? '' : ` The wire said: ${wireSaid}`}`
 }
 
 const planSession = { agentId: randomUUID(), trajectoryId: randomUUID(), sessionId: `-${Date.now()}${Math.floor(Math.random() * 1e6)}`, step: 1 }
