@@ -643,9 +643,13 @@
    ],
    "src/run-core/attachment-drain.ts": [
     "consumeDrainedCommands",
+    "isReplyText",
+    "replyMarkOf",
     "selectDrainableCommands",
+    "stampReply",
     "type:DrainScope",
-    "type:DrainableCommand"
+    "type:DrainableCommand",
+    "type:DrainedRow"
    ]
   },
   "headless": {

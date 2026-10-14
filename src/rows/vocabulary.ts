@@ -165,6 +165,9 @@ export const TurnRowSchema = lazySchema(() =>
 )
 export type TurnRow = z.infer<ReturnType<typeof TurnRowSchema>>
 
+export const ReplyMarkRowSchema = lazySchema(() => z.object({ id: z.string(), at: z.string() }))
+export type ReplyMarkRow = z.infer<ReturnType<typeof ReplyMarkRowSchema>>
+
 export const TextRowSchema = lazySchema(() =>
   z.object({
     type: z.literal('text'),
@@ -173,6 +176,7 @@ export const TextRowSchema = lazySchema(() =>
     block: z.number().int().min(0),
     text: z.string(),
     phase: z.enum(['commentary', 'final_answer']).optional(),
+    in_reply_to: z.array(ReplyMarkRowSchema()).optional(),
   }),
 )
 export type TextRow = z.infer<ReturnType<typeof TextRowSchema>>

@@ -141,7 +141,10 @@ export type AssistantMessage = {
   busyRefusal?: BusyRefusalV1
   effortAdjusted?: EffortAdjustedV1
   effort?: EffortStampV1
+  inReplyTo?: ReplyMark[]
 }
+
+export type ReplyMark = { uuid: string; at: string }
 
 
 export type UserMessage = {
