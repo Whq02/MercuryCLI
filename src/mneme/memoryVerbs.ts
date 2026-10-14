@@ -11,12 +11,12 @@ import { memorySecretRefusal } from './mnemeSecretGuard.js'
 import { ARCHIVE_PREFIX, isArchiveDoc, parseEntryLine, liveSeqs, serializeSignature, type MnemeTopicDoc } from './mnemeTopicDocs.js'
 import { bumpUsage, readPins, readUsage } from './mnemeUsage.js'
 import { candidates, fuseRecallRankings } from './mnemeLookup.js'
-import { liftRulingLinks, recallUsage } from './mnemeLinks.js'
 import { noteCorrected, noteRetained } from './lineageSession.js'
 import { currentLedger, footnoteContext, footnotesOf, renderLedgerEntry, type Footnotes } from './mnemeFootnotes.js'
 import type { LedgerEntry } from './types.js'
 import { factMemoryState, type MemoryRef } from './memoryRefs.js'
 import { noteMemoryOpened } from './mnemeSignal.js'
+import { liftRulingLinks, recallUsage } from './mnemeLinks.js'
 
 function allDocs(dir: string): MnemeTopicDoc[] {
   return [...listTopicDocs(dir), ...listArchiveDocs(dir)]
