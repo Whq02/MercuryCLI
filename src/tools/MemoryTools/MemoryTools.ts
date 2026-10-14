@@ -90,8 +90,10 @@ function pinnedItemStored(items: Array<{ pin?: boolean; replaces?: string }>, ou
   })
 }
 
-function ruleAnswerWords(via: RuleAuthority | undefined, verb: string): string {
-  return via === 'card' ? ` The user said yes on the card: the rule they asked Mercury to remember was ${verb} from the chat.` : ''
+function ruleAnswerWords(via: RuleAuthority | undefined, verb: string, history: boolean): string {
+  if (via === 'card') return ` The user said yes on the card: the rule they asked Mercury to remember was ${verb} from the chat.`
+  if (via === 'sovereign') return ` Under sovereign no card was asked: the rule the user asked Mercury to remember was ${verb} from the chat under sovereign${history ? ", and /memory's history says so" : ''}.`
+  return ''
 }
 
 export const RetainTool = buildTool({
@@ -160,7 +162,7 @@ export const RetainTool = buildTool({
       outcome.status === 'refused'
         ? `- item ${outcome.index}: REFUSED — ${outcome.reason} (the fact was NOT stored)`
         : outcome.status === 'stored' && outcome.replaced !== undefined
-          ? `- item ${outcome.index}: stored → ${outcome.id}, in place of seq ${outcome.replaced.seq}; the old wording is kept in history and the pin follows the new one.${ruleAnswerWords(outcome.replaced.via, 'replaced')}`
+          ? `- item ${outcome.index}: stored → ${outcome.id}, in place of seq ${outcome.replaced.seq}; the old wording is kept in history and the pin follows the new one.${ruleAnswerWords(outcome.replaced.via, 'replaced', true)}`
           : `- item ${outcome.index}: ${outcome.status} → ${outcome.id}`,
     )
     if (output.shelf) {
@@ -471,14 +473,14 @@ export const CorrectTool = buildTool({
       return {
         tool_use_id: toolUseID,
         type: 'tool_result',
-        content: `${output.op} landed on the pending row ${output.targetId}: ${tail}. A pending row is a draft — it leaves no history and its bytes are gone from the buffer.${ruleAnswerWords(output.via, verb)}`,
+        content: `${output.op} landed on the pending row ${output.targetId}: ${tail}. A pending row is a draft — it leaves no history and its bytes are gone from the buffer.${ruleAnswerWords(output.via, verb, false)}`,
       }
     }
     if (output.ok) {
       return {
         tool_use_id: toolUseID,
         type: 'tool_result',
-        content: `${output.op} landed: seq ${output.targetSeq} → ${output.newSeq} in topic-${output.slug}. The old record is retained under history.${ruleAnswerWords(output.via, verb)}`,
+        content: `${output.op} landed: seq ${output.targetSeq} → ${output.newSeq} in topic-${output.slug}. The old record is retained under history.${ruleAnswerWords(output.via, verb, true)}`,
       }
     }
     return {
