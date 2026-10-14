@@ -630,6 +630,7 @@ function GeminiUsageSection({ width }: { width?: number }): React.ReactNode {
             {othersOpen ? quota.others.map(figure => (
               <Text key={figure.key} dimColor>{quotaLine(figure)}</Text>
             )) : null}
+            {planActive && usage.readerNote !== undefined ? <Text dimColor>{usage.readerNote}</Text> : null}
             <SlotSpend active={planActive} route="gemini" spend={spend} withCost={false} />
           </Box>
         )}
@@ -1323,7 +1324,7 @@ export function usageCompactLines(
     for (const line of windows) lines.push({ text: line, heading: false })
     const credits = usageCreditsLine(usage.credits) ?? figuresLine(usage)
     if (credits !== undefined) lines.push({ text: `  ${credits}`, heading: false })
-    if (section.id === 'openrouter' && usage.readerNote !== undefined) {
+    if ((section.id === 'openrouter' || section.id === 'gemini') && usage.readerNote !== undefined) {
       for (const note of usage.readerNote.split('; ')) lines.push({ text: `  ${note}`, heading: false })
     }
     const full = fullWindowLine(usage)

@@ -18,6 +18,7 @@ export function modelSpendRowsOf(
       cacheCreationInputTokens: record.cacheCreationInputTokens,
       costUSD: record.costUSD,
       unpricedTurns: unpriced[model] ?? 0,
+      ...(record.lastUsedAtMs !== undefined ? { lastUsedAtMs: record.lastUsedAtMs } : {}),
     })
   }
   for (const [model, turns] of Object.entries(unpriced)) {
