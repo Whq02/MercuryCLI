@@ -249,16 +249,6 @@ export function PromptInputFooterLeftSide({
       )
     }
   }
-  if (showTasksPill && hintsEnabled) {
-    parts.push(
-      footerSelection === 'tasks' ? (
-        <KeyboardShortcutHint key="manage" shortcut="Enter" action="view" />
-      ) : (
-        <KeyboardShortcutHint key="manage" shortcut="↓" action="manage" />
-      ),
-    )
-  }
-
   const noticeStands = noticeText !== null || noticeBlock !== null
   const hintsShow = !vimInsert && !noticeStands && parts.length > 0
   const idleHintShows =

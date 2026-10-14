@@ -6,25 +6,24 @@ WORKBENCH               │╭────────────────�
 NEXT                    │╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯│
   · /workflows — crewma…│                                                                                                                  │
   · /health — health ce…│                                                                                                                  │
-  · /memory — memory    │ 15:00:08 [sam] ❯ start                                                                                           │
+  · /memory — memory    │ 12:30:52 [sam] ❯ start                                                                                           │
   · /mission — set a mi…│                                                                                                                  │
-                        │ 15:00:08 [Mercury] Command rows ready.                                                                           │
+                        │ 12:30:52 [Mercury] Command rows ready.                                                                           │
 FILES · project         │                                                                                                                  │
   ↵ or click · browse   │ ❯ /crewmates off                                                                                                 │
                         │   └ crewmates off for this session                                                                               │
 VITALS                  │     the Crewmate tool leaves the roster from the next turn; reasoning restarts on the next turn; a spawn already │
   · spend $0.00         │     running finishes                                                                                             │
-  · ctx 0% · 1000k      │ the operator toggled crewmates off — landed: the Crewmate tool has left the roster; reasoning restarts on the    │
-  · health — run /health│ next turn                                                                                                        │
-                        │                                                                                                                  │
-                        │ 15:00:25 [sam] ❯ run the cell                                                                                    │
+  · ctx 0% · 1000k      │ you turned crewmates off: the Crewmate tool has left the roster; reasoning restarts on the next turn             │
+  · health — run /health│                                                                                                                  │
+                        │ 12:31:09 [sam] ❯ run the cell                                                                                    │
                         │ │                                                                                                                │
-                        │ │ 15:00:25 [Mercury] ✕ Eval         js · Calculate the value                                                     │
+                        │ │ 12:31:09 [Mercury] ✕ Eval         js · Calculate the value                                                     │
                         │ │   └ ✕ Error: The operator declined this tool call; it was not run and nothing was changed. Do not try to reach │
                         │ │     the same effect by another route. If the task cannot continue without this action, stop and say plainly    │
                         │ │     what was not run and why the task needs it, then wait for the operator.                                    │
                         │                                                                                                                  │
-                        │ 15:00:27 [Mercury] Cell was declined.                                                                            │
+                        │ 12:31:11 [Mercury] Cell was declined.                                                                            │
                         │                                                                                                                  │
                         │ ❯ /model sonnet 5.5                                                                                              │
                         │   └ sonnet 5.5 → claude-sonnet-5-5                                                                               │
@@ -33,6 +32,7 @@ VITALS                  │     the Crewmate tool leaves the roster from the nex
                         │ ❯ /model claude-sonnet-5-5                                                                                       │
                         │   └ Model now: Sonnet 5.5 · saved as your default for new sessions — /model claude-opus-5-5 switches back to     │
                         │     Opus 5.5                                                                                                     │
+                        │                                                                                                                  │
                         │                                                                                                                  │
                         │                                                                                                                  │
                         │                                                                                                                  │

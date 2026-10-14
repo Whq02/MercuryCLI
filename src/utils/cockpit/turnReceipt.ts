@@ -15,6 +15,7 @@ export interface TurnReceiptCounts {
   dels: number
   reads: number
   searches: number
+  fetches: number
   commands: number
   browser: number
   agents: number
@@ -31,6 +32,7 @@ function emptyCounts(): TurnReceiptCounts {
     dels: 0,
     reads: 0,
     searches: 0,
+    fetches: 0,
     commands: 0,
     browser: 0,
     agents: 0,
@@ -42,12 +44,13 @@ function emptyCounts(): TurnReceiptCounts {
 
 function hasActivity(c: TurnReceiptCounts): boolean {
   return (
-    c.scratchpadEdits + c.fileEdits + c.reads + c.searches + c.commands + c.browser + c.agents > 0
+    c.scratchpadEdits + c.fileEdits + c.reads + c.searches + c.fetches + c.commands + c.browser + c.agents > 0
   )
 }
 
 const READ_TOOLS = new Set(['Read', 'NotebookRead'])
-const SEARCH_TOOLS = new Set(['Grep', 'Glob', 'WebSearch', 'ProviderSearch', 'WebFetch'])
+const SEARCH_TOOLS = new Set(['Grep', 'Glob', 'WebSearch', 'ProviderSearch'])
+const FETCH_TOOLS = new Set(['WebFetch'])
 const COMMAND_TOOLS = new Set(['Bash'])
 const BROWSER_TOOLS = new Set(['Browser'])
 const EDIT_TOOLS = new Set(['Edit', 'Write', 'NotebookEdit'])
@@ -104,6 +107,7 @@ function countToolUses(m: LooseMessage, c: TurnReceiptCounts): void {
     const name = String(block['name'] ?? '')
     if (READ_TOOLS.has(name)) c.reads += 1
     else if (SEARCH_TOOLS.has(name)) c.searches += 1
+    else if (FETCH_TOOLS.has(name)) c.fetches += 1
     else if (COMMAND_TOOLS.has(name)) c.commands += 1
     else if (BROWSER_TOOLS.has(name)) c.browser += 1
     else if (DELEGATE_TOOLS.has(name)) c.agents += 1

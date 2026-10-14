@@ -2205,6 +2205,24 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
           },
         },
         {
+          id: 'memory-embedder',
+          label: 'Semantic embedder',
+          run: async () => {
+            const { mnemeEnabled } = await import('../mneme/mnemeGates.js')
+            const { describeSemanticReadiness, memoryRecallModeWords } = await import('../mneme/embedModels.js')
+            const ready = describeSemanticReadiness()
+            const pack = ready.state === 'ok'
+              ? `present: ${ready.model} (${ready.dimension} dimensions)`
+              : `degraded: ${ready.words} (${ready.note})`
+            if (!mnemeEnabled()) {
+              return { status: 'off', evidence: `memory is off (memory.enabled is false in settings); the embedder pack is ${pack}` }
+            }
+            const evidence = `${pack} · Recall ranks by ${memoryRecallModeWords()}`
+            if (ready.state === 'ok') return { status: 'ok', evidence }
+            return { status: 'info', evidence, link: '/memory' }
+          },
+        },
+        {
           id: 'context',
           label: 'Context & resume',
           run: async () => {
