@@ -205,6 +205,12 @@ section('§6 the dead machinery, the alias maps and the retired words the excisi
     { word: J('ANTHROPIC_', 'LOG') },
     { word: J('domain', 'Runner') },
     { word: J('MERCURY_', 'TELEMETRY') },
+    { word: J('wallet', 'Identity.ts') },
+    { word: J('folio', 'Actions') },
+    { word: J('MaybeLegacy', 'Input') },
+    { word: J('legacyResult', 'Text') },
+    { word: J('isDeferredToolsDelta', 'Enabled') },
+    { word: J('toolSearch', 'Flags') },
   ]
   for (const { word, except } of SPELLINGS) {
     const where = tree.filter(rel => !(except ?? []).includes(rel) && (rel.includes(word) || (texts.get(rel) ?? '').includes(word)))
