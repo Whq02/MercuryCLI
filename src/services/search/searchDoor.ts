@@ -147,7 +147,7 @@ export async function performWebSearch(input: SearchRequest, io: WebSearchRunIo)
   if (cached) {
     const id = nextSearchGroupId(cached.via)
     report(id, cached.hits.length)
-    return { via: cached.via, tier: cached.tier, hits: cached.hits, sequence: [{ toolUseId: id, hits: cached.hits }], queries: cached.queries, notes: [...(cached.notes ?? []), cachedAnswerNote(searchBackendLabel(cached.via))], cached: true }
+    return { via: cached.via, tier: cached.tier, hits: cached.hits, sequence: [{ toolUseId: id, hits: cached.hits }, ...(cached.commentary ?? [])], queries: cached.queries, notes: [...(cached.notes ?? []), cachedAnswerNote(searchBackendLabel(cached.via))], cached: true }
   }
   const failures: SearchFailure[] = []
   for (const door of plan.doors) {
@@ -165,14 +165,15 @@ export async function performWebSearch(input: SearchRequest, io: WebSearchRunIo)
     if (signal.aborted || (!outcome.ok && outcome.kind === 'aborted')) throw new AbortError()
     if (outcome.ok) {
       const hits = normaliseHits(outcome.hits, request.maxResults)
+      const commentary = outcome.tier === 'native' ? (outcome.commentary ?? outcome.sequence?.filter((entry): entry is string => typeof entry === 'string') ?? []).map(entry => entry.trim()).filter(entry => entry !== '') : []
       if (door.kind === 'keyed' && coolDownRemainingMs(door.backend, clock.now()) === 0) noteAnswered(door.backend)
-      if (!hits.length) { failures.push(searchFailure('no-backend', outcome.via, `${(outcome.notes ?? []).join(' ')} ${searchBackendLabel(outcome.via)} found no matching links`.trim())); continue }
+      if (!hits.length && !commentary.length) { failures.push(searchFailure('no-backend', outcome.via, `${(outcome.notes ?? []).join(' ')} ${searchBackendLabel(outcome.via)} found no matching links`.trim())); continue }
       const queries = outcome.queries ?? [request.query]
-      if (outcome.via !== 'github') rememberSearch(request, { via: outcome.via, tier: outcome.tier, hits, queries, notes: outcome.notes?.filter(note => note !== DUCKDUCKGO_TERMS) }, clock.now())
+      if (outcome.via !== 'github') rememberSearch(request, { via: outcome.via, tier: outcome.tier, hits, queries, ...(commentary.length ? { commentary } : {}), notes: outcome.notes?.filter(note => note !== DUCKDUCKGO_TERMS) }, clock.now())
       const id = nextSearchGroupId(outcome.via)
       report(id, hits.length)
       const hint = outcome.tier === 'keyless' && !plan.doors.some(d => d.kind === 'keyed') ? takeKeyedDoorHint() : undefined
-      return { via: outcome.via, tier: outcome.tier, hits, sequence: [{ toolUseId: id, hits }], queries, notes: [...(outcome.notes ?? []), ...failures.map(failureLine)], ...(hint ? { hint } : {}) }
+      return { via: outcome.via, tier: outcome.tier, hits, sequence: [{ toolUseId: id, hits }, ...commentary], queries, notes: [...(outcome.notes ?? []), ...failures.map(failureLine)], ...(hint ? { hint } : {}) }
     }
     if (door.kind === 'keyed' && outcome.kind === 'rate-limited' && coolDownRemainingMs(door.backend, clock.now()) === 0) noteRateLimited(door.backend, clock)
     failures.push(outcome)

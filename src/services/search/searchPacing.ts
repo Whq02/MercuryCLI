@@ -92,6 +92,7 @@ export interface CachedSearch {
   queries: string[]
   landedAt: number
   notes?: string[]
+  commentary?: string[]
 }
 
 const cache = new Map<string, CachedSearch>()
@@ -123,7 +124,7 @@ export function takeCachedSearch(request: SearchRequest, now: number): CachedSea
 export function rememberSearch(request: SearchRequest, answer: Omit<CachedSearch, 'landedAt'>, now: number): void {
   const key = searchCacheKey(request)
   cache.delete(key)
-  cache.set(key, { via: answer.via, tier: answer.tier, hits: [...answer.hits], queries: [...answer.queries], ...(answer.notes ? { notes: [...answer.notes] } : {}), landedAt: now })
+  cache.set(key, { via: answer.via, tier: answer.tier, hits: [...answer.hits], queries: [...answer.queries], ...(answer.notes ? { notes: [...answer.notes] } : {}), ...(answer.commentary?.length ? { commentary: [...answer.commentary] } : {}), landedAt: now })
   while (cache.size > SEARCH_CACHE_ENTRIES) {
     const oldest = cache.keys().next().value
     if (oldest === undefined) break
