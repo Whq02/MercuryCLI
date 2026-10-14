@@ -50,7 +50,13 @@ try {
     const run = await door.performWebSearch({ query: queries[source] }, { context: contexts(), reads: { keylessAllowed: false }, clock, backends: { official: (s: any, words: string, request: any) => officialSearch(s, words, request, io) } })
     assert.equal(run.via, source)
     assert.equal(run.tier, source === 'github' ? 'keyed' : 'keyless')
-    assert.equal(seen.length, 1)
+    const perSearch = source === 'stackexchange' || source === 'hackernews' ? 2 : 1
+    assert.equal(seen.length, perSearch)
+    if (perSearch === 2) {
+      assert.match(seen[1]!.url, source === 'stackexchange' ? /^\/2\.3\/questions\/42\?.*filter=withbody/ : /^\/api\/v1\/search\?tags=comment%2C%28story_42%29/)
+      assert.ok(seen[1]!.at - seen[0]!.at >= 1000)
+      assert.ok(run.notes.includes('excerpts fetched for 0 hits'), JSON.stringify(run.notes))
+    }
     assert.match(seen[0]!.ua, /^Mercury\/proof \(\+https:\/\/mercury-cli.ai;/)
     assert.equal(seen[0]!.auth, source === 'github' ? 'Bearer fixture-only-token' : undefined)
     assert.deepEqual(Object.keys(run.hits[0]).sort(), ['snippet', 'source_type', 'title', 'url'])
@@ -61,11 +67,12 @@ try {
     assert.equal(decodeOfficialSearch(source, { wrong: [] }), undefined)
     if (source !== 'github') {
       const again = await officialSearch(source, intent.words, { query: queries[source] }, io)
-      assert.equal(again.ok, true); assert.equal(seen.length, 1)
+      assert.equal(again.ok, true); assert.equal(seen.length, perSearch)
     }
     const second = await officialSearch(source, `${intent.words}-other`, { query: `${queries[source]}-other` }, io)
     assert.equal(second.ok, true)
-    assert.ok(seen[1]!.at - seen[0]!.at >= (source === 'github' ? 6000 : 1000))
+    assert.equal(seen.length, perSearch * 2)
+    assert.ok(seen[perSearch]!.at - seen[perSearch - 1]!.at >= (source === 'github' ? 6000 : 1000))
     pacing.resetSearchPacing(); body = { unexpected: true }
     const malformed = await officialSearch(source, intent.words, { query: queries[source] }, io)
     assert.equal(malformed.ok, false)

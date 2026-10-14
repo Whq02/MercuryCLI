@@ -1,7 +1,7 @@
 import { getApiFetch, getProxyFetchOptions } from '../../utils/proxy.js'
 import { fetchWithProviderDeadline } from '../providers/fetchDeadline.js'
 import { htmlToText } from './htmlText.js'
-import { DEFAULT_MAX_RESULTS, filterHitsByDomain, normaliseHits, searchBackendLabel, searchFailure, searchUserAgent, type SearchFailure, type SearchHit, type SearchOutcome, type SearchRequest } from './searchContract.js'
+import { DEFAULT_MAX_RESULTS, filterHitsByDomain, MAX_SNIPPET_CHARS, normaliseHits, searchBackendLabel, searchFailure, searchUserAgent, type SearchFailure, type SearchHit, type SearchOutcome, type SearchRequest } from './searchContract.js'
 import { cachedAnswerNote, liveSearchClock, noteAnswered, noteRateLimited, rememberSearch, reserveSearchAttempt, secondsLeftLabel, serverSearchWaitMs, takeCachedSearch, withSearchTurn, type SearchClock } from './searchPacing.js'
 import { SEARCH_SOURCE_POLICIES, type OfficialSearchSource } from './searchSources.js'
 
@@ -53,10 +53,61 @@ export function decodeOfficialSearch(source: OfficialSearchSource, body: unknown
                 : title ? `https://en.wikipedia.org/wiki/${encodeURIComponent(title.replace(/ /g, '_'))}` : ''
     if (!title || !url) continue
     const snippet = source === 'stackexchange' ? '' : source === 'pypi' ? text(r.summary)
-      : source === 'github' ? text(r.path) : source === 'hackernews' ? text(r.story_text) : text(r.snippet) || text(r.description)
+      : source === 'github' ? text(r.path) : source === 'hackernews' ? text(r.story_text) || text(r.comment_text) : text(r.snippet) || text(r.description)
     hits.push({ title: htmlToText(title), url, snippet: htmlToText(snippet), source_type: source })
   }
   return normaliseHits(hits)
+}
+
+export const EXCERPT_HITS = 3
+export type ExcerptSource = 'stackexchange' | 'hackernews'
+export const HN_COMMENT_LABEL = 'top comment: '
+const idOf = (value: unknown): string => typeof value === 'number' || typeof value === 'string' ? String(value) : ''
+export function excerptOf(html: string, limit = MAX_SNIPPET_CHARS): string {
+  const plain = htmlToText(html)
+  return plain.length > limit ? `${plain.slice(0, limit - 1).trimEnd()}…` : plain
+}
+export function excerptIdOf(source: ExcerptSource, url: string): string | undefined {
+  return (source === 'stackexchange' ? /\/questions\/(\d+)/.exec(url) : /[?&]id=(\d+)/.exec(url))?.[1]
+}
+export function excerptUrl(source: ExcerptSource, ids: readonly string[]): URL {
+  if (source === 'stackexchange') {
+    const url = new URL(`https://api.stackexchange.com/2.3/questions/${ids.join(';')}`)
+    url.searchParams.set('site', 'stackoverflow')
+    url.searchParams.set('filter', 'withbody')
+    return url
+  }
+  const url = new URL('https://hn.algolia.com/api/v1/search')
+  url.searchParams.set('tags', `comment,(${ids.map(id => `story_${id}`).join(',')})`)
+  url.searchParams.set('hitsPerPage', String(ids.length * 10))
+  return url
+}
+export function decodeExcerpts(source: ExcerptSource, body: unknown): Map<string, string> | undefined {
+  const o = object(body)
+  const rows = source === 'stackexchange' ? o.items : o.hits
+  if (!Array.isArray(rows)) return undefined
+  const excerpts = new Map<string, string>()
+  for (const raw of rows) {
+    const r = object(raw)
+    const id = idOf(source === 'stackexchange' ? r.question_id : r.story_id)
+    const words = text(source === 'stackexchange' ? r.body : r.comment_text)
+    if (!id || !htmlToText(words) || excerpts.has(id)) continue
+    excerpts.set(id, source === 'stackexchange' ? excerptOf(words) : `${HN_COMMENT_LABEL}${excerptOf(words, MAX_SNIPPET_CHARS - HN_COMMENT_LABEL.length)}`)
+  }
+  return excerpts
+}
+export function excerptIdsWanted(source: ExcerptSource, hits: readonly SearchHit[]): string[] {
+  return hits.slice(0, EXCERPT_HITS).filter(hit => hit.snippet === '').map(hit => excerptIdOf(source, hit.url)).filter((id): id is string => id !== undefined)
+}
+export function attachExcerpts(source: ExcerptSource, hits: readonly SearchHit[], excerpts: ReadonlyMap<string, string>): { hits: SearchHit[]; fetched: number } {
+  let fetched = 0
+  const out = hits.map((hit, index) => {
+    const excerpt = index < EXCERPT_HITS && hit.snippet === '' ? excerpts.get(excerptIdOf(source, hit.url) ?? '') : undefined
+    if (excerpt === undefined) return hit
+    fetched++
+    return { ...hit, snippet: excerpt }
+  })
+  return { hits: out, fetched }
 }
 
 export interface OfficialSearchIo {
@@ -126,13 +177,14 @@ export async function officialSearch(source: OfficialSearchSource, words: string
   if (cached) return { ok: true, via: source, tier: 'keyless', hits: cached.hits, notes: [SEARCH_SOURCE_POLICIES[source].terms, cachedAnswerNote(searchBackendLabel(source))] }
   const legs: WikipediaLeg[] = source === 'wikipedia' ? ['phrase', 'words'] : ['words']
   let outcome: SearchOutcome = searchFailure('no-backend', source, 'no request was made')
+  let fromCache = false
   for (const leg of legs) {
     let fellThrough = false
     outcome = await withSearchTurn(source, SEARCH_SOURCE_POLICIES[source], clock, request.signal, async waitMs => {
       if (request.signal?.aborted) return searchFailure('aborted', source, 'cancelled')
       if (waitMs > 0) return searchFailure('rate-limited', source, `wait ${secondsLeftLabel(waitMs)} before trying this source again; no request made`)
       const fresh = source !== 'github' ? takeCachedSearch(scoped, clock.now()) : undefined
-      if (fresh) return { ok: true, via: source, tier: 'keyless', hits: fresh.hits, notes: [SEARCH_SOURCE_POLICIES[source].terms, cachedAnswerNote(searchBackendLabel(source))] }
+      if (fresh) { fromCache = true; return { ok: true, via: source, tier: 'keyless', hits: fresh.hits, notes: [SEARCH_SOURCE_POLICIES[source].terms, cachedAnswerNote(searchBackendLabel(source))] } }
       const duplicateWait = source === 'stackexchange' ? reserveSearchAttempt(source, words, clock.now(), 60_000) : 0
       if (duplicateWait > 0) return searchFailure('rate-limited', source, `the same query was just attempted; wait ${secondsLeftLabel(duplicateWait)} before requesting it again`)
       const read = await readOfficial(source, officialSearchUrl(source, words, request.maxResults, leg), request, io, clock, token)
@@ -151,5 +203,24 @@ export async function officialSearch(source: OfficialSearchSource, words: string
     })
     if (!fellThrough) break
   }
-  return outcome
+  if (!outcome.ok || fromCache || (source !== 'stackexchange' && source !== 'hackernews')) return outcome
+  const ids = excerptIdsWanted(source, outcome.hits)
+  if (ids.length === 0) return outcome
+  const fetched = await withSearchTurn(source, SEARCH_SOURCE_POLICIES[source], clock, request.signal, async (waitMs): Promise<Map<string, string> | SearchFailure> => {
+    if (request.signal?.aborted) return searchFailure('aborted', source, 'cancelled')
+    if (waitMs > 0) return searchFailure('rate-limited', source, `wait ${secondsLeftLabel(waitMs)} before asking this source again; no request made`)
+    const read = await readOfficial(source, excerptUrl(source, ids), request, io, clock, undefined)
+    if (!read.ok) return read
+    const excerpts = decodeExcerpts(source, read.body)
+    if (excerpts === undefined) return searchFailure('parse-failed', source, 'the documented item list was absent; no excerpt was guessed')
+    if (read.delay === 0) noteAnswered(source)
+    return excerpts
+  })
+  if (!(fetched instanceof Map)) {
+    if (fetched.kind === 'aborted') return fetched
+    return { ...outcome, notes: [...(outcome.notes ?? []), `excerpts not fetched for ${ids.length} hits: ${fetched.message}`] }
+  }
+  const attached = attachExcerpts(source, outcome.hits, fetched)
+  rememberSearch(scoped, { via: source, tier: 'keyless', hits: attached.hits, queries: [words] }, clock.now())
+  return { ...outcome, hits: attached.hits, notes: [...(outcome.notes ?? []), `excerpts fetched for ${attached.fetched} hits`] }
 }
