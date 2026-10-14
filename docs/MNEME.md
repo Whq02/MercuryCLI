@@ -72,15 +72,21 @@ says so — how much is pinned, the limit, that all of it is loaded, and where
 to trim. The line never appears in a crewmate's chat or in `mercury run`
 output. Crewmates receive the front page with the pinned rules.
 
-A rule you asked for is yours alone: the model cannot correct, replace or
-unpin it. Consolidation leaves it as said; you change it in `/memory`: under
-pinned rules, `↵` opens the rule and `c` corrects it — you retype it, the old
-wording goes to history linked to the new one, and the pin and its "asked for
-by you" mark follow the new wording; `u` unpins it. Once you have unpinned a
-rule it is a plain fact again: restate the rule in the chat and the model
-replaces it, so one rule stays current. For another pinned rule, a
-replacement names that rule's id and keeps the earlier text as history. Rules
-that merely share words are not a conflict — both stay.
+A rule you asked for changes only on your word. Consolidation leaves it as
+said. When the model is asked to correct, replace or drop it, it puts one
+card to you first: the rule's words as stored, what will happen (unpinned and
+struck, corrected to the new words, or replaced by them), and Yes or No — No
+keeps the rule as it is. Under the sovereign permission mode the change runs
+without the card, and `/memory` shows it was made from the chat under
+sovereign. A run with no one to answer the card changes nothing and points
+to `/memory`, where you change it yourself: under pinned rules,
+`↵` opens the rule and `c` corrects it — you retype it, the old wording goes
+to history linked to the new one, and the pin and its "asked for by you" mark
+follow the new wording; `u` unpins it. Once you have unpinned a rule it is a
+plain fact again: restate the rule in the chat and the model replaces it, so
+one rule stays current. For another pinned rule, a replacement names that
+rule's id and keeps the earlier text as history. Rules that merely share
+words are not a conflict — both stay.
 
 ## What rides at the start of a session
 

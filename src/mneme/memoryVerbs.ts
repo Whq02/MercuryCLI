@@ -44,22 +44,31 @@ export interface RetainItemInput {
   replaces?: string
 }
 
+export type RuleAuthority = 'card' | 'sovereign'
+
+export const SOVEREIGN_SOURCE_MARK = ' sovereign'
+
+export function authoritySource(source: string, authority: RuleAuthority | undefined): string {
+  return authority === 'sovereign' ? `${source}${SOVEREIGN_SOURCE_MARK}` : source
+}
+
 export function replacementTarget(
   spec: string,
   dir: string,
-): { ok: true; seq: number; slug: string } | { ok: false; reason: string } {
+  authority?: RuleAuthority,
+): { ok: true; seq: number; slug: string; asked: boolean } | { ok: false; reason: string } {
   const m = /^seq:(\d+)$/.exec(spec.trim())
   if (!m) return { ok: false, reason: `replaces must name the rule it replaces as seq:<n> (got '${spec}')` }
   const seq = Number(m[1])
   const pin = readPins(dir).find(p => p.seq === seq)
-  if (pin?.asked) return { ok: false, reason: `${userAskedRuleMessage(seq)}; retain the new rule without replaces to add it beside` }
+  if (pin?.asked && authority === undefined) return { ok: false, reason: `${userAskedRuleMessage(seq)}; retain the new rule without replaces to add it beside` }
   const holder = allDocs(dir).find(doc => liveSeqs(doc).has(seq))
   if (!holder) return { ok: false, reason: `seq ${seq} is not live in this library — recall it again for its current id` }
-  return { ok: true, seq, slug: holder.slug }
+  return { ok: true, seq, slug: holder.slug, asked: pin?.asked === true }
 }
 
 export type RetainItemOutcome =
-  | { index: number; status: 'stored'; id: string }
+  | { index: number; status: 'stored'; id: string; replaced?: { seq: number; via: RuleAuthority } }
   | { index: number; status: 'already-staged'; id: string }
   | { index: number; status: 'refused'; reason: string; conflict?: ContradictionCandidate }
 
@@ -90,7 +99,7 @@ export function _resetMemoryVerbSessionStateForTesting(): void {
 
 export function retainItems(
   items: RetainItemInput[],
-  provenance: { session: string; agent?: string; source?: string; pin?: boolean; asked?: boolean },
+  provenance: { session: string; agent?: string; source?: string; pin?: boolean; asked?: boolean; authority?: RuleAuthority },
   dir: string = mnemeLibraryDir(),
   guard: RetainGuard = {},
 ): RetainItemOutcome[] {
@@ -123,7 +132,7 @@ export function retainItems(
       outcomes.push({ index, status: 'already-staged', id: existing })
       return
     }
-    const replacement = replaces ? replacementTarget(replaces, dir) : null
+    const replacement = replaces ? replacementTarget(replaces, dir, provenance.authority) : null
     if (replacement && !replacement.ok) {
       outcomes.push({ index, status: 'refused', reason: replacement.reason })
       return
@@ -131,6 +140,17 @@ export function retainItems(
     const conflict = conflictOf(index, item, content, dir, guard)
     if (conflict !== null) {
       outcomes.push({ index, status: 'refused', reason: conflictReason(conflict), conflict })
+      return
+    }
+    if (replacement?.asked === true && provenance.authority !== undefined) {
+      const corrected = correctFact({ targetSeq: replacement.seq, text, source: authoritySource(sourceBase, provenance.authority), dir, byUser: true })
+      if (!corrected.ok) {
+        outcomes.push({ index, status: 'refused', reason: corrected.message })
+        return
+      }
+      const id = `seq:${corrected.seq}`
+      outcomes.push({ index, status: 'stored', id, replaced: { seq: corrected.targetSeq, via: provenance.authority } })
+      noteRetained(id, true)
       return
     }
     const pin = provenance.pin || item.pin || replacement !== null
@@ -173,7 +193,7 @@ export function retainItems(
 
 export async function retainItemsJudged(
   items: RetainItemInput[],
-  provenance: { session: string; agent?: string; source?: string; pin?: boolean; asked?: boolean },
+  provenance: { session: string; agent?: string; source?: string; pin?: boolean; asked?: boolean; authority?: RuleAuthority },
   io: { dir?: string; judge?: ContradictionJudge | null; signal?: AbortSignal } = {},
 ): Promise<RetainItemOutcome[]> {
   const dir = io.dir ?? mnemeLibraryDir()
@@ -487,9 +507,39 @@ export function readMemoryRecord(
 export type CorrectOp = 'supersede' | 'amend' | 'retract'
 
 export type CorrectOutcome =
-  | { ok: true; op: CorrectOp; newSeq: number; targetSeq: number; slug: string }
-  | { ok: true; op: CorrectOp; draft: true; targetId: string; newId: string | null; replacedBy?: number }
+  | { ok: true; op: CorrectOp; newSeq: number; targetSeq: number; slug: string; via?: RuleAuthority }
+  | { ok: true; op: CorrectOp; draft: true; targetId: string; newId: string | null; replacedBy?: number; via?: RuleAuthority }
   | { ok: false; op: CorrectOp; code: string; message: string; conflict?: ContradictionCandidate }
+
+const unseenSeqMessage = (seq: number): string =>
+  `amend refused: the CURRENT full row for seq ${seq} has not been read this session — a clipped preview must never destroy an unseen tail. Read it first (Recall with read:"seq:${seq}").`
+const unseenPendingMessage = (id: string): string =>
+  `amend refused: the full pending row ${id} has not been read this session — a clipped preview must never destroy an unseen tail. Read it first (Recall with read:"${id}").`
+
+export function correctionPreflight(
+  input: { op: CorrectOp; id: string; content?: string; replacementId?: string; reason: string },
+  dir: string = mnemeLibraryDir(),
+): CorrectOutcome | null {
+  const { op, id } = input
+  const refuse = (code: string, message: string): CorrectOutcome => ({ ok: false, op, code, message })
+  if (!(input.reason ?? '').trim()) return refuse('invalid', 'a correction always carries its reason')
+  if (op === 'retract') return null
+  if (op === 'supersede' && input.replacementId) {
+    const replacement = liveReplacementSeq(input.replacementId, dir)
+    return replacement.ok ? null : refuse(replacement.code, replacement.message)
+  }
+  const content = (input.content ?? '').trim()
+  if (!content) return refuse('invalid', op === 'amend' ? 'amend needs the corrected content' : 'supersede needs content (the new truth) or a replacementId')
+  const pending = id.startsWith('pending:')
+  const overflow = pending ? observationOverflow(content) : null
+  if (overflow !== null) return refuse('invalid', `the correction is ${overflow}`)
+  const secret = memorySecretRefusal(content)
+  if (secret !== null) return refuse('secret', `the correction ${secret}`)
+  if (op !== 'amend') return null
+  if (pending) return seenPendingRows.has(id.slice('pending:'.length)) ? null : refuse('unseen-evidence', unseenPendingMessage(id))
+  const seq = Number(id.slice('seq:'.length))
+  return hasSeenFullRow(seq) ? null : refuse('unseen-evidence', unseenSeqMessage(seq))
+}
 
 function liveReplacementSeq(spec: string, dir: string): { ok: true; seq: number } | { ok: false; code: string; message: string } {
   const match = /^seq:(\d+)$/.exec(spec)
@@ -507,43 +557,38 @@ function amendConflict(id: string, content: string, dir: string, guard: RetainGu
 }
 
 function correctPending(
-  input: { op: CorrectOp; id: string; ts: string; content?: string; replacementId?: string; reason: string; source: string },
+  input: { op: CorrectOp; id: string; ts: string; content?: string; replacementId?: string; reason: string; source: string; authority?: RuleAuthority },
   dir: string,
   guard: RetainGuard,
 ): CorrectOutcome {
-  const { op, id, ts, reason, source } = input
+  const { op, id, ts, reason, source, authority } = input
+  const byUser = authority === undefined ? {} : { byUser: true }
+  const said = (content: string, tag: 'why' | 'amended'): string => (authority === undefined ? `${content} (${tag}: ${reason})` : content)
   const landed = (result: PendingCorrectResult, replacedBy?: number): CorrectOutcome => {
     if (!result.ok) return { ok: false, op, code: result.code, message: result.message }
     noteCorrected(id)
-    return { ok: true, op, draft: true, targetId: id, newId: result.row ? `pending:${result.row.ts}` : null, ...(replacedBy === undefined ? {} : { replacedBy }) }
+    return { ok: true, op, draft: true, targetId: id, newId: result.row ? `pending:${result.row.ts}` : null, ...(replacedBy === undefined ? {} : { replacedBy }), ...(authority === undefined ? {} : { via: authority }) }
   }
   switch (op) {
     case 'retract':
-      return landed(strikePendingRow({ ts, dir }))
+      return landed(strikePendingRow({ ts, dir, ...byUser }))
     case 'supersede': {
       if (input.replacementId) {
         const replacement = liveReplacementSeq(input.replacementId, dir)
         if (!replacement.ok) return { ok: false, op, code: replacement.code, message: replacement.message }
-        return landed(strikePendingRow({ ts, dir }), replacement.seq)
+        return landed(strikePendingRow({ ts, dir, ...byUser }), replacement.seq)
       }
       const content = (input.content ?? '').trim()
       if (!content) return { ok: false, op, code: 'invalid', message: 'supersede needs content (the new truth) or a replacementId' }
-      return landed(replacePendingRow({ ts, text: `${content} (why: ${reason})`, source, dir }))
+      return landed(replacePendingRow({ ts, text: said(content, 'why'), source, dir, ...byUser }))
     }
     case 'amend': {
       const content = (input.content ?? '').trim()
       if (!content) return { ok: false, op, code: 'invalid', message: 'amend needs the corrected content' }
-      if (!seenPendingRows.has(ts)) {
-        return {
-          ok: false,
-          op,
-          code: 'unseen-evidence',
-          message: `amend refused: the full pending row ${id} has not been read this session — a clipped preview must never destroy an unseen tail. Read it first (Recall with read:"${id}").`,
-        }
-      }
+      if (!seenPendingRows.has(ts)) return { ok: false, op, code: 'unseen-evidence', message: unseenPendingMessage(id) }
       const conflict = amendConflict(id, content, dir, guard)
       if (conflict !== null) return { ok: false, op, code: 'conflict', message: `amend refused: the new wording ${conflictReason(conflict)}`, conflict }
-      return landed(replacePendingRow({ ts, text: `${content} (amended: ${reason})`, source, dir }))
+      return landed(replacePendingRow({ ts, text: said(content, 'amended'), source, dir, ...byUser }))
     }
   }
 }
@@ -556,17 +601,20 @@ export function correctMemory(
     replacementId?: string
     reason: string
     session: string
+    authority?: RuleAuthority
   },
   dir: string = mnemeLibraryDir(),
   guard: RetainGuard = {},
 ): CorrectOutcome {
-  const { op } = input
-  const source = `tool:Correct s:${input.session.slice(0, 8)}`
+  const { op, authority } = input
+  const source = authoritySource(`tool:Correct s:${input.session.slice(0, 8)}`, authority)
   const reason = (input.reason ?? '').trim()
   if (input.id.startsWith('pending:')) {
     if (!reason) return { ok: false, op, code: 'invalid', message: 'a correction always carries its reason' }
-    return correctPending({ op, id: input.id, ts: input.id.slice('pending:'.length), ...(input.content !== undefined ? { content: input.content } : {}), ...(input.replacementId !== undefined ? { replacementId: input.replacementId } : {}), reason, source }, dir, guard)
+    return correctPending({ op, id: input.id, ts: input.id.slice('pending:'.length), ...(input.content !== undefined ? { content: input.content } : {}), ...(input.replacementId !== undefined ? { replacementId: input.replacementId } : {}), reason, source, ...(authority === undefined ? {} : { authority }) }, dir, guard)
   }
+  const byUser = authority === undefined ? {} : { byUser: true }
+  const said = (content: string, tag: 'why' | 'amended'): string => (authority === undefined ? `${content} (${tag}: ${reason})` : content)
   const seqMatch = /^seq:(\d+)$/.exec(input.id)
   if (!seqMatch) {
     return {
@@ -582,38 +630,31 @@ export function correctMemory(
   const finish = (result: MnemeCorrectResult): CorrectOutcome => {
     if (result.ok) {
       noteCorrected(`seq:${result.targetSeq}`)
-      return { ok: true, op, newSeq: result.seq, targetSeq: result.targetSeq, slug: result.slug }
+      return { ok: true, op, newSeq: result.seq, targetSeq: result.targetSeq, slug: result.slug, ...(authority === undefined ? {} : { via: authority }) }
     }
     return { ok: false, op, code: result.code, message: result.message }
   }
 
   switch (op) {
     case 'retract':
-      return finish(retireFact({ targetSeq, reason, source, dir }))
+      return finish(retireFact({ targetSeq, reason, source, dir, ...byUser }))
     case 'supersede': {
       if (input.replacementId) {
         const replacement = liveReplacementSeq(input.replacementId, dir)
         if (!replacement.ok) return { ok: false, op, code: replacement.code, message: replacement.message }
-        return finish(pointFact({ targetSeq, replacementSeq: replacement.seq, reason, source, dir }))
+        return finish(pointFact({ targetSeq, replacementSeq: replacement.seq, reason, source, dir, ...byUser }))
       }
       const content = (input.content ?? '').trim()
       if (!content) return { ok: false, op, code: 'invalid', message: 'supersede needs content (the new truth) or a replacementId' }
-      return finish(correctFact({ targetSeq, text: `${content} (why: ${reason})`, source, dir }))
+      return finish(correctFact({ targetSeq, text: said(content, 'why'), source, dir, ...byUser }))
     }
     case 'amend': {
       const content = (input.content ?? '').trim()
       if (!content) return { ok: false, op, code: 'invalid', message: 'amend needs the corrected content' }
-      if (!hasSeenFullRow(targetSeq)) {
-        return {
-          ok: false,
-          op,
-          code: 'unseen-evidence',
-          message: `amend refused: the CURRENT full row for seq ${targetSeq} has not been read this session — a clipped preview must never destroy an unseen tail. Read it first (Recall with read:"seq:${targetSeq}").`,
-        }
-      }
+      if (!hasSeenFullRow(targetSeq)) return { ok: false, op, code: 'unseen-evidence', message: unseenSeqMessage(targetSeq) }
       const conflict = amendConflict(input.id, content, dir, guard)
       if (conflict !== null) return { ok: false, op, code: 'conflict', message: `amend refused: the new wording ${conflictReason(conflict)}`, conflict }
-      return finish(correctFact({ targetSeq, text: `${content} (amended: ${reason})`, source, dir }))
+      return finish(correctFact({ targetSeq, text: said(content, 'amended'), source, dir, ...byUser }))
     }
   }
 }

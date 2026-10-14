@@ -8,6 +8,7 @@ import { useSessionAccent } from '../mercury-ui/sessionAccent.js'
 import { useMercuryTokens } from '../mercury-ui/useMercuryTokens.js'
 import { useFlatList } from '../mercury-ui/useFlatList.js'
 import { collectMemoryRefs, factMemoryState, memoryStatusWords, type MemoryRef } from '../../mneme/memoryRefs.js'
+import { SOVEREIGN_SOURCE_MARK } from '../../mneme/memoryVerbs.js'
 import { pendingRows } from '../../mneme/mnemeBuffer.js'
 import { correctFact, pinPendingRow, replacePendingRow, retireFact, strikePendingRow } from '../../mneme/mnemeCorrect.js'
 import { mnemeEnabled, mnemeLibraryDir } from '../../mneme/mnemeGates.js'
@@ -161,11 +162,12 @@ export function missingPinRef(seq: number): OpenRef {
   }
 }
 
-export function sourceWords(source: string | undefined): string {
+export function sourceWords(source: string | undefined, text?: string): string {
   if (!source) return ''
+  const sovereign = source.endsWith(SOVEREIGN_SOURCE_MARK) ? ' under sovereign' : ''
   if (source === 'operator') return 'from /memory'
-  if (source.startsWith('tool:Retain')) return 'from the chat'
-  if (source.startsWith('tool:Correct')) return 'corrected from the chat'
+  if (source.startsWith('tool:Retain')) return sovereign ? `replaced from the chat${sovereign}` : 'from the chat'
+  if (source.startsWith('tool:Correct')) return sovereign && text?.startsWith('retired: ') ? `unpinned and struck from the chat${sovereign}` : `corrected from the chat${sovereign}`
   if (source.startsWith('handover:')) return `taken in from ${source.slice('handover:'.length)}`
   return source
 }
@@ -178,7 +180,7 @@ export function topicTitle(doc: Pick<MnemeTopicDoc, 'slug' | 'summary'>): string
 
 export function entryWords(e: MnemeEntry): string {
   const by = e.supersededBy !== undefined ? ` · superseded by ${e.supersededBy}` : ''
-  return `${e.text} ${`(seq ${e.seq} · ${humanStamp(e.time)} · ${sourceWords(e.source)}${by})`.replace(/ /g, '\u00a0')}`
+  return `${e.text} ${`(seq ${e.seq} · ${humanStamp(e.time)} · ${sourceWords(e.source, e.text)}${by})`.replace(/ /g, '\u00a0')}`
 }
 
 export function topicPageLines(doc: MnemeTopicDoc, width: number): PageLine[] {
