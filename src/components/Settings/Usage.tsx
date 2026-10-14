@@ -937,7 +937,7 @@ function MetaUsageSection({ width }: { width?: number }): React.ReactNode {
         <SlotHeading text="Muse Code subscription" />
         {subscription ? (
           <Box flexDirection="column">
-            <Text dimColor>{[account.email, tierWithAge].filter((part): part is string => part !== undefined && part !== '').join(' · ')}</Text>
+            <Text dimColor>{[account.email ? shownIdentityWords('meta', account.email) : undefined, tierWithAge].filter((part): part is string => part !== undefined && part !== '').join(' · ')}</Text>
             <SlotSpend active route="meta" spend={spend} withCost={false} />
             {windows.length > 0 ? (
               windows.map(window => (

@@ -322,6 +322,16 @@ try {
       !JSON.stringify(metaSlots).includes(MINTED_KEY),
     JSON.stringify(metaSlots),
   )
+  const metaPresence = providerUsage.providerFamilyPresences().find(p => p.id === 'meta')
+  check(
+    'presence owner exposes e-mail as identity and plan as credentialLabel, redacting e-mail when accountIdentity is off',
+    metaPresence?.credentialed === true &&
+      metaPresence.identity === 'subscriber@example.com' &&
+      metaPresence.credentialLabel === 'Muse Code (Muse Code Pro)' &&
+      providerUsage.presenceIdentityWords(metaPresence, true) === 'subscriber@example.com' &&
+      providerUsage.presenceIdentityWords(metaPresence, false) === 'Meta account',
+    JSON.stringify(metaPresence),
+  )
 
   console.log('── 4. Row 4: /usage shows tier and two windows with age; re-read bounded through /muse-code/key ──')
   usageState.__resetMetaUsageForTest()
