@@ -1,0 +1,59 @@
+{
+  "name": "embed-models",
+  "source": "https://huggingface.co/CompendiumLabs/bge-base-en-v1.5-gguf",
+  "license": "MIT",
+  "licenseNote": "BAAI BGE embedding weights (MIT, https://huggingface.co/BAAI/bge-base-en-v1.5), GTE weights (MIT, https://huggingface.co/thenlper/gte-base), Sentence Transformers MiniLM weights (Apache-2.0, https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2) and Nomic Embed Text v1.5 weights (Apache-2.0, https://huggingface.co/nomic-ai/nomic-embed-text-v1.5-GGUF), in GGUF format. The weights live under <config-home>/models/embed or vendor/embed-models, verified against the sha256 below before rename into place.",
+  "default": "bge-base-en-v1.5-q8_0",
+  "models": [
+    {
+      "name": "bge-base-en-v1.5-q8_0",
+      "file": "bge-base-en-v1.5-q8_0.gguf",
+      "url": "https://huggingface.co/CompendiumLabs/bge-base-en-v1.5-gguf/resolve/main/bge-base-en-v1.5-q8_0.gguf",
+      "bytes": 117974304,
+      "sha256": "ad1afe72cd6654a558667a3db10878b049a75bfd72912e1dabb91310d671173c",
+      "license": "MIT",
+      "dimension": 768,
+      "words": "BGE base.en v1.5, 768d, 8-bit weights (118 MB, MIT) — highest recall@5 on the lineage study"
+    },
+    {
+      "name": "bge-small-en-v1.5-q8_0",
+      "file": "bge-small-en-v1.5-q8_0.gguf",
+      "url": "https://huggingface.co/CompendiumLabs/bge-small-en-v1.5-gguf/resolve/main/bge-small-en-v1.5-q8_0.gguf",
+      "bytes": 36806944,
+      "sha256": "ec38e8da142596baa913124ae50550de284b6916bf59577ef2f0cb9660c2f514",
+      "license": "MIT",
+      "dimension": 384,
+      "words": "BGE small.en v1.5, 384d, 8-bit weights (37 MB, MIT) — compact 30 MB class"
+    },
+    {
+      "name": "all-MiniLM-L6-v2-q8_0",
+      "file": "all-MiniLM-L6-v2-Q8_0.gguf",
+      "url": "https://huggingface.co/second-state/All-MiniLM-L6-v2-Embedding-GGUF/resolve/main/all-MiniLM-L6-v2-Q8_0.gguf",
+      "bytes": 25008064,
+      "sha256": "263215c3cadd6e16740741a7624ab4cbb6c8e777688bd5331ecfbf5681c2f8ed",
+      "license": "Apache-2.0",
+      "dimension": 384,
+      "words": "All-MiniLM-L6-v2, 384d, 8-bit weights (25 MB, Apache-2.0) — smallest 6-layer encoder"
+    },
+    {
+      "name": "gte-base-q8_0",
+      "file": "gte-base.Q8_0.gguf",
+      "url": "https://huggingface.co/ChristianAzinn/gte-base-gguf/resolve/main/gte-base.Q8_0.gguf",
+      "bytes": 117974368,
+      "sha256": "e6d1ddd80c0106a17009d401d6a4e46278a497dd92d71f63e98454350fa0fbf4",
+      "license": "MIT",
+      "dimension": 768,
+      "words": "GTE base, 768d, 8-bit weights (118 MB, MIT)"
+    },
+    {
+      "name": "nomic-embed-text-v1.5-q8_0",
+      "file": "nomic-embed-text-v1.5.Q8_0.gguf",
+      "url": "https://huggingface.co/nomic-ai/nomic-embed-text-v1.5-GGUF/resolve/main/nomic-embed-text-v1.5.Q8_0.gguf",
+      "bytes": 146146432,
+      "sha256": "3e24342164b3d94991ba9692fdc0dd08e3fd7362e0aacc396a9a5c54a544c3b7",
+      "license": "Apache-2.0",
+      "dimension": 768,
+      "words": "Nomic Embed Text v1.5, 768d, 8-bit weights (146 MB, Apache-2.0)"
+    }
+  ]
+}
