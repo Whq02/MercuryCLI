@@ -114,17 +114,21 @@ for (const env of optOutSample) {
   const backOn = flagEnabled(env)
   check(`${env}: unset ⇒ ON, '0' ⇒ OFF, re-unset ⇒ ON (live re-read)`, on && !off && backOn)
 }
-section('§3b DuckDuckGo scraping is explicit opt-in, including malformed values')
+section('§3b DuckDuckGo page scraping is on by default; every off spelling turns it off, junk never silently disarms it')
 {
   const env = 'MERCURY_SEARCH_KEYLESS'
-  for (const spelling of ['0', 'false', 'off', 'no', 'FALSE', 'Off', '"0"', "'0'", '0 ', ' false ', 'junk', '2', 'treu']) {
+  const row = FLAG_REGISTRY.find(f => f.env === env)
+  check(`${env}: registered default-on at the security tier with its evidence on disk`, row?.kind === 'default-on' && row.tier === 'security' && row.evidence !== undefined && existsSync(join(root, row.evidence)), JSON.stringify(row?.evidence))
+  for (const spelling of ['0', 'false', 'off', 'no', 'FALSE', 'Off', '"0"', "'0'", '0 ', ' false ']) {
     process.env[env] = spelling
     check(`${env}=${JSON.stringify(spelling)} ⇒ OFF`, !flagEnabled(env))
   }
-  process.env[env] = '1'
-  check(`${env}=1 ⇒ ON`, flagEnabled(env))
+  for (const spelling of ['1', 'junk', '2', 'treu']) {
+    process.env[env] = spelling
+    check(`${env}=${JSON.stringify(spelling)} ⇒ ON (the default-on law: junk never silently disarms a gate)`, flagEnabled(env))
+  }
   delete process.env[env]
-  check(`${env}: unset ⇒ OFF`, !flagEnabled(env))
+  check(`${env}: unset ⇒ ON`, flagEnabled(env))
 }
 
 const optInSample = ['MERCURY_SATURN_DISABLE', 'MERCURY_AGENT_NEEDS_YOU_LLM', 'MERCURY_ANTHROPIC_CONNECTORS']

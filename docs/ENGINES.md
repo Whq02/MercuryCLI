@@ -976,11 +976,12 @@ The automatic search order is:
    use HTTPS, except HTTP on loopback, with no credentials, query or fragment.
    A failed instance is remembered for the session; a refusal or rate limit
    stops the attempt rather than switching hosts to evade it.
-5. DuckDuckGo page scraping, only when explicitly enabled.
+5. DuckDuckGo page scraping, unless you turned it off.
 
-DuckDuckGo scraping is **off by default**. `/config` → **DuckDuckGo scraping**
-shows its terms and controls the saved choice. `MERCURY_SEARCH_KEYLESS=1` opts
-in; `=0` overrides the saved choice and prevents scraping. The first use in a
+DuckDuckGo page scraping is **on by default**; off keeps general queries to
+the official sources and your keys. `/config` → **DuckDuckGo page scraping**
+shows its terms and controls the saved choice. `MERCURY_SEARCH_KEYLESS=0`
+turns it off for the process; `=1` overrides a saved off. The first use in a
 session carries a notice linking [the terms](https://duckduckgo.com/terms) and
 [acceptable-use policy](https://duckduckgo.com/acceptable-use). A challenge or
 refusal stops both page endpoints without a retry or a host switch. Every
