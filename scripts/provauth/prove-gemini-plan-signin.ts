@@ -48,6 +48,32 @@ const assist = {
   imageModelIds: ['gemini-3.1-flash-image'],
 }
 const sse = (value: unknown): string => `data: ${JSON.stringify(value)}\n\n`
+const SCHEMA_PROTO_FIELDS: Record<string, string> = { type: 'type', format: 'format', title: 'title', description: 'description', nullable: 'nullable', enum: 'enum', items: 'items', maxItems: 'max_items', minItems: 'min_items', properties: 'properties', required: 'required', minProperties: 'min_properties', maxProperties: 'max_properties', minimum: 'minimum', maximum: 'maximum', minLength: 'min_length', maxLength: 'max_length', pattern: 'pattern', example: 'example', anyOf: 'any_of', propertyOrdering: 'property_ordering', default: 'default', additionalProperties: 'additional_properties', oneOf: 'one_of' }
+function schemaGrammarViolations(schema: unknown, path: string, out: string[]): void {
+  if (typeof schema !== 'object' || schema === null || Array.isArray(schema)) return
+  for (const [key, value] of Object.entries(schema as Record<string, unknown>)) {
+    const field = SCHEMA_PROTO_FIELDS[key]
+    if (field === undefined) {
+      out.push(`Invalid JSON payload received. Unknown name "${key}" at '${path}': Cannot find field.`)
+      continue
+    }
+    if (key === 'properties' && typeof value === 'object' && value !== null) Object.values(value as Record<string, unknown>).forEach((sub, index) => schemaGrammarViolations(sub, `${path}.properties[${index}].value`, out))
+    else if (key === 'items' || key === 'additionalProperties') schemaGrammarViolations(value, `${path}.${field}`, out)
+    else if ((key === 'anyOf' || key === 'oneOf') && Array.isArray(value)) value.forEach((sub, index) => schemaGrammarViolations(sub, `${path}.${field}[${index}]`, out))
+    else if (key === 'enum' && Array.isArray(value) && value.some(member => typeof member !== 'string')) out.push(`Invalid value at '${path}.enum': expected a string.`)
+  }
+}
+function declarationViolations(body: Record<string, unknown> | undefined): string[] {
+  const out: string[] = []
+  const tools = (body?.request as Record<string, unknown> | undefined)?.tools
+  if (!Array.isArray(tools)) return out
+  tools.forEach((tool, t) => {
+    const declarations = (tool as Record<string, unknown>).functionDeclarations
+    if (!Array.isArray(declarations)) return
+    declarations.forEach((declaration, d) => schemaGrammarViolations((declaration as Record<string, unknown>).parameters, `request.tools[${t}].function_declarations[${d}].parameters`, out))
+  })
+  return out
+}
 
 function loadAnswer(): Record<string, unknown> {
   const project = assist.tierShape === 'onboard' && !assist.onboarded ? undefined : 'project-fixture-123'
@@ -130,6 +156,8 @@ const assistServer = Bun.serve({
     if (entry.path === '/v1internal:streamGenerateContent?alt=sse') {
       const model = String(entry.body?.model ?? '')
       if (!(model in assist.roster)) return Response.json({ error: { code: 404, message: `Model ${model} not found.`, status: 'NOT_FOUND' } }, { status: 404 })
+      const violations = declarationViolations(entry.body)
+      if (violations.length > 0) return Response.json({ error: { code: 400, message: violations.join('\n'), status: 'INVALID_ARGUMENT' } }, { status: 400 })
       if (assist.generateStatus !== 200) return Response.json({ error: { code: assist.generateStatus, message: assist.generateStatus === 429 ? 'Resource has been exhausted (e.g. check quota). Please retry after the reset.' : 'fixture refusal', status: assist.generateStatus === 429 ? 'RESOURCE_EXHAUSTED' : 'PERMISSION_DENIED' } }, { status: assist.generateStatus })
       if (assist.generateError) return new Response(sse({ error: assist.generateError }), { headers: { 'content-type': 'text/event-stream' } })
       const chunks = [
@@ -302,6 +330,38 @@ try {
   check('the inner request carries the contents, the system instruction as role user, a session id and the labels', Array.isArray(inner.contents) && (inner.systemInstruction as Record<string, unknown>)?.role === 'user' && typeof inner.sessionId === 'string' && typeof (inner.labels as Record<string, unknown>)?.trajectory_id === 'string', JSON.stringify(inner))
   const declaration = ((inner.tools as Array<Record<string, unknown>>)[0]!.functionDeclarations as Array<Record<string, unknown>>)[0]!
   check('tools ride as parameters with the keys the Code Assist proto refuses stripped, and the function calling mode VALIDATED', declaration.parameters !== undefined && declaration.parametersJsonSchema === undefined && !JSON.stringify(declaration.parameters).includes('$schema') && JSON.stringify(declaration.parameters).includes('pattern') && (inner.toolConfig as Record<string, Record<string, unknown>>)?.functionCallingConfig?.mode === 'VALIDATED', JSON.stringify(declaration))
+
+  console.log('── the schema grammar: every real tool definition rides the plan wire inside Google\'s Schema grammar; the fixture refuses anything outside it in Google\'s words ──')
+  const { codeAssistSchema, GEMINI_SCHEMA_GRAMMAR } = await import('../../src/services/providers/gemini/geminiCodec.ts')
+  const corpus = JSON.parse(readFileSync(new URL('../tool-economy/fixtures/definition-corpus.json', import.meta.url), 'utf8')) as { definitions: Array<{ name: string; description: string; input_schema: Record<string, unknown> }> }
+  check('the corpus is the product\'s own: 59 definitions, the same file the tool-economy parity proof keeps byte-identical to the live tools', corpus.definitions.length === 59 && corpus.definitions.some(d => d.name === 'Bash') && JSON.stringify(corpus.definitions).includes('"const"') && JSON.stringify(corpus.definitions).includes('"exclusiveMinimum"'))
+  const rawViolations: string[] = []
+  corpus.definitions.forEach((d, i) => schemaGrammarViolations(d.input_schema, `request.tools[0].function_declarations[${i}].parameters`, rawViolations))
+  check('unreduced, the corpus carries keywords outside the grammar — const and exclusiveMinimum among them (the owner\'s live refusal)', rawViolations.some(v => v.includes('Unknown name "const"')) && rawViolations.some(v => v.includes('Unknown name "exclusiveMinimum"')), rawViolations.slice(0, 3).join(' | '))
+  const corpusTools = corpus.definitions.map(d => ({ type: 'function', function: { name: d.name, description: d.description, parameters: d.input_schema } }))
+  const corpusEvents: Array<Record<string, unknown>> = []
+  const corpusAuth = await accounts.resolveGeminiRequestAuth({ sourceKind: 'plan' })
+  for await (const event of streamGeminiContent({ apiKey: corpusAuth!.headers.authorization!.slice(7), url: `${assistBase}/v1internal:streamGenerateContent?alt=sse`, request: { model: 'gemini-4-argon', messages: [{ role: 'user', content: 'hello' }], tools: corpusTools } as never, messages: [], plan: { ...callModel.nextGeminiPlanEnvelope('project-fixture-123', 'gemini-4-argon'), bases: [assistBase], userAgent: corpusAuth!.headers['user-agent']! }, onTurn: () => {} })) corpusEvents.push(event as Record<string, unknown>)
+  const corpusHit = requests.filter(r => r.host === 'assist' && r.path === '/v1internal:streamGenerateContent?alt=sse').at(-1)
+  const sentDeclarations = (((corpusHit?.body?.request as Record<string, unknown>)?.tools as Array<Record<string, unknown>>)?.[0]?.functionDeclarations ?? []) as Array<Record<string, unknown>>
+  const sentViolations = declarationViolations(corpusHit?.body)
+  check('all 59 real definitions ride the plan wire and Google\'s grammar accepts every one — the answer lands, no refusal', sentDeclarations.length === 59 && sentViolations.length === 0 && corpusEvents.some(e => e.type === 'finish') && !corpusEvents.some(e => e.type === 'stream-fault'), JSON.stringify({ sent: sentDeclarations.length, violations: sentViolations.slice(0, 3), fault: corpusEvents.find(e => e.type === 'stream-fault') }))
+  const sentText = JSON.stringify(sentDeclarations)
+  check('no declaration on the wire carries a keyword outside Google\'s Schema grammar', ['const', 'exclusiveMinimum', 'exclusiveMaximum', 'propertyNames', '$schema', 'examples', 'multipleOf', 'uniqueItems', 'allOf'].every(key => !sentText.includes(`"${key}":`)), sentText.slice(0, 200))
+  const bashSent = sentDeclarations.find(d => d.name === 'Bash')
+  const bashBudget = ((bashSent?.parameters as Record<string, unknown>)?.properties as Record<string, Record<string, unknown>>)?.max_output_chars
+  check('a real tool\'s exclusiveMinimum is reduced: the bound rides the property\'s description in words, minimum/maximum stay as Google accepts them', bashBudget !== undefined && bashBudget.exclusiveMinimum === undefined && String(bashBudget.description).includes('greater than 0') && bashBudget.maximum === 9007199254740991 && bashBudget.type === 'integer', JSON.stringify(bashBudget))
+  const constOwner = corpus.definitions.find(d => JSON.stringify(d.input_schema).includes('"const":"worktree"'))
+  const constSent = sentDeclarations.find(d => d.name === constOwner?.name)
+  check('a real tool\'s const is reduced to a one-member enum, the meaning kept', constOwner !== undefined && constSent !== undefined && !JSON.stringify(constSent).includes('"const"') && JSON.stringify(constSent).includes('"enum":["worktree"]'), JSON.stringify(constSent).slice(0, 300))
+  const reducedUnit = codeAssistSchema({ type: 'object', properties: { kind: { const: 'log' }, n: { type: 'integer', exclusiveMinimum: 0, exclusiveMaximum: 10, multipleOf: 2, description: 'a count' }, tags: { type: 'array', items: { type: 'string' }, uniqueItems: true }, mode: { type: ['string', 'null'], enum: ['a', 'b'] }, note: { type: 'string', examples: ['x'], deprecated: true, $comment: 'c' } }, required: ['kind'], additionalProperties: false, $schema: 'http://json-schema.org/draft-07/schema#' }) as Record<string, Record<string, Record<string, unknown>>>
+  check('the reducer: const → enum (type string inferred), exclusive bounds and multipleOf and uniqueItems become words, a null type becomes nullable, examples → example, annotations and meta keys drop, additionalProperties false stays', JSON.stringify(reducedUnit.properties.kind) === JSON.stringify({ enum: ['log'], type: 'string' }) && JSON.stringify(reducedUnit.properties.n) === JSON.stringify({ type: 'integer', description: 'a count. (greater than 0; less than 10; a multiple of 2)' }) && JSON.stringify(reducedUnit.properties.tags) === JSON.stringify({ type: 'array', items: { type: 'string' }, description: '(items are unique)' }) && JSON.stringify(reducedUnit.properties.mode) === JSON.stringify({ type: 'string', nullable: true, enum: ['a', 'b'] }) && JSON.stringify(reducedUnit.properties.note) === JSON.stringify({ type: 'string', example: 'x' }) && (reducedUnit as Record<string, unknown>).additionalProperties === false && (reducedUnit as Record<string, unknown>).$schema === undefined, JSON.stringify(reducedUnit))
+  const unitViolations: string[] = []
+  schemaGrammarViolations(reducedUnit, 'request.tools[0].function_declarations[0].parameters', unitViolations)
+  check('the reduced shape is inside the grammar the fixture enforces, and the grammar is Google\'s Schema (content.proto) plus the two keys Code Assist accepted live', unitViolations.length === 0 && GEMINI_SCHEMA_GRAMMAR.size === 24 && GEMINI_SCHEMA_GRAMMAR.has('propertyOrdering') && GEMINI_SCHEMA_GRAMMAR.has('additionalProperties') && GEMINI_SCHEMA_GRAMMAR.has('oneOf') && !GEMINI_SCHEMA_GRAMMAR.has('const'), unitViolations.join(' | '))
+  const rawRefusal = await fetch(`${assistBase}/v1internal:streamGenerateContent?alt=sse`, { method: 'POST', headers: { 'content-type': 'application/json', authorization: corpusAuth!.headers.authorization!, 'user-agent': corpusAuth!.headers['user-agent']! }, body: JSON.stringify({ model: 'gemini-4-argon', project: 'project-fixture-123', request: { contents: [{ role: 'user', parts: [{ text: 'hi' }] }], tools: [{ functionDeclarations: [{ name: 'Probe', parameters: { type: 'object', properties: { kind: { const: 'log' }, n: { type: 'integer', exclusiveMinimum: 0 } } } }] }] } }) })
+  const rawRefusalBody = await rawRefusal.json() as { error: { message: string; status: string } }
+  check('the fixture refuses an unreduced declaration in Google\'s words, naming the keyword and the proto path — the guard is real', rawRefusal.status === 400 && rawRefusalBody.error.status === 'INVALID_ARGUMENT' && rawRefusalBody.error.message.includes(`Invalid JSON payload received. Unknown name "const" at 'request.tools[0].function_declarations[0].parameters.properties[0].value': Cannot find field.`) && rawRefusalBody.error.message.includes(`Unknown name "exclusiveMinimum" at 'request.tools[0].function_declarations[0].parameters.properties[1].value'`), JSON.stringify(rawRefusalBody))
   check('the request goes out under the Antigravity User-Agent with the bearer', generate?.headers['user-agent'] === contract.antigravityUserAgent() && (generate.headers.authorization ?? '').startsWith('Bearer ya29.plan-'))
   const text = events.filter(e => (e as { type: string }).type === 'text-delta').map(e => (e as { text: string }).text).join('')
   const finish = events.find(e => (e as { type: string }).type === 'finish') as { reason?: string } | undefined
