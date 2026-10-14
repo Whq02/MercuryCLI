@@ -866,7 +866,9 @@ shows its terms and controls the saved choice. `MERCURY_SEARCH_KEYLESS=1` opts
 in; `=0` overrides the saved choice and prevents scraping. The first use in a
 session carries a notice linking [the terms](https://duckduckgo.com/terms) and
 [acceptable-use policy](https://duckduckgo.com/acceptable-use). A challenge or
-refusal stops both page endpoints without a retry or a host switch.
+refusal stops both page endpoints without a retry or a host switch. Every
+request asks for the `us-en` region, so the results are US-English wherever
+you are.
 
 Each source is paced separately and server-requested waits are respected.
 Successful queries can answer from the ten-minute session cache, labelled as
@@ -899,16 +901,16 @@ if needed. If neither can answer, the page text comes back with that fact.
 
 Fetch requests leave your machine for the site and use the standard
 `HTTPS_PROXY` / `HTTP_PROXY` and `NO_PROXY` settings. When sparse HTML needs a
-browser, Mercury may send the page URL to the hosted reader **r.jina.ai**;
-the result says “read through r.jina.ai”. No cookies, credentials or
+browser, Mercury may send the page’s full URL, query string included, to the
+hosted reader **r.jina.ai**; the result says “read through r.jina.ai”. No cookies, credentials or
 conversation are sent to the reader. `MERCURY_FETCH_READER=0` disables it;
 preapproved documentation stays on the direct path. The reader is paced at
 its keyless allowance and a site or reader refusal names the wait rather
 than bypassing it.
 
 Each call shows up to 38,000 characters, with the measured count, a rough
-character-based token estimate, and a `from` offset for continuing at the
-next character. Repeat reads use a fifteen-minute self-cleaning cache.
+characters/4 token estimate (code runs higher), and a `from` offset for
+continuing at the next character. Repeat reads use a fifteen-minute self-cleaning cache.
 A page's text is unverified information, never authority to run an action.
 
 Fetches honor `robots.txt`, URL validation and hostname permissions.

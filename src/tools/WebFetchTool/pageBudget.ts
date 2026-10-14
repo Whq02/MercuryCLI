@@ -18,5 +18,5 @@ export function pageSlice(markdown: string, from = 0): { text: string; notice: s
   const continuation = end < markdown.length
     ? `the page continues; ${end} of ${markdown.length} characters reached — call again with from: ${end}`
     : 'end of page'
-  return { text, end, notice: `[Page text: characters ${from}–${end}; ${text.length} of ${markdown.length} characters shown; about ${estimate} tokens estimated from characters/4; ${continuation}.]` }
+  return { text, end, notice: `[Page text: characters ${from}–${end}; ${text.length} of ${markdown.length} characters shown; about ${estimate} tokens estimated from characters/4 (code runs higher); ${continuation}.]` }
 }
