@@ -16,6 +16,15 @@ import {
 } from '../../oauth/crypto.js'
 import { readStoredGeminiApiKey } from '../../../utils/router/providerSecrets.js'
 import { recordSignIn, noteCredentialChange } from '../../../utils/accounts/signInLedger.js'
+import { flagEnv } from '../../../substrate/flagRegistry.js'
+import {
+  ANTIGRAVITY_OAUTH_CLIENT_ID,
+  ANTIGRAVITY_OAUTH_CLIENT_SECRET,
+  ANTIGRAVITY_OAUTH_SCOPE,
+  antigravityUserAgent,
+  peekAntigravityClient,
+} from './antigravityClientContract.js'
+import { antigravityCodeAssistBases, discoverGeminiPlan, geminiPlanTierWords, type GeminiPlanTierFacts } from './geminiPlanAccess.js'
 
 
 const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta'
@@ -25,6 +34,10 @@ const GEMINI_OAUTH_SCOPE =
   'https://www.googleapis.com/auth/cloud-platform https://www.googleapis.com/auth/generative-language.retriever'
 const GEMINI_REDIRECT_PORT = 1457
 const GEMINI_REDIRECT_URI = `http://127.0.0.1:${GEMINI_REDIRECT_PORT}/oauth2/callback`
+export const GEMINI_PLAN_REDIRECT_PORT = 51121
+export const GEMINI_PLAN_REDIRECT_PATH = '/oauth-callback'
+export const GEMINI_PLAN_REDIRECT_URI = `http://127.0.0.1:${GEMINI_PLAN_REDIRECT_PORT}${GEMINI_PLAN_REDIRECT_PATH}`
+const GOOGLE_USERINFO_BASE = 'https://www.googleapis.com'
 
 const LOGIN_EXCHANGE_TIMEOUT_MS = 15_000
 
@@ -36,6 +49,10 @@ function googleOauthAuthBase(env: NodeJS.ProcessEnv = process.env): string {
 }
 function googleOauthTokenBase(env: NodeJS.ProcessEnv = process.env): string {
   return env['MERCURY_GEMINI_OAUTH_TOKEN_BASE']?.trim() || GOOGLE_OAUTH_TOKEN_BASE
+}
+function googleUserinfoBase(env: NodeJS.ProcessEnv = process.env): string {
+  const pinned = (env === process.env ? flagEnv('MERCURY_GOOGLE_USERINFO_BASE') : env['MERCURY_GOOGLE_USERINFO_BASE'])?.trim()
+  return (pinned && /^https?:\/\//i.test(pinned) ? pinned : GOOGLE_USERINFO_BASE).replace(/\/+$/, '')
 }
 
 
@@ -54,13 +71,34 @@ export interface GeminiOauthClientConfig {
   clientSecret?: string
 }
 
+export interface GeminiPlanStored {
+  tokens: GeminiStoredTokens
+  projectId: string
+  email?: string
+  tier?: GeminiPlanTierFacts
+  tierReadAtMs?: number
+  lastRefreshMs?: number
+}
+
+export type GeminiSourceKind = 'oauth' | 'api-key' | 'plan'
+
 interface GeminiAuthFile {
   version: number
   client?: GeminiOauthClientConfig
   tokens?: GeminiStoredTokens
+  plan?: GeminiPlanStored
   lastRefreshMs?: number
-  preferredSource?: 'oauth' | 'api-key'
+  preferredSource?: GeminiSourceKind
   [k: string]: unknown
+}
+
+function planOf(file: GeminiAuthFile | null): GeminiPlanStored | undefined {
+  const plan = file?.plan
+  if (!plan || typeof plan !== 'object') return undefined
+  const tokens = plan.tokens
+  if (!tokens || typeof tokens.accessToken !== 'string' || typeof tokens.refreshToken !== 'string' || tokens.refreshToken === '') return undefined
+  if (typeof plan.projectId !== 'string' || plan.projectId === '') return undefined
+  return plan
 }
 
 function authFilePath(): string {
@@ -135,9 +173,50 @@ export type GeminiKeySource = 'env-google' | 'env-gemini' | 'stored'
 
 export interface GeminiAccountRef {
   provider: 'gemini'
-  kind: 'oauth' | 'api-key'
+  kind: GeminiSourceKind
   label: string
   keySource?: GeminiKeySource
+}
+
+export interface GeminiPlanFacts {
+  email?: string
+  tier?: GeminiPlanTierFacts
+  tierReadAtMs?: number
+  projectId: string
+}
+
+export function geminiPlanConnected(): boolean {
+  return planOf(readAuthFile()) !== undefined
+}
+
+export function geminiPlanFacts(): GeminiPlanFacts | undefined {
+  const plan = planOf(readAuthFile())
+  if (!plan) return undefined
+  return {
+    ...(plan.email ? { email: plan.email } : {}),
+    ...(plan.tier ? { tier: plan.tier } : {}),
+    ...(plan.tierReadAtMs !== undefined ? { tierReadAtMs: plan.tierReadAtMs } : {}),
+    projectId: plan.projectId,
+  }
+}
+
+export function geminiPlanLabel(facts: Pick<GeminiPlanFacts, 'tier'> | undefined): string {
+  return `Google sign-in (${geminiPlanTierWords(facts?.tier)})`
+}
+
+export function geminiPlanRef(): GeminiAccountRef | undefined {
+  const facts = geminiPlanFacts()
+  if (!facts) return undefined
+  return { provider: 'gemini', kind: 'plan', label: geminiPlanLabel(facts) }
+}
+
+export function disconnectGeminiPlan(): void {
+  writeAuthFile(file => {
+    const next = { ...file }
+    delete next.plan
+    if (next.preferredSource === 'plan') delete next.preferredSource
+    return next
+  })
 }
 
 export function resolveGeminiApiKey(
@@ -160,15 +239,20 @@ export function geminiOauthRef(): GeminiAccountRef | undefined {
   return { provider: 'gemini', kind: 'oauth', label: 'Google account (OAuth)' }
 }
 
-export function readPreferredGeminiSource(): 'oauth' | 'api-key' | undefined {
-  return readAuthFile()?.preferredSource
+export function readPreferredGeminiSource(): GeminiSourceKind | undefined {
+  const value = readAuthFile()?.preferredSource
+  return value === 'oauth' || value === 'api-key' || value === 'plan' ? value : undefined
 }
 
 export function geminiSourceIdentity(
-  sourceKind: 'oauth' | 'api-key',
+  sourceKind: GeminiSourceKind,
   env: NodeJS.ProcessEnv = process.env,
 ): string {
   if (sourceKind === 'api-key') return credentialFingerprint(resolveGeminiApiKey(env)?.key)
+  if (sourceKind === 'plan') {
+    const plan = planOf(readAuthFile())
+    return credentialFingerprint(plan?.tokens.refreshToken ?? plan?.tokens.accessToken)
+  }
   const tokens = readAuthFile()?.tokens
   return credentialFingerprint(tokens?.refreshToken ?? tokens?.accessToken)
 }
@@ -181,6 +265,8 @@ export function maskGeminiSecrets(text: string, env: NodeJS.ProcessEnv = process
   const material = [
     file?.tokens?.accessToken,
     file?.tokens?.refreshToken,
+    file?.plan?.tokens?.accessToken,
+    file?.plan?.tokens?.refreshToken,
     file?.client?.clientSecret,
     file?.client?.clientId,
     resolveGeminiApiKey(env)?.key,
@@ -191,7 +277,7 @@ export function maskGeminiSecrets(text: string, env: NodeJS.ProcessEnv = process
   return masked
 }
 
-export function writePreferredGeminiSource(kind: 'oauth' | 'api-key' | null): void {
+export function writePreferredGeminiSource(kind: GeminiSourceKind | null): void {
   writeAuthFile(file => {
     const next = { ...file }
     if (kind === null) delete next.preferredSource
@@ -219,10 +305,12 @@ export function resolveGeminiAccount(
           keySource: key.source,
         }
       : undefined
+  const plan = geminiPlanRef()
   const preferred = readPreferredGeminiSource()
-  if (preferred === 'api-key') return keyRef() ?? oauth
-  if (preferred === 'oauth') return oauth ?? keyRef()
-  return oauth ?? keyRef()
+  if (preferred === 'api-key') return keyRef() ?? plan ?? oauth
+  if (preferred === 'oauth') return oauth ?? plan ?? keyRef()
+  if (preferred === 'plan') return plan ?? oauth ?? keyRef()
+  return plan ?? oauth ?? keyRef()
 }
 
 
@@ -344,6 +432,56 @@ export async function currentGeminiTokens(opts?: {
   return refreshInFlight
 }
 
+let planRefreshInFlight: Promise<GeminiStoredTokens | undefined> | undefined
+
+export async function currentGeminiPlanTokens(opts?: {
+  fetchImpl?: typeof fetch
+  env?: NodeJS.ProcessEnv
+  now?: () => number
+  force?: boolean
+}): Promise<GeminiStoredTokens | undefined> {
+  const env = opts?.env ?? process.env
+  const now = opts?.now ?? Date.now
+  const plan = planOf(readAuthFile())
+  if (!plan) return undefined
+  if (!opts?.force && tokensFresh(plan.tokens, now())) return plan.tokens
+  if (planRefreshInFlight) return planRefreshInFlight
+  planRefreshInFlight = (async () => {
+    try {
+      const latest = planOf(readAuthFile())
+      if (!latest) return undefined
+      if (tokensFresh(latest.tokens, now()) && (!opts?.force || latest.tokens.accessToken !== plan.tokens.accessToken)) return latest.tokens
+      const body = new URLSearchParams({
+        grant_type: 'refresh_token',
+        refresh_token: latest.tokens.refreshToken,
+        client_id: ANTIGRAVITY_OAUTH_CLIENT_ID,
+        client_secret: ANTIGRAVITY_OAUTH_CLIENT_SECRET,
+      })
+      const raw = await postGoogleToken(body, opts?.fetchImpl ?? getApiFetch(), env)
+      const next = tokensFromTokenResponse(raw, latest.tokens.refreshToken, now)
+      writeAuthFile(f => {
+        const kept = planOf(f) ?? latest
+        return { ...f, plan: { ...kept, tokens: next, lastRefreshMs: now() } }
+      })
+      return next
+    } catch (error) {
+      if (error instanceof Error && /\binvalid_grant\b/.test(error.message)) {
+        writeAuthFile(file => {
+          const next = { ...file }
+          delete next.plan
+          if (next.preferredSource === 'plan') delete next.preferredSource
+          return next
+        })
+        return undefined
+      }
+      return planOf(readAuthFile())?.tokens ?? plan.tokens
+    } finally {
+      planRefreshInFlight = undefined
+    }
+  })()
+  return planRefreshInFlight
+}
+
 export function disconnectGeminiOauth(): void {
   writeAuthFile(file => {
     const next = { ...file }
@@ -359,18 +497,35 @@ export interface GeminiRequestAuth {
   account: GeminiAccountRef
   baseUrl: string
   headers: Record<string, string>
+  plan?: { projectId: string; bases: string[] }
 }
 
 export async function resolveGeminiRequestAuth(opts?: {
   fetchImpl?: typeof fetch
   env?: NodeJS.ProcessEnv
-  sourceKind?: 'oauth' | 'api-key'
+  sourceKind?: GeminiSourceKind
   forceRefresh?: boolean
 }): Promise<GeminiRequestAuth | undefined> {
   const env = opts?.env ?? process.env
   const account = resolveGeminiAccount(env)
   const kind = opts?.sourceKind ?? account?.kind
   if (!kind) return undefined
+  if (kind === 'plan') {
+    const tokens = await currentGeminiPlanTokens({
+      ...(opts?.fetchImpl ? { fetchImpl: opts.fetchImpl } : {}),
+      env,
+      ...(opts?.forceRefresh ? { force: true } : {}),
+    })
+    const facts = geminiPlanFacts()
+    if (!tokens?.accessToken || !facts) return undefined
+    const bases = antigravityCodeAssistBases(env)
+    return {
+      account: { provider: 'gemini', kind: 'plan', label: geminiPlanLabel(facts) },
+      baseUrl: bases[0]!,
+      headers: { authorization: `Bearer ${tokens.accessToken}`, 'user-agent': antigravityUserAgent() },
+      plan: { projectId: facts.projectId, bases },
+    }
+  }
   if (kind === 'api-key') {
     const key = resolveGeminiApiKey(env)
     if (!key) return undefined
@@ -459,23 +614,26 @@ export function geminiOauthErrorRemedy(code: string, description?: string): stri
   return `Google refused the sign-in: ${code}${detail} — fix the OAuth app in Google Cloud Console, then retry from /logins.`
 }
 
-export function beginGeminiBrowserConnect(opts?: {
+export interface GeminiConnectOptions {
   fetchImpl?: typeof fetch
   env?: NodeJS.ProcessEnv
   skipBrowserOpen?: boolean
   onListenerIssue?: (message: string) => void
   onSettledAfterCancel?: (ref: GeminiAccountRef) => void
   loopbackPort?: number
-}): GeminiConnectHandles {
-  const env = opts?.env ?? process.env
-  const requestedPort = opts?.loopbackPort ?? GEMINI_REDIRECT_PORT
-  const client = geminiOauthClientConfig(env)
-  const verifier = generateCodeVerifier()
-  const challenge = generateCodeChallenge(verifier)
-  const state = generateState()
-  const authorizeUrl = client ? buildGeminiAuthorizeUrl(env, client.clientId, challenge, state) : ''
-  const fetchImpl = opts?.fetchImpl ?? getApiFetch()
+}
 
+interface GoogleLoopbackRoad {
+  requestedPort: number
+  callbackPath: string
+  authorizeUrl: string
+  state: string
+  exchange: (code: string) => Promise<GeminiAccountRef>
+  connectedTabWords: string
+}
+
+function runGoogleLoopbackConnect(road: GoogleLoopbackRoad, opts: GeminiConnectOptions | undefined): GeminiConnectHandles {
+  const { requestedPort, authorizeUrl, state } = road
   let settle!: (ref: GeminiAccountRef) => void
   let fail!: (error: Error) => void
   const result = new Promise<GeminiAccountRef>((resolve, reject) => {
@@ -498,45 +656,12 @@ export function beginGeminiBrowserConnect(opts?: {
     fail(error)
   }
 
-  if (!client) {
-    setTimeout(() => fail(new Error(geminiOauthClientMissingCopy(env)!)), 0)
-    return {
-      authorizeUrl: '',
-      result,
-      completeWithRedirect: () => {},
-      cancel: () => {},
-      boundLoopbackPort: () => undefined,
-    }
-  }
-
   const finish = async (code: string): Promise<'settled' | 'disclosed' | 'failed' | 'ignored'> => {
     if (done) return 'ignored'
     done = true
     exchangeInFlight = true
     try {
-      const body = new URLSearchParams({
-        grant_type: 'authorization_code',
-        code,
-        redirect_uri: GEMINI_REDIRECT_URI,
-        client_id: client.clientId,
-        ...(client.clientSecret ? { client_secret: client.clientSecret } : {}),
-        code_verifier: verifier,
-      })
-      const raw = await postGoogleToken(body, fetchImpl, env)
-      const tokens = tokensFromTokenResponse(raw, undefined, Date.now)
-      if (!tokens.refreshToken) {
-        throw new Error(
-          'google returned no refresh token — remove the app from your Google account access page and retry the connect',
-        )
-      }
-      writeAuthFile(file => ({
-        ...file,
-        tokens,
-        lastRefreshMs: Date.now(),
-        preferredSource: 'oauth',
-      }))
-      recordSignIn('gemini', 'oauth')
-      const ref: GeminiAccountRef = { provider: 'gemini', kind: 'oauth', label: 'Google account (OAuth)' }
+      const ref = await road.exchange(code)
       if (cancelledMidExchange) {
         opts?.onSettledAfterCancel?.(ref)
         return 'disclosed'
@@ -572,7 +697,7 @@ export function beginGeminiBrowserConnect(opts?: {
 
   server = createServer((req, res) => {
     const url = new URL(req.url ?? '/', `http://127.0.0.1:${requestedPort}`)
-    if (url.pathname !== '/oauth2/callback') {
+    if (url.pathname !== road.callbackPath) {
       res.writeHead(404).end()
       return
     }
@@ -599,7 +724,7 @@ export function beginGeminiBrowserConnect(opts?: {
       if (end === 'settled' || end === 'disclosed') {
         res
           .writeHead(200, { 'content-type': 'text/plain' })
-          .end('Mercury: Google account connected for Gemini. You can close this tab.')
+          .end(road.connectedTabWords)
         return
       }
       if (end === 'ignored') {
@@ -667,6 +792,176 @@ export function beginGeminiBrowserConnect(opts?: {
   }
 }
 
+export function beginGeminiBrowserConnect(opts?: GeminiConnectOptions): GeminiConnectHandles {
+  const env = opts?.env ?? process.env
+  const requestedPort = opts?.loopbackPort ?? GEMINI_REDIRECT_PORT
+  const client = geminiOauthClientConfig(env)
+  const verifier = generateCodeVerifier()
+  const challenge = generateCodeChallenge(verifier)
+  const state = generateState()
+  const authorizeUrl = client ? buildGeminiAuthorizeUrl(env, client.clientId, challenge, state) : ''
+  const fetchImpl = opts?.fetchImpl ?? getApiFetch()
+
+  if (!client) {
+    const result = new Promise<GeminiAccountRef>((_resolve, reject) => {
+      setTimeout(() => reject(new Error(geminiOauthClientMissingCopy(env)!)), 0)
+    })
+    return {
+      authorizeUrl: '',
+      result,
+      completeWithRedirect: () => {},
+      cancel: () => {},
+      boundLoopbackPort: () => undefined,
+    }
+  }
+
+  const exchange = async (code: string): Promise<GeminiAccountRef> => {
+    const body = new URLSearchParams({
+      grant_type: 'authorization_code',
+      code,
+      redirect_uri: GEMINI_REDIRECT_URI,
+      client_id: client.clientId,
+      ...(client.clientSecret ? { client_secret: client.clientSecret } : {}),
+      code_verifier: verifier,
+    })
+    const raw = await postGoogleToken(body, fetchImpl, env)
+    const tokens = tokensFromTokenResponse(raw, undefined, Date.now)
+    if (!tokens.refreshToken) {
+      throw new Error(
+        'google returned no refresh token — remove the app from your Google account access page and retry the connect',
+      )
+    }
+    writeAuthFile(file => ({
+      ...file,
+      tokens,
+      lastRefreshMs: Date.now(),
+      preferredSource: 'oauth',
+    }))
+    recordSignIn('gemini', 'oauth')
+    return { provider: 'gemini', kind: 'oauth', label: 'Google account (OAuth)' }
+  }
+
+  return runGoogleLoopbackConnect(
+    {
+      requestedPort,
+      callbackPath: '/oauth2/callback',
+      authorizeUrl,
+      state,
+      exchange,
+      connectedTabWords: 'Mercury: Google account connected for Gemini. You can close this tab.',
+    },
+    opts,
+  )
+}
+
+export const GEMINI_PLAN_NO_REFRESH_TOKEN_WORDS =
+  'Google returned no refresh token for the plan sign-in — sign in again and let the consent screen complete'
+
+function buildGeminiPlanAuthorizeUrl(env: NodeJS.ProcessEnv, challenge: string, state: string): string {
+  const params = new URLSearchParams({
+    response_type: 'code',
+    client_id: ANTIGRAVITY_OAUTH_CLIENT_ID,
+    redirect_uri: GEMINI_PLAN_REDIRECT_URI,
+    scope: ANTIGRAVITY_OAUTH_SCOPE,
+    code_challenge: challenge,
+    code_challenge_method: 'S256',
+    state,
+    access_type: 'offline',
+    prompt: 'consent',
+  })
+  return `${googleOauthAuthBase(env)}?${params.toString()}`
+}
+
+async function readGoogleAccountEmail(accessToken: string, fetchImpl: typeof fetch, env: NodeJS.ProcessEnv): Promise<string | undefined> {
+  try {
+    const response = await fetchWithProviderDeadline(fetchImpl, 'gemini', LOGIN_EXCHANGE_TIMEOUT_MS, `${googleUserinfoBase(env)}/oauth2/v1/userinfo?alt=json`, {
+      method: 'GET',
+      headers: { authorization: `Bearer ${accessToken}`, accept: 'application/json', 'user-agent': getUserAgent() },
+      ...(getProxyFetchOptions() as Record<string, unknown>),
+    } as RequestInit)
+    if (!response.ok) return undefined
+    const body = (await response.json()) as Record<string, unknown>
+    return typeof body.email === 'string' && body.email.includes('@') && body.email.length < 256 ? body.email : undefined
+  } catch {
+    return undefined
+  }
+}
+
+export function beginGeminiPlanBrowserConnect(opts?: GeminiConnectOptions & { sleep?: (ms: number) => Promise<void> }): GeminiConnectHandles {
+  const env = opts?.env ?? process.env
+  const requestedPort = opts?.loopbackPort ?? GEMINI_PLAN_REDIRECT_PORT
+  const verifier = generateCodeVerifier()
+  const challenge = generateCodeChallenge(verifier)
+  const state = generateState()
+  const authorizeUrl = buildGeminiPlanAuthorizeUrl(env, challenge, state)
+  const fetchImpl = opts?.fetchImpl ?? getApiFetch()
+  void peekAntigravityClient({ env, ...(opts?.fetchImpl ? { fetchImpl: opts.fetchImpl } : {}) }).catch(() => undefined)
+
+  const exchange = async (code: string): Promise<GeminiAccountRef> => {
+    const body = new URLSearchParams({
+      grant_type: 'authorization_code',
+      code,
+      redirect_uri: GEMINI_PLAN_REDIRECT_URI,
+      client_id: ANTIGRAVITY_OAUTH_CLIENT_ID,
+      client_secret: ANTIGRAVITY_OAUTH_CLIENT_SECRET,
+      code_verifier: verifier,
+    })
+    const raw = await postGoogleToken(body, fetchImpl, env)
+    const tokens = tokensFromTokenResponse(raw, undefined, Date.now)
+    if (!tokens.refreshToken) throw new Error(GEMINI_PLAN_NO_REFRESH_TOKEN_WORDS)
+    const email = await readGoogleAccountEmail(tokens.accessToken, fetchImpl, env)
+    const discovered = await discoverGeminiPlan({
+      accessToken: tokens.accessToken,
+      env,
+      ...(opts?.fetchImpl ? { fetchImpl: opts.fetchImpl } : {}),
+      ...(opts?.sleep ? { sleep: opts.sleep } : {}),
+    })
+    const readAtMs = Date.now()
+    writeAuthFile(file => ({
+      ...file,
+      plan: {
+        tokens,
+        projectId: discovered.projectId,
+        ...(email ? { email } : {}),
+        tier: discovered.tier,
+        tierReadAtMs: readAtMs,
+        lastRefreshMs: readAtMs,
+      },
+      preferredSource: 'plan',
+    }))
+    recordSignIn('gemini', 'subscription')
+    return { provider: 'gemini', kind: 'plan', label: geminiPlanLabel({ tier: discovered.tier }) }
+  }
+
+  return runGoogleLoopbackConnect(
+    {
+      requestedPort,
+      callbackPath: GEMINI_PLAN_REDIRECT_PATH,
+      authorizeUrl,
+      state,
+      exchange,
+      connectedTabWords: 'Mercury: Google sign-in connected for Gemini. You can close this tab.',
+    },
+    opts,
+  )
+}
+
+export async function rereadGeminiPlanTier(opts?: { fetchImpl?: typeof fetch; env?: NodeJS.ProcessEnv; now?: () => number }): Promise<GeminiPlanFacts | undefined> {
+  const env = opts?.env ?? process.env
+  const tokens = await currentGeminiPlanTokens({ ...(opts?.fetchImpl ? { fetchImpl: opts.fetchImpl } : {}), env })
+  const before = planOf(readAuthFile())
+  if (!tokens?.accessToken || !before) return undefined
+  const discovered = await discoverGeminiPlan({ accessToken: tokens.accessToken, env, ...(opts?.fetchImpl ? { fetchImpl: opts.fetchImpl } : {}) })
+  const readAtMs = (opts?.now ?? Date.now)()
+  writeAuthFile(file => {
+    const kept = planOf(file)
+    if (!kept) return file
+    return { ...file, plan: { ...kept, projectId: discovered.projectId, tier: discovered.tier, tierReadAtMs: readAtMs } }
+  })
+  return geminiPlanFacts()
+}
+
 export function __resetGeminiAccountsForTest(): void {
   refreshInFlight = undefined
+  planRefreshInFlight = undefined
 }

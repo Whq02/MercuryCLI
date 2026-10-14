@@ -98,7 +98,7 @@ async function listFactsOf(route: string, env: NodeJS.ProcessEnv = process.env):
     case 'gemini': {
       const [{ getCachedGeminiCatalogue }, { resolveGeminiAccount }] = await Promise.all([import('../../providers/gemini/geminiCatalogue.js'), import('../../providers/gemini/geminiAccounts.js')])
       const account = resolveGeminiAccount(env)
-      const snapshot = account ? getCachedGeminiCatalogue(account.kind === 'oauth' ? 'oauth' : 'api-key', env) : null
+      const snapshot = account ? getCachedGeminiCatalogue(account.kind, env) : null
       if (snapshot && snapshot.fetchedAtMs > 0 && snapshot.models.length > 0) return { kind: 'live', count: snapshot.models.length, readAt: stamp(snapshot.fetchedAtMs) }
       return { kind: 'unread', ...(snapshot?.lastError !== undefined ? { error: snapshot.lastError } : {}) }
     }

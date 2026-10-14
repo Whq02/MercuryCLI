@@ -66,7 +66,10 @@ import {
 import { openrouterKeyRecordedDead, openrouterObservedKeyUsage } from './openrouter/openrouterUsageState.js'
 import {
   disconnectGeminiOauth,
+  disconnectGeminiPlan,
   geminiOauthConnected,
+  geminiPlanFacts,
+  geminiPlanLabel,
   resolveGeminiAccount,
   type GeminiAccountRef,
 } from './gemini/geminiAccounts.js'
@@ -116,6 +119,7 @@ export type SlotRemoval =
   | { route: 'openrouter-oauth-key' }
   | { route: 'openrouter-stored-key' }
   | { route: 'gemini-oauth' }
+  | { route: 'gemini-plan' }
   | { route: 'gemini-stored-key' }
   | { route: 'moonshot-stored-key' }
   | { route: 'moonshot-oauth' }
@@ -177,6 +181,7 @@ export interface AccountSlotReads {
   openrouterMintedKey?: () => OpenrouterMintedKey | undefined
   openrouterStoredKey?: () => string | undefined
   geminiOauthConnected?: () => boolean
+  geminiPlanFacts?: () => ReturnType<typeof geminiPlanFacts>
   geminiActiveAccount?: () => GeminiAccountRef | undefined
   geminiEnvGoogleKey?: () => string | undefined
   geminiEnvGeminiKey?: () => string | undefined
@@ -785,6 +790,7 @@ function geminiStoredNote(storedKey: string, shadowed: boolean): string | undefi
 
 function geminiSlots(reads: AccountSlotReads): AccountSlot[] {
   const oauthConnected = (reads.geminiOauthConnected ?? geminiOauthConnected)()
+  const plan = (reads.geminiPlanFacts ?? geminiPlanFacts)()
   const active = (reads.geminiActiveAccount ?? resolveGeminiAccount)()
   const envGoogle = reads.geminiEnvGoogleKey
     ? reads.geminiEnvGoogleKey()
@@ -794,6 +800,21 @@ function geminiSlots(reads: AccountSlotReads): AccountSlot[] {
     : process.env.GEMINI_API_KEY?.trim() || undefined
   const storedKey = (reads.geminiStoredKey ?? readStoredGeminiApiKey)()
   const slots: AccountSlot[] = []
+  if (plan) {
+    slots.push({
+      family: 'gemini',
+      id: 'gemini:plan',
+      name: 'google',
+      kind: 'subscription',
+      kindLabel: 'Google sign-in',
+      identity: label([geminiPlanLabel(plan), plan.email]),
+      ...(plan.email ? { signInEmail: plan.email } : {}),
+      active: active?.kind === 'plan',
+      envPinned: false,
+      signedIn: true,
+      removal: { route: 'gemini-plan' },
+    })
+  }
   if (oauthConnected) {
     slots.push({
       family: 'gemini',
@@ -1221,6 +1242,7 @@ export interface SlotRemovalOwners {
   disconnectOpenrouterOauthKey?: () => void
   clearStoredOpenrouterKey?: () => void
   disconnectGeminiOauth?: () => void
+  disconnectGeminiPlan?: () => void
   clearStoredGeminiKey?: () => void
   clearStoredMoonshotKey?: () => void
   disconnectMoonshotOauth?: () => void
@@ -1415,6 +1437,12 @@ function routeSlotRemoval(
         note: 'Google OAuth tokens dropped — full revocation lives at myaccount.google.com → Security → Third-party access',
         mutated: true,
       }
+    case 'gemini-plan':
+      ;(owners.disconnectGeminiPlan ?? disconnectGeminiPlan)()
+      return {
+        note: 'Google sign-in dropped — full revocation lives at myaccount.google.com → Security → Third-party access',
+        mutated: true,
+      }
     case 'gemini-stored-key':
       ;(owners.clearStoredGeminiKey ?? (() => writeStoredGeminiApiKey(null)))()
       return { note: 'stored Gemini API key cleared from the auth-scoped store', mutated: true }
@@ -1484,6 +1512,7 @@ export function signOutEveryEngineCredential(owners: SlotRemovalOwners = {}): vo
     ['openrouter-oauth-key', owners.disconnectOpenrouterOauthKey ?? disconnectOpenrouterOauthKey],
     ['openrouter-stored-key', owners.clearStoredOpenrouterKey ?? (() => writeStoredOpenrouterApiKey(null))],
     ['gemini-oauth', owners.disconnectGeminiOauth ?? disconnectGeminiOauth],
+    ['gemini-plan', owners.disconnectGeminiPlan ?? disconnectGeminiPlan],
     ['gemini-stored-key', owners.clearStoredGeminiKey ?? (() => writeStoredGeminiApiKey(null))],
     ['moonshot-oauth', owners.disconnectMoonshotOauth ?? disconnectMoonshotOauth],
     ['moonshot-stored-key', owners.clearStoredMoonshotKey ?? (() => writeStoredMoonshotApiKey(null))],

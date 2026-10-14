@@ -1560,15 +1560,15 @@ function deriveUsageForProvider(
     const limitedWindow = (reads?.geminiLimited ?? geminiLimitWindow)()
     return {
       provider,
-      sourceKind: account.kind === 'oauth' ? 'oauth' : 'api-key',
-      label: account.kind === 'oauth' ? 'Gemini usage' : 'API usage',
+      sourceKind: account.kind === 'plan' ? 'oauth' : account.kind,
+      label: account.kind === 'api-key' ? 'API usage' : 'Gemini usage',
       shape: 'api-spend',
       windows: [],
       pools: [],
       credits: CREDITS_UNREPORTED,
       spend,
       absence: GEMINI_USAGE_ABSENCE_NOTE,
-      tier: account.kind === 'oauth' ? 'Google sign-in' : API_BILLING_TIER,
+      tier: account.kind === 'plan' ? account.label : account.kind === 'oauth' ? 'Google sign-in' : API_BILLING_TIER,
       ...(limitedWindow.state === 'limited'
         ? { limited: { resetsAtMs: limitedWindow.resetsAtMs } }
         : {}),

@@ -47,7 +47,7 @@ function productionPresenceOf(family: string): FamilyCredentialPresenceV1 {
       return { credentialed: false, kind: 'none' }
     }
     if (account.kind === 'keyless') return { credentialed: true, kind: 'keyless' }
-    return { credentialed: true, kind: account.kind === 'oauth' ? 'oauth' : 'api-key' }
+    return { credentialed: true, kind: account.kind === 'api-key' ? 'api-key' : 'oauth' }
   } catch {
     return { credentialed: false, kind: 'none' }
   }

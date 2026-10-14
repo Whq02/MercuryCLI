@@ -58,7 +58,7 @@ export interface ProviderUsabilityReads {
   localServerPresent?: () => boolean
   openrouterKeyPresent?: () => boolean
   openrouterKeyRefused?: () => string | undefined
-  geminiAccount?: () => { kind: 'oauth' | 'api-key' } | undefined
+  geminiAccount?: () => { kind: 'oauth' | 'api-key' | 'plan' } | undefined
   openaiLimitWindow?: () => { state: 'limited' | 'clear' }
   openrouterLimitWindow?: () => { state: 'limited' | 'clear' }
   geminiLimitWindow?: () => { state: 'limited' | 'clear' }
@@ -395,7 +395,7 @@ function resolveProviderUsabilityFrom(reads: ProviderUsabilityReads): Record<Pro
     'gemini',
     geminiAccount !== undefined,
     'no Gemini credential — /logins (or GOOGLE_API_KEY / GEMINI_API_KEY)',
-    geminiAccount?.kind === 'oauth' ? 'oauth' : 'api-key',
+    geminiAccount?.kind === 'api-key' ? 'api-key' : 'oauth',
   )
 
   const applyObservedLimit = (

@@ -47,11 +47,13 @@ import {
 import { beginOpenrouterConnect } from '../services/providers/openrouter/openrouterAccounts.js';
 import {
   activateGeminiSource,
+  finishGeminiPlanConnect,
   finishGeminiOauthConnect,
   geminiConnectFailedReceipt,
   storeGeminiApiKeyLogin,
 } from '../services/providers/gemini/geminiLogin.js';
 import {
+  beginGeminiPlanBrowserConnect,
   beginGeminiBrowserConnect,
   geminiOauthClientConfig,
   GEMINI_CLIENT_STORED_UNVERIFIED_NOTE,
@@ -71,6 +73,8 @@ import {
   type GeminiConnectFacts,
   type GeminiGuideOpenState,
   geminiConnectRowAction,
+  GEMINI_PLAN_LEG_DETAIL,
+  GEMINI_PLAN_LEG_TITLE,
 } from './geminiConnectGuide.js';
 import { errorMessageWithCause } from '../utils/errors.js';
 import { useSetAppStateMaybe } from '../state/AppState.js';
@@ -516,7 +520,7 @@ export function loginsPickPaneLines(pick: LoginsPickId, pickSel = 0): string[] {
       case 'openrouter':
         return "One credential unlocks OpenRouter's whole multi-model catalogue (credits-billed).";
       case 'gemini':
-        return pickSel === 0 ? GEMINI_KEY_BILLING_NOTE : GEMINI_CONNECT_INTRO;
+        return pickSel === 1 ? GEMINI_KEY_BILLING_NOTE : GEMINI_CONNECT_INTRO;
     }
   })();
   return [
@@ -728,7 +732,7 @@ export function deviceWaitPaneLines(d: DeviceWaitStateV1, nowMs: number): string
 }
 
 
-export type HandlesLegId = 'openai-browser' | 'openrouter-browser' | 'openrouter-headless' | 'gemini-oauth';
+export type HandlesLegId = 'openai-browser' | 'openrouter-browser' | 'openrouter-headless' | 'gemini-oauth' | 'gemini-plan';
 
 export interface HandlesWaitStateV1 {
   leg: HandlesLegId;
@@ -751,7 +755,9 @@ export function handlesWaitPaneLines(h: HandlesWaitStateV1, draftLen: number): s
       ? 'Open this URL on any signed-in browser; OpenRouter displays a code — paste it below.'
       : h.leg === 'gemini-oauth'
         ? `${geminiGuideStep(6).title}: ${geminiGuideStep(6).detail}`
-        : 'A browser window should be opening; the loopback listener completes automatically.';
+        : h.leg === 'gemini-plan'
+          ? `${GEMINI_PLAN_LEG_TITLE}: ${GEMINI_PLAN_LEG_DETAIL}`
+          : 'A browser window should be opening; the loopback listener completes automatically.';
   const lines: string[] = [...wrapPlain(opening, DETAIL_W)];
   if (h.listenerNote !== undefined) {
     const wrapped = wrapPlain(h.listenerNote, DETAIL_W);
@@ -904,7 +910,7 @@ export function loginsFlowStatusOf(pane: LoginsFlowPaneV1): string {
     case 'handles':
       return pane.handles.phase === 'exchanging'
         ? 'exchanging the authorization code'
-        : pane.handles.leg === 'gemini-oauth'
+        : pane.handles.leg === 'gemini-oauth' || pane.handles.leg === 'gemini-plan'
           ? 'waiting on the Google sign-in'
           : pane.handles.leg === 'openai-browser'
             ? 'waiting on the OpenAI sign-in'
@@ -1194,14 +1200,16 @@ export function BootLoginsScreen({ onClose, onSignedIn, family, fullScene, facts
       if (!live()) return;
       setFlow(f => (f?.kind === 'handles' ? { kind: 'handles', handles: { ...f.handles, listenerNote: message } } : f));
     };
-    const legFamily = leg === 'openai-browser' ? 'openai' : leg === 'gemini-oauth' ? 'gemini' : 'openrouter';
+    const legFamily = leg === 'openai-browser' ? 'openai' : leg === 'gemini-oauth' || leg === 'gemini-plan' ? 'gemini' : 'openrouter';
     const onSettledAfterCancel = (): void => discloseLateSettle(lateSettleNotice(legFamily));
     const handles =
       leg === 'openai-browser'
         ? beginOpenaiBrowserConnect({ onListenerIssue, onSettledAfterCancel })
         : leg === 'gemini-oauth'
           ? beginGeminiBrowserConnect({ onListenerIssue, onSettledAfterCancel })
-          : beginOpenrouterConnect({ mode: leg === 'openrouter-browser' ? 'browser' : 'headless', onListenerIssue, onSettledAfterCancel });
+          : leg === 'gemini-plan'
+            ? beginGeminiPlanBrowserConnect({ onListenerIssue, onSettledAfterCancel })
+            : beginOpenrouterConnect({ mode: leg === 'openrouter-browser' ? 'browser' : 'headless', onListenerIssue, onSettledAfterCancel });
     handlesRef.current = { cancel: reason => handles.cancel(reason), completeWithRedirect: pasted => handles.completeWithRedirect(pasted) };
     setFlow({
       kind: 'handles',
@@ -1217,6 +1225,10 @@ export function BootLoginsScreen({ onClose, onSignedIn, family, fullScene, facts
       (handles.result as Promise<Parameters<typeof finishOpenaiSubscriptionConnect>[0]>)
         .then(async ref => land(await finishOpenaiSubscriptionConnect(ref)))
         .catch(error => land({ ok: false, receipt: openaiConnectFailedReceipt(error, 'browser') }));
+    } else if (leg === 'gemini-plan') {
+      (handles.result as Promise<unknown>)
+        .then(async () => land(await finishGeminiPlanConnect()))
+        .catch(error => land({ ok: false, receipt: geminiConnectFailedReceipt(error) }));
     } else if (leg === 'gemini-oauth') {
       (handles.result as Promise<unknown>)
         .then(async () => land(await finishGeminiOauthConnect()))
@@ -1377,8 +1389,12 @@ export function BootLoginsScreen({ onClose, onSignedIn, family, fullScene, facts
         startHandlesRun(value === 'browser' ? 'openrouter-browser' : 'openrouter-headless');
         return;
       case 'gemini':
-        if ((value === 'key' || value === 'google') && geminiConnectRowAction(liveGeminiConnectFacts(), value) === 'activate') {
-          setFlow({ kind: 'receipt', ...activateGeminiSource(value === 'key' ? 'api-key' : 'oauth') });
+        if ((value === 'key' || value === 'google' || value === 'plan') && geminiConnectRowAction(liveGeminiConnectFacts(), value) === 'activate') {
+          setFlow({ kind: 'receipt', ...activateGeminiSource(value === 'key' ? 'api-key' : value === 'plan' ? 'plan' : 'oauth') });
+          return;
+        }
+        if (value === 'plan') {
+          startHandlesRun('gemini-plan');
           return;
         }
         if (value === 'key') {
