@@ -41,6 +41,8 @@ export interface LaunchProfile {
     program: string
     args?: string[]
     cwd?: string
+    env?: Record<string, string>
+    envSource?: string
   }
   test?: { framework: 'pytest' | 'unittest'; selection: string[]; selectionLabel: string }
   build?: { preset?: string; conventional?: boolean }
@@ -142,12 +144,74 @@ interface VsCodeConfig {
   module?: string
   args?: unknown
   cwd?: string
+  env?: unknown
+  envFile?: unknown
   [key: string]: unknown
 }
 
-function expandVsCodeVar(value: string, root: string): string | null {
-  const expanded = value.replaceAll('${workspaceFolder}', root)
+export function expandVsCodeVar(value: string, root: string, env: NodeJS.ProcessEnv = process.env): string | null {
+  const expanded = value.replaceAll('${workspaceFolder}', root).replace(/\$\{env:([A-Za-z_][A-Za-z0-9_]*)\}/g, (_m, name: string) => env[name] ?? '')
   return expanded.includes('${') ? null : expanded
+}
+
+export function parseEnvFile(text: string): Record<string, string> {
+  const out: Record<string, string> = {}
+  for (const raw of text.split(/\r?\n/)) {
+    const line = raw.trim()
+    if (line === '' || line.startsWith('#')) continue
+    const m = /^(?:export\s+)?([A-Za-z_][A-Za-z0-9_.-]*)\s*=\s*(.*)$/.exec(line)
+    if (!m) continue
+    let value = m[2]!.trim()
+    if (value.length >= 2 && value.startsWith('"') && value.endsWith('"')) {
+      value = value.slice(1, -1).replace(/\\n/g, '\n')
+    } else if (value.length >= 2 && value.startsWith("'") && value.endsWith("'")) {
+      value = value.slice(1, -1)
+    }
+    out[m[1]!] = value
+  }
+  return out
+}
+
+function configEnvironment(
+  config: VsCodeConfig,
+  root: string,
+): { env?: Record<string, string>; envSource?: string; skip?: string } {
+  const merged: Record<string, string> = {}
+  const sources: string[] = []
+  if (config.envFile !== undefined) {
+    if (typeof config.envFile !== 'string' || config.envFile === '') return { skip: 'envFile is not a path' }
+    const expanded = expandVsCodeVar(config.envFile, root)
+    if (expanded === null) return { skip: `envFile carries an unexpanded macro: ${config.envFile}` }
+    const file = path.isAbsolute(expanded) ? expanded : path.join(root, expanded)
+    let text: string
+    try {
+      text = readFileSync(file, 'utf8')
+    } catch {
+      return { skip: `envFile not found: ${file}` }
+    }
+    for (const [key, value] of Object.entries(parseEnvFile(text))) {
+      const resolved = expandVsCodeVar(value, root)
+      if (resolved === null) return { skip: `envFile ${path.relative(root, file)}: ${key} carries an unexpanded macro` }
+      merged[key] = resolved
+    }
+    sources.push(path.relative(root, file) || file)
+  }
+  if (config.env !== undefined) {
+    if (!config.env || typeof config.env !== 'object' || Array.isArray(config.env)) return { skip: 'env is not an object of strings' }
+    for (const [key, value] of Object.entries(config.env as Record<string, unknown>)) {
+      if (value === null) {
+        delete merged[key]
+        continue
+      }
+      if (typeof value !== 'string') return { skip: `env ${key} is not a string` }
+      const resolved = expandVsCodeVar(value, root)
+      if (resolved === null) return { skip: `env ${key} carries an unexpanded macro: ${value}` }
+      merged[key] = resolved
+    }
+    sources.unshift('launch.json env')
+  }
+  if (sources.length === 0) return {}
+  return { env: merged, envSource: sources.length === 2 ? `${sources[0]} over ${sources[1]}` : sources[0]! }
 }
 
 const VSCODE_PY_TYPES = new Set(['python', 'debugpy'])
@@ -164,7 +228,7 @@ const VSCODE_TYPE_FAMILIES: ReadonlyArray<{
   { types: new Set(['coreclr', 'dotnet']), adapter: 'dotnet', language: 'dotnet' },
   { types: new Set(['ruby', 'rdbg']), adapter: 'ruby', language: 'ruby' },
 ]
-const REPRESENTED_FIELDS = new Set(['name', 'type', 'request', 'program', 'module', 'args', 'cwd'])
+const REPRESENTED_FIELDS = new Set(['name', 'type', 'request', 'program', 'module', 'args', 'cwd', 'env', 'envFile'])
 
 function vscodeProfiles(root: string): {
   profiles: LaunchProfile[]
@@ -214,12 +278,18 @@ function vscodeProfiles(root: string): {
       skipped.push({ name, reason: `cwd carries an unexpanded macro: ${String(config.cwd)}` })
       continue
     }
+    const environment = configEnvironment(config, root)
+    if (environment.skip !== undefined) {
+      skipped.push({ name, reason: environment.skip })
+      continue
+    }
     const dropped = Object.keys(config).filter(k => !REPRESENTED_FIELDS.has(k))
     const payload = {
       adapter: family.adapter,
       program: path.isAbsolute(program) ? program : path.join(root, program),
       ...(args ? { args } : {}),
       cwd,
+      ...(environment.env !== undefined ? { env: environment.env, envSource: environment.envSource } : {}),
     }
     profiles.push({
       id: profileId('vscode', 'debug', payload),

@@ -152,6 +152,7 @@ export type DapAdapterSpec = {
   attachDefaults?: Record<string, unknown>
   attachShape?: 'connect' | 'flat'
   startRequest?: 'launch' | 'attach'
+  envShape?: 'object' | 'pairs'
 }
 
 function godotLaunchArgs(options: DapLaunchOptions): Record<string, unknown> {
@@ -456,6 +457,7 @@ function builtinAdapters(read: 'live' | 'memo' = 'live'): Record<string, () => D
       return {
         command: resolved?.path ?? 'lldb-dap',
         args: [],
+        envShape: 'pairs',
         installHint: resolved
           ? `lldb-dap via ${resolved.source === 'xcrun' ? 'the darwin toolchain (xcrun -f lldb-dap)' : 'PATH'}: ${resolved.path}`
           : lldbDapInstallHint(),
@@ -670,6 +672,7 @@ function decodeAdapterRow(spec: unknown): DapAdapterSpec | null {
   }
   if (s.attachShape === 'connect' || s.attachShape === 'flat') out.attachShape = s.attachShape
   if (s.startRequest === 'launch' || s.startRequest === 'attach') out.startRequest = s.startRequest
+  if (s.envShape === 'object' || s.envShape === 'pairs') out.envShape = s.envShape
   return out
 }
 
@@ -1408,6 +1411,7 @@ export class DapSession {
     args?: string[]
     runtimeArgs?: string[]
     launchExtras?: Record<string, unknown>
+    env?: Record<string, string>
     stopOnEntry?: boolean
     breakpoints?: Map<string, Array<number | DapBreakpointSpec>>
     mode?: 'launch' | 'attach'
@@ -1461,6 +1465,9 @@ export class DapSession {
         program: options.program,
         args: options.args ?? [],
         ...(options.runtimeArgs !== undefined ? { runtimeArgs: options.runtimeArgs } : {}),
+        ...(options.env !== undefined
+          ? { env: this.#spec.envShape === 'pairs' ? Object.entries(options.env).map(([key, value]) => `${key}=${value}`) : options.env }
+          : {}),
         cwd: this.#cwd,
         stopOnEntry: options.stopOnEntry ?? false,
         noDebug: options.noDebug ?? false,
@@ -1815,6 +1822,7 @@ export async function createDapSession(options: {
   args?: string[]
   runtimeArgs?: string[]
   launchExtras?: Record<string, unknown>
+  env?: Record<string, string>
   cwd: string
   stopOnEntry?: boolean
   breakpoints?: Map<string, Array<number | DapBreakpointSpec>>
@@ -1887,6 +1895,7 @@ export async function createDapSession(options: {
       args: options.args,
       runtimeArgs: options.runtimeArgs,
       launchExtras: options.launchExtras,
+      env: options.env,
       stopOnEntry: options.stopOnEntry,
       breakpoints: options.breakpoints,
       mode: options.mode,
