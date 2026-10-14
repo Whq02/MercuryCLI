@@ -11,11 +11,13 @@ import { memorySecretRefusal } from './mnemeSecretGuard.js'
 import { ARCHIVE_PREFIX, isArchiveDoc, parseEntryLine, liveSeqs, serializeSignature, type MnemeTopicDoc } from './mnemeTopicDocs.js'
 import { bumpUsage, readPins, readUsage } from './mnemeUsage.js'
 import { candidates, fuseRecallRankings } from './mnemeLookup.js'
+import { appendFactToEmbedIndex } from './mnemeIndex.js'
 import { noteCorrected, noteRetained } from './lineageSession.js'
 import { currentLedger, footnoteContext, footnotesOf, renderLedgerEntry, type Footnotes } from './mnemeFootnotes.js'
 import type { LedgerEntry } from './types.js'
 import { factMemoryState, type MemoryRef } from './memoryRefs.js'
 import { noteMemoryOpened } from './mnemeSignal.js'
+import { liftRulingLinks, recallUsage } from './mnemeLinks.js'
 
 function allDocs(dir: string): MnemeTopicDoc[] {
   return [...listTopicDocs(dir), ...listArchiveDocs(dir)]
@@ -187,6 +189,7 @@ export function retainItems(
     sessionRetained.set(duplicateKey, id)
     outcomes.push({ index, status: 'stored', id })
     noteRetained(id, pin === true)
+    void appendFactToEmbedIndex(dir, { key: id, text: row.text }).catch(() => false)
   })
   return outcomes
 }
@@ -316,7 +319,7 @@ export function recallQuery(
       signature: hit.pending ? hit.signature.replace(/^\[unconsolidated, ([^,]+), ([^\]]+)\]$/, 'time=$1, source=$2') : hit.signature.replace(/^<|>$/g, ''),
     }]))
     for (const hit of hits) byId.set(hit.id, hit)
-    const order = fuseRecallRankings(query, pool, hits.map(hit => hit.id), { dir, usage: readUsage(dir), now: opts.now?.getTime() })
+    const order = liftRulingLinks(fuseRecallRankings(query, pool, hits.map(hit => hit.id), { dir, usage: recallUsage(dir), now: opts.now?.getTime() }), pool, dir)
     hits.splice(0, hits.length, ...order.map(id => byId.get(id)!))
   }
   const catalogRows = catalogDocs(dir)

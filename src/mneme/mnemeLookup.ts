@@ -8,9 +8,14 @@ import { stemLookupToken } from './mnemeStemmer.js'
 import { readPins, readUsage, usageOf, type UsageRecord } from './mnemeUsage.js'
 import { noteMemoryOffered, noteMemoryScores } from './mnemeSignal.js'
 import { fuseSignalRanking } from './mnemeSignalRanking.js'
+import { embedIndexEngineStatus, readEmbedIndex, searchEmbedIndex } from './mnemeIndex.js'
 
 export const LOOKUP_LIMIT = 5
 const MAX_QUERY_TOKENS = 16
+const SEMANTIC_POOL = 16
+const SEMANTIC_MIN_SIM = 0.45
+const SEMANTIC_TIE_WIDTH = 0.02
+
 export const BM25_K1 = 1.2
 export const BM25_B = 0.75
 export const RECENCY_TAU_MS = 90 * 24 * 60 * 60 * 1000
@@ -168,7 +173,55 @@ export function fuseRecallRankings(query: string, pool: readonly LookupCandidate
   const lexical = scored.filter(hit => hit.features.discriminating)
     .sort((a, b) => b.score - a.score || b.features.useCount - a.features.useCount || (b.seq ?? Number.MAX_SAFE_INTEGER) - (a.seq ?? Number.MAX_SAFE_INTEGER))
   const grep = [...new Set(grepIds)].filter(id => !opts.exclude?.has(id))
-  return fuseSignalRanking([grep, lexical.map(hit => hit.id)], scored, opts.dir ?? mnemeLibraryDir(), fuseRankings)
+  const dir = opts.dir ?? mnemeLibraryDir()
+  const semantic = semanticHits(query, pool, dir).filter(hit => !opts.exclude?.has(hit.id))
+  const extra = semantic.length > 0 ? [{ order: semantic.map(hit => hit.id), tieKey: semanticTieKey(semantic) }] : []
+  return fuseSignalRanking([grep, lexical.map(hit => hit.id)], scored, dir, fuseRankings, extra)
+}
+
+export interface SemanticHit {
+  id: string
+  sim: number
+}
+
+export function semanticHits(query: string, pool: readonly LookupCandidate[], dir: string): SemanticHit[] {
+  const byKey = new Map<string, string>()
+  for (const candidate of pool) byKey.set(candidate.seq !== undefined ? `seq:${candidate.seq}` : candidate.id, candidate.id)
+  const index = readEmbedIndex(dir)
+  if (index === null) return []
+  const hits = searchEmbedIndex(query, index, embedIndexEngineStatus(), SEMANTIC_POOL)
+  if (hits.length === 0) return []
+  const mean = hits.reduce((s, x) => s + x.sim, 0) / hits.length
+  const std = Math.sqrt(hits.reduce((s, x) => s + (x.sim - mean) ** 2, 0) / hits.length) || 1
+  const floor = mean + 0.5 * std
+  const top = hits[0]!.sim
+  if (top < SEMANTIC_MIN_SIM) return []
+  const out: SemanticHit[] = []
+  for (const hit of hits) {
+    if (hit.sim < floor && hit.sim < top - SEMANTIC_TIE_WIDTH) break
+    if (out.length >= LOOKUP_LIMIT + 4) break
+    const id = byKey.get(hit.key)
+    if (id !== undefined) out.push({ id, sim: hit.sim })
+  }
+  return out
+}
+
+export function semanticRanking(query: string, pool: readonly LookupCandidate[], dir: string): string[] {
+  return semanticHits(query, pool, dir).map(hit => hit.id)
+}
+
+export function semanticTieKey(hits: readonly SemanticHit[]): (id: string) => string | null {
+  const group = new Map<string, string>()
+  let groupTop = Number.POSITIVE_INFINITY
+  let groupIndex = -1
+  for (const hit of [...hits].sort((a, b) => b.sim - a.sim)) {
+    if (hit.sim < groupTop - SEMANTIC_TIE_WIDTH) {
+      groupTop = hit.sim
+      groupIndex++
+    }
+    group.set(hit.id, String(groupIndex))
+  }
+  return id => group.get(id) ?? null
 }
 
 export function rankAllCandidates(query: string, pool: readonly LookupCandidate[], opts: RankingOptions = {}): LookupHit[] {

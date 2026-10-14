@@ -762,6 +762,70 @@ let desktopMeta: { version: string; platform: string; addon: string; addonSha256
   }
 }
 
+const { EMBED_PACK_PATH: embedRelPath, EMBED_NATIVE_PATH: embedNativePath, checkEmbedPackDir, embedPackDirFor, embedSourceTreeDigest } = await import('./src/mneme/embedPack.ts');
+const { embedDefaultModel } = await import('./src/mneme/embedModels.ts');
+const embedModelsRelPath = 'vendor/embed-models';
+let embedVendored = false;
+let embedModelVendored = false;
+let embedMeta: { version: string; platform: string; addon: string; addonSha256: string; crates: number; engine: { name: string; version: string }; cpuFloor: string; gpu: string } | null = null;
+{
+  const embedDest = resolve(OUT, embedRelPath);
+  rmSync(embedDest, { recursive: true, force: true });
+  const forceNo = process.env.MERCURY_BUILD_NO_VENDOR_EMBED === '1';
+  const packPlatform = voicePackPlatform(SHIP.platform, SHIP.arch);
+  const packDir = embedPackDirFor(ROOT, packPlatform);
+  const nativeDir = resolve(ROOT, embedNativePath);
+  if (!forceNo && statSync(resolve(packDir, '.vendor-manifest.json'), { throwIfNoEntry: false })?.isFile()) {
+    const check = checkEmbedPackDir(packDir, { digest: true, platform: packPlatform });
+    const sourcesNow = statSync(nativeDir, { throwIfNoEntry: false })?.isDirectory() ? embedSourceTreeDigest(nativeDir) : null;
+    if (check.state === 'ok' && sourcesNow !== null && check.manifest.sourceTreeDigest === sourcesNow) {
+      const { cpSync } = await import('node:fs');
+      cpSync(packDir, resolve(embedDest, packPlatform), { recursive: true });
+      embedVendored = true;
+      embedMeta = {
+        version: check.manifest.version,
+        platform: packPlatform,
+        addon: check.manifest.addon,
+        addonSha256: check.manifest.addonSha256,
+        crates: check.manifest.crates.length,
+        engine: check.manifest.engine,
+        cpuFloor: check.manifest.cpuFloor,
+        gpu: check.manifest.gpu,
+      };
+      console.log(`VENDORED semantic embedder pack ${check.manifest.version} ${packPlatform} (${check.manifest.engine.name} ${check.manifest.engine.version}, built from ${embedNativePath}, ${check.manifest.crates.length} crate licences)\n  -> ${resolve(embedDest, packPlatform)}`);
+    } else {
+      const why = check.state !== 'ok' ? check.note : sourcesNow === null ? `${embedNativePath} is absent` : `the pack was built from other sources than ${embedNativePath} now holds`;
+      console.error(
+        `BUILD FAILED: vendor/embed/${packPlatform} pack is present but stale — ${why}.\n` +
+          '  remedy: bun run scripts/vendor/build-embed.ts   (then rebuild)\n' +
+          '  (a missing pack degrades honestly instead — only a PRESENT-but-wrong pack fails the build)',
+      );
+      process.exit(1);
+    }
+  } else if (forceNo) {
+    console.warn('MERCURY_BUILD_NO_VENDOR_EMBED=1 — semantic embedder pack NOT vendored (degraded: semantic-embedder; proof seam).');
+  } else {
+    console.warn(`no semantic embedder pack for ${packPlatform} — the artifact ships WITHOUT it (degraded: semantic-embedder; memory runs word match only). Prepare it: bun run scripts/vendor/build-embed.ts${CROSS ? ` --target ${TARGET_ARG}` : ''} (needs cargo${CROSS ? ' and the rustup target it names' : ''})`);
+  }
+  const embedModelsDest = resolve(OUT, embedModelsRelPath);
+  rmSync(embedModelsDest, { recursive: true, force: true });
+  if (embedVendored) {
+    const { EMBED_MODELS_VENDOR_PATH, checkEmbedModel } = await import('./src/mneme/embedModels.ts');
+    const cacheDir = resolve(ROOT, EMBED_MODELS_VENDOR_PATH);
+    const wanted = embedDefaultModel();
+    const check = checkEmbedModel({ kind: 'catalogue', row: wanted, pinned: false }, { dir: cacheDir, digest: true });
+    if (check.state === 'present') {
+      const { cpSync } = await import('node:fs');
+      mkdirSync(embedModelsDest, { recursive: true });
+      cpSync(check.path, resolve(embedModelsDest, wanted.file));
+      console.log(`VENDORED embedding model ${wanted.name} (${wanted.license}, ${(wanted.bytes / 1_000_000).toFixed(1)} MB, sha256-verified against the lock)\n  -> ${resolve(embedModelsDest, wanted.file)}`);
+      embedModelVendored = true;
+    } else {
+      console.warn(`${EMBED_MODELS_VENDOR_PATH}/${wanted.file} is ${check.state} — the artifact ships without the model (the pack serves; memory runs word match only until bun run scripts/vendor/fetch-embed-models.ts, then rebuild)`);
+    }
+  }
+}
+
 const typescriptRelPath = 'vendor/typescript';
 let typescriptVendored = false;
 let typescriptVersion: string | null = null;
@@ -1194,6 +1258,26 @@ const manifest = {
         remedy:
           'build the on-device transcriber pack (`bun run scripts/vendor/build-whisper.ts`, needs cargo and cmake), then re-run `bun run build.ts` — the cloud transcribers serve meanwhile (an OpenAI or Gemini API key)',
       },
+  semanticEmbedder: embedVendored && embedMeta
+    ? {
+        vendored: true,
+        path: `${embedRelPath}/${embedMeta.platform}`,
+        version: embedMeta.version,
+        platform: embedMeta.platform,
+        engine: embedMeta.engine,
+        addon: embedMeta.addon,
+        addonSha256: embedMeta.addonSha256,
+        cpuFloor: embedMeta.cpuFloor,
+        gpu: embedMeta.gpu,
+        crateLicences: embedMeta.crates,
+        defaultModel: { name: embedDefaultModel().name, file: embedDefaultModel().file, bytes: embedDefaultModel().bytes, sha256: embedDefaultModel().sha256, license: embedDefaultModel().license, dimension: embedDefaultModel().dimension, ...(embedModelVendored ? { vendored: true as const, path: `${embedModelsRelPath}/${embedDefaultModel().file}` } : { vendored: false as const }) },
+      }
+    : {
+        vendored: false,
+        path: embedRelPath,
+        remedy:
+          'build the semantic embedder pack (`bun run scripts/vendor/build-embed.ts`, needs cargo), then re-run `bun run build.ts` — memory runs word match only meanwhile',
+      },
   typescript: typescriptVendored && typescriptVersion
     ? {
         vendored: true,
@@ -1276,6 +1360,7 @@ const manifest = {
     ...(nodeVendored ? [] : ['runtime']),
     ...(voiceVendored ? [] : ['voice-input']),
     ...(whisperVendored ? [] : ['on-device-transcriber']),
+    ...(embedVendored ? [] : ['semantic-embedder']),
     ...(desktopVendored ? [] : ['desktop-driver']),
     ...(imagePackVendored ? [] : ['image-processing']),
     ...(SHIP.platform === 'linux' && !seccompVendored ? ['seccomp-filter'] : []),

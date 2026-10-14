@@ -1,0 +1,2388 @@
+{
+  "recordedAt": "2026-10-14T05:38:00.000Z",
+  "candidates": [
+    {
+      "id": "seq:1",
+      "seq": 1,
+      "slug": "ops",
+      "pending": false,
+      "pinned": true,
+      "kind": "ruling",
+      "time": "2026-10-12T05:31:05.000Z",
+      "directUseCount": 0,
+      "flowedUseCount": 9,
+      "footnotes": {
+        "session": 1,
+        "ruling": "seq:10",
+        "supersedes": "seq:101"
+      },
+      "text": "Every shipment to the warehouse gets a signed packing slip before the truck leaves the dock."
+    },
+    {
+      "id": "seq:2",
+      "seq": 2,
+      "slug": "ops",
+      "pending": false,
+      "pinned": true,
+      "kind": "ruling",
+      "time": "2026-10-12T05:31:09.000Z",
+      "directUseCount": 0,
+      "flowedUseCount": 0,
+      "footnotes": {
+        "session": 1,
+        "ruling": "seq:1"
+      },
+      "text": "Ask the shop manager before changing prices on the storefront; weekend promotions never override the member discount."
+    },
+    {
+      "id": "seq:3",
+      "seq": 3,
+      "slug": "ops",
+      "pending": false,
+      "pinned": true,
+      "kind": "ruling",
+      "time": "2026-10-12T05:31:13.000Z",
+      "directUseCount": 0,
+      "flowedUseCount": 3,
+      "footnotes": {
+        "session": 1,
+        "ruling": "seq:2",
+        "supersedes": "seq:103"
+      },
+      "text": "Never water the seedlings at midday; morning watering keeps the soil cool through the afternoon."
+    },
+    {
+      "id": "seq:4",
+      "seq": 4,
+      "slug": "ops",
+      "pending": false,
+      "pinned": true,
+      "kind": "ruling",
+      "time": "2026-10-12T05:31:17.000Z",
+      "directUseCount": 0,
+      "flowedUseCount": 6,
+      "footnotes": {
+        "session": 1,
+        "ruling": "seq:3",
+        "supersedes": "seq:104"
+      },
+      "text": "Lab samples go into the cold room within ten minutes of collection and are logged on the blue clipboard."
+    },
+    {
+      "id": "seq:5",
+      "seq": 5,
+      "slug": "ops",
+      "pending": false,
+      "pinned": true,
+      "kind": "ruling",
+      "time": "2026-10-12T05:31:21.000Z",
+      "directUseCount": 0,
+      "flowedUseCount": 2,
+      "footnotes": {
+        "session": 1,
+        "ruling": "seq:4",
+        "supersedes": "seq:105"
+      },
+      "text": "Resolve double bookings by calling both guests and offering the earlier guest the first choice of room."
+    },
+    {
+      "id": "seq:6",
+      "seq": 6,
+      "slug": "ops",
+      "pending": false,
+      "pinned": true,
+      "kind": "ruling",
+      "time": "2026-10-12T05:31:29.000Z",
+      "directUseCount": 0,
+      "flowedUseCount": 0,
+      "footnotes": {},
+      "text": "Locate a lost parcel by its tracking number before opening a claim with the carrier."
+    },
+    {
+      "id": "seq:7",
+      "seq": 7,
+      "slug": "prefs",
+      "pending": false,
+      "pinned": false,
+      "kind": "fact",
+      "time": "2026-10-04T04:15:38.000Z",
+      "directUseCount": 8,
+      "flowedUseCount": 8,
+      "footnotes": {
+        "session": 2
+      },
+      "text": "When the notebook time zone or system clock drifts across suspend cycles, resync the local offset before stamping records."
+    },
+    {
+      "id": "seq:8",
+      "seq": 8,
+      "slug": "prefs",
+      "pending": false,
+      "pinned": false,
+      "kind": "fact",
+      "time": "2026-10-07T06:20:42.000Z",
+      "directUseCount": 5,
+      "flowedUseCount": 5,
+      "footnotes": {
+        "session": 3,
+        "ruling": "seq:2"
+      },
+      "text": "Bake the sourdough at a lower temperature on humid days and extend the proof by twenty minutes."
+    },
+    {
+      "id": "seq:9",
+      "seq": 9,
+      "slug": "project",
+      "pending": false,
+      "pinned": false,
+      "kind": "fact",
+      "time": "2026-10-12T14:15:32.000Z",
+      "directUseCount": 2,
+      "flowedUseCount": 2,
+      "footnotes": {
+        "session": 5,
+        "ruling": "seq:4"
+      },
+      "text": "The library closes an hour early on public holidays, and the book drop stays open overnight."
+    },
+    {
+      "id": "seq:10",
+      "seq": 10,
+      "slug": "project",
+      "pending": false,
+      "pinned": false,
+      "kind": "fact",
+      "time": "2026-10-13T13:33:59.000Z",
+      "directUseCount": 2,
+      "flowedUseCount": 2,
+      "footnotes": {
+        "session": 6
+      },
+      "text": "Keep the choir sheet music in the fireproof cabinet because the practice hall floods in spring."
+    }
+  ],
+  "questions": [
+    {
+      "id": "Q01",
+      "target": "seq:7",
+      "session": 2,
+      "ruling": "seq:1",
+      "query": "the laptop clock"
+    },
+    {
+      "id": "Q02",
+      "target": "seq:1",
+      "session": 1,
+      "ruling": "seq:10",
+      "query": "what paperwork has to travel with goods before they are driven away"
+    },
+    {
+      "id": "Q03",
+      "target": "seq:2",
+      "session": 1,
+      "ruling": "seq:1",
+      "query": "getting approval before altering what customers pay and whether a sale can beat the loyalty reduction"
+    },
+    {
+      "id": "Q04",
+      "target": "seq:3",
+      "session": 1,
+      "ruling": "seq:2",
+      "query": "when should young plants get irrigation so the ground stays chilly later in the day"
+    },
+    {
+      "id": "Q05",
+      "target": "seq:4",
+      "session": 1,
+      "ruling": "seq:3",
+      "query": "how quickly specimens must be refrigerated after they are taken and where that is recorded"
+    },
+    {
+      "id": "Q06",
+      "target": "seq:5",
+      "session": 1,
+      "ruling": "seq:4",
+      "query": "two reservations for the same space and who gets to pick first"
+    },
+    {
+      "id": "Q07",
+      "target": "seq:6",
+      "ruling": "seq:5",
+      "query": "finding a missing package through its shipping code ahead of a complaint to the courier"
+    },
+    {
+      "id": "Q08",
+      "target": "seq:8",
+      "session": 3,
+      "ruling": "seq:2",
+      "query": "adjusting oven heat and rise time for bread when the air is damp"
+    },
+    {
+      "id": "Q09",
+      "target": "seq:9",
+      "session": 5,
+      "ruling": "seq:4",
+      "query": "reading room hours on bank holidays and returning books after closing time"
+    },
+    {
+      "id": "Q10",
+      "target": "seq:10",
+      "session": 6,
+      "query": "why scores for the singers belong in the safe cupboard rather than the rehearsal room"
+    }
+  ],
+  "models": [
+    {
+      "name": "all-MiniLM-L6-v2-q8_0",
+      "class": "~30 MB",
+      "bytes": 25008064,
+      "license": "Apache-2.0",
+      "dimension": 384,
+      "layers": 6
+    },
+    {
+      "name": "bge-small-en-v1.5-q8_0",
+      "class": "~30 MB",
+      "bytes": 36806944,
+      "license": "MIT",
+      "dimension": 384,
+      "layers": 12
+    },
+    {
+      "name": "bge-base-en-v1.5-q8_0",
+      "class": "100-300 MB",
+      "bytes": 117974304,
+      "license": "MIT",
+      "dimension": 768,
+      "layers": 12
+    },
+    {
+      "name": "gte-base-q8_0",
+      "class": "100-300 MB",
+      "bytes": 118000000,
+      "license": "MIT",
+      "dimension": 768,
+      "layers": 12
+    },
+    {
+      "name": "nomic-embed-text-v1.5-q8_0",
+      "class": "100-300 MB",
+      "bytes": 146146432,
+      "license": "Apache-2.0",
+      "dimension": 768,
+      "layers": 12
+    }
+  ],
+  "similaritiesByModel": {
+    "all-MiniLM-L6-v2-q8_0": {
+      "Q01": [
+        {
+          "id": "seq:7",
+          "sim": 0.439228
+        },
+        {
+          "id": "seq:9",
+          "sim": 0.23781
+        },
+        {
+          "id": "seq:4",
+          "sim": 0.181504
+        },
+        {
+          "id": "seq:3",
+          "sim": 0.120865
+        },
+        {
+          "id": "seq:10",
+          "sim": 0.120582
+        },
+        {
+          "id": "seq:1",
+          "sim": 0.099111
+        },
+        {
+          "id": "seq:8",
+          "sim": 0.09853
+        },
+        {
+          "id": "seq:5",
+          "sim": 0.063262
+        },
+        {
+          "id": "seq:2",
+          "sim": 0.054327
+        },
+        {
+          "id": "seq:6",
+          "sim": -0.00602
+        }
+      ],
+      "Q02": [
+        {
+          "id": "seq:1",
+          "sim": 0.471774
+        },
+        {
+          "id": "seq:6",
+          "sim": 0.351187
+        },
+        {
+          "id": "seq:9",
+          "sim": 0.1973
+        },
+        {
+          "id": "seq:10",
+          "sim": 0.140286
+        },
+        {
+          "id": "seq:8",
+          "sim": 0.138977
+        },
+        {
+          "id": "seq:4",
+          "sim": 0.110082
+        },
+        {
+          "id": "seq:7",
+          "sim": 0.091702
+        },
+        {
+          "id": "seq:2",
+          "sim": 0.067583
+        },
+        {
+          "id": "seq:5",
+          "sim": 0.022212
+        },
+        {
+          "id": "seq:3",
+          "sim": -0.014826
+        }
+      ],
+      "Q03": [
+        {
+          "id": "seq:2",
+          "sim": 0.376439
+        },
+        {
+          "id": "seq:5",
+          "sim": 0.135377
+        },
+        {
+          "id": "seq:6",
+          "sim": 0.04615
+        },
+        {
+          "id": "seq:8",
+          "sim": 0.041805
+        },
+        {
+          "id": "seq:1",
+          "sim": 0.035727
+        },
+        {
+          "id": "seq:9",
+          "sim": 0.019334
+        },
+        {
+          "id": "seq:10",
+          "sim": -0.007611
+        },
+        {
+          "id": "seq:7",
+          "sim": -0.03464
+        },
+        {
+          "id": "seq:3",
+          "sim": -0.050894
+        },
+        {
+          "id": "seq:4",
+          "sim": -0.087203
+        }
+      ],
+      "Q04": [
+        {
+          "id": "seq:3",
+          "sim": 0.550268
+        },
+        {
+          "id": "seq:8",
+          "sim": 0.22506
+        },
+        {
+          "id": "seq:9",
+          "sim": 0.223102
+        },
+        {
+          "id": "seq:10",
+          "sim": 0.094821
+        },
+        {
+          "id": "seq:7",
+          "sim": 0.093804
+        },
+        {
+          "id": "seq:2",
+          "sim": 0.088523
+        },
+        {
+          "id": "seq:4",
+          "sim": 0.063877
+        },
+        {
+          "id": "seq:1",
+          "sim": 0.061252
+        },
+        {
+          "id": "seq:5",
+          "sim": 0.029542
+        },
+        {
+          "id": "seq:6",
+          "sim": -0.070331
+        }
+      ],
+      "Q05": [
+        {
+          "id": "seq:4",
+          "sim": 0.55144
+        },
+        {
+          "id": "seq:8",
+          "sim": 0.344695
+        },
+        {
+          "id": "seq:9",
+          "sim": 0.229457
+        },
+        {
+          "id": "seq:3",
+          "sim": 0.224417
+        },
+        {
+          "id": "seq:7",
+          "sim": 0.21045
+        },
+        {
+          "id": "seq:6",
+          "sim": 0.156568
+        },
+        {
+          "id": "seq:1",
+          "sim": 0.142348
+        },
+        {
+          "id": "seq:10",
+          "sim": 0.13532
+        },
+        {
+          "id": "seq:5",
+          "sim": 0.084195
+        },
+        {
+          "id": "seq:2",
+          "sim": 0.077055
+        }
+      ],
+      "Q06": [
+        {
+          "id": "seq:5",
+          "sim": 0.531481
+        },
+        {
+          "id": "seq:1",
+          "sim": 0.152744
+        },
+        {
+          "id": "seq:10",
+          "sim": 0.129141
+        },
+        {
+          "id": "seq:2",
+          "sim": 0.114771
+        },
+        {
+          "id": "seq:6",
+          "sim": 0.075178
+        },
+        {
+          "id": "seq:9",
+          "sim": 0.042303
+        },
+        {
+          "id": "seq:7",
+          "sim": 0.019074
+        },
+        {
+          "id": "seq:4",
+          "sim": 0.011548
+        },
+        {
+          "id": "seq:3",
+          "sim": -0.003952
+        },
+        {
+          "id": "seq:8",
+          "sim": -0.007294
+        }
+      ],
+      "Q07": [
+        {
+          "id": "seq:6",
+          "sim": 0.556473
+        },
+        {
+          "id": "seq:1",
+          "sim": 0.33098
+        },
+        {
+          "id": "seq:4",
+          "sim": 0.178307
+        },
+        {
+          "id": "seq:9",
+          "sim": 0.116605
+        },
+        {
+          "id": "seq:5",
+          "sim": 0.063477
+        },
+        {
+          "id": "seq:7",
+          "sim": 0.054551
+        },
+        {
+          "id": "seq:8",
+          "sim": 0.021942
+        },
+        {
+          "id": "seq:2",
+          "sim": 0.014754
+        },
+        {
+          "id": "seq:3",
+          "sim": -0.071494
+        },
+        {
+          "id": "seq:10",
+          "sim": -0.072993
+        }
+      ],
+      "Q08": [
+        {
+          "id": "seq:8",
+          "sim": 0.305242
+        },
+        {
+          "id": "seq:7",
+          "sim": 0.235021
+        },
+        {
+          "id": "seq:5",
+          "sim": 0.139656
+        },
+        {
+          "id": "seq:9",
+          "sim": 0.110194
+        },
+        {
+          "id": "seq:3",
+          "sim": 0.107355
+        },
+        {
+          "id": "seq:10",
+          "sim": 0.077915
+        },
+        {
+          "id": "seq:2",
+          "sim": 0.073137
+        },
+        {
+          "id": "seq:4",
+          "sim": 0.006081
+        },
+        {
+          "id": "seq:6",
+          "sim": -0.020369
+        },
+        {
+          "id": "seq:1",
+          "sim": -0.102046
+        }
+      ],
+      "Q09": [
+        {
+          "id": "seq:9",
+          "sim": 0.696928
+        },
+        {
+          "id": "seq:5",
+          "sim": 0.330063
+        },
+        {
+          "id": "seq:10",
+          "sim": 0.260684
+        },
+        {
+          "id": "seq:4",
+          "sim": 0.211052
+        },
+        {
+          "id": "seq:7",
+          "sim": 0.202341
+        },
+        {
+          "id": "seq:2",
+          "sim": 0.184335
+        },
+        {
+          "id": "seq:3",
+          "sim": 0.162448
+        },
+        {
+          "id": "seq:8",
+          "sim": 0.120204
+        },
+        {
+          "id": "seq:6",
+          "sim": 0.083632
+        },
+        {
+          "id": "seq:1",
+          "sim": 0.012623
+        }
+      ],
+      "Q10": [
+        {
+          "id": "seq:10",
+          "sim": 0.543318
+        },
+        {
+          "id": "seq:5",
+          "sim": 0.21199
+        },
+        {
+          "id": "seq:4",
+          "sim": 0.188669
+        },
+        {
+          "id": "seq:1",
+          "sim": 0.130275
+        },
+        {
+          "id": "seq:3",
+          "sim": 0.125219
+        },
+        {
+          "id": "seq:2",
+          "sim": 0.118376
+        },
+        {
+          "id": "seq:9",
+          "sim": 0.110584
+        },
+        {
+          "id": "seq:8",
+          "sim": 0.091537
+        },
+        {
+          "id": "seq:7",
+          "sim": 0.083871
+        },
+        {
+          "id": "seq:6",
+          "sim": -0.102374
+        }
+      ]
+    },
+    "bge-small-en-v1.5-q8_0": {
+      "Q01": [
+        {
+          "id": "seq:7",
+          "sim": 0.637878
+        },
+        {
+          "id": "seq:6",
+          "sim": 0.416831
+        },
+        {
+          "id": "seq:4",
+          "sim": 0.39628
+        },
+        {
+          "id": "seq:3",
+          "sim": 0.391372
+        },
+        {
+          "id": "seq:8",
+          "sim": 0.388277
+        },
+        {
+          "id": "seq:5",
+          "sim": 0.379118
+        },
+        {
+          "id": "seq:9",
+          "sim": 0.37088
+        },
+        {
+          "id": "seq:10",
+          "sim": 0.358237
+        },
+        {
+          "id": "seq:1",
+          "sim": 0.354449
+        },
+        {
+          "id": "seq:2",
+          "sim": 0.318179
+        }
+      ],
+      "Q02": [
+        {
+          "id": "seq:6",
+          "sim": 0.669597
+        },
+        {
+          "id": "seq:1",
+          "sim": 0.518798
+        },
+        {
+          "id": "seq:7",
+          "sim": 0.493461
+        },
+        {
+          "id": "seq:2",
+          "sim": 0.425557
+        },
+        {
+          "id": "seq:5",
+          "sim": 0.423329
+        },
+        {
+          "id": "seq:8",
+          "sim": 0.422442
+        },
+        {
+          "id": "seq:9",
+          "sim": 0.399095
+        },
+        {
+          "id": "seq:10",
+          "sim": 0.38987
+        },
+        {
+          "id": "seq:4",
+          "sim": 0.387457
+        },
+        {
+          "id": "seq:3",
+          "sim": 0.329989
+        }
+      ],
+      "Q03": [
+        {
+          "id": "seq:2",
+          "sim": 0.597719
+        },
+        {
+          "id": "seq:5",
+          "sim": 0.574615
+        },
+        {
+          "id": "seq:6",
+          "sim": 0.524165
+        },
+        {
+          "id": "seq:7",
+          "sim": 0.45912
+        },
+        {
+          "id": "seq:8",
+          "sim": 0.408763
+        },
+        {
+          "id": "seq:1",
+          "sim": 0.341639
+        },
+        {
+          "id": "seq:9",
+          "sim": 0.319832
+        },
+        {
+          "id": "seq:4",
+          "sim": 0.313226
+        },
+        {
+          "id": "seq:10",
+          "sim": 0.267778
+        },
+        {
+          "id": "seq:3",
+          "sim": 0.250421
+        }
+      ],
+      "Q04": [
+        {
+          "id": "seq:3",
+          "sim": 0.679338
+        },
+        {
+          "id": "seq:7",
+          "sim": 0.490703
+        },
+        {
+          "id": "seq:8",
+          "sim": 0.480478
+        },
+        {
+          "id": "seq:5",
+          "sim": 0.393485
+        },
+        {
+          "id": "seq:9",
+          "sim": 0.392577
+        },
+        {
+          "id": "seq:10",
+          "sim": 0.391559
+        },
+        {
+          "id": "seq:6",
+          "sim": 0.380899
+        },
+        {
+          "id": "seq:2",
+          "sim": 0.37159
+        },
+        {
+          "id": "seq:4",
+          "sim": 0.328746
+        },
+        {
+          "id": "seq:1",
+          "sim": 0.327311
+        }
+      ],
+      "Q05": [
+        {
+          "id": "seq:4",
+          "sim": 0.604182
+        },
+        {
+          "id": "seq:8",
+          "sim": 0.540754
+        },
+        {
+          "id": "seq:6",
+          "sim": 0.524985
+        },
+        {
+          "id": "seq:7",
+          "sim": 0.51176
+        },
+        {
+          "id": "seq:1",
+          "sim": 0.427228
+        },
+        {
+          "id": "seq:3",
+          "sim": 0.414073
+        },
+        {
+          "id": "seq:10",
+          "sim": 0.408984
+        },
+        {
+          "id": "seq:9",
+          "sim": 0.388206
+        },
+        {
+          "id": "seq:5",
+          "sim": 0.381527
+        },
+        {
+          "id": "seq:2",
+          "sim": 0.368879
+        }
+      ],
+      "Q06": [
+        {
+          "id": "seq:5",
+          "sim": 0.752206
+        },
+        {
+          "id": "seq:6",
+          "sim": 0.503407
+        },
+        {
+          "id": "seq:2",
+          "sim": 0.502274
+        },
+        {
+          "id": "seq:7",
+          "sim": 0.481068
+        },
+        {
+          "id": "seq:8",
+          "sim": 0.412405
+        },
+        {
+          "id": "seq:9",
+          "sim": 0.37679
+        },
+        {
+          "id": "seq:4",
+          "sim": 0.369895
+        },
+        {
+          "id": "seq:1",
+          "sim": 0.352669
+        },
+        {
+          "id": "seq:3",
+          "sim": 0.337524
+        },
+        {
+          "id": "seq:10",
+          "sim": 0.332774
+        }
+      ],
+      "Q07": [
+        {
+          "id": "seq:6",
+          "sim": 0.738319
+        },
+        {
+          "id": "seq:1",
+          "sim": 0.522986
+        },
+        {
+          "id": "seq:7",
+          "sim": 0.465018
+        },
+        {
+          "id": "seq:5",
+          "sim": 0.458907
+        },
+        {
+          "id": "seq:2",
+          "sim": 0.397236
+        },
+        {
+          "id": "seq:8",
+          "sim": 0.39524
+        },
+        {
+          "id": "seq:4",
+          "sim": 0.378998
+        },
+        {
+          "id": "seq:9",
+          "sim": 0.34583
+        },
+        {
+          "id": "seq:3",
+          "sim": 0.315948
+        },
+        {
+          "id": "seq:10",
+          "sim": 0.273288
+        }
+      ],
+      "Q08": [
+        {
+          "id": "seq:8",
+          "sim": 0.628549
+        },
+        {
+          "id": "seq:7",
+          "sim": 0.551019
+        },
+        {
+          "id": "seq:3",
+          "sim": 0.455313
+        },
+        {
+          "id": "seq:10",
+          "sim": 0.430467
+        },
+        {
+          "id": "seq:5",
+          "sim": 0.428213
+        },
+        {
+          "id": "seq:2",
+          "sim": 0.427799
+        },
+        {
+          "id": "seq:6",
+          "sim": 0.42742
+        },
+        {
+          "id": "seq:4",
+          "sim": 0.370542
+        },
+        {
+          "id": "seq:9",
+          "sim": 0.353091
+        },
+        {
+          "id": "seq:1",
+          "sim": 0.286765
+        }
+      ],
+      "Q09": [
+        {
+          "id": "seq:9",
+          "sim": 0.636585
+        },
+        {
+          "id": "seq:7",
+          "sim": 0.573091
+        },
+        {
+          "id": "seq:5",
+          "sim": 0.505259
+        },
+        {
+          "id": "seq:2",
+          "sim": 0.445097
+        },
+        {
+          "id": "seq:4",
+          "sim": 0.437367
+        },
+        {
+          "id": "seq:8",
+          "sim": 0.436886
+        },
+        {
+          "id": "seq:6",
+          "sim": 0.423732
+        },
+        {
+          "id": "seq:3",
+          "sim": 0.422082
+        },
+        {
+          "id": "seq:10",
+          "sim": 0.410256
+        },
+        {
+          "id": "seq:1",
+          "sim": 0.300828
+        }
+      ],
+      "Q10": [
+        {
+          "id": "seq:10",
+          "sim": 0.533952
+        },
+        {
+          "id": "seq:7",
+          "sim": 0.493065
+        },
+        {
+          "id": "seq:4",
+          "sim": 0.442796
+        },
+        {
+          "id": "seq:5",
+          "sim": 0.413126
+        },
+        {
+          "id": "seq:6",
+          "sim": 0.398442
+        },
+        {
+          "id": "seq:8",
+          "sim": 0.388208
+        },
+        {
+          "id": "seq:2",
+          "sim": 0.386184
+        },
+        {
+          "id": "seq:3",
+          "sim": 0.361973
+        },
+        {
+          "id": "seq:1",
+          "sim": 0.312238
+        },
+        {
+          "id": "seq:9",
+          "sim": 0.307885
+        }
+      ]
+    },
+    "bge-base-en-v1.5-q8_0": {
+      "Q01": [
+        {
+          "id": "seq:7",
+          "sim": 0.528013
+        },
+        {
+          "id": "seq:4",
+          "sim": 0.353589
+        },
+        {
+          "id": "seq:9",
+          "sim": 0.342577
+        },
+        {
+          "id": "seq:3",
+          "sim": 0.317173
+        },
+        {
+          "id": "seq:8",
+          "sim": 0.310725
+        },
+        {
+          "id": "seq:6",
+          "sim": 0.282389
+        },
+        {
+          "id": "seq:5",
+          "sim": 0.276612
+        },
+        {
+          "id": "seq:10",
+          "sim": 0.263036
+        },
+        {
+          "id": "seq:2",
+          "sim": 0.223662
+        },
+        {
+          "id": "seq:1",
+          "sim": 0.179861
+        }
+      ],
+      "Q02": [
+        {
+          "id": "seq:6",
+          "sim": 0.560113
+        },
+        {
+          "id": "seq:1",
+          "sim": 0.521118
+        },
+        {
+          "id": "seq:7",
+          "sim": 0.378941
+        },
+        {
+          "id": "seq:5",
+          "sim": 0.361529
+        },
+        {
+          "id": "seq:4",
+          "sim": 0.341211
+        },
+        {
+          "id": "seq:8",
+          "sim": 0.328815
+        },
+        {
+          "id": "seq:10",
+          "sim": 0.32042
+        },
+        {
+          "id": "seq:2",
+          "sim": 0.314506
+        },
+        {
+          "id": "seq:9",
+          "sim": 0.300673
+        },
+        {
+          "id": "seq:3",
+          "sim": 0.211842
+        }
+      ],
+      "Q03": [
+        {
+          "id": "seq:2",
+          "sim": 0.545394
+        },
+        {
+          "id": "seq:5",
+          "sim": 0.43878
+        },
+        {
+          "id": "seq:6",
+          "sim": 0.40766
+        },
+        {
+          "id": "seq:8",
+          "sim": 0.379458
+        },
+        {
+          "id": "seq:7",
+          "sim": 0.366079
+        },
+        {
+          "id": "seq:4",
+          "sim": 0.314832
+        },
+        {
+          "id": "seq:1",
+          "sim": 0.29072
+        },
+        {
+          "id": "seq:9",
+          "sim": 0.288184
+        },
+        {
+          "id": "seq:3",
+          "sim": 0.254048
+        },
+        {
+          "id": "seq:10",
+          "sim": 0.241806
+        }
+      ],
+      "Q04": [
+        {
+          "id": "seq:3",
+          "sim": 0.651015
+        },
+        {
+          "id": "seq:8",
+          "sim": 0.479625
+        },
+        {
+          "id": "seq:9",
+          "sim": 0.412278
+        },
+        {
+          "id": "seq:7",
+          "sim": 0.395654
+        },
+        {
+          "id": "seq:10",
+          "sim": 0.370211
+        },
+        {
+          "id": "seq:4",
+          "sim": 0.335741
+        },
+        {
+          "id": "seq:5",
+          "sim": 0.326432
+        },
+        {
+          "id": "seq:2",
+          "sim": 0.292757
+        },
+        {
+          "id": "seq:6",
+          "sim": 0.273203
+        },
+        {
+          "id": "seq:1",
+          "sim": 0.250237
+        }
+      ],
+      "Q05": [
+        {
+          "id": "seq:4",
+          "sim": 0.638654
+        },
+        {
+          "id": "seq:7",
+          "sim": 0.492056
+        },
+        {
+          "id": "seq:8",
+          "sim": 0.450903
+        },
+        {
+          "id": "seq:10",
+          "sim": 0.423638
+        },
+        {
+          "id": "seq:9",
+          "sim": 0.420186
+        },
+        {
+          "id": "seq:6",
+          "sim": 0.373925
+        },
+        {
+          "id": "seq:3",
+          "sim": 0.328378
+        },
+        {
+          "id": "seq:5",
+          "sim": 0.327432
+        },
+        {
+          "id": "seq:2",
+          "sim": 0.325222
+        },
+        {
+          "id": "seq:1",
+          "sim": 0.290989
+        }
+      ],
+      "Q06": [
+        {
+          "id": "seq:5",
+          "sim": 0.68201
+        },
+        {
+          "id": "seq:6",
+          "sim": 0.395791
+        },
+        {
+          "id": "seq:2",
+          "sim": 0.386174
+        },
+        {
+          "id": "seq:7",
+          "sim": 0.382688
+        },
+        {
+          "id": "seq:8",
+          "sim": 0.331644
+        },
+        {
+          "id": "seq:4",
+          "sim": 0.316579
+        },
+        {
+          "id": "seq:10",
+          "sim": 0.30953
+        },
+        {
+          "id": "seq:9",
+          "sim": 0.307808
+        },
+        {
+          "id": "seq:3",
+          "sim": 0.29737
+        },
+        {
+          "id": "seq:1",
+          "sim": 0.295818
+        }
+      ],
+      "Q07": [
+        {
+          "id": "seq:6",
+          "sim": 0.761256
+        },
+        {
+          "id": "seq:1",
+          "sim": 0.4381
+        },
+        {
+          "id": "seq:5",
+          "sim": 0.375016
+        },
+        {
+          "id": "seq:7",
+          "sim": 0.362707
+        },
+        {
+          "id": "seq:2",
+          "sim": 0.338955
+        },
+        {
+          "id": "seq:8",
+          "sim": 0.328274
+        },
+        {
+          "id": "seq:4",
+          "sim": 0.318267
+        },
+        {
+          "id": "seq:9",
+          "sim": 0.277721
+        },
+        {
+          "id": "seq:10",
+          "sim": 0.230949
+        },
+        {
+          "id": "seq:3",
+          "sim": 0.184197
+        }
+      ],
+      "Q08": [
+        {
+          "id": "seq:8",
+          "sim": 0.639584
+        },
+        {
+          "id": "seq:7",
+          "sim": 0.439381
+        },
+        {
+          "id": "seq:3",
+          "sim": 0.402921
+        },
+        {
+          "id": "seq:10",
+          "sim": 0.397602
+        },
+        {
+          "id": "seq:5",
+          "sim": 0.365652
+        },
+        {
+          "id": "seq:6",
+          "sim": 0.314541
+        },
+        {
+          "id": "seq:9",
+          "sim": 0.309027
+        },
+        {
+          "id": "seq:2",
+          "sim": 0.299926
+        },
+        {
+          "id": "seq:4",
+          "sim": 0.282489
+        },
+        {
+          "id": "seq:1",
+          "sim": 0.20372
+        }
+      ],
+      "Q09": [
+        {
+          "id": "seq:9",
+          "sim": 0.640527
+        },
+        {
+          "id": "seq:7",
+          "sim": 0.446244
+        },
+        {
+          "id": "seq:4",
+          "sim": 0.433596
+        },
+        {
+          "id": "seq:10",
+          "sim": 0.432585
+        },
+        {
+          "id": "seq:5",
+          "sim": 0.428201
+        },
+        {
+          "id": "seq:6",
+          "sim": 0.400609
+        },
+        {
+          "id": "seq:8",
+          "sim": 0.372458
+        },
+        {
+          "id": "seq:2",
+          "sim": 0.356128
+        },
+        {
+          "id": "seq:3",
+          "sim": 0.301696
+        },
+        {
+          "id": "seq:1",
+          "sim": 0.257602
+        }
+      ],
+      "Q10": [
+        {
+          "id": "seq:10",
+          "sim": 0.595872
+        },
+        {
+          "id": "seq:4",
+          "sim": 0.428485
+        },
+        {
+          "id": "seq:5",
+          "sim": 0.365384
+        },
+        {
+          "id": "seq:9",
+          "sim": 0.348777
+        },
+        {
+          "id": "seq:7",
+          "sim": 0.340847
+        },
+        {
+          "id": "seq:8",
+          "sim": 0.333337
+        },
+        {
+          "id": "seq:2",
+          "sim": 0.315621
+        },
+        {
+          "id": "seq:3",
+          "sim": 0.312178
+        },
+        {
+          "id": "seq:6",
+          "sim": 0.308963
+        },
+        {
+          "id": "seq:1",
+          "sim": 0.250739
+        }
+      ]
+    },
+    "gte-base-q8_0": {
+      "Q01": [
+        {
+          "id": "seq:7",
+          "sim": 0.846554
+        },
+        {
+          "id": "seq:4",
+          "sim": 0.782324
+        },
+        {
+          "id": "seq:9",
+          "sim": 0.764238
+        },
+        {
+          "id": "seq:10",
+          "sim": 0.758571
+        },
+        {
+          "id": "seq:3",
+          "sim": 0.75025
+        },
+        {
+          "id": "seq:8",
+          "sim": 0.740854
+        },
+        {
+          "id": "seq:5",
+          "sim": 0.739001
+        },
+        {
+          "id": "seq:2",
+          "sim": 0.728035
+        },
+        {
+          "id": "seq:1",
+          "sim": 0.727861
+        },
+        {
+          "id": "seq:6",
+          "sim": 0.723795
+        }
+      ],
+      "Q02": [
+        {
+          "id": "seq:1",
+          "sim": 0.841133
+        },
+        {
+          "id": "seq:6",
+          "sim": 0.814822
+        },
+        {
+          "id": "seq:4",
+          "sim": 0.7663
+        },
+        {
+          "id": "seq:5",
+          "sim": 0.754415
+        },
+        {
+          "id": "seq:10",
+          "sim": 0.753837
+        },
+        {
+          "id": "seq:7",
+          "sim": 0.752699
+        },
+        {
+          "id": "seq:2",
+          "sim": 0.750432
+        },
+        {
+          "id": "seq:8",
+          "sim": 0.731062
+        },
+        {
+          "id": "seq:9",
+          "sim": 0.730599
+        },
+        {
+          "id": "seq:3",
+          "sim": 0.691059
+        }
+      ],
+      "Q03": [
+        {
+          "id": "seq:2",
+          "sim": 0.842451
+        },
+        {
+          "id": "seq:5",
+          "sim": 0.769225
+        },
+        {
+          "id": "seq:4",
+          "sim": 0.737488
+        },
+        {
+          "id": "seq:1",
+          "sim": 0.735306
+        },
+        {
+          "id": "seq:8",
+          "sim": 0.73298
+        },
+        {
+          "id": "seq:7",
+          "sim": 0.729779
+        },
+        {
+          "id": "seq:6",
+          "sim": 0.723769
+        },
+        {
+          "id": "seq:10",
+          "sim": 0.714748
+        },
+        {
+          "id": "seq:9",
+          "sim": 0.706255
+        },
+        {
+          "id": "seq:3",
+          "sim": 0.691316
+        }
+      ],
+      "Q04": [
+        {
+          "id": "seq:3",
+          "sim": 0.879718
+        },
+        {
+          "id": "seq:8",
+          "sim": 0.787028
+        },
+        {
+          "id": "seq:9",
+          "sim": 0.754571
+        },
+        {
+          "id": "seq:4",
+          "sim": 0.750819
+        },
+        {
+          "id": "seq:10",
+          "sim": 0.749059
+        },
+        {
+          "id": "seq:7",
+          "sim": 0.740967
+        },
+        {
+          "id": "seq:5",
+          "sim": 0.721519
+        },
+        {
+          "id": "seq:2",
+          "sim": 0.713712
+        },
+        {
+          "id": "seq:1",
+          "sim": 0.703793
+        },
+        {
+          "id": "seq:6",
+          "sim": 0.681378
+        }
+      ],
+      "Q05": [
+        {
+          "id": "seq:4",
+          "sim": 0.886793
+        },
+        {
+          "id": "seq:7",
+          "sim": 0.788172
+        },
+        {
+          "id": "seq:8",
+          "sim": 0.785606
+        },
+        {
+          "id": "seq:10",
+          "sim": 0.778802
+        },
+        {
+          "id": "seq:9",
+          "sim": 0.76444
+        },
+        {
+          "id": "seq:3",
+          "sim": 0.752409
+        },
+        {
+          "id": "seq:2",
+          "sim": 0.737152
+        },
+        {
+          "id": "seq:1",
+          "sim": 0.734113
+        },
+        {
+          "id": "seq:5",
+          "sim": 0.724956
+        },
+        {
+          "id": "seq:6",
+          "sim": 0.713919
+        }
+      ],
+      "Q06": [
+        {
+          "id": "seq:5",
+          "sim": 0.898617
+        },
+        {
+          "id": "seq:2",
+          "sim": 0.794557
+        },
+        {
+          "id": "seq:10",
+          "sim": 0.773603
+        },
+        {
+          "id": "seq:1",
+          "sim": 0.764496
+        },
+        {
+          "id": "seq:4",
+          "sim": 0.758514
+        },
+        {
+          "id": "seq:8",
+          "sim": 0.753011
+        },
+        {
+          "id": "seq:7",
+          "sim": 0.752555
+        },
+        {
+          "id": "seq:9",
+          "sim": 0.748953
+        },
+        {
+          "id": "seq:3",
+          "sim": 0.740213
+        },
+        {
+          "id": "seq:6",
+          "sim": 0.739433
+        }
+      ],
+      "Q07": [
+        {
+          "id": "seq:6",
+          "sim": 0.902708
+        },
+        {
+          "id": "seq:1",
+          "sim": 0.798319
+        },
+        {
+          "id": "seq:5",
+          "sim": 0.749998
+        },
+        {
+          "id": "seq:2",
+          "sim": 0.747548
+        },
+        {
+          "id": "seq:4",
+          "sim": 0.746803
+        },
+        {
+          "id": "seq:7",
+          "sim": 0.732692
+        },
+        {
+          "id": "seq:9",
+          "sim": 0.732443
+        },
+        {
+          "id": "seq:8",
+          "sim": 0.720819
+        },
+        {
+          "id": "seq:10",
+          "sim": 0.716748
+        },
+        {
+          "id": "seq:3",
+          "sim": 0.68282
+        }
+      ],
+      "Q08": [
+        {
+          "id": "seq:8",
+          "sim": 0.870035
+        },
+        {
+          "id": "seq:10",
+          "sim": 0.77172
+        },
+        {
+          "id": "seq:7",
+          "sim": 0.764963
+        },
+        {
+          "id": "seq:3",
+          "sim": 0.752095
+        },
+        {
+          "id": "seq:2",
+          "sim": 0.734413
+        },
+        {
+          "id": "seq:4",
+          "sim": 0.732262
+        },
+        {
+          "id": "seq:5",
+          "sim": 0.729974
+        },
+        {
+          "id": "seq:9",
+          "sim": 0.709806
+        },
+        {
+          "id": "seq:1",
+          "sim": 0.698873
+        },
+        {
+          "id": "seq:6",
+          "sim": 0.690571
+        }
+      ],
+      "Q09": [
+        {
+          "id": "seq:9",
+          "sim": 0.877896
+        },
+        {
+          "id": "seq:10",
+          "sim": 0.79664
+        },
+        {
+          "id": "seq:4",
+          "sim": 0.791734
+        },
+        {
+          "id": "seq:7",
+          "sim": 0.77964
+        },
+        {
+          "id": "seq:2",
+          "sim": 0.776308
+        },
+        {
+          "id": "seq:5",
+          "sim": 0.769555
+        },
+        {
+          "id": "seq:8",
+          "sim": 0.747051
+        },
+        {
+          "id": "seq:3",
+          "sim": 0.740909
+        },
+        {
+          "id": "seq:6",
+          "sim": 0.732669
+        },
+        {
+          "id": "seq:1",
+          "sim": 0.732234
+        }
+      ],
+      "Q10": [
+        {
+          "id": "seq:10",
+          "sim": 0.871127
+        },
+        {
+          "id": "seq:4",
+          "sim": 0.784356
+        },
+        {
+          "id": "seq:5",
+          "sim": 0.752281
+        },
+        {
+          "id": "seq:2",
+          "sim": 0.734835
+        },
+        {
+          "id": "seq:9",
+          "sim": 0.732022
+        },
+        {
+          "id": "seq:7",
+          "sim": 0.72801
+        },
+        {
+          "id": "seq:8",
+          "sim": 0.726719
+        },
+        {
+          "id": "seq:1",
+          "sim": 0.722756
+        },
+        {
+          "id": "seq:3",
+          "sim": 0.720933
+        },
+        {
+          "id": "seq:6",
+          "sim": 0.69399
+        }
+      ]
+    },
+    "nomic-embed-text-v1.5-q8_0": {
+      "Q01": [
+        {
+          "id": "seq:7",
+          "sim": 0.624508
+        },
+        {
+          "id": "seq:4",
+          "sim": 0.53959
+        },
+        {
+          "id": "seq:9",
+          "sim": 0.499179
+        },
+        {
+          "id": "seq:10",
+          "sim": 0.477056
+        },
+        {
+          "id": "seq:3",
+          "sim": 0.469768
+        },
+        {
+          "id": "seq:8",
+          "sim": 0.455577
+        },
+        {
+          "id": "seq:2",
+          "sim": 0.420788
+        },
+        {
+          "id": "seq:1",
+          "sim": 0.417671
+        },
+        {
+          "id": "seq:5",
+          "sim": 0.410088
+        },
+        {
+          "id": "seq:6",
+          "sim": 0.341297
+        }
+      ],
+      "Q02": [
+        {
+          "id": "seq:1",
+          "sim": 0.728124
+        },
+        {
+          "id": "seq:6",
+          "sim": 0.643082
+        },
+        {
+          "id": "seq:7",
+          "sim": 0.558154
+        },
+        {
+          "id": "seq:10",
+          "sim": 0.555303
+        },
+        {
+          "id": "seq:9",
+          "sim": 0.548281
+        },
+        {
+          "id": "seq:4",
+          "sim": 0.543855
+        },
+        {
+          "id": "seq:2",
+          "sim": 0.543318
+        },
+        {
+          "id": "seq:5",
+          "sim": 0.541917
+        },
+        {
+          "id": "seq:8",
+          "sim": 0.522086
+        },
+        {
+          "id": "seq:3",
+          "sim": 0.478738
+        }
+      ],
+      "Q03": [
+        {
+          "id": "seq:2",
+          "sim": 0.722981
+        },
+        {
+          "id": "seq:1",
+          "sim": 0.565724
+        },
+        {
+          "id": "seq:5",
+          "sim": 0.565117
+        },
+        {
+          "id": "seq:8",
+          "sim": 0.539801
+        },
+        {
+          "id": "seq:9",
+          "sim": 0.537337
+        },
+        {
+          "id": "seq:7",
+          "sim": 0.530234
+        },
+        {
+          "id": "seq:10",
+          "sim": 0.525171
+        },
+        {
+          "id": "seq:4",
+          "sim": 0.522999
+        },
+        {
+          "id": "seq:6",
+          "sim": 0.503729
+        },
+        {
+          "id": "seq:3",
+          "sim": 0.479261
+        }
+      ],
+      "Q04": [
+        {
+          "id": "seq:3",
+          "sim": 0.800381
+        },
+        {
+          "id": "seq:8",
+          "sim": 0.585925
+        },
+        {
+          "id": "seq:10",
+          "sim": 0.582986
+        },
+        {
+          "id": "seq:9",
+          "sim": 0.558835
+        },
+        {
+          "id": "seq:7",
+          "sim": 0.520033
+        },
+        {
+          "id": "seq:4",
+          "sim": 0.516323
+        },
+        {
+          "id": "seq:5",
+          "sim": 0.46725
+        },
+        {
+          "id": "seq:2",
+          "sim": 0.464957
+        },
+        {
+          "id": "seq:1",
+          "sim": 0.459158
+        },
+        {
+          "id": "seq:6",
+          "sim": 0.413718
+        }
+      ],
+      "Q05": [
+        {
+          "id": "seq:4",
+          "sim": 0.774042
+        },
+        {
+          "id": "seq:7",
+          "sim": 0.610095
+        },
+        {
+          "id": "seq:10",
+          "sim": 0.608206
+        },
+        {
+          "id": "seq:9",
+          "sim": 0.601076
+        },
+        {
+          "id": "seq:8",
+          "sim": 0.591718
+        },
+        {
+          "id": "seq:1",
+          "sim": 0.584562
+        },
+        {
+          "id": "seq:3",
+          "sim": 0.554898
+        },
+        {
+          "id": "seq:6",
+          "sim": 0.52921
+        },
+        {
+          "id": "seq:5",
+          "sim": 0.505573
+        },
+        {
+          "id": "seq:2",
+          "sim": 0.477708
+        }
+      ],
+      "Q06": [
+        {
+          "id": "seq:5",
+          "sim": 0.758785
+        },
+        {
+          "id": "seq:2",
+          "sim": 0.591499
+        },
+        {
+          "id": "seq:10",
+          "sim": 0.586873
+        },
+        {
+          "id": "seq:1",
+          "sim": 0.570382
+        },
+        {
+          "id": "seq:9",
+          "sim": 0.569728
+        },
+        {
+          "id": "seq:7",
+          "sim": 0.560054
+        },
+        {
+          "id": "seq:4",
+          "sim": 0.531412
+        },
+        {
+          "id": "seq:3",
+          "sim": 0.512331
+        },
+        {
+          "id": "seq:8",
+          "sim": 0.508486
+        },
+        {
+          "id": "seq:6",
+          "sim": 0.503977
+        }
+      ],
+      "Q07": [
+        {
+          "id": "seq:6",
+          "sim": 0.733401
+        },
+        {
+          "id": "seq:1",
+          "sim": 0.668604
+        },
+        {
+          "id": "seq:4",
+          "sim": 0.582335
+        },
+        {
+          "id": "seq:7",
+          "sim": 0.56807
+        },
+        {
+          "id": "seq:9",
+          "sim": 0.553873
+        },
+        {
+          "id": "seq:5",
+          "sim": 0.549084
+        },
+        {
+          "id": "seq:10",
+          "sim": 0.540535
+        },
+        {
+          "id": "seq:2",
+          "sim": 0.535877
+        },
+        {
+          "id": "seq:8",
+          "sim": 0.535786
+        },
+        {
+          "id": "seq:3",
+          "sim": 0.462773
+        }
+      ],
+      "Q08": [
+        {
+          "id": "seq:8",
+          "sim": 0.663448
+        },
+        {
+          "id": "seq:10",
+          "sim": 0.580803
+        },
+        {
+          "id": "seq:3",
+          "sim": 0.564618
+        },
+        {
+          "id": "seq:7",
+          "sim": 0.560918
+        },
+        {
+          "id": "seq:2",
+          "sim": 0.510176
+        },
+        {
+          "id": "seq:4",
+          "sim": 0.497506
+        },
+        {
+          "id": "seq:9",
+          "sim": 0.494374
+        },
+        {
+          "id": "seq:5",
+          "sim": 0.479645
+        },
+        {
+          "id": "seq:1",
+          "sim": 0.432428
+        },
+        {
+          "id": "seq:6",
+          "sim": 0.416362
+        }
+      ],
+      "Q09": [
+        {
+          "id": "seq:9",
+          "sim": 0.77272
+        },
+        {
+          "id": "seq:10",
+          "sim": 0.608159
+        },
+        {
+          "id": "seq:4",
+          "sim": 0.581928
+        },
+        {
+          "id": "seq:7",
+          "sim": 0.571232
+        },
+        {
+          "id": "seq:2",
+          "sim": 0.55588
+        },
+        {
+          "id": "seq:5",
+          "sim": 0.545467
+        },
+        {
+          "id": "seq:1",
+          "sim": 0.513616
+        },
+        {
+          "id": "seq:8",
+          "sim": 0.507611
+        },
+        {
+          "id": "seq:3",
+          "sim": 0.503736
+        },
+        {
+          "id": "seq:6",
+          "sim": 0.442358
+        }
+      ],
+      "Q10": [
+        {
+          "id": "seq:10",
+          "sim": 0.768919
+        },
+        {
+          "id": "seq:4",
+          "sim": 0.584976
+        },
+        {
+          "id": "seq:7",
+          "sim": 0.564578
+        },
+        {
+          "id": "seq:5",
+          "sim": 0.523261
+        },
+        {
+          "id": "seq:1",
+          "sim": 0.518323
+        },
+        {
+          "id": "seq:9",
+          "sim": 0.494772
+        },
+        {
+          "id": "seq:8",
+          "sim": 0.492562
+        },
+        {
+          "id": "seq:2",
+          "sim": 0.490404
+        },
+        {
+          "id": "seq:3",
+          "sim": 0.465167
+        },
+        {
+          "id": "seq:6",
+          "sim": 0.4119
+        }
+      ]
+    }
+  }
+}
