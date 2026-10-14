@@ -62,15 +62,15 @@ try {
   resetSearchPacing(); resetSearxngSession()
   process.env.MERCURY_SEARCH_SEARXNG_INSTANCES = JSON.stringify([entry])
   const context = { options: { engineModel: 'glm-5.2' }, abortController: new AbortController() } as any
-  const runIo = { context, clock, reads: { keylessAllowed: false } }
-  const configuredAnswer = await performWebSearch({ query: 'metasearch fixture' }, runIo)
+  const runIo = () => ({ context, clock, reads: { keylessAllowed: false, metasearchInstances: configuredSearxngInstances().instances.length } })
+  const configuredAnswer = await performWebSearch({ query: 'metasearch fixture' }, runIo())
   assert.equal(configuredAnswer.via, 'searxng')
   assert.equal(configuredAnswer.hits[0]!.source_type, 'searxng')
   const afterConfigured = secondCount
-  assert.equal((await performWebSearch({ query: 'metasearch fixture' }, runIo)).cached, true)
+  assert.equal((await performWebSearch({ query: 'metasearch fixture' }, runIo())).cached, true)
   assert.equal(secondCount, afterConfigured)
   delete process.env.MERCURY_SEARCH_SEARXNG_INSTANCES
-  await assert.rejects(performWebSearch({ query: 'metasearch fixture' }, runIo), /no metasearch instance configured/)
+  await assert.rejects(performWebSearch({ query: 'metasearch fixture' }, runIo()), /no metasearch instance configured/)
   assert.equal(secondCount, afterConfigured)
   const abort = new AbortController(); abort.abort()
   const cancelled = await searxngSearch({ query: 'cancel', signal: abort.signal }, io)
