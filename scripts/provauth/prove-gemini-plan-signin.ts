@@ -1,6 +1,7 @@
 #!/usr/bin/env bun
 import '../lib/hermetic.ts'
 import { readFileSync, statSync, writeFileSync } from 'node:fs'
+import Ajv2020 from 'ajv/dist/2020.js'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
@@ -63,6 +64,25 @@ function schemaGrammarViolations(schema: unknown, path: string, out: string[]): 
     else if ((key === 'anyOf' || key === 'oneOf') && Array.isArray(value)) value.forEach((sub, index) => schemaGrammarViolations(sub, `${path}.${field}[${index}]`, out))
     else if (key === 'enum' && Array.isArray(value) && value.some(member => typeof member !== 'string')) out.push(`Invalid value at '${path}.enum': expected a string.`)
   }
+}
+const draft2020 = new Ajv2020({ strict: true, allErrors: true, validateFormats: false })
+function anthropicSchemaRefusal(body: Record<string, unknown> | undefined): string | undefined {
+  const tools = (body?.request as Record<string, unknown> | undefined)?.tools
+  if (!Array.isArray(tools)) return undefined
+  let index = 0
+  for (const tool of tools) {
+    const declarations = (tool as Record<string, unknown>).functionDeclarations
+    if (!Array.isArray(declarations)) continue
+    for (const declaration of declarations) {
+      try {
+        draft2020.compile(((declaration as Record<string, unknown>).parameters ?? {}) as object)
+      } catch {
+        return JSON.stringify({ type: 'error', error: { type: 'invalid_request_error', message: `tools.${index}.custom.input_schema: JSON schema is invalid. It must match JSON Schema draft 2020-12 (https://json-schema.org/draft/2020-12). Learn more about tool use at https://platform.claude.com/docs/en/agents-and-tools/tool-use/overview.` }, request_id: 'req_vrtx_fixture' })
+      }
+      index += 1
+    }
+  }
+  return undefined
 }
 function declarationViolations(body: Record<string, unknown> | undefined): string[] {
   const out: string[] = []
@@ -159,6 +179,10 @@ const assistServer = Bun.serve({
       if (!(model in assist.roster)) return Response.json({ error: { code: 404, message: `Model ${model} not found.`, status: 'NOT_FOUND' } }, { status: 404 })
       const violations = declarationViolations(entry.body)
       if (violations.length > 0) return Response.json({ error: { code: 400, message: violations.join('\n'), status: 'INVALID_ARGUMENT' } }, { status: 400 })
+      if (!model.startsWith('gemini-')) {
+        const refusal = anthropicSchemaRefusal(entry.body)
+        if (refusal !== undefined) return Response.json({ error: { code: 400, message: refusal, status: 'INVALID_ARGUMENT' } }, { status: 400 })
+      }
       if (assist.generateStatus !== 200) return Response.json({ error: { code: assist.generateStatus, message: assist.generateStatus === 429 ? 'Resource has been exhausted (e.g. check quota). Please retry after the reset.' : 'fixture refusal', status: assist.generateStatus === 429 ? 'RESOURCE_EXHAUSTED' : 'PERMISSION_DENIED' } }, { status: assist.generateStatus })
       if (assist.generateError) return new Response(sse({ error: assist.generateError }), { headers: { 'content-type': 'text/event-stream' } })
       const chunks = [
@@ -371,6 +395,49 @@ try {
   const rawRefusal = await fetch(`${assistBase}/v1internal:streamGenerateContent?alt=sse`, { method: 'POST', headers: { 'content-type': 'application/json', authorization: corpusAuth!.headers.authorization!, 'user-agent': corpusAuth!.headers['user-agent']! }, body: JSON.stringify({ model: 'gemini-4-argon', project: 'project-fixture-123', request: { contents: [{ role: 'user', parts: [{ text: 'hi' }] }], tools: [{ functionDeclarations: [{ name: 'Probe', parameters: { type: 'object', properties: { kind: { const: 'log' }, n: { type: 'integer', exclusiveMinimum: 0 } } } }] }] } }) })
   const rawRefusalBody = await rawRefusal.json() as { error: { message: string; status: string } }
   check('the fixture refuses an unreduced declaration in Google\'s words, naming the keyword and the proto path — the guard is real', rawRefusal.status === 400 && rawRefusalBody.error.status === 'INVALID_ARGUMENT' && rawRefusalBody.error.message.includes(`Invalid JSON payload received. Unknown name "const" at 'request.tools[0].function_declarations[0].parameters.properties[0].value': Cannot find field.`) && rawRefusalBody.error.message.includes(`Unknown name "exclusiveMinimum" at 'request.tools[0].function_declarations[0].parameters.properties[1].value'`), JSON.stringify(rawRefusalBody))
+
+  console.log('── the schema law per row: a Claude or GPT-OSS row on Code Assist takes the subset Google\'s own client sends for it, validated as draft 2020-12 behind Code Assist ──')
+  const { CODE_ASSIST_SUBSET_GRAMMAR, codeAssistGrammarFor } = await import('../../src/services/providers/gemini/geminiCodec.ts')
+  check('the grammar is chosen by the wire id: a gemini-* id takes Google\'s Schema grammar, any other vendor\'s id the Code Assist subset (type, title, description, enum, items, properties, required, anyOf, oneOf, default)', codeAssistGrammarFor('gemini-4-argon') === GEMINI_SCHEMA_GRAMMAR && codeAssistGrammarFor('claude-opus-4-6-thinking') === CODE_ASSIST_SUBSET_GRAMMAR && codeAssistGrammarFor('gpt-oss-120b-medium') === CODE_ASSIST_SUBSET_GRAMMAR && [...CODE_ASSIST_SUBSET_GRAMMAR].join(',') === 'type,title,description,enum,items,properties,required,anyOf,oneOf,default')
+  const corpusToolsForRoad = corpus.definitions.map(d => ({ name: d.name, prompt: async () => d.description, inputSchema: undefined, inputJSONSchema: d.input_schema }))
+  const claudeCorpusReplies = await driveRoad('google/claude-opus-4-6-thinking', corpusToolsForRoad)
+  const claudeCorpusHit = requests.filter(r => r.host === 'assist' && r.path === '/v1internal:streamGenerateContent?alt=sse').at(-1)
+  const claudeDeclarations = (((claudeCorpusHit?.body?.request as Record<string, unknown>)?.tools as Array<Record<string, unknown>>)?.[0]?.functionDeclarations ?? []) as Array<Record<string, unknown>>
+  const claudeKeys = new Set<string>()
+  const collectKeys = (schema: unknown): void => {
+    if (Array.isArray(schema)) { schema.forEach(collectKeys); return }
+    if (typeof schema !== 'object' || schema === null) return
+    for (const [key, value] of Object.entries(schema as Record<string, unknown>)) {
+      claudeKeys.add(key)
+      if (key === 'properties') Object.values(value as Record<string, unknown>).forEach(collectKeys)
+      else if (key === 'items' || key === 'anyOf' || key === 'oneOf' || key === 'additionalProperties') collectKeys(value)
+    }
+  }
+  claudeDeclarations.forEach(d => collectKeys(d.parameters))
+  check(`the real definitions ride to a Claude row (${claudeDeclarations.length} of 59 — the road's own assembly keeps ToolSearch for itself) and both gates accept them — the proto grammar and the draft-2020-12 validation behind Code Assist; the answer lands`, claudeCorpusHit?.body?.model === 'claude-opus-4-6-thinking' && claudeDeclarations.length >= 58 && corpus.definitions.filter(d => !claudeDeclarations.some(sent => sent.name === d.name)).every(d => d.name === 'ToolSearch') && anthropicSchemaRefusal(claudeCorpusHit.body) === undefined && claudeCorpusReplies.some(m => m.type === 'assistant' && !(m as { isApiErrorMessage?: boolean }).isApiErrorMessage) && !claudeCorpusReplies.some(m => (m as { isApiErrorMessage?: boolean }).isApiErrorMessage), JSON.stringify({ model: claudeCorpusHit?.body?.model, declarations: claudeDeclarations.length, missing: corpus.definitions.filter(d => !claudeDeclarations.some(sent => sent.name === d.name)).map(d => d.name), refusal: anthropicSchemaRefusal(claudeCorpusHit?.body)?.slice(0, 200), replies: claudeCorpusReplies.map(m => [m.type, (m as { isApiErrorMessage?: boolean }).isApiErrorMessage, String(JSON.stringify((m as { message?: unknown }).message ?? m)).slice(0, 160)]) }))
+  check('on the Claude row every declaration stays inside the subset: no minimum/maximum/minItems/maxItems/minLength/maxLength/pattern/format/additionalProperties/nullable/example on the wire', [...claudeKeys].every(key => CODE_ASSIST_SUBSET_GRAMMAR.has(key)), [...claudeKeys].filter(key => !CODE_ASSIST_SUBSET_GRAMMAR.has(key)).join(','))
+  const askSent = claudeDeclarations.find(d => d.name === 'AskUserQuestion')
+  const askRaw = corpus.definitions.find(d => d.name === 'AskUserQuestion')!.input_schema as { properties: { questions: { minItems: number; maxItems: number; description?: string } } }
+  const askQuestions = ((askSent?.parameters as Record<string, unknown>)?.properties as Record<string, Record<string, unknown>>)?.questions
+  check('a real tool\'s bounds ride the Claude row as words: AskUserQuestion\'s questions array says its item bounds in its description, minItems/maxItems gone', askQuestions !== undefined && askQuestions.minItems === undefined && askQuestions.maxItems === undefined && String(askQuestions.description).includes(`at least ${askRaw.properties.questions.minItems} item`) && String(askQuestions.description).includes(`at most ${askRaw.properties.questions.maxItems} item`), JSON.stringify(askQuestions))
+  const bashClaude = ((claudeDeclarations.find(d => d.name === 'Bash')?.parameters as Record<string, unknown>)?.properties as Record<string, Record<string, unknown>>)?.max_output_chars
+  check('the same Bash property on the Claude row: maximum becomes words too, the exclusive bound stays words, the type stays', bashClaude !== undefined && bashClaude.maximum === undefined && String(bashClaude.description).includes('greater than 0') && String(bashClaude.description).includes('at most 9007199254740991') && bashClaude.type === 'integer', JSON.stringify(bashClaude))
+  const ossReplies = await driveRoad('google/gpt-oss-120b-medium', true)
+  const ossHit = requests.filter(r => r.host === 'assist' && r.path === '/v1internal:streamGenerateContent?alt=sse').at(-1)
+  const ossDeclaration = (((ossHit?.body?.request as Record<string, unknown>)?.tools as Array<Record<string, unknown>>)?.[0]?.functionDeclarations ?? [])[0] as Record<string, unknown> | undefined
+  check('a GPT-OSS row takes the subset as well and answers', ossHit?.body?.model === 'gpt-oss-120b-medium' && ossDeclaration !== undefined && JSON.stringify(ossDeclaration.parameters) === JSON.stringify({ type: 'object', properties: { command: { type: 'string' } }, required: ['command'] }) && ossReplies.some(m => m.type === 'assistant' && !(m as { isApiErrorMessage?: boolean }).isApiErrorMessage), JSON.stringify(ossDeclaration))
+  const argonCorpusReplies = await driveRoad('gemini-4-argon', corpusToolsForRoad)
+  const argonCorpusHit = requests.filter(r => r.host === 'assist' && r.path === '/v1internal:streamGenerateContent?alt=sse').at(-1)
+  const argonBash = (((((argonCorpusHit?.body?.request as Record<string, unknown>)?.tools as Array<Record<string, unknown>>)?.[0]?.functionDeclarations ?? []) as Array<Record<string, unknown>>).find(d => d.name === 'Bash')?.parameters as Record<string, unknown>)?.properties as Record<string, Record<string, unknown>>
+  check('the Gemini row keeps Google\'s fuller grammar for the same corpus: Bash\'s maximum rides as a number and the answer lands', argonCorpusHit?.body?.model === 'gemini-4-argon' && argonBash?.max_output_chars?.maximum === 9007199254740991 && argonCorpusReplies.some(m => m.type === 'assistant' && !(m as { isApiErrorMessage?: boolean }).isApiErrorMessage), JSON.stringify(argonBash?.max_output_chars))
+  const claudeRawRefusal = await fetch(`${assistBase}/v1internal:streamGenerateContent?alt=sse`, { method: 'POST', headers: { 'content-type': 'application/json', authorization: corpusAuth!.headers.authorization!, 'user-agent': corpusAuth!.headers['user-agent']! }, body: JSON.stringify({ model: 'claude-opus-4-6-thinking', project: 'project-fixture-123', request: { contents: [{ role: 'user', parts: [{ text: 'hi' }] }], tools: [{ functionDeclarations: [{ name: 'Fine', parameters: { type: 'object', properties: { a: { type: 'string' } } } }, { name: 'Probe', parameters: { type: 'object', properties: { mode: { type: 'string', propertyOrdering: ['a'] } } } }] }] } }) })
+  const claudeRawBody = claudeRawRefusal.status === 400 ? await claudeRawRefusal.json() as { error: { message: string; status: string } } : { error: { message: await claudeRawRefusal.text(), status: String(claudeRawRefusal.status) } }
+  check('the fixture refuses, for a Claude row, a declaration carrying a key outside draft 2020-12 (propertyOrdering — Google\'s grammar, not Anthropic\'s) in Anthropic\'s words relayed by Code Assist, naming the tool index — the guard is real', claudeRawRefusal.status === 400 && claudeRawBody.error.status === 'INVALID_ARGUMENT' && claudeRawBody.error.message.includes('"message":"tools.1.custom.input_schema: JSON schema is invalid. It must match JSON Schema draft 2020-12') && claudeRawBody.error.message.includes('"request_id"'), JSON.stringify(claudeRawBody))
+  check('the request goes out under the Antigravity User-Agent with the bearer', generate?.headers['user-agent'] === contract.antigravityUserAgent() && (generate.headers.authorization ?? '').startsWith('Bearer ya29.plan-'))
+  const text = events.filter(e => (e as { type: string }).type === 'text-delta').map(e => (e as { text: string }).text).join('')
+  const finish = events.find(e => (e as { type: string }).type === 'finish') as { reason?: string } | undefined
+  const usage = events.find(e => (e as { type: string }).type === 'usage') as { usage?: { inputTokens: number } } | undefined
+  check('the wrapped stream is unwrapped: the text, the finish reason and the usage land', text === 'OK from the plan fixture' && finish?.reason === 'stop' && usage?.usage?.inputTokens === 7, JSON.stringify(events))
 
   console.log('── the refresh keeps the project; a dead refresh token drops the sign-in and says so ──')
   accounts.__resetGeminiAccountsForTest()
