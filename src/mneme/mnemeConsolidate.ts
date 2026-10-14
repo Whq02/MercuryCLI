@@ -636,6 +636,11 @@ export function maybeConsolidate(
       }
       tidy = tidyUp(dir, now, touched)
       publishFrontPage(dir, now)
+      try {
+        const { ensureEmbedIndex } = require('./mnemeIndex.js') as typeof import('./mnemeIndex.js')
+        void ensureEmbedIndex(dir)
+      } catch {
+      }
     } catch (e) {
       logForDebugging(`memory tidy-up after the batch failed: ${String(e)}`)
     }
