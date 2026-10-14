@@ -80,7 +80,7 @@ export function formatCommandInputTags(commandName: string, args: string): strin
 
 export type ModelSwitchFacts = { previousModel: string; previousDisplay: string; savedAsDefault: boolean; model?: string; words?: string; at?: string }
 
-export function switchClockWords(date: Date = new Date(), locale?: string): string {
+export function switchClockWords(date: Date, locale?: string): string {
   const clock = new Intl.DateTimeFormat(locale, { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(date)
   let zone = ''
   for (const candidate of locale === undefined ? [undefined, 'en-GB', 'en-US', 'en-AU', 'en-IN'] : [locale]) {

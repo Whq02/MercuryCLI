@@ -970,7 +970,7 @@ export async function runHeadless(
       savedAsDefault: savedDefaultModel() === toModel,
       model: toModel,
       ...(words === undefined ? {} : { words }),
-      at: switchClockWords(),
+      at: switchClockWords(new Date()),
     })
     for (const breadcrumb of breadcrumbs) {
       messages.push(breadcrumb)
