@@ -266,12 +266,15 @@ cargo: `winget install Kitware.CMake`), the shell engine
 binary, so the engine is compiled from its published crate; the first build
 takes several minutes), and the local semantic memory embedding addon and
 118 MB `bge-base-en-v1.5` model (`bun run scripts/vendor/build-embed.ts` and
-`bun run scripts/vendor/fetch-embed-models.ts`; without them, Mneme memory
-lookup runs word match only). Without cargo, or without cmake for the transcriber,
-each says so and skips: Mercury runs without voice input, voice takes go to a
-cloud transcriber, and the Bash tool keeps Git for Windows' bash (the health check
-names each remedy). A release archive always carries the engine; only a
-source build without cargo lacks it.
+`bun run scripts/vendor/fetch-embed-models.ts --default`; without them, Mneme
+memory lookup runs word match only). Without cargo, or without cmake for the
+transcriber, each says so and skips: Mercury runs without voice input, voice
+takes go to a cloud transcriber, memory runs word match only, and the Bash tool
+keeps Git for Windows' bash (the health check names each remedy). A release
+archive always carries the engine, the embedding pack and the model; only a
+source build without cargo lacks them. On Windows this release runs the
+embedding pack on the plain maths loop, so a Recall by meaning takes about a
+second and a half instead of a few hundredths, and a faster kernel follows.
 
 Build the desktop driver for the Computer tool with the same Rust toolchain
 (cargo) before step 8:

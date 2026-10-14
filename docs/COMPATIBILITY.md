@@ -103,10 +103,13 @@ One release archive per target. The target owner is
 the installers' `uname` map. Every archive carries its own Node runtime, search
 binary and image processor for that platform, and the voice capture and
 on-device transcriber addons where they were built (the speech model is a
-one-time download into the config home, never in the archive). The
-`macos-arm64` archive also bundles the `vendor/embed` addon and 118 MB
-`bge-base-en-v1.5` embedding model ([MNEME.md](MNEME.md)); the `windows-x64`
-archive bundles the `brush` shell engine, and the Windows recursive-delete ward
+one-time download into the config home, never in the archive). Every archive
+also bundles the `vendor/embed` addon built for its platform and the 118 MB
+`bge-base-en-v1.5` embedding model ([MNEME.md](MNEME.md)); on `linux-x64` and
+`windows-x64` this release runs the addon on the plain maths loop, about a
+second and a half per Recall by meaning, with a faster kernel to follow. The
+`windows-x64` archive bundles the `brush` shell engine, and the Windows
+recursive-delete ward
 enforces parity across drive roots, `Users`, system folders, share roots and
 PowerShell pipelines ([TRUST.md](TRUST.md)).
 
