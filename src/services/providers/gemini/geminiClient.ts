@@ -27,6 +27,7 @@ export type GeminiStreamOptions = CompatStreamOptions & {
   messages: readonly Message[]
   stream?: boolean
   plan?: GeminiPlanWire
+  apiKeyHeader?: boolean
   onTurn(item: GeminiTurnItem): void
 }
 
@@ -168,7 +169,7 @@ export async function* streamGeminiContent(options: GeminiStreamOptions): AsyncG
       const last = attempt === urls.length - 1
       try {
         response = await (options.fetchImpl ?? getApiFetch())(urls[attempt]!, {
-          method: 'POST', headers: { 'content-type': 'application/json', accept: stream ? 'text/event-stream' : 'application/json', authorization: `Bearer ${options.apiKey}`, 'user-agent': plan?.userAgent ?? getUserAgent() },
+          method: 'POST', headers: { 'content-type': 'application/json', accept: stream ? 'text/event-stream' : 'application/json', ...(options.apiKeyHeader ? { 'x-goog-api-key': options.apiKey ?? '' } : { authorization: `Bearer ${options.apiKey}` }), 'user-agent': plan?.userAgent ?? getUserAgent() },
           body, signal: controller.signal,
           ...(options.fetchImpl ? {} : getProxyFetchOptions()),
         })

@@ -185,7 +185,7 @@ export async function* geminiCallModel(params: CallModelParams): CallModelStream
     yield* geminiPlanCallModel(params)
     return
   }
-  if (kind !== 'oauth') {
+  if (kind === undefined) {
     yield* compatChatCallModel(geminiLaneProfile, params)
     return
   }
@@ -194,23 +194,28 @@ export async function* geminiCallModel(params: CallModelParams): CallModelStream
   let status: number | undefined
   let recovery: 'retried' | 'no-new-credential' | undefined
   let wireSaid: string | undefined
+  const nativeUrl = (base: string): string => `${base}/models/${encodeURIComponent(model)}:streamGenerateContent?alt=sse`
   const profile: CompatLaneProfile = {
     ...geminiLaneProfile,
-    billingRemedy: GEMINI_ACCOUNT_BILLING_REMEDY,
+    ...(kind === 'oauth' ? { billingRemedy: GEMINI_ACCOUNT_BILLING_REMEDY } : {}),
     resolveCredential: async () => {
-      const auth = await resolveGeminiRequestAuth({ sourceKind: 'oauth' })
+      const auth = await resolveGeminiRequestAuth({ sourceKind: kind })
       if (!auth) return undefined
       bearer = bearerFromAuthHeaders(auth.headers)
-      return bearer ? { apiKey: bearer, requestUrl: `${auth.baseUrl}/models/${encodeURIComponent(model)}:streamGenerateContent?alt=sse` } : undefined
+      return bearer ? { apiKey: bearer, requestUrl: nativeUrl(auth.baseUrl) } : undefined
     },
-    recoverCredential: async () => {
-      recovery = 'no-new-credential'
-      const auth = await resolveGeminiRequestAuth({ sourceKind: 'oauth', forceRefresh: true })
-      if (!auth) return undefined
-      const fresh = bearerFromAuthHeaders(auth.headers)
-      if (fresh && fresh !== bearer) recovery = 'retried'
-      return fresh ? { apiKey: fresh, requestUrl: `${auth.baseUrl}/models/${encodeURIComponent(model)}:streamGenerateContent?alt=sse` } : undefined
-    },
+    ...(kind === 'oauth'
+      ? {
+          recoverCredential: async () => {
+            recovery = 'no-new-credential'
+            const auth = await resolveGeminiRequestAuth({ sourceKind: 'oauth', forceRefresh: true })
+            if (!auth) return undefined
+            const fresh = bearerFromAuthHeaders(auth.headers)
+            if (fresh && fresh !== bearer) recovery = 'retried'
+            return fresh ? { apiKey: fresh, requestUrl: nativeUrl(auth.baseUrl) } : undefined
+          },
+        }
+      : {}),
     onResponseHeaders: (headers, responseStatus) => {
       status = responseStatus
       recordGeminiRateHeaders(headers)
@@ -218,7 +223,7 @@ export async function* geminiCallModel(params: CallModelParams): CallModelStream
     },
     streamTransport: (options, messages) => {
       let turn: GeminiTurnItem | undefined
-      const upstream = streamGeminiContent({ ...options, messages, onTurn: item => { turn = item } })
+      const upstream = streamGeminiContent({ ...options, messages, ...(kind === 'api-key' ? { apiKeyHeader: true } : {}), onTurn: item => { turn = item } })
       async function* observed(): AsyncGenerator<CompatStreamEvent> {
         for await (const event of upstream) {
           if (event.type === 'stream-fault') wireSaid = event.fault.message ? `${event.fault.code}: ${event.fault.message}` : event.fault.code
@@ -239,7 +244,7 @@ export async function* geminiCallModel(params: CallModelParams): CallModelStream
     },
   }
   for await (const item of compatChatCallModel(profile, params)) {
-    if (item.type === 'assistant' && item.isApiErrorMessage && item.error === 'authentication_failed') {
+    if (kind === 'oauth' && item.type === 'assistant' && item.isApiErrorMessage && item.error === 'authentication_failed') {
       const refreshed = recovery === 'retried'
         ? ' The stored token was refreshed and the call retried once before this refusal.'
         : recovery === 'no-new-credential' ? ' A token refresh was attempted first and produced no new credential.' : ''
