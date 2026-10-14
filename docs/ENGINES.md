@@ -966,9 +966,13 @@ The automatic search order is:
    Stack Exchange; `npm`, `PyPI` or `crates` plus a package name goes to that
    registry; a concept question goes to Wikipedia; news goes to Hacker News.
    Wikipedia is asked for the exact phrase first and for the words only when
-   no page carries the phrase; the result says which answered. PyPI supports
-   exact project names, not full-text search. GitHub public-code search
-   requires `GH_TOKEN`; without one, it says so and tries the next source.
+   no page carries the phrase; the result says which answered. The top three
+   Stack Exchange and Hacker News hits carry a short plain-text excerpt (the
+   question body; the story's own text, or its top comment labelled as such),
+   fetched in one extra request per search; the result counts the excerpts it
+   fetched. PyPI supports exact project names, not full-text search. GitHub
+   public-code search requires `GH_TOKEN`; without one, it says so and tries
+   the next source.
 4. An operator-configured SearXNG JSON API. There are **no built-in instances**;
    without configuration, this step says “no metasearch instance configured”.
    Set `MERCURY_SEARCH_SEARXNG_INSTANCES` to a JSON array of entries containing
