@@ -6,7 +6,6 @@ import { FallbackToolUseRejectedMessage } from '../../components/FallbackToolUse
 import { FileEditToolDiff } from '../../components/FileEditToolDiff.js'
 import { consentContentWidth } from '../../components/permissions/consentBodyBudget.js'
 import { FileEditToolUpdatedMessage } from '../../components/FileEditToolUpdatedMessage.js'
-import { FileEditToolUseRejectedMessage } from '../../components/FileEditToolUseRejectedMessage.js'
 import { FilePathLink } from '../../components/FilePathLink.js'
 import { HighlightedCode } from '../../components/HighlightedCode.js'
 import { MessageResponse } from '../../components/MessageResponse.js'
@@ -21,22 +20,18 @@ import { toolErrorReason } from '../../utils/toolErrorReason.js'
 import type { FileEditInput, FileEditOutput } from './types.js'
 
 
-type MaybeLegacyInput = Partial<FileEditInput> & { edits?: unknown[] }
-
-export function userFacingName(input?: MaybeLegacyInput): string {
-  if (input?.edits !== undefined) return 'Update'
+export function userFacingName(input?: Partial<FileEditInput>): string {
   if (input?.old_string === '') return 'Create'
-  if (!input) return 'Update'
   return 'Update'
 }
 
-export function getToolUseSummary(input: MaybeLegacyInput | undefined): string | null {
+export function getToolUseSummary(input: Partial<FileEditInput> | undefined): string | null {
   if (!input?.file_path) return null
   return truncatePathMiddle(getDisplayPath(input.file_path), TOOL_SUMMARY_MAX_LENGTH)
 }
 
 export function renderToolUseMessage(
-  input: MaybeLegacyInput,
+  input: Partial<FileEditInput>,
   { verbose }: { verbose: boolean },
 ): React.ReactNode {
   if (!input.file_path) return null
@@ -79,21 +74,11 @@ export function renderToolResultMessage(
 }
 
 export function renderToolUseRejectedMessage(
-  input?: MaybeLegacyInput,
+  input?: Partial<FileEditInput>,
   options?: { verbose?: boolean; width?: number | string },
 ): React.ReactNode {
   if (!input?.file_path) {
     return <FallbackToolUseRejectedMessage />
-  }
-  if (input.edits !== undefined) {
-    return (
-      <FileEditToolUseRejectedMessage
-        file_path={input.file_path}
-        operation="update"
-        firstLine={null}
-        verbose={options?.verbose ?? false}
-      />
-    )
   }
   if (input.old_string === '') {
     return (
