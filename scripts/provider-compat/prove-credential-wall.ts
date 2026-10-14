@@ -130,7 +130,7 @@ console.log('§2 — the first-party door: the SDK presenter paints the line, ne
   check('a body-less 403 shows the non-JSON tail verbatim, unattributed (it may be SDK text, not provider words)', painted403bare === `Please run /logins. ${API_ERROR_MESSAGE_PREFIX} (403): forbidden`, painted403bare)
 
   const src = read('src/services/api/errors.ts')
-  const wallAt = src.indexOf('const wall = classifyCredentialWall(status, message)')
+  const wallAt = src.indexOf('const wall = classifyCredentialWall(status, message, anthropicWireCredential(model))')
   const genericAt = src.indexOf('logForDebugging(`[api] ${status} on ${model} — the wire said: ${message}`)')
   check('source: the wall branch sits BEFORE the observed-expired branch and the generic tail', wallAt > 0 && genericAt > wallAt && src.indexOf('isAnthropicOAuthSignInExpired()', wallAt) < genericAt)
   check('source: the payload goes to the debug log in both wall branches', src.slice(wallAt, genericAt).split('logForDebugging(').length - 1 >= 2)
