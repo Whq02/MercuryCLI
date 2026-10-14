@@ -11,6 +11,7 @@ export function UserNoticeMessage({
   addMargin,
   blocks,
   arrivedAt,
+  deliveredAt,
   expanded = false,
   fold = false,
   dotColor,
@@ -18,6 +19,7 @@ export function UserNoticeMessage({
   addMargin?: boolean
   blocks: NoticeBlock[]
   arrivedAt?: string | null
+  deliveredAt?: string | null
   expanded?: boolean
   fold?: boolean
   dotColor?: string
@@ -31,7 +33,8 @@ export function UserNoticeMessage({
         const dot = isMutedNoticeBlock(block) ? null : <Text color={dotColor ?? accent}>● </Text>
         const plate = noticePlate(block, meta?.timestamp)
         const arrival = index === 0 && !noticeCarriesOwnClock(block) && arrivedAt ? ` · arrived ${arrivedAt}` : ''
-        const suffix = `${fold ? ` · ${block.lines.length} line${block.lines.length === 1 ? '' : 's'}` : ''}${arrival}${fold && block.lines.length > 0 ? expanded ? ' ⌄' : ' ›' : ''}`
+        const delivery = index === 0 && !noticeCarriesOwnClock(block) && deliveredAt ? ` · delivered ${deliveredAt}` : ''
+        const suffix = `${fold ? ` · ${block.lines.length} line${block.lines.length === 1 ? '' : 's'}` : ''}${arrival}${delivery}${fold && block.lines.length > 0 ? expanded ? ' ⌄' : ' ›' : ''}`
         return (
           <Box key={index} flexDirection="column">
             {fold && !expanded ? (
