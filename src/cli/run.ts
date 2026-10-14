@@ -1436,7 +1436,7 @@ export async function runHeadless(
     shutdown: code => void gracefulShutdown(code),
     clock: { sleep: ms => new Promise(resolve => setTimeout(resolve, ms)) },
     queuedMainThread: () => getCommandQueue().filter(isMainThreadCommand),
-    settleWindowMs: POLL_INTERVAL_MS,
+    settleWindowMs: Math.max(POLL_INTERVAL_MS, Number.parseInt(flagEnv('MERCURY_SETTLE_WINDOW_MS') ?? '', 10) || 0),
     wall: () => sessionLaneWall(),
   })
 

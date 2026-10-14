@@ -1,0 +1,41 @@
+# scripts/headless-2/members.txt — this sub-suite's provers, one
+# basename per line (the files live in scripts/headless/). The parent
+# suite runs every prover NOT named by a sibling list, so a NEW prover
+# lands there automatically; a name listed here but missing on disk is a
+# loud red in this runner.
+prove-agent-end-from-idle.ts
+prove-agent-message-notice.ts
+prove-agent-structured-row.ts
+prove-ask-clock-owner.ts
+prove-background-lifetime-words.ts
+prove-bash-line-in-flight.ts
+prove-busy-retry-bounded.ts
+prove-close-row-usage.ts
+prove-compact-failure-outcome.ts
+prove-compact-rows-own-output.ts
+prove-elicitation-never-hangs.ts
+prove-error-stop-reason.ts
+prove-esc-ends-the-call.ts
+prove-exit-codes-tell-truth.ts
+prove-flag-contradictions.ts
+prove-headless-activity-deferred.ts
+prove-headless-ask-refusals.ts
+prove-headless-deadlines.ts
+prove-headless-laws.ts
+prove-held-notice-wakes-idle.ts
+prove-help-words.ts
+prove-host-denial-words.ts
+prove-log-file-names-one-file.ts
+prove-outcome-cost-priced-part.ts
+prove-plain-commands-no-turn.ts
+prove-refusal-stays-closed.ts
+prove-refused-call-rows.ts
+prove-restart-carries-agents.ts
+prove-restart-keeps-delivered-notices.ts
+prove-retry-wait-reason-words.ts
+prove-run-door-plain-defects.ts
+prove-run-trust.ts
+prove-runner-bad-line.ts
+prove-runner-no-hol.ts
+prove-stdin-and-subscription-cost.ts
+prove-turn-error-keeps-seat.ts
