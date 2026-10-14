@@ -117,9 +117,10 @@ paired with a polarity flip (`always`/`never`, `on`/`off`, `enabled`/`disabled`,
 a clause negation or a differing number. When Jev is enabled with a key, it
 scores candidate pairs (`>= 0.6` confirms a conflict). A conflicting write is
 refused with the record named (`not stored: it conflicts with rule 43, "…"`),
-instructing the model to `Correct` a wrong fact with evidence or re-retain with
-the scope difference stated (`when`, `where`, `which`). Verbatim or contained
-restatements are never refused.
+and the contradiction is your call: the refusal tells the model to ask you
+which is true and, on your word, to `Correct` the record with your reason or
+retain both with the difference stated (`when`, `where`, `which`). Verbatim or
+contained restatements are never refused.
 
 ## It stays small on its own
 
