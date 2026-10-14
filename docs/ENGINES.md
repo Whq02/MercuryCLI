@@ -617,7 +617,17 @@ come from its owning account resolvers:
   as a token budget (low 1024, medium 8192, high 24576, thoughts included),
   function calling VALIDATED even with no tools, an output ceiling of at
   most 64000 tokens, Google's signed parts replayed as sent and no
-  signature placeholder (that placeholder is Gemini 3's own contract). A
+  signature placeholder (that placeholder is Gemini 3's own contract). The
+  tool schemas are reduced per row to what the endpoint accepts: a Gemini
+  row gets Google's Schema grammar (`const` becomes a one-member enum, an
+  exclusive bound becomes words in the description, keywords outside the
+  grammar drop); a row of another vendor (Claude, GPT-OSS) gets the smaller
+  subset Google's own client sends for it — type, title, description, enum,
+  items, properties, required, anyOf, oneOf, default — with every bound
+  (minimum, maximum, item and length counts, pattern, format) carried as
+  words in the description, because the Anthropic side behind Code Assist
+  validates the schema as JSON Schema draft 2020-12 after Google's own
+  conversion and refused the fuller grammar live. A
   model the roster names but Google does not serve answers 404 in Google's
   words. A chat goes to that endpoint's `streamGenerateContent` under
   Antigravity's own User-Agent (`antigravity/hub/<version> …`), whose version

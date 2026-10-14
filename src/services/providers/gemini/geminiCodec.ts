@@ -174,20 +174,50 @@ export const GEMINI_SCHEMA_GRAMMAR: ReadonlySet<string> = new Set([
   'additionalProperties', 'oneOf',
 ])
 
+export const CODE_ASSIST_SUBSET_GRAMMAR: ReadonlySet<string> = new Set([
+  'type', 'title', 'description', 'enum', 'items', 'properties', 'required', 'anyOf', 'oneOf', 'default',
+])
+
+export function codeAssistGrammarFor(wireModel: string): ReadonlySet<string> {
+  return /^gemini-/.test(wireModel) ? GEMINI_SCHEMA_GRAMMAR : CODE_ASSIST_SUBSET_GRAMMAR
+}
+
 const GEMINI_SCHEMA_SUBSCHEMA_KEYS = new Set(['items', 'additionalProperties'])
 const GEMINI_SCHEMA_SUBSCHEMA_LIST_KEYS = new Set(['anyOf', 'oneOf'])
 
 function boundWords(key: string, value: unknown): string | undefined {
-  if (typeof value !== 'number' && typeof value !== 'boolean') return undefined
+  const count = (noun: string): string | undefined => (typeof value === 'number' ? `${value} ${noun}${value === 1 ? '' : 's'}` : undefined)
   switch (key) {
     case 'exclusiveMinimum':
       return typeof value === 'number' ? `greater than ${value}` : undefined
     case 'exclusiveMaximum':
       return typeof value === 'number' ? `less than ${value}` : undefined
+    case 'minimum':
+      return typeof value === 'number' ? `at least ${value}` : undefined
+    case 'maximum':
+      return typeof value === 'number' ? `at most ${value}` : undefined
     case 'multipleOf':
       return typeof value === 'number' ? `a multiple of ${value}` : undefined
     case 'uniqueItems':
       return value === true ? 'items are unique' : undefined
+    case 'minItems':
+      return count('item') === undefined ? undefined : `at least ${count('item')}`
+    case 'maxItems':
+      return count('item') === undefined ? undefined : `at most ${count('item')}`
+    case 'minLength':
+      return count('character') === undefined ? undefined : `at least ${count('character')}`
+    case 'maxLength':
+      return count('character') === undefined ? undefined : `at most ${count('character')}`
+    case 'minProperties':
+      return count('key') === undefined ? undefined : `at least ${count('key')}`
+    case 'maxProperties':
+      return count('key') === undefined ? undefined : `at most ${count('key')}`
+    case 'pattern':
+      return typeof value === 'string' ? `matches the pattern ${value}` : undefined
+    case 'format':
+      return typeof value === 'string' ? `format ${value}` : undefined
+    case 'nullable':
+      return value === true ? 'may be null' : undefined
     default:
       return undefined
   }
@@ -213,9 +243,10 @@ function mergeAllOf(variants: unknown[]): Record<string, unknown> | undefined {
   return { type: 'object', properties, ...(required.size ? { required: [...required] } : {}) }
 }
 
-export function codeAssistSchema(value: unknown): unknown {
+export function codeAssistSchema(value: unknown, grammar: ReadonlySet<string> = GEMINI_SCHEMA_GRAMMAR): unknown {
   const raw = record(value)
   if (!raw) return typeof value === 'boolean' ? {} : value
+  const reduce = (sub: unknown): unknown => codeAssistSchema(sub, grammar)
   const out: Record<string, unknown> = {}
   const words: string[] = []
   let constValue: unknown
@@ -226,29 +257,29 @@ export function codeAssistSchema(value: unknown): unknown {
       continue
     }
     if (key === 'examples') {
-      if (Array.isArray(entry) && entry.length > 0 && out.example === undefined) out.example = entry[0]
+      if (grammar.has('example') && Array.isArray(entry) && entry.length > 0 && out.example === undefined) out.example = entry[0]
       continue
     }
     if (key === 'allOf') {
       allOfMerged = Array.isArray(entry) ? mergeAllOf(entry) : undefined
       continue
     }
-    if (!GEMINI_SCHEMA_GRAMMAR.has(key)) {
+    if (!grammar.has(key)) {
       const said = boundWords(key, entry)
       if (said !== undefined) words.push(said)
       continue
     }
     if (key === 'properties') {
       const table = record(entry)
-      out.properties = table ? Object.fromEntries(Object.entries(table).map(([name, schema]) => [name, codeAssistSchema(schema)])) : {}
+      out.properties = table ? Object.fromEntries(Object.entries(table).map(([name, schema]) => [name, reduce(schema)])) : {}
       continue
     }
     if (GEMINI_SCHEMA_SUBSCHEMA_KEYS.has(key)) {
-      out[key] = typeof entry === 'boolean' ? entry : codeAssistSchema(entry)
+      out[key] = typeof entry === 'boolean' ? entry : reduce(entry)
       continue
     }
     if (GEMINI_SCHEMA_SUBSCHEMA_LIST_KEYS.has(key)) {
-      out[key] = Array.isArray(entry) ? entry.map(codeAssistSchema) : entry
+      out[key] = Array.isArray(entry) ? entry.map(reduce) : entry
       continue
     }
     if (key === 'enum') {
@@ -259,7 +290,10 @@ export function codeAssistSchema(value: unknown): unknown {
       const names = entry.filter((name): name is string => typeof name === 'string')
       const first = names.find(name => name !== 'null')
       if (first !== undefined) out.type = first
-      if (names.includes('null')) out.nullable = true
+      if (names.includes('null')) {
+        if (grammar.has('nullable')) out.nullable = true
+        else words.push('may be null')
+      }
       continue
     }
     out[key] = entry
@@ -273,7 +307,7 @@ export function codeAssistSchema(value: unknown): unknown {
   if (allOfMerged) {
     const own = record(out.properties) ?? {}
     out.type = 'object'
-    out.properties = { ...(record(allOfMerged.properties) ?? {}), ...own }
+    out.properties = { ...Object.fromEntries(Object.entries(record(allOfMerged.properties) ?? {}).map(([name, schema]) => [name, reduce(schema)])), ...own }
     const required = new Set<string>([...(Array.isArray(allOfMerged.required) ? (allOfMerged.required as string[]) : []), ...(Array.isArray(out.required) ? (out.required as string[]) : [])])
     if (required.size) out.required = [...required]
   }
@@ -300,7 +334,7 @@ export function buildGeminiPlanRequest(request: GeminiRequest, model: string, en
             functionDeclarations: tool.functionDeclarations.map(declaration => ({
               name: declaration.name,
               ...(declaration.description ? { description: declaration.description } : {}),
-              parameters: codeAssistSchema(declaration.parametersJsonSchema),
+              parameters: codeAssistSchema(declaration.parametersJsonSchema, codeAssistGrammarFor(model)),
             })),
           })),
           toolConfig: { functionCallingConfig: { mode: request.toolConfig && request.toolConfig.functionCallingConfig.mode !== 'AUTO' ? request.toolConfig.functionCallingConfig.mode : 'VALIDATED' } },
