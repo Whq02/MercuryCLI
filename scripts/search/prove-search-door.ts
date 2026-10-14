@@ -57,13 +57,15 @@ section('§1 the model-chooses registration law — the ProviderSearch gate per 
 
 section('§2 the explicit-key plan remains deterministic when no session model or query is supplied')
 {
-  check('no keys · keyless on ⇒ metasearch then scraping', j(doorsOf({ keylessAllowed: true })) === j(['metasearch', 'keyless']))
+  check('no keys · keyless on · no instance ⇒ scraping alone', j(doorsOf({ keylessAllowed: true })) === j(['keyless']))
+  check('no keys · keyless on · an instance configured ⇒ metasearch then scraping', j(doorsOf({ keylessAllowed: true, metasearchInstances: 1 })) === j(['metasearch', 'keyless']))
   check('both keys · keyless on ⇒ Brave → Tavily → keyless (Brave before Tavily)',
-    j(doorsOf({ braveKey: 'stored', tavilyKey: 'env', keylessAllowed: true })) === j(['keyed:brave', 'keyed:tavily', 'metasearch', 'keyless']))
-  check('tavily only · keyless off ⇒ Tavily then metasearch', j(doorsOf({ tavilyKey: 'stored', keylessAllowed: false })) === j(['keyed:tavily', 'metasearch']))
+    j(doorsOf({ braveKey: 'stored', tavilyKey: 'env', keylessAllowed: true })) === j(['keyed:brave', 'keyed:tavily', 'keyless']))
+  check('tavily only · keyless off · an instance configured ⇒ Tavily then metasearch', j(doorsOf({ tavilyKey: 'stored', keylessAllowed: false, metasearchInstances: 1 })) === j(['keyed:tavily', 'metasearch']))
+  check('tavily only · keyless off · no instance ⇒ Tavily alone', j(doorsOf({ tavilyKey: 'stored', keylessAllowed: false })) === j(['keyed:tavily']))
   const closedAll = resolveSearchDoorPlan({ keylessAllowed: false })
-  check('no keys and the keyless door off ⇒ metasearch; every closed source named',
-    closedAll.doors.length === 1 && closedAll.doors[0]?.kind === 'metasearch' && closedAll.closed.length === 2 && closedAll.closed.some(c => c.includes('MERCURY_SEARCH_KEYLESS=0')) && closedAll.closed.some(c => c.includes('/router key brave')),
+  check('no keys, no instance and the keyless door off ⇒ no door; every closed source named, the missing instance included',
+    closedAll.doors.length === 0 && closedAll.closed.length === 3 && closedAll.closed.some(c => c.includes('MERCURY_SEARCH_KEYLESS=0')) && closedAll.closed.some(c => c.includes('/router key brave')) && closedAll.closed.some(c => c.includes('no metasearch instance configured; MERCURY_SEARCH_SEARXNG_INSTANCES')),
     j(closedAll.closed))
   let nonVendored = 0
   for (const braveKey of [undefined, 'stored'] as const) {
@@ -117,8 +119,10 @@ section('§4 the composed lines')
   check('an empty plan\'s line is the no-backend sentence naming every absence', empty.includes('No source answered') && empty.includes('MERCURY_SEARCH_KEYLESS=0'), empty)
   const emptyNative = walkFailureLine([], resolveSearchDoorPlan({ keylessAllowed: false }), { nativeFamily: 'anthropic' })
   check('…the native-family failure carries the same actionable sentence', emptyNative.includes('No source answered') && !emptyNative.includes('ProviderSearch'), emptyNative)
-  const described = describeSearchDoorPlan(resolveSearchDoorPlan({ tavilyKey: 'stored', keylessAllowed: true }))
+  const described = describeSearchDoorPlan(resolveSearchDoorPlan({ tavilyKey: 'stored', keylessAllowed: true, metasearchInstances: 1 }))
   check('describeSearchDoorPlan reads as the walk', described.startsWith('Tavily (keyed, stored key) → SearXNG (public JSON API) → DuckDuckGo (keyless)'), described)
+  const withoutInstance = describeSearchDoorPlan(resolveSearchDoorPlan({ tavilyKey: 'stored', keylessAllowed: true }))
+  check('…and without an instance the walk skips SearXNG and names the absence', withoutInstance.startsWith('Tavily (keyed, stored key) → DuckDuckGo (keyless)') && withoutInstance.includes('no metasearch instance configured'), withoutInstance)
 }
 
 section('§5 native provider attribution')

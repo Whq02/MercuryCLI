@@ -29,9 +29,11 @@ export interface SearchDoorReads {
   tavilyKey?: SearchKeySource
   backendOverride?: string
   keylessAllowed: boolean
+  metasearchInstances?: number
   mainModel?: string
 }
 export interface SearchDoorPlan { doors: SearchDoor[]; closed: string[]; override: SearchBackendOverride }
+export const NO_METASEARCH_INSTANCE = 'no metasearch instance configured; MERCURY_SEARCH_SEARXNG_INSTANCES adds permitted JSON APIs'
 
 export function parseSearchBackendOverride(raw: string | undefined): SearchBackendOverride | { invalid: string } {
   const word = (raw ?? '').trim().toLowerCase()
@@ -61,10 +63,11 @@ export function resolveSearchDoorPlan(reads: SearchDoorReads, query = ''): Searc
   doors.push(...keyed)
   const intent = officialSearchIntent(query)
   if (intent) doors.push({ kind: 'official', backend: intent.source, words: intent.words })
-  doors.push({ kind: 'metasearch' })
+  if (reads.metasearchInstances) doors.push({ kind: 'metasearch' })
   if (reads.keylessAllowed) doors.push({ kind: 'keyless' })
   const closed = []
   if (!keyed.length) closed.push(`no Brave or Tavily key stored (${KEYED_DOOR_COMMANDS} — ${KEYED_DOOR_FREE_TIER})`)
+  if (!reads.metasearchInstances) closed.push(NO_METASEARCH_INSTANCE)
   if (!reads.keylessAllowed) closed.push('DuckDuckGo scraping is off (MERCURY_SEARCH_KEYLESS=0)')
   return { doors, closed, override: parsed }
 }
@@ -74,6 +77,7 @@ export function liveSearchDoorReads(env: Record<string, string | undefined> = pr
     ...(brave ? { braveKey: brave.source } : {}), ...(tavily ? { tavilyKey: tavily.source } : {}),
     ...(flagEnv('MERCURY_SEARCH_BACKEND') !== undefined ? { backendOverride: flagEnv('MERCURY_SEARCH_BACKEND') } : {}),
     keylessAllowed: duckduckgoScrapingEnabled(),
+    metasearchInstances: configuredSearxngInstances(env.MERCURY_SEARCH_SEARXNG_INSTANCES ?? '').instances.length,
   }
 }
 export function searchDoorLabel(door: SearchDoor): string {
@@ -90,8 +94,8 @@ export function describeSearchDoorPlan(plan: SearchDoorPlan): string {
 }
 export function searchDoorFact(mainModel: string, env: Record<string, string | undefined> = process.env): string {
   const configured = configuredSearxngInstances(env.MERCURY_SEARCH_SEARXNG_INSTANCES ?? '')
-  const metasearch = configured.error ?? (configured.instances.length ? `${configured.instances.length} metasearch instance(s) configured` : 'no metasearch instance configured; MERCURY_SEARCH_SEARXNG_INSTANCES adds permitted JSON APIs')
-  return `WebSearch: ${describeSearchDoorPlan(resolveSearchDoorPlan({ ...liveSearchDoorReads(env), mainModel }))} · official APIs selected by query shape · ${metasearch}`
+  const metasearch = configured.error ? ` · ${configured.error}` : configured.instances.length ? ` · ${configured.instances.length} metasearch instance(s) configured` : ''
+  return `WebSearch: ${describeSearchDoorPlan(resolveSearchDoorPlan({ ...liveSearchDoorReads(env), mainModel }))} · official APIs selected by query shape${metasearch}`
 }
 export interface WebSearchRun {
   via: SearchBackendId; tier: SearchTier; hits: SearchHit[]
