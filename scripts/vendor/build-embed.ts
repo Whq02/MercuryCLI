@@ -246,9 +246,13 @@ function main(): void {
   if (invalid !== null && existsSync(OUT_DIR)) console.log(`build-embed: rebuilding — ${invalid}`)
   console.log(`build-embed: ${cargo} — cargo build --release (${EMBED_NATIVE_PATH}, ${PLATFORM}${CROSS ? `, --target ${TRIPLE}` : ''})`)
   const build = run('cargo', ['build', '--release', '--manifest-path', MANIFEST_PATH, '--target-dir', TARGET_DIR, ...(CROSS && TRIPLE ? ['--target', TRIPLE] : [])])
-  if (build.error) fail(`cargo could not be started: ${build.error.message}`)
+  if (build.error) {
+    dropStale()
+    fail(`cargo could not be started: ${build.error.message}`)
+  }
   if (build.status !== 0) {
-    fail(`cargo build failed (exit ${String(build.status)}) — the on-device embedding pack is not installed; the build ships without it (${DEGRADED}). Fix the reported error and re-run bun run scripts/vendor/build-embed.ts`)
+    dropStale()
+    fail(`cargo build failed (exit ${String(build.status)}) — the on-device embedding pack is not installed; the build ships without it (${DEGRADED}) and memory runs word match only. Fix the reported error and re-run bun run scripts/vendor/build-embed.ts`)
   }
   installPack(cargo)
   const post = packInvalidReason()

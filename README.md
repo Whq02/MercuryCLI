@@ -232,13 +232,17 @@ component. Running `bun install` alone produces a build without those packs.
 
 To build voice support, run `setup` with Rust installed. That builds
 `native/voice`. Add cmake to build `native/whisper` as well. With Rust
-installed, `bun run scripts/vendor/build-embed.ts` builds the local embedding
-addon (`native/embed`) and `bun run scripts/vendor/fetch-embed-models.ts`
-fetches the 118 MB BGE model; without them, Mneme memory lookup runs word
-match only. The macOS Apple silicon release archive includes the embedding
-pack. If a native build lacks its tools, setup skips it and the health check
-reports the missing addon. The Windows shell engine is compiled on your
-machine too because upstream has no Windows binary.
+installed, `setup` also builds the local embedding addon (`native/embed`,
+`bun run scripts/vendor/build-embed.ts`) and fetches the 118 MB BGE model
+(`bun run scripts/vendor/fetch-embed-models.ts --default`); without cargo the
+pack is skipped, setup says so, and Mneme memory lookup runs word match only.
+Every release archive carries the embedding pack (macOS Apple silicon and
+Intel, Linux x86-64, Windows x86-64); on Linux and Windows this release runs
+the plain maths loop, so a Recall by meaning takes about a second and a half
+instead of a few hundredths, and a faster kernel follows. If a native build
+lacks its tools, setup skips it and the health check reports the missing
+addon. The Windows shell engine is compiled on your machine too because
+upstream has no Windows binary.
 
 brush is a bash-compatible shell written in Rust. It is optional on macOS
 and Linux, where the system shell remains the default. Select it through
@@ -697,8 +701,11 @@ Available commands include:
 - **Mneme hybrid RAG project memory.** Mneme is on by default, keeping each
   project's facts in plain markdown topic pages (`Retain`, `Recall`, `Reflect`,
   `Correct`). Recall fuses an on-device 118 MB BGE semantic embedding model
-  (`bge-base-en-v1.5` `q8_0`, MIT, bundled in the macOS Apple silicon release
-  archive; a build without the native embed pack runs word match only) with stemmed BM25 word
+  (`bge-base-en-v1.5` `q8_0`, MIT, bundled in every release archive for macOS
+  Apple silicon and Intel, Linux x86-64 and Windows x86-64; on Linux and
+  Windows this release runs the plain maths loop, about a second and a half
+  per Recall by meaning, with a faster kernel to follow; a source build without
+  the native embed pack runs word match only) with stemmed BM25 word
   ranking, recency weighting and citation tracking via reciprocal rank fusion
   (`k = 60`). Pinned rules (`pin: true`) load verbatim on the pinned shelf and
   change only on your word. At session start, Mercury scores unpinned facts and
