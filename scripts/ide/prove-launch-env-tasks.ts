@@ -54,6 +54,8 @@ writeFileSync(
         { name: 'with unknown task', type: 'debugpy', request: 'launch', program: '${workspaceFolder}/hello.py', preLaunchTask: 'nowhere' },
         { name: 'with npm task', type: 'debugpy', request: 'launch', program: '${workspaceFolder}/hello.py', preLaunchTask: 'npm-build' },
         { name: 'with foreign task', type: 'debugpy', request: 'launch', program: '${workspaceFolder}/hello.py', preLaunchTask: 'gulpy' },
+        { name: 'module run', type: 'python', request: 'launch', module: 'hello_mod', args: ['--who', 'module-arg'], env: { MODE: 'module' } },
+        { name: 'nothing to run', type: 'debugpy', request: 'launch' },
       ],
     },
     null,
@@ -61,6 +63,7 @@ writeFileSync(
   ),
 )
 
+writeFileSync(path.join(proj, 'hello_mod.py'), ['import os, sys', "who = sys.argv[sys.argv.index('--who') + 1] if '--who' in sys.argv else 'nobody'", "print('MODULE ' + __name__ + ' who=' + who + ' MODE=' + str(os.environ.get('MODE')))", ''].join('\n'))
 writeFileSync(path.join(proj, 'package.json'), JSON.stringify({ name: 'fixture', private: true, scripts: { build: 'node -e 0' } }) + '\n')
 writeFileSync(path.join(proj, 'bun.lock'), '{}\n')
 writeFileSync(
@@ -182,6 +185,29 @@ try {
     check('C15 no session was left behind by the refused launches', dap._dapSessionCountForTesting() === 0)
   } else {
     console.log('  [SKIP — LOUD] the task run legs need the vendored debugpy and the system python (see B).')
+  }
+
+  section('D. a python module launch (python -m) is a profile the Launch tool runs and debugs')
+  const d3 = await launch.discoverLaunchProfiles(proj)
+  const mod = d3.profiles.find(p => p.label === 'module run')
+  check('D1 the module config is a profile: module hello_mod, program shown as -m hello_mod, args and env carried', mod?.debug?.module === 'hello_mod' && mod?.debug?.program === '-m hello_mod' && JSON.stringify(mod?.debug?.args) === JSON.stringify(['--who', 'module-arg']) && mod?.debug?.env?.MODE === 'module', JSON.stringify(mod?.debug))
+  check('D2 the module config is no longer skipped; a python config with neither program nor module is skipped by name', !d3.skipped.some(s => s.name === 'module run') && d3.skipped.some(s => s.name === 'nothing to run' && s.reason === 'no program path or module'), JSON.stringify(d3.skipped))
+  if (existsSync(path.join(DIST_VENDOR, 'debugpy', 'adapter', '__main__.py')) && existsSync(SYS_PY) && mod) {
+    const { LaunchTool } = await import('../../src/tools/LaunchTool/LaunchTool.js')
+    const ctx = { getAppState: () => ({}) } as never
+    const inspect = (await LaunchTool.call({ op: 'inspect', profile: mod.id } as never, ctx)) as { data: { result: string } }
+    check('D3 inspect spells the module launch', inspect.data.result.includes('debug/run → python: -m hello_mod --who module-arg'), inspect.data.result)
+    const run = (await LaunchTool.call({ op: 'run', profile: mod.id } as never, ctx)) as { data: { result: string; outcome: string } }
+    check('D4 op:"run" runs python -m hello_mod with its args and env through the same interpreter', run.data.outcome === 'succeeded' && run.data.result.includes('MODULE __main__ who=module-arg MODE=module'), run.data.result.split('\n').slice(0, 4).join(' | '))
+    const dbg = (await LaunchTool.call({ op: 'debug', profile: mod.id, file: path.join(proj, 'hello_mod.py'), lines: [3] } as never, ctx)) as { data: { result: string } }
+    check('D5 op:"debug" stops at a breakpoint inside the module', dbg.data.result.includes('stopped — reason breakpoint'), dbg.data.result.split('\n')[0])
+    const dap = await import('../../src/services/dap/dapClient.js')
+    const { ownerFromToolUseContext } = await import('../../src/services/run/resolveOwner.js')
+    const { disposeOwner } = await import('../../src/services/run/ownerLifecycle.js')
+    await disposeOwner(ownerFromToolUseContext(ctx))
+    check('D6 the sessions are reaped', dap._dapSessionCountForTesting() === 0)
+  } else {
+    console.log('  [SKIP — LOUD] the module run legs need the vendored debugpy and the system python (see B).')
   }
 } finally {
   process.chdir(ROOT)

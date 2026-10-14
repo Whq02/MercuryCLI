@@ -40,6 +40,7 @@ export interface LaunchProfile {
   debug?: {
     adapter: string
     program: string
+    module?: string
     args?: string[]
     cwd?: string
     env?: Record<string, string>
@@ -262,15 +263,12 @@ function vscodeProfiles(root: string): {
       continue
     }
     const isPy = VSCODE_PY_TYPES.has(type)
-    if (isPy && config.module !== undefined) {
-      skipped.push({ name, reason: 'module launches (python -m) are not representable — the Launch tool starts a program path' })
+    const module = isPy && typeof config.module === 'string' && config.module !== '' ? config.module : null
+    if (module === null && (typeof config.program !== 'string' || config.program === '')) {
+      skipped.push({ name, reason: isPy ? 'no program path or module' : 'no program path' })
       continue
     }
-    if (typeof config.program !== 'string' || config.program === '') {
-      skipped.push({ name, reason: 'no program path' })
-      continue
-    }
-    const program = expandVsCodeVar(config.program, root)
+    const program = module !== null ? `-m ${module}` : expandVsCodeVar(config.program as string, root)
     if (program === null) {
       skipped.push({ name, reason: `program carries an unexpanded macro: ${config.program}` })
       continue
@@ -289,7 +287,8 @@ function vscodeProfiles(root: string): {
     const dropped = Object.keys(config).filter(k => !REPRESENTED_FIELDS.has(k))
     const payload = {
       adapter: family.adapter,
-      program: path.isAbsolute(program) ? program : path.join(root, program),
+      program: module !== null || path.isAbsolute(program) ? program : path.join(root, program),
+      ...(module !== null ? { module } : {}),
       ...(args ? { args } : {}),
       cwd,
       ...(environment.env !== undefined ? { env: environment.env, envSource: environment.envSource } : {}),
