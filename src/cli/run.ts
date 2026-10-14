@@ -820,7 +820,7 @@ export async function runHeadless(
   asks.setOnControlRequestSent(() => hostAsks?.noteParked())
   asks.setOnControlRequestResolved(() => hostAsks?.noteSettled())
   let deferredModelBreadcrumb: { to: string; from: string } | null = null
-  let heldSeatModel: { requestId: number; model: string } | null = null
+  let heldSeatModel: { requestId: number; model: string; words?: string } | null = null
   let heldSeatEffort: { requestId: number; effort: string } | null = null
   let deferredSpawnSwitches: Array<{ kind: 'subagents' | 'workflows'; on: boolean; requestId: number }> = []
   let deferredAdvisorQuiet: AdvisorQuiet[] = []
@@ -961,13 +961,16 @@ export async function runHeadless(
     const stored = getSettingsWithSources().sources.find(source => source.source === 'userSettings')?.settings.engine?.model
     return stored === undefined || stored === '' ? null : parseUserSpecifiedModel(stored)
   }
-  const injectModelSwitchBreadcrumbs = async (toModel: string, fromModel: string): Promise<void> => {
-    const { createModelSwitchBreadcrumbs } = await import('../utils/messages/factories.js')
+  const injectModelSwitchBreadcrumbs = async (toModel: string, fromModel: string, words?: string): Promise<void> => {
+    const { createModelSwitchBreadcrumbs, switchClockWords } = await import('../utils/messages/factories.js')
     const displayOf = (model: string): string => modelInfos.find(info => info.value === model)?.display_name ?? model
-    const breadcrumbs = createModelSwitchBreadcrumbs(toModel, displayOf(toModel), {
+    const breadcrumbs = createModelSwitchBreadcrumbs(words ?? toModel, displayOf(toModel), {
       previousModel: fromModel,
       previousDisplay: displayOf(fromModel),
       savedAsDefault: savedDefaultModel() === toModel,
+      model: toModel,
+      ...(words === undefined ? {} : { words }),
+      at: switchClockWords(),
     })
     for (const breadcrumb of breadcrumbs) {
       messages.push(breadcrumb)
@@ -991,7 +994,7 @@ export async function runHeadless(
     })
   }
 
-  const applySeatModel = async (model: string): Promise<void> => {
+  const applySeatModel = async (model: string, words?: string): Promise<void> => {
     const previous = activeModel ?? getEngineModel()
     activeModel = model
     setEngineModelOverride(model)
@@ -999,7 +1002,7 @@ export async function runHeadless(
     saveSessionModel(model)
     notifySessionStateChanged('idle')
     if (model !== previous) {
-      await injectModelSwitchBreadcrumbs(model, previous)
+      await injectModelSwitchBreadcrumbs(model, previous, words)
       if (getSettingsWithSources().effective.memory?.tellEngineSwitch === true) await tellSeatEngineSwitch(model)
     }
   }
@@ -1184,7 +1187,7 @@ export async function runHeadless(
       if (heldSeatModel !== null) {
         const held = heldSeatModel
         heldSeatModel = null
-        await applySeatModel(held.model)
+        await applySeatModel(held.model, held.words)
         io.outbound.enqueue({ method: 'session/applied', params: { request_id: held.requestId, verb: 'set_model', model: held.model } })
       }
       if (heldSeatEffort !== null) {
@@ -1698,12 +1701,13 @@ export async function runHeadless(
         requested === undefined || requested === 'default'
           ? (getDefaultEngineModelSetting() ?? getEngineModel())
           : parseUserSpecifiedModel(requested)
+      const words = typeof params.words === 'string' && params.words.trim() !== '' ? params.words.trim() : undefined
       if (inFlightAbort !== null) {
-        heldSeatModel = { requestId: ref.id, model: String(resolved) }
+        heldSeatModel = { requestId: ref.id, model: String(resolved), ...(words === undefined ? {} : { words }) }
         holdQueuedWordsForTurnEnd(true)
         return { model: String(resolved), at: SEAT_VERB_AT(true) }
       }
-      await applySeatModel(String(resolved))
+      await applySeatModel(String(resolved), words)
       return { model: String(resolved), at: SEAT_VERB_AT(false) }
     },
     'session/claim': async params => {
