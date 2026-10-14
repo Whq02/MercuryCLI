@@ -54,6 +54,8 @@ const assist = {
   lateRows: {} as Record<string, Record<string, unknown>>,
   rosterReads: 0,
   inFlightRefusals: 0,
+  bareRefusals: 0,
+  detailedRefusals: 0,
   chatBodies: [] as Array<Record<string, unknown>>,
 }
 const sse = (value: unknown): string => `data: ${JSON.stringify(value)}\n\n`
@@ -205,6 +207,14 @@ const assistServer = Bun.serve({
       if (assist.generateStatus !== 200) return Response.json({ error: { code: assist.generateStatus, message: assist.generateStatus === 429 ? 'Resource has been exhausted (e.g. check quota). Please retry after the reset.' : 'fixture refusal', status: assist.generateStatus === 429 ? 'RESOURCE_EXHAUSTED' : 'PERMISSION_DENIED' } }, { status: assist.generateStatus })
       if (assist.generateError) return new Response(sse({ error: assist.generateError }), { headers: { 'content-type': 'text/event-stream' } })
       assist.chatBodies.push(entry.body ?? {})
+      if (assist.bareRefusals > 0) {
+        assist.bareRefusals -= 1
+        return Response.json({ error: { code: 400, message: 'Request contains an invalid argument.', status: 'INVALID_ARGUMENT' } }, { status: 400 })
+      }
+      if (assist.detailedRefusals > 0) {
+        assist.detailedRefusals -= 1
+        return Response.json({ error: { code: 400, message: 'Invalid JSON payload received. Unknown name "probe" at \'request\': Cannot find field.', status: 'INVALID_ARGUMENT' } }, { status: 400 })
+      }
       if (assist.inFlightRefusals > 0) {
         assist.inFlightRefusals -= 1
         return new Response([sse({ response: { candidates: [{ index: 0, content: { role: 'model', parts: [{ text: 'thinking ' }] } }] } }), sse({ error: { code: 400, message: 'Request contains an invalid argument.', status: 'INVALID_ARGUMENT' } })].join(''), { headers: { 'content-type': 'text/event-stream' } })
@@ -401,17 +411,33 @@ try {
   const callIds = modelContents.flatMap(c => c.parts.filter(p => p.functionCall !== undefined).map(p => (p.functionCall as Record<string, unknown>).id))
   const responseIds = longContents.flatMap(c => c.parts.filter(p => p.functionResponse !== undefined).map(p => (p.functionResponse as Record<string, unknown>).id))
   check('the thirty-round history rides as recorded: thirty model contents each with its own signature, no placeholder, the synthetic refusal row absent, every call answered once in order, the resume text beside its tool result; the answer lands', modelContents.length === 30 && modelContents.every(c => c.parts.length === 1 && typeof c.parts[0]!.thoughtSignature === 'string' && String(c.parts[0]!.thoughtSignature).startsWith('sig-')) && !JSON.stringify(longContents).includes('API Error') && !JSON.stringify(longContents).includes('skip_thought_signature_validator') && JSON.stringify(callIds) === JSON.stringify(responseIds) && callIds.length === 30 && longContents.some(c => c.role === 'user' && c.parts.some(p => p.functionResponse !== undefined) && c.parts.some(p => typeof p.text === 'string' && String(p.text).includes('task-notification'))) && longReplies.some(m => m.type === 'assistant' && !(m as { isApiErrorMessage?: boolean }).isApiErrorMessage) && !longReplies.some(m => (m as { isApiErrorMessage?: boolean }).isApiErrorMessage), JSON.stringify({ modelContents: modelContents.length, placeholders: (JSON.stringify(longContents).match(/skip_thought_signature_validator/g) ?? []).length, callIds: callIds.length, responseIds: responseIds.length, error: longReplies.find(m => (m as { isApiErrorMessage?: boolean }).isApiErrorMessage)?.message }))
+  const modesOf = (): Array<string | undefined> => assist.chatBodies.map(b => ((b.request as Record<string, unknown>)?.toolConfig as Record<string, Record<string, string>> | undefined)?.functionCallingConfig?.mode)
+  const errorWordsOf = (replies: Array<Record<string, unknown>>): string => JSON.stringify(replies.find(m => (m as { isApiErrorMessage?: boolean }).isApiErrorMessage)?.message ?? '')
   assist.inFlightRefusals = 1
   assist.chatBodies = []
   const inFlightOnce = await driveHistory('gemini-4-neon-high', longHistory)
-  const modes = assist.chatBodies.map(b => ((b.request as Record<string, unknown>)?.toolConfig as Record<string, Record<string, string>> | undefined)?.functionCallingConfig?.mode)
-  check('a refusal in flight (the stream opened, then INVALID_ARGUMENT in band) is retried once with plain function calling (AUTO after VALIDATED); the answer lands', JSON.stringify(modes) === JSON.stringify(['VALIDATED', 'AUTO']) && inFlightOnce.some(m => m.type === 'assistant' && !(m as { isApiErrorMessage?: boolean }).isApiErrorMessage) && !inFlightOnce.some(m => (m as { isApiErrorMessage?: boolean }).isApiErrorMessage), JSON.stringify({ modes, error: inFlightOnce.find(m => (m as { isApiErrorMessage?: boolean }).isApiErrorMessage)?.message }))
+  check('a refusal in flight (the stream opened, then INVALID_ARGUMENT in band) is retried with the same shape and the answer lands', JSON.stringify(modesOf()) === JSON.stringify(['VALIDATED', 'VALIDATED']) && inFlightOnce.some(m => m.type === 'assistant' && !(m as { isApiErrorMessage?: boolean }).isApiErrorMessage) && !inFlightOnce.some(m => (m as { isApiErrorMessage?: boolean }).isApiErrorMessage), JSON.stringify({ modes: modesOf(), error: errorWordsOf(inFlightOnce).slice(0, 200) }))
   assist.inFlightRefusals = 2
   assist.chatBodies = []
   const inFlightTwice = await driveHistory('gemini-4-neon-high', longHistory)
-  const twiceWords = JSON.stringify(inFlightTwice.find(m => (m as { isApiErrorMessage?: boolean }).isApiErrorMessage)?.message ?? '')
-  check('a second refusal in flight ends the turn with the words: two attempts, never a third, the refusal placed in flight and the roster named', assist.chatBodies.length === 2 && twiceWords.includes("Google refused the answer in flight on 'gemini-4-neon-high' (INVALID_ARGUMENT, no detail) twice") && twiceWords.includes('/model picks another roster row'), twiceWords.slice(0, 300))
+  check('two refusals in flight: the same shape twice, then plain function calling (AUTO), and the answer lands', JSON.stringify(modesOf()) === JSON.stringify(['VALIDATED', 'VALIDATED', 'AUTO']) && inFlightTwice.some(m => m.type === 'assistant' && !(m as { isApiErrorMessage?: boolean }).isApiErrorMessage) && !inFlightTwice.some(m => (m as { isApiErrorMessage?: boolean }).isApiErrorMessage), JSON.stringify({ modes: modesOf(), error: errorWordsOf(inFlightTwice).slice(0, 200) }))
+  assist.inFlightRefusals = 3
+  assist.chatBodies = []
+  const inFlightThrice = await driveHistory('gemini-4-neon-high', longHistory)
+  const thriceWords = errorWordsOf(inFlightThrice)
+  check('three refusals in flight end the turn with the words that place the refusal in flight with the elapsed time and name the attempts — never a fourth', assist.chatBodies.length === 3 && /Google refused the request on 'gemini-4-neon-high' — in flight at \d+ s — the request was accepted and the refusal came while the model answered \(INVALID_ARGUMENT, no detail\); retried twice \(the same shape, then plain function calling\)/.test(thriceWords) && thriceWords.includes('/model picks another roster row'), thriceWords.slice(0, 400))
   assist.inFlightRefusals = 0
+  assist.bareRefusals = 3
+  assist.chatBodies = []
+  const bareThrice = await driveHistory('gemini-4-neon-high', longHistory)
+  const bareWords = errorWordsOf(bareThrice)
+  check('a bare HTTP 400 INVALID_ARGUMENT (no detail, the live shape of 04:37) walks the same ladder — the same shape twice, then plain — and the words say HTTP 400, the elapsed time and the attempts', assist.chatBodies.length === 3 && JSON.stringify(modesOf()) === JSON.stringify(['VALIDATED', 'VALIDATED', 'AUTO']) && /Google refused the request on 'gemini-4-neon-high' — HTTP 400 after \d+ s, before any answer byte \(INVALID_ARGUMENT, no detail\); retried twice \(the same shape, then plain function calling\)/.test(bareWords), bareWords.slice(0, 400))
+  assist.bareRefusals = 0
+  assist.detailedRefusals = 1
+  assist.chatBodies = []
+  const detailed = await driveHistory('gemini-4-neon-high', longHistory)
+  check('a 400 with detail is never retried: one request, the words say HTTP 400 with detail, not retried, and carry Google\'s words', assist.chatBodies.length === 1 && /Google refused the request on 'gemini-4-neon-high' — HTTP 400 after \d+ s, before any answer byte \(INVALID_ARGUMENT, with detail; not retried\)\. The wire said: api-INVALID_ARGUMENT: Invalid JSON payload received\. Unknown name \\"probe\\"/.test(errorWordsOf(detailed)), JSON.stringify({ chats: assist.chatBodies.length, words: errorWordsOf(detailed).slice(0, 300) }))
+  assist.detailedRefusals = 0
   const heliumReplies = await driveRoad('gemini-4-helium', false)
   const heliumWords = JSON.stringify(heliumReplies.find(m => m.type === 'assistant' && (m as { isApiErrorMessage?: boolean }).isApiErrorMessage)?.message ?? '')
   const disabledOnTheWire = await driveRoad('gemini-4-helium-disabled', false)

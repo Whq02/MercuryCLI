@@ -631,11 +631,16 @@ come from its owning account resolvers:
   minutes (a bounded wait, the chat proceeds on the cached roster after two
   seconds), and a bare id's 404 forces one re-read — a row that appeared
   meanwhile is taken and the chat retried once, else the 404 words carry the
-  kin; never a loop. A refusal that arrives in flight — the request
-  accepted, then INVALID_ARGUMENT in the stream while the model answers —
-  is retried once with plain function calling (AUTO in place of VALIDATED);
-  a second one ends the turn with the words that say where the refusal
-  came from and that the same history answered before. A long history rides
+  kin; never a loop. An INVALID_ARGUMENT Google gives without detail
+  ("Request contains an invalid argument."), whether in flight or as an HTTP
+  400 after the server worked on the request, is retried once with the same
+  shape and once more with plain function calling (AUTO in place of
+  VALIDATED); the words that end the turn say where it came from — "HTTP 400
+  after 15 s, before any answer byte" or "in flight at 15 s" — and which
+  attempts ran; a 400 with detail is never retried and carries Google's
+  words. `MERCURY_GEMINI_WIRE_DUMP=<file>` makes the wire append every
+  request body it sends (one JSON line each, never the bearer) so such a
+  refusal can be read from the exact request. A long history rides
   as recorded: every model turn with its own signature, a synthetic refusal
   row never on the wire, every call paired with its result, a resume
   message beside the result it follows. A Claude row on
