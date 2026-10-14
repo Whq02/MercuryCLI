@@ -59,6 +59,7 @@ const MODEL_SPEND: KeyTable = {
   cacheCreationInputTokens: 'cache_creation_input_tokens',
   costUSD: 'cost_usd',
   unpricedTurns: 'unpriced_turns',
+  lastUsedAtMs: 'last_used_at_ms',
 }
 const ANTHROPIC_WINDOW: KeyTable = {
   observedAtMs: 'observed_at_ms',

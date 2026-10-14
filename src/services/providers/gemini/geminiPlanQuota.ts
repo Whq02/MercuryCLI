@@ -1,4 +1,5 @@
 import { getModelUsage } from '../../../bootstrap/state.js'
+import { getFocusedSessionConnector } from '../../engine-connector/focusedConnector.js'
 import { declaredRouteOf } from '../routeLaw.js'
 import type { UsageFigureView } from '../providerUsage.js'
 import { geminiPlanEffortSuffix, type GeminiEffortSuffix } from './geminiCatalogue.js'
@@ -42,7 +43,20 @@ export function geminiPlanQuotaView(
   return { ...(active ? { active } : {}), ...(activeRow !== undefined && active ? { activeRow } : {}), used, others }
 }
 
-export function geminiLaneModelsByLastUse(usage: Readonly<Record<string, { lastUsedAtMs?: number }>> = getModelUsage()): string[] {
+export function geminiSessionModelUsage(): Readonly<Record<string, { lastUsedAtMs?: number }>> {
+  const rows = getFocusedSessionConnector().usage().modelSpend
+  if (rows === undefined) return getModelUsage()
+  const usage: Record<string, { lastUsedAtMs?: number }> = {}
+  for (const row of rows) {
+    if (row.workload !== undefined) continue
+    const prior = usage[row.model]
+    if (prior === undefined) usage[row.model] = row.lastUsedAtMs !== undefined ? { lastUsedAtMs: row.lastUsedAtMs } : {}
+    else if (row.lastUsedAtMs !== undefined && (prior.lastUsedAtMs ?? 0) < row.lastUsedAtMs) prior.lastUsedAtMs = row.lastUsedAtMs
+  }
+  return usage
+}
+
+export function geminiLaneModelsByLastUse(usage: Readonly<Record<string, { lastUsedAtMs?: number }>> = geminiSessionModelUsage()): string[] {
   return Object.entries(usage)
     .filter(([model]) => declaredRouteOf(model) === 'gemini')
     .map(([model, record], index) => ({ model, at: record.lastUsedAtMs ?? 0, index }))
