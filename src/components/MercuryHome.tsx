@@ -34,6 +34,10 @@ import { cycleSessionCritter, useSessionAccent } from './mercury-ui/sessionAccen
 import { branchChip } from './mercury-ui/glyphs.js'
 import { InteractiveRow } from './mercury-ui/InteractiveRow.js'
 import { CREW_VIEW_DOOR } from '../utils/cockpit/crewmateWords.js'
+import { getProjectRoot, getSessionId } from '../bootstrap/state.js'
+import { composeMemoryAtStart, memoryAtStartRowWords, memoryAtStartStatus } from '../mneme/entryKnapsack.js'
+import { mnemeEnabled } from '../mneme/mnemeGates.js'
+import { mnemeProjectKey } from '../mneme/paths.js'
 
 
 export function PinnedCritterBerth(): React.ReactNode {
@@ -109,6 +113,22 @@ export function MercuryHome(): React.ReactNode {
   return isCompact ? null : <MercuryHomeBody />
 }
 
+function useMemoryAtStartRow(): string | null {
+  const [words, setWords] = useState<string | null>(() => (mnemeEnabled() ? null : 'off (memory.enabled is false in settings)'))
+  useEffect(() => {
+    if (!mnemeEnabled()) return
+    let live = true
+    void composeMemoryAtStart({ projectKey: mnemeProjectKey(), sessionId: String(getSessionId()), root: getProjectRoot() }).then(() => {
+      const status = memoryAtStartStatus()
+      if (live && status !== null) setWords(memoryAtStartRowWords(status))
+    })
+    return () => {
+      live = false
+    }
+  }, [])
+  return words
+}
+
 function MercuryHomeBody(): React.ReactNode {
   const tok = useMercuryTokens()
   const model = useDisplayedSessionModel().label
@@ -116,6 +136,7 @@ function MercuryHomeBody(): React.ReactNode {
   const signInGate = useSessionSignInGate(servedModel ?? getEngineModel())
   const cwd = useCwdState()
   const dir = pathTailLabel(cwd)
+  const memoryRow = useMemoryAtStartRow()
 
   const [git, setGit] = useState<Snapshot<{ data: GitData }> | null>(null)
   const [fleet, setFleet] = useState<Snapshot<{ data: FleetData }> | null>(null)
@@ -241,6 +262,14 @@ function MercuryHomeBody(): React.ReactNode {
           ) : null}
           {!deckPresent ? <Text color={tok.textMuted}> · {gitState}</Text> : null}
         </Text>
+        {memoryRow !== null ? (
+          <InteractiveRow {...rowClick('memory', '/memory')}>
+            <Text wrap="truncate-end">
+              <Text color={tok.textMuted}>{'  memory  '}</Text>
+              <Text color={tok.textSecondary}>{memoryRow}</Text>
+            </Text>
+          </InteractiveRow>
+        ) : null}
         {
 }
         {!helmHome && !deckPresent ? (

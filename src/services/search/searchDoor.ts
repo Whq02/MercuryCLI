@@ -11,7 +11,7 @@ import { officialSearch } from './officialSearch.js'
 import { searxngSearch } from './searxng.js'
 import { configuredSearxngInstances } from './searxngInstances.js'
 import { DUCKDUCKGO_OFF_DOORS, DUCKDUCKGO_TERMS, duckduckgoScrapingEnabled } from './searchSetting.js'
-import { officialSearchIntent, type OfficialSearchSource } from './searchSources.js'
+import { officialSearchIntent, SEARCH_SOURCE_POLICIES, type OfficialSearchSource } from './searchSources.js'
 import { cachedAnswerNote, coolDownRemainingMs, liveSearchClock, nextSearchGroupId, noteAnswered, noteRateLimited, rememberSearch, secondsLeftLabel, takeCachedSearch, takeKeyedDoorHint, type SearchClock } from './searchPacing.js'
 import { failureLine, KEYED_DOOR_COMMANDS, KEYED_DOOR_FREE_TIER, normaliseHits, searchBackendLabel, searchFailure, type SearchBackendId, type SearchFailure, type SearchHit, type SearchOutcome, type SearchRequest, type SearchTier } from './searchContract.js'
 import { resolveTavilyApiKey, tavilySearch } from './tavily.js'
@@ -125,11 +125,14 @@ async function openDoor(door: SearchDoor, request: SearchRequest, io: WebSearchR
     case 'keyless': return io.backends?.keyless ? io.backends.keyless(request) : keylessSearch(request, { clock })
   }
 }
-export interface WalkFailureContext { nativeFamily?: NativeSearchFamily }
-export function walkFailureLine(failures: readonly SearchFailure[], plan: SearchDoorPlan, _walk: WalkFailureContext = {}): string {
+export interface WalkFailureContext { nativeFamily?: NativeSearchFamily; emptyAnswers?: ReadonlySet<SearchFailure> }
+export function emptyAnswerLine(failure: SearchFailure, answered: boolean): string {
+  return `${failure.message}; ${answered ? 'the next source answered' : 'no later source answered'}`
+}
+export function walkFailureLine(failures: readonly SearchFailure[], plan: SearchDoorPlan, walk: WalkFailureContext = {}): string {
   let line = 'No source answered; try another wording or another source.'
   if (failures.some(failure => failure.message.includes(DUCKDUCKGO_TERMS))) line += ` ${DUCKDUCKGO_TERMS}`
-  for (const fact of [...failures.map(failureLine), ...plan.closed]) {
+  for (const fact of [...failures.map(failure => walk.emptyAnswers?.has(failure) ? emptyAnswerLine(failure, false) : failureLine(failure)), ...plan.closed]) {
     const next = `${line} ${fact.replace(DUCKDUCKGO_TERMS, '').replace(/\s+/g, ' ').trim()}`
     if (Buffer.byteLength(next, 'utf8') < 2000) line = next
   }
@@ -150,6 +153,7 @@ export async function performWebSearch(input: SearchRequest, io: WebSearchRunIo)
     return { via: cached.via, tier: cached.tier, hits: cached.hits, sequence: [{ toolUseId: id, hits: cached.hits }, ...(cached.commentary ?? [])], queries: cached.queries, notes: [...(cached.notes ?? []), cachedAnswerNote(searchBackendLabel(cached.via))], cached: true }
   }
   const failures: SearchFailure[] = []
+  const emptyAnswers = new Set<SearchFailure>()
   for (const door of plan.doors) {
     if (signal.aborted) throw new AbortError()
     if (door.kind === 'keyed') {
@@ -167,16 +171,22 @@ export async function performWebSearch(input: SearchRequest, io: WebSearchRunIo)
       const hits = normaliseHits(outcome.hits, request.maxResults)
       const commentary = outcome.tier === 'native' ? (outcome.commentary ?? outcome.sequence?.filter((entry): entry is string => typeof entry === 'string') ?? []).map(entry => entry.trim()).filter(entry => entry !== '') : []
       if (door.kind === 'keyed' && coolDownRemainingMs(door.backend, clock.now()) === 0) noteAnswered(door.backend)
-      if (!hits.length && !commentary.length) { failures.push(searchFailure('no-backend', outcome.via, `${(outcome.notes ?? []).join(' ')} ${searchBackendLabel(outcome.via)} found no matching links`.trim())); continue }
+      if (!hits.length && !commentary.length) {
+        const said = (outcome.notes ?? []).filter(note => door.kind !== 'official' || note !== SEARCH_SOURCE_POLICIES[door.backend].terms)
+        const empty = searchFailure('no-backend', outcome.via, door.kind === 'official' && said.length ? said.join(' ') : `${said.join(' ')} ${searchBackendLabel(outcome.via)} found no matching links`.trim())
+        emptyAnswers.add(empty)
+        failures.push(empty)
+        continue
+      }
       const queries = outcome.queries ?? [request.query]
       if (outcome.via !== 'github') rememberSearch(request, { via: outcome.via, tier: outcome.tier, hits, queries, ...(commentary.length ? { commentary } : {}), notes: outcome.notes?.filter(note => note !== DUCKDUCKGO_TERMS) }, clock.now())
       const id = nextSearchGroupId(outcome.via)
       report(id, hits.length)
       const hint = outcome.tier === 'keyless' && !plan.doors.some(d => d.kind === 'keyed') ? takeKeyedDoorHint() : undefined
-      return { via: outcome.via, tier: outcome.tier, hits, sequence: [{ toolUseId: id, hits }, ...commentary], queries, notes: [...(outcome.notes ?? []), ...failures.map(failureLine)], ...(hint ? { hint } : {}) }
+      return { via: outcome.via, tier: outcome.tier, hits, sequence: [{ toolUseId: id, hits }, ...commentary], queries, notes: [...(outcome.notes ?? []), ...failures.map(failure => emptyAnswers.has(failure) ? emptyAnswerLine(failure, true) : failureLine(failure))], ...(hint ? { hint } : {}) }
     }
     if (door.kind === 'keyed' && outcome.kind === 'rate-limited' && coolDownRemainingMs(door.backend, clock.now()) === 0) noteRateLimited(door.backend, clock)
     failures.push(outcome)
   }
-  throw new Error(walkFailureLine(failures, plan))
+  throw new Error(walkFailureLine(failures, plan, { emptyAnswers }))
 }

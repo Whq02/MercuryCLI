@@ -1,6 +1,7 @@
 import * as React from 'react'
 import { ExitFlow } from '../../components/ExitFlow.js'
-import { ExitHandoff, noteAskedAtExit } from '../../components/ExitHandoff.js'
+import { ExitHandoff, noteAskedAtExit, type ExitNoteReceipt } from '../../components/ExitHandoff.js'
+import { exitFarewell } from '../../mneme/exitHandoff.js'
 import { MercuryExitConfirm } from '../../components/MercuryExitConfirm.js'
 import { getFocusedSessionConnector, hasFocusedSession } from '../../services/engine-connector/focusedConnector.js'
 import { workCounts } from '../../services/engine-connector/workCounts.js'
@@ -30,9 +31,10 @@ export function liveWorkAtExit(tasks: Record<string, TaskState> | undefined): Li
 
 function ExitWithNote({ liveWords, onDone }: { liveWords: string | null; onDone: LocalJSXCommandOnDone }): React.ReactNode {
   const [phase, setPhase] = React.useState<'confirm' | 'note'>(liveWords === null ? 'note' : 'confirm')
-  const quit = (): void => {
-    onDone(FAREWELL)
-    void gracefulShutdown(0, 'quit', { finalMessage: farewellWithTesterDoor(FAREWELL) })
+  const quit = (receipt?: ExitNoteReceipt): void => {
+    const farewell = receipt === undefined ? FAREWELL : exitFarewell(FAREWELL, receipt.note, receipt.noteChars)
+    onDone(farewell)
+    void gracefulShutdown(0, 'quit', { finalMessage: farewellWithTesterDoor(farewell) })
   }
   if (phase === 'confirm' && liveWords !== null) {
     return <MercuryExitConfirm liveWords={liveWords} onStay={() => onDone()} onQuit={() => (noteAskedAtExit() ? setPhase('note') : quit())} />

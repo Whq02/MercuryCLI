@@ -1,38 +1,38 @@
   lanes                 ╭──────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
 WORKBENCH               │╭────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮│
-  /model                ││  ▄▄▄▄▄▄▄▄▄                                                                                                     ││
-  claude-sonnet-5-5     ││  ▄▄▄▄▄▄▄▄▄                                                                                                     ││
-                        ││  ▀▄▄▄▀▄▄▄▀                                                                                                     ││
-NEXT                    │╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯│
-  · /workflows — crewma…│                                                                                                                  │
+  /model sonnet 5.5     ││  ▄▄▄▄▄▄▄▄▄                                                                                                     ││
+                        ││  ▄▄▄▄▄▄▄▄▄                                                                                                     ││
+NEXT                    ││  ▀▄▄▄▀▄▄▄▀                                                                                                     ││
+  · /workflows — crewma…│╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯│
   · /health — health ce…│                                                                                                                  │
-  · /memory — memory    │ 12:30:52 [sam] ❯ start                                                                                           │
-  · /mission — set a mi…│                                                                                                                  │
-                        │ 12:30:52 [Mercury] Command rows ready.                                                                           │
-FILES · project         │                                                                                                                  │
-  ↵ or click · browse   │ ❯ /crewmates off                                                                                                 │
-                        │   └ crewmates off for this session                                                                               │
-VITALS                  │     the Crewmate tool leaves the roster from the next turn; reasoning restarts on the next turn; a spawn already │
-  · spend $0.00         │     running finishes                                                                                             │
-  · ctx 0% · 1000k      │ you turned crewmates off: the Crewmate tool has left the roster; reasoning restarts on the next turn             │
-  · health — run /health│                                                                                                                  │
-                        │ 12:31:09 [sam] ❯ run the cell                                                                                    │
+  · /memory — memory    │                                                                                                                  │
+  · /mission — set a mi…│ 12:27:16 [sam] ❯ start                                                                                           │
+                        │                                                                                                                  │
+FILES · project         │ 12:27:16 [Mercury] Command rows ready.                                                                           │
+  ↵ or click · browse   │                                                                                                                  │
+                        │ ❯ /crewmates off                                                                                                 │
+VITALS                  │   └ crewmates off for this session                                                                               │
+  · spend $0.00         │     the Crewmate tool leaves the roster from the next turn; reasoning restarts on the next turn; a spawn already │
+  · ctx 0% · 1000k      │     running finishes                                                                                             │
+  · health — run /health│ the operator toggled crewmates off — landed: the Crewmate tool has left the roster; reasoning restarts on the    │
+                        │ next turn                                                                                                        │
+                        │                                                                                                                  │
+                        │ 12:27:33 [sam] ❯ run the cell                                                                                    │
                         │ │                                                                                                                │
-                        │ │ 12:31:09 [Mercury] ✕ Eval         js · Calculate the value                                                     │
+                        │ │ 12:27:33 [Mercury] ✕ Eval         js · Calculate the value                                                     │
                         │ │   └ ✕ Error: The operator declined this tool call; it was not run and nothing was changed. Do not try to reach │
                         │ │     the same effect by another route. If the task cannot continue without this action, stop and say plainly    │
                         │ │     what was not run and why the task needs it, then wait for the operator.                                    │
                         │                                                                                                                  │
-                        │ 12:31:11 [Mercury] Cell was declined.                                                                            │
+                        │ 12:27:35 [Mercury] Cell was declined.                                                                            │
                         │                                                                                                                  │
                         │ ❯ /model sonnet 5.5                                                                                              │
                         │   └ sonnet 5.5 → claude-sonnet-5-5                                                                               │
                         │     Model set to Sonnet 5.5 · saved as your default — this session's next message runs it                        │
                         │                                                                                                                  │
-                        │ ❯ /model claude-sonnet-5-5                                                                                       │
-                        │   └ Model now: Sonnet 5.5 · saved as your default for new sessions — /model claude-opus-5-5 switches back to     │
-                        │     Opus 5.5                                                                                                     │
-                        │                                                                                                                  │
+                        │ ❯ /model sonnet 5.5                                                                                              │
+                        │   └ sonnet 5.5 → claude-sonnet-5-5 · 12:27 BST · saved as your default for new sessions — /model claude-opus-5-5 │
+                        │     switches back to Opus 5.5                                                                                    │
                         │                                                                                                                  │
                         │                                                                                                                  │
                         │                                                                                                                  │

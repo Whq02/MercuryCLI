@@ -208,7 +208,7 @@ export function conflictReason(candidate: ContradictionCandidate): string {
   const entry = candidate.entry
   const head = `conflicts with ${entryName(entry)}: "${firstWords(entry.text)}"`
   if (entry.kind === 'rule') return `${head} — a pinned rule stands until the user changes it: ${USER_ASKED_RULE_ROAD}; if both are true, retain it again with the difference stated (when, where, which)`
-  return `${head} — if the record is wrong, Correct ${entry.id} with the evidence as the reason; if both are true, retain it again with the difference stated (when, where, which)`
+  return `${head}: ask the user which is true; on their word, Correct ${entry.id} with their reason, or retain both with the difference stated (when, where, which)`
 }
 
 export function conflictNotice(candidate: ContradictionCandidate): string {

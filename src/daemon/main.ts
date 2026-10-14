@@ -626,7 +626,7 @@ async function daemonRun(args: string[]): Promise<void> {
           }
           return rewindSession(req.sessionId, { mode: req.mode, userMessageId: req.userMessageId, ...(req.dryRun === true ? { dryRun: true } : {}) }, roster)
         },
-        concourseControl: async ({ action, sessionId, by, reason, hard, requestId, allow, answer, model, effort, mode, contract, kitEdit, scheduleEdit, spawnSwitch, terminalApplication, clientOpId, mintedAtMs, title, titleSource, agentId, note, clientMessageId, paused }) => {
+        concourseControl: async ({ action, sessionId, by, reason, hard, requestId, allow, answer, model, words, effort, mode, contract, kitEdit, scheduleEdit, spawnSwitch, terminalApplication, clientOpId, mintedAtMs, title, titleSource, agentId, note, clientMessageId, paused }) => {
           void reason
           if (clientOpId !== undefined) {
             const prior = readConcourseControlOps()[clientOpId]
@@ -762,7 +762,7 @@ async function daemonRun(args: string[]): Promise<void> {
           }
           if (action === 'set-model') {
             if (model === undefined || model === '') return { outcome: 'refused' as const, detail: 'set-model requires model' }
-            return roster !== null ? await setSessionModel(sessionId, model, roster) : { outcome: 'refused' as const, detail: 'daemon roster not ready' }
+            return roster !== null ? await setSessionModel(sessionId, model, roster, undefined, words) : { outcome: 'refused' as const, detail: 'daemon roster not ready' }
           }
           if (action === 'set-effort') {
             if (effort === undefined || effort === '') return { outcome: 'refused' as const, detail: 'set-effort requires effort' }

@@ -4,6 +4,7 @@ import { buildTool, type ToolDef, type ToolUseContext } from '../../Tool.js'
 import { lazySchema } from '../../utils/lazySchema.js'
 import { getSessionId } from '../../bootstrap/state.js'
 import {
+  consolidatedIdOf,
   correctionPreflight,
   correctMemoryJudged,
   memoryVerbsEnabled,
@@ -438,33 +439,40 @@ export const CorrectTool = buildTool({
     return ruleCardAsk(context) ?? { behavior: 'allow' as const, updatedInput: input }
   },
   async call(input: z.infer<CorrectSchema>, context: ToolUseContext, canUseTool, parentMessage) {
+    const dir = mnemeLibraryDir()
+    const consolidated = consolidatedIdOf(input.id, dir)
+    const id = consolidated ?? input.id
+    const followed = consolidated === null ? {} : { followed: `${input.id} had consolidated as ${consolidated}; the correction followed it` }
     const correction = {
       op: input.op,
-      id: input.id,
+      id,
       ...(input.content !== undefined ? { content: input.content } : {}),
       ...(input.replacementId !== undefined ? { replacementId: input.replacementId } : {}),
       reason: input.reason,
       session: safeSession(),
     }
-    const dir = mnemeLibraryDir()
-    const rule = askedRuleOf(input.id, dir)
-    if (rule === null) return { data: await correctMemoryJudged(correction, abortOf(context)) }
+    const rule = askedRuleOf(id, dir)
+    if (rule === null) return { data: { ...(await correctMemoryJudged(correction, abortOf(context))), ...followed } }
     const early = correctionPreflight(correction, dir)
-    if (early !== null) return { data: early }
+    if (early !== null) return { data: { ...early, ...followed } }
     const verdict = await askRuleCard({
       tool: CorrectTool,
-      toolInput: input,
-      card: ruleCardText(CORRECT_TOOL_NAME, [{ rule, change: correctionChange(input, dir) }], input.reason),
+      toolInput: { ...input, id },
+      card: ruleCardText(CORRECT_TOOL_NAME, [{ rule, change: correctionChange({ ...input, id }, dir) }], input.reason),
       rules: [rule],
       context,
       canUseTool,
       parentMessage,
     })
-    if (!verdict.ok) return { data: { ok: false as const, op: input.op, code: verdict.code, message: verdict.message } }
-    return { data: await correctMemoryJudged({ ...correction, authority: verdict.via }, abortOf(context)) }
+    if (!verdict.ok) return { data: { ok: false as const, op: input.op, code: verdict.code, message: verdict.message, ...followed } }
+    return { data: { ...(await correctMemoryJudged({ ...correction, authority: verdict.via }, abortOf(context))), ...followed } }
   },
   mapToolResultToToolResultBlockParam(output: CorrectToolOutput, toolUseID) {
     const verb = output.op === 'retract' ? 'unpinned and struck' : 'corrected'
+    const followed = output.followed === undefined ? '' : ` (${output.followed})`
+    if (!output.ok && output.code === 'user-kept-rule') {
+      return { tool_use_id: toolUseID, type: 'tool_result', content: `${output.message}${followed}` }
+    }
     if (output.ok && 'draft' in output) {
       const tail =
         output.newId !== null
@@ -482,13 +490,13 @@ export const CorrectTool = buildTool({
       return {
         tool_use_id: toolUseID,
         type: 'tool_result',
-        content: `${output.op} landed: seq ${output.targetSeq} → ${output.newSeq} in topic-${output.slug}. The old record is retained under history.${ruleAnswerWords(output.via, verb, true)}`,
+        content: `${output.op} landed: seq ${output.targetSeq} → ${output.newSeq} in topic-${output.slug}. The old record is retained under history.${ruleAnswerWords(output.via, verb, true)}${followed}`,
       }
     }
     return {
       tool_use_id: toolUseID,
       type: 'tool_result',
-      content: `${output.op} refused (${output.code}): ${output.message}`,
+      content: `${output.op} refused (${output.code}): ${output.message}${followed}`,
       is_error: true,
     }
   },

@@ -2112,13 +2112,15 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
       if (reply.ok !== true) return { note: 'none', detail: String(reply.error ?? 'the daemon refused the verb') }
       const detail = typeof reply.detail === 'string' ? reply.detail : undefined
       if (reply.outcome !== 'applied') return { note: 'none', detail: detail ?? `unexpected outcome ${String(reply.outcome)}` }
-      let answer: { note?: unknown } = {}
+      let answer: { note?: unknown; noteChars?: unknown } = {}
       try {
-        answer = JSON.parse(detail ?? '{}') as { note?: unknown }
+        answer = JSON.parse(detail ?? '{}') as { note?: unknown; noteChars?: unknown }
       } catch {
         answer = {}
       }
-      if (answer.note === 'stored' || answer.note === 'skipped' || answer.note === 'none') return { note: answer.note }
+      if (answer.note === 'stored' || answer.note === 'skipped' || answer.note === 'none') {
+        return { note: answer.note, ...(typeof answer.noteChars === 'number' && Number.isInteger(answer.noteChars) && answer.noteChars >= 0 ? { noteChars: answer.noteChars } : {}) }
+      }
       return { note: 'none', detail: detail ?? 'the runner answered the leave with a receipt the screen cannot read' }
     } catch (e) {
       return { note: 'none', detail: `the daemon is not answering — ${e instanceof Error ? e.message : String(e)}` }
@@ -2172,7 +2174,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
     }
   }
 
-  async setModel(setting: string | null): Promise<ModelSwitchReceiptV1> {
+  async setModel(setting: string | null, words?: string): Promise<ModelSwitchReceiptV1> {
     const target = setting ?? getEngineModel()
     const current = this.modelFacts()
     if (current.effective === target && current.pendingSwitch === null) return { state: 'no-op' }
@@ -2189,7 +2191,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
       return { state: 'refused', detail }
     }
     try {
-      const reply = await this.chainRpc({ op: 'sessionControl', action: 'set-model', sessionId: this.record.sessionId, by: 'operator', model: target })
+      const reply = await this.chainRpc({ op: 'sessionControl', action: 'set-model', sessionId: this.record.sessionId, by: 'operator', model: target, ...(words === undefined ? {} : { words }) })
       if (reply.ok !== true) return refuse(String(reply.error ?? 'the daemon refused the switch'))
       const outcome = reply.outcome
       const detail = typeof reply.detail === 'string' && reply.detail !== '' ? reply.detail : undefined

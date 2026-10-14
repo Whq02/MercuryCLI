@@ -78,12 +78,25 @@ export function formatCommandInputTags(commandName: string, args: string): strin
   return parts.join('')
 }
 
-export type ModelSwitchFacts = { previousModel: string; previousDisplay: string; savedAsDefault: boolean }
+export type ModelSwitchFacts = { previousModel: string; previousDisplay: string; savedAsDefault: boolean; model?: string; words?: string; at?: string }
+
+export function switchClockWords(date: Date, locale?: string): string {
+  const clock = new Intl.DateTimeFormat(locale, { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(date)
+  let zone = ''
+  for (const candidate of locale === undefined ? [undefined, 'en-GB', 'en-US', 'en-AU', 'en-IN'] : [locale]) {
+    const named = new Intl.DateTimeFormat(candidate, { timeZoneName: 'short' }).formatToParts(date).find(p => p.type === 'timeZoneName')?.value ?? ''
+    if (zone === '' || !/^(?:GMT|UTC)[+-]/.test(named)) zone = named
+    if (!/^(?:GMT|UTC)[+-]/.test(zone)) break
+  }
+  return `${clock} ${zone}`.trim()
+}
 
 export function modelSwitchStdoutText(resolvedDisplay: string, facts?: ModelSwitchFacts): string {
   if (facts === undefined) return `Model now: ${resolvedDisplay}`
   const standing = facts.savedAsDefault ? 'saved as your default for new sessions' : 'for this chat only'
-  return `Model now: ${resolvedDisplay} · ${standing} — /model ${facts.previousModel} switches back to ${facts.previousDisplay}`
+  const lead = facts.words !== undefined && facts.model !== undefined && facts.words !== facts.model ? `${facts.words} → ${facts.model}` : `Model now: ${resolvedDisplay}`
+  const when = facts.at === undefined ? '' : ` · ${facts.at}`
+  return `${lead}${when} · ${standing} — /model ${facts.previousModel} switches back to ${facts.previousDisplay}`
 }
 
 export function createModelSwitchBreadcrumbs(modelArg: string, resolvedDisplay: string, facts?: ModelSwitchFacts): UserMessage[] {

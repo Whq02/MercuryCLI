@@ -509,10 +509,19 @@ export function readMemoryRecord(
 
 export type CorrectOp = 'supersede' | 'amend' | 'retract'
 
-export type CorrectOutcome =
+export type CorrectOutcome = (
   | { ok: true; op: CorrectOp; newSeq: number; targetSeq: number; slug: string; via?: RuleAuthority }
   | { ok: true; op: CorrectOp; draft: true; targetId: string; newId: string | null; replacedBy?: number; via?: RuleAuthority }
   | { ok: false; op: CorrectOp; code: string; message: string; conflict?: ContradictionCandidate }
+) & { followed?: string }
+
+export function consolidatedIdOf(id: string, dir: string = mnemeLibraryDir()): string | null {
+  if (!id.startsWith('pending:')) return null
+  const ts = id.slice('pending:'.length)
+  if (pendingRows(dir).some(row => row.ts === ts)) return null
+  for (const doc of allDocs(dir)) for (const section of doc.sections) for (const entry of section.entries) if (entry.time === ts) return `seq:${entry.seq}`
+  return null
+}
 
 const unseenSeqMessage = (seq: number): string =>
   `amend refused: the CURRENT full row for seq ${seq} has not been read this session — a clipped preview must never destroy an unseen tail. Read it first (Recall with read:"seq:${seq}").`

@@ -3,6 +3,7 @@ import { logForDebugging } from '../utils/debug.js'
 import { stampLocal } from './entryPage.js'
 import { readProjectState, stateQuery, type ProjectState } from './entryState.js'
 import { readLedger } from './ledger.js'
+import { pendingRows } from './mnemeBuffer.js'
 import { listArchiveDocs, listTopicDocs } from './mnemeLibrary.js'
 import { liveEntryIndex, pinnedLine, pinnedView, readPinnedStatus } from './mnemeFrontPage.js'
 import { mnemeEnabled, mnemeLibraryDir } from './mnemeGates.js'
@@ -46,6 +47,7 @@ export interface MemoryAtStartStatus {
   rodeFacts: number
   notes: number
   rodeNotes: number
+  pending: number
 }
 
 let lastStatus: MemoryAtStartStatus | null = null
@@ -186,9 +188,10 @@ function joinWords(parts: readonly string[]): string {
   return `${parts.slice(0, -1).join(', ')} and ${parts[parts.length - 1]}`
 }
 
-export function memoryAtStartLine(input: { choice: StartChoice; pinnedCount: number; facts: number; notes: number; state: Pick<ProjectState, 'branch' | 'files' | 'note'> }): string {
-  const { choice, pinnedCount, facts, notes, state } = input
+export function memoryAtStartLine(input: { choice: StartChoice; pinnedCount: number; facts: number; notes: number; pending: number; state: Pick<ProjectState, 'branch' | 'files' | 'note'> }): string {
+  const { choice, pinnedCount, facts, notes, pending, state } = input
   const pins = pinnedCount === 0 ? 'no pinned rule' : `${plural(pinnedCount, 'pinned rule')} (${withThousands(choice.pinnedChars)} characters)`
+  if (facts + notes === 0) return `Memory at start: ${pins}; nothing rode (${plural(pending, 'fact')} pending); Recall finds them.`
   const pool = joinWords([facts > 0 ? plural(facts, 'fact') : null, notes > 0 ? plural(notes, 'earlier note') : null].filter((part): part is string => part !== null))
   const target = [state.branch !== null ? `branch ${state.branch}` : null, state.files.length > 0 ? 'the files touched lately' : null, state.note !== null ? 'the last note' : null].filter((part): part is string => part !== null)
   if (target.length === 0) return `Memory at start: ${pins}; the ${pool} wait for a branch, touched files or a note to match against; Recall finds them.`
@@ -198,8 +201,19 @@ export function memoryAtStartLine(input: { choice: StartChoice; pinnedCount: num
   return `Memory at start: ${pins} and ${rode} most relevant to ${joinWords(target)}; Recall finds the rest.`
 }
 
-export function renderMemoryAtStart(input: { choice: StartChoice; pinnedCount: number; facts: number; notes: number; state: ProjectState }): string | null {
-  if (input.facts + input.notes === 0) return null
+export function memoryAtStartRowWords(status: MemoryAtStartStatus): string {
+  const pins = status.pinnedCount > 0 ? plural(status.pinnedCount, 'pinned rule') : null
+  const pending = status.pending > 0 ? ` (${plural(status.pending, 'fact')} pending)` : ''
+  if (status.facts + status.notes === 0) {
+    if (pins === null && status.pending === 0) return 'nothing on record yet'
+    return `${pins === null ? 'nothing' : `${pins}; nothing else`} rode at start${pending}; Recall finds them`
+  }
+  const rode = joinWords([status.facts > 0 ? `${status.rodeFacts} of ${plural(status.facts, 'fact')}` : null, status.notes > 0 ? `${status.rodeNotes} of ${plural(status.notes, 'earlier note')}` : null].filter((part): part is string => part !== null))
+  return `${pins === null ? '' : `${pins} and `}${rode} rode at start${pending}; Recall finds the rest`
+}
+
+export function renderMemoryAtStart(input: { choice: StartChoice; pinnedCount: number; facts: number; notes: number; pending: number; state: ProjectState }): string | null {
+  if (input.facts + input.notes + input.pending === 0) return null
   const lines: string[] = [MEMORY_AT_START_HEADING, memoryAtStartLine(input)]
   for (const candidate of input.choice.rode) if (candidate.kind === 'fact') lines.push(candidate.block)
   for (const candidate of input.choice.rode) if (candidate.kind === 'handoff') lines.push('', candidate.block)
@@ -228,6 +242,7 @@ export function composeStartPage(input: { dir: string; projectKey: string; state
   const pinned = pinnedNow(input.dir, topics)
   const facts = libraryCandidates(input.dir, pinned.excluded, { topics, archives })
   const notes = earlierNotes(input.previous, input.projectKey)
+  const pending = pendingRows(input.dir).length
   const candidates = [...facts, ...notes].map(candidate => (input.stale?.(candidate) ? markStale(candidate, input.confirmedAt?.(candidate)) : candidate))
   const choice = chooseAtStart({ candidates, chunks: stateQuery(input.state, input.root), limit: input.limit, pinnedChars: pinned.chars, now: input.now, dir: input.dir })
   const status: MemoryAtStartStatus = {
@@ -239,8 +254,9 @@ export function composeStartPage(input: { dir: string; projectKey: string; state
     rodeFacts: choice.rode.filter(c => c.kind === 'fact').length,
     notes: notes.length,
     rodeNotes: choice.rode.filter(c => c.kind === 'handoff').length,
+    pending,
   }
-  return { text: renderMemoryAtStart({ choice, pinnedCount: pinned.count, facts: facts.length, notes: notes.length, state: input.state }), choice, status, state: input.state }
+  return { text: renderMemoryAtStart({ choice, pinnedCount: pinned.count, facts: facts.length, notes: notes.length, pending, state: input.state }), choice, status, state: input.state }
 }
 
 export async function composeMemoryAtStart(input: { projectKey: string; sessionId?: string; root: string; dir?: string; now?: Date }): Promise<string | null> {

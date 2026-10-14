@@ -65,7 +65,7 @@ try {
     { ...gate, awaitText: 'Calculate the value', data: ESC },
     { ...gate, awaitText: 'Cell was declined.', data: '/model sonnet 5.5' },
     { ...gate, awaitText: '❯ /model sonnet 5.5', data: '\r' },
-    { ...gate, awaitText: 'Model now: Sonnet 5.5', data: '', mark: 'model-match' },
+    { ...gate, awaitText: 'saved as your default for new sessions', data: '', mark: 'model-match' },
   ], 550, { MERCURY_DESKTOP_DRIVER: 'none', MERCURY_SPLASH: 'off', MERCURY_REDUCED_MOTION: '1', MERCURY_DAEMON_DIR: 'daemon', TMPDIR: '.' }, 'Cell was declined.')
   for (const [name, rows] of Object.entries(result.marks)) {
     printFrame(name, rows)
@@ -81,6 +81,8 @@ try {
   check('PageDown enters and pages the help list without an earlier down arrow', command('help-page') !== '' && command('help-page') !== command('help-start'))
   check('Eval approval shows the exact code, not only the title', text('eval-card').includes('console.log("CELL-CODE-UNDER-APPROVAL")'))
   check('the model match is echoed as a durable row', /└ sonnet 5.5 → claude-sonnet-5-5/.test(text('model-match')))
+  check('the switch row echoes the typed words, the match and the time with its zone', /└ sonnet 5\.5 → claude-sonnet-5-5 · \d{2}:\d{2} \S+ · saved as your default for new sessions/.test(text('model-match')), text('model-match').split('\n').filter(l => l.includes('sonnet')).join(' | '))
+  check('no switch row echoes the bare id in place of the words', !/❯ \/model claude-sonnet-5-5/.test(text('model-match')), text('model-match').split('\n').filter(l => l.includes('/model')).join(' | '))
 } finally {
   await endLeg(leg)
   rmSync(scratch, { recursive: true, force: true })
