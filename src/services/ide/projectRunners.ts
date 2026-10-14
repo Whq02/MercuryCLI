@@ -16,7 +16,7 @@ import {
   type TestCaseResult,
   type TestRunRecord,
 } from './pythonTests.js'
-import { parseJsonReporter, type ReporterRead } from './runnerReporters.js'
+import { goRunPattern, parseGoTestJson, parseJsonReporter, type ReporterRead } from './runnerReporters.js'
 
 export type RunnerKind = 'test' | 'check' | 'build'
 
@@ -265,7 +265,7 @@ function goProfiles(root: string): RunnerProfile[] {
     availability,
   })
   return [
-    mk('test', ['go', 'test', './...'], 'go test ./...', 'go-pattern'),
+    mk('test', ['go', 'test', '-json', './...'], 'go test ./...', 'go-pattern'),
     mk('build', ['go', 'build', './...'], 'go build ./...', 'none'),
   ]
 }
@@ -340,7 +340,7 @@ export function reporterFileFlag(runner: RunnerFramework): string | null {
   }
 }
 
-function readReporter(profile: RunnerProfile, reporterFile: string | null, _combined: string): ReporterRead | null {
+function readReporter(profile: RunnerProfile, reporterFile: string | null, combined: string): ReporterRead | null {
   if (profile.kind !== 'test') return null
   if (reporterFile !== null) {
     let text: string
@@ -351,6 +351,7 @@ function readReporter(profile: RunnerProfile, reporterFile: string | null, _comb
     }
     return parseJsonReporter(text, profile.root)
   }
+  if (profile.runner === 'go') return parseGoTestJson(combined, profile.root)
   return null
 }
 
@@ -534,7 +535,7 @@ export function changedRunnerSelection(profile: RunnerProfile): ChangedSelection
       }
       return {
         state: 'ok',
-        argv: ['go', 'test', ...pkgs.slice(0, 20).map(p => (p === '.' ? '.' : `./${p}`))],
+        argv: ['go', 'test', '-json', ...pkgs.slice(0, 20).map(p => (p === '.' ? '.' : `./${p}`))],
         label: 'changed',
         changedCount: pkgs.length,
       }
@@ -840,9 +841,11 @@ export async function rerunRunnerFailures(
       return runRunnerProfile(profile, {
         from,
         selection:
-          profile.runner === 'node-test' || profile.runner === 'go'
+          profile.runner === 'node-test'
             ? joined
-            : record.failures[0]!,
+            : profile.runner === 'go'
+              ? goRunPattern(record.failures)
+              : record.failures[0]!,
         selectionLabel: 'rerun-failed',
         ...(opts.signal ? { signal: opts.signal } : {}),
       })

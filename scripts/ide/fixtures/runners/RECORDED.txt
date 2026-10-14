@@ -5,3 +5,7 @@ vitest-report.json, vitest-broken-file.json, vitest-prose.txt
 jest-report.json, jest-broken-file.json, jest-prose.txt
   recorded 2026-10-14 from jest 29.7.0 on node 24: `jest --json --outputFile=<file>` over the same three tests.
   The same root replacement and pretty-print.
+go-test.jsonl, go-test-build-fail.jsonl
+  written by hand from the test2json event format (cmd/test2json: Action start/run/pause/cont/pass/fail/skip/output,
+  the Go 1.24 build-output/build-fail rows keyed by ImportPath) — no Go toolchain was present on the recording machine,
+  so these two are not recordings of a live `go test -json`.

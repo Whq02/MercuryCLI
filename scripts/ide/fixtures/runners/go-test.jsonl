@@ -1,0 +1,31 @@
+{"Time":"2026-10-14T21:50:00.000001+01:00","Action":"start","Package":"example.com/calc"}
+{"Time":"2026-10-14T21:50:00.100001+01:00","Action":"run","Package":"example.com/calc","Test":"TestAdd"}
+{"Time":"2026-10-14T21:50:00.100002+01:00","Action":"output","Package":"example.com/calc","Test":"TestAdd","Output":"=== RUN   TestAdd\n"}
+{"Time":"2026-10-14T21:50:00.100003+01:00","Action":"output","Package":"example.com/calc","Test":"TestAdd","Output":"    calc_test.go:12: add(2, 3) = -1, want 5\n"}
+{"Time":"2026-10-14T21:50:00.100004+01:00","Action":"output","Package":"example.com/calc","Test":"TestAdd","Output":"--- FAIL: TestAdd (0.00s)\n"}
+{"Time":"2026-10-14T21:50:00.100005+01:00","Action":"fail","Package":"example.com/calc","Test":"TestAdd","Elapsed":0}
+{"Time":"2026-10-14T21:50:00.100006+01:00","Action":"run","Package":"example.com/calc","Test":"TestZero"}
+{"Time":"2026-10-14T21:50:00.100007+01:00","Action":"output","Package":"example.com/calc","Test":"TestZero","Output":"=== RUN   TestZero\n"}
+{"Time":"2026-10-14T21:50:00.100008+01:00","Action":"output","Package":"example.com/calc","Test":"TestZero","Output":"--- PASS: TestZero (0.00s)\n"}
+{"Time":"2026-10-14T21:50:00.100009+01:00","Action":"pass","Package":"example.com/calc","Test":"TestZero","Elapsed":0}
+{"Time":"2026-10-14T21:50:00.100010+01:00","Action":"run","Package":"example.com/calc","Test":"TestDivide"}
+{"Time":"2026-10-14T21:50:00.100011+01:00","Action":"output","Package":"example.com/calc","Test":"TestDivide","Output":"=== RUN   TestDivide\n"}
+{"Time":"2026-10-14T21:50:00.100012+01:00","Action":"output","Package":"example.com/calc","Test":"TestDivide","Output":"    calc_test.go:22: not yet\n"}
+{"Time":"2026-10-14T21:50:00.100013+01:00","Action":"output","Package":"example.com/calc","Test":"TestDivide","Output":"--- SKIP: TestDivide (0.00s)\n"}
+{"Time":"2026-10-14T21:50:00.100014+01:00","Action":"skip","Package":"example.com/calc","Test":"TestDivide","Elapsed":0}
+{"Time":"2026-10-14T21:50:00.100015+01:00","Action":"run","Package":"example.com/calc","Test":"TestTable"}
+{"Time":"2026-10-14T21:50:00.100016+01:00","Action":"output","Package":"example.com/calc","Test":"TestTable","Output":"=== RUN   TestTable\n"}
+{"Time":"2026-10-14T21:50:00.100017+01:00","Action":"run","Package":"example.com/calc","Test":"TestTable/one"}
+{"Time":"2026-10-14T21:50:00.100018+01:00","Action":"output","Package":"example.com/calc","Test":"TestTable/one","Output":"=== RUN   TestTable/one\n"}
+{"Time":"2026-10-14T21:50:00.100019+01:00","Action":"run","Package":"example.com/calc","Test":"TestTable/two"}
+{"Time":"2026-10-14T21:50:00.100020+01:00","Action":"output","Package":"example.com/calc","Test":"TestTable/two","Output":"=== RUN   TestTable/two\n"}
+{"Time":"2026-10-14T21:50:00.100021+01:00","Action":"output","Package":"example.com/calc","Test":"TestTable/two","Output":"    calc_test.go:31: case two: got 4, want 2\n"}
+{"Time":"2026-10-14T21:50:00.100022+01:00","Action":"output","Package":"example.com/calc","Test":"TestTable","Output":"--- FAIL: TestTable (0.00s)\n"}
+{"Time":"2026-10-14T21:50:00.100023+01:00","Action":"output","Package":"example.com/calc","Test":"TestTable/one","Output":"    --- PASS: TestTable/one (0.00s)\n"}
+{"Time":"2026-10-14T21:50:00.100024+01:00","Action":"pass","Package":"example.com/calc","Test":"TestTable/one","Elapsed":0}
+{"Time":"2026-10-14T21:50:00.100025+01:00","Action":"output","Package":"example.com/calc","Test":"TestTable/two","Output":"    --- FAIL: TestTable/two (0.00s)\n"}
+{"Time":"2026-10-14T21:50:00.100026+01:00","Action":"fail","Package":"example.com/calc","Test":"TestTable/two","Elapsed":0}
+{"Time":"2026-10-14T21:50:00.100027+01:00","Action":"fail","Package":"example.com/calc","Test":"TestTable","Elapsed":0}
+{"Time":"2026-10-14T21:50:00.100028+01:00","Action":"output","Package":"example.com/calc","Output":"FAIL\n"}
+{"Time":"2026-10-14T21:50:00.100029+01:00","Action":"output","Package":"example.com/calc","Output":"FAIL\texample.com/calc\t0.004s\n"}
+{"Time":"2026-10-14T21:50:00.100030+01:00","Action":"fail","Package":"example.com/calc","Elapsed":0.004}
