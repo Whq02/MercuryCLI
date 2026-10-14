@@ -10,11 +10,11 @@
 # gate-watch: src/daemon/saturnTicker.ts src/extensions/sources.ts src/ink.ts src/services/api/*
 # gate-watch: src/services/oauth/client.ts src/services/providers/*
 # gate-watch: src/services/providers/deepseek/deepseekUsageState.ts src/services/providers/huggingface/*
-# gate-watch: src/services/providers/moonshot/* src/services/providers/openai/*
+# gate-watch: src/services/providers/moonshot/* src/services/providers/openai/* src/services/providers/meta/**
 # gate-watch: src/services/providers/openaicompat/compatChatCallModel.ts src/services/search/brave.ts
 # gate-watch: src/services/search/tavily.ts src/utils/* src/utils/accounts/signInLedger.ts
 # gate-watch: src/utils/cockpit/quota.ts src/utils/model/*
-# gate-watch: src/utils/cockpit/helmVitalsModel.ts
+# gate-watch: src/utils/cockpit/helmVitalsModel.ts src/Tool.ts src/utils/crew/engineDispatch.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }
