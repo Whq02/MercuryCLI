@@ -604,7 +604,7 @@ section('S8 — the four provider roads through their real client wrappers: a re
     { name: 'openai', provider: 'OpenAI', model: 'gpt-5.6-sol', path: /\/v1\/responses$/, call: p => openaiCallModel(p as never) as AsyncGenerator<unknown> },
     { name: 'zai', provider: 'Z.AI', model: 'glm-5.2', path: /\/v4\/chat\/completions$/, call: p => zaiCallModel(p as never) as AsyncGenerator<unknown> },
     { name: 'openai-compat', provider: 'the fixture endpoint', model: 'compat/fixture-model', path: /\/v1\/chat\/completions$/, call: p => compatCallModel(p as never) as AsyncGenerator<unknown> },
-    { name: 'gemini', provider: 'Gemini', model: 'gemini-3.5-flash', path: /\/v1beta\/openai\/chat\/completions$/, call: p => geminiCallModel(p as never) as AsyncGenerator<unknown> },
+    { name: 'gemini', provider: 'Gemini', model: 'gemini-3.5-flash', path: /:streamGenerateContent\?alt=sse$/, call: p => geminiCallModel(p as never) as AsyncGenerator<unknown> },
     {
       name: 'gemini-oauth',
       provider: 'Gemini',
