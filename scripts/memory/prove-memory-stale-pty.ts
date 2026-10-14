@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict'
-import { spawnSync } from 'node:child_process'
 import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync, copyFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { resolveCaptureDriver, vshotBudgetMs } from '../lib/captureDriver.ts'
+import { spawnCaptureSync } from '../lib/spawnCapture.ts'
 
 const driver = resolveCaptureDriver()
 if (driver.kind !== 'posix-pty') {
@@ -36,12 +36,12 @@ writeFileSync(settings, JSON.stringify({ ...prior, memory: { directory: join(roo
 const grid = join(root, 'grid.json')
 const cfg = join(root, 'capture.json')
 writeFileSync(cfg, JSON.stringify({ ...config, cwd: RUNTIME_CWD, out: grid, total: 150, stableTicks: 4, readyText: 'stale · The backup uses', sends: [
-  { awaitText: '❯', atTick: 50, data: '/memory' },
-  { afterPrevTicks: 3, data: '\r' },
-  { awaitText: 'facts and decisions', atTick: 100, data: '\r' },
+  { awaitText: '❯', requireAwait: true, data: '/memory' },
+  { awaitText: '❯ /memory', requireAwait: true, data: '\r' },
+  { awaitText: 'facts and decisions', requireAwait: true, data: '\r' },
 ] }))
 try {
-  const capture = spawnSync(driver.python, [join(import.meta.dir, '../ui/vshot.py'), cfg], { cwd: RUNTIME_CWD, env: process.env, encoding: 'utf8', timeout: vshotBudgetMs(120000) })
+  const capture = spawnCaptureSync(driver.python, [join(import.meta.dir, '../ui/vshot.py'), cfg], { cwd: RUNTIME_CWD, env: process.env, encoding: 'utf8', timeout: vshotBudgetMs(120000) })
   assert.equal(capture.status, 0, capture.stderr)
   const frame = JSON.parse(readFileSync(grid, 'utf8'))
   const text = frame.grid.map((row: { c: string }[]) => row.map(c => c.c).join('')).join('\n')
