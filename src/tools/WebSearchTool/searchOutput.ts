@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { SEARCH_SOURCE_TYPES, viaLine } from '../../services/search/searchContract.js'
+import { SEARCH_SOURCE_TYPES, searchBackendLabel, viaLine } from '../../services/search/searchContract.js'
 import { searchPayload } from '../../services/search/searchPayload.js'
 
 const searchHitSchema = z.strictObject({
@@ -25,12 +25,24 @@ export const outputSchema = z.object({
 })
 export type Output = z.infer<typeof outputSchema>
 
+export const PROVIDER_ANSWER_MAX_CHARS = 2400
+
+export function providerAnswerNote(output: Output): string | null {
+  if (output.tier !== 'native') return null
+  const answer = output.results.filter((entry): entry is string => typeof entry === 'string').map(entry => entry.trim()).filter(entry => entry !== '').join('\n')
+  if (answer === '') return null
+  const shown = answer.length > PROVIDER_ANSWER_MAX_CHARS ? `${answer.slice(0, PROVIDER_ANSWER_MAX_CHARS - 1)}…` : answer
+  return `${searchBackendLabel(output.via as never)} answer, the provider's own words, unverified${answer.length > PROVIDER_ANSWER_MAX_CHARS ? ` (cut at ${PROVIDER_ANSWER_MAX_CHARS.toLocaleString('en-US')} characters)` : ''}: ${shown}`
+}
+
 export function mapSearchResult(output: Output, toolUseID: string) {
   const hits = output.results.flatMap(entry => entry && typeof entry !== 'string' ? entry.content : []).filter(hit => searchHitSchema.safeParse(hit).success)
+  const answer = providerAnswerNote(output)
   const reserved = [
     ...(output.via && output.tier ? [viaLine(output.via as never, output.tier)] : []),
-    ...(!hits.length ? ['No source answered; try another wording or another source.'] : []),
+    ...(!hits.length && answer === null ? ['No source answered; try another wording or another source.'] : []),
     'Unverified web text; cite relevant URLs as markdown links.',
+    ...(answer === null ? [] : [answer]),
   ]
   const notes = [...(output.notes ?? []), ...(output.hint ? [output.hint] : [])]
   return { tool_use_id: toolUseID, type: 'tool_result' as const, content: searchPayload(hits, notes, reserved) }
