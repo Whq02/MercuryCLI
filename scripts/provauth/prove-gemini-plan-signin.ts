@@ -51,6 +51,8 @@ const assist = {
     'chat_internal': { displayName: 'internal', isInternal: true },
   } as Record<string, Record<string, unknown>>,
   imageModelIds: ['gemini-3.1-flash-image'],
+  lateRows: {} as Record<string, Record<string, unknown>>,
+  rosterReads: 0,
 }
 const sse = (value: unknown): string => `data: ${JSON.stringify(value)}\n\n`
 const SCHEMA_PROTO_FIELDS: Record<string, string> = { type: 'type', format: 'format', title: 'title', description: 'description', nullable: 'nullable', enum: 'enum', items: 'items', maxItems: 'max_items', minItems: 'min_items', properties: 'properties', required: 'required', minProperties: 'min_properties', maxProperties: 'max_properties', minimum: 'minimum', maximum: 'maximum', minLength: 'min_length', maxLength: 'max_length', pattern: 'pattern', example: 'example', anyOf: 'any_of', propertyOrdering: 'property_ordering', default: 'default', additionalProperties: 'additional_properties', oneOf: 'one_of' }
@@ -184,13 +186,14 @@ const assistServer = Bun.serve({
       return Response.json({ name: 'operations/onboard-fixture', done: true, response: { '@type': 'type.googleapis.com/google.internal.cloud.code.v1internal.OnboardUserResponse', cloudaicompanionProject: { id: 'project-fixture-123' } } })
     }
     if (entry.path === '/v1internal:fetchAvailableModels') {
+      assist.rosterReads += 1
       if (assist.rosterStatus !== 200) return Response.json({ error: { code: assist.rosterStatus, message: 'roster refused', status: 'PERMISSION_DENIED' } }, { status: assist.rosterStatus })
-      return Response.json({ models: assist.roster, imageGenerationModelIds: assist.imageModelIds, agentModelSorts: [] })
+      return Response.json({ models: { ...assist.roster, ...assist.lateRows }, imageGenerationModelIds: assist.imageModelIds, agentModelSorts: [] })
     }
     if (entry.path === '/v1internal:streamGenerateContent?alt=sse') {
       const model = String(entry.body?.model ?? '')
       if (model.endsWith('-disabled')) return Response.json({ error: { code: 404, message: 'Requested entity was not found.', status: 'NOT_FOUND' } }, { status: 404 })
-      if (!(model in assist.roster)) return Response.json({ error: { code: 404, message: `Model ${model} not found.`, status: 'NOT_FOUND' } }, { status: 404 })
+      if (!(model in assist.roster) && !(model in assist.lateRows)) return Response.json({ error: { code: 404, message: `Model ${model} not found.`, status: 'NOT_FOUND' } }, { status: 404 })
       const violations = declarationViolations(entry.body)
       if (violations.length > 0) return Response.json({ error: { code: 400, message: violations.join('\n'), status: 'INVALID_ARGUMENT' } }, { status: 400 })
       if (!model.startsWith('gemini-')) {
@@ -335,6 +338,29 @@ try {
   check('through the road at effort medium, /model gemini-4-neon rides gemini-4-neon-medium: the wire model is the effort row, the thinking level and the row\'s own ceiling ride, the answer lands', neonHit?.body?.model === 'gemini-4-neon-medium' && JSON.stringify(neonGen.thinkingConfig) === JSON.stringify({ thinkingLevel: 'MEDIUM' }) && neonGen.maxOutputTokens === 65536 && neonReplies.some(m => m.type === 'assistant' && !(m as { isApiErrorMessage?: boolean }).isApiErrorMessage), JSON.stringify({ model: neonHit?.body?.model, gen: neonGen }))
   const engineNeon = await (await import('../../src/utils/crew/engineDispatch.ts')).resolveEngineDispatch('gemini-4-neon').catch((e: unknown) => ({ error: e instanceof Error ? e.message : String(e) }))
   check('a crewmate named onto the bare id dispatches on the Gemini backend with the high row (no effort of its own)', 'backend' in engineNeon && engineNeon.backend === 'gemini' && engineNeon.model === 'gemini-4-neon-high', JSON.stringify(engineNeon))
+  console.log('── the roster is re-read: on the TTL before a chat (never only at sign-in), and once on a bare id\'s 404 — a row that appeared meanwhile is taken, else the kin words ──')
+  catalogue.__resetGeminiCatalogueForTest()
+  const readsBeforeCold = assist.rosterReads
+  const coldStart = requests.length
+  const coldReplies = await driveRoad('gemini-4-neon', true)
+  const coldOrder = requests.slice(coldStart).filter(r => r.host === 'assist').map(r => r.path)
+  check('with no roster cached, a chat reads the roster first (one read, bounded) and then rides the effort row', assist.rosterReads === readsBeforeCold + 1 && coldOrder[0] === '/v1internal:fetchAvailableModels' && coldOrder.includes('/v1internal:streamGenerateContent?alt=sse') && requests.slice(coldStart).filter(r => r.host === 'assist' && r.path === '/v1internal:streamGenerateContent?alt=sse').at(-1)?.body?.model === 'gemini-4-neon-medium' && coldReplies.some(m => m.type === 'assistant' && !(m as { isApiErrorMessage?: boolean }).isApiErrorMessage), JSON.stringify({ reads: assist.rosterReads - readsBeforeCold, order: coldOrder }))
+  const readsBeforeWarm = assist.rosterReads
+  await driveRoad('gemini-4-neon', false)
+  check('within the TTL the next chat reads no roster', assist.rosterReads === readsBeforeWarm)
+  assist.lateRows = { 'gemini-4-xenon-high': { displayName: 'Gemini 4 Xenon', supportsThinking: true, maxTokens: 1048576, maxOutputTokens: 65536 } }
+  const readsBeforeLate = assist.rosterReads
+  const lateStart = requests.length
+  const lateReplies = await driveRoad('gemini-4-xenon', false)
+  const lateChats = requests.slice(lateStart).filter(r => r.host === 'assist' && r.path === '/v1internal:streamGenerateContent?alt=sse').map(r => String(r.body?.model))
+  check('a bare id the cached roster lacks: Google\'s 404, one forced roster re-read, the row that appeared meanwhile taken and the chat retried once — the answer lands, never a loop', JSON.stringify(lateChats) === JSON.stringify(['gemini-4-xenon', 'gemini-4-xenon-high']) && assist.rosterReads === readsBeforeLate + 1 && lateReplies.some(m => m.type === 'assistant' && !(m as { isApiErrorMessage?: boolean }).isApiErrorMessage) && !lateReplies.some(m => (m as { isApiErrorMessage?: boolean }).isApiErrorMessage), JSON.stringify({ chats: lateChats, reads: assist.rosterReads - readsBeforeLate, error: lateReplies.find(m => (m as { isApiErrorMessage?: boolean }).isApiErrorMessage)?.message }))
+  const readsBeforeNone = assist.rosterReads
+  const noneStart = requests.length
+  const noneReplies = await driveRoad('gemini-9-nope', false)
+  const noneChats = requests.slice(noneStart).filter(r => r.host === 'assist' && r.path === '/v1internal:streamGenerateContent?alt=sse').length
+  check('a bare id no roster read brings: one chat, one re-read, then the 404 words — no retry', noneChats === 1 && assist.rosterReads === readsBeforeNone + 1 && JSON.stringify(noneReplies.find(m => (m as { isApiErrorMessage?: boolean }).isApiErrorMessage)?.message ?? '').includes("Google serves no model 'gemini-9-nope' to this Google sign-in (HTTP 404)"), JSON.stringify({ chats: noneChats, reads: assist.rosterReads - readsBeforeNone }))
+  assist.lateRows = {}
+  await catalogue.refreshGeminiCatalogue('plan', { force: true })
   const heliumReplies = await driveRoad('gemini-4-helium', false)
   const heliumWords = JSON.stringify(heliumReplies.find(m => m.type === 'assistant' && (m as { isApiErrorMessage?: boolean }).isApiErrorMessage)?.message ?? '')
   const disabledOnTheWire = await driveRoad('gemini-4-helium-disabled', false)
