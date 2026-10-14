@@ -46,6 +46,12 @@ export interface LaunchProfile {
     env?: Record<string, string>
     envSource?: string
   }
+  attach?: {
+    adapter: string
+    host?: string
+    port?: number
+    pid?: number
+  }
   test?: { framework: 'pytest' | 'unittest'; selection: string[]; selectionLabel: string }
   build?: { preset?: string; conventional?: boolean }
   godotScene?: { scene: string; path?: string }
@@ -150,6 +156,13 @@ interface VsCodeConfig {
   env?: unknown
   envFile?: unknown
   preLaunchTask?: unknown
+  connect?: unknown
+  listen?: unknown
+  processId?: unknown
+  pid?: unknown
+  port?: unknown
+  host?: unknown
+  address?: unknown
   [key: string]: unknown
 }
 
@@ -233,6 +246,34 @@ const VSCODE_TYPE_FAMILIES: ReadonlyArray<{
   { types: new Set(['ruby', 'rdbg']), adapter: 'ruby', language: 'ruby' },
 ]
 const REPRESENTED_FIELDS = new Set(['name', 'type', 'request', 'program', 'module', 'args', 'cwd', 'env', 'envFile', 'preLaunchTask'])
+const ATTACH_FIELDS = new Set(['name', 'type', 'request', 'connect', 'port', 'host', 'address', 'processId', 'pid', 'mode', 'preLaunchTask'])
+
+function attachTarget(config: VsCodeConfig): { host?: string; port?: number; pid?: number } | { skip: string } {
+  const asPort = (value: unknown): number | null => (typeof value === 'number' && Number.isInteger(value) && value > 0 && value <= 65_535 ? value : typeof value === 'string' && /^\d+$/.test(value) ? asPort(Number(value)) : null)
+  const connect = config.connect
+  if (connect !== undefined) {
+    if (!connect || typeof connect !== 'object') return { skip: 'connect is not an object' }
+    const port = asPort((connect as { port?: unknown }).port)
+    if (port === null) return { skip: 'connect carries no port' }
+    const host = (connect as { host?: unknown }).host
+    return { port, ...(typeof host === 'string' && host !== '' ? { host } : {}) }
+  }
+  if (config.listen !== undefined) return { skip: 'attach with listen (the program dials the editor) is not representable — use connect, or attach with the Debug tool' }
+  const rawPid = config.processId ?? config.pid
+  if (rawPid !== undefined) {
+    if (typeof rawPid === 'string' && rawPid.includes('${')) return { skip: `processId carries a macro Mercury cannot resolve: ${rawPid} — attach with the Debug tool and pass the pid` }
+    const pid = asPort(rawPid)
+    if (pid === null) return { skip: 'processId is not a process id' }
+    return { pid }
+  }
+  if (config.port !== undefined) {
+    const port = asPort(config.port)
+    if (port === null) return { skip: 'port is not a port number' }
+    const host = config.host ?? config.address
+    return { port, ...(typeof host === 'string' && host !== '' ? { host } : {}) }
+  }
+  return { skip: 'attach needs a port (with an optional host) or a process id' }
+}
 
 function vscodeProfiles(root: string): {
   profiles: LaunchProfile[]
@@ -253,13 +294,33 @@ function vscodeProfiles(root: string): {
   for (const config of configs) {
     const name = config.name ?? '(unnamed)'
     const type = config.type ?? ''
-    if (config.request !== 'launch') {
-      skipped.push({ name, reason: `request '${config.request ?? '(none)'}' — only launch maps (attach rides the Debug tool directly)` })
-      continue
-    }
     const family = VSCODE_TYPE_FAMILIES.find(f => f.types.has(type))
     if (family === undefined) {
       skipped.push({ name, reason: `type '${type}' has no Mercury adapter mapping` })
+      continue
+    }
+    if (config.request === 'attach') {
+      const target = attachTarget(config)
+      if ('skip' in target) {
+        skipped.push({ name, reason: target.skip })
+        continue
+      }
+      const payload = { adapter: family.adapter, ...target }
+      const dropped = Object.keys(config).filter(k => !ATTACH_FIELDS.has(k))
+      profiles.push({
+        id: profileId('vscode', 'attach', payload),
+        source: 'vscode',
+        kind: 'debug',
+        label: name,
+        language: family.language,
+        attach: payload,
+        provenance: `.vscode/launch.json → "${name}" (type ${type}, attach)`,
+        ...(dropped.length ? { droppedFields: dropped } : {}),
+      })
+      continue
+    }
+    if (config.request !== 'launch') {
+      skipped.push({ name, reason: `request '${config.request ?? '(none)'}' is neither launch nor attach` })
       continue
     }
     const isPy = VSCODE_PY_TYPES.has(type)

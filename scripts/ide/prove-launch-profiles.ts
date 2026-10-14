@@ -137,7 +137,9 @@ try {
   {
     const bySource = (s: string) => d.profiles.filter(p => p.source === s)
     const vs = bySource('vscode')
-    check('A1 six representable launch.json configs profiled (FN-013 IDE-06: every shipped adapter family translates)', vs.length === 6, vs.map(p => p.label).join(', '))
+    check('A1 seven representable launch.json configs profiled: the six launches of every shipped adapter family and the attach configuration', vs.length === 7, vs.map(p => p.label).join(', '))
+    const attach = vs.find(p => p.label === 'attach to server')
+    check('A1b the attach configuration is a Debug attach profile (python, port 5678), not a launch', attach?.attach?.adapter === 'python' && attach?.attach?.port === 5678 && attach?.debug === undefined, JSON.stringify(attach))
     const py = vs.find(p => p.label === 'hello (py)')
     check('A2 python config: adapter+program expanded', py?.debug?.adapter === 'python' && py?.debug?.program === path.join(proj, 'hello.py'), JSON.stringify(py?.debug))
     check('A3 dropped fields listed honestly', (py?.droppedFields ?? []).includes('console') && (py?.droppedFields ?? []).includes('justMyCode'), JSON.stringify(py?.droppedFields))
@@ -160,9 +162,8 @@ try {
         vs.find(p => p.label === 'node service')?.debug?.program === path.join(proj, 'index.js'),
     )
     check(
-      'A5 attach + macro-laden + alien configs SKIPPED with their exact reasons',
-      d.skipped.length === 3 &&
-        d.skipped.some(s => s.name === 'attach to server' && s.reason.includes('attach')) &&
+      'A5 macro-laden + alien configs SKIPPED with their exact reasons (the attach configuration is a profile now)',
+      d.skipped.length === 2 &&
         d.skipped.some(s => s.name === 'macro laden' && s.reason.includes('unexpanded macro') && s.reason.includes('${file}')) &&
         d.skipped.some(s => s.name === 'alien' && s.reason.includes('no Mercury adapter')),
       JSON.stringify(d.skipped),

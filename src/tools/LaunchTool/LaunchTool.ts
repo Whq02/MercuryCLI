@@ -70,9 +70,19 @@ function profileOps(p: LaunchProfile): string {
     ? 'op:"test"' : p.build || (p.runnerRef && p.kind === 'build') ? 'op:"build"' : `op:"${p.kind}"`
 }
 
+function attachCall(p: LaunchProfile): string {
+  const a = p.attach!
+  return `Debug ${JSON.stringify({ op: 'attach', adapter: a.adapter, ...(a.port !== undefined ? { port: a.port } : {}), ...(a.host !== undefined ? { host: a.host } : {}), ...(a.pid !== undefined ? { pid: a.pid } : {}) })}`
+}
+
 function resolveRequest(p: LaunchProfile, input: Input): Resolution {
   const engineRefusal = operatorRunRefusal(p)
   if (engineRefusal) return { refuse: engineRefusal }
+  if (p.attach) {
+    return { refuse: input.op === 'debug'
+      ? { result: `profile ${p.id} (${p.label}) is an attach configuration — the program is already running, so attach with the Debug tool: ${attachCall(p)}${p.preLaunchTask ? ` (its preLaunchTask '${p.preLaunchTask.label}' is yours to run first)` : ''}`, outcome: 'no-change' }
+      : { result: `profile ${p.id} (${p.label}) is an attach configuration — nothing to ${input.op}; attach with the Debug tool: ${attachCall(p)}`, outcome: 'no-change' } }
+  }
   const breakpoints = input.file && input.lines?.length ? { file: input.file, lines: input.lines } : undefined
   switch (input.op) {
     case 'debug': {
@@ -152,6 +162,8 @@ function describeProfile(p: LaunchProfile): string {
   const payload =
     p.debug
       ? `debug/run → ${p.debug.adapter}: ${p.debug.program}${p.debug.args?.length ? ` ${p.debug.args.join(' ')}` : ''}`
+      : p.attach
+        ? `attach → ${p.attach.adapter}: ${p.attach.pid !== undefined ? `process ${p.attach.pid}` : `port ${p.attach.port} on ${p.attach.host ?? '127.0.0.1'}`} — the Launch tool names it, the Debug tool attaches: ${attachCall(p)}`
       : p.test
         ? `test → ${p.test.framework} (${p.test.selectionLabel})`
         : p.build
