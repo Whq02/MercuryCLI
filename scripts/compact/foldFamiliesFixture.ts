@@ -77,6 +77,15 @@ export async function startFoldFamiliesFixture(opts: { port: number }): Promise<
         res.end(chatFinal(`${lane}-census body.`))
         return
       }
+      if (req.method === 'POST' && path.endsWith(':streamGenerateContent')) {
+        captured.push({ lane, path, model: decodeURIComponent(/\/models\/([^/]+):streamGenerateContent$/.exec(path)?.[1] ?? ''), body })
+        res.writeHead(200, { 'content-type': 'text/event-stream' })
+        res.end([
+          sse({ candidates: [{ index: 0, content: { role: 'model', parts: [{ text: `${lane}-census body.` }] } }] }),
+          sse({ candidates: [{ index: 0, content: { role: 'model', parts: [{ text: '' }] }, finishReason: 'STOP' }], usageMetadata: { promptTokenCount: 9, candidatesTokenCount: 3, totalTokenCount: 12 } }),
+        ].join(''))
+        return
+      }
       captured.push({ lane: 'other', path: `${req.method} ${path}`, model: '', body })
       res.writeHead(200, { 'content-type': 'application/json' })
       res.end('{}')
