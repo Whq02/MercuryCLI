@@ -193,6 +193,31 @@ console.log('\n[P] the pack — the manifest, the surface, the honest degrade')
   pack.seedEmbedPackDirForTest(null)
   pack.resetEmbedAddonForTest()
 
+  const distModels = join(ROOT, 'dist', 'vendor', 'embed-models', models.embedDefaultModel().file)
+  const distPack = join(ROOT, 'dist', 'vendor', 'embed', PLATFORM)
+  if (existsSync(distModels) && existsSync(join(distPack, pack.EMBED_PACK_MANIFEST_FILE))) {
+    const repoCache = join(CACHE_DIR, models.embedDefaultModel().file)
+    const stashed = join(SCRATCH, 'stashed-model')
+    let moved = false
+    if (existsSync(repoCache)) {
+      copyFileSync(repoCache, stashed)
+      rmSync(repoCache)
+      moved = true
+    }
+    try {
+      pack.seedEmbedPackDirForTest(distPack)
+      models.seedEmbedModelForTest(null)
+      const fromDist = models.checkEmbedModel({ kind: 'catalogue', row: models.embedDefaultModel(), pinned: false }, { home: join(SCRATCH, 'empty-home2') })
+      check('a stripped install resolves the model that rides the artifact (no checkout cache, no home copy)', fromDist.state === 'present' && fromDist.path === distModels, JSON.stringify(fromDist))
+    } finally {
+      pack.seedEmbedPackDirForTest(null)
+      pack.resetEmbedAddonForTest()
+      if (moved) copyFileSync(stashed, repoCache)
+    }
+  } else {
+    warn('no built dist on this host — the rides-the-artifact leg is skipped (bun run build.ts vendors it)')
+  }
+
   const brokenDir = join(SCRATCH, 'broken-pack')
   mkdirSync(brokenDir, { recursive: true })
   writeFileSync(join(brokenDir, pack.EMBED_PACK_MANIFEST_FILE), JSON.stringify({ name: 'other-pack', version: '0.0.1', platform: 'other' }))

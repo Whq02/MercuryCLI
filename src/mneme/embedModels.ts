@@ -166,6 +166,11 @@ function findVendoredModelFile(file: string): string | null {
     if (parent === dir) break
     dir = parent
   }
+  const pack = loadEmbedAddon()
+  if (pack.state === 'ok') {
+    const beside = join(dirname(dirname(pack.dir)), 'embed-models', file)
+    if (existsSync(beside)) return beside
+  }
   return null
 }
 
@@ -241,6 +246,10 @@ export function memoryRecallModeWords(opts: { home?: string; homeOnly?: boolean 
   const ready = describeSemanticReadiness(opts)
   if (ready.state === 'word-only') return WORD_MATCH_ONLY_WORDS
   return ready.road === 'ollama' ? `semantic + word match (ollama:${ready.model})` : `semantic + word match (${ready.model})`
+}
+
+export function memoryRecallModeLine(dir: string): string {
+  return `Recall ranks by ${memoryRecallModeWords()}.`
 }
 
 export async function probeOllamaEmbeddingModels(
