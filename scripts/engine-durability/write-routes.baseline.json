@@ -1,5 +1,5 @@
 {
-  "note": "legacy write-route ratchet — may only SHRINK",
+  "note": "legacy write-route ratchet \u2014 may only SHRINK",
   "publish": [
     "src/components/Feedback.tsx",
     "src/daemon/concourseWorkers.ts",
@@ -22,6 +22,7 @@
     "src/services/privateChannel/installLayout.ts",
     "src/services/projectServices/serviceManager.ts",
     "src/services/providers/anthropic/prefixLedger.ts",
+    "src/services/providers/gemini/antigravityClientContract.ts",
     "src/services/providers/gemini/geminiAccounts.ts",
     "src/services/providers/huggingface/huggingfaceAccounts.ts",
     "src/services/providers/moonshot/moonshotAccounts.ts",

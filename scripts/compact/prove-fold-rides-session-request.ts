@@ -34,7 +34,7 @@ const check = (name: string, ok: boolean, details: unknown = ''): void => {
   console.log(`${ok ? 'PASS' : 'FAIL'} ${name}${ok ? '' : ` — ${JSON.stringify(details)}`}`)
 }
 const summary = 'The synthetic parser accepts quoted commas and its 14 checks passed. Preserve the test command and continue with CLI verification.'
-const ENVELOPE_KEYS_OUTSIDE = new Set(['messages', 'input', 'system', 'instructions', 'tools', 'metadata', 'stream', 'stream_options', 'tool_choice', 'prompt_cache_key', 'previous_response_id', 'store', 'user', 'safety_identifier', 'model', 'max_tokens', 'max_completion_tokens', 'max_output_tokens', 'include', 'cache_control', 'n'])
+const ENVELOPE_KEYS_OUTSIDE = new Set(['messages', 'input', 'system', 'instructions', 'tools', 'metadata', 'stream', 'stream_options', 'tool_choice', 'prompt_cache_key', 'previous_response_id', 'store', 'user', 'safety_identifier', 'model', 'max_tokens', 'max_completion_tokens', 'max_output_tokens', 'include', 'cache_control', 'n', 'contents', 'systemInstruction', 'toolConfig'])
 type Body = Record<string, any>
 const posture = (body: Body | undefined): Record<string, unknown> => {
   if (body === undefined) return { absent: true }
@@ -42,7 +42,7 @@ const posture = (body: Body | undefined): Record<string, unknown> => {
   for (const key of Object.keys(body).sort()) if (!ENVELOPE_KEYS_OUTSIDE.has(key)) out[key] = body[key]
   return out
 }
-const ceilingOf = (body: Body | undefined): unknown => body === undefined ? undefined : (body.max_tokens ?? body.max_completion_tokens ?? body.max_output_tokens ?? null)
+const ceilingOf = (body: Body | undefined): unknown => body === undefined ? undefined : (body.max_tokens ?? body.max_completion_tokens ?? body.max_output_tokens ?? body.generationConfig?.maxOutputTokens ?? null)
 const assistantRows = (body: Body | undefined): Array<{ at: number; row: unknown }> => {
   if (body === undefined) return []
   if (Array.isArray(body.input)) return body.input.map((item: any, at: number) => ({ at, item })).filter(({ item }: any) => item.type === 'reasoning' || (item.type === 'message' && item.role === 'assistant')).map(({ at, item }: any) => ({ at, row: item }))
@@ -123,7 +123,7 @@ function compare(label: string, reference: Body | undefined, fold: Body | undefi
     const uncached = (value: unknown): unknown => JSON.parse(JSON.stringify(value, (key, inner) => (key === 'cache_control' ? undefined : inner)))
     const refRowsAll = uncached(rows(reference)) as unknown[]
     const foldRowsAll = uncached(rows(fold)) as unknown[]
-    const lastAssistantAt = refRowsAll.map((row: any, at: number) => (row.role === 'assistant' || row.type === 'reasoning' ? at : -1)).reduce((a, b) => Math.max(a, b), -1)
+    const lastAssistantAt = refRowsAll.map((row: any, at: number) => (row.role === 'assistant' || row.role === 'model' || row.type === 'reasoning' ? at : -1)).reduce((a, b) => Math.max(a, b), -1)
     check(`${label}: the session's rows through its last assistant row ride byte-identically ahead of the prompt`, lastAssistantAt >= 0 && JSON.stringify(refRowsAll.slice(0, lastAssistantAt + 1)) === JSON.stringify(foldRowsAll.slice(0, lastAssistantAt + 1)) && wire.includes('summary of the conversation') === wire.includes('summary of the conversation'), { lastAssistantAt, session: refRowsAll.slice(0, lastAssistantAt + 1), fold: foldRowsAll.slice(0, lastAssistantAt + 1) })
   }
   check(`${label}: no per-message effort row`, Array.isArray(fold.messages) ? fold.messages.every((row: any) => row.output_config === undefined) : true, fold.messages)

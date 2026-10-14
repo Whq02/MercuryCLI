@@ -86,6 +86,7 @@ export function addToTotalSessionCost(
   record.costUSD += cost
   record.contextWindow = getContextWindowForModel(model, getSdkBetas())
   record.maxOutputTokens = getModelMaxOutputTokens(model).default
+  record.lastUsedAtMs = Date.now()
   addToTotalCostState(cost, record, model)
   const workload = getWorkload()
   if (pricing?.basis !== 'wire-stated' && modelPricingBasis(model) === 'unpriced') {

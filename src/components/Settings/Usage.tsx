@@ -34,9 +34,12 @@ import {
   type ActiveSourceUsage,
   type ProviderFamilyPresence,
   type ProviderSessionSpend,
+  type UsageFigureView,
   type UsageWindowView,
 } from '../../services/providers/providerUsage.js'
-import { getFocusedSessionConnector } from '../../services/engine-connector/focusedConnector.js'
+import { useFocusedServedEffort, useFocusedServedModel } from '../../hooks/useDisplayedSessionModel.js'
+import { geminiLaneModelsByLastUse, geminiPlanQuotaFoldWords, geminiPlanQuotaView } from '../../services/providers/gemini/geminiPlanQuota.js'
+import { focusedSessionModelFacts, getFocusedSessionConnector } from '../../services/engine-connector/focusedConnector.js'
 import { providerIdentityLine, providerIdentitySentence, shownIdentityWords } from '../../services/providers/providerIdentityLine.js'
 import { openrouterSlots } from '../../services/providers/accountSlots.js'
 import { jevRoadWords, jevUsdLabel } from '../../services/jev/jevContract.js'
@@ -290,8 +293,19 @@ function useOwnerUsage(id: RouterProviderId, credentialed: boolean): ActiveSourc
   return usageForProvider(id)
 }
 
+function geminiPlanFiguresInOrder(figures: readonly UsageFigureView[]): UsageFigureView[] {
+  if (!figures.some(figure => figure.key.startsWith('plan-quota:'))) return [...figures]
+  const facts = focusedSessionModelFacts()
+  const view = geminiPlanQuotaView(figures, { ...(facts?.effective !== undefined ? { model: facts.effective } : {}), ...(typeof facts?.effort === 'string' ? { effort: facts.effort } : {}), usedModels: geminiLaneModelsByLastUse() })
+  const ordered: UsageFigureView[] = figures.filter(figure => !figure.key.startsWith('plan-quota:'))
+  if (view.active !== undefined) ordered.push({ ...view.active, label: `${view.active.label} (the session's model)` })
+  for (const figure of view.used) ordered.push({ ...figure, label: `${figure.label} (used this session)` })
+  if (view.others.length > 0) ordered.push({ key: 'plan-quota-others', label: `other roster model${view.others.length === 1 ? '' : 's'}`, value: String(view.others.length), source: 'endpoint', freshForMs: 5 * 60 * 1000 })
+  return ordered
+}
+
 function figuresLine(usage: ActiveSourceUsage): string | undefined {
-  const figures = usage.figures ?? []
+  const figures = usage.provider === 'gemini' ? geminiPlanFiguresInOrder(usage.figures ?? []) : usage.figures ?? []
   if (figures.length === 0) return undefined
   const parts = figures.map(f => `${f.value} ${f.label}`)
   const stamp = figures[0] !== undefined ? usageSourceWords(figures[0]) : undefined
@@ -585,8 +599,17 @@ function GeminiUsageSection({ width }: { width?: number }): React.ReactNode {
   const usage = usageForProvider('gemini')
   const planActive = active?.kind === 'subscription-oauth'
   const tierFigure = planActive ? usage.figures?.find(f => f.key === 'plan-tier') : undefined
-  const quotaFigures = planActive ? (usage.figures ?? []).filter(f => f.key.startsWith('plan-quota:')) : []
   const tierStamp = tierFigure !== undefined ? usageSourceWords(tierFigure) : undefined
+  const sessionModel = useFocusedServedModel()
+  const sessionEffort = useFocusedServedEffort()
+  const quota = planActive ? geminiPlanQuotaView(usage.figures ?? [], { ...(sessionModel !== null ? { model: sessionModel } : {}), ...(sessionEffort !== null ? { effort: sessionEffort } : {}), usedModels: geminiLaneModelsByLastUse() }) : { used: [], others: [] }
+  const [othersOpen, setOthersOpen] = useState(false)
+  useInput((_input, key, event) => {
+    if (!key.return || quota.others.length === 0) return
+    event.stopImmediatePropagation()
+    setOthersOpen(open => !open)
+  })
+  const quotaLine = (figure: UsageFigureView, tail?: string): string => [`${figure.label}: ${figure.value}`, ...(figure.resetsAtMs !== undefined ? [`resets ${new Date(figure.resetsAtMs).toLocaleString()}`] : []), ...(usageSourceWords(figure) !== undefined ? [usageSourceWords(figure)!] : []), ...(tail !== undefined ? [tail] : [])].join(' · ')
   return (
     <Box flexDirection="column">
       <Text bold>Gemini usage</Text>
@@ -599,9 +622,14 @@ function GeminiUsageSection({ width }: { width?: number }): React.ReactNode {
           <Box flexDirection="column">
             <Text dimColor>{plan.identity?.email !== undefined ? `${plan.label} · ${plan.identity.email}` : plan.label}</Text>
             {tierFigure !== undefined ? <Text dimColor>{[`${tierFigure.label}: ${tierFigure.value}`, ...(tierStamp !== undefined ? [tierStamp] : [])].join(' · ')}</Text> : null}
-            {quotaFigures.map(figure => (
-              <Text key={figure.key} dimColor>{[`${figure.label}: ${figure.value}`, ...(figure.resetsAtMs !== undefined ? [`resets ${new Date(figure.resetsAtMs).toLocaleString()}`] : []), ...(usageSourceWords(figure) !== undefined ? [usageSourceWords(figure)!] : [])].join(' · ')}</Text>
+            {quota.active !== undefined ? <Text dimColor>{quotaLine(quota.active, `the session's model${quota.activeRow !== undefined && sessionModel !== null && quota.activeRow !== sessionModel.toLowerCase() ? ` (${sessionModel} ▸ ${quota.activeRow})` : ''}`)}</Text> : null}
+            {quota.used.map(figure => (
+              <Text key={figure.key} dimColor>{quotaLine(figure, 'used this session')}</Text>
             ))}
+            {quota.others.length > 0 ? <Text dimColor>{geminiPlanQuotaFoldWords(quota.others.length, othersOpen)}</Text> : null}
+            {othersOpen ? quota.others.map(figure => (
+              <Text key={figure.key} dimColor>{quotaLine(figure)}</Text>
+            )) : null}
             <SlotSpend active={planActive} route="gemini" spend={spend} withCost={false} />
           </Box>
         )}

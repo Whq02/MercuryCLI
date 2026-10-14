@@ -1,5 +1,9 @@
 import { geminiOauthClientConfig, geminiOauthConnected, geminiPlanFacts, resolveGeminiAccount, resolveGeminiApiKey } from '../services/providers/gemini/geminiAccounts.js'
 import { geminiPlanTierWords } from '../services/providers/gemini/geminiPlanAccess.js'
+import { geminiPlanUsageFigures } from '../services/providers/providerUsage.js'
+import { geminiLaneModelsByLastUse } from '../services/providers/gemini/geminiPlanQuota.js'
+import { geminiPlanActiveQuotaWords } from './Settings/usageLine.js'
+import { focusedSessionModelFacts } from '../services/engine-connector/focusedConnector.js'
 import { formatAge } from '../utils/healthCertCore.js'
 import { KEY_PAGES } from './loginFamilyRows.js'
 
@@ -94,6 +98,7 @@ export interface GeminiConnectFacts {
   planConnected?: boolean
   planTier?: string
   planTierReadAtMs?: number
+  planActiveQuota?: string
   active?: 'oauth' | 'api-key' | 'plan'
 }
 
@@ -129,9 +134,10 @@ export function geminiPlanTierWordsWithAge(facts: Pick<GeminiConnectFacts, 'plan
 export function geminiPlanRowLabel(facts: GeminiConnectFacts, now: number = Date.now()): string {
   if (!facts.planConnected) return GEMINI_PLAN_ROW
   const tier = geminiPlanTierWordsWithAge(facts, now)
+  const quota = facts.planActiveQuota !== undefined && geminiConnectRowAction(facts, 'plan') !== 'activate' ? ` · ${facts.planActiveQuota}` : ''
   return geminiConnectRowAction(facts, 'plan') === 'activate'
     ? `Sign in with Google — connected (${tier}), not active · ↵ makes it active`
-    : `Sign in with Google — connected (${tier}) · ↵ signs in again`
+    : `Sign in with Google — connected (${tier})${quota} · ↵ signs in again`
 }
 
 export function geminiConnectRows(facts: GeminiConnectFacts): Array<{ label: string; value: GeminiConnectRowValue }> {
@@ -262,7 +268,12 @@ export function liveGeminiConnectFacts(): GeminiConnectFacts {
   const client = geminiOauthClientConfig()
   const plan = geminiPlanFacts()
   const active = resolveGeminiAccount()?.kind
+  const facts = focusedSessionModelFacts()
+  const planActiveQuota = plan !== undefined && active === 'plan'
+    ? geminiPlanActiveQuotaWords(geminiPlanUsageFigures(plan), { ...(facts?.effective !== undefined ? { model: facts.effective } : {}), ...(typeof facts?.effort === 'string' ? { effort: facts.effort } : {}), usedModels: geminiLaneModelsByLastUse() })
+    : undefined
   return {
+    ...(planActiveQuota !== undefined ? { planActiveQuota } : {}),
     ...(key ? { keySource: key.source } : {}),
     ...(client ? { clientSource: client.source } : {}),
     oauthConnected: geminiOauthConnected(),
