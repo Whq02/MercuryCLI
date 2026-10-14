@@ -903,6 +903,13 @@ async function* streamOneCompatAttempt(ctx: {
         })
         break
       }
+      case 'reasoning-withheld': {
+        yield* ensureMessageStart()
+        yield* emitLeadingNotes()
+        const withheld: ContentBlock = { type: 'thinking', thinking: '', signature: event.signature }
+        yield* emitSettledBlock(withheld, [], withheld)
+        break
+      }
       case 'text-delta': {
         yield* ensureMessageStart()
         yield* emitLeadingNotes()

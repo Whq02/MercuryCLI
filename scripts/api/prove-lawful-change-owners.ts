@@ -26,7 +26,7 @@ check("an owner's own clause outranks the shared one", law.consumeLawfulPrefixCh
 law.resetLawfulPrefixChanges()
 check('a reset forgets the shared clause too', law.consumeLawfulPrefixChange('main') === null)
 const print = readFileSync(join(ROOT, 'src/cli/run.ts'), 'utf8')
-check('the spawn-switch toggle declares for every owner', print.includes('declareLawfulPrefixChangeForEveryOwner(`the operator toggled ${SPAWN_SWITCH_LABEL[kind]}'))
+check('the spawn-switch toggle declares for every owner', print.includes('declareLawfulPrefixChangeForEveryOwner(`you turned ${SPAWN_SWITCH_LABEL[kind]}'))
 
 console.log(failures === 0 ? '\nprove-lawful-change-owners: all green' : `\nprove-lawful-change-owners: ${failures} FAILURE(S)`)
 

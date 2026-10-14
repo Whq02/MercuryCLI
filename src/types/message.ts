@@ -656,6 +656,7 @@ export type TurnReceiptMessage = {
     dels: number
     reads: number
     searches: number
+    fetches: number
     commands: number
     browser: number
     agents: number

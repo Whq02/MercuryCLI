@@ -75,10 +75,10 @@ console.log('— CRW-14 the landed toggle’s row says what the command’s rece
   const sw = await import('../../src/services/switchboard/spawnSwitches.ts')
   const row = sw.spawnSwitchTransitionLine('subagents', false)
   const receipt = sw.spawnSwitchToggleReceipt('subagents', false, 'applied')
-  check('the row says the toggle LANDED and that the tool has left the roster', row.includes('crewmates off — landed') && row.includes('has left the roster'), row)
+  check('the row says you turned it off and that the tool has left the roster (the landing)', row.startsWith('you turned crewmates off: ') && row.includes('has left the roster'), row)
   check('it is not the command’s receipt word for word', row !== receipt && !row.includes('leaves the roster from the next turn'), row)
   check('the on-road reads back on the roster', sw.spawnSwitchTransitionLine('subagents', true).includes('is back on the roster'))
-  check('the roster-transition reading keeps its prefix (the lawful-change seam)', row.startsWith('the operator toggled crewmates off'))
+  check('the row never says the operator (the reader is you)', !/\boperator\b/.test(row) && !row.includes('—'))
 }
 
 console.log('— CRW-15 a helper’s closing envelope reads as a close note in its crew view —')
