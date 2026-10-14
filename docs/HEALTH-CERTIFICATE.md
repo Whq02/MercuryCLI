@@ -2,8 +2,9 @@
 
 `/health` (and headless `mercury health`) checks the installation, runtime,
 settings and release channel live and rolls them into one verdict (`certified`,
-`caution` or `fault`). Configured MCP servers are validated without being
-started.
+`caution` or `fault`).
+
+Configured MCP servers are validated without being started.
 
 Every check carries an `evidence` string naming the artifact, probe or value
 consulted (missing evidence reads `unknown`), marks evidence older than current

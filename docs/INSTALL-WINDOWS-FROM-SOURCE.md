@@ -2,9 +2,11 @@
 
 Build and run Mercury from a source checkout on Windows 10 or 11 using
 PowerShell 7, Git, Node 24 LTS and bun 1.3, with a verification check after
-each step. (For the one-line release installer `irm https://mercury-cli.ai/install.ps1 | iex`,
+each step.
+
+For the one-line release installer `irm https://mercury-cli.ai/install.ps1 | iex`,
 see [README.md](../README.md#install); that archive bundles its own Node
-runtime and needs only Git.)
+runtime and needs only Git.
 
 ## 0. What you are building
 
