@@ -31,8 +31,16 @@ export const metaLaneProfile: CompatLaneProfile = {
     return key ? { apiKey: key.key } : undefined
   },
   credentialHint: 'no Meta Model API key detected — /logins meta stores one; MODEL_API_KEY works too.',
-  authRemedy: 'set a valid MODEL_API_KEY, or /logins meta stores a new Model API key from dev.meta.ai.',
-  billingRemedy: 'check pay-as-you-go billing at dev.meta.ai; Muse Code subscriptions do not cover third-party clients.',
+  get authRemedy(): string {
+    return resolveMetaAccount()?.kind === 'muse-code'
+      ? 'the Muse Code key was refused — /logins signs in with Meta again.'
+      : 'set a valid MODEL_API_KEY, or /logins meta stores a new Model API key from dev.meta.ai.'
+  },
+  get billingRemedy(): string {
+    return resolveMetaAccount()?.kind === 'muse-code'
+      ? 'check your Muse Code subscription plan, or /logins meta signs in with Meta again.'
+      : 'check pay-as-you-go billing at dev.meta.ai.'
+  },
   requestUrl: () => metaChatCompletionsUrl(),
   wireModelId: model => model,
   buildExtras: buildMetaExtras,
@@ -65,7 +73,11 @@ export async function* metaCallModel(params: CallModelParams): CallModelStream {
   const model = asked.trim().toLowerCase() === 'muse' ? newestMetaModel() : snapshot?.models.find(row => row.id.toLowerCase() === asked.toLowerCase())?.id ?? asked
   let refusal: string | undefined
   const credentialRefused = snapshot?.lastError?.includes('refused the credential') === true
-  if (credentialRefused) refusal = `${snapshot!.lastError} — /logins meta replaces the key.`
+  if (credentialRefused) {
+    refusal = account.kind === 'muse-code'
+      ? `${snapshot!.lastError} — the Muse Code key was refused — /logins signs in with Meta again.`
+      : `${snapshot!.lastError} — /logins meta replaces the key.`
+  }
   else if (!model) refusal = "Meta cannot resolve 'muse' until the account's live list serves a Standard Muse Spark model; Contributor models permit training on your data and must be selected explicitly. /model refreshes the list."
   else if (!isMetaChatModelId(model)) refusal = `Meta model '${model}' is not a Muse Spark chat model; image generation, transcription and segmentation endpoints are not supported here.`
   else if (snapshot && snapshot.fetchedAtMs > 0 && !snapshot.models.some(row => row.id.toLowerCase() === model.toLowerCase())) {
