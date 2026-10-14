@@ -229,9 +229,11 @@ for (const fixture of ['absent', 'signed-in']) {
   rich = fixture === 'signed-in'
   subscriber = rich
   const before = counts.get('anthropic:operator') ?? 0
+  const geminiBefore = counts.get('gemini:open') ?? 0
   const board = await mount(146, 22, 178, token++)
   wordRecords[fixture] = sameWhen(board.runs().sort())
   check(`${fixture}: every provider mounts without an error`, board.sizes().length === 10 && !board.frame().includes('RENDER ERROR'))
+  check(`${fixture}: the Google sign-in slot asks the owner's door once on mount with the open reason${rich ? '' : ' — not at all without a plan'}`, (counts.get('gemini:open') ?? 0) - geminiBefore === (rich ? 1 : 0), String((counts.get('gemini:open') ?? 0) - geminiBefore))
   check(`${fixture}: the section text runs equal the original tab byte for byte`, JSON.stringify(wordRecords[fixture]) === JSON.stringify(baseline[fixture]))
   const headings = board.frame().split('\n')[0] ?? ''
   check(`${fixture}: columns start at exactly 0, 50 and 100`, headings.indexOf('Anthropic usage') === 0 && headings.indexOf('OpenAI usage') === 50 && headings.indexOf('Gemini usage') === 100)

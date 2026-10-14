@@ -147,6 +147,7 @@ export type ModelSpendRowV1 = {
   cacheCreationInputTokens: number
   costUSD: number
   unpricedTurns: number
+  lastUsedAtMs?: number
 }
 
 export type EditOutcomeRowV1 = {
