@@ -472,6 +472,34 @@ try {
   const quotaFigure = owner.figures?.find(f => f.key === 'plan-quota:gemini-4-argon')
   check('/usage states the tier Google reports with the read\'s stamp, the roster quota per model with its reset, and the honest absence line', owner.tier === 'Google AI Pro' && tierFigure?.value === 'Google AI Pro' && typeof tierFigure.observedAtMs === 'number' && quotaFigure?.value === '80%' && quotaFigure.resetsAtMs === Date.parse('2026-10-15T00:00:00Z') && (owner.absence ?? '').includes('no spend or credit figure for a Google sign-in'), JSON.stringify({ tier: owner.tier, figures: owner.figures, absence: owner.absence }))
 
+  console.log('── the usage meter for a Google sign-in: the active model first, then the models this session used, then one folded line for the rest ──')
+  {
+    const wide: Record<string, Record<string, unknown>> = {}
+    for (let i = 1; i <= 23; i++) wide[`gemini-5-row${i}-high`] = { displayName: `Gemini 5 Row ${i}`, supportsThinking: true, maxTokens: 1048576, maxOutputTokens: 65536, quotaInfo: { remainingFraction: 1 - i / 100, resetTime: '2026-10-15T00:00:00Z' } }
+    const saved = assist.roster
+    assist.roster = { ...saved, 'gemini-4-argon-low': { displayName: 'Gemini 4 Argon', supportsThinking: true, maxTokens: 1048576, maxOutputTokens: 65536, quotaInfo: { remainingFraction: 0.91, resetTime: '2026-10-15T00:00:00Z' } }, 'gemini-4-argon-high': { displayName: 'Gemini 4 Argon', supportsThinking: true, maxTokens: 1048576, maxOutputTokens: 65536, quotaInfo: { remainingFraction: 0.42, resetTime: '2026-10-15T00:00:00Z' } }, 'gemini-3.8-flash-high': { displayName: 'Gemini 3.8 Flash', supportsThinking: true, maxTokens: 1048576, maxOutputTokens: 65536, quotaInfo: { remainingFraction: 0.77, resetTime: '2026-10-15T00:00:00Z' } }, 'claude-opus-4-6-thinking': { ...saved['claude-opus-4-6-thinking'], quotaInfo: { remainingFraction: 0.99, resetTime: '2026-10-15T00:00:00Z' } }, ...wide }
+    delete assist.roster['gemini-4-argon']
+    await catalogue.refreshGeminiCatalogue('plan', { force: true })
+    const { geminiPlanQuotaView, geminiLaneModelsByLastUse, geminiPlanQuotaFoldWords, geminiPlanUsageFigures } = await import('../../src/services/providers/providerUsage.ts')
+    const figures = geminiPlanUsageFigures(accounts.geminiPlanFacts()!)
+    const quotaFigures = figures.filter(f => f.key.startsWith('plan-quota:'))
+    check('the fixture roster carries 27 quota rows (the owner\'s 27-line slot)', quotaFigures.length === 27, String(quotaFigures.length))
+    const ledger = { 'claude-opus-4-8': { lastUsedAtMs: 50 }, 'gemini-3.8-flash': { lastUsedAtMs: 30 }, 'google/claude-opus-4-6-thinking': { lastUsedAtMs: 20 }, 'gemini-4-argon': { lastUsedAtMs: 10 } }
+    const usedModels = geminiLaneModelsByLastUse(ledger)
+    check('the session\'s gemini-lane models come in order of last use, the other lanes\' models left out', JSON.stringify(usedModels) === JSON.stringify(['gemini-3.8-flash', 'google/claude-opus-4-6-thinking', 'gemini-4-argon']), JSON.stringify(usedModels))
+    const view = geminiPlanQuotaView(figures, { model: 'gemini-4-argon', effort: 'high', usedModels })
+    check('the active model (the session\'s id resolved to its effort row) comes first with its quota and reset; then the models used this session in order of last use (the active one not repeated, a used Claude row by its google/ id, a used bare id by its effort row); then the rest folded', view.activeRow === 'gemini-4-argon-high' && view.active?.value === '42%' && view.active.resetsAtMs === Date.parse('2026-10-15T00:00:00Z') && JSON.stringify(view.used.map(f => f.key)) === JSON.stringify(['plan-quota:gemini-3.8-flash-high', 'plan-quota:google/claude-opus-4-6-thinking']) && view.others.length === 24 && view.others.every(f => !['plan-quota:gemini-4-argon-high', 'plan-quota:gemini-3.8-flash-high', 'plan-quota:google/claude-opus-4-6-thinking'].includes(f.key)), JSON.stringify({ activeRow: view.activeRow, active: view.active?.value, used: view.used.map(f => f.key), others: view.others.length }))
+    check('the fold line counts the rest and says what ↵ does', geminiPlanQuotaFoldWords(24, false) === '24 other roster models — ↵ lists them' && geminiPlanQuotaFoldWords(24, true) === '24 other roster models — ↵ folds them' && geminiPlanQuotaFoldWords(1, false) === '1 other roster model — ↵ lists them')
+    const noSession = geminiPlanQuotaView(figures, { usedModels: [] })
+    check('with no session model and nothing used, every row folds and nothing is called active', noSession.active === undefined && noSession.used.length === 0 && noSession.others.length === 27)
+    const { geminiPlanActiveQuotaWords } = await import('../../src/components/Settings/usageLine.ts')
+    check('the popup header and the /logins row carry the active row\'s quota in one spelling', geminiPlanActiveQuotaWords(figures, { model: 'gemini-4-argon', effort: 'high', usedModels }) === 'gemini-4-argon-high 42% left' && geminiPlanActiveQuotaWords(figures, { usedModels: [] }) === undefined)
+    const rowWithQuota = guide.geminiPlanRowLabel({ oauthConnected: false, planConnected: true, planTier: 'Google AI Pro', planActiveQuota: 'gemini-4-argon-high 42% left', active: 'plan' })
+    check('the /logins row names the tier and the active row\'s quota; an inactive plan row carries no figure', rowWithQuota === 'Sign in with Google — connected (Google AI Pro) · gemini-4-argon-high 42% left · ↵ signs in again' && guide.geminiPlanRowLabel({ oauthConnected: false, keySource: 'stored', planConnected: true, planTier: 'Google AI Pro', planActiveQuota: 'gemini-4-argon-high 42% left', active: 'api-key' }) === 'Sign in with Google — connected (Google AI Pro), not active · ↵ makes it active', rowWithQuota)
+    assist.roster = saved
+    await catalogue.refreshGeminiCatalogue('plan', { force: true })
+  }
+
   console.log('── the wire: the envelope, the User-Agent, the stream unwrapped, signed parts kept ──')
   const { streamGeminiContent } = await import('../../src/services/providers/gemini/geminiClient.ts')
   const auth = await accounts.resolveGeminiRequestAuth({ sourceKind: 'plan' })

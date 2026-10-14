@@ -79,6 +79,13 @@ function responsesSse(): string {
     sse({ type: 'response.completed', response: { id: 'resp_fx', usage: { input_tokens: 8, output_tokens: 1, input_tokens_details: { cached_tokens: 0 } } } }),
   ].join('')
 }
+function geminiSse(): string {
+  return [
+    sse({ candidates: [{ index: 0, content: { role: 'model', parts: [{ text: 'ok' }] } }] }),
+    sse({ candidates: [{ index: 0, content: { role: 'model', parts: [{ text: '' }] }, finishReason: 'STOP' }], usageMetadata: { promptTokenCount: 8, candidatesTokenCount: 1, totalTokenCount: 9 } }),
+  ].join('')
+}
+
 function chatSse(): string {
   return [
     sse({ id: 'chat_fx', object: 'chat.completion.chunk', choices: [{ index: 0, delta: { role: 'assistant', content: 'ok' } }] }),
@@ -184,7 +191,8 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
       const isAnthropic = route === 'anthropic-gateway' && path.endsWith('/v1/messages')
       const isResponses = (route === 'openai' || route === 'openrouter') && path.endsWith('/responses')
       const isChat = path.endsWith('/chat/completions')
-      if (isAnthropic || isResponses || isChat) {
+      const isGeminiNative = route === 'gemini' && path.endsWith(':streamGenerateContent')
+      if (isAnthropic || isResponses || isChat || isGeminiNative) {
         const headers: Record<string, string> = {}
         for (const [k, v] of Object.entries(req.headers)) {
           if (typeof v === 'string') headers[k.toLowerCase()] = v
@@ -192,7 +200,7 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
         const owner: Route = route === 'anthropic-gateway' ? activeGatewayLeg : route === 'openai' ? activeOpenaiLeg : route
         captured.push({ route: owner, url: path, headers, body, bodyBytes: Buffer.byteLength(raw, 'utf8'), probe: isProbeBody(body) })
         res.writeHead(200, { 'content-type': 'text/event-stream' })
-        res.end(isAnthropic ? anthropicSse() : isResponses ? responsesSse() : chatSse())
+        res.end(isAnthropic ? anthropicSse() : isResponses ? responsesSse() : isGeminiNative ? geminiSse() : chatSse())
         return
       }
     }
@@ -363,6 +371,9 @@ function isHomeWire(route: Route): boolean {
 
 function toolsOfBody(route: Route, body: Body): Array<{ name: string; deferLoading: boolean }> {
   const tools = Array.isArray(body.tools) ? (body.tools as Array<Record<string, unknown>>) : []
+  if (route === 'gemini') {
+    return tools.flatMap(t => (Array.isArray(t.functionDeclarations) ? (t.functionDeclarations as Array<Record<string, unknown>>).map(d => ({ name: String(d.name ?? ''), deferLoading: false })) : []))
+  }
   return tools.map(t => {
     if (isHomeWire(route)) {
       return { name: String(t.name ?? ''), deferLoading: t.defer_loading === true }

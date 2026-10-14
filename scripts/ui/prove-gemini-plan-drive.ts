@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { spawn } from 'node:child_process'
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, watch, writeFileSync } from 'node:fs'
 import { createServer } from 'node:http'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
@@ -29,7 +29,7 @@ const EMAIL = 'owner@example.invalid'
 type Send = Record<string, unknown>
 type Grid = Array<Array<{ c: string }>>
 const textOf = (grid: Grid): string => grid.map(row => row.map(cell => cell.c).join('')).join('\n')
-const sleep = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms))
+const gone = (words: string): string => `\\A(?![\\s\\S]*${words.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`
 let failures = 0
 function check(label: string, ok: boolean, detail = ''): void {
   if (!ok) failures++
@@ -38,8 +38,8 @@ function check(label: string, ok: boolean, detail = ''): void {
 function gate(awaitText: string, data: string, mark?: string): Send {
   return { requireAwait: true, awaitText, awaitSettleTicks: 3, data, ...(mark ? { mark } : {}) }
 }
-function after(ticks: number, data: string, mark?: string): Send {
-  return { afterPrevTicks: ticks, data, ...(mark ? { mark } : {}) }
+function witness(awaitText: string, mark: string, awaitPattern?: string): Send {
+  return { requireAwait: true, awaitText, ...(awaitPattern ? { awaitPattern } : {}), awaitSettleTicks: 3, data: '', mark }
 }
 function pidAlive(pid: number): boolean {
   try {
@@ -49,8 +49,18 @@ function pidAlive(pid: number): boolean {
     return false
   }
 }
+async function untilGone(pid: number, dir: string, ceilingMs: number): Promise<void> {
+  if (!pidAlive(pid)) return
+  try {
+    for await (const _event of watch(dir, { signal: AbortSignal.timeout(ceilingMs) })) {
+      if (!pidAlive(pid)) return
+    }
+  } catch {
+  }
+}
 async function endOwnedDaemon(home: string): Promise<void> {
-  const record = join(home, 'daemon', 'daemon.json')
+  const dir = join(home, 'daemon')
+  const record = join(dir, 'daemon.json')
   if (!existsSync(record)) return
   let pid = 0
   try {
@@ -59,13 +69,13 @@ async function endOwnedDaemon(home: string): Promise<void> {
     return
   }
   if (!Number.isInteger(pid) || pid <= 1) return
-  for (let waited = 0; waited < 10_000 && pidAlive(pid); waited += 250) await sleep(250)
+  await untilGone(pid, dir, vshotBudgetMs(10_000))
   if (!pidAlive(pid)) return
   try {
     process.kill(pid, 'SIGTERM')
   } catch {
   }
-  for (let waited = 0; waited < 5_000 && pidAlive(pid); waited += 250) await sleep(250)
+  await untilGone(pid, dir, vshotBudgetMs(5_000))
 }
 type Hit = { method: string; url: string; auth: string; agent: string; body: string }
 function startFixture(): Promise<{ port: number; hits: Hit[]; close: () => void }> {
@@ -159,23 +169,23 @@ try {
       gate('coordinator model', '\t'),
       gate('n new session', 'm'),
       { ...gate('Gemini — sign in', click, 'picker'), targetText: 'Gemini — sign in' },
-      after(4, '\r', 'selected'),
-      after(12, '', 'landed'),
+      gate('Gemini — sign in', '\r', 'selected'),
+      witness(`❯ ${GEMINI_ROW}`, 'landed'),
       gate('↵ sign in · esc back', '\r'),
-      gate("your plan's quota", '', 'card'),
-      after(2, '\r'),
-      gate('If nothing opened, visit:', '', 'wait'),
-      gate('Gemini connected: Google sign-in', '', 'receipt'),
-      after(2, '\r'),
-      after(12, '', 'returned'),
+      witness("your plan's quota", 'card'),
+      gate("your plan's quota", '\r'),
+      witness('If nothing opened, visit:', 'wait'),
+      witness('Gemini connected: Google sign-in', 'receipt'),
+      gate('↵ returns to the picker', '\r'),
+      witness(`GEMINI · Google sign-in · ${EMAIL}`, 'returned'),
       gate('Gemini 4 Argon', '\r', 'picked'),
-      after(12, '', 'model'),
-      after(2, ESC),
-      after(8, '', 'end'),
+      witness('gemini-4-argon', 'model', gone('Mercury · model')),
+      gate('n new session', ESC),
+      witness('↑↓ choose', 'end'),
     ]
     const out = join(ROOT, `${id}.json`)
     const cfg = join(ROOT, `${id}.cfg.json`)
-    writeFileSync(cfg, JSON.stringify({ argv: [NODE, BIN], cwd: CWD, cols, rows, total: 560, sends, stableTicks: 3, out }))
+    writeFileSync(cfg, JSON.stringify({ argv: [NODE, BIN], cwd: CWD, cols, rows, total: 560, sends, readyText: '↑↓ choose', stableTicks: 3, out }))
     const hitsBefore = fixture.hits.length
     const result = await capture(cfg, env, vshotBudgetMs(280_000))
     await endOwnedDaemon(home)
@@ -194,7 +204,7 @@ try {
     const landed = marks.get('landed') ?? ''
     check(`${id}: the sign-in layer opened on the Gemini family`, landed.includes('LOGINS') && landed.includes(`❯ ${GEMINI_ROW}`), excerpt(landed))
     const card = marks.get('card') ?? ''
-    check(`${id}: the Gemini card offers Sign in with Google first, the key second, the own client third`, card.includes(PLAN_ROW.slice(0, 40)) && card.indexOf('Sign in with Google') < card.indexOf('API key — the easiest') && card.includes('Google account — six steps'), excerpt(card))
+    check(`${id}: the Gemini card offers Sign in with Google first, the key second, the own client third`, card.includes(PLAN_ROW.slice(0, 40)) && card.indexOf('Sign in with Google') >= 0 && card.indexOf('Sign in with Google') < card.indexOf('API key — the easiest') && card.includes('Google account — six steps'), excerpt(card))
     const wait = rightPane(marks.get('wait') ?? '')
     check(`${id}: the browser wait says what Sign in with Google is and where the page opened`, wait.includes("Sign in with Google: Google's sign-in page opens in your browser") && wait.includes("Google's own Antigravity client") && wait.includes('If nothing opened, visit:'), excerpt(marks.get('wait') ?? ''))
     const exchange = hits.find(h => h.url === '/token')

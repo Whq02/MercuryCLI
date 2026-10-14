@@ -156,7 +156,7 @@ for (const [columns, rows, popupCompact] of [[64, 12, true], [80, 24, false], [1
     const words = flatWords(screen)
     const note = popupCompact ? guide.GEMINI_CONNECT_COMPACT_INTRO : guide.GEMINI_CONNECT_INTRO
     check(`${columns}x${rows}: the card shows its own whole note`, words.includes(note) && !words.includes('RENDER ERROR'))
-    check(`${columns}x${rows}: the title and the three sign-in choices remain visible, Sign in with Google first`, words.includes('Connect Google Gemini') && words.indexOf('Sign in with Google — your plan') < words.indexOf('API key — the easiest') && words.includes('Google account — six steps'))
+    check(`${columns}x${rows}: the title and the three sign-in choices remain visible, Sign in with Google first`, words.includes('Connect Google Gemini') && words.indexOf('Sign in with Google — your plan') >= 0 && words.indexOf('Sign in with Google — your plan') < words.indexOf('API key — the easiest') && words.includes('Google account — six steps'))
     if (popupCompact) check('the compact card has only its title, one note and three single-line choices', board.lines().filter(l => l.trim()).length === 5)
   } finally { board.unmount() }
 }

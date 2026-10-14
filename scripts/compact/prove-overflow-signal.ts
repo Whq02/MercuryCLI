@@ -191,6 +191,7 @@ const NON_OVERFLOW_400: Record<string, { status: number; body: unknown }> = {
   anthropic: { status: 400, body: { type: 'error', error: { type: 'invalid_request_error', message: 'messages: roles must alternate between "user" and "assistant"' } } },
   responses: { status: 400, body: { error: { message: 'Unsupported parameter: temperature', type: 'invalid_request_error', param: 'temperature', code: 'unsupported_parameter' } } },
   chat: { status: 400, body: { error: { message: 'Invalid parameter: tool_choice must be one of auto/none', type: 'invalid_request_error' } } },
+  gemini: { status: 400, body: { error: { code: 400, message: 'Invalid JSON payload received. Unknown name "temperature_k" at \'generation_config\': Cannot find field.', status: 'INVALID_ARGUMENT' } } },
 }
 for (const { lane, model, dialect } of OVERFLOW_LANES) {
   const shape = OVERFLOW_WIRE_SHAPES[lane]!

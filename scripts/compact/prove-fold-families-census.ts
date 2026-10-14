@@ -170,7 +170,7 @@ for (const leg of CENSUS_LEGS) {
   console.log(`\n  · ${leg.family} — ${leg.model}`)
   const before = census.captured.length
   const run = await runFold(leg.model)
-  const hits = census.captured.slice(before).filter(h => h.path.endsWith('/chat/completions'))
+  const hits = census.captured.slice(before).filter(h => h.path.endsWith('/chat/completions') || h.path.endsWith(':streamGenerateContent'))
   check(`${leg.family}: the fold resolves`, run.result !== undefined && run.error === undefined, (run.error?.message ?? '').slice(0, 200))
   check(`${leg.family}: the wire saw the fold on its own lane`, hits.length >= 1 && hits.every(h => h.lane === leg.lane), hits.map(h => `${h.lane} ${h.path}`).join(' | '))
   check(

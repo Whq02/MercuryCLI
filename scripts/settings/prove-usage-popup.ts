@@ -45,9 +45,15 @@ const families = () => ids.map(id => ({ id, available: false, credentialed: rich
 const entries = () => rich ? [
   { id: 'anthropic:oauth', provider: 'anthropic', kind: 'subscription-oauth', label: 'Claude subscription' },
   { id: 'openai:oauth', provider: 'openai', kind: 'subscription-oauth', label: 'ChatGPT subscription' },
+  { id: 'gemini:plan', provider: 'gemini', kind: 'subscription-oauth', label: 'Google sign-in (Google AI Pro)', identity: { email: 'plan@example.invalid' } },
   { id: 'gemini:oauth', provider: 'gemini', kind: 'oauth', label: 'Google account (OAuth)' },
 ] : []
-const owner = (id: string) => ({ provider: id, sourceKind: 'none', windows: [], figures: [], absence: undefined })
+const geminiRoster = ['gemini-4-argon-low', 'gemini-4-argon-high', 'gemini-3.8-flash-high', 'google/claude-opus-4-6-thinking', ...Array.from({ length: 23 }, (_, i) => `gemini-5-row${i + 1}-high`)]
+const geminiFigures = () => [
+  { key: 'plan-tier', label: 'tier Google reports', value: 'Google AI Pro', observedAtMs: 0, source: 'endpoint', freshForMs: 86_400_000 },
+  ...geminiRoster.map((id, i) => ({ key: `plan-quota:${id}`, label: `${id} quota left`, value: `${99 - i}%`, observedAtMs: 0, resetsAtMs: Date.parse('2026-10-15T00:00:00Z'), source: 'endpoint', freshForMs: 300_000 })),
+]
+const owner = (id: string) => (id === 'gemini' && rich ? { provider: id, sourceKind: 'oauth', windows: [], figures: geminiFigures(), absence: 'Google states no spend or credit figure for a Google sign-in' } : { provider: id, sourceKind: 'none', windows: [], figures: [], absence: undefined })
 await stub('../../src/services/providers/providerUsage.js', () => ({
   providerFamilyPresences: families,
   providerSessionSpend: () => spend,
@@ -63,6 +69,9 @@ await stub('../../src/services/providers/providerUsage.js', () => ({
   openaiObservedWindowViews: () => [],
 }))
 await stub('../../src/utils/auth.js', () => ({ isClaudeAISubscriber: () => subscriber }))
+await stub('../../src/services/providers/gemini/geminiPlanQuota.js', () => ({ geminiLaneModelsByLastUse: () => (rich ? ['gemini-3.8-flash', 'google/claude-opus-4-6-thinking'] : []) }))
+await stub('../../src/hooks/useDisplayedSessionModel.js', () => ({ useFocusedServedModel: () => (rich ? 'gemini-4-argon' : null), useFocusedServedEffort: () => (rich ? 'high' : null) }))
+await stub('../../src/services/engine-connector/focusedConnector.js', () => ({ focusedSessionModelFacts: () => (rich ? { effective: 'gemini-4-argon', main: 'gemini-4-argon', setting: 'gemini-4-argon', sessionPin: null, effort: 'high', effectiveSource: 'session' } : null) }))
 await stub('../../src/utils/model/computedDefault.js', () => ({ recentSignIns: () => ids.map(family => ({ family })) }))
 await stub('../../src/services/wallet/wallet.js', () => ({ walletEntries: entries, activeWalletEntry: (id: string) => entries().find(entry => entry.provider === id) }))
 await stub('../../src/services/providers/usageFreshness.js', () => ({ usageSourceWords: () => 'endpoint-fed · read 0 s ago' }))
@@ -268,11 +277,21 @@ check('an asynchronously taller band updates clipping and the more names without
 await walk(delayed, 146, 22, 'asynchronous band growth')
 delayed.close()
 {
+  const folded = await mount(146, 60, 178, token++)
+  const before = folded.runs()
+  check("the Google sign-in slot reads in the owner's order: the tier, the session's model first (resolved to its effort row), the models used this session, then one folded line for the rest — never the 27-line list", before.some(run => run.startsWith('tier Google reports: Google AI Pro')) && before.findIndex(run => run.startsWith('gemini-4-argon-high quota left: 98%')) < before.findIndex(run => run.startsWith('gemini-3.8-flash-high quota left: 97%')) && before.findIndex(run => run.startsWith('gemini-4-argon-high quota left: 98%')) >= 0 && before.some(run => run.startsWith('gemini-4-argon-high quota left: 98%') && run.includes("the session's model (gemini-4-argon ▸ gemini-4-argon-high)")) && before.some(run => run.startsWith('gemini-3.8-flash-high quota left: 97%') && run.includes('used this session')) && before.some(run => run.startsWith('google/claude-opus-4-6-thinking quota left: 96%') && run.includes('used this session')) && before.includes('24 other roster models — ↵ lists them') && !before.some(run => run.startsWith('gemini-5-row1-high quota left')), JSON.stringify(before.filter(run => /quota|roster|tier/.test(run))))
+  const consumed = await folded.key('return')
+  const after = folded.runs()
+  check('↵ lists the other roster models under the fold line (the key stays in the popup) and ↵ again folds them', consumed && after.includes('24 other roster models — ↵ folds them') && after.some(run => run.startsWith('gemini-5-row1-high quota left: 95%')) && after.some(run => run.startsWith('gemini-5-row23-high quota left: 73%')) && (await folded.key('return')) && folded.runs().includes('24 other roster models — ↵ lists them') && !folded.runs().some(run => run.startsWith('gemini-5-row1-high quota left')), JSON.stringify(after.filter(run => /roster|row1|row23/.test(run))))
+  folded.close()
+}
+{
   rich = true
   subscriber = true
   const compactReads = { identity: () => 'fixture identity', usage: owner as never, anthropicWindows: () => windows as never, anthropicPools: () => pools as never, openaiWindows: () => [], jev: () => 'JEV fixture row' }
   const lines: Array<{ text: string; heading: boolean }> = typeof usageCompactLines === 'function' ? usageCompactLines(usageSectionPlan(families() as never), compactReads) : []
-  check('compact lines: every provider is one heading line, the signed-in Anthropic family adds one line per window and pool, the JEV row closes the list', lines.length === ids.length + 4 + 1 && lines.filter(line => line.heading).length === ids.length && lines[0]!.text === 'Anthropic usage · fixture identity' && lines[1]!.text.startsWith('  Current session · 52% · resets ') && lines[2]!.text.startsWith('  Current week (all models) · 49% · resets ') && lines[3]!.text.startsWith('  Current week (Fable) · 46%') && lines[4]!.text.startsWith('  Current week (Opus) · 12%') && lines.at(-1)!.text === 'JEV fixture row', JSON.stringify(lines.map(line => line.text)))
+  const geminiCompact = lines[lines.findIndex(line => line.text === 'Gemini usage · fixture identity') + 1]?.text ?? ''
+  check('compact lines: every provider is one heading line, the signed-in Anthropic family adds one line per window and pool, the Google sign-in adds its one figures line in the owner\'s order (the tier, the session\'s model, the models used this session, the rest counted), the JEV row closes the list', lines.length === ids.length + 4 + 1 + 1 && lines.filter(line => line.heading).length === ids.length && lines[0]!.text === 'Anthropic usage · fixture identity' && lines[1]!.text.startsWith('  Current session · 52% · resets ') && lines[2]!.text.startsWith('  Current week (all models) · 49% · resets ') && lines[3]!.text.startsWith('  Current week (Fable) · 46%') && lines[4]!.text.startsWith('  Current week (Opus) · 12%') && geminiCompact === "  Google AI Pro tier Google reports · 98% gemini-4-argon-high quota left (the session's model) · 97% gemini-3.8-flash-high quota left (used this session) · 96% google/claude-opus-4-6-thinking quota left (used this session) · 24 other roster models · endpoint-fed · read 0 s ago" && lines.at(-1)!.text === 'JEV fixture row', JSON.stringify(lines.map(line => line.text)))
   const before = counts.get('anthropic:operator') ?? 0
   const board = await mount(58, 4, 64, token++, true)
   const frameLines = () => board.frame().split('\n')
@@ -332,7 +351,7 @@ subscriber = true
 const result = await call('', {} as never)
 const request = popup.settingsPopupRequest()
 check('/usage opens only its 150×29 popup and returns skip', result.type === 'skip' && request?.view === 'usage' && typeof request.width === 'function' && request.width(178) === 150 && request.width(98) === 98 && request.rows === 29)
-check('the context leads with the session family and carries its live figures', request?.line === 'Anthropic session on · 2 subscriptions signed in · session 52% · week 49%')
+check('the context leads with the session family and carries its live figures', request?.line === 'Anthropic session on · 3 subscriptions signed in · session 52% · week 49%')
 check('the hint is exactly the design\'s words', request?.hint === '↑↓ scroll · esc or click outside closes')
 const body = request?.body({ width: 120, inner: 116, rowBudget: 13 }) as React.ReactElement<{ width: number; rowBudget: number; openToken: number }>
 check('the store geometry reaches the body unchanged', body?.props.width === 116 && body?.props.rowBudget === 13)

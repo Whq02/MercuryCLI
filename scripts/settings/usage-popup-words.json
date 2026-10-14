@@ -35,6 +35,7 @@
     "not connected — start Ollama, LM Studio, vLLM or llama.cpp-server (or set MERCURY_LOCAL_BASE_URL), then ollama pull qwen3.5:9b (tool-capable), or /localsetup sets one up."
   ],
   "signed-in": [
+    "24 other roster models — ↵ lists them",
     "API key",
     "API key",
     "API key",
@@ -51,6 +52,8 @@
     "Google account",
     "Google account (OAuth)",
     "Google sign-in",
+    "Google sign-in (Google AI Pro) · plan@example.invalid",
+    "Google states no spend or credit figure for a Google sign-in",
     "Hugging Face usage",
     "Local models usage",
     "Models: 1 qualified via the live catalogue.",
@@ -61,7 +64,6 @@
     "Subscription",
     "Subscription",
     "Usage bills to your DeepSeek account balance.",
-    "Usage bills to your Google account; the connected section states what the provider publishes.",
     "Z.AI usage",
     "anthropic fixture key",
     "deepseek fixture key",
@@ -71,6 +73,9 @@
     "endpoint-fed · read 0 s ago",
     "endpoint-fed · read 0 s ago",
     "gemini fixture key",
+    "gemini-3.8-flash-high quota left: 97% · resets <when>",
+    "gemini-4-argon-high quota left: 98% · resets <when>",
+    "google/claude-opus-4-6-thinking quota left: 96% · resets <when>",
     "no account",
     "no account",
     "no account",
@@ -78,7 +83,6 @@
     "no account",
     "no account",
     "no usage signal observed yet — this tab reads the ChatGPT usage endpoint; GPT replies also update the meter.",
-    "none — /logins gemini → Sign in with Google rides your plan's quota · n/a",
     "none — a pasted key attaches one · n/a",
     "none — a pasted key attaches one · n/a",
     "none — a pasted key attaches one · n/a",
@@ -89,10 +93,12 @@
     "not connected — /logins zai adds a Z.AI API key (general or GLM Coding Plan; ZAI_API_KEY works too).",
     "not connected — set MERCURY_COMPAT_BASE_URL (key optional — /router key compat).",
     "not connected — start Ollama, LM Studio, vLLM or llama.cpp-server (or set MERCURY_LOCAL_BASE_URL), then ollama pull qwen3.5:9b (tool-capable), or /localsetup sets one up.",
+    "not the active billing source this session",
     "openai fixture key",
     "resets <when>",
     "resets <when>",
     "resets <when>",
-    "resets <when>"
+    "resets <when>",
+    "tier Google reports: Google AI Pro · endpoint-fed · read 0 s ago"
   ]
 }
