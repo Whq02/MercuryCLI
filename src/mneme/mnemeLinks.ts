@@ -70,8 +70,7 @@ function newestRuling(rows: readonly RulingRecord[]): RulingRecord | undefined {
 export function currentRuling(ctx: FootnoteContext, sessionId: string): string | undefined {
   const ordinal = sessionOrdinal(sessionId, ctx.sessions)
   const own = ordinal === undefined ? undefined : newestRuling(ctx.rulings.filter(r => r.ordinal === ordinal))
-  const pick = own ?? newestRuling(ctx.rulings)
-  return pick === undefined ? undefined : `seq:${pick.seq}`
+  return own === undefined ? undefined : `seq:${own.seq}`
 }
 
 export function rulingLinkedIds(pool: readonly LookupCandidate[], ruling: string, ctx: FootnoteContext, dir: string): Set<string> {
