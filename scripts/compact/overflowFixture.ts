@@ -1,7 +1,7 @@
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { HANDOFF_ASK_MARK } from '../lib/fixtureApi.ts'
 
-export type Dialect = 'anthropic' | 'responses' | 'chat'
+export type Dialect = 'anthropic' | 'responses' | 'chat' | 'gemini'
 export type ScriptedCall = { id: string; name: string; args: string }
 export type ScriptedReasoning = { summary: string; encrypted: string }
 export type Turn =
@@ -130,6 +130,22 @@ function chatSse(turn: Exclude<Turn, { error: unknown } | { cut: unknown }>): st
   return out.join('')
 }
 
+function geminiSse(turn: Exclude<Turn, { error: unknown } | { cut: unknown }>): string {
+  const input = 'usage' in turn && turn.usage ? turn.usage.input : 8
+  const output = 'usage' in turn && turn.usage ? turn.usage.output : 3
+  const usageMetadata = { promptTokenCount: input, candidatesTokenCount: output, totalTokenCount: input + output }
+  if ('calls' in turn) {
+    return sse({ candidates: [{ index: 0, content: { role: 'model', parts: turn.calls.map((call, index) => ({ functionCall: { id: call.id, name: call.name, args: JSON.parse(call.args) as Record<string, unknown> }, ...(index === 0 ? { thoughtSignature: 'fixture-signature' } : {}) })) }, finishReason: 'STOP' }], usageMetadata })
+  }
+  if ('refusal' in turn) {
+    return sse({ candidates: [{ index: 0, content: { role: 'model', parts: [{ text: turn.text ?? '' }] }, finishReason: 'SAFETY' }], usageMetadata })
+  }
+  return [
+    sse({ candidates: [{ index: 0, content: { role: 'model', parts: [{ text: turn.text }] } }] }),
+    sse({ candidates: [{ index: 0, content: { role: 'model', parts: [{ text: '' }] }, finishReason: turn.finishReason === undefined ? 'STOP' : turn.finishReason.toUpperCase() }], usageMetadata }),
+  ].join('')
+}
+
 const OPENAI_MODELS_BODY = {
   models: [
     {
@@ -192,11 +208,13 @@ export async function startOverflowFixture(): Promise<OverflowFixture> {
           ? 'responses'
           : path.endsWith('/chat/completions')
             ? 'chat'
-            : undefined
+            : path.endsWith(':streamGenerateContent')
+              ? 'gemini'
+              : undefined
       if (req.method === 'POST' && dialect !== undefined && JSON.stringify(body ?? null).includes(HANDOFF_ASK_MARK)) {
         asks.push({ dialect, path, body })
         res.writeHead(200, { 'content-type': 'text/event-stream' })
-        res.end(dialect === 'anthropic' ? anthropicSse({ text: 'The note for the next session.' }, 10_000 + asks.length) : dialect === 'responses' ? responsesSse({ text: 'The note for the next session.' }, 10_000 + asks.length) : chatSse({ text: 'The note for the next session.' }))
+        res.end(dialect === 'anthropic' ? anthropicSse({ text: 'The note for the next session.' }, 10_000 + asks.length) : dialect === 'responses' ? responsesSse({ text: 'The note for the next session.' }, 10_000 + asks.length) : dialect === 'gemini' ? geminiSse({ text: 'The note for the next session.' }) : chatSse({ text: 'The note for the next session.' }))
         return
       }
       if (req.method === 'POST' && dialect !== undefined) {
@@ -228,7 +246,7 @@ export async function startOverflowFixture(): Promise<OverflowFixture> {
           return
         }
         res.writeHead(200, { 'content-type': 'text/event-stream' })
-        res.end(dialect === 'anthropic' ? anthropicSse(turn, n) : dialect === 'responses' ? responsesSse(turn, n) : chatSse(turn))
+        res.end(dialect === 'anthropic' ? anthropicSse(turn, n) : dialect === 'responses' ? responsesSse(turn, n) : dialect === 'gemini' ? geminiSse(turn) : chatSse(turn))
         return
       }
       res.writeHead(404, { 'content-type': 'application/json' })
@@ -306,7 +324,7 @@ export const OVERFLOW_LANES: ReadonlyArray<{ lane: string; model: string; dialec
   { lane: 'meta', model: 'muse-spark-1.3', dialect: 'chat' },
   { lane: 'openai-compat', model: 'compat/fixture-model', dialect: 'chat' },
   { lane: 'openrouter', model: 'openrouter/fixture/model', dialect: 'chat' },
-  { lane: 'gemini', model: 'gemini-3-pro', dialect: 'chat' },
+  { lane: 'gemini', model: 'gemini-3-pro', dialect: 'gemini' },
   { lane: 'huggingface', model: 'huggingface/fixture-org/fixture-model', dialect: 'chat' },
   { lane: 'local', model: 'local/fixture-local', dialect: 'chat' },
 ]

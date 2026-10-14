@@ -97,7 +97,7 @@ try {
         check(`${label}: summary request resolves once on its declared wire`, requests.length === 1 && requests[0]?.dialect === road.dialect && fixture.captured[referenceAt]?.dialect === road.dialect && error === undefined, { error, actual: requests[0]?.dialect, expected: road.dialect })
         if (road.lane === 'anthropic-budget' && thinkingConfig.type === 'enabled') check(`${label}: the fixed thinking budget stays exact`, body?.thinking?.type === 'enabled' && body.thinking.budget_tokens === thinkingConfig.budgetTokens, body?.thinking)
         check(`${label}: effort, thinking and ceiling are the session request's`, JSON.stringify(posture(body)) === JSON.stringify(posture(reference)), { actual: posture(body), expected: posture(reference) })
-        check(`${label}: no per-message effort row`, Array.isArray(body?.messages) ? body.messages.every((row: any) => row.output_config === undefined) : Array.isArray(body?.input), body?.messages)
+        check(`${label}: no per-message effort row`, Array.isArray(body?.messages) ? body.messages.every((row: any) => row.output_config === undefined) : Array.isArray(body?.input) || Array.isArray(body?.contents), body?.messages)
         const preserved = (row: any): unknown[] => {
           if (Array.isArray(row?.input)) return row.input.filter((item: any) => item.type === 'reasoning')
           return (row?.messages ?? []).filter((item: any) => item.role === 'assistant').map((item: any) => ({ content: Array.isArray(item.content) ? item.content.filter((block: any) => block.type === 'thinking' || block.type === 'redacted_thinking') : undefined, reasoning_content: item.reasoning_content, reasoning_details: item.reasoning_details, provider_specific_fields: item.provider_specific_fields }))

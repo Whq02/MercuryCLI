@@ -179,6 +179,8 @@ function effortWordsOf(body: unknown): string[] {
   if (record.reasoning && typeof record.reasoning === 'object' && typeof record.reasoning.effort === 'string') words.push(record.reasoning.effort)
   if (record.output_config && typeof record.output_config.effort === 'string') words.push(record.output_config.effort)
   if (record.thinking && typeof record.thinking === 'object' && typeof record.thinking.reasoning_effort === 'string') words.push(record.thinking.reasoning_effort)
+  const level = (record as { generationConfig?: { thinkingConfig?: { thinkingLevel?: unknown } } }).generationConfig?.thinkingConfig?.thinkingLevel
+  if (typeof level === 'string') words.push(level.toLowerCase())
   return words
 }
 type Cap = { key: string; value: number } | null
@@ -187,6 +189,8 @@ function outputCapOf(body: unknown): Cap {
   for (const key of ['max_tokens', 'max_completion_tokens', 'max_output_tokens']) {
     if (typeof record[key] === 'number') return { key, value: record[key] as number }
   }
+  const generation = record.generationConfig as { maxOutputTokens?: unknown } | undefined
+  if (typeof generation?.maxOutputTokens === 'number') return { key: 'maxOutputTokens', value: generation.maxOutputTokens }
   return null
 }
 type Shape = {
@@ -256,7 +260,7 @@ section('§2 the request shape per family — the session profile in each family
 type Expect = {
   effort: 'absent' | 'session'
   thinking: 'off' | 'disabled-object'
-  cap: 'max_tokens' | 'max_completion_tokens' | 'none'
+  cap: 'max_tokens' | 'max_completion_tokens' | 'maxOutputTokens' | 'none'
   cacheControl: boolean
   outputConfig: boolean
   reasoningObject: boolean
@@ -274,7 +278,7 @@ const LEGS: Leg[] = [
   { family: 'openrouter', model: 'openrouter/nvidia/nemotron-nano-9b-v2:free', fixture: 'shared', lane: 'openrouter-seat', road: 'direct', expect: { ...OFF, effort: 'absent', thinking: 'off', cap: 'max_tokens', streamOptions: true } },
   { family: 'moonshot', model: 'kimi-k2-0905-preview', fixture: 'census', lane: 'moonshot', road: 'direct', expect: { ...OFF, effort: 'absent', thinking: 'off', cap: 'max_completion_tokens', streamOptions: true } },
   { family: 'deepseek', model: 'deepseek-chat', fixture: 'census', lane: 'deepseek', road: 'direct', expect: { ...OFF, effort: 'absent', thinking: 'disabled-object', cap: 'max_tokens', streamOptions: true } },
-  { family: 'gemini', model: 'gemini-2.5-pro', fixture: 'census', lane: 'gemini', road: 'direct', expect: { ...OFF, effort: 'absent', thinking: 'off', cap: 'max_tokens', streamOptions: true } },
+  { family: 'gemini', model: 'gemini-2.5-pro', fixture: 'census', lane: 'gemini', road: 'direct', expect: { ...OFF, effort: 'absent', thinking: 'off', cap: 'maxOutputTokens', streamOptions: null } },
   { family: 'huggingface', model: 'huggingface/meta-llama/Llama-3.3-70B-Instruct', fixture: 'census', lane: 'huggingface', road: 'direct', expect: { ...OFF, effort: 'absent', thinking: 'off', cap: 'max_tokens', streamOptions: true } },
   { family: 'openai-compat', model: 'compat/census-endpoint-model', fixture: 'census', lane: 'openai-compat', road: 'direct', expect: { ...OFF, effort: 'absent', thinking: 'off', cap: 'max_tokens', streamOptions: true } },
   { family: 'local', model: 'local/census-local-model', fixture: 'census', lane: 'local', road: 'direct', expect: { ...OFF, effort: 'session', thinking: 'off', cap: 'max_tokens', reasoningEffortKey: true, streamOptions: true } },
@@ -586,7 +590,7 @@ section("§2b the thinking-off word on the wire — a fold on a Gemini thinking 
   check('the seeded Gemini row states a thinking model (the dial exists)', gemini.geminiEffortVocabularyFor('gemini-fixture-pro').length > 0)
   check("the seeded OpenRouter rows state their vocabularies ('none' listed on one, high|max on the other)", openrouter.openrouterEffortVocabularyFor('openrouter/stealth/ox-alpha').includes('none') && openrouter.openrouterEffortVocabularyFor('openrouter/stealth/ox-tall').join(',') === 'high,max')
   const SEEDED: Array<{ family: string; model: string; captured: () => Array<{ lane: string; body: unknown }>; lane: string; word: string; key: 'reasoning_effort' | 'reasoning' }> = [
-    { family: 'gemini', model: 'gemini-fixture-pro', captured: () => census.captured, lane: 'gemini', word: 'low', key: 'reasoning_effort' },
+    { family: 'gemini', model: 'gemini-fixture-pro', captured: () => census.captured, lane: 'gemini', word: 'low', key: 'thinkingLevel' },
     { family: 'openrouter', model: 'openrouter/stealth/ox-alpha', captured: () => shared.captured, lane: 'openrouter-seat', word: 'none', key: 'reasoning' },
     { family: 'openrouter', model: 'openrouter/stealth/ox-tall', captured: () => shared.captured, lane: 'openrouter-seat', word: 'high', key: 'reasoning' },
   ]
@@ -597,7 +601,7 @@ section("§2b the thinking-off word on the wire — a fold on a Gemini thinking 
     const hits = leg.captured().slice(before).filter(h => h.lane === leg.lane)
     check(`${leg.family}: the fold resolved on its own lane (${run.ms} ms)`, run.result !== undefined && run.error === undefined && hits.length >= 1, (run.error?.message ?? '').slice(0, 300))
     const body = (hits.at(-1)?.body ?? {}) as Record<string, unknown>
-    const sent = leg.key === 'reasoning' ? ((body.reasoning as { effort?: unknown } | undefined)?.effort) : body.reasoning_effort
+    const sent = leg.key === 'reasoning' ? ((body.reasoning as { effort?: unknown } | undefined)?.effort) : leg.key === 'thinkingLevel' ? String((body.generationConfig as { thinkingConfig?: { thinkingLevel?: unknown } } | undefined)?.thinkingConfig?.thinkingLevel ?? '').toLowerCase() : body.reasoning_effort
     check(`${leg.family}: the fold's wire carries the family's thinking-off word '${leg.word}' — ${leg.word === 'none' ? "the row lists none" : 'the lowest rung the row serves'} — never the session tier, never silence`, sent === leg.word, j({ sent, effort: effortWordsOf(body) }))
     check(`${leg.family}: no other effort spelling rides beside it`, effortWordsOf(body).length === 1 && effortWordsOf(body)[0] === leg.word, j(effortWordsOf(body)))
   }
