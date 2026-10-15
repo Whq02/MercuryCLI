@@ -170,22 +170,6 @@ function typedOutcomeText(output: Output): string | null {
   }
 }
 
-function legacyResultText(output: Output): string {
-  const parts = output.questions.map(question => {
-    const answer = lookupFor(output.answers, question) ?? ''
-    const annotation = lookupFor(output.annotations, question)
-    let entry = `${JSON.stringify(question.question)}=${JSON.stringify(answer)}`
-    if (annotation?.preview) {
-      entry += ` selected preview: ${annotation.preview}`
-    }
-    if (annotation?.notes) {
-      entry += ` user notes: ${annotation.notes}`
-    }
-    return entry
-  })
-  return `User has answered your questions: ${parts.join(', ')}. You can now continue with the user's answers in mind.`
-}
-
 function identityResultText(output: Output): string {
   const lines = output.questions.map((question, index) => {
     const identifier = question.id ?? `q${index + 1}`
@@ -293,15 +277,10 @@ export const AskUserQuestionTool = buildTool({
         content: typed,
       }
     }
-    const hasIdentity =
-      output.outcome !== undefined ||
-      output.questions.some(question => question.id !== undefined)
     return {
       type: 'tool_result' as const,
       tool_use_id: toolUseID,
-      content: hasIdentity
-        ? identityResultText(output)
-        : legacyResultText(output),
+      content: identityResultText(output),
     }
   },
   extractSearchText(output: Output): string {

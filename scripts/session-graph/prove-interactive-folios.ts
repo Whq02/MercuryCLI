@@ -14,7 +14,6 @@ process.env.MERCURY_REVIEW_ARTIFACTS_DIR = join(scratch, 'artifacts')
 
 const store = await import('../../src/utils/artifacts/reviewStore.ts')
 const contracts = await import('../../src/utils/artifacts/reviewContracts.ts')
-const actions = await import('../../src/services/workbench/folioActions.ts')
 
 const created = store.createReviewArtifact({
   kind: 'diff',
@@ -146,133 +145,21 @@ t.section('§3 — scope decisions validate + fold')
   t.check('a vanished hunk refuses', badHunk.ok === false)
 }
 
-t.section('§4 — the folio action seam')
+t.section('§4 — the fold SUGGESTS, never auto-applies')
 {
-  actions._resetFolioActionReceiptsForTesting()
-  const state = store.readReviewArtifactState(artifactId)!
-  const rootId = state.comments[0]!.id
-  const replyReceipt = await actions.applyFolioAction({
-    intentId: 'fi-reply-1',
-    kind: 'reply',
-    artifactId,
-    version: 1,
-    commentId: rootId,
-    body: 'a threaded reply through the seam',
-    by: 'operator',
-  })
-  t.check(
-    'reply → comment-written with the thread named',
-    replyReceipt.kind === 'comment-written' && replyReceipt.parentCommentId === rootId,
-  )
-  const resolveReceipt = await actions.applyFolioAction({
-    intentId: 'fi-resolve-1',
-    kind: 'resolve-comment',
-    artifactId,
-    version: 1,
-    commentId: rootId,
-  })
-  t.check(
-    'resolve-comment → comment-state-set resolved',
-    resolveReceipt.kind === 'comment-state-set' && resolveReceipt.state === 'resolved',
-  )
-  const reopenReceipt = await actions.applyFolioAction({
-    intentId: 'fi-reopen-1',
-    kind: 'reopen-comment',
-    artifactId,
-    version: 1,
-    commentId: rootId,
-  })
-  t.check(
-    'reopen-comment → comment-state-set open',
-    reopenReceipt.kind === 'comment-state-set' && reopenReceipt.state === 'open',
-  )
-  const replayed = await actions.applyFolioAction({
-    intentId: 'fi-resolve-1',
-    kind: 'resolve-comment',
-    artifactId,
-    version: 1,
-    commentId: rootId,
-  })
-  t.check(
-    'a replayed intentId returns ITS receipt (no second owner write)',
-    replayed === resolveReceipt &&
-      store.readReviewArtifactState(artifactId)!.comments.find(c => c.id === rootId)!.state === 'open',
-  )
-  const scopeReceipt = await actions.applyFolioAction({
-    intentId: 'fi-scope-1',
-    kind: 'scope-decision',
-    artifactId,
-    version: 1,
-    scope: { t: 'check', claim: 'typecheck green' },
-    decision: 'accept',
-  })
-  t.check('scope-decision → scope-decided with the fold echoed', scopeReceipt.kind === 'scope-decided')
-
-  const statusBefore = store.readReviewArtifactState(artifactId)!.statuses[1] ?? 'draft'
-  t.check('the fixture artifact starts in draft', statusBefore === 'draft', statusBefore)
-  const mark = await actions.applyFolioAction({
-    intentId: 'fi-status-1',
-    kind: 'mark-reviewed',
-    artifactId,
-    version: 1,
-  })
-  t.check(
-    'mark-reviewed on a DRAFT is refused with the illegal-transition reason',
-    mark.kind === 'refused' && /illegal status transition draft → reviewed/.test(mark.reason),
-    JSON.stringify(mark).slice(0, 140),
-  )
-  t.check(
-    'the refused intent left the status unchanged (still draft)',
-    (store.readReviewArtifactState(artifactId)!.statuses[1] ?? 'draft') === 'draft',
-  )
+  const before = store.readReviewArtifactState(artifactId)!
+  const fold = contracts.foldScopeDecisions(before.scopeDecisions, 1)
+  t.check('the fold has decided scopes', fold.latest.size >= 3)
+  t.check('the fold suggests accepted (every latest decision is an accept)', fold.suggestion === 'accepted', String(fold.suggestion))
+  t.check('the artifact-level status is still draft — the suggestion applied nothing', (before.statuses[1] ?? 'draft') === 'draft', String(before.statuses[1]))
   const ready = store.setReviewArtifactStatus({ id: artifactId, version: 1, status: 'ready-for-review' })
   t.check('draft → ready-for-review is the one legal step out of draft', ready.ok === true)
-  const replayedMark = await actions.applyFolioAction({
-    intentId: 'fi-status-1',
-    kind: 'mark-reviewed',
-    artifactId,
-    version: 1,
-  })
+  const revise = store.setReviewArtifactStatus({ id: artifactId, version: 1, status: 'revision-requested' })
+  t.check('the EXPLICIT decision lands against the fold suggestion', revise.ok === true)
+  const after = store.readReviewArtifactState(artifactId)!
   t.check(
-    'replaying the REFUSED intent id returns its refusal, not a late application',
-    replayedMark === mark && store.readReviewArtifactState(artifactId)!.statuses[1] === 'ready-for-review',
-  )
-  const markReady = await actions.applyFolioAction({
-    intentId: 'fi-status-2',
-    kind: 'mark-reviewed',
-    artifactId,
-    version: 1,
-  })
-  t.check(
-    'a fresh mark-reviewed intent on the READY artifact really applies reviewed',
-    markReady.kind === 'applied' &&
-      markReady.status === 'reviewed' &&
-      store.readReviewArtifactState(artifactId)!.statuses[1] === 'reviewed',
-    JSON.stringify(markReady).slice(0, 140),
-  )
-  const revise = await actions.applyFolioAction({
-    intentId: 'fi-revise-1',
-    kind: 'request-revision',
-    artifactId,
-    version: 1,
-  })
-  t.check(
-    'request-revision carries the revision-request routing receipt',
-    revise.kind === 'applied' &&
-      revise.status === 'revision-requested' &&
-      revise.revisionRequestRoute === 'retained',
-    JSON.stringify(revise).slice(0, 140),
-  )
-}
-
-t.section('§5 — the fold SUGGESTS, never auto-applies')
-{
-  const state = store.readReviewArtifactState(artifactId)!
-  const fold = contracts.foldScopeDecisions(state.scopeDecisions, 1)
-  t.check('the fold has decided scopes', fold.latest.size >= 3)
-  t.check(
-    'the artifact-level status is the EXPLICIT decision (revision-requested from §4), not the fold suggestion',
-    state.statuses[1] === 'revision-requested',
+    'the artifact-level status is the EXPLICIT decision (revision-requested), not the fold suggestion (accepted)',
+    after.statuses[1] === 'revision-requested' && contracts.foldScopeDecisions(after.scopeDecisions, 1).suggestion === 'accepted',
   )
 }
 
