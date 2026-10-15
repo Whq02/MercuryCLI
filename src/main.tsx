@@ -485,8 +485,9 @@ async function run(): Promise<void> {
     .option('--provider-preview <betas...>', 'Provider beta headers')
     .option('--backup-model <model>', 'Fallback model when the primary is overloaded')
     .addOption(new Option('--meter-tag <tag>', 'Workload tag').hideHelp())
-    .option('--project <directory>', 'Start in this folder; it must come first on the command line, before everything else (mercury --project <dir> run …)', () => {
-      throw new Error('--project must appear before all other arguments')
+    .option('--project <directory>', 'Start in this folder. Put it first, before the command word — mercury --project <dir> run … — anywhere later it is refused', (value: string) => {
+      const folder = /\s/.test(value) ? JSON.stringify(value) : value
+      throw new InvalidArgumentError(`--project goes before the command word, not after it: ${binaryName()} --project ${folder} run …`)
     })
     .option('--config <file-or-json>', 'Extra settings (path or inline JSON)')
     .option('--session-id <uuid>', 'Use a specific session id')
