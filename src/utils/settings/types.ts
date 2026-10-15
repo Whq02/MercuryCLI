@@ -97,6 +97,7 @@ export const SettingsSchema = lazySchema(() => {
       keyCommand: z.string().optional(),
       signInRoute: z.enum(['claudeai', 'console']).optional(),
       organisation: z.string().optional(),
+      signIns: z.record(z.string(), z.string()).optional().describe('Which sign-in a provider family spends in this project, by identity as /logins lists it (the account address, the Hub username, a key\'s masked tail), for example { "openai": "bob@work.example" }; /logins use <identity> overrides it for one session; an identity that is not signed in is refused with the ones that are'),
     }).passthrough().optional(),
     files: z.object({
       suggester: z.object({ type: z.literal('command'), command: z.string() }).optional(),
