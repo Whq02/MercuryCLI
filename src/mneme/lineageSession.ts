@@ -1,10 +1,8 @@
 import { getSessionId, isSessionPersistenceDisabled } from '../bootstrap/state.js'
-import { decodeTranscriptBuffer } from '../fabric/transcriptDecode.js'
 import type { Entry } from '../types/logs.js'
 import { getInitialSettings } from '../utils/settings/settings.js'
 import { logForDebugging } from '../utils/debug.js'
 import { getTranscriptPathForSession, isTranscriptMessage } from '../utils/sessionStorage/paths.js'
-import { readTranscriptTailSync } from '../utils/sessionStorage/transcriptReader.js'
 import { closeEntry, ledgerClock, openEntry, reconcileInterruptedEntries, recordEngine, recordFact, recordFile, recordRuling } from './ledger.js'
 import { mnemeEnabled } from './mnemeGates.js'
 import { mnemeProjectKey } from './paths.js'
@@ -42,15 +40,18 @@ const hasToolUse = (entry: Entry): boolean => {
 
 function transcriptCutMidTool(sessionId: string): string | null {
   let tail: string
+  let entries: Entry[]
   try {
-    tail = readTranscriptTailSync(getTranscriptPathForSession(sessionId), TRANSCRIPT_TAIL_BYTES)
+    const reader = require('../utils/sessionStorage/transcriptReader.js') as typeof import('../utils/sessionStorage/transcriptReader.js')
+    tail = reader.readTranscriptTailSync(getTranscriptPathForSession(sessionId), TRANSCRIPT_TAIL_BYTES)
+    if (tail === '') return null
+    const lines = tail.split('\n')
+    const whole = tail.length >= TRANSCRIPT_TAIL_BYTES ? lines.slice(1) : lines
+    const decode = require('../fabric/transcriptDecode.js') as typeof import('../fabric/transcriptDecode.js')
+    entries = decode.decodeTranscriptBuffer<Entry>(whole.join('\n')).entries
   } catch {
     return null
   }
-  if (tail === '') return null
-  const lines = tail.split('\n')
-  const whole = tail.length >= TRANSCRIPT_TAIL_BYTES ? lines.slice(1) : lines
-  const { entries } = decodeTranscriptBuffer<Entry>(whole.join('\n'))
   for (let i = entries.length - 1; i >= 0; i--) {
     const entry = entries[i]!
     if (!isTranscriptMessage(entry)) continue
