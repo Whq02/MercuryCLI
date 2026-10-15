@@ -72,14 +72,17 @@ console.log('\n§1 every page says the pack rides every release archive')
   check('COMPATIBILITY.md: every archive bundles the addon built for its platform and the model', /Every archive\s+also bundles the `vendor\/embed` addon built for its platform and the 118 MB\s+`bge-base-en-v1\.5` embedding model/.test(compat))
 }
 
-console.log('\n§2 the pages say what Linux and Windows run in this release')
+console.log('\n§2 the pages say what Linux and Windows run: a vectorised kernel, about a tenth of a second per Recall by meaning')
 {
+  const RETIRED = [/plain maths loop/, /second and a half/, /faster kernel/]
   for (const page of ['README.md', 'docs/MNEME.md', 'docs/INSTALL-WINDOWS-FROM-SOURCE.md', 'docs/COMPATIBILITY.md']) {
     const text = read(page)
-    check(`${page}: the plain maths loop, about a second and a half per Recall by meaning, a faster kernel to follow`, text.includes('plain maths loop') && /about a\s+second and a half/.test(text) && /faster kernel/.test(text))
+    check(`${page}: a vectorised kernel, about a tenth of a second per Recall by meaning`, /vectorised (maths )?kernel/.test(text) && /about a\s+tenth of\s+a\s+second/.test(text))
+    const stale = RETIRED.filter(shape => shape.test(text)).map(String)
+    check(`${page}: the plain-loop words of the earlier release are gone`, stale.length === 0, stale.join(' · '))
   }
   const readme = read('README.md')
-  check('README: the Linux and Windows words are tied to this release, never to the product for good', /on Linux and Windows this release runs\s+the plain maths loop/.test(readme))
+  check('README: Build from source ties the kernel to Linux and Windows and names the macOS road beside it', /on Linux and Windows the maths runs a\s+vectorised kernel/.test(readme) && /few hundredths on macOS, which uses Accelerate/.test(readme))
 }
 
 console.log('\n§3 no page says the pack is the Apple silicon archive\'s alone')

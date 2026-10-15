@@ -237,9 +237,9 @@ installed, `setup` also builds the local embedding addon (`native/embed`,
 (`bun run scripts/vendor/fetch-embed-models.ts --default`); without cargo the
 pack is skipped, setup says so, and Mneme memory lookup runs word match only.
 Every release archive carries the embedding pack (macOS Apple silicon and
-Intel, Linux x86-64, Windows x86-64); on Linux and Windows this release runs
-the plain maths loop, so a Recall by meaning takes about a second and a half
-instead of a few hundredths, and a faster kernel follows. If a native build
+Intel, Linux x86-64, Windows x86-64); on Linux and Windows the maths runs a
+vectorised kernel, so a Recall by meaning takes about a tenth of a second (a
+few hundredths on macOS, which uses Accelerate). If a native build
 lacks its tools, setup skips it and the health check reports the missing
 addon. The Windows shell engine is compiled on your machine too because
 upstream has no Windows binary.
@@ -703,8 +703,8 @@ Available commands include:
   `Correct`). Recall fuses an on-device 118 MB BGE semantic embedding model
   (`bge-base-en-v1.5` `q8_0`, MIT, bundled in every release archive for macOS
   Apple silicon and Intel, Linux x86-64 and Windows x86-64; on Linux and
-  Windows this release runs the plain maths loop, about a second and a half
-  per Recall by meaning, with a faster kernel to follow; a source build without
+  Windows a vectorised kernel answers a Recall by meaning in about a tenth of
+  a second, macOS in a few hundredths; a source build without
   the native embed pack runs word match only) with stemmed BM25 word
   ranking, recency weighting and citation tracking via reciprocal rank fusion
   (`k = 60`). Pinned rules (`pin: true`) load verbatim on the pinned shelf and

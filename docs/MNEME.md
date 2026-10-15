@@ -48,9 +48,9 @@ x86-64 (in a source checkout with Rust installed, `bun run setup` builds
 `native/embed` through `bun run scripts/vendor/build-embed.ts` and fetches the
 model through `bun run scripts/vendor/fetch-embed-models.ts --default`);
 nothing leaves the machine and no account or paid model call is involved. On
-Linux and Windows this release runs the plain maths loop, so a Recall by
-meaning takes about a second and a half instead of a few hundredths, and a
-faster kernel follows. The model loads when memory needs it (a build, a Retain
+Linux and Windows the maths runs a vectorised kernel, so a Recall by meaning
+takes about a tenth of a second; on macOS Accelerate answers in a few
+hundredths. The model loads when memory needs it (a build, a Retain
 or a query; about half a gigabyte while loaded) and leaves memory after five
 idle minutes.
 
