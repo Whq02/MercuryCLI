@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # gate-class: pure
 # gate-watch: src/services/providers/** src/utils/toolSearch* src/utils/api.ts
+# gate-watch: src/tools/TestTool/* src/tools/BashTool/* src/utils/cwd.ts src/services/ide/projectRunners.ts
 # gate-watch: src/tools/ToolSearchTool/** src/utils/attachments/deltas* src/utils/model/capabilities*
 # gate-watch: src/Tool.ts src/bootstrap/state.ts src/components/messages/nullRenderingAttachments.ts
 # gate-watch: src/services/api/prefixFingerprint.ts src/services/tools/toolExecution.ts src/tools.ts
