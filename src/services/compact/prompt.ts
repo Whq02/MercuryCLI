@@ -1,3 +1,7 @@
+import type { CompactMetadata } from '../../types/message.js'
+import type { TurnReceiptCounts } from '../../utils/cockpit/turnReceipt.js'
+import { plural } from '../../utils/stringUtils.js'
+
 const NO_TOOLS_PREAMBLE = `Reply with prose only — no tool calls of any kind. Do not invoke Read, Bash, Grep, Glob, Edit, Write, Task, or any other tool. Any tool call will be refused outright, and because you have exactly one turn, a refused call means this summarisation attempt produces nothing and fails. The conversation below already contains everything you need; there is nothing to look up.`
 
 const NO_TOOLS_TRAILER = `Remember: prose only, no tool calls. Produce the summary now.`
@@ -153,4 +157,41 @@ export function getCompactUserSummaryMessage(
     )
   }
   return parts.join('\n\n')
+}
+
+const FOLDED_WORK_MAX_FILES = 24
+const FOLDED_WORK_MAX_TOOLS = 12
+const FOLDED_WORK_MAX_RECEIPTS = 8
+
+function receiptWords(c: TurnReceiptCounts): string {
+  const parts: string[] = []
+  const delta = `${c.adds > 0 ? ` +${c.adds}` : ''}${c.dels > 0 ? ` −${c.dels}` : ''}`
+  if (c.scratchpadEdits > 0) parts.push(`${c.scratchpadEdits} scratchpad ${plural(c.scratchpadEdits, 'edit')}${c.fileEdits === 0 ? delta : ''}`)
+  if (c.fileEdits > 0) parts.push(`${c.fileEdits} file ${plural(c.fileEdits, 'edit')}${delta}`)
+  if (c.reads > 0) parts.push(`${c.reads} ${plural(c.reads, 'read')}`)
+  if (c.searches > 0) parts.push(`${c.searches} ${plural(c.searches, 'search', 'searches')}`)
+  if (c.fetches > 0) parts.push(`${c.fetches} ${plural(c.fetches, 'fetch', 'fetches')}`)
+  if (c.commands > 0) parts.push(`${c.commands} shell ${plural(c.commands, 'command')}`)
+  if (c.browser > 0) parts.push(`${c.browser} browser ${plural(c.browser, 'action')}`)
+  if (c.agents > 0) parts.push(`${c.agents} ${plural(c.agents, 'crewmate')}`)
+  return parts.join(' · ')
+}
+
+export function renderFoldedWork(work: CompactMetadata['work'] | undefined): string | null {
+  if (work === undefined) return null
+  const { recap, receipts } = work
+  const tools = [...recap.toolCounts].filter(([, n]) => n > 0).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+  if (recap.turns === 0 && tools.length === 0 && recap.files.length === 0 && receipts.length === 0) return null
+  const lines: string[] = ['## Folded work (deterministic — from the fold\'s receipts, not summarized)']
+  const toolWords = tools.length === 0 ? 'none' : tools.slice(0, FOLDED_WORK_MAX_TOOLS).map(([name, n]) => `${name}×${n}`).join(', ') + (tools.length > FOLDED_WORK_MAX_TOOLS ? ` …+${tools.length - FOLDED_WORK_MAX_TOOLS} more` : '')
+  lines.push(`Operator turns folded: ${recap.turns} · tool calls: ${toolWords} · failed tool calls: ${recap.toolFailures}`)
+  for (const receipt of receipts.slice(0, FOLDED_WORK_MAX_RECEIPTS)) {
+    const words = receiptWords(receipt.counts)
+    if (words !== '') lines.push(`Folded part of a turn that continues below: ${words}`)
+  }
+  if (recap.files.length > 0) {
+    const shown = recap.files.slice(0, FOLDED_WORK_MAX_FILES)
+    lines.push(`Files the folded tools touched (re-READ on demand — contents not carried): ${shown.join(', ')}${recap.files.length > shown.length ? ` …+${recap.files.length - shown.length} more` : ''}`)
+  }
+  return lines.join('\n')
 }

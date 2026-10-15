@@ -60,6 +60,7 @@ export type CompactMetadata = {
   overflow?: OverflowSignal
   userContext?: string
   messagesSummarized?: number
+  ledger?: import('../services/compact/foldLedger.js').FoldLedger
   preservedSegment?: {
     headUuid: UUID
     anchorUuid: UUID

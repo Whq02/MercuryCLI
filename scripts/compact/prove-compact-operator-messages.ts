@@ -207,11 +207,14 @@ if (selection !== null) {
   check('a prompt inside the kept tail is not repeated (p6, p7, p8 kept ⇒ the block stops at p5)', withKept !== null && withKept.messages.length === expected.length - 3 && withKept.messages[0]!.text === PROMPTS[4] && !withKept.messages.some(entry => entry.text === PROMPTS[5] || entry.text === PROMPTS[6] || entry.text === PROMPTS[7]), j(withKept?.messages.map(entry => entry.text.slice(0, 20))))
   const tokensOf = (text: string): number => Math.ceil(text.length / 4)
   const budget = tokensOf(PROMPTS[7]!) + tokensOf(PROMPTS[6]!) + 100
-  const cut = selection.selectOperatorMessages(history, { tokenBudget: budget })
-  const oldestKept = cut?.messages.at(-1)
-  check('within a budget: the newest ride whole, the oldest kept one is truncated with the one-clause marker, the rest are counted as omitted', cut !== null && cut.messages.length === 3 && cut.messages[0]!.text === PROMPTS[7] && cut.messages[1]!.text === PROMPTS[6] && oldestKept?.truncated === true && oldestKept.text.endsWith(selection.OPERATOR_MESSAGE_TRUNCATION_MARKER) && oldestKept.text.startsWith('p6: refactor the settings screen carefully') && oldestKept.text.length < PROMPTS[5]!.length && cut.omitted === expected.length - 3, j(cut))
-  check('…the truncated entry keeps the head of the message and fits the budget', cut !== null && cut.messages.reduce((sum, entry) => sum + tokensOf(entry.text), 0) <= budget, String(cut?.messages.reduce((sum, entry) => sum + tokensOf(entry.text), 0)))
-  check('a budget too small for even one clause of the newest yields no block', selection.selectOperatorMessages(history, { tokenBudget: 5 }) === null)
+  const original = j(history)
+  let refusal = ''
+  try { selection.selectOperatorMessages(history, { tokenBudget: budget }) } catch (error) { refusal = String(error) }
+  check('an insufficient budget refuses instead of cutting an operator message', refusal.includes('original context is kept'))
+  check('the original operator history is unchanged on refusal', j(history) === original)
+  let tinyRefused = false
+  try { selection.selectOperatorMessages(history, { tokenBudget: 5 }) } catch { tinyRefused = true }
+  check('a tiny budget cannot silently discard the operator block', tinyRefused)
   check('a stretch with no operator message yields no block', selection.selectOperatorMessages([oldBoundary, oldSummary, ...noise, assistant('nothing asked')]) === null)
   check('the steer counts once even when its echo row rides beside it (source_uuid dedupe)', j(selection.collectOperatorTexts([steer, { ...(createUserMessage({ content: STEER_TEXT }) as unknown as AnyMsg), uuid: uuidOf(9001) }])) === j([STEER_TEXT]))
 }
@@ -387,7 +390,7 @@ section('F the size guard sheds the block LAST, before refusing; a fitting resul
   const coreWithBlock = estimateContextTokens(compactMod.buildPostCompactMessages(rig([], block) as never) as never)
   check('the block weighs in the whole-context estimate', coreWithBlock > core, `${coreWithBlock} vs ${core}`)
   const out = compactMod.fitPostCompactUnderThreshold(full as never, coreWithBlock) as { result: { operatorMessages?: unknown; attachments: unknown[] }; estimate: number; shed: string[] }
-  check('files and skills go first; the block goes last; the fit then reports under', j(out.shed) === j(['file /rig/A.txt', 'invoked_skills', 'operator messages']) && out.result.operatorMessages === undefined && out.estimate < coreWithBlock, j({ shed: out.shed, estimate: out.estimate, threshold: coreWithBlock }))
+  check('files and skills may go; operator bytes stand even when the fit must refuse', j(out.shed) === j(['file /rig/A.txt', 'invoked_skills']) && out.result.operatorMessages === block && out.estimate >= coreWithBlock, j({ shed: out.shed, estimate: out.estimate, threshold: coreWithBlock }))
   const roomy = compactMod.fitPostCompactUnderThreshold(full as never, coreWithBlock + 100_000) as { result: { operatorMessages?: unknown }; shed: string[] }
   check('a result under the threshold keeps its block (nothing shed)', roomy.shed.length === 0 && roomy.result.operatorMessages === block)
   const tight = compactMod.fitPostCompactUnderThreshold(rig([fileAttachment('A.txt', 4_000)], block) as never, coreWithBlock + 50) as { result: { operatorMessages?: unknown }; shed: string[]; estimate: number }
@@ -494,7 +497,7 @@ section('I wiring pins — the seams, by source')
   check('buildPostCompactMessages seats the block right after the boundary', /boundaryMarker,\n\s+\.\.\.\(operatorMessages !== undefined \? \[operatorMessages\] : \[\]\),\n\s+\.\.\.summaryMessages,/.test(compactSrc))
   check('the full fold selects over the folded span minus the kept tail', compactSrc.includes('selectOperatorMessages(messages, {') && compactSrc.includes('keptUuids: new Set((messagesToKeep ?? []).map(message => message.uuid))'))
   check('the partial fold selects over its summarised span', compactSrc.includes('selectOperatorMessages(summarize)'))
-  check('the size guard sheds the block after every other class', /if \(estimate >= threshold && current\.operatorMessages !== undefined\) \{\n\s+shed\.push\(describeAttachment\(current\.operatorMessages\)\)/.test(compactSrc))
+  check('the size guard has no operator-block shedding branch', !compactSrc.includes('current = { ...current, operatorMessages: undefined }'))
   const slash = readFileSync(join(ROOT, 'src/utils/processUserInput/processSlashCommand.tsx'), 'utf8')
   check('the manual /compact seats the block right after the boundary too', /compaction\.boundaryMarker,\n\s+\.\.\.\(compaction\.operatorMessages !== undefined \? \[compaction\.operatorMessages\] : \[\]\),\n\s+\.\.\.compaction\.summaryMessages,/.test(slash))
   const prompt = readFileSync(join(ROOT, 'src/services/compact/prompt.ts'), 'utf8')

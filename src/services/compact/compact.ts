@@ -60,7 +60,8 @@ import { getRetryDelay } from '../api/withRetry.js'
 import { APIUserAbortError } from '../api/sdkErrors.js'
 import { isInstructionFilePath } from '../../services/instructions/engine.js'
 import { releaseLspDocumentsForContext } from '../lsp/manager.js'
-import { advanceContextEpoch } from '../run/contextEpochs.js'
+import { advanceContextEpoch, getContextEpoch } from '../run/contextEpochs.js'
+import { buildFoldLedger, renderFoldLedger } from './foldLedger.js'
 import { ownerFromToolUseContext, rosterOwnerFromToolUseContext } from '../run/resolveOwner.js'
 import { buildRunContinuationCapsule } from '../run/runContinuationCapsule.js'
 import { roughTokenCountEstimation } from '../tokenEstimation.js'
@@ -70,7 +71,7 @@ import { ToolSearchTool } from '../../tools/ToolSearchTool/ToolSearchTool.js'
 import { groupMessagesByApiRound } from './grouping.js'
 import { estimateContextTokens, estimateMessageTokens } from './microCompact.js'
 import { projectRewoundWindows } from './checkpointRewind.js'
-import { getCompactPrompt, getCompactUserSummaryMessage, getPartialCompactPrompt, SUMMARY_SECTION_TITLES } from './prompt.js'
+import { getCompactPrompt, getCompactUserSummaryMessage, getPartialCompactPrompt, renderFoldedWork, SUMMARY_SECTION_TITLES } from './prompt.js'
 import { computeVerbatimRecentTail, isMercuryCompactKeepTailEnabled } from './verbatimTail.js'
 import { selectOperatorMessages } from './operatorMessages.js'
 import { prepareFoldContext } from './foldTransaction.js'
@@ -375,16 +376,20 @@ export function annotateBoundaryWithPreservedSegment(
   return boundary
 }
 
+export function foldedWorkOf(messages: Message[], kept: Message[], summaryUuid: UUID): NonNullable<CompactMetadata['work']> {
+  return {
+    receipts: foldedTurnReceipts(messages, kept, summaryUuid, getMercuryTempDir()),
+    recap: collectAwayWork(messages, new Set(kept.map(message => message.uuid))),
+  }
+}
+
 export function annotateBoundaryWithWork(
   boundary: SystemCompactBoundaryMessage,
   messages: Message[],
   kept: Message[],
   summaryUuid: UUID,
 ): void {
-  boundary.compactMetadata.work = {
-    receipts: foldedTurnReceipts(messages, kept, summaryUuid, getMercuryTempDir()),
-    recap: collectAwayWork(messages, new Set(kept.map(message => message.uuid))),
-  }
+  boundary.compactMetadata.work = foldedWorkOf(messages, kept, summaryUuid)
 }
 
 export function mergeHookInstructions(
@@ -631,11 +636,6 @@ export function fitPostCompactUnderThreshold(result: CompactionResult, threshold
       estimate = estimateContextTokens(buildPostCompactMessages(current))
     }
     if (estimate < threshold) break
-  }
-  if (estimate >= threshold && current.operatorMessages !== undefined) {
-    shed.push(describeAttachment(current.operatorMessages))
-    current = { ...current, operatorMessages: undefined }
-    estimate = estimateContextTokens(buildPostCompactMessages(current))
   }
   return { result: current, estimate, shed }
 }
@@ -1391,6 +1391,7 @@ export async function compactConversation(
     context.onCompactProgress?.({ type: 'compact_start' })
     const owner = ownerFromToolUseContext(context)
     const capsuleProbe = buildRunContinuationCapsule(owner)
+    const ledger = buildFoldLedger(messages, owner, getContextEpoch(owner).epoch + 1)
     const promptText = getCompactPrompt(mergedInstructions, { runCapsulePresent: capsuleProbe !== null })
     const response = await summarizeWithPtlRetry(messages, summaryCacheSafeParams, promptText, summaryContext)
     const rawSummary = validateSummary(response, true)
@@ -1421,13 +1422,15 @@ export async function compactConversation(
     const lastMessage = messages[messages.length - 1] as Message
     const anchor = messagesToKeep !== undefined ? tailPrecedingUuid : lastMessage.uuid
     const boundary = createCompactBoundaryMessage(boundaryTrigger, preCompactTokenCount, anchor)
+    boundary.compactMetadata.ledger = ledger
     if (overflow !== undefined) boundary.compactMetadata.overflow = overflow
     const discovered = extractDiscoveredToolNames(messages)
     if (discovered.size > 0) boundary.compactMetadata.preCompactDiscoveredTools = [...discovered].sort()
 
     const capsule = buildRunContinuationCapsule(owner, Object.keys(snapshot))
     const degraded = rawSummary.trim().length < DEGRADED_SUMMARY_LENGTH
-    const summaryWithCapsule = capsule !== null ? `${rawSummary}\n\n${capsule}` : rawSummary
+    const foldedWork = renderFoldedWork(foldedWorkOf(messages, messagesToKeep ?? [], boundary.uuid))
+    const summaryWithCapsule = [rawSummary, capsule, foldedWork].filter((part): part is string => part !== null).join('\n\n')
 
     const summaryMessages: UserMessage[] = [
       createUserMessage({
@@ -1436,7 +1439,7 @@ export async function compactConversation(
           suppressFollowUpQuestions,
           getTranscriptPath(),
            !!messagesToKeep,
-        ),
+        ) + `\n\n${renderFoldLedger(ledger)}`,
         isCompactSummary: true,
         isVisibleInTranscriptOnly: true,
       }),
@@ -1596,7 +1599,10 @@ export async function partialCompactConversation(
     const discovered = extractDiscoveredToolNames(allMessages)
     if (discovered.size > 0) boundary.compactMetadata.preCompactDiscoveredTools = [...discovered].sort()
 
-    const summaryText = getCompactUserSummaryMessage(rawSummary, false, getTranscriptPath(), false)
+    const ledger = buildFoldLedger(allMessages, ownerFromToolUseContext(context), getContextEpoch(ownerFromToolUseContext(context)).epoch + 1)
+    boundary.compactMetadata.ledger = ledger
+    const foldedWork = renderFoldedWork(foldedWorkOf(allMessages, kept, boundary.uuid))
+    const summaryText = getCompactUserSummaryMessage(foldedWork === null ? rawSummary : `${rawSummary}\n\n${foldedWork}`, false, getTranscriptPath(), false) + `\n\n${renderFoldLedger(ledger)}`
     const summaryMessage =
       kept.length > 0
         ? createUserMessage({
