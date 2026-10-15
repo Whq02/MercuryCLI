@@ -7,7 +7,7 @@ import {
   type ScopeIdentityState,
 } from '../../utils/accounts/accountIdentity.js'
 import { noteCredentialChange } from '../../utils/accounts/signInLedger.js'
-import { forgetPocket, pocketEntries, pocketInUse, withSignInHome } from '../../utils/accounts/signInPockets.js'
+import { forgetPocket, peekSignInHome, pocketEntries, pocketInUse, withSignInHome } from '../../utils/accounts/signInPockets.js'
 import { resolve } from 'node:path'
 import {
   dropCredentialMemos,
@@ -1229,11 +1229,15 @@ export function deriveFamilySlotGroups(
   const presences = providerFamilyPresences(providers, reads.familyReads)
   return presences
     .map(family => {
-      const home = withSignInHome(family.id, null, () => familyOwnSlots(family, providers, reads))
       const chosen = pocketInUse(family.id)
+      const slotsAt = (dir: string | null): AccountSlot[] => {
+        const spending = dir === null ? chosen === undefined : chosen !== undefined && resolve(chosen) === resolve(dir)
+        return (spending ? withSignInHome : peekSignInHome)(family.id, dir, () => familyOwnSlots(family, providers, reads))
+      }
+      const home = slotsAt(null)
       const envWins = home.some(slot => slot.envPinned && slot.active)
       const pockets = pocketEntries(family.id).flatMap(entry =>
-        withSignInHome(family.id, entry.dir, () => familyOwnSlots(family, providers, reads))
+        slotsAt(entry.dir)
           .filter(slot => !slot.envPinned)
           .map(slot => ({
             ...slot,

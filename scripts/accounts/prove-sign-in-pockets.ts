@@ -240,6 +240,28 @@ section('§10 the headless door (mercury auth login) acts on the home sign-in wh
   pockets.clearSignInChoices()
 }
 
+section('§11 painting the /accounts board never moves a family\'s usage latch: the sign-in in use keeps its observation while the other sign-ins are peeked')
+{
+  pockets.clearSignInChoices()
+  secrets.writeStoredOpenrouterApiKey('sk-or-second-00000000000dddd')
+  pockets.takeLastLanding()
+  const usage = await import('../../src/services/providers/openrouter/openrouterUsageState.ts')
+  const { deriveFamilySlotGroups } = await import('../../src/services/providers/accountSlots.ts')
+  const payload = JSON.stringify({ data: { label: 'fixture', usage: 1.5, limit: 20, limit_remaining: 18.5 } })
+  const fetchImpl = (async () => new Response(payload, { status: 200, headers: { 'content-type': 'application/json' } })) as unknown as typeof fetch
+  usage.__resetOpenrouterUsageStateForTest()
+  await usage.refreshOpenrouterKeyUsage({ fetchImpl, force: true })
+  const before = usage.openrouterObservedKeyUsage().usage?.limitRemaining
+  check('the sign-in in use (the second key) holds an observation', before === 18.5, String(before))
+  const groups = deriveFamilySlotGroups()
+  const rows = groups.find(group => group.family.id === 'openrouter')?.slots ?? []
+  check('the board lists both OpenRouter keys', rows.filter(slot => slot.id.startsWith('openrouter:stored-key')).length === 2, JSON.stringify(rows.map(slot => slot.id)))
+  check('painting the board left the observation where it was', usage.openrouterObservedKeyUsage().usage?.limitRemaining === 18.5, JSON.stringify(usage.openrouterObservedKeyUsage()))
+  check('the peek is over once the board is painted', !pockets.peekingSignIn('openrouter'))
+  const peeked = pockets.peekSignInHome('openrouter', null, () => usage.openrouterObservedKeyUsage())
+  check('under a peek the usage getter answers no observation and borrows none', peeked.usage === null && peeked.lastError === undefined, JSON.stringify(peeked))
+}
+
 rmSync(HOME, { recursive: true, force: true })
 console.log(failures === 0 ? '\n✅ SIGN-IN POCKETS GREEN' : `\n❌ SIGN-IN POCKETS RED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
