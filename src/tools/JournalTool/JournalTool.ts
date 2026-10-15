@@ -16,7 +16,7 @@ const journalSchema = lazySchema(() =>
   }),
 )
 type JournalSchema = ReturnType<typeof journalSchema>
-export type JournalOutput = JournalStageOutcome
+type JournalOutput = JournalStageOutcome
 
 function safeSession(): string {
   try {

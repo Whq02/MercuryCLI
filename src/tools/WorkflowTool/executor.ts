@@ -46,7 +46,7 @@ export interface WorkflowHooks {
   }): void
 }
 
-export interface EvolutionLedgerHost {
+interface EvolutionLedgerHost {
   record(row: unknown): Promise<unknown>
   read(program: unknown): Promise<unknown>
   report(program: unknown): Promise<unknown>
@@ -75,13 +75,13 @@ export interface ProgressFrame {
   [k: string]: unknown
 }
 
-export interface WorkflowTimers {
+interface WorkflowTimers {
   setTimeout: (cb: () => void, ms: number) => number
   clearTimeout: (id: number) => void
   bindVMInvoke: (invoke: (fn: () => void) => void) => void
 }
 
-export function makeTimers(signal?: AbortSignal): WorkflowTimers {
+function makeTimers(signal?: AbortSignal): WorkflowTimers {
   const pending = new Set<number>()
   let invokeInRealm: (cb: () => void) => void = cb => cb()
 
@@ -117,7 +117,7 @@ export function makeTimers(signal?: AbortSignal): WorkflowTimers {
   }
 }
 
-export function makeVMConsole(emit: (msg: string) => void): Record<string, unknown> {
+function makeVMConsole(emit: (msg: string) => void): Record<string, unknown> {
   const renderArgs = (args: unknown[]) =>
     args
       .map(a => {
@@ -216,7 +216,7 @@ async function emptyGetAllWorkflows(): Promise<Array<{ name: string }>> {
   return []
 }
 
-export interface BuildContextOptions {
+interface BuildContextOptions {
   makeHooks: (args: {
     toolUseContext: WorkflowToolContext
     canUseTool: unknown
@@ -244,7 +244,7 @@ export interface BuildContextOptions {
   evolutionLedger?: EvolutionLedgerHost
 }
 
-export function buildVMContext(opts: BuildContextOptions): {
+function buildVMContext(opts: BuildContextOptions): {
   vmContext: vm.Context
   hooks: WorkflowHooks
 } {
@@ -349,7 +349,7 @@ export function buildVMContext(opts: BuildContextOptions): {
   return { vmContext: ctx, hooks }
 }
 
-export interface RunResult {
+interface RunResult {
   result: unknown
   agentCount: number
   logs: string[]
@@ -376,7 +376,7 @@ export function deriveWorkflowTerminalStatus(input: {
   return { status: 'completed_with_failures' }
 }
 
-export interface RunWorkflowOptions {
+interface RunWorkflowOptions {
   makeHooks: BuildContextOptions['makeHooks']
   workflowRunId?: string
   onProgress?: (frame: ProgressFrame) => void
@@ -501,7 +501,7 @@ export async function runWorkflowScript(
   }
 }
 
-export interface SubWorkflowDeps {
+interface SubWorkflowDeps {
   abortSignal?: AbortSignal
   budget: unknown
   timers: Pick<WorkflowTimers, 'setTimeout' | 'clearTimeout'>
@@ -523,7 +523,7 @@ export interface SubWorkflowDeps {
   }
 }
 
-export function makeSubWorkflowCallable(deps: SubWorkflowDeps) {
+function makeSubWorkflowCallable(deps: SubWorkflowDeps) {
   const runsByName = new Map<string, number>()
 
   const fn = async function workflow(

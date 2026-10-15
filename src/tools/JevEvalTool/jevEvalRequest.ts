@@ -11,7 +11,7 @@ import type { JevEvalInput, JevEvalQuestion } from './jevEvalSchema.js'
 
 export { expandJevEvalEvidence, type JevEvalItem, jevEvalRowLabel } from './jevEvalEvidence.js'
 
-export interface JevEvalEstimate {
+interface JevEvalEstimate {
   stateTokens: number
   questionTokens: Record<string, number>
   totalTokens: number
@@ -19,13 +19,13 @@ export interface JevEvalEstimate {
   longestTokens: number
 }
 
-export interface JevEvalItemRequest {
+interface JevEvalItemRequest {
   item: JevEvalItem
   request: Pick<JevRequest, 'state' | 'questions'>
   estimate: JevEvalEstimate
 }
 
-export type JevEvalAssembly =
+type JevEvalAssembly =
   | { ok: true; items: JevEvalItemRequest[]; questions: Record<string, JevQuestion>; order: string[]; sources: JevEvalSource[] }
   | { ok: false; reason: string }
 

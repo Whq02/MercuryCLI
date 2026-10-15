@@ -17,9 +17,9 @@ import { workflowOwnedAgentWords, workflowOwningAgent } from '../../tasks/LocalW
 
 export type MessageOutput = { success: boolean; message: string }
 export type CrewMessageInput = { to: string; message: string }
-export type CrewMessageVerb = 'deliver to' | 'resume'
+type CrewMessageVerb = 'deliver to' | 'resume'
 type WorkflowAddress = { runDir: string; runId: string; workflowName?: string }
-export type CrewAgentAddress = {
+type CrewAgentAddress = {
   kind: 'agent'
   agentId: string
   who: string
@@ -27,7 +27,7 @@ export type CrewAgentAddress = {
   transcriptPath: string | null
   workflow?: WorkflowAddress | { refusal: string }
 }
-export type CrewAddress = { kind: 'main' } | { kind: 'unknown' } | CrewAgentAddress
+type CrewAddress = { kind: 'main' } | { kind: 'unknown' } | CrewAgentAddress
 
 export async function validateCrewMessage(input: CrewMessageInput): Promise<ValidationResult> {
   if (input.to.trim() === '') return { result: false, message: 'Recipient ("to") must not be empty.', errorCode: 9 }

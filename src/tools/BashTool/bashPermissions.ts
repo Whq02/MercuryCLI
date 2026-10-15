@@ -249,7 +249,7 @@ function normalizedWords(command: string): string[][] {
   return parsed.commands.map(simple => peelWrappers(simple.argv)).filter((argv): argv is string[] => Array.isArray(argv))
 }
 
-export function isNormalizedGitCommand(command: string): boolean {
+function isNormalizedGitCommand(command: string): boolean {
   return normalizedWords(command).some(argv => argv[0] === 'git' || argv[0] === 'xargs' && argv.includes('git'))
 }
 

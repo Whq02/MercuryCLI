@@ -2,7 +2,7 @@
 import { EFFORT_LEVELS } from '../../utils/effortLadder.js'
 import { MODEL_LOOKUP_LADDER } from '../../utils/model/modelLookup.js'
 
-export const WORKFLOW_TOOL_PROMPT: string = `Run a JavaScript orchestration script that coordinates a fleet of crewmates with deterministic control flow. The launch detaches immediately: this tool answers with a task ID while the run continues in the background, a <task-notification> arrives at completion, and /workflows shows live progress.
+const WORKFLOW_TOOL_PROMPT: string = `Run a JavaScript orchestration script that coordinates a fleet of crewmates with deterministic control flow. The launch detaches immediately: this tool answers with a task ID while the run continues in the background, a <task-notification> arrives at completion, and /workflows shows live progress.
 
 Launching a workflow is the user's choice, never your own judgement that one would help: orchestration can fan out into dozens of billed crewmates, so the scale must be something the user chose. You have that choice only when one of these holds:
 - They asked for it in their own words ("run a workflow", "orchestrate this", "fan out crewmates", "use multi-agent"). The words must be theirs; the mere fact that crewmates would speed a task up does not qualify.

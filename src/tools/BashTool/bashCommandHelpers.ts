@@ -23,7 +23,7 @@ type SegmentPermissionFn<I> = (input: I) => Promise<PermissionResult>
 
 type CompoundReason = { kind: 'unparseable' } | { kind: 'comment' } | { kind: 'operator'; operator: string; target?: string }
 
-export function compoundOperatorAskMessage(reason: CompoundReason): string {
+function compoundOperatorAskMessage(reason: CompoundReason): string {
   if (reason.kind === 'unparseable') return 'This command could not be split into simple commands, so it needs approval.'
   if (reason.kind === 'comment') return 'This command uses shell operators that require approval.'
   if (reason.target !== undefined) {

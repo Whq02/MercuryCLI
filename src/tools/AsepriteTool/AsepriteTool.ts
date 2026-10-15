@@ -130,7 +130,7 @@ function asList(v: string | string[] | undefined): string[] {
   return Array.isArray(v) ? v : [v]
 }
 
-export function composeExportArgs(input: Input, fenced: { file: string; output: string; dataOutput?: string }): string[] {
+function composeExportArgs(input: Input, fenced: { file: string; output: string; dataOutput?: string }): string[] {
   const args: string[] = []
   if (input.allLayers) args.push('--all-layers')
   for (const l of asList(input.layer)) args.push('--layer', l)

@@ -13,7 +13,7 @@ import { cooccurBoostFor, recordToolDiscovery, toolSearchCooccurEnabled } from '
 import { getPrompt, isDeferredToolFor, TOOL_SEARCH_TOOL_NAME } from './prompt.js'
 
 
-export const inputSchema = z.object({
+const inputSchema = z.object({
   query: z
     .string()
     .describe(
@@ -24,7 +24,7 @@ export const inputSchema = z.object({
 
 type Input = z.infer<typeof inputSchema>
 
-export const outputSchema = z.object({
+const outputSchema = z.object({
   matches: z.array(z.string()),
   query: z.string(),
   total_deferred_tools: z.number(),
@@ -35,7 +35,7 @@ export const outputSchema = z.object({
   suggestions: z.array(z.string()).optional(),
 })
 
-export type Output = z.infer<typeof outputSchema>
+type Output = z.infer<typeof outputSchema>
 
 const STOP_WORDS = new Set([
   'a', 'an', 'the', 'and', 'or', 'to', 'of', 'for', 'in', 'on', 'with', 'my',

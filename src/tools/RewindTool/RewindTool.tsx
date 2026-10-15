@@ -22,7 +22,7 @@ const outputSchema = lazySchema(() =>
   }),
 )
 type OutputSchema = ReturnType<typeof outputSchema>
-export type Output = z.infer<OutputSchema>
+type Output = z.infer<OutputSchema>
 
 const emptyReport = (): Error => refusal('the report is empty — the report is the one artifact that survives the rewind; write the findings before rewinding.')
 

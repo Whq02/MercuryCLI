@@ -42,37 +42,37 @@ export interface JevEvalSource {
   idColumn?: string
 }
 
-export interface JevEvalWhere {
+interface JevEvalWhere {
   index: number
   name: string
   unit: string
 }
 
-export interface JevEvalRecord {
+interface JevEvalRecord {
   line: number
   facts: Record<string, string>
 }
 
-export interface JevEvalRow {
+interface JevEvalRow {
   id?: string
   state: Record<string, string>
   origin: string
 }
 
-export type JevEvalRowsResult = { ok: true; rows: JevEvalRow[]; idColumn?: string } | { ok: false; reason: string }
-export type JevEvalRecordsResult = { ok: true; records: JevEvalRecord[] } | { ok: false; reason: string }
-export type JevEvalTableResult = { ok: true; columns: string[]; rows: string[][]; lines: number[] } | { ok: false; reason: string }
-export type JevEvalExpansion = { ok: true; items: JevEvalItem[]; sources: JevEvalSource[] } | { ok: false; reason: string }
+type JevEvalRowsResult = { ok: true; rows: JevEvalRow[]; idColumn?: string } | { ok: false; reason: string }
+type JevEvalRecordsResult = { ok: true; records: JevEvalRecord[] } | { ok: false; reason: string }
+type JevEvalTableResult = { ok: true; columns: string[]; rows: string[][]; lines: number[] } | { ok: false; reason: string }
+type JevEvalExpansion = { ok: true; items: JevEvalItem[]; sources: JevEvalSource[] } | { ok: false; reason: string }
 
 export function jevEvalRowLabel(index: number): string {
   return `${JEV_EVAL_ROW_POSITION_PREFIX}${index + 1}`
 }
 
-export function jevEvalOrigin(where: JevEvalWhere, line?: number): string {
+function jevEvalOrigin(where: JevEvalWhere, line?: number): string {
   return line === undefined ? where.name : `${where.name} ${where.unit} ${line}`
 }
 
-export function jevEvalAt(where: JevEvalWhere, line?: number): string {
+function jevEvalAt(where: JevEvalWhere, line?: number): string {
   return `evidence[${where.index}] (${jevEvalOrigin(where, line)})`
 }
 
@@ -88,11 +88,11 @@ function lines(text: string): string[] {
   return text.split('\n').map(line => (line.endsWith('\r') ? line.slice(0, -1) : line))
 }
 
-export function jevEvalFormatOf(path: string, explicit?: JevEvalFormat): JevEvalFormat {
+function jevEvalFormatOf(path: string, explicit?: JevEvalFormat): JevEvalFormat {
   return explicit ?? JEV_EVAL_FORMAT_BY_EXTENSION[extname(path).toLowerCase()] ?? 'text'
 }
 
-export function jevEvalTsv(text: string, where: JevEvalWhere): JevEvalTableResult {
+function jevEvalTsv(text: string, where: JevEvalWhere): JevEvalTableResult {
   let columns: string[] | undefined
   const rows: string[][] = []
   const rowLines: number[] = []
@@ -109,7 +109,7 @@ export function jevEvalTsv(text: string, where: JevEvalWhere): JevEvalTableResul
   return { ok: true, columns, rows, lines: rowLines }
 }
 
-export function jevEvalCsv(text: string, where: JevEvalWhere): JevEvalTableResult {
+function jevEvalCsv(text: string, where: JevEvalWhere): JevEvalTableResult {
   const records: Array<{ line: number; cells: string[] }> = []
   let cells: string[] = []
   let cell = ''
@@ -182,7 +182,7 @@ function markdownCells(line: string): string[] {
   return body.split(/(?<!\\)\|/).map(cell => cell.trim().replace(/\\\|/g, '|'))
 }
 
-export function jevEvalMarkdown(text: string, where: JevEvalWhere): JevEvalTableResult {
+function jevEvalMarkdown(text: string, where: JevEvalWhere): JevEvalTableResult {
   const all = lines(text)
   for (let i = 0; i + 1 < all.length; i++) {
     const header = all[i]!
@@ -209,7 +209,7 @@ function kindOf(value: unknown): string {
   return `${typeof value === 'object' ? 'an' : 'a'} ${typeof value}`
 }
 
-export function jevEvalJsonl(text: string, where: JevEvalWhere): JevEvalRecordsResult {
+function jevEvalJsonl(text: string, where: JevEvalWhere): JevEvalRecordsResult {
   const records: JevEvalRecord[] = []
   const all = lines(text)
   for (let index = 0; index < all.length; index++) {
@@ -233,7 +233,7 @@ export function jevEvalJsonl(text: string, where: JevEvalWhere): JevEvalRecordsR
   return { ok: true, records }
 }
 
-export function jevEvalParagraphs(text: string): JevEvalRecord[] {
+function jevEvalParagraphs(text: string): JevEvalRecord[] {
   return text
     .replace(/\r\n/g, '\n')
     .split(/\n[ \t]*\n+/)
@@ -246,7 +246,7 @@ function validId(value: string): boolean {
   return value.length > 0 && value.length <= JEV_EVAL_MAX_ID_CHARS && JEV_EVAL_ID_PATTERN.test(value)
 }
 
-export function jevEvalRecordRows(records: readonly JevEvalRecord[], idColumn: string | undefined, where: JevEvalWhere, seen: Map<string, string>): JevEvalRowsResult {
+function jevEvalRecordRows(records: readonly JevEvalRecord[], idColumn: string | undefined, where: JevEvalWhere, seen: Map<string, string>): JevEvalRowsResult {
   const rows: JevEvalRow[] = []
   let usedIdColumn: string | undefined
   for (const record of records) {

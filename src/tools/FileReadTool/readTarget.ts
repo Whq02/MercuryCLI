@@ -10,9 +10,9 @@ export function readTargetsEnabled(): boolean {
   return !isEnvDefinedFalsy(flagEnv('MERCURY_READ_TARGETS'))
 }
 
-export type ReadTargetKind = 'file' | 'directory' | 'resource' | 'url'
+type ReadTargetKind = 'file' | 'directory' | 'resource' | 'url'
 
-export interface ReadTarget {
+interface ReadTarget {
   kind: ReadTargetKind
   raw: string
 }
@@ -32,7 +32,7 @@ export function isDirectoryTarget(fullPath: string): boolean {
   }
 }
 
-export interface RenderedTarget {
+interface RenderedTarget {
   content: string
   numLines: number
 }

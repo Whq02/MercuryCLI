@@ -7,7 +7,7 @@ import {
   type PermissionMode,
 } from '../../utils/permissions/PermissionMode.js'
 
-export interface AgentPromptPostureFacts {
+interface AgentPromptPostureFacts {
   isAsync: boolean
   canShowPermissionPrompts: boolean | undefined
   definitionMode: PermissionMode | undefined
@@ -16,7 +16,7 @@ export interface AgentPromptPostureFacts {
   parentHostHoldsAsks?: boolean | undefined
 }
 
-export interface AgentPromptPosture {
+interface AgentPromptPosture {
   avoidPrompts: boolean
   isNonInteractiveSession: boolean
   hostHoldsAsks: boolean | undefined
@@ -54,7 +54,7 @@ export function withAllowedCommandRules<
   }
 }
 
-export interface AgentAppStateFacts {
+interface AgentAppStateFacts {
   definitionMode: PermissionMode | undefined
   avoidPrompts: boolean
   isAsync: boolean

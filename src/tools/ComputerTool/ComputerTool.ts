@@ -67,7 +67,7 @@ import { renderToolResultMessage, renderToolUseErrorMessage, renderToolUseMessag
 
 export { COMPUTER_TOOL_NAME }
 
-export const ACTIONS = [
+const ACTIONS = [
   'screenshot',
   'click',
   'doubleClick',
@@ -83,9 +83,9 @@ export const ACTIONS = [
   'displays',
   'frontmost',
 ] as const
-export type ComputerAction = (typeof ACTIONS)[number]
+type ComputerAction = (typeof ACTIONS)[number]
 
-export const ACT_ACTIONS: ReadonlySet<string> = new Set([
+const ACT_ACTIONS: ReadonlySet<string> = new Set([
   'click',
   'doubleClick',
   'rightClick',
@@ -96,7 +96,7 @@ export const ACT_ACTIONS: ReadonlySet<string> = new Set([
   'key',
   'hold',
 ])
-export const POINT_ACTIONS: ReadonlySet<string> = new Set(['click', 'doubleClick', 'rightClick', 'move', 'drag', 'scroll'])
+const POINT_ACTIONS: ReadonlySet<string> = new Set(['click', 'doubleClick', 'rightClick', 'move', 'drag', 'scroll'])
 const READ_ACTIONS: ReadonlySet<string> = new Set(['screenshot', 'wait', 'cursor', 'displays', 'frontmost'])
 const FACT_ACTIONS: ReadonlySet<string> = new Set(['cursor', 'displays', 'frontmost'])
 
@@ -109,11 +109,11 @@ const MODIFIER_KEYS: Readonly<Record<ModelModifier, DesktopModifier>> = {
   Meta: 'super',
 }
 
-export const SETTLE_DEFAULT_MS = 300
-export const SETTLE_CAP_MS = 5_000
-export const WAIT_DEFAULT_MS = 1_000
-export const WAIT_CAP_MS = 10_000
-export const HOLD_MIN_MS = 50
+const SETTLE_DEFAULT_MS = 300
+const SETTLE_CAP_MS = 5_000
+const WAIT_DEFAULT_MS = 1_000
+const WAIT_CAP_MS = 10_000
+const HOLD_MIN_MS = 50
 export const HOLD_CAP_MS = 5_000
 export const TYPE_TEXT_CAP = 4_000
 
@@ -385,7 +385,7 @@ function modifierWords(modifiers: readonly ModelModifier[] | undefined): string 
   return modifiers && modifiers.length > 0 ? ` +${modifiers.join('+')}` : ''
 }
 
-export function actDetail(input: Input): string {
+function actDetail(input: Input): string {
   switch (input.action) {
     case 'click':
     case 'doubleClick':
@@ -638,12 +638,12 @@ function textOnlyRefusal(model: string, route: string | null): string {
   return `the Computer tool needs a model that receives images; ${model} ${where} receives text only in this release — switch to a model on a route that carries images (/model)`
 }
 
-export function imageRefusalText(model: string, route: string | null, error: string): string {
+function imageRefusalText(model: string, route: string | null, error: string): string {
   const where = route !== null ? providerDisplayName(route) : 'its'
   return `the model on the ${where} route refused the image: ${error} — ${model} cannot drive the screen until the route carries images; switch to a model that receives images (/model)`
 }
 
-export async function routeRefusal(model: string): Promise<string | null> {
+async function routeRefusal(model: string): Promise<string | null> {
   const verdict = classifyModelRoute(model)
   const route = verdict.kind === 'route' ? verdict.route : null
   if (!modelReceivesImageBlocks(model)) return textOnlyRefusal(model, route)

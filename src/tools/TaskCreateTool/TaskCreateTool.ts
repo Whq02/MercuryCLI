@@ -14,7 +14,7 @@ const inputSchema = lazySchema(() => z.strictObject({
 const outputSchema = lazySchema(() => z.object({ task: z.object({ id: z.string(), subject: z.string() }) }))
 type InputSchema = ReturnType<typeof inputSchema>
 type Input = z.infer<InputSchema>
-export type Output = z.infer<ReturnType<typeof outputSchema>>
+type Output = z.infer<ReturnType<typeof outputSchema>>
 
 const pendingTask = ({ subject, description, activeForm, metadata }: Input) => ({
   subject, description, activeForm, status: 'pending' as const,

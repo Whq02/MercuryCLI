@@ -127,7 +127,7 @@ export async function listWorkflows(cwd: string): Promise<WorkflowDescriptor[]> 
   return [...builtinFiltered, ...userProject]
 }
 
-export const getAllWorkflows = listWorkflows
+const getAllWorkflows = listWorkflows
 
 export async function resolveWorkflowName(
   name: string,
@@ -137,7 +137,7 @@ export async function resolveWorkflowName(
   return all.find(w => w.name === name)
 }
 
-export type SaveWorkflowResult =
+type SaveWorkflowResult =
   | { ok: true; savedPath: string; already?: boolean }
   | { ok: false; error: string }
 

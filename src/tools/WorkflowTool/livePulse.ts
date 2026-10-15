@@ -3,7 +3,7 @@ import type { WorkflowProgressEvent } from '../../tasks/LocalWorkflowTask/LocalW
 
 export const WORKFLOW_QUIET_MS = 120_000
 
-export type WorkflowPulse = {
+type WorkflowPulse = {
   phaseTitle?: string
   running: number
   settled: number
@@ -13,7 +13,7 @@ export type WorkflowPulse = {
   moving: boolean
 }
 
-export type WorkflowPulseFacts = Pick<
+type WorkflowPulseFacts = Pick<
   WorkflowPulse,
   'phaseTitle' | 'running' | 'settled' | 'maxAttempt' | 'lastEventAt'
 >
@@ -87,7 +87,7 @@ export function workflowPulseFacts(
 }
 
 
-export type AgentPulseInput = {
+type AgentPulseInput = {
   state: 'start' | 'progress' | 'done' | 'error' | 'stopped' | 'skipped'
   waiting?: 'prefill' | 'provider-backoff' | 'usage-window' | 'seat' | 'operator'
   waitWords?: string
@@ -100,7 +100,7 @@ export type AgentPulseInput = {
   lastToolSummary?: string
 }
 
-export type AgentPulse =
+type AgentPulse =
   | { kind: 'queued'; words?: string }
   | { kind: 'first-token'; words?: string }
   | { kind: 'seat'; words: string }

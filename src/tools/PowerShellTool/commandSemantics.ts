@@ -1,5 +1,5 @@
 
-export type CommandSemantic = (
+type CommandSemantic = (
   exitCode: number,
   stdout: string,
   stderr: string,

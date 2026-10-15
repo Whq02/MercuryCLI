@@ -119,6 +119,6 @@ export function renderToolUseRejectedMessage(): React.ReactNode {
   return <Text dimColor>Build not started — the user held the review.</Text>
 }
 
-export function renderToolUseMessage(): React.ReactNode {
+function renderToolUseMessage(): React.ReactNode {
   return null
 }

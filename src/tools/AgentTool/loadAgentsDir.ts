@@ -47,7 +47,7 @@ export type AgentSource =
   | 'policySettings'
   | 'flagSettings'
 
-export type BaseAgentDefinition = {
+type BaseAgentDefinition = {
   agentType: string
   whenToUse: string
   tools?: string[]
@@ -115,13 +115,13 @@ export function isBuiltInAgent(
   return def.source === 'built-in'
 }
 
-export function isExtensionAgent(
+function isExtensionAgent(
   def: AgentDefinition,
 ): def is ExtensionAgentDefinition {
   return def.source === 'extension'
 }
 
-export function isCustomAgent(
+function isCustomAgent(
   def: AgentDefinition,
 ): def is CustomAgentDefinition {
   return !isBuiltInAgent(def) && !isExtensionAgent(def)
@@ -146,7 +146,7 @@ const EMISSION_ASCENDING: readonly AgentSource[] = [
   'policySettings',
 ]
 
-export function getActiveAgentsFromList(
+function getActiveAgentsFromList(
   allAgents: readonly AgentDefinition[],
 ): AgentDefinition[] {
   const winners = new Map<string, AgentDefinition>()
@@ -332,9 +332,9 @@ function rebuildRawDocument(
   return `---\n${lines.join('\n')}\n---\n${content}`
 }
 
-export const STANDING_RULE_KEY = 'standingRule'
+const STANDING_RULE_KEY = 'standingRule'
 
-export function readStandingRule(record: Record<string, unknown>): string | undefined {
+function readStandingRule(record: Record<string, unknown>): string | undefined {
   const current = record[STANDING_RULE_KEY]
   if (typeof current === 'string' && current.trim()) return current
   return undefined

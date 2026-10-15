@@ -54,7 +54,7 @@ const outputSchema = lazySchema(() =>
 )
 type OutputSchema = ReturnType<typeof outputSchema>
 export type CreateOutput = z.infer<OutputSchema>
-export const CRON_CREATE_ANSWER_DEADLINE_MS = 10_000
+const CRON_CREATE_ANSWER_DEADLINE_MS = 10_000
 
 function refuse(message: string, errorCode = 1): ValidationResult {
   return { result: false, message, errorCode }

@@ -28,7 +28,7 @@ import {
   renderToolUseMessage,
 } from './UI.js'
 
-export const SERVICE_TOOL_NAME = 'Service' as const
+const SERVICE_TOOL_NAME = 'Service' as const
 
 const OPS = ['start', 'list', 'describe', 'wait', 'logs', 'input', 'stop', 'restart'] as const
 

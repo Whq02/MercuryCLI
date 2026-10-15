@@ -50,7 +50,7 @@ import { postureBypassesAsks } from '../../utils/permissions/decision/engine.js'
 import { MAX_LINES_TO_READ } from '../FileReadTool/prompt.js'
 
 
-export type MercuryLspOperation =
+type MercuryLspOperation =
   | 'diagnostics'
   | 'rename'
   | 'codeActions'
@@ -87,7 +87,7 @@ export type MercuryLspOpInput = {
   targetPath?: string
 }
 
-export type MercuryOpEffect = {
+type MercuryOpEffect = {
   outcome: 'succeeded' | 'failed' | 'no-change' | 'indeterminate'
   changedPaths: string[]
   evidence: string
@@ -146,7 +146,7 @@ const STABILIZE_QUIET_WINDOW_MS = 300
 const IGNORED_WALK_DIRS = new Set(['node_modules', '.git', 'dist', '.build-tree'])
 
 
-export function displayPathFor(cwd: string, fileOrUri: string): string {
+function displayPathFor(cwd: string, fileOrUri: string): string {
   const path = fileOrUri.startsWith('file://')
     ? fileURLToPath(fileOrUri)
     : fileOrUri
@@ -269,9 +269,9 @@ export function clearDiagnosticsBaselines(): void {
   diagnosticsBaselines.clear()
 }
 
-export type ClaimantFailure = { server: LSPServerInstance; stage: 'start' | 'pull'; cause: string; startFailure?: LspStartFailure }
+type ClaimantFailure = { server: LSPServerInstance; stage: 'start' | 'pull'; cause: string; startFailure?: LspStartFailure }
 
-export type PullDiagnosticsOutcome =
+type PullDiagnosticsOutcome =
   | {
       kind: 'fresh'
       items: LspWireDiagnostic[]
@@ -519,7 +519,7 @@ export async function syncServersAfterWrite(
 }
 
 
-export type DiagnosticStabilization =
+type DiagnosticStabilization =
   | { state: 'fresh'; errors: number; warnings: number; total: number }
   | { state: 'unchanged'; errors: number; warnings: number; total: number }
   | { state: 'unsupported' }
@@ -607,7 +607,7 @@ export async function awaitDiagnosticStabilization(
 }
 
 
-export type LspServerStatusRow = {
+type LspServerStatusRow = {
   name: string
   state: string
   generation: number

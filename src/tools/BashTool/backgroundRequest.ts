@@ -1,4 +1,4 @@
-export type ShellRunV1 = {
+type ShellRunV1 = {
   agentId: string | undefined
   request: () => void
 }

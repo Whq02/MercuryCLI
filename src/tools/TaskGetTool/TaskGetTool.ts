@@ -11,7 +11,7 @@ const outputSchema = lazySchema(() => z.object({ task: z.object({
   blocks: z.array(z.string()), blockedBy: z.array(z.string()),
 }).nullable() }))
 type InputSchema = ReturnType<typeof inputSchema>
-export type Output = z.infer<ReturnType<typeof outputSchema>>
+type Output = z.infer<ReturnType<typeof outputSchema>>
 
 async function readTask({ taskId }: z.infer<InputSchema>): Promise<{ data: Output }> {
   const found = await getTask(getTaskListId(), taskId)

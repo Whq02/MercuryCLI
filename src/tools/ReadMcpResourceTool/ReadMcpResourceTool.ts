@@ -10,7 +10,7 @@ import { DESCRIPTION, PROMPT, READ_MCP_RESOURCE_TOOL_NAME } from './prompt.js'
 import { renderToolResultMessage, renderToolUseMessage, userFacingName } from './UI.js'
 
 
-export const inputSchema = lazySchema(() =>
+const inputSchema = lazySchema(() =>
   z.strictObject({
     server: z.string().describe('The name of the MCP server to read the resource from'),
     uri: z.string().describe('The URI of the resource to read'),
@@ -19,7 +19,7 @@ export const inputSchema = lazySchema(() =>
 type InputSchema = ReturnType<typeof inputSchema>
 type Input = z.infer<InputSchema>
 
-export const outputSchema = lazySchema(() =>
+const outputSchema = lazySchema(() =>
   z.object({
     contents: z
       .array(

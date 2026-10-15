@@ -16,7 +16,7 @@ import {
 } from './constants.js'
 import { jevEvalFileOf, jevEvalTableOf, jevEvalTableRows } from './jevEvalEvidence.js'
 
-export const JEV_EVAL_KINDS = ['noul', 'choice', 'score'] as const
+const JEV_EVAL_KINDS = ['noul', 'choice', 'score'] as const
 export type JevEvalKind = (typeof JEV_EVAL_KINDS)[number]
 export type JevEvalFormat = (typeof JEV_EVAL_FORMATS)[number]
 

@@ -41,7 +41,7 @@ const hunkEntrySchema = () =>
       .describe('Insert relative to the single anchor line instead of replacing it'),
   })
 
-export const EDIT_SHAPES_DESCRIPTION =
+const EDIT_SHAPES_DESCRIPTION =
   'One of four shapes: old_string + new_string (replace the text; both required together, replace_all rewrites every occurrence) · hunks (line-addressed hunks against the anchored snapshot) · append (text at the end of the file, or at the end of section) · section + new_string (replace the Markdown section named by section)'
 
 const widestSchemaFactory = () =>

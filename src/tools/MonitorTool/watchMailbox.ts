@@ -6,7 +6,7 @@ export const HELD_LINES_CAP = 400
 
 export type WatchWall = { closed: boolean; reopensAtMs?: number }
 
-export type WatchMailboxDeps = {
+type WatchMailboxDeps = {
   now: () => number
   wall: () => WatchWall
   deliver: (text: string) => void
@@ -14,7 +14,7 @@ export type WatchMailboxDeps = {
   clearTimer: (handle: unknown) => void
 }
 
-export type WatchMailbox = {
+type WatchMailbox = {
   push: (text: string) => void
   heldCount: () => number
   dispose: () => void
@@ -24,14 +24,14 @@ export function heldHeader(count: number): string {
   return `[${count} line${count === 1 ? '' : 's'} arrived while the usage window was closed and waited for this turn]`
 }
 
-export function listLines(lines: readonly string[], dropped: number): string {
+function listLines(lines: readonly string[], dropped: number): string {
   const listed = lines.slice(0, LISTED_LINES_CAP)
   const rest = lines.length - listed.length + dropped
   if (rest <= 0) return listed.join('\n')
   return `${listed.join('\n')}\n[+${rest} more line${rest === 1 ? '' : 's'} from this watch not listed]`
 }
 
-export function linesOf(text: string): string[] {
+function linesOf(text: string): string[] {
   return text.split(/\r?\n/).filter(line => line !== '')
 }
 

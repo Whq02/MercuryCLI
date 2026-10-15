@@ -35,9 +35,9 @@ function stripTrailingWhitespace(s: string): string {
 
 export const FORGIVENESS_CONTENT_DRIFT_LIMIT = 0
 
-export type ForgivingRoad = 'exact' | 'quotes' | 'characters' | 'whitespace' | 'indentation'
+type ForgivingRoad = 'exact' | 'quotes' | 'characters' | 'whitespace' | 'indentation'
 
-export type ActualMatch = {
+type ActualMatch = {
   kind: 'found'
   actual: string
   index: number
@@ -47,7 +47,7 @@ export type ActualMatch = {
   feedback: string | null
 }
 
-export type MatchLines = { start: number; end: number }
+type MatchLines = { start: number; end: number }
 
 export type ActualMatchOutcome =
   | ActualMatch
@@ -184,7 +184,7 @@ export function findActualString(fileContent: string, searchString: string): str
   return outcome.kind === 'found' ? outcome.actual : null
 }
 
-export function matchRoad(oldString: string, actualOldString: string): ForgivingRoad | null {
+function matchRoad(oldString: string, actualOldString: string): ForgivingRoad | null {
   if (actualOldString === oldString) return 'exact'
   if (normalizeQuotes(actualOldString) === normalizeQuotes(oldString)) return 'quotes'
   if (plainTypography(actualOldString) === plainTypography(oldString)) return 'characters'
@@ -212,7 +212,7 @@ function reindentLine(line: string, indents: Map<string, string>): string {
   return (indents.get(best) as string) + typed.slice(best.length) + rest
 }
 
-export function respellWhitespace(oldString: string, actualOldString: string, newString: string): string {
+function respellWhitespace(oldString: string, actualOldString: string, newString: string): string {
   if (newString === '') return newString
   const oldLines = oldString.split('\n')
   const actualLines = actualOldString.split('\n')

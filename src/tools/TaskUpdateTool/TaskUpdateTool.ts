@@ -49,7 +49,7 @@ const outputSchema = z.object({
   verificationNudgeNeeded: z.boolean().optional(),
 })
 
-export type Output = z.infer<typeof outputSchema>
+type Output = z.infer<typeof outputSchema>
 
 function failure(taskId: string, error: string, updatedFields: string[] = []): Output {
   return { success: false, taskId, updatedFields, error }

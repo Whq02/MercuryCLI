@@ -10,7 +10,7 @@ import { SKILL_TOOL_NAME } from './constants.js'
 
 
 const SKILL_BUDGET_CONTEXT_PERCENT = 0.01
-export const CHARS_PER_TOKEN = 4
+const CHARS_PER_TOKEN = 4
 const DEFAULT_CHAR_BUDGET = 8_000
 const MAX_LISTING_DESC_CHARS = 250
 
@@ -42,7 +42,7 @@ function isBundled(command: ListingCommand): boolean {
   return command.loadedFrom === 'bundled'
 }
 
-export type SkillListingTruncation = {
+type SkillListingTruncation = {
   budgetChars: number
   nameOnly: number
   withheld: number

@@ -8,9 +8,9 @@ import { RESUME_AGENT_TOOL_NAME } from '../ResumeAgentTool/constants.js'
 import { SKILL_TOOL_NAME } from '../SkillTool/constants.js'
 import { AGENT_TOOL_NAME, MERCURY_SCOUT_AGENT_TYPE } from './constants.js'
 
-export const SCOUT_SHELL_REFUSAL_TAIL = 'Read-only commands do run here, with pipes, 2>&1 and input redirects (< file) — for example wc, grep, head, tail and sort — and Read, Grep and Glob read files.'
+const SCOUT_SHELL_REFUSAL_TAIL = 'Read-only commands do run here, with pipes, 2>&1 and input redirects (< file) — for example wc, grep, head, tail and sort — and Read, Grep and Glob read files.'
 
-export function scoutShellRefusal(reason: NotReadOnly): string {
+function scoutShellRefusal(reason: NotReadOnly): string {
   const stem = `${MERCURY_SCOUT_AGENT_TYPE} is read-only:`
   const sentence = (): string => {
     switch (reason.kind) {
@@ -37,7 +37,7 @@ export const SCOUT_TOOLS_DESCRIPTION = 'read-only — Read, Glob, Grep, a read-o
 
 const SCOUT_DENIED_TOOLS: ReadonlySet<string> = new Set([AGENT_TOOL_NAME, SEND_MESSAGE_TOOL_NAME, RESUME_AGENT_TOOL_NAME, ENTER_WORKTREE_TOOL_NAME, EXIT_WORKTREE_TOOL_NAME])
 
-export function scoutToolRefusal(toolName: string): string {
+function scoutToolRefusal(toolName: string): string {
   return `${MERCURY_SCOUT_AGENT_TYPE} is read-only: ${toolName} would write or change state here, so the call is refused.`
 }
 
@@ -73,7 +73,7 @@ export async function scoutRefusal(tool: Tool, input: Record<string, unknown>): 
   return readsOnly(tool, input) ? null : scoutToolRefusal(tool.name)
 }
 
-export function scoutOffersTool(tool: Tool): boolean {
+function scoutOffersTool(tool: Tool): boolean {
   if (SCOUT_DENIED_TOOLS.has(tool.name)) return false
   if (tool.name === BASH_TOOL_NAME || tool.name === SKILL_TOOL_NAME) return true
   return readsOnly(tool, {})

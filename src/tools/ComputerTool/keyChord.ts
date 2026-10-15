@@ -5,7 +5,7 @@ export interface KeyChord {
   modifiers: DesktopModifier[]
 }
 
-export interface KeyChordRefusal {
+interface KeyChordRefusal {
   refused: true
   reason: string
 }
@@ -119,7 +119,7 @@ export function parseKeyChord(text: string): KeyChord | KeyChordRefusal {
   return { key, modifiers }
 }
 
-export function sameKeyChord(a: KeyChord, b: KeyChord): boolean {
+function sameKeyChord(a: KeyChord, b: KeyChord): boolean {
   if (a.key !== b.key || a.modifiers.length !== b.modifiers.length) return false
   return a.modifiers.every(modifier => b.modifiers.includes(modifier))
 }
