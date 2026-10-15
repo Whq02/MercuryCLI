@@ -242,8 +242,8 @@ with the retention limit described above.
   act and names the grant. Recent macOS versions ask now and then whether
   the terminal application may keep recording the screen; allow it and the
   captures continue.
-- **Windows**: an interactive desktop session (an active desktop session;
-  background services and disconnected remote sessions are refused). No grant dialog
+- **Windows**: an interactive desktop session (a locked desktop, a background
+  service, and a disconnected remote session are refused). No grant dialog
   exists. Windows drops input into a window that runs elevated when Mercury
   does not; run Mercury elevated if you need to drive such a window.
 - **Linux**: an X11 session with `DISPLAY` set. The XTEST and RandR

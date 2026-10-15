@@ -135,7 +135,7 @@ relying on these boundaries.
 
 | Key | What it sets |
 | --- | --- |
-| `briefs.profile` | `auto` loads a project's `AGENTS.md` when its instruction chain has no `MERCURY.md`; `native` loads Mercury instruction files only. A `MERCURY.local.md` is a personal layer loaded after the project guide. |
+| `briefs.profile` | `auto` loads a project's `AGENTS.md` when its instruction chain has no `MERCURY.md`; `native` loads Mercury instruction files only. A `MERCURY.local.md` is a personal layer; it does not stop `auto` loading `AGENTS.md`. |
 | `briefs.exclude` | Instruction-file glob patterns or absolute paths to skip; managed instructions cannot be excluded. |
 | `briefs.git` | Whether the model receives Mercury's git instructions. |
 | `files.honourGitignore` | Whether file suggestions respect `.gitignore`. |
