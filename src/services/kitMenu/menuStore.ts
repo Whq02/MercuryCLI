@@ -9,7 +9,7 @@ import { kitStateKey, type KitRow, type KitRowState, type KitStates } from './ki
 
 export type KitDeltasShape = KitDeltasV1
 
-export type KitWriteReceipt = { ok: true; receipt: string } | { ok: false; reason: string }
+type KitWriteReceipt = { ok: true; receipt: string } | { ok: false; reason: string }
 
 export interface KitMenuStore {
   read(workspaceDir: string): KitStates
@@ -38,7 +38,7 @@ export function deltasFromStates(states: KitStates): KitDeltasShape {
   return out
 }
 
-export function rowLabelOf(row: KitRow): string {
+function rowLabelOf(row: KitRow): string {
   switch (row.kind) {
     case 'mcp':
     case 'skill':
@@ -55,7 +55,7 @@ export function receiptFor(row: KitRow, next: KitRowState, changed: boolean): st
   return changed ? `${rowLabelOf(row)} → ${next}` : `${rowLabelOf(row)} already ${next}`
 }
 
-export function standingStateOf(states: KitStates, row: KitRow): KitRowState {
+function standingStateOf(states: KitStates, row: KitRow): KitRowState {
   const key = kitStateKey(row)
   return key === null ? 'on' : (states.get(key) ?? 'on')
 }

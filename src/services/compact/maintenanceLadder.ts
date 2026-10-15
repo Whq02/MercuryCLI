@@ -8,20 +8,20 @@ import { compactConversation, type CompactionResult, type RecompactionInfo } fro
 import { projectTimeBasedMicrocompact } from './microCompact.js'
 import { trySessionMemoryCompaction } from './sessionMemoryCompact.js'
 
-export type MaintenanceMethod = 'digest' | 'notes' | 'handoff' | 'summary'
+type MaintenanceMethod = 'digest' | 'notes' | 'handoff' | 'summary'
 
-export const DEFAULT_LADDER_ORDER: readonly MaintenanceMethod[] = [
+const DEFAULT_LADDER_ORDER: readonly MaintenanceMethod[] = [
   'digest',
   'notes',
   'handoff',
   'summary',
 ]
 
-export type RungVerdict =
+type RungVerdict =
   | { method: MaintenanceMethod; outcome: 'applied' }
   | { method: MaintenanceMethod; outcome: 'advanced'; reason: string }
 
-export type LadderOutcome =
+type LadderOutcome =
   | { outcome: 'applied'; method: MaintenanceMethod; result: CompactionResult; steps: RungVerdict[] }
   | { outcome: 'exhausted'; steps: RungVerdict[] }
 
@@ -35,7 +35,7 @@ export interface LadderInput {
   recoveryBandTokens?: number
 }
 
-export interface LadderRunners {
+interface LadderRunners {
   digestProjection?: typeof projectTimeBasedMicrocompact
   notes?: typeof trySessionMemoryCompaction
   handoff?: (input: LadderInput) => Promise<CompactionResult | null>

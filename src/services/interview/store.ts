@@ -94,7 +94,7 @@ let liveState: InterviewSessionState = emptyInterviewState()
 const listeners = new Set<() => void>()
 
 
-export interface InterviewSettlement {
+interface InterviewSettlement {
   sessionId: InterviewSessionId
   generation: number
   state: 'settled' | 'degraded'
@@ -102,7 +102,7 @@ export interface InterviewSettlement {
   atMs: number
 }
 
-export interface InterviewFlushReceipt {
+interface InterviewFlushReceipt {
   drained: number
   settlements: InterviewSettlement[]
   allSettled: boolean

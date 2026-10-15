@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { voiceCheckoutRoot, voicePackPlatform, voicePackTreeDigest, voiceSourceTreeDigest } from './voicePack.js'
 
-export const WHISPER_PACK_SEGMENTS = ['vendor', 'whisper'] as const
+const WHISPER_PACK_SEGMENTS = ['vendor', 'whisper'] as const
 export const WHISPER_PACK_PATH = 'vendor/whisper'
 export const WHISPER_ADDON_FILE = 'mercury_whisper.node'
 export const WHISPER_PACK_MANIFEST_FILE = '.vendor-manifest.json'
@@ -20,7 +20,7 @@ export function whisperPackDirFor(root: string, platform: string = voicePackPlat
   return path.join(root, ...WHISPER_PACK_SEGMENTS, platform)
 }
 
-export const WHISPER_CPU_FLOOR_X64 = ['avx2', 'fma', 'f16c'] as const
+const WHISPER_CPU_FLOOR_X64 = ['avx2', 'fma', 'f16c'] as const
 
 export function whisperCpuFloorWords(arch: string = process.arch): string {
   if (arch === 'x64') return 'x86-64 with AVX2, FMA and F16C'
@@ -120,7 +120,7 @@ export function readWhisperPackManifest(dir: string): WhisperPackManifest | null
   }
 }
 
-export type WhisperPackCheck =
+type WhisperPackCheck =
   | { state: 'ok'; addonPath: string; manifest: WhisperPackManifest }
   | { state: 'absent'; note: string }
   | { state: 'mismatch'; note: string }
@@ -145,7 +145,7 @@ export function checkWhisperPackDir(dir: string, opts: { digest?: boolean; platf
   return { state: 'ok', addonPath, manifest }
 }
 
-export type WhisperPackResolution =
+type WhisperPackResolution =
   | { state: 'ok'; dir: string; addonPath: string; manifest: WhisperPackManifest; source: 'override' | 'vendored' | 'workspace' }
   | { state: 'unavailable'; note: string }
 
@@ -188,9 +188,9 @@ export function resolveWhisperPackDir(): WhisperPackResolution {
 }
 
 
-export type CpuFloorRoad = 'architecture' | 'flags' | 'helper'
+type CpuFloorRoad = 'architecture' | 'flags' | 'helper'
 
-export type CpuFloorProbe =
+type CpuFloorProbe =
   | { state: 'met'; via: CpuFloorRoad }
   | { state: 'unmet'; via: CpuFloorRoad; missing: string[]; faulted?: boolean }
   | { state: 'unknown'; via: CpuFloorRoad; note: string }
@@ -233,7 +233,7 @@ const FLOOR_ERROR_MARK = 'MERCURY_WHISPER_FLOOR_ERROR '
 const ILLEGAL_INSTRUCTION_STATUS = 0xc000001d
 export const CPU_FLOOR_HELPER_TIMEOUT_MS = 10_000
 
-export interface CpuFloorHelperOptions {
+interface CpuFloorHelperOptions {
   exe?: string
   timeoutMs?: number
 }
@@ -318,13 +318,13 @@ export function seedCpuFloorProbeForTest(probe: CpuFloorProbe | null): void {
 }
 
 
-export interface WhisperTranscribeOptions {
+interface WhisperTranscribeOptions {
   language?: string
   threads?: number
   prompt?: string
 }
 
-export interface WhisperTranscriptAnswer {
+interface WhisperTranscriptAnswer {
   text: string
   ms: number
   language: string
@@ -344,7 +344,7 @@ export interface WhisperAddon {
 
 export const WHISPER_ADDON_EXPORTS = ['packVersion', 'engineVersion', 'systemInfo', 'cpuFloor', 'loadModel', 'modelInfo', 'transcribe', 'unloadModel'] as const
 
-export type WhisperAddonLoad =
+type WhisperAddonLoad =
   | { state: 'ok'; addon: WhisperAddon; dir: string; manifest: WhisperPackManifest; source: 'override' | 'vendored' | 'workspace' }
   | { state: 'unavailable'; note: string }
 

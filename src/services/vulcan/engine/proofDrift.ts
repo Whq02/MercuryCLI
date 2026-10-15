@@ -20,7 +20,7 @@ export interface ProofDriftRow {
   runId?: string
 }
 
-export interface LogicalAssertion {
+interface LogicalAssertion {
   line: number
   text: string
   tokens: string[]
@@ -77,7 +77,7 @@ function tokensOf(text: string, gd: boolean): Token[] {
   return out
 }
 
-export function logicalAssertions(text: string, file = 'test.gd'): LogicalAssertion[] {
+function logicalAssertions(text: string, file = 'test.gd'): LogicalAssertion[] {
   const tokens = tokensOf(text, file.toLowerCase().endsWith('.gd'))
   const out: LogicalAssertion[] = []
   for (let i = 0; i < tokens.length; i++) {
@@ -104,7 +104,7 @@ export function logicalAssertions(text: string, file = 'test.gd'): LogicalAssert
   return out
 }
 
-export function isProofTestFile(file: string): boolean {
+function isProofTestFile(file: string): boolean {
   const lower = file.replace(/\\/g, '/').toLowerCase()
   if (!/\.(?:gd|[cm]?[jt]sx?)$/.test(lower)) return false
   return /(?:^|\/)(?:__tests__|tests?|checks?|suites?|proofs?)(?:\/|[._-])/.test(lower) || /(?:^|\/)(?:test|check|suite|proof|prove)[._-]/.test(lower) || /[._-](?:tests?|checks?|spec|suite|proof)\.(?:gd|[cm]?[jt]sx?)$/.test(lower)

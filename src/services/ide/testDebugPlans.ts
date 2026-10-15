@@ -8,9 +8,9 @@ import { lldbDapInstallHint, probeGdbDap, resolveLldbDap } from '../dap/dapClien
 import { latestRun } from './pythonTests.js'
 import { discoverRunnerProfiles, findRunnerRoot, resolveRunnerBinary } from './projectRunners.js'
 
-export type DebugPlanRefusal = { state: 'unavailable'; reason: string; remedy: string }
+type DebugPlanRefusal = { state: 'unavailable'; reason: string; remedy: string }
 
-export interface CargoTestDebugPlan {
+interface CargoTestDebugPlan {
   framework: 'cargo'
   adapterKey: 'lldb' | 'gdb'
   program: string
@@ -51,7 +51,7 @@ function rustSourceFiles(dir: string, depth: number, out: string[]): void {
   }
 }
 
-export function locateRustTest(root: string, testPath: string): Array<{ file: string; line: number }> {
+function locateRustTest(root: string, testPath: string): Array<{ file: string; line: number }> {
   const fnName = testPath.split('::').pop() ?? testPath
   const decl = new RegExp(`^\\s*(?:pub(?:\\([^)]*\\))?\\s+)?(?:async\\s+)?fn ${escapeRegExp(fnName)}\\s*[(<]`)
   const files: string[] = []
@@ -143,7 +143,7 @@ export async function buildCargoTestDebugPlan(nodeId: string, opts?: { from?: st
 
 export const DLV_INSTALL_REMEDY = 'install delve: go install github.com/go-delve/delve/cmd/dlv@latest'
 
-export interface GoTestDebugPlan {
+interface GoTestDebugPlan {
   framework: 'go'
   program: string
   args: string[]
@@ -171,7 +171,7 @@ function goTestFiles(dir: string, depth: number, out: string[]): void {
   }
 }
 
-export function locateGoTest(root: string, dir: string | null, topLevel: string): Array<{ file: string; line: number }> {
+function locateGoTest(root: string, dir: string | null, topLevel: string): Array<{ file: string; line: number }> {
   const files: string[] = []
   goTestFiles(dir === null ? root : path.resolve(root, dir), dir === null ? 4 : 0, files)
   const decl = new RegExp(`^func ${escapeRegExp(topLevel)}\\s*\\(`)
@@ -233,12 +233,12 @@ export function buildGoTestDebugPlan(nodeId: string, opts?: { from?: string }): 
   }
 }
 
-export interface TestStop {
+interface TestStop {
   file: string
   line: number
 }
 
-export interface NodeRunnerDebugShim {
+interface NodeRunnerDebugShim {
   framework: 'vitest' | 'jest'
   program: string
   args: string[]
@@ -270,7 +270,7 @@ function bodyLine(lines: string[], index: number): number {
   return index + 1
 }
 
-export function locateJsTest(file: string, fullName: string): number | null {
+function locateJsTest(file: string, fullName: string): number | null {
   let text: string
   try {
     text = readFileSync(file, 'utf8')

@@ -78,7 +78,7 @@ type SwitchClasses = {
   removedTools: string[]
 }
 
-export type PromptCacheBreakReceipt = {
+type PromptCacheBreakReceipt = {
   at: number
   lane: CacheLane | 'anthropic'
   querySource: string

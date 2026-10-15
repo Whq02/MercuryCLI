@@ -14,7 +14,7 @@ import {
 } from './executionPlane.js'
 import type { OwnerKey } from '../run/ownerKey.js'
 
-export interface ExternalProjectionSpec {
+interface ExternalProjectionSpec {
   id: string
   kind: ExecutionSpec['kind']
   label: string

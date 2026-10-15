@@ -11,7 +11,7 @@ export function encodePattern(pattern: string): string {
     .replace(/(?<!\$)\$([A-Z_][A-Z0-9_]*)/g, (_m, name: string) => `__MV_${name === '_' ? 'ANON' : name}__`)
 }
 
-export interface MetavarInfo {
+interface MetavarInfo {
   kind: 'single' | 'multi'
   name: string | null
 }
@@ -35,7 +35,7 @@ export interface CompiledPattern {
   captureNames: string[]
 }
 
-export const PATTERN_CONTEXTS: Record<string, string[]> = {
+const PATTERN_CONTEXTS: Record<string, string[]> = {
   python: [],
   go: ['package mercury_ctx\n\nfunc mercuryCtx() {\n<P>\n}'],
   rust: ['fn mercury_ctx() {\n<P>\n}'],
@@ -61,7 +61,7 @@ function quotePlaceholders(encoded: string): string {
   return encoded.replace(/__MVM?_[A-Za-z0-9_]*?__/g, m => `"${m}"`)
 }
 
-export interface PatternCandidate {
+interface PatternCandidate {
   text: string
   offset: number
   length: number
@@ -220,7 +220,7 @@ function spanText(codes: TSNode[], start: number, count: number): string | null 
   return nodes.map(n => n.text).join(nodes.length > 1 ? ', ' : '')
 }
 
-export interface PatternMatch {
+interface PatternMatch {
   node: TSNode
   captures: CaptureSpan[]
 }
@@ -254,7 +254,7 @@ export function findPatternMatches(
 }
 
 
-export interface RewriteRefusal {
+interface RewriteRefusal {
   refuse: string
 }
 

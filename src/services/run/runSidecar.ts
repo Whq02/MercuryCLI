@@ -28,7 +28,7 @@ const writeSeqByOwner = new Map<string, number>()
 
 const writeChainByOwner = new Map<string, Promise<void>>()
 
-export interface SidecarWriter {
+interface SidecarWriter {
   epoch: number
   writerId: string
 }

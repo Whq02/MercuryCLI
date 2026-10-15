@@ -10,7 +10,7 @@ import { awaitLine, realNdjsonChild, type NdjsonChildLike, type SpawnImpl } from
 
 const HANDSHAKE_TIMEOUT_MS = 20_000
 
-export function codexDeclaredCapabilities(): Partial<
+function codexDeclaredCapabilities(): Partial<
   Record<CapabilityKind, { state: CapabilityState; source: string }>
 > {
   return {

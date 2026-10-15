@@ -4,14 +4,14 @@ import { registerOwnerScopedStore } from './ownerLifecycle.js'
 import { OwnerScopedStore } from './ownerScopedStore.js'
 import { getRunSnapshot, noteRunEvent } from './runCoordinator.js'
 
-export type ContextTransitionKind =
+type ContextTransitionKind =
   | 'auto-compact'
   | 'manual-compact'
   | 'micro-compact'
   | 'clear'
   | 'resume'
 
-export interface ContextTransition {
+interface ContextTransition {
   kind: ContextTransitionKind
   reason: string
   at: number
@@ -20,7 +20,7 @@ export interface ContextTransition {
   preservedTailCount: number | null
 }
 
-export interface ContextEpochState {
+interface ContextEpochState {
   epoch: number
   lastAppliedPlanDigest: string | null
   lastAppliedPlanAt: number | null

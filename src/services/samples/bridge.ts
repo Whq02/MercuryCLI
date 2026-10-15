@@ -2,7 +2,7 @@ import { parseOwnerKey, type OwnerKey } from '../run/ownerKey.js'
 import { SAMPLE_HTML_CAP_BYTES, samplesEnabled, type SampleItem } from './contracts.js'
 import { createOrAppendSample, sampleUrl, writeFallbackPage } from './store.js'
 
-export interface SampleSpec {
+interface SampleSpec {
   name: string
   title?: string
   html: string

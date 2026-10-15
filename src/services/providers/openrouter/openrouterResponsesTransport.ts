@@ -32,7 +32,7 @@ import {
   type CompatTool,
 } from '../openaicompat/compatChatClient.js'
 
-export const OPENROUTER_TOOL_SEARCH_TYPE = 'openrouter:tool_search'
+const OPENROUTER_TOOL_SEARCH_TYPE = 'openrouter:tool_search'
 
 const TOTAL_TIMEOUT_MS = 50 * 60_000
 
@@ -42,7 +42,7 @@ function asRecord(v: unknown): Record_ | undefined {
   return typeof v === 'object' && v !== null ? (v as Record_) : undefined
 }
 
-export function openrouterResponsesUrl(chatUrl: string): string {
+function openrouterResponsesUrl(chatUrl: string): string {
   return chatUrl.replace(/\/chat\/completions\/?$/, '/responses')
 }
 
@@ -103,7 +103,7 @@ export function openrouterResponsesInput(messages: readonly Message[], wireModel
   return mapMessagesToOpenaiInput(bridge, { imagesSupported })
 }
 
-export function buildOpenrouterResponsesBody(options: CompatStreamOptions, facts: CompatDeferralFacts, messages: readonly Message[]): Record_ {
+function buildOpenrouterResponsesBody(options: CompatStreamOptions, facts: CompatDeferralFacts, messages: readonly Message[]): Record_ {
   const request = options.request
   const system = request.messages.find(m => m.role === 'system' && 'content' in m)
   const instructions = system !== undefined && 'content' in system && typeof system.content === 'string' && system.content.trim() !== '' ? system.content : undefined

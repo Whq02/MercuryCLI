@@ -3,7 +3,7 @@ import { listAttachedSeats } from './seatBridge.js'
 import { resolveCrewSnapshot, type CrewMemberV1, type CrewSnapshotV1 } from './projection.js'
 import type { CrewAgentId } from './identity.js'
 
-export interface TargetPickerRow {
+interface TargetPickerRow {
   agentId: CrewAgentId
   label: string
   presence: CrewMemberV1['presence']

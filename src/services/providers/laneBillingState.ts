@@ -1,6 +1,6 @@
 import type { CallModelRoute } from './idSpaces.js'
 
-export type LaneBillingState =
+type LaneBillingState =
   | { state: 'credit-exhausted'; observedAtMs: number; detail: string; remedy: string }
   | { state: 'clear' }
 

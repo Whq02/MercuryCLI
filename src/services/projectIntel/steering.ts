@@ -2,7 +2,7 @@
 import { projectIntelEnabled } from './contracts.js'
 import { LSP_TOOL_NAME } from '../../tools/LSPTool/prompt.js'
 
-export type OfferedTools = ReadonlySet<string> | null
+type OfferedTools = ReadonlySet<string> | null
 
 function lspOn(offered: OfferedTools): boolean {
   if (offered !== null && !offered.has(LSP_TOOL_NAME)) return false

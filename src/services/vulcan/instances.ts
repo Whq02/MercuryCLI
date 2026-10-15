@@ -5,7 +5,7 @@ import * as path from 'node:path'
 import { engineTreesDir } from './engine/paths.js'
 
 export const VULCAN_INSTANCE_ENV = 'MERCURY_VULCAN_INSTANCE'
-export const VULCAN_INSTANCE_ROLES = ['operator-editor', 'agent-editor', 'headless-worker', 'native-worker'] as const
+const VULCAN_INSTANCE_ROLES = ['operator-editor', 'agent-editor', 'headless-worker', 'native-worker'] as const
 export type VulcanInstanceRole = typeof VULCAN_INSTANCE_ROLES[number]
 export interface VulcanInstance {
   version: 1
@@ -16,8 +16,8 @@ export interface VulcanInstance {
   projectRoot: string
   ownerPid: number
 }
-export type VulcanInstanceSelector = string | { id?: string; role?: VulcanInstanceRole }
-export type VulcanInstanceSelection = { ok: true; instance: VulcanInstance } | { ok: false; error: { code: string; message: string } }
+type VulcanInstanceSelector = string | { id?: string; role?: VulcanInstanceRole }
+type VulcanInstanceSelection = { ok: true; instance: VulcanInstance } | { ok: false; error: { code: string; message: string } }
 export interface VulcanInstanceLaunch {
   id: string
   role: VulcanInstanceRole

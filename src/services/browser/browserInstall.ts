@@ -29,7 +29,7 @@ function withDeadline<T>(promise: Promise<T>, ms: number, what: string): Promise
   ])
 }
 
-export interface InstallPlan {
+interface InstallPlan {
   buildId: string
   cacheDir: string
   pinned: boolean
@@ -37,7 +37,7 @@ export interface InstallPlan {
   consentLine: string
 }
 
-export function downloadSizeWords(bytes: number | null, pinned: boolean): string {
+function downloadSizeWords(bytes: number | null, pinned: boolean): string {
   if (bytes !== null) return `a ${(bytes / 1024 / 1024).toFixed(0)} MB download`
   return pinned ? 'download size not checked for a pinned build' : 'download size unknown (the archive did not answer a size)'
 }
@@ -111,7 +111,7 @@ export function clearPersistedInstallPlan(): void {
   }
 }
 
-export interface InstallResult {
+interface InstallResult {
   buildId: string
   executablePath: string
   sizeBytes: number

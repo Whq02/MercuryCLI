@@ -10,7 +10,7 @@ export function staleEditRecoveryEnabled(): boolean {
 
 const RELOCATION_CONTEXT_LINES = 2
 
-export type StaleRecoveryOutcome =
+type StaleRecoveryOutcome =
   | { ok: true; hunks: EditHunkInput[]; warnings: string[] }
   | { ok: false; reason: string }
 

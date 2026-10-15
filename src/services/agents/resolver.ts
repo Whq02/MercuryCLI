@@ -18,13 +18,13 @@ import {
 } from '../../utils/model/agent.js'
 import type { AgentOverrideProvenance } from './overrides.js'
 
-export type AgentShadowReason =
+type AgentShadowReason =
   | 'scope-precedence'
   | 'nearer-directory'
   | 'duplicate-in-tree'
   | 'disabled'
 
-export type AgentCandidateResolution = {
+type AgentCandidateResolution = {
   agent: AgentDefinition
   winner: boolean
   shadowReason?: AgentShadowReason
@@ -90,7 +90,7 @@ export function resolveAgentEstate(
   return entries
 }
 
-export type EffectiveAgentRuntime = {
+type EffectiveAgentRuntime = {
   modelIntent: string
   model: string
   effortIntent?: EffortValue

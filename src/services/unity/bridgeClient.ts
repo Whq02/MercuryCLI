@@ -16,7 +16,7 @@ import { ensureUnityBridgeToken } from './bridgeToken.js'
 
 export type { UnityBridgeError, UnityBridgeResult } from './bridgeProtocol.js'
 
-export interface UnityBridgeEvent {
+interface UnityBridgeEvent {
   event: string
   data: unknown
   at: number

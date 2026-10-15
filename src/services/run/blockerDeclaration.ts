@@ -1,16 +1,16 @@
 
-export type BlockerDeclarationParse =
+type BlockerDeclarationParse =
   | { kind: 'none' }
   | { kind: 'declared'; description: string; resumeCondition: string }
   | { kind: 'refused'; reason: string }
 
-export const BLOCKER_DECLARATION_GRAMMAR =
+const BLOCKER_DECLARATION_GRAMMAR =
   '"BLOCKED ON OPERATOR: <what you need>" then "RESUME WHEN: <what unblocks you>" (two lines, ending the message)'
 
 const MARKER_RE = /^blocked on operator\s*:\s*(.*)$/i
 const RESUME_RE = /^resume when\s*:\s*(.*)$/i
 
-export const MIN_FIELD_WORDS = 3
+const MIN_FIELD_WORDS = 3
 
 export const MAX_FIELD_CHARS = 280
 

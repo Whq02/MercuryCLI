@@ -8,9 +8,9 @@ import { flagEnv } from '../../substrate/flagRegistry.js'
 const GH_TIMEOUT_MS = 120_000
 const DOWNLOAD_TIMEOUT_MS = 15 * 60_000
 const MAX_GH_BYTES = 20 * 1024 * 1024
-export const GH_DEADLINE_EXIT = 124
+const GH_DEADLINE_EXIT = 124
 const GH_SPAWN_FAILED_EXIT = 127
-export const GH_FENCED_PREFIX = 'the GitHub CLI is not consulted: '
+const GH_FENCED_PREFIX = 'the GitHub CLI is not consulted: '
 
 const GH_DEADLINE_HOLDER = [
   "const { spawn } = require('node:child_process')",
@@ -29,12 +29,12 @@ const GH_DEADLINE_HOLDER = [
   "process.on('SIGINT', () => end(130))",
 ].join('\n')
 
-export function ghDeadlineMs(requested: number): number {
+function ghDeadlineMs(requested: number): number {
   const pinned = Number(flagEnv('MERCURY_GH_TIMEOUT_MS') ?? '')
   return Number.isFinite(pinned) && pinned > 0 ? Math.round(pinned) : requested
 }
 
-export function ghSpawnArgv(transport: string[], args: string[], deadlineMs: number): string[] {
+function ghSpawnArgv(transport: string[], args: string[], deadlineMs: number): string[] {
   return [process.execPath, '-e', GH_DEADLINE_HOLDER, String(deadlineMs), ...transport, ...args]
 }
 
@@ -53,16 +53,16 @@ function armInFlightCleanup(): void {
   })
 }
 
-export type GhSignIn =
+type GhSignIn =
   | { state: 'ok' }
   | { state: 'gh-missing'; note: string; remedy: string }
   | { state: 'not-signed-in'; note: string; remedy: string }
 
-export type GhRepoAccess = { state: 'ok' } | { state: 'no-repo-access'; note: string; remedy: string }
+type GhRepoAccess = { state: 'ok' } | { state: 'no-repo-access'; note: string; remedy: string }
 
-export type GhResult = { state: 'ok'; stdout: string } | { state: 'error'; enoent: boolean; stderr: string }
+type GhResult = { state: 'ok'; stdout: string } | { state: 'error'; enoent: boolean; stderr: string }
 
-export function ghArgv(): string[] {
+function ghArgv(): string[] {
   const pinned = flagEnv('MERCURY_GH_CMD')
   if (pinned) {
     try {
@@ -76,13 +76,13 @@ export function ghArgv(): string[] {
   return ['gh']
 }
 
-export interface GhSpawnOptions {
+interface GhSpawnOptions {
   timeoutMs?: number
   cwd?: string
   maxBuffer?: number
 }
 
-export function ghFenced(): boolean {
+function ghFenced(): boolean {
   return isProofShapeRun() && flagEnv('MERCURY_GH_CMD') === undefined
 }
 
@@ -142,7 +142,7 @@ export async function ghRepoAccess(slug: string): Promise<GhRepoAccess> {
   return { state: 'ok' }
 }
 
-export type ReleaseListResult =
+type ReleaseListResult =
   | { state: 'ok'; releases: ChannelRelease[] }
   | { state: 'unavailable'; note: string; remedy: string }
 

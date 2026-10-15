@@ -26,14 +26,14 @@ export {
 } from '../run/ownerLifecycle.js'
 export { OwnerScopedStore } from '../run/ownerScopedStore.js'
 
-export type OwnerScope =
+type OwnerScope =
   | 'session'
   | 'agent'
   | 'lane'
   | 'project'
   | 'machine'
 
-export interface OwnerDescriptor {
+interface OwnerDescriptor {
   key: OwnerKey
   scope: OwnerScope
   parent?: OwnerKey

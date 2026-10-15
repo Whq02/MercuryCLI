@@ -25,7 +25,7 @@ export type KimiDeviceLoginEvent =
   | { phase: 'waiting'; start: MoonshotDeviceAuthStart; polls: number; note?: string }
   | { phase: 'finishing' }
 
-export interface KimiDeviceLoginArgs {
+interface KimiDeviceLoginArgs {
   region: KimiRegion
   io?: MoonshotOauthIo & MoonshotUsageIo
   sleep?: (ms: number) => Promise<void>
@@ -33,7 +33,7 @@ export interface KimiDeviceLoginArgs {
   onEvent?: (event: KimiDeviceLoginEvent) => void
 }
 
-export type KimiDeviceLoginOutcome =
+type KimiDeviceLoginOutcome =
   | {
       ok: true
       receipt: string
@@ -183,7 +183,7 @@ export async function runKimiDeviceLogin(args: KimiDeviceLoginArgs): Promise<Kim
   }
 }
 
-export interface MoonshotKeyLoginOutcome {
+interface MoonshotKeyLoginOutcome {
   ok: boolean
   stored: boolean
   receipt: string

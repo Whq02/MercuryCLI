@@ -3,7 +3,7 @@ import * as path from 'node:path'
 import { MERCURY_PROJECT_DIR } from '../../../utils/projectConfig.js'
 import { projectLocalPath } from '../../projectLocal/paths.js'
 
-export const ENGINE_DIR_SEGMENT = 'engine'
+const ENGINE_DIR_SEGMENT = 'engine'
 export const ENGINE_RESULT_FILE = 'result.json'
 const ENGINE_JOB_ID_RE = /^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$/
 

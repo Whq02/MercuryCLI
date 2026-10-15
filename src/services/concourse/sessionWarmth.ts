@@ -1,7 +1,7 @@
 import type { Message } from '../../types/message.js'
 
 export const WARMTH_TAIL_ROWS = 32
-export const WARMTH_SESSIONS = 8
+const WARMTH_SESSIONS = 8
 
 interface WarmthSlice {
   rows: readonly Message[]
@@ -69,7 +69,7 @@ export function settleEntryWarmth(sessionId?: string): void {
   bump()
 }
 
-export interface EnteringWarmth {
+interface EnteringWarmth {
   sessionId: string
   title?: string
   coveredSessionId?: string

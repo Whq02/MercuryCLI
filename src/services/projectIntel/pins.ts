@@ -33,7 +33,7 @@ function canonicalMark(
   return { rel: p }
 }
 
-export function pinContextItem(
+function pinContextItem(
   owner: OwnerKey,
   path: string,
   workspace: string,
@@ -49,7 +49,7 @@ export function pinContextItem(
   return { ok: true, note: `pinned ${c.rel} (rides the working set as operator-pinned)` }
 }
 
-export function dropContextItem(
+function dropContextItem(
   owner: OwnerKey,
   path: string,
   workspace: string,
@@ -65,7 +65,7 @@ export function dropContextItem(
   return { ok: true, note: `dropped ${c.rel} (excluded from the working set, counted in omissions)` }
 }
 
-export function clearContextMark(
+function clearContextMark(
   owner: OwnerKey,
   path: string,
   workspace: string,
@@ -82,6 +82,6 @@ export function getContextMarks(owner: OwnerKey): { pins: string[]; drops: strin
   return { pins: [...m.pins].sort(), drops: [...m.drops].sort() }
 }
 
-export function _resetContextMarksForTesting(): void {
+function _resetContextMarksForTesting(): void {
   marks.clearAllForShutdown()
 }

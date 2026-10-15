@@ -90,7 +90,7 @@ export function anthropicLimitReads(
   }
 }
 
-export interface ProviderUsabilityReadOptions {
+interface ProviderUsabilityReadOptions {
   fetchCatalogues?: boolean
 }
 

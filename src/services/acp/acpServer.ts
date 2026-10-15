@@ -129,14 +129,14 @@ export function permissionAnswerOf(result: unknown, ask: Pick<ToolAsk, 'suggesti
   return { outcome: 'allow' }
 }
 
-export function elicitationWire(params: ElicitationRequestParams, acpSessionId: string): Record<string, unknown> {
+function elicitationWire(params: ElicitationRequestParams, acpSessionId: string): Record<string, unknown> {
   if (params.mode === 'url') {
     return { sessionId: acpSessionId, mode: 'url', message: params.message, url: params.url ?? '', elicitationId: params.elicitation_id ?? '' }
   }
   return { sessionId: acpSessionId, mode: 'form', message: params.message, requestedSchema: params.schema ?? { type: 'object', properties: {} } }
 }
 
-export function elicitationAnswerOf(result: unknown): ElicitationAnswer {
+function elicitationAnswerOf(result: unknown): ElicitationAnswer {
   const r = result as { action?: unknown; content?: unknown } | null
   if (r?.action === 'accept') return { action: 'accept', ...(r.content !== null && typeof r.content === 'object' ? { content: r.content as Record<string, unknown> } : {}) }
   if (r?.action === 'decline') return { action: 'decline' }
@@ -144,7 +144,7 @@ export function elicitationAnswerOf(result: unknown): ElicitationAnswer {
 }
 
 
-export type AcpToolKind =
+type AcpToolKind =
   | 'read'
   | 'edit'
   | 'delete'
@@ -211,7 +211,7 @@ export function toolLocationsOf(
   return out
 }
 
-export interface AcpDiff {
+interface AcpDiff {
   path: string
   oldText?: string | null
   newText: string
@@ -263,7 +263,7 @@ export function toolOutputContentOf(
 }
 
 
-export type AcpStopReason = 'end_turn' | 'max_tokens' | 'max_turn_requests' | 'refusal' | 'cancelled'
+type AcpStopReason = 'end_turn' | 'max_tokens' | 'max_turn_requests' | 'refusal' | 'cancelled'
 
 export function stopReasonOf(
   outcome: 'success' | 'error' | 'cancelled',
@@ -328,7 +328,7 @@ export function acpMcpServersToConfig(
 }
 
 
-export interface EditorContextWire {
+interface EditorContextWire {
   v: 1
   sessionId: string
   workspaceFolders?: string[]
@@ -489,7 +489,7 @@ export function replayUpdatesOf(
   return updates
 }
 
-export interface AcpPromptMaterial {
+interface AcpPromptMaterial {
   doc: ComposerDocument
   bodies: Map<string, string>
   images: Map<string, { mimeType: string; data: string }>
@@ -606,7 +606,7 @@ export function usageWireOf(
   return { used, size: getContextWindowForModel(model) }
 }
 
-export interface AttentionWireItem {
+interface AttentionWireItem {
   subjectId: string
   owner: string
   sourceEventId: string
@@ -618,7 +618,7 @@ export interface AttentionWireItem {
   title?: string
 }
 
-export interface AttentionWire {
+interface AttentionWire {
   v: 1
   version: number
   atMs: number
@@ -708,7 +708,7 @@ interface AcpSessionState {
   costTotalUsd: number
 }
 
-export interface AcpServerOptions {
+interface AcpServerOptions {
   entry?: { node: string; script: string }
   input?: NodeJS.ReadableStream
   output?: NodeJS.WritableStream

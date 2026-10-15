@@ -12,8 +12,8 @@ export interface CoordinatorReplayRowV1 {
 }
 
 export const REPLAY_TAIL = 12
-export const REPLAY_CLIP = 600
-export const REPLAY_SUMMARY_CLIP = 4400
+const REPLAY_CLIP = 600
+const REPLAY_SUMMARY_CLIP = 4400
 export const REPLAY_AGE_FLOOR_MS = 30 * 60_000
 
 export function renderPlanForReplay(plan: ManagerPlanV1): string {

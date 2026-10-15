@@ -3,7 +3,7 @@ import { writeStoredOpenrouterApiKey } from '../../../utils/router/providerSecre
 import { forgetOpenrouterKeyRefusal, type OpenrouterAccountRef } from './openrouterAccounts.js'
 import { refreshOpenrouterCatalogue } from './openrouterCatalogue.js'
 
-export interface OpenrouterKeyLoginOutcome {
+interface OpenrouterKeyLoginOutcome {
   ok: boolean
   stored: boolean
   receipt: string

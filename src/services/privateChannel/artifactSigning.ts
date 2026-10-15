@@ -99,7 +99,7 @@ export type SignatureVerdict =
   | { state: 'tampered'; note: string }
   | { state: 'malformed'; note: string }
 
-export interface ContentBinds {
+interface ContentBinds {
   manifestVersion: string | null
   primarySha256: string | null
   payloadDigest: string | null

@@ -14,7 +14,7 @@ export interface GodotProcess {
   project?: string
 }
 
-export interface CensusRunner {
+interface CensusRunner {
   exec(file: string, args: string[]): Promise<{ code: number; stdout: string }>
   readExeLink?(pid: number): string | undefined
 }
@@ -57,7 +57,7 @@ export function isGodotExecutable(executable: string): boolean {
   return base.startsWith('godot') && !base.includes('-lsp') && !base.includes('helper')
 }
 
-export function executableBasename(executable: string): string {
+function executableBasename(executable: string): string {
   const p = executable.trim()
   return p.slice(Math.max(p.lastIndexOf('/'), p.lastIndexOf('\\')) + 1)
 }
@@ -67,7 +67,7 @@ function hasFlag(args: string, ...flags: string[]): boolean {
   return flags.some(f => tokens.includes(f))
 }
 
-export function projectFromArgs(args: string): string | undefined {
+function projectFromArgs(args: string): string | undefined {
   const m = /(?:^|\s)--path(?:=|\s+)(.+?)(?=\s+--?[A-Za-z]|$)/.exec(args)
   if (m?.[1]) return unquote(m[1].trim())
   const pg = /(?:^|\s)"?([^\s"]*(?:[^"]*?))project\.godot"?(?=\s|$)/.exec(args)
@@ -219,7 +219,7 @@ export async function strictGodotCensus(): Promise<GodotProcess[]> {
   return processes
 }
 
-export function sameProjectPath(a: string, b: string, platform: CensusPlatform = censusPlatform()): boolean {
+function sameProjectPath(a: string, b: string, platform: CensusPlatform = censusPlatform()): boolean {
   const norm = (p: string): string => {
     let s = p.replace(/\\/g, '/').replace(/\/+$/, '')
     if (platform === 'win32') s = s.toLowerCase()

@@ -21,13 +21,13 @@ import { DEAD_THINKING_PLACEHOLDER } from './deadThinkingPlaceholder.js'
 import { forgetPersistedDropState, persistedDropState, rememberDropState } from './prefixLedger.js'
 import type { RequestContextPlan } from '../../run/requestContextPlan.js'
 
-export type PrefixMismatchBehavior = 'drop_block' | 'error'
+type PrefixMismatchBehavior = 'drop_block' | 'error'
 
-export type ThinkingBlockBinding = {
+type ThinkingBlockBinding = {
   block_binding: { prefix_mismatch_behavior: PrefixMismatchBehavior }
 }
 
-export interface ThinkingBindingSetting {
+interface ThinkingBindingSetting {
   behavior: PrefixMismatchBehavior | null
   explicit: boolean
 }
@@ -55,7 +55,7 @@ export function resolveThinkingBindingBehavior(
   return resolveThinkingBindingSetting(raw).behavior
 }
 
-export interface ThinkingBindingReads {
+interface ThinkingBindingReads {
   firstParty?: () => boolean
   env?: string | undefined
 }
@@ -105,7 +105,7 @@ export function describeInputTransformations(list: readonly InputTransformation[
 }
 
 
-export type LawfulPrefixChange =
+type LawfulPrefixChange =
   | 'compaction'
   | 'model-switch'
   | 'operator-setting'
@@ -115,7 +115,7 @@ export type LawfulPrefixChange =
   | 'thinking-cleared'
   | 'context-edited'
 
-export interface PrefixMark {
+interface PrefixMark {
   firstRow: string | null
   compactBoundary: string | null
   modelTransition: string | null
@@ -128,7 +128,7 @@ export interface PrefixMark {
   contextEditActive: boolean
 }
 
-export interface LiveOperatorSettings {
+interface LiveOperatorSettings {
   permissionMode?: string
   responseProfile?: string
 }
@@ -146,7 +146,7 @@ export function describeBuildMove(previous: string | undefined, current: string)
   return previous === undefined || previous === current ? `the update to ${current}` : `the update from ${previous} to ${current}`
 }
 
-export function spellOperatorSettings(live: LiveOperatorSettings | undefined): string {
+function spellOperatorSettings(live: LiveOperatorSettings | undefined): string {
   let profile = live?.responseProfile
   if (profile === undefined) {
     try {
@@ -220,9 +220,9 @@ export function prefixMarkOf(
   }
 }
 
-export type DropKind = 'none' | 'first' | 'lawful' | 'recurrent'
+type DropKind = 'none' | 'first' | 'lawful' | 'recurrent'
 
-export interface DropOutcome {
+interface DropOutcome {
   kind: DropKind
   lawful: LawfulPrefixChange | null
   detail: string | null
@@ -578,7 +578,7 @@ export function modelSwitchReceipt(
 }
 
 
-export interface ThinkingDropLedger {
+interface ThinkingDropLedger {
   last: {
     at: string
     kind: Exclude<DropKind, 'none'> | 'rewrite'
@@ -683,9 +683,9 @@ function writeThinkingDropLedger(ledger: ThinkingDropLedger): void {
   renameSync(staging, path)
 }
 
-export const THINKING_DROP_NOTICE_MS = 60 * 60 * 1000
+const THINKING_DROP_NOTICE_MS = 60 * 60 * 1000
 
-export function thinkingDropIsRecent(ledger: ThinkingDropLedger, nowMs: number, sessionId: string): boolean {
+function thinkingDropIsRecent(ledger: ThinkingDropLedger, nowMs: number, sessionId: string): boolean {
   if (ledger.session?.id === sessionId) return true
   const at = Date.parse(ledger.last.at)
   return !Number.isFinite(at) || nowMs - at <= THINKING_DROP_NOTICE_MS

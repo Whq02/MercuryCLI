@@ -51,7 +51,7 @@ const JSONC_BASENAME_PATTERNS = [
   /^(settings|launch|tasks|extensions|keybindings|devcontainer)\.json$/i,
 ]
 
-export function webLanguageForUri(uri: string): WebLanguage | null {
+function webLanguageForUri(uri: string): WebLanguage | null {
   const p = uri.startsWith('file://') ? fileURLToPath(uri) : uri
   const base = path.basename(p)
   if (JSONC_BASENAME_PATTERNS.some(re => re.test(base))) return 'jsonc'
@@ -77,7 +77,7 @@ interface YamlServiceShape {
   findDocumentSymbols2?(doc: TextDocument, context?: unknown): unknown[]
 }
 
-export interface WebSidecarOptions {
+interface WebSidecarOptions {
   log?: (line: string) => void
 }
 

@@ -6,7 +6,7 @@ import { spawnableSpellings, whichSync } from '../../utils/which.js'
 import { mercuryLspEnabled } from './mercuryLsp.js'
 import type { ScopedLspServerConfig } from './types.js'
 
-export interface CatalogueEntry {
+interface CatalogueEntry {
   id: string
   label: string
   languages: string[]
@@ -43,7 +43,7 @@ export const SERVER_CATALOGUE: CatalogueEntry[] = [
   { id: 'tailwind', label: 'Tailwind CSS LS', languages: ['tailwindcss'], binaries: ['tailwindcss-language-server'], args: ['--stdio'], extensionToLanguage: { '.css': 'css' }, rootMarkers: ['tailwind.config.js', 'tailwind.config.ts'], remedy: 'npm i -g @tailwindcss/language-server' },
 ]
 
-export interface CatalogueProbe {
+interface CatalogueProbe {
   entry: CatalogueEntry
   binaryPath?: string
   binarySource?: 'project-local' | 'path'

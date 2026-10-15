@@ -5,7 +5,7 @@ export interface NativeWebSearchRequest {
   maxUses: number
 }
 
-export const NATIVE_SEARCH_FAMILIES = ['anthropic', 'openai'] as const
+const NATIVE_SEARCH_FAMILIES = ['anthropic', 'openai'] as const
 export type NativeSearchFamily = (typeof NATIVE_SEARCH_FAMILIES)[number]
 
 export function isNativeSearchFamily(route: string): route is NativeSearchFamily {

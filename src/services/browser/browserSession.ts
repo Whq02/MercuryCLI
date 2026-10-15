@@ -17,14 +17,14 @@ import {
   type BrowserResolution,
 } from './browserResolver.js'
 
-export interface ConsoleEntry {
+interface ConsoleEntry {
   at: number
   kind: string
   text: string
 }
 
 export const CONSOLE_RING_CAP = 250
-export const CONSOLE_ENTRY_CAP = 300
+const CONSOLE_ENTRY_CAP = 300
 
 interface Session {
   browser: DriverBrowser
@@ -40,13 +40,13 @@ interface Session {
   navWatch: { pendingUrl: string | null; abortedAt: number; waiters: Array<() => void> }
 }
 
-export interface NavFailure {
+interface NavFailure {
   url: string
   errorText: string
   at: number
 }
 
-export interface DownloadNotice {
+interface DownloadNotice {
   guid: string
   url: string
   filename: string
@@ -75,9 +75,9 @@ export const BROWSER_CLOSE_BOUND_MS = 3_000
 export const BROWSER_PROTOCOL_TIMEOUT_MS = 90_000
 export const NAVIGATION_CAP_MS = BROWSER_PROTOCOL_TIMEOUT_MS
 
-export type CloseOutcome = 'closed' | 'killed' | 'gone'
+type CloseOutcome = 'closed' | 'killed' | 'gone'
 
-export function tempProfileDirOf(browser: DriverBrowser): string | null {
+function tempProfileDirOf(browser: DriverBrowser): string | null {
   const args = browser.process()?.spawnargs ?? []
   const arg = args.find(a => a.startsWith('--user-data-dir='))
   if (arg === undefined) return null
@@ -85,7 +85,7 @@ export function tempProfileDirOf(browser: DriverBrowser): string | null {
   return /^puppeteer_dev_[a-z]+_profile-/.test(path.basename(dir)) ? dir : null
 }
 
-export function removeTempProfile(browser: DriverBrowser): boolean {
+function removeTempProfile(browser: DriverBrowser): boolean {
   const dir = tempProfileDirOf(browser)
   if (dir === null || !fs.existsSync(dir)) return false
   try {
@@ -118,7 +118,7 @@ async function endChild(browser: DriverBrowser): Promise<void> {
   removeTempProfile(browser)
 }
 
-export function childGone(browser: DriverBrowser): boolean {
+function childGone(browser: DriverBrowser): boolean {
   if (browser.connected === false) return true
   const child = browser.process()
   if (child === null || child === undefined) return false
@@ -279,7 +279,7 @@ export function driverVersion(): string {
   return (puppeteerPkg as { version?: string }).version ?? 'bundled'
 }
 
-export type EnsureSessionRefusal = { state: 'unavailable' | 'at-capacity' | 'torn-down'; note: string }
+type EnsureSessionRefusal = { state: 'unavailable' | 'at-capacity' | 'torn-down'; note: string }
 
 export async function ensureBrowserSession(
   owner: OwnerKey,
@@ -574,7 +574,7 @@ export async function closeBrowserSessionDetailed(owner: OwnerKey): Promise<{ ou
   return { outcome }
 }
 
-export function secretPairingKey(ref: string, origin: string): string {
+function secretPairingKey(ref: string, origin: string): string {
   return `${ref}@${origin}`
 }
 

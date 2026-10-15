@@ -6,13 +6,13 @@ import { parseVulcanInstance, readVulcanInstanceToken, sameVulcanInstance, selec
 
 const INSTANCE_HINT = 'is that Godot instance still running with the addon loaded? op:"vulcan_status" lists the instances Mercury can see; name the one you mean with args.instance'
 
-export interface VulcanError {
+interface VulcanError {
   code: string
   message: string
   hint?: string
 }
 export type VulcanResult = ({ ok: true; result: unknown } | { ok: false; error: VulcanError }) & { instance?: VulcanInstance; via?: VulcanInstance }
-export interface VulcanEvent {
+interface VulcanEvent {
   event: string
   data: unknown
   at: number

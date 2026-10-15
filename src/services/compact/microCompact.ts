@@ -19,12 +19,12 @@ import { FILE_WRITE_TOOL_NAME } from '../../tools/FileWriteTool/prompt.js'
 
 export const TIME_BASED_MC_CLEARED_MESSAGE = '[stale tool result pruned — content cleared]'
 
-export type PendingCacheEdits = {
+type PendingCacheEdits = {
   userMessageIndex: number
   block: unknown
 }
 
-export type MicrocompactResult = {
+type MicrocompactResult = {
   messages: Message[]
   compactionInfo?: {
     trigger: string
@@ -35,7 +35,7 @@ export type MicrocompactResult = {
   deadMarks?: DeadThinkingMark[]
 }
 
-export type MicrocompactTrigger = { pressure: true; supersededOnly?: true; minimumTokensSaved?: number }
+type MicrocompactTrigger = { pressure: true; supersededOnly?: true; minimumTokensSaved?: number }
 
 
 const MEDIA_BLOCK_TOKENS = 2000
@@ -126,7 +126,7 @@ function isMainThreadSource(querySource: string | undefined): boolean {
   return querySource === undefined || querySource.startsWith(MAIN_THREAD_PREFIX)
 }
 
-export function evaluateTimeBasedTrigger(
+function evaluateTimeBasedTrigger(
   messages: Message[],
   querySource: string | undefined,
 ): { gapMinutes: number; config: ReturnType<typeof getTimeBasedMCConfig> } | null {

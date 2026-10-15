@@ -18,7 +18,7 @@ const NOUS_CATALOGUE_FAILURE_RETRY_MS = 10_000
 
 export const NOUS_MODEL_PREFIX = 'nous/'
 
-export interface NousLiveModel {
+interface NousLiveModel {
   id: string
   name?: string
   description?: string
@@ -46,7 +46,7 @@ function record(v: unknown): Record<string, unknown> | undefined {
   return typeof v === 'object' && v !== null ? (v as Record<string, unknown>) : undefined
 }
 
-export function decodeNousModel(raw: unknown): NousLiveModel | undefined {
+function decodeNousModel(raw: unknown): NousLiveModel | undefined {
   const r = record(raw)
   const id = str(r?.id)
   if (!r || !id) return undefined
@@ -188,7 +188,7 @@ export function refreshNousCatalogue(opts?: {
   return work
 }
 
-export function kickNousCatalogue(opts?: { env?: NodeJS.ProcessEnv; fetchImpl?: typeof fetch }): boolean {
+function kickNousCatalogue(opts?: { env?: NodeJS.ProcessEnv; fetchImpl?: typeof fetch }): boolean {
   const env = opts?.env ?? process.env
   if (!catalogueTrafficVerdict('nous', env).allowed) return false
   const snapshot = getCachedNousCatalogue(env)
@@ -197,9 +197,9 @@ export function kickNousCatalogue(opts?: { env?: NodeJS.ProcessEnv; fetchImpl?: 
   return true
 }
 
-export type NousDisabledWhy = 'no-account' | 'auth-invalid' | 'catalogue-pending' | 'catalogue-error' | 'no-models' | 'traffic-off'
+type NousDisabledWhy = 'no-account' | 'auth-invalid' | 'catalogue-pending' | 'catalogue-error' | 'no-models' | 'traffic-off'
 
-export type NousAvailability =
+type NousAvailability =
   | { state: 'disabled'; why: NousDisabledWhy; reason: string }
   | { state: 'ready'; ids: string[]; modelCount: number; source: string; keySource?: 'env' | 'stored'; fetchedAtMs: number }
 
@@ -288,7 +288,7 @@ export const NOUS_PORTAL_RECOMMENDED: readonly string[] = [
 
 export const NOUS_MODEL_GROUP = 'Mercury — Nous Portal models'
 export const NOUS_CONNECT_OPTION_VALUE = '__mercury_nous_connect__'
-export const NOUS_EXPAND_OPTION_VALUE = '__mercury_nous_expand__'
+const NOUS_EXPAND_OPTION_VALUE = '__mercury_nous_expand__'
 
 const NOUS_PICKER_ROW_BOUND = 24
 
@@ -405,7 +405,7 @@ export function nousCatalogueSourceWords(env: NodeJS.ProcessEnv = process.env): 
   return availability.state === 'ready' ? `${availability.modelCount} ${availability.modelCount === 1 ? 'model' : 'models'} live` : undefined
 }
 
-export function __resetNousCatalogueForTest(): void {
+function __resetNousCatalogueForTest(): void {
   catalogueCache.clear()
   catalogueInFlight.clear()
 }

@@ -112,7 +112,7 @@ export interface ChangeSetPlan {
 }
 
 
-export type ChangeSetRefusalCode =
+type ChangeSetRefusalCode =
   | 'schema'
   | 'bounds'
   | 'duplicate-path'
@@ -151,7 +151,7 @@ export interface ChangeSetRefusal {
   recovery: string
 }
 
-export interface ChangeSetPlanned {
+interface ChangeSetPlanned {
   ok: true
   plan: ChangeSetPlan
   bytes: Map<string, ChangeSetTargetBytes>

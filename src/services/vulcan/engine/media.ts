@@ -5,18 +5,18 @@ import { cpus, platform, arch, hostname } from 'node:os'
 import { engineManifestPath } from './manifest.js'
 import { projectLocalPath } from '../../projectLocal/paths.js'
 
-export type EngineMediaKind = 'capture' | 'profile'
-export type EngineMediaRoute = 'headless' | 'hidden' | 'display'
-export type EngineMediaValue = string | number | boolean | null
+type EngineMediaKind = 'capture' | 'profile'
+type EngineMediaRoute = 'headless' | 'hidden' | 'display'
+type EngineMediaValue = string | number | boolean | null
 
-export interface EngineTourStep {
+interface EngineTourStep {
   name: string
   frames: number
   camera?: { node: string; position?: number[]; rotation?: number[]; target?: number[]; fov?: number }
   timeOfDay?: number
 }
 
-export interface EngineTour {
+interface EngineTour {
   scene?: string
   script?: string
   steps: EngineTourStep[]
@@ -36,7 +36,7 @@ export interface EngineMediaRequest {
   baseline: { save: boolean; compare: string | null }
 }
 
-export interface EngineMediaFrame {
+interface EngineMediaFrame {
   path: string
   variant: string
   stepIndex: number

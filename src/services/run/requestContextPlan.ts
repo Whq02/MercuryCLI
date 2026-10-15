@@ -36,7 +36,7 @@ import type { OwnerKey } from './ownerKey.js'
 import { registerOwnerScopedStore } from './ownerLifecycle.js'
 import { OwnerScopedStore } from './ownerScopedStore.js'
 
-export interface RequestContextPlanInput {
+interface RequestContextPlanInput {
   messages: Message[]
   owner: OwnerKey
   querySource: QuerySource

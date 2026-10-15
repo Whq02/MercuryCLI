@@ -15,7 +15,7 @@ const CS_EXTENSION_TO_LANGUAGE: Record<string, string> = {
   '.cs': 'csharp',
 }
 
-export interface UnityCsharpProbe {
+interface UnityCsharpProbe {
   available: boolean
   server?: 'csharp-ls' | 'omnisharp'
   path?: string

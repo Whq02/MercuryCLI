@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto'
 
 export type DesktopButton = 'left' | 'right' | 'middle'
 export type DesktopModifier = 'shift' | 'control' | 'alt' | 'super'
-export const DESKTOP_KEY_NAMES = [
+const DESKTOP_KEY_NAMES = [
   'enter', 'tab', 'escape', 'backspace', 'delete', 'space',
   'up', 'down', 'left', 'right', 'home', 'end', 'pageup', 'pagedown',
   'f1', 'f2', 'f3', 'f4', 'f5', 'f6', 'f7', 'f8', 'f9', 'f10', 'f11', 'f12',
@@ -108,7 +108,7 @@ export interface DesktopActReceipt {
   completedAt: number
 }
 
-export type DesktopErrorKind = 'unavailable' | 'permission' | 'session' | 'display' | 'input' | 'busy' | 'aborted' | 'defect'
+type DesktopErrorKind = 'unavailable' | 'permission' | 'session' | 'display' | 'input' | 'busy' | 'aborted' | 'defect'
 
 export interface DesktopError {
   kind: DesktopErrorKind

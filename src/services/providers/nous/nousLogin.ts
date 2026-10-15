@@ -6,7 +6,7 @@ import { peekNousClient } from './nousClientContract.js'
 import { pollNousDeviceToken, startNousDeviceAuth, writeNousTokens, writePreferredNousSource, type NousDeviceAuthStart, type NousOauthIo, type NousTokens } from './nousOauth.js'
 import { fetchNousAccount, nousCreditsDisplay, type NousObservedAccount, type NousUsageIo } from './nousUsageState.js'
 
-export interface NousKeyLoginOutcome {
+interface NousKeyLoginOutcome {
   ok: boolean
   stored: boolean
   receipt: string
@@ -20,7 +20,7 @@ export const NOUS_CONNECT_ROWS = [
 export const NOUS_CONNECT_STOPPED_RECEIPT = 'Nous Portal sign-in cancelled — an approval already in flight still lands; /accounts shows and removes it.'
 export const NOUS_KEY_LEG_OFFER = '/logins nous retries the sign-in or stores an API key.'
 
-export function nousAccountReceiptLine(account: NousObservedAccount): string {
+function nousAccountReceiptLine(account: NousObservedAccount): string {
   const parts: string[] = []
   const plan = account.subscription?.plan
   if (plan !== undefined) parts.push(`plan ${plan}${account.subscription?.tier !== undefined ? ` (tier ${account.subscription.tier})` : ''}`)

@@ -36,7 +36,7 @@ export function measureEffectiveProjectInstructionLines(
   return lines
 }
 
-export type TrimChipSnapshot = {
+type TrimChipSnapshot = {
   armed: boolean
   effectiveLines: number
   guide: string

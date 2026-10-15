@@ -27,7 +27,7 @@ export function mercuryLspPythonEnabled(): boolean {
   return mercuryLspEnabled() && flagEnabled('MERCURY_LSP_PYTHON')
 }
 
-export interface PyrightProbe {
+interface PyrightProbe {
   available: boolean
   source?: 'project-local' | 'bundled' | 'path'
   entry?: string
@@ -35,7 +35,7 @@ export interface PyrightProbe {
   reason?: string
 }
 
-export function pyrightVendorRoot(): string | null {
+function pyrightVendorRoot(): string | null {
   const override = flagEnv('MERCURY_PYRIGHT_VENDOR_DIR')
   const root = override && override !== '' ? override : path.resolve(__dirname, 'vendor', 'pyright')
   return existsSync(path.join(root, 'langserver.index.js')) ? root : null

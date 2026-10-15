@@ -1,8 +1,8 @@
 import * as path from 'node:path'
 
-export type EngineUserPlatform = 'win32' | 'darwin' | 'linux'
+type EngineUserPlatform = 'win32' | 'darwin' | 'linux'
 
-export function engineUserPlatform(platform: NodeJS.Platform = process.platform): EngineUserPlatform {
+function engineUserPlatform(platform: NodeJS.Platform = process.platform): EngineUserPlatform {
   if (platform === 'win32') return 'win32'
   if (platform === 'darwin') return 'darwin'
   return 'linux'

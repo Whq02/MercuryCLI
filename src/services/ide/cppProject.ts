@@ -4,9 +4,9 @@ import * as path from 'node:path'
 import { getCwd } from '../../utils/cwd.js'
 import { compileDbRemedy, probeCompileDb } from '../lsp/clangdLane.js'
 
-export type CompileDbSource = 'root' | 'build-dir' | 'compile-flags' | 'clangd-config'
+type CompileDbSource = 'root' | 'build-dir' | 'compile-flags' | 'clangd-config'
 
-export type CppCompileDb =
+type CppCompileDb =
   | { state: 'ok'; path: string; source: CompileDbSource }
   | { state: 'absent'; remedy: string }
 
@@ -16,7 +16,7 @@ export interface CppCmakePreset {
   binaryDir?: string
 }
 
-export interface CppBuildDirInfo {
+interface CppBuildDirInfo {
   path: string
   configured: boolean
   compileDb: boolean
@@ -189,7 +189,7 @@ function buildDirInfo(dir: string): CppBuildDirInfo {
   }
 }
 
-export function findCppBuildDirs(root: string, presets: CppCmakePreset[]): CppBuildDirInfo[] {
+function findCppBuildDirs(root: string, presets: CppCmakePreset[]): CppBuildDirInfo[] {
   const seen = new Set<string>()
   const dirs: CppBuildDirInfo[] = []
   const push = (dir: string): void => {

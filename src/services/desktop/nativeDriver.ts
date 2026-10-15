@@ -43,11 +43,11 @@ import {
   type DesktopAddonPermissions,
 } from './pack.js'
 
-export type DesktopDriverLoad =
+type DesktopDriverLoad =
   | { state: 'ok'; driver: DesktopDriver }
   | { state: 'unavailable'; note: string; remedy: string | null }
 
-export interface DesktopHealthFacts {
+interface DesktopHealthFacts {
   ready: boolean
   line: string
   detail: string
@@ -64,7 +64,7 @@ const TERMINAL_IDENTITIES: Record<string, string> = {
   WezTerm: 'com.github.wez.wezterm',
   vscode: 'com.microsoft.VSCode',
 }
-export const DESKTOP_TYPE_GAP_CAP_MS = 1_000
+const DESKTOP_TYPE_GAP_CAP_MS = 1_000
 
 export function desktopGrantWords(platform: string = process.platform): string {
   if (platform === 'darwin') return 'allow your terminal application under System Settings → Privacy & Security → Screen Recording and → Accessibility, then restart the terminal application'

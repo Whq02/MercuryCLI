@@ -1,7 +1,7 @@
 
 import { createHash } from 'node:crypto'
 
-export interface PrefixSegmentFingerprint {
+interface PrefixSegmentFingerprint {
   index: number
   kind: 'tools' | 'system'
   bytes: number

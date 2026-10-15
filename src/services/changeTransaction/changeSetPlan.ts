@@ -20,7 +20,7 @@ import { buildDiffHunks } from './diffBudget.js'
 import { applyHunks, planHunks } from './hunks.js'
 import { checkAnchor, mintFileAnchor } from './snapshotAnchor.js'
 
-export interface ChangeSetPlanContext {
+interface ChangeSetPlanContext {
   ownerKey: string
   readEvidence?: (
     canonicalPath: string,

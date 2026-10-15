@@ -9,7 +9,7 @@ import {
 import { appendSessionReceipt } from '../switchboard/sessionReceipts.js'
 import { logForDebugging } from '../../utils/debug.js'
 
-export type SessionKitPinReceipt =
+type SessionKitPinReceipt =
   | { outcome: 'none' }
   | { outcome: 'pinned'; kit: SessionKitV1 }
   | { outcome: 'refused'; reason: string; kit: SessionKitV1 }

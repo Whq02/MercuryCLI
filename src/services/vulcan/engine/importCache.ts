@@ -3,23 +3,23 @@ import { constants, cpSync, existsSync, mkdirSync, readdirSync, readFileSync, re
 import * as path from 'node:path'
 import { engineCacheDir } from './paths.js'
 
-export const ENGINE_CACHE_KEEP = 3
-export const CLASS_CACHE_FILE = 'global_script_class_cache.cfg'
+const ENGINE_CACHE_KEEP = 3
+const CLASS_CACHE_FILE = 'global_script_class_cache.cfg'
 
-export interface EngineCacheSeed {
+interface EngineCacheSeed {
   hit: boolean
   seededFrom: string | null
 }
 
-export function engineCacheEntryDir(projectRoot: string, key: string): string {
+function engineCacheEntryDir(projectRoot: string, key: string): string {
   return path.join(engineCacheDir(projectRoot), key, 'godot')
 }
 
-export function engineCacheHas(projectRoot: string, key: string): boolean {
+function engineCacheHas(projectRoot: string, key: string): boolean {
   return existsSync(path.join(engineCacheEntryDir(projectRoot, key), CLASS_CACHE_FILE))
 }
 
-export function engineCacheEntries(projectRoot: string): Array<{ key: string; dir: string; mtimeMs: number }> {
+function engineCacheEntries(projectRoot: string): Array<{ key: string; dir: string; mtimeMs: number }> {
   const root = engineCacheDir(projectRoot)
   let names: string[]
   try {
@@ -77,7 +77,7 @@ export function storeEngineCache(projectRoot: string, treeRoot: string, key: str
   return { stored: true, dir, reason: null }
 }
 
-export function pruneEngineCache(projectRoot: string, keep: number = ENGINE_CACHE_KEEP): string[] {
+function pruneEngineCache(projectRoot: string, keep: number = ENGINE_CACHE_KEEP): string[] {
   const removed: string[] = []
   for (const entry of engineCacheEntries(projectRoot).slice(keep)) {
     rmSync(path.dirname(entry.dir), { recursive: true, force: true })

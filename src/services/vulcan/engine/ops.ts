@@ -17,9 +17,9 @@ import {
 } from './service.js'
 
 export const ENGINE_OPS: ReadonlySet<string> = new Set(['engine_run', 'engine_check', 'engine_jobs', 'engine_cancel', 'engine_result', 'engine_capture', 'engine_frames', 'engine_profile', 'engine_scene_tree', 'engine_node_get', 'engine_node_call', 'engine_signal_wait', 'lease_take', 'lease_release', 'lease_list'])
-export const ENGINE_DEFAULT_TAIL_CHARS = 2000
-export const ENGINE_RESULT_TAIL_CHARS = 4000
-export const ENGINE_WAIT_GRACE_MS = 60_000
+const ENGINE_DEFAULT_TAIL_CHARS = 2000
+const ENGINE_RESULT_TAIL_CHARS = 4000
+const ENGINE_WAIT_GRACE_MS = 60_000
 
 type Args = Record<string, unknown>
 

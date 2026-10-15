@@ -34,7 +34,7 @@ function severityName(severity: unknown): Diagnostic['severity'] {
   }
 }
 
-export function formatDiagnosticsForAttachment(publishParams: PublishDiagnosticsParams): DiagnosticFile[] {
+function formatDiagnosticsForAttachment(publishParams: PublishDiagnosticsParams): DiagnosticFile[] {
   let uri = publishParams.uri
   if (uri.startsWith('file://')) {
     try {

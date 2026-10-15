@@ -3,7 +3,7 @@ import type { OwnerKey } from '../run/ownerKey.js'
 
 export const EVIDENCE_CONTRACT_VERSION = 1
 
-export const EVIDENCE_KINDS = [
+const EVIDENCE_KINDS = [
   'change',
   'check',
   'diagnostic',
@@ -18,9 +18,9 @@ export const EVIDENCE_ORIGINS = ['observed', 'derived', 'declared'] as const
 
 export type EvidenceOrigin = (typeof EVIDENCE_ORIGINS)[number]
 
-export const EVIDENCE_STATES = ['present', 'expired', 'unavailable', 'superseded'] as const
+const EVIDENCE_STATES = ['present', 'expired', 'unavailable', 'superseded'] as const
 
-export type EvidenceState = (typeof EVIDENCE_STATES)[number]
+type EvidenceState = (typeof EVIDENCE_STATES)[number]
 
 export interface EvidenceRecord {
   version: typeof EVIDENCE_CONTRACT_VERSION

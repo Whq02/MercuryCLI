@@ -85,7 +85,7 @@ const BREW_LLVM_CANDIDATES = [
   '/usr/local/opt/llvm/bin/clangd',
 ]
 
-export interface ClangdProbe {
+interface ClangdProbe {
   available: boolean
   clangdPath?: string
   reason?: string
@@ -121,7 +121,7 @@ export function _resetClangdProbeCacheForTesting(): void {
   probeCache = undefined
 }
 
-export interface CompileDbProbe {
+interface CompileDbProbe {
   compileDb?: string
   cmakeLists?: string
 }

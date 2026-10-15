@@ -151,7 +151,7 @@ export function mcpToolAllowed(
   return RISK_RANK[risk] <= RISK_RANK[max]
 }
 
-export type UrlElicitationVerdict = {
+type UrlElicitationVerdict = {
   refuse: boolean
   posture: string
 }

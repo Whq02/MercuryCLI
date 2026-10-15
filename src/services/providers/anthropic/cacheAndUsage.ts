@@ -40,7 +40,7 @@ export function buildTurnSystemBlocks(attribution: string, systemPrompt: SystemP
   return buildSystemPromptBlocks(assembled, enablePromptCaching)
 }
 
-export function isToolResultBlock(block: unknown): block is { type: 'tool_result'; tool_use_id: string } {
+function isToolResultBlock(block: unknown): block is { type: 'tool_result'; tool_use_id: string } {
   if (block === null || typeof block !== 'object') return false
   return 'type' in block && block.type === 'tool_result' && 'tool_use_id' in block
 }

@@ -45,7 +45,7 @@ function remember(owned: OwnerTransactions, record: TransactionRecord): void {
   }
 }
 
-export interface BeginTransactionInput {
+interface BeginTransactionInput {
   owner: OwnerKey
   kind: string
   inputRefs?: string[]
@@ -75,7 +75,7 @@ export function beginTransaction(input: BeginTransactionInput): TransactionRecor
   return record
 }
 
-export interface TransactionTransitionOptions {
+interface TransactionTransitionOptions {
   effectRef?: string
   evidenceRefs?: string[]
   resultRefs?: string[]
@@ -184,7 +184,7 @@ function ingestReceipt(receipt: ChangeReceipt): void {
 }
 
 let installed = false
-export function installTransactionIngestion(): void {
+function installTransactionIngestion(): void {
   if (installed) return
   installed = true
   subscribeChangeReceipts(ingestReceipt)

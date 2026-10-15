@@ -16,7 +16,7 @@ export type SearchBackendId =
   | 'wikipedia'
   | 'searxng'
 
-export const SEARCH_BACKEND_LABELS: Record<SearchBackendId, string> = {
+const SEARCH_BACKEND_LABELS: Record<SearchBackendId, string> = {
   'anthropic-native': 'Anthropic web search',
   'openai-native': 'OpenAI web search',
   brave: 'Brave Search',
@@ -38,7 +38,7 @@ export function searchBackendLabel(id: SearchBackendId): string {
 }
 
 export const SEARCH_SOURCE_TYPES = ['provider', 'brave', 'tavily', 'stackexchange', 'npm', 'pypi', 'crates', 'github', 'hackernews', 'wikipedia', 'searxng', 'duckduckgo'] as const
-export type SearchSourceType = (typeof SEARCH_SOURCE_TYPES)[number]
+type SearchSourceType = (typeof SEARCH_SOURCE_TYPES)[number]
 
 export interface SearchHit {
   title: string
@@ -59,7 +59,7 @@ export interface SearchRequest {
 export const DEFAULT_MAX_RESULTS = 10
 export const MAX_SNIPPET_CHARS = 400
 
-export type SearchFailureKind =
+type SearchFailureKind =
   | 'no-backend'
   | 'rate-limited'
   | 'parse-failed'
@@ -75,7 +75,7 @@ export interface SearchFailure {
   message: string
 }
 
-export interface SearchSuccess {
+interface SearchSuccess {
   ok: true
   via: SearchBackendId
   tier: SearchTier
@@ -88,7 +88,7 @@ export interface SearchSuccess {
 
 export type SearchOutcome = SearchSuccess | SearchFailure
 
-export interface SearchBackend {
+interface SearchBackend {
   id: SearchBackendId
   tier: SearchTier
   search(request: SearchRequest): Promise<SearchOutcome>
@@ -105,7 +105,7 @@ export function searchFailure(
 export { webUserAgent as searchUserAgent } from '../../utils/webUserAgent.js'
 
 
-export function hitHost(url: string): string | undefined {
+function hitHost(url: string): string | undefined {
   try {
     return new URL(url).hostname.toLowerCase().replace(/^www\./, '')
   } catch {

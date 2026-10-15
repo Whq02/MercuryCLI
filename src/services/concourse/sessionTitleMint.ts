@@ -89,7 +89,7 @@ async function mintOne(rec: ConcourseWorkerRecordV1, description: string, signal
   }
 }
 
-export interface TitleMintHandle {
+interface TitleMintHandle {
   dispose(): void
   _attemptedForTesting(): ReadonlyMap<string, number>
 }

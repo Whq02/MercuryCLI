@@ -10,7 +10,7 @@ import { parseInstructionFileContent } from './sourceText.js'
 
 const MAX_POINTER_DEPTH = MAX_INCLUDE_DEPTH
 
-export const POINTER_PROSE_MAX_LINES = 6
+const POINTER_PROSE_MAX_LINES = 6
 
 export type CaptureResult =
   | { action: 'recorded'; path: string; created: boolean }
@@ -19,11 +19,11 @@ export type CaptureResult =
   | { action: 'replace-miss'; path: string; searched: string[] }
   | { action: 'invalid'; reason: string }
 
-export function projectInstructionRoot(cwd: string): string {
+function projectInstructionRoot(cwd: string): string {
   return findGitRoot(cwd) ?? cwd
 }
 
-export function resolveProjectInstructionEntry(cwd: string): {
+function resolveProjectInstructionEntry(cwd: string): {
   path: string
   exists: boolean
 } {
@@ -56,7 +56,7 @@ function readEstateFile(path: string): ParsedEstateFile | null {
   return { path, raw, content: info.content, includePaths: [...includePaths, ...bareMentionPaths] }
 }
 
-export function proseLineCount(content: string): number {
+function proseLineCount(content: string): number {
   let count = 0
   for (const line of content.split('\n')) {
     const trimmed = line.trim()
@@ -138,7 +138,7 @@ function ruleAsLine(rule: string): string {
 const FRESH_ENTRY_HEADER =
   '# MERCURY.md\nStanding orders for the Mercury harness in this repository.\n'
 
-export function appendRuleToContent(raw: string, rule: string): string {
+function appendRuleToContent(raw: string, rule: string): string {
   const trimmedEnd = raw.replace(/\s+$/, '')
   if (trimmedEnd === '') return `- ${rule}\n`
   const lastLine = trimmedEnd.slice(trimmedEnd.lastIndexOf('\n') + 1)
@@ -146,7 +146,7 @@ export function appendRuleToContent(raw: string, rule: string): string {
   return `${trimmedEnd}${separator}- ${rule}\n`
 }
 
-export type CapturePlan =
+type CapturePlan =
   | { write: true; result: Extract<CaptureResult, { action: 'recorded' | 'updated' }>; path: string; before: string; after: string }
   | { write: false; result: Exclude<CaptureResult, { action: 'recorded' | 'updated' }> }
 

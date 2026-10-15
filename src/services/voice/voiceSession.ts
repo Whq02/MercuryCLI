@@ -30,15 +30,15 @@ import {
 } from './transcribe.js'
 import { mbWords, whisperDownloadDoor, whisperModelByName } from './whisperModels.js'
 
-export type VoicePhase = 'idle' | 'recording' | 'transcribing'
+type VoicePhase = 'idle' | 'recording' | 'transcribing'
 
-export interface VoiceReceipt {
+interface VoiceReceipt {
   seq: number
   text: string
   tone: 'info' | 'error'
 }
 
-export interface VoiceSnapshot {
+interface VoiceSnapshot {
   enabled: boolean
   phase: VoicePhase
   startedAt: number | null
@@ -54,7 +54,7 @@ export const RECORDING_FOOTER = 'recording · release space to stop · esc cance
 export const TRANSCRIBING_FOOTER = 'transcribing…'
 
 export const VOICE_OFF_RECEIPT = `voice input is off — /voice on turns it on; then ${HOLD_WORDS}`
-export const ALREADY_RECORDING_RECEIPT = 'already recording — /voice again or esc ends the take'
+const ALREADY_RECORDING_RECEIPT = 'already recording — /voice again or esc ends the take'
 export const CANCELLED_RECEIPT = 'capture cancelled — nothing sent'
 export const BUSY_RECEIPT = 'transcribing the last take — a moment'
 export const ENGINE_BUSY_RECEIPT = 'the on-device transcriber is still decoding the previous take — try again in a moment, or /voice options <family> chooses a cloud transcriber'
@@ -65,7 +65,7 @@ let receiptSeq = 0
 let active: CaptureHandle | null = null
 let lastStreamErrors: CaptureStreamErrors | null = null
 
-export type StreamErrorNotice = { kind: 'fatal'; text: string } | { kind: 'transient'; debug: string } | null
+type StreamErrorNotice = { kind: 'fatal'; text: string } | { kind: 'transient'; debug: string } | null
 
 export function streamErrorNotice(errors: CaptureStreamErrors): StreamErrorNotice {
   if (errors.fatal !== null) return { kind: 'fatal', text: `the input stream failed during the take — ${errors.fatal}` }
@@ -75,7 +75,7 @@ export function streamErrorNotice(errors: CaptureStreamErrors): StreamErrorNotic
   return null
 }
 
-export function lastTakeStreamErrors(): CaptureStreamErrors | null {
+function lastTakeStreamErrors(): CaptureStreamErrors | null {
   return lastStreamErrors
 }
 
@@ -87,7 +87,7 @@ export function lastTakeStreamWords(errors: CaptureStreamErrors | null = lastStr
   return `${take}: ${errors.transient} transient stream error${errors.transient === 1 ? '' : 's'}, the capture ${take === 'this take' ? 'keeps' : 'kept'} going`
 }
 
-export function currentTakeStreamWords(): string | null {
+function currentTakeStreamWords(): string | null {
   if (active !== null && !active.settled) return lastTakeStreamWords(active.streamErrors(), 'this take')
   return lastTakeStreamWords()
 }
@@ -134,7 +134,7 @@ export function setVoiceInputEnabled(on: boolean): void {
   publish({})
 }
 
-export function voiceTranscriberChoice(): string | null {
+function voiceTranscriberChoice(): string | null {
   try {
     const raw = getGlobalConfig().voiceTranscriber
     return typeof raw === 'string' && raw.trim() !== '' ? raw.trim() : null
@@ -159,7 +159,7 @@ export function boundLabel(ms: number): string {
   return `${Math.round(ms / 100) / 10}-second`
 }
 
-export function landTranscript(text: string): void {
+function landTranscript(text: string): void {
   const draft = pendingInput.text()
   const separator = draft === '' || /\s$/.test(draft) ? '' : ' '
   pendingInput.append(separator + text)
@@ -213,8 +213,8 @@ async function finishCapture(reason: 'key' | 'bound', env: NodeJS.ProcessEnv): P
   }
 }
 
-export type VoiceToggleOutcome = { kind: 'started' | 'stopping' | 'busy' | 'refused'; text: string }
-export type VoiceRoad = 'hold' | 'command'
+type VoiceToggleOutcome = { kind: 'started' | 'stopping' | 'busy' | 'refused'; text: string }
+type VoiceRoad = 'hold' | 'command'
 
 export async function toggleVoiceCapture(opts: { env?: NodeJS.ProcessEnv } = {}): Promise<VoiceToggleOutcome> {
   if (snapshot.phase === 'recording' && active !== null) {
@@ -351,7 +351,7 @@ function onDeviceCostWords(transcriber: TranscriberResolution): string | null {
   return `on-device: ${local.pack.engine}, ${local.model} (${local.language === 'en' ? 'English' : 'multilingual'}), ${road}; ${onDeviceMemoryWords(local.model)}`
 }
 
-export function onDeviceMemoryWords(model: string): string {
+function onDeviceMemoryWords(model: string): string {
   const row = whisperModelByName(model)
   const bytes = row?.bytes ?? 59_721_011
   const mb = Math.round((bytes / 1_000_000) * 1.35 / 5) * 5
@@ -396,7 +396,7 @@ export function describeVoiceOptions(env: NodeJS.ProcessEnv = process.env): stri
   return lines.join('\n')
 }
 
-export interface VoiceReadiness {
+interface VoiceReadiness {
   ready: boolean
   line: string
   detail: string

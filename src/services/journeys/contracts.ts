@@ -79,7 +79,7 @@ export interface JourneySpec {
   cleanup?: 'stop-started' | 'keep'
 }
 
-export type JourneyStepState = 'passed' | 'failed' | 'skipped' | 'cancelled'
+type JourneyStepState = 'passed' | 'failed' | 'skipped' | 'cancelled'
 
 export interface JourneyStepResult {
   index: number
@@ -91,7 +91,7 @@ export interface JourneyStepResult {
   elapsedMs: number
 }
 
-export type JourneyState = 'running' | 'succeeded' | 'failed' | 'cancelled'
+type JourneyState = 'running' | 'succeeded' | 'failed' | 'cancelled'
 
 export interface JourneyRecord {
   id: string

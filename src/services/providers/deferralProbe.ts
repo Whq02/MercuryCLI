@@ -3,12 +3,12 @@ import { join } from 'node:path'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { getMercuryHome } from '../../utils/envUtils.js'
 
-export type GatewayProbeVerdict =
+type GatewayProbeVerdict =
   | 'block'
   | 'text'
   | 'openai-native'
 
-export interface GatewayProbeRecord {
+interface GatewayProbeRecord {
   verdict: GatewayProbeVerdict
   evidence: string
   status: number | null
@@ -177,7 +177,7 @@ export function _resetGatewayProbeFlightsForTesting(): void {
   attempted.clear()
 }
 
-export const OPENAI_GATEWAY_PROBE_KEY_PREFIX = 'openai:'
+const OPENAI_GATEWAY_PROBE_KEY_PREFIX = 'openai:'
 
 export const OPENAI_FIRST_PARTY_PROBE_KEY = `${OPENAI_GATEWAY_PROBE_KEY_PREFIX}first-party`
 

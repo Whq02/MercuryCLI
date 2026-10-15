@@ -30,22 +30,22 @@ import {
 import { presenceNudge, probeVulcanEditorPresence } from '../vulcan/editorPresence.js'
 import { getVulcanClient, type VulcanClient, type VulcanResult } from '../vulcan/vulcanClient.js'
 
-export const GODOT_LANES_ARM_SURFACE =
+const GODOT_LANES_ARM_SURFACE =
   'arm via the boot menu (miscellaneous > "Godot language lanes") or MERCURY_GODOT=1'
-export const VULCAN_ARM_SURFACE =
+const VULCAN_ARM_SURFACE =
   'arm via the boot menu (miscellaneous > "Godot control surface (VULCAN)") or MERCURY_GODOT_TOOLS=1'
 
 const VULCAN_OP_TIMEOUT_MS = 8_000
-export const GODOT_SCENE_PROFILE_CAP = 50
+const GODOT_SCENE_PROFILE_CAP = 50
 const DIR_VISIT_CAP = 4_000
 const SKIP_DIRS = new Set(['.godot', '.git', '.import', 'node_modules'])
 
 
-export type GodotLaneArming =
+type GodotLaneArming =
   | { state: 'armed' }
   | { state: 'disarmed'; armSurface: string }
 
-export type GodotProjectResult =
+type GodotProjectResult =
   | {
       state: 'ok'
       root: string
@@ -55,14 +55,14 @@ export type GodotProjectResult =
     }
   | { state: 'absent'; detail: string }
 
-export interface GodotLspState {
+interface GodotLspState {
   registered: boolean
   port: number
   detail: string
   live?: { state: string; healthy: boolean; restartCount: number }
 }
 
-export interface GodotDapSessionRow {
+interface GodotDapSessionRow {
   id: string
   alive: boolean
   program: string
@@ -70,14 +70,14 @@ export interface GodotDapSessionRow {
   exitDetail?: string
 }
 
-export interface GodotDapState {
+interface GodotDapState {
   adapterRegistered: boolean
   port: number
   detail: string
   sessions: GodotDapSessionRow[]
 }
 
-export type GodotVulcanState =
+type GodotVulcanState =
   | { state: 'disarmed'; port: number; detail: string }
   | { state: 'no-project'; port: number; detail: string }
   | { state: 'unreachable'; port: number; detail: string; addon: VulcanInstallStatus }
@@ -89,11 +89,11 @@ export type GodotVulcanState =
       clientStatus: 'disconnected' | 'connecting' | 'ready'
     }
 
-export type GodotEditorTruth =
+type GodotEditorTruth =
   | { state: 'ok'; errors: string; currentScene: string; runningScene: string }
   | { state: 'unavailable'; detail: string }
 
-export interface GodotIdeSession {
+interface GodotIdeSession {
   project: GodotProjectResult
   godotLane: GodotLaneArming
   vulcanLane: GodotLaneArming
@@ -104,14 +104,14 @@ export interface GodotIdeSession {
   collectedAt: number
 }
 
-export interface GodotLaunchProfile {
+interface GodotLaunchProfile {
   kind: 'main' | 'current' | 'scene'
   scene: string
   path?: string
   label: string
 }
 
-export interface GodotLaunchDiscovery {
+interface GodotLaunchDiscovery {
   profiles: GodotLaunchProfile[]
   sceneCount: number
   truncatedScenes: number

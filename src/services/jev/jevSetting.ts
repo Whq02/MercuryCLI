@@ -123,7 +123,7 @@ export function jevReceiptWords(settings: JevSettings): string {
     : `JEV off — ${jevRoadWords(settings.road)} saved; nothing is sent; JevEval leaves the roster next turn`
 }
 
-export function jevCeilingWords(settings: JevSettings): string {
+function jevCeilingWords(settings: JevSettings): string {
   return settings.requestCeiling === null ? 'off' : `${settings.requestCeiling} requests a session`
 }
 

@@ -656,7 +656,7 @@ function diagnosticSeverityOf(ts: TsModule, cat: TS.DiagnosticCategory): number 
 const DIAGNOSTIC_CAP_PER_FILE = 200
 
 
-export interface SidecarOptions {
+interface SidecarOptions {
   typescriptPath?: string
   log?: (line: string) => void
 }

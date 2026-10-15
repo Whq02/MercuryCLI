@@ -13,7 +13,7 @@ export const MERCURY_RUFF_SERVER_NAME = 'mercury-ruff'
 
 const RUFF_SERVER_FLOOR: [number, number, number] = [0, 5, 3]
 
-export interface RuffProbe {
+interface RuffProbe {
   available: boolean
   ruffPath?: string
   version?: string

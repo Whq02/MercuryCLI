@@ -23,7 +23,7 @@ function isFile(p: string): boolean {
   }
 }
 
-export interface SpriteDiscovery {
+interface SpriteDiscovery {
   files: string[]
   total: number
   truncated: number
@@ -59,24 +59,24 @@ export function discoverSpriteFiles(from: string = getCwd()): SpriteDiscovery {
   return { files, total, truncated: Math.max(0, total - files.length) }
 }
 
-export interface AsepriteLocation {
+interface AsepriteLocation {
   path: string
   source: 'pin' | 'path' | 'app-bundle' | 'steam' | 'program-files' | 'itch'
 }
 
-export interface AsepriteCensus {
+interface AsepriteCensus {
   aseprite?: AsepriteLocation
   pinError?: string
 }
 
-export function asepriteAppBundleCandidates(home: string = homedir()): string[] {
+function asepriteAppBundleCandidates(home: string = homedir()): string[] {
   return [
     '/Applications/Aseprite.app/Contents/MacOS/aseprite',
     path.join(home, 'Applications', 'Aseprite.app', 'Contents', 'MacOS', 'aseprite'),
   ]
 }
 
-export function asepriteSteamCandidates(
+function asepriteSteamCandidates(
   platform: NodeJS.Platform = process.platform,
   home: string = homedir(),
 ): string[] {
@@ -100,7 +100,7 @@ export function asepriteSteamCandidates(
   ]
 }
 
-export function asepriteWin32Candidates(home: string = homedir()): Array<{
+function asepriteWin32Candidates(home: string = homedir()): Array<{
   candidate: string
   source: 'program-files' | 'itch'
 }> {
@@ -150,7 +150,7 @@ export function locateAseprite(testOpts?: {
   return {}
 }
 
-export interface AsepriteVersionProbe {
+interface AsepriteVersionProbe {
   version?: string
   reason?: string
 }
@@ -189,7 +189,7 @@ export interface AsepriteResolution {
   location: AsepriteLocation
 }
 
-export interface AsepriteUnavailable {
+interface AsepriteUnavailable {
   state: 'unavailable'
   note: string
   remedies: string[]
@@ -214,7 +214,7 @@ export function resolveAseprite(): AsepriteResolution | AsepriteUnavailable {
 
 const OUTPUT_CAP_CHARS = 64 * 1024
 
-export interface AsepriteRunResult {
+interface AsepriteRunResult {
   code: number
   stdout: string
   stderr: string

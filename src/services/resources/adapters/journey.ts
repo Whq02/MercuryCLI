@@ -4,7 +4,7 @@ import { getJourney, journeyExpired, listJourneys } from '../../journeys/runner.
 import { registerResourceAdapter } from '../registry.js'
 import type { ResourceAdapter } from '../contracts.js'
 
-export const journeyAdapter: ResourceAdapter = {
+const journeyAdapter: ResourceAdapter = {
   kind: 'journey',
   describe: 'local application-verification journeys (steps · evidence · cleanup · verdict)',
   async resolve(ref, ctx) {

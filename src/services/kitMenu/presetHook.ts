@@ -7,9 +7,9 @@ export interface KitPresetSnapshot {
   members: { mcp: string[]; skills: string[]; extensions: string[] }
 }
 
-export type KitPresetReceipt = { ok: true; receipt: string } | { ok: false; reason: string }
+type KitPresetReceipt = { ok: true; receipt: string } | { ok: false; reason: string }
 
-export interface KitPresetHook {
+interface KitPresetHook {
   save(name: string, snapshot: KitPresetSnapshot): KitPresetReceipt
 }
 

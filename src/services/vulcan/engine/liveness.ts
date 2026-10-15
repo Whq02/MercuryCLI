@@ -4,24 +4,24 @@ import { flagEnv } from '../../../substrate/flagRegistry.js'
 import { vulcanInstancesUnder, vulcanProcessAlive, type VulcanInstance } from '../instances.js'
 import { engineCheckTreeDir, engineChecksDir, engineRunPath, engineRunResultFile, engineTreesDir } from './paths.js'
 
-export const ENGINE_ORPHAN_GRACE_FLAG = 'MERCURY_GODOT_ORPHAN_GRACE_MS'
-export const ENGINE_ORPHAN_GRACE_DEFAULT_MS = 30 * 60_000
-export const ENGINE_HEARTBEAT_MS = 60_000
+const ENGINE_ORPHAN_GRACE_FLAG = 'MERCURY_GODOT_ORPHAN_GRACE_MS'
+const ENGINE_ORPHAN_GRACE_DEFAULT_MS = 30 * 60_000
+const ENGINE_HEARTBEAT_MS = 60_000
 
-export interface EngineEstateEntry {
+interface EngineEstateEntry {
   kind: 'tree' | 'check'
   id: string
   path: string
 }
 
-export type EngineTreeLiveness =
+type EngineTreeLiveness =
   | { alive: true; why: 'instance'; instance: VulcanInstance }
   | { alive: true; why: 'grace'; ageMs: number }
   | { alive: false; why: 'owner-gone'; instance: VulcanInstance }
   | { alive: false; why: 'grace-over'; ageMs: number }
   | { alive: false; why: 'absent' }
 
-export function engineOrphanGraceMs(): number {
+function engineOrphanGraceMs(): number {
   const raw = flagEnv(ENGINE_ORPHAN_GRACE_FLAG)
   const n = Number(raw)
   return raw !== undefined && raw.trim().length > 0 && Number.isInteger(n) && n >= 0 ? n : ENGINE_ORPHAN_GRACE_DEFAULT_MS
@@ -98,7 +98,7 @@ export function engineTreeLiveness(projectRoot: string, candidate: string, now: 
   return ageMs <= engineOrphanGraceMs() ? { alive: true, why: 'grace', ageMs } : { alive: false, why: 'grace-over', ageMs }
 }
 
-export function touchEngineEstate(target: string): void {
+function touchEngineEstate(target: string): void {
   try {
     const now = new Date()
     utimesSync(target, now, now)

@@ -43,7 +43,7 @@ export interface ZaiMessage {
   tool_call_id?: string
 }
 
-export interface ZaiToolCall {
+interface ZaiToolCall {
   id: string
   type: 'function'
   function: { name: string; arguments: string }
@@ -160,7 +160,7 @@ export function mapZaiHttpFailure(status: number, body: unknown, headers?: { get
 }
 
 
-export interface ZaiStreamOptions {
+interface ZaiStreamOptions {
   apiKey: string
   request: ZaiChatRequest
   signal?: AbortSignal

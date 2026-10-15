@@ -11,7 +11,7 @@ import {
 import { generateCodeChallenge, generateCodeVerifier, generateState } from './crypto.js'
 import type { OAuthTokens } from './types.js'
 
-export type OAuthFlowOptions = {
+type OAuthFlowOptions = {
   loginWithClaudeAi?: boolean
   inferenceOnly?: boolean
   expiresIn?: number

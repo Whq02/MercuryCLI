@@ -17,7 +17,7 @@ export function captureBoundMs(): number {
 export const NO_BACKEND_RECEIPT =
   'no microphone backend — the voice pack is absent on this install; run `bun run setup` (needs cargo) or put sox/ffmpeg on PATH'
 
-export function recorderInstallHint(platform: string = process.platform): string {
+function recorderInstallHint(platform: string = process.platform): string {
   if (platform === 'darwin') return 'brew install ffmpeg'
   if (platform === 'win32') return 'winget install ffmpeg'
   return 'apt install ffmpeg, or your package manager'
@@ -32,7 +32,7 @@ export function noBackendReceipt(checkoutRoot: string | null = voiceCheckoutRoot
 
 export type CaptureBackendKind = 'vendored' | 'sox' | 'arecord' | 'ffmpeg' | 'fixture'
 
-export const CAPTURE_BACKEND_KINDS: readonly CaptureBackendKind[] = ['vendored', 'sox', 'arecord', 'ffmpeg', 'fixture']
+const CAPTURE_BACKEND_KINDS: readonly CaptureBackendKind[] = ['vendored', 'sox', 'arecord', 'ffmpeg', 'fixture']
 
 export type CaptureBackendResolution =
   | { state: 'ok'; kind: CaptureBackendKind; detail: string; pinned: boolean }
@@ -105,7 +105,7 @@ export function resolveCaptureBackend(env: NodeJS.ProcessEnv = process.env): Cap
   return { state: 'none', note: `${noBackendReceipt()} (${notes.join('; ')})`, tried }
 }
 
-export class CaptureError extends Error {
+class CaptureError extends Error {
   readonly kind: CaptureBackendKind | 'none'
   constructor(kind: CaptureBackendKind | 'none', message: string) {
     super(message)
@@ -114,7 +114,7 @@ export class CaptureError extends Error {
   }
 }
 
-export interface CaptureResult {
+interface CaptureResult {
   wav: Buffer
   durationMs: number
   silent: boolean
@@ -123,7 +123,7 @@ export interface CaptureResult {
   streamErrors: CaptureStreamErrors
 }
 
-export const NO_STREAM_ERRORS: CaptureStreamErrors = { transient: 0, lastTransient: null, fatal: null }
+const NO_STREAM_ERRORS: CaptureStreamErrors = { transient: 0, lastTransient: null, fatal: null }
 
 export interface CaptureHandle {
   readonly backend: CaptureBackendKind
@@ -134,7 +134,7 @@ export interface CaptureHandle {
   streamErrors(): CaptureStreamErrors
 }
 
-export interface StartCaptureOptions {
+interface StartCaptureOptions {
   env?: NodeJS.ProcessEnv
   backend?: CaptureBackendResolution
   boundMs?: number

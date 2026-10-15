@@ -20,7 +20,7 @@ export function resolvedKitOf(rows: readonly KitRow[], states: KitStates): Sessi
   return kit
 }
 
-export type KitCarryReceipt = { carried: true } | { carried: false; reason: string }
+type KitCarryReceipt = { carried: true } | { carried: false; reason: string }
 
 export function carryNextSessionKit(rows: readonly KitRow[], states: KitStates): KitCarryReceipt {
   const validation = validateSessionKit(resolvedKitOf(rows, states))

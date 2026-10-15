@@ -6,7 +6,7 @@ import { truecolorActive } from '../../ink/colorize.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { groundRgb } from './spriteToAnsi.js'
 
-export type ImageProtocol = 'iterm' | 'kitty' | 'sixel' | 'cells' | 'link'
+type ImageProtocol = 'iterm' | 'kitty' | 'sixel' | 'cells' | 'link'
 
 const ESC = String.fromCharCode(27)
 const BEL = String.fromCharCode(7)
@@ -198,7 +198,7 @@ export async function imageToCells(png: Buffer, maxCols = 76, maxRows = 22): Pro
 }
 
 
-export interface RenderedImage {
+interface RenderedImage {
   protocol: ImageProtocol
   payload: string
 }

@@ -11,7 +11,7 @@ export const SEEN_LINES_BOUNDS = {
   fileCap: 512,
 } as const
 
-export type SeenRange = { start: number; end: number }
+type SeenRange = { start: number; end: number }
 
 interface FileLedger {
   generation: string
@@ -29,7 +29,7 @@ const store = new OwnerScopedStore<LedgerState>({
 })
 registerOwnerScopedStore(store)
 
-export function generationOf(st: { mtimeMs: number; size: number }): string {
+function generationOf(st: { mtimeMs: number; size: number }): string {
   return `m${Math.floor(st.mtimeMs)}:${st.size}`
 }
 
@@ -108,7 +108,7 @@ export function seenLinesOf(
   return entry === undefined ? undefined : { generation: entry.generation, ranges: entry.ranges }
 }
 
-export function lineCountOfText(text: string): number {
+function lineCountOfText(text: string): number {
   if (text === '') return 0
   return text.split('\n').length - (text.endsWith('\n') ? 1 : 0)
 }
@@ -136,7 +136,7 @@ export function wholeFileSeen(owner: OwnerKey, path: string, content: string): b
   return lastLine > 0 && entry.ranges.some(range => range.start <= 1 && range.end >= lastLine)
 }
 
-export type SeenLinesVerdict =
+type SeenLinesVerdict =
   | { ok: true }
   | {
       ok: false

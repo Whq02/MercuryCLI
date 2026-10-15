@@ -31,7 +31,7 @@ export function subscribeToolTerminal(cb: EffectSubscriber): () => void {
   }
 }
 
-export interface ToolStartEvent {
+interface ToolStartEvent {
   owner: OwnerKey
   toolName: string
   toolUseId: string | undefined

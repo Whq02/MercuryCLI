@@ -4,29 +4,29 @@ import { errorMessageWithCause } from '../../../utils/errors.js'
 import { fetchWithProviderDeadline } from '../fetchDeadline.js'
 import { antigravityUserAgent } from './antigravityClientContract.js'
 
-export const ANTIGRAVITY_CODE_ASSIST_BASES = ['https://daily-cloudcode-pa.googleapis.com', 'https://daily-cloudcode-pa.sandbox.googleapis.com'] as const
-export const ANTIGRAVITY_CODE_ASSIST_VERSION = 'v1internal'
-export const ANTIGRAVITY_CLIENT_METADATA = Object.freeze({ ideType: 'ANTIGRAVITY' })
-export const GEMINI_PLAN_FREE_TIER_ID = 'free-tier'
-export const GEMINI_PLAN_CALL_DEADLINE_MS = 15_000
-export const GEMINI_PLAN_ONBOARD_DEADLINE_MS = 30_000
-export const GEMINI_PLAN_ONBOARD_POLL_MS = 1_000
+const ANTIGRAVITY_CODE_ASSIST_BASES = ['https://daily-cloudcode-pa.googleapis.com', 'https://daily-cloudcode-pa.sandbox.googleapis.com'] as const
+const ANTIGRAVITY_CODE_ASSIST_VERSION = 'v1internal'
+const ANTIGRAVITY_CLIENT_METADATA = Object.freeze({ ideType: 'ANTIGRAVITY' })
+const GEMINI_PLAN_FREE_TIER_ID = 'free-tier'
+const GEMINI_PLAN_CALL_DEADLINE_MS = 15_000
+const GEMINI_PLAN_ONBOARD_DEADLINE_MS = 30_000
+const GEMINI_PLAN_ONBOARD_POLL_MS = 1_000
 const ANSWER_MAX_BYTES = 1024 * 1024
 const ERROR_BODY_LIMIT = 600
 
-export interface GeminiPlanTier {
+interface GeminiPlanTier {
   id?: string
   name?: string
   description?: string
 }
 
-export interface GeminiPlanIneligibleTier {
+interface GeminiPlanIneligibleTier {
   tierId?: string
   reasonMessage?: string
   validationUrl?: string
 }
 
-export interface GeminiPlanAccessAnswer {
+interface GeminiPlanAccessAnswer {
   currentTier?: GeminiPlanTier
   paidTier?: GeminiPlanTier
   allowedTiers: GeminiPlanTier[]
@@ -39,12 +39,12 @@ export interface GeminiPlanTierFacts {
   paid?: GeminiPlanTier
 }
 
-export interface GeminiPlanRosterQuota {
+interface GeminiPlanRosterQuota {
   remainingFraction?: number
   resetTime?: string
 }
 
-export interface GeminiPlanRosterModel {
+interface GeminiPlanRosterModel {
   id: string
   displayName?: string
   supportsThinking?: boolean
@@ -62,7 +62,7 @@ export interface GeminiPlanRoster {
   fetchedAtMs: number
 }
 
-export interface GeminiPlanIo {
+interface GeminiPlanIo {
   accessToken: string
   fetchImpl?: typeof fetch
   env?: NodeJS.ProcessEnv
@@ -88,7 +88,7 @@ export class GeminiPlanHttpError extends Error {
   }
 }
 
-export class GeminiPlanIneligibleError extends Error {
+class GeminiPlanIneligibleError extends Error {
   readonly reasonMessage: string
   readonly validationUrl: string | undefined
   constructor(reasonMessage: string, validationUrl: string | undefined) {
@@ -105,7 +105,7 @@ export function antigravityCodeAssistBases(env: NodeJS.ProcessEnv = process.env)
   return [...ANTIGRAVITY_CODE_ASSIST_BASES]
 }
 
-export function codeAssistMethodUrl(base: string, method: string): string {
+function codeAssistMethodUrl(base: string, method: string): string {
   return `${base}/${ANTIGRAVITY_CODE_ASSIST_VERSION}:${method}`
 }
 
@@ -131,7 +131,7 @@ function tier(value: unknown): GeminiPlanTier | undefined {
   }
 }
 
-export function decodeLoadCodeAssist(value: unknown): GeminiPlanAccessAnswer {
+function decodeLoadCodeAssist(value: unknown): GeminiPlanAccessAnswer {
   const raw = record(value) ?? {}
   const current = tier(raw.currentTier)
   const paid = tier(raw.paidTier)
@@ -169,7 +169,7 @@ function quotaOf(value: unknown): GeminiPlanRosterQuota | undefined {
   }
 }
 
-export function decodeFetchAvailableModels(value: unknown): { models: GeminiPlanRosterModel[]; imageModelIds: string[] } | undefined {
+function decodeFetchAvailableModels(value: unknown): { models: GeminiPlanRosterModel[]; imageModelIds: string[] } | undefined {
   const raw = record(value)
   if (!raw) return undefined
   const table = record(raw.models)
@@ -263,13 +263,13 @@ async function overBases<T>(io: GeminiPlanIo, work: (base: string) => Promise<T>
   throw last instanceof Error ? last : new Error(String(last))
 }
 
-export async function loadGeminiPlanAccess(io: GeminiPlanIo, projectId?: string): Promise<GeminiPlanAccessAnswer> {
+async function loadGeminiPlanAccess(io: GeminiPlanIo, projectId?: string): Promise<GeminiPlanAccessAnswer> {
   const body = { ...(projectId !== undefined ? { cloudaicompanionProject: projectId } : {}), metadata: ANTIGRAVITY_CLIENT_METADATA }
   const { answer } = await overBases(io, base => codeAssistCall(io, base, 'loadCodeAssist', body, 'POST'))
   return decodeLoadCodeAssist(answer)
 }
 
-export async function onboardGeminiPlanFreeTier(io: GeminiPlanIo): Promise<void> {
+async function onboardGeminiPlanFreeTier(io: GeminiPlanIo): Promise<void> {
   const now = io.now ?? Date.now
   const sleep = io.sleep ?? ((ms: number) => new Promise<void>(resolve => setTimeout(resolve, ms)))
   const deadline = now() + GEMINI_PLAN_ONBOARD_DEADLINE_MS
@@ -291,7 +291,7 @@ export async function onboardGeminiPlanFreeTier(io: GeminiPlanIo): Promise<void>
   }
 }
 
-export function geminiPlanIneligibility(answer: GeminiPlanAccessAnswer): GeminiPlanIneligibleError | undefined {
+function geminiPlanIneligibility(answer: GeminiPlanAccessAnswer): GeminiPlanIneligibleError | undefined {
   if (answer.allowedTiers.some(t => t.id === GEMINI_PLAN_FREE_TIER_ID)) return undefined
   const blocked = answer.ineligibleTiers.find(t => t.tierId === GEMINI_PLAN_FREE_TIER_ID && t.reasonMessage !== undefined)
   if (!blocked) return undefined
@@ -333,6 +333,6 @@ export function geminiPlanTierWords(tier: GeminiPlanTierFacts | undefined): stri
   return tier.current?.name ?? id ?? 'tier unknown'
 }
 
-export function geminiPlanTierIsFree(tier: GeminiPlanTierFacts | undefined): boolean {
+function geminiPlanTierIsFree(tier: GeminiPlanTierFacts | undefined): boolean {
   return tier?.paid === undefined && tier?.current?.id === GEMINI_PLAN_FREE_TIER_ID
 }

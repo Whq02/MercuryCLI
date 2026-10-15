@@ -44,7 +44,7 @@ export interface WorkbenchThreadRow {
   refs: string[]
 }
 
-export type WorkbenchLaneSource =
+type WorkbenchLaneSource =
   | 'agent-worktree'
   | 'worktree'
 
@@ -62,7 +62,7 @@ export interface WorkbenchLaneRow {
   refs: string[]
 }
 
-export interface WorkbenchMissionSliceRow {
+interface WorkbenchMissionSliceRow {
   id: string
   title: string
   phase: string
@@ -76,14 +76,14 @@ export interface WorkbenchMissionRow {
   slices: WorkbenchMissionSliceRow[]
 }
 
-export interface WorkbenchGeneration {
+interface WorkbenchGeneration {
   treeDigest?: string
   headSha?: string
   branch?: string
   clean?: boolean
 }
 
-export interface WorkbenchArtifactHead {
+interface WorkbenchArtifactHead {
   ref: string
   kind: string
   title: string
@@ -91,7 +91,7 @@ export interface WorkbenchArtifactHead {
   stale?: boolean
 }
 
-export interface WorkbenchReviewItem {
+interface WorkbenchReviewItem {
   ref: string
   note: string
 }

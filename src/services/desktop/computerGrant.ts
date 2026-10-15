@@ -4,9 +4,9 @@ import { renameWithWin32RetrySync } from '../../substrate/durablePublish.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { getMercuryHome } from '../../utils/envUtils.js'
 
-export const COMPUTER_GRANT_FILE = 'computer-grant.json'
-export const COMPUTER_GRANT_HOURS = [1, 24] as const
-export type ComputerGrantHours = (typeof COMPUTER_GRANT_HOURS)[number]
+const COMPUTER_GRANT_FILE = 'computer-grant.json'
+const COMPUTER_GRANT_HOURS = [1, 24] as const
+type ComputerGrantHours = (typeof COMPUTER_GRANT_HOURS)[number]
 export const HOUR_MS = 3_600_000
 
 export type ComputerGrantRecord = { version: 1; kind: 'timed'; hours: ComputerGrantHours; grantedAt: number; until: number }
@@ -74,7 +74,7 @@ export function readComputerGrant(sessionId: string, now: number = Date.now(), h
   return record
 }
 
-export function computerGrantRemainingMs(record: ComputerGrantRecord, now: number = Date.now()): number {
+function computerGrantRemainingMs(record: ComputerGrantRecord, now: number = Date.now()): number {
   return Math.max(0, record.until - now)
 }
 

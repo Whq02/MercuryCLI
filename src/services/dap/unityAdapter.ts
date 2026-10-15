@@ -14,13 +14,13 @@ export const UNITY_DAP_ADAPTER_KEY = 'unity'
 export const UNITY_ADAPTER_ARM_HINT =
   "install the official 'Unity' VS Code extension (visualstudiotoolsforunity.vstuc ships bin/UnityDebugAdapter.dll), or point MERCURY_UNITY_DEBUG_ADAPTER at an UnityDebugAdapter.dll (unpack spot ~/.unity-dap works too); the adapter runs via the dotnet SDK on PATH"
 
-export interface UnityAdapterResolution {
+interface UnityAdapterResolution {
   dll: string
   dotnet: string
   source: 'pin' | 'vscode-extension' | 'unpack'
 }
 
-export interface UnityAdapterFailure {
+interface UnityAdapterFailure {
   reason: string
 }
 
@@ -32,7 +32,7 @@ function isFile(p: string): boolean {
   }
 }
 
-export function vstucExtensionRoots(home: string = homedir()): string[] {
+function vstucExtensionRoots(home: string = homedir()): string[] {
   return [
     path.join(home, '.vscode', 'extensions'),
     path.join(home, '.vscode-insiders', 'extensions'),
@@ -105,7 +105,7 @@ export function unityDebugPortForPid(pid: number): number {
   return 56000 + (Math.abs(Math.trunc(pid)) % 1000)
 }
 
-export interface UnityEditorEndpoint {
+interface UnityEditorEndpoint {
   host: string
   port: number
   processId: number
@@ -137,7 +137,7 @@ export function unityEditorEndpoint(root: string): UnityEditorEndpoint | { reaso
   }
 }
 
-export interface UnityAttachInput {
+interface UnityAttachInput {
   program: string
   cwd: string
   host?: string

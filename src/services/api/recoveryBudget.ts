@@ -32,7 +32,7 @@ export function stampProviderWait<T extends object>(row: T, askedMs: number | un
   return askedMs === undefined || !Number.isFinite(askedMs) || askedMs <= 0 ? row : { ...row, providerWaitEndsAtMs: nowMs + askedMs }
 }
 
-export type RecoveryWaitClass = 'throttle' | 'fault' | 'recovery' | 'outage'
+type RecoveryWaitClass = 'throttle' | 'fault' | 'recovery' | 'outage'
 
 export interface OutageWaitFacts {
   cause: string
@@ -172,7 +172,7 @@ export function recoveryBudgetWords(budget: RecoveryBudget): string {
   return budget.capMs === Infinity ? 'no retry budget' : `${retrySeconds(budget.capMs).replace(/ s$/, 's')} retry budget`
 }
 
-export function reconnectBudgetWords(capMs: number): string {
+function reconnectBudgetWords(capMs: number): string {
   return capMs === Infinity ? 'no reconnect budget' : `${retrySeconds(capMs).replace(/ s$/, 's')} reconnect budget`
 }
 
@@ -195,7 +195,7 @@ export function outageSpentLine(facts: { cause: string; reconnects: number; capM
   return `${head} and the turn was ended; check the connection and send again, or ${RECONNECT_KNOB_WORDS}`
 }
 
-export function isReconnectBudgetSpentLine(text: string): boolean {
+function isReconnectBudgetSpentLine(text: string): boolean {
   return text.includes('reconnect budget is spent') && /^(?:API Error: )?the network was unreachable through \d+ reconnects? /.test(text)
 }
 

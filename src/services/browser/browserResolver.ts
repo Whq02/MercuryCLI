@@ -9,7 +9,7 @@ import { whichSync } from '../../utils/which.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { INSTALLED_NOT_DRIVEN } from './browserWords.js'
 
-export type BrowserFamily = 'chrome' | 'edge' | 'chromium' | 'brave' | 'chrome-for-testing'
+type BrowserFamily = 'chrome' | 'edge' | 'chromium' | 'brave' | 'chrome-for-testing'
 
 interface FamilyLocations {
   family: Exclude<BrowserFamily, 'chrome-for-testing'>
@@ -56,7 +56,7 @@ const FAMILIES: FamilyLocations[] = [
   },
 ]
 
-export interface InstalledBrowser {
+interface InstalledBrowser {
   family: BrowserFamily
   label: string
   executablePath: string
@@ -220,7 +220,7 @@ export interface BrowserResolution {
   buildId?: string
 }
 
-export interface BrowserUnavailable {
+interface BrowserUnavailable {
   state: 'unavailable'
   source?: 'operator-pin'
   note: string

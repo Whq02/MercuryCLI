@@ -20,7 +20,7 @@ export type HookPermissionOutcome = {
   decisionReason?: PermissionDecisionReason
 }
 
-export function hookScopeOf(toolUseContext: ToolUseContext): HookScope {
+function hookScopeOf(toolUseContext: ToolUseContext): HookScope {
   return { sessionId: getSessionId(), ...(toolUseContext.agentId !== undefined ? { crewmateId: toolUseContext.agentId } : {}) }
 }
 

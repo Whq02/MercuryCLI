@@ -1,5 +1,5 @@
 
-export type CloseChordFn = () => void
+type CloseChordFn = () => void
 
 let slot: CloseChordFn | null = null
 

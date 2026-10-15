@@ -62,7 +62,7 @@ import { hookProgressMessage, hookRowsOfResult } from '../../utils/hooks/rows.js
 import { hookWaitWords } from '../../utils/hooks/wait.js'
 
 
-export type McpServerType =
+type McpServerType =
   | 'stdio'
   | 'sse'
   | 'http'

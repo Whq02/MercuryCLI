@@ -25,14 +25,14 @@ export {
   resourceAdapterKinds,
 } from '../resources/registry.js'
 
-export interface ResourceIdentity {
+interface ResourceIdentity {
   ref: string
   owner?: OwnerKey
   version?: string
   observedAt: number
 }
 
-export const RESOURCE_RELATIONS = [
+const RESOURCE_RELATIONS = [
   'parent',
   'child',
   'execution',
@@ -45,14 +45,14 @@ export const RESOURCE_RELATIONS = [
   'verification',
 ] as const
 
-export type ResourceRelation = (typeof RESOURCE_RELATIONS)[number]
+type ResourceRelation = (typeof RESOURCE_RELATIONS)[number]
 
-export interface ResourceLink {
+interface ResourceLink {
   ref: string
   relation: ResourceRelation
 }
 
-export function linksAsChildren(
+function linksAsChildren(
   links: readonly ResourceLink[],
 ): { ref: string; title: string; summary: string }[] {
   return links.map(l => ({

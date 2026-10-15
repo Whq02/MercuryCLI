@@ -2,7 +2,7 @@ import { errorMessageWithCause } from '../../../utils/errors.js'
 import { writeStoredZaiApiKey } from '../../../utils/router/providerSecrets.js'
 import { ZAI_CODING_API_BASE_URL, zaiApiBase, type ZaiApiPlan } from './zaiClient.js'
 
-export interface ZaiKeyLoginOutcome {
+interface ZaiKeyLoginOutcome {
   ok: boolean
   stored: boolean
   receipt: string

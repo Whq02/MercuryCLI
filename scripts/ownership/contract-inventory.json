@@ -338,7 +338,6 @@
     "wrapFetchWithStepUpDetection"
    ],
    "src/services/mcp/config.ts": [
-    "PROJECT_MCP_FILE",
     "addMcpConfig",
     "areMcpConfigsAllowedWithEnterpriseMcpConfig",
     "dedupAnthropicConnectors",
@@ -358,7 +357,6 @@
     "projectMcpFilePath",
     "removeMcpConfig",
     "setMcpServerEnabled",
-    "shouldAllowManagedMcpServersOnly",
     "type:McpResolutionNotice"
    ],
    "src/services/mcp/client.ts": [
@@ -399,33 +397,16 @@
     "wrapFetchWithTimeout"
    ],
    "src/services/mcp/types.ts": [
-    "ConfigScopeSchema",
-    "McpAnthropicProxyServerConfigSchema",
-    "McpHTTPServerConfigSchema",
-    "McpJsonConfigSchema",
-    "McpSSEServerConfigSchema",
     "McpServerConfigSchema",
-    "McpStdioServerConfigSchema",
-    "McpWebSocketServerConfigSchema",
-    "TransportSchema",
     "type:ConfigScope",
     "type:ConnectedMCPServer",
-    "type:DisabledMCPServer",
-    "type:FailedMCPServer",
-    "type:MCPCliState",
     "type:MCPServerConnection",
     "type:McpAnthropicProxyServerConfig",
     "type:McpHTTPServerConfig",
-    "type:McpJsonConfig",
     "type:McpSSEServerConfig",
     "type:McpServerConfig",
     "type:McpStdioServerConfig",
-    "type:McpWebSocketServerConfig",
-    "type:NeedsAuthMCPServer",
-    "type:PendingMCPServer",
     "type:ScopedMcpServerConfig",
-    "type:SerializedClient",
-    "type:SerializedTool",
     "type:ServerResource",
     "type:Transport"
    ],
@@ -438,12 +419,10 @@
     "buildSchemaNotSentHint",
     "runToolUse",
     "toolUseError",
-    "type:McpServerType",
     "type:MessageUpdateLazy"
    ],
    "src/services/tools/toolOrchestration.ts": [
-    "runTools",
-    "type:MessageUpdate"
+    "runTools"
    ],
    "src/services/run/effectObserver.ts": [
     "_toolTerminalSubscriberCountForTesting",
@@ -451,7 +430,6 @@
     "observeToolTerminal",
     "subscribeToolStart",
     "subscribeToolTerminal",
-    "type:ToolStartEvent",
     "type:ToolTerminalEvent"
    ]
   },
@@ -537,31 +515,22 @@
     "type:TokenWarningLevel"
    ],
    "src/services/compact/compactionPolicy.ts": [
-    "COMPACTION_DEFAULTS",
-    "MAX_CONSECUTIVE_AUTOCOMPACT_FAILURES",
     "compactionBreakerAllows",
     "decideCompaction",
     "nextCompactionFailureCount",
     "percentUsedFromPercentLeft",
-    "type:CompactionPolicy",
-    "type:CompactionState",
-    "type:DecideCompactionInput",
-    "type:DecideCompactionResult"
+    "type:CompactionState"
    ],
    "src/services/compact/microCompact.ts": [
     "TIME_BASED_MC_CLEARED_MESSAGE",
     "consumePendingCacheEdits",
     "estimateContextTokens",
     "estimateMessageTokens",
-    "evaluateTimeBasedTrigger",
     "getPinnedCacheEdits",
     "microcompactMessages",
     "pinCacheEdits",
     "projectTimeBasedMicrocompact",
-    "resetMicrocompactState",
-    "type:MicrocompactResult",
-    "type:MicrocompactTrigger",
-    "type:PendingCacheEdits"
+    "resetMicrocompactState"
    ],
    "src/services/compact/verbatimTail.ts": [
     "DEFAULT_KEEP_ROUNDS",
@@ -569,17 +538,11 @@
     "MAX_FLOOR_ROUND_TOKENS",
     "MIN_HEAD_ROUNDS",
     "computeVerbatimRecentTail",
-    "isMercuryCompactKeepTailEnabled",
-    "type:VerbatimTailResult"
+    "isMercuryCompactKeepTailEnabled"
    ],
    "src/services/compact/sessionMemoryCompact.ts": [
-    "DEFAULT_SM_COMPACT_CONFIG",
-    "adjustIndexToPreserveAPIInvariants",
-    "calculateMessagesToKeepIndex",
-    "hasTextBlocks",
     "shouldUseSessionMemoryCompaction",
-    "trySessionMemoryCompaction",
-    "type:SessionMemoryCompactConfig"
+    "trySessionMemoryCompaction"
    ]
   },
   "agents": {

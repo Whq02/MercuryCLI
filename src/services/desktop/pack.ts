@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { voiceCheckoutRoot, voicePackPlatform, voicePackTreeDigest, voiceSourceTreeDigest } from '../voice/voicePack.js'
 
-export const DESKTOP_PACK_SEGMENTS = ['vendor', 'desktop'] as const
+const DESKTOP_PACK_SEGMENTS = ['vendor', 'desktop'] as const
 export const DESKTOP_PACK_PATH = 'vendor/desktop'
 export const DESKTOP_ADDON_FILE = 'mercury_desktop.node'
 export const DESKTOP_PACK_MANIFEST_FILE = '.vendor-manifest.json'
@@ -94,7 +94,7 @@ export function readDesktopPackManifest(dir: string): DesktopPackManifest | null
   }
 }
 
-export type DesktopPackCheck =
+type DesktopPackCheck =
   | { state: 'ok'; addonPath: string; manifest: DesktopPackManifest }
   | { state: 'absent'; note: string }
   | { state: 'mismatch'; note: string }
@@ -119,7 +119,7 @@ export function checkDesktopPackDir(dir: string, opts: { digest?: boolean; platf
   return { state: 'ok', addonPath, manifest }
 }
 
-export type DesktopPackResolution =
+type DesktopPackResolution =
   | { state: 'ok'; dir: string; addonPath: string; manifest: DesktopPackManifest; source: 'override' | 'vendored' | 'workspace' }
   | { state: 'unavailable'; note: string }
 
@@ -168,7 +168,7 @@ export interface DesktopAddonPermissions {
   reason?: string | null
 }
 
-export interface DesktopAddonDisplay {
+interface DesktopAddonDisplay {
   index: number
   id: string
   originX: number
@@ -179,7 +179,7 @@ export interface DesktopAddonDisplay {
   primary: boolean
 }
 
-export interface DesktopAddonDisplays {
+interface DesktopAddonDisplays {
   displays: DesktopAddonDisplay[]
   reason?: string | null
 }
@@ -196,7 +196,7 @@ export interface DesktopAddonCapture {
   capturedAt: number
 }
 
-export interface DesktopAddonBounds {
+interface DesktopAddonBounds {
   x: number
   y: number
   width: number
@@ -214,14 +214,14 @@ export interface DesktopAddonApplication {
   reason?: string | null
 }
 
-export interface DesktopAddonCursor {
+interface DesktopAddonCursor {
   x?: number | null
   y?: number | null
   display?: number | null
   reason?: string | null
 }
 
-export interface DesktopAddonHeld {
+interface DesktopAddonHeld {
   buttons: string[]
   keys: string[]
 }
@@ -274,7 +274,7 @@ export const DESKTOP_ADDON_EXPORTS = [
   'cancel',
 ] as const
 
-export type DesktopAddonLoad =
+type DesktopAddonLoad =
   | { state: 'ok'; addon: DesktopAddon; dir: string; manifest: DesktopPackManifest; source: 'override' | 'vendored' | 'workspace' }
   | { state: 'unavailable'; note: string }
 

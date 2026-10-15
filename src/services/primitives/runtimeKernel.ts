@@ -1,7 +1,7 @@
 
 import { createHash } from 'node:crypto'
 
-export interface RuntimeKernelCapabilities {
+interface RuntimeKernelCapabilities {
   hash: boolean
   text: boolean
   search: boolean
@@ -10,12 +10,12 @@ export interface RuntimeKernelCapabilities {
   notes: Record<string, string>
 }
 
-export interface HashKernel {
+interface HashKernel {
   id: string
   sha256Hex(data: string | Uint8Array): string
 }
 
-export interface RuntimeKernel {
+interface RuntimeKernel {
   capabilities(): RuntimeKernelCapabilities
   hash: HashKernel
 }

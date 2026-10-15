@@ -42,12 +42,12 @@ const LANGUAGE_LABELS: Record<string, string> = {
 
 const TS_EXTENSIONS = new Set(['.ts', '.tsx', '.mts', '.cts', '.js', '.jsx', '.mjs', '.cjs'])
 
-export function languageLabel(id: string | undefined): string {
+function languageLabel(id: string | undefined): string {
   if (id === undefined || id === '') return 'this'
   return LANGUAGE_LABELS[id] ?? id
 }
 
-export function serverLanguage(server: Pick<LSPServerInstance, 'config'>, path: string): string {
+function serverLanguage(server: Pick<LSPServerInstance, 'config'>, path: string): string {
   const ext = extname(path).toLowerCase()
   const map = server.config.extensionToLanguage as Record<string, string>
   for (const [key, language] of Object.entries(map)) {
@@ -61,7 +61,7 @@ export function serverTitle(server: Pick<LSPServerInstance, 'name' | 'config'>, 
   return `the ${serverLanguage(server, path)} language server (${server.name})`
 }
 
-export function typecheckCommand(cwd: string): string {
+function typecheckCommand(cwd: string): string {
   try {
     const pkg = JSON.parse(readFileSync(join(cwd, 'package.json'), 'utf8')) as { scripts?: Record<string, string> }
     const script = pkg.scripts ?? {}
@@ -76,7 +76,7 @@ export function typecheckCommand(cwd: string): string {
   return 'npx tsc --noEmit'
 }
 
-export function secondsOf(ms: number): string {
+function secondsOf(ms: number): string {
   const seconds = ms / 1000
   return `${Number.isInteger(seconds) ? seconds : seconds.toFixed(1)} s`
 }

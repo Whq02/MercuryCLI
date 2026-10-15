@@ -194,7 +194,7 @@ export function composeMissionView(inputs: MissionInputs): MissionView | null {
   }
 }
 
-export function deriveMissionFingerprint(
+function deriveMissionFingerprint(
   goalText: string,
   changedCount: number,
   separableLanes: number | null,

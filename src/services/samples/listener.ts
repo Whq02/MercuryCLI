@@ -8,7 +8,7 @@ import { formatMarksMessage, parseMarksBody } from './marks.js'
 import { renderSampleShell } from './shell.js'
 import { appendMarks, getSample, readVersion, sessionOfSample, setSampleListenerAddress } from './store.js'
 
-export interface SampleListenerAddress {
+interface SampleListenerAddress {
   port: number
   token: string
 }

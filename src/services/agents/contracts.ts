@@ -49,7 +49,7 @@ export const KNOWN_AGENT_KEYS = [
   'specVersion',
 ] as const
 
-export type AgentDiagnosticSeverity = 'error' | 'warning' | 'info'
+type AgentDiagnosticSeverity = 'error' | 'warning' | 'info'
 
 export type AgentDiagnostic = {
   severity: AgentDiagnosticSeverity

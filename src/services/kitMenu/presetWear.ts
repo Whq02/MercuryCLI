@@ -6,7 +6,7 @@ import { statesFromDeltas } from './menuStore.js'
 import { resolvedKitOf } from './resolvedKit.js'
 import { kitStateKey, type KitRow } from './kitTypes.js'
 
-export type PresetWearResolution =
+type PresetWearResolution =
   | {
       ok: true
       kit: SessionKitV1
@@ -57,7 +57,7 @@ export function resolvePresetWear(rows: readonly KitRow[], deltas: KitDeltasShap
   return { ok: true, kit: verdict.kit, unmatched, keptOff }
 }
 
-export type PresetWearReceipt = { ok: true; receipt: string } | { ok: false; reason: string }
+type PresetWearReceipt = { ok: true; receipt: string } | { ok: false; reason: string }
 
 export function wearPresetForNextSession(name: string, rows: readonly KitRow[]): PresetWearReceipt {
   const resolved = kitPresetDeltas(name)

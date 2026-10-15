@@ -24,7 +24,7 @@ export type StopDecision =
   | { kind: 'fail'; cause: string }
   | { kind: 'budget-exhausted'; unfinished: string[] }
 
-export interface StopEvaluationInput {
+interface StopEvaluationInput {
   snapshot: RunSnapshot | null
   wordingUnfinished: boolean
   continuationsThisTurn: number

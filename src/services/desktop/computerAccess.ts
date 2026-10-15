@@ -7,11 +7,11 @@ export function savedComputerAccess(): string | undefined {
   return flagEnv('MERCURY_COMPUTER_ACCESS')
 }
 
-export function sovereignPostureNow(): boolean {
+function sovereignPostureNow(): boolean {
   return getSessionSovereign() || isEnvTruthy(flagEnv('MERCURY_SKIP_PERMISSIONS'))
 }
 
-export function computerAccessNow(sovereignOn: boolean = sovereignPostureNow()): ComputerAccessResolution {
+function computerAccessNow(sovereignOn: boolean = sovereignPostureNow()): ComputerAccessResolution {
   return resolveComputerAccess(savedComputerAccess(), sovereignOn)
 }
 

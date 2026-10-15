@@ -2,12 +2,12 @@
 export const INTERVIEW_SCHEMA_VERSION = 1
 
 export type InterviewSessionId = string
-export type InterviewDecisionId = string
+type InterviewDecisionId = string
 export type InterviewQuestionId = string
-export type InterviewOptionId = string
-export type InterviewEventId = string
+type InterviewOptionId = string
+type InterviewEventId = string
 
-export const INTERVIEW_PHASES = [
+const INTERVIEW_PHASES = [
   'preparing',
   'asking',
   'discussing',
@@ -15,7 +15,7 @@ export const INTERVIEW_PHASES = [
   'completed',
   'cancelled',
 ] as const
-export type InterviewPhase = (typeof INTERVIEW_PHASES)[number]
+type InterviewPhase = (typeof INTERVIEW_PHASES)[number]
 
 export interface InterviewOption {
   id: InterviewOptionId
@@ -45,7 +45,7 @@ export interface InterviewContextRef {
   label: string
 }
 
-export type InterviewOutcome =
+type InterviewOutcome =
   | { kind: 'answers-submitted'; decisionRecordId: string }
   | { kind: 'discussion-requested'; questionId: InterviewQuestionId }
   | { kind: 'cancelled'; preserveDraft: boolean }

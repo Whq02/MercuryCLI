@@ -161,7 +161,7 @@ function simulateHunkSequence(
 }
 
 
-export interface PlanRefusal {
+interface PlanRefusal {
   state: 'refused'
   reason: string
 }
@@ -286,13 +286,13 @@ function headSha(root: string): string | null {
   }
 }
 
-export interface PlanApplyOutcome {
+interface PlanApplyOutcome {
   state: 'applied'
   plan: GitPlan
   commits: NonNullable<GitPlan['commits']>
 }
 
-export interface PlanApplyRefusal {
+interface PlanApplyRefusal {
   state: 'refused'
   code: 'absent' | 'stale' | 'already-applied' | 'cancelled' | 'verify' | 'io'
   reason: string
@@ -450,7 +450,7 @@ export function applyPlan(
 }
 
 
-export interface IndexOpOutcome {
+interface IndexOpOutcome {
   state: 'ok'
   detail: string
 }

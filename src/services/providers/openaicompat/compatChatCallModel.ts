@@ -93,7 +93,7 @@ import { stripThinkingFromIndex } from '../../../utils/messages/apiFilters.js'
 const COMPAT_MAX_ATTEMPTS = 2
 const COMPAT_RETRY_BACKOFF_MS = 400
 
-export type CompatLaneId =
+type CompatLaneId =
   | 'moonshot'
   | 'deepseek'
   | 'xai'
@@ -115,7 +115,7 @@ export function compatDispatchModelId(model: string): string {
   return normalizeModelStringForAPI(model.trim())
 }
 
-export interface CompatCredential {
+interface CompatCredential {
   apiKey?: string
   requestUrl?: string
   accountIdentity?: string

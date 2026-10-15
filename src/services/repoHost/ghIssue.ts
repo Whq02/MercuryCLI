@@ -58,7 +58,7 @@ export async function checkIssueAccess(slug: string): Promise<IssueAccess> {
   return { state: 'ok' }
 }
 
-export type FileIssueResult =
+type FileIssueResult =
   | { state: 'filed'; url: string }
   | { state: 'failed'; note: string; remedy: string }
 

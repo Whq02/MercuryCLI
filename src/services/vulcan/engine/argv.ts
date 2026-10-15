@@ -1,15 +1,15 @@
 import type { EngineManifestDefaults, EngineSuite } from './manifest.js'
 import { suiteScenePath, suiteScriptRes } from './manifest.js'
 
-export const NATIVE_RESOLUTION = '1280x720'
-export const NATIVE_AUDIO_DRIVER = 'Dummy'
-export const CAPTURE_USER_ARG = '--capture'
+const NATIVE_RESOLUTION = '1280x720'
+const NATIVE_AUDIO_DRIVER = 'Dummy'
+const CAPTURE_USER_ARG = '--capture'
 
 export function engineImportArgv(root: string): string[] {
   return ['--headless', '--path', root, '--import']
 }
 
-export interface SuiteArgvOptions {
+interface SuiteArgvOptions {
   native: boolean
   capture: boolean
 }
@@ -28,7 +28,7 @@ export function engineSuiteArgv(root: string, suite: EngineSuite, defaults: Engi
   return argv
 }
 
-export interface MediaArgvOptions {
+interface MediaArgvOptions {
   headless: boolean
   fixedFps: number | null
   debuggerPort: number | null

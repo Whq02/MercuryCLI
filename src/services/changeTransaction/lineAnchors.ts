@@ -11,13 +11,13 @@ export function lineAnchorsEnabled(): boolean {
 
 export const LINE_ANCHOR_HEX = 4
 
-export const NEIGHBORHOOD_CONTEXT_LINES = 2
+const NEIGHBORHOOD_CONTEXT_LINES = 2
 
-export const NEIGHBORHOOD_ROW_CAP = 30
+const NEIGHBORHOOD_ROW_CAP = 30
 
-export const RELOCATION_SEARCH_RADIUS = 40
+const RELOCATION_SEARCH_RADIUS = 40
 
-export const RELOCATION_CANDIDATE_CAP = 3
+const RELOCATION_CANDIDATE_CAP = 3
 
 export function mintLineHash(lineText: string): string {
   return runtimeKernel().hash.sha256Hex(lineText).slice(0, LINE_ANCHOR_HEX)
@@ -68,7 +68,7 @@ export function parseLineRef(spelling: string): LineRef | null {
   return { line, hash: m[2]! }
 }
 
-export type HashedLinesParse =
+type HashedLinesParse =
   | { ok: true; start: LineRef; end: LineRef }
   | { ok: false; message: string }
   | null
@@ -96,7 +96,7 @@ export function parseHashedLinesSpelling(spelling: string): HashedLinesParse {
 }
 
 
-export type LineRefCheck =
+type LineRefCheck =
   | { ok: true }
   | {
       ok: false

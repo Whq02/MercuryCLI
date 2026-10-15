@@ -11,13 +11,13 @@ import type { OwnerKey } from '../run/ownerKey.js'
 import { registerOwnerScopedStore } from '../run/ownerLifecycle.js'
 import { OwnerScopedStore } from '../run/ownerScopedStore.js'
 
-export const IDENTICAL_CALL_REMINDER_STEPS: readonly number[] = [3, 5, 8]
-export const CYCLE_WINDOW = 25
-export const CYCLE_MAX_LENGTH = 5
-export const CYCLE_REPEATS = 5
-export const ARGUMENT_PREVIEW_CHARS = 160
+const IDENTICAL_CALL_REMINDER_STEPS: readonly number[] = [3, 5, 8]
+const CYCLE_WINDOW = 25
+const CYCLE_MAX_LENGTH = 5
+const CYCLE_REPEATS = 5
+const ARGUMENT_PREVIEW_CHARS = 160
 export const LOOP_GUARD_STOP_SETTING = 'turns.loopGuard'
-export const HEADLESS_FAILED_CALL_LIMIT = 8
+const HEADLESS_FAILED_CALL_LIMIT = 8
 
 const BOOKKEEPING_PREFIXES = ['Task', 'Todo']
 const BOOKKEEPING_NAMES = new Set(['Checkpoint', 'Rewind', 'Sleep', 'Monitor'])
@@ -25,7 +25,7 @@ const KEY_SEPARATOR = '\u0000'
 const CYCLE_SEPARATOR = '\u0001'
 const DETECTION_MEMORY = 16
 
-export interface LoopGuardObservation {
+interface LoopGuardObservation {
   toolName: string
   toolUseID: string
   roundHandle: string
@@ -36,13 +36,13 @@ export interface LoopGuardObservation {
   messages: readonly unknown[] | undefined
 }
 
-export interface CycleDetection {
+interface CycleDetection {
   length: number
   tools: string[]
   detection: number
 }
 
-export interface LoopGuardVerdict {
+interface LoopGuardVerdict {
   run: number
   step: number | null
   cycle: CycleDetection | null
@@ -113,7 +113,7 @@ export function isLoopGuardStopEnabled(): boolean {
   }
 }
 
-export function isBookkeepingTool(name: string): boolean {
+function isBookkeepingTool(name: string): boolean {
   if (BOOKKEEPING_NAMES.has(name)) return true
   return BOOKKEEPING_PREFIXES.some(prefix => name.startsWith(prefix))
 }
@@ -131,7 +131,7 @@ function sortKeysDeep(value: unknown): unknown {
   return value
 }
 
-export function canonicalArguments(value: unknown): string {
+function canonicalArguments(value: unknown): string {
   return JSON.stringify(sortKeysDeep(value)) ?? 'undefined'
 }
 
@@ -139,7 +139,7 @@ function shortHash(text: string): string {
   return createHash('sha256').update(text).digest('hex').slice(0, 16)
 }
 
-export function toolCallKey(toolName: string, args: unknown): string {
+function toolCallKey(toolName: string, args: unknown): string {
   return `${toolName}${KEY_SEPARATOR}${shortHash(canonicalArguments(args))}`
 }
 
@@ -157,7 +157,7 @@ export function toolResultBlockOf(message: Message | undefined, toolUseID: strin
   return undefined
 }
 
-export function resultDigest(block: ToolResultBlockParam | undefined, toolUseID: string): string {
+function resultDigest(block: ToolResultBlockParam | undefined, toolUseID: string): string {
   const material = canonicalArguments({
     content: block?.content ?? null,
     error: block?.is_error === true,
@@ -173,7 +173,7 @@ function firstFailureLine(block: ToolResultBlockParam | undefined): string | nul
   return content.split(/\r?\n/)[0] || 'tool returned an error'
 }
 
-export function isUnchangedReadAnswer(block: ToolResultBlockParam | undefined): boolean {
+function isUnchangedReadAnswer(block: ToolResultBlockParam | undefined): boolean {
   return block?.is_error !== true && block?.content === FILE_UNCHANGED_STUB
 }
 
@@ -211,7 +211,7 @@ function isHumanTurnFrame(frame: FrameShape): boolean {
   )
 }
 
-export function humanTurnBoundaryOf(messages: readonly unknown[] | undefined): string | null {
+function humanTurnBoundaryOf(messages: readonly unknown[] | undefined): string | null {
   if (messages === undefined) return null
   for (let index = messages.length - 1; index >= 0; index--) {
     const frame = messages[index] as FrameShape | undefined
@@ -221,7 +221,7 @@ export function humanTurnBoundaryOf(messages: readonly unknown[] | undefined): s
   return null
 }
 
-export function detectCycle(ring: readonly string[]): { length: number; keys: string[] } | null {
+function detectCycle(ring: readonly string[]): { length: number; keys: string[] } | null {
   for (let length = 1; length <= CYCLE_MAX_LENGTH; length++) {
     const span = length * CYCLE_REPEATS
     if (ring.length < span) break
@@ -238,7 +238,7 @@ export function detectCycle(ring: readonly string[]): { length: number; keys: st
   return null
 }
 
-export function reminderText(toolName: string, run: number, preview: string): string {
+function reminderText(toolName: string, run: number, preview: string): string {
   if (run <= 3) {
     return 'Loop check: this is the third identical tool call, and its result has not changed. Read the result you already have before calling again, then change the approach or finish if the work is done.'
   }
@@ -252,7 +252,7 @@ function cycleShape(cycle: CycleDetection): string {
   return cycle.length === 1 ? `the same ${cycle.tools[0]} call` : `the same cycle of tool calls (${cycle.tools.join(' -> ')})`
 }
 
-export function cycleNudgeText(cycle: CycleDetection, run: number, stopEnabled: boolean): string {
+function cycleNudgeText(cycle: CycleDetection, run: number, stopEnabled: boolean): string {
   if (cycle.length === 1) {
     return `Loop notice: ${cycle.tools[0]} has returned the same result ${run} times for the same call. This pattern is not making progress: inspect the result you already have, change the approach, or end the turn and report what you found.`
   }
@@ -264,7 +264,7 @@ export function cycleNudgeText(cycle: CycleDetection, run: number, stopEnabled: 
   return `Loop notice: ${cycleShape(cycle)} has repeated five more times since the last loop notice, with identical arguments and identical results each time (${cycle.detection} detections this turn). It is not making progress: stop repeating it, change the approach, or end the turn and report what you found.`
 }
 
-export function cycleStopText(cycle: CycleDetection): string {
+function cycleStopText(cycle: CycleDetection): string {
   return `The loop guard ended the turn: ${cycleShape(cycle)} repeated five more times after the loop notice, with identical arguments and identical results each time. When the turn resumes, report what was found and what a different approach would be.`
 }
 
@@ -286,7 +286,7 @@ function quiet(run: number): LoopGuardVerdict {
   return { run, step: null, cycle: null, endTurn: false, messages: [] }
 }
 
-export function canonicalCycleID(keys: readonly string[]): string {
+function canonicalCycleID(keys: readonly string[]): string {
   let best: string | null = null
   for (let start = 0; start < keys.length; start++) {
     const rotation = [...keys.slice(start), ...keys.slice(0, start)].join(CYCLE_SEPARATOR)

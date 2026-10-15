@@ -105,7 +105,7 @@ export function mapToolsToOpenai(tools: readonly ApiShapedTool[], deferred?: Rea
   }))
 }
 
-export const OPENAI_TOOL_SEARCH_TOOL: OpenaiToolSearchTool = { type: 'tool_search' }
+const OPENAI_TOOL_SEARCH_TOOL: OpenaiToolSearchTool = { type: 'tool_search' }
 
 export function loadedToolNamesOf(items: readonly OpenaiInputItem[]): string[] {
   const names: string[] = []
@@ -305,7 +305,7 @@ export function mapMessagesToOpenaiInput(
 }
 
 
-export interface BuildOpenaiRequestInput {
+interface BuildOpenaiRequestInput {
   model: string
   instructions?: string
   messages: readonly BridgeMessage[]
@@ -319,7 +319,7 @@ export interface BuildOpenaiRequestInput {
   toolSearch?: boolean
 }
 
-export function webSearchToolFor(request: NativeWebSearchRequest): OpenaiWebSearchTool {
+function webSearchToolFor(request: NativeWebSearchRequest): OpenaiWebSearchTool {
   const allowed = (request.allowedDomains ?? []).map(d => d.trim()).filter(d => d !== '').slice(0, 20)
   return { type: 'web_search', ...(allowed.length > 0 ? { filters: { allowed_domains: allowed } } : {}) }
 }

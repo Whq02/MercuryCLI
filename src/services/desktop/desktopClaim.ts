@@ -30,7 +30,7 @@ import {
 
 export const DESKTOP_CLAIM_FILE = 'desktop.lock'
 export const DESKTOP_CLAIM_IDLE_RELEASE_MS = 30_000
-export const DESKTOP_CLAIM_POLL_MS = 500
+const DESKTOP_CLAIM_POLL_MS = 500
 
 export function desktopClaimPath(): string {
   return join(daemonDir(), DESKTOP_CLAIM_FILE)
@@ -46,16 +46,16 @@ function sessionWord(): string {
 
 let owner: string | null = null
 
-export function desktopClaimOwner(): string {
+function desktopClaimOwner(): string {
   if (owner === null) owner = `${sessionWord()}:${process.pid}`
   return owner
 }
 
-export type DesktopClaimVerdict =
+type DesktopClaimVerdict =
   | { held: true }
   | { held: false; holder: PidLockHolder | null; aborted?: true }
 
-export type DesktopClaimRecord = {
+type DesktopClaimRecord = {
   app: DesktopDrivingApp | null
   since: number
 }

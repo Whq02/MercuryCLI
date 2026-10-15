@@ -22,7 +22,7 @@ import { enqueue } from '../../utils/messageQueueManager.js'
 import { isChannelsEnabled } from './channelAllowlist.js'
 import { wrapChannelMessage } from './channelNotification.js'
 
-export type LocalChannelRecord = {
+type LocalChannelRecord = {
   server: string
   content: string
   meta?: Record<string, string>
@@ -92,7 +92,7 @@ function ingestRecord(record: LocalChannelRecord): void {
   })
 }
 
-export type LocalChannelBus = { stop: () => void }
+type LocalChannelBus = { stop: () => void }
 
 export function startLocalChannelBus(
   opts: { replayHistory?: boolean } = {},

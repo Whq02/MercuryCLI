@@ -3,13 +3,13 @@ import { stringWidth } from '../ink/stringWidth.js'
 import type { UsageWindowView } from './providers/providerUsage.js'
 import { FIRST_WARNING_PCT, usageWarningTier, usageWindowState, type UsageWarningTier } from './providers/usageTiers.js'
 
-export type CapPosture = 'off' | 'offer' | 'auto'
+type CapPosture = 'off' | 'offer' | 'auto'
 
-export type CapQuota = 'allowed' | 'allowed_warning' | 'rejected'
+type CapQuota = 'allowed' | 'allowed_warning' | 'rejected'
 
-export type CapWindowState = 'allowed' | 'warning' | 'rejected' | 'unknown'
+type CapWindowState = 'allowed' | 'warning' | 'rejected' | 'unknown'
 
-export type CapAction =
+type CapAction =
   | { kind: 'none' }
   | {
       kind: 'offer'
@@ -96,7 +96,7 @@ export function failoverLineMs(): number {
   return parsed >= FAILOVER_LINE_FLOOR_MS ? parsed : FAILOVER_LINE_DEFAULT_MS
 }
 
-export interface CapLaneLineFacts {
+interface CapLaneLineFacts {
   lane: string
   modelName: string
   homeName: string
@@ -118,7 +118,7 @@ export function capLaneLineWords(facts: CapLaneLineFacts): string {
   return `${capLaneLineBody(facts)}${CAP_LANE_LINE_TAIL}`
 }
 
-export type CapLaneLineCutV1 = { body: string; bodyColumns: number; tail: string }
+type CapLaneLineCutV1 = { body: string; bodyColumns: number; tail: string }
 
 export function capLaneLineCut(words: string, columns: number): CapLaneLineCutV1 | null {
   if (!words.endsWith(CAP_LANE_LINE_TAIL) || stringWidth(words) <= columns) return null
@@ -180,7 +180,7 @@ export function _resetOfferMemoriesForTesting(): void {
 }
 
 
-export type CapOfferDirection = 'handoff' | 'return'
+type CapOfferDirection = 'handoff' | 'return'
 const answeredCapOffers = new Set<string>()
 const capOfferArmKey = (direction: CapOfferDirection, family: string): string =>
   `${direction}|${family}`
@@ -201,7 +201,7 @@ export function noteCapWindowObserved(family: string, state: CapWindowState): vo
   }
 }
 
-export interface CapReturnHomeFacts {
+interface CapReturnHomeFacts {
   window: CapWindowState | CapQuota
   credentialUsable: boolean
 }
@@ -220,7 +220,7 @@ export function decideCapReturn(
 }
 
 
-export type SlotWallAction = { kind: 'none' } | { kind: 'offer' } | { kind: 'auto-switch' }
+type SlotWallAction = { kind: 'none' } | { kind: 'offer' } | { kind: 'auto-switch' }
 
 export function decideSlotWallAction(
   posture: CapPosture,
@@ -231,12 +231,12 @@ export function decideSlotWallAction(
 }
 
 
-export type CapWindowBasis =
+type CapWindowBasis =
   | 'observed'
   | 'stated-reset-elapsed'
   | 'none'
 
-export interface FamilyWindowFact {
+interface FamilyWindowFact {
   family: string
   state: CapWindowState
   basis: CapWindowBasis
@@ -247,7 +247,7 @@ export interface FamilyWindowFact {
   staleWords?: string
 }
 
-export interface FamilyWindowReads {
+interface FamilyWindowReads {
   now?: () => number
   anthropic?: () => {
     status: CapQuota
@@ -507,12 +507,12 @@ function stripUndefined<T extends object>(reads: T | undefined): Partial<T> {
 }
 
 
-export interface CapFailoverCandidate {
+interface CapFailoverCandidate {
   route: string
   model: string
 }
 
-export interface CapFailoverExclusion {
+interface CapFailoverExclusion {
   route: string
   why: string
 }
@@ -527,7 +527,7 @@ export interface CapFailoverListedFamily {
   blockers: string[]
 }
 
-export interface CapFailoverCandidateSet {
+interface CapFailoverCandidateSet {
   home: string | null
   candidates: CapFailoverCandidate[]
   excluded: CapFailoverExclusion[]
@@ -695,7 +695,7 @@ export function liveCapFailoverTarget(home: string | null): CapFailoverCandidate
 }
 
 
-export type LaneSpendKind = 'subscription' | 'metered' | 'local' | 'endpoint' | 'none'
+type LaneSpendKind = 'subscription' | 'metered' | 'local' | 'endpoint' | 'none'
 
 export function laneSpendPosture(
   route: string,

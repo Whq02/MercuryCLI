@@ -14,7 +14,7 @@ export function ideLoopEnabled(): boolean {
 }
 
 
-export const TX_STEP_KINDS = [
+const TX_STEP_KINDS = [
   'profile',
   'diagnose',
   'select',
@@ -32,9 +32,9 @@ export const TX_STEP_KINDS = [
 
 export type TxStepKind = (typeof TX_STEP_KINDS)[number]
 export type TxStepOutcome = 'ok' | 'failed' | 'indeterminate' | 'info'
-export type TxVerdict = 'open' | 'completed' | 'failed' | 'abandoned'
+type TxVerdict = 'open' | 'completed' | 'failed' | 'abandoned'
 
-export interface TxStepAuto {
+interface TxStepAuto {
   toolUseId: string
 }
 
@@ -61,7 +61,7 @@ export interface TxRecord {
   elided?: number
 }
 
-export interface TxListRow {
+interface TxListRow {
   id: string
   intent: string
   verdict: TxVerdict
@@ -240,7 +240,7 @@ async function persist(record: TxRecord, root: string): Promise<void> {
 }
 
 
-export interface OpenTransactionOptions {
+interface OpenTransactionOptions {
   owner: OwnerKey
   intent: string
   from?: string
@@ -271,7 +271,7 @@ export async function openTransaction(opts: OpenTransactionOptions): Promise<TxR
 }
 
 
-export interface NoteStepOptions {
+interface NoteStepOptions {
   id: string
   owner: OwnerKey
   kind: TxStepKind
@@ -283,7 +283,7 @@ export interface NoteStepOptions {
   getAppState?: () => unknown
 }
 
-export type NoteStepResult =
+type NoteStepResult =
   | { state: 'ok'; record: TxRecord }
   | { state: 'refused'; reason: string }
 
@@ -391,7 +391,7 @@ export function completionGapsFor(record: TxRecord): string[] {
 }
 
 
-export interface FinishTransactionOptions {
+interface FinishTransactionOptions {
   id: string
   owner: OwnerKey
   verdict: Exclude<TxVerdict, 'open'>
@@ -399,7 +399,7 @@ export interface FinishTransactionOptions {
   from?: string
 }
 
-export type FinishTransactionResult =
+type FinishTransactionResult =
   | { state: 'ok'; record: TxRecord }
   | { state: 'refused'; reason: string; missing: string[] }
 
@@ -441,20 +441,20 @@ export async function finishTransaction(
 }
 
 
-export interface ResumeTransactionOptions {
+interface ResumeTransactionOptions {
   id: string
   owner: OwnerKey
   from?: string
   getAppState?: () => unknown
 }
 
-export interface ApplyRefCheck {
+interface ApplyRefCheck {
   ref: string
   resolves: boolean
   note: string
 }
 
-export async function resumeTransaction(
+async function resumeTransaction(
   opts: ResumeTransactionOptions,
 ): Promise<{ record: TxRecord; applyRefChecks: ApplyRefCheck[] } | null> {
   const record = getTransaction(opts.id, opts.from)

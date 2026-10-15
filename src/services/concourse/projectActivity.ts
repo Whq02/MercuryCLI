@@ -40,7 +40,7 @@ export function projectActivity(
     .sort((a, b) => activityOf(b) - activityOf(a) || a.name.localeCompare(b.name))
 }
 
-export function activityOf(p: ConcourseElsewhereV1): number {
+function activityOf(p: ConcourseElsewhereV1): number {
   return p.running + p.needsYou + p.finished
 }
 

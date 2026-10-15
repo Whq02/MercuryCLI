@@ -70,7 +70,7 @@ function buildOutsideMask(
   return outside
 }
 
-export type SpriteAnsi = { lines: string[]; cols: number; rows: number }
+type SpriteAnsi = { lines: string[]; cols: number; rows: number }
 
 export async function spriteToAnsi(
   src: string | Buffer,

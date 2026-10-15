@@ -122,7 +122,7 @@ export function readVoicePackManifest(dir: string): VoicePackManifest | null {
   }
 }
 
-export type VoicePackCheck =
+type VoicePackCheck =
   | { state: 'ok'; addonPath: string; manifest: VoicePackManifest }
   | { state: 'absent'; note: string }
   | { state: 'mismatch'; note: string }
@@ -147,7 +147,7 @@ export function checkVoicePackDir(dir: string, opts: { digest?: boolean; platfor
   return { state: 'ok', addonPath, manifest }
 }
 
-export type VoicePackResolution =
+type VoicePackResolution =
   | { state: 'ok'; dir: string; addonPath: string; manifest: VoicePackManifest; source: 'override' | 'vendored' | 'workspace' }
   | { state: 'unavailable'; note: string }
 
@@ -194,12 +194,12 @@ export function resolveVoicePackDir(): VoicePackResolution {
   }
 }
 
-export interface ProcessGroupAnswer {
+interface ProcessGroupAnswer {
   pgid?: number | null
   reason?: string | null
 }
 
-export interface TerminalReclaimAnswer {
+interface TerminalReclaimAnswer {
   reclaimed: boolean
   before?: number | null
   after?: number | null
@@ -240,7 +240,7 @@ export const VOICE_ADDON_EXPORTS = [
   'reclaimTerminal',
 ] as const
 
-export type VoiceAddonLoad =
+type VoiceAddonLoad =
   | { state: 'ok'; addon: VoiceAddon; dir: string; manifest: VoicePackManifest; source: 'override' | 'vendored' | 'workspace' }
   | { state: 'unavailable'; note: string }
 

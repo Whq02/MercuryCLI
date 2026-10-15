@@ -287,7 +287,7 @@ function projectDirectoryChain(): string[] {
   return chain
 }
 
-export const PROJECT_MCP_FILE = 'mcp.json'
+const PROJECT_MCP_FILE = 'mcp.json'
 
 export function projectMcpFilePath(dir: string): string {
   return join(projectConfigDirs(dir)[0], PROJECT_MCP_FILE)
@@ -430,7 +430,7 @@ function getDenyList(): PolicyEntry[] {
   return entries
 }
 
-export function shouldAllowManagedMcpServersOnly(): boolean {
+function shouldAllowManagedMcpServersOnly(): boolean {
   return getSettingsForSource('policySettings')?.kit?.managedOnly === true
 }
 

@@ -6,7 +6,7 @@ import { flagEnv } from '../../substrate/flagRegistry.js'
 
 export const CHANGE_CONTRACT_VERSION = 1
 
-export interface ChangeSnapshot {
+interface ChangeSnapshot {
   path: string
   anchor: string
   byteLength: number

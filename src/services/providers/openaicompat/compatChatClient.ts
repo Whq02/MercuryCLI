@@ -50,7 +50,7 @@ export interface CompatMessage {
   tool_call_id?: string
 }
 
-export interface CompatToolCall {
+interface CompatToolCall {
   id: string
   type: 'function'
   function: { name: string; arguments: string }
@@ -61,7 +61,7 @@ export interface CompatTool {
   function: { name: string; description?: string; parameters: unknown }
 }
 
-export interface CompatToolDeclarationMessage {
+interface CompatToolDeclarationMessage {
   role: 'system'
   tools: CompatTool[]
 }

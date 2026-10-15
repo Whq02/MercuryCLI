@@ -45,9 +45,9 @@ export function readSessionReceipts(home: string, sessionId: string): SessionRec
 }
 
 
-export type SessionCloseSeam = 'settle' | 'park'
+type SessionCloseSeam = 'settle' | 'park'
 
-export interface MachineFloorDetails {
+interface MachineFloorDetails {
   closedBy: SessionCloseSeam
   firstAt?: string
   lastAt?: string
@@ -270,7 +270,7 @@ export function deriveSessionFloor(home: string, sessionId: string, closedBy: Se
   }
 }
 
-export function machineFloorSummaryOf(d: MachineFloorDetails): string {
+function machineFloorSummaryOf(d: MachineFloorDetails): string {
   const parts: string[] = []
   parts.push(`${d.closedBy === 'settle' ? 'settled' : 'parked'}${d.spanMs !== undefined ? ` after ${fmtSpan(d.spanMs)}` : ''}`)
   parts.push(`${d.turns.user} prompt${d.turns.user === 1 ? '' : 's'} · ${d.turns.assistant} repl${d.turns.assistant === 1 ? 'y' : 'ies'}`)

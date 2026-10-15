@@ -2,8 +2,8 @@ import type { CompactProgressEvent } from '../../Tool.js'
 import { COMPACT_MAX_OUTPUT_TOKENS } from '../../utils/context.js'
 import { formatDuration, formatTokens } from '../../utils/format.js'
 
-export type FoldStage = 'session-memory' | 'micro-compaction' | 'summarising' | 'restoring'
-export const FOLD_STAGE_ORDER: readonly FoldStage[] = ['session-memory', 'micro-compaction', 'summarising', 'restoring']
+type FoldStage = 'session-memory' | 'micro-compaction' | 'summarising' | 'restoring'
+const FOLD_STAGE_ORDER: readonly FoldStage[] = ['session-memory', 'micro-compaction', 'summarising', 'restoring']
 export type FoldTrigger = 'manual' | 'auto'
 export type FoldExit = 'landed' | 'cancelled' | 'failed'
 
@@ -22,7 +22,7 @@ export interface FoldStatusV1 {
 }
 
 export const FOLD_ROW_HEAD = 'compacting context'
-export const FOLD_STAGE_WORDS: Readonly<Record<FoldStage, string>> = {
+const FOLD_STAGE_WORDS: Readonly<Record<FoldStage, string>> = {
   'session-memory': 'session memory',
   'micro-compaction': 'micro-compaction',
   summarising: 'summarising',
@@ -149,7 +149,7 @@ export function foldStatusToWire(status: FoldStatusV1): Record<string, unknown> 
   return renamedKeys(status, FOLD_WIRE_KEYS) as Record<string, unknown>
 }
 
-export type FoldBarCell = 'done' | 'fill' | 'pulse' | 'empty'
+type FoldBarCell = 'done' | 'fill' | 'pulse' | 'empty'
 export function foldBarCells(status: FoldStatusV1): FoldBarCell[] {
   const per = FOLD_BAR_CELLS_PER_STAGE
   const cells: FoldBarCell[] = []
@@ -192,7 +192,7 @@ export function foldBarText(cells: readonly FoldBarCell[]): string {
   return cells.map(cell => (cell === 'empty' ? '░' : cell === 'pulse' ? '◐' : '█')).join('')
 }
 
-export function foldElapsedMs(status: FoldStatusV1, nowMs: number): number {
+function foldElapsedMs(status: FoldStatusV1, nowMs: number): number {
   const end = status.endedAtMs ?? nowMs
   return Math.max(0, end - status.startedAtMs)
 }

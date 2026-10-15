@@ -28,8 +28,8 @@ export function launchProfilesEnabled(): boolean {
   return flagEnabled('MERCURY_LAUNCH')
 }
 
-export type LaunchProfileSource = 'vscode' | 'python-tests' | 'cmake' | 'godot' | 'unity' | 'blender' | 'runners'
-export type LaunchProfileKind = 'debug' | 'run' | 'test' | 'build'
+type LaunchProfileSource = 'vscode' | 'python-tests' | 'cmake' | 'godot' | 'unity' | 'blender' | 'runners'
+type LaunchProfileKind = 'debug' | 'run' | 'test' | 'build'
 
 export interface LaunchProfile {
   id: string
@@ -73,7 +73,7 @@ export interface LaunchProfile {
   droppedFields?: string[]
 }
 
-export interface LaunchDiscovery {
+interface LaunchDiscovery {
   profiles: LaunchProfile[]
   skipped: Array<{ name: string; reason: string }>
   sourceErrors: Array<{ source: LaunchProfileSource; error: string }>

@@ -4,11 +4,11 @@ import { logForDebugging } from '../../../utils/debug.js'
 import { modelNarratesInThinkingBlocks } from '../../../utils/model/capabilities.js'
 import { isFirstPartyAnthropicBaseUrl } from '../../../utils/model/providers.js'
 
-export type ThinkingDisplay = 'updates'
+type ThinkingDisplay = 'updates'
 
-export type ThinkingDisplayField = { display: ThinkingDisplay }
+type ThinkingDisplayField = { display: ThinkingDisplay }
 
-export interface ThinkingDisplaySetting {
+interface ThinkingDisplaySetting {
   display: ThinkingDisplay | null
   explicit: boolean
 }
@@ -27,7 +27,7 @@ export function resolveThinkingDisplaySetting(raw: string | undefined): Thinking
   return { display: 'updates', explicit: true }
 }
 
-export interface ThinkingDisplayReads {
+interface ThinkingDisplayReads {
   firstParty?: () => boolean
   env?: string | undefined
 }

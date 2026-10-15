@@ -1,7 +1,7 @@
 import { parseCronExpression } from '../../utils/cron.js'
 import { SATURN_SPELLING_CAP, type SaturnWhenV1 } from '../../daemon/saturn.js'
 
-export type WhenSpellingCompile =
+type WhenSpellingCompile =
   | { ok: true; when: SaturnWhenV1 }
   | { ok: false; reason: string }
 

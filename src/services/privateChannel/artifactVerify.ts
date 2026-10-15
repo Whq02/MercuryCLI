@@ -11,7 +11,7 @@ import type { InstallProvenanceKind } from './installProvenance.js'
 import { trustedSigningKeys, type TrustedSigningKey } from './signingTrust.js'
 import { checkVendoredRuntime, readRuntimeRecord } from './vendoredRuntime.js'
 
-export type VerifyDepth = 'fast' | 'deep'
+type VerifyDepth = 'fast' | 'deep'
 
 export interface PayloadVerification {
   verdict: SignatureVerdict
@@ -110,7 +110,7 @@ export function verifyPayloadDir(
 }
 
 
-export interface SignatureCheckRow {
+interface SignatureCheckRow {
   status: 'ok' | 'warn' | 'fail' | 'info'
   evidence: string
   fix?: string

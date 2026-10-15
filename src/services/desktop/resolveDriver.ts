@@ -3,18 +3,18 @@ import type { DesktopDriver, DesktopPermissions } from './driver.js'
 import { fakeDesktopDriverFromEnvironment } from './fakeDesktopDriver.js'
 import { resolveNativeDesktopDriver } from './nativeDriver.js'
 
-export const DESKTOP_DRIVER_CHOICES = ['native', 'fake', 'none'] as const
-export type DesktopDriverChoice = (typeof DESKTOP_DRIVER_CHOICES)[number]
+const DESKTOP_DRIVER_CHOICES = ['native', 'fake', 'none'] as const
+type DesktopDriverChoice = (typeof DESKTOP_DRIVER_CHOICES)[number]
 
-export type DesktopDriverSource = 'override' | 'vendored' | 'workspace' | 'fake'
+type DesktopDriverSource = 'override' | 'vendored' | 'workspace' | 'fake'
 
-export type DesktopDriverResolution =
+type DesktopDriverResolution =
   | { state: 'ok'; driver: DesktopDriver; source: DesktopDriverSource }
   | { state: 'unavailable'; note: string; remedy: string | null }
 
-export const DESKTOP_DRIVER_OFF_NOTE = 'the desktop driver is switched off for this run (MERCURY_DESKTOP_DRIVER=none)'
+const DESKTOP_DRIVER_OFF_NOTE = 'the desktop driver is switched off for this run (MERCURY_DESKTOP_DRIVER=none)'
 
-export function desktopDriverChoice(): DesktopDriverChoice | { unknown: string } {
+function desktopDriverChoice(): DesktopDriverChoice | { unknown: string } {
   const raw = (flagEnv('MERCURY_DESKTOP_DRIVER') ?? '').trim().toLowerCase()
   if (raw === '') return 'native'
   if ((DESKTOP_DRIVER_CHOICES as readonly string[]).includes(raw)) return raw as DesktopDriverChoice

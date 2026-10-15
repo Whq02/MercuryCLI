@@ -145,7 +145,7 @@ export function screenshotVisibleInContext(messages: readonly Message[], toolUse
   return false
 }
 
-export interface RetiredScreenshots<M extends Message> {
+interface RetiredScreenshots<M extends Message> {
   messages: M[]
   firstEdited: number
 }

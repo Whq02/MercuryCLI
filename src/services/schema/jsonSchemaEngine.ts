@@ -1,13 +1,13 @@
 
 import { Ajv } from 'ajv'
 
-export interface SchemaIssue {
+interface SchemaIssue {
   path: string
   message: string
   keyword: string
 }
 
-export type CompiledJsonSchema =
+type CompiledJsonSchema =
   | { ok: true; check: (value: unknown) => SchemaIssue[] }
   | { ok: false; error: string }
 

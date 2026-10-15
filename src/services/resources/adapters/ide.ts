@@ -61,7 +61,7 @@ const KNOWN: ResourceChild[] = [
   },
 ]
 
-export const ideAdapter: ResourceAdapter = {
+const ideAdapter: ResourceAdapter = {
   kind: 'ide',
   describe: 'IDE-plane projections: python/project · godot/session · unity/session · cpp/project · launch (unified profiles)',
   async resolve(ref: ParsedRef, ctx): Promise<ResourceResult> {

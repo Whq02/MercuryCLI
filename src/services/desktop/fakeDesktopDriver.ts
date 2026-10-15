@@ -28,7 +28,7 @@ import {
   type DesktopTypeOptions,
 } from './driver.js'
 
-export interface FakeSceneSwitch {
+interface FakeSceneSwitch {
   afterActs: number
   frontmost: DesktopApplication
 }
@@ -46,7 +46,7 @@ export interface FakeScene {
   permissions: DesktopPermissions
 }
 
-export const FAKE_DRIVER_VERSION = 'fixture'
+const FAKE_DRIVER_VERSION = 'fixture'
 
 export const FAKE_SCENE_DEFAULT: FakeScene = {
   displays: [{ index: 0, id: 'fixture-1', originX: 0, originY: 0, width: 1440, height: 900, scale: 2, primary: true }],
@@ -59,7 +59,7 @@ export const FAKE_SCENE_DEFAULT: FakeScene = {
   permissions: { session: 'desktop', screenCapture: 'granted', input: 'granted', reason: null },
 }
 
-export type FakeActKind =
+type FakeActKind =
   | 'capture'
   | 'mouseMove'
   | 'mouseDown'
@@ -73,7 +73,7 @@ export type FakeActKind =
   | 'typeText'
   | 'releaseAll'
 
-export type FakeActOutcome = 'done' | 'aborted'
+type FakeActOutcome = 'done' | 'aborted'
 
 export interface FakeAct {
   act: FakeActKind
@@ -82,9 +82,9 @@ export interface FakeAct {
   detail: Record<string, unknown>
 }
 
-export type FakeSceneRead = { state: 'ok'; scene: FakeScene } | { state: 'unavailable'; note: string }
+type FakeSceneRead = { state: 'ok'; scene: FakeScene } | { state: 'unavailable'; note: string }
 
-export type FakeDesktopDriverResolution = { state: 'ok'; driver: FakeDesktopDriver } | { state: 'unavailable'; note: string }
+type FakeDesktopDriverResolution = { state: 'ok'; driver: FakeDesktopDriver } | { state: 'unavailable'; note: string }
 
 const SESSION_KINDS: readonly DesktopSessionKind[] = ['desktop', 'no-display', 'wayland', 'locked', 'service', 'unknown']
 const GRANTS: readonly DesktopGrant[] = ['granted', 'denied', 'not-required', 'unknown']
@@ -134,7 +134,7 @@ function displayProblem(value: unknown, at: string, position: number): string | 
   return null
 }
 
-export function fakeSceneProblem(value: unknown): string | null {
+function fakeSceneProblem(value: unknown): string | null {
   if (!isRecord(value)) return 'the scene must be a JSON object'
   if (value.displays !== undefined) {
     if (!Array.isArray(value.displays) || value.displays.length === 0) return 'displays must be a non-empty list'

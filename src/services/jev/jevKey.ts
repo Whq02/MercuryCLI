@@ -6,7 +6,7 @@ import { noteJevKeyChanged } from './jevLedger.js'
 import { readJevSettings } from './jevSetting.js'
 
 export const JEV_KEY_ENV = 'TYPESAFE_API_KEY'
-export type JevKeySource = 'env' | 'stored' | 'oauth'
+type JevKeySource = 'env' | 'stored' | 'oauth'
 export type JevKeyPresence = { present: true; source: JevKeySource } | { present: false }
 const identities = new Map<JevRoad, string>()
 

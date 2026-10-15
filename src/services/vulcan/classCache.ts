@@ -7,25 +7,25 @@ import { selectVulcanInstance } from './instances.js'
 import { resolveGodotExecutable } from './portabilityHealth.js'
 import { getVulcanClient } from './vulcanClient.js'
 
-export interface GlobalClassEntry {
+interface GlobalClassEntry {
   class: string
   base: string
   path: string
 }
 
-export interface DeclaredClass {
+interface DeclaredClass {
   class: string
   path: string
   mtimeMs: number
 }
 
-export type StaleReason = 'cache-missing' | 'missing-from-cache' | 'newer-than-cache'
+type StaleReason = 'cache-missing' | 'missing-from-cache' | 'newer-than-cache'
 
 export interface StaleClass extends DeclaredClass {
   reason: StaleReason
 }
 
-export interface ClassCacheReport {
+interface ClassCacheReport {
   cacheFile: string
   present: boolean
   cacheMtimeMs?: number
@@ -38,8 +38,8 @@ export interface ClassCacheReport {
   hint: string
 }
 
-export const REFRESH_CLASSES_OP = 'project_refresh_classes'
-export const CLASS_CACHE_RELATIVE = path.join('.godot', 'global_script_class_cache.cfg')
+const REFRESH_CLASSES_OP = 'project_refresh_classes'
+const CLASS_CACHE_RELATIVE = path.join('.godot', 'global_script_class_cache.cfg')
 
 const WALK_ENTRY_CAP = 20_000
 const HEAD_BYTES = 4_096
@@ -48,11 +48,11 @@ const IMPORT_TIMEOUT_MS = 120_000
 const OUTPUT_TAIL_CHARS = 4_000
 const ANSI_RE = new RegExp(`${String.fromCharCode(27)}\\[[0-9;]*m`, 'g')
 
-export function classCachePath(projectRoot: string): string {
+function classCachePath(projectRoot: string): string {
   return path.join(projectRoot, CLASS_CACHE_RELATIVE)
 }
 
-export function parseGlobalClassCache(text: string): GlobalClassEntry[] {
+function parseGlobalClassCache(text: string): GlobalClassEntry[] {
   const out: GlobalClassEntry[] = []
   for (const m of text.matchAll(/\{[^}]*"base"\s*:\s*&?"([^"]*)"[^}]*"class"\s*:\s*&?"([^"]*)"[^}]*"path"\s*:\s*"([^"]*)"[^}]*\}/g)) {
     out.push({ class: m[2]!, base: m[1]!, path: m[3]! })
@@ -60,12 +60,12 @@ export function parseGlobalClassCache(text: string): GlobalClassEntry[] {
   return out
 }
 
-export function classNameOf(head: string): string | undefined {
+function classNameOf(head: string): string | undefined {
   const m = /^[ \t]*class_name[ \t]+([A-Za-z_][A-Za-z0-9_]*)/m.exec(head)
   return m?.[1]
 }
 
-export function declaredClasses(projectRoot: string): { list: DeclaredClass[]; total: number } {
+function declaredClasses(projectRoot: string): { list: DeclaredClass[]; total: number } {
   const list: DeclaredClass[] = []
   let visited = 0
   const root = path.resolve(projectRoot)
@@ -162,7 +162,7 @@ export function classCacheReport(projectRoot: string, budget = 40): ClassCacheRe
   }
 }
 
-export function unresolvedTypesIn(output: string): string[] {
+function unresolvedTypesIn(output: string): string[] {
   const out: string[] = []
   for (const m of output.matchAll(/Could not find type "([A-Za-z_][A-Za-z0-9_]*)"/g)) {
     if (!out.includes(m[1]!)) out.push(m[1]!)
@@ -183,7 +183,7 @@ export function refreshInvocation(executable: string, projectRoot: string): { fi
   return { file: executable, args: ['--headless', '--import', '--path', projectRoot] }
 }
 
-export interface RefreshOutcome {
+interface RefreshOutcome {
   ok: boolean
   road: 'headless-import' | 'editor-rescan' | 'refused'
   invocation?: string
@@ -195,7 +195,7 @@ export interface RefreshOutcome {
   note: string
 }
 
-export async function refreshClassesHeadless(executable: string, projectRoot: string): Promise<RefreshOutcome> {
+async function refreshClassesHeadless(executable: string, projectRoot: string): Promise<RefreshOutcome> {
   const before = classCacheReport(projectRoot)
   const inv = refreshInvocation(executable, projectRoot)
   const t0 = Date.now()

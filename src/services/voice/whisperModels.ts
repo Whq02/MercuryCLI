@@ -21,7 +21,7 @@ export interface WhisperModelRow {
   words: string
 }
 
-export interface WhisperModelCatalogue {
+interface WhisperModelCatalogue {
   license: string
   licenseNote: string
   source: string
@@ -68,7 +68,7 @@ export function decodeWhisperModelsLock(raw: unknown): WhisperModelCatalogue {
   return { license: m.license, licenseNote: m.licenseNote, source: m.source, defaultName: m.default, models }
 }
 
-export const WHISPER_MODEL_CATALOGUE: WhisperModelCatalogue = decodeWhisperModelsLock(lock)
+const WHISPER_MODEL_CATALOGUE: WhisperModelCatalogue = decodeWhisperModelsLock(lock)
 export const WHISPER_MODELS: readonly WhisperModelRow[] = WHISPER_MODEL_CATALOGUE.models
 export const WHISPER_DEFAULT_MODEL: string = WHISPER_MODEL_CATALOGUE.defaultName
 
@@ -113,7 +113,7 @@ export function resolveWhisperModelPin(): WhisperModelPin {
   return { kind: 'broken', note: `MERCURY_WHISPER_MODEL=${raw} is not a catalogue name (${WHISPER_MODELS.map(r => r.name).join(' · ')}) or the path of a ggml model file — the pin names itself, no silent fallback` }
 }
 
-export type WhisperModelCheck =
+type WhisperModelCheck =
   | { state: 'present'; path: string; name: string; bytes: number; language: WhisperModelLanguage; pinned: boolean }
   | { state: 'absent'; path: string; row: WhisperModelRow; note: string }
   | { state: 'mismatch'; path: string; note: string }
@@ -153,9 +153,9 @@ export function checkWhisperModel(pin: WhisperModelPin = resolveWhisperModelPin(
   return { state: 'present', path, name: row.name, bytes: size, language: row.language, pinned: pin.pinned }
 }
 
-export const WHISPER_MODEL_DOWNLOAD_DEADLINE_MS = 15 * 60_000
+const WHISPER_MODEL_DOWNLOAD_DEADLINE_MS = 15 * 60_000
 
-export interface WhisperModelDownload {
+interface WhisperModelDownload {
   path: string
   bytes: number
   sha256: string

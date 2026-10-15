@@ -36,7 +36,7 @@ import {
 const CATALOGUE_FETCH_TIMEOUT_MS = 15_000
 const TOTAL_TIMEOUT_MS = 50 * 60_000
 
-export interface OpenaiStreamOptions {
+interface OpenaiStreamOptions {
   baseUrl: string
   headers: Record<string, string>
   request: OpenaiResponsesRequest
@@ -313,7 +313,7 @@ export interface OpenaiLiveModel {
   inputModalities?: string[]
 }
 
-export interface OpenaiCatalogueResult {
+interface OpenaiCatalogueResult {
   models: OpenaiLiveModel[]
   fetchedAtMs: number
 }

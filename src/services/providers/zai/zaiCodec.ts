@@ -39,7 +39,7 @@ export function toolDeclarationRowAsTools(tools: readonly ZaiTool[]): ZaiToolDec
   return { role: 'system', tools: [...tools] }
 }
 
-export function toolDeclarationText(tools: readonly ZaiTool[]): string {
+function toolDeclarationText(tools: readonly ZaiTool[]): string {
   return `Additional tools declared for this conversation from this point on, in the same format as your tool list; call them exactly like the tools declared there.\n<tools>\n${tools.map(tool => JSON.stringify(tool)).join('\n')}\n</tools>`
 }
 
@@ -47,7 +47,7 @@ export function toolDeclarationRowAsText(tools: readonly ZaiTool[]): ZaiMessage 
   return { role: 'system', content: toolDeclarationText(tools) }
 }
 
-export function imageUrlOfBlock(block: unknown): string | undefined {
+function imageUrlOfBlock(block: unknown): string | undefined {
   if (typeof block !== 'object' || block === null) return undefined
   const source = (block as { source?: unknown }).source
   if (typeof source !== 'object' || source === null) return undefined
@@ -169,7 +169,7 @@ export function mapMessagesToZai(
   return out
 }
 
-export interface BuildZaiRequestInput {
+interface BuildZaiRequestInput {
   model: string
   system?: string
   messages: readonly MessageParam[]
@@ -205,15 +205,15 @@ export function buildZaiChatRequest(i: BuildZaiRequestInput): ZaiChatRequest {
 }
 
 
-export type ZaiStopReason = 'end_turn' | 'tool_use' | 'max_tokens'
+type ZaiStopReason = 'end_turn' | 'tool_use' | 'max_tokens'
 
-export interface ZaiAssembledToolUse {
+interface ZaiAssembledToolUse {
   id: string
   name: string
   input: unknown
 }
 
-export interface ZaiAssembledTurn {
+interface ZaiAssembledTurn {
   thinking: string
   text: string
   toolUses: ZaiAssembledToolUse[]

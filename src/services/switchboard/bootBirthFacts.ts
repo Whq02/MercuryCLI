@@ -1,7 +1,7 @@
 import type { PermissionMode } from '../../types/permissions.js'
 import type { SessionKitV1 } from '../../daemon/sessionKit.js'
 
-export interface LandingWords {
+interface LandingWords {
   model: string | null
   effort: string | null
   permissionMode: PermissionMode | null
@@ -65,7 +65,7 @@ export function birthModelOf(record: Pick<BootBirthFacts, 'model'>, doorModel: s
   return record.model ?? doorModel ?? screenModel
 }
 
-export interface BirthFallbackInput {
+interface BirthFallbackInput {
   family: string | null
   familyWord: string
   hasCredential: boolean

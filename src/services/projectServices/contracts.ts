@@ -9,8 +9,8 @@ export type ReadinessCondition =
   | { kind: 'file'; path: string; contentRegex?: string }
   | { kind: 'stable'; ms: number }
 
-export type ServiceLifecycle = 'session' | 'project'
-export type RestartPolicy = 'never' | 'on-failure'
+type ServiceLifecycle = 'session' | 'project'
+type RestartPolicy = 'never' | 'on-failure'
 
 export interface ServiceSpec {
   name: string
@@ -24,7 +24,7 @@ export interface ServiceSpec {
   lifecycle: ServiceLifecycle
 }
 
-export type ServiceState =
+type ServiceState =
   | 'queued'
   | 'starting'
   | 'ready'

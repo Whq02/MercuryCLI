@@ -22,13 +22,13 @@ import {
 import { fetchMetaLiveModels, MetaCatalogueHttpError } from './metaCatalogue.js'
 
 export const META_MUSE_CODE_ROW = 'Sign in with Meta — a Muse Code subscription, a device code in your browser'
-export const META_KEY_ROW = 'API key — pay-as-you-go Model API key (stored locally, mode 600)'
+const META_KEY_ROW = 'API key — pay-as-you-go Model API key (stored locally, mode 600)'
 
-export const META_KEY_RIDES = 'requests ride api.meta.ai/v1 under pay-as-you-go billing'
-export const META_MUSE_CODE_RIDES = "requests ride api.meta.ai/v1 with your Muse Code subscription's minted key"
+const META_KEY_RIDES = 'requests ride api.meta.ai/v1 under pay-as-you-go billing'
+const META_MUSE_CODE_RIDES = "requests ride api.meta.ai/v1 with your Muse Code subscription's minted key"
 
 export type MetaConnectRowValue = 'device' | 'key'
-export type MetaConnectRowAction = 'activate' | 'enter'
+type MetaConnectRowAction = 'activate' | 'enter'
 
 export interface MetaConnectFacts {
   keySource?: 'env' | 'stored'
@@ -65,7 +65,7 @@ export function metaMuseCodeTierWordsWithAge(
     : tier
 }
 
-export function metaMuseCodeRowLabel(facts: MetaConnectFacts, now: number = Date.now()): string {
+function metaMuseCodeRowLabel(facts: MetaConnectFacts, now: number = Date.now()): string {
   if (!facts.museCodeConnected) return META_MUSE_CODE_ROW
   const tier = metaMuseCodeTierWordsWithAge(facts, now)
   return metaConnectRowAction(facts, 'device') === 'activate'
@@ -123,7 +123,7 @@ export function metaStoredSourcesNote(facts: MetaConnectFacts): string | undefin
   return `Active source: ${activeWords} · ${otherWords} is also stored — ↵ on its /logins meta row makes it active`
 }
 
-export function metaSourceRides(kind: MetaSourceKind): string {
+function metaSourceRides(kind: MetaSourceKind): string {
   return kind === 'api-key' ? META_KEY_RIDES : META_MUSE_CODE_RIDES
 }
 
@@ -153,7 +153,7 @@ export function activateMetaSource(
 export const META_CONNECT_STOPPED_RECEIPT =
   'Meta sign-in cancelled — if the approval was already in flight it still lands; /accounts shows and removes it.'
 
-export const META_SETTLED_AFTER_CANCEL_RECEIPT =
+const META_SETTLED_AFTER_CANCEL_RECEIPT =
   'Meta sign-in completed after cancel — the approval landed while this flow was being cancelled, so the account IS signed in (an unstored copy would orphan the live grant). ⌫ on its /accounts row signs it out.'
 
 const RFC_SLOW_DOWN_STEP_SEC = 5
@@ -167,14 +167,14 @@ export type MetaDeviceLoginEvent =
   | { phase: 'waiting'; start: MetaDeviceAuthStart; polls: number; note?: string }
   | { phase: 'finishing' }
 
-export interface MetaDeviceLoginArgs {
+interface MetaDeviceLoginArgs {
   io?: MetaOauthIo
   sleep?: (ms: number) => Promise<void>
   cancelled?: () => boolean
   onEvent?: (event: MetaDeviceLoginEvent) => void
 }
 
-export type MetaDeviceLoginOutcome =
+type MetaDeviceLoginOutcome =
   | {
       ok: true
       receipt: string
@@ -189,7 +189,7 @@ export type MetaDeviceLoginOutcome =
       settledAfterCancel?: true
     }
 
-export function metaMuseCodeUsageReceiptLine(usage?: MetaSubsUsageRecord): string | undefined {
+function metaMuseCodeUsageReceiptLine(usage?: MetaSubsUsageRecord): string | undefined {
   if (!usage) return undefined
   const parts: string[] = []
   if (usage.window?.usedPercent !== undefined) {
@@ -354,7 +354,7 @@ export async function runMetaDeviceLogin(args: MetaDeviceLoginArgs = {}): Promis
   }
 }
 
-export interface MetaKeyLoginOutcome {
+interface MetaKeyLoginOutcome {
   ok: boolean
   stored: boolean
   receipt: string

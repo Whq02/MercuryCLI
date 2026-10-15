@@ -4,17 +4,17 @@ import type { CoordinatorConversationEntryV1 } from './coordinatorConversation.j
 import type { OverflowSignal } from '../api/overflowSignal.js'
 import { overflowWhoClause } from '../compact/overflowRecovery.js'
 
-export const COORDINATOR_COMPACT_KEEP = 8
+const COORDINATOR_COMPACT_KEEP = 8
 export const COORDINATOR_COMPACT_WALL_MS = 60_000
-export const COORDINATOR_SUMMARY_MAX_CHARS = 4000
+const COORDINATOR_SUMMARY_MAX_CHARS = 4000
 const FOLD_TRANSCRIPT_MAX_CHARS = 60_000
 const FOLD_ENTRY_CLIP = 600
 
 export const CONVERSATION_CAP_FOLD_MARGIN = 24
 
-export type CoordinatorCompactTrigger = 'manual' | 'context-threshold' | 'store-cap' | 'overflow'
+type CoordinatorCompactTrigger = 'manual' | 'context-threshold' | 'store-cap' | 'overflow'
 
-export interface CoordinatorCompactResult {
+interface CoordinatorCompactResult {
   compacted: number
   refused?: string
 }
@@ -25,7 +25,7 @@ export type CoordinatorSummarizer = (args: {
   modelId: string
 }) => Promise<string>
 
-export function coordinatorCompactSummaryPrompt(): string {
+function coordinatorCompactSummaryPrompt(): string {
   return [
     'You are summarizing the older portion of a coordination conversation between an operator and Mercury’s session coordinator. The newest turns are kept verbatim; your summary REPLACES the older turns and is the only memory of them, so it must carry everything a reader needs to continue the thread.',
     '',
@@ -42,7 +42,7 @@ export function coordinatorCompactSummaryPrompt(): string {
 const roleWord = (e: CoordinatorConversationEntryV1): string =>
   e.harness === true ? 'harness' : e.role === 'operator' ? 'operator' : 'coordinator'
 
-export function renderCoordinatorFoldTranscript(entries: readonly CoordinatorConversationEntryV1[]): string {
+function renderCoordinatorFoldTranscript(entries: readonly CoordinatorConversationEntryV1[]): string {
   const lines: string[] = []
   for (const e of entries) {
     const clipped = e.text.length > FOLD_ENTRY_CLIP ? `${e.text.slice(0, FOLD_ENTRY_CLIP)}…` : e.text
@@ -62,7 +62,7 @@ export function coordinatorCompactMarkerLine(compacted: number): string {
   return `conversation compacted — ${compacted} earlier turn${compacted === 1 ? '' : 's'} folded away`
 }
 
-export function coordinatorCompactTriggerClause(
+function coordinatorCompactTriggerClause(
   trigger: CoordinatorCompactTrigger,
   modelId: string,
   overflow?: OverflowSignal,

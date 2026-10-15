@@ -34,7 +34,7 @@ export function coordinatorContractDigest(): string {
 }
 
 
-export interface EffectiveCoordinator {
+interface EffectiveCoordinator {
   resolution: CoordinatorModeResolution
   assistModelId?: string
   assistModelLabel?: string
@@ -71,7 +71,7 @@ export async function resolveEffectiveCoordinator(): Promise<EffectiveCoordinato
 }
 
 
-export type CoordinatorTurnBoard = CoordinatorBoardV1
+type CoordinatorTurnBoard = CoordinatorBoardV1
 
 export interface CoordinatorTurnInput {
   contractVersion: number
@@ -172,7 +172,7 @@ export interface CoordinatorTurnProposal {
   plan?: ManagerPlanV1
 }
 
-export interface CoordinatorLaneDeps extends KernelDeps {
+interface CoordinatorLaneDeps extends KernelDeps {
   callModel?: (
     input: CoordinatorTurnInput,
     modelId: string,
@@ -184,7 +184,7 @@ export interface CoordinatorLaneDeps extends KernelDeps {
   summarizeForCompact?: import('./coordinatorCompact.js').CoordinatorSummarizer
 }
 
-export interface AssistedTurnReceipt {
+interface AssistedTurnReceipt {
   outcome: 'executed' | 'deduped' | 'refused' | 'not-assisted'
   reason?: string
   contractDigest: string
@@ -217,7 +217,7 @@ function remember(list: string[], key: string): void {
   if (list.length > MAX_REMEMBERED) list.shift()
 }
 
-export function triggerKeyOf(event: KernelEventV1): string {
+function triggerKeyOf(event: KernelEventV1): string {
   switch (event.kind) {
     case 'dispatch-refused':
       return actionFingerprint(`refused:${event.clientMessageId}`)
@@ -294,7 +294,7 @@ export function validateProposal(d: unknown): d is KernelDecisionV1 {
   return false
 }
 
-export const MAX_PROPOSALS_PER_TURN = 5
+const MAX_PROPOSALS_PER_TURN = 5
 
 
 export async function runAssistedTurn(
@@ -616,7 +616,7 @@ async function runAssistedTurnGoverned(
 }
 
 
-export interface SelfManagedLaunchSignal {
+interface SelfManagedLaunchSignal {
   kind: 'self-managed-launch'
   text: string
 }

@@ -9,7 +9,7 @@ import { createLSPServerInstance, isLspStartFailure, type LSPServerInstance } fr
 import { MERCURY_PYRIGHT_SERVER_NAME, pyrightWorkspaceConfiguration } from './pyrightLane.js'
 
 
-export type LspRevalidationReport = {
+type LspRevalidationReport = {
   checked: number
   resynced: string[]
   closed: string[]

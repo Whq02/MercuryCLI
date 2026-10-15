@@ -16,13 +16,13 @@ export interface LeaseHolder {
   procStart?: string
 }
 
-export interface ProjectLease {
+interface ProjectLease {
   path: string
   holder: LeaseHolder
   acquiredAt: string
 }
 
-export type ProjectLeaseTakeResult =
+type ProjectLeaseTakeResult =
   | { ok: true; leases: ProjectLease[] }
   | { ok: false; conflict: ProjectLease; message: string }
 
@@ -68,7 +68,7 @@ function caseInsensitiveProject(root: string): boolean {
   }
 }
 
-export function canonicalProjectLeasePath(projectRoot: string, input: string): string {
+function canonicalProjectLeasePath(projectRoot: string, input: string): string {
   const root = realpathSync(projectRoot)
   if (typeof input !== 'string' || !input.trim() || input.includes('\0') || /[*?\[\]{}]/.test(input)) throw new Error('lease paths must be exact project files, not globs')
   const value = input.replace(/^res:\/\//, '').replace(/\\/g, '/')

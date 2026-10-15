@@ -15,7 +15,7 @@ export function isTrustedMcpServer(serverName: string): boolean {
   return false
 }
 
-export function mcpToolCardHeader(
+function mcpToolCardHeader(
   serverName: string,
   annotations?: McpToolAnnotations,
 ): string {

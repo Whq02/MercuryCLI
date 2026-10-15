@@ -16,18 +16,18 @@ import { serialCoalescer } from './serialCoalescer.js'
 import { classifyReadFailure, wasObserved } from '../../substrate/sourceState.js'
 import type { WorkbenchSnapshot } from './contracts.js'
 
-export const CURRENT_WORK_SCHEMA = 2 as const
+const CURRENT_WORK_SCHEMA = 2 as const
 
-export type WorkScale = 'none' | 'direct' | 'substantial'
+type WorkScale = 'none' | 'direct' | 'substantial'
 
-export interface CurrentWorkPlanItem {
+interface CurrentWorkPlanItem {
   id: string
   title: string
   state: 'open' | 'in-progress' | 'done' | 'dropped'
   blockedBy: string[]
 }
 
-export interface CurrentWorkReview {
+interface CurrentWorkReview {
   openArtifacts: number
   openComments: number
   awaitingReview: number
@@ -35,7 +35,7 @@ export interface CurrentWorkReview {
   anyStale: boolean
 }
 
-export type CurrentWorkRecovery =
+type CurrentWorkRecovery =
   | { state: 'live' }
   | { state: 'none' }
   | { state: 'unreconciled'; runId: string }
@@ -43,7 +43,7 @@ export type CurrentWorkRecovery =
   | { state: 'recoverable'; reason: string }
   | { state: 'unavailable'; reason: string; retryable: boolean }
 
-export interface CurrentWork {
+interface CurrentWork {
   schema: typeof CURRENT_WORK_SCHEMA
   identity: { owner: string; workspace: string; runId: string | null }
   outcome: string | null
@@ -290,7 +290,7 @@ export async function gatherCurrentWork(opts?: {
 }
 
 
-export function useCurrentWork(): CurrentWork | null {
+function useCurrentWork(): CurrentWork | null {
   const [work, setWork] = useState<CurrentWork | null>(null)
   useEffect(() => {
     let alive = true

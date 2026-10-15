@@ -6,7 +6,7 @@ export function isKimiModelId(model: string): boolean {
 
 export const KIMI_K3_MODELS: ReadonlySet<string> = new Set(['kimi-k3', 'k3', 'k3-256k'])
 
-export const KIMI_DYNAMIC_TOOL_MODELS: ReadonlySet<string> = new Set([...KIMI_K3_MODELS, 'kimi-for-coding'])
+const KIMI_DYNAMIC_TOOL_MODELS: ReadonlySet<string> = new Set([...KIMI_K3_MODELS, 'kimi-for-coding'])
 
 let liveDynamicToolSupport: ((model: string) => boolean | undefined) | null = null
 
@@ -26,7 +26,7 @@ export function kimiAcceptsEffort(model: string, effort: string): boolean {
   return KIMI_EFFORT_MODELS.has(model.trim().toLowerCase()) && KIMI_EFFORTS.has(effort)
 }
 
-export interface KimiDisplayPin {
+interface KimiDisplayPin {
   id: string
   displayName: string
   observedAt: string

@@ -3,13 +3,13 @@ import { writeStoredZenApiKey } from '../../../utils/router/providerSecrets.js'
 import { ZEN_ENV_KEY } from './zenAccounts.js'
 import { fetchZenGoUsage, zenGoWindowLine } from './zenUsageState.js'
 
-export interface ZenKeyLoginOutcome {
+interface ZenKeyLoginOutcome {
   ok: boolean
   stored: boolean
   receipt: string
 }
 
-export const ZEN_KEY_RECEIPT_TAIL = 'Requests use opencode.ai/zen at the vendor\'s pay-as-you-go prices; the balance and auto-reload live in the console.'
+const ZEN_KEY_RECEIPT_TAIL = 'Requests use opencode.ai/zen at the vendor\'s pay-as-you-go prices; the balance and auto-reload live in the console.'
 
 export async function storeZenApiKeyLogin(key: string, io?: { fetchImpl?: typeof fetch; env?: NodeJS.ProcessEnv; now?: () => number }): Promise<ZenKeyLoginOutcome> {
   key = key.trim()

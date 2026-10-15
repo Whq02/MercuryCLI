@@ -30,7 +30,7 @@ function recordResource(record: TestRunRecord, ref: string, selectors: ParsedRef
   }
 }
 
-export const testAdapter: ResourceAdapter = {
+const testAdapter: ResourceAdapter = {
   kind: 'test',
   describe: 'durable test-run records: run/<id> · latest · failures (the Test tool writes them)',
   async resolve(ref: ParsedRef): Promise<ResourceResult> {

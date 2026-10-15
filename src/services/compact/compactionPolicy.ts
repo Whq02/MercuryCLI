@@ -1,15 +1,15 @@
 
 
 
-export const COMPACTION_DEFAULTS = Object.freeze({
+const COMPACTION_DEFAULTS = Object.freeze({
   thresholdPct: 85,
   cooldownTurns: 8,
   rearmBelowPct: 55,
 })
 
-export const MAX_CONSECUTIVE_AUTOCOMPACT_FAILURES = 3
+const MAX_CONSECUTIVE_AUTOCOMPACT_FAILURES = 3
 
-export interface CompactionPolicy {
+interface CompactionPolicy {
   thresholdPct?: number
   cooldownTurns?: number
   rearmBelowPct?: number
@@ -20,14 +20,14 @@ export interface CompactionState {
   rearmed?: boolean
 }
 
-export interface DecideCompactionInput {
+interface DecideCompactionInput {
   usage?: { percentage?: number } | null
   state?: CompactionState | null
   turn?: number
   policy?: CompactionPolicy
 }
 
-export interface DecideCompactionResult {
+interface DecideCompactionResult {
   action: 'none' | 'compact'
   reason: string
   state: { lastFiredTurn: number | null; rearmed: boolean }

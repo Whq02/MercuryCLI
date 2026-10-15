@@ -1,7 +1,7 @@
 import { readdirSync, statSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 
-export type RepoFolder =
+type RepoFolder =
   | { state: 'ok'; root: string; folder: string; via: 'folder' | 'below' }
   | { state: 'refused'; folder: string; note: string }
 
@@ -16,7 +16,7 @@ function hasGitEntry(path: string): boolean {
   }
 }
 
-export function insideRepository(folder: string): boolean {
+function insideRepository(folder: string): boolean {
   let current = resolve(folder)
   for (;;) {
     if (hasGitEntry(join(current, '.git'))) return true
@@ -26,7 +26,7 @@ export function insideRepository(folder: string): boolean {
   }
 }
 
-export function repositoriesDirectlyBelow(folder: string): string[] {
+function repositoriesDirectlyBelow(folder: string): string[] {
   let names: string[]
   try {
     names = readdirSync(folder, { withFileTypes: true })

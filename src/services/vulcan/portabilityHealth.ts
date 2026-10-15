@@ -12,31 +12,31 @@ import {
   type GodotProcess,
 } from './godotProcessCensus.js'
 
-export interface AbsolutePathFinding {
+interface AbsolutePathFinding {
   skillFile: string
   line: number
   text: string
 }
 
-export interface ControlDiscrepancy {
+interface ControlDiscrepancy {
   skillFile: string
   declaredNotLive: string[]
   liveNotDeclared: string[]
 }
 
-export interface ExecutableReceipt {
+interface ExecutableReceipt {
   resolved?: string
   source: 'pin' | 'running-editor' | 'PATH' | 'well-known-location' | 'not-found'
   note: string
   probed: string[]
 }
 
-export interface SemanticLaunch {
+interface SemanticLaunch {
   skillFile: string
   scene?: string
 }
 
-export interface PortabilityReport {
+interface PortabilityReport {
   absolutePaths: AbsolutePathFinding[]
   controlDiscrepancies: ControlDiscrepancy[]
   executable: ExecutableReceipt
@@ -77,7 +77,7 @@ export function semanticLaunchOf(skillText: string): string | undefined {
 }
 
 
-export function joinerFor(platform: CensusPlatform): (...parts: string[]) => string {
+function joinerFor(platform: CensusPlatform): (...parts: string[]) => string {
   return platform === 'win32' ? pathWin32.join : pathPosix.join
 }
 
@@ -123,7 +123,7 @@ export function godotWellKnownRoots(platform: CensusPlatform, env: NodeJS.Proces
   return roots
 }
 
-export interface RootWalkFs {
+interface RootWalkFs {
   list(dir: string): string[]
   isDir(p: string): boolean
   executable(p: string): boolean
@@ -167,7 +167,7 @@ function compareCandidates(a: { name: string }, b: { name: string }): number {
   return b.name.toLowerCase().localeCompare(a.name.toLowerCase())
 }
 
-export function findGodotInRoot(root: string, platform: CensusPlatform, fs: RootWalkFs = realRootWalkFs): string | undefined {
+function findGodotInRoot(root: string, platform: CensusPlatform, fs: RootWalkFs = realRootWalkFs): string | undefined {
   const candidates: Array<{ name: string; path: string }> = []
   const joinPath = joinerFor(platform)
   for (const name of fs.list(root)) {
@@ -192,7 +192,7 @@ export function findGodotInRoot(root: string, platform: CensusPlatform, fs: Root
   return candidates[0]?.path
 }
 
-export interface ResolveGodotOptions {
+interface ResolveGodotOptions {
   platform?: CensusPlatform
   env?: NodeJS.ProcessEnv
   census?: GodotProcess[]
@@ -262,7 +262,7 @@ async function resolveGodotExecutableNow(opts: ResolveGodotOptions): Promise<Exe
   }
 }
 
-export type GodotExecutablePresence =
+type GodotExecutablePresence =
   | { present: true; path: string; source: ExecutableReceipt['source']; note: string }
   | { present: false; note: string; remedy: string }
 

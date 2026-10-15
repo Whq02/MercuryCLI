@@ -85,7 +85,7 @@ export function getCacheControl(): {
   }
 }
 
-export function latched1hEligibility(): boolean {
+function latched1hEligibility(): boolean {
   let userEligible = getPromptCache1hEligible()
   if (userEligible === null) {
     userEligible = isClaudeAISubscriber() && !currentLimits.isUsingOverage
@@ -94,7 +94,7 @@ export function latched1hEligibility(): boolean {
   return userEligible
 }
 
-export function should1hCacheTTL(): boolean {
+function should1hCacheTTL(): boolean {
   const clockTtl = cacheClockTtlDecision({
     eligible: latched1hEligibility(),
     lastCompletionAt: getLastApiCompletionTimestamp(),

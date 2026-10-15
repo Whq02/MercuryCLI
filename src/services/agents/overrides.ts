@@ -8,11 +8,11 @@ import { getMercuryHome } from '../../utils/envUtils.js'
 import { findGitRoot } from '../../utils/git.js'
 import { projectLocalPath } from '../projectLocal/paths.js'
 
-export const AGENT_OVERRIDES_BASENAME = 'agent-overrides.json'
+const AGENT_OVERRIDES_BASENAME = 'agent-overrides.json'
 
-export type AgentOverrideScope = 'user' | 'project'
+type AgentOverrideScope = 'user' | 'project'
 
-export type AgentOverridePatch = {
+type AgentOverridePatch = {
   model?: string
   effort?: EffortValue
 }
@@ -23,7 +23,7 @@ export type AgentOverrideProvenance = AgentOverridePatch & {
   intentEffort?: EffortValue
 }
 
-export type AgentOverridesFile = {
+type AgentOverridesFile = {
   version: 1
   disabled: string[]
   agents: Record<string, AgentOverridePatch>
@@ -35,7 +35,7 @@ export function userOverridesPath(): string {
   return join(getMercuryHome(), AGENT_OVERRIDES_BASENAME)
 }
 
-export function projectOverridesPath(cwd: string): string {
+function projectOverridesPath(cwd: string): string {
   const root = findGitRoot(cwd) ?? cwd
   return projectLocalPath(root, AGENT_OVERRIDES_BASENAME)
 }
@@ -84,7 +84,7 @@ function readOverridesFile(path: string): AgentOverridesFile {
   return parseOverridesFile(raw, path)
 }
 
-export type LoadedAgentOverrides = {
+type LoadedAgentOverrides = {
   user: AgentOverridesFile
   project: AgentOverridesFile
   disabledSet: Set<string>

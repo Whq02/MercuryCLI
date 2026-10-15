@@ -2,7 +2,7 @@
 export const RELEASE_TARGETS = ['linux-x64', 'macos-arm64', 'macos-x64', 'windows-x64'] as const
 export type ReleaseTarget = (typeof RELEASE_TARGETS)[number]
 
-export interface BuildPlatform {
+interface BuildPlatform {
   platform: string
   arch: string
 }
@@ -55,7 +55,7 @@ export function ripgrepPackageFor(platform: string, arch: string): string {
   return `@vscode/ripgrep-${platform}-${arch}`
 }
 
-export interface BuildTargetRecord {
+interface BuildTargetRecord {
   platform: string
   arch: string
   release: ReleaseTarget | null

@@ -3,9 +3,9 @@ import { readPreferredXaiSource, refreshXaiTokens, xaiStoredTokens, type XaiOaut
 
 const XAI_API_BASE_URL = 'https://api.x.ai/v1'
 const XAI_GROK_PROXY_BASE_URL = 'https://cli-chat-proxy.grok.com/v1'
-export const XAI_GROK_PROXY_CLIENT_VERSION = '1.0.4'
-export const XAI_GROK_PROXY_CHAT_CLIENT_VERSION = '2026.9.7'
-export type XaiCredentialSource = 'env' | 'stored' | 'oauth'
+const XAI_GROK_PROXY_CLIENT_VERSION = '1.0.4'
+const XAI_GROK_PROXY_CHAT_CLIENT_VERSION = '2026.9.7'
+type XaiCredentialSource = 'env' | 'stored' | 'oauth'
 
 export function xaiApiBase(env: NodeJS.ProcessEnv = process.env): string {
   return (env['MERCURY_XAI_API_BASE']?.trim() || XAI_API_BASE_URL).replace(/\/+$/, '')
@@ -53,7 +53,7 @@ export function resolveXaiApiKey(
   return stored ? { key: stored, source: 'stored' } : undefined
 }
 
-export interface XaiAccountRef {
+interface XaiAccountRef {
   kind: 'api-key' | 'grok-subscription'
   label: string
   keySource?: 'env' | 'stored'

@@ -2,7 +2,7 @@ import { getGlobalConfig } from '../../../utils/config.js'
 import { readStoredCompatApiKey } from '../../../utils/router/providerSecrets.js'
 import { COMPAT_MODEL_PREFIX } from '../routeLaw.js'
 
-export interface CompatSlotConfig {
+interface CompatSlotConfig {
   baseUrl: string
   label: string
   models: string[]
@@ -47,7 +47,7 @@ export function resolveCompatApiKey(
   return stored ? { key: stored, source: 'stored' } : undefined
 }
 
-export interface CompatAccountRef {
+interface CompatAccountRef {
   kind: 'api-key' | 'keyless'
   label: string
   keySource?: 'env' | 'stored'

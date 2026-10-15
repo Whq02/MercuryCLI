@@ -1,6 +1,6 @@
 import { KEYED_DOOR_REMEDY, type SearchBackendId, type SearchHit, type SearchRequest, type SearchTier } from './searchContract.js'
 
-export type PacedDoor = SearchBackendId | `searxng:${string}` | 'jina-reader'
+type PacedDoor = SearchBackendId | `searxng:${string}` | 'jina-reader'
 
 export interface SearchClock {
   now(): number
@@ -27,13 +27,13 @@ export const liveSearchClock: SearchClock = {
     }),
 }
 
-export const COOL_DOWN_BASE_MS = 30_000
+const COOL_DOWN_BASE_MS = 30_000
 export const COOL_DOWN_CAP_MS = 10 * 60_000
-export const COOL_DOWN_JITTER = 0.25
+const COOL_DOWN_JITTER = 0.25
 const STREAK_DECAY_MS = 2 * COOL_DOWN_CAP_MS
 
-export const RETRY_BACKOFF_MIN_MS = 1_500
-export const RETRY_BACKOFF_MAX_MS = 3_000
+const RETRY_BACKOFF_MIN_MS = 1_500
+const RETRY_BACKOFF_MAX_MS = 3_000
 
 export const SEARCH_CACHE_ENTRIES = 64
 export const SEARCH_CACHE_TTL_MS = 10 * 60_000
@@ -85,7 +85,7 @@ export function secondsLeftLabel(ms: number): string {
 }
 
 
-export interface CachedSearch {
+interface CachedSearch {
   via: SearchBackendId
   tier: SearchTier
   hits: SearchHit[]
@@ -164,7 +164,7 @@ export function resetSearchPacing(): void {
   groupSeq = 0
 }
 
-export interface SearchRatePolicy {
+interface SearchRatePolicy {
   intervalMs: number
   windowMs?: number
   maxRequests?: number

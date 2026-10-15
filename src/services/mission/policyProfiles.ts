@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto'
 import { OUTCOME_MAX_WEIGHT, OUTCOME_MIN_SAMPLES } from '../../utils/router/routeCompiler.js'
 import type { RouteTaskShape } from '../../utils/router/contracts.js'
 
-export const MISSION_PROFILE_IDS = [
+const MISSION_PROFILE_IDS = [
   'solo-default',
   'solo-reviewer',
   'routed-lite',
@@ -11,9 +11,9 @@ export const MISSION_PROFILE_IDS = [
   'specialist-sol',
   'workflow-deep',
 ] as const
-export type MissionProfileId = (typeof MISSION_PROFILE_IDS)[number]
+type MissionProfileId = (typeof MISSION_PROFILE_IDS)[number]
 
-export interface MissionPolicyProfile {
+interface MissionPolicyProfile {
   id: MissionProfileId
   description: string
   execution: 'solo' | 'routed' | 'workflow'
@@ -108,7 +108,7 @@ export const MISSION_PROFILES: readonly MissionPolicyProfile[] = [
   },
 ]
 
-export function missionProfileById(id: string): MissionPolicyProfile | null {
+function missionProfileById(id: string): MissionPolicyProfile | null {
   return MISSION_PROFILES.find(p => p.id === id) ?? null
 }
 
@@ -151,7 +151,7 @@ export interface MissionTaskFingerprint {
   investigation: boolean
 }
 
-export const MISSION_POLICY_REASONS = [
+const MISSION_POLICY_REASONS = [
   'pin-wins',
   'investigation-shape',
   'mechanical-shape',
@@ -167,9 +167,9 @@ export const MISSION_POLICY_REASONS = [
   'width-capped-by-separability',
   'insufficient-confidence-fallback',
 ] as const
-export type MissionPolicyReason = (typeof MISSION_POLICY_REASONS)[number]
+type MissionPolicyReason = (typeof MISSION_POLICY_REASONS)[number]
 
-export interface MissionHistoryStats {
+interface MissionHistoryStats {
   profileId: MissionProfileId
   epoch: string
   sampleCount: number
@@ -186,7 +186,7 @@ export interface MissionPolicyDecision {
   declined: { profileId: string; reason: MissionPolicyReason }[]
 }
 
-export interface MissionPolicyInputs {
+interface MissionPolicyInputs {
   fingerprint: MissionTaskFingerprint
   epoch: string
   pin: string | null

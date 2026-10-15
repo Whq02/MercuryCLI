@@ -78,7 +78,7 @@ export type ExecutionKind =
   | 'journey'
   | 'host-run-watch'
 
-export type ExecutionLifecycle = 'owner' | 'session' | 'project'
+type ExecutionLifecycle = 'owner' | 'session' | 'project'
 
 export interface ExecutionSpec {
   version: typeof EXECUTION_CONTRACT_VERSION

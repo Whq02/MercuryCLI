@@ -14,7 +14,7 @@ export function coordinatorOverflowOf(err: unknown): OverflowSignal | null {
   return err instanceof CoordinatorOverflowError ? err.overflow : null
 }
 
-export type CoordinatorOverflowWhy = 'retry-overflowed' | 'compaction-off' | 'fold-refused' | 'nothing-to-fold'
+type CoordinatorOverflowWhy = 'retry-overflowed' | 'compaction-off' | 'fold-refused' | 'nothing-to-fold'
 
 export function coordinatorOverflowRefusal(signal: OverflowSignal, why: CoordinatorOverflowWhy, detail?: string): string {
   const head = `context overflowed (${overflowWhoClause(signal)})`

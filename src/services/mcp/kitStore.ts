@@ -2,9 +2,9 @@ import { getProjectConfigForWorkspace, saveProjectConfigForWorkspace } from '../
 import type { ProjectConfig } from '../../utils/config/schema.js'
 import { disabledMcpServerNamesIn, withMcpServerEnabled } from './disabledRecord.js'
 
-export type SkillMenuState = 'off' | 'invocable'
+type SkillMenuState = 'off' | 'invocable'
 
-export type SkillKitState = 'on' | SkillMenuState
+type SkillKitState = 'on' | SkillMenuState
 
 export interface KitDeltasV1 {
   mcpOff: string[]

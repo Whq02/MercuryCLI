@@ -17,9 +17,9 @@ export const CODEC_EPOCHS = Object.freeze({
   zen: 1,
 } as const)
 
-export type CalibrationRoute = keyof typeof CODEC_EPOCHS
+type CalibrationRoute = keyof typeof CODEC_EPOCHS
 
-export const BASE_CHARS_PER_TOKEN = 4
+const BASE_CHARS_PER_TOKEN = 4
 
 export function calibrationKeyFor(route: CalibrationRoute | 'unrecognised', model: string): string {
   const epoch = CODEC_EPOCHS[route === 'unrecognised' ? 'anthropic' : route]

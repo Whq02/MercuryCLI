@@ -11,14 +11,14 @@ import {
 import { EVAL_SHUTDOWN_GRACE_MS } from './contracts.js'
 import { logForDebugging } from '../../utils/debug.js'
 
-export interface KernelSpawnSpec {
+interface KernelSpawnSpec {
   command: string
   args: string[]
   cwd: string
   env: Record<string, string>
 }
 
-export interface CellFrameHandlers {
+interface CellFrameHandlers {
   onStdout: (chunk: string) => void
   onStderr: (chunk: string) => void
   onDisplay: (frame: Extract<RunnerFrame, { t: 'display' }>) => void

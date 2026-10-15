@@ -4,18 +4,18 @@ import { geminiOauthConnected, geminiPlanConnected, geminiPlanFacts, resolveGemi
 import { geminiPlanTierWords } from './geminiPlanAccess.js'
 import { geminiGenerateModels, refreshGeminiCatalogue, type GeminiCatalogueSnapshot } from './geminiCatalogue.js'
 
-export type GeminiStoredSourceKind = GeminiSourceKind
+type GeminiStoredSourceKind = GeminiSourceKind
 
-export interface GeminiStoredSourceFacts {
+interface GeminiStoredSourceFacts {
   keySource?: 'env-google' | 'env-gemini' | 'stored'
   oauthConnected: boolean
   planConnected?: boolean
   active?: GeminiStoredSourceKind
 }
 
-export const GEMINI_KEY_RIDES = 'requests ride generativelanguage.googleapis.com'
-export const GEMINI_ACCOUNT_RIDES = "requests ride Google's native generation endpoint"
-export const GEMINI_PLAN_RIDES = "requests ride Google's Code Assist endpoint under Google's own Antigravity client, on your plan's quota"
+const GEMINI_KEY_RIDES = 'requests ride generativelanguage.googleapis.com'
+const GEMINI_ACCOUNT_RIDES = "requests ride Google's native generation endpoint"
+const GEMINI_PLAN_RIDES = "requests ride Google's Code Assist endpoint under Google's own Antigravity client, on your plan's quota"
 
 function keyWords(keySource: GeminiStoredSourceFacts['keySource']): string {
   return keySource === 'env-google' ? 'the API key (GOOGLE_API_KEY)' : keySource === 'env-gemini' ? 'the API key (GEMINI_API_KEY)' : 'the API key'
@@ -67,7 +67,7 @@ function otherSourceTail(active: GeminiStoredSourceKind): string {
   return ` ${stored[0]!.toUpperCase()}${stored.slice(1)} — ↵ on a /logins row makes it active.`
 }
 
-export function geminiSourceRides(kind: GeminiStoredSourceKind): string {
+function geminiSourceRides(kind: GeminiStoredSourceKind): string {
   return kind === 'api-key' ? GEMINI_KEY_RIDES : kind === 'plan' ? GEMINI_PLAN_RIDES : GEMINI_ACCOUNT_RIDES
 }
 
@@ -78,7 +78,7 @@ export function activateGeminiSource(kind: GeminiStoredSourceKind): { ok: true; 
   return { ok: true, receipt: `Gemini: ${named} is now the active source — ${geminiSourceRides(kind)}.${otherSourceTail(kind)}` }
 }
 
-export interface GeminiKeyLoginOutcome {
+interface GeminiKeyLoginOutcome {
   ok: boolean
   stored: boolean
   receipt: string

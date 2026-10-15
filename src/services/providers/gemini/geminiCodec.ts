@@ -71,13 +71,13 @@ export function geminiValidatesSignatures(model: string): boolean {
   return /^gemini-/.test(model) && !/^gemini-[12]\./.test(model)
 }
 
-export const GEMINI_PLAN_CLAUDE_OUTPUT_CAP = 64_000
+const GEMINI_PLAN_CLAUDE_OUTPUT_CAP = 64_000
 
 export function geminiPlanServesClaude(wireModel: string): boolean {
   return /^claude-/.test(wireModel)
 }
 
-export function geminiThinkingConfig(model: string, effort: string | undefined): { thinkingBudget: number; includeThoughts?: boolean } | { thinkingLevel: string } | undefined {
+function geminiThinkingConfig(model: string, effort: string | undefined): { thinkingBudget: number; includeThoughts?: boolean } | { thinkingLevel: string } | undefined {
   const budget = typeof effort === 'string' ? ({ low: 1024, medium: 8192, high: 24576 } as Record<string, number>)[effort] : undefined
   if (budget === undefined) return undefined
   if (geminiPlanServesClaude(model)) return { includeThoughts: true, thinkingBudget: budget }

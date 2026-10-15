@@ -2,7 +2,7 @@
 import type { ObligationV1 } from '../crew/obligations.js'
 
 
-export type CoordinatorMode = 'off' | 'rules-only' | 'agent-assisted'
+type CoordinatorMode = 'off' | 'rules-only' | 'agent-assisted'
 
 export interface CoordinatorModeResolution {
   requested: CoordinatorMode
@@ -73,7 +73,7 @@ export type KernelDecisionV1 =
       by: string
     }
 
-export interface KernelFacts {
+interface KernelFacts {
   openObligations: readonly ObligationV1[]
 }
 

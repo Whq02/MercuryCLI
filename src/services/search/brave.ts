@@ -19,7 +19,7 @@ const BRAVE_WEB_SEARCH_URL = 'https://api.search.brave.com/res/v1/web/search'
 const REQUEST_TIMEOUT_MS = 15_000
 const BRAVE_MAX_COUNT = 20
 
-export function braveSearchUrl(): string {
+function braveSearchUrl(): string {
   return flagEnv('MERCURY_SEARCH_BRAVE_URL')?.trim() || BRAVE_WEB_SEARCH_URL
 }
 
@@ -34,7 +34,7 @@ export function resolveBraveSearchApiKey(
   return stored ? { key: stored, source: 'stored' } : undefined
 }
 
-export type BraveDecode = { kind: 'results'; hits: SearchHit[] } | { kind: 'unrecognised'; reason: string }
+type BraveDecode = { kind: 'results'; hits: SearchHit[] } | { kind: 'unrecognised'; reason: string }
 
 export function decodeBraveWebSearch(body: unknown): BraveDecode {
   if (typeof body !== 'object' || body === null) return { kind: 'unrecognised', reason: 'the body is not a JSON object' }

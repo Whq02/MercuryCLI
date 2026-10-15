@@ -33,9 +33,9 @@ export interface HunkSpan {
   replace: string
 }
 
-export type HunkOutcome = { index: number; lines: string; ok: true } | { index: number; lines: string; ok: false; message: string }
+type HunkOutcome = { index: number; lines: string; ok: true } | { index: number; lines: string; ok: false; message: string }
 
-export type HunkPlan =
+type HunkPlan =
   | { ok: true; spans: HunkSpan[]; totalLines: number }
   | { ok: false; message: string; outcomes: HunkOutcome[] }
 

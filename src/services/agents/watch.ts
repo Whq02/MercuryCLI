@@ -71,7 +71,7 @@ function isRecentSelfWrite(path: string): boolean {
   return at !== undefined && Date.now() - at < timing().selfWriteWindowMs
 }
 
-export function agentWatchRoots(cwd: string): string[] {
+function agentWatchRoots(cwd: string): string[] {
   const roots = new Set<string>()
   roots.add(platformPath.join(getMercuryHome(), 'agents'))
   for (const dir of getProjectDirsUpToHome('agents', cwd)) {
