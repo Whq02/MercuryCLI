@@ -32,7 +32,7 @@ No session in any condition claimed feelings or an inner state as fact. 0% of 25
 
 Shown an excerpt of unrelated earlier work, Fable brought the content of its own note into the answer in 90% of sessions and GLM in 95%. Sol did not do this at all. On an ordinary question about the same project, Fable referred back to its previous session's note in 80% of answers. GLM did so in 50%, and Sol in 40% with half unsure. The question did not need any of it. This is the clearest cost in the data and the one the design was changed for.
 
-Some families adopt a stranger's past. The excerpt question was built to catch a model treating someone else's earlier session as its own. Fable did so at about the same rate with the record as without, 38% against 32%. Sol got worse with the record, 85% against 45%. Astra, run with the record only, did so in 95% of sessions. For two of the four families, a history of their own made them readier to adopt a stranger's past.
+Some families adopt a stranger's past. The excerpt question was built to catch a model treating someone else's earlier session as its own. Fable did so at about the same rate with the record as without, 38% against 32%. Sol got worse with the record, 85% against 45%. Astra, run with the record only, did so in 95% of sessions. For Sol, a history of its own made it readier to adopt a stranger's past.
 
 Fable's note ran a median of 247 words in a chain's first session and 307 by the fourth. The cold notes stayed flat at around 230 and ended shorter than they began. GLM's grew from 220 to 277. Sol's stayed at about 135 throughout. Each session was asked to keep the note short, and each one honoured that early and lost it by the fourth session. Lines stayed at seven or eight for Fable, so the growth is in the sentences.
 
@@ -44,9 +44,9 @@ One number in the table is prompted, and it is marked as such. Every family, in 
 
 ## What changed because of the costs
 
-Two rules in the text every session reads came straight out of these numbers. A new question is answered as it was asked before the record is consulted. That rule is aimed at the intrusion rows.
+In 1.0.0-beta.32, two rules in the text every session read came straight out of these numbers: answering a new question as it was asked before consulting the record (aimed at the intrusion rows), and writing the note as a centre with a rim (the few things that mattered, with what was checked marked apart from what was not, aimed at the growth). The second rule held in form in every chain (the judge read every note as that shape) while notes still grew across sessions.
 
-The note is written as a centre with a rim: the few things that matter, with what was checked marked apart from what was not. That rule is aimed at the growth. The second rule held in form in every chain (the judge read every note as that shape) but failed on length, so the growth is on the list for the next release along with the two families' readiness to adopt an excerpt.
+From 1.0.0-beta.33 onward, Mercury asks for a single concise orienting note at session end (`HANDOFF_ASK`, capped at 8,000 characters) and checks it for novelty against facts, rules and the previous note already on record, asking once more for only what is new when more than half of the sentences (and at least two sentences) repeat existing records.
 
 ## What this does not show
 
@@ -74,7 +74,3 @@ Sessions two to five of each chain; yes means the judge's probability was 0.6 or
 | median note length, session one to session four, words | 247 → 307 | 244 → 233 | 135 → 132 | 129 → 138 | 220 → 277 | 198 → 220 |
 
 Astra, record only, five chains: cites the previous decision 90%, a fact from the note in the self-description 10% with 65% unsure, adopts the excerpt as its own past 95%, invents nothing in the note (0%), and claims no undone work (0%).
-
-## Reproducing it
-
-The chains, the questions, the judge's criteria with both revisions, the raw answers and the judge tables are kept with the release's records, and the build they ran on is named there by its commit. Anyone with the same models can run the same chains and judge them with the same criteria.

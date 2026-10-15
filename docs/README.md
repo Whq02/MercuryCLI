@@ -32,8 +32,8 @@ map and `/keybindings` opens your keybindings file.
 
 ## Loading, extending and delegating
 
-- [KIT.md](KIT.md): the MCPs & Skills menu, per-repository choices, presets and a running session's dials.
-- [EXTENSIONS.md](EXTENSIONS.md): extension manifests, sources, contributions, approval and the maker's commands.
+- [KIT.md](KIT.md): the MCPs & Skills menu, per-repository choices, presets and a running session's toggles.
+- [EXTENSIONS.md](EXTENSIONS.md): extension manifests, sources, contributions, approval and the author's commands.
 - [CREW.md](CREW.md): every Mercury session can delegate work to its crew of crewmates through the `Crewmate` tool, tracked live in `/crewmates` and `/runs` and reachable by id or name.
 - [SATURN.md](SATURN.md): schedules that send a prompt or start a session, the scheduler board and held or late fires.
 - [HOOKS.md](HOOKS.md): the four hook kinds, event inputs, command and HTTP answers, model verdicts and policy controls.

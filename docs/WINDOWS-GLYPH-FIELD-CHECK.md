@@ -36,7 +36,8 @@ Each row names the screen, how to reach it, and what it must look like.
 1. **The home screen.** Start `mercury` with no arguments. Every row of the
    card leads with a text glyph: New Session `✶`, Continue Last Session
    `↳`, Boot Menu `⊞`, MCPs & Skills `⊛`, Agents `◈`, Health
-   Check `✓`, Saturn Scheduler `◷`, Logins `⚿`, Sessions · Projects `↺`.
+   Check `✓`, Saturn Scheduler `◷`, Logins `⚿`, Session Concourse `⊞`,
+   Sessions · Projects `↺`.
    The Continue row's arrow is a plain hooked arrow (never a blue arrow tile).
 2. **The thinking row.** Open a session and ask something that makes the
    model reason for a moment. While it thinks, the status row reads
