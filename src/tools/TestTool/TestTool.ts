@@ -8,7 +8,7 @@ import { getCwd } from '../../utils/cwd.js'
 import { lazySchema } from '../../utils/lazySchema.js'
 import { expandPath } from '../../utils/path.js'
 import { semanticNumber } from '../../utils/semanticNumber.js'
-import { createDapSession } from '../../services/dap/dapClient.js'
+import { createDapSession, type DapBreakpointSpec } from '../../services/dap/dapClient.js'
 import {
   buildDebugTestShim,
   discoverPythonTests,
@@ -351,15 +351,15 @@ async function runOp(
         program: string
         args: string[]
         cwd: string
-        stop: { file: string; line: number } | null
+        stop: { file: string; line: number; column?: number } | null
         note: string
         launchExtras?: Record<string, unknown>
       }): Promise<{ result: string; outcome: ToolEffectOutcome }> => {
         const owner = ownerFromToolUseContext(context)
         const sessionId = input.session ?? 'test'
-        const breakpoints = new Map<string, number[]>()
+        const breakpoints = new Map<string, Array<number | DapBreakpointSpec>>()
         if (input.file && input.lines?.length) breakpoints.set(expandPath(input.file), input.lines)
-        else if (plan.stop) breakpoints.set(plan.stop.file, [plan.stop.line])
+        else if (plan.stop) breakpoints.set(plan.stop.file, [plan.stop])
         let session
         try {
           session = await createDapSession({

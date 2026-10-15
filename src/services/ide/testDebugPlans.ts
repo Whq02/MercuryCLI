@@ -238,6 +238,7 @@ export function buildGoTestDebugPlan(nodeId: string, opts?: { from?: string }): 
 export interface TestStop {
   file: string
   line: number
+  column?: number
 }
 
 export interface NodeRunnerDebugShim {
@@ -263,7 +264,7 @@ function fileFromLatestRun(from: string, framework: string, name: string): strin
   return hit?.file ?? null
 }
 
-function sourceJsTest(file: string, name: string): { nameParts: string[]; line: number } | null {
+function sourceJsTest(file: string, name: string): { nameParts: string[]; line: number; column?: number } | null {
   const resolution = resolveStructureTypescript(path.dirname(file))
   if (resolution.state !== 'ok') return null
   const ts = loadTs(resolution.modulePath)
@@ -271,7 +272,7 @@ function sourceJsTest(file: string, name: string): { nameParts: string[]; line: 
   try { text = readFileSync(file, 'utf8') } catch { return null }
   const { sourceFile, parseErrors } = parseSource(ts, file, text)
   if (parseErrors.length) return null
-  const tests: Array<{ nameParts: string[]; line: number }> = []
+  const tests: Array<{ nameParts: string[]; line: number; column?: number }> = []
   const walk = (node: import('typescript').Node, parents: string[]): void => {
     if (ts.isCallExpression(node)) {
       let callee = node.expression
@@ -285,7 +286,9 @@ function sourceJsTest(file: string, name: string): { nameParts: string[]; line: 
         if (kind === 'it' || kind === 'test' || kind === 'bench') {
           const body = callback.body
           const first = ts.isBlock(body) ? body.statements[0] ?? body : body
-          tests.push({ nameParts: parts, line: sourceFile.getLineAndCharacterOfPosition(first.getStart(sourceFile)).line + 1 })
+          const initializer = ts.isVariableStatement(first) ? first.declarationList.declarations.find(declaration => declaration.initializer)?.initializer : undefined
+          const position = sourceFile.getLineAndCharacterOfPosition((initializer ?? first).getStart(sourceFile))
+          tests.push({ nameParts: parts, line: position.line + 1, ...(initializer ? { column: position.character + 1 } : {}) })
           return
         }
       }
@@ -359,7 +362,7 @@ export function buildNodeRunnerDebugShim(
   const source = sourceJsTest(testFile, hit?.id ?? name)
   const anchored = jsTestNamePattern(runner, hit?.id ?? name, hit?.nameParts ?? source?.nameParts)
   const line = source?.line ?? null
-  const stop = line === null ? null : { file: testFile, line }
+  const stop = line === null ? null : { file: testFile, line, ...(source?.column !== undefined ? { column: source.column } : {}) }
   const relativeFile = path.relative(root, testFile)
   const args =
     runner === 'vitest'

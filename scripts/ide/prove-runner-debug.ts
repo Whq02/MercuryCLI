@@ -123,7 +123,7 @@ section('D. the Test tool: vitest and jest debug ride js-debug; an absent runner
 {
   const { TestTool } = await import('../../src/tools/TestTool/TestTool.ts')
   const toolSrc = readFileSync(path.join(ROOT, 'src/tools/TestTool/TestTool.ts'), 'utf8')
-  check('D1 the debug op routes vitest and jest through the node-runner shim onto adapterKey js with the shim\'s program and args', toolSrc.includes("buildNodeRunnerDebugShim(runner, input.node") && toolSrc.includes("launchRunnerDebug({ runner, adapterKey: 'js', program: shim.program, args: shim.args") && toolSrc.includes('breakpoints.set(plan.stop.file, [plan.stop.line])'))
+  check('D1 the debug op routes vitest and jest through the node-runner shim onto adapterKey js with the shim\'s program and args', toolSrc.includes("buildNodeRunnerDebugShim(runner, input.node") && toolSrc.includes("launchRunnerDebug({ runner, adapterKey: 'js', program: shim.program, args: shim.args") && toolSrc.includes('breakpoints.set(plan.stop.file, [plan.stop])'))
   const root = nodeProject('vitest', false)
   const out = (await runWithCwdOverride(root, () => TestTool.call({ op: 'debug', node: 'src/calc.test.mjs::calc adds two numbers' } as never, ctx))) as { data: { result: string; outcome: string } }
   check('D2 vitest declared but not installed: "debug unavailable" with the install remedy, never a sentence about the debugger not being there', out.data.outcome === 'failed' && out.data.result.startsWith('debug unavailable: vitest is declared but node_modules/.bin/vitest is missing') && out.data.result.includes('remedy: install the project dependencies'), out.data.result)
