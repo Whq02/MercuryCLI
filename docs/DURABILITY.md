@@ -151,8 +151,8 @@ the turn the same typed way under the key, with no chant handed on as a
 crewmate's report.
 When a provider answers a request with no content at all, the chat says so
 in a note and the request is sent again once, carrying a one-line note that
-asks for the answer or the tool call, before the note stands as the turn's
-end. On the OpenAI and Z.AI routes the note names the case. A
+asks for the answer or the tool call, before the note ends the
+turn. On the OpenAI and Z.AI routes the note names the case. A
 response the provider completed with no words is silence: the note says so
 and the turn ends there, with no second request. A response the provider
 stopped at its own output cap before any words names the cap, and the
