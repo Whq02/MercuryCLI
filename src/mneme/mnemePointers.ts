@@ -1,5 +1,5 @@
 import { recallQuery, type RecallHit } from './memoryVerbs.js'
-import { memoryStatusWords } from './memoryRefs.js'
+import { factMemoryState, memoryStatusWords, type MemoryRef } from './memoryRefs.js'
 import { pendingRows } from './mnemeBuffer.js'
 import {
   footnoteContext,
@@ -26,6 +26,8 @@ export interface MemoryPointer {
   title: string
   kind: PointerKind
   footnotes: Footnotes
+  source?: { kind: 'entry' | 'pending' | 'ledger'; source: string; time: string; page?: string; heading?: string }
+  freshness?: { status: MemoryRef['status']; confirmedAt?: string }
 }
 
 export interface PointerResult {
@@ -47,11 +49,12 @@ interface LiveRow {
   heading: string
 }
 
-function liveRows(dir: string): Map<number, LiveRow> {
+function liveRows(dir: string, history = false): Map<number, LiveRow> {
   const out = new Map<number, LiveRow>()
   for (const doc of [...listTopicDocs(dir), ...listArchiveDocs(dir)]) {
     const slug = isArchiveDoc(doc) ? `${ARCHIVE_PREFIX}${doc.slug}` : doc.slug
     for (const s of doc.sections) for (const e of s.entries) out.set(e.seq, { entry: e, slug, heading: s.heading })
+    if (history) for (const e of doc.history) out.set(e.seq, { entry: e, slug, heading: 'history' })
   }
   return out
 }
@@ -96,6 +99,8 @@ function factPointer(hit: RecallHit, row: LiveRow | undefined, pinned: ReadonlyS
       title: `pending · ${pending.topicHint ?? 'general'} · ${day(pending.ts)} · ${pending.source} · ${matchesLine(matchedWords(pending.text, ms))}`,
       kind: 'fact',
       footnotes: ordinal !== undefined ? { session: ordinal } : {},
+      source: { kind: 'pending', source: pending.source, time: pending.ts },
+      freshness: { status: 'unconsolidated' },
     }
   }
   if (!row) return null
@@ -106,6 +111,8 @@ function factPointer(hit: RecallHit, row: LiveRow | undefined, pinned: ReadonlyS
     title: `${row.slug} › ${row.heading}${status} · ${day(entry.time)} · ${entry.source} · ${matchesLine(matchedWords(entry.text, ms))}`,
     kind: pinned.has(entry.seq) ? 'ruling' : 'fact',
     footnotes: footnotesOf(entry, ctx),
+    source: { kind: 'entry', source: entry.source, time: entry.time, page: row.slug, heading: row.heading },
+    freshness: { status: hit.status ?? 'current', confirmedAt: hit.confirmedAt },
   }
 }
 
@@ -126,6 +133,20 @@ function wordCount(text: string): number {
   return text.split(/\s+/).filter(Boolean).length
 }
 
+function ledgerPointer(s: LedgerEntry, count: number, kind: 'session' | 'handoff', words: string[]): MemoryPointer {
+  const ended = s.endedAt === null ? 'still open' : s.handoff === null ? 'no note left' : 'note left'
+  return {
+    id: `ledger:${s.ordinal}`,
+    title: kind === 'handoff'
+      ? `handoff of session ${s.ordinal} of ${count} · ${day(s.handoff!.at)} · ${wordCount(s.handoff!.text)} words · ${matchesLine(words)}`
+      : `session ${s.ordinal} of ${count} · ${day(s.startedAt)} · ${ended} · ${matchesLine(words)}`,
+    kind,
+    footnotes: { session: s.ordinal },
+    source: { kind: 'ledger', source: s.sessionId, time: kind === 'handoff' ? s.handoff!.at : s.startedAt },
+    freshness: { status: 'current' },
+  }
+}
+
 export function ledgerPointers(query: string, sessions: readonly LedgerEntry[], limit: number = LEDGER_POINTERS_MAX): MemoryPointer[] {
   const ms = matchers(query)
   const pattern = patternOf(query)
@@ -136,35 +157,40 @@ export function ledgerPointers(query: string, sessions: readonly LedgerEntry[], 
     const handoff = s.handoff.text
     const handoffWords = matchedWords(handoff, ms)
     if (handoff !== '' && (pattern.test(handoff) || handoffWords.length > 0)) {
-      scored.push({
-        pointer: {
-          id: `ledger:${s.ordinal}`,
-          title: `handoff of session ${s.ordinal} of ${count} · ${day(s.handoff!.at)} · ${wordCount(handoff)} words · ${matchesLine(handoffWords)}`,
-          kind: 'handoff',
-          footnotes: { session: s.ordinal },
-        },
-        score: handoffWords.length + 1,
-        ordinal: s.ordinal,
-      })
+      scored.push({ pointer: ledgerPointer(s, count, 'handoff', handoffWords), score: handoffWords.length + 1, ordinal: s.ordinal })
       continue
     }
-    const text = sessionText(s)
-    const words = matchedWords(text, ms)
-    if (!(pattern.test(text) || words.length > 0)) continue
-    const ended = s.endedAt === null ? 'still open' : s.handoff === null ? 'no note left' : 'note left'
-    scored.push({
-      pointer: {
-        id: `ledger:${s.ordinal}`,
-        title: `session ${s.ordinal} of ${count} · ${day(s.startedAt)} · ${ended} · ${matchesLine(words)}`,
-        kind: 'session',
-        footnotes: { session: s.ordinal },
-      },
-      score: words.length,
-      ordinal: s.ordinal,
-    })
+    const words = matchedWords(sessionText(s), ms)
+    if (!(pattern.test(sessionText(s)) || words.length > 0)) continue
+    scored.push({ pointer: ledgerPointer(s, count, 'session', words), score: words.length, ordinal: s.ordinal })
   }
   scored.sort((a, b) => b.score - a.score || b.ordinal - a.ordinal)
   return scored.slice(0, Math.max(0, limit)).map(x => x.pointer)
+}
+
+export function memoryPointerForId(
+  id: string,
+  opts: { dir?: string; sessions?: readonly LedgerEntry[]; query?: string; now?: Date } = {},
+): MemoryPointer | null {
+  const dir = opts.dir ?? mnemeLibraryDir()
+  const sessions = opts.sessions ?? currentLedger()
+  const query = opts.query ?? ''
+  const ms = matchers(query)
+  const ledger = /^ledger:(\d+)$/.exec(id)
+  if (ledger) {
+    const session = sessions.find(s => s.ordinal === Number(ledger[1]))
+    if (!session) return null
+    const matched = ledgerPointers(query, sessions, sessions.length).find(p => p.id === id)
+    return matched ?? ledgerPointer(session, sessions.length, session.handoff?.text.trim() ? 'handoff' : 'session', [])
+  }
+  const seq = /^seq:(\d+)$/.exec(id)
+  if (!seq && !id.startsWith('pending:')) return null
+  const row = seq ? liveRows(dir, true).get(Number(seq[1])) : undefined
+  if (seq && !row) return null
+  const pins = readPins(dir)
+  const state = row ? factMemoryState(row.entry, { pins, libraryDir: dir, now: opts.now }) : undefined
+  const hit: RecallHit = { id, label: seq ? 'consolidated' : 'pending', slug: row?.slug ?? 'pending', preview: '', signature: '', ...state }
+  return factPointer(hit, row, new Set(pins.map(p => p.seq)), ms, { ...footnoteContext(dir, sessions), dir })
 }
 
 function wantsLedger(query: string): boolean {
