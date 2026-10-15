@@ -215,6 +215,15 @@ section('§8 the /accounts board: a second sign-in is a slot of its family, mark
   check('⌫ on the home slot clears the home key and leaves the pocket', homeRemoval.mutated && secrets.readStoredDeepseekApiKey() === k2 && pockets.withSignInHome('deepseek', null, () => secrets.readStoredDeepseekApiKey()) === undefined && existsSync(pocketB), homeRemoval.note)
 }
 
+section('§9 the model-use ledger row names the sign-in that spends, and reads back as before without one')
+{
+  const { recordModelUse, readModelUseLedger } = await import('../../src/utils/model/modelUseLedger.ts')
+  const ok = await recordModelUse('deepseek', 'deepseek-v4', { identity: '…bbbb', home: HOME })
+  check('a model use recorded with the sign-in carries it', ok && readModelUseLedger(HOME).deepseek?.identity === '…bbbb', JSON.stringify(readModelUseLedger(HOME)))
+  const plain = await recordModelUse('zai', 'glm-5', { home: HOME })
+  check('a row without a sign-in reads as before', plain && readModelUseLedger(HOME).zai?.model === 'glm-5' && readModelUseLedger(HOME).zai?.identity === undefined)
+}
+
 rmSync(HOME, { recursive: true, force: true })
 console.log(failures === 0 ? '\n✅ SIGN-IN POCKETS GREEN' : `\n❌ SIGN-IN POCKETS RED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
