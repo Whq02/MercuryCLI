@@ -80,9 +80,9 @@ export function renderFoldLedger(ledger: FoldLedger): string {
     version: ledger.version, epoch: ledger.epoch,
     source: { records: ledger.sourceRecordIds.length, first: ledger.sourceRecordIds[0], last: ledger.sourceRecordIds.at(-1), sha256: ledger.sourceDigest },
     operator: { messages: ledger.operator.length, bytes: ledger.operator.reduce((n, row) => n + row.bytes, 0) },
-    tools: ledger.tools.map(({ argumentDigest, ...receipt }) => receipt), files: ledger.files,
+    tools: ledger.tools.map(({ argumentDigest, file, ...receipt }) => ({ ...receipt, ...(file && receipt.outcome !== 'error' ? { file } : {}) })), files: ledger.files,
     run: ledger.run, openAsks: ledger.openAsks,
-    witnessesInBoundary: { sourceIds: ledger.sourceRecordIds.length, operatorHashes: ledger.operator.length, argumentHashes: ledger.tools.length },
+    witnessesInBoundary: { sourceIds: ledger.sourceRecordIds.length, operatorHashes: ledger.operator.length, argumentHashes: ledger.tools.length, deniedFilePaths: ledger.tools.filter(tool => tool.outcome === 'error' && tool.file).length },
   }
   return `## Fold ledger\nSource facts below are deterministic; generated summary text does not change them. The full witness index is in this epoch's boundary record in the transcript. An observed file anchor is not permission to edit unread content. Missing command exit codes are unknown. Open operator asks are not marked complete by a summary.\n\n${JSON.stringify(index)}`
 }

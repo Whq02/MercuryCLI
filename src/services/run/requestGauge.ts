@@ -121,13 +121,15 @@ export function requestGaugeView(messages: readonly Message[], key: string, epoc
   }
   const prefix = messages.slice(0, first)
   const prefixDigest = requestGaugeDigest(prefix)
-  if (previous.anchor.epoch !== epoch || previous.anchor.fixed.digest !== fixed.digest || (prefixDigest !== previous.anchor.digest && prefixDigest !== previous.anchor.sourceDigest)) return base
+  if (previous.anchor.epoch !== epoch || (prefixDigest !== previous.anchor.digest && prefixDigest !== previous.anchor.sourceDigest)) return base
   const tail = messages.slice(first).filter(row => row.type !== 'assistant' || row.message.id !== previous.row.message.id)
   const tailTokens = roughTokenCountEstimationForMessages(tail)
   const usage = previous.row.message.usage
   const anchorTokens = (usage.input_tokens ?? 0) + (usage.cache_read_input_tokens ?? 0) + (usage.cache_creation_input_tokens ?? 0) + (usage.output_tokens ?? 0)
-  const tailCalibratable = tailTokens >= 1000 && !hasMedia(tail)
-  return { ...base, tokens: anchorTokens + Math.round(tailTokens * (tailCalibratable ? density.ratio : 1)), source: 'usage', transition: 'continued', tailTokens, tailCalibratable, anchorTokens }
+  const fixedMatched = previous.anchor.fixed.digest === fixed.digest
+  const tailCalibratable = fixedMatched && tailTokens >= 1000 && !hasMedia(tail)
+  const fixedDelta = fixed.tokens - previous.anchor.fixed.tokens
+  return { ...base, tokens: Math.max(0, anchorTokens + fixedDelta + Math.round(tailTokens * (tailCalibratable ? density.ratio : 1))), source: 'usage', transition: 'continued', tailTokens, tailCalibratable, anchorTokens }
 }
 
 export function readRequestGauge(messages: readonly Message[], model?: string): RequestGaugeView | null {

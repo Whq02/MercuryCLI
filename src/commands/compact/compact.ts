@@ -4,6 +4,7 @@ import { getLastCacheSafeParams } from '../../utils/forkedAgent.js'
 import { getUserContext } from '../../context.js'
 import {
   compactConversation,
+  buildPostCompactMessages,
   ERROR_MESSAGE_FOLD_TIMEOUT,
   ERROR_MESSAGE_INCOMPLETE_RESPONSE,
   ERROR_MESSAGE_NOT_ENOUGH_MESSAGES,
@@ -154,7 +155,7 @@ async function callUnderFoldStatus(
       const sessionMemoryResult = await trySessionMemoryCompaction(projected, context.agentId, undefined, context)
       if (sessionMemoryResult !== null) {
         getUserContext.cache?.clear?.()
-        runPostCompactCleanup()
+        runPostCompactCleanup(undefined, buildPostCompactMessages(sessionMemoryResult))
         suppressCompactWarning()
         return {
           type: 'compact',
@@ -193,7 +194,7 @@ async function callUnderFoldStatus(
     setLastSummarizedMessageId(undefined)
     suppressCompactWarning()
     getUserContext.cache?.clear?.()
-    runPostCompactCleanup()
+    runPostCompactCleanup(undefined, buildPostCompactMessages(result))
     if (shouldEnrichForLiveDisplay(context)) {
       enrichSummaryForLiveDisplay(result, summaryInput.length, customInstructions)
     }

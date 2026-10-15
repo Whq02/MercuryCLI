@@ -31,6 +31,7 @@ export interface PrefixVerdict {
   compared: boolean
   behind: number
   key: string
+  fixedPrefix?: { previous: string | null; current: string; unchanged: boolean; bytes: number }
   wireMessageIds: Array<string | null>
 }
 
@@ -60,6 +61,7 @@ interface MessageRecord {
 interface PrefixRecord {
   key: string
   whole: string
+  fixedWire?: { digest: string; bytes: number }
   system: SystemBlockRecord[]
   tools: ToolRecord[]
   messages: MessageRecord[]
@@ -174,7 +176,9 @@ function recordOf(key: string, parts: WirePrefixParts): PrefixRecord {
     return { role: String(m.role ?? '?'), digest: sha(j({ ...m, content })), fields, blocks, thinking }
   })
   const whole = sha(j({ system: system.map(s => s.digest), tools: tools.map(t => t.definition), messages: messages.map(m => [m.digest, m.thinking]) }))
-  return { key, whole, system, tools, messages, wireMessageIds: [], dropped: new Set<string>() }
+  const fixedText = j({ system: parts.system, tools: parts.tools })
+  const fixedWire = { digest: createHash('sha256').update(fixedText).digest('hex'), bytes: Buffer.byteLength(fixedText) }
+  return { key, whole, fixedWire, system, tools, messages, wireMessageIds: [], dropped: new Set<string>() }
 }
 
 export function lastThinkingMessageIndex(messages: readonly unknown[]): number {
@@ -430,6 +434,7 @@ function readSessionRecord(owner: string): void {
     records.set(owner, {
       key: stored.key,
       whole: stored.whole,
+      ...(typeof stored.fixedWire?.digest === 'string' && /^[0-9a-f]{64}$/.test(stored.fixedWire.digest) && Number.isFinite(stored.fixedWire.bytes) ? { fixedWire: stored.fixedWire } : {}),
       system: stored.system,
       tools: stored.tools,
       messages: stored.messages,
@@ -491,9 +496,10 @@ export function judgeAndRecordPrefix(
   current.wireMessageIds = [...wireMessageIds]
   readSessionRecord(owner)
   const previous = records.get(owner)
+  const fixedPrefix = { previous: previous?.fixedWire?.digest ?? null, current: current.fixedWire!.digest, unchanged: previous?.fixedWire?.digest === current.fixedWire!.digest, bytes: current.fixedWire!.bytes }
   if (previous !== undefined && previous.key === key && previous.whole === current.whole) {
     if (replace) records.set(owner, { ...current, dropped: previous.dropped })
-    return verdicts.get(owner) ?? { mismatch: null, lastThinkingIndex: lastThinkingMessageIndex(parts.messages), compared: true, behind: 0, key, wireMessageIds: current.wireMessageIds }
+    return verdicts.get(owner) ?? { mismatch: null, lastThinkingIndex: lastThinkingMessageIndex(parts.messages), compared: true, behind: 0, key, fixedPrefix, wireMessageIds: current.wireMessageIds }
   }
   const lastThinkingIndex = lastThinkingMessageIndex(parts.messages)
   let mismatch: PrefixMismatch | null = null
@@ -509,7 +515,7 @@ export function judgeAndRecordPrefix(
       }
     }
   }
-  const verdict: PrefixVerdict = { mismatch, lastThinkingIndex, compared, behind, key, wireMessageIds: current.wireMessageIds }
+  const verdict: PrefixVerdict = { mismatch, lastThinkingIndex, compared, behind, key, fixedPrefix, wireMessageIds: current.wireMessageIds }
   if (replace) {
     records.set(owner, current)
     verdicts.set(owner, verdict)

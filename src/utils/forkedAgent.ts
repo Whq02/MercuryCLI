@@ -36,6 +36,7 @@ export type CacheSafeParams = {
   systemContext: { [k: string]: string }
   toolUseContext: ToolUseContext
   forkContextMessages: Message[]
+  postFoldCarry?: Message[]
 }
 
 type SubagentContextOverrides = {
