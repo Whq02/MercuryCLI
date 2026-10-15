@@ -97,9 +97,9 @@ function fallbackNoteSuffix(explicit: string | undefined, resolved: string): str
 
 function summarize(record: TestRunRecord): string {
   const c = record.counts
-  const head =
-    `${record.framework} ${record.selection} — ${c.passed} passed · ${c.failed} failed · ` +
-    `${c.skipped} skipped · ${c.errored} errored (${record.durationMs}ms, exit ${record.exitCode ?? 'null'})`
+  const counts = `${c.passed} passed · ${c.failed} failed · ${c.skipped} skipped · ${c.errored} errored (${record.durationMs}ms, exit ${record.exitCode ?? 'null'})`
+  const noMatch = record.verdict === 'no-match'
+  const head = noMatch ? `${record.framework} ${record.verdictNote ?? `no test matched ${record.selection}`}` : `${record.framework} ${record.selection} — ${counts}`
   const failures = record.cases
     .filter(x => x.outcome === 'failed' || x.outcome === 'errored')
     .slice(0, 10)
@@ -107,11 +107,16 @@ function summarize(record: TestRunRecord): string {
   return [
     `ran: ${record.command.join(' ')}`,
     head,
+    ...(noMatch ? [`counts: ${counts}`] : []),
     ...(failures.length ? ['failures:', ...failures] : []),
-    ...(record.verdictNote ? [`NOTE: ${record.verdictNote}`] : []),
+    ...(record.verdictNote && !noMatch ? [`NOTE: ${record.verdictNote}`] : []),
     ...(record.diagnosticsNote ? [`diagnostics: ${record.diagnosticsNote}`] : []),
     `record: mercury://test/run/${record.id}${record.outputArtifactRef ? ` · full output: ${record.outputArtifactRef}` : ''}`,
   ].join('\n')
+}
+
+function outcomeOf(record: TestRunRecord, ran: () => ToolEffectOutcome): ToolEffectOutcome {
+  return record.verdict === 'no-match' ? 'no-change' : ran()
 }
 
 function runnerProgress(
@@ -178,7 +183,7 @@ async function runRunnerOp(
     }
     return {
       result: summarize(out.record),
-      outcome: out.record.counts.failed === 0 && out.record.counts.errored === 0 && out.record.exitCode === 0 ? 'succeeded' : 'failed',
+      outcome: outcomeOf(out.record, () => (out.record.counts.failed === 0 && out.record.counts.errored === 0 && out.record.exitCode === 0 ? 'succeeded' : 'failed')),
       record: out.record,
     }
   }
@@ -197,7 +202,7 @@ async function runRunnerOp(
   }
   return {
     result: summarize(out.record),
-    outcome: out.record.counts.failed === 0 && out.record.counts.errored === 0 && out.record.exitCode === 0 ? 'succeeded' : 'failed',
+    outcome: outcomeOf(out.record, () => (out.record.counts.failed === 0 && out.record.counts.errored === 0 && out.record.exitCode === 0 ? 'succeeded' : 'failed')),
     record: out.record,
   }
 }
@@ -254,7 +259,7 @@ async function runOp(
       }
       return {
         result: summarize(out.record),
-        outcome: out.record.counts.failed === 0 && out.record.exitCode === 0 ? 'succeeded' : 'failed',
+        outcome: outcomeOf(out.record, () => (out.record.counts.failed === 0 && out.record.exitCode === 0 ? 'succeeded' : 'failed')),
         record: out.record,
       }
     }
@@ -303,7 +308,7 @@ async function runOp(
         }
         return {
           result: summarize(out.record) + fallbackNoteSuffix(input.framework, out.record.framework),
-          outcome: out.record.failures.length === 0 && !out.record.verdictNote ? 'succeeded' : 'failed',
+          outcome: outcomeOf(out.record, () => (out.record.failures.length === 0 && !out.record.verdictNote ? 'succeeded' : 'failed')),
           record: out.record,
         }
       }
@@ -320,7 +325,7 @@ async function runOp(
       }
       return {
         result: summarize(out.record) + fallbackNoteSuffix(input.framework, out.record.framework),
-        outcome: out.record.failures.length === 0 && !out.record.verdictNote ? 'succeeded' : 'failed',
+        outcome: outcomeOf(out.record, () => (out.record.failures.length === 0 && !out.record.verdictNote ? 'succeeded' : 'failed')),
         record: out.record,
       }
     }
@@ -332,7 +337,7 @@ async function runOp(
       }
       return {
         result: summarize(out.record),
-        outcome: out.record.failures.length === 0 && !out.record.verdictNote ? 'succeeded' : 'failed',
+        outcome: outcomeOf(out.record, () => (out.record.failures.length === 0 && !out.record.verdictNote ? 'succeeded' : 'failed')),
         record: out.record,
       }
     }
@@ -531,7 +536,7 @@ Operations:
 4. op:"debug" — debug one test (node required) under its own debugger, stopping on the test's first line: python under debugpy · node-test, vitest and jest under js-debug (node spelled file::name, or a bare name from the latest run) · go under delve (TestName, TestName/subtest or dir::TestName) · cargo under lldb-dap or gdb (module::path::test_name); a debugger that is not installed answers unavailable with its install line. Pass file+lines for breakpoints of your own; the call reports the first stop and leaves Debug session "test" open — continue with the Debug tool (stack/scopes/variables/continue, then disconnect).
 5. op:"report" — the latest (or runId) durable record.
 
-A run whose exit code disagrees with its structured records says so (verdictNote) — trust the records. Prefer run→fix→rerunFailed loops over re-running the whole suite.`
+A run whose exit code disagrees with its structured records says so (verdictNote) — trust the records. A selection that matched no test comes back as "no test matched <selection> — <the runner's own words>" with zero counts: not a failure, and not a pass — pick another selector (a node id from discover, or the file as path). Prefer run→fix→rerunFailed loops over re-running the whole suite.`
   },
   userFacingName,
   shouldDefer: true,
