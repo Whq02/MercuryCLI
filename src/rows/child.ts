@@ -21,7 +21,7 @@ export function childRowsOf(scope: RowScope & { parent_call_id: string }, messag
   const rows: RowDraft[] = []
   if (!cursor.seen.has(assistant.uuid)) {
     cursor.seen.add(assistant.uuid)
-    rows.push(...itemRowsOf(scope, messageId, assistant.message.content, cursor.block))
+    rows.push(...itemRowsOf(scope, messageId, assistant.message.content, cursor.block, assistant.inReplyTo))
     cursor.block += Array.isArray(assistant.message.content) ? assistant.message.content.length : 1
     const refused = assistant.refusedToolCalls ?? []
     if (refused.length > 0) {

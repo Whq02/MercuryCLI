@@ -11,6 +11,7 @@
 # gate-watch: src/state/AppStateStore.ts src/tools/RecordConventionTool/prompt.ts
 # gate-watch: src/tools/TaskCreateTool/constants.ts src/types/ids.ts
 # gate-watch: src/utils/* src/utils/config/globalConfig.ts src/utils/messages/factories.ts
+# gate-watch: scripts/headless/mid-turn-reply-fixture-server.ts src/utils/sessionStorage/paths.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }

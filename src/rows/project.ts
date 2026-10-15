@@ -6,12 +6,13 @@ import type { FoldStatusV1 } from '../services/compact/foldStatus.js'
 import type { RequestWaitV1 } from '../services/providers/streamIdleBudget.js'
 import type { NonNullableUsage } from '../services/api/emptyUsage.js'
 import type { ModelUsage } from '../bootstrap/state.js'
-import type { RefusedToolCall } from '../types/message.js'
+import type { RefusedToolCall, ReplyMark } from '../types/message.js'
 import {
   ROWS_SCHEMA,
   stopWordOf,
   usageOf,
   type BlockStartRow,
+  type ReplyMarkRow,
   type CloseRow,
   type CommandOutputRow,
   type CompactionRow,
@@ -144,9 +145,15 @@ type ContentBlock = { type?: string; text?: string; thinking?: string; id?: stri
 
 export type ItemRow = Unstamped<TextRow> | Unstamped<ReasoningRow> | Unstamped<ToolCallRow>
 
-export function itemRowsOf(scope: RowScope, messageId: string, content: unknown, firstBlock = 0): ItemRow[] {
+export function replyMarkRowsOf(marks: readonly ReplyMark[] | undefined): { in_reply_to: ReplyMarkRow[] } | Record<never, never> {
+  if (marks === undefined || marks.length === 0) return {}
+  return { in_reply_to: marks.map(mark => ({ id: mark.uuid, at: mark.at })) }
+}
+
+export function itemRowsOf(scope: RowScope, messageId: string, content: unknown, firstBlock = 0, replyTo?: readonly ReplyMark[]): ItemRow[] {
+  const address = replyMarkRowsOf(replyTo)
   if (typeof content === 'string') {
-    return content === '' ? [] : [scoped(scope, { type: 'text' as const, message_id: messageId, block: firstBlock, text: content })]
+    return content === '' ? [] : [scoped(scope, { type: 'text' as const, message_id: messageId, block: firstBlock, text: content, ...address })]
   }
   if (!Array.isArray(content)) return []
   const rows: ItemRow[] = []
@@ -162,6 +169,7 @@ export function itemRowsOf(scope: RowScope, messageId: string, content: unknown,
               block: index,
               text: block.text,
               ...(block.phase === 'commentary' || block.phase === 'final_answer' ? { phase: block.phase } : {}),
+              ...address,
             }),
           )
         }

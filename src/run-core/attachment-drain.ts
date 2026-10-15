@@ -1,9 +1,36 @@
 
+import type { AssistantMessage, ReplyMark } from '../types/message.js'
+import { NO_CONTENT_MESSAGE } from '../constants/messages.js'
+
 export type DrainableCommand = {
   uuid?: string
   mode?: string
   agentId?: string
   value?: unknown
+}
+
+export type DrainedRow = {
+  timestamp: string
+  attachment: { type?: string; source_uuid?: string; commandMode?: string; origin?: { kind: string }; isMeta?: boolean }
+}
+
+export function replyMarkOf(row: DrainedRow): ReplyMark | null {
+  const att = row.attachment
+  if (att.type !== 'queued_command' || typeof att.source_uuid !== 'string' || att.source_uuid === '') return null
+  if (att.isMeta === true || att.commandMode === 'task-notification') return null
+  if (att.origin !== undefined && att.origin.kind !== 'human') return null
+  return { uuid: att.source_uuid, at: row.timestamp }
+}
+
+export function isReplyText(message: Pick<AssistantMessage, 'isApiErrorMessage' | 'message'>): boolean {
+  if (message.isApiErrorMessage === true) return false
+  return message.message.content.some(block => block.type === 'text' && block.text.trim() !== '' && block.text !== NO_CONTENT_MESSAGE)
+}
+
+export function stampReply<M extends Pick<AssistantMessage, 'isApiErrorMessage' | 'message' | 'inReplyTo'>>(message: M, awaiting: ReplyMark[]): M {
+  if (awaiting.length === 0 || !isReplyText(message)) return message
+  message.inReplyTo = awaiting.splice(0)
+  return message
 }
 
 export type DrainScope = {

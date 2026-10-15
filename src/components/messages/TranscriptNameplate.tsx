@@ -3,6 +3,7 @@ import * as React from 'react'
 import { Text } from '../../ink.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { ADVISOR_PLATE_NAME, SATURN_PLATE_NAME } from '../../utils/messages/noticeRows.js'
+import { formatClock, REPLY_ADDRESS_LEAD, replyAddressLine } from '../../utils/messages/replyAddress.js'
 import { FAINT, TEAL } from '../mercuryPalette.js'
 import { truncateToWidth } from '../mercury-ui/glyphs.js'
 import { useSessionAccent } from '../mercury-ui/sessionAccent.js'
@@ -91,8 +92,6 @@ export function userHandle(): string {
   return handle
 }
 
-const pad2 = (n: number): string => (n < 10 ? `0${n}` : `${n}`)
-
 export const QUEUED_PLATE = 'queued'.padEnd(8)
 export const HELD_PLATE = 'held'.padEnd(8)
 export const HELD_FOR_COMPACTION_LINE = 'held until the compaction lands — it delivers once, on its own (↑ takes it back)'
@@ -107,11 +106,12 @@ export function clockColumnOf(meta: ClockColumnMeta, grammar: 'plate' | 'notice'
   return `${HELD_PLATE} ${meta.heldFor !== 'compaction' && clock !== null ? `since ${clock} ` : ''}`
 }
 
-export function formatClock(ts?: string): string | null {
-  if (!ts) return null
-  const d = new Date(ts)
-  if (Number.isNaN(d.getTime())) return null
-  return `${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}`
+export { formatClock, REPLY_ADDRESS_LEAD, replyAddressLine }
+
+export function ReplyAddress({ marks }: { marks: ReadonlyArray<{ at?: string }> | undefined }): React.ReactNode {
+  const line = replyAddressLine(marks)
+  if (line === null) return null
+  return <Text color={FAINT}>{line}</Text>
 }
 
 export function NameplateClock(): React.ReactNode {
