@@ -5,11 +5,18 @@ import { join } from 'node:path'
 const ROOT = join(import.meta.dir, '..', '..')
 const revIdx = process.argv.indexOf('--rev')
 const REV = revIdx >= 0 ? process.argv[revIdx + 1] ?? null : null
+const baseIdx = process.argv.indexOf('--base')
+const BASE_REV = baseIdx >= 0 ? process.argv[baseIdx + 1] ?? null : null
 
 export interface IntegrityHit {
   file: string
   line: number
-  kind: 'glued-heading' | 'repeated-line-or-clause' | 'cut-or-spliced-sentence'
+  kind:
+    | 'glued-heading'
+    | 'repeated-line-or-clause'
+    | 'cut-or-spliced-sentence'
+    | 'mixed-quote-marks'
+    | 'unbalanced-code-span'
   excerpt: string
 }
 
@@ -28,7 +35,134 @@ function readSurface(root: string, rel: string, rev: string | null): string {
   return readFileSync(join(root, rel), 'utf8')
 }
 
-export function scanMarkdownIntegrity(file: string, text: string): IntegrityHit[] {
+function tailWords(line: string, count: number): string {
+  const words = line
+    .replace(/\s+—\s+/g, ', ')
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+  if (words.length < count) return ''
+  return words.slice(-count).join(' ')
+}
+
+function headWords(line: string, count: number): string {
+  const words = line.trim().split(/\s+/).filter(Boolean)
+  if (words.length < count) return ''
+  return words.slice(0, count).join(' ')
+}
+
+export function scanBaseRevisionTails(file: string, baseText: string, text: string): IntegrityHit[] {
+  const hits: IntegrityHit[] = []
+  const baseLines = baseText.split('\n')
+  const lines = text.split('\n')
+  let fenced = false
+
+  const baseByTail = new Map<string, number[]>()
+  let baseFenced = false
+  for (let b = 0; b < baseLines.length; b++) {
+    const raw = baseLines[b]!
+    if (/^\s*(```|~~~)/.test(raw)) {
+      baseFenced = !baseFenced
+      continue
+    }
+    if (baseFenced) continue
+    const tw = tailWords(raw, 2)
+    if (!tw) continue
+    const list = baseByTail.get(tw) ?? []
+    list.push(b)
+    baseByTail.set(tw, list)
+  }
+
+  for (let i = 0; i < lines.length - 1; i++) {
+    const raw = lines[i]!
+    const trimmed = raw.trim()
+    if (/^\s*(```|~~~)/.test(raw)) {
+      fenced = !fenced
+      continue
+    }
+    if (fenced) continue
+    if (trimmed === '' || /^(#{1,6}\s|\||<!--)/.test(trimmed)) continue
+    if (/[.!?:;—]$/.test(trimmed)) continue
+
+    const tw = tailWords(trimmed, 2)
+    const candidates = tw ? baseByTail.get(tw) : undefined
+    if (!candidates) continue
+
+    const nextTrimmed = lines[i + 1]!.trim()
+    if (nextTrimmed === '') continue
+
+    const cleanClause = (s: string): string =>
+      s
+        .replace(/\s*[—,(].*$/, '')
+        .trim()
+        .split(/\s+/)
+        .filter(Boolean)
+        .slice(0, 3)
+        .join(' ')
+    const firstNext = cleanClause(nextTrimmed)
+    if (
+      candidates.some(b => {
+        const bn = baseLines[b + 1]?.trim() ?? ''
+        return bn === nextTrimmed || (firstNext !== '' && cleanClause(bn) === firstNext)
+      })
+    ) {
+      continue
+    }
+
+    for (const b of candidates) {
+      if (b + 1 >= baseLines.length) continue
+      const baseNext = baseLines[b + 1]!.trim()
+      if (baseNext === '') continue
+
+      for (const skip of [2, 3, 4]) {
+        if (b + skip < baseLines.length) {
+          const skippedTarget = baseLines[b + skip]!.trim()
+          const targetHw = headWords(skippedTarget, 3)
+          const nextHw3 = headWords(nextTrimmed, 3)
+          if (
+            skippedTarget.length >= 6 &&
+            (nextTrimmed === skippedTarget || (targetHw.length >= 10 && nextHw3 === targetHw))
+          ) {
+            hits.push({
+              file,
+              line: i + 1,
+              kind: 'cut-or-spliced-sentence',
+              excerpt: `dropped ${skip - 1} base line(s) mid-sentence after "${tw}": missing "${baseNext.slice(0, 60)}"`,
+            })
+            break
+          }
+        }
+      }
+
+      if (
+        /\b(and|or|to|of|in|on|for|with|from|by|at|as|into|under|over|before|after|while|when|where|that|which|whose|is|are|was|were|has|have|had|the|a|an)$/.test(
+          trimmed,
+        ) &&
+        (/^([A-Z][a-z]+|`[a-zA-Z0-9_]+`\s+[a-z]+s\b)/.test(nextTrimmed) ||
+          /^[a-z]+ing\s+so\./.test(nextTrimmed)) &&
+        !nextTrimmed.startsWith(baseNext.slice(0, Math.min(12, baseNext.length)))
+      ) {
+        const joinedPara = `${trimmed} ${nextTrimmed}`
+        const baseTailSentence = baseNext.split(/[.!?]/)[0]!.trim()
+        const wordCount = baseTailSentence.split(/\s+/).filter(Boolean).length
+        const tailCheck = tailWords(baseTailSentence, Math.min(3, Math.max(1, wordCount)))
+        if (tailCheck && !joinedPara.includes(tailCheck)) {
+          hits.push({
+            file,
+            line: i + 1,
+            kind: 'cut-or-spliced-sentence',
+            excerpt: `cut sentence tail after "${tw}" (base continued with "${baseNext.slice(0, 50)}")`,
+          })
+          break
+        }
+      }
+    }
+  }
+
+  return hits
+}
+
+export function scanMarkdownIntegrity(file: string, text: string, baseText?: string): IntegrityHit[] {
   const hits: IntegrityHit[] = []
   const lines = text.split('\n')
   let fenced = false
@@ -141,7 +275,70 @@ export function scanMarkdownIntegrity(file: string, text: string): IntegrityHit[
   const flushPara = (): void => {
     if (paraLines.length === 0) return
     const joined = paraLines.join(' ')
-    const stripped = joined.replace(/`[^`]*`/g, 'code')
+
+    const withoutDouble = joined.replace(/``[\s\S]*?``/g, match => {
+      const inner = match.slice(2, -2).trim()
+      if ((inner.startsWith('"') && !inner.endsWith('"')) || (inner.startsWith('“') && !inner.endsWith('”')) || /^”/.test(inner)) {
+        hits.push({
+          file,
+          line: paraStart,
+          kind: 'mixed-quote-marks',
+          excerpt: `mismatched outer quotes in double-backtick span: ${match.slice(0, 80)}`,
+        })
+      }
+      return 'code'
+    })
+
+    const singleSpans = [...withoutDouble.matchAll(/`([^`]*)`/g)]
+    for (const m of singleSpans) {
+      const inner = m[1]!
+      if (
+        /^"[A-Za-z]/.test(inner) &&
+        !/^"[A-Za-z0-9_]+":/.test(inner) &&
+        !inner.endsWith('"') &&
+        !inner.endsWith('”')
+      ) {
+        hits.push({
+          file,
+          line: paraStart,
+          kind: 'unbalanced-code-span',
+          excerpt: `code span opens with '"' but does not close with '"' (inner backtick split): \`${inner.slice(0, 70)}\``,
+        })
+      }
+      if (
+        (inner.startsWith('"') && /[“”]$/.test(inner)) ||
+        (/^[“”]/.test(inner) && inner.endsWith('"')) ||
+        /^”/.test(inner)
+      ) {
+        hits.push({
+          file,
+          line: paraStart,
+          kind: 'mixed-quote-marks',
+          excerpt: `mixed or reversed outer quote marks in code span: \`${inner.slice(0, 70)}\``,
+        })
+      }
+    }
+
+    const leftoverBackticks = withoutDouble.replace(/`[^`]*`/g, '')
+    if (leftoverBackticks.includes('`')) {
+      hits.push({
+        file,
+        line: paraStart,
+        kind: 'unbalanced-code-span',
+        excerpt: `odd/unbalanced backtick in paragraph: ${paraLines[0]!.trim().slice(0, 80)}`,
+      })
+    }
+
+    if (/"[^"\n“”]*[“”]|”[^"\n“”]*"/.test(leftoverBackticks)) {
+      hits.push({
+        file,
+        line: paraStart,
+        kind: 'mixed-quote-marks',
+        excerpt: `mixed straight and curly quote marks in prose: ${paraLines[0]!.trim().slice(0, 80)}`,
+      })
+    }
+
+    const stripped = withoutDouble.replace(/`[^`]*`/g, 'code')
     const opens = (stripped.match(/\(/g) ?? []).length
     const closes = (stripped.match(/\)/g) ?? []).length
     if (opens !== closes) {
@@ -164,33 +361,6 @@ export function scanMarkdownIntegrity(file: string, text: string): IntegrityHit[
           excerpt: `repeated 8-word clause: "${runA}"`,
         })
         break
-      }
-    }
-    for (const [re, label] of [
-      [/\bbranch and\s+Parallel crewmates\b/, 'cut tail after "branch and"'],
-      [/\bmain thread and\s+`models` breaks\b/, 'cut tail after "main thread and"'],
-      [/\bSIGINT and\s+When the refusal\b/, 'cut sentence after "SIGINT and"'],
-      [/\bA resumed session\s+back on the launch's\b/, 'missing verb in "A resumed session back on"'],
-      [/\bOn a short window\s+the command list and pages\b/, 'spliced sentences at "On a short window"'],
-      [/\bthe Claude\s+side once a request\b/, 'missing image-cap clause after "the Claude"'],
-      [/\bA turn that fails inside the runner before it has\s+saying so\./, 'garbled splice "before it has saying so"'],
-      [/\bThe model's own questions to you\s+appear\./, 'missing parenthetical in "questions to you appear"'],
-      [/\brefuses drive\s+\(`C:\\Users`/, 'missing "roots (`C:\\`)" after "refuses drive"'],
-      [/\blets a refuse-list hit\s+tool call and the match\b/, 'missing "proceed and leaves one warning row..."'],
-      [/\barms the one-shot marker\s+\(`splash-action\.json`/, 'missing "`MERCURY_SPLASH_HANDOFF`" after "marker"'],
-      [/\band the `\/config` row\s+never waits for a session\b/, 'missing "**Shell engine sessions**" after "`/config` row"'],
-      [/\brefuses a process that is\s+that once more\b/, 'missing clause between "that is" and "that once more"'],
-      [/\bruns on the native `\/api\/chat` road\s+the ingest at the measured pace\b/, 'missing clause before "the ingest at the measured pace"'],
-      [/\bfile opens, still\s+Blender has no test framework\b/, 'missing "renders, reports, and `python_run` live here"'],
-      [/\bcapability-readiness rows, each\s+kind one of `tool`/, 'missing `{id, kind, ...}` tuple after "rows, each"'],
-    ] as const) {
-      if (re.test(joined)) {
-        hits.push({
-          file,
-          line: paraStart,
-          kind: 'cut-or-spliced-sentence',
-          excerpt: `${label}: ${joined.slice(0, 90)}`,
-        })
       }
     }
     paraLines = []
@@ -221,6 +391,10 @@ export function scanMarkdownIntegrity(file: string, text: string): IntegrityHit[
   }
   flushPara()
 
+  if (baseText !== undefined) {
+    hits.push(...scanBaseRevisionTails(file, baseText, text))
+  }
+
   return hits
 }
 
@@ -250,7 +424,121 @@ function selfTest(): void {
     console.error('self-test FAILED: lowercase start after sentence end was not caught')
     process.exit(1)
   }
-  const clean = scanMarkdownIntegrity('clean.md', '# Title\n\nFirst paragraph is whole.\n\n## Section\n\nSecond paragraph is whole (with balanced parens).\n')
+  const mixedQuotes = scanMarkdownIntegrity('fixture.md', '# Title\n\nThe hint row says `"held until compaction lands”`.\n')
+  if (!mixedQuotes.some(h => h.kind === 'mixed-quote-marks')) {
+    console.error('self-test FAILED: mixed quote marks were not caught')
+    process.exit(1)
+  }
+  const splitSpan = scanMarkdownIntegrity(
+    'fixture.md',
+    '# Title\n\n`mercury update` asks `"This Mercury was installed by Homebrew. Run `brew upgrade` now? [y/N]"`.\n',
+  )
+  if (!splitSpan.some(h => h.kind === 'unbalanced-code-span')) {
+    console.error('self-test FAILED: split quoted code span was not caught')
+    process.exit(1)
+  }
+  const oddBacktick = scanMarkdownIntegrity('fixture.md', '# Title\n\nA paragraph with an `unclosed code span.\n')
+  if (!oddBacktick.some(h => h.kind === 'unbalanced-code-span')) {
+    console.error('self-test FAILED: odd backtick count was not caught')
+    process.exit(1)
+  }
+
+  const sectionACutFixtures: Array<[string, string, string]> = [
+    [
+      'row-1',
+      '`worktree` in chat to run `EnterWorktree`) to give a session its own branch and\ncheckout under `.mercury/worktrees/`. When a session spawns parallel crewmates\n',
+      '`worktree` in chat to run `EnterWorktree`) to give a session its own branch and\nParallel crewmates can also run in isolated worktrees.\n',
+    ],
+    [
+      'row-2',
+      'when reported, `reasoning_output_tokens`, summed over the main thread and\nthe crewmates. `models` gives the per-model figures;\n',
+      'when reported, `reasoning_output_tokens`, summed over the main thread and\n`models` breaks token usage down by model.\n',
+    ],
+    [
+      'row-3',
+      'run exits 0, other outcomes exit 1, and a usage error exits 2. SIGINT and\nSIGTERM exit 130 and 143 after the interrupted turn\'s outcome is flushed.\n',
+      'run exits 0, other outcomes exit 1, and a usage error exits 2. SIGINT and\nWhen the refusal was an ask nobody could answer, the run is blocked.\n',
+    ],
+    [
+      'row-8',
+      'you make one, applies to that one session. A resumed session\nkeeps the model and effort it was on unless the command line says\notherwise: `--continue --model <id> --effort <level>` brings the session\nback on the launch\'s model and effort, its record is re-stamped, and the\n',
+      'you make one, applies to that one session. A resumed session\nback on the launch\'s model and effort, its record is re-stamped, and the\n',
+    ],
+    [
+      'row-9',
+      'count of the lines shown against the lines it has written. On a short window\nthe command yields rows to the output, so at least one line of it always\nshows. In `/help`, pressing `PageDown` or `PageUp` from the tab header enters\nthe command list and pages immediately.\n',
+      'count of the lines shown against the lines it has written. On a short window\nthe command list and pages immediately.\n',
+    ],
+    [
+      'row-10',
+      'names which limit and what size. Each provider\'s rule is its own: the Claude\nAPI caps an image at 10 MB of base64 and 8000 px a side, and at 2000 px a\nside once a request carries more than 20 images, while the OpenAI\n',
+      'names which limit and what size. Each provider\'s rule is its own: the Claude\nside once a request carries more than 20 images, while the OpenAI\n',
+    ],
+    [
+      'row-11',
+      'with that status. A turn that fails inside the runner before it has\nstarted settles with an error row\nsaying so. A turn that fails inside the runner\'s own machinery before it has\n',
+      'with that status. A turn that fails inside the runner before it has\nsaying so. A turn that fails inside the runner\'s own machinery before it has\n',
+    ],
+    [
+      'row-14',
+      'apply, and a refusal is not a card. The model\'s own questions to you\n(AskUserQuestion, the Apollo review) are not permission cards and still\nappear.\n',
+      'apply, and a refusal is not a card. The model\'s own questions to you\nappear.\n',
+    ],
+    [
+      'row-15',
+      'outside `/var/tmp` and `/var/folders`). On Windows, the same rule refuses drive\nroots (`C:\\`), your own home, other users\' homes and the `Users` root\n(`C:\\Users`, `C:\\Users\\<anyone>`), system folders (`C:\\Windows`, `C:\\Program\n',
+      'outside `/var/tmp` and `/var/folders`). On Windows, the same rule refuses drive\n(`C:\\Users`, `C:\\Users\\<anyone>`), system folders (`C:\\Windows`, `C:\\Program\n',
+    ],
+    [
+      'row-16',
+      'stands down within a session. `MERCURY_WARDS=warn` lets a refuse-list hit\nproceed and leaves one warning row on the transcript naming the ward, the\ntool call and the match (shown in the session, recorded on a headless\n',
+      'stands down within a session. `MERCURY_WARDS=warn` lets a refuse-list hit\ntool call and the match (shown in the session, recorded on a headless\n',
+    ],
+    [
+      'row-17',
+      'background handed back) and boots plain. A handover arms the one-shot marker\n`MERCURY_SPLASH_HANDOFF`; the runtime then reads the enter-screen choice\n(`splash-action.json` under the config home, matched to the launch\'s own id)\n',
+      'background handed back) and boots plain. A handover arms the one-shot marker\n(`splash-action.json` under the config home, matched to the launch\'s own id)\n',
+    ],
+    [
+      'row-18',
+      '`MERCURY_SHELL_ENGINE_SESSIONS` env pin over it, and the `/config` row\n**Shell engine sessions** beside **Shell engine**. The main conversation\nnever waits for a session; a crewmate that needs one while the crewmates\'\n',
+      '`MERCURY_SHELL_ENGINE_SESSIONS` env pin over it, and the `/config` row\nnever waits for a session; a crewmate that needs one while the crewmates\'\n',
+    ],
+    [
+      'row-19',
+      'executable and account against what was reviewed, refuses a process that is\nnot the current user\'s or whose terminal is live or unknown, re-reads all of\nthat once more immediately before acting, and then ends that one process,\n',
+      'executable and account against what was reviewed, refuses a process that is\nthat once more immediately before acting, and then ends that one process,\n',
+    ],
+    [
+      'row-20',
+      '(`reply with the single word ready`) runs on the native `/api/chat` road\nand the dialog shows the reply\'s first line with its timings: the load, and\nthe ingest at the measured pace. The last row reads `ready ·\n',
+      '(`reply with the single word ready`) runs on the native `/api/chat` road\nthe ingest at the measured pace. The last row reads `ready ·\n',
+    ],
+    [
+      'row-22',
+      'documented order). In-Blender scene/object/render truth, file opens, still\nrenders, reports, and `python_run` live here. There is no test-run road:\nBlender has no test framework, and a rendered image is not a test run.\n',
+      'documented order). In-Blender scene/object/render truth, file opens, still\nBlender has no test framework, and a rendered image is not a test run.\n',
+    ],
+    [
+      'row-27',
+      '- `readiness[]`: the capability-readiness rows, each\n  `{id, kind, label, state, detail, source, lastCheckedAt, latencyMs}`, with\n  kind one of `tool`, `mcp`, `lane`, `engine`, `extension`, `skill`, and state\n',
+      '- `readiness[]`: the capability-readiness rows, each\n  kind one of `tool`, `mcp`, `lane`, `engine`, `extension`, `skill`, and state\n',
+    ],
+  ]
+
+  for (const [id, baseFixture, brokenFixture] of sectionACutFixtures) {
+    const found = scanMarkdownIntegrity('fixture.md', brokenFixture, baseFixture)
+    if (!found.some(h => h.kind === 'cut-or-spliced-sentence')) {
+      console.error(`self-test FAILED: section A cut fixture ${id} was not caught`)
+      process.exit(1)
+    }
+  }
+
+  const clean = scanMarkdownIntegrity(
+    'clean.md',
+    '# Title\n\nFirst paragraph is whole.\n\n## Section\n\nSecond paragraph is whole (with balanced parens and `` "quoted `code` span" ``).\n',
+    '# Title\n\nFirst paragraph is whole.\n\n## Section\n\nSecond paragraph is whole (with balanced parens).\n',
+  )
   if (clean.length > 0) {
     console.error('self-test FAILED: clean text was flagged:', clean)
     process.exit(1)
@@ -262,14 +550,17 @@ const files = docFiles(ROOT)
 const allHits: IntegrityHit[] = []
 for (const rel of files) {
   const text = readSurface(ROOT, rel, REV)
-  allHits.push(...scanMarkdownIntegrity(rel, text))
+  const baseText = BASE_REV !== null ? readSurface(ROOT, rel, BASE_REV) : undefined
+  allHits.push(...scanMarkdownIntegrity(rel, text, baseText))
 }
 for (const h of allHits) {
   console.error(`  [FAIL] ${h.file}:${h.line} (${h.kind}) — ${h.excerpt}`)
 }
-console.log(`docs-integrity${REV ? ` (${REV})` : ''}: ${files.length} surfaces scanned, ${allHits.length} hit(s)`)
+console.log(
+  `docs-integrity${REV ? ` (rev=${REV})` : ''}${BASE_REV ? ` (base=${BASE_REV})` : ''}: ${files.length} surfaces scanned, ${allHits.length} hit(s)`,
+)
 if (allHits.length > 0) {
-  console.error('❌ docs-integrity: broken sentences, repeated lines/clauses, or glued headings found')
+  console.error('❌ docs-integrity: broken sentences, repeated lines/clauses, mixed quotes, unbalanced code spans, or glued headings found')
   process.exit(1)
 }
 console.log('✅ docs-integrity: clean')
