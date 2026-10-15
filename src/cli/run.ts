@@ -1629,16 +1629,15 @@ export async function runHeadless(
       return { accepted: true }
     }
     const sentAt = typeof input.sentAt === 'string' && Number.isFinite(Date.parse(input.sentAt)) ? input.sentAt : new Date().toISOString()
-    const stamp = saturnQueueStamp(input.origin)
     enqueue({
       value: input.kind === 'shell' ? input.command : input.content,
       mode: input.kind === 'shell' ? 'bash' : 'prompt',
       sentAt,
       ...(uuid !== undefined ? { uuid: uuid as UUID } : {}),
       ...(input.priority !== undefined ? { priority: input.priority } : {}),
-      ...stamp,
+      ...saturnQueueStamp(input.origin),
     })
-    if (input.kind === 'prompt' && input.priority !== 'later' && !('origin' in stamp) && driver.isRunning() && !queuedWordsWaitForTurnEnd()) {
+    if (input.kind === 'prompt' && input.priority !== 'later' && !('origin' in saturnQueueStamp(input.origin)) && driver.isRunning() && !queuedWordsWaitForTurnEnd()) {
       handOverForegroundAgentsToQueuedMessage(getAppState, setAppState)
     }
     driver.kick()
