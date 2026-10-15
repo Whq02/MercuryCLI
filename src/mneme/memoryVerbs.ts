@@ -20,6 +20,7 @@ import { noteMemoryOpened } from './mnemeSignal.js'
 import { liftRulingLinks, recallUsage } from './mnemeLinks.js'
 import { pinIntentSpan, type PinIntent } from './memoryPinIntent.js'
 import { recordGrade, STRUCTURE_GRADE } from './memoryEvidence.js'
+import { applicabilityOf } from './memoryApplicability.js'
 
 function allDocs(dir: string): MnemeTopicDoc[] {
   return [...listTopicDocs(dir), ...listArchiveDocs(dir)]
@@ -172,7 +173,7 @@ export function retainItems(
         source: sourceBase,
         ...(topic ? { topicHint: topic } : replacement?.ok ? { topicHint: replacement.slug } : {}),
         ...(pin ? { pin: true } : {}),
-        ...(askedByUser ? { asked: true } : {}),
+        ...(askedByUser ? { asked: true, ...(intent !== null ? { applicability: applicabilityOf(provenance.pinIntent) } : {}) } : {}),
         ...(replacement?.ok ? { replaces: replacement.seq } : {}),
       },
       dir,

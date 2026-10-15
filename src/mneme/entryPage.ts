@@ -66,6 +66,10 @@ export function composeEntryPage(projectKey: string, sessionId?: string, options
   if (!mnemeEnabled()) return null
   if (!lineageKept()) return `${ENTRY_PAGE_HEADING}\n${NO_RECORD_KEPT_LINE}`
   const entries = readLedger(projectKey)
+  const { listArchiveDocs, listTopicDocs } = require('./mnemeLibrary.js') as typeof import('./mnemeLibrary.js')
+  const { pendingRows } = require('./mnemeBuffer.js') as typeof import('./mnemeBuffer.js')
+  const dir = mnemeLibraryDir()
+  if (!entries.some(entry => entry.handoff?.text.trim()) && readPins(dir).length === 0 && pendingRows(dir).length === 0 && [...listTopicDocs(dir), ...listArchiveDocs(dir)].every(doc => doc.sections.every(section => section.entries.length === 0))) return null
   const own = sessionId !== undefined ? (ledgerEntryOf(projectKey, sessionId) ?? null) : null
   const previous = entries.filter(entry => entry.sessionId !== sessionId)
   if (previous.length === 0) return `${ENTRY_PAGE_HEADING}\n${FIRST_SESSION_LINE}`

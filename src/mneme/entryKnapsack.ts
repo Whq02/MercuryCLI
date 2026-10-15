@@ -140,7 +140,7 @@ function libraryCandidates(dir: string, excluded: ReadonlySet<number>, docs?: { 
       }
     }
   }
-  const texts = new Set(out.map(candidate => candidate.text))
+  const texts = new Set([...topics, ...archives].flatMap(doc => doc.sections.flatMap(section => section.entries.map(entry => entry.text))))
   for (const row of pendingRows(dir)) {
     if (texts.has(row.text)) continue
     const id = `pending:${row.ts}`
@@ -190,16 +190,17 @@ export function chooseAtStart(input: { candidates: readonly StartCandidate[]; ch
   const order = [...scored].sort((a, b) => b.tier - a.tier || Number(a.stale === true) - Number(b.stale === true) || b.density - a.density || b.tie - a.tie || a.id.localeCompare(b.id))
   const rode: StartScored[] = []
   const left: StartScored[] = []
+  const limit = Math.min(input.limit, 600 * Math.ceil(Math.log2(1 + scored.filter(row => row.score > 0 && row.tier !== 4).length)))
   let used = 0
   for (const candidate of order) {
-    if (candidate.tier === 4 || candidate.score > 0 && used + candidate.chars <= input.limit) {
+    if (candidate.tier === 4 || candidate.score > 0 && used + candidate.chars <= limit) {
       rode.push(candidate)
       if (candidate.tier !== 4) used += candidate.chars
     } else left.push(candidate)
   }
   rode.sort(byScore)
   left.sort(byScore)
-  return { rode, left, limit: input.limit, pinnedChars: input.pinnedChars, used }
+  return { rode, left, limit, pinnedChars: input.pinnedChars, used }
 }
 
 export function withThousands(n: number): string {
@@ -238,7 +239,7 @@ export function memoryAtStartRowWords(status: MemoryAtStartStatus): string {
 }
 
 function renderMemoryAtStart(input: { task?: StartTask; choice: StartChoice; pinnedCount: number; facts: number; notes: number; pending: number; state: ProjectState }): string | null {
-  if (input.facts + input.notes + input.pending === 0) return null
+  if (input.facts + input.notes + input.pending === 0 && !input.task?.required?.length) return null
   const lines: string[] = [MEMORY_AT_START_HEADING, memoryAtStartLine(input)]
   for (const candidate of input.choice.rode) if (candidate.kind === 'fact') lines.push(candidate.block)
   for (const candidate of input.choice.rode) if (candidate.kind === 'handoff') lines.push('', candidate.block)
@@ -272,7 +273,7 @@ export function composeStartPage(input: { task?: StartTask; dir: string; project
   const candidates = [...facts, ...notes].map(candidate => (input.stale?.(candidate) ? markStale(candidate, input.confirmedAt?.(candidate)) : candidate))
   const choice = chooseAtStart({ task: input.task, candidates, chunks: stateQuery(input.state, input.root), limit: input.limit, pinnedChars: pinned.chars, now: input.now, dir: input.dir })
   const status: MemoryAtStartStatus = {
-    limit: input.limit,
+    limit: choice.limit,
     pinnedCount: pinned.count,
     pinnedChars: pinned.chars,
     used: choice.used,
