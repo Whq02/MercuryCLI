@@ -1,8 +1,11 @@
 import { getSessionId, isSessionPersistenceDisabled } from '../bootstrap/state.js'
+import { decodeTranscriptBuffer } from '../fabric/transcriptDecode.js'
+import type { Entry } from '../types/logs.js'
 import { getInitialSettings } from '../utils/settings/settings.js'
 import { logForDebugging } from '../utils/debug.js'
-import { getTranscriptPathForSession } from '../utils/sessionStorage/paths.js'
-import { closeEntry, ledgerClock, openEntry, recordEngine, recordFact, recordFile, recordRuling } from './ledger.js'
+import { getTranscriptPathForSession, isTranscriptMessage } from '../utils/sessionStorage/paths.js'
+import { readTranscriptTailSync } from '../utils/sessionStorage/transcriptReader.js'
+import { closeEntry, ledgerClock, openEntry, reconcileInterruptedEntries, recordEngine, recordFact, recordFile, recordRuling } from './ledger.js'
 import { mnemeEnabled } from './mnemeGates.js'
 import { mnemeProjectKey } from './paths.js'
 import { runSessionClosers, type SessionCloseContext } from './sessionClose.js'
@@ -28,6 +31,33 @@ export function lineageJoined(): boolean {
 
 export function openLineageSession(): OpenSession | null {
   return open
+}
+
+const TRANSCRIPT_TAIL_BYTES = 256 * 1024
+
+const hasToolUse = (entry: Entry): boolean => {
+  const content = (entry as { message?: { content?: unknown } }).message?.content
+  return Array.isArray(content) && content.some(block => typeof block === 'object' && block !== null && (block as { type?: unknown }).type === 'tool_use')
+}
+
+function transcriptCutMidTool(sessionId: string): string | null {
+  let tail: string
+  try {
+    tail = readTranscriptTailSync(getTranscriptPathForSession(sessionId), TRANSCRIPT_TAIL_BYTES)
+  } catch {
+    return null
+  }
+  if (tail === '') return null
+  const lines = tail.split('\n')
+  const whole = tail.length >= TRANSCRIPT_TAIL_BYTES ? lines.slice(1) : lines
+  const { entries } = decodeTranscriptBuffer<Entry>(whole.join('\n'))
+  for (let i = entries.length - 1; i >= 0; i--) {
+    const entry = entries[i]!
+    if (!isTranscriptMessage(entry)) continue
+    const at = (entry as { timestamp?: unknown }).timestamp
+    return entry.type === 'assistant' && hasToolUse(entry) && typeof at === 'string' ? at : null
+  }
+  return null
 }
 
 async function settle(session: OpenSession, outcome: string, budgetMs: number, kept: boolean): Promise<SessionCloseContext | null> {
@@ -74,6 +104,7 @@ export function noteSessionEngine(model: string): void {
     if (lineageJoined()) {
       openEntry(projectKey, { sessionId, model })
       open = { projectKey, sessionId, engine: model }
+      if (previous === null) reconcileInterruptedEntries(projectKey, sessionId, transcriptCutMidTool)
     } else open = null
     if (previous !== null) void settle(previous, 'cleared', SESSION_CLOSERS_BUDGET_MS, previousOpen !== null)
   } catch (error) {
