@@ -62,8 +62,8 @@ while a chat exists.
 
 ## Starting a new session
 
-Pressing `Enter` on New Session creates a session for the current folder on the model
-the chip shows, and opens it. The session, the chat and its board row are created
+Pressing `Enter` on New Session creates a session for the current folder on your
+default model, and opens it. The session, the chat and its board row are created
 together (the record is on the board before the chat paints)
 and no prompt is sent: the session starts blank and ready, just like a row
 opened from the board. A `/mission` typed in the moment before the runner
@@ -381,7 +381,12 @@ ticks is a repaint a second on an idle screen.
 
 `/concourse`, the home screen's Session Concourse row, or `Shift+→` from the
 home screen opens the Session Concourse: the control board for the project
-you are in, and its resume screen. The board is scoped to that project: its
+you are in, and its resume screen. On the first visit to the Session Concourse,
+a one-time `"FIRST BOOT — capacity check"` dialog asks whether to probe the
+machine's cores, available memory, and running agent CLIs to size how many
+parallel sessions fit (`"y run it once"` or `"n no probe — the machine's own
+reading decides"`, `"esc keeps the default · asked once, never again"`). The
+board is scoped to that project: its
 sessions that are running, waiting for a slot, or finished and waiting for a
 merge, and beneath them, PARKED, the project's chats with no running worker.
 When you pick another project (through the rail's REPO picker

@@ -39,12 +39,12 @@ The install addresses keep approximate script-request counts by source and UTC
 day (completed installs are not counted); the counter stores no IP address, user-agent string
 or cookie.
 
-After installation, run `mercury --version` to check it, then run `mercury`
-from a repository to start the [first run](#the-first-run). On Windows
-PowerShell (`install.ps1`), or when `~/.local/bin` is already on `PATH` (or
-after installing with Homebrew, npm, bun or mise), `mercury` runs in the same
-terminal immediately; otherwise open a new terminal or run the `export PATH=…`
-line printed by the installer.
+In a new terminal (or after running the `export PATH=…` line printed by the
+shell installer on macOS and Linux when `~/.local/bin` was not yet on `PATH`;
+on Windows PowerShell, or after installing with Homebrew, npm, bun or mise,
+`mercury` runs in the same terminal immediately), run `mercury --version` to
+check it, then run `mercury` from a repository to start the [first
+run](#the-first-run).
 
 <details>
 <summary>Installation paths, updates and release verification</summary>
@@ -341,7 +341,7 @@ change the setting at the next turn boundary.
 ### Starting a session and isolating worktrees
 
 Press `Enter` on New Session to create a session in the current folder with
-the model shown on screen. Mercury opens its chat and adds it to the session
+your default model. Mercury opens its chat and adds it to the session
 list at the same time. It keeps a process ready behind the menu to reduce
 startup work.
 
