@@ -97,10 +97,22 @@ type LooseMessage = {
   compactMetadata?: CompactMetadata
   isMeta?: boolean
   uuid?: string
-  message?: { content?: unknown }
+  message?: { content?: unknown; usage?: unknown }
   messages?: LooseMessage[]
   results?: LooseMessage[]
   toolUseResult?: unknown
+}
+
+export function promptTokensOf(usage: unknown): number | undefined {
+  const u = usage as { input_tokens?: unknown; cache_read_input_tokens?: unknown; cache_creation_input_tokens?: unknown } | null | undefined
+  if (!u || typeof u.input_tokens !== 'number') return undefined
+  const read = typeof u.cache_read_input_tokens === 'number' ? u.cache_read_input_tokens : 0
+  const written = typeof u.cache_creation_input_tokens === 'number' ? u.cache_creation_input_tokens : 0
+  return u.input_tokens + read + written
+}
+
+export function formatContextDelta(delta: number): string {
+  return `ctx ${delta < 0 ? '−' : '+'}${formatDelegatedTokens(Math.abs(delta))}`
 }
 
 function contentBlocks(m: LooseMessage): Array<Record<string, unknown>> {
@@ -206,17 +218,17 @@ export function isTurnBoundary(m: LooseMessage): boolean {
   )
 }
 
-function makeReceipt(counts: TurnReceiptCounts, anchorUuid: string): TurnReceiptMessage {
-  return { type: 'turn_receipt', uuid: `${anchorUuid}-turn-receipt`, counts }
+function makeReceipt(counts: TurnReceiptCounts, anchorUuid: string, contextDelta?: number): TurnReceiptMessage {
+  return { type: 'turn_receipt', uuid: `${anchorUuid}-turn-receipt`, counts, ...(contextDelta !== undefined ? { contextDelta } : {}) }
 }
 
 export function injectTurnReceipts(messages: RenderableMessage[], tempRoot: string): RenderableMessage[] {
   if (!isTurnReceiptEnabled()) return messages
   const out: RenderableMessage[] = []
   let start = 0
-  walkTurnReceipts(messages, tempRoot, (counts, anchorUuid, end, replied) => {
+  walkTurnReceipts(messages, tempRoot, (counts, anchorUuid, end, replied, contextDelta) => {
     for (let index = start; index < end; index++) out.push(messages[index]!)
-    if (hasActivity(counts) || (replied && anchorUuid !== 'turn-0')) out.push(makeReceipt(counts, anchorUuid))
+    if (hasActivity(counts) || (replied && anchorUuid !== 'turn-0')) out.push(makeReceipt(counts, anchorUuid, contextDelta))
     start = end
   })
   return out
@@ -243,7 +255,7 @@ function countMessage(m: LooseMessage, counts: TurnReceiptCounts, tempRoot: stri
 function walkTurnReceipts(
   messages: readonly LooseMessage[],
   tempRoot: string,
-  visit: (counts: TurnReceiptCounts, anchorUuid: string, end: number, replied: boolean) => void,
+  visit: (counts: TurnReceiptCounts, anchorUuid: string, end: number, replied: boolean, contextDelta: number | undefined) => void,
 ): void {
   const pending = new Map<string, NonNullable<CompactMetadata['work']>['receipts'][number]>()
   for (const receipt of compactWorkOf(messages)?.receipts ?? []) {
@@ -253,13 +265,30 @@ function walkTurnReceipts(
   let counts = emptyCounts()
   let anchorUuid = 'turn-0'
   let replied = false
+  let previousPrompt: number | undefined
+  let turnPrompt: number | undefined
+  const settleDelta = (): number | undefined => {
+    if (turnPrompt === undefined) return undefined
+    const delta = turnPrompt - (previousPrompt ?? 0)
+    previousPrompt = turnPrompt
+    turnPrompt = undefined
+    return delta
+  }
   for (let index = 0; index < messages.length; index++) {
     const m = messages[index]!
     if (isTurnBoundary(m)) {
-      visit(counts, anchorUuid, index, replied)
+      visit(counts, anchorUuid, index, replied, settleDelta())
       counts = emptyCounts()
       replied = false
       if (typeof m.uuid === 'string') anchorUuid = m.uuid
+    }
+    if (m.type === 'system' && m.subtype === 'compact_boundary') {
+      previousPrompt = undefined
+      turnPrompt = undefined
+    }
+    for (const row of [m, ...(m.messages ?? [])]) {
+      const prompt = row.type === 'assistant' ? promptTokensOf(row.message?.usage) : undefined
+      if (prompt !== undefined) turnPrompt = prompt
     }
     if (isReplyRow(m)) replied = true
     for (const row of [m, ...(m.messages ?? []), ...(m.results ?? [])]) {
@@ -272,7 +301,7 @@ function walkTurnReceipts(
     }
     countMessage(m, counts, tempRoot)
   }
-  visit(counts, anchorUuid, messages.length, replied)
+  visit(counts, anchorUuid, messages.length, replied, settleDelta())
 }
 
 export function foldedTurnReceipts(

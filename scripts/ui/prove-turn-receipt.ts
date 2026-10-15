@@ -167,6 +167,13 @@ withEnv('1', () => {
   check('rows before the first prompt never mint a no-tools receipt', receipts(inject([replyRow('a greeting before any prompt'), prompt('first', 'p1')])).length === 0)
   check('a reply row of empty text is not a reply', receipts(inject([prompt('x', 'p1'), replyRow('   ')])).length === 0)
   check('the words the row prints come from the derive owner', NO_TOOLS_RAN_WORDS === 'no tools ran this turn' && /NO_TOOLS_RAN_WORDS/.test(src('components', 'messages', 'TurnReceiptRow.tsx')))
+  const withUsage = (uuid: string, prompt: number) => ({ type: 'assistant', uuid, message: { role: 'assistant', content: [{ type: 'text', text: 'ok' }], usage: { input_tokens: prompt, cache_read_input_tokens: 0, cache_creation_input_tokens: 0, output_tokens: 1 } } }) as never
+  const deltas = inject([prompt('a', 'p1'), withUsage('u1', 20000), prompt('b', 'p2'), toolUse('Bash', { command: 'ls' }, 'a2'), withUsage('u2', 21500), prompt('c', 'p3'), replyRow('no usage here', 'u3')])
+  const deltaRows = (deltas as Array<{ type?: string; contextDelta?: number }>).filter(r => r?.type === 'turn_receipt').map(r => r.contextDelta)
+  check('each receipt carries the turn\'s context delta from the rows\' own usage (20,000 · +1,500 · none)', deltaRows.length === 3 && deltaRows[0] === 20000 && deltaRows[1] === 1500 && deltaRows[2] === undefined, JSON.stringify(deltaRows))
+  const folded = inject([prompt('a', 'p1'), withUsage('u1', 90000), { type: 'system', subtype: 'compact_boundary', uuid: 'cb' } as never, prompt('b', 'p2'), withUsage('u2', 12000)])
+  const foldedDeltas = (folded as Array<{ type?: string; contextDelta?: number }>).filter(r => r?.type === 'turn_receipt').map(r => r.contextDelta)
+  check('a compaction boundary forgets the prompt sizes before it: the next turn measures from nothing, never from the folded prompt', foldedDeltas.length === 2 && foldedDeltas[0] === undefined && foldedDeltas[1] === 12000, JSON.stringify(foldedDeltas))
   const grouped = inject([
     prompt('grouped turn', 'p1'),
     {

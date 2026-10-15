@@ -18,14 +18,15 @@ const { composeTranscript } = await import('../../src/components/Messages.tsx')
 const { normalizeMessages } = await import('../../src/utils/messages/normalize.ts')
 const { isNotEmptyMessage } = await import('../../src/utils/messages/text.ts')
 const { createUserMessage } = await import('../../src/utils/messages.ts')
-const { NO_TOOLS_RAN_WORDS, hasActivity } = await import('../../src/utils/cockpit/turnReceipt.ts')
+const { NO_TOOLS_RAN_WORDS, hasActivity, formatContextDelta, promptTokensOf } = await import('../../src/utils/cockpit/turnReceipt.ts')
 
 const timestamp = new Date().toISOString()
-const reply = (text: string): Message => ({ type: 'assistant', uuid: randomUUID(), timestamp, message: { id: randomUUID(), role: 'assistant', content: [{ type: 'text', text }] } } as Message)
-const toolRound = (name: string): Message[] => {
+const usageOf = (prompt: number, cached = 0) => ({ input_tokens: prompt - cached, cache_read_input_tokens: cached, cache_creation_input_tokens: 0, output_tokens: 40 })
+const reply = (text: string, prompt?: number): Message => ({ type: 'assistant', uuid: randomUUID(), timestamp, message: { id: randomUUID(), role: 'assistant', content: [{ type: 'text', text }], ...(prompt !== undefined ? { usage: usageOf(prompt, Math.floor(prompt / 2)) } : {}) } } as Message)
+const toolRound = (name: string, prompt?: number): Message[] => {
   const id = randomUUID()
   return [
-    { type: 'assistant', uuid: randomUUID(), timestamp, message: { id: randomUUID(), role: 'assistant', content: [{ type: 'tool_use', id, name, input: { command: 'npx vitest run' } }] } } as Message,
+    { type: 'assistant', uuid: randomUUID(), timestamp, message: { id: randomUUID(), role: 'assistant', content: [{ type: 'tool_use', id, name, input: { command: 'npx vitest run' } }], ...(prompt !== undefined ? { usage: usageOf(prompt) } : {}) } } as Message,
     { type: 'user', uuid: randomUUID(), timestamp, message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: id, content: '23 passed' }] } } as Message,
   ]
 }
@@ -76,6 +77,32 @@ try {
   check('while the turn is in flight the live receipt paints counts only — the no-tools mark waits for the turn to settle', messagesSrc.includes('liveReceipt: hasActivity(last.counts) ? last : null'))
   const rowSrc = readFileSync(join(import.meta.dir, '..', '..', 'src', 'components', 'messages', 'TurnReceiptRow.tsx'), 'utf8')
   check('the row prints the derive owner\'s words', rowSrc.includes('NO_TOOLS_RAN_WORDS'))
+
+  console.log('§5 the context delta: the turn\'s prompt-side growth from the usage the rows already carry')
+  check('prompt tokens are the whole prompt side: uncached input + cache reads + cache writes', promptTokensOf({ input_tokens: 1000, cache_read_input_tokens: 40000, cache_creation_input_tokens: 200 }) === 41200 && promptTokensOf({ input_tokens: 15214 }) === 15214 && promptTokensOf(undefined) === undefined && promptTokensOf({ output_tokens: 3 }) === undefined)
+  check('the words: 1200 → "ctx +1.2k", −300 → "ctx −300", 0 → "ctx +0"', formatContextDelta(1200) === 'ctx +1.2k' && formatContextDelta(-300) === 'ctx −300' && formatContextDelta(0) === 'ctx +0', [formatContextDelta(1200), formatContextDelta(-300), formatContextDelta(0)].join(' | '))
+  const withReceipts = [
+    createUserMessage({ content: 'first' }),
+    ...toolRound('Bash', 15000),
+    reply('done', 15214),
+    createUserMessage({ content: 'second' }),
+    reply('All 23 tests pass. Verified with pnpm vitest run.', 16414),
+    createUserMessage({ content: 'third' }),
+    reply('a plain answer, no usage persisted'),
+  ]
+  const deltaReceipts = receiptsOf(withReceipts)
+  check('three turns, three receipts', deltaReceipts.length === 3, String(deltaReceipts.length))
+  check('the first turn\'s delta is its last request\'s prompt (nothing before it): 15,214', deltaReceipts[0]?.contextDelta === 15214, String(deltaReceipts[0]?.contextDelta))
+  check('the second turn\'s delta is the growth over the first: +1,200', deltaReceipts[1]?.contextDelta === 1200, String(deltaReceipts[1]?.contextDelta))
+  check('a turn whose rows carry no usage paints no delta', deltaReceipts[2]?.contextDelta === undefined, String(deltaReceipts[2]?.contextDelta))
+  const firstPainted = deltaReceipts[0] ? await paint(deltaReceipts[0]) : ''
+  check('a turn with tools paints its counts and the delta: "∙ 1 shell command · ctx +15.2k"', firstPainted === '∙ 1 shell command · ctx +15.2k', firstPainted)
+  const secondPainted = deltaReceipts[1] ? await paint(deltaReceipts[1]) : ''
+  check('a zero-tool turn paints the no-tools words AND the delta: "∙ no tools ran this turn · ctx +1.2k"', secondPainted === `∙ ${NO_TOOLS_RAN_WORDS} · ctx +1.2k`, secondPainted)
+  const thirdPainted = deltaReceipts[2] ? await paint(deltaReceipts[2]) : ''
+  check('no usage → the no-tools words alone', thirdPainted === `∙ ${NO_TOOLS_RAN_WORDS}`, thirdPainted)
+  const shrink = receiptsOf([createUserMessage({ content: 'a' }), reply('one', 50000), createUserMessage({ content: 'b' }), reply('two', 48200)])
+  check('a smaller prompt than the turn before reads as a negative delta: "ctx −1.8k"', shrink[1] !== undefined && (await paint(shrink[1])) === `∙ ${NO_TOOLS_RAN_WORDS} · ctx −1.8k`, shrink[1] ? await paint(shrink[1]) : '')
 } finally {
   rmSync(home, { recursive: true, force: true })
 }
