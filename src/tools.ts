@@ -2,7 +2,6 @@ import type { Tool, ToolPermissionContext, Tools } from './Tool.js'
 import { isEnvTruthy } from './utils/envUtils.js'
 import { flagEnv } from './substrate/flagRegistry.js'
 import { getDenyRuleForTool } from './utils/permissions/permissions.js'
-import { ruleSourceWords, ruleSpelling } from './utils/permissions/ruleReason.js'
 import type { PermissionRule } from './types/permissions.js'
 import { searchToolsAvailability } from './utils/ripgrep.js'
 import { isTaskToolsEnabled } from './utils/tasks.js'
@@ -224,8 +223,6 @@ function wholeToolDenyRuleFor(tool: { name: string; mcpInfo?: unknown }, permiss
   return rule.ruleValue.ruleContent !== undefined && rule.ruleValue.ruleContent !== null ? null : rule
 }
 
-export type ToolWithheldByDeny = { tool: string; rule: string; source: string }
-
 export function toolsWithheldByDeny(
   tools: readonly { name: string; mcpInfo?: unknown }[],
   permissionContext: ToolPermissionContext,
@@ -236,17 +233,6 @@ export function toolsWithheldByDeny(
     if (rule !== null) out.push({ tool: tool.name, rule })
   }
   return out
-}
-
-export function toolsWithheldByDenyFacts(
-  tools: readonly { name: string; mcpInfo?: unknown }[],
-  permissionContext: ToolPermissionContext,
-): ToolWithheldByDeny[] {
-  return toolsWithheldByDeny(tools, permissionContext).map(({ tool, rule }) => ({
-    tool,
-    rule: ruleSpelling(rule.ruleValue),
-    source: ruleSourceWords(rule.source),
-  }))
 }
 
 const SPECIAL_TOOL_NAMES = new Set([
