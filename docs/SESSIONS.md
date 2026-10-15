@@ -25,8 +25,8 @@ catalogue and the session-and-repository picker open in place on the home screen
 Concourse row opens the board one screen to the right. Pressing `m` on the home
 screen (`m to select model-default`) opens the default model and effort picker
 in place whenever `engine.sessionDefaults` is not `false`. The Boot Menu displays six section headings in screen order: **TRUST COMBO**
-(`Content-rule wards`, `Debug tool (real debugger)`, `C/C++ IDE
-lane (clangd)`, `Sovereign mode`), **COMPUTER USE** (`Computer use`, `Access type`),
+(`Content-rule wards`, `Debug tool (real debugger)`, `C/C++ IDE lane (clangd)`,
+`Sovereign mode`), **COMPUTER USE** (`Computer use`, `Access type`),
 **SAMPLES** (`Samples`), **AGENTS** (`Crewmates`, `Workflows`, `Crewmates while
 backgrounded`, `JEV`), **MISCELLANEOUS** (`Launch animation`, `Godot language
 lanes`, `Godot control surface (VULCAN)`, `Unity dev lanes`, `Blender dev
