@@ -1,9 +1,9 @@
 import { join } from 'node:path'
 import { logForDebugging } from '../utils/debug.js'
 import { stampLocal } from './entryPage.js'
-import { readProjectState, stateQuery, type ProjectState } from './entryState.js'
+import { readProjectState, stateQuery, stateQueryChunks, type ProjectState } from './entryState.js'
 import { readLedger } from './ledger.js'
-import { pendingRows } from './mnemeBuffer.js'
+import { currentBufferPath, pendingRows } from './mnemeBuffer.js'
 import { listArchiveDocs, listTopicDocs } from './mnemeLibrary.js'
 import { liveEntryIndex, pinnedLine, pinnedView, readPinnedStatus } from './mnemeFrontPage.js'
 import { mnemeEnabled, mnemeLibraryDir } from './mnemeGates.js'
@@ -19,6 +19,12 @@ export const MEMORY_AT_START_HEADING = '# Memory at start'
 export const EARLIER_NOTE_HEADING = '## An earlier note left'
 const FUSE_K = 60
 
+export interface StartTask {
+  prompt?: string
+  continuation?: { objective: string; source: string; summary?: string }
+  required?: ReadonlyArray<{ id: string; source: string }>
+}
+
 export interface StartCandidate extends LookupCandidate {
   block: string
   chars: number
@@ -29,6 +35,8 @@ export interface StartCandidate extends LookupCandidate {
 interface StartScored extends StartCandidate {
   score: number
   density: number
+  tier: number
+  tie: number
 }
 
 interface StartChoice {
@@ -132,6 +140,14 @@ function libraryCandidates(dir: string, excluded: ReadonlySet<number>, docs?: { 
       }
     }
   }
+  const texts = new Set(out.map(candidate => candidate.text))
+  for (const row of pendingRows(dir)) {
+    if (texts.has(row.text)) continue
+    const id = `pending:${row.ts}`
+    const block = `- ${recordGrade(id, row.source, dir)} ${row.text} [${id}]`
+    out.push({ id, text: row.text, signature: `[unconsolidated, ${row.ts}, ${row.source}]`, slug: row.topicHint ?? 'general', pagePath: currentBufferPath(dir), pending: true, time: row.ts, kind: 'fact', block, chars: block.length + 1 })
+    texts.add(row.text)
+  }
   return out
 }
 
@@ -146,31 +162,39 @@ function earlierNotes(previous: readonly LedgerEntry[], projectKey: string): Sta
   return out
 }
 
-const byScore = (a: StartScored, b: StartScored): number => b.score - a.score || a.id.localeCompare(b.id)
+const byScore = (a: StartScored, b: StartScored): number => b.tier - a.tier || b.score - a.score || b.tie - a.tie || a.id.localeCompare(b.id)
 
-export function chooseAtStart(input: { candidates: readonly StartCandidate[]; chunks: readonly string[]; limit: number; pinnedChars: number; now: number; dir?: string }): StartChoice {
-  const totals = new Map<string, number>()
-  for (const chunk of input.chunks) {
-    for (const hit of scoreCandidates(chunk, input.candidates, input.now)) totals.set(hit.id, (totals.get(hit.id) ?? 0) + hit.score)
-    const semantic = semanticRanking(chunk, input.candidates, input.dir ?? mnemeLibraryDir())
-    semantic.forEach((id, rank) => {
-      const prior = totals.get(id) ?? 0
-      const fused = prior + 1 / (FUSE_K + rank + 1)
-      totals.set(id, fused)
-    })
+function channelScores(chunks: readonly string[], input: { candidates: readonly StartCandidate[]; now: number; dir?: string }): Map<string, number> {
+  const words = new Map<string, number>()
+  const meaning = new Map<string, number>()
+  for (const chunk of [...new Set(chunks)]) {
+    const lexical = scoreCandidates(chunk, input.candidates, input.now).filter(row => row.score > 0).sort((a, b) => b.score - a.score || a.id.localeCompare(b.id))
+    lexical.forEach((hit, rank) => words.set(hit.id, Math.max(words.get(hit.id) ?? 0, 1 / (FUSE_K + rank + 1))))
+    semanticRanking(chunk, input.candidates, input.dir ?? mnemeLibraryDir()).forEach((id, rank) => meaning.set(id, Math.max(meaning.get(id) ?? 0, 1 / (FUSE_K + rank + 1))))
   }
+  return new Map([...new Set([...words.keys(), ...meaning.keys()])].map(id => [id, (words.get(id) ?? 0) + (meaning.get(id) ?? 0)]))
+}
+
+export function chooseAtStart(input: { candidates: readonly StartCandidate[]; chunks: readonly string[]; limit: number; pinnedChars: number; now: number; dir?: string; task?: StartTask }): StartChoice {
+  const task = input.task
+  const prompt = channelScores(stateQueryChunks((task?.prompt ?? '').split(/\s+/)), input)
+  const continuation = task?.continuation?.source ? channelScores(stateQueryChunks(task.continuation.objective.split(/\s+/)), input) : new Map<string, number>()
+  const summary = task?.continuation?.source ? channelScores(stateQueryChunks((task.continuation.summary ?? '').split(/\s+/)), input) : new Map<string, number>()
+  const fallback = task?.prompt?.trim() || task?.continuation?.objective.trim() ? new Map<string, number>() : channelScores(input.chunks, input)
+  const required = new Set((task?.required ?? []).filter(row => row.source.trim()).map(row => row.id))
   const scored: StartScored[] = input.candidates.map(candidate => {
-    const score = totals.get(candidate.id) ?? 0
-    return { ...candidate, score, density: candidate.chars > 0 ? score / candidate.chars : 0 }
+    const tier = required.has(candidate.id) ? 4 : prompt.has(candidate.id) ? 3 : continuation.has(candidate.id) ? 2 : fallback.has(candidate.id) ? 1 : 0
+    const score = tier === 4 ? 1 : (tier === 3 ? prompt : tier === 2 ? continuation : fallback).get(candidate.id) ?? 0
+    return { ...candidate, tier, score, tie: tier === 2 ? summary.get(candidate.id) ?? 0 : 0, density: candidate.chars > 0 ? score / Math.sqrt(candidate.chars) : 0 }
   })
-  const order = [...scored].sort((a, b) => Number(a.stale === true) - Number(b.stale === true) || b.density - a.density || b.score - a.score || a.id.localeCompare(b.id))
+  const order = [...scored].sort((a, b) => b.tier - a.tier || Number(a.stale === true) - Number(b.stale === true) || b.density - a.density || b.tie - a.tie || a.id.localeCompare(b.id))
   const rode: StartScored[] = []
   const left: StartScored[] = []
   let used = 0
   for (const candidate of order) {
-    if (candidate.score > 0 && used + candidate.chars <= input.limit) {
+    if (candidate.tier === 4 || candidate.score > 0 && used + candidate.chars <= input.limit) {
       rode.push(candidate)
-      used += candidate.chars
+      if (candidate.tier !== 4) used += candidate.chars
     } else left.push(candidate)
   }
   rode.sort(byScore)
@@ -189,12 +213,12 @@ function joinWords(parts: readonly string[]): string {
   return `${parts.slice(0, -1).join(', ')} and ${parts[parts.length - 1]}`
 }
 
-function memoryAtStartLine(input: { choice: StartChoice; pinnedCount: number; facts: number; notes: number; pending: number; state: Pick<ProjectState, 'branch' | 'files' | 'note'> }): string {
+function memoryAtStartLine(input: { task?: StartTask; choice: StartChoice; pinnedCount: number; facts: number; notes: number; pending: number; state: Pick<ProjectState, 'branch' | 'files' | 'note'> }): string {
   const { choice, pinnedCount, facts, notes, pending, state } = input
   const pins = pinnedCount === 0 ? 'no pinned rule' : `${plural(pinnedCount, 'pinned rule')} (${withThousands(choice.pinnedChars)} characters)`
   if (facts + notes === 0) return `Memory at start: ${pins}; nothing rode (${plural(pending, 'fact')} pending); Recall finds them.`
   const pool = joinWords([facts > 0 ? plural(facts, 'fact') : null, notes > 0 ? plural(notes, 'earlier note') : null].filter((part): part is string => part !== null))
-  const target = [state.branch !== null ? `branch ${state.branch}` : null, state.files.length > 0 ? 'the files touched lately' : null, state.note !== null ? 'the last note' : null].filter((part): part is string => part !== null)
+  const target = [input.task?.prompt?.trim() ? 'the current prompt' : input.task?.continuation?.source ? 'the source-linked continuation' : null, state.branch !== null ? `branch ${state.branch}` : null, state.files.length > 0 ? 'the files touched lately' : null, state.note !== null ? 'the last note' : null].filter((part): part is string => part !== null)
   if (target.length === 0) return `Memory at start: ${pins}; the ${pool} wait for a branch, touched files or a note to match against; Recall finds them.`
   const rodeFacts = choice.rode.filter(c => c.kind === 'fact').length
   const rodeNotes = choice.rode.filter(c => c.kind === 'handoff').length
@@ -213,11 +237,12 @@ export function memoryAtStartRowWords(status: MemoryAtStartStatus): string {
   return `${pins === null ? '' : `${pins} and `}${rode} rode at start${pending}; Recall finds the rest`
 }
 
-function renderMemoryAtStart(input: { choice: StartChoice; pinnedCount: number; facts: number; notes: number; pending: number; state: ProjectState }): string | null {
+function renderMemoryAtStart(input: { task?: StartTask; choice: StartChoice; pinnedCount: number; facts: number; notes: number; pending: number; state: ProjectState }): string | null {
   if (input.facts + input.notes + input.pending === 0) return null
   const lines: string[] = [MEMORY_AT_START_HEADING, memoryAtStartLine(input)]
   for (const candidate of input.choice.rode) if (candidate.kind === 'fact') lines.push(candidate.block)
   for (const candidate of input.choice.rode) if (candidate.kind === 'handoff') lines.push('', candidate.block)
+  for (const row of input.task?.required ?? []) if (row.source && !input.choice.rode.some(candidate => candidate.id === row.id)) lines.push(`- [${row.id}] [possible obligation · unknown] source ${row.source}; read the source before the affected decision.`)
   return lines.join('\n')
 }
 
@@ -237,7 +262,7 @@ function markStale(candidate: StartCandidate, confirmedAt: string | undefined): 
   return { ...candidate, stale: true, block: `${candidate.block}${mark}`, chars: candidate.chars + mark.length }
 }
 
-export function composeStartPage(input: { dir: string; projectKey: string; state: ProjectState; previous: readonly LedgerEntry[]; limit: number; now: number; root: string | null; stale?: (candidate: StartCandidate) => boolean; confirmedAt?: (candidate: StartCandidate) => string | undefined }): StartPage {
+export function composeStartPage(input: { task?: StartTask; dir: string; projectKey: string; state: ProjectState; previous: readonly LedgerEntry[]; limit: number; now: number; root: string | null; stale?: (candidate: StartCandidate) => boolean; confirmedAt?: (candidate: StartCandidate) => string | undefined }): StartPage {
   const topics = listTopicDocs(input.dir)
   const archives = listArchiveDocs(input.dir)
   const pinned = pinnedNow(input.dir, topics)
@@ -245,7 +270,7 @@ export function composeStartPage(input: { dir: string; projectKey: string; state
   const notes = earlierNotes(input.previous, input.projectKey)
   const pending = pendingRows(input.dir).length
   const candidates = [...facts, ...notes].map(candidate => (input.stale?.(candidate) ? markStale(candidate, input.confirmedAt?.(candidate)) : candidate))
-  const choice = chooseAtStart({ candidates, chunks: stateQuery(input.state, input.root), limit: input.limit, pinnedChars: pinned.chars, now: input.now, dir: input.dir })
+  const choice = chooseAtStart({ task: input.task, candidates, chunks: stateQuery(input.state, input.root), limit: input.limit, pinnedChars: pinned.chars, now: input.now, dir: input.dir })
   const status: MemoryAtStartStatus = {
     limit: input.limit,
     pinnedCount: pinned.count,
@@ -257,10 +282,10 @@ export function composeStartPage(input: { dir: string; projectKey: string; state
     rodeNotes: choice.rode.filter(c => c.kind === 'handoff').length,
     pending,
   }
-  return { text: renderMemoryAtStart({ choice, pinnedCount: pinned.count, facts: facts.length, notes: notes.length, pending, state: input.state }), choice, status, state: input.state }
+  return { text: renderMemoryAtStart({ task: input.task, choice, pinnedCount: pinned.count, facts: facts.length, notes: notes.length, pending, state: input.state }), choice, status, state: input.state }
 }
 
-export async function composeMemoryAtStart(input: { projectKey: string; sessionId?: string; root: string; dir?: string; now?: Date }): Promise<string | null> {
+export async function composeMemoryAtStart(input: { task?: StartTask; projectKey: string; sessionId?: string; root: string; dir?: string; now?: Date }): Promise<string | null> {
   if (!mnemeEnabled()) return null
   try {
     const dir = input.dir ?? mnemeLibraryDir()
@@ -278,7 +303,7 @@ export async function composeMemoryAtStart(input: { projectKey: string; sessionI
       states.set(candidate.id, state)
       return state
     }
-    const page = composeStartPage({ dir, projectKey: input.projectKey, state, previous, limit: startTextLimit(), now: now.getTime(), root: input.root, stale: candidate => stateOf(candidate)?.status === 'stale', confirmedAt: candidate => stateOf(candidate)?.confirmedAt })
+    const page = composeStartPage({ task: input.task, dir, projectKey: input.projectKey, state, previous, limit: startTextLimit(), now: now.getTime(), root: input.root, stale: candidate => stateOf(candidate)?.status === 'stale', confirmedAt: candidate => stateOf(candidate)?.confirmedAt })
     lastStatus = page.status
     return page.text
   } catch (error) {

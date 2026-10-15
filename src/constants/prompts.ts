@@ -167,6 +167,7 @@ export async function getSystemPrompt(
   model: string,
   mcpClients?: MCPServerConnection[],
   permissionMode?: import('../types/permissions.js').InternalPermissionMode,
+  memoryTask?: import('../mneme/entryKnapsack.js').StartTask,
 ): Promise<string[]> {
   const recorded = recordedComposition(model)
   if (recorded !== null) {
@@ -192,7 +193,7 @@ export async function getSystemPrompt(
   const dynamicSpecs = [
     systemPromptSection('project_estate', () => projectEstateSection(toolNames)),
     systemPromptSection('memory', () => loadMemoryPrompt()),
-    systemPromptSection('memory_at_start', () => composeMemoryAtStart({ projectKey: mnemeProjectKey(), sessionId: String(getSessionId()), root: getProjectRoot() })),
+    keyedSystemPromptSection('memory_at_start', () => memoryTask ? 'request' : 'preview', () => composeMemoryAtStart({ task: memoryTask, projectKey: mnemeProjectKey(), sessionId: String(getSessionId()), root: getProjectRoot() })),
     keyedSystemPromptSection(
       'entry_page',
       () => (mnemeEnabled() ? 'page' : 'off'),

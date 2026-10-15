@@ -385,6 +385,7 @@ export class Conversation {
       mcpClients: config.mcpClients,
       customSystemPrompt: config.customSystemPrompt,
       permissionMode: appStateSnapshot.toolPermissionContext.mode,
+      memoryTask: { prompt: typeof prompt === 'string' ? prompt : prompt.filter(block => block.type === 'text').map(block => block.text).join('\n') },
     })
     headlessProfilerCheckpoint('after_getSystemPrompt')
 
