@@ -9,6 +9,7 @@ import { readAgentTranscript, transcriptEndWords } from '../../../tools/Workflow
 import { recordToEntry } from '../../../fabric/entryCodec.js'
 import { validateRecord } from '../../../fabric/validate.js'
 import { effortStampLine, isEffortStamp } from '../../../utils/effortStamp.js'
+import { replyAddressLine, replyMarksOf } from '../../../utils/messages/replyAddress.js'
 import { agentStatusWord } from './agent.js'
 
 function registryStatusOf(ctx: ResourceContext, taskId: string): string | null {
@@ -81,11 +82,12 @@ export function jsonlConciseRows(file: string): string[] {
     const message = entry.message as Record<string, unknown> | undefined
     const content = message?.content
     const effortSuffix = type === 'assistant' ? ` · ${effortStampLine(isEffortStamp(entry.effort) ? entry.effort : undefined)}` : ''
+    const address = type === 'assistant' ? replyAddressLine(replyMarksOf(entry)) : null
     let effortShown = false
     const withEffort = (row: string): string => {
       if (effortShown || effortSuffix === '') return row
       effortShown = true
-      return `${row}${effortSuffix}`
+      return `${row}${effortSuffix}${address === null ? '' : ` · ${address}`}`
     }
     if (typeof content === 'string') {
       if (content.trim()) rows.push(withEffort(`${type}: ${oneLine(content)}`))

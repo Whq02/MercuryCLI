@@ -493,7 +493,7 @@ export class Conversation {
         if (hasContent) {
           for (const normalized of normalizeMessages([message])) {
             const pieces = (normalized as AssistantMessage).message.content
-            const items = itemRowsOf(rowScope, messageId, pieces, block)
+            const items = itemRowsOf(rowScope, messageId, pieces, block, assistant.inReplyTo)
             for (const item of items) if (item.type === 'tool_call') callScopes.set(item.call_id, rowScope)
             rows.push(...items)
             block += Array.isArray(pieces) ? pieces.length : 1
