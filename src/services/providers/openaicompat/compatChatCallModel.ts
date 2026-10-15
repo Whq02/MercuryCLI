@@ -660,7 +660,7 @@ export async function* compatChatCallModel(
       if (signal.aborted) return
       continue
     }
-    const wall = classifyCredentialWall(outcome.fault.status, outcome.fault.message)
+    const wall = classifyCredentialWall(outcome.fault.status, outcome.fault.message, recovery !== undefined ? 'sign-in' : undefined)
     if (wall !== undefined) {
       const wireSaid = outcome.fault.message ? `${outcome.fault.code}: ${outcome.fault.message}` : outcome.fault.code
       logForDebugging(`[compat:${profile.lane}] credential wall (${wall}) — the wire said: ${wireSaid}`)
