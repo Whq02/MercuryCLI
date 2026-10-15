@@ -37,7 +37,7 @@ function readSurface(root: string, rel: string, rev: string | null): string {
 
 function tailWords(line: string, count: number): string {
   const words = line
-    .replace(/\s+—\s+/g, ', ')
+    .replace(/[,:;—]/g, ' ')
     .trim()
     .split(/\s+/)
     .filter(Boolean)
@@ -372,10 +372,13 @@ export function scanMarkdownIntegrity(file: string, text: string, baseText?: str
     const words = stripped.toLowerCase().split(/\s+/).filter(Boolean)
     let foundClauseRepeat = false
     for (let w = 0; w + 16 <= words.length && !foundClauseRepeat; w++) {
-      const runA = words.slice(w, w + 8).join(' ')
+      const runWords = words.slice(w, w + 8)
+      if (runWords.some(tok => /[.!?]$/.test(tok))) continue
+      const runA = runWords.join(' ')
       if (runA.length < 28) continue
       const maxOffset = Math.min(words.length - 8, w + 40)
       for (let w2 = w + 8; w2 <= maxOffset; w2++) {
+        if (words.slice(w, w2).some(tok => /[.!?]$/.test(tok))) break
         const runB = words.slice(w2, w2 + 8).join(' ')
         if (runA === runB) {
           hits.push({
@@ -555,7 +558,7 @@ function selfTest(): void {
     ],
     [
       'row-27',
-      '- `readiness[]`: the capability-readiness rows, each\n  `{id, kind, label, state, detail, source, lastCheckedAt, latencyMs}`, with\n  kind one of `tool`, `mcp`, `lane`, `engine`, `extension`, `skill`, and state\n',
+      '- `readiness[]` — the capability-readiness rows: each\n  `{id, kind, label, state, detail, source, lastCheckedAt, latencyMs}`, with\n  kind one of `tool`, `mcp`, `lane`, `engine`, `extension`, `skill`, and state\n',
       '- `readiness[]`: the capability-readiness rows, each\n  kind one of `tool`, `mcp`, `lane`, `engine`, `extension`, `skill`, and state\n',
     ],
   ]
