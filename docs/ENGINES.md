@@ -33,7 +33,7 @@ arm.
 | `local` | `local/<model>` (qualified; the model as the discovered local server lists it) | Local models |
 | `mistral` | `mistral-*`, `ministral-*`, `codestral-*`, alias `mistral` (the embedding, OCR, moderation and audio ids refuse here) | Mistral |
 | `nous` | `nous/<vendor>/<model>` (qualified; stripped because the Portal's ids are vendor/model slugs, so the namespace disambiguates them; the `~vendor/<name>-latest` alias rows ride the same way) | Nous Portal |
-| `zen` | `zen/<model-id>` (qualified; stripped before the wire because the gateway's own ids are bare vendor names such as `glm-5.3` or `gpt-5.5`, so the namespace tells a Zen row from the native family's) | OpenCode Zen |
+| `zen` | `zen/<model-id>` (qualified; stripped before the request is sent because the gateway's own ids are bare vendor names such as `glm-5.3` or `gpt-5.5`, so the namespace tells a Zen row from the native family's) | OpenCode Zen |
 
 Display names have the same one-owner rule: every surface that names a
 family derives its label from it, and an unknown id shows itself. Persisted

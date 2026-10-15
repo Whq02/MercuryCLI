@@ -94,10 +94,8 @@ Permission behaviour splits on the blocker list:
   without changing the mode. The agent resolves them with you through more polls or
   discussion, then calls `ApolloReview` again.
 
-`ApolloReview` sets `shouldDefer: true` and is deferred like other deferrable tools in
-every permission mode (`isDeferredTool` ignores the permission mode so the tool list stays
-identical across mode switches and preserves signed thinking blocks). On routes that defer
-tool schemas, the agent loads `ApolloReview` through `ToolSearch` when it is ready to close
+`ApolloReview` is deferred like other deferrable tools in every permission mode; on routes
+that defer tool schemas the agent loads it through `ToolSearch` when it is ready to close
 the interview.
 
 ## The build (phase 3)

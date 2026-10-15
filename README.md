@@ -285,8 +285,9 @@ this later with `/appearance`.
 
 You can also choose "sign in later" to look around without connecting an
 account. When a provider key in your environment already signs a provider
-in, the sign-in step is not asked. Next, the Guardrails step reviews
-editing and prompt-injection precautions before continuing. In a terminal
+in, the sign-in step is not asked. Next, the Guardrails step reminds you to
+check Mercury's edits and commands, and that what it reads can carry
+instructions for the model. In a terminal
 Mercury knows how to configure (Terminal.app, the VS Code family, Alacritty,
 Zed), a Terminal keys step can configure newline keybindings in the
 terminal's own settings (on macOS Terminal.app, it sets `Option+Enter` for a

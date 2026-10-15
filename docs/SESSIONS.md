@@ -167,8 +167,8 @@ beat it takes to leave, then starts its own, and a daemon that leaves in the
 beat after answering a new session's window is checked for and started
 again by that same ↵, so the session lands without a second one. Each ↵
 names its launch with one key that both the first admission and the retry
-carry, and a daemon that admitted the session but whose answer was lost on
-the wire answers the retry with the session it already holds, so `Enter` lands
+carry, and a daemon that admitted the session but whose answer was lost in
+transit answers the retry with the session it already holds, so `Enter` lands
 in that one session and never creates a duplicate. One active daemon owns the config home's
 control socket. During an update, a draining helper can keep the sessions
 it already hosts while the installed build takes new sessions; it leaves
@@ -185,7 +185,7 @@ New Session that has not received your first message is excluded from that
 timer: without limit by default, or for the
 `MERCURY_SESSION_NEWBORN_GRACE_MINUTES` you set, and the first message ends
 the grace period either way. A session started this way and never messaged that the daemon finds
-stopped at its next reconcile is released quietly instead of being marked NEEDS YOU,
+stopped at its next reconcile is released instead of being marked NEEDS YOU,
 because there is nothing to resume.
 
 ## A session names itself
@@ -922,7 +922,7 @@ a crewmate by the id in its launch receipt or by its name. The message
 reaches the recipient at its next tool boundary during a running turn, or at
 the end of its turn; a recipient idle between turns starts a turn for it, and a
 crewmate whose run has finished is resumed with it. It arrives as a task
-notification with status `message`, naming the sender. On the wire the
+notification with status `message`, naming the sender. In its output rows the
 runner emits a `task` row with `state: "progress"` and no `status`, because
 a message does not end a task.
 
