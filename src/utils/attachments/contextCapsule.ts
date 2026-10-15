@@ -323,6 +323,7 @@ export function foldAttachmentsIntoCapsule(
     delta: base?.delta ?? null,
     sections,
     workingSet,
+    memoryDeliveries: [...members].flatMap(attachment => attachment.type === 'relevant_memories' ? attachment.memories.flatMap(row => row.delivery ? [row.delivery] : []) : []),
   }
   if (context) {
     const { ownerFromToolUseContext } = require('../../services/run/resolveOwner.js') as typeof import('../../services/run/resolveOwner.js')

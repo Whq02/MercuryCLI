@@ -196,6 +196,12 @@ export function chooseAtStart(input: { candidates: readonly StartCandidate[]; ch
     if (candidate.tier === 4 || candidate.score > 0 && used + candidate.chars <= limit) {
       rode.push(candidate)
       if (candidate.tier !== 4) used += candidate.chars
+    } else if (candidate.score > 0 && candidate.kind === 'fact') {
+      const block = `- ${recordGrade(candidate.id, candidate.signature, input.dir)} [${candidate.id}] Recall read:"${candidate.id}" before the affected decision; full text did not fit.`
+      if (used + block.length + 1 <= limit) {
+        rode.push({ ...candidate, block, chars: block.length + 1 })
+        used += block.length + 1
+      } else left.push(candidate)
     } else left.push(candidate)
   }
   rode.sort(byScore)
