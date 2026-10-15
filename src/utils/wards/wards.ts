@@ -255,6 +255,28 @@ const HOME_SHAPED_WINDOWS = '(?:(?:[a-zA-Z]:[\\/\\\\]+|\\/[a-zA-Z]\\/)[Uu]sers[\
 const HOME_SHAPED_ANY = '(?:' + HOME_SHAPED + '|' + HOME_SHAPED_WINDOWS + ')'
 const RECURSIVE_REMOVE_ITEM = '\\b(?:ri|rd|rmdir|del|erase|[Rr]emove-[Ii]tem)\\b(?=[^\\n;|&]*\\s-(?:[rR][fF]|[fF][rR]|[rR][fF][oO]|[Rr](?:[eE](?:[cC](?:[uU](?:[rR](?:[sS](?:[eE])?)?)?)?)?)?)\\b)[^\\n;|&]*\\s["\']?'
 const RECURSIVE_RD_SLASH = '\\b(?:rd|rmdir|del|erase)\\b(?=[^\\n;|&]*\\s/[sS]\\b)[^\\n;|&]*\\s["\']?'
+const GIT_SEGMENT = '[^\\n;|&]*'
+const QUOTED_RUN = '[^"\']*'
+const INLINE_SHELL_QUOTE = '\\b(?:ba|z|da|k|fi)?sh\\b[^\\n;|&]*?\\s-[a-zA-Z]*c[a-zA-Z]*\\s+["\']' + QUOTED_RUN
+const DESTRUCTIVE_GIT_TEACH =
+  'Autonomous sessions never discard work with git: a hard reset, a whole-tree checkout or restore, ' +
+  'a forced clean, a forced branch delete or a force push runs only on the operator\'s explicit ask. ' +
+  'Keep what matters by committing or stashing it and work on your own branch or worktree; if the ' +
+  'discard is genuinely required, say so in your reply and let the operator run it.'
+
+function destructiveGitForms(span: string, end: string): string[] {
+  const git = '\\bgit\\b' + span + '\\b'
+  return [
+    git + 'reset\\b' + span + '\\s--hard\\b',
+    git + 'checkout\\b' + span + '?\\s\\.\\/?\\s*' + end,
+    git + 'restore\\b(?!(?=' + span + '\\s(?:--staged|-S)\\b)(?!' + span + '\\s(?:--worktree|-W)\\b))' + span + '?\\s\\.\\/?\\s*' + end,
+    git + 'clean\\b(?=' + span + '\\s(?:-[a-zA-Z]*f[a-zA-Z]*|--force)\\b)(?!' + span + '\\s(?:-[a-zA-Z]*n[a-zA-Z]*|--dry-run)\\b)',
+    git + 'branch\\b(?=' + span + '\\s-D\\s+\\S)',
+    git + 'branch\\b(?=' + span + '\\s(?:--delete|-d)\\b)(?=' + span + '\\s(?:--force|-f)\\b)',
+    git + 'push\\b' + span + '\\s(?:--force(?:-with-lease|-if-includes)?(?:=\\S*)?|-f)\\b',
+    git + 'push\\b' + span + '\\s\\+[^\\s:]+',
+  ]
+}
 
 export const AUTONOMOUS_WARDS: readonly WardRule[] = [
   {
@@ -275,6 +297,23 @@ export const AUTONOMOUS_WARDS: readonly WardRule[] = [
     skipCommentLines: false,
     outsideProjectOnly: true,
     homePath: 'within',
+  },
+  {
+    name: 'no-destructive-git-unattended',
+    teach: DESTRUCTIVE_GIT_TEACH,
+    refusal: true,
+    scope: 'bash',
+    patterns: destructiveGitForms(GIT_SEGMENT, '(?=[;&|\\n]|$)'),
+    skipCommentLines: false,
+    outsideQuotes: true,
+  },
+  {
+    name: 'no-destructive-git-unattended',
+    teach: DESTRUCTIVE_GIT_TEACH,
+    refusal: true,
+    scope: 'bash',
+    patterns: destructiveGitForms(QUOTED_RUN, '(?=[;&|"\']|$)').map(form => INLINE_SHELL_QUOTE + form),
+    skipCommentLines: false,
   },
 ]
 
