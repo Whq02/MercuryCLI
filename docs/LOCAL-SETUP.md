@@ -20,8 +20,8 @@ installs or starts nothing.
 When discovery finds no local server, one line names the road on every surface
 that names local models: the model picker's LOCAL section (`no local server · s
 sets one up`, where `s` opens the dialog), the home screen's local line, the
-`/config` Local account row and the `/usage` popup's local block (both lines end
-with `or /localsetup sets one up`), and the refusal a request
+`/config` Local account row and the `/usage` popup's local block (both lines
+include `or /localsetup sets one up`), and the refusal a request
 for an undiscovered `local/<model>` gets. Everywhere else the command is
 `/localsetup`.
 
