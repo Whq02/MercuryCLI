@@ -1,4 +1,4 @@
-# Mercury
+# Mercury CLI
 
 Mercury CLI (mercury-cli.ai, npm package `mercury-tech-cli`) runs AI coding agents in your terminal, inside your own git repositories on macOS, Linux and Windows.
 
