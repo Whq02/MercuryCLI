@@ -47,6 +47,7 @@ export type DapLaunchOptions = {
 
 export type DapBreakpointSpec = {
   line: number
+  column?: number
   condition?: string
   hitCondition?: string
   logMessage?: string
@@ -1526,6 +1527,7 @@ export class DapSession {
         source: { path },
         breakpoints: specs.map(s => ({
           line: s.line,
+          ...(s.column !== undefined ? { column: s.column } : {}),
           ...(s.condition !== undefined ? { condition: s.condition } : {}),
           ...(s.hitCondition !== undefined ? { hitCondition: s.hitCondition } : {}),
           ...(s.logMessage !== undefined ? { logMessage: s.logMessage } : {}),
