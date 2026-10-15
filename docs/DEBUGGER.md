@@ -53,13 +53,13 @@ debugger (no launch configuration written, no runner arguments
 reconstructed by hand) and stops on the first line of the one test you
 named, with its locals readable. Python tests (pytest and unittest) run
 under debugpy; node-test, vitest and jest tests under js-debug (vitest in
-one worker with its timeout off, jest in-band); Go tests under delve's DAP
-server, built in test mode for their package; cargo tests under lldb-dap
+one worker with its timeout off, jest in-band); Go tests under Delve's DAP
+server (`dlv`), built in test mode for their package; cargo tests under lldb-dap
 or gdb, from the test binary cargo itself builds, run with `--exact`. The
 test is spelled as its runner names it: `file::name` or a bare name from
 the latest run for the Node runners, `TestName`, `TestName/subtest` or
 `dir::TestName` for Go, `module::path::test_name` for cargo. A debugger
-that is not installed answers `unavailable` with its install line (delve:
+that is not installed answers `unavailable` with its install line (Delve:
 `go install github.com/go-delve/delve/cmd/dlv@latest`; lldb-dap or gdb
 from the toolchain).
 
