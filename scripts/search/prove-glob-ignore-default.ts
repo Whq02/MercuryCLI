@@ -63,7 +63,7 @@ try {
   check(`the ${IGNORED_TS} ignored .ts paths are counted`, everyTs.data.ignored === IGNORED_TS, String(everyTs.data.ignored))
   const words = spoken(everyTs)
   check('the result ends on the one-line count: "· 120 paths under ignored folders not listed …"', words.endsWith(ignoredFoldersLine(IGNORED_TS)) && words.includes('· 120 paths under ignored folders not listed'), words.split('\n').slice(-2).join(' / '))
-  check('the count line comes after the listed files, never first', words.indexOf('src/defu.ts') < words.indexOf('· 120 paths'), words.slice(0, 200))
+  check('the count line comes after the listed files, never first', words.includes('src/defu.ts') && words.includes('· 120 paths') && words.indexOf('src/defu.ts') < words.indexOf('· 120 paths'), words.slice(0, 200))
   check('the line formats thousands and names the road inside: 1,204', ignoredFoldersLine(1204) === '· 1,204 paths under ignored folders not listed (name a folder as the path to search inside it)', ignoredFoldersLine(1204))
   check('one ignored path reads singular', ignoredFoldersLine(1).startsWith('· 1 path under ignored folders not listed'))
 
