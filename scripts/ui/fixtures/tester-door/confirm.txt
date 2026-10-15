@@ -1,4 +1,3 @@
 │ ▖▟▆▙▗ Leave Mercury? 1 shell command still running                                                                   │
 │ quitting stops them · see them with /runs · the session itself stays resumable                                       │
-│ Something broke? https://mercury-cli.ai/report                                                                       │
 │ [y] quit · ↵ quit   [n] stay · esc stay                                                                              │

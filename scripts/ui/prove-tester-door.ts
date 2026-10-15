@@ -98,12 +98,12 @@ function frame(name: string, lines: string[]): void {
 }
 const quiet = await drive('quiet-exit', [...enter, ...command('/exit')], 280, farewell)
 const quietText = text(quiet.grid)
-check('ordinary exit closes and shows the door exactly once', quiet.endReason === 'eof' && count(quietText) === 1)
+check('ordinary exit after a clean session closes with no door (the pass: "nothing had broken")', quiet.endReason === 'eof' && count(quietText) === 0)
 frame('quiet-exit', quietText.split('\n').filter(line => /Session saved|Something broke/.test(line)).map(line => line.trim()))
-const control = await drive('control-exit', [...enter, { requireAwait: true, awaitText: composer, awaitSettleTicks: 2, data: '\x03' }, { atTick: 230, awaitText: 'twice to close Mercury', requireAwait: true, data: '\x03' }], 300, 'Something broke?')
+const control = await drive('control-exit', [...enter, { requireAwait: true, awaitText: composer, awaitSettleTicks: 2, data: '\x03' }, { atTick: 230, awaitText: 'twice to close Mercury', requireAwait: true, data: '\x03' }], 300, farewell)
 const controlText = text(control.grid)
-check('composer exit closes and shows the door exactly once', control.endReason === 'eof' && count(controlText) === 1)
-frame('control-exit', controlText.split('\n').filter(line => line.includes('Something broke')).map(line => line.trim()))
+check('composer exit after a clean session closes with no door', control.endReason === 'eof' && count(controlText) === 0)
+frame('control-exit', controlText.split('\n').filter(line => /Session saved|Something broke/.test(line)).map(line => line.trim()))
 const live = await drive('live-exit', [
   ...enter,
   { requireAwait: true, awaitText: composer, awaitSettleTicks: 2, data: '!' },
@@ -118,9 +118,9 @@ const live = await drive('live-exit', [
 ], 520, farewell)
 const first = text(live.marks?.find(mark => mark.label === 'first-card')?.grid ?? [])
 const second = text(live.marks?.find(mark => mark.label === 'second-card')?.grid ?? [])
-check('the first confirm card carries one door', first.includes('Leave Mercury?') && count(first) === 1)
-check('staying then leaving again does not repeat the door', second.includes('Leave Mercury?') && count(second) === 0)
-check('the final farewell does not repeat a door already shown', live.endReason === 'eof' && count(text(live.grid)) === 0)
+check('the first confirm card of a clean session carries no door', first.includes('Leave Mercury?') && count(first) === 0)
+check('staying then leaving again paints no door either', second.includes('Leave Mercury?') && count(second) === 0)
+check('the final farewell of a clean session carries no door', live.endReason === 'eof' && count(text(live.grid)) === 0)
 frame('confirm', first.split('\n').filter(line => /Leave Mercury|quitting stops|Something broke|\[y\]/.test(line)).map(line => line.replace(/sleep \d+/g, 'sleep N').trim()))
 const api = await startFixtureApi([{ kind: 'text', text: 'Short tester report' }])
 try {
