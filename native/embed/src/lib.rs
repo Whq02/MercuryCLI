@@ -1260,17 +1260,21 @@ mod tests {
     }
 
     fn kernel_road() -> String {
+        let road: String;
         #[cfg(target_arch = "x86_64")]
         {
             let avx2 = std::is_x86_feature_detected!("avx2") && std::is_x86_feature_detected!("fma");
-            return if avx2 { "x86-64 AVX2+FMA 2x4 tile".to_string() } else { "x86-64 portable lanes 2x4 tile".to_string() };
+            road = if avx2 { "x86-64 AVX2+FMA 2x4 tile".to_string() } else { "x86-64 portable lanes 2x4 tile".to_string() };
         }
         #[cfg(target_arch = "aarch64")]
         {
-            return "aarch64 NEON 4x4 tile".to_string();
+            road = "aarch64 NEON 4x4 tile".to_string();
         }
-        #[allow(unreachable_code)]
-        format!("{} portable lanes 2x4 tile", std::env::consts::ARCH)
+        #[cfg(not(any(target_arch = "x86_64", target_arch = "aarch64")))]
+        {
+            road = format!("{} portable lanes 2x4 tile", std::env::consts::ARCH);
+        }
+        road
     }
 
     #[test]
@@ -1296,6 +1300,21 @@ mod tests {
             assert!(kernel_err <= 5e-5, "kernel {m}x{n}x{k}: {kernel_err:.2e} over 5e-5");
             assert!(scalar_err <= 2e-4, "scalar {m}x{n}x{k}: {scalar_err:.2e} over 2e-4");
             assert!(platform_err <= 2e-4, "platform road {m}x{n}x{k}: {platform_err:.2e} over 2e-4");
+            if m == 28 {
+                let mut best = |road: &dyn Fn(&mut [f32])| {
+                    let mut t = f64::MAX;
+                    for _ in 0..3 {
+                        let t0 = Instant::now();
+                        road(&mut kernel);
+                        t = t.min(t0.elapsed().as_secs_f64() * 1000.0);
+                    }
+                    t
+                };
+                let scalar_ms = best(&|c| sgemm_nt_scalar(m, n, k, &a, &b, c));
+                let kernel_ms = best(&|c| sgemm_nt_kernel(m, n, k, &a, &b, c));
+                let platform_ms = best(&|c| sgemm_nt(m, n, k, &a, &b, c));
+                println!("sgemm_nt {m}x{n}x{k}: scalar {scalar_ms:.2} ms · kernel {kernel_ms:.2} ms · platform {platform_ms:.2} ms");
+            }
         }
     }
 
