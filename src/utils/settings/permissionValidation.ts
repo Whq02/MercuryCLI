@@ -4,7 +4,7 @@ import { lazySchema } from '../lazySchema.js'
 import { getCustomValidation, isBashPrefixTool, isFilePatternTool } from './toolValidationConfig.js'
 
 
-export type PermissionRuleValidation = {
+type PermissionRuleValidation = {
   valid: boolean
   error?: string
   suggestion?: string

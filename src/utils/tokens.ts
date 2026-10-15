@@ -126,7 +126,7 @@ export function getAssistantMessageContentLength(message: AssistantMessage): num
   return length
 }
 
-export type ContextFill = { tokens: number; source: 'usage' | 'estimate' }
+type ContextFill = { tokens: number; source: 'usage' | 'estimate' }
 
 function compactUsageFence(
   messages: readonly Message[],

@@ -40,7 +40,7 @@ export function writeToStderr(data: string): void {
 }
 
 
-export function exitWithError(message: string): never {
+function exitWithError(message: string): never {
   console.error(message)
   process.exit(1)
 }

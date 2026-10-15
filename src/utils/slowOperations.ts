@@ -49,6 +49,6 @@ export function jsonParse(
   return JSON.parse(text, reviver)
 }
 
-export function clone<T>(value: T, options?: StructuredSerializeOptions): T {
+function clone<T>(value: T, options?: StructuredSerializeOptions): T {
   return structuredClone(value, options)
 }

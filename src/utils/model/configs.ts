@@ -91,7 +91,7 @@ export const FAMILY_GENERATIONS = {
   haiku: ['haiku55', 'haiku45'],
 } as const satisfies Record<string, readonly ModelKey[]>
 
-export type ModelFamily = keyof typeof FAMILY_GENERATIONS
+type ModelFamily = keyof typeof FAMILY_GENERATIONS
 
 export function newestGenerationKey(family: ModelFamily): ModelKey {
   return FAMILY_GENERATIONS[family][0]
@@ -145,7 +145,7 @@ export const DECLARED_GENERATION_STEMS: ReadonlyMap<string, string> = new Map(
   }),
 )
 
-export interface FirstPartyGeneration {
+interface FirstPartyGeneration {
   family: ModelFamily
   generation: string
   stem: string

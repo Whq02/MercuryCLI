@@ -13,14 +13,14 @@ export interface SavedPromptV1 {
   updatedAt: string
 }
 
-export interface SavedPromptsFile {
+interface SavedPromptsFile {
   drafts: SavedPromptV1[]
 }
 
 export const MAX_SAVED_PROMPTS = 200
 export const MAX_SAVED_PROMPT_CHARS = 4000
 
-export function savedPromptsRoot(): string {
+function savedPromptsRoot(): string {
   return join(getMercuryHome(), 'saved-prompts')
 }
 
@@ -80,15 +80,15 @@ const store = defineStore<SavedPromptsFile, [projectPath: string]>({
   onReadFailure: 'empty',
 })
 
-export function newSavedPromptId(): string {
+function newSavedPromptId(): string {
   return randomBytes(3).toString('hex')
 }
 
-export function normalizeSavedPromptText(raw: string): string {
+function normalizeSavedPromptText(raw: string): string {
   return raw.replace(/[\r\n]+/g, ' ').replace(/[ \t]{2,}/g, ' ').trim().slice(0, MAX_SAVED_PROMPT_CHARS)
 }
 
-export type SavedPromptsReceipt =
+type SavedPromptsReceipt =
   | { ok: true; id: string }
   | { ok: false; reason: string }
 

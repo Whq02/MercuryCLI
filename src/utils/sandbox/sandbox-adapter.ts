@@ -342,7 +342,7 @@ export function convertToSandboxRuntimeConfig(settings: SettingsShape): SandboxR
 }
 
 
-export type UnixSocketFilter = 'blocked' | 'open-no-helper' | 'open-by-setting'
+type UnixSocketFilter = 'blocked' | 'open-no-helper' | 'open-by-setting'
 
 type ISandboxManager = {
   initialize(askCallback?: SandboxAskCallback): Promise<void>

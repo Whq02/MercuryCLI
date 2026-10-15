@@ -28,7 +28,7 @@ function chipScanRe(): RegExp {
 }
 
 
-export class WrappedLine {
+class WrappedLine {
   constructor(
     readonly text: string,
     readonly startOffset: number,

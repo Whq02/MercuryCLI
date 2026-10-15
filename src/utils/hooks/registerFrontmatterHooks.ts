@@ -17,6 +17,6 @@ export function registerSkillHooks(
   return addSessionHooks(setAppState, scope, hooks, { kind: 'skill', name: skill.name, root: skill.root })
 }
 
-export function unregisterSkillHooks(setAppState: SetAppState, scope: HookScope, skill: { name: string; root: string }): void {
+function unregisterSkillHooks(setAppState: SetAppState, scope: HookScope, skill: { name: string; root: string }): void {
   removeSessionHooks(setAppState, scope, { kind: 'skill', name: skill.name, root: skill.root })
 }

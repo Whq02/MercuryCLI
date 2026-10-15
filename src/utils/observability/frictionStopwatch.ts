@@ -57,7 +57,7 @@ export function markTransitionEnd(
   slot.pendingStartMs = null
 }
 
-export interface FrictionRow {
+interface FrictionRow {
   transition: FrictionTransition
   budgetMs: number
   lastMs: number | null

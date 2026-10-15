@@ -44,7 +44,7 @@ export function publishTurnSignals(next: {
   publishTurnSignalsAt(next, Date.now())
 }
 
-export function publishTurnSignalsAt(
+function publishTurnSignalsAt(
   next: { turnLive: boolean; streaming: boolean; awaitingPermission: boolean; endedInError?: boolean },
   now: number,
 ): void {

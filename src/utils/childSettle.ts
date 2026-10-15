@@ -3,17 +3,17 @@ import type { ChildProcess } from 'node:child_process'
 import { endProcessTree } from './processGroup.js'
 
 
-export const CLOSE_DRAIN_MS = 250
-export const KILL_SETTLE_MS = 2_000
+const CLOSE_DRAIN_MS = 250
+const KILL_SETTLE_MS = 2_000
 
-export interface ChildSettleOptions {
+interface ChildSettleOptions {
   timeoutMs: number
   signal?: AbortSignal
   closeDrainMs?: number
   killSettleMs?: number
 }
 
-export interface ChildSettlement {
+interface ChildSettlement {
   code: number | null
   signal: NodeJS.Signals | null
   timedOut: boolean

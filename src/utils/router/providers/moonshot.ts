@@ -57,7 +57,7 @@ export function describeMoonshotProvider(): ProviderDescription {
   }
 }
 
-export function moonshotStatus(): RouterProviderStatus {
+function moonshotStatus(): RouterProviderStatus {
   const discovery = primeMoonshotDiscovery()
   return discovery?.account
     ? { available: true }
@@ -78,14 +78,14 @@ export function listMoonshotModels(): RouterProviderModel[] {
   }))
 }
 
-export function resolveMoonshotModel(
+function resolveMoonshotModel(
   _modelClass: RouterModelClass,
   _posture: RouterPosture,
 ): RouteModelRef | null {
   return null
 }
 
-export function buildMoonshotLaunchPatch(_ref: RouteModelRef): { model: string; effort: string } {
+function buildMoonshotLaunchPatch(_ref: RouteModelRef): { model: string; effort: string } {
   throw new Error(
     'router: provider moonshot has no SEAT runtime — roster seats stay Anthropic; Kimi specialists dispatch through the AgentTool engine path',
   )

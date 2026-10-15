@@ -13,7 +13,7 @@ import type {
   RouterProviderStatus,
 } from './types.js'
 
-export function describeGeminiProvider(): ProviderDescription {
+function describeGeminiProvider(): ProviderDescription {
   const discovery = getCachedProviderDiscovery('gemini') ?? primeGeminiDiscovery()
   const record = discovery?.provider === 'gemini' ? discovery : undefined
   const account = record?.account
@@ -36,25 +36,25 @@ export function describeGeminiProvider(): ProviderDescription {
   }
 }
 
-export function geminiStatus(): RouterProviderStatus {
+function geminiStatus(): RouterProviderStatus {
   const discovery = primeGeminiDiscovery()
   return discovery?.account
     ? { available: true }
     : { available: false, reason: 'no-account:gemini' }
 }
 
-export function listGeminiModels(): RouterProviderModel[] {
+function listGeminiModels(): RouterProviderModel[] {
   return []
 }
 
-export function resolveGeminiModel(
+function resolveGeminiModel(
   _modelClass: RouterModelClass,
   _posture: RouterPosture,
 ): RouteModelRef | null {
   return null
 }
 
-export function buildGeminiLaunchPatch(_ref: RouteModelRef): { model: string; effort: string } {
+function buildGeminiLaunchPatch(_ref: RouteModelRef): { model: string; effort: string } {
   throw new Error(
     'router: provider gemini has no SEAT runtime — roster seats stay Anthropic; Gemini dispatch lands with the provider-wire fold',
   )

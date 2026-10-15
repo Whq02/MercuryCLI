@@ -20,7 +20,7 @@ const LAYER_OF_SOURCE: Readonly<Record<SettingSource, HookLayer>> = {
   policySettings: 'managed',
 }
 
-export function hookLayerOfSource(source: SettingSource): HookLayer {
+function hookLayerOfSource(source: SettingSource): HookLayer {
   return LAYER_OF_SOURCE[source]
 }
 
@@ -55,7 +55,7 @@ function readLayers(): Array<{ layer: HookLayer; map: HooksSettings | undefined;
   })
 }
 
-export type HooksSnapshot = {
+type HooksSnapshot = {
   hooks: LayeredHook[]
   disabled: boolean
   managedOnly: boolean
@@ -116,7 +116,7 @@ const WORKSPACE_FILES: ReadonlyArray<{ layer: HookLayer; file: string }> = [
   { layer: 'local', file: 'settings.local.json' },
 ]
 
-export function workspaceHooks(cwd: string): LayeredHook[] {
+function workspaceHooks(cwd: string): LayeredHook[] {
   const own = hooksSnapshot()
   if (own.disabled) return []
   const hooks = own.hooks.filter(hook => hook.source.kind === 'settings' && !CHECKOUT_LAYERS.has(hook.source.layer))

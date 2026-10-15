@@ -12,13 +12,13 @@ let stallsObserved = 0
 let stalledMsTotal = 0
 let ticksObserved = 0
 
-export type MemorySample = {
+type MemorySample = {
   rss_mb: number
   heap_used_mb: number
   ext_mb: number
 }
 
-export function sampleRss(): MemorySample | null {
+function sampleRss(): MemorySample | null {
   let usage: ReturnType<typeof process.memoryUsage>
   try {
     usage = process.memoryUsage()

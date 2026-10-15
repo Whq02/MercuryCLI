@@ -33,13 +33,13 @@ export function gte(a: string, b: string): boolean {
   return loadLib().gte(a, b, true)
 }
 
-export function lt(a: string, b: string): boolean {
+function lt(a: string, b: string): boolean {
   const native = bunSemver()
   if (native) return native.order(a, b) < 0
   return loadLib().lt(a, b, true)
 }
 
-export function satisfies(version: string, range: string): boolean {
+function satisfies(version: string, range: string): boolean {
   const native = bunSemver()
   if (native) return native.satisfies(version, range)
   return loadLib().satisfies(version, range, true)

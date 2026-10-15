@@ -37,9 +37,9 @@ export const CAPABILITY_UNITS = [
   'desktop-drive',
 ] as const
 
-export type SupportState = 'available' | 'conditional' | 'degraded' | 'unavailable'
+type SupportState = 'available' | 'conditional' | 'degraded' | 'unavailable'
 
-export interface ToolCensusRow {
+interface ToolCensusRow {
   name: string
   inCatalogNow: boolean
   category: CapabilityCategory
@@ -56,7 +56,7 @@ export interface ToolCensusRow {
   support: SupportState
 }
 
-export interface ToolCensus {
+interface ToolCensus {
   version: number
   rows: ToolCensusRow[]
   summary: {
@@ -148,7 +148,7 @@ function unitsFor(declared: ToolCapability | null): string[] {
   return ['unclassified']
 }
 
-export function buildToolCensusRow(tool: Tool, inCatalogNow: boolean): ToolCensusRow {
+function buildToolCensusRow(tool: Tool, inCatalogNow: boolean): ToolCensusRow {
   const descriptor = deriveCapabilityDescriptor(tool)
   const declared = declaredCapability(tool)
   let enabledNow = false
@@ -273,7 +273,7 @@ export function buildToolCensus(): ToolCensus {
 
 export const CENSUS_NO_REASON = 'no reason declared — declare gate/conditions in the tool’s capability contract'
 
-export interface CensusGapLine {
+interface CensusGapLine {
   support: 'conditional' | 'unavailable'
   tools: string[]
   reason: string
@@ -304,7 +304,7 @@ export function censusGapLines(
   return [...groups.values()]
 }
 
-export interface StableCensusRow {
+interface StableCensusRow {
   name: string
   category: CapabilityCategory
   risk: CapabilityRisk

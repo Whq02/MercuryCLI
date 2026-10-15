@@ -31,7 +31,7 @@ const powershellLane = {
   classifyCommandName,
 }
 
-export type CommandAnalysisProvider = typeof bashLane & typeof powershellLane
+type CommandAnalysisProvider = typeof bashLane & typeof powershellLane
 
 export const pinnedCommandAnalysis: CommandAnalysisProvider = { ...bashLane, ...powershellLane }
 

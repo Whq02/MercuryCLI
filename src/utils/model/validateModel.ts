@@ -7,7 +7,7 @@ import { createUserMessage } from '../messages.js'
 import { isModelAlias } from './aliases.js'
 import { isModelAllowed } from './modelAllowlist.js'
 
-export type ValidateModelResult = { valid: boolean; error?: string }
+type ValidateModelResult = { valid: boolean; error?: string }
 
 const validatedModels = new Set<string>()
 

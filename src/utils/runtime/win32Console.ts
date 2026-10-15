@@ -4,7 +4,7 @@ import { join } from 'node:path'
 
 export const UTF8_CODEPAGE = 65001
 
-export type Win32Utf8Decision =
+type Win32Utf8Decision =
   | { engage: false; reason: 'not-win32' | 'no-tty' | 'opted-out' | 'launcher-preset' }
   | { engage: true }
 
@@ -55,7 +55,7 @@ const defaultSyscalls: Win32ConsoleSyscalls = {
   },
 }
 
-export interface Win32Utf8Outcome {
+interface Win32Utf8Outcome {
   engaged: boolean
   previous: number | null
   changed: boolean

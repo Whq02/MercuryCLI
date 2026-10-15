@@ -215,7 +215,7 @@ const pinnedOverLimitNotice: StatusNoticeDefinition = {
   },
 }
 
-export const statusNoticeDefinitions: StatusNoticeDefinition[] = [
+const statusNoticeDefinitions: StatusNoticeDefinition[] = [
   largeMemoryFilesNotice,
   largeAgentDescriptionsNotice,
   pinnedOverLimitNotice,

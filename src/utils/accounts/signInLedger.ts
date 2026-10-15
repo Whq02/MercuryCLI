@@ -7,7 +7,7 @@ const SIGN_IN_LEDGER_VERSION = 1
 
 export type SignInKind = 'oauth' | 'subscription' | 'api-key' | 'operator-switch'
 
-export interface SignInRecord {
+interface SignInRecord {
   at: number
   kind: SignInKind
 }

@@ -3,7 +3,7 @@ import { readFileSync, statSync } from 'node:fs'
 import { projectConfigCandidates } from '../projectConfig.js'
 import type { VerificationScope } from './verificationState.js'
 
-export interface DeclaredGate {
+interface DeclaredGate {
   id: string
   argv: string[]
   match: RegExp | null

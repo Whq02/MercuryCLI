@@ -28,7 +28,7 @@ export function _resetIdentityCacheForTesting(): void {
   forgetScopeIdentity()
 }
 
-export interface ResolveIdentityDeps {
+interface ResolveIdentityDeps {
   readCreds?: typeof readAccountOAuthCreds
   fetchImpl?: typeof fetch
   timeoutMs?: number

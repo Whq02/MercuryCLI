@@ -1,9 +1,9 @@
 
 import { createHash } from 'node:crypto'
 
-export const CACHE_DOMAIN_FORMAT_VERSION = 1
+const CACHE_DOMAIN_FORMAT_VERSION = 1
 
-export interface CacheDomainInputs {
+interface CacheDomainInputs {
   providerScope: string
   servedModel: string
   projectPath: string

@@ -1,10 +1,10 @@
 import { stableDigest, type RouteNode, type TaskRoutePlan } from './contracts.js'
 
 export const CAPSULE_MAX_BYTES = 24_000
-export const CAPSULE_LIST_CAP = 12
-export const CAPSULE_ENTRY_CAP = 600
+const CAPSULE_LIST_CAP = 12
+const CAPSULE_ENTRY_CAP = 600
 
-export interface RouteResultDigest {
+interface RouteResultDigest {
   nodeId: string
   title: string
   summary: string
@@ -13,7 +13,7 @@ export interface RouteResultDigest {
   unresolved: string[]
 }
 
-export interface RouteContextCapsule {
+interface RouteContextCapsule {
   version: 1
   id: string
   planId: string
@@ -43,7 +43,7 @@ function clampList(list: readonly string[], omitted: string[], label: string): s
   return out
 }
 
-export function digestOfCompletion(node: RouteNode): RouteResultDigest | null {
+function digestOfCompletion(node: RouteNode): RouteResultDigest | null {
   if (!node.completion) return null
   return {
     nodeId: node.id,
@@ -138,7 +138,7 @@ export function renderCapsuleFrame(c: RouteContextCapsule): string {
   return lines.join('\n')
 }
 
-export interface SynthesisPacket {
+interface SynthesisPacket {
   planId: string
   objective: string
   profile: string

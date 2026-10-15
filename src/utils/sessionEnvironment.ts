@@ -8,7 +8,7 @@ import { isENOENT } from './errors.js'
 
 
 const ENV_FILE_EVENTS = ['session.start', 'file.changed'] as const
-export type SessionEnvHookEvent = (typeof ENV_FILE_EVENTS)[number]
+type SessionEnvHookEvent = (typeof ENV_FILE_EVENTS)[number]
 
 export function hookEventWritesEnvFile(event: string): event is SessionEnvHookEvent {
   return (ENV_FILE_EVENTS as readonly string[]).includes(event)

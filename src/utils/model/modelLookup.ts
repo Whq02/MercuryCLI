@@ -14,4 +14,4 @@ export const PROVIDER_MODEL_PAGES: Readonly<Record<string, string>> = {
   huggingface: 'https://huggingface.co/models?inference_provider=all',
   zen: 'https://opencode.ai/v2/docs/console/models/',
 }
-export const MODEL_PAGES_CHECKED = '2026-10-13'
+const MODEL_PAGES_CHECKED = '2026-10-13'

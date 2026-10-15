@@ -3,7 +3,7 @@ import { contextFillView, type ContextFillView } from '../contextFill.js'
 import type { ModelName } from '../model/model.js'
 import { withState, type Snapshot } from './types.js'
 
-export type ContextGaugeData = {
+type ContextGaugeData = {
   usedPct: number | null
   window: number
   usedTokens: number | null

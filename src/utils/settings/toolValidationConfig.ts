@@ -1,5 +1,5 @@
 
-export type CustomValidationResult = {
+type CustomValidationResult = {
   valid: boolean
   error?: string
   suggestion?: string

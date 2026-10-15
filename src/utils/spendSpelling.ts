@@ -1,6 +1,6 @@
 import type { ProviderSessionSpend } from '../services/providers/providerUsage.js'
 
-export const DEFAULT_COST_DECIMAL_PLACES = 4
+const DEFAULT_COST_DECIMAL_PLACES = 4
 
 export function formatCost(
   cost: number,

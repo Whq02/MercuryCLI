@@ -28,8 +28,8 @@ import { LEAD_ROW_NAME } from './crewmateWords.js'
 import { railPanelInnerWidth } from '../../components/mercury-ui/RailPanel.js'
 import type { MercuryThemeTokens } from '../mercuryTokens.js'
 
-export const CREW_ROWS = 6
-export const RUNS_ROWS = 4
+const CREW_ROWS = 6
+const RUNS_ROWS = 4
 
 export function recentLaneLabel(log: SessionListing): string {
   const cleaned = Array.from(getLogDisplayTitle(log, 'untitled'), ch => (ch.charCodeAt(0) < 0x20 ? ' ' : ch))
@@ -39,7 +39,7 @@ export function recentLaneLabel(log: SessionListing): string {
   return cleaned || 'untitled'
 }
 
-export function formatSpan(ms: number): string {
+function formatSpan(ms: number): string {
   const s = Math.max(0, Math.round(ms / 1000))
   if (s < 60) return `${s}s`
   const m = s / 60
@@ -79,10 +79,10 @@ export function wrapRailRows(text: string, width: number, maxRows: number): stri
   return rows.slice(0, maxRows)
 }
 
-export type RunKind = 'shell' | 'monitor' | 'workflow' | 'cloud' | 'run'
-export type RunRow = { id: string; title: string; status: TaskStatus; kind: RunKind; startedAtMs: number }
+type RunKind = 'shell' | 'monitor' | 'workflow' | 'cloud' | 'run'
+type RunRow = { id: string; title: string; status: TaskStatus; kind: RunKind; startedAtMs: number }
 
-export function runKindOf(t: TaskState): RunKind {
+function runKindOf(t: TaskState): RunKind {
   if (isLocalShellTask(t)) return t.kind === 'monitor' ? 'monitor' : 'shell'
   switch (t.type) {
     case 'local_workflow':
@@ -96,7 +96,7 @@ export function runKindOf(t: TaskState): RunKind {
   }
 }
 
-export function statusTone(status: TaskStatus, tok: MercuryThemeTokens): { label: string; tone: string } {
+function statusTone(status: TaskStatus, tok: MercuryThemeTokens): { label: string; tone: string } {
   switch (status) {
     case 'running':
       return { label: 'running', tone: tok.success }
@@ -113,10 +113,10 @@ export function statusTone(status: TaskStatus, tok: MercuryThemeTokens): { label
   }
 }
 
-export type CrewRow = { id: string; label: string; status: TaskStatus; hosted?: boolean; facts?: CrewAgentFacts }
-export type CrewEntry = { kind: 'task'; row: CrewRow }
+type CrewRow = { id: string; label: string; status: TaskStatus; hosted?: boolean; facts?: CrewAgentFacts }
+type CrewEntry = { kind: 'task'; row: CrewRow }
 
-export function crewRowsOf(sessionCrew: readonly CrewLedgerRow[]): CrewRow[] {
+function crewRowsOf(sessionCrew: readonly CrewLedgerRow[]): CrewRow[] {
   return sessionCrew.map(row => ({
     id: row.facts.id,
     label: row.facts.name,
@@ -126,7 +126,7 @@ export function crewRowsOf(sessionCrew: readonly CrewLedgerRow[]): CrewRow[] {
   }))
 }
 
-export function orderCrew(crewRows: readonly CrewRow[], keptIds: readonly string[]): CrewRow[] {
+function orderCrew(crewRows: readonly CrewRow[], keptIds: readonly string[]): CrewRow[] {
   const crewAll = [...crewRows].sort((a, b) => (a.status === 'running' ? 0 : 1) - (b.status === 'running' ? 0 : 1))
   const keptBeyondCap = crewAll.filter((c, i) => i >= CREW_ROWS && keptIds.includes(c.id))
   if (keptBeyondCap.length === 0) return crewAll
@@ -135,7 +135,7 @@ export function orderCrew(crewRows: readonly CrewRow[], keptIds: readonly string
   return rest
 }
 
-export function runsOf(tasks: Record<string, TaskState>, roster: Pick<WorkRosterV1, 'rows'>): RunRow[] {
+function runsOf(tasks: Record<string, TaskState>, roster: Pick<WorkRosterV1, 'rows'>): RunRow[] {
   const localRuns: RunRow[] = Object.values(tasks)
     .filter(t => !isLocalAgentTask(t))
     .filter(t => !isTerminalTaskStatus(t.status))
@@ -171,10 +171,10 @@ export function planningObjectiveOf(snap: RunSnapshot | null): string | null {
     : null
 }
 
-export type WorkLedgerRow = { id: string; status: string; blockedBy?: readonly string[] }
-export type WorkDigest = { rows: Array<{ text: string; color: string }>; doneCount: number; total: number; terminal: boolean }
+type WorkLedgerRow = { id: string; status: string; blockedBy?: readonly string[] }
+type WorkDigest = { rows: Array<{ text: string; color: string }>; doneCount: number; total: number; terminal: boolean }
 
-export function workDigestOf(
+function workDigestOf(
   snap: RunSnapshot | null,
   ledger: readonly WorkLedgerRow[],
   rowW: number,
@@ -234,7 +234,7 @@ export function workDigestOf(
   return { rows, doneCount, total: snap.deliverables.length, terminal }
 }
 
-export type GlanceReads = {
+type GlanceReads = {
   usage: ActiveSourceUsage
   focusedSpendUSD: number
   focusedUnpriced: number
@@ -243,7 +243,7 @@ export type GlanceReads = {
   nowMs: number
 }
 
-export function glanceLabelsOf(reads: GlanceReads, tok: MercuryThemeTokens): {
+function glanceLabelsOf(reads: GlanceReads, tok: MercuryThemeTokens): {
   usage: string
   ctx: string
   health: string
@@ -328,7 +328,7 @@ export type LanesInput = {
   accent: string
 }
 
-export type LanesModel = {
+type LanesModel = {
   boxed: boolean
   rowW: number
   solo: boolean
@@ -345,7 +345,7 @@ export function soloOf(input: Pick<LanesInput, 'sessionCrew' | 'viewingAgentTask
   return input.sessionCrew.length === 0 && keptIds.length === 0 && runsOf(input.tasks, input.roster).length === 0
 }
 
-export function cursorSectionOf(sections: readonly LanesSectionSpec[], cursorRow: HelmRow | undefined): string | null {
+function cursorSectionOf(sections: readonly LanesSectionSpec[], cursorRow: HelmRow | undefined): string | null {
   if (cursorRow === undefined) return null
   const sig = helmRowSig(cursorRow)
   for (const s of sections) {
@@ -356,7 +356,7 @@ export function cursorSectionOf(sections: readonly LanesSectionSpec[], cursorRow
   return null
 }
 
-export function shedPointerOf(shed: readonly string[]): string {
+function shedPointerOf(shed: readonly string[]): string {
   return '  more: ' + shed.map(k => (k === 'next' ? '/help' : k === 'recent' ? '/sessions' : `/${k}`)).join(' · ')
 }
 

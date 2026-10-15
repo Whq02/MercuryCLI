@@ -28,7 +28,7 @@ const LAYER_WORDS: Readonly<Record<HookLayer, string>> = {
   managed: 'Managed',
 }
 
-export function hookLayerWords(layer: HookLayer): string {
+function hookLayerWords(layer: HookLayer): string {
   return LAYER_WORDS[layer]
 }
 

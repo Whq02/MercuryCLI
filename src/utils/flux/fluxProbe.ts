@@ -38,7 +38,7 @@ function armProbeTee(): void {
 
 const RING_CAP = 8192
 
-export type FluxMark = { t: number; k: string; v: number }
+type FluxMark = { t: number; k: string; v: number }
 
 const marks: FluxMark[] = []
 let markAt = 0
@@ -109,7 +109,7 @@ function percentile(sorted: number[], p: number): number {
   return sorted[Math.max(0, idx)]!
 }
 
-export type FluxSummary = {
+type FluxSummary = {
   enabled: boolean
   counters: Record<string, number>
   frames: { total: number; window: number; p50: number; p95: number; p99: number; maxMs: number }
@@ -135,7 +135,7 @@ export function fluxSummary(): FluxSummary {
   }
 }
 
-export type FluxProbeDump = FluxSummary & {
+type FluxProbeDump = FluxSummary & {
   allMarks: FluxMark[]
   frameRecords: Array<{ t: number; ms: number }>
   epochMinusPerfNow: number

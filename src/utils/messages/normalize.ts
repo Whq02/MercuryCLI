@@ -107,7 +107,7 @@ export function normalizeMessages(messages: Message[]): NormalizedMessage[] {
   return messages.flatMap(rowsOf)
 }
 
-export type ToolUseRequestMessage = NormalizedAssistantMessage & {
+type ToolUseRequestMessage = NormalizedAssistantMessage & {
   message: { content: [ToolUseBlock] }
 }
 
@@ -115,7 +115,7 @@ export function isToolUseRequestMessage(message: Message): message is ToolUseReq
   return message.type === 'assistant' && contentBlocksOf(message.message.content).some(block => block.type === 'tool_use')
 }
 
-export type ToolUseResultMessage = NormalizedUserMessage & {
+type ToolUseResultMessage = NormalizedUserMessage & {
   message: { content: [ToolResultBlockParam] }
 }
 

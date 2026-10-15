@@ -14,7 +14,7 @@ type Bucket = {
   probeStartMs: number
 }
 
-export const CLOCK_BUDGET_MS_PER_S = 40
+const CLOCK_BUDGET_MS_PER_S = 40
 const DEGRADE_WINDOWS = 2
 const RECOVER_PROBES = 2
 const PROBE_MS = 5000

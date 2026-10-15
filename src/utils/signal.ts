@@ -1,4 +1,4 @@
-export type Signal<Args extends unknown[] = []> = {
+type Signal<Args extends unknown[] = []> = {
   subscribe: (listener: (...args: Args) => void) => () => void
   emit: (...args: Args) => void
   clear: () => void

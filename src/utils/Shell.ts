@@ -101,7 +101,7 @@ export const getShellConfig = memoize(async (): Promise<ShellConfig> => {
   return { provider }
 })
 
-export const getPsProvider = memoize(async (): Promise<ShellProvider> => {
+const getPsProvider = memoize(async (): Promise<ShellProvider> => {
   const powershellPath = await getCachedPowerShellPath()
   if (!powershellPath) {
     throw new Error('PowerShell is not available on this system')
@@ -146,7 +146,7 @@ function recordShellCwd(path: string, base: string): void {
   shellCwd = getFsImplementation().realpathSync(resolved).normalize('NFC')
 }
 
-export function __resetShellCwdForTest(): void {
+function __resetShellCwdForTest(): void {
   shellCwd = null
 }
 
@@ -162,7 +162,7 @@ function directoryResolves(path: string): boolean {
 
 const DEFAULT_TIMEOUT_MS = 30 * 60 * 1000
 
-export type ExecOptions = {
+type ExecOptions = {
   timeout?: number
   onProgress?: (
     recentLines: string,

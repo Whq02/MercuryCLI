@@ -45,11 +45,11 @@ export async function sessionFiles(projectDir: string, options: { stat?: boolean
   return rows.filter((row): row is IndexedSession => row !== null)
 }
 
-export function flatPrompt(text: string): string {
+function flatPrompt(text: string): string {
   return text.replace(/\n/g, ' ').trim()
 }
 
-export function clippedPrompt(flat: string): string {
+function clippedPrompt(flat: string): string {
   return flat.length > 200 ? flat.slice(0, 200).trim() + '…' : flat
 }
 
@@ -114,7 +114,7 @@ function fieldPrefix(text: string, key: string, limit: number): string {
   return ''
 }
 
-export function sessionLabelFacts(head: string, tail: string, builtIn: (name: string) => boolean) {
+function sessionLabelFacts(head: string, tail: string, builtIn: (name: string) => boolean) {
   const first = (field: string) => extractJsonStringField(head, field)
   const last = (field: string) => extractLastJsonStringField(tail, field)
   const cwd = firstField(head, 'cwd')

@@ -45,7 +45,7 @@ async function wrapped(
   }
 }
 
-export async function runPreflight(): Promise<PreflightSummary> {
+async function runPreflight(): Promise<PreflightSummary> {
   const t0 = Date.now()
   const checks = await Promise.all([
     wrapped('wrapper', () => {

@@ -292,13 +292,13 @@ export function fileHistoryCanRestore(state: FileHistoryState, messageId: UUID):
 }
 
 
-export type FileHistoryRestoreRefusalKind = 'no-checkpoint' | 'drift' | 'backup-missing' | 'restore-failed'
+type FileHistoryRestoreRefusalKind = 'no-checkpoint' | 'drift' | 'backup-missing' | 'restore-failed'
 
-export type FileHistoryRestoreResult =
+type FileHistoryRestoreResult =
   | { ok: true; changed: string[]; insertions: number; deletions: number; dryRun: boolean }
   | { ok: false; kind: FileHistoryRestoreRefusalKind; paths: string[]; detail: string }
 
-export interface RestoreDriftEntry {
+interface RestoreDriftEntry {
   content: string
   timestamp: number
   offset: number | undefined

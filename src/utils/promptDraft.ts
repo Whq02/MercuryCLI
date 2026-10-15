@@ -9,7 +9,7 @@ import { getCwd } from './cwd.js'
 import { logForDebugging } from './debug.js'
 import { getProjectDir } from './sessionStorage/paths.js'
 
-export interface PromptDraft {
+interface PromptDraft {
   text: string
   cursorOffset: number
   mode: string

@@ -5,7 +5,7 @@ import { findGitRoot } from './git.js'
 
 export const PROJECT_ENTRY_CEILING = 20_000
 
-export const PROJECT_MARKER_NAMES: readonly string[] = [
+const PROJECT_MARKER_NAMES: readonly string[] = [
   '.git',
   'package.json',
   'pyproject.toml',
@@ -64,7 +64,7 @@ export function homeDirectory(): string {
   return realOrSelf(rawHome())
 }
 
-export function isFilesystemRoot(dir: string): boolean {
+function isFilesystemRoot(dir: string): boolean {
   const r = realOrSelf(dir)
   return dirname(r) === r
 }
@@ -73,7 +73,7 @@ export function isHomeDirectory(dir: string): boolean {
   return sameFolder(dir, rawHome())
 }
 
-export function isWellKnownUserRoot(dir: string): boolean {
+function isWellKnownUserRoot(dir: string): boolean {
   const r = realOrSelf(dir)
   const parent = dirname(r)
   if (parent === r) return false
@@ -88,9 +88,9 @@ export function isWellKnownUserRoot(dir: string): boolean {
   return false
 }
 
-export type NonProjectRootKind = 'home' | 'filesystem-root' | 'user-root'
+type NonProjectRootKind = 'home' | 'filesystem-root' | 'user-root'
 
-export function nonProjectRootKindOf(dir: string): NonProjectRootKind | null {
+function nonProjectRootKindOf(dir: string): NonProjectRootKind | null {
   if (isHomeDirectory(dir)) return 'home'
   if (isFilesystemRoot(dir)) return 'filesystem-root'
   if (isWellKnownUserRoot(dir)) return 'user-root'
@@ -111,7 +111,7 @@ export function projectMarkerOf(dir: string): string | null {
   return byExtension ?? null
 }
 
-export interface EntryCount {
+interface EntryCount {
   count: number
   ceilingReached: boolean
 }
@@ -141,7 +141,7 @@ export function entryCountWords(c: EntryCount): string {
   return `${c.count.toLocaleString('en-US')} ${c.count === 1 ? 'entry' : 'entries'}`
 }
 
-export type GitInitRefusalKind = NonProjectRootKind | 'not-a-project'
+type GitInitRefusalKind = NonProjectRootKind | 'not-a-project'
 
 export interface GitInitRefusal {
   kind: GitInitRefusalKind

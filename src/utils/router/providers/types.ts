@@ -62,7 +62,7 @@ export const SPECIALIST_ROLE_ACCESS: Record<SpecialistRole, 'advisory' | 'author
   'test-author': 'authoring',
 }
 
-export type ProviderCapabilityKey =
+type ProviderCapabilityKey =
   | 'streaming'
   | 'tool-calls'
   | 'structured-output'
@@ -72,7 +72,7 @@ export type ProviderCapabilityKey =
   | 'cancellation'
   | 'worktree-authoring'
 
-export interface ProviderAccountView {
+interface ProviderAccountView {
   kind: 'inherited-main' | 'chatgpt-login' | 'provider-oauth' | 'api-key' | 'keyless' | 'none'
   label: string
 }

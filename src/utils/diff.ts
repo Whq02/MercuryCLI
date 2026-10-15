@@ -3,7 +3,7 @@ import { structuredPatch } from 'diff'
 import { addToTotalLinesChanged } from '../bootstrap/state.js'
 import { convertLeadingTabsToSpaces } from './file.js'
 
-export const CONTEXT_LINES = 3
+const CONTEXT_LINES = 3
 export const DIFF_TIMEOUT_MS = 5_000
 
 export type StructuredPatchHunk = {

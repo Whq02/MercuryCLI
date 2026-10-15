@@ -17,7 +17,7 @@ import { getTaskOutputPath } from '../task/diskOutput.js'
 import { projectWorkRoster } from '../task/workRoster.js'
 import type { AgentRosterAttachment, AgentRosterRow } from './types.js'
 
-export type AgentRosterInput = {
+type AgentRosterInput = {
   tasks: AppState['tasks'] | undefined
   agentNameRegistry?: ReadonlyMap<string, string>
   excludeAgentId?: string

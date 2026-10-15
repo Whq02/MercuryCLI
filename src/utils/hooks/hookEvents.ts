@@ -3,7 +3,7 @@ import { logForDebugging } from '../debug.js'
 
 type HookStartedEvent = { type: 'started'; hookId: string; hookName: string; hookEvent: string }
 
-export type HookProgressEvent = { type: 'progress'; hookId: string; hookName: string; hookEvent: string; stdout: string; stderr: string; output: string }
+type HookProgressEvent = { type: 'progress'; hookId: string; hookName: string; hookEvent: string; stdout: string; stderr: string; output: string }
 
 type HookResponseEvent = {
   type: 'response'
@@ -21,7 +21,7 @@ export type HookExecutionEvent = HookStartedEvent | HookProgressEvent | HookResp
 
 type HookEventHandler = (event: HookExecutionEvent) => void
 
-export const HOOK_PROGRESS_MIN_DELTA_BYTES = 8192
+const HOOK_PROGRESS_MIN_DELTA_BYTES = 8192
 
 const observers = new Set<HookEventHandler>()
 
@@ -32,7 +32,7 @@ export function subscribeHookExecutionEvents(observer: HookEventHandler): () => 
   }
 }
 
-export type HookRunContext = {
+type HookRunContext = {
   sessionId?: string
   cwd?: string
   transcriptPath?: string

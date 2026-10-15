@@ -4,7 +4,7 @@ import { basename, dirname, resolve } from 'node:path'
 import { globalConfigFileIn } from '../env.js'
 import { getMercuryHome } from '../envUtils.js'
 
-export type ScopeIdentity = { uuid?: string; email?: string }
+type ScopeIdentity = { uuid?: string; email?: string }
 
 export type AccountScope = {
   name: string
@@ -46,7 +46,7 @@ export function readScopeIdentity(configFile: string): ScopeIdentity {
   return {}
 }
 
-export interface ScopeAuthReads {
+interface ScopeAuthReads {
   storedLogin?: (dir: string) => boolean
 }
 

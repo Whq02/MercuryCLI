@@ -14,7 +14,7 @@ type LoadedBundle = {
 }
 
 export const MAX_HIGHLIGHT_LINE_CHARS = 2_000
-export const MAX_HIGHLIGHT_TOTAL_CHARS = 200_000
+const MAX_HIGHLIGHT_TOTAL_CHARS = 200_000
 export function shouldSkipHighlight(code: string): boolean {
   if (code.length > MAX_HIGHLIGHT_TOTAL_CHARS) return true
   let lineStart = 0

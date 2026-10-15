@@ -21,7 +21,7 @@ const LEVEL_ORDER: readonly DebugLogLevel[] = ['verbose', 'debug', 'info', 'warn
 
 const MAX_DEBUG_LOG_BYTES = 10 * 1024 * 1024
 
-export const getMinDebugLogLevel = memoize((): DebugLogLevel => {
+const getMinDebugLogLevel = memoize((): DebugLogLevel => {
   return 'debug'
 })
 
@@ -44,7 +44,7 @@ export function enableDebugLogging(): boolean {
   return wasActive
 }
 
-export const getDebugFilter = memoize((): DebugFilter | null => {
+const getDebugFilter = memoize((): DebugFilter | null => {
   const arg = process.argv.find(candidate => candidate.startsWith('--debug='))
   if (!arg) return null
   return parseDebugFilter(arg.slice('--debug='.length))
@@ -54,7 +54,7 @@ export const isDebugToStdErr = memoize((): boolean => {
   return readSessionOption(process.argv.slice(2), '--log-stderr').present
 })
 
-export const getDebugFilePath = memoize((): string | null => {
+const getDebugFilePath = memoize((): string | null => {
   return readSessionOption(process.argv.slice(2), '--log-file').value ?? null
 })
 
@@ -73,7 +73,7 @@ let rotationInProgress = false
 let latestSymlinkRefreshed = false
 let pendingMaintenance: Promise<void> = Promise.resolve()
 
-export async function maybeRotateDebugLog(
+async function maybeRotateDebugLog(
   path: string,
   addedBytes: number,
   maxBytes: number = MAX_DEBUG_LOG_BYTES,

@@ -44,7 +44,7 @@ export const ROUTE_REASON_CODES = [
   'effort-clamped',
 ] as const
 export type RouteReasonCode = (typeof ROUTE_REASON_CODES)[number]
-export const isRouteReasonCode = (v: unknown): v is RouteReasonCode =>
+const isRouteReasonCode = (v: unknown): v is RouteReasonCode =>
   typeof v === 'string' && (ROUTE_REASON_CODES as readonly string[]).includes(v)
 
 export const LEGACY_ROUTE_REASON_CODES = ['workflow-posture-active', 'workflow-posture-absent'] as const
@@ -59,11 +59,11 @@ export const ROUTE_PROFILES = [
 export type RouteProfile = (typeof ROUTE_PROFILES)[number]
 
 export const LEGACY_ROUTE_PROFILES = ['workflow-delegated'] as const
-export type LegacyRouteProfile = (typeof LEGACY_ROUTE_PROFILES)[number]
+type LegacyRouteProfile = (typeof LEGACY_ROUTE_PROFILES)[number]
 const isReadableRouteProfile = (v: string): v is RouteProfile | LegacyRouteProfile =>
   (ROUTE_PROFILES as readonly string[]).includes(v) || (LEGACY_ROUTE_PROFILES as readonly string[]).includes(v)
 
-export const ROUTE_TASK_SHAPES = [
+const ROUTE_TASK_SHAPES = [
   'mechanical',
   'bounded',
   'cross-cutting',
@@ -96,7 +96,7 @@ export interface RouteAcceptanceCheck {
   kind: 'test' | 'build' | 'grep' | 'render' | 'report'
 }
 
-export const ROUTE_NODE_STATES = [
+const ROUTE_NODE_STATES = [
   'blocked',
   'ready',
   'held',
@@ -137,7 +137,7 @@ export interface RouteNode {
   completion?: RouteNodeCompletion
 }
 
-export interface RouteNodeCompletion {
+interface RouteNodeCompletion {
   summary: string
   checksReported: string[]
   changedAreas: string[]
@@ -147,13 +147,13 @@ export interface RouteNodeCompletion {
   acceptedAt?: number
 }
 
-export interface RouteWorkerAffinityRecord {
+interface RouteWorkerAffinityRecord {
   keptCurrentModel: boolean
   changeoverPenalty: number
   reason: string
 }
 
-export interface RoutePriorContribution {
+interface RoutePriorContribution {
   sampleCount: number
   acceptedFirstPassRate: number
   weight: number
@@ -172,7 +172,7 @@ export interface RouteDecisionRecord {
   priorContribution?: RoutePriorContribution
 }
 
-export const ROUTE_PLAN_STATES = [
+const ROUTE_PLAN_STATES = [
   'committed',
   'running',
   'synthesizing',
@@ -204,7 +204,7 @@ export interface TaskRoutePlan {
   updatedAt: number
 }
 
-export interface RouteRefusal {
+interface RouteRefusal {
   refused: true
   reasonCodes: RouteReasonCode[]
   detail: string

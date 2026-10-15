@@ -85,14 +85,14 @@ export function storedImageState(imageId: number): { path: string; present: bool
   return { path, present: existsSync(path) }
 }
 
-export function missingStoredImageWords(imageId: number, path: string): string {
+function missingStoredImageWords(imageId: number, path: string): string {
   return `[Image #${imageId}] file missing: ${path} — paste the image again`
 }
 
 
 export const STORED_IMAGE_SOURCE_TYPE = 'mercury-stored-image'
 
-export interface StoredImageRefBlock {
+interface StoredImageRefBlock {
   type: 'image'
   source: {
     type: typeof STORED_IMAGE_SOURCE_TYPE
@@ -165,7 +165,7 @@ export async function readStoredImageRef(
 const READ_BACK_MEMO_CAP = 16
 const readBackMemo = new Map<string, { type: 'image'; source: { type: 'base64'; media_type: string; data: string } }>()
 
-export async function readStoredImageRefBlock(block: StoredImageRefBlock): Promise<ContentBlockParam> {
+async function readStoredImageRefBlock(block: StoredImageRefBlock): Promise<ContentBlockParam> {
   const key = `${block.source.path}\n${block.source.sha256}`
   const known = readBackMemo.get(key)
   if (known !== undefined) return known as ContentBlockParam

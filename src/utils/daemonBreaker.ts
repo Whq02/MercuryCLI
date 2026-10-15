@@ -1,9 +1,9 @@
 import { flagEnv, flagEnvLoose } from '../substrate/flagRegistry.js'
 
-export const DEFAULT_BREAKER_CONSECUTIVE_FAILS = 5
-export const DEFAULT_BREAKER_WINDOW = 10
-export const DEFAULT_BREAKER_RATE = 0.8
-export const DEFAULT_BREAKER_COOLDOWN_MS = 60 * 1000
+const DEFAULT_BREAKER_CONSECUTIVE_FAILS = 5
+const DEFAULT_BREAKER_WINDOW = 10
+const DEFAULT_BREAKER_RATE = 0.8
+const DEFAULT_BREAKER_COOLDOWN_MS = 60 * 1000
 
 function intEnv(name: string, dflt: number): number {
   const raw = flagEnvLoose(name)
@@ -17,7 +17,7 @@ function rateEnv(name: string, dflt: number): number {
   return Number.isFinite(parsed) && parsed > 0 && parsed <= 1 ? parsed : dflt
 }
 
-export type DaemonBreakerConfig = {
+type DaemonBreakerConfig = {
   consecutiveFails?: number
   windowSize?: number
   failureRate?: number
@@ -25,9 +25,9 @@ export type DaemonBreakerConfig = {
   now?: () => number
 }
 
-export type BreakerState = 'closed' | 'open' | 'half-open'
+type BreakerState = 'closed' | 'open' | 'half-open'
 
-export type BreakerStatus = {
+type BreakerStatus = {
   state: BreakerState
   consecutiveFailures: number
   cooldownRemainingMs: number

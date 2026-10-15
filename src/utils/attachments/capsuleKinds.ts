@@ -2,7 +2,7 @@ import type { Attachment } from './types.js'
 
 export type CapsuleSectionName = 'Files' | 'Mentions' | 'Instructions' | 'Memory' | 'Skills' | 'Tasks' | 'Diagnostics' | 'Reminders' | 'Crew' | 'Date'
 
-export const capsuleKinds = {
+const capsuleKinds = {
   file: { section: 'Files', cadence: 'event' },
   already_read_file: { section: 'Files', cadence: 'event' },
   edited_text_file: { section: 'Files', cadence: 'event' },

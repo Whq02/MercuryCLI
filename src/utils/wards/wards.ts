@@ -1,7 +1,7 @@
 
-export type WardScope = 'edit' | 'bash'
+type WardScope = 'edit' | 'bash'
 
-export type GeneratedPath = {
+type GeneratedPath = {
   pattern: string
   generator?: string
   sources?: string
@@ -75,7 +75,7 @@ const GIT_TOOLS = new Set(['Git'])
 const LSP_TOOLS = new Set(['LspRename', 'LspMoveSymbol', 'LspMoveFile', 'LspCodeAction', 'LspFormat'])
 const GODOT_TOOLS = new Set(['Godot'])
 const GODOT_SOURCE_OPS = new Set(['script_create', 'script_edit', 'shader_create', 'shader_edit'])
-export const WARDS_TOOL_MATCHER = '*'
+const WARDS_TOOL_MATCHER = '*'
 
 const EMOJI_PATTERN = '[\\u{1F300}-\\u{1FAFF}]|\\uFE0F'
 
@@ -99,7 +99,7 @@ const OMISSION_DOTS = `${OMISSION_MARK}(?:[ \\t]+\\.+)*`
 const OMISSION_TRAILING = `${OMISSION_OPEN}${OMISSION_PHRASE}${OMISSION_SHUT}[ \\t]*${OMISSION_DOTS}`
 const OMISSION_LEADING = (gap: string): string =>
   `${OMISSION_OPEN}${OMISSION_DOTS}${gap}${OMISSION_OPEN}${OMISSION_PHRASE}${OMISSION_SHUT}(?:[ \\t]*${OMISSION_DOTS})?`
-export const OMISSION_PLACEHOLDER =
+const OMISSION_PLACEHOLDER =
   `^(?=[^\\n]*?${OMISSION_MARK})` +
   `(?:${OMISSION_LEADER}(?:${OMISSION_TRAILING}|${OMISSION_LEADING('[ \\t]*')})|${OMISSION_TRAILING}|${OMISSION_LEADING('[ \\t]+')})` +
   `${OMISSION_CLOSE}$`
@@ -118,12 +118,12 @@ export const GENERATED_MARKER =
   `|"generator"[ \\t]*:[ \\t]*"${GENERATOR_SCRIPT}"` +
   '|^[ \\t]*>?[ \\t]*Regenerate:[ \\t]' +
   `|\\b(?:generated|composed|managed) by[ \\t]+${GENERATOR_RUNNER}${GENERATOR_SCRIPT}\\b`
-export const GENERATED_DECLARATION =
+const GENERATED_DECLARATION =
   `\\b(?:generated|composed|managed) by[ \\t]+${GENERATOR_RUNNER}${GENERATOR_SCRIPT}\\b` +
   `|"(?:generatedBy|composedBy|generator)"[ \\t]*:[ \\t]*"${GENERATOR_SCRIPT}"` +
   `|^[ \\t]*>?[ \\t]*Regenerate:[ \\t]+${GENERATOR_RUNNER}${GENERATOR_SCRIPT}\\b`
 export const GENERATED_HEAD_LINES = 12
-export const GENERATED_HEAD_CHARS = 4096
+const GENERATED_HEAD_CHARS = 4096
 
 const BUNDLED_SKILLS = [
   'extension-maker',
@@ -510,7 +510,7 @@ export function windowsRemovalPatterns(): RegExp[] {
   return patterns
 }
 
-export type HomeSpellings = () => readonly string[]
+type HomeSpellings = () => readonly string[]
 
 let homeSpellingsDoor: HomeSpellings | undefined
 

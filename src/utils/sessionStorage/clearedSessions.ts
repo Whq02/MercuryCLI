@@ -55,7 +55,7 @@ export function unmarkSessionCleared(sessionId: string | null | undefined): void
   }
 }
 
-export function clearedSessionIds(): Set<string> {
+function clearedSessionIds(): Set<string> {
   const now = Date.now()
   if (memo && now - memo.at < MEMO_MS) return memo.ids
   const ids = new Set(Object.keys(readMap()))

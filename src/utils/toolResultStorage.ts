@@ -17,7 +17,7 @@ import { getProjectDir } from './sessionStorage/paths.js'
 export const TOOL_RESULTS_SUBDIR = 'tool-results'
 export const PERSISTED_OUTPUT_TAG = '<persisted-output>'
 export const PERSISTED_OUTPUT_CLOSING_TAG = '</persisted-output>'
-export const TOOL_RESULT_CLEARED_MESSAGE = '[stale tool result pruned — content cleared]'
+const TOOL_RESULT_CLEARED_MESSAGE = '[stale tool result pruned — content cleared]'
 
 export const PREVIEW_SIZE_CHARS = 2000
 export const PREVIEW_MAX_LINE_CHARS = 400

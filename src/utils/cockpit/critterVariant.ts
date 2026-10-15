@@ -5,14 +5,14 @@ import {
   type CritterDef,
 } from './critterData.js'
 
-export function critterKeyFor(agentId: string, sessionId: string | null | undefined): string {
+function critterKeyFor(agentId: string, sessionId: string | null | undefined): string {
   return agentId === 'main' ? sessionId || 'main' : agentId
 }
 
 const assigned = new Map<string, number>()
 let nextVariant = 0
 
-export function critterVariantFor(key: string | null | undefined): number {
+function critterVariantFor(key: string | null | undefined): number {
   if (!key) return 0
   let v = assigned.get(key)
   if (v === undefined) {

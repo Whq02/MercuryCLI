@@ -31,7 +31,7 @@ function endTimeOf(task: TaskState): number | undefined {
   return typeof t.endTime === 'number' && Number.isFinite(t.endTime) ? t.endTime : undefined
 }
 
-export function workPhasesOf(task: LocalWorkflowTaskState): WorkPhaseV1[] {
+function workPhasesOf(task: LocalWorkflowTaskState): WorkPhaseV1[] {
   const events = (task.workflowProgress ?? []) as readonly WorkflowProgressEvent[]
   const phaseEvents: WorkflowPhaseEventLite[] = []
   for (const ev of events) {

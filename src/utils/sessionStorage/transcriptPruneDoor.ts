@@ -3,7 +3,7 @@ import { removePrefixRecord } from '../../services/providers/anthropic/prefixRec
 import { receiptsPathBesideTranscript } from '../../services/switchboard/sessionReceipts.js'
 import { snapshotPathFor } from './resumeSnapshot.js'
 
-export type PruneCandidate = {
+type PruneCandidate = {
   sessionId: string
   transcriptPath: string
   receiptsPath: string

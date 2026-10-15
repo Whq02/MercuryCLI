@@ -43,7 +43,7 @@ export function eventHasMatch(event: HookEvent): boolean {
   return hookEventTable[event].match !== undefined
 }
 
-export type HooksByEventAndMatch = Record<HookEvent, Record<string, HookRow[]>>
+type HooksByEventAndMatch = Record<HookEvent, Record<string, HookRow[]>>
 
 export function groupHooksByEventAndMatch(appState: AppState): HooksByEventAndMatch {
   const grouped = Object.fromEntries(HOOK_EVENTS.map(event => [event, {}])) as HooksByEventAndMatch

@@ -3,9 +3,9 @@ import { listExecutions } from '../../services/primitives/executionPlane.js'
 import { processMainOwner } from '../../services/run/resolveOwner.js'
 import { withState, type Snapshot } from './types.js'
 
-export type FleetRosterSource = 'concourse' | 'execution'
+type FleetRosterSource = 'concourse' | 'execution'
 
-export interface FleetRosterEntry {
+interface FleetRosterEntry {
   id: string
   name: string
   source: FleetRosterSource

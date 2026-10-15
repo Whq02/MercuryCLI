@@ -35,12 +35,12 @@ const FRAGMENT_SCAN_MAX = 16 * 1024 * 1024
 const NEWLINE = 0x0a
 const EMPTY = Buffer.alloc(0)
 
-export function transcriptReaderEnabled(): boolean {
+function transcriptReaderEnabled(): boolean {
   return flagEnabled('MERCURY_TRANSCRIPT_READER')
 }
 
 
-export interface TranscriptReaderIo {
+interface TranscriptReaderIo {
   statSync(path: string): { size: number; ino: number } | null
   readRangeSync(path: string, start: number, end: number): Buffer
 }
@@ -125,21 +125,21 @@ export const transcriptReaderCensus = {
 }
 
 
-export type TranscriptReadPolicy = 'resume' | 'all'
+type TranscriptReadPolicy = 'resume' | 'all'
 
-export interface TranscriptReadAccounting {
+interface TranscriptReadAccounting {
   malformed: number
   invalid: number
   totalLines: number
 }
 
-export interface TranscriptRead {
+interface TranscriptRead {
   kind: 'cold' | 'growth' | 'none'
   accounting: TranscriptReadAccounting
   refusal: string | null
 }
 
-export interface TranscriptView {
+interface TranscriptView {
   path: string
   generation: number
   offset: number
@@ -554,7 +554,7 @@ export interface TranscriptChainCursor {
   rows: readonly SerializedMessage[]
 }
 
-export interface TranscriptChainSince {
+interface TranscriptChainSince {
   rows: readonly SerializedMessage[]
   since: number
   appended: readonly SerializedMessage[]
@@ -598,12 +598,12 @@ export async function readTranscriptChainSince(
 }
 
 
-export interface TranscriptByteCursor {
+interface TranscriptByteCursor {
   offset: number
   carry: string
 }
 
-export interface TranscriptBytesAfter {
+interface TranscriptBytesAfter {
   text: string
   cursor: TranscriptByteCursor
   rewound: boolean

@@ -17,7 +17,7 @@ import { logForDebugging } from './debug.js'
 
 export const PASTE_THRESHOLD = 800
 
-export const IMAGE_EXTENSION_REGEX = /\.(png|jpe?g|gif|webp)$/i
+const IMAGE_EXTENSION_REGEX = /\.(png|jpe?g|gif|webp)$/i
 
 type ImageWithDimensions = {
   base64: string

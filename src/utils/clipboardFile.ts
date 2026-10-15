@@ -3,7 +3,7 @@ import { flagEnv } from '../substrate/flagRegistry.js'
 
 export const CLIPBOARD_FILE_ROUTE = 'file' as const
 
-export function clipboardFilePath(): string | null {
+function clipboardFilePath(): string | null {
   const file = flagEnv('MERCURY_CLIPBOARD_FILE')
   return file !== undefined && file.trim() !== '' ? file : null
 }

@@ -7,7 +7,7 @@ export function consoleEnabled(): boolean {
 }
 
 
-export type ConsoleUsage = {
+type ConsoleUsage = {
   in: number
   out: number
   cacheRead: number

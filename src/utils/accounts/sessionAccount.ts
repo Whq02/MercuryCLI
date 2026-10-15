@@ -8,7 +8,7 @@ import {
 import { computedDefault, type ComputedDefault } from '../model/computedDefault.js'
 import { getUserSpecifiedModelSetting } from '../model/model.js'
 
-export type SessionAccountWords =
+type SessionAccountWords =
   | { state: 'email'; text: string; family: string }
   | { state: 'none' }
 

@@ -16,7 +16,7 @@ function isPathSafe(filePath: string): boolean {
   return !isAbsolute(normalize(filePath))
 }
 
-export type ZipValidationState = {
+type ZipValidationState = {
   fileCount: number
   totalUncompressedSize: number
   compressedSize: number

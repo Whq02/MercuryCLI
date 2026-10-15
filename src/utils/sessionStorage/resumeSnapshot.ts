@@ -77,7 +77,7 @@ export function writeResumeSnapshot(
   }
 }
 
-export type SnapshotHit = {
+type SnapshotHit = {
   fold: TranscriptFoldState
   tail: Buffer
   byteCursor: number

@@ -1,5 +1,5 @@
 
-export type ReapedWorker = {
+type ReapedWorker = {
   short: string
   kind: 'long-lived' | 'one-shot'
   purpose: string

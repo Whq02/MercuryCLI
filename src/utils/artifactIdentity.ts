@@ -1,7 +1,7 @@
 import { existsSync, readFileSync, realpathSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 
-export interface ArtifactIdentity {
+interface ArtifactIdentity {
   version: string
   distribution: 'packaged-install' | 'source-build' | 'source-run'
   buildTree: string | null
@@ -10,7 +10,7 @@ export interface ArtifactIdentity {
   entry: string | null
 }
 
-export function realEntryPath(entry: string | null): string | null {
+function realEntryPath(entry: string | null): string | null {
   if (entry === null || entry === '') return entry
   try {
     return realpathSync(entry)

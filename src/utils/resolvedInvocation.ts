@@ -1,5 +1,5 @@
 
-export interface ResolvedInvocation {
+interface ResolvedInvocation {
   executablePath: string
   args: string[]
   cwd?: string

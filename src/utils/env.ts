@@ -103,7 +103,7 @@ const DOCKER_MARKER = '/.dockerenv'
 const HYPERVISOR_UUID_FILE = '/sys/hypervisor/uuid'
 const DIGITALOCEAN_APP_DOMAIN = 'ondigitalocean.app'
 
-export const detectDeploymentEnvironment = memoize((): string => {
+const detectDeploymentEnvironment = memoize((): string => {
   const envVars = process.env
   if (isEnvTruthy(envVars.CODESPACES)) return 'codespaces'
   if (envVars.GITPOD_WORKSPACE_ID) return 'gitpod'

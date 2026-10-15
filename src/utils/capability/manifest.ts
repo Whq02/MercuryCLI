@@ -121,7 +121,7 @@ function isMcpTool(tool: Tool): boolean {
   return typeof tool.name === 'string' && tool.name.startsWith('mcp__')
 }
 
-export function deriveProvenance(tool: Tool): CapabilityProvenance {
+function deriveProvenance(tool: Tool): CapabilityProvenance {
   if (isMcpTool(tool)) {
     const server = mcpServerName(tool)
     return `mcp:${server ?? 'unknown'}`
@@ -190,7 +190,7 @@ export function deriveCapabilityDescriptor(tool: Tool): CapabilityDescriptor {
   }
 }
 
-export function compileCapabilityCard(input: unknown): string {
+function compileCapabilityCard(input: unknown): string {
   const d =
     input != null && typeof input === 'object'
       ? (input as Partial<CapabilityDescriptor>)

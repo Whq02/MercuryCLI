@@ -6,9 +6,9 @@ import { getInitialSettings } from '../settings/settings.js'
 import { resolveThemeSetting } from '../systemTheme.js'
 import type { ThemeName, ThemeSetting } from '../theme.js'
 
-export type TerminalColorMode = 'truecolor' | '256' | '16' | 'mono'
+type TerminalColorMode = 'truecolor' | '256' | '16' | 'mono'
 
-export type MercuryAppearanceSnapshot = {
+type MercuryAppearanceSnapshot = {
   requestedTheme: ThemeSetting
   concreteTheme: ThemeName
   colorMode: TerminalColorMode
@@ -30,7 +30,7 @@ export function colorModeFromLevel(level: 0 | 1 | 2 | 3): TerminalColorMode {
   }
 }
 
-export type AppearanceResolveInputs = {
+type AppearanceResolveInputs = {
   requestedTheme: ThemeSetting
   concreteTheme: ThemeName
   colorLevel: 0 | 1 | 2 | 3

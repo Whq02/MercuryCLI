@@ -16,12 +16,12 @@ import { activeWalletEntry, walletEntries, type WalletEntry } from '../services/
 import { resolveProviderUsability } from '../services/providers/providerUsability.js'
 
 
-export type Property = {
+type Property = {
   label?: string
   value: React.ReactNode | string[]
 }
 
-export type Diagnostic = React.ReactNode
+type Diagnostic = React.ReactNode
 
 export function propertyValueToText(value: React.ReactNode | string[]): string {
   if (Array.isArray(value) && value.every(item => typeof item === 'string')) return value.join(', ')

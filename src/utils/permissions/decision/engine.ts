@@ -31,7 +31,7 @@ import type {
   DecisionTrace,
 } from './trace.js'
 
-export interface DecisionPorts {
+interface DecisionPorts {
   isToolKilled(tool: Tool, agentType: string | undefined): boolean
   sandboxAutoAllows(tool: Tool, input: Record<string, unknown>): boolean
   resolveToolVerdict(
@@ -52,7 +52,7 @@ export const defaultDecisionPorts: DecisionPorts = {
     tool.checkPermissions(tool.inputSchema.parse(input), context),
 }
 
-export interface DecisionOutcome<D> {
+interface DecisionOutcome<D> {
   decision: D
   trace: DecisionTrace
 }

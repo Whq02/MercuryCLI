@@ -4,7 +4,7 @@ import { calculateUSDCost, modelPricingBasis } from '../modelCost.js'
 import { listAgentTranscriptPaths } from './paths.js'
 import { scanTranscriptEntriesForward } from './transcriptReader.js'
 
-export type RolledModelUsage = {
+type RolledModelUsage = {
   inputTokens: number
   outputTokens: number
   cacheReadInputTokens: number
@@ -99,7 +99,7 @@ function foldResponse(rollup: TranscriptUsageRollup, row: CountedRow): void {
   }
 }
 
-export function rollupTranscriptUsage(rollup: TranscriptUsageRollup, path: string): boolean {
+function rollupTranscriptUsage(rollup: TranscriptUsageRollup, path: string): boolean {
   const byUuid = new Map<string, CountedRow>()
   let seq = 0
   const read = scanTranscriptEntriesForward(path, entry => {
@@ -120,7 +120,7 @@ export function rollupTranscriptUsage(rollup: TranscriptUsageRollup, path: strin
   return true
 }
 
-export function emptyUsageRollup(): TranscriptUsageRollup {
+function emptyUsageRollup(): TranscriptUsageRollup {
   return { modelUsage: {}, unpricedTurns: {}, workloadUsage: {}, workloadUnpricedTurns: {}, totalCostUSD: 0, responses: 0, files: 0 }
 }
 

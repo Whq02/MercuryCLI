@@ -5,9 +5,9 @@ import { flagEnv } from '../substrate/flagRegistry.js'
 import { lastMemorySample, refreshMemorySample, runtimeMemorySample, type MemoryRead } from '../services/switchboard/capacityCheck.js'
 import { commandWords } from '../guards/generatedAssets.js'
 
-export const BOX_LOCK_SCRIPT = 'with-box-lock.sh'
+const BOX_LOCK_SCRIPT = 'with-box-lock.sh'
 
-export interface BoxLockHolder {
+interface BoxLockHolder {
   slot: number
   pid: number
   label: string
@@ -15,18 +15,18 @@ export interface BoxLockHolder {
   alive: boolean
 }
 
-export interface BoxLockWaiter {
+interface BoxLockWaiter {
   label: string
   waitedS: number
 }
 
-export interface BoxLockState {
+interface BoxLockState {
   dir: string
   holders: BoxLockHolder[]
   waiters: BoxLockWaiter[]
 }
 
-export interface BoxLoadReading {
+interface BoxLoadReading {
   cores: number
   loadPerCore: number | null
   memory: { availableMb: number; totalMb: number; read: MemoryRead; sampledAtMs: number }
@@ -38,7 +38,7 @@ export interface BoxReadingV1 extends BoxLoadReading {
   lockNote?: string
 }
 
-export interface BoxLockWait {
+interface BoxLockWait {
   label: string
   waitedS: number
   slot: string
@@ -64,7 +64,7 @@ export function boxLockDirOfScript(scriptPath: string): string | null {
   }
 }
 
-export function boxLockScriptOf(words: readonly string[]): string | null {
+function boxLockScriptOf(words: readonly string[]): string | null {
   for (const word of words) {
     if (basename(word) === BOX_LOCK_SCRIPT) return word
   }
@@ -134,7 +134,7 @@ export function readBoxLockState(dir: string, now: number = Date.now(), alive: (
   return { dir, holders, waiters }
 }
 
-export function boxLoadReading(now: number = Date.now()): BoxLoadReading {
+function boxLoadReading(now: number = Date.now()): BoxLoadReading {
   const cores = Math.max(1, cpus().length)
   const load1 = process.platform === 'win32' ? null : (loadavg()[0] ?? null)
   const last = lastMemorySample(now)
@@ -197,7 +197,7 @@ export function boxLoadWords(reading: BoxLoadReading): string {
   return `${load} (${reading.cores} cores), ${reading.memory.availableMb} MB available of ${reading.memory.totalMb}`
 }
 
-export function boxLockWaitLine(wait: BoxLockWait, reading: BoxReadingV1): string {
+function boxLockWaitLine(wait: BoxLockWait, reading: BoxReadingV1): string {
   const state = reading.lock === null ? (reading.lockNote ?? 'the box lock state is not readable') : boxLockStateWords(reading.lock)
   return `Waited ${wait.waitedS} s for the box lock (${wait.label} took ${wait.slot}): ${state}; ${boxLoadWords(reading)}`
 }

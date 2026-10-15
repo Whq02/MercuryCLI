@@ -17,7 +17,7 @@ export const MODE_TRANSITION_ROADS = [
 
 export type ModeTransitionRoad = (typeof MODE_TRANSITION_ROADS)[number]
 
-export type ModeTransition = {
+type ModeTransition = {
   from: PermissionMode | null
   to: PermissionMode
   road: ModeTransitionRoad

@@ -151,7 +151,7 @@ export async function maybeTrimTrace(path: string): Promise<void> {
   }
 }
 
-export type InvocationSurface = CapabilityProvenance
+type InvocationSurface = CapabilityProvenance
 
 export interface InvocationTrace {
   ts: string
@@ -250,7 +250,7 @@ export function emitInvocationTrace(
 
 const COMPACTION_TRACE_OPT_OUT = 'MERCURY_COMPACTION_TRACE'
 
-export type CompactionEvent =
+type CompactionEvent =
   | 'snip'
   | 'microcompact'
   | 'context-collapse'

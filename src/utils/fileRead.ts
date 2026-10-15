@@ -7,7 +7,7 @@ export type LineEndingType = 'CRLF' | 'LF'
 
 const SNIFF_BYTES = 4096
 
-export class NotARegularFileError extends Error {
+class NotARegularFileError extends Error {
   readonly code = 'ENOTREG'
   constructor(filePath: string, kind: string) {
     super(`${filePath} is ${kind}, not a regular file, and is not read`)
@@ -22,7 +22,7 @@ function specialFileKind(stats: Stats): string | null {
   return null
 }
 
-export function specialFileKindAt(fsImpl: FsOperations, resolvedPath: string): string | null {
+function specialFileKindAt(fsImpl: FsOperations, resolvedPath: string): string | null {
   try {
     return specialFileKind(fsImpl.statSync(resolvedPath))
   } catch {

@@ -1,6 +1,6 @@
 import { isSessionMarkedNonInteractive } from './runtimePosture.js'
 
-export interface RunProtocolRoster {
+interface RunProtocolRoster {
   taskToolsMounted?: boolean
 }
 

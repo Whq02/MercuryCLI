@@ -14,11 +14,11 @@ import {
 import type { ResumeEntrypoint } from '../commands.js'
 import type { SessionListing } from '../types/logs.js'
 
-export type SessionFlipOutcome =
+type SessionFlipOutcome =
   | { flipped: true }
   | { flipped: false; note?: string }
 
-export async function resolveSessionFlipTarget(
+async function resolveSessionFlipTarget(
   wanted: string,
 ): Promise<{ target: SessionListing; sessionId: UUID } | { target: null; note?: string }> {
   const all = await listSessionsAcrossProjects()  

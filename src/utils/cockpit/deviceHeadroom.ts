@@ -3,7 +3,7 @@ import { subprocessEnv } from '../subprocessEnv.js'
 import { readFileSync } from 'node:fs'
 import { freemem } from 'node:os'
 
-export type Headroom = {
+type Headroom = {
   availableB: number
   source: 'vm_stat' | 'meminfo' | 'node:os'
 }

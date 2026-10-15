@@ -1,6 +1,6 @@
 import { MODEL_PICKER_CONTEXT_WORDS } from './modelPickerGroups.js'
 
-export type ModelPickerFooterHeading = { fold: 'folded' | 'open' }
+type ModelPickerFooterHeading = { fold: 'folded' | 'open' }
 
 export const MODEL_PICKER_EXIT_WORDS = 'esc or click outside closes'
 

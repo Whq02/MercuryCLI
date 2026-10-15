@@ -13,7 +13,7 @@ export type { HookEntry, HooksSettings } from '../../schemas/hooks.js'
 
 export const CUSTOMIZATION_SURFACES = ['skills', 'agents', 'hooks', 'mcp'] as const
 
-export const EnvironmentVariablesSchema = lazySchema(() =>
+const EnvironmentVariablesSchema = lazySchema(() =>
   z.record(z.string(), z.union([z.string(), z.number(), z.boolean()]).transform(value => String(value))),
 )
 
@@ -31,10 +31,10 @@ function requireExactlyOneField(
   if (present !== 1) ctx.addIssue({ code: 'custom', message: 'Exactly one of serverName, serverCommand, or serverUrl must be set' } as never)
 }
 
-export const AllowedMcpServerEntrySchema = lazySchema(() => z.object(mcpEntryShape).superRefine(requireExactlyOneField))
-export const DeniedMcpServerEntrySchema = lazySchema(() => z.object(mcpEntryShape).superRefine(requireExactlyOneField))
-export type AllowedMcpServerEntry = z.infer<ReturnType<typeof AllowedMcpServerEntrySchema>>
-export type DeniedMcpServerEntry = z.infer<ReturnType<typeof DeniedMcpServerEntrySchema>>
+const AllowedMcpServerEntrySchema = lazySchema(() => z.object(mcpEntryShape).superRefine(requireExactlyOneField))
+const DeniedMcpServerEntrySchema = lazySchema(() => z.object(mcpEntryShape).superRefine(requireExactlyOneField))
+type AllowedMcpServerEntry = z.infer<ReturnType<typeof AllowedMcpServerEntrySchema>>
+type DeniedMcpServerEntry = z.infer<ReturnType<typeof DeniedMcpServerEntrySchema>>
 
 const modeLockSchema = () => z.preprocess(
   value => value === undefined || typeof value === 'boolean' ? value : true,
@@ -88,7 +88,7 @@ export const ExtensionsSettingsSchema = lazySchema(() =>
       .describe("Managed lock restricting customization surfaces to extensions (filesystem sources such as the config home's skills directory are skipped for locked surfaces)"),
   }),
 )
-export type ExtensionsSettings = z.infer<ReturnType<typeof ExtensionsSettingsSchema>>
+type ExtensionsSettings = z.infer<ReturnType<typeof ExtensionsSettingsSchema>>
 
 export const SettingsSchema = lazySchema(() => {
   const base = z.object({

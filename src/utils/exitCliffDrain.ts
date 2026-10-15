@@ -2,7 +2,7 @@ import { channel } from 'node:diagnostics_channel'
 import { flagEnabled } from '../substrate/flagRegistry.js'
 import { logForDebugging } from './debug.js'
 
-export const EXIT_CLIFF_DRAIN_CHANNEL = 'mercury:exit-cliff-drain'
+const EXIT_CLIFF_DRAIN_CHANNEL = 'mercury:exit-cliff-drain'
 const drainChannel = channel(EXIT_CLIFF_DRAIN_CHANNEL)
 
 export type ExitCliffSeam = {
@@ -11,7 +11,7 @@ export type ExitCliffSeam = {
   settle: () => Promise<unknown>
 }
 
-export type ExitCliffDrainReport = {
+type ExitCliffDrainReport = {
   skipped: boolean
   settled: string[]
   failed: string[]
@@ -118,7 +118,7 @@ export async function drainNamedSeams(
   return report
 }
 
-export const EXIT_CLIFF_LOOP_TURNS = 2
+const EXIT_CLIFF_LOOP_TURNS = 2
 async function turnLoopForTeardown(grace: ExitCliffGrace): Promise<void> {
   for (let hop = 0; hop < EXIT_CLIFF_LOOP_TURNS; hop++) {
     if (grace.spent) return

@@ -6,7 +6,7 @@ import { getAuthConfigHomeDir } from './envUtils.js'
 import { getSecureStorage } from './secureStorage/index.js'
 import { redactSecrets as redactKnownShapes } from './secrets/secretScanner.js'
 
-export const SECRET_REDACTION = '[redacted]'
+const SECRET_REDACTION = '[redacted]'
 const SECRET_NAME = /(?:api[-_]?key|private[-_]?key|token|password|passwd|secret|authorization|credential)s?$/i
 const SECRET_ASSIGNMENT = /(\b[\w-]*(?:api[_-]?key|private[_-]?key|token|password|passwd|secret|credential)s?["']?[ \t]*[:=][ \t]*)(?:"((?:\\.|[^"\\])*)"|'((?:\\.|[^'\\])*)'|(\[redacted\]|[^\s"'&;,}\[\]<>`)]+))/gi
 const PREFIXED_SECRET = /\b(?:sk-ant-[A-Za-z0-9_-]{10,}|sk-[A-Za-z0-9_-]{20,}|xai-[A-Za-z0-9_-]{20,}|hf_[A-Za-z0-9]{20,}|gh[pousr]_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}|glpat-[A-Za-z0-9_-]{20,}|xox[bp]-[A-Za-z0-9-]{10,}|AIza[A-Za-z0-9_-]{35}|AKIA[A-Z0-9]{16})(?![A-Za-z0-9_])/g

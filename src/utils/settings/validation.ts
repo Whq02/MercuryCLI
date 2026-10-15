@@ -8,7 +8,7 @@ import { SettingsSchema } from './types.js'
 import { getValidationTip } from './validationTips.js'
 
 
-export type FieldPath = string
+type FieldPath = string
 
 export type ValidationError = {
   file?: string
@@ -165,7 +165,7 @@ export function settingsFaultLine(error: ValidationError): string {
   return `settings: ${where} — ${effect}`
 }
 
-export function settingsFaultEffect(error: Pick<ValidationError, 'severity'>): string {
+function settingsFaultEffect(error: Pick<ValidationError, 'severity'>): string {
   if (error.severity === 'warning') return 'this value is skipped; the rest of the file applies'
   if (error.severity === 'held') return 'the file cannot be read; the last good settings stay in force'
   return 'the file is skipped'
@@ -176,7 +176,7 @@ const EDIT_STRICT_GROUPS = [
   'events', 'voice', 'activity', 'view', 'context', 'input', 'shell', 'routing', 'channels', 'workspace', 'local',
 ] as const
 
-export function editTimeSettingsSchema(): z.ZodObject {
+function editTimeSettingsSchema(): z.ZodObject {
   const shape: Record<string, z.ZodType> = { ...SettingsSchema().shape }
   for (const group of EDIT_STRICT_GROUPS) {
     const declared = shape[group]

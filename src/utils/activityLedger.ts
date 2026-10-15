@@ -1,9 +1,9 @@
 
 import { getGlobalConfig, saveGlobalConfigDeferred } from './config/globalConfig.js'
 
-export type HeadlessActivityKind = 'print' | 'sdk' | `verb:${string}`
+type HeadlessActivityKind = 'print' | 'sdk' | `verb:${string}`
 
-export interface HeadlessActivity {
+interface HeadlessActivity {
   print: number
   sdk: number
   verbs: Record<string, number>

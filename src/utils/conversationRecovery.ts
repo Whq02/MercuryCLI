@@ -58,7 +58,7 @@ type DeserializeResult = {
   turnInterruptionState: TurnInterruptionState
 }
 
-export function getResumePrompt(): string {
+function getResumePrompt(): string {
   return 'Continue from where you left off.'
 }
 
@@ -164,7 +164,7 @@ function detectInterruption(messages: Message[]): InternalInterruptionState {
 }
 
 
-export function deserializeMessagesWithInterruptDetection(serialized: Message[]): DeserializeResult {
+function deserializeMessagesWithInterruptDetection(serialized: Message[]): DeserializeResult {
   try {
     let messages = rehydrateScreenshots(serialized.map(migrateLegacyAttachment).map(scrubPermissionMode))
     messages = filterUnresolvedToolUses(messages)
@@ -210,7 +210,7 @@ export function deserializeLiveMessages(serialized: Message[]): Message[] {
   return serialized.map(migrateLegacyAttachment).map(scrubPermissionMode)
 }
 
-export type LiveTurnState = {
+type LiveTurnState = {
   inFlight: boolean
   phase: 'thinking' | 'tool' | 'responding' | 'idle'
   agentsWaiting: 0

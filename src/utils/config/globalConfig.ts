@@ -190,7 +190,7 @@ export function getConfigLocklessFallbackCount(): number {
 
 let configContentionRefusalCount = 0
 
-export function getConfigContentionRefusalCount(): number {
+function getConfigContentionRefusalCount(): number {
   return configContentionRefusalCount
 }
 
@@ -211,7 +211,7 @@ export const CONFIG_WRITE_DISPLAY_THRESHOLD = 20
 
 type ConfigFieldShape = 'boolean' | 'number' | 'string' | 'list' | 'object'
 
-export type GlobalConfigFieldDrop = { field: string; expected: ConfigFieldShape; found: string }
+type GlobalConfigFieldDrop = { field: string; expected: ConfigFieldShape; found: string }
 
 const OPTIONAL_GLOBAL_CONFIG_FIELD_SHAPES: Record<string, ConfigFieldShape> = {
   claudeAiMcpEverConnected: 'list',

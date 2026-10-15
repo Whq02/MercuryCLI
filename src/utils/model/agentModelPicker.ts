@@ -60,7 +60,7 @@ export function agentModelAvailabilityNote(
   return row?.unavailable ?? null
 }
 
-export type AgentModelPickOutcome =
+type AgentModelPickOutcome =
   | { kind: 'picked'; model: string | undefined }
   | { kind: 'needs-sign-in'; hint: string }
 

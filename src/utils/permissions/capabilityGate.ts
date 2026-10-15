@@ -90,7 +90,7 @@ function setKillsTool(set: Set<string> | undefined, toolName: string): boolean {
   return false
 }
 
-export type CapabilityKillReason = { kind: 'capability-gate'; killPattern: string }
+type CapabilityKillReason = { kind: 'capability-gate'; killPattern: string }
 
 export type HermesKillInfo = {
   kind: string

@@ -10,7 +10,7 @@ export function extractAgentMentions(content: string): string[] {
   return [...parseMentions(content).agents]
 }
 
-export interface AtMentionedFileLines {
+interface AtMentionedFileLines {
   filename: string
   lineStart?: number
   lineEnd?: number
@@ -30,7 +30,7 @@ export function parseAtMentionedFileLines(
   }
 }
 
-export interface ParsedMentions {
+interface ParsedMentions {
   readonly files: readonly string[]
   readonly agents: readonly string[]
   readonly resources: readonly string[]

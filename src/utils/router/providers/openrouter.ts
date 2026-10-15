@@ -13,7 +13,7 @@ import type {
   RouterProviderStatus,
 } from './types.js'
 
-export function describeOpenrouterProvider(): ProviderDescription {
+function describeOpenrouterProvider(): ProviderDescription {
   const discovery = getCachedProviderDiscovery('openrouter') ?? primeOpenrouterDiscovery()
   const record = discovery?.provider === 'openrouter' ? discovery : undefined
   const keyPresent = record?.keyPresent ?? false
@@ -41,25 +41,25 @@ export function describeOpenrouterProvider(): ProviderDescription {
   }
 }
 
-export function openrouterStatus(): RouterProviderStatus {
+function openrouterStatus(): RouterProviderStatus {
   const discovery = primeOpenrouterDiscovery()
   return discovery?.keyPresent
     ? { available: true }
     : { available: false, reason: 'no-api-key:openrouter' }
 }
 
-export function listOpenrouterModels(): RouterProviderModel[] {
+function listOpenrouterModels(): RouterProviderModel[] {
   return []
 }
 
-export function resolveOpenrouterModel(
+function resolveOpenrouterModel(
   _modelClass: RouterModelClass,
   _posture: RouterPosture,
 ): RouteModelRef | null {
   return null
 }
 
-export function buildOpenrouterLaunchPatch(_ref: RouteModelRef): { model: string; effort: string } {
+function buildOpenrouterLaunchPatch(_ref: RouteModelRef): { model: string; effort: string } {
   throw new Error(
     'router: provider openrouter has no SEAT runtime — roster seats stay Anthropic; OpenRouter dispatch lands with the provider-wire fold',
   )

@@ -12,7 +12,7 @@ import { updateWatchPaths } from './hooks/fileChangedWatcher.js'
 import { logError } from './log.js'
 import { getEngineModel } from './model/model.js'
 
-export type SessionStartReason = 'new' | 'resumed'
+type SessionStartReason = 'new' | 'resumed'
 
 let firstPrompt: string | undefined
 

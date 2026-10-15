@@ -219,6 +219,6 @@ export function getRuleByContentsForToolName(
   return ruleByContents
 }
 
-export function permissionRuleTable(context: ToolPermissionContext): readonly PermissionRule[] {
+function permissionRuleTable(context: ToolPermissionContext): readonly PermissionRule[] {
   return ruleTable(context).rows.map(copyRule)
 }

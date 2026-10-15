@@ -6,7 +6,7 @@ import {
   LOCAL_COMMAND_STDOUT_TAG,
 } from '../../constants/xml.js'
 
-export type ConversationSignalMessage = {
+type ConversationSignalMessage = {
   readonly type: string
   readonly isMeta?: boolean | undefined
   readonly message?: { readonly content?: unknown } | undefined

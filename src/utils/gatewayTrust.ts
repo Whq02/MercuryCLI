@@ -15,7 +15,7 @@ export interface EnterpriseGateway {
 
 const GATEWAY_TLS_PROBE_TIMEOUT_MS = 3000
 
-export function probeGatewayTlsFingerprint(
+function probeGatewayTlsFingerprint(
   gatewayUrl: string,
   timeoutMs: number = GATEWAY_TLS_PROBE_TIMEOUT_MS,
 ): Promise<{ hostname: string; fingerprint: string }> {

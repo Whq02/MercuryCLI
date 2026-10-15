@@ -20,17 +20,17 @@ import type {
   RouterPosture,
 } from './providers/types.js'
 
-export const OPUS_AMBIGUITY_BAND: RouteBand = 2
-export const OPUS_COUPLING_BAND: RouteBand = 3
-export const QUALITY_BAND_SHIFT = 1
-export const REVISION_ESCALATION_ATTEMPTS = 2
-export const CONTEXT_RENEWAL_PCT = 85
+const OPUS_AMBIGUITY_BAND: RouteBand = 2
+const OPUS_COUPLING_BAND: RouteBand = 3
+const QUALITY_BAND_SHIFT = 1
+const REVISION_ESCALATION_ATTEMPTS = 2
+const CONTEXT_RENEWAL_PCT = 85
 export const FANOUT_MAX_WIDTH = 3
 export const OUTCOME_MIN_SAMPLES = 5
 export const OUTCOME_MAX_WEIGHT = 0.25
-export const OUTCOME_POOR_FIRST_PASS = 0.5
+const OUTCOME_POOR_FIRST_PASS = 0.5
 
-export interface RouteCandidateNode {
+interface RouteCandidateNode {
   id: string
   title: string
   task: string
@@ -59,12 +59,12 @@ export interface RouteMissionIntent {
   revisionOf?: { nodeId: string; failedAttempts: number }
 }
 
-export interface RouteModelPort {
+interface RouteModelPort {
   resolve(modelClass: RouterModelClass, posture: RouterPosture): RouteModelRef | null
   resolveExact(pin: string): RouteModelRef | null
 }
 
-export interface RouteWorkerSnapshot {
+interface RouteWorkerSnapshot {
   maxWidth: number
   sharedLane: boolean
   currentModelClass?: RouterModelClass
@@ -73,7 +73,7 @@ export interface RouteWorkerSnapshot {
   activeTurn?: boolean
 }
 
-export interface RouteOutcomeSnapshot {
+interface RouteOutcomeSnapshot {
   sampleCount: number
   acceptedFirstPassRate: number
 }
@@ -89,7 +89,7 @@ export interface RouteCompilerInput {
   planId: string
 }
 
-export const ROUTE_REASON_DISPLAY: Readonly<Partial<Record<RouteReasonCode, string>>> = {
+const ROUTE_REASON_DISPLAY: Readonly<Partial<Record<RouteReasonCode, string>>> = {
   'mechanical-bounded': 'small, crisply-checked edit — a direct executor lane is enough',
   'bounded-implementation': 'well-specified implementation — executor lane with a review gate',
   'high-ambiguity': 'ambiguity is high — the planner-class model absorbs it',
@@ -135,7 +135,7 @@ const DEEP_KW =
 const QUICK_KW =
   /\b(rename|typo|comment|docstring|format\w*|lint|prettier|bump|version|whitespace|reorder imports?|one[- ]?liner|trivial|tweak|nit|rename the|fix the comment|update the comment)\b/
 
-export function shapeFromTextSignals(task: string, title?: string): RouteTaskShape {
+function shapeFromTextSignals(task: string, title?: string): RouteTaskShape {
   const text = `${title ?? ''}\n${task ?? ''}`.toLowerCase()
   const len = (task ?? '').length
   const files = new Set((text.match(PATH_RE) ?? []).map(s => s.toLowerCase())).size
@@ -144,7 +144,7 @@ export function shapeFromTextSignals(task: string, title?: string): RouteTaskSha
   return 'bounded'
 }
 
-export function deriveFeatureVector(i: RouteCompilerInput): RouteFeatureVector {
+function deriveFeatureVector(i: RouteCompilerInput): RouteFeatureVector {
   const m = i.mission
   const text = `${m.title}\n${m.task}`
   const paths = [...new Set((text.match(PATH_RE) ?? []).map(s => s.toLowerCase()))]

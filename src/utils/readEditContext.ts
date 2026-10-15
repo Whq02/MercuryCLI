@@ -4,7 +4,7 @@ import { isENOENT } from './errors.js'
 
 
 export const CHUNK_SIZE = 8 * 1024
-export const MAX_SCAN_BYTES = 10 * 1024 * 1024
+const MAX_SCAN_BYTES = 10 * 1024 * 1024
 
 type EditContext = {
   content: string
@@ -157,7 +157,7 @@ function charsForTailBytes(text: string, bytes: number): number {
   return text.length - index
 }
 
-export async function readEditContext(path: string, needle: string, contextLines: number = 3): Promise<EditContext | null> {
+async function readEditContext(path: string, needle: string, contextLines: number = 3): Promise<EditContext | null> {
   const handle = await openForScan(path)
   if (!handle) return null
   try {

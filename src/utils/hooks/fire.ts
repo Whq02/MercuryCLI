@@ -21,7 +21,7 @@ import { markHookSpent, matchHooks, type MatchedHook } from './matching.js'
 import type { HookScope } from './sessionHooks.js'
 import { runQuestionHook, type ModelHookEnd } from './questionRunner.js'
 
-export type HookFireOptions = {
+type HookFireOptions = {
   scope: HookScope
   signal?: AbortSignal
   budgetMs?: number
@@ -37,9 +37,9 @@ export type HookFireResult = {
   outcomes: HookOutcome[]
 }
 
-export type HookFields<E extends HookEvent> = Omit<HookPayload<E>, 'event' | 'session_id' | 'transcript_path' | 'cwd' | 'permission_mode' | 'crewmate_id' | 'crewmate_type'>
+type HookFields<E extends HookEvent> = Omit<HookPayload<E>, 'event' | 'session_id' | 'transcript_path' | 'cwd' | 'permission_mode' | 'crewmate_id' | 'crewmate_type'>
 
-export function nothingFired(event: HookEvent): HookFireResult {
+function nothingFired(event: HookEvent): HookFireResult {
   return { event, answer: foldAnswers(event, []), outcomes: [] }
 }
 

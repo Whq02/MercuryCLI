@@ -13,7 +13,7 @@ type DirectoryEntry = {
   path: string
 }
 
-export type PathEntry = {
+type PathEntry = {
   name: string
   path: string
   kind: 'file' | 'directory'
@@ -29,7 +29,7 @@ type PathCompletionOptions = CompletionOptions & {
   includeHidden?: boolean
 }
 
-export type PathSuggestionItem = {
+type PathSuggestionItem = {
   id: string
   displayText: string
   description?: string

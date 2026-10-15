@@ -5,9 +5,9 @@ import { getGlobalConfig, type GlobalConfig } from './config.js'
 export const SUBAGENT_DEFAULT_EFFORT: EffortLevel = 'high'
 export const SUBAGENT_DEFAULT_MAX_CONCURRENT = 8
 
-export type SubagentDefaultsRecord = NonNullable<GlobalConfig['agents']>
+type SubagentDefaultsRecord = NonNullable<GlobalConfig['agents']>
 
-export type SubagentDefaults = {
+type SubagentDefaults = {
   effort: EffortLevel
   effortSource: 'setting' | 'convention'
   model: string | undefined

@@ -5,7 +5,7 @@ export const HELM_COMPACT_ROWS = 30
 
 export const HELM_DENSITY_FLOOR = ['work', 'tasks', 'runs', 'mission'] as const
 
-export type DensityEmphasis = 'identity' | 'work' | 'decision' | 'review'
+type DensityEmphasis = 'identity' | 'work' | 'decision' | 'review'
 
 export type DensityPlan = {
   activity: ActivityState

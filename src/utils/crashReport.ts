@@ -37,7 +37,7 @@ export function failingComponentOf(componentStack: string | null | undefined): s
   return null
 }
 
-export type CrashConversation = { sessionId: string; transcriptPath: string | null }
+type CrashConversation = { sessionId: string; transcriptPath: string | null }
 
 let conversationLocator: (() => CrashConversation | null) | null = null
 
@@ -148,7 +148,7 @@ export function persistCrashReport(
 }
 
 
-export type CrashReportSummary = {
+type CrashReportSummary = {
   file: string
   origin: string
   at: string
@@ -211,11 +211,11 @@ export function listCrashReports(limit = KEEP): CrashReportSummary[] {
   }
 }
 
-export type CrashTranscriptRoad = 'recorded' | 'report' | 'registry' | 'moved' | 'project'
+type CrashTranscriptRoad = 'recorded' | 'report' | 'registry' | 'moved' | 'project'
 
-export type CrashTranscriptResolution = { sessionId: string; transcriptPath: string; road: CrashTranscriptRoad }
+type CrashTranscriptResolution = { sessionId: string; transcriptPath: string; road: CrashTranscriptRoad }
 
-export type CrashTranscriptOptions = {
+type CrashTranscriptOptions = {
   projectDirOf: (cwd: string) => string
   currentCwd: string
   excludeSessionIds?: readonly string[]

@@ -39,7 +39,7 @@ const CARRIER_PREFIXES = [
   '<crewmate-message',
 ]
 
-export function latestUserTaskText(messages: readonly Message[] | undefined): string | null {
+function latestUserTaskText(messages: readonly Message[] | undefined): string | null {
   if (!messages) return null
   for (let i = messages.length - 1; i >= 0; i--) {
     const m = messages[i] as { type?: string; message?: { content?: unknown } }
