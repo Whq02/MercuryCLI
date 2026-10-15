@@ -1,5 +1,6 @@
 import type { Tool } from '../../Tool.js'
 import { expandLspFamily } from '../../services/lsp/toolFamily.js'
+import { discoverRunnerProfiles, hasPythonSignal } from '../../services/ide/projectRunners.js'
 import type { Message } from '../../types/message.js'
 import type { DeferralWireForm } from '../../services/providers/deferralWire.js'
 import { qualifiedIdSpaceOf } from '../../services/providers/idSpaces.js'
@@ -24,6 +25,7 @@ export function isDeferredTool(tool: Tool, permissionMode?: string): boolean {
   if (tool.alwaysLoad) return false
   if (isMcpToolLike(tool)) return true
   if (tool.name === TOOL_SEARCH_TOOL_NAME) return false
+  if (tool.name === 'Test' && (discoverRunnerProfiles().profiles.some(profile => profile.kind === 'test') || hasPythonSignal())) return false
   if (tool.name === SATURN_EXEMPT_TOOL && isSaturnExemptEnabled()) return false
   return Boolean(tool.shouldDefer)
 }
