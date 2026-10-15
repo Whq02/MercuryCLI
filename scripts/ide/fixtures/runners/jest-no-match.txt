@@ -1,0 +1,8 @@
+No tests found, exiting with code 1
+Run with `--passWithNoTests` to exit with code 0
+In /work/project
+  2 files checked.
+  testMatch: **/__tests__/**/*.?([mc])[jt]s?(x), **/?(*.)+(spec|test).?([mc])[jt]s?(x) - 1 match
+  testPathIgnorePatterns: /node_modules/ - 2 matches
+  testRegex:  - 0 matches
+Pattern: math ops - 0 matches
