@@ -72,11 +72,11 @@ const WINDOWS_OTHER_USER = [
   'Remove-Item -Recurse -Force C:\\Users\\Alice\\proj\\scratch',
 ]
 const WINDOWS_OWN_HOME = [
-  'rm -rf C:\\Users\\WHQ\\code\\m36-play\\scratch',
-  'rm -rf c:/users/whq/code/scratch',
-  'rm -rf /c/Users/WHQ/code/scratch',
-  'Remove-Item -Recurse -Force C:\\Users\\WHQ\\code\\dist',
-  'del C:\\Users\\whq\\notes.txt',
+  'rm -rf C:\\Users\\PROOFOWNER\\code\\m36-play\\scratch',
+  'rm -rf c:/users/proofowner/code/scratch',
+  'rm -rf /c/Users/PROOFOWNER/code/scratch',
+  'Remove-Item -Recurse -Force C:\\Users\\PROOFOWNER\\code\\dist',
+  'del C:\\Users\\proofowner\\notes.txt',
   'rm -rf $env:USERPROFILE\\m36-x',
   'rm -rf %USERPROFILE%\\m36-x',
   'Remove-Item -Recurse ~\\m36-x',
@@ -109,12 +109,12 @@ const MAC_OTHER_USER = [
   '/bin/rm -rf /Users/other/x',
 ]
 const MAC_OWN_HOME = [
-  'rm -rf /Users/whq/proj/build',
-  'rm -rf /Users/WHQ/proj/build',
-  'rm /Users/whq/notes.txt',
+  'rm -rf /Users/proofowner/proj/build',
+  'rm -rf /Users/PROOFOWNER/proj/build',
+  'rm /Users/proofowner/notes.txt',
   'rm -rf ~/Developer/x/dist',
   'rm -rf $HOME/.cache/x',
-  'find /Users/whq/proj -name "*.log" -delete',
+  'find /Users/proofowner/proj -name "*.log" -delete',
 ]
 const MAC_NOT_A_DELETE = [
   'ls -la /Users/other/x',
@@ -129,11 +129,11 @@ const MAC_NOT_A_DELETE = [
 ]
 
 try {
-  section('§1 the Windows shape (a win32 read, the own home C:\\Users\\WHQ): a delete inside another user\'s profile is refused by the ward naming its rule — recursive or not, rm or Remove-Item or del, any slash, quoted or bare')
+  section('§1 the Windows shape (a win32 read, the own home C:\\Users\\PROOFOWNER): a delete inside another user\'s profile is refused by the ward naming its rule — recursive or not, rm or Remove-Item or del, any slash, quoted or bare')
   pinPlatform('win32')
-  process.env.USERPROFILE = 'C:\\Users\\WHQ'
+  process.env.USERPROFILE = 'C:\\Users\\PROOFOWNER'
   delete process.env.HOME
-  setHomeSpellings(() => ['C:\\Users\\WHQ'])
+  setHomeSpellings(() => ['C:\\Users\\PROOFOWNER'])
   for (const command of WINDOWS_OTHER_USER) check(`refused by ${RULE}: ${command}`, refusedByRule(command, toolFor(command)), ruleOf(command, toolFor(command)))
   const spaced = 'rm -rf "C:\\Users\\Other Person\\Documents\\m36-x"'
   check(`refused (the older whole-home rule reads the quoted name up to its space): ${spaced}`, !verdictOf(spaced).allow, ruleOf(spaced))
@@ -157,10 +157,10 @@ try {
   else process.env.USERPROFILE = savedProfile
 }
 
-section('§4 the Mac and Linux shape (the own home /Users/whq): /Users/<other> and /home/<other> are refused the same way; the own home and the reads pass')
-process.env.HOME = '/Users/whq'
+section('§4 the Mac and Linux shape (the own home /Users/proofowner): /Users/<other> and /home/<other> are refused the same way; the own home and the reads pass')
+process.env.HOME = '/Users/proofowner'
 delete process.env.USERPROFILE
-setHomeSpellings(() => ['/Users/whq'])
+setHomeSpellings(() => ['/Users/proofowner'])
 try {
   for (const command of MAC_OTHER_USER) check(`refused by ${RULE}: ${command}`, refusedByRule(command), ruleOf(command))
   for (const command of MAC_OWN_HOME) check(`not warded by ${RULE}: ${command}`, ruleOf(command) !== RULE, ruleOf(command))
