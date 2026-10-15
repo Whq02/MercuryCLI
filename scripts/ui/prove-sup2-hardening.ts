@@ -93,7 +93,7 @@ console.log('§5 runner availability — PATHEXT applies on win32')
     check('the PATHEXT default stands in when the variable is absent', resolveRunnerBinary('cargo', { PATH: dir } as NodeJS.ProcessEnv, 'win32') === join(dir, 'cargo.exe'))
     check('POSIX keeps exact-name semantics (no .exe invention)', resolveRunnerBinary('cargo', env, 'darwin') === null)
     writeFileSync(join(dir, 'cargo'), '#!')
-    check('an extensionless hit still wins where it exists', resolveRunnerBinary('cargo', env, 'win32') === join(dir, 'cargo'))
+    check('an extensionless shim does not shadow the Windows executable', resolveRunnerBinary('cargo', env, 'win32') === join(dir, 'cargo.exe'))
   } finally {
     rmSync(dir, { recursive: true, force: true })
   }

@@ -194,7 +194,7 @@ try {
     const failing = (await LaunchTool.call({ op: 'run', profile: byLabel('with failing task')!.id } as never, ctx)) as { data: { result: string; outcome: string } }
     check('C13 a failing task stops the launch with its name, exit code and tail — the program never ran', failing.data.outcome === 'failed' && failing.data.result.startsWith("preLaunchTask 'failing' failed (exit 3)") && failing.data.result.includes('the build broke') && !failing.data.result.includes('MODE='), failing.data.result.split('\n').slice(0, 3).join(' | '))
     const chain = (await LaunchTool.call({ op: 'debug', profile: byLabel('with chain')!.id } as never, ctx)) as { data: { result: string; outcome: string } }
-    check('C14 op:"debug" with a refused task is refused by name, never silently launched without it', chain.data.outcome === 'failed' && chain.data.result.startsWith("preLaunchTask 'chain' cannot be run by Mercury: task 'chain' has dependsOn") && chain.data.result.includes('run it yourself, then launch again'), chain.data.result)
+    check('C14 op:"debug" with a refused task is refused by name, never silently launched without it', chain.data.outcome === 'failed' && chain.data.result.startsWith("preLaunchTask 'chain' cannot be run by Mercury: task 'chain' has dependsOn") && !chain.data.result.includes('then launch again'), chain.data.result)
     const dap = await import('../../src/services/dap/dapClient.js')
     check('C15 no session was left behind by the refused launches', dap._dapSessionCountForTesting() === 0)
   } else {

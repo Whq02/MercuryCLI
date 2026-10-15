@@ -57,6 +57,19 @@ check(
     return Array.isArray(content) && content.length === 1 && content[0]?.type === 'text' && content[0].text === turnCutLine(turnCutOf(reason), toolUse)
   })),
 )
+const { loadTs, parseSource, resolveStructureTypescript } = await import('../../src/services/structure/tsFacility.ts')
+const resolved = resolveStructureTypescript(root)
+if (resolved.state !== 'ok') throw new Error(resolved.note)
+const ts = loadTs(resolved.modulePath)
+const parsed = parseSource(ts, 'turn.ts', engine)
+let completedIsInsideGate = false
+const visit = (node: import('typescript').Node): void => {
+  if (ts.isIfStatement(node) && node.expression.getText(parsed.sourceFile).replace(/\s/g, '') === "settled.status==='completed'") {
+    completedIsInsideGate = node.thenStatement.getText(parsed.sourceFile).includes("yield* endTurn('completed'")
+  }
+  ts.forEachChild(node, visit)
+}
+visit(parsed.sourceFile)
 const cuts = [null, 'operator', 'idle-timeout', 'parent-stop', 'cut'] as const
 check(
   'statusOfTerminal never reads an aborted terminal as completed, whatever the cut',
@@ -65,7 +78,7 @@ check(
 check(
   'the settlement reads the status off the terminal and the cut, then gates the completed yield on it',
   /const aborted = terminal\.reason === 'aborted_streaming' \|\| terminal\.reason === 'aborted_tools'\s*const cut = aborted \? turnCutOf\(this\.abortController\.signal\.reason\)\.kind : null/.test(engine) &&
-    /const settled = endedOnApiError \? \{ status: 'failed' as const, errorClass: 'model' as const \} : statusOfTerminal\(terminal, cut\)\s*if \(settled\.status === 'completed'\) \{[\s\S]{0,700}?endTurn\('completed'/.test(engine),
+    /const settled = endedOnApiError \? \{ status: 'failed' as const, errorClass: 'model' as const \} : statusOfTerminal\(terminal, cut\)\s*if \(settled\.status === 'completed'\) \{/.test(engine) && parsed.parseErrors.length === 0 && completedIsInsideGate,
 )
 check(
   'the completed outcomes are the closed two (local command · the gated settlement)',
