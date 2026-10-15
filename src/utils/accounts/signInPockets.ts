@@ -250,6 +250,26 @@ export function transientSignInHome(family: string): string | undefined {
   return name === undefined ? undefined : transientHomes.get(name)
 }
 
+const peeks = new Map<string, number>()
+
+export function peekSignInHome<T>(family: string, dir: string | null, run: () => T): T {
+  const name = familyWord(family)
+  if (name === undefined) return run()
+  peeks.set(name, (peeks.get(name) ?? 0) + 1)
+  try {
+    return withSignInHome(name, dir, run)
+  } finally {
+    const depth = (peeks.get(name) ?? 1) - 1
+    if (depth <= 0) peeks.delete(name)
+    else peeks.set(name, depth)
+  }
+}
+
+export function peekingSignIn(family: string): boolean {
+  const name = familyWord(family)
+  return name !== undefined && (peeks.get(name) ?? 0) > 0
+}
+
 export interface LandSignInInput {
   family: string
   identity: string

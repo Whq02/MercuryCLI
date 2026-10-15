@@ -163,6 +163,7 @@ learned across sessions; [MNEME.md](MNEME.md) describes its tools and shelf.
 | `credentials.keyCommand` | A shell command supplying an Anthropic API key. Project-scope helpers wait for workspace trust. |
 | `credentials.signInRoute` | The required Anthropic sign-in route: `claudeai` or `console`. |
 | `credentials.organisation` | The required organisation for Anthropic sign-in. |
+| `credentials.signIns` | Which sign-in a provider family spends in this project, by identity as `/logins list` shows it (an account address, a Hub username, a key's masked tail), for example `{ "openai": "bob@work.example" }` in `.mercury/settings.local.json`. `/logins use <identity>` overrides it for one session; an identity that is not signed in is refused and the ones that are get named. |
 | `environment.values` | Environment variable names and values for Mercury; string, number and boolean values become strings. |
 | `credit.mercury` | Mercury's commit and pull-request attribution is on unless this is `false`. |
 | `credit.lines.commit`, `credit.lines.pr` | Custom attribution text. An empty string omits that line; when `credit.lines` is present, an omitted member uses its default. This object takes precedence over `credit.mercury`. |
