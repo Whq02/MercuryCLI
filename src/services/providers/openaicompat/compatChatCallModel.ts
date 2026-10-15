@@ -941,6 +941,7 @@ async function* streamOneCompatAttempt(ctx: {
   }
 
   if (fault?.kind === 'cancelled' || signal.aborted) {
+    if (blocks.open?.kind === 'text' && blocks.open.value.length > 0) yield* closeOpenBlock()
     const pending = minted.at(-1)
     if (pending) yield pending
     return { kind: 'cancelled' }

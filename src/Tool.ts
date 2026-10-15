@@ -25,6 +25,8 @@ import type { CanUseToolFn } from './hooks/useCanUseTool.js'
 import type { QuerySource } from './constants/querySource.js'
 import type {
   InternalPermissionMode,
+  PermissionAllowDecision,
+  PermissionAskDecision,
   PermissionDecision,
   PermissionResult,
   PermissionRuleSource,
@@ -321,6 +323,7 @@ interface ToolMembers<TInput, TOutput, TProgress extends ToolProgressData> {
   }): Promise<string>
   isOpenWorld?(input?: TInput): boolean
   requiresUserInteraction?(input?: TInput): boolean
+  settleUnansweredAsk?(input: TInput, ask: PermissionAskDecision): PermissionAllowDecision | null
   isTransparentWrapper?(): boolean
   interruptBehavior?(): ToolInterruptBehavior
   isSearchOrReadCommand?: (input: unknown) => SearchOrReadClassification
