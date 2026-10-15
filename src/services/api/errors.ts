@@ -721,10 +721,23 @@ function composeAssistantMessageFromError(
   }
 
   if (error instanceof Error) {
+    const overflow = classifyOverflowFault({ family: overflowFamilyOfModel(model), status, message })
+    if (status !== undefined && status >= 400 && status < 500) {
+      logForDebugging(`[api] ${status} on ${model} — the wire said: ${message}`)
+      const detail = extractProviderDetail(status, message)
+      const family = providerNameOfModel(model)
+      const words =
+        detail === null ? `${family} sent no detail` : detail.providerSentence ? `${family} says: ${detail.text}` : detail.text
+      return createAssistantAPIErrorMessage({
+        content: `${API_ERROR_MESSAGE_PREFIX} (${status}): ${words}`,
+        error: 'unknown',
+        overflow,
+      })
+    }
     return createAssistantAPIErrorMessage({
       content: `${API_ERROR_MESSAGE_PREFIX}: ${error.message}`,
       error: 'unknown',
-      overflow: classifyOverflowFault({ family: overflowFamilyOfModel(model), status, message }),
+      overflow,
     })
   }
   return createAssistantAPIErrorMessage({ content: API_ERROR_MESSAGE_PREFIX, error: 'unknown' })
