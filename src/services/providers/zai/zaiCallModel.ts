@@ -83,7 +83,7 @@ import {
 } from './zaiClient.js'
 import type { RefusedToolCall } from '../../../types/message.js'
 import { gateToolCalls, toolCallRefusalNote } from '../toolCallGate.js'
-import { foldAnnouncementIntoFirstUserTurn, planToolPayload, renderAdmissionRecordsAsText } from '../toolEconomy.js'
+import { planToolPayload, renderAdmissionRecordsAsText } from '../toolEconomy.js'
 
 const ZAI_MAX_OUTPUT_TOKENS = 131_072
 
@@ -233,7 +233,7 @@ export async function* zaiCallModel(params: CallModelParams): CallModelStream {
     const shaped = await buildApiShapedTools(declaration.tools, options, modelId, plan.conversationKey, tools)
     if (shaped.length > 0) toolDeclarations.set(declaration.toolUseId, toolDeclarationRowAsText(mapToolsToZai(shaped)))
   }
-  const wireMessages = foldAnnouncementIntoFirstUserTurn(renderAdmissionRecordsAsText(messages, plan.wireForm), plan)
+  const wireMessages = renderAdmissionRecordsAsText(messages, plan.wireForm)
   const retiredScreenshots = retireOlderScreenshots(wireMessages)
   const retiredMessages =
     retiredScreenshots.firstEdited === -1

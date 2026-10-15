@@ -3,6 +3,7 @@ import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { z } from 'zod/v4'
+import { FORBIDDEN_HEAD_WORDS, requestHeadIsPlain, requestHeadSource } from './requestHeadSource.ts'
 
 let failures = 0
 let checks = 0
@@ -33,7 +34,7 @@ const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
 enableConfigs()
 const bootstrap = await import('../../src/bootstrap/state.ts')
 bootstrap.setIsInteractive(false)
-const { planToolPayload, deferredToolsAnnouncement, announcementMessage, foldAnnouncementIntoFirstUserTurn } = await import('../../src/services/providers/toolEconomy.ts')
+const { planToolPayload, renderAdmissionRecordsAsText } = await import('../../src/services/providers/toolEconomy.ts')
 const { getDeferredToolsDeltaAttachment, SERVER_SEARCH_ANNOUNCEMENT_HEAD } = await import('../../src/utils/attachments/deltas.ts')
 const { createAttachmentMessage } = await import('../../src/utils/attachments/orchestrator.ts')
 const { normalizeAttachmentForAPI } = await import('../../src/utils/messages/attachmentText.ts')
@@ -85,7 +86,6 @@ const MCP_C = ['search_issues', 'get_board'].map(n => fixtureTool(n, { mcp: 'jir
 const POOL: Tool[] = [...NON_DEFERRED, ToolSearchTool as never, ...DEFERRED_BUILTINS, ...MCP_A, ...MCP_B]
 const POOL_GROWN: Tool[] = [...POOL, ...MCP_C]
 const DEFERRED_NAMES = [...DEFERRED_BUILTINS, ...MCP_A, ...MCP_B].map(t => t.name)
-const DEFERRED_NAMES_GROWN = [...DEFERRED_NAMES, ...MCP_C.map(t => t.name)]
 
 const permissionContext = getEmptyToolPermissionContext()
 const planFor = (model: string, messages: Message[], tools: Tool[] = POOL) =>
@@ -113,7 +113,7 @@ const bytes = (s: string): number => Buffer.byteLength(s, 'utf8')
 
 section('§1 THE ONE ANNOUNCEMENT ROAD — no flag gates it; the ToolSearch description names the carrier')
 {
-  check("the ToolSearch description names the carrier (system-reminder rows), not the retired header tag", getPrompt('block').includes('listed in <system-reminder> messages') && !getPrompt('block').includes('<available-deferred-tools>') && getPrompt('text').includes('listed in <system-reminder> messages'))
+  check("the ToolSearch description names the carrier (system-reminder rows), not the retired header tag", getPrompt('block').includes('listed in <system-reminder> messages') && FORBIDDEN_HEAD_WORDS.every(word => !getPrompt('block').includes(word)) && getPrompt('text').includes('listed in <system-reminder> messages'))
   check('the description is one text per wire form, the same carrier sentence on each', ['block', 'text', 'text-append'].every(form => getPrompt(form as never).split('listed in <system-reminder> messages').length === 2))
 }
 
@@ -127,10 +127,10 @@ section('§2 NO PER-REQUEST ANNOUNCEMENT — every route, and the real first-par
     else if (route === 'openai' || route === 'local') check(`${route}: only initial definitions and discovery are sent`, plan.enabled && DEFERRED_NAMES.every(name => !plan.roster.some(t => t.name === name)))
     else if (plan.wireForm === 'text-append') check(`${route}: the append form sends only initial definitions and discovery (admissions ride the end of the messages)`, plan.enabled && DEFERRED_NAMES.every(name => !plan.roster.some(t => t.name === name)) && plan.admissionDeclarations.length === 0)
     else check(`${route}: a wire that cannot defer lists every tool in full, unmarked (deferral off)`, plan.enabled === false && DEFERRED_NAMES.every(n => plan.roster.some(t => t.name === n)) && plan.deferredNames.size === 0)
-    check(`${route}: the plan carries NO per-request announcement`, plan.announcement === null)
-    check(`${route}: the Anthropic-wire spelling prepends nothing`, announcementMessage(plan) === null)
+    check(`${route}: the request builder cannot mint a tool head`, requestHeadIsPlain(route))
+    check(`${route}: the first-party builder retains no retired head spelling`, FORBIDDEN_HEAD_WORDS.every(word => !requestHeadSource('anthropic').includes(word)))
     const msgs = fresh()
-    check(`${route}: the chat/Responses spelling folds nothing (the same array by reference)`, foldAnnouncementIntoFirstUserTurn(msgs, plan) === msgs)
+    check(`${route}: the admission projection leaves the operator's head unchanged`, renderAdmissionRecordsAsText(msgs)[0] === msgs[0] && JSON.stringify(renderAdmissionRecordsAsText(msgs)) === JSON.stringify(msgs))
   }
 }
 
@@ -199,7 +199,7 @@ const freshBody = await captureFirstParty(POOL, fresh())
   check('the first-party request was captured', freshBody !== null)
   if (freshBody) {
     const texts = textsOf(freshBody.messages)
-    check('no message carries the announcement tag', texts.every(t => !t.includes('<available-deferred-tools>')))
+    check('no message carries the announcement tag', texts.every(t => FORBIDDEN_HEAD_WORDS.every(word => !t.includes(word))))
     check("the first message is the operator's own turn (nothing prepended)", freshBody.messages.length === 1 && texts[0] === 'Plan the fixture task.')
     const term = freshBody.tools as Array<{ name?: string; defer_loading?: boolean }>
     const toolNames = term.map(t => t.name ?? '')
@@ -209,8 +209,7 @@ const freshBody = await captureFirstParty(POOL, fresh())
 }
 
 section('§3 THE SAME INFORMATION, ONCE — the delta row is the carrier, on every route')
-const oracle = deferredToolsAnnouncement(POOL, new Set(DEFERRED_NAMES))
-const oracleLines = oracle === null ? [] : oracle.split('\n').slice(1, -1)
+const nameLines = [...DEFERRED_NAMES].sort()
 let rowBytes = 0
 {
   const historical = { type: 'deferred_tools_delta' as const, addedNames: ['LegacyFixture'], addedLines: ['LegacyFixture'], removedNames: [] }
@@ -222,7 +221,6 @@ let rowBytes = 0
 }
 {
   const renderedRows = new Set<string>()
-  check('the prepend oracle (the retired per-request shape) spells the sorted names inside the tag pair', oracle !== null && oracle.startsWith('<available-deferred-tools>\n') && oracle.endsWith('\n</available-deferred-tools>') && oracleLines.join(',') === [...DEFERRED_NAMES].sort().join(','))
   for (const [route, model] of Object.entries(ROUTE_MODELS)) {
     const row = deltaRow(POOL, model, fresh())
     const routePlan = await planFor(model, fresh())
@@ -231,7 +229,7 @@ let rowBytes = 0
       continue
     }
     check(`${route}: a fresh transcript's delta row names the whole deferred pool, sorted`, row !== null && row.type === 'deferred_tools_delta' && row.addedNames.join(',') === [...DEFERRED_NAMES].sort().join(',') && row.removedNames.length === 0)
-    check(`${route}: its lines are the oracle's inner lines byte-for-byte (names only, no schema bytes)`, row !== null && row.type === 'deferred_tools_delta' && row.addedLines.join('\n') === oracleLines.join('\n') && !row.addedLines.join('\n').includes('{'))
+    check(`${route}: its lines are the fixture's sorted names byte-for-byte (no schema bytes)`, row !== null && row.type === 'deferred_tools_delta' && row.addedLines.join('\n') === nameLines.join('\n') && !row.addedLines.join('\n').includes('{'))
     const content = row ? renderedContent(row) : ''
     check(`${route}: rendered, it is ONE system-reminder meta user row carrying every name`, content.startsWith('<system-reminder>\n') && content.endsWith('\n</system-reminder>') && DEFERRED_NAMES.every(n => content.split('\n').includes(n)) && (row ? normalizeAttachmentForAPI(row)[0]!.isMeta === true : false))
     if (routePlan.wireForm === 'openrouter-native' || routePlan.wireForm === 'openai-native') check(`${route}: the row's head names the server's search as the loading road (its own wording, the same name lines)`, content.includes(SERVER_SEARCH_ANNOUNCEMENT_HEAD))
@@ -264,22 +262,15 @@ section('§4 HEAD STABILITY UNDER POOL CHANGE — a server connecting between re
   check('the delta appends one row naming ONLY the newly connected server\'s tools', second !== null && second.type === 'deferred_tools_delta' && second.addedNames.join(',') === MCP_C.map(t => t.name).sort().join(',') && second.removedNames.length === 0)
   const bothPersisted: Message[] = second ? [...persisted, createAttachmentMessage(second) as Message] : persisted
   check('…and the transcript is then quiet again', getDeferredToolsDeltaAttachment(POOL_GROWN, model, bothPersisted).length === 0)
-  check('the grown plan still carries no per-request announcement', (await planFor(model, bothPersisted, POOL_GROWN)).announcement === null)
-  const oracleGrown = deferredToolsAnnouncement(POOL_GROWN, new Set(DEFERRED_NAMES_GROWN))
-  check('the prepend oracle\'s bytes moved with the pool (the old head rewrote on every such connect)', oracle !== null && oracleGrown !== null && oracleGrown !== oracle)
+  check('the grown request still carries no minted head', requestHeadIsPlain('anthropic') && grownBody !== null && textsOf(grownBody.messages).every(text => FORBIDDEN_HEAD_WORDS.every(word => !text.includes(word))))
   const shrunk = deltaRow(POOL, model, bothPersisted)
   check('a server dropping appends a removal row (never a head rewrite)', shrunk !== null && shrunk.type === 'deferred_tools_delta' && shrunk.removedNames.join(',') === MCP_C.map(t => t.name).sort().join(',') && shrunk.addedNames.length === 0)
 }
 
-section('§5 THE COUNT — announcement bytes per request, before and after')
+section('§5 THE COUNT — no tool-head bytes per request')
 {
-  const before = oracle === null ? 0 : bytes(oracle)
-  const requests = 10
-  console.log(`  BEFORE (the prepend oracle): ${before} bytes on EVERY request — ${before * requests} bytes over ${requests} requests, and a head rewrite on every pool change`)
-  console.log(`  AFTER  (the delta row):      0 bytes per request; ONE persisted row of ${rowBytes} bytes per transcript — ${rowBytes} bytes over ${requests} requests, head rewrites 0`)
-  check('before: the oracle carried the names on every request (non-zero per request)', before > 0)
-  check('after: zero announcement bytes per request', freshBody !== null && textsOf(freshBody.messages).every(t => !t.includes('<available-deferred-tools>')))
-  check('after: the one-time row costs less than two requests of the old prepend', rowBytes > 0 && rowBytes < 2 * before, `${rowBytes} vs ${before}`)
+  console.log(`  ONE persisted row of ${rowBytes} bytes per transcript; no minted head per request`)
+  check('zero tool-head bytes per request', freshBody !== null && textsOf(freshBody.messages).every(text => FORBIDDEN_HEAD_WORDS.every(word => !text.includes(word))))
 }
 
 console.log(`\n${checks - failures}/${checks} checks passed`)
