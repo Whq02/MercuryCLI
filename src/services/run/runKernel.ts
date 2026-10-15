@@ -289,6 +289,7 @@ function foldRunEvent(prev: RunSnapshot, event: RunEvent): RunSnapshot {
       const newPaths = succeeded
         ? event.changedPaths.filter(p => !prev.changedPaths.includes(p))
         : []
+      const changedAfterVerification = succeeded && event.changedPaths.length > 0
       return {
         ...base,
         lastAction: `${event.operation || event.toolName} ${event.outcome}`,
@@ -300,6 +301,13 @@ function foldRunEvent(prev: RunSnapshot, event: RunEvent): RunSnapshot {
             : prev.changedPaths,
         totalChangedPaths: prev.totalChangedPaths + newPaths.length,
         substantive: prev.substantive || (mutating && succeeded && event.changedPaths.length > 0),
+        verification:
+          changedAfterVerification && prev.verification.state === 'verified'
+            ? {
+                state: 'stale',
+                detail: `${event.changedPaths.length} file${event.changedPaths.length === 1 ? '' : 's'} changed after the last verification (${event.operation || event.toolName})`,
+              }
+            : prev.verification,
         unresolvedBadEffects:
           mutating && (event.outcome === 'failed' || event.outcome === 'indeterminate')
             ? prev.unresolvedBadEffects + 1
