@@ -72,9 +72,9 @@ for (const world of worlds) {
       ...(full
         ? [
             { afterPrevTicks: 2, data: '\x1b[1;2D', mark: 'to-concourse' },
-            { requireAwait: true, awaitText: 'coordinator', minTick: 1, awaitSettleTicks: 6, data: `${stripPrompt}\r`, mark: 'strip-sent' },
+            { requireAwait: true, awaitText: '1 live ·', minTick: 1, awaitSettleTicks: 6, data: `${stripPrompt}\r`, mark: 'strip-sent' },
             { requireAwait: true, awaitText: 'A worktree for this session', minTick: 1, awaitSettleTicks: 3, data: '\r', mark: 'fork-card' },
-            { afterPrevTicks: 40, data: '', mark: 'strip-born' },
+            { requireAwait: true, awaitText: '2 live ·', minTick: 1, awaitSettleTicks: 6, data: '', mark: 'strip-born' },
           ]
         : []),
     ],
