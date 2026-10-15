@@ -48,9 +48,13 @@ export function resolveRunnerBinary(
   env: NodeJS.ProcessEnv = process.env,
   platform: string = process.platform,
 ): string | null {
-  const paths = (env.PATH ?? '').split(path.delimiter)
-  const exts = ['']
-  if (platform === 'win32') {
+  const explicit = path.isAbsolute(bin) || bin.includes('/') || bin.includes('\\')
+  const paths = explicit ? [path.dirname(bin)] : (env.PATH ?? '').split(path.delimiter)
+  const name = explicit ? path.basename(bin) : bin
+  const extensions = (env.PATHEXT ?? '.COM;.EXE;.BAT;.CMD').split(';').filter(Boolean)
+  const hasExtension = extensions.some(ext => name.toLowerCase().endsWith(ext.toLowerCase()))
+  const exts: string[] = platform === 'win32' && !hasExtension ? [] : ['']
+  if (platform === 'win32' && !hasExtension) {
     for (const raw of (env.PATHEXT ?? '.COM;.EXE;.BAT;.CMD').split(';')) {
       if (raw.length === 0) continue
       const lower = raw.toLowerCase()
@@ -61,7 +65,7 @@ export function resolveRunnerBinary(
   for (const p of paths) {
     if (!p) continue
     for (const ext of exts) {
-      const full = path.join(p, bin + ext)
+      const full = path.join(p, name + ext)
       try {
         if (existsSync(full)) return full
       } catch {
@@ -155,6 +159,7 @@ function jsProfiles(root: string): RunnerProfile[] {
 
   if (deps.vitest !== undefined) {
     const bin = path.join(root, 'node_modules', '.bin', 'vitest')
+    const resolved = resolveRunnerBinary(bin)
     profiles.push({
       id: profileId([pkgPath, 'vitest', 'test']),
       runner: 'vitest',
@@ -162,14 +167,15 @@ function jsProfiles(root: string): RunnerProfile[] {
       title: 'vitest (declared)',
       source: 'package.json',
       root,
-      command: [bin, 'run', '--reporter=default', '--reporter=json'],
+      command: [resolved ?? bin, 'run', '--reporter=default', '--reporter=json'],
       selection: 'file',
-      availability: existsSync(bin)
+      availability: resolved !== null
         ? { state: 'ok' }
         : { state: 'unavailable', reason: 'vitest is declared but node_modules/.bin/vitest is missing', remedy: 'install the project dependencies with the declared package manager' },
     })
   } else if (deps.jest !== undefined) {
     const bin = path.join(root, 'node_modules', '.bin', 'jest')
+    const resolved = resolveRunnerBinary(bin)
     profiles.push({
       id: profileId([pkgPath, 'jest', 'test']),
       runner: 'jest',
@@ -177,9 +183,9 @@ function jsProfiles(root: string): RunnerProfile[] {
       title: 'jest (declared)',
       source: 'package.json',
       root,
-      command: [bin, '--json'],
+      command: [resolved ?? bin, '--json'],
       selection: 'file',
-      availability: existsSync(bin)
+      availability: resolved !== null
         ? { state: 'ok' }
         : { state: 'unavailable', reason: 'jest is declared but node_modules/.bin/jest is missing', remedy: 'install the project dependencies with the declared package manager' },
     })
@@ -626,6 +632,14 @@ export async function runRunnerProfile(
         }
     }
     selectionLabel = opts.selectionLabel ?? `nodes:${opts.selection}`
+  }
+
+  if (process.platform === 'win32' && /\.(cmd|bat)$/i.test(argv[0]!) && (profile.runner === 'vitest' || profile.runner === 'jest')) {
+    const entry = path.join(profile.root, 'node_modules', profile.runner, profile.runner === 'vitest' ? 'vitest.mjs' : 'bin/jest.js')
+    if (!existsSync(entry)) {
+      return { state: 'unavailable', reason: `${profile.runner}'s JavaScript entry is missing: ${entry}`, remedy: 'install the project dependencies with the declared package manager' }
+    }
+    argv = [process.execPath, entry, ...argv.slice(1)]
   }
 
   const reporterDir = profile.kind === 'test' && reporterFileFlag(profile.runner) !== null ? mkdtempSync(path.join(tmpdir(), 'mercury-runner-report-')) : null
