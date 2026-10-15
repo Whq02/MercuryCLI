@@ -1,5 +1,13 @@
 import assert from 'node:assert/strict'
+import { mkdtempSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
+const home = mkdtempSync(join(tmpdir(), 'summary-first-'))
+process.env.MERCURY_CONFIG_DIR = home
+process.env.MERCURY_TMPDIR = home
+process.env.MERCURY_CREDENTIAL_STORE = 'file'
+process.env.ANTHROPIC_API_KEY ??= 'proof-key-ci-gate-not-a-real-key'
 
 const { decideOverflowRecovery } = await import('../../src/services/compact/overflowRecovery.js')
 const decision = decideOverflowRecovery({ episode: { pruned: false, folded: false }, gapTokens: 22398, pruneSavingTokens: 740942, fold: { available: true } })
