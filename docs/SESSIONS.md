@@ -24,15 +24,14 @@ catalogue and the session-and-repository picker open in place on the home screen
 (`Esc` returns to the selected row without flashing chat chrome), while the Session
 Concourse row opens the board one screen to the right. Pressing `m` on the home
 screen (`m to select model-default`) opens the default model and effort picker
-in place whenever `engine.sessionDefaults` is not `false`. The Boot Menu groups
-startup defaults into four sections: **Performance** (`Motion`, `Seats`),
-**Agents** (`Crewmates`, `Workflows`, `Crewmates while backgrounded`, `JEV`),
-**Trust combo** (`Content-rule wards`, `Debug tool (real debugger)`, `C/C++ IDE
-lane (clangd)`, `Sovereign mode`, and `Computer use` with `Access type` beneath
-it), and **Miscellaneous** (`Launch animation`, `Samples`, `Godot language
+in place whenever `engine.sessionDefaults` is not `false`. The Boot Menu displays six section headings in screen order: **TRUST COMBO**
+(`Content-rule wards`, `Debug tool (real debugger)`, `C/C++ IDE lane (clangd)`,
+`Sovereign mode`), **COMPUTER USE** (`Computer use`, `Access type`),
+**SAMPLES** (`Samples`), **AGENTS** (`Crewmates`, `Workflows`, `Crewmates while
+backgrounded`, `JEV`), **MISCELLANEOUS** (`Launch animation`, `Godot language
 lanes`, `Godot control surface (VULCAN)`, `Unity dev lanes`, `Blender dev
-lanes`, `Aseprite dev lanes`, `Cap failover posture`, and `Session Concourse at
-boot`). A chat exists
+lanes`, `Aseprite dev lanes`, `Cap failover posture`, `Session Concourse at
+boot`, `Seats`), and **PERFORMANCE** (`Motion`). A chat exists
 only once you enter
 one: New Session, Continue, a pick on the Sessions · Projects screen, or a
 row on the concourse board. Until
@@ -420,8 +419,8 @@ first press shows the hint on the row, the second completes), and the
 chord steps through three stages. On a live row it stops the session (the
 row stays, marked stopped with the next step); on a stopped row it
 parks the session; on a parked row a first chord says the next one
-removes it from the board, and that next chord (or a chord right after parking)
-removes the board record while keeping the transcript on disk so the home screen and
+deletes it, and that next chord (or a chord right after parking)
+deletes the board record while keeping the transcript on disk so the home screen and
 `/sessions` still list the chat. A chat that was never messaged has nothing
 to park: on its stopped row the hint reads `"ctrl+x again removes it (the chat
 held no message)"`, the next chord removes it from the board, and when it
@@ -611,7 +610,7 @@ descriptions when their settings and dependencies admit them, alongside `ChangeS
 test runner profile or Python test signal is detected in the project). Routes that support
 deferral announce the remaining tools (`JevEval`, `Debug`, `Git`, `AstEdit`, `LspRename`,
 `LspMoveSymbol`, `LspMoveFile`, `LspCodeAction`, `LspFormat`, `LspRequest`, `Monitor`,
-`Checkpoint`, `Rewind`, and `Test` when no test runner is detected) with a one-line
+`Checkpoint`, `Rewind`, and `Test` when no test runner is detected, among them) with a one-line
 summary and load their schemas on demand through `ToolSearch`. A local model
 loads the core daily tools in full and announces the remaining tools the
 same way. A deferrable tool discovered after the first request (such as a debug adapter)

@@ -169,10 +169,11 @@ Sources: [quickstart](https://dev.meta.ai/docs/quickstart),
 [subscriptions](https://dev.meta.ai/docs/muse-code/subscriptions).
 
 Mistral's rows come from the account's live `GET /v1/models` list, read
-through the key: the recorded rows lead in their order (`mistral-large-4`,
-the public preview Mistral calls Le Chonk with a 1,048,576-token
-context; `mistral-medium-3-5`; `mistral-small-2603`; `mistral-large-2512`; the three
-Ministral 3 sizes; and `codestral-2508`), and any further chat row
+through the key: the recorded rows lead in their order (Mistral Large 4,
+`mistral-large-4`, the public preview Mistral calls Le Chonk with a 1,048,576-token
+context; Mistral Medium 3.5, `mistral-medium-3-5`; Mistral Small 4,
+`mistral-small-2603`; Mistral Large 3, `mistral-large-2512`; the three
+Ministral 3 sizes; and Codestral, `codestral-2508`), and any further chat row
 the list serves follows by creation time. The vendor's aliases
 (`mistral-medium-latest`, `mistral-small-latest`, `mistral-large-latest`,
 which still names Large 3, `codestral-latest`) are listed ids too and
@@ -526,9 +527,8 @@ workflow crewmate on the model); and against a live LM Studio (2026-09-27, Qwen3
 with the loaded instance's window, a streamed reply with its reasoning block,
 a direct tool loop, a crewmate and a workflow crewmate), where the product
 reloads the instance at its chosen window on the first send (the documented
-load road) unless the window setting is `server default`. vLLM requires a Linux
-machine with an NVIDIA GPU. The search-door and SATURN-fire legs remain deferred
-drill lines. The Hugging Face lane carries an explicit deferred-live caveat
+load road) unless the window setting is `server default`. vLLM has not been
+checked against a live server yet. The Hugging Face lane carries an explicit deferred-live caveat
 in its readiness detail until verified against a live endpoint.
 
 On the local lane no watchdog cuts a request while the server answers. The
@@ -1233,14 +1233,14 @@ re-reading the figures once on open when the last read is a minute old or more)
 in one order: the session's own model first, resolved to its effort row
 (`gemini-4-argon ▸ gemini-4-argon-high`), then every model this session used
 on the lane (crewmates included) in order of last use, then one folded line
-(`"24 other roster models — ↵ lists them"`) that `↵` opens and folds again; any
-model used in the session for which Google's roster reports no quota or reset
-figure shows session token and spend totals without a quota-left or reset figure.
+(`"24 other roster models — ↵ lists them"`) that `↵` opens and folds again; the
+slot's session lines give the input and output tokens of each model this
+session used on the lane, with no cost.
 Google states no account spend or credit balance for the sign-in, and the absence line says so and names the
 plan's own page. The compact view's one figures line keeps the same order
 with the rest counted, and the popup's header line and the `/logins` row
 carry the session model's own figure (`gemini-4-argon-high 42% left`) beside
-the tier and the read's age. A Google account signed in with your own OAuth client (or a Gemini API key) shows session token and spend totals plus its
+the tier and the read's age. A Google account signed in with your own OAuth client shows its
 credits line and an absence line naming the view (the Cloud console Quotas
 page for the Generative Language API, or Google AI Studio), because Google
 states no usage, quota or credit figure to it: the Gemini API has no usage
