@@ -740,8 +740,8 @@ that headroom anyway, the turn recovers instead of ending:
 
 - Superseded tool results older than the recent few are pruned when that
   alone covers the gap the provider named, and the request is retried. The
-  chat reports `"context overflowed … — pruned N superseded tool results and
-  retrying"`.
+  chat reports `"context overflowed … — pruned N superseded tool results (~N
+  tokens) and retrying"`.
 - Otherwise the conversation is folded (producing the same summary `/compact` makes
   on the same session), your message is carried across the fold word for
   word, and the request is retried once. The chat reports `"context overflowed …
