@@ -942,11 +942,14 @@ a message does not end a task.
   `MERCURY_BOX_LOCK_DIR` or the session's last `with-box-lock.sh` call). An
   agent can read the live state at `mercury://health/box` through the `Inspect`
   tool, and any Bash call that waited on the lock includes the wait duration,
-  slot holders, and load in its result.
+  slot holders, and load in its result. This is visibility only: nothing here
+  schedules or throttles.
 - The `session/facts` response also carries the provider usage-window
   status reported on recent replies (`usage.anthropic_window`: state,
   observation timestamp, account slot, reset time, and window name) and the
-  cached OpenAI model list (`openai_catalogue`).
+  cached OpenAI model list (`openai_catalogue`). The screen folds available
+  facts into its own record and catalogue, so the offer card and the rail's
+  context figure follow the session's requests.
 - A session's scratchpad (`<temp root>/mercury-<uid>/<project>/<session id>/scratchpad`,
   where `MERCURY_TMPDIR` sets `<temp root>`) is the directory where the model writes
   temporary helper scripts, intermediate results, and captures. Because it sits
