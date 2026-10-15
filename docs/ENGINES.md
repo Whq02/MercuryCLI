@@ -694,7 +694,7 @@ come from its owning account resolvers:
   words. A chat goes to that endpoint's `streamGenerateContent` under
   Antigravity's own User-Agent (`antigravity/hub/<version> …`), whose version
   follows Antigravity's update manifest (one bounded read a day, the shipped
-  2.23.0 as the fallback, skipped under traffic-off) because Google gates
+  2.23.1 as the fallback, skipped under traffic-off) because Google gates
   newer models on it; the request wraps the Gemini request with the project
   and a request id, the system instruction tagged as a user part, the tools'
   schemas in the shape the endpoint accepts. What leaves the machine on this
