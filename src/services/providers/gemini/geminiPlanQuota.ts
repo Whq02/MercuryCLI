@@ -45,7 +45,7 @@ export function geminiPlanQuotaView(
   return { ...(active ? { active } : {}), ...(activeRow !== undefined && active ? { activeRow } : {}), used, others }
 }
 
-function geminiSessionModelUsage(): Readonly<Record<string, { lastUsedAtMs?: number }>> {
+export function geminiSessionModelUsage(): Readonly<Record<string, { lastUsedAtMs?: number }>> {
   const rows = getFocusedSessionConnector().usage().modelSpend
   if (rows === undefined) return getModelUsage()
   const usage: Record<string, { lastUsedAtMs?: number }> = {}

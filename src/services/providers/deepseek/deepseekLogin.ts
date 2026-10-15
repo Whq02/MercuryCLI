@@ -2,7 +2,7 @@ import { errorMessageWithCause } from '../../../utils/errors.js'
 import { writeStoredDeepseekApiKey } from '../../../utils/router/providerSecrets.js'
 import { fetchDeepseekBalance } from './deepseekUsageState.js'
 
-interface DeepseekKeyLoginOutcome {
+export interface DeepseekKeyLoginOutcome {
   ok: boolean
   stored: boolean
   receipt: string

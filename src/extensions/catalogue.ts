@@ -14,7 +14,7 @@ import { CATALOGUE_FILE } from './paths.js'
 
 const LABEL_RULE = `${NAME_RULE}; not one of the reserved labels project, session, mercury`
 
-const CatalogueEntrySchema = lazySchema(() =>
+export const CatalogueEntrySchema = lazySchema(() =>
   z.strictObject({
     name: z.string().regex(NAME_PATTERN, `name: ${NAME_RULE}`).describe("The extension's name. Must equal the manifest's `name` — a mismatch is a lying catalogue and the install refuses."),
     version: z.string().min(1).regex(/^\S+$/, 'version: no whitespace').describe("The version offered. Must equal the manifest's `version` at that ref — a mismatch refuses the install."),

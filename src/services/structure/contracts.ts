@@ -25,7 +25,7 @@ export const STRUCTURE_SELECTS = [
   'string',
   'jsx-element',
 ] as const
-type StructureSelect = (typeof STRUCTURE_SELECTS)[number]
+export type StructureSelect = (typeof STRUCTURE_SELECTS)[number]
 
 export interface StructureQuery {
   select?: StructureSelect
@@ -101,7 +101,7 @@ export type StructureTransform =
       text: string
     }
 
-interface StructureDiffHunk {
+export interface StructureDiffHunk {
   oldStart: number
   oldLines: number
   newStart: number

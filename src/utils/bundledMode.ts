@@ -3,7 +3,7 @@ type BunGlobal = {
   embeddedFiles?: unknown
 }
 
-function isRunningWithBun(): boolean {
+export function isRunningWithBun(): boolean {
   return Boolean(process.versions?.bun)
 }
 

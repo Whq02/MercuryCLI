@@ -21,7 +21,7 @@ export async function getNestedMemoryAttachments(toolUseContext: ToolUseContext)
   return loads.flat()
 }
 
-async function getNestedMemoryAttachmentsForFile(
+export async function getNestedMemoryAttachmentsForFile(
   filePath: string,
   context: ToolUseContext,
   state: { toolPermissionContext: ToolPermissionContext },

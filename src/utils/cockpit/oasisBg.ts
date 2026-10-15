@@ -33,7 +33,7 @@ export function oasisBgEnter(theme: ThemeName = DEFAULT_THEME_SETTING): string {
   return `\x1b]11;${groundFamilyFor(theme).NIGHT}\x07`
 }
 
-function oasisBgExit(): string {
+export function oasisBgExit(): string {
   return `\x1b]111\x07`
 }
 
@@ -49,7 +49,7 @@ let paintedAtQuerySend: boolean | undefined
 let exitRestored = false
 let channelHealed = false
 
-type TerminalGround =
+export type TerminalGround =
   | { state: 'painted'; color: string }
   | { state: 'original'; color: string }
   | { state: 'unknown' }

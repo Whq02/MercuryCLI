@@ -1,9 +1,9 @@
 import { formatAge } from '../../utils/healthCertCore.js'
 import type { AnthropicDoorState } from './anthropic/anthropicCatalogue.js'
 
-type ModelListFamily = 'anthropic' | 'openai' | 'zai' | 'moonshot' | 'deepseek' | 'xai' | 'meta' | 'gemini' | 'huggingface' | 'mistral' | 'nous' | 'zen'
+export type ModelListFamily = 'anthropic' | 'openai' | 'zai' | 'moonshot' | 'deepseek' | 'xai' | 'meta' | 'gemini' | 'huggingface' | 'mistral' | 'nous' | 'zen'
 
-interface TypedIdVerdict {
+export interface TypedIdVerdict {
   rows: Array<{ id: string; served: boolean }>
   served: string[]
   notServed: string[]
@@ -24,7 +24,7 @@ export function judgeTypedIds(
   }
 }
 
-type ModelListSource =
+export type ModelListSource =
   | { kind: 'list'; ids: string[]; fetchedAtMs: number }
   | { kind: 'unread'; lastError?: string; lastAttemptAtMs?: number }
   | { kind: 'no-credential' }
@@ -39,9 +39,9 @@ export interface ModelListFact {
   current?: (id: string) => string
 }
 
-type ModelListsStatus = 'ok' | 'warn' | 'unknown' | 'info'
+export type ModelListsStatus = 'ok' | 'warn' | 'unknown' | 'info'
 
-interface ModelListsRow {
+export interface ModelListsRow {
   status: ModelListsStatus
   evidence: string
   detail: string
@@ -49,7 +49,7 @@ interface ModelListsRow {
 }
 
 export const MODEL_LISTS_FIX = 'pick from the live rows in /model — a typed id the list lacks is refused before the wire; /bug reports the stale ids'
-const MODEL_LISTS_READ_HINT = '/model or a chat naming the family reads it'
+export const MODEL_LISTS_READ_HINT = '/model or a chat naming the family reads it'
 export const MODEL_LISTS_UNREAD_EVIDENCE = `no list read in this process — ${MODEL_LISTS_READ_HINT}; the release-day check reads every list`
 
 const NOT_JUDGED = (n: number): string => `${n} typed ${n === 1 ? 'id' : 'ids'} not judged`

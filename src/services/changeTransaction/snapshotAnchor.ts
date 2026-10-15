@@ -1,11 +1,11 @@
 
 import { runtimeKernel } from '../primitives/runtimeKernel.js'
 
-type ParsedAnchor =
+export type ParsedAnchor =
   | { kind: 'full'; digest: string }
   | { kind: 'range'; digest: string; startLine: number; lineCount: number }
 
-type AnchorCheck =
+export type AnchorCheck =
   | { ok: true }
   | {
       ok: false

@@ -26,7 +26,7 @@ import { XAI_MANAGEMENT_KEY_PAGE } from '../services/providers/xai/xaiUsageState
 import { MISTRAL_ADMIN_KEY_PAGE } from '../services/providers/mistral/mistralUsageState.js'
 
 
-type KeyEntryProvider = 'zai' | 'moonshot' | 'deepseek' | 'xai' | 'xai-management' | 'meta' | 'compat' | 'huggingface' | 'local' | 'brave' | 'tavily' | 'mistral' | 'mistral-admin' | 'nous' | 'zen'
+export type KeyEntryProvider = 'zai' | 'moonshot' | 'deepseek' | 'xai' | 'xai-management' | 'meta' | 'compat' | 'huggingface' | 'local' | 'brave' | 'tavily' | 'mistral' | 'mistral-admin' | 'nous' | 'zen'
 
 const LANES: Record<
   KeyEntryProvider,

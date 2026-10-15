@@ -3,15 +3,15 @@ export function isXaiModelId(model: string): boolean {
   return id === 'grok' || id.startsWith('grok-')
 }
 
-const XAI_EFFORTS: ReadonlySet<string> = new Set(['none', 'low', 'medium', 'high', 'xhigh'])
-const XAI_RETIRED_ALIASES: ReadonlyMap<string, string> = new Map()
-function xaiRetiredAliasTarget(id: string): string | undefined {
+export const XAI_EFFORTS: ReadonlySet<string> = new Set(['none', 'low', 'medium', 'high', 'xhigh'])
+export const XAI_RETIRED_ALIASES: ReadonlyMap<string, string> = new Map()
+export function xaiRetiredAliasTarget(id: string): string | undefined {
   return XAI_RETIRED_ALIASES.get(id.trim().toLowerCase())
 }
-function xaiCurrentModelId(id: string): string {
+export function xaiCurrentModelId(id: string): string {
   return xaiRetiredAliasTarget(id) ?? id
 }
-function xaiAcceptsEffort(model: string, effort: string): boolean {
+export function xaiAcceptsEffort(model: string, effort: string): boolean {
   return xaiDisplayPin(model)?.efforts?.includes(effort) === true
 }
 

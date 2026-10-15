@@ -15,7 +15,7 @@ import { safeParseJSON } from '../utils/json.js'
 import { sleep } from '../utils/sleep.js'
 import { jsonStringify } from '../utils/slowOperations.js'
 
-type LivenessPolarity = 'assume-alive' | 'assume-dead'
+export type LivenessPolarity = 'assume-alive' | 'assume-dead'
 
 async function currentProcStartAnyPlatform(): Promise<{ procStartField: { procStart: string } | Record<string, never> }> {
   const local = currentProcStart()
@@ -42,7 +42,7 @@ export interface PidLockHolder {
   procStart?: string
 }
 
-type PidLockAcquire =
+export type PidLockAcquire =
   | { held: true; fresh: boolean }
   | { held: false; by?: PidLockHolder }
 
@@ -275,13 +275,13 @@ export async function acquirePidLockWithRetry(
 }
 
 
-interface PidLockReleaseReceipt {
+export interface PidLockReleaseReceipt {
   outcome: 'removed' | 'absent' | 'not-held' | 'deferred' | 'failed'
   attempts: number
   fsCode?: string
 }
 
-interface PidLockReleaseHealth {
+export interface PidLockReleaseHealth {
   notRemoved: {
     count: number
     last: { path: string; outcome: 'deferred' | 'failed'; fsCode?: string; attempts: number; atMs: number } | null

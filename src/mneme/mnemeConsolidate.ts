@@ -47,7 +47,7 @@ export interface AssignedRow extends MnemeObservation {
   seq: number
 }
 
-interface MnemeDraftEntry {
+export interface MnemeDraftEntry {
   text: string
   seq: number
   time: string
@@ -55,7 +55,7 @@ interface MnemeDraftEntry {
   supersedes?: string
 }
 
-interface MnemeDraftBlock {
+export interface MnemeDraftBlock {
   topicSlug: string
   summary?: string
   heading?: string
@@ -143,7 +143,7 @@ export function validateDraft(
   return { ok: true }
 }
 
-interface ConsolidateResult {
+export interface ConsolidateResult {
   consolidated: boolean
   reason: string
   docsTouched: string[]
@@ -216,7 +216,7 @@ export function consolidateLockOwnedBy(lock: string, pid: number): boolean {
   return !Number.isInteger(holder) || holder <= 0 || holder === pid
 }
 
-function rowHash(r: { ts: string; source: string; text: string }): string {
+export function rowHash(r: { ts: string; source: string; text: string }): string {
   const s = `${r.ts}\u0000${r.source}\u0000${r.text}`
   let h = 0x811c9dc5
   for (let i = 0; i < s.length; i++) {
@@ -368,7 +368,7 @@ function tidySummary(tidy: TidyResult): NonNullable<ConsolidateResult['tidy']> {
   return { archived: tidy.archived, restored: tidy.restored, merged: tidy.merged, topicsArchived: tidy.topicsArchived, conserved: tidy.conserved }
 }
 
-function replacementAllowed(target: number, pins: readonly PinRecord[], libraryLive: ReadonlySet<number>): boolean {
+export function replacementAllowed(target: number, pins: readonly PinRecord[], libraryLive: ReadonlySet<number>): boolean {
   const pin = pins.find(p => p.seq === target)
   return pin?.asked !== true && libraryLive.has(target)
 }

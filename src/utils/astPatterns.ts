@@ -97,20 +97,20 @@ export function resolveAstLanguage(name: string): PolyglotLanguage | null {
   return languageByName(lowered) ?? languageByName(LANGUAGE_ALIASES[lowered] ?? '')
 }
 
-const PATTERN_GRAMMAR_LINES: readonly string[] = [
+export const PATTERN_GRAMMAR_LINES: readonly string[] = [
   'A pattern is ONE complete node of the target language, written as code: a call "$FN($$$ARGS)", a statement "if ($COND) { $$$BODY }", a declaration "function $NAME($$$ARGS) { $$$BODY }", an import "import { $$$NAMES } from \'$MODULE\'". Wrap a fragment that is not standalone in its container: "class $_ { $$$BODY }".',
   'Meta-variables: $NAME matches exactly one node and captures it; $$$NAME matches a sequence of zero or more sibling nodes (arguments, parameters, statements) and captures it; $_ matches one node without capturing; $$$ matches a sequence without capturing. Names are UPPERCASE letters, digits and underscores. A name used twice must match identical code ($A == $A finds x == x, never x == y). $$X and $$$name are literal text, not meta-variables.',
   'Formatting never matters (spacing, line breaks, comments); structure does: "foo($A)" finds every one-argument call to foo, "foo($$$ARGS)" every call to foo, and neither finds the word foo in a string or a comment.',
 ]
 
-const PATTERN_EXAMPLES: readonly string[] = [
+export const PATTERN_EXAMPLES: readonly string[] = [
   '$FN($$$ARGS)',
   'if ($COND) { $$$BODY }',
   'function $NAME($$$ARGS) { $$$BODY }',
 ]
 
 
-interface AstScopeFile {
+export interface AstScopeFile {
   abs: string
   rel: string
   lang: PolyglotLanguage
@@ -130,7 +130,7 @@ export interface AstScope {
   lang?: PolyglotLanguage
 }
 
-interface AstRefusal {
+export interface AstRefusal {
   refused: string
 }
 
@@ -276,7 +276,7 @@ export function resolveAstScope(opts: {
   }
 }
 
-function describeSkipped(skipped: ReadonlyArray<[string, number]>, cap = 6): string {
+export function describeSkipped(skipped: ReadonlyArray<[string, number]>, cap = 6): string {
   if (skipped.length === 0) return ''
   const shown = skipped.slice(0, cap).map(([ext, n]) => `${ext} ×${n}`)
   const more = skipped.length > cap ? `, +${skipped.length - cap} more` : ''
@@ -284,7 +284,7 @@ function describeSkipped(skipped: ReadonlyArray<[string, number]>, cap = 6): str
 }
 
 
-interface AstCapture {
+export interface AstCapture {
   key: string
   text: string
   startIndex: number
@@ -306,7 +306,7 @@ export interface AstMatch {
   captures: AstCapture[]
 }
 
-interface AstSearchResult {
+export interface AstSearchResult {
   matches: AstMatch[]
   capped: boolean
   filesParsed: number
@@ -451,7 +451,7 @@ export function patternErrorText(pattern: string, result: AstSearchResult): stri
 }
 
 
-interface AstRewriteFile {
+export interface AstRewriteFile {
   rel: string
   abs: string
   lang: string
@@ -575,7 +575,7 @@ export function rewritePlanToken(pattern: string, rewrite: string, files: Array<
     .slice(0, 12)}`
 }
 
-function unifiedDiff(rel: string, before: string, after: string, lineBudget = AST_BOUNDS.diffLinesPerFile): { text: string; omittedLines: number } {
+export function unifiedDiff(rel: string, before: string, after: string, lineBudget = AST_BOUNDS.diffLinesPerFile): { text: string; omittedLines: number } {
   const patch = structuredPatch(rel, rel, before, after, '', '', { context: 3 })
   const lines: string[] = [`--- a/${rel}`, `+++ b/${rel}`]
   let omitted = 0
@@ -828,7 +828,7 @@ const MATCH_TEXT_LINES = 4
 const MATCH_LINE_CHARS = 160
 const CAPTURE_CHARS = 80
 
-function matchLocation(m: AstMatch): string {
+export function matchLocation(m: AstMatch): string {
   return m.startLine === m.endLine ? `${m.rel}:${m.startLine}:${m.startCol}` : `${m.rel}:${m.startLine}:${m.startCol}-${m.endLine}:${m.endCol}`
 }
 

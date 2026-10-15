@@ -11,13 +11,13 @@ const __dirname = path.join(__filename, '../')
 
 export type TsModule = typeof TS
 
-interface TsResolution {
+export interface TsResolution {
   state: 'ok'
   modulePath: string
   source: 'override' | 'workspace' | 'vendored'
 }
 
-interface TsResolutionFailure {
+export interface TsResolutionFailure {
   state: 'unavailable'
   note: string
 }
@@ -134,7 +134,7 @@ const EXT_TO_KIND: Record<string, string> = {
   '.tsx': 'TSX',
 }
 
-function scriptKindFor(ts: TsModule, fileName: string): TS.ScriptKind | undefined {
+export function scriptKindFor(ts: TsModule, fileName: string): TS.ScriptKind | undefined {
   const ext = path.extname(fileName).toLowerCase()
   const key = EXT_TO_KIND[ext]
   if (!key) return undefined
@@ -145,7 +145,7 @@ export function isSupportedSourceFile(fileName: string): boolean {
   return path.extname(fileName).toLowerCase() in EXT_TO_KIND
 }
 
-interface ParsedSource {
+export interface ParsedSource {
   sourceFile: TS.SourceFile
   parseErrors: string[]
 }

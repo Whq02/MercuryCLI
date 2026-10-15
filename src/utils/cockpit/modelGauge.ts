@@ -11,7 +11,7 @@ import { resolveContextWindow, type ContextResolution } from '../model/capabilit
 import { renderModelName, type ModelName } from '../model/model.js'
 import { withState, type Snapshot } from './types.js'
 
-type ModelData = {
+export type ModelData = {
   name: string
   model: string
   window: number

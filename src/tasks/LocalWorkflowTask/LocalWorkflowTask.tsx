@@ -356,7 +356,7 @@ export function failWorkflowTask(
   if (settled !== null) void evictTaskOutput(taskId)
 }
 
-type WorkflowActionReceipt = 'applied' | 'run-settled' | 'not-in-flight'
+export type WorkflowActionReceipt = 'applied' | 'run-settled' | 'not-in-flight'
 
 export function pauseWorkflowTask(
   taskId: string,
@@ -484,7 +484,7 @@ const WORKFLOW_RESULT_MAX_CHARS = 8000
 
 const FIRST_FAILURE_MAX_CHARS = 240
 
-function firstFailureWords(failures: readonly string[] | undefined): string {
+export function firstFailureWords(failures: readonly string[] | undefined): string {
   const first = (failures ?? []).find(line => line.trim() !== '')
   if (first === undefined) return 'no cause recorded'
   const oneLine = first.replace(/\s+/g, ' ').trim()

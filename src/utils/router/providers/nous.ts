@@ -10,7 +10,7 @@ import type {
   RouterProviderStatus,
 } from './types.js'
 
-function describeNousProvider(): ProviderDescription {
+export function describeNousProvider(): ProviderDescription {
   const discovery = getCachedProviderDiscovery('nous') ?? primeNousDiscovery()
   const record = discovery?.provider === 'nous' ? discovery : undefined
   const keyPresent = record?.keyPresent ?? false
@@ -31,20 +31,20 @@ function describeNousProvider(): ProviderDescription {
   }
 }
 
-function nousStatus(): RouterProviderStatus {
+export function nousStatus(): RouterProviderStatus {
   const discovery = primeNousDiscovery()
   return discovery?.keyPresent ? { available: true } : { available: false, reason: 'no-api-key:nous' }
 }
 
-function listNousModels(): RouterProviderModel[] {
+export function listNousModels(): RouterProviderModel[] {
   return []
 }
 
-function resolveNousModel(_modelClass: RouterModelClass, _posture: RouterPosture): RouteModelRef | null {
+export function resolveNousModel(_modelClass: RouterModelClass, _posture: RouterPosture): RouteModelRef | null {
   return null
 }
 
-function buildNousLaunchPatch(_ref: RouteModelRef): { model: string; effort: string } {
+export function buildNousLaunchPatch(_ref: RouteModelRef): { model: string; effort: string } {
   throw new Error('router: provider nous has no SEAT runtime — roster seats stay Anthropic; Nous Portal models dispatch through the AgentTool engine path')
 }
 

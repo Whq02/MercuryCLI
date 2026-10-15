@@ -761,7 +761,7 @@ type NativeModule = {
 
 let nativeModule: NativeModule | null = null
 
-function getNativeModule(): NativeModule | null {
+export function getNativeModule(): NativeModule | null {
   if (!nativeModule) {
     nativeModule = { ColorDiff, ColorFile, getSyntaxTheme }
   }

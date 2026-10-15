@@ -9,7 +9,7 @@ export interface BoundedDiffHunk {
   lines: string[]
 }
 
-const HUNK_LINE_BUDGET = 80
+export const HUNK_LINE_BUDGET = 80
 
 export interface BoundedDiff {
   hunks: BoundedDiffHunk[]

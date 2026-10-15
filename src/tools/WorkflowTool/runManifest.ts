@@ -13,7 +13,7 @@ import type {
 } from '../../tasks/LocalWorkflowTask/LocalWorkflowTask.js'
 import { readWorkflowUsage, type WorkflowRunUsage, type WorkflowUsageRollup } from './workflowUsage.js'
 
-const RUN_MANIFEST_FILENAME = 'run.json'
+export const RUN_MANIFEST_FILENAME = 'run.json'
 
 export const RUN_MANIFEST_VERSION = 1
 
@@ -394,7 +394,7 @@ function parseListedManifest(
   }
 }
 
-type WorkflowRunListing = {
+export type WorkflowRunListing = {
   rows: Array<WorkflowRunManifest & { mtimeMs: number }>
   unreadable: number
 }
@@ -468,7 +468,7 @@ export async function listWorkflowRuns(
   return (await listWorkflowRunsDetailed(cwd, opts)).rows
 }
 
-type RunLiveness = 'live' | 'wedged' | 'orphaned'
+export type RunLiveness = 'live' | 'wedged' | 'orphaned'
 
 export function runLiveness(
   manifest: Pick<WorkflowRunManifest, 'status' | 'ownerPid'>,
@@ -495,7 +495,7 @@ export function isRunOrphaned(
 }
 
 
-const RUN_CLAIM_FILENAME = 'claim.json'
+export const RUN_CLAIM_FILENAME = 'claim.json'
 
 export type RunClaim = { instanceId: string; epoch: number; pid: number; claimedAt: number }
 
@@ -559,7 +559,7 @@ export function parkedOwnerAlive(
   return manifest.status === 'paused' && recordedOwnerAlive(manifest, mtimeMs, nowMs)
 }
 
-type DiskResumability =
+export type DiskResumability =
   | { ok: true; scriptPath: string; args: unknown }
   | { ok: false; reason: string }
 

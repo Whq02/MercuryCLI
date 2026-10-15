@@ -4,7 +4,7 @@ import { metaDisplayPin } from '../../../services/providers/meta/metaPins.js'
 import type { ProviderCatalogueEntry, ProviderDescription, RouteModelRef, RouterModelClass, RouterPosture, RouterProviderAdapter, RouterProviderModel, RouterProviderStatus } from './types.js'
 import { SPECIALIST_ROLES } from './types.js'
 
-function metaLiveCatalogue(): { entries: ProviderCatalogueEntry[]; fetchedAtMs: number } | undefined {
+export function metaLiveCatalogue(): { entries: ProviderCatalogueEntry[]; fetchedAtMs: number } | undefined {
   const { rows, source } = metaCatalogueRows()
   if (source.kind !== 'live') return undefined
   return { fetchedAtMs: source.fetchedAtMs, entries: rows.map(row => ({
@@ -22,7 +22,7 @@ export function metaCatalogueEntry(id: string): ProviderCatalogueEntry | undefin
   return metaCatalogueEntries().find(row => row.id.toLowerCase() === id.trim().toLowerCase())
 }
 
-function describeMetaProvider(): ProviderDescription {
+export function describeMetaProvider(): ProviderDescription {
   const account = resolveMetaAccount()
   const live = metaLiveCatalogue()
   return {
@@ -35,20 +35,20 @@ function describeMetaProvider(): ProviderDescription {
   }
 }
 
-function metaStatus(): RouterProviderStatus {
+export function metaStatus(): RouterProviderStatus {
   return resolveMetaAccount() ? { available: true } : { available: false, reason: 'no-api-key:meta' }
 }
 
-function listMetaModels(): RouterProviderModel[] {
+export function listMetaModels(): RouterProviderModel[] {
   if (!metaStatus().available) return []
   return metaCatalogueEntries().map(entry => ({ ref: { provider: 'meta', model: entry.id, modelClass: 'muse', effort: 'high', contextWindow: entry.contextWindow ?? 0 }, displayLabel: entry.displayLabel }))
 }
 
-function resolveMetaModel(_modelClass: RouterModelClass, _posture: RouterPosture): RouteModelRef | null {
+export function resolveMetaModel(_modelClass: RouterModelClass, _posture: RouterPosture): RouteModelRef | null {
   return null
 }
 
-function buildMetaLaunchPatch(_ref: RouteModelRef): { model: string; effort: string } {
+export function buildMetaLaunchPatch(_ref: RouteModelRef): { model: string; effort: string } {
   throw new Error('router: provider meta has no SEAT runtime — Meta specialists dispatch through the AgentTool engine path')
 }
 

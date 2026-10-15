@@ -16,7 +16,7 @@ function verbSignature(name: string, spec: BlenderBridgeVerbSpec): string {
   return `${name}(${args.join(', ')})${spec.cls === 'exec' ? ' [exec]' : ''}`
 }
 
-function getBlenderVerbCatalog(): string {
+export function getBlenderVerbCatalog(): string {
   const wire = blenderBridgeVerbNames()
     .map(name => verbSignature(name, BLENDER_BRIDGE_VERBS[name]))
     .join(' · ')

@@ -7,7 +7,7 @@ import { fetchWithProviderDeadline } from '../fetchDeadline.js'
 
 export const MUSE_CODE_OAUTH_CLIENT_ID = '1031625952748946'
 export const META_API_VERSION = '1.0.0'
-const META_DEVICE_GRANT = 'urn:ietf:params:oauth:grant-type:device_code'
+export const META_DEVICE_GRANT = 'urn:ietf:params:oauth:grant-type:device_code'
 
 const META_AUTH_FILE_NAME = '.meta-auth.json'
 const META_EXCHANGE_TIMEOUT_MS = 20_000
@@ -15,7 +15,7 @@ const META_DEFAULT_INTERVAL_SEC = 5
 
 export type MetaSourceKind = 'muse-code' | 'api-key'
 
-interface MetaUsageWindowRecord {
+export interface MetaUsageWindowRecord {
   usedPercent?: number
   resetsAtMs?: number
   windowDurationMins?: number
@@ -52,7 +52,7 @@ export function metaChatCompletionsUrl(env: NodeJS.ProcessEnv = process.env): st
   return `${metaApiBase(env)}/chat/completions`
 }
 
-function metaAuthBase(env: NodeJS.ProcessEnv = process.env): string {
+export function metaAuthBase(env: NodeJS.ProcessEnv = process.env): string {
   const override = env.MERCURY_META_API_BASE?.trim()
   return (override ? override.replace(/\/+$/, '').replace(/\/v1$/, '') : 'https://auth.meta.com').replace(/\/+$/, '')
 }
@@ -85,7 +85,7 @@ function readAuthFile(): MetaAuthFile | null {
   }
 }
 
-function parseMetaResetAtMs(value: unknown): number | undefined {
+export function parseMetaResetAtMs(value: unknown): number | undefined {
   if (typeof value === 'number' && Number.isFinite(value) && value > 0) {
     return value < 1e11 ? Math.round(value * 1000) : Math.round(value)
   }
@@ -120,7 +120,7 @@ function decodeWindowRecord(raw: unknown): MetaUsageWindowRecord | undefined {
   }
 }
 
-function decodeMetaSubsUsage(raw: unknown): MetaSubsUsageRecord | undefined {
+export function decodeMetaSubsUsage(raw: unknown): MetaSubsUsageRecord | undefined {
   if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) return undefined
   const obj = raw as Record<string, unknown>
   const window = decodeWindowRecord(obj.window)
@@ -169,7 +169,7 @@ export function disconnectMetaMuseCode(): void {
   writeMetaMuseCodeGrant(null)
 }
 
-function metaMuseCodeConnected(): boolean {
+export function metaMuseCodeConnected(): boolean {
   return readMetaMuseCodeGrant() !== undefined
 }
 
@@ -271,7 +271,7 @@ export interface MetaDeviceAuthStart {
   expiresAtMs: number
 }
 
-type MetaDevicePollResult =
+export type MetaDevicePollResult =
   | { state: 'authorized'; accessToken: string }
   | { state: 'pending' }
   | { state: 'slow-down' }
@@ -372,7 +372,7 @@ export async function pollMetaDeviceToken(
   }
 }
 
-type MuseCodeKeyExchangeResult =
+export type MuseCodeKeyExchangeResult =
   | {
       state: 'ok'
       apiKey?: string

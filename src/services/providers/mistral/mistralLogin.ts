@@ -5,7 +5,7 @@ import { mistralApiBase, mistralEnvKey } from './mistralAccounts.js'
 import { fetchMistralLiveModels, MistralCatalogueHttpError } from './mistralCatalogue.js'
 import { fetchMistralIdentity, fetchMistralLimits, mistralUsageFailureWords, type MistralUsageIo } from './mistralUsageState.js'
 
-interface MistralKeyLoginOutcome {
+export interface MistralKeyLoginOutcome {
   ok: boolean
   stored: boolean
   receipt: string

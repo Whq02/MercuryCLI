@@ -24,7 +24,7 @@ import { composeFooterHint, packFooter, type FooterCloseKeys } from './footerHin
 import { gaugeColorOf, stateStyleOf, type SnapshotState } from './theme.js'
 
 
-const CockpitEmbeddedContext = React.createContext(false)
+export const CockpitEmbeddedContext = React.createContext(false)
 
 
 export function ProductLockup({
@@ -272,7 +272,7 @@ export function SectionHeader({
   )
 }
 
-function Heading({ children }: { children: string }): React.ReactNode {
+export function Heading({ children }: { children: string }): React.ReactNode {
   const t = useMercuryTokens()
   return (
     <Text bold color={t.info}>
@@ -286,7 +286,7 @@ export function Sep(): React.ReactNode {
   return <Text color={t.textMuted}> {GLYPH.sep} </Text>
 }
 
-function Divider({
+export function Divider({
   label,
   width = 40,
   color,
@@ -507,7 +507,7 @@ export function Sparkline({
   return <Text color={color ?? t.info}>{cells}</Text>
 }
 
-function CommandRow({
+export function CommandRow({
   command,
   hint,
   disabled = false,
@@ -582,7 +582,7 @@ export function WarningBanner({
 }
 
 
-function AgentRow({
+export function AgentRow({
   name,
   agentType,
   state = 'idle',
@@ -618,7 +618,7 @@ function AgentRow({
   )
 }
 
-function TraceRow({
+export function TraceRow({
   time,
   tool,
   risk,
@@ -693,7 +693,7 @@ export function ActivityFeed({
   )
 }
 
-function GateRow({
+export function GateRow({
   name,
   on,
   hint,

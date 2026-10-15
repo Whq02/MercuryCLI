@@ -15,12 +15,12 @@ import { isPeerGoneWriteError, registerProcessInputErrorHandler, registerProcess
 import { profileReport } from './startupProfiler.js'
 
 
-type GracefulShutdownOptions = {
+export type GracefulShutdownOptions = {
   finalMessage?: string
 }
 
 const CLEANUP_TIMEOUT_MS = 2000
-type SessionEndReason = (typeof SESSION_END_REASONS)[number]
+export type SessionEndReason = (typeof SESSION_END_REASONS)[number]
 const SESSION_END_HOOK_BUDGET_MS = 1_500
 
 const FAILSAFE_FLOOR_MS = 5000
@@ -34,16 +34,16 @@ type ShutdownRestorationModule = typeof import('./shutdownRestoration.js')
 let restorationModule: ShutdownRestorationModule | undefined
 
 let terminalGoneFlag = false
-function markTerminalGone(): void {
+export function markTerminalGone(): void {
   terminalGoneFlag = true
 }
 function terminalIsGone(): boolean {
   return terminalGoneFlag || process.stdout.writable === false
 }
 
-const TERMINAL_GONE_EXIT_CODE = 129
+export const TERMINAL_GONE_EXIT_CODE = 129
 
-function terminalGoneReadLine(code: string): string {
+export function terminalGoneReadLine(code: string): string {
   return `terminal gone: stdin read ${code} — the session closes like a hangup (exit ${TERMINAL_GONE_EXIT_CODE})`
 }
 
@@ -128,23 +128,23 @@ const MODULE_LOAD_CODES = new Set([
   'ERR_DLOPEN_FAILED',
 ])
 
-function isModuleLoadFailure(reason: unknown): boolean {
+export function isModuleLoadFailure(reason: unknown): boolean {
   if (!(reason instanceof Error)) return false
   const code = (reason as { code?: unknown }).code
   if (typeof code === 'string' && MODULE_LOAD_CODES.has(code)) return true
   return /^Cannot find (?:module|package) /.test(reason.message)
 }
 
-function isMissingCwd(reason: unknown): boolean {
+export function isMissingCwd(reason: unknown): boolean {
   if (!(reason instanceof Error)) return false
   const e = reason as NodeJS.ErrnoException
   return e.code === 'ENOENT' && (e.syscall === 'uv_cwd' || /uv_cwd/.test(reason.message))
 }
 
-const MISSING_CWD_LINE =
+export const MISSING_CWD_LINE =
   'the folder you started in no longer exists; start Mercury from another folder'
 
-type LoudFailureOrigin = 'boot' | 'unhandled-rejection' | 'uncaught-exception'
+export type LoudFailureOrigin = 'boot' | 'unhandled-rejection' | 'uncaught-exception'
 
 export function failLoud(error: unknown, origin: LoudFailureOrigin): void {
   const err = error instanceof Error ? error : new Error(String(error))
@@ -224,7 +224,7 @@ const breaker = {
   ring: [] as CrashRecord[],
 }
 
-function recordUncaughtAndCheckBreaker(nowMs: number): boolean {
+export function recordUncaughtAndCheckBreaker(nowMs: number): boolean {
   if (breaker.tripped) return false
   if (nowMs - breaker.windowStartMs > BREAKER_WINDOW_MS) {
     breaker.windowStartMs = nowMs
@@ -525,7 +525,7 @@ export async function gracefulShutdown(
   forceExit(exitCode)
 }
 
-const CRASH_SHUTDOWN_BUDGET_MS = 1500
+export const CRASH_SHUTDOWN_BUDGET_MS = 1500
 const CRASH_CLEANUP_CAP_MS = 700
 
 export async function crashShutdown(exitCode: number): Promise<void> {

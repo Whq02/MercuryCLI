@@ -6,7 +6,7 @@ import { getFsImplementation } from './utils/fsOperations.js'
 
 const ONBOARDING_SEEN_COUNT_LIMIT = 4
 
-type Step = {
+export type Step = {
   key: string
   text: string
   isComplete: boolean
@@ -23,7 +23,7 @@ function isWorkingDirectoryEmpty(): boolean {
   }
 }
 
-function getSteps(): Step[] {
+export function getSteps(): Step[] {
   const emptyDir = isWorkingDirectoryEmpty()
   const steps: Step[] = []
 

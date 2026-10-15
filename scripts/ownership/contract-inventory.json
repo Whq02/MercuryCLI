@@ -105,6 +105,7 @@
     "getApolloPreflightQuestions",
     "getHooksFromOutsideCheckoutSources",
     "getInitialSettings",
+    "getManagedFileSettingsPresence",
     "getPolicySettingsOrigin",
     "getRelativeSettingsFilePathForSource",
     "getSettingsFilePathForSource",
@@ -113,14 +114,19 @@
     "getSettingsWithSources",
     "getSettingsWriteFilePathForSource",
     "hasSkipSovereignConsentPrompt",
+    "loadManagedFileSettings",
     "parseSettingsFile",
     "rawSettingsContainsKey",
     "removeSettingsFileIfEmpty",
     "settingsMergeCustomizer",
+    "type:SettingsWithSources",
     "updateSettingsForSource"
    ],
    "src/utils/settings/types.ts": [
+    "AllowedMcpServerEntrySchema",
     "CUSTOMIZATION_SURFACES",
+    "DeniedMcpServerEntrySchema",
+    "EnvironmentVariablesSchema",
     "ExtensionsSettingsSchema",
     "HookEntrySchema",
     "HooksSchema",
@@ -191,6 +197,9 @@
    "src/utils/permissions/permissionSetup.ts": [
     "createSovereignDisabledContext",
     "describeSessionPermissionMode",
+    "findDangerousPermissions",
+    "getFlowUnavailableNotification",
+    "getFlowUnavailableReason",
     "initialPermissionModeFromCLI",
     "initializeToolPermissionContext",
     "isDangerousBashPermission",
@@ -199,13 +208,20 @@
     "isFlowGateEnabled",
     "isSovereignDisabled",
     "parseToolListFromCLI",
+    "resolvePermissionModeCandidates",
     "resolveSavedPermissionMode",
     "resolveSessionPermissionMode",
+    "restoreDangerousPermissions",
+    "savedPermissionModeCandidate",
     "sessionPermissionModeSourceWords",
     "setPermissionModeWithGuards",
     "stripDangerousPermissionsForFlow",
     "transitionPermissionMode",
+    "type:DangerousPermissionInfo",
+    "type:FlowUnavailableReason",
     "type:SessionPermissionModeResolution",
+    "type:SessionPermissionModeSource",
+    "type:SetPermissionModeResult",
     "validateModeEntry"
    ],
    "src/utils/permissions/permissionsLoader.ts": [
@@ -312,6 +328,7 @@
     "wrapFetchWithStepUpDetection"
    ],
    "src/services/mcp/config.ts": [
+    "PROJECT_MCP_FILE",
     "addMcpConfig",
     "areMcpConfigsAllowedWithEnterpriseMcpConfig",
     "dedupAnthropicConnectors",
@@ -331,6 +348,7 @@
     "projectMcpFilePath",
     "removeMcpConfig",
     "setMcpServerEnabled",
+    "shouldAllowManagedMcpServersOnly",
     "type:McpResolutionNotice"
    ],
    "src/services/mcp/client.ts": [
@@ -371,7 +389,10 @@
     "wrapFetchWithTimeout"
    ],
    "src/services/mcp/types.ts": [
+    "ConfigScopeSchema",
+    "McpJsonConfigSchema",
     "McpServerConfigSchema",
+    "TransportSchema",
     "type:ConfigScope",
     "type:ConnectedMCPServer",
     "type:MCPServerConnection",

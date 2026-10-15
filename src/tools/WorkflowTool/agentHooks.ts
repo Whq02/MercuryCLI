@@ -80,7 +80,7 @@ const JOURNAL_VERSION = 'v2'
 const THROTTLE_BACKOFF_MS = 45_000
 const RECOVERY_HEARTBEAT_MS = 30_000
 const MAX_STRUCTURED_OUTPUT_NUDGES = 2
-const STRUCTURED_OUTPUT_NUDGE_PROMPT = `You stopped without calling ${STRUCTURED_OUTPUT_TOOL_NAME}. Your work above is preserved; call ${STRUCTURED_OUTPUT_TOOL_NAME} now, once, with your final answer in the shape its input schema requires — the script reads only that call, not text.`
+export const STRUCTURED_OUTPUT_NUDGE_PROMPT = `You stopped without calling ${STRUCTURED_OUTPUT_TOOL_NAME}. Your work above is preserved; call ${STRUCTURED_OUTPUT_TOOL_NAME} now, once, with your final answer in the shape its input schema requires — the script reads only that call, not text.`
 const DETERMINISTIC_400_RE =
   /prompt is too long|prompt too long|maximum context length|context window exceeded|invalid_request_error/i
 
@@ -88,7 +88,7 @@ export function computeConcurrencyCap(): number {
   return governorCeilings().delegationLanes
 }
 
-class WorkflowAgentCapError extends Error {
+export class WorkflowAgentCapError extends Error {
   constructor() {
     super(
       `Workflow agent() call cap reached (${AGENT_LIFETIME_CAP}). This usually means a loop using budget.remaining() never terminates because no token budget was set — remaining() returns Infinity when budget.total is null. Add a hard iteration cap to the loop, or pass a token budget.`,
@@ -96,7 +96,7 @@ class WorkflowAgentCapError extends Error {
     this.name = 'WorkflowAgentCapError'
   }
 }
-class WorkflowBudgetExceededError extends Error {
+export class WorkflowBudgetExceededError extends Error {
   constructor(spent: number, total: number) {
     super(
       `Workflow token budget exceeded (${spent.toLocaleString()} / ${total.toLocaleString()} output tokens). Stopping further agent() calls. In-flight crewmates will complete; their results are preserved.`,
@@ -105,16 +105,16 @@ class WorkflowBudgetExceededError extends Error {
   }
 }
 
-const SUBAGENT_TEXT_PROMPT = `A workflow script spawned you and reads your final text verbatim as its return value — no human reads it. Output the literal result (data, JSON or text) and nothing else: no confirmation, and when JSON is asked for, the raw JSON with no code fence or prose around it.`
+export const SUBAGENT_TEXT_PROMPT = `A workflow script spawned you and reads your final text verbatim as its return value — no human reads it. Output the literal result (data, JSON or text) and nothing else: no confirmation, and when JSON is asked for, the raw JSON with no code fence or prose around it.`
 
-const SUBAGENT_SCHEMA_PROMPT = `A workflow script spawned you and reads only your ${STRUCTURED_OUTPUT_TOOL_NAME} tool call: do the work, then call ${STRUCTURED_OUTPUT_TOOL_NAME} once with the answer in the shape its input schema requires — a text answer is not read. A validation error means call it again with the shape corrected. After the call, end the turn.`
+export const SUBAGENT_SCHEMA_PROMPT = `A workflow script spawned you and reads only your ${STRUCTURED_OUTPUT_TOOL_NAME} tool call: do the work, then call ${STRUCTURED_OUTPUT_TOOL_NAME} once with the answer in the shape its input schema requires — a text answer is not read. A validation error means call it again with the shape corrected. After the call, end the turn.`
 
-const SCHEMA_APPEND = `
+export const SCHEMA_APPEND = `
 
 ---
 
 ${SUBAGENT_SCHEMA_PROMPT}`
-const TEXT_APPEND = `
+export const TEXT_APPEND = `
 
 ---
 
@@ -122,10 +122,10 @@ ${SUBAGENT_TEXT_PROMPT}`
 
 const SUBAGENT_DISALLOWED_TOOLS = ['Crewmate', 'Workflow']
 
-function buildSubagentTextPrompt(): string {
+export function buildSubagentTextPrompt(): string {
   return SUBAGENT_TEXT_PROMPT
 }
-function buildSubagentSchemaPrompt(): string {
+export function buildSubagentSchemaPrompt(): string {
   return SUBAGENT_SCHEMA_PROMPT
 }
 
@@ -145,22 +145,22 @@ export const WORKFLOW_SUBAGENT_SCHEMA_DEF = {
 } as const
 
 
-interface JournalStartedEntry {
+export interface JournalStartedEntry {
   type: 'started'
   key: string
   agentId: string
   epoch?: number
 }
-interface JournalResultEntry {
+export interface JournalResultEntry {
   type: 'result'
   key: string
   agentId: string
   result: unknown
   epoch?: number
 }
-type JournalEntry = JournalStartedEntry | JournalResultEntry
+export type JournalEntry = JournalStartedEntry | JournalResultEntry
 
-interface JournalSnapshot {
+export interface JournalSnapshot {
   results: Map<string, JournalResultEntry>
   started: Map<string, JournalStartedEntry[]>
 }
@@ -206,7 +206,7 @@ function canonicalizeValue(value: unknown): unknown {
   return value
 }
 
-function canonicalizeOpts(opts: unknown): string {
+export function canonicalizeOpts(opts: unknown): string {
   if (typeof opts !== 'object' || opts === null) return '{}'
   const source = opts as Record<string, unknown>
   const kept: Record<string, unknown> = {}
@@ -309,7 +309,7 @@ export class LocalFileJournal {
 }
 
 
-interface SpawnSubagentArgs {
+export interface SpawnSubagentArgs {
   agentDefinition: unknown
   prompt: string
   toolUseContext: WorkflowToolContext
@@ -331,7 +331,7 @@ interface SpawnSubagentArgs {
   continuationMessages?: unknown[]
 }
 
-type SubagentStreamEvent =
+export type SubagentStreamEvent =
   | {
       type: 'attachment'
       attachment: { type: string; data?: unknown; [k: string]: unknown }
@@ -350,7 +350,7 @@ type SubagentStreamEvent =
     }
   | { type: string; [k: string]: unknown }
 
-type SpawnSubagentStream = (args: SpawnSubagentArgs) => AsyncIterable<SubagentStreamEvent>
+export type SpawnSubagentStream = (args: SpawnSubagentArgs) => AsyncIterable<SubagentStreamEvent>
 
 function workflowWorkerTools(
   agentDef: unknown,
@@ -415,7 +415,7 @@ async function* adapterSpawnStream(
 }
 
 
-interface WorkflowHookDeps {
+export interface WorkflowHookDeps {
   toolUseContext: WorkflowToolContext
   canUseTool: unknown
   emitProgress: (frame: ProgressFrame) => void

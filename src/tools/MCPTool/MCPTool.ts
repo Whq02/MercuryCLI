@@ -7,8 +7,8 @@ import { DESCRIPTION, PROMPT } from './prompt.js'
 import { renderToolResultMessage, renderToolUseMessage, renderToolUseProgressMessage } from './UI.js'
 
 export type { MCPProgress }
-const inputSchema = lazySchema(() => z.looseObject({}))
-const outputSchema = lazySchema(() => z.string().describe('The MCP call\'s pass-through result text'))
+export const inputSchema = lazySchema(() => z.looseObject({}))
+export const outputSchema = lazySchema(() => z.string().describe('The MCP call\'s pass-through result text'))
 type Output = z.infer<ReturnType<typeof outputSchema>>
 
 async function requireClone(): Promise<never> {

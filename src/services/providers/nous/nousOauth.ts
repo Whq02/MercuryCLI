@@ -10,10 +10,10 @@ import { credentialFingerprint } from '../credentialIdentity.js'
 import { fetchWithProviderDeadline } from '../fetchDeadline.js'
 import { presentedNousClient } from './nousClientContract.js'
 
-const NOUS_DEVICE_CODE_GRANT = 'urn:ietf:params:oauth:grant-type:device_code'
-const NOUS_REFRESH_TOKEN_HEADER = 'x-nous-refresh-token'
+export const NOUS_DEVICE_CODE_GRANT = 'urn:ietf:params:oauth:grant-type:device_code'
+export const NOUS_REFRESH_TOKEN_HEADER = 'x-nous-refresh-token'
 export const NOUS_SIGNIN_EXPIRED_LINE = 'Nous Portal sign-in expired — sign in again (/logins nous) or use an API key'
-const NOUS_GRANT_DEAD_CODES = new Set(['invalid_grant', 'invalid_token', 'refresh_token_reused'])
+export const NOUS_GRANT_DEAD_CODES = new Set(['invalid_grant', 'invalid_token', 'refresh_token_reused'])
 const REFRESH_SKEW_MS = 120_000
 const EXCHANGE_DEADLINE_MS = 15_000
 
@@ -26,7 +26,7 @@ export interface NousTokens {
   accountId?: string
 }
 
-interface NousSigninRefusal {
+export interface NousSigninRefusal {
   fingerprint: string
   status: number
   code: string
@@ -34,7 +34,7 @@ interface NousSigninRefusal {
   observedAtMs: number
 }
 
-type NousPreferredSource = 'signin' | 'api-key'
+export type NousPreferredSource = 'signin' | 'api-key'
 
 interface AuthFile {
   version: number
@@ -162,7 +162,7 @@ function trustedInferenceBase(value: unknown, io?: NousOauthIo): string | undefi
   }
 }
 
-function tokensFromNousBody(body: Record<string, unknown>, io?: NousOauthIo, old?: NousTokens): NousTokens {
+export function tokensFromNousBody(body: Record<string, unknown>, io?: NousOauthIo, old?: NousTokens): NousTokens {
   if (typeof body.access_token !== 'string' || !body.access_token.trim()) throw new Error('the Portal returned no access token')
   const refreshToken = typeof body.refresh_token === 'string' && body.refresh_token.trim() ? body.refresh_token : old?.refreshToken
   if (!refreshToken) throw new Error('the Portal returned no refresh token')
@@ -186,7 +186,7 @@ function portalBase(env: NodeJS.ProcessEnv | undefined): string {
   return ((env ?? process.env)['MERCURY_NOUS_PORTAL_BASE']?.trim() || 'https://portal.nousresearch.com').replace(/\/+$/, '')
 }
 
-interface NousPortalAnswer {
+export interface NousPortalAnswer {
   status: number
   body: Record<string, unknown>
   edge?: string
@@ -263,7 +263,7 @@ export async function startNousDeviceAuth(io?: NousOauthIo): Promise<NousDeviceA
   }
 }
 
-type NousDevicePoll =
+export type NousDevicePoll =
   | { state: 'authorized'; tokens: NousTokens }
   | { state: 'pending' }
   | { state: 'slow-down' }

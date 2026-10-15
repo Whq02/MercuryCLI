@@ -17,7 +17,7 @@ const RANDOM_LOCKOUT_MSG =
   'Math.random() is unavailable in workflow scripts (breaks resume).' +
   ' For N independent samples, include the index in the agent label or prompt.'
 
-const DETERMINISM_SHIM_SRC = `(() => {
+export const DETERMINISM_SHIM_SRC = `(() => {
       const CLOCK_MSG = ${JSON.stringify(CLOCK_LOCKOUT_MSG)};
       const RANDOM_MSG = ${JSON.stringify(RANDOM_LOCKOUT_MSG)};
       Math.random = function random() { throw new Error(RANDOM_MSG) };
@@ -60,7 +60,7 @@ function severedError(message: string, name = 'Error', stack?: string): object {
 const WRAP_HEAD = "(async () => {'use strict';\n"
 const WRAP_TAIL = '\n})()'
 
-function rewriteAwaits(body: string): string {
+export function rewriteAwaits(body: string): string {
   const prefix = SETTLE_PREFIX
   const parseText = `${WRAP_HEAD}${body}${WRAP_TAIL}`
   const tree = parseSource(parseText, {
@@ -145,7 +145,7 @@ function rewriteAwaits(body: string): string {
 }
 
 
-interface CompileResult {
+export interface CompileResult {
   ok: true
   vmScript: vm.Script
 }
@@ -229,7 +229,7 @@ export function scriptUsesNonDeterminism(body: string): boolean {
 }
 
 
-interface WorkflowPhaseMeta {
+export interface WorkflowPhaseMeta {
   title: string
   detail?: string
   model?: string

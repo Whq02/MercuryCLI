@@ -15,7 +15,7 @@ export type McpServerState =
   | 'disabled'
   | 'configured'
 
-interface McpServerRow {
+export interface McpServerRow {
   name: string
   state: McpServerState
   detail: string
@@ -24,7 +24,7 @@ interface McpServerRow {
   error?: string
 }
 
-interface McpCounts {
+export interface McpCounts {
   ready: number
   starting: number
   needsAuth: number
@@ -44,7 +44,7 @@ export type McpData = {
   runtimeStampedAt: number | null
 }
 
-interface McpRuntimeSnapshot {
+export interface McpRuntimeSnapshot {
   connections: MCPServerConnection[]
   stampedAt: number
 }
@@ -64,7 +64,7 @@ export function publishMcpConnections(connections: MCPServerConnection[]): void 
   }
 }
 
-function mcpConnectionsSnapshot(): McpRuntimeSnapshot | null {
+export function mcpConnectionsSnapshot(): McpRuntimeSnapshot | null {
   return latest
 }
 

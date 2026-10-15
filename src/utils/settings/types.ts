@@ -13,7 +13,7 @@ export type { HookEntry, HooksSettings } from '../../schemas/hooks.js'
 
 export const CUSTOMIZATION_SURFACES = ['skills', 'agents', 'hooks', 'mcp'] as const
 
-const EnvironmentVariablesSchema = lazySchema(() =>
+export const EnvironmentVariablesSchema = lazySchema(() =>
   z.record(z.string(), z.union([z.string(), z.number(), z.boolean()]).transform(value => String(value))),
 )
 
@@ -31,8 +31,8 @@ function requireExactlyOneField(
   if (present !== 1) ctx.addIssue({ code: 'custom', message: 'Exactly one of serverName, serverCommand, or serverUrl must be set' } as never)
 }
 
-const AllowedMcpServerEntrySchema = lazySchema(() => z.object(mcpEntryShape).superRefine(requireExactlyOneField))
-const DeniedMcpServerEntrySchema = lazySchema(() => z.object(mcpEntryShape).superRefine(requireExactlyOneField))
+export const AllowedMcpServerEntrySchema = lazySchema(() => z.object(mcpEntryShape).superRefine(requireExactlyOneField))
+export const DeniedMcpServerEntrySchema = lazySchema(() => z.object(mcpEntryShape).superRefine(requireExactlyOneField))
 type AllowedMcpServerEntry = z.infer<ReturnType<typeof AllowedMcpServerEntrySchema>>
 type DeniedMcpServerEntry = z.infer<ReturnType<typeof DeniedMcpServerEntrySchema>>
 

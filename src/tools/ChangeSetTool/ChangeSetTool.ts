@@ -80,7 +80,7 @@ import {
   userFacingName,
 } from './UI.js'
 
-const CHANGESET_TOOL_NAME = 'ChangeSet'
+export const CHANGESET_TOOL_NAME = 'ChangeSet'
 
 const OPS = ['preview', 'apply', 'status', 'discard'] as const
 

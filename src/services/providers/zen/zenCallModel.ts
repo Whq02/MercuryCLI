@@ -20,7 +20,7 @@ export function buildZenExtras(args: LaneExtrasArgs): Record<string, unknown> {
   return pin?.thinkingToggle === true ? { ...extras, thinking: { type: args.thinkingEnabled ? 'enabled' : 'disabled' } } : extras
 }
 
-const zenLaneProfile: CompatLaneProfile = {
+export const zenLaneProfile: CompatLaneProfile = {
   lane: 'zen',
   providerLabel: 'OpenCode Zen',
   resolveCredential: () => {

@@ -9,8 +9,8 @@ import { keyPageLine } from './loginFamilyRows.js'
 import { KeyCardTitle } from './KeyCardTitle.js'
 import { usePopupCompact } from '../context/popupFormContext.js'
 
-const ZEN_CONNECT_BILLING_LINE = 'One key reaches every model the gateway lists, at the vendor\'s pay-as-you-go prices; an OpenCode Go plan on the same key bills its own base.'
-const ZEN_CONNECT_STORE_LINE = 'Checked on the usage endpoint first (a refused key is never stored); stored auth-scoped (mode 600), never logged. OPENCODE_API_KEY wins over the store.'
+export const ZEN_CONNECT_BILLING_LINE = 'One key reaches every model the gateway lists, at the vendor\'s pay-as-you-go prices; an OpenCode Go plan on the same key bills its own base.'
+export const ZEN_CONNECT_STORE_LINE = 'Checked on the usage endpoint first (a refused key is never stored); stored auth-scoped (mode 600), never logged. OPENCODE_API_KEY wins over the store.'
 
 export function ZenConnect({ onResult, onBack }: {
   onResult: (result: { ok: boolean; receipt: string }) => void

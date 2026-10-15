@@ -21,7 +21,7 @@ import { recordMdmProbeOutcome } from './probeMemo.js'
 export { mdmBootAwaitsRawRead } from './probeMemo.js'
 
 
-type MdmTierResult = { settings: SettingsJson; errors: ValidationError[] }
+export type MdmTierResult = { settings: SettingsJson; errors: ValidationError[] }
 
 const EMPTY_TIER: MdmTierResult = Object.freeze({
   settings: Object.freeze({}) as SettingsJson,

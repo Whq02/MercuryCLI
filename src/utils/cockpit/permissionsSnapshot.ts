@@ -4,7 +4,7 @@ import { listCapabilityKills } from '../permissions/capabilityGate.js'
 import { withState, type Snapshot } from './types.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 
-type PermissionsData = {
+export type PermissionsData = {
   mode: string
   mcpMaxRisk: string
   mcpPolicyActive: boolean

@@ -18,7 +18,7 @@ import {
   renderToolUseMessage,
 } from './UI.js'
 
-const INSPECT_TOOL_NAME = 'Inspect' as const
+export const INSPECT_TOOL_NAME = 'Inspect' as const
 
 const inputSchema = lazySchema(() =>
   z.strictObject({

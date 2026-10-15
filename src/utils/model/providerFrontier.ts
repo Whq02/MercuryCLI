@@ -12,7 +12,7 @@ import { moonshotCatalogueSourceWords } from '../../services/providers/moonshot/
 import { deepseekCatalogueSourceWords } from '../../services/providers/deepseek/deepseekCatalogue.js'
 import { zaiCatalogueSourceWords } from '../../services/providers/zai/zaiCatalogue.js'
 
-interface ProviderFrontierFact {
+export interface ProviderFrontierFact {
   modelId: string
   displayName: string
   observedAt?: string

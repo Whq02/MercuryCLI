@@ -6,7 +6,7 @@ import {
   subscribeFocusedSessionConnector,
 } from '../services/engine-connector/focusedConnector.js'
 
-function subscribeFocusedWorkspace(listener: () => void): () => void {
+export function subscribeFocusedWorkspace(listener: () => void): () => void {
   const offGround = subscribeCwdState(listener)
   const offSlot = subscribeFocusedSessionConnector(listener)
   return () => {
@@ -19,7 +19,7 @@ export function getFocusedWorkspaceCwd(): string {
   return getFocusedSessionConnector().workspace().cwd
 }
 
-function getFocusedWorkspaceOriginalCwd(): string {
+export function getFocusedWorkspaceOriginalCwd(): string {
   return getFocusedSessionConnector().workspace().originalCwd
 }
 

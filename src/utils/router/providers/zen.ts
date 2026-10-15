@@ -4,7 +4,7 @@ import { zenDisplayPin, zenQualifiedId } from '../../../services/providers/zen/z
 import type { ProviderCatalogueEntry, ProviderDescription, RouteModelRef, RouterModelClass, RouterPosture, RouterProviderAdapter, RouterProviderModel, RouterProviderStatus } from './types.js'
 import { SPECIALIST_ROLES } from './types.js'
 
-function zenLiveCatalogue(): { entries: ProviderCatalogueEntry[]; fetchedAtMs: number } | undefined {
+export function zenLiveCatalogue(): { entries: ProviderCatalogueEntry[]; fetchedAtMs: number } | undefined {
   const { rows, source } = zenCatalogueRows()
   if (source.kind !== 'live') return undefined
   return { fetchedAtMs: source.fetchedAtMs, entries: rows.map(row => ({
@@ -22,7 +22,7 @@ export function zenCatalogueEntry(id: string): ProviderCatalogueEntry | undefine
   return zenCatalogueEntries().find(row => row.id.toLowerCase() === id.trim().toLowerCase())
 }
 
-function describeZenProvider(): ProviderDescription {
+export function describeZenProvider(): ProviderDescription {
   const account = resolveZenAccount()
   const live = zenLiveCatalogue()
   return {
@@ -35,20 +35,20 @@ function describeZenProvider(): ProviderDescription {
   }
 }
 
-function zenStatus(): RouterProviderStatus {
+export function zenStatus(): RouterProviderStatus {
   return resolveZenAccount() ? { available: true } : { available: false, reason: 'no-api-key:zen' }
 }
 
-function listZenModels(): RouterProviderModel[] {
+export function listZenModels(): RouterProviderModel[] {
   if (!zenStatus().available) return []
   return zenCatalogueEntries().map(entry => ({ ref: { provider: 'zen', model: entry.id, modelClass: 'zen', effort: 'high', contextWindow: entry.contextWindow ?? 0 }, displayLabel: entry.displayLabel }))
 }
 
-function resolveZenModel(_modelClass: RouterModelClass, _posture: RouterPosture): RouteModelRef | null {
+export function resolveZenModel(_modelClass: RouterModelClass, _posture: RouterPosture): RouteModelRef | null {
   return null
 }
 
-function buildZenLaunchPatch(_ref: RouteModelRef): { model: string; effort: string } {
+export function buildZenLaunchPatch(_ref: RouteModelRef): { model: string; effort: string } {
   throw new Error('router: provider zen has no SEAT runtime — OpenCode Zen specialists dispatch through the AgentTool engine path')
 }
 
