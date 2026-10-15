@@ -806,7 +806,7 @@ tool's return) and lands in the main session's transcript.
 A line sent while the session's runner is folding (by hand with `/compact`,
 or automatically) waits in the runner's queue and is drawn as a queued row
 with the badge `held`; the hint row says `"held until the compaction lands — it
-delivers once, on its own (↑ takes it back)”`. When the fold finishes, the runner
+delivers once, on its own (↑ takes it back)"`. When the fold finishes, the runner
 takes the held lines as its next turn, in the order they were sent, ahead of
 anything newer, each once; a line sent after the fold runs behind
 them. Pressing `↑` on an empty composer while a line is held takes it back into the
@@ -814,11 +814,11 @@ composer, just like any queued line.
 
 A queued or held row stays only while the runner holds that line. A runner
 that stopped with the line still queued restores it when resumed: the
-line is queued again from the session’s record, under its own id,
+line is queued again from the session's record, under its own id,
 and runs as the next turn. When the runner reports that it no longer holds a
 line that is also absent from the record, the row is removed and the
-hint row shows `”the runner restarted — “…” not taken; type
-it again”`; pressing `↑` on such a row shows `”the session did not take “…” — type
+hint row shows `"the runner restarted — “…” not taken; type
+it again"`; pressing `↑` on such a row shows `"the session did not take “…” — type
 it again"` and removes it. A row for a line no runner holds is
 never left on screen.
 
