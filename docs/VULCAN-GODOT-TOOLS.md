@@ -410,6 +410,7 @@ Godot tool for a session-owned queued job.
 `mercury godot tour fixture --tree HEAD` runs the named tour on its own
 frozen instance and returns the same record with `media.contactSheet.path`.
 Your editor or game is never touched.
+
 ## Settled profile jobs
 
 ```json
@@ -537,7 +538,5 @@ the wrapper, the engine and its `conhost` together.
 
 The service does not drive your open editor or game. Native workers
 and display captures still use a display; runtime queries do not make a
-native run off-screen. It does not persist a queue across a Mercury
-restart (the records on disk persist; a queued job does not).
 native run off-screen. It does not persist a queue across a Mercury
 restart (the records on disk persist; a queued job does not).

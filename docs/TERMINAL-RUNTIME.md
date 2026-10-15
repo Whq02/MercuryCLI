@@ -93,6 +93,7 @@ re-entering it), `20` hands over with the screen restored, `130` is a cancel
 case the launcher restores the terminal in one bounded write (synchronized output closed,
 alternate scroll off, the alternate screen left, the cursor shown, the
 background handed back) and boots plain. A handover arms the one-shot marker
+`MERCURY_SPLASH_HANDOFF`; the runtime then reads the enter-screen choice
 (`splash-action.json` under the config home, matched to the launch's own id)
 and deletes both, so no child ever inherits them. The launchers parse nothing
 the splash writes.
@@ -136,6 +137,7 @@ while keeping your configuration and sessions, and `--force` replaces an
 existing non-Mercury `mercury` file in the bin directory after backing it up as
 `mercury.bak` (without `--force`, an existing file from another program is
 left untouched and refused). Pass `--json` on any verb for JSON output.
+
 ## `mercury update`
 
 `mercury update` (alias `upgrade`) reads the configured repository's GitHub Releases over one
@@ -288,6 +290,7 @@ program named by a relative path after a `cd` (use its absolute path).
 The sessions have a ceiling: the `shell.sessions` setting (a whole
 number, 8 by default: the main conversation plus seven crewmates), the
 `MERCURY_SHELL_ENGINE_SESSIONS` env pin over it, and the `/config` row
+**Shell engine sessions** beside **Shell engine**. The main conversation
 never waits for a session; a crewmate that needs one while the crewmates'
 share is full waits for a release (a crewmate ending releases its own), the
 wait shown on its row and bounded by the call's timeout, and never shares

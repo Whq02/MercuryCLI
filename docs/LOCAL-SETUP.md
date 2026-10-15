@@ -112,6 +112,7 @@ everything as it stands.
    found server's model) through the same road `/model <id>` takes (a model
    the session is already on settles as a no-op), then one bounded turn
    (`reply with the single word ready`) runs on the native `/api/chat` road
+   and the dialog shows the reply's first line with its timings: the load, and
    the ingest at the measured pace. The last row reads `ready ·
    local/qwen3.5:27b · 256k window · reply in 41 s · esc closes`.
 

@@ -102,6 +102,7 @@ managed layers only, and the terminal UI runs nothing until the workspace is
 trusted ([TRUST.md](TRUST.md)); a headless run in an untrusted folder says
 on stderr, once at the start, how many project and local hooks it left
 unloaded and how to trust the folder.
+
 ### Skills, agents and extensions
 
 A skill's `hooks:` frontmatter is the same map, registered while the skill is

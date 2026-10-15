@@ -246,6 +246,7 @@ entry to the model at the start of the next session on its entry page (`#
 Lineage`), where the session's model provider receives it as part of the prompt
 ("never uploaded" means Mercury itself never pushes, syncs or shares the
 journal file).
+
 ## The memory centre
 
 `/memory` is the front door. It opens as a popup over the chat, in the frame

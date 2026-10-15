@@ -87,7 +87,6 @@ consumed by the answer as its `repr`. The namespace persists between runs.
 Blender never reloads the add-on's Python state on file opens, mode
 changes, or renders, so **the connection holds across `blend_open`** and
 render jobs. A mid-flight drop means Blender quit or the add-on was
-A mid-flight drop means Blender quit or the add-on was
 disabled. Opening a file by hand is reported
 as `blend_changed`.
 
@@ -112,5 +111,6 @@ debugpy recipe (the Launch tool's blender-debug row prints the listener
 line). **Headless** batch renders/scripts stay with the Launch tool's
 user-run profiles (the exact command is printed, arguments in
 documented order). In-Blender scene/object/render truth, file opens, still
+renders, reports, and `python_run` live here. There is no test-run road:
 Blender has no test framework, and a rendered image is not a test run.
 

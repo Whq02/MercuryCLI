@@ -121,6 +121,7 @@ leaves the terminal's own ground alone).
 ## The ping
 
 When a chat finishes its turn while you are away (when the terminal reports itself unfocused, or has seen no key of yours for a few seconds), Mercury pings the terminal once: an iTerm2 notification there and the terminal bell elsewhere; `view.ping: false` in `settings.json` (the Ping row of `/config`) turns it off.
+
 ## Reduced motion
 
 Two inputs, either suffices:

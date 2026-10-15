@@ -237,6 +237,7 @@ values. A custom object inherits normal values for omitted fields; a recovery
 budget of zero means no budget. `MERCURY_STREAM_IDLE_TIMEOUT_MS`,
 `MERCURY_API_TIMEOUT_MS` and `MERCURY_RECOVERY_BUDGET_MINUTES` take precedence.
 These limits govern connection silence and recovery only.
+
 ## The local server
 
 The values under `local.server` stage changes to Ollama's launch configuration.

@@ -254,6 +254,7 @@ the verdict. The document carries:
 - `sections[]`: each `{id, title, checks[]}`, each check
   `{id, label, probe, depth, durationMs, evidence, evidenceAt, status}`;
 - `readiness[]`: the capability-readiness rows, each
+  `{id, kind, label, state, detail, source, lastCheckedAt, latencyMs}`, with
   kind one of `tool`, `mcp`, `lane`, `engine`, `extension`, `skill`, and state
   one of `ready`, `configured`, `degraded`, `disabled`, `unavailable`.
 

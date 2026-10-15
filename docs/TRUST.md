@@ -98,6 +98,7 @@ starting folder.
   sovereign). You accept every risk; Flow mode is where
   the guardrails live. Capability gates, explicit deny rules and built-in command safety rules still
   apply, and a refusal is not a card. The model's own questions to you
+  (AskUserQuestion, the Apollo review) are not permission cards and still
   appear.
 - **Flow mode** allows what Implement mode allows and the read-only
   tools without asking. A yes on a permission card is remembered as a saved
@@ -142,6 +143,7 @@ never travel on a later turn. The dispatcher handles user-private commands in
 the terminal UI, so a session runner's command table never carries them.
 `/daemon halt` runs in the terminal UI the same way: it interrupts immediately
 even while a turn is running, without routing through a session runner.
+
 ## Commands every session refuses
 
 Built-in command safety rules (`wards`) refuse destructive shell commands in
@@ -161,6 +163,7 @@ the recursive-delete rule refuses `/`, `~`, `$HOME`, `/Users`, `/Users/<name>`,
 `/home`, `/home/<name>`, `/root`, `/System`, `/Library`, `/Applications`,
 `/Volumes/<name>` and system trees (`/etc`, `/usr`, `/bin`, `/sbin`, `/var`
 outside `/var/tmp` and `/var/folders`). On Windows, the same rule refuses drive
+roots (`C:\`), your own home, other users' homes and the `Users` root
 (`C:\Users`, `C:\Users\<anyone>`), system folders (`C:\Windows`, `C:\Program
 Files`, `C:\Program Files (x86)`, `C:\ProgramData` at any depth), and share
 roots (`\\server\share`, `//server/share`) across `rm -r`,
@@ -179,6 +182,7 @@ inside the project or a scratch directory, and so does a script that only
 mentions one of these words inside a quoted string or a heredoc. The same
 list rides interactive, headless `run`, crew and runner sessions alike, and it never
 stands down within a session. `MERCURY_WARDS=warn` lets a refuse-list hit
+proceed and leaves one warning row on the transcript naming the ward, the
 tool call and the match (shown in the session, recorded on a headless
 run's transcript, and kept for a hosted chat or a resume), while project and
 builtin rules still deny, even a call that matches both; `MERCURY_WARDS=0`
@@ -200,7 +204,7 @@ A hosted session (a daemon-hosted session, an editor session or another
 applies. In either case the runner refuses an ask nobody answers within its
 clock (ten minutes in Flow, three in Sovereign; a crewmate's ask ten minutes
 in every other mode; a session's own ask in Default, Implement or Apollo
-waits for you; it withdraws the ask with `$/cancel_request` naming the
+waits for you) and withdraws the ask with `$/cancel_request` naming the
 expiry. `MERCURY_PERMISSION_ASK_EXPIRY_MINUTES` replaces every clock that
 exists (0 disables them). The daemon declines an ask when no user is
 connected; the absence of a user never grants permission.

@@ -355,6 +355,7 @@ provider prefix is refused before Mercury makes a network request (including any
 id containing `/` on the first-party endpoint), naming the id and the declared
 provider families, unless you explicitly pinned that id with an `ANTHROPIC_*`
 model variable or set `ANTHROPIC_BASE_URL` to a custom gateway.
+
 ## The runtimes
 
 Three wire families serve the providers:
@@ -1360,9 +1361,6 @@ the first request on the new model; the fold's summary is written by the
 model the conversation was built on, whose window holds it. A conversation
 that fits switches as before. A switch back to a model the conversation
 already ran on re-sends the system prompt that model first saw, so the
-thinking it left behind stays bound to its prefix; a working directory
-added in between reached the model on its own row and never rewrites that
-prompt.
 thinking it left behind stays bound to its prefix; a working directory
 added in between reached the model on its own row and never rewrites that
 prompt.
