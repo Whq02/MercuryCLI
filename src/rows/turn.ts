@@ -673,6 +673,7 @@ export class Conversation {
       }
     }
     const openCalls = new Map<string, string>()
+    let recoveredUnansweredAsk = false
     const cutCalls: string[] = []
     const signal = this.abortController.signal
     const trackCalls = (rows: RowDraft[]): RowDraft[] => {
@@ -681,6 +682,8 @@ export class Conversation {
         if (call.type === 'tool_call' && call.call_id !== undefined) openCalls.set(call.call_id, call.tool ?? '')
         if (call.type === 'tool_result' && call.call_id !== undefined) {
           const tool = openCalls.get(call.call_id)
+          if (this.unansweredAsks.has(call.call_id)) recoveredUnansweredAsk = false
+          else if (call.status === 'ok' && tool !== undefined && tool !== 'ToolSearch') recoveredUnansweredAsk = true
           if ((call.status === 'aborted' || signal.aborted) && tool !== undefined) cutCalls.push(tool)
           openCalls.delete(call.call_id)
         }
@@ -1073,8 +1076,12 @@ export class Conversation {
       }
       const unanswered = this.denials.slice(denialsBefore).filter(denial => this.unansweredAsks.has(denial.call_id))
       if (unanswered.length > 0) {
-        yield* endTurn('blocked', { answer, error: unansweredAsksBlocker([...new Set(unanswered.map(denial => denial.tool))]) })
-        return
+        const tools = [...new Set(unanswered.map(denial => denial.tool))]
+        if (!recoveredUnansweredAsk) {
+          yield* endTurn('blocked', { answer, error: unansweredAsksBlocker(tools) })
+          return
+        }
+        notices.push({ level: 'warning', text: `${tools.join(', ')} was not approved; the run continued with other tools.` })
       }
       yield* endTurn('completed', { answer, ...(this.structuredOutput !== undefined ? { structured: this.structuredOutput } : {}) })
       return
