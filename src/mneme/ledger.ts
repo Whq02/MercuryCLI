@@ -202,6 +202,21 @@ export function closeEntry(projectKey: string, sessionId: string, close: { outco
   })
 }
 
+export const INTERRUPTED_OUTCOME = 'interrupted'
+
+export function reconcileInterruptedEntries(projectKey: string, currentSessionId: string, cutAt: (sessionId: string) => string | null): LedgerEntry[] {
+  const live = new Set(liveSessions(projectKey).map(session => session.sessionId))
+  const reconciled: LedgerEntry[] = []
+  for (const entry of readLedger(projectKey)) {
+    if (entry.endedAt !== null || entry.sessionId === currentSessionId || live.has(entry.sessionId)) continue
+    const at = cutAt(entry.sessionId)
+    if (at === null) continue
+    const next = update(projectKey, entry.sessionId, current => (current.endedAt !== null ? null : { ...current, endedAt: at, outcome: INTERRUPTED_OUTCOME }))
+    if (next !== null && next.outcome === INTERRUPTED_OUTCOME && next.endedAt === at) reconciled.push(next)
+  }
+  return reconciled
+}
+
 interface WorkerRow {
   sessionId?: unknown
   workspaceId?: unknown
