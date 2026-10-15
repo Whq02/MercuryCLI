@@ -99,11 +99,6 @@
       "reason": "The work-context bind/park/cleanup owner behind the WORK/workbench board's LANES verbs, retired in place; the MERCURY_WORK_CONTEXTS_DIR registry row names it as consumer, so the flag is PARKED with it (the reachability manifest records the parking, not a severed flag). Kept for the retire-or-adopt decision on the retire-or-adopt line."
     },
     {
-      "file": "src/services/workbench/folio.ts",
-      "class": "superseded-unreachable",
-      "reason": "The evidence-folio assembler of the WORK/workbench board, retired in place: the board's REVIEW verbs were its only surface. Engine kept for the retire-or-adopt decision on the retire-or-adopt line; its provers (cockpit-interaction/prove-evidence-folios) still lock it."
-    },
-    {
       "file": "src/services/workbench/returnState.ts",
       "class": "superseded-unreachable",
       "reason": "The attach/detach return-state seam of the WORK/workbench board (deep-link out, carry the row back), retired in place: the prompts panel has no deep-links. Kept for the retire-or-adopt decision on the retire-or-adopt line; attention/prove-attach-return still locks the seam."
