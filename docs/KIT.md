@@ -3,9 +3,8 @@
 MCPs & Skills saves your per-repository selection of MCP servers, skills, and
 extensions on the home screen's **MCPs & Skills** row (⊛). The choice is
 recorded as deviations from "everything on" and resolved into a **kit** when each
-new session starts. Inside a running session, `/mcp` and `/skills` toggle
-servers and skills for that session only without changing your saved defaults.
-Flip a switch on the menu, start a session, and it loads that selection.
+new session starts. Flip a switch on the menu, start a session, and it loads that
+selection.
 
 ## The menu
 
