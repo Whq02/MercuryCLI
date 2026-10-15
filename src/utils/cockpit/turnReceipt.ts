@@ -42,10 +42,17 @@ function emptyCounts(): TurnReceiptCounts {
   }
 }
 
-function hasActivity(c: TurnReceiptCounts): boolean {
+export function hasActivity(c: TurnReceiptCounts): boolean {
   return (
     c.scratchpadEdits + c.fileEdits + c.reads + c.searches + c.fetches + c.commands + c.browser + c.agents > 0
   )
+}
+
+export const NO_TOOLS_RAN_WORDS = 'no tools ran this turn'
+
+function isReplyRow(m: LooseMessage): boolean {
+  if (m.type !== 'assistant') return false
+  return contentBlocks(m).some(b => b['type'] === 'text' && typeof b['text'] === 'string' && (b['text'] as string).trim() !== '')
 }
 
 const READ_TOOLS = new Set(['Read', 'NotebookRead'])
@@ -207,9 +214,9 @@ export function injectTurnReceipts(messages: RenderableMessage[], tempRoot: stri
   if (!isTurnReceiptEnabled()) return messages
   const out: RenderableMessage[] = []
   let start = 0
-  walkTurnReceipts(messages, tempRoot, (counts, anchorUuid, end) => {
+  walkTurnReceipts(messages, tempRoot, (counts, anchorUuid, end, replied) => {
     for (let index = start; index < end; index++) out.push(messages[index]!)
-    if (hasActivity(counts)) out.push(makeReceipt(counts, anchorUuid))
+    if (hasActivity(counts) || (replied && anchorUuid !== 'turn-0')) out.push(makeReceipt(counts, anchorUuid))
     start = end
   })
   return out
@@ -236,7 +243,7 @@ function countMessage(m: LooseMessage, counts: TurnReceiptCounts, tempRoot: stri
 function walkTurnReceipts(
   messages: readonly LooseMessage[],
   tempRoot: string,
-  visit: (counts: TurnReceiptCounts, anchorUuid: string, end: number) => void,
+  visit: (counts: TurnReceiptCounts, anchorUuid: string, end: number, replied: boolean) => void,
 ): void {
   const pending = new Map<string, NonNullable<CompactMetadata['work']>['receipts'][number]>()
   for (const receipt of compactWorkOf(messages)?.receipts ?? []) {
@@ -245,13 +252,16 @@ function walkTurnReceipts(
   }
   let counts = emptyCounts()
   let anchorUuid = 'turn-0'
+  let replied = false
   for (let index = 0; index < messages.length; index++) {
     const m = messages[index]!
     if (isTurnBoundary(m)) {
-      visit(counts, anchorUuid, index)
+      visit(counts, anchorUuid, index, replied)
       counts = emptyCounts()
+      replied = false
       if (typeof m.uuid === 'string') anchorUuid = m.uuid
     }
+    if (isReplyRow(m)) replied = true
     for (const row of [m, ...(m.messages ?? []), ...(m.results ?? [])]) {
       const carry = row.uuid === undefined ? undefined : pending.get(row.uuid)
       if (!carry) continue
@@ -262,7 +272,7 @@ function walkTurnReceipts(
     }
     countMessage(m, counts, tempRoot)
   }
-  visit(counts, anchorUuid, messages.length)
+  visit(counts, anchorUuid, messages.length, replied)
 }
 
 export function foldedTurnReceipts(

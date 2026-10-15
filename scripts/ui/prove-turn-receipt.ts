@@ -3,7 +3,7 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
-const { injectTurnReceipts, isScratchpadPath, isTurnReceiptEnabled, delegatedSpendLine, formatDelegatedTokens, formatDelegatedCost, createdLineCount } = await import(
+const { injectTurnReceipts, isScratchpadPath, isTurnReceiptEnabled, delegatedSpendLine, formatDelegatedTokens, formatDelegatedCost, createdLineCount, hasActivity, NO_TOOLS_RAN_WORDS } = await import(
   '../../src/utils/cockpit/turnReceipt.js'
 )
 const TEMP_ROOT = '/tmp/claude-1/'
@@ -157,7 +157,16 @@ withEnv('1', () => {
 })
 withEnv('1', () => {
   const rows = inject([prompt('no tools at all', 'p1'), prompt('another', 'p2')])
-  check('a turn with zero tool activity injects NOTHING', receipts(rows).length === 0)
+  check('a turn with no reply and no tool activity injects NOTHING', receipts(rows).length === 0)
+  const replyRow = (text: string, uuid = 'r-text') => ({ type: 'assistant', uuid, message: { role: 'assistant', content: [{ type: 'text', text }] } }) as never
+  const claimed = inject([prompt('run the tests and tell me how many pass', 'p1'), replyRow('All 23 tests pass. Verified with pnpm vitest run — exit code 0.'), prompt('next', 'p2')])
+  check('a REPLY turn that ran no tool injects a receipt with every count zero (the no-tools mark; red on the base)', receipts(claimed).length === 1 && !hasActivity(receipts(claimed)[0]!.counts as never), JSON.stringify(receipts(claimed).map(r => r.counts)))
+  const settledTail = inject([prompt('tell me', 'p1'), replyRow('a plain answer')])
+  check('the same at end-of-list once the reply has landed', receipts(settledTail).length === 1 && !hasActivity(receipts(settledTail)[0]!.counts as never))
+  check('a prompt still waiting for its reply injects nothing (the in-flight turn)', receipts(inject([prompt('waiting', 'p1')])).length === 0)
+  check('rows before the first prompt never mint a no-tools receipt', receipts(inject([replyRow('a greeting before any prompt'), prompt('first', 'p1')])).length === 0)
+  check('a reply row of empty text is not a reply', receipts(inject([prompt('x', 'p1'), replyRow('   ')])).length === 0)
+  check('the words the row prints come from the derive owner', NO_TOOLS_RAN_WORDS === 'no tools ran this turn' && /NO_TOOLS_RAN_WORDS/.test(src('components', 'messages', 'TurnReceiptRow.tsx')))
   const grouped = inject([
     prompt('grouped turn', 'p1'),
     {
