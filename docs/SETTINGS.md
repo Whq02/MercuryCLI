@@ -16,19 +16,19 @@ differs from Mercury's default.
 
 From lowest to highest priority:
 
-1. `<config home>/settings.json` — your defaults, across projects. The home
+1. `<config home>/settings.json`: your defaults, across projects. The home
    is `~/.mercury` unless `MERCURY_CONFIG_DIR` names another directory.
-2. `<project>/.mercury/settings.json` — shared project settings.
-3. `<project>/.mercury/settings.local.json` — your settings for this project.
-4. `--config <file-or-json>` — settings supplied to this launch.
-5. Managed policy — the administrator's settings, including
+2. `<project>/.mercury/settings.json`: shared project settings.
+3. `<project>/.mercury/settings.local.json`: your settings for this project.
+4. `--config <file-or-json>`: settings supplied to this launch.
+5. Managed policy: the administrator's settings, including
    `managed-settings.json` and platform-managed policy.
 
 Objects merge by key and arrays combine, with repeated scalar entries kept
 once. A scalar in a higher-priority source wins. A running session reads an
-edit to any of these files as it lands, a `.mercury/` folder created while
-the session runs included — a rule a permission card saves into it is
-honoured on the next call. `--config-layers user,local` selects which
+edit to any of these files as it lands, including a `.mercury/` folder created while
+the session runs (a rule a permission card saves into it is
+honoured on the next call). `--config-layers user,local` selects which
 of the three user-owned sources load; flag settings and managed policy still
 apply. Permission denies and managed locks remain binding.
 
@@ -42,8 +42,9 @@ once, and again only if the fault goes away and comes back), and one
 `settings:` line on stderr at the start of a headless run; the rest of the
 file still applies. A file that does not parse at all is left out whole at
 launch; a file that stops parsing while a session is open keeps its last good
-settings in force — its hooks and rules keep working — and the line says so,
+settings in force (its hooks and rules keep working) and the line says so,
 until the file reads again.
+
 Settings that execute project commands still require workspace trust
 ([TRUST.md](TRUST.md)). Keep secrets in `/logins` or a credential helper,
 not in a shared project file.
@@ -71,12 +72,12 @@ For example:
 | --- | --- |
 | `engine.model` | The model id or family word saved by `/model`. Choose from the live catalogue; `--model` and `MERCURY_MODEL` can override the saved default. When `<config home>/settings.json` cannot be written, `/model` names the file and the OS reason (`not saved as your default: ~/.mercury/settings.json …`). |
 | `engine.effort` | `low`, `medium`, `high`, `xhigh` or `max`, also saved by `/effort` or `ctrl+e` in `/model`. Each model uses the levels its provider supports; a failed write to `settings.json` names the file and the OS reason in the picker footer or receipt. |
-| `engine.reasoning` | Whether thinking is requested, on every provider that reads it (Anthropic, Z.AI — its thinking-locked models keep it on — and the OpenAI-compatible chat roads; GPT models take the effort dial instead). A model that always reasons keeps its own rule. |
+| `engine.reasoning` | Whether thinking is requested, on every provider that reads it (Anthropic, Z.AI where thinking-locked models keep it on, and the OpenAI-compatible chat roads; GPT models take the effort dial instead). A model that always reasons keeps its own rule. |
 | `engine.agent` | The agent definition used for the session; `--agent` chooses one for a launch. |
 | `engine.roster` | A list limiting which models can be selected. |
 | `engine.pins` | An object mapping known canonical Anthropic model ids to the ids your endpoint serves. |
-| `engine.sessionDefaults` | Whether the Boot face and board show the model-default key; on unless set to `false`. |
-| `engine.usageNotice` | Usage notice to the model — with it on, the model is told when the session's usage window or spending limit is near (80% and 90%); off, the model is told nothing and only you see the meters. |
+| `engine.sessionDefaults` | Whether the home screen and board show the model-default key; on unless set to `false`. |
+| `engine.usageNotice` | Usage notice to the model: with it on, the model is told when the session's usage window or spending limit is near (80% and 90%); off, the model is told nothing and only you see the meters. |
 
 A resumed chat keeps its model and effort unless the launch explicitly
 chooses them. [ENGINES.md](ENGINES.md) describes provider routing;
@@ -134,7 +135,7 @@ relying on these boundaries.
 
 | Key | What it sets |
 | --- | --- |
-| `briefs.profile` | `auto` loads a project's `AGENTS.md` when its instruction chain has no `MERCURY.md`; `native` loads Mercury instruction files only. A `MERCURY.local.md` is a personal layer, not a guide. |
+| `briefs.profile` | `auto` loads a project's `AGENTS.md` when its instruction chain has no `MERCURY.md`; `native` loads Mercury instruction files only. A `MERCURY.local.md` is a personal layer loaded after the project guide. |
 | `briefs.exclude` | Instruction-file glob patterns or absolute paths to skip; managed instructions cannot be excluded. |
 | `briefs.git` | Whether the model receives Mercury's git instructions. |
 | `files.honourGitignore` | Whether file suggestions respect `.gitignore`. |
@@ -147,7 +148,7 @@ relying on these boundaries.
 | `memory.embeddingModel` | Which embedding model memory ranks recall by meaning with (`/config` row **Memory recall ranking`), beside the word match: a model name this install carries (`bge-base-en-v1.5`, the shipped default), or the path of a `.gguf` file. A name or path that resolves nowhere leaves memory on `word match only`, and the front page says so. |
 | `memory.journal` | The session journal, off by default: when `true`, at session end the model writes a brief entry (where the project is, the queued backlog, the constraints you set) into `<config home>/projects/<project>/journal/journal.md` in the Mercury home beside the project's memory, never under the project tree, never pushed, synced or shared by Mercury. |
 | `memory.journalOnEntryPage` | `true` hands the journal's last entry to the model at session start on its `# Lineage` entry page; off by default. What the model reads at entry travels to the engine's provider with the request ("never uploaded" means Mercury itself never pushes, syncs or shares the journal). |
-| `memory.tellEngineSwitch` | `true` tells the model when its engine is switched: one line reaches it at the switch naming the new engine, the time with its time zone, and instructing it to include the zone when repeating the time. Off by default: a switch is invisible to the model (the `/model` rows stay your record, and the model learns its engine by reading `mercury://seat`). |
+| `memory.tellEngineSwitch` | `true` tells the model when its model is switched: one line reaches it at the switch naming the new model, the time with its time zone, and instructing it to include the zone when repeating the time. Off by default: a switch is invisible to the model (the `/model` rows stay your record, and if you ask which model is running, the model reads the live session record at `mercury://seat`). |
 | `workspace.worktree.symlinkDirectories` | Additional directories linked into a managed worktree. |
 | `workspace.worktree.sparsePaths` | Paths included in a managed sparse worktree. |
 | `workspace.worktree.prepare` | A shell command run inside every new worktree after git makes it and before any seat uses it; a failure is named on the row. |
@@ -235,8 +236,7 @@ non-streamed fallback and 20 minutes for recovery. Patient doubles those
 values. A custom object inherits normal values for omitted fields; a recovery
 budget of zero means no budget. `MERCURY_STREAM_IDLE_TIMEOUT_MS`,
 `MERCURY_API_TIMEOUT_MS` and `MERCURY_RECOVERY_BUDGET_MINUTES` take precedence.
-These are connection-silence and recovery limits, not a clock on thinking.
-
+These limits govern connection silence and recovery only.
 ## The local server
 
 The values under `local.server` stage changes to Ollama's launch configuration.
