@@ -10,25 +10,25 @@ the rest of Mercury does not depend on it.
 
 ## Turning it off
 
-Turn the Boot Menu's `Computer use` row off — it is on by default, and the
-change reaches new sessions — or set `MERCURY_COMPUTER_USE=0` in the
+Turn the Boot Menu's `Computer use` row off (it is on by default, and the
+change reaches new sessions) or set `MERCURY_COMPUTER_USE=0` in the
 environment before the session starts. A session already running keeps the
 tool list it started with until the next compaction or `/clear`, so set
 the switch before you boot. With the
 switch off the Computer tool is not in the catalog at all and no desktop
 driver is touched. On a machine without the desktop driver the tool is
 absent from the catalog as well: the catalog decides when it is built,
-never when the model calls, so the model is never offered a tool that
+never when the model calls, so the model is never given a tool that
 cannot work. `mercury health` and `/health` carry a `Computer use` row that
-names what is missing — the driver, a grant, the kind of session — with
+names what is missing (the driver, a grant, or the kind of session) with
 the fix beside it.
 
 ## The asks
 
-Screenshots and the other reads — the cursor, the displays, the application
-in front, a timed wait — never ask. With the access type at `asks` (the
-default), the first act in each application — a click, a drag, a scroll,
-typed text, a key — asks by the application's name and identity, the card
+Screenshots and the other reads (the cursor, the displays, the application
+in front, a timed wait) never ask. With the access type at `asks` (the
+default), the first act in each application (a click, a drag, a scroll,
+typed text, a key) asks by the application's name and identity, the card
 names the act, and it asks how long you want to allow. Five answers, in
 this order:
 
@@ -36,26 +36,25 @@ this order:
   rest of the session.
 - **No, and tell Mercury what to do differently** refuses the act and hands
   the composer back to you.
-- **Yes, for 1 hour — every application** allows every act in every
+- **Yes, for 1 hour (every application)** allows every act in every
   application for one hour from now.
-- **Yes, for 24 hours — every application** does the same for twenty-four
+- **Yes, for 24 hours (every application)** does the same for twenty-four
   hours.
 - **Enable sovereign mode to avoid further permissions by default** turns
   sovereign mode on for this session and saves the Boot Menu's `Sovereign
-  mode` row, so no later session asks either — for anything — until you
+  mode` row, so no later session asks either, for anything, until you
   turn the row off. Under sovereign mode the card never appears.
 
 A timed grant lives with the session: a resume inside its span keeps it, a
 new session never inherits it, and it is never written into your settings.
-When it runs out, the next first act asks again — nothing timed is
+When it runs out, the next first act asks again; nothing timed is
 permanent, and acts made under it leave no per-application grant behind.
 An act that lands in another application asks for that one before the next
 act there. An application that moved in front between the ask and the act
 is not driven: the act is refused and the model takes a new screenshot. No
-classifier answers this ask: the screen, not you, chose the application, so
-the consent is yours alone — and sovereign mode is the one posture that
-answers it, because sovereign mode answers every permission question,
-whatever the access type below saves.
+classifier answers this ask: because the foreground window determines the target application,
+the consent is yours alone, and sovereign mode is the one posture that
+answers it automatically, whatever the access type below saves.
 
 ## The access type
 
@@ -63,9 +62,9 @@ Under the Boot Menu's `Computer use` row sits `Access type`, with three
 values. `asks`, the default, is the card above: the first act in each
 application asks, a Yes covers that application for the session, and the
 timed grants cover every application for their span. `permissive` takes
-the application in front at the turn's first Computer call — the
+the application in front at the turn's first Computer call (the
 screenshot the model takes before it acts counts, because that is the
-moment the task began, before the model could have moved anything — as
+moment the task began, before the model could have moved anything) as
 the turn's home application: acts in it never ask, and an act that lands
 in any other application asks once, with the same card, a Yes covering
 that application for the session. A new turn records a new home
@@ -80,8 +79,8 @@ default is `full`, and the row's value reads `default (full · sovereign
 mode)`; with it off the default is `asks`, and it reads `default (asks)`.
 Sovereign mode writes nothing into the row. With sovereign mode on nothing
 asks, whatever the row saves; the saved value applies with sovereign mode
-off — `full` saved then makes computer use never ask while files and
-commands ask as the permission mode says. Whatever the value, a
+off (`full` saved then makes computer use never ask while files and
+commands ask as the permission mode says). Whatever the value, a
 `guardrails.deny` rule refuses its application before any act, the
 terminal running Mercury is never typed into, an application that moved in
 front between the check and the act is not driven, and one session drives
@@ -96,8 +95,8 @@ name the access beside the switch: `computer use on · access asks`,
 ## Sovereign mode
 
 Sovereign mode is Mercury's one bypass, and computer use is under it like
-everything else: with sovereign mode on, not one permission card of any
-kind is shown — not for files, not for commands, not for computer use —
+everything else: with sovereign mode on, no permission card of any
+kind is shown (for files, commands, or computer use)
 and the crimson band says so; you accept every risk, and Flow mode is where
 the guardrails live. The Boot Menu's `Sovereign mode` row (in the trust
 combo) turns it on for new sessions and shows a small amber warning line
@@ -117,9 +116,9 @@ setting and what armed it.
 
 A grant that outlives the session is a permission rule in the
 `guardrails.allow` list of your settings: `Computer(app:<identity>)`,
-where the identity is the one the application's row shows beside its name
-— a bundle identifier on macOS (`com.apple.Safari`), an executable name on
-Windows (`chrome.exe`), a window class on Linux (`firefox`). You write the
+where the identity is the one the application's row shows beside its name:
+a bundle identifier on macOS (`com.apple.Safari`), an executable name on
+Windows (`chrome.exe`), or a window class on Linux (`firefox`). You write the
 rule yourself; the card writes none. A rule in `guardrails.deny` refuses
 that application before any ask, in every mode; a rule in `guardrails.ask`
 asks for it in every mode that asks and, like every other ask rule, stands
@@ -132,7 +131,7 @@ platform's identities.
 model was holding, and ends the turn. The key reaches Mercury only while
 its terminal has keyboard focus: when another application is in front,
 click the terminal first. While a turn drives, the footer says
-`● hands off — Mercury is driving <application> · esc stops it`. Your own
+`● hands off · Mercury is driving <application> · esc stops it`. Your own
 mouse and keyboard keep working throughout; a drag the model is stepping
 ends where the last hand left it.
 
@@ -140,10 +139,10 @@ ends where the last hand left it.
 
 Every screenshot is written to `<config home>/desktop-shots/`, the newest
 200 kept, and sent to the model at the image budget of its route (a large
-or high-density screen is downscaled for the wire; the file on disk keeps
+or high-density screen is downscaled before sending; the file on disk keeps
 its full size). The conversation file never carries the image: it keeps a
 line naming the file, so a saved conversation stays small and a resumed
-one takes a new screenshot before acting. On the wire the model sees the
+one takes a new screenshot before acting. In the request the model sees the
 newest few screenshots; older ones leave its context as newer ones arrive,
 each leaving its text line behind. After a compaction or a resume the model
 takes a new screenshot before acting, because its coordinates are pixels of
@@ -160,10 +159,10 @@ never types into the terminal running Mercury: with that terminal in front,
 typed text and held keys are refused, a key chord is allowed only to switch
 applications, and a click must land outside the terminal's window. Another
 window of the same application can be driven when both window identities
-are known. On macOS, Apple Terminal and iTerm2 map the cockpit's tty to its
+are known. On macOS, Apple Terminal and iTerm2 map the terminal UI's tty to its
 window through their scripting bridge; titles and window positions are not
-ownership evidence. A worker uses the tty supplied by the attached cockpit,
-not the daemon that spawned it. Each guard check resolves that tty afresh,
+ownership evidence. A worker uses the tty supplied by the attached terminal UI
+(the daemon that spawned it has none). Each guard check resolves that tty afresh,
 so moving a tab between windows does not leave stale ownership behind.
 The lookup runs only when the terminal application is in front, in a
 separate helper with a 1000 ms deadline. `MERCURY_DESKTOP_OWNER_TIMEOUT_MS`
@@ -172,21 +171,21 @@ lookup keeps the application-wide guard and does not block the event loop.
 
 On macOS, each front-application check runs in a fresh native helper, so a
 long-lived worker does not reuse an application cached before you switched
-apps. A failed query refuses rather than reusing the previous answer.
+apps. A failed query refuses instead of reusing the previous answer.
 
-The front window comes from the Accessibility API, not the first window in
-the screen list, which may be a fullscreen title panel. Mercury resolves
+The front window comes from the Accessibility API (as opposed to the first window in
+the screen list, which may be a fullscreen title panel). Mercury resolves
 the private `_AXUIElementGetWindow` symbol at runtime. If it is unavailable,
 exact position and size must identify one on-screen window of that process;
 ambiguous matches stay unknown. When both mappings answer, they must agree.
 This path checks the existing Accessibility grant without opening a dialog.
 
 When either window identity is unknown, the guard still protects every
-window of the terminal application and says that it is comparing the
-application, not the window. Windows, Linux, terminal multiplexers and
+window of the terminal application and states that it is comparing the
+application as a whole. Windows, Linux, terminal multiplexers and
 terminals without a supported scripting bridge take that conservative
 road. If the application itself cannot be identified, typing, holding keys
-and ordinary key chords refuse rather than guessing; the application-switch
+and ordinary key chords refuse without guessing; the application-switch
 chord remains available.
 
 ## Models and routes
@@ -200,17 +199,17 @@ models.
 ## One session at a time
 
 One session drives the desktop at a time. A second session that tries to
-act is refused naming the first — its process id and how long it has been
-driving. A session that stops driving frees the desktop within half a
+act is refused naming the first (its process id and how long it has been
+driving). A session that stops driving frees the desktop within half a
 minute of its last act, the moment its turn is interrupted, and when it
 exits.
 
-## Not in this release
+## Scope
 
 Crewmates and clients of the MCP serve surface never carry the
 Computer tool. A bare `mercury run` cannot drive. A hosted session runs in a
 `mercury runner` child whose host answers permission asks; the interactive
-cockpit presents those asks as consent cards. A non-interactive caller needs
+terminal UI presents those asks as consent cards. A non-interactive caller needs
 a host that can answer them, and keystrokes still refuse when the terminal
 running the session cannot be identified.
 
@@ -221,10 +220,10 @@ the platform's screen and input layers (CoreGraphics on macOS, GDI and
 SendInput on Windows, X11 with the XTEST extension on Linux), built from the
 repository's `native/desktop` sources with cargo by
 `bun run scripts/vendor/build-desktop.ts`, which `bun run setup` runs last.
-It is built rather than fetched: a machine without a Rust toolchain builds
+It is built from source: a machine without a Rust toolchain builds
 and runs Mercury without it, the build says so, and the Computer tool stays
-out of the catalog until the pack is built — the health check's row names the
-build command. Release archives carry the driver for their platform when
+out of the catalog until the pack is built (the health check's row names the
+build command). Release archives carry the driver for their platform when
 the packaging host could build it. Nothing else is installed on your machine. Every screenshot,
 including the default capture after an act, is kept under `desktop-shots`
 with the retention limit described above.
@@ -232,25 +231,25 @@ with the retention limit described above.
 ## What each platform needs
 
 - **macOS**: two grants for your terminal application (Terminal, iTerm2,
-  WezTerm — whichever runs Mercury), under System Settings → Privacy &
+  WezTerm, or whichever runs Mercury), under System Settings → Privacy &
   Security: **Screen Recording**, so the driver can see the screen, and
   **Accessibility**, so it can move the mouse and type. The first capture
   or act asks the system to register the terminal in both lists; after you
   allow, restart the terminal application. Without Screen Recording, macOS
-  hands out a picture of the wallpaper with every other window blanked —
+  hands out a picture of the wallpaper with every other window blanked;
   Mercury refuses to work from that and names the grant instead. Without
   Accessibility, macOS silently drops synthetic input; Mercury refuses the
   act and names the grant. Recent macOS versions ask now and then whether
   the terminal application may keep recording the screen; allow it and the
   captures continue.
-- **Windows**: an interactive desktop session — not a service, not a locked
-  desktop, not a remote session that has disconnected. No grant dialog
+- **Windows**: an interactive desktop session (an active desktop session;
+  background services and disconnected remote sessions are refused). No grant dialog
   exists. Windows drops input into a window that runs elevated when Mercury
   does not; run Mercury elevated if you need to drive such a window.
 - **Linux**: an X11 session with `DISPLAY` set. The XTEST and RandR
   extensions every X server carries are all the driver needs. A Wayland
   session is refused by name: the driver could see only part of such a
-  desktop and would not pretend otherwise.
+  desktop and refuses instead of returning partial captures.
 
 Keyboard shortcuts on a non-US layout land on the US key positions on
 macOS in this release; typed text is always layout-correct.
@@ -266,7 +265,7 @@ words (`access asks`, `access permissive`, `access full (by sovereign
 mode)`, `access full (saved)`). The detail lists
 the displays with their sizes and scales, the frontmost application, the
 permission words for your platform, and which session is driving the
-desktop right now, if any — one session drives at a time. A missing grant
+desktop right now, if any (one session drives at a time). A missing grant
 is information with the fix beside it, never a fault: the rest of Mercury
 does not depend on computer use. The health check never opens a system dialog;
 the first capture or act does.
