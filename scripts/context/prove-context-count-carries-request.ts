@@ -116,6 +116,7 @@ try {
   check('the turn settled with an outcome and one model request on the wire', out.at(-1)?.type === 'outcome' && turn !== undefined, j({ last: out.at(-1)?.type, requests: api.messageRequests().length }))
   check('the turn carried a system block list and the tool', Array.isArray(turn?.body.system) && (turn?.body.system as unknown[]).length >= 2 && (turn?.body.tools ?? []).some(t => (t as { name?: string }).name === 'CountProbeTool'), j({ system: (turn?.body.system as unknown[] | undefined)?.length, tools: turn?.body.tools?.length }))
   check('the session array holds the turn (the write-back landed)', shared.length >= 2 && j(shared).includes('THE TURN ANSWERED.'), `${shared.length} rows`)
+  check('the settled request-view anchor rides the real reply', shared.some(row => row.type === 'assistant' && row.contextGauge?.version === 1), j(shared.map(row => row.type === 'assistant' ? { stop: row.message.stop_reason, gauge: row.contextGauge } : row.type)))
 
   section('§2 /context counts the request the next turn sends: the same system bytes, the same tools bytes')
   const before = api.messageRequests().length

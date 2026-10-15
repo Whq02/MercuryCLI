@@ -181,7 +181,11 @@ section('P1 a session far over the window with no numbers in the refusal: the ba
 {
   const forty = seed(40, 1_500) as AnyMsg[]
   fixture.script(windowServer(20_000, false))
+  process.env.MERCURY_BLOCKING_LIMIT_OVERRIDE = '5000'
+  process.env.MERCURY_AUTOCOMPACT_PCT_OVERRIDE = '100'
   const r = await drive('claude-opus-4-8', forty)
+  delete process.env.MERCURY_BLOCKING_LIMIT_OVERRIDE
+  delete process.env.MERCURY_AUTOCOMPACT_PCT_OVERRIDE
   check('the run completed (red on the base: terminal prompt_too_long)', r.threw === undefined && r.terminal.reason === 'completed', `threw=${r.threw ?? 'no'} terminal=${JSON.stringify(r.terminal)} errors=${JSON.stringify(errorTexts(r.yields)).slice(0, 200)}`)
   const summaryCalls = r.wire.filter(w => isSummaryCall(w.body) && messagesChars(w.body) <= 20_000)
   const seen = new Set<string>()

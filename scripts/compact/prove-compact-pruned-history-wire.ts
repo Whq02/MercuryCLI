@@ -352,28 +352,29 @@ section('P1 the prune rung, then the automatic compaction — the summariser\'s 
 {
   fixture.script([
     { error: { status: 400, body: OVERFLOW_SMALL_GAP } },
-    { calls: [readCall(ROUNDS + 1, 'a_read_late')], reasoning: reasoning(ROUNDS + 3), usage: { input: 300_000, output: 30 } },
     { text: 'SUMMARY: the notes files were read; the station keeps its notes tidy and its checks green; the operator asks what to keep.' },
     { text: 'the recovered answer', usage: { input: 700, output: 12 } },
   ])
+  const priorReplacements = (ctxA.contentReplacementState as { replacements: Map<string, string> }).replacements
+  for (let i = 0; i < ROUNDS - 5; i++) priorReplacements.set(`a_read_${i}`, MC_CLEARED_PLACEHOLDER)
   const seed = [...historyA, createUserMessage({ content: SECOND_ASK })]
   const r = await drive(ctxA, seed)
   check('the run completed', r.threw === undefined && r.terminal.reason === 'completed', `threw=${r.threw ?? 'no'} terminal=${JSON.stringify(r.terminal)} errors=${JSON.stringify(errorTexts(r.yields))}`)
-  check('the notice names the prune rung with the provider\'s numbers', noticeTexts(r.yields).some(t => /^context overflowed \(OpenAI: 129,000 tokens > 128,000\) — pruned \d+ superseded tool results \(~[\d,]+ tokens\) and retrying$/.test(t)), JSON.stringify(noticeTexts(r.yields)))
-  check('four Responses requests: the overflow, the pruned retry, the summariser, the post-compaction reply', r.wire.length === 4 && r.wire.every(w => w.dialect === 'responses'), `${r.wire.length} ${JSON.stringify(r.wire.map(w => w.dialect))}`)
-  const retry = r.wire[1]
-  const summariser = r.wire[2]
+  check('the notice names summary-first recovery with the provider numbers', noticeTexts(r.yields).some(t => t === 'context overflowed (OpenAI: 129,000 tokens > 128,000) — folding the conversation and retrying'), JSON.stringify(noticeTexts(r.yields)))
+  check('three Responses requests: overflow, summary, post-fold reply', r.wire.length === 3 && r.wire.every(w => w.dialect === 'responses'), `${r.wire.length} ${JSON.stringify(r.wire.map(w => w.dialect))}`)
+  const retry = r.wire[0]
+  const summariser = r.wire[1]
   const retryItems = retry !== undefined ? inputOf(retry.body) : []
   check('the pruned retry answers every function_call it replays', retry !== undefined && unansweredCalls(retryItems).length === 0, `unanswered=${JSON.stringify(unansweredCalls(retryItems))}`)
   check('the pruned retry carries placeholders for the results outside the keep-recent window', retryItems.filter(i => i.type === 'function_call_output' && isPlaceholder(i.output)).length >= ROUNDS - 5, JSON.stringify(retryItems.filter(i => i.type === 'function_call_output').map(i => String(i.output).slice(0, 40))))
-  check('the third request is the summariser\'s (the compaction prompt rides last)', summariser !== undefined && isSummariserRequest(summariser.body))
+  check('the second request is the summariser\'s (the compaction prompt rides last)', summariser !== undefined && isSummariserRequest(summariser.body))
   const items = summariser !== undefined ? inputOf(summariser.body) : []
   check('THE RULE: every function_call the summariser\'s request replays is answered by a function_call_output', summariser !== undefined && unansweredCalls(items).length === 0, `unanswered=${JSON.stringify(unansweredCalls(items))} calls=${JSON.stringify(callIds(items))} outputs=${JSON.stringify(outputIds(items))}`)
   check('no call id is sent twice', duplicateCalls(items).length === 0, JSON.stringify(duplicateCalls(items)))
   check('the pruned results ride the summariser\'s request as their placeholders (the summariser sees the pruned history)', items.filter(i => i.type === 'function_call_output' && isPlaceholder(i.output)).length >= ROUNDS - 5, JSON.stringify(items.filter(i => i.type === 'function_call_output').map(i => String(i.output).slice(0, 40))))
-  check('the late round\'s result rides whole (inside the keep-recent window)', items.some(i => i.type === 'function_call_output' && i.call_id === 'a_read_late' && !isPlaceholder(i.output)))
+  check('the late round\'s result rides whole (inside the keep-recent window)', items.some(i => i.type === 'function_call_output' && i.call_id === 'a_read_again' && !isPlaceholder(i.output)))
   check('the turn records replay: reasoning items with their encrypted content ride the summariser\'s request', items.filter(i => i.type === 'reasoning' && typeof i.encrypted_content === 'string').length >= ROUNDS, String(items.filter(i => i.type === 'reasoning').length))
-  check("the boundary yields, typed 'auto'", (boundaryOf(r.yields) as { compactMetadata?: { trigger?: string } } | undefined)?.compactMetadata?.trigger === 'auto', JSON.stringify((boundaryOf(r.yields) as { compactMetadata?: unknown } | undefined)?.compactMetadata))
+  check("the boundary yields, typed 'overflow'", (boundaryOf(r.yields) as { compactMetadata?: { trigger?: string } } | undefined)?.compactMetadata?.trigger === 'overflow', JSON.stringify((boundaryOf(r.yields) as { compactMetadata?: unknown } | undefined)?.compactMetadata))
   check('the reply settled last; the run minted no error row', lastAssistantText(r.yields) === 'the recovered answer' && freshErrorTexts(r.yields, seed).length === 0, JSON.stringify(freshErrorTexts(r.yields, seed)))
 }
 
@@ -391,7 +392,6 @@ section('P2 the summariser itself overflows — the truncated retry answers ever
   const historyB = transcriptAfter(seedB, a)
   fixture.script([
     { error: { status: 400, body: OVERFLOW_SMALL_GAP } },
-    { calls: [readCall(ROUNDS + 1, 'b_read_late')], reasoning: reasoning(ROUNDS + 3), usage: { input: 300_000, output: 30 } },
     { error: { status: 400, body: OVERFLOW_SMALL_GAP } },
     { text: 'PART SUMMARY: the first notes files were read.' },
     { text: 'SUMMARY after the fold in parts: the later notes files were read.' },
@@ -399,10 +399,10 @@ section('P2 the summariser itself overflows — the truncated retry answers ever
   ])
   const r = await drive(ctxB, [...historyB, createUserMessage({ content: SECOND_ASK })])
   check('the run completed', r.threw === undefined && r.terminal.reason === 'completed', `threw=${r.threw ?? 'no'} terminal=${JSON.stringify(r.terminal)} errors=${JSON.stringify(errorTexts(r.yields))}`)
-  check('six Responses requests: overflow · pruned retry · summariser (refused) · the shed head\'s own summary · summariser (the whole) · reply (red on the base: five, the head dropped)', r.wire.length === 6, `${r.wire.length}`)
-  const first = r.wire[2]
-  const part = r.wire[3]
-  const second = r.wire[4]
+  check('five Responses requests: overflow, refused summary, part summary, whole summary and reply', r.wire.length === 5, `${r.wire.length}`)
+  const first = r.wire[1]
+  const part = r.wire[2]
+  const second = r.wire[3]
   check('every summariser request carries the compaction prompt', first !== undefined && part !== undefined && second !== undefined && isSummariserRequest(first.body) && isSummariserRequest(part.body) && isSummariserRequest(second.body))
   const firstItems = first !== undefined ? inputOf(first.body) : []
   const partItems = part !== undefined ? inputOf(part.body) : []
@@ -430,7 +430,6 @@ section('P3 with the provider\'s own input rule armed, the whole run goes throug
   const historyC = transcriptAfter(seedC, a)
   fixture.script([
     { error: { status: 400, body: OVERFLOW_SMALL_GAP } },
-    { calls: [readCall(ROUNDS + 1, 'c_read_late')], reasoning: reasoning(ROUNDS + 3), usage: { input: 300_000, output: 30 } },
     { text: 'SUMMARY under the rule: the notes files were read.' },
     { text: 'the recovered answer under the rule', usage: { input: 700, output: 12 } },
   ])
@@ -463,7 +462,7 @@ section('C1 a summariser refused for a malformed history — one attempt, a type
   const summariserRequests = r.wire.filter(w => isSummariserRequest(w.body))
   check('the run never threw', r.threw === undefined, `threw=${r.threw ?? 'no'} terminal=${JSON.stringify(r.terminal)}`)
   check('exactly ONE summary request reached the wire — the refusal is not retried as a size problem', summariserRequests.length === 1, `${summariserRequests.length} of ${r.wire.length} requests were summary requests`)
-  check('one other request reached the wire: the retry after the prune rung, whose credited estimate fits the window', r.wire.length === 2 && r.wire[1] !== undefined && !isSummariserRequest(r.wire[1].body), String(r.wire.length))
+  check('malformed history is not a size fallback: no other request is sent', r.wire.length === 1, String(r.wire.length))
   const notices = noticeTexts(r.yields)
   const line = notices.find(t => /malformed history/i.test(t))
   check('a typed line names the class', line !== undefined, JSON.stringify(notices))
@@ -471,9 +470,9 @@ section('C1 a summariser refused for a malformed history — one attempt, a type
   check('…and the remedies: /compact after the heal, /clear, a larger-window model', line !== undefined && line.includes('/compact') && line.includes('/clear') && line.includes('/model'), line ?? '')
   check('…and the pause it applies is the run\'s, never the session\'s (the failure count starts fresh at every query entry)', line !== undefined && line.includes('paused for the rest of this run') && !/for this session/.test(line), line ?? '')
   const errs = errorTexts(r.yields)
-  check('no refusal row ends the turn — the pruned retry fit and answered', errs.length === 0 && lastAssistantText(r.yields) === 'the retry after the prune', JSON.stringify(errs))
-  check('the prune rung still answered the estimate (the notice speaks)', notices.some(t => t.startsWith('context overflowed (estimated ') && /pruned \d+ superseded tool results/.test(t)), JSON.stringify(notices))
-  check('terminal completed', r.terminal.reason === 'completed', JSON.stringify(r.terminal))
+  check('a typed refusal retains the original malformed history', errs.length === 1 && errs[0]!.includes('paused for the rest of this run'), JSON.stringify(errs))
+  check('no prune is claimed for malformed history', !notices.some(t => /pruned \d+ superseded tool results/.test(t)), JSON.stringify(notices))
+  check('terminal blocking_limit', r.terminal.reason === 'blocking_limit', JSON.stringify(r.terminal))
 
   section('C2 a manual /compact after that pause still makes its request, and reports the reason and the remedies without claiming a pause')
   {

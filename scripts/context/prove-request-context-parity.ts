@@ -27,7 +27,7 @@ function toolTurn(i: number, stampMsAgo: number): AnyMessage[] {
         id: `resp-${i}`,
         role: 'assistant',
         content: [
-          { type: 'tool_use', id: `tu-${i}`, name: 'Read', input: { file_path: `/tmp/f${i}` } },
+          { type: 'tool_use', id: `tu-${i}`, name: 'Read', input: { file_path: '/fixture/read-target' } },
         ],
       },
     },
@@ -62,13 +62,13 @@ async function main(): Promise<void> {
   const owner = ok.makeOwnerKey({ workspace: '/tmp/w', sessionId: 'parity', lane: 'main' })
   const skip = new Set<string>()
 
-  section('0. the eight-turn fixture is sized so the five-result window decides')
+  section('0. the thirteen-turn fixture is sized so the ten-result window decides')
   {
     const resultTokens = roughTokenCountEstimation(resultText(0))
     const keepRecent = getTimeBasedMCConfig().keepRecent
     check(
-      'six results outweigh the newest-output protection, so the five-result window decides and exactly three of eight are eligible',
-      keepRecent === 5 && resultTokens * (keepRecent + 1) > PROTECT_NEWEST_TOOL_OUTPUT_TOKENS,
+      'eleven results outweigh the newest-output protection, so the ten-result window decides and exactly three of thirteen are eligible',
+      keepRecent === 10 && resultTokens * (keepRecent + 1) > PROTECT_NEWEST_TOOL_OUTPUT_TOKENS,
       `${resultTokens} tokens per result, keep ${keepRecent}, protection ${PROTECT_NEWEST_TOOL_OUTPUT_TOKENS}`,
     )
     check(
@@ -82,7 +82,7 @@ async function main(): Promise<void> {
   {
     const NINETY_MIN = 90 * 60_000
     const messages: AnyMessage[] = []
-    for (let i = 0; i < 8; i++) messages.push(...toolTurn(i, NINETY_MIN + (8 - i) * 60_000))
+    for (let i = 0; i < 13; i++) messages.push(...toolTurn(i, NINETY_MIN + (13 - i) * 60_000))
 
     const inspected = await planMod.buildRequestContextPlan(
       {
@@ -163,7 +163,7 @@ async function main(): Promise<void> {
       await import('../../src/utils/toolResultStorage.js')
     for (const pressure of [false, true]) {
       const label = pressure ? 'pressure' : 'time'
-      const messages = Array.from({ length: 8 }, (_, i) => toolTurn(i, pressure ? 1000 : 90 * 60_000)).flat()
+      const messages = Array.from({ length: 13 }, (_, i) => toolTurn(i, pressure ? 1000 : 90 * 60_000)).flat()
       const original = JSON.stringify(messages)
       const state = createContentReplacementState()
       const records: import('../../src/utils/toolResultStorage.js').ToolResultReplacementRecord[] = []
@@ -226,7 +226,7 @@ async function main(): Promise<void> {
     const persistenceStarted = new Promise<void>(resolve => { started = resolve })
     let settled = false
     const pending = planMod.buildRequestContextPlan({
-      messages: Array.from({ length: 8 }, (_, i) => toolTurn(i, 1000)).flat() as never,
+      messages: Array.from({ length: 13 }, (_, i) => toolTurn(i, 1000)).flat() as never,
       owner,
       querySource: 'sdk',
       contentReplacementState: { ...createContentReplacementState(), budgetChars: Infinity },

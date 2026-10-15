@@ -1,145 +1,65 @@
 import type { Message } from '../../types/message.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
-import {
-  isMercurySubstrateProfileOn,
-} from '../../utils/config.js'
+import { isMercurySubstrateProfileOn } from '../../utils/config.js'
 import { isEnvTruthy } from '../../utils/envUtils.js'
 import { groupMessagesByApiRound } from './grouping.js'
+import { roughTokenCountEstimationForMessages } from '../tokenEstimation.js'
 
-
-export const DEFAULT_KEEP_ROUNDS = 6
-
-export const DEFAULT_TAIL_TOKEN_BUDGET = 15_000
-
-export const MAX_FLOOR_ROUND_TOKENS = DEFAULT_TAIL_TOKEN_BUDGET * 2
-
+export const DEFAULT_KEEP_ROUNDS = 10
+export const DEFAULT_TAIL_TOKEN_BUDGET = Infinity
+export const MAX_FLOOR_ROUND_TOKENS = Infinity
 export const MIN_HEAD_ROUNDS = 2
 
 export function isMercuryCompactKeepTailEnabled(): boolean {
-  
   const flag = flagEnv('MERCURY_COMPACT_KEEP_TAIL')
   if (flag === '0' || flag?.toLowerCase() === 'false') return false
-  if (isEnvTruthy(flag)) return true
-  return (
-    isEnvTruthy(flagEnv('MERCURY_CTX_COMPACTION')) || isMercurySubstrateProfileOn()
-  )
+  return isEnvTruthy(flag) || isEnvTruthy(flagEnv('MERCURY_CTX_COMPACTION')) || isMercurySubstrateProfileOn()
 }
 
-type VerbatimTailResult = {
+export type VerbatimTailResult = {
   keep: Message[]
   precedingUuid: Message['uuid'] | undefined
   roundsKept: number
+  roundsRequested: number
+  estimatedTokens: number
+  reason: 'requested-rounds-fit' | 'available-rounds' | 'request-budget'
 }
 
-function isNonPreservableTailMessage(m: Message): boolean {
-  if (m.type === 'progress') return true
-  if (
-    m.type === 'system' &&
-    (m as { subtype?: string }).subtype === 'compact_boundary'
-  ) {
-    return true
-  }
-  if (
-    m.type === 'user' &&
-    (m as { isCompactSummary?: boolean }).isCompactSummary === true
-  ) {
-    return true
-  }
-  return false
+function preservable(row: Message): boolean {
+  return row.type !== 'progress' && !(row.type === 'system' && row.subtype === 'compact_boundary') && !(row.type === 'user' && row.isCompactSummary)
 }
 
-const IMAGE_DOC_BLOCK_TOKENS = 2000
-
-function estimateMessageTokens(m: Message): number {
-  const msg = (m as { message?: { content?: unknown } }).message
-  const content = msg?.content
-  if (content === undefined) {
-    try {
-      return Math.ceil(JSON.stringify(m).length / 4)
-    } catch {
-      return 0
+export function closedTail(messages: readonly Message[]): boolean {
+  const calls = new Set<string>()
+  const results = new Set<string>()
+  for (const row of messages) {
+    if (row.type !== 'user' && row.type !== 'assistant') continue
+    if (!Array.isArray(row.message.content)) continue
+    for (const block of row.message.content) {
+      if (block.type === 'tool_use') calls.add(block.id)
+      if (block.type === 'tool_result') results.add(block.tool_use_id)
     }
   }
-  if (typeof content === 'string') return Math.ceil(content.length / 4)
-  if (Array.isArray(content)) {
-    let n = 0
-    for (const block of content as Array<{ type?: string; content?: unknown }>) {
-      const t = block?.type
-      if (t === 'image' || t === 'document') {
-        n += IMAGE_DOC_BLOCK_TOKENS
-        continue
-      }
-      if (t === 'tool_result' && Array.isArray(block.content)) {
-        for (const inner of block.content as Array<{ type?: string }>) {
-          if (inner?.type === 'image' || inner?.type === 'document') {
-            n += IMAGE_DOC_BLOCK_TOKENS
-          } else {
-            try {
-              n += Math.ceil(JSON.stringify(inner).length / 4)
-            } catch {
-            }
-          }
-        }
-        continue
-      }
-      try {
-        n += Math.ceil(JSON.stringify(block).length / 4)
-      } catch {
-      }
-    }
-    return n
-  }
-  try {
-    return Math.ceil(JSON.stringify(content).length / 4)
-  } catch {
-    return 0
-  }
-}
-
-function estimateRoundTokens(group: Message[]): number {
-  let n = 0
-  for (const m of group) n += estimateMessageTokens(m)
-  return n
+  return [...calls].every(id => results.has(id)) && [...results].every(id => calls.has(id))
 }
 
 export function computeVerbatimRecentTail(
   messages: Message[],
-  opts?: { keepRounds?: number; tailTokenBudget?: number },
+  opts?: { keepRounds?: number; tailTokenBudget?: number; fits?: (keep: Message[]) => boolean },
 ): VerbatimTailResult | null {
-  const keepRounds = Math.max(1, opts?.keepRounds ?? DEFAULT_KEEP_ROUNDS)
+  const requested = Math.max(1, opts?.keepRounds ?? DEFAULT_KEEP_ROUNDS)
   const budget = Math.max(0, opts?.tailTokenBudget ?? DEFAULT_TAIL_TOKEN_BUDGET)
-
   const groups = groupMessagesByApiRound(messages)
-  if (groups.length < keepRounds + MIN_HEAD_ROUNDS) return null
-
-  let tailGroups = groups.slice(-keepRounds)
-
-  while (
-    tailGroups.length > 1 &&
-    tailGroups.reduce((s, g) => s + estimateRoundTokens(g), 0) > budget
-  ) {
-    tailGroups = tailGroups.slice(1)
+  const available = Math.min(requested, groups.length - MIN_HEAD_ROUNDS)
+  if (available <= 0) return null
+  for (let n = available; n >= 1; n--) {
+    const keep = groups.slice(-n).flat().filter(preservable)
+    if (!closedTail(keep)) throw new Error('The recent round is incomplete; the original context is kept.')
+    const estimatedTokens = roughTokenCountEstimationForMessages(keep)
+    if (estimatedTokens > budget || opts?.fits?.(keep) === false) continue
+    const first = messages.findIndex(row => row.uuid === keep[0]?.uuid)
+    const precedingUuid = messages.slice(0, first).filter(row => row.type !== 'progress').at(-1)?.uuid
+    return { keep, precedingUuid, roundsKept: n, roundsRequested: requested, estimatedTokens, reason: n < available ? 'request-budget' : available < requested ? 'available-rounds' : 'requested-rounds-fit' }
   }
-
-  if (
-    tailGroups.length === 1 &&
-    estimateRoundTokens(tailGroups[0]!) > MAX_FLOOR_ROUND_TOKENS
-  ) {
-    return null
-  }
-
-  const keep = tailGroups.flat().filter(m => !isNonPreservableTailMessage(m))
-  if (keep.length === 0) return null
-
-  const firstKeptIdx = messages.findIndex(m => m.uuid === keep[0]!.uuid)
-  let precedingUuid: Message['uuid'] | undefined
-  for (let j = firstKeptIdx - 1; j >= 0; j--) {
-    const prev = messages[j]
-    if (prev && prev.type !== 'progress') {
-      precedingUuid = prev.uuid
-      break
-    }
-  }
-
-  return { keep, precedingUuid, roundsKept: tailGroups.length }
+  throw new Error('The latest complete round does not fit with the fold obligations; the original context is kept.')
 }

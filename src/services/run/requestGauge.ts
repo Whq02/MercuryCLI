@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto'
 import type { AssistantMessage, Message } from '../../types/message.js'
 import { roughTokenCountEstimationForMessages } from '../tokenEstimation.js'
 import { messageContextFill } from '../../utils/tokens.js'
+import { getMessagesAfterCompactBoundary } from '../../utils/messages/systemMessages.js'
 
 export type RequestGaugeFixed = { digest: string; tokens: number }
 export type RequestGaugeDensity = { ratio: number; samples: number; residuals: number[] }
@@ -44,6 +45,11 @@ function hasMedia(value: unknown): boolean {
   return record.type === 'image' || record.type === 'document' || Object.values(record).some(hasMedia)
 }
 
+export function estimateRequestGauge(messages: readonly Message[], fixed: RequestGaugeFixed, density: RequestGaugeDensity): number {
+  const raw = roughTokenCountEstimationForMessages(messages as Message[])
+  return Math.ceil(fixed.tokens + raw * (hasMedia(messages) ? 1 : density.ratio))
+}
+
 export function requestGaugeFixed(material: unknown): RequestGaugeFixed {
   const text = JSON.stringify(material) ?? ''
   return { digest: createHash('sha256').update(text).digest('hex'), tokens: Math.ceil(text.length / 4) }
@@ -71,6 +77,14 @@ function lastAnchor(messages: readonly Message[], key?: string): { row: Assistan
   return null
 }
 
+function foldSeed(messages: readonly Message[]) {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const row = messages[i]
+    if (row?.type === 'system' && row.subtype === 'compact_boundary') return row.compactMetadata.requestGauge
+  }
+  return undefined
+}
+
 export function requestGaugeKey(messages: readonly Message[]): string | undefined {
   return lastAnchor(messages)?.anchor.key
 }
@@ -81,8 +95,10 @@ export function bindRequestGauge(messages: readonly Message[], key: string, epoc
 }
 
 export function requestGaugeView(messages: readonly Message[], key: string, epoch: number, fixed: RequestGaugeFixed, rebase = false): RequestGaugeView {
+  messages = getMessagesAfterCompactBoundary(messages as Message[])
   const previous = lastAnchor(messages, key)
-  const density = previous?.anchor.density ?? freshDensity()
+  const seed = foldSeed(messages)
+  const density = previous?.anchor.density ?? (seed?.key === key ? seed.density : freshDensity())
   const rawTokens = roughTokenCountEstimationForMessages(messages as Message[])
   const digest = requestGaugeDigest(messages)
   const base: RequestGaugeView = {
@@ -116,11 +132,13 @@ export function requestGaugeView(messages: readonly Message[], key: string, epoc
 
 export function readRequestGauge(messages: readonly Message[], model?: string): RequestGaugeView | null {
   const bound = bindings.get(messages)
+  messages = getMessagesAfterCompactBoundary(messages as Message[])
   const previous = lastAnchor(messages)
-  const key = bound?.key ?? previous?.anchor.key
+  const seed = foldSeed(messages)
+  const key = bound?.key ?? previous?.anchor.key ?? seed?.key
   if (!key || (model !== undefined && key.slice(key.indexOf(':') + 1, key.lastIndexOf(':c')) !== model)) return null
-  const epoch = bound?.epoch ?? previous?.anchor.epoch
-  const fixed = bound?.fixed ?? previous?.anchor.fixed
+  const epoch = bound?.epoch ?? previous?.anchor.epoch ?? seed?.epoch
+  const fixed = bound?.fixed ?? previous?.anchor.fixed ?? seed?.fixed
   if (epoch === undefined || !fixed) return null
   return requestGaugeView(messages, key, epoch, fixed, bound?.rebase)
 }

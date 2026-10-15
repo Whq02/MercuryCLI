@@ -485,7 +485,8 @@ section('H the turn machine end to end — the retried request after an overflow
   const firstUser = ((retry?.body as { messages?: AnyMsg[] } | undefined)?.messages ?? [])[0]
   const firstText = wireTextOf(firstUser)
   check('the retried request carries every folded ask VERBATIM', asks.every(ask => body.includes(ask)), `missing: ${asks.filter(ask => !body.includes(ask)).join(' | ')}; the first user row opens: "${firstText.slice(0, 140)}"`)
-  check('…ahead of the summary, newest first', firstText.indexOf(asks[4]!) >= 0 && firstText.indexOf(asks[4]!) < firstText.indexOf(asks[0]!) && firstText.indexOf(asks[0]!) < firstText.indexOf(SUMMARY_H), `${firstText.indexOf(asks[4]!)} ${firstText.indexOf(asks[0]!)} ${firstText.indexOf(SUMMARY_H)}`)
+  const foldedAsks = [...asks].reverse().filter(ask => firstText.includes(ask))
+  check('…folded asks precede the summary newest first; recent asks ride the kept rounds', foldedAsks.length > 0 && foldedAsks.every((ask, index) => firstText.indexOf(ask) < firstText.indexOf(SUMMARY_H) && (index === 0 || firstText.indexOf(foldedAsks[index - 1]!) < firstText.indexOf(ask))))
   check('…the folded replies do not ride (the summary covers them)', !body.includes('reply 0: module 0 adjusted'))
   check('…and the carried operator turn still rides last', retry !== undefined && wireTextOf(((retry.body as { messages?: AnyMsg[] }).messages ?? []).at(-1)).endsWith(OPERATOR_ASK))
   check('the block row yields with the boundary and the summary', yields.some(y => blockOf(y) !== null) && yields.some(y => y.type === 'user' && (y as { isCompactSummary?: boolean }).isCompactSummary === true))
@@ -503,7 +504,7 @@ section('I wiring pins — the seams, by source')
   const prompt = readFileSync(join(ROOT, 'src/services/compact/prompt.ts'), 'utf8')
   check('the summariser prompt keeps section 6 (the summary still covers every operator message)', prompt.includes('6. Operator Messages: every message the operator sent that is not a tool result.'))
   const tail = readFileSync(join(ROOT, 'src/services/compact/verbatimTail.ts'), 'utf8')
-  check("the tail's rules do not move", tail.includes('export const DEFAULT_KEEP_ROUNDS = 6') && tail.includes('export const DEFAULT_TAIL_TOKEN_BUDGET = 15_000') && tail.includes('export const MIN_HEAD_ROUNDS = 2'))
+  check("the tail's rules do not move", tail.includes('export const DEFAULT_KEEP_ROUNDS = 10') && tail.includes('opts?.fits?.(keep)') && tail.includes('export const MIN_HEAD_ROUNDS = 2'))
 }
 
 await fixture.close()
