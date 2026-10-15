@@ -157,7 +157,7 @@ interface ReviewScopeDecision {
   at: number
 }
 
-export function reviewScopeKey(scope: ReviewScope): string {
+function reviewScopeKey(scope: ReviewScope): string {
   switch (scope.t) {
     case 'file':
       return `file:${scope.path}`
