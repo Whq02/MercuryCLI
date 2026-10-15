@@ -88,7 +88,7 @@ export function validateCitedPaths(text: string, projectRoot: string | null): Ci
     } else if (token.startsWith('./')) {
       relative = token.slice(2)
     } else {
-      const head = token.split('/')[0] ?? ''
+      const head = token.split(/[\\/]/)[0] ?? ''
       let headIsDirectory = false
       try {
         headIsDirectory = head !== '' && head !== '..' && head !== '.git' && statSync(join(root, head)).isDirectory()
