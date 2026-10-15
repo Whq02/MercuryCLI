@@ -421,28 +421,16 @@ export function readMemoryRecord(
       bumpUsage([seq], dir)
       const row = parseEntryLine(lines[lineIndex]!.trim())
       const footnotes = row ? footnotesOf(row, footnoteContext(dir, sessions)) : {}
-      const block = readDocLines(recallSlug(doc), { from: lineIndex + 1, to: lineIndex + 1, dir, recent: 0 })
-      const sectionContent = block?.content ?? lines[lineIndex]!
-      if (sectionContent.length > DOC_RENDER_BUDGET_CHARS) {
-        const rowLine = lines[lineIndex]!
-        if (rowLine.length > DOC_RENDER_BUDGET_CHARS) {
-          return {
-            found: true,
-            id,
-            slug: doc.slug,
-            content: `${rowLine.slice(0, DOC_RENDER_BUDGET_CHARS)}…`,
-            note: `this row alone is ${rowLine.length} chars — past the ${DOC_RENDER_BUDGET_CHARS}-char render budget, the FULL row cannot be shown, and amend stays locked for seq ${seq}`,
-            footnotes,
-          }
-        }
-        seenFullRows.add(seq)
-        noteMemoryOpened([id], dir)
+      const rowLine = lines[lineIndex]!
+      const heading = lines.slice(0, lineIndex).reverse().find(line => /^## /u.test(line))?.slice(3) ?? doc.slug
+      const breadcrumb = `doc:${recallSlug(doc)} › ${heading}`
+      if (rowLine.length > DOC_RENDER_BUDGET_CHARS) {
         return {
           found: true,
           id,
           slug: doc.slug,
-          content: rowLine,
-          note: `full record read — amend is now unlocked for this seq (only the row is shown: its enclosing section is ${sectionContent.length} chars, past the ${DOC_RENDER_BUDGET_CHARS}-char render budget)`,
+          content: `${rowLine.slice(0, DOC_RENDER_BUDGET_CHARS)}…`,
+          note: `this row alone is ${rowLine.length} chars — past the ${DOC_RENDER_BUDGET_CHARS}-char render budget, the FULL row cannot be shown, and amend stays locked for seq ${seq}; ${breadcrumb}`,
           footnotes,
         }
       }
@@ -452,8 +440,8 @@ export function readMemoryRecord(
         found: true,
         id,
         slug: doc.slug,
-        content: sectionContent,
-        note: 'full record read — amend is now unlocked for this seq',
+        content: rowLine,
+        note: `full record read — amend is now unlocked for this seq; ${breadcrumb}`,
         footnotes,
       }
     }

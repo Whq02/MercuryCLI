@@ -220,10 +220,8 @@ const { default: StdinContext } = await import(join(ROOT, 'src/ink/components/St
 const { InputEvent } = await import(join(ROOT, 'src/ink/events/input-event.ts'))
 const { interpretKey } = await import(join(ROOT, 'src/ink/input/interpreter.ts'))
 const settle = async (): Promise<void> => {
-  for (let index = 0; index < 8; index++) {
-    ink.flushPendingSyncWork()
-    await new Promise<void>(resolve => setTimeout(resolve, 5))
-  }
+  ink.flushPendingSyncWork()
+  await new Promise<void>(resolve => setImmediate(resolve))
 }
 const MODE_SEQUENCES = /\x1b\[[?>=<][0-9;]*[a-zA-Z]|\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)?|\x1b\[<u|\x1b\[>4m/g
 function plain(raw: string): string {
@@ -246,21 +244,17 @@ async function paint(content: React.ReactNode, columns: number, rows: number, wa
   const firstFrame = new Promise<void>(resolve => { painted = resolve })
   const instance = await ink.render(node, { stdin, stdout, patchConsole: false, exitOnCtrlC: false, onFrame: () => painted() })
   await firstFrame
-  await settle()
-  await new Promise<void>(resolve => setTimeout(resolve, 250))
-  await settle()
   const read = (): string => plain(instance.lastFrame())
   const quiet = async (): Promise<string> => {
     let last = read()
-    let still = 0
-    for (let waited = 0; waited < 8000 && still < 300; waited += 25) {
-      await new Promise<void>(resolve => setTimeout(resolve, 25))
+    const deadline = performance.now() + 8000
+    while (performance.now() < deadline) {
       await settle()
       const next = read()
-      still = next === last ? still + 25 : 0
+      if (next !== '' && next === last) return next
       last = next
     }
-    return last
+    throw new Error('the rendered frame never settled')
   }
   const frames = [await quiet()]
   for (let step = 0; step < walk && !done(frames); step++) {
