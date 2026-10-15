@@ -7,9 +7,9 @@ capture is the composer.
 
 ## The keys
 
-- `/voice on` turns voice input on for this machine; `/voice off` turns it
+- `/voice on` turns voice input on; `/voice off` turns it
   off (the default); bare `/voice` shows the status, the transcriber the
-  next take would use and your default, the capture backend.
+  next take would use and your default, and the capture backend.
   `/voice options` chooses the transcriber; `/voice download` fetches the
   on-device model.
 - With voice input on, hold space for 1 s to speak: the take opens at the
@@ -23,9 +23,9 @@ capture is the composer.
 - A terminal sends no key-up: the hold is read from the key's auto-repeat
   stream (the repeats stopping is the release, a gap of about twice the
   repeat interval, never under 150 ms). Keep the other keys still while
-  you hold — an operating system repeats only the last key pressed, so
-  another key ends the hold. On a terminal whose key repeat is off a held
-  key never repeats and cannot open a take — `/voice` starts a capture and
+  you hold (an operating system repeats only the last key pressed, so
+  another key ends the hold). On a terminal whose key repeat is off a held
+  key never repeats and cannot open a take: `/voice` starts a capture and
   `/voice` again stops it, with no key held.
 - The footer says `● recording · release space to stop · esc cancels`
   while a take runs and `transcribing…` while it is in flight. Every
@@ -48,17 +48,17 @@ one that is live:
    layer (CoreAudio on macOS, WASAPI on Windows, ALSA on Linux), built from
    the repository's `native/voice` sources with cargo by
    `bun run scripts/vendor/build-voice.ts`, which `bun run setup` runs last.
-   It is built rather than fetched: a machine without a Rust toolchain
+   It is built from source: a machine without a Rust toolchain
    builds and runs Mercury without it, and the build and the health check say so.
    Release archives carry the pack for their platform when the packaging
    host could build it.
 2. **A recorder already on PATH**: `sox`, `arecord` (Linux) or `ffmpeg`.
    These are used only when you have installed them yourself; Mercury never
    vendors them.
-3. **No backend**: a hold past the threshold answers the receipt "no microphone backend",
+3. **No backend**: a hold past the threshold answers the receipt `"no microphone backend"`,
    naming the remedy that fits the install: on a source checkout the pack
-   build (`bun run setup`) or a recorder on PATH; on a release install — no
-   checkout to build from — a recorder on PATH (ffmpeg or sox), with the
+   build (`bun run setup`) or a recorder on PATH; on a release install (with no
+   checkout to build from), a recorder on PATH (`ffmpeg` or `sox`), with the
    platform's install command.
 
 On macOS the first capture makes the operating system ask whether your
@@ -70,25 +70,25 @@ capture; the take arrives as silence, and the receipt names System Settings
 
 A finished take goes to the first transcriber that can serve, in this order:
 
-1. **On this machine.** Mercury's own on-device transcriber: whisper.cpp,
+1. **On-device (`whisper.cpp`).** Mercury's own on-device transcriber: whisper.cpp,
    built from the repository's `native/whisper` sources into a pack beside
    the bundle by `bun run scripts/vendor/build-whisper.ts` (which
    `bun run setup` runs; it needs cargo and cmake), with a Whisper speech
    model in the config home. Nothing leaves the machine. The model is a
    one-time download: with the pack present and no model, `/voice on` and
-   bare `/voice` name the door — a 60 MB download, Whisper base.en
-   (English, MIT) into `<config-home>/models/whisper` — and
+   bare `/voice` name the door (a 60 MB download, Whisper `base.en`,
+   English, MIT, into `<config-home>/models/whisper`) and
    `/voice download` fetches it from the pinned address, verifying the size
-   and the digest before the file takes its name; until then a cloud
-   family serves. The other models — `tiny.en-q5_1` (smaller, faster, less
-   accurate), `small.en-q5_1` (more accurate, three times the size) and the
-   multilingual `base-q5_1` for speech that is not English — are listed in
+   and the digest before the file takes its name; until then a remote
+   provider serves. The other models (`tiny.en-q5_1`, smaller, faster, less
+   accurate; `small.en-q5_1`, more accurate, three times the size; and the
+   multilingual `base-q5_1` for speech that is not English) are listed in
    `vendor/whisper-models.lock.json`; `/voice download <name>` fetches one,
    and `MERCURY_WHISPER_MODEL` picks it for a session, by name or by the
    path of a ggml file. Release archives carry the pack for their platform
    when the packaging host could build it. The x86-64 pack is compiled for
    CPUs with AVX2, FMA and F16C (every desktop CPU since 2013); a machine
-   below that floor is told so and served by a cloud family (on Windows,
+   below that floor is told so and served by a remote provider (on Windows,
    and wherever the operating system reports no instruction set, the pack
    is loaded once in a helper process first, so a CPU below the floor is
    told so instead of crashing; a floor that cannot be read holds the
@@ -97,29 +97,29 @@ A finished take goes to the first transcriber that can serve, in this order:
    the sign-in ledger (the same order that picks the default model):
    - **OpenAI**, through an API key: the transcription endpoint, with the
      newer transcription model first and the classic one as the fallback. A
-     ChatGPT subscription sign-in does not transcribe; it speaks the
-     subscription backend, not the API.
+     ChatGPT subscription sign-in does not transcribe because it uses the
+     subscription backend instead of the OpenAI platform API.
    - **Gemini**, through an API key: a generate-content request with the
      audio inline and a verbatim-transcript instruction. The Google account
      sign-in does not transcribe here.
-   - **Anthropic** offers no speech-to-text endpoint.
+   - **Anthropic** has no speech-to-text endpoint.
 
-`/voice options` lists the transcribers this install can use — the
+`/voice options` lists the transcribers this install can use (the
 on-device one with its model and pack, and each family with a
-speech-to-text slot, signed in or not — marks the one that would serve now,
+speech-to-text slot, signed in or not), marks the one that would serve now,
 and `/voice options <name>` (`on-device`, `openai`, `gemini`) makes one
 your default: the choice is saved in the config home and survives a
 restart; `/voice options default` restores the shipped default. A saved
-choice that cannot serve — a family no longer signed in, a pack or model
-gone — is named in `/voice`, in the recording receipt and in the health check
+choice that cannot serve (a family no longer signed in, or a pack or model
+removed) is named in `/voice`, in the recording receipt and in the health check
 row, and the shipped default serves; nothing is replaced silently.
 
 `MERCURY_VOICE_TRANSCRIBER` overrides the saved choice for one session:
 `on-device`, `cloud` (the ledger walk), or a family id such as `openai`; a
 pin that cannot serve says so in the receipt, in `/voice` and in the health check
 row, and never falls back silently. With nothing to transcribe with, pressing space
-answers "nothing transcribes yet — <the on-device reason>; or /logins openai
-(API key) or /logins gemini" before any audio is captured. The health check's
+answers `"nothing transcribes yet · <the on-device reason>; or /logins openai
+(API key) or /logins gemini"` before any audio is captured. The health check's
 `Voice input` row names the engine, the model and the pack, the families
 signed in but not used, and the cost: about 80 MB more memory while the
 default model is loaded, and every core for a moment per take.
@@ -131,4 +131,4 @@ decoded here, and nothing is written to disk. With a cloud family, audio
 leaves the machine only to that family, and only after you stop a take.
 Nothing is sent while you speak; a cancelled take is dropped without a
 request. The health check's INTERFACE section carries a `Voice input` row naming
-the backend, the transcriber and the permission words for this machine.
+the backend, the transcriber and the platform's microphone permission status.
