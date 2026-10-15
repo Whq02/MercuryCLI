@@ -369,11 +369,16 @@ section('I. the cargo plan — the test binary cargo built, the one that lists t
       const { disposeOwner } = await import('../../src/services/run/ownerLifecycle.ts')
       const hint = native === 'lldb' ? dap.darwinDebuggerAuthorisationHint() : null
       const out = (await runWithCwdOverride(root, () => TestTool.call({ op: 'debug', node: 'tests::is_two' } as never, ctx))) as { data: { result: string; outcome: string } }
-      if (hint !== null) {
-        console.log(`  [SKIP — LOUD] the stop leg needs macOS debugger authorisation — ${hint}`)
-        check('I6 with authorisation off the user gets the honest silence line naming the one durable fix', out.data.outcome === 'failed' && out.data.result.includes('DevToolsSecurity -enable'), out.data.result.split('\n').slice(0, 2).join(' | '))
+      const stoppedOnTest = out.data.outcome === 'succeeded' && /reason breakpoint/.test(out.data.result)
+      const debuggerBlocked = out.data.outcome === 'failed' && out.data.result.includes('DevToolsSecurity -enable')
+      if (debuggerBlocked) {
+        console.log(`  [SKIP — LOUD] the stop leg: the native debugger blocked in task_for_pid — ${hint ?? 'the status word reads enabled, yet the launch never answered'}`)
+        check('I6 when the native debugger really blocked, the user gets the honest silence line naming the one durable fix', out.data.result.includes('sudo DevToolsSecurity -enable'), out.data.result.split('\n').slice(0, 2).join(' | '))
+      } else if (!stoppedOnTest) {
+        check('I6 the stop leg either stopped on the test or the native debugger blocked with the honest line — neither happened', false, out.data.result.split('\n').slice(0, 3).join(' | '))
+        await disposeOwner(ownerFromToolUseContext(ctx))
       } else {
-        check('I6 the tool reports a stop at a breakpoint under the native debugger', out.data.outcome === 'succeeded' && /reason breakpoint/.test(out.data.result), out.data.result.split('\n').slice(0, 3).join(' | '))
+        check(`I6 the authorisation is granted this boot — the stop leg is the evidence${hint !== null ? ' (the status word still reads disabled; the word is not the live fact)' : ''}`, true)
         const owner = ownerFromToolUseContext(ctx)
         const session = dap.getDapSession(owner, 'test')
         const stopped = session?.treeStopped() ?? null
