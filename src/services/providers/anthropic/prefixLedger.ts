@@ -136,7 +136,6 @@ function blockKind(block: unknown): string {
   if (b.type === 'text') {
     const text = typeof b.text === 'string' ? b.text : ''
     if (text.startsWith('<system-reminder>')) return 'system-reminder'
-    if (text.startsWith('<available-deferred-tools>')) return 'deferred-tools announcement'
     return 'text'
   }
   return b.type ?? 'block'

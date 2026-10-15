@@ -32,6 +32,7 @@ const DIST = path.join(REPO, 'dist', 'mercury.mjs')
 const MODEL = 'claude-fable-5-1'
 const OTHER_MODEL = 'claude-opus-5'
 const TOOL_SEARCH = 'ToolSearch'
+const FORBIDDEN_HEAD_WORDS = ['<available-deferred-tools>', '</available-deferred-tools>']
 const BASH = 'Bash'
 const SUMMARY_TEXT = 'Summary of the session so far: five fixture turns — two tool lookups, one shell command, one plain turn — nothing left open.'
 const PREFERRED_LOOKUPS = ['WebFetch', 'NotebookEdit', 'WebSearch', 'Monitor', 'StructureTool']
@@ -95,8 +96,6 @@ function announcedDeferredNames(messages: Row[]): string[] {
   for (const row of messages) {
     if (row.role !== 'user') continue
     const text = rowText(row)
-    const tagged = /<available-deferred-tools>\n([\s\S]*?)\n<\/available-deferred-tools>/.exec(text)
-    if (tagged) take(tagged[1]!)
     const delta = /Deferred tools: offered in this session[^\n]*\n([\s\S]*?)\n<\/system-reminder>/g
     let m: RegExpExecArray | null
     while ((m = delta.exec(text)) !== null) take(m[1]!)
@@ -714,6 +713,9 @@ async function drive(): Promise<void> {
   const t1 = tally('leg 1', pairs1)
   const t2 = tally('leg 2', pairs2)
   if (!REPORT) {
+    for (const [leg, stream] of [[1, stream1], [2, stream2]] as const) {
+      check(`leg ${leg}: no captured request carries a retired tool head`, stream.length > 0 && stream.every(row => FORBIDDEN_HEAD_WORDS.every(word => !JSON.stringify(row.body).includes(word))))
+    }
     check('leg 1: every pair outside the compaction holds (no rewrite of sent history)', t1.unlawful.length === 0, t1.unlawful.map(p => `#${p.prevSeq}→#${p.curSeq} ${p.verdict.diff?.path}`).join(' | '))
     check('leg 1: the compaction head is the only prefix move (the summariser\'s own request holds like any other)', t1.lawful.length === 1 && t1.lawful[0]!.lawful === 'compaction', t1.lawful.map(p => `#${p.prevSeq}→#${p.curSeq} ${p.lawful}`).join(' | '))
     const unlawfulDrops1 = stream1.filter(r => (r.response?.input_transformations?.length ?? 0) > 0 && !pairs1.some(p => p.curSeq === r.seq && p.lawful !== null))

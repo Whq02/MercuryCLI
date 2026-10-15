@@ -54,7 +54,6 @@ export interface LocalToolWire {
   schemas: number
   schemaBytes: number
   named: number
-  nameRowBytes: number
 }
 
 export type LocalEstimateParams = Pick<LocalCallParams, 'messages' | 'systemPrompt' | 'tools'> & { toolWire?: LocalToolWire }
@@ -83,7 +82,7 @@ export function localToolWireGuess(tools: Tools, messages: readonly Message[]): 
   for (const built of getToolSchemaCache().values()) rendered.set(built.name, { name: built.name, ...(built.description ? { description: built.description } : {}), input_schema: built.input_schema })
   const apiTools = roster.map(tool => rendered.get(tool.name) ?? unrenderedApiTool(tool))
   const named = deferring ? [...deferred].filter(name => !admitted.has(name)).length : 0
-  return { schemas: apiTools.length, schemaBytes: wireBytesOf(apiTools), named, nameRowBytes: 0 }
+  return { schemas: apiTools.length, schemaBytes: wireBytesOf(apiTools), named }
 }
 
 export async function localToolWireOf(params: CompatCallModelParams): Promise<LocalToolWire> {
@@ -119,7 +118,7 @@ export async function localToolWireOf(params: CompatCallModelParams): Promise<Lo
     }
   }
   const named = [...plan.deferredNames].filter(name => !plan.admittedNames.has(name)).length
-  return { schemas: apiTools.length, schemaBytes: wireBytesOf(apiTools), named, nameRowBytes: plan.announcement === null ? 0 : Buffer.byteLength(plan.announcement, 'utf8') }
+  return { schemas: apiTools.length, schemaBytes: wireBytesOf(apiTools), named }
 }
 
 export function localPreComposeEstimate(params: LocalEstimateParams): number {
@@ -130,7 +129,7 @@ export function localPreComposeEstimate(params: LocalEstimateParams): number {
     bytes += 0
   }
   const wire = params.toolWire ?? localToolWireGuess(params.tools, params.messages)
-  return Math.ceil(bytes / 4) + Math.ceil((wire.schemaBytes + wire.nameRowBytes) / LOCAL_WIRE_BYTES_PER_TOKEN)
+  return Math.ceil(bytes / 4) + Math.ceil(wire.schemaBytes / LOCAL_WIRE_BYTES_PER_TOKEN)
 }
 
 export function localLaneProfileFor(record: LocalModelRecord): CompatLaneProfile {

@@ -124,7 +124,7 @@ import type {
 } from './openaiWire.js'
 import type { RefusedToolCall } from '../../../types/message.js'
 import { gateToolCalls, toolCallRefusalNote } from '../toolCallGate.js'
-import { foldAnnouncementIntoFirstUserTurn, planToolPayload, renderAdmissionRecordsAsText } from '../toolEconomy.js'
+import { planToolPayload, renderAdmissionRecordsAsText } from '../toolEconomy.js'
 import { retireOlderScreenshots } from '../../desktop/screenshotRetention.js'
 import { fitImagesToRequestCap } from '../../../utils/imageResizer.js'
 import { stripThinkingFromIndex } from '../../../utils/messages/apiFilters.js'
@@ -551,7 +551,7 @@ async function* openaiTurn(params: CallModelParams, deferralFormReissued?: strin
   const apiTools = await buildApiShapedTools(plan.roster, options, modelId, plan.conversationKey)
   const strippedMessages = applyStripTargetsToMessages(messages, errorDrivenStripTargets(messages))
   const projectedMessages = strippedMessages.map(message => message.type === 'user' ? withToolReferenceTurnBoundary(message) : message)
-  const wireMessages = foldAnnouncementIntoFirstUserTurn(renderAdmissionRecordsAsText(projectedMessages), plan)
+  const wireMessages = renderAdmissionRecordsAsText(projectedMessages)
   const requestedEffort = resolveWireRequestedEffort(modelId, options.effortValue, { agentId: options.agentId })
   const effortTruth = resolveEffortTruth(modelId, options.effortValue, { agentId: options.agentId })
   let profile: GptReasoningProfile = candidate

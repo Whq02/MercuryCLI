@@ -71,7 +71,7 @@ import type { CallModelParams, CallModelStream } from '../callModelContract.js'
 import { ensureGatewayProbe, gatewayProbePolicyAllows, type GatewayProbeAnswer } from '../deferralProbe.js'
 import { gatewayHost } from '../deferralWire.js'
 import { deadlineBreachLine, isDeadlineBreach } from '../fetchDeadline.js'
-import { announcementMessage, conversationRosterKey, planToolPayload, renderAdmissionRecordsAsText } from '../toolEconomy.js'
+import { conversationRosterKey, planToolPayload, renderAdmissionRecordsAsText } from '../toolEconomy.js'
 import { declareLawfulPrefixChange } from '../lawfulPrefixChange.js'
 import { applyInducedPrefixEdit, inducedEditApplies, judgeAndRecordPrefix, noteRequestOnWire, resolveInducedPrefixEdit, type WirePrefixParts } from './prefixLedger.js'
 import { deadThinkingMarks, stripDeadThinking } from './thinkingBinding.js'
@@ -550,11 +550,6 @@ async function* queryModel(
   if (thinkingConfig.type === 'disabled') messagesForAPI = stripThinkingFromIndex(messagesForAPI, 0)
 
   const fingerprint = computeFingerprintFromMessages(messages)
-
-  const announcement = announcementMessage(plan)
-  if (announcement !== null) {
-    messagesForAPI = [announcement, ...messagesForAPI]
-  }
 
   const sessionSystemPrompt = systemPrompt
   const assembleSystemPrompt = (attribution: string): SystemPrompt =>

@@ -5,6 +5,7 @@ import { mkdtempSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { z } from 'zod/v4'
+import { FORBIDDEN_HEAD_WORDS } from './requestHeadSource.ts'
 
 let failures = 0
 let checks = 0
@@ -258,7 +259,6 @@ section('§1 THE RULE — the openrouter row reads the native form; the plan def
   check('the roster is every pool tool in pool order minus Mercury\'s ToolSearch (the server searches)', plan.roster.map(t => t.name).join(',') === EXPECTED_ORDER.join(','), plan.roster.map(t => t.name).join(','))
   check('the deferred marks are the deferrable set', [...plan.deferredNames].sort().join(',') === [...DEFERRED_NAMES].sort().join(','), [...plan.deferredNames].sort().join(','))
   check('nothing is admitted client-side and no deferred tool reads as unadmitted (the server reveals; Mercury refuses nothing for it)', plan.admittedNames.size === 0 && DEFERRED_NAMES.every(n => plan.isDeferredUnadmitted(n) === false))
-  check('no per-request announcement rides', plan.announcement === null)
   const row = getDeferredToolsDeltaAttachment(POOL as never, MODEL, [createUserMessage({ content: 'begin' }) as Message])[0]
   check('the persisted name row (once per transcript, never in the tools array) names the SERVER\'s search as the loading road — the model is told what exists and how to load it', row !== undefined && row.type === 'deferred_tools_delta' && typeof row.body === 'string' && row.body.startsWith(SERVER_SEARCH_ANNOUNCEMENT_HEAD) && row.addedNames.join(',') === [...DEFERRED_NAMES].sort().join(',') && !row.body.includes('ToolSearch'), JSON.stringify(row ?? null).slice(0, 160))
   clearToolRosterLatches()
@@ -272,6 +272,7 @@ const firstChat = first.captures.find(c => c.path === '/api/v1/chat/completions'
 {
   check('the request landed on /api/v1/responses, not /chat/completions (the docs: Chat Completions returns 400 for tool search)', firstResponses !== undefined && firstChat === undefined, `${first.captures.map(c => c.path).join(',')} ${first.errors.join(' | ')}`)
   const body = firstResponses?.body ?? {}
+  check('the captured input has only the operator turn and no minted head', Array.isArray(body.input) && body.input.length === 1 && FORBIDDEN_HEAD_WORDS.every(word => !JSON.stringify(body.input).includes(word)))
   check('the native road carries the same routing policy as chat', JSON.stringify(body.provider) === '{"data_collection":"deny","require_parameters":true}')
   const tools = toolsOf(body)
   check('tools[0] is { type: "openrouter:tool_search" }', tools[0] !== undefined && tools[0].type === SEARCH_TYPE && Object.keys(tools[0]).join(',') === 'type', JSON.stringify(tools[0] ?? null))
@@ -284,7 +285,7 @@ const firstChat = first.captures.find(c => c.path === '/api/v1/chat/completions'
   check('instructions carry the system prompt; input opens with the user message item', typeof body.instructions === 'string' && (body.instructions as string).includes(SYSTEM_PROMPT[0]!) && Array.isArray(body.input) && (body.input as Array<Record<string, unknown>>)[0]?.type === 'message' && (body.input as Array<Record<string, unknown>>)[0]?.role === 'user')
   check('stream: true and a prompt_cache_key for sticky routing', body.stream === true && typeof body.prompt_cache_key === 'string' && (body.prompt_cache_key as string).startsWith('mercury-'))
   const text = firstResponses ? bodyText(firstResponses) : ''
-  check('no per-request announcement rides the body (the retired prepend tag; no Mercury ToolSearch words)', text !== '' && !text.includes('<available-deferred-tools>') && !text.includes('via ToolSearch') && !text.includes(`"name":"${TOOL_SEARCH_TOOL_NAME}"`))
+  check('no per-request announcement rides the body (the retired prepend tag; no Mercury ToolSearch words)', text !== '' && FORBIDDEN_HEAD_WORDS.every(word => !text.includes(word)) && !text.includes('via ToolSearch') && !text.includes(`"name":"${TOOL_SEARCH_TOOL_NAME}"`))
   check('the bearer and the product user-agent ride the request', firstResponses?.headers.authorization === 'Bearer fixture-openrouter-key' && typeof firstResponses?.headers['user-agent'] === 'string')
 }
 

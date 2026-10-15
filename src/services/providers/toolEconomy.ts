@@ -1,11 +1,10 @@
 import { toolMatchesName, type Tool, type ToolPermissionContext, type Tools } from '../../Tool.js'
 import { expandLspFamily } from '../lsp/toolFamily.js'
 import type { AgentDefinition } from '../../tools/AgentTool/loadAgentsDir.js'
-import { formatDeferredToolLine, isDeferredTool, loadsInFullFor, TOOL_SEARCH_TOOL_NAME } from '../../tools/ToolSearchTool/prompt.js'
+import { isDeferredTool, loadsInFullFor, TOOL_SEARCH_TOOL_NAME } from '../../tools/ToolSearchTool/prompt.js'
 import type { AssistantMessage, Message, UserMessage } from '../../types/message.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { clearConversationToolSchemas, getConversationToolSchemas } from '../../utils/toolSchemaCache.js'
-import { createUserMessage } from '../../utils/messages.js'
 import {
   extractDiscoveredToolNames,
   isToolReferenceBlock,
@@ -157,7 +156,6 @@ export interface ToolPayloadPlan {
   roster: Tools
   deferredNames: ReadonlySet<string>
   admittedNames: ReadonlySet<string>
-  announcement: string | null
   isDeferredUnadmitted(name: string): boolean
   restoredMissingTools: readonly string[]
   admissionDeclarations: readonly AdmissionDeclaration[]
@@ -166,19 +164,6 @@ export interface ToolPayloadPlan {
 interface AdmissionDeclaration {
   toolUseId: string
   tools: Tools
-}
-
-const ANNOUNCEMENT_OPEN = '<available-deferred-tools>'
-const ANNOUNCEMENT_CLOSE = '</available-deferred-tools>'
-
-export function deferredToolsAnnouncement(tools: Tools, deferredNames: ReadonlySet<string>): string | null {
-  const list = tools
-    .filter(t => deferredNames.has(t.name))
-    .map(formatDeferredToolLine)
-    .sort()
-    .join('\n')
-  if (!list) return null
-  return `${ANNOUNCEMENT_OPEN}\n${list}\n${ANNOUNCEMENT_CLOSE}`
 }
 
 export async function planToolPayload(input: ToolPayloadPlanInput): Promise<ToolPayloadPlan> {
@@ -291,7 +276,6 @@ export async function planToolPayload(input: ToolPayloadPlanInput): Promise<Tool
     roster,
     deferredNames,
     admittedNames,
-    announcement: null,
     isDeferredUnadmitted: (name: string) => enabled && !serverSearch && deferredNames.has(name) && !admittedNames.has(name),
     restoredMissingTools,
     admissionDeclarations,
@@ -340,35 +324,6 @@ function admissionDeclarationsOf(
       if (tools.length > 0) out.push({ toolUseId: block.tool_use_id, tools })
     }
   }
-  return out
-}
-
-export function announcementMessage(plan: ToolPayloadPlan): UserMessage | null {
-  if (plan.announcement === null) return null
-  return createUserMessage({ content: plan.announcement, isMeta: true })
-}
-
-export function foldAnnouncementIntoFirstUserTurn<M extends Message>(messages: M[], plan: ToolPayloadPlan): M[] {
-  if (plan.announcement === null) return messages
-  const index = messages.findIndex(m => m.type === 'user')
-  if (index < 0) return messages
-  const first = messages[index] as unknown as UserMessage
-  const content = first.message.content
-  const folded: UserMessage = {
-    ...first,
-    message: {
-      ...first.message,
-      content:
-        typeof content === 'string'
-          ? [
-              { type: 'text' as const, text: plan.announcement },
-              { type: 'text' as const, text: content },
-            ]
-          : [{ type: 'text' as const, text: plan.announcement }, ...content],
-    },
-  } as UserMessage
-  const out = [...messages]
-  out[index] = folded as unknown as M
   return out
 }
 

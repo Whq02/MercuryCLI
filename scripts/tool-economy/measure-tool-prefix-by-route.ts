@@ -5,6 +5,7 @@ import { existsSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { buildFixtureMcpTools, fixtureMcpSchemaBytes } from './fixtureMcpEstate.ts'
+import { FORBIDDEN_HEAD_WORDS } from './requestHeadSource.ts'
 
 let failures = 0
 let checks = 0
@@ -386,8 +387,6 @@ function toolsOfBody(route: Route, body: Body): Array<{ name: string; deferLoadi
   })
 }
 
-const ANNOUNCE_OPEN = '<available-deferred-tools>'
-
 function announcementOf(route: Route, body: Body): { present: boolean; bytes: number; names: number } {
   const texts: string[] = []
   const collect = (content: unknown): void => {
@@ -406,10 +405,10 @@ function announcementOf(route: Route, body: Body): { present: boolean; bytes: nu
     for (const m of (body.messages as Array<Record<string, unknown>> | undefined) ?? []) collect(m.content)
   }
   for (const t of texts) {
-    const at = t.indexOf(ANNOUNCE_OPEN)
+    const at = t.indexOf(FORBIDDEN_HEAD_WORDS[0]!)
     if (at < 0) continue
-    const end = t.indexOf('</available-deferred-tools>', at)
-    const block = end > at ? t.slice(at, end + '</available-deferred-tools>'.length) : t.slice(at)
+    const end = t.indexOf(FORBIDDEN_HEAD_WORDS[1]!, at)
+    const block = end > at ? t.slice(at, end + FORBIDDEN_HEAD_WORDS[1]!.length) : t.slice(at)
     const names = block.split('\n').filter(l => l.trim() !== '' && !l.startsWith('<')).length
     return { present: true, bytes: Buffer.byteLength(block, 'utf8'), names }
   }
@@ -483,6 +482,7 @@ async function drive(leg: Leg, view: 'fresh' | 'admitted', pool: Tools, admitted
       deltaRowNames: 0, deltaRowBytes: 0, declaredTools: 0, declaredBytes: 0, deferLoadingMarked: 0, betaHeader: '', bodyBytes: 0, toolsDigest: '', bodyDigest: '', probes, error: errors.join(' | ') || 'no capture',
     }
   }
+  check(`${leg.route}/${view}: the captured wire has no retired tool head`, FORBIDDEN_HEAD_WORDS.every(word => !JSON.stringify(hit.body).includes(word)))
   const tools = toolsOfBody(leg.route, hit.body)
   const toolsJson = JSON.stringify(hit.body.tools ?? [])
   const toolBytes = Buffer.byteLength(toolsJson, 'utf8')

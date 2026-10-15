@@ -121,7 +121,7 @@ type Tool = import('../../src/Tool.ts').Tool
 type Tools = import('../../src/Tool.ts').Tools
 type Message = import('../../src/types/message.ts').Message
 type LocalParams = import('../../src/services/providers/openaicompat/compatChatCallModel.ts').CompatCallModelParams
-type ToolWire = { schemas: number; schemaBytes: number; named: number; nameRowBytes: number }
+type ToolWire = { schemas: number; schemaBytes: number; named: number }
 type Tip = {
   localToolWireOf?: (params: LocalParams) => Promise<ToolWire>
   LOCAL_FIT_TOLERANCE?: number
@@ -221,6 +221,7 @@ let beforeAfter = ''
   const real = realOf(sent.chat)
   fixedBytes = sent.chat?.bytes ?? 0
   const wire = onTip ? await tip.localToolWireOf!(params) : undefined
+  check('the pre-compose tool cost is only the captured schema bytes', wire !== undefined && estimate === Math.ceil((Buffer.byteLength(JSON.stringify(params.messages), 'utf8') + Buffer.byteLength(JSON.stringify(params.systemPrompt), 'utf8')) / 4) + Math.ceil(wire.schemaBytes / WIRE_BYTES_PER_TOKEN))
   beforeAfter = `estimate ${fmt(estimate)} tokens · the request on the wire ${fmt(fixedBytes)} bytes = ${fmt(real)} tokens at ${WIRE_BYTES_PER_TOKEN} bytes/token · ${wireSchemas(sent.chat)} schemas + ${deferredNames.length} names on the wire`
   console.log(`  ${beforeAfter}`)
   check('the fresh request rode /api/chat and settled', sent.chat !== undefined && sent.error === undefined && sent.texts.some(t => t.includes('pong')), sent.errorText ?? 'no chat')

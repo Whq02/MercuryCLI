@@ -4,6 +4,7 @@ import { existsSync, mkdtempSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { z } from 'zod/v4'
+import { FORBIDDEN_HEAD_WORDS } from './requestHeadSource.ts'
 
 let failures = 0
 let checks = 0
@@ -354,17 +355,17 @@ section('§3 THE WIRE ON A PASS-THROUGH ENDPOINT — GPT-6 rides the native arra
   const plan = await planToolPayload({ model: 'gpt-6-astra', tools: POOL, messages: convo, getToolPermissionContext: async () => permissionContext, agents: [], hasPendingMcpServers: false, source: 'proof' })
   check('the plan: deferral on, the native form, every deferred tool marked', plan.enabled && plan.wireForm === 'openai-native' && [...plan.deferredNames].sort().join(',') === [...DEFERRED_NAMES].sort().join(','))
   check("the plan's roster is every pool tool in pool order minus Mercury's own ToolSearch", plan.roster.map(t => t.name).join(',') === POOL.filter(t => t.name !== TOOL_SEARCH_TOOL_NAME).map(t => t.name).join(','), plan.roster.map(t => t.name).join(','))
-  check('no announcement rides and no tool is "unadmitted" (the server is the admission road)', plan.announcement === null && plan.admittedNames.size === 0 && plan.isDeferredUnadmitted('WebFetch') === false)
   const miss = gateToolCall(POOL as never, { id: 'c1', name: 'WebFetch', argumentsRaw: '{"url":"https://x"}', malformed: false }, { deferredUnadmitted: plan.isDeferredUnadmitted })
   check('a schema miss on a deferred tool refuses without naming the ToolSearch road', !miss.ok && miss.refusal.code === 'schema' && !miss.refusal.reason.includes('select:WebFetch'))
 
   const first = await drive('gpt-6-astra', convo, 'native-proof', 'passing')
+  check('the captured input carries no minted head and the server owns admission', first.capture !== undefined && FORBIDDEN_HEAD_WORDS.every(word => !textsOf(first.capture.body).includes(word)) && inputOf(first.capture.body).length === 1 && plan.admittedNames.size === 0 && plan.isDeferredUnadmitted('WebFetch') === false)
   check('request 1 reached the fixture endpoint', first.capture !== undefined && first.errors.length === 0, first.errors.join(' | '))
   const tools1 = toolsOf(first.capture?.body)
   const functions1 = tools1.filter(t => t.type === 'function')
   check('request 1: the tools array is every pool tool in pool order (flat function tools), then exactly one {type:"tool_search"} at the END', functions1.map(t => t.name).join(',') === POOL.filter(t => t.name !== TOOL_SEARCH_TOOL_NAME).map(t => t.name).join(',') && tools1.filter(t => t.type === 'tool_search').length === 1 && tools1[tools1.length - 1]!.type === 'tool_search', tools1.map(t => `${String(t.type)}:${String(t.name ?? '')}`).join(','))
   check('request 1: every deferred tool carries defer_loading: true; every other function tool carries no mark', DEFERRED_NAMES.every(n => functions1.find(t => t.name === n)?.defer_loading === true) && NON_DEFERRED.every(t => functions1.find(x => x.name === t.name)?.defer_loading === undefined), JSON.stringify(functions1.map(t => [t.name, t.defer_loading ?? null])))
-  check("request 1: Mercury's own ToolSearch function is NOT in the array and no text announcement rides the input", !functions1.some(t => t.name === TOOL_SEARCH_TOOL_NAME) && !textsOf(first.capture?.body).includes('<available-deferred-tools>') && !textsOf(first.capture?.body).includes('Tool loaded.'))
+  check("request 1: Mercury's own ToolSearch function is NOT in the array and no text announcement rides the input", !functions1.some(t => t.name === TOOL_SEARCH_TOOL_NAME) && FORBIDDEN_HEAD_WORDS.every(word => !textsOf(first.capture?.body).includes(word)) && !textsOf(first.capture?.body).includes('Tool loaded.'))
   check('request 1: the request is otherwise the stateless-replay shape (store:false, encrypted reasoning include, the cache key)', first.capture?.body.store === false && JSON.stringify(first.capture?.body.include) === JSON.stringify(['reasoning.encrypted_content']) && typeof first.capture?.body.prompt_cache_key === 'string')
   const toolUse = first.replies.flatMap(r => r.message.content).find(b => b.type === 'tool_use') as { id?: string; name?: string; input?: unknown } | undefined
   check('the deferred tool the server loaded is USED in the same step: WebFetch mints a tool_use under the provider call id', toolUse !== undefined && toolUse.name === 'WebFetch' && toolUse.id === 'call_webfetch_1' && JSON.stringify(toolUse.input) === JSON.stringify({ url: 'https://example.test/', count: '1' }), JSON.stringify(toolUse))
