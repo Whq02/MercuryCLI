@@ -152,7 +152,7 @@ model reads and is passed only to hook and server environments.
    `/extensions` shows `◇ found`. Press `i` to open the approval card (what it will run on
    your machine, what it adds to the model's tools, and what it needs) and approve it.
 3. Edit a skill; press `r` (or `/extensions reload`): the change is live. If the
-   manifest's contributions changed, the row reads `changed · re-approve` and the card
+   manifest's contributions changed, the row reads `changed — re-approve` and the card
    shows the diff.
 4. `mercury extensions inspect .mercury/extensions/review-tools` lints everything the
    runtime tolerates (unknown top-level keys, a hook whose script is missing).

@@ -24,7 +24,7 @@ Saturn supports two schedule types, and the board shows both:
 screen's **Saturn Scheduler** row opens the same board in place, with `Esc`
 returning to the home screen. Rows group under the session that owns them,
 with box schedules under their own `box (machine)` section. The legend lists
-the keys: `↑↓ move · a schedule new session… · x delete · n run-now · p
+the keys: `↑↓ move · a schedule birth… · x delete · n run-now · p
 pause/resume · r refresh · esc back`. A row's trail shows the time expression
 verbatim, the account it will fire on (an identity, never a token), held fires
 with their reasons, and the fired-late or missed receipt tail. Press `a` in
@@ -46,7 +46,7 @@ Pressing `a` opens the new-session schedule form. Its rows:
 - **Model**: the model the new session starts on (the full catalogue picker).
 - **Workspace**: the project folder it starts in, picked from your projects
   (the same list the home screen's rows render), with a custom path option last.
-- **Presence**: `headless (unattended)` or `screen-present (Mercury open)`. A
+- **Presence**: `headless — unattended` or `screen-present — Mercury open`. A
   screen-present schedule due while Mercury is closed waits for the next launch
   instead of firing unattended, then obeys the catch-up window from its due
   instant.
@@ -131,10 +131,10 @@ Gemini, OpenRouter and Hugging Face families alike, each read from its own
 window fact).
 
 A fire whose account is not ready is **held**, typed and receipted, never
-silently dropped and never run on another family: `"held: sign-in expired ·
-/logins releases N held fires"`, `"held: signed out · …"`, `"held: no local
-server answering · start it (or set MERCURY_LOCAL_BASE_URL) …"`, or `"held:
-rate-limited · the window's end releases N held fires"`. Signing back in
+silently dropped and never run on another family: `"held: sign-in expired —
+/logins releases N held fires"`, `"held: signed out — …"`, `"held: no local
+server answering — start it (or set MERCURY_LOCAL_BASE_URL) …"`, or `"held:
+rate-limited — the window's end releases N held fires"`. Signing back in
 (or the local server returning) releases the held
 fires in order, each receipted as fired late with its origin. A fire
 also never jumps accounts silently: the same family under a different

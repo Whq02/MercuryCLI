@@ -86,7 +86,7 @@ main chat shows a muted `[advisor]` row saying so without starting a model turn:
 
 ```
 10:00:04 [advisor] · claude-opus-5-5 · every 10 minutes
-  had nothing to say this round (answered with no text, twice)
+  had nothing to say this round — answered with no text, twice
 ```
 
 A round that ends this way counts as the advisor's look: the interval runs

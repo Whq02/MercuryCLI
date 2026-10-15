@@ -118,7 +118,7 @@ row, and the shipped default serves; nothing is replaced silently.
 `on-device`, `cloud` (the ledger walk), or a family id such as `openai`; a
 pin that cannot serve says so in the receipt, in `/voice` and in the health check
 row, and never falls back silently. With nothing to transcribe with, pressing space
-answers `"nothing transcribes yet · <the on-device reason>; or /logins openai
+answers `"nothing transcribes yet — <the on-device reason>; or /logins openai
 (API key) or /logins gemini"` before any audio is captured. The health check's
 `Voice input` row names the engine, the model and the pack, the families
 signed in but not used, and the cost: about 80 MB more memory while the

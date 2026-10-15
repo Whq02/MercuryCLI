@@ -131,7 +131,7 @@ platform's identities.
 model was holding, and ends the turn. The key reaches Mercury only while
 its terminal has keyboard focus: when another application is in front,
 click the terminal first. While a turn drives, the footer says
-`● hands off · Mercury is driving <application> · esc stops it`. Your own
+`● hands off — Mercury is driving <application> · esc stops it`. Your own
 mouse and keyboard keep working throughout; a drag the model is stepping
 ends where the last hand left it.
 

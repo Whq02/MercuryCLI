@@ -137,7 +137,7 @@ When an account has no active plan, Meta answers `require_payment` with the
 stored as active. The latest sign-in action is the active source; `/logins` and
 `/usage` name a stored source that is not active, and `↵` on its `/logins` row
 makes it active without re-entering. A refused minted key (401/403) reports
-`the Muse Code key was refused · /logins signs in with Meta again` and never
+`the Muse Code key was refused — /logins signs in with Meta again` and never
 falls through silently to another source. `/accounts` manages both slots. The
 family word `muse` selects the newest served Standard Muse Spark row. A
 successful empty list stays empty; no unfetched row becomes selectable. A named
@@ -429,7 +429,7 @@ paired.
 A dispatched crewmate whose turn ends on the provider's overload (the busy
 refusal above on any road, such as the Anthropic wire's 529 or `overloaded_error` or
 another provider's spent busy ladder, with no wait stated) does not
-fail: it pauses, its row says why (`paused · provider overloaded ·
+fail: it pauses, its row says why (`paused — provider overloaded ·
 resumes by itself when the provider answers`), its work so far is kept, and
 Mercury probes the provider with one small request at a slow, bounded
 cadence (30 s after the pause, then every minute for ten minutes, then
@@ -541,15 +541,15 @@ to 10B, 100 up to 35B, 40 above, 100 when the server states no size). When
 the estimate runs out, Mercury asks the server a liveness question
 (Ollama `/api/version`, LM Studio `/api/v1/models`, llama.cpp `/health`,
 vLLM `/v1/models`): an answer extends the estimate and the row says so
-(`still ingesting … · about 3m 23s more (its server answered at 6m 46s)`);
+(`still ingesting … — about 3m 23s more (its server answered at 6m 46s)`);
 two unanswered probes in a row cut the request with the dead-server words
-(`no answer from Ollama at 127.0.0.1:11434 for 10 s while ingesting · the
+(`no answer from Ollama at 127.0.0.1:11434 for 10 s while ingesting — the
 local server is not responding (its window, its load, or a crash); /model
 re-probes`), and that cut is never reissued. After the first byte the idle
 watchdog follows the same law at the patience setting's quiet number (15
 minutes, the OpenAI road's): the row warns at the warning point (`no bytes
-for 7m 30s · <model>'s server is asked at 15m`), the server is asked at the
-idle number, and the turn holds while it answers (`no bytes for 15m ·
+for 7m 30s — <model>'s server is asked at 15m`), the server is asked at the
+idle number, and the turn holds while it answers (`no bytes for 15m —
 <model>'s server still answers`; `Esc` interrupts). While the server is still
 loading the model the row says `loading <model> (<size> GB)`, and the
 ingestion clock starts once the server lists it. The hard cap on a local
@@ -637,7 +637,7 @@ Run `/accounts` to see every connected account and API key across all providers:
   current client version (2.23.0, the newest the update manifest publishes)
   answered 404 "Requested entity was not found." (the gate is the plan,
   and the public Antigravity client has no override). Such a row is listed under the Google sign-in with its
-  state (`"withheld from Google AI Pro today · Google's roster names it …
+  state (`"withheld from Google AI Pro today — Google's roster names it …
   and answers 404 to the id; antigravity.google/docs/models says which plans
   include it; not offered as runnable"`) and is not selectable; a bare id
   with no served row answers Google's 404, and the refusal names the
@@ -707,10 +707,10 @@ Run `/accounts` to see every connected account and API key across all providers:
   `/usage` name a stored source that is not active, and `↵` on its row makes it
   active without re-entering it.
   The `/logins` card lists Sign in with Google first, as
-  `Sign in with Google · your plan's quota: AI Pro, AI Ultra or a free account`
+  `Sign in with Google — your plan's quota: AI Pro, AI Ultra or a free account`
   (the browser opens Google's consent page for the Antigravity client; the
   receipt names the tier, the e-mail and the roster count), the API key second, as
-  `API key · the easiest: create one in AI Studio, paste it here`: choosing it
+  `API key — the easiest: create one in AI Studio, paste it here`: choosing it
   opens https://aistudio.google.com/apikey in the browser, prints the address
   for a box without one, and takes the key by one paste. The Google account (your own OAuth client) is third,
   six numbered steps, each opening its Console page: 1. Create a Google Cloud project;
@@ -1221,7 +1221,7 @@ postpaid invoice preview and spending limit where enabled. These are team
 figures, separate from this session's spend; a postpaid cap does not cap prepaid usage.
 A partial usage query is labelled partial, never mistaken for a reached
 spending limit. With only the inference key, `/usage` says `"add a management
-key from the console's settings page to read usage · /logins xai"`. A refused
+key from the console's settings page to read usage — /logins xai"`. A refused
 management key is named plainly, with the last successful read and its age
 left visible. No management key is not an error.
 
@@ -1233,7 +1233,7 @@ re-reading the figures once on open when the last read is a minute old or more)
 in one order: the session's own model first, resolved to its effort row
 (`gemini-4-argon ▸ gemini-4-argon-high`), then every model this session used
 on the lane (crewmates included) in order of last use, then one folded line
-(`"24 other roster models · ↵ lists them"`) that `↵` opens and folds again; any
+(`"24 other roster models — ↵ lists them"`) that `↵` opens and folds again; any
 model used in the session for which Google's roster reports no quota or reset
 figure shows session token and spend totals without a quota-left or reset figure.
 Google states no account spend or credit balance for the sign-in, and the absence line says so and names the
@@ -1259,7 +1259,7 @@ OpenRouter OAuth-minted keys show the same remaining credit under the key cap as
 
 The ChatGPT sign-in shows OpenAI's credit balance or unlimited credits beside its usage windows, with the last read's age, in `/usage`, the rail and its account row.
 
-A window that reads reached (100%, or a refused request) says what carries the requests from there, from the vendor's own statement: a Claude subscription on extra usage names its figure (`"on extra usage · USD 12.40 of 50.00 this month"`) or says `"extra usage off · nothing carries requests until the reset"` with the reason Anthropic gives, a ChatGPT sign-in says `"on credits · 62,500 left"` or `"no credits · nothing carries requests until the reset"`, a Kimi sign-in names its Extra Usage balance, and a family that states nothing about it says so in one clause; the words ride the rail's and `/deck`'s reached line, the `/usage` tab's reached sentence, the strip warning at 100%, the account-slot offer, the handoff notice, the refusal rows and blockers, and the health check's usage row.
+A window that reads reached (100%, or a refused request) says what carries the requests from there, from the vendor's own statement: a Claude subscription on extra usage names its figure (`"on extra usage · USD 12.40 of 50.00 this month"`) or says `"extra usage off — nothing carries requests until the reset"` with the reason Anthropic gives, a ChatGPT sign-in says `"on credits · 62,500 left"` or `"no credits — nothing carries requests until the reset"`, a Kimi sign-in names its Extra Usage balance, and a family that states nothing about it says so in one clause; the words ride the rail's and `/deck`'s reached line, the `/usage` tab's reached sentence, the strip warning at 100%, the account-slot offer, the handoff notice, the refusal rows and blockers, and the health check's usage row.
 
 A GLM Coding Plan key shows its windows the way a Kimi sign-in does: the
 5-hour and weekly credit windows as used-percent bars with their resets, on

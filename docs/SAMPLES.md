@@ -96,7 +96,7 @@ change reaches new sessions) or set `MERCURY_SAMPLES=1` in the environment
 before the session starts. Off, `sample()` in an Eval cell refuses, no
 listener starts and `/samples` is unavailable; the Eval tool's prompt has no
 line about samples, and nothing else changes. Typed while off, `/samples`
-answers one line (`/samples is off · MERCURY_SAMPLES=1 turns it on, and the
-Boot Menu's Samples row saves it for new sessions`) and starts nothing.
+answers one line (`/samples is off — MERCURY_SAMPLES=1 turns it on (the
+Boot Menu's Samples row saves it for new sessions)`) and starts nothing.
 `mercury health` and `/health` carry a `Samples` row that says which way
 the switch stands.

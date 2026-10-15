@@ -111,11 +111,11 @@ facts answer never takes a sample, and `mercury://health/box` takes a fresh
 one.
 
 RUNTIME's `OS Bash sandbox` row reads the one OS-level boundary in the stack.
-Off, the shipped default, reads `info` (`off: Bash runs unconfined, no OS
-filesystem/network boundary`). Enabled but unavailable (an unsupported
+Off, the shipped default, reads `info`: `off — Bash runs unconfined (no OS
+filesystem/network boundary)`. Enabled but unavailable (an unsupported
 platform, a platform left out of `guardrails.sandbox.enabledPlatforms`, a missing
 dependency) reads `warn` with the reason. On, the row names what confines
-Bash. On macOS it reads `ON: Bash filesystem + network confined
+Bash. On macOS it reads `ON — Bash filesystem + network confined
 (seatbelt/bubblewrap)`. On Linux and WSL2 it also says what the sandbox does
 about unix sockets, read from the apply-seccomp helper the sandbox resolves
 beside the bundle (the Linux archive ships it under `vendor/seccomp/<arch>/`):
@@ -145,8 +145,8 @@ xAI, Meta, Gemini, Hugging Face, Mistral, Nous, OpenCode Zen), whether each
 typed id is still served by the live model list the product has already read
 for that family's signed-in source. The row never fetches: it reads the
 catalogue already fetched by `/model`, `/logins` or a chat naming the family.
-A family nothing has asked about reads `no list read in this process`
-(`/model or a chat naming the family reads it · <n> typed ids not judged`),
+A family nothing has asked about reads `no list read in this process —
+/model or a chat naming the family reads it · <n> typed ids not judged`,
 and a family without a credential reads `<Family> · no credential · <n> typed
 ids not judged`. When a list has been read, the family's line names the
 credential door, the served and not-served counts, and `list from <age>`; a
@@ -214,7 +214,7 @@ the closure allowance before a window, runner or daemon may read stale is
 the park drain, `MERCURY_SESSION_PARK_DRAIN_MINUTES`),
 then a kill signal, re-reading identity and staleness before each step (a daemon that does not answer the end request for its own plane refuses it: nothing is sent), and
 reports `Ended <N> stale processes; <N> could not be ended; <N> left running`;
-a survivor of the kill signal reads `cannot end (needs a reboot)`. Headless,
+a survivor of the kill signal reads `cannot end — needs a reboot`. Headless,
 `mercury health processes` prints the same listing as JSON and `--end-stale`
 ends the stale ones it lists; `mercury health --fix --yes` applies this
 destructive remedy like any other. A process table that cannot be read whole

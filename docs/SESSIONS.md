@@ -180,7 +180,7 @@ describes the update's handover and open-window notices.
 
 A chat you just opened is never reaped before your first message. An empty
 background session retires after `MERCURY_SESSION_IDLE_RETIRE_MINUTES`
-(default 10; 0 disables; the row stays on the board as stopped, `"retired ·
+(default 10; 0 disables; the row stays on the board as stopped, `"retired —
 empty and idle for 10m"`, until you release it), but a session started through
 New Session that has not received your first message is excluded from that
 timer: without limit by default, or for the
@@ -361,17 +361,17 @@ the composer the key types its letter. `view.backgroundKey: false` in
 settings.json turns the key and both hints off, and esc keeps its meaning
 either way. The row's warnings stay its own: a request wait names what the
 runner waits on and the budget that fires (`"waiting for the first byte from
-Opus 5.5 · within 6m"`); a held turn names what it waits on (`"waiting on 1
+Opus 5.5 — within 6m"`); a held turn names what it waits on (`"waiting on 1
 workflow · 2 crewmates"`); an interrupt says the request is torn down. The row
 says the session may be stuck only when the runner's stream has carried no
 event of any kind (the provider's heartbeats included) for longer than its
 own watchdog's warning point: never sooner than five minutes of silence, and
 never later than the watchdog's own cut. On the routes whose keep-alives
 feed the watchdog the budget is six minutes (twelve in patient mode), so the
-row can name the silence from five (`"no stream events for 5m: the session
+row can name the silence from five (`"no stream events for 5m — the session
 may be stuck (the watchdog aborts at 6m)"`); on the quiet routes, whose budget
 is fifteen minutes, the row names what it saw from seven and a half (`"no
-stream events for 8m: the session may be stuck (the watchdog aborts at
+stream events for 8m — the session may be stuck (the watchdog aborts at
 15m)"`). Every wait, warning and reissue line spells a minute or more in
 minutes (`"within 2m"`, `"within 2m of dispatch"`) and anything shorter in
 seconds. A running tool is never called stuck. The chat pane carries no
@@ -552,7 +552,7 @@ session live on the board is entered directly. Otherwise its transcript paints
 at once from its file and the daemon starts a runner for that session behind
 the paint; a session whose runner the daemon still holds (one mid-respawn
 after a crash, or one the records read as gone) is entered the same way with
-a receipt row (`<title>: a live runner still holds this session ·
+a receipt row (`<title>: a live runner still holds this session —
 re-attached to it`), while a session with no runner is revived, and
 a refusal names the daemon's reason; the chat opens ready on the first
 `Enter`, the first words you
@@ -679,7 +679,7 @@ command line, the later one wins.
 With it off, the navigation strip has only the home screen and
 the chat, with no concourse stop (`Shift+→` walks only screens that exist). The
 live view of your sessions remains available through the
-home screen's concourse row (`"live view only · concourse off"`) or `/concourse`,
+home screen's concourse row (`"live view only — concourse off"`) or `/concourse`,
 showing the rows and their tiles with `Enter` to open one and no coordinator
 pane, composer or new-session tab. The home screen keeps its
 repositories picker either way: selecting a repository on the Sessions · Projects
@@ -738,13 +738,13 @@ that headroom anyway, the turn recovers instead of ending:
 
 - Superseded tool results older than the recent few are pruned when that
   alone covers the gap the provider named, and the request is retried. The
-  chat reports `"context overflowed … · pruned N superseded tool results and
+  chat reports `"context overflowed … — pruned N superseded tool results and
   retrying"`.
 - Otherwise the conversation is folded (producing the same summary `/compact` makes
   on the same session), your message is carried across the fold word for
   word, and the request is retried once. The chat reports `"context overflowed …
-  · folding the conversation and retrying"`, and the fold's row reads
-  `"Context overflowed · folded and retried"`. Both carry the token counts in
+  — folding the conversation and retrying"`, and the fold's row reads
+  `"Context overflowed — folded and retried"`. Both carry the token counts in
   brackets: the provider's numbers when reported, or Mercury's own count of
   the conversation and the window it measured against.
 - The fold's summary is written by a model whose window holds the
@@ -803,8 +803,8 @@ tool's return) and lands in the main session's transcript.
 
 A line sent while the session's runner is folding (by hand with `/compact`,
 or automatically) waits in the runner's queue and is drawn as a queued row
-with the badge `held`; the hint row says `"held until the compaction lands · it
-delivers once, on its own (↑ takes it back)"`. When the fold finishes, the runner
+with the badge `held`; the hint row says `"held until the compaction lands — it
+delivers once, on its own (↑ takes it back)”`. When the fold finishes, the runner
 takes the held lines as its next turn, in the order they were sent, ahead of
 anything newer, each once; a line sent after the fold runs behind
 them. Pressing `↑` on an empty composer while a line is held takes it back into the
@@ -812,11 +812,11 @@ composer, just like any queued line.
 
 A queued or held row stays only while the runner holds that line. A runner
 that stopped with the line still queued restores it when resumed: the
-line is queued again from the session's record, under its own id,
+line is queued again from the session’s record, under its own id,
 and runs as the next turn. When the runner reports that it no longer holds a
 line that is also absent from the record, the row is removed and the
-hint row shows `"the runner restarted · “…” not taken; type
-it again"`; pressing `↑` on such a row shows `"the session did not take “…” · type
+hint row shows `”the runner restarted — “…” not taken; type
+it again”`; pressing `↑` on such a row shows `”the session did not take “…” — type
 it again"` and removes it. A row for a line no runner holds is
 never left on screen.
 
