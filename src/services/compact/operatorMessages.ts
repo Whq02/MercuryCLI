@@ -2,7 +2,6 @@ import { TERMINAL_OUTPUT_TAGS } from '../../constants/xml.js'
 import type { Message, UserMessage } from '../../types/message.js'
 import type { ContentBlockParam } from '../../types/wire.js'
 import type { Attachment } from '../../utils/attachments/types.js'
-import { sliceHeadAtGrapheme } from '../../utils/intl.js'
 import { isOperatorTurn } from '../../utils/messages/operatorTurns.js'
 
 export const OPERATOR_MESSAGES_ATTACHMENT_TYPE = 'compact_operator_messages' as const
@@ -97,7 +96,7 @@ export function selectOperatorMessages(
   messages: Message[],
   opts?: { keptUuids?: ReadonlySet<string>; tokenBudget?: number },
 ): OperatorMessagesAttachment | null {
-  const budget = Math.max(0, opts?.tokenBudget ?? OPERATOR_MESSAGES_TOKEN_BUDGET)
+  const budget = Math.max(0, opts?.tokenBudget ?? Infinity)
   const texts = collectOperatorTexts(messages, opts?.keptUuids)
   if (texts.length === 0) return null
   const selected: OperatorMessageEntry[] = []
@@ -110,11 +109,7 @@ export function selectOperatorMessages(
       remaining -= tokens
       continue
     }
-    const keepChars = remaining * CHARS_PER_TOKEN - OPERATOR_MESSAGE_TRUNCATION_MARKER.length - 1
-    if (keepChars >= MIN_TRUNCATED_CHARS) {
-      selected.push({ ordinal, text: `${sliceHeadAtGrapheme(text, keepChars)}\n${OPERATOR_MESSAGE_TRUNCATION_MARKER}`, truncated: true })
-    }
-    break
+    throw new Error('The operator messages do not fit verbatim; the original context is kept.')
   }
   if (selected.length === 0) return null
   return { type: OPERATOR_MESSAGES_ATTACHMENT_TYPE, messages: selected, omitted: texts.length - selected.length }
