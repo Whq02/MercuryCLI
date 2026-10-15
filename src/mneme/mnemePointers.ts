@@ -195,6 +195,7 @@ export function memoryPointerForId(
 
 function wantsLedger(query: string): boolean {
   return /\bledger\b|\b(?:session|handoff)s?\s*#?\d+\b/i.test(query)
+    || /^(?:the\s+)?(?:(?:last|latest|previous|recent)\s+(?:session|handoff)s?\b|sessions?\s+(?:handoffs?|notes?|history)\b|handoffs?\s+notes?\b)/i.test(query.trim())
     || /^(?:(?:show|find|read|open|list|search|recall|summari[sz]e)\s+(?:(?:me|the|a|all|our|my|last|latest|previous|recent)\s+)*(?:sessions?|handoffs?)\b|(?:which|what)\s+(?:(?:previous|last|recent)\s+)?(?:session|handoff)\b|handoffs?(?:\s+(?:for|from|of|about)\b|$)|sessions?$)/i.test(query.trim())
 }
 
