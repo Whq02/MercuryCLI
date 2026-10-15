@@ -15,7 +15,7 @@ doc.sections.push({ heading: 'notes', entries: [{ seq: 1, time: now, source: 'te
 writeFileSync(join(dir, 'topic-sessions.md'), serializeTopicDoc(doc))
 const session: LedgerEntry = { ordinal: 1, sessionId: 'intent-session', startedAt: now, endedAt: now, engines: [], rulings: [], retained: [], corrected: [], files: [], outcome: 'completed', handoff: { at: now, text: 'The session handoff notes include session policy and history.' } }
 try {
-  for (const query of ['session handoff', 'handoff notes', 'session history', 'last session', 'the latest handoff', 'show the session handoff']) {
+  for (const query of ['session handoff', 'handoff notes', 'session history', 'last session', 'the latest handoff', 'show the session handoff', 'what did the last session do', 'what did the previous session do', 'how did the last session end']) {
     assert.equal(searchPointers(query, { dir, sessions: [session], limit: 1 }).pointers[0]?.id, 'ledger:1', query)
   }
   for (const query of ['session policy', 'what is our session policy', 'why does a session handoff include policy']) {
