@@ -4,7 +4,7 @@ import { createRequire } from 'node:module'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 
-export interface LinkCandidate {
+interface LinkCandidate {
   id: string
   seq?: number
   slug: string
@@ -18,7 +18,7 @@ export interface LinkCandidate {
   text: string
 }
 
-export interface LinkQuestion {
+interface LinkQuestion {
   id: string
   target: string
   session?: number
@@ -26,13 +26,13 @@ export interface LinkQuestion {
   query: string
 }
 
-export interface LinkCorpus {
+interface LinkCorpus {
   recordedAt: string
   candidates: LinkCandidate[]
   questions: LinkQuestion[]
 }
 
-export interface Score {
+interface Score {
   at1: number
   at5: number
   sameSession: number
@@ -41,7 +41,7 @@ export interface Score {
 
 const ROOT = resolve(import.meta.dir, '..', '..')
 
-export function loadLinkCorpus(path: string): LinkCorpus {
+function loadLinkCorpus(path: string): LinkCorpus {
   const raw = JSON.parse(readFileSync(path, 'utf8')) as Partial<LinkCorpus>
   if (typeof raw.recordedAt !== 'string' || !Array.isArray(raw.candidates) || !Array.isArray(raw.questions)) throw new Error(`${path}: not a study corpus (recordedAt, candidates, questions)`)
   for (const c of raw.candidates) {
@@ -53,7 +53,7 @@ export function loadLinkCorpus(path: string): LinkCorpus {
   return raw as LinkCorpus
 }
 
-export function scoreOrders(corpus: LinkCorpus, orderOf: (q: LinkQuestion) => readonly string[]): Score {
+function scoreOrders(corpus: LinkCorpus, orderOf: (q: LinkQuestion) => readonly string[]): Score {
   const byId = new Map(corpus.candidates.map(c => [c.id, c]))
   let at1 = 0
   let at5 = 0

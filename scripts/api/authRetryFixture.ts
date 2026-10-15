@@ -8,7 +8,7 @@ import { HANDOFF_ASK_MARK } from '../lib/fixtureApi.ts'
 export const REPO = resolve(import.meta.dir, '../..')
 export const MODEL = 'claude-opus-5'
 export const ASK = 'authentication retry fixture'
-export const KEY = 'proof-key-ci-gate-not-a-real-key'
+const KEY = 'proof-key-ci-gate-not-a-real-key'
 export const argAfter = (flag: string): string | undefined => {
   const index = process.argv.indexOf(flag)
   return index < 0 ? undefined : process.argv[index + 1]
@@ -18,7 +18,7 @@ export const nodeFor = (dist: string): string => {
   return existsSync(node) ? node : 'node'
 }
 export type Arm = 'unavailable' | 'failed' | 'unchanged' | 'refreshed' | 'rejected' | 'revoked' | 'hint' | 'burst' | 'api-key' | 'env-bearer' | 'helper-unchanged' | 'helper-refreshed'
-export type Wire = { kind: string; bearer?: string; status?: number; path?: string; at: number }
+type Wire = { kind: string; bearer?: string; status?: number; path?: string; at: number }
 
 export async function authWorld(arm: Arm, retryAfter = '0.001') {
   const home = realpathSync(mkdtempSync(join(argAfter('--scratch') ?? tmpdir(), `authentication-${arm}-`)))

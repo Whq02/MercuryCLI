@@ -5,7 +5,7 @@ import { assembleCardRows, createSplashCore } from '../../assets/splash/splash-c
 import { KIT_LEGEND_PRESET, KIT_LEGEND_PRESETS, KIT_LEGEND_PROMPT, kitEntryOf, kitStatusLine, kitSummaryRows, presetLayerEntryOf, presetLayerSummaryRows, presetPromptLines, type PresetRowFact } from '../../src/components/KitMenuScreen.js'
 import { kitCounts, kitRowView, sectionRows, type KitCatalogue, type KitStates } from '../../src/services/kitMenu/kitTypes.js'
 
-export const STILLS_DIR = join(import.meta.dir, 'fixtures', 'kit-menu')
+const STILLS_DIR = join(import.meta.dir, 'fixtures', 'kit-menu')
 
 const core = createSplashCore({ nocolor: true, truecolor: false, accent: 'crimson' })
 const chips = {

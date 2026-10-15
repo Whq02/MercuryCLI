@@ -25,7 +25,7 @@ function runCheck(cwd: string, cmd: string[], timeoutSec: number): number {
   }
 }
 
-export function reflogBaseSha(workdir: string): string | null {
+function reflogBaseSha(workdir: string): string | null {
   try {
     const raw = execFileSync('git', ['-C', workdir, 'reflog', '--format=%H %gs'], {
       encoding: 'utf8',
@@ -41,7 +41,7 @@ export function reflogBaseSha(workdir: string): string | null {
   }
 }
 
-export function observedChanges(
+function observedChanges(
   workdir: string,
   baseSha?: string,
 ): { changed: string[]; ignored: string[] } {

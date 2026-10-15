@@ -1,6 +1,6 @@
 import { installManagedBrowser, planBrowserInstall } from '../../src/services/browser/browserInstall.ts'
 
-export type ProvisionOutcome = { ok: true; buildId: string; executablePath: string } | { ok: false; note: string }
+type ProvisionOutcome = { ok: true; buildId: string; executablePath: string } | { ok: false; note: string }
 
 export async function provisionManagedBrowserForTheGate(log: (line: string) => void): Promise<ProvisionOutcome> {
   try {

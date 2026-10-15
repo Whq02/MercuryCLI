@@ -1,11 +1,11 @@
 #!/usr/bin/env bun
 import { existsSync, readFileSync } from 'node:fs'
 
-export const USER_CONTEXT_OPEN = '<system-reminder>\n# '
+const USER_CONTEXT_OPEN = '<system-reminder>\n# '
 const USER_CONTEXT_KEYS = new Set(['instructions', 'environment', 'currentDate'])
-export const CLASSIFIER_PREFIX_LINE = "The following is the user's project configuration"
+const CLASSIFIER_PREFIX_LINE = "The following is the user's project configuration"
 
-export interface HeadingReport {
+interface HeadingReport {
   seq: number | undefined
   url: string
   model: string
@@ -13,7 +13,7 @@ export interface HeadingReport {
   classifierTag: string | undefined
 }
 
-export function harvestStrings(value: unknown, out: string[] = []): string[] {
+function harvestStrings(value: unknown, out: string[] = []): string[] {
   if (typeof value === 'string') {
     if (value.length >= 8) out.push(value)
   } else if (Array.isArray(value)) {
@@ -41,7 +41,7 @@ export function userContextHeadings(text: string): string[] {
   }
 }
 
-export function classifierTagOf(text: string): string | undefined {
+function classifierTagOf(text: string): string | undefined {
   const at = text.indexOf(CLASSIFIER_PREFIX_LINE)
   if (at === -1) return undefined
   const match = /\n<([A-Za-z_][\w-]*)>\n/.exec(text.slice(at))

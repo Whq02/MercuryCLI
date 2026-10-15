@@ -1,16 +1,16 @@
-export type GrowthPoint = { size: number; ms: number }
+type GrowthPoint = { size: number; ms: number }
 
-export type GrowthStep = { from: GrowthPoint; to: GrowthPoint; factor: number; allowed: number }
+type GrowthStep = { from: GrowthPoint; to: GrowthPoint; factor: number; allowed: number }
 
-export type GrowthReport = { linear: boolean; points: GrowthPoint[]; steps: GrowthStep[]; summary: string }
+type GrowthReport = { linear: boolean; points: GrowthPoint[]; steps: GrowthStep[]; summary: string }
 
-export type GrowthOptions = { repetitions?: number; budgetMs?: number; margin?: number; slackMs?: number; attempts?: number }
+type GrowthOptions = { repetitions?: number; budgetMs?: number; margin?: number; slackMs?: number; attempts?: number }
 
-export const GROWTH_REPETITIONS = 3
-export const GROWTH_BUDGET_MS = 100
-export const GROWTH_MARGIN = 1.25
-export const GROWTH_SLACK_MS = 1
-export const GROWTH_ATTEMPTS = 3
+const GROWTH_REPETITIONS = 3
+const GROWTH_BUDGET_MS = 100
+const GROWTH_MARGIN = 1.25
+const GROWTH_SLACK_MS = 1
+const GROWTH_ATTEMPTS = 3
 
 function settle(options: GrowthOptions): Required<GrowthOptions> {
   return {
@@ -77,7 +77,7 @@ async function sampleAsync(run: (size: number) => Promise<void>, sizes: readonly
   return sizes.map(size => ({ size, ms: best.get(size) ?? 0 }))
 }
 
-export function measureGrowth(run: (size: number) => void, sizes: readonly number[], options: GrowthOptions = {}): GrowthReport {
+function measureGrowth(run: (size: number) => void, sizes: readonly number[], options: GrowthOptions = {}): GrowthReport {
   const settled = settle(options)
   let report = judgeGrowth(sample(run, sizes, settled), settled)
   for (let attempt = 1; attempt < settled.attempts && !report.linear; attempt++) {
@@ -86,7 +86,7 @@ export function measureGrowth(run: (size: number) => void, sizes: readonly numbe
   return report
 }
 
-export async function measureGrowthAsync(run: (size: number) => Promise<void>, sizes: readonly number[], options: GrowthOptions = {}): Promise<GrowthReport> {
+async function measureGrowthAsync(run: (size: number) => Promise<void>, sizes: readonly number[], options: GrowthOptions = {}): Promise<GrowthReport> {
   const settled = settle(options)
   let report = judgeGrowth(await sampleAsync(run, sizes, settled), settled)
   for (let attempt = 1; attempt < settled.attempts && !report.linear; attempt++) {

@@ -5,7 +5,7 @@ import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 
-export interface CaptureResponse {
+interface CaptureResponse {
   usage?: Record<string, number | undefined>
   input_transformations?: Array<{ type?: string; path?: string; reason?: string }>
   model?: string
@@ -84,7 +84,7 @@ export function withoutCacheControl(value: unknown): unknown {
 
 const j = (v: unknown): string => JSON.stringify(v)
 
-export interface ByteDiff {
+interface ByteDiff {
   path: string
   before: string
   after: string
@@ -104,7 +104,7 @@ function stringDiff(path: string, a: string, b: string): ByteDiff {
   return { path: `${path}@char ${at}`, before: excerptAt(a, at), after: excerptAt(b, at) }
 }
 
-export function jsonDiff(path: string, a: unknown, b: unknown): ByteDiff | null {
+function jsonDiff(path: string, a: unknown, b: unknown): ByteDiff | null {
   if (typeof a === 'string' && typeof b === 'string') {
     if (a === b) return null
     return stringDiff(path, a, b)
@@ -143,7 +143,7 @@ export function jsonDiff(path: string, a: unknown, b: unknown): ByteDiff | null 
   return { path, before: excerptAt(j(a), 0), after: excerptAt(j(b), 0) }
 }
 
-export interface PairVerdict {
+interface PairVerdict {
   held: boolean
   appended: number
   diff: ByteDiff | null
@@ -222,7 +222,7 @@ export function isSummariserRequest(body: WireBody): boolean {
   return lastUserText(body).includes('Reply with prose only') || lastUserText(body).includes('summary of the conversation')
 }
 
-export function isPostCompactionRequest(body: WireBody): boolean {
+function isPostCompactionRequest(body: WireBody): boolean {
   const head = firstUserText(body)
   return (
     head.includes('The context window turned over') ||
@@ -232,13 +232,13 @@ export function isPostCompactionRequest(body: WireBody): boolean {
   )
 }
 
-export function isSideCall(body: WireBody): boolean {
+function isSideCall(body: WireBody): boolean {
   const tools = Array.isArray(body.tools) ? body.tools.length : 0
   const messages = Array.isArray(body.messages) ? body.messages.length : 0
   return tools === 0 && messages <= 1 && !isSummariserRequest(body)
 }
 
-export function thinkingBlockCount(body: WireBody): number {
+function thinkingBlockCount(body: WireBody): number {
   let n = 0
   for (const m of (body.messages ?? []) as Array<{ content?: unknown }>) {
     if (!Array.isArray(m.content)) continue
@@ -262,7 +262,7 @@ export interface PairReport {
   refused: string | null
 }
 
-export function refusalOf(row: CaptureRow): string | null {
+function refusalOf(row: CaptureRow): string | null {
   const status = row.response?.status
   if (status === undefined || status === 200) return null
   return `${status}${row.response?.error ? ` ${row.response.error}` : ''}`
@@ -401,7 +401,7 @@ export function keptHeaders(headers: Record<string, string | string[] | undefine
   return out
 }
 
-export function sseResponseSummary(): { feed(chunk: string): void; summary(): CaptureResponse } {
+function sseResponseSummary(): { feed(chunk: string): void; summary(): CaptureResponse } {
   let buffer = ''
   const summary: CaptureResponse = {}
   const take = (data: string): void => {

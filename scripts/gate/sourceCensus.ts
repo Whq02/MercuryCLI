@@ -3,7 +3,7 @@ import { dirname, join, relative, resolve } from 'node:path'
 import ts from 'typescript'
 
 export type Source = { path: string; rel: string; sf: ts.SourceFile }
-export type ImportRef = { module: string; name: string }
+type ImportRef = { module: string; name: string }
 
 export const slash = (p: string): string => p.split('\\').join('/')
 

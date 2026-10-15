@@ -9,7 +9,7 @@ import stripAnsi from 'strip-ansi'
 import stringWidth from 'string-width'
 import type { DOMElement, DOMNode } from '../../../src/ink/dom.js'
 
-export function argument(name: string): string | undefined {
+function argument(name: string): string | undefined {
   const index = process.argv.indexOf(name)
   return index < 0 ? undefined : process.argv[index + 1]
 }

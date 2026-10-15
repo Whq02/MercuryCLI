@@ -5,7 +5,7 @@ import { dirname, join, relative, resolve } from 'node:path'
 import ts from 'typescript'
 import { GRAPH_ROOT, readStubMap, resolveSpec } from './graph.ts'
 
-export type ExportForm =
+type ExportForm =
   | 'declaration'
   | 'default-declaration'
   | 'default-anonymous'
@@ -45,7 +45,7 @@ export const KEPT_CLASSES: Record<Exclude<ExportClass, 'read' | 'candidate'>, st
   'text-pin': 'a proof names the declaration in a string, template or regex literal (export <kind> <name>), or names the module and the bare name',
 }
 
-export interface ExportStatement {
+interface ExportStatement {
   start: number
   end: number
   modifierStart: number
@@ -66,7 +66,7 @@ export interface ExportRow {
   inventory: boolean
 }
 
-export interface UnresolvedLoad {
+interface UnresolvedLoad {
   file: string
   line: number
   text: string
@@ -108,9 +108,9 @@ const SRC_ANCHORS = new Set(['SRC', 'src', 'SRC_DIR', 'srcDir'])
 const SCRIPTS_ANCHORS = new Set(['SCRIPTS', 'scripts', 'SCRIPTS_DIR'])
 const DIR_ANCHORS = new Set(['__dirname', 'HERE', 'here', 'DIR', 'dir', 'SUITE_DIR', 'suiteDir'])
 
-export const slash = (p: string): string => p.split('\\').join('/')
+const slash = (p: string): string => p.split('\\').join('/')
 
-export function trackedFiles(root: string): string[] {
+function trackedFiles(root: string): string[] {
   return execFileSync('git', ['ls-files', '-z'], { cwd: root, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 })
     .split('\0')
     .filter(Boolean)
@@ -124,7 +124,7 @@ function scriptKindOf(path: string): ts.ScriptKind {
   return ts.ScriptKind.TS
 }
 
-export function parseFile(path: string, text: string): ts.SourceFile {
+function parseFile(path: string, text: string): ts.SourceFile {
   return ts.createSourceFile(path, text, ts.ScriptTarget.Latest, true, scriptKindOf(path))
 }
 
@@ -172,7 +172,7 @@ function hasModifier(node: ts.Node, kind: ts.SyntaxKind): ts.Modifier | undefine
 
 type Env = Map<string, string | null>
 
-export class PathEvaluator {
+class PathEvaluator {
   private readonly consts = new Map<string, ts.Expression>()
   private readonly functions = new Map<string, ts.FunctionLikeDeclaration>()
   private readonly lists = new Map<string, { expression: ts.Expression; index: number | null }>()
@@ -388,12 +388,12 @@ function returnedExpression(fn: ts.FunctionLikeDeclaration): ts.Expression | und
 
 const TREE_PATH_TAIL = /(?:^|\/)((?:src|scripts|sdk)\/[A-Za-z0-9_@./-]+\.(?:tsx?|m?js|cjs|jsx))(?=$|['"`])/
 
-export function treePathTail(text: string): string | null {
+function treePathTail(text: string): string | null {
   const m = TREE_PATH_TAIL.exec(text)
   return m ? m[1]! : null
 }
 
-export function resolveModule(root: string, fromFile: string, spec: string, stubMap: Record<string, string>): string | null {
+function resolveModule(root: string, fromFile: string, spec: string, stubMap: Record<string, string>): string | null {
   if (spec.startsWith('file://')) spec = spec.slice('file://'.length)
   if (spec.startsWith('/')) {
     const candidates = [spec, spec.replace(/\.js$/, '.ts'), spec.replace(/\.js$/, '.tsx'), spec + '.ts', spec + '.tsx', join(spec, 'index.ts'), join(spec, 'index.tsx')]
@@ -1034,7 +1034,7 @@ export function treeOptions(root = GRAPH_ROOT): CensusOptions {
   return { root, subjects, readers, stubMap: readStubMap(), entrypoints, rowsSurface, generated, fixtures, orphanBaseline, inventory, pinSources }
 }
 
-export interface RewriteResult {
+interface RewriteResult {
   file: string
   removed: number
   names: string[]

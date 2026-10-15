@@ -4,7 +4,7 @@ import { createHash } from 'node:crypto'
 import { tmpdir } from 'node:os'
 import * as path from 'node:path'
 
-export type Checker = {
+type Checker = {
   check: (name: string, ok: boolean, detail?: string) => void
   section: (title: string) => void
   finish: () => never
@@ -34,9 +34,9 @@ export function makeChecker(label: string): Checker {
   }
 }
 
-export type OpInput = Record<string, unknown> & { operation: string }
+type OpInput = Record<string, unknown> & { operation: string }
 
-export type OpOutput = {
+type OpOutput = {
   result: string
   resultCount?: number
   fileCount?: number
@@ -51,7 +51,7 @@ export type OpOutput = {
   plan?: string
 }
 
-export type Workspace = {
+type Workspace = {
   root: string
   abs: (rel: string) => string
   text: (rel: string) => string
@@ -167,6 +167,6 @@ export async function bootWorkspace(messageId?: string): Promise<Workspace> {
   }
 }
 
-export function touch(file: string, content: string): void {
+function touch(file: string, content: string): void {
   writeFileSync(file, content)
 }

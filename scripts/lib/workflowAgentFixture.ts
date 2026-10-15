@@ -1,15 +1,15 @@
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 
-export type WorkflowFixtureLane = 'anthropic' | 'chat' | 'responses' | 'other'
+type WorkflowFixtureLane = 'anthropic' | 'chat' | 'responses' | 'other'
 
-export interface WorkflowFixtureHit {
+interface WorkflowFixtureHit {
   lane: WorkflowFixtureLane
   path: string
   model: string
   body: Record<string, unknown>
 }
 
-export interface WorkflowAgentFixtureOpts {
+interface WorkflowAgentFixtureOpts {
   port: number
   reasoning?: { chat?: boolean; responses?: boolean }
   throttle?: { lane: WorkflowFixtureLane; times: number; retryAfterSec?: number }
@@ -18,7 +18,7 @@ export interface WorkflowAgentFixtureOpts {
   gptReasoningLevels?: readonly string[]
 }
 
-export interface WorkflowAgentFixture {
+interface WorkflowAgentFixture {
   base: string
   captured: WorkflowFixtureHit[]
   throttled: Record<string, number>
@@ -28,9 +28,9 @@ export interface WorkflowAgentFixture {
 
 const sse = (obj: unknown): string => `data: ${JSON.stringify(obj)}\n\n`
 
-export const WF_FIXTURE_MARK = (lane: WorkflowFixtureLane): string => `wf-${lane}-mark`
+const WF_FIXTURE_MARK = (lane: WorkflowFixtureLane): string => `wf-${lane}-mark`
 export const WF_FIXTURE_DONE = (lane: WorkflowFixtureLane): string => `wf-${lane}-done.`
-export const WF_FIXTURE_REASONING = (lane: WorkflowFixtureLane): string =>
+const WF_FIXTURE_REASONING = (lane: WorkflowFixtureLane): string =>
   `wf-${lane}-reasoning: check the echo before answering.`
 
 function anthropicToolTurn(command: string): string {
@@ -108,7 +108,7 @@ function responsesFinalTurn(text: string): string {
   ].join('')
 }
 
-export function conversationCarriesToolAck(serialized: string): boolean {
+function conversationCarriesToolAck(serialized: string): boolean {
   return /tool_result|function_call_output|"role":"tool"/.test(serialized)
 }
 

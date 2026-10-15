@@ -7,12 +7,12 @@ if (!captureFile) {
   console.error('usage: mid-turn-reply-fixture-server.ts <captureFile>')
   process.exit(2)
 }
-export const TWO_ROUNDS_ASK = 'two tool rounds then a summary'
-export const LONG_ROUND_ASK = 'answer then a long tool'
-export const HEARD_LEAD = 'heard mid-turn: '
-export const ROUND_ONE_SLEEP_SECONDS = 4
-export const ROUND_TWO_SLEEP_SECONDS = 2
-export const LONG_ROUND_SLEEP_SECONDS = 30
+const TWO_ROUNDS_ASK = 'two tool rounds then a summary'
+const LONG_ROUND_ASK = 'answer then a long tool'
+const HEARD_LEAD = 'heard mid-turn: '
+const ROUND_ONE_SLEEP_SECONDS = 4
+const ROUND_TWO_SLEEP_SECONDS = 2
+const LONG_ROUND_SLEEP_SECONDS = 30
 const OPENING = 'The operator sent a new message while you were working:'
 
 const sse = (event: string, obj: unknown): string => `event: ${event}\ndata: ${JSON.stringify(obj)}\n\n`

@@ -2,27 +2,27 @@ import { createServer, type IncomingMessage, type ServerResponse } from 'node:ht
 import { join } from 'node:path'
 
 export const LEAD_ASK = 'crew-look: launch the crew'
-export const LEAD_DONE = 'crew-look: the crew is out.'
-export const CREW_NAMES = ['atlas', 'fjord', 'harbour'] as const
-export type CrewName = (typeof CREW_NAMES)[number]
-export const MATE_TAG = 'crew-look-mate'
-export const SLEEP_SECONDS = 287
-export const HARBOUR_SLEEP_SECONDS = 24
+const LEAD_DONE = 'crew-look: the crew is out.'
+const CREW_NAMES = ['atlas', 'fjord', 'harbour'] as const
+type CrewName = (typeof CREW_NAMES)[number]
+const MATE_TAG = 'crew-look-mate'
+const SLEEP_SECONDS = 287
+const HARBOUR_SLEEP_SECONDS = 24
 export const TABLE = 'atlas.tsv'
 export const WIDE = 'atlas-wide.txt'
-export const LONG_LINE_A = 'atlas: one line that never breaks on its own — the ledger of every seam the lane walked, the frame it filed, the count it pinned, the words it kept and the border it did not cross, written out as one sentence so the transcript has to wrap it inside the view and never past it, and then a little more so it wraps twice at the widest tier too.'
-export const LONG_LINE_F = 'fjord: the second crewmate says one long thing too — a wide unbroken line of prose that carries its own weight across the whole width of the centre and past it, so the view has to fold it under its nameplate without losing a character or painting one past the border of the view.'
-export const HARBOUR_DONE = `${MATE_TAG} harbour: finished — its turn ended while it was on screen`
-export const ATLAS_HOLD = 'atlas: holding the line for the view'
-export const ATLAS_LEDGER = [ATLAS_HOLD, ...Array.from({ length: 80 }, (_, i) => `ledger row ${String(i + 1).padStart(2, '0')} — a row of the crewmate's own transcript, tall enough that the view has to scroll`)].join('\n')
-export const HARBOUR_OPEN = 'harbour: a short run, then the turn ends'
-export const WIDE_ROW = (n: number): string => `wide-${n} ` + Array.from({ length: 30 }, (_, i) => `c${String(i).padStart(2, '0')}=${String(n * 31 + i).padStart(4, '0')}`).join(' ')
+const LONG_LINE_A = 'atlas: one line that never breaks on its own — the ledger of every seam the lane walked, the frame it filed, the count it pinned, the words it kept and the border it did not cross, written out as one sentence so the transcript has to wrap it inside the view and never past it, and then a little more so it wraps twice at the widest tier too.'
+const LONG_LINE_F = 'fjord: the second crewmate says one long thing too — a wide unbroken line of prose that carries its own weight across the whole width of the centre and past it, so the view has to fold it under its nameplate without losing a character or painting one past the border of the view.'
+const HARBOUR_DONE = `${MATE_TAG} harbour: finished — its turn ended while it was on screen`
+const ATLAS_HOLD = 'atlas: holding the line for the view'
+const ATLAS_LEDGER = [ATLAS_HOLD, ...Array.from({ length: 80 }, (_, i) => `ledger row ${String(i + 1).padStart(2, '0')} — a row of the crewmate's own transcript, tall enough that the view has to scroll`)].join('\n')
+const HARBOUR_OPEN = 'harbour: a short run, then the turn ends'
+const WIDE_ROW = (n: number): string => `wide-${n} ` + Array.from({ length: 30 }, (_, i) => `c${String(i).padStart(2, '0')}=${String(n * 31 + i).padStart(4, '0')}`).join(' ')
 export const TABLE_BEFORE = ['name\tid\tstage\tnote', 'harbour\tq7\tstage two\theld on the tree, uncommitted, pending the ruling; the options are listed on the shared page beside the second commit', 'lantern\tp3\tstage one\theld'].join('\n') + '\n'
-export const TABLE_AFTER = ['name\tid\tstage\tnote', 'harbour\tq7\tstage two\tfolded on the tree, committed after the ruling; the options are listed on the shared page beside the second commit', 'lantern\tp3\tstage one\tfolded'].join('\n') + '\n'
+const TABLE_AFTER = ['name\tid\tstage\tnote', 'harbour\tq7\tstage two\tfolded on the tree, committed after the ruling; the options are listed on the shared page beside the second commit', 'lantern\tp3\tstage one\tfolded'].join('\n') + '\n'
 export const WIDE_TEXT = [WIDE_ROW(1), WIDE_ROW(2), WIDE_ROW(3)].join('\n') + '\n'
 
-export type Route = 'lead' | 'lead-ack' | 'mate' | 'mate-ack' | 'side'
-export type Hit = { route: Route; mate: CrewName | null; model: string; ask: string; at: number; step: number }
+type Route = 'lead' | 'lead-ack' | 'mate' | 'mate-ack' | 'side'
+type Hit = { route: Route; mate: CrewName | null; model: string; ask: string; at: number; step: number }
 export type Fixture = { base: string; port: number; hits: Hit[]; close: () => Promise<void> }
 
 type Block = { type: 'text'; text: string } | { type: 'tool_use'; name: string; input: Record<string, unknown> }
@@ -60,7 +60,7 @@ function isToolResultItem(item: Item | undefined): boolean {
   return item?.role === 'user' && Array.isArray(item.content) && (item.content as Array<{ type?: string }>).some(b => b.type === 'tool_result')
 }
 
-export function stepOf(body: unknown): number {
+function stepOf(body: unknown): number {
   const items = itemsOf(body)
   let askAt = -1
   for (let i = items.length - 1; i >= 0; i--) {
@@ -78,7 +78,7 @@ function offersAgent(body: unknown): boolean {
   return Array.isArray(tools) && tools.some(t => String((t as { name?: string })?.name ?? '') === 'Crewmate')
 }
 
-export function routeOf(body: unknown): { route: Route; mate: CrewName | null; ask: string; step: number } {
+function routeOf(body: unknown): { route: Route; mate: CrewName | null; ask: string; step: number } {
   const ask = askOf(body)
   const ack = isToolResultItem(itemsOf(body)[itemsOf(body).length - 1])
   const step = stepOf(body)
@@ -118,7 +118,7 @@ function answer(model: string, blocks: Block[], usage: { input: number; output: 
 const matePrompt = (name: CrewName): string => `${MATE_TAG} ${name}: run your part of the look drive`
 const launch = (name: CrewName): Block => ({ type: 'tool_use', name: 'Crewmate', input: { description: name, prompt: matePrompt(name), crewmate_type: 'mercury-crew', run_in_background: true } })
 
-export function blocksFor(route: Route, mate: CrewName | null, step: number, cwd: string): { blocks: Block[]; usage: { input: number; output: number } } {
+function blocksFor(route: Route, mate: CrewName | null, step: number, cwd: string): { blocks: Block[]; usage: { input: number; output: number } } {
   const usageOf = (name: CrewName | null): { input: number; output: number } => (name === 'atlas' ? { input: 900, output: 40 } : name === 'fjord' ? { input: 800, output: 40 } : name === 'harbour' ? { input: 700, output: 40 } : { input: 1200, output: 80 })
   switch (route) {
     case 'lead':

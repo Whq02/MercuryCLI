@@ -55,7 +55,7 @@ export function taskFingerprint(task: HelixTask): MissionTaskFingerprint {
   }
 }
 
-export interface SelectedArmResolution {
+interface SelectedArmResolution {
   decision: MissionPolicyDecision
   executedAs: 'solo' | 'solo-reviewer' | 'specialist-sol' | 'workflow'
   mappingNote?: string

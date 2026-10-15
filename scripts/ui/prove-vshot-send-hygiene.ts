@@ -16,7 +16,7 @@ const check = (label: string, cond: boolean, detail = ''): void => {
 
 type Hit = { file: string; line: number; text: string }
 const OBSERVED_WALK_KEYS = ['text', 'awaitAbsent', 'arrivedText', 'arrivedAbsent', 'targetHeader', 'afterPrevMs']
-export function blindAwaitSends(src: string, file: string): Hit[] {
+function blindAwaitSends(src: string, file: string): Hit[] {
   const hits: Hit[] = []
   const sf = ts.createSourceFile(file, src, ts.ScriptTarget.Latest, true, file.endsWith('x') ? ts.ScriptKind.TSX : ts.ScriptKind.TS)
   const visit = (n: ts.Node): void => {

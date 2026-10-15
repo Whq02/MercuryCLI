@@ -6,7 +6,7 @@ import { startFixtureApi, type CapturedRequest, type ScriptedTurn } from '../../
 
 export type Row = Record<string, unknown>
 
-export type RunDoorResult = {
+type RunDoorResult = {
   code: number | null
   rows: Row[]
   stdout: string
@@ -17,7 +17,7 @@ export type RunDoorResult = {
   wire: CapturedRequest[]
 }
 
-export type RunDoorScene = {
+type RunDoorScene = {
   turns: ScriptedTurn[]
   hooks: Record<string, Array<Record<string, unknown>>>
   prompt?: string
@@ -111,7 +111,7 @@ export async function runDoor(paths: { home: string; cwd: string }, scene: RunDo
   return { code, rows, stdout, stderr, tookMs, sessionRows: sessionFilesOf(paths.home), requests, wire: fixture.messageRequests() }
 }
 
-export type SavedHookRow = { recordId: string; parentId?: string; ordinal: number; fields: Row }
+type SavedHookRow = { recordId: string; parentId?: string; ordinal: number; fields: Row }
 
 export function savedHookRowsOf(sessionRows: Row[]): SavedHookRow[] {
   const out: SavedHookRow[] = []

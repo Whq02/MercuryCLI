@@ -12,7 +12,7 @@ export function platformPackagesCacheDir(root: string, platform: string, arch: s
   return join(root, ...PLATFORM_PACKAGES_PATH.split('/'), platformKey(platform, arch))
 }
 
-export type PlatformPackageSource = 'node_modules' | 'vendor-cache'
+type PlatformPackageSource = 'node_modules' | 'vendor-cache'
 
 export function resolvePlatformPackage(root: string, platform: string, arch: string, name: string): { dir: string; source: PlatformPackageSource } | null {
   const segments = name.split('/')

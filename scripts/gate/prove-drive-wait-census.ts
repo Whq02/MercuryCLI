@@ -57,8 +57,8 @@ type Flow = { turn: boolean; open: boolean; gap: boolean }
 type Step = { pos: number; effect: 'start' | 'settle' | 'active' | 'call'; call?: ts.CallExpression; fn?: ts.FunctionLikeDeclaration }
 type Summary = { start: boolean; open: boolean; active: boolean; streams: Stream[] }
 const FRESH: Flow = { turn: false, open: false, gap: false }
-export type WaitHit = { file: string; line: number; rule: 'a' | 'b'; detail: string }
-export type Pause = { file: string; line: number; text: string }
+type WaitHit = { file: string; line: number; rule: 'a' | 'b'; detail: string }
+type Pause = { file: string; line: number; text: string }
 
 function contains(outer: ts.Node, inner: ts.Node): boolean {
   return inner.pos >= outer.pos && inner.end <= outer.end && inner.getSourceFile() === outer.getSourceFile()
@@ -968,7 +968,7 @@ function movedWaits(src: Source): WaitHit[] {
   return hits
 }
 
-export function census(root: string): { files: number; drives: number; served: number; hits: WaitHit[]; pauses: Pause[] } {
+function census(root: string): { files: number; drives: number; served: number; hits: WaitHit[]; pauses: Pause[] } {
   const estate = new Estate(root)
   const hits: WaitHit[] = []
   const pauses: Pause[] = []

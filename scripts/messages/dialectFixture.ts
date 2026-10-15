@@ -54,13 +54,13 @@ const assistant = (model: string, id: string, content: unknown[], n: number, sto
   }) as AssistantMessage
 
 export const SIGNED_THINKING = { type: 'thinking' as const, thinking: 'considering the count request carefully', signature: 'sig-fixture-sonnet-1' }
-export const OTHER_MODEL_THINKING = { type: 'thinking' as const, thinking: 'opus weighed this differently', signature: 'sig-fixture-opus-1' }
+const OTHER_MODEL_THINKING = { type: 'thinking' as const, thinking: 'opus weighed this differently', signature: 'sig-fixture-opus-1' }
 export const IMAGE_BLOCK = { type: 'image' as const, source: { type: 'base64' as const, media_type: 'image/png' as const, data: PNG_BYTE } }
 
 export const TOOL_USE_A = { type: 'tool_use' as const, id: 'toolu_A', name: 'Read', input: { file_path: '/proj/notes.txt' } }
-export const TOOL_USE_B = { type: 'tool_use' as const, id: 'toolu_B', name: 'Bash', input: { command: 'wc -w /proj/notes.txt' } }
+const TOOL_USE_B = { type: 'tool_use' as const, id: 'toolu_B', name: 'Bash', input: { command: 'wc -w /proj/notes.txt' } }
 export const TOOL_RESULT_A = { type: 'tool_result' as const, tool_use_id: 'toolu_A', content: [{ type: 'text' as const, text: 'the quick brown fox jumps over the lazy dog' }] }
-export const TOOL_RESULT_B = { type: 'tool_result' as const, tool_use_id: 'toolu_B', content: [{ type: 'text' as const, text: '9 words' }], is_error: false }
+const TOOL_RESULT_B = { type: 'tool_result' as const, tool_use_id: 'toolu_B', content: [{ type: 'text' as const, text: '9 words' }], is_error: false }
 
 export const DIALECT_CONVERSATION: Message[] = [
   user('Count the words in my notes file.', 1),

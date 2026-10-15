@@ -31,7 +31,7 @@ export type HostedRunner = {
   stop(graceMs?: number): Promise<number | null>
 }
 
-export type HostOptions = {
+type HostOptions = {
   dist: string
   node: string
   cwd?: string

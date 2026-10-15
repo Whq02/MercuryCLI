@@ -40,9 +40,9 @@ export const HELIX_PARTITIONS = [
   'crucible-calibration',
   'crucible-qualification',
 ] as const
-export type HelixPartition = (typeof HELIX_PARTITIONS)[number]
+type HelixPartition = (typeof HELIX_PARTITIONS)[number]
 
-export type HelixRepoId =
+type HelixRepoId =
   | 'stats'
   | 'notedeck'
   | 'pyledger'
@@ -64,13 +64,13 @@ export interface HelixRepoSpec {
   branches?: Record<string, BranchOverlay>
 }
 
-export interface HelixCheck {
+interface HelixCheck {
   cmd: string[]
   expectExit: number
   timeoutSec?: number
 }
 
-export interface HelixGraderSpec {
+interface HelixGraderSpec {
   checks: HelixCheck[]
   mustChange?: string[]
   onlyChange?: string[]

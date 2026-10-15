@@ -1,5 +1,5 @@
 
-export const DEMO_GLYPHS = new Set<string>([
+const DEMO_GLYPHS = new Set<string>([
   '⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏',
   '●', '❯', '…', '·',
   '─', '│', '╭', '╮', '╰', '╯',

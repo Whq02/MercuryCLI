@@ -12,13 +12,13 @@ const CEILING = Number.parseInt(process.argv[4] ?? '0', 10)
 const REPLY_CHARS = Number.parseInt(process.argv[5] ?? '120000', 10)
 const CHARS_PER_TOKEN = Number.parseFloat(process.argv[6] ?? '4')
 
-export const BIG_ASK = 'write the long design note'
-export const BIG_REPLY_TAIL = 'the long design note ends here'
-export const PICKUP_ASK = 'carry on from the note'
-export const GPT_REPLY = 'sol carries on from the note'
-export const GPT_SUMMARY = 'SUMMARY BY SOL: the note was written.'
-export const OPUS_SUMMARY = 'SUMMARY BY OPUS: the long design note was written and the operator asked to carry on.'
-export const OVERFLOW_SENTENCE = 'Your input exceeds the context window of this model. Please adjust your input and try again.'
+const BIG_ASK = 'write the long design note'
+const BIG_REPLY_TAIL = 'the long design note ends here'
+const PICKUP_ASK = 'carry on from the note'
+const GPT_REPLY = 'sol carries on from the note'
+const GPT_SUMMARY = 'SUMMARY BY SOL: the note was written.'
+const OPUS_SUMMARY = 'SUMMARY BY OPUS: the long design note was written and the operator asked to carry on.'
+const OVERFLOW_SENTENCE = 'Your input exceeds the context window of this model. Please adjust your input and try again.'
 
 const sse = (obj: unknown): string => `data: ${JSON.stringify(obj)}\n\n`
 const evt = (name: string, obj: unknown): string => `event: ${name}\n${sse(obj)}`

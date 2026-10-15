@@ -119,13 +119,13 @@ export interface Leg {
   cwd: string
 }
 
-export function seededHome(name: string, cwd = ROOT): string {
+function seededHome(name: string, cwd = ROOT): string {
   const home = join(scratch, name)
   seedFirstRun(home, [cwd])
   return home
 }
 
-export function writeScene(name: string, scene: Record<string, unknown>): string {
+function writeScene(name: string, scene: Record<string, unknown>): string {
   const path = join(scratch, `${name}.json`)
   writeFileSync(path, JSON.stringify(scene))
   return path
@@ -185,7 +185,7 @@ export function childEnv(leg: Leg, extra: Record<string, string | undefined> = {
   return env
 }
 
-export interface DriveResult {
+interface DriveResult {
   status: number | null
   marks: Record<string, string[]>
   final: string[]

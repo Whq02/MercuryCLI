@@ -36,14 +36,14 @@ export function armEnvironment(): { home: string; engineDir: string; packPresent
   return { home, engineDir, packPresent }
 }
 
-export interface ProverContextOptions {
+interface ProverContextOptions {
   mode?: string
   allow?: string[]
   deny?: string[]
   nonInteractive?: boolean
 }
 
-export interface ProverContext {
+interface ProverContext {
   ctx: Record<string, unknown>
   readFileState: Map<string, unknown>
   fileHistory(): { snapshots: unknown[]; trackedFiles: Set<string>; snapshotSequence: number }
@@ -85,7 +85,7 @@ export async function makeContext(tools: unknown[], opts: ProverContextOptions =
   return { ctx, readFileState, fileHistory: () => fileHistory, updateFileHistoryState }
 }
 
-export interface DriveResult {
+interface DriveResult {
   text: string
   isError: boolean
   data: Record<string, unknown> | null

@@ -1,8 +1,8 @@
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 
-export type FoldFamilyLane = 'moonshot' | 'deepseek' | 'gemini' | 'huggingface' | 'openai-compat' | 'local' | 'other'
+type FoldFamilyLane = 'moonshot' | 'deepseek' | 'gemini' | 'huggingface' | 'openai-compat' | 'local' | 'other'
 
-export interface FoldFamilyHit {
+interface FoldFamilyHit {
   lane: FoldFamilyLane
   path: string
   model: string
@@ -11,7 +11,7 @@ export interface FoldFamilyHit {
 
 const sse = (obj: unknown): string => `data: ${JSON.stringify(obj)}\n\n`
 
-export const MOONSHOT_SERVED = ['kimi-k2-0905-preview', 'moonshot-v1-8k'] as const
+const MOONSHOT_SERVED = ['kimi-k2-0905-preview', 'moonshot-v1-8k'] as const
 
 function chatFinal(text: string): string {
   return [
@@ -30,7 +30,7 @@ const LANE_BY_PATH: ReadonlyArray<{ prefix: string; lane: FoldFamilyLane }> = [
   { prefix: '/local/', lane: 'local' },
 ]
 
-export interface FoldFamiliesFixture {
+interface FoldFamiliesFixture {
   base: string
   captured: FoldFamilyHit[]
   env: Record<string, string>

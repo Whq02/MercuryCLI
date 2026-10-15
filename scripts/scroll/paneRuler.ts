@@ -1,14 +1,14 @@
 
 export type Grid = Array<Array<{ c: string }>>
-export type PaneRow = { row: number; text: string }
+type PaneRow = { row: number; text: string }
 export type Sig = { turn: number; sig: string; row: number }
 
-export const SIG_RE = /TURN-(\d{3})( please survey| line (\d{2}))/
+const SIG_RE = /TURN-(\d{3})( please survey| line (\d{2}))/
 
 const rowText = (cells: Array<{ c: string }>): string =>
   cells.map(c => (c.c === undefined || c.c === '' ? ' ' : c.c)).join('')
 
-export function paneRows(grid: Grid): PaneRow[] {
+function paneRows(grid: Grid): PaneRow[] {
   const rows = grid.map(rowText)
   const head = rows.findIndex(r => /^\s*(?:❯ )?lanes\b.*╭/.test(r))
   if (head >= 0) {

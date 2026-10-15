@@ -1,4 +1,4 @@
-export const escapeRegExp = (text: string): string => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+const escapeRegExp = (text: string): string => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 
 export function idCellPattern(id: string, shortest = 12): string {
   const whole = `${escapeRegExp(id)}(?=\\s|$)`

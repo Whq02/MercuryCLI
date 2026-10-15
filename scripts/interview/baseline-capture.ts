@@ -287,7 +287,7 @@ interface JourneyArtifact {
   sends: { atMs: number; b64: string }[]
 }
 
-export function settledScreens(
+function settledScreens(
   screens: readonly GrabbedScreen[],
   earlier: GrabbedScreen,
   ready: string | undefined,
@@ -301,7 +301,7 @@ export function settledScreens(
   return { ok: true, why: '' }
 }
 
-export function driveEndOffset(run: Pick<ArenaRun, 'sendLog' | 'anchorShiftMs' | 'outcome'>, seconds: number, firstOutput: number): number {
+function driveEndOffset(run: Pick<ArenaRun, 'sendLog' | 'anchorShiftMs' | 'outcome'>, seconds: number, firstOutput: number): number {
   const scale = vshotBudgetScale()
   const fixed = run.sendLog.find(s => typeof s.atMs === 'number' && typeof s.sent === 'number')
   const t0 = fixed !== undefined ? fixed.sent - fixed.atMs : firstOutput - 300

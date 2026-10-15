@@ -14,14 +14,14 @@ import {
   type UnityConsoleSeverity,
 } from '../../src/services/unity/bridgeProtocol.js'
 
-export type FakeBridgeMode =
+type FakeBridgeMode =
   | 'echo'
   | 'silent-after-hello'
   | 'drop-on-request'
   | 'no-pong'
   | 'oversize-on-request'
 
-export interface FakeUnityBridgeOpts {
+interface FakeUnityBridgeOpts {
   token?: string
   protocolVersion?: number
   helloResultVersion?: number
@@ -34,7 +34,7 @@ export interface FakeUnityBridgeOpts {
   mode?: FakeBridgeMode
 }
 
-export interface FakeUnityBridge {
+interface FakeUnityBridge {
   port: number
   seenOps: string[]
   connectionCount: () => number

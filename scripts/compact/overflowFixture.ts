@@ -1,9 +1,9 @@
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { HANDOFF_ASK_MARK } from '../lib/fixtureApi.ts'
 
-export type Dialect = 'anthropic' | 'responses' | 'chat' | 'gemini'
+type Dialect = 'anthropic' | 'responses' | 'chat' | 'gemini'
 export type ScriptedCall = { id: string; name: string; args: string }
-export type ScriptedReasoning = { summary: string; encrypted: string }
+type ScriptedReasoning = { summary: string; encrypted: string }
 export type Turn =
   | { text: string; usage?: { input: number; output: number; cost?: number }; finishReason?: string; reasoning?: ScriptedReasoning }
   | { calls: ScriptedCall[]; usage?: { input: number; output: number; cost?: number }; reasoning?: ScriptedReasoning }
@@ -49,7 +49,7 @@ function anthropicSse(turn: Exclude<Turn, { error: unknown } | { cut: unknown }>
   return out.join('')
 }
 
-export function responsesInputRefusal(body: Record<string, unknown>): string | null {
+function responsesInputRefusal(body: Record<string, unknown>): string | null {
   const input = Array.isArray(body.input) ? (body.input as Array<Record<string, unknown>>) : []
   const seen = new Set<string>()
   for (let index = 0; index < input.length; index++) {
@@ -162,7 +162,7 @@ const OPENAI_MODELS_BODY = {
   ],
 }
 
-export interface OverflowFixture {
+interface OverflowFixture {
   base: string
   captured: Captured[]
   asks: Captured[]

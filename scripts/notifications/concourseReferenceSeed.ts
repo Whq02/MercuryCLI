@@ -1,5 +1,5 @@
 
-export const CONCOURSE_REFERENCE_PROFILE = {
+const CONCOURSE_REFERENCE_PROFILE = {
   png: {
     sha256: 'a6ba5752efa56c117a548de839d67dd3ce97443da4046f9ba535d397dd489ee0',
     width: 1586,
@@ -25,7 +25,7 @@ export const CONCOURSE_REFERENCE_DIVERGENCES = [
   'coordinator-tone: the mock paints the status-rail coordinator segment amber unconditionally; the status-spine law reserves amber for ATTENTION — live renders the mode\'s own tone (assisted=info, rules-only=textSecondary, off=textMuted) and goes amber only on a typed downgrade (B6)',
 ] as const
 
-export interface ConcourseSeedSessionRow {
+interface ConcourseSeedSessionRow {
   id: string
   glyph: 'ok' | 'pending' | 'diamond'
   title: string
@@ -36,13 +36,13 @@ export interface ConcourseSeedSessionRow {
   selected?: boolean
 }
 
-export interface ConcourseSeedGroup {
+interface ConcourseSeedGroup {
   label: string
   count: number
   rows: ConcourseSeedSessionRow[]
 }
 
-export const CONCOURSE_REFERENCE_SEED = {
+const CONCOURSE_REFERENCE_SEED = {
   header: {
     view: 'SESSION CONCOURSE',
     breadcrumb: ['BOOT', 'CONCOURSE', 'MAIN Chat'] as const,

@@ -3,13 +3,13 @@ import { join, resolve } from 'node:path'
 import { fuseRankings, scoreCandidates, type LookupCandidate } from '../../src/mneme/mnemeLookup.js'
 import { liftLinked } from '../../src/mneme/mnemeLinks.js'
 
-export interface StudyFootnotes {
+interface StudyFootnotes {
   session?: number
   ruling?: string
   supersedes?: string
 }
 
-export interface StudyCandidate {
+interface StudyCandidate {
   id: string
   seq?: number
   slug: string
@@ -23,7 +23,7 @@ export interface StudyCandidate {
   text?: string
 }
 
-export interface StudyQuestion {
+interface StudyQuestion {
   id: string
   target: string
   session?: number
@@ -31,7 +31,7 @@ export interface StudyQuestion {
   query: string
 }
 
-export interface StudyModelRow {
+interface StudyModelRow {
   name: string
   class: string
   bytes: number
@@ -53,7 +53,7 @@ export interface StudyCorpus {
   similaritiesByModel: Record<string, Record<string, StudySimEntry[]>>
 }
 
-export interface RecallCount {
+interface RecallCount {
   at1: number
   at5: number
   total: number
@@ -66,7 +66,7 @@ export interface ComputedModelRow extends StudyModelRow {
   measured: boolean
 }
 
-export interface SignalAblationRow {
+interface SignalAblationRow {
   signal: string
   recallAt1: number
   recallAt5: number
@@ -83,10 +83,10 @@ export function loadStudyCorpus(path: string): StudyCorpus {
   return raw
 }
 
-export const SEMANTIC_POOL = 16
-export const SEMANTIC_MIN_SIM = 0.45
-export const SEMANTIC_TIE_WIDTH = 0.02
-export const SEMANTIC_ADMIT_CAP = 9
+const SEMANTIC_POOL = 16
+const SEMANTIC_MIN_SIM = 0.45
+const SEMANTIC_TIE_WIDTH = 0.02
+const SEMANTIC_ADMIT_CAP = 9
 
 export function selectDiscriminatingSemantic(sims: readonly StudySimEntry[]): string[] {
   const hits = [...sims].sort((a, b) => b.sim - a.sim || a.id.localeCompare(b.id)).slice(0, SEMANTIC_POOL)
@@ -141,18 +141,18 @@ function studyNow(corpus: StudyCorpus): number {
   return Date.parse(corpus.recordedAt) || Date.parse('2026-10-14T05:00:00.000Z')
 }
 
-export function lexicalOrder(corpus: StudyCorpus, query: string, useFlowed = false): string[] {
+function lexicalOrder(corpus: StudyCorpus, query: string, useFlowed = false): string[] {
   return scoreCandidates(query, toLookupPool(corpus.candidates, useFlowed), studyNow(corpus))
     .filter(h => h.features.discriminating)
     .sort((a, b) => b.score - a.score || b.features.useCount - a.features.useCount || (b.seq ?? 999999) - (a.seq ?? 999999))
     .map(h => h.id)
 }
 
-export function sortedSemantic(sims: readonly StudySimEntry[] | undefined): string[] {
+function sortedSemantic(sims: readonly StudySimEntry[] | undefined): string[] {
   return [...(sims ?? [])].sort((a, b) => b.sim - a.sim || a.id.localeCompare(b.id)).map(x => x.id)
 }
 
-export function countRecall(corpus: StudyCorpus, orderOf: (question: StudyQuestion) => readonly string[]): RecallCount {
+function countRecall(corpus: StudyCorpus, orderOf: (question: StudyQuestion) => readonly string[]): RecallCount {
   let at1 = 0
   let at5 = 0
   for (const q of corpus.questions) {
@@ -241,7 +241,7 @@ export function evaluateSignalAblation(corpus: StudyCorpus, modelName = defaultS
   })
 }
 
-export function defaultStudyModel(corpus: StudyCorpus): string {
+function defaultStudyModel(corpus: StudyCorpus): string {
   const measured = Object.keys(corpus.similaritiesByModel)
   return measured.includes('bge-base-en-v1.5-q8_0') ? 'bge-base-en-v1.5-q8_0' : (measured[0] ?? 'bge-base-en-v1.5-q8_0')
 }

@@ -8,14 +8,14 @@ import { menuRowValueLabel, menuRowWarning, STARTUP_MENU, type MenuRow } from '.
 import { SEATS_MENU_ROW } from '../../src/services/switchboard/capacityCheck.js'
 import { MOTION_MENU_ROW } from '../../src/utils/cockpit/motionSetting.js'
 
-export const STILLS_DIR = join(import.meta.dir, 'fixtures', 'sovereign-menu')
+const STILLS_DIR = join(import.meta.dir, 'fixtures', 'sovereign-menu')
 export const SOVEREIGN_ROW_ENV = 'MERCURY_SKIP_PERMISSIONS'
 
-export function menuRows(): readonly MenuRow[] {
+function menuRows(): readonly MenuRow[] {
   return [...STARTUP_MENU, SEATS_MENU_ROW as MenuRow, MOTION_MENU_ROW as MenuRow]
 }
 
-export interface SovereignMenuOptions {
+interface SovereignMenuOptions {
   sovereign?: 'on' | 'off'
   color?: boolean
 }

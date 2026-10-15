@@ -1,9 +1,9 @@
 import { execFileSync } from 'node:child_process'
 import ts from 'typescript'
 
-export const TS_FILE = /\.(ts|tsx|mts|cts|js|mjs|cjs|jsx)$/
-export const HASH_FILE = /\.(sh|bash|py|yml|yaml|toml|gd|sed|ps1)$/
-export const SLASH_FILE = /\.(cs|rs)$/
+const TS_FILE = /\.(ts|tsx|mts|cts|js|mjs|cjs|jsx)$/
+const HASH_FILE = /\.(sh|bash|py|yml|yaml|toml|gd|sed|ps1)$/
+const SLASH_FILE = /\.(cs|rs)$/
 
 const KEEP_TS = [
   /^\/\/\/\s*<(reference|amd-)/,
@@ -60,7 +60,7 @@ export function commentRanges(path, text) {
     .filter(r => !keptTs(text.slice(r.pos, r.end), isJs))
 }
 
-export function commentBytes(path, text) {
+function commentBytes(path, text) {
   if (TS_FILE.test(path)) return commentRanges(path, text).reduce((n, r) => n + (r.end - r.pos), 0)
   const lines = text.split('\n')
   let n = 0
@@ -72,11 +72,11 @@ export function commentBytes(path, text) {
   return n
 }
 
-export function scannedFile(path) {
+function scannedFile(path) {
   return TS_FILE.test(path) || HASH_FILE.test(path) || SLASH_FILE.test(path)
 }
 
-export function stagedCommentGrowth(cwd) {
+function stagedCommentGrowth(cwd) {
   const git = (...args) => execFileSync('git', args, { cwd, maxBuffer: 1 << 28, stdio: ['ignore', 'pipe', 'ignore'] })
   const staged = git('diff', '--cached', '--name-only', '--diff-filter=AM', '-z').toString('utf8').split('\0').filter(Boolean)
   const offenders = []

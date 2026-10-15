@@ -1,5 +1,5 @@
 
-export type Cell = { c?: string }
+type Cell = { c?: string }
 export type Grid = Cell[][]
 
 export const rowsOf = (g: Grid | undefined): string[] =>
@@ -7,7 +7,7 @@ export const rowsOf = (g: Grid | undefined): string[] =>
 
 const BOX = new Set(['╭', '╮', '╰', '╯', '│', '─', '├', '┤', '┬', '┴', '┼', '┌', '┐', '└', '┘'])
 const CUT = new Set(['─', '╰', '╯', '┴', '┬', '┼', '━', '▔', '▁', '═'])
-export const EXIT_HINT = /\besc\b|←|\bq quits\b|⇧←|shift\+←|\bctrl\+[cd]\b/i
+const EXIT_HINT = /\besc\b|←|\bq quits\b|⇧←|shift\+←|\bctrl\+[cd]\b/i
 const KEY_HINT_ROW = /(^|· )(↑↓|↵|←→|esc|⌫|tab|space|⇧|⌃)/
 const isRule = (line: string): boolean => line.length > 0 && /^(.)\1*$/.test(line) && CUT.has(line[0]!)
 

@@ -30,7 +30,7 @@ const keyOf = (cols: number, rows: number, tier: Tier, mode: Mode): string => `$
 
 const ALPHABET = "!#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[]^_`abcdefghijklmnopqrstuvwxyz{|}~"
 
-export function cellAt(screen: Screen, x: number, y: number): Cell {
+function cellAt(screen: Screen, x: number, y: number): Cell {
   const ch = [...(screen.text[y] ?? '')][x] ?? ' '
   const code = (screen.styles[y] ?? '')[x] ?? ALPHABET[0]!
   const entry = screen.palette[ALPHABET.indexOf(code)] ?? 'default|default|0|0'
@@ -41,7 +41,7 @@ const sameCell = (a: Cell, b: Cell): boolean => a.ch === b.ch && a.fg === b.fg &
 const lowerHalfOf = (base: Cell, now: Cell): boolean =>
   base.ch === '▀' && base.bg !== 'default' && now.ch === '▄' && now.fg === base.bg && now.bg === base.fg && now.bold === base.bold && now.reverse === base.reverse
 
-export function twoColourCells(base: Screen): number {
+function twoColourCells(base: Screen): number {
   let n = 0
   for (let y = 0; y < base.rows; y++) for (let x = 0; x < base.cols; x++) {
     const cell = cellAt(base, x, y)
@@ -50,7 +50,7 @@ export function twoColourCells(base: Screen): number {
   return n
 }
 
-export function compareToRecord(base: Screen, now: Screen): { equal: boolean; lowerHalf: number; detail: string } {
+function compareToRecord(base: Screen, now: Screen): { equal: boolean; lowerHalf: number; detail: string } {
   if (base.cols !== now.cols || base.rows !== now.rows) return { equal: false, lowerHalf: 0, detail: `geometry ${base.cols}x${base.rows} vs ${now.cols}x${now.rows}` }
   let lowerHalf = 0
   const diffs: string[] = []
@@ -69,7 +69,7 @@ export function compareToRecord(base: Screen, now: Screen): { equal: boolean; lo
   return { equal: diffs.length === 0, lowerHalf, detail: diffs.length === 0 ? `${lowerHalf} lower-half cells` : `${diffs.length} cells differ beyond the lower-half rule: ${diffs.slice(0, 6).join('; ')}` }
 }
 
-export function compareGlyphsAcrossTiers(truecolor: Screen, other: Screen): { equal: boolean; lowerHalf: number; detail: string } {
+function compareGlyphsAcrossTiers(truecolor: Screen, other: Screen): { equal: boolean; lowerHalf: number; detail: string } {
   if (truecolor.cols !== other.cols || truecolor.rows !== other.rows) return { equal: false, lowerHalf: 0, detail: 'geometry differs' }
   let lowerHalf = 0
   const diffs: string[] = []

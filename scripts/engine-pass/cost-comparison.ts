@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { median } from './support.ts'
 
-export type Run = { metrics: Record<string, number> }
+type Run = { metrics: Record<string, number> }
 
 export function fiveRunMedians(runs: ReadonlyArray<Run>): Record<string, number> {
   assert.equal(runs.length, 5, 'five complete runs are required for each build')
@@ -14,7 +14,7 @@ export function fiveRunMedians(runs: ReadonlyArray<Run>): Record<string, number>
   return Object.fromEntries(keys.map(key => [key, median(runs.map(run => run.metrics[key]!))]))
 }
 
-export const isTiming = (metric: string): boolean => metric.endsWith('Ms')
+const isTiming = (metric: string): boolean => metric.endsWith('Ms')
 
 export function trimmedSpread(values: readonly number[]): number {
   assert.equal(values.length, 5, 'the spread is read over five runs')

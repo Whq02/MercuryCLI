@@ -1,7 +1,7 @@
 import { spawnSync } from 'node:child_process'
 import { captureEngineEntry, type AvailableCaptureDriver } from './captureDriver.ts'
 
-export type CapturePreflight =
+type CapturePreflight =
   | { ok: true; emulator: string }
   | { ok: false; reason: string; remedy: string }
 

@@ -34,11 +34,11 @@ import { projectSessionPickerRows, type SessionScope } from '../../src/component
 import type { SessionListing } from '../../src/types/logs.js'
 import { buildPruneOffer, type PruneReceipt } from '../../src/utils/sessionStorage/transcriptPruneDoor.js'
 
-export const STILLS_DIR = join(import.meta.dir, 'fixtures', 'face-doors')
+const STILLS_DIR = join(import.meta.dir, 'fixtures', 'face-doors')
 
 const core = createSplashCore({ nocolor: true, truecolor: false, accent: 'crimson' })
 
-export const STILL_ENVIRONMENT = {
+const STILL_ENVIRONMENT = {
   model: 'Opus 5',
   critter: 'Octopus',
   critterHue: '#B07BE0',
@@ -46,7 +46,7 @@ export const STILL_ENVIRONMENT = {
   dirTail: '',
 }
 
-export const FIXED_NOW = Date.parse('2026-08-29T12:00:00Z')
+const FIXED_NOW = Date.parse('2026-08-29T12:00:00Z')
 
 export const FIXED_CERT: HealthCertificate = {
   verdict: 'caution',
@@ -197,7 +197,7 @@ export function resumeModelOf(scope: SessionScope, opts: { cleared?: string[]; l
   })
 }
 
-export const PRUNE_FIXTURE_LOGS: SessionListing[] = [
+const PRUNE_FIXTURE_LOGS: SessionListing[] = [
   ...RESUME_FIXTURE_LOGS,
   fixtureLog({ sessionId: 'old1', modifiedMs: FIXED_NOW - 40 * 24 * 60 * MIN, title: 'forty-day spike', fileSize: 120_000 }),
   fixtureLog({ sessionId: 'old2', modifiedMs: FIXED_NOW - 90 * 24 * 60 * MIN, title: 'ninety-day archive', fileSize: 48_000 }),
@@ -295,7 +295,7 @@ export const STILLS: ReadonlyArray<{ id: string; compose: () => string[] }> = [
   },
 ]
 
-export function stillPath(id: string): string {
+function stillPath(id: string): string {
   return join(STILLS_DIR, `${id}.txt`)
 }
 

@@ -9,9 +9,9 @@ import { missionPolicyEpoch, missionProfileSetDigest, MISSION_PROFILES, missionP
 import { APEX_ARCHITECTURE_EPOCH } from '../../../src/services/providers/openai/openaiCatalogue.js'
 
 const repoRoot = resolve(new URL('../../..', import.meta.url).pathname)
-export const FREEZE_PATH = 'docs/benchmarks/mission-runner/qualification-freeze.json'
+const FREEZE_PATH = 'docs/benchmarks/mission-runner/qualification-freeze.json'
 
-export function buildFreeze(seed: number): Record<string, unknown> {
+function buildFreeze(seed: number): Record<string, unknown> {
   const manifest = JSON.parse(readFileSync(join(repoRoot, 'dist/manifest.json'), 'utf8')) as Record<string, unknown>
   const head = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: repoRoot, encoding: 'utf8' }).trim()
   const qualificationTasks = HELIX_TASKS.filter(t => t.partition === 'qualification').map(t => t.id)

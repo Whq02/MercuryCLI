@@ -12,7 +12,7 @@ export type SeenResult = { toolUseId: string; text: string; isError: boolean }
 export type ScriptedRequest = { n: number; ask: string; askTexts: string[]; allTexts: string[]; atMs: number; opening: string; step: number; results: SeenResult[]; toolNames: string[]; system: string }
 export type Script = (req: ScriptedRequest) => WireBlock[]
 export type ScriptedFixture = { base: string; requests: ScriptedRequest[]; asks: ScriptedRequest[]; close: () => Promise<void> }
-export type ScriptedFixtureOptions = { answerDelayMs?: (req: ScriptedRequest) => number }
+type ScriptedFixtureOptions = { answerDelayMs?: (req: ScriptedRequest) => number }
 
 type Block = { type?: string; text?: string; tool_use_id?: string; content?: unknown; is_error?: unknown }
 type Item = { role?: string; content?: unknown }

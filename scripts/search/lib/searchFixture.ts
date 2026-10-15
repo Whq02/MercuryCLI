@@ -4,8 +4,8 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { isHandoffRequest } from '../../lib/fixtureApi.ts'
 
-export type FixtureLane = 'anthropic' | 'openai' | 'openai-models' | 'ddg-html' | 'ddg-lite' | 'brave' | 'tavily' | 'other'
-export interface SearchFixtureHit {
+type FixtureLane = 'anthropic' | 'openai' | 'openai-models' | 'ddg-html' | 'ddg-lite' | 'brave' | 'tavily' | 'other'
+interface SearchFixtureHit {
   lane: FixtureLane
   method: string
   path: string
@@ -13,9 +13,9 @@ export interface SearchFixtureHit {
   body: string
   at: number
 }
-export type DoorMode = 'results' | 'anomaly' | 'poison' | 'entity-poison' | 'http-401' | 'http-429' | 'http-500'
+type DoorMode = 'results' | 'anomaly' | 'poison' | 'entity-poison' | 'http-401' | 'http-429' | 'http-500'
 
-export type OpenaiScriptTurn = { call: { name: string; input: Record<string, unknown> } } | { final: string }
+type OpenaiScriptTurn = { call: { name: string; input: Record<string, unknown> } } | { final: string }
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 const FIXTURES = [join(HERE, '..', 'fixtures'), join(HERE, 'fixtures')].find(p => existsSync(p)) ?? join(HERE, '..', 'fixtures')
@@ -79,7 +79,7 @@ function scriptedStepOf(body: string): { side: boolean; step: number } {
   }
 }
 
-export interface SearchFixture {
+interface SearchFixture {
   base: string
   port: number
   hits: SearchFixtureHit[]

@@ -2,8 +2,8 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-export const GENERATED_ASSETS_MAP = 'scripts/gate/generated-assets.tsv'
-export const REPOSITORY_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..')
+const GENERATED_ASSETS_MAP = 'scripts/gate/generated-assets.tsv'
+const REPOSITORY_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..')
 
 function words(value) {
   const list = Array.isArray(value) ? value : String(value ?? '').split(/\s+/)

@@ -69,7 +69,7 @@ export function fixtureServer(name: string, script: string, env: Record<string, 
   }
 }
 
-export type Driven = { text: string; isError: boolean; data: Record<string, unknown> | null }
+type Driven = { text: string; isError: boolean; data: Record<string, unknown> | null }
 
 export async function openToolDoor(root: string, name = 'LspRead') {
   const harness = await import(path.join(REPO, 'scripts/ast-tools/lib/harness.ts'))

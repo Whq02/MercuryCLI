@@ -11,7 +11,7 @@ const realNamespace = await import('../../src/substrate/durablePublish.ts')
 const realExports = { ...realNamespace }
 const realPublish = realNamespace.durableAtomicPublish as PublishFn
 
-export interface PublishHold {
+interface PublishHold {
   readonly entered: Promise<string>
   readonly settled: Promise<void>
   release(): void

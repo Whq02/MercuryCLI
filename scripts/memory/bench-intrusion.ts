@@ -1,7 +1,7 @@
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs'
 import { basename, dirname, join, resolve } from 'node:path'
 
-export interface IntrusionPair {
+interface IntrusionPair {
   id: string
   arm: string
   family: string

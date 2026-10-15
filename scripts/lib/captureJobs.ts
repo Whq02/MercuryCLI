@@ -3,7 +3,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, w
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-export const JOBS_DEFAULT = 1
+const JOBS_DEFAULT = 1
 
 export function parseJobs(argv: readonly string[], fallback = JOBS_DEFAULT): number {
   let raw: string | undefined
@@ -88,7 +88,7 @@ export function closeJobsRun(run: JobsRun, keep: boolean): void {
   rmSync(run.dir, { recursive: true, force: true })
 }
 
-export interface WorkerSpawn {
+interface WorkerSpawn {
   script: string
   args: readonly string[]
   env?: NodeJS.ProcessEnv

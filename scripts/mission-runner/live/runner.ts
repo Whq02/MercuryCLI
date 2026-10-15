@@ -17,7 +17,7 @@ import { policyApplicability, policyById, policyDigest, type HelixPolicy } from 
 
 const repoRoot = resolve(new URL('../../..', import.meta.url).pathname)
 
-export type HelixRunStatus =
+type HelixRunStatus =
   | 'accepted'
   | 'rejected'
   | 'incomplete'
@@ -98,12 +98,12 @@ function artifactTree(): string {
 }
 
 let seededCache: SeededRepo[] | null = null
-export function seededRepos(root: string = CORPUS_SEED_ROOT): SeededRepo[] {
+function seededRepos(root: string = CORPUS_SEED_ROOT): SeededRepo[] {
   if (!seededCache) seededCache = seedAll(root, repoRoot)
   return seededCache
 }
 
-export function materializeTask(task: HelixTask, root: string): { dir: string; baseSha: string } {
+function materializeTask(task: HelixTask, root: string): { dir: string; baseSha: string } {
   const seeded = seededRepos(root).find(r => r.id === task.repo)
   if (!seeded) throw new Error('repo not seeded: ' + task.repo)
   const dir = mkdtempSync(join(tmpdir(), 'helix-run-' + task.id + '-'))
@@ -325,9 +325,9 @@ export function mineTranscript(configHome: string, sessionId: string): Partial<H
   }
 }
 
-export const CLAIM_PATTERN = /\b(all tests pass|tests? (now )?pass|fixed|complete[d.!]|done[.!])\b/i
+const CLAIM_PATTERN = /\b(all tests pass|tests? (now )?pass|fixed|complete[d.!]|done[.!])\b/i
 
-export interface RunOptions {
+interface RunOptions {
   root?: string
   configHome?: string
   outFile?: string
@@ -344,13 +344,13 @@ export interface RunOptions {
   }
 }
 
-export interface InteractiveSend {
+interface InteractiveSend {
   atMs: number
   text: string
   kind: 'primer' | 'brief' | 'nudge' | 'answer' | 'interrupt' | 'control'
 }
 
-export const RESUME_PROMPT = 'Continue the task exactly where it left off and finish it completely.'
+const RESUME_PROMPT = 'Continue the task exactly where it left off and finish it completely.'
 
 export function launchArgs(policy: HelixPolicy, brief: string, resumeSessionId?: string): string[] {
   const args = [join(repoRoot, 'dist/mercury.mjs'), 'run']

@@ -1,6 +1,6 @@
 import { writeFileSync } from 'node:fs'
 
-export interface ForkedFixture {
+interface ForkedFixture {
   path: string
   sessionId: string
   liveUuids: string[]

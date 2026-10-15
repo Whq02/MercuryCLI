@@ -13,11 +13,11 @@ import type { AccountSlot, FamilySlotGroup } from '../../src/services/providers/
 import type { ProviderId, ProviderUsability } from '../../src/services/providers/providerUsability.js'
 import type { ProviderFamilyPresence } from '../../src/services/providers/providerUsage.js'
 
-export const STILLS_DIR = join(import.meta.dir, 'fixtures', 'face-logins')
+const STILLS_DIR = join(import.meta.dir, 'fixtures', 'face-logins')
 
 const core = createSplashCore({ nocolor: true, truecolor: false, accent: 'crimson' })
 
-export const STILL_ENVIRONMENT = {
+const STILL_ENVIRONMENT = {
   model: 'Opus 5',
   critter: 'Octopus',
   critterHue: '#B07BE0',
@@ -143,7 +143,7 @@ export function composeLogins(
   return placed
 }
 
-export const FLOW_WAITING_SNAP: AnthropicLoginSnapshot = {
+const FLOW_WAITING_SNAP: AnthropicLoginSnapshot = {
   flow: { name: 'waiting', url: 'https://console.example.test/authorize?code=elided', loginWithClaudeAi: true, forcedMethod: null },
   pastePromptUp: true,
   noCodeYet: false,
@@ -152,7 +152,7 @@ export const FLOW_WAITING_SNAP: AnthropicLoginSnapshot = {
   shadowWarning: null,
   accountLabel: null,
 }
-export const FLOW_SUCCESS_SNAP: AnthropicLoginSnapshot = {
+const FLOW_SUCCESS_SNAP: AnthropicLoginSnapshot = {
   flow: { name: 'success' },
   pastePromptUp: false,
   noCodeYet: false,
@@ -352,7 +352,7 @@ export const MERGED_STILLS: ReadonlyArray<{ id: string; compose: () => string[] 
   { id: 'merged-120x40-filtered', compose: () => composeMerged(120, 40, { sel: 99, filterDir: '/repo/moodle' }) },
 ]
 
-export function stillPath(id: string): string {
+function stillPath(id: string): string {
   return join(STILLS_DIR, `${id}.txt`)
 }
 

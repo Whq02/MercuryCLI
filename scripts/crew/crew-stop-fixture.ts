@@ -2,17 +2,17 @@ import { createServer, type IncomingMessage, type ServerResponse } from 'node:ht
 
 export const LEAD_ASK_SLEEPER = 'crew-stop: launch the sleeper'
 export const LEAD_ASK_HELD = 'crew-stop: hold on the sleeper'
-export const LEAD_DONE = 'crew-stop: done.'
+const LEAD_DONE = 'crew-stop: done.'
 export const SEAT_NAME = 'sleeper'
-export const SEAT_PROMPT = 'crew-seat: run the long sleep'
+const SEAT_PROMPT = 'crew-seat: run the long sleep'
 export const SEAT_SLEEP_SECONDS = 287
-export const SEAT_ACK = 'crew-seat: the sleep ended'
-export const SIDE_REPLY = 'ok'
+const SEAT_ACK = 'crew-seat: the sleep ended'
+const SIDE_REPLY = 'ok'
 
-export type Route = 'lead' | 'lead-ack' | 'seat' | 'seat-ack' | 'side'
-export type Hit = { route: Route; model: string; ask: string; at: number; toolNames: string[]; step: number }
+type Route = 'lead' | 'lead-ack' | 'seat' | 'seat-ack' | 'side'
+type Hit = { route: Route; model: string; ask: string; at: number; toolNames: string[]; step: number }
 export type Fixture = { base: string; port: number; hits: Hit[]; close: () => Promise<void> }
-export type SeatTool = 'bash' | 'sleep'
+type SeatTool = 'bash' | 'sleep'
 
 type Block = { type: 'text'; text: string } | { type: 'tool_use'; name: string; input: Record<string, unknown> }
 type Item = { role?: string; content?: unknown }
@@ -54,7 +54,7 @@ function lastIsToolResult(body: unknown): boolean {
   return isToolResultItem(items[items.length - 1])
 }
 
-export function stepOf(body: unknown): number {
+function stepOf(body: unknown): number {
   const items = itemsOf(body)
   let askAt = -1
   for (let i = items.length - 1; i >= 0; i--) {
@@ -72,7 +72,7 @@ function toolNamesOf(body: unknown): string[] {
   return Array.isArray(tools) ? tools.map(t => String((t as { name?: string })?.name ?? '')) : []
 }
 
-export function routeOf(body: unknown): { route: Route; ask: string; step: number } {
+function routeOf(body: unknown): { route: Route; ask: string; step: number } {
   const ask = askOf(body)
   const ack = lastIsToolResult(body)
   const step = stepOf(body)
@@ -111,7 +111,7 @@ function answer(model: string, blocks: Block[], usage: { input: number; output: 
   return parts.join('')
 }
 
-export function blocksFor(route: Route, ask: string, seatTool: SeatTool, step = 0): { blocks: Block[]; usage: { input: number; output: number } } {
+function blocksFor(route: Route, ask: string, seatTool: SeatTool, step = 0): { blocks: Block[]; usage: { input: number; output: number } } {
   switch (route) {
     case 'lead': {
       const background = !ask.includes(LEAD_ASK_HELD)

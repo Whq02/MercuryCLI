@@ -1,7 +1,7 @@
 import type { ChildProcess } from 'node:child_process'
 
-export const PTYDRIVE_STILL_MS = 400
-export const PTYDRIVE_SETTLE_CEILING_MS = 2000
+const PTYDRIVE_STILL_MS = 400
+const PTYDRIVE_SETTLE_CEILING_MS = 2000
 
 export function driverClosed(child: ChildProcess): Promise<void> {
   return new Promise<void>(resolve => child.once('close', () => resolve()))
@@ -30,7 +30,7 @@ export function unfiredDetail(driverOut: string, tailChars = 300): string {
     : 'no closing report — the driver was stopped before it could write one (an outside kill timer inside the wall?)'
 }
 
-export function lastSendMs(sends: readonly string[]): number {
+function lastSendMs(sends: readonly string[]): number {
   let last = 0
   for (const s of sends) {
     const m = /^after:.*?:(\d+):/.exec(s) ?? /^(\d+):/.exec(s)

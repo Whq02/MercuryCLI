@@ -41,7 +41,7 @@ export function fixture(files = ['one.txt'], verifiable = false) {
   const owner = makeOwnerKey({ workspace: root, sessionId: `tx-${++sequence}`, lane: 'main' })
   return { root, owner, files: files.map(file => join(root, file)) }
 }
-export type Fixture = ReturnType<typeof fixture>
+type Fixture = ReturnType<typeof fixture>
 export function emit(f: Fixture, operation = 'file.edit', opts: {
   paths?: string[]; outcome?: 'succeeded' | 'no-change' | 'failed' | 'indeterminate';
   toolUseId?: string; ok?: boolean; toolName?: string; input?: unknown; cwd?: string

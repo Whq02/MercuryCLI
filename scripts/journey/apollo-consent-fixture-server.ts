@@ -16,8 +16,8 @@ if (!['build', 'build-ask-first', 'more-questions', 'spec-review', 'stray-write'
 }
 
 const sse = (obj: unknown): string => `data: ${JSON.stringify(obj)}\n\n`
-export const FINAL_TEXT = 'APOLLO JOURNEY DONE: the prototype slice is written'
-export const RESUME_TEXT = 'INTERVIEW RESUMED: noting the second answer in the spec'
+const FINAL_TEXT = 'APOLLO JOURNEY DONE: the prototype slice is written'
+const RESUME_TEXT = 'INTERVIEW RESUMED: noting the second answer in the spec'
 const POLL_ONE = 'How should the demo greet? (the output — console or page)'
 const POLL_TWO = 'What colour should the greeting be? (the look — palette)'
 

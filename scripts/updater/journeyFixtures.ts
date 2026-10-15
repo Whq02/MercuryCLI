@@ -21,9 +21,9 @@ const { cmdLauncher, parseEnginesNode, posixLauncher, ps1Launcher } = (await imp
 
 export const ROOT = join(import.meta.dir, '..', '..')
 export const IS_WIN = process.platform === 'win32'
-export const HOST_TARGET = IS_WIN ? 'windows-x64' : process.platform === 'darwin' ? 'macos-arm64' : 'linux-x64'
+const HOST_TARGET = IS_WIN ? 'windows-x64' : process.platform === 'darwin' ? 'macos-arm64' : 'linux-x64'
 export const FLOOR = readCompatFloor()
-export const NODE_POLICY = parseEnginesNode(
+const NODE_POLICY = parseEnginesNode(
   (JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')) as { engines?: { node?: string } }).engines?.node,
 )
 
@@ -35,9 +35,9 @@ export function hostAssetName(version: string): string {
   return name
 }
 
-export type PayloadShape = 'release-layout' | 'schema2-single'
+type PayloadShape = 'release-layout' | 'schema2-single'
 
-export interface PayloadOpts {
+interface PayloadOpts {
   manifestVersion?: string
   bundlePath?: string
   stagedFail?: boolean
@@ -110,9 +110,9 @@ ${opts.postSwitchFail ? `const dir = decodeURIComponent(new URL('.', import.meta
   }
 }
 
-export const sha256File = (p: string): string => createHash('sha256').update(readFileSync(p)).digest('hex')
+const sha256File = (p: string): string => createHash('sha256').update(readFileSync(p)).digest('hex')
 
-export function archiveStage(stage: string, rootName: string, archivePath: string): void {
+function archiveStage(stage: string, rootName: string, archivePath: string): void {
   if (IS_WIN) {
     execFileSync(
       'pwsh',
@@ -180,7 +180,7 @@ export function makeFixtures(fixturesRoot: string, name: string, specs: ReleaseF
 }
 
 
-export interface FixtureServerOptions {
+interface FixtureServerOptions {
   fixtures: string
   log?: string
   visibility?: 'public' | 'private'
@@ -189,7 +189,7 @@ export interface FixtureServerOptions {
   skipSums?: boolean
 }
 
-export interface FixtureServer {
+interface FixtureServer {
   url: string
   close: () => Promise<void>
 }

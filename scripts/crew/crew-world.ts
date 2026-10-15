@@ -15,7 +15,7 @@ export function argAfter(flag: string): string | undefined {
 }
 
 export const DIST = argAfter('--dist') ?? join(ROOT, 'dist/mercury.mjs')
-export const RECORD = argAfter('--record')
+const RECORD = argAfter('--record')
 export const LEAD_MODEL = 'claude-fable-5-1'
 export const LEAD_GATE = 'fable-5-1'
 export const TURN_MS = 90_000
@@ -23,7 +23,7 @@ export const TURN_MS = 90_000
 const vendoredNode = join(dirname(DIST), 'vendor/node', process.platform === 'win32' ? 'node.exe' : 'bin/node')
 export const NODE = existsSync(vendoredNode) ? vendoredNode : Bun.which('node') ?? 'node'
 
-export type World = {
+type World = {
   dir: string
   config: string
   project: string
@@ -60,7 +60,7 @@ export async function makeWorld(label: string, script: ScriptedTurn[]): Promise<
 
 export type { Frame } from '../lib/rows.ts'
 
-export type Session = {
+type Session = {
   child: ChildProcess
   frames: Frame[]
   stdout: () => string
@@ -146,7 +146,7 @@ export function bootLead(world: World, extraArgv: string[], allowedTools: string
   }
 }
 
-export function bootLeadOnDoor(world: World, extraArgv: string[], allowedTools: string[]): Session & { host: HostedRunner } {
+function bootLeadOnDoor(world: World, extraArgv: string[], allowedTools: string[]): Session & { host: HostedRunner } {
   const frames: Frame[] = []
   let out = ''
   let err = ''

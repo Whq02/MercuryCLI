@@ -15,7 +15,7 @@ type Site = { file: string; symbol: string; kind: 'memoize' | 'module-cache' }
 const NAME_FILTER = /(cache|memo(?!ry)|snapshot|lastknown)/i
 const CONST_NAME = /^[A-Z0-9_]+$/
 
-export function codeWithoutLiteralContents(file: string, text: string): string {
+function codeWithoutLiteralContents(file: string, text: string): string {
   const code = codeOnlyText(file, text)
   const source = ts.createSourceFile(file, code, ts.ScriptTarget.Latest, true, /\.(tsx|jsx)$/.test(file) ? ts.ScriptKind.TSX : ts.ScriptKind.TS)
   const blanks: Array<{ pos: number; end: number }> = []
@@ -46,7 +46,7 @@ export function codeWithoutLiteralContents(file: string, text: string): string {
   return out + code.slice(cursor)
 }
 
-export function extractSites(file: string, text: string): Site[] {
+function extractSites(file: string, text: string): Site[] {
   const sites: Site[] = []
   const lines = codeWithoutLiteralContents(file, text).split('\n')
   for (let i = 0; i < lines.length; i++) {

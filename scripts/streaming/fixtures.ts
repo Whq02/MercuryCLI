@@ -1,11 +1,11 @@
 
-export type TimedDelta = {
+type TimedDelta = {
   atMs: number
   text: string | null
   toolJson?: string
 }
 
-export type StreamFixture = {
+type StreamFixture = {
   name: string
   deltas: TimedDelta[]
   sentinels: Map<string, number>

@@ -1,8 +1,8 @@
 import { appendFileSync } from 'node:fs'
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 
-export type FixtureLane = 'anthropic-coordinator' | 'anthropic-seat' | 'openai' | 'openai-seat' | 'zai' | 'zai-seat' | 'openrouter' | 'openrouter-seat' | 'other'
-export interface FixtureHit {
+type FixtureLane = 'anthropic-coordinator' | 'anthropic-seat' | 'openai' | 'openai-seat' | 'zai' | 'zai-seat' | 'openrouter' | 'openrouter-seat' | 'other'
+interface FixtureHit {
   lane: FixtureLane
   path: string
   model: string
@@ -146,7 +146,7 @@ function routeOf(serialized: string): Op {
   return 'launch'
 }
 
-export interface CrossfamilyFixtureOpts {
+interface CrossfamilyFixtureOpts {
   port: number
   seatStyle?: 'instant' | 'paced'
   seatSleepSeconds?: number
@@ -158,7 +158,7 @@ export interface CrossfamilyFixtureOpts {
   captureLog?: string
 }
 
-export interface CrossfamilyFixture {
+interface CrossfamilyFixture {
   base: string
   captured: FixtureHit[]
   env: Record<string, string>

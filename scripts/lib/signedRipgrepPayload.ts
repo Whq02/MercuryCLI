@@ -11,7 +11,7 @@ const ROOT = join(import.meta.dir, '..', '..')
 
 export const FIXTURE_VERSION = '9.9.9-beta.34'
 
-export function platformRgDir(): string {
+function platformRgDir(): string {
   return `${process.arch}-${process.platform}`
 }
 
@@ -19,7 +19,7 @@ export function sha256Of(path: string): string {
   return createHash('sha256').update(readFileSync(path)).digest('hex')
 }
 
-export function builtRipgrep(): string | null {
+function builtRipgrep(): string | null {
   const candidates = [
     join(ROOT, 'dist', 'vendor', 'ripgrep', platformRgDir(), 'rg'),
     join(ROOT, 'node_modules', '@vscode', `ripgrep-${process.platform}-${process.arch}`, 'bin', 'rg'),
@@ -38,12 +38,12 @@ export function isLinkerSigned(path: string): boolean {
   return codesignFlags(path).includes('linker-signed')
 }
 
-export function makeLinkerSigned(path: string): void {
+function makeLinkerSigned(path: string): void {
   execFileSync('codesign', ['--remove-signature', path], { stdio: 'ignore' })
   execFileSync('codesign', ['-s', '-', '--force', '-o', 'linker-signed', path], { stdio: 'ignore' })
 }
 
-export interface SignedPayloadFixture {
+interface SignedPayloadFixture {
   dir: string
   rgPath: string
   rgSha256: string

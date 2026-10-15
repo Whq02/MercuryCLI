@@ -128,12 +128,12 @@ type CaptureReceipt = RawGrid & {
   sendReceipts?: Array<{ atTick: number; ts: number }>
 }
 
-export function needlesSeenAt(receipt: { sendReceipts?: Array<{ atTick: number }> }, sendCount: number): number | null {
+function needlesSeenAt(receipt: { sendReceipts?: Array<{ atTick: number }> }, sendCount: number): number | null {
   const fired = receipt.sendReceipts ?? []
   return fired.length === sendCount && sendCount > 0 ? fired[sendCount - 1]!.atTick : null
 }
 
-export function sceneNeedles(spec: CaptureSpec, cfg: { readyText?: string | string[] }): string[] {
+function sceneNeedles(spec: CaptureSpec, cfg: { readyText?: string | string[] }): string[] {
   return settleNeedles(cfg, cockpitReadyText(spec.cols, HELM_HOME_MIN_COLS, HELM_BOTH_RAILS_MIN), SCENE_SETTLE_NEEDLES[spec.scenario] ?? [])
 }
 
@@ -305,7 +305,7 @@ function currentShas(): { sourceSha: string; buildDigest: string } {
   return { sourceSha, buildDigest: dist.buildTree }
 }
 
-export function onlyFilter(only: string): (id: string) => boolean {
+function onlyFilter(only: string): (id: string) => boolean {
   const wanted = only.split(',').map(s => s.trim()).filter(Boolean)
   return id => wanted.length === 0 || wanted.some(w => id.includes(w))
 }

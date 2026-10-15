@@ -2,7 +2,7 @@
 import { tokenizeAnsi, type AnsiToken } from '../../src/render-engine/ansiText.js'
 import { firstUnlawfulGlyph, textIsDemoLawful } from './demoAlphabet.js'
 
-export interface CaptureFrames {
+interface CaptureFrames {
   out: Buffer
   frames: number
   outFrames: number
@@ -32,7 +32,7 @@ export function readCapture(buf: Buffer): CaptureFrames {
   return { out: Buffer.concat(chunks), frames, outFrames, durationNs: lastT }
 }
 
-export interface StrictVerdict {
+interface StrictVerdict {
   clean: boolean
   totalBytes: number
   tokens: number
@@ -48,7 +48,7 @@ export interface StrictVerdict {
   offenders: string[]
 }
 
-export interface StrictRules {
+interface StrictRules {
   allowedFinals: Set<string>
   allowedModes: Set<string>
   allowedC0: Set<number>

@@ -9,7 +9,7 @@ import { STUDY_FIXTURE_PATH, loadStudyCorpus, type StudyCorpus, type StudySimEnt
 
 const ROOT = resolve(import.meta.dir, '..', '..')
 
-export interface SimilarityRecorder {
+interface SimilarityRecorder {
   loadModel(path: string): number
   modelInfo(handle: number): { name: string; architecture: string; dimension: number; layers: number; pooling: string }
   embed(handle: number, text: string, isQuery?: boolean): number[]

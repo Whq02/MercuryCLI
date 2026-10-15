@@ -9,11 +9,11 @@ import { SEATS_MENU_ROW } from '../../src/services/switchboard/capacityCheck.js'
 import { __motionGovernorResetForTest, setMotionPosture } from '../../src/utils/cockpit/motionGovernor.js'
 import { MOTION_MENU_ROW, motionDetailLines, motionValueWords } from '../../src/utils/cockpit/motionSetting.js'
 
-export const STILLS_DIR = join(import.meta.dir, 'fixtures', 'motion-menu')
+const STILLS_DIR = join(import.meta.dir, 'fixtures', 'motion-menu')
 
 const core = createSplashCore({ nocolor: true, truecolor: false, accent: 'crimson' })
 
-export function menuRows(): readonly MenuRow[] {
+function menuRows(): readonly MenuRow[] {
   return [...STARTUP_MENU, SEATS_MENU_ROW as MenuRow, MOTION_MENU_ROW as MenuRow]
 }
 

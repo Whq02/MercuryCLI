@@ -18,12 +18,12 @@ const FLUX = join(ROOT, 'scripts', 'streaming')
 
 const API_KEY = 'fixture-key-000'
 
-export type DriveRecord =
+type DriveRecord =
   | { kind: 'out'; ts: number; bytes: number }
   | { kind: 'send'; sent: number; atMs: number; b64: string }
   | { kind: 'resize'; resized: number; atMs: number; cols: number; rows: number }
 
-export interface TeeWrite {
+interface TeeWrite {
   ts: number
   len?: number
   content?: string
@@ -41,7 +41,7 @@ export interface CompassRun {
   cleanup: () => void
 }
 
-export interface CompassArenaOpts {
+interface CompassArenaOpts {
   sends: string[]
   resizes?: string[]
   seconds: number
@@ -223,7 +223,7 @@ export async function runCompassArena(opts: CompassArenaOpts): Promise<CompassRu
 }
 
 
-export interface GrabbedScreen {
+interface GrabbedScreen {
   atMs: number
   rows: string[]
   cursor?: { x: number; y: number; hidden: boolean }

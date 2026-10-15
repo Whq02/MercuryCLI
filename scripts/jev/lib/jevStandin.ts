@@ -2,11 +2,11 @@ import { createServer, type IncomingMessage, type Server, type ServerResponse } 
 import type { AddressInfo } from 'node:net'
 
 export const STANDIN_MODEL = 'jev-1.13.0'
-export const STANDIN_PATH = '/v1/systemone'
+const STANDIN_PATH = '/v1/systemone'
 export const STANDIN_TOKEN_FLOOR = 300
-export const STANDIN_OUTPUT_TOKENS = 20
+const STANDIN_OUTPUT_TOKENS = 20
 
-export interface StandinScript {
+interface StandinScript {
   status: number
   body?: unknown
   raw?: string
@@ -14,7 +14,7 @@ export interface StandinScript {
   delayMs?: number
 }
 
-export interface StandinRecord {
+interface StandinRecord {
   method: string
   path: string
   headers: Record<string, string | string[] | undefined>
@@ -23,9 +23,9 @@ export interface StandinRecord {
   at: number
 }
 
-export type StandinAnswerer = (body: unknown, rawBody: string) => unknown | undefined
+type StandinAnswerer = (body: unknown, rawBody: string) => unknown | undefined
 
-export interface JevStandin {
+interface JevStandin {
   port: number
   base: string
   received: StandinRecord[]
@@ -38,9 +38,9 @@ export interface JevStandin {
 
 type Question = { type?: unknown; instructions?: unknown; criteria?: unknown }
 
-export const STANDIN_FIXTURE_ID = /fixture-id:([A-Za-z0-9_-]+)/g
+const STANDIN_FIXTURE_ID = /fixture-id:([A-Za-z0-9_-]+)/g
 
-export const RED_ROAD_FIXTURES: Readonly<Record<string, Readonly<Record<string, number>>>> = Object.freeze({
+const RED_ROAD_FIXTURES: Readonly<Record<string, Readonly<Record<string, number>>>> = Object.freeze({
   'red-road-killed': { killed: 0.92, starved: 0.2 },
   'red-road-starved': { killed: 0.12, starved: 0.73 },
   'red-road-product': { killed: 0.03, starved: 0.05 },
@@ -56,7 +56,7 @@ export const LEAD_WAKE_FIXTURES: Readonly<Record<string, Readonly<Record<string,
   'lead-wake-landing': { needs_answer: 0.08 },
 })
 
-export function fixtureIdsIn(text: string): string[] {
+function fixtureIdsIn(text: string): string[] {
   return [...text.matchAll(STANDIN_FIXTURE_ID)].map(m => m[1]!)
 }
 
@@ -75,7 +75,7 @@ function concentration(probabilities: number[]): number {
   return round(Math.max(0, Math.min(1, (n * peak - 1) / (n - 1))))
 }
 
-export function defaultAnswerFor(question: unknown): unknown {
+function defaultAnswerFor(question: unknown): unknown {
   const q = (isRecord(question) ? question : {}) as Question
   if (q.type === 'choice' && isRecord(q.criteria)) {
     const labels = Object.keys(q.criteria)
@@ -113,7 +113,7 @@ export function defaultAnswerFor(question: unknown): unknown {
   return { type: 'noul', noul: 0.95 }
 }
 
-export function defaultResponseFor(body: unknown, rawBody: string, nouls: Readonly<Record<string, number>> = {}): unknown {
+function defaultResponseFor(body: unknown, rawBody: string, nouls: Readonly<Record<string, number>> = {}): unknown {
   const answers: Record<string, unknown> = {}
   const questions = isRecord(body) && isRecord(body.questions) ? body.questions : {}
   for (const [id, question] of Object.entries(questions)) {
@@ -134,7 +134,7 @@ export function fixtureAnswerer(table: Readonly<Record<string, Readonly<Record<s
   }
 }
 
-export interface StandinChoice {
+interface StandinChoice {
   choice: string
   probabilities: Readonly<Record<string, number>>
   confidence: number

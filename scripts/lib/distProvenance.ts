@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { runGit, type GitResult } from './git.ts'
 
-export type DistProvenance =
+type DistProvenance =
   | { kind: 'own'; tree: string; committed: boolean }
   | { kind: 'absent' }
   | { kind: 'no-manifest' }

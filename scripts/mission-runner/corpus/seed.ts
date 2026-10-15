@@ -67,7 +67,7 @@ export interface SeededRepo {
   refs: Record<string, string>
 }
 
-export function seedInlineRepo(spec: HelixRepoSpec, root: string): SeededRepo {
+function seedInlineRepo(spec: HelixRepoSpec, root: string): SeededRepo {
   const dir = join(root, spec.id)
   rmSync(dir, { recursive: true, force: true })
   mkdirSync(dir, { recursive: true })
@@ -87,7 +87,7 @@ export function seedInlineRepo(spec: HelixRepoSpec, root: string): SeededRepo {
   return { id: spec.id, dir, refs }
 }
 
-export function seedStatsRepo(mercuryRepoRoot: string): SeededRepo {
+function seedStatsRepo(mercuryRepoRoot: string): SeededRepo {
   const dir = '/tmp/apex-bench-fixture'
   let current = ''
   try {

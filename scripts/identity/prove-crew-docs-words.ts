@@ -41,7 +41,7 @@ function pages(): string[] {
   return out
 }
 
-export function proseLines(markdown: string): Array<{ line: number; text: string }> {
+function proseLines(markdown: string): Array<{ line: number; text: string }> {
   const out: Array<{ line: number; text: string }> = []
   let fenced = false
   const lines = markdown.split('\n')

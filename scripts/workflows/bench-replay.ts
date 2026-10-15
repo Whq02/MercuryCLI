@@ -12,7 +12,7 @@ import {
 } from 'node:fs'
 import { join, resolve } from 'node:path'
 
-export type SuccessCheck =
+type SuccessCheck =
   | { kind: 'cmd'; cmd: string }
   | { kind: 'grep'; file: string; pattern: string; flags?: string }
 export type CorpusTask = {
@@ -107,7 +107,7 @@ export function cloneAtSha(dir: string, sha: string): void {
   }
 }
 
-export function readDefaultCredentialPayload(): string | null {
+function readDefaultCredentialPayload(): string | null {
   if (process.platform !== 'darwin') return null
   const user = process.env.USER ?? ''
   for (const svc of [['Claude', 'Code-credentials'].join(' '), ['Claude', 'Code'].join(' ')]) {

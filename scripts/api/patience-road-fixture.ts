@@ -3,7 +3,7 @@ export const ROAD_BUDGET_MS = 400
 export const KEEP_ALIVE_EVERY_MS = 40
 export const KEEP_ALIVES = 30
 
-export interface RoadFixture {
+interface RoadFixture {
   fetchImpl: typeof fetch
   sent: () => number
   cancelled: () => boolean

@@ -53,7 +53,7 @@ function uuid(n: number): string {
   return `00000000-0000-4000-8000-${n.toString(16).padStart(12, '0')}`
 }
 
-export interface FixtureStats {
+interface FixtureStats {
   lines: number
   bytes: number
   chapters: number
@@ -320,7 +320,7 @@ export function buildCompass1k(cwd: string, chapters: number = CHAPTERS_DEFAULT)
   return { lines, stats: { lines: lines.length, bytes, chapters: CHAPTERS, byKind } }
 }
 
-export function writeCompass1k(outPath: string, cwd: string): FixtureStats {
+function writeCompass1k(outPath: string, cwd: string): FixtureStats {
   const { lines, stats } = buildCompass1k(cwd)
   writeFileSync(outPath, lines.map(l => JSON.stringify(l)).join('\n') + '\n')
   return stats

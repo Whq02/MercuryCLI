@@ -8,8 +8,8 @@ import { AlternateScreen } from '../../src/ink/components/AlternateScreen.js'
 import useInput from '../../src/ink/hooks/use-input.js'
 import useApp from '../../src/ink/hooks/use-app.js'
 
-export type SceneRun = { text: string; fg?: string | null; bg?: string | null; bold?: boolean; dim?: boolean; inv?: boolean }
-export type Scene = { cols: number; rows: number; lines: SceneRun[][] }
+type SceneRun = { text: string; fg?: string | null; bg?: string | null; bold?: boolean; dim?: boolean; inv?: boolean }
+type Scene = { cols: number; rows: number; lines: SceneRun[][] }
 const [sceneDir, timingPath] = process.argv.slice(2)
 if (!sceneDir || !timingPath) throw new Error('scene needs its fixture directory and timing file')
 const load = (name: string): Scene => JSON.parse(readFileSync(join(sceneDir, `${name}.json`), 'utf8'))

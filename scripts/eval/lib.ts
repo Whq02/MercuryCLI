@@ -5,7 +5,7 @@ import { join } from 'node:path'
 
 ;(globalThis as Record<string, unknown>)['MACRO'] = { VERSION: '1.0.0' }
 
-export let failures = 0
+let failures = 0
 export function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)

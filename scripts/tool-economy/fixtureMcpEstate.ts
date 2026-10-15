@@ -3,14 +3,14 @@ import { z } from 'zod/v4'
 type Param = { name: string; type: 'string' | 'number' | 'boolean' | 'array'; doc: string; required?: boolean }
 const P = (name: string, type: Param['type'], doc: string, required = true): Param => ({ name, type, doc, required })
 
-export interface FixtureMcpRow {
+interface FixtureMcpRow {
   tool: string
   doc: string
   params: Param[]
   readOnly?: boolean
 }
 
-export const FILESYS_ROWS: FixtureMcpRow[] = [
+const FILESYS_ROWS: FixtureMcpRow[] = [
   { tool: 'read_file', doc: 'Read the complete contents of a file from the file system. Handles various text encodings and provides detailed error messages if the file cannot be read.', params: [P('path', 'string', 'Absolute path to the file to read')], readOnly: true },
   { tool: 'read_multiple_files', doc: 'Read the contents of multiple files simultaneously. Failed reads for individual files do not stop the entire operation.', params: [P('paths', 'array', 'Absolute paths of the files to read')], readOnly: true },
   { tool: 'write_file', doc: 'Create a new file or completely overwrite an existing file with new content. Use with caution as it will overwrite existing files without warning.', params: [P('path', 'string', 'Absolute path of the file to write'), P('content', 'string', 'The full new content of the file')] },
@@ -25,7 +25,7 @@ export const FILESYS_ROWS: FixtureMcpRow[] = [
   { tool: 'delete_file', doc: 'Delete a file permanently. This operation cannot be undone; confirm the path before calling.', params: [P('path', 'string', 'Absolute path of the file to delete')] },
 ]
 
-export const GITHUB_ROWS: FixtureMcpRow[] = [
+const GITHUB_ROWS: FixtureMcpRow[] = [
   { tool: 'create_issue', doc: 'Create a new issue in a GitHub repository with a title, body, labels and assignees.', params: [P('owner', 'string', 'Repository owner (user or organization)'), P('repo', 'string', 'Repository name'), P('title', 'string', 'Issue title'), P('body', 'string', 'Issue body in Markdown', false), P('labels', 'array', 'Label names to apply', false), P('assignees', 'array', 'Usernames to assign', false)] },
   { tool: 'list_issues', doc: 'List issues in a GitHub repository with filtering by state, labels, sort order and pagination.', params: [P('owner', 'string', 'Repository owner'), P('repo', 'string', 'Repository name'), P('state', 'string', 'open, closed or all', false), P('labels', 'array', 'Filter by label names', false), P('page', 'number', 'Page number for pagination', false), P('per_page', 'number', 'Results per page (max 100)', false)], readOnly: true },
   { tool: 'get_issue', doc: 'Get the details of a specific issue in a GitHub repository, including its body, labels, state and timeline counts.', params: [P('owner', 'string', 'Repository owner'), P('repo', 'string', 'Repository name'), P('issue_number', 'number', 'The issue number')], readOnly: true },
@@ -40,7 +40,7 @@ export const GITHUB_ROWS: FixtureMcpRow[] = [
   { tool: 'fork_repository', doc: 'Fork a GitHub repository to your account or the specified organization.', params: [P('owner', 'string', 'Repository owner'), P('repo', 'string', 'Repository name'), P('organization', 'string', 'Organization to fork into', false)] },
 ]
 
-export function schemaOf(params: Param[]): Record<string, unknown> {
+function schemaOf(params: Param[]): Record<string, unknown> {
   const properties: Record<string, unknown> = {}
   for (const p of params) {
     properties[p.name] =

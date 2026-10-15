@@ -1,7 +1,7 @@
 import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 
-export type ExecutionProfile =
+type ExecutionProfile =
   | { kind: 'source-maintainer-posix' }
   | { kind: 'source-maintainer-windows' }
   | { kind: 'hosted-gate' }

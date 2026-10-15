@@ -12,7 +12,7 @@ function sendJson(res, status, body, headers = {}) {
   res.end(text)
 }
 
-export function startFixtureReleaseServer(opts) {
+function startFixtureReleaseServer(opts) {
   const fixtures = opts.fixtures
   const log = opts.log ?? null
   const visibility = opts.visibility ?? 'public'

@@ -2,7 +2,7 @@
 import type { EngineClock } from '../../src/render-engine/contracts.js'
 import type { DoorSyscalls } from '../../src/render-engine/door.js'
 
-export let failures = 0
+let failures = 0
 export const check = (label: string, cond: boolean, detail = ''): void => {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}`)
   if (!cond) failures++
@@ -57,7 +57,7 @@ export class FakeClock implements EngineClock {
   }
 }
 
-export type SinkMode =
+type SinkMode =
   | { kind: 'accept-all' }
   | { kind: 'refuse' }
   | { kind: 'ration'; bytesPerCall: number }

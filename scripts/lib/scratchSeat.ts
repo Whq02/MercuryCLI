@@ -7,7 +7,7 @@ import { seedScratchHome, startScriptedFixture, type Script, type ScriptedFixtur
 export { DIST, NODE, SCRATCH_ROOT, bound, childEnv, isOutcome, makeTally, seedScratchHome, sleep, startScriptedFixture }
 export type { Script, ScriptedFixture, ScriptedRequest, WireBlock }
 
-export type Turn = { result: Record<string, unknown> | null; stderr: string; exitCode: number | null; frames: unknown[] }
+type Turn = { result: Record<string, unknown> | null; stderr: string; exitCode: number | null; frames: unknown[] }
 
 export function requireDist(): void {
   if (!existsSync(DIST)) {

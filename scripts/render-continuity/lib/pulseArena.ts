@@ -22,7 +22,7 @@ const PTYDRIVE = join(ROOT, 'scripts', 'streaming', 'ptydrive.py')
 
 const API_KEY = 'fixture-key-000'
 
-export interface TeeWrite {
+interface TeeWrite {
   ts: number
   len?: number
   content?: string
@@ -30,7 +30,7 @@ export interface TeeWrite {
 
 const FACE_READY_NEEDLE = '↑↓ choose'
 
-export interface SendRecord {
+interface SendRecord {
   sent: number
   atMs: number
   b64: string
@@ -41,7 +41,7 @@ export interface SendRecord {
   screen?: string[]
 }
 
-export interface ObservedSend {
+interface ObservedSend {
   awaitText: string | string[]
   awaitAbsent?: string | string[]
   afterPrevMs?: number
@@ -53,7 +53,7 @@ export interface ObservedSend {
   arrivedAbsent?: string
 }
 
-export interface PulseRun {
+interface PulseRun {
   fixture: FixtureApi
   teeLines: TeeWrite[]
   sendLog: SendRecord[]
@@ -77,7 +77,7 @@ export function restoreOffsets<T extends { atMs: number }>(run: { anchorShiftMs:
   return screens
 }
 
-export interface PulseArenaOpts {
+interface PulseArenaOpts {
   turns: ScriptedTurn[] | ((cwd: string) => ScriptedTurn[])
   sends: (string | ObservedSend)[]
   seconds: number
@@ -90,14 +90,14 @@ export interface PulseArenaOpts {
   extraEnv?: Record<string, string>
 }
 
-export function requireDist(): void {
+function requireDist(): void {
   if (!existsSync(DIST)) {
     console.error('dist/mercury.mjs missing — run `bun run build.ts` first')
     process.exit(2)
   }
 }
 
-export function nodeBinPath(): string {
+function nodeBinPath(): string {
   return process.env.NODE_BIN ?? spawnSync('which', ['node'], { encoding: 'utf8' }).stdout.trim()
 }
 
@@ -248,16 +248,16 @@ export async function runPulseArena(opts: PulseArenaOpts): Promise<PulseRun> {
 
 const ESC_RE = /\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)|\x1b\[[0-9;?<=>]*[A-Za-z@`~]|\x1b[()][0-9A-Za-z]|\x1b[A-Za-z=><]/g
 
-export function visibleText(s: string): string {
+function visibleText(s: string): string {
   return s.replace(ESC_RE, '').replace(/[\s─-╿]+/g, '')
 }
 
-export function pct(xs: number[], p: number): number {
+function pct(xs: number[], p: number): number {
   if (xs.length === 0) return -1
   const s = [...xs].sort((a, b) => a - b)
   return s[Math.min(s.length - 1, Math.ceil((p / 100) * s.length) - 1)]!
 }
 
-export function enterSends(run: PulseRun): SendRecord[] {
+function enterSends(run: PulseRun): SendRecord[] {
   return run.sendLog.filter(s => Buffer.from(s.b64, 'base64').toString('utf8') === '\r')
 }

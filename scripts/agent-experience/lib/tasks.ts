@@ -23,13 +23,13 @@ export interface TaskContext {
   nodeBin: string
 }
 
-export interface OracleInput {
+interface OracleInput {
   run: RunRecord
   hits: FixtureHit[]
   prior?: RunRecord
 }
 
-export interface OracleVerdict {
+interface OracleVerdict {
   pass: boolean | null
   detail: string
 }
@@ -424,13 +424,13 @@ export const TASKS: TaskDef[] = [
   },
 ]
 
-export function TASKS_ASK(id: string): string {
+function TASKS_ASK(id: string): string {
   const task = TASKS.find(t => t.id === id)
   if (!task) throw new Error(`unknown task ${id}`)
   return task.ask
 }
 
-export function taskById(id: string): TaskDef {
+function taskById(id: string): TaskDef {
   const task = TASKS.find(t => t.id === id)
   if (!task) throw new Error(`unknown task ${id}`)
   return task

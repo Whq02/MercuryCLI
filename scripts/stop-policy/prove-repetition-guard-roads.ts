@@ -25,9 +25,9 @@ const BREAKER_NAMES =
 const RELEASE_NOTES = ['src/constants/changelog.ts']
 const THIS = 'scripts/stop-policy/prove-repetition-guard-roads.ts'
 
-export const CYCLE_ASK = 'run the two checks over and over'
-export const CYCLE_END = 'done: the two checks ran'
-export const CYCLE_PAIRS = 12
+const CYCLE_ASK = 'run the two checks over and over'
+const CYCLE_END = 'done: the two checks ran'
+const CYCLE_PAIRS = 12
 
 function* sourceFiles(dir: string): Generator<string> {
   for (const entry of readdirSync(dir)) {
@@ -70,7 +70,7 @@ function lastAnswer(items: Item[]): string {
   return ''
 }
 
-export async function startCycleFixture(cwd: string, pairs = CYCLE_PAIRS): Promise<CycleFixture> {
+async function startCycleFixture(cwd: string, pairs = CYCLE_PAIRS): Promise<CycleFixture> {
   const hits: CycleHit[] = []
   let calls = 0
   const server = createServer((req: IncomingMessage, res: ServerResponse) => {

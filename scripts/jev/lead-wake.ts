@@ -5,12 +5,12 @@ import type { JevEvalInput } from '../../src/tools/JevEvalTool/jevEvalSchema.js'
 import { roadHome } from './lib/roadHome.ts'
 
 export const LEAD_WAKE_QUESTION_FLOOR = 0.8
-export const LEAD_WAKE_FIRST_LINES = 20
-export const LEAD_WAKE_LINE_CLIP = 1800
-export const LEAD_WAKE_SHOW_CLIP = 200
-export const LEAD_WAKE_LEAD_DEV_FILE = 'LEAD-W1.md'
-export const LEAD_WAKE_OWN_FILE = 'MERCURY-LEAD-W1.md'
-export const LEAD_WAKE_USAGE = "usage: bun run scripts/jev/lead-wake.ts <comms-dir> --state <file> [--floor 0.8] [--first 20] [--home <config home: the JEV setting and key; default the operator's own ~/.mercury, a pinned scratch kept>] [--json]"
+const LEAD_WAKE_FIRST_LINES = 20
+const LEAD_WAKE_LINE_CLIP = 1800
+const LEAD_WAKE_SHOW_CLIP = 200
+const LEAD_WAKE_LEAD_DEV_FILE = 'LEAD-W1.md'
+const LEAD_WAKE_OWN_FILE = 'MERCURY-LEAD-W1.md'
+const LEAD_WAKE_USAGE = "usage: bun run scripts/jev/lead-wake.ts <comms-dir> --state <file> [--floor 0.8] [--first 20] [--home <config home: the JEV setting and key; default the operator's own ~/.mercury, a pinned scratch kept>] [--json]"
 export const LEAD_WAKE_QUESTIONS: JevEvalInput['questions'] = [
   {
     id: 'needs_answer',
@@ -22,14 +22,14 @@ export const LEAD_WAKE_QUESTIONS: JevEvalInput['questions'] = [
 const TIME = '(\\d{2}:\\d{2}(?::\\d{2})?)(?: \\(?[A-Z]{2,5}\\)?| [+-]\\d{4})?'
 const STAMP = new RegExp(`^(?:- )?(?:\\[(?:\\d{4}-\\d{2}-\\d{2} )?${TIME}\\] ?|(?:\\d{4}-\\d{2}-\\d{2} )?${TIME}(?: — | · ))(.*)$`)
 
-export interface CommsLine {
+interface CommsLine {
   file: string
   number: number
   stamp: string | null
   words: string
   raw: string
 }
-export type WakeState = Record<string, number>
+type WakeState = Record<string, number>
 
 export function judgedLine(raw: string): boolean {
   const trimmed = raw.trim()

@@ -3,7 +3,7 @@ import Ink from '../../src/ink/ink.js'
 import type { FrameEvent } from '../../src/ink/frame.js'
 import stripAnsi from 'strip-ansi'
 
-export class ConsoleStream extends EventEmitter {
+class ConsoleStream extends EventEmitter {
   isTTY = true
   columns: number
   rows: number
@@ -34,7 +34,7 @@ export class ConsoleStream extends EventEmitter {
   }
 }
 
-export class InputStream extends EventEmitter {
+class InputStream extends EventEmitter {
   isTTY = false
   isRaw = false
   readableLength = 0
