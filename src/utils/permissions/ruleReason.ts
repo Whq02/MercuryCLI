@@ -34,6 +34,10 @@ export function ruleWords(rule: Pick<PermissionRule, 'source' | 'ruleValue'>): s
   return `the rule ${ruleSpelling(rule.ruleValue)} ${ruleSourceWords(rule.source)}`
 }
 
+export function withheldByRuleWords(toolName: string, rule: Pick<PermissionRule, 'source' | 'ruleValue'>): string {
+  return `${toolName} withheld by the deny rule \`${ruleSpelling(rule.ruleValue)}\` ${ruleSourceWords(rule.source)}`
+}
+
 export function ruleSentence(subject: string, verdict: PermissionBehavior, rule: Pick<PermissionRule, 'source' | 'ruleValue'>): string {
   const words = ruleWords(rule)
   if (verdict === 'deny') return `${subject} is denied by ${words}.`

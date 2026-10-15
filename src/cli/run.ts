@@ -273,7 +273,9 @@ function missionLedgerOf(metadata: Record<string, unknown> | undefined): string 
 }
 import type { ThinkingConfig } from '../utils/thinking.js'
 import { createSyntheticOutputTool, isSyntheticOutputToolEnabled } from '../tools/SyntheticOutputTool/SyntheticOutputTool.js'
-import { filterToolsByDenyRules, getAllBaseTools, getTools } from '../tools.js'
+import { filterToolsByDenyRules, getAllBaseTools, getTools, toolsWithheldByDeny } from '../tools.js'
+import { ruleSourceWords, ruleSpelling, withheldByRuleWords } from '../utils/permissions/ruleReason.js'
+import { TOOL_WITHHELD_CODE } from '../rows/vocabulary.js'
 import { jsonStringify } from '../utils/slowOperations.js'
 import { expandPath } from '../utils/path.js'
 import { getCwd } from '../utils/cwd.js'
@@ -404,6 +406,11 @@ export async function runHeadless(
   }
   const skippedHooks = hooksSkippedForTrustLine()
   if (skippedHooks !== null && options.door !== 'wire') process.stderr.write(`${GLYPH.warn} ${skippedHooks}\n`)
+  if (options.door !== 'wire') {
+    for (const withheld of toolsWithheldByDeny(getAllBaseTools(), getAppState().toolPermissionContext)) {
+      process.stderr.write(`${GLYPH.warn} ${withheldByRuleWords(withheld.tool, withheld.rule)}\n`)
+    }
+  }
   const streamingInput = typeof inputPrompt !== 'string'
   noteHeadlessActivity(
     options.outputFormat === 'rows' && streamingInput ? 'sdk' : 'print',
@@ -1107,13 +1114,16 @@ export async function runHeadless(
         ]
         if (sessionRowFor !== String(getSessionId())) {
           sessionRowFor = String(getSessionId())
+          const withheld = toolsWithheldByDeny([...getAllBaseTools(), ...state.mcp.tools], state.toolPermissionContext)
           const facts = await sessionFactsOf(
             { cwd: getCwd(), tools: assembledTools, mcpClients: turnClients, commands: dedupedCommands, agents: activeAgents },
             activeModel ?? getEngineModel(),
             state.toolPermissionContext.mode,
             resumeOf,
+            withheld.map(({ tool, rule }) => ({ tool, rule: ruleSpelling(rule.ruleValue), source: ruleSourceWords(rule.source) })),
           )
           enqueueRow(sessionRow({ session_id: getSessionId() }, facts))
+          for (const entry of withheld) enqueueRow(noticeRow(liveScope(), 'warning', withheldByRuleWords(entry.tool, entry.rule), TOOL_WITHHELD_CODE))
         }
         for await (const message of ask({
           commands: dedupedCommands,
