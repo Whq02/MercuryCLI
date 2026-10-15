@@ -28,7 +28,20 @@ extern "C" {
     );
 }
 
+const LANES: usize = 8;
+const TILE_COLS: usize = 4;
+const ROW_BLOCK: usize = 8;
+
+#[cfg(test)]
+static TEST_ROAD: std::sync::atomic::AtomicU8 = std::sync::atomic::AtomicU8::new(0);
+
 fn sgemm_nt(m: usize, n: usize, k: usize, a: &[f32], b: &[f32], c: &mut [f32]) {
+    #[cfg(test)]
+    match TEST_ROAD.load(Ordering::Relaxed) {
+        1 => return sgemm_nt_scalar(m, n, k, a, b, c),
+        2 => return sgemm_nt_kernel(m, n, k, a, b, c),
+        _ => {}
+    }
     #[cfg(target_os = "macos")]
     unsafe {
         cblas_sgemm(
@@ -49,20 +62,220 @@ fn sgemm_nt(m: usize, n: usize, k: usize, a: &[f32], b: &[f32], c: &mut [f32]) {
         );
     }
     #[cfg(not(target_os = "macos"))]
+    sgemm_nt_kernel(m, n, k, a, b, c);
+}
+
+#[cfg_attr(not(test), allow(dead_code))]
+fn sgemm_nt_scalar(m: usize, n: usize, k: usize, a: &[f32], b: &[f32], c: &mut [f32]) {
+    for i in 0..m {
+        let a_row = &a[i * k..(i + 1) * k];
+        let c_row = &mut c[i * n..(i + 1) * n];
+        for j in 0..n {
+            let b_row = &b[j * k..(j + 1) * k];
+            let mut sum = 0.0f32;
+            for p in 0..k {
+                sum += a_row[p] * b_row[p];
+            }
+            c_row[j] = sum;
+        }
+    }
+}
+
+#[cfg_attr(target_os = "macos", allow(dead_code))]
+fn sgemm_nt_kernel(m: usize, n: usize, k: usize, a: &[f32], b: &[f32], c: &mut [f32]) {
+    assert!(a.len() >= m * k && b.len() >= n * k && c.len() >= m * n);
+    #[cfg(target_arch = "x86_64")]
     {
-        for i in 0..m {
-            let a_row = &a[i * k..(i + 1) * k];
-            let c_row = &mut c[i * n..(i + 1) * n];
-            for j in 0..n {
-                let b_row = &b[j * k..(j + 1) * k];
-                let mut sum = 0.0f32;
-                for p in 0..k {
-                    sum += a_row[p] * b_row[p];
+        if std::is_x86_feature_detected!("avx2") && std::is_x86_feature_detected!("fma") {
+            unsafe { sgemm_nt_avx2(m, n, k, a, b, c) };
+            return;
+        }
+    }
+    #[cfg(target_arch = "aarch64")]
+    {
+        sgemm_nt_blocked::<4>(m, n, k, a, b, c, tile_neon);
+        return;
+    }
+    #[allow(unreachable_code)]
+    sgemm_nt_blocked::<2>(m, n, k, a, b, c, tile_lanes);
+}
+
+#[cfg(target_arch = "x86_64")]
+#[target_feature(enable = "avx2,fma")]
+unsafe fn sgemm_nt_avx2(m: usize, n: usize, k: usize, a: &[f32], b: &[f32], c: &mut [f32]) {
+    sgemm_nt_blocked::<2>(m, n, k, a, b, c, |k: usize, rows: &[&[f32]; 2], cols: &[&[f32]; TILE_COLS]| unsafe { tile_avx2(k, rows, cols) });
+}
+
+#[inline(always)]
+fn sgemm_nt_blocked<const ROWS: usize>(
+    m: usize,
+    n: usize,
+    k: usize,
+    a: &[f32],
+    b: &[f32],
+    c: &mut [f32],
+    tile: impl Fn(usize, &[&[f32]; ROWS], &[&[f32]; TILE_COLS]) -> [[f32; TILE_COLS]; ROWS],
+) {
+    let full_cols = n - n % TILE_COLS;
+    let mut i0 = 0;
+    while i0 < m {
+        let i_end = (i0 + ROW_BLOCK).min(m);
+        let mut j0 = 0;
+        while j0 < full_cols {
+            let b_rows: [&[f32]; TILE_COLS] = std::array::from_fn(|j| &b[(j0 + j) * k..(j0 + j + 1) * k]);
+            let mut i = i0;
+            while i < i_end {
+                let a_rows: [&[f32]; ROWS] = std::array::from_fn(|r| {
+                    let row = (i + r).min(i_end - 1);
+                    &a[row * k..(row + 1) * k]
+                });
+                let out = tile(k, &a_rows, &b_rows);
+                for r in 0..ROWS.min(i_end - i) {
+                    c[(i + r) * n + j0..(i + r) * n + j0 + TILE_COLS].copy_from_slice(&out[r]);
                 }
-                c_row[j] = sum;
+                i += ROWS;
+            }
+            j0 += TILE_COLS;
+        }
+        for j in full_cols..n {
+            let b_row = &b[j * k..(j + 1) * k];
+            for i in i0..i_end {
+                c[i * n + j] = dot_lanes(k, &a[i * k..(i + 1) * k], b_row);
+            }
+        }
+        i0 = i_end;
+    }
+}
+
+#[cfg(target_arch = "aarch64")]
+#[inline(always)]
+fn tile_neon(k: usize, a: &[&[f32]; 4], b: &[&[f32]; TILE_COLS]) -> [[f32; TILE_COLS]; 4] {
+    use std::arch::aarch64::*;
+    let full = k - k % 4;
+    let mut out = [[0.0f32; TILE_COLS]; 4];
+    unsafe {
+        let mut acc = [[vdupq_n_f32(0.0); TILE_COLS]; 4];
+        let mut p = 0;
+        while p < full {
+            let bv = [
+                vld1q_f32(b[0].as_ptr().add(p)),
+                vld1q_f32(b[1].as_ptr().add(p)),
+                vld1q_f32(b[2].as_ptr().add(p)),
+                vld1q_f32(b[3].as_ptr().add(p)),
+            ];
+            for r in 0..4 {
+                let av = vld1q_f32(a[r].as_ptr().add(p));
+                for j in 0..TILE_COLS {
+                    acc[r][j] = vfmaq_f32(acc[r][j], av, bv[j]);
+                }
+            }
+            p += 4;
+        }
+        for r in 0..4 {
+            for j in 0..TILE_COLS {
+                let mut s = vaddvq_f32(acc[r][j]);
+                for q in full..k {
+                    s += a[r][q] * b[j][q];
+                }
+                out[r][j] = s;
             }
         }
     }
+    out
+}
+
+#[cfg(target_arch = "x86_64")]
+#[target_feature(enable = "avx2,fma")]
+unsafe fn tile_avx2(k: usize, a: &[&[f32]; 2], b: &[&[f32]; TILE_COLS]) -> [[f32; TILE_COLS]; 2] {
+    use std::arch::x86_64::*;
+    let full = k - k % LANES;
+    let mut out = [[0.0f32; TILE_COLS]; 2];
+    let mut acc = [[_mm256_setzero_ps(); TILE_COLS]; 2];
+    let mut p = 0;
+    while p < full {
+        let a0 = _mm256_loadu_ps(a[0].as_ptr().add(p));
+        let a1 = _mm256_loadu_ps(a[1].as_ptr().add(p));
+        for j in 0..TILE_COLS {
+            let bv = _mm256_loadu_ps(b[j].as_ptr().add(p));
+            acc[0][j] = _mm256_fmadd_ps(a0, bv, acc[0][j]);
+            acc[1][j] = _mm256_fmadd_ps(a1, bv, acc[1][j]);
+        }
+        p += LANES;
+    }
+    let mut lanes = [0.0f32; LANES];
+    for r in 0..2 {
+        for j in 0..TILE_COLS {
+            _mm256_storeu_ps(lanes.as_mut_ptr(), acc[r][j]);
+            let mut s = 0.0f32;
+            for l in 0..LANES {
+                s += lanes[l];
+            }
+            for q in full..k {
+                s += a[r][q] * b[j][q];
+            }
+            out[r][j] = s;
+        }
+    }
+    out
+}
+
+#[cfg_attr(target_arch = "aarch64", allow(dead_code))]
+#[inline(always)]
+fn tile_lanes(k: usize, a: &[&[f32]; 2], b: &[&[f32]; TILE_COLS]) -> [[f32; TILE_COLS]; 2] {
+    let mut acc = [[[0.0f32; LANES]; TILE_COLS]; 2];
+    let full = k - k % LANES;
+    let mut p = 0;
+    while p < full {
+        let x0 = &a[0][p..p + LANES];
+        let x1 = &a[1][p..p + LANES];
+        for j in 0..TILE_COLS {
+            let y = &b[j][p..p + LANES];
+            for l in 0..LANES {
+                acc[0][j][l] += x0[l] * y[l];
+                acc[1][j][l] += x1[l] * y[l];
+            }
+        }
+        p += LANES;
+    }
+    let mut out = [[0.0f32; TILE_COLS]; 2];
+    for j in 0..TILE_COLS {
+        let mut s0 = 0.0f32;
+        let mut s1 = 0.0f32;
+        for l in 0..LANES {
+            s0 += acc[0][j][l];
+            s1 += acc[1][j][l];
+        }
+        for q in full..k {
+            s0 += a[0][q] * b[j][q];
+            s1 += a[1][q] * b[j][q];
+        }
+        out[0][j] = s0;
+        out[1][j] = s1;
+    }
+    out
+}
+
+#[inline(always)]
+fn dot_lanes(k: usize, a: &[f32], b: &[f32]) -> f32 {
+    let mut acc = [0.0f32; LANES];
+    let full = k - k % LANES;
+    let mut p = 0;
+    while p < full {
+        let x = &a[p..p + LANES];
+        let y = &b[p..p + LANES];
+        for l in 0..LANES {
+            acc[l] += x[l] * y[l];
+        }
+        p += LANES;
+    }
+    let mut s = 0.0f32;
+    for l in 0..LANES {
+        s += acc[l];
+    }
+    for q in full..k {
+        s += a[q] * b[q];
+    }
+    s
 }
 
 fn f16_to_f32(h: u16) -> f32 {
@@ -1002,4 +1215,128 @@ pub fn unload_model(handle: u32) -> Result<()> {
     };
     map.remove(&handle);
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::time::Instant;
+
+    static ROAD_LOCK: Mutex<()> = Mutex::new(());
+    const FIXTURE_SENTENCE: &str = "A note saved last week about the deploy script's rollback step, the one that failed twice on Friday before the fix finally landed and the team moved on.";
+    const MODEL_FILE: &str = "bge-base-en-v1.5-q8_0.gguf";
+
+    fn filled(len: usize, seed: u32) -> Vec<f32> {
+        let mut state = seed.wrapping_mul(2654435761).wrapping_add(12345);
+        (0..len)
+            .map(|_| {
+                state = state.wrapping_mul(1664525).wrapping_add(1013904223);
+                ((state >> 8) as f32 / (1u32 << 24) as f32) * 2.0 - 1.0
+            })
+            .collect()
+    }
+
+    fn reference(m: usize, n: usize, k: usize, a: &[f32], b: &[f32]) -> (Vec<f64>, Vec<f64>) {
+        let mut exact = vec![0.0f64; m * n];
+        let mut scale = vec![0.0f64; m * n];
+        for i in 0..m {
+            for j in 0..n {
+                let mut s = 0.0f64;
+                let mut t = 0.0f64;
+                for p in 0..k {
+                    let prod = a[i * k + p] as f64 * b[j * k + p] as f64;
+                    s += prod;
+                    t += prod.abs();
+                }
+                exact[i * n + j] = s;
+                scale[i * n + j] = t.max(1.0);
+            }
+        }
+        (exact, scale)
+    }
+
+    fn worst(c: &[f32], exact: &[f64], scale: &[f64]) -> f64 {
+        c.iter().zip(exact).zip(scale).map(|((&got, &want), &s)| ((got as f64 - want) / s).abs()).fold(0.0, f64::max)
+    }
+
+    fn kernel_road() -> String {
+        #[cfg(target_arch = "x86_64")]
+        {
+            let avx2 = std::is_x86_feature_detected!("avx2") && std::is_x86_feature_detected!("fma");
+            return if avx2 { "x86-64 AVX2+FMA 2x4 tile".to_string() } else { "x86-64 portable lanes 2x4 tile".to_string() };
+        }
+        #[cfg(target_arch = "aarch64")]
+        {
+            return "aarch64 NEON 4x4 tile".to_string();
+        }
+        #[allow(unreachable_code)]
+        format!("{} portable lanes 2x4 tile", std::env::consts::ARCH)
+    }
+
+    #[test]
+    fn kernel_matches_the_scalar_loop_and_the_platform_road_on_the_model_shapes() {
+        let _guard = ROAD_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        println!("kernel road: {}", kernel_road());
+        let shapes = [(28, 768, 768), (28, 3072, 768), (28, 768, 3072), (28, 2304, 768), (29, 768, 768), (5, 7, 13), (1, 4, 8), (3, 9, 1), (2, 3, 17)];
+        for (m, n, k) in shapes {
+            let a = filled(m * k, (m * 31 + k) as u32);
+            let b = filled(n * k, (n * 17 + k) as u32);
+            let (exact, scale) = reference(m, n, k, &a, &b);
+            let mut scalar = vec![0.0f32; m * n];
+            let mut kernel = vec![0.0f32; m * n];
+            let mut platform = vec![0.0f32; m * n];
+            sgemm_nt_scalar(m, n, k, &a, &b, &mut scalar);
+            sgemm_nt_kernel(m, n, k, &a, &b, &mut kernel);
+            TEST_ROAD.store(0, Ordering::Relaxed);
+            sgemm_nt(m, n, k, &a, &b, &mut platform);
+            let kernel_err = worst(&kernel, &exact, &scale);
+            let scalar_err = worst(&scalar, &exact, &scale);
+            let platform_err = worst(&platform, &exact, &scale);
+            println!("sgemm_nt {m}x{n}x{k}: worst error over the absolute sum — scalar {scalar_err:.2e} · kernel {kernel_err:.2e} · platform {platform_err:.2e}");
+            assert!(kernel_err <= 5e-5, "kernel {m}x{n}x{k}: {kernel_err:.2e} over 5e-5");
+            assert!(scalar_err <= 2e-4, "scalar {m}x{n}x{k}: {scalar_err:.2e} over 2e-4");
+            assert!(platform_err <= 2e-4, "platform road {m}x{n}x{k}: {platform_err:.2e} over 2e-4");
+        }
+    }
+
+    fn model_path() -> String {
+        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../vendor/embed-models").join(MODEL_FILE);
+        assert!(path.is_file(), "the embedding model is not vendored at {} — bun run scripts/vendor/fetch-embed-models.ts --default", path.display());
+        path.to_string_lossy().into_owned()
+    }
+
+    fn cosine(a: &[f64], b: &[f64]) -> f64 {
+        a.iter().zip(b).map(|(x, y)| x * y).sum::<f64>()
+    }
+
+    fn timed(model: &EmbedModel, road: u8) -> (Vec<f64>, f64) {
+        TEST_ROAD.store(road, Ordering::Relaxed);
+        let mut best = f64::MAX;
+        let mut out = Vec::new();
+        for _ in 0..3 {
+            let t0 = Instant::now();
+            out = model.forward(FIXTURE_SENTENCE, true);
+            best = best.min(t0.elapsed().as_secs_f64() * 1000.0);
+        }
+        TEST_ROAD.store(0, Ordering::Relaxed);
+        (out, best)
+    }
+
+    #[test]
+    fn the_fixture_sentence_embeds_the_same_on_every_road() {
+        let _guard = ROAD_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        assert_eq!(FIXTURE_SENTENCE.split_whitespace().count(), 28);
+        let model = EmbedModel::from_gguf(&model_path()).expect("the vendored model loads");
+        let (kernel, kernel_ms) = timed(&model, 2);
+        let (scalar, scalar_ms) = timed(&model, 1);
+        let (platform, platform_ms) = timed(&model, 0);
+        let kernel_vs_scalar = cosine(&kernel, &scalar);
+        let kernel_vs_platform = cosine(&kernel, &platform);
+        println!("{} ({} dims): scalar loop {scalar_ms:.1} ms · blocked kernel {kernel_ms:.1} ms · this platform's road {platform_ms:.1} ms per 28-word sentence", model.name, model.d_model);
+        println!("cosine kernel·scalar {kernel_vs_scalar:.9} · kernel·platform {kernel_vs_platform:.9}");
+        assert!(kernel.len() == model.d_model && scalar.len() == model.d_model && platform.len() == model.d_model);
+        assert!(kernel_vs_scalar >= 1.0 - 1e-5, "kernel and scalar embeddings disagree: cosine {kernel_vs_scalar}");
+        assert!(kernel_vs_platform >= 1.0 - 1e-5, "kernel and platform embeddings disagree: cosine {kernel_vs_platform}");
+        assert!(kernel_ms < scalar_ms, "the blocked kernel ({kernel_ms:.1} ms) is not faster than the scalar loop ({scalar_ms:.1} ms)");
+    }
 }
