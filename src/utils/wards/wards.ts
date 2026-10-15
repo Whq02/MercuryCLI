@@ -26,6 +26,8 @@ export type WardRule = {
   leadingMarker?: string
   windowsRoots?: boolean
   homePath?: 'itself' | 'within'
+  otherUserHome?: boolean
+  outsideStartingFolderOnly?: boolean
 }
 
 export type WardVerdict =
@@ -64,6 +66,7 @@ export type PendingToolCall = {
   shellCommand?: string
   readHead?: (path: string) => string | undefined
   resolvePath?: (path: string) => ResolvedPath
+  startingFolder?: string
 }
 
 const EDIT_TOOLS = new Set(['Edit', 'NotebookEdit'])
@@ -367,6 +370,7 @@ export const REFUSAL_WARDS: readonly WardRule[] = [
     '\\b(?:rd|rmdir)\\s+\\/s\\b[^\\n;|&]*\\s["\']?[A-Za-z]:\\\\?["\']?(?:\\s|$)',
     '\\bRemove-Item\\b[^\\n;|&]*-Recurse[^\\n;|&]*\\s["\']?[A-Za-z]:\\\\?["\']?(?:\\s|$)',
   ] },
+  { name: 'no-other-user-delete', scope: 'bash', otherUserHome: true, outsideStartingFolderOnly: true, teach: "A delete inside another user's home (C:\\Users\\<name>, /Users/<name>, /home/<name>) never runs from a session, whatever the permission mode: those files are theirs, not the project's. Delete inside the starting folder, your own home, a worktree or a scratch directory; if that folder really must go, say so in your reply and let its owner remove it.", refusal: true, skipCommentLines: false, patterns: [] },
 ]
 
 function blankQuotedRuns(text: string): string {
@@ -632,11 +636,48 @@ function pipelineRemovalPattern(): RegExp {
   return pattern
 }
 
+const DELETE_WRAPPERS = '(?:(?:env|nice|nohup|time|command|builtin|exec|eval|xargs|timeout|stdbuf)(?:\\s+-\\S+)*(?:\\s+\\w+=\\S*)*\\s+)*(?:\\/(?:usr\\/)?(?:local\\/)?bin\\/)?'
+const DELETE_START = '(?:^|[;&|(`{]|\\$\\(|\\b(?:then|do|else)\\b|\\bsudo\\s+|-exec(?:dir)?\\s+|\\bcmd(?:\\.exe)?\\s+\\/[ck]\\s+["\']?|\\b(?:powershell|pwsh)(?:\\.exe)?\\s+(?:-\\S+\\s+)*["\']?)\\s*' + DELETE_WRAPPERS
+const DELETE_VERB = '(?:rm|unlink|rmdir|rd|ri|del|erase|Remove-Item)\\b'
+const OTHER_HOME_HEADS = ['\\/(?:Users|home)\\/', '~(?=[^\\/\\\\\\s"\'~])']
+const OTHER_HOME_HEADS_WINDOWS = ['(?:[a-zA-Z]:[\\/\\\\]+|\\/[a-zA-Z]\\/)Users[\\/\\\\]+']
+const SEGMENT = '[^\\n;|&]*'
+
+function ownHomeNames(): string[] {
+  const names: string[] = []
+  const spellings = [...(homeSpellingsDoor === undefined ? envHomeSpellings() : homeSpellingsDoor()), process.env.USERPROFILE ?? '', process.env.HOME ?? '']
+  for (const spelling of spellings) {
+    const name = spelling.replace(/[\\/]+$/, '').split(/[\\/]/).pop() ?? ''
+    if (name !== '' && !names.includes(name)) names.push(name)
+  }
+  return names
+}
+
+let otherUserDeleteCache: { key: string; patterns: RegExp[] } | undefined
+
+function otherUserDeletePatterns(): RegExp[] {
+  const own = ownHomeNames()
+  const windows = process.platform === 'win32'
+  const key = `${windows ? 'win32' : 'posix'}\n${own.join('\n')}`
+  if (otherUserDeleteCache?.key === key) return otherUserDeleteCache.patterns
+  const heads = windows ? [...OTHER_HOME_HEADS, ...OTHER_HOME_HEADS_WINDOWS] : OTHER_HOME_HEADS
+  const notOwn = own.length === 0 ? '' : `(?!(?:${own.map(escapeRegex).join('|')})(?:[\\/\\\\]|\\s|$|["']))`
+  const target = `(?:${heads.join('|')})${notOwn}[^\\/\\\\\\s"']+(?:[\\/\\\\][^\\s"']*)?`
+  const patterns = [
+    new RegExp(`${DELETE_START}${DELETE_VERB}${SEGMENT}\\s["']?${target}`, 'i'),
+    new RegExp(`\\bfind\\s+["']?${target}${SEGMENT}\\s-(?:delete\\b|exec(?:dir)?\\s+(?:rm|unlink|rmdir)\\b)`, 'i'),
+    new RegExp(`\\b(?:Get-ChildItem|gci|dir|ls|find)\\b${SEGMENT}\\s["']?${target}${SEGMENT}\\|(?:${SEGMENT}\\|)*\\s*(?:xargs\\s+(?:-\\S+\\s+)*)?(?:Remove-Item|ri|rm|rd|del|erase|rmdir|unlink)\\b(?!${SEGMENT}\\s-WhatIf(?=\\s|$|:\\$true\\b))`, 'i'),
+  ]
+  otherUserDeleteCache = { key, patterns }
+  return patterns
+}
+
 function patternsFor(rule: WardRule): RegExp[] {
   const compiled = compile(rule)
   const home = rule.homePath === undefined ? [] : homePatterns()[rule.homePath]
   const windows = rule.windowsRoots === true ? [...(process.platform === 'win32' ? windowsRemovalPatterns() : []), pipelineRemovalPattern()] : []
-  return home.length === 0 && windows.length === 0 ? compiled : [...compiled, ...home, ...windows]
+  const other = rule.otherUserHome === true ? otherUserDeletePatterns() : []
+  return home.length === 0 && windows.length === 0 && other.length === 0 ? compiled : [...compiled, ...home, ...windows, ...other]
 }
 
 function isCommentLine(line: string): boolean {
@@ -832,6 +873,33 @@ function lineResolvesInsideProject(
   return resolvedAny
 }
 
+function lineResolvesInsideFolder(
+  line: string,
+  resolvePath: (path: string) => ResolvedPath,
+  folder: string,
+  work?: WardWork,
+): boolean {
+  const slashed = (path: string): string => (process.platform === 'win32' ? path.replace(/\\/g, '/').toLowerCase() : path.replace(/\\/g, '/'))
+  const base = slashed(folder).replace(/\/+$/, '') + '/'
+  let resolvedAny = false
+  for (const m of line.matchAll(homePatterns().operand)) {
+    const operand = m[1] ?? m[2] ?? m[3]
+    if (operand === undefined || operand === '') continue
+    if (work) countWardWork(work, 'steps')
+    const expanded = operand.startsWith('~') ? expandTildeOf(operand) : operand
+    if (expanded === undefined) continue
+    let resolved: ResolvedPath
+    try {
+      resolved = resolvePath(expanded)
+    } catch {
+      continue
+    }
+    resolvedAny = true
+    if (!slashed(resolved.path).startsWith(base)) return false
+  }
+  return resolvedAny
+}
+
 function expandTildeOf(operand: string): string | undefined {
   const home = homeSpellings()[0]
   if (operand === '~') return home
@@ -921,6 +989,7 @@ function evaluateTarget(rules: readonly WardRule[], pending: PendingToolCall, ta
           if (previous.includes(m[0])) continue
         }
         if (rule.outsideProjectOnly === true && pending.resolvePath !== undefined && lineResolvesInsideProject(view, pending.resolvePath, work)) continue
+        if (rule.outsideStartingFolderOnly === true && pending.resolvePath !== undefined && pending.startingFolder !== undefined && lineResolvesInsideFolder(view, pending.resolvePath, pending.startingFolder, work)) continue
         return {
           allow: false,
           rule,

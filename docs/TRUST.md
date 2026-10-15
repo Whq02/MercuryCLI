@@ -174,7 +174,14 @@ including Git Bash `/c/Users` and `/c/Windows` paths and environment variables
 `%ProgramW6432%`, `%ProgramData%` and their `$env:` forms). On both platforms,
 deleting a home or protected root through a PowerShell pipeline
 (`Get-ChildItem … | Remove-Item -Recurse`) is refused by the same ward
-(`-WhatIf` previews remain allowed).
+(`-WhatIf` previews remain allowed). A delete of any kind inside another
+user's home — `rm` with or without `-r`, `Remove-Item`, `del`, `rd`, `find …
+-delete`, a pipeline into `Remove-Item` — is refused by its own ward
+(`no-other-user-delete`) in every permission mode, sovereign included, for
+`/Users/<other>`, `/home/<other>`, `C:\Users\<other>` and Git Bash
+`/c/Users/<other>` in any spelling; your own home and the folder the session
+started in are not that ward's business, and a listing or a read of another
+user's folder stays with the ordinary permission check.
 Reads stay clear
 (`git config --get`, `fdisk -l`, `diskutil list`), so does a recursive delete
 inside the project or a scratch directory, and so does a script that only

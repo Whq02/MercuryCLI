@@ -2,7 +2,8 @@
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { execFileSync } from 'node:child_process'
-import { mountOffscreen, pinScratchHome, releaseScratchHome, settle, waitFor, type Mounted } from '../lib/settingsPopupHarness.ts'
+import { mountOffscreen, pinScratchHome, releaseScratchHome, type Mounted } from '../lib/settingsPopupHarness.ts'
+import { settledFrame } from './popupFrameSettle.ts'
 
 const HOME = pinScratchHome('popup-gutter-frames')
 Object.assign(process.env, {
@@ -152,7 +153,6 @@ async function close(scene: Mounted): Promise<void> {
   files.closeFilesMenu()
   crew.closeCrewView()
   setModal(null)
-  await settle(80)
   scene.unmount()
   resetOverlayStackForTests()
 }
@@ -162,8 +162,7 @@ for (const size of process.argv.includes('--concourse-only') ? [] : selectedSize
     initializeSurfaceRoute(ROOT_CHAT_ROUTE)
     resetChromeModeLatchForTests()
     const scene = await mountOffscreen(wrap(h(Harness, { columns })), columns, rows)
-    await waitFor(() => scene.screen().includes('TTTT'), 4000)
-    await settle(100)
+    await settledFrame(scene, frame => frame.includes('TTTT'))
     const before = scene.lines()
     const plan = railPlanAt(columns, true)
     const viewLeft = plan.lanesW
@@ -171,39 +170,37 @@ for (const size of process.argv.includes('--concourse-only') ? [] : selectedSize
     const composerTop = before.findIndex(line => line.includes('Type a prompt')) - 1
     const host: Rect = viewBottom > 0 ? { left: viewLeft + 1, right: Array.from(before[0] ?? '').indexOf('╮', viewLeft + 1) - 1, top: 1, bottom: viewBottom - 1 } : { left: 0, right: columns - 1, top: 0, bottom: composerTop - 1 }
     await surface.open()
-    const opened = await waitFor(() => scene.screen().includes(surface.title), 4000)
-    await settle(150)
+    const opened = await settledFrame(scene, frame => frame.includes(surface.title))
     const lines = scene.lines()
     save(`${surface.name}-${size}`, lines)
     check(`${surface.name} ${size}: the source surface opened`, opened, lines.filter(line => /Mercury|fault/i.test(line)).join(' | '))
     if (surfaces.includes(surface as typeof surfaces[number])) judge(`${surface.name} ${size}`, lines, surface.title, host, columns, rows)
     else check(`${surface.name} ${size}: the claims-modal sheet is not mistaken for a floating frame`, opened && lines.every(line => Array.from(line).length <= columns))
     if (surface.name === 'jev') {
+      const beforeFlip = scene.screen()
       scene.push('\x1b[D')
-      await settle(180)
+      const flipped = await settledFrame(scene, frame => frame.includes(surface.title) && frame !== beforeFlip)
       const changed = scene.lines()
       save(`jev-flipped-${size}`, changed)
       judge(`jev-flipped ${size}`, changed, surface.title, host, columns, rows)
       const outside = (frame: string[]): string => frame.map((line, y) => Array.from(line.padEnd(columns)).map((c, x) => x >= host.left && x <= host.right && y >= host.top && y <= host.bottom ? ' ' : c).join('')).join('\n')
-      check(`jev-flipped ${size}: dynamic height never paints outside the view`, outside(lines) === outside(changed))
+      check(`jev-flipped ${size}: dynamic height never paints outside the view`, flipped && outside(lines) === outside(changed))
     }
     await close(scene)
   }
   const dense = h(Text, null, Array.from({ length: rows }, () => 'T'.repeat(columns)).join('\n'))
   const rowPick = h(RowPickModal, { cols: columns, rows, titlePrefix: 'EFFORT', title: 'session', legend: 'enter selects · esc closes', options: ['low', 'medium', 'high', 'max'].map(id => ({ id, label: id })), onPick: () => {}, onClose: () => {} })
   const scene = await mountOffscreen(wrap(h(Box, { width: columns, height: rows, flexDirection: 'column' }, dense, rowPick)), columns, rows)
-  await waitFor(() => scene.screen().includes('EFFORT'), 4000)
-  await settle(100)
+  await settledFrame(scene, frame => frame.includes('EFFORT'))
   save(`row-effort-${size}`, scene.lines())
   judge(`row-effort ${size}`, scene.lines(), 'EFFORT', { left: 0, right: columns - 1, top: 0, bottom: rows - 1 }, columns, rows)
   scene.unmount()
   resetOverlayStackForTests()
   resetChromeModeLatchForTests()
   const boot = await mountOffscreen(wrap(h(BootSplashScreen)), columns, rows)
-  await waitFor(() => boot.screen().includes('↑↓ choose'), 4000)
+  await settledFrame(boot, frame => frame.includes('↑↓ choose'))
   boot.push('m')
-  await waitFor(() => boot.screen().includes('Mercury · model'), 4000)
-  await settle(150)
+  await settledFrame(boot, frame => frame.includes('Mercury · model'))
   save(`boot-model-${size}`, boot.lines())
   judge(`boot-model ${size}`, boot.lines(), 'Mercury · model', { left: 0, right: columns - 1, top: 0, bottom: rows - 1 }, columns, rows)
   boot.unmount()
@@ -211,7 +208,7 @@ for (const size of process.argv.includes('--concourse-only') ? [] : selectedSize
 }
 if (!process.argv.includes('--session-only')) {
   const { concoursePopupFrames } = await import('./popupGutterConcourse.ts')
-  await concoursePopupFrames({ sizes: selectedSizes, wrap, mount: mountOffscreen, settle, waitFor, check, judge, save })
+  await concoursePopupFrames({ sizes: selectedSizes, wrap, mount: mountOffscreen, check, judge, save })
 }
 await releaseScratchHome(HOME)
 console.log(`popup-gutter-frames: ${checks} checks, ${failures} failed; ${selectedSizes.length} sizes; ${surfaces.length + sheets.length + 2} session/Boot surfaces plus 11 concourse surfaces and dynamic JEV growth`)

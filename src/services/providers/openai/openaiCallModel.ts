@@ -1248,6 +1248,7 @@ export async function* streamOneOpenaiAttempt(ctx: {
   }
 
   if (fault?.kind === 'cancelled' || signal.aborted) {
+    if (blocks.open?.kind === 'text' && blocks.open.value.length > 0) yield* closeOpenBlock()
     return { kind: 'cancelled' }
   }
   const nothingYielded = !messageStarted && minted.length === 0
