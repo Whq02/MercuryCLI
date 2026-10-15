@@ -43,8 +43,22 @@ export function jevEvalWireQuestion(question: JevEvalQuestion): JevQuestion {
   return { type: 'score', instructions: question.ask, criteria: [...(question.levels ?? [])] }
 }
 
-const FILE_PATH_OPTION =
-  /^(?:~|\.{1,2})?[\w@+\-.]*(?:\/[\w@+\-.]*)+(?::\d+(?:[-–:]\d+)*)?$|^[\w@+\-]+(?:\.[\w-]+)*\.(?:tsx?|jsx?|mjs|cjs|mts|cts|py|rs|go|java|kt|rb|php|c|cc|cpp|h|hpp|cs|swift|m|mm|scala|sh|bash|zsh|ps1|md|json|ya?ml|toml|sql|html|css|scss|vue|svelte|txt|gd)(?::\d+(?:[-–:]\d+)*)?$/
+const PATH_SEGMENT = '[\\w@+\\-.]*'
+const PATH_LINE_REF = '(?::\\d+(?:[-–:]\\d+)*)?'
+const SOURCE_EXTENSION = '(?:tsx?|jsx?|mjs|cjs|mts|cts|py|rs|go|java|kt|rb|php|c|cc|cpp|h|hpp|cs|swift|m|mm|scala|sh|bash|zsh|ps1|md|json|ya?ml|toml|sql|html|css|scss|vue|svelte|txt|gd)'
+const FILE_PATH_OPTION = new RegExp(
+  '^(?:' +
+    `(?:~|\\.{1,2}|[A-Za-z]:)?\\/${PATH_SEGMENT}(?:\\/${PATH_SEGMENT})*` +
+    `|${PATH_SEGMENT}(?:\\/${PATH_SEGMENT}){2,}` +
+    `|${PATH_SEGMENT}(?:\\/${PATH_SEGMENT})*\\/` +
+    `|${PATH_SEGMENT}\\/[\\w@+\\-]+\\.[\\w-]+` +
+    `)${PATH_LINE_REF}$` +
+    `|^[\\w@+\\-]+(?:\\.[\\w-]+)*\\.${SOURCE_EXTENSION}${PATH_LINE_REF}$`,
+)
+
+function readsAsFilePath(label: string): boolean {
+  return FILE_PATH_OPTION.test(label.trim().replace(/\\/g, '/'))
+}
 const MEASURED_FACT_KEY = /(?:^|[^a-z])(?:tests?|testing|diffs?|patch|hunks?|output|stdout|stderr|exit|exit_?code|rc|status|results?|logs?|trace|traceback|stack|errors?|failing|failed|passed|passing|coverage|bench(?:mark)?|measured?|measurement|runs?|command|cmd|typecheck|lint|build)(?:$|[^a-z])/i
 const MEASURED_VALUE = [
   /^(?:\+\+\+ |--- |@@ |diff --git |index [0-9a-f]+\.\.[0-9a-f]+)/m,
@@ -68,7 +82,7 @@ export function bareFileChoiceRefusal(questions: readonly JevEvalQuestion[], ite
   for (const question of questions) {
     if (question.kind !== 'choice') continue
     const labels = Object.keys(question.options ?? {})
-    if (labels.length < 2 || !labels.every(label => FILE_PATH_OPTION.test(label.trim()))) continue
+    if (labels.length < 2 || !labels.every(readsAsFilePath)) continue
     if (evidenceCarriesMeasurement(items)) return null
     return `question "${question.id}" asks Jev to pick between file paths (${labels.slice(0, 3).join(', ')}${labels.length > 3 ? ', …' : ''}) with no measured evidence beside them — a file chosen before anything ran is a guess, and the repair model guesses better than a judge does; run the test or make the change first, then ask with what was measured (a \`test\`, \`diff\`, \`output\` or \`exit\` fact per option), or ask about the code itself with its lines quoted; nothing was sent`
   }
