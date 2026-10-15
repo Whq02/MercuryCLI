@@ -613,9 +613,9 @@ On a hosted model, a conversation starts with `Crewmate`, `Bash`, `Glob`, `Grep`
 descriptions when their settings and dependencies admit them, alongside `ChangeSet`,
 `AstSearch`, `LspRead` (whenever a language server is reachable) and `Test` (whenever a
 test runner profile or Python test signal is detected in the project). Routes that support
-deferral announce the remaining tools (`JevEval`, `Debug`, `Git`, `AstEdit`, `LspRename`,
+deferral announce the remaining tools (among them `JevEval`, `Debug`, `Git`, `AstEdit`, `LspRename`,
 `LspMoveSymbol`, `LspMoveFile`, `LspCodeAction`, `LspFormat`, `LspRequest`, `Monitor`,
-`Checkpoint`, `Rewind`, and `Test` when no test runner is detected, among them) with a one-line
+`Checkpoint`, `Rewind`, and `Test` when no test runner is detected) with a one-line
 summary and load their schemas on demand through `ToolSearch`. A local model
 loads the core daily tools in full and announces the remaining tools the
 same way. A deferrable tool discovered after the first request (such as a debug adapter)
@@ -665,8 +665,7 @@ home screen (New Session is the entry point). A `--chat` launch
 opens on the home screen like a bare launch, and pressing `Enter` on New Session starts the chat.
 From the chat, `Shift+←` returns to the home screen directly and `Shift+→` moves nothing;
 the home screen's key-map row reads `"⇧→ chat"` while a session is focused and `"⇧→
-no chat open"` otherwise, alongside the same `m to select model-default` shortcut
-and the Boot Menu on its own row.
+no chat open"` otherwise, alongside the same `m to select model-default` shortcut.
 `/concourse` still opens the live view of your sessions from the chat.
 
 ## `mercury --concourse-off`

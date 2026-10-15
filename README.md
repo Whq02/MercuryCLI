@@ -39,12 +39,11 @@ The install addresses keep approximate script-request counts by source and UTC
 day (completed installs are not counted); the counter stores no IP address, user-agent string
 or cookie.
 
-In a new terminal (or after running the `export PATH=…` line printed by the
-shell installer on macOS and Linux when `~/.local/bin` was not yet on `PATH`;
-on Windows PowerShell, or after installing with Homebrew, npm, bun or mise,
-`mercury` runs in the same terminal immediately), run `mercury --version` to
-check it, then run `mercury` from a repository to start the [first
-run](#the-first-run).
+Open a new terminal, or run the `export PATH=…` line the shell installer
+prints, then run `mercury --version` to check it and `mercury` from a
+repository to start the [first run](#the-first-run). On Windows PowerShell, and
+after a Homebrew, npm, bun or mise install, `mercury` works in the same
+terminal.
 
 <details>
 <summary>Installation paths, updates and release verification</summary>
