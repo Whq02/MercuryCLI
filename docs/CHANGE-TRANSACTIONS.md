@@ -227,4 +227,3 @@ rendered on demand to an untracked path):
   ChangeSet tool itself. `=0` removes the tool from the catalog
   byte-identically while the shared commit core keeps serving Structure and
   LSP.
-  LSP.

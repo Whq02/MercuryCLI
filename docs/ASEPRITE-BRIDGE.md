@@ -84,4 +84,3 @@ truncation counted. Results carry provenance: the file acted on, the output
 files with byte sizes verified on disk, the binary's version, and which
 resolution step found it. Aseprite's own errors are reported verbatim.
 Mercury never installs, launches, or updates Aseprite for you.
-for you.

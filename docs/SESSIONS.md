@@ -123,6 +123,8 @@ stands, so the next chat returns to it the moment that family signs in;
 The board's New
 Session strip starts on the same saved choice; its own effort pick, when
 you make one, applies to that one session. A resumed session
+keeps the model and effort it was on unless the command line says
+otherwise: `--continue --model <id> --effort <level>` brings the session
 back on the launch's model and effort, its record is re-stamped, and the
 resume card names which won when the launch's word and the session's saved
 word differ. `/model default` clears the saved choice. In the chat the
@@ -229,6 +231,8 @@ lane, opens its card: the whole command, the directory it runs in, the time it
 has run, its exit code once it has ended, and the last lines of its output,
 read from the output file the session's runner writes, under a
 count of the lines shown against the lines it has written. On a short window
+the command yields rows to the output, so at least one line of it always
+shows. In `/help`, pressing `PageDown` or `PageUp` from the tab header enters
 the command list and pages immediately.
 
 When a model returns its reasoning text, a folded `✻ thinking…` block appears
@@ -267,6 +271,7 @@ refused for its size: it is shrunk to the provider's published limits
 (`/health` names the active image processor); the only refusal
 is an image whose smallest encoding still exceeds the limit, and the error
 names which limit and what size. Each provider's rule is its own: the Claude
+API caps an image at 10 MB of base64 and 8000 px a side, and at 2000 px a
 side once a request carries more than 20 images, while the OpenAI
 API caps a request at 512 MB and an image at 30,000 patches of 32 px, so a
 GPT session shrinks a large image to that patch count and never to a byte
@@ -342,8 +347,7 @@ never killed by `Esc`, its crewmates keep running, and a runner that cannot answ
 busy until you stop it (`ctrl+x ctrl+x` on its board row stops the session, and `/crewmates`
 stops an individual crewmate). A stop you request is recorded on the session as
 a user stop instead of a crash, and resuming brings the runner back
-with that status. A turn that fails inside the runner before it has
-saying so. A turn that fails inside the runner's own machinery before it has
+with that status. A turn that fails inside the runner's own machinery before it has
 answered ends in a failed `outcome`: `error.message` names the failure and
 `error.detail` carries any further diagnostics. The session lives on to read
 the next line; only a failure after the turn has already answered still ends
@@ -689,6 +693,7 @@ Both flags also accept single-dash spellings (`-chat`,
 A user-private command runs locally in the terminal UI, never
 enters the session's conversation, never starts a turn and never travels on
 a later turn. See [TRUST.md](TRUST.md).
+
 ## Before the context fills
 
 Mercury checks the estimated context before each request, on every provider
@@ -722,7 +727,6 @@ the operator's own answers, briefs, skill material and the tool-search
 record stay, and a cleared result whose full output was saved to a file
 keeps the line that names the file.
 
-## When the context overflows
 ## When the context overflows
 
 A request can outgrow the model's window (from a large paste, a long run of

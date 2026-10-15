@@ -106,7 +106,6 @@ cron schedule names its title and the spelling it was scheduled with (`morning
 brief · every weekday at 09:00`), or its id when it was given no title
 (`schedule 3f9a2c1d · every weekday at 09:00`), with the prompt's own words dim
 beneath. Mercury's
-beneath. Mercury's
 reply follows as it always does, and the words the model reads are exactly
 the prompt the schedule was given. The row keeps its delivery stamp; when the
 fire landed a minute or more before the row could be delivered, the first

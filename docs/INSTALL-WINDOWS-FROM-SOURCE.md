@@ -369,6 +369,7 @@ live and a disconnected one leaves the read unknown. An unknown read is never
 permission to end anything, and a failed table is reported as incomplete.
 Ending a process re-checks its pid, birth,
 executable and account against what was reviewed, refuses a process that is
+not the current user's or whose terminal is live or unknown, re-reads all of
 that once more immediately before acting, and then ends that one process,
 never a tree and never by a parent relation, forcibly only when the polite
 stop is impossible: Windows lets a polite stop reach only a process with a
@@ -411,6 +412,7 @@ install's `mercury` launcher does: the build copies the splash beside
 `dist\mercury.mjs`, and a bare `node dist\mercury.mjs` runs it before the
 home screen. `$env:MERCURY_SPLASH = "off"` skips it on both roads; a start with any
 argument (a prompt, `--continue`, a verb) goes straight to its destination.
+
 ### A prompt from a script
 
 PowerShell resolves `mercury` through `mercury.ps1`, beside `mercury.cmd`

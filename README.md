@@ -347,8 +347,9 @@ startup work.
 Starting another session does not stop the previous one. You can leave a
 task running and work elsewhere. Launch with `--worktree [name]` (or ask for a
 `worktree` in chat to run `EnterWorktree`) to give a session its own branch and
-Parallel crewmates can also run in isolated worktrees and coordinate shared
-files with project file leases; see [What is inside](#what-is-inside-mneme-rag-memory-lsp-23-language-ast-dap-debugger-web-search-and-bridges) and [docs/CREW.md](docs/CREW.md).
+checkout under `.mercury/worktrees/`. Parallel crewmates can also run in
+isolated worktrees and coordinate shared files with project file leases; see
+[What is inside](#what-is-inside-mneme-rag-memory-lsp-23-language-ast-dap-debugger-web-search-and-bridges) and [docs/CREW.md](docs/CREW.md).
 
 ### Working in chat
 
@@ -539,21 +540,22 @@ Anthropic requests have no dollar price, so neither they nor the row carry a
 `cost_usd`; the usage stays. Usage names `input_tokens` (cached tokens included),
 `cached_input_tokens`, `cache_write_input_tokens`, `output_tokens` and,
 when reported, `reasoning_output_tokens`, summed over the main thread and
-`models` breaks token usage down by model. `steps` counts only the main
-agent's model calls; model calls made by crewmates appear as their own `step`
-rows tagged with `parent_call_id`.
+the crewmates. `models` breaks token usage down by model. `steps` counts only
+the main agent's model calls; model calls made by crewmates appear as their own
+`step` rows tagged with `parent_call_id`.
 
 The status is `completed`, `blocked`, `refused`, `failed`, `interrupted`,
 `turn_limit`, `budget_limit`, `schema_unmet` or `loop_stopped`. A completed
 run exits 0, other outcomes exit 1, and a usage error exits 2. SIGINT and
-When the refusal was an ask nobody could answer (a run with no host in a mode
-that asks, `--mode dontAsk`, or a host's ask that expired) and no later tool
-call in the turn succeeds, the run is `blocked`: the answer is kept, `error`
-names the tool and how to resume (`--allowed-tools`, another `--mode`, or a
-host that answers asks), and the run exits 1. If a later tool call in the
-same turn succeeds, the turn recovers and finishes `completed` (exit 0) with
-a warning `notice` (`"<Tool> was not approved; the run continued with other
-tools."`).
+SIGTERM exit 130 and 143 after the interrupted turn's outcome is flushed. A
+refused tool call is listed in `denials`. When the refusal was an ask nobody
+could answer (a run with no host in a mode that asks, `--mode dontAsk`, or a
+host's ask that expired) and no later tool call in the turn succeeds, the run
+is `blocked`: the answer is kept, `error` names the tool and how to resume
+(`--allowed-tools`, another `--mode`, or a host that answers asks), and the run
+exits 1. If a later tool call in the same turn succeeds, the turn recovers and
+finishes `completed` (exit 0) with a warning `notice` (`"<Tool> was not
+approved; the run continued with other tools."`). A refusal you did
 answer (through a deny rule, a hook, or a host that said no) leaves a completed turn
 completed. A run whose final answer ends with the two lines `BLOCKED ON
 OPERATOR: …` and `RESUME WHEN: …` is `blocked` the same way: `error` carries
@@ -703,12 +705,10 @@ Available commands include:
 
 - **Mneme hybrid RAG project memory.** Mneme is on by default, keeping each
   project's facts in plain markdown topic pages (`Retain`, `Recall`, `Reflect`,
-  Recall fuses an on-device 118 MB BGE semantic embedding model
+  `Correct`). Recall fuses an on-device 118 MB BGE semantic embedding model
   (`bge-base-en-v1.5` `q8_0`, MIT, bundled in every release archive for macOS
   Apple silicon and Intel, Linux x86-64 and Windows x86-64; see [Optional
   components](#optional-components)) with stemmed BM25 word
-  ranking, recency weighting and citation tracking via reciprocal rank fusion
-  (`k = 60`).
   ranking, recency weighting and citation tracking via reciprocal rank fusion
   (`k = 60`). Pinned rules (`pin: true`) load verbatim on the pinned shelf and
   change only on your word. At session start, Mercury scores unpinned facts and
@@ -815,7 +815,6 @@ documentation index is [docs/README.md](docs/README.md).
 
 ## Slash commands
 
-`/help` lists the available interactive commands. Use `/palette` for fuzzy
 `/help` lists the available interactive commands. Use `/palette` for fuzzy
 command search. The table
 below groups the default-enabled built-in commands by the categories used in
