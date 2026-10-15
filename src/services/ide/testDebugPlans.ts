@@ -10,7 +10,7 @@ import { loadTs, parseSource, resolveStructureTypescript } from '../structure/ts
 import { jsTestNamePattern } from './runnerReporters.js'
 import { discoverRunnerProfiles, findRunnerRoot, resolveRunnerBinary } from './projectRunners.js'
 
-export type DebugPlanRefusal = { state: 'unavailable'; reason: string; remedy: string }
+export type DebugPlanRefusal = { state: 'unavailable'; reason: string; remedy: string; debuggerMissing?: string }
 
 export interface CargoTestDebugPlan {
   framework: 'cargo'
@@ -85,7 +85,7 @@ export async function buildCargoTestDebugPlan(nodeId: string, opts?: { from?: st
   const lldb = resolveLldbDap()
   const adapterKey: 'lldb' | 'gdb' | null = lldb !== null ? 'lldb' : probeGdbDap().viable ? 'gdb' : null
   if (adapterKey === null) {
-    return { state: 'unavailable', reason: 'no native debug adapter — neither lldb-dap nor gdb 14+ is reachable', remedy: lldbDapInstallHint() }
+    return { state: 'unavailable', reason: 'no native debug adapter — neither lldb-dap nor gdb 14+ is reachable', remedy: lldbDapInstallHint(), debuggerMissing: 'native debugger (lldb-dap or gdb 14+)' }
   }
   const name = nodeId.trim()
   if (name.length === 0 || /\s/.test(name)) {
@@ -198,7 +198,7 @@ export function buildGoTestDebugPlan(nodeId: string, opts?: { from?: string }): 
     return { state: 'unavailable', reason: "'go' not on PATH — Go tests build and run through the Go toolchain", remedy: `install the Go toolchain, then ${DLV_INSTALL_REMEDY}` }
   }
   if (resolveRunnerBinary('dlv') === null) {
-    return { state: 'unavailable', reason: "'dlv' not on PATH — Go tests debug through delve's DAP server", remedy: DLV_INSTALL_REMEDY }
+    return { state: 'unavailable', reason: "'dlv' not on PATH — Go tests debug through delve's DAP server", remedy: DLV_INSTALL_REMEDY, debuggerMissing: 'Go debugger (dlv)' }
   }
   const { file: dir, name } = splitNode(nodeId)
   const segments = name.match(/[^/]+/g) ?? []
