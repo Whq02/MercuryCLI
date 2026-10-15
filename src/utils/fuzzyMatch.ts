@@ -1,11 +1,11 @@
 
 
-export interface FuzzyResult {
+interface FuzzyResult {
   path: string
   score: number
 }
 
-export interface FuzzyIndex {
+interface FuzzyIndex {
   search(query: string, limit: number): FuzzyResult[]
   size(): number
 }

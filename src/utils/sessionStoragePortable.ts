@@ -351,7 +351,7 @@ const BOUNDARY_MARKER = Buffer.from('"payload":{"kind":"boundary","boundaryKind"
 const PAYLOAD_SEARCH_BOUND = 600
 const OUTPUT_START_MAX = 8 * 1024 * 1024
 
-export type TranscriptLoadResult = {
+type TranscriptLoadResult = {
   boundaryStartOffset: number
   postBoundaryBuf: Buffer
   hasPreservedSegment: boolean

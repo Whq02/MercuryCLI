@@ -5,7 +5,7 @@ type ValidationTip = {
   docLink?: string
 }
 
-export type TipContext = {
+type TipContext = {
   path: string
   code: string
   expected?: string

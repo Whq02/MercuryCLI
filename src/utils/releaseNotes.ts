@@ -13,7 +13,7 @@ export async function getStoredChangelog(): Promise<string> {
   return MERCURY_CHANGELOG
 }
 
-export function parseChangelog(content: string): Record<string, string[]> {
+function parseChangelog(content: string): Record<string, string[]> {
   try {
     if (!content) return {}
     const result: Record<string, string[]> = {}

@@ -1,7 +1,7 @@
 import type { PermissionMode } from '../types/permissions.js'
 
 
-export type SessionState = 'idle' | 'running' | 'requires_action'
+type SessionState = 'idle' | 'running' | 'requires_action'
 
 export type RequiresActionDetails = {
   tool_name: string

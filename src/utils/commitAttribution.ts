@@ -43,7 +43,7 @@ type AttributionSummary = {
   surfaces: string[]
 }
 
-export type FileAttribution = {
+type FileAttribution = {
   mercuryChars: number
   humanChars: number
   percentage: number

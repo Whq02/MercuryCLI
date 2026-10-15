@@ -160,7 +160,7 @@ export const ESTATE_WALK_MAX_ENTRIES = 8_000
 export const ESTATE_WALK_MAX_DEPTH = 12
 const ESTATE_WALK_BUDGET_MS = 3_000
 
-export interface EstateWalk {
+interface EstateWalk {
   files: string[]
   complete: boolean
   reason?: string

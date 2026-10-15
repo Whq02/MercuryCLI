@@ -5,15 +5,15 @@ import { getSessionSettingsCache } from './settingsCache.js'
 import type { SettingsJson } from './types.js'
 import type { ValidationError } from './validation.js'
 
-export type ProvenanceSource = SettingSource
+type ProvenanceSource = SettingSource
 
-export interface KeyProvenance {
+interface KeyProvenance {
   winner: ProvenanceSource
   contributors: ProvenanceSource[]
   merged: boolean
 }
 
-export interface SettingsSnapshot {
+interface SettingsSnapshot {
   settings: Readonly<SettingsJson>
   errors: readonly ValidationError[]
   revision: number

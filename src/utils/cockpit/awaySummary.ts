@@ -63,7 +63,7 @@ function filesOf(input: unknown): string[] {
   return out
 }
 
-export type AwayRecap = {
+type AwayRecap = {
   line: string
   endedOnError: boolean
   turns: number

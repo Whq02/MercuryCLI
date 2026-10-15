@@ -30,7 +30,7 @@ export type CommandHookSource =
   | { kind: 'settings' }
   | { kind: 'agent' }
 
-export type CommandHookRun = {
+type CommandHookRun = {
   command: string
   shell: 'bash' | 'powershell'
   name: string
@@ -44,7 +44,7 @@ export type CommandHookRun = {
   onOutput?: (snapshot: { stdout: string; stderr: string }) => void
 }
 
-export type CommandHookEnd =
+type CommandHookEnd =
   | { kind: 'exited'; code: number; stdout: string; stderr: string; durationMs: number }
   | { kind: 'ended'; ending: Extract<HookEnding, { status: 'failed' }>; stdout: string; stderr: string; durationMs: number }
 

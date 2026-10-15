@@ -49,11 +49,11 @@ export function scopeSlugForDir(dir: string): string {
   return slug(d, 'default').slice(0, 80) + '-' + hash
 }
 
-export function getArtifactsRootDir(): string {
+function getArtifactsRootDir(): string {
   return join(getMercuryHome(), 'artifacts')
 }
 
-export function getArtifactScopeDir(scope: string): string {
+function getArtifactScopeDir(scope: string): string {
   return join(getArtifactsRootDir(), slug(scope, 'default'))
 }
 
@@ -91,7 +91,7 @@ export function redactMetadata(meta: unknown): Record<string, unknown> {
 }
 
 
-export interface ArtifactMeta {
+interface ArtifactMeta {
   id: string
   name: string
   kind: string
@@ -102,7 +102,7 @@ export interface ArtifactMeta {
   metadata: Record<string, unknown>
 }
 
-export interface StoreArtifactInput {
+interface StoreArtifactInput {
   scope: string
   name: string
   content: string
@@ -110,7 +110,7 @@ export interface StoreArtifactInput {
   metadata?: Record<string, unknown>
 }
 
-export interface StoreArtifactResult {
+interface StoreArtifactResult {
   id: string | null
   path: string | null
 }
@@ -241,7 +241,7 @@ function isValidMeta(v: unknown): v is ArtifactMeta {
   )
 }
 
-export interface RetrievedArtifact {
+interface RetrievedArtifact {
   meta: ArtifactMeta
   content: string
 }
@@ -265,7 +265,7 @@ export async function getArtifact(
   }
 }
 
-export async function pruneArtifacts(scope: string, keepN: number): Promise<void> {
+async function pruneArtifacts(scope: string, keepN: number): Promise<void> {
   try {
     const keep =
       Number.isFinite(keepN) && keepN > 0 ? Math.floor(keepN) : DEFAULT_KEEP

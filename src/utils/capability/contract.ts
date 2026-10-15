@@ -1,9 +1,9 @@
 
 import { TOOL_CAPABILITY_DECLARATIONS } from './declarations.js'
 
-export type ToolClass = 'observation' | 'mutation' | 'execution' | 'coordination'
+type ToolClass = 'observation' | 'mutation' | 'execution' | 'coordination'
 
-export type ToolLatency = 'fast' | 'interactive' | 'long-running'
+type ToolLatency = 'fast' | 'interactive' | 'long-running'
 
 export interface ToolCapability {
   intents: string[]
@@ -26,7 +26,7 @@ export interface ToolCapability {
   workflows?: boolean
 }
 
-export interface CapabilityValidation {
+interface CapabilityValidation {
   ok: boolean
   problems: string[]
 }

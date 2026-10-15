@@ -1,4 +1,4 @@
-export type CrewStartRecordV1 = {
+type CrewStartRecordV1 = {
   name: string
   cwd: string
   worktree: string | null

@@ -1,4 +1,4 @@
-export type MatcherShape = 'everything' | 'names' | 'regex'
+type MatcherShape = 'everything' | 'names' | 'regex'
 
 export function matcherShape(matcher: string | undefined): MatcherShape {
   if (!matcher || matcher === '*') return 'everything'

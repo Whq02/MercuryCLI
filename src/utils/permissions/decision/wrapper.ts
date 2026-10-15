@@ -201,7 +201,7 @@ function hideDangerousAllowsFromView(context: ToolUseContext): {
 }
 
 
-export interface WrapperPorts {
+interface WrapperPorts {
   isAllowlistedTool(
     toolName: string,
     input: { action?: unknown; actions?: unknown } | null,
@@ -244,7 +244,7 @@ export const defaultWrapperPorts: WrapperPorts = {
   runHeadlessHooks: consultHeadlessPermissionHooks,
 }
 
-export interface FullDecisionOutcome {
+interface FullDecisionOutcome {
   decision: PermissionDecision
   engineTrace: DecisionTrace
   wrapper: WrapperTrace

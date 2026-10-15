@@ -24,7 +24,7 @@ export type MultiSelectEnumSchema = PrimitiveSchemaDefinition & {
   items?: { enum?: unknown[]; anyOf?: Array<{ const?: unknown; title?: string }> } | null
 }
 
-export type ValidationResult = {
+type ValidationResult = {
   value?: string | number | boolean
   isValid: boolean
   error?: string

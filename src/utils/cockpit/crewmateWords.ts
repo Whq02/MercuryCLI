@@ -1,28 +1,28 @@
 export const LEAD_ROW_NAME = 'Mercury Lead'
-export const MAIN_CHAT_WORD = 'main chat'
-export const VIEWING_WORD = 'viewing'
+const MAIN_CHAT_WORD = 'main chat'
+const VIEWING_WORD = 'viewing'
 export const CREW_MAIN_CHAT_KEY = 'm main chat'
 export const CREW_OPEN_IN_VIEW_KEY = '↵ open in the view'
 export const MAIN_CHAT_CARD_LINE = 'THE MAIN CHAT — what you type goes to this agent'
-export const MAIN_CHAT_RETURN_HINT = `m on ${LEAD_ROW_NAME} returns the ${MAIN_CHAT_WORD}`
-export const MAIN_CHAT_HAND_BACK_HINT = `m on ${LEAD_ROW_NAME} hands the ${MAIN_CHAT_WORD} back`
+const MAIN_CHAT_RETURN_HINT = `m on ${LEAD_ROW_NAME} returns the ${MAIN_CHAT_WORD}`
+const MAIN_CHAT_HAND_BACK_HINT = `m on ${LEAD_ROW_NAME} hands the ${MAIN_CHAT_WORD} back`
 export const BACK_HINT = `${LEAD_ROW_NAME} in the rail goes back`
-export const ESC_INTERRUPT_HINT = 'esc interrupts'
-export const ESC_BACK_HINT = `esc back to ${LEAD_ROW_NAME}`
+const ESC_INTERRUPT_HINT = 'esc interrupts'
+const ESC_BACK_HINT = `esc back to ${LEAD_ROW_NAME}`
 export const CREW_CLEAR_KEY = 'c clear'
 export const CREW_VIEW_DOOR = '/crewmates'
 export const CREW_CLEAR_DOOR = `${CREW_CLEAR_KEY} in ${CREW_VIEW_DOOR}`
 
-export type CrewmateWordsState = { name: string; pinned: boolean; live?: boolean; local?: boolean }
+type CrewmateWordsState = { name: string; pinned: boolean; live?: boolean; local?: boolean }
 
 export function crewmateHeaderTail(state: CrewmateWordsState): string {
   return `· ${state.name} · ${state.pinned ? MAIN_CHAT_WORD : VIEWING_WORD}`
 }
 
-export const CREW_BOARD_STOP_PAUSE_KEYS = `x x stop · p pause in ${CREW_VIEW_DOOR}`
+const CREW_BOARD_STOP_PAUSE_KEYS = `x x stop · p pause in ${CREW_VIEW_DOOR}`
 
-export const CREW_BOARD_KEYS_LIVE = `in ${CREW_VIEW_DOOR}: ${CREW_MAIN_CHAT_KEY} · x x stop · p pause`
-export const CREW_BOARD_KEYS_LANDED = `in ${CREW_VIEW_DOOR}: ${CREW_MAIN_CHAT_KEY} · ${CREW_CLEAR_KEY}`
+const CREW_BOARD_KEYS_LIVE = `in ${CREW_VIEW_DOOR}: ${CREW_MAIN_CHAT_KEY} · x x stop · p pause`
+const CREW_BOARD_KEYS_LANDED = `in ${CREW_VIEW_DOOR}: ${CREW_MAIN_CHAT_KEY} · ${CREW_CLEAR_KEY}`
 
 export function crewmateCardKeys(pinned: boolean, live = true): string {
   if (!live) return pinned ? `${ESC_BACK_HINT} · ${MAIN_CHAT_HAND_BACK_HINT} · ${CREW_CLEAR_DOOR}` : `${ESC_BACK_HINT} · ${CREW_BOARD_KEYS_LANDED} · ${BACK_HINT}`
@@ -43,7 +43,7 @@ export function crewmateEscBackWords(name: string, state: string): string {
   return `${name} is ${state} — back on ${LEAD_ROW_NAME}; its row stays in the CREW box until you clear it`
 }
 
-export type CrewmateViewedState = { name: string; live?: boolean } | null
+type CrewmateViewedState = { name: string; live?: boolean } | null
 
 export function crewmateStatusWords(viewed: CrewmateViewedState, target: CrewmateWordsState, running: number): string {
   const tail = ` · ${running} crewmate${running === 1 ? '' : 's'} running`

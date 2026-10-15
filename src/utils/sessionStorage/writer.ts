@@ -84,7 +84,7 @@ export const getSessionMessages = memoize(
   (sessionId: UUID) => sessionId,
 )
 
-export type TranscriptStoreHealth = { failing: boolean; sentence: string | null }
+type TranscriptStoreHealth = { failing: boolean; sentence: string | null }
 let storeHealth: TranscriptStoreHealth = { failing: false, sentence: null }
 const storeHealthListeners = new Set<() => void>()
 function setStoreHealth(next: TranscriptStoreHealth): void {
@@ -109,7 +109,7 @@ export function registerAgentTranscriptDestination(
   agentTranscriptDestinations.set(agentId, filePath)
 }
 
-export const getAgentFileMessages = memoize(
+const getAgentFileMessages = memoize(
   async (filePath: string): Promise<Set<string>> => {
     let raw: string
     try {

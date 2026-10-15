@@ -14,15 +14,15 @@ export const CACHE_COST = {
   uncached: 1.0,
 } as const
 
-export const PRIOR_GAP_SHARE_THRESHOLD = 0.4
-export const PRIOR_MIN_SESSIONS = 3
+const PRIOR_GAP_SHARE_THRESHOLD = 0.4
+const PRIOR_MIN_SESSIONS = 3
 
 export interface CadencePrior {
   sessions: number
   gapSessions: number
 }
 
-export interface DecisionInput {
+interface DecisionInput {
   enabled: boolean
   pin: TtlChoice | null
   eligible: boolean
@@ -76,7 +76,7 @@ export function newSimCacheState(ttl: TtlChoice): SimCacheState {
   return { prefixTokens: 0, lastUseAtMs: null, ttl }
 }
 
-export interface SimStepResult {
+interface SimStepResult {
   readTokens: number
   writtenTokens: number
   costUnits: number

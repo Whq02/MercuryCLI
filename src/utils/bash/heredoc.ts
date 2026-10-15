@@ -306,7 +306,7 @@ function findClosingDelimiter(
   return null
 }
 
-export function restoreHeredocs(parts: string[], heredocs: Map<string, HeredocInfo>): string[] {
+function restoreHeredocs(parts: string[], heredocs: Map<string, HeredocInfo>): string[] {
   if (heredocs.size === 0) return parts
   return parts.map(part => {
     let restored = part

@@ -1,5 +1,5 @@
 
-export type ClassifiedToolError = {
+type ClassifiedToolError = {
   firstLine: string
   bodyLines: string[]
   stackFrameCount: number

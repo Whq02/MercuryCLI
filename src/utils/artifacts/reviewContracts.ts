@@ -31,14 +31,14 @@ export interface ReviewArtifactWorkspace {
   treeDigest?: string
 }
 
-export interface ReviewRect {
+interface ReviewRect {
   x: number
   y: number
   w: number
   h: number
 }
 
-export interface DiffBodyHunk {
+interface DiffBodyHunk {
   oldStart: number
   oldLines: number
   newStart: number
@@ -51,13 +51,13 @@ export interface DiffBodyFile {
   hunks: DiffBodyHunk[]
 }
 
-export interface VisualBodyElement {
+interface VisualBodyElement {
   id: string
   label?: string
   rect?: ReviewRect
 }
 
-export interface VisualBodyCapture {
+interface VisualBodyCapture {
   ref: string
   title?: string
   digest?: string
@@ -119,7 +119,7 @@ export type ReviewAnchor =
   | { t: 'journey-step'; stepId: string }
   | { t: 'whole' }
 
-export type ReviewCommentState = 'open' | 'resolved' | 'outdated'
+type ReviewCommentState = 'open' | 'resolved' | 'outdated'
 
 export interface ReviewComment {
   id: string
@@ -148,7 +148,7 @@ export type ReviewScope =
 
 export type ReviewScopeDecisionKind = 'accept' | 'request-revision'
 
-export interface ReviewScopeDecision {
+interface ReviewScopeDecision {
   version: number
   scope: ReviewScope
   decision: ReviewScopeDecisionKind

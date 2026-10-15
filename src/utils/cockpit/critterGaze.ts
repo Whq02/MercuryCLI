@@ -5,7 +5,7 @@ export const GAZE_DEAD_ZONE = 3
 
 export const GAZE_MIN_COS = 0.55
 
-export const GAZE_STICKY_COS = 0.08
+const GAZE_STICKY_COS = 0.08
 
 export function critterGazeEnabled(): boolean {
   return flagEnv('MERCURY_CRITTER_GAZE') === '0' ? false : true

@@ -48,7 +48,7 @@ import { resolveOpenrouterAccount } from '../../services/providers/openrouter/op
 import { refreshOpenrouterCatalogue } from '../../services/providers/openrouter/openrouterCatalogue.js'
 
 export const ENGINE_DISPATCH_MODELS = ['gpt', 'glm', 'kimi', 'deepseek', 'grok', 'muse', 'compat', 'huggingface', 'local', 'gemini', 'openrouter', 'mistral', 'nous', 'zen'] as const
-export type EngineDispatchModel = (typeof ENGINE_DISPATCH_MODELS)[number]
+type EngineDispatchModel = (typeof ENGINE_DISPATCH_MODELS)[number]
 
 export function isEngineDispatchModel(v: unknown): v is EngineDispatchModel {
   return typeof v === 'string' && (ENGINE_DISPATCH_MODELS as readonly string[]).includes(v)

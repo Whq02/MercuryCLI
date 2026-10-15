@@ -1,7 +1,7 @@
 
-export type PointerCell = { col: number; row: number }
+type PointerCell = { col: number; row: number }
 
-export const POINTER_IDLE_RESET_MS = 6000
+const POINTER_IDLE_RESET_MS = 6000
 
 let cell: PointerCell | null = null
 let version = 0

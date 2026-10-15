@@ -18,7 +18,7 @@ const KNOWN_FAMILIES = new Set([
   'zen',
 ])
 
-export interface DefaultProviderReads {
+interface DefaultProviderReads {
   configuredProvider?: () => string | undefined
 }
 

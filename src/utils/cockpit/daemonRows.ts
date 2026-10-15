@@ -3,9 +3,9 @@ import { getMaxTurnMs } from '../../daemon/longLivedRespawn.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { thisMercuryCommand } from '../../services/privateChannel/installPath.js'
 
-export type DaemonBadge = 'off' | 'live' | 'unavailable'
+type DaemonBadge = 'off' | 'live' | 'unavailable'
 
-export interface DaemonWorkerRow {
+interface DaemonWorkerRow {
   short: string
   state: string
   model: string
@@ -18,7 +18,7 @@ export interface DaemonWorkerRow {
   outcome?: string
 }
 
-export interface DaemonRows {
+interface DaemonRows {
   badge: DaemonBadge
   badgeLabel: string
   daemonLine: string | null

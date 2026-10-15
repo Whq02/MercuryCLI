@@ -122,7 +122,7 @@ async function resolveRefInDir(dir: string, ref: string): Promise<string | null>
   }
 }
 
-export async function resolveRef(gitDir: string, ref: string): Promise<string | null> {
+async function resolveRef(gitDir: string, ref: string): Promise<string | null> {
   const direct = await resolveRefInDir(gitDir, ref)
   if (direct !== null) return direct
   const commonDir = await getCommonDir(gitDir)

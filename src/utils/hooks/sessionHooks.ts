@@ -9,11 +9,11 @@ import type { HookSource, LayeredHook } from './hooksConfigSnapshot.js'
 
 export type HookScope = { sessionId: string; crewmateId?: string; cwd?: string }
 
-export function hookScopeKey(scope: HookScope): string {
+function hookScopeKey(scope: HookScope): string {
   return scope.crewmateId ?? scope.sessionId
 }
 
-export type SessionHookSource = Extract<HookSource, { kind: 'skill' | 'agent' }>
+type SessionHookSource = Extract<HookSource, { kind: 'skill' | 'agent' }>
 
 type SessionHookSet = { source: SessionHookSource; hooks: LayeredHook[] }
 

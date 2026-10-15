@@ -1,7 +1,7 @@
 
-export type InputSelectionRange = { start: number; end: number }
+type InputSelectionRange = { start: number; end: number }
 
-export type InputSelectionOwner = {
+type InputSelectionOwner = {
   range: () => InputSelectionRange | null
   own: () => (InputSelectionRange & { text: string }) | null
   clear: () => void

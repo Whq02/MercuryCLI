@@ -1,6 +1,6 @@
 export type ShellEngineArm = 'pin' | 'setting' | 'no-bash'
 
-export type ShellEngineRequest =
+type ShellEngineRequest =
   | { requested: 'brush'; arm: ShellEngineArm }
   | { requested: 'system'; arm: 'pin' | 'setting' | 'default' }
 

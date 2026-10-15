@@ -12,15 +12,15 @@ export const LOOP_BUSY_SHARE = 0.5
 export const REDUCED_FLOOR_MS = REDUCED_TICK_MS
 export const REDUCED_CEILING_MS = 2000
 
-export type MotionPosture = 'auto' | 'full' | 'reduced' | 'off'
+type MotionPosture = 'auto' | 'full' | 'reduced' | 'off'
 export type IdleMotionLevel = 'full' | 'reduced' | 'off'
 export type IdleMotionPart = 'critter' | 'glyphs' | 'clock'
-export type GovernorLevel = 'full' | 'reduced'
-export type GovernorTrip = 'paint' | 'wire'
+type GovernorLevel = 'full' | 'reduced'
+type GovernorTrip = 'paint' | 'wire'
 
-export type FrameWireNote = { seq: number; wireBytes: number; drainMs: number | null }
+type FrameWireNote = { seq: number; wireBytes: number; drainMs: number | null }
 
-export interface LoopMeter {
+interface LoopMeter {
   begin(): void
   busyShare(): number | null
 }

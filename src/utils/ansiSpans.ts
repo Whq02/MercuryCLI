@@ -1,6 +1,6 @@
 export type AnsiColor = { r: number; g: number; b: number }
 
-export type TextSpan = {
+type TextSpan = {
   text: string
   color: AnsiColor
   bold: boolean

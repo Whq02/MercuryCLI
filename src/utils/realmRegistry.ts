@@ -28,7 +28,7 @@ interface RealmRegistryFile {
   ledger: RealmLedgerRow[]
 }
 
-export interface RealmRegistrySnapshot {
+interface RealmRegistrySnapshot {
   state: 'live' | 'unavailable'
   realms: RealmEntry[]
   ledger: RealmLedgerRow[]
@@ -100,9 +100,9 @@ function pushLedger(file: RealmRegistryFile, realm: string, note: string): void 
   if (file.ledger.length > LEDGER_CAP) file.ledger.length = LEDGER_CAP
 }
 
-export type RealmOpResult = { ok: true; realm: RealmEntry; message: string } | { ok: false; reason: string }
+type RealmOpResult = { ok: true; realm: RealmEntry; message: string } | { ok: false; reason: string }
 
-export function findRealm(realms: RealmEntry[], key: string): RealmEntry | undefined {
+function findRealm(realms: RealmEntry[], key: string): RealmEntry | undefined {
   const k = key.trim()
   return (
     realms.find(r => r.id === k) ??
@@ -197,7 +197,7 @@ export function parseGitHubSource(raw: string): { url: string; name: string } | 
   return { url: `https://github.com/${m[1]}/${m[2]}.git`, name: m[2]! }
 }
 
-export type RealmCloneResult = { ok: true; realm: RealmEntry; message: string } | { ok: false; reason: string }
+type RealmCloneResult = { ok: true; realm: RealmEntry; message: string } | { ok: false; reason: string }
 
 export async function cloneRealm(rawSource: string, rawTarget?: string): Promise<RealmCloneResult> {
   const src = parseGitHubSource(rawSource)

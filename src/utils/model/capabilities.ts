@@ -173,7 +173,7 @@ export function modelSupportsStructuredOutputs(model: string): boolean {
 }
 
 
-export type GptEffortVocabularyView =
+type GptEffortVocabularyView =
   | { state: 'not-gpt' }
   | { state: 'live'; vocabulary: readonly string[]; defaultEffort?: string }
   | { state: 'known-empty'; defaultEffort?: string }
@@ -204,7 +204,7 @@ export function gptEffortVocabularyView(model: string): GptEffortVocabularyView 
   }
 }
 
-export type EffortVocabularyView =
+type EffortVocabularyView =
   | { kind: 'ladder'; source: 'first-party' | 'unknown-id'; vocabulary: readonly EffortLevel[] }
   | {
       kind: 'provider'
@@ -388,7 +388,7 @@ export function gptModelDefaultEffort(model: string): EffortLevel | undefined {
   return live !== undefined && (EFFORT_LEVELS as readonly string[]).includes(live) ? (live as EffortLevel) : undefined
 }
 
-export function gptModelDefaultEffortRaw(model: string): string | undefined {
+function gptModelDefaultEffortRaw(model: string): string | undefined {
   const identity = parseGptModelId(model)
   if (!identity) return undefined
   return liveGptDefaultEffort(identity.canonicalId)
@@ -455,9 +455,9 @@ export function modelSupports1M(model: string): boolean {
 }
 
 
-export type ContextRequestedMode = 'default' | 'maximum'
+type ContextRequestedMode = 'default' | 'maximum'
 
-export type ContextActivation =
+type ContextActivation =
   | { kind: 'none' }
   | { kind: 'unavailable'; reason: string }
 
@@ -1043,7 +1043,7 @@ export function toolDeferralEnabled(): boolean {
 }
 
 
-export type ModelCapabilityRecord = Readonly<{
+type ModelCapabilityRecord = Readonly<{
   model: string
   canonical: string
   identity: Readonly<{

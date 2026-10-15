@@ -20,7 +20,7 @@ export interface BootProjectFact {
   firstSessionId: string | null
 }
 
-export interface BootCardFacts {
+interface BootCardFacts {
   cwdProject: BootProjectFact | null
   recentLast: BootProjectFact | null
   pickerProjects: BootProjectFact[]

@@ -3,13 +3,13 @@ import type { ModelOption } from './modelOptions.js'
 import { catalogueEpoch } from '../../services/providers/catalogueEpoch.js'
 import { readSignInLedger, signInLedgerEpoch, type SignInKind } from '../accounts/signInLedger.js'
 
-export type ComputedDefaultSource = 'sign-in' | 'fallthrough' | 'keyless'
+type ComputedDefaultSource = 'sign-in' | 'fallthrough' | 'keyless'
 
 export const NO_SIGN_IN_ROW = 'no sign-in yet'
 export const NO_SIGN_IN_REASON = 'no sign-in yet — /logins signs a provider in'
 export const NO_USABLE_ROW = 'no usable row yet'
 
-export interface CredentialFact {
+interface CredentialFact {
   family: string
   at: number | null
   kind?: SignInKind
@@ -20,7 +20,7 @@ export type LaneRowVerdict =
   | { usable: true; setting: string; row: string; why: string }
   | { usable: false; why: string; unfetched?: boolean }
 
-export interface KeylessFact {
+interface KeylessFact {
   setting: string
   why: string
 }
@@ -35,7 +35,7 @@ export interface ComputedDefaultFacts {
   formatTime?: (ms: number) => string
 }
 
-export interface ConsideredCredential extends CredentialFact {
+interface ConsideredCredential extends CredentialFact {
   timed: boolean
   recency: string
   verdict: LaneRowVerdict
@@ -360,7 +360,7 @@ export function mostRecentSignInFamily(): string | undefined {
   }
 }
 
-export function gatherComputedDefaultFacts(): ComputedDefaultFacts & { degraded: boolean } {
+function gatherComputedDefaultFacts(): ComputedDefaultFacts & { degraded: boolean } {
   const { providerFamilyPresences } =
     require('../../services/providers/providerUsage.js') as typeof import('../../services/providers/providerUsage.js')
   const { buildRouterModelSnapshot } =

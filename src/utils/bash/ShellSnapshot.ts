@@ -17,7 +17,7 @@ import { subprocessEnv } from '../subprocessEnv.js'
 import { quote } from './shellQuote.js'
 
 
-export type VersionedPathParts = {
+type VersionedPathParts = {
   versionsRoot: string
   version: string
   suffix: string
@@ -177,7 +177,7 @@ function createResilientRgFunction(rgCommand: { rgPath: string; rgArgs: string[]
 }`
 }
 
-export type RipgrepShellIntegration = {
+type RipgrepShellIntegration = {
   type: 'alias' | 'function'
   snippet: string
 }

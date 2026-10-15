@@ -7,7 +7,7 @@ import {
 } from '../../services/aseprite/asepriteApp.js'
 import { getCwd } from '../cwd.js'
 
-export function asepriteEnabled(): boolean {
+function asepriteEnabled(): boolean {
   return mercuryAsepriteEnabled()
 }
 

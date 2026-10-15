@@ -1,12 +1,12 @@
 import type { Message } from '../../types/message.js'
 import { hasTextContent } from '../../rows/content.js'
 
-export interface TailReleaseIds {
+interface TailReleaseIds {
   current: string | null
   settled: string | null
 }
 
-export interface TailRelease {
+interface TailRelease {
   publishedShown: boolean
   settledShown: boolean
 }

@@ -29,7 +29,7 @@ import { railPanelInnerWidth } from '../../components/mercury-ui/RailPanel.js'
 import type { HelmRow } from './helmFocus.js'
 import type { MercuryThemeTokens } from '../mercuryTokens.js'
 
-export const WF_ROWS = 3
+const WF_ROWS = 3
 
 export type VitalsRowSpec =
   | { kind: 'text'; key: string; text: string; color: string; fixed?: boolean }
@@ -74,7 +74,7 @@ export type VitalsInput = {
   tok: MercuryThemeTokens
 }
 
-export type VitalsModel = {
+type VitalsModel = {
   rowW: number
   sections: VitalsSectionSpec[]
   shed: Array<'health'>

@@ -379,9 +379,9 @@ async function drainOneFrame(live: LiveSession): Promise<void> {
 }
 
 
-export type EngineSandboxPolicy = { enabled: false } | { enabled: true; tmpDir: string }
+type EngineSandboxPolicy = { enabled: false } | { enabled: true; tmpDir: string }
 
-export type EngineExecOptions = {
+type EngineExecOptions = {
   timeout: number
   signal: AbortSignal
   sandbox?: EngineSandboxPolicy

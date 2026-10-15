@@ -459,7 +459,7 @@ function mirrorReviewStatusToCrew(
   })
 }
 
-export interface RelocationReport {
+interface RelocationReport {
   relocated: string[]
   outdated: Array<{ commentId: string; reason: string }>
 }

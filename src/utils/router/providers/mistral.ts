@@ -3,7 +3,7 @@ import { resolveMistralAccount } from '../../../services/providers/mistral/mistr
 import type { ProviderCatalogueEntry, ProviderDescription, RouteModelRef, RouterModelClass, RouterPosture, RouterProviderAdapter, RouterProviderModel, RouterProviderStatus } from './types.js'
 import { SPECIALIST_ROLES } from './types.js'
 
-export function mistralLiveCatalogue(): { entries: ProviderCatalogueEntry[]; fetchedAtMs: number } | undefined {
+function mistralLiveCatalogue(): { entries: ProviderCatalogueEntry[]; fetchedAtMs: number } | undefined {
   const { rows, source } = mistralCatalogueRows()
   if (source.kind !== 'live') return undefined
   return { fetchedAtMs: source.fetchedAtMs, entries: rows.map(row => ({
@@ -21,7 +21,7 @@ export function mistralCatalogueEntry(id: string): ProviderCatalogueEntry | unde
   return mistralCatalogueEntries().find(row => row.id.toLowerCase() === id.trim().toLowerCase())
 }
 
-export function describeMistralProvider(): ProviderDescription {
+function describeMistralProvider(): ProviderDescription {
   const account = resolveMistralAccount()
   const live = mistralLiveCatalogue()
   return {
@@ -34,20 +34,20 @@ export function describeMistralProvider(): ProviderDescription {
   }
 }
 
-export function mistralStatus(): RouterProviderStatus {
+function mistralStatus(): RouterProviderStatus {
   return resolveMistralAccount() ? { available: true } : { available: false, reason: 'no-api-key:mistral' }
 }
 
-export function listMistralModels(): RouterProviderModel[] {
+function listMistralModels(): RouterProviderModel[] {
   if (!mistralStatus().available) return []
   return mistralCatalogueEntries().map(entry => ({ ref: { provider: 'mistral', model: entry.id, modelClass: 'mistral', effort: 'high', contextWindow: entry.contextWindow ?? 0 }, displayLabel: entry.displayLabel }))
 }
 
-export function resolveMistralModel(_modelClass: RouterModelClass, _posture: RouterPosture): RouteModelRef | null {
+function resolveMistralModel(_modelClass: RouterModelClass, _posture: RouterPosture): RouteModelRef | null {
   return null
 }
 
-export function buildMistralLaunchPatch(_ref: RouteModelRef): { model: string; effort: string } {
+function buildMistralLaunchPatch(_ref: RouteModelRef): { model: string; effort: string } {
   throw new Error('router: provider mistral has no SEAT runtime — Mistral specialists dispatch through the AgentTool engine path')
 }
 

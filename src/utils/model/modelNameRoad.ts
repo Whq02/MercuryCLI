@@ -14,7 +14,7 @@ export function reachableModelEntries(): ModelNameEntry[] {
 const WINDOW_SUFFIX = /\[1m\]$/i
 const ID_SHAPED = /^[a-z0-9][a-z0-9._:/-]*$/i
 
-export function isIdShapedModelWord(typed: string): boolean {
+function isIdShapedModelWord(typed: string): boolean {
   const word = typed.trim().replace(WINDOW_SUFFIX, '')
   return ID_SHAPED.test(word) && /[-./]/.test(word)
 }

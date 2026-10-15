@@ -12,12 +12,12 @@ export function providerFamilyOfSetting(setting: string | null): ProviderFamily 
   return declaredRouteOf(resolved) ?? 'unrecognised'
 }
 
-export type ModelTransitionDecision =
+type ModelTransitionDecision =
   | { kind: 'no-op-same' }
   | { kind: 'apply-now'; crossProvider: boolean }
   | { kind: 'defer-pending'; crossProvider: boolean }
 
-export interface ModelTransitionInput {
+interface ModelTransitionInput {
   currentSetting: string | null
   nextSetting: string | null
   turnActive: boolean
@@ -49,7 +49,7 @@ export interface ModelTransitionReceipt {
   cacheDisposition: 'keyed-sections-recompute-once' | 'none'
 }
 
-export interface TransitionStateSlice {
+interface TransitionStateSlice {
   engineModel: string | null
   engineModelForSession: string | null
   pendingModelSwitch: { setting: string | null } | null
@@ -203,7 +203,7 @@ export type TransitionPlanItem = {
   detail?: string
 }
 
-export type TransitionWindowSource = 'live-current' | 'static-pin' | 'capability' | 'fallback' | 'suffix-1m' | 'beta-header'
+type TransitionWindowSource = 'live-current' | 'static-pin' | 'capability' | 'fallback' | 'suffix-1m' | 'beta-header'
 
 export type TransitionWindowFact = {
   count: number

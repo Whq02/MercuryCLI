@@ -1,9 +1,9 @@
 import { sedCommandIsAllowedByAllowlist } from '../../tools/BashTool/sedValidation.js'
 import { binaryName } from '../config/derived.js'
 
-export type FlagValue = 'none' | 'number' | 'string' | 'char' | '{}' | 'EOF'
+type FlagValue = 'none' | 'number' | 'string' | 'char' | '{}' | 'EOF'
 
-export type ReadOnlyRule = {
+type ReadOnlyRule = {
   readonly words: readonly string[]
   readonly flags?: Readonly<Record<string, FlagValue>>
   readonly readsOnly?: (operands: readonly string[], text: string) => boolean
@@ -244,7 +244,7 @@ function matching(word: string, pattern: RegExp): ReadOnlyRule {
 const FD_FLAGS: Flags = { '-H': none, '--hidden': none, '-I': none, '--no-ignore': none, '-t': str, '--type': str, '-e': str, '--extension': str, '-d': num, '--max-depth': num, '-p': none, '--full-path': none, '-g': none, '--glob': none, '-a': none, '--absolute-path': none, '-c': str, '--color': str, '-s': none, '--case-sensitive': none, '-i': none, '--ignore-case': none, '-0': none, '--print0': none }
 const CHECKSUM_FLAGS: Flags = { '-b': none, '-c': none, '-t': none, '--tag': none }
 
-export const READ_ONLY_RULES: readonly ReadOnlyRule[] = [
+const READ_ONLY_RULES: readonly ReadOnlyRule[] = [
   walked('xargs', { '-I': char, '-E': 'EOF', '-n': num, '-P': num, '-0': none, '--null': none, '-a': str, '--arg-file': str, '-d': str, '--delimiter': str, '-L': num, '-p': none, '--interactive': none, '-r': none, '--no-run-if-empty': none, '-t': none, '--verbose': none }, { targets: ['echo', 'printf', 'wc', 'grep', 'head', 'tail'], unixOnly: true }),
   git('diff', flags(statFlags, colourFlags, {
     '--dirstat': none, '--summary': none, '--patch-with-stat': none, '--word-diff': none, '--word-diff-regex': str, '--color-words': none, '--no-renames': none, '--no-ext-diff': none,

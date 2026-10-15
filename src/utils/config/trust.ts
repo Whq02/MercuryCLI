@@ -86,7 +86,7 @@ export function isProjectScopeTrustAccepted(): boolean {
 }
 
 
-export type PermissionPostureRecord = NonNullable<
+type PermissionPostureRecord = NonNullable<
   import('./schema.js').ProjectConfig['permissionPosture']
 >
 

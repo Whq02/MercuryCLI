@@ -2,7 +2,7 @@
 import { createHash } from 'crypto'
 import type { BehaviourContract } from '../../prompt/behaviourContract.js'
 
-export type ProvenanceSectionRecord = {
+type ProvenanceSectionRecord = {
   group: string
   name: string
   scope: string
@@ -12,19 +12,19 @@ export type ProvenanceSectionRecord = {
   sha8: string
 }
 
-export type ProvenanceAbsentSection = {
+type ProvenanceAbsentSection = {
   name: string
   reason: string
 }
 
-export type ProvenanceTotals = {
+type ProvenanceTotals = {
   digest: string
   totalChars: number
   segmentCount: number
   openaiChars: number
 }
 
-export type PromptProvenance = ProvenanceTotals & {
+type PromptProvenance = ProvenanceTotals & {
   recordedAt: string
   sections: ProvenanceSectionRecord[]
   absent: ProvenanceAbsentSection[]

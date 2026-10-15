@@ -20,10 +20,10 @@ export function lockSync(file: string, options?: LockOptions): () => void {
   return load().lockSync(file, options)
 }
 
-export function unlock(file: string, options?: UnlockOptions): Promise<void> {
+function unlock(file: string, options?: UnlockOptions): Promise<void> {
   return load().unlock(file, options)
 }
 
-export function check(file: string, options?: CheckOptions): Promise<boolean> {
+function check(file: string, options?: CheckOptions): Promise<boolean> {
   return load().check(file, options)
 }

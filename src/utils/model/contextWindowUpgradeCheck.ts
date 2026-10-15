@@ -1,6 +1,6 @@
 import { checkOpus1mAccess, checkSonnet1mAccess } from './check1mAccess.js'
 
-export type UpgradeMessage = {
+type UpgradeMessage = {
   suffixedAlias: string
   displayName: string
   multiplier: number

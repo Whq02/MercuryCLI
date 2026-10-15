@@ -35,7 +35,7 @@ function sentinelPath(): string {
   return join(getMercuryHome(), '.last-cleanup')
 }
 
-export async function isLastCleanupSentinelFresh(): Promise<boolean> {
+async function isLastCleanupSentinelFresh(): Promise<boolean> {
   try {
     const stat = await fs.stat(sentinelPath())
     return seams.now() - stat.mtimeMs < CLEANUP_SENTINEL_FRESH_WINDOW_MS
@@ -51,7 +51,7 @@ interface CycleState {
 }
 let cycle: CycleState = { legacyDone: false, legacyErrors: 0 }
 
-export type CycleStepOutcome = 'continue' | 'cycle-complete' | 'cycle-failed'
+type CycleStepOutcome = 'continue' | 'cycle-complete' | 'cycle-failed'
 
 export async function runCleanupCycleStep(opts?: {
   budgetMs?: number

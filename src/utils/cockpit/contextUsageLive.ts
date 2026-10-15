@@ -7,8 +7,8 @@ import { processMainOwner } from '../../services/run/resolveOwner.js'
 import type { ContextResolution } from '../model/capabilities.js'
 import { ctxForecastEnabled, recordCtxSample } from './ctxForecast.js'
 
-export type ContextFillSource = 'usage' | 'estimate'
-export type ContextWindowSource = ContextResolution['source']
+type ContextFillSource = 'usage' | 'estimate'
+type ContextWindowSource = ContextResolution['source']
 
 export interface LiveContextUsage {
   usedPct: number | null
@@ -20,7 +20,7 @@ export interface LiveContextUsage {
   windowPinned: boolean
 }
 
-export interface ContextUsageDetail {
+interface ContextUsageDetail {
   usedTokens?: number | null
   fillSource?: ContextFillSource | null
   windowSource?: ContextWindowSource | null

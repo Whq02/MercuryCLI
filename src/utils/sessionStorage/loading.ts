@@ -17,7 +17,7 @@ export {
   type TranscriptLoadDegradation,
 } from './transcriptReader.js'
 
-export type TranscriptLoadResult = Omit<TranscriptFoldState, 'progressBridge'> & {
+type TranscriptLoadResult = Omit<TranscriptFoldState, 'progressBridge'> & {
   leafUuids: Set<UUID>
 }
 

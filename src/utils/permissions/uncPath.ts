@@ -1,6 +1,6 @@
 import { getPlatform } from '../platform.js'
 
-export type UncPathRisk = { risky: false } | { risky: true; host: string; form: string }
+type UncPathRisk = { risky: false } | { risky: true; host: string; form: string }
 
 export function uncPathRisk(input: string, opts: { command?: boolean } = {}): UncPathRisk {
   if (getPlatform() !== 'windows') return { risky: false }

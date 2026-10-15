@@ -5,7 +5,7 @@ import { routerStateDir } from '../../substrate/routerPaths.js'
 import type { RouterPosture } from './providers/types.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 
-export const ROUTER_POSTURES: readonly RouterPosture[] = [
+const ROUTER_POSTURES: readonly RouterPosture[] = [
   'adaptive',
   'quality',
   'balanced',
@@ -14,7 +14,7 @@ export const ROUTER_POSTURES: readonly RouterPosture[] = [
 ]
 export type RouterModelPin = 'opus' | 'sonnet' | 'auto'
 
-export interface RouterPostureState {
+interface RouterPostureState {
   posture: RouterPosture
   pin: RouterModelPin
   updatedAt: number
@@ -22,7 +22,7 @@ export interface RouterPostureState {
 
 const DEFAULT_STATE: RouterPostureState = { posture: 'adaptive', pin: 'auto', updatedAt: 0 }
 
-export function routerPosturePath(): string {
+function routerPosturePath(): string {
   return join(routerStateDir(), 'posture.json')
 }
 

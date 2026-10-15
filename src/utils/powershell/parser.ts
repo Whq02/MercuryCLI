@@ -7,7 +7,7 @@ import { getPlatform } from '../platform.js'
 import { getCachedPowerShellPath } from '../shell/powershellDetection.js'
 
 
-export type ElementClass =
+type ElementClass =
   | 'ScriptBlock'
   | 'SubExpression'
   | 'ExpandableString'
@@ -17,7 +17,7 @@ export type ElementClass =
   | 'Parameter'
   | 'Other'
 
-export type ParsedRedirection = {
+type ParsedRedirection = {
   operator: string
   target: string
   isMerging: boolean
@@ -36,11 +36,11 @@ export type ParsedCommandElement = {
   elementType: string
 }
 
-export type ParsedVariable = { path: string; splatted: boolean }
+type ParsedVariable = { path: string; splatted: boolean }
 
-export type ParseError = { message: string; errorId: string }
+type ParseError = { message: string; errorId: string }
 
-export type ParsedStatement = {
+type ParsedStatement = {
   statementType: string
   text: string
   commands: ParsedCommandElement[]

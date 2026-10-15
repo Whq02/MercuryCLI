@@ -3,7 +3,7 @@ import { dirname, join } from 'node:path'
 import { getMercuryHome } from '../../envUtils.js'
 import type { RawReadResult } from './rawRead.js'
 
-export interface MdmProbeMemoV1 {
+interface MdmProbeMemoV1 {
   schema: 1
   present: boolean
   checkedAt: number

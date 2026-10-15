@@ -14,9 +14,9 @@ import { extractTag } from './messages.js'
 
 export const FOLDED_COUNT_TAG = 'folded'
 
-export type ShellOutcome = 'completed' | 'failed' | 'killed'
+type ShellOutcome = 'completed' | 'failed' | 'killed'
 
-export interface ShellNotice {
+interface ShellNotice {
   message: RenderableMessage
   shape: 'attachment' | 'user'
   status: ShellOutcome

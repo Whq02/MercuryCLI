@@ -11,9 +11,9 @@ import {
   OCTOPUS_HUE_DEEP,
 } from './critterData.js'
 
-export type AgentMark = { name: string; hue: string; hueDeep: string }
+type AgentMark = { name: string; hue: string; hueDeep: string }
 
-export const AGENT_HEADS: AgentMark[] = [
+const AGENT_HEADS: AgentMark[] = [
   { name: 'relay', hue: TERRA, hueDeep: CLAW },
   { name: 'dynamo', hue: OCTOPUS_HUE, hueDeep: OCTOPUS_HUE_DEEP },
   { name: 'echo', hue: JELLYFISH_HUE, hueDeep: JELLYFISH_HUE_DEEP },

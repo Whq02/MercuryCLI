@@ -3,7 +3,7 @@ import { z, type ZodTypeAny } from 'zod/v4'
 
 type JsonSchema7Type = Record<string, unknown>
 
-export type SchemaSide = 'input' | 'output'
+type SchemaSide = 'input' | 'output'
 
 const conversionCache = new WeakMap<object, Partial<Record<SchemaSide, JsonSchema7Type>>>()
 

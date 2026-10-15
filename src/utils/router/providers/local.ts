@@ -64,7 +64,7 @@ export function localStatus(): RouterProviderStatus {
   return { available: false, reason: 'no-server:local' }
 }
 
-export function listLocalModels(): RouterProviderModel[] {
+function listLocalModels(): RouterProviderModel[] {
   if (!localStatus().available) return []
   return localLiveCatalogue().map(entry => ({
     ref: {
@@ -78,11 +78,11 @@ export function listLocalModels(): RouterProviderModel[] {
   }))
 }
 
-export function resolveLocalModel(_modelClass: RouterModelClass, _posture: RouterPosture): RouteModelRef | null {
+function resolveLocalModel(_modelClass: RouterModelClass, _posture: RouterPosture): RouteModelRef | null {
   return null
 }
 
-export function buildLocalLaunchPatch(_ref: RouteModelRef): { model: string; effort: string } {
+function buildLocalLaunchPatch(_ref: RouteModelRef): { model: string; effort: string } {
   throw new Error(
     'router: provider local has no SEAT runtime — roster seats stay Anthropic; local specialists dispatch through the AgentTool engine path',
   )

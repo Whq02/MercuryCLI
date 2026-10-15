@@ -42,7 +42,7 @@ const DANGEROUS_FILES: string[] = [
   '.mercury.json',
 ]
 
-export const DANGEROUS_DIRECTORIES: string[] = [
+const DANGEROUS_DIRECTORIES: string[] = [
   '.git',
   '.vscode',
   '.idea',
@@ -292,7 +292,7 @@ export function checkPathSafetyForAutoEdit(
 }
 
 
-export function getSkillScope(filePath: string): { skillName: string; pattern: string } | null {
+function getSkillScope(filePath: string): { skillName: string; pattern: string } | null {
   const cwd = getOriginalCwd()
   const globalConfigHome = getMercuryHome()
   const bases: Array<{ dir: string; prefix: string }> = [

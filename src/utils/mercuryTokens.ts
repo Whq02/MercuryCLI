@@ -70,7 +70,7 @@ export function contrastRatio(a: string, b: string): number | null {
   return (hi + 0.05) / (lo + 0.05)
 }
 
-export function deriveSelectionBand(
+function deriveSelectionBand(
   accent: string,
   ground: string,
   primaryInk: string,
@@ -99,7 +99,7 @@ export function deriveSelectionBand(
   return band
 }
 
-export function deriveTextFloorInk(
+function deriveTextFloorInk(
   ink: string,
   primaryInk: string,
   ground: string,
@@ -129,9 +129,9 @@ export const SPECTRAL_STATE_FLOOR = 3.0
 
 export const SPECTRAL_STRUCTURE_FLOOR = 1.5
 
-export type SpectralRamp = readonly string[]
+type SpectralRamp = readonly string[]
 
-export function spectraMix(from: string, to: string, t: number): string {
+function spectraMix(from: string, to: string, t: number): string {
   const a = parseColor(from)
   const b = parseColor(to)
   if (!a || !b) return from
@@ -195,7 +195,7 @@ export function spectralRampFor(
   return ramp
 }
 
-export type AgentAccent = { name: string; color: string }
+type AgentAccent = { name: string; color: string }
 
 export type MercuryThemeTokens = {
   canvas?: string

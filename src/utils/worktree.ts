@@ -488,7 +488,7 @@ async function runPostCreationSetup(repoRoot: string, worktreePath: string, depe
 
 const WORKTREE_PREPARE_TIMEOUT_MS = 10 * 60 * 1000
 
-export async function runWorktreePrepareCommand(worktreePath: string): Promise<string | undefined> {
+async function runWorktreePrepareCommand(worktreePath: string): Promise<string | undefined> {
   const command = getInitialSettings().workspace?.worktree?.prepare
   if (command === undefined || command.trim() === '') return undefined
   const process = await startCommandHook({ command, shell: 'bash', name: 'workspace.worktree.prepare', event: 'workspace.worktree.prepare', index: 0, payloadJson: '', timeoutMs: WORKTREE_PREPARE_TIMEOUT_MS, source: { kind: 'settings' }, cwd: worktreePath })
@@ -637,7 +637,7 @@ export async function cleanupWorktree(): Promise<void> {
 }
 
 
-export type WorktreeCapability = {
+type WorktreeCapability = {
   available: boolean
   detail: string
   prerequisite?: 'git-repository'
@@ -726,7 +726,7 @@ export async function createAgentWorktree(
   }
 }
 
-export async function unlockAgentWorktree(worktreePath: string, gitRoot: string): Promise<void> {
+async function unlockAgentWorktree(worktreePath: string, gitRoot: string): Promise<void> {
   await runGit(['worktree', 'unlock', worktreePath], gitRoot)
 }
 
@@ -757,11 +757,11 @@ async function removeAgentWorktree(
 
 const MERCURY_EPHEMERAL_PREFIXES = ['.mercury/cache-clock/']
 
-export function isMercuryEphemeralLanePath(relPath: string): boolean {
+function isMercuryEphemeralLanePath(relPath: string): boolean {
   return MERCURY_EPHEMERAL_PREFIXES.some(prefix => relPath.startsWith(prefix))
 }
 
-export type WorktreeDelta = {
+type WorktreeDelta = {
   commitsAhead: number
   tracked: string[]
   untrackedAuthored: string[]
@@ -827,7 +827,7 @@ export async function readWorktreeDelta(worktreePath: string, headCommit?: strin
   return { commitsAhead, ...classified, uncertainty }
 }
 
-export function deltaBlocksSettlement(delta: WorktreeDelta): boolean {
+function deltaBlocksSettlement(delta: WorktreeDelta): boolean {
   return (
     delta.uncertainty !== null ||
     delta.commitsAhead > 0 ||
@@ -836,7 +836,7 @@ export function deltaBlocksSettlement(delta: WorktreeDelta): boolean {
   )
 }
 
-export function describeWorktreeDelta(delta: WorktreeDelta): string {
+function describeWorktreeDelta(delta: WorktreeDelta): string {
   if (delta.uncertainty !== null) {
     return `inspection unavailable: ${delta.uncertainty}`
   }
@@ -861,7 +861,7 @@ export async function hasWorktreeChanges(worktreePath: string, headCommit: strin
 }
 
 
-export type WorktreeSettlementReceipt =
+type WorktreeSettlementReceipt =
   | { outcome: 'settled'; worktreePath: string }
   | { outcome: 'preserved'; worktreePath: string; delta: WorktreeDelta; summary: string }
   | { outcome: 'inspection-unavailable'; worktreePath: string; detail: string }
@@ -905,11 +905,11 @@ export async function settleAgentWorktree(info: {
   }
 }
 
-export type WorktreeRemovalVerdict =
+type WorktreeRemovalVerdict =
   | { safe: true }
   | { safe: false; state: 'uncommitted' | 'unreachable' | 'unowned'; detail: string }
 
-export async function worktreeUnreachableCommits(worktreePath: string, ownBranch?: string): Promise<number | null> {
+async function worktreeUnreachableCommits(worktreePath: string, ownBranch?: string): Promise<number | null> {
   const refs = await runGit(['for-each-ref', '--format=%(refname)'], worktreePath)
   if (refs.code !== 0) return null
   const others = refs.stdout
@@ -1160,7 +1160,7 @@ export async function createTmuxSessionForWorktree(
   return { created: true }
 }
 
-export async function killTmuxSession(sessionName: string): Promise<boolean> {
+async function killTmuxSession(sessionName: string): Promise<boolean> {
   const result = await execFileNoThrowWithCwd('tmux', ['kill-session', '-t', sessionName], {})
   return result.code === 0
 }

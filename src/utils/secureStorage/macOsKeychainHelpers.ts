@@ -42,7 +42,7 @@ export function getUsername(): string {
 
 export const KEYCHAIN_CACHE_TTL_MS = 30_000
 
-export type KeychainCacheState = {
+type KeychainCacheState = {
   cached: { data: SecureStorageData | null; cachedAt: number }
   generation: number
   readInFlight: Promise<SecureStorageData | null> | null

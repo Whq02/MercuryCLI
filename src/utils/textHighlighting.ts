@@ -14,7 +14,7 @@ export type TextHighlight = {
   priority: number
 }
 
-export type TextSegment = {
+type TextSegment = {
   text: string
   start: number
   highlight?: TextHighlight

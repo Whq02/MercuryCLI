@@ -8,7 +8,7 @@ import {
   type TranscriptFoldState,
 } from './loading.js'
 
-export interface MaterializedPoint {
+interface MaterializedPoint {
   ordinal: number
   totalEntries: number
   fold: TranscriptFoldState

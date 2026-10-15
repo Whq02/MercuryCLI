@@ -2,7 +2,7 @@ import type { HookProgress } from '../../types/hooks.js'
 import type { ProgressMessage } from '../../types/message.js'
 import type { HookEvent } from './contract.js'
 
-export type HookWait = { event: HookEvent; names: string[]; sinceMs: number; timeoutS: number }
+type HookWait = { event: HookEvent; names: string[]; sinceMs: number; timeoutS: number }
 
 export function hookWaitWords(wait: HookWait, nowMs: number): string {
   const elapsedS = Math.max(0, Math.floor((nowMs - wait.sinceMs) / 1000))

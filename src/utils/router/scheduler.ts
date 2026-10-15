@@ -20,7 +20,7 @@ function overlaps(a: readonly string[], b: readonly string[]): boolean {
   return b.some(p => set.has(p.toLowerCase()))
 }
 
-export function dependencySatisfied(plan: TaskRoutePlan, node: RouteNode): boolean {
+function dependencySatisfied(plan: TaskRoutePlan, node: RouteNode): boolean {
   const byId = new Map(plan.nodes.map(n => [n.id, n]))
   return node.dependsOn.every(dep => byId.get(dep)?.state === 'accepted')
 }
@@ -31,14 +31,14 @@ export function promotableNodes(plan: TaskRoutePlan): string[] {
     .map(n => n.id)
 }
 
-export interface SchedulerWorker {
+interface SchedulerWorker {
   short: string
   modelClass?: string
   busy: boolean
   modelPinned?: boolean
 }
 
-export interface NodeAssignment {
+interface NodeAssignment {
   nodeId: string
   worker: string
   needsReconfigure: boolean
@@ -88,7 +88,7 @@ export function derivePlanState(plan: TaskRoutePlan): RoutePlanState {
   return 'running'
 }
 
-export function generationMaySettle(node: RouteNode, generation: number | undefined): boolean {
+function generationMaySettle(node: RouteNode, generation: number | undefined): boolean {
   if (node.workerGeneration === undefined || generation === undefined) return true
   return generation >= node.workerGeneration
 }

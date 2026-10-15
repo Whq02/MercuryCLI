@@ -250,7 +250,7 @@ function usageOf(event: unknown): Partial<NonNullableUsage> | undefined {
   return usage && typeof usage === 'object' ? usage : undefined
 }
 
-export type ForkUsageFold = { total: NonNullableUsage; open: NonNullableUsage | null }
+type ForkUsageFold = { total: NonNullableUsage; open: NonNullableUsage | null }
 export const EMPTY_FORK_USAGE_FOLD: ForkUsageFold = { total: EMPTY_USAGE, open: null }
 export function foldForkUsageEvent(
   fold: ForkUsageFold,

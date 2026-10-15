@@ -20,7 +20,7 @@ function getNoProxy(env: EnvLike = process.env): string | undefined {
   return env.no_proxy || env.NO_PROXY || undefined
 }
 
-export function shouldBypassProxy(url: string, noProxy: string | undefined = getNoProxy()): boolean {
+function shouldBypassProxy(url: string, noProxy: string | undefined = getNoProxy()): boolean {
   if (!noProxy || noProxy.trim() === '') return false
   if (noProxy.trim() === '*') return true
   let host: string
@@ -52,7 +52,7 @@ export function shouldBypassProxy(url: string, noProxy: string | undefined = get
 }
 
 
-export type TransportKnobs = {
+type TransportKnobs = {
   connectTimeoutMs: number
   maxConnections: number
   headersTimeoutMs: number
@@ -175,7 +175,7 @@ export function getProxyFetchOptions(opts?: { forAnthropicAPI?: boolean }): Reco
 }
 
 
-export function getAddressFamily(options: { family?: number | string }): number {
+function getAddressFamily(options: { family?: number | string }): number {
   const family = options.family
   if (family === 0 || family === 4 || family === 6) return family
   if (family === 'IPv6') return 6
@@ -213,7 +213,7 @@ type ProxyDispatcherOptions = {
   pipelining: number
 }
 
-export function buildProxyAgentOptions(uri: string): ProxyDispatcherOptions {
+function buildProxyAgentOptions(uri: string): ProxyDispatcherOptions {
   const knobs = resolveTransportKnobs()
   const tls = tlsConnectMaterial()
   const noProxy = noProxyUppercaseFirst()
@@ -234,7 +234,7 @@ export function buildProxyAgentOptions(uri: string): ProxyDispatcherOptions {
 let proxyDispatcherCache = new Map<string, Dispatcher>()
 let tunnelAgentCache = new Map<string, HttpsProxyAgent<string>>()
 
-export function getProxyAgent(uri: string): Dispatcher {
+function getProxyAgent(uri: string): Dispatcher {
   const cached = proxyDispatcherCache.get(uri)
   if (cached !== undefined) return cached
   const agent = new EnvHttpProxyAgent(buildProxyAgentOptions(uri) as never)

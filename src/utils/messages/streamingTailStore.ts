@@ -3,7 +3,7 @@ import type { TextPhase } from '../../types/wire.js'
 import { fluxCount, fluxMark } from '../flux/fluxProbe.js'
 import { registerFlushProbe } from '../../ink/root/flush-registry.js'
 
-export const TAIL_INTERVAL_MS = 32
+const TAIL_INTERVAL_MS = 32
 
 export type StreamingTailStore = {
   update(f: (current: string | null) => string | null): void
@@ -21,7 +21,7 @@ export type StreamingTailStore = {
   dispose(): void
 }
 
-export type StreamingTailStoreOpts = {
+type StreamingTailStoreOpts = {
   intervalMs?: number
   setTimer?: (fn: () => void, ms: number) => unknown
   clearTimer?: (handle: unknown) => void

@@ -16,7 +16,7 @@ import { hasPermissionsToUseTool } from '../permissions/permissions.js'
 import { asSystemPrompt } from '../systemPromptType.js'
 import { hookAnswerJsonSchema, hookBrief, type ModelHookEnd, type ModelHookRun } from './questionRunner.js'
 
-export const CREWMATE_HOOK_TURN_CAP = 50
+const CREWMATE_HOOK_TURN_CAP = 50
 
 function readToolsOf(context: ToolUseContext): ToolUseContext['options']['tools'] {
   return (context.options.tools ?? []).filter(tool => {

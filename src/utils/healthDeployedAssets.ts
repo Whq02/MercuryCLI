@@ -27,7 +27,7 @@ export const RETIRED_HOME_ARTIFACTS = [
   'patches.d',
 ] as const
 
-export interface DeployedAssetsAssessment {
+interface DeployedAssetsAssessment {
   status: 'ok' | 'warn' | 'stale' | 'info'
   evidence: string
   fix?: string

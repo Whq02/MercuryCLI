@@ -129,7 +129,7 @@ function readmeHeadline(root: string): string | null {
   return null
 }
 
-export interface PkgFacts {
+interface PkgFacts {
   name?: string
   bin?: string[]
   scripts?: string[]
@@ -173,7 +173,7 @@ export interface RepoSurfaceFacts {
 
 const HOME_SHAPE_MARKERS = ['Desktop', 'Documents', 'Downloads', 'Library', 'AppData']
 
-export function isHomeShapedRoot(root: string): boolean {
+function isHomeShapedRoot(root: string): boolean {
   try {
     if (resolve(root) === resolve(homedir())) return true
   } catch {

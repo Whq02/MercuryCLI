@@ -25,7 +25,7 @@ const EDITOR_EXTENSION_HOMES: ReadonlyArray<{ editor: string; dir: string }> = [
   { editor: 'Windsurf', dir: '.windsurf' },
 ]
 
-export interface InstalledEditorExtension {
+interface InstalledEditorExtension {
   editor: string
   version: string
   dir: string

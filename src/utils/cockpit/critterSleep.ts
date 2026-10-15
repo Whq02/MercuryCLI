@@ -13,7 +13,7 @@ import { subscribeUiClock } from './uiClock.js'
 
 export const SLEEP_AFTER_MS = 45_000
 
-export const SLEEP_CHECK_MS = 30_000
+const SLEEP_CHECK_MS = 30_000
 
 const AGENT_EXECUTION_KINDS: ReadonlySet<string> = new Set(['agent', 'workflow-worker'])
 
@@ -24,14 +24,14 @@ export function critterSleepMode(): 'off' | 'forced' | 'live' {
   return 'live'
 }
 
-export interface AgentActivity {
+interface AgentActivity {
   liveNow: boolean
   lastEventTs: number
 }
 
 const NO_AGENTS: AgentActivity = { liveNow: false, lastEventTs: 0 }
 
-export function agentsActiveNow(): boolean {
+function agentsActiveNow(): boolean {
   try {
     return listExecutions(processMainOwner(), { liveOnly: true }).some(r =>
       AGENT_EXECUTION_KINDS.has(r.spec.kind),

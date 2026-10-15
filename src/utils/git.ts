@@ -189,7 +189,7 @@ async function probeUpstream(): Promise<{ value: UpstreamFact | null; fault: str
   return { value: { hasUpstream: true, unpushed: Number.isFinite(count) ? count : 0 }, fault: null }
 }
 
-export async function getUnpushedCount(): Promise<number> {
+async function getUnpushedCount(): Promise<number> {
   return (await readFact('upstream')).unpushed
 }
 
@@ -595,7 +595,7 @@ export async function getGithubRepo(): Promise<string | null> {
 }
 
 
-export type BareRepoVerdict = false | 'gitdir-redirect-plantable' | 'gitdir-file-oversized' | 'bare-indicators'
+type BareRepoVerdict = false | 'gitdir-redirect-plantable' | 'gitdir-file-oversized' | 'bare-indicators'
 
 const GITDIR_FILE_MAX_BYTES = 4096
 const LEXICAL_SYMLINK_HOPS = 64

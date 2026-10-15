@@ -1,5 +1,5 @@
 
-export type SeatReceipt = {
+type SeatReceipt = {
   text: string
   level: 'info' | 'warning'
 }

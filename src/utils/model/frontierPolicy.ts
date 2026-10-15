@@ -18,7 +18,7 @@ import {
 
 export const FRONTIER_MAX_20X_TIER = 'default_claude_max_20x'
 
-export type FrontierEligibilityCode =
+type FrontierEligibilityCode =
   | 'eligible-env-pin'
   | 'eligible-allowlist'
   | 'eligible-max-20x'
@@ -28,7 +28,7 @@ export type FrontierEligibilityCode =
   | 'not-20x'
   | 'allowlist-excluded'
 
-export type FrontierCandidateVerdict = {
+type FrontierCandidateVerdict = {
   id: string
   family: string
   rank: number
@@ -36,7 +36,7 @@ export type FrontierCandidateVerdict = {
   code: FrontierEligibilityCode
 }
 
-export type FrontierOperatorDecision = {
+type FrontierOperatorDecision = {
   setting: string
   source: 'frontier' | 'fallback'
   winner: FrontierCandidateVerdict | null

@@ -21,7 +21,7 @@ import {
 import { normalizeModelStringForAPI } from './model/model.js'
 
 
-export type SideQueryOptions = {
+type SideQueryOptions = {
   model: string
   system?: string | TextBlockParam[]
   messages: MessageParam[]
@@ -42,7 +42,7 @@ function harnessVersion(): string {
   return typeof MACRO !== 'undefined' && MACRO.VERSION ? MACRO.VERSION : '0.0.0'
 }
 
-export type SideQueryThinkingParam =
+type SideQueryThinkingParam =
   | { type: 'disabled' }
   | { type: 'adaptive' }
   | { type: 'enabled'; budget_tokens: number }

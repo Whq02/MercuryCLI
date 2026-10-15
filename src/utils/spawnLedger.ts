@@ -4,11 +4,11 @@ import { flagEnv } from '../substrate/flagRegistry.js'
 
 export const SPAWNED_BY_ENV = 'MERCURY_SPAWNED_BY'
 
-export function isSpawnLedgerEnabled(): boolean {
+function isSpawnLedgerEnabled(): boolean {
   return flagEnv('MERCURY_SPAWN_LEDGER') !== '0'
 }
 
-export function isSpawnAuditEnabled(): boolean {
+function isSpawnAuditEnabled(): boolean {
   return flagEnv('MERCURY_SPAWN_AUDIT') !== '0'
 }
 
@@ -16,7 +16,7 @@ export function spawnedByStamp(kind: string, id: string): string {
   return `${kind}:${id}#${process.pid}`
 }
 
-export interface SpawnLedgerEntry {
+interface SpawnLedgerEntry {
   kind:
     | 'long-lived'
     | 'long-lived-refused'
@@ -64,7 +64,7 @@ export function recordSpawn(entry: SpawnLedgerEntry): void {
   }
 }
 
-export interface SpawnExitEntry {
+interface SpawnExitEntry {
   kind: 'long-lived' | 'headless' | 'crewmate' | 'daemon'
   event: 'exit' | 'reap'
   id: string

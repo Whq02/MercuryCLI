@@ -24,7 +24,7 @@ function underDirectory(path: string, directory: string): boolean {
 }
 
 
-export function detectSessionFileType(filePath: string): 'session_memory' | 'session_transcript' | null {
+function detectSessionFileType(filePath: string): 'session_memory' | 'session_transcript' | null {
   const path = comparable(filePath)
   if (!underDirectory(path, getMercuryHome())) return null
   if (path.includes('/session-memory/') && path.endsWith('.md')) return 'session_memory'
@@ -32,7 +32,7 @@ export function detectSessionFileType(filePath: string): 'session_memory' | 'ses
   return null
 }
 
-export function detectSessionPatternType(pattern: string): 'session_memory' | 'session_transcript' | null {
+function detectSessionPatternType(pattern: string): 'session_memory' | 'session_transcript' | null {
   const normalized = pattern.replace(/\\/g, '/')
   if (normalized.includes('session-memory') && (normalized.includes('.md') || normalized.endsWith('*'))) {
     return 'session_memory'

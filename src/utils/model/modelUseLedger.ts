@@ -3,11 +3,11 @@ import { join } from 'node:path'
 import { defineStore } from '../../substrate/fileStore.js'
 import { getMercuryHome } from '../envUtils.js'
 
-export const MODEL_USE_LEDGER_FILE = '.model-use.json'
+const MODEL_USE_LEDGER_FILE = '.model-use.json'
 
-export type ModelUseRecord = { at: number; model: string; door?: string }
+type ModelUseRecord = { at: number; model: string; door?: string }
 
-export type ModelUseLedger = { uses: Record<string, ModelUseRecord> }
+type ModelUseLedger = { uses: Record<string, ModelUseRecord> }
 
 const FAMILY_RE = /^[a-z][a-z0-9-]{0,31}$/
 

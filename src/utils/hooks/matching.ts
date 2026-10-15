@@ -40,12 +40,12 @@ function sourceKey(source: HookSource): string {
   }
 }
 
-export function hookIdentity(hook: LayeredHook): string {
+function hookIdentity(hook: LayeredHook): string {
   const { entry } = hook
   return [hook.event, sourceKey(hook.source), hookKindOf(entry), hookEntryText(entry), entry.match ?? ''].join('\0')
 }
 
-export function hookId(hook: LayeredHook): string {
+function hookId(hook: LayeredHook): string {
   return createHash('sha1').update(hookIdentity(hook)).digest('hex').slice(0, 16)
 }
 
@@ -55,7 +55,7 @@ export function markHookSpent(id: string, scope: HookScope): void {
   spent.add(`${scope.sessionId}\0${id}`)
 }
 
-export function isHookSpent(id: string, scope: HookScope): boolean {
+function isHookSpent(id: string, scope: HookScope): boolean {
   return spent.has(`${scope.sessionId}\0${id}`)
 }
 

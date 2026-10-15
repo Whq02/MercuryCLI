@@ -38,7 +38,7 @@ export function shouldShowAlwaysAllowOptions(): boolean {
   return !shouldAllowManagedPermissionRulesOnly()
 }
 
-export function getPermissionRulesForSource(source: PermissionRuleSource): PermissionRule[] {
+function getPermissionRulesForSource(source: PermissionRuleSource): PermissionRule[] {
   const settings = getSettingsForSource(source as never) as
     | { guardrails?: { allow?: string[]; deny?: string[]; ask?: string[]; reasons?: unknown } }
     | undefined

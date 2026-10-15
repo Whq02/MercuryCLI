@@ -44,7 +44,7 @@ export function isToolResultMessage(row: Message): boolean {
     contentItemsOf(row.message.content).some(block => block.type === 'tool_result')
 }
 
-export function normalizeUserTextContent(content: string | ContentBlockParam[]): ContentBlockParam[] {
+function normalizeUserTextContent(content: string | ContentBlockParam[]): ContentBlockParam[] {
   return typeof content === 'string' ? [{ type: 'text', text: content }] : content
 }
 

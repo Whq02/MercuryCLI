@@ -29,7 +29,7 @@ export const getPlatform = memoize((): Platform => {
   }
 })
 
-export const getWslVersion = memoize((): string | undefined => {
+const getWslVersion = memoize((): string | undefined => {
   if (process.platform !== 'linux') return undefined
   try {
     const version = readFileSync('/proc/version', 'utf8')
@@ -49,7 +49,7 @@ type LinuxDistroInfo = {
   kernelRelease?: string
 }
 
-export const getLinuxDistroInfo = memoize(async (): Promise<LinuxDistroInfo | undefined> => {
+const getLinuxDistroInfo = memoize(async (): Promise<LinuxDistroInfo | undefined> => {
   if (process.platform !== 'linux') return undefined
   const info: LinuxDistroInfo = { kernelRelease: release() }
   try {

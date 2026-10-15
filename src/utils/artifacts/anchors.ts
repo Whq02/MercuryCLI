@@ -11,7 +11,7 @@ export function contentDigest(text: string): string {
 }
 
 
-export interface MdBlock {
+interface MdBlock {
   headingPath: string[]
   text: string
   digest: string
@@ -58,7 +58,7 @@ export function listMdBlocks(markdown: string): MdBlock[] {
 }
 
 
-export interface DiffLineSite {
+interface DiffLineSite {
   path: string
   side: 'old' | 'new'
   hunkIndex: number
@@ -93,7 +93,7 @@ export function listDiffLineSites(files: DiffBodyFile[]): DiffLineSite[] {
 }
 
 
-export type AnchorCheck = { ok: true } | { ok: false; reason: string }
+type AnchorCheck = { ok: true } | { ok: false; reason: string }
 
 export function validateAnchor(body: ReviewArtifactBody, anchor: ReviewAnchor): AnchorCheck {
   switch (anchor.t) {
@@ -162,7 +162,7 @@ export function validateAnchor(body: ReviewArtifactBody, anchor: ReviewAnchor): 
 }
 
 
-export type Relocation =
+type Relocation =
   | { outcome: 'relocated'; anchor: ReviewAnchor }
   | { outcome: 'outdated'; reason: string }
 

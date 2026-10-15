@@ -23,7 +23,7 @@ export function brushBinaryFor(packPlatform: string): string {
   return packPlatform === 'win-x64' ? 'brush.exe' : 'brush'
 }
 
-export type BrushPackSource = 'release-archive' | 'cargo-build'
+type BrushPackSource = 'release-archive' | 'cargo-build'
 
 interface BrushPackManifestBase {
   name: typeof BRUSH_PACK_NAME
@@ -38,7 +38,7 @@ interface BrushPackManifestBase {
   treeDigest: string
 }
 
-export interface BrushReleaseArchiveManifest extends BrushPackManifestBase {
+interface BrushReleaseArchiveManifest extends BrushPackManifestBase {
   source: 'release-archive'
   archive: string
   archiveSha256: string
@@ -54,7 +54,7 @@ export interface BrushCargoBuildManifest extends BrushPackManifestBase {
 
 export type BrushPackManifest = BrushReleaseArchiveManifest | BrushCargoBuildManifest
 
-export type BrushLockKind = 'fetch' | 'build'
+type BrushLockKind = 'fetch' | 'build'
 
 export function brushLockKindFor(lockPath: string, packPlatform: string): BrushLockKind {
   try {
@@ -139,7 +139,7 @@ export function readBrushPackManifest(dir: string): BrushPackManifest | null {
   return null
 }
 
-export type BrushPackCheck =
+type BrushPackCheck =
   | { state: 'ok'; binaryPath: string; manifest: BrushPackManifest }
   | { state: 'absent'; note: string }
   | { state: 'mismatch'; note: string }

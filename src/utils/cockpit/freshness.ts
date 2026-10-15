@@ -1,5 +1,5 @@
 
-export type FreshnessTone = 'fresh' | 'stale'
+type FreshnessTone = 'fresh' | 'stale'
 
 export function formatFreshness(nowMs: number, atMs: number): string {
   if (atMs <= 0) return '↻ —'

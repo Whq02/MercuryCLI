@@ -26,7 +26,7 @@ export async function daemonRosterSnapshot(short: string): Promise<RosterSnapsho
 }
 
 
-export type DaemonCrewLiveness = {
+type DaemonCrewLiveness = {
   engaged: boolean
   workersActive: boolean
 }
@@ -77,13 +77,13 @@ export function primeDaemonCrewLivenessForProofs(v: DaemonCrewLiveness | null): 
   crewProofOverride = v
 }
 
-export type RosterListSnapshot = {
+type RosterListSnapshot = {
   ok: boolean
   entries: WireRosterEntry[]
   reason: string
 }
 
-export async function daemonRosterList(
+async function daemonRosterList(
   shorts?: readonly string[],
 ): Promise<RosterListSnapshot> {
   try {

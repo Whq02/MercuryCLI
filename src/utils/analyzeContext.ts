@@ -136,7 +136,7 @@ type CountableMessage = { role: 'user' | 'assistant'; content: unknown }
 
 let counterRoadDown = false
 
-export function counterRoadIsDown(): boolean {
+function counterRoadIsDown(): boolean {
   return counterRoadDown
 }
 

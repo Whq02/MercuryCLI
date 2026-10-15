@@ -2,7 +2,7 @@
 import { existsSync, realpathSync, watch, type FSWatcher, type Stats, type WatchListener, type WatchOptionsWithStringEncoding } from 'node:fs'
 import { basename, dirname, join } from 'node:path'
 
-export type WatchIgnoreRule = (candidatePath: string, stats?: Stats) => boolean
+type WatchIgnoreRule = (candidatePath: string, stats?: Stats) => boolean
 
 export function ignoringSpecialFiles(rule?: WatchIgnoreRule): WatchIgnoreRule {
   return (candidatePath, stats) => {

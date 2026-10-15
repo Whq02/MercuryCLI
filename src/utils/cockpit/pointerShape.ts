@@ -1,9 +1,9 @@
 import { flagEnv } from '../../substrate/flagRegistry.js'
 
 
-export type PointerShape = 'text' | 'default'
+type PointerShape = 'text' | 'default'
 
-export function pointerShapeEnabled(): boolean {
+function pointerShapeEnabled(): boolean {
   if (flagEnv('MERCURY_POINTER_SHAPE') === '0') return false
   return true
 }

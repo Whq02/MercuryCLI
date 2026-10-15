@@ -12,7 +12,7 @@ type MidInputSlashCommand = {
   partialCommand: string
 }
 
-export type CommandSuggestionItem = {
+type CommandSuggestionItem = {
   id: string
   displayText: string
   tag?: string

@@ -7,12 +7,12 @@ export const FLOW_ASK_LIMIT_MINUTES = 10
 export const SOVEREIGN_ASK_LIMIT_MINUTES = 3
 export const CREWMATE_ASK_LIMIT_MINUTES = 10
 
-export interface AskClockSubject {
+interface AskClockSubject {
   mode: PermissionMode | string | undefined
   crewmate: boolean
 }
 
-export function askLimitMinutes(subject: AskClockSubject): number {
+function askLimitMinutes(subject: AskClockSubject): number {
   if (subject.mode === 'flow') return FLOW_ASK_LIMIT_MINUTES
   if (subject.mode === 'sovereign') return SOVEREIGN_ASK_LIMIT_MINUTES
   return subject.crewmate ? CREWMATE_ASK_LIMIT_MINUTES : 0

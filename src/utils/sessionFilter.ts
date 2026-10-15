@@ -2,7 +2,7 @@ import type { SessionListing } from '../types/logs.js'
 import { workspaceRecognizedByGround } from './bootCardFacts.js'
 
 
-export const SUBSTANTIVE_FILE_SIZE = 4096
+const SUBSTANTIVE_FILE_SIZE = 4096
 
 const PLACEHOLDER_PROMPTS = new Set(['(session)', 'No prompt'])
 

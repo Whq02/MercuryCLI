@@ -6,7 +6,7 @@ import { getPlatform } from './platform.js'
 import { CUSTOMIZATION_SURFACES } from './settings/types.js'
 import { getManagedFilePath } from './settings/managedPath.js'
 
-export type ManagedPolicyWarning = { issue: string; fix: string }
+type ManagedPolicyWarning = { issue: string; fix: string }
 
 export function detectLinuxGlobPatternWarnings(): ManagedPolicyWarning[] {
   if (getPlatform() !== 'linux') return []

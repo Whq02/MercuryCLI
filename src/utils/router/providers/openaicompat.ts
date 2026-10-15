@@ -19,7 +19,7 @@ import { SPECIALIST_ROLES } from './types.js'
 
 const ALL_ROLES: readonly SpecialistRole[] = SPECIALIST_ROLES
 
-export function compatSlotCatalogue(): readonly ProviderCatalogueEntry[] {
+function compatSlotCatalogue(): readonly ProviderCatalogueEntry[] {
   return compatSlotModelIds().map(id => ({
     id,
     displayLabel: stripCompatModelPrefix(id),
@@ -29,7 +29,7 @@ export function compatSlotCatalogue(): readonly ProviderCatalogueEntry[] {
   }))
 }
 
-export function describeCompatProvider(): ProviderDescription {
+function describeCompatProvider(): ProviderDescription {
   const discovery = getCachedProviderDiscovery('openai-compat')
   const record = discovery?.provider === 'openai-compat' ? discovery : undefined
   const label = record?.label ?? resolveCompatSlotConfig()?.label ?? 'Custom endpoint'
@@ -53,14 +53,14 @@ export function describeCompatProvider(): ProviderDescription {
   }
 }
 
-export function compatStatus(): RouterProviderStatus {
+function compatStatus(): RouterProviderStatus {
   const discovery = primeCompatDiscovery()
   return discovery?.configured
     ? { available: true }
     : { available: false, reason: 'not-configured:openai-compat' }
 }
 
-export function listCompatModels(): RouterProviderModel[] {
+function listCompatModels(): RouterProviderModel[] {
   if (!compatStatus().available) return []
   return compatSlotCatalogue().map(entry => ({
     ref: {
@@ -74,14 +74,14 @@ export function listCompatModels(): RouterProviderModel[] {
   }))
 }
 
-export function resolveCompatModel(
+function resolveCompatModel(
   _modelClass: RouterModelClass,
   _posture: RouterPosture,
 ): RouteModelRef | null {
   return null
 }
 
-export function buildCompatLaunchPatch(_ref: RouteModelRef): { model: string; effort: string } {
+function buildCompatLaunchPatch(_ref: RouteModelRef): { model: string; effort: string } {
   throw new Error(
     'router: the openai-compat slot has no SEAT runtime — roster seats stay Anthropic; compat specialists dispatch through the AgentTool engine path',
   )

@@ -6,7 +6,7 @@ import type {
 } from '../../types/permissions.js'
 import { BYPASSED_ASK_ROAD_WORDS } from '../../types/permissions.js'
 
-export interface PermissionResultWireV1 {
+interface PermissionResultWireV1 {
   [key: string]: unknown
   decisionReason?: DecisionReasonWireV1
 }

@@ -8,12 +8,12 @@ import type { ShellEngineResolution } from './engineSession.js'
 import { shellEngineArmWords, type ShellEngineArm } from './shellEngineArm.js'
 
 
-export type WindowsBashRoad =
+type WindowsBashRoad =
   | { kind: 'git-bash'; path: string }
   | { kind: 'engine'; path: string; arm: ShellEngineArm }
   | { kind: 'absent'; remedy: string }
 
-export type ShellEngineBinary = { path: string; arm: ShellEngineArm } | null
+type ShellEngineBinary = { path: string; arm: ShellEngineArm } | null
 
 export const WINDOWS_BASH_NOTICE =
   'Bash tool absent — no bash.exe found: install Git for Windows, set MERCURY_GIT_BASH_PATH=<path to bash.exe>, or turn the shell engine on'

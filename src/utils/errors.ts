@@ -1,7 +1,7 @@
 import { APIUserAbortError } from '../services/api/sdkErrors.js'
 
 
-export class MercuryError extends Error {
+class MercuryError extends Error {
   constructor(message?: string) {
     super(message)
     this.name = this.constructor.name
@@ -58,7 +58,7 @@ export interface ShellRunFact {
   output?: string
 }
 
-export interface ShellCallValue {
+interface ShellCallValue {
   code: number | null
   stdout: string
   stderr: string

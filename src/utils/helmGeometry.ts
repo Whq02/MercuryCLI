@@ -9,7 +9,7 @@ export const HELM_RAIL_SLIM = 20
 
 export const HELM_RAIL_WIDE = 30
 
-export type RailPlan = {
+type RailPlan = {
   lanes: boolean
   vitals: boolean
   railW: number

@@ -50,7 +50,7 @@ function defaultEffortFor(modelClass: AnthropicModelClass, posture: RouterPostur
   return modelClass === 'opus' ? 'xhigh' : 'high'
 }
 
-export function anthropicStatus(): RouterProviderStatus {
+function anthropicStatus(): RouterProviderStatus {
   return { available: true }
 }
 
@@ -75,11 +75,11 @@ export function listAnthropicModels(): RouterProviderModel[] {
   return out
 }
 
-export function buildAnthropicLaunchPatch(ref: RouteModelRef): { model: string; effort: string } {
+function buildAnthropicLaunchPatch(ref: RouteModelRef): { model: string; effort: string } {
   return { model: ref.model, effort: ref.effort }
 }
 
-export function describeAnthropicProvider(): ProviderDescription {
+function describeAnthropicProvider(): ProviderDescription {
   return {
     transport: 'anthropic-messages',
     capabilities: [

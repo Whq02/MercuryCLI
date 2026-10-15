@@ -45,7 +45,7 @@ export function pipeSpans(root: Node): Array<{ start: number; end: number }> {
   return spans.sort((a, b) => a.start - b.start)
 }
 
-export function splitPipeSegments(command: string): string[] {
+function splitPipeSegments(command: string): string[] {
   const root = preparedCommandRoot(command)
   if (!root) return [command]
   const spans = pipeSpans(root)
@@ -61,9 +61,9 @@ export function splitPipeSegments(command: string): string[] {
   return segments.map(part => part.trim()).filter(Boolean)
 }
 
-export type InputRedirectionResult = { commandWithoutRedirections: string; targets: string[] }
-export type OutputRedirectionCapture = { target: string; operator: '>' | '>>' }
-export type OutputRedirectionResult = {
+type InputRedirectionResult = { commandWithoutRedirections: string; targets: string[] }
+type OutputRedirectionCapture = { target: string; operator: '>' | '>>' }
+type OutputRedirectionResult = {
   commandWithoutRedirections: string
   redirections: OutputRedirectionCapture[]
   hasDangerousRedirection: boolean
@@ -191,7 +191,7 @@ export const getCommandSubcommandPrefix: ((
   cache: { clear?: () => void }
 } = createSubcommandPrefixExtractor(getCommandPrefix, splitCommand)
 
-export function clearCommandPrefixCaches(): void {
+function clearCommandPrefixCaches(): void {
   getCommandPrefix.cache.clear?.()
   getCommandSubcommandPrefix.cache.clear?.()
 }

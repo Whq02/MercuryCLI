@@ -80,7 +80,7 @@ function encodeContext(state: { nextValue: number }): EncodeContext {
   }
 }
 
-export type EncodedTranscriptLine = {
+type EncodedTranscriptLine = {
   line: string
   record: MercuryRecord
 }

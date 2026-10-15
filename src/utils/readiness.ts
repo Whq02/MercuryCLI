@@ -49,7 +49,7 @@ import { whichSync } from './which.js'
 import { withheldTools } from './withheldTools.js'
 
 
-export type ReadinessState =
+type ReadinessState =
   | 'ready'
   | 'starting'
   | 'configured'
@@ -74,7 +74,7 @@ export interface ReadinessRecord {
   restartRequired?: boolean
 }
 
-export interface ReadinessReport {
+interface ReadinessReport {
   records: ReadinessRecord[]
   collectedAt: number
 }
@@ -1019,7 +1019,7 @@ function skillRecords(): ReadinessRecord[] {
 }
 
 
-export function flagReadinessRecord(spec: FlagSpec): ReadinessRecord {
+function flagReadinessRecord(spec: FlagSpec): ReadinessRecord {
   const effective = flagEnv(spec.env)
   const source =
     effective === undefined
@@ -1058,7 +1058,7 @@ export function flagReadinessRecord(spec: FlagSpec): ReadinessRecord {
   }
 }
 
-export function envReadinessProjection(): ReadinessRecord[] {
+function envReadinessProjection(): ReadinessRecord[] {
   const rows = FLAG_REGISTRY.map(spec => ({
     record: flagReadinessRecord(spec),
     explicit: flagEnv(spec.env) !== undefined,

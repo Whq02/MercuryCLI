@@ -46,7 +46,7 @@ export interface InactivityDeadline {
   readonly armed: boolean
 }
 
-export interface InactivityDeadlineOptions {
+interface InactivityDeadlineOptions {
   seam: string
   limitMs: number
   advice?: string

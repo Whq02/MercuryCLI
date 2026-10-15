@@ -50,7 +50,7 @@ export function huggingfaceLiveCatalogue(): { entries: ProviderCatalogueEntry[];
   }
 }
 
-export function describeHuggingfaceProvider(): ProviderDescription {
+function describeHuggingfaceProvider(): ProviderDescription {
   const discovery = getCachedProviderDiscovery('huggingface') ?? primeHuggingfaceDiscovery()
   const record = discovery?.provider === 'huggingface' ? discovery : undefined
   const live = huggingfaceLiveCatalogue()
@@ -70,12 +70,12 @@ export function describeHuggingfaceProvider(): ProviderDescription {
   }
 }
 
-export function huggingfaceStatus(): RouterProviderStatus {
+function huggingfaceStatus(): RouterProviderStatus {
   const discovery = primeHuggingfaceDiscovery()
   return discovery?.keyPresent ? { available: true } : { available: false, reason: 'no-api-key:huggingface' }
 }
 
-export function listHuggingfaceModels(): RouterProviderModel[] {
+function listHuggingfaceModels(): RouterProviderModel[] {
   if (!huggingfaceStatus().available) return []
   const entries = huggingfaceLiveCatalogue()?.entries ?? HUGGINGFACE_STATIC_CATALOGUE
   return entries.map(entry => ({
@@ -90,11 +90,11 @@ export function listHuggingfaceModels(): RouterProviderModel[] {
   }))
 }
 
-export function resolveHuggingfaceModel(_modelClass: RouterModelClass, _posture: RouterPosture): RouteModelRef | null {
+function resolveHuggingfaceModel(_modelClass: RouterModelClass, _posture: RouterPosture): RouteModelRef | null {
   return null
 }
 
-export function buildHuggingfaceLaunchPatch(_ref: RouteModelRef): { model: string; effort: string } {
+function buildHuggingfaceLaunchPatch(_ref: RouteModelRef): { model: string; effort: string } {
   throw new Error(
     'router: provider huggingface has no SEAT runtime — roster seats stay Anthropic; Hugging Face specialists dispatch through the AgentTool engine path',
   )

@@ -17,7 +17,7 @@ export const RUN_PHASES = [
   'flush_exit',
 ] as const
 
-export type RunPhase = (typeof RUN_PHASES)[number]
+type RunPhase = (typeof RUN_PHASES)[number]
 
 const stamps = new Map<RunPhase, number>()
 
@@ -31,7 +31,7 @@ export function noteRunPhase(phase: RunPhase, atMs?: number): void {
   stamps.set(phase, at)
 }
 
-export interface RunPhaseReport {
+interface RunPhaseReport {
   phases: Array<{ phase: RunPhase; atMs: number }>
   monotonic: boolean
   wallMs: number

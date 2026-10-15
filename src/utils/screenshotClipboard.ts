@@ -9,7 +9,7 @@ import { logError } from './log.js'
 import { getPlatform } from './platform.js'
 
 
-export type CopyResult = { success: boolean; message: string }
+type CopyResult = { success: boolean; message: string }
 
 const SCRIPT_TIMEOUT_MS = 5000
 

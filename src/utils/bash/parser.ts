@@ -95,7 +95,7 @@ export function parseCommandRaw(command: string): Promise<RawParse> {
   return lastParse
 }
 
-export async function parseCommand(command: string): Promise<ParsedCommandData | null> {
+async function parseCommand(command: string): Promise<ParsedCommandData | null> {
   const rootNode = await parseCommandRaw(command)
   if (!rootNode || rootNode === PARSE_ABORTED || rootNode.type === 'ERROR') return null
   const commands: Node[] = []

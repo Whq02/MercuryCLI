@@ -181,6 +181,6 @@ export function isTranscribable(m: Message): boolean {
   }
 }
 
-export function transformMessagesForExternalTranscript(messages: Transcript): Transcript {
+function transformMessagesForExternalTranscript(messages: Transcript): Transcript {
   return messages.filter(m => !((m.type === 'assistant' || m.type === 'user') && Array.isArray(m.message.content) && m.message.content.length === 0))
 }

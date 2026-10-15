@@ -8,7 +8,7 @@ import { getToolResultsDir } from '../toolResultStorage.js'
 export const HOOK_CONTEXT_CAP_CHARS = 24_000
 const HEAD_SHARE = 0.7
 
-export interface BoundedHookContext {
+interface BoundedHookContext {
   text: string
   truncated: boolean
   omittedChars: number
@@ -52,7 +52,7 @@ function spillSeamContext(text: string, fileLabel: string): { path?: string; err
   }
 }
 
-export function boundSeamContext(text: string | null | undefined, fileLabel: string, cap: number = HOOK_CONTEXT_CAP_CHARS): BoundedHookContext {
+function boundSeamContext(text: string | null | undefined, fileLabel: string, cap: number = HOOK_CONTEXT_CAP_CHARS): BoundedHookContext {
   const whole = text ?? ''
   if (whole.length <= cap) return { text: whole, truncated: false, omittedChars: 0 }
   return shapeBoundedContext(whole, cap, spillSeamContext(whole, fileLabel))

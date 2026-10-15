@@ -2,7 +2,7 @@ import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 
 
-export interface AgentCliSignature {
+interface AgentCliSignature {
   id: string
   displayName: string
   pattern: RegExp
@@ -54,12 +54,12 @@ export function recognizeAgentCli(text: string): AgentCliSignature | null {
   return null
 }
 
-export const MERCURY_HOME_WRITER_FINGERPRINT = /mercury|hermes[-_]daemon/i
+const MERCURY_HOME_WRITER_FINGERPRINT = /mercury|hermes[-_]daemon/i
 
-export const MERCURY_LEGACY_LOG_GRAMMAR =
+const MERCURY_LEGACY_LOG_GRAMMAR =
   /^\[daemon\] (?:starting autonomous scheduler for |control socket up — RPC: )/m
 
-export function isMercuryDaemonRecord(parsed: unknown): boolean {
+function isMercuryDaemonRecord(parsed: unknown): boolean {
   if (typeof parsed !== 'object' || parsed === null) return false
   const record = parsed as Record<string, unknown>
   return (
@@ -74,9 +74,9 @@ export function isMercuryDaemonRecord(parsed: unknown): boolean {
   )
 }
 
-export type HarnessArtifactClass = 'daemon-log' | 'daemon-roster' | 'daemon-record'
+type HarnessArtifactClass = 'daemon-log' | 'daemon-roster' | 'daemon-record'
 
-export interface HarnessHomeArtifact {
+interface HarnessHomeArtifact {
   rel: string
   artifactClass: HarnessArtifactClass
   verdict: 'ours' | 'ours-stale' | 'foreign'
@@ -93,9 +93,9 @@ export interface HarnessHomeReport {
 const HARNESS_LOG_SEGMENTS: readonly (readonly string[])[] = [['daemon.log'], ['daemon', 'daemon.log'], ['daemon', 'daemon.log.1']]
 const HARNESS_ROSTER_SEGMENTS: readonly string[] = ['daemon', 'roster.json']
 const HARNESS_DAEMON_RECORD_SEGMENTS: readonly string[] = ['daemon', 'daemon.json']
-export const HARNESS_LOG_RELS = HARNESS_LOG_SEGMENTS.map(segments => segments.join('/'))
-export const HARNESS_ROSTER_REL = HARNESS_ROSTER_SEGMENTS.join('/')
-export const HARNESS_DAEMON_RECORD_REL = HARNESS_DAEMON_RECORD_SEGMENTS.join('/')
+const HARNESS_LOG_RELS = HARNESS_LOG_SEGMENTS.map(segments => segments.join('/'))
+const HARNESS_ROSTER_REL = HARNESS_ROSTER_SEGMENTS.join('/')
+const HARNESS_DAEMON_RECORD_REL = HARNESS_DAEMON_RECORD_SEGMENTS.join('/')
 
 const HARNESS_REL_SEGMENTS = new Map<string, readonly string[]>(
   [...HARNESS_LOG_SEGMENTS, HARNESS_ROSTER_SEGMENTS, HARNESS_DAEMON_RECORD_SEGMENTS].map(segments => [segments.join('/'), segments]),

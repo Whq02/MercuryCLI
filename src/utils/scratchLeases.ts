@@ -4,9 +4,9 @@ import { join, resolve, sep } from 'path'
 import { durableAtomicPublishSync } from '../substrate/durablePublish.js'
 import { getProjectTempDir } from './permissions/filesystem.js'
 
-export const SCRATCH_LEASE_REGISTRY_VERSION = 1
+const SCRATCH_LEASE_REGISTRY_VERSION = 1
 
-export interface ScratchLease {
+interface ScratchLease {
   leaseId: string
   owner: { kind: 'session' | 'agent' | 'task'; id: string }
   root: string
@@ -98,7 +98,7 @@ export function releaseScratchLease(
   }
 }
 
-export interface ScratchLeftover extends ScratchLease {
+interface ScratchLeftover extends ScratchLease {
   sizeBytes: number
 }
 

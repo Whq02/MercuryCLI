@@ -8,7 +8,7 @@ import {
 } from '../../services/agentNeedsYou.js'
 import { type Snapshot, withState } from './types.js'
 
-export type AgentStateData = {
+type AgentStateData = {
   verdict: AgentStateVerdict | null
   needsAttention: boolean
   ageMs: number | null

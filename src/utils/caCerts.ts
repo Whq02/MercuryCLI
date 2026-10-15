@@ -71,7 +71,7 @@ function resolveCACertificates(): string[] | undefined {
 
 let cachedResult: { value: string[] | undefined } | null = null
 
-export type ExtraCaCertsOutcome = { path: string; loaded: boolean; error?: string }
+type ExtraCaCertsOutcome = { path: string; loaded: boolean; error?: string }
 let extraCertsOutcome: ExtraCaCertsOutcome | null = null
 
 export function getCACertificates(): string[] | undefined {

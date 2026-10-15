@@ -4,7 +4,7 @@ import type { QueuedCommand } from '../types/textInputTypes.js'
 
 export const NEW_INPUT_REASON = 'new input arrived for this turn (it follows this result)'
 
-export function newInputForTurn(agentId: string | undefined): QueuedCommand | undefined {
+function newInputForTurn(agentId: string | undefined): QueuedCommand | undefined {
   const scope = { sleepRan: false, isMainThread: agentId === undefined, agentId }
   return selectDrainableCommands(getDrainableCommands(false), scope, isSlashCommand).find(
     cmd => cmd.mode === 'prompt' && isOperatorLine(cmd),

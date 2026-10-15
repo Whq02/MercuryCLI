@@ -1,5 +1,5 @@
 
-export interface InputRange {
+interface InputRange {
   start: number
   end: number
 }

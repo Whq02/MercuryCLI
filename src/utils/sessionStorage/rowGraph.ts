@@ -8,7 +8,7 @@ type Segment = NonNullable<SystemCompactBoundaryMessage['compactMetadata']['pres
 const compactRow = (row: TranscriptMessage): row is TranscriptMessage & SystemCompactBoundaryMessage => row.type === 'system' && row.subtype === 'compact_boundary'
 const snipped = (row: TranscriptMessage): UUID[] | undefined => (row as { snipMetadata?: { removedUuids?: UUID[] } }).snipMetadata?.removedUuids
 
-export class TranscriptRows {
+class TranscriptRows {
   private positions = new Map<UUID, number>()
   private ordinal = 0
   private children = new Map<UUID, Set<UUID>>()
