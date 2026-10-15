@@ -600,7 +600,7 @@ function ownHomeNames(): string[] {
 
 let otherUserDeleteCache: { key: string; patterns: RegExp[] } | undefined
 
-export function otherUserDeletePatterns(): RegExp[] {
+function otherUserDeletePatterns(): RegExp[] {
   const own = ownHomeNames()
   const windows = process.platform === 'win32'
   const key = `${windows ? 'win32' : 'posix'}\n${own.join('\n')}`
