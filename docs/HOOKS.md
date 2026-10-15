@@ -33,31 +33,30 @@ session carries.
 Each event names a list of entries, and one entry is one hook. An entry
 names exactly one of:
 
-- `run` — a shell command. The moment's facts arrive on stdin as one JSON
+- `run`: a shell command. The moment's facts arrive on stdin as one JSON
   line; the answer is the exit code and stdout.
-- `question` — a question a model answers. `$EVENT` in the text is replaced
+- `question`: a question a model answers. `$EVENT` in the text is replaced
   by the facts as JSON; without it, the facts are appended. The model answers
   the shape below as structured output.
-- `crewmate` — a brief a crewmate with the session's read tools checks, no
-  asks, at most 50 turns inside its timeout; `$EVENT` as above. It answers
+- `crewmate`: a brief a crewmate with the session's read tools checks, with no
+  permission prompts and at most 50 turns inside its timeout; `$EVENT` works as above. It answers
   the shape below through its verdict tool.
 
 and may carry:
 
-- `name` — the words every line about the hook uses, and the status row
+- `name`: the words every line about the hook uses, and the status row
   while it runs; without it, the first line of the command or question.
   While a `tool.before` or `tool.after` hook holds a call, the working strip
-  and the call's own row read `waiting on hook <name> · 12 s of 30` — the
-  seconds so far against the hook's timeout — until the hook answers or is
+  and the call's own row read `waiting on hook <name> · 12 s of 30` (the
+  seconds elapsed against the hook's timeout) until the hook answers or is
   ended.
-- `match` — names (`Bash`, `Read|Edit`) or a regular expression, matched
+- `match`: names (`Bash`, `Read|Edit`) or a regular expression, matched
   against the event's match field in the table below. Absent, or `*`, matches
   everything. An entry whose match is not a valid regular expression is a
   named fault and does not load; so is a match on an event that has no match
   field. `match` is the one filter: a hook on a tool fires on every call of
   that tool, and a `run` hook that cares about one kind of call reads its
   stdin and exits 0 at once when the call is not its business:
-
   ```sh
   #!/bin/sh
   input=$(cat)
@@ -67,24 +66,24 @@ and may carry:
   esac
   ```
 
-- `shell` — `bash` (the default) or `powershell`; `run` only.
-- `model` — the model a `question` or `crewmate` hook runs on; without it,
+- `shell`: `bash` (the default) or `powershell`; `run` only.
+- `model`: the model a `question` or `crewmate` hook runs on; without it,
   the session provider's small model answers a question and its light model
   runs a crewmate.
-- `timeout` — seconds; 600 for a `run`, 30 for a `question`, 60 for a
+- `timeout`: seconds; 600 for a `run`, 30 for a `question`, 60 for a
   `crewmate`; at most 2147483.
-- `background` — `run` only: the hook does not hold the moment; its answer
+- `background`: `run` only; the hook does not hold the moment, and its answer
   arrives at the start of the next turn.
-- `wake` — `run` only, implies `background`: a block from the hook wakes the
+- `wake`: `run` only, implies `background`; a block from the hook wakes the
   model with the words.
-- `once` — the hook runs once in a session, then stands down for the rest of
+- `once`: the hook runs once in a session, then stands down for the rest of
   it. Mercury never edits a settings file.
-- `watch` — `file.changed` only: the files to watch, relative to the project.
+- `watch`: `file.changed` only; the files to watch, relative to the project.
 
-An entry with a fault — an unknown field, a wrong type, a field that belongs
-to another kind, a match on an event without one — is named where settings
+An entry with a fault (an unknown field, a wrong type, a field that belongs
+to another kind, or a match on an event without one) is named where settings
 faults are reported ([SETTINGS.md](SETTINGS.md): the health check's Settings
-row, once in the chat, the headless run's stderr) and dropped whole; the rest
+row, once in the chat, and the headless run's stderr) and dropped whole; the rest
 of the file applies. Every faulty entry is named, each with its path and its
 fault. An unknown event name is a fault like any other. A settings file that
 stops parsing while a session is open keeps its last good hooks in force and
@@ -99,11 +98,10 @@ the managed layer it turns off every hook. `events.managedOnly` in the
 managed layer runs only the managed layer's hooks. `extensions.exclusive`
 naming `hooks` runs only managed and extension hooks. An untrusted workspace
 runs no checkout hook: a headless run loads the user, `--config` and
-managed layers only, and the cockpit runs nothing until the workspace is
+managed layers only, and the terminal UI runs nothing until the workspace is
 trusted ([TRUST.md](TRUST.md)); a headless run in an untrusted folder says
 on stderr, once at the start, how many project and local hooks it left
 unloaded and how to trust the folder.
-
 ### Skills, agents and extensions
 
 A skill's `hooks:` frontmatter is the same map, registered while the skill is
@@ -117,20 +115,20 @@ any of them is named and dropped; the rest loads.
 
 ### The worktree command
 
-`workspace.worktree.prepare` is a plain setting, not a hook: a shell command
-Mercury runs inside every new worktree after git makes it and before any
-seat uses it — a crewmate's isolation worktree, `--worktree`, EnterWorktree.
-It has no input and no answer; a failure is named on the row that made the
+`workspace.worktree.prepare` is a plain setting (separate from `events.hooks`): a shell command
+Mercury runs inside every new worktree after git creates it and before any
+session or crewmate uses it (a crewmate's isolation worktree, `--worktree`, or `EnterWorktree`).
+It has no input and no answer; a failure is named on the row that created the
 worktree, and the worktree is used anyway.
 
 ## Events
 
 Every input carries `event`, `session_id`, `transcript_path`, `cwd`,
 `permission_mode` (when a turn is running), and `crewmate_id` and
-`crewmate_type` when the moment happened inside a crewmate — so a monitor
-tells a crewmate's tool call from the lead's by the presence of `crewmate_id`,
+`crewmate_type` when the moment happened inside a crewmate, so a monitor
+tells a crewmate's tool call from the main agent's by the presence of `crewmate_id`,
 and a stalled call by `wall_ms` on `tool.after`. `turn_id` is one
-id wherever it appears: the turn row's id on the main thread, the crewmate's
+id wherever it appears: the turn row's id on the main thread, or the crewmate's
 own run key inside a crewmate. The event adds its own fields:
 
 | Event | Fires | Fields | Match field | An answer may |
@@ -155,43 +153,43 @@ A side question Mercury asks the model on its own account, such as the note
 for the next session, fires no turn hook.
 
 A `by` of `mode` includes a posture that answered an ask on its own; `safety`
-is one of Mercury's own guards — the wards, the commit gate, the path-safety
-check.
+is one of Mercury's own built-in guards (command safety rules, the commit gate, or the path-safety
+check).
 
 ## What a hook answers
 
 One shape, every kind, read against the event. A field the event does not
-read is a named failure ("`input` is not an answer `tool.after` reads"), never
+read is a named failure (`"'input' is not an answer 'tool.after' reads"`), never
 a silent merge:
 
-- `block` — the moment is blocked with these words: a refused tool call, a
-  refused prompt, the model sent back on `turn.answer`, a deny on
-  `permission.ask`. The model reads the words.
-- `stop` — the whole turn ends now; the operator reads the words; the model
+- `block`: the moment is blocked with these words (a refused tool call, a
+  refused prompt, the model sent back on `turn.answer`, or a deny on
+  `permission.ask`). The model reads the words.
+- `stop`: the whole turn ends now; you read the words, and the model
   reads nothing more.
-- `context` — words the model reads at this moment.
-- `notice` — one line the operator reads, saved in the session.
-- `permission` — `allow` (no ask, though a deny rule still denies) or `ask`
-  (the operator is asked); a deny is `block`.
-- `input` — the input the tool runs with instead; `output` — what the model
-  sees as the result instead; `rules` — permission updates applied with an
-  allow; `instructions` — guidance for the summariser; `prompt` — the
-  session's first prompt; `watch` — the files to watch.
+- `context`: words the model reads at this moment.
+- `notice`: one line you read, saved in the session.
+- `permission`: `allow` (no ask, though a deny rule still denies) or `ask`
+  (you are asked); a deny is `block`.
+- `input`: the input the tool runs with instead; `output`: what the model
+  sees as the result instead; `rules`: permission updates applied with an
+  allow; `instructions`: guidance for the summariser; `prompt`: the
+  session's first prompt; `watch`: the files to watch.
 
 A `run` hook answers with its exit code and its stdout:
 
-- exit 0: stdout is the answer — empty, one JSON object as above, or plain
-  text, which the operator sees in transcript mode; on `session.start`,
-  `turn.start`, `crewmate.start` and `compaction.after` plain text is
-  `context` the model reads;
+- exit 0: stdout is the answer (empty, one JSON object as above, or plain
+  text, which you see in transcript mode; on `session.start`,
+  `turn.start`, `crewmate.start` and `compaction.after` plain text becomes
+  `context` the model reads);
 - exit 2: the moment is blocked and stderr is the words; stdout is not read;
 - any other exit, a timeout, a kill or a command that could not run: the
-  hook failed, the moment proceeds, and the operator reads one line naming
-  the hook, the event and what happened. JSON that is not the answer shape
-  is a failure, not prose. A hook need not read its input.
+  hook failed, the moment proceeds, and you see one line naming
+  the hook, the event and what happened. Invalid JSON that does not match the answer shape
+  is treated as a failure. A hook need not read its input.
 
-Every kind is ended at its `timeout` — the command killed, the model call
-abandoned, the crewmate stopped — and the line reads `hook <name> (<event>)
+Every kind is ended at its `timeout` (the command killed, the model call
+abandoned, the crewmate stopped), and the line reads `hook <name> (<event>)
 timed out after <n>s and was killed; the <event> it guarded proceeded`.
 `session.end`, a cut `turn.end` and a cut `tool.after` run under a 1.5 s
 budget, or the hook's own timeout when shorter.
@@ -206,16 +204,15 @@ Several hooks on one moment run at once. Any block blocks, and the words of
 every block are joined in order; every `context` is added in order; for
 `permission`, deny beats ask beats allow; for a field only one hook may set
 (`input`, `output`, `prompt`, `instructions`) the last entry in layer order
-wins and the operator reads a notice naming both.
+wins and you see a notice naming both.
 
 What each outcome shows: a hook that ran with nothing to say shows nothing
 (`/hooks` lists what is wired); `context` reaches the model and the
 transcript; a `block` is a red line, `hook <name> blocked <event>: <words>`,
 and the model reads the words; a `stop` ends the turn with its words; a
 `notice` is one line; a failure is one line. Every line is saved with the
-session, survives a resume, and is painted by a daemon-hosted cockpit from
+session, survives a resume, and is painted by a daemon-hosted terminal UI from
 the session file.
-
 A `run` hook's environment is the scrubbed process environment plus
 `MERCURY_PROJECT_DIR`, `MERCURY_SESSION_ID` and `MERCURY_HOOK_EVENT`; on
 `session.start` and `file.changed` also `MERCURY_ENV_FILE`, a file where
