@@ -93,17 +93,24 @@ export function scanBaseRevisionTails(file: string, baseText: string, text: stri
 
     const cleanClause = (s: string): string =>
       s
-        .replace(/\s*[—,(].*$/, '')
+        .replace(/\s*[—,(;].*$/, '')
         .trim()
         .split(/\s+/)
         .filter(Boolean)
         .slice(0, 3)
         .join(' ')
+    const firstWordClean = (s: string): string =>
+      (s.trim().split(/\s+/)[0] ?? '').replace(/[,:;().—]/g, '')
     const firstNext = cleanClause(nextTrimmed)
+    const fwNext = firstWordClean(nextTrimmed)
     if (
       candidates.some(b => {
         const bn = baseLines[b + 1]?.trim() ?? ''
-        return bn === nextTrimmed || (firstNext !== '' && cleanClause(bn) === firstNext)
+        return (
+          bn === nextTrimmed ||
+          (firstNext !== '' && cleanClause(bn) === firstNext) ||
+          (/^[A-Z]/.test(fwNext) && firstWordClean(bn) === fwNext)
+        )
       })
     ) {
       continue
@@ -113,6 +120,19 @@ export function scanBaseRevisionTails(file: string, baseText: string, text: stri
       if (b + 1 >= baseLines.length) continue
       const baseNext = baseLines[b + 1]!.trim()
       if (baseNext === '') continue
+
+      if (/^`?\{[a-zA-Z0-9_, ]+\}`?/.test(lines[i]!.trim().slice(lines[i]!.indexOf(tw) + tw.length).trim()) === false) {
+        const baseRest = baseLines[b]!.trim().slice(baseLines[b]!.trim().replace(/\s+—\s+/g, ', ').indexOf(tw) + tw.length).trim()
+        if (/^`?\{[a-zA-Z0-9_, ]+/.test(baseRest) && !/^`?\{/.test(nextTrimmed)) {
+          hits.push({
+            file,
+            line: i + 1,
+            kind: 'cut-or-spliced-sentence',
+            excerpt: `dropped braced tuple after "${tw}": missing "${baseRest.slice(0, 50)}"`,
+          })
+          break
+        }
+      }
 
       for (const skip of [2, 3, 4]) {
         if (b + skip < baseLines.length) {
