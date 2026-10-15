@@ -131,6 +131,7 @@ export type UsageFactsV1 = {
     credits?: { hasCredits: boolean; unlimited: boolean; balance?: string; observedAtMs: number; source?: 'headers' | 'endpoint' }
   }
   anthropicWindow?: AnthropicWindowFactV1
+  anthropicObserved?: AnthropicObservedUsageV1
   openaiWindow?: OpenaiWindowFactV1
   geminiWindow?: LaneWindowFactV1
   openrouterWindow?: LaneWindowFactV1
@@ -188,6 +189,18 @@ export type AnthropicWindowFactV1 = {
   owner: string
   resetsAtMs?: number
   claim?: string
+}
+
+export type AnthropicObservedWindowV1 = {
+  utilization: number
+  resetsAt: number
+  observedAtMs: number
+}
+
+export type AnthropicObservedUsageV1 = {
+  owner: string
+  fiveHour?: AnthropicObservedWindowV1
+  sevenDay?: AnthropicObservedWindowV1
 }
 
 export type OpenaiWindowFactV1 = {
