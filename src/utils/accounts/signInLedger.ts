@@ -16,6 +16,7 @@ export interface SignInEntryRecord {
   at: number
   kind: SignInKind
   pocket?: string
+  unnamed?: boolean
 }
 
 interface SignInLedgerFile {
@@ -142,10 +143,10 @@ export function readSignInEntries(family: string, io?: SignInLedgerIo): Record<s
   if (name === undefined) return out
   for (const [identity, value] of Object.entries(entryRows(readFile(io), name))) {
     if (identity.trim() === '' || typeof value !== 'object' || value === null) continue
-    const { at, kind, pocket } = value as { at?: unknown; kind?: unknown; pocket?: unknown }
+    const { at, kind, pocket, unnamed } = value as { at?: unknown; kind?: unknown; pocket?: unknown; unnamed?: unknown }
     if (typeof at !== 'number' || !Number.isFinite(at) || at <= 0) continue
     if (typeof kind !== 'string' || !KINDS.has(kind)) continue
-    out[identity] = { at, kind: kind as SignInKind, ...(typeof pocket === 'string' && pocket !== '' ? { pocket } : {}) }
+    out[identity] = { at, kind: kind as SignInKind, ...(typeof pocket === 'string' && pocket !== '' ? { pocket } : {}), ...(unnamed === true ? { unnamed: true } : {}) }
   }
   return out
 }
@@ -167,10 +168,10 @@ function publishEntries(family: string, mutate: (rows: Record<string, unknown>) 
   }
 }
 
-export function recordSignInEntry(family: string, identity: string, kind: SignInKind, pocket: string | undefined, io?: SignInLedgerIo): boolean {
+export function recordSignInEntry(family: string, identity: string, kind: SignInKind, pocket: string | undefined, io?: SignInLedgerIo, unnamed = false): boolean {
   const name = normaliseFamily(family)
   if (name === undefined || !KINDS.has(kind) || identity.trim() === '') return false
-  return publishEntries(name, rows => ({ ...rows, [identity]: { at: io?.now?.() ?? Date.now(), kind, ...(pocket !== undefined ? { pocket } : {}) } }), io)
+  return publishEntries(name, rows => ({ ...rows, [identity]: { at: io?.now?.() ?? Date.now(), kind, ...(pocket !== undefined ? { pocket } : {}), ...(unnamed ? { unnamed: true } : {}) } }), io)
 }
 
 export function dropSignInEntry(family: string, identity: string, io?: SignInLedgerIo): boolean {

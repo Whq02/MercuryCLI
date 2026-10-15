@@ -1,5 +1,5 @@
 import { AsyncLocalStorage } from 'node:async_hooks'
-import { existsSync, mkdirSync, readdirSync, rmSync, statSync } from 'node:fs'
+import { existsSync, mkdirSync, readdirSync, rmdirSync, rmSync, statSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { getAuthConfigHomeDir } from '../envUtils.js'
 import { dropSignInEntry, readSignInEntries, recordSignInEntry, type SignInKind, type SignInLedgerIo } from './signInLedger.js'
@@ -24,6 +24,7 @@ export interface SignInLandingReceipt {
   identity: string
   dir: string | null
   defaultIdentity: string | undefined
+  replaced?: string
 }
 
 const sessionChoices = new Map<string, SignInChoice>()
@@ -105,10 +106,17 @@ export function removePocketDir(family: string, slug: string, home: string = get
   if (!isPocketDir(dir, home) || !existsSync(dir)) return false
   try {
     rmSync(dir, { recursive: true, force: true })
-    return true
   } catch {
     return false
   }
+  for (const parent of [join(signInsRoot(home), familyWord(family) ?? family), signInsRoot(home)]) {
+    try {
+      if (readdirSync(parent).length === 0) rmdirSync(parent)
+    } catch {
+      break
+    }
+  }
+  return true
 }
 
 function fanOut(): void {
@@ -272,11 +280,14 @@ export function landSignIn(input: LandSignInInput): SignInLandingReceipt {
   const family = familyWord(input.family) ?? input.family
   const ledger: SignInLedgerIo = { home, ...(input.ledger ?? {}) }
   const defaultIdentity = withSignInHome(family, home, () => input.homeIdentity())
-  if (input.stable === false || defaultIdentity === undefined || defaultIdentity === input.identity) {
+  const unnamed = input.stable === false
+  const homeUnnamed = defaultIdentity !== undefined && readSignInEntries(family, ledger)[defaultIdentity]?.unnamed === true
+  if (unnamed || homeUnnamed || defaultIdentity === undefined || defaultIdentity === input.identity) {
     withSignInHome(family, home, input.write)
-    recordSignInEntry(family, input.identity, input.ledgerKind, undefined, ledger)
+    if (defaultIdentity !== undefined && defaultIdentity !== input.identity) dropSignInEntry(family, defaultIdentity, ledger)
+    recordSignInEntry(family, input.identity, input.ledgerKind, undefined, ledger, unnamed)
     setSessionSignIn(family, { identity: input.identity, dir: null, kind: input.kind })
-    return landed({ landed: defaultIdentity === undefined ? 'first' : 'replaced', family, identity: input.identity, dir: null, defaultIdentity: input.identity })
+    return landed({ landed: defaultIdentity === undefined ? 'first' : 'replaced', family, identity: input.identity, dir: null, defaultIdentity: input.identity, ...(defaultIdentity !== undefined && defaultIdentity !== input.identity ? { replaced: defaultIdentity } : {}) })
   }
   const existing = readSignInEntries(family, ledger)[input.identity]?.pocket
   const slug = existing !== undefined && existsSync(pocketDir(family, existing, home)) ? existing : freePocketSlug(family, input.identity, home)
@@ -324,10 +335,11 @@ export function forgetPocket(family: string, entry: Pick<PocketEntry, 'identity'
 export function landingWords(receipt: SignInLandingReceipt, familyName: string, shown = true): string {
   if (!shown) {
     if (receipt.landed === 'first') return `${familyName} sign-in stored.`
-    if (receipt.landed === 'replaced') return `${familyName} sign-in replaced (same account).`
+    if (receipt.landed === 'replaced') return receipt.replaced === undefined ? `${familyName} sign-in replaced (same account).` : `${familyName} sign-in replaced (another account — the one without a usable name went).`
     return `${familyName} sign-in added beside the first · this session spends the new one; the default stays as it was · the Logins screen names them · /logins use <identity> switches, /logins forget <identity> drops one.`
   }
   if (receipt.landed === 'first') return `${familyName} sign-in stored as ${receipt.identity}.`
+  if (receipt.landed === 'replaced' && receipt.replaced !== undefined) return `${familyName} sign-in ${receipt.identity} replaces ${receipt.replaced} (one of the two had no usable name, so the two never sit side by side).`
   if (receipt.landed === 'replaced') return `${familyName} sign-in ${receipt.identity} replaced (same account).`
   return `${familyName} sign-in ${receipt.identity} added beside ${receipt.defaultIdentity ?? 'the default'} · this session spends ${receipt.identity}; the default stays ${receipt.defaultIdentity ?? 'as it was'} · /logins use ${receipt.defaultIdentity ?? '<identity>'} switches back · /logins forget ${receipt.identity} drops it.`
 }

@@ -122,7 +122,7 @@ section('§3 a lapsed identity never blocks the other: bob\'s grant dies, alice 
 const homeHf = join(HOME, '.huggingface-auth.json')
 const pocketHf = join(HOME, 'sign-ins', 'huggingface', 'second-user')
 
-async function deviceSignIn(username: string, access: string, refresh: string): Promise<unknown> {
+async function deviceSignIn(username: string | undefined, access: string, refresh: string): Promise<unknown> {
   return within(
     runHuggingfaceDeviceLogin({
       cancelled: () => false,
@@ -134,7 +134,7 @@ async function deviceSignIn(username: string, access: string, refresh: string): 
           const u = String(url)
           if (u.includes('/oauth/device')) return new Response(JSON.stringify({ device_code: 'DC', user_code: 'USER', verification_uri: 'https://hf.example/activate', interval: 0, expires_in: 300 }), { status: 200 })
           if (u.includes('/oauth/token')) return new Response(JSON.stringify({ access_token: access, refresh_token: refresh, expires_in: 3600 }), { status: 200 })
-          if (u.includes('/api/whoami-v2')) return new Response(JSON.stringify({ name: username, fullname: username }), { status: 200 })
+          if (u.includes('/api/whoami-v2')) return new Response(JSON.stringify(username === undefined ? {} : { name: username, fullname: username }), { status: 200 })
           return new Response('', { status: 404 })
         }) as unknown as typeof fetch,
       },
@@ -166,6 +166,24 @@ section('§5 forget the second user: the pocket and its row go, the first user s
   check('forget removes the pocket and the choice falls back', outcome.removed && outcome.choiceFell && !existsSync(pocketHf))
   check('the first user still stands in the home and now spends', huggingface.huggingfaceOauthIdentity()?.username === 'first-user' && huggingface.huggingfaceStoredTokens()?.accessToken === 'hf-A-1')
   check('the ledger keeps only the home row', Object.keys(ledger.readSignInEntries('huggingface', { home: HOME })).join(',') === 'first-user')
+}
+
+section('§6 a sign-in without a usable name never gets a neighbour: the next named sign-in replaces it in the home, and the unnamed row goes')
+{
+  pockets.withSignInHome('huggingface', null, () => huggingface.disconnectHuggingfaceOauth())
+  ledger.dropSignInEntry('huggingface', 'first-user', { home: HOME })
+  const unnamed = await deviceSignIn(undefined, 'hf-A-3', 'hf-R-3')
+  const unnamedLanding = pockets.takeLastLanding()
+  const rows = ledger.readSignInEntries('huggingface', { home: HOME })
+  check('a Hub sign-in whose whoami carries no name lands in the home, marked unnamed in the ledger', unnamed !== 'timed-out' && (unnamed as { ok: boolean }).ok && unnamedLanding?.landed === 'first' && unnamedLanding.dir === null && Object.values(rows).length === 1 && Object.values(rows)[0]?.unnamed === true, JSON.stringify({ unnamedLanding, rows }))
+  const named = await deviceSignIn('third-user', 'hf-A-4', 'hf-R-4')
+  const namedLanding = pockets.takeLastLanding()
+  check('the next named sign-in REPLACES the unnamed one in the home — no pocket', named !== 'timed-out' && (named as { ok: boolean }).ok && namedLanding?.landed === 'replaced' && namedLanding.dir === null && namedLanding.replaced === unnamedLanding?.identity && !existsSync(join(HOME, 'sign-ins', 'huggingface')), JSON.stringify(namedLanding))
+  check('the ledger holds the named row alone, not marked unnamed', Object.keys(ledger.readSignInEntries('huggingface', { home: HOME })).join(',') === 'third-user' && ledger.readSignInEntries('huggingface', { home: HOME })['third-user']?.unnamed === undefined)
+  check('the home spends the named user', huggingface.huggingfaceOauthIdentity()?.username === 'third-user' && huggingface.huggingfaceStoredTokens()?.accessToken === 'hf-A-4')
+  const words = pockets.landingWords(namedLanding!, 'Hugging Face')
+  check('the landing words say the replacement and name both', /third-user replaces hf-/.test(words) && /no usable name/.test(words), words)
+  check('hidden, the words carry no identity', !pockets.landingWords(namedLanding!, 'Hugging Face', false).includes('third-user'))
 }
 
 rmSync(HOME, { recursive: true, force: true })
