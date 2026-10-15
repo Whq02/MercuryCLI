@@ -75,7 +75,7 @@ export function nearestSupportedWireEffort(
   return best ?? ranked[0]
 }
 
-const CONVENTION_WIRE_EFFORT = 'high'
+export const CONVENTION_WIRE_EFFORT = 'high'
 
 export function wireEffortForListDefault(
   listDefault: string | undefined,

@@ -9,7 +9,7 @@ import {
 import { FAINT } from '../mercuryPalette.js'
 import { useMercuryTokens } from './useMercuryTokens.js'
 
-function trimChipText(guide: string): string {
+export function trimChipText(guide: string): string {
   return `trim ${guide.toLowerCase()} to optimise performance and reduce context bloat`
 }
 

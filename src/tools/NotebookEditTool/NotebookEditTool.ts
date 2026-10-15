@@ -30,7 +30,7 @@ import {
 const EDIT_MODES = ['replace', 'insert', 'delete'] as const
 type EditMode = (typeof EDIT_MODES)[number]
 
-const inputSchema = lazySchema(() =>
+export const inputSchema = lazySchema(() =>
   z.strictObject({
     notebook_path: z
       .string()
@@ -57,7 +57,7 @@ const inputSchema = lazySchema(() =>
 type InputSchema = ReturnType<typeof inputSchema>
 type Input = z.infer<InputSchema>
 
-const outputSchema = lazySchema(() =>
+export const outputSchema = lazySchema(() =>
   z.object({
     new_source: z.string().describe('The source written into the cell'),
     cell_id: z.string().optional().describe('The id of the edited or inserted cell'),

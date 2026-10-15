@@ -1,8 +1,8 @@
 import { openPlainCursorWindow, type TerminalResponse } from '../input/interpreter.js'
 import type { TerminalQuerier } from './querier.js'
 
-type WidthProbeClass = 'vs16' | 'skin' | 'zwj' | 'flag' | 'combining' | 'zeroWidth' | 'sextant' | 'ambiguous'
-type TerminalWidthMeasurements = Readonly<Partial<Record<WidthProbeClass, number>>>
+export type WidthProbeClass = 'vs16' | 'skin' | 'zwj' | 'flag' | 'combining' | 'zeroWidth' | 'sextant' | 'ambiguous'
+export type TerminalWidthMeasurements = Readonly<Partial<Record<WidthProbeClass, number>>>
 
 export const WIDTH_PROBE_SAMPLES: ReadonlyArray<{ kind: WidthProbeClass; text: string }> = [
   { kind: 'vs16', text: '\u26a0\ufe0f' },

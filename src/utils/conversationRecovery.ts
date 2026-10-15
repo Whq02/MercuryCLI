@@ -58,7 +58,7 @@ type DeserializeResult = {
   turnInterruptionState: TurnInterruptionState
 }
 
-function getResumePrompt(): string {
+export function getResumePrompt(): string {
   return 'Continue from where you left off.'
 }
 

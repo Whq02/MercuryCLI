@@ -1,7 +1,7 @@
 import { AST_BOUNDS, astLanguageNames } from '../../utils/astPatterns.js'
 
 export const AST_SEARCH_TOOL_NAME = 'AstSearch'
-const AST_EDIT_TOOL_NAME_REF = 'AstEdit'
+export const AST_EDIT_TOOL_NAME_REF = 'AstEdit'
 
 export function getAstSearchDescription(offered: ReadonlySet<string> | null = null): string {
   return `Use this over Grep to find code by its shape rather than its text: a pattern written as code in the target language, with meta-variables for the parts that vary, is matched against each file's parsed syntax tree, so strings and comments never match.

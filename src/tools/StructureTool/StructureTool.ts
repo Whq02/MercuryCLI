@@ -69,7 +69,7 @@ const inputSchema = lazySchema(() =>
 
 type SchemaType = ReturnType<typeof inputSchema>
 export type Input = z.infer<SchemaType>
-type ChangeViewData = {
+export type ChangeViewData = {
   state: 'proposed' | 'applied'
   action: string
   files: {

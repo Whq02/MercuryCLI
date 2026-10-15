@@ -15,7 +15,7 @@ export function metaObservedBalance(): null {
   return null
 }
 
-interface MetaMuseCodeUsageView {
+export interface MetaMuseCodeUsageView {
   email?: string
   tierId?: string
   tierName?: string
@@ -23,7 +23,7 @@ interface MetaMuseCodeUsageView {
   observedAtMs: number
 }
 
-type MetaMuseCodeUsageFailure =
+export type MetaMuseCodeUsageFailure =
   | { kind: 'refused'; status: number; message?: string; atMs: number }
   | { kind: 'inactive'; actionUrl?: string; message?: string; atMs: number }
   | { kind: 'unreachable'; message: string; atMs: number }

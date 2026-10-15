@@ -11,17 +11,17 @@ import { getTokenCountFromUsage } from '../../utils/tokenUsage.js'
 
 export const PROMPT_CAP_CHARS = 8_000
 export const ACTIVITY_LAST_N = 40
-const ACTIVITY_INPUT_SUMMARY_CHARS = 120
-const ACTIVITY_RESULT_PREVIEW_CHARS = 200
-const REASONING_LAST_N = 8
-const REASONING_EACH_CAP_CHARS = 2_000
+export const ACTIVITY_INPUT_SUMMARY_CHARS = 120
+export const ACTIVITY_RESULT_PREVIEW_CHARS = 200
+export const REASONING_LAST_N = 8
+export const REASONING_EACH_CAP_CHARS = 2_000
 export const OUTCOME_CAP_CHARS = 4_000
 
-const MAX_FULL_READ_BYTES = 16 * 1024 * 1024
+export const MAX_FULL_READ_BYTES = 16 * 1024 * 1024
 const HEAD_READ_BYTES = 64 * 1024
 const TAIL_READ_BYTES = 2 * 1024 * 1024
 
-type AgentToolCallView = {
+export type AgentToolCallView = {
   name: string
   inputSummary: string
   resultPreview?: string
@@ -29,7 +29,7 @@ type AgentToolCallView = {
   timestamp?: string
 }
 
-type AgentUsageRollup = {
+export type AgentUsageRollup = {
   inputTokens: number
   outputTokens: number
   cacheReadTokens: number
@@ -55,7 +55,7 @@ export type AgentTranscriptView = {
   end: AgentTranscriptEnd
 }
 
-type AgentTranscriptEnd = {
+export type AgentTranscriptEnd = {
   kind: 'completed' | 'failed' | 'stopped' | 'cut'
   words: string
 }

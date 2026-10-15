@@ -104,7 +104,7 @@ const TASK_STOP_TOOL_NAME = 'TaskStop'
 
 const PROGRESS_FLUSH_MS = 16
 
-class WorkflowInputError extends Error {
+export class WorkflowInputError extends Error {
   constructor(message: string) {
     super(message)
     this.name = 'WorkflowInputError'
@@ -204,7 +204,7 @@ function isParseFailure(
   return !!x && (x as { ok?: boolean }).ok === false
 }
 
-const inputSchema = lazySchema(() =>
+export const inputSchema = lazySchema(() =>
   z
     .strictObject({
       script: z
@@ -265,7 +265,7 @@ const inputSchema = lazySchema(() =>
     }),
 )
 
-const outputSchema = lazySchema(() =>
+export const outputSchema = lazySchema(() =>
   z.object({
     status: z.literal('async_launched'),
     taskId: z.string(),

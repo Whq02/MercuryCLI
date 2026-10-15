@@ -1,8 +1,8 @@
 import { readStoredZenApiKey } from '../../../utils/router/providerSecrets.js'
 
-const ZEN_API_BASE_URL = 'https://opencode.ai/zen/v1'
-const ZEN_GO_API_BASE_URL = 'https://opencode.ai/zen/go/v1'
-const ZEN_CONSOLE_URL = 'https://opencode.ai/auth'
+export const ZEN_API_BASE_URL = 'https://opencode.ai/zen/v1'
+export const ZEN_GO_API_BASE_URL = 'https://opencode.ai/zen/go/v1'
+export const ZEN_CONSOLE_URL = 'https://opencode.ai/auth'
 export const ZEN_ENV_KEY = 'OPENCODE_API_KEY'
 
 export function zenApiBase(env: NodeJS.ProcessEnv = process.env): string {
@@ -17,11 +17,11 @@ export function zenChatCompletionsUrl(env: NodeJS.ProcessEnv = process.env): str
   return `${zenApiBase(env)}/chat/completions`
 }
 
-function zenResponsesUrl(env: NodeJS.ProcessEnv = process.env): string {
+export function zenResponsesUrl(env: NodeJS.ProcessEnv = process.env): string {
   return `${zenApiBase(env)}/responses`
 }
 
-function zenModelsUrl(env: NodeJS.ProcessEnv = process.env): string {
+export function zenModelsUrl(env: NodeJS.ProcessEnv = process.env): string {
   return `${zenApiBase(env)}/models`
 }
 
@@ -36,7 +36,7 @@ export function resolveZenApiKey(env: NodeJS.ProcessEnv = process.env): { key: s
   return stored ? { key: stored, source: 'stored' } : undefined
 }
 
-interface ZenAccountRef {
+export interface ZenAccountRef {
   kind: 'api-key'
   label: string
   keySource: 'env' | 'stored'

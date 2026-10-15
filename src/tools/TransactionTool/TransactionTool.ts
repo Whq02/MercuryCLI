@@ -13,7 +13,7 @@ import type { PermissionDecision } from '../../utils/permissions/PermissionResul
 import { checkUncPathPermission } from '../../utils/permissions/filesystem.js'
 import { renderToolResultMessage, renderToolUseErrorMessage, renderToolUseMessage, userFacingName } from './UI.js'
 
-const TRANSACTION_TOOL_NAME = 'Transaction'
+export const TRANSACTION_TOOL_NAME = 'Transaction'
 const OPS = ['status', 'finish'] as const
 const FINISH_VERDICTS = ['completed', 'failed', 'abandoned'] as const
 const inputSchema = lazySchema(() =>

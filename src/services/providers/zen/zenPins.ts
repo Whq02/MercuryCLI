@@ -1,10 +1,10 @@
 export const ZEN_OBSERVED_AT = '2026-10-09'
-const ZEN_MODEL_PREFIX = 'zen/'
+export const ZEN_MODEL_PREFIX = 'zen/'
 
 export type ZenWireShape = 'chat' | 'responses'
 export type ZenServedShape = ZenWireShape | 'anthropic' | 'google' | 'systemone'
 
-interface ZenDisplayPin {
+export interface ZenDisplayPin {
   id: string
   displayName: string
   shape: ZenWireShape
@@ -131,7 +131,7 @@ export function zenWireShapeOf(id: string): ZenWireShape | undefined {
   return shape === 'chat' || shape === 'responses' ? shape : undefined
 }
 
-function zenAcceptsEffort(model: string, effort: string): boolean {
+export function zenAcceptsEffort(model: string, effort: string): boolean {
   return zenDisplayPin(model)?.efforts?.includes(effort) === true
 }
 

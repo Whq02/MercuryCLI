@@ -5,7 +5,7 @@ import { permissionUpdateSchema } from '../permissions/PermissionUpdateSchema.js
 import { CONCOURSE_SESSION_STATES } from '../../daemon/concourseLifecycle.js'
 import { ERROR_CLASSES, OUTCOME_STATUSES, STOP_WORDS, UsageSchema } from '../../rows/vocabulary.js'
 
-const HOOK_ROADS = ['runner', 'crewmate', 'daemon', 'cockpit'] as const
+export const HOOK_ROADS = ['runner', 'crewmate', 'daemon', 'cockpit'] as const
 export type HookRoad = (typeof HOOK_ROADS)[number]
 
 export const HOOK_KINDS = ['run', 'question', 'crewmate'] as const
@@ -32,16 +32,16 @@ export const HOOK_TIMEOUT_DEFAULT_S: Readonly<Record<HookKind, number>> = { run:
 export const HOOK_TIMEOUT_MAX_S = 2_147_483
 export const HOOK_CUT_BUDGET_MS = 1500
 
-const CUT_REASONS = ['operator', 'idle-timeout', 'parent-stop', 'cut'] as const satisfies readonly TurnCutKind[]
+export const CUT_REASONS = ['operator', 'idle-timeout', 'parent-stop', 'cut'] as const satisfies readonly TurnCutKind[]
 export const SESSION_STATE_HOOK_STATES = ['needs-you', 'stalled', 'ready-to-review', 'paused', 'completed', 'failed', 'cancelled'] as const
 export const SESSION_BOARD_STATES = [...CONCOURSE_SESSION_STATES, 'attached', 'stopped', 'parked'] as const
-const CREWMATE_END_STATUSES = ['finished', 'failed', 'stopped'] as const
-const COMPACTION_METHODS = ['summary', 'notes', 'digest'] as const
-const COMPACTION_TRIGGERS = ['manual', 'auto', 'overflow'] as const
-const SESSION_START_REASONS = ['new', 'resumed'] as const
+export const CREWMATE_END_STATUSES = ['finished', 'failed', 'stopped'] as const
+export const COMPACTION_METHODS = ['summary', 'notes', 'digest'] as const
+export const COMPACTION_TRIGGERS = ['manual', 'auto', 'overflow'] as const
+export const SESSION_START_REASONS = ['new', 'resumed'] as const
 export const SESSION_END_REASONS = ['quit', 'logout', 'closed'] as const
-const PERMISSION_DECIDERS = ['rule', 'mode', 'hook', 'operator', 'safety', 'other'] as const
-const PERMISSION_DECISIONS = ['allowed', 'denied'] as const
+export const PERMISSION_DECIDERS = ['rule', 'mode', 'hook', 'operator', 'safety', 'other'] as const
+export const PERMISSION_DECISIONS = ['allowed', 'denied'] as const
 
 const baseFields = {
   session_id: z.string().describe('The session the event happened in'),
@@ -51,8 +51,8 @@ const baseFields = {
   crewmate_id: z.string().optional().describe('Set when the moment happened inside a crewmate'),
   crewmate_type: z.string().optional().describe("The crewmate's type, when the moment happened inside one"),
 }
-const HookBasePayloadSchema = lazySchema(() => z.object(baseFields))
-type HookBasePayload = z.infer<ReturnType<typeof HookBasePayloadSchema>>
+export const HookBasePayloadSchema = lazySchema(() => z.object(baseFields))
+export type HookBasePayload = z.infer<ReturnType<typeof HookBasePayloadSchema>>
 
 const errorShape = () => z.object({ message: z.string(), class: z.enum(ERROR_CLASSES) })
 const cutShape = () =>
@@ -62,9 +62,9 @@ const cutShape = () =>
     tools: z.array(z.string()).describe('The tool calls the cut ended'),
   })
 
-type HookBudget = { ms: number; when: 'cut' | 'always' }
+export type HookBudget = { ms: number; when: 'cut' | 'always' }
 
-type HookEventRow = {
+export type HookEventRow = {
   moment: string
   roads: readonly HookRoad[]
   payload: () => z.ZodObject<z.ZodRawShape>
@@ -296,7 +296,7 @@ export function isHookEvent(name: string): name is HookEvent {
   return Object.prototype.hasOwnProperty.call(hookEventTableRows, name)
 }
 
-type HookEventFields<E extends HookEvent> = z.infer<ReturnType<(typeof hookEventTableRows)[E]['payload']>>
+export type HookEventFields<E extends HookEvent> = z.infer<ReturnType<(typeof hookEventTableRows)[E]['payload']>>
 export type HookPayload<E extends HookEvent = HookEvent> = E extends HookEvent
   ? HookBasePayload & { event: E } & HookEventFields<E>
   : never

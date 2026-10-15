@@ -5,7 +5,7 @@ import { fetchWithProviderDeadline } from '../fetchDeadline.js'
 import { USAGE_POLL_TTL_MS } from '../usageFreshness.js'
 import { nousAccountIdentity, nousAccountUrl, resolveNousCredential, type NousCredentialSource } from './nousAccounts.js'
 
-interface NousSubscriptionFacts {
+export interface NousSubscriptionFacts {
   plan?: string
   tier?: number
   monthlyCharge?: number
@@ -15,7 +15,7 @@ interface NousSubscriptionFacts {
   rolloverCredits?: number
 }
 
-interface NousPaidAccessFacts {
+export interface NousPaidAccessFacts {
   allowed?: boolean
   reason?: string
   hasActiveSubscription?: boolean
@@ -36,7 +36,7 @@ export interface NousObservedAccount {
   paidAccess?: NousPaidAccessFacts
 }
 
-interface NousAccountFailure {
+export interface NousAccountFailure {
   kind: 'refused' | 'unreachable'
   atMs: number
   status?: number
@@ -95,7 +95,7 @@ function compact<T extends object>(value: T): T {
   return Object.fromEntries(Object.entries(value).filter(([, v]) => v !== undefined)) as T
 }
 
-function decodeNousAccount(body: unknown, nowMs: number): NousObservedAccount | undefined {
+export function decodeNousAccount(body: unknown, nowMs: number): NousObservedAccount | undefined {
   const o = record(body)
   if (!o || typeof o.error === 'string') return undefined
   const user = record(o.user)
@@ -137,7 +137,7 @@ function decodeNousAccount(body: unknown, nowMs: number): NousObservedAccount | 
   })
 }
 
-type NousAccountProbe =
+export type NousAccountProbe =
   | { state: 'confirmed'; account: NousObservedAccount }
   | { state: 'refused'; status: number; message: string }
   | { state: 'unreachable'; message: string }

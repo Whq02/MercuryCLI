@@ -14,12 +14,12 @@ import {
 import { refreshHuggingfaceCatalogue } from './huggingfaceCatalogue.js'
 import { HUGGINGFACE_UNVERIFIED_NOTE } from './huggingfaceCallModel.js'
 
-type HuggingfaceDeviceLoginEvent =
+export type HuggingfaceDeviceLoginEvent =
   | { phase: 'starting' }
   | { phase: 'waiting'; start: HuggingfaceDeviceAuthStart; polls: number; note?: string }
   | { phase: 'finishing' }
 
-interface HuggingfaceDeviceLoginArgs {
+export interface HuggingfaceDeviceLoginArgs {
   io?: HuggingfaceOauthIo
   sleep?: (ms: number) => Promise<void>
   cancelled?: () => boolean
@@ -27,7 +27,7 @@ interface HuggingfaceDeviceLoginArgs {
   refreshCatalogue?: () => Promise<{ models: unknown[]; lastError?: string } | null>
 }
 
-type HuggingfaceDeviceLoginOutcome =
+export type HuggingfaceDeviceLoginOutcome =
   | {
       ok: true
       receipt: string
@@ -182,7 +182,7 @@ export async function runHuggingfaceDeviceLogin(
   }
 }
 
-interface HuggingfaceTokenLoginOutcome {
+export interface HuggingfaceTokenLoginOutcome {
   ok: boolean
   stored: boolean
   receipt: string

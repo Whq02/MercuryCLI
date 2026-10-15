@@ -94,7 +94,7 @@ export function structureIdExpired(owner: OwnerKey, id: string): boolean {
 }
 
 let installed = false
-function installStructureReceiptBackref(): void {
+export function installStructureReceiptBackref(): void {
   if (installed) return
   installed = true
   subscribeChangeReceipts(receipt => {

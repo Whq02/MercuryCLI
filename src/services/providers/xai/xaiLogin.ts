@@ -6,7 +6,7 @@ import { recordSignIn } from '../../../utils/accounts/signInLedger.js'
 import { fetchXaiUsage, xaiUsageFailureWords, type XaiUsageIo } from './xaiUsageState.js'
 import { fetchXaiLiveModels, XaiCatalogueHttpError } from './xaiCatalogue.js'
 
-interface XaiKeyLoginOutcome {
+export interface XaiKeyLoginOutcome {
   ok: boolean
   stored: boolean
   receipt: string

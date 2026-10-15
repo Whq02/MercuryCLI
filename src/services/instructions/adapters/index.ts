@@ -8,7 +8,7 @@ import type {
 import { resolveRequestedInstructionProfile } from '../profile.js'
 import { conventionsForProfile as composeNativeFirst } from '../compositionOrder.js'
 
-const mercuryAdapter: InstructionAdapter = {
+export const mercuryAdapter: InstructionAdapter = {
   id: 'mercury',
   conventionsFor: conventionsForProfile,
 }
@@ -17,7 +17,7 @@ export function adapterForProfile(): InstructionAdapter {
   return mercuryAdapter
 }
 
-function conventionsForProfile(profile: 'auto' | 'native'): InstructionConvention[] {
+export function conventionsForProfile(profile: 'auto' | 'native'): InstructionConvention[] {
   return composeNativeFirst(profile)
 }
 

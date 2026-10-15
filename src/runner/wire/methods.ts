@@ -34,7 +34,7 @@ const empty = lazySchema(() => z.object({}))
 const record = lazySchema(() => z.record(z.string(), z.unknown()))
 const applied = lazySchema(() => z.enum(['now', 'turn_end']))
 
-const CapabilitiesSchema = lazySchema(() =>
+export const CapabilitiesSchema = lazySchema(() =>
   z.object({
     holds_asks: z.boolean(),
     elicitation: z.boolean(),
@@ -52,7 +52,7 @@ export const InitializeParamsSchema = lazySchema(() =>
 )
 export type InitializeParams = z.infer<ReturnType<typeof InitializeParamsSchema>>
 
-const InitializeResultSchema = lazySchema(() =>
+export const InitializeResultSchema = lazySchema(() =>
   z.object({
     protocol: z.literal(RUNNER_PROTOCOL),
     runner: z.object({ version: z.string(), pid: z.number().int() }),
@@ -61,7 +61,7 @@ const InitializeResultSchema = lazySchema(() =>
 )
 export type InitializeResult = z.infer<ReturnType<typeof InitializeResultSchema>>
 
-const PermissionRequestParamsSchema = lazySchema(() =>
+export const PermissionRequestParamsSchema = lazySchema(() =>
   z.discriminatedUnion('kind', [
     z.object({
       kind: z.literal('tool'),
@@ -84,7 +84,7 @@ const PermissionRequestParamsSchema = lazySchema(() =>
 )
 export type PermissionRequestParams = z.infer<ReturnType<typeof PermissionRequestParamsSchema>>
 
-const PermissionAnswerSchema = lazySchema(() =>
+export const PermissionAnswerSchema = lazySchema(() =>
   z.discriminatedUnion('outcome', [
     z.object({
       outcome: z.literal('allow'),
@@ -100,7 +100,7 @@ const PermissionAnswerSchema = lazySchema(() =>
 )
 export type PermissionAnswer = z.infer<ReturnType<typeof PermissionAnswerSchema>>
 
-const ElicitationRequestParamsSchema = lazySchema(() =>
+export const ElicitationRequestParamsSchema = lazySchema(() =>
   z.object({
     server: z.string(),
     message: z.string(),
@@ -113,7 +113,7 @@ const ElicitationRequestParamsSchema = lazySchema(() =>
 )
 export type ElicitationRequestParams = z.infer<ReturnType<typeof ElicitationRequestParamsSchema>>
 
-const ElicitationAnswerSchema = lazySchema(() =>
+export const ElicitationAnswerSchema = lazySchema(() =>
   z.object({
     action: z.enum(['accept', 'decline', 'cancel']),
     content: z.record(z.string(), z.unknown()).optional(),
@@ -121,12 +121,12 @@ const ElicitationAnswerSchema = lazySchema(() =>
 )
 export type ElicitationAnswer = z.infer<ReturnType<typeof ElicitationAnswerSchema>>
 
-const CancelRequestParamsSchema = lazySchema(() =>
+export const CancelRequestParamsSchema = lazySchema(() =>
   z.object({ request_id: z.number().int().positive(), reason: z.string().optional() }),
 )
 type CancelRequestParams = z.infer<ReturnType<typeof CancelRequestParamsSchema>>
 
-const SessionAppliedParamsSchema = lazySchema(() =>
+export const SessionAppliedParamsSchema = lazySchema(() =>
   z.object({
     request_id: z.number().int().positive(),
     verb: z.enum(['set_model', 'set_effort', 'set_spawn_switch']),

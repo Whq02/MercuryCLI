@@ -13,10 +13,10 @@ const TASK_LIST_CAP = 64
 
 const RECENT_QUARANTINE_WINDOW_MS = 24 * 60 * 60_000
 
-type BootRecoveryScope = 'session' | 'daemon'
-type BootRecoveryPhase = 'pending' | 'running' | 'done'
+export type BootRecoveryScope = 'session' | 'daemon'
+export type BootRecoveryPhase = 'pending' | 'running' | 'done'
 
-interface BootRecoveryReport {
+export interface BootRecoveryReport {
   schema: 1
   scope: BootRecoveryScope
   startedAt: string

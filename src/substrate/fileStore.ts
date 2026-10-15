@@ -112,9 +112,9 @@ export function publishAtomicSync(
   return durableAtomicPublishSync(path, contents, opts)
 }
 
-type ReadFailurePolicy = 'empty' | 'throw'
+export type ReadFailurePolicy = 'empty' | 'throw'
 
-interface StoreConfig<T, A extends unknown[]> {
+export interface StoreConfig<T, A extends unknown[]> {
   name: string
   path: (...args: A) => string
   schemaVersion: number
@@ -128,7 +128,7 @@ interface StoreConfig<T, A extends unknown[]> {
   revisionOf?: (value: T) => number
 }
 
-interface StoreHandle<T> {
+export interface StoreHandle<T> {
   readonly path: string
   read(): Promise<T>
   readResult(): Promise<StoreReadResult<T>>

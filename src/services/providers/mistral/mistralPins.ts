@@ -1,5 +1,5 @@
-const MISTRAL_OBSERVED_AT = '2026-10-09'
-const MISTRAL_EFFORTS = ['none', 'high'] as const
+export const MISTRAL_OBSERVED_AT = '2026-10-09'
+export const MISTRAL_EFFORTS = ['none', 'high'] as const
 
 export function isMistralModelId(model: string): boolean {
   const id = model.trim().toLowerCase()
@@ -11,7 +11,7 @@ export function isMistralChatModelId(model: string): boolean {
   return /^(?:mistral|ministral|codestral)-/.test(id) && !/(?:embed|ocr|moderation|saba|transcribe|tts)/.test(id)
 }
 
-interface MistralDisplayPin {
+export interface MistralDisplayPin {
   id: string
   aliases: readonly string[]
   displayName: string
@@ -65,6 +65,6 @@ export function mistralDisplayName(id: string): string {
   return mistralDisplayPin(id)?.displayName ?? id
 }
 
-function mistralAcceptsEffort(model: string, effort: string): boolean {
+export function mistralAcceptsEffort(model: string, effort: string): boolean {
   return mistralDisplayPin(model)?.efforts.includes(effort) === true
 }

@@ -66,7 +66,7 @@ export function runningWorkflowRows(rows: readonly WorkRowV1[]): WorkRowV1[] {
 }
 
 
-type FocusedRunnerPresence = 'blank' | 'live' | 'dormant'
+export type FocusedRunnerPresence = 'blank' | 'live' | 'dormant'
 
 export function focusedRunnerPresence(): FocusedRunnerPresence {
   if (!hasFocusedSession()) return 'blank'
@@ -90,7 +90,7 @@ export function otherSessionRunnerPids(focusedSessionId: string | null): Set<num
 export function focusedSessionIdOrNull(): string | null {
   return hasFocusedSession() ? getFocusedSessionConnector().sessionId() : null
 }
-type CompactWorkCounts = Readonly<{
+export type CompactWorkCounts = Readonly<{
   sessionsOn: number | null
   agentsHere: number | null
   monitorsHere: number | null

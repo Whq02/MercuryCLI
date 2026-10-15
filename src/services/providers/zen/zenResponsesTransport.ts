@@ -3,7 +3,7 @@ import type { CompatStreamOptions } from '../openaicompat/compatChatClient.js'
 import { openrouterResponsesInput, replayableOpenrouterItems, streamOpenrouterResponses } from '../openrouter/openrouterResponsesTransport.js'
 import { xaiProxyToolOutputs } from '../xai/xaiResponsesTransport.js'
 
-function buildZenResponsesBody(options: CompatStreamOptions, messages: readonly Message[]): Record<string, unknown> {
+export function buildZenResponsesBody(options: CompatStreamOptions, messages: readonly Message[]): Record<string, unknown> {
   const request = options.request
   const system = request.messages.find(message => message.role === 'system')
   const extra = request.extra ?? {}

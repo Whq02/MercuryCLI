@@ -11,7 +11,7 @@ import { attachErrorLogSink, dateToFilename } from './log.js'
 
 const LOG_FILE_NAME = `${dateToFilename(new Date())}.jsonl`
 
-function getErrorsPath(): string {
+export function getErrorsPath(): string {
   return join(CACHE_PATHS.errors(), LOG_FILE_NAME)
 }
 

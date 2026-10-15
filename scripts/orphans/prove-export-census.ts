@@ -74,6 +74,17 @@ const SYNTHETIC: Record<string, string> = {
   'scripts/x/run.sh': ['#!/usr/bin/env bash', 'repo="$(cd "$(dirname "$0")/../.." && pwd)"', 'bun -e "import { shellRead } from \'$repo/src/j.ts\'; console.log(shellRead)"', ''].join('\n'),
   'scripts/y/tool.mjs': ["/** @type {import('../../src/m.js').MType} */", 'const v = 1', 'export const used = v', ''].join('\n'),
   'scripts/z/prove-z.ts': ["const mod = await import(new URL('../../src/o.ts', import.meta.url).href)", 'console.log(mod.o1)', ''].join('\n'),
+  'src/aa.ts': ['export const fromChild = 1', 'export const aaOther = 2', ''].join('\n'),
+  'scripts/x/prove-child.ts': ["import { join } from 'node:path'", "const ROOT = join(import.meta.dir, '..', '..')", 'const program = `', "const { fromChild } = await import(${JSON.stringify(join(ROOT, 'src/aa.ts'))})", 'console.log(fromChild)', '`', 'console.log(program)', ''].join('\n'),
+  'src/bb.ts': ["export const BB_TOOL_NAME = 'Bb'", 'export const bbOther = 1', ''].join('\n'),
+  'scripts/x/prove-pattern.ts': ["import { readFileSync, readdirSync } from 'node:fs'", "import { join } from 'node:path'", "const ROOT = join(import.meta.dir, '..', '..')", 'const names = new Set<string>()', "for (const f of readdirSync(join(ROOT, 'src'))) for (const m of readFileSync(join(ROOT, 'src', f), 'utf8').matchAll(/export const [A-Z_]+_TOOL_NAME = '([A-Za-z_]+)'/g)) names.add(m[1]!)", 'console.log(names.size)', ''].join('\n'),
+  'src/cc.ts': ['export const ccA = 1', 'export const ccB = 2', ''].join('\n'),
+  'scripts/x/prove-mirror.ts': ["import ts from 'typescript'", "import { readFileSync } from 'node:fs'", "const sf = ts.createSourceFile('cc.ts', readFileSync('src/cc.ts', 'utf8'), ts.ScriptTarget.Latest)", 'const names = sf.statements.filter(st => ts.canHaveModifiers(st) && ts.getModifiers(st)?.some(m => m.kind === ts.SyntaxKind.ExportKeyword)).length', 'console.log(names)', ''].join('\n'),
+  'src/dd.ts': ['export const ddUsed = 1', 'export const ddAlso = 2', ''].join('\n'),
+  'scripts/x/lib.ts': ["export const dd = await import('../../src/dd.js')", ''].join('\n'),
+  'scripts/x/prove-lib.ts': ["import { dd } from './lib.js'", 'console.log(dd.ddUsed)', ''].join('\n'),
+  'src/ee.ts': ['export const eeA = 1', 'export const eeB = 2', ''].join('\n'),
+  'scripts/x/prove-root.ts': ["import { join } from 'node:path'", "const root = join(import.meta.dir, '../../src')", "const m = await import(join(root, 'ee.ts'))", 'console.log(m.eeA)', ''].join('\n'),
 }
 
 function syntheticEstate(): { root: string; options: CensusOptions } {
@@ -95,6 +106,7 @@ function syntheticEstate(): { root: string; options: CensusOptions } {
     orphanBaseline: ['src/parked.ts'],
     inventory: new Set(['src/a.ts\u0000unused']),
     pinSources: files.filter(f => f.startsWith('scripts/')),
+    generators: new Set(),
   }
   return { root, options }
 }
@@ -134,6 +146,13 @@ function selfTest(): void {
     ['src/u.ts:fromCatch', 'an import().catch() chain read by property'],
     ['src/w.ts:wA', 'a namespace spread into an object reads every name'],
     ['src/w.ts:wB', 'a namespace spread into an object reads every name'],
+    ['src/aa.ts:fromChild', 'a child program composed in a template string imports the module: every name counts'],
+    ['src/aa.ts:aaOther', 'a child program composed in a template string imports the module: every name counts'],
+    ['src/cc.ts:ccA', 'a proof enumerating exports through the TypeScript AST reads every name of the modules it names'],
+    ['src/cc.ts:ccB', 'a proof enumerating exports through the TypeScript AST reads every name of the modules it names'],
+    ['src/dd.ts:ddUsed', 'a namespace binding a helper module exports is read whole'],
+    ['src/dd.ts:ddAlso', 'a namespace binding a helper module exports is read whole'],
+    ['src/ee.ts:eeA', "a file's own root constant wins over the anchor table (import(join(root, …)) with root = …/src)"],
   ]
   for (const [key, why] of expectRead) check(`read — ${why} (${key})`, classOf(key) === 'read', `class ${classOf(key)}`)
   const expectClass: Array<[string, ExportClass, string]> = [
@@ -162,11 +181,15 @@ function selfTest(): void {
     ['src/gen/thing.generated.ts:GEN', 'generated', 'a generated file export'],
     ['src/parked.ts:parked', 'orphan-baseline', 'a typed-baseline orphan export'],
     ['scripts/x/fixtures/fx.ts:FX', 'fixture', 'a fixture export'],
+    ['src/bb.ts:BB_TOOL_NAME', 'pattern-pin', "a proof's regex over source matches the declaration head"],
+    ['src/bb.ts:bbOther', 'candidate', 'the other export of a pattern-read module'],
+    ['src/ee.ts:eeB', 'candidate', 'the other export of a module loaded through a file-own root constant'],
   ]
   for (const [key, cls, why] of expectClass) check(`${cls} — ${why} (${key})`, classOf(key) === cls, `class ${classOf(key)}`)
   check('the inventory flag rides the row the contract inventory records', byKey.get('src/a.ts:unused')?.inventory === true)
   check('the .d.ts-only read is marked as a type-side read', byKey.get('src/a.ts:DtsOnly')?.typeSideOnly === true)
   check('no load in the synthetic estate is unresolved', census.unresolved.length === 0, census.unresolved.map(u => `${u.file}:${u.line}`).join(', '))
+  check('the whole-module readers are counted: one embedded script, one export scanner, one exported namespace', census.wholeReads.embeddedScripts === 1 && census.wholeReads.exportScanners === 1 && census.wholeReads.exportedNamespaces === 1, JSON.stringify(census.wholeReads))
   const candidates = census.rows.filter(r => r.class === 'candidate').map(r => `${r.file}:${r.name}`).sort()
   const wantCandidates = expectClass.filter(([, cls]) => cls === 'candidate').map(([key]) => key).sort()
   check(`the candidate set is exactly the expected ${wantCandidates.length}`, candidates.join('\n') === wantCandidates.join('\n'), `got ${candidates.join(', ')}`)
@@ -201,6 +224,7 @@ function realCensus(): ExportCensus {
   for (const [k, v] of [...byFolder].sort((a, b) => b[1].total - a[1].total)) if (v.total >= 40 || v.candidate > 0) console.log(`    ${k.padEnd(28)} ${String(v.total).padStart(6)} ${String(v.read).padStart(6)} ${String(v.kept).padStart(5)} ${String(v.candidate).padStart(5)}`)
   console.log(`  inventory names among the candidates (the contract inventory regenerates with them): ${census.rows.filter(r => r.class === 'candidate' && r.inventory).length}`)
   console.log(`  reads that come only from a .d.ts: ${census.rows.filter(r => r.typeSideOnly).length} · inline shell imports read: ${census.shellReads}`)
+  console.log(`  modules read whole: by a child program or bundle entry composed in a string ${census.wholeReads.embeddedScripts} proof file(s) · by a proof enumerating exports through the AST ${census.wholeReads.exportScanners} file(s) · through a namespace binding a module exports ${census.wholeReads.exportedNamespaces}`)
   console.log(`  loads the census cannot resolve (a package, argv, a bundle or a scratch path — listed, never silent): ${census.unresolved.length}`)
   for (const u of census.unresolved) console.log(`    ${u.file}:${u.line}  ${u.text}`)
   mkdirSync(OUT_DIR, { recursive: true })

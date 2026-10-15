@@ -10,7 +10,7 @@ import type { Message, UserMessage } from '../../types/message.js'
 import { stripDisplayTagsAllowEmpty } from '../../utils/displayTags.js'
 import { selectableUserMessagesFilter } from '../MessageSelector.js'
 
-type PromptMode = 'plain' | 'bash' | 'slash'
+export type PromptMode = 'plain' | 'bash' | 'slash'
 
 export type PromptRow = {
   kind: 'prompt'
@@ -25,9 +25,9 @@ export type PromptRow = {
   queued?: true
 }
 
-type CrewDirection = 'to' | 'from'
+export type CrewDirection = 'to' | 'from'
 
-type CrewRow = {
+export type CrewRow = {
   kind: 'crew'
   key: string
   at: string
@@ -39,7 +39,7 @@ type CrewRow = {
   summary?: string
 }
 
-type CrewThreadRow = {
+export type CrewThreadRow = {
   kind: 'crew-thread'
   key: string
   agent: string
@@ -49,7 +49,7 @@ type CrewThreadRow = {
 
 export type CrewTrafficRow = CrewThreadRow | CrewRow
 
-type RecordLimits = {
+export type RecordLimits = {
   since: string | null
   compacted: boolean
   resumed: boolean
@@ -65,7 +65,7 @@ function textOf(content: UserMessage['message']['content']): string {
   return out
 }
 
-function firstLineOf(text: string): string {
+export function firstLineOf(text: string): string {
   for (const line of text.split('\n')) {
     const t = line.trim()
     if (t) return t

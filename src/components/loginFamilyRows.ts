@@ -90,7 +90,7 @@ export const KEY_PAGES: Record<KeyFamilyValue, string> = {
 
 export const KEY_FAMILIES = Object.keys(KEY_PAGES) as KeyFamilyValue[]
 
-function keyPageMenuWord(family: KeyFamilyValue): string {
+export function keyPageMenuWord(family: KeyFamilyValue): string {
   return family === 'huggingface' ? 'Access Tokens' : 'API Keys'
 }
 
@@ -126,7 +126,7 @@ export const SIGN_IN_LATER_ROW = {
   value: 'later',
 } as const
 
-function loginFamilyNameOf(row: LoginFamilyRow): string {
+export function loginFamilyNameOf(row: LoginFamilyRow): string {
   return row.label.split(' — ')[0]!
 }
 

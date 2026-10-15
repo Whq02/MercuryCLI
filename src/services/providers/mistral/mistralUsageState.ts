@@ -9,7 +9,7 @@ import { mistralApiBase, mistralKeyHeaders, resolveMistralAdminApiKey, resolveMi
 
 export const MISTRAL_ADMIN_KEY_HINT = 'usage is read with an Admin API key (Enterprise plans, backoffice.mistral.ai) — /logins mistral adds one; the session ledger counts this key’s tokens; console.mistral.ai shows the plan’s included monthly usage'
 export const MISTRAL_ADMIN_KEY_PAGE = 'Optional Admin API key from backoffice.mistral.ai (Enterprise plans) unlocks the organisation usage meter and spend limit.'
-const MISTRAL_USAGE_ABSENCE = 'a standard Mistral API key reads no usage, balance or credits endpoint — the console (console.mistral.ai) shows the included monthly usage; the Admin API that reports it needs an Admin API key'
+export const MISTRAL_USAGE_ABSENCE = 'a standard Mistral API key reads no usage, balance or credits endpoint — the console (console.mistral.ai) shows the included monthly usage; the Admin API that reports it needs an Admin API key'
 
 export interface MistralUsageIo {
   fetchImpl?: typeof fetch
@@ -19,7 +19,7 @@ export interface MistralUsageIo {
   reason?: 'open' | 'operator' | 'sign-in'
 }
 
-interface MistralIdentity {
+export interface MistralIdentity {
   id: string
   email?: string
   name?: string
@@ -47,11 +47,11 @@ export interface MistralUsageFailure {
   status?: number
 }
 
-type MistralIdentityProbe =
+export type MistralIdentityProbe =
   | { state: 'confirmed'; identity: MistralIdentity }
   | { state: 'failed'; failure: MistralUsageFailure }
 
-type MistralLimitsProbe =
+export type MistralLimitsProbe =
   | { state: 'confirmed'; limits: MistralObservedLimits }
   | { state: 'failed'; failure: MistralUsageFailure }
 
@@ -64,7 +64,7 @@ const money = (value: unknown): number | undefined => {
   return undefined
 }
 
-function decodeMistralIdentity(body: unknown): MistralIdentity | undefined {
+export function decodeMistralIdentity(body: unknown): MistralIdentity | undefined {
   const row = object(body)
   if (!row || typeof row.id !== 'string' || row.id.trim() === '') return undefined
   const name = [row.first_name, row.last_name].filter((part): part is string => typeof part === 'string' && part.trim() !== '').join(' ')
@@ -79,7 +79,7 @@ function decodeMistralIdentity(body: unknown): MistralIdentity | undefined {
   }
 }
 
-function decodeMistralSpendLimit(body: unknown, observedAtMs: number): MistralObservedLimits | undefined {
+export function decodeMistralSpendLimit(body: unknown, observedAtMs: number): MistralObservedLimits | undefined {
   const limits = object(object(body)?.limits)
   if (!limits) return undefined
   const completion = object(limits.completion)
@@ -101,7 +101,7 @@ function decodeMistralSpendLimit(body: unknown, observedAtMs: number): MistralOb
   }
 }
 
-function decodeMistralRateLimit(body: unknown): number | undefined {
+export function decodeMistralRateLimit(body: unknown): number | undefined {
   const rps = object(body)?.requests_per_second
   return typeof rps === 'number' && Number.isFinite(rps) && rps >= 0 ? rps : undefined
 }

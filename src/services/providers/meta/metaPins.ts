@@ -1,5 +1,5 @@
-const META_OBSERVED_AT = '2026-09-30'
-const META_EFFORTS = ['minimal', 'low', 'medium', 'high', 'xhigh'] as const
+export const META_OBSERVED_AT = '2026-09-30'
+export const META_EFFORTS = ['minimal', 'low', 'medium', 'high', 'xhigh'] as const
 
 export function isMetaModelId(model: string): boolean {
   return /^(?:muse|muse-.*)$/i.test(model.trim())
@@ -13,7 +13,7 @@ export function isMetaContributorModel(model: string): boolean {
   return /-contributor$/i.test(model.trim())
 }
 
-interface MetaDisplayPin {
+export interface MetaDisplayPin {
   id: string
   displayName: string
   observedAt: string

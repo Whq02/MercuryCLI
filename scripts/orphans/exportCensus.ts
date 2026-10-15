@@ -29,6 +29,7 @@ export type ExportClass =
   | 'shared-statement'
   | 'module-anchor'
   | 'text-pin'
+  | 'pattern-pin'
   | 'candidate'
 
 export const KEPT_CLASSES: Record<Exclude<ExportClass, 'read' | 'candidate'>, string> = {
@@ -43,6 +44,7 @@ export const KEPT_CLASSES: Record<Exclude<ExportClass, 'read' | 'candidate'>, st
   'shared-statement': 'one declaration statement carries a sibling binding that is read',
   'module-anchor': 'the last import-or-export of the file: removing it would turn a module into a global script',
   'text-pin': 'a proof names the declaration in a string, template or regex literal (export <kind> <name>), or names the module and the bare name',
+  'pattern-pin': "a proof's regex over source matches the declaration's head line (export const [A-Z_]+_TOOL_NAME = …)",
 }
 
 interface ExportStatement {
@@ -51,6 +53,7 @@ interface ExportStatement {
   modifierStart: number
   modifierEnd: number
   names: string[]
+  head: string
 }
 
 export interface ExportRow {
@@ -81,6 +84,7 @@ export interface ExportCensus {
   shellReads: number
   tally: Record<ExportClass, number>
   namedBy: Map<string, string[]>
+  wholeReads: { embeddedScripts: number; exportScanners: number; exportedNamespaces: number }
 }
 
 export interface CensusOptions {
@@ -95,6 +99,7 @@ export interface CensusOptions {
   orphanBaseline: string[]
   inventory: Set<string>
   pinSources: string[]
+  generators: Set<string>
 }
 
 type Reads = Map<string, Map<string, Set<string>>>
@@ -205,6 +210,21 @@ class PathEvaluator {
     return this.consts.get(name)
   }
 
+  callbackList(id: ts.Identifier): ts.Expression | null {
+    let cur: ts.Node | undefined = id.parent
+    while (cur && !ts.isSourceFile(cur)) {
+      if ((ts.isArrowFunction(cur) || ts.isFunctionExpression(cur)) && cur.parameters[0] && ts.isIdentifier(cur.parameters[0].name) && cur.parameters[0].name.text === id.text) {
+        const call = cur.parent
+        if (ts.isCallExpression(call) && call.arguments[0] === cur && ts.isPropertyAccessExpression(call.expression) && ['map', 'flatMap', 'forEach', 'filter', 'some', 'every', 'find'].includes(call.expression.name.text)) {
+          return this.arrayLiteralOf(call.expression.expression, 0) ? call.expression.expression : null
+        }
+        return null
+      }
+      cur = cur.parent
+    }
+    return null
+  }
+
   arrayLiteralOf(e: ts.Expression, depth: number): ts.ArrayLiteralExpression | null {
     if (depth > 12) return null
     const x = unwrapExpression(e)
@@ -258,6 +278,8 @@ class PathEvaluator {
     }
     if (ts.isBinaryExpression(x) && (x.operatorToken.kind === ts.SyntaxKind.QuestionQuestionToken || x.operatorToken.kind === ts.SyntaxKind.BarBarToken)) return [...this.evaluateAll(x.left, env, depth + 1), ...this.evaluateAll(x.right, env, depth + 1)]
     if (ts.isIdentifier(x) && !env.has(x.text) && !ROOT_ANCHORS.has(x.text) && !SRC_ANCHORS.has(x.text) && !SCRIPTS_ANCHORS.has(x.text) && !DIR_ANCHORS.has(x.text)) {
+      const fromCallback = this.callbackList(x)
+      if (fromCallback) return this.evaluateAll(fromCallback, env, depth + 1)
       const list = this.lists.get(x.text)
       if (list) {
         if (list.index === null) return this.evaluateAll(list.expression, env, depth + 1)
@@ -273,7 +295,7 @@ class PathEvaluator {
     if (ts.isTemplateExpression(x) || (ts.isCallExpression(x) && x.arguments.length > 0) || (ts.isBinaryExpression(x) && x.operatorToken.kind === ts.SyntaxKind.PlusToken)) {
       const pieces: ts.Expression[] = ts.isTemplateExpression(x) ? x.templateSpans.map(sp => sp.expression) : ts.isCallExpression(x) ? [...x.arguments] : [x.left, x.right]
       const parts: string[][] = pieces.map(piece => this.evaluateAll(piece, env, depth + 1))
-      if (parts.some(v => v.length > 1) && parts.every(v => v.length > 0)) {
+      if (parts.every(v => v.length > 0)) {
         const out: string[] = []
         const walk = (i: number): void => {
           if (i === pieces.length) {
@@ -318,14 +340,19 @@ class PathEvaluator {
     if (ts.isBinaryExpression(x) && (x.operatorToken.kind === ts.SyntaxKind.QuestionQuestionToken || x.operatorToken.kind === ts.SyntaxKind.BarBarToken)) {
       return this.evaluate(x.left, env, depth + 1) ?? this.evaluate(x.right, env, depth + 1)
     }
+    if (ts.isConditionalExpression(x)) return this.evaluate(x.whenTrue, env, depth + 1) ?? this.evaluate(x.whenFalse, env, depth + 1)
     if (ts.isIdentifier(x)) {
       if (env.has(x.text)) return env.get(x.text) ?? null
+      const own = this.consts.get(x.text)
+      if (own) {
+        const v = this.evaluate(own, env, depth + 1)
+        if (v !== null) return v
+      }
       if (ROOT_ANCHORS.has(x.text)) return this.root
       if (SRC_ANCHORS.has(x.text)) return join(this.root, 'src')
       if (SCRIPTS_ANCHORS.has(x.text)) return join(this.root, 'scripts')
       if (DIR_ANCHORS.has(x.text)) return dirname(this.file)
-      const init = this.consts.get(x.text)
-      return init ? this.evaluate(init, env, depth + 1) : null
+      return null
     }
     if (ts.isMetaProperty(x) && x.keywordToken === ts.SyntaxKind.ImportKeyword) return null
     if (ts.isPropertyAccessExpression(x)) {
@@ -354,6 +381,7 @@ class PathEvaluator {
         return name === 'resolve' ? resolve(...parts) : join(...parts)
       }
       if (name === 'pathToFileURL' || name === 'fileURLToPath' || name === 'normalize' || name === 'toNamespacedPath') return this.evaluate(x.arguments[0], env, depth + 1)
+      if (name === 'stringify' && ts.isPropertyAccessExpression(callee) && ts.isIdentifier(callee.expression) && callee.expression.text === 'JSON') return this.evaluate(x.arguments[0], env, depth + 1)
       if (name === 'dirname') {
         const v = this.evaluate(x.arguments[0], env, depth + 1)
         return v === null ? null : dirname(v.replace(/^file:\/\//, ''))
@@ -416,10 +444,20 @@ interface Scan {
   unresolved: UnresolvedLoad[]
   literals: Map<string, Set<string>>
   regexTexts: Map<string, string[]>
+  regexLiterals: Map<string, Array<{ source: string; flags: string }>>
   namedModules: Map<string, Set<string>>
+  namedDirs: Map<string, Set<string>>
   moduleMarkers: Map<string, number>
   rowsByFile: Map<string, ExportRow[]>
+  embeddedScripts: Set<string>
+  exportScanners: Set<string>
+  exportedNamespaces: Set<string>
 }
+
+const CODE_LIKE = /\b(?:import\s*\(|require\s*\(|import\s+(?:type\s+)?[{*\w]|export\s*(?:\*|\{))/
+const EXPORT_ENUMERATOR = /\b(?:ExportKeyword|isExportDeclaration|isExportAssignment|isExportSpecifier|isNamedExports)\b/
+const PATTERN_PIN_SOURCE = /export(?:\\s[*+]?|\s)+(?:default|declare|async|abstract|function|const|let|var|class|type|interface|enum|namespace|module)\b/
+const PROBE_HEADS = ['export const zzProbeZz = 1', 'export function zzProbeZz() {}', 'export type ZzProbeZz = 1', 'export interface ZzProbeZz {}', 'export class ZzProbeZz {}', 'export async function zzProbeZz(): Promise<void> {}']
 
 function addRead(scan: Scan, target: string, name: string, reader: string): void {
   let byName = scan.reads.get(target)
@@ -447,7 +485,10 @@ function scanCodeFile(opts: CensusOptions, scan: Scan, abs: string, text: string
   const rows: ExportRow[] = []
   const literals = new Set<string>()
   const regexTexts: string[] = []
+  const regexLiterals: Array<{ source: string; flags: string }> = []
   let markers = 0
+  const exportScanner = EXPORT_ENUMERATOR.test(text) && !opts.generators.has(slash(relative(opts.root, abs)))
+  if (exportScanner) scan.exportScanners.add(abs)
   const bindings: Array<{ target: string; ident: ts.Identifier; scope: ts.Node }> = []
 
   const target = (spec: string): string | null => {
@@ -521,10 +562,31 @@ function scanCodeFile(opts: CensusOptions, scan: Scan, abs: string, text: string
     }
     return out
   }
+  const enclosingParameters = (n: ts.Node): Set<string> => {
+    const out = new Set<string>()
+    let cur: ts.Node | undefined = n.parent
+    while (cur && !ts.isSourceFile(cur)) {
+      if (ts.isArrowFunction(cur) || ts.isFunctionExpression(cur) || ts.isFunctionDeclaration(cur) || ts.isMethodDeclaration(cur)) for (const p of cur.parameters) if (ts.isIdentifier(p.name)) out.add(p.name.text)
+      cur = cur.parent
+    }
+    return out
+  }
+  const namesParameter = (arg: ts.Expression): boolean => {
+    const params = enclosingParameters(arg)
+    if (!params.size) return false
+    let found = false
+    const walk = (n: ts.Node): void => {
+      if (ts.isIdentifier(n) && params.has(n.text) && !(ts.isPropertyAccessExpression(n.parent) && n.parent.name === n)) found = true
+      ts.forEachChild(n, walk)
+    }
+    walk(arg)
+    return found
+  }
   const specsOf = (arg: ts.Expression | undefined): string[] => {
     if (!arg) return []
     const lit = stringText(arg)
     if (lit !== null) return [lit]
+    if (namesParameter(arg)) return []
     const composed = evaluator.evaluateAll(arg)
     if (composed.length) return composed
     return literalTails(arg)
@@ -533,6 +595,10 @@ function scanCodeFile(opts: CensusOptions, scan: Scan, abs: string, text: string
     scan.unresolved.push({ file: slash(relative(opts.root, abs)), line: sf.getLineAndCharacterOfPosition(node.getStart(sf)).line + 1, text: node.getText(sf).replace(/\s+/g, ' ').slice(0, 120) })
   }
 
+  const isExportedDeclaration = (decl: ts.VariableDeclaration): boolean => {
+    const list = decl.parent
+    return ts.isVariableDeclarationList(list) && ts.isVariableStatement(list.parent) && hasModifier(list.parent, ts.SyntaxKind.ExportKeyword) !== undefined
+  }
   const bindPattern = (t: string, name: ts.BindingName, scope: ts.Node): void => {
     if (ts.isIdentifier(name)) bindings.push({ target: t, ident: name, scope })
     else if (ts.isObjectBindingPattern(name)) {
@@ -568,7 +634,13 @@ function scanCodeFile(opts: CensusOptions, scan: Scan, abs: string, text: string
       }
       break
     }
-    if (ts.isVariableDeclaration(p) && p.initializer === node) return bindPattern(t, p.name, sf)
+    if (ts.isVariableDeclaration(p) && p.initializer === node) {
+      if (ts.isIdentifier(p.name) && isExportedDeclaration(p)) {
+        scan.exportedNamespaces.add(`${abs}:${p.name.text}`)
+        addOpaque(scan, t, abs)
+      }
+      return bindPattern(t, p.name, sf)
+    }
     if (ts.isPropertyAccessExpression(p) && p.expression === node) {
       if (p.name.text === 'then' && ts.isCallExpression(p.parent) && p.parent.expression === p) {
         const cb = p.parent.arguments[0]
@@ -593,13 +665,48 @@ function scanCodeFile(opts: CensusOptions, scan: Scan, abs: string, text: string
     addOpaque(scan, t, abs)
   }
 
+  const embeddedModules = (chunks: string[], spans: ts.Expression[]): string[] => {
+    const out = new Set<string>()
+    for (const chunk of chunks) {
+      const tail = treePathTail(chunk)
+      if (tail) {
+        const t = resolveModule(opts.root, abs, tail, opts.stubMap)
+        if (t) out.add(t)
+      }
+    }
+    for (const sp of spans) {
+      for (const v of [...evaluator.evaluateAll(sp), ...literalTails(sp)]) {
+        const t = resolveModule(opts.root, abs, v, opts.stubMap)
+        if (t) out.add(t)
+      }
+    }
+    return [...out]
+  }
+  const embedded = (chunks: string[], spans: ts.Expression[]): void => {
+    if (!CODE_LIKE.test(chunks.join(' \u0000 '))) return
+    const targets = embeddedModules(chunks, spans)
+    if (!targets.length) return
+    scan.embeddedScripts.add(abs)
+    for (const t of targets) {
+      addNamed(scan, t, abs)
+      addOpaque(scan, t, abs)
+    }
+  }
+
   const visit = (node: ts.Node): void => {
-    if (ts.isStringLiteralLike(node)) literals.add(node.text)
-    else if (ts.isTemplateExpression(node)) {
+    if (ts.isStringLiteralLike(node)) {
+      literals.add(node.text)
+      if (ts.isNoSubstitutionTemplateLiteral(node) || node.text.includes('\n')) embedded([node.text], [])
+    } else if (ts.isTemplateExpression(node)) {
       literals.add(node.head.text)
       for (const s of node.templateSpans) literals.add(s.literal.text)
       regexTexts.push(node.getText(sf))
-    } else if (ts.isRegularExpressionLiteral(node)) regexTexts.push(node.text)
+      embedded([node.head.text, ...node.templateSpans.map(s => s.literal.text)], node.templateSpans.map(s => s.expression))
+    } else if (ts.isRegularExpressionLiteral(node)) {
+      regexTexts.push(node.text)
+      const m = /^\/(.*)\/([a-z]*)$/s.exec(node.text)
+      if (m && PATTERN_PIN_SOURCE.test(m[1]!)) regexLiterals.push({ source: m[1]!, flags: m[2]! })
+    }
 
     if (ts.isImportDeclaration(node)) {
       markers++
@@ -651,17 +758,45 @@ function scanCodeFile(opts: CensusOptions, scan: Scan, abs: string, text: string
       if (isSubject) rows.push(row(node.isExportEquals ? '=' : 'default', node.isExportEquals ? 'export-equals' : 'default-assignment', false, []))
     } else if (ts.isCallExpression(node) && isModuleLoadCall(node)) {
       const arg = node.arguments[0]
-      const specs = specsOf(arg)
-      const targets = specs.map(sp => target(sp)).filter((t): t is string => t !== null)
-      if (targets.length) for (const t of targets) dynamicLoad(node, t)
-      else if (arg && specs.length === 0) {
-        const sites = loaderCallSites(node, arg)
-        if (sites.length) {
-          for (const { site, targets: ts2 } of sites) for (const t of ts2) {
-            addNamed(scan, t, abs)
-            dynamicLoad(site, t)
+      if (arg) {
+        const pathLike = (sp: string): boolean => sp.startsWith('/') || sp.startsWith('.') || sp.startsWith('file://') || /(?:^|\/)(?:src|scripts)\//.test(sp)
+        const lit = stringText(arg)
+        let settled = false
+        if (lit !== null) {
+          const t = target(lit)
+          if (t) dynamicLoad(node, t)
+          else if (pathLike(lit)) recordUnresolved(node)
+          settled = true
+        }
+        if (!settled && namesParameter(arg)) {
+          const sites = loaderCallSites(node, arg)
+          if (sites.length) {
+            const fn = enclosingFunction(node)
+            const returned = fn ? returnedExpression(fn) : undefined
+            const returnsTheLoad = returned !== undefined && unwrapExpression(returned) === node
+            for (const { site, targets: ts2 } of sites) for (const t of ts2) {
+              addNamed(scan, t, abs)
+              dynamicLoad(returnsTheLoad ? site : node, t)
+            }
+            settled = true
           }
-        } else recordUnresolved(node)
+        }
+        if (!settled) {
+          const composed = evaluator.evaluateAll(arg)
+          const targets = composed.map(sp => target(sp)).filter((t): t is string => t !== null)
+          if (targets.length) {
+            for (const t of targets) dynamicLoad(node, t)
+            settled = true
+          } else if (composed.some(pathLike)) {
+            recordUnresolved(node)
+            settled = true
+          }
+        }
+        if (!settled) {
+          const tails = literalTails(arg).map(sp => target(sp)).filter((t): t is string => t !== null)
+          if (tails.length) for (const t of tails) dynamicLoad(node, t)
+          else recordUnresolved(node)
+        }
       }
     } else if (ts.isImportTypeNode(node)) {
       const arg = node.argument
@@ -705,7 +840,9 @@ function scanCodeFile(opts: CensusOptions, scan: Scan, abs: string, text: string
     const def = hasModifier(node, ts.SyntaxKind.DefaultKeyword)
     let modifierEnd = def ? Math.max(def.end, exp.end) : exp.end
     while (modifierEnd < text.length && /[ \t]/.test(text[modifierEnd]!)) modifierEnd++
-    return { start: node.getStart(sf), end: node.end, modifierStart: exp.getStart(sf), modifierEnd, names }
+    const start = node.getStart(sf)
+    const eol = text.indexOf('\n', start)
+    return { start, end: node.end, modifierStart: exp.getStart(sf), modifierEnd, names, head: text.slice(start, eol === -1 ? node.end : Math.min(eol, node.end)) }
   }
   function declarationRow(node: ts.Node, names: string[], typeOnly: boolean, form: ExportForm = 'declaration'): ExportRow {
     return { file: abs, name: names[0]!, form, typeOnly, statements: [statementOf(node, names)], readers: [], opaque: false, typeSideOnly: false, class: 'candidate', inventory: false }
@@ -717,11 +854,12 @@ function scanCodeFile(opts: CensusOptions, scan: Scan, abs: string, text: string
   visit(sf)
 
   const queue = [...bindings]
-  const seenBinding = new Set<ts.Node>()
+  const seenBinding = new Set<string>()
   while (queue.length) {
     const b = queue.shift()!
-    if (seenBinding.has(b.ident)) continue
-    seenBinding.add(b.ident)
+    const key = `${b.target}\u0000${b.ident.pos}`
+    if (seenBinding.has(key)) continue
+    seenBinding.add(key)
     const name = b.ident.text
     const walk = (n: ts.Node): void => {
       if (ts.isIdentifier(n) && n.text === name && n !== b.ident) {
@@ -755,24 +893,31 @@ function scanCodeFile(opts: CensusOptions, scan: Scan, abs: string, text: string
     walk(b.scope)
   }
 
-  for (const t of literalModulePaths(opts, abs, sf, evaluator)) addNamed(scan, t, abs)
+  const named = literalModulePaths(opts, abs, sf, evaluator)
+  for (const t of named.modules) addNamed(scan, t, abs)
+  if (named.dirs.size) scan.namedDirs.set(abs, named.dirs)
+  if (exportScanner) for (const t of named.modules) addOpaque(scan, t, abs)
   scan.literals.set(abs, literals)
   scan.regexTexts.set(abs, regexTexts)
+  if (regexLiterals.length) scan.regexLiterals.set(abs, regexLiterals)
   scan.moduleMarkers.set(abs, markers)
   if (isSubject) scan.rowsByFile.set(abs, rows)
 }
 
-function literalModulePaths(opts: CensusOptions, abs: string, sf: ts.SourceFile, evaluator: PathEvaluator): Set<string> {
+function literalModulePaths(opts: CensusOptions, abs: string, sf: ts.SourceFile, evaluator: PathEvaluator): { modules: Set<string>; dirs: Set<string> } {
   const out = new Set<string>()
+  const dirs = new Set<string>()
   const tryPath = (p: string | null): void => {
     if (p === null) return
     if (/\.(ts|tsx|mts|js|mjs|cjs|jsx)$/.test(p) || p.startsWith('src/') || p.startsWith('scripts/')) {
       const t = resolveModule(opts.root, abs, p.startsWith('/') || p.startsWith('.') || p.startsWith('src/') || p.startsWith('scripts/') || p.startsWith('sdk/') ? p : './' + p, opts.stubMap)
       if (t) out.add(t)
     }
+    if (p.startsWith(opts.root + '/') && !/\.[a-z]+$/.test(p) && existsSync(p) && statSync(p).isDirectory()) dirs.add(p)
   }
   const visit = (n: ts.Node): void => {
     if (ts.isStringLiteralLike(n) && n.text.includes('/')) tryPath(n.text)
+    else if (ts.isTemplateExpression(n)) for (const v of evaluator.evaluateAll(n)) if (v.includes('/')) tryPath(v)
     else if (ts.isCallExpression(n)) {
       const callee = n.expression
       const name = ts.isIdentifier(callee) ? callee.text : ts.isPropertyAccessExpression(callee) ? callee.name.text : ''
@@ -781,7 +926,7 @@ function literalModulePaths(opts: CensusOptions, abs: string, sf: ts.SourceFile,
     ts.forEachChild(n, visit)
   }
   visit(sf)
-  return out
+  return { modules: out, dirs }
 }
 
 const SHELL_IMPORT = /import\s*(?:type\s+)?(?:\{([^}]*)\}|\*\s*as\s*([A-Za-z_$][\w$]*)|([A-Za-z_$][\w$]*))\s*from\s*['"]([^'"\n]+)['"]/g
@@ -845,7 +990,7 @@ function matchesAny(rel: string, globs: string[]): boolean {
 const normaliseRegex = (src: string): string => src.replace(/\\s[*+]?/g, ' ').replace(/\\b/g, '').replace(/\\\(/g, '(').replace(/\^/g, '')
 
 export function runCensus(opts: CensusOptions): ExportCensus {
-  const scan: Scan = { reads: new Map(), opaque: new Map(), stars: new Map(), unresolved: [], literals: new Map(), regexTexts: new Map(), namedModules: new Map(), moduleMarkers: new Map(), rowsByFile: new Map() }
+  const scan: Scan = { reads: new Map(), opaque: new Map(), stars: new Map(), unresolved: [], literals: new Map(), regexTexts: new Map(), regexLiterals: new Map(), namedModules: new Map(), namedDirs: new Map(), moduleMarkers: new Map(), rowsByFile: new Map(), embeddedScripts: new Set(), exportScanners: new Set(), exportedNamespaces: new Set() }
   const subjects = new Set(opts.subjects.map(f => join(opts.root, f)))
   let shellReads = 0
   const readerAbs = [...new Set([...opts.readers, ...opts.subjects])].map(f => join(opts.root, f)).sort()
@@ -918,6 +1063,25 @@ export function runCensus(opts: CensusOptions): ExportCensus {
     for (const t of texts) for (const m of t.matchAll(DECLARATION_PIN)) pinDeclarations.add(m[1]!)
   }
 
+  const pinSourceSet = new Set(pinSources)
+  const patterns: Array<{ file: string; re: RegExp; broad: boolean }> = []
+  for (const [file, list] of scan.regexLiterals) {
+    if (!pinSourceSet.has(file)) continue
+    for (const { source, flags } of list) {
+      let re: RegExp
+      try {
+        re = new RegExp(source, flags.replace(/[gy]/g, ''))
+      } catch {
+        continue
+      }
+      patterns.push({ file, re, broad: PROBE_HEADS.some(h => re.test(h)) })
+    }
+  }
+  const scopedTo = (proof: string, abs: string): boolean => {
+    if (scan.namedModules.get(abs)?.has(proof)) return true
+    for (const d of scan.namedDirs.get(proof) ?? []) if (abs.startsWith(d + '/')) return true
+    return false
+  }
   const entry = new Set(opts.entrypoints.map(f => join(opts.root, f)))
   const rowsSurface = new Set(opts.rowsSurface.map(f => join(opts.root, f)))
   const orphan = new Set(opts.orphanBaseline.map(f => join(opts.root, f)))
@@ -962,6 +1126,11 @@ export function runCensus(opts: CensusOptions): ExportCensus {
       if (reader === abs) continue
       if (pinNamesByFile.get(reader)?.has(r.name)) return 'text-pin'
     }
+    for (const p of patterns) {
+      if (p.file === abs) continue
+      if (p.broad && !scopedTo(p.file, abs)) continue
+      if (r.statements.some(s => p.re.test(s.head))) return 'pattern-pin'
+    }
     return 'candidate'
   }
 
@@ -1000,7 +1169,7 @@ export function runCensus(opts: CensusOptions): ExportCensus {
   for (const r of rows) tally[r.class] = (tally[r.class] ?? 0) + 1
   const namedBy = new Map<string, string[]>()
   for (const [t, readers] of scan.namedModules) namedBy.set(slash(relative(opts.root, t)), [...readers].map(r => slash(relative(opts.root, r))).sort())
-  return { root: opts.root, subjects: opts.subjects, readers: opts.readers, rows, unresolved: scan.unresolved.sort((a, b) => a.file.localeCompare(b.file) || a.line - b.line), shellReads, tally, namedBy }
+  return { root: opts.root, subjects: opts.subjects, readers: opts.readers, rows, unresolved: scan.unresolved.sort((a, b) => a.file.localeCompare(b.file) || a.line - b.line), shellReads, tally, namedBy, wholeReads: { embeddedScripts: scan.embeddedScripts.size, exportScanners: scan.exportScanners.size, exportedNamespaces: scan.exportedNamespaces.size } }
 }
 
 export function treeOptions(root = GRAPH_ROOT): CensusOptions {
@@ -1012,12 +1181,14 @@ export function treeOptions(root = GRAPH_ROOT): CensusOptions {
   const entrypoints = tracked.filter(f => f.startsWith('src/entrypoints/') || f === 'src/main.tsx' || f === 'build.ts')
   const rowsSurface = tracked.filter(f => f.startsWith('src/rows/'))
   const generated: string[] = []
+  const generators = new Set<string>()
   const mapPath = join(root, 'scripts', 'gate', 'generated-assets.tsv')
   if (existsSync(mapPath)) {
     for (const line of readFileSync(mapPath, 'utf8').split('\n')) {
       if (!line || line.startsWith('#')) continue
-      const assets = line.split('\t')[0] ?? ''
-      for (const a of assets.split(/\s+/)) if (a) generated.push(a)
+      const cells = line.split('\t')
+      for (const a of (cells[0] ?? '').split(/\s+/)) if (a) generated.push(a)
+      for (const cell of [cells[1] ?? '', cells[2] ?? '']) for (const m of cell.matchAll(/scripts\/[A-Za-z0-9_@./-]+\.(?:ts|mjs|js|sh)/g)) generators.add(m[0])
     }
   }
   const fixtures = ['**/fixtures/**', '**/fixture/**', '**/goldens/**', '**/__fixtures__/**']
@@ -1031,7 +1202,7 @@ export function treeOptions(root = GRAPH_ROOT): CensusOptions {
   }
   const generatedSet = (f: string): boolean => matchesAny(f, generated)
   const pinSources = tracked.filter(f => (f.startsWith('scripts/') || f.startsWith('.github/') || f === 'build.ts' || f === 'package.json' || f.startsWith('sdk/')) && TEXT_PIN_FILE.test(f) && !generatedSet(f))
-  return { root, subjects, readers, stubMap: readStubMap(), entrypoints, rowsSurface, generated, fixtures, orphanBaseline, inventory, pinSources }
+  return { root, subjects, readers, stubMap: readStubMap(), entrypoints, rowsSurface, generated, fixtures, orphanBaseline, inventory, pinSources, generators }
 }
 
 interface RewriteResult {

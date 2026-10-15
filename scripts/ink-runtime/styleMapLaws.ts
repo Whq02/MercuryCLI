@@ -4,7 +4,7 @@ import { Box, Text } from '../../src/ink.js'
 import { renderToAnsiString } from '../../src/utils/staticRender.js'
 
 type Painted = { ch: string; fg: string | null }
-function paintedChars(ansi: string): Painted[] {
+export function paintedChars(ansi: string): Painted[] {
   const out: Painted[] = []
   let fg: string | null = null
   for (let i = 0; i < ansi.length; i++) {

@@ -87,7 +87,7 @@ export function isDangerousTaskPermission(toolName: string, _ruleContent?: strin
   return toolName === AGENT_TOOL_NAME
 }
 
-type DangerousPermissionInfo = {
+export type DangerousPermissionInfo = {
   ruleValue: PermissionRuleValue
   source: PermissionRuleSource
   ruleDisplay: string
@@ -104,7 +104,7 @@ function sourceDisplay(source: PermissionRuleSource): string {
 
 const CLI_SPEC_RE = /^([^(]+)(?:\(([^)]*)\))?$/
 
-function findDangerousPermissions(
+export function findDangerousPermissions(
   rules: PermissionRule[],
   cliAllowedTools: string[],
 ): DangerousPermissionInfo[] {
@@ -184,7 +184,7 @@ export function stripDangerousPermissionsForFlow(
   return next
 }
 
-function restoreDangerousPermissions(context: ToolPermissionContext): ToolPermissionContext {
+export function restoreDangerousPermissions(context: ToolPermissionContext): ToolPermissionContext {
   const maps = context as unknown as MutableRuleMaps
   if (!maps.strippedDangerousRules) return context
   const next = cloneContext(context)
@@ -220,7 +220,7 @@ export function transitionPermissionMode(
 }
 
 
-type SetPermissionModeResult = { ok: true; mode: PermissionMode } | { ok: false; error: string }
+export type SetPermissionModeResult = { ok: true; mode: PermissionMode } | { ok: false; error: string }
 
 type UpdateAppState = (
   updater: (context: ToolPermissionContext) => ToolPermissionContext,
@@ -280,14 +280,14 @@ export function isFlowGateEnabled(): boolean {
   return !isFlowDisabledBySettings()
 }
 
-type FlowUnavailableReason = 'settings'
+export type FlowUnavailableReason = 'settings'
 
-function getFlowUnavailableReason(): FlowUnavailableReason | null {
+export function getFlowUnavailableReason(): FlowUnavailableReason | null {
   if (isFlowDisabledBySettings()) return 'settings'
   return null
 }
 
-function getFlowUnavailableNotification(reason: FlowUnavailableReason): string {
+export function getFlowUnavailableNotification(reason: FlowUnavailableReason): string {
   switch (reason) {
     case 'settings':
       return 'Flow is closed by your settings.'
@@ -356,7 +356,7 @@ export function initialPermissionModeFromCLI({
     : { mode: resolution.mode, notification: resolution.notification }
 }
 
-type SessionPermissionModeSource =
+export type SessionPermissionModeSource =
   | 'launch-flag'
   | 'mode-argument'
   | 'saved-settings'
@@ -420,7 +420,7 @@ export function resolveSessionPermissionMode({
   return { ...result, source: winner.source }
 }
 
-function resolvePermissionModeCandidates(
+export function resolvePermissionModeCandidates(
   candidates: readonly PermissionMode[],
   { dangerouslySkipPermissions }: { dangerouslySkipPermissions: boolean },
 ): { mode: PermissionMode; notification?: string } {
@@ -448,7 +448,7 @@ function resolvePermissionModeCandidates(
   return notification ? { mode: resolvedMode, notification } : { mode: resolvedMode }
 }
 
-function savedPermissionModeCandidate(): PermissionMode | undefined {
+export function savedPermissionModeCandidate(): PermissionMode | undefined {
   const { settings, errors } = getSettingsWithErrors()
   const raw = settings.guardrails?.mode
   if (!raw) return errors.some(error => error.path === 'guardrails.mode') ? 'default' : undefined

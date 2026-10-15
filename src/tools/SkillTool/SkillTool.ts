@@ -48,7 +48,7 @@ import {
 
 export type { SkillToolProgress as Progress }
 
-const inputSchema = lazySchema(() =>
+export const inputSchema = lazySchema(() =>
   z.object({
     skill: z
       .string()
@@ -59,7 +59,7 @@ const inputSchema = lazySchema(() =>
 type InputSchema = ReturnType<typeof inputSchema>
 type Input = z.infer<InputSchema>
 
-const outputSchema = lazySchema(() =>
+export const outputSchema = lazySchema(() =>
   z.union([
     z.object({
       success: z.boolean().describe('Whether the skill loaded'),

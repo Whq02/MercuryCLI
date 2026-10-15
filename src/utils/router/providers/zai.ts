@@ -32,7 +32,7 @@ export const GLM_STATIC_CATALOGUE: readonly ProviderCatalogueEntry[] = GLM_STATI
   return pin ? [entryOf(pin)] : []
 })
 
-function zaiLiveCatalogue(): { entries: ProviderCatalogueEntry[]; fetchedAtMs: number } | undefined {
+export function zaiLiveCatalogue(): { entries: ProviderCatalogueEntry[]; fetchedAtMs: number } | undefined {
   const { rows, source } = zaiCatalogueRows()
   if (source.kind !== 'live') return undefined
   return { fetchedAtMs: source.fetchedAtMs, entries: rows.map(entryOf) }
@@ -80,7 +80,7 @@ export function describeZaiProvider(): ProviderDescription {
   }
 }
 
-function zaiStatus(): RouterProviderStatus {
+export function zaiStatus(): RouterProviderStatus {
   const discovery = primeZaiDiscovery()
   return discovery?.keyPresent
     ? { available: true }
@@ -101,14 +101,14 @@ export function listZaiModels(): RouterProviderModel[] {
   }))
 }
 
-function resolveZaiModel(
+export function resolveZaiModel(
   _modelClass: RouterModelClass,
   _posture: RouterPosture,
 ): RouteModelRef | null {
   return null
 }
 
-function buildZaiLaunchPatch(_ref: RouteModelRef): { model: string; effort: string } {
+export function buildZaiLaunchPatch(_ref: RouteModelRef): { model: string; effort: string } {
   throw new Error(
     'router: provider zai has no SEAT runtime — roster seats stay Anthropic; GLM specialists dispatch through the AgentTool engine path',
   )

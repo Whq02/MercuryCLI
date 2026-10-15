@@ -2,7 +2,7 @@ import { readStoredLocalApiKey } from '../../../utils/router/providerSecrets.js'
 import { getCachedLocalDiscovery } from './localDiscovery.js'
 
 export const LOCAL_PULL_RECOMMENDATION = 'ollama pull qwen3.5:9b (tool-capable, ~6.6 GB; qwen3.5:27b for 48 GB and up)'
-const LOCAL_NO_MODEL_REMEDY = `no model pulled yet — ${LOCAL_PULL_RECOMMENDATION} — /model re-probes`
+export const LOCAL_NO_MODEL_REMEDY = `no model pulled yet — ${LOCAL_PULL_RECOMMENDATION} — /model re-probes`
 export const LOCAL_UNREACHABLE_REMEDY = `no local server discovered — start Ollama (:11434), LM Studio (:1234), vLLM (:8000) or llama.cpp-server (:8080), or set MERCURY_LOCAL_BASE_URL; then ${LOCAL_PULL_RECOMMENDATION}`
 
 export function resolveLocalApiKey(

@@ -9,8 +9,8 @@ function once<T>(build: () => T): () => T {
   }
 }
 
-const ConfigScopeSchema = once(() => z.enum(['local', 'user', 'project', 'dynamic', 'enterprise', 'claudeai', 'managed']))
-const TransportSchema = once(() => z.enum(['stdio', 'sse', 'http', 'ws']))
+export const ConfigScopeSchema = once(() => z.enum(['local', 'user', 'project', 'dynamic', 'enterprise', 'claudeai', 'managed']))
+export const TransportSchema = once(() => z.enum(['stdio', 'sse', 'http', 'ws']))
 export type ConfigScope = z.infer<ReturnType<typeof ConfigScopeSchema>>
 export type Transport = z.infer<ReturnType<typeof TransportSchema>>
 
@@ -46,7 +46,7 @@ export const McpServerConfigSchema = once(() => z.union([
   McpStdioServerConfigSchema(), McpSSEServerConfigSchema(), McpHTTPServerConfigSchema(),
   McpWebSocketServerConfigSchema(), McpAnthropicProxyServerConfigSchema(),
 ]))
-const McpJsonConfigSchema = once(() => z.object({ mcpServers: z.record(z.string(), McpServerConfigSchema()) }))
+export const McpJsonConfigSchema = once(() => z.object({ mcpServers: z.record(z.string(), McpServerConfigSchema()) }))
 
 export type McpStdioServerConfig = z.infer<ReturnType<typeof McpStdioServerConfigSchema>>
 export type McpSSEServerConfig = z.infer<ReturnType<typeof McpSSEServerConfigSchema>>

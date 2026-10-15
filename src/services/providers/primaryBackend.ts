@@ -40,7 +40,7 @@ import { resolveLocalAccount } from './local/localAccounts.js'
 
 export const APEX_BACKEND_CONTRACT_VERSION = 1
 
-type PrimaryBackendId =
+export type PrimaryBackendId =
   | 'anthropic-messages'
   | 'zai-glm'
   | 'openai-responses'
@@ -57,7 +57,7 @@ type PrimaryBackendId =
   | 'nous-chat'
   | 'zen-gateway'
 
-interface AgentRuntimeRef {
+export interface AgentRuntimeRef {
   contractVersion: typeof APEX_BACKEND_CONTRACT_VERSION
   backend?: PrimaryBackendId
   provider?:
@@ -98,12 +98,12 @@ interface AgentRuntimeRef {
   walletEntryId?: string
 }
 
-type BackendReadiness =
+export type BackendReadiness =
   | { state: 'ready'; detail: string }
   | { state: 'configured'; detail: string }
   | { state: 'unavailable'; reason: string }
 
-interface PrimaryAgentBackend {
+export interface PrimaryAgentBackend {
   id: PrimaryBackendId
   provider: AgentRuntimeRef['provider']
   label: string

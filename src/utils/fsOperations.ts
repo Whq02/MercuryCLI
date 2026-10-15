@@ -289,7 +289,7 @@ export function getPathsForPermissionCheck(inputPath: string): string[] {
 }
 
 
-type ReadFileRangeResult = {
+export type ReadFileRangeResult = {
   content: string
   bytesRead: number
   bytesTotal: number

@@ -276,7 +276,7 @@ export function getSettingsWriteFilePathForSource(source: SettingSource): string
 }
 
 
-function loadManagedFileSettings(): { settings: SettingsJson | null; errors: ValidationError[] } {
+export function loadManagedFileSettings(): { settings: SettingsJson | null; errors: ValidationError[] } {
   const errors: ValidationError[] = []
   let merged: SettingsJson | null = null
   const mergeIn = (settings: SettingsJson | null): void => {
@@ -308,7 +308,7 @@ function loadManagedFileSettings(): { settings: SettingsJson | null; errors: Val
   return { settings: merged, errors }
 }
 
-function getManagedFileSettingsPresence(): { hasBase: boolean; hasDropIns: boolean } {
+export function getManagedFileSettingsPresence(): { hasBase: boolean; hasDropIns: boolean } {
   const base = parseSettingsFile(join(getManagedFilePath(), 'managed-settings.json'))
   const hasBase = base.settings !== null && Object.keys(base.settings).length > 0
   let hasDropIns = false
@@ -469,7 +469,7 @@ export function getInitialSettings(): SettingsJson {
   return getSettingsWithErrors().settings
 }
 
-type SettingsWithSources = {
+export type SettingsWithSources = {
   effective: SettingsJson
   sources: Array<{ source: SettingSource; settings: SettingsJson }>
 }
