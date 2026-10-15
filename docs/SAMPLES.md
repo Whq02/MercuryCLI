@@ -18,7 +18,7 @@ The model draws the page in an Eval cell and keeps it with
 page's data stays in the cell, so a redraw is a small edit, and every
 redraw is the next version of the same sample: the same name appends a
 version and never makes a second sample. The cell's result names each
-sample it kept — its title, its version, its address — and the words of
+sample it kept (its title, its version, its address) and the words of
 yours it answered.
 
 `/memory page` keeps one sample of its own: the memory library drawn as a
@@ -47,8 +47,8 @@ samples (`· 1 sample`) after the model and its effort, and `/samples` is the
 road to them. In the compact layout the line under the
 composer counts the session's samples (`· 1 sample`), and the detail view
 that line opens lists them; Enter on one opens it. `/samples` lists the
-session's samples, newest first — the name, `v<N>`, the state and when it
-last changed — and Enter opens the one you pick, esc returns. A new sample
+session's samples, newest first (the name, `v<N>`, the state and when it
+last changed), and Enter opens the one you pick while `esc` returns. A new sample
 or a new version shows up on its own: the session's runner relays its
 samples with the rest of its facts. The page shows the sample's versions
 with a switcher; while the tab is open it refreshes as the model redraws.
@@ -65,8 +65,8 @@ on the newest, the frame moves to it. `?` shows the keys.
 ## Marks
 
 Edit with Mercury (the `m` key) turns marks on. Click a spot on the page:
-a numbered pin lands there and a small box takes your comment — Enter
-keeps it, Esc removes the pin. Pins can be dragged, reopened and removed;
+a numbered pin lands there and a small box takes your comment (Enter
+keeps it, Esc removes the pin). Pins can be dragged, reopened and removed;
 each remembers the element under it (its tag, id, class and first words).
 The note at the foot is for the whole page; Approve and Changes needed
 are optional. "Send marks to Mercury" (the `s` key) delivers everything
@@ -80,7 +80,7 @@ into the session as one message, as if you had typed it:
 
 The model answers it in its next turn; if a turn is running, the message
 waits the way any typed message does. The verdict moves the sample's
-state — approved, changes needed — and a new version opens it again.
+state (`approved`, `changes needed`), and a new version opens it again.
 
 ## When no port can be bound
 
@@ -91,12 +91,12 @@ the same message text on the clipboard for you to paste into the composer.
 
 ## The switch
 
-Samples are off by default. Turn the Boot Menu's `Samples` row on — the
-change reaches new sessions — or set `MERCURY_SAMPLES=1` in the environment
+Samples are off by default. Turn the Boot Menu's `Samples` row on (the
+change reaches new sessions) or set `MERCURY_SAMPLES=1` in the environment
 before the session starts. Off, `sample()` in an Eval cell refuses, no
 listener starts and `/samples` is unavailable; the Eval tool's prompt has no
 line about samples, and nothing else changes. Typed while off, `/samples`
-answers one line — `/samples is off — MERCURY_SAMPLES=1 turns it on (the
-Boot Menu's Samples row saves it for new sessions)` — and starts nothing.
+answers one line (`/samples is off · MERCURY_SAMPLES=1 turns it on, and the
+Boot Menu's Samples row saves it for new sessions`) and starts nothing.
 `mercury health` and `/health` carry a `Samples` row that says which way
 the switch stands.
