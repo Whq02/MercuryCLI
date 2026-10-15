@@ -177,9 +177,8 @@ export function fuseRecallRankings(query: string, pool: readonly LookupCandidate
   const scores = new Map<string, number>()
   const semantic = semanticHits(query, pool, dir, scores).filter(hit => !opts.exclude?.has(hit.id))
   const extra = semantic.length > 0 ? [{ order: semantic.map(hit => hit.id), tieKey: semanticTieKey(semantic) }] : []
-  const order = fuseSignalRanking([grep, lexical.map(hit => hit.id)], scored, dir, fuseRankings, extra)
-  if (scores.size === 0) return order
-  return [...order.slice(0, LOOKUP_LIMIT).sort((a, b) => (scores.get(b) ?? -1) - (scores.get(a) ?? -1)), ...order.slice(LOOKUP_LIMIT)]
+  return fuseSignalRanking([grep, lexical.map(hit => hit.id)], scored, dir, fuseRankings, extra, order =>
+    scores.size === 0 ? order : [...order.slice(0, LOOKUP_LIMIT).sort((a, b) => (scores.get(b) ?? -1) - (scores.get(a) ?? -1)), ...order.slice(LOOKUP_LIMIT)])
 }
 
 interface SemanticHit {

@@ -27,6 +27,10 @@ try {
   assert.equal(signalRanking(scored, dir), null)
   assert.deepEqual(fuseSignalRanking([lexical, byUse], scored, dir, fuseRankings), baseline, 'no log preserves lexical fusion exactly')
   assert(!existsSync(signalWeightsPath(dir)), 'no history needs no weights file')
+  let refinements = 0
+  const refine = (order: string[]): string[] => { refinements++; return [...order].reverse() }
+  assert.deepEqual(fuseSignalRanking([lexical, byUse], scored, dir, fuseRankings, [], refine), [...baseline].reverse())
+  assert.equal(refinements, 1, 'only the untrained order is refined')
   async function turn(body: () => Promise<void>): Promise<void> {
     for await (const _ of memorySignalScope((async function* () { await body() })())) {}
   }
@@ -55,6 +59,8 @@ try {
   const fitMs = performance.now() - started
   assert.deepEqual(learned, ['seq:1', 'seq:2'], 'cited fact rises; unopened and pinned facts are not learned candidates')
   const fused = fuseSignalRanking([lexical, byUse], scored, dir, fuseRankings)
+  assert.deepEqual(fuseSignalRanking([lexical, byUse], scored, dir, fuseRankings, [], refine), fused)
+  assert.equal(refinements, 1, 'a trained order never invokes the cold refinement')
   assert(fused.includes('seq:1') && fused.includes('seq:2'))
   assert(fused.indexOf('seq:1') < fused.indexOf('seq:2'), 'the signal wins an exact lexical and open-count tie')
   assert.equal(fused.indexOf('seq:4'), baseline.indexOf('seq:4'), 'a pin never changes position')

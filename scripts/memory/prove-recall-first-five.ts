@@ -22,7 +22,9 @@ mock.module('../../src/mneme/mnemeIndex.js', () => ({
   },
   rebuildEmbedIndex: () => { throw new Error('ranking must not encode documents') },
 }))
-mock.module('../../src/mneme/mnemeSignalRanking.js', () => ({ fuseSignalRanking: () => [...active.baseline] }))
+mock.module('../../src/mneme/mnemeSignalRanking.js', () => ({
+  fuseSignalRanking: (_rankings: unknown, _scored: unknown, _dir: string, _fuse: unknown, _extra: unknown, refine?: (order: string[]) => string[]) => refine ? refine([...active.baseline]) : [...active.baseline],
+}))
 const { fuseRecallRankings } = await import('../../src/mneme/mnemeLookup.js')
 const pool = () => Object.keys(active.scores).map(id => ({ id, seq: id.startsWith('seq:') ? Number(id.slice(4)) : undefined, text: 'fixture', pending: id.startsWith('pending:'), signature: '', slug: 'facts', pagePath: 'facts' }))
 try {
