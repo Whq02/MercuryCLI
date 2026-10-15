@@ -46,7 +46,7 @@ One number in the table is prompted, and it is marked as such. Every family, in 
 
 In 1.0.0-beta.32, two rules in the text every session read came straight out of these numbers: answering a new question as it was asked before consulting the record (aimed at the intrusion rows), and writing the note as a centre with a rim (the few things that mattered, with what was checked marked apart from what was not, aimed at the growth). The second rule held in form in every chain (the judge read every note as that shape) while notes still grew across sessions.
 
-From 1.0.0-beta.33 onward, Mercury asks for a single concise orienting note at session end (`HANDOFF_ASK`, capped at 8,000 characters) and checks it for novelty against facts, rules and the previous note already on record, asking once more for only what is new when more than half of the sentences (and at least two sentences) repeat existing records.
+Today's note is described in [MNEME.md](MNEME.md#the-journal).
 
 ## What this does not show
 
