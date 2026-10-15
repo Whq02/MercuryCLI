@@ -38,6 +38,7 @@ for proof in \
   prove-entry-page-journal-label.ts \
   prove-entry-state.ts \
   prove-entry-knapsack.ts \
+  prove-entry-task-continuation.ts \
   prove-entry-stale-wiring.ts \
   prove-wording-fixes.ts \
 ; do

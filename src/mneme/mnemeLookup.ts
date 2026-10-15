@@ -1,4 +1,5 @@
 import { join } from 'node:path'
+import { createHash } from 'node:crypto'
 import { currentBufferPath, pendingRows } from './mnemeBuffer.js'
 import { readPinnedStatus } from './mnemeFrontPage.js'
 import { mnemeEnabled, mnemeLibraryDir } from './mnemeGates.js'
@@ -84,6 +85,8 @@ interface CandidateFeatures {
   kind: LookupKind
   useCount: number
   discriminating: boolean
+  discriminatingStems: number
+  maxIdf: number
 }
 
 interface ScoredCandidate extends LookupCandidate {
@@ -144,12 +147,16 @@ export function scoreCandidates(query: string, pool: readonly LookupCandidate[],
     let bm25 = 0
     const matched: string[] = []
     let discriminating = false
+    let discriminatingStems = 0
+    let maxIdf = 0
     for (const token of tokens) {
       const frequency = doc.frequencies.get(token) ?? 0
       if (frequency === 0) continue
       const n = df.get(token)!
       matched.push(token)
       const idf = Math.log(1 + (total - n + 0.5) / (n + 0.5))
+      if (idf >= 1.5) discriminatingStems++
+      maxIdf = Math.max(maxIdf, idf)
       bm25 += idf * frequency * (BM25_K1 + 1) / (frequency + BM25_K1 * (1 - BM25_B + BM25_B * doc.length / averageLength))
       if (n < total || total === 1) discriminating = true
     }
@@ -157,7 +164,7 @@ export function scoreCandidates(query: string, pool: readonly LookupCandidate[],
     const recency = recencyOf(candidate, now)
     const kind = candidate.kind ?? (pinned ? 'ruling' : candidate.pending ? 'pending' : 'fact')
     const useCount = Number.isFinite(candidate.useCount) ? Math.max(0, candidate.useCount!) : 0
-    return { ...candidate, score: discriminating ? bm25 * recency : 0, matched, features: { bm25, recency, pinned, kind, useCount, discriminating } }
+    return { ...candidate, score: discriminating ? bm25 * recency : 0, matched, features: { bm25, recency, pinned, kind, useCount, discriminating, discriminatingStems, maxIdf } }
   })
 }
 
@@ -248,15 +255,80 @@ export function rankCandidates(query: string, pool: readonly LookupCandidate[], 
   return rankAllCandidates(query, pool, opts).slice(0, limit)
 }
 
+export interface AutomaticMemoryHit extends LookupHit {
+  witness: string
+  admission: 'stems' | 'rare-stem' | 'semantic' | 'constraint'
+  bm25: number
+  cosine: number | null
+  discriminatingStems: number
+  maxIdf: number
+}
+
+const automaticScores = new WeakMap<object, Map<string, ReadonlyMap<string, number>>>()
+
+function automaticSemanticScores(query: string, pool: readonly LookupCandidate[], dir: string): ReadonlyMap<string, number> {
+  const index = readEmbedIndex(dir)
+  if (!index) return new Map()
+  const status = embedIndexEngineStatus()
+  if (status.state !== 'ok' || status.model !== index.model || status.dimension !== index.dimension) return new Map()
+  let queries = automaticScores.get(index)
+  if (!queries) { queries = new Map(); automaticScores.set(index, queries) }
+  let scores = queries.get(query)
+  if (!scores) { scores = new Map(searchEmbedIndex(query, index, status, Infinity).map(row => [row.key, row.sim])); queries.set(query, scores) }
+  const rows = new Map(index.rows.map(row => [row.key, row]))
+  const valid = new Map<string, number>()
+  for (const candidate of pool) {
+    const row = rows.get(candidate.id)
+    if (row?.h !== createHash('sha256').update(candidate.text).digest('hex').slice(0, 16)) continue
+    const score = scores.get(candidate.id)
+    if (score !== undefined) valid.set(candidate.id, score)
+  }
+  return valid
+}
+
+function constraintText(text: string): boolean {
+  return /\b(?:always|never|must|only|rule|constraint|census|guard|do not)\b/i.test(text)
+}
+
+function taskConstraint(text: string, query: string, files: readonly string[]): boolean {
+  if (!constraintText(text)) return false
+  const observed = [query, ...files].join(' ')
+  if (/\brelease[ -]notes?\b|\bchangelog\b/i.test(text) && /release[ -]notes?|releases\/|changelog/i.test(observed)) return true
+  if (/\b(?:writing|copy|captions?|subtitles?|prose)\b/i.test(text) && /\b(?:copy|captions?|subtitles?|prose|wording|post|one[- ]liner)\b/i.test(query)) return true
+  const paths = text.match(/(?:src|docs|scripts|assets|lib|test|tests)\/[A-Za-z0-9_.*\/-]+/g) ?? []
+  return paths.some(path => {
+    const matcher = new RegExp(escapeRegExp(path).replace(/\\\*/g, '.*'))
+    return files.some(file => matcher.test(file)) || query.includes(path)
+  })
+}
+
+export function automaticMemoryCandidates(query: string, opts: { dir?: string; pool?: readonly LookupCandidate[]; files?: readonly string[]; now?: number } = {}): AutomaticMemoryHit[] {
+  const dir = opts.dir ?? mnemeLibraryDir()
+  const pool = opts.pool ?? candidates(dir)
+  const semantic = automaticSemanticScores(query, pool, dir)
+  const admitted: AutomaticMemoryHit[] = []
+  const cycle = /\bbeta[. -]?(\d+)\b/i.exec([query, ...(opts.files ?? [])].join(' '))?.[1]
+  for (const hit of scoreCandidates(query, pool, opts.now)) {
+    const priorCycle = /\bbeta[. -]?(\d+)\b/i.exec(hit.text)?.[1]
+    if (!hit.pinned && cycle && priorCycle && cycle !== priorCycle && /\b(?:plan|next steps?|will|this cycle)\b/i.test(hit.text)) continue
+    const cosine = semantic.get(hit.id) ?? null
+    const admission = taskConstraint(hit.text, query, opts.files ?? []) ? 'constraint' : hit.features.discriminatingStems >= 2 ? 'stems' : hit.features.maxIdf >= 2.2 && hit.features.bm25 >= 4.5 ? 'rare-stem' : cosine !== null && cosine >= 0.58 ? 'semantic' : null
+    if (admission === null) continue
+    const { features, time, pinned, kind, useCount, ...row } = hit
+    admitted.push({ ...row, score: Math.max(cosine ?? 0, Math.min(1, features.bm25 / 10)), witness: createHash('sha256').update(`${dir}\0${hit.id}\0${hit.text}`).digest('hex'), admission, bm25: features.bm25, cosine, discriminatingStems: features.discriminatingStems, maxIdf: features.maxIdf })
+  }
+  return admitted.sort((a, b) => Number(constraintText(b.text)) - Number(constraintText(a.text)) || Number(b.admission === 'constraint') - Number(a.admission === 'constraint') || b.score - a.score || a.id.localeCompare(b.id)).slice(0, 2)
+}
+
 export function lookupFacts(
   query: string,
-  opts: { dir?: string; exclude?: ReadonlySet<string>; limit?: number } = {},
+  opts: { dir?: string; exclude?: ReadonlySet<string>; limit?: number; files?: readonly string[] } = {},
 ): LookupHit[] {
   if (!mnemeEnabled()) return []
   const dir = opts.dir ?? mnemeLibraryDir()
   const loadedPins = new Set((readPinnedStatus(dir)?.loaded ?? []).map(seq => `seq:${seq}`))
   const exclude = new Set<string>([...(opts.exclude ?? []), ...loadedPins])
-  const hits = rankCandidates(query, candidates(dir), { dir, exclude, limit: opts.limit })
+  const hits = automaticMemoryCandidates(query, { dir, files: opts.files }).slice(0, Math.min(2, opts.limit ?? 2)).filter(hit => !exclude.has(hit.id))
   noteMemoryOffered(query, hits, dir)
   return hits
 }

@@ -26,6 +26,7 @@ export function pinIntentSpan(intent: PinIntent | undefined, content: string): {
   const prefix = /^(?:please\s+)?(?:remember(?:\s+this)?\b|(?:make|keep|save|pin)\s+(?:this|it)\s+(?:as\s+)?(?:a\s+)?(?:standing\s+)?(?:rule|preference)\b|from\s+now\s+on\b|always\b|never\b)/i.exec(words)
   const suffix = /(?:[.!;]\s*|\n)(?:please\s+)?(?:remember\s+(?:this|that)|(?:make|keep|save|pin)\s+(?:this|it)\s+(?:as\s+)?(?:a\s+)?(?:standing\s+)?(?:rule|preference))\s*[.!]?$/i.test(words)
   if (!prefix && !suffix) return null
+  if (!/\b(?:standing rule|rule|preference|from now on|always|never|I (?:like|prefer))\b/i.test(words)) return null
   const start = text.indexOf(content.trim())
   if (start < 0) return null
   const before = text.slice(0, start)

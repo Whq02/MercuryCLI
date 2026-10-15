@@ -4,7 +4,7 @@ import { readFileSync, statSync } from 'node:fs'
 import { dirname, join, normalize } from 'node:path'
 import { getProjectSnapshot } from './snapshot.js'
 import { projectIntelEnabled, type SnapshotGeneration, type SnapshotRead } from './contracts.js'
-import { collectMemoryRefs, memoryStatusWords, type MemoryRef } from '../../mneme/memoryRefs.js'
+import { collectAutomaticMemoryRefs, memoryStatusWords, type MemoryRef } from '../../mneme/memoryRefs.js'
 import { lookupTokens } from '../../mneme/mnemeLookup.js'
 import { isMnemeEnabled } from '../../mneme/paths.js'
 import { memoryGrade } from '../../mneme/memoryEvidence.js'
@@ -262,9 +262,10 @@ export function assembleContextCapsule(input: CapsuleInput): ContextCapsule | nu
   let memoryRefs: CapsuleMemoryRef[] | undefined
   try {
     if (isMnemeEnabled()) {
-      const collected = collectMemoryRefs([input.task, input.goal ?? ''].join(' '), {
+      const collected = collectAutomaticMemoryRefs([input.task, input.goal ?? ''].join(' '), {
         maxRefs: MEMORY_REF_CAP,
         projectRoot: input.workspace,
+        files: input.recentFiles,
       })
       if (collected.length > 0) {
         memoryRefs = collected.map(r => ({ refId: r.refId, status: r.status, confirmedAt: r.confirmedAt, summary: r.summary, why: r.why, grade: r.grade, library: r.library, identity: r.identity, witness: r.witness }))
