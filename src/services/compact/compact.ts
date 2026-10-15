@@ -70,7 +70,7 @@ import { ToolSearchTool } from '../../tools/ToolSearchTool/ToolSearchTool.js'
 import { groupMessagesByApiRound } from './grouping.js'
 import { estimateContextTokens, estimateMessageTokens } from './microCompact.js'
 import { projectRewoundWindows } from './checkpointRewind.js'
-import { getCompactPrompt, getCompactUserSummaryMessage, getPartialCompactPrompt, SUMMARY_SECTION_TITLES } from './prompt.js'
+import { getCompactPrompt, getCompactUserSummaryMessage, getPartialCompactPrompt, renderFoldedWork, SUMMARY_SECTION_TITLES } from './prompt.js'
 import { computeVerbatimRecentTail, isMercuryCompactKeepTailEnabled } from './verbatimTail.js'
 import { selectOperatorMessages } from './operatorMessages.js'
 import { stripThinkingFromIndex } from '../../utils/messages/apiFilters.js'
@@ -374,16 +374,24 @@ export function annotateBoundaryWithPreservedSegment(
   return boundary
 }
 
+export function foldedWorkOf(
+  messages: Message[],
+  kept: Message[],
+  summaryUuid: UUID,
+): NonNullable<CompactMetadata['work']> {
+  return {
+    receipts: foldedTurnReceipts(messages, kept, summaryUuid, getMercuryTempDir()),
+    recap: collectAwayWork(messages, new Set(kept.map(message => message.uuid))),
+  }
+}
+
 export function annotateBoundaryWithWork(
   boundary: SystemCompactBoundaryMessage,
   messages: Message[],
   kept: Message[],
   summaryUuid: UUID,
 ): void {
-  boundary.compactMetadata.work = {
-    receipts: foldedTurnReceipts(messages, kept, summaryUuid, getMercuryTempDir()),
-    recap: collectAwayWork(messages, new Set(kept.map(message => message.uuid))),
-  }
+  boundary.compactMetadata.work = foldedWorkOf(messages, kept, summaryUuid)
 }
 
 export function mergeHookInstructions(
@@ -1424,7 +1432,10 @@ export async function compactConversation(
 
     const capsule = buildRunContinuationCapsule(owner, Object.keys(snapshot))
     const degraded = rawSummary.trim().length < DEGRADED_SUMMARY_LENGTH
-    const summaryWithCapsule = capsule !== null ? `${rawSummary}\n\n${capsule}` : rawSummary
+    const foldedWork = renderFoldedWork(foldedWorkOf(messages, messagesToKeep ?? [], anchor))
+    const summaryWithCapsule = [rawSummary, capsule, foldedWork]
+      .filter((part): part is string => part !== null)
+      .join('\n\n')
 
     const summaryMessages: UserMessage[] = [
       createUserMessage({
@@ -1585,7 +1596,13 @@ export async function partialCompactConversation(
     const discovered = extractDiscoveredToolNames(allMessages)
     if (discovered.size > 0) boundary.compactMetadata.preCompactDiscoveredTools = [...discovered].sort()
 
-    const summaryText = getCompactUserSummaryMessage(rawSummary, false, getTranscriptPath(), false)
+    const foldedWork = renderFoldedWork(foldedWorkOf(allMessages, kept, anchorUuid ?? boundary.uuid))
+    const summaryText = getCompactUserSummaryMessage(
+      foldedWork === null ? rawSummary : `${rawSummary}\n\n${foldedWork}`,
+      false,
+      getTranscriptPath(),
+      false,
+    )
     const summaryMessage =
       kept.length > 0
         ? createUserMessage({
