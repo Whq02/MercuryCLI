@@ -153,8 +153,8 @@ failure, 2 is usage.
 
 `mercury update` manages the versioned layout that `mercury install` and the install
 scripts create. In a Homebrew installation (under `Cellar/mercury/`), running
-`mercury update` asks `"This Mercury was installed by Homebrew. Run
-`brew upgrade Whq02/mercury/mercury` now? [y/N]"`. Entering `y` runs that
+`mercury update` asks `` "This Mercury was installed by Homebrew. Run `brew
+upgrade Whq02/mercury/mercury` now? [y/N]" ``. Entering `y` runs that
 command with its output streamed live, then checks the installed
 version through the `mercury` on `PATH` and prints `updated: <from> →
 <to>`, or reports that the version is unchanged when Homebrew's formula has not
@@ -175,8 +175,8 @@ update command that applies (`mercury update` runs Homebrew's upgrade, or `run m
 update to install it` on the versioned layout); `--status` reports how
 Mercury was installed. A source checkout (a bundle built with `bun run
 build.ts` inside its repository) is not managed by the release channel: `--check` and `--status` report
-`a source checkout at <dist> — rebuild it with git pull &&
-bun run build.ts`, and `mercury update` and `--rollback` refuse before
+`` a source checkout at <dist> — rebuild it with `git pull && bun run build.ts` ``,
+and `mercury update` and `--rollback` refuse before
 downloading or writing anything. On Windows, the PowerShell installer and `.zip`
 archive create a versioned layout that `mercury update` updates in place. After
 updating a managed installation, if another `mercury` binary precedes the
@@ -192,8 +192,8 @@ run on it`; `v… takes new sessions; daemon v… keeps its N live sessions unti
 they finish` (a new background daemon starts on the new version for new
 sessions while the old daemon finishes any running sessions and exits when they
 end); `moves to v… when its N live sessions finish`; `already on v…`; `none
-running — the next session starts one on v…`; or `could not be moved — <why>;
-mercury daemon stop ends it and the next session starts one on v…`. The final
+running — the next session starts one on v…`; or `` could not be moved — <why>;
+`mercury daemon stop` ends it and the next session starts one on v… ``. The final
 line notes that any open Mercury terminal window continues running on the build
 it started with until you close and reopen it: existing sessions keep running,
 and at its next daemon check the open window shows a notice that a newer
