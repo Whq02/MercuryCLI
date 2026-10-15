@@ -78,7 +78,7 @@ function evidenceCarriesMeasurement(items: readonly JevEvalItem[]): boolean {
   return false
 }
 
-export function bareFileChoiceRefusal(questions: readonly JevEvalQuestion[], items: readonly JevEvalItem[]): string | null {
+function bareFileChoiceRefusal(questions: readonly JevEvalQuestion[], items: readonly JevEvalItem[]): string | null {
   for (const question of questions) {
     if (question.kind !== 'choice') continue
     const labels = Object.keys(question.options ?? {})
