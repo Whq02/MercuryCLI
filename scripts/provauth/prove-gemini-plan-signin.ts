@@ -1,6 +1,7 @@
 #!/usr/bin/env bun
 import '../lib/hermetic.ts'
 import { readFileSync, statSync, writeFileSync } from 'node:fs'
+import { join } from 'node:path'
 import Ajv2020 from 'ajv/dist/2020.js'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
@@ -297,6 +298,18 @@ try {
   check('the /accounts board carries the Google sign-in slot with its e-mail and removal route', slot?.kind === 'subscription' && slot.identity.includes('Google AI Pro') && slot.signInEmail === 'plan@example.invalid' && slot.active && slot.removal.route === 'gemini-plan', JSON.stringify(slot))
   const rows = guide.geminiConnectRows(guide.liveGeminiConnectFacts())
   check('the /logins card offers Sign in with Google first, connected with the tier and the read\'s age, the key second, the own client third', rows[0]!.value === 'plan' && /^Sign in with Google — connected \(Google AI Pro, read \d+s ago\) · ↵ signs in again$/.test(rows[0]!.label) && rows[1]!.value === 'key' && rows[2]!.value === 'google', JSON.stringify(rows))
+
+  console.log('── the tier stamp follows the usage read: served inside the floor, read again past it, never on a clock ──')
+  const tierReadAt = accounts.geminiPlanFacts()?.tierReadAtMs ?? 0
+  const loadCount = (): number => requests.filter(r => r.host === 'assist' && r.path === '/v1internal:loadCodeAssist').length
+  const loadsBeforeServe = loadCount()
+  const onShow = typeof accounts.rereadGeminiPlanTierOnShow === 'function' ? accounts.rereadGeminiPlanTierOnShow : undefined
+  const tierServed = onShow === undefined ? undefined : await onShow({ now: () => tierReadAt + 10_000 })
+  check('inside the minute the stored tier is served — no second loadCodeAssist', onShow !== undefined && tierServed?.tierReadAtMs === tierReadAt && loadCount() === loadsBeforeServe, JSON.stringify({ served: tierServed?.tierReadAtMs, tierReadAt, loads: loadCount() - loadsBeforeServe }))
+  const sixHoursOn = tierReadAt + 6 * 3_600_000
+  const tierReread = onShow === undefined ? undefined : await onShow({ now: () => sixHoursOn })
+  check('past the floor the tier is read again and the stamp moves with the read (the sign-in\'s time no longer stands for the day)', tierReread?.tierReadAtMs === sixHoursOn && tierReread.tier?.paid?.name === 'Google AI Pro' && loadCount() === loadsBeforeServe + 1, JSON.stringify({ reread: tierReread?.tierReadAtMs, sixHoursOn, loads: loadCount() - loadsBeforeServe }))
+  check('the usage owner asks the tier beside the quota on the one read-on-show road', readFileSync(join(import.meta.dir, '..', '..', 'src/services/providers/providerUsage.ts'), 'utf8').includes('await rereadGeminiPlanTierOnShow({'))
 
   console.log('── the roster is the authority: what Google names is offered, nothing else ──')
   const snapshot = await catalogue.refreshGeminiCatalogue('plan', { force: true })

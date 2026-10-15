@@ -102,7 +102,7 @@ import { createPeer, type Peer } from '../runner/wire/peer.js'
 import { invalidParams, isRpcError, refused } from '../runner/wire/errors.js'
 import type { Capabilities, ParamsOf } from '../runner/wire/methods.js'
 import { ndjsonSafeStringify } from './ndjsonSafeStringify.js'
-import { anthropicWindowFact, resetLimitsForCredentialSwitch, statusListeners, type AnthropicLimits } from '../services/anthropicLimits.js'
+import { anthropicObservedUsage, anthropicWindowFact, resetLimitsForCredentialSwitch, statusListeners, type AnthropicLimits } from '../services/anthropicLimits.js'
 import { sessionLaneWall } from '../tools/MonitorTool/laneWall.js'
 import { providerLimitWarning } from '../services/providers/limitWarning.js'
 import {
@@ -1814,6 +1814,7 @@ export async function runHeadless(
       if (sessionFactsHold !== null) await sessionFactsHold
       const state = getAppState()
       const anthropicWindow = anthropicWindowFact()
+      const anthropicObserved = anthropicObservedUsage()
       const openaiWindow = openaiWindowFact()
       const geminiWindow = laneWindowFact('gemini')
       const openrouterWindow = laneWindowFact('openrouter')
@@ -1844,6 +1845,7 @@ export async function runHeadless(
             return observed.primary || observed.secondary ? { openaiObserved: observed } : {}
           })(),
           ...(anthropicWindow !== undefined ? { anthropicWindow } : {}),
+          ...(anthropicObserved !== undefined ? { anthropicObserved } : {}),
           ...(openaiWindow !== undefined ? { openaiWindow } : {}),
           ...(geminiWindow !== undefined ? { geminiWindow } : {}),
           ...(openrouterWindow !== undefined ? { openrouterWindow } : {}),
