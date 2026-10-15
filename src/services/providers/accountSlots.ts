@@ -7,6 +7,8 @@ import {
   type ScopeIdentityState,
 } from '../../utils/accounts/accountIdentity.js'
 import { noteCredentialChange } from '../../utils/accounts/signInLedger.js'
+import { forgetPocket, pocketEntries, pocketInUse, withSignInHome } from '../../utils/accounts/signInPockets.js'
+import { resolve } from 'node:path'
 import {
   dropCredentialMemos,
   getAnthropicApiKeyWithSource,
@@ -159,6 +161,8 @@ export interface AccountSlot {
   scope?: AccountScope
   stateNote?: string
   removal: SlotRemoval
+  signInDir?: string
+  signInIdentity?: string
 }
 
 export interface FamilySlotGroup {
@@ -1225,7 +1229,29 @@ export function deriveFamilySlotGroups(
   const presences = providerFamilyPresences(providers, reads.familyReads)
   return presences
     .map(family => {
-      const slots =
+      const home = withSignInHome(family.id, null, () => familyOwnSlots(family, providers, reads))
+      const chosen = pocketInUse(family.id)
+      const pockets = pocketEntries(family.id).flatMap(entry =>
+        withSignInHome(family.id, entry.dir, () => familyOwnSlots(family, providers, reads)).map(slot => ({
+          ...slot,
+          id: `${slot.id}@${entry.slug}`,
+          active: slot.active && chosen !== undefined && resolve(chosen) === resolve(entry.dir),
+          signInDir: entry.dir,
+          signInIdentity: entry.identity,
+          stateNote: `second sign-in · ${entry.identity}${slot.stateNote ? ` · ${slot.stateNote}` : ''}`,
+        })),
+      )
+      const slots = [...home.map(slot => ({ ...slot, active: slot.active && chosen === undefined })), ...pockets]
+      return { family, slots }
+    })
+}
+
+function familyOwnSlots(
+  family: ProviderFamilyPresence,
+  providers: RouterModelSnapshot['providers'],
+  reads: AccountSlotReads,
+): AccountSlot[] {
+  return (
         family.id === 'anthropic'
           ? anthropicSlots(reads)
           : family.id === 'openai'
@@ -1260,8 +1286,7 @@ export function deriveFamilySlotGroups(
                                     family,
                                     providers.find(provider => provider.id === family.id),
                                   )
-      return { family, slots }
-    })
+  )
 }
 
 
@@ -1307,14 +1332,14 @@ export function signOutAnthropicSlot(
 ): { loginLeft: boolean } {
   let refreshToken: string | null = null
   try {
-    const stored = getSecureStorage().read()?.claudeAiOauth?.refreshToken
+    const stored = getSecureStorage('anthropic').read()?.claudeAiOauth?.refreshToken
     refreshToken = typeof stored === 'string' && stored.length > 0 ? stored : null
   } catch (error) {
     logError(error)
   }
   let loginLeft = false
   try {
-    const removal = removeSecureStorageField('claudeAiOauth')
+    const removal = removeSecureStorageField('claudeAiOauth', 'anthropic')
     loginLeft = removal.removed
     if (!removal.success) {
       logError(new Error('the per-slot sign-out could not rewrite the credential store — the Claude login field stays until the store is writable'))
@@ -1349,7 +1374,15 @@ export function executeSlotRemoval(
   slot: AccountSlot,
   owners: SlotRemovalOwners = {},
 ): { note: string; mutated: boolean } {
-  const outcome = routeSlotRemoval(slot, owners)
+  if (slot.signInDir !== undefined && slot.signInIdentity !== undefined) {
+    const entry = pocketEntries(slot.family).find(candidate => resolve(candidate.dir) === resolve(slot.signInDir!))
+    const outcome = withSignInHome(slot.family, slot.signInDir, () => routeSlotRemoval(slot, owners))
+    const gone = entry === undefined ? { removed: false, choiceFell: false } : forgetPocket(slot.family, entry, () => undefined)
+    if (outcome.mutated || gone.removed) afterCredentialLeft(slot)
+    const forgotten = gone.removed ? ` · the second sign-in ${slot.signInIdentity} is forgotten${gone.choiceFell ? ' — the default spends' : ''}` : ''
+    return { note: `${outcome.note}${forgotten}`, mutated: outcome.mutated || gone.removed }
+  }
+  const outcome = withSignInHome(slot.family, null, () => routeSlotRemoval(slot, owners))
   if (outcome.mutated) afterCredentialLeft(slot)
   return outcome
 }

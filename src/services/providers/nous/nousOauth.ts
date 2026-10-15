@@ -1,6 +1,6 @@
 import { mkdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { getAuthConfigHomeDir } from '../../../utils/envUtils.js'
+import { landSignIn, signInHome, withPinnedSignInHome } from '../../../utils/accounts/signInPockets.js'
 import { durableAtomicPublishSync } from '../../../substrate/durablePublish.js'
 import { getApiFetch, getProxyFetchOptions } from '../../../utils/proxy.js'
 import { getUserAgent } from '../../../utils/http.js'
@@ -51,7 +51,7 @@ export interface NousOauthIo {
 }
 
 export function nousAuthPathForDisplay(): string {
-  return join(getAuthConfigHomeDir(), '.nous-auth.json')
+  return join(signInHome('nous'), '.nous-auth.json')
 }
 
 function readAuth(): AuthFile {
@@ -64,7 +64,7 @@ function readAuth(): AuthFile {
 }
 
 function writeAuth(file: AuthFile): void {
-  mkdirSync(getAuthConfigHomeDir(), { recursive: true })
+  mkdirSync(signInHome('nous'), { recursive: true })
   durableAtomicPublishSync(nousAuthPathForDisplay(), JSON.stringify({ ...file, version: 1 }) + '\n', { mode: 0o600 })
   noteCredentialChange()
 }
@@ -88,6 +88,23 @@ export function writeNousTokens(tokens: NousTokens | null): void {
     delete file.refused
   }
   writeAuth(file)
+}
+
+export function nousSignInIdentity(tokens: NousTokens | undefined): string | undefined {
+  if (!tokens?.accessToken) return undefined
+  return tokens.accountId ?? `nous-${credentialFingerprint(tokens.refreshToken || tokens.accessToken).slice(0, 8)}`
+}
+
+export function landNousTokens(tokens: NousTokens): void {
+  landSignIn({
+    family: 'nous',
+    identity: nousSignInIdentity(tokens) ?? credentialFingerprint(tokens.accessToken),
+    kind: 'oauth',
+    ledgerKind: 'oauth',
+    stable: tokens.accountId !== undefined,
+    homeIdentity: () => nousSignInIdentity(nousStoredTokens()),
+    write: () => writeNousTokens(tokens),
+  })
 }
 
 export function clearStoredNousSignin(): void {
@@ -318,6 +335,10 @@ export function nousRefreshTrouble(): string | undefined {
 }
 
 export function refreshNousTokens(io?: NousOauthIo, force = false): Promise<NousTokens | undefined> {
+  return withPinnedSignInHome('nous', signInHome('nous'), () => refreshNousTokensPinned(io, force))
+}
+
+function refreshNousTokensPinned(io?: NousOauthIo, force = false): Promise<NousTokens | undefined> {
   const path = nousAuthPathForDisplay()
   const existing = refreshes.get(path)
   if (existing) return existing
@@ -326,7 +347,7 @@ export function refreshNousTokens(io?: NousOauthIo, force = false): Promise<Nous
   if (!before?.refreshToken) return Promise.resolve(undefined)
   if (!force && fresh(before, now())) return Promise.resolve(before)
   const work = (async (): Promise<NousTokens | undefined> => {
-    mkdirSync(getAuthConfigHomeDir(), { recursive: true })
+    mkdirSync(signInHome('nous'), { recursive: true })
     let release: () => Promise<void>
     try {
       release = await lock(path, { realpath: false, stale: 20_000, retries: { retries: 12, factor: 1.4, minTimeout: 150, maxTimeout: 1_200 } })

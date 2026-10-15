@@ -5,13 +5,13 @@ import {
   createAndStoreApiKey,
   fetchAndStoreUserRoles,
   shouldUseClaudeAIAuth,
-  storeOAuthAccountInfo,
+  landClaudeAiTokens,
+  storeLandedOAuthAccountInfo,
 } from '../../../services/oauth/client.js'
 import type { OAuthTokens } from '../../../services/oauth/types.js'
 import { PROFILE_SCOPE } from '../../../constants/oauth.js'
 import {
   loginShadowWarning,
-  saveOAuthTokensIfNeeded,
   validateForceLoginOrg,
 } from '../../../utils/auth.js'
 import type { AccountInfo } from '../../../utils/config.js'
@@ -136,11 +136,11 @@ export interface AnthropicLoginDeps {
 function liveDeps(): AnthropicLoginDeps {
   return {
     createService: () => new OAuthService(),
-    saveTokens: tokens => saveOAuthTokensIfNeeded(tokens),
+    saveTokens: tokens => landClaudeAiTokens(tokens),
     usesClaudeAiAuth: scopes => shouldUseClaudeAIAuth(scopes),
     mintApiKey: accessToken => createAndStoreApiKey(accessToken),
     validateOrg: () => validateForceLoginOrg(),
-    storeAccount: account => storeOAuthAccountInfo(account),
+    storeAccount: account => storeLandedOAuthAccountInfo(account),
     fetchRoles: fetchAndStoreUserRoles,
     shadowWarning: () => loginShadowWarning(),
     recordSignIn: kind => recordSignInLedger('anthropic', kind),

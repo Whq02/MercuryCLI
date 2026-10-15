@@ -2,7 +2,8 @@ import { chmodSync, mkdirSync, readFileSync } from 'node:fs'
 import { fetchWithProviderDeadline } from '../fetchDeadline.js'
 import { join } from 'node:path'
 import { durableAtomicPublishSync } from '../../../substrate/durablePublish.js'
-import { getAuthConfigHomeDir } from '../../../utils/envUtils.js'
+import { landSignIn, signInHome, withPinnedSignInHome } from '../../../utils/accounts/signInPockets.js'
+import { credentialFingerprint } from '../credentialIdentity.js'
 import { errorMessageWithCause } from '../../../utils/errors.js'
 import { getApiFetch, getProxyFetchOptions } from '../../../utils/proxy.js'
 import { getUserAgent } from '../../../utils/http.js'
@@ -72,7 +73,7 @@ interface HuggingfaceAuthFile {
 }
 
 function authFilePath(): string {
-  return join(getAuthConfigHomeDir(), AUTH_FILE_NAME)
+  return join(signInHome('huggingface'), AUTH_FILE_NAME)
 }
 
 function readAuthFile(): HuggingfaceAuthFile | null {
@@ -86,7 +87,7 @@ function readAuthFile(): HuggingfaceAuthFile | null {
 }
 
 function writeAuthFile(mutate: (file: HuggingfaceAuthFile) => HuggingfaceAuthFile): void {
-  mkdirSync(getAuthConfigHomeDir(), { recursive: true })
+  mkdirSync(signInHome('huggingface'), { recursive: true })
   const existing = readAuthFile() ?? { version: HF_AUTH_VERSION }
   const next = mutate({ ...existing, version: HF_AUTH_VERSION })
   const path = authFilePath()
@@ -124,6 +125,23 @@ export function huggingfaceStoredTokens(): HuggingfaceStoredTokens | undefined {
 
 export function huggingfaceOauthIdentity(): HuggingfaceIdentity | undefined {
   return readAuthFile()?.identity
+}
+
+export function huggingfaceSignInIdentity(tokens: HuggingfaceStoredTokens | undefined, identity: HuggingfaceIdentity | undefined): string | undefined {
+  if (!tokens?.accessToken) return undefined
+  return identity?.username ?? `hf-${credentialFingerprint(tokens.refreshToken ?? tokens.accessToken).slice(0, 8)}`
+}
+
+export function landHuggingfaceTokens(tokens: HuggingfaceStoredTokens, identity?: HuggingfaceIdentity): void {
+  landSignIn({
+    family: 'huggingface',
+    identity: huggingfaceSignInIdentity(tokens, identity) ?? credentialFingerprint(tokens.accessToken),
+    kind: 'oauth',
+    ledgerKind: 'oauth',
+    stable: identity?.username !== undefined,
+    homeIdentity: () => huggingfaceSignInIdentity(huggingfaceStoredTokens(), huggingfaceOauthIdentity()),
+    write: () => writeHuggingfaceTokens(tokens, identity),
+  })
 }
 
 export function disconnectHuggingfaceOauth(): void {
@@ -338,11 +356,17 @@ export async function pollHuggingfaceDeviceToken(
   }
 }
 
-let refreshInFlight: Promise<HuggingfaceStoredTokens | undefined> | null = null
+const refreshInFlight = new Map<string, Promise<HuggingfaceStoredTokens | undefined>>()
 
 export function refreshHuggingfaceTokens(io?: HuggingfaceOauthIo): Promise<HuggingfaceStoredTokens | undefined> {
-  if (refreshInFlight) return refreshInFlight
-  refreshInFlight = (async (): Promise<HuggingfaceStoredTokens | undefined> => {
+  const pinned = signInHome('huggingface')
+  return withPinnedSignInHome('huggingface', pinned, () => refreshHuggingfaceTokensPinned(pinned, io))
+}
+
+function refreshHuggingfaceTokensPinned(pinned: string, io?: HuggingfaceOauthIo): Promise<HuggingfaceStoredTokens | undefined> {
+  const inFlight = refreshInFlight.get(pinned)
+  if (inFlight) return inFlight
+  const work = (async (): Promise<HuggingfaceStoredTokens | undefined> => {
     try {
       const env = io?.env ?? process.env
       const stored = huggingfaceStoredTokens()
@@ -368,10 +392,11 @@ export function refreshHuggingfaceTokens(io?: HuggingfaceOauthIo): Promise<Huggi
       if (result.status === 400 || result.status === 401) writeHuggingfaceTokens(null)
       return undefined
     } finally {
-      refreshInFlight = null
+      refreshInFlight.delete(pinned)
     }
   })()
-  return refreshInFlight
+  refreshInFlight.set(pinned, work)
+  return work
 }
 
 
@@ -502,5 +527,5 @@ export function huggingfaceAuthPathForDisplay(): string {
 }
 
 export function __resetHuggingfaceAccountsForTest(): void {
-  refreshInFlight = null
+  refreshInFlight.clear()
 }

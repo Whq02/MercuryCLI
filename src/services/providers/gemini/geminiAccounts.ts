@@ -3,7 +3,7 @@ import { fetchWithProviderDeadline } from '../fetchDeadline.js'
 import { chmodSync, mkdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { durableAtomicPublishSync } from '../../../substrate/durablePublish.js'
-import { getAuthConfigHomeDir } from '../../../utils/envUtils.js'
+import { landSignIn, signInHome, withPinnedSignInHome, withSignInHome } from '../../../utils/accounts/signInPockets.js'
 import { errorMessageWithCause } from '../../../utils/errors.js'
 import { getApiFetch, getProxyFetchOptions } from '../../../utils/proxy.js'
 import { getUserAgent } from '../../../utils/http.js'
@@ -101,8 +101,24 @@ function planOf(file: GeminiAuthFile | null): GeminiPlanStored | undefined {
   return plan
 }
 
+export function geminiPlanIdentity(plan: GeminiPlanStored | undefined): string | undefined {
+  return plan === undefined ? undefined : plan.email ?? plan.projectId
+}
+
+export function geminiOauthIdentity(tokens: GeminiStoredTokens | undefined): string | undefined {
+  return tokens?.refreshToken ? `google-${credentialFingerprint(tokens.refreshToken).slice(0, 8)}` : undefined
+}
+
+export function storedGeminiOauthIdentity(): string | undefined {
+  return geminiOauthIdentity(readAuthFile()?.tokens)
+}
+
+export function storedGeminiPlanIdentity(): string | undefined {
+  return geminiPlanIdentity(planOf(readAuthFile()))
+}
+
 function authFilePath(): string {
-  return join(getAuthConfigHomeDir(), AUTH_FILE_NAME)
+  return join(signInHome('gemini'), AUTH_FILE_NAME)
 }
 
 function readAuthFile(): GeminiAuthFile | null {
@@ -116,7 +132,7 @@ function readAuthFile(): GeminiAuthFile | null {
 }
 
 function writeAuthFile(mutate: (file: GeminiAuthFile) => GeminiAuthFile): void {
-  mkdirSync(getAuthConfigHomeDir(), { recursive: true })
+  mkdirSync(signInHome('gemini'), { recursive: true })
   const existing = readAuthFile() ?? { version: GEMINI_AUTH_VERSION }
   const next = mutate({ ...existing, version: GEMINI_AUTH_VERSION })
   const path = authFilePath()
@@ -141,7 +157,7 @@ export function geminiOauthClientConfig(
     const envSecret = env['MERCURY_GEMINI_OAUTH_CLIENT_SECRET']?.trim()
     return { clientId: envId, ...(envSecret ? { clientSecret: envSecret } : {}), source: 'env' }
   }
-  const stored = readAuthFile()?.client
+  const stored = withSignInHome('gemini', null, () => readAuthFile())?.client
   if (stored?.clientId?.trim()) {
     return {
       clientId: stored.clientId.trim(),
@@ -156,16 +172,18 @@ export const GEMINI_CLIENT_STORED_UNVERIFIED_NOTE =
   'Stored as given — proved at the next Google sign-in: invalid_client in the browser tab means a wrong id (esc the wait, reopen this prompt; it starts from the stored id).'
 
 export function writeGeminiOauthClientConfig(config: GeminiOauthClientConfig | null): void {
-  writeAuthFile(file => {
-    const next = { ...file }
-    if (config === null || !config.clientId.trim()) delete next.client
-    else
-      next.client = {
-        clientId: config.clientId.trim(),
-        ...(config.clientSecret?.trim() ? { clientSecret: config.clientSecret.trim() } : {}),
-      }
-    return next
-  })
+  withSignInHome('gemini', null, () =>
+    writeAuthFile(file => {
+      const next = { ...file }
+      if (config === null || !config.clientId.trim()) delete next.client
+      else
+        next.client = {
+          clientId: config.clientId.trim(),
+          ...(config.clientSecret?.trim() ? { clientSecret: config.clientSecret.trim() } : {}),
+        }
+      return next
+    }),
+  )
 }
 
 
@@ -315,7 +333,7 @@ export function resolveGeminiAccount(
 
 
 const REFRESH_SKEW_MS = 5 * 60_000
-let refreshInFlight: Promise<GeminiStoredTokens | undefined> | undefined
+const refreshInFlight = new Map<string, Promise<GeminiStoredTokens | undefined>>()
 
 function tokensFresh(tokens: GeminiStoredTokens | undefined, nowMs: number): boolean {
   return Boolean(
@@ -386,13 +404,19 @@ export async function currentGeminiTokens(opts?: {
   now?: () => number
   force?: boolean
 }): Promise<GeminiStoredTokens | undefined> {
+  const pinned = signInHome('gemini')
+  return withPinnedSignInHome('gemini', pinned, () => currentGeminiTokensPinned(pinned, opts))
+}
+
+async function currentGeminiTokensPinned(pinned: string, opts?: Parameters<typeof currentGeminiTokens>[0]): Promise<GeminiStoredTokens | undefined> {
   const env = opts?.env ?? process.env
   const now = opts?.now ?? Date.now
   const tokens = readAuthFile()?.tokens
   if (!tokens?.refreshToken) return undefined
   if (!opts?.force && tokensFresh(tokens, now())) return tokens
-  if (refreshInFlight) return refreshInFlight
-  refreshInFlight = (async () => {
+  const inFlight = refreshInFlight.get(pinned)
+  if (inFlight) return inFlight
+  const work = (async () => {
     try {
       const latest = readAuthFile()?.tokens
       if (
@@ -426,13 +450,14 @@ export async function currentGeminiTokens(opts?: {
       }
       return readAuthFile()?.tokens ?? tokens
     } finally {
-      refreshInFlight = undefined
+      refreshInFlight.delete(pinned)
     }
   })()
-  return refreshInFlight
+  refreshInFlight.set(pinned, work)
+  return work
 }
 
-let planRefreshInFlight: Promise<GeminiStoredTokens | undefined> | undefined
+const planRefreshInFlight = new Map<string, Promise<GeminiStoredTokens | undefined>>()
 
 export async function currentGeminiPlanTokens(opts?: {
   fetchImpl?: typeof fetch
@@ -440,13 +465,19 @@ export async function currentGeminiPlanTokens(opts?: {
   now?: () => number
   force?: boolean
 }): Promise<GeminiStoredTokens | undefined> {
+  const pinned = signInHome('gemini')
+  return withPinnedSignInHome('gemini', pinned, () => currentGeminiPlanTokensPinned(pinned, opts))
+}
+
+async function currentGeminiPlanTokensPinned(pinned: string, opts?: Parameters<typeof currentGeminiPlanTokens>[0]): Promise<GeminiStoredTokens | undefined> {
   const env = opts?.env ?? process.env
   const now = opts?.now ?? Date.now
   const plan = planOf(readAuthFile())
   if (!plan) return undefined
   if (!opts?.force && tokensFresh(plan.tokens, now())) return plan.tokens
-  if (planRefreshInFlight) return planRefreshInFlight
-  planRefreshInFlight = (async () => {
+  const inFlight = planRefreshInFlight.get(pinned)
+  if (inFlight) return inFlight
+  const work = (async () => {
     try {
       const latest = planOf(readAuthFile())
       if (!latest) return undefined
@@ -476,10 +507,11 @@ export async function currentGeminiPlanTokens(opts?: {
       }
       return planOf(readAuthFile())?.tokens ?? plan.tokens
     } finally {
-      planRefreshInFlight = undefined
+      planRefreshInFlight.delete(pinned)
     }
   })()
-  return planRefreshInFlight
+  planRefreshInFlight.set(pinned, work)
+  return work
 }
 
 export function disconnectGeminiOauth(): void {
@@ -831,12 +863,21 @@ export function beginGeminiBrowserConnect(opts?: GeminiConnectOptions): GeminiCo
         'google returned no refresh token — remove the app from your Google account access page and retry the connect',
       )
     }
-    writeAuthFile(file => ({
-      ...file,
-      tokens,
-      lastRefreshMs: Date.now(),
-      preferredSource: 'oauth',
-    }))
+    landSignIn({
+      family: 'gemini',
+      identity: geminiOauthIdentity(tokens) ?? credentialFingerprint(tokens.accessToken),
+      kind: 'oauth',
+      ledgerKind: 'oauth',
+      stable: false,
+      homeIdentity: () => geminiOauthIdentity(readAuthFile()?.tokens),
+      write: () =>
+        writeAuthFile(file => ({
+          ...file,
+          tokens,
+          lastRefreshMs: Date.now(),
+          preferredSource: 'oauth',
+        })),
+    })
     recordSignIn('gemini', 'oauth')
     return { provider: 'gemini', kind: 'oauth', label: 'Google account (OAuth)' }
   }
@@ -917,18 +958,27 @@ export function beginGeminiPlanBrowserConnect(opts?: GeminiConnectOptions & { sl
       ...(opts?.sleep ? { sleep: opts.sleep } : {}),
     })
     const readAtMs = Date.now()
-    writeAuthFile(file => ({
-      ...file,
-      plan: {
-        tokens,
-        projectId: discovered.projectId,
-        ...(email ? { email } : {}),
-        tier: discovered.tier,
-        tierReadAtMs: readAtMs,
-        lastRefreshMs: readAtMs,
-      },
-      preferredSource: 'plan',
-    }))
+    landSignIn({
+      family: 'gemini',
+      identity: email ?? discovered.projectId,
+      kind: 'plan',
+      ledgerKind: 'subscription',
+      stable: email !== undefined,
+      homeIdentity: () => geminiPlanIdentity(planOf(readAuthFile())),
+      write: () =>
+        writeAuthFile(file => ({
+          ...file,
+          plan: {
+            tokens,
+            projectId: discovered.projectId,
+            ...(email ? { email } : {}),
+            tier: discovered.tier,
+            tierReadAtMs: readAtMs,
+            lastRefreshMs: readAtMs,
+          },
+          preferredSource: 'plan',
+        })),
+    })
     recordSignIn('gemini', 'subscription')
     return { provider: 'gemini', kind: 'plan', label: geminiPlanLabel({ tier: discovered.tier }) }
   }
@@ -962,6 +1012,6 @@ export async function rereadGeminiPlanTier(opts?: { fetchImpl?: typeof fetch; en
 }
 
 export function __resetGeminiAccountsForTest(): void {
-  refreshInFlight = undefined
-  planRefreshInFlight = undefined
+  refreshInFlight.clear()
+  planRefreshInFlight.clear()
 }

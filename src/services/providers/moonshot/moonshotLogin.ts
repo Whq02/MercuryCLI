@@ -7,7 +7,7 @@ import {
   pollMoonshotDeviceToken,
   startMoonshotDeviceAuth,
   writeMoonshotRegion,
-  writeMoonshotTokens,
+  landMoonshotTokens,
   type KimiRegion,
   type MoonshotDeviceAuthStart,
   type MoonshotOauthIo,
@@ -142,7 +142,7 @@ export async function runKimiDeviceLogin(args: KimiDeviceLoginArgs): Promise<Kim
     onEvent?.({ phase: 'finishing' })
     const approvedAfterCancel = cancelled()
     try {
-      writeMoonshotTokens(result.tokens, region)
+      landMoonshotTokens(result.tokens, region)
     } catch (error) {
       return {
         ok: false,
