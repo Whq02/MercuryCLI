@@ -207,7 +207,10 @@ export function MercuryModelPicker({ models: listed, current = 'opus-4-8', ctxPc
       const prior = lineSnapshot.lines[Math.min(cursor, Math.max(0, lineSnapshot.lines.length - 1))]
       const priorKey = prior?.kind === 'row' ? prior.key : prior?.kind === 'heading' ? `heading:${prior.group}` : undefined
       const moved = lines.findIndex(line => (line.kind === 'row' ? line.key : line.kind === 'heading' ? `heading:${line.group}` : '') === priorKey)
-      if (moved >= 0) i = moved
+      if (filtering && (prior?.kind !== 'row' || moved < 0)) {
+        const first = firstRowIndex(lines)
+        if (first >= 0) i = first
+      } else if (moved >= 0) i = moved
       if (i !== cursor) setI(i)
     }
     setLineSnapshot({ listed, lines })
