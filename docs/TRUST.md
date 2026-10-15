@@ -184,8 +184,13 @@ started in are not that ward's business, and a listing or a read of another
 user's folder stays with the ordinary permission check.
 Reads stay clear
 (`git config --get`, `fdisk -l`, `diskutil list`), so does a recursive delete
-inside the project or a scratch directory, and so does a script that only
-mentions one of these words inside a quoted string or a heredoc. The same
+inside the project or a scratch directory, and so does a command that only
+mentions one of these words inside a quoted string or a heredoc (a search
+pattern, an echo, a commit message). A quoted path after a delete verb is
+still the delete, an inline shell string (`bash -c "…"`, `eval`,
+`Invoke-Expression`) is read as the command it runs, and a command split over
+several lines with a trailing backslash, pipe or `&&` is read as the one line
+the shell runs. The same
 list rides interactive, headless `run`, crew and runner sessions alike, and it never
 stands down within a session. `MERCURY_WARDS=warn` lets a refuse-list hit
 proceed and leaves one warning row on the transcript naming the ward, the
