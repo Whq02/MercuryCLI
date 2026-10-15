@@ -414,7 +414,7 @@ export function subscribeWorkbench(listener: () => void): () => void {
   }
 }
 
-export function useWorkbench(): WorkbenchSnapshot | null {
+function useWorkbench(): WorkbenchSnapshot | null {
   return useSyncExternalStore(subscribeWorkbench, getWorkbenchSnapshot, getWorkbenchSnapshot)
 }
 

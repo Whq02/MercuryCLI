@@ -7,16 +7,16 @@ import { fetchWithProviderDeadline } from '../fetchDeadline.js'
 import { usagePollTtlMs } from '../usageFreshness.js'
 import { zaiApiBase } from './zaiClient.js'
 
-export interface ZaiUsageIo {
+interface ZaiUsageIo {
   fetchImpl?: typeof fetch
   env?: NodeJS.ProcessEnv
   now?: () => number
   force?: boolean
 }
 
-export type ZaiAuthForm = 'raw' | 'bearer'
+type ZaiAuthForm = 'raw' | 'bearer'
 
-export interface ZaiQuotaWindow {
+interface ZaiQuotaWindow {
   kind: 'credit' | 'tool-calls'
   windowMinutes?: number
   usedPct: number
@@ -27,13 +27,13 @@ export interface ZaiQuotaWindow {
   details?: { code: string; used: number }[]
 }
 
-export interface ZaiObservedQuota {
+interface ZaiObservedQuota {
   observedAtMs: number
   level?: string
   windows: ZaiQuotaWindow[]
 }
 
-export interface ZaiQuotaFailure {
+interface ZaiQuotaFailure {
   kind: 'refused' | 'unreachable'
   atMs: number
   status?: number
@@ -41,12 +41,12 @@ export interface ZaiQuotaFailure {
   message?: string
 }
 
-export type ZaiQuotaProbe =
+type ZaiQuotaProbe =
   | { state: 'confirmed'; quota: ZaiObservedQuota; form: ZaiAuthForm }
   | { state: 'refused'; status: number; code?: number; message?: string }
   | { state: 'unreachable'; message: string }
 
-export type ZaiQuotaVerdict = { ok: true } | { ok: false; code?: number; message?: string }
+type ZaiQuotaVerdict = { ok: true } | { ok: false; code?: number; message?: string }
 
 const QUOTA_PATH = '/api/monitor/usage/quota/limit'
 const PROBE_TIMEOUT_MS = 10_000
@@ -259,7 +259,7 @@ async function askQuota(
   }
 }
 
-export async function fetchZaiQuota(key: string, io?: ZaiUsageIo): Promise<ZaiQuotaProbe> {
+async function fetchZaiQuota(key: string, io?: ZaiUsageIo): Promise<ZaiQuotaProbe> {
   const env = io?.env ?? process.env
   const identity = credentialFingerprint(key)
   if (stateIdentity !== identity) {

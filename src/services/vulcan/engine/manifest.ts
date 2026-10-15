@@ -2,19 +2,19 @@ import { existsSync, readFileSync } from 'node:fs'
 import { MERCURY_PROJECT_DIR } from '../../../utils/projectConfig.js'
 import { projectLocalPath } from '../../projectLocal/paths.js'
 
-export const ENGINE_MANIFEST_FILE = 'engine-suites.json'
-export const ENGINE_MANIFEST_RELATIVE = `${MERCURY_PROJECT_DIR}/${ENGINE_MANIFEST_FILE}`
+const ENGINE_MANIFEST_FILE = 'engine-suites.json'
+const ENGINE_MANIFEST_RELATIVE = `${MERCURY_PROJECT_DIR}/${ENGINE_MANIFEST_FILE}`
 export const IMPORT_SUITE_NAME = 'import'
-export const RUNNER_DEFAULT_QUIT_AFTER = 15000
-export const RUNNER_DEFAULT_SUITE_TIMEOUT_MS = 240000
-export const RUNNER_IMPORT_TIMEOUT_MS = 1200000
-export const RUNNER_DEFAULT_SUITE_DIR = 'tests'
+const RUNNER_DEFAULT_QUIT_AFTER = 15000
+const RUNNER_DEFAULT_SUITE_TIMEOUT_MS = 240000
+const RUNNER_IMPORT_TIMEOUT_MS = 1200000
+const RUNNER_DEFAULT_SUITE_DIR = 'tests'
 export const RUNNER_UNCLEAN_SOURCE = 'SCRIPT ERROR|SHADER ERROR|Parse Error|^ERROR:|^FAIL:|leaked|resources still in use'
 export const RUNNER_UNCLEAN_FLAGS = 'im'
 
 export type EngineMarker = { kind: 'line'; text: string } | { kind: 'pattern'; source: string; flags: string }
 
-export type EngineUserDirPolicy = 'fresh' | 'keep'
+type EngineUserDirPolicy = 'fresh' | 'keep'
 
 export interface EngineSuite {
   name: string
@@ -49,14 +49,14 @@ export interface EngineManifest {
   teaching: string | null
 }
 
-export type SuiteSelectionEntry = { kind: 'import' } | { kind: 'suite'; suite: EngineSuite }
+type SuiteSelectionEntry = { kind: 'import' } | { kind: 'suite'; suite: EngineSuite }
 
-export interface SuiteSelection {
+interface SuiteSelection {
   entries: SuiteSelectionEntry[]
   unknown: string[]
 }
 
-export function runnerDefaults(): EngineManifestDefaults {
+function runnerDefaults(): EngineManifestDefaults {
   return {
     quitAfter: RUNNER_DEFAULT_QUIT_AFTER,
     timeoutMs: RUNNER_DEFAULT_SUITE_TIMEOUT_MS,
@@ -124,7 +124,7 @@ function positiveInt(v: unknown, fallback: number): number {
 
 const SUITE_NAME_RE = /^[A-Za-z0-9_][A-Za-z0-9_./-]*$/
 
-export function engineManifestTeaching(projectRoot: string, found: boolean): string {
+function engineManifestTeaching(projectRoot: string, found: boolean): string {
   const d = runnerDefaults()
   const lead = found
     ? `${ENGINE_MANIFEST_RELATIVE} in ${projectRoot} registers no suites`

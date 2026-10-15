@@ -57,7 +57,7 @@ export interface TestRunRecord {
   diagnosticsNote?: string
 }
 
-export type TestRunOutcome =
+type TestRunOutcome =
   | { state: 'ok'; record: TestRunRecord }
   | { state: 'unavailable'; reason: string; remedy: string }
 
@@ -100,7 +100,7 @@ export function _resetPytestProbeForTesting(): void {
   pytestProbeCache = null
 }
 
-export function resolveFramework(from: string = getCwd(), explicit?: TestFramework): TestFramework {
+function resolveFramework(from: string = getCwd(), explicit?: TestFramework): TestFramework {
   if (explicit) return explicit
   const profile = buildPythonProjectProfile(from)
   if (profile.testFrameworks.pytest.detected && probePytest(from).available) return 'pytest'
@@ -395,7 +395,7 @@ async function spawnCollecting(
   })
 }
 
-export interface DiscoverOutcome {
+interface DiscoverOutcome {
   framework: TestFramework
   tests: string[]
   collectErrors: string[]
@@ -477,7 +477,7 @@ export async function discoverPythonTests(opts?: {
   }
 }
 
-export interface RunOptions {
+interface RunOptions {
   from?: string
   framework?: TestFramework
   selection?: string[]
@@ -647,7 +647,7 @@ export async function rerunFailedTests(opts?: { from?: string; signal?: AbortSig
 }
 
 
-export interface DebugShim {
+interface DebugShim {
   framework: TestFramework
   program: string
   cwd: string

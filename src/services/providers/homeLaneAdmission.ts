@@ -2,7 +2,7 @@ import { isFirstPartyAnthropicBaseUrl } from '../../utils/model/providers.js'
 import { recognizeModelId, unrecognisedModelIdReason } from './idSpaces.js'
 import { canonicalWireModelId } from './routeLaw.js'
 
-export interface HomeLaneAdmissionReads {
+interface HomeLaneAdmissionReads {
   firstPartyBaseUrl?: () => boolean
   env?: Record<string, string | undefined>
 }

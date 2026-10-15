@@ -40,7 +40,7 @@ export interface UnityBridgeError {
 export type UnityBridgeResult = { ok: true; result: unknown } | { ok: false; error: UnityBridgeError }
 
 
-export type UnityBridgeVerbClass = 'read' | 'mutate' | 'exec'
+type UnityBridgeVerbClass = 'read' | 'mutate' | 'exec'
 
 export interface UnityBridgeVerbSpec {
   cls: UnityBridgeVerbClass
@@ -117,7 +117,7 @@ export const UNITY_BRIDGE_VERBS = {
   },
 } as const satisfies Record<string, UnityBridgeVerbSpec>
 
-export type UnityBridgeVerb = keyof typeof UNITY_BRIDGE_VERBS
+type UnityBridgeVerb = keyof typeof UNITY_BRIDGE_VERBS
 
 export function unityBridgeVerb(op: string): UnityBridgeVerbSpec | undefined {
   return (UNITY_BRIDGE_VERBS as Record<string, UnityBridgeVerbSpec>)[op]
@@ -191,7 +191,7 @@ export function buildUnityBridgeRequestFrame(
   )
 }
 
-export type UnityBridgeParsedFrame =
+type UnityBridgeParsedFrame =
   | { kind: 'response'; id: number; ok: boolean; result?: unknown; error?: UnityBridgeError }
   | { kind: 'hello-reply'; ok: boolean; result?: unknown; error?: UnityBridgeError }
   | { kind: 'event'; event: string; data: unknown }

@@ -2,9 +2,9 @@ import { flagEnv } from '../../substrate/flagRegistry.js'
 import { apiTimeoutMsOverride } from '../../utils/envValidation.js'
 import { getInitialSettings } from '../../utils/settings/settings.js'
 
-export type PatienceMode = 'normal' | 'patient' | 'custom'
+type PatienceMode = 'normal' | 'patient' | 'custom'
 
-export interface PatienceNumbers {
+interface PatienceNumbers {
   streamIdleMs: number
   quietStreamIdleMs: number
   fallbackCeilingMs: number
@@ -25,14 +25,14 @@ export const PATIENCE_PATIENT: Readonly<PatienceNumbers> = Object.freeze({
   recoveryBudgetMinutes: PATIENCE_NORMAL.recoveryBudgetMinutes * 2,
 })
 
-export interface PatienceCustomSetting {
+interface PatienceCustomSetting {
   streamIdleSeconds?: number
   quietStreamIdleSeconds?: number
   fallbackCeilingSeconds?: number
   recoveryBudgetMinutes?: number
 }
 
-export interface Patience {
+interface Patience {
   mode: PatienceMode
   numbers: PatienceNumbers
 }

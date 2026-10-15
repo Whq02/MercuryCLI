@@ -6,7 +6,7 @@ export function gitGraphEnabled(): boolean {
   return !isEnvDefinedFalsy(flagEnv('MERCURY_GIT_GRAPH'))
 }
 
-export interface GitFileState {
+interface GitFileState {
   path: string
   staged: string
   unstaged: string

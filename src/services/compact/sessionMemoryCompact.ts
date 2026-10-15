@@ -34,13 +34,13 @@ import { estimateContextTokens, estimateMessageTokens } from './microCompact.js'
 import { getCompactUserSummaryMessage } from './prompt.js'
 
 
-export type SessionMemoryCompactConfig = {
+type SessionMemoryCompactConfig = {
   minTokensToPreserve: number
   minTextBlockMessages: number
   maxTokensToPreserve: number
 }
 
-export const DEFAULT_SM_COMPACT_CONFIG: SessionMemoryCompactConfig = {
+const DEFAULT_SM_COMPACT_CONFIG: SessionMemoryCompactConfig = {
   minTokensToPreserve: 10_000,
   minTextBlockMessages: 5,
   maxTokensToPreserve: 40_000,
@@ -53,7 +53,7 @@ export function shouldUseSessionMemoryCompaction(): boolean {
 }
 
 
-export function hasTextBlocks(message: Message): boolean {
+function hasTextBlocks(message: Message): boolean {
   if (message.type === 'assistant') {
     const content = (message as AssistantMessage).message.content
     return Array.isArray(content) && content.some(block => (block as { type?: string }).type === 'text')
@@ -90,7 +90,7 @@ function toolUseIdsOf(message: Message): string[] {
   return ids
 }
 
-export function adjustIndexToPreserveAPIInvariants(messages: Message[], startIndex: number): number {
+function adjustIndexToPreserveAPIInvariants(messages: Message[], startIndex: number): number {
   if (startIndex <= 0 || startIndex >= messages.length) return startIndex
   let index = startIndex
 
@@ -128,7 +128,7 @@ export function adjustIndexToPreserveAPIInvariants(messages: Message[], startInd
   return index
 }
 
-export function calculateMessagesToKeepIndex(messages: Message[], lastSummarizedIndex: number): number {
+function calculateMessagesToKeepIndex(messages: Message[], lastSummarizedIndex: number): number {
   if (messages.length === 0) return 0
   let start = lastSummarizedIndex >= 0 ? lastSummarizedIndex + 1 : messages.length
 

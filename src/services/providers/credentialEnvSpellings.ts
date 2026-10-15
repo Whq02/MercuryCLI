@@ -22,7 +22,7 @@ export const ALL_PROVIDER_CREDENTIAL_ENV_VARS: readonly string[] = [
   ...new Set(Object.values(PROVIDER_CREDENTIAL_ENV_VARS).flat()),
 ]
 
-export type CredentialValueShape = { readonly pattern: RegExp; readonly marker: string } | null
+type CredentialValueShape = { readonly pattern: RegExp; readonly marker: string } | null
 
 export const PROVIDER_CREDENTIAL_VALUE_SHAPES: Record<CallModelRoute, CredentialValueShape> = {
   anthropic: { pattern: /(?<![A-Za-z0-9"'])sk-ant-[A-Za-z0-9_-]{10,}(?![A-Za-z0-9"'])/g, marker: '[REDACTED_API_KEY]' },
@@ -42,7 +42,7 @@ export const PROVIDER_CREDENTIAL_VALUE_SHAPES: Record<CallModelRoute, Credential
   zen: null,
 }
 
-export const REPOSITORY_HOST_TOKEN_SHAPE: NonNullable<CredentialValueShape> = {
+const REPOSITORY_HOST_TOKEN_SHAPE: NonNullable<CredentialValueShape> = {
   pattern: /(?<![A-Za-z0-9])(?:ghp_[A-Za-z0-9]{20,}|gho_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,})(?![A-Za-z0-9])/g,
   marker: '[REDACTED_GITHUB_TOKEN]',
 }

@@ -4,7 +4,7 @@ import { providerDisplayName } from '../providers/routeLaw.js'
 
 export type OverflowFamily = CallModelRoute | 'unknown'
 
-export type OverflowShape =
+type OverflowShape =
   | 'prompt-too-long'
   | 'request-too-large'
   | 'context-length-exceeded'

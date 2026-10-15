@@ -32,7 +32,7 @@ function isDir(p: string): boolean {
   }
 }
 
-export interface BlendDiscovery {
+interface BlendDiscovery {
   files: string[]
   total: number
   truncated: number
@@ -68,17 +68,17 @@ export function discoverBlendFiles(from: string = getCwd()): BlendDiscovery {
   return { files, total, truncated: Math.max(0, total - files.length) }
 }
 
-export interface BlenderLocation {
+interface BlenderLocation {
   path: string
   source: 'pin' | 'path' | 'app-bundle' | 'program-files'
 }
 
-export interface BlenderCensus {
+interface BlenderCensus {
   blender?: BlenderLocation
   pinError?: string
 }
 
-export function blenderAppBundleCandidates(home: string = homedir()): string[] {
+function blenderAppBundleCandidates(home: string = homedir()): string[] {
   return [
     '/Applications/Blender.app/Contents/MacOS/Blender',
     path.join(home, 'Applications', 'Blender.app', 'Contents', 'MacOS', 'Blender'),
@@ -138,7 +138,7 @@ export function locateBlender(testOpts?: {
   return {}
 }
 
-export interface BlenderVersionProbe {
+interface BlenderVersionProbe {
   version?: string
   reason?: string
 }

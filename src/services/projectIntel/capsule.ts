@@ -8,7 +8,7 @@ import { collectMemoryRefs, memoryStatusWords, type MemoryRef } from '../../mnem
 import { lookupTokens } from '../../mneme/mnemeLookup.js'
 import { isMnemeEnabled } from '../../mneme/paths.js'
 
-export type CapsuleRole =
+type CapsuleRole =
   | 'primary edit'
   | 'test'
   | 'import neighbour'
@@ -17,7 +17,7 @@ export type CapsuleRole =
   | 'instruction'
   | 'knowledge'
 
-export interface CapsuleItem {
+interface CapsuleItem {
   ref: string
   path: string
   role: CapsuleRole
@@ -27,7 +27,7 @@ export interface CapsuleItem {
   bodyPresent: false
 }
 
-export interface CapsuleMemoryRef {
+interface CapsuleMemoryRef {
   refId: string
   status: MemoryRef['status']
   confirmedAt?: string
@@ -35,7 +35,7 @@ export interface CapsuleMemoryRef {
   why: string
 }
 
-export interface ContextCapsule {
+interface ContextCapsule {
   schema: 1
   workspace: string
   generation: SnapshotGeneration
@@ -52,7 +52,7 @@ export interface ContextCapsule {
   assembleMs: number
 }
 
-export interface CapsuleInput {
+interface CapsuleInput {
   workspace: string
   task: string
   goal?: string | null

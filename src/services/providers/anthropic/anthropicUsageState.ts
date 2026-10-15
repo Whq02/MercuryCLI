@@ -16,7 +16,7 @@ import { isOAuthTokenExpired } from '../../oauth/client.js'
 import { credentialFingerprint } from '../credentialIdentity.js'
 import { formatUsageAge, formatUsageAgeShort, usagePollTtlMs } from '../usageFreshness.js'
 
-export type AnthropicUsageReadFailure = {
+type AnthropicUsageReadFailure = {
   kind: 'http' | 'timeout' | 'network' | 'token'
   status?: number
   host: string
@@ -26,9 +26,9 @@ export type AnthropicUsageReadFailure = {
   refresh?: 'refused' | 'unanswered'
 }
 
-export type SignInRenewal = 'fresh' | 'renewed' | 'refused' | 'unanswered'
+type SignInRenewal = 'fresh' | 'renewed' | 'refused' | 'unanswered'
 
-export interface AnthropicUsageReadStatus {
+interface AnthropicUsageReadStatus {
   lastAttemptAtMs?: number
   lastOkAtMs?: number
   failure?: AnthropicUsageReadFailure
@@ -170,7 +170,7 @@ function signInExpired(): boolean {
   }
 }
 
-export async function renewExpiredSignIn(): Promise<SignInRenewal> {
+async function renewExpiredSignIn(): Promise<SignInRenewal> {
   if (!signInExpired()) return 'fresh'
   let renewed = false
   try {
@@ -196,7 +196,7 @@ export function anthropicUsageReaderNote(now: number = Date.now(), style: 'prose
 
 const RECORD_FILE = 'usage-reader.json'
 
-export interface UsageReaderEpisodeRecord {
+interface UsageReaderEpisodeRecord {
   kind: AnthropicUsageReadFailure['kind']
   status?: number
   host: string
@@ -303,7 +303,7 @@ function noteAnswer(now: number): void {
   retryAtMs = undefined
 }
 
-export function forgetAnthropicUsageRead(): void {
+function forgetAnthropicUsageRead(): void {
   generation += 1
   lastAttemptAtMs = undefined
   lastOkAtMs = undefined

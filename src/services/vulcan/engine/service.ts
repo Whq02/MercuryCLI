@@ -47,10 +47,10 @@ export type EnginePriority = 'verifier' | 'fold-gate' | 'lane-gate' | 'profile'
 
 export const ENGINE_PRIORITIES: readonly EnginePriority[] = ['verifier', 'fold-gate', 'lane-gate', 'profile']
 export const ENGINE_DEFAULT_PRIORITY: EnginePriority = 'lane-gate'
-export const ENGINE_WORKERS_FLAG = 'MERCURY_GODOT_WORKERS'
-export const ENGINE_WORKERS_MAX = 16
-export const ENGINE_RECENT_KEEP = 50
-export const ENGINE_QUIET_SAMPLE_MS = 1000
+const ENGINE_WORKERS_FLAG = 'MERCURY_GODOT_WORKERS'
+const ENGINE_WORKERS_MAX = 16
+const ENGINE_RECENT_KEEP = 50
+const ENGINE_QUIET_SAMPLE_MS = 1000
 
 export interface EngineJobRequest {
   holder?: LeaseHolder
@@ -66,9 +66,9 @@ export interface EngineJobRequest {
   media?: EngineMediaRequest
 }
 
-export type EngineJobState = 'queued' | 'running' | 'done' | 'cancelled' | 'failed'
+type EngineJobState = 'queued' | 'running' | 'done' | 'cancelled' | 'failed'
 
-export interface EngineRowError extends EngineLogError {
+interface EngineRowError extends EngineLogError {
   lastChange: string | null
 }
 
@@ -96,13 +96,13 @@ export interface EngineResultRow {
   drift: ProofDriftRow[]
 }
 
-export interface EngineSkippedRow {
+interface EngineSkippedRow {
   name: string
   skipped: true
   reason: string
 }
 
-export type EngineRecordRow = EngineResultRow | EngineSkippedRow
+type EngineRecordRow = EngineResultRow | EngineSkippedRow
 
 export interface EngineRunRecord {
   proofTreeFingerprint: string
@@ -151,7 +151,7 @@ export interface EngineJob {
   tree: EngineTreeFacts | null
 }
 
-export interface EngineJobSummary {
+interface EngineJobSummary {
   id: string
   label: string | null
   state: EngineJobState
@@ -169,7 +169,7 @@ export interface EngineJobSummary {
   error: string | null
 }
 
-export interface EngineJobsSnapshot {
+interface EngineJobsSnapshot {
   root: string
   workers: { count: number; source: string; busy: number }
   display: { nativeJob: string | null }
@@ -184,14 +184,14 @@ export interface EngineJobsSnapshot {
   manifest: { file: string; found: boolean; suites: string[]; problems: string[] }
 }
 
-export interface EngineServiceOptions {
+interface EngineServiceOptions {
   workers?: number
   executable?: string | null
   census?: () => Promise<GodotProcess[]>
   now?: () => number
 }
 
-export type EngineQueryRoad =
+type EngineQueryRoad =
   | { kind: 'debugger'; job: EngineJob; profile: GodotDebuggerProfile }
   | { kind: 'bridge'; job: EngineJob; instance: string }
   | { kind: 'waiting'; job: EngineJob; message: string; hint: string }
@@ -213,7 +213,7 @@ export function newEngineJobId(now: number = Date.now()): string {
   return `${now}-${randomBytes(2).toString('hex')}`
 }
 
-export function readEngineRecord(projectRoot: string, jobId: string): EngineRunRecord | null {
+function readEngineRecord(projectRoot: string, jobId: string): EngineRunRecord | null {
   const file = engineRunResultFile(engineRunPath(projectRoot, jobId))
   try {
     return JSON.parse(readFileSync(file, 'utf8')) as EngineRunRecord

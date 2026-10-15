@@ -4,7 +4,7 @@ import type { OwnerKey } from '../run/ownerKey.js'
 import { registerOwnerScopedStore } from '../run/ownerLifecycle.js'
 import { OwnerScopedStore } from '../run/ownerScopedStore.js'
 
-export type EditSurface = 'edit' | 'changeset' | 'anchor-patch'
+type EditSurface = 'edit' | 'changeset' | 'anchor-patch'
 
 type LedgerState = { counts: Map<string, number> }
 
@@ -34,7 +34,7 @@ export function recordEditOutcome(
   }
 }
 
-export interface EditOutcomeRow {
+interface EditOutcomeRow {
   model: string
   surface: EditSurface
   outcome: string
@@ -54,7 +54,7 @@ export function editOutcomeRows(owner: OwnerKey): EditOutcomeRow[] {
   return rows
 }
 
-export interface EditOutcomeHealthRow {
+interface EditOutcomeHealthRow {
   model: string
   attempts: number
   applied: number

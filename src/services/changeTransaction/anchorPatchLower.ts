@@ -17,7 +17,7 @@ import { checkAnchor, formatAnchorFailure, mintFileAnchor } from './snapshotAnch
 import { recallAnchoredSnapshot } from './snapshotRing.js'
 import { recoverStaleHunks } from './stalePatchRecovery.js'
 
-export interface LoweredMemberMeta {
+interface LoweredMemberMeta {
   recovered: boolean
   blockNotes: string[]
 }
@@ -30,7 +30,7 @@ export interface LoweredPatch {
   warnings: string[]
 }
 
-export interface LowerFailure {
+interface LowerFailure {
   ok: false
   code:
     | 'stale-anchor'
@@ -42,7 +42,7 @@ export interface LowerFailure {
   message: string
 }
 
-export type LowerOutcome = LoweredPatch | LowerFailure
+type LowerOutcome = LoweredPatch | LowerFailure
 
 function absoluteSectionPath(p: string): string {
   return isAbsolute(p) ? p : resolvePath(getCwd(), p)

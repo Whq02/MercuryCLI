@@ -7,7 +7,7 @@ import type { OwnerKey } from './ownerKey.js'
 import { registerOwnerScopedStore } from './ownerLifecycle.js'
 import { OwnerScopedStore } from './ownerScopedStore.js'
 
-export const CONTEXT_SELECTION_VERSION = 1 as const
+const CONTEXT_SELECTION_VERSION = 1 as const
 
 export type ContextPolicyClass = 'preserve-all' | 'bounded-optional'
 
@@ -18,7 +18,7 @@ export function resolveSelectionPolicy(profileRequest?: ContextPolicyClass | nul
   return profileRequest === 'bounded-optional' ? 'bounded-optional' : 'preserve-all'
 }
 
-export interface SelectionBudgetResolution {
+interface SelectionBudgetResolution {
   budget: SelectionBudget | null
   source: 'flag' | 'caller' | 'none'
   note?: string
@@ -54,7 +54,7 @@ export function resolveSelectionBudget(
   return { budget: null, source: 'none' }
 }
 
-export type RequiredReason =
+type RequiredReason =
   | 'required:operator-request'
   | 'required:instruction'
   | 'required:decision-accepted'
@@ -63,19 +63,19 @@ export type RequiredReason =
   | 'required:unresolved-tool'
   | 'required:dependency'
 
-export interface SourceSpanRef {
+interface SourceSpanRef {
   recordUuid: string
   viewIndex: number
 }
 
-export interface SelectionReduction {
+interface SelectionReduction {
   reasonCode: 'excluded:scored-out'
   span: SourceSpanRef
   itemType: string
   pointer: string
 }
 
-export type SelectionOverflow = 'none' | 'closure-exceeds-budget'
+type SelectionOverflow = 'none' | 'closure-exceeds-budget'
 
 export interface ContextSelectionPlan {
   version: typeof CONTEXT_SELECTION_VERSION
@@ -142,7 +142,7 @@ function isRealUserMessage(m: Message): boolean {
 
 export const MAX_CANDIDATES = 4096
 export const MAX_RECORDED_EXCLUSIONS = 200
-export const MAX_FILE_EDGES = 32
+const MAX_FILE_EDGES = 32
 const ACCESS_DECAY = 0.5
 
 interface CandidateMeta {
@@ -174,7 +174,7 @@ const candidateIndexes = new OwnerScopedStore<CandidateIndexState>({
 })
 registerOwnerScopedStore(candidateIndexes)
 
-export function cloneCandidateIndex(state: CandidateIndexState): CandidateIndexState {
+function cloneCandidateIndex(state: CandidateIndexState): CandidateIndexState {
   return {
     watermarkCount: state.watermarkCount,
     firstUuid: state.firstUuid,
@@ -241,9 +241,9 @@ export function updateCandidateIndex(
 }
 
 
-export const REQUIRED_TAIL_MESSAGES = 10
+const REQUIRED_TAIL_MESSAGES = 10
 
-export function computeRequiredClosure(view: Message[]): Map<number, RequiredReason> {
+function computeRequiredClosure(view: Message[]): Map<number, RequiredReason> {
   const required = new Map<number, RequiredReason>()
   const mark = (i: number, reason: RequiredReason): void => {
     if (!required.has(i)) required.set(i, reason)
@@ -343,7 +343,7 @@ function selectionDigest(
   return h.digest('hex')
 }
 
-export interface SelectionStageResult {
+interface SelectionStageResult {
   view: Message[]
   selection: ContextSelectionPlan
 }

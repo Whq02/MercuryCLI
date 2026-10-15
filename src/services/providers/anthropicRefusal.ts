@@ -2,9 +2,9 @@ import { headerValue, retryAfterHeaderMs } from '../api/retryAfter.js'
 import type { AnthropicLimits, RateLimitType } from '../anthropicLimits.js'
 import { credentialWallLine, isRevokedSignInText, observedCredentialWall } from './credentialWall.js'
 
-export type AnthropicRefusalKind = 'window' | 'rate-limit' | 'sign-in' | 'other'
+type AnthropicRefusalKind = 'window' | 'rate-limit' | 'sign-in' | 'other'
 
-export interface AnthropicRefusalFacts {
+interface AnthropicRefusalFacts {
   status?: number | undefined
   wireText?: string | undefined
   oauthErrorType?: string | undefined
@@ -20,7 +20,7 @@ export interface AnthropicWindowObservation {
   claim?: RateLimitType
 }
 
-export type StandingAnthropicRefusal = { kind: 'window' | 'sign-in'; words: string }
+type StandingAnthropicRefusal = { kind: 'window' | 'sign-in'; words: string }
 
 const INVALID_GRANT = /\binvalid_grant\b/
 

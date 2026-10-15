@@ -10,11 +10,11 @@ import { VULCAN_INSTANCE_ENV, launchedVulcanInstance, type VulcanInstance, type 
 import { engineEstateEntry, engineTreeLiveness } from './liveness.js'
 import { removeEngineTree } from './frozenTree.js'
 
-export const ENGINE_OUTPUT_CAP = 64 * 1024 * 1024
+const ENGINE_OUTPUT_CAP = 64 * 1024 * 1024
 
-export type EngineKillReason = 'timeout' | 'cancel'
+type EngineKillReason = 'timeout' | 'cancel'
 
-export interface EngineSpawnRequest {
+interface EngineSpawnRequest {
   executable: string
   args: string[]
   cwd: string
@@ -24,7 +24,7 @@ export interface EngineSpawnRequest {
   bridge?: VulcanInstanceLaunch
 }
 
-export interface EngineSpawnOutcome {
+interface EngineSpawnOutcome {
   pid: number | null
   exitCode: number | null
   signal: string | null

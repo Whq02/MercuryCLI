@@ -50,7 +50,7 @@ export type BlenderBridgeResult =
   | { ok: false; error: BlenderBridgeError }
 
 
-export type BlenderBridgeVerbClass = 'read' | 'mutate' | 'exec'
+type BlenderBridgeVerbClass = 'read' | 'mutate' | 'exec'
 
 export interface BlenderBridgeVerbSpec {
   cls: BlenderBridgeVerbClass
@@ -117,7 +117,7 @@ export const BLENDER_BRIDGE_VERBS = {
   },
 } as const satisfies Record<string, BlenderBridgeVerbSpec>
 
-export type BlenderBridgeVerb = keyof typeof BLENDER_BRIDGE_VERBS
+type BlenderBridgeVerb = keyof typeof BLENDER_BRIDGE_VERBS
 
 export function blenderBridgeVerb(op: string): BlenderBridgeVerbSpec | undefined {
   return (BLENDER_BRIDGE_VERBS as Record<string, BlenderBridgeVerbSpec>)[op]
@@ -136,7 +136,7 @@ export interface BlenderBridgeHelloInfo {
   background: boolean
 }
 
-export interface BlenderBridgeSceneRow {
+interface BlenderBridgeSceneRow {
   name: string
   isActive: boolean
 }
@@ -181,7 +181,7 @@ export function buildBlenderBridgeRequestFrame(
   )
 }
 
-export type BlenderBridgeParsedFrame =
+type BlenderBridgeParsedFrame =
   | { kind: 'response'; id: number; ok: boolean; result?: unknown; error?: BlenderBridgeError }
   | { kind: 'hello-reply'; ok: boolean; result?: unknown; error?: BlenderBridgeError }
   | { kind: 'event'; event: string; data: unknown }

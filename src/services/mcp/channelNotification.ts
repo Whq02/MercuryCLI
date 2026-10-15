@@ -8,9 +8,9 @@ import { escapeXmlAttr } from '../../utils/xml.js'
 import { isChannelsEnabled } from './channelAllowlist.js'
 
 
-export const CHANNEL_MESSAGE_METHOD = 'notifications/claude/channel'
+const CHANNEL_MESSAGE_METHOD = 'notifications/claude/channel'
 
-export const CHANNEL_CAPABILITY_KEY = 'claude/channel'
+const CHANNEL_CAPABILITY_KEY = 'claude/channel'
 
 
 const SAFE_META_KEY = /^[A-Za-z_][A-Za-z0-9_]*$/
@@ -54,7 +54,7 @@ function findChannelEntry(serverName: string, channels: ChannelEntry[]): Channel
   return undefined
 }
 
-export function gateChannelServer(
+function gateChannelServer(
   serverName: string,
   capabilities: unknown,
   extensionSource: string | undefined,

@@ -8,7 +8,7 @@ import {
 import { isTerminalExecutionState } from './execution.js'
 
 
-export type CanonicalModelEvent =
+type CanonicalModelEvent =
   | { type: 'response.started'; model?: string }
   | { type: 'text.delta'; text: string }
   | { type: 'reasoning.delta'; text: string }
@@ -27,7 +27,7 @@ export interface ModelRuntimeCapabilities {
   extensions: string[]
 }
 
-export interface ModelRuntime {
+interface ModelRuntime {
   id: string
   capabilities: ModelRuntimeCapabilities
   stream(
@@ -53,7 +53,7 @@ interface SseLikeEvent {
   error?: { message?: string }
 }
 
-export interface AnthropicProjectionState {
+interface AnthropicProjectionState {
   blocks: Map<number, { kind: 'text' | 'thinking' | 'tool'; toolUseId?: string }>
 }
 

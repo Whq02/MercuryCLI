@@ -69,7 +69,7 @@ export function slugOf(name: string): string {
   return slug.length > 0 ? slug : 'sample'
 }
 
-export interface CreateOrAppendSampleInput {
+interface CreateOrAppendSampleInput {
   sessionId: string
   name: string
   title?: string

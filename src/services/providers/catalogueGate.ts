@@ -12,7 +12,7 @@ import { resolveOpenrouterRequestAuth } from './openrouter/openrouterAccounts.js
 
 export type CatalogueFamily = 'anthropic' | 'huggingface' | 'openrouter' | 'gemini' | 'openai' | 'deepseek' | 'xai' | 'meta' | 'moonshot' | 'zai' | 'local' | 'mistral' | 'nous' | 'zen'
 
-export type CatalogueGateVerdict =
+type CatalogueGateVerdict =
   | { allowed: true; exempt?: 'local-endpoint' }
   | {
       allowed: false

@@ -1,6 +1,6 @@
 import type { AssistantMessage } from '../../types/message.js'
 
-export type EmptyReplyRoute = 'openai' | 'zai'
+type EmptyReplyRoute = 'openai' | 'zai'
 
 export type EmptyReplyKind = 'silence' | 'cap' | 'empty'
 

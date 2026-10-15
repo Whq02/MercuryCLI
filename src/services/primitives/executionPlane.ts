@@ -67,11 +67,11 @@ function emit(owner: OwnerKey, event: ExecutionEvent): void {
 }
 
 
-export type ExecutionReconciler = (
+type ExecutionReconciler = (
   record: ExecutionRecord,
 ) => { state: ExecutionState; outcome?: ExecutionOutcome; reason?: string } | null
 
-export type ExecutionStopHandler = (record: ExecutionRecord) => void
+type ExecutionStopHandler = (record: ExecutionRecord) => void
 
 interface DomainHooks {
   reconcile?: ExecutionReconciler
@@ -272,7 +272,7 @@ export function settleExecution(
   return transitionExecution(owner, id, state, opts)
 }
 
-export interface ReconcileReport {
+interface ReconcileReport {
   owner: OwnerKey
   checked: number
   corrected: { id: string; from: ExecutionState; to: ExecutionState }[]
@@ -326,7 +326,7 @@ export function executionExpired(owner: OwnerKey, id: string): boolean {
   return owned.generations.has(id) && !owned.records.has(id)
 }
 
-export interface ListExecutionsOptions {
+interface ListExecutionsOptions {
   kind?: ExecutionKind
   liveOnly?: boolean
   limit?: number

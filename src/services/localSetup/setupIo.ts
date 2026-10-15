@@ -59,7 +59,7 @@ function defaultCurrentModel(): string | undefined {
   }
 }
 
-export function lastLineOf(text: string): string {
+function lastLineOf(text: string): string {
   const lines = text
     .split(/\r?\n/)
     .map(line => line.trim())
@@ -80,7 +80,7 @@ function executable(path: string): boolean {
   }
 }
 
-export function whichOnPath(name: string, env: NodeJS.ProcessEnv, platform: NodeJS.Platform, exists: (path: string) => boolean = executable): string | undefined {
+function whichOnPath(name: string, env: NodeJS.ProcessEnv, platform: NodeJS.Platform, exists: (path: string) => boolean = executable): string | undefined {
   const dirs = (env.PATH ?? env.Path ?? '').split(platform === 'win32' ? ';' : delimiter).filter(dir => dir !== '')
   const exts = platform === 'win32' ? (env.PATHEXT ?? '.EXE;.CMD;.BAT;.COM').split(';').filter(ext => ext !== '') : ['']
   for (const dir of dirs) {

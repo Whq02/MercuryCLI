@@ -1,11 +1,11 @@
-export const CHANT_CHUNK_CHARS = 50
-export const CHANT_REPEATS = 10
-export const CHANT_HISTORY_CHARS = 1500
-export const CHANT_MAX_GAP_FACTOR = 1.5
+const CHANT_CHUNK_CHARS = 50
+const CHANT_REPEATS = 10
+const CHANT_HISTORY_CHARS = 1500
+const CHANT_MAX_GAP_FACTOR = 1.5
 export const CHANT_RECOVERY_LIMIT = 1
-export const CHANT_PREVIEW_CHARS = 80
+const CHANT_PREVIEW_CHARS = 80
 
-export interface ChantDetection {
+interface ChantDetection {
   chunk: string
   repeats: number
   span: number
@@ -15,7 +15,7 @@ export interface ChantDetection {
 const FENCE = /^\s*(```|~~~)/
 const STRUCTURAL = /^\s*(#{1,6}\s|[-*+]\s|\d+[.)]\s|>|\|)|^\s*([-*_]\s*){3,}\s*$/
 
-export function proseOf(text: string): string {
+function proseOf(text: string): string {
   const kept: string[] = []
   let fenced = false
   for (const line of text.split('\n')) {

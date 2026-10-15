@@ -1,5 +1,5 @@
 
-export interface LspPositionLike {
+interface LspPositionLike {
   line: number
   character: number
 }
@@ -23,11 +23,11 @@ export interface NormalizedFileEdits {
   create?: boolean
 }
 
-export interface NormalizeOptions {
+interface NormalizeOptions {
   allowCreate?: boolean
 }
 
-export type NormalizeResult =
+type NormalizeResult =
   | { ok: true; files: NormalizedFileEdits[] }
   | { ok: false; reason: string }
 
@@ -108,7 +108,7 @@ export function offsetAtPosition(text: string, pos: LspPositionLike): number {
   return Math.min(lineStart + Math.max(0, pos.character), nextStart)
 }
 
-export type ApplyResult =
+type ApplyResult =
   | { ok: true; text: string; editCount: number }
   | { ok: false; reason: string }
 

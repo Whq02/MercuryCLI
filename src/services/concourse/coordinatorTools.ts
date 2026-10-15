@@ -23,7 +23,7 @@ export interface CoordinatorTurnRuntime {
   crewDir?: string
 }
 
-export interface CoordinatorNeedsConfirmationV1 {
+interface CoordinatorNeedsConfirmationV1 {
   ok: false
   needsConfirmation: true
   tool: 'stop_session'
@@ -124,7 +124,7 @@ function nearestRealpath(p: string): string | null {
   return null
 }
 
-export function expandTildePath(p: string): string {
+function expandTildePath(p: string): string {
   if (p === '~') return homedir()
   if (/^~[\\/]/.test(p)) return join(homedir(), p.slice(2))
   return p
@@ -187,7 +187,7 @@ export async function knownProjectDirs(): Promise<string[]> {
   return dirs
 }
 
-export async function resolveSpokenProjectPath(spoken: string, ground: string): Promise<string | null> {
+async function resolveSpokenProjectPath(spoken: string, ground: string): Promise<string | null> {
   const s = expandTildePath(spoken.trim())
   const candidates = isAbsolute(s)
     ? [resolve(s)]

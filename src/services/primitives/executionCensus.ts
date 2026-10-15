@@ -5,7 +5,7 @@ type ExecutionDomainClassification =
   | 'external-projection'
   | 'documented-exclusion'
 
-export interface ExecutionDomainCensusEntry {
+interface ExecutionDomainCensusEntry {
   domain: string
   classification: ExecutionDomainClassification
   kind?: string

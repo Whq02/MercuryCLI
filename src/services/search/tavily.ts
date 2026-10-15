@@ -18,7 +18,7 @@ const TAVILY_SEARCH_URL = 'https://api.tavily.com/search'
 const REQUEST_TIMEOUT_MS = 15_000
 const TAVILY_MAX_RESULTS = 20
 
-export function tavilySearchUrl(): string {
+function tavilySearchUrl(): string {
   return flagEnv('MERCURY_SEARCH_TAVILY_URL')?.trim() || TAVILY_SEARCH_URL
 }
 
@@ -31,7 +31,7 @@ export function resolveTavilyApiKey(
   return stored ? { key: stored, source: 'stored' } : undefined
 }
 
-export type TavilyDecode = { kind: 'results'; hits: SearchHit[] } | { kind: 'unrecognised'; reason: string }
+type TavilyDecode = { kind: 'results'; hits: SearchHit[] } | { kind: 'unrecognised'; reason: string }
 
 export function decodeTavilySearch(body: unknown): TavilyDecode {
   if (typeof body !== 'object' || body === null) return { kind: 'unrecognised', reason: 'the body is not a JSON object' }

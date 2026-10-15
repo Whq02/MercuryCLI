@@ -41,7 +41,7 @@ const completionPayload = z.object({
   schema: z.unknown().nullish(),
 })
 
-export interface EvalBridgeDeps {
+interface EvalBridgeDeps {
   owner?: OwnerKey
   context: ToolUseContext
   canUseTool: CanUseToolFn

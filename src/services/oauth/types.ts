@@ -13,12 +13,12 @@ export type BillingType = LiteralOrString<
 >
 
 
-export interface OAuthTokenAccount {
+interface OAuthTokenAccount {
   uuid: string
   email_address: string
 }
 
-export interface OAuthTokenOrganization {
+interface OAuthTokenOrganization {
   uuid: string
 }
 
@@ -47,7 +47,7 @@ export interface OAuthTokenExchangeResponse {
 }
 
 
-export interface OAuthProfileAccount {
+interface OAuthProfileAccount {
   uuid: string
   email: string
   display_name: string
@@ -56,7 +56,7 @@ export interface OAuthProfileAccount {
   has_claude_pro?: boolean
 }
 
-export interface OAuthProfileOrganization {
+interface OAuthProfileOrganization {
   uuid: string
   organization_type?: LiteralOrString<
     'claude_max' | 'claude_pro' | 'claude_enterprise' | 'claude_team'

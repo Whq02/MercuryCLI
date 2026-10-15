@@ -101,7 +101,7 @@ function currentResource(snap: WorkbenchSnapshot, ref: ParsedRef): Resource {
   }
 }
 
-export const workbenchAdapter = {
+const workbenchAdapter = {
   kind: 'workbench',
   describe: 'the unified crewmate/worktree workbench projection (current · work · thread/<id> · lane/<id>)',
   async resolve(ref: ParsedRef, ctx: ResourceContext): Promise<ResourceResult> {

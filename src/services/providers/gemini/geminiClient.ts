@@ -34,7 +34,7 @@ export interface GeminiPlanWire extends GeminiPlanEnvelope {
   onServedBy?(base: string): void
 }
 
-export type GeminiStreamOptions = CompatStreamOptions & {
+type GeminiStreamOptions = CompatStreamOptions & {
   messages: readonly Message[]
   stream?: boolean
   plan?: GeminiPlanWire

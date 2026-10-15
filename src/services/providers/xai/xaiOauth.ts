@@ -8,9 +8,9 @@ import { getUserAgent } from '../../../utils/http.js'
 import { noteCredentialChange } from '../../../utils/accounts/signInLedger.js'
 import { fetchWithProviderDeadline } from '../fetchDeadline.js'
 
-export const XAI_OAUTH_CLIENT_ID = 'b1a00492-073a-47ea-816f-4c329264a828'
-export const XAI_OAUTH_SCOPE = 'openid profile email offline_access grok-cli:access api:access'
-export interface XaiTokens {
+const XAI_OAUTH_CLIENT_ID = 'b1a00492-073a-47ea-816f-4c329264a828'
+const XAI_OAUTH_SCOPE = 'openid profile email offline_access grok-cli:access api:access'
+interface XaiTokens {
   accessToken: string
   refreshToken: string
   expiresAtMs?: number
@@ -54,7 +54,7 @@ export function readPreferredXaiSource(): AuthFile['preferredSource'] { return r
 export function writePreferredXaiSource(source: NonNullable<AuthFile['preferredSource']>): void {
   writeAuth({ ...readAuth(), preferredSource: source })
 }
-export function xaiAuthBase(env: NodeJS.ProcessEnv = process.env): string {
+function xaiAuthBase(env: NodeJS.ProcessEnv = process.env): string {
   return (env['MERCURY_XAI_AUTH_BASE']?.trim() || 'https://auth.x.ai').replace(/\/+$/, '')
 }
 function jwt(token: string): Record<string, unknown> {

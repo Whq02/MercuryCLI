@@ -21,7 +21,7 @@ export function resolveDeepseekApiKey(
   return stored ? { key: stored, source: 'stored' } : undefined
 }
 
-export interface DeepseekAccountRef {
+interface DeepseekAccountRef {
   kind: 'api-key'
   label: string
   keySource: 'env' | 'stored'

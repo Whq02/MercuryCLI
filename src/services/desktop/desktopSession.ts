@@ -31,13 +31,13 @@ export interface DesktopJudgedApp {
   name: string
 }
 
-export interface DesktopCheckedAct {
+interface DesktopCheckedAct {
   action: string
   app: DesktopJudgedApp
   viaGrant: boolean
 }
 
-export interface DesktopTurnHome {
+interface DesktopTurnHome {
   turn: string
   app: DesktopJudgedApp
 }
@@ -74,7 +74,7 @@ export function approvedAppList(owner: OwnerKey): string[] {
   return [...(ownerStates.peek(owner)?.approvedApps.keys() ?? [])]
 }
 
-export function approvedApps(owner: OwnerKey): DesktopJudgedApp[] {
+function approvedApps(owner: OwnerKey): DesktopJudgedApp[] {
   const state = ownerStates.peek(owner)
   if (!state) return []
   return [...state.approvedApps].map(([identity, name]) => ({ identity, name }))
@@ -132,7 +132,7 @@ export function setScreen(owner: OwnerKey, map: ScreenMap): void {
   ownerStates.get(owner).screen = map
 }
 
-export const SCREENSHOT_REGISTRY_CAP = 2000
+const SCREENSHOT_REGISTRY_CAP = 2000
 
 const screenshotRegistry = new Map<string, { path: string; owner: OwnerKey | null }>()
 
@@ -158,10 +158,10 @@ export function forgetDesktopOwner(owner: OwnerKey): void {
   }
 }
 
-export const DESKTOP_SHOTS_DIR = 'desktop-shots'
+const DESKTOP_SHOTS_DIR = 'desktop-shots'
 export const DESKTOP_SHOTS_KEEP = 200
 
-export function desktopShotsDir(): string {
+function desktopShotsDir(): string {
   return path.join(getMercuryHome(), DESKTOP_SHOTS_DIR)
 }
 
@@ -212,7 +212,7 @@ export function screenshotPath(label: string): string {
   return path.join(dir, `${Date.now()}-${safe}.png`)
 }
 
-export type DesktopPhase = 'idle' | 'driving'
+type DesktopPhase = 'idle' | 'driving'
 
 export interface DesktopSnapshot {
   phase: DesktopPhase
@@ -266,7 +266,7 @@ export function desktopSnapshot(): DesktopSnapshot {
   return snapshot
 }
 
-export const DRIVING_FOOTER_PREFIX = 'hands off — Mercury is driving'
+const DRIVING_FOOTER_PREFIX = 'hands off — Mercury is driving'
 
 export function drivingFooter(app: string | null): string {
   return `${DRIVING_FOOTER_PREFIX} ${app ?? 'the desktop'} · esc stops it`
@@ -300,9 +300,9 @@ export function publishDesktopIdle(): void {
   publish(IDLE_SNAPSHOT)
 }
 
-export const AGENT_COMPUTER_REFUSAL =
+const AGENT_COMPUTER_REFUSAL =
   "the Computer tool drives the operator's own screen; a crewmate never carries it in this release — the main session does"
-export const HEADLESS_COMPUTER_REFUSAL =
+const HEADLESS_COMPUTER_REFUSAL =
   'the Computer tool drives the screen of an interactive session; this headless run has no operator at the screen'
 
 export function desktopPostureRefusal(context: {

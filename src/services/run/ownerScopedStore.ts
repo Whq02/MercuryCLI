@@ -1,7 +1,7 @@
 
 import type { OwnerKey } from './ownerKey.js'
 
-export interface OwnerScopedStoreOptions<T> {
+interface OwnerScopedStoreOptions<T> {
   name: string
   create: (owner: OwnerKey) => T
   dispose?: (state: T, owner: OwnerKey) => void | Promise<void>

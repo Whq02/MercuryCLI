@@ -49,7 +49,7 @@ export function findUnityProjectRoot(from: string = getCwd()): string | undefine
   return undefined
 }
 
-export interface UnityProjectVersion {
+interface UnityProjectVersion {
   version?: string
   versionWithRevision?: string
   reason?: string
@@ -77,18 +77,18 @@ export function readUnityProjectVersion(root: string): UnityProjectVersion {
   return { version, ...(withRevision ? { versionWithRevision: withRevision } : {}) }
 }
 
-export interface UnityEditorLocation {
+interface UnityEditorLocation {
   version?: string
   path: string
   source: 'pin' | 'hub' | 'path'
 }
 
-export interface UnityEditorCensus {
+interface UnityEditorCensus {
   editors: UnityEditorLocation[]
   pinError?: string
 }
 
-export function unityHubRoots(platform: NodeJS.Platform = process.platform): string[] {
+function unityHubRoots(platform: NodeJS.Platform = process.platform): string[] {
   if (platform === 'darwin') return ['/Applications/Unity/Hub/Editor']
   if (platform === 'win32') {
     const programFiles = process.env.ProgramFiles ?? 'C:\\Program Files'
@@ -157,7 +157,7 @@ export function locateUnityEditors(testOpts?: {
   return { editors }
 }
 
-export interface UnityProjectProfile {
+interface UnityProjectProfile {
   state: 'ok'
   root: string
   markers: string[]
@@ -168,7 +168,7 @@ export interface UnityProjectProfile {
   editorDetail: string
 }
 
-export interface UnityProjectAbsent {
+interface UnityProjectAbsent {
   state: 'absent'
   detail: string
 }

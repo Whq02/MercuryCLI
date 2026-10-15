@@ -13,9 +13,9 @@ import {
   type PythonDebuggerProvenance,
 } from '../dap/debugpyResolver.js'
 
-export type PythonEnvKind = 'explicit' | 'active-venv' | 'conda' | 'project-venv' | 'system'
+type PythonEnvKind = 'explicit' | 'active-venv' | 'conda' | 'project-venv' | 'system'
 
-export interface PythonInterpreterSelection {
+interface PythonInterpreterSelection {
   state: 'ok'
   command: string
   version: string
@@ -24,15 +24,15 @@ export interface PythonInterpreterSelection {
   source: string
 }
 
-export interface PythonInterpreterUnavailable {
+interface PythonInterpreterUnavailable {
   state: 'unavailable'
   detail: string
   remedy: string
 }
 
-export type PythonInterpreterResult = PythonInterpreterSelection | PythonInterpreterUnavailable
+type PythonInterpreterResult = PythonInterpreterSelection | PythonInterpreterUnavailable
 
-export interface PythonProjectProfile {
+interface PythonProjectProfile {
   projectRoot: string
   markers: string[]
   interpreter: PythonInterpreterResult

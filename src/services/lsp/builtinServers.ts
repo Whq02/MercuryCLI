@@ -135,7 +135,7 @@ function builtinTsServer(): Record<string, ScopedLspServerConfig> {
   }
 }
 
-export const MERCURY_WEB_SERVER_NAME = 'mercury-web'
+const MERCURY_WEB_SERVER_NAME = 'mercury-web'
 
 const WEB_EXTENSION_TO_LANGUAGE: Record<string, string> = {
   '.html': 'html',
@@ -149,7 +149,7 @@ const WEB_EXTENSION_TO_LANGUAGE: Record<string, string> = {
   '.yml': 'yaml',
 }
 
-export function mercuryLspWebEnabled(): boolean {
+function mercuryLspWebEnabled(): boolean {
   return mercuryLspEnabled() && flagEnabled('MERCURY_LSP_WEB')
 }
 

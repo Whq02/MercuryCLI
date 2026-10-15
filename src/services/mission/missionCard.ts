@@ -8,7 +8,7 @@ import { sanitizePathComponent } from '../../utils/tasks.js'
 
 export type MissionCardState = 'armed' | 'met' | 'stood-down' | 'cleared' | 'continued'
 
-export interface MissionCard {
+interface MissionCard {
   schema: 1
   sessionId: string
   goal: string
@@ -19,11 +19,11 @@ export interface MissionCard {
   updatedAt: string
 }
 
-export function missionCardsDir(cwd: string = getOriginalCwd()): string {
+function missionCardsDir(cwd: string = getOriginalCwd()): string {
   return join(getProjectDir(cwd), 'missions')
 }
 
-export function missionCardPath(sessionId: string, cwd?: string): string {
+function missionCardPath(sessionId: string, cwd?: string): string {
   return join(missionCardsDir(cwd), `${sanitizePathComponent(sessionId)}.json`)
 }
 

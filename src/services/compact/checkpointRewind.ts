@@ -6,7 +6,7 @@ export const REWIND_TOOL_NAME = 'Rewind'
 
 export const REWIND_RECORD_TAG = 'mercury-rewind-record'
 
-export interface ActiveCheckpoint {
+interface ActiveCheckpoint {
   id: string
   goal: string
   boundaryIndex: number

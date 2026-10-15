@@ -3,7 +3,7 @@ import { writeStoredOpenaiApiKey } from '../../../utils/router/providerSecrets.j
 import type { OpenaiAccountRef } from './openaiAccounts.js'
 import { refreshOpenaiCatalogue } from './openaiCatalogue.js'
 
-export interface OpenaiKeyLoginOutcome {
+interface OpenaiKeyLoginOutcome {
   ok: boolean
   stored: boolean
   receipt: string

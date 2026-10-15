@@ -51,7 +51,7 @@ export const STREAM_FAULT_RECOVERY_NUDGE =
   'and do not restate anything you already produced. Finish the outstanding work and ' +
   'end with a complete final message.'
 
-export const STREAM_FAULT_RECOVERY_TAIL_CHARS = 160
+const STREAM_FAULT_RECOVERY_TAIL_CHARS = 160
 
 export function streamFaultRecoveryTailLine(replyText: string): string | null {
   const settled = replyText.trimEnd()
@@ -73,10 +73,10 @@ export const EMPTY_REPLY_RECOVERY_NUDGE =
   '[System: the previous reply came back empty — no text and no tool call reached the user. ' +
   'Give the final answer now, or make the tool call you meant to make.]'
 
-export const REASONING_ONLY_RECOVERY_NUDGE =
+const REASONING_ONLY_RECOVERY_NUDGE =
   '[System: your last turn carried thinking only — say your reply, or call the tool you meant.]'
 
-export const REASONING_ONLY_FEWER_WORDS_NUDGE =
+const REASONING_ONLY_FEWER_WORDS_NUDGE =
   '[System: your last turn carried thinking only — say your reply, or call the tool you meant; ' +
   'you ran out of output while thinking — answer in fewer words.]'
 
@@ -349,7 +349,7 @@ export function getPromptTooLongTokenGap(msg: Message): number | undefined {
 }
 
 
-export function isManyImageRefusal(raw: string): boolean {
+function isManyImageRefusal(raw: string): boolean {
   return /many[- ]images?\b/i.test(raw)
 }
 
@@ -788,7 +788,7 @@ function statusOfAny(error: unknown): number | undefined {
   return typeof status === 'number' ? status : undefined
 }
 
-export function categorizeRetryableAPIError(error: unknown): AssistantMessageError {
+function categorizeRetryableAPIError(error: unknown): AssistantMessageError {
   const message = messageOf(error)
   const status = statusOfAny(error)
   if (status === 529 || message.includes(OVERLOADED_TYPE_MARKER)) return 'rate_limit'

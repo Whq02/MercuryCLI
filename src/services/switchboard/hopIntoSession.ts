@@ -39,7 +39,7 @@ export function liveTitleDeriverFor(
   }
 }
 
-export type HopOutcome =
+type HopOutcome =
   | { ok: true; title: string }
   | { ok: false; reason: string }
 
@@ -83,7 +83,7 @@ async function hopIntoBoardSessionLanding(sessionId: string, opts?: { firstPaint
   return { ok: true, title }
 }
 
-export type ResumeOutcome = HopOutcome & {
+type ResumeOutcome = HopOutcome & {
   admitted: Promise<boolean>
   refusal: Promise<string | null>
 }
@@ -93,7 +93,7 @@ export function composeNoRunnerLine(title: string, reason: string): string {
   return `${title}: the session has no live runner — a replay revives it and delivers into the same chat · ${plain} · ↵ revives it`
 }
 
-export function composeHeldLine(title: string): string {
+function composeHeldLine(title: string): string {
   return `${title}: a live runner still holds this session — re-attached to it`
 }
 
@@ -127,7 +127,7 @@ export function focusResumedSession(
   return withLanding(focusResumedSessionLanding(sessionId, transcriptPath, opts))
 }
 
-export type ResumeOptions = { title?: string; firstPaintMs?: number; permissionMode?: string; model?: string; effort?: string }
+type ResumeOptions = { title?: string; firstPaintMs?: number; permissionMode?: string; model?: string; effort?: string }
 
 async function focusResumedSessionLanding(
   sessionId: string,
@@ -231,7 +231,7 @@ async function focusResumedSessionLanding(
   return { ok: true, title, admitted, refusal }
 }
 
-export type CloseOutcome =
+type CloseOutcome =
   | { ok: true; closed: boolean; sessionId: string | null; fate: 'parked' | 'draining' | 'released' | 'ended' | 'none' }
   | { ok: false; reason: string }
 
@@ -409,7 +409,7 @@ async function paintResumeRecap(sessionId: string, launchWon: Promise<LaunchWonV
   }
 }
 
-export function launchWonOf(
+function launchWonOf(
   launch: { model?: string; effort?: string },
   saved: { model?: string; effort?: string },
   admitted: { model?: string; effort?: string },

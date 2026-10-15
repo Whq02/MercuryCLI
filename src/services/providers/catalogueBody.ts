@@ -1,4 +1,4 @@
-export const MODELS_ENDPOINT_NOT_JSON = 'the models endpoint answered a body that is not JSON'
+const MODELS_ENDPOINT_NOT_JSON = 'the models endpoint answered a body that is not JSON'
 
 export async function catalogueBodyJson(response: Response): Promise<unknown> {
   try {

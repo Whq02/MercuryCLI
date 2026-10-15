@@ -23,7 +23,7 @@ function isAutonomousLoopSentinel(prompt: string): boolean {
   )
 }
 
-export function isLoopFileSentinel(prompt: string): boolean {
+function isLoopFileSentinel(prompt: string): boolean {
   return prompt === LOOP_FILE_SENTINEL || prompt === LOOP_FILE_DYNAMIC_SENTINEL
 }
 
@@ -42,7 +42,7 @@ export function freshLoopFireChainState(): LoopFireChainStateV1 {
 const moduleChain: LoopFireChainStateV1 = freshLoopFireChainState()
 
 
-export function isLoopPersistentPreambleEnabled(): boolean {
+function isLoopPersistentPreambleEnabled(): boolean {
   if (isEnvTruthy(flagEnv('MERCURY_LOOP_PERSISTENT'))) {
     return true
   }
@@ -143,7 +143,7 @@ function capLoopFile(content: string): string {
   return `${content.slice(0, cutAt)}\n\n> WARNING: loop.md was truncated to ${LOOP_FILE_BYTE_CAP} bytes. Keep the task list concise.`
 }
 
-export interface LoopFile {
+interface LoopFile {
   path: string
   content: string
 }
@@ -210,11 +210,11 @@ function resolveLoopFileWith(
   return `${getAutonomousLoopPreamble()}\n\n---\n\n${fallbackBody}`
 }
 
-export function resolveAutonomousLoopFire(prompt: string): string | null {
+function resolveAutonomousLoopFire(prompt: string): string | null {
   return resolveAutonomousWith(prompt, moduleChain)
 }
 
-export function resolveLoopFileFire(prompt: string): string | null {
+function resolveLoopFileFire(prompt: string): string | null {
   return resolveLoopFileWith(prompt, moduleChain, readLoopFile())
 }
 
@@ -231,7 +231,7 @@ export function resolveLoopFireForWorkspace(
   )
 }
 
-export function readLoopFileFrom(workspaceDir: string): LoopFile | null {
+function readLoopFileFrom(workspaceDir: string): LoopFile | null {
   for (const candidate of [join(getMercuryHome(), 'loop.md'), join(workspaceDir, 'loop.md')]) {
     let raw: string
     try {

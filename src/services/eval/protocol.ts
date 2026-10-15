@@ -44,7 +44,7 @@ const bridgeFrame = z.object({
   payload: z.unknown(),
 })
 
-export const runnerFrameSchema = z.discriminatedUnion('t', [
+const runnerFrameSchema = z.discriminatedUnion('t', [
   readyFrame,
   startedFrame,
   displayFrame,
@@ -58,7 +58,7 @@ export type RunnerFrame = z.infer<typeof runnerFrameSchema>
 export type BridgeRequestFrame = z.infer<typeof bridgeFrame>
 
 
-export type HostFrame =
+type HostFrame =
   | { t: 'hello'; token: string; cwd: string }
   | { t: 'exec'; id: string; code: string; seq: number; names?: string[] }
   | { t: 'bridge_result'; bridgeId: string; ok: boolean; value?: unknown; error?: string }

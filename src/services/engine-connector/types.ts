@@ -106,7 +106,7 @@ export type ModelSwitchReceiptV1 =
   | { state: 'refused'; detail: string }
 
 
-export type LimitWarningFactV1 = {
+type LimitWarningFactV1 = {
   provider: string
   text: string
 }
@@ -239,7 +239,7 @@ export type KitDialReceiptV1 = {
 
 export type SpawnSwitchReceiptV1 = KitDialReceiptV1
 
-export type WorkAgentV1 = {
+type WorkAgentV1 = {
   index: number
   label: string
   state: string
@@ -254,7 +254,7 @@ export type WorkPhaseV1 = {
   agents: WorkAgentV1[]
 }
 
-export type WorkflowPulseV1 = {
+type WorkflowPulseV1 = {
   phaseTitle?: string
   running: number
   settled: number

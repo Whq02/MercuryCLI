@@ -1,6 +1,6 @@
 import { StringDecoder } from 'node:string_decoder'
 
-export interface SseEvent {
+interface SseEvent {
   data: string
   event?: string
 }

@@ -20,21 +20,21 @@ import {
 
 declare const MACRO: { VERSION: string }
 
-export const JEV_REQUEST_ID_HEADER = 'x-typesafe-request-id'
-export const JEV_RETRY_AFTER_MS_HEADER = 'retry-after-ms'
-export const JEV_RETRY_AFTER_HEADER = 'retry-after'
-export const JEV_DETAIL_CLIP = 400
+const JEV_REQUEST_ID_HEADER = 'x-typesafe-request-id'
+const JEV_RETRY_AFTER_MS_HEADER = 'retry-after-ms'
+const JEV_RETRY_AFTER_HEADER = 'retry-after'
+const JEV_DETAIL_CLIP = 400
 
-export type JevRequestInput = Pick<JevRequest, 'state' | 'questions'>
+type JevRequestInput = Pick<JevRequest, 'state' | 'questions'>
 
-export interface JevClientIo {
+interface JevClientIo {
   road?: JevRoad
   fetchImpl?: typeof fetch
   signal?: AbortSignal
   timeoutMs?: number
 }
 
-export type JevDecode = { ok: true; response: JevResponse } | { ok: false; path: string; reason: string }
+type JevDecode = { ok: true; response: JevResponse } | { ok: false; path: string; reason: string }
 
 type Decoded<T> = { ok: true; value: T } | { ok: false; path: string; reason: string }
 

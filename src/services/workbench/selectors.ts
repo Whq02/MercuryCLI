@@ -49,14 +49,14 @@ export interface AgentMetaFact {
   effortOverride?: string
 }
 
-export interface WorkflowDiskFact {
+interface WorkflowDiskFact {
   runId: string
   title?: string
   status: string
   agentCount?: number
 }
 
-export interface ArtifactHeadFact {
+interface ArtifactHeadFact {
   id: string
   kind: string
   title: string
@@ -110,7 +110,7 @@ function threadKindOf(exec: ExecutionFact, rich: RichTaskFact | undefined): Work
   return 'job'
 }
 
-export function deriveThreadRows(inputs: WorkbenchSourceInputs): WorkbenchThreadRow[] {
+function deriveThreadRows(inputs: WorkbenchSourceInputs): WorkbenchThreadRow[] {
   const rows: WorkbenchThreadRow[] = []
   for (const exec of inputs.executions) {
     if (!EXECUTION_THREAD_KINDS.has(exec.kind)) continue
@@ -158,7 +158,7 @@ export function deriveThreadRows(inputs: WorkbenchSourceInputs): WorkbenchThread
   return rows
 }
 
-export function deriveRootRow(inputs: WorkbenchSourceInputs): WorkbenchThreadRow {
+function deriveRootRow(inputs: WorkbenchSourceInputs): WorkbenchThreadRow {
   const run = inputs.mainRun
   const row: WorkbenchThreadRow = {
     id: 'root',

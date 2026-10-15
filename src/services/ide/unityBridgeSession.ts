@@ -27,11 +27,11 @@ export const UNITY_LANES_ARM_SURFACE =
 const BRIDGE_OP_TIMEOUT_MS = 8_000
 
 
-export type UnityLaneArming =
+type UnityLaneArming =
   | { state: 'armed' }
   | { state: 'disarmed'; armSurface: string }
 
-export type UnityBridgeState =
+type UnityBridgeState =
   | { state: 'disarmed'; port: number; detail: string }
   | { state: 'no-project'; port: number; detail: string }
   | {
@@ -50,16 +50,16 @@ export type UnityBridgeState =
       clientStatus: 'disconnected' | 'connecting' | 'ready'
     }
 
-export type UnityEditorTruth =
+type UnityEditorTruth =
   | { state: 'ok'; playState: string; scenes: string; consoleHead: string }
   | { state: 'unavailable'; detail: string }
 
-export interface UnityTestResultsTruth {
+interface UnityTestResultsTruth {
   editMode: string
   playMode: string
 }
 
-export interface UnityBridgeIdeSession {
+interface UnityBridgeIdeSession {
   project: UnityProjectResult
   unityLane: UnityLaneArming
   bridge: UnityBridgeState

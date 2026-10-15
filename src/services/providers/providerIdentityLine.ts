@@ -5,10 +5,10 @@ import { catalogueEpoch } from './catalogueEpoch.js'
 import { deriveFamilySlotGroups, type AccountSlot, type AccountSlotReads, type FamilySlotGroup } from './accountSlots.js'
 import { presenceIdentityWords, providerFamilyPresences, type ProviderFamilyPresence } from './providerUsage.js'
 
-export const NO_ACCOUNT_WORDS = 'no account'
-export const SIGNED_IN_AS_WORDS = 'Signed in as'
+const NO_ACCOUNT_WORDS = 'no account'
+const SIGNED_IN_AS_WORDS = 'Signed in as'
 
-export type ProviderIdentityLine =
+type ProviderIdentityLine =
   | { kind: 'account'; text: string }
   | { kind: 'label'; text: string }
   | { kind: 'none'; text: typeof NO_ACCOUNT_WORDS }
@@ -28,7 +28,7 @@ function isKeySlot(slot: AccountSlot): boolean {
   return slot.kind === 'api-key' || slot.kindLabel === 'OAuth-minted key'
 }
 
-export function providerIdentityLineOf(
+function providerIdentityLineOf(
   family: Pick<ProviderFamilyPresence, 'credentialed' | 'credentialLabel' | 'identity'> & { id: string },
   slots: readonly AccountSlot[],
   shown: boolean = accountIdentityShown(),

@@ -56,7 +56,7 @@ export interface OpenaiMessageItem {
   phase?: TextPhase
 }
 
-export interface OpenaiFunctionCallItem {
+interface OpenaiFunctionCallItem {
   type: 'function_call'
   call_id: string
   name: string
@@ -64,17 +64,17 @@ export interface OpenaiFunctionCallItem {
   id?: string
 }
 
-export type OpenaiFunctionCallOutputPart =
+type OpenaiFunctionCallOutputPart =
   | { type: 'input_text'; text: string }
   | { type: 'input_image'; image_url: string; detail?: 'low' | 'high' | 'auto' }
 
-export interface OpenaiFunctionCallOutputItem {
+interface OpenaiFunctionCallOutputItem {
   type: 'function_call_output'
   call_id: string
   output: string | OpenaiFunctionCallOutputPart[]
 }
 
-export interface OpenaiReasoningItem {
+interface OpenaiReasoningItem {
   type: 'reasoning'
   id?: string
   summary: Array<{ type: 'summary_text'; text: string }>
@@ -368,7 +368,7 @@ export function bareStreamErrorCount(): number {
 
 const ordinal = (n: number): string => (n === 1 ? '1st' : n === 2 ? '2nd' : n === 3 ? '3rd' : `${n}th`)
 
-export function bareStreamErrorFault(nth: number): OpenaiFault {
+function bareStreamErrorFault(nth: number): OpenaiFault {
   return {
     kind: 'response-failed',
     code: 'openai-stream-error',

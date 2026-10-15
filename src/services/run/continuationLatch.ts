@@ -21,7 +21,7 @@ const latches = new OwnerScopedStore<LatchState>({
 })
 registerOwnerScopedStore(latches)
 
-export function stopAttemptId(turnIdx: number, messageCount: number): string {
+function stopAttemptId(turnIdx: number, messageCount: number): string {
   return `${turnIdx}:${messageCount}`
 }
 

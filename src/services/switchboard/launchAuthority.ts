@@ -5,7 +5,7 @@ import { flagEnv } from '../../substrate/flagRegistry.js'
 import { BACKGROUND_LAUNCH_LABEL, backgroundSessionsLaunchCrewmates } from './backgroundLaunch.js'
 import { spawnSwitch, spawnSwitchOffReceipt, type SpawnSwitchState } from './spawnSwitches.js'
 
-export type LaunchAuthority =
+type LaunchAuthority =
   | { allowed: true; posture: 'attached-or-plain' | 'focused' | 'tagged-background' | 'background-by-setting' }
   | { allowed: false; reason: string; cause: 'session-switch' | 'backgrounded' }
 

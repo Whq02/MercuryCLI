@@ -16,7 +16,7 @@ export function blenderDebugListenExpr(
   )
 }
 
-export interface BlenderDebugRecipe {
+interface BlenderDebugRecipe {
   port: number
   debugpySource: 'bundled' | 'pip'
   expr: string

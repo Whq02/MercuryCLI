@@ -18,7 +18,7 @@ export interface TurnEndDetail {
 
 export type ToolAsk = Extract<PermissionRequestParams, { kind: 'tool' }>
 
-export interface ChildEventHandlers {
+interface ChildEventHandlers {
   onInit: (mercurySessionId: string) => void
   onAssistantText: (text: string) => void
   onAssistantThought?: (text: string) => void
@@ -39,7 +39,7 @@ export interface ChildEventHandlers {
   onExit: (code: number | null) => void
 }
 
-export interface SpawnChildOptions {
+interface SpawnChildOptions {
   cwd: string
   sessionId?: string
   resumeSessionId?: string
@@ -53,7 +53,7 @@ export interface SpawnChildOptions {
   elicitation?: boolean
 }
 
-export const INITIALIZE_DEADLINE_MS = 120_000
+const INITIALIZE_DEADLINE_MS = 120_000
 
 export function toolResultText(content: unknown): string | undefined {
   if (typeof content === 'string') return content
@@ -64,7 +64,7 @@ export function toolResultText(content: unknown): string | undefined {
   return texts.length > 0 ? texts.join('\n') : undefined
 }
 
-export function inputBlocksOf(blocks: ReadonlyArray<Record<string, unknown>>): Array<{ type: 'text'; text: string } | { type: 'image'; media_type: string; data: string }> {
+function inputBlocksOf(blocks: ReadonlyArray<Record<string, unknown>>): Array<{ type: 'text'; text: string } | { type: 'image'; media_type: string; data: string }> {
   const out: Array<{ type: 'text'; text: string } | { type: 'image'; media_type: string; data: string }> = []
   for (const block of blocks) {
     if (block.type === 'text' && typeof block.text === 'string') {

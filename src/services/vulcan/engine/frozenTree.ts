@@ -14,13 +14,13 @@ export interface EngineTreeSpec {
   label: string
 }
 
-export interface GitResult {
+interface GitResult {
   code: number
   stdout: string
   stderr: string
 }
 
-export type GitRunner = (root: string, args: string[], env?: Record<string, string>) => Promise<GitResult>
+type GitRunner = (root: string, args: string[], env?: Record<string, string>) => Promise<GitResult>
 
 export interface EngineTreeFacts {
   spec: EngineTreeSpec
@@ -32,7 +32,7 @@ export interface EngineTreeFacts {
   skipped: string[]
 }
 
-export interface EngineTreeHashes {
+interface EngineTreeHashes {
   assetHash: string
   scriptHash: string
   key: string
@@ -40,7 +40,7 @@ export interface EngineTreeHashes {
   scriptFiles: number
 }
 
-export type EngineChangeAttribution =
+type EngineChangeAttribution =
   | { kind: 'uncommitted' }
   | { kind: 'commit'; commit: string; author: string; date: string }
   | { kind: 'unknown' }
@@ -104,7 +104,7 @@ export const runGit: GitRunner = (root, args, env) =>
     )
   })
 
-export function gitBlobId(content: Buffer): string {
+function gitBlobId(content: Buffer): string {
   return createHash('sha1').update(`blob ${content.length}\0`).update(content).digest('hex')
 }
 
@@ -120,7 +120,7 @@ export function parsePorcelainZ(text: string): string[] {
   return out
 }
 
-export function parseLsTreeZ(text: string): Map<string, string> {
+function parseLsTreeZ(text: string): Map<string, string> {
   const out = new Map<string, string>()
   for (const entry of text.split('\0')) {
     const m = /^(\d{6}) (blob|commit) ([0-9a-f]{40,64})\t(.+)$/s.exec(entry)

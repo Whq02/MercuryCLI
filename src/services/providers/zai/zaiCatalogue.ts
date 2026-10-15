@@ -12,7 +12,7 @@ const CATALOGUE_FETCH_TIMEOUT_MS = 15_000
 const ZAI_CATALOGUE_TTL_MS = 5 * 60_000
 const ZAI_CATALOGUE_FAILURE_RETRY_MS = 10_000
 
-export interface ZaiLiveModel {
+interface ZaiLiveModel {
   id: string
   ownedBy?: string
   created?: number
@@ -22,7 +22,7 @@ function str(v: unknown): string | undefined {
   return typeof v === 'string' && v.trim() !== '' ? v.trim() : undefined
 }
 
-export function decodeZaiModel(raw: unknown): ZaiLiveModel | undefined {
+function decodeZaiModel(raw: unknown): ZaiLiveModel | undefined {
   if (typeof raw !== 'object' || raw === null) return undefined
   const r = raw as Record<string, unknown>
   const id = str(r.id)
@@ -36,13 +36,13 @@ export function decodeZaiModel(raw: unknown): ZaiLiveModel | undefined {
   }
 }
 
-export class ZaiCatalogueHttpError extends Error {
+class ZaiCatalogueHttpError extends Error {
   constructor(readonly status: number) {
     super(status === 401 || status === 403 ? `Z.AI models endpoint refused the credential (HTTP ${status})` : `Z.AI models endpoint returned HTTP ${status}`)
   }
 }
 
-export async function fetchZaiLiveModels(opts: {
+async function fetchZaiLiveModels(opts: {
   baseUrl: string
   key: string
   fetchImpl?: typeof fetch
@@ -177,7 +177,7 @@ export function kickZaiCatalogue(opts?: { env?: NodeJS.ProcessEnv; fetchImpl?: t
   return true
 }
 
-export interface ZaiCatalogueRow {
+interface ZaiCatalogueRow {
   id: string
   displayName: string
   observedAt: string
@@ -186,7 +186,7 @@ export interface ZaiCatalogueRow {
   liveUnknown?: boolean
 }
 
-export type ZaiCatalogueSource =
+type ZaiCatalogueSource =
   | { kind: 'live'; count: number; fetchedAtMs: number }
   | { kind: 'pin'; observedAt: string }
 

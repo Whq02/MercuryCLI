@@ -1,7 +1,7 @@
 
 export const CLOSE_CHORD_STAGE_WINDOW_MS = 5000
 
-export interface CloseChordStageSnapshot {
+interface CloseChordStageSnapshot {
   readonly sessionId: string
   readonly at: number
 }

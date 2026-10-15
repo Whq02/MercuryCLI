@@ -8,7 +8,7 @@ export function missionEnabled(): boolean {
 
 export const MISSION_SCHEMA = 1 as const
 
-export interface MissionGoal {
+interface MissionGoal {
   source: 'run-objective' | 'route-plan' | 'mission-card' | 'none'
   text: string | null
 }
@@ -22,7 +22,7 @@ export interface MissionCardView {
   updatedAt: string
 }
 
-export interface MissionFingerprint {
+interface MissionFingerprint {
   available: boolean
   workspace: string
   treeDigest: string | null
@@ -32,20 +32,20 @@ export interface MissionFingerprint {
   provenance: string | null
 }
 
-export interface MissionMemoryRef {
+interface MissionMemoryRef {
   refId: string
   status: string
   why: string
 }
 
-export interface MissionPolicy {
+interface MissionPolicy {
   profile: string
   source: 'route-decision' | 'current-default' | 'operator-pin' | 'measured-selector'
   reasonCodes: string[]
   posture: string | null
 }
 
-export interface MissionNodeRef {
+interface MissionNodeRef {
   planId: string
   nodeId: string
   title: string
@@ -57,7 +57,7 @@ export interface MissionNodeRef {
   worker: string | null
 }
 
-export interface MissionPlanRef {
+interface MissionPlanRef {
   planId: string
   revision: number
   mode: string
@@ -74,17 +74,17 @@ export interface MissionExecutionRef {
   state: string
 }
 
-export interface MissionEvidenceRef {
+interface MissionEvidenceRef {
   treeDigest: string | null
   available: boolean
 }
 
-export interface MissionReplanAllowance {
+interface MissionReplanAllowance {
   nodeAttemptCeiling: number
   planRevisions: number
 }
 
-export interface MissionOutcome {
+interface MissionOutcome {
   state: 'accepted' | 'failed' | 'cancelled' | 'completed'
   at: number
 }

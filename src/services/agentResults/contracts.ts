@@ -4,7 +4,7 @@ import { z } from 'zod/v4'
 export const AGENT_ENVELOPE_VERSION = 1
 export const ENVELOPE_TAG = 'mercury-envelope'
 
-export type CheckState = 'requested' | 'observed' | 'failed' | 'skipped' | 'unknown'
+type CheckState = 'requested' | 'observed' | 'failed' | 'skipped' | 'unknown'
 
 export interface EnvelopeCheck {
   name: string

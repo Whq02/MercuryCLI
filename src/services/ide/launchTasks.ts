@@ -25,7 +25,7 @@ interface TasksJsonTask {
 const TASK_TIMEOUT_MS = 300_000
 const SHELL_OPERATORS = /[|&;<>()$`\\"'*?~\n]/
 
-export function readTasksJson(root: string): { tasks: TasksJsonTask[] } | { missing: true } | { error: string } {
+function readTasksJson(root: string): { tasks: TasksJsonTask[] } | { missing: true } | { error: string } {
   const file = path.join(root, '.vscode', 'tasks.json')
   if (!existsSync(file)) return { missing: true }
   try {
@@ -105,7 +105,7 @@ export function resolvePreLaunchTask(label: string, root: string): PreLaunchTask
   return { label, type, argv, cwd, ...(env ? { env } : {}), ...ignored }
 }
 
-export type PreLaunchTaskOutcome = { ran: true; label: string; argv: string[]; matcherIgnored: boolean } | { ran: false; label: string; reason: string }
+type PreLaunchTaskOutcome = { ran: true; label: string; argv: string[]; matcherIgnored: boolean } | { ran: false; label: string; reason: string }
 
 export async function runPreLaunchTask(task: PreLaunchTask, signal?: AbortSignal): Promise<PreLaunchTaskOutcome> {
   if ('refused' in task) {

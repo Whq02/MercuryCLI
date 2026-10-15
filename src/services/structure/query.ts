@@ -49,7 +49,7 @@ function matchesGlob(value: string, glob: string): boolean {
   return globToRegExp(glob).test(value)
 }
 
-export function discoverSourceFiles(
+function discoverSourceFiles(
   root: string,
   fileGlobs: string[] | undefined,
 ): { files: string[]; scanned: number; truncatedWalk: boolean } {
@@ -319,7 +319,7 @@ function rangeOf(sourceFile: TS.SourceFile, start: number, end: number): Structu
   }
 }
 
-export function matchId(relFile: string, start: number, end: number, kind: string, text: string): string {
+function matchId(relFile: string, start: number, end: number, kind: string, text: string): string {
   return `sm-${createHash('sha1')
     .update(`${relFile}:${start}:${end}:${kind}:${text.slice(0, 200)}`)
     .digest('hex')
@@ -366,7 +366,7 @@ export function forEachQueryMatch(
   visit(sourceFile)
 }
 
-export interface RunQueryOptions {
+interface RunQueryOptions {
   signal?: AbortSignal
 }
 

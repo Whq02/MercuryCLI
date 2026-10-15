@@ -27,7 +27,7 @@ export function resolveMistralAdminApiKey(env: NodeJS.ProcessEnv = process.env):
   return stored ? { key: stored, source: 'stored' } : undefined
 }
 
-export interface MistralAccountRef {
+interface MistralAccountRef {
   kind: 'api-key'
   label: string
   keySource: 'env' | 'stored'

@@ -21,7 +21,7 @@ export function huggingfaceSlugModelName(slug: string): string {
 
 export const HUGGINGFACE_POLICY_SUFFIXES: ReadonlySet<string> = new Set(['fastest', 'cheapest', 'preferred'])
 
-export interface HuggingfaceDisplayPin {
+interface HuggingfaceDisplayPin {
   id: string
   displayName: string
   observedAt: string

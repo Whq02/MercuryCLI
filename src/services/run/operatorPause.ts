@@ -1,5 +1,5 @@
 
-export const MAX_PAUSE_DIRECTIVE_CHARS = 160
+const MAX_PAUSE_DIRECTIVE_CHARS = 160
 
 const PAUSE_VERBS = new Set(['pause', 'stop', 'hold'])
 
@@ -19,7 +19,7 @@ const WORK_OBJECTS = new Set([
   'sec', 'second', 'bit', 'moment', 'minute', 'min', 'real', 'quick', 'a',
 ])
 
-export type OperatorPauseVerdict =
+type OperatorPauseVerdict =
   | { kind: 'pause'; directive: string }
   | { kind: 'none' }
 

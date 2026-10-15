@@ -3,7 +3,7 @@ import { governorCeilings, setGovernorCeilings, type CeilingProvenance, type Gov
 import type { EffortValue } from '../../utils/effort.js'
 import type { SeatNarrowing } from './seatWords.js'
 
-export interface CeilingFacts {
+interface CeilingFacts {
   seats: number
   seatSource: SeatCeilingSource | 'inherited'
   delegationBand: 1 | 2 | 3 | null
@@ -50,7 +50,7 @@ export function inheritedSeatsFromEnv(env: NodeJS.ProcessEnv = process.env): num
   return Number.isFinite(n) && n >= 1 ? n : null
 }
 
-export function seatsForProcess(): { seats: number; source: SeatCeilingSource | 'inherited' } {
+function seatsForProcess(): { seats: number; source: SeatCeilingSource | 'inherited' } {
   const facts = seatCeilingFacts()
   if (facts.source === 'operator') return { seats: facts.seats, source: 'operator' }
   const inherited = stampedSeats()

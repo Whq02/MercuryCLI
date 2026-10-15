@@ -17,13 +17,13 @@ import { getRunSnapshot } from '../run/runCoordinator.js'
 import { getJourney, listJourneys } from '../journeys/runner.js'
 
 
-export interface WalkthroughReceiptFact {
+interface WalkthroughReceiptFact {
   id: string
   toolName: string
   changedPaths: string[]
 }
 
-export interface WalkthroughCheckFact {
+interface WalkthroughCheckFact {
   id: string
   claim: string
   origin: 'observed' | 'derived' | 'declared'
@@ -31,14 +31,14 @@ export interface WalkthroughCheckFact {
   refs: string[]
 }
 
-export interface WalkthroughJourneyFact {
+interface WalkthroughJourneyFact {
   id: string
   title: string
   state: string
   steps: Array<{ id: string; title: string; state: string }>
 }
 
-export interface WalkthroughInputs {
+interface WalkthroughInputs {
   title: string
   objective: string | null
   runPhase: string | null
@@ -188,7 +188,7 @@ export function composeWalkthroughBody(inputs: WalkthroughInputs): {
 const RECEIPTS_MAX = 60
 const CHECKS_MAX = 40
 
-export function gatherWalkthroughInputs(args: {
+function gatherWalkthroughInputs(args: {
   owner: OwnerKey
   cwd?: string
   title?: string

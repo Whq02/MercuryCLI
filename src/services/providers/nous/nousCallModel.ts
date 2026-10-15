@@ -11,9 +11,9 @@ import { NOUS_KEY_LEG_OFFER } from './nousLogin.js'
 import { NOUS_SIGNIN_EXPIRED_LINE, nousRefreshTrouble, refreshNousTokens } from './nousOauth.js'
 import { refreshNousAccount } from './nousUsageState.js'
 
-export const NOUS_SIGNIN_AUTH_REMEDY = `${NOUS_SIGNIN_EXPIRED_LINE}; the Portal refused the sign-in token.`
+const NOUS_SIGNIN_AUTH_REMEDY = `${NOUS_SIGNIN_EXPIRED_LINE}; the Portal refused the sign-in token.`
 
-export function nousSigninCredentialHint(): string {
+function nousSigninCredentialHint(): string {
   const trouble = nousRefreshTrouble()
   return trouble === undefined ? `${NOUS_SIGNIN_EXPIRED_LINE}.` : `${trouble}. ${NOUS_KEY_LEG_OFFER}`
 }
@@ -49,7 +49,7 @@ export const nousLaneProfile: CompatLaneProfile = {
   },
 }
 
-export const nousSigninLaneProfile: CompatLaneProfile = {
+const nousSigninLaneProfile: CompatLaneProfile = {
   ...nousLaneProfile,
   resolveCredential: async () => {
     if (resolveNousAccount()?.kind !== 'signin') return undefined

@@ -38,7 +38,7 @@ export class EvidenceIntegrityError extends Error {
   }
 }
 
-export interface RecordEvidenceInput {
+interface RecordEvidenceInput {
   owner: OwnerKey
   kind: EvidenceKind
   origin: EvidenceOrigin
@@ -86,7 +86,7 @@ export function recordCanonicalEvidence(input: RecordEvidenceInput): EvidenceRec
   return record
 }
 
-export function supersedeEvidence(owner: OwnerKey, id: string): boolean {
+function supersedeEvidence(owner: OwnerKey, id: string): boolean {
   const owned = store.peek(owner)
   const record = owned?.records.get(id)
   if (!owned || !record || record.state !== 'present') return false
@@ -112,7 +112,7 @@ export function evidenceEvicted(owner: OwnerKey, id: string): boolean {
 
 
 let installed = false
-export function installEvidenceProducers(): void {
+function installEvidenceProducers(): void {
   if (installed) return
   installed = true
 

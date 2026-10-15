@@ -6,14 +6,14 @@ import { USAGE_POLL_TTL_MS } from '../usageFreshness.js'
 import { resolveDeepseekApiKey } from './deepseekAccounts.js'
 import { deepseekBalanceUrl } from './deepseekAccounts.js'
 
-export interface DeepseekBalanceInfo {
+interface DeepseekBalanceInfo {
   currency: string
   totalBalance: string
   grantedBalance?: string
   toppedUpBalance?: string
 }
 
-export interface DeepseekObservedBalance {
+interface DeepseekObservedBalance {
   observedAtMs: number
   isAvailable: boolean
   balances: DeepseekBalanceInfo[]
@@ -70,7 +70,7 @@ export function decodeDeepseekBalance(
   }
 }
 
-export type DeepseekKeyProbe =
+type DeepseekKeyProbe =
   | { state: 'confirmed'; balance: DeepseekObservedBalance }
   | { state: 'refused'; status: number }
   | { state: 'unreachable'; message: string }

@@ -15,7 +15,7 @@ interface ProfileFrame {
   scripts: Array<{ id: number; calls: number; selfMs: number; totalMs: number; internalMs: number }>
 }
 
-export interface GodotSceneTreeNode {
+interface GodotSceneTreeNode {
   name: string
   type?: string
   script?: string
@@ -25,7 +25,7 @@ export interface GodotSceneTreeNode {
   children: GodotSceneTreeNode[]
 }
 
-export interface GodotSceneTreeView {
+interface GodotSceneTreeView {
   name: string
   type?: string
   script?: string
@@ -101,7 +101,7 @@ export function viewGodotSceneTree(node: GodotSceneTreeNode, depth: number = SCE
   return view(node, limit)
 }
 
-export interface EngineDebuggerPhase extends EngineMediaPhase {
+interface EngineDebuggerPhase extends EngineMediaPhase {
   firstFrame: number
   lastFrame: number
   physicsIntervalMs: EngineMediaStats

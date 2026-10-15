@@ -7,7 +7,7 @@ import { processMainOwner, processOwnerForLane } from '../run/resolveOwner.js'
 import { resetMicrocompactState } from './microCompact.js'
 
 
-export type PostCompactScope = {
+type PostCompactScope = {
   querySource?: string
   owner?: OwnerKey
   agentId?: string

@@ -3,7 +3,7 @@ import { existsSync } from 'node:fs'
 import { basename } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-export interface RespawnEntryResolution {
+interface RespawnEntryResolution {
   script?: string
   direct?: boolean
   reason?: string

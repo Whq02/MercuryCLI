@@ -9,8 +9,8 @@ import type {
 } from '../types.js'
 
 export const MAX_RECONNECT_ATTEMPTS = 5
-export const INITIAL_BACKOFF_MS = 1000
-export const MAX_BACKOFF_MS = 30000
+const INITIAL_BACKOFF_MS = 1000
+const MAX_BACKOFF_MS = 30000
 
 export interface McpConnectOutcome {
   client: MCPServerConnection
@@ -19,7 +19,7 @@ export interface McpConnectOutcome {
   resources?: ServerResource[]
 }
 
-export type McpRegistryCause =
+type McpRegistryCause =
   | 'seed'
   | 'connect'
   | 'reconnect-auto'
@@ -63,7 +63,7 @@ interface ServerSlot {
   wakeup: AbortController | null
 }
 
-export type McpRegistryListener = (event: McpRegistryEvent) => void
+type McpRegistryListener = (event: McpRegistryEvent) => void
 
 export class McpServerRegistry {
   private slots = new Map<string, ServerSlot>()

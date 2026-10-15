@@ -1,5 +1,5 @@
 
-export interface TransformedCell {
+interface TransformedCell {
   code: string
   persistedNames: string[]
   capturesResult: boolean
@@ -193,7 +193,7 @@ function patternNames(region: string): string[] {
   return names
 }
 
-export function declarationNames(statement: string): string[] {
+function declarationNames(statement: string): string[] {
   const body = statement.replace(DECL_KEYWORD, '')
   const names: string[] = []
   let start = 0
@@ -223,7 +223,7 @@ function findTopLevelAssign(text: string): number {
   return -1
 }
 
-export function rewriteImport(statement: string): { code: string; names: string[] } | null {
+function rewriteImport(statement: string): { code: string; names: string[] } | null {
   const trimmed = statement.trim()
   const bare = IMPORT_BARE.exec(trimmed)
   if (bare) {

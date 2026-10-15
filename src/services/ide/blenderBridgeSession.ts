@@ -26,11 +26,11 @@ export const BLENDER_LANES_ARM_SURFACE =
 const BRIDGE_OP_TIMEOUT_MS = 8_000
 
 
-export type BlenderLaneArming =
+type BlenderLaneArming =
   | { state: 'armed' }
   | { state: 'disarmed'; armSurface: string }
 
-export type BlenderBridgeState =
+type BlenderBridgeState =
   | { state: 'disarmed'; port: number; detail: string }
   | { state: 'no-home'; port: number; detail: string }
   | {
@@ -51,11 +51,11 @@ export type BlenderBridgeState =
       clientStatus: 'disconnected' | 'connecting' | 'ready'
     }
 
-export type BlenderEditorTruth =
+type BlenderEditorTruth =
   | { state: 'ok'; sceneInfo: string; renderState: string; reportHead: string }
   | { state: 'unavailable'; detail: string }
 
-export interface BlenderBridgeIdeSession {
+interface BlenderBridgeIdeSession {
   context: BlenderContextProfile
   blenderLane: BlenderLaneArming
   bridge: BlenderBridgeState

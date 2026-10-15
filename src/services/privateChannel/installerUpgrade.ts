@@ -5,7 +5,7 @@ import type { LayoutRoots } from './installLayout.js'
 import { commandOnPath } from './installPath.js'
 import type { ForeignInstaller } from './installProvenance.js'
 
-export const CONSENT_SUFFIX = ' [y/N] '
+const CONSENT_SUFFIX = ' [y/N] '
 
 export function installerConsentQuestion(installer: ForeignInstaller): string {
   return `This Mercury was installed by ${installer.name}. Run \`${installer.updateCommand}\` now?`
@@ -34,7 +34,7 @@ export function askYesNo(
   })
 }
 
-export type InstallerRunOutcome =
+type InstallerRunOutcome =
   | { state: 'exited'; exitCode: number }
   | { state: 'not-found'; executable: string }
   | { state: 'failed'; note: string }
@@ -66,7 +66,7 @@ export function runInstallerUpgrade(installer: ForeignInstaller, opts: { stdoutT
   })
 }
 
-export type VersionAfterUpgrade =
+type VersionAfterUpgrade =
   | { state: 'read'; version: string; command: string }
   | { state: 'no-command' }
   | { state: 'unreadable'; command: string; note: string }

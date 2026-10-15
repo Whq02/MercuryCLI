@@ -2,9 +2,9 @@ import type { OpenaiLimitWindow } from './openai/openaiLimitState.js'
 import { familyDisplayName } from './accountSlots.js'
 
 export type SwitchableFamily = 'anthropic' | 'openai'
-export type SlotKind = 'subscription' | 'api-key'
+type SlotKind = 'subscription' | 'api-key'
 
-export interface SlotSeatView {
+interface SlotSeatView {
   family: SwitchableFamily
   active?: SlotKind
   activeLabel?: string
@@ -206,7 +206,7 @@ export function slotSeatView(family: SwitchableFamily, reads?: SlotSwitchReads):
   return view
 }
 
-export interface SlotSwitchWrites {
+interface SlotSwitchWrites {
   writeOpenaiPreference?: (kind: 'chatgpt-subscription' | 'api-key') => void
   writeAnthropicPreference?: (kind: 'api-key' | null) => void
   resetAnthropicLimits?: () => void

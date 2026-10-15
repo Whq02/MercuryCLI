@@ -5,14 +5,14 @@ import { formatZodValidationError } from '../../utils/toolErrors.js'
 import { stripNullArgs } from './openai/openaiWire.js'
 import { straightenQuotes } from '../../utils/curlyQuotes.js'
 
-export interface IncomingToolCall {
+interface IncomingToolCall {
   id: string
   name: string
   argumentsRaw: string
   malformed: boolean
 }
 
-export type ToolCallVerdict =
+type ToolCallVerdict =
   | { ok: true; input: Record<string, unknown> }
   | { ok: false; refusal: RefusedToolCall }
 
@@ -118,7 +118,7 @@ export function toolCallRefusalDiagnostic(refusal: RefusedToolCall): string {
   return `refused tool call ${name} (${refusal.code}, call ${refusal.id || 'no id'}): ${issueSummary(refusal.reason)} — raw arguments (${length} chars${cut}): ${raw === '' ? '(empty)' : raw}`
 }
 
-export interface ToolCallGateHints {
+interface ToolCallGateHints {
   deferredUnadmitted?: (name: string) => boolean
   straightenQuotes?: boolean
 }

@@ -9,8 +9,8 @@ import { SEARCH_SOURCE_POLICIES, type OfficialSearchSource } from './searchSourc
 const object = (value: unknown): Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value) ? value as Record<string, unknown> : {}
 const text = (value: unknown): string => typeof value === 'string' ? value : ''
 
-export const GITHUB_TOKEN_ROAD = 'GitHub code search needs a token: `gh auth login` or GH_TOKEN'
-export type WikipediaLeg = 'phrase' | 'words'
+const GITHUB_TOKEN_ROAD = 'GitHub code search needs a token: `gh auth login` or GH_TOKEN'
+type WikipediaLeg = 'phrase' | 'words'
 export function wikipediaPhrase(words: string): string {
   return `"${words.replace(/"/g, ' ').replace(/\s+/g, ' ').trim()}"`
 }
@@ -70,7 +70,7 @@ export function decodeOfficialSearch(source: OfficialSearchSource, body: unknown
 }
 
 export const EXCERPT_HITS = 3
-export type ExcerptSource = 'stackexchange' | 'hackernews'
+type ExcerptSource = 'stackexchange' | 'hackernews'
 export const HN_COMMENT_LABEL = 'top comment: '
 const idOf = (value: unknown): string => typeof value === 'number' || typeof value === 'string' ? String(value) : ''
 export function excerptOf(html: string, limit = MAX_SNIPPET_CHARS): string {
@@ -106,10 +106,10 @@ export function decodeExcerpts(source: ExcerptSource, body: unknown): Map<string
   }
   return excerpts
 }
-export function excerptIdsWanted(source: ExcerptSource, hits: readonly SearchHit[]): string[] {
+function excerptIdsWanted(source: ExcerptSource, hits: readonly SearchHit[]): string[] {
   return hits.slice(0, EXCERPT_HITS).filter(hit => hit.snippet === '').map(hit => excerptIdOf(source, hit.url)).filter((id): id is string => id !== undefined)
 }
-export function attachExcerpts(source: ExcerptSource, hits: readonly SearchHit[], excerpts: ReadonlyMap<string, string>): { hits: SearchHit[]; fetched: number } {
+function attachExcerpts(source: ExcerptSource, hits: readonly SearchHit[], excerpts: ReadonlyMap<string, string>): { hits: SearchHit[]; fetched: number } {
   let fetched = 0
   const out = hits.map((hit, index) => {
     const excerpt = index < EXCERPT_HITS && hit.snippet === '' ? excerpts.get(excerptIdOf(source, hit.url) ?? '') : undefined
@@ -120,7 +120,7 @@ export function attachExcerpts(source: ExcerptSource, hits: readonly SearchHit[]
   return { hits: out, fetched }
 }
 
-export interface OfficialSearchIo {
+interface OfficialSearchIo {
   fetchImpl?: typeof fetch
   clock?: SearchClock
   env?: Record<string, string | undefined>

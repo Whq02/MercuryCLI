@@ -80,7 +80,7 @@ export function godotBridgeCommand(
   }
 }
 
-export interface GodotLaneProbe {
+interface GodotLaneProbe {
   enabled: boolean
   projectRoot?: string
   lspPort: number

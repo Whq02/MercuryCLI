@@ -11,9 +11,9 @@ import type {
   InterviewSessionState,
 } from './contracts.js'
 
-export const DECISION_RECORD_SCHEMA = 1
+const DECISION_RECORD_SCHEMA = 1
 
-export interface DecisionEntry {
+interface DecisionEntry {
   decisionId: string
   questionId: string
   question: string
@@ -25,7 +25,7 @@ export interface DecisionEntry {
   provenance: { committedEventIds: string[] }
 }
 
-export interface InterviewDecisionRecord {
+interface InterviewDecisionRecord {
   schema: typeof DECISION_RECORD_SCHEMA
   recordId: string
   sessionId: string

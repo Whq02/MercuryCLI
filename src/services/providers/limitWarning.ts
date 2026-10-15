@@ -14,7 +14,7 @@ export interface ProviderLimitWarningView {
   key?: string
 }
 
-export interface ProviderLimitWarningFacts {
+interface ProviderLimitWarningFacts {
   view: ProviderLimitWarningView
   windowKey: string
   windowName: string

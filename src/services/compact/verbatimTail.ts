@@ -25,7 +25,7 @@ export function isMercuryCompactKeepTailEnabled(): boolean {
   )
 }
 
-export type VerbatimTailResult = {
+type VerbatimTailResult = {
   keep: Message[]
   precedingUuid: Message['uuid'] | undefined
   roundsKept: number

@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto'
 import { RELEASE_TARGETS, archiveNameFor, releaseTargetFor } from './releaseTarget.js'
 
-export interface PrivateVersion {
+interface PrivateVersion {
   major: number
   minor: number
   patch: number
@@ -152,7 +152,7 @@ export function selectRelease(
   }
 }
 
-export type BridgePrevious =
+type BridgePrevious =
   | { state: 'previous'; tag: string; version: PrivateVersion }
   | { state: 'first-release' }
 
@@ -168,7 +168,7 @@ export function selectBridgePrevious(releases: Array<{ tagName: string; isDraft:
 }
 
 
-export type ChecksumLookup =
+type ChecksumLookup =
   | { state: 'ok'; sha256: string }
   | { state: 'missing-entry' }
   | { state: 'duplicate-entry'; count: number }
@@ -191,7 +191,7 @@ export function lookupChecksum(manifestText: string, assetName: string): Checksu
 
 export const PAYLOAD_ROOT = 'mercury'
 export const BUNDLE_MEMBER_NAMES = ['mercury.mjs'] as const
-export const REQUIRED_PAYLOAD_MEMBERS = ['manifest.json'] as const
+const REQUIRED_PAYLOAD_MEMBERS = ['manifest.json'] as const
 
 export function resolveBundleMember(members: string[]): string | null {
   for (const name of BUNDLE_MEMBER_NAMES) {
@@ -200,7 +200,7 @@ export function resolveBundleMember(members: string[]): string | null {
   return null
 }
 
-export type LayoutVerdict = { state: 'ok' } | { state: 'unexpected-layout'; note: string }
+type LayoutVerdict = { state: 'ok' } | { state: 'unexpected-layout'; note: string }
 
 export function judgeExtractedLayout(topLevelEntries: string[], payloadMembers: string[]): LayoutVerdict {
   if (topLevelEntries.length !== 1 || topLevelEntries[0] !== PAYLOAD_ROOT) {
@@ -218,7 +218,7 @@ export function judgeExtractedLayout(topLevelEntries: string[], payloadMembers: 
 }
 
 
-export type PayloadGeneration = 'release-layout' | 'schema2-single' | 'legacy'
+type PayloadGeneration = 'release-layout' | 'schema2-single' | 'legacy'
 
 export interface PayloadDescriptor {
   generation: PayloadGeneration
@@ -228,7 +228,7 @@ export interface PayloadDescriptor {
   launcher: string | null
 }
 
-export type PayloadDescription = { state: 'ok'; descriptor: PayloadDescriptor } | { state: 'refused'; note: string }
+type PayloadDescription = { state: 'ok'; descriptor: PayloadDescriptor } | { state: 'refused'; note: string }
 
 interface ReleaseLayoutSection {
   schema?: number
@@ -338,7 +338,7 @@ export function repoSlugFromUrl(url: string): string | null {
   return `${m[1]}/${m[2]}`
 }
 
-export interface ChannelRepo {
+interface ChannelRepo {
   slug: string
   source: 'override' | 'packaged' | 'fallback'
 }

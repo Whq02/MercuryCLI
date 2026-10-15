@@ -1,5 +1,5 @@
 
-export type InvocationSurface =
+type InvocationSurface =
   | 'interactive'
   | 'print'
   | 'sdk'
@@ -7,9 +7,9 @@ export type InvocationSurface =
   | 'workflow'
   | 'external'
 
-export type TerminalPolicy = 'operator-led' | 'one-shot' | 'client-led' | 'mission-led'
+type TerminalPolicy = 'operator-led' | 'one-shot' | 'client-led' | 'mission-led'
 
-export interface InvocationContract {
+interface InvocationContract {
   surface: InvocationSurface
   terminalPolicy: TerminalPolicy
 }

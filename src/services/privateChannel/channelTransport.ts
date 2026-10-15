@@ -19,7 +19,7 @@ const packagedRepoUrl = (): string | undefined =>
   typeof MACRO !== 'undefined' && typeof MACRO.PACKAGE_URL === 'string' ? MACRO.PACKAGE_URL : undefined
 const runningVersion = (): string => (typeof MACRO !== 'undefined' && typeof MACRO.VERSION === 'string' ? MACRO.VERSION : 'dev')
 
-export function channelRepo(): ReturnType<typeof resolveChannelRepo> {
+function channelRepo(): ReturnType<typeof resolveChannelRepo> {
   return resolveChannelRepo(flagEnv('MERCURY_UPDATE_CHANNEL_REPO'), packagedRepoUrl())
 }
 
@@ -27,7 +27,7 @@ export function channelRepoSlug(): string {
   return channelRepo().slug
 }
 
-export function channelApiBaseUrl(): string {
+function channelApiBaseUrl(): string {
   const pinned = flagEnv('MERCURY_UPDATE_API_BASE_URL')?.trim()
   return (pinned && /^https?:\/\//.test(pinned) ? pinned : DEFAULT_API_BASE_URL).replace(/\/+$/, '')
 }
@@ -35,15 +35,15 @@ export function channelApiBaseUrl(): string {
 
 export type ChannelRoadName = 'gh' | 'anonymous'
 
-export type ChannelRoad =
+type ChannelRoad =
   | { road: 'gh' }
   | { road: 'anonymous'; ghState: 'gh-missing' | 'not-signed-in' | 'not-asked'; ghNote: string }
 
-export function channelRoadFirst(source: ReturnType<typeof resolveChannelRepo>['source']): ChannelRoadName {
+function channelRoadFirst(source: ReturnType<typeof resolveChannelRepo>['source']): ChannelRoadName {
   return source === 'override' ? 'gh' : 'anonymous'
 }
 
-export async function resolveChannelRoad(): Promise<ChannelRoad> {
+async function resolveChannelRoad(): Promise<ChannelRoad> {
   if (channelRoadFirst(channelRepo().source) === 'anonymous') {
     return { road: 'anonymous', ghState: 'not-asked', ghNote: 'the public home needs no sign-in' }
   }
@@ -141,7 +141,7 @@ interface AnonymousGet {
   accept: string
 }
 
-export function anonymousRoadFenced(url: string): boolean {
+function anonymousRoadFenced(url: string): boolean {
   return isProofShapeRun() && !isLoopbackUrl(url)
 }
 
@@ -267,7 +267,7 @@ async function anonymousChannelAccess(slug: string, road: Extract<ChannelRoad, {
 }
 
 
-export type ChannelListing = { state: 'ok'; road: ChannelRoadName; releases: ChannelRelease[] } | { state: 'refused'; access: ChannelAccessRefusal }
+type ChannelListing = { state: 'ok'; road: ChannelRoadName; releases: ChannelRelease[] } | { state: 'refused'; access: ChannelAccessRefusal }
 
 export async function listChannelReleases(slug: string): Promise<ChannelListing> {
   const road = await resolveChannelRoad()
@@ -287,7 +287,7 @@ export async function listChannelReleases(slug: string): Promise<ChannelListing>
   return { state: 'ok', road: 'gh', releases: listed.releases }
 }
 
-export interface ChannelAsset {
+interface ChannelAsset {
   name: string
   url: string | null
 }

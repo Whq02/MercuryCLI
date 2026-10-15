@@ -6,9 +6,9 @@ import {
   type CrewAgentId,
 } from '../crew/identity.js'
 
-export const COORDINATOR_BINDING_ID = 'concourse-coordinator'
-export const COORDINATOR_DISPLAY_NAME = 'Concourse Coordinator'
-export const COORDINATOR_ROLE_OWNER_REF = 'concourse:coordinator'
+const COORDINATOR_BINDING_ID = 'concourse-coordinator'
+const COORDINATOR_DISPLAY_NAME = 'Concourse Coordinator'
+const COORDINATOR_ROLE_OWNER_REF = 'concourse:coordinator'
 
 let cached: AgentIdentityV1 | null = null
 

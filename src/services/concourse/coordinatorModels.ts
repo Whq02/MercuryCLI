@@ -19,7 +19,7 @@ export interface CoordinatorModelRegistryV1 {
   selectable: boolean
 }
 
-export interface CoordinatorRegistryReads {
+interface CoordinatorRegistryReads {
   presences?: () => import('../providers/providerUsage.js').ProviderFamilyPresence[]
 }
 

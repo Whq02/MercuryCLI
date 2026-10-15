@@ -28,7 +28,7 @@ export interface TSNode {
   parent: TSNode | null
 }
 
-export interface TSTree {
+interface TSTree {
   rootNode: TSNode
   delete(): void
 }
@@ -72,13 +72,13 @@ export function languageByName(name: string): PolyglotLanguage | null {
 }
 
 
-export interface EngineResolution {
+interface EngineResolution {
   state: 'ok'
   dir: string
   source: 'override' | 'vendored' | 'workspace'
 }
 
-export interface EngineUnavailable {
+interface EngineUnavailable {
   state: 'unavailable'
   note: string
 }
@@ -297,7 +297,7 @@ export function _resetGrammarEngineForTesting(): void {
 }
 
 
-export interface PolyglotParse {
+interface PolyglotParse {
   tree: TSTree
   parseErrors: string[]
 }

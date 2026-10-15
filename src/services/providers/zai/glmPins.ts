@@ -1,5 +1,5 @@
 
-export const GLM_MODEL_EFFORTS: Readonly<Record<string, ReadonlySet<string>>> = {
+const GLM_MODEL_EFFORTS: Readonly<Record<string, ReadonlySet<string>>> = {
   'glm-5.2': new Set(['max', 'xhigh', 'high', 'medium', 'low', 'minimal', 'none']),
   'glm-5.3': new Set(['low', 'high', 'max']),
   'glm-5.3-flash': new Set(['low', 'high', 'max']),
@@ -35,7 +35,7 @@ export function glmThinkingLocked(model: string): boolean {
   return GLM_THINKING_LOCKED.has(model.trim().toLowerCase())
 }
 
-export interface GlmDisplayPin {
+interface GlmDisplayPin {
   id: string
   displayName: string
   observedAt: string
@@ -83,7 +83,7 @@ export function glmDisplayName(id: string): string {
 
 export const GLM_PRICING_PAGE = 'https://docs.z.ai/guides/overview/pricing'
 
-export interface GlmPricePin {
+interface GlmPricePin {
   id: string
   observedAt: string
   source: string

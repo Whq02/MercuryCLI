@@ -11,7 +11,7 @@ import type { KitCatalogue, KitRow } from './kitTypes.js'
 
 export const MCP_SKILLS_NOTE = 'skills from MCP servers appear once a session connects them'
 
-export interface KitDoors {
+interface KitDoors {
   mcpConfigs: () => Promise<{ servers: Record<string, ScopedMcpServerConfig> }>
   dirSkills: (cwd: string) => Promise<readonly Command[]>
   extensionSkills: () => readonly Command[]
@@ -19,7 +19,7 @@ export interface KitDoors {
   skillRefusals?: () => readonly SkillLoadRefusal[]
 }
 
-export const REAL_KIT_DOORS: KitDoors = {
+const REAL_KIT_DOORS: KitDoors = {
   mcpConfigs: () => getAllMcpConfigs(),
   dirSkills: cwd => getSkillDirCommands(cwd),
   extensionSkills: () => getExtensionSkills(),
@@ -43,7 +43,7 @@ function skillCopyWords(command: Command): string {
   return `${skillSourceWords(command)} skill`
 }
 
-export function refreshKitCatalogueDoors(): void {
+function refreshKitCatalogueDoors(): void {
   clearSkillCaches()
   clearExtensionCommandCaches()
   clearAnthropicConnectorsCache()

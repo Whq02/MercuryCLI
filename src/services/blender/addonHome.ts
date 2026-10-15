@@ -15,7 +15,7 @@ function isDir(p: string): boolean {
   }
 }
 
-export interface BlenderAddonHomeCensus {
+interface BlenderAddonHomeCensus {
   home?: {
     path: string
     source: 'pin' | 'blender-user-scripts' | 'blender-user-resources' | 'default'

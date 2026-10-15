@@ -59,7 +59,7 @@ function generationLine(gen: {
   return `generation ${digest} · HEAD ${head}${gen.branch ? ` (${gen.branch})` : ''} · base build ${gen.buildMs}ms`
 }
 
-export const projectAdapter: ResourceAdapter = {
+const projectAdapter: ResourceAdapter = {
   kind: 'project',
   describe: 'the generation-keyed project snapshot (current · modules · changes · knowledge · checks)',
   async resolve(ref, ctx) {

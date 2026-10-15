@@ -18,7 +18,7 @@ export const ANCHOR_PATCH_BOUNDS = {
 } as const
 
 
-export type AnchorPatchRange = { start: number; end: number }
+type AnchorPatchRange = { start: number; end: number }
 
 export type AnchorPatchOp =
   | { kind: 'replace'; range: AnchorPatchRange; body: string[]; line: number }
@@ -44,7 +44,7 @@ export interface AnchorPatchSection {
   line: number
 }
 
-export interface AnchorPatchWarning {
+interface AnchorPatchWarning {
   code:
     | 'fence-stripped'
     | 'header-extra-ignored'
@@ -54,7 +54,7 @@ export interface AnchorPatchWarning {
   message: string
 }
 
-export type AnchorPatchErrorCode =
+type AnchorPatchErrorCode =
   | 'empty'
   | 'too-large'
   | 'no-section'
@@ -72,7 +72,7 @@ export type AnchorPatchErrorCode =
   | 'anchor-conflict'
   | 'amplification'
 
-export interface AnchorPatchError {
+interface AnchorPatchError {
   ok: false
   code: AnchorPatchErrorCode
   line: number
@@ -87,7 +87,7 @@ export interface AnchorPatchParse {
   storeReads: Set<string>
 }
 
-export type AnchorPatchParseResult = AnchorPatchParse | AnchorPatchError
+type AnchorPatchParseResult = AnchorPatchParse | AnchorPatchError
 
 const REGISTER_RE = /^[a-z][a-z0-9_-]{0,23}$/
 const RESERVED_REGISTERS = new Set(['after', 'over', 'into', 'start', 'end'])

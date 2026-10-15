@@ -6,7 +6,7 @@ const CONNECT_ATTEMPTS = 5
 const CONNECT_RETRY_DELAY_MS = 250
 const CONNECT_TIMEOUT_MS = 1500
 
-export type BridgeTarget = { host: string; port: number }
+type BridgeTarget = { host: string; port: number }
 
 export function isLoopbackHost(host: string): boolean {
   const h = host.replace(/^\[|\]$/g, '').toLowerCase()

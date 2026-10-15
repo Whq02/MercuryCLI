@@ -2,7 +2,7 @@
 import type { ExecutionRecord, ExecutionState } from './execution.js'
 import type { TransactionRecord, TransactionState } from './transaction.js'
 
-export type CardState =
+type CardState =
   | ExecutionState
   | 'expired'
   | 'busy'
@@ -37,7 +37,7 @@ export function transactionCardState(state: TransactionState): CardState {
   }
 }
 
-export interface ExecutionView {
+interface ExecutionView {
   id: string
   title: string
   state: CardState
@@ -48,7 +48,7 @@ export interface ExecutionView {
   generation: number
 }
 
-export interface TransactionView {
+interface TransactionView {
   id: string
   title: string
   state: CardState
@@ -57,7 +57,7 @@ export interface TransactionView {
   failureDetail?: string
 }
 
-export function transactionView(record: TransactionRecord): TransactionView {
+function transactionView(record: TransactionRecord): TransactionView {
   return {
     id: record.id,
     title: record.kind,

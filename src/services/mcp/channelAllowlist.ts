@@ -10,7 +10,7 @@ export function isChannelsEnabled(): boolean {
   return true
 }
 
-export function isChannelApproved(serverName: string | undefined): boolean {
+function isChannelApproved(serverName: string | undefined): boolean {
   if (serverName === undefined || serverName === '') return false
   return approvedChannelFor(serverName) !== null
 }

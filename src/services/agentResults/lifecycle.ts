@@ -1,7 +1,7 @@
 
 export const IDLE_TTL_MS = 5 * 60 * 1000
 
-export type AgentLifecycleState = 'running' | 'idle' | 'parked' | 'aborted'
+type AgentLifecycleState = 'running' | 'idle' | 'parked' | 'aborted'
 
 export interface AgentLifecycle {
   state: AgentLifecycleState
@@ -9,7 +9,7 @@ export interface AgentLifecycle {
   basis: string
 }
 
-export interface AgentLifecycleFacts {
+interface AgentLifecycleFacts {
   taskStatus?: string
   finishedAtMs?: number
   transcriptExists: boolean

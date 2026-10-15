@@ -11,7 +11,7 @@ export { EMPTY_USAGE }
 export type { NonNullableUsage }
 
 
-export type LogAPIErrorParams = {
+type LogAPIErrorParams = {
   error: unknown
   clientRequestId?: string | null
 }

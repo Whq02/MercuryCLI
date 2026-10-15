@@ -9,11 +9,11 @@ import { delimiter, dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import type { CallToolResult } from './sdk.js'
 
-export const RENDER_TUI_SCRIPT = join('scripts', 'ui', 'render-tui.ts')
+const RENDER_TUI_SCRIPT = join('scripts', 'ui', 'render-tui.ts')
 
 const CHECKOUT_WALK_DEPTH = 6
 
-export type RenderTuiPrerequisites =
+type RenderTuiPrerequisites =
   | { ready: true; root: string; bun: string }
   | { ready: false; reason: string }
 
@@ -46,7 +46,7 @@ export function renderTuiRuntime(opts: { env?: NodeJS.ProcessEnv; home?: string 
   return { missing: `no bun runtime: set MERCURY_BUN=<path>, install bun at ${userBun}, or put bun on PATH` }
 }
 
-export function renderTuiPrerequisites(opts: { from?: string; env?: NodeJS.ProcessEnv; home?: string } = {}): RenderTuiPrerequisites {
+function renderTuiPrerequisites(opts: { from?: string; env?: NodeJS.ProcessEnv; home?: string } = {}): RenderTuiPrerequisites {
   const root = renderTuiCheckoutRoot(opts.from)
   if (root === null) {
     return {

@@ -8,14 +8,14 @@ import { catalogueBodyJson, modelsEndpointUnreachable } from '../catalogueBody.j
 import { resolveZenApiKey, zenApiBase } from './zenAccounts.js'
 import { zenDisplayName, zenDisplayPin, zenServedShapeOf, type ZenServedShape, type ZenWireShape } from './zenPins.js'
 
-export interface ZenLiveModel {
+interface ZenLiveModel {
   id: string
   created: number
   shape: ZenServedShape
   ownedBy?: string
 }
 
-export function decodeZenModel(raw: unknown): ZenLiveModel | undefined {
+function decodeZenModel(raw: unknown): ZenLiveModel | undefined {
   if (typeof raw !== 'object' || raw === null) return undefined
   const row = raw as Record<string, unknown>
   if (typeof row.id !== 'string' || row.id.trim() === '' || row.id.includes('/')) return undefined
@@ -24,7 +24,7 @@ export function decodeZenModel(raw: unknown): ZenLiveModel | undefined {
   return { id, created, shape: zenServedShapeOf(id), ...(typeof row.owned_by === 'string' ? { ownedBy: row.owned_by } : {}) }
 }
 
-export class ZenCatalogueHttpError extends Error {
+class ZenCatalogueHttpError extends Error {
   constructor(readonly status: number) {
     super(status === 401 || status === 403 ? `OpenCode Zen models endpoint refused the credential (HTTP ${status})` : `OpenCode Zen models endpoint returned HTTP ${status}`)
   }
@@ -55,7 +55,7 @@ export async function fetchZenLiveModels(opts: { baseUrl: string; key?: string; 
   return { models, fetchedAtMs: Date.now() }
 }
 
-export interface ZenCatalogueSnapshot {
+interface ZenCatalogueSnapshot {
   keySource: 'env' | 'stored'
   models: ZenLiveModel[]
   fetchedAtMs: number
@@ -74,7 +74,7 @@ export function getCachedZenCatalogue(env: NodeJS.ProcessEnv = process.env): Zen
   return resolveZenApiKey(env) ? cache.get(identityOf(env)) ?? null : null
 }
 
-export function dispatchableZenModels(snapshot: ZenCatalogueSnapshot | null): ZenLiveModel[] {
+function dispatchableZenModels(snapshot: ZenCatalogueSnapshot | null): ZenLiveModel[] {
   return (snapshot?.models ?? []).filter(model => model.shape === 'chat' || model.shape === 'responses')
 }
 
@@ -138,7 +138,7 @@ export function kickZenCatalogue(opts?: { env?: NodeJS.ProcessEnv; fetchImpl?: t
   return true
 }
 
-export interface ZenCatalogueRow {
+interface ZenCatalogueRow {
   id: string
   displayName: string
   shape: ZenWireShape
@@ -147,7 +147,7 @@ export interface ZenCatalogueRow {
   free: boolean
   listedLive: boolean
 }
-export type ZenCatalogueSource = { kind: 'live'; count: number; otherShapes: number; fetchedAtMs: number } | { kind: 'unread' }
+type ZenCatalogueSource = { kind: 'live'; count: number; otherShapes: number; fetchedAtMs: number } | { kind: 'unread' }
 
 const SHAPE_ORDER: Record<ZenWireShape, number> = { chat: 0, responses: 1 }
 
@@ -172,7 +172,7 @@ export function zenCatalogueRows(env: NodeJS.ProcessEnv = process.env): { rows: 
   return { rows, source: { kind: 'live', count: rows.length, otherShapes: snapshot.models.length - dispatchable.length, fetchedAtMs: snapshot.fetchedAtMs } }
 }
 
-export function zenCatalogueSourceWords(env: NodeJS.ProcessEnv = process.env): string | undefined {
+function zenCatalogueSourceWords(env: NodeJS.ProcessEnv = process.env): string | undefined {
   const snapshot = getCachedZenCatalogue(env)
   if (snapshot?.lastError) return snapshot.lastError
   const { source } = zenCatalogueRows(env)

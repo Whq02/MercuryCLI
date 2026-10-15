@@ -59,14 +59,14 @@ export function geminiLiveProofState(): { at: number; model: string } | null {
   return compatLaneLiveProofState('gemini')
 }
 
-export const GEMINI_PLAN_AUTH_REMEDY =
+const GEMINI_PLAN_AUTH_REMEDY =
   "the Google sign-in's token was refused · /logins → Sign in with Google signs in again; /model picks another model meanwhile."
-export const GEMINI_PLAN_BILLING_REMEDY =
+const GEMINI_PLAN_BILLING_REMEDY =
   "the plan's quota is Google's and cannot be changed from here · /usage shows the tier Google reports and the wait Google asks for; /logins adds a Gemini API key on a project of your own; /model picks another model meanwhile."
 
-export const GEMINI_PLAN_BARE_INVALID_ARGUMENT = 'Request contains an invalid argument.'
+const GEMINI_PLAN_BARE_INVALID_ARGUMENT = 'Request contains an invalid argument.'
 
-export interface GeminiPlanRefusalFacts {
+interface GeminiPlanRefusalFacts {
   model: string
   status: number | undefined
   elapsedMs: number
@@ -74,14 +74,14 @@ export interface GeminiPlanRefusalFacts {
   wireSaid: string | undefined
 }
 
-export function geminiPlanRefusalPlaceWords(facts: Pick<GeminiPlanRefusalFacts, 'status' | 'elapsedMs'>): string {
+function geminiPlanRefusalPlaceWords(facts: Pick<GeminiPlanRefusalFacts, 'status' | 'elapsedMs'>): string {
   const seconds = `${Math.max(1, Math.round(facts.elapsedMs / 1000))} s`
   return facts.status !== undefined && facts.status >= 200 && facts.status < 300
     ? `in flight at ${seconds} — the request was accepted and the refusal came while the model answered`
     : `HTTP ${facts.status ?? '?'} after ${seconds}, before any answer byte`
 }
 
-export function geminiPlanInvalidArgumentWords(facts: GeminiPlanRefusalFacts): string {
+function geminiPlanInvalidArgumentWords(facts: GeminiPlanRefusalFacts): string {
   const attempts = facts.attempts.length === 1 ? 'not retried' : `retried ${facts.attempts.length === 2 ? 'once' : 'twice'} (${facts.attempts.slice(1).map(kind => (kind === 'plain' ? 'plain function calling' : 'the same shape')).join(', then ')})`
   return `${API_ERROR_MESSAGE_PREFIX}: Google refused the request on '${facts.model}' — ${geminiPlanRefusalPlaceWords(facts)} (INVALID_ARGUMENT, no detail); ${attempts}. Send again, or /model picks another roster row meanwhile.${facts.wireSaid === undefined ? '' : ` The wire said: ${facts.wireSaid}`}`
 }

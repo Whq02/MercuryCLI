@@ -128,7 +128,7 @@ function editsForMatch(
   }
 }
 
-export function insertionEdit(
+function insertionEdit(
   text: string,
   nodeStart: number,
   nodeEnd: number,
@@ -149,7 +149,7 @@ export function insertionEdit(
 }
 
 
-export interface PreviewRefusal {
+interface PreviewRefusal {
   state: 'refused'
   reason: string
 }
@@ -284,7 +284,7 @@ export function buildPreview(
 }
 
 
-export interface ApplyOutcome {
+interface ApplyOutcome {
   state: 'applied'
   preview: StructurePreview
   changedPaths: string[]
@@ -292,7 +292,7 @@ export interface ApplyOutcome {
   evidenceRefs: string[]
 }
 
-export interface ApplyRefusal {
+interface ApplyRefusal {
   state: 'refused'
   code: 'absent' | 'stale' | 'already-applied' | 'cancelled' | 'parse-guard' | 'io'
   reason: string

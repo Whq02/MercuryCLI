@@ -18,7 +18,7 @@ interface AcpInitializeResult {
   }
 }
 
-export function acpDeclaredCapabilities(
+function acpDeclaredCapabilities(
   init: AcpInitializeResult,
 ): Partial<Record<CapabilityKind, { state: CapabilityState; source: string }>> {
   const caps = init.agentCapabilities ?? {}

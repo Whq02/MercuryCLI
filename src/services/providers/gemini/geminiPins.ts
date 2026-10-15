@@ -1,13 +1,13 @@
 
-export interface GeminiPriceTier {
+interface GeminiPriceTier {
   costInPerMtok: number
   costOutPerMtok: number
   cachedInPerMtok?: number
 }
 
-export const GEMINI_PRICING_PAGE = 'https://ai.google.dev/gemini-api/docs/pricing'
+const GEMINI_PRICING_PAGE = 'https://ai.google.dev/gemini-api/docs/pricing'
 
-export interface GeminiPricePin extends GeminiPriceTier {
+interface GeminiPricePin extends GeminiPriceTier {
   id: string
   observedAt: string
   source: string

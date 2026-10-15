@@ -23,7 +23,7 @@ export function isRateLimitErrorMessage(text: string): boolean {
   return RATE_LIMIT_ERROR_PREFIXES.some(prefix => text.startsWith(prefix))
 }
 
-export type RateLimitMessage = {
+type RateLimitMessage = {
   message: string
   severity: 'error' | 'warning'
 }
@@ -207,7 +207,7 @@ export function getUpsellMessage(params: UpsellMessageParams): string | null {
   return 'Switch accounts with /logins to keep working past this window.'
 }
 
-export interface WallRemedyReads {
+interface WallRemedyReads {
   slotAppendix?: () => string
   upsellEligible?: () => boolean
   laneTarget?: () => { route: string; name: string } | null

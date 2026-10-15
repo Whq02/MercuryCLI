@@ -3,7 +3,7 @@ import { realEnvPin, type EffectiveSettingRow } from '../../substrate/startupMen
 
 export type SpawnSwitchKind = 'subagents' | 'workflows'
 
-export type SpawnSwitchSource = 'default' | 'boot-menu' | 'env' | 'in-session'
+type SpawnSwitchSource = 'default' | 'boot-menu' | 'env' | 'in-session'
 
 export interface SpawnSwitchState {
   on: boolean
@@ -84,7 +84,7 @@ export function _resetSpawnSwitchesForTesting(): void {
 }
 
 
-export interface SpawnSwitchRecordView {
+interface SpawnSwitchRecordView {
   spawnSwitches?: Partial<Record<SpawnSwitchKind, 'on' | 'off'>>
   settingsSnapshot?: { rows: ReadonlyArray<Pick<EffectiveSettingRow, 'env' | 'value' | 'source'>> }
 }
@@ -102,7 +102,7 @@ export function spawnSwitchFactsOfRecord(rec: SpawnSwitchRecordView | undefined)
 }
 
 
-export function spawnSwitchSourceLabel(source: SpawnSwitchSource): string {
+function spawnSwitchSourceLabel(source: SpawnSwitchSource): string {
   switch (source) {
     case 'boot-menu':
       return 'boot menu'
@@ -119,7 +119,7 @@ export function spawnSwitchLine(kind: SpawnSwitchKind, state: SpawnSwitchState):
   return `${SPAWN_SWITCH_LABEL[kind]} ${state.on ? 'on' : 'off'} (${spawnSwitchSourceLabel(state.source)})`
 }
 
-export function spawnSwitchBoundaryNote(kind: SpawnSwitchKind, on: boolean): string {
+function spawnSwitchBoundaryNote(kind: SpawnSwitchKind, on: boolean): string {
   return on
     ? `${SPAWN_SWITCH_TOOL[kind]} rejoins the roster from the next turn; reasoning restarts on the next turn`
     : `${SPAWN_SWITCH_TOOL[kind]} leaves the roster from the next turn; reasoning restarts on the next turn; a spawn already running finishes`

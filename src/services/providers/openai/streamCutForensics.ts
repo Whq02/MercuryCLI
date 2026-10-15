@@ -1,6 +1,6 @@
 import { buildApiAgentOptions } from '../../../utils/proxy.js'
 
-export type StreamCutPhase =
+type StreamCutPhase =
   | 'before-first-event'
   | 'mid-reasoning'
   | 'mid-text'
@@ -116,7 +116,7 @@ export function composeStreamCutForensics(input: {
   }
 }
 
-export function streamCutForensicsWords(forensics: StreamCutForensicsV1): string {
+function streamCutForensicsWords(forensics: StreamCutForensicsV1): string {
   const headers = Object.entries(forensics.headers)
     .map(([name, value]) => `${name}=${value}`)
     .join(' ')

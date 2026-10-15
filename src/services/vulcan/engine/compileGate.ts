@@ -22,14 +22,14 @@ import { spawnEngine } from './spawn.js'
 import { startEngineHeartbeat } from './liveness.js'
 import { engineLogDrift, latestMatchingEvidenceRun, proofTreeFingerprint, runEvidenceDrift, sourceProofDrift, type ProofDriftRow } from './proofDrift.js'
 
-export const ENGINE_CHECK_TIMEOUT_MS = 60_000
-export const SHADER_MARKER_PREFIX = 'MERCURY SHADER '
-export const SHADER_DONE_LINE = 'MERCURY SHADER DONE'
-export const WALK_CAP = 20_000
+const ENGINE_CHECK_TIMEOUT_MS = 60_000
+const SHADER_MARKER_PREFIX = 'MERCURY SHADER '
+const SHADER_DONE_LINE = 'MERCURY SHADER DONE'
+const WALK_CAP = 20_000
 
 type EngineDiagnosticClass = 'parse-error' | 'compile-error' | 'shader-error' | 'preload-reaches-autoload' | 'engine-error'
 
-export interface EngineDiagnostic {
+interface EngineDiagnostic {
   file: string
   line: number | null
   message: string
@@ -37,14 +37,14 @@ export interface EngineDiagnostic {
   lastChange: string | null
 }
 
-export interface EngineIgnoredLine {
+interface EngineIgnoredLine {
   file: string
   line: number | null
   autoload: string
   message: string
 }
 
-export interface EngineCheckFailure {
+interface EngineCheckFailure {
   file: string
   exitCode: number | null
   signal: string | null
@@ -61,7 +61,7 @@ export interface EngineCheckArgs {
   run?: string
 }
 
-export interface EngineCheckResult {
+interface EngineCheckResult {
   ok: boolean
   root: string
   enginePath: string
@@ -113,7 +113,7 @@ function classifyScriptError(message: string): EngineDiagnosticClass {
   return 'engine-error'
 }
 
-export interface CheckOnlyReading {
+interface CheckOnlyReading {
   diagnostics: Array<{ file: string; line: number | null; message: string; class: EngineDiagnosticClass }>
   ignored: EngineIgnoredLine[]
 }
@@ -222,7 +222,7 @@ export function isScriptModeHead(text: string): boolean {
   return /^\s*extends\s+(SceneTree|MainLoop)\b/m.test(text.slice(0, 4096))
 }
 
-export interface PreloadFinding {
+interface PreloadFinding {
   suite: string
   line: number
   chain: string[]
@@ -298,7 +298,7 @@ const SCRIPT_SUFFIXES = ['.gd']
 const SHADER_SUFFIXES = ['.gdshader']
 const SHADER_INCLUDE_SUFFIXES = ['.gdshaderinc']
 
-export interface EngineCheckOptions {
+interface EngineCheckOptions {
   executable: string
   manifest?: EngineManifest
 }

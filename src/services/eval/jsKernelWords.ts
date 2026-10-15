@@ -1,7 +1,7 @@
 export const JS_KERNEL_MODULE_WORDS =
   "this kernel is an ES module: `module`, `exports`, `__dirname` and `__filename` are not defined; `require()` resolves from the working directory; use `import { readFileSync } from 'node:fs'` at a cell's top level (it persists across cells) or `const fs = await import('node:fs')` anywhere; `process.cwd()` is the working directory"
 
-export const JS_KERNEL_CRYPTO_WORDS =
+const JS_KERNEL_CRYPTO_WORDS =
   "the global `crypto` is the Web Crypto API (`subtle`, `randomUUID()`, `getRandomValues()`); Node's `createHash`, `createHmac` and `randomBytes` come from `import { createHash } from 'node:crypto'` or `await import('node:crypto')`"
 
 const COMMONJS_NAME = /^(?:module|exports|__dirname|__filename) is not defined$/

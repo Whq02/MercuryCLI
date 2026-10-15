@@ -15,7 +15,7 @@ const SKIP_DIRS = new Set([
 ])
 const TEST_PATH_RE = /(^|\/)((tests?|__tests__|spec)\/|test_[^/]+\.py$)|\.(test|spec)\.[a-z]+$/
 
-export interface ImpactProjection {
+interface ImpactProjection {
   target: string
   generation: SnapshotGeneration
   established: {

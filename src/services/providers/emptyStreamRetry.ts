@@ -18,7 +18,7 @@ export function emptyStreamRetryWaitMs(scale: number = busyRetryScale()): number
   return Math.min(Math.max(floorMs, Math.round(jitterRetryDelay(rungMs, 'symmetric'))), Math.ceil(rungMs * 1.25))
 }
 
-export function emptyStreamEndWords(provider: string, detail: string): string {
+function emptyStreamEndWords(provider: string, detail: string): string {
   return `${provider} ${EMPTY_STREAM_END_MARKER} (${detail})`
 }
 

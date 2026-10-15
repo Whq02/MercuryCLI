@@ -25,7 +25,7 @@ export function nativeBackendIdFor(family: NativeSearchFamily): SearchBackendId 
   return family === 'anthropic' ? 'anthropic-native' : 'openai-native'
 }
 
-export function extractQueryFromPartialJson(partial: string): string | undefined {
+function extractQueryFromPartialJson(partial: string): string | undefined {
   const match = /"query"\s*:\s*"((?:[^"\\]|\\.)*)"/.exec(partial)
   if (!match) return undefined
   try {
@@ -35,7 +35,7 @@ export function extractQueryFromPartialJson(partial: string): string | undefined
   }
 }
 
-export interface NativeSearchIo {
+interface NativeSearchIo {
   context: ToolUseContext
   onProgress?: SearchProgressSink
 }

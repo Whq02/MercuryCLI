@@ -1,6 +1,6 @@
 const ANSI_RE = new RegExp(String.fromCharCode(27) + '\\[[0-9;]*[A-Za-z]', 'g')
 
-export type EngineLogErrorKind = 'script-error' | 'shader-error' | 'error'
+type EngineLogErrorKind = 'script-error' | 'shader-error' | 'error'
 
 export interface EngineLogError {
   kind: EngineLogErrorKind

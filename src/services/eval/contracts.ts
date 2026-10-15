@@ -48,7 +48,7 @@ export interface EvalDisplay {
   b64?: boolean
 }
 
-export type EvalCellStatus = 'ok' | 'error' | 'cancelled'
+type EvalCellStatus = 'ok' | 'error' | 'cancelled'
 
 export interface EvalStreamCapture {
   text: string

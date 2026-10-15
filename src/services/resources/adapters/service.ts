@@ -17,7 +17,7 @@ import {
   type ResourceResult,
 } from '../contracts.js'
 
-export const serviceAdapter: ResourceAdapter = {
+const serviceAdapter: ResourceAdapter = {
   kind: 'service',
   describe: 'named project services + logs (mercury://service/<name>?child=logs)',
   async resolve(ref: ParsedRef, ctx: ResourceContext): Promise<ResourceResult> {

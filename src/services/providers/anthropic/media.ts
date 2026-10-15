@@ -4,11 +4,11 @@ import { stripThinkingFromIndex } from '../../../utils/messages/apiFilters.js'
 
 type Turn = UserMessage | AssistantMessage
 
-export function isMedia(block: ContentBlockParam): block is ImageBlockParam | DocumentBlockParam {
+function isMedia(block: ContentBlockParam): block is ImageBlockParam | DocumentBlockParam {
   return block.type === 'image' || block.type === 'document'
 }
 
-export function isToolResult(block: ContentBlockParam): block is ToolResultBlockParam {
+function isToolResult(block: ContentBlockParam): block is ToolResultBlockParam {
   return block.type === 'tool_result'
 }
 

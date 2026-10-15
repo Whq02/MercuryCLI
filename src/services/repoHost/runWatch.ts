@@ -58,13 +58,13 @@ function finishWatch(watch: LiveWatch, state: 'succeeded' | 'failed' | 'stopped'
   }
 }
 
-export interface RunWatchStart {
+interface RunWatchStart {
   state: 'watching'
   record: ExecutionRecord
   view: RunView | null
 }
 
-export type RunWatchOutcome = RunWatchStart | { state: 'unavailable'; note: string; remedy: string }
+type RunWatchOutcome = RunWatchStart | { state: 'unavailable'; note: string; remedy: string }
 
 export async function watchRun(owner: OwnerKey, root: string, runId: string): Promise<RunWatchOutcome> {
   if (!repoHostEnabled()) {

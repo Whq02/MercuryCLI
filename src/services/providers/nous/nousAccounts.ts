@@ -21,7 +21,7 @@ export function nousModelsUrl(env: NodeJS.ProcessEnv = process.env): string {
   return `${nousApiBase(env)}/models`
 }
 
-export function nousPortalBase(env: NodeJS.ProcessEnv = process.env): string {
+function nousPortalBase(env: NodeJS.ProcessEnv = process.env): string {
   return (env['MERCURY_NOUS_PORTAL_BASE']?.trim() || NOUS_PORTAL_BASE_URL).replace(/\/+$/, '')
 }
 
@@ -38,7 +38,7 @@ export function resolveNousApiKey(
   return stored ? { key: stored, source: 'stored' } : undefined
 }
 
-export interface NousAccountRef {
+interface NousAccountRef {
   kind: 'api-key' | 'signin'
   label: string
   keySource?: 'env' | 'stored'

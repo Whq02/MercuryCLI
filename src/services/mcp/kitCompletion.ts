@@ -3,7 +3,7 @@ import { isKitMcpName, isKitExtensionName, isKitSkillName, type SessionKitV1 } f
 import { isKitGovernedSkillCommand } from '../../skills/kitGovernance.js'
 import { isMcpOrgan, kitMembership } from './membership.js'
 
-export interface KitCompletionRoster {
+interface KitCompletionRoster {
   mcpNames: readonly string[]
   commands: readonly Command[]
   extensions: readonly string[]

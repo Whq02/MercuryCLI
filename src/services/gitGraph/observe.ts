@@ -292,7 +292,7 @@ export function parseUnifiedDiff(raw: string): { files: GitDiff['files']; hunks:
   return { files, hunks, truncated }
 }
 
-export interface DiffOptions {
+interface DiffOptions {
   scope: 'worktree' | 'staged' | 'commit' | 'range'
   ref?: string
   paths?: string[]
@@ -408,7 +408,7 @@ const MAX_TREE_ENTRIES = 500
 const MAX_COMPARE_COMMITS = 20
 const MAX_COMPARE_FILES = 60
 
-export interface GitFileAtRef {
+interface GitFileAtRef {
   ref: string
   path: string
   text: string
@@ -458,14 +458,14 @@ export function gitFileAtRef(root: string, ref: string, filePath: string): GitFi
   }
 }
 
-export interface GitTreeEntry {
+interface GitTreeEntry {
   mode: string
   type: 'blob' | 'tree' | 'commit' | 'other'
   name: string
   size: number | null
 }
 
-export interface GitTreeAtRef {
+interface GitTreeAtRef {
   ref: string
   path: string
   entries: GitTreeEntry[]
@@ -497,7 +497,7 @@ export function gitTreeAtRef(root: string, ref: string, subPath?: string): GitTr
   return { ref, path: subPath ?? '', entries, truncated: lines.length > MAX_TREE_ENTRIES }
 }
 
-export interface GitCompare {
+interface GitCompare {
   base: string
   head: string
   mergeBase: string

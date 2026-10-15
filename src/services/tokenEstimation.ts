@@ -45,7 +45,7 @@ function countRetryRefusal(error: unknown, askedMs: number | undefined): string 
   return null
 }
 
-export async function countWithBusyRetry<T>(road: string, run: () => Promise<T>): Promise<T> {
+async function countWithBusyRetry<T>(road: string, run: () => Promise<T>): Promise<T> {
   const ladder = openBusyRetryLadder(Date.now(), busyRetryScale(), COUNT_RETRY_BUDGET_MS)
   for (;;) {
     try {

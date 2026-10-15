@@ -19,7 +19,7 @@ export interface XaiUsageIo {
   reason?: 'open' | 'operator' | 'sign-in'
 }
 
-export interface XaiObservedUsage {
+interface XaiObservedUsage {
   observedAtMs: number
   prepaidBalanceUsd: number
   cycle: { year: number; month: number }
@@ -29,7 +29,7 @@ export interface XaiObservedUsage {
   postpaidLimitUsd?: number
 }
 
-export interface XaiUsageFailure {
+interface XaiUsageFailure {
   atMs: number
   kind: 'refused' | 'unreachable' | 'invalid'
   endpoint: 'inference' | 'management' | 'subscription'
@@ -44,11 +44,11 @@ export interface XaiSubscriptionCredits {
   tier?: string
 }
 
-export type XaiSubscriptionProbe =
+type XaiSubscriptionProbe =
   | { state: 'confirmed'; credits: XaiSubscriptionCredits }
   | { state: 'failed'; failure: XaiUsageFailure }
 
-export type XaiUsageProbe =
+type XaiUsageProbe =
   | { state: 'confirmed'; usage: XaiObservedUsage }
   | { state: 'failed'; failure: XaiUsageFailure }
 
@@ -92,7 +92,7 @@ function decodeCycle(value: unknown): XaiObservedUsage['cycle'] | undefined {
     ? { year, month } : undefined
 }
 
-export function xaiUsageRequest(cycle: XaiObservedUsage['cycle'], nowMs: number): object {
+function xaiUsageRequest(cycle: XaiObservedUsage['cycle'], nowMs: number): object {
   const start = Date.UTC(cycle.year, cycle.month - 1, 1)
   const end = Math.min(nowMs, Date.UTC(cycle.year, cycle.month, 1))
   if (end <= start) throw new Error('The billing cycle has not started')

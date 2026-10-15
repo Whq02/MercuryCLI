@@ -4,7 +4,7 @@ import type { OwnerKey } from '../run/ownerKey.js'
 import { OwnerScopedStore } from '../run/ownerScopedStore.js'
 import { mintFileAnchor, mintRangeAnchor, parseAnchor } from './snapshotAnchor.js'
 
-export const SNAPSHOT_RING_BOUNDS = {
+const SNAPSHOT_RING_BOUNDS = {
   entryCap: 24,
   bytesCap: 4 * 1024 * 1024,
   perEntryBytes: 1024 * 1024,

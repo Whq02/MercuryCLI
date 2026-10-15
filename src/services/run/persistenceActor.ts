@@ -7,11 +7,11 @@ import {
 import type { OwnerKey } from './ownerKey.js'
 import { currentWriterEpoch, writerEpoch, FALLBACK_EPOCH } from './writerEpoch.js'
 
-export const WRITER_EPOCH: number = FALLBACK_EPOCH
+const WRITER_EPOCH: number = FALLBACK_EPOCH
 
-export const WRITER_ID: string = `${process.pid}-${randomUUID().slice(0, 8)}`
+const WRITER_ID: string = `${process.pid}-${randomUUID().slice(0, 8)}`
 
-export interface CommitContext {
+interface CommitContext {
   generation: number
   epoch: number
   writerId: string
@@ -27,7 +27,7 @@ export interface OwnerPersistence<T> {
   readonly epoch: number
 }
 
-export interface OwnerPersistenceOptions<T> {
+interface OwnerPersistenceOptions<T> {
   name: string
   owner: OwnerKey
   commit: (owner: OwnerKey, value: T, ctx: CommitContext) => Promise<void>

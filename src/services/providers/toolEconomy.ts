@@ -13,7 +13,7 @@ import {
 } from '../../utils/toolSearch.js'
 import { deferralSearchIsServerSide, deferralWireFormFor, supportsToolDeferral, type DeferralWireForm, type DeferralWireVerdict } from './deferralWire.js'
 
-export interface ToolPayloadPlanInput {
+interface ToolPayloadPlanInput {
   model: string
   tools: Tools
   messages: readonly Message[]
@@ -163,7 +163,7 @@ export interface ToolPayloadPlan {
   admissionDeclarations: readonly AdmissionDeclaration[]
 }
 
-export interface AdmissionDeclaration {
+interface AdmissionDeclaration {
   toolUseId: string
   tools: Tools
 }

@@ -8,7 +8,7 @@ export interface JevAgentIdentity {
   subagent: boolean
 }
 
-export interface JevStatusInputs {
+interface JevStatusInputs {
   settings: JevSettings
   key: JevKeyPresence
   ledger: JevLedgerSnapshot

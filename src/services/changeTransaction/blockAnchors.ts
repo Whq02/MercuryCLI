@@ -8,7 +8,7 @@ import {
   type TsModule,
 } from '../structure/tsFacility.js'
 
-export type BlockResolution =
+type BlockResolution =
   | { ok: true; startLine: number; endLine: number; kindLabel: string }
   | {
       ok: false

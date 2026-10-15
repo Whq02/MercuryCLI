@@ -1,5 +1,5 @@
 
-export interface DeepErrorDetail {
+interface DeepErrorDetail {
   name: string
   message: string
   code?: string
@@ -7,7 +7,7 @@ export interface DeepErrorDetail {
   syscall?: string
 }
 
-export interface TransportFailure extends DeepErrorDetail {
+interface TransportFailure extends DeepErrorDetail {
   ts: number
   target?: string
 }
@@ -59,9 +59,9 @@ export function isStaleSocketCode(code: string | undefined): boolean {
   return code !== undefined && STALE_SOCKET_CODES.has(code)
 }
 
-export const TRANSPORT_CUT_MESSAGE = 'terminated'
+const TRANSPORT_CUT_MESSAGE = 'terminated'
 
-export interface TransportCut {
+interface TransportCut {
   code: string
   words: string
 }

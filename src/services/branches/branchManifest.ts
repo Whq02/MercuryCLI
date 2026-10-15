@@ -22,11 +22,11 @@ export interface BranchManifest {
   receipt: string
 }
 
-export type BranchResult =
+type BranchResult =
   | { ok: true; manifest: BranchManifest; branchTranscriptPath: string; manifestPath: string }
   | { ok: false; reason: string }
 
-export const branchManifestPathFor = (branchTranscriptPath: string): string =>
+const branchManifestPathFor = (branchTranscriptPath: string): string =>
   `${branchTranscriptPath}.branch-manifest.json`
 
 function isRecordTranscript(rawText: string): boolean {

@@ -5,7 +5,7 @@ import { getSessionId } from '../../bootstrap/state.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 
 
-export interface WireDumpResponse {
+interface WireDumpResponse {
   status: number
   ms: number
   firstByteMs?: number
@@ -18,7 +18,7 @@ export interface WireDumpResponse {
   error?: string
 }
 
-export interface WireDumpRow {
+interface WireDumpRow {
   kind: 'request'
   seq: number
   at: number
@@ -29,7 +29,7 @@ export interface WireDumpRow {
   response: WireDumpResponse
 }
 
-export interface WireCatalogueModel {
+interface WireCatalogueModel {
   id: string
   display_name?: string
   context_window?: number
@@ -42,7 +42,7 @@ export interface WireCatalogueModel {
   supported_in_api?: boolean
 }
 
-export interface WireCatalogueRow {
+interface WireCatalogueRow {
   kind: 'catalogue'
   seq: number
   at: number
@@ -51,7 +51,7 @@ export interface WireCatalogueRow {
   response: { status: number; ms: number; firstByteMs?: number; models?: WireCatalogueModel[]; error?: string }
 }
 
-export function readCatalogueModels(body: unknown): WireCatalogueModel[] {
+function readCatalogueModels(body: unknown): WireCatalogueModel[] {
   const record = body !== null && typeof body === 'object' ? (body as Record<string, unknown>) : {}
   const rows = Array.isArray(record.data) ? record.data : Array.isArray(record.models) ? record.models : []
   const strings = (value: unknown): string[] | undefined =>
@@ -88,7 +88,7 @@ export function readCatalogueModels(body: unknown): WireCatalogueModel[] {
   return out
 }
 
-export function flattenResponsesUsage(usage: Record<string, unknown>): Record<string, number> {
+function flattenResponsesUsage(usage: Record<string, unknown>): Record<string, number> {
   const out: Record<string, number> = {}
   for (const [key, value] of Object.entries(usage)) {
     if (typeof value === 'number') out[key] = value
@@ -101,7 +101,7 @@ export function flattenResponsesUsage(usage: Record<string, unknown>): Record<st
   return out
 }
 
-export function wireDumpDir(): string | null {
+function wireDumpDir(): string | null {
   const raw = flagEnv('MERCURY_WIRE_DUMP')
   if (raw === undefined || raw.trim() === '') return null
   return raw.trim()

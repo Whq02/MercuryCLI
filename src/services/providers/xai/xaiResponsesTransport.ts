@@ -26,7 +26,7 @@ export function xaiProxyToolOutputs(input: readonly unknown[]): unknown[] {
   return out
 }
 
-export function buildXaiResponsesBody(options: CompatStreamOptions, messages: readonly Message[]): Record<string, unknown> {
+function buildXaiResponsesBody(options: CompatStreamOptions, messages: readonly Message[]): Record<string, unknown> {
   const request = options.request
   const system = request.messages.find(message => message.role === 'system')
   const extra = request.extra ?? {}

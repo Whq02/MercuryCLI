@@ -8,18 +8,18 @@ import { StopTaskError, stopTask, taskNotFoundWords } from '../../tasks/stopTask
 export const AGENT_STOP_SETTLE_MS = 3_000
 const SETTLE_TICK_MS = 50
 
-export type OperatorStopKind = 'agent' | 'workflow' | 'task'
+type OperatorStopKind = 'agent' | 'workflow' | 'task'
 
-export type OperatorStopReceipt =
+type OperatorStopReceipt =
   | { outcome: 'applied'; kind: OperatorStopKind; status: string }
   | { outcome: 'refused'; reason: string }
 
-export type OperatorStopContext = {
+type OperatorStopContext = {
   getAppState: () => AppState
   setAppState: SetAppState
 }
 
-export type OperatorStopOptions = {
+type OperatorStopOptions = {
   settleMs?: number
   sleep?: (ms: number) => Promise<void>
   reason?: string

@@ -23,8 +23,8 @@ export function presetNameProblem(name: string): string | null {
 export const KIT_PRESET_CAP = 200
 export const PRESET_LIST_CAP = 2000
 
-export type KitPresetReceipt = { ok: true; receipt: string } | { ok: false; reason: string }
-export type KitPresetResolve = { ok: true; deltas: KitDeltasV1 } | { ok: false; reason: string }
+type KitPresetReceipt = { ok: true; receipt: string } | { ok: false; reason: string }
+type KitPresetResolve = { ok: true; deltas: KitDeltasV1 } | { ok: false; reason: string }
 
 export function presetDeltaCount(deltas: KitDeltasV1): number {
   return deltas.mcpOff.length + Object.keys(deltas.skillStates).length + deltas.extensionsOff.length

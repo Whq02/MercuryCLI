@@ -85,7 +85,7 @@ function remember(owner: OwnerKey, record: JourneyRecord): void {
 const liveAborts = new Map<string, AbortController>()
 
 let domainInstalled = false
-export function installJourneyExecutionDomain(): void {
+function installJourneyExecutionDomain(): void {
   if (domainInstalled) return
   domainInstalled = true
   registerExecutionDomain('journey', {
@@ -103,7 +103,7 @@ installJourneyExecutionDomain()
 
 const LOOPBACK_HOSTS = new Set(['127.0.0.1', 'localhost', '::1', '[::1]'])
 
-export function isLoopbackUrl(raw: string): boolean {
+function isLoopbackUrl(raw: string): boolean {
   try {
     const u = new URL(raw)
     return LOOPBACK_HOSTS.has(u.hostname)
@@ -330,7 +330,7 @@ async function runStep(
 }
 
 
-export interface RunJourneyOptions {
+interface RunJourneyOptions {
   owner: OwnerKey
   root: string
   sessionId?: string

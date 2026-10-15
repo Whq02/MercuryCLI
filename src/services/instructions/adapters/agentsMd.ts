@@ -5,7 +5,7 @@ import { isProjectInstructionExcluded } from '../nativeSource.js'
 
 export const SHARED_INSTRUCTION_FILE = 'AGENTS.md'
 
-export const agentsMdConvention: InstructionConvention = {
+const agentsMdConvention: InstructionConvention = {
   id: 'agents-md',
   family: 'shared',
   fallback: true,

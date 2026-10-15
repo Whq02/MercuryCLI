@@ -27,9 +27,9 @@ import {
 } from './changeSetContracts.js'
 import { canonicalPathKey, sha256Hex } from './changeSetPlan.js'
 
-export const TEXT_CHANGE_SET_KIND = 'text-change-set'
+const TEXT_CHANGE_SET_KIND = 'text-change-set'
 
-export type CommitTargetKind = 'write' | 'create' | 'delete'
+type CommitTargetKind = 'write' | 'create' | 'delete'
 
 export interface CommitTarget {
   canonicalPath: string
@@ -51,7 +51,7 @@ interface PayloadTarget {
   kind?: CommitTargetKind
 }
 
-export interface TextChangeSetPayload {
+interface TextChangeSetPayload {
   v: 1 | 2
   source: string
   planDigest: string
@@ -59,7 +59,7 @@ export interface TextChangeSetPayload {
   targets: PayloadTarget[]
 }
 
-export interface CommitRequest {
+interface CommitRequest {
   ownerKey: string
   source: string
   planDigest: string
@@ -69,7 +69,7 @@ export interface CommitRequest {
   bundleRoot?: string
 }
 
-export type CommitOutcome =
+type CommitOutcome =
   | { kind: 'committed'; changedPaths: string[]; operationId: string }
   | { kind: 'replayed'; changedPaths: string[]; operationId: string }
   | { kind: 'stale'; stalePaths: string[] }
@@ -552,7 +552,7 @@ async function reconcileFromPayload(p: TextChangeSetPayload): Promise<ReconcileV
   }
 }
 
-export interface ChangeSetRecoveryOptions {
+interface ChangeSetRecoveryOptions {
   journalDir?: string
   bundleRoot?: string
 }
@@ -616,7 +616,7 @@ export async function recoverChangeSetJournal(
   return summary
 }
 
-export async function compactChangeSetBundles(
+async function compactChangeSetBundles(
   bundleRoot: string,
   journalDir: string,
 ): Promise<number> {
@@ -654,7 +654,7 @@ export async function compactChangeSetBundles(
 }
 
 
-export interface VerbatimCommitFile {
+interface VerbatimCommitFile {
   canonicalPath: string
   originalText: string
   plannedText: string

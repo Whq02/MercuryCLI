@@ -15,7 +15,7 @@ import {
   type CppProjectProfile,
 } from './cppProject.js'
 
-export type CppBuildOp = 'configure-preset' | 'configure-conventional' | 'build' | 'clean'
+type CppBuildOp = 'configure-preset' | 'configure-conventional' | 'build' | 'clean'
 
 export interface CppBuildRun {
   op: CppBuildOp
@@ -31,7 +31,7 @@ export interface CppBuildRun {
   detail: string
 }
 
-export interface CMakePresetListing {
+interface CMakePresetListing {
   state: 'ok' | 'no-presets' | 'error'
   presetsFile?: string
   configurePresets: CppCmakePreset[]

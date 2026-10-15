@@ -9,7 +9,7 @@ export const PATCH_REGISTER_BOUNDS = {
   perRegisterBytes: 256 * 1024,
 } as const
 
-export interface PatchRegister {
+interface PatchRegister {
   content: string
   fromPath: string
   cutAt: number

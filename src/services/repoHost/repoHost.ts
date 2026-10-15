@@ -82,7 +82,7 @@ function parseJson<T>(raw: string, what: string): { state: 'ok'; data: T } | Una
 }
 
 
-export interface PrSummary {
+interface PrSummary {
   number: number
   title: string
   state: string
@@ -121,7 +121,7 @@ export async function fetchPr(
   }
 }
 
-export interface IssueSummary {
+interface IssueSummary {
   number: number
   title: string
   state: string
@@ -150,7 +150,7 @@ export async function fetchIssue(
   }
 }
 
-export interface CheckRow {
+interface CheckRow {
   name: string
   status: string
   duration?: string
@@ -180,7 +180,7 @@ export async function fetchChecks(
 }
 
 
-export interface ReviewFinding {
+interface ReviewFinding {
   class: 'defect' | 'question' | 'polish'
   severity: 'blocker' | 'major' | 'minor'
   path: string
@@ -190,7 +190,7 @@ export interface ReviewFinding {
   nextAction: string
 }
 
-export interface ReviewRecord {
+interface ReviewRecord {
   schema: 1
   id: string
   at: number
@@ -212,7 +212,7 @@ export function latestReview(root: string = getCwd()): ReviewRecord | null {
   }
 }
 
-export type RecordReviewOutcome =
+type RecordReviewOutcome =
   | { state: 'ok'; record: ReviewRecord }
   | { state: 'refused'; reason: string }
 
@@ -260,7 +260,7 @@ export async function recordReview(opts: {
 }
 
 
-export interface ReviewContext {
+interface ReviewContext {
   scope: 'worktree' | `pr#${number}`
   root: string
   files: Array<{ path: string; additions: number; deletions: number }>
@@ -371,9 +371,9 @@ export function localRepoSummary(root: string = getCwd()): {
 }
 
 
-export type HostSearchKind = 'code' | 'commits' | 'prs' | 'issues'
+type HostSearchKind = 'code' | 'commits' | 'prs' | 'issues'
 
-export interface HostSearchRow {
+interface HostSearchRow {
   title: string
   repo: string
   url?: string
@@ -437,7 +437,7 @@ export async function searchHost(
 }
 
 
-export interface PrDiffFileRow {
+interface PrDiffFileRow {
   index: number
   path: string
   additions: number
@@ -519,7 +519,7 @@ export async function fetchPrDiffPage(
 }
 
 
-export interface RunRow {
+interface RunRow {
   id: string
   title: string
   workflow: string

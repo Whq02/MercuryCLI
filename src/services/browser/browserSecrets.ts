@@ -3,11 +3,11 @@ import * as fs from 'node:fs'
 import * as path from 'node:path'
 import { getMercuryHome } from '../../utils/envUtils.js'
 
-export const BROWSER_SECRET_ENV_PREFIX = 'MERCURY_BROWSER_SECRET_'
+const BROWSER_SECRET_ENV_PREFIX = 'MERCURY_BROWSER_SECRET_'
 export const BROWSER_SECRET_REF_GRAMMAR = /^[A-Z][A-Z0-9_]{0,63}$/
-export const BROWSER_SECRETS_FILENAME = 'browser-secrets.json'
+const BROWSER_SECRETS_FILENAME = 'browser-secrets.json'
 
-export type BrowserSecretResolution =
+type BrowserSecretResolution =
   | { state: 'ok'; value: string; source: 'env' | 'file' }
   | { state: 'missing' | 'refused'; note: string }
 

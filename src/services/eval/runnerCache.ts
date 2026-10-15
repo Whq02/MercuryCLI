@@ -6,7 +6,7 @@ import { getMercuryHome } from '../../utils/envUtils.js'
 import { PY_RUNNER_SOURCE } from './pyRunnerSource.js'
 import { JS_RUNNER_SOURCE } from './jsRunnerSource.js'
 
-export function evalCacheDir(): string {
+function evalCacheDir(): string {
   return join(getMercuryHome(), 'eval')
 }
 

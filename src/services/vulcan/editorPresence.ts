@@ -8,7 +8,7 @@ import {
   type GodotProcess,
 } from './godotProcessCensus.js'
 
-export type GodotEditorPresenceState = 'no-editor' | 'editor-unbridged' | 'bridge-up'
+type GodotEditorPresenceState = 'no-editor' | 'editor-unbridged' | 'bridge-up'
 
 export interface GodotEditorPresence {
   state: GodotEditorPresenceState
@@ -34,7 +34,7 @@ function installStep(addon: AddonPresenceFacts): string | null {
   return null
 }
 
-export const PRESENCE_WORDS: Record<GodotEditorPresenceState, string> = {
+const PRESENCE_WORDS: Record<GodotEditorPresenceState, string> = {
   'no-editor': 'no editor running',
   'editor-unbridged': 'editor running, bridge dark (open but unbridged)',
   'bridge-up': 'bridge up',
@@ -64,7 +64,7 @@ export function derivePresence(
   return { state, port, reachable, censusOk: census.ok, editors, processes: census.processes, words }
 }
 
-export const PRESENCE_ROLES: readonly VulcanInstanceRole[] = ['agent-editor', 'operator-editor']
+const PRESENCE_ROLES: readonly VulcanInstanceRole[] = ['agent-editor', 'operator-editor']
 
 export async function probeVulcanEditorPresence(
   projectRoot: string,

@@ -1,9 +1,9 @@
 import { noteOpenaiSourceIdentity, openaiLimitWindow, openaiObservedWall, type OpenaiLimitSource, type OpenaiLimitWindow } from './openaiLimitState.js'
 import { openaiSourceIdentity, resolveOpenaiAccount } from './openaiAccounts.js'
 
-export type OpenaiWindowFact = { source: OpenaiLimitSource; resetsAtMs: number; observedAtMs: number; state?: 'clear' }
+type OpenaiWindowFact = { source: OpenaiLimitSource; resetsAtMs: number; observedAtMs: number; state?: 'clear' }
 
-export interface OpenaiWindowReads {
+interface OpenaiWindowReads {
   activeSource: () => OpenaiLimitSource | undefined
   window: (source: OpenaiLimitSource) => OpenaiLimitWindow
   observed?: (source: OpenaiLimitSource) => { resetsAtMs: number; observedAtMs: number } | null

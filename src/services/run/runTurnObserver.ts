@@ -46,7 +46,7 @@ function lastRealUserMessage(messages: Message[]): { id: string | null; text: st
   return null
 }
 
-export function objectiveFromRequest(text: string): string {
+function objectiveFromRequest(text: string): string {
   const flat = text.replace(/\s+/g, ' ').trim()
   return flat.length > 240 ? `${flat.slice(0, 237)}…` : flat
 }

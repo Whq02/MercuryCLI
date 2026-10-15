@@ -1,7 +1,7 @@
 import { getModelUsage, getUnpricedTurns, getWorkloadUnpricedTurns, getWorkloadUsage, type ModelUsage } from '../../bootstrap/state.js'
 import type { ModelSpendRowV1 } from './types.js'
 
-export function modelSpendRowsOf(
+function modelSpendRowsOf(
   usage: { [modelName: string]: ModelUsage },
   unpriced: { [modelName: string]: number },
   workload?: string,

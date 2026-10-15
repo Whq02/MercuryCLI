@@ -1,5 +1,5 @@
 
-export type CredentialWallCause = 'sign-in' | 'key-limit'
+type CredentialWallCause = 'sign-in' | 'key-limit'
 
 export type WireCredentialKind = 'sign-in' | 'key'
 
@@ -13,7 +13,7 @@ export function isRevokedSignInText(wireText: string): boolean {
   return REVOKED_SIGN_IN.test(wireText)
 }
 
-export function isKeyLimitText(wireText: string): boolean {
+function isKeyLimitText(wireText: string): boolean {
   return KEY_LIMIT.test(wireText)
 }
 

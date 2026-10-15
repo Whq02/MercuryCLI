@@ -186,7 +186,7 @@ export function getScopeLabel(scope: ConfigScope | string): string {
   }
 }
 
-export const OPERATOR_CONFIG_SCOPES: readonly ConfigScope[] = ['local', 'user', 'project']
+const OPERATOR_CONFIG_SCOPES: readonly ConfigScope[] = ['local', 'user', 'project']
 
 export function ensureConfigScope(scope?: string): ConfigScope {
   if (scope === undefined || scope === '') return 'local'
@@ -197,7 +197,7 @@ export function ensureConfigScope(scope?: string): ConfigScope {
 
 export const MCP_CONNECT_TIMEOUT_TELEMETRY = 'MCP connection timeout'
 
-export interface McpConnectFailureContext {
+interface McpConnectFailureContext {
   transport: string
   command?: string
   url?: string
@@ -350,7 +350,7 @@ export function getProjectMcpServerStatus(
 }
 
 
-export type AgentMcpServerRow = {
+type AgentMcpServerRow = {
   name: string
   sourceAgents: string[]
   transport: 'stdio' | 'sse' | 'http' | 'ws'

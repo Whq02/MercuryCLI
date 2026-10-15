@@ -61,7 +61,7 @@ export function runningRuntime(): RunningRuntime {
   })
 }
 
-export type ProgressLine =
+type ProgressLine =
   | 'checking'
   | 'release found'
   | 'downloading'
@@ -75,7 +75,7 @@ export type ProgressLine =
 
 export type Progress = (state: ProgressLine, detail?: string) => void
 
-export function installedVersionTruth(roots: LayoutRoots): { version: string; source: 'pointer' | 'running' } {
+function installedVersionTruth(roots: LayoutRoots): { version: string; source: 'pointer' | 'running' } {
   if (foreignInstallerOf(resolveInstallProvenance()) !== null) return { version: MACRO.VERSION, source: 'running' }
   const pointer = readCurrentVersion(roots)
   if (pointer) return { version: pointer, source: 'pointer' }
@@ -83,7 +83,7 @@ export function installedVersionTruth(roots: LayoutRoots): { version: string; so
 }
 
 
-export interface ChannelStatus {
+interface ChannelStatus {
   runningVersion: string
   installedVersion: string | null
   installedPointer: 'ok' | 'absent' | 'empty' | 'unreadable'
@@ -179,7 +179,7 @@ export async function checkForUpdate(roots: LayoutRoots, progress: Progress): Pr
 
 export const NOTHING_ACTIVATED_WORDS = 'nothing was activated — the active installation was not changed'
 
-export type UpdateStage =
+type UpdateStage =
   | 'lock'
   | 'download'
   | 'checksum'
@@ -193,7 +193,7 @@ export type UpdateStage =
   | 'pointer'
   | 'post-switch-smoke'
 
-export type UpdateOutcome =
+type UpdateOutcome =
   | {
       state: 'updated'
       from: string
@@ -225,7 +225,7 @@ const sha256File = (path: string): string => createHash('sha256').update(readFil
 
 type ExtractOutcome = { state: 'ok' } | { state: 'tool-absent'; note: string } | { state: 'failed'; note: string }
 
-export function resolveWindowsShell(): string | null {
+function resolveWindowsShell(): string | null {
   for (const exe of ['pwsh', 'powershell']) {
     try {
       execFileSync(exe, ['-NoProfile', '-Command', '$PSVersionTable.PSVersion.Major'], { windowsHide: true, stdio: 'pipe', timeout: 30_000, env: { ...subprocessEnv() } })
@@ -541,7 +541,7 @@ export async function performRollback(roots: LayoutRoots, progress: Progress): P
 }
 
 
-export type InstallVerbOutcome =
+type InstallVerbOutcome =
   | {
       state: 'installed'
       version: string

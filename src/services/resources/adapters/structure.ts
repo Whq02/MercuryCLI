@@ -10,7 +10,7 @@ import {
 import { registerResourceAdapter } from '../registry.js'
 import type { ResourceAdapter, ResourceChild } from '../contracts.js'
 
-export const structureAdapter: ResourceAdapter = {
+const structureAdapter: ResourceAdapter = {
   kind: 'structure',
   describe: 'structural queries + previewed codemods (query/<id> · preview/<id>)',
   async resolve(ref, ctx) {

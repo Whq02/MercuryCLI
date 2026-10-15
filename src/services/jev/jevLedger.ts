@@ -17,11 +17,11 @@ import { type JevSettings, readJevSettings } from './jevSetting.js'
 export const JEV_PACE_WINDOW_MS = 60_000
 export const JEV_COOL_DOWN_BASE_MS = 30_000
 export const JEV_COOL_DOWN_CAP_MS = 10 * 60_000
-export const JEV_COOL_DOWN_JITTER = 0.25
-export const JEV_HOLD_CEILING_MS = 24 * 60 * 60_000
+const JEV_COOL_DOWN_JITTER = 0.25
+const JEV_HOLD_CEILING_MS = 24 * 60 * 60_000
 const STREAK_DECAY_MS = 2 * JEV_COOL_DOWN_CAP_MS
 
-export interface JevWireRecord extends JevWireFailure {
+interface JevWireRecord extends JevWireFailure {
   at: number
 }
 
@@ -43,7 +43,7 @@ export interface JevLedgerSnapshot {
   lastModel: string | null
 }
 
-export type JevAdmission = { ok: true } | { ok: false; kind: JevLocalRefusalKind; words: string; retryInMs?: number }
+type JevAdmission = { ok: true } | { ok: false; kind: JevLocalRefusalKind; words: string; retryInMs?: number }
 
 interface LedgerState {
   spendUsd: number

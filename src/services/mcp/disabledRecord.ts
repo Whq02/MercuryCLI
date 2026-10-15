@@ -1,8 +1,8 @@
 import type { ProjectConfig } from '../../utils/config/schema.js'
 
-export type McpDisabledRecordSlice = Pick<ProjectConfig, 'disabledMcpServers' | 'enabledMcpServers'>
+type McpDisabledRecordSlice = Pick<ProjectConfig, 'disabledMcpServers' | 'enabledMcpServers'>
 
-export const DEFAULT_DISABLED_BUILTIN_SERVERS: ReadonlySet<string> = new Set()
+const DEFAULT_DISABLED_BUILTIN_SERVERS: ReadonlySet<string> = new Set()
 
 export function isMcpServerDisabledIn(slice: McpDisabledRecordSlice, name: string): boolean {
   if (DEFAULT_DISABLED_BUILTIN_SERVERS.has(name)) {

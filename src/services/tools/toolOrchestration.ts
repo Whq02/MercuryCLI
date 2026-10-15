@@ -13,7 +13,7 @@ import { parkBeforeTool } from '../../run-core/pauseGate.js'
 import { randomUUID } from 'node:crypto'
 
 
-export type MessageUpdate = {
+type MessageUpdate = {
   message?: Message
   newContext: ToolUseContext
 }

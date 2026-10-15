@@ -11,7 +11,7 @@ export const NO_CHANGE_REPETITION_CEILING = 3
 
 const PATH_ENTRY_CAP = 128
 
-export interface NoChangeObservation {
+interface NoChangeObservation {
   operation: string
   path: string
   revision: string
@@ -44,7 +44,7 @@ registerOwnerScopedStore(store)
 const CASE_INSENSITIVE_FS =
   process.platform === 'darwin' || process.platform === 'win32'
 
-export function canonicalNoChangePath(path: string): string {
+function canonicalNoChangePath(path: string): string {
   const expanded = expandPath(path)
   let canonical: string
   try {
@@ -140,7 +140,7 @@ export function noteSuccessfulMutation(
 }
 
 let installed = false
-export function installRepetitionResetObserver(): void {
+function installRepetitionResetObserver(): void {
   if (installed) return
   installed = true
   subscribeToolTerminal(event => {

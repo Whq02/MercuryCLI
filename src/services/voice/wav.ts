@@ -1,7 +1,7 @@
 
 export const VOICE_SAMPLE_RATE = 16_000
-export const VOICE_CHANNELS = 1
-export const VOICE_BITS_PER_SAMPLE = 16
+const VOICE_CHANNELS = 1
+const VOICE_BITS_PER_SAMPLE = 16
 
 const RIFF_HEADER_BYTES = 44
 
@@ -30,7 +30,7 @@ export function encodeWav(
   return Buffer.concat([header, data])
 }
 
-export interface WavHeader {
+interface WavHeader {
   sampleRate: number
   channels: number
   bitsPerSample: number
@@ -38,7 +38,7 @@ export interface WavHeader {
   dataBytes: number
 }
 
-export type WavRead = { ok: true; header: WavHeader; pcm: Buffer } | { ok: false; reason: string }
+type WavRead = { ok: true; header: WavHeader; pcm: Buffer } | { ok: false; reason: string }
 
 export function readWav(buf: Buffer): WavRead {
   if (buf.length < RIFF_HEADER_BYTES) return { ok: false, reason: `too short for a WAV header (${buf.length} bytes)` }
@@ -93,7 +93,7 @@ export function pcmDurationMs(pcm: Buffer | Int16Array, sampleRate = VOICE_SAMPL
   return Math.round((samples / channels / sampleRate) * 1000)
 }
 
-export const SILENCE_PEAK = 8
+const SILENCE_PEAK = 8
 
 export function pcmIsSilent(pcm: Buffer | Int16Array, peak = SILENCE_PEAK): boolean {
   const samples = Buffer.isBuffer(pcm) ? pcmSamples(pcm) : pcm

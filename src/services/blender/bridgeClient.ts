@@ -17,7 +17,7 @@ import { blenderBridgeTokenOverride } from '../../utils/blender/bridgeGates.js'
 
 export type { BlenderBridgeError, BlenderBridgeResult } from './bridgeProtocol.js'
 
-export interface BlenderBridgeEvent {
+interface BlenderBridgeEvent {
   event: string
   data: unknown
   at: number

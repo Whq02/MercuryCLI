@@ -8,7 +8,7 @@ import { configuredSearxngInstances, SEARXNG_RATE_POLICY, type SearxngInstance }
 const failed = new Map<string, string>()
 let cursor = 0
 export function resetSearxngSession(): void { failed.clear(); cursor = 0 }
-export function decodeSearxng(body: unknown): SearchHit[] | undefined {
+function decodeSearxng(body: unknown): SearchHit[] | undefined {
   if (typeof body !== 'object' || body === null || !Array.isArray((body as { results?: unknown }).results)) return undefined
   const hits: SearchHit[] = []
   for (const raw of (body as { results: unknown[] }).results) {

@@ -15,7 +15,7 @@ import {
 } from './contracts.js'
 import { noteSelfWrite } from './watch.js'
 
-export type AgentStoreErrorCode =
+type AgentStoreErrorCode =
   | 'validation'
   | 'revision-conflict'
   | 'source-missing'
@@ -38,7 +38,7 @@ export class AgentStoreError extends Error {
   }
 }
 
-export type AgentSaveReceipt = {
+type AgentSaveReceipt = {
   path: string
   beforeRevision?: string
   afterRevision: string
@@ -47,11 +47,11 @@ export type AgentSaveReceipt = {
   at: string
 }
 
-export type AgentSaveTarget =
+type AgentSaveTarget =
   | { kind: 'existing'; identity: AgentFileIdentity }
   | { kind: 'new'; scope: 'user' | 'project'; cwd: string; slug: string }
 
-export function newAgentDirectory(
+function newAgentDirectory(
   scope: 'user' | 'project',
   cwd: string,
 ): string {
@@ -376,7 +376,7 @@ export async function restoreAgentFromTrash(
 }
 
 
-export type AgentDraft = {
+type AgentDraft = {
   version: 1
   savedAt: string
   baseIdentity?: AgentFileIdentity

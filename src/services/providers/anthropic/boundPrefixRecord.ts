@@ -9,11 +9,11 @@ import { getConversationToolSchemas } from '../../../utils/toolSchemaCache.js'
 import { clearSystemPromptSections } from '../../../constants/systemPromptSections.js'
 import { restoreWholeRecordedComposition, staticCompositionChanged } from '../../../prompt/recordedComposition.js'
 
-export interface BoundPrefixRecordOptions {
+interface BoundPrefixRecordOptions {
   rosterOnly?: boolean
 }
 
-export interface BoundPrefixRecordData {
+interface BoundPrefixRecordData {
   boundKey: string
   rosterEnabled: boolean
   roster: BoundPrefixToolMark[]

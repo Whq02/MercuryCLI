@@ -7,7 +7,7 @@ const INPUT_CAP_BYTES = 32 * 1024 * 1024
 const CASE_CAP = 200
 const MESSAGE_CAP = 2_000
 
-export interface UnityTestRunParse {
+interface UnityTestRunParse {
   state: 'ok'
   result: string
   counts: { passed: number; failed: number; skipped: number; errored: number }
@@ -19,12 +19,12 @@ export interface UnityTestRunParse {
   verdictNote?: string
 }
 
-export interface UnityTestRunRejected {
+interface UnityTestRunRejected {
   state: 'rejected'
   reason: string
 }
 
-export type UnityTestResultsOutcome = UnityTestRunParse | UnityTestRunRejected
+type UnityTestResultsOutcome = UnityTestRunParse | UnityTestRunRejected
 
 function decodeXmlText(raw: string): string {
   const cdata = raw.match(/^<!\[CDATA\[([\s\S]*?)\]\]>$/)
