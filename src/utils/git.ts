@@ -1,6 +1,6 @@
 import { execFile } from 'node:child_process'
 import { existsSync, lstatSync, readFileSync, readlinkSync, realpathSync, statSync, accessSync, constants as fsConstants } from 'node:fs'
-import { basename, dirname, isAbsolute, join, resolve, sep } from 'node:path'
+import { basename, dirname, isAbsolute, join, parse, resolve, sep } from 'node:path'
 
 import { LRUCache } from 'lru-cache'
 import { memoize } from 'lodash-es'
@@ -608,8 +608,14 @@ function isUncRoot(path: string): boolean {
   return /^(\\\\|\/\/)[^\\/]+[\\/][^\\/]+/.test(path)
 }
 
+function rootAndRest(path: string): { root: string; rest: string } {
+  const root = parse(path).root || sep
+  return { root, rest: root === sep ? path : path.slice(root.length) }
+}
+
 function resolveLexicallyHardened(path: string): string | undefined {
-  let components = path.split(/[\\/]+/)
+  let { root, rest } = rootAndRest(path)
+  let components = rest.split(/[\\/]+/)
   let resolvedParts: string[] = []
   let hops = 0
   let index = 0
@@ -621,7 +627,7 @@ function resolveLexicallyHardened(path: string): string | undefined {
       resolvedParts.pop()
       continue
     }
-    const candidate = sep + [...resolvedParts, component].join(sep)
+    const candidate = root + [...resolvedParts, component].join(sep)
     let stats
     try {
       stats = lstatSync(candidate)
@@ -643,13 +649,14 @@ function resolveLexicallyHardened(path: string): string | undefined {
     const remaining = components.slice(index)
     if (isAbsolute(target)) {
       resolvedParts = []
-      components = [...target.split(/[\\/]+/), ...remaining]
+      ;({ root, rest } = rootAndRest(target))
+      components = [...rest.split(/[\\/]+/), ...remaining]
     } else {
       components = [...target.split(/[\\/]+/), ...remaining]
     }
     index = 0
   }
-  return sep + resolvedParts.join(sep)
+  return root + resolvedParts.join(sep)
 }
 
 function canonicalizeForGate(path: string): string {
@@ -715,16 +722,33 @@ function classifyRedirectTarget(target: string, canonicalCwd: string): GitEntryC
   }
   const lexical = resolveLexicallyHardened(resolve(target))
   if (lexical === undefined) return 'plantable'
-  let canonicalTarget: string
+  let realTarget: string
   try {
-    canonicalTarget = realpathSync(lexical).normalize('NFC').toLowerCase()
+    realTarget = realpathSync(lexical)
   } catch {
     return 'plantable'
   }
+  const canonicalTarget = realTarget.normalize('NFC').toLowerCase()
   if (isInsideDirectory(canonicalTarget, canonicalCwd)) return 'plantable'
   const hasGitSegment = canonicalTarget.split(/[\\/]+/).some(segment => segment.toLowerCase() === '.git')
   if (!hasGitSegment) return 'plantable'
-  return isTrustedGitDirectory(canonicalTarget) ? 'trusted' : 'none'
+  if (isTrustedGitDirectory(realTarget)) return 'trusted'
+  return linkedWorktreeAdminClass(realTarget, canonicalCwd)
+}
+
+function linkedWorktreeAdminClass(adminDir: string, canonicalCwd: string): GitEntryClass {
+  if (!hasValidHead(adminDir)) return 'none'
+  const pointer = join(adminDir, 'commondir')
+  let common: string
+  try {
+    const stats = lstatSync(pointer)
+    if (!stats.isFile() || stats.size > GITDIR_FILE_MAX_BYTES) return 'none'
+    common = readFileSync(pointer, 'utf8').replace(/[\r\n]+$/, '')
+  } catch {
+    return 'none'
+  }
+  if (common === '') return 'none'
+  return classifyRedirectTarget(isAbsolute(common) ? common : resolve(adminDir, common), canonicalCwd) === 'trusted' ? 'trusted' : 'none'
 }
 
 function classifyGitEntry(directory: string, canonicalCwd: string): GitEntryClass {
