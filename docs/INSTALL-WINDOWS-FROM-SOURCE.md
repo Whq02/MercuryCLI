@@ -272,9 +272,9 @@ transcriber, each says so and skips: Mercury runs without voice input, voice
 takes go to a cloud transcriber, memory runs word match only, and the Bash tool
 keeps Git for Windows' bash (the health check names each remedy). A release
 archive always carries the engine, the embedding pack and the model; only a
-source build without cargo lacks them. On Windows this release runs the
-embedding pack on the plain maths loop, so a Recall by meaning takes about a
-second and a half instead of a few hundredths, and a faster kernel follows.
+source build without cargo lacks them. On Windows the embedding pack runs a
+vectorised maths kernel, so a Recall by meaning takes about a tenth of a
+second.
 
 Build the desktop driver for the Computer tool with the same Rust toolchain
 (cargo) before step 8:
