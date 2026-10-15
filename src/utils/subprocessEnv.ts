@@ -1,3 +1,4 @@
+import { getIsNonInteractiveSession } from '../bootstrap/state.js'
 import { ALL_PROVIDER_CREDENTIAL_ENV_VARS } from '../services/providers/credentialEnvSpellings.js'
 import { isEnvTruthy } from './envUtils.js'
 import { AGENT_CLI_SESSION_ENV_VARS, AGENT_CLI_TOKEN_FD_ENV_VARS } from './knownAgentClis.js'
@@ -38,6 +39,18 @@ const CI_SCRUB_VARS: readonly string[] = [
 
 const BROWSER_SECRET_PREFIX = 'MERCURY_BROWSER_SECRET_'
 
+export const HEADLESS_CHILD_DEFAULTS: Readonly<Record<string, string>> = {
+  GIT_TERMINAL_PROMPT: '0',
+  PAGER: 'cat',
+  GIT_PAGER: 'cat',
+}
+
+export function headlessChildDefaultsOwed(env: NodeJS.ProcessEnv): string[] {
+  if (!getIsNonInteractiveSession()) return []
+  const present = new Set(Object.keys(env).map(nameKey))
+  return Object.keys(HEADLESS_CHILD_DEFAULTS).filter(name => !present.has(nameKey(name)))
+}
+
 function nameKey(name: string): string {
   return process.platform === 'win32' ? name.toUpperCase() : name
 }
@@ -56,11 +69,13 @@ export function subprocessEnv(): NodeJS.ProcessEnv {
   const hasTokenVar = ALWAYS_STRIP_TOKEN_VARS.some(name => env[name] !== undefined)
   const hasOtelVar = Object.keys(env).some(key => nameKey(key).startsWith('OTEL_'))
   const hasBrowserSecret = Object.keys(env).some(key => nameKey(key).startsWith(BROWSER_SECRET_PREFIX))
-  if (!scrubForCI && !isolateCredentials && !hasTokenVar && !hasOtelVar && !hasBrowserSecret) {
+  const owedDefaults = headlessChildDefaultsOwed(env)
+  if (!scrubForCI && !isolateCredentials && !hasTokenVar && !hasOtelVar && !hasBrowserSecret && owedDefaults.length === 0) {
     return env
   }
 
   const clone: NodeJS.ProcessEnv = { ...env }
+  for (const name of owedDefaults) clone[name] = HEADLESS_CHILD_DEFAULTS[name]
   deleteNames(clone, ALWAYS_STRIP_TOKEN_VARS)
   for (const key of Object.keys(clone)) {
     const folded = nameKey(key)

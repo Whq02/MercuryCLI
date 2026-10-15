@@ -76,8 +76,11 @@ section('§3 the isolation flag and the hot path')
   const ambient = subEnvModule.subprocessEnv()
   check('unarmed: ambient inheritance, byte-identical', ambient.OPENROUTER_API_KEY === 'fixture-openrouter-secret')
   delete process.env.OPENROUTER_API_KEY
+  const { setIsInteractive } = await import('../../src/bootstrap/state.ts')
+  setIsInteractive(true)
   const hot = subEnvModule.subprocessEnv()
-  check('the hot path returns the LIVE env by reference when nothing needs stripping', hot === process.env)
+  check('the hot path returns the LIVE env by reference when nothing needs stripping (an interactive session: a headless one owes its children the non-interactive stamps and is a copy)', hot === process.env)
+  setIsInteractive(false)
 }
 
 section('§4 the CI scrub armed: every spelling and its INPUT_ twin')
