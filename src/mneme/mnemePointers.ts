@@ -132,7 +132,8 @@ export function ledgerPointers(query: string, sessions: readonly LedgerEntry[], 
   const count = sessions.length
   const scored: Array<{ pointer: MemoryPointer; score: number; ordinal: number }> = []
   for (const s of sessions) {
-    const handoff = s.handoff?.text ?? ''
+    if (s.endedAt === null || !s.handoff?.text.trim()) continue
+    const handoff = s.handoff.text
     const handoffWords = matchedWords(handoff, ms)
     if (handoff !== '' && (pattern.test(handoff) || handoffWords.length > 0)) {
       scored.push({
@@ -166,6 +167,11 @@ export function ledgerPointers(query: string, sessions: readonly LedgerEntry[], 
   return scored.slice(0, Math.max(0, limit)).map(x => x.pointer)
 }
 
+function wantsLedger(query: string): boolean {
+  return /\bledger\b|\b(?:session|handoff)s?\s*#?\d+\b/i.test(query)
+    || /^(?:(?:show|find|read|open|list|search|recall|summari[sz]e)\s+(?:(?:me|the|a|all|our|my|last|latest|previous|recent)\s+)*(?:sessions?|handoffs?)\b|(?:which|what)\s+(?:(?:previous|last|recent)\s+)?(?:session|handoff)\b|handoffs?(?:\s+(?:for|from|of|about)\b|$)|sessions?$)/i.test(query.trim())
+}
+
 export function searchPointers(
   query: string,
   opts: { dir?: string; limit?: number; sessions?: readonly LedgerEntry[]; now?: Date } = {},
@@ -178,26 +184,23 @@ export function searchPointers(
   const rows = liveRows(dir)
   const pinned = new Set(readPins(dir).map(p => p.seq))
   const ms = matchers(query)
-  const pointers: MemoryPointer[] = ledgerPointers(query, sessions)
-  const seen = new Set(pointers.map(p => p.id))
-  let cut = recall.cut.hits
-  let cutStale = recall.cut.stale
+  const facts: MemoryPointer[] = []
+  const seen = new Set<string>()
   for (const hit of recall.hits) {
     if (seen.has(hit.id)) continue
     const seq = /^seq:(\d+)$/.exec(hit.id)
     const pointer = factPointer(hit, seq ? rows.get(Number(seq[1])) : undefined, pinned, ms, ctx)
     if (!pointer) continue
-    if (pointers.length >= limit) {
-      cut++
-      if (hit.status === 'stale') cutStale++
-      continue
-    }
     seen.add(pointer.id)
-    pointers.push(pointer)
+    facts.push(pointer)
   }
+  const ledger = ledgerPointers(query, sessions)
+  const pointers = wantsLedger(query) ? [...ledger, ...facts] : [...facts, ...ledger]
   const offered = pointers.slice(0, limit)
+  const stale = new Set(recall.hits.filter(hit => hit.status === 'stale').map(hit => hit.id))
+  const cutStale = recall.cut.stale + pointers.slice(limit).filter(p => stale.has(p.id)).length
   noteMemoryOffered(query, offered, dir)
-  return { pointers: offered, elidable: pointers.length === 0, catalog: recall.catalog, found: offered.length + cut, cutStale }
+  return { pointers: offered, elidable: pointers.length === 0, catalog: recall.catalog, found: pointers.length + recall.cut.hits, cutStale }
 }
 
 export function limitCutLine(result: Pick<PointerResult, 'pointers' | 'found' | 'cutStale'>): string | null {
