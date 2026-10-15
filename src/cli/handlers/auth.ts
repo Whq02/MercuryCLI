@@ -19,6 +19,7 @@ import {
 } from '../../utils/config.js'
 import { logError } from '../../utils/log.js'
 import { recordSignIn } from '../../utils/accounts/signInLedger.js'
+import { signInsEstate, withPinnedSignInHome } from '../../utils/accounts/signInPockets.js'
 import { OAuthService } from '../../services/oauth/index.js'
 import {
   createAndStoreApiKey,
@@ -52,7 +53,11 @@ function logoutPreservingOnboarding(): void {
   }
 }
 
-export async function installOAuthTokens(tokens: OAuthTokens): Promise<void> {
+export function installOAuthTokens(tokens: OAuthTokens): Promise<void> {
+  return withPinnedSignInHome('anthropic', signInsEstate(), () => installOAuthTokensOnTheHome(tokens))
+}
+
+async function installOAuthTokensOnTheHome(tokens: OAuthTokens): Promise<void> {
   logoutPreservingOnboarding()
 
   const rawProfile = tokens.profile

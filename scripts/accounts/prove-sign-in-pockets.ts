@@ -224,6 +224,22 @@ section('§9 the model-use ledger row names the sign-in that spends, and reads b
   check('a row without a sign-in reads as before', plain && readModelUseLedger(HOME).zai?.model === 'glm-5' && readModelUseLedger(HOME).zai?.identity === undefined)
 }
 
+section('§10 the headless door (mercury auth login) acts on the home sign-in whatever pocket a project chose: its pin outranks the session and project choice')
+{
+  const authSrc = readFileSync(join(REPO, 'src', 'cli', 'handlers', 'auth.ts'), 'utf8')
+  check('installOAuthTokens runs its whole body under the home pin', /export function installOAuthTokens\(tokens: OAuthTokens\): Promise<void> \{\n  return withPinnedSignInHome\('anthropic', signInsEstate\(\), \(\) => installOAuthTokensOnTheHome\(tokens\)\)/.test(authSrc))
+  const anthropicPocket = join(HOME, 'sign-ins', 'anthropic', 'bob@work.example')
+  mkdirSync(anthropicPocket, { recursive: true })
+  pockets.setProjectSignIn('anthropic', { identity: 'bob@work.example', dir: anthropicPocket, kind: 'subscription' })
+  pockets.setSessionSignIn('anthropic', { identity: 'bob@work.example', dir: anthropicPocket, kind: 'subscription' })
+  const storage = await import('../../src/utils/secureStorage/index.ts')
+  check('outside the pin the family storage is the pocket', storage.getSecureStorage('anthropic').name.includes('sign-in pocket'))
+  const underPin = pockets.withPinnedSignInHome('anthropic', pockets.signInsEstate(), () => ({ home: pockets.signInHome('anthropic'), pocket: pockets.pocketInUse('anthropic'), storage: storage.getSecureStorage('anthropic').name }))
+  check('under the pin the family reads the home: no pocket in use, the home storage', underPin.home === HOME && underPin.pocket === undefined && !underPin.storage.includes('sign-in pocket'), JSON.stringify(underPin))
+  check('after the pin the session choice stands again', pockets.pocketInUse('anthropic') === anthropicPocket)
+  pockets.clearSignInChoices()
+}
+
 rmSync(HOME, { recursive: true, force: true })
 console.log(failures === 0 ? '\n✅ SIGN-IN POCKETS GREEN' : `\n❌ SIGN-IN POCKETS RED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
