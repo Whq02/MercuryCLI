@@ -528,7 +528,7 @@ export async function runForegroundAgentExecution(
                 canReadOutputFile,
                 ...(modelNote ? { modelNote } : {}),
                 ...(name !== undefined ? { agentName: name } : {}),
-                backgroundReason: handedByTurnAbort ? 'turn-interrupted' : sibling !== null ? 'sibling-ended' : 'backgrounded',
+                backgroundReason: handedByTurnAbort ? 'turn-interrupted' : sibling !== null ? 'sibling-ended' : task.handoverReason ?? 'backgrounded',
                 ...(sibling !== null && !handedByTurnAbort ? { siblingEnd: sibling } : {}),
               },
             }

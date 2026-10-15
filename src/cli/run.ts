@@ -202,7 +202,7 @@ import {
   holdQueuedWordsForTurnEnd,
 } from '../utils/messageQueueManager.js'
 import type { BatchedPrompt, QueuedCommand } from '../types/textInputTypes.js'
-import { isHeldNotice, isOperatorLine, subscribeQueueConsumption } from '../input-core/command-queue.js'
+import { isHeldNotice, isOperatorLine, queuedWordsWaitForTurnEnd, subscribeQueueConsumption } from '../input-core/command-queue.js'
 import { notifyCommandLifecycle } from '../utils/commandLifecycle.js'
 import { agentRecipientState, MAIN_THREAD_AGENT, noticeDeadlineMs, nudgeWords, startIdleNudge } from '../services/notices/idleNudge.js'
 import { noticeRows, type NoticeRecord } from '../services/notices/unreadLedger.js'
@@ -254,7 +254,7 @@ import { skillChangeDetector } from '../utils/skills/skillChangeDetector.js'
 import { armRunnerAgentFreshness } from './agentFreshness.js'
 import { installWireStdoutGuard } from '../utils/wireStdoutGuard.js'
 import { getRunningTasks, POLL_INTERVAL_MS } from '../utils/task/framework.js'
-import { AGENT_INTERRUPT_BY_OPERATOR, AGENT_RESUME_NOTE, enqueueAgentReceiptRow, isLocalAgentTask, queueOperatorMessage } from '../tasks/LocalAgentTask/LocalAgentTask.js'
+import { AGENT_INTERRUPT_BY_OPERATOR, AGENT_RESUME_NOTE, enqueueAgentReceiptRow, handOverForegroundAgentsToQueuedMessage, isLocalAgentTask, queueOperatorMessage } from '../tasks/LocalAgentTask/LocalAgentTask.js'
 import { stopAgentByOperator } from '../services/agents/operatorStop.js'
 import { openaiCatalogueFact, primeOpenaiCatalogue, readOpenaiAccountAgain } from '../services/providers/openai/openaiCatalogue.js'
 import { markSessionBootRules, markSessionNonInteractive, markSessionPermissionMode } from '../utils/cockpit/runtimePosture.js'
@@ -1629,14 +1629,18 @@ export async function runHeadless(
       return { accepted: true }
     }
     const sentAt = typeof input.sentAt === 'string' && Number.isFinite(Date.parse(input.sentAt)) ? input.sentAt : new Date().toISOString()
+    const stamp = saturnQueueStamp(input.origin)
     enqueue({
       value: input.kind === 'shell' ? input.command : input.content,
       mode: input.kind === 'shell' ? 'bash' : 'prompt',
       sentAt,
       ...(uuid !== undefined ? { uuid: uuid as UUID } : {}),
       ...(input.priority !== undefined ? { priority: input.priority } : {}),
-      ...saturnQueueStamp(input.origin),
+      ...stamp,
     })
+    if (input.kind === 'prompt' && input.priority !== 'later' && !('origin' in stamp) && driver.isRunning() && !queuedWordsWaitForTurnEnd()) {
+      handOverForegroundAgentsToQueuedMessage(getAppState, setAppState)
+    }
     driver.kick()
     return { accepted: true }
   }
