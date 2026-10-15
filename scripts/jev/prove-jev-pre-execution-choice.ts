@@ -87,6 +87,38 @@ section('§3 choices that are not between file paths, and questions that are not
   check('a score question is untouched', assemble([{ issue: 'x' }], [score]).ok)
 }
 
+section('§4 what reads as a file path: a slash alone is not a path cue')
+{
+  const pair = (a: string, b: string): Question => ({ id: 'pick', kind: 'choice', ask: 'Which?', options: { [a]: null, [b]: null }, allow_none: false })
+  const notPaths: Array<[string, string]> = [
+    ['origin/main', 'origin/topic'],
+    ['yes/no', 'maybe/later'],
+    ['A/B', 'B/A'],
+    ['10/15', '10/16'],
+    ['@scope/alpha', '@scope/beta'],
+    ['either/or', 'both/neither'],
+    ['src/components', 'src/screens'],
+  ]
+  for (const [a, b] of notPaths) check(`${a} vs ${b}: not a pick between files, assembled`, assemble([{ issue: 'x' }], [pair(a, b)]).ok, reasonOf(assemble([{ issue: 'x' }], [pair(a, b)])))
+  const paths: Array<[string, string]> = [
+    ['src/parser.ts', 'src/lexer.ts'],
+    ['a/b/c', 'a/b/d'],
+    ['src/', 'docs/'],
+    ['/repo/a.ts', '/repo/b.ts'],
+    ['./x', './y'],
+    ['../other/x', '../other/y'],
+    ['~/notes', '~/drafts'],
+    ['src/a.ts:12', 'src/b.ts:40-44'],
+    ['README.md', 'CHANGELOG.md'],
+    ['main.py', 'util.py'],
+    ['src\\a.ts', 'src\\b.ts'],
+    ['C:\\repo\\a.ts', 'C:\\repo\\b.ts'],
+  ]
+  for (const [a, b] of paths) check(`${a} vs ${b}: a pick between files with nothing measured, refused`, !assemble([{ issue: 'x' }], [pair(a, b)]).ok, reasonOf(assemble([{ issue: 'x' }], [pair(a, b)])))
+  const mixed = pair('src/parser.ts', 'origin/main')
+  check('a path beside a branch name is not a pick between files', assemble([{ issue: 'x' }], [mixed]).ok)
+}
+
 console.log('\n' + '═'.repeat(76))
 console.log(`${failures === 0 ? 'PASS' : 'FAIL'} — prove-jev-pre-execution-choice (${checks} checks, ${failures} failures)`)
 process.exit(failures === 0 ? 0 : 1)
