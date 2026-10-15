@@ -98,9 +98,16 @@ const PIPELINES = [
   'Get-ChildItem $env:ProgramData -Recurse | Remove-Item -Recurse -Force',
   'Get-ChildItem \\\\server\\share -Recurse | Remove-Item -Recurse -Force',
 ]
-const ORDINARY_DELETES = [
+const OTHER_USER_SUBFOLDERS = [
   'Remove-Item -Recurse -Force C:\\Users\\Other\\proj\\dist',
   'Remove-Item -Recurse -Force c:/users/other/proj/node_modules',
+  'Remove-Item C:\\Users\\Other\\notes.txt',
+  'rm -rf /c/Users/Other/proj/dist',
+  'rd /s /q C:\\Users\\Other\\proj\\build',
+  'del /s /q C:\\Users\\Other\\proj\\*.log',
+  'Get-ChildItem C:\\Users\\Other\\proj -Recurse | Remove-Item -Recurse -Force',
+]
+const ORDINARY_DELETES = [
   'Remove-Item -Recurse -Force C:\\Users\\Alice\\proj\\scratch',
   'Remove-Item -Recurse -Force \\\\server\\share\\proj\\build',
   'Remove-Item -Recurse -Force //server/share/proj/build',
@@ -111,16 +118,11 @@ const ORDINARY_DELETES = [
   'Remove-Item -Recurse -Force $env:TEMP\\mercury-x',
   'Remove-Item -Recurse -Force $env:ProgramFilesMirror',
   'Remove-Item -Recurse -Force .\\dist',
-  'Remove-Item C:\\Users\\Other\\notes.txt',
   'Remove-Item -Force C:\\Windows\\Temp\\one.log',
-  'rm -rf /c/Users/Other/proj/dist',
   'rm -rf /c/Windows.old',
   'rm -rf node_modules',
-  'rd /s /q C:\\Users\\Other\\proj\\build',
   'rd /s /q build',
-  'del /s /q C:\\Users\\Other\\proj\\*.log',
   'del /q C:\\Windows\\Temp\\one.log',
-  'Get-ChildItem C:\\Users\\Other\\proj -Recurse | Remove-Item -Recurse -Force',
   'Get-ChildItem \\\\server\\share\\proj -Recurse | Remove-Item -Recurse -Force',
   'Get-ChildItem -Recurse C:\\Windows | Measure-Object',
   'Get-ChildItem C:\\Windows -Recurse | Remove-Item -Recurse -WhatIf',
@@ -159,8 +161,10 @@ async function main(): Promise<void> {
     section('§5 win32 — every refusal is the one rule, so the refusal line is the direct form\'s')
     const rules = new Set([...OTHER_HOMES, ...SYSTEM_FOLDERS, ...SHARE_ROOTS, ...PIPELINES].map(command => ruleOf(command, bashVerb(command) ? 'Bash' : undefined)))
     check('one rule names every refusal: no-root-recursive-delete', rules.size === 1 && rules.has('no-root-recursive-delete'), [...rules].join(', '))
-    section('§6 win32 — a folder inside another user\'s home, a share subfolder, a look-alike name, a single file or a -WhatIf stay the permission check\'s')
+    section('§6 win32 — the own home\'s folders, a share subfolder, a look-alike name, a system-folder file or a -WhatIf stay the permission check\'s')
     for (const command of ORDINARY_DELETES) check(`not warded: ${command}`, !refused(command, bashVerb(command) ? 'Bash' : undefined), ruleOf(command, bashVerb(command) ? 'Bash' : undefined))
+    section('§6b win32 — a folder or a file inside another user\'s home is refused by its own rule, recursive or not (the .37 ruling)')
+    for (const command of OTHER_USER_SUBFOLDERS) check(`refused by no-other-user-delete: ${command}`, ruleOf(command, bashVerb(command) ? 'Bash' : undefined) === 'no-other-user-delete', ruleOf(command, bashVerb(command) ? 'Bash' : undefined))
   } finally {
     restorePlatform()
     if (savedHome === undefined) delete process.env.HOME
@@ -175,7 +179,7 @@ async function main(): Promise<void> {
   check('rm -rf /Users still refused on this host', refused('rm -rf /Users', 'Bash'))
   check('rm -rf /System still refused on this host', refused('rm -rf /System', 'Bash'))
   check('rm -rf /Volumes/Backup still refused on this host', refused('rm -rf /Volumes/Backup', 'Bash'))
-  check('rm -rf /Users/other/proj/dist still allowed on this host', !refused('rm -rf /Users/other/proj/dist', 'Bash'))
+  check('rm -rf /Users/other/proj/dist refused on this host by no-other-user-delete (the .37 ruling)', ruleOf('rm -rf /Users/other/proj/dist', 'Bash') === 'no-other-user-delete', ruleOf('rm -rf /Users/other/proj/dist', 'Bash'))
   check('Remove-Item -Recurse -Force C:\\Users\\Other is NOT judged by the Windows set on this host', !refused('Remove-Item -Recurse -Force C:\\Users\\Other'))
   check('Remove-Item -Recurse -Force C:\\Windows is NOT judged by the Windows set on this host', !refused('Remove-Item -Recurse -Force C:\\Windows'))
 

@@ -428,7 +428,7 @@ if (cap !== null) {
     const words = panel.map(flat).filter(Boolean).join(' | ')
     check(`W1 [${label}] the panel does not read idle while the run lives`, panel.length > 0 && !panel.some(r => /\bidle\b/.test(r)), words.slice(0, 300))
     check(`W1 [${label}] the panel names the run`, panel.some(r => r.includes(WF_NAME)), words.slice(0, 300))
-    check(`W1 [${label}] the panel carries the agent fraction and the phase (0/2 crewmates · ${PHASE})`, panel.some(r => /0\/2 crewmates/.test(r)) && panel.some(r => r.includes(PHASE)), words.slice(0, 300))
+    check(`W1 [${label}] the panel carries the agent fraction before the phase prefix (0/2 crewmates · ${PHASE.slice(0, 2)})`, panel.some(r => r.includes(`0/2 crewmates · ${PHASE.slice(0, 2)}`)), words.slice(0, 300))
     check(`W1 [${label}] the panel's count agrees with the board (1 run)`, panelCount(m[label], 'WORKFLOW') === 1, `count ${panelCount(m[label], 'WORKFLOW')}`)
   }
 
