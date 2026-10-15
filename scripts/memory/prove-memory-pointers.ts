@@ -50,8 +50,8 @@ check('the answer is pointers', search.data.kind === 'pointers', String(search.d
 const pointers = (search.data.pointers ?? []) as Array<Record<string, unknown>>
 check('three pointers for three matching records (two facts and the pending row)', pointers.length === 3, JSON.stringify(pointers.map(p => p.id)))
 check(
-  'every pointer is exactly {id, title, kind, footnotes}',
-  pointers.every(p => JSON.stringify(Object.keys(p).sort()) === JSON.stringify(['footnotes', 'id', 'kind', 'title'])),
+  'every pointer carries identity, title, footnotes, source and freshness',
+  pointers.every(p => JSON.stringify(Object.keys(p).sort()) === JSON.stringify(['footnotes', 'freshness', 'id', 'kind', 'source', 'title'])),
   JSON.stringify(pointers.map(p => Object.keys(p))),
 )
 check('the pointer kinds are fact pointers', pointers.every(p => p.kind === 'fact'), JSON.stringify(pointers.map(p => p.kind)))
@@ -183,9 +183,10 @@ const handoffSearch = searchPointers('soak ring', { dir, sessions })
 const handoffPointer = handoffSearch.pointers.find(p => p.kind === 'handoff')
 check('a word of a handoff finds the handoff pointer', handoffPointer?.id === 'ledger:1', JSON.stringify(handoffSearch.pointers))
 check('the handoff title names the session, the day and the length, not the words', handoffPointer !== undefined && /^handoff of session 1 of 3 · 2026-10-09 · \d+ words · matches soak, ring$/.test(handoffPointer.title) && !handoffPointer.title.includes('centre'), handoffPointer?.title)
-check('the handoff pointer comes before the facts', handoffSearch.pointers[0]?.kind === 'handoff', JSON.stringify(handoffSearch.pointers.map(p => p.kind)))
+check('the matching fact comes before the handoff', handoffSearch.pointers[0]?.kind === 'fact', JSON.stringify(handoffSearch.pointers.map(p => p.kind)))
 const sessionPointer = searchPointers('src/release/soak.ts', { dir, sessions }).pointers.find(p => p.kind === 'session')
-check('a path a session touched finds the session pointer', sessionPointer?.id === 'ledger:2' && sessionPointer.title.startsWith('session 2 of 3 · 2026-10-10 · no note left'), JSON.stringify(sessionPointer))
+check('a session without a handoff is absent from search', sessionPointer === undefined, JSON.stringify(sessionPointer))
+check('a path touched by a session with a note finds its session pointer', searchPointers('src/deploy/gate.ts', { dir, sessions }).pointers.some(p => p.id === 'ledger:1' && p.kind === 'session'))
 const ledgerRead = readMemoryRecord('ledger:1', dir, { sessions })
 check('ledger:<ordinal> reads the entry and the handoff verbatim', ledgerRead.found === true && (ledgerRead.content ?? '').includes(sessions[0]!.handoff!.text) && (ledgerRead.content ?? '').includes('engines: engine-one from 2026-10-09T14:02:11.000+01:00'), (ledgerRead.content ?? '').slice(0, 200))
 const noNote = readMemoryRecord('ledger:2', dir, { sessions })

@@ -36,7 +36,7 @@ type InputSchema = ReturnType<typeof inputSchema>
 
 const outputSchema = lazySchema(() =>
   z.object({
-    action: z.enum(['recorded', 'updated', 'already-recorded', 'replace-miss', 'invalid']),
+    action: z.enum(['recorded', 'updated', 'already-recorded', 'replace-miss', 'invalid', 'not-recorded']),
     path: z.string().optional(),
     detail: z.string(),
   }),
@@ -50,6 +50,13 @@ function toOutput(result: CaptureResult): RecordConventionOutput {
     path: 'path' in result ? result.path : undefined,
     detail: describeCaptureResult(result),
   }
+}
+
+export const UNANSWERED_ASK = 'unansweredAsk'
+type CallInput = z.infer<InputSchema> & { [UNANSWERED_ASK]?: string }
+
+export function unansweredConventionNote(rule: string, path: string): string {
+  return `Not recorded — this run has no one to answer the ask, so nothing was written. Mercury would have asked permission to write "${rule}" into ${path}. Tell the user the convention was not recorded; a run launched with --allowed-tools ${RECORD_CONVENTION_TOOL_NAME} records it without the ask.`
 }
 
 export const RecordConventionTool = buildTool({
@@ -98,10 +105,25 @@ export const RecordConventionTool = buildTool({
       context.getAppState().toolPermissionContext,
     )
   },
+  settleUnansweredAsk(input, ask) {
+    return {
+      behavior: 'allow' as const,
+      updatedInput: { ...input, [UNANSWERED_ASK]: ask.message } as CallInput,
+      decisionReason: { type: 'other' as const, reason: `no one can answer the ask to write ${resolveCaptureTargetPath(getCwd())}; the convention is not recorded and the result says so` },
+    }
+  },
   async call(input) {
     const startedAt = Date.now()
     const cwd = getCwd()
     const intendedPath = resolveCaptureTargetPath(cwd)
+    if (typeof (input as CallInput)[UNANSWERED_ASK] === 'string') {
+      const detail = unansweredConventionNote(input.rule, intendedPath)
+      return {
+        data: { action: 'not-recorded' as const, detail },
+        changeIntent: { targetPaths: [intendedPath] },
+        effect: { outcome: 'no-change' as const, operation: 'file.convention', changedPaths: [], evidence: detail, startedAt, completedAt: Date.now() },
+      }
+    }
     const result = captureProjectInstruction({
       cwd,
       rule: input.rule,

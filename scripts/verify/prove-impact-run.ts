@@ -125,7 +125,7 @@ check('shared helper and completion paths are classified', watched.status === 0 
 for (const path of sharedPaths) check('the actual owning suite watches the path, not only the whole-tree default', classified.perPath[path].includes(path.startsWith('scripts/lib/') ? 'gate' : 'project-services'), `${path}: ${classified.perPath[path]}`)
 
 section('§5 every fold owes the whole-tree ratchets, whatever the diff touches')
-const RATCHETS = ['consistency-census', 'gate', 'identity', 'integrity', 'interaction-pure', 'primitives-kernel', 'render-engine', 'tree-ownership', 'ui-census', 'verify']
+const RATCHETS = ['consistency-census', 'gate', 'identity', 'integrity', 'interaction-pure', 'permissions', 'primitives-kernel', 'render-engine', 'tree-ownership', 'ui-census', 'verify']
 const ratchetEstate = realpathSync(mkdtempSync(join(tmpdir(), 'impact-ratchet-estate-')))
 for (const suite of ['a', ...RATCHETS]) {
   mkdirSync(join(ratchetEstate, 'scripts', suite), { recursive: true })
