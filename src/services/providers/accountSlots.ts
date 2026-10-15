@@ -1231,17 +1231,20 @@ export function deriveFamilySlotGroups(
     .map(family => {
       const home = withSignInHome(family.id, null, () => familyOwnSlots(family, providers, reads))
       const chosen = pocketInUse(family.id)
+      const envWins = home.some(slot => slot.envPinned && slot.active)
       const pockets = pocketEntries(family.id).flatMap(entry =>
-        withSignInHome(family.id, entry.dir, () => familyOwnSlots(family, providers, reads)).map(slot => ({
-          ...slot,
-          id: `${slot.id}@${entry.slug}`,
-          active: slot.active && chosen !== undefined && resolve(chosen) === resolve(entry.dir),
-          signInDir: entry.dir,
-          signInIdentity: entry.identity,
-          stateNote: `second sign-in · ${entry.identity}${slot.stateNote ? ` · ${slot.stateNote}` : ''}`,
-        })),
+        withSignInHome(family.id, entry.dir, () => familyOwnSlots(family, providers, reads))
+          .filter(slot => !slot.envPinned)
+          .map(slot => ({
+            ...slot,
+            id: `${slot.id}@${entry.slug}`,
+            active: slot.active && !envWins && chosen !== undefined && resolve(chosen) === resolve(entry.dir),
+            signInDir: entry.dir,
+            signInIdentity: entry.identity,
+            stateNote: `second sign-in · ${entry.identity}${slot.stateNote ? ` · ${slot.stateNote}` : ''}`,
+          })),
       )
-      const slots = [...home.map(slot => ({ ...slot, active: slot.active && chosen === undefined })), ...pockets]
+      const slots = [...home.map(slot => ({ ...slot, active: slot.active && (slot.envPinned || chosen === undefined) })), ...pockets]
       return { family, slots }
     })
 }

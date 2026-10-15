@@ -145,10 +145,20 @@ export function parseFamilyFocus(token: string | undefined): LoginFamilyFocus | 
   }
 }
 
-export function withLandingWords(receipt: string): string {
+export function landingLine(): string | undefined {
   const landing = takeLastLanding()
-  if (landing === undefined || landing.landed === 'first') return receipt
-  return `${receipt}\n${landingWords(landing, familyDisplayName(landing.family), accountIdentityShown())}`
+  if (landing === undefined || landing.landed === 'first') return undefined
+  return landingWords(landing, familyDisplayName(landing.family), accountIdentityShown())
+}
+
+export function withLandingWords(receipt: string): string {
+  const line = landingLine()
+  return line === undefined ? receipt : `${receipt}\n${line}`
+}
+
+function landingShadow(shadow: string | null | undefined): string | undefined {
+  const lines = [landingLine(), shadow].filter((line): line is string => typeof line === 'string')
+  return lines.length === 0 ? undefined : lines.join('\n')
 }
 
 export function signInChoiceVerb(verb: 'use' | 'forget' | 'list', rest: string[]): { words: string; changed: boolean } {
@@ -202,8 +212,8 @@ export async function call(
       context.setMessages(prev => stripSignatureBlocks(prev))
       if (success) {
         runPostLoginRefresh(context)
-        const shadow = loginShadowWarning()
-        const receipt = withLandingWords(loginSuccessReceipt(getOauthAccountInfo()?.emailAddress))
+        const shadow = landingShadow(loginShadowWarning())
+        const receipt = loginSuccessReceipt(getOauthAccountInfo()?.emailAddress)
         onDone(shadow ? `${receipt}\n${shadow}` : receipt, chain)
       } else {
         onDone('/logins closed — no credential changed', chain)
@@ -211,9 +221,10 @@ export async function call(
       void engineModel
     })()
   }
-  const completeOpenai = (result: { ok: boolean; receipt: string }): void => {
+  const completeOpenai = (outcome: { ok: boolean; receipt: string }): void => {
     context.setAppState(prev => ({ ...prev, authVersion: (prev.authVersion ?? 0) + 1 }))
-    onDone(result.ok ? withLandingWords(result.receipt) : result.receipt, chain)
+    const result = outcome.ok ? { ...outcome, receipt: withLandingWords(outcome.receipt) } : outcome
+    onDone(result.receipt, chain)
   }
   const scrollRef = React.createRef<ScrollBoxHandle>()
   openSettingsPopup({
