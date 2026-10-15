@@ -29,6 +29,7 @@ export type EngineFramework = 'unity'
 
 export interface TestCaseResult {
   id: string
+  nameParts?: string[]
   outcome: 'passed' | 'failed' | 'skipped' | 'errored'
   message?: string
   file?: string
