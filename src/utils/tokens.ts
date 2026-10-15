@@ -1,4 +1,5 @@
 import { roughTokenCountEstimationForMessages } from '../services/tokenEstimation.js'
+import { readRequestGauge } from '../services/run/requestGauge.js'
 import type { AssistantMessage, Message } from '../types/message.js'
 import type { ApiUsage } from '../types/wire.js'
 import { getTokenCountFromUsage } from './tokenUsage.js'
@@ -159,6 +160,8 @@ function compactUsageFence(
 }
 
 export function contextFill(messages: readonly Message[], model?: string): ContextFill {
+  const request = readRequestGauge(messages, model)
+  if (request) return { tokens: request.tokens, source: request.source }
   const fence = compactUsageFence(messages)
   let usageIndex = -1
   let usageTotal = 0

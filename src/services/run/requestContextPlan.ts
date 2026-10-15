@@ -23,6 +23,7 @@ import {
   noteMeasuredUsage,
 } from './contextCalibration.js'
 import { getContextEpoch, recordAppliedPlan } from './contextEpochs.js'
+import { bindRequestGauge, requestGaugeDigest, type RequestGaugeFixed, type RequestGaugeView } from './requestGauge.js'
 import {
   candidateIndexFor,
   type ContextPolicyClass,
@@ -49,6 +50,7 @@ interface RequestContextPlanInput {
   calibrationKey?: string | null
   harnessContextPolicy?: ContextPolicyClass | null
   pressurePrune?: true | { minimumTokensSaved: number }
+  fixedRequest?: RequestGaugeFixed
 }
 
 export interface RequestContextPlan {
@@ -73,8 +75,10 @@ export interface RequestContextPlan {
   tokenEstimate: {
     key: string
     estimatedTokens: number
+    baseTokens: number
     calibration: CalibrationRead
   } | null
+  gauge?: RequestGaugeView
 }
 
 function digestAndCharsOfMessages(messages: Message[]): { digest: string; chars: number } {
@@ -130,7 +134,7 @@ export function getLastAppliedPlan(owner: OwnerKey): RequestContextPlan | null {
 export function reconcileAppliedPlanUsage(owner: OwnerKey, measuredTokens: number): void {
   const est = lastAppliedPlans.peek(owner)?.plan?.tokenEstimate
   if (!est) return
-  noteMeasuredUsage(est.key, est.estimatedTokens, measuredTokens)
+  noteMeasuredUsage(est.key, est.baseTokens, measuredTokens)
 }
 
 export async function buildRequestContextPlan(
@@ -247,6 +251,7 @@ export async function buildRequestContextPlan(
     tokenEstimate = {
       key: input.calibrationKey,
       estimatedTokens: estimateTokensFromChars(chars, calibration),
+      baseTokens: estimateTokensFromChars(chars, { calibrated: false }),
       calibration,
     }
   }
@@ -270,6 +275,9 @@ export async function buildRequestContextPlan(
     unknownFields,
     selection,
     tokenEstimate,
+    ...(input.fixedRequest && input.calibrationKey ? {
+      gauge: { ...bindRequestGauge(view, input.calibrationKey, getContextEpoch(input.owner).epoch, input.fixedRequest), sourceDigest: requestGaugeDigest(afterBoundary) },
+    } : {}),
   }
   if (mode === 'apply') {
     lastAppliedPlans.get(input.owner).plan = plan
