@@ -24,7 +24,7 @@ try {
       const root = path.join(home, `${runner}-${live ? 'live' : 'standin'}`)
       mkdirSync(root)
       writeFileSync(path.join(root, 'package.json'), JSON.stringify({ private: true, devDependencies: { [runner]: '*' } }))
-      const file = runner === 'vitest' ? 'sum.test.mjs' : 'sum.test.cjs'
+      const file = runner === 'vitest' ? 'sum.test.mjs' : 'sum.test.js'
       writeFileSync(path.join(root, file), `${runner === 'vitest' ? "import {describe,it,expect} from 'vitest';" : ''}
 describe('sum', () => {
   describe('nested [suite]', () => {
