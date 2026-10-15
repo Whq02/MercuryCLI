@@ -5,6 +5,7 @@
 # gate-watch: src/services/wallet/** src/services/providers/accountSlots* src/services/providers/providerUsage*
 # gate-watch: src/services/anthropicLimits* src/services/api/usage* src/services/providers/providerUsability*
 # gate-watch: src/bootstrap/state.ts src/cli/run.ts src/commands/effectiveCatalogue.ts
+# gate-watch: src/utils/accounts/signInPockets.ts
 # gate-watch: src/commands/logout/logout.tsx src/commands/router/router.tsx src/components/*
 # gate-watch: src/components/Settings/Config.tsx src/components/Settings/Usage.tsx src/daemon/saturnAccount.ts
 # gate-watch: src/components/Settings/usageLine.ts src/hooks/useDisplayedSessionModel.ts src/services/providers/zai/zaiCodec.ts

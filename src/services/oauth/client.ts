@@ -16,9 +16,6 @@ import {
 } from '../../utils/auth.js'
 import { getGlobalConfig, saveGlobalConfig, type AccountInfo } from '../../utils/config.js'
 import { logForDebugging } from '../../utils/debug.js'
-import { readFileSync } from 'node:fs'
-import { durableAtomicPublishSync } from '../../substrate/durablePublish.js'
-import { globalConfigFileIn } from '../../utils/env.js'
 import { getAuthScope } from '../../utils/envUtils.js'
 import { landSignIn, pocketInUse } from '../../utils/accounts/signInPockets.js'
 import { credentialFingerprint } from '../providers/credentialIdentity.js'
@@ -586,22 +583,15 @@ export function storeLandedOAuthAccountInfo(info: AccountInfo): void {
     storeOAuthAccountInfo(info)
     return
   }
-  const file = globalConfigFileIn(pocket)
-  let parsed: Record<string, unknown> = {}
-  try {
-    const raw = JSON.parse(readFileSync(file, 'utf8')) as unknown
-    if (typeof raw === 'object' && raw !== null && !Array.isArray(raw)) parsed = raw as Record<string, unknown>
-  } catch {
-    parsed = {}
-  }
-  const existing = parsed.oauthAccount as { accountUuid?: string } | undefined
-  if (existing?.accountUuid !== info.accountUuid) {
+  const { healScopeIdentitySnapshot } = require('../../utils/accounts/accountIdentity.js') as typeof import('../../utils/accounts/accountIdentity.js')
+  const { readScopeIdentity, scopeIdentityFile } = require('../../utils/accounts/scopeScan.js') as typeof import('../../utils/accounts/scopeScan.js')
+  if (readScopeIdentity(scopeIdentityFile(pocket)).uuid !== info.accountUuid) {
     try {
       const { resetLimitsForCredentialSwitch } = require('../anthropicLimits.js') as typeof import('../anthropicLimits.js')
       resetLimitsForCredentialSwitch()
     } catch {
-      parsed = { ...parsed }
+      logForDebugging('[accounts] the usage window reset could not run for the pocket sign-in')
     }
   }
-  durableAtomicPublishSync(file, `${JSON.stringify({ ...parsed, oauthAccount: info }, null, 2)}\n`)
+  healScopeIdentitySnapshot(pocket, { email: info.emailAddress, ...(info.accountUuid ? { uuid: info.accountUuid } : {}) }, info as unknown as Record<string, unknown>)
 }
