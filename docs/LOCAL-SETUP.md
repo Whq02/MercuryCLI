@@ -1,11 +1,11 @@
 # Local model set-up: `/localsetup`
 
-`/localsetup` sets up a local model from inside Mercury. It finds Ollama on
-this machine or offers to install it, starts the server, asks which model —
-every model the server already has, and every Qwen 3.5 size it can pull that
-fits this machine's memory — pulls the chosen one when the server does not
-have it, sets that model's window from this machine's memory, and ends with
-the model picked and a reply proven. Every step says what it will run and
+`/localsetup` sets up a local model from inside Mercury. It finds Ollama or
+prompts to install it, starts the server, asks which model (listing
+every model the server already has and every Qwen 3.5 size it can pull that
+fits your machine's memory), pulls the chosen one when the server does not
+have it, sets that model's window from your machine's memory, and ends with
+the model picked and a reply verified. Every step says what it will run and
 asks before it runs it; nothing runs before you press Enter on that step, and
 `esc` stops the road at any point and says what is done and what is not. The
 choice pre-ticks nothing: `esc` on the model list keeps the model the session
@@ -19,8 +19,8 @@ installs or starts nothing.
 
 When discovery finds no local server, one line names the road on every surface
 that names local models: the model picker's LOCAL section (`no local server · s
-sets one up` — `s` opens the dialog there), the Boot face's local line, the
-`/config` Local account row and the `/usage` popup's local block (`no sign-in —
+sets one up`, where `s` opens the dialog), the home screen's local line, the
+`/config` Local account row and the `/usage` popup's local block (`no sign-in ·
 start a local server, or /localsetup sets one up`), and the refusal a request
 for an undiscovered `local/<model>` gets. Everywhere else the command is
 `/localsetup`.
@@ -31,7 +31,7 @@ The road runs as a stepwise dialog in the same floating window every other
 pop-up uses. Each step shows three lines:
 
 1. what it found;
-2. what it **will run** — the exact command or HTTP request, verbatim, on one
+2. what it **will run**: the exact command or HTTP request, verbatim, on one
    line (a long line is clipped in its cell, never wrapped into a neighbour);
 3. the keys: `↵ run · s skip · esc stop`.
 
@@ -48,16 +48,16 @@ everything as it stands.
 
 1. **Find a server.** The four local servers are probed (Ollama, LM Studio,
    vLLM, llama.cpp; `MERCURY_LOCAL_PROBE_TARGETS` is honoured). Ollama
-   answering — with models or with none — jumps to step 4. LM Studio, vLLM or
+   answering (with models or with none) jumps to step 4. LM Studio, vLLM or
    llama.cpp answering with a model, while Ollama lists none, ends the road at
    step 6 with that server's model. Nothing answering goes on to step 2.
-2. **Find Ollama on this machine.** In order: `ollama` on PATH, the app
+2. **Find Ollama.** In order: `ollama` on PATH, the app
    (`/Applications/Ollama.app`, `~/Applications/Ollama.app`), Homebrew (`brew
    list --formula ollama` when `brew` exists), the Linux service (`systemctl
    status ollama`, `/usr/local/bin/ollama`), the Windows app
    (`%LOCALAPPDATA%\Programs\Ollama\ollama app.exe`, `ollama` on PATH). Found
-   means step 3; not found means the install offer.
-   - **Offer the install** — the documented road for this system, from
+   means step 3; not found shows the install step.
+   - **Install Ollama**: uses the documented command for your OS from
      ollama.com/download. macOS: `brew install ollama` when Homebrew is
      present (no drag-to-Applications step), otherwise the app download
      (`curl -fsSL -o ~/Downloads/Ollama.dmg https://ollama.com/download/Ollama.dmg`,
@@ -77,14 +77,14 @@ everything as it stands.
    already has (`GET /api/tags`), each with its size and trained window
    (`qwen3.5:27b · on the server · 17.0 GB · trained 256k`); the model the
    session is on is marked `current`. Then what the server can pull: the
-   Qwen 3.5 family as ollama.com/library/qwen3.5 lists it — 0.8b, 2b, 4b, 9b,
-   27b, 35b, 122b — each sized against this machine by the same fit rule the
+   Qwen 3.5 family as ollama.com/library/qwen3.5 lists it (`0.8b`, `2b`, `4b`, `9b`,
+   `27b`, `35b`, `122b`), each sized against your machine by the same fit rule the
    window step uses (the published weights plus the KV cache at the trained
    maximum against the memory usable for models): `pull 17 GB · fits · 256k`,
    `pull 6.6 GB · fits · 128k`, or `pull 81 GB · does not fit`. A size the
-   server already lists is not offered twice. When no local model is set up
-   yet, the tested `qwen3.5:9b` row says so (`the tested one`) — a suggestion,
-   never a choice made for you. No row is pre-chosen: `↑↓` moves onto a row,
+   server already lists is not listed twice. When no local model is set up
+   yet, the tested `qwen3.5:9b` row is marked `the tested one` (a suggestion,
+   never a choice made for you). No row is pre-chosen: `↑↓` moves onto a row,
    `↵` picks it, and `esc` keeps the model the session is on and ends the road
    (`the model stays local/qwen3.5:27b`). The rest of the road runs for the
    chosen model.
@@ -95,24 +95,23 @@ everything as it stands.
      updates in place. The library size is said before Enter and the exact
      size shows with the first row; `s` skips the pull (the window step then
      ends the road, since the tag is not listed).
-5. **Set the window from this machine's memory.** The machine's memory, the
+5. **Set the window from your machine's memory.** Your machine's memory, the
    chosen model's KV geometry (`POST /api/show`) and the projected load decide
-   the largest of 32k · 64k · 128k · 256k — never above the trained maximum —
-   that fits within the usable ceiling, and the figures are said (`256k ·
+   the largest of 32k · 64k · 128k · 256k (never above the trained maximum)
+   that fits within the usable ceiling, and the figures are shown (`256k ·
    15.8 GiB weights + 16.0 GiB cache of 36.9 GiB usable (48.0 GiB box)`). The
    choice is written as the per-model window setting for `local/<tag>`, the
    same setting the picker's `w` row and `/config` → Local model window write.
    On a machine under 16 GiB of memory, a window picked there by hand that
    fits but leaves little room (under a tenth of the usable memory, or under
-   1 GiB) is warned beside the pick with the biggest smaller window that
-   leaves room — `64k leaves 0.2 GiB of 6.0 GiB usable (8.0 GiB box) · 32k
-   leaves 1.2 GiB` — while auto stays the biggest window that fits.
+   1 GiB) warns beside the pick with the largest smaller window that
+   leaves room (`64k leaves 0.2 GiB of 6.0 GiB usable (8.0 GiB box) · 32k
+   leaves 1.2 GiB`), while `auto` stays the largest window that fits.
    Nothing is written to the server's environment.
 6. **Pick and prove.** The session's model is set to `local/<tag>` (or the
-   found server's model) through the same road `/model <id>` takes — a model
-   the session is already on settles as a no-op — then one bounded turn
+   found server's model) through the same road `/model <id>` takes (a model
+   the session is already on settles as a no-op), then one bounded turn
    (`reply with the single word ready`) runs on the native `/api/chat` road
-   and the dialog shows the reply's first line with its timings: the load, and
    the ingest at the measured pace. The last row reads `ready ·
    local/qwen3.5:27b · 256k window · reply in 41 s · esc closes`.
 
