@@ -1,5 +1,6 @@
 import { errorMessageWithCause } from '../../../utils/errors.js'
 import { writeStoredGeminiApiKey } from '../../../utils/router/providerSecrets.js'
+import { useHomeSignIn } from '../../../utils/accounts/signInPockets.js'
 import { geminiOauthConnected, geminiPlanConnected, geminiPlanFacts, resolveGeminiAccount, resolveGeminiApiKey, writePreferredGeminiSource, type GeminiSourceKind } from './geminiAccounts.js'
 import { geminiPlanTierWords } from './geminiPlanAccess.js'
 import { geminiGenerateModels, refreshGeminiCatalogue, type GeminiCatalogueSnapshot } from './geminiCatalogue.js'
@@ -72,7 +73,7 @@ function geminiSourceRides(kind: GeminiStoredSourceKind): string {
 }
 
 export function activateGeminiSource(kind: GeminiStoredSourceKind): { ok: true; receipt: string } {
-  writePreferredGeminiSource(kind)
+  useHomeSignIn('gemini', kind, () => writePreferredGeminiSource(kind))
   const facts = liveGeminiStoredSourceFacts()
   const named = kind === 'api-key' ? 'the API key' : sourceWords(kind, facts)
   return { ok: true, receipt: `Gemini: ${named} is now the active source — ${geminiSourceRides(kind)}.${otherSourceTail(kind)}` }

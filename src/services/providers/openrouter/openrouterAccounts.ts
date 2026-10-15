@@ -3,7 +3,7 @@ import { fetchWithProviderDeadline } from '../fetchDeadline.js'
 import { chmodSync, mkdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { durableAtomicPublishSync } from '../../../substrate/durablePublish.js'
-import { getAuthConfigHomeDir } from '../../../utils/envUtils.js'
+import { landSignIn, signInHome } from '../../../utils/accounts/signInPockets.js'
 import { recordSignIn, noteCredentialChange } from '../../../utils/accounts/signInLedger.js'
 import { errorMessageWithCause } from '../../../utils/errors.js'
 import { getApiFetch, getProxyFetchOptions } from '../../../utils/proxy.js'
@@ -14,7 +14,7 @@ import {
   generateCodeVerifier,
 } from '../../oauth/crypto.js'
 import { readStoredOpenrouterApiKey } from '../../../utils/router/providerSecrets.js'
-import { credentialFingerprint } from '../credentialIdentity.js'
+import { credentialFingerprint, maskedKeyTail } from '../credentialIdentity.js'
 
 
 const OPENROUTER_AUTH_PAGE = 'https://openrouter.ai/auth'
@@ -52,7 +52,7 @@ interface OpenrouterAuthFile {
 }
 
 function authFilePath(): string {
-  return join(getAuthConfigHomeDir(), AUTH_FILE_NAME)
+  return join(signInHome('openrouter'), AUTH_FILE_NAME)
 }
 
 function readAuthFile(): OpenrouterAuthFile | null {
@@ -66,7 +66,7 @@ function readAuthFile(): OpenrouterAuthFile | null {
 }
 
 function writeAuthFile(mutate: (file: OpenrouterAuthFile) => OpenrouterAuthFile): void {
-  mkdirSync(getAuthConfigHomeDir(), { recursive: true })
+  mkdirSync(signInHome('openrouter'), { recursive: true })
   const existing = readAuthFile() ?? { version: OPENROUTER_AUTH_VERSION }
   const next = mutate({ ...existing, version: OPENROUTER_AUTH_VERSION })
   const path = authFilePath()
@@ -350,10 +350,21 @@ export function beginOpenrouterConnect(opts?: {
     exchangeInFlight = true
     try {
       const key = await exchangeOpenrouterCode(code, verifier, fetchImpl, env)
-      writeAuthFile(file => {
-        const next = { ...file, minted: { key, mintedAtMs: Date.now(), label: OPENROUTER_KEY_LABEL } }
-        delete next.refused
-        return next
+      landSignIn({
+        family: 'openrouter',
+        identity: maskedKeyTail(key) || credentialFingerprint(key),
+        kind: 'oauth-key',
+        ledgerKind: 'oauth',
+        homeIdentity: () => {
+          const stored = readMintedOpenrouterKey()?.key
+          return stored === undefined ? undefined : maskedKeyTail(stored) || credentialFingerprint(stored)
+        },
+        write: () =>
+          writeAuthFile(file => {
+            const next = { ...file, minted: { key, mintedAtMs: Date.now(), label: OPENROUTER_KEY_LABEL } }
+            delete next.refused
+            return next
+          }),
       })
       recordSignIn('openrouter', 'oauth')
       const ref: OpenrouterAccountRef = {
