@@ -186,6 +186,7 @@ check('the handoff title names the session, the day and the length, not the word
 check('the matching fact comes before the handoff', handoffSearch.pointers[0]?.kind === 'fact', JSON.stringify(handoffSearch.pointers.map(p => p.kind)))
 const sessionPointer = searchPointers('src/release/soak.ts', { dir, sessions }).pointers.find(p => p.kind === 'session')
 check('a session without a handoff is absent from search', sessionPointer === undefined, JSON.stringify(sessionPointer))
+check('a path touched by a session with a note finds its session pointer', searchPointers('src/deploy/gate.ts', { dir, sessions }).pointers.some(p => p.id === 'ledger:1' && p.kind === 'session'))
 const ledgerRead = readMemoryRecord('ledger:1', dir, { sessions })
 check('ledger:<ordinal> reads the entry and the handoff verbatim', ledgerRead.found === true && (ledgerRead.content ?? '').includes(sessions[0]!.handoff!.text) && (ledgerRead.content ?? '').includes('engines: engine-one from 2026-10-09T14:02:11.000+01:00'), (ledgerRead.content ?? '').slice(0, 200))
 const noNote = readMemoryRecord('ledger:2', dir, { sessions })
