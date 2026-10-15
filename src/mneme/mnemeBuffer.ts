@@ -6,6 +6,7 @@ import { join } from 'node:path'
 import { logForDebugging } from '../utils/debug.js'
 import { mnemeEnabled, mnemeLibraryDir } from './mnemeGates.js'
 import { estimateTokens } from './mnemeTopicDocs.js'
+import { validatedApplicability, type MemoryApplicability } from './memoryApplicability.js'
 
 export interface MnemeObservation {
   ts: string
@@ -14,6 +15,7 @@ export interface MnemeObservation {
   topicHint?: string
   pin?: true
   asked?: true
+  applicability?: MemoryApplicability
   replaces?: number
 }
 
@@ -47,7 +49,7 @@ function observationStamp(): string {
 }
 
 export function appendObservation(
-  input: { text: string; source: string; topicHint?: string; pin?: boolean; asked?: boolean; replaces?: number },
+  input: { text: string; source: string; topicHint?: string; pin?: boolean; asked?: boolean; replaces?: number; applicability?: MemoryApplicability },
   dir: string = mnemeLibraryDir(),
 ): boolean {
   if (!mnemeEnabled()) return false
@@ -64,6 +66,7 @@ export function appendObservation(
       ...(input.pin === true ? { pin: true as const } : {}),
       ...(input.pin === true && input.asked === true ? { asked: true as const } : {}),
       ...replaces,
+      ...(input.pin && input.asked && validatedApplicability(input.applicability) ? { applicability: validatedApplicability(input.applicability) } : {}),
     }
     mkdirSync(dir, { recursive: true })
     appendFileSync(currentBufferPath(dir), JSON.stringify(row) + '\n', 'utf8')
