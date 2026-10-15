@@ -30,7 +30,7 @@ const outputSchema = lazySchema(() =>
   }),
 )
 type OutputSchema = ReturnType<typeof outputSchema>
-export type Output = z.infer<OutputSchema>
+type Output = z.infer<OutputSchema>
 
 export function contractToolHosted(): boolean {
   return flagEnv('MERCURY_CONCOURSE_WORKER') === '1'

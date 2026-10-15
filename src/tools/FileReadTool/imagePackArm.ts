@@ -32,7 +32,7 @@ export function vendoredImagePackDir(packPlatform: string = imagePackPlatform())
   return join(dirname(fileURLToPath(import.meta.url)), IMAGE_PACK_PATH, packPlatform)
 }
 
-export function imageBindingResolvable(packPlatform: string = imagePackPlatform()): boolean {
+function imageBindingResolvable(packPlatform: string = imagePackPlatform()): boolean {
   try {
     createRequire(import.meta.url).resolve(`@img/sharp-${packPlatform}/sharp.node`)
     return true
@@ -41,7 +41,7 @@ export function imageBindingResolvable(packPlatform: string = imagePackPlatform(
   }
 }
 
-export type ImagePackArm = { armed: true; packDir: string } | { armed: false; packDir: string; reason: 'binding-resolvable' | 'no-pack' }
+type ImagePackArm = { armed: true; packDir: string } | { armed: false; packDir: string; reason: 'binding-resolvable' | 'no-pack' }
 
 let armedDir: string | null = null
 

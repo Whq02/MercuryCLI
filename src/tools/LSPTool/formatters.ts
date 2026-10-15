@@ -302,7 +302,7 @@ function formatHierarchyItem(item: CallHierarchyItem, workingDirectory?: string)
   return `${item.name} (${symbolKindName(item.kind)}) ${path}:${item.range.start.line + 1}${detail}`
 }
 
-export function formatPrepareCallHierarchyResult(
+function formatPrepareCallHierarchyResult(
   result: CallHierarchyItem[] | null,
   workingDirectory?: string,
 ): string {

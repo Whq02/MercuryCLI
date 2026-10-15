@@ -106,7 +106,7 @@ const modelInputSchema = lazySchema(buildModelSchema)
 type ModelInput = z.infer<ReturnType<typeof buildModelSchema>>
 type PowerShellToolInput = ModelInput
 
-export type Out = {
+type Out = {
   stdout: string
   stderr: string
   interrupted: boolean

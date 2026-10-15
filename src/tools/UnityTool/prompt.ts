@@ -14,7 +14,7 @@ function verbSignature(name: string, spec: UnityBridgeVerbSpec): string {
   return `${name}(${args.join(', ')})${spec.cls === 'exec' ? ' [exec]' : ''}`
 }
 
-export function getUnityVerbCatalog(): string {
+function getUnityVerbCatalog(): string {
   const wire = unityBridgeVerbNames()
     .map(name => verbSignature(name, UNITY_BRIDGE_VERBS[name]))
     .join(' · ')

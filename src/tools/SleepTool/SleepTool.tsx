@@ -83,7 +83,7 @@ const outputSchema = lazySchema(() =>
   }),
 )
 type OutputSchema = ReturnType<typeof outputSchema>
-export type Output = z.infer<OutputSchema>
+type Output = z.infer<OutputSchema>
 
 export const SleepTool = buildTool({
   shouldDefer: true,

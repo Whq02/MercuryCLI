@@ -27,7 +27,7 @@ const CREATE_PREVIEW_LINES = 10
 const CODE_BLOCK_GUTTER = 6
 const REJECTION_SCAN_CAP_BYTES = 1024 * 1024
 
-export function countLines(content: string): number {
+function countLines(content: string): number {
   if (content === '') return 0
   const newlines = countCharInString(content, '\n')
   return content.endsWith('\n') ? newlines : newlines + 1

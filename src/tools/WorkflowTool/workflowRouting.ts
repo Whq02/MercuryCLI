@@ -1,6 +1,6 @@
 import { flagEnv } from '../../substrate/flagRegistry.js'
 
-export const WORKFLOW_TIERS = ['orchestrator', 'executor'] as const
+const WORKFLOW_TIERS = ['orchestrator', 'executor'] as const
 
 export function workflowExecutorModel(): string | undefined {
   const { neutralSeatDefault } =
@@ -8,7 +8,7 @@ export function workflowExecutorModel(): string | undefined {
   return neutralSeatDefault()?.setting
 }
 
-export function workflowRoutingEnabled(): boolean {
+function workflowRoutingEnabled(): boolean {
   return flagEnv('MERCURY_WORKFLOW_ROUTING') === '1'
 }
 

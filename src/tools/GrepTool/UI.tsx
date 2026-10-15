@@ -31,7 +31,7 @@ function labelForCount(count: number, pluralLabel: string): string {
   return pluralLabel.endsWith('s') ? pluralLabel.slice(0, -1) : pluralLabel
 }
 
-export type SearchResultSummaryProps = {
+type SearchResultSummaryProps = {
   count: number
   label: string
   secondaryCount?: number

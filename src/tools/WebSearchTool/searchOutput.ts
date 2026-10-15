@@ -25,9 +25,9 @@ export const outputSchema = z.object({
 })
 export type Output = z.infer<typeof outputSchema>
 
-export const PROVIDER_ANSWER_MAX_CHARS = 2400
+const PROVIDER_ANSWER_MAX_CHARS = 2400
 
-export function providerAnswerNote(output: Output): string | null {
+function providerAnswerNote(output: Output): string | null {
   if (output.tier !== 'native') return null
   const answer = output.results.filter((entry): entry is string => typeof entry === 'string').map(entry => entry.trim()).filter(entry => entry !== '').join('\n')
   if (answer === '') return null

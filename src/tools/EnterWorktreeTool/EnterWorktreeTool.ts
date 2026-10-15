@@ -43,7 +43,7 @@ const inputSchema = z
   })
   .strict()
 
-export type Input = z.infer<typeof inputSchema>
+type Input = z.infer<typeof inputSchema>
 
 export type Output = {
   worktreePath: string

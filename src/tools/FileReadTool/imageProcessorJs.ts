@@ -2,7 +2,7 @@ import { deflateSync, inflateSync } from 'node:zlib'
 
 import type { SharpFunction, SharpInstance } from './imageProcessor.js'
 
-export type HeaderFormat = 'png' | 'jpeg' | 'gif' | 'webp' | 'bmp'
+type HeaderFormat = 'png' | 'jpeg' | 'gif' | 'webp' | 'bmp'
 
 export function imageDimensionsFromHeader(buffer: Buffer): { width: number; height: number; format: HeaderFormat } | null {
   if (buffer.length >= 24 && buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4e && buffer[3] === 0x47) {
@@ -70,7 +70,7 @@ export interface RgbaImage {
   data: Uint8Array
 }
 
-export class JavascriptImageRoadError extends Error {
+class JavascriptImageRoadError extends Error {
   constructor(message: string) {
     super(message)
     this.name = 'JavascriptImageRoadError'
@@ -262,7 +262,7 @@ export function decodeBmp(buffer: Buffer): RgbaImage {
   return { width, height, data }
 }
 
-export function decodeImage(buffer: Buffer): RgbaImage {
+function decodeImage(buffer: Buffer): RgbaImage {
   const header = imageDimensionsFromHeader(buffer)
   if (header?.format === 'png') return decodePng(buffer)
   if (header?.format === 'bmp') return decodeBmp(buffer)

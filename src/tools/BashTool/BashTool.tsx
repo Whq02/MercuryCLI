@@ -115,12 +115,12 @@ function buildModelSchema() {
 const modelInputSchema = lazySchema(buildModelSchema)
 type ModelInput = z.infer<ReturnType<typeof buildModelSchema>>
 
-export type BashToolInput = ModelInput & {
+type BashToolInput = ModelInput & {
   _simulatedSedEdit?: { filePath: string; newContent: string }
 }
 
 
-export type BackgroundLifetime = 'session' | 'turn' | 'crewmate'
+type BackgroundLifetime = 'session' | 'turn' | 'crewmate'
 
 export type Out = {
   stdout: string
@@ -167,21 +167,21 @@ export function retryableSandboxViolation(line: string): boolean {
   return /\bfile-(?:read|write)|\bnetwork-|\bhttp-request\b|^deny \S+ \//.test(line)
 }
 
-export function sandboxViolationWords(violations: readonly string[]): string {
+function sandboxViolationWords(violations: readonly string[]): string {
   const shown = violations.slice(0, RETRY_ASK_VIOLATION_LIMIT)
   const more = violations.length - shown.length
   return shown.join('; ') + (more > 0 ? ` (+${more} more)` : '')
 }
 
-export function sandboxRetryAskWords(violations: readonly string[]): string {
+function sandboxRetryAskWords(violations: readonly string[]): string {
   return `The sandbox refused this command (${sandboxViolationWords(violations)}). Rerun it outside the sandbox?`
 }
 
-export function sandboxRerunNotice(code: number, violations: readonly string[]): string {
+function sandboxRerunNotice(code: number, violations: readonly string[]): string {
   return `[ran outside the sandbox after the ask: the sandboxed run exited ${code} on ${sandboxViolationWords(violations)}]`
 }
 
-export function sandboxRefusalWords(violations: readonly string[], reason: 'declined' | 'cannot-ask' | 'policy'): string {
+function sandboxRefusalWords(violations: readonly string[], reason: 'declined' | 'cannot-ask' | 'policy'): string {
   const words = sandboxViolationWords(violations)
   if (reason === 'declined') return `The sandbox refused this command (${words}) and the rerun outside the sandbox was declined, so it was not rerun. ${SANDBOX_COMMAND_HINT}`
   if (reason === 'policy') return `The sandbox refused this command (${words}); policy has switched the unsandboxed override off, so it was not rerun. ${SANDBOX_COMMAND_HINT}`

@@ -21,7 +21,7 @@ const outputSchema = lazySchema(() =>
   }),
 )
 type OutputSchema = ReturnType<typeof outputSchema>
-export type Output = z.infer<OutputSchema>
+type Output = z.infer<OutputSchema>
 
 const nestedCheckpoint = (goal: string | undefined): Error =>
   refusal(`a checkpoint is already active${goal ? ` (goal: ${goal})` : ''} — Rewind { report } first; nested checkpoints are not supported.`)

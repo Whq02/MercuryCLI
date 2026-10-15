@@ -140,7 +140,7 @@ function selectedPages(pages: string | undefined): string | undefined {
 export type Input = z.infer<WidestReadSchema>
 
 
-export type OverCapNote = { tokens: number; maxTokens: number; next: { offset: number; limit: number } }
+type OverCapNote = { tokens: number; maxTokens: number; next: { offset: number; limit: number } }
 
 export type Output =
   | {

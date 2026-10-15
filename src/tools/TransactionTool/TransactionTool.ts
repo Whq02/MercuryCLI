@@ -13,7 +13,7 @@ import type { PermissionDecision } from '../../utils/permissions/PermissionResul
 import { checkUncPathPermission } from '../../utils/permissions/filesystem.js'
 import { renderToolResultMessage, renderToolUseErrorMessage, renderToolUseMessage, userFacingName } from './UI.js'
 
-export const TRANSACTION_TOOL_NAME = 'Transaction'
+const TRANSACTION_TOOL_NAME = 'Transaction'
 const OPS = ['status', 'finish'] as const
 const FINISH_VERDICTS = ['completed', 'failed', 'abandoned'] as const
 const inputSchema = lazySchema(() =>
@@ -25,7 +25,7 @@ const inputSchema = lazySchema(() =>
 )
 
 type SchemaType = ReturnType<typeof inputSchema>
-export type Input = z.infer<SchemaType>
+type Input = z.infer<SchemaType>
 export type Output = { op: Input['op']; result: string; outcome: ToolEffectOutcome }
 
 function refLine(id: string): string {

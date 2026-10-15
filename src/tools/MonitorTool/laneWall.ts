@@ -4,7 +4,7 @@ import { activeLaneWindow, isLaneWindowFamily, type LaneWindowFamily } from '../
 type LaneLimit = { limit: string }
 type LimitWindow = { state: 'limited'; resetsAtMs: number; observedAtMs: number } | { state: 'clear' }
 
-export interface LaneWallReads {
+interface LaneWallReads {
   route: () => string | null
   usability: () => Record<string, LaneLimit | undefined>
   anthropicVerdict: (nowMs: number) => { status: string; lapsesAtMs?: number }

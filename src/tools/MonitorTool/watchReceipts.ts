@@ -7,7 +7,7 @@ import { MONITOR_TOOL_NAME } from './constants.js'
 
 export const WATCH_STARTED_LINE = 'Monitor started (task '
 
-export interface WatchReceipt {
+interface WatchReceipt {
   toolUseId: string
   taskId: string
   description: string

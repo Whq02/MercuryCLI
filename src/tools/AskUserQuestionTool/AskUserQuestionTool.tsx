@@ -121,8 +121,8 @@ const outputSchemaObject = z.object({
 })
 
 export type Question = z.infer<typeof questionSchema>
-export type Input = z.infer<typeof inputSchemaObject>
-export type Output = z.infer<typeof outputSchemaObject>
+type Input = z.infer<typeof inputSchemaObject>
+type Output = z.infer<typeof outputSchemaObject>
 
 
 function lookupFor<T>(

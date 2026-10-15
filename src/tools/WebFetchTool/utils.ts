@@ -151,7 +151,7 @@ export async function getURLMarkdownContent(
   return result
 }
 
-export interface FetchSummariseReads {
+interface FetchSummariseReads {
   small?: typeof querySmallFast
   withModel?: typeof queryWithModel
   smallModelId?: () => string

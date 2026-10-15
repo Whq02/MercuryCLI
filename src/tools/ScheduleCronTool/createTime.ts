@@ -1,8 +1,8 @@
 import type { SaturnWhenV1 } from '../../daemon/saturn.js'
 import { computeNextCronRun, cronFieldProblem, cronToHuman, parseCronExpression } from '../../utils/cron.js'
 
-export type CreateWhenInput = { cron?: string; at?: string; delayMinutes?: number; recurring?: boolean }
-export type CreateTime = { when: SaturnWhenV1; recurring: boolean; humanSchedule: string }
+type CreateWhenInput = { cron?: string; at?: string; delayMinutes?: number; recurring?: boolean }
+type CreateTime = { when: SaturnWhenV1; recurring: boolean; humanSchedule: string }
 const MINUTE = 60_000
 const DAY = 24 * 60 * MINUTE
 const FIELD_NAMES = ['minute', 'hour', 'day-of-month', 'month', 'day-of-week']

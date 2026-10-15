@@ -11,8 +11,8 @@ import { renderToolResultMessage, renderToolUseMessage } from '../SendMessageToo
 import { RESUME_AGENT_TOOL_NAME } from './constants.js'
 import { DESCRIPTION, getPrompt } from './prompt.js'
 
-export type ResumeAgentToolOutput = MessageOutput
-export type Input = CrewMessageInput
+type ResumeAgentToolOutput = MessageOutput
+type Input = CrewMessageInput
 const inputSchema = lazySchema(() => z.object({
   to: z.string().describe('The crewmate to resume: the id its launch receipt names or the name its launch gave it'),
   message: z.string().describe('Its next turn: what to do, written as you would brief it'),

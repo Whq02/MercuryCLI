@@ -23,7 +23,7 @@ const inputSchema = z.strictObject({
 
 type Input = z.infer<typeof inputSchema>
 
-export const providerSearchOutputSchema = outputSchema
+const providerSearchOutputSchema = outputSchema
 
 async function runProviderSearch(
   input: Input,

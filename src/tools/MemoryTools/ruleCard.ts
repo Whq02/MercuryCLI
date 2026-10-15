@@ -12,17 +12,17 @@ import { readPins } from '../../mneme/mnemeUsage.js'
 
 export const RULE_CARD_KEEP = 'keepRule'
 
-export interface AskedRule {
+interface AskedRule {
   id: string
   words: string
 }
 
-export interface RuleChange {
+interface RuleChange {
   rule: AskedRule
   change: string
 }
 
-export type RuleVerdict = { ok: true; via: RuleAuthority } | { ok: false; code: 'user-kept-rule' | 'user-asked-rule'; message: string }
+type RuleVerdict = { ok: true; via: RuleAuthority } | { ok: false; code: 'user-kept-rule' | 'user-asked-rule'; message: string }
 
 const said = (text: string): string => text.replace(/[\r\n]+/g, ' ').trim()
 
@@ -92,7 +92,7 @@ export function ruleCardText(toolName: string, changes: readonly RuleChange[], r
 
 const cards = new WeakMap<object, string>()
 
-export function underSovereign(context: Pick<ToolUseContext, 'getAppState'>): boolean {
+function underSovereign(context: Pick<ToolUseContext, 'getAppState'>): boolean {
   try {
     return modeBypassesPermissions(context.getAppState().toolPermissionContext.mode)
   } catch {

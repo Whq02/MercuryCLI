@@ -98,7 +98,7 @@ export type ForegroundAgentMetadata = {
 
 type WorktreeFields = { worktreePath?: string; worktreeBranch?: string }
 
-export type ForegroundAgentResult = {
+type ForegroundAgentResult = {
   data:
     | (AgentToolResult & { status: 'completed'; prompt: string } & WorktreeFields)
     | (AgentToolResult & {

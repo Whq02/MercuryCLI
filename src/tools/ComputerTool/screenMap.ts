@@ -3,7 +3,7 @@ import type { ScreenMap } from '../../services/desktop/desktopSession.js'
 
 export type { ScreenMap }
 
-export type PixelOutside = { outside: true; imageWidth: number; imageHeight: number }
+type PixelOutside = { outside: true; imageWidth: number; imageHeight: number }
 
 export function isPixelOutside(value: DesktopPoint | PixelOutside): value is PixelOutside {
   return 'outside' in value && value.outside === true

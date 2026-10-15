@@ -23,7 +23,7 @@ const STOCK_DIRECTORY_LINE = `- This tool reads files, never directories. A dire
 export const FILE_UNCHANGED_STUB =
   'This file is unchanged since it was last read. The earlier result above remains current — lean on it rather than reading again.'
 
-export interface ReadMediaPosture {
+interface ReadMediaPosture {
   pdf: boolean
   images: boolean
 }

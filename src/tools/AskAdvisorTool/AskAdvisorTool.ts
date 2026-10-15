@@ -15,7 +15,7 @@ const inputSchema = lazySchema(() =>
 )
 type InputSchema = ReturnType<typeof inputSchema>
 
-export interface AskAdvisorOutput {
+interface AskAdvisorOutput {
   status: 'ok' | 'refused'
   text: string
   model?: string
@@ -25,11 +25,11 @@ export function askAdvisorAgentId(context: Pick<ToolUseContext, 'agentId'>): str
   return context.agentId !== undefined && context.agentId !== '' ? String(context.agentId) : String(getSessionId())
 }
 
-export function askAdvisorRefusedText(reason: string): string {
+function askAdvisorRefusedText(reason: string): string {
   return `The advisor did not answer: ${reason}. Decide with what you have and say so.`
 }
 
-export async function askAdvisorCall(question: string, context: ToolUseContext): Promise<AskAdvisorOutput> {
+async function askAdvisorCall(question: string, context: ToolUseContext): Promise<AskAdvisorOutput> {
   const seat = context.agentKind ?? (context.agentId ? 'crewmate' : 'main')
   const result = await askAdvisor(askAdvisorAgentId(context), question, context.messages, { seat, signal: context.abortController.signal })
   if (!result.ok) return { status: 'refused', text: askAdvisorRefusedText(result.reason) }

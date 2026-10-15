@@ -20,7 +20,7 @@ function commandProvenance(s: WorkflowDescriptor['source']): {
   }
 }
 
-export function createWorkflowCommand(wf: WorkflowDescriptor): Command {
+function createWorkflowCommand(wf: WorkflowDescriptor): Command {
   const { source, loadedFrom } = commandProvenance(wf.source)
 
   const command: Command = {

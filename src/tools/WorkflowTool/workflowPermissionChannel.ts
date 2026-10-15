@@ -21,7 +21,7 @@ export function workflowPermissionTimeoutMs(): number {
   return Math.max(TIMEOUT_FLOOR_MS, Math.floor(parsed))
 }
 
-export class WorkflowPermissionTimeoutError extends Error {
+class WorkflowPermissionTimeoutError extends Error {
   constructor(toolName: string, timeoutMs: number) {
     super(
       `Permission request for ${toolName} timed out after ${Math.round(timeoutMs / 1000)}s waiting for operator approval`,
@@ -30,7 +30,7 @@ export class WorkflowPermissionTimeoutError extends Error {
   }
 }
 
-export interface WorkflowCanUseToolDeps {
+interface WorkflowCanUseToolDeps {
   taskId: string
   setAppState: SetAppState
   realCanUseTool: CanUseToolFn

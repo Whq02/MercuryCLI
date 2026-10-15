@@ -1,6 +1,6 @@
 import { pinnedCommandAnalysis } from '../../utils/permissions/decision/commandAnalysis.js'
 
-export type CommandSemantic = (exitCode: number) => { isError: boolean; message?: string }
+type CommandSemantic = (exitCode: number) => { isError: boolean; message?: string }
 
 const COMMAND_SEMANTICS: Record<string, CommandSemantic> = {
   grep: code => ({

@@ -31,7 +31,7 @@ export type NotReadOnly = {
   detail?: string
 }
 
-export type ReadOnlyVerdict = PermissionResult & { notReadOnly?: NotReadOnly }
+type ReadOnlyVerdict = PermissionResult & { notReadOnly?: NotReadOnly }
 const PART_WIDTH = 120
 type PreparedRead = { root: Node | null; command: string; cwd: string; originalCwd: string; platform: string; bare: ReturnType<typeof isCurrentDirectoryBareGitRepo>; sandboxed: boolean; verdict: ReadOnlyVerdict; children: PreparedRead[] }
 const preparedReads = new Map<string, WeakRef<PreparedRead>>()

@@ -7,9 +7,9 @@ import { DESCRIPTION, PROMPT } from './prompt.js'
 import { renderToolResultMessage, renderToolUseMessage, renderToolUseProgressMessage } from './UI.js'
 
 export type { MCPProgress }
-export const inputSchema = lazySchema(() => z.looseObject({}))
-export const outputSchema = lazySchema(() => z.string().describe('The MCP call\'s pass-through result text'))
-export type Output = z.infer<ReturnType<typeof outputSchema>>
+const inputSchema = lazySchema(() => z.looseObject({}))
+const outputSchema = lazySchema(() => z.string().describe('The MCP call\'s pass-through result text'))
+type Output = z.infer<ReturnType<typeof outputSchema>>
 
 async function requireClone(): Promise<never> {
   throw new Error('MCP tool shell was called directly — the client must clone it per discovered tool')

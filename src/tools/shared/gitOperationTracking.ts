@@ -5,7 +5,7 @@ export type CommitKind = 'committed' | 'amended' | 'cherry-picked'
 export type BranchAction = 'merged' | 'rebased'
 export type PrAction = 'created' | 'edited' | 'merged' | 'commented' | 'closed' | 'ready'
 
-export type GitOperationDetection = {
+type GitOperationDetection = {
   commit?: { sha: string; kind: CommitKind }
   push?: { branch: string }
   branch?: { ref: string; action: BranchAction }

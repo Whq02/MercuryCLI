@@ -24,7 +24,7 @@ export type SharpInstance = {
 
 export type SharpFunction = (input?: Buffer | string) => SharpInstance
 
-export type ImageProcessorState =
+type ImageProcessorState =
   | {
       road: 'native'
       source: 'vendored' | 'node_modules'

@@ -3,11 +3,11 @@ import type { SaturnOrigin } from '../../utils/messages/noticeRows.js'
 
 export type LocalWakeFacts = Pick<SaturnOrigin, 'spelling' | 'reason'>
 
-export type LocalWakeStep =
+type LocalWakeStep =
   | { step: 'wait'; delayMs: number; heldSince: string }
   | { step: 'deliver'; origin: SaturnOrigin }
 
-export function localWakeWaitMs(wall: WatchWall, nowMs: number): number {
+function localWakeWaitMs(wall: WatchWall, nowMs: number): number {
   if (wall.reopensAtMs === undefined || wall.reopensAtMs <= nowMs) return WALL_RECHECK_MS
   return wall.reopensAtMs + REOPEN_GRACE_MS - nowMs
 }

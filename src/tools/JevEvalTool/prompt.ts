@@ -6,7 +6,7 @@ export const JEV_EVAL_SEARCH_HINT = 'Jev second opinion: rank hypotheses, judge 
 
 const NOUL_UNSURE_LOW = Number((1 - JEV_EVAL_CONFIDENCE_FLOOR).toFixed(2))
 
-export const JEV_EVAL_EXAMPLE = JSON.stringify({
+const JEV_EVAL_EXAMPLE = JSON.stringify({
   goal: 'which of two reds was killed from outside',
   evidence: [
     { id: 'ui', tail: 'rc 137 after the 240 s deadline; the last frame is blank' },
@@ -40,7 +40,7 @@ function sentence(text: string): string {
   return text.charAt(0).toUpperCase() + text.slice(1)
 }
 
-export const JEV_EVAL_UNAVAILABILITY = `An unavailable result is one line naming the reason with its evidence — ${list(REASONS)}. ${sentence(list(FINAL_REASONS))} end Jev for this session: note it once and carry on unaided. ${sentence(list(WAIT_REASONS))} name when the next attempt is admitted; do not call before then. Never retry a refusal.`
+const JEV_EVAL_UNAVAILABILITY = `An unavailable result is one line naming the reason with its evidence — ${list(REASONS)}. ${sentence(list(FINAL_REASONS))} end Jev for this session: note it once and carry on unaided. ${sentence(list(WAIT_REASONS))} name when the next attempt is admitted; do not call before then. Never retry a refusal.`
 
 export const JEV_EVAL_PROMPT = `One paid round trip to TypeSafe's Jev for a second opinion on a judgement you have already framed. This is not the Eval tool: Eval runs code cells, JevEval runs no code and returns numbers. Jev is not a chat model — it writes no prose, code or explanations. It reads the \`evidence\` you supply and answers typed questions: \`noul\` (the probability, 0..1, that a yes/no statement holds), \`choice\` (one of your options, with a probability per option and a confidence), \`score\` (a probability-weighted position on your ordered levels, with a confidence). Treat every number as an opinion, not evidence: 0 and 1 prove nothing; a confidence measures how concentrated the distribution is, not how often Jev is right; a noul carries no confidence at all; Jev gives no reasons, so never attribute a rationale to it. The floor is ${JEV_EVAL_CONFIDENCE_FLOOR}: under the floor the cell reads unsure — do not act on it — a choice or a score whose confidence is under ${JEV_EVAL_CONFIDENCE_FLOOR}, and a noul carries no confidence, so its p(yes) from ${NOUL_UNSURE_LOW} through ${JEV_EVAL_CONFIDENCE_FLOOR} reads unsure (the floor mirrored around a half); the numbers stay in the cell and the header names the floor once.
 

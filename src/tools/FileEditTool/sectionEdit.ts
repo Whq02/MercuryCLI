@@ -1,7 +1,7 @@
 
 import { straightenQuotes } from '../../utils/curlyQuotes.js'
 
-export type SectionPlan =
+type SectionPlan =
   | { ok: true; updated: string; start: number; end: number; sectionText: string }
   | { ok: false; message: string }
 

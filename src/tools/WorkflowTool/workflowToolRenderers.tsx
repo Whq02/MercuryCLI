@@ -23,7 +23,7 @@ export type WorkflowResultContent = {
   error?: string
 }
 
-export type ParsedForRender =
+type ParsedForRender =
   | { ok: true; description: string }
   | { ok: false }
 
@@ -55,7 +55,7 @@ export function renderWorkflowToolUseMessage(
   )
 }
 
-export function WorkflowResultLive({ taskId }: { taskId: string }): React.ReactNode {
+function WorkflowResultLive({ taskId }: { taskId: string }): React.ReactNode {
   const task = useFocusedWorkRows().find(r => r.id === taskId && r.kind === 'workflow')
   const live = task !== undefined && workRowRuns(task)
   const nowMs = useNowTick(live ? 10_000 : null)

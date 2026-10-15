@@ -24,12 +24,12 @@ import {
 import { type JevEvalInput, type JevEvalInputSchema, type JevEvalKind, jevEvalInputSchema } from './jevEvalSchema.js'
 import { JEV_EVAL_DESCRIPTION, JEV_EVAL_PROMPT, JEV_EVAL_SEARCH_HINT } from './prompt.js'
 
-export interface JevEvalOutput {
+interface JevEvalOutput {
   status: string
   text: string
 }
 
-export function jevAgentIdentity(): JevAgentIdentity | undefined {
+function jevAgentIdentity(): JevAgentIdentity | undefined {
   const context = getAgentContext()
   return context === undefined ? undefined : { id: context.agentId, subagent: true }
 }
@@ -111,7 +111,7 @@ export async function jevEvalCall(input: JevEvalInput, signal?: AbortSignal): Pr
   return { status: 'ok', text: after.kind === 'ready' ? table : `${table}\n${unavailable(after, road).text}` }
 }
 
-export function jevEvalFilePaths(input: Pick<JevEvalInput, 'evidence'>): string[] {
+function jevEvalFilePaths(input: Pick<JevEvalInput, 'evidence'>): string[] {
   return (input.evidence ?? []).flatMap(item => {
     const file = jevEvalFileOf(item)
     return file === undefined ? [] : [file.path]

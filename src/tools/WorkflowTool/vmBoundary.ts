@@ -1,9 +1,9 @@
 
 import vm from 'node:vm'
 
-export const MAX_BOUNDARY_ARRAY = 4096
+const MAX_BOUNDARY_ARRAY = 4096
 
-export const MAX_BOUNDARY_DEPTH = 256
+const MAX_BOUNDARY_DEPTH = 256
 
 const CAP_TAG = Symbol('boundaryCap')
 
@@ -214,14 +214,14 @@ export function makeBoundaryClone(ctx: vm.Context): (hostVal: unknown) => unknow
 }
 
 
-export function makeHostError(message: string, name = 'Error', stack?: string): any {
+function makeHostError(message: string, name = 'Error', stack?: string): any {
   const rendered = `${name}: ${message}`
   const toString = () => rendered
   Object.setPrototypeOf(toString, null)
   return { __proto__: null, name, message, stack: stack ?? rendered, toString }
 }
 
-export function describeThrown(e: any): { msg: string; name: string; stack?: string } {
+function describeThrown(e: any): { msg: string; name: string; stack?: string } {
   let msg = '<unprintable thrown value>'
   try {
     const raw = e?.message
@@ -268,13 +268,13 @@ export function errorTunnelAsync<F extends (...a: any[]) => Promise<any>>(fn: F)
   return tunnelled
 }
 
-export function makeCapError(msg: string): Error {
+function makeCapError(msg: string): Error {
   const err = new Error(msg)
   Object.defineProperty(err, CAP_TAG, { value: true })
   return err
 }
 
-export function isCapError(e: any): boolean {
+function isCapError(e: any): boolean {
   try {
     return typeof e === 'object' && e !== null && e[CAP_TAG] === true
   } catch {
@@ -282,7 +282,7 @@ export function isCapError(e: any): boolean {
   }
 }
 
-export function safeBoundaryLength(arr: any): number {
+function safeBoundaryLength(arr: any): number {
   let width: number
   try {
     width = arr.length
