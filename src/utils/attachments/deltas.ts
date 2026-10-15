@@ -10,7 +10,6 @@ import {
 } from '../mcpInstructionsDelta.js'
 import {
   getDeferredToolsDelta,
-  isDeferredToolsDeltaEnabled,
   isToolSearchEnabledOptimistic,
   isToolSearchToolAvailable,
   modelSupportsToolReference,
@@ -30,7 +29,6 @@ export function getDeferredToolsDeltaAttachment(
   messages: Message[] | undefined,
   scanContext?: DeferredToolsDeltaScanContext,
 ): Attachment[] {
-  if (!isDeferredToolsDeltaEnabled()) return []
   if (!isToolSearchEnabledOptimistic() || !supportsToolDeferral(model)) return []
   const form = deferralWireFormFor(model).form
   if (form === 'block' && !modelSupportsToolReference(model)) return []

@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { mkdtempSync, readFileSync } from 'node:fs'
+import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { z } from 'zod/v4'
@@ -29,7 +29,6 @@ process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'announce-stab-'))
 process.env.MERCURY_DAEMON_DIR = mkdtempSync(join(tmpdir(), 'announce-stab-daemon-'))
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-const ROOT = join(import.meta.dir, '..', '..')
 const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
 enableConfigs()
 const bootstrap = await import('../../src/bootstrap/state.ts')
@@ -38,7 +37,6 @@ const { planToolPayload, deferredToolsAnnouncement, announcementMessage, foldAnn
 const { getDeferredToolsDeltaAttachment, SERVER_SEARCH_ANNOUNCEMENT_HEAD } = await import('../../src/utils/attachments/deltas.ts')
 const { createAttachmentMessage } = await import('../../src/utils/attachments/orchestrator.ts')
 const { normalizeAttachmentForAPI } = await import('../../src/utils/messages/attachmentText.ts')
-const { isDeferredToolsDeltaEnabled } = await import('../../src/utils/toolSearchFlags.ts')
 const { getPrompt, TOOL_SEARCH_TOOL_NAME } = await import('../../src/tools/ToolSearchTool/prompt.ts')
 const { ToolSearchTool } = await import('../../src/tools/ToolSearchTool/ToolSearchTool.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
@@ -113,12 +111,10 @@ function renderedContent(row: Attachment): string {
 }
 const bytes = (s: string): number => Buffer.byteLength(s, 'utf8')
 
-section('§1 THE DEFERRAL FLAG — the reviewed decision is a constant')
+section('§1 THE ONE ANNOUNCEMENT ROAD — no flag gates it; the ToolSearch description names the carrier')
 {
-  check('the deferral flag is on (the delta path is the one announcement road)', isDeferredToolsDeltaEnabled() === true)
   check("the ToolSearch description names the carrier (system-reminder rows), not the retired header tag", getPrompt('block').includes('listed in <system-reminder> messages') && !getPrompt('block').includes('<available-deferred-tools>') && getPrompt('text').includes('listed in <system-reminder> messages'))
-  const flags = readFileSync(join(ROOT, 'src/utils/toolSearchFlags.ts'), 'utf8')
-  check('the flag is a constant', /return true/.test(flags))
+  check('the description is one text per wire form, the same carrier sentence on each', ['block', 'text', 'text-append'].every(form => getPrompt(form as never).split('listed in <system-reminder> messages').length === 2))
 }
 
 section('§2 NO PER-REQUEST ANNOUNCEMENT — every route, and the real first-party wire')

@@ -14,7 +14,6 @@ t.section('§1 timer census over the rendezvous owners (no polling class exists)
     'src/services/attention/relations.ts',
     'src/services/workbench/attentionBridge.ts',
     'src/services/workbench/returnState.ts',
-    'src/services/workbench/folioActions.ts',
     'src/input-core/composer-document.ts',
     'src/input-core/command-queue.ts',
     'src/utils/promptDraft.ts',

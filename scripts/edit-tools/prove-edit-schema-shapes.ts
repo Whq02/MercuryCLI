@@ -73,7 +73,10 @@ const refused: Array<[string, Record<string, unknown>]> = [
   ['section with both new_string and append', { file_path, section: '## Checks', new_string: 'n', append: 'a' }],
   ['append beside old_string', { file_path, append: 'tail', old_string: 'a' }],
   ['a hunk without its replace', { file_path, hunks: [{ lines: '3' }], expected_anchor: 'fa:0123456789ab' }],
+  ['an edits array (an unknown key, like any other)', { file_path, edits: [{ old_string: 'a', new_string: 'b' }] }],
+  ['an edits array beside a plain edit (the unknown key still refuses)', { file_path, old_string: 'a', new_string: 'b', edits: [{ old_string: 'a', new_string: 'b' }] }],
 ]
+for (const [label, value] of refused.filter(([, value]) => 'edits' in value)) check(`refused by the wire schema itself — ${label}`, !valid(value), issuesOf(value))
 
 section('§3 the runtime agrees with the schema')
 const parse = (value: unknown): boolean => (FileEditTool.inputSchema as unknown as { safeParse: (v: unknown) => { success: boolean } }).safeParse(value).success
@@ -104,6 +107,15 @@ const gemini = buildGeminiRequest({ model: 'gemini-2.5-pro', messages: [], tools
 check('the Gemini road carries the same schema as parametersJsonSchema', JSON.stringify(gemini.tools?.[0]?.functionDeclarations[0]?.parametersJsonSchema) === JSON.stringify(wire))
 const again = zodToJsonSchema(FileEditTool.inputSchema as never)
 check('the conversion is one object per schema identity (the request-hot path memo)', again === wire)
+
+section('§5 the tool and its rows know one input shape: no multi-edit edits key is read anywhere, no legacy word remains')
+const { readFileSync } = await import('node:fs')
+const ROOT = join(import.meta.dir, '..', '..')
+const ui = readFileSync(join(ROOT, 'src/tools/FileEditTool/UI.tsx'), 'utf8')
+const tool = readFileSync(join(ROOT, 'src/tools/FileEditTool/FileEditTool.ts'), 'utf8')
+check('the transcript rows type their input as the one FileEditInput and read no edits key off it', !/edits\?:/.test(ui) && !/input\??\.edits\b/.test(ui) && /Partial<FileEditInput>/.test(ui))
+check('the executor reads no edits key off its input', !/input\??\.edits\b|a\.edits\b|b\.edits\b/.test(tool))
+check('neither file spells legacy', !/legacy/i.test(ui) && !/legacy/i.test(tool))
 
 console.log(`\n${failures === 0 ? '✅' : '❌'} prove-edit-schema-shapes — ${failures === 0 ? 'all checks pass' : `${failures} check(s) failed`}`)
 process.exit(failures === 0 ? 0 : 1)
