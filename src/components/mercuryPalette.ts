@@ -26,7 +26,7 @@ export const DIFF_DEL_BG = '#301014'
 export const DIFF_DEL_WORD = '#501A20'
 export const SURFACE_RAISED = ASH_RAISED
 
-export type GroundFamily = {
+type GroundFamily = {
   NIGHT: string
   NIGHT_SOFT: string
   ASH: string

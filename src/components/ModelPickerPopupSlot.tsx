@@ -10,12 +10,12 @@ import { panelWidth } from './mercury-ui/geometry.js'
 import { modelPickerCentred } from './MercuryModelPicker.js'
 import { PopupGutter, popupGeometry } from './PopupGutter.js'
 
-export const MODEL_PICKER_POPUP_MIN_ROWS = 10
-export const MODEL_PICKER_POPUP_SPARE_ROWS = 7
+const MODEL_PICKER_POPUP_MIN_ROWS = 10
+const MODEL_PICKER_POPUP_SPARE_ROWS = 7
 
 export type ModelPickerPopupHost = { left: number; top: number; columns: number; rows: number }
 
-export type ModelPickerPopupGeometry = { left: number; top: number; width: number; rows: number; columns: number }
+type ModelPickerPopupGeometry = { left: number; top: number; width: number; rows: number; columns: number }
 
 export function modelPickerPopupHost(element: DOMElement, framed: boolean): ModelPickerPopupHost | null {
   const inset = framed ? 1 : 0

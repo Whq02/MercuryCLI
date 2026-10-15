@@ -17,7 +17,7 @@ import { GLYPH } from './mercury-ui/glyphs.js'
 
 const CAP_OFFER_ENTER_ARM_MS = 400
 
-export interface CapOfferChoice {
+interface CapOfferChoice {
   route: string
   model: string
 }

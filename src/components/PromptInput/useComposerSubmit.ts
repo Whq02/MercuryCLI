@@ -27,11 +27,11 @@ import type { useComposerCrewmate } from '../tasks/useCrewmateView.js'
 const DOUBLED_SLASH = '//'
 const CREWMATE_IMAGE_DETAIL = `a crewmate reads words, never an image — send the image to ${LEAD_ROW_NAME}, or describe it`
 
-export type ComposerSubmitOptions = { fromKeybinding?: boolean; isSlashPick?: boolean }
+type ComposerSubmitOptions = { fromKeybinding?: boolean; isSlashPick?: boolean }
 
 export type ComposerSubmit = (raw: string, options: ComposerSubmitOptions) => Promise<void>
 
-export type ComposerSubmitInput = {
+type ComposerSubmitInput = {
   compactWork: CompactWorkControls | undefined
   appStateStore: AppStateStore
   suggestionApi: ReturnType<typeof usePromptSuggestion>

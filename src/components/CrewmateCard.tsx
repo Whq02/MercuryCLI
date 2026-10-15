@@ -8,7 +8,7 @@ import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js'
 import { useSessionAccent } from './mercury-ui/sessionAccent.js'
 import type { CrewmateInView } from './tasks/useCrewmateView.js'
 
-export function crewmateFactsLine(facts: CrewAgentFacts | null, nowMs: number): string[] {
+function crewmateFactsLine(facts: CrewAgentFacts | null, nowMs: number): string[] {
   if (facts === null) return []
   const parts = [crewModelLabel(facts), crewStatusWords(facts, nowMs)]
   const tokens = crewTokensLabel(facts)

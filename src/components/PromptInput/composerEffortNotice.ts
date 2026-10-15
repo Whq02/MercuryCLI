@@ -8,7 +8,7 @@ import {
   type EffortValue,
 } from '../../utils/effort.js'
 
-export type ComposerEffortFacts = {
+type ComposerEffortFacts = {
   model: string
   seatEffort: string | null
   sentEffort: string | null | undefined

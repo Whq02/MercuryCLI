@@ -1,8 +1,8 @@
 import { useCallback, useMemo, useState } from 'react'
 
-export type Amendment = { open: boolean; text: string }
+type Amendment = { open: boolean; text: string }
 
-export type Amendments<Role extends string> = Record<Role, Amendment>
+type Amendments<Role extends string> = Record<Role, Amendment>
 
 const CLOSED: Amendment = { open: false, text: '' }
 

@@ -7,7 +7,7 @@ import { focusedSessionModelFacts } from '../services/engine-connector/focusedCo
 import { formatAge } from '../utils/healthCertCore.js'
 import { KEY_PAGES } from './loginFamilyRows.js'
 
-export interface GeminiGuidePage {
+interface GeminiGuidePage {
   address: string
   observedAt: string
   source: string
@@ -15,7 +15,7 @@ export interface GeminiGuidePage {
 
 export type GeminiGuideStepNumber = 1 | 2 | 3 | 4 | 5 | 6
 
-export interface GeminiGuideStep {
+interface GeminiGuideStep {
   number: GeminiGuideStepNumber
   title: string
   detail: string
@@ -102,9 +102,9 @@ export interface GeminiConnectFacts {
   active?: 'oauth' | 'api-key' | 'plan'
 }
 
-export type GeminiConnectRowAction = 'activate' | 'enter'
+type GeminiConnectRowAction = 'activate' | 'enter'
 
-export type GeminiConnectRowValue = 'plan' | 'key' | 'google' | 'client'
+type GeminiConnectRowValue = 'plan' | 'key' | 'google' | 'client'
 
 function storedSourceCount(facts: GeminiConnectFacts): number {
   return (facts.planConnected ? 1 : 0) + (facts.oauthConnected ? 1 : 0) + (facts.keySource !== undefined ? 1 : 0)
@@ -126,7 +126,7 @@ export const GEMINI_KEY_BILLING_NOTE = 'Cloud project: free Flash ~20/day, Pro 0
 export const GEMINI_KEY_ROW = 'API key — the easiest: create one in AI Studio, paste it here'
 export const GEMINI_PLAN_ROW = "Sign in with Google — your plan's quota: AI Pro, AI Ultra or a free account"
 
-export function geminiPlanTierWordsWithAge(facts: Pick<GeminiConnectFacts, 'planTier' | 'planTierReadAtMs'>, now: number = Date.now()): string {
+function geminiPlanTierWordsWithAge(facts: Pick<GeminiConnectFacts, 'planTier' | 'planTierReadAtMs'>, now: number = Date.now()): string {
   const tier = facts.planTier ?? 'tier unknown'
   return facts.planTierReadAtMs !== undefined ? `${tier}, read ${formatAge(now - facts.planTierReadAtMs)}` : tier
 }
@@ -179,18 +179,18 @@ export function geminiGuideReturnStep(failure: string): GeminiGuideStepNumber | 
 
 export type GeminiGuideOpenState = 'opening' | 'opened' | 'failed'
 
-export type GeminiGuideTone = 'title' | 'done' | 'current' | 'todo' | 'detail' | 'address' | 'status' | 'note' | 'hint'
+type GeminiGuideTone = 'title' | 'done' | 'current' | 'todo' | 'detail' | 'address' | 'status' | 'note' | 'hint'
 
 export interface GeminiGuideLine {
   text: string
   tone: GeminiGuideTone
 }
 
-export function geminiGuideTitle(step: GeminiGuideStepNumber): string {
+function geminiGuideTitle(step: GeminiGuideStepNumber): string {
   return `Connect a Google account — step ${step} of 6`
 }
 
-export function geminiGuideStepLines(current: GeminiGuideStepNumber, compact: boolean): GeminiGuideLine[] {
+function geminiGuideStepLines(current: GeminiGuideStepNumber, compact: boolean): GeminiGuideLine[] {
   const lines: GeminiGuideLine[] = []
   for (const step of GEMINI_GOOGLE_ACCOUNT_STEPS) {
     if (compact && step.number !== current) continue
@@ -232,8 +232,8 @@ export function geminiGuideHint(step: GeminiGuideStepNumber, field?: 'id' | 'sec
   return '↵ done, next step · o opens the page again · esc back'
 }
 
-export const GEMINI_KEY_LEG_TITLE = 'Connect Google Gemini — API key'
-export const GEMINI_KEY_STORAGE_SENTENCE =
+const GEMINI_KEY_LEG_TITLE = 'Connect Google Gemini — API key'
+const GEMINI_KEY_STORAGE_SENTENCE =
   'Stored auth-scoped (mode 600), never logged; GOOGLE_API_KEY / GEMINI_API_KEY env vars always win over the store (GOOGLE_API_KEY outranks — the documented precedence).'
 
 export function geminiKeyLegLines(opened: GeminiGuideOpenState | undefined): GeminiGuideLine[] {

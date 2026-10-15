@@ -258,17 +258,17 @@ function ApiKeySlot({
   )
 }
 
-export function UsageCredits({ usage }: { usage: Pick<ActiveSourceUsage, 'credits'> }): React.ReactNode {
+function UsageCredits({ usage }: { usage: Pick<ActiveSourceUsage, 'credits'> }): React.ReactNode {
   const line = usageCreditsLine(usage.credits)
   return line === undefined ? null : <Text dimColor>{line}</Text>
 }
 
-export function carryTail(usage: Pick<ActiveSourceUsage, 'carry'>): string {
+function carryTail(usage: Pick<ActiveSourceUsage, 'carry'>): string {
   const words = usageCarryWords(usage.carry)
   return words === undefined ? '' : ` · ${words}`
 }
 
-export function fullWindowLine(usage: Pick<ActiveSourceUsage, 'windows' | 'pools' | 'limited' | 'carry'>): string | undefined {
+function fullWindowLine(usage: Pick<ActiveSourceUsage, 'windows' | 'pools' | 'limited' | 'carry'>): string | undefined {
   return usageWindowReached(usage) === 'full' ? `A usage window reads 100%${carryTail(usage)}.` : undefined
 }
 
@@ -413,7 +413,7 @@ const ENGINE_USAGE_PRESENTATION: Record<
   },
 }
 
-export interface UsageSection {
+interface UsageSection {
   id: RouterProviderId
   kind: 'anthropic' | 'engine'
   title: string
@@ -1272,9 +1272,9 @@ export function usageBodyRows(budget: number, requestedJevRows = 1): { footerRow
   return { footerRows, jevRows, capacity: rows - footerRows - jevRows }
 }
 
-export type UsageCompactLine = { text: string; heading: boolean }
+type UsageCompactLine = { text: string; heading: boolean }
 
-export type UsageCompactReads = {
+type UsageCompactReads = {
   identity: (family: RouterProviderId) => string
   usage: (family: RouterProviderId) => ActiveSourceUsage
   anthropicWindows: () => UsageWindowView[]

@@ -14,7 +14,7 @@ import { cockpitBottomSlotReserve, viewportRows } from './mercury-ui/geometry.js
 import { useOpenEventGate } from './mercury-ui/useOpenEventGate.js'
 
 
-export type SearchMatch = { file: string; line: number; text: string }
+type SearchMatch = { file: string; line: number; text: string }
 type SearchLoader = (query: string, signal: AbortSignal) => Promise<SearchMatch[]>
 
 const MAX_MATCHES = 200

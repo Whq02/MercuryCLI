@@ -105,7 +105,7 @@ function lineExtras(top: string, bot: string, pupil: string, sleepSlots: readonl
   return extras
 }
 
-export type CritterFrameOpts = {
+type CritterFrameOpts = {
   square?: boolean
   pupil?: string
   gazeKey?: string
@@ -132,7 +132,7 @@ export function composeCritterFrame(def: CritterDef, opts: CritterFrameOpts): { 
   return { art, sleepSlots }
 }
 
-export type CritterArtProps = {
+type CritterArtProps = {
   def: CritterDef
   pupil?: string
   gazeKey?: string

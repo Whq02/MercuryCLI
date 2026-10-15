@@ -8,7 +8,7 @@ import { useSessionAccent } from './mercury-ui/sessionAccent.js'
 import { useOpenEventGate } from './mercury-ui/useOpenEventGate.js'
 
 
-export type MemoryTarget = {
+type MemoryTarget = {
   label: string
   path: string
   scope: 'User' | 'Project' | 'Local' | string

@@ -6,7 +6,7 @@ import { getFocusedSessionConnector } from '../../services/engine-connector/focu
 import { permissionRuleExtractPrefix } from '../../utils/permissions/shellRuleMatching.js'
 import type { PermissionUpdate } from '../../types/permissions.js'
 
-export type FolderSpelling = 'windows' | 'posix'
+type FolderSpelling = 'windows' | 'posix'
 
 function folderSpelling(): FolderSpelling {
   return getPlatform() === 'windows' ? 'windows' : 'posix'

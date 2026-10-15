@@ -5,7 +5,7 @@ import { claimHover, releaseHover, useHoverOwned } from './useHoverOwned.js'
 import { useMercuryTokens } from './useMercuryTokens.js'
 
 
-export type InteractiveRowProps = {
+type InteractiveRowProps = {
   id: string
   selected?: boolean
   focused?: boolean
@@ -27,7 +27,7 @@ export type InteractiveRowProps = {
   children: React.ReactNode | ((hover: boolean) => React.ReactNode)
 }
 
-export function rowActionHint(row: {
+function rowActionHint(row: {
   actionLabel?: string
   unavailable?: boolean
 }): string | undefined {

@@ -6,9 +6,9 @@ import { trustStateOf } from '../../extensions/roster.js'
 import type { SourceRow, SourceState } from '../../extensions/sources.js'
 import type { RosterSummary, Health, RosterEntry, TrustState } from '../../extensions/types.js'
 
-export type StateRole = 'success' | 'warning' | 'failure' | 'textMuted' | 'textSecondary'
+type StateRole = 'success' | 'warning' | 'failure' | 'textMuted' | 'textSecondary'
 
-export type StateWord = { glyph: string; word: string; role: StateRole }
+type StateWord = { glyph: string; word: string; role: StateRole }
 
 export function trustWord(state: TrustState, health: Health | null): StateWord {
   switch (state) {

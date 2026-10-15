@@ -9,7 +9,7 @@ import { Select } from '../CustomSelect/select.js'
 
 export const ALL_MATCHER_MARKER = '*'
 
-export function matchFieldWords(card: HookEventCard): string {
+function matchFieldWords(card: HookEventCard): string {
   if (card.match === undefined) return 'no match field'
   const values = card.matchValues
   return values !== undefined && values.length > 0 ? `match: ${card.match} (${values.join(', ')})` : `match: ${card.match}`

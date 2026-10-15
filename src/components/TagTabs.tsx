@@ -4,7 +4,7 @@ import { Box, Text } from '../ink.js'
 import { stringWidth } from '../ink/stringWidth.js'
 import { truncateToWidth } from '../utils/truncate.js'
 
-export type TagTab = {
+type TagTab = {
   label: string
   isAll?: boolean
 }

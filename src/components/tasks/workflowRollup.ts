@@ -3,7 +3,7 @@ import { formatDuration, formatTokens } from '../../utils/format.js'
 import type { WorkRowV1 } from '../../services/engine-connector/types.js'
 import { GLYPH } from '../mercury-ui/glyphs.js'
 
-export type WorkflowRollupFacts = {
+type WorkflowRollupFacts = {
   agentsDone: number
   agentCount: number
   elapsedMs: number
@@ -22,7 +22,7 @@ export function agentsDoneOf(agents: readonly { state: string }[]): number {
   return agents.filter(a => a.state === 'done').length
 }
 
-export function workflowRowFacts(row: WorkRowV1): {
+function workflowRowFacts(row: WorkRowV1): {
   agentsDone: number
   agentCount: number
   phaseTitle: string | undefined
@@ -45,7 +45,7 @@ export function workflowRowDetail(row: WorkRowV1): string | null {
   return f.phaseTitle ?? null
 }
 
-export type WorkflowPhaseTone = 'settled' | 'active' | 'error' | 'pending'
+type WorkflowPhaseTone = 'settled' | 'active' | 'error' | 'pending'
 
 export function phaseTone(g: {
   planned: boolean

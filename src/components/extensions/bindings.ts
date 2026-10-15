@@ -18,7 +18,7 @@ const DEFAULT_CHARS: ReadonlyArray<readonly [string, string]> = [
   ['extensions:previous', 'P'],
 ]
 
-export type ExtensionsBindings = {
+type ExtensionsBindings = {
   chars: Map<string, string>
   declined: string[]
 }

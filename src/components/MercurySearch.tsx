@@ -11,7 +11,7 @@ import { applyNavMotion, decodeNavKey } from './mercury-ui/navSemantics.js'
 import { useOpenEventGate } from './mercury-ui/useOpenEventGate.js'
 
 
-export type SearchHit = { title: string; snippet?: string; meta?: string }
+type SearchHit = { title: string; snippet?: string; meta?: string }
 
 const TITLE_WIDTH = 38
 const SNIPPET_WIDTH = 30

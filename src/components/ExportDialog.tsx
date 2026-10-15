@@ -11,7 +11,7 @@ import { getFocusedWorkspaceCwd, useFocusedWorkspaceCwd } from '../hooks/useFocu
 import { writeFileSync } from 'node:fs'
 
 
-export type ExportResult = { success: boolean; message: string }
+type ExportResult = { success: boolean; message: string }
 
 function normalizeTxtFilename(filename: string): string {
   if (filename.endsWith('.txt')) return filename

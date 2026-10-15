@@ -19,7 +19,7 @@ type EntryRow = {
   health: Health | null
 }
 
-export type SourceViewSlot = {
+type SourceViewSlot = {
   node: React.ReactNode
   rows: number
   active: boolean

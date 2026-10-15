@@ -16,7 +16,7 @@ import { isVimModeEnabled } from './utils.js'
 
 type OwnSelection = { start: number; end: number; of: string }
 
-export type ComposerSelectionState = {
+type ComposerSelectionState = {
   inputSelectionRangeRef: React.MutableRefObject<() => { start: number; end: number } | null>
   inputBoxRef: React.MutableRefObject<DOMElement | null>
   selectionApi: ReturnType<typeof useSelection>
@@ -74,7 +74,7 @@ export function useComposerSelectionState(): ComposerSelectionState {
   return { inputSelectionRangeRef, inputBoxRef, selectionApi, selectionGestureRectRef, gestureAnchorRef, ownSelectionOf, setOwnSelection, clearOwnSelection }
 }
 
-export type ComposerSelectionRoadInput = {
+type ComposerSelectionRoadInput = {
   input: string
   cursorOffset: number
   textColumns: number
@@ -84,7 +84,7 @@ export type ComposerSelectionRoadInput = {
   setCursorOffset: (offset: number) => void
 }
 
-export type ComposerSelectionRoad = {
+type ComposerSelectionRoad = {
   ownSelection: { start: number; end: number } | null
   handleInputBoxClick: (event: { localCol: number; localRow: number }) => void
   handleInputTextGesture: (gesture: TextGesture) => boolean

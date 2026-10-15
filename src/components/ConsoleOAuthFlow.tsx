@@ -582,15 +582,15 @@ export const READINESS_ROWS: ReadonlyArray<{ id: ProviderId; label: string }> = 
   { id: 'nous', label: 'Nous Portal' },
 ]
 
-export const READINESS_LABEL_WIDTH = 21
+const READINESS_LABEL_WIDTH = 21
 
-export function readinessStatusOf(lane: { usable: boolean; credential?: string | null; limit?: string | null; blockers: readonly string[] }): string {
+function readinessStatusOf(lane: { usable: boolean; credential?: string | null; limit?: string | null; blockers: readonly string[] }): string {
   return lane.usable
     ? `ready · ${lane.credential}${lane.limit === 'rejected' ? ' · window reached' : ''}`
     : (lane.blockers[0] ?? 'not ready')
 }
 
-export function readinessBlockPlan(
+function readinessBlockPlan(
   map: Record<ProviderId, { usable: boolean; credential?: string | null; limit?: string | null; blockers: readonly string[] }>,
   statusWidth: number | null,
 ): { rows: number; lines: number[] } {
@@ -598,7 +598,7 @@ export function readinessBlockPlan(
   return { rows: 1 + lines.reduce((sum, n) => sum + n, 0), lines }
 }
 
-export function readinessFamiliesShown(plan: { rows: number; lines: number[] }, rows: number): number {
+function readinessFamiliesShown(plan: { rows: number; lines: number[] }, rows: number): number {
   if (rows >= plan.rows) return plan.lines.length
   let used = 2
   let shown = 0

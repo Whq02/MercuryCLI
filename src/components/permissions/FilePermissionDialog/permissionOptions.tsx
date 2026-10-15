@@ -38,7 +38,7 @@ function isPathStrictlyInside(candidatePath: string, folder: string): boolean {
   return candidate.startsWith(target + platformSep) || candidate.startsWith(target + '/')
 }
 
-export function projectConfigHomeOf(filePath: string): string | null {
+function projectConfigHomeOf(filePath: string): string | null {
   const cwd = getFocusedSessionConnector().workspace().originalCwd
   for (const home of PROJECT_CONFIG_DIR_NAMES) {
     if (isPathStrictlyInside(filePath, `${cwd}${platformSep}${home}`)) return home
@@ -46,11 +46,11 @@ export function projectConfigHomeOf(filePath: string): string | null {
   return null
 }
 
-export function isInGlobalConfigHome(filePath: string): boolean {
+function isInGlobalConfigHome(filePath: string): boolean {
   return isPathStrictlyInside(filePath, getMercuryHome())
 }
 
-export function globalConfigHomePattern(): string {
+function globalConfigHomePattern(): string {
   const home = getMercuryHome()
   const tilde = toTildePath(home)
   return `${tilde}/**`

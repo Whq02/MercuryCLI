@@ -17,7 +17,7 @@ import { expandTabs, stripControls } from './composerText.js'
 const UNDO_BUFFER_SIZE = 50
 const UNDO_COALESCE_MS = 1000
 
-export type ComposerDraftInput = {
+type ComposerDraftInput = {
   helpOpen: boolean
   setHelpOpen: (open: boolean) => void
   speculationActive: boolean
@@ -27,7 +27,7 @@ export type ComposerDraftInput = {
   removeNotification: (key: string) => void
 }
 
-export type ComposerDraft = {
+type ComposerDraft = {
   editGen: number
   input: string
   mode: PromptInputMode

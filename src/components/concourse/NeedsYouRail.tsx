@@ -10,12 +10,12 @@ import type { ConcourseSnapshotV1 } from './contracts.js';
 
 export const RAIL_MAX_ROWS = 3;
 
-export interface RailTailChunk {
+interface RailTailChunk {
   text: string
   tone: 'muted' | 'affordance-primary' | 'affordance'
 }
 
-export interface RailTailPart {
+interface RailTailPart {
   key: 'meta' | 'answer' | 'open' | 'dismiss'
   priority: number
   text: string

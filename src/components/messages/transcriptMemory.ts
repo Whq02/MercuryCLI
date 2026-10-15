@@ -1,6 +1,6 @@
 export type TranscriptAnchor = { uuid: string; idx: number } | null
 
-export type TranscriptMemoryV1 = {
+type TranscriptMemoryV1 = {
   expanded: ReadonlySet<string>
   anchor: { current: TranscriptAnchor }
 }

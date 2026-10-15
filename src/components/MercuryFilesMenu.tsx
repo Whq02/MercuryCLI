@@ -19,13 +19,13 @@ import { readFileTreeGit, type FileTreeGit } from '../utils/files/fileTreeGit.js
 
 export const FILES_MENU_WIDTH = 70
 export const FILES_MENU_CHROME_ROWS = 8
-export const FILES_MENU_TITLE_VIEW = 'files'
+const FILES_MENU_TITLE_VIEW = 'files'
 export const FILES_MENU_FILTER_PLACEHOLDER = 'filter by name'
 export const FILES_MENU_HINT = '↑↓ move · ↵ open · → ← unfold · / filter · esc or click outside closes'
 
 export { cutToWidth }
 
-export function readFolder(root: string, dir: string): TreeEntry[] {
+function readFolder(root: string, dir: string): TreeEntry[] {
   try {
     const entries: TreeEntry[] = []
     for (const dirent of readdirSync(join(root, dir), { withFileTypes: true })) {
@@ -38,7 +38,7 @@ export function readFolder(root: string, dir: string): TreeEntry[] {
   }
 }
 
-export function folderLineFor(root: string, git: FileTreeGit | null): string {
+function folderLineFor(root: string, git: FileTreeGit | null): string {
   const name = basename(root).toUpperCase()
   if (git === null) return name
   const chip = git.branch !== '' ? ` · ${branchChip(git.branch)}` : ''

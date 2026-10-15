@@ -6,9 +6,9 @@ import { decodeNavKey } from './navSemantics.js'
 import { useOpenEventGate } from './useOpenEventGate.js'
 
 
-export type NavLevel = 'list' | 'detail'
+type NavLevel = 'list' | 'detail'
 
-export type UseNavigablePanesArgs = {
+type UseNavigablePanesArgs = {
   escOverride?: () => boolean
   sectionIds?: string[]
   sectionCount: number
@@ -24,7 +24,7 @@ export type UseNavigablePanesArgs = {
   sectionRowKeys?: readonly (readonly string[])[]
 }
 
-export type UseNavigablePanesResult = {
+type UseNavigablePanesResult = {
   section: number
   sel: number
   level: NavLevel

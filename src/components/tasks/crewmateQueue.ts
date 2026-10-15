@@ -2,9 +2,9 @@ import type { Message, UserMessage } from '../../types/message.js'
 import { createUserMessage } from '../../utils/messages/factories.js'
 import { crewmateLineRefusedNote, crewmateLineStrandedNote } from '../../utils/cockpit/crewmateWords.js'
 
-export const CREWMATE_QUEUE_STRAND_MS = 12_000
+const CREWMATE_QUEUE_STRAND_MS = 12_000
 
-export type CrewmateQueuedLine = {
+type CrewmateQueuedLine = {
   text: string
   row: UserMessage
   refused: string | null
@@ -12,7 +12,7 @@ export type CrewmateQueuedLine = {
   strandedRow: UserMessage | null
 }
 
-export type CrewmateQueueFacts = { running: boolean; endedAt: number | null } | null
+type CrewmateQueueFacts = { running: boolean; endedAt: number | null } | null
 
 const byCrewmate = new Map<string, CrewmateQueuedLine[]>()
 let version = 0
@@ -57,7 +57,7 @@ export function pruneLandedCrewmateLines(taskId: string, landedTexts: readonly s
   notify()
 }
 
-export function crewmateLineStranded(line: Pick<CrewmateQueuedLine, 'refused' | 'queuedAt'>, facts: CrewmateQueueFacts, nowMs: number): boolean {
+function crewmateLineStranded(line: Pick<CrewmateQueuedLine, 'refused' | 'queuedAt'>, facts: CrewmateQueueFacts, nowMs: number): boolean {
   if (line.refused !== null || facts === null || facts.running) return false
   const since = Math.max(line.queuedAt, facts.endedAt ?? line.queuedAt)
   return nowMs - since >= CREWMATE_QUEUE_STRAND_MS

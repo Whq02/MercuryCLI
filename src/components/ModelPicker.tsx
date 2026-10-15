@@ -34,7 +34,7 @@ import { useExitOnCtrlCDWithKeybindings } from '../hooks/useExitOnCtrlCDWithKeyb
 
 const VISIBLE_OPTIONS = 10
 
-export type Props = {
+type Props = {
   initial: string
   sessionModel?: string | null
   onSelect: (model: string, effort: EffortLevel | undefined) => void

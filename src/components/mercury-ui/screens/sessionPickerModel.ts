@@ -18,7 +18,7 @@ import { useNowTick } from '../components.js'
 
 export type SessionScope = 'project' | 'all'
 
-export type SessionPickerRow = {
+type SessionPickerRow = {
   project: string
   label: string
   seen: string
@@ -87,7 +87,7 @@ export function projectSessionPickerRows(
 
 const ENRICH_BATCH = 50
 
-export function useResumableSessionLogs(opts: { enabled?: boolean } = {}): {
+function useResumableSessionLogs(opts: { enabled?: boolean } = {}): {
   logs: SessionListing[] | null
   pendingMore: number
   dropSessions: (sessionIds: ReadonlySet<string>) => void

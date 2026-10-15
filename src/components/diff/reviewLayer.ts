@@ -137,7 +137,7 @@ export function _resetReviewLayerForTesting(): void {
 }
 
 
-export interface FileReviewMarks {
+interface FileReviewMarks {
   byHunk: Map<number, ReviewComment[]>
   open: number
   resolved: number

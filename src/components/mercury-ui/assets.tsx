@@ -22,7 +22,7 @@ export function Crab(): React.ReactNode {
   )
 }
 
-export const CrabMark = Crab
+const CrabMark = Crab
 
 export function SessionMark(): React.ReactNode {
   const sa = useSessionAccent()
@@ -119,7 +119,7 @@ export function wordmarkForm(columns: number, rows: number): 'banner' | 'compact
   return rows >= 34 && columns >= 48 ? 'banner' : 'compact'
 }
 
-export type SigilSize = 'inline' | 'small' | 'medium' | 'large'
+type SigilSize = 'inline' | 'small' | 'medium' | 'large'
 
 const SMALL = ['╲ │ ╱', '──◉──', '╱ │ ╲']
 const MEDIUM = ['   │', ' ╲ │ ╱', '───◉───', ' ╱ │ ╲', '   │']

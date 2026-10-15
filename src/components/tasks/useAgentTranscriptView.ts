@@ -11,8 +11,8 @@ import {
 
 const REREAD_THROTTLE_MS = 2000
 
-export type AgentReadStatus = 'idle' | 'loading' | 'done' | 'missing'
-export type AgentReadState = {
+type AgentReadStatus = 'idle' | 'loading' | 'done' | 'missing'
+type AgentReadState = {
   status: AgentReadStatus
   view?: AgentTranscriptView
   meta?: { agentType?: string; worktreePath?: string; description?: string }

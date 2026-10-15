@@ -19,14 +19,14 @@ import { resolveWatchRoot } from '../../utils/watchRoot.js'
 import { logForDebugging } from '../../utils/debug.js'
 
 
-export type LiveTileNow =
+type LiveTileNow =
   | { kind: 'streaming'; line: string }
   | { kind: 'tool'; line: string }
   | { kind: 'phase'; line: string }
   | { kind: 'settled'; line: string }
   | { kind: 'still' }
 
-export type LiveTileTail = Pick<SessionTailV1, 'atMs' | 'text'> & Partial<Pick<SessionTailV1, 'streamBlock' | 'stateWord' | 'waitingOnAgents' | 'wait'>>
+type LiveTileTail = Pick<SessionTailV1, 'atMs' | 'text'> & Partial<Pick<SessionTailV1, 'streamBlock' | 'stateWord' | 'waitingOnAgents' | 'wait'>>
 
 export function liveTilePhase(tail: LiveTileTail | null): string | null {
   if (tail === null) return null
@@ -79,7 +79,7 @@ interface TileEntry {
   tailStamp: string
 }
 
-export interface LiveTileStoreDeps {
+interface LiveTileStoreDeps {
   tailDir: () => string
   tailPath: (sessionId: string) => string
   readTail: (sessionId: string) => LiveTileTail | null
@@ -375,7 +375,7 @@ export function workChipTextOf(facts: { work?: readonly WorkRowV1[] } | null): s
   return line === null ? null : `${line} running`
 }
 
-export const CHIP_FRESH_MS = TAIL_FRESH_MS
+const CHIP_FRESH_MS = TAIL_FRESH_MS
 
 export function workChipStoreDeps(nowMs: () => number = () => Date.now()): Partial<LiveTileStoreDeps> {
   return {

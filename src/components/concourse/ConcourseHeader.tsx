@@ -53,7 +53,7 @@ export function ConcourseLockup(): React.ReactNode {
   );
 }
 
-export function Breadcrumb({
+function Breadcrumb({
   active,
   onBoot,
   onConcourse,

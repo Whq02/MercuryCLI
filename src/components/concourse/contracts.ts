@@ -1,5 +1,5 @@
 
-export type ConcourseLifecycleLabel =
+type ConcourseLifecycleLabel =
   | 'draft'
   | 'queued'
   | 'starting'
@@ -153,7 +153,7 @@ export interface ConcourseSnapshotV1 {
   }
 }
 
-export type ConcourseBoardRow =
+type ConcourseBoardRow =
   | { kind: 'group'; id: string; label: string; count: number }
   | { kind: 'session'; row: ConcourseRowV1 }
 
@@ -178,8 +178,8 @@ export function stableSelectionFallback(
   return { sessionId: ids[Math.max(0, index)] ?? null, index: Math.max(0, index) }
 }
 
-export type ControlNoteKind = 'pending' | 'applied' | 'held' | 'refused' | 'failed'
-export interface ControlNote {
+type ControlNoteKind = 'pending' | 'applied' | 'held' | 'refused' | 'failed'
+interface ControlNote {
   state: ControlNoteKind
   reason?: string
   next?: string
@@ -192,7 +192,7 @@ export const controlNoteOf = (n: ControlNoteState): ControlNote =>
 export const CONTROL_NOTE_REFUSED_MS = 10_000
 export const CONTROL_NOTE_SETTLED_MS = 4_000
 
-export interface LaunchPreviewV1 {
+interface LaunchPreviewV1 {
   folder: string
   forks: boolean
   mainHolderTitle: string | null

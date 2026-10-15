@@ -39,7 +39,7 @@ export type SectionDef<Row> = {
   emptyHint?: string
 }
 
-export type NavigablePanesProps<Row> = {
+type NavigablePanesProps<Row> = {
   view: string
   subtitle?: string
   headerLine?: React.ReactNode

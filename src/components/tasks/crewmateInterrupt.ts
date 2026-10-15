@@ -4,9 +4,9 @@ import type { AppState } from '../../state/AppStateStore.js'
 import { stopOrDismissAgent } from '../../state/crewmateViewHelpers.js'
 import { AGENT_INTERRUPT_BY_OPERATOR, isLocalAgentTask } from '../../tasks/LocalAgentTask/LocalAgentTask.js'
 
-export type CrewmateInterruptRoad = 'local' | 'hosted' | 'idle'
+type CrewmateInterruptRoad = 'local' | 'hosted' | 'idle'
 
-export type CrewmateInterruptOptions = {
+type CrewmateInterruptOptions = {
   facts?: { running: boolean } | null
   onRefused?: (detail: string) => void
 }

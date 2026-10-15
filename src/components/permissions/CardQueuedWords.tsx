@@ -3,7 +3,7 @@ import { useSyncExternalStore } from 'react'
 import { Box, Text } from '../../ink.js'
 import * as pendingInput from '../../input-core/pending-input.js'
 
-export const CARD_QUEUED_WORDS_HINT = 'waits in the composer until the turn ends · ⌫ edits'
+const CARD_QUEUED_WORDS_HINT = 'waits in the composer until the turn ends · ⌫ edits'
 
 export function CardQueuedWords(): React.ReactNode {
   useSyncExternalStore(pendingInput.subscribePendingInput, pendingInput.editGeneration, pendingInput.editGeneration)

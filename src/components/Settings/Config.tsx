@@ -121,7 +121,7 @@ export const CONFIG_SEARCH_PLACEHOLDER = 'Search settings…'
 export const CONFIG_LIST_CHROME_ROWS = 3
 export const CONFIG_ROW_MARK = GLYPH.chevronRight
 
-export function configPopupLine(folder: string, settings: number, setByYou: number): string {
+function configPopupLine(folder: string, settings: number, setByYou: number): string {
   return `${folder} · ${settings} setting${settings === 1 ? '' : 's'} · ${setByYou} set by you`
 }
 
@@ -138,7 +138,7 @@ export function configWarningRows(warning: string, width: number): number {
   return wrapText(`  ${warning}`, Math.max(1, width), 'wrap').split('\n').length
 }
 
-export type ConfigListWindow = { sel: number; off: number; hiddenBelow: number; overflows: boolean }
+type ConfigListWindow = { sel: number; off: number; hiddenBelow: number; overflows: boolean }
 
 export function configListWindow(selected: number, offset: number, total: number, windowSize: number): ConfigListWindow {
   const size = Math.max(1, windowSize)
@@ -286,7 +286,7 @@ export function localModelWindowRow(
   return { applies, valueText: `${localWindowValueWords(record, setting)} · ${record.id}`, note, setByYou: applies && setting !== undefined, overFit: refusal !== undefined, tight: room !== undefined }
 }
 
-export interface ConfigProviderRow {
+interface ConfigProviderRow {
   id: string
   label: string
   valueText: string

@@ -25,7 +25,7 @@ function resolveThemeName() {
   return configured === 'auto' ? getSystemThemeName() : configured
 }
 
-export type ComputerAskChoice = 'yes' | 'no' | 'hour' | 'day' | 'sovereign'
+type ComputerAskChoice = 'yes' | 'no' | 'hour' | 'day' | 'sovereign'
 
 export const COMPUTER_ASK_CHOICES: ReadonlyArray<{ value: ComputerAskChoice; label: string }> = [
   { value: 'yes', label: 'Yes' },
@@ -39,8 +39,8 @@ export function computerAskChoicesFor(sovereignOn: boolean): ReadonlyArray<{ val
   return sovereignOn ? COMPUTER_ASK_CHOICES.filter(choice => choice.value !== 'sovereign') : COMPUTER_ASK_CHOICES
 }
 
-export const COMPUTER_ASK_FIRST_ACT = 'first act in this application this session'
-export const COMPUTER_ASK_QUESTION = 'Do you want to allow Mercury to drive your mouse and keyboard here, and for how long?'
+const COMPUTER_ASK_FIRST_ACT = 'first act in this application this session'
+const COMPUTER_ASK_QUESTION = 'Do you want to allow Mercury to drive your mouse and keyboard here, and for how long?'
 export const COMPUTER_ASK_NOTE = 'A timed grant covers every application and asks again when it runs out; sovereign mode is saved in the Boot Menu and no permission is asked after it, computer use included.'
 
 export function computerAskAppLine(app: DesktopJudgedApp | null): string {
@@ -62,7 +62,7 @@ export function judgedAppFromAsk(message: string, suggestions: ReadonlyArray<Ask
   return identity === null ? null : { identity, name: identity }
 }
 
-export interface ComputerAskEffect {
+interface ComputerAskEffect {
   allow: boolean
   grant: ComputerGrantRecord | null
   saved: 'sovereign' | null
@@ -72,7 +72,7 @@ export interface ComputerAskEffect {
 
 const NO_UPDATES: PermissionUpdate[] = []
 
-export const SOVEREIGN_MODE_DISABLED = 'Sovereign Mode is disabled by settings or organisation policy.'
+const SOVEREIGN_MODE_DISABLED = 'Sovereign Mode is disabled by settings or organisation policy.'
 
 export function applyComputerAskChoice(choice: ComputerAskChoice, sessionId: string, now: number = Date.now()): ComputerAskEffect {
   switch (choice) {

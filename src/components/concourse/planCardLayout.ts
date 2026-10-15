@@ -1,9 +1,9 @@
 
 import type { ManagerLaneV1, ManagerPlanV1 } from '../../services/concourse/managerMode.js'
 
-export type PlanLaneTier = 'full' | 'compact' | 'titles'
+type PlanLaneTier = 'full' | 'compact' | 'titles'
 
-export interface PlanCardLayout {
+interface PlanCardLayout {
   tier: PlanLaneTier
   shown: number
   hidden: number

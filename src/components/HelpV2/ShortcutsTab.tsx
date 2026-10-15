@@ -30,7 +30,7 @@ export const EVERYDAY: Section = {
   ],
 }
 
-export const ADVANCED: Section[] = [
+const ADVANCED: Section[] = [
   {
     head: 'quick-open (the ctrl+x suite)',
     rows: [

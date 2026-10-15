@@ -30,7 +30,7 @@ const LABEL_WIDTH = 8
 const OUTPUT_UNREPORTED = 'output not reported by the runner'
 const OUTPUT_ABSENT = 'output file not found on this box'
 
-export type ShellCardFacts = {
+type ShellCardFacts = {
   command: string
   description?: string
   status: string
@@ -76,11 +76,11 @@ type Tail = { content: string; totalBytes: number; totalLines: number; present: 
 
 type LineCount = { path: string | undefined; scanned: number; lines: number; open: boolean }
 
-export function freshLineCount(path: string | undefined): LineCount {
+function freshLineCount(path: string | undefined): LineCount {
   return { path, scanned: 0, lines: 0, open: false }
 }
 
-export function advanceLineCount(count: LineCount, size: number): number {
+function advanceLineCount(count: LineCount, size: number): number {
   if (count.path === undefined) return 0
   if (size < count.scanned) {
     count.scanned = 0
@@ -124,7 +124,7 @@ function readTail(path: string | undefined, count: LineCount): Tail {
 
 const wrappedRows = (text: string, width: number): number => wrapText(text, width, 'wrap').split('\n').length
 
-export function fitRows(text: string, width: number, maxRows: number): string {
+function fitRows(text: string, width: number, maxRows: number): string {
   if (wrappedRows(text, width) <= maxRows) return text
   let low = 0
   let high = text.length

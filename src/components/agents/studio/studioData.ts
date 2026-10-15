@@ -66,7 +66,7 @@ export function isFileBacked(
   )
 }
 
-export type StudioEstate = {
+type StudioEstate = {
   rows: StudioRow[]
   estate: Map<string, AgentEstateEntry>
   counts: { total: number; issues: number; disabled: number }

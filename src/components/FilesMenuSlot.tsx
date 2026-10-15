@@ -8,11 +8,11 @@ import { insertAtComposerCaret } from './PromptInput/composerInsert.js'
 import { FILES_MENU_CHROME_ROWS, FILES_MENU_WIDTH, MercuryFilesMenu } from './MercuryFilesMenu.js'
 import { PopupGutter, popupGeometry } from './PopupGutter.js'
 
-export const FILES_MENU_INSET_ROWS = 4
+const FILES_MENU_INSET_ROWS = 4
 
-export type FilesMenuGeometry = { left: number; top: number; width: number; rowBudget: number }
+type FilesMenuGeometry = { left: number; top: number; width: number; rowBudget: number }
 
-export function filesMenuGeometry(cols: number, rows: number): FilesMenuGeometry {
+function filesMenuGeometry(cols: number, rows: number): FilesMenuGeometry {
   const spare = rows - FILES_MENU_CHROME_ROWS
   const roomy = spare - 2 * FILES_MENU_INSET_ROWS
   const geometry = popupGeometry({ left: 0, top: 0, columns: cols, rows }, { width: FILES_MENU_WIDTH, rows: FILES_MENU_CHROME_ROWS + Math.max(0, roomy >= 1 ? roomy : spare - 2) }, FILES_MENU_INSET_ROWS)

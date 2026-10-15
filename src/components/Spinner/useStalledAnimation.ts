@@ -6,19 +6,19 @@ export const MID_STREAM_STILL_WAITING_MS = 10_000
 
 export const STILL_WAITING_MAX_INTENSITY = 0.5
 
-export type StallViewInput = {
+type StallViewInput = {
   mode: SpinnerMode
   suppressed: boolean
   lastEventAt: number | null
   now: number
 }
 
-export type StallView = {
+type StallView = {
   stillWaiting: boolean
   targetIntensity: number
 }
 
-export function computeStallView(a: StallViewInput): StallView {
+function computeStallView(a: StallViewInput): StallView {
   const calm: StallView = { stillWaiting: false, targetIntensity: 0 }
   if (a.suppressed) return calm
   if (a.mode !== 'responding') return calm
@@ -28,7 +28,7 @@ export function computeStallView(a: StallViewInput): StallView {
   return { stillWaiting: true, targetIntensity: STILL_WAITING_MAX_INTENSITY }
 }
 
-export function easeAttention(
+function easeAttention(
   current: number,
   target: number,
   dtMs: number,
@@ -46,7 +46,7 @@ export function easeAttention(
   return value
 }
 
-export type StalledAnimationArgs = {
+type StalledAnimationArgs = {
   mode: SpinnerMode
   currentResponseLength: number
   suppressed: boolean

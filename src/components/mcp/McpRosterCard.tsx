@@ -12,7 +12,7 @@ import { FAINT, IVORY } from '../mercury-ui/theme.js'
 import { useInteractiveList } from '../mercury-ui/useInteractiveList.js'
 
 
-export const MCP_SESSION_SUBTITLE = "this session's MCP servers — the boot menu sets the next session's"
+const MCP_SESSION_SUBTITLE = "this session's MCP servers — the boot menu sets the next session's"
 
 export function mcpRosterCardRow(entry: McpRosterEntryV1): string {
   return `${entry.name} · ${entry.type}`

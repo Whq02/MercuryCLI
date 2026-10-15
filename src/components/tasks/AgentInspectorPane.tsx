@@ -77,7 +77,7 @@ function SectionHead({
   )
 }
 
-export type AgentInspectorPaneProps = {
+type AgentInspectorPaneProps = {
   runId: string
   task?: DeepImmutable<LocalWorkflowTaskState>
   manifest?: WorkflowRunManifest & { mtimeMs: number }

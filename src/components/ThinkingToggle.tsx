@@ -9,7 +9,7 @@ import { Select } from './CustomSelect/index.js'
 import Byline from './design-system/Byline.js'
 import Pane from './design-system/Pane.js'
 
-export type Props = {
+type Props = {
   currentValue: boolean
   onSelect: (value: boolean) => void
   onCancel?: () => void

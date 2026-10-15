@@ -1,7 +1,7 @@
 
 import type { MCPServerConnection } from '../../../services/mcp/types.js'
 
-export type ReconnectOutcome = {
+type ReconnectOutcome = {
   success: boolean
   message: string
 }

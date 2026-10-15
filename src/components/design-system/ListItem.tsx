@@ -6,7 +6,7 @@ import { Box, Text } from '../../ink.js'
 import { useDeclaredCursor } from '../../ink/hooks/use-declared-cursor.js'
 import { useMercuryTokens } from '../mercury-ui/useMercuryTokens.js'
 
-export type ListItemProps = {
+type ListItemProps = {
   isFocused?: boolean
   isSelected?: boolean
   children?: React.ReactNode

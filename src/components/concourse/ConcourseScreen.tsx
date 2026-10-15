@@ -122,7 +122,7 @@ export function restoredDraftLine(composerFocused: boolean, armed: boolean): str
   return armed ? RESTORED_DRAFT_ARMED_LINE : RESTORED_DRAFT_LINE
 }
 
-export type SignInPickerV1 = { kind: 'default' } | { kind: 'session'; sessionId: string; title: string }
+type SignInPickerV1 = { kind: 'default' } | { kind: 'session'; sessionId: string; title: string }
 let pendingSignInPicker: SignInPickerV1 | null = null
 export function armSignInPickerReturn(picker: SignInPickerV1): void {
   pendingSignInPicker = picker

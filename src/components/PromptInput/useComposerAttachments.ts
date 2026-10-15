@@ -18,7 +18,7 @@ import { cacheImagePath, storeImage } from '../../utils/imageStore.js'
 import { hashPastedText, storePastedText } from '../../utils/pasteStore.js'
 import { expandTabs, stripControls } from './composerText.js'
 
-export type ComposerAttachmentsInput = {
+type ComposerAttachmentsInput = {
   input: string
   cursorOffset: number
   pastedContents: Record<number, PastedContent>

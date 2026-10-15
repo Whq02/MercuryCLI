@@ -12,7 +12,7 @@ import { HighlightedInput } from './PromptInput/ShimmeredInput.js'
 
 type InputState = ReturnType<typeof useTextInput>
 
-export function argumentHintText(
+function argumentHintText(
   value: string,
   argumentHint: string | undefined,
 ): string | null {
@@ -25,7 +25,7 @@ export function argumentHintText(
   return `${endsWithSpace ? '' : ' '}${argumentHint}`
 }
 
-export function filterHighlights(
+function filterHighlights(
   highlights: TextHighlight[] | undefined,
   cursorShown: boolean,
   cursorOffset: number,

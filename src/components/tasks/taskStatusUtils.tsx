@@ -11,7 +11,7 @@ import {
   type AgentLifecycle,
 } from '../../services/agentResults/lifecycle.js'
 
-export function isTerminalStatus(status: string): boolean {
+function isTerminalStatus(status: string): boolean {
   return status === 'completed' || status === 'failed' || status === 'killed'
 }
 
@@ -28,7 +28,7 @@ export function isManageableTask(task: TaskState): task is BackgroundTaskState {
   return false
 }
 
-export type TaskStatusFlags = {
+type TaskStatusFlags = {
   isIdle?: boolean
   hasError?: boolean
   shutdownRequested?: boolean

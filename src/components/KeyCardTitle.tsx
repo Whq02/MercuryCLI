@@ -6,9 +6,9 @@ import { stringWidth } from '../ink/stringWidth.js'
 import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js'
 import { KEY_PAGES, type KeyFamilyValue } from './loginFamilyRows.js'
 
-export const KEY_CARD_BACK = 'esc back'
+const KEY_CARD_BACK = 'esc back'
 
-export function keyCardLine(family: KeyFamilyValue, title: string, columns: number): { title: string; tail: string } {
+function keyCardLine(family: KeyFamilyValue, title: string, columns: number): { title: string; tail: string } {
   const page = ` · ${KEY_PAGES[family]}`
   const back = ` · ${KEY_CARD_BACK}`
   return { title, tail: stringWidth(title + page + back) <= columns ? page + back : back }

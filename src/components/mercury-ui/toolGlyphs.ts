@@ -15,9 +15,9 @@ export type ToolFamily =
   | 'system'
   | 'external'
 
-export type ToolToneRole = 'accent' | 'info' | 'textSecondary'
+type ToolToneRole = 'accent' | 'info' | 'textSecondary'
 
-export type ToolFamilyMark = {
+type ToolFamilyMark = {
   glyph: string
   fallback: string
   tone: ToolToneRole

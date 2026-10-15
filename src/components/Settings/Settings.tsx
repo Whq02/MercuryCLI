@@ -18,7 +18,7 @@ import { useElevatedSurface } from '../mercury-ui/useElevatedSurface.js'
 import { useMercuryTokens } from '../mercury-ui/useMercuryTokens.js'
 import { SETTINGS_POPUP_COMPACT_CHROME_ROWS, type SettingsPopupPlacement } from '../SettingsPopupSlot.js'
 
-export type SettingsTabName = 'Status' | 'Config' | 'Usage'
+type SettingsTabName = 'Status' | 'Config' | 'Usage'
 
 let settingsOpens = 0
 export function nextSettingsOpen(): number {
@@ -26,7 +26,7 @@ export function nextSettingsOpen(): number {
   return settingsOpens
 }
 
-export type SettingsPopupFrame = {
+type SettingsPopupFrame = {
   close: (summary?: string) => void
   setLine: (line: string | null) => void
   setHint: (hint: string | null) => void

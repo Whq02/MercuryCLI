@@ -2,9 +2,9 @@
 import { stringWidth } from '../../../ink/stringWidth.js'
 import type { InterviewQuestion } from '../../../services/interview/contracts.js'
 
-export type InterviewLayoutMode = 'side-by-side' | 'stacked' | 'minimal'
+type InterviewLayoutMode = 'side-by-side' | 'stacked' | 'minimal'
 
-export interface InterviewLayout {
+interface InterviewLayout {
   mode: InterviewLayoutMode
   optionPaneWidth: number
   previewContentWidth: number
@@ -13,9 +13,9 @@ export interface InterviewLayout {
   notesInputWidth: number
 }
 
-export const PREVIEW_FRAME_CELLS = 4
-export const PANE_GAP = 2
-export const PREVIEW_CHROME_ROWS = 11
+const PREVIEW_FRAME_CELLS = 4
+const PANE_GAP = 2
+const PREVIEW_CHROME_ROWS = 11
 const MIN_OPTION_PANE = 18
 const MIN_PREVIEW_CONTENT = 24
 const MIN_STACKED_WIDTH = 20

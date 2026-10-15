@@ -9,11 +9,11 @@ import { modelPickerPopupGeometry, modelPickerPopupHost, type ModelPickerPopupHo
 import { PopupGutter, popupWidth } from './PopupGutter.js'
 import { ModalContext } from '../context/modalContext.js'
 
-export const CREW_POPUP_WIDTH = 124
+const CREW_POPUP_WIDTH = 124
 
-export type CrewPopupGeometry = { left: number; top: number; width: number; rows: number }
+type CrewPopupGeometry = { left: number; top: number; width: number; rows: number }
 
-export function crewPopupGeometry(host: ModelPickerPopupHost, terminalRows: number): CrewPopupGeometry {
+function crewPopupGeometry(host: ModelPickerPopupHost, terminalRows: number): CrewPopupGeometry {
   const shared = modelPickerPopupGeometry(host, terminalRows)
   const width = popupWidth(CREW_POPUP_WIDTH, host.columns)
   const left = Math.max(0, Math.floor((host.columns - width) / 2))

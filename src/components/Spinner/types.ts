@@ -5,7 +5,7 @@ export type SpinnerMode =
   | 'tool-use'
   | 'tool-input'
 
-export type RGBColor = {
+type RGBColor = {
   r: number
   g: number
   b: number

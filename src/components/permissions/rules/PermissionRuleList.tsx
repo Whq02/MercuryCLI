@@ -45,7 +45,7 @@ type SubDialog =
   | { kind: 'add-input'; behavior: PermissionBehavior }
   | { kind: 'add-destination'; ruleValues: PermissionRuleValue[]; behavior: PermissionBehavior }
 
-export type PermissionRuleListProps = {
+type PermissionRuleListProps = {
   onExit: LocalJSXCommandOnDone
   initialTab?: TabId
 }

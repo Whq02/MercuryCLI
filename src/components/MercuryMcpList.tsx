@@ -21,7 +21,7 @@ const MAX_ROWS = 12
 
 const RISK_COLOR: Record<string, string> = { low: TEAL, medium: AMBER, high: CRIMSON }
 
-export const MCP_STATE_MARK: Record<McpServerState, { glyph: string; color: string; word: string }> = {
+const MCP_STATE_MARK: Record<McpServerState, { glyph: string; color: string; word: string }> = {
   ready: { glyph: GLYPH.ok, color: TEAL, word: 'ready' },
   starting: { glyph: '◔', color: SECOND, word: 'connecting' },
   'needs-auth': { glyph: '△', color: AMBER, word: 'needs auth' },

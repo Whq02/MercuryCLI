@@ -8,7 +8,7 @@ import { useTerminalSize } from '../hooks/useTerminalSize.js'
 import { useAppState } from '../state/AppState.js'
 import { isTaskToolsEnabled } from '../utils/tasks.js'
 
-export type TaskRowV2 = { id: string; status: 'pending' | 'in_progress' | 'completed'; subject: string; blockedBy?: readonly string[]; owner?: string }
+type TaskRowV2 = { id: string; status: 'pending' | 'in_progress' | 'completed'; subject: string; blockedBy?: readonly string[]; owner?: string }
 import { truncateToWidth } from '../utils/truncate.js'
 
 const RECENT_COMPLETION_MS = 30_000
